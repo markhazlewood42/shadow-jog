@@ -1,0 +1,139 @@
+/** The Sinkline, level B1 — a flooded metro station. The junction drains when the pumps run. */
+import type { MapDef } from '../../field/types';
+import { deadCrew, floodgate, lurkerFight } from '../../story/chapter1';
+import { Grid } from './grid';
+
+const W = 48, H = 38;
+
+// X wall · . floor · t track · w shallow water · ~ deep water · = catwalk · + grate
+const g = new Grid(W, H, 'X')
+  // Concourse
+  .rect(2, 2, 17, 6, '.')
+  // Long platform
+  .rect(2, 8, 28, 2, '.')
+  // Track bed with standing water
+  .rect(2, 10, 28, 4, 't')
+  .rect(4, 12, 3, 2, 'w')
+  .rect(20, 11, 4, 3, 'w')
+  // Stairs up to the junction catwalk
+  .rect(27, 5, 3, 3, '.')
+  // The flooded junction chamber with a catwalk along its north wall
+  .rect(30, 5, 16, 1, '=')
+  .rect(30, 6, 16, 25, '~')
+  // Maintenance corridor south to the pump room
+  .rect(8, 14, 3, 12, '.')
+  .rect(11, 17, 4, 3, '.')
+  .rect(11, 21, 7, 1, '.')
+  .rect(17, 19, 6, 5, '.')
+  // Pump room
+  .rect(3, 26, 14, 7, '.')
+  .rect(6, 28, 2, 2, 'w');
+
+export const sinkline1: MapDef = {
+  id: 'sinkline_1',
+  name: 'The Sinkline · B1',
+  banner: 'THE SINKLINE',
+  bannerSub: 'Flooded since ’61',
+  kind: 'dungeon',
+  terrain: g.rows(),
+  legend: { X: 'd_wall', '.': 'd_floor', t: 'd_track', w: 'd_shallow', '~': 'd_water', '=': 'd_catwalk', '+': 'grate' },
+  ambient: '#3a4668',
+  weather: 'drip',
+  music: 'dungeon',
+  battleBg: 'sewer',
+  entrance: { map: 'world', x: 26, y: 38 },
+  encounters: [{ table: 'sinkline', rate: 19, bg: 'sewer' }],
+  patches: [
+    {
+      when: (f) => !!f.floodgate,
+      rects: [
+        [30, 6, 16, 25, 'w'],
+        [35, 14, 5, 5, '~'],
+        [31, 24, 3, 3, '~'],
+        [42, 9, 3, 3, '~'],
+        [30, 10, 1, 4, 't'],
+        [44, 30, 1, 1, '+'],
+      ],
+    },
+  ],
+  props: [
+    { kind: 'vending', x: 12, y: 2, color: '#3fe0f0' },
+    { kind: 'barrier', x: 3, y: 6, w: 3 },
+    { kind: 'barrier', x: 9, y: 6, w: 3 },
+    { kind: 'sign_post', x: 3, y: 2, text: 'STREET ↑' },
+    { kind: 'sign_post', x: 16, y: 7, text: 'PLATFORM 2' },
+    { kind: 'train', x: 12, y: 10, w: 7 },
+    { kind: 'bench', x: 22, y: 8, w: 2 },
+    { kind: 'trash', x: 18, y: 3 },
+    { kind: 'crates', x: 2, y: 3 },
+    { kind: 'terminal', x: 6, y: 26, color: '#62e06a' },
+    { kind: 'crates', x: 12, y: 27 },
+    { kind: 'body', x: 13, y: 18, color: '#2c3b5e' },
+    { kind: 'body', x: 12, y: 19, color: '#4a2a2a' },
+    { kind: 'body', x: 14, y: 17, color: '#34344a' },
+    { kind: 'crates', x: 22, y: 20 },
+    { kind: 'barrel', x: 15, y: 31, color: '#3a5a4a' },
+    { kind: 'barrel', x: 3, y: 31, color: '#3a5a4a' },
+    { kind: 'ladder', x: 44, y: 30 },
+  ],
+  chests: [
+    { id: 'c1', x: 17, y: 2, item: 'medkit', qty: 2, kind: 'locker' },
+    { id: 'c2', x: 27, y: 12, cred: 160, kind: 'crate' },
+    { id: 'c3', x: 45, y: 5, item: 'taser_pistol', kind: 'case' },
+    { id: 'c4', x: 16, y: 27, item: 'neurotab', qty: 2, kind: 'locker' },
+    { id: 'c5', x: 22, y: 19, item: 'reflex_booster', kind: 'case' },
+    { id: 'c6', x: 45, y: 20, item: 'adrenal_stim', qty: 1, kind: 'locker' },
+    { id: 'c7', x: 3, y: 12, item: 'omni_patch', qty: 1, kind: 'crate' },
+  ],
+  npcs: [
+    { id: 'noodle', x: 20, y: 22, dir: 'left', look: { skin: '#fff', hair: '#fff', hairStyle: 'bald', top: '#fff', accent: '#fff', pants: '#fff', boots: '#fff' }, critter: 'cat', name: 'Noodle', move: 'wander', radius: 1,
+      when: (f) => !f.cat_found,
+      talk: async (s) => {
+        await s.say('Noodle', 'Mrrrp?');
+        await s.say('kit', 'Orange. One ear. You must be Noodle! Mama Ono misses you, you little drain gremlin.', { face: 'happy' });
+        s.set('cat_found');
+        s.despawn('noodle');
+        await s.narrate('Noodle climbs into Kit’s jacket and refuses to leave. {c}Return Noodle to Mama Ono.{/}');
+      },
+    },
+  ],
+  events: [
+    { id: 'automat', x: 12, y: 3, on: 'action', run: async (s) => s.shop('automat') },
+    { id: 'crew', x: 12, y: 17, w: 3, h: 3, on: 'touch', once: true, run: deadCrew },
+    { id: 'pump', x: 6, y: 26, on: 'action', run: floodgate },
+    {
+      id: 'flood_hint', x: 29, y: 8, h: 2, on: 'touch', once: true, when: (f) => !f.floodgate,
+      run: async (s) => {
+        await s.say('hex', 'The tracks run straight into the junction. Which is currently a lake.', { face: 'sad' });
+        await s.say('rook', 'There’s a pump room somewhere down the maintenance corridor. Off the platform, south.');
+      },
+    },
+    { id: 'lurker', x: 34, y: 12, w: 7, h: 9, on: 'touch', once: true, when: (f) => !!f.floodgate && !f.lurker, run: lurkerFight },
+    {
+      id: 'map', x: 8, y: 2, on: 'action', run: async (s) => {
+        await s.narrate('A transit map, water-stained. {c}B1 Platforms{/} · {c}Pump Station{/} · {c}Junction 4{/} · {r}K-M Annex (restricted){/}.');
+      },
+    },
+  ],
+  warps: [
+    { x: 5, y: 1, w: 3, to: 'world', tx: 26, ty: 38, dir: 'down', door: false },
+    {
+      x: 44, y: 30, to: 'annex', tx: 4, ty: 3, dir: 'down',
+      when: (f) => !!f.lurker,
+      blocked: async (s) => s.narrate('A maintenance hatch, rusted shut. Something big has been scraping at it from this side.'),
+    },
+  ],
+  lights: [
+    { x: 6, y: 3, r: 60, color: '#b8d8ff', i: 0.5, flicker: true },
+    { x: 14, y: 3, r: 50, color: '#3fe0f0', i: 0.5 },
+    { x: 8, y: 8, r: 55, color: '#ffd07a', i: 0.55, flicker: true },
+    { x: 18, y: 8, r: 55, color: '#ffd07a', i: 0.45 },
+    { x: 26, y: 8, r: 55, color: '#ffd07a', i: 0.5, flicker: true },
+    { x: 9, y: 20, r: 40, color: '#ff6a5a', i: 0.45, flicker: true },
+    { x: 9, y: 29, r: 70, color: '#62e06a', i: 0.55 },
+    { x: 20, y: 21, r: 40, color: '#ffd07a', i: 0.4 },
+    { x: 38, y: 16, r: 90, color: '#4affb0', i: 0.45 },
+    { x: 38, y: 5, r: 60, color: '#ffd07a', i: 0.4, flicker: true },
+    { x: 44, y: 30, r: 40, color: '#ffcc3d', i: 0.5 },
+  ],
+};

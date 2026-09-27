@@ -220,6 +220,23 @@ const rubble: Painter = (_lx, _ly, wx, wy) => {
   return h < 0.08 ? P.rubbleL : lerpC(P.rubble, P.dirt, 0.4);
 };
 
+/** Heaped scrap: solid junk walls (Rustyard). Face shading where open ground is below. */
+const JUNK_COLS: RGB[] = [C('#3a3d4a'), C('#4a4e5c'), C('#5a3e30'), C('#6a4a36'), C('#2a2c36'), C('#5a5f70'), C('#7a5a3a')];
+const junk: Painter = (lx, ly, wx, wy, tx, ty, q) => {
+  const below = q.at(tx, ty + 1);
+  const n = valueNoise(wx / 5, wy / 5, 201);
+  const h = hash2(Math.floor(wx / 3), Math.floor(wy / 2), 202);
+  let c = JUNK_COLS[Math.floor(h * JUNK_COLS.length)]!;
+  if (n > 0.66) c = lerpC(c, [255, 255, 255], 0.12);
+  if (n < 0.3) c = lerpC(c, [0, 0, 0], 0.35);
+  if (hash2(wx, wy, 203) < 0.02) c = C('#ffcc3d');
+  if (hash2(wx, wy, 204) < 0.012) c = C('#3fe0f0');
+  // Bottom edge darkens where the pile meets open ground.
+  if (below !== 'junk' && ly >= 13) return lerpC(c, [8, 6, 12], (ly - 12) / 4);
+  void lx;
+  return c;
+};
+
 const rail: Painter = (lx, ly, wx, wy, tx, ty, q) => {
   if (lx % 8 < 3 && lx % 8 >= 1) return P.tie;
   if (ly === 4 || ly === 11) return P.rail;
@@ -334,6 +351,14 @@ const labFloor: Painter = (lx, ly) => {
   return P.labFloor;
 };
 
+const labDoor: Painter = (lx, ly) => {
+  if (ly <= 1 || ly >= 14) return P.labSeam;
+  if (lx === 7 || lx === 8) return C('#1a1e28');
+  if (ly === 3 && lx >= 5 && lx <= 10) return C('#ff3a4a');
+  if (lx <= 1 || lx >= 14) return P.labWallD;
+  return ly % 4 === 0 ? P.labWallD : C('#a8b2c0');
+};
+
 // ---- world map
 const wRoad: Painter = (lx, ly, wx, wy) => {
   const h = hash2(wx, wy, 141);
@@ -388,7 +413,7 @@ export const PAINTERS: Record<TerrainId, Painter> = {
   void: solid(P.void),
   asphalt, roadline, crosswalk, sidewalk, alley, puddle, grate, water, bridge, plaza,
   wall: solid(P.wall),
-  dirt, grass, rubble, rail,
+  dirt, grass, rubble, rail, junk,
   floor_wood: floorWood, floor_tile: floorTile, floor_metal: floorMetal, floor_carpet: floorCarpet, floor_concrete: floorConcrete,
   iwall: wallP('iwall', iwallFace, P.iwallTop, P.iwallEdge),
   d_floor: dfloor,
@@ -397,13 +422,14 @@ export const PAINTERS: Record<TerrainId, Painter> = {
   d_track: rail,
   lab_floor: labFloor,
   lab_wall: wallP('lab_wall', labWallFace, P.labTop, P.labEdge),
+  lab_door: labDoor,
   w_ruins: rubble, w_road: wRoad, w_barrens: wBarrens, w_toxic: wToxic, w_park: grass, w_highway: wHighway,
   w_bridge: bridge, w_block: wBlock,
 };
 
 /** Terrain that blocks movement. */
 export const SOLID_TERRAIN = new Set<TerrainId>([
-  'void', 'water', 'wall', 'iwall', 'd_wall', 'd_water', 'lab_wall', 'w_toxic', 'w_highway', 'w_block',
+  'void', 'water', 'wall', 'junk', 'lab_door', 'iwall', 'd_wall', 'd_water', 'lab_wall', 'w_toxic', 'w_highway', 'w_block',
 ]);
 
 /** Terrain with a 3/4 wall face (for lighting / occlusion decisions). */

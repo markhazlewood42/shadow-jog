@@ -100,6 +100,7 @@ export const ITEMS: Record<string, ItemDef> = {
   coprocessor: I({ id: 'coprocessor', name: 'Stingray Coprocessor', kind: 'key', price: 0, desc: 'A decker-grade coprocessor, still in anti-static wrap. For Hex.' }),
   maint_key: I({ id: 'maint_key', name: 'Maintenance Keycard', kind: 'key', price: 0, desc: 'Transit authority card. Opens Sinkline service gates.' }),
   annex_key: I({ id: 'annex_key', name: 'Annex Passkey', kind: 'key', price: 0, desc: 'Kessler-Mori security passkey, lifted from a guard.' }),
+  med_case: I({ id: 'med_case', name: 'Doc Yun’s Med-Case', kind: 'key', price: 0, desc: 'A battered surgical case stamped YUN. Somebody at the clinic wants this back.' }),
   pale_chip: I({ id: 'pale_chip', name: 'Job Chip', kind: 'key', price: 0, desc: 'Mr. Pale\'s job details. Target: data core, K-M Annex 7, under the Sinkline.' }),
 
   // ------------------------------------------------------------------ loot (sell only)

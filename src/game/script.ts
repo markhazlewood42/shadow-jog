@@ -71,6 +71,8 @@ export interface ScriptApi {
   savePrompt(): Promise<void>;
   /** Show an item/tutorial hint card. */
   tutorial(title: string, body: string): Promise<void>;
+  /** Rebuild the current map (after a flag changes its terrain). */
+  refreshMap(): void;
   /** Mark an objective (shown in the menu). */
   objective(text: string): void;
 }

@@ -463,6 +463,199 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     b.g.fillStyle = '#2a2830'; b.g.fillRect(x + 1, y + 8, 8, 1); b.g.fillRect(x + 1, y + 10, 6, 1);
   },
 
+  window(b, p) {
+    // A window on an interior wall face: the night city through rain-streaked glass.
+    const x = p.x * TS + 1, y = p.y * TS + 2;
+    const w = (p.w ?? 1) * TS - 2, h = 11;
+    b.g.fillStyle = '#0f0e17';
+    b.g.fillRect(x - 1, y - 1, w + 2, h + 2);
+    b.both((c) => {
+      const grd = c.createLinearGradient(0, y, 0, y + h);
+      grd.addColorStop(0, '#120c2a');
+      grd.addColorStop(1, '#3a1a48');
+      c.fillStyle = grd;
+      c.fillRect(x, y, w, h);
+      for (let i = 0; i < w; i += 3) {
+        const bh = 3 + ((i * 7) % 6);
+        c.fillStyle = '#1a1030';
+        c.fillRect(x + i, y + h - bh, 3, bh);
+        if ((i * 13) % 5 < 3) {
+          c.fillStyle = ['#ffd98a', '#8ad8ff', '#ff8ad0'][(i >> 1) % 3]!;
+          c.fillRect(x + i + 1, y + h - bh + 1, 1, 1);
+        }
+      }
+    });
+    b.g.fillStyle = '#3a3448';
+    b.g.fillRect(x + Math.floor(w / 2), y, 1, h);
+    b.anims.push({
+      x, y, w, h,
+      draw: (c, f, ox, oy) => {
+        c.fillStyle = '#9ab0e0';
+        c.globalAlpha = 0.5;
+        for (let i = 0; i < 3; i++) {
+          const rx = x + ((i * 5 + (f >> 3)) % w) - ox;
+          const ry = y + ((f * 0.5 + i * 7) % h) - oy;
+          c.fillRect(Math.round(rx), Math.round(ry), 1, 2);
+        }
+        c.globalAlpha = 1;
+      },
+    });
+    b.lights.push({ x: x + w / 2, y: y + 16, r: 22, color: '#8a6ad8', i: 0.35 });
+  },
+
+  train(b, p) {
+    const w = p.w ?? 8;
+    blockFoot(b, p, w, 2);
+    const W = w * TS;
+    const { x, y } = tall(b, { ...p, w, h: 2 }, W, 40, (c, e) => {
+      c.fillStyle = '#0f0e17'; c.fillRect(0, 2, W, 38);
+      c.fillStyle = '#6a7080'; c.fillRect(1, 3, W - 2, 30);
+      c.fillStyle = '#8a90a0'; c.fillRect(1, 3, W - 2, 2);
+      c.fillStyle = '#4a4e5c'; c.fillRect(1, 26, W - 2, 7);
+      c.fillStyle = '#b89a3a'; c.fillRect(1, 24, W - 2, 2);
+      // Rust and water line
+      for (let i = 0; i < W; i += 7) { c.fillStyle = i % 14 ? '#6a4a36' : '#5a3e30'; c.fillRect(i, 28 + (i % 3), 5, 4); }
+      c.fillStyle = '#2a3a3a'; c.fillRect(1, 30, W - 2, 3);
+      // Windows, a few still flickering
+      for (let i = 6; i < W - 10; i += 14) {
+        c.fillStyle = '#0f1822'; c.fillRect(i, 9, 10, 10);
+        if ((i / 14) % 3 === 1) both(c, e, (k) => { k.fillStyle = '#9ad8ff'; k.globalAlpha = 0.6; k.fillRect(i + 1, 10, 8, 8); k.globalAlpha = 1; });
+        else { c.fillStyle = '#1a2a36'; c.fillRect(i + 1, 10, 3, 2); }
+      }
+      // Doors
+      c.fillStyle = '#3a3e4a'; c.fillRect(W / 2 - 6, 8, 12, 18);
+      c.fillStyle = '#0f0e17'; c.fillRect(W / 2, 8, 1, 18);
+      c.fillStyle = '#3fe0f0'; c.fillRect(4, 5, 12, 2);
+    });
+    b.lights.push({ x: x + W / 2, y: y + 14, r: 40, color: '#9ad8ff', i: 0.35, flicker: true });
+  },
+
+  tank(b, p) {
+    blockFoot(b, p);
+    const col = p.color ?? '#4affb0';
+    const { x, y } = tall(b, p, 16, 32, (c, e) => {
+      c.fillStyle = '#0f0e17'; c.fillRect(1, 0, 14, 32);
+      c.fillStyle = '#5a6070'; c.fillRect(2, 1, 12, 3); c.fillRect(2, 27, 12, 4);
+      both(c, e, (k) => {
+        k.fillStyle = shade(col, -0.45); k.fillRect(3, 4, 10, 23);
+        k.fillStyle = shade(col, -0.1); k.fillRect(3, 4, 2, 23);
+        k.globalAlpha = 0.5; k.fillStyle = col;
+        for (let i = 6; i < 26; i += 5) k.fillRect(6 + (i % 3), i, 1, 1);
+        k.globalAlpha = 1;
+      });
+      // Floating silhouette
+      c.fillStyle = shade(col, -0.75);
+      c.fillRect(6, 9, 4, 4); c.fillRect(5, 13, 6, 8); c.fillRect(6, 21, 2, 4); c.fillRect(8, 21, 2, 4);
+      e.fillStyle = shade(col, -0.75); e.fillRect(6, 9, 4, 4); e.fillRect(5, 13, 6, 8);
+    });
+    b.lights.push({ x: x + 8, y: y + 16, r: 34, color: col, i: 0.6 });
+  },
+
+  cryopod(b, p) {
+    const w = p.w ?? 2;
+    blockFoot(b, p, w, 1);
+    const { x, y } = tall(b, { ...p, w }, w * TS, 40, (c, e) => {
+      const W = w * TS;
+      c.fillStyle = '#0f0e17'; c.fillRect(2, 0, W - 4, 40);
+      c.fillStyle = '#c8d0dc'; c.fillRect(3, 1, W - 6, 5); c.fillRect(3, 34, W - 6, 5);
+      c.fillStyle = '#8a92a0'; c.fillRect(3, 5, W - 6, 1);
+      both(c, e, (k) => {
+        const grd = k.createLinearGradient(0, 6, 0, 34);
+        grd.addColorStop(0, '#9ad8ff');
+        grd.addColorStop(1, '#3a6a9a');
+        k.fillStyle = grd; k.fillRect(4, 6, W - 8, 28);
+        k.fillStyle = '#e6f6ff'; k.globalAlpha = 0.5;
+        for (let i = 0; i < 14; i++) k.fillRect(5 + ((i * 7) % (W - 10)), 7 + ((i * 11) % 26), 2, 1);
+        k.globalAlpha = 1;
+      });
+      // The sleeper: bone-white hair, green skin.
+      c.fillStyle = '#e8e4da'; c.fillRect(W / 2 - 4, 9, 8, 6); c.fillRect(W / 2 - 5, 12, 2, 10); c.fillRect(W / 2 + 3, 12, 2, 10);
+      c.fillStyle = '#8a9a6a'; c.fillRect(W / 2 - 3, 12, 6, 5);
+      c.fillStyle = '#6a2a30'; c.fillRect(W / 2 - 4, 17, 8, 12);
+      e.fillStyle = '#e8e4da'; e.globalAlpha = 0.6; e.fillRect(W / 2 - 4, 9, 8, 6); e.globalAlpha = 1;
+      c.fillStyle = '#ff3a4a'; c.fillRect(W / 2 - 2, 36, 4, 1);
+    });
+    b.lights.push({ x: x + w * 8, y: y + 20, r: 60, color: '#9ad8ff', i: 0.8, flicker: true });
+  },
+
+  body(b, p) {
+    const x = p.x * TS, y = p.y * TS;
+    const g = b.g;
+    ellipse(g, x + 8, y + 11, 7, 3, 'rgba(20,6,10,0.55)');
+    g.fillStyle = '#0f0e17'; g.fillRect(x + 2, y + 5, 12, 7);
+    g.fillStyle = p.color ?? '#2c3b5e'; g.fillRect(x + 3, y + 6, 10, 5);
+    g.fillStyle = '#c28a64'; g.fillRect(x + 11, y + 5, 3, 3);
+    g.fillStyle = '#1a1418'; g.fillRect(x + 11, y + 4, 3, 1);
+    b.both((c) => { c.fillStyle = '#3fe0f0'; c.fillRect(x + 4, y + 12, 3, 2); });
+  },
+
+  ladder(b, p) {
+    const x = p.x * TS, y = p.y * TS;
+    b.g.fillStyle = '#0a0a10'; b.g.fillRect(x + 2, y + 2, 12, 12);
+    b.g.fillStyle = '#6a6e7c';
+    b.g.fillRect(x + 3, y + 1, 1, 14); b.g.fillRect(x + 12, y + 1, 1, 14);
+    for (let i = 3; i < 15; i += 3) b.g.fillRect(x + 3, y + i, 10, 1);
+    b.both((c) => { c.fillStyle = '#ffcc3d'; c.fillRect(x + 2, y + 1, 12, 1); });
+  },
+
+  tent(b, p) {
+    const w = p.w ?? 2;
+    blockFoot(b, p, w, 1);
+    const col = p.color ?? '#6a5a3a';
+    const { x, y } = tall(b, { ...p, w }, w * TS + 4, 28, (c, e) => {
+      const W = w * TS + 4;
+      c.fillStyle = '#0f0e17';
+      c.beginPath(); c.moveTo(0, 28); c.lineTo(W / 2, 2); c.lineTo(W, 28); c.fill();
+      c.fillStyle = col;
+      c.beginPath(); c.moveTo(2, 27); c.lineTo(W / 2, 4); c.lineTo(W - 2, 27); c.fill();
+      c.fillStyle = shade(col, -0.3);
+      c.beginPath(); c.moveTo(W / 2, 4); c.lineTo(W - 2, 27); c.lineTo(W / 2 + 2, 27); c.fill();
+      c.fillStyle = shade(col, 0.2);
+      for (let i = 6; i < 26; i += 5) c.fillRect(W / 2 - i / 2, 4 + i, 2, 1);
+      both(c, e, (k) => { k.fillStyle = '#ffb45a'; k.fillRect(W / 2 - 3, 18, 6, 9); });
+      c.fillStyle = '#3a2418'; c.fillRect(W / 2 - 3, 18, 1, 9);
+    });
+    b.lights.push({ x: x + (w * TS + 4) / 2, y: y + 24, r: 30, color: '#ffb45a', i: 0.6 });
+  },
+
+  tires(b, p) {
+    blockFoot(b, p);
+    tall(b, p, 16, 20, (c) => {
+      for (let i = 0; i < 3; i++) {
+        const yy = 14 - i * 5;
+        c.fillStyle = '#0f0e17'; c.fillRect(1, yy - 1, 14, 7);
+        c.fillStyle = '#26242c'; c.fillRect(2, yy, 12, 5);
+        c.fillStyle = '#3a3842'; c.fillRect(2, yy, 12, 1);
+        c.fillStyle = '#121016'; c.fillRect(5, yy + 1, 6, 2);
+      }
+    });
+  },
+
+  lampfloor(b, p) {
+    blockFoot(b, p);
+    const col = p.color ?? '#ffcf7a';
+    const { x, y } = tall(b, p, 10, 26, (c, e) => {
+      c.fillStyle = '#0f0e17'; c.fillRect(4, 8, 2, 18); c.fillRect(2, 24, 6, 2);
+      c.fillStyle = '#3a3040'; c.fillRect(4, 8, 1, 16);
+      both(c, e, (k) => { k.fillStyle = col; k.fillRect(1, 1, 8, 7); k.fillStyle = mix(col, '#fff', 0.5); k.fillRect(2, 2, 6, 2); });
+      c.fillStyle = '#0f0e17'; c.fillRect(0, 0, 10, 1); c.fillRect(0, 8, 10, 1);
+    });
+    b.lights.push({ x: x + 5, y: y + 10, r: 56, color: col, i: 0.9 });
+  },
+
+  sign_board(b, p) {
+    // Wall-mounted job board / notice board (flat, on a wall face).
+    const x = p.x * TS + 1, y = p.y * TS + 1;
+    const w = (p.w ?? 1) * TS - 2;
+    b.g.fillStyle = '#0f0e17'; b.g.fillRect(x - 1, y - 1, w + 2, 14);
+    b.g.fillStyle = '#4a3a30'; b.g.fillRect(x, y, w, 12);
+    for (let i = 0; i < w - 4; i += 5) {
+      b.g.fillStyle = ['#e8e0cc', '#ffe07a', '#9ad8ff'][(i / 5) % 3]!;
+      b.g.fillRect(x + 2 + i, y + 2 + ((i * 3) % 4), 4, 5);
+    }
+    b.both((c) => { c.fillStyle = '#ff4fb0'; c.fillRect(x + 1, y + 11, w - 2, 1); });
+  },
+
   // -------------------------------------------------------------- interior furniture
   counter(b, p) {
     const w = p.w ?? 1;

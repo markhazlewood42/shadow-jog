@@ -27,10 +27,12 @@ const DASH = 7;
 const mapCache = new Map<string, FieldMap>();
 
 function loadMap(id: string): FieldMap {
-  let m = mapCache.get(id);
+  const def = getMap(id);
+  const sig = id + ':' + (def.patches ?? []).map((p) => (p.when(state.flags) ? 1 : 0)).join('');
+  let m = mapCache.get(sig);
   if (!m) {
-    m = new FieldMap(getMap(id));
-    mapCache.set(id, m);
+    m = new FieldMap(def);
+    mapCache.set(sig, m);
   }
   return m;
 }
@@ -85,6 +87,7 @@ export class FieldScene extends Scene<void> {
     state.y = y;
     state.dir = dir;
     if (this.def.town) state.lastTown = { map: mapId, x, y };
+    if (this.def.entrance) state.lastEntrance = { ...this.def.entrance };
     this.lighting.ambient = this.def.ambient;
     this.weather.set(this.def.weather ?? 'none');
     this.buildParty(x, y, dir);
@@ -115,6 +118,7 @@ export class FieldScene extends Scene<void> {
     for (const n of this.def.npcs ?? []) {
       if (n.when && !n.when(state.flags)) continue;
       const a = new Actor(n.id, n.look, n.x, n.y, n.dir ?? 'down');
+      if (n.critter) a.useCritter(n.critter);
       a.npc = n;
       a.idle = this.rng.int(30, 120);
       this.npcs.push(a);
@@ -321,7 +325,7 @@ export class FieldScene extends Scene<void> {
     let tx = l.x + dx, ty = l.y + dy;
     // Talk across counters.
     const counterAhead = (this.def.props ?? []).some(
-      (p) => (p.kind === 'counter' || p.kind === 'bar') && tx >= p.x && tx < p.x + (p.w ?? 1) && ty === p.y,
+      (p) => (p.kind === 'counter' || p.kind === 'bar' || p.kind === 'table' || p.kind === 'stall') && tx >= p.x && tx < p.x + (p.w ?? 1) && ty === p.y,
     );
     let npc = this.actorAt(tx, ty);
     if (!npc && counterAhead) {
@@ -691,6 +695,12 @@ export class FieldScene extends Scene<void> {
     endChapter: async () => { await fieldHooks.endChapter?.(this); },
     savePrompt: async () => { await fieldHooks.savePrompt?.(this); },
     tutorial: async (title, body) => { await fieldHooks.tutorial?.(this, title, body); },
+    refreshMap: () => {
+      const l = this.leader;
+      const followers = this.followersVisible;
+      this.load(this.def.id, l.x, l.y, l.dir);
+      this.followersVisible = followers;
+    },
     objective: (text) => {
       this.objectiveText = text;
       flags.set('objective', text);

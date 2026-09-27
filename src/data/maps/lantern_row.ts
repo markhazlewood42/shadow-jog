@@ -1,6 +1,12 @@
 /** Lantern Row — the hub district. Night, rain, neon. */
-import type { MapDef } from '../../field/types';
+import type { MapDef, NpcDef } from '../../field/types';
+import { firstFight } from '../../story/chapter1';
+import { LOOKS, randomLook } from '../looks';
 import { Grid } from './grid';
+
+const ped = (id: string, x: number, y: number, seed: number, lines: string[], move: NpcDef['move'] = 'wander', dir: NpcDef['dir'] = 'down'): NpcDef => ({
+  id, x, y, dir, look: randomLook(seed), name: 'Local', move, radius: 3, talk: lines,
+});
 
 const W = 56, H = 40;
 
@@ -139,6 +145,72 @@ export const lanternRow: MapDef = {
     { x: 36, y: 17, r: 60, color: '#ff8a4a', i: 0.35 },
   ],
   warps: [
-    { x: 55, y: 9, h: 5, to: 'world', tx: 12, ty: 14, dir: 'right', door: false },
+    { x: 55, y: 9, h: 5, to: 'world', tx: 13, ty: 22, dir: 'right', door: false },
+    { x: 4, y: 6, to: 'clinic', tx: 7, ty: 8, dir: 'up' },
+    { x: 12, y: 6, to: 'armory', tx: 7, ty: 8, dir: 'up' },
+    { x: 22, y: 6, to: 'bar', tx: 11, ty: 12, dir: 'up' },
+    { x: 32, y: 6, to: 'hotel', tx: 8, ty: 8, dir: 'up' },
+    { x: 40, y: 6, to: 'threads', tx: 7, ty: 8, dir: 'up' },
+    { x: 6, y: 22, to: 'kwikmart', tx: 7, ty: 8, dir: 'up' },
+    { x: 4, y: 31, to: 'rook_flat', tx: 6, ty: 8, dir: 'up' },
+    { x: 11, y: 31, to: 'hex_den', tx: 7, ty: 9, dir: 'up' },
+    { x: 44, y: 31, to: 'noodles', tx: 7, ty: 8, dir: 'up' },
+    {
+      x: 49, y: 22, to: 'lantern_row', tx: 49, ty: 23, when: () => false,
+      blocked: async (s) => s.narrate('A note on the shutter: {c}"NIX AUTO — CLOSED. GONE FISHING. DON’T STEAL ANYTHING."{/}'),
+    },
+  ],
+  npcs: [
+    {
+      id: 'km_cop', x: 3, y: 11, dir: 'right', look: LOOKS.corpsec, name: 'K-M Civic Security', fixedDir: false,
+      talk: [
+        'Lower Wards Access Point Seven is closed by order of Kessler-Mori Civic Security.',
+        'Registered residents may apply for a transit waiver. Processing time: six to eighteen months. Move along.',
+      ],
+    },
+    ped('p1', 20, 23, 11, ['The lanterns are for the Drowned Festival. Every year we light one for everyone the flood took. Lot of lanterns.']),
+    ped('p2', 33, 24, 12, ['Kessler-Mori says magic is a "resource". My grandma says it’s a gift. My grandma also says the moon is a K-M satellite.']),
+    ped('p3', 24, 28, 13, ['Heading to the Rustyard? Go east out of the Row, follow the old highway, then cut across the Barrens. Watch for scrap hounds.']),
+    ped('p4', 38, 29, 14, ['You look like runners. Runners always look tired and a little bit on fire.']),
+    ped('p5', 10, 8, 15, ['The Sinkline station’s south of here, across the canal. Folks say the water down there moves by itself.'], 'wander'),
+    ped('p6', 45, 14, 16, ['Watch yourself east of here. Rustfangs have been collecting "tolls" on anyone walking alone.'], 'wander'),
+    ped('p7', 30, 8, 17, ['If you’ve got a shaman friend and a decker friend, have ’em try working together. Spirits love a power surge. Or so I hear.'], 'wander'),
+    ped('p8', 16, 33, 18, ['Autocabs will take you back to town from anywhere on the street. Cab Vouchers at the Kwik-Mart. Worth every cred.'], 'static', 'down'),
+    {
+      id: 'skewer', x: 19, y: 17, dir: 'down', look: randomLook(40), name: 'Skewer Vendor', fixedDir: true,
+      talk: ['Rat-on-a-stick! Not glowrat, no no. Regular rat. Organic! Very fresh!'],
+    },
+    {
+      id: 'junk', x: 32, y: 17, dir: 'down', look: LOOKS.mags, name: 'Junk Dealer', fixedDir: true,
+      talk: ['Decks, chips, parts! You want a coprocessor? Ha! For those, try Old Mags out in the Rustyard. She gets the good salvage.'],
+    },
+    {
+      id: 'fetish', x: 35, y: 25, dir: 'down', name: 'Charm Seller', fixedDir: true,
+      look: { skin: '#8a9a6a', hair: '#e8e4da', hairStyle: 'long', top: '#6a3fa0', inner: '#3a2a24', accent: '#d9b36c', pants: '#4a3a30', boots: '#2a2020', accessories: ['tusks'] },
+      talk: [
+        'Charms against spirits, charms against corps. The corp ones don’t work, but they make people feel better.',
+        'You smell of something waking, girl. Careful. Kessler-Mori pays well for people who smell like that.',
+      ],
+    },
+    { id: 'kids', x: 26, y: 26, dir: 'up', look: randomLook(55), name: 'Kid', move: 'wander', radius: 2, talk: ['I’m gonna be a street samurai when I grow up. Or a dentist. Dentists get chrome too.'] },
+  ],
+  events: [
+    { id: 'first_fight', x: 15, y: 16, w: 26, h: 1, on: 'touch', once: true, when: (f) => !!f.intro && !f.first_fight, run: firstFight },
+    {
+      id: 'barricade', x: 2, y: 9, h: 5, on: 'touch', run: async (s) => {
+        await s.say('K-M Civic Security', 'Halt. Access Point Seven is closed. Turn around, citizen.');
+        await s.move('player', 'r');
+      },
+    },
+    {
+      id: 'terminal', x: 15, y: 22, on: 'action', run: async (s) => {
+        await s.narrate('{c}PUBLIC TERMINAL{/} · "Lantern Row. Saltreach Lower Wards. Population: unknown. Flood level: manageable. Have a K-M day."');
+      },
+    },
+    {
+      id: 'canal', x: 0, y: 33, w: 56, on: 'action', run: async (s) => {
+        await s.narrate('The canal is black and slow. Lantern light floats on it like spilled paint.');
+      },
+    },
   ],
 };

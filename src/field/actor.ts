@@ -1,6 +1,7 @@
 /** Field actors: party members and NPCs moving tile-to-tile with smooth interpolation. */
 import { buildChar, walkFrame, type CharLook, type CharSprite, type Dir } from '../art/chars';
 import type { NpcDef } from './types';
+import { critterSprite, type Critter } from '../art/critters';
 import { TS } from './tiles';
 
 export const DIRS: Record<Dir, [number, number]> = {
@@ -64,6 +65,10 @@ export class Actor {
     this.py = y * TS + 15;
     this.dir = dir;
     this.home = [x, y];
+  }
+
+  useCritter(kind: Critter): void {
+    this.sprite = critterSprite(kind);
   }
 
   setLook(look: CharLook): void {

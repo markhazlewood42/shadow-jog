@@ -11,7 +11,7 @@ export async function newGame(game: Game): Promise<void> {
   state.cred = 150;
   state.inventory = { medkit: 3 };
   game.playFrames = 0;
-  state.map = 'lantern_row';
-  void game.reset(new FieldScene('lantern_row', 26, 15, 'down'));
-  await game.fadeIn(40);
+  state.map = 'rook_flat';
+  // The flat's onEnter-style intro event handles the cold open and fades in.
+  void game.reset(new FieldScene('rook_flat', 5, 5, 'down'));
 }

@@ -16,6 +16,8 @@ import { CardScene } from '../scenes/card';
 import type { FieldScene } from '../scenes/field';
 import { GameOverScene } from '../scenes/gameover';
 import { MenuScene } from '../scenes/menu';
+import { PanelScene } from '../scenes/panels';
+import { EndingScene } from '../scenes/ending';
 import { SaveScene } from '../scenes/saveload';
 import { ShopScene } from '../scenes/shop';
 import { fieldHooks } from './hooks';
@@ -171,6 +173,23 @@ export function installSystems(game: Game, h: SystemHandlers): void {
     await game.run(new CardScene(title, body));
   };
 
+  fieldHooks.panels = async (_f, id) => {
+    await game.fadeOut(20);
+    const p = game.run(new PanelScene(id));
+    await game.fadeIn(20);
+    await p;
+    await game.fadeOut(20);
+  };
+
+  fieldHooks.endChapter = async () => {
+    flags.set('chapter_end');
+    await game.run(new PanelScene('ending'));
+    await game.fadeIn(20);
+    await game.run(new EndingScene(game.playFrames));
+    await game.fadeOut(40);
+    handlers!.toTitle();
+  };
+
   fieldHooks.openMenu = (f) => {
     void f.runScript(async () => {
       const r = await game.run(new MenuScene(true));
@@ -257,7 +276,9 @@ export async function runBattle(
     return 'lose';
   }
   popMusic();
-  // Poison persists on the field: nudge the player the first time.
+  // Rustfang bounty tally (job board).
+  const gangs = ['rustfang_punk', 'rustfang_slinger'].reduce((n, k) => n + (state.bestiary[k] ?? 0) - (snapshot.bestiary[k] ?? 0), 0);
+  if (gangs > 0) flags.inc('rustfangs', gangs);
   return result;
 }
 

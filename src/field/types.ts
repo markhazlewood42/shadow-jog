@@ -4,11 +4,11 @@ import type { ScriptFn } from '../game/script';
 
 export type TerrainId =
   | 'void' | 'asphalt' | 'roadline' | 'crosswalk' | 'sidewalk' | 'alley' | 'puddle' | 'grate' | 'water' | 'bridge'
-  | 'wall' | 'plaza' | 'dirt' | 'grass' | 'rubble' | 'rail'
+  | 'wall' | 'plaza' | 'dirt' | 'grass' | 'rubble' | 'rail' | 'junk'
   // interiors
   | 'floor_wood' | 'floor_tile' | 'floor_metal' | 'floor_carpet' | 'floor_concrete' | 'iwall'
   // dungeon
-  | 'd_floor' | 'd_wall' | 'd_water' | 'd_shallow' | 'd_catwalk' | 'd_track' | 'lab_floor' | 'lab_wall'
+  | 'd_floor' | 'd_wall' | 'd_water' | 'd_shallow' | 'd_catwalk' | 'd_track' | 'lab_floor' | 'lab_wall' | 'lab_door'
   // world map
   | 'w_ruins' | 'w_road' | 'w_barrens' | 'w_toxic' | 'w_park' | 'w_highway' | 'w_bridge' | 'w_block';
 
@@ -52,7 +52,8 @@ export type PropKind =
   | 'bench' | 'stall' | 'pillar' | 'tree' | 'planter' | 'terminal' | 'pipe_v' | 'steam' | 'barrier' | 'cone'
   | 'holo' | 'poster' | 'counter' | 'shelf' | 'bed' | 'table' | 'stool' | 'couch' | 'plant' | 'screen'
   | 'capsule' | 'bar' | 'rack' | 'desk' | 'pod' | 'server' | 'tank' | 'fence' | 'sandbags' | 'tent' | 'pylon'
-  | 'catwalk_rail' | 'train' | 'valve' | 'cryopod' | 'door_lab' | 'jukebox' | 'arcade' | 'sign_post' | 'bollard';
+  | 'catwalk_rail' | 'train' | 'valve' | 'cryopod' | 'door_lab' | 'jukebox' | 'arcade' | 'sign_post' | 'bollard'
+  | 'window' | 'lampfloor' | 'sign_board' | 'tires' | 'body' | 'ladder';
 
 export interface PropDef {
   kind: PropKind;
@@ -94,6 +95,8 @@ export interface NpcDef {
   when?: (flags: Record<string, unknown>) => boolean;
   /** Doesn't turn to face the player (e.g. busy cook). */
   fixedDir?: boolean;
+  /** Animal sprite instead of a character look. */
+  critter?: 'cat' | 'crow';
   /** Enemy-like sprite key instead of a character look. */
 }
 
@@ -178,4 +181,8 @@ export interface MapDef {
   town?: boolean;
   /** Default battle background for fights on this map. */
   battleBg?: string;
+  /** Terrain rewrites applied when a condition holds (e.g. a drained junction). */
+  patches?: { when: (flags: Record<string, unknown>) => boolean; rects: [number, number, number, number, string][] }[];
+  /** Dungeon entrance point for Getaway Chits (tile in the parent map). */
+  entrance?: { map: string; x: number; y: number };
 }

@@ -5,6 +5,7 @@ import type { Game } from './engine/game';
 import { FontTestScene } from './scenes/fonttest';
 import { CharTestScene } from './scenes/chartest';
 import { BestiaryTestScene } from './scenes/bestiarytest';
+import { PortraitTestScene } from './scenes/portraittest';
 import { FieldScene } from './scenes/field';
 import { state, type MemberId } from './game/state';
 import { BattleScene } from './scenes/battle';
@@ -60,6 +61,9 @@ export function boot(game: Game, display: Display): void {
       void run();
       break;
     }
+    case 'portraits':
+      void game.run(new PortraitTestScene(params.get('faces')?.split(',')));
+      break;
     case 'bestiary':
       void game.run(new BestiaryTestScene(Number(params.get('page') ?? 0)));
       break;

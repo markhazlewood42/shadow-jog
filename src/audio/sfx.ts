@@ -146,6 +146,10 @@ const S: Record<string, Maker> = {
     noise(c, t, 0.4, 0.1, o, 'highpass', 2000, 8000);
   },
   combo_ready: (c, o, t) => notes(c, 'triangle', [1319, 1760, 2349], 0.04, 0.12, 0.06, o, t),
+  explosion: (c, o, t) => {
+    noise(c, t, 1.2, 0.35, o, 'lowpass', 3000, 80);
+    osc(c, 'sine', 90, 30, t, 0.8, 0.4, o);
+  },
   levelup: (c, o, t) => notes(c, 'square', [523, 659, 784, 1047, 784, 1047], 0.07, 0.14, 0.06, o, t),
 };
 

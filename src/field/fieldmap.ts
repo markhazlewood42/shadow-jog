@@ -7,6 +7,9 @@ import { paintBuilding } from './buildings';
 import { paintProp } from './props';
 import { isWater, paintTerrain, SOLID_TERRAIN, TS } from './tiles';
 import type { MapDef, TerrainId } from './types';
+import { state } from '../game/state';
+
+const flagsNow = () => state.flags as Record<string, unknown>;
 
 export const DEFAULT_LEGEND: Record<string, TerrainId> = {
   ' ': 'void',
@@ -54,10 +57,15 @@ export class FieldMap {
     this.h = def.terrain.length;
     this.w = Math.max(...def.terrain.map((r) => r.length));
     const legend = { ...DEFAULT_LEGEND, ...def.legend };
+    const rows = def.terrain.map((r) => r.split(''));
+    for (const patch of def.patches ?? []) {
+      if (!patch.when(flagsNow())) continue;
+      for (const [px, py, pw, ph, ch] of patch.rects) for (let y = py; y < py + ph; y++) for (let x = px; x < px + pw; x++) if (rows[y]) rows[y]![x] = ch;
+    }
     this.terrain = new Array(this.w * this.h);
     this.solid = new Uint8Array(this.w * this.h);
     for (let y = 0; y < this.h; y++) {
-      const row = def.terrain[y]!;
+      const row = rows[y]!;
       for (let x = 0; x < this.w; x++) {
         const ch = row[x] ?? ' ';
         const id = legend[ch] ?? 'void';
