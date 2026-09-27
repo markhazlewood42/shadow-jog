@@ -3,7 +3,7 @@
  * they share the party's pixel scale; creatures are painted procedurally with the Pix kit.
  */
 import { buildChar, type CharLook } from './chars';
-import { Pix } from './pix';
+import { Pix, scale2x } from './pix';
 import { surface } from '../engine/canvas';
 import { mix, shade } from '../engine/color';
 
@@ -38,9 +38,9 @@ function rigArt(look: CharLook, extra?: (p: Pix, w: number, h: number) => void, 
   if (glowFn) {
     const g = new Pix(w, h);
     glowFn(g);
-    glow = g.toCanvas();
+    glow = scale2x(g.toCanvas());
   }
-  return { canvas, glow, idle: 'breathe', shadow: 14 };
+  return { canvas: scale2x(canvas), glow, idle: 'breathe', shadow: 26 };
 }
 
 const HUMANS: Record<string, () => EnemyArt> = {
@@ -143,14 +143,20 @@ const HUMANS: Record<string, () => EnemyArt> = {
 };
 
 // ------------------------------------------------------------------ creatures
+/** Resolution multiplier for the creature being built (see SCALE). */
+let K = 1;
+const P = (w: number, h: number) => new Pix(w, h, K);
+const SCALE: Record<string, number> = {
+  rat: 1.4, hound: 1.6, drone: 1.6, wisp: 1.7, crab: 1.6, maint: 1.6, shade: 1.7, eel: 1.6, turret: 1.7, hunter: 1.6, bound: 1.7, lurker: 1.15,
+};
 function art(p: Pix, idle: EnemyArt['idle'], shadow: number, glow?: Pix): EnemyArt {
   p.outline();
-  return { canvas: p.toCanvas(), glow: glow?.toCanvas(), idle, shadow };
+  return { canvas: p.toCanvas(), glow: glow?.toCanvas(), idle, shadow: Math.round(shadow * p.k) };
 }
 
 const CREATURES: Record<string, () => EnemyArt> = {
   rat: () => {
-    const p = new Pix(22, 16), g = new Pix(22, 16);
+    const p = P(22, 16), g = P(22, 16);
     p.limb([[18, 11], [20, 8], [21, 4]], 1, 0.6, '#b07080');
     p.ball(12, 10, 7, 4.5, '#6a5a60');
     p.ball(5, 9, 4, 3.5, '#6a5a60');
@@ -164,7 +170,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'breathe', 12, g);
   },
   hound: () => {
-    const p = new Pix(32, 26), g = new Pix(32, 26);
+    const p = P(32, 26), g = P(32, 26);
     // Legs
     p.limb([[9, 16], [8, 21], [9, 24]], 1.6, 1.2, '#4a4e5c');
     p.limb([[13, 16], [14, 21], [13, 24]], 1.6, 1.2, '#5a5f70');
@@ -190,7 +196,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'breathe', 22, g);
   },
   drone: () => {
-    const p = new Pix(28, 20), g = new Pix(28, 20);
+    const p = P(28, 20), g = P(28, 20);
     // Arms
     p.line(5, 7, 12, 10, '#3a3d48', 2);
     p.line(23, 7, 16, 10, '#3a3d48', 2);
@@ -219,7 +225,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'hover', 0, g);
   },
   wisp: () => {
-    const p = new Pix(26, 32), g = new Pix(26, 32);
+    const p = P(26, 32), g = P(26, 32);
     p.ball(13, 20, 8, 8, '#5a5068');
     p.ball(12, 12, 7, 7, '#6a6080');
     p.ball(16, 8, 5, 5, '#7a7090');
@@ -238,7 +244,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'flicker', 0, g);
   },
   crab: () => {
-    const p = new Pix(36, 24), g = new Pix(36, 24);
+    const p = P(36, 24), g = P(36, 24);
     // Legs
     for (const x of [8, 12, 24, 28]) p.limb([[x, 15], [x + (x < 18 ? -3 : 3), 20], [x + (x < 18 ? -4 : 4), 23]], 1.2, 0.8, '#6a3420');
     // Claws
@@ -265,7 +271,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'breathe', 26, g);
   },
   maint: () => {
-    const p = new Pix(30, 26), g = new Pix(30, 26);
+    const p = P(30, 26), g = P(30, 26);
     // Treads
     p.rect(3, 19, 22, 5, '#2a2c34');
     for (let x = 4; x < 25; x += 3) p.set(x, 21, '#5a5f70');
@@ -292,7 +298,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'breathe', 24, g);
   },
   shade: () => {
-    const p = new Pix(26, 34), g = new Pix(26, 34);
+    const p = P(26, 34), g = P(26, 34);
     p.ball(13, 16, 8, 11, '#3a6a78');
     p.ball(13, 8, 5, 5, '#4a7a88');
     // Hat brim (a drowned commuter)
@@ -310,7 +316,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'flicker', 0, g);
   },
   eel: () => {
-    const p = new Pix(38, 26), g = new Pix(38, 26);
+    const p = P(38, 26), g = P(38, 26);
     p.limb([[35, 20], [30, 22], [24, 18], [20, 12], [15, 10], [9, 11]], 1, 4.5, '#2f5a4a');
     // Fin
     p.poly([[18, 9], [24, 13], [22, 7]], '#4a8a6a');
@@ -327,7 +333,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'sway', 20, g);
   },
   turret: () => {
-    const p = new Pix(30, 28), g = new Pix(30, 28);
+    const p = P(30, 28), g = P(30, 28);
     // Pedestal
     p.rect(10, 18, 10, 8, '#4a4e5c');
     p.rect(7, 25, 16, 3, '#3a3d48');
@@ -347,7 +353,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'still', 20, g);
   },
   hunter: () => {
-    const p = new Pix(34, 22), g = new Pix(34, 22);
+    const p = P(34, 22), g = P(34, 22);
     p.poly([[2, 11], [14, 5], [30, 7], [33, 11], [30, 15], [14, 16]], '#2a2e3e');
     p.poly([[4, 11], [14, 7], [28, 8], [31, 11]], '#4a5068');
     // Missile pods
@@ -366,7 +372,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'hover', 0, g);
   },
   bound: () => {
-    const p = new Pix(30, 36), g = new Pix(30, 36);
+    const p = P(30, 36), g = P(30, 36);
     p.ball(15, 18, 9, 12, '#5a4a8a');
     p.ball(15, 9, 6, 6, '#6a5a9a');
     // Arms reaching
@@ -386,7 +392,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'flicker', 0, g);
   },
   lurker: () => {
-    const p = new Pix(120, 84), g = new Pix(120, 84);
+    const p = P(120, 84), g = P(120, 84);
     const body = '#2a4a4a';
     // Rear coils breaking the surface
     p.limb([[96, 70], [104, 56], [112, 50], [118, 58], [116, 72]], 5, 3, shade(body, -0.15));
@@ -428,7 +434,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'sway', 0, g);
   },
   warden: () => {
-    const p = new Pix(96, 92), g = new Pix(96, 92);
+    const p = P(96, 92), g = P(96, 92);
     const plate = '#c8d0dc', dark = '#3a3f4c';
     // Legs
     p.rect(22, 62, 14, 24, dark);
@@ -483,7 +489,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return { canvas: p.toCanvas(), glow: g.toCanvas(), idle: 'breathe', shadow: 70 };
   },
   warden_spirit: () => {
-    const p = new Pix(96, 96), g = new Pix(96, 96);
+    const p = P(96, 96), g = P(96, 96);
     const body = '#6a4ab8';
     // Broken shell fragments at the base
     p.poly([[10, 80], [30, 72], [36, 90], [12, 94]], '#8a92a0');
@@ -525,7 +531,9 @@ export function enemyArt(key: string): EnemyArt {
   if (a) return a;
   const make = HUMANS[key] ?? CREATURES[key];
   if (!make) throw new Error(`No art for enemy sprite ${key}`);
+  K = SCALE[key] ?? 1;
   a = make();
+  K = 1;
   cache.set(key, a);
   return a;
 }
