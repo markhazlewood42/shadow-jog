@@ -144,6 +144,8 @@ export interface EncounterZone {
   terrain?: TerrainId[];
   /** Restrict to a rectangle [x, y, w, h]. */
   rect?: [number, number, number, number];
+  /** Battle background for this zone. */
+  bg?: string;
 }
 
 export interface MapDef {
@@ -174,4 +176,6 @@ export interface MapDef {
   voidColor?: string;
   /** Town tier for shops / last-town bookkeeping. */
   town?: boolean;
+  /** Default battle background for fights on this map. */
+  battleBg?: string;
 }
