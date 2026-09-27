@@ -16,6 +16,9 @@ import { applySave, loadSave } from './game/save';
 import { newGame } from './story/newgame';
 import type { Game as GameT } from './engine/game';
 import { settings } from './game/settings';
+import { debug } from './game/debug';
+import { state as liveState, type GameState } from './game/state';
+import * as stateMod from './game/state';
 
 declare global {
   interface Window {
@@ -25,7 +28,24 @@ declare global {
 
 export function boot(game: Game, display: Display): void {
   const params = new URLSearchParams(location.search);
-  window.__SJ__ = { game, display };
+  const field = () => game.stack.find((s): s is FieldScene => s instanceof FieldScene) ?? null;
+  window.__SJ__ = {
+    game,
+    display,
+    debug,
+    get state(): GameState {
+      return stateMod.state;
+    },
+    field,
+    top: () => game.top?.constructor.name ?? null,
+    idle: () => {
+      const f = field();
+      return !!f && game.top === f && f.busy === 0 && !f.leader.moving;
+    },
+    tp: (map: string, x: number, y: number, dir: 'up' | 'down' | 'left' | 'right' = 'down') => field()?.warp(map, x, y, dir, false),
+    newGame: () => newGame(game),
+  };
+  void liveState;
   display.mode = settings.scale;
   display.resize();
   window.addEventListener('sj-scale', () => {

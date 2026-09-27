@@ -171,8 +171,10 @@ export class FieldScene extends Scene<void> {
     // Actors
     let leaderArrived = false;
     for (const p of this.party) {
+      const scripted = p.path.length > 0 || p.onPathDone !== null;
       const done = p.update();
-      if (p === this.leader && done) leaderArrived = true;
+      if (p === this.leader && done && !scripted) leaderArrived = true;
+      if (!p.moving && p.path.length) this.advancePath(p);
     }
     for (const n of this.npcs) {
       const done = n.update();
@@ -399,11 +401,20 @@ export class FieldScene extends Scene<void> {
 
   private advancePath(a: Actor): void {
     const d = a.path.shift()!;
-    const [dx, dy] = DIRS[d];
-    // Scripted moves ignore NPC collision so cutscenes can't deadlock.
+    // Scripted moves ignore collision so cutscenes can't deadlock.
     a.dir = d;
-    void dx; void dy;
-    a.step(d, a.pathSpeed);
+    if (a === this.leader) {
+      const from: [number, number] = [a.x, a.y];
+      a.step(d, a.pathSpeed);
+      this.trail.unshift(from);
+      this.trail.length = Math.max(this.party.length, 1);
+      for (let i = 1; i < this.party.length; i++) {
+        const f = this.party[i]!;
+        if (!f.follower) continue;
+        const [tx, ty] = this.trail[i - 1]!;
+        f.stepTo(tx, ty, a.pathSpeed);
+      }
+    } else a.step(d, a.pathSpeed);
     if (!a.path.length) {
       const cb = a.onPathDone;
       a.onPathDone = null;

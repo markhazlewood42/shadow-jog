@@ -1,5 +1,6 @@
 /** Centered info card (tutorial hints, notices). Confirm to dismiss. */
 import { sfx } from '../audio/sfx';
+import { debug } from '../game/debug';
 import type { Ctx } from '../engine/canvas';
 import { drawParagraph, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
@@ -21,6 +22,7 @@ export class CardScene extends Scene<void> {
 
   update(): void {
     this.t++;
+    if (debug.autoDialog) return this.close();
     if (this.t > 12 && (this.game.input.pressed('confirm') || this.game.input.pressed('cancel'))) {
       sfx('confirm');
       this.close();

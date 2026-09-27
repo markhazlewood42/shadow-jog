@@ -1,6 +1,7 @@
 /** Shop: buy with quantity + party equip comparison, sell anything that isn't a key item. */
 import { buildChar } from '../art/chars';
 import { sfx } from '../audio/sfx';
+import { debug } from '../game/debug';
 import { ITEMS, sellPrice } from '../data/items';
 import { LOOKS } from '../data/looks';
 import { MEMBERS } from '../data/party';
@@ -34,6 +35,7 @@ export class ShopScene extends Scene<void> {
 
   update(): void {
     this.t++;
+    if (debug.autoDialog) return this.close();
     const inp = this.game.input;
     switch (this.mode) {
       case 'root': {

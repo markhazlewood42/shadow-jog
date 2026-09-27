@@ -19,6 +19,7 @@ import { Scene, W, H } from '../engine/game';
 import { Rng, rng as globalRng } from '../engine/rng';
 import { equipRegen, grantXp, knownAbilities, type LevelUp } from '../game/party';
 import { settings } from '../game/settings';
+import { debug } from '../game/debug';
 import { removeItem, state, type MemberId } from '../game/state';
 import { drawBar, drawWindow, hpColor, UI } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
@@ -149,6 +150,15 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   private async intro(): Promise<void> {
     this.mode = 'intro';
+    if (debug.autoBattle) {
+      for (const e of this.battle.enemies) {
+        e.hp = 0;
+        this.battle.defeated.push(e.key);
+      }
+      this.battle.outcome = 'win';
+      await this.victory();
+      return;
+    }
     sfx('encounter');
     for (let t = 0; t < 30; t++) {
       this.introT = t;
@@ -716,6 +726,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   private panel(draw: (ctx: Ctx) => void): Promise<void> {
+    if (debug.autoBattle) return Promise.resolve();
     return new Promise((res) => {
       this.endPanel = draw;
       this.waitingConfirm = () => {

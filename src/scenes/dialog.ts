@@ -7,6 +7,7 @@ import { speaker, type Speaker } from '../data/speakers';
 import { drawCursor, drawMore, drawSelect, drawTab, drawWindow, UI } from '../ui/draw';
 import { getPortrait } from '../art/portraits';
 import { sfx } from '../audio/sfx';
+import { debug } from '../game/debug';
 
 export interface DialogOpts {
   who: string | null;
@@ -63,6 +64,10 @@ export class DialogScene extends Scene<number> {
 
   update(): void {
     this.frame++;
+    if (debug.autoDialog) {
+      this.close(0);
+      return;
+    }
     if (this.opened < 6) {
       this.opened++;
       return;

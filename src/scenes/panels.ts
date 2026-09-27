@@ -2,6 +2,7 @@
 import { buildChar } from '../art/chars';
 import { getPortrait } from '../art/portraits';
 import { sfx } from '../audio/sfx';
+import { debug } from '../game/debug';
 import { LOOKS } from '../data/looks';
 import { SPEAKERS } from '../data/speakers';
 import { silhouette, surface, type Ctx } from '../engine/canvas';
@@ -90,6 +91,7 @@ export class PanelScene extends Scene<void> {
 
   update(): void {
     this.t++;
+    if (debug.autoDialog) return this.close();
     for (let i = 0; i < this.panelT.length; i++) this.panelT[i]!++;
     const inp = this.game.input;
     const p = this.pages[this.page];
