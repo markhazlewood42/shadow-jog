@@ -9,58 +9,44 @@ tags: [status]
 
 # Shadow Jog
 
-Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. Chapter 1, "Milk Run", covers one hub town, the world map, one outpost and one two-floor dungeon. Design lives in `docs/GDD.md`.
+Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. Chapter 1, "Milk Run", covers the town (Lantern Row), the world map (the Sprawl), an outpost (the Rustyard) and a two-floor dungeon (the Sinkline B1 and K-M Annex 7). Design lives in `docs/GDD.md`.
 
 **GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog)
 
 ## Architecture
 
-- Vite + TypeScript (strict), zero runtime dependencies, Canvas 2D at 480x270. All art and audio are generated in code.
+- Vite + TypeScript (strict), zero runtime deps, Canvas 2D at 480x270. All art and audio are generated in code.
 - `src/engine/`: loop, scene stack, input, bitmap font, display scaling.
-- `src/field/`: map baking (tiles, buildings, props), light map, rain, actors.
-- `src/battle/`: pure, deterministic engine (`engine.ts`), AI, combatant setup.
-- `src/data/`: abilities and combos, items, enemies and encounters, party growth, looks, maps.
-- `src/art/`: character rig (`chars.ts`), pixel kit (`pix.ts`), enemy art (`enemies.ts`).
-- Tests (Vitest): `tests/battle.test.ts`, `tests/balance.test.ts` (sim in `tests/sim.ts`). 23/23 pass.
-- Dev server on port 3007: `npm run dev`. Screenshots: `node scripts/shot.mjs "<query>" out.png` (uses system Edge).
-- Dev routes: `?scene=field&map=lantern_row&x=26&y=15`, `?scene=chars`, `?scene=bestiary[&page=1]`.
+- `src/field/`: map baking (tiles, buildings, props), light map, weather, actors, chests.
+- `src/battle/`: pure deterministic engine, AI, FX. `src/scenes/battle.ts` is the presentation.
+- `src/audio/`: WebAudio synth, sequencer and composition DSL; 14 songs (`songs.ts`) and SFX.
+- `src/story/chapter1.ts`: every story beat. `src/data/maps/*.ts`: all maps, NPCs and events.
+- `src/game/`: state, party, save (3 slots + autosave), systems hooks, debug and stage presets.
+- Tests: Vitest (battle, balance simulator, music) and the Playwright E2E full-chapter playthrough (`e2e/playthrough.spec.ts`). Screenshot evidence: `npm run shots` writes `docs/screenshots/`.
+- Dev: `npm run dev` (port 3007). Debug routes: `?scene=field&map=ID&x=&y=`, `?scene=battle&enc=&bg=`, `?scene=chars|bestiary|portraits|mapview&map=ID`. `window.__SJ__` offers `stage(name)`, `tp()`, `battle()`, `say()`, `menu()` and `debug.autoDialog/autoBattle`.
 
 ## Current Status
 
-**Done**
-- Engine core
-- Field engine
-- Lantern Row exterior draft
-- Character rig with the cast
-- Battle data and engine, with combos and boss phases
-- Balance sim tuned to per-stage targets
+**Content-complete and playable start to finish.** The E2E playthrough passes, 38/38 unit tests pass, and typecheck is clean.
 
-**In progress:** enemy battle art. `src/art/enemies.ts` and the bestiary test scene are written but the art hasn't been reviewed yet.
+**Quality gate round 1** is running: 11 independent sonnet verifiers, one per rubric area. Results go in `docs/quality/scorecard.md`.
 
 **Resume here**
-1. Review the bestiary screenshots, then build `BattleScene`:
-   - 240x135 world at 2x
-   - party back-sprites
-   - status panel and command menu
-   - FX and damage numbers
-2. Build the remaining systems:
-   - audio (WebAudio synth and tracks; `src/audio/*` are stubs)
-   - portraits (`src/art/portraits.ts` is a stub)
-   - menus (item, equip, status, save), shop, inn, clinic, save/load, title screen
-3. Build the content:
-   - world map, interiors, Rustyard, Sinkline B1/B2
-   - story scripts and NPCs
-4. Hold the quality gates: score each area with a fresh verifier subagent (sonnet) per `docs/quality/rubric.md` and log the results in `docs/quality/scorecard.md`. Nothing has been scored yet.
+1. Read the scorecard.
+2. Fix the top issues in every area scored below 8.5.
+3. Re-run `npm run shots` and the E2E playthrough.
+4. Re-verify.
+
+Areas to watch: human enemy sprites use Scale2x (their pixel density differs from the party sprites); the level design of Sinkline B1 is fairly linear; audio can only be reviewed from code.
 
 ## Future Plans
 
-- Touch controls, gamepad remap.
-- Deploy to GitHub Pages or Vercel (ask first).
-- Chapter 2.
+- Touch controls.
+- Deploy (GitHub Pages or Vercel; ask first).
+- Chapter 2 ("Rook, Taken").
 
 ## Notes
 
-- The quality process uses loop-engineering conventions (fresh verifier plus rubric) rather than a scheduled `/create-loop` Routine, because this is interactive build work.
 - Python edits on Windows: write with `newline='
-'`.
+'`. Avoid `'` inside Python heredocs; use ’ in dialogue.
 - No Co-Authored-By lines in commits (per CLAUDE.md).
