@@ -1,0 +1,154 @@
+/**
+ * Input: keyboard, gamepad and touch, unified into abstract actions.
+ * Call `update()` once per fixed tick BEFORE scene updates.
+ */
+
+export type Action = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'cancel' | 'menu' | 'dash' | 'fullscreen';
+
+const ACTIONS: Action[] = ['up', 'down', 'left', 'right', 'confirm', 'cancel', 'menu', 'dash', 'fullscreen'];
+
+const KEYMAP: Record<string, Action> = {
+  ArrowUp: 'up', KeyW: 'up',
+  ArrowDown: 'down', KeyS: 'down',
+  ArrowLeft: 'left', KeyA: 'left',
+  ArrowRight: 'right', KeyD: 'right',
+  KeyZ: 'confirm', Enter: 'confirm', NumpadEnter: 'confirm', Space: 'confirm',
+  KeyX: 'cancel', Escape: 'cancel', Backspace: 'cancel',
+  KeyC: 'menu', Tab: 'menu',
+  ShiftLeft: 'dash', ShiftRight: 'dash',
+  KeyF: 'fullscreen',
+};
+
+const REPEAT_DELAY = 16;
+const REPEAT_RATE = 4;
+
+export type InputDevice = 'keyboard' | 'gamepad' | 'touch';
+
+export class Input {
+  private keys = new Set<Action>();
+  private touchHeld = new Set<Action>();
+  private padHeld = new Set<Action>();
+  private held = new Map<Action, number>();
+  private prev = new Set<Action>();
+  private justDown = new Set<Action>();
+  /** Keyboard presses between ticks (so a very quick tap is never lost). */
+  private tapped = new Set<Action>();
+  lastDevice: InputDevice = 'keyboard';
+  /** Raw key events for text entry / debug; cleared each tick. */
+  typed: string[] = [];
+  anyPressed = false;
+
+  constructor(target: Window = window) {
+    target.addEventListener('keydown', (e) => {
+      const a = KEYMAP[e.code];
+      if (a || e.code.startsWith('Arrow') || e.code === 'Space' || e.code === 'Tab' || e.code === 'Backspace') e.preventDefault();
+      if (e.repeat) return;
+      this.lastDevice = 'keyboard';
+      this.typed.push(e.key);
+      if (a) {
+        this.keys.add(a);
+        this.tapped.add(a);
+      }
+    });
+    target.addEventListener('keyup', (e) => {
+      const a = KEYMAP[e.code];
+      if (a) this.keys.delete(a);
+    });
+    target.addEventListener('blur', () => {
+      this.keys.clear();
+      this.touchHeld.clear();
+    });
+  }
+
+  /** Touch overlay hooks. */
+  setTouch(action: Action, down: boolean): void {
+    this.lastDevice = 'touch';
+    if (down) {
+      this.touchHeld.add(action);
+      this.tapped.add(action);
+    } else this.touchHeld.delete(action);
+  }
+
+  private pollPad(): void {
+    this.padHeld.clear();
+    const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const p of pads) {
+      if (!p || !p.connected) continue;
+      const b = (i: number) => !!p.buttons[i]?.pressed;
+      const ax = p.axes[0] ?? 0;
+      const ay = p.axes[1] ?? 0;
+      const add = (a: Action, on: boolean) => {
+        if (on) this.padHeld.add(a);
+      };
+      add('up', b(12) || ay < -0.5);
+      add('down', b(13) || ay > 0.5);
+      add('left', b(14) || ax < -0.5);
+      add('right', b(15) || ax > 0.5);
+      add('confirm', b(0));
+      add('cancel', b(1));
+      add('menu', b(9) || b(3));
+      add('dash', b(2) || b(5) || b(7));
+      if (this.padHeld.size) this.lastDevice = 'gamepad';
+    }
+  }
+
+  update(): void {
+    this.pollPad();
+    this.justDown.clear();
+    this.anyPressed = false;
+    for (const a of ACTIONS) {
+      const down = this.keys.has(a) || this.padHeld.has(a) || this.touchHeld.has(a) || this.tapped.has(a);
+      if (down) {
+        this.held.set(a, (this.held.get(a) ?? 0) + 1);
+        if (!this.prev.has(a)) {
+          this.justDown.add(a);
+          this.anyPressed = true;
+        }
+      } else this.held.delete(a);
+    }
+    this.prev = new Set(this.held.keys());
+    // A tap that was released before this tick still counts as held for exactly one tick.
+    this.tapped.clear();
+    for (const a of this.justDown) if (!this.keys.has(a) && !this.padHeld.has(a) && !this.touchHeld.has(a)) this.prev.delete(a);
+  }
+
+  /** Clear typed buffer — call after scenes have consumed it. */
+  endFrame(): void {
+    this.typed.length = 0;
+  }
+
+  pressed(a: Action): boolean {
+    return this.justDown.has(a);
+  }
+
+  down(a: Action): boolean {
+    return this.held.has(a);
+  }
+
+  /** Pressed, or held long enough to auto-repeat (menus). */
+  repeat(a: Action): boolean {
+    const n = this.held.get(a);
+    if (!n) return false;
+    if (n === 1) return true;
+    return n > REPEAT_DELAY && (n - REPEAT_DELAY) % REPEAT_RATE === 0;
+  }
+
+  /** Swallow current presses so the next scene doesn't see them. */
+  consume(): void {
+    this.justDown.clear();
+  }
+
+  /** Directional input with priority to the most recently pressed axis. */
+  dir(): 'up' | 'down' | 'left' | 'right' | null {
+    let best: 'up' | 'down' | 'left' | 'right' | null = null;
+    let bestN = Infinity;
+    for (const d of ['up', 'down', 'left', 'right'] as const) {
+      const n = this.held.get(d);
+      if (n !== undefined && n < bestN) {
+        bestN = n;
+        best = d;
+      }
+    }
+    return best;
+  }
+}

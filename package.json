@@ -1,0 +1,23 @@
+{
+  "name": "shadow-jog",
+  "private": true,
+  "version": "0.1.0",
+  "description": "SHADOW JOG — a cyberpunk-fantasy JRPG for the browser",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 3007",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 3008",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "shots": "playwright test e2e/shots.spec.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}
