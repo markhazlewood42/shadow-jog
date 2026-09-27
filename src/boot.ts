@@ -6,6 +6,7 @@ import { FontTestScene } from './scenes/fonttest';
 import { CharTestScene } from './scenes/chartest';
 import { BestiaryTestScene } from './scenes/bestiarytest';
 import { PortraitTestScene } from './scenes/portraittest';
+import { MapViewScene } from './scenes/mapview';
 import { FieldScene } from './scenes/field';
 import { state, type MemberId } from './game/state';
 import { BattleScene } from './scenes/battle';
@@ -17,8 +18,10 @@ import { newGame } from './story/newgame';
 import type { Game as GameT } from './engine/game';
 import { settings } from './game/settings';
 import { debug } from './game/debug';
-import { state as liveState, type GameState } from './game/state';
+import type { GameState } from './game/state';
 import * as stateMod from './game/state';
+import { applyStage } from './game/stages';
+import { fieldHooks } from './game/hooks';
 
 declare global {
   interface Window {
@@ -44,8 +47,18 @@ export function boot(game: Game, display: Display): void {
     },
     tp: (map: string, x: number, y: number, dir: 'up' | 'down' | 'left' | 'right' = 'down') => field()?.warp(map, x, y, dir, false),
     newGame: () => newGame(game),
+    /** Jump to a preset point in the chapter on a fresh field. */
+    stage: async (name: string) => {
+      const st = applyStage(name);
+      void game.reset(new FieldScene(st.map, st.x, st.y, st.dir));
+      await game.fadeTo(0, 0);
+    },
+    battle: (enc: string, bg = 'street', boss = false) => void field()?.runScript((s) => s.battle(enc, { bg, boss, canRun: !boss }).then(() => undefined)),
+    say: (who: string, text: string, face = 'neutral') => void field()?.runScript((s) => s.say(who, text, { face })),
+    menu: () => field() && fieldHooks.openMenu?.(field()!),
+    shop: (id: string) => void field()?.runScript((s) => s.shop(id)),
+    run: (fn: (s: unknown) => Promise<void>) => void field()?.runScript(fn as never),
   };
-  void liveState;
   display.mode = settings.scale;
   display.resize();
   window.addEventListener('sj-scale', () => {
@@ -81,6 +94,9 @@ export function boot(game: Game, display: Display): void {
       void run();
       break;
     }
+    case 'mapview':
+      void game.run(new MapViewScene(params.get('map') ?? 'lantern_row'));
+      break;
     case 'portraits':
       void game.run(new PortraitTestScene(params.get('faces')?.split(',')));
       break;

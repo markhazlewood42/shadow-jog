@@ -1,0 +1,63 @@
+
+ RUN  v5.0.2 C:/Users/markh/home-base/projects/shadow-jog
+
+ ✓ tests/music.test.ts > soundtrack > title compiles with bar-aligned parts 2ms
+ ✓ tests/music.test.ts > soundtrack > town compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > bar compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > world compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > rustyard compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > dungeon compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > lab compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > battle compiles with bar-aligned parts 1ms
+ ✓ tests/music.test.ts > soundtrack > boss compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > boss2 compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > victory compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > victory_boss compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > gameover compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > sable compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > tension compiles with bar-aligned parts 0ms
+ ✓ tests/battle.test.ts > data integrity > every referenced ability exists 2ms
+ ✓ tests/battle.test.ts > data integrity > every encounter references real enemies and drops reference real items 1ms
+ ✓ tests/battle.test.ts > data integrity > starting equipment is equippable 1ms
+ ✓ tests/battle.test.ts > progression > xp curve is monotonic and levelForXp inverts it 1ms
+ ✓ tests/battle.test.ts > progression > grantXp levels up, raises stats and teaches abilities 1ms
+ ✓ tests/battle.test.ts > battle engine > attacks damage and a lopsided fight is won 1ms
+ ✓ tests/battle.test.ts > battle engine > is deterministic for a seed 1ms
+ ✓ tests/battle.test.ts > battle engine > detects and fires combos, consuming both resources 1ms
+ ✓ tests/battle.test.ts > battle engine > cyber programs wreck machines and do nothing to spirits 0ms
+ ✓ tests/battle.test.ts > battle engine > the Warden transforms into its spirit form instead of dying 0ms
+ ✓ tests/battle.test.ts > battle engine > running from a boss is refused 0ms
+stdout | tests/balance.test.ts > balance > prints the balance table
+
+street  (Kit1 Rook3)         win 100%  rounds  2.2  hp lost  16%  combos/battle 0.00
+barrens (Kit3 Rook4)         win 100%  rounds  1.9  hp lost   9%  combos/battle 0.00
+KNUCKLES (Kit4 Rook5)        win  83%  rounds  6.3  hp lost  57%  combos/battle 1.00
+sinkline (Kit5 Rook6 Hex5)   win 100%  rounds  2.2  hp lost  11%  combos/battle 0.00
+LURKER  (Kit6 Rook7 Hex6)    win 100%  rounds  5.1  hp lost  32%  combos/battle 1.00
+annex   (4x Lv8)             win 100%  rounds  2.4  hp lost  13%  combos/battle 0.33
+WARDEN  (4x Lv10)            win  84%  rounds  9.9  hp lost  60%  combos/battle 1.97
+
+stdout | tests/balance.test.ts > dungeon attrition > prints the attrition table
+
+barrens x6, 4 medkits        cleared  98%  end hp  76%  medkits 1.2  rounds/battle 2.1
+sinkline x8, 6 medkits       cleared  87%  end hp  69%  medkits 1.5  rounds/battle 2.6
+annex x8, 6 medkits          cleared  80%  end hp  59%  medkits 3.0  rounds/battle 3.3
+
+ ✓ tests/balance.test.ts > balance > prints the balance table 1ms
+ ✓ tests/balance.test.ts > balance > street  (Kit1 Rook3) within targets 0ms
+ ✓ tests/balance.test.ts > balance > barrens (Kit3 Rook4) within targets 0ms
+ ✓ tests/balance.test.ts > balance > KNUCKLES (Kit4 Rook5) within targets 0ms
+ ✓ tests/balance.test.ts > balance > sinkline (Kit5 Rook6 Hex5) within targets 0ms
+ ✓ tests/balance.test.ts > balance > LURKER  (Kit6 Rook7 Hex6) within targets 0ms
+ ✓ tests/balance.test.ts > balance > annex   (4x Lv8) within targets 0ms
+ ✓ tests/balance.test.ts > balance > WARDEN  (4x Lv10) within targets 0ms
+ ✓ tests/balance.test.ts > dungeon attrition > prints the attrition table 0ms
+ ✓ tests/balance.test.ts > dungeon attrition > barrens x6, 4 medkits is survivable 0ms
+ ✓ tests/balance.test.ts > dungeon attrition > sinkline x8, 6 medkits is survivable 0ms
+ ✓ tests/balance.test.ts > dungeon attrition > annex x8, 6 medkits is survivable 0ms
+
+ Test Files  3 passed (3)
+      Tests  38 passed (38)
+   Start at  15:42:37
+   Duration  304ms (transform 57%, import 36%, tests 5%, worker 2%)
+

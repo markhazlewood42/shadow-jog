@@ -59,7 +59,7 @@ interface Floater {
 
 const BW = 240, BHT = 135;
 const PANEL_Y = 214;
-const PARTY_BOTTOM = 117;
+const PARTY_BOTTOM = 111;
 
 const STATUS_LABEL: Partial<Record<StatusId, [string, string]>> = {
   poison: ['PSN', '#b07cff'], burn: ['BRN', '#ff8a4a'], stun: ['STN', '#ffe07a'], blind: ['BLD', '#8b8fa8'],
@@ -750,7 +750,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       if (e.uid === u.uid) myX = x;
       x += widths[i]! + gap;
     });
-    const ground = u.boss ? (u.key === 'lurker' ? this.bg.ground + 10 : this.bg.ground) : 94;
+    const ground = u.boss ? (u.key === 'lurker' ? this.bg.ground - 4 : this.bg.ground) : 92;
     const back = (sorted.indexOf(u) % 2) * 4;
     return { x: myX, y: ground - art.canvas.height - back, art };
   }
@@ -1059,7 +1059,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   private renderList(ctx: Ctx): void {
     const x = 118, y = 44, w = 244, h = 7 * 11 + 14;
-    drawWindow(ctx, x, y, w, h, { title: this.listKind === 'item' ? 'ITEMS' : this.listKind === 'skill' ? 'SKILLS' : 'TECHS' });
+    drawWindow(ctx, x, y, w, h, { title: this.listKind === 'item' ? 'ITEMS' : this.listKind === 'skill' ? 'SKILLS' : (this.cmdMenu.items.find((i) => i.value === 'tech')?.label ?? 'TECHS').toUpperCase() });
     if (!this.listMenu.items.length) drawText(ctx, 'Nothing to use.', x + 12, y + 10, { color: UI.dim });
     this.listMenu.render(ctx, x + 8, y + 8, w - 14);
     const cur = this.listMenu.current;
