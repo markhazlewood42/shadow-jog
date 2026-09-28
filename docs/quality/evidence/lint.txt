@@ -2,4 +2,4 @@
 > shadow-jog@0.1.0 lint
 > biome lint
 
-Checked 106 files in 54ms. No fixes applied.
+Checked 112 files in 54ms. No fixes applied.

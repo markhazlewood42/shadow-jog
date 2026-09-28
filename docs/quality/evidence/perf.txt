@@ -1,4 +1,5 @@
-field {"frames":241,"mean":1.3775933615523255,"p95":1.7999999970197678,"max":3.2000000029802322}
-  ok  9 e2e\perf.spec.ts:26:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget (6.5s)
-battle {"frames":360,"mean":0.5374999995032946,"p95":1,"max":6.799999997019768}
-  ok 10 e2e\perf.spec.ts:38:1 › a live battle stays inside the frame budget (9.7s)
+title baseline {"frames":151,"mean":0.23245033108635454,"p95":0.30000001192092896,"max":0.4000000059604645,"sim":{"frames":151,"mean":0.01721854340161709,"p95":0.10000000894069672,"max":0.10000000894069672}}
+field {"frames":241,"mean":1.3062240655120478,"p95":1.7000000029802322,"max":2.2999999970197678,"sim":{"frames":241,"mean":0.025311203542092035,"p95":0.10000000894069672,"max":0.20000000298023224}}
+  ok  9 e2e\perf.spec.ts:50:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget (6.6s)
+battle {"frames":361,"mean":0.4742382269074052,"p95":0.6000000089406967,"max":5.4000000059604645,"sim":{"frames":361,"mean":0.025484764716301598,"p95":0.10000000894069672,"max":1.2999999970197678}}
+  ok 10 e2e\perf.spec.ts:61:1 › a live battle stays inside the frame budget (9.7s)

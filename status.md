@@ -27,7 +27,7 @@ Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. C
 
 ## Current Status
 
-**Content-complete and playable start to finish.** Quality gate: rounds 1–3 done; **round 4 (the last round per the rubric) is being verified** — all 11 area verifiers launched 2026-09-28 against commit 998cb8b. Scores and the round-4 work log live in `docs/quality/scorecard.md`. Areas still under 8.5 after round 4 get parked there with reasons.
+**Content-complete and playable start to finish.** Quality gate: rounds 1–4 done (scores in the scorecard); Mark chose to keep iterating past the rubric's 4-round cap. **Round 5 fixes landed and are being verified** — all 11 area verifiers launched 2026-09-28 against commit 998cb8b. Scores and the round-4 work log live in `docs/quality/scorecard.md`. Areas still under 8.5 after round 4 get parked there with reasons.
 
 Round 4 landed (2026-09-28): crash-proof loop and damaged-save handling; Crow's Wing combo, remembered resistances/immunities, Shell Wall protector, Repeat locked during telegraphs; eased bars, floaters over heads, shake intensity; 16-bar boss loops, dialogue ducking, reverb continuity; requisition terminal before the Warden; Pale's early beat and the finale title card; spatial valve puzzle, visible lattice emitters, a hidden crawlspace, the radio lot; rim-lit enemies, individual duplicates, new FX shapes; field sprite faces, rain depth, bar/lamp/car detail.
 
