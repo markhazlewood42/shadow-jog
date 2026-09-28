@@ -116,7 +116,10 @@ export class Lighting {
   private fitted(w: number, h: number): Surface {
     const k = w * 4096 + h;
     let sc = this.fittedCache.get(k);
-    if (!sc) this.fittedCache.set(k, (sc = surface(w, h)));
+    if (!sc) {
+      sc = surface(w, h);
+      this.fittedCache.set(k, sc);
+    }
     return sc;
   }
 
