@@ -22,7 +22,7 @@ import { EndingScene } from '../scenes/ending';
 import { SaveScene } from '../scenes/saveload';
 import { ShopScene } from '../scenes/shop';
 import { fieldHooks } from './hooks';
-import { addMember, fullRestore, memberStats, partyMembers } from './party';
+import { addMember, fullRestore, innPrice, memberStats, partyMembers, rest, restoreUses } from './party';
 import { applySave, latestSlot, loadSave, writeSave } from './save';
 import type { BattleResult } from './script';
 import { flags, setState, state, type GameState, type MemberId } from './state';
@@ -91,6 +91,14 @@ export function installSystems(game: Game, h: SystemHandlers): void {
     for (const m of partyMembers()) fullRestore(m);
   };
 
+  fieldHooks.refreshFocus = () => {
+    for (const m of partyMembers()) {
+      if (m.hp <= 0) continue;
+      m.tp = memberStats(m).maxTp;
+      restoreUses(m);
+    }
+  };
+
   // ---------------------------------------------------------------- encounters
   fieldHooks.onStep = (f) => {
     const zones = f.def.encounters;
@@ -120,8 +128,13 @@ export function installSystems(game: Game, h: SystemHandlers): void {
   };
 
   fieldHooks.inn = async (f, price, name) => {
-    const cost = price * state.party.length;
-    const choice = await f.api.ask(null, `${name ?? 'A capsule for the night'}: {y}${cost}¢{/} for the crew. Rest?`, ['Rest', 'Not now'], { cancel: 1 });
+    const crew = partyMembers();
+    const avg = crew.reduce((n, m) => n + m.level, 0) / Math.max(1, crew.length);
+    const each = innPrice(price, avg);
+    const cost = each * state.party.length;
+    const downed = crew.filter((m) => m.hp <= 0 || m.ailments.length).length;
+    const note = downed ? ' {d}(Sleep won’t help the downed or the sick: that’s Doc Yun.){/}' : '';
+    const choice = await f.api.ask(null, `${name ?? 'A capsule for the night'}: {y}${each}¢{/} a head, {y}${cost}¢{/} for the crew. Rest?${note}`, ['Rest', 'Not now'], { cancel: 1 });
     if (choice !== 0) return;
     if (state.cred < cost) {
       sfx('buzz');
@@ -131,10 +144,10 @@ export function installSystems(game: Game, h: SystemHandlers): void {
     state.cred -= cost;
     await game.fadeOut(40);
     sfx('save');
-    for (const m of partyMembers()) fullRestore(m);
+    for (const m of crew) rest(m);
     await game.wait(70);
     await game.fadeIn(40);
-    await f.api.narrate('The crew wakes up rested. HP, TP and skills are fully restored.');
+    await f.api.narrate(downed ? 'The crew wakes up rested. Whoever was on their feet is fully restored; the rest still need a doctor.' : 'The crew wakes up rested. HP, TP and skills are fully restored.');
     await fieldHooks.savePrompt!(f);
   };
 

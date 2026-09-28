@@ -197,7 +197,7 @@ test('23 ending', async ({ page }) => {
 });
 
 test('24 ending results + 25 next chapter', async ({ page }) => {
-  await open(page, 'annex');
+  await open(page, 'finale'); // post-Warden: the chapter's real end state
   await sj(page, 'sj.ending()');
   await page.waitForTimeout(3400);
   await shot(page, '24-ending-results');

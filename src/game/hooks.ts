@@ -26,6 +26,7 @@ export const fieldHooks: {
   join?: (f: FieldScene, id: MemberId, quiet: boolean) => Promise<void>;
   leave?: (f: FieldScene, id: MemberId) => void;
   restoreParty?: () => void;
+  refreshFocus?: () => void;
   battle?: (f: FieldScene, encounter: string, opts: BattleOpts) => Promise<BattleResult>;
   shop?: (f: FieldScene, id: string) => Promise<void>;
   inn?: (f: FieldScene, price: number, name?: string) => Promise<void>;

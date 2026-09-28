@@ -50,7 +50,9 @@ export const SHOPS: Record<string, ShopDef> = {
     id: 'fence', name: 'WIRE’S STASH', keeper: 'Wire', accent: '#ff4fb0',
     greeting: 'Runners get runner prices. Everyone else gets shot. You look like runners.',
     thanks: 'Pleasure. Don’t tell anyone where I sleep.',
-    items: ['trauma_patch', 'neurotab', 'adrenal_stim', 'omni_patch', 'toxin_dart', 'mono_claws', 'taser_pistol', 'ballistic_vest', 'formfit', 'cyber_eye', 'reflex_booster'],
+    // Wire's line is the black-market stuff: stims, darts, grenades, the taser. Only the two
+    // pieces you need for the Lurker overlap with Mags, so nobody has to walk back up top.
+    items: ['trauma_patch', 'neurotab', 'adrenal_stim', 'omni_patch', 'toxin_dart', 'flashbang', 'mono_claws', 'taser_pistol', 'ballistic_vest', 'formfit'],
   },
   // Annex 7, outside the Warden chamber: the last place to spend before the job goes wrong.
   km_requisition: {

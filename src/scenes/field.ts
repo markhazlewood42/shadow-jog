@@ -695,6 +695,7 @@ export class FieldScene extends Scene<void> {
     },
     inParty: (id) => state.party.includes(id),
     restoreParty: () => fieldHooks.restoreParty?.(),
+    refreshFocus: () => fieldHooks.refreshFocus?.(),
     battle: async (enc, opts) => (fieldHooks.battle ? fieldHooks.battle(this, enc, opts ?? {}) : 'win'),
     warp: async (mapId, x, y, dir, opts) => {
       await this.warp(mapId, x, y, dir ?? this.leader.dir, opts?.fade !== false);

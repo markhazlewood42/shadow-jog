@@ -158,6 +158,23 @@ export function fullRestore(m: MemberState): void {
   restoreUses(m);
 }
 
+/**
+ * A night's sleep: HP, TP and skill uses for everyone still standing. Sleep doesn't revive the
+ * downed or clear lingering ailments; that is the clinic's trade (or Rekindle and detox kits).
+ */
+export function rest(m: MemberState): void {
+  if (m.hp <= 0) return;
+  const s = memberStats(m);
+  m.hp = s.maxHp;
+  m.tp = s.maxTp;
+  restoreUses(m);
+}
+
+/** Capsule price per head: rooms get dearer as the crew's reputation (and level) grows. */
+export function innPrice(base: number, avgLevel: number): number {
+  return Math.round(base + 4 * avgLevel);
+}
+
 export function isDown(m: MemberState): boolean {
   return m.hp <= 0;
 }

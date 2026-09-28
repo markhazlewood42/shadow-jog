@@ -45,7 +45,7 @@ export const sinkline1: MapDef = {
   music: 'dungeon',
   battleBg: 'sewer',
   entrance: { map: 'world', x: 26, y: 38 },
-  encounters: [{ table: 'sinkline', rate: 19, bg: 'sewer' }],
+  encounters: [{ table: 'sinkline', rate: 24, bg: 'sewer' }],
   patches: [
     {
       when: (f) => !!f.floodgate,

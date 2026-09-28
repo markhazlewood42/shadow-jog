@@ -113,16 +113,17 @@ export const bar: MapDef = {
     {
       id: 'barkeep', x: 6, y: 3, dir: 'down', look: randomLook(501), name: 'Saint', fixedDir: true,
       talk: async (s) => {
-        const c = await s.ask('Saint', 'What’s your poison? House special’s called the Drowned Saint. It’s mostly drain cleaner.', ['Buy a round (20¢)', 'Rumors', 'Nothing'], { cancel: 2 });
+        const c = await s.ask('Saint', 'What’s your poison? House special’s called the Drowned Saint. It’s mostly drain cleaner.', ['Buy a round (30¢)', 'Rumors', 'Nothing'], { cancel: 2 });
         if (c === 0) {
-          if (s.credits() < 20) {
+          if (s.credits() < 30) {
             await s.say('Saint', 'Cred first, friend.');
             return;
           }
-          await s.cred(-20, true);
-          s.restoreParty();
+          await s.cred(-30, true);
+          // A drink sharpens the mind, not the body: TP and skill uses, no healing.
+          s.refreshFocus();
           s.sfx('heal');
-          await s.say('Saint', 'On the house. Well, on your house. Everyone feels ten years younger and twenty years dumber.');
+          await s.say('Saint', 'On the house. Well, on your house. Everyone feels sharper and twenty years dumber. TP’s back; bruises aren’t.');
         } else if (c === 1) {
           const rumors = [
             'Knuckles and the Rustfangs have been leaning on the Rustyard. Old Mags won’t pay. Good for her.',

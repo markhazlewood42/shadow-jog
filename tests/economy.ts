@@ -5,6 +5,7 @@
 import { ENCOUNTERS, ENEMIES } from '../src/data/enemies';
 import { ITEMS, sellPrice } from '../src/data/items';
 import { levelForXp, MEMBERS, xpFor } from '../src/data/party';
+import { innPrice } from '../src/game/party';
 import type { MemberId } from '../src/game/state';
 
 /** Expected cred, XP and loot resale value of one fight from a table. */
@@ -82,7 +83,8 @@ export function runEconomy(route: Leg[], startCred: number, startParty: Partial<
     }
     battles += fights.length + expected;
     cred += leg.cred ?? 0;
-    cred -= (leg.rests ?? 0) * 10 * Object.keys(party).length;
+    const avg = Object.values(party).reduce((n, x) => n + levelForXp(x!), 0) / Math.max(1, Object.keys(party).length);
+    cred -= (leg.rests ?? 0) * innPrice(10, avg) * Object.keys(party).length;
     cred -= leg.supplies ?? 0;
     for (const id of leg.joins ?? []) {
       const lead = Math.max(...Object.values(party).map((x) => levelForXp(x!)));

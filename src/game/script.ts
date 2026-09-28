@@ -35,6 +35,8 @@ export interface ScriptApi {
   leave(id: MemberId): void;
   inParty(id: MemberId): boolean;
   restoreParty(): void;
+  /** TP and skill uses back for the standing crew (no healing). */
+  refreshFocus(): void;
 
   battle(encounter: string, opts?: { canRun?: boolean; boss?: boolean; music?: string; bg?: string; loseOk?: boolean }): Promise<BattleResult>;
   warp(map: string, x: number, y: number, dir?: Dir, opts?: { fade?: boolean }): Promise<void>;
