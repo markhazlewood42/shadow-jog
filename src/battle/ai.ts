@@ -79,10 +79,21 @@ export function chooseEnemyAction(b: Battle, self: Combatant): EnemyChoice | nul
 
   switch (self.ai) {
     case 'lurker': {
-      if (!mem.enraged && self.hp / self.base.maxHp < 0.5) {
+      const hp = self.hp / self.base.maxHp;
+      if (!mem.enraged && hp < 0.5) {
         mem.enraged = 1;
         const ab = ABILITIES.e_tidal!;
         return { ability: ab, target: -1, message: 'The Lurker thrashes, churning the black water!' };
+      }
+      // Second shift: near death it drops the lure and goes for the kill, crushing the weakest.
+      if (!mem.desperate && hp < 0.25) {
+        mem.desperate = 1;
+        return { ability: ABILITIES.e_biolume!, target: -1, message: 'Its lure-lights flare white. It’s desperate now!' };
+      }
+      if (mem.desperate) {
+        const ab = mem.turn % 2 ? ABILITIES.e_crush_coil! : ABILITIES.e_tidal!;
+        const weakest = [...b.alive('party')].sort((x, y) => x.hp - y.hp)[0];
+        return { ability: ab, target: ab.target === 'enemy' ? weakest?.uid ?? -1 : -1 };
       }
       if (mem.turn % 4 === 0) return { ability: ABILITIES.e_biolume!, target: -1 };
       break;

@@ -60,7 +60,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
     id: 'rustfang_punk', name: 'Rustfang Punk', family: 'human', sprite: 'punk',
     hp: 33, atk: 15, def: 6, mnd: 4, res: 4, agi: 10, xp: 9, cred: 19,
     drops: [{ id: 'gang_colors', chance: 0.25 }, { id: 'medkit', chance: 0.08 }],
-    moves: [{ id: 'attack', w: 3 }, { id: 'e_chain_whip', w: 2 }],
+    // Cornered punks stop pulling punches.
+    moves: [{ id: 'attack', w: 3 }, { id: 'e_chain_whip', w: 2 }, { id: 'e_chain_whip', w: 4, when: 'hp_below_half' }],
     lore: 'Rustfang gang muscle. More teeth than sense.',
   }),
   rustfang_slinger: E({
@@ -111,7 +112,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
     id: 'sewer_ghoul', name: 'Sewer Ghoul', family: 'ghoul', sprite: 'ghoul',
     hp: 112, atk: 29, def: 10, mnd: 9, res: 8, agi: 9, xp: 26, cred: 20,
     drops: [{ id: 'ghoul_tooth', chance: 0.25 }],
-    moves: [{ id: 'e_claw', w: 3 }, { id: 'e_rot_bite', w: 2 }],
+    // Wounded ghouls frenzy.
+    moves: [{ id: 'e_claw', w: 3 }, { id: 'e_rot_bite', w: 2 }, { id: 'e_rot_bite', w: 5, when: 'hp_below_half' }],
     lore: 'Infected metahumans who went down into the dark and stayed.',
   }),
   rust_crab: E({
@@ -132,13 +134,14 @@ export const ENEMIES: Record<string, EnemyDef> = {
     id: 'drowned_shade', name: 'Drowned Shade', family: 'spirit', sprite: 'shade',
     hp: 76, atk: 13, def: 10, mnd: 20, res: 20, agi: 14, xp: 31, cred: 24,
     drops: [{ id: 'ecto_vial', chance: 0.2 }],
-    moves: [{ id: 'e_chill', w: 3 }, { id: 'e_wail', w: 1.5 }],
+    // Shades wail together on a rhythm: every third round, expect it.
+    moves: [{ id: 'e_chill', w: 3 }, { id: 'e_wail', w: 1 }, { id: 'e_wail', w: 8, when: 'every_3' }],
     lore: 'Echoes of commuters caught in the flood of \'61.',
   }),
   gutter_eel: E({
     id: 'gutter_eel', name: 'Gutter Eel', family: 'beast', sprite: 'eel', weak: { shock: 1.5 },
     hp: 86, atk: 30, def: 10, mnd: 20, res: 8, agi: 18, xp: 26, cred: 18,
-    moves: [{ id: 'e_bite', w: 2 }, { id: 'e_coil_shock', w: 2 }],
+    moves: [{ id: 'e_bite', w: 2 }, { id: 'e_coil_shock', w: 2 }, { id: 'e_coil_shock', w: 4, when: 'hp_below_half' }],
     lore: 'Two meters of teeth and bioelectric spite.',
   }),
   lurker: E({
@@ -155,7 +158,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
     id: 'km_sentinel', name: 'K-M Sentinel', family: 'human', sprite: 'sentinel',
     hp: 246, atk: 49, def: 26, mnd: 15, res: 16, agi: 15, xp: 48, cred: 63,
     drops: [{ id: 'km_badge', chance: 0.2 }, { id: 'medkit', chance: 0.2 }],
-    moves: [{ id: 'attack', w: 2 }, { id: 'e_burst', w: 2 }, { id: 'e_flashbang', w: 0.8 }],
+    // Sentinels run a drill: a flashbang is likely every third round.
+    moves: [{ id: 'attack', w: 2 }, { id: 'e_burst', w: 2 }, { id: 'e_flashbang', w: 3, when: 'every_3' }],
     lore: 'Kessler-Mori internal security. Paid well, trained better.',
   }),
   sentry_turret: E({
@@ -169,7 +173,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
     id: 'km_arcanist', name: 'K-M Arcanist', family: 'human', sprite: 'arcanist',
     hp: 196, atk: 18, def: 16, mnd: 38, res: 28, agi: 14, xp: 53, cred: 77,
     drops: [{ id: 'neurotab', chance: 0.25 }, { id: 'mana_crystal', chance: 0.08 }],
-    moves: [{ id: 'e_mana_bolt', w: 3 }, { id: 'e_barrier', w: 1, when: 'no_res_buff' }, { id: 'e_drain', w: 1.5 }],
+    // Hurt arcanists drain to stay alive.
+    moves: [{ id: 'e_mana_bolt', w: 3 }, { id: 'e_barrier', w: 1, when: 'no_res_buff' }, { id: 'e_drain', w: 1.5 }, { id: 'e_drain', w: 2, when: 'hp_below_half' }],
     lore: 'Corporate thaumaturge. Magic, licensed and weaponized.',
   }),
   hunter_drone: E({
@@ -181,9 +186,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   bound_spirit: E({
     id: 'bound_spirit', name: 'Bound Spirit', family: 'spirit', sprite: 'bound',
-    hp: 200, atk: 14, def: 14, mnd: 34, res: 26, agi: 15, xp: 55, cred: 25,
+    hp: 200, atk: 14, def: 14, mnd: 31, res: 26, agi: 15, xp: 55, cred: 25,
     drops: [{ id: 'ecto_vial', chance: 0.3 }],
-    moves: [{ id: 'e_anguish', w: 2 }, { id: 'e_chill', w: 2 }],
+    moves: [{ id: 'e_anguish', w: 2 }, { id: 'e_chill', w: 2 }, { id: 'e_anguish', w: 2, when: 'hp_below_half' }],
     lore: 'A spirit caged in a corporate ward. It hates everyone equally.',
   }),
   warden: E({

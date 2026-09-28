@@ -385,9 +385,14 @@ export class Battle {
       this.ev.push({ t: 'fail', actor: u.uid, reason: `${u.name} sparks aimlessly.` });
       return;
     }
-    const t = this.rng.pick(victims);
-    this.ev.push({ t: 'act', actor: u.uid, name: 'Friendly Fire', kind: 'enemy', fx: 'gunfire', targets: [t.uid] });
-    this.applyEffects([u], { ...ABILITIES.attack!, effects: [{ type: 'damage', stat: 'atk', mult: 1.3 }] }, [t]);
+    // The machine turns its own weapons on its side: a random damaging move from its kit.
+    const own = (ENEMIES[u.key]?.moves ?? [])
+      .map((m) => ABILITIES[m.id])
+      .filter((ab): ab is Ability => !!ab && ab.effects.some((e) => e.type === 'damage'));
+    const ab = own.length ? this.rng.pick(own) : { ...ABILITIES.attack!, effects: [{ type: 'damage' as const, stat: 'atk' as const, mult: 1.3 }] };
+    const targets = ab.target === 'enemies' || ab.target === 'random_enemies' ? victims : [this.rng.pick(victims)];
+    this.ev.push({ t: 'act', actor: u.uid, name: `Hijacked: ${ab.name}`, kind: 'enemy', fx: ab.fx, targets: targets.map((t) => t.uid), element: ab.element });
+    this.applyEffects([u], ab, targets);
   }
 
   resolveTargets(user: Combatant, ab: Ability, target: number): Combatant[] {

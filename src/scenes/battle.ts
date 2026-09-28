@@ -592,6 +592,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           this.float(String(e.amount), p, e.crit ? '#ffe07a' : e.weak ? '#ffa24a' : e.resist ? '#b8bcd0' : u.side === 'party' ? '#ff9a9a' : '#ffffff', true);
           if (e.crit) this.float('CRITICAL', { x: p.x, y: p.y - 10 }, '#ffe07a', false);
           else if (e.weak) this.float('WEAK!', { x: p.x, y: p.y - 10 }, '#ffa24a', false);
+          if (e.weak && u.side === 'enemy') {
+            const seen = (state.weakSeen[u.key] ??= []);
+            if (!seen.includes(e.element)) seen.push(e.element);
+          }
           else if (e.resist) this.float('RESIST', { x: p.x, y: p.y - 10 }, '#b8bcd0', false);
         }
         sfx(e.crit ? 'crit' : u.side === 'party' ? 'hurt' : 'hit');
@@ -1327,8 +1331,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         const weak = Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => k.toUpperCase());
         if (weak.length) drawText(ctx, `WEAK ${weak.join(' ')}`, x + w - 8, y + 5, { align: 'right', color: UI.amber });
       } else {
+        // Not analyzed: show what the crew has learned the hard way, else the kill count.
+        const seen = state.weakSeen[u.key] ?? [];
         const bestiary = state.bestiary[u.key] ?? 0;
-        drawText(ctx, bestiary ? `Defeated ×${bestiary}` : 'Unknown', x + w - 8, y + 5, { align: 'right', color: UI.dim });
+        if (seen.length) drawText(ctx, `WEAK ${seen.map((el) => el.toUpperCase()).join(' ')}`, x + w - 8, y + 5, { align: 'right', color: UI.amber });
+        else drawText(ctx, bestiary ? `Defeated ×${bestiary}` : 'Unknown', x + w - 8, y + 5, { align: 'right', color: UI.dim });
       }
     } else {
       drawText(ctx, `${u.hp}/${u.base.maxHp}`, x + w - 8, y + 5, { align: 'right', color: UI.dim });

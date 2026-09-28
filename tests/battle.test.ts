@@ -137,3 +137,21 @@ describe('battle engine', () => {
     expect(b.outcome).not.toBe('fled');
   });
 });
+
+describe('hijack', () => {
+  it('a hijacked machine turns one of its own damaging moves on its allies', () => {
+    const own = new Set(ENEMIES.hunter_drone!.moves.map((m) => ABILITIES[m.id]!).filter((a) => a.effects.some((e) => e.type === 'damage')).map((a) => a.name));
+    for (let seed = 1; seed <= 20; seed++) {
+      const b = new Battle(party(['kit'], 5), enemyParty(['hunter_drone', 'km_sentinel']), new Rng(seed));
+      const [drone, guard] = b.enemies;
+      drone!.status.push({ id: 'hijacked', turns: 3 });
+      const hpBefore = guard!.hp;
+      const ev = b.resolveRound([{ actor: b.party[0]!.uid, type: 'guard' }]);
+      const act = ev.find((e) => e.t === 'act' && e.actor === drone!.uid);
+      expect(act && act.t === 'act' && act.name.startsWith('Hijacked: ')).toBe(true);
+      if (act?.t === 'act') expect(own.has(act.name.slice('Hijacked: '.length))).toBe(true);
+      if (act?.t === 'act') expect(act.targets).toEqual([guard!.uid]);
+      expect(guard!.hp).toBeLessThanOrEqual(hpBefore);
+    }
+  });
+});

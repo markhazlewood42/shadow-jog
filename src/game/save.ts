@@ -90,6 +90,7 @@ function migrate(s: GameState): GameState {
   // Fill in any fields added after the save was written.
   s.combos ??= [];
   s.bestiary ??= {};
+  s.weakSeen ??= {};
   s.lastOrders ??= {};
   s.lastEntrance ??= null;
   s.battles ??= 0;

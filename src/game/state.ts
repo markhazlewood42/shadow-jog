@@ -36,6 +36,8 @@ export interface GameState {
   playFrames: number;
   combos: string[];
   bestiary: Record<string, number>;
+  /** Elements each enemy kind has been seen to be weak to (shown on the target cursor). */
+  weakSeen: Record<string, string[]>;
   /** Last round's battle orders per member (for "Repeat"). */
   lastOrders: Partial<Record<MemberId, { cmd: string; id?: string }>>;
   rngState: number;
@@ -62,6 +64,7 @@ export function newState(): GameState {
     playFrames: 0,
     combos: [],
     bestiary: {},
+    weakSeen: {},
     lastOrders: {},
     rngState: 1,
     battles: 0,
