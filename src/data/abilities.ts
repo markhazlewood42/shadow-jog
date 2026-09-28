@@ -226,6 +226,8 @@ export const ABILITIES: Record<string, Ability> = {
   e_biolume: A({ id: 'e_biolume', name: 'Bioluminescence', kind: 'enemy', target: 'enemies', desc: '', effects: [{ type: 'status', status: 'blind', chance: 0.55, turns: 3 }], fx: 'flash' }),
   e_burst: A({ id: 'e_burst', name: 'Burst Fire', kind: 'enemy', target: 'random_enemies', desc: '', effects: [{ type: 'damage', stat: 'atk', mult: 0.7, hits: 2 }], fx: 'gunfire' }),
   e_flashbang: A({ id: 'e_flashbang', name: 'Flashbang', kind: 'enemy', target: 'enemies', desc: '', effects: [{ type: 'status', status: 'blind', chance: 0.45, turns: 2 }, { type: 'status', status: 'stun', chance: 0.12, turns: 1 }], fx: 'flash' }),
+  e_full_auto: A({ id: 'e_full_auto', name: 'Full Auto', kind: 'enemy', target: 'enemies', desc: '', cry: 'TARGETS ACQUIRED.', effects: [{ type: 'damage', stat: 'atk', mult: 1.2 }], fx: 'gunfire' }),
+  e_mana_storm: A({ id: 'e_mana_storm', name: 'Mana Surge', kind: 'enemy', target: 'enemies', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 30 }, { type: 'status', status: 'atk_down', chance: 0.4, turns: 2 }], fx: 'wave' }),
   e_volley: A({ id: 'e_volley', name: 'Volley', kind: 'enemy', target: 'enemies', desc: '', effects: [{ type: 'damage', stat: 'atk', mult: 0.7 }], fx: 'gunfire' }),
   e_mana_bolt: A({ id: 'e_mana_bolt', name: 'Mana Bolt', kind: 'enemy', target: 'enemy', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 20 }], fx: 'bolt' }),
   e_barrier: A({ id: 'e_barrier', name: 'Barrier', kind: 'enemy', target: 'allies', desc: '', effects: [{ type: 'buff', status: 'res_up', turns: 3 }, { type: 'buff', status: 'def_up', turns: 3 }], fx: 'shield' }),

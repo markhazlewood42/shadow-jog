@@ -122,6 +122,32 @@ export function chooseEnemyAction(b: Battle, self: Combatant): EnemyChoice | nul
       }
       break;
     }
+    case 'turret': {
+      // Spins up on a rhythm (telegraphed), then sweeps the whole crew. A jam or a stun in
+      // between spins it down (see Battle.execute), so Scramble or Thunder Rift is the answer.
+      if (mem.spin) {
+        mem.spin = 0;
+        return { ability: ABILITIES.e_full_auto!, target: -1 };
+      }
+      if (mem.turn % 3 === 2) {
+        mem.spin = 1;
+        return { ability: ABILITIES.attack!, target: -1, message: `${self.name} spins up. Its barrels glow white-hot!`, skip: true };
+      }
+      break;
+    }
+    case 'arcanist': {
+      // Every fourth turn she channels a surge; blinded, it fizzles in her hands.
+      if (mem.surge) {
+        mem.surge = 0;
+        if (b.has(self, 'blind')) return { ability: ABILITIES.attack!, target: -1, message: `${self.name} can’t find her targets. The surge fizzles out.`, skip: true };
+        return { ability: ABILITIES.e_mana_storm!, target: -1 };
+      }
+      if (mem.turn % 4 === 3) {
+        mem.surge = 1;
+        return { ability: ABILITIES.attack!, target: -1, message: `${self.name} draws the building’s current through her visor…`, skip: true };
+      }
+      break;
+    }
     case 'warden_spirit': {
       if (mem.turn === 1) return { ability: ABILITIES.e_soul_scream!, target: -1, message: 'The spirit tears free of the Warden’s shell!' };
       // After that, only on a rhythm and always telegraphed a turn ahead: a window to Guard or Ward.

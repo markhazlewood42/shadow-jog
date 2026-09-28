@@ -172,19 +172,19 @@ export const ENEMIES: Record<string, EnemyDef> = {
     lore: 'Kessler-Mori internal security. Paid well, trained better.',
   }),
   sentry_turret: E({
-    id: 'sentry_turret', name: 'Sentry Turret', family: 'machine', sprite: 'turret',
+    id: 'sentry_turret', name: 'Sentry Turret', family: 'machine', sprite: 'turret', ai: 'turret',
     hp: 208, atk: 53, def: 34, mnd: 10, res: 18, agi: 6, xp: 43, cred: 42,
     drops: [{ id: 'drone_optic', chance: 0.2 }],
     moves: [{ id: 'e_volley', w: 2 }, { id: 'attack', w: 2 }],
-    lore: 'Ceiling-mounted autogun. Jam it, or hack it into scrap.',
+    lore: 'Ceiling-mounted autogun. When its barrels glow it is about to sweep the room: jam it, stun it, or brace.',
   }),
   km_arcanist: E({
-    id: 'km_arcanist', name: 'K-M Arcanist', family: 'human', sprite: 'arcanist',
+    id: 'km_arcanist', name: 'K-M Arcanist', family: 'human', sprite: 'arcanist', ai: 'arcanist',
     hp: 196, atk: 18, def: 16, mnd: 38, res: 28, agi: 14, xp: 53, cred: 77,
     drops: [{ id: 'neurotab', chance: 0.25 }, { id: 'mana_crystal', chance: 0.08 }],
     // Hurt arcanists drain to stay alive.
     moves: [{ id: 'e_mana_bolt', w: 3 }, { id: 'e_barrier', w: 1, when: 'no_res_buff' }, { id: 'e_drain', w: 1.5 }, { id: 'e_drain', w: 2, when: 'hp_below_half' }],
-    lore: 'Corporate thaumaturge. Magic, licensed and weaponized.',
+    lore: 'Corporate thaumaturge. Every few breaths she pulls the building’s current through her visor; blind her and it fizzles.',
   }),
   hunter_drone: E({
     id: 'hunter_drone', name: 'Hunter Drone', family: 'machine', sprite: 'hunter',

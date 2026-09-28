@@ -240,8 +240,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     this.roundMenu.setItems([
       { label: 'Fight', value: 'fight' },
       { label: 'Repeat', value: 'repeat', enabled: anyOrders && !this.telegraphed() },
-      { label: 'Auto', value: 'auto', enabled: !this.setup.boss },
-      { label: 'Run', value: 'run', enabled: this.battle.canRun && !this.setup.boss },
+      // Locked options say why at a glance, not only when highlighted.
+      { label: 'Auto', value: 'auto', enabled: !this.setup.boss, right: this.setup.boss ? 'boss' : undefined },
+      { label: 'Run', value: 'run', enabled: this.battle.canRun && !this.setup.boss, right: this.setup.boss || !this.battle.canRun ? 'no' : undefined },
     ]);
     this.roundMenu.index = 0;
     this.mode = 'round';
@@ -1540,9 +1541,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     });
   }
 
-  /** A boss is winding up a big move: the round deserves fresh orders, not muscle memory. */
+  /** Something is winding up a big move: the round deserves fresh orders, not muscle memory. */
   private telegraphed(): boolean {
-    return this.battle.alive('enemy').some((u) => u.boss && (u.memory.breath || u.memory.charging));
+    return this.battle.alive('enemy').some((u) => u.memory.breath || u.memory.charging || u.memory.spin || u.memory.surge);
   }
 
   private renderRoundMenu(ctx: Ctx): void {

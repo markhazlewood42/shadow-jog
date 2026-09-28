@@ -316,6 +316,7 @@ export class Battle {
       if (this.has(a, 'stun')) {
         this.removeStatus(a, 'stun');
         this.ev.push({ t: 'fail', actor: a.uid, reason: `${a.name} is stunned!` });
+        this.interruptWindup(a);
         return;
       }
       if (this.has(a, 'jammed')) {
@@ -323,6 +324,7 @@ export class Battle {
         s.turns--;
         this.ev.push({ t: 'fail', actor: a.uid, reason: `${a.name} is jammed!` });
         if (s.turns <= 0) this.removeStatus(a, 'jammed');
+        this.interruptWindup(a);
         return;
       }
     }
@@ -339,8 +341,8 @@ export class Battle {
       if (choice.skip) return;
     }
     const ab = act.ability;
-    // Resource costs
-    if (lead.side === 'party' && ab.kind !== 'combo' && ab.kind !== 'item') {
+    // Resource costs (Guard is free: it is a stance, not a skill with uses)
+    if (lead.side === 'party' && ab.kind !== 'combo' && ab.kind !== 'item' && ab !== GUARD) {
       if (!this.payCost(lead, ab)) {
         this.ev.push({ t: 'fail', actor: lead.uid, reason: ab.kind === 'skill' ? `No uses of ${ab.name} left!` : 'Not enough TP!' });
         return;
@@ -368,9 +370,27 @@ export class Battle {
     else this.ev.push({ t: 'act', actor: lead.uid, id: ab.id, name: ab.name, kind: ab.kind, fx: ab.fx, targets: targets.map((t) => t.uid), element: ab.element ?? (ab.kind === 'attack' ? lead.weaponElement : undefined) });
     if (ab === GUARD) {
       this.addStatus(lead, 'guard', 1);
+      // Bracing is also a breath: a little TP back, so guarding is a play, not just a pass.
+      if (lead.base.maxTp > 0 && lead.tp < lead.base.maxTp) {
+        const amt = Math.min(lead.base.maxTp - lead.tp, Math.max(2, Math.round(lead.base.maxTp * 0.12)));
+        lead.tp += amt;
+        this.ev.push({ t: 'tp', target: lead.uid, amount: amt, tp: lead.tp });
+      }
       return;
     }
     this.applyEffects(actors, ab, targets, act.item);
+  }
+
+  /** A telegraphed attack (turret spin-up, arcanist surge) is lost if its user loses the turn. */
+  private interruptWindup(u: Combatant): void {
+    if (u.memory.spin) {
+      u.memory.spin = 0;
+      this.ev.push({ t: 'msg', text: `${u.name}’s barrels spin down.` });
+    }
+    if (u.memory.surge) {
+      u.memory.surge = 0;
+      this.ev.push({ t: 'msg', text: `${u.name}’s surge bleeds away.` });
+    }
   }
 
   private payCost(u: Combatant, ab: Ability): boolean {
@@ -453,10 +473,15 @@ export class Battle {
         case 'damage': {
           const hits = eff.hits ?? 1;
           if (ab.target === 'random_enemies') {
+            // Hits spread across the field: each goes to one of the least-hit targets so far.
+            const count = new Map<number, number>();
             for (let h = 0; h < hits; h++) {
               const pool = this.alive(user.side === 'party' ? 'enemy' : 'party');
               if (!pool.length) break;
-              this.damage(actors, ab, eff, this.rng.pick(pool), itemId);
+              const least = Math.min(...pool.map((t) => count.get(t.uid) ?? 0));
+              const t = this.rng.pick(pool.filter((p) => (count.get(p.uid) ?? 0) === least));
+              count.set(t.uid, (count.get(t.uid) ?? 0) + 1);
+              this.damage(actors, ab, eff, t, itemId);
             }
           } else {
             for (const t of targets) for (let h = 0; h < hits; h++) if (t.hp > 0) this.damage(actors, ab, eff, t, itemId);
@@ -652,7 +677,7 @@ export class Battle {
   }
 }
 
-const GUARD: Ability = { id: 'guard', name: 'Guard', desc: 'Halve damage this round.', kind: 'skill', target: 'self', effects: [], fx: 'guard' };
+const GUARD: Ability = { id: 'guard', name: 'Guard', desc: 'Halve damage this round and recover a little TP.', kind: 'skill', target: 'self', effects: [], fx: 'guard' };
 
 export function itemAbility(id: string): Ability {
   const it = ITEMS[id]!;

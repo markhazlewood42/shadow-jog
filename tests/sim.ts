@@ -109,6 +109,14 @@ export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, 
     if (foes.length >= 3 && !hasStatus(foes[0]!, 'exposed')) pair(hex, 'analyze', rook, 'quickdraw', foes[0]!.uid);
   }
 
+  // A turret spinning up or an arcanist channelling: Scramble interrupts either (jam / blind);
+  // failing that, the hurt brace.
+  const winding = foes.find((f) => f.memory.spin || f.memory.surge);
+  if (winding) {
+    if (can(hex, 'scramble')) give(hex, 'tech', 'scramble', winding.uid);
+    for (const p of party) if (frac(p) < 0.4) give(p, 'guard');
+  }
+
   // A telegraphed party-wide attack is coming: ward up, and the badly hurt brace.
   if (boss?.memory.breath) {
     const warded = party.some((p) => hasStatus(p, 'res_up'));

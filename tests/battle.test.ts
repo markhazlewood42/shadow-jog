@@ -191,6 +191,52 @@ describe('support roles and field notes', () => {
   });
 });
 
+describe('enemy wind-ups', () => {
+  const guardAll = (b: Battle): Command[] => b.alive('party').map((u) => ({ actor: u.uid, type: 'guard' as const }));
+
+  it('a turret spins up (telegraphed), then sweeps the whole crew next turn', () => {
+    const b = new Battle(party(['kit', 'rook'], 8), enemyParty(['sentry_turret']), new Rng(3));
+    const all: string[] = [];
+    for (let r = 0; r < 4 && !b.outcome; r++) {
+      for (const e of b.resolveRound(guardAll(b))) if (e.t === 'msg' || e.t === 'act') all.push(e.t === 'msg' ? e.text : e.name);
+    }
+    const spin = all.findIndex((t) => t.includes('spins up'));
+    expect(spin).toBeGreaterThanOrEqual(0);
+    expect(all.slice(spin + 1)).toContain('Full Auto');
+  });
+
+  it('jamming a spinning turret spins it down: no sweep', () => {
+    const b = new Battle(party(['kit', 'rook'], 8), enemyParty(['sentry_turret']), new Rng(3));
+    b.resolveRound(guardAll(b));
+    b.resolveRound(guardAll(b)); // turn 2: spins up
+    const turret = b.enemies[0]!;
+    expect(turret.memory.spin).toBe(1);
+    turret.status.push({ id: 'jammed', turns: 1 });
+    const ev = b.resolveRound(guardAll(b));
+    expect(ev.some((e) => e.t === 'msg' && e.text.includes('spin down'))).toBe(true);
+    expect(ev.some((e) => e.t === 'act' && e.name === 'Full Auto')).toBe(false);
+  });
+
+  it('Guard recovers a little TP as well as halving damage', () => {
+    const b = new Battle(party(['hex'], 6), enemyParty(['glowrat']), new Rng(1));
+    const hex = b.party[0]!;
+    hex.tp = 0;
+    const ev = b.resolveRound([{ actor: hex.uid, type: 'guard' }]);
+    expect(ev.some((e) => e.t === 'tp' && e.target === hex.uid && e.amount >= 2)).toBe(true);
+  });
+
+  it('a random multi-hit spreads across targets before doubling up', () => {
+    const b = new Battle(party(['kit'], 12), enemyParty(['sewer_ghoul', 'sewer_ghoul', 'sewer_ghoul']), new Rng(5));
+    for (const e of b.enemies) e.hp = 9999;
+    const kit = b.party[0]!;
+    kit.tp = 99;
+    const ev = b.resolveRound([{ actor: kit.uid, type: 'tech', id: 'hundred_rain', target: -1 }]);
+    const hits = ev.filter((e) => e.t === 'damage' && b.unit(e.target)?.side === 'enemy').map((e) => (e.t === 'damage' ? e.target : -1));
+    const per = b.enemies.map((u) => hits.filter((h) => h === u.uid).length);
+    expect(Math.max(...per) - Math.min(...per)).toBeLessThanOrEqual(1);
+  });
+});
+
 describe('maps', () => {
   it('every prop kind placed on a map has a painter', async () => {
     const { PROPS } = await import('../src/field/props');
