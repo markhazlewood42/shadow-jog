@@ -187,7 +187,12 @@ export function buildParty(loadout: Loadout[]): Combatant[] {
   });
 }
 
-export function simulate(label: string, loadout: Loadout[], table: string, n = 200, seed = 1, useCombos = true): SimResult {
+/** The in-battle Auto command: everyone attacks, the engine picks targets. The baseline techs must beat. */
+export function autoPolicy(b: Battle): Command[] {
+  return b.alive('party').map((u) => ({ actor: u.uid, type: 'attack' as const, target: -1 }));
+}
+
+export function simulate(label: string, loadout: Loadout[], table: string, n = 200, seed = 1, useCombos = true, pick?: (b: Battle, bag: Bag) => Command[]): SimResult {
   const rng = new Rng(seed);
   let wins = 0, rounds = 0, lost = 0, combos = 0;
   const used = new Set<string>();
@@ -199,7 +204,7 @@ export function simulate(label: string, loadout: Loadout[], table: string, n = 2
     const bag: Bag = { medkit: 2 };
     const b = new Battle(p, enemyParty(g.e), new Rng(rng.int(1, 1e9)), { useItem: () => take(bag) });
     while (!b.outcome && b.round < 60) {
-      const cmds = policy(b, useCombos, bag);
+      const cmds = pick ? pick(b, bag) : policy(b, useCombos, bag);
       for (const c of cmds) if ((c.type === 'tech' || c.type === 'skill') && c.id) used.add(c.id);
       b.resolveRound(cmds);
     }

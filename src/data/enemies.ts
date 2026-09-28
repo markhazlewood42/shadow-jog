@@ -37,7 +37,8 @@ export interface EnemyDef {
 }
 
 export const FAMILY_WEAK: Record<Family, Partial<Record<Element, number>>> = {
-  human: { cyber: 0.6 },
+  // Chrome conducts: street muscle is wired, so a taser is the answer to a ganger as much as to a drone.
+  human: { shock: 1.25, cyber: 0.6 },
   machine: { shock: 1.5, cyber: 2, mana: 0.6, fire: 0.9 },
   beast: { fire: 1.5, cyber: 0.25 },
   spirit: { phys: 0.5, mana: 1.75, shock: 0.6, cyber: 0 },

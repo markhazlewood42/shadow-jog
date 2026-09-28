@@ -370,8 +370,11 @@ export class Battle {
     else this.ev.push({ t: 'act', actor: lead.uid, id: ab.id, name: ab.name, kind: ab.kind, fx: ab.fx, targets: targets.map((t) => t.uid), element: ab.element ?? (ab.kind === 'attack' ? lead.weaponElement : undefined) });
     if (ab === GUARD) {
       this.addStatus(lead, 'guard', 1);
-      // Bracing is also a breath: a little TP back, so guarding is a play, not just a pass.
-      if (lead.base.maxTp > 0 && lead.tp < lead.base.maxTp) {
+      // Bracing is also a breath: a little TP back, so guarding is a play, not just a pass. Only
+      // after a round of doing something else, though, or turtling becomes a free TP battery.
+      const rested = lead.memory.guardRound === this.round - 1;
+      lead.memory.guardRound = this.round;
+      if (!rested && lead.base.maxTp > 0 && lead.tp < lead.base.maxTp) {
         const amt = Math.min(lead.base.maxTp - lead.tp, Math.max(2, Math.round(lead.base.maxTp * 0.12)));
         lead.tp += amt;
         this.ev.push({ t: 'tp', target: lead.uid, amount: amt, tp: lead.tp });
@@ -677,7 +680,7 @@ export class Battle {
   }
 }
 
-const GUARD: Ability = { id: 'guard', name: 'Guard', desc: 'Halve damage this round and recover a little TP.', kind: 'skill', target: 'self', effects: [], fx: 'guard' };
+const GUARD: Ability = { id: 'guard', name: 'Guard', desc: 'Halve damage this round. Recovers a little TP, but not two rounds running.', kind: 'skill', target: 'self', effects: [], fx: 'guard' };
 
 export function itemAbility(id: string): Ability {
   const it = ITEMS[id]!;

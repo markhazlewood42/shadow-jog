@@ -70,7 +70,7 @@ export const ITEMS: Record<string, ItemDef> = {
   mono_katana: I({ id: 'mono_katana', name: 'Mono-Katana', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 1150, atk: 25, crit: 5, desc: 'Monomolecular edge. Cuts steel. +5% critical.' }),
   holdout: I({ id: 'holdout', name: 'Hold-out Pistol', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 30, atk: 5, desc: 'Fits in a boot. Barely a gun.' }),
   heavy_pistol: I({ id: 'heavy_pistol', name: 'Heavy Pistol', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 200, atk: 11, desc: 'Solid stopping power.' }),
-  taser_pistol: I({ id: 'taser_pistol', name: 'Taser Pistol', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 400, atk: 12, element: 'shock', desc: 'Attacks deal SHOCK damage. Great on drones.' }),
+  taser_pistol: I({ id: 'taser_pistol', name: 'Taser Pistol', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 400, atk: 12, element: 'shock', desc: 'Attacks deal SHOCK damage. Great on drones and chromed gangers.' }),
   smartpistol: I({ id: 'smartpistol', name: 'Smartpistol', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 900, atk: 17, hit: 10, desc: 'Linked to Hex’s deck. +10% hit.' }),
   ash_staff: I({ id: 'ash_staff', name: 'Ash Staff', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 40, atk: 6, mnd: 2, desc: 'Carved ash wood. +2 MND.' }),
   bone_staff: I({ id: 'bone_staff', name: 'Bone Fetish Staff', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 420, atk: 10, mnd: 6, desc: 'Strung with charms. +6 MND.' }),

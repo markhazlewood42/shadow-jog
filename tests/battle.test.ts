@@ -3,7 +3,7 @@ import { Battle } from '../src/battle/engine';
 import { enemyParty, partyCombatant } from '../src/battle/setup';
 import type { Combatant, Command } from '../src/battle/types';
 import { ABILITIES, COMBOS, LEARNSETS } from '../src/data/abilities';
-import { ENCOUNTERS, ENEMIES } from '../src/data/enemies';
+import { ENCOUNTERS, ENEMIES, FAMILY_WEAK } from '../src/data/enemies';
 import { ITEMS } from '../src/data/items';
 import { levelForXp, xpFor } from '../src/data/party';
 import { createMember, grantXp, knownAbilities, memberStats } from '../src/game/party';
@@ -223,6 +223,25 @@ describe('enemy wind-ups', () => {
     hex.tp = 0;
     const ev = b.resolveRound([{ actor: hex.uid, type: 'guard' }]);
     expect(ev.some((e) => e.t === 'tp' && e.target === hex.uid && e.amount >= 2)).toBe(true);
+  });
+
+  it('Guard gives no TP two rounds running, so turtling is not a TP battery', () => {
+    const b = new Battle(party(['hex'], 6), enemyParty(['glowrat']), new Rng(1));
+    const hex = b.party[0]!;
+    b.enemies[0]!.hp = 9999;
+    hex.hp = 9999;
+    hex.tp = 0;
+    const tpGain = (ev: ReturnType<Battle['resolveRound']>) => ev.some((e) => e.t === 'tp' && e.target === hex.uid);
+    expect(tpGain(b.resolveRound([{ actor: hex.uid, type: 'guard' }]))).toBe(true);
+    expect(tpGain(b.resolveRound([{ actor: hex.uid, type: 'guard' }]))).toBe(false);
+    b.resolveRound([{ actor: hex.uid, type: 'attack', target: b.enemies[0]!.uid }]);
+    expect(tpGain(b.resolveRound([{ actor: hex.uid, type: 'guard' }]))).toBe(true);
+  });
+
+  it('every enemy family has at least one elemental weakness to find', () => {
+    for (const [fam, w] of Object.entries(FAMILY_WEAK)) {
+      expect(Object.values(w).some((m) => m > 1), fam).toBe(true);
+    }
   });
 
   it('a random multi-hit spreads across targets before doubling up', () => {
