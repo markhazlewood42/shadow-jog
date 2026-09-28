@@ -5,7 +5,7 @@ import { sfx } from '../audio/sfx';
 import type { Ctx } from '../engine/canvas';
 import { drawText, fitText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
-import { saveSettings, settings } from '../game/settings';
+import { BATTLE_SPEEDS, battleSpeed, saveSettings, settings, TEXT_SPEEDS, textSpeed } from '../game/settings';
 import { drawBar, drawCursor, drawSelect, drawWindow, UI } from '../ui/draw';
 import { keyLabel, type Action } from '../engine/input';
 import { ControlsScene } from './controls';
@@ -37,12 +37,12 @@ export class OptionsScene extends Scene<'back' | 'title'> {
       { id: 'music', label: 'Music volume', ...vol('musicVol') },
       { id: 'sfx', label: 'Sound volume', ...vol('sfxVol') },
       {
-        id: 'text', label: 'Text speed', value: () => ['', 'Slow', 'Normal', 'Fast', 'Instant'][settings.textSpeed]!,
-        adjust: (d) => (settings.textSpeed = Math.max(1, Math.min(4, settings.textSpeed + d))),
+        id: 'text', label: 'Text speed', value: () => textSpeed().label,
+        adjust: (d) => (settings.textSpeed = Math.max(1, Math.min(TEXT_SPEEDS.length, settings.textSpeed + d))),
       },
       {
-        id: 'battle', label: 'Battle speed', value: () => ['', 'Normal', 'Fast', 'Faster'][settings.battleSpeed]!,
-        adjust: (d) => (settings.battleSpeed = Math.max(1, Math.min(3, settings.battleSpeed + d))),
+        id: 'battle', label: 'Battle speed', value: () => battleSpeed().label,
+        adjust: (d) => (settings.battleSpeed = Math.max(1, Math.min(BATTLE_SPEEDS.length, settings.battleSpeed + d))),
       },
       {
         id: 'shake', label: 'Screen shake', value: () => ['Off', 'Gentle', 'Full'][settings.shake] ?? 'Full',

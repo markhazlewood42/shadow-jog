@@ -70,3 +70,57 @@ test('a live battle stays inside the frame budget', async ({ page }) => {
   expect(s.frames).toBeGreaterThan(180);
   gate(s);
 });
+
+/**
+ * Input latency: keydown to the first frame whose game state shows the response, measured in
+ * the page (a capture-phase keydown listener, then a per-frame check). Movement and opening the
+ * menu both answer on the next tick; the gate allows two frames plus a frame of measurement slack.
+ */
+test('input answers within two frames (field movement, opening the menu)', async ({ page }) => {
+  await page.goto('/?debug');
+  await page.waitForTimeout(800);
+  await sj(page, "sj.stage('town')");
+  await page.waitForTimeout(1500);
+  // In play the title screen takes the first keypress, which is what unlocks audio (creating the
+  // AudioContext costs the browser ~25 ms). Do the same here so the probes measure steady state.
+  await page.keyboard.press('Shift');
+  await page.waitForTimeout(500);
+  const probe = async (key: string, changed: string): Promise<number> => {
+    await page.evaluate(`(() => {
+      const sj = window.__SJ__;
+      const before = (${changed})(sj);
+      window.__lat = -1;
+      let tKey = 0;
+      window.addEventListener('keydown', () => { tKey = performance.now(); }, { capture: true, once: true });
+      const poll = () => {
+        if (tKey && (${changed})(sj) !== before) { window.__lat = performance.now() - tKey; return; }
+        requestAnimationFrame(poll);
+      };
+      requestAnimationFrame(poll);
+    })()`);
+    await page.keyboard.down(key);
+    await page.waitForTimeout(120);
+    await page.keyboard.up(key);
+    await page.waitForTimeout(250);
+    return page.evaluate('window.__lat') as Promise<number>;
+  };
+  const move: number[] = [];
+  for (let i = 0; i < 8; i++) {
+    move.push(await probe(i % 2 ? 'ArrowLeft' : 'ArrowRight', '(sj) => { const l = sj.field().leader; return l.px + ":" + l.dir; }'));
+  }
+  const menu: number[] = [];
+  for (let i = 0; i < 4; i++) {
+    menu.push(await probe('Escape', '(sj) => sj.top()'));
+    await page.waitForTimeout(300);
+    // Close it again (the probe's own keydown listener is spent).
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+  }
+  const median = (a: number[]) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)]!;
+  console.log('input latency ms', JSON.stringify({ move: move.map((v) => +v.toFixed(1)), menu: menu.map((v) => +v.toFixed(1)), moveMedian: median(move), menuMedian: median(menu) }));
+  expect(Math.min(...move, ...menu)).toBeGreaterThanOrEqual(0);
+  // Two frames at 60 fps; a single outlier gets one more.
+  expect(median(move)).toBeLessThan(34);
+  expect(median(menu)).toBeLessThan(34);
+  expect(Math.max(...move, ...menu)).toBeLessThan(50);
+});

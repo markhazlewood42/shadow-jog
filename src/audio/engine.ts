@@ -13,6 +13,13 @@ export interface Voice {
   vel: number;
 }
 
+declare global {
+  interface Window {
+    /** Safari before 14.1 only has the prefixed constructor, which lib.dom doesn't declare. */
+    webkitAudioContext?: typeof AudioContext;
+  }
+}
+
 /** Acoustic spaces: each is a synthetic impulse (length, decay curve, damping, early echoes) plus an echo time. */
 export type Space = 'room' | 'hall' | 'cave' | 'tunnel';
 interface SpaceDef {
@@ -82,7 +89,7 @@ class AudioEngine {
   /** Must be called from a user gesture. Safe to call repeatedly. */
   unlock(): void {
     if (!this.ctx) {
-      const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AC = window.AudioContext ?? window.webkitAudioContext;
       if (!AC) return;
       this.ctx = new AC({ latencyHint: 'interactive' });
       this.build();
@@ -90,7 +97,12 @@ class AudioEngine {
     if (this.ctx.state === 'suspended') void this.ctx.resume();
     if (!this.unlocked) {
       this.unlocked = true;
-      for (const l of this.listeners) l();
+      // Starting the pending song (compiling it, scheduling notes) waits a task, so it doesn't
+      // add to the keypress that unlocked audio.
+      const ls = this.listeners.splice(0);
+      setTimeout(() => {
+        for (const l of ls) l();
+      }, 0);
     }
   }
 
@@ -123,8 +135,10 @@ class AudioEngine {
     this.hitDuck = c.createGain();
     this.music.connect(comp(-18, 2.5, 0.02, 0.3)).connect(this.duckNode).connect(this.hitDuck).connect(this.master);
     this.sfx.connect(comp(-12, 4, 0.003, 0.15)).connect(this.master);
-    // Reverb: one synthetic impulse per acoustic space, swapped when the song changes.
-    for (const [name, sp] of Object.entries(SPACES) as [Space, SpaceDef][]) this.spaces.set(name, impulse(c, sp));
+    // Reverb: one synthetic impulse per acoustic space, swapped when the song changes. Only the
+    // first is built now: unlock runs inside the player's first keypress, and building all four
+    // there cost ~60 ms (a visible hitch on the first step). The rest are built at idle moments.
+    this.prewarmSpaces();
     this.reverbSend = c.createGain();
     this.reverbSend.gain.value = 0.22;
     this.verbs = [c.createConvolver(), c.createConvolver()];
@@ -133,7 +147,7 @@ class AudioEngine {
     // music bus: the volume slider, the bus compressor and the dialogue/hit ducks all act on the
     // tails too. Returned straight to master, music at 0 still left reverb and echo audible.
     for (let i = 0; i < 2; i++) {
-      this.verbs[i]!.buffer = this.spaces.get('hall')!;
+      this.verbs[i]!.buffer = this.impulseFor('hall');
       this.verbGains[i]!.gain.value = i === 0 ? 1 : 0;
       this.reverbSend.connect(this.verbs[i]!).connect(this.verbGains[i]!).connect(this.music);
     }
@@ -159,6 +173,31 @@ class AudioEngine {
     this.applyVolumes();
   }
 
+  /** A space's impulse, built on first use. */
+  private impulseFor(space: Space): AudioBuffer {
+    let b = this.spaces.get(space);
+    if (!b) {
+      b = impulse(this.ctx!, SPACES[space]);
+      this.spaces.set(space, b);
+    }
+    return b;
+  }
+
+  /** Build the remaining impulses one at a time, when the page is idle. */
+  private prewarmSpaces(): void {
+    const todo = (Object.keys(SPACES) as Space[]).filter((s) => s !== 'hall');
+    // requestIdleCallback is missing in older Safari: fall back to a short timer there.
+    const ric = (window as Partial<Pick<Window, 'requestIdleCallback'>>).requestIdleCallback?.bind(window);
+    const idle = (fn: () => void) => (ric ? ric(fn, { timeout: 2000 }) : setTimeout(fn, 200));
+    const next = () => {
+      const s = todo.shift();
+      if (!s) return;
+      this.impulseFor(s);
+      idle(next);
+    };
+    idle(next);
+  }
+
   /** Move the music into a different acoustic space (reverb character and echo). */
   setSpace(space: Space): void {
     if (!this.ctx || space === this.space) return;
@@ -166,7 +205,7 @@ class AudioEngine {
     const t = this.ctx.currentTime;
     // Load the new space into the idle convolver and crossfade over ~0.5 s.
     const next = 1 - this.verbActive;
-    this.verbs[next]!.buffer = this.spaces.get(space)!;
+    this.verbs[next]!.buffer = this.impulseFor(space);
     this.verbGains[next]!.gain.cancelScheduledValues(t);
     this.verbGains[next]!.gain.setTargetAtTime(1, t, 0.15);
     this.verbGains[this.verbActive]!.gain.cancelScheduledValues(t);

@@ -19,6 +19,7 @@ import type { Game as GameT } from './engine/game';
 import { settings, shakeScale } from './game/settings';
 import { debug } from './game/debug';
 import type { GameState } from './game/state';
+import type { ScriptFn } from './game/script';
 import * as stateMod from './game/state';
 import { applyStage } from './game/stages';
 import { perf } from './engine/perf';
@@ -62,7 +63,7 @@ export function boot(game: Game, display: Display): void {
     say: (who: string, text: string, face = 'neutral') => void field()?.runScript((s) => s.say(who, text, { face })),
     menu: () => field() && fieldHooks.openMenu?.(field()!),
     shop: (id: string) => void field()?.runScript((s) => s.shop(id)),
-    run: (fn: (s: unknown) => Promise<void>) => void field()?.runScript(fn as never),
+    run: (fn: ScriptFn) => void field()?.runScript(fn),
     save: (slot: 1 | 2 | 3 | 'auto') => writeSave(slot, game.playFrames),
     /** Frame-work timing (see engine/perf.ts). */
     perf,

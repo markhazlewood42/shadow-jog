@@ -183,7 +183,7 @@ export class FieldScene extends Scene<void> {
   // ------------------------------------------------------------------ update
   update(): void {
     this.frame++;
-    const prevCam = { x: this.camX, y: this.camY };
+    const prevCamX = this.camX, prevCamY = this.camY;
     // Actors
     let leaderArrived = false;
     for (const p of this.party) {
@@ -203,7 +203,7 @@ export class FieldScene extends Scene<void> {
     if (leaderArrived) this.onLeaderArrive();
     if (!this.busy && !this.pendingWarp) this.handleInput();
     this.updateCamera();
-    this.weather.update(this.camX - prevCam.x, this.camY - prevCam.y);
+    this.weather.update(this.camX - prevCamX, this.camY - prevCamY);
   }
 
   private handleInput(): void {

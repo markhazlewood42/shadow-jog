@@ -19,7 +19,7 @@ import { drawText, fitText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { Rng, streams } from '../engine/rng';
 import { equipRegen, grantXp, knownAbilities, type LevelUp } from '../game/party';
-import { settings } from '../game/settings';
+import { battleSpeed } from '../game/settings';
 import { debug, PLAYTEST_ROUNDS } from '../game/debug';
 import { learn, removeItem, state, type MemberId } from '../game/state';
 import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../ui/draw';
@@ -173,7 +173,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   // ------------------------------------------------------------------ timing helpers
   private speed(): number {
-    return [1, 1, 1.5, 2.2][settings.battleSpeed] ?? 1;
+    return battleSpeed().mult;
   }
   private w(frames: number): Promise<void> {
     const fast = this.game.input.down('confirm') || this.game.input.down('cancel') ? 1.6 : 1;

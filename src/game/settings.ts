@@ -62,7 +62,27 @@ export function shakeScale(): number {
   return [0, 0.45, 1][settings.shake] ?? 1;
 }
 
+/** The steps of the text and battle speed options, in order. The settings store a 1-based step. */
+export const TEXT_SPEEDS = [
+  { label: 'Slow', cps: 0.5 },
+  { label: 'Normal', cps: 1 },
+  { label: 'Fast', cps: 2.5 },
+  { label: 'Instant', cps: 999 },
+] as const;
+export const BATTLE_SPEEDS = [
+  { label: 'Normal', mult: 1 },
+  { label: 'Fast', mult: 1.5 },
+  { label: 'Faster', mult: 2.2 },
+] as const;
+
+/** A 1-based step into a table, clamped (a hand-edited or stale settings value can't miss). */
+function step<T>(table: readonly T[], n: number): T {
+  return table[Math.min(table.length, Math.max(1, Math.round(n) || 1)) - 1]!;
+}
+export const textSpeed = () => step(TEXT_SPEEDS, settings.textSpeed);
+export const battleSpeed = () => step(BATTLE_SPEEDS, settings.battleSpeed);
+
 /** Characters revealed per frame for the typewriter. */
 export function charsPerFrame(): number {
-  return [0, 0.5, 1, 2.5, 999][settings.textSpeed] ?? 1;
+  return textSpeed().cps;
 }
