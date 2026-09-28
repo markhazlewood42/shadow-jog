@@ -65,7 +65,7 @@ export const STAGES: Record<string, () => Stage> = {
       hex: { level: 7, equip: { weapon: 'heavy_pistol', body: 'lined_coat' } },
       sable: { level: 7 },
     });
-    Object.assign(state.flags, { ...FLAGS_SINKLINE, floodgate: true, lurker: true, annex_key: true, sable_joined: true, objective: 'Escape Annex 7. Head for the freight lift.' });
+    Object.assign(state.flags, { ...FLAGS_SINKLINE, floodgate: true, lurker: true, annex_key: true, sable_joined: true, objective: 'Gear up from the Annex armory, then head for the freight lift in the south wing.' });
     state.cred = 1400;
     state.battles = 29;
     state.inventory = { medkit: 6, trauma_patch: 4, neurotab: 3, adrenal_stim: 2, omni_patch: 1, frag: 2 };

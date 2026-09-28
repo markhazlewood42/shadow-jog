@@ -57,7 +57,7 @@ export const annex: MapDef = {
     { kind: 'desk', x: 22, y: 4, w: 2 },
     { kind: 'terminal', x: 27, y: 3, color: '#3fe0f0' },
     { kind: 'terminal', x: 16, y: 12, color: '#3fe0f0' },
-    { kind: 'terminal', x: 29, y: 14, color: '#ff4fb0' },
+    { kind: 'terminal', x: 29, y: 14, color: '#3fe0f0' },
     { kind: 'tank', x: 18, y: 8 },
     { kind: 'tank', x: 20, y: 8 },
     { kind: 'tank', x: 24, y: 8, color: '#b07cff' },
@@ -75,7 +75,12 @@ export const annex: MapDef = {
     { kind: 'tank', x: 21, y: 25, color: '#ff3a4a' },
     { kind: 'tank', x: 36, y: 25, color: '#ff3a4a' },
     { kind: 'barrier', x: 37, y: 31, w: 3, pass: true },
-    // Lattice relays: one in the service room, one in the hall, one in the armory.
+    // Wayfinding: the lab's own wall signs.
+    { kind: 'sign_post', x: 9, y: 7, text: 'LABS ↓' },
+    { kind: 'sign_post', x: 16, y: 18, text: 'ARMORY ↓' },
+    { kind: 'sign_post', x: 29, y: 9, text: 'CRYO WING ↑' },
+    { kind: 'sign_post', x: 25, y: 18, text: 'CONTAINMENT ↓' },
+    // Lattice relays (red, unlike the cyan lore terminals): service room, hall, armory.
     { kind: 'terminal', x: 10, y: 4, color: '#ff6a5a' },
     { kind: 'terminal', x: 15, y: 8, color: '#ff6a5a' },
     { kind: 'terminal', x: 15, y: 21, color: '#ff6a5a' },

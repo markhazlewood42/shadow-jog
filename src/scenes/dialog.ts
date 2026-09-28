@@ -37,6 +37,7 @@ export class DialogScene extends Scene<number> {
   private choiceIdx = 0;
   private frame = 0;
   private opened = 0;
+  private bufferedPress = false;
   private autoT = 0;
   private blipAcc = 0;
 
@@ -68,11 +69,17 @@ export class DialogScene extends Scene<number> {
       this.close(0);
       return;
     }
+    const inp = this.game.input;
     if (this.opened < 6) {
+      // A press during the open animation isn't lost: it fast-completes the first line.
+      if (inp.pressed('confirm')) this.bufferedPress = true;
       this.opened++;
       return;
     }
-    const inp = this.game.input;
+    if (this.bufferedPress) {
+      this.bufferedPress = false;
+      this.shown = this.pageLen();
+    }
     const fast = (inp.down('cancel') || debug.playtest) && !this.o.choices;
     if (this.typing) {
       if (this.waitFrames > 0) {

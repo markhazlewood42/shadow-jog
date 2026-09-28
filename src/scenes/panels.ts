@@ -3,6 +3,7 @@ import { buildChar } from '../art/chars';
 import { getPortrait } from '../art/portraits';
 import { sfx } from '../audio/sfx';
 import { autoClose } from '../game/debug';
+import { charsPerFrame } from '../game/settings';
 import { LOOKS } from '../data/looks';
 import { SPEAKERS } from '../data/speakers';
 import { silhouette, surface, type Ctx } from '../engine/canvas';
@@ -76,6 +77,8 @@ export class PanelScene extends Scene<void> {
   private shown = 0;
   private t = 0;
   private panelT: number[] = [];
+  /** Characters of each panel's speech revealed so far. */
+  private typed: number[] = [];
   private cache = new Map<string, HTMLCanvasElement>();
 
   constructor(id: string) {
@@ -92,6 +95,7 @@ export class PanelScene extends Scene<void> {
     if (!p) return;
     if (this.shown < p.length) {
       this.panelT[this.shown] = 0;
+      this.typed[this.shown] = 0;
       this.shown++;
       sfx(p[this.shown - 1]!.shake ? 'explosion' : 'page');
       if (p[this.shown - 1]!.shake) this.game.shake(20, 3);
@@ -111,10 +115,21 @@ export class PanelScene extends Scene<void> {
       this.close();
       return;
     }
+    // Speech bubbles type out at the player's Text Speed, once the panel has slid in.
+    for (let i = 0; i < this.shown; i++) {
+      const sp = p[i]?.speech;
+      if (sp && (this.panelT[i] ?? 0) > 6) this.typed[i] = Math.min(sp.text.length, (this.typed[i] ?? 0) + charsPerFrame());
+    }
     const lastT = this.panelT[this.shown - 1] ?? 999;
     if (inp.pressed('cancel')) {
       // Skip the whole sequence.
       this.close();
+      return;
+    }
+    // Same contract as dialogue boxes: a press first finishes the line being typed.
+    const cur = p[this.shown - 1]?.speech;
+    if (inp.pressed('confirm') && cur && (this.typed[this.shown - 1] ?? 0) < cur.text.length) {
+      this.typed[this.shown - 1] = cur.text.length;
       return;
     }
     if (inp.pressed('confirm') && lastT > 12) {
@@ -123,6 +138,7 @@ export class PanelScene extends Scene<void> {
         this.page++;
         this.shown = 0;
         this.panelT = [];
+        this.typed = [];
         if (this.page >= this.pages.length) this.close();
         else this.revealNext();
       }
@@ -137,7 +153,7 @@ export class PanelScene extends Scene<void> {
     for (let y = 0; y < H; y += 6) for (let x = (y / 6) % 2 ? 3 : 0; x < W; x += 6) ctx.fillRect(x, y, 1, 1);
     const p = this.pages[this.page];
     if (!p) return;
-    for (let i = 0; i < this.shown; i++) this.drawPanel(ctx, fitPanel(p[i]!), this.panelT[i] ?? 0);
+    for (let i = 0; i < this.shown; i++) this.drawPanel(ctx, fitPanel(p[i]!), this.panelT[i] ?? 0, this.typed[i] ?? 0);
     // Footer strip below the panels: skip hint left, page-advance marker right.
     const lastT = this.panelT[this.shown - 1] ?? 0;
     if (lastT > 20 && Math.floor(this.t / 20) % 2 === 0) drawText(ctx, '▼', W - 14, FOOT_Y, { color: '#ffffff' });
@@ -145,7 +161,7 @@ export class PanelScene extends Scene<void> {
     drawText(ctx, 'skip', 9 + measure('X') + 4, FOOT_Y, { color: '#8a87a8' });
   }
 
-  private drawPanel(ctx: Ctx, pn: Panel, t: number): void {
+  private drawPanel(ctx: Ctx, pn: Panel, t: number, typed: number): void {
     const k = Math.min(1, t / 14);
     const e = 1 - (1 - k) ** 3;
     let ox = 0, oy = 0;
@@ -190,7 +206,7 @@ export class PanelScene extends Scene<void> {
     ctx.globalAlpha = 1;
     if (t < 6) return;
     if (pn.caption) this.caption(ctx, pn, x, y);
-    if (pn.speech) this.speech(ctx, pn, x, y, t);
+    if (pn.speech) this.speech(ctx, pn, x, y, typed);
   }
 
   private caption(ctx: Ctx, pn: Panel, x: number, y: number): void {
@@ -209,7 +225,7 @@ export class PanelScene extends Scene<void> {
     });
   }
 
-  private speech(ctx: Ctx, pn: Panel, x: number, y: number, t: number): void {
+  private speech(ctx: Ctx, pn: Panel, x: number, y: number, typed: number): void {
     const sp = pn.speech!;
     const name = SPEAKERS[sp.who]?.name ?? sp.who;
     const maxW = Math.min(pn.w - (pn.portrait ? 96 : 24), 220);
@@ -219,7 +235,7 @@ export class PanelScene extends Scene<void> {
     const leftSide = pn.portrait?.flip || pn.portrait?.dx !== undefined;
     const bx = leftSide ? x + 8 : x + pn.w - w - 8;
     const by = y + 8;
-    const reveal = Math.min(sp.text.length, Math.floor((t - 6) * 1.6));
+    const reveal = Math.floor(typed);
     ctx.fillStyle = '#000';
     ctx.fillRect(bx - 1, by - 1, w + 2, h + 2);
     ctx.fillStyle = '#ffffff';

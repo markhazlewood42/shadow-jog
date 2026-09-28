@@ -73,6 +73,12 @@ export const lanternRow: MapDef = {
     { kind: 'building', x: 42, y: 38, w: 14, h: 2, facade: 0, style: 'tile' },
   ],
   props: [
+    { kind: 'pole', x: 15, y: 16, pass: true },
+    { kind: 'pole', x: 40, y: 16, pass: true },
+    { kind: 'pole', x: 15, y: 20, pass: true },
+    { kind: 'pole', x: 40, y: 20, pass: true },
+    { kind: 'pole', x: 15, y: 25, pass: true },
+    { kind: 'pole', x: 40, y: 25, pass: true },
     // Street lamps
     { kind: 'lamp', x: 3, y: 7, dir: 'right' },
     { kind: 'lamp', x: 15, y: 7, dir: 'right' },
@@ -131,6 +137,7 @@ export const lanternRow: MapDef = {
     { kind: 'fence', x: 0, y: 33, w: 3, pass: false },
   ],
   strings: [
+    // (Plaza strings are tied off to poles at both ends; see the pole props.)
     { a: [15, 16], b: [40, 16], sag: 14, lanterns: ['#ff5a3a', '#ffcc3d', '#ff4fb0'] },
     { a: [15, 20], b: [40, 20], sag: 12, lanterns: ['#ffcc3d', '#ff5a3a'] },
     { a: [15, 25], b: [40, 25], sag: 14, lanterns: ['#ff4fb0', '#ffcc3d', '#3fe0f0'] },

@@ -768,6 +768,21 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     b.lights.push({ x: x + W / 2, y: y + H - 6, r: 38, color: '#ffcf7a', i: 0.6, flicker: true });
   },
 
+  /** Slim lantern pole that string lights are tied off to (walk-through). */
+  pole(b, p) {
+    blockFoot(b, p);
+    tall(b, p, 6, 20, (c) => {
+      c.fillStyle = '#0f0e17';
+      c.fillRect(1, 0, 4, 20);
+      c.fillStyle = '#4a4e5c';
+      c.fillRect(2, 1, 2, 19);
+      c.fillStyle = '#6a7080';
+      c.fillRect(2, 1, 1, 19);
+      c.fillStyle = '#8a8e9c';
+      c.fillRect(1, 0, 4, 2);
+    });
+  },
+
   /** Wall intake valve: pipe riser, red hand-wheel, and a lit pressure gauge. */
   valve(b, p) {
     blockFoot(b, p);

@@ -3,7 +3,7 @@ import type { Dir } from '../art/chars';
 import { sfx } from '../audio/sfx';
 import { music } from '../audio/music';
 import type { Ctx } from '../engine/canvas';
-import { drawText, measure } from '../engine/font';
+import { drawText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { Rng } from '../engine/rng';
 import { Actor, DIRS, dirTo, opposite } from '../field/actor';
@@ -76,6 +76,10 @@ export class FieldScene extends Scene<void> {
   stepsSinceBattle = 0;
   private pendingWarp = false;
   private objectiveText = '';
+  private objKey = '';
+  private objLines: string[] = [];
+  private objW = 0;
+  private objFlash = 0;
 
   constructor(mapId: string, x: number, y: number, dir: Dir = 'down') {
     super();
@@ -576,7 +580,32 @@ export class FieldScene extends Scene<void> {
     this.weather.render(ctx);
     for (const a of actors) if (a.emote) drawEmote(ctx, a, cx, cy);
     this.renderBanner(ctx);
+    this.renderObjective(ctx);
     fieldHooks.renderOverlay?.(this, ctx);
+  }
+
+  /**
+   * The current objective, always on screen in the top-left corner (dimmer while walking,
+   * hidden during cutscenes and dialogue); it flashes amber for a moment when it changes.
+   */
+  private renderObjective(ctx: Ctx): void {
+    const text = this.objective;
+    if (!text || this.busy || this.def.kind === 'interior') return;
+    if (text !== this.objKey) {
+      this.objFlash = this.objKey ? 150 : 0;
+      this.objKey = text;
+      this.objLines = wrap(text, 196);
+      this.objW = Math.max(...this.objLines.map(measure)) + 16;
+    }
+    if (this.objFlash > 0) this.objFlash--;
+    const flash = this.objFlash > 0 && Math.floor(this.objFlash / 10) % 2 === 0;
+    ctx.globalAlpha = this.leader.moving ? 0.55 : 0.9;
+    ctx.fillStyle = 'rgba(10,9,19,0.78)';
+    ctx.fillRect(4, 4, this.objW, 4 + this.objLines.length * 10);
+    ctx.fillStyle = flash ? '#ffcc3d' : '#6a5a2a';
+    ctx.fillRect(4, 4, 2, 4 + this.objLines.length * 10);
+    for (let i = 0; i < this.objLines.length; i++) drawText(ctx, (i === 0 ? '{y}▶{/} ' : '   ') + this.objLines[i], 9, 6 + i * 10, { color: flash ? '#ffe7a0' : '#d8d6ec', shadow: false });
+    ctx.globalAlpha = 1;
   }
 
   private drawSprite(ctx: Ctx, s: SortedSprite, cx: number, cy: number, f: number): void {

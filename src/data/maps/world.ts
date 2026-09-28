@@ -100,6 +100,16 @@ export const world: MapDef = {
     { kind: 'sign_post', x: 21, y: 25, text: 'SINKLINE ↓' },
     { kind: 'lamp', x: 21, y: 37, dir: 'right' },
     { kind: 'car', x: 29, y: 21, w: 2, color: '#5a5f7a' },
+    // Barrens landmarks: a scav camp, dead cars, the road north to the arcology.
+    { kind: 'sign_post', x: 31, y: 10, text: 'ARCOLOGY ↑' },
+    { kind: 'wreck', x: 33, y: 14, w: 2 },
+    { kind: 'wreck', x: 42, y: 26, w: 2 },
+    { kind: 'tent', x: 54, y: 16, w: 2, color: '#5a4a3a' },
+    { kind: 'firebarrel', x: 56, y: 18 },
+    { kind: 'crates', x: 57, y: 16 },
+    { kind: 'tires', x: 47, y: 25 },
+    { kind: 'tires', x: 48, y: 25 },
+    { kind: 'barrier', x: 29, y: 15, w: 2 },
     // POI: the wayside shrine deep in Hollowmere Park.
     { kind: 'shrine', x: 22, y: 13, w: 2 },
     // POI: a K-M courier AV that came down in the south barrens.

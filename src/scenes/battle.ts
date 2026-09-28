@@ -15,7 +15,7 @@ import { ITEMS } from '../data/items';
 import { LOOKS } from '../data/looks';
 import { MEMBERS } from '../data/party';
 import { silhouette, surface, type Ctx, type Surface } from '../engine/canvas';
-import { drawText, measure } from '../engine/font';
+import { drawText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { Rng, rng as globalRng } from '../engine/rng';
 import { equipRegen, grantXp, knownAbilities, type LevelUp } from '../game/party';
@@ -129,6 +129,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private waitingConfirm: (() => void) | null = null;
   private playtestT = 0;
   private readonly drawOrder: Combatant[] = [];
+  /** Wrapped top-line text, rebuilt only when the text changes. */
+  private topKey = '';
+  private topLines: { l: string; c: string }[] = [];
+  private topW = 0;
   /** Frames of freeze-frame left (heavy hits). */
   private hitstop = 0;
   private partyArt = new Map<number, Battler>();
@@ -1376,10 +1380,21 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   /** One or two centred lines in the top slot, where action banners play during a round. */
   private topLine(ctx: Ctx, text: string, color: string = UI.dim, second?: { text: string; color: string }): void {
-    const tw = Math.min(W - 20, Math.max(measure(text), second ? measure(second.text) : 0) + 24);
-    drawWindow(ctx, (W - tw) / 2, 6, tw, second ? 28 : 17, { plain: true, accent: second ? second.color : UI.cyan });
-    drawText(ctx, text, W / 2, 10, { align: 'center', color });
-    if (second) drawText(ctx, second.text, W / 2, 21, { align: 'center', color: second.color });
+    // Text wider than the screen wraps onto a second line instead of running off the window.
+    const key = `${text}|${second?.text ?? ''}|${color}`;
+    if (key !== this.topKey) {
+      const maxW = W - 44;
+      const lines = wrap(text, maxW).map((l) => ({ l, c: color }));
+      const extra = second ? wrap(second.text, maxW).map((l) => ({ l, c: second.color })) : [];
+      this.topKey = key;
+      this.topLines = [...lines, ...extra];
+      this.topW = Math.min(W - 20, Math.max(...this.topLines.map((a) => measure(a.l))) + 24);
+    }
+    const all = this.topLines, tw = this.topW;
+    drawWindow(ctx, (W - tw) / 2, 6, tw, 6 + all.length * 11, { plain: true, accent: second ? second.color : UI.cyan });
+    all.forEach((a, i) => {
+      drawText(ctx, a.l, W / 2, 10 + i * 11, { align: 'center', color: a.c });
+    });
   }
 
   private renderRoundMenu(ctx: Ctx): void {
