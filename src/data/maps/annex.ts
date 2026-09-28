@@ -54,10 +54,12 @@ export const annex: MapDef = {
     { kind: 'crates', x: 9, y: 3 },
     { kind: 'crates', x: 2, y: 6 },
     { kind: 'desk', x: 17, y: 4, w: 2 },
+    // Requisition terminal on the hall's south wall, by the Warden passage.
+    { kind: 'vending', x: 23, y: 19, color: '#ff6a5a' },
     { kind: 'desk', x: 22, y: 4, w: 2 },
     { kind: 'terminal', x: 27, y: 3, color: '#3fe0f0' },
     { kind: 'terminal', x: 16, y: 12, color: '#3fe0f0' },
-    { kind: 'terminal', x: 29, y: 14, color: '#3fe0f0' },
+    { kind: 'terminal', x: 6, y: 2, color: '#3fe0f0' },
     { kind: 'tank', x: 18, y: 8 },
     { kind: 'tank', x: 20, y: 8 },
     { kind: 'tank', x: 24, y: 8, color: '#b07cff' },
@@ -118,7 +120,7 @@ export const annex: MapDef = {
       },
     },
     {
-      id: 'log3', x: 29, y: 14, on: 'action',
+      id: 'log3', x: 6, y: 2, on: 'action',
       run: async (s) => {
         await annexLog('MAIL · to: J. PALE', 'Your contractors should reach S-7 by the 14th. On recovery, contractor exposure is to be {r}resolved per standard protocol{/}. — Operations')(s);
         if (!s.flag('read_mail')) {
@@ -142,6 +144,17 @@ export const annex: MapDef = {
       id: 'memo', x: 17, y: 4, w: 2, on: 'action',
       run: annexLog('MEMO · LATTICE AUDIT', 'Relay A feeds emitters 1 and 2. Relay C feeds 2 and 3. Relay B is wired to all three. Cycling a relay flips every emitter it feeds. Keep this taped to the desk, Dmitri.'),
     },
+    {
+      id: 'requisition', x: 23, y: 18, h: 2, on: 'action',
+      run: async (s) => {
+        if (!s.flag('req_badge')) {
+          s.set('req_badge');
+          await s.say('hex', 'Dmitri’s badge is still live. Dmitri, you beautiful, careless man.', { face: 'happy' });
+          await s.say('rook', 'Stock up. Whatever’s behind that door, it isn’t a vending machine.');
+        }
+        await s.shop('km_requisition');
+      },
+    },
     { id: 'pod_near', x: 35, y: 6, w: 4, h: 1, on: 'touch', once: true, when: (f) => !f.sable_joined, run: cryopod },
     { id: 'warden', x: 18, y: 24, w: 22, h: 1, on: 'touch', once: true, when: (f) => !!f.sable_joined && !f.warden, run: wardenFight },
     {
@@ -164,6 +177,7 @@ export const annex: MapDef = {
     { x: 36, y: 7, r: 70, color: '#9ad8ff', i: 0.6 },
     { x: 29, y: 27, r: 110, color: '#ff3a4a', i: 0.45, flicker: true },
     { x: 18, y: 21, r: 50, color: '#ffd07a', i: 0.45 },
+    { x: 23, y: 18, r: 40, color: '#ff6a5a', i: 0.4 },
     { x: 30, y: 7, r: 45, color: '#ff3a4a', i: 0.6, flicker: true, when: (f) => !f.lattice_off },
   ],
 };

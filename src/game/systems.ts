@@ -141,14 +141,14 @@ export function installSystems(game: Game, h: SystemHandlers): void {
   fieldHooks.clinic = async (f) => {
     for (;;) {
       const hurt = partyMembers().filter((m) => m.hp <= 0 || m.ailments.length);
-      const c = await f.api.ask('yun', 'What\'ll it be?', ['Treatment', 'Pharmacy', 'Leave'], { cancel: 2 });
+      const c = await f.api.ask('yun', 'What’ll it be?', ['Treatment', 'Pharmacy', 'Leave'], { cancel: 2 });
       if (c === 2) return;
       if (c === 1) {
         await game.run(new ShopScene('clinic'));
         continue;
       }
       if (!hurt.length) {
-        await f.api.say('yun', 'Everyone\'s walking and breathing. My favorite kind of patient: the kind that leaves.');
+        await f.api.say('yun', 'Everyone’s walking and breathing. My favorite kind of patient: the kind that leaves.');
         continue;
       }
       const opts = hurt.map((m) => `${MEMBERS[m.id].name} (${m.hp <= 0 ? 'revive' : 'cure'}) ${treatCost(m.id)}¢`);
@@ -158,7 +158,7 @@ export function installSystems(game: Game, h: SystemHandlers): void {
       const cost = treatCost(m.id);
       if (state.cred < cost) {
         sfx('buzz');
-        await f.api.say('yun', 'I don\'t do charity. Come back with cred.');
+        await f.api.say('yun', 'I don’t do charity. Come back with cred.');
         continue;
       }
       state.cred -= cost;

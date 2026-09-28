@@ -520,7 +520,7 @@ export class Battle {
           break;
         case 'escape':
           if (this.enemies.some((e) => e.boss && e.hp > 0) || !this.canRun) {
-            this.ev.push({ t: 'msg', text: 'Can\'t escape this fight!' });
+            this.ev.push({ t: 'msg', text: 'Can’t escape this fight!' });
           } else {
             this.ev.push({ t: 'flee', ok: true });
             this.outcome = 'fled';

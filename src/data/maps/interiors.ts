@@ -26,7 +26,7 @@ const patron = (id: string, x: number, y: number, seed: number, name: string, li
 
 // ------------------------------------------------------------------ Rook & Kit's flat
 export const rookFlat: MapDef = {
-  id: 'rook_flat', name: 'Rook\'s Flat', kind: 'interior',
+  id: 'rook_flat', name: 'Rook’s Flat', kind: 'interior',
   terrain: room(14, 10, 'W', 6), legend: {},
   ambient: '#7a76a8', music: 'town', battleBg: 'street',
   props: [
@@ -107,7 +107,7 @@ export const bar: MapDef = {
     {
       id: 'barkeep', x: 6, y: 3, dir: 'down', look: randomLook(501), name: 'Saint', fixedDir: true,
       talk: async (s) => {
-        const c = await s.ask('Saint', 'What\'s your poison? House special\'s called the Drowned Saint. It\'s mostly drain cleaner.', ['Buy a round (20¢)', 'Rumors', 'Nothing'], { cancel: 2 });
+        const c = await s.ask('Saint', 'What’s your poison? House special’s called the Drowned Saint. It’s mostly drain cleaner.', ['Buy a round (20¢)', 'Rumors', 'Nothing'], { cancel: 2 });
         if (c === 0) {
           if (s.credits() < 20) {
             await s.say('Saint', 'Cred first, friend.');
@@ -119,10 +119,10 @@ export const bar: MapDef = {
           await s.say('Saint', 'On the house. Well, on your house. Everyone feels ten years younger and twenty years dumber.');
         } else if (c === 1) {
           const rumors = [
-            'Knuckles and the Rustfangs have been leaning on the Rustyard. Old Mags won\'t pay. Good for her.',
-            'Folk who go down the Sinkline hear commuters. The last train left in \'61.',
-            'Kessler-Mori\'s buying up every Awakened kid in the Wards. "Scholarships." Right.',
-            'A crew called the Glass Wolves drank here last week. Big job, big talk. Haven\'t seen \'em since.',
+            'Knuckles and the Rustfangs have been leaning on the Rustyard. Old Mags won’t pay. Good for her.',
+            'Folk who go down the Sinkline hear commuters. The last train left in ’61.',
+            'Kessler-Mori’s buying up every Awakened kid in the Wards. "Scholarships." Right.',
+            'A crew called the Glass Wolves drank here last week. Big job, big talk. Haven’t seen ’em since.',
           ];
           await s.say('Saint', rumors[(s.get('rumor') as number | undefined ?? 0) % rumors.length]!);
           s.set('rumor', ((s.get('rumor') as number | undefined) ?? 0) + 1);
@@ -131,18 +131,18 @@ export const bar: MapDef = {
     },
     patron('old_runner', 9, 9, 777, 'Old Runner', [
       'Rook? Rook ran with the best crew in the Wards, back before your time, kid.',
-      'He and his old partner had a move: she\'d {y}blur in fast{/}, he\'d {y}follow through with the heaviest cut{/} he had. Same breath. Called it the {c}Thunder Rift{/}.',
-      'Pick a quick strike for you and Rook\'s big cut in the same round. You\'ll see.',
+      'He and his old partner had a move: she’d {y}blur in fast{/}, he’d {y}follow through with the heaviest cut{/} he had. Same breath. Called it the {c}Thunder Rift{/}.',
+      'Pick a quick strike for you and Rook’s big cut in the same round. You’ll see.',
     ], 'up'),
-    patron('drinker', 4, 10, 402, 'Patron', ['I\'m not drunk. I\'m Awakened. The room is spinning magically.'], 'up'),
-    patron('dancer', 12, 11, 118, 'Regular', ['The jukebox only plays one song. Nobody knows who put it there. Nobody\'s brave enough to unplug it.'], 'left', 'wander'),
+    patron('drinker', 4, 10, 402, 'Patron', ['I’m not drunk. I’m Awakened. The room is spinning magically.'], 'up'),
+    patron('dancer', 12, 11, 118, 'Regular', ['The jukebox only plays one song. Nobody knows who put it there. Nobody’s brave enough to unplug it.'], 'left', 'wander'),
   ],
   events: [
     {
       id: 'board', x: 13, y: 2, w: 2, on: 'action', run: async (s) => {
         const jobs = [
           s.flag('job_cat_done') ? '{d}[DONE] Lost cat "Noodle".{/}' : s.flag('cat_found') ? '{g}[FOUND] Return Noodle to Mama Ono.{/}' : '{y}LOST CAT{/}: "Noodle", orange, one ear. Last seen near the Sinkline. Reward from Mama Ono.',
-          s.flag('job_case_done') ? '{d}[DONE] Doc Yun\'s med-case.{/}' : '{y}STOLEN{/}: Doc Yun\'s medical case, taken by Rustfangs. Probably stashed in the Rustyard. Reward.',
+          s.flag('job_case_done') ? '{d}[DONE] Doc Yun’s med-case.{/}' : '{y}STOLEN{/}: Doc Yun’s medical case, taken by Rustfangs. Probably stashed in the Rustyard. Reward.',
           s.flag('job_bounty_done') ? '{d}[DONE] Rustfang bounty.{/}' : `{y}BOUNTY{/}: Rustfangs defeated: ${Math.min(10, (s.get('rustfangs') as number | undefined) ?? 0)}/10. Dutch pays 250¢.`,
         ];
         await s.narrate(`{c}JOB BOARD{/}\n${jobs.join('\n')}`);
@@ -164,7 +164,7 @@ export const bar: MapDef = {
 
 // ------------------------------------------------------------------ Doc Yun's clinic
 export const clinic: MapDef = {
-  id: 'clinic', name: 'Doc Yun\'s Clinic', kind: 'interior',
+  id: 'clinic', name: 'Doc Yun’s Clinic', kind: 'interior',
   terrain: room(14, 10, 'T', 7), legend: {},
   ambient: '#86a8b0', music: 'town', battleBg: 'street',
   props: [
@@ -182,14 +182,14 @@ export const clinic: MapDef = {
       if (s.has('med_case')) {
         s.take('med_case');
         s.set('job_case_done');
-        await s.say('yun', 'My case! Every scalpel still here. I could kiss you. I won\'t, hygiene. Take these.', { face: 'happy' });
+        await s.say('yun', 'My case! Every scalpel still here. I could kiss you. I won’t, hygiene. Take these.', { face: 'happy' });
         await s.give('trauma_patch', 3);
         await s.give('adrenal_stim', 1);
         return;
       }
       await s.clinic();
     } },
-    { id: 'patient', x: 10, y: 7, dir: 'up', look: randomLook(88), name: 'Patient', talk: ['Doc put in a new liver. Secondhand. Keeps craving whiskey I\'ve never tasted.'] },
+    { id: 'patient', x: 10, y: 7, dir: 'up', look: randomLook(88), name: 'Patient', talk: ['Doc put in a new liver. Secondhand. Keeps craving whiskey I’ve never tasted.'] },
   ],
   warps: [exit(14, 10, 7, 4, 7)],
 };
@@ -238,7 +238,7 @@ export const threads: MapDef = {
     {
       id: 'wen', x: 10, y: 3, dir: 'down', name: 'Auntie Wen', fixedDir: true,
       look: { skin: '#e8c8a0', hair: '#c9c4bb', hairStyle: 'bun', top: '#b07cff', inner: '#2a2438', accent: '#ffcc3d', pants: '#3a3350', boots: '#2a2030' },
-      talk: shopTalk('Auntie Wen', 'lr_armor', 'Ah! Rook\'s girl. You\'re too skinny for that jacket. Let Auntie fix it.'),
+      talk: shopTalk('Auntie Wen', 'lr_armor', 'Ah! Rook’s girl. You’re too skinny for that jacket. Let Auntie fix it.'),
     },
     patron('shopper', 5, 7, 311, 'Shopper', ['Auntie Wen sewed a ballistic lining into my wedding dress. Best day of my life. Only got shot twice.'], 'up'),
   ],
@@ -261,7 +261,7 @@ export const kwikmart: MapDef = {
   lights: [{ x: 7, y: 4, r: 90, color: '#e6fff6', i: 0.55 }],
   npcs: [
     { id: 'clerk', x: 10, y: 2, dir: 'down', look: randomLook(420), name: 'Clerk', fixedDir: true, talk: shopTalk('Clerk', 'lr_items') },
-    patron('kid', 2, 8, 64, 'Kid', ['This arcade cabinet has a ghost in it. A real one. It\'s really good at Street Samurai IV.'], 'up'),
+    patron('kid', 2, 8, 64, 'Kid', ['This arcade cabinet has a ghost in it. A real one. It’s really good at Street Samurai IV.'], 'up'),
   ],
   warps: [exit(14, 10, 7, 6, 23)],
 };
@@ -291,14 +291,14 @@ export const hotel: MapDef = {
         await s.inn(10, 'Capsules at 10¢ a head');
       },
     },
-    patron('sleeper', 14, 7, 902, 'Guest', ['I\'ve lived in tube 44 for six years. It\'s cozy. The walls are close enough to hug.'], 'left'),
+    patron('sleeper', 14, 7, 902, 'Guest', ['I’ve lived in tube 44 for six years. It’s cozy. The walls are close enough to hug.'], 'left'),
   ],
   warps: [exit(16, 10, 8, 32, 7)],
 };
 
 // ------------------------------------------------------------------ Mama Ono's
 export const noodles: MapDef = {
-  id: 'noodles', name: 'Mama Ono\'s', kind: 'interior',
+  id: 'noodles', name: 'Mama Ono’s', kind: 'interior',
   terrain: room(14, 10, 'W', 7), legend: {},
   ambient: '#9a7a70', music: 'town', battleBg: 'street',
   props: [
@@ -333,7 +333,7 @@ export const noodles: MapDef = {
         await s.shop('noodles');
       },
     },
-    patron('regular', 9, 6, 250, 'Regular', ['Mama Ono\'s cat ran off last week. She pretends she doesn\'t care. She cares. She put up a notice on the Drowned Saint\'s board.'], 'up'),
+    patron('regular', 9, 6, 250, 'Regular', ['Mama Ono’s cat ran off last week. She pretends she doesn’t care. She cares. She put up a notice on the Drowned Saint’s board.'], 'up'),
     { id: 'noodle_cat', x: 12, y: 8, dir: 'left', look: LOOKS.kit, critter: 'cat', name: 'Noodle', when: (f) => !!f.job_cat_done, move: 'wander', radius: 1, talk: ['Mrrp.'] },
   ],
   warps: [exit(14, 10, 7, 44, 32)],
@@ -364,7 +364,7 @@ export const hexDen: MapDef = {
   events: [
     {
       id: 'deck', x: 3, y: 4, on: 'action', run: async (s) => {
-        await s.narrate(s.flag('hex_joined') ? 'Hex\'s spare deck, patched together with tape and optimism.' : 'Hex\'s cyberdeck. A thin curl of smoke rises from the coprocessor slot.');
+        await s.narrate(s.flag('hex_joined') ? 'Hex’s spare deck, patched together with tape and optimism.' : 'Hex’s cyberdeck. A thin curl of smoke rises from the coprocessor slot.');
       },
     },
   ],

@@ -89,7 +89,7 @@ export class SaveScene extends Scene<SlotId | null> {
       setTimeout(() => !this.closed && this.close(slot), 500);
     } else {
       sfx('buzz');
-      this.note = 'Couldn\'t save — browser storage is unavailable.';
+      this.note = 'Couldn’t save — browser storage is unavailable.';
       this.confirm = false;
     }
   }

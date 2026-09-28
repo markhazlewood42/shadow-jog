@@ -391,7 +391,7 @@ export class MenuScene extends Scene<MenuResult> {
       this.say(`Saved to slot ${this.saveSlot}.`);
     } else {
       sfx('buzz');
-      this.say('Couldn\'t save — browser storage is unavailable.');
+      this.say('Couldn’t save — browser storage is unavailable.');
     }
     this.buildSaveList();
     this.mode = 'save';
@@ -555,7 +555,7 @@ export class MenuScene extends Scene<MenuResult> {
         drawParagraph(ctx, `No other ${SLOT_NAMES[this.equipSlot].toLowerCase()} gear in the bag. Shops and chests have more.`, x + 164, 104, w - 176, { color: UI.dim, lineH: 10 });
       const it = this.sub.current && this.sub.current.value !== '__none' ? ITEMS[this.sub.current.value] : null;
       if (it) {
-        drawParagraph(ctx, it.desc + (canEquip(m, it.id) ? '' : ` {r}${MEMBERS[m.id].name} can't use this.{/}`), x + 10, 172, 142, { color: '#d0cee4', lineH: 10 });
+        drawParagraph(ctx, it.desc + (canEquip(m, it.id) ? '' : ` {r}${MEMBERS[m.id].name} can’t use this.{/}`), x + 10, 172, 142, { color: '#d0cee4', lineH: 10 });
       }
     }
   }

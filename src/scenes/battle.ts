@@ -755,7 +755,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           sfx('flee');
           for (const p of this.battle.party) this.d(p.uid).hidden = false;
         } else {
-          this.say('Couldn\'t get away!');
+          this.say('Couldn’t get away!');
           sfx('buzz');
         }
         await this.w(40);
@@ -1488,9 +1488,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     this.roundMenu.render(ctx, x + 8, y + 8, 72);
     const help: Record<string, string> = {
       fight: 'Give each crew member orders.',
-      repeat: this.telegraphed() ? 'Something big is coming. Give fresh orders.' : 'Repeat last round\'s orders.',
+      repeat: this.telegraphed() ? 'Something big is coming. Give fresh orders.' : 'Repeat last round’s orders.',
       auto: this.setup.boss ? 'Not against a boss. Give orders.' : 'Everyone attacks.',
-      run: this.battle.canRun && !this.setup.boss ? 'Try to escape.' : 'You can\'t run from this fight.',
+      run: this.battle.canRun && !this.setup.boss ? 'Try to escape.' : 'You can’t run from this fight.',
     };
     const h = help[this.roundMenu.current?.value ?? ''];
     if (h && !this.banner && !this.message) this.topLine(ctx, h);

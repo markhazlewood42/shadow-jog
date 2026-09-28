@@ -24,6 +24,8 @@ interface Panel {
   speech?: { who: string; text: string };
   from?: 'left' | 'right' | 'top' | 'bottom';
   shake?: boolean;
+  /** The chapter's last beat: a title card with its own slow build, not a caption box. */
+  finale?: { title: string; sub: string };
 }
 
 type Page = Panel[];
@@ -45,7 +47,7 @@ const PAGES: Record<string, Page[]> = {
       { x: 240, y: 146, w: 232, h: 116, bg: 'spire', caption: 'The corporations just found new things to own.', from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 200, h: 254, bg: 'rooftop', caption: 'In the Lower Wards, you take the work that comes.', from: 'left' },
+      { x: 8, y: 8, w: 200, h: 254, bg: 'rooftop', caption: 'In the Lower Wards, people take the work that comes.', from: 'left' },
       { x: 214, y: 8, w: 258, h: 124, bg: 'dark', portrait: { key: 'rook', face: 'neutral' }, speech: { who: 'rook', text: 'One job. Easy. We walk in, we walk out.' }, from: 'right' },
       { x: 214, y: 138, w: 258, h: 124, bg: 'dark', portrait: { key: 'kit', face: 'smirk', flip: true }, speech: { who: 'kit', text: 'You always say that.' }, from: 'right' },
     ],
@@ -63,13 +65,26 @@ const PAGES: Record<string, Page[]> = {
       { x: 320, y: 134, w: 152, h: 128, bg: 'dark', portrait: { key: 'hex', face: 'angry' }, speech: { who: 'hex', text: 'Then we go get him.' }, from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 464, h: 150, bg: 'spire', portrait: { key: 'pale', face: 'smirk', dx: 140 }, speech: { who: 'pale', text: 'Find them. The orc, the decker, the girl. Keep the old samurai breathing: I want to know who taught the girl to fight like that. You have until morning.' }, from: 'top' },
-      { x: 8, y: 164, w: 464, h: 98, bg: 'dark', caption: 'END OF CHAPTER ONE', from: 'bottom' },
+      { x: 8, y: 8, w: 464, h: 150, bg: 'spire', portrait: { key: 'pale', face: 'smirk', dx: 140 }, speech: { who: 'pale', text: 'Find them. The orc, the decker, and Miss Kit. Keep the old samurai breathing: I want to know who taught Miss Kit to fight like that. You have until morning.' }, from: 'top' },
+      { x: 8, y: 164, w: 464, h: 98, bg: 'dark', finale: { title: 'END OF CHAPTER ONE', sub: 'They have until morning.' }, from: 'bottom' },
     ],
   ],
 };
 
 const PAGE_BG = '#0a0914';
+
+/** Title text rendered once at 1× for scaling up (nearest-neighbour keeps it crisp). */
+const titleCache = new Map<string, { canvas: HTMLCanvasElement; w: number }>();
+function titleBuf(text: string): { canvas: HTMLCanvasElement; w: number } {
+  let t = titleCache.get(text);
+  if (!t) {
+    const s = surface(Math.max(8, measure(text) + 4), 12);
+    const w = drawText(s.ctx, text, 1, 1, { color: '#ffe6f0', shadow: '#5a0a1e' }) + 3;
+    t = { canvas: s.canvas, w };
+    titleCache.set(text, t);
+  }
+  return t;
+}
 
 export class PanelScene extends Scene<void> {
   private pages: Page[];
@@ -97,8 +112,10 @@ export class PanelScene extends Scene<void> {
       this.panelT[this.shown] = 0;
       this.typed[this.shown] = 0;
       this.shown++;
-      sfx(p[this.shown - 1]!.shake ? 'explosion' : 'page');
-      if (p[this.shown - 1]!.shake) this.game.shake(20, 3);
+      const pn = p[this.shown - 1]!;
+      sfx(pn.shake ? 'explosion' : pn.finale ? 'phase' : 'page');
+      if (pn.shake) this.game.shake(20, 3);
+      if (pn.finale) this.game.flash('#ff2a4a', 18);
     }
   }
 
@@ -207,6 +224,27 @@ export class PanelScene extends Scene<void> {
     if (t < 6) return;
     if (pn.caption) this.caption(ctx, pn, x, y);
     if (pn.speech) this.speech(ctx, pn, x, y, typed);
+    if (pn.finale) this.finale(ctx, pn, x, y, t);
+  }
+
+  /** Title card: a red rule draws across, the title stamps in at double size, then the subtitle. */
+  private finale(ctx: Ctx, pn: Panel, x: number, y: number, t: number): void {
+    const f = pn.finale!;
+    const cx = x + pn.w / 2, cy = y + pn.h / 2;
+    const rule = Math.min(1, Math.max(0, (t - 8) / 30));
+    const rw = Math.round((pn.w - 40) * (1 - (1 - rule) ** 3));
+    ctx.fillStyle = '#ff2a4a';
+    ctx.fillRect(Math.round(cx - rw / 2), cy + 12, rw, 1);
+    ctx.fillRect(Math.round(cx - rw / 2), cy - 22, rw, 1);
+    if (t > 30) {
+      const k = Math.min(1, (t - 30) / 10);
+      const tw = titleBuf(f.title);
+      const s = 2 + Math.round((1 - k) * 2);
+      ctx.globalAlpha = k;
+      ctx.drawImage(tw.canvas, 0, 0, tw.w, 12, Math.round(cx - (tw.w * s) / 2), Math.round(cy - 5 - 6 * s + 6), tw.w * s, 12 * s);
+      ctx.globalAlpha = 1;
+    }
+    if (t > 60) drawText(ctx, f.sub, cx, cy + 20, { align: 'center', color: '#c8a8c0' });
   }
 
   private caption(ctx: Ctx, pn: Panel, x: number, y: number): void {

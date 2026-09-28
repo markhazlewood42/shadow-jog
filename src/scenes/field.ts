@@ -401,7 +401,7 @@ export class FieldScene extends Scene<void> {
 
   private async openChest(c: Chest): Promise<void> {
     if (c.open) {
-      await this.runScript(async (s) => s.narrate('{d}It\'s empty.{/}'));
+      await this.runScript(async (s) => s.narrate('{d}It’s empty.{/}'));
       return;
     }
     c.open = true;

@@ -34,3 +34,23 @@ describe('map connectivity', () => {
     });
   }
 });
+
+describe('text style', () => {
+  it('player-facing strings use typographic apostrophes (’), never escaped straight ones', async () => {
+    const { readFileSync, readdirSync, statSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const skip = new Set(['font.ts', 'fonttest.ts']); // glyph tables show the straight quote on purpose
+    const files: string[] = [];
+    const walk = (d: string) => {
+      for (const f of readdirSync(d)) {
+        const p = join(d, f);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (f.endsWith('.ts') && !skip.has(f)) files.push(p);
+      }
+    };
+    walk('src');
+    const escapedQuote = /(?<!\\)\\'/;
+    const bad = files.filter((p) => escapedQuote.test(readFileSync(p, 'utf8')));
+    expect(bad).toEqual([]);
+  });
+});

@@ -29,7 +29,7 @@ const ROUTE: Leg[] = [
   { label: 'Walk to the Sinkline', walk: walk('world', [13, 22], [26, 38]) },
   { label: 'Sinkline B1', walk: walk('sinkline_1', [6, 5], [11, 27], [9, 27], [13, 27], [6, 27], [33, 16], [44, 29]), cred: 380, supplies: 120, checkpoint: { name: 'CP4 the Lurker', levels: { kit: 6, rook: 6, hex: 5 }, buys: STAGE_GEAR.lurker } },
   { label: 'The Lurker', fixed: ['f_lurker'], supplies: 100, checkpoint: { name: 'CP5 into Annex 7', levels: { kit: 7, rook: 7, hex: 7 }, buys: STAGE_GEAR.annex } },
-  { label: 'Annex 7', fixed: ['f_annex_door'], walk: walk('annex', [4, 3], [8, 10], [16, 8], [36, 7], [27, 23], [38, 31]), joins: ['sable'], checkpoint: { name: 'CP6 WARDEN', levels: { kit: 8, rook: 8, hex: 8, sable: 7 }, buys: STAGE_GEAR.warden } },
+  { label: 'Annex 7', fixed: ['f_annex_door'], walk: walk('annex', [4, 3], [8, 10], [16, 8], [36, 7], [27, 23], [38, 31]), joins: ['sable'], supplies: 320, checkpoint: { name: 'CP6 WARDEN', levels: { kit: 8, rook: 8, hex: 8, sable: 7 }, buys: STAGE_GEAR.warden } },
 ];
 
 describe('economy', () => {

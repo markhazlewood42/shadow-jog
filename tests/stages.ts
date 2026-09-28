@@ -7,9 +7,9 @@ import type { Loadout } from './sim';
 /** Items bought or found (cumulative purchases happen at the matching economy checkpoint). */
 export const STAGE_GEAR = {
   barrens: ['iron_knuckles'],
-  // A riot helmet for Rook before the depot: the one buy in the Rustyard stretch.
-  knuckles: ['helmet'],
-  sinkline: ['vibro_katana', 'heavy_pistol', 'armored_jacket'],
+  // Before the depot: a riot helmet for Rook and a jacket for Kit, so the Rustyard stretch has buys.
+  knuckles: ['helmet', 'armored_jacket'],
+  sinkline: ['vibro_katana', 'heavy_pistol'],
   lurker: ['mono_claws'],
   annex: ['ballistic_vest'],
   // Found in Annex 7 chests: dragon_fang, mono_katana, smartpistol, bone_staff.
@@ -23,7 +23,7 @@ export const STAGE_PARTY: Record<string, Loadout[]> = {
     { id: 'rook', level: 3 },
   ],
   knuckles: [
-    { id: 'kit', level: 3, equip: { weapon: 'iron_knuckles' } },
+    { id: 'kit', level: 3, equip: { weapon: 'iron_knuckles', body: 'armored_jacket' } },
     { id: 'rook', level: 4, equip: { head: 'helmet' } },
   ],
   sinkline: [

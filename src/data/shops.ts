@@ -29,20 +29,20 @@ export const SHOPS: Record<string, ShopDef> = {
     items: ['armored_jacket', 'lined_coat', 'bandana', 'helmet', 'tac_visor', 'spirit_band', 'spirit_fetish', 'lucky_coin'],
   },
   noodles: {
-    id: 'noodles', name: 'MAMA ONO\'S', keeper: 'Mama Ono', accent: '#ff8a4a',
+    id: 'noodles', name: 'MAMA ONO’S', keeper: 'Mama Ono', accent: '#ff8a4a',
     greeting: 'Sit, sit! You look like a bag of wet bones.',
     thanks: 'Eat it hot!',
     items: ['noodles'],
   },
   clinic: {
-    id: 'clinic', name: 'DOC YUN\'S CLINIC', keeper: 'Doc Yun', accent: '#62e06a',
+    id: 'clinic', name: 'DOC YUN’S CLINIC', keeper: 'Doc Yun', accent: '#62e06a',
     greeting: 'Pharmacy counter. No questions, no receipts.',
     thanks: 'Keep your insides inside.',
     items: ['medkit', 'trauma_patch', 'detox', 'omni_patch', 'adrenal_stim', 'neurotab'],
   },
   rustyard: {
-    id: 'rustyard', name: 'MAGS\' SALVAGE', keeper: 'Old Mags', accent: '#86f08c',
-    greeting: 'Salvage, scrap, and things that fell off trucks. Don\'t ask which trucks.',
+    id: 'rustyard', name: 'MAGS’ SALVAGE', keeper: 'Old Mags', accent: '#86f08c',
+    greeting: 'Salvage, scrap, and things that fell off trucks. Don’t ask which trucks.',
     thanks: 'Pleasure. Mostly mine.',
     items: ['trauma_patch', 'medkit', 'neurotab', 'razor_tekko', 'mono_claws', 'thorn_rod', 'ballistic_vest', 'spirit_robe', 'dermal_plating', 'neural_buffer', 'cyber_eye', 'reflex_booster', 'adrenal_pump'],
   },
@@ -51,6 +51,13 @@ export const SHOPS: Record<string, ShopDef> = {
     greeting: 'Runners get runner prices. Everyone else gets shot. You look like runners.',
     thanks: 'Pleasure. Don’t tell anyone where I sleep.',
     items: ['trauma_patch', 'neurotab', 'adrenal_stim', 'omni_patch', 'toxin_dart', 'mono_claws', 'taser_pistol', 'ballistic_vest', 'formfit', 'cyber_eye', 'reflex_booster'],
+  },
+  // Annex 7, outside the Warden chamber: the last place to spend before the job goes wrong.
+  km_requisition: {
+    id: 'km_requisition', name: 'K-M REQUISITION', keeper: 'Terminal', accent: '#ff6a5a',
+    greeting: 'BADGE ACCEPTED: D. PETROV, FACILITIES. REQUISITION LIMIT: UNLIMITED.',
+    thanks: 'CHARGED TO COST CENTRE 7. HAVE A PRODUCTIVE SHIFT.',
+    items: ['medkit', 'trauma_patch', 'omni_patch', 'neurotab', 'adrenal_stim', 'detox', 'optic_flush', 'frag'],
   },
   automat: {
     id: 'automat', name: 'TRANSIT AUTOMAT', keeper: 'Automat', accent: '#3fe0f0',

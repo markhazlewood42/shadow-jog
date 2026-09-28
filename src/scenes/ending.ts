@@ -65,7 +65,7 @@ export class EndingScene extends Scene<void> {
       ['Battles won', String(state.battles)],
       ['Combos discovered', `${found} / ${COMBOS.length}`],
       ['Bestiary', `${species} / ${Object.keys(ENEMIES).length - 1} species`],
-      ['Cred on hand', `${state.cred.toLocaleString('en-US')}¢`],
+      ['Cred (carries over)', `${state.cred.toLocaleString('en-US')}¢`],
       ['Side jobs', `${['job_cat_done', 'job_case_done', 'job_bounty_done'].filter((f) => state.flags[f]).length} / 3`],
     ];
     rows.forEach(([k, v], i) => {

@@ -190,6 +190,10 @@ test('23 ending', async ({ page }) => {
   await key(page, 'z', 2, 500);
   await page.waitForTimeout(1500);
   await shot(page, '23-ending-panels');
+  // The last page: Pale's order, then the chapter's title card.
+  await key(page, 'z', 9, 400);
+  await page.waitForTimeout(2500);
+  await shot(page, '23b-ending-finale');
 });
 
 test('24 ending results + 25 next chapter', async ({ page }) => {

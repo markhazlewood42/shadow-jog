@@ -48,7 +48,7 @@ export const MEMBERS: Record<MemberId, MemberDef> = {
   },
   hex: {
     id: 'hex', name: 'Hex', role: 'Decker', color: '#c3a0ff', tpLabel: 'RAM',
-    bio: '34. Dwarf, genius, insomniac. Owes money to people who don\'t send reminders.',
+    bio: '34. Dwarf, genius, insomniac. Owes money to people who don’t send reminders.',
     base: { hp: 34, tp: 15, str: 7, mnd: 13, agi: 11, def: 5 },
     growth: { hp: 6.8, tp: 3.3, str: 1.2, mnd: 2.4, agi: 1.8, def: 1.0 },
     startLevel: 3, crit: 3,
@@ -56,7 +56,7 @@ export const MEMBERS: Record<MemberId, MemberDef> = {
   },
   sable: {
     id: 'sable', name: 'Sable', role: 'Shaman', color: '#efe6cf', tpLabel: 'MANA',
-    bio: '24. Orc. Crow-sworn. Doesn\'t remember how long they were in the tank.',
+    bio: '24. Orc. Crow-sworn. Doesn’t remember how long they were in the tank.',
     base: { hp: 40, tp: 16, str: 8, mnd: 14, agi: 8, def: 6 },
     growth: { hp: 7.6, tp: 3.6, str: 1.3, mnd: 2.6, agi: 1.2, def: 1.1 },
     startLevel: 6, crit: 3,

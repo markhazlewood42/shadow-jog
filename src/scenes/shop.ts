@@ -63,7 +63,7 @@ export class ShopScene extends Scene<void> {
         if (r === 'blocked' && this.mode === 'buy') {
           // Say why: a greyed-out row with no reason reads as a bug.
           const it = ITEMS[this.list.current!.value]!;
-          this.line = `That's ${(it.price - state.cred).toLocaleString('en-US')}¢ more than you've got.`;
+          this.line = `That’s ${(it.price - state.cred).toLocaleString('en-US')}¢ more than you’ve got.`;
         }
         if (r === 'confirm') {
           this.qtyMode = this.mode;
@@ -115,7 +115,7 @@ export class ShopScene extends Scene<void> {
     const ids = Object.keys(state.inventory).filter((id) => ITEMS[id] && ITEMS[id]!.kind !== 'key' && (state.inventory[id] ?? 0) > 0 && sellPrice(id) > 0);
     if (!ids.length) {
       sfx('buzz');
-      this.line = 'You\'ve got nothing I want.';
+      this.line = 'You’ve got nothing I want.';
       return;
     }
     ids.sort((a, b) => (ITEMS[b]!.kind === 'loot' ? 1 : 0) - (ITEMS[a]!.kind === 'loot' ? 1 : 0) || ITEMS[a]!.name.localeCompare(ITEMS[b]!.name));
@@ -212,7 +212,7 @@ export class ShopScene extends Scene<void> {
     ctx.drawImage(spr, x, y - 4, spr.width * 0.8, spr.height * 0.8);
     drawText(ctx, MEMBERS[m.id].name, x + 18, y, { color: MEMBERS[m.id].color });
     if (!canEquip(m, id)) {
-      drawText(ctx, 'can\'t use', x + w, y, { align: 'right', color: UI.disabled });
+      drawText(ctx, 'can’t use', x + w, y, { align: 'right', color: UI.disabled });
       return;
     }
     const it = ITEMS[id]!;

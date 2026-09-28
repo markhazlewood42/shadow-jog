@@ -136,7 +136,7 @@ export const sinkline1: MapDef = {
     },
   ],
   events: [
-    { id: 'automat', x: 12, y: 3, on: 'action', run: async (s) => s.shop('automat') },
+    { id: 'automat', x: 12, y: 2, h: 2, on: 'action', run: async (s) => s.shop('automat') },
     { id: 'crew', x: 12, y: 17, w: 3, h: 3, on: 'touch', once: true, run: deadCrew },
     { id: 'pump', x: 6, y: 26, on: 'action', run: floodgate },
     { id: 'valve1', x: 9, y: 26, on: 'action', run: pumpValve('v1') },

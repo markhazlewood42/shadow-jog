@@ -144,7 +144,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     drops: [{ id: 'ecto_vial', chance: 0.2 }],
     // Shades wail together on a rhythm: every third round, expect it.
     moves: [{ id: 'e_chill', w: 3 }, { id: 'e_wail', w: 1 }, { id: 'e_wail', w: 8, when: 'every_3' }],
-    lore: 'Echoes of commuters caught in the flood of \'61.',
+    lore: 'Echoes of commuters caught in the flood of ’61.',
   }),
   gutter_eel: E({
     id: 'gutter_eel', name: 'Gutter Eel', family: 'beast', sprite: 'eel', weak: { shock: 1.5 },
@@ -213,7 +213,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     immune: ['stun'],
     drops: [{ id: 'crow_staff', chance: 1 }],
     moves: [{ id: 'e_grasp', w: 2 }, { id: 'e_siphon', w: 2 }],
-    lore: 'The spirit K-M bound into the Warden\'s core. Free, and furious.',
+    lore: 'The spirit K-M bound into the Warden’s core. Free, and furious.',
   }),
 };
 

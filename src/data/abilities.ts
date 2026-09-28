@@ -141,7 +141,7 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   crow_spirit: A({
     id: 'crow_spirit', name: 'Crow Spirit', kind: 'tech', cost: 9, target: 'enemies', element: 'mana',
-    desc: 'Call Sable\'s totem. Mana damage to all; may blind.',
+    desc: 'Call Sable’s totem. Mana damage to all; may blind.',
     effects: [{ type: 'damage', stat: 'mnd', power: 26 }, { type: 'status', status: 'blind', chance: 0.3, turns: 3 }], fx: 'crow',
   }),
   rekindle: A({
@@ -168,7 +168,7 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   combo_target_lock: A({
     id: 'combo_target_lock', name: 'Target Lock', kind: 'combo', target: 'enemies',
-    desc: 'Hex paints every target; Rook\'s smartgun does the rest.',
+    desc: 'Hex paints every target; Rook’s smartgun does the rest.',
     effects: [{ type: 'status', status: 'exposed', chance: 1, turns: 3 }, { type: 'damage', stat: 'atk', mult: 1.25, critBonus: 60 }], fx: 'target_lock',
   }),
   combo_ghost_circuit: A({
@@ -178,12 +178,12 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   combo_pyre_storm: A({
     id: 'combo_pyre_storm', name: 'Pyre Storm', kind: 'combo', target: 'enemies', element: 'fire',
-    desc: 'Spirit-fire rides Hex\'s power surge through every enemy.',
+    desc: 'Spirit-fire rides Hex’s power surge through every enemy.',
     effects: [{ type: 'damage', stat: 'mnd', power: 70 }, { type: 'status', status: 'burn', chance: 0.6, turns: 3 }], fx: 'pyre_storm',
   }),
   combo_spirit_walk: A({
     id: 'combo_spirit_walk', name: 'Spirit Walk', kind: 'combo', target: 'random_enemies', element: 'mana',
-    desc: 'Kit moves with the crow\'s wings. Eight mana-charged strikes.',
+    desc: 'Kit moves with the crow’s wings. Eight mana-charged strikes.',
     effects: [{ type: 'damage', stat: 'atk', mult: 0.9, hits: 8, ignoreDef: true }], fx: 'spirit_walk',
   }),
   combo_crows_wing: A({
@@ -193,7 +193,7 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   combo_lifeline: A({
     id: 'combo_lifeline', name: 'Lifeline', kind: 'combo', target: 'allies',
-    desc: 'Nanites carry the spirit\'s blessing. Full heal, cleanse and regen for all.',
+    desc: 'Nanites carry the spirit’s blessing. Full heal, cleanse and regen for all.',
     effects: [{ type: 'heal', pct: 1 }, { type: 'cure', statuses: 'all' }, { type: 'buff', status: 'regen', turns: 3 }], fx: 'lifeline',
   }),
 
@@ -299,7 +299,7 @@ export const COMBOS: ComboDef[] = [
   {
     id: 'combo_thunder_rift',
     parts: [{ member: 'kit', ability: 'flash_step' }, { member: 'rook', ability: 'arc_cut' }],
-    hint: 'Old runners say Rook\'s crew had a move: one blurs in, the blade follows.',
+    hint: 'Old runners say Rook’s crew had a move: one blurs in, the blade follows.',
   },
   {
     id: 'combo_target_lock',
