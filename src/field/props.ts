@@ -198,6 +198,14 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
       c.fillStyle = shade(col, -0.1); c.fillRect(8, 4, 14, 8);
       c.fillStyle = '#1a2436'; c.fillRect(9, 5, 5, 5); c.fillRect(15, 5, 6, 5);
       c.fillStyle = '#3a4a66'; c.fillRect(9, 5, 2, 1); c.fillRect(15, 5, 2, 1);
+      // Glare streaks across the glass.
+      c.fillStyle = '#6a7a9a'; c.fillRect(12, 6, 1, 1); c.fillRect(11, 7, 1, 1); c.fillRect(19, 6, 1, 1); c.fillRect(18, 7, 1, 1);
+      // Door seams and handles, wheel arches, a rear plate.
+      c.fillStyle = shade(col, -0.4); c.fillRect(14, 12, 1, 5); c.fillRect(21, 12, 1, 5);
+      c.fillStyle = shade(col, 0.45); c.fillRect(16, 13, 2, 1); c.fillRect(9, 13, 2, 1);
+      c.fillStyle = shade(col, -0.55); c.fillRect(3, 15, 8, 1); c.fillRect(19, 15, 8, 1);
+      c.fillStyle = '#d8d0b8'; c.fillRect(25, 17, 3, 2);
+      c.fillStyle = '#3a3440'; c.fillRect(26, 17, 1, 1);
       c.fillStyle = '#0f0e17';
       disc(c, 7, 19, 3, '#0f0e17'); disc(c, 23, 19, 3, '#0f0e17');
       disc(c, 7, 19, 1.5, '#4a4e5c'); disc(c, 23, 19, 1.5, '#4a4e5c');
@@ -834,13 +842,22 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
   lampfloor(b, p) {
     blockFoot(b, p);
     const col = p.color ?? '#ffcf7a';
-    const { x, y } = tall(b, p, 10, 26, (c, e) => {
-      c.fillStyle = '#0f0e17'; c.fillRect(4, 8, 2, 18); c.fillRect(2, 24, 6, 2);
-      c.fillStyle = '#3a3040'; c.fillRect(4, 8, 1, 16);
-      both(c, e, (k) => { k.fillStyle = col; k.fillRect(1, 1, 8, 7); k.fillStyle = mix(col, '#fff', 0.5); k.fillRect(2, 2, 6, 2); });
-      c.fillStyle = '#0f0e17'; c.fillRect(0, 0, 10, 1); c.fillRect(0, 8, 10, 1);
+    const { x, y } = tall(b, p, 12, 26, (c, e) => {
+      // Pole on a weighted base, with its cable trailing off across the floor.
+      c.fillStyle = '#0f0e17'; c.fillRect(5, 9, 2, 16); c.fillRect(2, 23, 8, 3);
+      c.fillStyle = '#3a3040'; c.fillRect(5, 9, 1, 14); c.fillRect(3, 23, 6, 1);
+      c.fillStyle = '#1a1622'; c.fillRect(9, 24, 2, 1); c.fillRect(11, 25, 1, 1);
+      // Housing: dark shell with a lit face, the bulb hot in the middle, a wire guard over it.
+      c.fillStyle = '#0f0e17'; c.fillRect(0, 0, 12, 9);
+      c.fillStyle = '#2a2632'; c.fillRect(1, 1, 10, 2);
+      both(c, e, (k) => {
+        k.fillStyle = shade(col, -0.3); k.fillRect(1, 3, 10, 5);
+        k.fillStyle = col; k.fillRect(2, 3, 8, 4);
+        k.fillStyle = mix(col, '#fff', 0.75); k.fillRect(4, 4, 4, 2);
+      });
+      c.fillStyle = '#0f0e17'; c.fillRect(3, 3, 1, 5); c.fillRect(8, 3, 1, 5); c.fillRect(1, 5, 10, 1);
     });
-    b.lights.push({ x: x + 5, y: y + 10, r: 56, color: col, i: 0.9 });
+    b.lights.push({ x: x + 6, y: y + 10, r: 56, color: col, i: 0.9 });
   },
 
   sign_board(b, p) {

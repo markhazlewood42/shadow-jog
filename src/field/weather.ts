@@ -1,4 +1,4 @@
-/** Screen-space weather: rain with ground splashes, dripping water, drifting dust. */
+/** Screen-space weather: rain in three depth layers with ground splashes, dripping water, drifting dust. */
 import type { Ctx } from '../engine/canvas';
 import { H, W } from '../engine/game';
 import { Rng } from '../engine/rng';
@@ -11,6 +11,8 @@ interface Drop {
   life: number;
   /** Screen y where it lands. */
   land: number;
+  /** Rain layer: 0 far, 1 mid, 2 near (see LAYERS). */
+  depth: number;
 }
 
 interface Splash {
@@ -19,9 +21,23 @@ interface Splash {
   t: number;
 }
 
+/**
+ * Rain depth: far streaks are short, faint and slow and drift less when the camera moves; near
+ * ones are long, bright and fast and drift more. Only the mid layer lands on the ground we see.
+ */
+const LAYERS = [
+  { share: 0.35, speed: 0.6, len: [3, 4], alpha: 0.16, color: '#8a98c8', parallax: 0.55 },
+  { share: 0.5, speed: 1, len: [5, 9], alpha: 0.32, color: '#b8c8ff', parallax: 1 },
+  { share: 0.15, speed: 1.45, len: [11, 15], alpha: 0.4, color: '#dce4ff', parallax: 1.4 },
+] as const;
+
+const MAX_SPLASHES = 60;
+
 export class Weather {
   private drops: Drop[] = [];
+  /** Splash pool: the first `splashCount` entries are live; the rest are kept for reuse. */
   private splashes: Splash[] = [];
+  private splashCount = 0;
   private rng = new Rng(77);
   kind: 'rain' | 'drip' | 'dust' | 'none' = 'none';
   intensity = 1;
@@ -30,34 +46,63 @@ export class Weather {
     this.kind = kind;
     this.intensity = intensity;
     this.drops.length = 0;
-    this.splashes.length = 0;
+    this.splashCount = 0;
     const n = this.count();
-    for (let i = 0; i < n; i++) this.drops.push(this.spawn(true));
+    for (let i = 0; i < n; i++) {
+      const d: Drop = { x: 0, y: 0, len: 0, speed: 0, life: 0, land: 0, depth: 1 };
+      this.reset(d, true);
+      this.drops.push(d);
+    }
   }
 
   private count(): number {
     switch (this.kind) {
-      case 'rain': return Math.round(170 * this.intensity);
+      case 'rain': return Math.round(190 * this.intensity);
       case 'drip': return Math.round(14 * this.intensity);
       case 'dust': return Math.round(50 * this.intensity);
       default: return 0;
     }
   }
 
-  private spawn(anywhere: boolean): Drop {
+  /** Re-seed a drop in place (no allocation per respawn). */
+  private reset(d: Drop, anywhere: boolean): void {
     const r = this.rng;
     if (this.kind === 'dust') {
-      return { x: r.range(0, W), y: r.range(0, H), len: r.int(1, 2), speed: r.range(0.1, 0.35), life: r.int(200, 600), land: H + 10 };
+      d.x = r.range(0, W);
+      d.y = r.range(0, H);
+      d.len = r.int(1, 2);
+      d.speed = r.range(0.1, 0.35);
+      d.life = r.int(200, 600);
+      d.land = H + 10;
+      d.depth = 1;
+      return;
     }
-    const speed = this.kind === 'drip' ? r.range(2.5, 3.5) : r.range(5.5, 8);
-    return {
-      x: r.range(-40, W + 10),
-      y: anywhere ? r.range(-20, H) : r.range(-40, -5),
-      len: this.kind === 'drip' ? 3 : r.int(5, 9),
-      speed,
-      life: 0,
-      land: r.range(20, H + 30),
-    };
+    if (this.kind === 'drip') {
+      d.depth = 1;
+      d.speed = r.range(2.5, 3.5);
+      d.len = 3;
+    } else {
+      const roll = r.next();
+      d.depth = roll < LAYERS[0].share ? 0 : roll < LAYERS[0].share + LAYERS[1].share ? 1 : 2;
+      const layer = LAYERS[d.depth]!;
+      d.speed = r.range(5.5, 8) * layer.speed;
+      d.len = r.int(layer.len[0], layer.len[1]);
+    }
+    d.x = r.range(-40, W + 10);
+    d.y = anywhere ? r.range(-20, H) : r.range(-40, -5);
+    d.life = 0;
+    d.land = d.depth === 1 ? r.range(20, H + 30) : H + 20;
+  }
+
+  private splash(x: number, y: number): void {
+    if (this.splashCount >= MAX_SPLASHES) return;
+    const s = this.splashes[this.splashCount];
+    if (s) {
+      s.x = x;
+      s.y = y;
+      s.t = 0;
+    } else this.splashes.push({ x, y, t: 0 });
+    this.splashCount++;
   }
 
   /** dx, dy: camera movement this frame (keeps rain world-anchored when walking). */
@@ -69,22 +114,34 @@ export class Weather {
         d.x += d.speed - dx * 0.8;
         d.y += Math.sin((d.life + i * 40) * 0.02) * 0.2 - dy * 0.8;
         d.life--;
-        if (d.life <= 0 || d.x > W + 5 || d.x < -5 || d.y < -5 || d.y > H + 5) this.drops[i] = { ...this.spawn(true), x: -2 };
+        if (d.life <= 0 || d.x > W + 5 || d.x < -5 || d.y < -5 || d.y > H + 5) {
+          this.reset(d, true);
+          d.x = -2;
+        }
         continue;
       }
-      d.y += d.speed - dy;
-      d.x += d.speed * 0.28 - dx;
+      const par = this.kind === 'rain' ? LAYERS[d.depth]!.parallax : 1;
+      d.y += d.speed - dy * par;
+      d.x += d.speed * 0.28 - dx * par;
       if (d.y >= d.land) {
-        if (d.land < H && this.splashes.length < 60) this.splashes.push({ x: d.x, y: d.land, t: 0 });
-        this.drops[i] = this.spawn(false);
+        if (d.land < H) this.splash(d.x, d.land);
+        this.reset(d, false);
       }
     }
-    for (const s of this.splashes) {
+    // Age splashes and compact the live ones to the front, in place.
+    let n = 0;
+    for (let i = 0; i < this.splashCount; i++) {
+      const s = this.splashes[i]!;
       s.t++;
       s.x -= dx;
       s.y -= dy;
+      if (s.t < 10) {
+        this.splashes[i] = this.splashes[n]!;
+        this.splashes[n] = s;
+        n++;
+      }
     }
-    this.splashes = this.splashes.filter((s) => s.t < 10);
+    this.splashCount = n;
   }
 
   render(ctx: Ctx): void {
@@ -96,20 +153,33 @@ export class Weather {
       ctx.globalAlpha = 1;
       return;
     }
-    ctx.globalAlpha = this.kind === 'drip' ? 0.6 : 0.32;
-    ctx.fillStyle = '#b8c8ff';
-    for (const d of this.drops) {
-      const x = Math.round(d.x), y = Math.round(d.y);
-      // Slanted streak: 1px wide, drawn as a short diagonal.
-      for (let k = 0; k < d.len; k++) ctx.fillRect(x - Math.round(k * 0.28), y - k, 1, 1);
+    if (this.kind === 'drip') {
+      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = '#b8c8ff';
+      for (const d of this.drops) this.streak(ctx, d);
+    } else {
+      // Back to front, one fill style per layer.
+      for (let layer = 0; layer < LAYERS.length; layer++) {
+        ctx.globalAlpha = LAYERS[layer]!.alpha;
+        ctx.fillStyle = LAYERS[layer]!.color;
+        for (const d of this.drops) if (d.depth === layer) this.streak(ctx, d);
+      }
     }
     ctx.globalAlpha = 0.5;
-    for (const s of this.splashes) {
+    ctx.fillStyle = '#b8c8ff';
+    for (let i = 0; i < this.splashCount; i++) {
+      const s = this.splashes[i]!;
       const r = 1 + (s.t >> 2);
       ctx.fillRect(Math.round(s.x - r), Math.round(s.y), 1, 1);
       ctx.fillRect(Math.round(s.x + r), Math.round(s.y), 1, 1);
       if (s.t < 4) ctx.fillRect(Math.round(s.x), Math.round(s.y - 1), 1, 1);
     }
     ctx.globalAlpha = 1;
+  }
+
+  /** A slanted 1px streak, drawn as a short diagonal. */
+  private streak(ctx: Ctx, d: Drop): void {
+    const x = Math.round(d.x), y = Math.round(d.y);
+    for (let k = 0; k < d.len; k++) ctx.fillRect(x - Math.round(k * 0.28), y - k, 1, 1);
   }
 }

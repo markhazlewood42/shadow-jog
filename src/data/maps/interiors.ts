@@ -95,6 +95,12 @@ export const bar: MapDef = {
     { kind: 'arcade', x: 1, y: 11, color: '#3fe0f0' },
     { kind: 'plant', x: 20, y: 2 },
     { kind: 'sign_board', x: 13, y: 1, w: 2 },
+    { kind: 'poster', x: 1, y: 1, color: '#ff4fb0' },
+    { kind: 'poster', x: 9, y: 1, color: '#ffcc3d' },
+    { kind: 'poster', x: 19, y: 1, color: '#3fe0f0' },
+    { kind: 'poster', x: 20, y: 1, color: '#b07cff' },
+    { kind: 'trash', x: 18, y: 12 },
+    { kind: 'crates', x: 11, y: 2 },
   ],
   lights: [
     { x: 6, y: 4, r: 70, color: '#ff6fc8', i: 0.55 },

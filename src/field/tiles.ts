@@ -217,9 +217,10 @@ const solid = (c: RGB): Painter => () => c;
 
 const dirt: Painter = (_lx, _ly, wx, wy) => {
   const h = hash2(wx, wy, 61);
-  if (h < 0.06) return P.dirtD;
-  if (h > 0.95) return P.dirtL;
-  return fbm(wx / 8, wy / 8, 2, 62) < 0.4 ? P.dirtD : P.dirt;
+  if (h < 0.025) return P.dirtD;
+  if (h > 0.985) return P.dirtL;
+  const n = fbm(wx / 10, wy / 10, 2, 62);
+  return n < 0.36 ? lerpC(P.dirt, P.dirtD, 0.55) : P.dirt;
 };
 
 const grass: Painter = (lx, ly, wx, wy) => {
@@ -253,13 +254,14 @@ const rubble: Painter = (_lx, _ly, wx, wy) => {
 const JUNK_COLS: RGB[] = [C('#3a3d4a'), C('#4a4e5c'), C('#5a3e30'), C('#6a4a36'), C('#2a2c36'), C('#5a5f70'), C('#7a5a3a')];
 const junk: Painter = (lx, ly, wx, wy, tx, ty, q) => {
   const below = q.at(tx, ty + 1);
-  const n = valueNoise(wx / 5, wy / 5, 201);
-  const h = hash2(Math.floor(wx / 3), Math.floor(wy / 2), 202);
-  let c = JUNK_COLS[Math.floor(h * JUNK_COLS.length)]!;
-  if (n > 0.66) c = lerpC(c, [255, 255, 255], 0.12);
-  if (n < 0.3) c = lerpC(c, [0, 0, 0], 0.35);
-  if (hash2(wx, wy, 203) < 0.02) c = C('#ffcc3d');
-  if (hash2(wx, wy, 204) < 0.012) c = C('#3fe0f0');
+  // Larger salvage chunks with soft shading read as heaped scrap rather than static.
+  const n = valueNoise(wx / 7, wy / 7, 201);
+  const h = hash2(Math.floor(wx / 6), Math.floor(wy / 4), 202);
+  let c = lerpC(JUNK_COLS[Math.floor(h * JUNK_COLS.length)]!, [52, 44, 48], 0.3);
+  if (n > 0.66) c = lerpC(c, [255, 255, 255], 0.1);
+  if (n < 0.3) c = lerpC(c, [0, 0, 0], 0.3);
+  if (hash2(wx, wy, 203) < 0.005) c = C('#ffcc3d');
+  if (hash2(wx, wy, 204) < 0.003) c = C('#3fe0f0');
   // Bottom edge darkens where the pile meets open ground.
   if (below !== 'junk' && ly >= 13) return lerpC(c, [8, 6, 12], (ly - 12) / 4);
   void lx;
@@ -303,8 +305,14 @@ const floorMetal: Painter = (lx, ly) => {
 };
 
 const floorCarpet: Painter = (lx, ly, wx, wy) => {
-  if ((lx + ly) % 8 === 0 && (lx - ly + 16) % 8 === 0) return P.carpetL;
-  return hash2(wx, wy, 101) < 0.1 ? P.carpetD : P.carpet;
+  const d = Math.abs(lx - 7.5) + Math.abs(ly - 7.5);
+  if (Math.round(d) === 6) return P.carpetL;
+  if (d < 1.5) return P.carpetD;
+  if (Math.round(d) === 3 && (lx + ly) % 2 === 0) return lerpC(P.carpet, P.carpetL, 0.5);
+  if (hash2(wx, wy, 103) < 0.003) return [26, 14, 20];
+  const faded = fbm(wx / 36, wy / 36, 2, 107) > 0.6;
+  const base = faded ? lerpC(P.carpet, P.carpetL, 0.22) : P.carpet;
+  return hash2(wx, wy, 101) < 0.06 ? P.carpetD : base;
 };
 
 const floorConcrete: Painter = (_lx, _ly, wx, wy) => {
@@ -389,10 +397,11 @@ const catwalk: Painter = (lx, ly, wx, wy) => {
 const labFloor: Painter = (lx, ly, wx, wy) => {
   if (lx === 0 || ly === 0) return P.labSeam;
   let base = lx === 15 || ly === 15 ? P.labFloorD : P.labFloor;
-  const dust = fbm(wx / 20, wy / 20, 3, 361);
-  if (dust < 0.4) base = lerpC(base, P.labSeam, (0.4 - dust) * 1.5);
-  if (hash2(Math.floor(wx / 6), Math.floor(wy / 3), 362) < 0.06 && (wx + wy * 2) % 7 === 0) return lerpC(base, [40, 44, 56], 0.3);
-  if (hash2(wx, wy, 363) < 0.012) return P.labFloorD;
+  const scuff = fbm(wx / 24, wy / 24, 2, 361);
+  if (scuff < 0.3) base = lerpC(base, P.labSeam, (0.3 - scuff) * 0.8);
+  // Polished sheen: a soft diagonal highlight across each tile.
+  if (lx + ly === 9 || lx + ly === 10) base = lerpC(base, [255, 255, 255], 0.12);
+  if (hash2(wx, wy, 363) < 0.003) return P.labFloorD;
   return base;
 };
 

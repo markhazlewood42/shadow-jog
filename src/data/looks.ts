@@ -88,5 +88,8 @@ export function randomLook(seed: number): CharLook {
   if (look.hairStyle === 'cap') look.hat = r.pick(TOPS);
   // Neon dye is for statement cuts; on a big rounded style it reads as a flat ball.
   if (NEON.has(look.hair) && !['mohawk', 'spiky', 'ponytail', 'slick'].includes(look.hairStyle)) look.hair = r.pick(NATURAL);
+  // A face of their own: most people look neutral, some grin, a few give nothing away.
+  look.mouth = r.pick(['line', 'line', 'line', 'grin', 'none'] as const);
+  look.brows = r.chance(0.75);
   return look;
 }

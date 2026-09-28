@@ -35,6 +35,10 @@ export interface CharLook {
   visor?: string;
   goggles?: string;
   accessories?: Accessory[];
+  /** Front-view mouth: a short line (default), a grin with teeth, or none. */
+  mouth?: 'line' | 'grin' | 'none';
+  /** Front-view brows (default on). */
+  brows?: boolean;
 }
 
 export interface CharSprite {
@@ -692,6 +696,7 @@ function palette(look: CharLook, nearArm: 'left' | 'right' | null): Pal {
   return {
     s: look.skin, S: sd(look.skin, -0.28),
     e: look.eyes ?? '#1a1426',
+    m: sd(look.skin, -0.42),
     t: look.top, T: sd(look.top),
     i: inner, I: sd(inner),
     a: look.accent, A: sd(look.accent),
@@ -768,6 +773,29 @@ function hairStrands(rows: string[]): void {
   }
 }
 
+/**
+ * Brows and a mouth on the front view, painted only onto bare skin (hair, beards and masks win).
+ * Two rows of separation from the eyes keeps them reading as a face, not taller eyes.
+ */
+function faceFeatures(rows: string[], look: CharLook): void {
+  const put = (x: number, y: number, ch: string) => {
+    const r = rows[y];
+    if (r?.[x] !== 's') return;
+    rows[y] = r.slice(0, x) + ch + r.slice(x + 1);
+  };
+  if (look.brows !== false) for (const x of [5, 6, 9, 10]) put(x, 5, 'H');
+  const mouth = look.mouth ?? 'line';
+  if (mouth === 'line') {
+    put(7, 10, 'm');
+    put(8, 10, 'm');
+  } else if (mouth === 'grin') {
+    put(6, 10, 'm');
+    put(7, 10, 'w');
+    put(8, 10, 'w');
+    put(9, 10, 'm');
+  }
+}
+
 function buildGrid(look: CharLook, view: 'down' | 'up' | 'side', frame: number): string[] {
   const rows = [...BODY[view][frame]!];
   const hair = HAIR[look.hairStyle][view];
@@ -777,6 +805,7 @@ function buildGrid(look: CharLook, view: 'down' | 'up' | 'side', frame: number):
   if (accs.includes('beard')) overlay(rows, ACC.beard[view]);
   overlay(rows, hair);
   if (view === 'up') hairStrands(rows);
+  if (view === 'down') faceFeatures(rows, look);
   for (const a of accs) if (a !== 'elfears' && a !== 'beard') overlay(rows, ACC[a][view]);
   return reshape(rows, look.body ?? 'std');
 }
