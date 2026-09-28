@@ -655,7 +655,7 @@ function reshape(rows: string[], body: Body): string[] {
 
 const OUTLINE = '#120e1d';
 
-interface Pal {
+export interface Pal {
   [letter: string]: string | null;
 }
 
@@ -690,7 +690,8 @@ function palette(look: CharLook, nearArm: 'left' | 'right' | null): Pal {
   };
 }
 
-function paint(rows: string[], pal: Pal): HTMLCanvasElement {
+/** Paint a letter grid with a palette and a 1px auto-outline (canvas is grid + 2 each way). */
+export function paint(rows: string[], pal: Pal): HTMLCanvasElement {
   const h = rows.length;
   const w = rows[0]!.length;
   const pw = w + 2;
@@ -742,6 +743,15 @@ function buildGrid(look: CharLook, view: 'down' | 'up' | 'side', frame: number):
   overlay(rows, hair);
   for (const a of accs) if (a !== 'elfears' && a !== 'beard') overlay(rows, ACC[a][view]);
   return reshape(rows, look.body ?? 'std');
+}
+
+/** Back-view stand grid (body-reshaped) and its palette, for battle poses built on the rig. */
+export function backGrid(look: CharLook): { rows: string[]; pal: Pal } {
+  const pal: Pal = { ...palette(look, null) };
+  const l = palette(look, 'left'), r = palette(look, 'right');
+  pal.k = l.k; pal.K = l.K; pal.n = l.n;
+  pal.j = r.k; pal.J = r.K; pal.o = r.n;
+  return { rows: buildGrid(look, 'up', 0), pal };
 }
 
 const cache = new Map<string, CharSprite>();

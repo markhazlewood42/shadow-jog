@@ -1,5 +1,5 @@
 /** Battle presentation: command entry, targeting, event playback, rewards. */
-import { buildChar } from '../art/chars';
+import { battler, type Battler, type Pose } from '../art/battlers';
 import { battleBg, type BattleBg } from '../art/battlebg';
 import { enemyArt, type EnemyArt } from '../art/enemies';
 import { music } from '../audio/music';
@@ -46,6 +46,9 @@ interface Disp {
   dying: number;
   lunge: number;
   hidden: boolean;
+  /** Party action pose and how many frames it holds (idle when 0). */
+  pose: Pose;
+  poseT: number;
 }
 
 interface Floater {
@@ -59,7 +62,13 @@ interface Floater {
 
 const BW = 240, BHT = 135;
 const PANEL_Y = 214;
-const PARTY_BOTTOM = 111;
+/** Party feet sit well below the panel top (107): an over-the-shoulder view of heads, shoulders and raised arms. */
+const PARTY_BOTTOM = 127;
+/**
+ * Regular enemies stand further back on the floor than the background's ground line, so the
+ * party's heads (top ≈ y 81) sit below their feet; bosses stay forward and loom.
+ */
+const ENEMY_LIFT = 14, BOSS_LIFT = 4;
 /** Battle menus hug the screen edge; CMD_W fits "Programs"/"Spirits" plus the cursor. */
 const MENU_X = 4, CMD_W = 84;
 
@@ -104,7 +113,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private endPanel: ((ctx: Ctx) => void) | null = null;
   private waitingConfirm: (() => void) | null = null;
   private playtestT = 0;
-  private partyArt = new Map<number, HTMLCanvasElement[]>();
+  /** Frames of freeze-frame left (heavy hits). */
+  private hitstop = 0;
+  private partyArt = new Map<number, Battler>();
   private dead = new Set<number>();
 
   constructor(setup: BattleSetup) {
@@ -124,13 +135,18 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     });
     for (const u of this.battle.units) this.initDisp(u);
     for (const p of party) {
-      const spr = buildChar(LOOKS[p.key as keyof typeof LOOKS]);
-      this.partyArt.set(p.uid, spr.frames.up);
+      this.partyArt.set(p.uid, battler(p.key, LOOKS[p.key as keyof typeof LOOKS]));
     }
   }
 
+  private setPose(u: Combatant, pose: Pose, frames: number): void {
+    const dd = this.d(u.uid);
+    dd.pose = pose;
+    dd.poseT = frames;
+  }
+
   private initDisp(u: Combatant): void {
-    this.disp.set(u.uid, { hp: u.hp, tp: u.tp, flash: 0, shake: 0, hop: 0, alpha: u.side === 'enemy' ? 0 : 1, dying: 0, lunge: 0, hidden: false });
+    this.disp.set(u.uid, { hp: u.hp, tp: u.tp, flash: 0, shake: 0, hop: 0, alpha: u.side === 'enemy' ? 0 : 1, dying: 0, lunge: 0, hidden: false, pose: 'idle', poseT: 0 });
   }
 
   private d(uid: number): Disp {
@@ -369,19 +385,26 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   // ------------------------------------------------------------------ update
   update(): void {
     this.frame++;
+    if (this.hitstop > 0) {
+      // Freeze-frame on heavy hits: everything holds, the event script waits it out.
+      this.hitstop--;
+      return;
+    }
     this.fx.update();
     if (this.fx.flash) {
       this.game.flash(this.fx.flash.color, this.fx.flash.frames);
       this.fx.flash = null;
     }
     if (this.fx.shake && settings.shake) {
-      this.game.shake(this.fx.shake, 3);
+      const s = this.fx.shake;
+      this.game.shake(6 + s, s >= 10 ? 5 : s >= 6 ? 4 : s >= 4 ? 3 : 2);
     }
     this.fx.shake = 0;
     for (const dd of this.disp.values()) {
       if (dd.flash > 0) dd.flash--;
       if (dd.shake > 0) dd.shake--;
       if (dd.hop > 0) dd.hop = Math.max(0, dd.hop - 0.6);
+      if (dd.poseT > 0) dd.poseT--;
       if (dd.lunge > 0) dd.lunge = Math.max(0, dd.lunge - 0.5);
       if (dd.dying > 0) {
         dd.dying++;
@@ -522,7 +545,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         const color = actor.side === 'party' ? MEMBERS[actor.key as MemberId].color : '#ff8a8a';
         this.showBanner(e.kind === 'attack' || e.name === 'Attack' ? `${actor.name}` : `${actor.name}: ${e.name}`, color);
         if (actor.side === 'party') {
-          dd.hop = 8;
+          dd.lunge = 6;
+          this.setPose(actor, actionPose(actor.key, e.kind, e.targets.map((t) => this.battle.unit(t)?.side)), 34);
           sfx(e.kind === 'tech' ? 'cast' : 'swing');
         } else {
           dd.flash = 8;
@@ -541,7 +565,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         const names = e.actors.map((a) => this.battle.unit(a)!.name).join(' + ');
         const first = !state.combos.includes(this.comboId(e.name));
         if (first) state.combos.push(this.comboId(e.name));
-        for (const a of e.actors) this.d(a).hop = 10;
+        for (const a of e.actors) {
+          this.d(a).hop = 10;
+          const u = this.battle.unit(a)!;
+          if (u.side === 'party') this.setPose(u, u.key === 'hex' || u.key === 'sable' ? 'cast' : 'attack', 70);
+        }
         sfx('combo');
         this.banner = { text: `★ ${e.name.toUpperCase()} ★`, sub: first ? `${names}  —  COMBO DISCOVERED!` : names, t: 0, color: '#ffe07a', big: true };
         this.game.flash('#ffffff', 6);
@@ -557,6 +585,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         dd.hp = e.hp;
         dd.shake = 12;
         dd.flash = u.side === 'enemy' ? 5 : 8;
+        if (u.side === 'party' && e.hp > 0) this.setPose(u, 'hurt', 16);
         const p = this.pos(e.target);
         if (e.amount === 0) this.float('NO EFFECT', p, '#8b8fa8', false);
         else {
@@ -566,7 +595,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           else if (e.resist) this.float('RESIST', { x: p.x, y: p.y - 10 }, '#b8bcd0', false);
         }
         sfx(e.crit ? 'crit' : u.side === 'party' ? 'hurt' : 'hit');
-        if (e.crit && settings.shake) this.game.shake(8, 3);
+        // Weight by share of the target's max HP: light taps barely move the camera, big hits stop time.
+        const share = e.amount / u.base.maxHp;
+        const tier = e.crit || share >= 0.4 ? 3 : share >= 0.2 ? 2 : share >= 0.08 ? 1 : 0;
+        if (settings.shake && tier) this.game.shake(4 + tier * 3, tier + 1 + (e.crit ? 1 : 0));
+        if (tier >= 2) {
+          this.hitstop = tier === 3 ? 5 : 3;
+          await this.game.wait(this.hitstop);
+        }
         await this.w(14);
         break;
       }
@@ -726,6 +762,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     this.mode = 'end';
     music(this.setup.boss ? 'victory_boss' : 'victory', 0);
     const living = this.battle.party.filter((p) => p.hp > 0);
+    for (const p of living) this.setPose(p, 'victory', 100000);
+    this.fx.play('victory', this.pos(living[0]?.uid ?? 0), living.map((p) => this.pos(p.uid)));
+    sfx('cheer');
     for (let i = 0; i < 3; i++) {
       for (const p of living) this.d(p.uid).hop = 6;
       await this.game.wait(14);
@@ -822,7 +861,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       let x = Math.round((BW - total) / 2);
       living.forEach((e, i) => {
         const art = enemyArt(ENEMIES[e.key]!.sprite);
-        const ground = e.key === 'lurker' ? this.bg.ground - 4 : this.bg.ground;
+        const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0);
         const back = e.boss ? 0 : (i % 2) * 4;
         next.set(e.uid, { x, y: ground - art.canvas.height - back, art });
         x += art.canvas.width + gap;
@@ -834,7 +873,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     let p = this.layout.get(u.uid);
     if (!p) {
       const art = enemyArt(ENEMIES[u.key]!.sprite);
-      p = { x: Math.round((BW - art.canvas.width) / 2), y: this.bg.ground - art.canvas.height, art };
+      p = { x: Math.round((BW - art.canvas.width) / 2), y: this.bg.ground - (u.boss ? BOSS_LIFT : ENEMY_LIFT) - art.canvas.height, art };
       this.layout.set(u.uid, p);
     }
     return p;
@@ -848,7 +887,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private partyPos(u: Combatant): Pt {
     const n = this.battle.party.length;
     const i = u.order ?? 0;
-    return { x: Math.round(BW / 2 + (i - (n - 1) / 2) * 44), y: PARTY_BOTTOM - 20 };
+    return { x: Math.round(BW / 2 + (i - (n - 1) / 2) * 44), y: PARTY_BOTTOM - 34 };
   }
 
   // ------------------------------------------------------------------ render
@@ -873,8 +912,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     }
     // Floaters
     for (const fl of this.floaters) {
-      const rise = fl.big ? Math.min(8, fl.t * 1.2) - Math.max(0, fl.t - 10) * 0 : fl.t * 0.4;
-      const bounce = fl.big && fl.t < 12 ? Math.abs(Math.sin(fl.t * 0.5)) * 4 : 0;
+      // Damage numbers pop up with a decaying bounce, then hold and drift; small text just rises.
+      const rise = fl.big ? 8 * (1 - Math.pow(1 - Math.min(1, fl.t / 8), 3)) + Math.max(0, fl.t - 24) * 0.15 : fl.t * 0.4;
+      const bounce = fl.big && fl.t >= 8 && fl.t < 20 ? Math.abs(Math.sin((fl.t - 8) * 0.52)) * 3 * (1 - (fl.t - 8) / 12) : 0;
       g.globalAlpha = fl.t > 38 ? Math.max(0, 1 - (fl.t - 38) / 12) : 1;
       drawText(g, fl.text, Math.round(fl.x), Math.round(fl.y - rise - bounce), { color: fl.color, align: 'center', shadow: '#0a0913' });
       g.globalAlpha = 1;
@@ -886,23 +926,95 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     this.renderUi(ctx);
   }
 
+  /** Shards of the field snapshot: a jittered triangle mesh, each flying out from the centre. */
+  private shards: { pts: [number, number][]; cx: number; cy: number; vx: number; vy: number; spin: number }[] | null = null;
+
+  private buildShards(): void {
+    const cols = 9, rows = 5;
+    let seed = 1234567;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const grid: [number, number][][] = [];
+    for (let j = 0; j <= rows; j++) {
+      grid.push([]);
+      for (let i = 0; i <= cols; i++) {
+        const edge = i === 0 || j === 0 || i === cols || j === rows;
+        const jx = edge ? 0 : (rnd() - 0.5) * (W / cols) * 0.7;
+        const jy = edge ? 0 : (rnd() - 0.5) * (H / rows) * 0.7;
+        grid[j]!.push([(i * W) / cols + jx, (j * H) / rows + jy]);
+      }
+    }
+    this.shards = [];
+    for (let j = 0; j < rows; j++)
+      for (let i = 0; i < cols; i++) {
+        const a = grid[j]![i]!, b = grid[j]![i + 1]!, c = grid[j + 1]![i + 1]!, d = grid[j + 1]![i]!;
+        const tris = (i + j) % 2 ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]];
+        for (const pts of tris as [number, number][][]) {
+          const cx = (pts[0]![0] + pts[1]![0] + pts[2]![0]) / 3, cy = (pts[0]![1] + pts[1]![1] + pts[2]![1]) / 3;
+          const dx = cx - W / 2, dy = cy - H / 2, len = Math.hypot(dx, dy) || 1;
+          const sp = 3 + rnd() * 4;
+          this.shards.push({ pts, cx, cy, vx: (dx / len) * sp, vy: (dy / len) * sp - 2 - rnd() * 2, spin: (rnd() - 0.5) * 0.3 });
+        }
+      }
+  }
+
   private drawShatter(ctx: Ctx): void {
     const img = this.setup.intro!;
     const t = this.introT;
-    const strips = 12;
-    const sh = H / strips;
-    for (let i = 0; i < strips; i++) {
-      const dir = i % 2 ? 1 : -1;
-      const dx = dir * Math.pow(t / 30, 2) * W * 1.1;
-      ctx.globalAlpha = Math.max(0, 1 - t / 30);
-      ctx.drawImage(img, 0, i * sh * (img.height / H), img.width, sh * (img.height / H), dx, i * sh, W, sh);
+    if (!this.shards) this.buildShards();
+    const CRACK = 6;
+    if (t < CRACK) {
+      // The frame freezes and cracks spread from the centre along the shard seams.
+      ctx.drawImage(img, 0, 0, W, H);
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 1;
+      const reach = ((t + 1) / CRACK) * Math.hypot(W, H) * 0.55;
+      ctx.beginPath();
+      for (const sh of this.shards!) {
+        if (Math.hypot(sh.cx - W / 2, sh.cy - H / 2) > reach) continue;
+        const [p0, p1, p2] = sh.pts;
+        ctx.moveTo(p0![0], p0![1]);
+        ctx.lineTo(p1![0], p1![1]);
+        ctx.lineTo(p2![0], p2![1]);
+        ctx.closePath();
+      }
+      ctx.stroke();
+      return;
+    }
+    const k = t - CRACK;
+    ctx.globalAlpha = Math.max(0, 1 - k / 24);
+    for (const sh of this.shards!) {
+      const ox = sh.vx * k, oy = sh.vy * k + 0.35 * k * k;
+      ctx.save();
+      ctx.translate(sh.cx + ox, sh.cy + oy);
+      ctx.rotate(sh.spin * k);
+      ctx.beginPath();
+      ctx.moveTo(sh.pts[0]![0] - sh.cx, sh.pts[0]![1] - sh.cy);
+      ctx.lineTo(sh.pts[1]![0] - sh.cx, sh.pts[1]![1] - sh.cy);
+      ctx.lineTo(sh.pts[2]![0] - sh.cx, sh.pts[2]![1] - sh.cy);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(img, -sh.cx, -sh.cy, W, H);
+      ctx.restore();
     }
     ctx.globalAlpha = 1;
+  }
+
+  /** 0 for the first enemy of its kind in this fight, 1 for the second, ... */
+  private dupIndex(e: Combatant): number {
+    let n = 0;
+    for (const o of this.battle.enemies) {
+      if (o === e) return n;
+      if (o.key === e.key) n++;
+    }
+    return n;
   }
 
   private drawEnemy(g: Ctx, e: Combatant, f: number): void {
     const dd = this.d(e.uid);
     const { x, y, art } = this.enemyPos(e);
+    const flip = this.dupIndex(e) % 2 === 1;
+    const canvas = flip ? mirrored(art.canvas) : art.canvas;
+    const glow = art.glow && (flip ? mirrored(art.glow) : art.glow);
     let ox = 0, oy = 0;
     switch (art.idle) {
       case 'hover': oy = Math.round(Math.sin(f * 0.08 + e.uid) * 2); break;
@@ -929,56 +1041,56 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const k = Math.min(1, dd.dying / 28);
       g.globalAlpha = Math.max(0, 1 - k);
       const hh = Math.round(art.canvas.height * (1 - k * 0.5));
-      g.drawImage(silhouetteCache(art.canvas, k < 0.3 ? '#ffffff' : '#ff4fb0'), dx, dy + (art.canvas.height - hh), art.canvas.width, hh);
+      g.drawImage(silhouetteCache(canvas, k < 0.3 ? '#ffffff' : '#ff4fb0'), dx, dy + (art.canvas.height - hh), art.canvas.width, hh);
       g.globalAlpha = 1;
       return;
     }
     g.globalAlpha = alpha;
-    g.drawImage(art.canvas, dx, dy);
+    g.drawImage(canvas, dx, dy);
     if (this.bg.tintAmt > 0) {
       // Ambient tint: multiply-ish wash using the background light color.
       g.globalAlpha = alpha * this.bg.tintAmt;
-      g.drawImage(silhouetteCache(art.canvas, this.bg.tint), dx, dy);
+      g.drawImage(silhouetteCache(canvas, this.bg.tint), dx, dy);
       g.globalAlpha = alpha;
     }
-    if (art.glow) g.drawImage(art.glow, dx, dy);
+    if (glow) g.drawImage(glow, dx, dy);
     if (dd.flash > 0 && dd.flash % 4 < 2) {
       g.globalAlpha = 0.85 * alpha;
-      g.drawImage(silhouetteCache(art.canvas, '#ffffff'), dx, dy);
+      g.drawImage(silhouetteCache(canvas, '#ffffff'), dx, dy);
     }
     g.globalAlpha = 1;
-    // Status pips for enemies
-    let sx = dx + art.canvas.width / 2 - 8;
-    for (const s of e.status) {
-      const lab = STATUS_LABEL[s.id];
-      if (!lab || s.id === 'guard') continue;
-      g.fillStyle = lab[1];
-      g.fillRect(Math.round(sx), dy - 3, 3, 2);
-      sx += 4;
-    }
   }
 
   private drawPartyMember(g: Ctx, p: Combatant, f: number): void {
     const dd = this.d(p.uid);
-    const frames = this.partyArt.get(p.uid)!;
+    const art = this.partyArt.get(p.uid)!;
     const pos = this.partyPos(p);
     const active = (this.mode === 'command' || this.mode === 'list' || this.mode === 'target') && this.actor?.uid === p.uid;
     const down = dd.hp <= 0 && p.hp <= 0;
-    let frame = frames[0]!;
-    if (active && Math.floor(f / 16) % 2) frame = frames[1]!;
+    const pose: Pose = dd.poseT > 0 ? dd.pose : 'idle';
+    const frame = art.frames[pose];
     let ox = 0;
     if (dd.shake > 0) ox = dd.shake % 4 < 2 ? 2 : -2;
+    if (pose === 'hurt') ox += 1;
+    // Idle breathing: a 1px rise, staggered per member; faster and higher while choosing orders.
+    const breathe = pose === 'idle' ? (Math.floor((f + p.uid * 23) / (active ? 16 : 34)) % 2) * (active ? 2 : 1) : 0;
     const x = Math.round(pos.x - frame.width / 2 + ox);
-    const y = Math.round(PARTY_BOTTOM - frame.height - dd.hop - (active ? 2 : 0) - dd.lunge);
-    g.fillStyle = 'rgba(0,0,0,0.4)';
-    g.fillRect(pos.x - 6, PARTY_BOTTOM - 1, 12, 2);
+    const y = Math.round(PARTY_BOTTOM - frame.height - dd.hop - dd.lunge - breathe + (pose === 'hurt' ? 2 : 0));
     if (down) {
       g.globalAlpha = 0.5;
-      g.drawImage(silhouetteCache(frame, '#3a3450'), x, y + 6, frame.width, frame.height - 6);
+      g.drawImage(silhouetteCache(art.frames.hurt, '#3a3450'), x, y + 10);
       g.globalAlpha = 1;
       return;
     }
     g.drawImage(frame, x, y);
+    const glow = art.glow[pose];
+    if (glow) {
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = 0.75 + 0.25 * Math.sin(f * 0.5);
+      g.drawImage(glow, x, y);
+      g.globalAlpha = 1;
+      g.globalCompositeOperation = 'source-over';
+    }
     if (active && this.mode !== 'target') this.drawArrow(g, p.uid, f, MEMBERS[p.key as MemberId].color);
     if (dd.flash > 0 && dd.flash % 4 < 2) {
       g.globalAlpha = 0.6;
@@ -998,7 +1110,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     } else {
       const p = this.partyPos(u);
       x = p.x;
-      y = PARTY_BOTTOM - 32;
+      y = PARTY_BOTTOM - this.partyArt.get(uid)!.headH - 3;
     }
     const b = Math.round(Math.sin(f * 0.25) * 2);
     g.fillStyle = '#0a0913';
@@ -1008,7 +1120,34 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   // ------------------------------------------------------------------ UI (1x)
+  /** Labelled status chips over each enemy (screen space, so they stay small and legible). */
+  private renderEnemyStatus(ctx: Ctx): void {
+    for (const e of this.battle.alive('enemy')) {
+      const dd = this.d(e.uid);
+      if (dd.dying > 0 || dd.alpha < 0.5) continue;
+      const labs = e.status.map((s) => STATUS_LABEL[s.id]).filter((l): l is [string, string] => !!l && l[0] !== 'GRD');
+      if (!labs.length) continue;
+      const { x, y, art } = this.enemyPos(e);
+      const shown = labs.slice(0, 3);
+      const more = labs.length - shown.length;
+      const widths = shown.map((l) => measure(l[0]) + 4);
+      const total = widths.reduce((a, b) => a + b + 1, 0) + (more ? measure(`+${more}`) + 3 : 0);
+      let cx = Math.round((x + art.canvas.width / 2) * 2 - total / 2);
+      const cy = Math.max(2, y * 2 - 11);
+      shown.forEach((l, i) => {
+        ctx.fillStyle = 'rgba(10,9,19,0.85)';
+        ctx.fillRect(cx, cy, widths[i]!, 9);
+        ctx.fillStyle = l[1];
+        ctx.fillRect(cx, cy + 8, widths[i]!, 1);
+        drawText(ctx, l[0], cx + 2, cy + 1, { color: l[1], shadow: false });
+        cx += widths[i]! + 1;
+      });
+      if (more) drawText(ctx, `+${more}`, cx + 1, cy + 1, { color: UI.dim });
+    }
+  }
+
   private renderUi(ctx: Ctx): void {
+    if (this.mode !== 'intro') this.renderEnemyStatus(ctx);
     this.renderPanel(ctx);
     // Top line: action banner or message
     if (this.banner) {
@@ -1103,16 +1242,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         drawText(ctx, 'SKILL', x + 7, y + 33, { color: UI.dim });
         drawText(ctx, `${total} uses`, x + 110, y + 33, { align: 'right' });
       }
-      // Status tags
-      let sx = x + 60;
-      for (const s of p.status) {
-        const lab = STATUS_LABEL[s.id];
-        if (!lab || s.id === 'guard' || s.id === 'cover') continue;
-        if (sx > x + 84) break;
+      // Status tags: up to two, then a count.
+      const labs = p.status.filter((s) => s.id !== 'guard' && s.id !== 'cover').map((s) => STATUS_LABEL[s.id]).filter((l): l is [string, string] => !!l);
+      let sx = x + 26;
+      labs.slice(0, 2).forEach((lab) => {
         drawText(ctx, lab[0], sx, y + 17, { color: lab[1] });
         sx += measure(lab[0]) + 3;
-        break;
-      }
+      });
+      if (labs.length > 2) drawText(ctx, `+${labs.length - 2}`, sx, y + 17, { color: UI.dim });
     });
   }
 
@@ -1226,6 +1363,20 @@ function summarize(names: string[]): string[] {
 }
 
 const silCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
+const flipCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+/** Horizontally mirrored copy (cached): every other duplicate enemy faces the other way. */
+function mirrored(src: HTMLCanvasElement): HTMLCanvasElement {
+  let c = flipCache.get(src);
+  if (!c) {
+    const s = surface(src.width, src.height);
+    s.ctx.translate(src.width, 0);
+    s.ctx.scale(-1, 1);
+    s.ctx.drawImage(src, 0, 0);
+    flipCache.set(src, (c = s.canvas));
+  }
+  return c;
+}
+
 function silhouetteCache(src: HTMLCanvasElement, color: string): HTMLCanvasElement {
   let m = silCache.get(src);
   if (!m) silCache.set(src, (m = new Map()));
@@ -1254,4 +1405,13 @@ function fxSound(fx: string): string {
   if (fx === 'beam') return 'beam';
   if (fx === 'wave') return 'wave';
   return 'hit';
+}
+
+/** Which battle pose a party action plays: blades and fists strike, programs and spirits are cast. */
+function actionPose(key: string, kind: Ability['kind'], targets: (string | undefined)[]): Pose {
+  if (kind === 'item') return 'item';
+  if (kind === 'attack' || kind === 'skill') return 'attack';
+  const onAllies = targets.length > 0 && targets.every((t) => t === 'party');
+  if (key === 'kit' && !onAllies) return 'attack';
+  return 'cast';
 }

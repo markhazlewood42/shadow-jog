@@ -96,6 +96,9 @@ export const ITEMS: Record<string, ItemDef> = {
   dermal_plating: I({ id: 'dermal_plating', name: 'Dermal Plating', kind: 'mod', slot: 'mod', who: ALL, price: 340, def: 6, desc: 'Subdermal armor. +6 DEF.' }),
   neural_buffer: I({ id: 'neural_buffer', name: 'Neural Buffer', kind: 'mod', slot: 'mod', who: ALL, price: 360, mnd: 4, tp: 8, desc: '+4 MND, +8 max TP.' }),
   lucky_coin: I({ id: 'lucky_coin', name: 'Lucky Coin', kind: 'mod', slot: 'mod', who: ALL, price: 250, crit: 10, desc: 'A Kowloon-era coin. +10% critical.' }),
+  // Chest-only finds: not sold anywhere, so exploring pays off in something a shop can't give.
+  grounding_coil: I({ id: 'grounding_coil', name: 'Grounding Coil', kind: 'mod', slot: 'mod', who: ALL, price: 460, def: 4, immune: ['stun'], desc: 'Salvaged surge sink. +4 DEF. Immune to stun.' }),
+  ghost_lens: I({ id: 'ghost_lens', name: 'Ghost Lens', kind: 'mod', slot: 'mod', who: ALL, price: 420, res: 6, mnd: 3, desc: 'A cracked monocle that sees a little too much. +6 RES, +3 MND.' }),
   adrenal_pump: I({ id: 'adrenal_pump', name: 'Adrenal Pump', kind: 'mod', slot: 'mod', who: ALL, price: 620, regen: 4, desc: 'Regenerate 4% HP each round.' }),
   spirit_fetish: I({ id: 'spirit_fetish', name: 'Spirit Fetish', kind: 'mod', slot: 'mod', who: ALL, price: 300, res: 7, immune: ['poison'], desc: '+7 RES. Immune to poison.' }),
   cyber_eye: I({ id: 'cyber_eye', name: 'Cyber Eye', kind: 'mod', slot: 'mod', who: ALL, price: 320, hit: 10, immune: ['blind'], desc: '+10% hit. Immune to blindness.' }),

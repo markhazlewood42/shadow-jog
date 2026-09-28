@@ -318,6 +318,19 @@ export class FxLayer {
         });
         return { impact: 10, total: 30 };
       }
+      case 'victory': {
+        // Confetti of spark colours from each fighter, then a slow rise of motes.
+        const cols = ['#ffe07a', '#ff4fb0', '#3fe0f0', '#86f08c', '#ffa24a'];
+        each((t, i) => {
+          for (let n = 0; n < 16; n++) {
+            const a = -Math.PI / 2 + (this.rng.next() - 0.5) * 1.8;
+            const sp = 1.6 + this.rng.next() * 1.8;
+            this.p({ x: t.x, y: t.y - 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 0.09, max: 34 + n, color: cols[(n + i) % cols.length]!, size: 1, kind: 'spark', delay: i * 4 });
+          }
+          this.rise(t, '#ffe07a', 10, 18, 10 + i * 4, 0.4);
+        });
+        return { impact: 6, total: 50 };
+      }
       case 'shield':
       case 'buff':
       case 'roar':

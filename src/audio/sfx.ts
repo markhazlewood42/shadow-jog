@@ -151,6 +151,11 @@ const S: Record<string, Maker> = {
     osc(c, 'sine', 90, 30, t, 0.8, 0.4, o);
   },
   levelup: (c, o, t) => notes(c, 'square', [523, 659, 784, 1047, 784, 1047], 0.07, 0.14, 0.06, o, t),
+  // Victory cheer: a spray of sparkle over a short whoosh, under the fanfare.
+  cheer: (c, o, t) => {
+    noise(c, t, 0.35, 0.08, o, 'bandpass', 3200);
+    notes(c, 'triangle', [1568, 2093, 2637, 3136, 2637, 3136], 0.035, 0.08, 0.05, o, t + 0.05);
+  },
 };
 
 let last = new Map<string, number>();

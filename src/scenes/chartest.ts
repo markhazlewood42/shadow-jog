@@ -1,12 +1,13 @@
+import { battler, POSES } from '../art/battlers';
 import { buildChar, type Dir } from '../art/chars';
 import type { Ctx } from '../engine/canvas';
 import { drawText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { LOOKS, randomLook } from '../data/looks';
 
-/** Dev scene: character sprite sheet. ?scene=chars[&zoom=3] */
+/** Dev scene: character sprite sheet. ?scene=chars[&zoom=3][&npcs][&battlers] */
 export class CharTestScene extends Scene {
-  constructor(private zoom = 2, private npcs = false) {
+  constructor(private zoom = 2, private npcs = false, private battlers = false) {
     super();
   }
   update(): void {}
@@ -15,6 +16,26 @@ export class CharTestScene extends Scene {
     ctx.fillRect(0, 0, W, H);
     const z = this.zoom;
     const dirs: Dir[] = ['down', 'left', 'right', 'up'];
+    if (this.battlers) {
+      // Party battle poses at battle scale (x2 to screen, as in a fight).
+      (['kit', 'rook', 'hex', 'sable'] as const).forEach((id, row) => {
+        const b = battler(id, LOOKS[id]);
+        drawText(ctx, id, 4, 6 + row * 66, { color: '#fff' });
+        POSES.forEach((p, i) => {
+          const fr = b.frames[p];
+          const x = 40 + i * 72, y = 4 + row * 66;
+          ctx.drawImage(fr, x, y, fr.width * 1.2, fr.height * 1.2);
+          const g = b.glow[p];
+          if (g) {
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.drawImage(g, x, y, g.width * 1.2, g.height * 1.2);
+            ctx.globalCompositeOperation = 'source-over';
+          }
+          if (row === 0) drawText(ctx, p, x, H - 10, { color: '#aaa' });
+        });
+      });
+      return;
+    }
     if (this.npcs) {
       for (let i = 0; i < 40; i++) {
         const s = buildChar(randomLook(i));

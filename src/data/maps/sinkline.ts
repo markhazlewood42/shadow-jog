@@ -81,7 +81,7 @@ export const sinkline1: MapDef = {
     { id: 'c2', x: 27, y: 12, cred: 160, kind: 'crate' },
     { id: 'c3', x: 45, y: 5, item: 'neural_buffer', kind: 'case' },
     { id: 'c4', x: 16, y: 27, item: 'neurotab', qty: 2, kind: 'locker' },
-    { id: 'c5', x: 22, y: 19, item: 'reflex_booster', kind: 'case' },
+    { id: 'c5', x: 22, y: 19, item: 'grounding_coil', kind: 'case' },
     { id: 'c6', x: 45, y: 20, item: 'adrenal_stim', qty: 1, kind: 'locker' },
     { id: 'c7', x: 3, y: 12, item: 'omni_patch', qty: 1, kind: 'crate' },
     { id: 'c8', x: 22, y: 23, cred: 220, kind: 'locker' },

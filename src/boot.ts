@@ -106,7 +106,7 @@ export function boot(game: Game, display: Display): void {
       void game.run(new BestiaryTestScene(Number(params.get('page') ?? 0)));
       break;
     case 'chars':
-      void game.run(new CharTestScene(Number(params.get('zoom') ?? 2), params.has('npcs')));
+      void game.run(new CharTestScene(Number(params.get('zoom') ?? 2), params.has('npcs'), params.has('battlers')));
       break;
     case 'font':
       void game.run(new FontTestScene());

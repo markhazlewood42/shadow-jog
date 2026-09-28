@@ -88,7 +88,7 @@ export const world: MapDef = {
     { kind: 'car', x: 29, y: 21, w: 2, color: '#5a5f7a' },
   ],
   chests: [
-    { id: 'park_cache', x: 23, y: 16, item: 'spirit_fetish', kind: 'case' },
+    { id: 'park_cache', x: 23, y: 16, item: 'ghost_lens', kind: 'case' },
     { id: 'barrens_cache', x: 57, y: 27, cred: 180, kind: 'crate' },
     { id: 'ruin_cache', x: 45, y: 19, item: 'neurotab', qty: 2, kind: 'crate' },
   ],

@@ -147,9 +147,10 @@ export class Game {
     return this.fadeTo(0, frames);
   }
 
+  /** Screen shake; overlapping shakes keep the stronger amplitude, a fresh one starts from its own. */
   shake(frames = 12, mag = 3): void {
+    this.shakeMag = this.shakeFrames > 0 ? Math.max(mag, this.shakeMag) : mag;
     this.shakeFrames = Math.max(this.shakeFrames, frames);
-    this.shakeMag = Math.max(mag, this.shakeFrames > 0 ? this.shakeMag : 0);
   }
 
   flash(color = '#ffffff', frames = 6): void {

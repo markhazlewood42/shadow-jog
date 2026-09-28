@@ -312,73 +312,141 @@ const MAKERS: Record<string, Maker> = {
     };
   },
   sewer: () => {
+    // A brick storm-drain tunnel in one-point perspective: lit far opening as the focal point,
+    // stone ribs with wall lamps, raised walkways either side of a green-black channel.
     const s = surface(BW, BH), gl = surface(BW, BH);
     const c = s.ctx, g = gl.ctx;
-    const vx = BW / 2, vy = 54;
-    c.fillStyle = '#05080a';
-    c.fillRect(0, 0, BW, BH);
-    // Receding arch rings
-    for (let i = 12; i >= 0; i--) {
-      const k = Math.pow(0.8, i);
-      const rw = 150 * k, rh = 110 * k;
-      const col = shade('#3a4448', -0.1 - i * 0.06);
-      c.fillStyle = col;
+    const vx = BW / 2, vy = 56;
+    // Far opening (x 104..136, y 40..72) and the near frame of the tunnel mouth.
+    const fx0 = 104, fx1 = 136, fy0 = 40, fy1 = 72;
+    ditherV(c, 0, 0, BW, BH, ['#141c1e', '#1a2426', '#1e2a2c']);
+    // Side walls and ceiling: brick courses converging on the vanishing point.
+    const wall = (x0: number, x1: number, edgeX: number) => {
+      c.fillStyle = '#2c3638';
       c.beginPath();
-      c.ellipse(vx, vy + 40 * k, rw, rh, 0, Math.PI, 0);
-      c.lineTo(vx + rw, vy + 60 * k + 40);
-      c.lineTo(vx - rw, vy + 60 * k + 40);
+      c.moveTo(edgeX, 0); c.lineTo(x0, fy0); c.lineTo(x1, fy1); c.lineTo(edgeX, 104);
       c.fill();
-      c.fillStyle = shade('#1a2224', -0.2 - i * 0.03);
-      c.beginPath();
-      c.ellipse(vx, vy + 40 * k, rw * 0.9, rh * 0.9, 0, Math.PI, 0);
-      c.fill();
-      // Wall lamps along the ring
-      if (i % 2 === 0 && i > 0) {
-        const lx = vx - rw * 0.86, rx = vx + rw * 0.86, ly = vy + 40 * k - rh * 0.3;
-        for (const x of [lx, rx]) {
-          g.fillStyle = '#ffd07a';
-          g.fillRect(Math.round(x), Math.round(ly), 2, 1);
-          g.globalAlpha = 0.25;
-          g.fillRect(Math.round(x) - 2, Math.round(ly) - 1, 6, 3);
-          g.globalAlpha = 1;
-        }
+    };
+    wall(fx0, fx0, 0);
+    wall(fx1, fx1, BW);
+    c.fillStyle = '#263032';
+    c.beginPath();
+    c.moveTo(0, 0); c.lineTo(BW, 0); c.lineTo(fx1, fy0); c.lineTo(fx0, fy0);
+    c.fill();
+    // Courses (mortar lines) on the walls: from the screen edge to the far frame.
+    c.strokeStyle = '#1c2426';
+    c.lineWidth = 1;
+    for (let i = 1; i < 14; i++) {
+      const ey = i * 8;
+      if (ey > 104) break;
+      const t = ey / 104;
+      for (const [edge, fx] of [[0, fx0], [BW, fx1]] as const) {
+        c.beginPath();
+        c.moveTo(edge, ey);
+        c.lineTo(fx, fy0 + (fy1 - fy0) * t);
+        c.stroke();
       }
     }
-    // Water channel + walkways
-    floor(c, 70, '#0e2420', '#11282a', null);
-    c.fillStyle = '#3a4448';
+    // Pipes along the left wall, tapering toward the far end (behind the ribs).
+    for (const [ey, col] of [[16, '#5a4032'], [23, '#4a3a30']] as const) {
+      const fy = fy0 + (fy1 - fy0) * (ey / 104);
+      c.fillStyle = col;
+      c.beginPath();
+      c.moveTo(0, ey - 2); c.lineTo(fx0, fy - 0.5); c.lineTo(fx0, fy + 0.5); c.lineTo(0, ey + 2);
+      c.fill();
+      c.fillStyle = shade(col, 0.35);
+      c.beginPath();
+      c.moveTo(0, ey - 2); c.lineTo(fx0, fy - 0.5); c.lineTo(fx0, fy); c.lineTo(0, ey - 1);
+      c.fill();
+    }
+    // Ribs: stone arches at perspective depths, each with a lamp and its light pool.
+    const depths = [0.08, 0.2, 0.36, 0.56, 0.8];
+    depths.forEach((d, i) => {
+      const lx = fx0 * d, rx = BW - (BW - fx1) * d;
+      const top = fy0 * d, bot = 104 + (fy1 - 104) * d;
+      const w = Math.max(1, Math.round(5 * (1 - d)));
+      const lit = shade('#5a6c6e', -d * 0.45);
+      c.fillStyle = lit;
+      c.fillRect(Math.round(lx), Math.round(top), w, Math.round(bot - top));
+      c.fillRect(Math.round(rx) - w, Math.round(top), w, Math.round(bot - top));
+      c.fillRect(Math.round(lx), Math.round(top), Math.round(rx - lx), w);
+      c.fillStyle = shade(lit, 0.25);
+      c.fillRect(Math.round(lx), Math.round(top), Math.round(rx - lx), 1);
+      if (i % 2 === 0) {
+        const ly = Math.round(top + (bot - top) * 0.35);
+        for (const [x, side] of [[lx + w + 1, 1], [rx - w - 2, -1]] as const) {
+          c.fillStyle = '#1a1614';
+          c.fillRect(Math.round(x), ly - 1, 2, 3);
+          g.fillStyle = '#ffd07a';
+          g.fillRect(Math.round(x), ly, 2, 1);
+          const r = 16 * (1 - d * 0.6);
+          const grd = g.createRadialGradient(x, ly, 0, x, ly, r);
+          grd.addColorStop(0, 'rgba(255,196,110,0.35)');
+          grd.addColorStop(1, 'rgba(255,196,110,0)');
+          g.fillStyle = grd;
+          g.fillRect(Math.round(x - r + side * 2), ly - r, r * 2, r * 2);
+        }
+      }
+    });
+    // Far opening: pale green light spilling from the next chamber.
+    c.fillStyle = '#3a6a5e';
+    c.fillRect(fx0, fy0, fx1 - fx0, fy1 - fy0);
+    c.fillStyle = '#5a9a86';
+    c.fillRect(fx0 + 4, fy0 + 4, fx1 - fx0 - 8, fy1 - fy0 - 10);
+    c.fillStyle = '#1e2a2c';
+    for (let x = fx0 + 6; x < fx1 - 4; x += 5) c.fillRect(x, fy0 + 4, 1, fy1 - fy0 - 10);
+    const far = g.createRadialGradient(vx, vy, 0, vx, vy, 40);
+    far.addColorStop(0, 'rgba(120,230,190,0.28)');
+    far.addColorStop(1, 'rgba(120,230,190,0)');
+    g.fillStyle = far;
+    g.fillRect(vx - 40, vy - 40, 80, 80);
+    // Walkways (lighter concrete) and the channel between them.
+    c.fillStyle = '#4a5456';
     c.beginPath();
-    c.moveTo(0, BH); c.lineTo(0, 88); c.lineTo(vx - 30, 70); c.lineTo(vx - 36, BH); c.fill();
+    c.moveTo(0, 104); c.lineTo(fx0, fy1); c.lineTo(fx0 + 8, fy1); c.lineTo(62, BH); c.lineTo(0, BH);
+    c.fill();
     c.beginPath();
-    c.moveTo(BW, BH); c.lineTo(BW, 88); c.lineTo(vx + 30, 70); c.lineTo(vx + 36, BH); c.fill();
-    c.fillStyle = '#4a5458';
-    c.fillRect(0, 88, 0, 0);
-    // Pipes
-    c.fillStyle = '#4a3a30';
-    c.fillRect(0, 30, 70, 3);
-    c.fillRect(170, 36, 70, 3);
-    c.fillStyle = '#6a5040';
-    c.fillRect(0, 30, 70, 1);
-    c.fillRect(170, 36, 70, 1);
-    reflections(g, 72, new Rng(5), ['#ffd07a', '#6affc8'], 10);
+    c.moveTo(BW, 104); c.lineTo(fx1, fy1); c.lineTo(fx1 - 8, fy1); c.lineTo(BW - 62, BH); c.lineTo(BW, BH);
+    c.fill();
+    c.fillStyle = '#6a7678';
+    c.beginPath();
+    c.moveTo(fx0 + 8, fy1); c.lineTo(62, BH); c.lineTo(59, BH); c.lineTo(fx0 + 7, fy1);
+    c.fill();
+    c.beginPath();
+    c.moveTo(fx1 - 8, fy1); c.lineTo(BW - 62, BH); c.lineTo(BW - 59, BH); c.lineTo(fx1 - 7, fy1);
+    c.fill();
+    c.fillStyle = '#10302a';
+    c.beginPath();
+    c.moveTo(fx0 + 8, fy1); c.lineTo(fx1 - 8, fy1); c.lineTo(BW - 62, BH); c.lineTo(62, BH);
+    c.fill();
+    // Ripple bands on the water, denser toward the far end.
+    for (let i = 0; i < 12; i++) {
+      const t = Math.pow(i / 12, 1.6);
+      const y = Math.round(fy1 + 2 + t * (BH - fy1 - 2));
+      const half = 8 + ((BW / 2 - 62) - 8) * ((y - fy1) / (BH - fy1));
+      c.fillStyle = i % 2 ? '#174038' : '#1b4a40';
+      c.fillRect(Math.round(vx - half + 3), y, Math.round(half * 2 - 6), 1);
+    }
+    reflections(g, 76, new Rng(5), ['#ffd07a', '#78e6be'], 8);
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 96, tint: '#2a5a5a', tintAmt: 0.22,
+      canvas: s.canvas, glow: gl.canvas, ground: 96, tint: '#2a5a5a', tintAmt: 0.18,
       anim: (ctx, f) => {
-        // Drips
+        // Drips from the ceiling into the channel.
         for (let i = 0; i < 6; i++) {
-          const x = Math.round(20 + hash2(i, 4) * 200);
+          const x = Math.round(70 + hash2(i, 4) * 100);
           const t = (f + i * 37) % 90;
           ctx.fillStyle = '#8ab8c8';
           ctx.globalAlpha = 0.7;
-          if (t < 60) ctx.fillRect(x, 10 + t * 1.6, 1, 2);
-          else ctx.fillRect(x - (t - 60) / 6, 106, 1 + (t - 60) / 3, 1);
+          if (t < 50) ctx.fillRect(x, 8 + t * 1.8, 1, 2);
+          else ctx.fillRect(x - (t - 50) / 6, 98, 1 + (t - 50) / 4, 1);
         }
-        // Water shimmer
-        ctx.globalAlpha = 0.35;
-        ctx.fillStyle = '#6ab8a8';
-        for (let i = 0; i < 20; i++) {
-          const y = 72 + hash2(i, 8) * 60;
-          const x = BW / 2 + (hash2(i, 9) - 0.5) * (y - 60) * 1.2 + Math.sin(f * 0.05 + i) * 2;
+        // Water shimmer along the channel.
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = '#6ad0b0';
+        for (let i = 0; i < 18; i++) {
+          const y = fy1 + 4 + hash2(i, 8) * (BH - fy1 - 6);
+          const half = 8 + ((BW / 2 - 62) - 8) * ((y - fy1) / (BH - fy1));
+          const x = vx + (hash2(i, 9) - 0.5) * half * 1.6 + Math.sin(f * 0.05 + i) * 2;
           ctx.fillRect(Math.round(x), Math.round(y), 2, 1);
         }
         ctx.globalAlpha = 1;
@@ -445,8 +513,55 @@ const MAKERS: Record<string, Maker> = {
         k.fillRect(x + 14, 26, 2, 6);
       }
     }
+    // Readout monitors between the windows (content animates).
+    for (let i = 0; i < 3; i++) {
+      const x = 46 + i * 60;
+      c.fillStyle = '#2a3440';
+      c.fillRect(x - 1, 17, 18, 16);
+      c.fillStyle = '#0c1a22';
+      c.fillRect(x, 18, 16, 14);
+    }
     floor(c, HORIZON + 4, '#9aa6b6', '#a6b2c2', '#7a8698');
-    return { canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#8ac8e8', tintAmt: 0.1 };
+    return {
+      canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#8ac8e8', tintAmt: 0.1,
+      anim: (ctx, f) => {
+        for (let i = 0; i < 3; i++) {
+          const x = 46 + i * 60;
+          if (i === 1) {
+            // Vital-sign trace sweeping left to right.
+            const head = Math.floor(f / 2) % 16;
+            for (let k = 0; k < 16; k++) {
+              const age = (head - k + 16) % 16;
+              if (age > 12) continue;
+              const phase = (k + Math.floor(f / 32) * 5) % 16;
+              const y = phase === 6 ? 20 : phase === 7 ? 29 : phase === 8 ? 23 : 25;
+              ctx.globalAlpha = 1 - age / 13;
+              ctx.fillStyle = '#6affa0';
+              ctx.fillRect(x + k, y, 1, 1);
+            }
+          } else {
+            // Scrolling telemetry: rows of dashes of varying length.
+            for (let r = 0; r < 4; r++) {
+              const n = Math.floor(f / 20) + r + i * 7;
+              const len = 3 + Math.floor(hash2(n, i) * 11);
+              ctx.globalAlpha = 0.9;
+              ctx.fillStyle = r === 0 && Math.floor(f / 15) % 2 ? '#ffd07a' : '#6ad8ff';
+              ctx.fillRect(x + 2, 20 + r * 3, len, 1);
+            }
+          }
+        }
+        // Bubbles rising in the specimen tanks.
+        ctx.fillStyle = '#d8fff4';
+        for (let i = 0; i < 4; i++) {
+          for (let b = 0; b < 2; b++) {
+            const t = (f * 0.4 + b * 17 + i * 9) % 30;
+            ctx.globalAlpha = 0.8;
+            ctx.fillRect(14 + i * 60 + 13 + ((b + i) % 2) * 3, Math.round(36 - t * 0.45), 1, 1);
+          }
+        }
+        ctx.globalAlpha = 1;
+      },
+    };
   },
   core: () => {
     const s = surface(BW, BH), gl = surface(BW, BH);
