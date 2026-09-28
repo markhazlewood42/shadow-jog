@@ -39,6 +39,10 @@ const g = new Grid(W, H, 'B')
   .rect(18, 38, 14, 2, 'R')
   .rect(32, 34, 14, 6, '.')
   .rect(36, 35, 4, 3, 'r')
+  // An old outflow pipe across the canal from the east Barrens: the scavs' short way down to the
+  // station, if you know to look past the ruins.
+  .rect(45, 29, 1, 2, '.')
+  .rect(45, 31, 1, 3, '=')
   // Checkpoint road north to the arcology (blocked).
   .rect(28, 8, 3, 1, 'R')
   .rect(28, 6, 3, 2, 'R');
@@ -85,6 +89,8 @@ export const world: MapDef = {
   ],
   props: [
     { kind: 'barrier', x: 28, y: 8, w: 3 },
+    // The pipe crossing's tell: a scav's fire at the north end, a rag tied to the rail.
+    { kind: 'firebarrel', x: 46, y: 28 },
     { kind: 'lamp', x: 14, y: 20, dir: 'right' },
     { kind: 'lamp', x: 24, y: 20, dir: 'right' },
     { kind: 'lamp', x: 34, y: 20, dir: 'left' },
@@ -204,6 +210,7 @@ export const world: MapDef = {
     },
   ],
   lights: [
+    { x: 46, y: 28, r: 40, color: '#ff9a4a', i: 0.55, flicker: true },
     { x: 26, y: 38, r: 50, color: '#3fe0f0', i: 0.6 },
     { x: 8, y: 21, r: 60, color: '#ff4fb0', i: 0.5 },
     { x: 52, y: 8, r: 50, color: '#86f08c', i: 0.5 },

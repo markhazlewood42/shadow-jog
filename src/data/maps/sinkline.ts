@@ -31,6 +31,10 @@ const g = new Grid(W, H, 'X')
   .rect(11, 17, 4, 3, '.')
   .rect(11, 21, 7, 1, '.')
   .rect(17, 19, 6, 5, '.')
+  // The flooded west service tunnel: a second way from the track bed down to the pump room (and
+  // the short way from Intake 1 to Intake 3), with a niche halfway where someone kept supplies.
+  .rect(2, 14, 2, 12, 'w')
+  .rect(4, 19, 2, 2, '.')
   // Pump room
   .rect(3, 26, 14, 7, '.')
   .rect(6, 28, 2, 2, 'w');
@@ -88,6 +92,8 @@ export const sinkline1: MapDef = {
     { kind: 'sign_post', x: 14, y: 26, text: 'INTAKE 3' },
     { kind: 'crates', x: 12, y: 31 },
     { kind: 'sign_post', x: 10, y: 14, text: 'PUMPS ↓' },
+    { kind: 'sign_post', x: 4, y: 14, text: 'SERVICE ↓' },
+    { kind: 'crates', x: 4, y: 20, pass: true },
     { kind: 'sign_post', x: 28, y: 7, text: 'JUNCTION 4 →' },
     { kind: 'sign_post', x: 16, y: 26, text: 'PUMP STATION' },
     // Signal Island 4: floodlamps on the ring, a warning board, the wreck it dragged down.
@@ -129,6 +135,7 @@ export const sinkline1: MapDef = {
     { id: 'c6', x: 45, y: 20, item: 'adrenal_stim', qty: 1, kind: 'locker' },
     { id: 'c7', x: 3, y: 12, item: 'omni_patch', qty: 1, kind: 'crate' },
     { id: 'c8', x: 22, y: 23, cred: 220, kind: 'locker' },
+    { id: 'c9', x: 5, y: 19, item: 'detox', qty: 2, kind: 'locker' },
   ],
   npcs: [
     {

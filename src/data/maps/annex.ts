@@ -57,7 +57,9 @@ export const annex: MapDef = {
       { when: (f: Record<string, unknown>) => !f.lattice_off && !latticeEmitters(f)[i], rects: [[30, 6 + i, 1, 1, 'z']] as [number, number, number, number, string][] },
     ]),
     // A loose panel in the armory's west wall hides a crawlspace.
-    { when: (f) => !!f.annex_panel, rects: [[11, 21, 3, 2, 'c'], [14, 22, 1, 1, 'c']] },
+    // Its duct runs north to the service corridor: how Dmitri came and went, and once open, the
+    // crew's own way back without crossing the hall.
+    { when: (f) => !!f.annex_panel, rects: [[11, 21, 3, 2, 'c'], [14, 22, 1, 1, 'c'], [12, 12, 1, 9, 'c']] },
     { when: (f) => !!f.sable_joined, rects: [[26, 22, 3, 1, 'r']] },
   ],
   props: [
@@ -106,8 +108,17 @@ export const annex: MapDef = {
     { kind: 'steam', x: 24, y: 31, color: '#ff9aa8' },
     { kind: 'steam', x: 33, y: 31, color: '#ff9aa8' },
     { kind: 'barrier', x: 37, y: 31, w: 3, pass: true },
-    // Dmitri's camp behind the loose panel: what the narration describes is really there.
+    // Dmitri's camp behind the loose panel: what the narration describes is really there, lit
+    // by his own lamp (warm, where everything else down here is cold).
     { kind: 'bedroll', x: 12, y: 21, pass: true, when: (f) => !!f.annex_panel },
+    { kind: 'lampfloor', x: 13, y: 21, when: (f) => !!f.annex_panel },
+    { kind: 'trash', x: 12, y: 22, pass: true, when: (f) => !!f.annex_panel },
+    // The panel itself: proud of the wall until pried, then leant against the armory wall.
+    { kind: 'panel_loose', x: 14, y: 22, when: (f) => !f.annex_panel },
+    { kind: 'panel_loose', x: 15, y: 23, color: 'open', pass: true, when: (f) => !!f.annex_panel },
+    // The lattice: a curtain of beams across the cryo-wing passage, one tile per live emitter.
+    { kind: 'laser', x: 30, y: 6, h: 3, color: 'housing', pass: true },
+    ...[0, 1, 2].map((i) => ({ kind: 'laser' as const, x: 30, y: 6 + i, pass: true, when: (f: Record<string, unknown>) => !f.lattice_off && !!latticeEmitters(f)[i] })),
     // Wayfinding: the lab's own wall signs.
     { kind: 'sign_post', x: 9, y: 7, text: 'LABS ↓' },
     { kind: 'sign_post', x: 16, y: 18, text: 'ARMORY ↓' },
@@ -203,7 +214,7 @@ export const annex: MapDef = {
         s.sfx('door');
         s.set('annex_panel');
         s.refreshMap();
-        await s.narrate('The panel comes away. Behind it, a crawlspace someone has been living in: a bedroll, ration wrappers, a K-M badge lanyard. {c}D. PETROV{/}.');
+        await s.narrate('The panel comes away. Behind it, a crawlspace someone has been living in: a bedroll, ration wrappers, a K-M badge lanyard. {c}D. PETROV{/}. A duct runs north from it, toward the service corridor.');
         await s.say('hex', 'Dmitri. He didn’t leave with everyone else. He hid.', { face: 'sad' });
       },
     },
@@ -237,7 +248,7 @@ export const annex: MapDef = {
     { x: 30, y: 8, r: 26, color: '#ff3a4a', i: 0.6, flicker: true, when: (f) => !f.lattice_off && !!latticeEmitters(f)[2] },
     // Cold light leaking round the loose panel: the only tell.
     { x: 14, y: 22, r: 18, color: '#9ad8ff', i: 0.5, flicker: true, when: (f) => !f.annex_panel },
-    { x: 12, y: 21, r: 30, color: '#9ad8ff', i: 0.4, when: (f) => !!f.annex_panel },
+    { x: 13, y: 21, r: 44, color: '#ffb060', i: 0.7, flicker: true, when: (f) => !!f.annex_panel },
   ],
 };
 

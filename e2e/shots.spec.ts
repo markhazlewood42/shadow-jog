@@ -239,15 +239,17 @@ test('27 level features: lattice, secret panel, intake, radio lot', async ({ pag
   await open(page, 'annex');
   // Mid-puzzle: relay A cycled, so emitters 1-2 are dark and 3 is live.
   await sj(page, '(Object.assign(sj.state.flags, { annex_key: true, relay_a: true, lattice_off: false, sable_joined: false }), true)');
-  await sj(page, "sj.tp('annex', 27, 7, 'right')");
-  await page.waitForTimeout(1500);
+  // Each secret framed on its own, after the area banner has gone.
+  await page.waitForTimeout(3000);
+  await sj(page, "sj.tp('annex', 28, 7, 'right')");
+  await page.waitForTimeout(2500);
   await shot(page, '27-annex-lattice');
-  await sj(page, "sj.tp('annex', 16, 22, 'left')");
-  await page.waitForTimeout(1500);
+  await sj(page, "sj.tp('annex', 15, 22, 'left')");
+  await page.waitForTimeout(2500);
   await shot(page, '28-annex-panel');
   await sj(page, '(sj.state.flags.annex_panel = true, true)');
-  await sj(page, "sj.tp('annex', 15, 22, 'left')");
-  await page.waitForTimeout(1500);
+  await sj(page, "sj.tp('annex', 12, 22, 'up')");
+  await page.waitForTimeout(2500);
   await shot(page, '29-annex-crawlspace');
   await sj(page, "sj.tp('sinkline_1', 3, 11, 'up')");
   await page.waitForTimeout(1500);

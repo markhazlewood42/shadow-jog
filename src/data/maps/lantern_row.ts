@@ -24,7 +24,9 @@ const g = new Grid(W, H, '#')
   .rect(0, 34, W, 4, '~')
   .rect(0, 38, W, 2, '#')
   .dots([[6, 10], [7, 10], [39, 12], [40, 12], [17, 13], [48, 9], [2, 23], [45, 24], [30, 33], [8, 12]], 'o')
-  .dots([[21, 12], [44, 10]], '+');
+  .dots([[21, 12], [44, 10]], '+')
+  // Rain pooling in the plaza's low spots (it was paved over a canal basin; it still remembers).
+  .dots([[20, 24], [21, 24], [33, 23], [36, 29], [37, 29], [23, 17]], 'o');
 
 export const lanternRow: MapDef = {
   id: 'lantern_row',
@@ -133,6 +135,17 @@ export const lanternRow: MapDef = {
     { kind: 'trash', x: 14, y: 17 },
     { kind: 'dumpster', x: 53, y: 23, w: 2 },
     { kind: 'crates', x: 0, y: 24 },
+    // The market's clutter, uneven on purpose: a tarp shelter and its crates on the west side, a
+    // street shrine and a tea cart on the east, stools and rubbish where people actually stop.
+    { kind: 'tent', x: 17, y: 22, color: '#3a5a8a' },
+    { kind: 'crates', x: 19, y: 23 },
+    { kind: 'stool', x: 19, y: 21 },
+    { kind: 'stool', x: 33, y: 21 },
+    { kind: 'crates', x: 34, y: 19 },
+    { kind: 'shrine', x: 38, y: 24 },
+    { kind: 'stall', x: 29, y: 29, w: 2, color: '#c8a040' },
+    { kind: 'trash', x: 37, y: 27 },
+    { kind: 'trash', x: 22, y: 19 },
     // Promenade
     { kind: 'bench', x: 18, y: 32, w: 2 },
     { kind: 'bench', x: 45, y: 32, w: 2 },
@@ -147,6 +160,9 @@ export const lanternRow: MapDef = {
     { a: [34, 7], b: [52, 14], sag: 18 },
   ],
   lights: [
+    // Candles at the street shrine, and the tea cart's lamp.
+    { x: 38, y: 24, r: 34, color: '#ffc070', i: 0.6, flicker: true },
+    { x: 30, y: 29, r: 40, color: '#ffd080', i: 0.5 },
     { x: 21, y: 22, r: 70, color: '#ff9a5a', i: 0.55 },
     { x: 34, y: 22, r: 70, color: '#ff6fc8', i: 0.45 },
     { x: 27, y: 28, r: 80, color: '#ffb46a', i: 0.45 },

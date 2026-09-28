@@ -377,6 +377,8 @@ const K_EEF8FF = C('#eef8ff');
 const K_F6FBFF = C('#f6fbff');
 const K_FF3A4A = C('#ff3a4a');
 const K_FFB13D = C('#ffb13d');
+const K_2A2E38 = C('#2a2e38');
+const K_06080C = C('#06080c');
 
 /**
  * Lab wall face. Its trim stripe takes the colour of the wing it faces (the floor below it), so
@@ -455,6 +457,25 @@ const catwalk: Painter = (lx, ly, wx, wy) => {
   return lx % 4 === 0 ? P.catwalkD : P.catwalk;
 };
 
+/**
+ * Water under a catwalk reads the walkway as raised over the flood: the deck's steel fascia along
+ * the edge, struts going down into the water every eight pixels, and the deck's shadow on the
+ * surface fading out below. Water beside a catwalk gets a thinner side shadow.
+ */
+function underCatwalk(p: Painter): Painter {
+  return (lx, ly, wx, wy, tx, ty, q) => {
+    const c = p(lx, ly, wx, wy, tx, ty, q);
+    if (q.at(tx, ty - 1) === 'd_catwalk') {
+      if (ly <= 1) return ly === 0 ? P.catwalkD : K_2A2E38;
+      if (wx % 8 === 3 && ly <= 10) return lerpC(K_2A2E38, c, ly / 14);
+      if (ly <= 7) return lerpC(c, K_06080C, 0.6 - ly * 0.07);
+    }
+    if (q.at(tx - 1, ty) === 'd_catwalk' && lx <= 2) return lerpC(c, K_06080C, 0.45 - lx * 0.12);
+    if (q.at(tx + 1, ty) === 'd_catwalk' && lx >= 14) return lerpC(c, K_06080C, 0.2);
+    return c;
+  };
+}
+
 /** Abandoned-lab tiles: dust drifts, boot scuffs, the odd stain. */
 const labFloor: Painter = (lx, ly, wx, wy) => {
   if (lx === 0 || ly === 0) return P.labSeam;
@@ -508,20 +529,19 @@ const labFloorContain: Painter = (lx, ly, wx, wy) => {
 };
 
 /** Security laser lattice across a doorway: emitter posts at the tile edges, red beams between. */
+/** Under a live lattice: the floor washed red along the beams (the beams themselves are the 'laser' prop). */
 const labLaser: Painter = (lx, ly, wx, wy, tx, ty, q) => {
   const floor = labFloor(lx, ly, wx, wy, tx, ty, q);
-  const beam = ly === 3 || ly === 8 || ly === 13;
-  if (beam) return lx % 5 === 2 ? C('#ffd0d0') : C('#ff3a4a');
-  if (ly === 2 || ly === 4 || ly === 7 || ly === 9 || ly === 12 || ly === 14) return lerpC(floor, C('#ff3a4a'), 0.35);
+  if (lx === 3 || lx === 8 || lx === 12) return lerpC(floor, C('#ff3a4a'), 0.55);
+  if (lx === 2 || lx === 4 || lx === 7 || lx === 9 || lx === 11 || lx === 13) return lerpC(floor, C('#ff3a4a'), 0.2);
   return floor;
 };
 
 /** A lattice row whose emitter is dark: empty housings, dead lenses. Still sealed by the interlock. */
 const labLaserOff: Painter = (lx, ly, wx, wy, tx, ty, q) => {
   const floor = labFloor(lx, ly, wx, wy, tx, ty, q);
-  const lens = ly === 3 || ly === 8 || ly === 13;
-  if (lx <= 1 || lx >= 14) return lens ? C('#4a1a22') : C('#2a2e3a');
-  if (lens) return lx % 3 === 0 ? lerpC(floor, C('#3a1a20'), 0.5) : floor;
+  // Where the beams ran: faint scorch lines, dashed, cold.
+  if ((lx === 3 || lx === 8 || lx === 12) && ly % 4 !== 1) return lerpC(floor, C('#3a1a20'), 0.35);
   return floor;
 };
 
@@ -665,7 +685,7 @@ export const PAINTERS: Record<TerrainId, Painter> = {
   iwall: wallP('iwall', iwallFace, P.iwallTop, P.iwallEdge),
   d_floor: dfloor,
   d_wall: wallP('d_wall', dwallFace, P.dwallTop, P.dwallEdge),
-  d_water: dwater, d_shallow: shallow, d_catwalk: catwalk,
+  d_water: underCatwalk(dwater), d_shallow: underCatwalk(shallow), d_catwalk: catwalk,
   d_track: rail,
   lab_floor: labFloor, lab_floor_steel: labFloorSteel, lab_floor_frost: labFloorFrost, lab_floor_contain: labFloorContain,
   lab_wall: wallP('lab_wall', labWallFace, P.labTop, P.labEdge),

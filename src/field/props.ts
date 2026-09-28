@@ -309,6 +309,87 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
   },
 
   /** Someone's camp on the floor: a bedroll and blanket, ration wrappers, a badge on its lanyard. */
+  /**
+   * The Annex lattice: a curtain of beams across a passage, one tile per emitter. `color: 'housing'`
+   * draws the emitter housings where the curtain meets the walls, `h` tiles apart; a live tile
+   * draws its three beams, bright and shimmering, over the light pass so they read from afar.
+   */
+  laser(b, p) {
+    const x = p.x * TS, y = p.y * TS;
+    const cols = [3, 8, 12];
+    if (p.color === 'housing') {
+      const bottom = y + (p.h ?? 1) * TS;
+      for (const yy of [y - 4, bottom]) {
+        b.g.fillStyle = '#0f0e17';
+        b.g.fillRect(x, yy, TS, 4);
+        b.g.fillStyle = '#3a3e4c';
+        b.g.fillRect(x + 1, yy + (yy < y ? 0 : 1), TS - 2, 2);
+        b.both((c) => {
+          c.fillStyle = '#ff3a4a';
+          for (const cx of cols) c.fillRect(x + cx, yy + (yy < y ? 3 : 0), 1, 1);
+        });
+      }
+      return;
+    }
+    b.anims.push({
+      x, y, w: TS, h: TS,
+      draw: (ctx, f, ox, oy) => {
+        const py = y - oy;
+        for (const [i, cx] of cols.entries()) {
+          const px = x + cx - ox;
+          const flick = 0.72 + 0.28 * Math.sin(f * 0.55 + i * 2.1 + p.y * 1.7);
+          ctx.fillStyle = '#ff3a4a';
+          ctx.globalAlpha = 0.14 * flick;
+          ctx.fillRect(px - 2, py, 5, TS);
+          ctx.globalAlpha = 0.34 * flick;
+          ctx.fillRect(px - 1, py, 3, TS);
+          ctx.globalAlpha = flick;
+          ctx.fillStyle = '#ffc8d0';
+          ctx.fillRect(px, py, 1, TS);
+          // A spark running down the beam.
+          const s = (f * 0.9 + i * 7 + p.y * 5) % 22;
+          if (s < TS) {
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(px, py + Math.floor(s), 1, 2);
+          }
+        }
+        ctx.globalAlpha = 1;
+      },
+    });
+  },
+
+  /**
+   * The Annex's loose wall panel. Shut: it sits proud of the wall, scratched round the screws,
+   * with cold light at its seam (the one tell). `color: 'open'`: taken off and leant on the wall.
+   */
+  panel_loose(b, p) {
+    const x = p.x * TS, y = p.y * TS, g = b.g;
+    if (p.color === 'open') {
+      g.fillStyle = '#0f0e17'; g.fillRect(x + 3, y + 1, 11, 15);
+      g.fillStyle = '#8a929e'; g.fillRect(x + 4, y + 2, 9, 13);
+      g.fillStyle = '#a8b2c0'; g.fillRect(x + 4, y + 2, 9, 1);
+      g.fillStyle = '#5a626e'; g.fillRect(x + 4, y + 14, 9, 1);
+      for (const [sx, sy] of [[5, 3], [11, 3], [5, 13], [11, 13]] as const) g.fillRect(x + sx, y + sy, 1, 1);
+      return;
+    }
+    g.fillStyle = '#0f0e17'; g.fillRect(x + 2, y + 2, 12, 12);
+    g.fillStyle = '#9aa4b2'; g.fillRect(x + 3, y + 2, 11, 11);
+    g.fillStyle = '#c0c8d4'; g.fillRect(x + 3, y + 2, 11, 1);
+    g.fillStyle = '#6a7280'; g.fillRect(x + 3, y + 12, 11, 1);
+    // Scratches round the screws: somebody's been in and out.
+    g.fillStyle = '#e8ecf2';
+    for (const [sx, sy] of [[4, 3], [12, 3], [4, 11], [12, 11]] as const) {
+      g.fillRect(x + sx, y + sy, 1, 1);
+      g.fillRect(x + sx + 1, y + sy + 1, 1, 1);
+    }
+    b.both((c) => {
+      c.fillStyle = '#9ad8ff';
+      c.fillRect(x + 2, y + 3, 1, 9);
+      c.fillRect(x + 3, y + 13, 10, 1);
+    });
+  },
+
   bedroll(b, p) {
     const x = p.x * TS, y = p.y * TS, g = b.g;
     g.fillStyle = '#0f0e17'; g.fillRect(x + 1, y + 4, 22, 10);
