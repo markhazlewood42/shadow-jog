@@ -129,6 +129,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private waitingConfirm: (() => void) | null = null;
   private playtestT = 0;
   private readonly drawOrder: Combatant[] = [];
+  /** Portrait cut-ins sliding across the screen for combos and big crits. */
+  private cutins: { key: string; face: string; t: number; fromLeft: boolean; life: number }[] = [];
+  private lastActor: Combatant | null = null;
   /** Wrapped top-line text, rebuilt only when the text changes. */
   private topKey = '';
   private topLines: { l: string; c: string }[] = [];
@@ -436,6 +439,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       }
     }
     for (const f of this.floaters) f.t++;
+    for (const c of this.cutins) c.t++;
+    if (this.cutins.length && this.cutins.every((c) => c.t > c.life)) this.cutins.length = 0;
     // Compact finished floaters in place (no per-tick array).
     let live = 0;
     for (const fl of this.floaters) if (fl.t < 50) this.floaters[live++] = fl;
@@ -568,6 +573,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     switch (e.t) {
       case 'act': {
         const actor = this.battle.unit(e.actor)!;
+        this.lastActor = actor;
         const dd = this.d(e.actor);
         const color = actor.side === 'party' ? MEMBERS[actor.key as MemberId].color : '#ff8a8a';
         this.showBanner(e.kind === 'attack' || e.name === 'Attack' ? `${actor.name}` : `${actor.name}: ${e.name}`, color);
@@ -599,6 +605,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           if (u.side === 'party') this.setPose(u, u.key === 'hex' || u.key === 'sable' ? 'cast' : 'attack', 70);
         }
         sfx('combo');
+        e.actors.forEach((a, i) => {
+          const u = this.battle.unit(a)!;
+          if (u.side === 'party') this.cutins.push({ key: u.key, face: 'angry', t: 0, fromLeft: i === 0, life: 70 });
+        });
         this.banner = { text: `★ ${e.name.toUpperCase()} ★`, sub: first ? `${names}  —  COMBO DISCOVERED!` : names, t: 0, color: '#ffe07a', big: true };
         this.game.flash('#ffffff', 6);
         await this.w(40);
@@ -628,6 +638,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           else if (e.resist) this.float('RESIST', { x: p.x, y: p.y - 10 }, '#b8bcd0', false);
         }
         sfx(e.crit ? 'crit' : u.side === 'party' ? 'hurt' : 'hit');
+        // A critical on a boss gets the striker's face.
+        if (e.crit && u.boss && this.lastActor?.side === 'party' && !this.cutins.length) {
+          this.cutins.push({ key: this.lastActor.key, face: 'smirk', t: 0, fromLeft: true, life: 45 });
+        }
         // Weight by share of the target's max HP: light taps barely move the camera, big hits stop time.
         const share = e.amount / u.base.maxHp;
         const tier = e.crit || share >= 0.4 ? 3 : share >= 0.2 ? 2 : share >= 0.08 ? 1 : 0;
@@ -1310,7 +1324,33 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         this.renderTargetInfo(ctx);
         break;
     }
+    this.renderCutins(ctx);
     if (this.endPanel) this.endPanel(ctx);
+  }
+
+  private renderCutins(ctx: Ctx): void {
+    for (const c of this.cutins) {
+      if (c.t > c.life) continue;
+      const m = MEMBERS[c.key as MemberId];
+      const port = getPortrait(c.key, c.face);
+      if (!m || !port) continue;
+      // Slide in fast, hold, slide back out.
+      const inK = Math.min(1, c.t / 8), outK = Math.max(0, (c.t - (c.life - 10)) / 10);
+      const k = (1 - (1 - inK) ** 3) * (1 - outK);
+      const w = 132, h = 58, y = c.fromLeft ? 132 : 132 + 0;
+      const x = c.fromLeft ? Math.round(-w + k * (w + 12)) : Math.round(W - k * (w + 12));
+      ctx.fillStyle = 'rgba(10,9,19,0.92)';
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = m.color;
+      ctx.fillRect(x, y, w, 2);
+      ctx.fillRect(x, y + h - 2, w, 2);
+      ctx.fillRect(c.fromLeft ? x + w - 3 : x, y, 3, h);
+      const px = c.fromLeft ? x + w - 58 : x + 8;
+      ctx.fillStyle = UI.outline;
+      ctx.fillRect(px - 1, y + 4, 50, 50);
+      ctx.drawImage(port, px, y + 5, 48, 48);
+      drawText(ctx, m.name.toUpperCase(), c.fromLeft ? x + 10 : x + 62, y + 22, { color: m.color });
+    }
   }
 
   private boxX(i: number): number {

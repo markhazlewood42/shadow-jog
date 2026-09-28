@@ -75,6 +75,7 @@ export const ITEMS: Record<string, ItemDef> = {
   ash_staff: I({ id: 'ash_staff', name: 'Ash Staff', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 40, atk: 6, mnd: 2, desc: 'Carved ash wood. +2 MND.' }),
   bone_staff: I({ id: 'bone_staff', name: 'Bone Fetish Staff', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 420, atk: 10, mnd: 6, desc: 'Strung with charms. +6 MND.' }),
   thorn_rod: I({ id: 'thorn_rod', name: 'Thorn Rod', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 440, atk: 12, mnd: 3, element: 'fire', desc: 'Spirit-hardened thornwood. +3 MND; attacks deal FIRE damage.' }),
+  focus_rod: I({ id: 'focus_rod', name: 'K-M Focus Rod', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 900, atk: 11, mnd: 9, res: 3, desc: 'The lab’s own essence-extraction focus, turned around. +9 MND, +3 RES. Found, never sold.' }),
   crow_staff: I({ id: 'crow_staff', name: 'Crow Staff', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 0, atk: 14, mnd: 10, desc: 'Black feathers, black iron. +10 MND.' }),
 
   // ------------------------------------------------------------------ body

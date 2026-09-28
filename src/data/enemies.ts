@@ -208,7 +208,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   warden_spirit: E({
     id: 'warden_spirit', name: 'Unbound Warden', family: 'spirit', sprite: 'warden_spirit', boss: true, ai: 'warden_spirit',
-    hp: 700, atk: 18, def: 16, mnd: 31, res: 26, agi: 16, xp: 1100, cred: 1500,
+    hp: 700, atk: 18, def: 16, mnd: 31, res: 26, agi: 16, xp: 1100, cred: 400,
     immune: ['stun'],
     drops: [{ id: 'crow_staff', chance: 1 }],
     moves: [{ id: 'e_grasp', w: 2 }, { id: 'e_siphon', w: 2 }],

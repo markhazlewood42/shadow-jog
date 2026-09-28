@@ -281,6 +281,14 @@ export function visibleLength(text: string): number {
  * Word-wrap into lines no wider than `maxW`. Honors explicit `\n`.
  * The active color code is re-emitted at the start of continuation lines.
  */
+/** Single-line text that must fit a width: returned as-is, or cut with an ellipsis. */
+export function fitText(text: string, maxW: number): string {
+  if (measure(text) <= maxW) return text;
+  let s = text;
+  while (s.length > 1 && measure(`${s}…`) > maxW) s = s.slice(0, -1);
+  return `${s.trimEnd()}…`;
+}
+
 /** A single word wider than the box is split at the character that would overflow it. */
 function splitLong(word: string, maxW: number): string[] {
   if (word.includes('{') || measure(word) <= maxW) return [word];

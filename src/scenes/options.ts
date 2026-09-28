@@ -2,7 +2,7 @@
 import { audio } from '../audio/engine';
 import { sfx } from '../audio/sfx';
 import type { Ctx } from '../engine/canvas';
-import { drawText } from '../engine/font';
+import { drawText, fitText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { saveSettings, settings } from '../game/settings';
 import { drawBar, drawCursor, drawSelect, drawWindow, UI } from '../ui/draw';
@@ -114,8 +114,8 @@ export class OptionsScene extends Scene<'back' | 'title'> {
     });
     const cy = y + h - 40;
     drawText(ctx, 'CONTROLS', x + 12, cy, { color: UI.cyan });
-    drawText(ctx, 'Move: Arrows/WASD · Confirm: Z/Enter/Space', x + 12, cy + 11, { color: UI.dim });
-    drawText(ctx, 'Cancel/Menu: X/Esc · Dash: Shift · Fullscreen: F', x + 12, cy + 22, { color: UI.dim });
+    drawText(ctx, fitText('Move: Arrows/WASD · Confirm: Z/Enter/Space', w - 24), x + 12, cy + 11, { color: UI.dim });
+    drawText(ctx, fitText('Cancel/Menu: X/Esc · Dash: Shift · Fullscreen: F', w - 24), x + 12, cy + 22, { color: UI.dim });
     if (this.confirmQuit) {
       drawWindow(ctx, x + 30, y + h / 2 - 16, w - 60, 32, { accent: UI.red });
       drawText(ctx, 'Quit to title? Unsaved progress is lost.', x + w / 2, y + h / 2 - 10, { align: 'center' });

@@ -35,7 +35,8 @@ declare global {
 export function boot(game: Game, display: Display): void {
   const params = new URLSearchParams(location.search);
   const field = () => game.stack.find((s): s is FieldScene => s instanceof FieldScene) ?? null;
-  window.__SJ__ = {
+  // Debug/test hook: dev server only (E2E and screenshot tooling), never in a production build.
+  if (import.meta.env.DEV) window.__SJ__ = {
     game,
     display,
     debug,

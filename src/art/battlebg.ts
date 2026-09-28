@@ -56,9 +56,35 @@ function skyline(c: Ctx, g: Ctx, rng: Rng, base: number, minH: number, maxH: num
     const top = base - h;
     c.fillStyle = color;
     c.fillRect(x, top, w, h);
-    // Rooftop details
-    if (rng.chance(0.4)) c.fillRect(x + rng.int(2, w - 4), top - rng.int(3, 8), 1, 8);
-    if (rng.chance(0.3)) c.fillRect(x + 2, top - 2, w - 4, 2);
+    // Rooftop landmarks: water towers, antennas with warning lights, billboards.
+    const roof = rng.next();
+    if (roof < 0.18 && w >= 12) {
+      const tx = x + rng.int(2, w - 9);
+      c.fillRect(tx + 1, top - 4, 1, 4);
+      c.fillRect(tx + 6, top - 4, 1, 4);
+      c.fillRect(tx, top - 10, 8, 6);
+      c.fillRect(tx + 1, top - 12, 6, 2);
+    } else if (roof < 0.4) {
+      const ax = x + rng.int(2, Math.max(2, w - 4));
+      const ah = rng.int(6, 14);
+      c.fillRect(ax, top - ah, 1, ah);
+      c.fillRect(ax - 1, top - ah + 3, 3, 1);
+      g.fillStyle = '#ff3a3a';
+      g.fillRect(ax, top - ah - 1, 1, 1);
+    } else if (roof < 0.52 && w >= 14 && signs) {
+      const bw = w - 4, bx = x + 2, by = top - 9;
+      c.fillRect(bx + 2, top - 3, 1, 3);
+      c.fillRect(bx + bw - 3, top - 3, 1, 3);
+      const col = rng.pick(['#ff4fb0', '#3fe0f0', '#ffcc3d']);
+      for (const k of [c, g]) {
+        k.fillStyle = col;
+        k.fillRect(bx, by, bw, 6);
+      }
+      c.fillStyle = color;
+      for (let i = bx + 2; i < bx + bw - 2; i += 3) c.fillRect(i, by + 2, 2, 2);
+      c.fillStyle = color;
+    } else if (roof < 0.7) c.fillRect(x + 2, top - 2, w - 4, 2);
+    c.fillStyle = color;
     // Windows
     for (let wy = top + 3; wy < base - 2; wy += 3) {
       for (let wx = x + 2; wx < x + w - 1; wx += 2) {

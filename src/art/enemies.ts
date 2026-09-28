@@ -305,10 +305,17 @@ const CREATURES: Record<string, () => EnemyArt> = {
     }
     p.ellipse(10, 12, 1.5, 1, '#1a1020');
     p.ellipse(15, 12, 1.5, 1, '#1a1020');
-    g.set(10, 12, '#ffa24a');
-    g.set(15, 12, '#ffa24a');
-    g.set(9, 12, '#ff7a2a');
-    g.set(14, 12, '#ff7a2a');
+    // Tell: a sickly ember core glowing through the smog, burning eyes, sparks drifting off it.
+    g.ball(12, 19, 3, 3, '#9ad84a');
+    g.set(12, 19, '#f4ffd0');
+    g.set(13, 18, '#f4ffd0');
+    for (const [ex, ey] of [[9, 12], [10, 12], [14, 12], [15, 12]] as const) g.set(ex, ey, '#ffb04a');
+    g.set(10, 11, '#ffe07a');
+    g.set(15, 11, '#ffe07a');
+    for (const [sx, sy] of [[4, 8], [21, 11], [6, 24], [20, 22], [18, 4]] as const) g.set(sx, sy, '#c8ff7a');
+    // Smog tendrils curling off the body.
+    p.limb([[6, 16], [3, 13], [2, 9]], 1.4, 0.5, '#5a5068');
+    p.limb([[19, 18], [22, 15], [23, 11]], 1.4, 0.5, '#5a5068');
     return art(p, 'flicker', 0, g);
   },
   crab: () => {
@@ -413,12 +420,17 @@ const CREATURES: Record<string, () => EnemyArt> = {
     p.rect(0, 12, 8, 2, '#2a2c34');
     p.rect(0, 15, 8, 2, '#2a2c34');
     p.rect(0, 12, 1, 5, '#1a1a20');
+    // Hazard chevrons on the pedestal.
+    for (let i = 0; i < 16; i += 4) p.rect(7 + i, 25, 2, 3, '#d8b02a');
     // Eye
     p.ellipse(18, 15, 2, 1.5, '#1a0a0a');
     p.set(18, 15, '#ff3a3a');
-    g.set(18, 15, '#ff6a6a');
-    g.set(17, 15, '#ff3a3a');
-    return art(p, 'still', 20, g);
+    // Tell: a live sensor strip across the housing and hot barrel tips.
+    p.rect(9, 14, 7, 1, '#6a1a1a');
+    for (let x = 9; x < 16; x++) g.set(x, 14, x % 2 ? '#ff3a3a' : '#ff8a6a');
+    for (const [ex, ey] of [[18, 15], [17, 15], [19, 15], [18, 14]] as const) g.set(ex, ey, '#ff6a6a');
+    for (const y of [12, 13, 15, 16]) g.set(0, y, '#ffb04a');
+    return art(p, 'breathe', 20, g);
   },
   hunter: () => {
     const p = P(34, 22), g = P(34, 22);

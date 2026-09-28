@@ -1,7 +1,7 @@
 /** Scrolling list menu widget with cursor, disabled rows, right-aligned detail and repeat navigation. */
 import { sfx } from '../audio/sfx';
 import type { Ctx } from '../engine/canvas';
-import { drawText, measure } from '../engine/font';
+import { drawText, fitText, measure } from '../engine/font';
 import type { Input } from '../engine/input';
 import { drawCursor, drawSelect, UI } from './draw';
 
@@ -47,7 +47,9 @@ export class ListMenu<T> {
     const row = Math.floor(this.index / this.cols);
     if (row < this.scroll) this.scroll = row;
     if (row >= this.scroll + this.rows) this.scroll = row - this.rows + 1;
-    this.scroll = Math.max(0, this.scroll);
+    // Never scroll past the end: a shorter list must show from its top, not leave rows hidden above.
+    const maxScroll = Math.max(0, Math.ceil(this.items.length / this.cols) - this.rows);
+    this.scroll = Math.max(0, Math.min(this.scroll, maxScroll));
   }
 
   /** Returns 'confirm' | 'cancel' | 'move' | null. Confirm on disabled rows returns 'blocked'. */
@@ -102,7 +104,9 @@ export class ListMenu<T> {
         drawText(ctx, it.icon, lx, ry, { color: it.iconColor ?? UI.dim });
         lx += measure(it.icon) + 3;
       }
-      drawText(ctx, it.label, lx, ry, { color: !enabled ? UI.disabled : it.color ?? (sel ? UI.text : '#d0cee4') });
+      // Labels are cut to the room left by the right-hand column, never drawn over it.
+      const room = rx + colW - 6 - (it.right ? measure(it.right) + 6 : 0) - lx;
+      drawText(ctx, fitText(it.label, room), lx, ry, { color: !enabled ? UI.disabled : it.color ?? (sel ? UI.text : '#d0cee4') });
       if (it.right) drawText(ctx, it.right, rx + colW - 6, ry, { color: enabled ? UI.dim : UI.disabled, align: 'right' });
     }
     // Scroll indicators

@@ -92,7 +92,7 @@ export const annex: MapDef = {
     { id: 'a4', x: 28, y: 17, item: 'dragon_fang', kind: 'case' },
     { id: 'a5', x: 41, y: 10, item: 'neurotab', qty: 3, kind: 'locker' },
     { id: 'a6', x: 15, y: 17, item: 'km_badge', qty: 2, kind: 'crate' },
-    { id: 'a7', x: 39, y: 10, item: 'bone_staff', kind: 'case' },
+    { id: 'a7', x: 39, y: 10, item: 'focus_rod', kind: 'case' },
   ],
   npcs: [
     { id: 'sentinel_a', x: 11, y: 10, dir: 'left', look: LOOKS.corpsec, name: 'K-M Sentinel', when: (f) => !f.annex_key, talk: annexGuards },

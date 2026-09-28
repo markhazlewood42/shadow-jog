@@ -57,3 +57,35 @@ describe('dungeon attrition', () => {
     });
   }
 });
+
+describe('alternative builds', () => {
+  // The gear the tuned route doesn't buy must still be viable: every mid-tier weapon and mod.
+  type Swap = Partial<Record<string, Record<string, string>>>;
+  const alts: { stage: string; table: string; swap: Swap }[] = [
+    { stage: 'sinkline', table: 'sinkline', swap: { kit: { weapon: 'shock_knuckles', mod: 'lucky_coin' }, hex: { weapon: 'taser_pistol', mod: 'cyber_eye' } } },
+    { stage: 'lurker', table: 'f_lurker', swap: { kit: { weapon: 'razor_tekko', mod: 'reflex_booster' }, rook: { weapon: 'nodachi', mod: 'dermal_plating' } } },
+    { stage: 'annex', table: 'annex', swap: { sable: { weapon: 'thorn_rod', mod: 'spirit_fetish' }, rook: { mod: 'adrenal_pump' } } },
+    { stage: 'warden', table: 'f_warden', swap: { kit: { mod: 'lucky_coin' }, hex: { mod: 'reflex_booster' }, sable: { weapon: 'bone_staff' } } },
+  ];
+  for (const a of alts) {
+    const target = stages.find((s) => s.stage === a.stage)!;
+    const loadout = STAGE_PARTY[a.stage]!.map((l) => ({ ...l, equip: { ...l.equip, ...(a.swap[l.id] ?? {}) } }));
+    const r = simulate(`${a.stage} (alt)`, loadout, a.table, a.table.startsWith('f_') ? 120 : 200);
+    it(`${a.stage} with ${Object.values(a.swap).flatMap((s) => Object.values(s ?? {})).join(', ')} holds up`, () => {
+      console.log(fmt(r));
+      expect(r.wins / r.n).toBeGreaterThanOrEqual(target.win - 0.05);
+      expect(r.rounds).toBeLessThanOrEqual(target.rounds[1]);
+    });
+  }
+
+  it('everything a stage loadout equips can be obtained (shop, chest or starting kit)', async () => {
+    const { SHOPS } = await import('../src/data/shops');
+    const { getMap, mapIds } = await import('../src/data/maps');
+    const { MEMBERS } = await import('../src/data/party');
+    const sold = new Set(Object.values(SHOPS).flatMap((s) => s.items));
+    const found = new Set(mapIds().flatMap((id) => (getMap(id).chests ?? []).map((c) => c.item).filter(Boolean) as string[]));
+    const starting = new Set(Object.values(MEMBERS).flatMap((m) => Object.values(m.startEquip ?? {})));
+    for (const [stage, party] of Object.entries(STAGE_PARTY))
+      for (const l of party) for (const id of Object.values(l.equip ?? {})) expect(sold.has(id) || found.has(id) || starting.has(id), `${stage}: ${l.id} ${id}`).toBe(true);
+  });
+});

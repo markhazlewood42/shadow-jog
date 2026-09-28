@@ -4,7 +4,7 @@ import { sfx } from '../audio/sfx';
 import { autoClose } from '../game/debug';
 import { LOOKS } from '../data/looks';
 import type { Ctx } from '../engine/canvas';
-import { drawText } from '../engine/font';
+import { drawText, fitText, measure } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { formatPlayTime, readMeta, writeSave, type SaveMeta, type SlotId } from '../game/save';
 import { drawSelect, drawWindow, UI } from '../ui/draw';
@@ -115,8 +115,9 @@ export class SaveScene extends Scene<SlotId | null> {
   }
 
   private drawMeta(ctx: Ctx, m: SaveMeta, x: number, y: number, w: number): void {
-    drawText(ctx, m.location, x + 70, y + 6);
-    drawText(ctx, new Date(m.when).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }), x + w, y + 6, { align: 'right', color: UI.dim });
+    const when = new Date(m.when).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    drawText(ctx, fitText(m.location, w - 70 - measure(when) - 8), x + 70, y + 6);
+    drawText(ctx, when, x + w, y + 6, { align: 'right', color: UI.dim });
     m.party.forEach((name, i) => {
       const key = name.toLowerCase() as keyof typeof LOOKS;
       const look = LOOKS[key];
