@@ -115,6 +115,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private battle: Battle;
   private world: Surface;
   private bg: BattleBg;
+  /** Rim-light colour for enemies against this backdrop. */
+  private rim: string;
   private fx = new FxLayer();
   private mode: Mode = 'intro';
   private disp = new Map<number, Disp>();
@@ -156,6 +158,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     super();
     this.setup = setup;
     this.bg = battleBg(setup.bg);
+    this.rim = RIM[setup.bg] ?? '#ffc27a';
     this.world = surface(BW, BHT);
     const party = state.party.map((id, i) => partyCombatant(state.members[id]!, i, i));
     const group = setup.enemies ?? pickGroup(setup.encounter);
@@ -1121,8 +1124,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const dd = this.d(e.uid);
     const { x, y, art } = this.enemyPos(e);
     const dup = this.dupIndex(e);
-    const canvas = variant(art.canvas, dup);
-    const glow = art.glow && variant(art.glow, dup);
+    // Duplicates: a distinct individual where the sprite has one, else a palette and mirror.
+    const who = dup ? enemyArt(ENEMIES[e.key]!.sprite, dup) : art;
+    const flip = (c: HTMLCanvasElement) => (dup % 2 ? mirrored(c) : c);
+    const canvas = who.individual ? flip(who.canvas) : variant(art.canvas, dup);
+    const glow = who.individual ? who.glow && flip(who.glow) : art.glow && variant(art.glow, dup);
     let ox = 0, oy = 0;
     switch (art.idle) {
       case 'hover': oy = Math.round(Math.sin(f * 0.08 + e.uid) * 2); break;
@@ -1153,6 +1159,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       g.globalAlpha = 1;
       return;
     }
+    if (e.key === 'warden') this.drawConduits(g, dx, dy, art.canvas.width, f, !!e.memory.charging);
+    // Rim light in a colour the backdrop doesn't use, so no enemy blends into the set.
+    g.globalAlpha = alpha * 0.55;
+    g.drawImage(rimOf(canvas, this.rim), dx - 1, dy - 1);
     g.globalAlpha = alpha;
     g.drawImage(canvas, dx, dy);
     if (this.bg.tintAmt > 0) {
@@ -1167,6 +1177,36 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       g.drawImage(silhouetteCache(canvas, '#ffffff'), dx, dy);
     }
     g.globalAlpha = 1;
+  }
+
+  /** The Warden is wired into the facility: sagging conduits run from its frame to the screen edges. */
+  private drawConduits(g: Ctx, x: number, y: number, w: number, f: number, charging: boolean): void {
+    const runs: [number, number, number, number, number][] = [
+      [x + 10, y + 24, -6, y + 4, 10],
+      [x + w - 10, y + 24, BW + 6, y, 12],
+      [x + 14, y + 44, -6, y + 58, 6],
+      [x + w - 14, y + 44, BW + 6, y + 62, 6],
+    ];
+    const pulse = charging ? '#ff5a4a' : '#6ff3ff';
+    const speed = charging ? 0.05 : 0.018;
+    runs.forEach(([x0, y0, x1, y1, sag], i) => {
+      const n = Math.ceil(Math.abs(x1 - x0));
+      for (let j = 0; j <= n; j++) {
+        const t = j / n;
+        const px = Math.round(x0 + (x1 - x0) * t), py = Math.round(y0 + (y1 - y0) * t + Math.sin(Math.PI * t) * sag);
+        g.fillStyle = '#16121e';
+        g.fillRect(px, py - 1, 1, 3);
+        g.fillStyle = '#3a3448';
+        g.fillRect(px, py - 1, 1, 1);
+      }
+      // Energy runs along each line into the machine.
+      for (let k = 0; k < 2; k++) {
+        const t = 1 - ((f * speed + i * 0.27 + k * 0.5) % 1);
+        const px = Math.round(x0 + (x1 - x0) * t), py = Math.round(y0 + (y1 - y0) * t + Math.sin(Math.PI * t) * sag);
+        g.fillStyle = pulse;
+        g.fillRect(px - 1, py, 3, 1);
+      }
+    });
   }
 
   private drawPartyMember(g: Ctx, p: Combatant, f: number): void {
@@ -1624,6 +1664,40 @@ function opaqueTop(c: HTMLCanvasElement): number {
 
 const flipCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 /** Horizontally mirrored copy (cached): every other duplicate enemy faces the other way. */
+/** Rim-light colour per battle backdrop: a light the enemies catch that the set doesn't have. */
+const RIM: Record<string, string> = {
+  street: '#ffc27a', barrens: '#9ae8ff', rustyard: '#9ae8ff', park: '#ffd0f0',
+  sewer: '#ffcf7a', junction: '#ffcf7a', lab: '#ff6a7a', core: '#8ae8ff',
+};
+
+const rimCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
+/** A 1px rim on a sprite's top edges and upper sides, on a canvas 2px larger. */
+function rimOf(src: HTMLCanvasElement, color: string): HTMLCanvasElement {
+  let m = rimCache.get(src);
+  if (!m) {
+    m = new Map();
+    rimCache.set(src, m);
+  }
+  let c = m.get(color);
+  if (!c) {
+    const w = src.width, h = src.height;
+    const data = src.getContext('2d')!.getImageData(0, 0, w, h).data;
+    const op = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && data[(y * w + x) * 4 + 3]! > 40;
+    const s = surface(w + 2, h + 2);
+    s.ctx.fillStyle = color;
+    for (let y = -1; y <= h; y++) {
+      for (let x = -1; x <= w; x++) {
+        // Light from above: every top edge, and the sides only on the upper half.
+        if (op(x, y)) continue;
+        if (op(x, y + 1) || (y < h * 0.5 && (op(x - 1, y) || op(x + 1, y)))) s.ctx.fillRect(x + 1, y + 1, 1, 1);
+      }
+    }
+    c = s.canvas;
+    m.set(color, c);
+  }
+  return c;
+}
+
 function mirrored(src: HTMLCanvasElement): HTMLCanvasElement {
   let c = flipCache.get(src);
   if (!c) {

@@ -3,7 +3,7 @@
  * `play(id, from, targets)` spawns shapes and particles and returns when the impact lands
  * and when the effect is done, so the scene can sync damage numbers to the hit.
  */
-import type { Ctx } from '../engine/canvas';
+import { surface, type Ctx } from '../engine/canvas';
 import { mix } from '../engine/color';
 import { Rng } from '../engine/rng';
 
@@ -29,6 +29,28 @@ export interface FxTiming {
 }
 
 const GLYPHS = '01#$%&*+<>=/\\{}[]|?';
+
+/** Crescent sprites, drawn once per size and colour. */
+const crescentCache = new Map<string, HTMLCanvasElement>();
+function crescentSprite(r: number, color: string): HTMLCanvasElement {
+  const key = `${r}:${color}`;
+  let c = crescentCache.get(key);
+  if (!c) {
+    const s = surface(r * 2 + 2, r * 2 + 2);
+    const ox = r * 0.5, oy = -r * 0.4, ir = r * 0.92;
+    for (let y = -r; y <= r; y++) {
+      for (let x = -r; x <= r; x++) {
+        const d = Math.hypot(x, y), di = Math.hypot(x - ox, y - oy);
+        if (d > r || di < ir) continue;
+        s.ctx.fillStyle = r - d < 1.5 || di - ir < 1.5 ? '#ffffff' : color;
+        s.ctx.fillRect(x + r + 1, y + r + 1, 1, 1);
+      }
+    }
+    c = s.canvas;
+    crescentCache.set(key, c);
+  }
+  return c;
+}
 
 export class FxLayer {
   private parts: Particle[] = [];
@@ -150,6 +172,143 @@ export class FxLayer {
     }, delay);
   }
 
+  // ---- marquee shapes: one silhouette per signature move, not a rescaled burst
+
+  /** A crescent that drops from the top of the frame and bites down on the target. */
+  private crescent(at: Pt, color: string, r: number, delay = 0, frames = 22): void {
+    const spr = crescentSprite(r, color);
+    this.s(frames, (ctx, k) => {
+      const fall = Math.min(1, k / 0.5);
+      const cy = -r * 2 + (at.y - 4 + r * 2) * fall * fall;
+      ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+      ctx.drawImage(spr, Math.round(at.x - r - 1), Math.round(cy - r - 1));
+      // Afterimage trail while it falls.
+      if (fall < 1) {
+        ctx.globalAlpha *= 0.35;
+        ctx.drawImage(spr, Math.round(at.x - r - 1), Math.round(cy - r - 1 - 10));
+      }
+      ctx.globalAlpha = 1;
+    }, delay);
+  }
+
+  /** A column of fire or light rising from the ground under the target, flickering at its edges. */
+  private pillar(at: Pt, color: string, core: string, h: number, delay = 0, frames = 26): void {
+    const seed = this.rng.range(0, 10);
+    const base = at.y + 10;
+    this.s(frames, (ctx, k, t) => {
+      const grow = Math.min(1, k / 0.25);
+      ctx.globalAlpha = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4;
+      const top = Math.round(base - h * grow);
+      for (let y = top; y < base; y++) {
+        const u = (base - y) / h;
+        const wob = Math.sin(y * 0.6 + t * 0.8 + seed) * 1.4;
+        const w = Math.max(1, Math.round(8 - u * 5 + wob));
+        ctx.fillStyle = color;
+        ctx.fillRect(Math.round(at.x - w), y, w * 2, 1);
+        const cw = Math.max(0, Math.round(w * 0.45));
+        if (cw) {
+          ctx.fillStyle = core;
+          ctx.fillRect(Math.round(at.x - cw), y, cw * 2, 1);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }, delay);
+  }
+
+  /** A jagged crack racing along the ground through the target, spitting sparks. */
+  private fissure(at: Pt, color: string, delay = 0): void {
+    const pts: Pt[] = [];
+    let y = at.y + 10;
+    for (let x = at.x - 70; x <= at.x + 70; x += 3) {
+      pts.push({ x, y });
+      y = Math.max(at.y + 6, Math.min(at.y + 14, y + this.rng.range(-1.6, 1.6)));
+    }
+    this.s(22, (ctx, k) => {
+      const reach = Math.min(1, k / 0.35);
+      ctx.globalAlpha = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4;
+      const mid = Math.floor(pts.length / 2), span = Math.ceil(mid * reach);
+      for (let i = Math.max(1, mid - span); i < Math.min(pts.length, mid + span); i++) {
+        const a = pts[i - 1]!, b = pts[i]!;
+        for (let j = 0; j < 3; j++) {
+          const xx = a.x + ((b.x - a.x) * j) / 3, yy = a.y + ((b.y - a.y) * j) / 3;
+          ctx.fillStyle = color;
+          ctx.fillRect(Math.round(xx), Math.round(yy) - 1, 1, 3);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(Math.round(xx), Math.round(yy), 1, 1);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }, delay);
+    for (let i = 0; i < 6; i++) this.burst({ x: at.x + this.rng.range(-50, 50), y: at.y + 10 }, color, 4, 1.6, delay + 4 + i, 12);
+  }
+
+  /** Right-angled circuit traces racing in from both sides and converging on the target. */
+  private circuit(at: Pt, color: string, delay = 0): void {
+    const paths: Pt[][] = [];
+    for (let i = 0; i < 4; i++) {
+      const side = i % 2 ? 1 : -1;
+      const x0 = at.x + side * this.rng.range(55, 90), y0 = at.y + this.rng.range(-26, 26);
+      const elbow = at.x + side * this.rng.range(8, 30);
+      paths.push([{ x: x0, y: y0 }, { x: elbow, y: y0 }, { x: elbow, y: at.y }, { x: at.x, y: at.y }]);
+    }
+    this.s(22, (ctx, k) => {
+      const run = Math.min(1, k / 0.6);
+      ctx.globalAlpha = k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25;
+      for (const p of paths) {
+        const lens = [1, 2, 3].map((i) => Math.hypot(p[i]!.x - p[i - 1]!.x, p[i]!.y - p[i - 1]!.y));
+        let left = (lens[0]! + lens[1]! + lens[2]!) * run;
+        for (let i = 1; i < 4 && left > 0; i++) {
+          const a = p[i - 1]!, b = p[i]!, len = lens[i - 1]!;
+          const n = Math.min(len, left);
+          for (let j = 0; j <= n; j++) {
+            ctx.fillStyle = color;
+            ctx.fillRect(Math.round(a.x + ((b.x - a.x) * j) / len), Math.round(a.y + ((b.y - a.y) * j) / len), 1, 1);
+          }
+          if (left >= len) {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(Math.round(b.x) - 1, Math.round(b.y) - 1, 3, 3);
+          }
+          left -= len;
+        }
+      }
+      ctx.globalAlpha = 1;
+    }, delay);
+  }
+
+  /** A serpent of ki: a sinuous body that winds from the user to the target, head first. */
+  private dragon(from: Pt, to: Pt, color: string, delay = 0, frames = 22): void {
+    this.s(frames, (ctx, k) => {
+      const head = Math.min(1, k / 0.55);
+      const tail = Math.max(0, head - 0.5);
+      ctx.globalAlpha = k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25;
+      const n = 48;
+      for (let j = 0; j <= n; j++) {
+        const u = tail + (head - tail) * (j / n);
+        const x = from.x + (to.x - from.x) * u;
+        const y = from.y + (to.y - from.y) * u + Math.sin(u * 13 + k * 5) * 9 * (1 - u * 0.6);
+        const w = 1 + Math.round(3 * (j / n));
+        ctx.fillStyle = j > n - 4 ? '#ffffff' : j % 6 === 0 ? '#ffe0b0' : color;
+        ctx.fillRect(Math.round(x - w / 2), Math.round(y - w / 2), w, w);
+      }
+      ctx.globalAlpha = 1;
+    }, delay);
+  }
+
+  /** A flattened ground ring pushed out from an impact. */
+  private shockwave(at: Pt, color: string, delay = 0, r1 = 44): void {
+    this.s(16, (ctx, k) => {
+      const r = 4 + r1 * (1 - (1 - k) ** 2);
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = color;
+      const n = Math.round(r * 4);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        ctx.fillRect(Math.round(at.x + Math.cos(a) * r), Math.round(at.y + 12 + Math.sin(a) * r * 0.22), 2, 1);
+      }
+      ctx.globalAlpha = 1;
+    }, delay);
+  }
+
   private glyphs(at: Pt, color: string, n: number, delay = 0): void {
     for (let i = 0; i < n; i++)
       this.p({ x: at.x + this.rng.range(-14, 14), y: at.y - 24 + this.rng.range(-6, 6), vy: this.rng.range(0.8, 1.6), max: this.rng.int(18, 30), color, kind: 'glyph', ch: GLYPHS[this.rng.int(0, GLYPHS.length - 1)], delay: delay + this.rng.int(0, 12) });
@@ -204,27 +363,34 @@ export class FxLayer {
           this.burst(t, '#ffd0a0', 12, 2.6, 8);
         });
         return { impact: 8, total: 22 };
-      case 'arc_cut':
       case 'moonfall':
+        each((t, i) => {
+          this.crescent(t, '#b8a0ff', 15, i * 3);
+          this.slash(t, '#e0d0ff', 11 + i * 3, 30, 0, 2);
+          this.burst(t, '#d8c8ff', 22, 3.4, 11 + i * 3, 22);
+          this.shockwave(t, '#b8a0ff', 11 + i * 3, 36);
+        });
+        this.flash = { color: '#b8a0ff', frames: 8 };
+        this.shake = 8;
+        return { impact: 12, total: 36 };
+      case 'arc_cut':
         each((t) => {
-          const big = id === 'moonfall';
-          this.s(big ? 22 : 14, (ctx, k) => {
-            const r = big ? 26 : 18;
+          this.s(14, (ctx, k) => {
+            const r = 18;
             ctx.globalAlpha = 1 - Math.max(0, (k - 0.5) * 2);
             const sweep = Math.min(1, k * 2.5);
             for (let a = -1.9; a < -1.9 + 2.6 * sweep; a += 0.04) {
               const x = t.x + Math.cos(a) * r, y = t.y + Math.sin(a) * r * 0.8 + 6;
-              ctx.fillStyle = big ? '#b8a0ff' : '#d8e8ff';
+              ctx.fillStyle = '#d8e8ff';
               ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3);
               ctx.fillStyle = '#ffffff';
               ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
             }
             ctx.globalAlpha = 1;
           });
-          this.burst(t, big ? '#e0d0ff' : '#ffffff', big ? 24 : 12, big ? 3.5 : 2.4, 6);
+          this.burst(t, '#ffffff', 12, 2.4, 6);
         });
-        this.shake = id === 'moonfall' ? 10 : 5;
-        if (id === 'moonfall') this.flash = { color: '#b8a0ff', frames: 8 };
+        this.shake = 5;
         return { impact: 6, total: 24 };
       case 'gunfire':
       case 'shot':
@@ -252,14 +418,20 @@ export class FxLayer {
           }
         });
         return { impact: 5, total: 20 };
-      case 'palm':
       case 'coil':
+        each((t, i) => {
+          this.dragon(from, t, '#ffb46a', i * 2);
+          this.ring(t, '#ffb46a', 2, 22, 14, 11 + i * 2, 2);
+          this.burst(t, '#ffe0b0', 16, 2.6, 12 + i * 2, 20);
+        });
+        this.flash = { color: '#ffb46a', frames: 6 };
+        return { impact: 12, total: 34 };
+      case 'palm':
         each((t) => {
           this.ring(t, '#ffb46a', 2, 18, 14, 0, 2);
           this.ring(t, '#ffffff', 2, 10, 10, 3, 1);
           this.rise(t, '#ffd0a0', 10, 8, 4);
         });
-        if (id === 'coil') this.flash = { color: '#ffb46a', frames: 6 };
         return { impact: 5, total: 26 };
       case 'rain_hits':
         each((t) => {
@@ -306,7 +478,11 @@ export class FxLayer {
           this.burst(t, '#ffa24a', 14, 2, d, 20);
           this.burst(t, '#ffe07a', 8, 1.2, d, 14);
           this.rise(t, '#ff6a2a', 12, 8, d, 0.9);
-          if (id === 'explosion') this.ring(t, '#ffe07a', 2, 20, 12, d, 2);
+          if (id === 'explosion') {
+            this.ring(t, '#ffe07a', 2, 20, 12, d, 2);
+            this.shockwave(t, '#ffa24a', d, 40);
+          }
+          if (id === 'fire_all') this.pillar(t, '#ff6a2a', '#ffe07a', 34, d);
           this.smoke(t, '#5a4a4a', 5, d + 8);
         });
         if (id !== 'fire') this.flash = { color: '#ffa24a', frames: 6 };
@@ -385,6 +561,7 @@ export class FxLayer {
         each((t) => {
           this.beam(from, t, '#6ff3ff', 0, 26, 7);
           this.burst(t, '#d8f6ff', 20, 3, 6);
+          this.shockwave(t, '#6ff3ff', 8, 50);
         });
         this.flash = { color: '#6ff3ff', frames: 8 };
         this.shake = 10;
@@ -417,6 +594,7 @@ export class FxLayer {
           this.bolt({ x: t.x + 6, y: t.y }, '#9ae8ff', 9);
           this.slash(t, '#ffffff', 12, 26, -0.9, 3);
           this.burst(t, '#ffe07a', 30, 4, 12, 24);
+          this.fissure(t, '#ffe07a', 12);
         });
         this.flash = { color: '#ffe07a', frames: 10 };
         this.shake = 12;
@@ -435,6 +613,7 @@ export class FxLayer {
         return { impact: 20, total: 34 };
       case 'ghost_circuit':
         each((t) => {
+          this.circuit(t, '#3fe0f0', 0);
           this.glyphs(t, '#3fe0f0', 18);
           this.ring(t, '#ffb46a', 30, 2, 20, 4, 2);
           this.beam({ x: t.x, y: -4 }, t, '#e0d0ff', 16, 16, 6);
@@ -446,6 +625,7 @@ export class FxLayer {
       case 'pyre_storm':
         each((t, i) => {
           this.bolt(t, '#9ae8ff', i * 2);
+          this.pillar(t, '#ff6a2a', '#ffe07a', 46, 6 + i * 2, 30);
           this.burst(t, '#ffa24a', 20, 3, 6 + i * 2, 24);
           this.rise(t, '#ff6a2a', 16, 12, 6 + i * 2, 1.2);
         });

@@ -15,12 +15,52 @@ export interface EnemyArt {
   idle: 'bob' | 'hover' | 'sway' | 'breathe' | 'flicker' | 'still';
   /** Ground shadow width (0 = floating/no shadow). */
   shadow: number;
+  /** A distinct individual (its own look), not just the base sprite: no palette shift needed. */
+  individual?: boolean;
 }
 
 const cache = new Map<string, EnemyArt>();
 
+/** The individual being built (0 = the base look) and for which sprite; read by rigArt and face. */
+let V = 0;
+let building = '';
+
+/**
+ * Other members of a gang or squad: when two or three of the same enemy share a fight they are
+ * different people (hair, gear, expression), not one sprite in three palettes.
+ */
+const VARIANTS: Record<string, { look: Partial<CharLook>; face?: Partial<Face> }[]> = {
+  punk: [
+    { look: { hair: '#62e06a', hairStyle: 'spiky', accessories: ['shades'], skin: '#8a5a3a', sleeves: '#8a5a3a' }, face: { mouth: 'grimace', scar: false } },
+    { look: { hairStyle: 'bald', skin: '#e0b894', sleeves: '#e0b894', accessories: ['mask'], top: '#3a2430' }, face: { brows: 'heavy', mouth: 'line', scar: false } },
+  ],
+  slinger: [
+    { look: { hair: '#b07cff', hairStyle: 'ponytail', accessories: ['goggles'], goggles: '#ffcc3d', top: '#3a4a5a' }, face: { mouth: 'smirk' } },
+    { look: { hairStyle: 'cap', hat: '#5a3a2a', top: '#4a3a2a' }, face: { mouth: 'grimace' } },
+  ],
+  medic: [
+    { look: { hair: '#3a2a22', hairStyle: 'short', skin: '#9a6a4a', accessories: [] }, face: { brows: 'angry', mouth: 'grimace' } },
+  ],
+  sentinel: [
+    { look: { skin: '#8a5a3a' }, face: { mouth: 'grimace', brows: 'flat' } },
+    { look: { skin: '#f0c8a8', hat: '#2a2a33' }, face: { mouth: 'smirk' } },
+  ],
+  arcanist: [
+    { look: { hair: '#1a1418', hairStyle: 'bun', skin: '#b88a64', top: '#2a3a5a', coat: '#2a3a5a' }, face: { mouth: 'line' } },
+  ],
+  ghoul: [
+    { look: { skin: '#8a7c6a', sleeves: '#8a7c6a', top: '#2a3438' }, face: { mouth: 'grimace' } },
+  ],
+};
+
+/** How many distinct individuals a sprite has (1 = base only). */
+export function individuals(key: string): number {
+  return (VARIANTS[key]?.length ?? 0) + 1;
+}
+
 // ------------------------------------------------------------------ humanoids (rig based)
 function rigArt(look: CharLook, extra?: (p: Pix, w: number, h: number) => void, glowFn?: (p: Pix) => void): EnemyArt {
+  if (V) look = { ...look, ...VARIANTS[building]![V - 1]!.look };
   const spr = buildChar(look);
   const base = spr.frames.down[0]!;
   const w = base.width + 12, h = base.height + 6;
@@ -54,6 +94,7 @@ interface Face {
   big?: boolean;
 }
 function face(p: Pix, f: Face): void {
+  if (V) f = { ...f, ...VARIANTS[building]![V - 1]!.face };
   const ink = '#1c1216';
   const l = f.big ? 14 : 13; // left eye x
   const r = f.big ? 19 : 16; // right eye x
@@ -606,15 +647,25 @@ const CREATURES: Record<string, () => EnemyArt> = {
   },
 };
 
-export function enemyArt(key: string): EnemyArt {
-  let a = cache.get(key);
+/** A sprite's art; `dup` picks which individual when several of one kind share a fight. */
+export function enemyArt(key: string, dup = 0): EnemyArt {
+  const v = dup % individuals(key);
+  const id = v ? `${key}#${v}` : key;
+  let a = cache.get(id);
   if (a) return a;
   const make = HUMANS[key] ?? CREATURES[key];
   if (!make) throw new Error(`No art for enemy sprite ${key}`);
   K = SCALE[key] ?? 1;
-  a = make();
-  K = 1;
-  cache.set(key, a);
+  V = v;
+  building = key;
+  try {
+    a = make();
+  } finally {
+    K = 1;
+    V = 0;
+  }
+  if (v) a.individual = true;
+  cache.set(id, a);
   return a;
 }
 
