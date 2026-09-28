@@ -107,23 +107,31 @@ export const annex: MapDef = {
     },
     {
       id: 'log2', x: 16, y: 12, on: 'action',
-      run: annexLog('SUBJECT LOG · S-3', 'Subject S-3 (human, hermetic) expired during extraction. Residual spirit bound to the WARDEN security core. Recommendation: repurpose all future expirees. Waste nothing.'),
+      run: async (s) => {
+        await annexLog('SUBJECT LOG · S-3', 'Subject S-3 (human, hermetic) expired during extraction. Residual spirit bound to the WARDEN security core. Recommendation: repurpose all future expirees. Waste nothing.')(s);
+        if (!s.flag('rook_log')) {
+          s.set('rook_log');
+          await s.say('rook', '...');
+          await s.say('kit', 'Rook?');
+          await s.say('rook', 'Seen a room like this before. Keep moving.');
+        }
+      },
     },
     {
       id: 'log3', x: 29, y: 14, on: 'action',
       run: async (s) => {
-        await annexLog('MAIL · to: J. PALE', 'Your contractors should reach S-7 by the 14th. Once the asset is recovered, the contractors are to be reclassified as {r}liabilities{/}. — Operations')(s);
+        await annexLog('MAIL · to: J. PALE', 'Your contractors should reach S-7 by the 14th. On recovery, contractor exposure is to be {r}resolved per standard protocol{/}. — Operations')(s);
         if (!s.flag('read_mail')) {
           s.set('read_mail');
-          await s.say('kit', '"Liabilities." That’s us. That’s us, right?', { face: 'angry' });
-          await s.say('rook', 'That’s us.');
-          await s.say('hex', 'Great. Love that. Can we not be liabilities? I’d like to be an asset. A thriving asset.', { face: 'sad' });
+          await s.say('kit', '“Resolved.” What does “resolved” mean?', { face: 'angry' });
+          await s.say('rook', 'Nothing good.');
+          await s.say('hex', 'Standard protocol. Great. Nobody in history has ever been resolved in a nice way, per standard protocol.', { face: 'sad' });
         }
       },
     },
     {
       id: 'log4', x: 33, y: 9, on: 'action',
-      run: annexLog('SUBJECT LOG · S-7', 'Subject S-7 (orc, shamanic, "crow" totem). Resistance to sedation: high. Yield: exceptional. Transfer to Arcology Level 90 on completion.'),
+      run: annexLog('SUBJECT LOG · S-7', 'Subject S-7 (orc, shamanic, "crow" totem). Resistance to sedation: high. Yield: exceptional. On completion, transfer to Arcology Level 90; residue to a WARDEN-class core, as with S-3.'),
     },
     { id: 'pod', x: 36, y: 4, w: 2, on: 'action', run: cryopod },
     { id: 'lattice', x: 30, y: 6, h: 3, on: 'action', when: (f) => !f.lattice_off, run: lattice },

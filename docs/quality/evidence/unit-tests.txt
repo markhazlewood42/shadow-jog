@@ -4,8 +4,8 @@
  ✓ tests/music.test.ts > soundtrack > title compiles with bar-aligned parts 2ms
  ✓ tests/music.test.ts > soundtrack > town compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > bar compiles with bar-aligned parts 0ms
- ✓ tests/music.test.ts > soundtrack > world compiles with bar-aligned parts 0ms
- ✓ tests/music.test.ts > soundtrack > rustyard compiles with bar-aligned parts 1ms
+ ✓ tests/music.test.ts > soundtrack > world compiles with bar-aligned parts 1ms
+ ✓ tests/music.test.ts > soundtrack > rustyard compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > dungeon compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > lab compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > battle compiles with bar-aligned parts 0ms
@@ -15,16 +15,32 @@
  ✓ tests/music.test.ts > soundtrack > victory_boss compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > gameover compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > sable compiles with bar-aligned parts 0ms
- ✓ tests/music.test.ts > soundtrack > tension compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > tension compiles with bar-aligned parts 1ms
+ ✓ tests/music.test.ts > harmony > title: held dissonances on the beat resolve by step 1ms
+ ✓ tests/music.test.ts > harmony > town: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > bar: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > world: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > rustyard: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > dungeon: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > lab: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > battle: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > boss: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > boss2: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > victory: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > victory_boss: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > gameover: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > sable: held dissonances on the beat resolve by step 0ms
+ ✓ tests/music.test.ts > harmony > tension: held dissonances on the beat resolve by step 0ms
  ✓ tests/save.test.ts > save / load > round-trips the full state, meta, play time and RNG 2ms
  ✓ tests/save.test.ts > save / load > reports the most recent slot 1ms
  ✓ tests/save.test.ts > save / load > rejects corrupt JSON, future versions and structurally broken saves 0ms
  ✓ tests/save.test.ts > save / load > rejects saves pointing at unknown maps 0ms
+ ✓ tests/save.test.ts > save / load > loads a minimal older save: every later field gets a sensible default 0ms
  ✓ tests/save.test.ts > save / load > fills fields added after a save was written 0ms
  ✓ tests/maps.test.ts > map connectivity > lantern_row: all content reachable from where the player arrives 2ms
  ✓ tests/maps.test.ts > map connectivity > world: all content reachable from where the player arrives 1ms
  ✓ tests/maps.test.ts > map connectivity > rustyard: all content reachable from where the player arrives 1ms
- ✓ tests/maps.test.ts > map connectivity > sinkline_1: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > sinkline_1: all content reachable from where the player arrives 1ms
  ✓ tests/maps.test.ts > map connectivity > annex: all content reachable from where the player arrives 0ms
  ✓ tests/maps.test.ts > map connectivity > dock: all content reachable from where the player arrives 0ms
  ✓ tests/maps.test.ts > map connectivity > rook_flat: all content reachable from where the player arrives 0ms
@@ -35,10 +51,10 @@
  ✓ tests/maps.test.ts > map connectivity > kwikmart: all content reachable from where the player arrives 0ms
  ✓ tests/maps.test.ts > map connectivity > hotel: all content reachable from where the player arrives 0ms
  ✓ tests/maps.test.ts > map connectivity > noodles: all content reachable from where the player arrives 0ms
- ✓ tests/maps.test.ts > map connectivity > hex_den: all content reachable from where the player arrives 0ms
- ✓ tests/battle.test.ts > data integrity > every referenced ability exists 1ms
+ ✓ tests/maps.test.ts > map connectivity > hex_den: all content reachable from where the player arrives 1ms
+ ✓ tests/battle.test.ts > data integrity > every referenced ability exists 2ms
  ✓ tests/battle.test.ts > data integrity > every encounter references real enemies and drops reference real items 1ms
- ✓ tests/battle.test.ts > data integrity > every combo pairs two different members with abilities they actually learn 2ms
+ ✓ tests/battle.test.ts > data integrity > every combo pairs two different members with abilities they actually learn 1ms
  ✓ tests/battle.test.ts > data integrity > starting equipment is equippable 0ms
  ✓ tests/battle.test.ts > progression > xp curve is monotonic and levelForXp inverts it 1ms
  ✓ tests/battle.test.ts > progression > grantXp levels up, raises stats and teaches abilities 0ms
@@ -48,8 +64,8 @@
  ✓ tests/battle.test.ts > battle engine > cyber programs wreck machines and do nothing to spirits 0ms
  ✓ tests/battle.test.ts > battle engine > the Warden transforms into its spirit form instead of dying 0ms
  ✓ tests/battle.test.ts > battle engine > running from a boss is refused 0ms
- ✓ tests/battle.test.ts > hijack > a hijacked machine turns one of its own damaging moves on its allies 1ms
- ✓ tests/battle.test.ts > maps > every prop kind placed on a map has a painter 74ms
+ ✓ tests/battle.test.ts > hijack > a hijacked machine turns one of its own damaging moves on its allies 2ms
+ ✓ tests/battle.test.ts > maps > every prop kind placed on a map has a painter 76ms
 stdout | tests/economy.test.ts > economy > prints the route
 Walk to the Rustyard           walks 39 steps of street (1 in 28), 25 steps of barrens (1 in 20)
 Rustyard gate                  walks 23 steps of barrens (1 in 16)
@@ -57,19 +73,19 @@ Walk back, Hex joins           walks 21 steps of barrens (1 in 16), 23 steps of 
 Walk to the Sinkline           walks 36 steps of street (1 in 28)
 Sinkline B1                    walks 135 steps of sinkline (1 in 19)
 Annex 7                        walks 86 steps of annex (1 in 22)
-street     cred   33 + loot  13 · xp 18
-barrens    cred   36 + loot  19 · xp 26
+street     cred   34 + loot  13 · xp 19
+barrens    cred   41 + loot  18 · xp 27
 sinkline   cred   49 + loot  20 · xp 51
-annex      cred  112 + loot  38 · xp 93
+annex      cred  111 + loot  39 · xp 92
 CP1 before the Rustyard trip   after buys    59¢ (spent 120)  fights 1  {"kit":1,"rook":3} 
-Walk to the Rustyard           after buys   193¢ (spent 0)  fights 3.6  {"kit":2,"rook":3} 
-CP2 Knuckles                   after buys   466¢ (spent 0)  fights 6.1  {"kit":3,"rook":4} 
-Knuckles                       after buys   880¢ (spent 0)  fights 7.1  {"kit":4,"rook":4} 
-CP3 into the Sinkline          after buys   222¢ (spent 720)  fights 11  {"kit":4,"rook":5,"hex":4} 
-Walk to the Sinkline           after buys   282¢ (spent 0)  fights 12.3  {"kit":4,"rook":5,"hex":4} 
-CP4 the Lurker                 after buys   274¢ (spent 760)  fights 19.4  {"kit":6,"rook":6,"hex":5} 
-CP5 into Annex 7               after buys   334¢ (spent 520)  fights 20.4  {"kit":7,"rook":7,"hex":7} 
-CP6 WARDEN                     after buys  1148¢ (spent 0)  fights 25.3  {"kit":8,"rook":9,"hex":8,"sable":8} 
+Walk to the Rustyard           after buys   197¢ (spent 0)  fights 3.6  {"kit":2,"rook":3} 
+CP2 Knuckles                   after buys   476¢ (spent 0)  fights 6.1  {"kit":3,"rook":4} 
+Knuckles                       after buys   889¢ (spent 0)  fights 7.1  {"kit":4,"rook":4} 
+CP3 into the Sinkline          after buys   240¢ (spent 720)  fights 11  {"kit":4,"rook":5,"hex":4} 
+Walk to the Sinkline           after buys   300¢ (spent 0)  fights 12.3  {"kit":5,"rook":5,"hex":4} 
+CP4 the Lurker                 after buys   292¢ (spent 760)  fights 19.4  {"kit":6,"rook":6,"hex":5} 
+CP5 into Annex 7               after buys   352¢ (spent 520)  fights 20.4  {"kit":7,"rook":7,"hex":7} 
+CP6 WARDEN                     after buys  1163¢ (spent 0)  fights 25.3  {"kit":8,"rook":9,"hex":8,"sable":8} 
 
  ✓ tests/economy.test.ts > economy > prints the route 2ms
  ✓ tests/economy.test.ts > economy > CP1 before the Rustyard trip: affordable at the expected level, no grinding 0ms
@@ -82,25 +98,25 @@ CP6 WARDEN                     after buys  1148¢ (spent 0)  fights 25.3  {"kit"
  ✓ tests/economy.test.ts > economy > the whole chapter takes a sensible number of fights 0ms
 stdout | tests/balance.test.ts > balance > prints the balance table
 
-street  (opening)            win 100%  rounds  2.2  hp lost  15%  combos/battle 0.00
-barrens (to Rustyard)        win 100%  rounds  2.0  hp lost  14%  combos/battle 0.00
+street  (opening)            win 100%  rounds  2.5  hp lost  17%  combos/battle 0.00
+barrens (to Rustyard)        win 100%  rounds  2.1  hp lost  16%  combos/battle 0.00
 KNUCKLES                     win  98%  rounds  6.6  hp lost  50%  combos/battle 1.00
-sinkline                     win 100%  rounds  2.3  hp lost  12%  combos/battle 0.29
-LURKER                       win  91%  rounds  7.2  hp lost  43%  combos/battle 1.00
-annex                        win  99%  rounds  3.3  hp lost  23%  combos/battle 0.00
-WARDEN                       win  72%  rounds 13.0  hp lost  56%  combos/battle 3.79
+sinkline                     win 100%  rounds  2.2  hp lost  14%  combos/battle 0.29
+LURKER                       win  93%  rounds  6.8  hp lost  42%  combos/battle 1.00
+annex                        win 100%  rounds  3.1  hp lost  16%  combos/battle 0.00
+WARDEN                       win  80%  rounds 11.5  hp lost  52%  combos/battle 3.43
 
 stdout | tests/balance.test.ts > dungeon attrition > prints the attrition table
 
-barrens x4                   cleared 100%  end hp  88%  medkits 2.2  rounds/battle 2.1
-sinkline x6                  cleared  93%  end hp  80%  medkits 4.0  rounds/battle 2.8
-    lost to: drowned_shade+sewer_ghoul @5 lose ×1, drowned_shade+drowned_shade+glowrat @5 lose ×1, gutter_eel+gutter_eel @6 lose ×1, drowned_shade+sewer_ghoul @6 lose ×1
-annex x5                     cleared  87%  end hp  74%  medkits 2.5  rounds/battle 4.3
-    lost to: bound_spirit+km_arcanist @5 lose ×4, bound_spirit+km_arcanist @1 lose ×2, bound_spirit+km_arcanist @3 lose ×1, bound_spirit+km_arcanist @4 lose ×1
+barrens x4                   cleared 100%  end hp  89%  medkits 2.5  rounds/battle 2.2
+sinkline x6                  cleared  92%  end hp  77%  medkits 4.1  rounds/battle 2.8
+    lost to: drowned_shade+drowned_shade+glowrat @3 lose ×2, drowned_shade+sewer_ghoul @5 lose ×1, rust_crab+maint_drone @6 lose ×1, drowned_shade+sewer_ghoul @6 lose ×1
+annex x5                     cleared  90%  end hp  82%  medkits 2.4  rounds/battle 4.2
+    lost to: bound_spirit+km_sentinel @4 lose ×3, km_sentinel+km_arcanist @3 lose ×1, bound_spirit+km_sentinel @3 lose ×1, bound_spirit+km_sentinel @2 lose ×1
 
  ✓ tests/balance.test.ts > balance > prints the balance table 2ms
  ✓ tests/balance.test.ts > balance > the policy uses every ability learnable by the Warden and all six combos 1ms
- ✓ tests/balance.test.ts > balance > street  (opening) within targets 0ms
+ ✓ tests/balance.test.ts > balance > street  (opening) within targets 1ms
  ✓ tests/balance.test.ts > balance > barrens (to Rustyard) within targets 0ms
  ✓ tests/balance.test.ts > balance > KNUCKLES within targets 0ms
  ✓ tests/balance.test.ts > balance > sinkline within targets 0ms
@@ -113,7 +129,7 @@ annex x5                     cleared  87%  end hp  74%  medkits 2.5  rounds/batt
  ✓ tests/balance.test.ts > dungeon attrition > annex x5 is survivable 0ms
 
  Test Files  6 passed (6)
-      Tests  71 passed (71)
-   Start at  09:17:16
-   Duration  347ms (transform 63%, import 26%, tests 10%, worker 2%)
+      Tests  87 passed (87)
+   Start at  10:08:58
+   Duration  354ms (transform 62%, import 27%, tests 10%, worker 2%)
 

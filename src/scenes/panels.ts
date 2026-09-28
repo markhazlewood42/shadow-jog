@@ -58,12 +58,12 @@ const PAGES: Record<string, Page[]> = {
     ],
     [
       { x: 8, y: 8, w: 464, h: 120, bg: 'canal', caption: 'They came up three wards over, soaked and shaking. Three of them.', from: 'top' },
-      { x: 8, y: 134, w: 150, h: 128, bg: 'dark', portrait: { key: 'kit', face: 'sad' }, speech: { who: 'kit', text: 'He said he’d be right behind us.' }, from: 'left' },
+      { x: 8, y: 134, w: 150, h: 128, bg: 'dark', portrait: { key: 'kit', face: 'sad' }, speech: { who: 'kit', text: 'He told us not to wait. We didn’t wait.' }, from: 'left' },
       { x: 164, y: 134, w: 150, h: 128, bg: 'dark', portrait: { key: 'sable', face: 'sad' }, speech: { who: 'sable', text: 'The crow saw them take him. He’s alive.' }, from: 'bottom' },
       { x: 320, y: 134, w: 152, h: 128, bg: 'dark', portrait: { key: 'hex', face: 'angry' }, speech: { who: 'hex', text: 'Then we go get him.' }, from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 464, h: 150, bg: 'spire', portrait: { key: 'pale', face: 'smirk', dx: 140 }, speech: { who: 'pale', text: 'Find them. The asset, the adept, all of them. And the old samurai stays breathing. I want to know who taught her.' }, from: 'top' },
+      { x: 8, y: 8, w: 464, h: 150, bg: 'spire', portrait: { key: 'pale', face: 'smirk', dx: 140 }, speech: { who: 'pale', text: 'Find them. The orc, the decker, the girl. Keep the old samurai breathing: I want to know who taught the girl to fight like that. You have until morning.' }, from: 'top' },
       { x: 8, y: 164, w: 464, h: 98, bg: 'dark', caption: 'END OF CHAPTER ONE', from: 'bottom' },
     ],
   ],

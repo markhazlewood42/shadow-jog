@@ -35,7 +35,7 @@ export const introFlat: ScriptFn = async (s) => {
   await s.emote('player', '!');
   await s.say('kit', 'Real work? Like, paying work? Not "hold this bag and don\'t look inside" work?', { face: 'surprised' });
   await s.say('rook', 'The Drowned Saint. Ten minutes. And eat something first. Nobody punches well on an empty stomach.');
-  await s.say('kit', 'I punch fine hungry. I just punch angrier.', { face: 'happy' });
+  await s.say('kit', 'Hungry’s fine. Hungry’s how I win.', { face: 'happy' });
   await s.move('rook', 'lld', { speed: 14 });
   s.regroup();
   s.set('intro');
@@ -70,7 +70,7 @@ export const meetDutch: ScriptFn = async (s) => {
   }
   await s.say('dutch', 'There they are. My favorite disaster and his apprentice. Sit, sit. Mind the stain, it\'s load-bearing.', { face: 'happy' });
   await s.say('dutch', 'This is Mr. Pale. He represents, let\'s say, an interested party.');
-  await s.say('pale', 'A pleasure. I\'ll be brief. Under the flooded Sinkline there is a sealed research annex. Kessler-Mori wrote it off after the flood of \'61.');
+  await s.say('pale', 'A pleasure. I’ll be brief; I bill by the minute. Under the flooded Sinkline there is a sealed research annex. Kessler-Mori wrote it off after the flood of ’61.');
   await s.say('pale', 'Inside is a {y}data core{/}. Bring it to me intact and you will be paid {y}three thousand cred{/}.');
   await s.say('kit', 'Three thou—', { face: 'surprised' });
   await s.say('rook', 'Kit.');
@@ -78,10 +78,10 @@ export const meetDutch: ScriptFn = async (s) => {
   await s.say('pale', 'Because "anybody" asks more questions. Also, the annex doors are still corporate-locked. You will need a decker.', { face: 'smirk' });
   await s.say('dutch', 'Which you haven\'t got, since your last one moved to Neo-Lagos and stopped taking my calls.');
   await s.say('rook', '...Hex.');
-  await s.say('dutch', 'Hex! Hex owes me money. Two birds. Tell her if she does this, I\'ll forget her debt. Some of it.', { face: 'happy' });
+  await s.say('dutch', 'Hex! Hex owes me money. Two birds, one run. Tell her if she does this, her tab goes in the canal.', { face: 'happy' });
   await s.say('pale', 'The annex location and what codes we have.');
   await s.give('pale_chip', 1);
-  await s.say('pale', 'I\'ll be in touch.');
+  await s.say('pale', 'Loading Dock 7, when you have it. I keep very exact hours.');
   s.despawn('pale');
   s.sfx('door');
   await s.wait(20);
@@ -142,7 +142,7 @@ export const rustyardGate: ScriptFn = async (s) => {
   const r = await s.battle('f_rustyard_gate', { canRun: false, bg: 'rustyard' });
   if (r !== 'win') return;
   s.despawn('gate_punk');
-  await s.say('Rustfang Punk', 'Knuckles is gonna hear about this! You\'re dead! Dead-ish!');
+  await s.say('Rustfang Punk', 'Knuckles is gonna hear about this! He’s gonna feed you to the hounds!');
   await s.say('mags', 'Hmph. Didn\'t need help. Didn\'t mind it, either. What do you want?', { face: 'smirk' });
   await s.say('kit', 'A Stingray coprocessor. For Hex.');
   await s.say('mags', 'Ha! Had one. Knuckles\' boys took it, along with half my stock. Hauled it all up to the old {y}tire depot{/} at the north end of the yard.');
@@ -385,7 +385,7 @@ export const cryopod: ScriptFn = async (s) => {
   await s.wait(30);
   await s.say('sable', '...The crow was screaming. For so long. Now it\'s quiet.', { face: 'sad' });
   await s.say('sable', 'You. Your hands are burning.');
-  await s.say('kit', 'They... do that sometimes. Lately.', { face: 'surprised' });
+  await s.say('kit', 'Started last month. I don’t know why.', { face: 'surprised' });
   await s.say('sable', 'Mm. The crow says you\'re loud. That\'s not an insult.');
   await s.say('sable', 'I am Sable. I don\'t know how long I was in there. They took— they took a lot. I still have enough.');
   s.despawn('sable_pod');
@@ -424,7 +424,7 @@ export const betrayal: ScriptFn = async (s) => {
   s.set('betrayal');
   s.music('tension');
   await s.wait(20);
-  await s.say('pale', 'Excellent work. You\'ve recovered my property, and in better shape than I dared hope.', { face: 'smirk' });
+  await s.say('pale', 'Three minutes early. I do appreciate punctuality in a liability. And my property, in better shape than I dared hope.', { face: 'smirk' });
   await s.say('kit', 'Your "property" is a person.', { face: 'angry' });
   await s.say('pale', 'Asset S-7 is Kessler-Mori property, recovered from a site we officially abandoned, by deniable contractors.');
   await s.say('pale', 'You were the deniable contractors.');

@@ -1,14 +1,12 @@
 
 Running 7 tests using 1 worker
 
-  ok 1 e2e\gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight (3.5s)
-  ok 2 e2e\gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.1s)
+  ok 1 e2e\gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight (3.7s)
+  ok 2 e2e\gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.2s)
   ok 3 e2e\gameover.spec.ts:73:1 › Return to Title from Game Over (3.4s)
   ok 4 e2e\gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it (3.9s)
-field {"frames":229,"mean":2.6751091700844367,"p95":4.200000002980232,"max":5.700000002980232}
-  ok 5 e2e\perf.spec.ts:23:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget (6.5s)
-battle {"frames":343,"mean":1.3577259472698928,"p95":2.1000000089406967,"max":3.7999999970197678}
-  ok 6 e2e\perf.spec.ts:35:1 › a live battle stays inside the frame budget (9.7s)
-  ok 7 e2e\playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish (31.3s)
+  ok 5 e2e\gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title (3.3s)
+  ok 6 e2e\gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable (896ms)
+  ok 7 e2e\playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish (30.9s)
 
-  7 passed (1.0m)
+  7 passed (50.0s)
