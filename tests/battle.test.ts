@@ -225,6 +225,18 @@ describe('enemy wind-ups', () => {
     expect(ev.some((e) => e.t === 'tp' && e.target === hex.uid && e.amount >= 2)).toBe(true);
   });
 
+  it('orders naming a missing unit are dropped, not carried into the round', () => {
+    const b = new Battle(party(['kit', 'rook'], 6), enemyParty(['glowrat']), new Rng(2));
+    const [kit, rook] = b.party;
+    expect(() =>
+      b.resolveRound([
+        { actor: 999, type: 'tech', id: 'flash_step', target: -1 },
+        { actor: rook!.uid, type: 'skill', id: 'arc_cut', target: 12345 },
+        { actor: kit!.uid, type: 'attack', target: -1 },
+      ]),
+    ).not.toThrow();
+  });
+
   it('Guardian says so when a blast hits the crew it can’t cover', () => {
     // The Warden favours Suppression Grid (party-wide): over a few rounds it will fire one.
     let said = false;

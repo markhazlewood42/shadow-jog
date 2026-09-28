@@ -178,12 +178,13 @@ export class Battle {
     const combos = Battle.findCombos(cmds, this.units);
     const inCombo = new Set<number>();
     for (const c of combos) {
-      const ua = this.unit(c.a.actor)!, ub = this.unit(c.b.actor)!;
-      if (ua.hp <= 0 || ub.hp <= 0) continue;
+      // A stale uid or an unknown combo id drops the fusion (each order then runs on its own)
+      // rather than carrying an undefined into the round.
+      const ua = this.unit(c.a.actor), ub = this.unit(c.b.actor), ab = ABILITIES[c.combo];
+      if (!ua || !ub || !ab || ua.hp <= 0 || ub.hp <= 0) continue;
       inCombo.add(ua.uid);
       inCombo.add(ub.uid);
-      const ab = ABILITIES[c.combo]!;
-      const aimed = [c.a, c.b].find((x) => ABILITIES[x.id!]?.target === 'enemy' && (x.target ?? -1) >= 0);
+      const aimed = [c.a, c.b].find((x) => x.id !== undefined && ABILITIES[x.id]?.target === 'enemy' && (x.target ?? -1) >= 0);
       q.push({
         actors: [ua.uid, ub.uid],
         ability: ab,
@@ -301,8 +302,9 @@ export class Battle {
 
   // ------------------------------------------------------------------ execution
   private execute(act: QueuedAction): void {
-    const actors = act.actors.map((id) => this.unit(id)!).filter(Boolean);
-    const lead = actors[0]!;
+    const actors = act.actors.map((id) => this.unit(id)).filter((u): u is Combatant => !!u);
+    const lead = actors[0];
+    if (!lead || actors.length !== act.actors.length) return;
     if (actors.some((a) => a.hp <= 0)) {
       if (act.combo) {
         // Fallback: the surviving partner does nothing flashy this round.
@@ -349,11 +351,12 @@ export class Battle {
       }
     }
     if (act.combo) {
-      const parts = COMBOS.find((c) => c.id === act.combo)!.parts;
+      const parts = COMBOS.find((c) => c.id === act.combo)?.parts ?? [];
       for (const p of parts) {
-        const u = actors.find((a) => a.key === p.member)!;
-        if (!this.payCost(u, ABILITIES[p.ability]!)) {
-          this.ev.push({ t: 'fail', actor: u.uid, reason: 'The combo fell apart!' });
+        const u = actors.find((a) => a.key === p.member);
+        const part = ABILITIES[p.ability];
+        if (!u || !part || !this.payCost(u, part)) {
+          this.ev.push({ t: 'fail', actor: (u ?? lead).uid, reason: 'The combo fell apart!' });
           return;
         }
       }
