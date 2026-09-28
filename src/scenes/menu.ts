@@ -9,7 +9,8 @@ import { ITEMS, type ItemDef } from '../data/items';
 import { LOOKS } from '../data/looks';
 import { MEMBERS, xpFor } from '../data/party';
 import type { Ctx } from '../engine/canvas';
-import { drawParagraph, drawText, fitText, measure } from '../engine/font';
+import { drawParagraph, drawText, fitText, measure, wrap } from '../engine/font';
+import { COMBO_TEXT_W, MENU_OBJ_W } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { applyEffects } from '../game/fielduse';
 import { canEquip, equip, knownAbilities, memberStats } from '../game/party';
@@ -413,8 +414,8 @@ export class MenuScene extends Scene<MenuResult> {
 
   // ------------------------------------------------------------------ render
   render(ctx: Ctx): void {
-    // Dark enough that world signage behind the menu can't read as stray glyphs.
-    ctx.fillStyle = 'rgba(7,6,13,0.82)';
+    // Near-opaque: the world is a faint presence behind the menu, never readable signage.
+    ctx.fillStyle = 'rgba(7,6,13,0.96)';
     ctx.fillRect(0, 0, W, H);
     if (this.mode === 'status') {
       this.renderStatus(ctx);
@@ -443,8 +444,11 @@ export class MenuScene extends Scene<MenuResult> {
     drawParagraph(ctx, locationName(state.map), 16, H - 44, 80, { color: UI.cyan, lineH: 10 });
     const obj = flags.get('objective') as string | undefined;
     if (obj) {
-      drawWindow(ctx, 108, H - 30, W - 116, 22, { plain: true, accent: UI.amber });
-      drawText(ctx, `{y}▶{/} ${obj}`, 116, H - 24);
+      // Wrapped to the box (it grows upward for a second line), never drawn past its frame.
+      const lines = wrap(obj, MENU_OBJ_W);
+      const h = 12 + lines.length * 10;
+      drawWindow(ctx, 108, H - 8 - h, W - 116, h, { plain: true, accent: UI.amber });
+      for (const [i, ln] of lines.entries()) drawText(ctx, (i === 0 ? '{y}▶{/} ' : '   ') + ln, 116, H - 2 - h + 4 + i * 10);
     }
     // Right side: party cards or sub-list
     const listModes: Mode[] = ['items', 'techs', 'equipSlots', 'equipList', 'save', 'saveConfirm'];
@@ -710,8 +714,8 @@ export class MenuScene extends Scene<MenuResult> {
       const ab = ABILITIES[c.id]!;
       const names = c.parts.map((p) => `${MEMBERS[p.member as MemberId].name}: ${ABILITIES[p.ability]!.name}`).join('  +  ');
       drawText(ctx, known ? `★ ${ab.name}` : '★ ???', 18, y, { color: known ? UI.amber : UI.disabled });
-      drawText(ctx, known ? names : `Hint: ${c.hint}`, 30, y + 11, { color: known ? '#d0cee4' : UI.dim });
-      if (known) drawText(ctx, ab.desc, 30, y + 22, { color: UI.dim });
+      drawText(ctx, fitText(known ? names : `Hint: ${c.hint}`, COMBO_TEXT_W), 30, y + 11, { color: known ? '#d0cee4' : UI.dim });
+      if (known) drawText(ctx, fitText(ab.desc, COMBO_TEXT_W), 30, y + 22, { color: UI.dim });
     });
   }
 }

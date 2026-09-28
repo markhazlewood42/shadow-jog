@@ -234,10 +234,15 @@ export function measure(text: string): number {
   let any = false;
   walk(text, TEXT, (ch) => {
     if (ch === '\n') return;
-    w += glyph(ch).w + SPACING;
+    w += glyphWidth(ch) + SPACING;
     any = true;
   });
   return any ? w - SPACING : 0;
+}
+
+/** A glyph's advance, straight from the glyph table (no canvas, so layout can be measured anywhere). */
+function glyphWidth(ch: string): number {
+  return (G[ch] ?? G['?']!)[0]!.length;
 }
 
 export interface TextOpts {

@@ -20,6 +20,7 @@ import { getMap } from '../data/maps';
 import { DialogScene } from './dialog';
 import { chestSprites } from '../field/chests';
 import { bandGradient, UI } from '../ui/draw';
+import { FIELD_OBJ_W } from '../ui/layout';
 import { fieldHooks } from '../game/hooks';
 import { reportError } from '../engine/errors';
 
@@ -611,7 +612,7 @@ export class FieldScene extends Scene<void> {
     if (text !== this.objKey) {
       this.objFlash = this.objKey ? 150 : 0;
       this.objKey = text;
-      this.objLines = wrap(text, 196);
+      this.objLines = wrap(text, FIELD_OBJ_W);
       this.objW = Math.max(...this.objLines.map(measure)) + 16;
     }
     if (this.objFlash > 0) this.objFlash--;

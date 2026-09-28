@@ -24,6 +24,7 @@ import { debug, PLAYTEST_ROUNDS } from '../game/debug';
 import { learn, removeItem, state, type MemberId } from '../game/state';
 import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
+import { LEVELUP_TEXT_W } from '../ui/layout';
 import { ENEMY_POSE_T, RIM, drawBig, drawLag, marked, mirrored, opaqueTop, rimOf, silhouetteCache, variant } from './battlekit/sprites';
 import { AFTERIMAGES, COMBO_STING, ELEMENTS, ELEMENT_COLOR, ELEMENT_TAG, STATUS_LABEL, STATUS_SFX, STATUS_WORD, actionPose, enemyMotion, fxSound, groupNames, pickGroup, statusName, summarize } from './battlekit/tables';
 
@@ -68,7 +69,10 @@ interface Floater {
   y: number;
   t: number;
   color: string;
-  big: boolean;
+  /** How it moves: a hit number bounces, a DoT tick drips down, a label just rises. */
+  style: 'hit' | 'tick' | 'label';
+  /** Whose floater it is: stacking is per target, whatever the call site. */
+  uid: number;
 }
 
 const BW = 240, BHT = 135;
@@ -634,13 +638,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         dd.flash = u.side === 'enemy' ? 5 : 8;
         if (u.side === 'enemy' && e.hp > 0 && (e.crit || e.amount >= u.base.maxHp * 0.12)) this.setPose(u, 'hurt', 16);
         if (u.side === 'party' && e.hp > 0) this.setPose(u, 'hurt', 16);
-        const p = this.floatPos(e.target);
-        if (e.amount === 0) this.float('NO EFFECT', p, '#8b8fa8', false);
+        if (e.amount === 0) this.floatOn(e.target, 'NO EFFECT', '#8b8fa8', 'label');
         else {
-          this.float(String(e.amount), p, e.crit ? '#ffe07a' : e.weak ? '#ffa24a' : e.resist ? '#b8bcd0' : u.side === 'party' ? '#ff9a9a' : '#ffffff', true);
-          if (e.crit) this.float('CRITICAL', { x: p.x, y: p.y - 10 }, '#ffe07a', false);
-          else if (e.weak) this.float('WEAK!', { x: p.x, y: p.y - 10 }, '#ffa24a', false);
-          else if (e.resist) this.float('RESIST', { x: p.x, y: p.y - 10 }, '#b8bcd0', false);
+          this.floatOn(e.target, String(e.amount), e.crit ? '#ffe07a' : e.weak ? '#ffa24a' : e.resist ? '#b8bcd0' : u.side === 'party' ? '#ff9a9a' : '#ffffff', 'hit');
+          if (e.crit) this.floatOn(e.target, 'CRITICAL', '#ffe07a', 'label');
+          else if (e.weak) this.floatOn(e.target, 'WEAK!', '#ffa24a', 'label');
+          else if (e.resist) this.floatOn(e.target, 'RESIST', '#b8bcd0', 'label');
           // Field notes: what the crew learns the hard way sticks (target info, bestiary).
           if (u.side === 'enemy') {
             if (e.weak) learn(state.weakSeen, u.key, e.element);
@@ -664,19 +667,19 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         break;
       }
       case 'miss':
-        this.float('MISS', this.floatPos(e.target), '#b8bcd0', false);
+        this.floatOn(e.target, 'MISS', '#b8bcd0', 'label');
         sfx('miss');
         await this.w(14);
         break;
       case 'heal':
         this.d(e.target).hp = e.hp;
-        this.float(`+${e.amount}`, this.pos(e.target), '#86f08c', true);
+        this.floatOn(e.target, `+${e.amount}`, '#86f08c', 'hit');
         sfx('heal');
         await this.w(12);
         break;
       case 'tp':
         this.d(e.target).tp = e.tp;
-        this.float(`+${e.amount} TP`, this.pos(e.target), '#6ff3ff', false);
+        this.floatOn(e.target, `+${e.amount} TP`, '#6ff3ff', 'label');
         sfx('heal');
         await this.w(12);
         break;
@@ -684,7 +687,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         const word = STATUS_WORD[e.status];
         if (word && e.status !== 'guard' && e.status !== 'cover') {
           const col = STATUS_LABEL[e.status]?.[1] ?? '#ffffff';
-          if (e.on) this.float(word, { x: this.pos(e.target).x, y: this.pos(e.target).y - 6 }, col, false);
+          if (e.on) this.floatOn(e.target, word, col, 'label');
           if (e.on) sfx(STATUS_SFX[e.status] ?? (e.status.endsWith('_up') || e.status === 'regen' ? 'buff' : 'debuff'));
           await this.w(e.on ? 12 : 2);
         }
@@ -709,7 +712,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       }
       case 'revive':
         this.d(e.target).hp = e.hp;
-        this.float('REVIVED', this.pos(e.target), '#ffe07a', false);
+        this.floatOn(e.target, 'REVIVED', '#ffe07a', 'label');
         sfx('revive');
         await this.w(18);
         break;
@@ -719,7 +722,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         break;
       case 'immune': {
         const u = this.battle.unit(e.target)!;
-        this.float('IMMUNE', this.floatPos(e.target), '#c9b8ff', false);
+        this.floatOn(e.target, 'IMMUNE', '#c9b8ff', 'label');
         if (u.side === 'enemy') learn(state.immuneSeen, u.key, e.status);
         this.say(`${u.name} is immune to ${statusName(e.status)}.`);
         sfx('miss');
@@ -792,7 +795,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         dd.hp = e.hp;
         dd.shake = 6;
         const col = STATUS_LABEL[e.status]?.[1] ?? '#ffffff';
-        this.float(String(e.amount), this.pos(e.target), col, true);
+        this.floatOn(e.target, `-${e.amount}`, col, 'tick');
         sfx('tick');
         await this.w(12);
         break;
@@ -806,10 +809,15 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return COMBOS.find((c) => ABILITIES[c.id]?.name === name)?.id ?? name;
   }
 
-  private float(text: string, p: Pt, color: string, big: boolean): void {
-    // Stack floaters that land on the same spot.
-    const near = this.floaters.filter((f) => Math.abs(f.x - p.x) < 8 && f.t < 20).length;
-    this.floaters.push({ text, x: p.x, y: p.y - 8 - near * 9, t: 0, color, big });
+  /**
+   * Pop text over a combatant. Every floater for a target uses the same anchor (floatPos) and
+   * stacks above the ones still showing, so a damage number and a status word never overlap.
+   */
+  private floatOn(uid: number, text: string, color: string, style: Floater['style']): void {
+    const p = this.floatPos(uid);
+    let stacked = 0;
+    for (const f of this.floaters) if (f.uid === uid && f.t < 26) stacked++;
+    this.floaters.push({ text, x: p.x, y: Math.max(14, p.y - 8 - stacked * 10), t: 0, color, style, uid });
   }
 
   private say(text: string): void {
@@ -879,7 +887,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         });
         const ly = y + 34 + Math.ceil(gains.length / 2) * 11;
         u.learned.forEach((id, i) => {
-          drawText(ctx, `Learned {c}${ABILITIES[id]!.name}{/}!`, x + 14, ly + i * 11);
+          drawText(ctx, fitText(`Learned {c}${ABILITIES[id]!.name}{/}!`, LEVELUP_TEXT_W), x + 14, ly + i * 11);
         });
         if (this.frame % 40 < 28) drawText(ctx, '▼', x + w - 16, y + h - 13, { color: UI.cyan });
       });
@@ -1006,9 +1014,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     }
     // Floaters
     for (const fl of this.floaters) {
-      // Damage numbers pop up with a decaying bounce, then hold and drift; small text just rises.
-      const rise = fl.big ? 8 * (1 - (1 - Math.min(1, fl.t / 8)) ** 3) + Math.max(0, fl.t - 24) * 0.15 : fl.t * 0.4;
-      const bounce = fl.big && fl.t >= 8 && fl.t < 20 ? Math.abs(Math.sin((fl.t - 8) * 0.52)) * 3 * (1 - (fl.t - 8) / 12) : 0;
+      // Hits pop up with a decaying bounce, then hold and drift; labels rise; DoT ticks sink.
+      const hit = fl.style === 'hit';
+      const rise = hit ? 8 * (1 - (1 - Math.min(1, fl.t / 8)) ** 3) + Math.max(0, fl.t - 24) * 0.15 : fl.style === 'tick' ? -Math.min(8, fl.t * 0.25) : fl.t * 0.4;
+      const bounce = hit && fl.t >= 8 && fl.t < 20 ? Math.abs(Math.sin((fl.t - 8) * 0.52)) * 3 * (1 - (fl.t - 8) / 12) : 0;
       g.globalAlpha = fl.t > 38 ? Math.max(0, 1 - (fl.t - 38) / 12) : 1;
       drawText(g, fl.text, Math.round(fl.x), Math.round(fl.y - rise - bounce), { color: fl.color, align: 'center', shadow: '#0a0913' });
       g.globalAlpha = 1;
