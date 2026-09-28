@@ -268,3 +268,32 @@ test('33 menu places', async ({ page }) => {
   await page.waitForTimeout(300);
   await shot(page, '33-menu-places');
 });
+
+test('34 game over', async ({ page }) => {
+  await open(page, 'town');
+  await sj(page, 'Object.assign(sj.debug, { autoLose: true, autoBattle: false })');
+  await sj(page, "sj.battle('street', 'street')");
+  for (let i = 0; i < 60; i++) {
+    if (await sj<boolean>(page, "sj.top() === 'GameOverScene'")) break;
+    await page.waitForTimeout(250);
+  }
+  await page.waitForTimeout(2200);
+  await shot(page, '34-game-over');
+});
+
+test('35 options + 36 controls', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.waitForTimeout(1200);
+  await key(page, 'Enter'); // press start
+  await page.waitForTimeout(400);
+  await key(page, 'ArrowDown', 3); // Options (no saves: New Game, Continue, Load, Options)
+  await key(page, 'Enter');
+  await page.waitForTimeout(400);
+  await shot(page, '35-options');
+  await key(page, 'ArrowDown', 7); // Controls
+  await key(page, 'Enter');
+  await page.waitForTimeout(400);
+  await shot(page, '36-controls');
+});

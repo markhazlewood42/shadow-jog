@@ -5,7 +5,7 @@
 
 export type Action = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'cancel' | 'menu' | 'dash' | 'fullscreen';
 
-const ACTIONS: Action[] = ['up', 'down', 'left', 'right', 'confirm', 'cancel', 'menu', 'dash', 'fullscreen'];
+export const ACTIONS: Action[] = ['up', 'down', 'left', 'right', 'confirm', 'cancel', 'menu', 'dash', 'fullscreen'];
 
 const KEYMAP: Record<string, Action> = {
   ArrowUp: 'up', KeyW: 'up',
@@ -18,6 +18,20 @@ const KEYMAP: Record<string, Action> = {
   ShiftLeft: 'dash', ShiftRight: 'dash',
   KeyF: 'fullscreen',
 };
+
+/** A key code as a player reads it. */
+export function keyLabel(code: string): string {
+  const names: Record<string, string> = {
+    ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Escape: 'Esc', Enter: 'Enter', NumpadEnter: 'NumEnter',
+    Space: 'Space', Backspace: 'Bksp', Tab: 'Tab', ShiftLeft: 'Shift', ShiftRight: 'RShift', ControlLeft: 'Ctrl', ControlRight: 'RCtrl',
+    AltLeft: 'Alt', AltRight: 'RAlt',
+  };
+  if (names[code]) return names[code]!;
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  if (code.startsWith('Numpad')) return `Num${code.slice(6)}`;
+  return code;
+}
 
 const REPEAT_DELAY = 16;
 const REPEAT_RATE = 4;
@@ -34,13 +48,24 @@ export class Input {
   /** Keyboard presses between ticks (so a very quick tap is never lost). */
   private tapped = new Set<Action>();
   lastDevice: InputDevice = 'keyboard';
+  /** Effective key map: the defaults, with the player's custom keys applied. */
+  private map: Record<string, Action> = { ...KEYMAP };
+  /** When set, the next key press goes here (key rebinding) instead of to an action. */
+  private capture: ((code: string) => void) | null = null;
   /** Raw key events for text entry / debug; cleared each tick. */
   typed: string[] = [];
   anyPressed = false;
 
   constructor(target: Window = window) {
     target.addEventListener('keydown', (e) => {
-      const a = KEYMAP[e.code];
+      if (this.capture && !e.repeat) {
+        e.preventDefault();
+        const cb = this.capture;
+        this.capture = null;
+        cb(e.code);
+        return;
+      }
+      const a = this.map[e.code];
       if (a || e.code.startsWith('Arrow') || e.code === 'Space' || e.code === 'Tab' || e.code === 'Backspace') e.preventDefault();
       if (e.repeat) return;
       this.lastDevice = 'keyboard';
@@ -51,13 +76,45 @@ export class Input {
       }
     });
     target.addEventListener('keyup', (e) => {
-      const a = KEYMAP[e.code];
+      const a = this.map[e.code];
       if (a) this.keys.delete(a);
     });
     target.addEventListener('blur', () => {
       this.keys.clear();
       this.touchHeld.clear();
     });
+  }
+
+  /** Apply the player's custom keys (one extra key per action) on top of the defaults. */
+  applyCustom(custom: Partial<Record<Action, string>>): void {
+    this.map = { ...KEYMAP };
+    for (const [a, code] of Object.entries(custom) as [Action, string][]) if (code) this.map[code] = a;
+    this.keys.clear();
+  }
+
+  /** Every key currently mapped to an action. */
+  keysFor(action: Action): string[] {
+    return Object.keys(this.map).filter((c) => this.map[c] === action);
+  }
+
+  /**
+   * Give `action` the key `code`. Returns the new custom map, or null if that would leave some
+   * other action with no key at all.
+   */
+  bind(action: Action, code: string, custom: Partial<Record<Action, string>>): Partial<Record<Action, string>> | null {
+    const next = { ...custom };
+    for (const a of Object.keys(next) as Action[]) if (next[a] === code) delete next[a];
+    next[action] = code;
+    const trial = { ...KEYMAP };
+    for (const [a, c] of Object.entries(next) as [Action, string][]) trial[c] = a;
+    if (ACTIONS.some((a) => !Object.values(trial).includes(a))) return null;
+    this.applyCustom(next);
+    return next;
+  }
+
+  /** Hand the next key press to `cb` instead of the game (for rebinding). */
+  captureNext(cb: (code: string) => void): void {
+    this.capture = cb;
   }
 
   /** Touch overlay hooks. */

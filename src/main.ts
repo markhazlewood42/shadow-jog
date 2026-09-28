@@ -5,6 +5,7 @@ import { boot } from './boot';
 import { currentNotice, reportError } from './engine/errors';
 import { drawText } from './engine/font';
 import { perf } from './engine/perf';
+import { settings } from './game/settings';
 
 function fail(err: unknown): void {
   const el = document.getElementById('boot');
@@ -20,6 +21,7 @@ function start(): void {
   const screen = document.getElementById('screen') as HTMLCanvasElement;
   const display = new Display(screen);
   const input = new Input(window);
+  input.applyCustom(settings.keys ?? {});
   const game = new Game(display.backCtx, input);
 
   const step = 1000 / FPS;

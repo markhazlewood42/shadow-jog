@@ -460,9 +460,12 @@ export class MenuScene extends Scene<MenuResult> {
 
   private renderToast(ctx: Ctx): void {
     if (!this.toast) return;
-    const tw = Math.min(W - 40, measure(this.toast.text) + 20);
-    drawWindow(ctx, (W - tw) / 2, 6, tw, 17, { plain: true, accent: UI.green });
-    drawText(ctx, this.toast.text, W / 2, 10, { align: 'center' });
+    // Centred in the space right of the MENU column, never over it.
+    const left = 108, room = W - left - 8;
+    const tw = Math.min(room, measure(this.toast.text) + 20);
+    const tx = left + (room - tw) / 2;
+    drawWindow(ctx, tx, 6, tw, 17, { plain: true, accent: UI.green });
+    drawText(ctx, fitText(this.toast.text, tw - 12), tx + tw / 2, 10, { align: 'center' });
   }
 
   private renderCards(ctx: Ctx, x: number, picking: boolean): void {
@@ -626,7 +629,7 @@ export class MenuScene extends Scene<MenuResult> {
     abs.forEach((id, i) => {
       const ab = ABILITIES[id]!;
       const col = i < 9 ? 0 : 1;
-      drawText(ctx, `${ab.kind === 'tech' ? '•' : '★'} ${ab.name}`, 240 + col * 110, 137 + (i % 9) * 11, { color: ab.kind === 'tech' ? '#d0f4ff' : '#ffe8b0' });
+      drawText(ctx, fitText(`${ab.kind === 'tech' ? '•' : '★'} ${ab.name}`, 104), 240 + col * 110, 137 + (i % 9) * 11, { color: ab.kind === 'tech' ? '#d0f4ff' : '#ffe8b0' });
     });
   }
 
@@ -662,7 +665,7 @@ export class MenuScene extends Scene<MenuResult> {
     ];
     rows.forEach(([label, seen, color], i) => {
       drawText(ctx, label, tx, 72 + i * 12, { color: UI.dim });
-      const text = seen.length ? seen.map((v) => v.toUpperCase()).join(' ') : '?';
+      const text = seen.length ? seen.map((v) => v.toUpperCase()).join(' ') : 'not seen yet';
       drawText(ctx, fitText(text, x + w - tx - 58), tx + 48, 72 + i * 12, { color: seen.length ? color : UI.disabled });
     });
     drawDivider(ctx, x + 6, 128, w - 12);

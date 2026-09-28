@@ -83,4 +83,16 @@ describe('input', () => {
     expect(w.input.down('left')).toBe(false);
     expect(w.input.dir()).toBe(null);
   });
+
+  it('rebinds a key to an action, and refuses to leave another action keyless', () => {
+    const w = fakeWindow();
+    const custom = w.input.bind('confirm', 'KeyQ', {});
+    expect(custom).toEqual({ confirm: 'KeyQ' });
+    w.down('KeyQ');
+    w.input.update();
+    expect(w.input.pressed('confirm')).toBe(true);
+    // F is Fullscreen's only key: taking it for Dash would strand Fullscreen.
+    expect(w.input.bind('dash', 'KeyF', custom!)).toBeNull();
+    expect(w.input.keysFor('fullscreen')).toContain('KeyF');
+  });
 });

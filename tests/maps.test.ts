@@ -65,3 +65,29 @@ describe('annex lattice', () => {
     expect(latticeEmitters({ relay_a: true, relay_c: true })).toEqual([false, true, false]);
   });
 });
+
+describe('font coverage', () => {
+  it('every character in the game’s text has a glyph (no fallback boxes on screen)', async () => {
+    const { readFileSync, readdirSync, statSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { hasGlyph } = await import('../src/engine/font');
+    const skip = new Set(['font.ts', 'fonttest.ts']);
+    const files: string[] = [];
+    const walk = (d: string) => {
+      for (const f of readdirSync(d)) {
+        const p = join(d, f);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (f.endsWith('.ts') && !skip.has(f)) files.push(p);
+      }
+    };
+    walk('src');
+    const missing = new Map<string, string>();
+    for (const p of files) {
+      const src = readFileSync(p, 'utf8');
+      for (const m of src.matchAll(/'((?:[^'\\\n]|\\.)*)'|`([^`]*)`/g)) {
+        for (const ch of m[1] ?? m[2] ?? '') if (ch.charCodeAt(0) > 126 && !hasGlyph(ch) && !missing.has(ch)) missing.set(ch, p);
+      }
+    }
+    expect([...missing].map(([ch, p]) => `${ch} (${p})`)).toEqual([]);
+  });
+});

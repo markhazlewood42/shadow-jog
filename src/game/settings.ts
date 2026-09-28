@@ -1,4 +1,5 @@
 /** Player preferences, persisted separately from save files. */
+import type { Action } from '../engine/input';
 
 export interface Settings {
   musicVol: number;
@@ -12,6 +13,8 @@ export interface Settings {
   shake: number;
   crt: boolean;
   touch: 'auto' | 'on' | 'off';
+  /** The player's own key for an action (on top of the defaults), by KeyboardEvent.code. */
+  keys: Partial<Record<Action, string>>;
 }
 
 const KEY = 'shadowjog.settings.v1';
@@ -26,6 +29,7 @@ export const DEFAULT_SETTINGS: Settings = {
   shake: 1,
   crt: false,
   touch: 'auto',
+  keys: {},
 };
 
 function load(): Settings {

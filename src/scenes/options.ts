@@ -6,6 +6,8 @@ import { drawText, fitText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { saveSettings, settings } from '../game/settings';
 import { drawBar, drawCursor, drawSelect, drawWindow, UI } from '../ui/draw';
+import { keyLabel, type Action } from '../engine/input';
+import { ControlsScene } from './controls';
 
 type Row = { id: string; label: string; value: () => string; bar?: () => number; adjust?: (d: number) => void; action?: () => void };
 
@@ -58,6 +60,7 @@ export class OptionsScene extends Scene<'back' | 'title'> {
         action: () => toggleFullscreen(),
         adjust: () => toggleFullscreen(),
       },
+      { id: 'controls', label: 'Controls', value: () => 'Keys & pad ▶', action: () => void this.game.run(new ControlsScene()) },
       { id: 'back', label: 'Back', value: () => '', action: () => this.done('back') },
     ];
     if (inGame) this.rows.splice(this.rows.length - 1, 0, { id: 'title', label: 'Quit to title', value: () => '', action: () => (this.confirmQuit = true) });
@@ -119,9 +122,13 @@ export class OptionsScene extends Scene<'back' | 'title'> {
       } else if (r.value()) drawText(ctx, (r.adjust ? '◀ ' : '') + r.value() + (r.adjust ? ' ▶' : ''), x + w - 12, ry, { align: 'right', color: sel ? UI.cyan : UI.dim });
     });
     const cy = y + h - 40;
+    // The legend reads the live bindings, so a rebound key shows here too.
+    const k = (a: Action) => this.game.input.keysFor(a).slice(0, 3).map(keyLabel).join('/');
     drawText(ctx, 'CONTROLS', x + 12, cy, { color: UI.cyan });
-    drawText(ctx, fitText('Move: Arrows/WASD · Confirm: Z/Enter/Space', w - 24), x + 12, cy + 11, { color: UI.dim });
-    drawText(ctx, fitText('Cancel/Menu: X/Esc · Dash: Shift · Fullscreen: F', w - 24), x + 12, cy + 22, { color: UI.dim });
+    const dirs = (['up', 'down', 'left', 'right'] as const).map((a) => this.game.input.keysFor(a).map(keyLabel));
+    const move = [0, 1].map((i) => dirs.map((d) => d[i] ?? '').join('')).filter(Boolean).join(' / ');
+    drawText(ctx, fitText(`Move: ${move} · Confirm: ${k('confirm')}`, w - 24), x + 12, cy + 11, { color: UI.dim });
+    drawText(ctx, fitText(`Cancel: ${k('cancel')} · Menu: ${k('menu')} · Dash: ${k('dash')}`, w - 24), x + 12, cy + 22, { color: UI.dim });
     if (this.confirmQuit) {
       drawWindow(ctx, x + 30, y + h / 2 - 16, w - 60, 32, { accent: UI.red });
       drawText(ctx, 'Quit to title? Unsaved progress is lost.', x + w / 2, y + h / 2 - 10, { align: 'center' });
