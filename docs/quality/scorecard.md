@@ -13,19 +13,26 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 
 | # | Area | Score | Round | Date | Δ | Blocking issues (short) |
 |---|---|---|---|---|---|---|
-| 1 | Engine & code | 7.5 | 3 | 2026-09-28 | +0.3 | Debug API shipped in production; thin unit coverage outside battle/save (input, list, actor); per-frame allocations left in weather and banners |
-| 2 | Field art | 7.4 | 3 | 2026-09-28 | +0.4 | Field sprites have no mouth/brow; bar interior bare; lamp-floor and car painters flat; Rustyard dirt too uniform; lab floor noisy; rain has one depth layer |
-| 3 | Battle presentation | 7.0 | 3 | 2026-09-28 | 0 | Duplicate variants are hue-only; small FX vocabulary; bosses not scaled up; little character acting (no cut-ins); weak enemy tells |
-| 4 | UI / UX | 8.2 | 3 | 2026-09-28 | +2.2 | Minor overflow in save/options labels; menu backdrop clips world signs; parent list not dimmed under battle submenus; shop doesn't say why an item is locked |
-| 5 | Combat design | 7.0 | 3 | 2026-09-28 | 0 | No Rook+Sable combo; resistances and immunities not remembered; Lurker weak to three elements; few support enemies in random fights; Repeat works through boss telegraphs |
-| 6 | Progression & economy | 6.5 | 3 | 2026-09-28 | −0.8 | Mods not validated by the sim; early stretch with nothing worth buying; Warden payout mistimed; Sable's gear moment missing |
-| 7 | Narrative & writing | 8.0 | 3 | 2026-09-28 | +0.2 | Pale's distinctive beat comes late; final panel lacks a crescendo; log cluster too dense; Hex's anxious voice inconsistent; apostrophe styles mixed |
-| 8 | Level design | 7.3 | 3 | 2026-09-28 | 0 | Puzzles are fetch-the-switch, not spatial; no hidden secret; overworld texture thin between POIs |
-| 9 | Audio | 7.2 | 3 | 2026-09-28 | +0.7 | Short boss loops; battle music drops the field's reverb space; hard music cuts; no ducking under dialogue; Rustyard lacks a twangy timbre; no SFX rate limit |
-| 10 | Feel & polish | 7.5 | 3 | 2026-09-28 | +0.1 | HP/TP bars jump instead of tweening; enemy damage numbers not above heads; no fast-forward hint in dialogue; no shake-intensity setting; short lunges |
-| 11 | Stability | 7.3 | 3 | 2026-09-28 | −0.7 | Game loop has no error boundary (one throw freezes the game); saves not checked for unknown ids; title Continue/Load swallows a damaged save; header not validated |
+| 1 | Engine & code | 7.7 | 4 | 2026-09-28 | +0.2 | Timer filter allocs every tick; CI perf gate too loose to prove 60fps; 1780-line BattleScene; global RNG shared across systems; formatter off; exactOptionalPropertyTypes off |
+| 2 | Field art | 7.0 | 4 | 2026-09-28 | −0.4 | World-map road/barrens (and dock) ground reads as flat fog; cloned Annex tanks; Rustyard has no Rustfang faction dressing; Annex sub-rooms lack landmark props |
+| 3 | Battle presentation | 7.3 | 4 | 2026-09-28 | +0.3 | Enemies have no attack/cast body animation or stagger frame; creature packs clone (variants only for humans); thin enemy HP bar on neon backdrops; bare Warden arena |
+| 4 | UI / UX | 8.3 | 4 | 2026-09-28 | +0.1 | Status ability list unclamped; Game Over screen not in evidence; no remap/gamepad glyphs; toast near-miss with menu column |
+| 5 | Combat design | 7.8 | 4 | 2026-09-28 | +0.8 | Non-boss AI is flat weighted-random; trash fights solvable with Auto; Guard is flat; no on-screen reason for Auto/Run lock-out |
+| 6 | Progression & economy | 6.5 | 4 | 2026-09-28 | 0 | 10¢ capsule hotel (and 20¢ bar round) full-heal/revive/cure trivialise the healing economy; Noodles out-value Medkits; pacing unproven vs 45–75 min; ending evidence from a debug jump; Wire/Mags overlap |
+| 7 | Narrative & writing | 7.5 | 4 | 2026-09-28 | −0.5 | Rook's quip undercuts Kit's panic; "he's alive" unearned; Rook's rescue decision thin in the moment; no quiet beat before the title card; homogeneous NPC quip register |
+| 8 | Level design | 7.6 | 4 | 2026-09-28 | +0.3 | Lattice answer handed over on a memo; one secret in the chapter; plaza has no anchor landmark; no point-of-no-return warning or location list |
+| 9 | Audio | 7.0 | 4 | 2026-09-28 | −0.2 | Shared master compressor pumps the score under SFX; lead/pad voices double-panned; no SFX ducking; single melodic voice per song; generic combo cue; instant boss phase-2 swap |
+| 10 | Feel & polish | 7.8 | 4 | 2026-09-28 | +0.3 | Linear field movement; shake moves the HUD; shake defaults to Full; defeat has no weight beat; no dust on dash stops; instant menu cursor |
+| 11 | Stability | 8.0 | 4 | 2026-09-28 | +0.7 | No beforeunload guard; autosave only on map change; E2E covers dev build only; no cross-tab save guard; migrate() doesn't re-version |
 
-## Round 4 work plan (in progress, last round before parking)
+## Round 5 (beyond the rubric's 4-round cap)
+
+Round 4 left every area under 8.5 (range 6.5–8.3). The rubric caps iteration at 4 rounds and then asks for an explicit
+decision: **continue**. The user's bar is 8.5+, the remaining issues are concrete and cheap relative to the budget, and
+several round-4 verifiers found genuinely new defects (healing economy, audio bus design, double panning) rather than
+moving goalposts. Round 5 works each area's highest-leverage asks, then re-verifies.
+
+## Round 4 work plan (done)
 
 Per the rubric, an area still under 8.5 after this round is parked with its reasons.
 
