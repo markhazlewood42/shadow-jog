@@ -18,7 +18,7 @@ class MemStorage {
 }
 (globalThis as unknown as { localStorage: MemStorage }).localStorage = new MemStorage();
 
-const { hasAnySave, latestSlot, loadSave, readMeta, slotStatus, validState, writeSave, applySave } = await import('../src/game/save');
+const { hasAnySave, latestSlot, loadSave, readMeta, slotStatus, unsavedFrames, validState, writeSave, applySave } = await import('../src/game/save');
 const { addMember } = await import('../src/game/party');
 const stateMod = await import('../src/game/state');
 const { newState, setState } = stateMod;
@@ -155,6 +155,25 @@ describe('save / load', () => {
     expect(latestSlot()).toBe(2);
     expect(latestSlot(true)).toBe(1); // Continue and Game Over skip to the newest good save
     expect(hasAnySave()).toBe(true);
+  });
+
+  it('tracks unsaved progress from the last save or load', () => {
+    writeSave(1, 500);
+    expect(unsavedFrames(500)).toBe(0);
+    expect(unsavedFrames(900)).toBe(400);
+    const s = loadSave(1)!;
+    s.playFrames = 1200;
+    applySave(s);
+    expect(unsavedFrames(1200)).toBe(0);
+  });
+
+  it('stamps a migrated save with the current version', () => {
+    const ls = (globalThis as unknown as { localStorage: MemStorage }).localStorage;
+    writeSave(1, 0);
+    const raw = JSON.parse(ls.getItem('shadowjog.save.1')!);
+    raw.state.version = 0;
+    ls.setItem('shadowjog.save.1', JSON.stringify(raw));
+    expect(loadSave(1)!.version).toBe(stateMod.SAVE_VERSION);
   });
 
   it('rejects a header with missing fields', () => {

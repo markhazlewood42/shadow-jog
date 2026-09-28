@@ -27,6 +27,14 @@ interface SaveFile {
 
 const key = (slot: SlotId) => `shadowjog.save.${slot}`;
 
+/** Play time (frames) at the last successful save or load: the baseline for "unsaved progress". */
+let savedAt = 0;
+
+/** Frames of play since the game was last saved or loaded. */
+export function unsavedFrames(playFrames: number): number {
+  return Math.max(0, playFrames - savedAt);
+}
+
 function storage(): Storage | null {
   try {
     return typeof localStorage === 'undefined' ? null : localStorage;
@@ -60,6 +68,7 @@ export function writeSave(slot: SlotId, playFrames: number): boolean {
   };
   try {
     st.setItem(key(slot), JSON.stringify({ meta, state } satisfies SaveFile));
+    savedAt = playFrames;
     return true;
   } catch {
     return false;
@@ -113,6 +122,8 @@ function migrate(s: GameState): GameState {
   s.dir ??= 'down';
   s.steps ??= 0;
   s.flags ??= {};
+  // Now it has every field this version expects: say so, so a later migration starts from here.
+  s.version = SAVE_VERSION;
   return s;
 }
 
@@ -185,6 +196,7 @@ export function sanitize(s: GameState): GameState {
 
 export function applySave(s: GameState): void {
   setState(s);
+  savedAt = s.playFrames;
   if (s.rngState) rng.state = s.rngState;
 }
 

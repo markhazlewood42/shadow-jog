@@ -11,9 +11,9 @@ import { FieldScene } from './scenes/field';
 import { state, type MemberId } from './game/state';
 import { BattleScene } from './scenes/battle';
 import { createMember } from './game/party';
-import { installSystems, loadIntoGame } from './game/systems';
+import { autosave, autosavePolicy, installSystems, loadIntoGame } from './game/systems';
 import { TitleScene } from './scenes/title';
-import { loadSave, writeSave } from './game/save';
+import { loadSave, unsavedFrames, writeSave } from './game/save';
 import { newGame } from './story/newgame';
 import type { Game as GameT } from './engine/game';
 import { settings, shakeScale } from './game/settings';
@@ -83,7 +83,42 @@ export function boot(game: Game, display: Display): void {
   const unlock = () => audio.unlock();
   window.addEventListener('keydown', unlock);
   window.addEventListener('pointerdown', unlock);
-  document.addEventListener('visibilitychange', () => (document.hidden ? audio.suspend() : audio.resume()));
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      audio.resume();
+      return;
+    }
+    audio.suspend();
+    // Tabbing away (or a phone locking) is the moment progress is most at risk: save if it's safe.
+    const f = game.top;
+    if (f instanceof FieldScene && f.busy === 0 && game.countPlayTime && unsavedFrames(game.playFrames) > 60 * 20) autosave(game);
+  });
+  // Closing the tab with unsaved progress asks first. (Not under ?debug: the test harness
+  // navigates mid-session, and a prompt there would stall the run.)
+  if (!params.has('debug')) {
+    window.addEventListener('beforeunload', (e) => {
+      if (!game.countPlayTime || unsavedFrames(game.playFrames) < 60 * 30) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+  }
+  // Two tabs on one save file overwrite each other: warn in both, and only the first keeps autosaving.
+  try {
+    const tabs = new BroadcastChannel('shadowjog');
+    const warn = () => notice('Shadow Jog is open in another tab: saves from either tab can overwrite each other.', 'warn');
+    tabs.onmessage = (e) => {
+      if (e.data === 'hello') {
+        tabs.postMessage('here');
+        warn();
+      } else if (e.data === 'here') {
+        autosavePolicy.enabled = false;
+        warn();
+      }
+    };
+    tabs.postMessage('hello');
+  } catch {
+    /* no BroadcastChannel: nothing to coordinate */
+  }
   // A flow that throws every frame can't be trusted to finish: drop it and go back to the title,
   // where Continue picks up the last good save.
   game.shakeScale = shakeScale;

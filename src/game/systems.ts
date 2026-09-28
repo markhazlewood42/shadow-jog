@@ -23,7 +23,7 @@ import { SaveScene } from '../scenes/saveload';
 import { ShopScene } from '../scenes/shop';
 import { fieldHooks } from './hooks';
 import { addMember, fullRestore, innPrice, memberStats, partyMembers, rest, restoreUses } from './party';
-import { applySave, latestSlot, loadSave, writeSave } from './save';
+import { applySave, latestSlot, loadSave, unsavedFrames, writeSave } from './save';
 import type { BattleResult } from './script';
 import { flags, setState, state, type GameState, type MemberId } from './state';
 
@@ -101,6 +101,8 @@ export function installSystems(game: Game, h: SystemHandlers): void {
 
   // ---------------------------------------------------------------- encounters
   fieldHooks.onStep = (f) => {
+    // Long stretches inside one map (a dungeon floor) still get saved every few minutes.
+    if (unsavedFrames(game.playFrames) > AUTOSAVE_EVERY && game.top === f && f.busy === 0) autosave(game);
     const zones = f.def.encounters;
     if (!zones?.length || flags.has('noEncounters')) return false;
     const l = f.leader;
@@ -220,9 +222,26 @@ export function installSystems(game: Game, h: SystemHandlers): void {
   // Autosave on every map transition into a town or dungeon.
   fieldHooks.onWarp = (f) => {
     if (f.def.kind === 'interior') return;
-    if (writeSave('auto', game.playFrames)) notice('Autosaved', 'saved');
-    else notice('Autosave failed: browser storage is unavailable. Save from the menu to keep progress.', 'warn');
+    autosave(game);
   };
+}
+
+/** Frames of play between timed autosaves (three minutes). */
+const AUTOSAVE_EVERY = 3 * 60 * 60;
+
+/** Autosave policy: a second tab on the same save file stops autosaving (see boot). */
+export const autosavePolicy = { enabled: true, pausedNoticeShown: false };
+
+export function autosave(game: Game): void {
+  if (!autosavePolicy.enabled) {
+    if (!autosavePolicy.pausedNoticeShown) {
+      autosavePolicy.pausedNoticeShown = true;
+      notice('Autosave is paused: Shadow Jog is open in another tab. Save from the menu here.', 'warn');
+    }
+    return;
+  }
+  if (writeSave('auto', game.playFrames)) notice('Autosaved', 'saved');
+  else notice('Autosave failed: browser storage is unavailable. Save from the menu to keep progress.', 'warn');
 }
 
 function treatCost(id: MemberId): number {

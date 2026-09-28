@@ -13,10 +13,9 @@ export default defineConfig({
     channel: process.env.CI ? undefined : 'msedge',
     viewport: { width: 960, height: 540 },
   },
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3007',
-    reuseExistingServer: true,
-    timeout: 60_000,
-  },
+  webServer: [
+    { command: 'npm run dev', url: 'http://localhost:3007', reuseExistingServer: true, timeout: 60_000 },
+    // The shipped bundle, for e2e/prod.spec.ts.
+    { command: 'npm run build && npm run preview', url: 'http://localhost:3008', reuseExistingServer: true, timeout: 180_000 },
+  ],
 });
