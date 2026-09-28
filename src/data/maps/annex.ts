@@ -106,6 +106,8 @@ export const annex: MapDef = {
     { kind: 'steam', x: 24, y: 31, color: '#ff9aa8' },
     { kind: 'steam', x: 33, y: 31, color: '#ff9aa8' },
     { kind: 'barrier', x: 37, y: 31, w: 3, pass: true },
+    // Dmitri's camp behind the loose panel: what the narration describes is really there.
+    { kind: 'bedroll', x: 12, y: 21, pass: true, when: (f) => !!f.annex_panel },
     // Wayfinding: the lab's own wall signs.
     { kind: 'sign_post', x: 9, y: 7, text: 'LABS ↓' },
     { kind: 'sign_post', x: 16, y: 18, text: 'ARMORY ↓' },

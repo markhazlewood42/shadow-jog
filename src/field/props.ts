@@ -308,6 +308,27 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     });
   },
 
+  /** Someone's camp on the floor: a bedroll and blanket, ration wrappers, a badge on its lanyard. */
+  bedroll(b, p) {
+    const x = p.x * TS, y = p.y * TS, g = b.g;
+    g.fillStyle = '#0f0e17'; g.fillRect(x + 1, y + 4, 22, 10);
+    g.fillStyle = '#4a5a3a'; g.fillRect(x + 2, y + 5, 20, 8);
+    g.fillStyle = '#6a7a4a'; g.fillRect(x + 2, y + 5, 20, 1);
+    // The blanket thrown back, and a rolled jacket for a pillow.
+    g.fillStyle = '#8c2f39'; g.fillRect(x + 10, y + 5, 12, 8);
+    g.fillStyle = '#a8404a'; g.fillRect(x + 10, y + 5, 12, 1);
+    g.fillStyle = '#2a2a34'; g.fillRect(x + 2, y + 6, 5, 6);
+    // Ration wrappers.
+    g.fillStyle = '#c8b040'; g.fillRect(x + 25, y + 6, 3, 2);
+    g.fillStyle = '#d8d8d8'; g.fillRect(x + 27, y + 11, 3, 2); g.fillRect(x + 4, y + 15, 2, 1);
+    // The badge: a K-M card on a red lanyard, lit by its chip.
+    g.fillStyle = '#c02040'; g.fillRect(x + 23, y + 13, 1, 3); g.fillRect(x + 24, y + 12, 4, 1);
+    b.both((c) => {
+      c.fillStyle = '#e8e8f0'; c.fillRect(x + 24, y + 14, 4, 3);
+      c.fillStyle = '#3fe0f0'; c.fillRect(x + 25, y + 15, 2, 1);
+    });
+  },
+
   /** Containment field pylon: a squat emitter column, a lit coil and a cap that glows its colour. */
   pylon(b, p) {
     blockFoot(b, p);

@@ -595,17 +595,63 @@ const wHighway: Painter = (lx, ly, wx) => {
   return P.hwy;
 };
 
-const wBlock: Painter = (lx, ly, wx, wy, tx, ty) => {
-  // Dense rooftops: each tile is a roof with parapet, a few lit windows and HVAC dots.
-  const seed = hash2(tx, ty, 171);
-  if (lx === 0 || ly === 0) return P.blockRoofD;
-  if (lx === 15 || ly === 15) return P.blockRoofD;
-  if (lx === 1 || ly === 1) return P.blockRoofL;
-  const hvx = 3 + ((seed * 9) | 0), hvy = 3 + ((seed * 71) % 8 | 0);
-  if (lx >= hvx && lx <= hvx + 2 && ly >= hvy && ly <= hvy + 2) return P.blockRoofL;
+/**
+ * City blocks seen from above: buildings three tiles by two, each a roof with a parapet round its
+ * own edge and one feature of its own (HVAC plant, water tank, skylights, a rooftop garden, a
+ * helipad, a dish), so the Sprawl reads as a city rather than a grid of identical squares.
+ */
+const K_GARDEN = C('#2a4432'), K_GARDEN_L = C('#3a5a3e'), K_PAD = C('#2a2a34'), K_PAINT = C('#c8c0a0'), K_TANK = C('#4a4a58'), K_TANK_L = C('#6a6a7a');
+const wBlock: Painter = (lx, ly, wx, wy, tx, ty, q) => {
+  const bx0 = Math.floor(tx / 3) * 3, by0 = Math.floor(ty / 2) * 2;
+  const bx = wx - bx0 * 16, by = wy - by0 * 16;
+  const seed = hash2(bx0, by0, 171);
+  // Parapet: the building's own edge, or wherever the block meets other ground.
+  const edgeL = bx === 0 || (lx === 0 && q.at(tx - 1, ty) !== 'w_block');
+  const edgeR = bx === 47 || (lx === 15 && q.at(tx + 1, ty) !== 'w_block');
+  const edgeT = by === 0 || (ly === 0 && q.at(tx, ty - 1) !== 'w_block');
+  const edgeB = by === 31 || (ly === 15 && q.at(tx, ty + 1) !== 'w_block');
+  if (edgeL || edgeT) return P.blockRoofL;
+  if (edgeR || edgeB) return P.blockRoofD;
+  const kind = Math.floor(seed * 6);
+  const cx = 24 + Math.round((hash2(bx0, by0, 173) - 0.5) * 16), cy = 16;
+  switch (kind) {
+    case 0: // HVAC plant: two units and a duct between
+      if ((bx >= cx - 12 && bx <= cx - 5 && by >= 9 && by <= 15) || (bx >= cx + 4 && bx <= cx + 10 && by >= 14 && by <= 21)) return (bx + by) % 3 === 0 ? P.blockRoofD : P.blockRoofL;
+      if (by === 12 && bx > cx - 5 && bx < cx + 4) return P.blockRoofD;
+      break;
+    case 1: { // water tank on legs
+      const d = Math.hypot(bx - cx, by - cy);
+      if (d < 6) return d > 4.8 ? K_TANK_L : K_TANK;
+      if (d < 7.2 && by > cy) return P.blockRoofD;
+      break;
+    }
+    case 2: // skylights: a grid of lit panes
+      if (bx >= 8 && bx <= 39 && by >= 8 && by <= 23 && bx % 6 < 4 && by % 5 < 3) return hash2(bx0 + bx, by0 + by, 174) < 0.5 ? P.blockWin : P.blockWinC;
+      break;
+    case 3: // a rooftop garden
+      if (bx >= 6 && bx <= 41 && by >= 6 && by <= 25) return valueNoise(wx / 5, wy / 5, 175) > 0.55 ? K_GARDEN_L : K_GARDEN;
+      break;
+    case 4: { // helipad: a dark square, a painted ring and an H
+      const ax = Math.abs(bx - cx), ay = Math.abs(by - cy);
+      if (ax <= 10 && ay <= 10) {
+        const r = Math.hypot(bx - cx, by - cy);
+        if (r > 8 && r < 9.2) return K_PAINT;
+        if ((ax === 3 && ay <= 4) || (ay === 0 && ax <= 3)) return K_PAINT;
+        return K_PAD;
+      }
+      break;
+    }
+    default: { // a dish and a mast
+      const d = Math.hypot(bx - cx, by - cy);
+      if (d < 4.5) return d > 3.4 ? P.blockRoofL : P.blockRoofD;
+      if (bx === cx + 9 && by >= 6 && by <= 20) return P.blockRoofD;
+      if (bx === cx + 9 && by === 5) return P.blockWinP;
+    }
+  }
+  // A few lit windows along the roof edge and the odd vent, otherwise plain roof.
   const wl = hash2(wx, wy, 172);
-  if (wl < 0.012) return seed < 0.5 ? P.blockWin : seed < 0.8 ? P.blockWinC : P.blockWinP;
-  return P.blockRoof;
+  if (wl < 0.008) return seed < 0.5 ? P.blockWin : seed < 0.8 ? P.blockWinC : P.blockWinP;
+  return (bx + by * 3) % 23 === 0 ? P.blockRoofD : P.blockRoof;
 };
 
 export const PAINTERS: Record<TerrainId, Painter> = {

@@ -55,7 +55,7 @@ export type PropKind =
   | 'holo' | 'poster' | 'counter' | 'shelf' | 'bed' | 'table' | 'stool' | 'couch' | 'plant' | 'screen'
   | 'capsule' | 'bar' | 'rack' | 'desk' | 'pod' | 'server' | 'tank' | 'fence' | 'sandbags' | 'tent' | 'pylon'
   | 'catwalk_rail' | 'train' | 'valve' | 'cryopod' | 'door_lab' | 'jukebox' | 'arcade' | 'sign_post' | 'bollard'
-  | 'window' | 'lampfloor' | 'sign_board' | 'tires' | 'body' | 'ladder' | 'tag' | 'banner' | 'crest' | 'memorial';
+  | 'window' | 'lampfloor' | 'sign_board' | 'tires' | 'body' | 'ladder' | 'tag' | 'banner' | 'crest' | 'memorial' | 'bedroll';
 
 export interface PropDef {
   kind: PropKind;
