@@ -3,6 +3,10 @@
  * Strategy: nearest-neighbour upscale to the next integer multiple, then let the browser
  * smoothly downsample to the exact fit size. Every source pixel stays the same size
  * (no uneven columns you'd get from fractional nearest-neighbour).
+ *
+ * Fill mode snaps to a whole multiple whenever one fills at least 90% of the window, so the
+ * common sizes (1080p, 1440p, 4K and most maximised browser windows) are pixel-exact by
+ * default; only an awkward window size gets the (slight) resampling. Pixel-perfect always snaps.
  */
 import { H, W } from './game';
 
@@ -33,8 +37,9 @@ export class Display {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const fit = Math.min(vw / W, vh / H);
+    const whole = Math.floor(fit * dpr) / dpr;
     let cssScale = fit;
-    if (this.mode === 'integer' && fit >= 1) cssScale = Math.floor(fit * dpr) / dpr;
+    if (fit >= 1 && (this.mode === 'integer' || whole >= fit * 0.9)) cssScale = whole;
     const cssW = Math.floor(W * cssScale);
     const cssH = Math.floor(H * cssScale);
     this.k = Math.max(1, Math.ceil(cssScale * dpr));

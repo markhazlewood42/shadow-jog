@@ -60,7 +60,7 @@ export class OptionsScene extends Scene<'back' | 'title'> {
         },
       },
       {
-        id: 'scale', label: 'Scaling', value: () => (settings.scale === 'fit' ? 'Smooth fit' : 'Pixel-perfect'),
+        id: 'scale', label: 'Scaling', value: () => (settings.scale === 'fit' ? 'Fill window' : 'Pixel-perfect'),
         adjust: () => {
           settings.scale = settings.scale === 'fit' ? 'integer' : 'fit';
           window.dispatchEvent(new Event('sj-scale'));

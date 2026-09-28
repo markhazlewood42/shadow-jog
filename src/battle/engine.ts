@@ -134,9 +134,23 @@ export class Battle {
   get enemies(): readonly Combatant[] {
     return this.enemyList;
   }
-  alive(side: 'party' | 'enemy'): Combatant[] {
-    return this.units.filter((u) => u.side === side && u.hp > 0);
+  /**
+   * The living on one side. Cached: a read walks the roster to fingerprint who's standing (no
+   * allocation) and rebuilds the list only when that changed, since HP is written from many
+   * places (the engine, the scene's debug paths, the simulator). Read-only: copy before sorting.
+   */
+  alive(side: 'party' | 'enemy'): readonly Combatant[] {
+    let sig = 0;
+    for (const u of this.units) if (u.side === side && u.hp > 0) sig = (sig * 31 + u.uid + 1) | 0;
+    const c = side === 'party' ? this.aliveParty : this.aliveEnemy;
+    if (c.sig === sig && c.n === this.units.length) return c.list;
+    const list = this.units.filter((u) => u.side === side && u.hp > 0);
+    if (side === 'party') this.aliveParty = { sig, n: this.units.length, list };
+    else this.aliveEnemy = { sig, n: this.units.length, list };
+    return list;
   }
+  private aliveParty: { sig: number; n: number; list: Combatant[] } = { sig: -1, n: -1, list: [] };
+  private aliveEnemy: { sig: number; n: number; list: Combatant[] } = { sig: -1, n: -1, list: [] };
   unit(uid: number): Combatant | undefined {
     return this.units.find((u) => u.uid === uid);
   }
@@ -550,14 +564,14 @@ export class Battle {
       case 'self':
         return [user];
       case 'allies':
-        return friends;
+        return [...friends];
       case 'enemies':
       case 'random_enemies': {
         // Cover only redirects single-target attacks. Say so when a blast hits a covered side,
         // so leaning on Guardian against an area attack isn't a silent non-answer.
         const cover = foes.find((p) => this.has(p, 'cover'));
         if (cover && ab.effects.some((e) => e.type === 'damage')) this.ev.push({ t: 'msg', text: `${cover.name} can’t cover a blast!` });
-        return foes;
+        return [...foes];
       }
       case 'ally_down': {
         const t = this.unit(target);

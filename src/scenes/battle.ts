@@ -77,6 +77,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private fx = new FxLayer();
   private mode: Mode = 'intro';
   private disp = new Map<number, Disp>();
+  /** The same display states as a list, for the per-tick sweep (a Map iterator allocates). */
+  private dispList: Disp[] = [];
   private floaters: Floater[] = [];
   private frame = 0;
   private setup: BattleSetup;
@@ -143,7 +145,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   private initDisp(u: Combatant): void {
-    this.disp.set(u.uid, { hp: u.hp, tp: u.tp, shownHp: u.hp, shownTp: u.tp, lagHp: u.hp, lagHold: 0, flash: 0, shake: 0, hop: 0, alpha: u.side === 'enemy' ? 0 : 1, dying: 0, lunge: 0, hidden: false, pose: 'idle', poseT: 0, afterimage: 0 });
+    const dd: Disp = { hp: u.hp, tp: u.tp, shownHp: u.hp, shownTp: u.tp, lagHp: u.hp, lagHold: 0, flash: 0, shake: 0, hop: 0, alpha: u.side === 'enemy' ? 0 : 1, dying: 0, lunge: 0, hidden: false, pose: 'idle', poseT: 0, afterimage: 0 };
+    const old = this.disp.get(u.uid);
+    if (old) this.dispList[this.dispList.indexOf(old)] = dd;
+    else this.dispList.push(dd);
+    this.disp.set(u.uid, dd);
   }
 
   private d(uid: number): Disp {
@@ -325,7 +331,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   private enemiesByX(): Combatant[] {
-    return this.battle.alive('enemy').sort((x, y) => this.enemyPos(x).x - this.enemyPos(y).x);
+    return [...this.battle.alive('enemy')].sort((x, y) => this.enemyPos(x).x - this.enemyPos(y).x);
   }
 
   private autoCommands(): Command[] {
@@ -364,7 +370,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       this.game.shake(6 + s, s >= 10 ? 5 : s >= 6 ? 4 : s >= 4 ? 3 : 2);
     }
     this.fx.shake = 0;
-    for (const dd of this.disp.values()) {
+    for (let i = 0; i < this.dispList.length; i++) {
+      const dd = this.dispList[i]!;
       if (dd.flash > 0) dd.flash--;
       if (dd.shake > 0) dd.shake--;
       if (dd.hop > 0) dd.hop = Math.max(0, dd.hop - 0.6);
@@ -850,7 +857,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const order = this.drawOrder;
     order.length = 0;
     for (const e of this.battle.enemies) if (this.d(e.uid).alpha > 0.01) order.push(e);
-    order.sort((a, b) => this.feetY(a) - this.feetY(b));
+    order.sort(this.byFeet);
     for (const e of order) this.drawEnemy(g, e, f);
     // Party (back view)
     for (const p of this.battle.party) this.drawPartyMember(g, p, f);
@@ -914,6 +921,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   /** 0 for the first enemy of its kind in this fight, 1 for the second, ... */
+  /** Draw order for enemies: back to front by where their feet are (one comparator, made once). */
+  private readonly byFeet = (a: Combatant, b: Combatant): number => this.feetY(a) - this.feetY(b);
+
   private dupIndex(e: Combatant): number {
     let n = 0;
     for (const o of this.battle.enemies) {

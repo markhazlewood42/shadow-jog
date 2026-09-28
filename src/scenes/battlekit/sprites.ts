@@ -236,8 +236,10 @@ export function silhouetteCache(src: HTMLCanvasElement, color: string): HTMLCanv
 }
 
 /** Large banner text: the bitmap font drawn at 2× via an offscreen buffer. */
-export const bigBuf = surface(W, 12);
+let bigBuf: ReturnType<typeof surface> | null = null;
 export function drawBig(ctx: Ctx, text: string, cx: number, y: number, color: string): void {
+  // Made on first use: a module-level canvas would need a DOM just to import this file.
+  bigBuf ??= surface(W, 12);
   bigBuf.ctx.clearRect(0, 0, W, 12);
   const w = drawText(bigBuf.ctx, text, 1, 1, { color, shadow: '#1a1020' });
   ctx.drawImage(bigBuf.canvas, 0, 0, w + 3, 12, Math.round(cx - w), y, (w + 3) * 2, 24);

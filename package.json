@@ -14,7 +14,8 @@
     "e2e": "playwright test",
     "shots": "playwright test e2e/shots.spec.ts",
     "check": "biome lint && tsc --noEmit && vitest run",
-    "lint": "biome lint"
+    "lint": "biome lint",
+    "budget": "vite build && node scripts/bundle-budget.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",

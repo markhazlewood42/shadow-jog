@@ -88,3 +88,28 @@ describe('comic panels', () => {
     }
   });
 });
+
+describe('place map', () => {
+  it('exit labels stay on screen and never overlap, on every map, with the story at its start and its end', async () => {
+    const { exitLabels } = await import('../src/scenes/placemap');
+    const { getMap, mapIds } = await import('../src/data/maps');
+    const { W, H } = await import('../src/engine/game');
+    const bad: string[] = [];
+    // Warps can appear with story flags: check with none set and with everything a warp asks for.
+    const everything = new Proxy({}, { get: () => true, has: () => true }) as Record<string, unknown>;
+    for (const id of mapIds()) {
+      for (const flags of [{}, everything]) {
+        const labels = exitLabels(getMap(id), flags);
+        for (const [i, a] of labels.entries()) {
+          const b = a.box;
+          if (b.x < 8 || b.x + b.w > W - 8 || b.y < 18 || b.y + b.h > H - 20) bad.push(`${id}: "${a.text}" off screen`);
+          for (const o of labels.slice(i + 1)) {
+            const c = o.box;
+            if (b.x < c.x + c.w && c.x < b.x + b.w && b.y < c.y + c.h && c.y < b.y + b.h) bad.push(`${id}: "${a.text}" overlaps "${o.text}"`);
+          }
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+});
