@@ -1,11 +1,11 @@
 /** Lantern Row — the hub district. Night, rain, neon. */
 import type { MapDef, NpcDef } from '../../field/types';
 import { firstFight } from '../../story/chapter1';
-import { LOOKS, randomLook } from '../looks';
+import { LOOKS, randomLook, streetLook } from '../looks';
 import { Grid } from './grid';
 
 const ped = (id: string, x: number, y: number, seed: number, lines: string[], move: NpcDef['move'] = 'wander', dir: NpcDef['dir'] = 'down'): NpcDef => ({
-  id, x, y, dir, look: randomLook(seed), name: 'Local', move, radius: 3, talk: lines,
+  id, x, y, dir, look: streetLook(seed), name: 'Local', move, radius: 3, talk: lines,
 });
 
 const W = 56, H = 40;

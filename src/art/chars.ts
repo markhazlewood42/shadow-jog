@@ -44,6 +44,9 @@ export interface CharLook {
   brows?: boolean | 'thick';
   /** Front-view eyes: two pixels tall (default) or narrow (one, half-lidded). */
   eyeShape?: 'round' | 'narrow';
+  /** Carrying an umbrella: its canopy colour. With `umbrellaClear`, a clear canopy and a neon rim. */
+  umbrella?: string;
+  umbrellaClear?: boolean;
 }
 
 export interface CharSprite {
@@ -701,7 +704,7 @@ function palette(look: CharLook, nearArm: 'left' | 'right' | null): Pal {
   return {
     s: look.skin, S: sd(look.skin, -0.28),
     e: look.eyes ?? '#1a1426',
-    m: sd(look.skin, -0.42),
+    m: sd(look.skin, -0.55),
     t: look.top, T: sd(look.top),
     i: inner, I: sd(inner),
     a: look.accent, A: sd(look.accent),
@@ -850,6 +853,42 @@ export function backGrid(look: CharLook): { rows: string[]; pal: Pal } {
 
 const cache = new Map<string, CharSprite>();
 
+/** Rows added above a frame for an umbrella's canopy (the sprite stays anchored at the feet). */
+const CANOPY = 6;
+
+/** A frame with an umbrella over it: a scalloped canopy wider than the head, a shaft to the hand. */
+function withUmbrella(fr: HTMLCanvasElement, look: CharLook): HTMLCanvasElement {
+  const s = surface(fr.width, fr.height + CANOPY);
+  const c = s.ctx;
+  const col = look.umbrella!;
+  const clear = !!look.umbrellaClear;
+  const rows: [number, number][] = [[5, 10], [3, 12], [1, 14], [0, 15]];
+  // Shaft behind the figure first, down to hand height.
+  c.fillStyle = '#2a2830';
+  c.fillRect(12, 3, 1, CANOPY + 13);
+  c.drawImage(fr, 0, CANOPY);
+  rows.forEach(([a, b], y) => {
+    c.fillStyle = clear ? 'rgba(200,230,255,0.35)' : col;
+    c.fillRect(a, y, b - a + 1, 1);
+    // Outline ends and the top highlight.
+    c.fillStyle = clear ? col : '#0c0b12';
+    c.fillRect(a, y, 1, 1);
+    c.fillRect(b, y, 1, 1);
+  });
+  c.fillStyle = clear ? col : '#0c0b12';
+  c.fillRect(5, 0, 6, 1);
+  if (!clear) {
+    c.fillStyle = 'rgba(255,255,255,0.35)';
+    c.fillRect(6, 1, 4, 1);
+  }
+  // Scalloped rim: points at the rib ends.
+  c.fillStyle = clear ? col : '#0c0b12';
+  for (let x = 0; x <= 15; x += 3) c.fillRect(x, 4, 1, 1);
+  c.fillStyle = '#6a6070';
+  c.fillRect(7, 0, 2, 1);
+  return s.canvas;
+}
+
 export function buildChar(look: CharLook): CharSprite {
   const key = JSON.stringify(look);
   const hit = cache.get(key);
@@ -869,6 +908,7 @@ export function buildChar(look: CharLook): CharSprite {
     const flipped = side.map((r) => r.split('').reverse().join(''));
     frames.right.push(paint(flipped, palette(look, 'right')));
   }
+  if (look.umbrella) for (const d of Object.keys(frames) as Dir[]) frames[d] = frames[d].map((fr) => withUmbrella(fr, look));
   const w = frames.down[0]!.width;
   const h = frames.down[0]!.height;
   const sprite: CharSprite = { frames, w, h, ax: Math.floor(w / 2), ay: h - 2 };

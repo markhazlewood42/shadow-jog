@@ -71,6 +71,19 @@ const ACCENTS = ['#ffcc3d', '#3fe0f0', '#ff4fb0', '#62e06a', '#ffa24a', '#b07cff
 const STYLES = ['short', 'ponytail', 'bun', 'long', 'mohawk', 'slick', 'cap', 'hood', 'spiky', 'bald', 'bob'] as const;
 
 /** Deterministic random pedestrian look from a seed. */
+/** A street look for rainy exteriors: about a third of passers-by carry an umbrella. */
+export function streetLook(seed: number): CharLook {
+  const look = randomLook(seed);
+  const r = new Rng(seed * 104729 + 3);
+  if (r.chance(0.34)) {
+    if (r.chance(0.35)) {
+      look.umbrella = r.pick(['#ff4fb0', '#3fe0f0', '#b07cff', '#ffcc3d']);
+      look.umbrellaClear = true;
+    } else look.umbrella = r.pick(['#1a1822', '#8c2f39', '#2a4a6a', '#3a3a44', '#6a3fa0']);
+  }
+  return look;
+}
+
 export function randomLook(seed: number): CharLook {
   const r = new Rng(seed * 7919 + 17);
   const body = r.chance(0.12) ? 'short' : r.chance(0.1) ? 'big' : 'std';

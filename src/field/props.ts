@@ -689,20 +689,28 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
         k.globalAlpha = 1;
       });
       // Four kinds of specimen, by position, so a row of tanks isn't a row of clones.
-      const dark = shade(col, -0.75);
+      const dark = shade(col, -0.8), rim = shade(col, 0.45);
+      // Silhouettes as pixel rows over the tank's 10x23 interior (x 3..12, y 4..26): '#' body,
+      // '+' its lit edge, 'o' an eye or a glint.
+      const SHAPES: string[][] = [
+        // a figure, curled: head bowed, knees drawn up, an arm round them
+        ['..........', '..........', '...++.....', '..+##+....', '..####....', '..+##.....', '..####+...', '.+#####...', '.######...', '.#######..', '..######..', '..#####+..', '...#####..', '...####...', '..+####...', '..##.##...', '..##.##...', '...#..#...'],
+        // something on four legs, hunched, jaw open
+        ['..........', '..........', '..........', '..........', '..........', '.......++.', '......+##o', '..++++####', '.+######..', '.#######+.', '.########.', '.##.##.##.', '.#..#..#..', '.#..#..#..', '.#..#..#..'],
+        // a brain in a web of wires, hanging from the lid
+        ['...#..#...', '...#..#...', '...#..#...', '..++++++..', '.+##o###+.', '.#.##.###.', '.###.##.#.', '.+######+.', '..######..', '....##....', '....#.....', '....#.....'],
+      ];
       const specimen = (k: Ctx) => {
-        k.fillStyle = dark;
-        switch (v) {
-          case 0: // a figure, curled
-            k.fillRect(6, 9, 4, 4); k.fillRect(5, 13, 6, 8); k.fillRect(6, 21, 2, 4); k.fillRect(8, 21, 2, 4);
-            break;
-          case 1: // something on four legs, hunched
-            k.fillRect(4, 15, 8, 5); k.fillRect(10, 12, 3, 4); k.fillRect(4, 20, 1, 4); k.fillRect(7, 20, 1, 4); k.fillRect(10, 20, 1, 4);
-            break;
-          case 2: // an organ trailing wires
-            k.fillRect(6, 11, 5, 5); k.fillRect(7, 16, 1, 7); k.fillRect(9, 16, 1, 5);
-            break;
-        }
+        const rows = SHAPES[v];
+        if (!rows) return;
+        rows.forEach((row, yy) => {
+          for (let xx = 0; xx < row.length; xx++) {
+            const ch = row[xx];
+            if (ch === '.') continue;
+            k.fillStyle = ch === '+' ? rim : ch === 'o' ? '#ffffff' : dark;
+            k.fillRect(3 + xx, 5 + yy, 1, 1);
+          }
+        });
       };
       specimen(c);
       specimen(e);
