@@ -20,6 +20,9 @@ const g = new Grid(W, H, 'X')
   // The flooded junction chamber with a catwalk along its north wall
   .rect(30, 5, 16, 1, '=')
   .rect(30, 6, 16, 25, '~')
+  // The chamber's own shape: a landing under the stairs, a broken service ledge on the east wall.
+  .rect(30, 6, 2, 4, '.')
+  .rect(44, 16, 2, 5, '.')
   // Signal Island 4: a catwalk ring around a sump, the Lurker's lair. Cut off until the drain.
   .rect(33, 12, 9, 9, '=')
   .rect(35, 14, 5, 5, '~')
@@ -51,6 +54,8 @@ export const sinkline1: MapDef = {
       when: (f) => !!f.floodgate,
       rects: [
         [30, 6, 16, 25, 'w'],
+        [30, 6, 2, 4, '.'],
+        [44, 16, 2, 5, '.'],
         [33, 12, 9, 9, '='],
         [35, 14, 5, 5, '~'],
         [31, 24, 3, 3, '~'],
@@ -93,7 +98,13 @@ export const sinkline1: MapDef = {
     { kind: 'sign_post', x: 37, y: 12, text: 'DANGER · SUMP' },
     { kind: 'wreck', x: 43, y: 23, w: 2 },
     // Flood debris: what the water brought down with it in '61.
-    { kind: 'wreck', x: 31, y: 27, w: 2 },
+    // The junction's bones: support columns standing in the flood round Signal Island, and a
+    // train car that went into the sump in '61 and never came out.
+    { kind: 'pillar', x: 31, y: 11 },
+    { kind: 'pillar', x: 43, y: 11 },
+    { kind: 'pillar', x: 31, y: 21 },
+    { kind: 'pillar', x: 43, y: 21 },
+    { kind: 'train', x: 33, y: 27, w: 5 },
     { kind: 'barrel', x: 31, y: 9, color: '#3a5a4a', pass: true },
     { kind: 'barrel', x: 44, y: 14, color: '#5a3a2a', pass: true },
     { kind: 'barrel', x: 36, y: 24, color: '#3a5a4a', pass: true },
