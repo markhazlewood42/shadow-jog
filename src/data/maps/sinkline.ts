@@ -79,13 +79,26 @@ export const sinkline1: MapDef = {
   chests: [
     { id: 'c1', x: 17, y: 2, item: 'medkit', qty: 2, kind: 'locker' },
     { id: 'c2', x: 27, y: 12, cred: 160, kind: 'crate' },
-    { id: 'c3', x: 45, y: 5, item: 'taser_pistol', kind: 'case' },
+    { id: 'c3', x: 45, y: 5, item: 'neural_buffer', kind: 'case' },
     { id: 'c4', x: 16, y: 27, item: 'neurotab', qty: 2, kind: 'locker' },
     { id: 'c5', x: 22, y: 19, item: 'reflex_booster', kind: 'case' },
     { id: 'c6', x: 45, y: 20, item: 'adrenal_stim', qty: 1, kind: 'locker' },
     { id: 'c7', x: 3, y: 12, item: 'omni_patch', qty: 1, kind: 'crate' },
+    { id: 'c8', x: 22, y: 23, cred: 220, kind: 'locker' },
   ],
   npcs: [
+    {
+      id: 'wire', x: 16, y: 4, dir: 'down', name: 'Wire', fixedDir: false,
+      look: { skin: '#c28a64', hair: '#b07cff', hairStyle: 'spiky', top: '#2a2a36', coat: '#2a2a36', inner: '#ff4fb0', accent: '#ff4fb0', pants: '#1e1c26', boots: '#1a1418', accessories: ['visor'], visor: '#ff4fb0' },
+      talk: async (s) => {
+        if (!s.flag('met_wire')) {
+          s.set('met_wire');
+          await s.say('Wire', 'Whoa, whoa. Runners? Down here? ...Relax, I’m not K-M. I’m Wire. I live here. Rent’s free if you don’t mind ghosts.');
+          await s.say('Wire', 'I fence what the tunnels cough up. You need gear, I got gear. Mags-grade, no backtracking.');
+        }
+        await s.shop('fence');
+      },
+    },
     { id: 'noodle', x: 20, y: 22, dir: 'left', look: { skin: '#fff', hair: '#fff', hairStyle: 'bald', top: '#fff', accent: '#fff', pants: '#fff', boots: '#fff' }, critter: 'cat', name: 'Noodle', move: 'wander', radius: 1,
       when: (f) => !f.cat_found,
       talk: async (s) => {

@@ -2,7 +2,7 @@
   "name": "shadow-jog",
   "private": true,
   "version": "0.1.0",
-  "description": "SHADOW JOG \u2014 a cyberpunk-fantasy JRPG for the browser",
+  "description": "SHADOW JOG — a cyberpunk-fantasy JRPG for the browser",
   "type": "module",
   "scripts": {
     "dev": "vite --port 3007",
@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",
     "vitest": "^5.0.2"

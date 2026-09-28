@@ -73,7 +73,7 @@ export class DialogScene extends Scene<number> {
       return;
     }
     const inp = this.game.input;
-    const fast = inp.down('cancel') && !this.o.choices;
+    const fast = (inp.down('cancel') || debug.playtest) && !this.o.choices;
     if (this.typing) {
       if (this.waitFrames > 0) {
         this.waitFrames--;
@@ -96,9 +96,9 @@ export class DialogScene extends Scene<number> {
       if (inp.pressed('confirm')) this.shown = this.pageLen();
       return;
     }
-    if (this.o.auto) {
+    if (this.o.auto || debug.playtest) {
       this.autoT++;
-      if (this.autoT >= this.o.auto) this.advance();
+      if (this.autoT >= (this.o.auto || 50)) this.advance();
       return;
     }
     if (this.lastPage && this.o.choices) {

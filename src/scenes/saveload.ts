@@ -1,7 +1,7 @@
 /** Save / load slot picker. Save writes immediately (with overwrite confirm); load returns the slot. */
 import { buildChar } from '../art/chars';
 import { sfx } from '../audio/sfx';
-import { debug } from '../game/debug';
+import { autoClose } from '../game/debug';
 import { LOOKS } from '../data/looks';
 import type { Ctx } from '../engine/canvas';
 import { drawText } from '../engine/font';
@@ -35,7 +35,7 @@ export class SaveScene extends Scene<SlotId | null> {
 
   update(): void {
     this.t++;
-    if (debug.autoDialog) return this.close(null);
+    if (autoClose(this.t, 40)) return this.close(null);
     const inp = this.game.input;
     const slot = this.slots[this.idx]!;
     if (this.confirm) {

@@ -19,7 +19,7 @@ import { Scene, W, H } from '../engine/game';
 import { Rng, rng as globalRng } from '../engine/rng';
 import { equipRegen, grantXp, knownAbilities, type LevelUp } from '../game/party';
 import { settings } from '../game/settings';
-import { debug } from '../game/debug';
+import { debug, PLAYTEST_ROUNDS } from '../game/debug';
 import { removeItem, state, type MemberId } from '../game/state';
 import { drawBar, drawWindow, hpColor, UI } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
@@ -101,6 +101,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private introT = 0;
   private endPanel: ((ctx: Ctx) => void) | null = null;
   private waitingConfirm: (() => void) | null = null;
+  private playtestT = 0;
   private partyArt = new Map<number, HTMLCanvasElement[]>();
   private dead = new Set<number>();
 
@@ -157,12 +158,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       return;
     }
     if (debug.autoBattle) {
-      for (const e of this.battle.enemies) {
-        e.hp = 0;
-        this.battle.defeated.push(e.key);
-      }
-      this.battle.outcome = 'win';
-      await this.victory();
+      await this.forceWin();
       return;
     }
     sfx('encounter');
@@ -401,6 +397,21 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       if (this.message.t > 90) this.message = null;
     }
     const inp = this.game.input;
+    if (debug.playtest && (this.waitingConfirm || this.mode === 'round')) {
+      // Playtest capture: linger on the menu / result panel, then pick Auto / continue.
+      if (++this.playtestT > (this.waitingConfirm ? 110 : 40)) {
+        this.playtestT = 0;
+        if (this.waitingConfirm) {
+          const cb = this.waitingConfirm;
+          this.waitingConfirm = null;
+          cb();
+        } else {
+          this.cmds = this.autoCommands();
+          void this.executeRound();
+        }
+        return;
+      }
+    }
     if (this.waitingConfirm && inp.pressed('confirm')) {
       const cb = this.waitingConfirm;
       this.waitingConfirm = null;
@@ -478,6 +489,15 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const dd = this.d(u.uid);
       dd.tp = u.tp;
       if (u.hp > 0) dd.hp = u.hp;
+    }
+    if (debug.playtest && this.battle.outcome !== 'win') {
+      // Playtest capture: a few real rounds for the camera, then a guaranteed win so the run keeps moving.
+      const low = this.battle.party.some((p) => p.hp < p.base.maxHp * 0.35);
+      if (this.battle.outcome === 'lose' || low || this.battle.round >= PLAYTEST_ROUNDS) {
+        for (const p of this.battle.party) p.hp = Math.max(p.hp, 1);
+        await this.forceWin();
+        return;
+      }
     }
     const o = this.battle.outcome;
     if (o === 'win') await this.victory();
@@ -690,6 +710,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   // ------------------------------------------------------------------ outcomes
+  /** Debug: every enemy down, rewards granted as normal. */
+  private async forceWin(): Promise<void> {
+    for (const e of this.battle.alive('enemy')) {
+      e.hp = 0;
+      this.battle.defeated.push(e.key);
+    }
+    this.battle.outcome = 'win';
+    await this.victory();
+  }
+
   private async victory(): Promise<void> {
     this.mode = 'end';
     music(this.setup.boss ? 'victory_boss' : 'victory', 0);

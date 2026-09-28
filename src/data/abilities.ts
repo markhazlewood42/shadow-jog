@@ -221,12 +221,12 @@ export const ABILITIES: Record<string, Ability> = {
   e_lockon: A({ id: 'e_lockon', name: 'Target Acquired', kind: 'enemy', target: 'enemy', desc: '', effects: [{ type: 'status', status: 'lockon', chance: 1, turns: 2 }], fx: 'scan' }),
   e_missile: A({ id: 'e_missile', name: 'Micro-Missile', kind: 'enemy', target: 'enemy', element: 'fire', desc: '', effects: [{ type: 'damage', stat: 'atk', mult: 2.1 }], fx: 'explosion' }),
   e_anguish: A({ id: 'e_anguish', name: 'Anguish', kind: 'enemy', target: 'enemies', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 18 }], fx: 'wail' }),
-  e_pulse_cannon: A({ id: 'e_pulse_cannon', name: 'Pulse Cannon', kind: 'enemy', target: 'enemy', element: 'shock', desc: '', cry: 'CHARGING…', effects: [{ type: 'damage', stat: 'mnd', power: 48 }], fx: 'beam' }),
+  e_pulse_cannon: A({ id: 'e_pulse_cannon', name: 'Pulse Cannon', kind: 'enemy', target: 'enemy', element: 'shock', desc: '', cry: 'CHARGING…', effects: [{ type: 'damage', stat: 'mnd', power: 34 }], fx: 'beam' }),
   e_suppression: A({ id: 'e_suppression', name: 'Suppression Grid', kind: 'enemy', target: 'enemies', desc: '', effects: [{ type: 'damage', stat: 'atk', mult: 0.8 }, { type: 'status', status: 'agi_down', chance: 0.4, turns: 3 }], fx: 'gunfire' }),
-  e_deploy: A({ id: 'e_deploy', name: 'Deploy Drones', kind: 'enemy', target: 'none', desc: '', cry: 'DEPLOYING SUPPORT UNITS', effects: [{ type: 'summon', enemies: ['hunter_drone', 'hunter_drone'], max: 3 }], fx: 'summon' }),
-  e_soul_scream: A({ id: 'e_soul_scream', name: 'Soul Scream', kind: 'enemy', target: 'enemies', element: 'mana', desc: '', cry: 'LET ME GO!', effects: [{ type: 'damage', stat: 'mnd', power: 30 }, { type: 'status', status: 'blind', chance: 0.3, turns: 2 }], fx: 'wail' }),
-  e_grasp: A({ id: 'e_grasp', name: 'Grasp of the Bound', kind: 'enemy', target: 'enemy', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 34 }, { type: 'status', status: 'stun', chance: 0.35, turns: 1 }], fx: 'dark' }),
-  e_siphon: A({ id: 'e_siphon', name: 'Siphon', kind: 'enemy', target: 'enemy', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 26, drain: 1 }], fx: 'dark' }),
+  e_deploy: A({ id: 'e_deploy', name: 'Deploy Drones', kind: 'enemy', target: 'none', desc: '', cry: 'DEPLOYING SUPPORT UNITS', effects: [{ type: 'summon', enemies: ['hunter_drone'], max: 2 }], fx: 'summon' }),
+  e_soul_scream: A({ id: 'e_soul_scream', name: 'Soul Scream', kind: 'enemy', target: 'enemies', element: 'mana', desc: '', cry: 'LET ME GO!', effects: [{ type: 'damage', stat: 'mnd', power: 18 }, { type: 'status', status: 'blind', chance: 0.3, turns: 2 }], fx: 'wail' }),
+  e_grasp: A({ id: 'e_grasp', name: 'Grasp of the Bound', kind: 'enemy', target: 'enemy', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 24 }, { type: 'status', status: 'stun', chance: 0.35, turns: 1 }], fx: 'dark' }),
+  e_siphon: A({ id: 'e_siphon', name: 'Siphon', kind: 'enemy', target: 'enemy', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 18, drain: 1 }], fx: 'dark' }),
   e_spark_swarm: A({ id: 'e_spark_swarm', name: 'Spark Swarm', kind: 'enemy', target: 'enemies', element: 'shock', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 12 }], fx: 'lightning' }),
 };
 
@@ -240,7 +240,7 @@ export const LEARNSETS: Record<string, Learn[]> = {
   kit: [
     { level: 1, id: 'flash_step' },
     { level: 1, id: 'second_wind' },
-    { level: 3, id: 'iron_palm' },
+    { level: 2, id: 'iron_palm' },
     { level: 5, id: 'focus_breath' },
     { level: 7, id: 'killing_intent' },
     { level: 8, id: 'hundred_rain' },

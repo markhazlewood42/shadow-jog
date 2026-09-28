@@ -111,7 +111,15 @@ export function chooseEnemyAction(b: Battle, self: Combatant): EnemyChoice | nul
     }
     case 'warden_spirit': {
       if (mem.turn === 1) return { ability: ABILITIES.e_soul_scream!, target: -1, message: 'The spirit tears free of the Warden\'s shell!' };
-      if (mem.turn % 4 === 0) return { ability: ABILITIES.e_soul_scream!, target: -1 };
+      // After that, only on a rhythm and always telegraphed a turn ahead: a window to Guard or Ward.
+      if (mem.breath) {
+        mem.breath = 0;
+        return { ability: ABILITIES.e_soul_scream!, target: -1 };
+      }
+      if (mem.turn % 4 === 0) {
+        mem.breath = 1;
+        return { ability: ABILITIES.attack!, target: -1, message: 'The spirit draws in a long, ragged breath...', skip: true };
+      }
       break;
     }
   }

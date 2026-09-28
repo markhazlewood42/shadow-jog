@@ -20,7 +20,7 @@ export const SHOPS: Record<string, ShopDef> = {
     id: 'lr_weapons', name: 'IRON SAINT ARMS', keeper: 'Brother Tomas', accent: '#ff6a3a',
     greeting: 'Every blade here is blessed. The guns are just loaded.',
     thanks: 'Go with steel.',
-    items: ['iron_knuckles', 'shock_knuckles', 'vibro_katana', 'heavy_pistol', 'taser_pistol', 'bone_staff', 'flashbang', 'frag'],
+    items: ['iron_knuckles', 'shock_knuckles', 'vibro_katana', 'nodachi', 'heavy_pistol', 'taser_pistol', 'bone_staff', 'flashbang', 'frag', 'toxin_dart'],
   },
   lr_armor: {
     id: 'lr_armor', name: 'KOWLOON THREADS', keeper: 'Auntie Wen', accent: '#b07cff',
@@ -44,7 +44,13 @@ export const SHOPS: Record<string, ShopDef> = {
     id: 'rustyard', name: 'MAGS\' SALVAGE', keeper: 'Old Mags', accent: '#86f08c',
     greeting: 'Salvage, scrap, and things that fell off trucks. Don\'t ask which trucks.',
     thanks: 'Pleasure. Mostly mine.',
-    items: ['trauma_patch', 'medkit', 'neurotab', 'mono_claws', 'ballistic_vest', 'spirit_robe', 'dermal_plating', 'neural_buffer', 'cyber_eye', 'reflex_booster', 'adrenal_pump'],
+    items: ['trauma_patch', 'medkit', 'neurotab', 'razor_tekko', 'mono_claws', 'thorn_rod', 'ballistic_vest', 'spirit_robe', 'dermal_plating', 'neural_buffer', 'cyber_eye', 'reflex_booster', 'adrenal_pump'],
+  },
+  fence: {
+    id: 'fence', name: 'WIRE’S STASH', keeper: 'Wire', accent: '#ff4fb0',
+    greeting: 'Runners get runner prices. Everyone else gets shot. You look like runners.',
+    thanks: 'Pleasure. Don’t tell anyone where I sleep.',
+    items: ['trauma_patch', 'neurotab', 'adrenal_stim', 'omni_patch', 'toxin_dart', 'mono_claws', 'ballistic_vest', 'formfit', 'cyber_eye', 'reflex_booster'],
   },
   automat: {
     id: 'automat', name: 'TRANSIT AUTOMAT', keeper: 'Automat', accent: '#3fe0f0',

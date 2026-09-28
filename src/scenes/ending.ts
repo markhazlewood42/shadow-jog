@@ -1,7 +1,7 @@
 /** End-of-chapter results card. */
 import { music } from '../audio/music';
 import { sfx } from '../audio/sfx';
-import { debug } from '../game/debug';
+import { autoClose } from '../game/debug';
 import { COMBOS } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
 import { MEMBERS } from '../data/party';
@@ -26,7 +26,7 @@ export class EndingScene extends Scene<void> {
 
   update(): void {
     this.t++;
-    if (debug.autoDialog) return this.close();
+    if (autoClose(this.t, 200)) return this.close();
     if (this.t > 90 && (this.game.input.pressed('confirm') || this.game.input.pressed('cancel'))) {
       sfx('confirm');
       this.close();
