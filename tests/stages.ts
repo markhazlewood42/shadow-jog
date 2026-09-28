@@ -5,15 +5,15 @@
 import type { Loadout } from './sim';
 
 /** Items bought or found (cumulative purchases happen at the matching economy checkpoint). */
-export const STAGE_GEAR: Record<string, string[]> = {
+export const STAGE_GEAR = {
   barrens: ['iron_knuckles'],
   knuckles: [],
   sinkline: ['vibro_katana', 'heavy_pistol', 'armored_jacket'],
   lurker: ['mono_claws'],
   annex: ['ballistic_vest'],
   // Found in Annex 7 chests: dragon_fang, mono_katana, smartpistol, bone_staff.
-  warden: [],
-};
+  warden: [] as string[],
+} satisfies Record<string, string[]>;
 
 export const STAGE_PARTY: Record<string, Loadout[]> = {
   street: [{ id: 'kit', level: 1 }, { id: 'rook', level: 3 }],

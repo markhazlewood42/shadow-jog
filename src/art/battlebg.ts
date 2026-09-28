@@ -421,7 +421,7 @@ const MAKERS: Record<string, Maker> = {
     c.fill();
     // Ripple bands on the water, denser toward the far end.
     for (let i = 0; i < 12; i++) {
-      const t = Math.pow(i / 12, 1.6);
+      const t = (i / 12) ** 1.6;
       const y = Math.round(fy1 + 2 + t * (BH - fy1 - 2));
       const half = 8 + ((BW / 2 - 62) - 8) * ((y - fy1) / (BH - fy1));
       c.fillStyle = i % 2 ? '#174038' : '#1b4a40';

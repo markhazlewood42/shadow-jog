@@ -18,7 +18,7 @@ export function rgb(hex: string): RGB {
 const clamp255 = (v: number) => (v < 0 ? 0 : v > 255 ? 255 : Math.round(v));
 
 export function hex(c: RGB): string {
-  return '#' + ((1 << 24) | (clamp255(c[0]) << 16) | (clamp255(c[1]) << 8) | clamp255(c[2])).toString(16).slice(1);
+  return `#${((1 << 24) | (clamp255(c[0]) << 16) | (clamp255(c[1]) << 8) | clamp255(c[2])).toString(16).slice(1)}`;
 }
 
 export function rgba(color: string, a: number): string {

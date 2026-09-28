@@ -197,7 +197,11 @@ export class TitleScene extends Scene<TitleChoice> {
     let cx = 1;
     for (const ch of text) {
       const rows = G[ch]!;
-      rows.forEach((r, y) => [...r].forEach((c, x) => c === '#' && small.ctx.fillRect(cx + x, 1 + y, 1, 1)));
+      rows.forEach((r, y) => {
+        [...r].forEach((c, x) => {
+          if (c === '#') small.ctx.fillRect(cx + x, 1 + y, 1, 1);
+        });
+      });
       cx += rows[0]!.length + 1;
     }
     const k = 4;

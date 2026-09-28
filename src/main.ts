@@ -4,13 +4,14 @@ import { Input } from './engine/input';
 import { boot } from './boot';
 import { currentNotice, reportError } from './engine/errors';
 import { drawText } from './engine/font';
+import { perf } from './engine/perf';
 
 function fail(err: unknown): void {
   const el = document.getElementById('boot');
   if (el) {
     el.classList.add('error');
     el.style.display = 'flex';
-    el.textContent = 'SHADOW JOG failed to start.\n\n' + (err instanceof Error ? err.message : String(err));
+    el.textContent = `SHADOW JOG failed to start.\n\n${err instanceof Error ? err.message : String(err)}`;
   }
   console.error(err);
 }
@@ -25,6 +26,7 @@ function start(): void {
   let last = performance.now();
   let acc = 0;
   const loop = (now: number) => {
+    const t0 = performance.now();
     acc += Math.min(250, now - last);
     last = now;
     let n = 0;
@@ -36,6 +38,7 @@ function start(): void {
     if (n === 5) acc = 0;
     game.render();
     display.present();
+    perf.record(performance.now() - t0);
     requestAnimationFrame(loop);
   };
 

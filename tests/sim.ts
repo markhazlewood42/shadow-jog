@@ -39,6 +39,13 @@ export interface Bag {
   medkit: number;
 }
 
+/** Spend one medkit from the bag, if there is one. */
+function take(bag: Bag): boolean {
+  if (bag.medkit <= 0) return false;
+  bag.medkit--;
+  return true;
+}
+
 const hasStatus = (c: Combatant, id: string) => c.status.some((s) => s.id === id);
 const frac = (c: Combatant) => c.hp / c.base.maxHp;
 
@@ -172,7 +179,7 @@ export function simulate(label: string, loadout: Loadout[], table: string, n = 2
     const p = buildParty(loadout);
     const maxHp = p.reduce((s, c) => s + c.base.maxHp, 0);
     const bag: Bag = { medkit: 2 };
-    const b = new Battle(p, enemyParty(g.e), new Rng(rng.int(1, 1e9)), { useItem: () => (bag.medkit > 0 ? (bag.medkit--, true) : false) });
+    const b = new Battle(p, enemyParty(g.e), new Rng(rng.int(1, 1e9)), { useItem: () => take(bag) });
     while (!b.outcome && b.round < 60) {
       const cmds = policy(b, useCombos, bag);
       for (const c of cmds) if ((c.type === 'tech' || c.type === 'skill') && c.id) used.add(c.id);
@@ -228,7 +235,7 @@ export function simulateRun(label: string, loadout: Loadout[], table: string, ba
     let ok = true;
     for (let k = 0; k < battles; k++) {
       const g = rng.pick(groups);
-      const b = new Battle(p, enemyParty(g.e), new Rng(rng.int(1, 1e9)), { useItem: () => (bag.medkit > 0 ? (bag.medkit--, used++, true) : false) });
+      const b = new Battle(p, enemyParty(g.e), new Rng(rng.int(1, 1e9)), { useItem: () => take(bag) && ++used > 0 });
       while (!b.outcome && b.round < 60) b.resolveRound(policy(b, false, bag, true));
       rounds += b.round;
       fights++;

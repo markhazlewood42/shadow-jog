@@ -30,7 +30,7 @@ type Page = Panel[];
 /** Page layouts are authored for an 8..262 frame; they are squeezed into 8..FOOT_TOP to keep a footer strip. */
 const FOOT_TOP = H - 18;
 const FOOT_Y = H - 13;
-function fit(p: Panel): Panel {
+function fitPanel(p: Panel): Panel {
   const k = (FOOT_TOP - 8) / (H - 16);
   const y = Math.round(8 + (p.y - 8) * k);
   return { ...p, y, h: Math.round(8 + (p.y + p.h - 8) * k) - y };
@@ -100,7 +100,10 @@ export class PanelScene extends Scene<void> {
 
   update(): void {
     this.t++;
-    if (autoClose(this.t, 150)) return this.close();
+    if (autoClose(this.t, 150)) {
+      this.close();
+      return;
+    }
     for (let i = 0; i < this.panelT.length; i++) this.panelT[i]!++;
     const inp = this.game.input;
     const p = this.pages[this.page];
@@ -134,7 +137,7 @@ export class PanelScene extends Scene<void> {
     for (let y = 0; y < H; y += 6) for (let x = (y / 6) % 2 ? 3 : 0; x < W; x += 6) ctx.fillRect(x, y, 1, 1);
     const p = this.pages[this.page];
     if (!p) return;
-    for (let i = 0; i < this.shown; i++) this.drawPanel(ctx, fit(p[i]!), this.panelT[i] ?? 0);
+    for (let i = 0; i < this.shown; i++) this.drawPanel(ctx, fitPanel(p[i]!), this.panelT[i] ?? 0);
     // Footer strip below the panels: skip hint left, page-advance marker right.
     const lastT = this.panelT[this.shown - 1] ?? 0;
     if (lastT > 20 && Math.floor(this.t / 20) % 2 === 0) drawText(ctx, '▼', W - 14, FOOT_Y, { color: '#ffffff' });
@@ -144,7 +147,7 @@ export class PanelScene extends Scene<void> {
 
   private drawPanel(ctx: Ctx, pn: Panel, t: number): void {
     const k = Math.min(1, t / 14);
-    const e = 1 - Math.pow(1 - k, 3);
+    const e = 1 - (1 - k) ** 3;
     let ox = 0, oy = 0;
     const d = (1 - e) * 60;
     if (pn.from === 'left') ox = -d;
@@ -201,7 +204,9 @@ export class PanelScene extends Scene<void> {
     ctx.fillRect(cx - 1, cy - 1, w + 2, h + 2);
     ctx.fillStyle = big ? '#1a1030' : '#f4e6b8';
     ctx.fillRect(cx, cy, w, h);
-    lines.forEach((l, i) => drawText(ctx, l, cx + 6, cy + 5 + i * 11, { color: big ? '#ffd6ee' : '#1a1420', shadow: false }));
+    lines.forEach((l, i) => {
+      drawText(ctx, l, cx + 6, cy + 5 + i * 11, { color: big ? '#ffd6ee' : '#1a1420', shadow: false });
+    });
   }
 
   private speech(ctx: Ctx, pn: Panel, x: number, y: number, t: number): void {
@@ -368,7 +373,6 @@ export class PanelScene extends Scene<void> {
       case 'lab':
         grad('#b8c4d4', '#6a7a90');
         break;
-      case 'dark':
       default: {
         grad('#1a1428', '#0a0814');
         // Speed lines

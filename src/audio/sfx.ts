@@ -33,7 +33,9 @@ function noise(c: AudioContext, t: number, dur: number, vol: number, out: AudioN
 }
 
 function notes(c: AudioContext, type: OscillatorType, freqs: number[], step: number, dur: number, vol: number, out: AudioNode, t: number): void {
-  freqs.forEach((f, i) => osc(c, type, f, f, t + i * step, dur, vol, out));
+  freqs.forEach((f, i) => {
+    osc(c, type, f, f, t + i * step, dur, vol, out);
+  });
 }
 
 const S: Record<string, Maker> = {

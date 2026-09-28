@@ -119,11 +119,11 @@ function frontFrame(head: string[], torso: string[], legs: string[], swing: 0 | 
   const rows = [...head, ...torso, ...legs];
   if (swing === 1) {
     // left hand forward (raised one pixel)
-    rows[16] = rows[16]!.slice(0, 3) + 'n' + rows[16]!.slice(4);
-    rows[17] = rows[17]!.slice(0, 3) + '.' + rows[17]!.slice(4);
+    rows[16] = `${rows[16]!.slice(0, 3)}n${rows[16]!.slice(4)}`;
+    rows[17] = `${rows[17]!.slice(0, 3)}.${rows[17]!.slice(4)}`;
   } else if (swing === 2) {
-    rows[16] = rows[16]!.slice(0, 12) + 'o' + rows[16]!.slice(13);
-    rows[17] = rows[17]!.slice(0, 12) + '.' + rows[17]!.slice(13);
+    rows[16] = `${rows[16]!.slice(0, 12)}o${rows[16]!.slice(13)}`;
+    rows[17] = `${rows[17]!.slice(0, 12)}.${rows[17]!.slice(13)}`;
   }
   return rows;
 }
@@ -611,9 +611,9 @@ const ACC: Record<Accessory, HairSet> = {
     side: ['', '', '', '', '', '', '', '...vvvvgg.......'],
   },
   shades: {
-    down: ['', '', '', '', '', '', '', '....gGGggGGg....', '.....gg..gg.....'],
+    down: ['', '', '', '', '', '', '', '....ggg..ggg....', '....gGg..gGg....'],
     up: [],
-    side: ['', '', '', '', '', '', '', '...gGGgg........', '....gg..........'],
+    side: ['', '', '', '', '', '', '', '...gggg.........', '...gGgg.........'],
   },
   goggles: {
     down: ['', '', '', '', '...gGGggggGGg...', '....gg....gg....'],
@@ -631,7 +631,7 @@ const ACC: Record<Accessory, HairSet> = {
     side: ['', '', '', '', '.........s......', '........ss......', '........s.......'],
   },
   beard: {
-    down: ['', '', '', '', '', '', '', '', '....h......h....', '....hhhHHhhh....', '.....hhhhhh.....', '......HHHH......'],
+    down: ['', '', '', '', '', '', '', '', '....l......l....', '....hlhHHhlh....', '.....hhllhh.....', '......hHHh......'],
     up: [],
     side: ['', '', '', '', '', '', '', '', '....h...........', '...hhHhh........', '....hhhhhh......', '.....HHHH.......'],
   },
@@ -663,7 +663,7 @@ function reshape(rows: string[], body: Body): string[] {
     return out.filter((_, y) => y !== 13 && y !== 18 && y !== 20);
   }
   // big: wider everywhere (+2), taller torso and legs
-  const wide = rows.map((r) => '.' + r.slice(0, 8) + r[7] + r[8] + r.slice(8) + '.');
+  const wide = rows.map((r) => `.${r.slice(0, 8)}${r[7]}${r[8]}${r.slice(8)}.`);
   const out: string[] = [];
   wide.forEach((r, y) => {
     out.push(r);
@@ -752,6 +752,22 @@ export function paint(rows: string[], pal: Pal): HTMLCanvasElement {
   return out.canvas;
 }
 
+/**
+ * From behind, a head of hair is one big shape; break it up so it never reads as a solid ball:
+ * a crown highlight and darker strand lines falling from it.
+ */
+function hairStrands(rows: string[]): void {
+  for (let y = 1; y < 12 && y < rows.length; y++) {
+    const r = rows[y]!.split('');
+    for (let x = 1; x < r.length - 1; x++) {
+      if (r[x] !== 'h') continue;
+      if (y <= 3 && (x === 6 || x === 7) && r[x - 1] === 'h') r[x] = 'l';
+      else if (y >= 5 && (x === 5 || x === 8 || x === 10) && r[x + 1] === 'h' && r[x - 1] === 'h') r[x] = 'H';
+    }
+    rows[y] = r.join('');
+  }
+}
+
 function buildGrid(look: CharLook, view: 'down' | 'up' | 'side', frame: number): string[] {
   const rows = [...BODY[view][frame]!];
   const hair = HAIR[look.hairStyle][view];
@@ -760,16 +776,25 @@ function buildGrid(look: CharLook, view: 'down' | 'up' | 'side', frame: number):
   if (accs.includes('elfears')) overlay(rows, ACC.elfears[view]);
   if (accs.includes('beard')) overlay(rows, ACC.beard[view]);
   overlay(rows, hair);
+  if (view === 'up') hairStrands(rows);
   for (const a of accs) if (a !== 'elfears' && a !== 'beard') overlay(rows, ACC[a][view]);
   return reshape(rows, look.body ?? 'std');
 }
 
+/** Copy one side's arm colours (sleeve, sleeve shade, hand) into a palette's screen-left (k/K/n) or screen-right (j/J/o) slots. */
+function setArm(pal: Pal, slot: 'left' | 'right', from: Pal): void {
+  const [arm, shade, hand] = slot === 'left' ? ['k', 'K', 'n'] : ['j', 'J', 'o'];
+  pal[arm] = from.k ?? null;
+  pal[shade] = from.K ?? null;
+  pal[hand] = from.n ?? null;
+}
+
 /** Back-view stand grid (body-reshaped) and its palette, for battle poses built on the rig. */
 export function backGrid(look: CharLook): { rows: string[]; pal: Pal } {
+  // From behind, the character's left arm is on screen-left.
   const pal: Pal = { ...palette(look, null) };
-  const l = palette(look, 'left'), r = palette(look, 'right');
-  pal.k = l.k; pal.K = l.K; pal.n = l.n;
-  pal.j = r.k; pal.J = r.K; pal.o = r.n;
+  setArm(pal, 'left', palette(look, 'left'));
+  setArm(pal, 'right', palette(look, 'right'));
   return { rows: buildGrid(look, 'up', 0), pal };
 }
 
@@ -781,13 +806,10 @@ export function buildChar(look: CharLook): CharSprite {
   if (hit) return hit;
   const frames: Record<Dir, HTMLCanvasElement[]> = { down: [], up: [], left: [], right: [] };
   const palFront = palette(look, null);
-  const palBack: Pal = { ...palette(look, null) };
-  // From behind, the character's left arm is on screen-left.
-  palBack.k = palette(look, 'left').k; palBack.K = palette(look, 'left').K; palBack.n = palette(look, 'left').n;
-  palBack.j = palette(look, 'right').k; palBack.J = palette(look, 'right').K; palBack.o = palette(look, 'right').n;
+  const palBack = backGrid(look).pal;
   // Facing the viewer, the character's right arm is on screen-left.
-  palFront.k = palette(look, 'right').k; palFront.K = palette(look, 'right').K; palFront.n = palette(look, 'right').n;
-  palFront.j = palette(look, 'left').k; palFront.J = palette(look, 'left').K; palFront.o = palette(look, 'left').n;
+  setArm(palFront, 'left', palette(look, 'right'));
+  setArm(palFront, 'right', palette(look, 'left'));
   for (let f = 0; f < 3; f++) {
     frames.down.push(paint(buildGrid(look, 'down', f), palFront));
     frames.up.push(paint(buildGrid(look, 'up', f), palBack));

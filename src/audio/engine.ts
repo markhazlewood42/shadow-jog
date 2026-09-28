@@ -45,7 +45,7 @@ function impulse(c: BaseAudioContext, sp: SpaceDef): AudioBuffer {
     for (let i = 0; i < len; i++) {
       const n = Math.random() * 2 - 1;
       lp += (n - lp) * (1 - sp.damp);
-      d[i] = lp * Math.pow(1 - i / len, sp.decay);
+      d[i] = lp * (1 - i / len) ** sp.decay;
     }
     for (const [sec, g] of sp.early) {
       const k = Math.floor(sec * c.sampleRate * (ch ? 1.07 : 1));
@@ -176,7 +176,7 @@ class AudioEngine {
 export const audio = new AudioEngine();
 
 export function midiToFreq(m: number): number {
-  return 440 * Math.pow(2, (m - 69) / 12);
+  return 440 * 2 ** ((m - 69) / 12);
 }
 
 const NOTE: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };

@@ -11,21 +11,35 @@ tags: [quality, scorecard]
 
 Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 
-| # | Area | Score | Round | Date | Commit | Blocking issues (short) |
+| # | Area | Score | Round | Date | Δ | Blocking issues (short) |
 |---|---|---|---|---|---|---|
-| 1 | Engine & code | 6.5 | 1 | 2026-09-28 | 1b6d… (status) | Warp path has no try/finally (can softlock silently), per-frame allocs, save untested/unvalidated |
-| 2 | Field art | 5.5 | 1 | 2026-09-28 | ″ | World biomes hard rectangles, Sinkline water flat, placeholder-looking tents (cap), bald back-view NPCs |
-| 3 | Battle presentation | 6.5 | 1 | 2026-09-28 | ″ | Sewer bg illegible, non-boss ground hardcoded 92, identical dupes, flat victory, status pips unlabeled |
-| 4 | UI / UX | 6.0 | 1 | 2026-09-28 | ″ | Command window covers actor, Techs stacks 3 windows, "X: skip" clipped (cap), choice width guess |
-| 5 | Combat design | 7.0 | 1 | 2026-09-28 | ″ | Sim covers ~40% of kit / 1 combo, Hijack shallow, flat trash AI, unused AI hooks, Lurker thin |
-| 6 | Progression & economy | 3.5 | 1 | 2026-09-28 | ″ | Cred path ≈2.4k¢ vs assumed gear ≈5–6k¢ (grind cap), smartpistol/formfit unobtainable, no economy sim |
-| 7 | Narrative & writing | 7.6 | 1 | 2026-09-28 | ″ | Ending thank-you undercuts cliffhanger, double "run" beat, Rook has no personal line |
-| 8 | Level design | 7.2 | 1 | 2026-09-28 | ″ | One puzzle only, no Lurker arena, sparse world map, bare dock, Sinkline signage |
-| 9 | Audio | 7.0 | 1 | 2026-09-28 | ″ | Sub-bass buries melodies, no footstep SFX, boss2 reuses battle drums, one reverb space |
-| 10 | Feel & polish | 7.2 | 1 | 2026-09-28 | ″ | No party battle poses, shake amplitude flat, floater `*0` bug, no hitstop, static idle party |
-| 11 | Stability | 6.0 | 1 | 2026-09-28 | ″ | Game-over Load doesn't restore playFrames, Dutch/Pale beat skippable, no lose/save E2E |
+| 1 | Engine & code | 7.2 | 2 | 2026-09-28 | +0.7 | Per-frame array allocs in BattleScene render/update; `noUncheckedIndexedAccess` off; no lint/CI; no frame-budget check; 1400-line BattleScene |
+| 2 | Field art | 7.0 | 2 | 2026-09-28 | +1.5 | Neon hair on bulky styles reads as a ball; Sinkline too dark; empty flood arena; Rook's shades/beard illegible; arbitrary Annex terminal colours; sparse world stretches; floating light strings |
+| 3 | Battle presentation | 7.0 | 2 | 2026-09-28 | +0.5 | Blank trash-mob faces; human mobs read as reskins; one pose per action kind; mirror flip invisible on symmetric sprites; thin gunfire FX; no party faces in battle UI |
+| 4 | UI / UX | 6.0 | 2 | 2026-09-28 | 0 | **Cap:** compact party card numbers overflow (menu.ts renderCards); "Battles won 0" on ending evidence; unframed "Rook: missing"; silent autosave; shop detail vanishes on empty list; no long-word wrap |
+| 5 | Combat design | 7.0 | 2 | 2026-09-28 | 0 | Enemy HP/weaknesses hidden unless Analyzed; Rook purely physical; trash fights resolve by attacking; no bestiary UI; Warden has no bespoke weakness; Auto allowed on bosses |
+| 6 | Progression & economy | 7.3 | 2 | 2026-09-28 | +3.8 | No nudge to loot Annex gear before the Warden; bound_spirit+arcanist outlier; Nodachi price trap; tac visor = cyber eye; step counts hand-typed; Hex/Sable gear moments |
+| 7 | Narrative & writing | 7.8 | 2 | 2026-09-28 | +0.2 | Shared hedge-joke cadence across the cast; ambiguous "her" in Pale's last line; betrayal confirmed 3× in advance; Rook's guilt has no setup; uniformly quippy NPCs; flat logs; thin Pale |
+| 8 | Level design | 7.3 | 2 | 2026-09-28 | +0.1 | No Annex signage; objective only in menu; no connectivity test; dead lake/plaza space; no map screen; POIs don't feed the critical path |
+| 9 | Audio | 6.5 | 2 | 2026-09-28 | −0.5 | Dry mix entirely mono (no panning); ~12 patches, no reedy/brassy timbre for the jazz bar; convolver buffer hot-swap can click; no audio checks in tests; held clashes (world bar 2, dungeon bar 2); no volume preview; no wall-bump SFX |
+| 10 | Feel & polish | 7.4 | 2 | 2026-09-28 | +0.2 | Comic panels skip mid-sentence and ignore Text Speed; dialog eats the first tap for 100 ms; no perf log in evidence; per-frame sort in battle render |
+| 11 | Stability | 8.0 | 2 | 2026-09-28 | +2.0 | Autosave failures silent; Game Over "Load" can drop to title wordlessly; "Saltreach" absent from GDD; migrations untested by a real bump; full-state clone per battle |
 
-## Round 2 work plan (in progress)
+## Round 3 work plan (in progress)
+
+- [ ] **Engine**: pooled/cached enemy & party lists and floaters in BattleScene; ~~noUncheckedIndexedAccess~~ (on); ~~lint + CI~~ (Biome, GitHub Actions); ~~frame-budget E2E~~ (e2e/perf.spec.ts); perf log in evidence.
+- [ ] **UI/UX**: ~~compact card overflow~~; ~~frame "Rook: missing"~~; ~~realistic stage battle counts~~; ~~shop detail on empty list~~; ~~long-word wrap~~; autosave indicator + failure notice; wrap-safe battle top line.
+- [ ] **Field art**: ~~hair strands + neon rule~~; ~~Rook's shades/beard~~; brighter Sinkline fill light; debris in the flood arena; function-coded Annex terminals; world stretch landmarks; anchor light strings.
+- [ ] **Battle presentation**: ~~enemy faces~~; duplicate-enemy palette variants; per-ability attack/cast variants; stronger gunfire FX (muzzle flash, impact puff); party portrait in the battle panel.
+- [ ] **Combat**: enemy HP bars by default; remembered weaknesses surfaced on first hit; Rook utility/elemental option; bestiary page in the menu; Warden weakness; Auto disabled for bosses; more tactical trash groups.
+- [ ] **Economy**: loot nudge before the Warden; tune the outlier pair; Nodachi sidegrade; tac visor ≠ cyber eye; ~~map-derived step counts~~; Hex/Sable upgrade moments.
+- [ ] **Narrative**: per-character syntax pass; unambiguous final line; trim advance betrayal confirmations; seed Rook's guilt mid-chapter; vary NPC registers; escalate the Annex logs; give Pale texture.
+- [ ] **Level design**: Annex signage; persistent objective HUD line; ~~connectivity test~~ (found and fixed an unreachable NPC); use the lake/plaza dead space; POIs that feed the path.
+- [ ] **Feel**: panels share the dialog typing gate and Text Speed; no eaten first tap; perf log in evidence.
+- [ ] **Audio**: stereo panning of voices (unison spread, arps/plucks placed, bass/kick centre); crossfaded reverb space changes; a reed/brass patch for the bar; fix held clashes; volume-slider preview; bump SFX; a music-theory check in tests.
+- [ ] **Stability**: autosave failure notice; Game Over load failure message (+tests); GDD names Saltreach.
+
+## Round 2 work plan (done)
 
 Ordered by severity. Tick as done; re-verify each area after its batch lands.
 
@@ -42,6 +56,9 @@ Ordered by severity. Tick as done; re-verify each area after its batch lands.
 ## Review log
 
 <!-- newest first: date · area · score · verifier's top issues · what changed in response -->
+
+### 2026-09-28 · Round 2 (all areas)
+Scores in the table. Every area rose or held; none reached 8.5 yet. Stability (8.0) and narrative (7.8) are closest. Audio dropped 0.5: this reviewer judged mix and timbre (mono dry mix, patch variety) that round 1 didn't weigh. UI/UX is held at 6.0 by a real overflow in the compact party cards (fixed in round 3). Level-design's ask for a connectivity test immediately found a real bug: the canal fisher added in round 2 was on an unreachable street spur.
 
 ### 2026-09-28 · Round 1 (all areas)
 Full verifier reports were delivered in-session; the blocking issues are summarized in the table and the work plan above. Verifier note: the economy reviewer missed the job board (it exists in `src/data/maps/interiors.ts`, bar `board` event); its cred-shortfall math still stands.

@@ -131,7 +131,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const group = setup.enemies ?? pickGroup(setup.encounter);
     const enemies = enemyParty(group);
     const regen: Record<number, number> = {};
-    party.forEach((p) => (regen[p.uid] = equipRegen(state.members[p.key as MemberId]!)));
+    for (const p of party) regen[p.uid] = equipRegen(state.members[p.key as MemberId]!);
     this.battle = new Battle(party, enemies, new Rng(globalRng.int(1, 2 ** 30)), {
       canRun: setup.canRun ?? true,
       useItem: (id) => removeItem(id, 1),
@@ -597,7 +597,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           if (e.crit) this.float('CRITICAL', { x: p.x, y: p.y - 10 }, '#ffe07a', false);
           else if (e.weak) this.float('WEAK!', { x: p.x, y: p.y - 10 }, '#ffa24a', false);
           if (e.weak && u.side === 'enemy') {
-            const seen = (state.weakSeen[u.key] ??= []);
+            state.weakSeen[u.key] ??= [];
+            const seen = state.weakSeen[u.key]!;
             if (!seen.includes(e.element)) seen.push(e.element);
           }
           else if (e.resist) this.float('RESIST', { x: p.x, y: p.y - 10 }, '#b8bcd0', false);
@@ -794,7 +795,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       drawText(ctx, `Wallet: ${state.cred.toLocaleString('en-US')}¢`, x + w - 14, y + 26, { color: UI.dim, align: 'right' });
       if (dropNames.length) {
         drawText(ctx, 'Found:', x + 14, y + 42, { color: UI.dim });
-        dropNames.forEach((n, i) => drawText(ctx, n, x + 54, y + 42 + i * 11, { color: UI.cyan }));
+        dropNames.forEach((n, i) => {
+          drawText(ctx, n, x + 54, y + 42 + i * 11, { color: UI.cyan });
+        });
       }
       if (this.frame % 40 < 28) drawText(ctx, '▼', x + w - 16, y + h - 13, { color: UI.cyan });
     });
@@ -807,9 +810,13 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         const x = (W - w) / 2, y = 56;
         drawWindow(ctx, x, y, w, h, { title: 'LEVEL UP', accent: MEMBERS[u.id].color });
         drawText(ctx, `${name} reached {y}Lv ${u.level}{/}!`, x + 14, y + 14);
-        gains.forEach(([k, v], i) => drawText(ctx, `${k.toUpperCase()} {g}+${v}{/}`, x + 14 + (i % 2) * 100, y + 30 + Math.floor(i / 2) * 11));
+        gains.forEach(([k, v], i) => {
+          drawText(ctx, `${k.toUpperCase()} {g}+${v}{/}`, x + 14 + (i % 2) * 100, y + 30 + Math.floor(i / 2) * 11);
+        });
         const ly = y + 34 + Math.ceil(gains.length / 2) * 11;
-        u.learned.forEach((id, i) => drawText(ctx, `Learned {c}${ABILITIES[id]!.name}{/}!`, x + 14, ly + i * 11));
+        u.learned.forEach((id, i) => {
+          drawText(ctx, `Learned {c}${ABILITIES[id]!.name}{/}!`, x + 14, ly + i * 11);
+        });
         if (this.frame % 40 < 28) drawText(ctx, '▼', x + w - 16, y + h - 13, { color: UI.cyan });
       });
     }
@@ -921,7 +928,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     // Floaters
     for (const fl of this.floaters) {
       // Damage numbers pop up with a decaying bounce, then hold and drift; small text just rises.
-      const rise = fl.big ? 8 * (1 - Math.pow(1 - Math.min(1, fl.t / 8), 3)) + Math.max(0, fl.t - 24) * 0.15 : fl.t * 0.4;
+      const rise = fl.big ? 8 * (1 - (1 - Math.min(1, fl.t / 8)) ** 3) + Math.max(0, fl.t - 24) * 0.15 : fl.t * 0.4;
       const bounce = fl.big && fl.t >= 8 && fl.t < 20 ? Math.abs(Math.sin((fl.t - 8) * 0.52)) * 3 * (1 - (fl.t - 8) / 12) : 0;
       g.globalAlpha = fl.t > 38 ? Math.max(0, 1 - (fl.t - 38) / 12) : 1;
       drawText(g, fl.text, Math.round(fl.x), Math.round(fl.y - rise - bounce), { color: fl.color, align: 'center', shadow: '#0a0913' });
@@ -940,7 +947,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private buildShards(): void {
     const cols = 9, rows = 5;
     let seed = 1234567;
-    const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
     const grid: [number, number][][] = [];
     for (let j = 0; j <= rows; j++) {
       grid.push([]);
@@ -1271,7 +1281,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   private renderRoundMenu(ctx: Ctx): void {
     const x = MENU_X, y = PANEL_Y - 60;
-    drawWindow(ctx, x, y, 84, 54, { title: 'ROUND ' + (this.battle.round + 1) });
+    drawWindow(ctx, x, y, 84, 54, { title: `ROUND ${this.battle.round + 1}` });
     this.roundMenu.render(ctx, x + 8, y + 8, 72);
     const help: Record<string, string> = {
       fight: 'Give each crew member orders.',
@@ -1364,7 +1374,7 @@ function groupNames(es: Combatant[]): string {
   const counts = new Map<string, number>();
   for (const e of es) counts.set(e.name, (counts.get(e.name) ?? 0) + 1);
   const parts = [...counts.entries()].map(([n, c]) => (c > 1 ? `${c} ${n}s` : n));
-  return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0]!;
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0]!;
 }
 
 function summarize(names: string[]): string[] {
@@ -1383,16 +1393,23 @@ function mirrored(src: HTMLCanvasElement): HTMLCanvasElement {
     s.ctx.translate(src.width, 0);
     s.ctx.scale(-1, 1);
     s.ctx.drawImage(src, 0, 0);
-    flipCache.set(src, (c = s.canvas));
+    c = s.canvas;
+    flipCache.set(src, c);
   }
   return c;
 }
 
 function silhouetteCache(src: HTMLCanvasElement, color: string): HTMLCanvasElement {
   let m = silCache.get(src);
-  if (!m) silCache.set(src, (m = new Map()));
+  if (!m) {
+    m = new Map();
+    silCache.set(src, m);
+  }
   let c = m.get(color);
-  if (!c) m.set(color, (c = silhouette(src, color)));
+  if (!c) {
+    c = silhouette(src, color);
+    m.set(color, c);
+  }
   return c;
 }
 

@@ -32,7 +32,7 @@ test('playtest capture: Chapter 1', async ({ page }) => {
       await page.waitForTimeout(EVERY_MS);
       if (stop) break;
       try {
-        const where = await sj<string>(page, "`${sj.top()}-${sj.state.map}`");
+        const where = await sj<string>(page, "sj.top() + '-' + sj.state.map");
         const name = `${String(++n).padStart(3, '0')}-${where.replace(/Scene/g, '').toLowerCase()}.png`;
         await page.locator('canvas').first().screenshot({ path: join(DIR, name) });
         log.push(name);

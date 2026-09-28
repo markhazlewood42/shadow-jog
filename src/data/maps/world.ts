@@ -140,7 +140,7 @@ export const world: MapDef = {
       },
     },
     {
-      id: 'fisher', x: 7, y: 30, dir: 'down', name: 'Canal Fisher', move: 'static',
+      id: 'fisher', x: 20, y: 32, dir: 'right', name: 'Canal Fisher', move: 'static',
       look: { skin: '#c28a64', hair: '#3a3a36', hairStyle: 'cap', hat: '#5a4a2a', top: '#4a5a6a', inner: '#2a2a30', accent: '#ffcc3d', pants: '#2a2a33', boots: '#1a1418' },
       talk: async (s) => {
         await s.say('Canal Fisher', 'Nothing bites in the canal. Not since ’61. Whatever lives down the Sinkline outflow ate everything with fins.');

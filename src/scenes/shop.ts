@@ -35,7 +35,10 @@ export class ShopScene extends Scene<void> {
 
   update(): void {
     this.t++;
-    if (autoClose(this.t, 80)) return this.close();
+    if (autoClose(this.t, 80)) {
+      this.close();
+      return;
+    }
     const inp = this.game.input;
     switch (this.mode) {
       case 'root': {
@@ -164,12 +167,15 @@ export class ShopScene extends Scene<void> {
     const lx = 96, lw = 196;
     drawWindow(ctx, lx, 46, lw, H - 54, { title: this.mode === 'sell' || this.qtyMode === 'sell' && this.mode === 'qty' ? 'SELL' : 'BUY', accent: acc });
     this.list.render(ctx, lx + 8, 54, lw - 14, this.mode !== 'qty', this.mode === 'sell' ? 'Nothing to sell.' : 'Sold out.');
-    const cur = this.list.current;
-    if (!cur) return;
-    const it = ITEMS[cur.value]!;
-    // Detail panel
+    // Detail panel (kept on screen, with a hint, even when the list is empty).
     const dx = lx + lw + 6, dw = W - dx - 8;
     drawWindow(ctx, dx, 46, dw, H - 54, { plain: true });
+    const cur = this.list.current;
+    if (!cur) {
+      drawParagraph(ctx, this.mode === 'sell' ? 'Loot and spare gear you pick up can be sold here.' : 'Check back later.', dx + 8, 52, dw - 16, { color: UI.dim, lineH: 10 });
+      return;
+    }
+    const it = ITEMS[cur.value]!;
     drawText(ctx, it.name, dx + 8, 52, { color: UI.cyan });
     drawText(ctx, `Owned: ${state.inventory[it.id] ?? 0}`, dx + dw - 8, 52, { align: 'right', color: UI.dim });
     const lines = drawParagraph(ctx, it.desc, dx + 8, 64, dw - 16, { color: '#d0cee4', lineH: 10 });

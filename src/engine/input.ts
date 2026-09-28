@@ -73,7 +73,7 @@ export class Input {
     this.padHeld.clear();
     const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
     for (const p of pads) {
-      if (!p || !p.connected) continue;
+      if (!p?.connected) continue;
       const b = (i: number) => !!p.buttons[i]?.pressed;
       const ax = p.axes[0] ?? 0;
       const ay = p.axes[1] ?? 0;

@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
@@ -8,7 +9,8 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: 'http://localhost:3007',
-    channel: 'msedge',
+    // Edge locally (Windows); the bundled Chromium on CI.
+    channel: process.env.CI ? undefined : 'msedge',
     viewport: { width: 960, height: 540 },
   },
   webServer: {

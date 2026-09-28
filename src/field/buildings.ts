@@ -466,7 +466,9 @@ export function paintSign(b: BakeCtx, s: SignDef, bx: number, _by: number, bw: n
       c.fillRect(x, y + h - 1, 11, 1);
       c.fillRect(x, y, 1, h);
       c.fillRect(x + 10, y, 1, h);
-      letters.forEach((ch, i) => drawText(c, ch, x + 6, y + 4 + i * 9, { color: mix(s.color, '#ffffff', 0.35), shadow: false, align: 'center' }));
+      letters.forEach((ch, i) => {
+        drawText(c, ch, x + 6, y + 4 + i * 9, { color: mix(s.color, '#ffffff', 0.35), shadow: false, align: 'center' });
+      });
     });
     b.lights.push({ x: x + 5, y: y + h / 2, r: Math.max(24, h * 0.7), color: s.color, i: 0.75, flicker: s.flicker });
     return;

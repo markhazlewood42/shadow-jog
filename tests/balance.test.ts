@@ -22,7 +22,7 @@ const stages: { label: string; stage: string; table: string; win: number; rounds
 describe('balance', () => {
   const results = stages.map((s) => ({ s, r: simulate(s.label, STAGE_PARTY[s.stage]!, s.table, s.table.startsWith('f_') ? 120 : 240) }));
   it('prints the balance table', () => {
-    console.log('\n' + results.map(({ r }) => fmt(r)).join('\n'));
+    console.log(`\n${results.map(({ r }) => fmt(r)).join('\n')}`);
   });
   it('the policy uses every ability learnable by the Warden and all six combos', () => {
     const used = new Set(results.flatMap(({ r }) => [...r.used]));

@@ -19,7 +19,11 @@ export class Grid {
   }
   /** Paste literal rows at (x, y); spaces in `rows` are skipped (transparent). */
   paste(x: number, y: number, rows: string[]): this {
-    rows.forEach((r, dy) => [...r].forEach((ch, dx) => ch !== ' ' && this.set(x + dx, y + dy, ch)));
+    rows.forEach((r, dy) => {
+      [...r].forEach((ch, dx) => {
+        if (ch !== ' ') this.set(x + dx, y + dy, ch);
+      });
+    });
     return this;
   }
   get(x: number, y: number): string {

@@ -35,7 +35,10 @@ export class SaveScene extends Scene<SlotId | null> {
 
   update(): void {
     this.t++;
-    if (autoClose(this.t, 40)) return this.close(null);
+    if (autoClose(this.t, 40)) {
+      this.close(null);
+      return;
+    }
     const inp = this.game.input;
     const slot = this.slots[this.idx]!;
     if (this.confirm) {

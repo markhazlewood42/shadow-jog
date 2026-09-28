@@ -5,7 +5,7 @@
  * This lets story scripts `await` dialogs, shops and battles linearly.
  */
 import type { Ctx } from './canvas';
-import { Input } from './input';
+import type { Input } from './input';
 
 export const W = 480;
 export const H = 270;
@@ -40,7 +40,7 @@ export abstract class Scene<R = unknown> {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: the stack holds scenes of every result type; each run() is typed at its call site.
 export type AnyScene = Scene<any>;
 
 interface Timer {

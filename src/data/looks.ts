@@ -54,6 +54,8 @@ export const LOOKS = {
 
 const SKINS = ['#f2c9a5', '#e0b08a', '#c98a5e', '#a5673f', '#7a4a30', '#5a3624', '#eadbd0'];
 const HAIRS = ['#1a1418', '#2e1d33', '#4a2e22', '#8a5a2e', '#c9c4bb', '#d8452e', '#ff4fb0', '#3fe0f0', '#62e06a', '#b07cff', '#e8d070'];
+const NEON = new Set(['#ff4fb0', '#3fe0f0', '#62e06a', '#b07cff']);
+const NATURAL = HAIRS.filter((h) => !NEON.has(h));
 const TOPS = ['#2c3b5e', '#6a3fa0', '#8c2f39', '#2f6a5a', '#4d5238', '#a0652f', '#34344a', '#1d5c6a', '#7a2e5a', '#5a5f7a', '#b8b0a0'];
 const PANTS = ['#2a2a33', '#2b3350', '#3a3448', '#3d3a30', '#1e1c26', '#4a3a30'];
 const ACCENTS = ['#ffcc3d', '#3fe0f0', '#ff4fb0', '#62e06a', '#ffa24a', '#b07cff', '#d9b36c'];
@@ -77,10 +79,14 @@ export function randomLook(seed: number): CharLook {
   if (r.chance(0.3)) look.inner = r.pick(TOPS);
   if (r.chance(0.2)) look.coat = look.top;
   if (r.chance(0.15)) look.cyberArm = r.chance(0.5) ? 'left' : 'right';
-  if (r.chance(0.15)) look.accessories!.push('visor'), (look.visor = r.pick(ACCENTS));
-  else if (r.chance(0.12)) look.accessories!.push('shades');
+  if (r.chance(0.15)) {
+    look.accessories!.push('visor');
+    look.visor = r.pick(ACCENTS);
+  } else if (r.chance(0.12)) look.accessories!.push('shades');
   if (body === 'big' && r.chance(0.6)) look.accessories!.push('tusks');
   if (body === 'std' && r.chance(0.15)) look.accessories!.push('elfears');
   if (look.hairStyle === 'cap') look.hat = r.pick(TOPS);
+  // Neon dye is for statement cuts; on a big rounded style it reads as a flat ball.
+  if (NEON.has(look.hair) && !['mohawk', 'spiky', 'ponytail', 'slick'].includes(look.hairStyle)) look.hair = r.pick(NATURAL);
   return look;
 }

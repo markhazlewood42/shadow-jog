@@ -43,11 +43,60 @@ function rigArt(look: CharLook, extra?: (p: Pix, w: number, h: number) => void, 
   return { canvas: scale2x(canvas), glow, idle: 'breathe', shadow: 26 };
 }
 
+/**
+ * Facial features on the front-view rig (canvas coords before Scale2x): brows, mouth, teeth,
+ * scars. `big` bodies are reshaped wider, so their face sits 1px right and eyes spread.
+ */
+interface Face {
+  brows?: 'angry' | 'flat' | 'heavy';
+  mouth?: 'sneer' | 'grimace' | 'maw' | 'line' | 'smirk';
+  scar?: boolean;
+  big?: boolean;
+}
+function face(p: Pix, f: Face): void {
+  const ink = '#1c1216';
+  const l = f.big ? 14 : 13; // left eye x
+  const r = f.big ? 19 : 16; // right eye x
+  const m = Math.round((l + r) / 2); // face centre
+  if (f.brows === 'angry') {
+    p.set(l - 1, 10, ink); p.set(l, 11, ink);
+    p.set(r + 1, 10, ink); p.set(r, 11, ink);
+  } else if (f.brows === 'flat') {
+    p.rect(l - 1, 11, 2, 1, ink); p.rect(r, 11, 2, 1, ink);
+  } else if (f.brows === 'heavy') {
+    p.rect(l - 1, 11, r - l + 3, 1, '#4a4a42');
+  }
+  switch (f.mouth) {
+    case 'sneer':
+      p.rect(m - 1, 15, 3, 1, ink); p.set(m + 2, 14, ink); p.set(m, 15, '#e8e0cc');
+      break;
+    case 'grimace':
+      p.rect(l, 15, r - l + 1, 1, ink);
+      for (let x = l + 1; x < r; x += 2) p.set(x, 15, '#e8e0cc');
+      break;
+    case 'maw':
+      p.rect(l, 15, r - l + 1, 2, '#1a0a0a');
+      for (let x = l; x <= r; x += 2) p.set(x, 15, '#d8d0b0');
+      p.set(l + 1, 16, '#d8d0b0'); p.set(r - 1, 16, '#d8d0b0');
+      break;
+    case 'line':
+      p.rect(m - 1, 15, 2, 1, ink);
+      break;
+    case 'smirk':
+      p.rect(m - 1, 15, 2, 1, ink); p.set(m + 1, 14, ink);
+      break;
+  }
+  if (f.scar) {
+    p.set(r + 1, 13, '#b8484a'); p.set(r + 1, 14, '#b8484a'); p.set(r, 15, '#b8484a');
+  }
+}
+
 const HUMANS: Record<string, () => EnemyArt> = {
   punk: () =>
     rigArt(
       { skin: '#c28a64', hair: '#e8452e', hairStyle: 'mohawk', top: '#2a2a30', sleeves: '#c28a64', inner: '#3a2a2a', accent: '#e8452e', pants: '#3a3448', boots: '#1a1418', accessories: [] },
       (p) => {
+        face(p, { brows: 'angry', mouth: 'sneer', scar: true });
         // Chain whip hanging from the right hand.
         for (let i = 0; i < 8; i++) p.set(20 + (i % 2), 22 + i, i % 2 ? '#8a8e9c' : '#c8ccd8');
         p.rect(21, 30, 2, 2, '#c8ccd8');
@@ -57,6 +106,7 @@ const HUMANS: Record<string, () => EnemyArt> = {
     rigArt(
       { skin: '#d8a47e', hair: '#1a1418', hairStyle: 'hood', top: '#2f5a3a', inner: '#1a2a1e', accent: '#ffcc3d', pants: '#3a3448', boots: '#1a1418', accessories: ['mask'], goggles: '#1a1a22' },
       (p) => {
+        face(p, { brows: 'angry' });
         // Molotov in the left hand: bottle + flame.
         p.rect(4, 19, 2, 4, '#5a8a4a');
         p.set(4, 18, '#d8d0c0');
@@ -76,6 +126,7 @@ const HUMANS: Record<string, () => EnemyArt> = {
         pants: '#2a2a33', boots: '#1a1418', cyberArm: 'right', accessories: ['visor'], visor: '#ff3a3a',
       },
       (p) => {
+        face(p, { mouth: 'grimace', big: true });
         // Oversized chrome fists.
         p.ball(7, 24, 3.2, 3, '#b8c0d0');
         p.ball(23, 24, 3.2, 3, '#b8c0d0');
@@ -93,6 +144,7 @@ const HUMANS: Record<string, () => EnemyArt> = {
         pants: '#2e2c28', boots: '#5a5a52', eyes: '#e8ff7a',
       },
       (p) => {
+        face(p, { brows: 'heavy', mouth: 'maw', big: true });
         // Claws
         for (const [x, y] of [[5, 26], [7, 27], [9, 26], [21, 26], [23, 27], [25, 26]] as const) {
           p.set(x, y, '#e8e0cc');
@@ -115,6 +167,7 @@ const HUMANS: Record<string, () => EnemyArt> = {
         pants: '#1f2a44', boots: '#101018', accessories: ['visor'], visor: '#3fe0f0',
       },
       (p) => {
+        face(p, { mouth: 'line' });
         // Carbine held across the body.
         p.line(4, 21, 22, 17, '#2a2c34', 2);
         p.line(18, 17, 26, 15, '#4a4e5c', 1);
@@ -132,6 +185,7 @@ const HUMANS: Record<string, () => EnemyArt> = {
         pants: '#2a2238', boots: '#16161e', accessories: ['visor'], visor: '#ff6fc8',
       },
       (p) => {
+        face(p, { mouth: 'smirk' });
         p.ball(5, 20, 3, 3, '#b07cff');
       },
       (g) => {

@@ -40,8 +40,8 @@ export class Display {
     this.k = Math.max(1, Math.ceil(cssScale * dpr));
     this.screen.width = W * this.k;
     this.screen.height = H * this.k;
-    this.screen.style.width = cssW + 'px';
-    this.screen.style.height = cssH + 'px';
+    this.screen.style.width = `${cssW}px`;
+    this.screen.style.height = `${cssH}px`;
     this.sctx.imageSmoothingEnabled = false;
   }
 

@@ -72,10 +72,10 @@ function parseChord(sym: string): Chord {
   const [main, slash] = sym.split('/');
   const m = /^([A-G][#b]?)(.*)$/.exec(main!);
   if (!m) throw new Error(`Bad chord ${sym}`);
-  const root = noteToMidi(m[1]! + '3') % 12;
+  const root = noteToMidi(`${m[1]!}3`) % 12;
   const iv = QUAL[m[2]!];
   if (!iv) throw new Error(`Unknown chord quality ${sym}`);
-  const bass = slash ? noteToMidi(slash + '3') % 12 : root;
+  const bass = slash ? noteToMidi(`${slash}3`) % 12 : root;
   return { root, tones: iv.map((i) => root + i), bass };
 }
 
@@ -86,7 +86,9 @@ function stepsOf(src: string): { tok: string; step: number; len: number }[] {
   bars.forEach((bar, bi) => {
     const toks = bar.split(/\s+/);
     const len = STEPS / toks.length;
-    toks.forEach((t, i) => out.push({ tok: t, step: bi * STEPS + Math.round(i * len), len }));
+    toks.forEach((t, i) => {
+      out.push({ tok: t, step: bi * STEPS + Math.round(i * len), len });
+    });
   });
   return out;
 }

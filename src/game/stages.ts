@@ -33,6 +33,7 @@ export const STAGES: Record<string, () => Stage> = {
     crew({ kit: { level: 1 }, rook: { level: 3 } });
     Object.assign(state.flags, { intro: true, objective: 'Meet Dutch at the Drowned Saint (north side of the street).' });
     state.cred = 150;
+    state.battles = 1;
     state.inventory = { medkit: 3 };
     return { map: 'lantern_row', x: 22, y: 8, dir: 'up', minutes: 4 };
   },
@@ -40,6 +41,7 @@ export const STAGES: Record<string, () => Stage> = {
     crew({ kit: { level: 2, equip: { weapon: 'iron_knuckles', body: 'armored_jacket' } }, rook: { level: 3 } });
     Object.assign(state.flags, FLAGS_BEFORE_HEX);
     state.cred = 420;
+    state.battles = 7;
     state.inventory = { medkit: 4, detox: 2, iron_knuckles: 1, rat_tail: 3, gang_colors: 2, getaway_chit: 1 };
     return { map: 'lantern_row', x: 27, y: 21, dir: 'down', minutes: 14 };
   },
@@ -51,6 +53,7 @@ export const STAGES: Record<string, () => Stage> = {
     });
     Object.assign(state.flags, FLAGS_SINKLINE);
     state.cred = 640;
+    state.battles = 16;
     state.inventory = { medkit: 5, trauma_patch: 2, neurotab: 2, detox: 2, smoke_pellet: 1, getaway_chit: 1, scrap_chip: 2 };
     state.combos = ['combo_target_lock'];
     return { map: 'sinkline_1', x: 10, y: 9, dir: 'down', minutes: 42 };
@@ -64,6 +67,7 @@ export const STAGES: Record<string, () => Stage> = {
     });
     Object.assign(state.flags, { ...FLAGS_SINKLINE, floodgate: true, lurker: true, annex_key: true, sable_joined: true, objective: 'Escape Annex 7. Head for the freight lift.' });
     state.cred = 1400;
+    state.battles = 29;
     state.inventory = { medkit: 6, trauma_patch: 4, neurotab: 3, adrenal_stim: 2, omni_patch: 1, frag: 2 };
     state.combos = ['combo_target_lock', 'combo_thunder_rift'];
     return { map: 'annex', x: 22, y: 12, dir: 'down', minutes: 78 };

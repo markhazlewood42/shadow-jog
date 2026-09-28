@@ -22,7 +22,10 @@ export class CardScene extends Scene<void> {
 
   update(): void {
     this.t++;
-    if (autoClose(this.t, 100)) return this.close();
+    if (autoClose(this.t, 100)) {
+      this.close();
+      return;
+    }
     if (this.t > 12 && (this.game.input.pressed('confirm') || this.game.input.pressed('cancel'))) {
       sfx('confirm');
       this.close();

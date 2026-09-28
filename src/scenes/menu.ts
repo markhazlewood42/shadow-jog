@@ -444,14 +444,16 @@ export class MenuScene extends Scene<MenuResult> {
       drawText(ctx, `Lv ${m.level}`, tx + (compact ? 60 : 64), y + 6, { color: UI.dim });
       if (!compact) drawText(ctx, def.role, x + w - 8, y + 6, { color: UI.dim, align: 'right' });
       const down = m.hp <= 0;
-      const bw = compact ? w - (tx - x) - 60 : 120;
+      // Numbers right-align inside the card; the bar stops short of the widest reading ("999/999").
+      const numX = compact ? x + w - 7 : tx + 26 + 120 + 60;
+      const bw = compact ? numX - measure('999/999') - 6 - (tx + 20) : 120;
       drawText(ctx, down ? '{r}DOWN{/}' : 'HP', tx, y + 18, { color: UI.dim });
       drawBar(ctx, tx + 20, y + 21, bw, 2, m.hp / s.maxHp, hpColor(m.hp / s.maxHp));
-      drawText(ctx, `${m.hp}/${s.maxHp}`, tx + 26 + bw + (compact ? 50 : 60), y + 18, { align: 'right' });
+      drawText(ctx, `${m.hp}/${s.maxHp}`, numX, y + 18, { align: 'right' });
       if (s.maxTp > 0) {
         drawText(ctx, def.tpLabel, tx, y + 30, { color: UI.dim });
         drawBar(ctx, tx + 20, y + 33, bw, 2, m.tp / s.maxTp, UI.cyan);
-        drawText(ctx, `${m.tp}/${s.maxTp}`, tx + 26 + bw + (compact ? 50 : 60), y + 30, { align: 'right' });
+        drawText(ctx, `${m.tp}/${s.maxTp}`, numX, y + 30, { align: 'right' });
       }
       if (!compact) {
         const next = xpFor(m.level + 1) - m.xp;
@@ -598,7 +600,7 @@ export class MenuScene extends Scene<MenuResult> {
       const ab = ABILITIES[c.id]!;
       const names = c.parts.map((p) => `${MEMBERS[p.member as MemberId].name}: ${ABILITIES[p.ability]!.name}`).join('  +  ');
       drawText(ctx, known ? `★ ${ab.name}` : '★ ???', 18, y, { color: known ? UI.amber : UI.disabled });
-      drawText(ctx, known ? names : 'Hint: ' + c.hint, 30, y + 11, { color: known ? '#d0cee4' : UI.dim });
+      drawText(ctx, known ? names : `Hint: ${c.hint}`, 30, y + 11, { color: known ? '#d0cee4' : UI.dim });
       if (known) drawText(ctx, ab.desc, 30, y + 22, { color: UI.dim });
     });
   }

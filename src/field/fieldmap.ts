@@ -124,7 +124,9 @@ export class FieldMap {
       },
     };
     for (const s of this.def.structures ?? []) paintBuilding(b, s);
-    (this.def.props ?? []).forEach((p, i) => paintProp(b, p, i * 977 + p.x * 31 + p.y));
+    (this.def.props ?? []).forEach((p, i) => {
+      paintProp(b, p, i * 977 + p.x * 31 + p.y);
+    });
     for (const l of this.def.lights ?? []) {
       if (l.when && !l.when(flagsNow())) continue;
       const k = l.px ? 1 : TS;

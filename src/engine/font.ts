@@ -281,15 +281,30 @@ export function visibleLength(text: string): number {
  * Word-wrap into lines no wider than `maxW`. Honors explicit `\n`.
  * The active color code is re-emitted at the start of continuation lines.
  */
+/** A single word wider than the box is split at the character that would overflow it. */
+function splitLong(word: string, maxW: number): string[] {
+  if (word.includes('{') || measure(word) <= maxW) return [word];
+  const parts: string[] = [];
+  let cur = '';
+  for (const ch of word) {
+    if (cur && measure(cur + ch) > maxW) {
+      parts.push(cur);
+      cur = ch;
+    } else cur += ch;
+  }
+  if (cur) parts.push(cur);
+  return parts;
+}
+
 export function wrap(text: string, maxW: number): string[] {
   const out: string[] = [];
   for (const para of text.split('\n')) {
-    const words = para.split(' ');
+    const words = para.split(' ').flatMap((w) => splitLong(w, maxW));
     let line = '';
     let activeCode = '';
     let lineStartCode = '';
     for (const word of words) {
-      const candidate = line ? line + ' ' + word : lineStartCode + word;
+      const candidate = line ? `${line} ${word}` : lineStartCode + word;
       if (line && measure(candidate) > maxW) {
         out.push(line);
         lineStartCode = activeCode;

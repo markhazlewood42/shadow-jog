@@ -30,7 +30,7 @@ const MAP_CACHE_MAX = 8;
 
 function loadMap(id: string): FieldMap {
   const def = getMap(id);
-  const sig = id + ':' + (def.patches ?? []).map((p) => (p.when(state.flags) ? 1 : 0)).join('');
+  const sig = `${id}:${(def.patches ?? []).map((p) => (p.when(state.flags) ? 1 : 0)).join('')}`;
   let m = mapCache.get(sig);
   if (m) {
     // Refresh LRU position.
@@ -492,7 +492,7 @@ export class FieldScene extends Scene<void> {
       const p = this.panTarget;
       p.t++;
       const k = Math.min(1, p.t / p.frames);
-      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
       this.camX = Math.round(p.sx + (p.x - p.sx) * e);
       this.camY = Math.round(p.sy + (p.y - p.sy) * e);
       if (k >= 1) {

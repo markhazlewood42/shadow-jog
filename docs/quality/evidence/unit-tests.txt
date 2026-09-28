@@ -4,7 +4,7 @@
  ✓ tests/music.test.ts > soundtrack > title compiles with bar-aligned parts 2ms
  ✓ tests/music.test.ts > soundtrack > town compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > bar compiles with bar-aligned parts 0ms
- ✓ tests/music.test.ts > soundtrack > world compiles with bar-aligned parts 1ms
+ ✓ tests/music.test.ts > soundtrack > world compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > rustyard compiles with bar-aligned parts 1ms
  ✓ tests/music.test.ts > soundtrack > dungeon compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > lab compiles with bar-aligned parts 0ms
@@ -16,38 +16,29 @@
  ✓ tests/music.test.ts > soundtrack > gameover compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > sable compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > tension compiles with bar-aligned parts 0ms
-stdout | tests/economy.test.ts > economy > prints the route
-street     cred   33 + loot  13 · xp 18
-barrens    cred   36 + loot  19 · xp 26
-sinkline   cred   49 + loot  20 · xp 51
-annex      cred  112 + loot  38 · xp 93
-CP1 before the Rustyard trip   after buys    59¢ (spent 120)  fights 1  {"kit":1,"rook":3} 
-Walk to the Rustyard           after buys   142¢ (spent 0)  fights 2.8  {"kit":2,"rook":3} 
-CP2 Knuckles                   after buys   457¢ (spent 0)  fights 6  {"kit":3,"rook":4} 
-Knuckles                       after buys   871¢ (spent 0)  fights 7  {"kit":4,"rook":4} 
-CP3 into the Sinkline          after buys    94¢ (spent 720)  fights 8.8  {"kit":4,"rook":5,"hex":4} 
-Walk to the Sinkline           after buys   140¢ (spent 0)  fights 9.7  {"kit":4,"rook":5,"hex":4} 
-CP4 the Lurker                 after buys    77¢ (spent 760)  fights 16  {"kit":6,"rook":6,"hex":5} 
-CP5 into Annex 7               after buys   137¢ (spent 520)  fights 17  {"kit":7,"rook":7,"hex":7} 
-CP6 WARDEN                     after buys   978¢ (spent 0)  fights 22.1  {"kit":8,"rook":8,"hex":8,"sable":7} 
-
- ✓ tests/economy.test.ts > economy > prints the route 1ms
- ✓ tests/economy.test.ts > economy > CP1 before the Rustyard trip: affordable at the expected level, no grinding 0ms
- ✓ tests/economy.test.ts > economy > CP2 Knuckles: affordable at the expected level, no grinding 0ms
- ✓ tests/economy.test.ts > economy > CP3 into the Sinkline: affordable at the expected level, no grinding 0ms
- ✓ tests/economy.test.ts > economy > CP4 the Lurker: affordable at the expected level, no grinding 0ms
- ✓ tests/economy.test.ts > economy > CP5 into Annex 7: affordable at the expected level, no grinding 0ms
- ✓ tests/economy.test.ts > economy > CP6 WARDEN: affordable at the expected level, no grinding 0ms
- ✓ tests/economy.test.ts > economy > every item a balance stage assumes can be obtained (shop or chest) 58ms
- ✓ tests/economy.test.ts > economy > the whole chapter takes a sensible number of fights 0ms
  ✓ tests/save.test.ts > save / load > round-trips the full state, meta, play time and RNG 2ms
  ✓ tests/save.test.ts > save / load > reports the most recent slot 1ms
  ✓ tests/save.test.ts > save / load > rejects corrupt JSON, future versions and structurally broken saves 0ms
  ✓ tests/save.test.ts > save / load > rejects saves pointing at unknown maps 0ms
  ✓ tests/save.test.ts > save / load > fills fields added after a save was written 0ms
- ✓ tests/battle.test.ts > data integrity > every referenced ability exists 2ms
+ ✓ tests/maps.test.ts > map connectivity > lantern_row: all content reachable from where the player arrives 2ms
+ ✓ tests/maps.test.ts > map connectivity > world: all content reachable from where the player arrives 1ms
+ ✓ tests/maps.test.ts > map connectivity > rustyard: all content reachable from where the player arrives 1ms
+ ✓ tests/maps.test.ts > map connectivity > sinkline_1: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > annex: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > dock: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > rook_flat: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > bar: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > clinic: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > armory: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > threads: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > kwikmart: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > hotel: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > noodles: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > hex_den: all content reachable from where the player arrives 0ms
+ ✓ tests/battle.test.ts > data integrity > every referenced ability exists 1ms
  ✓ tests/battle.test.ts > data integrity > every encounter references real enemies and drops reference real items 1ms
- ✓ tests/battle.test.ts > data integrity > every combo pairs two different members with abilities they actually learn 1ms
+ ✓ tests/battle.test.ts > data integrity > every combo pairs two different members with abilities they actually learn 2ms
  ✓ tests/battle.test.ts > data integrity > starting equipment is equippable 0ms
  ✓ tests/battle.test.ts > progression > xp curve is monotonic and levelForXp inverts it 1ms
  ✓ tests/battle.test.ts > progression > grantXp levels up, raises stats and teaches abilities 0ms
@@ -57,8 +48,38 @@ CP6 WARDEN                     after buys   978¢ (spent 0)  fights 22.1  {"kit"
  ✓ tests/battle.test.ts > battle engine > cyber programs wreck machines and do nothing to spirits 0ms
  ✓ tests/battle.test.ts > battle engine > the Warden transforms into its spirit form instead of dying 0ms
  ✓ tests/battle.test.ts > battle engine > running from a boss is refused 0ms
- ✓ tests/battle.test.ts > hijack > a hijacked machine turns one of its own damaging moves on its allies 2ms
- ✓ tests/battle.test.ts > maps > every prop kind placed on a map has a painter 66ms
+ ✓ tests/battle.test.ts > hijack > a hijacked machine turns one of its own damaging moves on its allies 1ms
+ ✓ tests/battle.test.ts > maps > every prop kind placed on a map has a painter 74ms
+stdout | tests/economy.test.ts > economy > prints the route
+Walk to the Rustyard           walks 39 steps of street (1 in 28), 25 steps of barrens (1 in 20)
+Rustyard gate                  walks 23 steps of barrens (1 in 16)
+Walk back, Hex joins           walks 21 steps of barrens (1 in 16), 23 steps of barrens (1 in 20), 25 steps of street (1 in 28), 11 steps of park (1 in 18)
+Walk to the Sinkline           walks 36 steps of street (1 in 28)
+Sinkline B1                    walks 135 steps of sinkline (1 in 19)
+Annex 7                        walks 86 steps of annex (1 in 22)
+street     cred   33 + loot  13 · xp 18
+barrens    cred   36 + loot  19 · xp 26
+sinkline   cred   49 + loot  20 · xp 51
+annex      cred  112 + loot  38 · xp 93
+CP1 before the Rustyard trip   after buys    59¢ (spent 120)  fights 1  {"kit":1,"rook":3} 
+Walk to the Rustyard           after buys   193¢ (spent 0)  fights 3.6  {"kit":2,"rook":3} 
+CP2 Knuckles                   after buys   466¢ (spent 0)  fights 6.1  {"kit":3,"rook":4} 
+Knuckles                       after buys   880¢ (spent 0)  fights 7.1  {"kit":4,"rook":4} 
+CP3 into the Sinkline          after buys   222¢ (spent 720)  fights 11  {"kit":4,"rook":5,"hex":4} 
+Walk to the Sinkline           after buys   282¢ (spent 0)  fights 12.3  {"kit":4,"rook":5,"hex":4} 
+CP4 the Lurker                 after buys   274¢ (spent 760)  fights 19.4  {"kit":6,"rook":6,"hex":5} 
+CP5 into Annex 7               after buys   334¢ (spent 520)  fights 20.4  {"kit":7,"rook":7,"hex":7} 
+CP6 WARDEN                     after buys  1148¢ (spent 0)  fights 25.3  {"kit":8,"rook":9,"hex":8,"sable":8} 
+
+ ✓ tests/economy.test.ts > economy > prints the route 2ms
+ ✓ tests/economy.test.ts > economy > CP1 before the Rustyard trip: affordable at the expected level, no grinding 0ms
+ ✓ tests/economy.test.ts > economy > CP2 Knuckles: affordable at the expected level, no grinding 0ms
+ ✓ tests/economy.test.ts > economy > CP3 into the Sinkline: affordable at the expected level, no grinding 0ms
+ ✓ tests/economy.test.ts > economy > CP4 the Lurker: affordable at the expected level, no grinding 0ms
+ ✓ tests/economy.test.ts > economy > CP5 into Annex 7: affordable at the expected level, no grinding 0ms
+ ✓ tests/economy.test.ts > economy > CP6 WARDEN: affordable at the expected level, no grinding 0ms
+ ✓ tests/economy.test.ts > economy > every item a balance stage assumes can be obtained (shop or chest) 4ms
+ ✓ tests/economy.test.ts > economy > the whole chapter takes a sensible number of fights 0ms
 stdout | tests/balance.test.ts > balance > prints the balance table
 
 street  (opening)            win 100%  rounds  2.2  hp lost  15%  combos/battle 0.00
@@ -77,11 +98,11 @@ sinkline x6                  cleared  93%  end hp  80%  medkits 4.0  rounds/batt
 annex x5                     cleared  87%  end hp  74%  medkits 2.5  rounds/battle 4.3
     lost to: bound_spirit+km_arcanist @5 lose ×4, bound_spirit+km_arcanist @1 lose ×2, bound_spirit+km_arcanist @3 lose ×1, bound_spirit+km_arcanist @4 lose ×1
 
- ✓ tests/balance.test.ts > balance > prints the balance table 1ms
+ ✓ tests/balance.test.ts > balance > prints the balance table 2ms
  ✓ tests/balance.test.ts > balance > the policy uses every ability learnable by the Warden and all six combos 1ms
  ✓ tests/balance.test.ts > balance > street  (opening) within targets 0ms
  ✓ tests/balance.test.ts > balance > barrens (to Rustyard) within targets 0ms
- ✓ tests/balance.test.ts > balance > KNUCKLES within targets 1ms
+ ✓ tests/balance.test.ts > balance > KNUCKLES within targets 0ms
  ✓ tests/balance.test.ts > balance > sinkline within targets 0ms
  ✓ tests/balance.test.ts > balance > LURKER within targets 0ms
  ✓ tests/balance.test.ts > balance > annex within targets 0ms
@@ -91,8 +112,8 @@ annex x5                     cleared  87%  end hp  74%  medkits 2.5  rounds/batt
  ✓ tests/balance.test.ts > dungeon attrition > sinkline x6 is survivable 0ms
  ✓ tests/balance.test.ts > dungeon attrition > annex x5 is survivable 0ms
 
- Test Files  5 passed (5)
-      Tests  56 passed (56)
-   Start at  08:54:58
-   Duration  334ms (transform 54%, import 26%, tests 18%, worker 2%)
+ Test Files  6 passed (6)
+      Tests  71 passed (71)
+   Start at  09:17:16
+   Duration  347ms (transform 63%, import 26%, tests 10%, worker 2%)
 

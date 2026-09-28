@@ -6,7 +6,7 @@ import { COMBOS } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
 import { MEMBERS } from '../data/party';
 import { surface, type Ctx } from '../engine/canvas';
-import { drawText } from '../engine/font';
+import { drawText, measure } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { formatPlayTime } from '../game/save';
 import { state } from '../game/state';
@@ -50,7 +50,10 @@ export class EndingScene extends Scene<void> {
   render(ctx: Ctx): void {
     ctx.fillStyle = '#07060d';
     ctx.fillRect(0, 0, W, H);
-    if (this.page === 1) return this.renderNext(ctx);
+    if (this.page === 1) {
+      this.renderNext(ctx);
+      return;
+    }
     ctx.globalAlpha = Math.min(1, this.t / 40);
     drawText(ctx, 'CHAPTER ONE · MILK RUN', W / 2, 16, { align: 'center', color: UI.pink });
     drawText(ctx, 'complete', W / 2, 28, { align: 'center', color: UI.dim });
@@ -86,7 +89,9 @@ export class EndingScene extends Scene<void> {
     ctx.globalAlpha = base;
     // The one line that matters arrives on its own, after the numbers have had their moment.
     ctx.globalAlpha = Math.max(0, Math.min(1, (this.t - MISSING_AT) / 50));
-    drawText(ctx, 'Rook: {r}missing{/}', W / 2, 214, { align: 'center' });
+    const mw = measure('Rook: missing') + 28;
+    drawWindow(ctx, (W - mw) / 2, 208, mw, 19, { plain: true, accent: UI.red });
+    drawText(ctx, 'Rook: {r}missing{/}', W / 2, 213, { align: 'center' });
     ctx.globalAlpha = 1;
     if (this.t > MISSING_AT + 60 && Math.floor(this.t / 25) % 2 === 0) drawText(ctx, '▼', W / 2, 250, { align: 'center', color: UI.cyan });
   }

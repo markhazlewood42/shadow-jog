@@ -68,7 +68,7 @@ export const MEMBERS: Record<MemberId, MemberDef> = {
 export function xpFor(level: number): number {
   if (level <= 1) return 0;
   const l = level - 1;
-  return Math.floor(15 * Math.pow(l, 2.25) + 20 * l);
+  return Math.floor(15 * l ** 2.25 + 20 * l);
 }
 
 export const MAX_LEVEL = 30;

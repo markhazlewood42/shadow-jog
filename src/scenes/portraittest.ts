@@ -16,7 +16,9 @@ export class PortraitTestScene extends Scene {
       const col = Math.floor(i / 4), row = i % 4;
       const x0 = 16 + col * 232, y0 = 12 + row * 64;
       drawText(ctx, k, x0, y0, { color: '#8b8fa8' });
-      this.faces.forEach((f, j) => ctx.drawImage(getPortrait(k, f)!, x0 + j * 52, y0 + 11));
+      this.faces.forEach((f, j) => {
+        ctx.drawImage(getPortrait(k, f)!, x0 + j * 52, y0 + 11);
+      });
     });
     void H;
   }
