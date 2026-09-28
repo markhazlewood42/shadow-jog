@@ -60,6 +60,8 @@ interface Floater {
 const BW = 240, BHT = 135;
 const PANEL_Y = 214;
 const PARTY_BOTTOM = 111;
+/** Battle menus hug the screen edge; CMD_W fits "Programs"/"Spirits" plus the cursor. */
+const MENU_X = 4, CMD_W = 84;
 
 const STATUS_LABEL: Partial<Record<StatusId, [string, string]>> = {
   poison: ['PSN', '#b07cff'], burn: ['BRN', '#ff8a4a'], stun: ['STN', '#ffe07a'], blind: ['BLD', '#8b8fa8'],
@@ -89,7 +91,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private actorIdx = 0;
   private roundMenu = new ListMenu<string>([], 4);
   private cmdMenu = new ListMenu<string>([], 5);
-  private listMenu = new ListMenu<string>([], 7);
+  private listMenu = new ListMenu<string>([], 5);
   private listKind: 'tech' | 'skill' | 'item' = 'tech';
   private pending: { type: Command['type']; id?: string; ability: Ability } | null = null;
   private targetList: number[] = [];
@@ -977,6 +979,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       return;
     }
     g.drawImage(frame, x, y);
+    if (active && this.mode !== 'target') this.drawArrow(g, p.uid, f, MEMBERS[p.key as MemberId].color);
     if (dd.flash > 0 && dd.flash % 4 < 2) {
       g.globalAlpha = 0.6;
       g.drawImage(silhouetteCache(frame, '#ff5a5a'), x, y);
@@ -984,7 +987,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     }
   }
 
-  private drawArrow(g: Ctx, uid: number, f: number): void {
+  private drawArrow(g: Ctx, uid: number, f: number, color = '#ffe07a'): void {
     const u = this.battle.unit(uid);
     if (!u) return;
     let x: number, y: number;
@@ -1000,7 +1003,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const b = Math.round(Math.sin(f * 0.25) * 2);
     g.fillStyle = '#0a0913';
     g.fillRect(x - 3, y - 6 + b, 7, 1);
-    g.fillStyle = '#ffe07a';
+    g.fillStyle = color;
     for (let i = 0; i < 4; i++) g.fillRect(x - 3 + i, y - 5 + b + i, 7 - i * 2, 1);
   }
 
@@ -1113,8 +1116,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     });
   }
 
+  /** One or two centred lines in the top slot, where action banners play during a round. */
+  private topLine(ctx: Ctx, text: string, color: string = UI.dim, second?: { text: string; color: string }): void {
+    const tw = Math.min(W - 20, Math.max(measure(text), second ? measure(second.text) : 0) + 24);
+    drawWindow(ctx, (W - tw) / 2, 6, tw, second ? 28 : 17, { plain: true, accent: second ? second.color : UI.cyan });
+    drawText(ctx, text, W / 2, 10, { align: 'center', color });
+    if (second) drawText(ctx, second.text, W / 2, 21, { align: 'center', color: second.color });
+  }
+
   private renderRoundMenu(ctx: Ctx): void {
-    const x = 16, y = PANEL_Y - 60;
+    const x = MENU_X, y = PANEL_Y - 60;
     drawWindow(ctx, x, y, 84, 54, { title: 'ROUND ' + (this.battle.round + 1) });
     this.roundMenu.render(ctx, x + 8, y + 8, 72);
     const help: Record<string, string> = {
@@ -1123,37 +1134,46 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       auto: 'Everyone attacks.',
       run: this.battle.canRun && !this.setup.boss ? 'Try to escape.' : 'You can\'t run from this fight.',
     };
-    const h = help[this.roundMenu.current?.value ?? ''] ?? '';
-    const tw = measure(h) + 16;
-    drawWindow(ctx, x + 90, PANEL_Y - 24, tw, 17, { plain: true });
-    drawText(ctx, h, x + 98, PANEL_Y - 20, { color: UI.dim });
+    const h = help[this.roundMenu.current?.value ?? ''];
+    if (h && !this.banner && !this.message) this.topLine(ctx, h);
+  }
+
+  /**
+   * Command and ability windows sit in the screen corner on the actor's side. Party sprites
+   * never reach the outer 90px, so the acting character is never covered by their own menu.
+   */
+  private menuX(a: Combatant, w: number): number {
+    return this.partyPos(a).x * 2 < W / 2 ? MENU_X : W - MENU_X - w;
   }
 
   private renderCmdMenu(ctx: Ctx, active = true): void {
     const a = this.actor;
     if (!a) return;
-    const i = this.battle.party.indexOf(a);
-    const x = Math.min(W - 92, this.boxX(i) + 4);
     const h = this.cmdMenu.items.length * 11 + 12;
-    const y = PANEL_Y - h - 8;
-    drawWindow(ctx, x, y, 86, h, { accent: MEMBERS[a.key as MemberId].color, title: a.name.toUpperCase() });
-    this.cmdMenu.render(ctx, x + 7, y + 7, 78, active);
+    const x = this.menuX(a, CMD_W), y = PANEL_Y - h - 6;
+    drawWindow(ctx, x, y, CMD_W, h, { accent: MEMBERS[a.key as MemberId].color, title: a.name.toUpperCase(), alpha: active ? 1 : 0.85 });
+    this.cmdMenu.render(ctx, x + 7, y + 7, CMD_W - 8, active);
   }
 
   private renderList(ctx: Ctx): void {
-    const x = 118, y = 44, w = 244, h = 7 * 11 + 14;
-    drawWindow(ctx, x, y, w, h, { title: this.listKind === 'item' ? 'ITEMS' : this.listKind === 'skill' ? 'SKILLS' : (this.cmdMenu.items.find((i) => i.value === 'tech')?.label ?? 'TECHS').toUpperCase() });
-    if (!this.listMenu.items.length) drawText(ctx, 'Nothing to use.', x + 12, y + 10, { color: UI.dim });
-    this.listMenu.render(ctx, x + 8, y + 8, w - 14);
+    const a = this.actor;
+    if (!a) return;
+    // Stacked above the command window, and above the party's heads, so the field stays readable.
+    const items = this.listMenu.items;
+    const widest = items.reduce((m, it) => Math.max(m, measure(it.label) + (it.right ? measure(it.right) + 12 : 0)), measure('Nothing to use.'));
+    const w = Math.min(190, Math.max(120, widest + 30));
+    const h = Math.min(this.listMenu.rows, Math.max(1, items.length)) * 11 + 14;
+    const cmdTop = PANEL_Y - (this.cmdMenu.items.length * 11 + 12) - 6;
+    const x = this.menuX(a, w), y = cmdTop - h - 4;
+    const kind = this.listKind === 'item' ? 'Items' : this.listKind === 'skill' ? 'Skills' : this.cmdMenu.items.find((i) => i.value === 'tech')?.label ?? 'Techs';
+    drawWindow(ctx, x, y, w, h, { title: `${a.name} · ${kind}`.toUpperCase(), accent: MEMBERS[a.key as MemberId].color });
+    this.listMenu.render(ctx, x + 8, y + 8, w - 14, true, 'Nothing to use.');
     const cur = this.listMenu.current;
     if (!cur) return;
     const desc = this.listKind === 'item' ? ITEMS[cur.value]!.desc : ABILITIES[cur.value]!.desc;
     // Combo hint: would this choice pair with an order already given?
     const hint = this.listKind === 'item' ? '' : this.comboHint(cur.value);
-    const dh = hint ? 30 : 19;
-    drawWindow(ctx, x, y - dh - 12, w, dh, { plain: true, accent: hint ? UI.amber : UI.cyan });
-    drawText(ctx, desc, x + 8, y - dh - 8, { color: '#d8d6ec' });
-    if (hint) drawText(ctx, hint, x + 8, y - dh + 3, { color: UI.amber });
+    this.topLine(ctx, desc, '#d8d6ec', hint ? { text: hint, color: UI.amber } : undefined);
   }
 
   private renderTargetInfo(ctx: Ctx): void {

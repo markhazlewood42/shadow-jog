@@ -3,7 +3,7 @@ type: status
 title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-28
 tags: [status]
 ---
 
@@ -22,22 +22,21 @@ Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. C
 - `src/audio/`: WebAudio synth, sequencer and composition DSL; 14 songs (`songs.ts`) and SFX.
 - `src/story/chapter1.ts`: every story beat. `src/data/maps/*.ts`: all maps, NPCs and events.
 - `src/game/`: state, party, save (3 slots + autosave), systems hooks, debug and stage presets.
-- Tests: Vitest (battle, balance simulator, music) and the Playwright E2E full-chapter playthrough (`e2e/playthrough.spec.ts`). Screenshot evidence: `npm run shots` writes `docs/screenshots/`.
+- Tests: Vitest (battle, balance simulator, economy model, save, music) and Playwright E2E (`e2e/playthrough.spec.ts` full chapter, `e2e/gameover.spec.ts`). Screenshot evidence: `npm run shots` writes `docs/screenshots/`. Playtest capture: `npx playwright test e2e/playtest.spec.ts` plays Chapter 1 hands-off with real dialogs/battles and writes a frame every 2.5s to `playtest/latest/` (gitignored).
 - Dev: `npm run dev` (port 3007). Debug routes: `?scene=field&map=ID&x=&y=`, `?scene=battle&enc=&bg=`, `?scene=chars|bestiary|portraits|mapview&map=ID`. `window.__SJ__` offers `stage(name)`, `tp()`, `battle()`, `say()`, `menu()` and `debug.autoDialog/autoBattle`.
 
 ## Current Status
 
-**Content-complete and playable start to finish.** The E2E playthrough passes, 38/38 unit tests pass, and typecheck is clean.
+**Content-complete and playable start to finish.** Quality gate round 1 done (scores 3.5–7.6, see `docs/quality/scorecard.md`); **round 2 in progress**, one batch per area, ticked in the scorecard's work plan.
 
-**Quality gate round 1** is running: 11 independent sonnet verifiers, one per rubric area. Results go in `docs/quality/scorecard.md`.
+Round 2 done so far: stability/engine (06f403c), economy + balance (5bd94c9: no-grind economy model, competent-player sim with full ability/combo coverage, Warden/Lurker retune, playtest capture mode).
 
 **Resume here**
-1. Read the scorecard.
-2. Fix the top issues in every area scored below 8.5.
-3. Re-run `npm run shots` and the E2E playthrough.
-4. Re-verify.
+1. Scorecard → next unticked batch in "Round 2 work plan" (next: UI/UX, then field art, battle presentation, combat, narrative, level design, audio).
+2. After each batch: `npx tsc --noEmit`, `npx vitest run`, `npx playwright test e2e/playthrough.spec.ts e2e/gameover.spec.ts`, commit, push.
+3. When all batches land: `npm run shots`, playtest capture, re-verify every area with fresh sonnet verifiers (rubric grader prompt).
 
-Areas to watch: human enemy sprites use Scale2x (their pixel density differs from the party sprites); the level design of Sinkline B1 is fairly linear; audio can only be reviewed from code.
+Don't edit `src/` while a Playwright run is going: Vite hot-reloads and the run dies.
 
 ## Future Plans
 

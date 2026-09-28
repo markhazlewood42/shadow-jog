@@ -17,6 +17,9 @@ import { drawBar, drawDivider, drawSelect, drawWindow, hpColor, UI } from '../ui
 import { ListMenu, type ListItem } from '../ui/list';
 import { OptionsScene } from './options';
 
+/** Combo log entries visible at once (36px each under the header). */
+const COMBO_ROWS = 6;
+
 type Mode = 'main' | 'pickMember' | 'items' | 'itemTarget' | 'techs' | 'techTarget' | 'equipSlots' | 'equipList' | 'status' | 'combos' | 'save' | 'saveConfirm';
 
 export type MenuResult = { kind: 'close' } | { kind: 'special'; item: string } | { kind: 'title' };
@@ -28,6 +31,7 @@ export class MenuScene extends Scene<MenuResult> {
   private mode: Mode = 'main';
   private main = new ListMenu<string>([], 8);
   private sub = new ListMenu<string>([], 12);
+  private comboScroll = 0;
   private memberIdx = 0;
   private purpose: 'techs' | 'equip' | 'status' = 'status';
   private pendingItem: string | null = null;
@@ -81,7 +85,10 @@ export class MenuScene extends Scene<MenuResult> {
         else if (v === 'techs' || v === 'equip' || v === 'status') {
           this.purpose = v;
           this.mode = 'pickMember';
-        } else if (v === 'combos') this.mode = 'combos';
+        } else if (v === 'combos') {
+          this.comboScroll = 0;
+          this.mode = 'combos';
+        }
         else if (v === 'save') {
           this.buildSaveList();
           this.mode = 'save';
@@ -174,12 +181,16 @@ export class MenuScene extends Scene<MenuResult> {
         }
         break;
       }
-      case 'combos':
-        if (inp.pressed('cancel') || inp.pressed('confirm')) {
+      case 'combos': {
+        const max = Math.max(0, COMBOS.length - COMBO_ROWS);
+        if (inp.repeat('down') && this.comboScroll < max) { this.comboScroll++; sfx('cursor'); }
+        else if (inp.repeat('up') && this.comboScroll > 0) { this.comboScroll--; sfx('cursor'); }
+        else if (inp.pressed('cancel') || inp.pressed('confirm')) {
           sfx('cancel');
           this.mode = 'main';
         }
         break;
+      }
       case 'save': {
         const r = this.sub.update(inp);
         if (r === 'cancel') this.mode = 'main';
@@ -454,9 +465,8 @@ export class MenuScene extends Scene<MenuResult> {
     const x = 108, w = this.mode === 'itemTarget' ? 186 : W - 116;
     const h = H - 16 - 34;
     drawWindow(ctx, x, 8, w, h, { title: 'ITEMS' });
-    if (!this.sub.items.length) drawText(ctx, 'Your pockets are empty.', x + 12, 20, { color: UI.dim });
     this.sub.rows = Math.floor((h - 40) / 11);
-    this.sub.render(ctx, x + 8, 16, w - 14, this.mode === 'items');
+    this.sub.render(ctx, x + 8, 16, w - 14, this.mode === 'items', 'Your pockets are empty.');
     const cur = this.sub.current;
     if (cur) {
       drawDivider(ctx, x + 6, 8 + h - 30, w - 12);
@@ -469,7 +479,7 @@ export class MenuScene extends Scene<MenuResult> {
     const x = 108, w = this.mode === 'techTarget' ? 186 : W - 116;
     const h = H - 16 - 34;
     drawWindow(ctx, x, 8, w, h, { title: `${MEMBERS[m.id].name.toUpperCase()} · ${m.tp}/${memberStats(m).maxTp} ${MEMBERS[m.id].tpLabel}`, accent: MEMBERS[m.id].color });
-    this.sub.render(ctx, x + 8, 16, w - 14, this.mode === 'techs');
+    this.sub.render(ctx, x + 8, 16, w - 14, this.mode === 'techs', 'Nothing learned yet.');
     const cur = this.sub.current;
     if (cur) {
       const ab = ABILITIES[cur.value]!;
@@ -514,6 +524,8 @@ export class MenuScene extends Scene<MenuResult> {
     if (this.mode === 'equipList') {
       drawWindow(ctx, x + 156, 78, w - 156, H - 78 - 38, { title: SLOT_NAMES[this.equipSlot].toUpperCase() });
       this.sub.render(ctx, x + 164, 86, w - 170, true);
+      if (this.sub.items.length === 1 && this.sub.items[0]!.value === '__none')
+        drawParagraph(ctx, `No other ${SLOT_NAMES[this.equipSlot].toLowerCase()} gear in the bag. Shops and chests have more.`, x + 164, 104, w - 176, { color: UI.dim, lineH: 10 });
       const it = this.sub.current && this.sub.current.value !== '__none' ? ITEMS[this.sub.current.value] : null;
       if (it) {
         drawParagraph(ctx, it.desc + (canEquip(m, it.id) ? '' : ` {r}${MEMBERS[m.id].name} can't use this.{/}`), x + 10, 172, 142, { color: '#d0cee4', lineH: 10 });
@@ -575,7 +587,12 @@ export class MenuScene extends Scene<MenuResult> {
   private renderCombos(ctx: Ctx): void {
     drawWindow(ctx, 8, 8, W - 16, H - 16, { title: 'COMBO LOG', accent: UI.amber });
     drawText(ctx, 'Choose the right pair of abilities in the same round and they fuse.', 18, 22, { color: UI.dim });
-    COMBOS.forEach((c, i) => {
+    const found = COMBOS.filter((c) => state.combos.includes(c.id)).length;
+    drawText(ctx, `${found}/${COMBOS.length} found`, W - 18, 22, { align: 'right', color: UI.amber });
+    const first = this.comboScroll;
+    if (first > 0) drawText(ctx, '▲', W - 24, 32, { color: UI.cyan });
+    if (first + COMBO_ROWS < COMBOS.length) drawText(ctx, '▼', W - 24, H - 20, { color: UI.cyan });
+    COMBOS.slice(first, first + COMBO_ROWS).forEach((c, i) => {
       const y = 40 + i * 36;
       const known = state.combos.includes(c.id);
       const ab = ABILITIES[c.id]!;

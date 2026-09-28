@@ -1,6 +1,6 @@
 /** Dialogue box overlay: typewriter text, paging, optional choices, portrait. */
 import type { Ctx } from '../engine/canvas';
-import { drawText, LINE_H, visibleLength, wrap } from '../engine/font';
+import { drawText, LINE_H, measure, visibleLength, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { charsPerFrame } from '../game/settings';
 import { speaker, type Speaker } from '../data/speakers';
@@ -157,7 +157,7 @@ export class DialogScene extends Scene<number> {
 
   private renderChoices(ctx: Ctx, boxY: number): void {
     const ch = this.o.choices!;
-    const w = Math.max(80, ...ch.map((c) => wrap(c, 999)[0]!.length * 5)) + 24;
+    const w = Math.max(80, ...ch.map((c) => measure(c))) + 24;
     const h = ch.length * 12 + 10;
     const x = W - 8 - w - 4;
     const y = this.o.top ? boxY + BOX_H + 4 : boxY - h - 4;

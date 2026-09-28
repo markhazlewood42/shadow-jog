@@ -163,7 +163,7 @@ export class ShopScene extends Scene<void> {
     // List
     const lx = 96, lw = 196;
     drawWindow(ctx, lx, 46, lw, H - 54, { title: this.mode === 'sell' || this.qtyMode === 'sell' && this.mode === 'qty' ? 'SELL' : 'BUY', accent: acc });
-    this.list.render(ctx, lx + 8, 54, lw - 14, this.mode !== 'qty');
+    this.list.render(ctx, lx + 8, 54, lw - 14, this.mode !== 'qty', this.mode === 'sell' ? 'Nothing to sell.' : 'Sold out.');
     const cur = this.list.current;
     if (!cur) return;
     const it = ITEMS[cur.value]!;

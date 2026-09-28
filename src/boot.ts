@@ -50,6 +50,7 @@ export function boot(game: Game, display: Display): void {
     /** Jump to a preset point in the chapter on a fresh field. */
     stage: async (name: string) => {
       const st = applyStage(name);
+      game.playFrames = st.minutes * 60 * 60;
       void game.reset(new FieldScene(st.map, st.x, st.y, st.dir));
       await game.fadeTo(0, 0);
     },

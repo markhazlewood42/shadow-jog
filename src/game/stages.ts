@@ -8,6 +8,8 @@ export interface Stage {
   x: number;
   y: number;
   dir: Dir;
+  /** Typical play time to reach this point, for the HUD clock and save metadata. */
+  minutes: number;
 }
 
 type Kit = { level: number; equip?: Record<string, string> };
@@ -32,39 +34,39 @@ export const STAGES: Record<string, () => Stage> = {
     Object.assign(state.flags, { intro: true, objective: 'Meet Dutch at the Drowned Saint (north side of the street).' });
     state.cred = 150;
     state.inventory = { medkit: 3 };
-    return { map: 'lantern_row', x: 22, y: 8, dir: 'up' };
+    return { map: 'lantern_row', x: 22, y: 8, dir: 'up', minutes: 4 };
   },
   town: () => {
-    crew({ kit: { level: 3, equip: { weapon: 'iron_knuckles', body: 'armored_jacket' } }, rook: { level: 4 } });
+    crew({ kit: { level: 2, equip: { weapon: 'iron_knuckles', body: 'armored_jacket' } }, rook: { level: 3 } });
     Object.assign(state.flags, FLAGS_BEFORE_HEX);
     state.cred = 420;
     state.inventory = { medkit: 4, detox: 2, iron_knuckles: 1, rat_tail: 3, gang_colors: 2, getaway_chit: 1 };
-    return { map: 'lantern_row', x: 27, y: 21, dir: 'down' };
+    return { map: 'lantern_row', x: 27, y: 21, dir: 'down', minutes: 14 };
   },
   sinkline: () => {
     crew({
-      kit: { level: 5, equip: { weapon: 'shock_knuckles', body: 'lined_coat', head: 'bandana' } },
-      rook: { level: 6, equip: { weapon: 'vibro_katana' } },
-      hex: { level: 5, equip: { weapon: 'taser_pistol', body: 'lined_coat' } },
+      kit: { level: 5, equip: { weapon: 'iron_knuckles', body: 'armored_jacket', head: 'bandana' } },
+      rook: { level: 5, equip: { weapon: 'vibro_katana' } },
+      hex: { level: 4, equip: { weapon: 'heavy_pistol' } },
     });
     Object.assign(state.flags, FLAGS_SINKLINE);
     state.cred = 640;
     state.inventory = { medkit: 5, trauma_patch: 2, neurotab: 2, detox: 2, smoke_pellet: 1, getaway_chit: 1, scrap_chip: 2 };
     state.combos = ['combo_target_lock'];
-    return { map: 'sinkline_1', x: 10, y: 9, dir: 'down' };
+    return { map: 'sinkline_1', x: 10, y: 9, dir: 'down', minutes: 42 };
   },
   annex: () => {
     crew({
-      kit: { level: 8, equip: { weapon: 'mono_claws', body: 'ballistic_vest', head: 'helmet' } },
-      rook: { level: 8, equip: { weapon: 'vibro_katana', body: 'lined_coat' } },
-      hex: { level: 8, equip: { weapon: 'taser_pistol', body: 'spirit_robe' } },
-      sable: { level: 8, equip: { weapon: 'bone_staff', body: 'lined_coat' } },
+      kit: { level: 7, equip: { weapon: 'mono_claws', body: 'ballistic_vest', head: 'helmet' } },
+      rook: { level: 7, equip: { weapon: 'vibro_katana', body: 'lined_coat' } },
+      hex: { level: 7, equip: { weapon: 'heavy_pistol', body: 'lined_coat' } },
+      sable: { level: 7 },
     });
     Object.assign(state.flags, { ...FLAGS_SINKLINE, floodgate: true, lurker: true, annex_key: true, sable_joined: true, objective: 'Escape Annex 7. Head for the freight lift.' });
     state.cred = 1400;
     state.inventory = { medkit: 6, trauma_patch: 4, neurotab: 3, adrenal_stim: 2, omni_patch: 1, frag: 2 };
     state.combos = ['combo_target_lock', 'combo_thunder_rift'];
-    return { map: 'annex', x: 22, y: 12, dir: 'down' };
+    return { map: 'annex', x: 22, y: 12, dir: 'down', minutes: 78 };
   },
 };
 

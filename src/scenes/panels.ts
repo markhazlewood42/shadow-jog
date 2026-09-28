@@ -27,6 +27,15 @@ interface Panel {
 
 type Page = Panel[];
 
+/** Page layouts are authored for an 8..262 frame; they are squeezed into 8..FOOT_TOP to keep a footer strip. */
+const FOOT_TOP = H - 18;
+const FOOT_Y = H - 13;
+function fit(p: Panel): Panel {
+  const k = (FOOT_TOP - 8) / (H - 16);
+  const y = Math.round(8 + (p.y - 8) * k);
+  return { ...p, y, h: Math.round(8 + (p.y + p.h - 8) * k) - y };
+}
+
 const PAGES: Record<string, Page[]> = {
   intro: [
     [
@@ -125,10 +134,12 @@ export class PanelScene extends Scene<void> {
     for (let y = 0; y < H; y += 6) for (let x = (y / 6) % 2 ? 3 : 0; x < W; x += 6) ctx.fillRect(x, y, 1, 1);
     const p = this.pages[this.page];
     if (!p) return;
-    for (let i = 0; i < this.shown; i++) this.drawPanel(ctx, p[i]!, this.panelT[i] ?? 0);
+    for (let i = 0; i < this.shown; i++) this.drawPanel(ctx, fit(p[i]!), this.panelT[i] ?? 0);
+    // Footer strip below the panels: skip hint left, page-advance marker right.
     const lastT = this.panelT[this.shown - 1] ?? 0;
-    if (lastT > 20 && Math.floor(this.t / 20) % 2 === 0) drawText(ctx, '▼', W - 14, H - 12, { color: '#ffffff' });
-    drawText(ctx, 'X: skip', 8, H - 11, { color: '#3a3858' });
+    if (lastT > 20 && Math.floor(this.t / 20) % 2 === 0) drawText(ctx, '▼', W - 14, FOOT_Y, { color: '#ffffff' });
+    drawText(ctx, 'X', 9, FOOT_Y, { color: '#c8c6e0' });
+    drawText(ctx, 'skip', 9 + measure('X') + 4, FOOT_Y, { color: '#8a87a8' });
   }
 
   private drawPanel(ctx: Ctx, pn: Panel, t: number): void {

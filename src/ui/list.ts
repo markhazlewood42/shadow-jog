@@ -80,7 +80,12 @@ export class ListMenu<T> {
     return null;
   }
 
-  render(ctx: Ctx, x: number, y: number, w: number, active = true): void {
+  /** `empty` is drawn in place of the rows when there is nothing to list. */
+  render(ctx: Ctx, x: number, y: number, w: number, active = true, empty?: string): void {
+    if (!this.items.length) {
+      if (empty) drawText(ctx, empty, x + 4, y, { color: UI.dim });
+      return;
+    }
     const colW = Math.floor(w / this.cols);
     const start = this.scroll * this.cols;
     const end = Math.min(this.items.length, start + this.rows * this.cols);
