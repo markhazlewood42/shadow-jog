@@ -27,13 +27,11 @@ Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. C
 
 ## Current Status
 
-**Content-complete and playable start to finish.** Quality gate: rounds 1–4 done (scores in the scorecard); Mark chose to keep iterating past the rubric's 4-round cap. **Round 5 fixes landed and are being verified** — all 11 area verifiers launched 2026-09-28 against commit 998cb8b. Scores and the round-4 work log live in `docs/quality/scorecard.md`. Areas still under 8.5 after round 4 get parked there with reasons.
-
-Round 4 landed (2026-09-28): crash-proof loop and damaged-save handling; Crow's Wing combo, remembered resistances/immunities, Shell Wall protector, Repeat locked during telegraphs; eased bars, floaters over heads, shake intensity; 16-bar boss loops, dialogue ducking, reverb continuity; requisition terminal before the Warden; Pale's early beat and the finale title card; spatial valve puzzle, visible lattice emitters, a hidden crawlspace, the radio lot; rim-lit enemies, individual duplicates, new FX shapes; field sprite faces, rain depth, bar/lamp/car detail.
+**Content-complete and playable start to finish.** Quality gate: rounds 1–5 verified (scores in the scorecard); Mark asked for unattended rounds past the rubric's 4-round cap, pausing only at usage limits. **Round 6 fixes landed (2026-09-28) and are being verified**: see the scorecard's round-6 work plan. Headlines: UI overflow and floater collisions fixed with tests; a software-canvas perf pathology found and fixed (CI field frame 24 → 4.4 ms; CI green again after 6 red commits); Monte Carlo economy model with padded checkpoints; audio wet returns now on the music bus; distinct lead faces; cryopod continuity; Places maps; BattleScene split further.
 
 **Resume here**
-1. Read the round-4 verifier results in the scorecard review log. Park anything under 8.5 with its blocking reason.
-2. After any change: `npx tsc --noEmit`, `npm run lint`, `npx vitest run`, `npx playwright test` (full suite, ~8 min), commit, push.
+1. Read the latest verifier results in the scorecard. Deferred on purpose in round 6: a second mechanic per dungeon, Warden arena terrain, alternate combo recipes.
+2. After any change: `npx tsc --noEmit`, `npm run lint` (judge by exit code, not the last line), `npx vitest run`, `npx playwright test` (full suite), commit, push, then `gh run list -L 3` to confirm CI. `PW_NOGPU=1` reproduces CI's software canvas for perf work.
 3. Evidence: `npm run shots` (screenshots incl. map overviews), logs in `docs/quality/evidence/`.
 
 Don't edit `src/` while a Playwright run is going: Vite hot-reloads and the run dies.

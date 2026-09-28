@@ -25,11 +25,25 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 | 10 | Feel & polish | 7.2 | 5 | 2026-09-28 | −0.6 | Same floater collision; no input-latency evidence; DoT ticks look like hits; unreachable speed-table entries |
 | 11 | Stability | 8.2 | 5 | 2026-09-28 | +0.2 | NaN/Infinity pass validation; Chromium-only E2E; no beforeunload test; read-failure storage path untested |
 
-## Round 6 (in progress)
+## Round 6 (verification pending)
 
-Verifier spread is now visible: the same build scores ±0.5–1.0 between independent reviewers. Round 6 prioritises the
+Verifier spread is now visible: the same build scores ±0.5–1.0 between independent reviewers. Round 6 prioritised the
 defects that are real regardless of reviewer (the objective overflow, the floater collision, the reverb reset, the
 human-weakness gap, the barrens regression), then the recurring asks.
+
+### Round 6 work plan (done)
+
+- [x] **UI**: the menu objective wraps and grows its box; combo and level-up text clamp; `measure()` needs no canvas; a layout test measures every data string against its box. Places: every place has a map (exits labelled, you-are-here).
+- [x] **Battle presentation**: one per-target floater anchor with stacking (no more number/status collisions); DoT ticks sink; victory banner, tallies and per-member XP bars that roll over on a level-up; dimmer lab windows; rats and hounds with anatomy per individual; basic attacks land with a contact star, afterimage, speed lines and debris.
+- [x] **Combat**: humans weak to shock; Guard's TP only every other round; an Auto baseline test (past the street, Auto loses fights and bleeds ≥1.8× the HP; bosses ≤30% wins).
+- [x] **Stability**: saves reject non-finite and off-map numbers and clamp out-of-range ones; storage that throws on read is treated as empty; unload-prompt E2E on the shipped build; WebKit on CI.
+- [x] **Audio**: reverb/echo returns through the music bus (volume, compressor, ducks); every song declares its space, fights/jingles/cues keep the room (`here`), town is a `room`, maps can name a space; music-volume chime.
+- [x] **Narrative**: Pale's brass watch; Kit's own reason before the pod; Hex's meme lines rewritten; GDD ending synced.
+- [x] **Perf / engine**: sprites lit on per-size scratch canvases (the field on a software canvas: 24 → 4.4 ms on CI); honest CI gate (strict sim; 60 fps p95 on software); CI green again; input-latency E2E (≤1 frame median); audio unlock no longer hitches the first keypress; typed option steps; no casts in the debug API; BattleScene split (intro, banner, orders + tests).
+- [x] **Field art**: distinct faces for every lead; clean cast lineup; calm barrens; prop fallback is crates + an error (tested); a legible sleeper in the pod and an empty, shattered pod after the rescue; bar dressing; the plaza crowd in knots; Sinkline pools with waterlines and ripples.
+- [x] **Level design**: the drained junction and the dying lattice are shown on camera; both secrets need a clue first.
+- [x] **Economy**: Monte Carlo route model with clinic costs from simulated down rates (it found CP3 affordable in only 37% of runs); three story-grounded cred sources; every checkpoint ≥97% affordable (gated at 90%); E2E walks the Barrens into a paying fight and buys from a shop.
+- [ ] Deliberately deferred: a second mechanic per dungeon; Warden arena terrain; optional alternate combo recipes.
 
 ## Round 5 (beyond the rubric's 4-round cap)
 

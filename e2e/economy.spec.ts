@@ -58,18 +58,11 @@ test('walking the Barrens turns up fights that pay out', async ({ page }) => {
   }
   expect(fought, 'a random encounter within 40 laps').toBe(true);
 
-  // Auto the fight, then click through the results.
-  await page.waitForTimeout(3000);
-  for (let i = 0; i < 40 && (await sj<string>(page, 'sj.top()')) !== 'FieldScene'; i++) {
-    if (i % 8 === 0) {
-      await tap(page, 'ArrowDown');
-      await page.waitForTimeout(150);
-      await tap(page, 'ArrowDown');
-      await page.waitForTimeout(150);
-    }
-    await tap(page, 'Enter');
-    await page.waitForTimeout(700);
-  }
+  // The fight itself plays out on Auto (the playtest driver picks Auto and confirms the results
+  // panels); what's under test here is the walk and the payout.
+  await sj(page, '(Object.assign(sj.debug, { playtest: true }), true)');
+  await waitFor(page, "sj.top() === 'FieldScene'", 60_000);
+  await sj(page, '(Object.assign(sj.debug, { playtest: false }), true)');
   expect(await sj<string>(page, 'sj.top()')).toBe('FieldScene');
   expect(await sj<number>(page, 'sj.state.battles')).toBe(battles0 + 1);
   expect(await sj<number>(page, 'sj.state.cred')).toBeGreaterThan(cred0);
