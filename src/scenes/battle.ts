@@ -355,6 +355,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         if (r) this.onTimed(r);
       }
     }
+    if (this.push) {
+      this.push.t++;
+      if (this.push.t >= this.push.life) this.push = null;
+    }
+    if (this.impactT > 0) this.impactT--;
     if (this.hitstop > 0) {
       // Freeze-frame on heavy hits: everything holds, the event script waits it out.
       this.hitstop--;
@@ -619,6 +624,18 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         scene.layoutVersion++;
       },
       comboId: (name) => scene.comboId(name),
+      impact: (uid, color) => {
+        const u = scene.battle.unit(uid);
+        if (!u) return;
+        const p = scene.pos(uid);
+        scene.push = { x: p.x, y: p.y, t: 0, life: 20 };
+        // The cut-out flash is skipped with screen shake off (the same players who asked for less motion).
+        if (u.side === 'enemy' && settings.shake > 0) {
+          scene.impactT = 2;
+          scene.impactOn = u;
+          scene.impactColor = color;
+        }
+      },
       timingArmed: () => scene.timing.armed && !scene.timing.isOpen,
       openTiming: (lead) => scene.timing.open(scene.game.frame, lead),
     };
@@ -896,7 +913,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       ctx.fillStyle = '#07060d';
       ctx.fillRect(0, 0, W, H);
     }
-    ctx.drawImage(this.world.canvas, shx, shy, W, H);
+    const push = this.push;
+    if (push && push.t < push.life) {
+      // The camera leans in on a big hit: a quick push toward the target, easing back out.
+      const k = push.t < 4 ? push.t / 4 : 1 - (push.t - 4) / (push.life - 4);
+      const z = 1 + 0.09 * k * k;
+      const sw = BW / z, sh = BHT / z;
+      const sx = Math.max(0, Math.min(BW - sw, push.x - sw / 2)), sy = Math.max(0, Math.min(BHT - sh, push.y - sh / 2));
+      ctx.drawImage(this.world.canvas, sx, sy, sw, sh, shx, shy, W, H);
+    } else ctx.drawImage(this.world.canvas, shx, shy, W, H);
+    if (this.impactT > 0 && this.impactOn) this.renderImpact(ctx, shx, shy);
     if (this.defeatT > 0) {
       // The killing blow drains the frame toward red-black.
       this.defeatT++;
@@ -909,6 +935,33 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       this.shatter.draw(ctx, this.introT);
     }
     this.renderUi(ctx);
+  }
+
+  /** The camera push on a big hit (battle-world focus point; frames). */
+  private push: { x: number; y: number; t: number; life: number } | null = null;
+  /** Impact frame: frames left, the unit it's on, and its accent colour. */
+  private impactT = 0;
+  private impactOn: Combatant | null = null;
+  private impactColor = '#ffe07a';
+
+  /**
+   * An impact frame, for the hits that end things (a critical, a combo landing): two frames where
+   * the world drops to near-black, the target is a white cut-out and speed lines burst from it.
+   * A different kind of event from a normal hit, not just more sparks.
+   */
+  private renderImpact(ctx: Ctx, shx: number, shy: number): void {
+    const u = this.impactOn!;
+    const { x, y, art } = this.enemyPos(u);
+    const cx = (x + art.canvas.width / 2) * 2 + shx, cy = (y + art.canvas.height / 2) * 2 + shy;
+    ctx.fillStyle = 'rgba(8,4,16,0.86)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = this.impactColor;
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2 + (this.impactT % 2) * 0.17;
+      const r0 = 34 + (i % 3) * 10, r1 = 260;
+      for (let r = r0; r < r1; r += 3) ctx.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.62), i % 2 ? 1 : 2, 1);
+    }
+    ctx.drawImage(silhouetteCache(art.canvas, '#ffffff'), x * 2 + shx, y * 2 + shy, art.canvas.width * 2, art.canvas.height * 2);
   }
 
   /** Shards of the field snapshot: a jittered triangle mesh, each flying out from the centre. */

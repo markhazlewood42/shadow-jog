@@ -45,7 +45,7 @@ export const DIGITS: Record<string, string[]> = {
   '2': ['111', '001', '111', '100', '111'], '3': ['111', '001', '011', '001', '111'], '4': ['101', '101', '111', '001', '001'],
 };
 export function marked(src: HTMLCanvasElement, family: string, dup: number): HTMLCanvasElement {
-  if (dup === 0 || !['machine', 'beast', 'spirit', 'human'].includes(family)) return src;
+  if (dup === 0 || !['machine', 'beast', 'spirit', 'human', 'ghoul'].includes(family)) return src;
   let m = markCache.get(src);
   if (!m) {
     m = new Map();
@@ -69,12 +69,19 @@ export function marked(src: HTMLCanvasElement, family: string, dup: number): HTM
     s.ctx.fillRect(x, y, 1, 1);
   };
   if (family === 'machine') {
+    // A stencilled unit number at the sprites' 2x pixel scale (1x vanished at play size), on a
+    // dark plate, and a hazard stripe.
     const glyph = DIGITS[String(Math.min(4, dup + 1))]!;
-    const gx = cx - 5, gy = cy - 2;
+    const gx = cx - 8, gy = cy - 5;
+    for (let j = -1; j <= glyph.length; j++) for (let i = -1; i <= 3; i++) for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) dot(gx + i * 2 + ox, gy + j * 2 + oy, '#1a1820');
     for (let j = 0; j < glyph.length; j++) {
-      for (let i = 0; i < 3; i++) if (glyph[j]![i] === '1') dot(gx + i, gy + j, '#f0e8c8');
+      for (let i = 0; i < 3; i++) if (glyph[j]![i] === '1') for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) dot(gx + i * 2 + ox, gy + j * 2 + oy, '#f0e8c8');
     }
-    for (let i = 0; i < 5; i++) dot(cx + 2 + i, cy - 4 + i, i % 2 ? '#1a1820' : '#ffcc3d');
+    for (let i = 0; i < 6; i++) dot(cx + 3 + i, cy - 4 + i, i % 2 ? '#1a1820' : '#ffcc3d');
+  } else if (family === 'ghoul') {
+    // A strip of filthy bandage wound across the torso, a different way round on each.
+    const dir = dup % 2 ? 1 : -1;
+    for (let i = -5; i <= 5; i++) for (let t = 0; t < 2; t++) dot(cx + i, Math.round(cy + dir * i * 0.6) + t, t ? '#8a7a60' : '#d8ccb0');
   } else if (family === 'human') {
     // A unit armband in a squad colour across the upper arm (the sprite's left third, a little
     // above the middle), 3px deep so it survives the 2x scale: two guards are 'yellow' and 'cyan'.
@@ -145,7 +152,41 @@ export function mirrored(src: HTMLCanvasElement): HTMLCanvasElement {
  * copy faces the other way), so a pair reads as two individuals, not twins. Cached per copy.
  */
 export const variantCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement[]>();
-export const VARIANT_FILTERS = ['', 'hue-rotate(32deg) saturate(1.2) brightness(0.9)', 'hue-rotate(-38deg) saturate(1.1) brightness(1.05)', 'hue-rotate(80deg) brightness(0.92)'];
+/**
+ * How each duplicate differs: a hue turn for coloured sprites, a tint for grey ones (machines are
+ * mostly grey, where a hue turn does nothing), and a brightness step. Done per pixel, not with
+ * ctx.filter, which WebKit ignores.
+ */
+const VARIANTS: { hue: number; tint: [number, number, number]; light: number }[] = [
+  { hue: 0, tint: [0, 0, 0], light: 1 },
+  { hue: 40, tint: [255, 170, 60], light: 0.88 },
+  { hue: -48, tint: [80, 200, 255], light: 1.06 },
+  { hue: 95, tint: [255, 90, 170], light: 0.94 },
+];
+
+function recolour(d: Uint8ClampedArray, v: (typeof VARIANTS)[number]): void {
+  const cos = Math.cos((v.hue * Math.PI) / 180), sin = Math.sin((v.hue * Math.PI) / 180);
+  // Hue rotation about the grey axis (the standard luminance-preserving matrix).
+  const m = [
+    0.213 + cos * 0.787 - sin * 0.213, 0.715 - cos * 0.715 - sin * 0.715, 0.072 - cos * 0.072 + sin * 0.928,
+    0.213 - cos * 0.213 + sin * 0.143, 0.715 + cos * 0.285 + sin * 0.14, 0.072 - cos * 0.072 - sin * 0.283,
+    0.213 - cos * 0.213 - sin * 0.787, 0.715 - cos * 0.715 + sin * 0.715, 0.072 + cos * 0.928 + sin * 0.072,
+  ] as const;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3]! === 0) continue;
+    const r = d[i]!, g = d[i + 1]!, b = d[i + 2]!;
+    const sat = Math.max(r, g, b) - Math.min(r, g, b);
+    let nr = r * m[0] + g * m[1] + b * m[2], ng = r * m[3] + g * m[4] + b * m[5], nb = r * m[6] + g * m[7] + b * m[8];
+    // Greys take the tint instead (18%), so a grey machine still changes colour.
+    const k = sat < 30 ? 0.18 : 0.06;
+    nr = (nr * (1 - k) + v.tint[0] * k) * v.light;
+    ng = (ng * (1 - k) + v.tint[1] * k) * v.light;
+    nb = (nb * (1 - k) + v.tint[2] * k) * v.light;
+    d[i] = nr;
+    d[i + 1] = ng;
+    d[i + 2] = nb;
+  }
+}
 export function variant(src: HTMLCanvasElement, dup: number): HTMLCanvasElement {
   if (dup === 0) return src;
   let list = variantCache.get(src);
@@ -156,8 +197,10 @@ export function variant(src: HTMLCanvasElement, dup: number): HTMLCanvasElement 
   let v = list[dup];
   if (!v) {
     const s = surface(src.width, src.height);
-    s.ctx.filter = VARIANT_FILTERS[dup % VARIANT_FILTERS.length] || 'none';
     s.ctx.drawImage(dup % 2 ? mirrored(src) : src, 0, 0);
+    const img = s.ctx.getImageData(0, 0, s.w, s.h);
+    recolour(img.data, VARIANTS[dup % VARIANTS.length]!);
+    s.ctx.putImageData(img, 0, 0);
     v = s.canvas;
     list[dup] = v;
   }

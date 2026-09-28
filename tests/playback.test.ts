@@ -65,6 +65,7 @@ function recorder(armed = false) {
       return wait(frames);
     },
     markDead: (uid) => log.push(`dead:${uid}`),
+    impact: (uid) => log.push(`impact:${uid}`),
     relayout: () => undefined,
     comboId: (name) => name,
     timingArmed: () => !ringOpen,
@@ -122,6 +123,8 @@ describe('battle playback', () => {
     await playEvent(r.view, act(r.battle.party[1]!.uid, [rats[0]!]));
     await playEvent(r.view, hit(rats[0]!, 60, 0, true));
     expect(r.log.filter((l) => l.startsWith('hitstop')).length).toBe(2);
+    // Criticals get the impact frame, once per action.
+    expect(r.log.filter((l) => l.startsWith('impact')).length).toBe(2);
   });
 
   it('numbers and their words: a critical says so, and a kill is recorded in the bestiary', async () => {

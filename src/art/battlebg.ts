@@ -81,8 +81,11 @@ function skyline(c: Ctx, g: Ctx, rng: Rng, base: number, minH: number, maxH: num
       c.fillRect(bx + 2, top - 3, 1, 3);
       c.fillRect(bx + bw - 3, top - 3, 1, 3);
       const col = rng.pick(['#ff4fb0', '#3fe0f0', '#ffcc3d']);
-      for (const k of [c, g]) {
-        k.fillStyle = col;
+      // Signs low enough to sit in the band where enemies' heads and HP bars are stay dark: a lit
+      // bar there merges with the readouts.
+      const lit = by < 44;
+      for (const k of lit ? [c, g] : [c]) {
+        k.fillStyle = lit ? col : '#1c1a28';
         k.fillRect(bx, by, bw, 6);
       }
       c.fillStyle = color;

@@ -49,6 +49,8 @@ export interface PlaybackView {
   timingArmed(): boolean;
   /** Open the ring: it meets its target `lead` real frames from now. */
   openTiming(lead: number): void;
+  /** A hit that ends things: the camera pushes in and, on an enemy, an impact frame cuts in. */
+  impact(uid: number, color: string): void;
 }
 
 /**
@@ -78,11 +80,14 @@ async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], win
  * once, on the first; the rest ride the shake, so area attacks punch instead of stuttering.
  */
 let actionStops = 0;
+/** The action being played is a combo (its first heavy hit gets the impact frame). */
+let comboAction = false;
 
 export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> {
   switch (e.t) {
     case 'act': {
       actionStops = 0;
+      comboAction = false;
       const actor = v.battle.unit(e.actor)!;
       v.lastActor = actor;
       const dd = v.d(e.actor);
@@ -109,6 +114,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
     }
     case 'combo': {
       actionStops = 0;
+      comboAction = true;
       const names = e.actors.map((a) => v.battle.unit(a)!.name).join(' + ');
       const first = !state.combos.includes(v.comboId(e.name));
       if (first) state.combos.push(v.comboId(e.name));
@@ -164,6 +170,8 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       if (tier) v.game.shake(4 + tier * 3, tier + 1 + (e.crit ? 1 : 0));
       if (tier >= 2 && actionStops === 0) {
         actionStops++;
+        // A critical or a combo landing is a different kind of moment: push in, cut to the impact.
+        if (u.side === 'enemy' && (e.crit || comboAction)) v.impact(e.target, e.crit ? '#ffe07a' : '#ff9ae0');
         await v.hitstop(tier === 3 ? 5 : 3);
       }
       await v.w(14);

@@ -150,9 +150,26 @@ const HUMANS: Record<string, () => EnemyArt> = {
       { skin: '#c28a64', hair: '#e8452e', hairStyle: 'mohawk', top: '#2a2a30', sleeves: '#c28a64', inner: '#3a2a2a', accent: '#e8452e', pants: '#3a3448', boots: '#1a1418', accessories: [] },
       (p) => {
         face(p, { brows: 'angry', mouth: 'sneer', scar: true });
-        // Chain whip hanging from the right hand.
-        for (let i = 0; i < 8; i++) p.set(20 + (i % 2), 22 + i, i % 2 ? '#8a8e9c' : '#c8ccd8');
-        p.rect(21, 30, 2, 2, '#c8ccd8');
+        // Rustfang colours: spiked leather pads on both shoulders, the gang's fang on the chest,
+        // and a nail-studded bat held up and ready (a chain whip vanished at play size).
+        for (const x0 of [7, 18]) {
+          p.rect(x0, 19, 5, 2, '#3a3440');
+          p.rect(x0, 19, 5, 1, '#5a5466');
+          for (const sx of [x0 + 1, x0 + 3]) {
+            p.set(sx, 18, '#d8dce8');
+            p.set(sx, 17, '#8a8e9c');
+          }
+        }
+        p.rect(13, 20, 4, 3, '#c02a2a');
+        p.set(14, 21, '#f0e8d8');
+        p.set(15, 21, '#f0e8d8');
+        p.set(14, 22, '#f0e8d8');
+        for (let i = 0; i < 10; i++) {
+          const x = 21 + Math.round(i * 0.45), y = 23 - i;
+          p.set(x, y, i > 6 ? '#9a7a54' : '#7a5a3a');
+          p.set(x + 1, y, i > 6 ? '#7a5a3a' : '#5a4028');
+          if (i > 5 && i % 2) p.set(x + 2, y, '#d8dce8');
+        }
       },
     ),
   medic: () =>
