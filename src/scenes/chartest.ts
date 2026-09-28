@@ -46,10 +46,25 @@ export class CharTestScene extends Scene {
       return;
     }
     const entries = Object.entries(LOOKS);
+    if (z >= 3) {
+      // Close-up lineup of the named cast, front view: faces are what this zoom is for.
+      const cast = entries.slice(0, entries.findIndex(([n]) => n === 'mags') + 1);
+      let x = 4, y = 6;
+      for (const [name, look] of cast) {
+        const fr = buildChar(look).frames.down[0]!;
+        const w = fr.width * z, h = fr.height * z;
+        if (x + w > W) {
+          x = 4;
+          y += h + 18;
+        }
+        ctx.drawImage(fr, x, y, w, h);
+        drawText(ctx, name, x + w / 2, y + h + 3, { color: '#fff', align: 'center' });
+        x += w + 4;
+      }
+      return;
+    }
     entries.forEach(([name, look], row) => {
       const s = buildChar(look);
-      const perRow = Math.floor(W / ((s.w + 2) * z * 12));
-      void perRow;
       const col = row % 2;
       const r = Math.floor(row / 2);
       const bx = 4 + col * 240;

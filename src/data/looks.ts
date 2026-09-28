@@ -7,6 +7,8 @@ export const LOOKS = {
     skin: '#b97a52', hair: '#2e1d33', hairStyle: 'ponytail',
     top: '#d8452e', inner: '#1d1b2a', accent: '#f2b84b',
     pants: '#2b3350', boots: '#3a2a2a',
+    // Cocky and quick: a smirk.
+    mouth: 'smirk',
   },
   rook: {
     skin: '#e0b08a', hair: '#8d8f99', hairStyle: 'short',
@@ -19,26 +21,33 @@ export const LOOKS = {
     top: '#6a3fa0', inner: '#2a2438', accent: '#ffcc3d',
     pants: '#3a3350', boots: '#2a2030',
     accessories: ['goggles'], goggles: '#3b3448', visor: '#3fe0f0',
+    // Talks with her whole face.
+    mouth: 'grin', brows: 'thick',
   },
   sable: {
     body: 'big', skin: '#8a9a6a', hair: '#e8e4da', hairStyle: 'long',
     top: '#8c2f39', inner: '#3a2a24', accent: '#d9b36c',
     pants: '#4a3a30', boots: '#2a2020', accessories: ['tusks'],
+    // Half-lidded, far away; gold eyes, and the tusks do the talking.
+    eyeShape: 'narrow', eyes: '#c9a040', mouth: 'none',
   },
   pale: {
     skin: '#eadbd0', hair: '#dcd8cf', hairStyle: 'slick',
     top: '#e4e4ea', inner: '#16161e', accent: '#c02040',
     pants: '#e4e4ea', boots: '#16161e', accessories: ['visor'], visor: '#ff3050',
+    mouth: 'smirk', brows: false,
   },
   dutch: {
     skin: '#6e4430', hair: '#1a1418', hairStyle: 'bald',
     top: '#6a2a58', inner: '#e8c85a', accent: '#e8c85a',
     pants: '#1e1c26', boots: '#1a1418', accessories: ['beard'],
+    brows: 'thick', mouth: 'smile',
   },
   mags: {
     body: 'short', skin: '#d9a47e', hair: '#c9c4bb', hairStyle: 'bob',
     top: '#8a5a2e', inner: '#3a3a3a', accent: '#62e06a',
     pants: '#3d3a30', boots: '#2a2420', accessories: ['goggles'], goggles: '#5a4a3a', visor: '#62e06a',
+    mouth: 'frown', eyeShape: 'narrow',
   },
   ganger: {
     skin: '#c28a64', hair: '#e8452e', hairStyle: 'mohawk',

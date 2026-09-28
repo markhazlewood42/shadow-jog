@@ -449,20 +449,29 @@ const wRoad: Painter = (_lx, _ly, wx, wy) => {
   return base;
 };
 
-/** Broken ground: cracked earth, weed clumps, rain puddles, brick and glass shards. */
+/**
+ * Broken ground: cracked earth, weed clumps, rain puddles, brick and glass shards. Detail comes
+ * in clusters (rubble drifts, weed clumps) over broad tonal patches, never as per-pixel speckle:
+ * at 2x on a busy overworld, independent random pixels read as TV static.
+ */
 const wBarrens: Painter = (_lx, _ly, wx, wy) => {
-  const n = fbm(wx / 9, wy / 9, 3, 151);
-  const h = hash2(wx, wy, 152);
-  if (h < 0.02) return P.rubbleL;
-  if (h > 0.992) return [150, 96, 70]; // brick chips
   const puddle = valueNoise(wx / 26, wy / 18, 153);
   if (puddle < 0.12) return puddle < 0.06 ? [30, 36, 52] : [44, 50, 66];
+  // Rubble drifts: sparse chips only inside a low-frequency mask.
+  const drift = valueNoise(wx / 11, wy / 11, 159);
+  if (drift > 0.78) {
+    const h = hash2(wx, wy, 152);
+    if (h < 0.1) return P.rubbleL;
+    if (h > 0.97) return [150, 96, 70]; // brick chips
+  }
+  // Weed clumps: solid, two-toned by a smooth field (light on the clump's upper side).
   const weeds = valueNoise(wx / 7, wy / 7, 154);
-  if (weeds > 0.8 && hash2(wx, wy, 155) < 0.55) return hash2(wx, wy, 156) < 0.5 ? [72, 88, 50] : [96, 108, 60];
+  if (weeds > 0.82) return valueNoise(wx / 7, (wy - 2) / 7, 154) > 0.84 ? [96, 108, 60] : [72, 88, 50];
   const crack = valueNoise(wx / 15 + valueNoise(wx / 40, wy / 40, 158) * 2, wy / 15, 157);
   if (Math.abs(crack - 0.5) < 0.012) return lerpC(P.wBarrenD, [0, 0, 0], 0.4);
-  if (n < 0.36) return P.wBarrenD;
-  if (n > 0.66) return P.wBarrenL;
+  const n = fbm(wx / 14, wy / 14, 2, 151);
+  if (n < 0.3) return P.wBarrenD;
+  if (n > 0.72) return P.wBarrenL;
   return P.wBarren;
 };
 

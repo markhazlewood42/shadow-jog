@@ -35,10 +35,15 @@ export interface CharLook {
   visor?: string;
   goggles?: string;
   accessories?: Accessory[];
-  /** Front-view mouth: a short line (default), a grin with teeth, or none. */
-  mouth?: 'line' | 'grin' | 'none';
-  /** Front-view brows (default on). */
-  brows?: boolean;
+  /**
+   * Front-view mouth: a short line (default), a grin with teeth, a one-sided smirk, a smile or
+   * frown (corners up or down a row), or none.
+   */
+  mouth?: 'line' | 'grin' | 'smirk' | 'smile' | 'frown' | 'none';
+  /** Front-view brows: on (default), thick (a pixel wider each side), or off. */
+  brows?: boolean | 'thick';
+  /** Front-view eyes: two pixels tall (default) or narrow (one, half-lidded). */
+  eyeShape?: 'round' | 'narrow';
 }
 
 export interface CharSprite {
@@ -783,7 +788,9 @@ function faceFeatures(rows: string[], look: CharLook): void {
     if (r?.[x] !== 's') return;
     rows[y] = r.slice(0, x) + ch + r.slice(x + 1);
   };
-  if (look.brows !== false) for (const x of [5, 6, 9, 10]) put(x, 5, 'H');
+  if (look.brows !== false) for (const x of look.brows === 'thick' ? [4, 5, 6, 9, 10, 11] : [5, 6, 9, 10]) put(x, 5, 'H');
+  // Half-lidded: the eye's top pixel becomes lid (skin shade), leaving a one-pixel slit.
+  if (look.eyeShape === 'narrow') for (const x of [6, 9]) if (rows[7]?.[x] === 'e') rows[7] = rows[7].slice(0, x) + 'S' + rows[7].slice(x + 1);
   const mouth = look.mouth ?? 'line';
   if (mouth === 'line') {
     put(7, 10, 'm');
@@ -792,6 +799,20 @@ function faceFeatures(rows: string[], look: CharLook): void {
     put(6, 10, 'm');
     put(7, 10, 'w');
     put(8, 10, 'w');
+    put(9, 10, 'm');
+  } else if (mouth === 'smirk') {
+    put(7, 10, 'm');
+    put(8, 10, 'm');
+    put(9, 9, 'm');
+  } else if (mouth === 'smile') {
+    put(6, 9, 'm');
+    put(7, 10, 'm');
+    put(8, 10, 'm');
+    put(9, 9, 'm');
+  } else if (mouth === 'frown') {
+    put(6, 10, 'm');
+    put(7, 9, 'm');
+    put(8, 9, 'm');
     put(9, 10, 'm');
   }
 }

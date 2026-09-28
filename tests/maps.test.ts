@@ -91,3 +91,12 @@ describe('font coverage', () => {
     expect([...missing].map(([ch, p]) => `${ch} (${p})`)).toEqual([]);
   });
 });
+
+describe('props', () => {
+  it('every prop placed on every map has a painter (no stand-in crates in the shipped game)', async () => {
+    const { getMap } = await import('../src/data/maps');
+    const { PROPS } = await import('../src/field/props');
+    const missing = mapIds().flatMap((id) => (getMap(id).props ?? []).filter((p) => !PROPS[p.kind]).map((p) => `${id}: ${p.kind}`));
+    expect(missing).toEqual([]);
+  });
+});

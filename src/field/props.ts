@@ -2,6 +2,7 @@
 import { disc, ellipse, surface, type Ctx } from '../engine/canvas';
 import { mix, shade } from '../engine/color';
 import { drawText, measure } from '../engine/font';
+import { reportError } from '../engine/errors';
 import { Rng } from '../engine/rng';
 import type { BakeCtx } from './bake';
 import { TS } from './tiles';
@@ -1230,14 +1231,19 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
   },
 };
 
+const missing = new Set<string>();
+
 export function paintProp(b: BakeCtx, p: PropDef, seed: number): void {
   const painter = PROPS[p.kind];
   const rng = new Rng(seed);
   if (painter) painter(b, p, rng);
   else {
-    // Unknown prop: neutral box (should never ship — caught by shots review).
-    blockFoot(b, p);
-    b.g.fillStyle = '#ff00ff';
-    b.g.fillRect(p.x * TS + 2, p.y * TS + 2, 12, 12);
+    // A kind with no painter (tests/maps.test.ts checks every map, so this is a content bug that
+    // slipped through): stand plain crates in its place so the scene still reads, and say so.
+    PROPS.crates!(b, p, rng);
+    if (!missing.has(p.kind)) {
+      missing.add(p.kind);
+      reportError(new Error(`No painter for prop "${p.kind}"`));
+    }
   }
 }
