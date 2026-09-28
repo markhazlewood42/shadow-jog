@@ -27,16 +27,18 @@ Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. C
 
 ## Current Status
 
-**Content-complete and playable start to finish.** Quality gate round 1 done (scores 3.5–7.6, see `docs/quality/scorecard.md`); **round 2 in progress**, one batch per area, ticked in the scorecard's work plan.
+**Content-complete and playable start to finish.** Quality gate: rounds 1–3 done; **round 4 (the last round per the rubric) is being verified** — all 11 area verifiers launched 2026-09-28 against commit 998cb8b. Scores and the round-4 work log live in `docs/quality/scorecard.md`. Areas still under 8.5 after round 4 get parked there with reasons.
 
-Round 2 done so far: stability/engine (06f403c), economy + balance (5bd94c9: no-grind economy model, competent-player sim with full ability/combo coverage, Warden/Lurker retune, playtest capture mode).
+Round 4 landed (2026-09-28): crash-proof loop and damaged-save handling; Crow's Wing combo, remembered resistances/immunities, Shell Wall protector, Repeat locked during telegraphs; eased bars, floaters over heads, shake intensity; 16-bar boss loops, dialogue ducking, reverb continuity; requisition terminal before the Warden; Pale's early beat and the finale title card; spatial valve puzzle, visible lattice emitters, a hidden crawlspace, the radio lot; rim-lit enemies, individual duplicates, new FX shapes; field sprite faces, rain depth, bar/lamp/car detail.
 
 **Resume here**
-1. Scorecard → next unticked batch in "Round 2 work plan" (next: UI/UX, then field art, battle presentation, combat, narrative, level design, audio).
-2. After each batch: `npx tsc --noEmit`, `npx vitest run`, `npx playwright test e2e/playthrough.spec.ts e2e/gameover.spec.ts`, commit, push.
-3. When all batches land: `npm run shots`, playtest capture, re-verify every area with fresh sonnet verifiers (rubric grader prompt).
+1. Read the round-4 verifier results in the scorecard review log. Park anything under 8.5 with its blocking reason.
+2. After any change: `npx tsc --noEmit`, `npm run lint`, `npx vitest run`, `npx playwright test` (full suite, ~8 min), commit, push.
+3. Evidence: `npm run shots` (screenshots incl. map overviews), logs in `docs/quality/evidence/`.
 
 Don't edit `src/` while a Playwright run is going: Vite hot-reloads and the run dies.
+
+The original prompt that started the project: `docs/original-prompt.md`.
 
 ## Future Plans
 
@@ -46,6 +48,5 @@ Don't edit `src/` while a Playwright run is going: Vite hot-reloads and the run 
 
 ## Notes
 
-- Python edits on Windows: write with `newline='
-'`. Avoid `'` inside Python heredocs; use ’ in dialogue.
+- Python edits on Windows: write with `newline='\n'`. Avoid `'` inside Python heredocs; use ’ in dialogue.
 - No Co-Authored-By lines in commits (per CLAUDE.md).
