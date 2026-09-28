@@ -71,6 +71,11 @@ export const rustyard: MapDef = {
     { kind: 'lamp', x: 18, y: 21, dir: 'left' },
     { kind: 'dumpster', x: 23, y: 20, w: 2, color: '#5a3a2a' },
     // Rustfang territory: tags on the scrap walls facing the camp, banners staking the north yard.
+    // The scavs' own wayfinding through the maze, repainted whenever the heaps shift; the middle
+    // way's sign is a warning that marks somebody's stash.
+    { kind: 'sign_post', x: 11, y: 13, text: 'DEPOT ↑' },
+    { kind: 'sign_post', x: 16, y: 13, text: 'KEEP OUT' },
+    { kind: 'sign_post', x: 25, y: 13, text: 'DEPOT ↑' },
     { kind: 'tag', x: 5, y: 12 },
     // Their mark on the loose scrap in the camp's west corner: where they stash the tribute.
     { kind: 'tag', x: 2, y: 14, color: '#ffb02e' },
@@ -113,7 +118,7 @@ export const rustyard: MapDef = {
       id: 'nephew', x: 17, y: 20, dir: 'down', name: 'Tobin', look: randomLook(310), move: 'static',
       talk: async (s) => {
         if (!s.flag('rustyard_gate')) await s.say('Tobin', 'Auntie Mags says don’t fight the Rustfangs. They broke Pell’s hands last week for coming up short on tribute.');
-        else if (!s.flag('knuckles')) await s.say('Tobin', 'Knuckles lives up at the tire depot, past the scrap maze. The heaps shift every time it rains, so don’t ask me the way. Mind the hounds.');
+        else if (!s.flag('knuckles')) await s.say('Tobin', 'Knuckles lives up at the tire depot, past the scrap maze. The heaps shift every time it rains; follow the painted arrows, we move them when the heaps move. Mind the hounds.');
         else await s.say('Tobin', 'You beat KNUCKLES? Can I have your autograph? Can I have your jacket?');
       },
     },

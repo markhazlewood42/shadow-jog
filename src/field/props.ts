@@ -529,28 +529,38 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
   },
 
   tag(b, p) {
-    // Rustfang spray tag on a wall face or scrap: a bold fang roundel, overspray and drips.
+    // Rustfang spray tag on a wall face or scrap: a filled red disc with a dark rim and two bold
+    // fangs, so it reads as the gang's mark at play size (a thin ring read as scribble), plus
+    // drips and a little overspray.
     const x = p.x * TS, y = p.y * TS;
     const red = p.color ?? '#ff4a32';
     const g = b.g;
-    g.fillStyle = red;
-    for (let a = 0; a < 40; a++) {
-      const t = (a / 40) * Math.PI * 2;
-      for (const r of [5.5, 6.5]) g.fillRect(Math.round(x + 8 + Math.cos(t) * r), Math.round(y + 7 + Math.sin(t) * r), 1, 1);
+    const cx = x + 8, cy = y + 7;
+    for (let yy = -7; yy <= 7; yy++) {
+      for (let xx = -7; xx <= 7; xx++) {
+        const d = Math.hypot(xx + 0.5, yy + 0.5);
+        if (d > 7.2) continue;
+        g.fillStyle = d > 6.2 ? '#1a0a0c' : red;
+        g.fillRect(cx + xx, cy + yy, 1, 1);
+      }
     }
-    // Two fangs.
-    g.fillStyle = '#f4ecdc';
-    for (const fx of [5, 9]) {
-      g.fillRect(x + fx, y + 4, 3, 1);
-      g.fillRect(x + fx, y + 5, 2, 2);
-      g.fillRect(x + fx + (fx === 5 ? 1 : 0), y + 7, 1, 2);
+    // Two fangs hanging from the top of the disc, outlined.
+    for (const [x0, x1] of [[-5, -1], [1, 5]] as const) {
+      for (let r = 0; r < 8; r++) {
+        const inset = Math.floor((r * (x1 - x0)) / 16);
+        const a = cx + x0 + inset, bb = cx + x1 - inset;
+        if (bb < a) break;
+        g.fillStyle = '#1a0a0c';
+        g.fillRect(a - 1, cy - 4 + r, bb - a + 3, 1);
+        g.fillStyle = '#f4ecdc';
+        g.fillRect(a, cy - 4 + r, bb - a + 1, 1);
+      }
     }
-    // Overspray and drips.
     g.fillStyle = red;
-    g.globalAlpha = 0.45;
-    for (let i = 0; i < 9; i++) g.fillRect(x + 1 + ((i * 5 + p.x) % 14), y + ((i * 3 + p.y) % 14), 1, 1);
+    g.globalAlpha = 0.35;
+    for (let i = 0; i < 6; i++) g.fillRect(x + 1 + ((i * 5 + p.x) % 14), y + ((i * 7 + p.y) % 3), 1, 1);
     g.globalAlpha = 1;
-    for (const dx of [5, 10, 12]) g.fillRect(x + dx, y + 13, 1, 2 + ((dx + p.y) % 2));
+    for (const dx of [5, 11]) g.fillRect(x + dx, y + 14, 1, 1 + ((dx + p.y) % 2));
   },
 
   banner(b, p) {
