@@ -50,3 +50,4 @@ The original prompt that started the project: `docs/original-prompt.md`.
 
 - Python edits on Windows: write with `newline='\n'`. Avoid `'` inside Python heredocs; use ’ in dialogue.
 - No Co-Authored-By lines in commits (per CLAUDE.md).
+- Biome's formatter is deliberately off: palettes, glyph tables, maps and ability data are hand-grouped, and the formatter explodes them one entry per line (tried in round 5: +6.8k lines, much harder to read). Lint is enforced in CI; `.editorconfig` covers whitespace.

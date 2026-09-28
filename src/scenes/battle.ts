@@ -8,13 +8,13 @@ import { sfx } from '../audio/sfx';
 import { Battle } from '../battle/engine';
 import { FxLayer, type Pt } from '../battle/fx';
 import { enemyParty, partyCombatant, writeBack } from '../battle/setup';
-import type { Ability, BattleEvent, Combatant, Command, StatusId } from '../battle/types';
+import type { Ability, BattleEvent, Combatant, Command } from '../battle/types';
 import { ABILITIES, COMBOS } from '../data/abilities';
-import { ENCOUNTERS, ENEMIES } from '../data/enemies';
+import { ENEMIES } from '../data/enemies';
 import { ITEMS } from '../data/items';
 import { LOOKS } from '../data/looks';
 import { MEMBERS } from '../data/party';
-import { silhouette, surface, type Ctx, type Surface } from '../engine/canvas';
+import { surface, type Ctx, type Surface } from '../engine/canvas';
 import { drawText, fitText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { Rng, streams } from '../engine/rng';
@@ -24,6 +24,8 @@ import { debug, PLAYTEST_ROUNDS } from '../game/debug';
 import { learn, removeItem, state, type MemberId } from '../game/state';
 import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
+import { ENEMY_POSE_T, RIM, drawBig, drawLag, marked, mirrored, opaqueTop, rimOf, silhouetteCache, variant } from './battlekit/sprites';
+import { AFTERIMAGES, COMBO_STING, ELEMENTS, ELEMENT_COLOR, ELEMENT_TAG, STATUS_LABEL, STATUS_SFX, STATUS_WORD, actionPose, enemyMotion, fxSound, groupNames, pickGroup, statusName, summarize } from './battlekit/tables';
 
 export interface BattleSetup {
   encounter: string;
@@ -80,36 +82,6 @@ const PARTY_BOTTOM = 127;
 const ENEMY_LIFT = 14, BOSS_LIFT = 4;
 /** Battle menus hug the screen edge; CMD_W fits "Programs"/"Spirits" plus the cursor. */
 const MENU_X = 4, CMD_W = 84;
-
-const STATUS_LABEL: Partial<Record<StatusId, [string, string]>> = {
-  poison: ['PSN', '#b07cff'], burn: ['BRN', '#ff8a4a'], stun: ['STN', '#ffe07a'], blind: ['BLD', '#8b8fa8'],
-  jammed: ['JAM', '#3fe0f0'], exposed: ['EXP', '#ff6fc8'], regen: ['RGN', '#86f08c'], hijacked: ['HAX', '#3fe0f0'],
-  atk_up: ['ATK↑', '#ffcc3d'], def_up: ['DEF↑', '#6ff3ff'], res_up: ['RES↑', '#b99bff'], agi_up: ['AGI↑', '#86f08c'],
-  atk_down: ['ATK↓', '#ff6b6b'], def_down: ['DEF↓', '#ff6b6b'], agi_down: ['AGI↓', '#ff6b6b'], guard: ['GRD', '#6ff3ff'], lockon: ['LOCK', '#ff3a3a'], cover: ['COVR', '#d8c08a'],
-};
-
-const STATUS_SFX: Partial<Record<StatusId, string>> = {
-  poison: 'st_poison', burn: 'st_burn', stun: 'st_stun', blind: 'st_blind', jammed: 'st_jammed', hijacked: 'st_jammed',
-};
-
-/** A status id as the crew would say it. */
-function statusName(st: string): string {
-  return st === 'hijacked' ? 'HIJACK' : st.replace('_', ' ').toUpperCase();
-}
-
-/** Offsets and opacity of the speed ghosts behind a dashing party member. */
-const AFTERIMAGES: [number, number, number][] = [[-7, 5, 0.35], [7, 9, 0.22], [0, 13, 0.14]];
-
-/** Short element tags and colours for the weakness readout. */
-const ELEMENTS = ['phys', 'fire', 'shock', 'cyber', 'mana'] as const;
-const ELEMENT_TAG: Record<(typeof ELEMENTS)[number], string> = { phys: 'PHYS', fire: 'FIRE', shock: 'SHOCK', cyber: 'CYBER', mana: 'MANA' };
-const ELEMENT_COLOR: Record<(typeof ELEMENTS)[number], string> = { phys: '#e0dcd0', fire: '#ffa24a', shock: '#9ae8ff', cyber: '#3fe0f0', mana: '#b99bff' };
-
-const STATUS_WORD: Partial<Record<StatusId, string>> = {
-  poison: 'POISONED', burn: 'BURNING', stun: 'STUNNED', blind: 'BLINDED', jammed: 'JAMMED', exposed: 'EXPOSED', regen: 'REGEN',
-  hijacked: 'HIJACKED', atk_up: 'ATK UP', def_up: 'DEF UP', res_up: 'RES UP', agi_up: 'AGI UP', atk_down: 'ATK DOWN', def_down: 'DEF DOWN',
-  agi_down: 'SLOWED', lockon: 'LOCKED ON', guard: 'GUARD', cover: 'COVERING',
-};
 
 export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private battle: Battle;
@@ -1669,249 +1641,4 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 }
 
-// ------------------------------------------------------------------ helpers
-function pickGroup(encounter: string): string[] {
-  const groups = ENCOUNTERS[encounter];
-  if (!groups?.length) throw new Error(`Unknown encounter ${encounter}`);
-  const total = groups.reduce((n, g) => n + g.w, 0);
-  let r = streams.battle.next() * total;
-  for (const g of groups) {
-    r -= g.w;
-    if (r <= 0) return g.e;
-  }
-  return groups[0]!.e;
-}
-
-function groupNames(es: readonly Combatant[]): string {
-  const counts = new Map<string, number>();
-  for (const e of es) counts.set(e.name, (counts.get(e.name) ?? 0) + 1);
-  const parts = [...counts.entries()].map(([n, c]) => (c > 1 ? `${c} ${n}s` : n));
-  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0]!;
-}
-
-function summarize(names: string[]): string[] {
-  const m = new Map<string, number>();
-  for (const n of names) m.set(n, (m.get(n) ?? 0) + 1);
-  return [...m.entries()].map(([n, c]) => (c > 1 ? `${n} ×${c}` : n));
-}
-
-const silCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
-const topCache = new WeakMap<HTMLCanvasElement, number>();
-/** First row with any opaque pixel (sprite canvases carry padding); measured once per canvas. */
-/** The trailing "damage ghost" between the shown value and where it was a moment ago. */
-function drawLag(ctx: Ctx, x: number, y: number, w: number, h: number, shown: number, lag: number): void {
-  if (lag <= shown + 0.004) return;
-  const a = Math.round(w * Math.max(0, shown)), b = Math.round(w * Math.min(1, lag));
-  if (b <= a) return;
-  ctx.fillStyle = '#ffd7c0';
-  ctx.fillRect(x + a, y, b - a, h);
-}
-
-function opaqueTop(c: HTMLCanvasElement): number {
-  let top = topCache.get(c);
-  if (top === undefined) {
-    top = 0;
-    const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
-    scan: for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3]! > 0) {
-      top = y;
-      break scan;
-    }
-    topCache.set(c, top);
-  }
-  return top;
-}
-
-const flipCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
-/** Horizontally mirrored copy (cached): every other duplicate enemy faces the other way. */
-/** How long an enemy's action pose runs, in frames. */
-const ENEMY_POSE_T = 30;
-
-/** An enemy move's body motion, from its effect: melee strikes, gunfire, or casting. */
-function enemyMotion(fx: string): Pose {
-  if (['slash', 'claw', 'whip', 'punch', 'bite', 'crush', 'coil', 'palm'].includes(fx)) return 'attack';
-  if (['gunfire', 'shot', 'beam', 'bolt', 'zap', 'lightning', 'target_lock'].includes(fx)) return 'aim';
-  return 'cast';
-}
-
-/**
- * Markings that make a second or third creature an individual, not a recolour: machines carry a
- * stencilled unit number and a hazard stripe, beasts a scar, spirits a cluster of bright motes.
- * Painted only onto opaque pixels, near the body's middle.
- */
-const markCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
-const DIGITS: Record<string, string[]> = {
-  '2': ['111', '001', '111', '100', '111'], '3': ['111', '001', '011', '001', '111'], '4': ['101', '101', '111', '001', '001'],
-};
-function marked(src: HTMLCanvasElement, family: string, dup: number): HTMLCanvasElement {
-  if (dup === 0 || !['machine', 'beast', 'spirit'].includes(family)) return src;
-  let m = markCache.get(src);
-  if (!m) {
-    m = new Map();
-    markCache.set(src, m);
-  }
-  const key = `${family}:${dup}`;
-  let c = m.get(key);
-  if (c) return c;
-  const w = src.width, h = src.height;
-  const s = surface(w, h);
-  s.ctx.drawImage(src, 0, 0);
-  const data = s.ctx.getImageData(0, 0, w, h).data;
-  const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && data[(y * w + x) * 4 + 3]! > 200;
-  // Opaque bounds, to find the body's middle.
-  let x0 = w, y0 = h, x1 = 0, y1 = 0;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (solid(x, y)) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
-  const cx = Math.round((x0 + x1) / 2), cy = Math.round(y0 + (y1 - y0) * 0.45);
-  const dot = (x: number, y: number, col: string) => {
-    if (!solid(x, y)) return;
-    s.ctx.fillStyle = col;
-    s.ctx.fillRect(x, y, 1, 1);
-  };
-  if (family === 'machine') {
-    const glyph = DIGITS[String(Math.min(4, dup + 1))]!;
-    const gx = cx - 5, gy = cy - 2;
-    for (let j = 0; j < glyph.length; j++) {
-      for (let i = 0; i < 3; i++) if (glyph[j]![i] === '1') dot(gx + i, gy + j, '#f0e8c8');
-    }
-    for (let i = 0; i < 5; i++) dot(cx + 2 + i, cy - 4 + i, i % 2 ? '#1a1820' : '#ffcc3d');
-  } else if (family === 'beast') {
-    const dir = dup % 2 ? 1 : -1;
-    for (let i = 0; i < 6; i++) dot(cx + dir * (i - 2), cy - 3 + i, i % 3 === 1 ? '#f0c0b8' : '#c07878');
-  } else {
-    for (const [dx, dy] of [[-3, -2], [2, -3], [0, 2], [4, 1]] as const) dot(cx + dx * dup, cy + dy, '#ffffff');
-  }
-  c = s.canvas;
-  m.set(key, c);
-  return c;
-}
-
-/** Rim-light colour per battle backdrop: a light the enemies catch that the set doesn't have. */
-const RIM: Record<string, string> = {
-  street: '#ffc27a', barrens: '#9ae8ff', rustyard: '#9ae8ff', park: '#ffd0f0',
-  sewer: '#ffcf7a', junction: '#ffcf7a', lab: '#ff6a7a', core: '#8ae8ff',
-};
-
-const rimCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
-/** A 1px rim on a sprite's top edges and upper sides, on a canvas 2px larger. */
-function rimOf(src: HTMLCanvasElement, color: string): HTMLCanvasElement {
-  let m = rimCache.get(src);
-  if (!m) {
-    m = new Map();
-    rimCache.set(src, m);
-  }
-  let c = m.get(color);
-  if (!c) {
-    const w = src.width, h = src.height;
-    const data = src.getContext('2d')!.getImageData(0, 0, w, h).data;
-    const op = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && data[(y * w + x) * 4 + 3]! > 40;
-    const s = surface(w + 2, h + 2);
-    s.ctx.fillStyle = color;
-    for (let y = -1; y <= h; y++) {
-      for (let x = -1; x <= w; x++) {
-        // Light from above: every top edge, and the sides only on the upper half.
-        if (op(x, y)) continue;
-        if (op(x, y + 1) || (y < h * 0.5 && (op(x - 1, y) || op(x + 1, y)))) s.ctx.fillRect(x + 1, y + 1, 1, 1);
-      }
-    }
-    c = s.canvas;
-    m.set(color, c);
-  }
-  return c;
-}
-
-function mirrored(src: HTMLCanvasElement): HTMLCanvasElement {
-  let c = flipCache.get(src);
-  if (!c) {
-    const s = surface(src.width, src.height);
-    s.ctx.translate(src.width, 0);
-    s.ctx.scale(-1, 1);
-    s.ctx.drawImage(src, 0, 0);
-    c = s.canvas;
-    flipCache.set(src, c);
-  }
-  return c;
-}
-
-/**
- * The n-th copy of an enemy in a fight gets its own look: a shifted palette (and every other
- * copy faces the other way), so a pair reads as two individuals, not twins. Cached per copy.
- */
-const variantCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement[]>();
-const VARIANT_FILTERS = ['', 'hue-rotate(32deg) saturate(1.2) brightness(0.9)', 'hue-rotate(-38deg) saturate(1.1) brightness(1.05)', 'hue-rotate(80deg) brightness(0.92)'];
-function variant(src: HTMLCanvasElement, dup: number): HTMLCanvasElement {
-  if (dup === 0) return src;
-  let list = variantCache.get(src);
-  if (!list) {
-    list = [];
-    variantCache.set(src, list);
-  }
-  let v = list[dup];
-  if (!v) {
-    const s = surface(src.width, src.height);
-    s.ctx.filter = VARIANT_FILTERS[dup % VARIANT_FILTERS.length] || 'none';
-    s.ctx.drawImage(dup % 2 ? mirrored(src) : src, 0, 0);
-    v = s.canvas;
-    list[dup] = v;
-  }
-  return v;
-}
-
-function silhouetteCache(src: HTMLCanvasElement, color: string): HTMLCanvasElement {
-  let m = silCache.get(src);
-  if (!m) {
-    m = new Map();
-    silCache.set(src, m);
-  }
-  let c = m.get(color);
-  if (!c) {
-    c = silhouette(src, color);
-    m.set(color, c);
-  }
-  return c;
-}
-
-/** Large banner text: the bitmap font drawn at 2× via an offscreen buffer. */
-const bigBuf = surface(W, 12);
-function drawBig(ctx: Ctx, text: string, cx: number, y: number, color: string): void {
-  bigBuf.ctx.clearRect(0, 0, W, 12);
-  const w = drawText(bigBuf.ctx, text, 1, 1, { color, shadow: '#1a1020' });
-  ctx.drawImage(bigBuf.canvas, 0, 0, w + 3, 12, Math.round(cx - w), y, (w + 3) * 2, 24);
-}
-
 let bigBandGrad: CanvasGradient | null = null;
-
-/** A signature sting per combo, layered under the shared combo fanfare. */
-const COMBO_STING: Record<string, string> = {
-  combo_thunder_rift: 'sting_rift',
-  combo_target_lock: 'sting_lock',
-  combo_ghost_circuit: 'sting_circuit',
-  combo_pyre_storm: 'sting_pyre',
-  combo_spirit_walk: 'sting_crow',
-  combo_lifeline: 'sting_life',
-  combo_crows_wing: 'sting_ward',
-};
-
-function fxSound(fx: string): string {
-  if (['slash', 'claw', 'whip', 'arc_cut', 'moonfall', 'flash_step'].includes(fx)) return 'slash';
-  if (['gunfire', 'shot', 'target_lock'].includes(fx)) return 'gun';
-  if (['lightning', 'zap', 'thunder_rift', 'pyre_storm'].includes(fx)) return 'zap';
-  if (['fire', 'fire_all', 'explosion'].includes(fx)) return 'fire';
-  if (['code', 'glitch', 'scan', 'ghost_circuit'].includes(fx)) return 'code';
-  if (['heal', 'heal_all', 'heal_self', 'revive', 'cleanse', 'tp', 'lifeline'].includes(fx)) return 'heal';
-  if (['punch', 'bite', 'crush', 'palm', 'coil', 'rain_hits'].includes(fx)) return 'punch';
-  if (['crow', 'spirit_walk', 'crows_wing', 'dark', 'wail', 'smog'].includes(fx)) return 'spirit';
-  if (fx === 'beam') return 'beam';
-  if (fx === 'wave') return 'wave';
-  return 'hit';
-}
-
-/** Which battle pose a party action plays: blades and fists strike, programs and spirits are cast. */
-function actionPose(key: string, kind: Ability['kind'], targets: (string | undefined)[], fx = ''): Pose {
-  if (kind === 'item') return 'item';
-  if (fx === 'palm' || fx === 'coil') return 'thrust';
-  if (fx === 'gunfire' || fx === 'shot') return 'aim';
-  if (fx === 'shield' || fx === 'buff' || fx === 'guard' || fx === 'roar' || fx === 'crows_wing') return 'brace';
-  if (kind === 'attack' || kind === 'skill') return 'attack';
-  const onAllies = targets.length > 0 && targets.every((t) => t === 'party');
-  if (key === 'kit' && !onAllies) return 'attack';
-  return 'cast';
-}
