@@ -53,8 +53,10 @@ const P = {
   carpet: C('#5a2a3c'), carpetD: C('#4a2230'), carpetL: C('#6e3a4a'),
   conc: C('#4a4a55'), concD: C('#3f3f4a'), concL: C('#55555f'),
   iwallFace: C('#3b3150'), iwallFaceD: C('#332a46'), iwallTrim: C('#5b4b74'), iwallBase: C('#1d1828'), iwallTop: C('#15121f'), iwallEdge: C('#2c2540'),
-  dfloor: C('#353a40'), dfloorD: C('#2d3237'), dfloorAlgae: C('#2c4038'), dfloorL: C('#40464d'),
-  dwallFace: C('#454a55'), dwallFaceD: C('#3a3e48'), dwallSeam: C('#2b2e36'), dwallStain: C('#2f3a36'), dwallTop: C('#131417'), dwallEdge: C('#23252b'),
+  // Sinkline: the floor is the lighter plane and the walls sit darker, so the walkable path reads
+  // at a glance in the flooded gloom (they used to be the other way round, and read as one mass).
+  dfloor: C('#4a5058'), dfloorD: C('#40464e'), dfloorAlgae: C('#3a5246'), dfloorL: C('#585e67'),
+  dwallFace: C('#343944'), dwallFaceD: C('#2d313b'), dwallSeam: C('#22252c'), dwallStain: C('#28322f'), dwallTop: C('#101114'), dwallEdge: C('#1e2026'),
   dwater: C('#13302b'), dwaterL: C('#1b4038'), dwaterD: C('#0c2420'),
   shallow: C('#233f3f'), shallowL: C('#2d504e'),
   catwalk: C('#555b6a'), catwalkD: C('#3c4150'), catwalkHole: C('#0b1a18'),
