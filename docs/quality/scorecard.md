@@ -13,23 +13,27 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 
 | # | Area | Score | Round | Date | Δ | Blocking issues (short) |
 |---|---|---|---|---|---|---|
-| 1 | Engine & code | 7.6 | 7 | 2026-09-28 | −0.1 | BattleScene still a god-class (controller/renderer/tween); playtest branches inline in the scene (inject a hook); CI omits playtest/shots/audio specs; content-id lookups asserted, no integrity test; >500 kB chunk; `alive()` allocates |
-| 2 | Field art | 7.3 | 7 | 2026-09-28 | +0.1 | Crowd near-clones (one stance, 78% std body); faces don't survive play scale; 21/27 Annex shots identical (the lattice never shown); Sinkline value contrast muddy; overworld flat; wing colours too subtle; empty pod reads the same at a glance |
-| 3 | Battle presentation | 7.0 | 7 | 2026-09-28 | −0.6 | **Bug:** combo banner over the floaters and WEAK tags; **bug:** the Warden's head hidden behind the command prompt; one shared party rig; three enemy motion kinds; the Drowned Shade reads cute |
-| 4 | UI / UX | 7.2 | 7 | 2026-09-28 | −0.8 | **Bug:** main menu hard-codes 9 rows (Close scrolled off below dead space); shop dim lets map text read through; no shared dim constant; battle target-info WEAK line unclamped; element names tagged in one place, spelled out in another |
-| 5 | Combat design | 8.1 | 7 | 2026-09-28 | +0.6 | No execution-skill layer (timed guard/crit); no test that ignoring telegraphs underperforms; combo vocabulary thin and maxed early; AoE removes target choice; 95% hit floor |
-| 6 | Progression & economy | 7.8 | 7 | 2026-09-28 | −0.3 | Ending-results evidence from a hand-set stage; lean runs 87% at CP4/CP5 (the hardest bosses); Hex's weapon line strictly linear; Sell never shown or tested; Warden payout sits on phase 2 |
-| 7 | Narrative & writing | 7.4 | 7 | 2026-09-28 | −0.6 | **Bug:** Pale's "all week" contradicts a one-night chapter; the twist is telegraphed three times; Sable thin before joining; one long ending caption; Rook/Kit last lines don't echo |
-| 8 | Level design | 7.0 | 7 | 2026-09-28 | −0.2 | Overworld blocks read as padding; the crawlspace shows none of what its narration promises; one gating puzzle per dungeon; Lantern Row symmetric; valve walk has no shortcut; future-chapter zones blocked by invisible walls |
-| 9 | Audio | 6.5 | 7 | 2026-09-28 | −0.7 | SFX evidence covers 7 of 66; ~7 dB RMS spread between songs, no normalization; quiet cues have no top end; boss tracks pinned to the compressor (0.4 dB range); bottom-heavy |
-| 10 | Feel & polish | 7.5 | 7 | 2026-09-28 | +0.5 | **Bug:** combo floaters collide with the persistent WEAK tag; Game Over rain is a cheap one-off renderer; no test gating text collisions in combos |
-| 11 | Stability | 7.5 | 7 | 2026-09-28 | −1.2 | **Bug:** New Game after a load leaves `savedAt` stale (unload prompt and tab-hide autosave off for a while); `abandon()` keeps tickers/overlays; dead error-listener API; playtest not in CI |
+| 1 | Engine & code | 7.7 | 8 | 2026-09-28 | +0.1 | BattleScene still controller + renderer (extract the renderer); `alive()` allocates; per-frame Map iterator and sort closure in the battle loop; bundle size has no CI gate (499.9 kB); playback.ts untested |
+| 2 | Field art | 7.6 | 8 | 2026-09-28 | +0.3 | Ambient dark crushes tile detail outside light pools; leads read as one blob at play scale; crowd sheet shows one stance; Sinkline floors sparse; barrens read as empty ground; two facades read as icon grids |
+| 3 | Battle presentation | 7.2 | 8 | 2026-09-28 | +0.2 | Death dissolve is a stretched white blob; duplicate machines identical; first thugs the weakest art; no camera push on big hits; no impact frame for crits/finishers; skyline neon at enemy HP height |
+| 4 | UI / UX | 7.8 | 8 | 2026-09-28 | +0.6 | **Bug:** the bar interior leaves black bands (room smaller than the camera); default scaling is Smooth fit; no glyph-coverage test; place-map labels unchecked |
+| 5 | Combat design | 8.1 | 8 | 2026-09-28 | ±0 | No execution layer; no turn-order preview; 7 fixed combos, no upgrades; trash AI thins to charge-then-attack; every tell answered by Guard; weakness intel only reactive |
+| 6 | Progression & economy | 7.5 | 8 | 2026-09-28 | −0.3 | Annex trash easier than the Sinkline right before the Warden; GDD says sell 50% (loot sells 100%); Requisition resells the Annex chest uniques; thin sidegrades; Warden reward untested across phases; side jobs never nudged |
+| 7 | Narrative & writing | 7.6 | 8 | 2026-09-28 | +0.2 | Betrayal called early with no misdirection; "alpha" thanks on the cliffhanger card; "nine seconds" recited three times; Sable joins fast; the opening repeats its joke; generic bestiary lines |
+| 8 | Level design | 7.2 | 8 | 2026-09-28 | +0.2 | Every room an axis-aligned box, no height; Annex secrets not visible on the field (27/28/29 look like 21); one branching route in the chapter; Lantern Row sparse; world map one road each way |
+| 9 | Audio | 7.2 | 8 | 2026-09-28 | +0.7 | Place cues dark (6 kHz+ at 0.1–2%; pad/lead filters low); set pieces stack parts on a bass-heavy bus; battle peak over the limiter threshold; loop seam unmeasured; no hummable hook |
+| 10 | Feel & polish | 7.4 | 8 | 2026-09-28 | −0.1 | **Bug:** defeat hard-cuts to Game Over (no fade); white blob on a kill frame; Game Over carries nothing from the fall; AoE stacks a hitstop per target; the shatter intro ignores battle speed |
+| 11 | Stability | 8.0 | 8 | 2026-09-28 | +0.5 | **Bug:** a scene whose render throws every frame never trips recovery (fault counter lives in tick); WebKit/Firefox runs not in the evidence; migrations never exercised by a real entry |
+
+Round 8 note: average 7.57 (round 7: 7.35); eight areas rose. Stability reached 8.0 and combat held at 8.1. The
+reviewers found three new bugs from the evidence: a render-only fault loop that never recovers, a hard cut into Game Over,
+and a bar interior that leaves black bands.
 
 Round 7 note: the evidence got richer (audio measurements, more screenshots, more tests) and reviewers used it to find
 new, concrete defects — several real bugs (text collisions, the Warden's hidden head, the menu's hidden Close, a stale
 save baseline, a continuity slip). Reviewer spread remains ±0.5–1.0 per area; the trend is judged on defects fixed.
 
-## Round 8 (verification pending)
+## Round 8 (verified 2026-09-28)
 
 - [x] **Bugs**: combo name clears before its hits land; chips and WEAK tags step aside while numbers rise (opaque plates); enemies clear the prompt strip (the Warden's visor); main menu shows all ten entries; one shared overlay dim; target box measured (Maintenance Drone overflowed); New Game resets the unsaved baseline (tested); throwing tickers/overlays are dropped (tested); Pale's "all week" → "all night".
 - [x] **Audio**: per-song loudness trims (spread now the intended ~3.6 dB); drum rests so boss themes breathe (range 0.4 → 1.3 dB); a high bell layer for the quiet cues; all 66 effects measured.
