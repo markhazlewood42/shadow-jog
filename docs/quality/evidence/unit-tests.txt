@@ -4,9 +4,39 @@
 stdout | tests/pacing.test.ts > pacing > estimates Chapter 1 inside the GDD’s 45–75 minute target
 walking   3.4 min (1212 tiles)
 fighting  21.0 min (28.3 fights: 22.3 random + 6 scripted)
-reading   26.3 min (18243 chars of story, 21529 optional × 0.4)
+reading   26.9 min (18596 chars of story, 22016 optional × 0.4)
 menus     10.0 min
-total     60.7 min
+total     61.2 min
+
+stdout | tests/balance.test.ts > balance > prints the balance table
+
+street  (opening)            win 100%  rounds  2.1  hp lost  10%  combos/battle 1.00
+barrens (to Rustyard)        win 100%  rounds  2.1  hp lost  11%  combos/battle 1.00
+KNUCKLES                     win  91%  rounds  4.8  hp lost  42%  combos/battle 1.00
+sinkline                     win 100%  rounds  2.0  hp lost  11%  combos/battle 1.01
+LURKER                       win  92%  rounds  7.7  hp lost  43%  combos/battle 1.00
+annex                        win 100%  rounds  2.5  hp lost  12%  combos/battle 1.00
+WARDEN                       win  92%  rounds 11.2  hp lost  43%  combos/battle 3.67
+
+stdout | tests/balance.test.ts > dungeon attrition > prints the attrition table
+
+barrens x4                   cleared 100%  end hp  89%  medkits 2.5  rounds/battle 2.2  rook charges left 62% (dry 0%)
+sinkline x6                  cleared  95%  end hp  84%  medkits 3.5  rounds/battle 2.5  rook charges left 46% (dry 0%)
+    lost to: drowned_shade+drowned_shade+glowrat @4 lose ×1, drowned_shade+drowned_shade+glowrat @6 lose ×1, drowned_shade+drowned_shade+glowrat @5 lose ×1
+annex x5                     cleared  97%  end hp  89%  medkits 0.8  rounds/battle 3.4  rook charges left 61% (dry 0%)
+    lost to: bound_spirit+km_sentinel @3 lose ×1, bound_spirit+km_sentinel @4 lose ×1
+
+stdout | tests/balance.test.ts > alternative builds > sinkline with shock_knuckles, lucky_coin, taser_pistol, cyber_eye holds up
+sinkline (alt)               win 100%  rounds  1.9  hp lost   9%  combos/battle 1.00
+
+stdout | tests/balance.test.ts > alternative builds > lurker with razor_tekko, reflex_booster, nodachi, dermal_plating holds up
+lurker (alt)                 win  89%  rounds  8.4  hp lost  47%  combos/battle 1.00
+
+stdout | tests/balance.test.ts > alternative builds > annex with thorn_rod, spirit_fetish, adrenal_pump holds up
+annex (alt)                  win 100%  rounds  2.5  hp lost  12%  combos/battle 1.00
+
+stdout | tests/balance.test.ts > alternative builds > warden with lucky_coin, reflex_booster, bone_staff holds up
+warden (alt)                 win  94%  rounds 10.1  hp lost  39%  combos/battle 3.48
 
 stdout | tests/economy.test.ts > economy > prints the route
 Walk to the Rustyard           walks 39 steps of street (1 in 28), 25 steps of barrens (1 in 20)
@@ -17,64 +47,42 @@ Sinkline B1                    walks 218 steps of sinkline (1 in 24)
 Annex 7                        walks 86 steps of annex (1 in 22)
 street     cred   34 + loot  13 · xp 19
 barrens    cred   41 + loot  18 · xp 27
-sinkline   cred   49 + loot  21 · xp 52
+sinkline   cred   48 + loot  20 · xp 52
 annex      cred  110 + loot  38 · xp 91
-CP1 before the Rustyard trip   after buys   119¢ (spent 120)  fights 1  {"kit":1,"rook":3} 
-Walk to the Rustyard           after buys   257¢ (spent 0)  fights 3.6  {"kit":2,"rook":3} 
-CP2 Knuckles                   after buys   286¢ (spent 250)  fights 6.1  {"kit":3,"rook":4} 
-Knuckles                       after buys   699¢ (spent 0)  fights 7.1  {"kit":4,"rook":4} 
-CP3 into the Sinkline          after buys   344¢ (spent 620)  fights 11  {"kit":4,"rook":5,"hex":4} 
-Walk to the Sinkline           after buys   404¢ (spent 0)  fights 12.3  {"kit":5,"rook":5,"hex":4} 
-CP4 the Lurker                 after buys   535¢ (spent 760)  fights 21.4  {"kit":6,"rook":7,"hex":6} 
-CP5 into Annex 7               after buys   595¢ (spent 520)  fights 22.4  {"kit":7,"rook":8,"hex":7} 
-CP6 WARDEN                     after buys  1083¢ (spent 0)  fights 27.3  {"kit":9,"rook":9,"hex":8,"sable":8} 
-
-stdout | tests/balance.test.ts > balance > prints the balance table
-
-street  (opening)            win 100%  rounds  2.5  hp lost  17%  combos/battle 0.00
-barrens (to Rustyard)        win 100%  rounds  2.1  hp lost  16%  combos/battle 0.00
-KNUCKLES                     win  99%  rounds  5.8  hp lost  37%  combos/battle 1.00
-sinkline                     win 100%  rounds  2.3  hp lost  13%  combos/battle 0.25
-LURKER                       win  92%  rounds  7.7  hp lost  43%  combos/battle 1.00
-annex                        win 100%  rounds  2.9  hp lost  15%  combos/battle 0.00
-WARDEN                       win  92%  rounds 11.2  hp lost  41%  combos/battle 3.77
+CP1 before the Rustyard trip   after buys   369¢ (spent 120)  fights 1  {"kit":1,"rook":3} 
+Walk to the Rustyard           after buys   507¢ (spent 0)  fights 3.6  {"kit":2,"rook":3} 
+CP2 Knuckles                   after buys   536¢ (spent 250)  fights 6.1  {"kit":3,"rook":4} 
+Knuckles                       after buys   949¢ (spent 0)  fights 7.1  {"kit":4,"rook":4} 
+CP3 into the Sinkline          after buys   594¢ (spent 620)  fights 11  {"kit":4,"rook":5,"hex":4} 
+Walk to the Sinkline           after buys   654¢ (spent 0)  fights 12.3  {"kit":5,"rook":5,"hex":4} 
+CP4 the Lurker                 after buys   771¢ (spent 760)  fights 21.4  {"kit":6,"rook":7,"hex":6} 
+CP5 into Annex 7               after buys   831¢ (spent 520)  fights 22.4  {"kit":7,"rook":8,"hex":7} 
+CP6 WARDEN                     after buys  1319¢ (spent 0)  fights 27.3  {"kit":9,"rook":9,"hex":8,"sable":8} 
 
 stdout | tests/economy.test.ts > economy > prints the Monte Carlo spread
-CP1 before the Rustyard trip   p10   108¢  median   108¢  affordable 100%
-CP2 Knuckles                   p10   134¢  median   245¢  affordable 100%
-CP3 into the Sinkline          p10    87¢  median   239¢  affordable 98%
-CP4 the Lurker                 p10   123¢  median   435¢  affordable 98%
-CP5 into Annex 7               p10   143¢  median   466¢  affordable 97%
-CP6 WARDEN                     p10   492¢  median   907¢  affordable 100%
-down rates: f_first_fight 0.00, street 0.01, barrens 0.00, f_rustyard_gate 0.00, f_knuckles 0.15, sinkline 0.00, f_lurker 0.38, annex 0.04, f_annex_door 0.17, park 0.18
+CP1 before the Rustyard trip   p10   358¢  median   363¢  affordable 100%
+CP2 Knuckles                   p10   382¢  median   491¢  affordable 100%
+CP3 into the Sinkline          p10   350¢  median   499¢  affordable 100%
+CP4 the Lurker                 p10   386¢  median   652¢  affordable 100%
+CP5 into Annex 7               p10   413¢  median   670¢  affordable 100%
+CP6 WARDEN                     p10   667¢  median  1073¢  affordable 100%
+down rates: f_first_fight 0.00, street 0.00, barrens 0.00, f_rustyard_gate 0.00, f_knuckles 0.17, sinkline 0.01, f_lurker 0.38, annex 0.07, f_annex_door 0.17, park 0.01
 
-stdout | tests/balance.test.ts > dungeon attrition > prints the attrition table
-
-barrens x4                   cleared 100%  end hp  89%  medkits 2.5  rounds/battle 2.2
-sinkline x6                  cleared  92%  end hp  77%  medkits 4.3  rounds/battle 2.9
-    lost to: drowned_shade+drowned_shade+glowrat @2 lose ×1, drowned_shade+sewer_ghoul @5 lose ×1, drowned_shade+sewer_ghoul @6 lose ×1, drowned_shade+drowned_shade+glowrat @1 lose ×1, drowned_shade+sewer_ghoul @4 lose ×1
-annex x5                     cleared  97%  end hp  88%  medkits 1.5  rounds/battle 3.9
-    lost to: bound_spirit+km_sentinel @3 lose ×2
-
-stdout | tests/balance.test.ts > alternative builds > sinkline with shock_knuckles, lucky_coin, taser_pistol, cyber_eye holds up
-sinkline (alt)               win 100%  rounds  2.2  hp lost  12%  combos/battle 0.25
-
-stdout | tests/balance.test.ts > alternative builds > lurker with razor_tekko, reflex_booster, nodachi, dermal_plating holds up
-lurker (alt)                 win  89%  rounds  8.4  hp lost  47%  combos/battle 1.00
-
-stdout | tests/balance.test.ts > alternative builds > annex with thorn_rod, spirit_fetish, adrenal_pump holds up
-annex (alt)                  win 100%  rounds  3.0  hp lost  16%  combos/battle 0.00
-
-stdout | tests/balance.test.ts > alternative builds > warden with lucky_coin, reflex_booster, bone_staff holds up
-warden (alt)                 win  94%  rounds 10.3  hp lost  39%  combos/battle 3.58
+stdout | tests/economy.test.ts > economy > prints the minimal-exploration spread
+minimal: CP1 before the Rustyard trip   p10   298¢  median   303¢  affordable 100%
+minimal: CP2 Knuckles                   p10   206¢  median   314¢  affordable 100%
+minimal: CP3 into the Sinkline          p10   161¢  median   328¢  affordable 99%
+minimal: CP4 the Lurker                 p10   -54¢  median   231¢  affordable 87%
+minimal: CP5 into Annex 7               p10   -65¢  median   254¢  affordable 87%
+minimal: CP6 WARDEN                     p10   224¢  median   663¢  affordable 98%
 
 
  Test Files  14 passed (14)
-      Tests  158 passed (158)
-   Start at  16:19:52
-   Duration  537ms (transform 64%, import 25%, tests 10%, worker 2%)
+      Tests  178 passed (178)
+   Start at  17:47:09
+   Duration  569ms (transform 62%, import 23%, tests 14%, worker 2%)
 
-  Transform  transforming modules took 2.23s · 64% of tracked time, re-done on every run
+  Transform  transforming modules took 2.26s · 62% of tracked time, re-done on every run
              persist transforms across runs with fsModuleCache: true
              learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
 
