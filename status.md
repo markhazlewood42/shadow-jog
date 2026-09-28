@@ -42,7 +42,7 @@ Don't edit `src/` while a Playwright run is going: Vite hot-reloads and the run 
 
 - Touch controls.
 - Deploy (GitHub Pages or Vercel; ask first).
-- Chapter 2 ("Rook, Taken").
+- Chapter 2 ("Deniable Assets"): getting Rook back.
 
 ## Notes
 

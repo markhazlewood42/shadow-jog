@@ -35,7 +35,7 @@ export const introFlat: ScriptFn = async (s) => {
   await s.emote('player', '!');
   await s.say('kit', 'Real work? Like, paying work? Not "hold this bag and don\'t look inside" work?', { face: 'surprised' });
   await s.say('rook', 'The Drowned Saint. Ten minutes. And eat something first. Nobody punches well on an empty stomach.');
-  await s.say('kit', 'I punch great on an empty stomach. I punch angrier.', { face: 'happy' });
+  await s.say('kit', 'I punch fine hungry. I just punch angrier.', { face: 'happy' });
   await s.move('rook', 'lld', { speed: 14 });
   s.regroup();
   s.set('intro');
@@ -258,8 +258,10 @@ export const annexGuards: ScriptFn = async (s) => {
   if (r !== 'win') return;
   s.despawn('sentinel_a');
   s.despawn('sentinel_b');
+  await s.narrate('One of the Sentinels wears a passkey on a lanyard. Hex lifts it off him with two fingers.');
   await s.give('annex_key', 1);
   s.set('annex_key');
+  await s.say('hex', 'One chunk of plastic, acquired. Told you somebody down here had one.');
   await s.say('rook', 'Active security in an abandoned lab. Pale lied.');
   await s.say('hex', 'Pale lied, the lab lied, the lights are lying. Everything down here is lying. I hate it here.', { face: 'sad' });
   s.objective(OBJ.core);
@@ -279,6 +281,7 @@ export const cryopod: ScriptFn = async (s) => {
   await s.say('kit', 'We\'re getting them out.', { face: 'angry' });
   await s.say('rook', 'Kit. Three thousand cred, the rent, Hex\'s debt—');
   await s.say('kit', 'We\'re getting them OUT.', { face: 'angry' });
+  await s.say('rook', '...Yeah. We are. Do it, kid.');
   s.flash('#ffffff', 20);
   s.shake(30, 3);
   s.sfx('phase');
@@ -312,11 +315,17 @@ export const wardenFight: ScriptFn = async (s) => {
   s.music('sable');
   await s.narrate('The spirit rises from the wreck, no longer screaming. It circles Sable once, like a bird, and fades into the pipes.');
   await s.say('sable', 'It thanked you. It said its name. I won\'t repeat it; it was only for us.');
+  await s.say('rook', 'Twenty years ago I stood in a lab like this. Different logo. My old crew got paid, and I walked out past a tank with somebody still in it.');
+  await s.say('kit', 'Rook...', { face: 'sad' });
+  await s.say('rook', 'Not this time. That\'s all.');
   await s.say('hex', 'The lift\'s live. Let\'s never come back here.', { face: 'happy' });
 };
 
 // ------------------------------------------------------------------ Betrayal & end
 export const betrayal: ScriptFn = async (s) => {
+  // Wired to both the dock's onEnter and talking to Pale: it must only ever play once.
+  if (s.flag('betrayal')) return;
+  s.set('betrayal');
   s.music('tension');
   await s.wait(20);
   await s.say('pale', 'Excellent work. You\'ve recovered my property, and in better shape than I dared hope.', { face: 'smirk' });

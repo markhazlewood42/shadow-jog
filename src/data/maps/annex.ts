@@ -169,8 +169,8 @@ export const dock: MapDef = {
   ],
   npcs: [
     { id: 'pale', x: 9, y: 9, dir: 'up', look: LOOKS.pale, name: 'Mr. Pale', talk: betrayal },
-    { id: 'guard1', x: 7, y: 10, dir: 'up', look: LOOKS.corpsec, name: 'K-M Sentinel', talk: ['...'] },
-    { id: 'guard2', x: 11, y: 10, dir: 'up', look: LOOKS.corpsec, name: 'K-M Sentinel', talk: ['...'] },
+    { id: 'guard1', x: 7, y: 10, dir: 'up', look: LOOKS.corpsec, name: 'K-M Sentinel', talk: ['Eyes front. Mr. Pale doesn’t like to be kept waiting.'] },
+    { id: 'guard2', x: 11, y: 10, dir: 'up', look: LOOKS.corpsec, name: 'K-M Sentinel', talk: ['Nothing personal, runners. You’re a line item.'] },
   ],
   onEnter: async (s) => {
     if (s.flag('chapter_end')) return;

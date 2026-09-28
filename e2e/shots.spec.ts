@@ -191,3 +191,13 @@ test('23 ending', async ({ page }) => {
   await page.waitForTimeout(1500);
   await shot(page, '23-ending-panels');
 });
+
+test('24 ending results + 25 next chapter', async ({ page }) => {
+  await open(page, 'annex');
+  await sj(page, 'sj.ending()');
+  await page.waitForTimeout(3400);
+  await shot(page, '24-ending-results');
+  await key(page, 'z', 1, 300);
+  await page.waitForTimeout(3600);
+  await shot(page, '25-ending-next');
+});

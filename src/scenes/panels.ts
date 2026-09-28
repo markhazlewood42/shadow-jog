@@ -53,7 +53,7 @@ const PAGES: Record<string, Page[]> = {
     [
       { x: 8, y: 8, w: 464, h: 120, bg: 'flash', caption: 'Rook’s flashbang bought them eleven seconds.', from: 'top', shake: true },
       { x: 8, y: 134, w: 228, h: 128, bg: 'dark', portrait: { key: 'kit', face: 'sad' }, speech: { who: 'kit', text: 'Rook! ROOK!' }, from: 'left' },
-      { x: 242, y: 134, w: 230, h: 128, bg: 'dark', portrait: { key: 'rook', face: 'hurt', flip: true }, speech: { who: 'rook', text: 'Go. I’m right behind you, kid. Always.' }, from: 'right' },
+      { x: 242, y: 134, w: 230, h: 128, bg: 'dark', portrait: { key: 'rook', face: 'hurt', flip: true }, speech: { who: 'rook', text: 'Hey, Pale. You still owe us three thousand.' }, from: 'right' },
     ],
     [
       { x: 8, y: 8, w: 464, h: 120, bg: 'canal', caption: 'They came up three wards over, soaked and shaking. Three of them.', from: 'top' },
