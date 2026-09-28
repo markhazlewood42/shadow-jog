@@ -59,8 +59,8 @@ export const PAGES: Record<string, Page[]> = {
       { x: 242, y: 134, w: 230, h: 128, bg: 'dark', portrait: { key: 'rook', face: 'hurt', flip: true }, speech: { who: 'rook', text: 'Go, kid. Don’t look back.' }, from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 464, h: 120, bg: 'canal', caption: 'The last they saw of him, he was on his knees in the rain with K-M rifles all around him. They came up three wards over, soaked and shaking. Three of them.', from: 'top' },
-      { x: 8, y: 134, w: 228, h: 128, bg: 'dark', portrait: { key: 'kit', face: 'sad' }, speech: { who: 'kit', text: 'He told us not to wait. We didn’t wait.' }, from: 'left' },
+      { x: 8, y: 8, w: 464, h: 120, bg: 'canal', caption: 'Last they saw, he was on his knees in the rain, rifles all round him. Three of them came up, three wards over.', from: 'top' },
+      { x: 8, y: 134, w: 228, h: 128, bg: 'dark', portrait: { key: 'kit', face: 'sad' }, speech: { who: 'kit', text: 'He said don’t look back. So I didn’t.' }, from: 'left' },
       { x: 242, y: 134, w: 230, h: 128, bg: 'rooftop', caption: 'For a long time, nobody said anything. The rain did the talking.', from: 'right' },
     ],
     [

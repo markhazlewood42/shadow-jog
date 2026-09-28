@@ -94,7 +94,7 @@ export const meetDutch: ScriptFn = async (s) => {
   s.despawn('pale');
   s.sfx('door');
   await s.wait(20);
-  await s.say('dutch', 'Word of advice? Don’t open the core. Don’t read the core. Don’t lick the core.');
+  await s.say('dutch', 'Word of advice? Get paid before you get proud.');
   await s.say('kit', 'Why would I lick—', { face: 'angry' });
   await s.say('dutch', 'People do things, darlin’. Oh, and if you need pocket money, the {c}job board{/} by the door always has something.');
   s.set('met_dutch');
@@ -190,7 +190,7 @@ export const magsReward: ScriptFn = async (s) => {
     s.objective(OBJ.bringChip);
     return;
   }
-  const c = await s.ask('mags', 'Shopping? The crew that runs Knuckles off my lot gets fair prices. For once.', ['Shop', 'Talk', 'Leave'], { cancel: 2 });
+  const c = await s.ask('mags', 'Shopping? The crew that ran Knuckles off my lot gets fair prices. For once.', ['Shop', 'Talk', 'Leave'], { cancel: 2 });
   if (c === 0) await s.shop('rustyard');
   else if (c === 1) await s.say('mags', 'The Sinkline? Flooded in ’61, whole trains still down there. Things live in the water now. Big things. Bring fire. Or a bigger thing.');
 };
@@ -245,7 +245,7 @@ export const pumpValve = (id: string): ScriptFn => async (s) => {
       return;
     }
     await s.narrate('The last wheel turns. Every pipe in the room drums once, then settles into a low, even hum.');
-    await s.say('hex', 'Pressure’s balanced. Pumps are primed. Console, please!', { face: 'happy' });
+    await s.say('hex', 'Pressure’s balanced and the pumps are primed. Now the console in the pump room.', { face: 'happy' });
     return;
   }
   // Out of order: a pressure kick slams every valve shut.
@@ -433,6 +433,10 @@ export const cryopod: ScriptFn = async (s) => {
   await s.say('kit', 'Started last month. I don’t know why.', { face: 'surprised' });
   await s.say('sable', 'Mm. The crow says you’re loud. That’s not an insult.');
   await s.say('sable', 'I am Sable. I don’t know how long I was in there. They took— they took a lot. I still have enough.');
+  await s.say('rook', 'We’ll get you out of here. After that you owe us nothing.');
+  await s.say('sable', 'Everyone who opened this glass said something kind. The crow remembers each of them.', { face: 'sad' });
+  await s.say('kit', 'We’re not them.', { face: 'angry' });
+  await s.say('sable', 'No. None of them burned.');
   await s.fadeOut(30, '#07060d');
   s.refreshMap(); // the pod, shattered and empty
   await s.wait(20);
@@ -481,7 +485,7 @@ export const betrayal: ScriptFn = async (s) => {
   await s.say('pale', 'You were the deniable contractors.');
   await s.say('rook', 'And the three thousand?');
   await s.say('pale', 'A figure of speech.');
-  await s.say('pale', 'Nine seconds, Miss Kit. I have thought about those nine seconds all week.', { face: 'smirk' });
+  await s.say('pale', 'Nine seconds, Miss Kit. I have thought about those nine seconds all night.', { face: 'smirk' });
   await s.say('pale', 'You came in as a contractor. You are leaving as a line item.');
   await s.say('pale', 'Except you, Miss Kit. The Vessel program is always short of subjects, and you have never once been measured.');
   await s.narrate('The watch snaps shut.');

@@ -5,7 +5,7 @@ import { drawText, fitText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { ACTIONS, keyLabel, type Action } from '../engine/input';
 import { saveSettings, settings } from '../game/settings';
-import { drawCursor, drawSelect, drawWindow, UI } from '../ui/draw';
+import { drawCursor, drawSelect, drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
 
 const NAMES: Record<Action, string> = {
   up: 'Up', down: 'Down', left: 'Left', right: 'Right', confirm: 'Confirm', cancel: 'Cancel / Back',
@@ -78,7 +78,7 @@ export class ControlsScene extends Scene<void> {
   }
 
   render(ctx: Ctx): void {
-    ctx.fillStyle = 'rgba(7,6,13,0.75)';
+    ctx.fillStyle = OVERLAY_DIM;
     ctx.fillRect(0, 0, W, H);
     const w = 360, h = this.rows.length * 13 + 46;
     const x = (W - w) / 2, y = (H - h) / 2;

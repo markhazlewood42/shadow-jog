@@ -205,11 +205,14 @@ export class Game {
   tick(): void {
     this.faultedThisTick = false;
     this.input.update();
-    for (const t of this.tickers) {
+    // A hook that throws is reported and dropped: it isn't a scene, so going back to the title
+    // wouldn't clear it, and left in place it would trip the fault limit over and over.
+    for (let i = 0; i < this.tickers.length; i++) {
       try {
-        t();
+        this.tickers[i]!();
       } catch (e) {
         this.fault(e);
+        this.tickers.splice(i--, 1);
       }
     }
     this.frame++;
@@ -302,11 +305,12 @@ export class Game {
       ctx.fillRect(0, 0, W, H);
       ctx.globalAlpha = 1;
     }
-    for (const o of this.overlays) {
+    for (let i = 0; i < this.overlays.length; i++) {
       try {
-        o(ctx);
+        this.overlays[i]!(ctx);
       } catch (e) {
         this.fault(e);
+        this.overlays.splice(i--, 1);
       }
     }
   }

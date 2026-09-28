@@ -7,13 +7,11 @@ export type NoticeTone = 'error' | 'warn' | 'saved';
 let lastMessage = '';
 let lastTone: NoticeTone = 'error';
 let shownAt = -1;
-let listeners: ((msg: string) => void)[] = [];
 
 export function reportError(e: unknown): void {
   const msg = e instanceof Error ? e.message : String(e);
   console.error('[SHADOW JOG]', e);
   notice(msg, 'error');
-  for (const l of listeners) l(msg);
 }
 
 /** A short on-screen notice: a warning bar, or the small corner "saved" badge. */
@@ -21,14 +19,6 @@ export function notice(text: string, tone: NoticeTone): void {
   lastMessage = text;
   lastTone = tone;
   shownAt = performance.now();
-}
-
-export function onError(fn: (msg: string) => void): void {
-  listeners.push(fn);
-}
-
-export function clearErrorListeners(): void {
-  listeners = [];
 }
 
 /** The current notice, or null once it has been visible for a while (the saved badge is brief). */

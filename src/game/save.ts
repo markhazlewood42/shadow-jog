@@ -30,6 +30,13 @@ const key = (slot: SlotId) => `shadowjog.save.${slot}`;
 /** Play time (frames) at the last successful save or load: the baseline for "unsaved progress". */
 let savedAt = 0;
 
+/** A new game has nothing saved yet: its unsaved progress counts from zero, not from whatever
+ *  save was loaded earlier in this tab (which would silence the unload prompt and tab-hide
+ *  autosave until the new game's clock caught up). */
+export function resetSaveBaseline(): void {
+  savedAt = 0;
+}
+
 /** Frames of play since the game was last saved or loaded. */
 export function unsavedFrames(playFrames: number): number {
   return Math.max(0, playFrames - savedAt);

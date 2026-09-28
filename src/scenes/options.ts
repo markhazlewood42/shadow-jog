@@ -6,7 +6,7 @@ import type { Ctx } from '../engine/canvas';
 import { drawText, fitText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { BATTLE_SPEEDS, battleSpeed, saveSettings, settings, TEXT_SPEEDS, textSpeed } from '../game/settings';
-import { drawBar, drawCursor, drawSelect, drawWindow, UI } from '../ui/draw';
+import { drawBar, drawCursor, drawSelect, drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
 import { keyLabel, type Action } from '../engine/input';
 import { ControlsScene } from './controls';
 
@@ -106,7 +106,7 @@ export class OptionsScene extends Scene<'back' | 'title'> {
   }
 
   render(ctx: Ctx): void {
-    ctx.fillStyle = 'rgba(7,6,13,0.6)';
+    ctx.fillStyle = OVERLAY_DIM;
     ctx.fillRect(0, 0, W, H);
     const w = 280, h = this.rows.length * 13 + 60;
     const x = (W - w) / 2, y = (H - h) / 2;

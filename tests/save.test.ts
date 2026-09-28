@@ -160,6 +160,15 @@ describe('save / load', () => {
     expect(hasAnySave()).toBe(true);
   });
 
+  it('a new game counts unsaved progress from zero, whatever was loaded before in the tab', async () => {
+    const { resetSaveBaseline } = await import('../src/game/save');
+    writeSave(1, 50_000);
+    applySave(loadSave(1)!);
+    expect(unsavedFrames(1000)).toBe(0); // the old baseline would hide this new game's progress
+    resetSaveBaseline();
+    expect(unsavedFrames(1000)).toBe(1000);
+  });
+
   it('tracks unsaved progress from the last save or load', () => {
     writeSave(1, 500);
     expect(unsavedFrames(500)).toBe(0);

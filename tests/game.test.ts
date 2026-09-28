@@ -39,6 +39,27 @@ describe('game fault isolation', () => {
     expect(currentNotice()?.tone).toBe('error');
   });
 
+  it('drops a ticker or overlay that throws, once, and keeps running', () => {
+    const g = new Game(ctx, input);
+    let good = 0;
+    g.tickers.push(() => {
+      throw new Error('bad ticker');
+    });
+    g.tickers.push(() => {
+      good++;
+    });
+    g.overlays.push(() => {
+      throw new Error('bad overlay');
+    });
+    for (let i = 0; i < 5; i++) {
+      g.tick();
+      g.render();
+    }
+    expect(g.tickers.length).toBe(1);
+    expect(g.overlays.length).toBe(0);
+    expect(good).toBe(5);
+  });
+
   it('keeps rendering overlays when a scene render throws', () => {
     const g = new Game(ctx, input);
     let overlays = 0;

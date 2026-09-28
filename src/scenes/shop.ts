@@ -12,7 +12,7 @@ import { SHOP_COMPARE_W } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { canEquip, memberStats } from '../game/party';
 import { state, type MemberState } from '../game/state';
-import { drawDivider, drawWindow, UI } from '../ui/draw';
+import { drawDivider, drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
 import { ListMenu } from '../ui/list';
 
 type Mode = 'root' | 'buy' | 'sell' | 'qty';
@@ -157,7 +157,7 @@ export class ShopScene extends Scene<void> {
   }
 
   render(ctx: Ctx): void {
-    ctx.fillStyle = 'rgba(7,6,13,0.55)';
+    ctx.fillStyle = OVERLAY_DIM;
     ctx.fillRect(0, 0, W, H);
     const acc = this.shop.accent;
     // Header + keeper line

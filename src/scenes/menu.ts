@@ -16,7 +16,7 @@ import { applyEffects } from '../game/fielduse';
 import { canEquip, equip, knownAbilities, memberStats } from '../game/party';
 import { formatPlayTime, locationName, readMeta, SLOTS, writeSave, type SlotId } from '../game/save';
 import { flags, state, type EquipSlot, type MemberId, type MemberState } from '../game/state';
-import { drawBar, drawDivider, drawSelect, drawWindow, hpColor, UI } from '../ui/draw';
+import { drawBar, drawDivider, drawSelect, drawWindow, hpColor, UI, OVERLAY_DIM } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
 import { OptionsScene } from './options';
 import { PlaceMapScene } from './placemap';
@@ -65,6 +65,8 @@ export class MenuScene extends Scene<MenuResult> {
       { label: 'Options', value: 'options' },
       { label: 'Close', value: 'close' },
     ]);
+    // Every entry on screen: the window is sized to the list, so nothing (Close) scrolls away.
+    this.main.rows = this.main.items.length;
   }
 
   override enter(): void {
@@ -418,7 +420,7 @@ export class MenuScene extends Scene<MenuResult> {
   // ------------------------------------------------------------------ render
   render(ctx: Ctx): void {
     // Near-opaque: the world is a faint presence behind the menu, never readable signage.
-    ctx.fillStyle = 'rgba(7,6,13,0.96)';
+    ctx.fillStyle = OVERLAY_DIM;
     ctx.fillRect(0, 0, W, H);
     if (this.mode === 'status') {
       this.renderStatus(ctx);

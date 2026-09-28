@@ -8,7 +8,7 @@ import { sfx } from '../audio/sfx';
 import { Battle } from '../battle/engine';
 import { FxLayer, type Pt } from '../battle/fx';
 import { enemyParty, partyCombatant, writeBack } from '../battle/setup';
-import type { Ability, Combatant, Command } from '../battle/types';
+import type { Ability, Combatant, Command, Element } from '../battle/types';
 import { ABILITIES, COMBOS } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
 import { ITEMS } from '../data/items';
@@ -24,7 +24,7 @@ import { debug, PLAYTEST_ROUNDS } from '../game/debug';
 import { removeItem, state, type MemberId } from '../game/state';
 import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../ui/draw';
 import { ListMenu } from '../ui/list';
-import { LEVELUP_TEXT_W } from '../ui/layout';
+import { LEVELUP_TEXT_W, TARGET_INFO_W } from '../ui/layout';
 import { drawVictoryBanner } from './battlekit/banner';
 import { playEvent, type PlaybackView } from './battlekit/playback';
 import type { Disp, Floater } from './battlekit/types';
@@ -54,6 +54,15 @@ const PARTY_BOTTOM = 127;
  * party's heads (top ≈ y 81) sit below their feet; bosses stay forward and loom.
  */
 const ENEMY_LIFT = 14, BOSS_LIFT = 4;
+/**
+ * The top prompt / banner strip (UI y 6-23, world y 0-12): a sprite whose first opaque row would
+ * sit under it is placed lower, so a tall boss's head is never hidden behind "Give each crew
+ * member orders" (the Warden's visor was).
+ */
+const PROMPT_CLEAR = 14;
+function clearOfPrompt(y: number, canvas: HTMLCanvasElement): number {
+  return Math.max(y, PROMPT_CLEAR - opaqueTop(canvas));
+}
 /** Battle menus hug the screen edge; CMD_W fits "Programs"/"Spirits" plus the cursor. */
 const MENU_X = 4, CMD_W = 84;
 
@@ -524,6 +533,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       setBanner: (b) => {
         scene.banner = b;
       },
+      endBanner: () => {
+        // Jump into the last frames of the fade-out.
+        if (scene.banner) scene.banner.t = Math.max(scene.banner.t, scene.banner.big ? 66 : 56);
+      },
       setPose: (u, pose, frames) => scene.setPose(u, pose, frames),
       initDisp: (u) => scene.initDisp(u),
       cutin: (c) => {
@@ -734,7 +747,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         const art = enemyArt(ENEMIES[e.key]!.sprite);
         const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0);
         const back = e.boss ? 0 : (i % 2) * 4;
-        next.set(e.uid, { x, y: ground - art.canvas.height - back, art });
+        next.set(e.uid, { x, y: clearOfPrompt(ground - art.canvas.height - back, art.canvas), art });
         x += art.canvas.width + gap;
       });
       // The fallen keep their last spot while they dissolve.
@@ -744,7 +757,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     let p = this.layout.get(u.uid);
     if (!p) {
       const art = enemyArt(ENEMIES[u.key]!.sprite);
-      p = { x: Math.round((BW - art.canvas.width) / 2), y: this.bg.ground - (u.boss ? BOSS_LIFT : ENEMY_LIFT) - art.canvas.height, art };
+      p = { x: Math.round((BW - art.canvas.width) / 2), y: clearOfPrompt(this.bg.ground - (u.boss ? BOSS_LIFT : ENEMY_LIFT) - art.canvas.height, art.canvas), art };
       this.layout.set(u.uid, p);
     }
     return p;
@@ -1057,6 +1070,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 1);
       drawLag(ctx, cx0 - bw / 2, row, bw, 3, ratio, dd.lagHp / e.base.maxHp);
       row -= 11;
+      // While numbers are rising off this enemy, its chips and WEAK tag step aside (the HP bar
+      // stays): the two text systems share the rows above its head.
+      let floating = false;
+      for (const f of this.floaters) if (f.uid === e.uid && f.t < 50) floating = true;
+      if (floating) continue;
       // Status chips: measure, then draw (two passes, nothing allocated per frame).
       let count = 0, total = 0;
       for (const s of e.status) {
@@ -1074,7 +1092,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           const l = STATUS_LABEL[s.id];
           if (!l || s.id === 'guard' || drawn === 3) continue;
           const w = measure(l[0]) + 4;
-          ctx.fillStyle = 'rgba(10,9,19,0.85)';
+          ctx.fillStyle = '#0a0913';
           ctx.fillRect(cx, row, w, 9);
           ctx.fillStyle = l[1];
           ctx.fillRect(cx, row + 8, w, 1);
@@ -1096,7 +1114,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       }
       if (!n) continue;
       let wx = Math.round(cx0 - width / 2);
-      ctx.fillStyle = 'rgba(10,9,19,0.85)';
+      ctx.fillStyle = '#0a0913';
       ctx.fillRect(wx - 2, row, width + 4, 9);
       drawText(ctx, 'WEAK', wx, row + 1, { color: UI.amber, shadow: false });
       wx += measure('WEAK') + 4;
@@ -1341,19 +1359,20 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const uid = this.targetList[this.targetIdx];
     const u = uid !== undefined ? this.battle.unit(uid) : undefined;
     if (!u) return;
-    const w = 190, x = (W - w) / 2, y = 44;
+    const w = TARGET_INFO_W, x = (W - w) / 2, y = 44;
     if (u.side === 'enemy') {
       // Analyzed: the whole chart. Otherwise what the crew has learned the hard way.
       const weak = u.analyzed ? Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => k) : (state.weakSeen[u.key] ?? []);
       const res = u.analyzed ? Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) < 1).map(([k]) => k) : (state.resistSeen[u.key] ?? []);
       const imm = u.analyzed ? (u.immune ?? []) : (state.immuneSeen[u.key] ?? []);
       const notes: [string, string][] = [];
-      if (res.length) notes.push([`RESISTS ${res.map((el) => el.toUpperCase()).join(' ')}`, '#b8bcd0']);
+      // Element names as the chips over the enemies write them (ELEMENT_TAG), everywhere.
+      if (res.length) notes.push([`RESISTS ${res.map((el) => ELEMENT_TAG[el as Element]).join(' ')}`, '#b8bcd0']);
       if (imm.length) notes.push([`IMMUNE ${imm.map(statusName).join(' ')}`, '#c9b8ff']);
       drawWindow(ctx, x, y, w, 19 + (u.analyzed ? 11 : 0) + notes.length * 10, { plain: true, accent: UI.amber });
       drawText(ctx, u.name, x + 8, y + 5, { color: '#ffd0d0' });
       const bestiary = state.bestiary[u.key] ?? 0;
-      if (weak.length) drawText(ctx, `WEAK ${weak.map((el) => el.toUpperCase()).join(' ')}`, x + w - 8, y + 5, { align: 'right', color: UI.amber });
+      if (weak.length) drawText(ctx, fitText(`WEAK ${weak.map((el) => ELEMENT_TAG[el as Element]).join(' ')}`, w - 24 - measure(u.name)), x + w - 8, y + 5, { align: 'right', color: UI.amber });
       else if (!u.analyzed) drawText(ctx, bestiary ? `Defeated ×${bestiary}` : 'Unknown', x + w - 8, y + 5, { align: 'right', color: UI.dim });
       let ny = y + 15;
       if (u.analyzed) {

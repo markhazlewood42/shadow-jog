@@ -727,12 +727,28 @@ const FRAMING: Record<string, () => HTMLCanvasElement> = {
   },
   lab: () => {
     const s = surface(BW, BH), c = s.ctx;
-    // A conduit across the ceiling corner and the edges of consoles in the near corners.
+    // A conduit pipe across the ceiling corner, shaded round and bracketed (a flat bar read as a
+    // rendering fault), and the edges of consoles in the near corners.
+    const pipe = (x0: number, x1: number, y: number) => {
+      for (const [dy, col] of [[0, '#1a1822'], [1, '#3a3848'], [2, '#2a2836'], [3, '#1a1822'], [4, FG_DARK]] as const) {
+        c.fillStyle = col;
+        c.fillRect(x0, y + dy, x1 - x0, 1);
+      }
+      c.fillStyle = '#ff6a7a';
+      c.fillRect(x0, y + 1, x1 - x0, 1);
+      for (let x = x0 + 8; x < x1; x += 22) {
+        c.fillStyle = FG_DARK;
+        c.fillRect(x, y - 1, 3, 7);
+        c.fillStyle = '#4a4858';
+        c.fillRect(x, y - 1, 3, 1);
+      }
+    };
+    pipe(0, 84, 2);
+    // A drop line off the pipe's end, with a warning lamp.
     c.fillStyle = FG_DARK;
-    c.fillRect(0, 0, 90, 4);
-    c.fillRect(0, 4, 6, 18);
-    c.fillStyle = '#ff6a7a';
-    c.fillRect(6, 4, 84, 1);
+    c.fillRect(80, 7, 1, 10);
+    c.fillStyle = '#ff3a4a';
+    c.fillRect(79, 17, 3, 2);
     for (const [x, w] of [[0, 30], [BW - 30, 30]] as const) {
       c.fillStyle = FG_DARK;
       c.fillRect(x, 112, w, BH - 112);

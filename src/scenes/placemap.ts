@@ -11,7 +11,7 @@ import { getMap } from '../data/maps';
 import { FieldMap } from '../field/fieldmap';
 import { TS } from '../field/tiles';
 import { state } from '../game/state';
-import { drawWindow, UI } from '../ui/draw';
+import { drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
 
 /** Maps are baked once per visit to this screen, not per frame. */
 const baked = new Map<string, FieldMap>();
@@ -41,7 +41,7 @@ export class PlaceMapScene extends Scene<void> {
   }
 
   render(ctx: Ctx): void {
-    ctx.fillStyle = 'rgba(7,6,13,0.96)';
+    ctx.fillStyle = OVERLAY_DIM;
     ctx.fillRect(0, 0, W, H);
     drawWindow(ctx, 6, 6, W - 12, H - 12, { title: this.m.def.name.toUpperCase(), accent: UI.cyan });
     const box = { x: 14, y: 22, w: W - 28, h: H - 44 };

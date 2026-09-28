@@ -32,6 +32,8 @@ export interface PlaybackView {
   say(text: string): void;
   showBanner(text: string, color: string, big?: boolean): void;
   setBanner(b: { text: string; sub?: string; t: number; color: string; big?: boolean }): void;
+  /** Clear the banner quickly (a combo's name gives way as its strike lands). */
+  endBanner(): void;
   setPose(u: Combatant, pose: Pose, frames: number): void;
   initDisp(u: Combatant): void;
   cutin(c: { key: string; face: string; t: number; fromLeft: boolean; life: number }): void;
@@ -93,6 +95,8 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       v.setBanner({ text: `★ ${e.name.toUpperCase()} ★`, sub: first ? `${names}  —  COMBO DISCOVERED!` : names, t: 0, color: '#ffe07a', big: true });
       v.game.flash('#ffffff', 6);
       await v.w(40);
+      // The name clears before the hits land, so the numbers never appear under it.
+      v.endBanner();
       const timing = v.fx.play(e.fx, v.pos(e.actors[0]!), e.targets.map((t) => v.pos(t)));
       sfx(fxSound(e.fx));
       await v.w(timing.impact);

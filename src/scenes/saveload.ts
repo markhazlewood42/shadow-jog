@@ -7,7 +7,7 @@ import type { Ctx } from '../engine/canvas';
 import { drawText, fitText, measure } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { formatPlayTime, readMeta, slotStatus, writeSave, type SaveMeta, type SlotId, type SlotStatus } from '../game/save';
-import { drawSelect, drawWindow, UI } from '../ui/draw';
+import { drawSelect, drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
 
 export class SaveScene extends Scene<SlotId | null> {
   override opaque = false;
@@ -86,7 +86,7 @@ export class SaveScene extends Scene<SlotId | null> {
       sfx('save');
       this.note = `Saved to slot ${slot}.`;
       this.confirm = false;
-      setTimeout(() => !this.closed && this.close(slot), 500);
+      void this.game.wait(30).then(() => !this.closed && this.close(slot));
     } else {
       sfx('buzz');
       this.note = 'Couldn’t save — browser storage is unavailable.';
@@ -95,7 +95,7 @@ export class SaveScene extends Scene<SlotId | null> {
   }
 
   render(ctx: Ctx): void {
-    ctx.fillStyle = 'rgba(7,6,13,0.65)';
+    ctx.fillStyle = OVERLAY_DIM;
     ctx.fillRect(0, 0, W, H);
     const w = 330, rowH = 40;
     const h = this.slots.length * (rowH + 4) + 30;

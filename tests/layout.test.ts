@@ -7,7 +7,7 @@ import { ABILITIES, COMBOS } from '../src/data/abilities';
 import { MEMBERS } from '../src/data/party';
 import { measure, stripCodes, wrap } from '../src/engine/font';
 import { OBJ } from '../src/story/chapter1';
-import { COMBO_TEXT_W, EQUIP_DESC_LINES, EQUIP_DESC_W, FIELD_OBJ_W, LEVELUP_TEXT_W, MENU_OBJ_W, SHOP_COMPARE_W } from '../src/ui/layout';
+import { COMBO_TEXT_W, EQUIP_DESC_LINES, EQUIP_DESC_W, FIELD_OBJ_W, LEVELUP_TEXT_W, MENU_OBJ_W, SHOP_COMPARE_W, TARGET_INFO_W } from '../src/ui/layout';
 import { ITEMS } from '../src/data/items';
 
 describe('text fits its box', () => {
@@ -31,6 +31,19 @@ describe('text fits its box', () => {
     for (const ab of Object.values(ABILITIES)) {
       if (ab.kind === 'enemy' || ab.kind === 'combo' || ab.kind === 'item') continue;
       expect(measure(`Learned ${ab.name}!`), ab.name).toBeLessThanOrEqual(LEVELUP_TEXT_W);
+    }
+  });
+});
+
+describe('battle target info', () => {
+  it('every enemy’s name and full weakness list share one row of the target box', async () => {
+    const { ENEMIES, FAMILY_WEAK } = await import('../src/data/enemies');
+    const { ELEMENT_TAG } = await import('../src/scenes/battlekit/tables');
+    for (const e of Object.values(ENEMIES)) {
+      const weak = { ...FAMILY_WEAK[e.family], ...(e.weak ?? {}) };
+      const tags = Object.entries(weak).filter(([, v]) => (v ?? 1) > 1).map(([k]) => ELEMENT_TAG[k as keyof typeof ELEMENT_TAG]);
+      const line = tags.length ? `WEAK ${tags.join(' ')}` : '';
+      expect(measure(e.name) + 8 + measure(line), e.id).toBeLessThanOrEqual(TARGET_INFO_W - 16);
     }
   });
 });
