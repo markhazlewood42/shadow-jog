@@ -40,6 +40,12 @@ type Mode = 'intro' | 'round' | 'command' | 'list' | 'target' | 'play' | 'end';
 interface Disp {
   hp: number;
   tp: number;
+  /** What the bars and numbers show: eases toward hp/tp so changes read as motion. */
+  shownHp: number;
+  shownTp: number;
+  /** The pale "damage ghost" segment that trails behind a hit. */
+  lagHp: number;
+  lagHold: number;
   flash: number;
   shake: number;
   hop: number;
@@ -174,7 +180,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   private initDisp(u: Combatant): void {
-    this.disp.set(u.uid, { hp: u.hp, tp: u.tp, flash: 0, shake: 0, hop: 0, alpha: u.side === 'enemy' ? 0 : 1, dying: 0, lunge: 0, hidden: false, pose: 'idle', poseT: 0, afterimage: 0 });
+    this.disp.set(u.uid, { hp: u.hp, tp: u.tp, shownHp: u.hp, shownTp: u.tp, lagHp: u.hp, lagHold: 0, flash: 0, shake: 0, hop: 0, alpha: u.side === 'enemy' ? 0 : 1, dying: 0, lunge: 0, hidden: false, pose: 'idle', poseT: 0, afterimage: 0 });
   }
 
   private d(uid: number): Disp {
@@ -426,7 +432,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       this.game.flash(this.fx.flash.color, this.fx.flash.frames);
       this.fx.flash = null;
     }
-    if (this.fx.shake && settings.shake) {
+    if (this.fx.shake) {
       const s = this.fx.shake;
       this.game.shake(6 + s, s >= 10 ? 5 : s >= 6 ? 4 : s >= 4 ? 3 : 2);
     }
@@ -437,7 +443,15 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       if (dd.hop > 0) dd.hop = Math.max(0, dd.hop - 0.6);
       if (dd.poseT > 0) dd.poseT--;
       if (dd.afterimage > 0) dd.afterimage--;
-      if (dd.lunge > 0) dd.lunge = Math.max(0, dd.lunge - 0.5);
+      if (dd.lunge > 0) dd.lunge = Math.max(0, dd.lunge - (dd.lunge > 6 ? 1.2 : 0.5));
+      // Bars: shown values chase the real ones; the damage ghost holds, then drains.
+      dd.shownHp += Math.abs(dd.hp - dd.shownHp) < 0.5 ? dd.hp - dd.shownHp : (dd.hp - dd.shownHp) * 0.22;
+      dd.shownTp += Math.abs(dd.tp - dd.shownTp) < 0.5 ? dd.tp - dd.shownTp : (dd.tp - dd.shownTp) * 0.22;
+      if (dd.hp >= dd.lagHp) {
+        dd.lagHp = dd.hp;
+        dd.lagHold = 0;
+      } else if (dd.lagHold < 24) dd.lagHold++;
+      else dd.lagHp = Math.max(dd.hp, dd.lagHp - Math.max(0.8, (dd.lagHp - dd.hp) * 0.08));
       if (dd.dying > 0) {
         dd.dying++;
         dd.alpha = Math.max(0, 1 - dd.dying / 28);
@@ -574,6 +588,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return u.side === 'enemy' ? this.enemyCenter(u) : this.partyPos(u);
   }
 
+  /** Where a number pops: over an enemy's head (clear of its HP bar), or over a party member. */
+  private floatPos(uid: number): Pt {
+    const u = this.battle.unit(uid);
+    if (u?.side !== 'enemy') return this.pos(uid);
+    const { x, y, art } = this.enemyPos(u);
+    return { x: x + art.canvas.width / 2, y: Math.max(22, y + opaqueTop(art.canvas) + 4) };
+  }
+
   private async playEvent(e: BattleEvent): Promise<void> {
     switch (e.t) {
       case 'act': {
@@ -583,8 +605,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         const color = actor.side === 'party' ? MEMBERS[actor.key as MemberId].color : '#ff8a8a';
         this.showBanner(e.kind === 'attack' || e.name === 'Attack' ? `${actor.name}` : `${actor.name}: ${e.name}`, color);
         if (actor.side === 'party') {
-          dd.lunge = 6;
-          this.setPose(actor, actionPose(actor.key, e.kind, e.targets.map((t) => this.battle.unit(t)?.side), e.fx), 34);
+          const pose = actionPose(actor.key, e.kind, e.targets.map((t) => this.battle.unit(t)?.side), e.fx);
+          dd.lunge = pose === 'attack' || pose === 'thrust' ? 14 : 6;
+          this.setPose(actor, pose, 34);
           if (e.fx === 'flash_step' || e.fx === 'rain_hits') dd.afterimage = 22;
           sfx(e.kind === 'tech' ? 'cast' : 'swing');
         } else {
@@ -629,7 +652,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         dd.shake = 12;
         dd.flash = u.side === 'enemy' ? 5 : 8;
         if (u.side === 'party' && e.hp > 0) this.setPose(u, 'hurt', 16);
-        const p = this.pos(e.target);
+        const p = this.floatPos(e.target);
         if (e.amount === 0) this.float('NO EFFECT', p, '#8b8fa8', false);
         else {
           this.float(String(e.amount), p, e.crit ? '#ffe07a' : e.weak ? '#ffa24a' : e.resist ? '#b8bcd0' : u.side === 'party' ? '#ff9a9a' : '#ffffff', true);
@@ -650,7 +673,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         // Weight by share of the target's max HP: light taps barely move the camera, big hits stop time.
         const share = e.amount / u.base.maxHp;
         const tier = e.crit || share >= 0.4 ? 3 : share >= 0.2 ? 2 : share >= 0.08 ? 1 : 0;
-        if (settings.shake && tier) this.game.shake(4 + tier * 3, tier + 1 + (e.crit ? 1 : 0));
+        if (tier) this.game.shake(4 + tier * 3, tier + 1 + (e.crit ? 1 : 0));
         if (tier >= 2) {
           this.hitstop = tier === 3 ? 5 : 3;
           await this.game.wait(this.hitstop);
@@ -659,7 +682,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         break;
       }
       case 'miss':
-        this.float('MISS', this.pos(e.target), '#b8bcd0', false);
+        this.float('MISS', this.floatPos(e.target), '#b8bcd0', false);
         sfx('miss');
         await this.w(14);
         break;
@@ -714,7 +737,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         break;
       case 'immune': {
         const u = this.battle.unit(e.target)!;
-        this.float('IMMUNE', this.pos(e.target), '#c9b8ff', false);
+        this.float('IMMUNE', this.floatPos(e.target), '#c9b8ff', false);
         if (u.side === 'enemy') learn(state.immuneSeen, u.key, e.status);
         this.say(`${u.name} is immune to ${statusName(e.status)}.`);
         sfx('miss');
@@ -754,7 +777,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         const dd = this.d(e.target);
         sfx('phase');
         this.game.flash('#ffffff', 20);
-        if (settings.shake) this.game.shake(30, 4);
+        this.game.shake(30, 4);
         this.showBanner(`${e.name}!`, '#b89aff', true);
         dd.hp = e.hp;
         dd.alpha = 0;
@@ -1228,11 +1251,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       let row = Math.max(24, (y + opaqueTop(art.canvas)) * 2 - 6);
       // HP bar (bosses get a wider one).
       const bw = e.boss ? 72 : 30;
-      const ratio = Math.max(0, dd.hp / e.base.maxHp);
+      const ratio = Math.max(0, dd.shownHp / e.base.maxHp);
       ctx.fillStyle = 'rgba(10,9,19,0.85)';
       ctx.fillRect(cx0 - bw / 2 - 1, row - 1, bw + 2, 4);
       ctx.fillStyle = hpColor(ratio);
       ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 2);
+      drawLag(ctx, cx0 - bw / 2, row, bw, 2, ratio, dd.lagHp / e.base.maxHp);
       row -= 11;
       // Status chips: measure, then draw (two passes, nothing allocated per frame).
       let count = 0, total = 0;
@@ -1405,12 +1429,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         drawText(ctx, inCombo ? '★' : '•', x + 24, y + 3, { color: inCombo ? UI.amber : UI.green });
       }
       drawText(ctx, 'HP', x + 34, y + 17, { color: UI.dim });
-      drawText(ctx, `${Math.max(0, Math.round(dd.hp))}/${p.base.maxHp}`, x + 110, y + 17, { align: 'right', color: ratio < 0.25 && !down ? UI.red : UI.text });
-      drawBar(ctx, x + 34, y + 28, 75, 2, ratio, hpColor(ratio));
+      const shown = Math.max(0, dd.shownHp) / p.base.maxHp;
+      drawText(ctx, `${Math.max(0, Math.round(dd.shownHp))}/${p.base.maxHp}`, x + 110, y + 17, { align: 'right', color: ratio < 0.25 && !down ? UI.red : UI.text });
+      drawBar(ctx, x + 34, y + 28, 75, 2, shown, hpColor(shown));
+      drawLag(ctx, x + 34, y + 28, 75, 2, shown, dd.lagHp / p.base.maxHp);
       if (p.base.maxTp > 0) {
         drawText(ctx, m.tpLabel, x + 7, y + 33, { color: UI.dim });
-        drawText(ctx, `${dd.tp}/${p.base.maxTp}`, x + 110, y + 33, { align: 'right' });
-        drawBar(ctx, x + 7, y + 44, 102, 2, dd.tp / p.base.maxTp, UI.cyan);
+        drawText(ctx, `${Math.round(dd.shownTp)}/${p.base.maxTp}`, x + 110, y + 33, { align: 'right' });
+        drawBar(ctx, x + 7, y + 44, 102, 2, dd.shownTp / p.base.maxTp, UI.cyan);
       } else {
         // Rook: skill charges instead of TP
         const total = knownAbilities(state.members[p.key as MemberId]!, 'skill').reduce((n, id) => n + (p.uses[id] ?? 0), 0);
@@ -1573,6 +1599,15 @@ function summarize(names: string[]): string[] {
 const silCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
 const topCache = new WeakMap<HTMLCanvasElement, number>();
 /** First row with any opaque pixel (sprite canvases carry padding); measured once per canvas. */
+/** The trailing "damage ghost" between the shown value and where it was a moment ago. */
+function drawLag(ctx: Ctx, x: number, y: number, w: number, h: number, shown: number, lag: number): void {
+  if (lag <= shown + 0.004) return;
+  const a = Math.round(w * Math.max(0, shown)), b = Math.round(w * Math.min(1, lag));
+  if (b <= a) return;
+  ctx.fillStyle = '#ffd7c0';
+  ctx.fillRect(x + a, y, b - a, h);
+}
+
 function opaqueTop(c: HTMLCanvasElement): number {
   let top = topCache.get(c);
   if (top === undefined) {

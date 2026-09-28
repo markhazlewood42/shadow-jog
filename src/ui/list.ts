@@ -106,7 +106,8 @@ export class ListMenu<T> {
       }
       // Labels are cut to the room left by the right-hand column, never drawn over it.
       const room = rx + colW - 6 - (it.right ? measure(it.right) + 6 : 0) - lx;
-      drawText(ctx, fitText(it.label, room), lx, ry, { color: !enabled ? UI.disabled : it.color ?? (sel ? UI.text : '#d0cee4') });
+      const color = !enabled ? UI.disabled : !active ? (sel ? '#b8bcd0' : '#7d8098') : it.color ?? (sel ? UI.text : '#d0cee4');
+      drawText(ctx, fitText(it.label, room), lx, ry, { color });
       if (it.right) drawText(ctx, it.right, rx + colW - 6, ry, { color: enabled ? UI.dim : UI.disabled, align: 'right' });
     }
     // Scroll indicators

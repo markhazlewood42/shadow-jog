@@ -354,7 +354,8 @@ function startTimer(): void {
   if (timer === null) timer = window.setInterval(tick, 25);
 }
 
-function begin(name: string, fromStep = 0, fadeIn = 0): void {
+/** Start a song. `keepSpace` leaves the reverb where it is (a battle happens *here*). */
+function begin(name: string, fromStep = 0, fadeIn = 0, keepSpace = false): void {
   const c = audio.ctx;
   const song = get(name);
   if (!c || !song) return;
@@ -364,7 +365,7 @@ function begin(name: string, fromStep = 0, fadeIn = 0): void {
     gain.gain.setValueAtTime(0.0001, c.currentTime);
     gain.gain.linearRampToValueAtTime(1, c.currentTime + fadeIn);
   }
-  audio.setSpace(SONGS[name]?.space ?? 'hall');
+  if (!keepSpace) audio.setSpace(SONGS[name]?.space ?? 'hall');
   current = { name, song, gain, step: fromStep % song.length, nextTime: c.currentTime + 0.06 };
   startTimer();
 }
@@ -390,21 +391,30 @@ export function music(name: string | null, fade = 30): void {
     return;
   }
   if (name && current?.name === name) return;
+  // A song replacing another eases in under the outgoing fade instead of cutting in.
+  const replacing = !!current && fade > 0;
   stopCurrent(fade / 60);
-  if (name) begin(name, 0, 0);
+  if (name) begin(name, 0, replacing ? Math.min(0.8, fade / 60) : 0);
 }
 
 /** Save the current song position and switch (battles). */
 export function pushMusic(name: string): void {
   if (current) stack.push({ name: current.name, step: current.step });
-  music(name, 8);
+  if (!audio.unlocked) {
+    pendingName = name;
+    return;
+  }
+  if (current?.name === name) return;
+  // Battle music hits at full volume, but in the room the fight broke out in.
+  stopCurrent(8 / 60);
+  begin(name, 0, 0, true);
 }
 
 /** Resume the song saved by pushMusic from where it left off. */
 export function popMusic(): void {
   const prev = stack.pop();
   stopCurrent(0.3);
-  if (prev && audio.unlocked) begin(prev.name, prev.step, 1.2);
+  if (prev && audio.unlocked) begin(prev.name, prev.step, 1.2, true);
 }
 
 export function currentSong(): string | null {

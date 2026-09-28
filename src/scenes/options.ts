@@ -39,7 +39,13 @@ export class OptionsScene extends Scene<'back' | 'title'> {
         id: 'battle', label: 'Battle speed', value: () => ['', 'Normal', 'Fast', 'Faster'][settings.battleSpeed]!,
         adjust: (d) => (settings.battleSpeed = Math.max(1, Math.min(3, settings.battleSpeed + d))),
       },
-      { id: 'shake', label: 'Screen shake', value: () => (settings.shake ? 'On' : 'Off'), adjust: () => (settings.shake = !settings.shake) },
+      {
+        id: 'shake', label: 'Screen shake', value: () => ['Off', 'Gentle', 'Full'][settings.shake] ?? 'Full',
+        adjust: (d) => {
+          settings.shake = (settings.shake + d + 3) % 3;
+          this.game.shake(14, 3); // preview at the new strength
+        },
+      },
       {
         id: 'scale', label: 'Scaling', value: () => (settings.scale === 'fit' ? 'Smooth fit' : 'Pixel-perfect'),
         adjust: () => {

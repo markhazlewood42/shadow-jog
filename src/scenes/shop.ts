@@ -60,6 +60,11 @@ export class ShopScene extends Scene<void> {
           this.mode = 'root';
           return;
         }
+        if (r === 'blocked' && this.mode === 'buy') {
+          // Say why: a greyed-out row with no reason reads as a bug.
+          const it = ITEMS[this.list.current!.value]!;
+          this.line = `That's ${(it.price - state.cred).toLocaleString('en-US')}¢ more than you've got.`;
+        }
         if (r === 'confirm') {
           this.qtyMode = this.mode;
           this.qty = 1;
@@ -180,6 +185,11 @@ export class ShopScene extends Scene<void> {
     drawText(ctx, `Owned: ${state.inventory[it.id] ?? 0}`, dx + dw - 8, 52, { align: 'right', color: UI.dim });
     const lines = drawParagraph(ctx, it.desc, dx + 8, 64, dw - 16, { color: '#d0cee4', lineH: 10 });
     let y = 70 + lines * 10;
+    const short = it.price - state.cred;
+    if (this.mode === 'buy' && short > 0) {
+      drawText(ctx, `Need ${short.toLocaleString('en-US')}¢ more`, dx + 8, y - 4, { color: UI.red });
+      y += 10;
+    }
     if (this.isEquip(it.id)) {
       drawDivider(ctx, dx + 6, y, dw - 12);
       y += 6;

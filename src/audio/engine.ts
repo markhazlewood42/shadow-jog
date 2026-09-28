@@ -59,6 +59,9 @@ class AudioEngine {
   ctx: AudioContext | null = null;
   master!: GainNode;
   music!: GainNode;
+  /** Sits after the music bus: dips the score while someone is talking. */
+  private duckNode!: GainNode;
+  private ducks = 0;
   sfx!: GainNode;
   /** Two convolvers so a change of space crossfades instead of swapping a ringing buffer. */
   private verbs!: [ConvolverNode, ConvolverNode];
@@ -107,7 +110,8 @@ class AudioEngine {
     this.master.connect(comp).connect(c.destination);
     this.music = c.createGain();
     this.sfx = c.createGain();
-    this.music.connect(this.master);
+    this.duckNode = c.createGain();
+    this.music.connect(this.duckNode).connect(this.master);
     this.sfx.connect(this.master);
     // Reverb: one synthetic impulse per acoustic space, swapped when the song changes.
     for (const [name, sp] of Object.entries(SPACES) as [Space, SpaceDef][]) this.spaces.set(name, impulse(c, sp));
@@ -160,6 +164,13 @@ class AudioEngine {
     this.space = space;
   }
 
+  /** Dip the music under dialogue. Calls nest; every `duck(true)` needs a `duck(false)`. */
+  duck(on: boolean): void {
+    this.ducks = Math.max(0, this.ducks + (on ? 1 : -1));
+    if (!this.ctx) return;
+    this.duckNode.gain.setTargetAtTime(this.ducks > 0 ? 0.55 : 1, this.ctx.currentTime, on ? 0.08 : 0.25);
+  }
+
   applyVolumes(): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
@@ -205,7 +216,7 @@ export function noteToMidi(n: string): number {
 }
 
 // ------------------------------------------------------------------ instruments
-export type InstId = 'lead' | 'lead2' | 'reed' | 'pluck' | 'arp' | 'bass' | 'sub' | 'pad' | 'bell' | 'choir' | 'organ' | 'kick' | 'snare' | 'hat' | 'ohat' | 'clap' | 'tom' | 'crash' | 'shaker';
+export type InstId = 'lead' | 'lead2' | 'reed' | 'pluck' | 'twang' | 'arp' | 'bass' | 'sub' | 'pad' | 'bell' | 'choir' | 'organ' | 'kick' | 'snare' | 'hat' | 'ohat' | 'clap' | 'tom' | 'crash' | 'shaker';
 
 interface Chain {
   out: AudioNode;
@@ -240,6 +251,7 @@ function placement(inst: InstId, freq: number, t: number): number {
     case 'lead': case 'lead2': return -0.12;
     case 'reed': return -0.18;
     case 'pluck': return 0.32;
+    case 'twang': return -0.28;
     case 'bell': return 0.24;
     case 'arp': return Math.sin(t * 1.7) * 0.5;
     case 'hat': case 'ohat': return 0.3;
@@ -340,6 +352,32 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
       for (const o of [o1, o2, lfo]) { o.start(t); o.stop(end); }
       breath.start(t);
       breath.stop(t + 0.2);
+      chain = { out, end };
+      break;
+    }
+    case 'twang': {
+      // Rusty steel string: a saw that bends down into pitch, a resonant filter snap, and a
+      // quieter octave for the metallic ring.
+      const o = c.createOscillator();
+      const hi = c.createOscillator();
+      o.type = 'sawtooth';
+      hi.type = 'triangle';
+      o.frequency.setValueAtTime(freq * 1.035, t);
+      o.frequency.exponentialRampToValueAtTime(freq, t + 0.07);
+      hi.frequency.setValueAtTime(freq * 2.07, t);
+      hi.frequency.exponentialRampToValueAtTime(freq * 2, t + 0.07);
+      const f = c.createBiquadFilter();
+      f.type = 'lowpass';
+      f.Q.value = 8;
+      f.frequency.setValueAtTime(3400 + vel * 900, t);
+      f.frequency.exponentialRampToValueAtTime(650, t + 0.28);
+      const hg = c.createGain();
+      hg.gain.value = 0.25;
+      o.connect(f);
+      hi.connect(hg).connect(f);
+      f.connect(out);
+      const end = env(out, t, 0.002, 0.2, 0.22, Math.min(dur, 0.25), 0.16, 0.1 * vel);
+      for (const x of [o, hi]) { x.start(t); x.stop(end); }
       chain = { out, end };
       break;
     }

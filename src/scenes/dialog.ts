@@ -7,6 +7,7 @@ import { speaker, type Speaker } from '../data/speakers';
 import { drawCursor, drawMore, drawSelect, drawTab, drawWindow, UI } from '../ui/draw';
 import { getPortrait } from '../art/portraits';
 import { sfx } from '../audio/sfx';
+import { audio } from '../audio/engine';
 import { debug } from '../game/debug';
 
 export interface DialogOpts {
@@ -24,6 +25,8 @@ const BOX_H = 62;
 const PAD = 8;
 const LINES = 4;
 const LH = LINE_H + 1;
+/** Fast-forward hint: shown on the first few boxes, dropped once the player has used it. */
+const ffHint = { left: 8 };
 
 export class DialogScene extends Scene<number> {
   override opaque = false;
@@ -51,6 +54,14 @@ export class DialogScene extends Scene<number> {
     if (!this.pages.length) this.pages.push(['']);
   }
 
+  override enter(): void {
+    audio.duck(true);
+  }
+
+  override exit(): void {
+    audio.duck(false);
+  }
+
   private pageLen(): number {
     return this.pages[this.page]!.reduce((n, l) => n + visibleLength(l), 0);
   }
@@ -74,6 +85,7 @@ export class DialogScene extends Scene<number> {
       // A press during the open animation isn't lost: it fast-completes the first line.
       if (inp.pressed('confirm')) this.bufferedPress = true;
       this.opened++;
+      if (this.opened === 6 && ffHint.left > 0) ffHint.left--;
       return;
     }
     if (this.bufferedPress) {
@@ -81,6 +93,7 @@ export class DialogScene extends Scene<number> {
       this.shown = this.pageLen();
     }
     const fast = (inp.down('cancel') || debug.playtest) && !this.o.choices;
+    if (fast && !debug.playtest) ffHint.left = 0;
     if (this.typing) {
       if (this.waitFrames > 0) {
         this.waitFrames--;
@@ -159,6 +172,9 @@ export class DialogScene extends Scene<number> {
     if (!this.typing) {
       if (this.lastPage && this.o.choices) this.renderChoices(ctx, y0);
       else if (!this.o.auto) drawMore(ctx, W - 8 - 14, y0 + BOX_H - 13, this.frame, accent);
+    } else if (ffHint.left > 0 && !this.o.choices && !this.o.auto) {
+      // Teach fast-forward early; stop once the player has used it.
+      drawText(ctx, '{d}Hold X to fast-forward{/}', W - 8 - PAD, this.o.top ? y0 + BOX_H + 3 : y0 - 10, { align: 'right' });
     }
   }
 

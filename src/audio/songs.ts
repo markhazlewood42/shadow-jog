@@ -77,7 +77,7 @@ export const SONGS: Record<string, SongSpec> = {
     chords: 'G | F | C | G | Em | F | C | D',
     drums: 'halftime',
     parts: [
-      { inst: 'pluck', vol: 1.2, rev: 0.25, del: 0.3, notes:
+      { inst: 'twang', vol: 1.3, rev: 0.25, del: 0.3, notes:
         'G4 - B4 - D5 - B4 - | C5 - A4 - F4 - A4 - | G4 - C5 - D5 - C5 - | B4 - - - G4 - - - |' +
         'E5 - D5 - B4 - G4 - | A4 - C5 - F5 - E5 - | E5 - G5 - E5 - C5 - | D5 - - - F#5 - - -' },
       { inst: 'bass', gen: 'pulse8', octave: 1, vol: 0.8 },
@@ -142,7 +142,7 @@ export const SONGS: Record<string, SongSpec> = {
   // Boss — "Heavy Metal Warden".
   boss: {
     bpm: 164,
-    chords: 'Dm | Dm | Bb | A | Dm | Dm | Eb | A',
+    chords: 'Dm | Dm | Bb | A | Dm | Dm | Eb | A | Gm | Gm | Dm | Dm | Bb | C | A | A',
     drums: 'boss',
     space: 'tunnel',
     parts: [
@@ -150,7 +150,11 @@ export const SONGS: Record<string, SongSpec> = {
         'D5 - - D5 - - F5 - E5 - D5 - C#5 - D5 - | A5 - - - G#5 - - - A5 - - - F5 - - - |' +
         'Bb5 - - Bb5 - - A5 - G5 - F5 - G5 - A5 - | E5 - - - C#5 - - - A4 - - - C#5 - E5 - |' +
         'D6 - - D6 - - C6 - A5 - F5 - A5 - C6 - | D6 - - - C#6 - - - D6 - - - A5 - - - |' +
-        'G5 - - G5 - - Bb5 - Eb6 - D6 - Bb5 - G5 - | A5 - - - E5 - - - C#5 - - - A4 - - -' },
+        'G5 - - G5 - - Bb5 - Eb6 - D6 - Bb5 - G5 - | A5 - - - E5 - - - C#5 - - - A4 - - - |' +
+        'G5 - - - Bb5 - - - D6 - - - Bb5 - A5 - | G5 - - - D5 - - - G5 - Bb5 - D6 - C6 - |' +
+        'F5 - - - A5 - - - D6 - - - - - - - | C6 - D6 - C6 - A5 - F5 - - - E5 - - - |' +
+        'F5 - - - Bb5 - - - D6 - - - F6 - - - | E6 - - - D6 - C6 - G5 - - - C6 - - - |' +
+        'C#6 - - - E6 - - - A5 - - - C#6 - E6 - | A5 - - - - - - - E5 - - - C#5 - - -' },
       { inst: 'bass', gen: 'drive', octave: 1, vol: 1 },
       { inst: 'organ', gen: 'chord', octave: 3, vol: 0.7 },
       { inst: 'arp', gen: 'up16', octave: 4, vol: 0.25 },
@@ -160,13 +164,15 @@ export const SONGS: Record<string, SongSpec> = {
   // Boss phase two — the bound spirit.
   boss2: {
     bpm: 140,
-    chords: 'Dm | Bb | Gm | A | Dm | F | Gm | A',
+    chords: 'Dm | Bb | Gm | A | Dm | F | Gm | A | Gm | Eb | Bb | F | Gm | Eb | A | A',
     drums: 'boss2',
     space: 'cave',
     parts: [
       { inst: 'lead', vol: 0.8, rev: 0.4, del: 0.2, notes:
         'D5 - - - F5 - A5 - | Bb5 - - - A5 - F5 - | G5 - - - Bb5 - D6 - | C#6 - - - A5 - - - |' +
-        'D6 - - - C6 - A5 - | C6 - - - A5 - F5 - | G5 - - - Bb5 - A5 - | A5 - - - - - . .' },
+        'D6 - - - C6 - A5 - | C6 - - - A5 - F5 - | G5 - - - Bb5 - A5 - | A5 - - - - - . . |' +
+        'G5 - - - Bb5 - D6 - | Eb6 - - - D6 - Bb5 - | D6 - - - F6 - - - | C6 - - - A5 - F5 - |' +
+        'Bb5 - - - A5 - G5 - | G5 - - - Bb5 - Eb6 - | E6 - - - C#6 - A5 - | A5 - - - E5 - C#5 -' },
       { inst: 'choir', gen: 'chord', octave: 4, vol: 1.1, rev: 0.6 },
       { inst: 'bass', gen: 'octave', octave: 1, vol: 0.9 },
       { inst: 'arp', gen: 'up16', octave: 5, vol: 0.25, del: 0.3 },

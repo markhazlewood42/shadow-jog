@@ -8,7 +8,8 @@ export interface Settings {
   /** 1 = normal, 2 = fast, 3 = faster */
   battleSpeed: number;
   scale: 'fit' | 'integer';
-  shake: boolean;
+  /** 0 = off, 1 = gentle, 2 = full. */
+  shake: number;
   crt: boolean;
   touch: 'auto' | 'on' | 'off';
 }
@@ -21,7 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   textSpeed: 2,
   battleSpeed: 1,
   scale: 'fit',
-  shake: true,
+  shake: 2,
   crt: false,
   touch: 'auto',
 };
@@ -29,7 +30,12 @@ export const DEFAULT_SETTINGS: Settings = {
 function load(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) };
+    if (raw) {
+      const s = { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) };
+      // v1 stored shake as on/off.
+      if (typeof s.shake === 'boolean') s.shake = s.shake ? 2 : 0;
+      return s;
+    }
   } catch {
     /* storage unavailable (private mode) — defaults */
   }
@@ -44,6 +50,11 @@ export function saveSettings(): void {
   } catch {
     /* ignore */
   }
+}
+
+/** Multiplier applied to every screen shake. */
+export function shakeScale(): number {
+  return [0, 0.45, 1][settings.shake] ?? 1;
 }
 
 /** Characters revealed per frame for the typewriter. */

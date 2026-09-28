@@ -90,6 +90,8 @@ export class Game {
   tickers: (() => void)[] = [];
   /** Speed multiplier for debug / tests (ticks per frame). */
   speed = 1;
+  /** Screen-shake strength multiplier (the player's setting); 0 turns every shake off. */
+  shakeScale: () => number = () => 1;
   /** Called once when something keeps throwing (see FAULT_LIMIT). */
   onFault: (() => void) | null = null;
   /** Consecutive ticks in which something threw. */
@@ -130,7 +132,14 @@ export class Game {
    * them stops dead instead of resuming on top of whatever runs next. Used for fault recovery.
    */
   abandon(): void {
-    for (const s of this.stack) s.closed = true;
+    for (const s of this.stack) {
+      s.closed = true;
+      try {
+        s.exit();
+      } catch {
+        /* a broken scene's cleanup can't be allowed to block recovery */
+      }
+    }
     this.stack.length = 0;
     this.timers = [];
     this.fade = null;
@@ -247,7 +256,7 @@ export class Game {
     const ctx = this.ctx;
     ctx.save();
     if (this.shakeFrames > 0) {
-      const m = this.shakeMag * Math.min(1, this.shakeFrames / 8);
+      const m = this.shakeMag * this.shakeScale() * Math.min(1, this.shakeFrames / 8);
       ctx.translate(Math.round((Math.random() * 2 - 1) * m), Math.round((Math.random() * 2 - 1) * m));
     }
     let start = this.stack.length - 1;
