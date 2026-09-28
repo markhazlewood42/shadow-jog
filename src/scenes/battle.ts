@@ -79,6 +79,10 @@ const STATUS_LABEL: Partial<Record<StatusId, [string, string]>> = {
   atk_down: ['ATK↓', '#ff6b6b'], def_down: ['DEF↓', '#ff6b6b'], agi_down: ['AGI↓', '#ff6b6b'], guard: ['GRD', '#6ff3ff'], lockon: ['LOCK', '#ff3a3a'], cover: ['COVR', '#d8c08a'],
 };
 
+const STATUS_SFX: Partial<Record<StatusId, string>> = {
+  poison: 'st_poison', burn: 'st_burn', stun: 'st_stun', blind: 'st_blind', jammed: 'st_jammed', hijacked: 'st_jammed',
+};
+
 const STATUS_WORD: Partial<Record<StatusId, string>> = {
   poison: 'POISONED', burn: 'BURNING', stun: 'STUNNED', blind: 'BLINDED', jammed: 'JAMMED', exposed: 'EXPOSED', regen: 'REGEN',
   hijacked: 'HIJACKED', atk_up: 'ATK UP', def_up: 'DEF UP', res_up: 'RES UP', agi_up: 'AGI UP', atk_down: 'ATK DOWN', def_down: 'DEF DOWN',
@@ -632,7 +636,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         if (word && e.status !== 'guard' && e.status !== 'cover') {
           const col = STATUS_LABEL[e.status]?.[1] ?? '#ffffff';
           if (e.on) this.float(word, { x: this.pos(e.target).x, y: this.pos(e.target).y - 6 }, col, false);
-          if (e.on) sfx(e.status.endsWith('_up') || e.status === 'regen' ? 'buff' : 'debuff');
+          if (e.on) sfx(STATUS_SFX[e.status] ?? (e.status.endsWith('_up') || e.status === 'regen' ? 'buff' : 'debuff'));
           await this.w(e.on ? 12 : 2);
         }
         break;

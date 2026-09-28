@@ -62,7 +62,14 @@ const S: Record<string, Maker> = {
   },
   alert: (c, o, t) => notes(c, 'square', [1175, 1568], 0.05, 0.08, 0.06, o, t),
   emote: (c, o, t) => osc(c, 'triangle', 600, 900, t, 0.1, 0.06, o),
-  step: (c, o, t) => noise(c, t, 0.03, 0.03, o, 'lowpass', 400),
+  // Footsteps by surface (pitch alternates left/right foot).
+  step: (c, o, t, p = 1) => noise(c, t, 0.035, 0.045, o, 'lowpass', 520 * p),
+  step_soft: (c, o, t, p = 1) => noise(c, t, 0.05, 0.035, o, 'lowpass', 300 * p),
+  step_metal: (c, o, t, p = 1) => {
+    noise(c, t, 0.025, 0.035, o, 'bandpass', 2600 * p, 2600 * p, 6);
+    osc(c, 'square', 180 * p, 140 * p, t, 0.03, 0.02, o);
+  },
+  step_water: (c, o, t, p = 1) => noise(c, t, 0.09, 0.05, o, 'bandpass', 1400 * p, 700 * p, 1.5),
   heal_field: (c, o, t) => notes(c, 'sine', [523, 659, 784, 1047], 0.06, 0.3, 0.08, o, t),
   // Battle
   encounter: (c, o, t) => {
@@ -151,6 +158,28 @@ const S: Record<string, Maker> = {
     osc(c, 'sine', 90, 30, t, 0.8, 0.4, o);
   },
   levelup: (c, o, t) => notes(c, 'square', [523, 659, 784, 1047, 784, 1047], 0.07, 0.14, 0.06, o, t),
+  // Gear: a short metal clank and a settle.
+  equip: (c, o, t) => {
+    noise(c, t, 0.06, 0.12, o, 'bandpass', 3400, 1800, 5);
+    osc(c, 'square', 330, 220, t, 0.06, 0.05, o);
+    notes(c, 'triangle', [880, 1175], 0.04, 0.08, 0.05, o, t + 0.05);
+  },
+  // Status ailments each get their own cue.
+  st_poison: (c, o, t) => notes(c, 'sine', [620, 520, 440, 370], 0.045, 0.07, 0.07, o, t),
+  st_burn: (c, o, t) => {
+    noise(c, t, 0.35, 0.12, o, 'highpass', 1800, 3200);
+    osc(c, 'sawtooth', 200, 90, t, 0.25, 0.05, o);
+  },
+  st_stun: (c, o, t) => {
+    osc(c, 'square', 1400, 1100, t, 0.08, 0.06, o);
+    osc(c, 'square', 1400, 1100, t + 0.1, 0.08, 0.06, o);
+    notes(c, 'triangle', [2093, 2637, 2093], 0.05, 0.06, 0.04, o, t + 0.2);
+  },
+  st_blind: (c, o, t) => {
+    noise(c, t, 0.4, 0.1, o, 'lowpass', 3000, 200);
+    osc(c, 'sine', 700, 200, t, 0.35, 0.05, o);
+  },
+  st_jammed: (c, o, t) => notes(c, 'square', [1760, 220, 1480, 196, 1320], 0.03, 0.03, 0.05, o, t),
   // Victory cheer: a spray of sparkle over a short whoosh, under the fanfare.
   cheer: (c, o, t) => {
     noise(c, t, 0.35, 0.08, o, 'bandpass', 3200);

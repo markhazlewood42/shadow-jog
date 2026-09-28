@@ -166,7 +166,7 @@ export class MenuScene extends Scene<MenuResult> {
           const v = this.sub.current!.value;
           const m = this.members[this.memberIdx]!;
           equip(m, v === '__none' ? null : v, this.equipSlot);
-          sfx('buy');
+          sfx('equip');
           this.openEquip(m);
         }
         break;

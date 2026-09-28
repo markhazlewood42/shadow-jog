@@ -238,12 +238,23 @@ export class FieldScene extends Scene<void> {
     return true;
   }
 
+  /** Footstep for the tile the leader just reached: surface decides the sound, feet alternate pitch. */
+  private footstep(x: number, y: number): void {
+    const t = this.map.at(x, y);
+    const kind = t === 'd_catwalk' || t === 'grate' || t === 'floor_metal' || t === 'bridge' || t === 'w_bridge' ? 'step_metal'
+      : t === 'd_shallow' || t === 'puddle' ? 'step_water'
+      : t === 'grass' || t === 'w_park' || t === 'dirt' || t === 'w_barrens' || t === 'floor_carpet' ? 'step_soft'
+      : 'step';
+    sfx(kind, state.steps % 2 ? 1 : 0.86);
+  }
+
   private onLeaderArrive(): void {
     const l = this.leader;
     state.x = l.x;
     state.y = l.y;
     state.dir = l.dir;
     state.steps++;
+    this.footstep(l.x, l.y);
     // Warps
     const warp = this.warpAt(l.x, l.y);
     if (warp) {

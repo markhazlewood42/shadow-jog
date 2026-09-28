@@ -5,7 +5,7 @@
  * Bars are separated by `|`. Each bar's tokens divide it evenly (16 tokens = 16ths, 8 = 8ths …).
  * Melody tokens: note (`A4`, `C#5`), `-` hold, `.` rest. Chord tokens: `Am7`, `F`, `C/E`, `.` = same.
  */
-import { audio, midiToFreq, noteToMidi, playNote, type InstId } from './engine';
+import { audio, midiToFreq, noteToMidi, playNote, type InstId, type Space } from './engine';
 import { SONGS } from './songs';
 
 const STEPS = 16;
@@ -32,6 +32,8 @@ export interface SongSpec {
   /** Bar index to loop back to (default 0). */
   loopBar?: number;
   loop?: boolean;
+  /** Acoustic space the song plays in (default 'hall'). */
+  space?: Space;
 }
 
 interface Ev {
@@ -249,6 +251,39 @@ export function compile(spec: SongSpec): Compiled {
         if (pos % 4 === 2) drum(s, 'hat', 0.5);
         if (pos === 12) drum(s, 'clap', 0.5);
         break;
+      case 'title':
+        // Brooding half-time: a syncopated kick, one big snare, ghost hats; a tom fill every 4 bars.
+        if (pos === 0 || pos === 11) drum(s, 'kick', pos === 0 ? 1 : 0.6);
+        if (pos === 8) drum(s, 'snare', 0.85);
+        if (pos % 4 === 2) drum(s, 'hat', 0.3);
+        if (lastBar && (pos === 12 || pos === 14)) drum(s, 'tom', 0.55);
+        break;
+      case 'fanfare':
+        // Victory: march snare with a pickup roll into every other bar, crash on the downbeat.
+        if (pos === 0 || pos === 8) drum(s, 'kick', 1);
+        if (pos === 4 || pos === 12) drum(s, 'snare', 0.9);
+        if (bar % 2 === 1 && pos >= 12) drum(s, 'snare', 0.35 + (pos - 12) * 0.12);
+        if (bar % 2 === 0 && pos === 0) drum(s, 'crash', 0.7);
+        if (pos % 2 === 0) drum(s, 'hat', 0.35);
+        break;
+      case 'boss2':
+        // The spirit phase: driving hats, kick on every 8th, toms rolling into each bar.
+        if (pos % 2 === 0) drum(s, 'kick', pos % 8 === 0 ? 1 : 0.75);
+        if (pos === 4 || pos === 12) {
+          drum(s, 'snare', 1);
+          drum(s, 'clap', 0.7);
+        }
+        drum(s, 'hat', pos % 4 === 2 ? 0.7 : 0.3);
+        if (pos >= 13) drum(s, 'tom', 0.45 + (pos - 13) * 0.15);
+        if (bar % 2 === 0 && pos === 0) drum(s, 'crash', 1);
+        break;
+      case 'heartbeat':
+        // Tension: a lub-dub pulse and a rim tick; no backbeat to lean on.
+        if (pos === 0 || pos === 8) drum(s, 'kick', 0.9);
+        if (pos === 2 || pos === 10) drum(s, 'kick', 0.5);
+        if (pos === 12) drum(s, 'hat', 0.45);
+        if (lastBar && pos === 14) drum(s, 'tom', 0.4);
+        break;
     }
   }
   const loopStep = (spec.loopBar ?? 0) * STEPS;
@@ -326,6 +361,7 @@ function begin(name: string, fromStep = 0, fadeIn = 0): void {
     gain.gain.setValueAtTime(0.0001, c.currentTime);
     gain.gain.linearRampToValueAtTime(1, c.currentTime + fadeIn);
   }
+  audio.setSpace(SONGS[name]?.space ?? 'hall');
   current = { name, song, gain, step: fromStep % song.length, nextTime: c.currentTime + 0.06 };
   startTimer();
 }

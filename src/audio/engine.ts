@@ -13,6 +13,48 @@ export interface Voice {
   vel: number;
 }
 
+/** Acoustic spaces: each is a synthetic impulse (length, decay curve, damping, early echoes) plus an echo time. */
+export type Space = 'room' | 'hall' | 'cave' | 'tunnel';
+interface SpaceDef {
+  len: number;
+  decay: number;
+  /** One-pole lowpass on the tail, 0..1 (higher = darker). */
+  damp: number;
+  /** Discrete early reflections: [seconds, gain]. */
+  early: [number, number][];
+  echo: number;
+  feedback: number;
+}
+const SPACES: Record<Space, SpaceDef> = {
+  // The bar, interiors: short and close.
+  room: { len: 0.7, decay: 3.5, damp: 0.35, early: [[0.011, 0.5], [0.019, 0.35]], echo: 0.14, feedback: 0.18 },
+  // Streets, the overworld, battles: the default open reverb.
+  hall: { len: 2.2, decay: 2.6, damp: 0.15, early: [], echo: 0.3, feedback: 0.32 },
+  // The Sinkline: long, dark, dripping.
+  cave: { len: 3.6, decay: 2.1, damp: 0.6, early: [[0.045, 0.45], [0.11, 0.3], [0.19, 0.2]], echo: 0.42, feedback: 0.42 },
+  // Annex 7: hard metal corridors, a ringing flutter echo.
+  tunnel: { len: 1.6, decay: 3.0, damp: 0.1, early: [[0.023, 0.55], [0.046, 0.4], [0.069, 0.3], [0.092, 0.2]], echo: 0.23, feedback: 0.38 },
+};
+
+function impulse(c: BaseAudioContext, sp: SpaceDef): AudioBuffer {
+  const len = Math.floor(c.sampleRate * sp.len);
+  const ir = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    let lp = 0;
+    for (let i = 0; i < len; i++) {
+      const n = Math.random() * 2 - 1;
+      lp += (n - lp) * (1 - sp.damp);
+      d[i] = lp * Math.pow(1 - i / len, sp.decay);
+    }
+    for (const [sec, g] of sp.early) {
+      const k = Math.floor(sec * c.sampleRate * (ch ? 1.07 : 1));
+      if (k < len) d[k] = d[k]! + g * (ch ? -1 : 1);
+    }
+  }
+  return ir;
+}
+
 class AudioEngine {
   ctx: AudioContext | null = null;
   master!: GainNode;
@@ -21,6 +63,9 @@ class AudioEngine {
   reverb!: ConvolverNode;
   reverbSend!: GainNode;
   delay!: DelayNode;
+  private delayFb!: GainNode;
+  private spaces = new Map<Space, AudioBuffer>();
+  private space: Space | null = null;
   delaySend!: GainNode;
   noise!: AudioBuffer;
   unlocked = false;
@@ -61,15 +106,11 @@ class AudioEngine {
     this.sfx = c.createGain();
     this.music.connect(this.master);
     this.sfx.connect(this.master);
-    // Reverb: synthetic impulse (decaying stereo noise).
+    // Reverb: one synthetic impulse per acoustic space, swapped when the song changes.
     this.reverb = c.createConvolver();
-    const len = Math.floor(c.sampleRate * 2.2);
-    const ir = c.createBuffer(2, len, c.sampleRate);
-    for (let ch = 0; ch < 2; ch++) {
-      const d = ir.getChannelData(ch);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6);
-    }
-    this.reverb.buffer = ir;
+    for (const [name, sp] of Object.entries(SPACES) as [Space, SpaceDef][]) this.spaces.set(name, impulse(c, sp));
+    this.reverb.buffer = this.spaces.get('hall')!;
+    this.space = 'hall';
     this.reverbSend = c.createGain();
     this.reverbSend.gain.value = 0.22;
     this.reverbSend.connect(this.reverb).connect(this.master);
@@ -78,6 +119,7 @@ class AudioEngine {
     this.delay.delayTime.value = 0.3;
     const fb = c.createGain();
     fb.gain.value = 0.32;
+    this.delayFb = fb;
     const dl = c.createBiquadFilter();
     dl.type = 'lowpass';
     dl.frequency.value = 2400;
@@ -91,6 +133,17 @@ class AudioEngine {
     const nd = this.noise.getChannelData(0);
     for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
     this.applyVolumes();
+  }
+
+  /** Move the music into a different acoustic space (reverb character and echo). */
+  setSpace(space: Space): void {
+    if (!this.ctx || space === this.space) return;
+    const sp = SPACES[space];
+    this.reverb.buffer = this.spaces.get(space)!;
+    const t = this.ctx.currentTime;
+    this.delay.delayTime.setTargetAtTime(sp.echo, t, 0.05);
+    this.delayFb.gain.setTargetAtTime(sp.feedback, t, 0.05);
+    this.space = space;
   }
 
   applyVolumes(): void {
