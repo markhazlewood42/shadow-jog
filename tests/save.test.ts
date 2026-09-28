@@ -90,6 +90,23 @@ describe('save / load', () => {
     expect(validState(stateMod.state)).toBe(false);
   });
 
+  it('loads a minimal older save: every later field gets a sensible default', () => {
+    writeSave(1, 0);
+    const ls = (globalThis as unknown as { localStorage: MemStorage }).localStorage;
+    const raw = JSON.parse(ls.getItem('shadowjog.save.1')!);
+    for (const k of ['combos', 'bestiary', 'weakSeen', 'lastOrders', 'lastEntrance', 'battles', 'dir', 'steps', 'rngState']) delete raw.state[k];
+    ls.setItem('shadowjog.save.1', JSON.stringify(raw));
+    const s = loadSave(1)!;
+    expect(s).not.toBeNull();
+    expect(s.weakSeen).toEqual({});
+    expect(s.battles).toBe(0);
+    expect(s.dir).toBe('down');
+    expect(s.steps).toBe(0);
+    rng.state = 42;
+    applySave(s);
+    expect(rng.state).toBe(42); // no stored RNG: the current stream continues
+  });
+
   it('fills fields added after a save was written', () => {
     writeSave(1, 0);
     const ls = (globalThis as unknown as { localStorage: MemStorage }).localStorage;

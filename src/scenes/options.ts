@@ -24,6 +24,8 @@ export class OptionsScene extends Scene<'back' | 'title'> {
       adjust: (d: number) => {
         settings[k] = Math.max(0, Math.min(1, Math.round((settings[k] + d * 0.1) * 10) / 10));
         audio.applyVolumes();
+        // Let the player hear the new level: a representative hit for sound effects.
+        if (k === 'sfxVol') sfx('hit');
       },
     });
     this.rows = [

@@ -94,6 +94,9 @@ function migrate(s: GameState): GameState {
   s.lastOrders ??= {};
   s.lastEntrance ??= null;
   s.battles ??= 0;
+  s.dir ??= 'down';
+  s.steps ??= 0;
+  s.flags ??= {};
   return s;
 }
 

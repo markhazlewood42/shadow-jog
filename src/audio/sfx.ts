@@ -64,6 +64,10 @@ const S: Record<string, Maker> = {
   },
   alert: (c, o, t) => notes(c, 'square', [1175, 1568], 0.05, 0.08, 0.06, o, t),
   emote: (c, o, t) => osc(c, 'triangle', 600, 900, t, 0.1, 0.06, o),
+  bump: (c, o, t) => {
+    osc(c, 'sine', 120, 70, t, 0.06, 0.07, o);
+    noise(c, t, 0.03, 0.03, o, 'lowpass', 300);
+  },
   // Footsteps by surface (pitch alternates left/right foot).
   step: (c, o, t, p = 1) => noise(c, t, 0.035, 0.045, o, 'lowpass', 520 * p),
   step_soft: (c, o, t, p = 1) => noise(c, t, 0.05, 0.035, o, 'lowpass', 300 * p),

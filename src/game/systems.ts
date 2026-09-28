@@ -2,6 +2,7 @@
  * Installs the field hooks: items, party changes, random encounters, battles (with retry),
  * shops, inn, clinic, save prompts, tutorials and the menu.
  */
+import { notice } from '../engine/errors';
 import { popMusic, pushMusic } from '../audio/music';
 import { sfx } from '../audio/sfx';
 import { ENCOUNTERS } from '../data/enemies';
@@ -200,7 +201,9 @@ export function installSystems(game: Game, h: SystemHandlers): void {
 
   // Autosave on every map transition into a town or dungeon.
   fieldHooks.onWarp = (f) => {
-    if (f.def.kind !== 'interior') writeSave('auto', game.playFrames);
+    if (f.def.kind === 'interior') return;
+    if (writeSave('auto', game.playFrames)) notice('Autosaved', 'saved');
+    else notice('Autosave failed: browser storage is unavailable. Save from the menu to keep progress.', 'warn');
   };
 }
 
@@ -280,6 +283,7 @@ export async function runBattle(
         loadIntoGame(game, s);
         return 'lose';
       }
+      notice(slot ? 'Your last save is damaged and could not be loaded. Returning to the title.' : 'There is no save to load. Returning to the title.', 'warn');
     }
     handlers!.toTitle();
     return 'lose';

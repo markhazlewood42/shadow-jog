@@ -14,7 +14,8 @@ tags: [gdd, design]
 > Gameplay follows the *Phantasy Star IV* loop: town → world map → dungeon → boss, with a small squad,
 > round-based combat, techniques + limited-use skills, **combination attacks**, and a simple economy. The setting
 > borrows the *feel* of the magic-meets-megacorp genre (street samurai, deckers, shamans, metahumans), but
-> every name, place and term is original.
+> every name, place and term is original. The city is **Saltreach** (2079), a drowned coastal megacity; Chapter 1
+> stays in its Lower Wards.
 
 ## 1. Pillars
 

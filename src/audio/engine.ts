@@ -60,7 +60,10 @@ class AudioEngine {
   master!: GainNode;
   music!: GainNode;
   sfx!: GainNode;
-  reverb!: ConvolverNode;
+  /** Two convolvers so a change of space crossfades instead of swapping a ringing buffer. */
+  private verbs!: [ConvolverNode, ConvolverNode];
+  private verbGains!: [GainNode, GainNode];
+  private verbActive = 0;
   reverbSend!: GainNode;
   delay!: DelayNode;
   private delayFb!: GainNode;
@@ -107,13 +110,17 @@ class AudioEngine {
     this.music.connect(this.master);
     this.sfx.connect(this.master);
     // Reverb: one synthetic impulse per acoustic space, swapped when the song changes.
-    this.reverb = c.createConvolver();
     for (const [name, sp] of Object.entries(SPACES) as [Space, SpaceDef][]) this.spaces.set(name, impulse(c, sp));
-    this.reverb.buffer = this.spaces.get('hall')!;
-    this.space = 'hall';
     this.reverbSend = c.createGain();
     this.reverbSend.gain.value = 0.22;
-    this.reverbSend.connect(this.reverb).connect(this.master);
+    this.verbs = [c.createConvolver(), c.createConvolver()];
+    this.verbGains = [c.createGain(), c.createGain()];
+    for (let i = 0; i < 2; i++) {
+      this.verbs[i]!.buffer = this.spaces.get('hall')!;
+      this.verbGains[i]!.gain.value = i === 0 ? 1 : 0;
+      this.reverbSend.connect(this.verbs[i]!).connect(this.verbGains[i]!).connect(this.master);
+    }
+    this.space = 'hall';
     // Tempo-free slapback/echo delay.
     this.delay = c.createDelay(1.5);
     this.delay.delayTime.value = 0.3;
@@ -139,8 +146,15 @@ class AudioEngine {
   setSpace(space: Space): void {
     if (!this.ctx || space === this.space) return;
     const sp = SPACES[space];
-    this.reverb.buffer = this.spaces.get(space)!;
     const t = this.ctx.currentTime;
+    // Load the new space into the idle convolver and crossfade over ~0.5 s.
+    const next = 1 - this.verbActive;
+    this.verbs[next]!.buffer = this.spaces.get(space)!;
+    this.verbGains[next]!.gain.cancelScheduledValues(t);
+    this.verbGains[next]!.gain.setTargetAtTime(1, t, 0.15);
+    this.verbGains[this.verbActive]!.gain.cancelScheduledValues(t);
+    this.verbGains[this.verbActive]!.gain.setTargetAtTime(0, t, 0.15);
+    this.verbActive = next;
     this.delay.delayTime.setTargetAtTime(sp.echo, t, 0.05);
     this.delayFb.gain.setTargetAtTime(sp.feedback, t, 0.05);
     this.space = space;
@@ -191,7 +205,7 @@ export function noteToMidi(n: string): number {
 }
 
 // ------------------------------------------------------------------ instruments
-export type InstId = 'lead' | 'lead2' | 'pluck' | 'arp' | 'bass' | 'sub' | 'pad' | 'bell' | 'choir' | 'organ' | 'kick' | 'snare' | 'hat' | 'ohat' | 'clap' | 'tom' | 'crash' | 'shaker';
+export type InstId = 'lead' | 'lead2' | 'reed' | 'pluck' | 'arp' | 'bass' | 'sub' | 'pad' | 'bell' | 'choir' | 'organ' | 'kick' | 'snare' | 'hat' | 'ohat' | 'clap' | 'tom' | 'crash' | 'shaker';
 
 interface Chain {
   out: AudioNode;
@@ -206,6 +220,37 @@ function env(g: GainNode, t: number, a: number, d: number, s: number, dur: numbe
   const off = t + Math.max(a, dur);
   p.setTargetAtTime(0.0001, off, r / 4 + 0.001);
   return off + r + 0.05;
+}
+
+/** A fixed stereo position for one voice inside a patch. */
+function spread(c: AudioContext, p: number): StereoPannerNode {
+  const n = c.createStereoPanner();
+  n.pan.value = p;
+  return n;
+}
+
+/**
+ * Where each instrument sits in the stereo field: rhythm section and bass centred, lead just
+ * left, plucks and bells right, arps drifting side to side, chords spread by pitch.
+ */
+function placement(inst: InstId, freq: number, t: number): number {
+  switch (inst) {
+    case 'bass': case 'sub': case 'kick': case 'snare': return 0;
+    case 'clap': return 0.1;
+    case 'lead': case 'lead2': return -0.12;
+    case 'reed': return -0.18;
+    case 'pluck': return 0.32;
+    case 'bell': return 0.24;
+    case 'arp': return Math.sin(t * 1.7) * 0.5;
+    case 'hat': case 'ohat': return 0.3;
+    case 'shaker': return -0.32;
+    case 'crash': return -0.2;
+    case 'tom': return Math.max(-0.45, Math.min(0.45, (140 - freq) / 180));
+    default: {
+      const midi = 69 + 12 * Math.log2(Math.max(20, freq) / 440);
+      return Math.max(-0.3, Math.min(0.3, (midi - 60) / 30));
+    }
+  }
 }
 
 export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?: number; del?: number } = {}): void {
@@ -240,11 +285,61 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
       f.frequency.setTargetAtTime(1600, t + 0.05, 0.2);
       const mix = c.createGain();
       mix.gain.value = 0.5;
-      o1.connect(mix);
-      o2.connect(mix);
+      o1.connect(spread(c, -0.35)).connect(mix);
+      o2.connect(spread(c, 0.35)).connect(mix);
       mix.connect(f).connect(out);
       const end = env(out, t, 0.01, 0.15, 0.75, dur, 0.12, 0.16 * vel);
       for (const o of [o1, o2, lfo]) { o.start(t); o.stop(end); }
+      chain = { out, end };
+      break;
+    }
+    case 'reed': {
+      // Breathy reed (lounge sax): saw + thin square through a nasal formant, slow swell,
+      // late vibrato, and a puff of breath noise on the attack.
+      const o1 = c.createOscillator();
+      const o2 = c.createOscillator();
+      o1.type = 'sawtooth';
+      o2.type = 'square';
+      o1.frequency.value = freq;
+      o2.frequency.value = freq * 0.998;
+      const lfo = c.createOscillator();
+      const lg = c.createGain();
+      lfo.frequency.value = 4.8;
+      lg.gain.setValueAtTime(0, t);
+      lg.gain.linearRampToValueAtTime(0, t + Math.min(0.25, dur * 0.4));
+      lg.gain.linearRampToValueAtTime(freq * 0.009, t + Math.min(0.6, dur * 0.8));
+      lfo.connect(lg);
+      lg.connect(o1.frequency);
+      lg.connect(o2.frequency);
+      const sq = c.createGain();
+      sq.gain.value = 0.35;
+      const formant = c.createBiquadFilter();
+      formant.type = 'bandpass';
+      formant.frequency.value = 1150;
+      formant.Q.value = 1.6;
+      const body = c.createBiquadFilter();
+      body.type = 'lowpass';
+      body.frequency.setValueAtTime(1400, t);
+      body.frequency.linearRampToValueAtTime(2600 + vel * 800, t + 0.08);
+      o1.connect(formant);
+      o2.connect(sq).connect(formant);
+      o1.connect(body);
+      formant.connect(out);
+      body.connect(out);
+      const breath = audio.noiseSource();
+      const bf = c.createBiquadFilter();
+      bf.type = 'bandpass';
+      bf.frequency.value = 2800;
+      bf.Q.value = 0.8;
+      const bg = c.createGain();
+      bg.gain.setValueAtTime(0.0001, t);
+      bg.gain.linearRampToValueAtTime(0.035 * vel, t + 0.03);
+      bg.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      breath.connect(bf).connect(bg).connect(out);
+      const end = env(out, t, 0.045, 0.2, 0.8, dur, 0.18, 0.13 * vel);
+      for (const o of [o1, o2, lfo]) { o.start(t); o.stop(end); }
+      breath.start(t);
+      breath.stop(t + 0.2);
       chain = { out, end };
       break;
     }
@@ -308,14 +403,14 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
       f.Q.value = inst === 'choir' ? 8 : 1;
       const oscs: OscillatorNode[] = [];
       const detunes = inst === 'organ' ? [0, 1200, 1902] : [-9, 0, 9];
-      for (const dt of detunes) {
+      detunes.forEach((dt, i) => {
         const o = c.createOscillator();
         o.type = inst === 'organ' ? 'sine' : inst === 'choir' ? 'triangle' : 'sawtooth';
         o.frequency.value = freq;
         o.detune.value = dt;
-        o.connect(f);
+        o.connect(spread(c, (i - 1) * 0.55)).connect(f);
         oscs.push(o);
-      }
+      });
       if (inst === 'choir') {
         // Formant-ish shimmer
         const lfo = c.createOscillator();
@@ -441,15 +536,17 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
     }
   }
   if (!chain) return;
-  chain.out.connect(dest);
+  const pan = c.createStereoPanner();
+  pan.pan.value = placement(inst, freq, t);
+  chain.out.connect(pan).connect(dest);
   if (sends.rev) {
     const g = c.createGain();
     g.gain.value = sends.rev;
-    chain.out.connect(g).connect(audio.reverbSend);
+    pan.connect(g).connect(audio.reverbSend);
   }
   if (sends.del) {
     const g = c.createGain();
     g.gain.value = sends.del;
-    chain.out.connect(g).connect(audio.delaySend);
+    pan.connect(g).connect(audio.delaySend);
   }
 }

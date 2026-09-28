@@ -62,7 +62,7 @@ const QUAL: Record<string, number[]> = {
   maj9: [0, 4, 7, 11, 14], '6': [0, 4, 7, 9], m6: [0, 3, 7, 9], aug: [0, 4, 8], '5': [0, 7], madd9: [0, 3, 7, 14], mmaj7: [0, 3, 7, 11],
 };
 
-interface Chord {
+export interface Chord {
   root: number;
   tones: number[];
   bass: number;
@@ -80,7 +80,7 @@ function parseChord(sym: string): Chord {
 }
 
 /** Split a bar-string into per-step tokens with durations. */
-function stepsOf(src: string): { tok: string; step: number; len: number }[] {
+export function stepsOf(src: string): { tok: string; step: number; len: number }[] {
   const bars = src.split('|').map((b) => b.trim()).filter((b) => b.length);
   const out: { tok: string; step: number; len: number }[] = [];
   bars.forEach((bar, bi) => {
@@ -93,7 +93,8 @@ function stepsOf(src: string): { tok: string; step: number; len: number }[] {
   return out;
 }
 
-function chordTimeline(src: string): { chords: (Chord | null)[]; bars: number } {
+/** The chord sounding on every step (exported for the harmony test). */
+export function chordTimeline(src: string): { chords: (Chord | null)[]; bars: number } {
   const toks = stepsOf(src);
   const bars = src.split('|').filter((b) => b.trim().length).length;
   const chords: (Chord | null)[] = new Array(bars * STEPS).fill(null);

@@ -45,11 +45,19 @@ function start(): void {
   boot(game, display);
   // Non-fatal errors surface as a small notice instead of silently freezing.
   game.overlays.push((ctx) => {
-    const msg = currentNotice();
-    if (!msg) return;
-    ctx.fillStyle = 'rgba(40,6,16,0.9)';
+    const n = currentNotice();
+    if (!n) return;
+    if (n.tone === 'saved') {
+      // Small corner badge; never covers the field HUD.
+      ctx.fillStyle = 'rgba(10,9,19,0.8)';
+      ctx.fillRect(480 - 70, 270 - 14, 66, 11);
+      drawText(ctx, `{c}♦{/} ${n.text}`, 480 - 66, 270 - 13, { color: '#b8bcd0' });
+      return;
+    }
+    ctx.fillStyle = n.tone === 'warn' ? 'rgba(46,34,6,0.92)' : 'rgba(40,6,16,0.9)';
     ctx.fillRect(0, 0, 480, 13);
-    drawText(ctx, `Something went wrong: ${msg}`.slice(0, 90), 4, 2, { color: '#ffb0b0' });
+    const text = n.tone === 'warn' ? n.text : `Something went wrong: ${n.text}`;
+    drawText(ctx, text.slice(0, 92), 4, 2, { color: n.tone === 'warn' ? '#ffe0a0' : '#ffb0b0' });
   });
   document.getElementById('boot')!.style.display = 'none';
   screen.focus();

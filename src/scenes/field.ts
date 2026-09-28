@@ -68,6 +68,7 @@ export class FieldScene extends Scene<void> {
   private weather = new Weather();
   busy = 0;
   private frame = 0;
+  private lastBump = -99;
   private banner: { text: string; sub: string; t: number } | null = null;
   private rng = new Rng(4242);
   followersVisible = true;
@@ -203,7 +204,11 @@ export class FieldScene extends Scene<void> {
     if (!l.moving) {
       const d = inp.dir();
       if (d) {
-        this.tryStep(d, inp.down('dash') ? DASH : WALK);
+        // Walking into a wall thuds once per press (and slowly while held), never every frame.
+        if (!this.tryStep(d, inp.down('dash') ? DASH : WALK) && (inp.pressed(d) || this.frame - this.lastBump > 24)) {
+          this.lastBump = this.frame;
+          sfx('bump');
+        }
         return;
       }
       if (inp.pressed('confirm')) {

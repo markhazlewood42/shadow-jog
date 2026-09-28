@@ -2,16 +2,25 @@
  * Non-fatal error reporting: logs, and shows a small in-game notice so failures are never silent.
  * Fatal boot errors are handled in main.ts.
  */
+export type NoticeTone = 'error' | 'warn' | 'saved';
+
 let lastMessage = '';
+let lastTone: NoticeTone = 'error';
 let shownAt = -1;
 let listeners: ((msg: string) => void)[] = [];
 
 export function reportError(e: unknown): void {
   const msg = e instanceof Error ? e.message : String(e);
   console.error('[SHADOW JOG]', e);
-  lastMessage = msg;
-  shownAt = performance.now();
+  notice(msg, 'error');
   for (const l of listeners) l(msg);
+}
+
+/** A short on-screen notice: a warning bar, or the small corner "saved" badge. */
+export function notice(text: string, tone: NoticeTone): void {
+  lastMessage = text;
+  lastTone = tone;
+  shownAt = performance.now();
 }
 
 export function onError(fn: (msg: string) => void): void {
@@ -22,8 +31,9 @@ export function clearErrorListeners(): void {
   listeners = [];
 }
 
-/** The current notice text, or null once it has been visible for a while. */
-export function currentNotice(): string | null {
-  if (shownAt < 0 || performance.now() - shownAt > 6000) return null;
-  return lastMessage;
+/** The current notice, or null once it has been visible for a while (the saved badge is brief). */
+export function currentNotice(): { text: string; tone: NoticeTone } | null {
+  const life = lastTone === 'saved' ? 1800 : 6000;
+  if (shownAt < 0 || performance.now() - shownAt > life) return null;
+  return { text: lastMessage, tone: lastTone };
 }

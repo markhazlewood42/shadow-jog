@@ -98,3 +98,39 @@ test('A save survives a page reload and Continue restores it', async ({ page }) 
   expect(s.pf).toBeGreaterThanOrEqual(7200);
   expect(s.pf).toBeLessThan(8000);
 });
+
+test('Load from Game Over with a damaged save says so and returns to the title', async ({ page }) => {
+  await stage(page, 'sinkline');
+  expect(await sj<boolean>(page, 'sj.save(1)')).toBe(true);
+  // Metadata intact (so Load is offered), state structurally broken (so loading fails).
+  await page.evaluate(() => {
+    localStorage.removeItem('shadowjog.save.auto');
+    const raw = JSON.parse(localStorage.getItem('shadowjog.save.1')!);
+    delete raw.state.members.kit;
+    localStorage.setItem('shadowjog.save.1', JSON.stringify(raw));
+  });
+  await loseAFight(page);
+  await key(page, 'ArrowDown'); // Load last save
+  await key(page, 'Enter');
+  await waitFor(page, "sj.top() === 'TitleScene'", 'title');
+  const n = await sj<{ text: string; tone: string } | null>(page, 'sj.notice()');
+  expect(n?.tone).toBe('warn');
+  expect(n?.text).toMatch(/no save|damaged/i);
+});
+
+test('Autosave reports success, and failure when storage is unavailable', async ({ page }) => {
+  await stage(page, 'town');
+  await sj(page, "sj.tp('world', 20, 22, 'right')");
+  await waitFor(page, 'sj.idle()', 'world');
+  expect((await sj<{ tone: string } | null>(page, 'sj.notice()'))?.tone).toBe('saved');
+  await page.evaluate(() => {
+    Storage.prototype.setItem = () => {
+      throw new Error('QuotaExceededError');
+    };
+  });
+  await sj(page, "sj.tp('lantern_row', 30, 12, 'down')");
+  await waitFor(page, 'sj.idle()', 'town');
+  const n = await sj<{ text: string; tone: string } | null>(page, 'sj.notice()');
+  expect(n?.tone).toBe('warn');
+  expect(n?.text).toMatch(/Autosave failed/);
+});

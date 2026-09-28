@@ -77,18 +77,24 @@ export class Battle {
   combosUsed: string[] = [];
   private ev: BattleEvent[] = [];
 
+  /** Side rosters, kept in step with `units` (only summons add to it) so reads never allocate. */
+  private partyList: Combatant[];
+  private enemyList: Combatant[];
+
   constructor(party: Combatant[], enemies: Combatant[], rng: Rng, opts: BattleOpts = {}) {
     this.units = [...party, ...enemies];
+    this.partyList = [...party];
+    this.enemyList = [...enemies];
     this.rng = rng;
     this.canRun = opts.canRun ?? true;
     this.opts = opts;
   }
 
-  get party(): Combatant[] {
-    return this.units.filter((u) => u.side === 'party');
+  get party(): readonly Combatant[] {
+    return this.partyList;
   }
-  get enemies(): Combatant[] {
-    return this.units.filter((u) => u.side === 'enemy');
+  get enemies(): readonly Combatant[] {
+    return this.enemyList;
   }
   alive(side: 'party' | 'enemy'): Combatant[] {
     return this.units.filter((u) => u.side === side && u.hp > 0);
@@ -535,6 +541,7 @@ export class Battle {
             usedSlots.add(slot);
             const c = enemyCombatant(id, this.nextUid++, slot);
             this.units.push(c);
+            this.enemyList.push(c);
             uids.push(c.uid);
           }
           this.ev.push({ t: 'summon', uids });

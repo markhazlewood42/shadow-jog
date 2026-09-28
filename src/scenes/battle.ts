@@ -117,6 +117,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private endPanel: ((ctx: Ctx) => void) | null = null;
   private waitingConfirm: (() => void) | null = null;
   private playtestT = 0;
+  private readonly drawOrder: Combatant[] = [];
   /** Frames of freeze-frame left (heavy hits). */
   private hitstop = 0;
   private partyArt = new Map<number, Battler>();
@@ -218,8 +219,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return this.battle.party.filter((p) => p.hp > 0);
   }
 
+  /** The member giving orders: the actorIdx-th living party member (no array built; read every frame). */
   private get actor(): Combatant | undefined {
-    return this.actors()[this.actorIdx];
+    let n = 0;
+    for (const p of this.battle.party) if (p.hp > 0 && n++ === this.actorIdx) return p;
+    return undefined;
   }
 
   private nextActor(): void {
@@ -416,7 +420,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       }
     }
     for (const f of this.floaters) f.t++;
-    this.floaters = this.floaters.filter((f) => f.t < 50);
+    // Compact finished floaters in place (no per-tick array).
+    let live = 0;
+    for (const fl of this.floaters) if (fl.t < 50) this.floaters[live++] = fl;
+    this.floaters.length = live;
     if (this.banner) {
       this.banner.t++;
       if (this.banner.t > (this.banner.big ? 70 : 60)) this.banner = null;
@@ -860,12 +867,13 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   // ------------------------------------------------------------------ layout
   private layout = new Map<number, { x: number; y: number; art: EnemyArt }>();
-  private layoutKey = '';
+  private layoutKey = -1;
   private layoutVersion = 0;
 
   /** Enemy placement, recomputed only when the roster changes (deaths, summons, phase shifts). */
   private enemyPos(u: Combatant): { x: number; y: number; art: EnemyArt } {
-    const key = `${this.battle.units.length}:${this.dead.size}:${this.layoutVersion}`;
+    // Numeric layout key (roster size, fallen, phase changes): recomputed per call without allocating.
+    const key = this.battle.units.length * 1e6 + this.dead.size * 1e3 + this.layoutVersion;
     if (key !== this.layoutKey) {
       this.layoutKey = key;
       const prev = this.layout;
@@ -914,9 +922,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     if (this.bg.glow) g.drawImage(this.bg.glow, 0, 0);
     this.bg.anim?.(g, f);
     // Enemies, back to front
-    const enemies = this.battle.enemies.filter((e) => this.d(e.uid).alpha > 0.01);
-    enemies.sort((a, b) => this.enemyPos(a).y + this.enemyPos(a).art.canvas.height - (this.enemyPos(b).y + this.enemyPos(b).art.canvas.height));
-    for (const e of enemies) this.drawEnemy(g, e, f);
+    // Back to front, into a reused buffer.
+    const order = this.drawOrder;
+    order.length = 0;
+    for (const e of this.battle.enemies) if (this.d(e.uid).alpha > 0.01) order.push(e);
+    order.sort((a, b) => this.feetY(a) - this.feetY(b));
+    for (const e of order) this.drawEnemy(g, e, f);
     // Party (back view)
     for (const p of this.battle.party) this.drawPartyMember(g, p, f);
     this.fx.render(g, (c, ch, x, y, col) => drawText(c, ch, x, y, { color: col, shadow: false }));
@@ -1015,6 +1026,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       ctx.restore();
     }
     ctx.globalAlpha = 1;
+  }
+
+  private feetY(e: Combatant): number {
+    const p = this.enemyPos(e);
+    return p.y + p.art.canvas.height;
   }
 
   /** 0 for the first enemy of its kind in this fight, 1 for the second, ... */
@@ -1140,26 +1156,37 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   // ------------------------------------------------------------------ UI (1x)
   /** Labelled status chips over each enemy (screen space, so they stay small and legible). */
   private renderEnemyStatus(ctx: Ctx): void {
-    for (const e of this.battle.alive('enemy')) {
+    for (const e of this.battle.enemies) {
+      if (e.hp <= 0 || !e.status.length) continue;
       const dd = this.d(e.uid);
       if (dd.dying > 0 || dd.alpha < 0.5) continue;
-      const labs = e.status.map((s) => STATUS_LABEL[s.id]).filter((l): l is [string, string] => !!l && l[0] !== 'GRD');
-      if (!labs.length) continue;
+      // Two passes over the statuses (measure, then draw) so nothing is allocated per frame.
+      let count = 0, total = 0;
+      for (const s of e.status) {
+        const l = STATUS_LABEL[s.id];
+        if (!l || s.id === 'guard') continue;
+        if (count < 3) total += measure(l[0]) + 5;
+        count++;
+      }
+      if (!count) continue;
+      const more = count - Math.min(count, 3);
+      if (more) total += measure(`+${more}`) + 3;
       const { x, y, art } = this.enemyPos(e);
-      const shown = labs.slice(0, 3);
-      const more = labs.length - shown.length;
-      const widths = shown.map((l) => measure(l[0]) + 4);
-      const total = widths.reduce((a, b) => a + b + 1, 0) + (more ? measure(`+${more}`) + 3 : 0);
       let cx = Math.round((x + art.canvas.width / 2) * 2 - total / 2);
       const cy = Math.max(2, y * 2 - 11);
-      shown.forEach((l, i) => {
+      let drawn = 0;
+      for (const s of e.status) {
+        const l = STATUS_LABEL[s.id];
+        if (!l || s.id === 'guard' || drawn === 3) continue;
+        const w = measure(l[0]) + 4;
         ctx.fillStyle = 'rgba(10,9,19,0.85)';
-        ctx.fillRect(cx, cy, widths[i]!, 9);
+        ctx.fillRect(cx, cy, w, 9);
         ctx.fillStyle = l[1];
-        ctx.fillRect(cx, cy + 8, widths[i]!, 1);
+        ctx.fillRect(cx, cy + 8, w, 1);
         drawText(ctx, l[0], cx + 2, cy + 1, { color: l[1], shadow: false });
-        cx += widths[i]! + 1;
-      });
+        cx += w + 1;
+        drawn++;
+      }
       if (more) drawText(ctx, `+${more}`, cx + 1, cy + 1, { color: UI.dim });
     }
   }
@@ -1261,13 +1288,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         drawText(ctx, `${total} uses`, x + 110, y + 33, { align: 'right' });
       }
       // Status tags: up to two, then a count.
-      const labs = p.status.filter((s) => s.id !== 'guard' && s.id !== 'cover').map((s) => STATUS_LABEL[s.id]).filter((l): l is [string, string] => !!l);
-      let sx = x + 26;
-      labs.slice(0, 2).forEach((lab) => {
-        drawText(ctx, lab[0], sx, y + 17, { color: lab[1] });
-        sx += measure(lab[0]) + 3;
-      });
-      if (labs.length > 2) drawText(ctx, `+${labs.length - 2}`, sx, y + 17, { color: UI.dim });
+      let sx = x + 26, tags = 0;
+      for (const s of p.status) {
+        const lab = STATUS_LABEL[s.id];
+        if (!lab || s.id === 'guard' || s.id === 'cover') continue;
+        if (tags++ < 2) {
+          drawText(ctx, lab[0], sx, y + 17, { color: lab[1] });
+          sx += measure(lab[0]) + 3;
+        }
+      }
+      if (tags > 2) drawText(ctx, `+${tags - 2}`, sx, y + 17, { color: UI.dim });
     });
   }
 
@@ -1370,7 +1400,7 @@ function pickGroup(encounter: string): string[] {
   return groups[0]!.e;
 }
 
-function groupNames(es: Combatant[]): string {
+function groupNames(es: readonly Combatant[]): string {
   const counts = new Map<string, number>();
   for (const e of es) counts.set(e.name, (counts.get(e.name) ?? 0) + 1);
   const parts = [...counts.entries()].map(([n, c]) => (c > 1 ? `${c} ${n}s` : n));

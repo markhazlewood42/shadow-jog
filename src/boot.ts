@@ -22,6 +22,7 @@ import type { GameState } from './game/state';
 import * as stateMod from './game/state';
 import { applyStage } from './game/stages';
 import { perf } from './engine/perf';
+import { currentNotice } from './engine/errors';
 import { EndingScene } from './scenes/ending';
 import { fieldHooks } from './game/hooks';
 
@@ -64,6 +65,7 @@ export function boot(game: Game, display: Display): void {
     save: (slot: 1 | 2 | 3 | 'auto') => writeSave(slot, game.playFrames),
     /** Frame-work timing (see engine/perf.ts). */
     perf,
+    notice: () => currentNotice(),
     /** The end-of-chapter results and next-chapter card, without the comic pages. */
     ending: () => void game.run(new EndingScene(game.playFrames)),
   };
