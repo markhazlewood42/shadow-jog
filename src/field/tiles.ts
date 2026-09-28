@@ -377,13 +377,28 @@ const dfloor: Painter = (lx, ly, wx, wy, tx, ty, q) => {
 
 const dwater = waterP(P.dwater, P.dwaterL, P.dwaterD, P.dfloorL, P.dfloorD, [8, 22, 18], C('#347060'));
 
-/** Ankle-deep water over the floor: soft noise ripples and sparse glints, no repeating marks. */
+/**
+ * Ankle-deep water over the floor. The floor shows through, bent by the surface; the surface
+ * carries horizontal ripple streaks and sparse glints; and where the water meets dry ground
+ * there's a waterline (a dark wet lip and a thin bright edge), so a pool reads as a pool.
+ */
+const WET = new Set<TerrainId>(['d_shallow', 'd_water']);
 const shallow: Painter = (lx, ly, wx, wy, tx, ty, q) => {
-  const base = dfloorDry(lx, ly, wx, wy, tx, ty, q);
+  // Waterline against dry neighbours.
+  const dryUp = !WET.has(q.at(tx, ty - 1)), dryDown = !WET.has(q.at(tx, ty + 1));
+  const dryLeft = !WET.has(q.at(tx - 1, ty)), dryRight = !WET.has(q.at(tx + 1, ty));
+  if ((dryUp && ly === 0) || (dryLeft && lx === 0) || (dryRight && lx === 15)) return P.shallowL;
+  if ((dryUp && ly === 1) || (dryLeft && lx === 1) || (dryRight && lx === 14) || (dryDown && ly === 15)) return lerpC(P.shallow, [8, 16, 18], 0.5);
+  // The floor underneath, bent by the surface.
+  const bend = Math.round(Math.sin(wy / 3 + wx / 17) * 1.5);
+  const base = dfloorDry(lx, ly, wx + bend, wy, tx, ty, q);
   const n = fbm(wx / 10, wy / 7, 2, 141);
   let w = lerpC(P.shallow, P.shallowL, Math.min(1, Math.max(0, (n - 0.55) * 2.5)));
-  if (hash2(wx, wy, 142) < 0.01) w = P.shallowL;
-  return lerpC(base, w, 0.72);
+  // Ripple streaks: short horizontal highlights where a stretched noise band crests.
+  const band = valueNoise(wx / 9, wy / 2.2, 143);
+  if (band > 0.74 && band < 0.8) w = lerpC(P.shallowL, [120, 170, 170], 0.35);
+  if (hash2(wx, wy, 142) < 0.006) w = [140, 190, 190];
+  return lerpC(base, w, 0.62);
 };
 
 const catwalk: Painter = (lx, ly, wx, wy) => {

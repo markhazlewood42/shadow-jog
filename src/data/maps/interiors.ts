@@ -101,11 +101,20 @@ export const bar: MapDef = {
     { kind: 'poster', x: 20, y: 1, color: '#b07cff' },
     { kind: 'trash', x: 18, y: 12 },
     { kind: 'crates', x: 11, y: 2 },
+    // The floor: a keg at the bar's end, seats at the tables, a lamp by the booths, the house
+    // hologram over the dance floor, a plant nobody waters.
+    { kind: 'barrel', x: 11, y: 4, color: '#5a3a2a' },
+    { kind: 'stool', x: 3, y: 9 },
+    { kind: 'stool', x: 10, y: 9 },
+    { kind: 'lampfloor', x: 13, y: 5, color: '#ffb46a' },
+    { kind: 'holo', x: 14, y: 11, color: '#ff4fb0', text: 'SAINT' },
+    { kind: 'plant', x: 1, y: 7 },
   ],
   lights: [
     { x: 6, y: 4, r: 70, color: '#ff6fc8', i: 0.55 },
     { x: 16, y: 5, r: 60, color: '#ffb46a', i: 0.55 },
     { x: 7, y: 10, r: 60, color: '#8a6aff', i: 0.35 },
+    { x: 14, y: 10, r: 44, color: '#ff4fb0', i: 0.45 },
   ],
   npcs: [
     { id: 'dutch', x: 16, y: 3, dir: 'down', look: LOOKS.dutch, name: 'Dutch', talk: meetDutch, fixedDir: false },

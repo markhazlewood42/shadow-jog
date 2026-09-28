@@ -201,6 +201,14 @@ export const lanternRow: MapDef = {
         'You smell of something waking, girl. Careful. Kessler-Mori pays well for people who smell like that.',
       ],
     },
+    // The plaza in knots, not a grid: a queue at each stall, a mourner at the memorial, two
+    // regulars trading the same rumor they trade every night.
+    ped('q_skewer', 19, 19, 21, ['Two sticks. No, the organic ones. ...What do you mean they’re all organic?'], 'static', 'up'),
+    ped('q_junk', 32, 19, 22, ['I’m just looking. I’ve been just looking for three hours.'], 'static', 'up'),
+    ped('q_charm', 35, 27, 23, ['One for my sister. She’s got a K-M aptitude screening Tuesday.'], 'static', 'up'),
+    ped('mourner', 28, 27, 24, ['There’s a lantern here for every name. My mother counted them every year. Now I do.'], 'static', 'up'),
+    ped('gossip_a', 20, 28, 25, ['They say the Rustfangs got a new boss. Big guy. Calls himself Knuckles.'], 'static', 'right'),
+    ped('gossip_b', 21, 28, 26, ['They always say that. It’s always a big guy.'], 'static', 'left'),
     { id: 'kids', x: 26, y: 26, dir: 'up', look: randomLook(55), name: 'Kid', move: 'wander', radius: 2, talk: ['Mom says don’t talk to runners. ...Are you runners? Mom says runners disappear.'] },
   ],
   events: [
