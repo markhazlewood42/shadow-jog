@@ -2,22 +2,15 @@
 import type { Display } from './engine/display';
 import { audio } from './audio/engine';
 import type { Game } from './engine/game';
-import { FontTestScene } from './scenes/fonttest';
-import { CharTestScene } from './scenes/chartest';
-import { BestiaryTestScene } from './scenes/bestiarytest';
-import { PortraitTestScene } from './scenes/portraittest';
-import { MapViewScene } from './scenes/mapview';
 import { FieldScene } from './scenes/field';
-import { state, type MemberId } from './game/state';
-import { BattleScene } from './scenes/battle';
-import { createMember } from './game/party';
 import { autosave, autosavePolicy, installSystems, loadIntoGame } from './game/systems';
 import { TitleScene } from './scenes/title';
 import { loadSave, unsavedFrames, writeSave } from './game/save';
 import { newGame } from './story/newgame';
 import type { Game as GameT } from './engine/game';
 import { settings, shakeScale } from './game/settings';
-import { debug } from './game/debug';
+import { debug, debugBattleDriver } from './game/debug';
+import { setBattleDriver } from './scenes/battlekit/driver';
 import type { GameState } from './game/state';
 import type { ScriptFn } from './game/script';
 import { ENCOUNTERS } from './data/enemies';
@@ -38,6 +31,8 @@ export function boot(game: Game, display: Display): void {
   const params = new URLSearchParams(location.search);
   const field = () => game.stack.find((s): s is FieldScene => s instanceof FieldScene) ?? null;
   // Debug/test hook: dev server only (E2E and screenshot tooling), never in a production build.
+  // Test harness hooks exist only in DEV builds: a shipped build's battles have no driver.
+  if (import.meta.env.DEV) setBattleDriver(debugBattleDriver);
   if (import.meta.env.DEV) window.__SJ__ = {
     game,
     display,
@@ -133,45 +128,14 @@ export function boot(game: Game, display: Display): void {
     notice('Something broke and the game recovered to the title. Continue loads your last save.', 'warn');
     void startTitle(game, 30);
   };
+  // Dev routes (?scene=field|battle|mapview|portraits|bestiary|chars|font) load only in DEV
+  // builds: the test scenes aren't part of the shipped bundle.
   const scene = params.get('scene');
-  switch (scene) {
-    case 'field': {
-      state.party = ['kit', 'rook'];
-      const x = Number(params.get('x') ?? 26), y = Number(params.get('y') ?? 15);
-      void game.run(new FieldScene(params.get('map') ?? 'lantern_row', x, y, 'down'));
-      break;
-    }
-    case 'battle': {
-      const ids = (params.get('party') ?? 'kit,rook,hex,sable').split(',') as MemberId[];
-      const lv = Number(params.get('lv') ?? 6);
-      state.party = ids;
-      for (const id of ids) state.members[id] = createMember(id, lv);
-      state.inventory = { medkit: 5, neurotab: 2, adrenal_stim: 1, frag: 2, smoke_pellet: 1 };
-      const enemies = params.get('enemies')?.split(',');
-      const run = async (): Promise<void> => {
-        for (;;) await game.run(new BattleScene({ encounter: params.get('enc') ?? 'street', enemies, bg: params.get('bg') ?? 'street', boss: params.has('boss') }));
-      };
-      void run();
-      break;
-    }
-    case 'mapview':
-      void game.run(new MapViewScene(params.get('map') ?? 'lantern_row'));
-      break;
-    case 'portraits':
-      void game.run(new PortraitTestScene(params.get('faces')?.split(',')));
-      break;
-    case 'bestiary':
-      void game.run(new BestiaryTestScene(Number(params.get('page') ?? 0)));
-      break;
-    case 'chars':
-      void game.run(new CharTestScene(Number(params.get('zoom') ?? 2), params.has('npcs'), params.has('battlers')));
-      break;
-    case 'font':
-      void game.run(new FontTestScene());
-      break;
-    default:
-      void startTitle(game);
-  }
+  if (import.meta.env.DEV && scene) {
+    void import('./devroutes').then((m) => {
+      if (!m.runDevScene(game, scene, params)) void startTitle(game);
+    });
+  } else void startTitle(game);
 }
 
 /** Show the title (fading in over `fadeIn` frames) and act on the choice. */

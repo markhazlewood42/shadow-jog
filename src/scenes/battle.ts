@@ -20,12 +20,12 @@ import { Scene, W, H } from '../engine/game';
 import { Rng, streams } from '../engine/rng';
 import { equipRegen, grantXp, knownAbilities, levelProgress, type LevelUp } from '../game/party';
 import { battleSpeed } from '../game/settings';
-import { debug, PLAYTEST_ROUNDS } from '../game/debug';
 import { removeItem, state, type MemberId } from '../game/state';
 import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../ui/draw';
 import { ListMenu } from '../ui/list';
 import { LEVELUP_TEXT_W, TARGET_INFO_W } from '../ui/layout';
 import { drawVictoryBanner } from './battlekit/banner';
+import { battleDriver } from './battlekit/driver';
 import { playEvent, type PlaybackView } from './battlekit/playback';
 import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
@@ -95,7 +95,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private introT = 0;
   private endPanel: ((ctx: Ctx) => void) | null = null;
   private waitingConfirm: (() => void) | null = null;
-  private playtestT = 0;
+  /** Frames the scene has been waiting on the player (for a registered driver). */
+  private idleT = 0;
   private readonly drawOrder: Combatant[] = [];
   /** Portrait cut-ins sliding across the screen for combos and big crits. */
   private cutins: { key: string; face: string; t: number; fromLeft: boolean; life: number }[] = [];
@@ -161,13 +162,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   private async intro(): Promise<void> {
     this.mode = 'intro';
-    if (debug.autoLose) {
+    const resolved = battleDriver()?.resolveAtOnce() ?? null;
+    if (resolved === 'lose') {
       for (const p of this.battle.party) p.hp = 0;
       this.battle.outcome = 'lose';
       await this.defeat();
       return;
     }
-    if (debug.autoBattle) {
+    if (resolved === 'win') {
       await this.forceWin();
       return;
     }
@@ -381,15 +383,17 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       if (this.message.t > 90) this.message = null;
     }
     const inp = this.game.input;
-    if (debug.playtest && (this.waitingConfirm || this.mode === 'round')) {
-      // Playtest capture: linger on the menu / result panel, then pick Auto / continue.
-      if (++this.playtestT > (this.waitingConfirm ? 110 : 40)) {
-        this.playtestT = 0;
-        if (this.waitingConfirm) {
+    // A registered driver (a test harness) may act on a waiting panel or round menu.
+    const driver = battleDriver();
+    if (driver && (this.waitingConfirm || this.mode === 'round')) {
+      const move = driver.act(!!this.waitingConfirm, ++this.idleT);
+      if (move) {
+        this.idleT = 0;
+        if (move === 'confirm' && this.waitingConfirm) {
           const cb = this.waitingConfirm;
           this.waitingConfirm = null;
           cb();
-        } else {
+        } else if (move === 'auto' && this.mode === 'round') {
           this.cmds = this.autoCommands();
           void this.executeRound();
         }
@@ -474,14 +478,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       dd.tp = u.tp;
       if (u.hp > 0) dd.hp = u.hp;
     }
-    if (debug.playtest && this.battle.outcome !== 'win') {
-      // Playtest capture: a few real rounds for the camera, then a guaranteed win so the run keeps moving.
-      const low = this.battle.party.some((p) => p.hp < p.base.maxHp * 0.35);
-      if (this.battle.outcome === 'lose' || low || this.battle.round >= PLAYTEST_ROUNDS) {
-        for (const p of this.battle.party) p.hp = Math.max(p.hp, 1);
-        await this.forceWin();
-        return;
-      }
+    if (this.battle.outcome !== 'win' && battleDriver()?.endAsWin(this.battle)) {
+      for (const p of this.battle.party) p.hp = Math.max(p.hp, 1);
+      await this.forceWin();
+      return;
     }
     const o = this.battle.outcome;
     if (o === 'win') await this.victory();
@@ -693,10 +693,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     this.game.shake(26, 4);
     for (const p of this.battle.party) this.setPose(p, 'hurt', 400);
     this.defeatT = 1;
-    await this.w(debug.autoLose ? 2 : 55);
+    const hurry = battleDriver()?.hurry() ?? false;
+    await this.w(hurry ? 2 : 55);
     music('gameover', 0);
     this.say('The crew has fallen…');
-    await this.w(debug.autoLose ? 2 : 80);
+    await this.w(hurry ? 2 : 80);
     this.writeBack();
     this.close('lose');
   }
@@ -716,7 +717,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   private panel(draw: (ctx: Ctx) => void): Promise<void> {
-    if (debug.autoBattle) return Promise.resolve();
+    if (battleDriver()?.hurry()) return Promise.resolve();
     return new Promise((res) => {
       this.endPanel = draw;
       this.waitingConfirm = () => {
