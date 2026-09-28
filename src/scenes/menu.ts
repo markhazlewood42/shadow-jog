@@ -19,6 +19,8 @@ import { flags, state, type EquipSlot, type MemberId, type MemberState } from '.
 import { drawBar, drawDivider, drawSelect, drawWindow, hpColor, UI } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
 import { OptionsScene } from './options';
+import { PlaceMapScene } from './placemap';
+import { keyLabel } from '../engine/input';
 
 /** Combo log entries visible at once (36px each under the header). */
 const COMBO_ROWS = 6;
@@ -214,7 +216,8 @@ export class MenuScene extends Scene<MenuResult> {
       }
       case 'places': {
         const r = this.places.update(inp);
-        if (r === 'cancel' || r === 'confirm') this.mode = 'main';
+        if (r === 'cancel') this.mode = 'main';
+        else if (r === 'confirm' && this.places.current) void this.game.run(new PlaceMapScene(this.places.current.value));
         break;
       }
       case 'combos': {
@@ -691,6 +694,8 @@ export class MenuScene extends Scene<MenuResult> {
       drawDivider(ctx, x + 6, 104, w - 12);
       drawText(ctx, 'Getting there', x + 10, 112, { color: UI.dim });
       drawParagraph(ctx, cur.route, x + 10, 124, w - 20, { color: '#b8bcd0', lineH: 11 });
+      const ok = this.game.input.keysFor('confirm')[0];
+      drawText(ctx, `${ok ? keyLabel(ok) : 'Confirm'}: map`, x + w - 10, 112, { color: UI.cyan, align: 'right' });
     }
     const obj = state.flags.objective;
     if (typeof obj === 'string' && obj) {

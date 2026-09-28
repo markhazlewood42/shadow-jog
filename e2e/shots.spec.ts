@@ -289,6 +289,10 @@ test('33 menu places', async ({ page }) => {
   await key(page, 'Enter');
   await page.waitForTimeout(300);
   await shot(page, '33-menu-places');
+  // The current place's map.
+  await key(page, 'Enter');
+  await page.waitForTimeout(500);
+  await shot(page, '33b-menu-place-map');
 });
 
 test('34 game over', async ({ page }) => {
