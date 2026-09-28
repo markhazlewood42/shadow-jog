@@ -35,8 +35,9 @@ export const flipCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 export const ENEMY_POSE_T = 30;
 
 /**
- * Markings that make a second or third creature an individual, not a recolour: machines carry a
- * stencilled unit number and a hazard stripe, beasts a scar, spirits a cluster of bright motes.
+ * Markings that make a second or third enemy an individual, not a recolour: machines carry a
+ * stencilled unit number and a hazard stripe, beasts a scar, spirits a cluster of bright motes,
+ * humans a squad-coloured armband.
  * Painted only onto opaque pixels, near the body's middle.
  */
 export const markCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
@@ -44,7 +45,7 @@ export const DIGITS: Record<string, string[]> = {
   '2': ['111', '001', '111', '100', '111'], '3': ['111', '001', '011', '001', '111'], '4': ['101', '101', '111', '001', '001'],
 };
 export function marked(src: HTMLCanvasElement, family: string, dup: number): HTMLCanvasElement {
-  if (dup === 0 || !['machine', 'beast', 'spirit'].includes(family)) return src;
+  if (dup === 0 || !['machine', 'beast', 'spirit', 'human'].includes(family)) return src;
   let m = markCache.get(src);
   if (!m) {
     m = new Map();
@@ -74,6 +75,13 @@ export function marked(src: HTMLCanvasElement, family: string, dup: number): HTM
       for (let i = 0; i < 3; i++) if (glyph[j]![i] === '1') dot(gx + i, gy + j, '#f0e8c8');
     }
     for (let i = 0; i < 5; i++) dot(cx + 2 + i, cy - 4 + i, i % 2 ? '#1a1820' : '#ffcc3d');
+  } else if (family === 'human') {
+    // A unit armband in a squad colour across the upper arm (the sprite's left third, a little
+    // above the middle), 3px deep so it survives the 2x scale: two guards are 'yellow' and 'cyan'.
+    const band = ['#ffcc3d', '#3fe0f0', '#ff6a9a'][(dup - 1) % 3]!;
+    const bx0 = x0 + Math.round((x1 - x0) * 0.08), bx1 = x0 + Math.round((x1 - x0) * 0.34);
+    const by = Math.round(y0 + (y1 - y0) * 0.36);
+    for (let y = by; y < by + 3; y++) for (let x = bx0; x <= bx1; x++) dot(x, y, y === by + 1 ? band : '#1a1820');
   } else if (family === 'beast') {
     const dir = dup % 2 ? 1 : -1;
     for (let i = 0; i < 6; i++) dot(cx + dir * (i - 2), cy - 3 + i, i % 3 === 1 ? '#f0c0b8' : '#c07878');

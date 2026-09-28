@@ -17,6 +17,8 @@ export interface EnemyArt {
   shadow: number;
   /** A distinct individual (its own look), not just the base sprite: no palette shift needed. */
   individual?: boolean | undefined;
+  /** The strike frame (jaws open, lunging, firing), shown during the attack motion. */
+  attack?: { canvas: HTMLCanvasElement; glow?: HTMLCanvasElement | undefined } | undefined;
 }
 
 const cache = new Map<string, EnemyArt>();
@@ -24,6 +26,10 @@ const cache = new Map<string, EnemyArt>();
 /** The individual being built (0 = the base look) and for which sprite; read by rigArt and face. */
 let V = 0;
 let building = '';
+/** Which frame a maker is drawing: its idle stance or its strike. */
+let POSE: 'idle' | 'attack' = 'idle';
+/** Creatures with a drawn strike frame. */
+const ATTACK_FRAMES = new Set(['rat', 'hound', 'drone']);
 
 /**
  * Other members of a gang or squad: when two or three of the same enemy share a fight they are
@@ -274,13 +280,27 @@ const CREATURES: Record<string, () => EnemyArt> = {
     const p = P(22, 16), g = P(22, 16);
     // V1: the chewed one (a torn ear, a kinked stub of tail, fat with boils).
     // V2: the lean one (ribby, long tail held high, both eyes lit).
-    if (V === 1) p.limb([[18, 11], [20, 10], [21, 8]], 1, 0.8, '#b07080');
-    else if (V === 2) p.limb([[18, 10], [19, 6], [21, 3], [21, 1]], 1, 0.5, '#b07080');
-    else p.limb([[18, 11], [20, 8], [21, 4]], 1, 0.6, '#b07080');
+    // (In the strike frame the tail is drawn whipped up, below.)
+    if (POSE !== 'attack') {
+      if (V === 1) p.limb([[18, 11], [20, 10], [21, 8]], 1, 0.8, '#b07080');
+      else if (V === 2) p.limb([[18, 10], [19, 6], [21, 3], [21, 1]], 1, 0.5, '#b07080');
+      else p.limb([[18, 11], [20, 8], [21, 4]], 1, 0.6, '#b07080');
+    }
     const fur = V === 2 ? '#7a6a64' : '#6a5a60';
-    if (V === 2) p.ball(12, 10, 6.5, 3.8, fur);
-    else p.ball(12, 10, V === 1 ? 7.5 : 7, V === 1 ? 5 : 4.5, fur);
-    p.ball(5, 9, 4, 3.5, fur);
+    const lunge = POSE === 'attack';
+    // The strike stretches the body long and low; the tail whips up behind it.
+    if (lunge) p.limb([[17, 9], [19, 4], [20, 1]], 1, 0.6, '#b07080');
+    if (V === 2) p.ball(lunge ? 13 : 12, lunge ? 10.5 : 10, lunge ? 7.5 : 6.5, lunge ? 3.3 : 3.8, fur);
+    else p.ball(lunge ? 13 : 12, lunge ? 10.5 : 10, (V === 1 ? 7.5 : 7) + (lunge ? 1 : 0), (V === 1 ? 5 : 4.5) - (lunge ? 0.7 : 0), fur);
+    p.ball(lunge ? 4 : 5, lunge ? 10 : 9, 4, 3.5, fur);
+    if (lunge) {
+      // Jaws wide: a dark gape, incisors top and bottom, forepaws thrown out ahead.
+      p.rect(0, 9, 3, 4, '#2a1418');
+      p.rect(0, 9, 2, 1, '#f4ecdc');
+      p.rect(0, 12, 2, 1, '#f4ecdc');
+      p.rect(2, 14, 4, 1, '#4a3a40');
+      p.rect(0, 14, 2, 1, '#4a3a40');
+    }
     p.ellipse(4, 5.5, 1.5, 1.8, '#d88a9a');
     if (V === 1) p.set(7, 6, '#d88a9a'); // the torn ear: a nub
     else p.ellipse(7, 5, 1.5, 1.8, '#d88a9a');
@@ -324,8 +344,18 @@ const CREATURES: Record<string, () => EnemyArt> = {
     p.set(17, 16, '#ff6a3a');
     // Head
     p.ball(7, 9, 5.5, 4.5, '#8a90a0');
-    p.poly([[1, 10], [5, 9], [5, 13], [1, 12]], '#5a5f70');
-    p.rect(1, 12, 4, 1, '#e8e0cc');
+    if (POSE === 'attack') {
+      // The jaw hinges down, teeth bared, the forelegs reaching.
+      p.poly([[0, 9], [5, 9], [5, 11], [0, 10]], '#5a5f70');
+      p.poly([[0, 13], [5, 12], [5, 15], [1, 16]], '#4a4e5c');
+      p.rect(1, 11, 4, 1, '#e8e0cc');
+      p.rect(1, 13, 4, 1, '#e8e0cc');
+      p.rect(1, 12, 4, 1, '#2a1418');
+      p.limb([[9, 16], [5, 20], [3, 23]], 1.6, 1.2, '#5a5f70');
+    } else {
+      p.poly([[1, 10], [5, 9], [5, 13], [1, 12]], '#5a5f70');
+      p.rect(1, 12, 4, 1, '#e8e0cc');
+    }
     p.poly([[6, 3], [9, 5], [7, 6]], '#5a5f70');
     p.set(4, 8, '#ff3a3a');
     g.set(4, 8, '#ff5a3a');
@@ -366,6 +396,15 @@ const CREATURES: Record<string, () => EnemyArt> = {
     p.line(17, 15, 18, 18, '#8a8e9c');
     g.set(10, 18, '#9ae8ff');
     g.set(18, 18, '#9ae8ff');
+    if (POSE === 'attack') {
+      // Firing: an arc jumps between the prongs and the camera flares white.
+      for (const [x, y] of [[11, 19], [12, 18], [13, 19], [14, 18], [15, 19], [16, 18], [17, 19]] as const) {
+        p.set(x, y, '#dff8ff');
+        g.set(x, y, '#9ae8ff');
+      }
+      p.ball(14, 14, 3, 3, '#ffffff');
+      g.ball(14, 14, 3, 3, '#ffd0d0');
+    }
     return art(p, 'hover', 0, g);
   },
   wisp: () => {
@@ -695,9 +734,15 @@ export function enemyArt(key: string, dup = 0): EnemyArt {
   building = key;
   try {
     a = make();
+    if (ATTACK_FRAMES.has(key)) {
+      POSE = 'attack';
+      const s = make();
+      a.attack = { canvas: s.canvas, glow: s.glow };
+    }
   } finally {
     K = 1;
     V = 0;
+    POSE = 'idle';
   }
   if (v) a.individual = true;
   cache.set(id, a);

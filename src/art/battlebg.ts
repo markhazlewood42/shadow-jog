@@ -24,6 +24,11 @@ export interface BattleBg {
   anim?: (ctx: Ctx, frame: number) => void;
   /** Ground line y where enemies stand. */
   ground: number;
+  /**
+   * Foreground framing, drawn over the fighters: dark silhouettes at the frame's edges (rails,
+   * cables, pipes) that put the camera inside the place instead of in front of a backdrop.
+   */
+  fg?: HTMLCanvasElement | undefined;
   /** Tint applied to enemies (ambient light color) and its strength. */
   tint: string;
   tintAmt: number;
@@ -664,9 +669,95 @@ export function battleBg(id: string): BattleBg {
   let b = cache.get(id);
   if (!b) {
     b = (MAKERS[id] ?? MAKERS.street!)();
+    b.fg ??= FRAMING[id]?.();
     cache.set(id, b);
   }
   return b;
 }
+
+// ------------------------------------------------------------------ foreground framing
+const FG_DARK = '#07060d';
+
+/** A sagging cable between two points (2px, with a rim of light along its top). */
+function cable(c: Ctx, x0: number, y0: number, x1: number, y1: number, sag: number, rim: string): void {
+  const n = Math.ceil(Math.abs(x1 - x0));
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, x = Math.round(x0 + (x1 - x0) * t), y = Math.round(y0 + (y1 - y0) * t + Math.sin(t * Math.PI) * sag);
+    c.fillStyle = FG_DARK;
+    c.fillRect(x, y, 1, 3);
+    c.fillStyle = rim;
+    c.fillRect(x, y, 1, 1);
+  }
+}
+
+/** A railing across the bottom corner: posts and a top rail, catching a little light. */
+function railing(c: Ctx, x0: number, x1: number, y: number, rim: string): void {
+  c.fillStyle = FG_DARK;
+  c.fillRect(x0, y, x1 - x0, 3);
+  c.fillRect(x0, y + 12, x1 - x0, 2);
+  for (let x = x0 + 2; x < x1; x += 12) c.fillRect(x, y, 3, BH - y);
+  c.fillStyle = rim;
+  c.fillRect(x0, y, x1 - x0, 1);
+  for (let x = x0 + 2; x < x1; x += 12) c.fillRect(x, y, 1, BH - y);
+}
+
+const FRAMING: Record<string, () => HTMLCanvasElement> = {
+  street: () => {
+    const s = surface(BW, BH), c = s.ctx;
+    cable(c, -4, 6, 70, 14, 9, '#ffc27a');
+    cable(c, 170, 12, BW + 4, 4, 8, '#ffc27a');
+    railing(c, 0, 34, 104, '#ffc27a');
+    railing(c, BW - 34, BW, 104, '#ffc27a');
+    return s.canvas;
+  },
+  junction: () => {
+    const s = surface(BW, BH), c = s.ctx;
+    // Pipes along the ceiling, dripping; a catwalk rail in the near corners.
+    c.fillStyle = FG_DARK;
+    c.fillRect(0, 0, 58, 6);
+    c.fillRect(BW - 70, 0, 70, 5);
+    c.fillStyle = '#ffcf7a';
+    c.fillRect(0, 5, 58, 1);
+    c.fillRect(BW - 70, 4, 70, 1);
+    c.fillStyle = '#6a9ab0';
+    for (const x of [18, 44, BW - 50, BW - 22]) c.fillRect(x, 7, 1, 2);
+    railing(c, 0, 28, 108, '#ffcf7a');
+    railing(c, BW - 28, BW, 108, '#ffcf7a');
+    return s.canvas;
+  },
+  lab: () => {
+    const s = surface(BW, BH), c = s.ctx;
+    // A conduit across the ceiling corner and the edges of consoles in the near corners.
+    c.fillStyle = FG_DARK;
+    c.fillRect(0, 0, 90, 4);
+    c.fillRect(0, 4, 6, 18);
+    c.fillStyle = '#ff6a7a';
+    c.fillRect(6, 4, 84, 1);
+    for (const [x, w] of [[0, 30], [BW - 30, 30]] as const) {
+      c.fillStyle = FG_DARK;
+      c.fillRect(x, 112, w, BH - 112);
+      c.fillStyle = '#3a2830';
+      c.fillRect(x, 112, w, 1);
+      c.fillStyle = '#ff6a7a';
+      c.fillRect(x + 4, 116, 3, 1);
+      c.fillRect(x + 10, 116, 5, 1);
+    }
+    return s.canvas;
+  },
+  core: () => {
+    const s = surface(BW, BH), c = s.ctx;
+    // The Warden's containment: heavy cable bundles hanging from the top corners, a field pylon
+    // standing at the near right.
+    cable(c, -6, 2, 60, 4, 16, '#8ae8ff');
+    cable(c, -6, 8, 46, 10, 12, '#8ae8ff');
+    cable(c, BW + 6, 3, BW - 64, 5, 15, '#8ae8ff');
+    c.fillStyle = FG_DARK;
+    c.fillRect(BW - 18, 70, 10, BH - 70);
+    c.fillRect(BW - 22, 70, 18, 4);
+    c.fillStyle = '#8ae8ff';
+    for (let y = 78; y < BH; y += 6) c.fillRect(BW - 17, y, 8, 1);
+    return s.canvas;
+  },
+};
 
 export const BG_IDS = Object.keys(MAKERS);

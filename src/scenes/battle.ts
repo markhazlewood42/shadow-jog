@@ -991,6 +991,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     for (const e of order) this.drawEnemy(g, e, f);
     // Party (back view)
     for (const p of this.battle.party) this.drawPartyMember(g, p, f);
+    // Foreground framing (rails, cables) over the fighters; FX and numbers stay on top of it.
+    if (this.bg.fg) g.drawImage(this.bg.fg, 0, 0);
     this.fx.render(g, (c, ch, x, y, col) => drawText(c, ch, x, y, { color: col, shadow: false }));
     // Targeting arrows (world space)
     if (this.mode === 'target') {
@@ -1059,8 +1061,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const who = dup ? enemyArt(ENEMIES[e.key]!.sprite, dup) : art;
     const flip = (c: HTMLCanvasElement) => (dup % 2 ? mirrored(c) : c);
     const creature = e.family === 'beast' || e.family === 'machine' || e.family === 'spirit';
-    const canvas = who.individual && !creature ? flip(who.canvas) : marked(variant(who.canvas, dup), e.family ?? '', dup);
-    const glow = who.individual && !creature ? who.glow && flip(who.glow) : who.glow && variant(who.glow, dup);
+    // The strike frame through the lunge of an attack (from rearing back to the settle).
+    const k = dd.poseT > 0 && dd.pose === 'attack' ? ENEMY_POSE_T - dd.poseT : -1;
+    const src = who.attack && k >= 6 && k < 18 ? who.attack : who;
+    // Humans with their own individual art still get the squad armband (marked()).
+    const canvas = who.individual && !creature ? marked(flip(src.canvas), e.family ?? '', dup) : marked(variant(src.canvas, dup), e.family ?? '', dup);
+    const glow = who.individual && !creature ? src.glow && flip(src.glow) : src.glow && variant(src.glow, dup);
     let ox = 0, oy = 0;
     switch (art.idle) {
       case 'hover': oy = Math.round(Math.sin(f * 0.08 + e.uid) * 2); break;
@@ -1132,7 +1138,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       g.globalAlpha = alpha;
     }
     if (dd.flash > 0 && dd.flash % 4 < 2) {
-      g.globalAlpha = 0.85 * alpha;
+      // A blink, not a blank: the sprite's detail stays visible under the white, so a still
+      // caught on this frame reads as a hit rather than a white smear.
+      g.globalAlpha = 0.55 * alpha;
       g.drawImage(silhouetteCache(canvas, '#ffffff'), dx, dy);
     }
     g.globalAlpha = 1;
