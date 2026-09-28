@@ -13,19 +13,19 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 
 | # | Area | Score | Round | Date | Δ | Blocking issues (short) |
 |---|---|---|---|---|---|---|
-| 1 | Engine & code | 8.2 | 5 | 2026-09-28 | +0.5 | BattleScene still large (split command/playback/shatter); CI perf thresholds loose; uncommented `as never` casts; prevCam alloc per tick |
-| 2 | Field art | 6.5 | 5 | 2026-09-28 | −0.5 | Leads share one default face; barrens texture reads as static (round-5 regression); cryopod occupants illegible; magenta fallback still in code; bar/plaza/junction thin |
-| 3 | Battle presentation | 7.2 | 5 | 2026-09-28 | −0.1 | **Bug:** damage number and status word collide ("154"/"STUNNED"); lab monitors compete with enemies; creature duplicates still read as copies; thin basic-attack FX; plain victory |
-| 4 | UI / UX | 6.0 | 5 | 2026-09-28 | −2.3 | **Cap — bug:** menu objective line overflows its box (OBJ.escape, 362px in 356px); world signs still readable behind the menu; no width regression test |
-| 5 | Combat design | 6.8 | 5 | 2026-09-28 | −1.0 | Humans have no elemental weakness; trash solvable with Auto; no attack-only baseline proving techs matter; rigid 1:1 combos; Guard TP refund loop |
-| 6 | Progression & economy | 7.2 | 5 | 2026-09-28 | +0.7 | Deterministic model only (no Monte Carlo); clinic costs unmodelled; thin CP1/CP3 margins; no E2E that walks zones or shops |
-| 7 | Narrative & writing | 8.0 | 5 | 2026-09-28 | +0.5 | Pale needs one ownable quirk; 3–4 meme-cadence lines; Kit's own reason before the pod; GDD ending out of date |
-| 8 | Level design | 7.0 | 5 | 2026-09-28 | −0.6 | One mechanic per dungeon; flat Warden arena; puzzle payoffs too subtle for a still; Places has no spatial map; secrets are yes/no prompts |
-| 9 | Audio | 7.8 | 5 | 2026-09-28 | +0.8 | Narrative cues reset the room's reverb (cryopod); town should be `room`; spaces implicit for most songs; wet sends bypass bus compressors; no music-volume preview |
-| 10 | Feel & polish | 7.2 | 5 | 2026-09-28 | −0.6 | Same floater collision; no input-latency evidence; DoT ticks look like hits; unreachable speed-table entries |
-| 11 | Stability | 8.2 | 5 | 2026-09-28 | +0.2 | NaN/Infinity pass validation; Chromium-only E2E; no beforeunload test; read-failure storage path untested |
+| 1 | Engine & code | 7.7 | 6 | 2026-09-28 | −0.5 | BattleScene still one class for flow, playback, layout and rendering (split EventPlayer/Renderer); economy.spec not in CI; FieldScene 923 lines; dense non-null assertions in combo/target resolution; `Input.dir()` allocates per tick |
+| 2 | Field art | 7.2 | 6 | 2026-09-28 | +0.7 | Annex rooms read as one room (no per-wing accent/props); Rustfang tag illegible; faces don't survive play-camera distance; tank specimens all read alike; crowd shares one silhouette per body; world ground lacks macro detail |
+| 3 | Battle presentation | 7.6 | 6 | 2026-09-28 | +0.4 | Enemies have no attack keyframe (lunge is an offset); hit-flash frame reads as a glitch in a still; human duplicates only a skin swap; no foreground framing layer in backdrops; generic enemy cast/aim motion |
+| 4 | UI / UX | 8.0 | 6 | 2026-09-28 | +2.0 | Rook's battle card has no bar under SKILL; notice banner hard-slices text; shop compare / equip-reason lines unclamped and untested; GDD control table disagrees with Controls screen |
+| 5 | Combat design | 7.5 | 6 | 2026-09-28 | +0.7 | Combos almost never fire in trash; bosses won 92–99% by a competent (not optimal) player vs a 70–75% design floor; trash over in 2–3 rounds; human shock weakness mild; Rook's uses in no-rest runs unverified; Guardian silently doesn't cover AoE |
+| 6 | Progression & economy | 8.1 | 6 | 2026-09-28 | +0.9 | No endgame cred sink (900–1,150¢ idle); trash nearly risk-free; no-grind proven only with optional chests opened; GDD level cap (20) vs MAX_LEVEL 30; top-tier gear chest-only with no buyable fallback |
+| 7 | Narrative & writing | 8.0 | 6 | 2026-09-28 | 0.0 | Shared trail-off/deflate joke rhythm (Dutch, Hex, Mags); the cryopod reveal is compressed; Pale's motive for Kit vague; corporate satire never escalates; Pale's intro monologue long; Hex's anxious self-narration twice in her arc |
+| 8 | Level design | 7.2 | 6 | 2026-09-28 | +0.2 | Annex wings indistinguishable; Rustyard maze has no signposts; flooded junction an undifferentiated lake; boxy rect geometry, no set-piece shapes; maze secret shallow |
+| 9 | Audio | 7.2 | 6 | 2026-09-28 | −0.6 | No rendered audio evidence; bare-oscillator timbres thin; fully quantized, accents unused, little swing; Game Over cue ends and leaves silence; music/SFX gain asymmetry; crit ducking may pump |
+| 10 | Feel & polish | 7.0 | 6 | 2026-09-28 | −0.2 | **Bug:** Pale's speech bubble covers his own portrait on the finale panel (`dx` portraits); **bug:** WEAK!/CRITICAL label and the damage number still overlap during the first frames; victory bars start slow |
+| 11 | Stability | **8.7** | 6 | 2026-09-28 | +0.5 | **PASS.** Nice-to-haves: Firefox in CI; step-chain migrations; unused `game.paused` is a softlock trap; no two-tab E2E |
 
-## Round 6 (verification pending)
+## Round 6 (verified 2026-09-28)
 
 Verifier spread is now visible: the same build scores ±0.5–1.0 between independent reviewers. Round 6 prioritised the
 defects that are real regardless of reviewer (the objective overflow, the floater collision, the reverb reset, the
