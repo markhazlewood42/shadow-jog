@@ -111,6 +111,17 @@ export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, 
     if (foes.length >= 3 && !hasStatus(foes[0]!, 'exposed')) pair(hex, 'analyze', rook, 'quickdraw', foes[0]!.uid);
   }
 
+  // Everyday combos: a competent crew fuses whenever the partners are free and can pay, not only
+  // for bosses. Against any group: Target Lock's sure shots on everyone once Hex is along, else
+  // Thunder Rift to delete the toughest; Pyre Storm burns a machine pair. Rook keeps a reserve.
+  // (Round one against a human pack is Rook's Suppression opener; fuse from round two there.)
+  if (useCombos && !boss && foes.length >= 2 && !(b.round === 1 && humans.length && can(rook, 'suppress'))) {
+    const toughest = [...foes].sort((x, y) => y.hp - x.hp)[0]!;
+    if ((rook?.uses.quickdraw ?? 0) >= 2) pair(hex, 'analyze', rook, 'quickdraw', foes[0]!.uid);
+    if ((rook?.uses.arc_cut ?? 0) >= 3) pair(kit, 'flash_step', rook, 'arc_cut', toughest.uid);
+    if (machines.length >= 2) pair(sable, 'firebrand', hex, 'overload');
+  }
+
   // A turret spinning up or an arcanist channelling: Scramble interrupts either (jam / blind);
   // failing that, the hurt brace.
   const winding = foes.find((f) => f.memory.spin || f.memory.surge);
@@ -234,6 +245,10 @@ export interface RunResult {
   roundsPerBattle: number;
   /** Where runs ended: "group @fight outcome" → count. */
   fails: Record<string, number>;
+  /** Rook's skill charges left at the end of a cleared run, as a share of his full set (mean). */
+  rookLeft: number;
+  /** Share of cleared runs where Rook ended with no charges at all (down to Attack only). */
+  rookDry: number;
 }
 
 /** What the player carries into a dungeon. */
@@ -253,7 +268,7 @@ export interface Supplies {
 export function simulateRun(label: string, loadout: Loadout[], table: string, battles: number, kit: Supplies, n = 60, seed = 3): RunResult {
   const rng = new Rng(seed);
   const groups = ENCOUNTERS[table]!;
-  let cleared = 0, endHp = 0, used = 0, rounds = 0, fights = 0;
+  let cleared = 0, endHp = 0, used = 0, rounds = 0, fights = 0, rookLeft = 0, rookDry = 0;
   const fails: Record<string, number> = {};
   for (let i = 0; i < n; i++) {
     const p = buildParty(loadout);
@@ -262,7 +277,9 @@ export function simulateRun(label: string, loadout: Loadout[], table: string, ba
     for (let k = 0; k < battles; k++) {
       const g = rng.pick(groups);
       const b = new Battle(p, enemyParty(g.e), new Rng(rng.int(1, 1e9)), { useItem: () => take(bag) && ++used > 0 });
-      while (!b.outcome && b.round < 60) b.resolveRound(policy(b, false, bag, true));
+      // Combos too, as a player would: the everyday ones draw on Rook's charges and stop when
+      // his reserve runs low, which is the dungeon's real budget.
+      while (!b.outcome && b.round < 60) b.resolveRound(policy(b, true, bag, true));
       rounds += b.round;
       fights++;
       if (b.outcome !== 'win') {
@@ -293,13 +310,22 @@ export function simulateRun(label: string, loadout: Loadout[], table: string, ba
         if ((c.key === 'kit' || c.key === 'sable') && c.hp > 0 && c.tp < c.base.maxTp * 0.25 && bag.neurotab > 0) { bag.neurotab--; c.tp = Math.min(c.base.maxTp, c.tp + 20); }
       }
     }
-    if (ok) cleared++;
+    if (ok) {
+      cleared++;
+      const rook = p.find((c) => c.key === 'rook');
+      if (rook) {
+        const full = Object.keys(rook.uses).reduce((n, id) => n + (ABILITIES[id]?.uses ?? 0), 0);
+        const left = Object.values(rook.uses).reduce((n, v) => n + v, 0);
+        rookLeft += full ? left / full : 1;
+        if (left === 0) rookDry++;
+      }
+    }
     endHp += p.reduce((s, c) => s + Math.max(0, c.hp) / c.base.maxHp, 0) / p.length;
   }
-  return { label, cleared, n, endHpPct: (endHp / n) * 100, medkitsUsed: used / n, roundsPerBattle: rounds / fights, fails };
+  return { label, cleared, n, endHpPct: (endHp / n) * 100, medkitsUsed: used / n, roundsPerBattle: rounds / fights, fails, rookLeft: cleared ? rookLeft / cleared : 0, rookDry: cleared ? rookDry / cleared : 0 };
 }
 
 export function fmtRun(r: RunResult): string {
   const fails = Object.entries(r.fails).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ×${v}`).join(', ');
-  return `${r.label.padEnd(28)} cleared ${((r.cleared / r.n) * 100).toFixed(0).padStart(3)}%  end hp ${r.endHpPct.toFixed(0).padStart(3)}%  medkits ${r.medkitsUsed.toFixed(1)}  rounds/battle ${r.roundsPerBattle.toFixed(1)}${fails ? `\n    lost to: ${fails}` : ''}`;
+  return `${r.label.padEnd(28)} cleared ${((r.cleared / r.n) * 100).toFixed(0).padStart(3)}%  end hp ${r.endHpPct.toFixed(0).padStart(3)}%  medkits ${r.medkitsUsed.toFixed(1)}  rounds/battle ${r.roundsPerBattle.toFixed(1)}  rook charges left ${(r.rookLeft * 100).toFixed(0)}% (dry ${(r.rookDry * 100).toFixed(0)}%)${fails ? `\n    lost to: ${fails}` : ''}`;
 }

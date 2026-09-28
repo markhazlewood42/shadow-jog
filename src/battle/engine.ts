@@ -436,9 +436,13 @@ export class Battle {
       case 'allies':
         return friends;
       case 'enemies':
+      case 'random_enemies': {
+        // Cover only redirects single-target attacks. Say so when a blast hits a covered side,
+        // so leaning on Guardian against an area attack isn't a silent non-answer.
+        const cover = foes.find((p) => this.has(p, 'cover'));
+        if (cover && ab.effects.some((e) => e.type === 'damage')) this.ev.push({ t: 'msg', text: `${cover.name} can’t cover a blast!` });
         return foes;
-      case 'random_enemies':
-        return foes;
+      }
       case 'ally_down': {
         const t = this.unit(target);
         if (t && t.side === user.side && t.hp <= 0) return [t];
@@ -488,6 +492,11 @@ export class Battle {
             }
           } else {
             for (const t of targets) for (let h = 0; h < hits; h++) if (t.hp > 0) this.damage(actors, ab, eff, t, itemId);
+            if (eff.splash && targets.length === 1) {
+              const primary = targets[0]!;
+              const arc = { ...eff, mult: (eff.mult ?? 1) * eff.splash, critBonus: 0, splash: undefined, hits: 1 };
+              for (const o of this.alive(primary.side)) if (o !== primary) this.damage(actors, ab, arc, o, itemId);
+            }
           }
           break;
         }

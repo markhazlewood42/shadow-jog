@@ -225,6 +225,23 @@ describe('enemy wind-ups', () => {
     expect(ev.some((e) => e.t === 'tp' && e.target === hex.uid && e.amount >= 2)).toBe(true);
   });
 
+  it('Guardian says so when a blast hits the crew it can’t cover', () => {
+    // The Warden favours Suppression Grid (party-wide): over a few rounds it will fire one.
+    let said = false;
+    for (let seed = 1; seed <= 10 && !said; seed++) {
+      const b = new Battle(party(['rook', 'kit'], 12), enemyParty(['warden']), new Rng(seed));
+      for (let r = 0; r < 4 && !said && !b.outcome; r++) {
+        const rook = b.party[0]!;
+        rook.hp = rook.base.maxHp;
+        b.party[1]!.hp = b.party[1]!.base.maxHp;
+        const ev = b.resolveRound([{ actor: rook.uid, type: 'skill', id: 'guardian' }, { actor: b.party[1]!.uid, type: 'guard' }]);
+        said = ev.some((e) => e.t === 'msg' && e.text.includes('can’t cover a blast'));
+        rook.uses.guardian = 3;
+      }
+    }
+    expect(said).toBe(true);
+  });
+
   it('Guard gives no TP two rounds running, so turtling is not a TP battery', () => {
     const b = new Battle(party(['hex'], 6), enemyParty(['glowrat']), new Rng(1));
     const hex = b.party[0]!;

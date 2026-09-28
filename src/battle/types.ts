@@ -22,6 +22,9 @@ export type Effect =
       pct?: number | undefined;
       /** Heals the user for this fraction of damage dealt. */
       drain?: number | undefined;
+      /** A single-target hit that also arcs through the rest of the target's side at this
+       *  fraction of its multiplier (no crit, no riders). */
+      splash?: number | undefined;
       /** Only affects this family (e.g. cyber programs). */
     }
   | { type: 'heal'; power?: number; pct?: number }

@@ -9,6 +9,11 @@ import { fmt, fmtRun, simulate, simulateRun } from './sim';
 import { STAGE_PARTY } from './stages';
 import { COMBOS, LEARNSETS } from '../src/data/abilities';
 
+/**
+ * Bosses have a ceiling as well as a floor: a competent (not optimal) player should usually win,
+ * but not always; one who never loses isn't being tested.
+ */
+const BOSS_WIN_MAX = 0.93;
 const stages: { label: string; stage: string; table: string; win: number; rounds: [number, number]; hp: [number, number] }[] = [
   { label: 'street  (opening)', stage: 'street', table: 'street', win: 0.97, rounds: [1.5, 5], hp: [5, 40] },
   { label: 'barrens (to Rustyard)', stage: 'barrens', table: 'barrens', win: 0.95, rounds: [1.5, 5], hp: [8, 45] },
@@ -34,6 +39,7 @@ describe('balance', () => {
   for (const { s, r } of results) {
     it(`${s.label} within targets`, () => {
       expect(r.wins / r.n).toBeGreaterThanOrEqual(s.win);
+      if (s.table.startsWith('f_')) expect(r.wins / r.n).toBeLessThanOrEqual(BOSS_WIN_MAX);
       expect(r.rounds).toBeGreaterThanOrEqual(s.rounds[0]);
       expect(r.rounds).toBeLessThanOrEqual(s.rounds[1]);
       expect(r.hpLostPct).toBeGreaterThanOrEqual(s.hp[0]);
@@ -52,6 +58,10 @@ describe('dungeon attrition', () => {
     console.log(['', ...runs.map(({ r }) => fmtRun(r))].join('\n'));
   });
   for (const { r, min } of runs) {
+    it(`${r.label}: Rook doesn't end the dungeon on Attack alone`, () => {
+      // Combos and his openers draw on his charges; a run that empties them has spent Rook.
+      expect(r.rookDry).toBeLessThanOrEqual(0.2);
+    });
     it(`${r.label} is survivable`, () => {
       expect(r.cleared / r.n).toBeGreaterThanOrEqual(min);
     });
@@ -88,4 +98,15 @@ describe('alternative builds', () => {
     for (const [stage, party] of Object.entries(STAGE_PARTY))
       for (const l of party) for (const id of Object.values(l.equip ?? {})) expect(sold.has(id) || found.has(id) || starting.has(id), `${stage}: ${l.id} ${id}`).toBe(true);
   });
+});
+
+describe('combos in ordinary fights', () => {
+  for (const [stage, table] of [['barrens', 'barrens'], ['sinkline', 'sinkline'], ['annex', 'annex']] as const) {
+    it(`${stage}: a crew that fuses finishes sooner or bleeds less than one that doesn't`, () => {
+      const withCombos = simulate(stage, STAGE_PARTY[stage]!, table, 200, 5, true);
+      const without = simulate(stage, STAGE_PARTY[stage]!, table, 200, 5, false);
+      expect(withCombos.combos).toBeGreaterThanOrEqual(0.5);
+      expect(withCombos.rounds < without.rounds - 0.2 || withCombos.hpLostPct < without.hpLostPct - 2).toBe(true);
+    });
+  }
 });

@@ -72,7 +72,7 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   guardian: A({
     id: 'guardian', name: 'Guardian', kind: 'skill', uses: 3, target: 'self', priority: 60,
-    desc: 'Shield the crew: Rook takes hits aimed at allies this round, at half damage.',
+    desc: 'Rook takes single-target hits aimed at allies this round, at half damage. Blasts still hit everyone.',
     effects: [{ type: 'buff', status: 'cover', turns: 1 }, { type: 'buff', status: 'guard', turns: 1 }], fx: 'buff',
   }),
   moonfall: A({
@@ -163,8 +163,8 @@ export const ABILITIES: Record<string, Ability> = {
   // ------------------------------------------------------------------ COMBOS
   combo_thunder_rift: A({
     id: 'combo_thunder_rift', name: 'Thunder Rift', kind: 'combo', target: 'enemy', element: 'shock',
-    desc: 'Kit blurs in, Rook follows through the gap. Massive damage and stun.',
-    effects: [{ type: 'damage', stat: 'atk', mult: 3.6, critBonus: 20 }, { type: 'status', status: 'stun', chance: 0.6, turns: 1 }], fx: 'thunder_rift',
+    desc: 'Kit blurs in, Rook cuts through the gap; the rift arcs through the pack. Stuns.',
+    effects: [{ type: 'damage', stat: 'atk', mult: 3.6, critBonus: 20, splash: 0.15 }, { type: 'status', status: 'stun', chance: 0.6, turns: 1 }], fx: 'thunder_rift',
   }),
   combo_target_lock: A({
     id: 'combo_target_lock', name: 'Target Lock', kind: 'combo', target: 'enemies',

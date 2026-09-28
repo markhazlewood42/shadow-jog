@@ -110,7 +110,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   knuckles: E({
     id: 'knuckles', name: '"Knuckles" Tran', family: 'human', sprite: 'brute', boss: true,
-    hp: 310, atk: 21, def: 10, mnd: 10, res: 8, agi: 11, xp: 130, cred: 300,
+    hp: 440, atk: 32, def: 11, mnd: 10, res: 8, agi: 11, xp: 130, cred: 300,
     drops: [{ id: 'lucky_coin', chance: 1 }],
     moves: [{ id: 'attack', w: 3 }, { id: 'e_haymaker', w: 2 }, { id: 'e_rally', w: 2, when: 'no_atk_buff' }, { id: 'e_pipe_bomb', w: 1.5 }],
     lore: 'Rustfang enforcer. Named for his hands, both of which are chrome.',
@@ -119,7 +119,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   // ------------------------------------------------------------------ the Sinkline
   sewer_ghoul: E({
     id: 'sewer_ghoul', name: 'Sewer Ghoul', family: 'ghoul', sprite: 'ghoul',
-    hp: 112, atk: 29, def: 10, mnd: 9, res: 8, agi: 9, xp: 26, cred: 20,
+    hp: 124, atk: 35, def: 10, mnd: 9, res: 8, agi: 9, xp: 26, cred: 20,
     drops: [{ id: 'ghoul_tooth', chance: 0.25 }],
     // Wounded ghouls frenzy.
     moves: [{ id: 'e_claw', w: 3 }, { id: 'e_rot_bite', w: 2 }, { id: 'e_rot_bite', w: 5, when: 'hp_below_half' }],
@@ -127,21 +127,21 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   rust_crab: E({
     id: 'rust_crab', name: 'Rust Crab', family: 'beast', sprite: 'crab',
-    hp: 94, atk: 27, def: 30, mnd: 5, res: 10, agi: 7, xp: 29, cred: 28, weak: { mana: 1.3 },
+    hp: 98, atk: 31, def: 30, mnd: 5, res: 10, agi: 7, xp: 29, cred: 28, weak: { mana: 1.3 },
     drops: [{ id: 'crab_shell', chance: 0.3 }],
     moves: [{ id: 'e_pincer', w: 3 }, { id: 'e_harden', w: 1, when: 'no_def_buff' }, { id: 'e_shell_wall', w: 4, when: 'shield_ally' }],
     lore: 'Armored like a tank. Techs and magic get under the shell.',
   }),
   maint_drone: E({
     id: 'maint_drone', name: 'Maintenance Drone', family: 'machine', sprite: 'maint',
-    hp: 83, atk: 25, def: 14, mnd: 20, res: 12, agi: 12, xp: 24, cred: 40,
+    hp: 92, atk: 30, def: 14, mnd: 24, res: 12, agi: 12, xp: 24, cred: 40,
     drops: [{ id: 'scrap_chip', chance: 0.35 }],
     moves: [{ id: 'attack', w: 1 }, { id: 'e_welder', w: 2 }, { id: 'e_repair', w: 3, when: 'ally_hurt' }],
     lore: 'Still fixing the tunnels. Views intruders as damage.',
   }),
   drowned_shade: E({
     id: 'drowned_shade', name: 'Drowned Shade', family: 'spirit', sprite: 'shade',
-    hp: 76, atk: 13, def: 10, mnd: 20, res: 20, agi: 14, xp: 31, cred: 24,
+    hp: 80, atk: 13, def: 10, mnd: 23, res: 20, agi: 14, xp: 31, cred: 24,
     drops: [{ id: 'ecto_vial', chance: 0.2 }],
     // Shades wail together on a rhythm: every third round, expect it.
     moves: [{ id: 'e_chill', w: 3 }, { id: 'e_wail', w: 1 }, { id: 'e_wail', w: 8, when: 'every_3' }],
@@ -149,7 +149,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   gutter_eel: E({
     id: 'gutter_eel', name: 'Gutter Eel', family: 'beast', sprite: 'eel', weak: { shock: 1.5 },
-    hp: 86, atk: 30, def: 10, mnd: 20, res: 8, agi: 18, xp: 26, cred: 18,
+    hp: 94, atk: 35, def: 10, mnd: 20, res: 8, agi: 18, xp: 26, cred: 18,
     moves: [{ id: 'e_bite', w: 2 }, { id: 'e_coil_shock', w: 2 }, { id: 'e_coil_shock', w: 4, when: 'hp_below_half' }],
     lore: 'Two meters of teeth and bioelectric spite.',
   }),
@@ -254,6 +254,8 @@ export const ENCOUNTERS: Record<string, EncounterGroup[]> = {
     { w: 1, e: ['rust_crab', 'maint_drone'] },
     { w: 1, e: ['rust_crab', 'sewer_ghoul'] },
     { w: 1, e: ['drowned_shade', 'drowned_shade', 'glowrat'] },
+    // A mixed pack from the flooded platforms: something for every element, and a hunter.
+    { w: 2, e: ['sewer_ghoul', 'gutter_eel', 'glowrat'] },
   ],
   annex: [
     { w: 3, e: ['km_sentinel', 'km_sentinel'] },
