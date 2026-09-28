@@ -1,6 +1,10 @@
 
-Running 1 test using 1 worker
+Running 5 tests using 1 worker
 
-  ok 1 e2e\playthrough.spec.ts:38:1 › Chapter 1 can be played start to finish (29.5s)
+  ok 1 e2e\gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight (3.7s)
+  ok 2 e2e\gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.2s)
+  ok 3 e2e\gameover.spec.ts:73:1 › Return to Title from Game Over (3.4s)
+  ok 4 e2e\gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it (3.8s)
+  ok 5 e2e\playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish (31.2s)
 
-  1 passed (30.2s)
+  5 passed (46.1s)
