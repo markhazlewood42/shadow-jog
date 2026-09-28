@@ -19,7 +19,7 @@ import { LOOKS } from '../data/looks';
 import { getMap } from '../data/maps';
 import { DialogScene } from './dialog';
 import { chestSprites } from '../field/chests';
-import { UI } from '../ui/draw';
+import { bandGradient, UI } from '../ui/draw';
 import { fieldHooks } from '../game/hooks';
 import { reportError } from '../engine/errors';
 
@@ -537,24 +537,14 @@ export class FieldScene extends Scene<void> {
     blit(ctx, this.map.emit, cx, cy);
     for (const a of this.map.anims) if (!a.lit && inView(a, cx, cy)) a.draw(ctx, f, cx, cy);
 
-    // Depth-sorted sprites (pooled entries; no per-frame closures).
+    // Depth-sorted sprites (pooled entries; no per-frame closures or objects).
     let n = 0;
-    const push = (baseY: number, kind: 0 | 1 | 2, ref: SortedSprite | Chest | Actor) => {
-      let e = this.drawPool[n];
-      if (!e) this.drawPool[n] = e = { baseY, kind, ref };
-      else {
-        e.baseY = baseY;
-        e.kind = kind;
-        e.ref = ref;
-      }
-      n++;
-    };
     for (const s of this.map.sprites) {
       if (s.x - cx > W || s.y - cy > H || s.x + s.canvas.width - cx < 0 || s.y + s.canvas.height - cy < 0) continue;
-      push(s.baseY, 0, s);
+      n = this.pushDraw(n, s.baseY, 0, s);
     }
-    for (const c of this.chests) push((c.def.y + 1) * TS - 1, 1, c);
-    for (const a of actors) push(a.py, 2, a);
+    for (const c of this.chests) n = this.pushDraw(n, (c.def.y + 1) * TS - 1, 1, c);
+    for (const a of actors) n = this.pushDraw(n, a.py, 2, a);
     const list = this.drawList;
     list.length = n;
     for (let i = 0; i < n; i++) list[i] = this.drawPool[i]!;
@@ -617,6 +607,19 @@ export class FieldScene extends Scene<void> {
 
   private visibleBuf: Actor[] = [];
   private drawPool: DrawEntry[] = [];
+  private bannerGrad: { x: number; g: CanvasGradient } | null = null;
+
+  /** Fill (or reuse) draw-list slot `n`; returns the next free slot. */
+  private pushDraw(n: number, baseY: number, kind: 0 | 1 | 2, ref: SortedSprite | Chest | Actor): number {
+    const e = this.drawPool[n];
+    if (!e) this.drawPool[n] = { baseY, kind, ref };
+    else {
+      e.baseY = baseY;
+      e.kind = kind;
+      e.ref = ref;
+    }
+    return n + 1;
+  }
   private drawList: DrawEntry[] = [];
 
   /** Actors to draw this frame (reuses one buffer; call once per frame). */
@@ -645,12 +648,9 @@ export class FieldScene extends Scene<void> {
     const text = this.banner.text;
     const w = measure(text) + 40;
     const x = Math.round((W - w) / 2), y = 18;
-    const grd = ctx.createLinearGradient(x, 0, x + w, 0);
-    grd.addColorStop(0, 'rgba(10,8,20,0)');
-    grd.addColorStop(0.2, 'rgba(10,8,20,0.85)');
-    grd.addColorStop(0.8, 'rgba(10,8,20,0.85)');
-    grd.addColorStop(1, 'rgba(10,8,20,0)');
-    ctx.fillStyle = grd;
+    // One gradient per banner (its width is fixed while it shows), not one per frame.
+    if (this.bannerGrad?.x !== x) this.bannerGrad = { x, g: bandGradient(ctx, x, w, 0.2, 0.85) };
+    ctx.fillStyle = this.bannerGrad.g;
     ctx.fillRect(x, y, w, 26);
     ctx.fillStyle = UI.pink;
     const lw = Math.min(w - 40, Math.round((t / 30) * (w - 40)));

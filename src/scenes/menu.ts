@@ -399,7 +399,8 @@ export class MenuScene extends Scene<MenuResult> {
 
   // ------------------------------------------------------------------ render
   render(ctx: Ctx): void {
-    ctx.fillStyle = 'rgba(7,6,13,0.55)';
+    // Dark enough that world signage behind the menu can't read as stray glyphs.
+    ctx.fillStyle = 'rgba(7,6,13,0.82)';
     ctx.fillRect(0, 0, W, H);
     if (this.mode === 'status') {
       this.renderStatus(ctx);

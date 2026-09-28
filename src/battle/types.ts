@@ -121,7 +121,7 @@ export interface Command {
 
 export type BattleEvent =
   | { t: 'turn'; actor: number }
-  | { t: 'act'; actor: number; name: string; kind: Ability['kind']; fx: string; targets: number[]; element?: Element }
+  | { t: 'act'; actor: number; id: string; name: string; kind: Ability['kind']; fx: string; targets: number[]; element?: Element }
   | { t: 'combo'; name: string; actors: number[]; fx: string; targets: number[] }
   | { t: 'damage'; target: number; amount: number; crit: boolean; element: Element; weak: boolean; resist: boolean; hp: number }
   | { t: 'miss'; target: number }

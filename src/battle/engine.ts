@@ -365,7 +365,7 @@ export class Battle {
     }
     const targets = this.resolveTargets(lead, ab, act.target);
     if (act.combo) this.ev.push({ t: 'combo', name: ab.name, actors: act.actors, fx: ab.fx, targets: targets.map((t) => t.uid) });
-    else this.ev.push({ t: 'act', actor: lead.uid, name: ab.name, kind: ab.kind, fx: ab.fx, targets: targets.map((t) => t.uid), element: ab.element ?? (ab.kind === 'attack' ? lead.weaponElement : undefined) });
+    else this.ev.push({ t: 'act', actor: lead.uid, id: ab.id, name: ab.name, kind: ab.kind, fx: ab.fx, targets: targets.map((t) => t.uid), element: ab.element ?? (ab.kind === 'attack' ? lead.weaponElement : undefined) });
     if (ab === GUARD) {
       this.addStatus(lead, 'guard', 1);
       return;
@@ -398,7 +398,7 @@ export class Battle {
       .filter((ab): ab is Ability => !!ab && ab.effects.some((e) => e.type === 'damage'));
     const ab = own.length ? this.rng.pick(own) : { ...ABILITIES.attack!, effects: [{ type: 'damage' as const, stat: 'atk' as const, mult: 1.3 }] };
     const targets = ab.target === 'enemies' || ab.target === 'random_enemies' ? victims : [this.rng.pick(victims)];
-    this.ev.push({ t: 'act', actor: u.uid, name: `Hijacked: ${ab.name}`, kind: 'enemy', fx: ab.fx, targets: targets.map((t) => t.uid), element: ab.element });
+    this.ev.push({ t: 'act', actor: u.uid, id: ab.id, name: `Hijacked: ${ab.name}`, kind: 'enemy', fx: ab.fx, targets: targets.map((t) => t.uid), element: ab.element });
     this.applyEffects([u], ab, targets);
   }
 

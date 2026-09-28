@@ -22,7 +22,7 @@ import { equipRegen, grantXp, knownAbilities, type LevelUp } from '../game/party
 import { settings } from '../game/settings';
 import { debug, PLAYTEST_ROUNDS } from '../game/debug';
 import { learn, removeItem, state, type MemberId } from '../game/state';
-import { drawBar, drawWindow, hpColor, UI } from '../ui/draw';
+import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
 
 export interface BattleSetup {
@@ -618,7 +618,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           dd.lunge = 5;
           sfx('enemy_act');
         }
-        const cry = e.kind === 'enemy' ? ABILITIES[Object.keys(ABILITIES).find((k) => ABILITIES[k]!.name === e.name) ?? '']?.cry : undefined;
+        const cry = e.kind === 'enemy' ? ABILITIES[e.id]?.cry : undefined;
         if (cry) this.say(cry);
         await this.w(e.kind === 'attack' ? 8 : 16);
         const timing = this.fx.play(e.fx, this.pos(e.actor), e.targets.map((t) => this.pos(t)), e.element === 'shock' ? '#9ae8ff' : undefined);
@@ -1359,12 +1359,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       ctx.globalAlpha = a;
       if (b.big) {
         const y = 92;
-        const grd = ctx.createLinearGradient(0, 0, W, 0);
-        grd.addColorStop(0, 'rgba(10,8,20,0)');
-        grd.addColorStop(0.15, 'rgba(10,8,20,0.9)');
-        grd.addColorStop(0.85, 'rgba(10,8,20,0.9)');
-        grd.addColorStop(1, 'rgba(10,8,20,0)');
-        ctx.fillStyle = grd;
+        bigBandGrad ??= bandGradient(ctx, 0, W, 0.15, 0.9);
+        ctx.fillStyle = bigBandGrad;
         ctx.fillRect(0, y, W, 32);
         ctx.fillStyle = b.color;
         ctx.fillRect(40, y, W - 80, 1);
@@ -1756,6 +1752,8 @@ function drawBig(ctx: Ctx, text: string, cx: number, y: number, color: string): 
   const w = drawText(bigBuf.ctx, text, 1, 1, { color, shadow: '#1a1020' });
   ctx.drawImage(bigBuf.canvas, 0, 0, w + 3, 12, Math.round(cx - w), y, (w + 3) * 2, 24);
 }
+
+let bigBandGrad: CanvasGradient | null = null;
 
 function fxSound(fx: string): string {
   if (['slash', 'claw', 'whip', 'arc_cut', 'moonfall', 'flash_step'].includes(fx)) return 'slash';

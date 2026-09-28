@@ -152,3 +152,13 @@ export function drawDivider(ctx: Ctx, x: number, y: number, w: number): void {
   ctx.fillStyle = '#0a0918';
   ctx.fillRect(x, y + 1, w, 1);
 }
+
+/** A horizontal band that fades out at both ends (banner backing). */
+export function bandGradient(ctx: Ctx, x: number, w: number, edge: number, alpha: number): CanvasGradient {
+  const g = ctx.createLinearGradient(x, 0, x + w, 0);
+  g.addColorStop(0, 'rgba(10,8,20,0)');
+  g.addColorStop(edge, `rgba(10,8,20,${alpha})`);
+  g.addColorStop(1 - edge, `rgba(10,8,20,${alpha})`);
+  g.addColorStop(1, 'rgba(10,8,20,0)');
+  return g;
+}
