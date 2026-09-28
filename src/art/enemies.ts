@@ -496,13 +496,18 @@ const CREATURES: Record<string, () => EnemyArt> = {
     p.rect(9, 1, 8, 3, '#2a4a58');
     // Dripping tail
     for (let i = 0; i < 5; i++) p.limb([[7 + i * 3, 24], [6 + i * 3, 28 + (i % 2) * 2], [7 + i * 3, 32]], 1.6, 0.4, '#2e5a68');
-    p.ellipse(10.5, 9, 1.2, 1.6, '#0a141a');
-    p.ellipse(15.5, 9, 1.2, 1.6, '#0a141a');
-    p.ellipse(13, 13, 1.5, 1, '#0a141a');
+    // Hollow, running eyes and a long drowned gape: a commuter still screaming underwater, not a
+    // friendly blob.
+    p.ellipse(10.5, 8.5, 1, 2.2, '#0a141a');
+    p.ellipse(15.5, 8.5, 1, 2.2, '#0a141a');
+    p.rect(10, 11, 1, 4, '#1e3a44');
+    p.rect(16, 11, 1, 5, '#1e3a44');
+    p.ellipse(13, 14.5, 1.4, 3, '#0a141a');
+    p.rect(12, 17, 1, 3, '#1e3a44');
     // Briefcase
     p.rect(17, 18, 6, 4, '#2a4048');
-    g.set(10, 9, '#9af0ff');
-    g.set(15, 9, '#9af0ff');
+    g.set(10, 10, '#6adcf0');
+    g.set(15, 10, '#6adcf0');
     return art(p, 'flicker', 0, g);
   },
   eel: () => {

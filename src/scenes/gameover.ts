@@ -6,12 +6,15 @@ import { Scene, W, H } from '../engine/game';
 import { hasAnySave } from '../game/save';
 import { drawWindow, UI } from '../ui/draw';
 import { ListMenu } from '../ui/list';
+import { Weather } from '../field/weather';
 
 export type GameOverChoice = 'retry' | 'load' | 'title';
 
 export class GameOverScene extends Scene<GameOverChoice> {
   private menu: ListMenu<GameOverChoice>;
   private t = 0;
+  /** The same three-layer rain as the streets (with splashes), not a cheaper stand-in. */
+  private rain = new Weather();
 
   constructor(canRetry: boolean) {
     super();
@@ -24,6 +27,7 @@ export class GameOverScene extends Scene<GameOverChoice> {
       3,
     );
     this.menu.index = canRetry ? 0 : hasAnySave() ? 1 : 2;
+    this.rain.set('rain', 0.8);
   }
 
   override enter(): void {
@@ -32,6 +36,7 @@ export class GameOverScene extends Scene<GameOverChoice> {
 
   update(): void {
     this.t++;
+    this.rain.update(0, 0);
     if (this.t < 70) return;
     const r = this.menu.update(this.game.input);
     if (r === 'confirm') this.close(this.menu.current!.value);
@@ -42,13 +47,7 @@ export class GameOverScene extends Scene<GameOverChoice> {
     ctx.fillRect(0, 0, W, H);
     const a = Math.min(1, this.t / 60);
     ctx.globalAlpha = a;
-    // Falling rain streaks for mood.
-    ctx.fillStyle = '#2a2a48';
-    for (let i = 0; i < 60; i++) {
-      const x = (i * 83 + this.t * 0.6) % W;
-      const y = (i * 47 + this.t * (2 + (i % 3))) % H;
-      ctx.fillRect(Math.round(x), Math.round(y), 1, 5);
-    }
+    this.rain.render(ctx);
     drawText(ctx, 'THE RUN IS OVER', W / 2, 88, { align: 'center', color: UI.red });
     drawText(ctx, 'Saltreach keeps what it takes.', W / 2, 104, { align: 'center', color: UI.dim });
     ctx.globalAlpha = 1;
