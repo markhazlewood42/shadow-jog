@@ -61,6 +61,8 @@ export const annex: MapDef = {
     { kind: 'crates', x: 9, y: 3 },
     { kind: 'crates', x: 2, y: 6 },
     { kind: 'desk', x: 17, y: 4, w: 2 },
+    // The company crest over the central hall: the one thing in here meant to impress.
+    { kind: 'crest', x: 21, y: 2, w: 3 },
     // Requisition terminal on the hall's south wall, by the Warden passage.
     { kind: 'vending', x: 23, y: 19, color: '#ff6a5a' },
     { kind: 'desk', x: 22, y: 4, w: 2 },

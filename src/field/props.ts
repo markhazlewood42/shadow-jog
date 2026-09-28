@@ -462,6 +462,66 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     });
   },
 
+  tag(b, p) {
+    // Rustfang spray tag on a wall face or scrap: a bold fang roundel, overspray and drips.
+    const x = p.x * TS, y = p.y * TS;
+    const red = p.color ?? '#ff4a32';
+    const g = b.g;
+    g.fillStyle = red;
+    for (let a = 0; a < 40; a++) {
+      const t = (a / 40) * Math.PI * 2;
+      for (const r of [5.5, 6.5]) g.fillRect(Math.round(x + 8 + Math.cos(t) * r), Math.round(y + 7 + Math.sin(t) * r), 1, 1);
+    }
+    // Two fangs.
+    g.fillStyle = '#f4ecdc';
+    for (const fx of [5, 9]) {
+      g.fillRect(x + fx, y + 4, 3, 1);
+      g.fillRect(x + fx, y + 5, 2, 2);
+      g.fillRect(x + fx + (fx === 5 ? 1 : 0), y + 7, 1, 2);
+    }
+    // Overspray and drips.
+    g.fillStyle = red;
+    g.globalAlpha = 0.45;
+    for (let i = 0; i < 9; i++) g.fillRect(x + 1 + ((i * 5 + p.x) % 14), y + ((i * 3 + p.y) % 14), 1, 1);
+    g.globalAlpha = 1;
+    for (const dx of [5, 10, 12]) g.fillRect(x + dx, y + 13, 1, 2 + ((dx + p.y) % 2));
+  },
+
+  banner(b, p) {
+    // A tattered gang banner on a scaffold pole.
+    blockFoot(b, p);
+    const col = p.color ?? '#a8302a';
+    tall(b, p, 12, 30, (c) => {
+      c.fillStyle = '#0f0e17'; c.fillRect(1, 0, 3, 30);
+      c.fillStyle = '#4a4040'; c.fillRect(2, 0, 1, 30);
+      c.fillStyle = '#0f0e17'; c.fillRect(2, 2, 10, 1);
+      c.fillStyle = col; c.fillRect(4, 3, 7, 11);
+      c.fillStyle = shade(col, -0.3); c.fillRect(7, 3, 1, 11); c.fillRect(4, 3, 7, 1);
+      // Torn bottom edge.
+      c.fillStyle = col;
+      for (const [tx, h] of [[4, 2], [6, 1], [8, 3], [10, 1]] as const) c.fillRect(tx, 14, 1, h);
+      // The fang.
+      c.fillStyle = '#f0e8d8';
+      c.fillRect(5, 6, 1, 3); c.fillRect(6, 7, 1, 1); c.fillRect(9, 6, 1, 3); c.fillRect(8, 7, 1, 1);
+    });
+  },
+
+  crest(b, p) {
+    // The Kessler-Mori crest on a wall face: a steel plate, the blue ring, the letters.
+    const w = (p.w ?? 2) * TS;
+    const x = p.x * TS + 2, y = p.y * TS + 1;
+    b.g.fillStyle = '#0f0e17'; b.g.fillRect(x - 1, y - 1, w - 2, 14);
+    b.g.fillStyle = '#3a4050'; b.g.fillRect(x, y, w - 4, 12);
+    b.both((k) => {
+      k.fillStyle = '#3f8af0';
+      for (let a = 0; a < 24; a++) {
+        const t = (a / 24) * Math.PI * 2;
+        k.fillRect(Math.round(x + 7 + Math.cos(t) * 5), Math.round(y + 6 + Math.sin(t) * 5), 1, 1);
+      }
+    });
+    drawText(b.g, 'K-M', x + 14, y + 3, { color: '#dfe8f8', shadow: false });
+  },
+
   poster(b, p) {
     // Flat wall poster / graffiti tag on an interior or facade surface.
     const x = p.x * TS + 3, y = p.y * TS + 2;
@@ -541,6 +601,7 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
   tank(b, p) {
     blockFoot(b, p);
     const col = p.color ?? '#4affb0';
+    const v = (p.x * 7 + p.y * 13) % 4;
     const { x, y } = tall(b, p, 16, 32, (c, e) => {
       c.fillStyle = '#0f0e17'; c.fillRect(1, 0, 14, 32);
       c.fillStyle = '#5a6070'; c.fillRect(2, 1, 12, 3); c.fillRect(2, 27, 12, 4);
@@ -551,10 +612,30 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
         for (let i = 6; i < 26; i += 5) k.fillRect(6 + (i % 3), i, 1, 1);
         k.globalAlpha = 1;
       });
-      // Floating silhouette
-      c.fillStyle = shade(col, -0.75);
-      c.fillRect(6, 9, 4, 4); c.fillRect(5, 13, 6, 8); c.fillRect(6, 21, 2, 4); c.fillRect(8, 21, 2, 4);
-      e.fillStyle = shade(col, -0.75); e.fillRect(6, 9, 4, 4); e.fillRect(5, 13, 6, 8);
+      // Four kinds of specimen, by position, so a row of tanks isn't a row of clones.
+      const dark = shade(col, -0.75);
+      const specimen = (k: Ctx) => {
+        k.fillStyle = dark;
+        switch (v) {
+          case 0: // a figure, curled
+            k.fillRect(6, 9, 4, 4); k.fillRect(5, 13, 6, 8); k.fillRect(6, 21, 2, 4); k.fillRect(8, 21, 2, 4);
+            break;
+          case 1: // something on four legs, hunched
+            k.fillRect(4, 15, 8, 5); k.fillRect(10, 12, 3, 4); k.fillRect(4, 20, 1, 4); k.fillRect(7, 20, 1, 4); k.fillRect(10, 20, 1, 4);
+            break;
+          case 2: // an organ trailing wires
+            k.fillRect(6, 11, 5, 5); k.fillRect(7, 16, 1, 7); k.fillRect(9, 16, 1, 5);
+            break;
+        }
+      };
+      specimen(c);
+      specimen(e);
+      if (v === 3) {
+        // Drained and cracked: fluid only in the bottom third, a fracture across the glass.
+        c.fillStyle = '#0f0e17'; c.fillRect(3, 4, 10, 15);
+        c.fillStyle = '#c8d8e8';
+        for (const [cx, cy] of [[5, 7], [6, 8], [7, 9], [8, 9], [9, 10], [7, 10], [6, 11]] as const) c.fillRect(cx, cy, 1, 1);
+      }
     });
     b.lights.push({ x: x + 8, y: y + 16, r: 34, color: col, i: 0.6 });
   },

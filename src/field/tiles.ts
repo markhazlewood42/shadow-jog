@@ -432,17 +432,35 @@ const labDoor: Painter = (lx, ly) => {
 };
 
 // ---- world map
-const wRoad: Painter = (lx, ly, wx, wy) => {
+/** The Sprawl's arterials: patched asphalt, oil stains, hairline cracks, aggregate glints. */
+const wRoad: Painter = (_lx, _ly, wx, wy) => {
   const h = hash2(wx, wy, 141);
-  if (h < 0.05) return P.wRoadD;
-  void lx; void ly;
-  return P.wRoad;
+  if (h < 0.03) return P.wRoadD;
+  if (h > 0.988) return lerpC(P.wRoad, [140, 140, 160], 0.35);
+  const patch = hash2(Math.floor(wx / 23), Math.floor(wy / 17), 143) < 0.2;
+  let base: RGB = patch ? lerpC(P.wRoad, P.wRoadD, 0.6) : P.wRoad;
+  const stain = valueNoise(wx / 19, wy / 14, 144);
+  if (stain < 0.22) base = lerpC(base, [20, 20, 28], 0.45);
+  const n = fbm(wx / 8, wy / 8, 2, 145);
+  if (n > 0.66) base = lerpC(base, [96, 96, 116], 0.2);
+  else if (n < 0.34) base = lerpC(base, [16, 16, 22], 0.2);
+  const crack = valueNoise(wx / 13 + valueNoise(wx / 31, wy / 31, 147) * 2.2, wy / 13, 146);
+  if (Math.abs(crack - 0.5) < 0.014) return lerpC(base, [8, 8, 14], 0.7);
+  return base;
 };
 
+/** Broken ground: cracked earth, weed clumps, rain puddles, brick and glass shards. */
 const wBarrens: Painter = (_lx, _ly, wx, wy) => {
   const n = fbm(wx / 9, wy / 9, 3, 151);
   const h = hash2(wx, wy, 152);
-  if (h < 0.025) return P.rubbleL;
+  if (h < 0.02) return P.rubbleL;
+  if (h > 0.992) return [150, 96, 70]; // brick chips
+  const puddle = valueNoise(wx / 26, wy / 18, 153);
+  if (puddle < 0.12) return puddle < 0.06 ? [30, 36, 52] : [44, 50, 66];
+  const weeds = valueNoise(wx / 7, wy / 7, 154);
+  if (weeds > 0.8 && hash2(wx, wy, 155) < 0.55) return hash2(wx, wy, 156) < 0.5 ? [72, 88, 50] : [96, 108, 60];
+  const crack = valueNoise(wx / 15 + valueNoise(wx / 40, wy / 40, 158) * 2, wy / 15, 157);
+  if (Math.abs(crack - 0.5) < 0.012) return lerpC(P.wBarrenD, [0, 0, 0], 0.4);
   if (n < 0.36) return P.wBarrenD;
   if (n > 0.66) return P.wBarrenL;
   return P.wBarren;

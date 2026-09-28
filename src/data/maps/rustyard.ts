@@ -70,6 +70,17 @@ export const rustyard: MapDef = {
     { kind: 'lamp', x: 12, y: 21, dir: 'right' },
     { kind: 'lamp', x: 18, y: 21, dir: 'left' },
     { kind: 'dumpster', x: 23, y: 20, w: 2, color: '#5a3a2a' },
+    // Rustfang territory: tags on the scrap walls facing the camp, banners staking the north yard.
+    { kind: 'tag', x: 5, y: 12 },
+    { kind: 'tag', x: 21, y: 12 },
+    { kind: 'tag', x: 12, y: 24 },
+    { kind: 'tag', x: 18, y: 25, color: '#ffb02e' },
+    { kind: 'tag', x: 10, y: 7 },
+    { kind: 'tag', x: 22, y: 7, color: '#ffb02e' },
+    { kind: 'banner', x: 3, y: 7 },
+    { kind: 'banner', x: 27, y: 7 },
+    { kind: 'banner', x: 15, y: 3 },
+    { kind: 'banner', x: 19, y: 3 },
   ],
   chests: [
     { id: 'depot_case', x: 21, y: 6, item: 'med_case', kind: 'case' },
