@@ -150,6 +150,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   private async intro(): Promise<void> {
     this.mode = 'intro';
+    if (debug.autoLose) {
+      for (const p of this.battle.party) p.hp = 0;
+      this.battle.outcome = 'lose';
+      await this.defeat();
+      return;
+    }
     if (debug.autoBattle) {
       for (const e of this.battle.enemies) {
         e.hp = 0;
@@ -176,6 +182,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private startRound(): void {
     if (this.battle.outcome) return;
     this.cmds = [];
+    this.comboActors.clear();
     this.reserved = {};
     this.actorIdx = -1;
     const anyOrders = state.party.some((id) => state.lastOrders[id]);
@@ -220,6 +227,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const removed = this.cmds.find((c) => c.actor === a.uid);
     if (removed?.type === 'item' && removed.id) this.reserved[removed.id] = (this.reserved[removed.id] ?? 1) - 1;
     this.cmds = this.cmds.filter((c) => c.actor !== a.uid);
+    this.refreshCombos();
     this.buildCmdMenu(a);
     this.mode = 'command';
   }
@@ -301,9 +309,36 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     if (p.type === 'item' && p.id) this.reserved[p.id] = (this.reserved[p.id] ?? 0) + 1;
     state.lastOrders[a.key as MemberId] = { cmd: p.type, id: p.id };
     this.pending = null;
-    const combos = Battle.findCombos(this.cmds, this.battle.units);
-    if (combos.some((c) => c.a.actor === a.uid || c.b.actor === a.uid)) sfx('combo_ready');
+    this.refreshCombos();
+    if (this.comboActors.has(a.uid)) sfx('combo_ready');
     this.nextActor();
+  }
+
+  private comboActors = new Set<number>();
+  private hintKey = '';
+  private hintText = '';
+
+  /** Recompute which queued actors form combos (call whenever `cmds` changes). */
+  private refreshCombos(): void {
+    this.comboActors.clear();
+    for (const c of Battle.findCombos(this.cmds, this.battle.units)) {
+      this.comboActors.add(c.a.actor);
+      this.comboActors.add(c.b.actor);
+    }
+    this.hintKey = '';
+  }
+
+  /** Would choosing `id` now fuse with an order already given? Cached per cursor position. */
+  private comboHint(id: string): string {
+    const actor = this.actor;
+    if (!actor || this.listKind === 'item') return '';
+    const key = `${actor.uid}:${this.listKind}:${id}:${this.cmds.length}`;
+    if (key === this.hintKey) return this.hintText;
+    this.hintKey = key;
+    const trial = [...this.cmds, { actor: actor.uid, type: this.listKind, id, target: -1 } as Command];
+    const combos = Battle.findCombos(trial, this.battle.units).filter((c) => c.a.actor === actor.uid || c.b.actor === actor.uid);
+    this.hintText = !combos.length ? '' : state.combos.includes(combos[0]!.combo) ? `★ COMBO: ${ABILITIES[combos[0]!.combo]!.name}` : '★ Something resonates… (combo!)';
+    return this.hintText;
   }
 
   private enemiesByX(): Combatant[] {
@@ -596,6 +631,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         await this.w(10);
         break;
       case 'phase': {
+        this.layoutVersion++;
         const dd = this.d(e.target);
         sfx('phase');
         this.game.flash('#ffffff', 20);
@@ -706,7 +742,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     this.mode = 'end';
     music('gameover', 0);
     this.say('The crew has fallen…');
-    await this.w(90);
+    await this.w(debug.autoLose ? 2 : 90);
     this.writeBack();
     this.close('lose');
   }
@@ -737,22 +773,39 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   // ------------------------------------------------------------------ layout
+  private layout = new Map<number, { x: number; y: number; art: EnemyArt }>();
+  private layoutKey = '';
+  private layoutVersion = 0;
+
+  /** Enemy placement, recomputed only when the roster changes (deaths, summons, phase shifts). */
   private enemyPos(u: Combatant): { x: number; y: number; art: EnemyArt } {
-    const art = enemyArt(ENEMIES[u.key]!.sprite);
-    const all = this.battle.enemies.filter((e) => !this.dead.has(e.uid) || e.uid === u.uid);
-    const sorted = [...all].sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
-    const widths = sorted.map((e) => enemyArt(ENEMIES[e.key]!.sprite).canvas.width);
-    const gap = 6;
-    const total = widths.reduce((a, b) => a + b, 0) + gap * (widths.length - 1);
-    let x = Math.round((BW - total) / 2);
-    let myX = x;
-    sorted.forEach((e, i) => {
-      if (e.uid === u.uid) myX = x;
-      x += widths[i]! + gap;
-    });
-    const ground = u.boss ? (u.key === 'lurker' ? this.bg.ground - 4 : this.bg.ground) : 92;
-    const back = (sorted.indexOf(u) % 2) * 4;
-    return { x: myX, y: ground - art.canvas.height - back, art };
+    const key = `${this.battle.units.length}:${this.dead.size}:${this.layoutVersion}`;
+    if (key !== this.layoutKey) {
+      this.layoutKey = key;
+      const prev = this.layout;
+      const next = new Map<number, { x: number; y: number; art: EnemyArt }>();
+      const living = this.battle.enemies.filter((e) => !this.dead.has(e.uid)).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
+      const gap = 6;
+      const total = living.reduce((n, e) => n + enemyArt(ENEMIES[e.key]!.sprite).canvas.width, 0) + gap * Math.max(0, living.length - 1);
+      let x = Math.round((BW - total) / 2);
+      living.forEach((e, i) => {
+        const art = enemyArt(ENEMIES[e.key]!.sprite);
+        const ground = e.key === 'lurker' ? this.bg.ground - 4 : this.bg.ground;
+        const back = e.boss ? 0 : (i % 2) * 4;
+        next.set(e.uid, { x, y: ground - art.canvas.height - back, art });
+        x += art.canvas.width + gap;
+      });
+      // The fallen keep their last spot while they dissolve.
+      for (const e of this.battle.enemies) if (!next.has(e.uid) && prev.has(e.uid)) next.set(e.uid, prev.get(e.uid)!);
+      this.layout = next;
+    }
+    let p = this.layout.get(u.uid);
+    if (!p) {
+      const art = enemyArt(ENEMIES[u.key]!.sprite);
+      p = { x: Math.round((BW - art.canvas.width) / 2), y: this.bg.ground - art.canvas.height, art };
+      this.layout.set(u.uid, p);
+    }
+    return p;
   }
 
   private enemyCenter(u: Combatant): Pt {
@@ -1000,7 +1053,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       // Queued command indicator
       const queued = this.cmds.find((c) => c.actor === p.uid);
       if (queued && (this.mode === 'command' || this.mode === 'list' || this.mode === 'target')) {
-        const inCombo = Battle.findCombos(this.cmds, this.battle.units).some((c) => c.a.actor === p.uid || c.b.actor === p.uid);
+        const inCombo = this.comboActors.has(p.uid);
         drawText(ctx, inCombo ? '★' : '•', x + 52, y + 5, { color: inCombo ? UI.amber : UI.green });
       }
       const ratio = dd.hp / p.base.maxHp;
@@ -1066,15 +1119,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     if (!cur) return;
     const desc = this.listKind === 'item' ? ITEMS[cur.value]!.desc : ABILITIES[cur.value]!.desc;
     // Combo hint: would this choice pair with an order already given?
-    let hint = '';
-    if (this.listKind !== 'item') {
-      const trial = [...this.cmds, { actor: this.actor!.uid, type: this.listKind, id: cur.value, target: -1 } as Command];
-      const combos = Battle.findCombos(trial, this.battle.units).filter((c) => c.a.actor === this.actor!.uid || c.b.actor === this.actor!.uid);
-      if (combos.length) {
-        const known = state.combos.includes(combos[0]!.combo);
-        hint = known ? `★ COMBO: ${ABILITIES[combos[0]!.combo]!.name}` : '★ Something resonates… (combo!)';
-      }
-    }
+    const hint = this.listKind === 'item' ? '' : this.comboHint(cur.value);
     const dh = hint ? 30 : 19;
     drawWindow(ctx, x, y - dh - 12, w, dh, { plain: true, accent: hint ? UI.amber : UI.cyan });
     drawText(ctx, desc, x + 8, y - dh - 8, { color: '#d8d6ec' });

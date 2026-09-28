@@ -451,12 +451,16 @@ export class FxLayer {
       p.vx *= p.drag;
       p.vy *= p.drag;
     }
-    this.parts = this.parts.filter((p) => p.life < p.max);
+    let w = 0;
+    for (let i = 0; i < this.parts.length; i++) if (this.parts[i]!.life < this.parts[i]!.max) this.parts[w++] = this.parts[i]!;
+    this.parts.length = w;
     for (const s of this.shapes) {
       if (s.delay > 0) s.delay--;
       else s.t++;
     }
-    this.shapes = this.shapes.filter((s) => s.t < s.max);
+    let k = 0;
+    for (let i = 0; i < this.shapes.length; i++) if (this.shapes[i]!.t < this.shapes[i]!.max) this.shapes[k++] = this.shapes[i]!;
+    this.shapes.length = k;
   }
 
   render(ctx: Ctx, drawGlyph: (ctx: Ctx, ch: string, x: number, y: number, color: string) => void): void {

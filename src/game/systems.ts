@@ -245,12 +245,20 @@ export async function runBattle(
 ): Promise<BattleResult> {
   if (!ENCOUNTERS[enc]) throw new Error(`Unknown encounter ${enc}`);
   const snapshot: GameState = clone(state);
-  const intro = snapshotScreen(game);
-  pushMusic(opts.music ?? (opts.boss ? 'boss' : 'battle'));
-  game.flash('#ffffff', 8);
-  await game.wait(10);
-  const result = await game.run(new BattleScene({ encounter: enc, bg: opts.bg, canRun: opts.canRun, boss: opts.boss, music: opts.music, intro }));
-  if (result === 'lose') {
+  const rngBefore = rng.state;
+  for (;;) {
+    const intro = snapshotScreen(game);
+    pushMusic(opts.music ?? (opts.boss ? 'boss' : 'battle'));
+    game.flash('#ffffff', 8);
+    await game.wait(10);
+    const result = await game.run(new BattleScene({ encounter: enc, bg: opts.bg, canRun: opts.canRun, boss: opts.boss, music: opts.music, intro }));
+    if (result !== 'lose') {
+      popMusic();
+      // Rustfang bounty tally (job board).
+      const gangs = ['rustfang_punk', 'rustfang_slinger'].reduce((n, k) => n + (state.bestiary[k] ?? 0) - (snapshot.bestiary[k] ?? 0), 0);
+      if (gangs > 0) flags.inc('rustfangs', gangs);
+      return result;
+    }
     if (opts.loseOk) {
       for (const m of partyMembers()) if (m.hp <= 0) m.hp = 1;
       popMusic();
@@ -258,28 +266,31 @@ export async function runBattle(
     }
     const choice = await game.run(new GameOverScene(true));
     if (choice === 'retry') {
+      // Rewind to the instant before the fight and try again.
       setState(clone(snapshot));
+      rng.state = rngBefore + 1;
       popMusic();
       f.refreshParty();
-      return runBattle(game, f, enc, opts);
+      continue;
     }
     if (choice === 'load') {
       const slot = latestSlot();
       const s = slot ? loadSave(slot) : null;
       if (s) {
-        applySave(s);
-        handlers!.toField(s.map, s.x, s.y, s.dir);
+        loadIntoGame(game, s);
         return 'lose';
       }
     }
     handlers!.toTitle();
     return 'lose';
   }
-  popMusic();
-  // Rustfang bounty tally (job board).
-  const gangs = ['rustfang_punk', 'rustfang_slinger'].reduce((n, k) => n + (state.bestiary[k] ?? 0) - (snapshot.bestiary[k] ?? 0), 0);
-  if (gangs > 0) flags.inc('rustfangs', gangs);
-  return result;
+}
+
+/** Apply a loaded save and drop the player into its field position (restores play time + RNG). */
+export function loadIntoGame(game: Game, s: GameState): void {
+  applySave(s);
+  game.playFrames = s.playFrames;
+  handlers!.toField(s.map, s.x, s.y, s.dir);
 }
 
 /** Tile-accurate helper for scripts that need pixel coords. */

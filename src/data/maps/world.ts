@@ -106,7 +106,13 @@ export const world: MapDef = {
   ],
   warps: [
     { x: 12, y: 21, h: 3, to: 'lantern_row', tx: 54, ty: 11, dir: 'left', door: false },
-    { x: 50, y: 9, w: 3, to: 'rustyard', tx: 15, ty: 22, dir: 'up', door: false },
+    {
+      x: 50, y: 9, w: 3, to: 'rustyard', tx: 15, ty: 22, dir: 'up', door: false,
+      when: (f) => !!f.met_hex,
+      blocked: async (s) => {
+        await s.say('rook', s.flag('met_dutch') ? 'Rustyard. Nothing for us there until we know what Hex needs.' : 'The Rustyard. Scavs and scrap. We’ve got a meeting at the Drowned Saint first.');
+      },
+    },
     {
       x: 26, y: 37, to: 'sinkline_1', tx: 6, ty: 5, dir: 'down',
       when: (f) => !!f.sinkline_gate,

@@ -21,19 +21,26 @@ import { DialogScene } from './dialog';
 import { chestSprites } from '../field/chests';
 import { UI } from '../ui/draw';
 import { fieldHooks } from '../game/hooks';
+import { reportError } from '../engine/errors';
 
 const WALK = 12;
 const DASH = 7;
 const mapCache = new Map<string, FieldMap>();
+const MAP_CACHE_MAX = 8;
 
 function loadMap(id: string): FieldMap {
   const def = getMap(id);
   const sig = id + ':' + (def.patches ?? []).map((p) => (p.when(state.flags) ? 1 : 0)).join('');
   let m = mapCache.get(sig);
-  if (!m) {
-    m = new FieldMap(def);
+  if (m) {
+    // Refresh LRU position.
+    mapCache.delete(sig);
     mapCache.set(sig, m);
+    return m;
   }
+  m = new FieldMap(def);
+  mapCache.set(sig, m);
+  while (mapCache.size > MAP_CACHE_MAX) mapCache.delete(mapCache.keys().next().value!);
   return m;
 }
 
@@ -286,27 +293,38 @@ export class FieldScene extends Scene<void> {
         // Step back off the warp tile.
         const back = opposite(this.leader.dir);
         this.busy++;
-        this.tryStep(back, WALK);
-        await this.waitIdle();
-        this.busy--;
+        try {
+          this.tryStep(back, WALK);
+          await this.waitIdle();
+        } finally {
+          this.busy--;
+        }
       }
       return;
     }
     this.pendingWarp = true;
-    if (w.door !== false) sfx('door');
-    await this.warp(w.to, w.tx, w.ty, w.dir ?? this.leader.dir);
-    this.pendingWarp = false;
+    try {
+      if (w.door !== false) sfx('door');
+      await this.warp(w.to, w.tx, w.ty, w.dir ?? this.leader.dir);
+    } finally {
+      this.pendingWarp = false;
+    }
   }
 
   async warp(mapId: string, x: number, y: number, dir: Dir, fade = true): Promise<void> {
     this.busy++;
-    if (fade) await this.game.fadeOut(14);
-    const prevMusic = this.def.music;
-    this.load(mapId, x, y, dir);
-    if (this.def.music && this.def.music !== prevMusic) music(this.def.music);
-    fieldHooks.onWarp?.(this);
-    if (fade) await this.game.fadeIn(14);
-    this.busy--;
+    try {
+      if (fade) await this.game.fadeOut(14);
+      const prevMusic = this.def.music;
+      this.load(mapId, x, y, dir);
+      if (this.def.music && this.def.music !== prevMusic) music(this.def.music);
+      fieldHooks.onWarp?.(this);
+    } catch (e) {
+      reportError(e);
+    } finally {
+      if (fade) await this.game.fadeIn(14);
+      this.busy--;
+    }
     await this.onMapEnter();
   }
 
@@ -432,7 +450,7 @@ export class FieldScene extends Scene<void> {
     try {
       await fn(this.api);
     } catch (e) {
-      console.error('Script error', e);
+      reportError(e);
     } finally {
       this.busy--;
     }
@@ -487,8 +505,9 @@ export class FieldScene extends Scene<void> {
     blit(ctx, this.map.ground, cx, cy);
     for (const a of this.map.anims) if (a.lit && inView(a, cx, cy)) a.draw(ctx, f, cx, cy);
     // Soft contact shadows
+    const actors = this.visibleActors();
     ctx.fillStyle = 'rgba(5,4,12,0.5)';
-    for (const a of this.visibleActors()) {
+    for (const a of actors) {
       const sx = Math.round(a.px - cx), sy = Math.round(a.py - cy);
       ctx.fillRect(sx - 4, sy - 1, 9, 2);
       ctx.fillRect(sx - 3, sy - 2, 7, 1);
@@ -498,23 +517,40 @@ export class FieldScene extends Scene<void> {
     blit(ctx, this.map.emit, cx, cy);
     for (const a of this.map.anims) if (!a.lit && inView(a, cx, cy)) a.draw(ctx, f, cx, cy);
 
-    // Depth-sorted sprites
-    const list: { baseY: number; draw: () => void }[] = [];
+    // Depth-sorted sprites (pooled entries; no per-frame closures).
+    let n = 0;
+    const push = (baseY: number, kind: 0 | 1 | 2, ref: SortedSprite | Chest | Actor) => {
+      let e = this.drawPool[n];
+      if (!e) this.drawPool[n] = e = { baseY, kind, ref };
+      else {
+        e.baseY = baseY;
+        e.kind = kind;
+        e.ref = ref;
+      }
+      n++;
+    };
     for (const s of this.map.sprites) {
       if (s.x - cx > W || s.y - cy > H || s.x + s.canvas.width - cx < 0 || s.y + s.canvas.height - cy < 0) continue;
-      list.push({ baseY: s.baseY, draw: () => this.drawSprite(ctx, s, cx, cy, f) });
+      push(s.baseY, 0, s);
     }
-    for (const c of this.chests) {
-      const spr = chestSprites(c.def.kind ?? 'crate');
-      const img = c.open ? spr.open : spr.closed;
-      const x = c.def.x * TS, y = (c.def.y + 1) * TS - img.height;
-      list.push({ baseY: (c.def.y + 1) * TS - 1, draw: () => this.lighting.drawLit(ctx, img, x - cx, y - cy) });
+    for (const c of this.chests) push((c.def.y + 1) * TS - 1, 1, c);
+    for (const a of actors) push(a.py, 2, a);
+    const list = this.drawList;
+    list.length = n;
+    for (let i = 0; i < n; i++) list[i] = this.drawPool[i]!;
+    list.sort(byBaseY);
+    for (const it of list) {
+      if (it.kind === 0) this.drawSprite(ctx, it.ref as SortedSprite, cx, cy, f);
+      else if (it.kind === 1) {
+        const c = it.ref as Chest;
+        const spr = chestSprites(c.def.kind ?? 'crate');
+        const img = c.open ? spr.open : spr.closed;
+        this.lighting.drawLit(ctx, img, c.def.x * TS - cx, (c.def.y + 1) * TS - img.height - cy);
+      } else {
+        const a = it.ref as Actor;
+        this.lighting.drawLit(ctx, a.frame(), a.drawX() - cx, a.drawY() - cy);
+      }
     }
-    for (const a of this.visibleActors()) {
-      list.push({ baseY: a.py, draw: () => this.lighting.drawLit(ctx, a.frame(), a.drawX() - cx, a.drawY() - cy) });
-    }
-    list.sort((a, b) => a.baseY - b.baseY);
-    for (const it of list) it.draw();
 
     if (this.map.hasOver) {
       this.lighting.drawLitLayer(ctx, this.map.over, cx, cy);
@@ -522,7 +558,7 @@ export class FieldScene extends Scene<void> {
     }
     this.lighting.bloom(ctx, this.map.lights, cx, cy, f, this.def.kind === 'interior' ? 0.08 : 0.14);
     this.weather.render(ctx);
-    for (const a of this.visibleActors()) if (a.emote) drawEmote(ctx, a, cx, cy);
+    for (const a of actors) if (a.emote) drawEmote(ctx, a, cx, cy);
     this.renderBanner(ctx);
     fieldHooks.renderOverlay?.(this, ctx);
   }
@@ -534,16 +570,23 @@ export class FieldScene extends Scene<void> {
     s.anim?.(ctx, f, sx, sy);
   }
 
+  private visibleBuf: Actor[] = [];
+  private drawPool: DrawEntry[] = [];
+  private drawList: DrawEntry[] = [];
+
+  /** Actors to draw this frame (reuses one buffer; call once per frame). */
   private visibleActors(): Actor[] {
-    const out: Actor[] = [];
+    const out = this.visibleBuf;
+    out.length = 0;
     for (const n of this.npcs) if (n.visible) out.push(n);
-    this.party.forEach((p, i) => {
-      if (!p.visible) return;
-      if (i > 0 && p.follower && !this.followersVisible) return;
+    for (let i = 0; i < this.party.length; i++) {
+      const p = this.party[i]!;
+      if (!p.visible) continue;
+      if (i > 0 && p.follower && !this.followersVisible) continue;
       // Stacked followers (after a warp) hide behind the leader.
-      if (i > 0 && p.follower && p.x === this.leader.x && p.y === this.leader.y && !p.moving) return;
+      if (i > 0 && p.follower && p.x === this.leader.x && p.y === this.leader.y && !p.moving) continue;
       out.push(p);
-    });
+    }
     return out;
   }
 
@@ -722,6 +765,14 @@ export class FieldScene extends Scene<void> {
     return (flags.get('objective') as string) ?? this.objectiveText;
   }
 }
+
+interface DrawEntry {
+  baseY: number;
+  kind: 0 | 1 | 2;
+  ref: SortedSprite | Chest | Actor;
+}
+
+const byBaseY = (a: DrawEntry, b: DrawEntry) => a.baseY - b.baseY;
 
 function inView(a: { x: number; y: number; w: number; h: number }, cx: number, cy: number): boolean {
   return a.x - cx < W && a.y - cy < H && a.x + a.w - cx > 0 && a.y + a.h - cy > 0;

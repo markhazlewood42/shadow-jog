@@ -27,6 +27,16 @@ describe('data integrity', () => {
     for (const [k, groups] of Object.entries(ENCOUNTERS)) for (const g of groups) for (const id of g.e) expect(ENEMIES[id], `${k}:${id}`).toBeDefined();
     for (const e of Object.values(ENEMIES)) for (const d of e.drops ?? []) expect(ITEMS[d.id], `${e.id}:${d.id}`).toBeDefined();
   });
+  it('every combo pairs two different members with abilities they actually learn', () => {
+    for (const c of COMBOS) {
+      expect(c.parts[0].member, c.id).not.toBe(c.parts[1].member);
+      for (const p of c.parts) {
+        const learns = LEARNSETS[p.member]!.map((l) => l.id);
+        expect(learns, `${c.id}: ${p.member} learns ${p.ability}`).toContain(p.ability);
+      }
+      expect(ABILITIES[c.id]!.kind, c.id).toBe('combo');
+    }
+  });
   it('starting equipment is equippable', () => {
     for (const id of ['kit', 'rook', 'hex', 'sable'] as MemberId[]) {
       const m = createMember(id);

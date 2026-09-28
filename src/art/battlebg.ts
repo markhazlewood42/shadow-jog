@@ -159,7 +159,7 @@ const MAKERS: Record<string, Maker> = {
     // Curbs
     c.fillStyle = '#2a2a40';
     c.fillRect(0, HORIZON + 4, BW, 1);
-    return { canvas: s.canvas, glow: gl.canvas, ground: 96, tint: '#3a3a7a', tintAmt: 0.25, anim: (ctx, f) => rain(ctx, f) };
+    return { canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#3a3a7a', tintAmt: 0.25, anim: (ctx, f) => rain(ctx, f) };
   },
   barrens: () => {
     const s = surface(BW, BH), gl = surface(BW, BH);
@@ -196,7 +196,7 @@ const MAKERS: Record<string, Maker> = {
     }
     void g;
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 96, tint: '#a0603a', tintAmt: 0.15,
+      canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#a0603a', tintAmt: 0.15,
       anim: (ctx, f) => {
         ctx.fillStyle = '#e8c8a0';
         ctx.globalAlpha = 0.35;
@@ -243,7 +243,7 @@ const MAKERS: Record<string, Maker> = {
       c.fillRect(rng.int(0, BW), yy, sz + rng.int(0, 3), sz);
     }
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 96, tint: '#8a4a3a', tintAmt: 0.18,
+      canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#8a4a3a', tintAmt: 0.18,
       anim: (ctx, f) => {
         for (let i = 0; i < 14; i++) {
           const t = (f * 0.6 + i * 23) % 60;
@@ -298,7 +298,7 @@ const MAKERS: Record<string, Maker> = {
       if (col !== '#2a5a3a') { g.fillStyle = col; g.fillRect(x, y, 1, 1); }
     }
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 96, tint: '#2a6a5a', tintAmt: 0.2,
+      canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#2a6a5a', tintAmt: 0.2,
       anim: (ctx, f) => {
         for (let i = 0; i < 18; i++) {
           const x = (hash2(i, 1) * BW + Math.sin(f * 0.01 + i) * 10) % BW;
@@ -362,7 +362,7 @@ const MAKERS: Record<string, Maker> = {
     c.fillRect(170, 36, 70, 1);
     reflections(g, 72, new Rng(5), ['#ffd07a', '#6affc8'], 10);
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 100, tint: '#2a5a5a', tintAmt: 0.22,
+      canvas: s.canvas, glow: gl.canvas, ground: 96, tint: '#2a5a5a', tintAmt: 0.22,
       anim: (ctx, f) => {
         // Drips
         for (let i = 0; i < 6; i++) {
@@ -406,7 +406,7 @@ const MAKERS: Record<string, Maker> = {
     // Deep water
     ditherV(c, 0, 76, BW, BH - 76, ['#0c2a26', '#0a2220', '#06181a']);
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 118, tint: '#2a6a5a', tintAmt: 0.25,
+      canvas: s.canvas, glow: gl.canvas, ground: 104, tint: '#2a6a5a', tintAmt: 0.25,
       anim: (ctx, f) => {
         ctx.fillStyle = '#5aa89a';
         for (let i = 0; i < 40; i++) {
@@ -446,7 +446,7 @@ const MAKERS: Record<string, Maker> = {
       }
     }
     floor(c, HORIZON + 4, '#9aa6b6', '#a6b2c2', '#7a8698');
-    return { canvas: s.canvas, glow: gl.canvas, ground: 96, tint: '#8ac8e8', tintAmt: 0.1 };
+    return { canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#8ac8e8', tintAmt: 0.1 };
   },
   core: () => {
     const s = surface(BW, BH), gl = surface(BW, BH);
@@ -471,7 +471,7 @@ const MAKERS: Record<string, Maker> = {
     // Hazard stripes
     for (let x = 0; x < BW; x++) { c.fillStyle = Math.floor(x / 4) % 2 ? '#d8b02a' : '#1a1820'; c.fillRect(x, HORIZON + 4, 1, 2); }
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 100, tint: '#6a2a4a', tintAmt: 0.2,
+      canvas: s.canvas, glow: gl.canvas, ground: 98, tint: '#6a2a4a', tintAmt: 0.2,
       anim: (ctx, f) => {
         // Alarm sweep
         const a = 0.12 + 0.1 * Math.sin(f * 0.1);

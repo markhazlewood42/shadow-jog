@@ -11,9 +11,9 @@ import { FieldScene } from './scenes/field';
 import { state, type MemberId } from './game/state';
 import { BattleScene } from './scenes/battle';
 import { createMember } from './game/party';
-import { installSystems } from './game/systems';
+import { installSystems, loadIntoGame } from './game/systems';
 import { TitleScene } from './scenes/title';
-import { applySave, loadSave } from './game/save';
+import { loadSave, writeSave } from './game/save';
 import { newGame } from './story/newgame';
 import type { Game as GameT } from './engine/game';
 import { settings } from './game/settings';
@@ -58,6 +58,7 @@ export function boot(game: Game, display: Display): void {
     menu: () => field() && fieldHooks.openMenu?.(field()!),
     shop: (id: string) => void field()?.runScript((s) => s.shop(id)),
     run: (fn: (s: unknown) => Promise<void>) => void field()?.runScript(fn as never),
+    save: (slot: 1 | 2 | 3 | 'auto') => writeSave(slot, game.playFrames),
   };
   display.mode = settings.scale;
   display.resize();
@@ -127,8 +128,6 @@ export async function startTitle(game: GameT): Promise<void> {
     void startTitle(game);
     return;
   }
-  applySave(s);
-  game.playFrames = s.playFrames;
-  void game.reset(new FieldScene(s.map, s.x, s.y, s.dir));
+  loadIntoGame(game, s);
   await game.fadeIn(30);
 }

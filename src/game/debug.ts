@@ -4,4 +4,6 @@ export const debug = {
   autoDialog: false,
   /** Battles resolve instantly as wins (rewards still granted). */
   autoBattle: false,
+  /** Battles resolve instantly as losses (tests the Game Over flow). */
+  autoLose: false,
 };

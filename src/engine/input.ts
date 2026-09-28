@@ -29,7 +29,7 @@ export class Input {
   private touchHeld = new Set<Action>();
   private padHeld = new Set<Action>();
   private held = new Map<Action, number>();
-  private prev = new Set<Action>();
+  private readonly prev = new Set<Action>();
   private justDown = new Set<Action>();
   /** Keyboard presses between ticks (so a very quick tap is never lost). */
   private tapped = new Set<Action>();
@@ -106,7 +106,8 @@ export class Input {
         }
       } else this.held.delete(a);
     }
-    this.prev = new Set(this.held.keys());
+    this.prev.clear();
+    for (const k of this.held.keys()) this.prev.add(k);
     // A tap that was released before this tick still counts as held for exactly one tick.
     this.tapped.clear();
     for (const a of this.justDown) if (!this.keys.has(a) && !this.padHeld.has(a) && !this.touchHeld.has(a)) this.prev.delete(a);
