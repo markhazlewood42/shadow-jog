@@ -1,9 +1,4 @@
-
-Running 2 tests using 1 worker
-
-field {"frames":241,"mean":1.3170124487758177,"p95":1.6000000089406967,"max":2.3999999910593033}
-  ok 1 e2e\perf.spec.ts:26:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget (6.6s)
-battle {"frames":361,"mean":0.47340720144830584,"p95":0.699999988079071,"max":7.9000000059604645}
-  ok 2 e2e\perf.spec.ts:38:1 › a live battle stays inside the frame budget (9.7s)
-
-  2 passed (17.0s)
+field {"frames":241,"mean":1.3775933615523255,"p95":1.7999999970197678,"max":3.2000000029802322}
+  ok  9 e2e\perf.spec.ts:26:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget (6.5s)
+battle {"frames":360,"mean":0.5374999995032946,"p95":1,"max":6.799999997019768}
+  ok 10 e2e\perf.spec.ts:38:1 › a live battle stays inside the frame budget (9.7s)

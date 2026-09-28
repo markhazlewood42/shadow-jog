@@ -218,3 +218,39 @@ test('26 menu bestiary', async ({ page }) => {
   await page.waitForTimeout(300);
   await shot(page, '26-menu-bestiary');
 });
+
+test('27 level features: lattice, secret panel, intake, radio lot', async ({ page }) => {
+  await open(page, 'annex');
+  // Mid-puzzle: relay A cycled, so emitters 1-2 are dark and 3 is live.
+  await sj(page, '(Object.assign(sj.state.flags, { annex_key: true, relay_a: true, lattice_off: false, sable_joined: false }), true)');
+  await sj(page, "sj.tp('annex', 28, 8, 'right')");
+  await page.waitForTimeout(1500);
+  await shot(page, '27-annex-lattice');
+  await sj(page, "sj.tp('annex', 16, 22, 'left')");
+  await page.waitForTimeout(1500);
+  await shot(page, '28-annex-panel');
+  await sj(page, '(sj.state.flags.annex_panel = true, true)');
+  await sj(page, "sj.tp('annex', 15, 22, 'left')");
+  await page.waitForTimeout(1500);
+  await shot(page, '29-annex-crawlspace');
+  await sj(page, "sj.tp('sinkline_1', 3, 11, 'up')");
+  await page.waitForTimeout(1500);
+  await shot(page, '30-sinkline-intake');
+  await sj(page, "sj.tp('world', 6, 28, 'left')");
+  await page.waitForTimeout(1500);
+  await shot(page, '31-world-radio-lot');
+});
+
+test('maps overview + cast', async ({ page }) => {
+  for (const id of ['lantern_row', 'bar', 'world', 'rustyard', 'sinkline_1', 'annex', 'dock']) {
+    await page.goto(`/?debug&scene=mapview&map=${id}`);
+    await page.waitForTimeout(900);
+    await shot(page, `maps/${id}`);
+  }
+  await page.goto('/?debug&scene=chars&zoom=4');
+  await page.waitForTimeout(1200);
+  await shot(page, 'progress-01-cast-sprites');
+  await page.goto('/?debug&scene=chars&zoom=2&npcs');
+  await page.waitForTimeout(1200);
+  await shot(page, '32-crowd-sprites');
+});

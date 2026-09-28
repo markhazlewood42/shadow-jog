@@ -1,12 +1,34 @@
 
-Running 7 tests using 1 worker
+Running 27 tests using 1 worker
 
-  ok 1 e2e\gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight (3.7s)
-  ok 2 e2e\gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.2s)
-  ok 3 e2e\gameover.spec.ts:73:1 › Return to Title from Game Over (3.4s)
-  ok 4 e2e\gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it (3.9s)
-  ok 5 e2e\gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title (3.3s)
-  ok 6 e2e\gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable (896ms)
-  ok 7 e2e\playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish (30.9s)
+  ok  1 e2e\gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight (3.6s)
+  ok  2 e2e\gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.2s)
+  ok  3 e2e\gameover.spec.ts:73:1 › Return to Title from Game Over (3.4s)
+  ok  4 e2e\gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it (3.9s)
+  ok  5 e2e\gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title (3.3s)
+  ok  6 e2e\gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable (896ms)
+  ok  7 e2e\gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently (4.7s)
+  ok  8 e2e\gameover.spec.ts:171:1 › A scene that throws every frame recovers to the title instead of freezing (3.5s)
+field {"frames":241,"mean":1.3775933615523255,"p95":1.7999999970197678,"max":3.2000000029802322}
+  ok  9 e2e\perf.spec.ts:26:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget (6.5s)
+battle {"frames":360,"mean":0.5374999995032946,"p95":1,"max":6.799999997019768}
+  ok 10 e2e\perf.spec.ts:38:1 › a live battle stays inside the frame budget (9.7s)
+  ok 11 e2e\playtest.spec.ts:15:1 › playtest capture: Chapter 1 (4.7m)
+  ok 12 e2e\playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish (31.1s)
+  ok 13 e2e\shots.spec.ts:37:1 › 01 title (3.1s)
+  ok 14 e2e\shots.spec.ts:45:1 › 02 intro panels + first dialog (9.5s)
+  ok 15 e2e\shots.spec.ts:57:1 › 04 streets (8.6s)
+  ok 16 e2e\shots.spec.ts:66:1 › 06 bar dialog (5.3s)
+  ok 17 e2e\shots.spec.ts:75:1 › 07 menus (6.3s)
+  ok 18 e2e\shots.spec.ts:94:1 › 10 shop (3.3s)
+  ok 19 e2e\shots.spec.ts:104:1 › 11 battle command + techs (6.7s)
+  ok 20 e2e\shots.spec.ts:117:1 › 13 battle action (6.5s)
+  ok 21 e2e\shots.spec.ts:127:1 › 14 combo hint (9.7s)
+  ok 22 e2e\shots.spec.ts:150:1 › 16 bosses (10.7s)
+  ok 23 e2e\shots.spec.ts:161:1 › 18 world + dungeons (15.8s)
+  ok 24 e2e\shots.spec.ts:176:1 › 22 victory (14.8s)
+  ok 25 e2e\shots.spec.ts:186:1 › 23 ending (12.9s)
+  ok 26 e2e\shots.spec.ts:199:1 › 24 ending results + 25 next chapter (9.3s)
+  ok 27 e2e\shots.spec.ts:209:1 › 26 menu bestiary (5.1s)
 
-  7 passed (50.0s)
+  27 passed (8.1m)

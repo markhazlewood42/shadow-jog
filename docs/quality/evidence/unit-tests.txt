@@ -1,17 +1,30 @@
 
  RUN  v5.0.2 C:/Users/markh/home-base/projects/shadow-jog
 
+ ✓ tests/input.test.ts > input > reports a press on exactly one tick, and holds while the key is down 1ms
+ ✓ tests/input.test.ts > input > auto-repeats a held direction after a delay, at a fixed rate 0ms
+ ✓ tests/input.test.ts > input > favours the most recently pressed direction 0ms
+ ✓ tests/input.test.ts > input > never loses a tap that is released before the next tick 0ms
+ ✓ tests/input.test.ts > input > releases everything when the window loses focus 0ms
+ ✓ tests/game.test.ts > game fault isolation > reports a one-off exception and keeps ticking 1ms
+ ✓ tests/game.test.ts > game fault isolation > keeps rendering overlays when a scene render throws 0ms
+ ✓ tests/game.test.ts > game fault isolation > trips onFault once after FAULT_LIMIT consecutive bad ticks, not for intermittent ones 1ms
+ ✓ tests/game.test.ts > game fault isolation > abandon() drops scenes and timers without resolving them 0ms
+ ✓ tests/actor.test.ts > actor > steps one tile over `dur` frames and reports arrival on the last one only 1ms
+ ✓ tests/actor.test.ts > actor > interpolates pixel position part-way through a step 0ms
+ ✓ tests/actor.test.ts > actor > follows to an adjacent tile, facing the way it moves; same tile is a no-op 0ms
+ ✓ tests/actor.test.ts > actor > place() snaps position and cancels a move in progress 0ms
  ✓ tests/music.test.ts > soundtrack > title compiles with bar-aligned parts 2ms
  ✓ tests/music.test.ts > soundtrack > town compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > bar compiles with bar-aligned parts 0ms
- ✓ tests/music.test.ts > soundtrack > world compiles with bar-aligned parts 1ms
- ✓ tests/music.test.ts > soundtrack > rustyard compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > world compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > rustyard compiles with bar-aligned parts 1ms
  ✓ tests/music.test.ts > soundtrack > dungeon compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > lab compiles with bar-aligned parts 0ms
- ✓ tests/music.test.ts > soundtrack > battle compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > battle compiles with bar-aligned parts 1ms
  ✓ tests/music.test.ts > soundtrack > boss compiles with bar-aligned parts 0ms
- ✓ tests/music.test.ts > soundtrack > boss2 compiles with bar-aligned parts 0ms
- ✓ tests/music.test.ts > soundtrack > victory compiles with bar-aligned parts 0ms
+ ✓ tests/music.test.ts > soundtrack > boss2 compiles with bar-aligned parts 1ms
+ ✓ tests/music.test.ts > soundtrack > victory compiles with bar-aligned parts 1ms
  ✓ tests/music.test.ts > soundtrack > victory_boss compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > gameover compiles with bar-aligned parts 0ms
  ✓ tests/music.test.ts > soundtrack > sable compiles with bar-aligned parts 0ms
@@ -31,27 +44,20 @@
  ✓ tests/music.test.ts > harmony > gameover: held dissonances on the beat resolve by step 0ms
  ✓ tests/music.test.ts > harmony > sable: held dissonances on the beat resolve by step 0ms
  ✓ tests/music.test.ts > harmony > tension: held dissonances on the beat resolve by step 0ms
+ ✓ tests/ui-list.test.ts > ListMenu > wraps from the top to the bottom and back 1ms
+ ✓ tests/ui-list.test.ts > ListMenu > scrolls to keep the cursor inside the visible rows 0ms
+ ✓ tests/ui-list.test.ts > ListMenu > refuses to confirm a disabled row 0ms
+ ✓ tests/ui-list.test.ts > ListMenu > handles an empty list: no movement, cancel still works 0ms
+ ✓ tests/ui-list.test.ts > ListMenu > clamps the cursor when the list shrinks 0ms
  ✓ tests/save.test.ts > save / load > round-trips the full state, meta, play time and RNG 2ms
  ✓ tests/save.test.ts > save / load > reports the most recent slot 1ms
  ✓ tests/save.test.ts > save / load > rejects corrupt JSON, future versions and structurally broken saves 0ms
  ✓ tests/save.test.ts > save / load > rejects saves pointing at unknown maps 0ms
  ✓ tests/save.test.ts > save / load > loads a minimal older save: every later field gets a sensible default 0ms
  ✓ tests/save.test.ts > save / load > fills fields added after a save was written 0ms
- ✓ tests/maps.test.ts > map connectivity > lantern_row: all content reachable from where the player arrives 2ms
- ✓ tests/maps.test.ts > map connectivity > world: all content reachable from where the player arrives 1ms
- ✓ tests/maps.test.ts > map connectivity > rustyard: all content reachable from where the player arrives 1ms
- ✓ tests/maps.test.ts > map connectivity > sinkline_1: all content reachable from where the player arrives 1ms
- ✓ tests/maps.test.ts > map connectivity > annex: all content reachable from where the player arrives 0ms
- ✓ tests/maps.test.ts > map connectivity > dock: all content reachable from where the player arrives 0ms
- ✓ tests/maps.test.ts > map connectivity > rook_flat: all content reachable from where the player arrives 0ms
- ✓ tests/maps.test.ts > map connectivity > bar: all content reachable from where the player arrives 0ms
- ✓ tests/maps.test.ts > map connectivity > clinic: all content reachable from where the player arrives 0ms
- ✓ tests/maps.test.ts > map connectivity > armory: all content reachable from where the player arrives 0ms
- ✓ tests/maps.test.ts > map connectivity > threads: all content reachable from where the player arrives 0ms
- ✓ tests/maps.test.ts > map connectivity > kwikmart: all content reachable from where the player arrives 0ms
- ✓ tests/maps.test.ts > map connectivity > hotel: all content reachable from where the player arrives 0ms
- ✓ tests/maps.test.ts > map connectivity > noodles: all content reachable from where the player arrives 0ms
- ✓ tests/maps.test.ts > map connectivity > hex_den: all content reachable from where the player arrives 1ms
+ ✓ tests/save.test.ts > save / load > drops content ids that no longer exist instead of crashing a menu later 0ms
+ ✓ tests/save.test.ts > save / load > marks a slot damaged when the header parses but the state will not load 0ms
+ ✓ tests/save.test.ts > save / load > rejects a header with missing fields 0ms
  ✓ tests/battle.test.ts > data integrity > every referenced ability exists 2ms
  ✓ tests/battle.test.ts > data integrity > every encounter references real enemies and drops reference real items 1ms
  ✓ tests/battle.test.ts > data integrity > every combo pairs two different members with abilities they actually learn 1ms
@@ -65,27 +71,30 @@
  ✓ tests/battle.test.ts > battle engine > the Warden transforms into its spirit form instead of dying 0ms
  ✓ tests/battle.test.ts > battle engine > running from a boss is refused 0ms
  ✓ tests/battle.test.ts > hijack > a hijacked machine turns one of its own damaging moves on its allies 2ms
- ✓ tests/battle.test.ts > maps > every prop kind placed on a map has a painter 76ms
+ ✓ tests/battle.test.ts > support roles and field notes > a Shell Wall crab takes single-target hits aimed at its packmate 0ms
+ ✓ tests/battle.test.ts > support roles and field notes > the crab only raises Shell Wall once a packmate is hurt 1ms
+ ✓ tests/battle.test.ts > support roles and field notes > a status an enemy is immune to reports a structured immune event 0ms
+ ✓ tests/battle.test.ts > maps > every prop kind placed on a map has a painter 49ms
 stdout | tests/economy.test.ts > economy > prints the route
 Walk to the Rustyard           walks 39 steps of street (1 in 28), 25 steps of barrens (1 in 20)
 Rustyard gate                  walks 23 steps of barrens (1 in 16)
 Walk back, Hex joins           walks 21 steps of barrens (1 in 16), 23 steps of barrens (1 in 20), 25 steps of street (1 in 28), 11 steps of park (1 in 18)
 Walk to the Sinkline           walks 36 steps of street (1 in 28)
-Sinkline B1                    walks 135 steps of sinkline (1 in 19)
+Sinkline B1                    walks 218 steps of sinkline (1 in 19)
 Annex 7                        walks 86 steps of annex (1 in 22)
 street     cred   34 + loot  13 · xp 19
 barrens    cred   41 + loot  18 · xp 27
-sinkline   cred   49 + loot  20 · xp 51
-annex      cred  111 + loot  39 · xp 92
+sinkline   cred   49 + loot  21 · xp 52
+annex      cred  110 + loot  38 · xp 91
 CP1 before the Rustyard trip   after buys    59¢ (spent 120)  fights 1  {"kit":1,"rook":3} 
 Walk to the Rustyard           after buys   197¢ (spent 0)  fights 3.6  {"kit":2,"rook":3} 
-CP2 Knuckles                   after buys   476¢ (spent 0)  fights 6.1  {"kit":3,"rook":4} 
-Knuckles                       after buys   889¢ (spent 0)  fights 7.1  {"kit":4,"rook":4} 
-CP3 into the Sinkline          after buys   240¢ (spent 720)  fights 11  {"kit":4,"rook":5,"hex":4} 
-Walk to the Sinkline           after buys   300¢ (spent 0)  fights 12.3  {"kit":5,"rook":5,"hex":4} 
-CP4 the Lurker                 after buys   292¢ (spent 760)  fights 19.4  {"kit":6,"rook":6,"hex":5} 
-CP5 into Annex 7               after buys   352¢ (spent 520)  fights 20.4  {"kit":7,"rook":7,"hex":7} 
-CP6 WARDEN                     after buys  1163¢ (spent 0)  fights 25.3  {"kit":8,"rook":9,"hex":8,"sable":8} 
+CP2 Knuckles                   after buys   226¢ (spent 250)  fights 6.1  {"kit":3,"rook":4} 
+Knuckles                       after buys   639¢ (spent 0)  fights 7.1  {"kit":4,"rook":4} 
+CP3 into the Sinkline          after buys    90¢ (spent 620)  fights 11  {"kit":4,"rook":5,"hex":4} 
+Walk to the Sinkline           after buys   150¢ (spent 0)  fights 12.3  {"kit":5,"rook":5,"hex":4} 
+CP4 the Lurker                 after buys   447¢ (spent 760)  fights 23.8  {"kit":7,"rook":7,"hex":6} 
+CP5 into Annex 7               after buys   507¢ (spent 520)  fights 24.8  {"kit":8,"rook":8,"hex":7} 
+CP6 WARDEN                     after buys   995¢ (spent 0)  fights 29.7  {"kit":9,"rook":9,"hex":8,"sable":8} 
 
  ✓ tests/economy.test.ts > economy > prints the route 2ms
  ✓ tests/economy.test.ts > economy > CP1 before the Rustyard trip: affordable at the expected level, no grinding 0ms
@@ -96,28 +105,57 @@ CP6 WARDEN                     after buys  1163¢ (spent 0)  fights 25.3  {"kit"
  ✓ tests/economy.test.ts > economy > CP6 WARDEN: affordable at the expected level, no grinding 0ms
  ✓ tests/economy.test.ts > economy > every item a balance stage assumes can be obtained (shop or chest) 4ms
  ✓ tests/economy.test.ts > economy > the whole chapter takes a sensible number of fights 0ms
+ ✓ tests/maps.test.ts > map connectivity > lantern_row: all content reachable from where the player arrives 3ms
+ ✓ tests/maps.test.ts > map connectivity > world: all content reachable from where the player arrives 1ms
+ ✓ tests/maps.test.ts > map connectivity > rustyard: all content reachable from where the player arrives 1ms
+ ✓ tests/maps.test.ts > map connectivity > sinkline_1: all content reachable from where the player arrives 1ms
+ ✓ tests/maps.test.ts > map connectivity > annex: all content reachable from where the player arrives 1ms
+ ✓ tests/maps.test.ts > map connectivity > dock: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > rook_flat: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > bar: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > clinic: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > armory: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > threads: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > kwikmart: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > hotel: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > noodles: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > map connectivity > hex_den: all content reachable from where the player arrives 0ms
+ ✓ tests/maps.test.ts > text style > player-facing strings use typographic apostrophes (’), never escaped straight ones 7ms
+ ✓ tests/maps.test.ts > annex lattice > each relay flips the emitters it feeds, and only a dark set opens the passage 0ms
 stdout | tests/balance.test.ts > balance > prints the balance table
 
 street  (opening)            win 100%  rounds  2.5  hp lost  17%  combos/battle 0.00
 barrens (to Rustyard)        win 100%  rounds  2.1  hp lost  16%  combos/battle 0.00
-KNUCKLES                     win  98%  rounds  6.6  hp lost  50%  combos/battle 1.00
-sinkline                     win 100%  rounds  2.2  hp lost  14%  combos/battle 0.29
-LURKER                       win  93%  rounds  6.8  hp lost  42%  combos/battle 1.00
-annex                        win 100%  rounds  3.1  hp lost  16%  combos/battle 0.00
-WARDEN                       win  80%  rounds 11.5  hp lost  52%  combos/battle 3.43
+KNUCKLES                     win  99%  rounds  6.5  hp lost  44%  combos/battle 1.00
+sinkline                     win 100%  rounds  2.3  hp lost  13%  combos/battle 0.25
+LURKER                       win  92%  rounds  7.7  hp lost  43%  combos/battle 1.00
+annex                        win 100%  rounds  2.9  hp lost  15%  combos/battle 0.00
+WARDEN                       win  88%  rounds 10.8  hp lost  42%  combos/battle 3.78
 
 stdout | tests/balance.test.ts > dungeon attrition > prints the attrition table
 
 barrens x4                   cleared 100%  end hp  89%  medkits 2.5  rounds/battle 2.2
-sinkline x6                  cleared  92%  end hp  77%  medkits 4.1  rounds/battle 2.8
-    lost to: drowned_shade+drowned_shade+glowrat @3 lose ×2, drowned_shade+sewer_ghoul @5 lose ×1, rust_crab+maint_drone @6 lose ×1, drowned_shade+sewer_ghoul @6 lose ×1
-annex x5                     cleared  90%  end hp  82%  medkits 2.4  rounds/battle 4.2
-    lost to: bound_spirit+km_sentinel @4 lose ×3, km_sentinel+km_arcanist @3 lose ×1, bound_spirit+km_sentinel @3 lose ×1, bound_spirit+km_sentinel @2 lose ×1
+sinkline x6                  cleared  92%  end hp  77%  medkits 4.3  rounds/battle 2.9
+    lost to: drowned_shade+drowned_shade+glowrat @2 lose ×1, drowned_shade+sewer_ghoul @5 lose ×1, drowned_shade+sewer_ghoul @6 lose ×1, drowned_shade+drowned_shade+glowrat @1 lose ×1, drowned_shade+sewer_ghoul @4 lose ×1
+annex x5                     cleared  97%  end hp  88%  medkits 1.9  rounds/battle 3.9
+    lost to: bound_spirit+km_sentinel @5 lose ×1, bound_spirit+km_sentinel @4 lose ×1
 
- ✓ tests/balance.test.ts > balance > prints the balance table 2ms
- ✓ tests/balance.test.ts > balance > the policy uses every ability learnable by the Warden and all six combos 1ms
- ✓ tests/balance.test.ts > balance > street  (opening) within targets 1ms
- ✓ tests/balance.test.ts > balance > barrens (to Rustyard) within targets 0ms
+stdout | tests/balance.test.ts > alternative builds > sinkline with shock_knuckles, lucky_coin, taser_pistol, cyber_eye holds up
+sinkline (alt)               win 100%  rounds  2.2  hp lost  12%  combos/battle 0.25
+
+stdout | tests/balance.test.ts > alternative builds > lurker with razor_tekko, reflex_booster, nodachi, dermal_plating holds up
+lurker (alt)                 win  89%  rounds  8.4  hp lost  47%  combos/battle 1.00
+
+stdout | tests/balance.test.ts > alternative builds > annex with thorn_rod, spirit_fetish, adrenal_pump holds up
+annex (alt)                  win 100%  rounds  3.0  hp lost  15%  combos/battle 0.00
+
+stdout | tests/balance.test.ts > alternative builds > warden with lucky_coin, reflex_booster, bone_staff holds up
+warden (alt)                 win  93%  rounds 10.1  hp lost  39%  combos/battle 3.60
+
+ ✓ tests/balance.test.ts > balance > prints the balance table 1ms
+ ✓ tests/balance.test.ts > balance > the policy uses every ability learnable by the Warden and every combo 1ms
+ ✓ tests/balance.test.ts > balance > street  (opening) within targets 0ms
+ ✓ tests/balance.test.ts > balance > barrens (to Rustyard) within targets 1ms
  ✓ tests/balance.test.ts > balance > KNUCKLES within targets 0ms
  ✓ tests/balance.test.ts > balance > sinkline within targets 0ms
  ✓ tests/balance.test.ts > balance > LURKER within targets 0ms
@@ -127,9 +165,14 @@ annex x5                     cleared  90%  end hp  82%  medkits 2.4  rounds/batt
  ✓ tests/balance.test.ts > dungeon attrition > barrens x4 is survivable 0ms
  ✓ tests/balance.test.ts > dungeon attrition > sinkline x6 is survivable 0ms
  ✓ tests/balance.test.ts > dungeon attrition > annex x5 is survivable 0ms
+ ✓ tests/balance.test.ts > alternative builds > sinkline with shock_knuckles, lucky_coin, taser_pistol, cyber_eye holds up 0ms
+ ✓ tests/balance.test.ts > alternative builds > lurker with razor_tekko, reflex_booster, nodachi, dermal_plating holds up 0ms
+ ✓ tests/balance.test.ts > alternative builds > annex with thorn_rod, spirit_fetish, adrenal_pump holds up 0ms
+ ✓ tests/balance.test.ts > alternative builds > warden with lucky_coin, reflex_booster, bone_staff holds up 0ms
+ ✓ tests/balance.test.ts > alternative builds > everything a stage loadout equips can be obtained (shop, chest or starting kit) 14ms
 
- Test Files  6 passed (6)
-      Tests  87 passed (87)
-   Start at  10:08:58
-   Duration  354ms (transform 62%, import 27%, tests 10%, worker 2%)
+ Test Files  10 passed (10)
+      Tests  118 passed (118)
+   Start at  11:19:42
+   Duration  468ms (transform 69%, import 23%, tests 7%, worker 2%)
 
