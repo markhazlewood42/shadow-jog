@@ -215,24 +215,26 @@ export const deadCrew: ScriptFn = async (s) => {
 };
 
 /** Pump intakes, west to east, and the order they must be opened in (lowest pressure first). */
+/** Intake 1 on the track bed, 2 in the service bay, 3 in the pump station. */
 const VALVES: Record<string, number> = { v1: 50, v2: 30, v3: 70 };
+const INTAKE: Record<string, string> = { v1: 'Intake 1', v2: 'Intake 2', v3: 'Intake 3' };
 const VALVE_ORDER = Object.keys(VALVES).sort((a, b) => VALVES[a]! - VALVES[b]!);
 
 export const pumpValve = (id: string): ScriptFn => async (s) => {
   const psi = VALVES[id]!;
   const opened = Number(s.get('valves') ?? 0);
   if (s.flag('floodgate') || opened >= VALVE_ORDER.length || s.flag(`valve_${id}`)) {
-    await s.narrate(`An open intake valve. The gauge sits steady at {c}${psi} psi{/}.`);
+    await s.narrate(`${INTAKE[id]}, open. The gauge sits steady at {c}${psi} psi{/}.`);
     return;
   }
-  const pick = await s.ask(null, `A rusted intake valve. Its gauge reads {c}${psi} psi{/}.`, ['Open it', 'Leave it'], { cancel: 1 });
+  const pick = await s.ask(null, `${INTAKE[id]}: a rusted valve wheel. Its gauge reads {c}${psi} psi{/}.`, ['Open it', 'Leave it'], { cancel: 1 });
   if (pick !== 0) return;
   if (VALVE_ORDER[opened] === id) {
     s.set(`valve_${id}`);
     s.set('valves', opened + 1);
     s.sfx('wave');
     if (opened + 1 < VALVE_ORDER.length) {
-      await s.narrate('The wheel grinds round. Water hisses into the intake, steady.');
+      await s.narrate(`The wheel grinds round. Water hisses into ${INTAKE[id]}, and somewhere across the level a pipe knocks in answer.`);
       return;
     }
     await s.narrate('The last wheel turns. Every pipe in the room drums once, then settles into a low, even hum.');
@@ -247,7 +249,7 @@ export const pumpValve = (id: string): ScriptFn => async (s) => {
   await s.narrate('{r}BANG.{/} A pressure kick hammers down the line and every valve slams shut.');
   if (!s.flag('valve_hint')) {
     s.set('valve_hint');
-    await s.say('hex', 'Okay. Order matters. The console said lowest pressure first. I read that. I was busy being scared.', { face: 'sad' });
+    await s.say('hex', 'Okay. Order matters. Lowest pressure first, and that means reading all three gauges before we touch anything. I did say that. Out loud.', { face: 'sad' });
   }
 };
 
@@ -257,10 +259,10 @@ export const floodgate: ScriptFn = async (s) => {
     return;
   }
   if (Number(s.get('valves') ?? 0) < VALVE_ORDER.length) {
-    await s.narrate('The pump console flickers awake: {r}INTAKES DRY.{/} {c}PRIME SEQUENCE: OPEN INTAKE VALVES, LOWEST PRESSURE FIRST.{/}');
+    await s.narrate('The pump console flickers awake: {r}INTAKES DRY.{/} {c}PRIME: OPEN INTAKES 1–3, LOWEST PRESSURE FIRST.{/}\nIntake 1: platform track bed · Intake 2: service bay · Intake 3: this station.');
     if (!s.flag('pump_seen')) {
       s.set('pump_seen');
-      await s.say('hex', 'Pumps won’t spin dry. Three intake valves on this wall, three gauges. Read them, then open them in order.');
+      await s.say('hex', 'Three intakes, all over the level. We read every gauge first. Then we open them lowest to highest. Nobody touches a wheel before that. Please.');
     }
     return;
   }
@@ -325,10 +327,15 @@ export const annexGuards: ScriptFn = async (s) => {
  */
 const RELAYS: Record<string, number[]> = { a: [0, 1], b: [0, 1, 2], c: [1, 2] };
 
-function emitters(s: ScriptApi): boolean[] {
+/** Which emitters are live, from the relay flags. Shared with the map, which draws each beam row. */
+export function latticeEmitters(flags: Record<string, unknown>): boolean[] {
   const on = [true, true, true];
-  for (const [r, feeds] of Object.entries(RELAYS)) if (s.flag(`relay_${r}`)) for (const i of feeds) on[i] = !on[i];
+  for (const [r, feeds] of Object.entries(RELAYS)) if (flags[`relay_${r}`]) for (const i of feeds) on[i] = !on[i];
   return on;
+}
+
+function emitters(s: ScriptApi): boolean[] {
+  return latticeEmitters({ relay_a: s.flag('relay_a'), relay_b: s.flag('relay_b'), relay_c: s.flag('relay_c') });
 }
 
 const emitterLine = (on: boolean[]) => on.map((e, i) => `${i + 1} ${e ? '{r}LIVE{/}' : '{g}DARK{/}'}`).join('  ·  ');
@@ -356,6 +363,7 @@ export const relay = (id: string): ScriptFn => async (s) => {
   if (pick !== 0) return;
   s.set(`relay_${id}`, !s.flag(`relay_${id}`));
   s.sfx('code');
+  s.refreshMap(); // the beams down the hall change as the relay flips
   const on = emitters(s);
   if (on.every((e) => !e)) {
     s.set('lattice_off');

@@ -8,7 +8,7 @@ export type TerrainId =
   // interiors
   | 'floor_wood' | 'floor_tile' | 'floor_metal' | 'floor_carpet' | 'floor_concrete' | 'iwall'
   // dungeon
-  | 'd_floor' | 'd_wall' | 'd_water' | 'd_shallow' | 'd_catwalk' | 'd_track' | 'lab_floor' | 'lab_wall' | 'lab_door' | 'lab_laser'
+  | 'd_floor' | 'd_wall' | 'd_water' | 'd_shallow' | 'd_catwalk' | 'd_track' | 'lab_floor' | 'lab_wall' | 'lab_door' | 'lab_laser' | 'lab_laser_off'
   // world map
   | 'w_ruins' | 'w_road' | 'w_barrens' | 'w_toxic' | 'w_park' | 'w_highway' | 'w_bridge' | 'w_block';
 
@@ -139,6 +139,8 @@ export interface ChestDef {
   qty?: number;
   cred?: number;
   kind?: 'crate' | 'locker' | 'case';
+  /** Only present once this holds (a chest behind a secret that hasn't been found). */
+  when?: (flags: Record<string, unknown>) => boolean;
 }
 
 export interface EncounterZone {

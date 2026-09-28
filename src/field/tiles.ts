@@ -405,6 +405,15 @@ const labLaser: Painter = (lx, ly, wx, wy, tx, ty, q) => {
   return floor;
 };
 
+/** A lattice row whose emitter is dark: empty housings, dead lenses. Still sealed by the interlock. */
+const labLaserOff: Painter = (lx, ly, wx, wy, tx, ty, q) => {
+  const floor = labFloor(lx, ly, wx, wy, tx, ty, q);
+  const lens = ly === 3 || ly === 8 || ly === 13;
+  if (lx <= 1 || lx >= 14) return lens ? C('#4a1a22') : C('#2a2e3a');
+  if (lens) return lx % 3 === 0 ? lerpC(floor, C('#3a1a20'), 0.5) : floor;
+  return floor;
+};
+
 const labDoor: Painter = (lx, ly) => {
   if (ly <= 1 || ly >= 14) return P.labSeam;
   if (lx === 7 || lx === 8) return C('#1a1e28');
@@ -478,13 +487,14 @@ export const PAINTERS: Record<TerrainId, Painter> = {
   lab_wall: wallP('lab_wall', labWallFace, P.labTop, P.labEdge),
   lab_door: labDoor,
   lab_laser: labLaser,
+  lab_laser_off: labLaserOff,
   w_ruins: rubble, w_road: wRoad, w_barrens: wBarrens, w_toxic: wToxic, w_park: grass, w_highway: wHighway,
   w_bridge: bridge, w_block: wBlock,
 };
 
 /** Terrain that blocks movement. */
 export const SOLID_TERRAIN = new Set<TerrainId>([
-  'void', 'water', 'wall', 'junk', 'lab_door', 'lab_laser', 'iwall', 'd_wall', 'd_water', 'lab_wall', 'w_toxic', 'w_highway', 'w_block',
+  'void', 'water', 'wall', 'junk', 'lab_door', 'lab_laser', 'lab_laser_off', 'iwall', 'd_wall', 'd_water', 'lab_wall', 'w_toxic', 'w_highway', 'w_block',
 ]);
 
 /** Terrain with a 3/4 wall face (for lighting / occlusion decisions). */

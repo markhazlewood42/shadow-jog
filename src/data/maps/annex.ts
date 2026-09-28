@@ -1,6 +1,6 @@
 /** K-M Annex 7 (B2) and the loading dock where the job goes wrong. */
 import type { MapDef } from '../../field/types';
-import { annexDoor, annexGuards, annexLog, betrayal, cryopod, lattice, relay, wardenFight } from '../../story/chapter1';
+import { annexDoor, annexGuards, annexLog, betrayal, cryopod, lattice, latticeEmitters, relay, wardenFight } from '../../story/chapter1';
 import { LOOKS } from '../looks';
 import { Grid } from './grid';
 
@@ -27,6 +27,7 @@ const g = new Grid(W, H, 'L')
   .rect(26, 22, 3, 1, 'D')
   // Warden chamber
   .rect(18, 23, 22, 9, '_')
+  // (The crawlspace behind the armory's loose panel is carved in by a patch.)
   .rect(37, 32, 3, 1, '_');
 
 export const annex: MapDef = {
@@ -36,7 +37,7 @@ export const annex: MapDef = {
   bannerSub: 'Kessler-Mori · Decommissioned',
   kind: 'dungeon',
   terrain: g.rows(),
-  legend: { L: 'lab_wall', _: 'lab_floor', D: 'lab_door', Z: 'lab_laser', '+': 'grate' },
+  legend: { L: 'lab_wall', _: 'lab_floor', D: 'lab_door', Z: 'lab_laser', z: 'lab_laser_off', '+': 'grate' },
   ambient: '#6a7aa0',
   weather: 'none',
   music: 'lab',
@@ -45,8 +46,14 @@ export const annex: MapDef = {
   encounters: [{ table: 'annex', rate: 22, bg: 'lab', rect: [15, 3, 27, 29] }],
   patches: [
     { when: (f) => !!f.annex_key, rects: [[14, 10, 1, 2, '_']] },
-    // The laser lattice across the cryo-wing passage, until the relays drop it.
-    { when: (f) => !f.lattice_off, rects: [[30, 6, 1, 3, 'Z']] },
+    // The laser lattice across the cryo-wing passage: one beam row per emitter, live or dark,
+    // sealed until all three are dark.
+    ...[0, 1, 2].flatMap((i) => [
+      { when: (f: Record<string, unknown>) => !f.lattice_off && !!latticeEmitters(f)[i], rects: [[30, 6 + i, 1, 1, 'Z']] as [number, number, number, number, string][] },
+      { when: (f: Record<string, unknown>) => !f.lattice_off && !latticeEmitters(f)[i], rects: [[30, 6 + i, 1, 1, 'z']] as [number, number, number, number, string][] },
+    ]),
+    // A loose panel in the armory's west wall hides a crawlspace.
+    { when: (f) => !!f.annex_panel, rects: [[11, 21, 3, 2, '_'], [14, 22, 1, 1, '_']] },
     { when: (f) => !!f.sable_joined, rects: [[26, 22, 3, 1, '_']] },
   ],
   props: [
@@ -80,7 +87,7 @@ export const annex: MapDef = {
     // Wayfinding: the lab's own wall signs.
     { kind: 'sign_post', x: 9, y: 7, text: 'LABS ↓' },
     { kind: 'sign_post', x: 16, y: 18, text: 'ARMORY ↓' },
-    { kind: 'sign_post', x: 29, y: 9, text: 'CRYO WING ↑' },
+    { kind: 'sign_post', x: 27, y: 10, text: 'CRYO WING →' },
     { kind: 'sign_post', x: 25, y: 18, text: 'CONTAINMENT ↓' },
     // Lattice relays (red, unlike the cyan lore terminals): service room, hall, armory.
     { kind: 'terminal', x: 10, y: 4, color: '#ff6a5a' },
@@ -88,6 +95,7 @@ export const annex: MapDef = {
     { kind: 'terminal', x: 15, y: 21, color: '#ff6a5a' },
   ],
   chests: [
+    { id: 'petrov', x: 11, y: 21, item: 'proto_chip', kind: 'case', when: (f) => !!f.annex_panel },
     { id: 'a1', x: 9, y: 6, item: 'trauma_patch', qty: 2, kind: 'locker' },
     { id: 'a2', x: 16, y: 22, item: 'mono_katana', kind: 'case' },
     { id: 'a3', x: 20, y: 22, item: 'smartpistol', kind: 'case' },
@@ -155,6 +163,19 @@ export const annex: MapDef = {
         await s.shop('km_requisition');
       },
     },
+    {
+      id: 'panel', x: 14, y: 22, on: 'action', when: (f) => !f.annex_panel,
+      run: async (s) => {
+        await s.narrate('One wall panel sits a few millimetres proud of the rest. Scratches round the screws. Cold air on your fingers.');
+        const pick = await s.ask(null, 'Pry the panel off?', ['Pry it off', 'Leave it'], { cancel: 1 });
+        if (pick !== 0) return;
+        s.sfx('door');
+        s.set('annex_panel');
+        s.refreshMap();
+        await s.narrate('The panel comes away. Behind it, a crawlspace someone has been living in: a bedroll, ration wrappers, a K-M badge lanyard. {c}D. PETROV{/}.');
+        await s.say('hex', 'Dmitri. He didn’t leave with everyone else. He hid.', { face: 'sad' });
+      },
+    },
     { id: 'pod_near', x: 35, y: 6, w: 4, h: 1, on: 'touch', once: true, when: (f) => !f.sable_joined, run: cryopod },
     { id: 'warden', x: 18, y: 24, w: 22, h: 1, on: 'touch', once: true, when: (f) => !!f.sable_joined && !f.warden, run: wardenFight },
     {
@@ -178,7 +199,13 @@ export const annex: MapDef = {
     { x: 29, y: 27, r: 110, color: '#ff3a4a', i: 0.45, flicker: true },
     { x: 18, y: 21, r: 50, color: '#ffd07a', i: 0.45 },
     { x: 23, y: 18, r: 40, color: '#ff6a5a', i: 0.4 },
-    { x: 30, y: 7, r: 45, color: '#ff3a4a', i: 0.6, flicker: true, when: (f) => !f.lattice_off },
+    // One red glow per live emitter, so the lattice's state reads from across the hall.
+    { x: 30, y: 6, r: 26, color: '#ff3a4a', i: 0.6, flicker: true, when: (f) => !f.lattice_off && !!latticeEmitters(f)[0] },
+    { x: 30, y: 7, r: 26, color: '#ff3a4a', i: 0.6, flicker: true, when: (f) => !f.lattice_off && !!latticeEmitters(f)[1] },
+    { x: 30, y: 8, r: 26, color: '#ff3a4a', i: 0.6, flicker: true, when: (f) => !f.lattice_off && !!latticeEmitters(f)[2] },
+    // Cold light leaking round the loose panel: the only tell.
+    { x: 14, y: 22, r: 18, color: '#9ad8ff', i: 0.5, flicker: true, when: (f) => !f.annex_panel },
+    { x: 12, y: 21, r: 30, color: '#9ad8ff', i: 0.4, when: (f) => !!f.annex_panel },
   ],
 };
 

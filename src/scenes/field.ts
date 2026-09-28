@@ -104,7 +104,7 @@ export class FieldScene extends Scene<void> {
     this.weather.set(this.def.weather ?? 'none');
     this.buildParty(x, y, dir);
     this.buildNpcs();
-    this.chests = (this.def.chests ?? []).map((c) => ({ def: c, open: flags.has(`chest:${mapId}:${c.id}`) }));
+    this.chests = (this.def.chests ?? []).filter((c) => !c.when || c.when(state.flags)).map((c) => ({ def: c, open: flags.has(`chest:${mapId}:${c.id}`) }));
     for (const c of this.chests) this.map.solid[c.def.y * this.map.w + c.def.x] = 1;
     this.snapCamera();
     this.stepsSinceBattle = 0;

@@ -78,9 +78,9 @@ export async function playChapter1(page: Page): Promise<void> {
   await waitIdle(page);
   await press(page, 'ArrowUp');
   await waitFor(page, "sj.state.map === 'sinkline_1'", 'enter Sinkline');
-  // Prime the pump intakes, lowest pressure first (30, 50, 70 psi), then run the pumps.
-  for (const x of [11, 9, 13]) {
-    await tp(page, 'sinkline_1', x, 27, 'up');
+  // Prime the pump intakes, lowest pressure first: service bay (30), track bed (50), station (70).
+  for (const [x, y] of [[18, 20], [2, 11], [13, 27]] as const) {
+    await tp(page, 'sinkline_1', x, y, 'up');
     await press(page, 'z');
   }
   await waitFor(page, "sj.state.flags.valves === 3", 'pumps primed');

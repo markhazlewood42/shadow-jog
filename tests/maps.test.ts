@@ -54,3 +54,14 @@ describe('text style', () => {
     expect(bad).toEqual([]);
   });
 });
+
+describe('annex lattice', () => {
+  it('each relay flips the emitters it feeds, and only a dark set opens the passage', async () => {
+    const { latticeEmitters } = await import('../src/story/chapter1');
+    expect(latticeEmitters({})).toEqual([true, true, true]);
+    expect(latticeEmitters({ relay_a: true })).toEqual([false, false, true]);
+    expect(latticeEmitters({ relay_c: true })).toEqual([true, false, false]);
+    expect(latticeEmitters({ relay_b: true })).toEqual([false, false, false]);
+    expect(latticeEmitters({ relay_a: true, relay_c: true })).toEqual([false, true, false]);
+  });
+});

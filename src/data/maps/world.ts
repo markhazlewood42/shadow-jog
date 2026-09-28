@@ -27,6 +27,10 @@ const g = new Grid(W, H, 'B')
   .rect(16, 12, 2, 9, 'R')
   .rect(16, 12, 5, 2, 'R')
   .rect(6, 24, 2, 8, 'R')
+  // ...joined to the main street below Lantern Row's wall.
+  .rect(8, 24, 5, 1, 'R')
+  // An empty lot off the west side street, where Static Mary broadcasts from.
+  .rect(2, 27, 4, 4, '.')
   // South: road to the canal bridge and the Sinkline station.
   .rect(18, 24, 3, 7, 'R')
   .rect(0, 31, W, 3, '~')
@@ -117,6 +121,10 @@ export const world: MapDef = {
     { kind: 'body', x: 43, y: 36, color: '#2c3b5e' },
     { kind: 'firebarrel', x: 39, y: 38 },
     { kind: 'crates', x: 44, y: 38 },
+    // POI: pirate radio in the empty lot.
+    { kind: 'tent', x: 2, y: 27, w: 2, color: '#4a3a5a' },
+    { kind: 'pole', x: 5, y: 27 },
+    { kind: 'firebarrel', x: 5, y: 30 },
   ],
   chests: [
     { id: 'park_cache', x: 23, y: 16, item: 'ghost_lens', kind: 'case' },
@@ -124,6 +132,7 @@ export const world: MapDef = {
     { id: 'ruin_cache', x: 45, y: 19, item: 'neurotab', qty: 2, kind: 'crate' },
     { id: 'shrine_offering', x: 21, y: 13, item: 'omni_patch', qty: 2, kind: 'crate' },
     { id: 'av_locker', x: 44, y: 37, item: 'trauma_patch', qty: 2, kind: 'locker' },
+    { id: 'radio_stash', x: 2, y: 30, item: 'adrenal_stim', qty: 2, kind: 'crate' },
   ],
   npcs: [
     {
@@ -158,6 +167,21 @@ export const world: MapDef = {
       },
     },
     {
+      id: 'dj', x: 3, y: 29, dir: 'right', name: 'Static Mary', move: 'static',
+      look: { skin: '#8a5a3a', hair: '#ff4fb0', hairStyle: 'bob', top: '#2a2438', coat: '#2a2438', inner: '#ff4fb0', accent: '#3fe0f0', pants: '#1e1c26', boots: '#1a1418', accessories: ['shades'] },
+      // Pirate radio: she has already heard about whatever the crew just did.
+      talk: async (s) => {
+        if (s.flag('lurker')) await s.say('Static Mary', 'Breaking news on Radio Static: something the size of a train died under Junction 4. The rats are throwing a parade. Was that you? That was you.');
+        else if (s.flag('hex_joined')) await s.say('Static Mary', 'Hex! You tell Hex she still owes me a jingle. Thirty seconds. Something catchy about not paying people.');
+        else if (s.flag('met_dutch')) await s.say('Static Mary', 'K-M trucks have been going down the Sinkline at night. No lights, no plates. That’s tonight’s top story, and nobody’s listening.');
+        else await s.say('Static Mary', 'You’re listening to Radio Static, the only station in Saltreach nobody paid for. Including me.');
+        if (!s.flag('met_mary')) {
+          s.set('met_mary');
+          await s.say('Static Mary', 'Stash behind the tent’s for runners. Take what you need. Tell people where you heard it.');
+        }
+      },
+    },
+    {
       id: 'wanderer', x: 45, y: 25, dir: 'left', name: 'Scav', move: 'wander', radius: 3,
       look: { skin: '#a5673f', hair: '#4a2e22', hairStyle: 'hood', top: '#6a5040', inner: '#3a2a24', accent: '#ffa24a', pants: '#3d3a30', boots: '#2a2420', accessories: ['mask'], goggles: '#2a2420' },
       talk: ['The Barrens used to be a neighborhood. Then the tide came up, and the corps decided it wasn’t worth saving.', 'The Rustyard’s north-east. Follow the old highway spur.'],
@@ -182,5 +206,6 @@ export const world: MapDef = {
     { x: 26, y: 38, r: 50, color: '#3fe0f0', i: 0.6 },
     { x: 8, y: 21, r: 60, color: '#ff4fb0', i: 0.5 },
     { x: 52, y: 8, r: 50, color: '#86f08c', i: 0.5 },
+    { x: 4, y: 28, r: 40, color: '#ff4fb0', i: 0.5, flicker: true },
   ],
 };
