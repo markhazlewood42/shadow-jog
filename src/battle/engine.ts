@@ -16,7 +16,7 @@ export interface QueuedAction {
   actors: number[];
   ability: Ability;
   /** Item id when the action is an item. */
-  item?: string;
+  item?: string | undefined;
   target: number;
   speed: number;
   combo?: string;

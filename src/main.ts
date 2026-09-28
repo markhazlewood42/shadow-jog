@@ -34,6 +34,7 @@ function start(): void {
     acc += Math.min(250, now - last);
     last = now;
     let n = 0;
+    let simMs = 0;
     try {
       while (acc >= step && n < 5) {
         for (let i = 0; i < game.speed; i++) game.tick();
@@ -41,12 +42,13 @@ function start(): void {
         n++;
       }
       if (n === 5) acc = 0;
+      simMs = performance.now() - t0;
       game.render();
       display.present();
     } catch (e) {
       reportError(e);
     }
-    perf.record(performance.now() - t0);
+    perf.record(performance.now() - t0, simMs);
   };
 
   boot(game, display);

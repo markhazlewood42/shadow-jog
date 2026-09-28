@@ -8,12 +8,12 @@ import { drawCursor, drawSelect, UI } from './draw';
 export interface ListItem<T> {
   label: string;
   value: T;
-  right?: string;
-  enabled?: boolean;
-  color?: string;
+  right?: string | undefined;
+  enabled?: boolean | undefined;
+  color?: string | undefined;
   /** Small colored tag drawn before the label (e.g. an icon glyph). */
-  icon?: string;
-  iconColor?: string;
+  icon?: string | undefined;
+  iconColor?: string | undefined;
 }
 
 export class ListMenu<T> {

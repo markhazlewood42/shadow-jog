@@ -13,15 +13,15 @@ export type Effect =
       type: 'damage';
       /** Physical uses ATK vs DEF; tech uses power + MND vs RES. */
       stat: 'atk' | 'mnd';
-      power?: number;
-      mult?: number;
-      hits?: number;
-      critBonus?: number;
-      ignoreDef?: boolean;
+      power?: number | undefined;
+      mult?: number | undefined;
+      hits?: number | undefined;
+      critBonus?: number | undefined;
+      ignoreDef?: boolean | undefined;
       /** Damage is a % of target max HP (gravity-style). */
-      pct?: number;
+      pct?: number | undefined;
       /** Heals the user for this fraction of damage dealt. */
-      drain?: number;
+      drain?: number | undefined;
       /** Only affects this family (e.g. cyber programs). */
     }
   | { type: 'heal'; power?: number; pct?: number }
@@ -39,19 +39,19 @@ export interface Ability {
   name: string;
   desc: string;
   kind: 'tech' | 'skill' | 'item' | 'enemy' | 'combo' | 'attack';
-  cost?: number;
-  uses?: number;
+  cost?: number | undefined;
+  uses?: number | undefined;
   target: TargetKind;
-  element?: Element;
+  element?: Element | undefined;
   effects: Effect[];
   /** Added to effective agility when ordering turns. */
-  priority?: number;
+  priority?: number | undefined;
   /** Visual effect id for the battle scene. */
   fx: string;
   /** Can be used from the field menu. */
-  field?: boolean;
+  field?: boolean | undefined;
   /** Short flavor shown on the action banner (enemy moves). */
-  cry?: string;
+  cry?: string | undefined;
 }
 
 export interface Stats {
@@ -72,7 +72,7 @@ export interface StatusState {
   id: StatusId;
   turns: number;
   /** For hijacked / cover: who applied it. */
-  src?: number;
+  src?: number | undefined;
 }
 
 export interface Combatant {
@@ -89,23 +89,23 @@ export interface Combatant {
   status: StatusState[];
   /** Skills remaining uses. */
   uses: Record<string, number>;
-  family?: Family;
-  weak?: Partial<Record<Element, number>>;
-  immune?: StatusId[];
+  family?: Family | undefined;
+  weak?: Partial<Record<Element, number>> | undefined;
+  immune?: StatusId[] | undefined;
   /** Enemy AI script id. */
-  ai?: string;
+  ai?: string | undefined;
   /** Enemy is a boss (can't flee, immune to instant effects). */
-  boss?: boolean;
+  boss?: boolean | undefined;
   /** Whether the enemy has been analyzed (shows HP / weaknesses). */
-  analyzed?: boolean;
+  analyzed?: boolean | undefined;
   /** Weapon element for basic attacks. */
-  weaponElement?: Element;
+  weaponElement?: Element | undefined;
   /** Boss phase counter and misc AI memory. */
   memory: Record<string, number>;
   /** Row slot for enemies (layout). */
-  slot?: number;
+  slot?: number | undefined;
   /** Party order index. */
-  order?: number;
+  order?: number | undefined;
 }
 
 export type CommandType = 'attack' | 'tech' | 'skill' | 'item' | 'guard' | 'run';
@@ -114,14 +114,14 @@ export interface Command {
   actor: number;
   type: CommandType;
   /** Ability or item id. */
-  id?: string;
+  id?: string | undefined;
   /** Target uid (single-target commands). -1 = auto. */
-  target?: number;
+  target?: number | undefined;
 }
 
 export type BattleEvent =
   | { t: 'turn'; actor: number }
-  | { t: 'act'; actor: number; id: string; name: string; kind: Ability['kind']; fx: string; targets: number[]; element?: Element }
+  | { t: 'act'; actor: number; id: string; name: string; kind: Ability['kind']; fx: string; targets: number[]; element?: Element | undefined }
   | { t: 'combo'; name: string; actors: number[]; fx: string; targets: number[] }
   | { t: 'damage'; target: number; amount: number; crit: boolean; element: Element; weak: boolean; resist: boolean; hp: number }
   | { t: 'miss'; target: number }

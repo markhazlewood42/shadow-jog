@@ -74,6 +74,7 @@ export class Game {
   playFrames = 0;
   countPlayTime = false;
   private timers: Timer[] = [];
+  private dueBuf: (Timer | undefined)[] = [];
   private fade: Fade | null = null;
   /** 0 = clear, 1 = fully covered. */
   fadeLevel = 0;
@@ -217,10 +218,18 @@ export class Game {
       if (this.countPlayTime) this.playFrames++;
       // Timers
       if (this.timers.length) {
-        const due = this.timers.filter((t) => t.at <= this.frame);
-        if (due.length) {
-          this.timers = this.timers.filter((t) => t.at > this.frame);
-          for (const t of due) t.resolve();
+        // Compact in place and collect the due ones into a reused buffer: no allocation per tick.
+        let keep = 0, due = 0;
+        for (let i = 0; i < this.timers.length; i++) {
+          const t = this.timers[i]!;
+          if (t.at <= this.frame) this.dueBuf[due++] = t;
+          else this.timers[keep++] = t;
+        }
+        this.timers.length = keep;
+        for (let i = 0; i < due; i++) {
+          const t = this.dueBuf[i]!;
+          this.dueBuf[i] = undefined;
+          t.resolve();
         }
       }
       // Fade

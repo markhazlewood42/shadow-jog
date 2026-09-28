@@ -37,6 +37,7 @@ function moveOk(b: Battle, self: Combatant, m: EnemyMove): boolean {
     case 'every_3':
       return b.round % 3 === 0;
   }
+  return true;
 }
 
 function weightedPick(b: Battle, moves: EnemyMove[]): EnemyMove | null {

@@ -10,13 +10,13 @@ import { mix, shade } from '../engine/color';
 export interface EnemyArt {
   canvas: HTMLCanvasElement;
   /** Optional emissive overlay (eyes, lights) drawn un-darkened. */
-  glow?: HTMLCanvasElement;
+  glow?: HTMLCanvasElement | undefined;
   /** Idle motion style. */
   idle: 'bob' | 'hover' | 'sway' | 'breathe' | 'flicker' | 'still';
   /** Ground shadow width (0 = floating/no shadow). */
   shadow: number;
   /** A distinct individual (its own look), not just the base sprite: no palette shift needed. */
-  individual?: boolean;
+  individual?: boolean | undefined;
 }
 
 const cache = new Map<string, EnemyArt>();
@@ -88,10 +88,10 @@ function rigArt(look: CharLook, extra?: (p: Pix, w: number, h: number) => void, 
  * scars. `big` bodies are reshaped wider, so their face sits 1px right and eyes spread.
  */
 interface Face {
-  brows?: 'angry' | 'flat' | 'heavy';
-  mouth?: 'sneer' | 'grimace' | 'maw' | 'line' | 'smirk';
-  scar?: boolean;
-  big?: boolean;
+  brows?: 'angry' | 'flat' | 'heavy' | undefined;
+  mouth?: 'sneer' | 'grimace' | 'maw' | 'line' | 'smirk' | undefined;
+  scar?: boolean | undefined;
+  big?: boolean | undefined;
 }
 function face(p: Pix, f: Face): void {
   if (V) f = { ...f, ...VARIANTS[building]![V - 1]!.face };

@@ -43,8 +43,11 @@ export interface GameState {
   /** Statuses each enemy kind has been seen to shrug off. */
   immuneSeen: Record<string, string[]>;
   /** Last round's battle orders per member (for "Repeat"). */
-  lastOrders: Partial<Record<MemberId, { cmd: string; id?: string }>>;
+  lastOrders: Partial<Record<MemberId, { cmd: string; id?: string | undefined }>>;
+  /** Encounter stream state (see engine/rng streams). */
   rngState: number;
+  /** Battle stream state. */
+  rngBattle: number;
   battles: number;
 }
 
@@ -73,6 +76,7 @@ export function newState(): GameState {
     immuneSeen: {},
     lastOrders: {},
     rngState: 1,
+    rngBattle: 1,
     battles: 0,
   };
 }

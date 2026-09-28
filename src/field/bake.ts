@@ -7,20 +7,20 @@ export interface BakedLight {
   r: number;
   color: string;
   i: number;
-  flicker?: boolean;
+  flicker?: boolean | undefined;
   /** Seed for flicker phase. */
-  seed?: number;
+  seed?: number | undefined;
 }
 
 export interface SortedSprite {
   canvas: HTMLCanvasElement;
-  emit?: HTMLCanvasElement;
+  emit?: HTMLCanvasElement | undefined;
   x: number;
   y: number;
   /** Y used for depth sorting (px). */
   baseY: number;
   /** Optional per-frame animation hook (draws extra emissive on top). */
-  anim?: (ctx: Ctx, frame: number, sx: number, sy: number) => void;
+  anim?: ((ctx: Ctx, frame: number, sx: number, sy: number) => void) | undefined;
 }
 
 export interface AnimFx {
@@ -32,7 +32,7 @@ export interface AnimFx {
   /** Draw in screen space (ox, oy = camera offset) — called after lighting (emissive). */
   draw: (ctx: Ctx, frame: number, ox: number, oy: number) => void;
   /** Draw before lighting (albedo, gets lit). */
-  lit?: boolean;
+  lit?: boolean | undefined;
 }
 
 export interface BakeCtx {

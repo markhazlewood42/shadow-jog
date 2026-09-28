@@ -18,10 +18,10 @@ export interface SignDef {
   text: string;
   color: string;
   /** Tile column offset within the building (default centered). */
-  x?: number;
-  vertical?: boolean;
+  x?: number | undefined;
+  vertical?: boolean | undefined;
   /** Row offset (for vertical signs) in tiles from the top of the facade. */
-  flicker?: boolean;
+  flicker?: boolean | undefined;
 }
 
 export interface BuildingDef {
@@ -31,20 +31,20 @@ export interface BuildingDef {
   w: number;
   h: number;
   /** Facade rows at the bottom of the footprint (default 2). */
-  facade?: number;
+  facade?: number | undefined;
   style: BuildingStyle;
   /** Door columns (absolute tile x). Doors are on the bottom row. */
-  doors?: number[];
+  doors?: number[] | undefined;
   /** Door that looks shuttered (not enterable, decorative). */
-  shutters?: number[];
-  sign?: SignDef;
-  signs?: SignDef[];
-  awning?: string;
+  shutters?: number[] | undefined;
+  sign?: SignDef | undefined;
+  signs?: SignDef[] | undefined;
+  awning?: string | undefined;
   /** Glass shop windows instead of apartment windows on the ground floor. */
-  shopfront?: boolean;
-  seed?: number;
-  roof?: 'flat' | 'garden' | 'billboard';
-  billboard?: { text: string; color: string };
+  shopfront?: boolean | undefined;
+  seed?: number | undefined;
+  roof?: 'flat' | 'garden' | 'billboard' | undefined;
+  billboard?: { text: string; color: string } | undefined;
 }
 
 export type PropKind =
@@ -60,14 +60,14 @@ export interface PropDef {
   x: number;
   y: number;
   /** Variant / color. */
-  color?: string;
-  text?: string;
-  w?: number;
-  h?: number;
-  dir?: Dir;
+  color?: string | undefined;
+  text?: string | undefined;
+  w?: number | undefined;
+  h?: number | undefined;
+  dir?: Dir | undefined;
   /** Walkable despite being a prop. */
-  pass?: boolean;
-  id?: string;
+  pass?: boolean | undefined;
+  id?: string | undefined;
 }
 
 export interface LightDef {
@@ -75,74 +75,74 @@ export interface LightDef {
   y: number;
   r: number;
   color: string;
-  i?: number;
-  flicker?: boolean;
+  i?: number | undefined;
+  flicker?: boolean | undefined;
   /** Pixel coordinates instead of tiles. */
-  px?: boolean;
+  px?: boolean | undefined;
   /** Only lit while this holds (evaluated when the map is built). */
-  when?: (flags: Record<string, unknown>) => boolean;
+  when?: ((flags: Record<string, unknown>) => boolean) | undefined;
 }
 
 export interface NpcDef {
   id: string;
   x: number;
   y: number;
-  dir?: Dir;
+  dir?: Dir | undefined;
   look: CharLook;
-  name?: string;
-  move?: 'static' | 'wander' | { path: [number, number][] };
-  radius?: number;
-  talk?: ScriptFn | string[];
+  name?: string | undefined;
+  move?: 'static' | 'wander' | { path: [number, number][] } | undefined;
+  radius?: number | undefined;
+  talk?: ScriptFn | string[] | undefined;
   /** Only present when this returns true. */
-  when?: (flags: Record<string, unknown>) => boolean;
+  when?: ((flags: Record<string, unknown>) => boolean) | undefined;
   /** Doesn't turn to face the player (e.g. busy cook). */
-  fixedDir?: boolean;
+  fixedDir?: boolean | undefined;
   /** Animal sprite instead of a character look. */
-  critter?: 'cat' | 'crow';
+  critter?: 'cat' | 'crow' | undefined;
   /** Enemy-like sprite key instead of a character look. */
 }
 
 export interface WarpDef {
   x: number;
   y: number;
-  w?: number;
-  h?: number;
+  w?: number | undefined;
+  h?: number | undefined;
   to: string;
   tx: number;
   ty: number;
-  dir?: Dir;
+  dir?: Dir | undefined;
   /** Door sound + fade (default true). */
-  door?: boolean;
-  when?: (flags: Record<string, unknown>) => boolean;
+  door?: boolean | undefined;
+  when?: ((flags: Record<string, unknown>) => boolean) | undefined;
   /** Script to run instead when `when` fails. */
-  blocked?: ScriptFn;
+  blocked?: ScriptFn | undefined;
   /** Ask before going (a point of no return); declining steps back off the tile. */
-  confirm?: string;
+  confirm?: string | undefined;
 }
 
 export interface EventDef {
   id: string;
   x: number;
   y: number;
-  w?: number;
-  h?: number;
+  w?: number | undefined;
+  h?: number | undefined;
   on: 'touch' | 'action';
   run: ScriptFn;
   /** Run at most once (flag `ev:<map>:<id>`). */
-  once?: boolean;
-  when?: (flags: Record<string, unknown>) => boolean;
+  once?: boolean | undefined;
+  when?: ((flags: Record<string, unknown>) => boolean) | undefined;
 }
 
 export interface ChestDef {
   id: string;
   x: number;
   y: number;
-  item?: string;
-  qty?: number;
-  cred?: number;
-  kind?: 'crate' | 'locker' | 'case';
+  item?: string | undefined;
+  qty?: number | undefined;
+  cred?: number | undefined;
+  kind?: 'crate' | 'locker' | 'case' | undefined;
   /** Only present once this holds (a chest behind a secret that hasn't been found). */
-  when?: (flags: Record<string, unknown>) => boolean;
+  when?: ((flags: Record<string, unknown>) => boolean) | undefined;
 }
 
 export interface EncounterZone {
@@ -150,11 +150,11 @@ export interface EncounterZone {
   /** Average steps between encounters. */
   rate: number;
   /** Restrict to terrain ids (world map); omit = everywhere walkable. */
-  terrain?: TerrainId[];
+  terrain?: TerrainId[] | undefined;
   /** Restrict to a rectangle [x, y, w, h]. */
-  rect?: [number, number, number, number];
+  rect?: [number, number, number, number] | undefined;
   /** Battle background for this zone. */
-  bg?: string;
+  bg?: string | undefined;
 }
 
 export interface MapDef {
@@ -163,32 +163,32 @@ export interface MapDef {
   kind: 'town' | 'interior' | 'dungeon' | 'world';
   terrain: string[];
   legend: Record<string, TerrainId>;
-  structures?: BuildingDef[];
-  props?: PropDef[];
-  npcs?: NpcDef[];
-  warps?: WarpDef[];
-  events?: EventDef[];
-  chests?: ChestDef[];
-  lights?: LightDef[];
+  structures?: BuildingDef[] | undefined;
+  props?: PropDef[] | undefined;
+  npcs?: NpcDef[] | undefined;
+  warps?: WarpDef[] | undefined;
+  events?: EventDef[] | undefined;
+  chests?: ChestDef[] | undefined;
+  lights?: LightDef[] | undefined;
   /** Multiply color for the light map. */
   ambient: string;
-  weather?: 'rain' | 'drip' | 'dust' | 'none';
+  weather?: 'rain' | 'drip' | 'dust' | 'none' | undefined;
   music: string;
-  encounters?: EncounterZone[];
-  onEnter?: ScriptFn;
+  encounters?: EncounterZone[] | undefined;
+  onEnter?: ScriptFn | undefined;
   /** Overhead cables / lantern strings: [x0, y0, x1, y1] in tiles, sag px, color. */
-  strings?: { a: [number, number]; b: [number, number]; sag?: number; lanterns?: string[]; }[];
+  strings?: { a: [number, number]; b: [number, number]; sag?: number | undefined; lanterns?: string[] | undefined }[] | undefined;
   /** Map shown in area-title banner on entry. */
-  banner?: string;
-  bannerSub?: string;
+  banner?: string | undefined;
+  bannerSub?: string | undefined;
   /** Interior tint of void area. */
-  voidColor?: string;
+  voidColor?: string | undefined;
   /** Town tier for shops / last-town bookkeeping. */
-  town?: boolean;
+  town?: boolean | undefined;
   /** Default battle background for fights on this map. */
-  battleBg?: string;
+  battleBg?: string | undefined;
   /** Terrain rewrites applied when a condition holds (e.g. a drained junction). */
-  patches?: { when: (flags: Record<string, unknown>) => boolean; rects: [number, number, number, number, string][] }[];
+  patches?: { when: (flags: Record<string, unknown>) => boolean; rects: [number, number, number, number, string][] }[] | undefined;
   /** Dungeon entrance point for Getaway Chits (tile in the parent map). */
-  entrance?: { map: string; x: number; y: number };
+  entrance?: { map: string; x: number; y: number } | undefined;
 }

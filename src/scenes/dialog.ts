@@ -13,12 +13,12 @@ import { debug } from '../game/debug';
 export interface DialogOpts {
   who: string | null;
   text: string;
-  choices?: string[];
+  choices?: string[] | undefined;
   /** Choice index returned on cancel (default: none, cancel ignored). */
-  cancel?: number;
-  top?: boolean;
-  face?: string;
-  auto?: number;
+  cancel?: number | undefined;
+  top?: boolean | undefined;
+  face?: string | undefined;
+  auto?: number | undefined;
 }
 
 const BOX_H = 62;

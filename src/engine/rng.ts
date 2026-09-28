@@ -63,5 +63,15 @@ export function fbm(x: number, y: number, octaves = 3, seed = 0): number {
   return sum / norm;
 }
 
-/** Shared RNG for gameplay (battle rolls, encounters). Seeded per session; save files store state. */
-export const rng = new Rng((Date.now() ^ 0x9e3779b9) >>> 0);
+const seed = (Date.now() ^ 0x9e3779b9) >>> 0;
+
+/**
+ * Gameplay randomness, one stream per concern, so adding a roll to one system never shifts what
+ * the other rolls next. Seeded per session; save files store both states.
+ */
+export const streams = {
+  /** Random-encounter checks while walking. */
+  encounter: new Rng(seed),
+  /** Battle seeds and which group a random encounter draws. */
+  battle: new Rng((seed ^ 0x5bd1e995) >>> 0 || 1),
+};

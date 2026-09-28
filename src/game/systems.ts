@@ -9,7 +9,7 @@ import { ENCOUNTERS } from '../data/enemies';
 import { ITEMS } from '../data/items';
 import { MEMBERS } from '../data/party';
 import { surface } from '../engine/canvas';
-import { rng } from '../engine/rng';
+import { streams } from '../engine/rng';
 import type { Game } from '../engine/game';
 import { TS } from '../field/tiles';
 import { BattleScene } from '../scenes/battle';
@@ -114,7 +114,7 @@ export function installSystems(game: Game, h: SystemHandlers): void {
     f.stepsSinceBattle++;
     const s = f.stepsSinceBattle;
     if (s < 6) return false;
-    if (!rng.chance(1 / Math.max(2, zone.rate - 5))) return false;
+    if (!streams.encounter.chance(1 / Math.max(2, zone.rate - 5))) return false;
     f.stepsSinceBattle = 0;
     void f.runScript(async () => {
       await runBattle(game, f, zone.table, { canRun: true, bg: zone.bg ?? f.def.battleBg ?? 'street' });
@@ -285,7 +285,7 @@ export async function runBattle(
 ): Promise<BattleResult> {
   if (!ENCOUNTERS[enc]) throw new Error(`Unknown encounter ${enc}`);
   const snapshot: GameState = clone(state);
-  const rngBefore = rng.state;
+  const rngBefore = streams.battle.state;
   for (;;) {
     const intro = snapshotScreen(game);
     pushMusic(opts.music ?? (opts.boss ? 'boss' : 'battle'));
@@ -308,7 +308,8 @@ export async function runBattle(
     if (choice === 'retry') {
       // Rewind to the instant before the fight and try again.
       setState(clone(snapshot));
-      rng.state = rngBefore + 1;
+      // A retry is a fresh draw of the same fight, not a replay of the same dice.
+      streams.battle.state = rngBefore + 1;
       popMusic();
       f.refreshParty();
       continue;

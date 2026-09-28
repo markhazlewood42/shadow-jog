@@ -15,7 +15,7 @@ export interface Pt {
 interface Particle {
   x: number; y: number; vx: number; vy: number; g: number; drag: number;
   life: number; max: number; color: string; size: number; kind: 'dot' | 'spark' | 'glyph' | 'crow' | 'smoke';
-  ch?: string; delay: number;
+  ch?: string | undefined; delay: number;
 }
 
 interface Shape {

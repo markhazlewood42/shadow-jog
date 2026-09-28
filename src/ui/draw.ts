@@ -22,11 +22,11 @@ export const UI = {
 };
 
 export interface WindowOpts {
-  accent?: string;
-  title?: string;
-  alpha?: number;
+  accent?: string | undefined;
+  title?: string | undefined;
+  alpha?: number | undefined;
   /** Skip corner accents (compact popups). */
-  plain?: boolean;
+  plain?: boolean | undefined;
 }
 
 const gradCache = new Map<string, CanvasGradient>();

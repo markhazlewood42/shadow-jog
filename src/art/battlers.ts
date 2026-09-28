@@ -175,7 +175,7 @@ function drawGlow(g: Pix, id: string, w: Weapon, pose: Pose, hand: [number, numb
   return false;
 }
 
-function pose(id: string, look: CharLook, which: Pose): { canvas: HTMLCanvasElement; glow?: HTMLCanvasElement } {
+function pose(id: string, look: CharLook, which: Pose): { canvas: HTMLCanvasElement; glow?: HTMLCanvasElement | undefined } {
   const { rows: base, pal } = backGrid(look);
   const rows = base.map((r) => '.'.repeat(GX) + r + '.'.repeat(GX));
   const rig = rigOf(rows);

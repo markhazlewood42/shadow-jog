@@ -4,7 +4,7 @@ import { ENEMIES } from '../data/enemies';
 import { ITEMS } from '../data/items';
 import { getMap } from '../data/maps';
 import { MEMBERS } from '../data/party';
-import { rng } from '../engine/rng';
+import { streams } from '../engine/rng';
 import { SAVE_VERSION, setState, state, type EquipSlot, type GameState, type MemberId } from './state';
 
 export type SlotId = 'auto' | 1 | 2 | 3;
@@ -55,7 +55,8 @@ export function writeSave(slot: SlotId, playFrames: number): boolean {
   const st = storage();
   if (!st) return false;
   state.playFrames = playFrames;
-  state.rngState = rng.state;
+  state.rngState = streams.encounter.state;
+  state.rngBattle = streams.battle.state;
   const lead = state.members[state.party[0]!];
   const meta: SaveMeta = {
     slot,
@@ -203,7 +204,8 @@ export function sanitize(s: GameState): GameState {
 export function applySave(s: GameState): void {
   setState(s);
   savedAt = s.playFrames;
-  if (s.rngState) rng.state = s.rngState;
+  if (s.rngState) streams.encounter.state = s.rngState;
+  if (s.rngBattle) streams.battle.state = s.rngBattle;
 }
 
 /** Any slot in use, loadable or not (so Load is offered and a damaged slot can be seen). */

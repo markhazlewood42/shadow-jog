@@ -17,7 +17,7 @@ import { MEMBERS } from '../data/party';
 import { silhouette, surface, type Ctx, type Surface } from '../engine/canvas';
 import { drawText, fitText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
-import { Rng, rng as globalRng } from '../engine/rng';
+import { Rng, streams } from '../engine/rng';
 import { equipRegen, grantXp, knownAbilities, type LevelUp } from '../game/party';
 import { settings } from '../game/settings';
 import { debug, PLAYTEST_ROUNDS } from '../game/debug';
@@ -27,12 +27,12 @@ import { ListMenu, type ListItem } from '../ui/list';
 
 export interface BattleSetup {
   encounter: string;
-  enemies?: string[];
+  enemies?: string[] | undefined;
   bg: string;
-  canRun?: boolean;
-  boss?: boolean;
-  music?: string;
-  intro?: HTMLCanvasElement;
+  canRun?: boolean | undefined;
+  boss?: boolean | undefined;
+  music?: string | undefined;
+  intro?: HTMLCanvasElement | undefined;
 }
 
 type Mode = 'intro' | 'round' | 'command' | 'list' | 'target' | 'play' | 'end';
@@ -130,7 +130,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private cmdMenu = new ListMenu<string>([], 5);
   private listMenu = new ListMenu<string>([], 5);
   private listKind: 'tech' | 'skill' | 'item' = 'tech';
-  private pending: { type: Command['type']; id?: string; ability: Ability } | null = null;
+  private pending: { type: Command['type']; id?: string | undefined; ability: Ability } | null = null;
   private targetList: number[] = [];
   private targetIdx = 0;
   private reserved: Record<string, number> = {};
@@ -165,7 +165,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const enemies = enemyParty(group);
     const regen: Record<number, number> = {};
     for (const p of party) regen[p.uid] = equipRegen(state.members[p.key as MemberId]!);
-    this.battle = new Battle(party, enemies, new Rng(globalRng.int(1, 2 ** 30)), {
+    this.battle = new Battle(party, enemies, new Rng(streams.battle.int(1, 2 ** 30)), {
       canRun: setup.canRun ?? true,
       useItem: (id) => removeItem(id, 1),
       regen,
@@ -1674,7 +1674,7 @@ function pickGroup(encounter: string): string[] {
   const groups = ENCOUNTERS[encounter];
   if (!groups?.length) throw new Error(`Unknown encounter ${encounter}`);
   const total = groups.reduce((n, g) => n + g.w, 0);
-  let r = globalRng.next() * total;
+  let r = streams.battle.next() * total;
   for (const g of groups) {
     r -= g.w;
     if (r <= 0) return g.e;

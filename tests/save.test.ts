@@ -22,7 +22,8 @@ const { hasAnySave, latestSlot, loadSave, readMeta, slotStatus, unsavedFrames, v
 const { addMember } = await import('../src/game/party');
 const stateMod = await import('../src/game/state');
 const { newState, setState } = stateMod;
-const { rng } = await import('../src/engine/rng');
+const { streams } = await import('../src/engine/rng');
+const rng = streams.encounter;
 
 function freshGame(): void {
   setState(newState());
@@ -58,8 +59,10 @@ describe('save / load', () => {
     expect(s.members.kit!.level).toBe(3);
     expect(s.playFrames).toBe(4321);
     rng.state = 1;
+    streams.battle.state = 7;
     applySave(s);
     expect(rng.state).toBe(123456);
+    expect(streams.battle.state).not.toBe(7); // the battle stream is saved and restored too
   });
 
   it('reports the most recent slot', () => {
