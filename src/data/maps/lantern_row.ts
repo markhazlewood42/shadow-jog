@@ -199,7 +199,7 @@ export const lanternRow: MapDef = {
         'You smell of something waking, girl. Careful. Kessler-Mori pays well for people who smell like that.',
       ],
     },
-    { id: 'kids', x: 26, y: 26, dir: 'up', look: randomLook(55), name: 'Kid', move: 'wander', radius: 2, talk: ['I’m gonna be a street samurai when I grow up. Or a dentist. Dentists get chrome too.'] },
+    { id: 'kids', x: 26, y: 26, dir: 'up', look: randomLook(55), name: 'Kid', move: 'wander', radius: 2, talk: ['Mom says don’t talk to runners. ...Are you runners? Mom says runners disappear.'] },
   ],
   events: [
     { id: 'first_fight', x: 15, y: 16, w: 26, h: 1, on: 'touch', once: true, when: (f) => !!f.intro && !f.first_fight, run: firstFight },

@@ -190,8 +190,12 @@ test('23 ending', async ({ page }) => {
   await key(page, 'z', 2, 500);
   await page.waitForTimeout(1500);
   await shot(page, '23-ending-panels');
-  // The last page: Pale's order, then the chapter's title card.
-  await key(page, 'z', 9, 400);
+  // The last page: Pale's order, then the chapter's title card. Advance until the card is up.
+  for (let i = 0; i < 40; i++) {
+    const done = await sj<boolean>(page, "(() => { const t = sj.game.top; if (!t || t.constructor.name !== 'PanelScene') return true; const p = t.pages[t.page]; return t.page === t.pages.length - 1 && t.shown === p.length; })()");
+    if (done) break;
+    await key(page, 'z', 1, 350);
+  }
   await page.waitForTimeout(2500);
   await shot(page, '23b-ending-finale');
 });

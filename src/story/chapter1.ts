@@ -315,6 +315,7 @@ export const annexGuards: ScriptFn = async (s) => {
   await s.give('annex_key', 1);
   s.set('annex_key');
   await s.say('hex', 'One chunk of plastic, acquired. Told you somebody down here had one.');
+  await s.say('hex', 'Huh. The door log has us in it. “Contractor team, due the 14th. Status: pending resolution.” That’s a weird word for a door to use.');
   await s.say('rook', 'Active security in an abandoned lab. Pale lied.');
   await s.say('hex', 'Pale lied, the lab lied, the lights are lying. Everything down here is lying. I hate it here.', { face: 'sad' });
   s.objective(OBJ.core);
@@ -390,7 +391,10 @@ export const cryopod: ScriptFn = async (s) => {
   await s.say('kit', 'We’re getting them out.', { face: 'angry' });
   await s.say('rook', 'Kit. Three thousand cred, the rent, Hex’s debt—');
   await s.say('kit', 'We’re getting them OUT.', { face: 'angry' });
-  await s.say('rook', '...Yeah. We are. Do it, kid.');
+  await s.say('rook', '...');
+  await s.say('rook', 'Twenty years ago I stood in a lab like this. Different logo. My crew got paid, and I walked out past a tank with somebody still in it.');
+  await s.say('rook', 'I told myself it wasn’t my job. I’ve been telling myself that every night since.');
+  await s.say('rook', 'Do it, kid. Whatever it costs.');
   s.flash('#ffffff', 20);
   s.shake(30, 3);
   s.sfx('phase');
@@ -425,9 +429,10 @@ export const wardenFight: ScriptFn = async (s) => {
   s.music('sable');
   await s.narrate('The spirit rises from the wreck, no longer screaming. It circles Sable once, like a bird, and fades into the pipes.');
   await s.say('sable', 'It thanked you. It said its name. I won’t repeat it; it was only for us.');
-  await s.say('rook', 'Twenty years ago I stood in a lab like this. Different logo. My old crew got paid, and I walked out past a tank with somebody still in it.');
-  await s.say('kit', 'Rook...', { face: 'sad' });
-  await s.say('rook', 'Not this time. That’s all.');
+  await s.say('rook', 'Not this time. That’s all I wanted.');
+  await s.say('sable', 'The crow has gone up the lift shaft ahead of us. It sees farther than I can.');
+  await s.say('sable', 'Cars at the top. People waiting in the rain.');
+  await s.say('rook', 'Pale’s pickup. He did say he keeps exact hours.');
   await s.say('hex', 'The lift’s live. Let’s never come back here.', { face: 'happy' });
 };
 

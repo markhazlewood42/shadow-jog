@@ -106,14 +106,14 @@ export const rustyard: MapDef = {
     {
       id: 'nephew', x: 17, y: 20, dir: 'down', name: 'Tobin', look: randomLook(310), move: 'static',
       talk: async (s) => {
-        if (!s.flag('rustyard_gate')) await s.say('Tobin', 'Auntie Mags says don’t fight the Rustfangs. Auntie Mags also says I’m useless. Both are true.');
+        if (!s.flag('rustyard_gate')) await s.say('Tobin', 'Auntie Mags says don’t fight the Rustfangs. They broke Pell’s hands last week for coming up short on tribute.');
         else if (!s.flag('knuckles')) await s.say('Tobin', 'Knuckles lives up at the tire depot, past the scrap maze. The heaps shift every time it rains, so don’t ask me the way. Mind the hounds.');
         else await s.say('Tobin', 'You beat KNUCKLES? Can I have your autograph? Can I have your jacket?');
       },
     },
     {
       id: 'scav_cook', x: 13, y: 18, dir: 'right', name: 'Scav', look: randomLook(311), fixedDir: true,
-      talk: ['Rat stew’s on. Tastes like rat. Is rat.'],
+      talk: ['Stew’s on. It isn’t good. It’s hot. Some weeks that has to be enough.'],
     },
     {
       id: 'scav_old', x: 9, y: 17, dir: 'down', name: 'Old Scav', look: randomLook(312), move: 'wander', radius: 2,
@@ -124,7 +124,7 @@ export const rustyard: MapDef = {
     },
     {
       id: 'scav_kid', x: 24, y: 17, dir: 'left', name: 'Scav Kid', look: randomLook(313), move: 'wander', radius: 2,
-      talk: ['I found a doll in the junk with real chrome eyes. It blinks sometimes. I named her Chip.'],
+      talk: ['The Rustfangs took our water filter. Auntie Mags says we’ll get it back. She doesn’t look like she believes it.'],
     },
   ],
   events: [

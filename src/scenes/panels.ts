@@ -56,13 +56,17 @@ const PAGES: Record<string, Page[]> = {
     [
       { x: 8, y: 8, w: 464, h: 120, bg: 'flash', caption: 'Rook’s flashbang bought them eleven seconds.', from: 'top', shake: true },
       { x: 8, y: 134, w: 228, h: 128, bg: 'dark', portrait: { key: 'kit', face: 'sad' }, speech: { who: 'kit', text: 'Rook! ROOK!' }, from: 'left' },
-      { x: 242, y: 134, w: 230, h: 128, bg: 'dark', portrait: { key: 'rook', face: 'hurt', flip: true }, speech: { who: 'rook', text: 'Hey, Pale. You still owe us three thousand.' }, from: 'right' },
+      { x: 242, y: 134, w: 230, h: 128, bg: 'dark', portrait: { key: 'rook', face: 'hurt', flip: true }, speech: { who: 'rook', text: 'Go, kid. Don’t look back.' }, from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 464, h: 120, bg: 'canal', caption: 'They came up three wards over, soaked and shaking. Three of them.', from: 'top' },
-      { x: 8, y: 134, w: 150, h: 128, bg: 'dark', portrait: { key: 'kit', face: 'sad' }, speech: { who: 'kit', text: 'He told us not to wait. We didn’t wait.' }, from: 'left' },
-      { x: 164, y: 134, w: 150, h: 128, bg: 'dark', portrait: { key: 'sable', face: 'sad' }, speech: { who: 'sable', text: 'The crow saw them take him. He’s alive.' }, from: 'bottom' },
-      { x: 320, y: 134, w: 152, h: 128, bg: 'dark', portrait: { key: 'hex', face: 'angry' }, speech: { who: 'hex', text: 'Then we go get him.' }, from: 'right' },
+      { x: 8, y: 8, w: 464, h: 120, bg: 'canal', caption: 'The last they saw of him, he was on his knees in the rain with K-M rifles all around him. They came up three wards over, soaked and shaking. Three of them.', from: 'top' },
+      { x: 8, y: 134, w: 228, h: 128, bg: 'dark', portrait: { key: 'kit', face: 'sad' }, speech: { who: 'kit', text: 'He told us not to wait. We didn’t wait.' }, from: 'left' },
+      { x: 242, y: 134, w: 230, h: 128, bg: 'rooftop', caption: 'For a long time, nobody said anything. The rain did the talking.', from: 'right' },
+    ],
+    [
+      { x: 8, y: 8, w: 464, h: 150, bg: 'rooftop', portrait: { key: 'sable', face: 'sad', dx: 140 }, speech: { who: 'sable', text: 'The crow followed the vans all the way up the arcology. He is hurt. He is alive.' }, from: 'top' },
+      { x: 8, y: 164, w: 228, h: 98, bg: 'dark', portrait: { key: 'hex', face: 'angry' }, speech: { who: 'hex', text: 'Then we go get him.' }, from: 'left' },
+      { x: 242, y: 164, w: 230, h: 98, bg: 'dark', portrait: { key: 'kit', face: 'angry', flip: true }, speech: { who: 'kit', text: 'We go get him.' }, from: 'right' },
     ],
     [
       { x: 8, y: 8, w: 464, h: 150, bg: 'spire', portrait: { key: 'pale', face: 'smirk', dx: 140 }, speech: { who: 'pale', text: 'Find them. The orc, the decker, and Miss Kit. Keep the old samurai breathing: I want to know who taught Miss Kit to fight like that. You have until morning.' }, from: 'top' },
