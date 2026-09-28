@@ -13,17 +13,23 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 
 | # | Area | Score | Round | Date | Δ | Blocking issues (short) |
 |---|---|---|---|---|---|---|
-| 1 | Engine & code | 7.7 | 4 | 2026-09-28 | +0.2 | Timer filter allocs every tick; CI perf gate too loose to prove 60fps; 1780-line BattleScene; global RNG shared across systems; formatter off; exactOptionalPropertyTypes off |
-| 2 | Field art | 7.0 | 4 | 2026-09-28 | −0.4 | World-map road/barrens (and dock) ground reads as flat fog; cloned Annex tanks; Rustyard has no Rustfang faction dressing; Annex sub-rooms lack landmark props |
-| 3 | Battle presentation | 7.3 | 4 | 2026-09-28 | +0.3 | Enemies have no attack/cast body animation or stagger frame; creature packs clone (variants only for humans); thin enemy HP bar on neon backdrops; bare Warden arena |
-| 4 | UI / UX | 8.3 | 4 | 2026-09-28 | +0.1 | Status ability list unclamped; Game Over screen not in evidence; no remap/gamepad glyphs; toast near-miss with menu column |
-| 5 | Combat design | 7.8 | 4 | 2026-09-28 | +0.8 | Non-boss AI is flat weighted-random; trash fights solvable with Auto; Guard is flat; no on-screen reason for Auto/Run lock-out |
-| 6 | Progression & economy | 6.5 | 4 | 2026-09-28 | 0 | 10¢ capsule hotel (and 20¢ bar round) full-heal/revive/cure trivialise the healing economy; Noodles out-value Medkits; pacing unproven vs 45–75 min; ending evidence from a debug jump; Wire/Mags overlap |
-| 7 | Narrative & writing | 7.5 | 4 | 2026-09-28 | −0.5 | Rook's quip undercuts Kit's panic; "he's alive" unearned; Rook's rescue decision thin in the moment; no quiet beat before the title card; homogeneous NPC quip register |
-| 8 | Level design | 7.6 | 4 | 2026-09-28 | +0.3 | Lattice answer handed over on a memo; one secret in the chapter; plaza has no anchor landmark; no point-of-no-return warning or location list |
-| 9 | Audio | 7.0 | 4 | 2026-09-28 | −0.2 | Shared master compressor pumps the score under SFX; lead/pad voices double-panned; no SFX ducking; single melodic voice per song; generic combo cue; instant boss phase-2 swap |
-| 10 | Feel & polish | 7.8 | 4 | 2026-09-28 | +0.3 | Linear field movement; shake moves the HUD; shake defaults to Full; defeat has no weight beat; no dust on dash stops; instant menu cursor |
-| 11 | Stability | 8.0 | 4 | 2026-09-28 | +0.7 | No beforeunload guard; autosave only on map change; E2E covers dev build only; no cross-tab save guard; migrate() doesn't re-version |
+| 1 | Engine & code | 8.2 | 5 | 2026-09-28 | +0.5 | BattleScene still large (split command/playback/shatter); CI perf thresholds loose; uncommented `as never` casts; prevCam alloc per tick |
+| 2 | Field art | 6.5 | 5 | 2026-09-28 | −0.5 | Leads share one default face; barrens texture reads as static (round-5 regression); cryopod occupants illegible; magenta fallback still in code; bar/plaza/junction thin |
+| 3 | Battle presentation | 7.2 | 5 | 2026-09-28 | −0.1 | **Bug:** damage number and status word collide ("154"/"STUNNED"); lab monitors compete with enemies; creature duplicates still read as copies; thin basic-attack FX; plain victory |
+| 4 | UI / UX | 6.0 | 5 | 2026-09-28 | −2.3 | **Cap — bug:** menu objective line overflows its box (OBJ.escape, 362px in 356px); world signs still readable behind the menu; no width regression test |
+| 5 | Combat design | 6.8 | 5 | 2026-09-28 | −1.0 | Humans have no elemental weakness; trash solvable with Auto; no attack-only baseline proving techs matter; rigid 1:1 combos; Guard TP refund loop |
+| 6 | Progression & economy | 7.2 | 5 | 2026-09-28 | +0.7 | Deterministic model only (no Monte Carlo); clinic costs unmodelled; thin CP1/CP3 margins; no E2E that walks zones or shops |
+| 7 | Narrative & writing | 8.0 | 5 | 2026-09-28 | +0.5 | Pale needs one ownable quirk; 3–4 meme-cadence lines; Kit's own reason before the pod; GDD ending out of date |
+| 8 | Level design | 7.0 | 5 | 2026-09-28 | −0.6 | One mechanic per dungeon; flat Warden arena; puzzle payoffs too subtle for a still; Places has no spatial map; secrets are yes/no prompts |
+| 9 | Audio | 7.8 | 5 | 2026-09-28 | +0.8 | Narrative cues reset the room's reverb (cryopod); town should be `room`; spaces implicit for most songs; wet sends bypass bus compressors; no music-volume preview |
+| 10 | Feel & polish | 7.2 | 5 | 2026-09-28 | −0.6 | Same floater collision; no input-latency evidence; DoT ticks look like hits; unreachable speed-table entries |
+| 11 | Stability | 8.2 | 5 | 2026-09-28 | +0.2 | NaN/Infinity pass validation; Chromium-only E2E; no beforeunload test; read-failure storage path untested |
+
+## Round 6 (in progress)
+
+Verifier spread is now visible: the same build scores ±0.5–1.0 between independent reviewers. Round 6 prioritises the
+defects that are real regardless of reviewer (the objective overflow, the floater collision, the reverb reset, the
+human-weakness gap, the barrens regression), then the recurring asks.
 
 ## Round 5 (beyond the rubric's 4-round cap)
 
