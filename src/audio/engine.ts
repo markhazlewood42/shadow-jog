@@ -99,7 +99,7 @@ class AudioEngine {
       this.ctx = new AC({ latencyHint: 'interactive' });
       this.build();
     }
-    if (this.ctx.state === 'suspended') void this.ctx.resume();
+    if (this.ctx.state === 'suspended') this.wake();
     if (!this.unlocked) {
       this.unlocked = true;
       // Starting the pending song (compiling it, scheduling notes) waits a task, so it doesn't
@@ -328,7 +328,21 @@ class AudioEngine {
   }
 
   suspend(): void {
-    if (this.ctx?.state === 'running') void this.ctx.suspend();
+    // Firefox rejects a pending suspend/resume with InvalidStateError when the page navigates
+    // away (bug 1528319); that's expected, not an error.
+    if (this.ctx?.state === 'running') this.ctx.suspend().catch(() => undefined);
+  }
+
+  /** At most one resume in flight: every keypress calls unlock, and each would queue another. */
+  private waking: Promise<void> | null = null;
+  private wake(): void {
+    if (!this.ctx || this.waking) return;
+    this.waking = this.ctx
+      .resume()
+      .catch(() => undefined)
+      .finally(() => {
+        this.waking = null;
+      });
   }
 
   /** Leaving the page: go quiet and make no more audio calls. */
@@ -355,7 +369,7 @@ class AudioEngine {
   }
 
   resume(): void {
-    if (this.ctx?.state === 'suspended' && this.unlocked) void this.ctx.resume();
+    if (this.ctx?.state === 'suspended' && this.unlocked) this.wake();
   }
 }
 
