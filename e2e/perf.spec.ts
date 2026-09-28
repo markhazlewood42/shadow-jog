@@ -20,14 +20,14 @@ async function measure(page: Page, ms: number): Promise<Stats & { sim: Stats }> 
 // Two gates, so a regression fails on any machine, GPU or not:
 //  1. Simulation (the ticks: pure JS, no canvas) must fit a strict budget everywhere.
 //  2. Whole frames: strict with a GPU canvas (local); on a software canvas (GPU-less CI runners,
-//     or PW_NOGPU=1 locally) the busiest scenes must still fit a 60 fps frame.
+//     or PW_NOGPU=1 locally) the busiest scenes' p95 must still fit a 60 fps frame.
 // (An earlier ratio-to-the-title gate assumed a software canvas slows every scene alike. It
 // doesn't: unbounded composite ops made the field 26x the title on CI and 5x locally.)
 const SIM_MEAN_MS = 2;
 const SIM_P95_MS = 4;
 const SOFTWARE = !!(process.env.CI || process.env.PW_NOGPU);
-const MEAN_MS = SOFTWARE ? 16.7 : 4;
-const P95_MS = SOFTWARE ? 25 : 6;
+const MEAN_MS = SOFTWARE ? 10 : 4; // CI measures ~4.4 ms in the plaza, ~1.7 ms in battle
+const P95_MS = SOFTWARE ? 16.7 : 6;
 
 // The title's cost, logged for context in the evidence (the machine's floor), not gated.
 test.beforeAll(async ({ browser }) => {
