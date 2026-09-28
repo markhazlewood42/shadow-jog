@@ -8,7 +8,7 @@ import { sfx } from '../audio/sfx';
 import { Battle } from '../battle/engine';
 import { FxLayer, type Pt } from '../battle/fx';
 import { enemyParty, partyCombatant, writeBack } from '../battle/setup';
-import type { Ability, BattleEvent, Combatant, Command } from '../battle/types';
+import type { Ability, Combatant, Command } from '../battle/types';
 import { ABILITIES, COMBOS } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
 import { ITEMS } from '../data/items';
@@ -21,15 +21,17 @@ import { Rng, streams } from '../engine/rng';
 import { equipRegen, grantXp, knownAbilities, levelProgress, type LevelUp } from '../game/party';
 import { battleSpeed } from '../game/settings';
 import { debug, PLAYTEST_ROUNDS } from '../game/debug';
-import { learn, removeItem, state, type MemberId } from '../game/state';
+import { removeItem, state, type MemberId } from '../game/state';
 import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../ui/draw';
 import { ListMenu } from '../ui/list';
 import { LEVELUP_TEXT_W } from '../ui/layout';
 import { drawVictoryBanner } from './battlekit/banner';
+import { playEvent, type PlaybackView } from './battlekit/playback';
+import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
 import { ShatterIntro } from './battlekit/intro';
 import { ENEMY_POSE_T, RIM, drawBig, drawLag, marked, mirrored, opaqueTop, rimOf, silhouetteCache, variant } from './battlekit/sprites';
-import { AFTERIMAGES, COMBO_STING, ELEMENTS, ELEMENT_COLOR, ELEMENT_TAG, STATUS_LABEL, STATUS_SFX, STATUS_WORD, actionPose, enemyMotion, fxSound, groupNames, pickGroup, statusName, summarize } from './battlekit/tables';
+import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_TAG, STATUS_LABEL, groupNames, pickGroup, statusName, summarize } from './battlekit/tables';
 
 export interface BattleSetup {
   encounter: string;
@@ -42,41 +44,6 @@ export interface BattleSetup {
 }
 
 type Mode = 'intro' | 'round' | 'command' | 'list' | 'target' | 'play' | 'end';
-
-interface Disp {
-  hp: number;
-  tp: number;
-  /** What the bars and numbers show: eases toward hp/tp so changes read as motion. */
-  shownHp: number;
-  shownTp: number;
-  /** The pale "damage ghost" segment that trails behind a hit. */
-  lagHp: number;
-  lagHold: number;
-  flash: number;
-  shake: number;
-  hop: number;
-  alpha: number;
-  dying: number;
-  lunge: number;
-  hidden: boolean;
-  /** Party action pose and how many frames it holds (idle when 0). */
-  pose: Pose;
-  poseT: number;
-  /** Frames of speed afterimages left (Flash Step, Hundred Rain). */
-  afterimage: number;
-}
-
-interface Floater {
-  text: string;
-  x: number;
-  y: number;
-  t: number;
-  color: string;
-  /** How it moves: a hit number bounces, a DoT tick drips down, a label just rises. */
-  style: 'hit' | 'tick' | 'label';
-  /** Whose floater it is: stacking is per target, whatever the call site. */
-  uid: number;
-}
 
 const BW = 240, BHT = 135;
 const PANEL_Y = 214;
@@ -490,7 +457,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private async executeRound(): Promise<void> {
     this.mode = 'play';
     const events = this.battle.resolveRound(this.cmds);
-    for (const e of events) await this.playEvent(e);
+    for (const e of events) await playEvent(this.view, e);
     await this.w(10);
     // Refresh displayed HP/TP to the authoritative values.
     for (const u of this.battle.units) {
@@ -528,234 +495,54 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return { x: x + art.canvas.width / 2, y: Math.max(22, y + opaqueTop(art.canvas) + 4) };
   }
 
-  private async playEvent(e: BattleEvent): Promise<void> {
-    switch (e.t) {
-      case 'act': {
-        const actor = this.battle.unit(e.actor)!;
-        this.lastActor = actor;
-        const dd = this.d(e.actor);
-        const color = actor.side === 'party' ? MEMBERS[actor.key as MemberId].color : '#ff8a8a';
-        this.showBanner(e.kind === 'attack' || e.name === 'Attack' ? `${actor.name}` : `${actor.name}: ${e.name}`, color);
-        if (actor.side === 'party') {
-          const pose = actionPose(actor.key, e.kind, e.targets.map((t) => this.battle.unit(t)?.side), e.fx);
-          dd.lunge = pose === 'attack' || pose === 'thrust' ? 14 : 6;
-          this.setPose(actor, pose, 34);
-          if (e.fx === 'flash_step' || e.fx === 'rain_hits') dd.afterimage = 22;
-          sfx(e.kind === 'tech' ? 'cast' : 'swing');
-        } else {
-          // Enemies act with their bodies: strikes wind up and lunge, guns kick, casters rise and glow.
-          const motion = enemyMotion(e.fx);
-          this.setPose(actor, motion, ENEMY_POSE_T);
-          if (motion !== 'attack') dd.flash = 8;
-          sfx('enemy_act');
-        }
-        const cry = e.kind === 'enemy' ? ABILITIES[e.id]?.cry : undefined;
-        if (cry) this.say(cry);
-        await this.w(actor.side === 'enemy' ? 12 : e.kind === 'attack' ? 8 : 16);
-        const timing = this.fx.play(e.fx, this.pos(e.actor), e.targets.map((t) => this.pos(t)), e.element === 'shock' ? '#9ae8ff' : undefined);
-        sfx(fxSound(e.fx));
-        await this.w(timing.impact);
-        break;
-      }
-      case 'combo': {
-        const names = e.actors.map((a) => this.battle.unit(a)!.name).join(' + ');
-        const first = !state.combos.includes(this.comboId(e.name));
-        if (first) state.combos.push(this.comboId(e.name));
-        for (const a of e.actors) {
-          this.d(a).hop = 10;
-          const u = this.battle.unit(a)!;
-          if (u.side === 'party') this.setPose(u, u.key === 'hex' || u.key === 'sable' ? 'cast' : 'attack', 70);
-        }
-        sfx('combo');
-        // Each combo lands with its own voice under the shared fanfare.
-        const sting = COMBO_STING[this.comboId(e.name)];
-        if (sting) void this.game.wait(10).then(() => sfx(sting));
-        e.actors.forEach((a, i) => {
-          const u = this.battle.unit(a)!;
-          if (u.side === 'party') this.cutins.push({ key: u.key, face: 'angry', t: 0, fromLeft: i === 0, life: 70 });
-        });
-        this.banner = { text: `★ ${e.name.toUpperCase()} ★`, sub: first ? `${names}  —  COMBO DISCOVERED!` : names, t: 0, color: '#ffe07a', big: true };
-        this.game.flash('#ffffff', 6);
-        await this.w(40);
-        const timing = this.fx.play(e.fx, this.pos(e.actors[0]!), e.targets.map((t) => this.pos(t)));
-        sfx(fxSound(e.fx));
-        await this.w(timing.impact);
-        break;
-      }
-      case 'damage': {
-        const dd = this.d(e.target);
-        const u = this.battle.unit(e.target)!;
-        dd.hp = e.hp;
-        dd.shake = 12;
-        dd.flash = u.side === 'enemy' ? 5 : 8;
-        if (u.side === 'enemy' && e.hp > 0 && (e.crit || e.amount >= u.base.maxHp * 0.12)) this.setPose(u, 'hurt', 16);
-        if (u.side === 'party' && e.hp > 0) this.setPose(u, 'hurt', 16);
-        if (e.amount === 0) this.floatOn(e.target, 'NO EFFECT', '#8b8fa8', 'label');
-        else {
-          this.floatOn(e.target, String(e.amount), e.crit ? '#ffe07a' : e.weak ? '#ffa24a' : e.resist ? '#b8bcd0' : u.side === 'party' ? '#ff9a9a' : '#ffffff', 'hit');
-          if (e.crit) this.floatOn(e.target, 'CRITICAL', '#ffe07a', 'label');
-          else if (e.weak) this.floatOn(e.target, 'WEAK!', '#ffa24a', 'label');
-          else if (e.resist) this.floatOn(e.target, 'RESIST', '#b8bcd0', 'label');
-          // Field notes: what the crew learns the hard way sticks (target info, bestiary).
-          if (u.side === 'enemy') {
-            if (e.weak) learn(state.weakSeen, u.key, e.element);
-            else if (e.resist) learn(state.resistSeen, u.key, e.element);
-          }
-        }
-        sfx(e.crit ? 'crit' : u.side === 'party' ? 'hurt' : 'hit');
-        // A critical on a boss gets the striker's face.
-        if (e.crit && u.boss && this.lastActor?.side === 'party' && !this.cutins.length) {
-          this.cutins.push({ key: this.lastActor.key, face: 'smirk', t: 0, fromLeft: true, life: 45 });
-        }
-        // Weight by share of the target's max HP: light taps barely move the camera, big hits stop time.
-        const share = e.amount / u.base.maxHp;
-        const tier = e.crit || share >= 0.4 ? 3 : share >= 0.2 ? 2 : share >= 0.08 ? 1 : 0;
-        if (tier) this.game.shake(4 + tier * 3, tier + 1 + (e.crit ? 1 : 0));
-        if (tier >= 2) {
-          this.hitstop = tier === 3 ? 5 : 3;
-          await this.game.wait(this.hitstop);
-        }
-        await this.w(14);
-        break;
-      }
-      case 'miss':
-        this.floatOn(e.target, 'MISS', '#b8bcd0', 'label');
-        sfx('miss');
-        await this.w(14);
-        break;
-      case 'heal':
-        this.d(e.target).hp = e.hp;
-        this.floatOn(e.target, `+${e.amount}`, '#86f08c', 'hit');
-        sfx('heal');
-        await this.w(12);
-        break;
-      case 'tp':
-        this.d(e.target).tp = e.tp;
-        this.floatOn(e.target, `+${e.amount} TP`, '#6ff3ff', 'label');
-        sfx('heal');
-        await this.w(12);
-        break;
-      case 'status': {
-        const word = STATUS_WORD[e.status];
-        if (word && e.status !== 'guard' && e.status !== 'cover') {
-          const col = STATUS_LABEL[e.status]?.[1] ?? '#ffffff';
-          if (e.on) this.floatOn(e.target, word, col, 'label');
-          if (e.on) sfx(STATUS_SFX[e.status] ?? (e.status.endsWith('_up') || e.status === 'regen' ? 'buff' : 'debuff'));
-          await this.w(e.on ? 12 : 2);
-        }
-        break;
-      }
-      case 'down': {
-        const u = this.battle.unit(e.target)!;
-        const dd = this.d(e.target);
-        dd.hp = 0;
-        if (u.side === 'enemy') {
-          dd.flash = 10;
-          dd.dying = 1;
-          sfx('enemy_die');
-          this.dead.add(u.uid);
-          state.bestiary[u.key] = (state.bestiary[u.key] ?? 0) + 1;
-        } else {
-          sfx('ko');
-          this.say(`${u.name} is down!`);
-        }
-        await this.w(u.side === 'enemy' ? 16 : 26);
-        break;
-      }
-      case 'revive':
-        this.d(e.target).hp = e.hp;
-        this.floatOn(e.target, 'REVIVED', '#ffe07a', 'label');
-        sfx('revive');
-        await this.w(18);
-        break;
-      case 'msg':
-        this.say(e.text);
-        await this.w(40);
-        break;
-      case 'immune': {
-        const u = this.battle.unit(e.target)!;
-        this.floatOn(e.target, 'IMMUNE', '#c9b8ff', 'label');
-        if (u.side === 'enemy') learn(state.immuneSeen, u.key, e.status);
-        this.say(`${u.name} is immune to ${statusName(e.status)}.`);
-        sfx('miss');
-        await this.w(24);
-        break;
-      }
-      case 'fail':
-        this.say(e.reason);
-        this.d(e.actor).shake = 6;
-        await this.w(32);
-        break;
-      case 'flee':
-        if (e.ok) {
-          this.say('The crew slips away!');
-          sfx('flee');
-          for (const p of this.battle.party) this.d(p.uid).hidden = false;
-        } else {
-          this.say('Couldn’t get away!');
-          sfx('buzz');
-        }
-        await this.w(40);
-        break;
-      case 'summon':
-        for (const uid of e.uids) {
-          const u = this.battle.unit(uid)!;
-          this.initDisp(u);
-        }
-        sfx('summon');
-        for (let t = 0; t < 20; t++) {
-          for (const uid of e.uids) this.d(uid).alpha = t / 20;
-          await this.game.wait(1);
-        }
-        await this.w(10);
-        break;
-      case 'phase': {
-        this.layoutVersion++;
-        const dd = this.d(e.target);
-        sfx('phase');
-        this.game.flash('#ffffff', 20);
-        this.game.shake(30, 4);
-        this.showBanner(`${e.name}!`, '#b89aff', true);
-        dd.hp = e.hp;
-        dd.alpha = 0;
-        dd.dying = 0;
-        music(null, 10);
-        for (let t = 0; t < 30; t++) {
-          dd.alpha = t / 30;
-          await this.game.wait(1);
-        }
-        music('boss2', 0, 1.6);
-        await this.w(20);
-        break;
-      }
-      case 'analyze': {
-        const u = this.battle.unit(e.target)!;
-        const weak = Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => k.toUpperCase());
-        const res = Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) < 1).map(([k]) => k.toUpperCase());
-        // Analyze writes what it finds into the crew's notes (bestiary, target cursor).
-        if (u.side === 'enemy') {
-          for (const el of weak) learn(state.weakSeen, u.key, el.toLowerCase());
-          for (const el of res) learn(state.resistSeen, u.key, el.toLowerCase());
-          for (const st of u.immune ?? []) learn(state.immuneSeen, u.key, st);
-        }
-        this.say(`${u.name}: HP ${u.hp}/${u.base.maxHp}${weak.length ? `  WEAK ${weak.join(' ')}` : ''}${res.length ? `  RESISTS ${res.join(' ')}` : ''}`);
-        await this.w(70);
-        break;
-      }
-      case 'tick': {
-        const dd = this.d(e.target);
-        dd.hp = e.hp;
-        dd.shake = 6;
-        const col = STATUS_LABEL[e.status]?.[1] ?? '#ffffff';
-        this.floatOn(e.target, `-${e.amount}`, col, 'tick');
-        sfx('tick');
-        await this.w(12);
-        break;
-      }
-      case 'turn':
-        break;
-    }
-  }
+  /** The scene as playback sees it (battlekit/playback.ts): a narrow view, built once. */
+  private readonly view: PlaybackView = (() => {
+    // The view's getters and methods close over the scene.
+    const scene = this;
+    return {
+      get battle() {
+        return scene.battle;
+      },
+      get fx() {
+        return scene.fx;
+      },
+      get game() {
+        return scene.game;
+      },
+      get lastActor() {
+        return scene.lastActor;
+      },
+      set lastActor(u: Combatant | null) {
+        scene.lastActor = u;
+      },
+      d: (uid) => scene.d(uid),
+      pos: (uid) => scene.pos(uid),
+      w: (frames) => scene.w(frames),
+      floatOn: (uid, text, color, style) => scene.floatOn(uid, text, color, style),
+      say: (text) => scene.say(text),
+      showBanner: (text, color, big) => scene.showBanner(text, color, big),
+      setBanner: (b) => {
+        scene.banner = b;
+      },
+      setPose: (u, pose, frames) => scene.setPose(u, pose, frames),
+      initDisp: (u) => scene.initDisp(u),
+      cutin: (c) => {
+        scene.cutins.push(c);
+      },
+      cutinCount: () => scene.cutins.length,
+      hitstop: (frames) => {
+        scene.hitstop = frames;
+        return scene.game.wait(frames);
+      },
+      markDead: (uid) => {
+        scene.dead.add(uid);
+      },
+      relayout: () => {
+        scene.layoutVersion++;
+      },
+      comboId: (name) => scene.comboId(name),
+    };
+  })();
 
   private comboId(name: string): string {
     return COMBOS.find((c) => ABILITIES[c.id]?.name === name)?.id ?? name;

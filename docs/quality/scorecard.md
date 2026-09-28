@@ -25,6 +25,21 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 | 10 | Feel & polish | 7.0 | 6 | 2026-09-28 | −0.2 | **Bug:** Pale's speech bubble covers his own portrait on the finale panel (`dx` portraits); **bug:** WEAK!/CRITICAL label and the damage number still overlap during the first frames; victory bars start slow |
 | 11 | Stability | **8.7** | 6 | 2026-09-28 | +0.5 | **PASS.** Nice-to-haves: Firefox in CI; step-chain migrations; unused `game.paused` is a softlock trap; no two-tab E2E |
 
+## Round 7 (in progress)
+
+Worked the round-6 findings, bugs first.
+
+- [x] **Feel**: speech bubbles placed from the portrait's drawn rect (Pale's face was covered on the finale panel), tested over every panel; floater labels and numbers ride the same motion 12px apart and stack downward at the top edge.
+- [x] **UI**: Rook's battle card has a uses bar; the notice banner wraps and ellipsizes; shop compare and equip text clamped and measured in the layout test; GDD controls and level cap match the game.
+- [x] **Level / field art**: the Annex wings read as different places (floors, wall trim by wing, lights, props; drained pods beside Sable's); Rustyard maze signs; a legible Rustfang tag; new pylon and pipe painters (the coverage test caught two declared kinds with none).
+- [x] **Combat**: combos in ordinary fights (Thunder Rift arcs through the pack; the sim fuses whenever it pays, dungeon runs too); a test that fusing pays on every trash table; Sinkline trash tougher; bosses capped at 93% for a competent player (Knuckles 99% → 91%); Rook's charges tracked per dungeon (never dry); Guardian announces blasts it can't cover.
+- [x] **Audio**: offline renders of every song and effect through the real mix, with measurements and spectrograms (docs/quality/evidence/audio*); from them: a shaped music bus (sub trimmed, presence lifted, saturation, chorus), calibrated per-effect levels (a hit sat 15 dB under the music), humanised timing and velocity, accents, drum-free intros, rate-limited hit ducking; the Game Over cue loops.
+- [x] **Narrative**: voices stop sharing one joke shape; a breath after the cryopod reveal; Pale's motive for Kit stated; the checkpoint's satire darkens as the crew closes in; Dutch no longer echoes the cargo framing.
+- [x] **Battle presentation**: strike frames for rats, hounds and drones; a hit flash that doesn't blank the sprite; squad armbands on human duplicates; foreground framing on four backdrops.
+- [x] **Economy**: a minimal-exploration Monte Carlo (off-path chests measured from the real route) — Pale's expenses make every checkpoint ≥87% affordable without them; Requisition sells the lab's top gear and a Neural Lace (the endgame sink).
+- [x] **Stability**: Firefox in CI; a two-tab E2E; migrations as a versioned chain.
+- [x] **Engine**: battle playback moved to battlekit/playback.ts behind a narrow PlaybackView; display types to battlekit/types.ts (BattleScene 1,574 → ~1,380 lines).
+
 ## Round 6 (verified 2026-09-28)
 
 Verifier spread is now visible: the same build scores ±0.5–1.0 between independent reviewers. Round 6 prioritised the
