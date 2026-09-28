@@ -795,6 +795,22 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
       c.fillStyle = '#ff3a4a'; c.fillRect(cx - 2, 36, 4, 1);
     });
     if (drained) return;
+    if (empty) {
+      // In front of it: a spreading pool of cryo fluid and glass scattered across the tiles.
+      const g = b.g, fx = p.x * TS, fy = (p.y + 1) * TS;
+      g.fillStyle = 'rgba(160,220,255,0.35)';
+      g.beginPath();
+      g.ellipse(fx + w * 8, fy + 10, w * 9, 6, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = 'rgba(220,245,255,0.5)';
+      g.fillRect(fx + w * 8 - 6, fy + 7, 7, 1);
+      for (const [dx, dy, l] of [[-9, 4, 3], [-3, 12, 2], [4, 3, 3], [10, 9, 2], [15, 14, 2], [-14, 13, 2], [7, 16, 3], [0, 6, 2]] as const) {
+        g.fillStyle = '#e6f6ff';
+        g.fillRect(fx + w * 8 + dx, fy + dy, l, 1);
+        g.fillStyle = '#6aa8c8';
+        g.fillRect(fx + w * 8 + dx, fy + dy + 1, 1, 1);
+      }
+    }
     if (!empty) b.lights.push({ x: x + w * 8, y: y + 20, r: 60, color: '#9ad8ff', i: 0.8, flicker: true });
     else b.lights.push({ x: x + w * 8, y: y + 20, r: 26, color: '#ffb13d', i: 0.4 });
   },

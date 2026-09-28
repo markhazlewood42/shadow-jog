@@ -396,6 +396,9 @@ const labWallFace: Painter = (lx, ly, _wx, _wy, tx, ty, q) => {
   // Containment's walls are scorched darker; the cryo wing's carry a rime line under the trim.
   if (wing === 'lab_floor_contain') return ly >= 12 ? K_6A6E7A : K_8A8E9A;
   if (wing === 'lab_floor_frost' && ly === 12) return K_EEF8FF;
+  // Below the trim, a wainscot washed in the wing's colour: wayfinding at a glance, not a line.
+  const tint = WING_STRIPE[wing];
+  if (tint && ly >= 12) return lerpC(P.labWallFace, tint, ly === 12 ? 0.55 : 0.32);
   return P.labWallFace;
 };
 

@@ -44,6 +44,8 @@ export interface CharLook {
   brows?: boolean | 'thick';
   /** Front-view eyes: two pixels tall (default) or narrow (one, half-lidded). */
   eyeShape?: 'round' | 'narrow';
+  /** Front-view stance: arms at the sides (default) or crossed over the chest. */
+  stance?: 'crossed';
   /** Carrying an umbrella: its canopy colour. With `umbrellaClear`, a clear canopy and a neon rim. */
   umbrella?: string;
   umbrellaClear?: boolean;
@@ -820,6 +822,26 @@ function faceFeatures(rows: string[], look: CharLook): void {
   }
 }
 
+/**
+ * Arms folded across the chest (front view): the forearms become a band over the torso and the
+ * hands leave the sides, so the silhouette narrows at the waist. A second stance for the crowd.
+ */
+function crossArms(rows: string[]): void {
+  const set = (y: number, x: number, ch: string) => {
+    const r = rows[y];
+    if (!r || r[x] === undefined) return;
+    rows[y] = r.slice(0, x) + ch + r.slice(x + 1);
+  };
+  for (let x = 4; x <= 7; x++) set(15, x, 'j');
+  for (let x = 8; x <= 11; x++) set(15, x, 'k');
+  set(16, 4, 'o');
+  set(16, 11, 'n');
+  for (const y of [16, 17]) {
+    if (rows[y]?.[3] !== '.') set(y, 3, '.');
+    if (rows[y]?.[12] !== '.') set(y, 12, '.');
+  }
+}
+
 function buildGrid(look: CharLook, view: 'down' | 'up' | 'side', frame: number): string[] {
   const rows = [...BODY[view][frame]!];
   const hair = HAIR[look.hairStyle][view];
@@ -830,6 +852,7 @@ function buildGrid(look: CharLook, view: 'down' | 'up' | 'side', frame: number):
   overlay(rows, hair);
   if (view === 'up') hairStrands(rows);
   if (view === 'down') faceFeatures(rows, look);
+  if (view === 'down' && look.stance === 'crossed') crossArms(rows);
   for (const a of accs) if (a !== 'elfears' && a !== 'beard') overlay(rows, ACC[a][view]);
   return reshape(rows, look.body ?? 'std');
 }

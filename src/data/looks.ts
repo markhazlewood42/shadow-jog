@@ -86,7 +86,8 @@ export function streetLook(seed: number): CharLook {
 
 export function randomLook(seed: number): CharLook {
   const r = new Rng(seed * 7919 + 17);
-  const body = r.chance(0.12) ? 'short' : r.chance(0.1) ? 'big' : 'std';
+  // A crowd of more than one build: about a third of people aren't the standard frame.
+  const body = r.chance(0.18) ? 'short' : r.chance(0.16) ? 'big' : 'std';
   const look: CharLook = {
     body,
     skin: body === 'big' && r.chance(0.6) ? r.pick(['#8a9a6a', '#7a8a5e', '#9a8a7a']) : r.pick(SKINS),
@@ -113,5 +114,6 @@ export function randomLook(seed: number): CharLook {
   // A face of their own: most people look neutral, some grin, a few give nothing away.
   look.mouth = r.pick(['line', 'line', 'line', 'grin', 'none'] as const);
   look.brows = r.chance(0.75);
+  if (r.chance(0.3)) look.stance = 'crossed';
   return look;
 }

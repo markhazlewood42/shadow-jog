@@ -169,7 +169,9 @@ test('18 world + dungeons', async ({ page }) => {
   await page.waitForTimeout(3500);
   await shot(page, '20-rustyard');
   await open(page, 'annex');
-  await page.waitForTimeout(3500);
+  await page.waitForTimeout(1500);
+  await sj(page, "sj.tp('annex', 22, 20, 'down')");
+  await page.waitForTimeout(2500);
   await shot(page, '21-annex');
 });
 
@@ -229,7 +231,7 @@ test('27 level features: lattice, secret panel, intake, radio lot', async ({ pag
   await open(page, 'annex');
   // Mid-puzzle: relay A cycled, so emitters 1-2 are dark and 3 is live.
   await sj(page, '(Object.assign(sj.state.flags, { annex_key: true, relay_a: true, lattice_off: false, sable_joined: false }), true)');
-  await sj(page, "sj.tp('annex', 28, 8, 'right')");
+  await sj(page, "sj.tp('annex', 27, 7, 'right')");
   await page.waitForTimeout(1500);
   await shot(page, '27-annex-lattice');
   await sj(page, "sj.tp('annex', 16, 22, 'left')");
