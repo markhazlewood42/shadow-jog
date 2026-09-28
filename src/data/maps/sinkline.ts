@@ -57,6 +57,9 @@ export const sinkline1: MapDef = {
         [42, 9, 3, 3, '~'],
         [30, 10, 1, 4, 't'],
         [44, 30, 1, 1, '+'],
+        // Only reachable once the water is gone: the old locker room under the junction.
+        [38, 31, 5, 3, '.'],
+        [40, 30, 1, 1, '.'],
       ],
     },
   ],
@@ -106,6 +109,7 @@ export const sinkline1: MapDef = {
     { kind: 'ladder', x: 44, y: 30 },
   ],
   chests: [
+    { id: 'drowned_locker', x: 41, y: 33, item: 'flood_charm', kind: 'locker', when: (f) => !!f.floodgate },
     { id: 'c1', x: 17, y: 2, item: 'medkit', qty: 2, kind: 'locker' },
     { id: 'c2', x: 27, y: 12, cred: 160, kind: 'crate' },
     { id: 'c3', x: 45, y: 5, item: 'neural_buffer', kind: 'case' },
@@ -176,6 +180,8 @@ export const sinkline1: MapDef = {
     { x: 26, y: 8, r: 55, color: '#ffd07a', i: 0.5, flicker: true },
     { x: 9, y: 20, r: 40, color: '#ff6a5a', i: 0.45, flicker: true },
     { x: 9, y: 29, r: 70, color: '#62e06a', i: 0.55 },
+    // A dim work light left on in the drowned locker room since ’61.
+    { x: 40, y: 32, r: 36, color: '#ffd07a', i: 0.45, flicker: true, when: (f) => !!f.floodgate },
     // Each intake gets a green work light, so the three read as one system across the map.
     { x: 2, y: 11, r: 34, color: '#62e06a', i: 0.5 },
     { x: 18, y: 20, r: 34, color: '#62e06a', i: 0.5 },

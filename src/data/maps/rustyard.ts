@@ -26,7 +26,7 @@ const g = new Grid(W, H, 'J')
   .rect(24, 2, 6, 4, 'r')
   .rect(9, 6, 3, 2, 'J')
   .rect(22, 6, 2, 2, 'J')
-  // Camp corners
+  // Camp corners (the west one hides the Rustfangs' tribute stash; see patches)
   .rect(1, 12, 3, 3, 'J')
   .rect(30, 12, 3, 4, 'J');
 
@@ -72,6 +72,8 @@ export const rustyard: MapDef = {
     { kind: 'dumpster', x: 23, y: 20, w: 2, color: '#5a3a2a' },
     // Rustfang territory: tags on the scrap walls facing the camp, banners staking the north yard.
     { kind: 'tag', x: 5, y: 12 },
+    // Their mark on the loose scrap in the camp's west corner: where they stash the tribute.
+    { kind: 'tag', x: 2, y: 14, color: '#ffb02e' },
     { kind: 'tag', x: 21, y: 12 },
     { kind: 'tag', x: 12, y: 24 },
     { kind: 'tag', x: 18, y: 25, color: '#ffb02e' },
@@ -82,7 +84,11 @@ export const rustyard: MapDef = {
     { kind: 'banner', x: 15, y: 3 },
     { kind: 'banner', x: 19, y: 3 },
   ],
+  patches: [
+    { when: (f) => !!f.tribute_stash, rects: [[1, 12, 3, 2, 'd'], [2, 14, 1, 1, 'd']] },
+  ],
   chests: [
+    { id: 'tribute', x: 1, y: 12, cred: 320, kind: 'crate', when: (f) => !!f.tribute_stash },
     { id: 'depot_case', x: 21, y: 6, item: 'med_case', kind: 'case' },
     { id: 'yard_cache', x: 2, y: 3, cred: 120, kind: 'crate' },
     { id: 'maze_cache', x: 31, y: 7, item: 'trauma_patch', qty: 2, kind: 'crate' },
@@ -128,6 +134,19 @@ export const rustyard: MapDef = {
     },
   ],
   events: [
+    {
+      id: 'loose_scrap', x: 2, y: 14, on: 'action', when: (f) => !f.tribute_stash,
+      run: async (s) => {
+        await s.narrate('This scrap is stacked loose, with a Rustfang tag sprayed across it. Someone moves it often.');
+        const pick = await s.ask(null, 'Pull it aside?', ['Pull it aside', 'Leave it'], { cancel: 1 });
+        if (pick !== 0) return;
+        s.sfx('bump');
+        s.set('tribute_stash');
+        s.refreshMap();
+        await s.narrate('Behind it, a hollow in the heap: a crate of cred, the Rustfangs’ tribute from the whole camp.');
+        await s.say('rook', 'Mags’ people paid that. We’ll see it gets back where it belongs.');
+      },
+    },
     { id: 'gate', x: 13, y: 20, w: 5, h: 1, on: 'touch', once: true, when: (f) => !f.rustyard_gate, run: rustyardGate },
     { id: 'depot', x: 12, y: 5, w: 10, h: 4, on: 'touch', when: (f) => !!f.rustyard_gate && !f.knuckles, run: knucklesFight },
     {

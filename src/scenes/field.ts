@@ -97,6 +97,7 @@ export class FieldScene extends Scene<void> {
     this.map = loadMap(mapId);
     this.def = this.map.def;
     state.map = mapId;
+    if (this.def.kind !== 'interior') state.flags[`visit:${mapId}`] = true;
     state.x = x;
     state.y = y;
     state.dir = dir;
@@ -320,17 +321,19 @@ export class FieldScene extends Scene<void> {
     if (w.when && !w.when(state.flags)) {
       if (w.blocked) {
         await this.runScript(w.blocked);
-        // Step back off the warp tile.
-        const back = opposite(this.leader.dir);
-        this.busy++;
-        try {
-          this.tryStep(back, WALK);
-          await this.waitIdle();
-        } finally {
-          this.busy--;
-        }
+        await this.stepBack();
       }
       return;
+    }
+    if (w.confirm) {
+      let go = false;
+      await this.runScript(async (s) => {
+        go = (await s.ask(null, w.confirm!, ['Go', 'Not yet'], { cancel: 1 })) === 0;
+      });
+      if (!go) {
+        await this.stepBack();
+        return;
+      }
     }
     this.pendingWarp = true;
     try {
@@ -338,6 +341,18 @@ export class FieldScene extends Scene<void> {
       await this.warp(w.to, w.tx, w.ty, w.dir ?? this.leader.dir);
     } finally {
       this.pendingWarp = false;
+    }
+  }
+
+  /** Step back off a warp tile the crew didn't take. */
+  private async stepBack(): Promise<void> {
+    const back = opposite(this.leader.dir);
+    this.busy++;
+    try {
+      this.tryStep(back, WALK);
+      await this.waitIdle();
+    } finally {
+      this.busy--;
     }
   }
 

@@ -102,6 +102,7 @@ export const ITEMS: Record<string, ItemDef> = {
   ghost_lens: I({ id: 'ghost_lens', name: 'Ghost Lens', kind: 'mod', slot: 'mod', who: ALL, price: 420, res: 6, mnd: 3, desc: 'A cracked monocle that sees a little too much. +6 RES, +3 MND.' }),
   adrenal_pump: I({ id: 'adrenal_pump', name: 'Adrenal Pump', kind: 'mod', slot: 'mod', who: ALL, price: 620, regen: 4, desc: 'Regenerate 4% HP each round.' }),
   spirit_fetish: I({ id: 'spirit_fetish', name: 'Spirit Fetish', kind: 'mod', slot: 'mod', who: ALL, price: 300, res: 7, immune: ['poison'], desc: '+7 RES. Immune to poison.' }),
+  flood_charm: I({ id: 'flood_charm', name: 'Flood Charm', kind: 'mod', slot: 'mod', who: ALL, price: 0, res: 5, immune: ['poison'], desc: 'A ’61 transit pass on a chain, kept by someone who didn’t get out. RES+5, immune to poison.' }),
   proto_chip: I({ id: 'proto_chip', name: 'Prototype Chip', kind: 'mod', slot: 'mod', who: ALL, price: 0, agi: 4, crit: 8, desc: 'Unreleased K-M reflex coprocessor, pocketed by a man who knew what was coming. AGI+4, crit+8%.' }),
   cyber_eye: I({ id: 'cyber_eye', name: 'Cyber Eye', kind: 'mod', slot: 'mod', who: ALL, price: 320, crit: 6, immune: ['blind'], desc: 'Flare-damped optics. Immune to blindness, +6% critical.' }),
 

@@ -49,7 +49,7 @@ test('production build: new game, save, reload, continue, with no errors', async
   // Menu → Save → slot 1.
   await key(page, 'Escape');
   await page.waitForTimeout(400);
-  await key(page, 'ArrowDown', 6);
+  await key(page, 'ArrowDown', 7);
   await key(page, 'Enter');
   await page.waitForTimeout(300);
   await key(page, 'Enter');

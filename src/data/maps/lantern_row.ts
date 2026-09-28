@@ -115,7 +115,9 @@ export const lanternRow: MapDef = {
     { kind: 'stall', x: 18, y: 18, w: 3, color: '#d8452e' },
     { kind: 'stall', x: 31, y: 18, w: 3, color: '#2f6a5a' },
     { kind: 'stall', x: 34, y: 26, w: 3, color: '#6a3fa0' },
-    { kind: 'holo', x: 27, y: 23, color: '#ff4fb0', text: 'LANTERN' },
+    { kind: 'holo', x: 27, y: 19, color: '#ff4fb0', text: 'LANTERN' },
+    // The plaza's heart: the Drowned Saint, and a lantern for everyone the flood took.
+    { kind: 'memorial', x: 27, y: 25, w: 2 },
     { kind: 'tree', x: 16, y: 17, color: '#62e06a' },
     { kind: 'tree', x: 39, y: 17, color: '#3fe0f0' },
     { kind: 'tree', x: 16, y: 30, color: '#b07cff' },
@@ -202,6 +204,16 @@ export const lanternRow: MapDef = {
     { id: 'kids', x: 26, y: 26, dir: 'up', look: randomLook(55), name: 'Kid', move: 'wander', radius: 2, talk: ['Mom says don’t talk to runners. ...Are you runners? Mom says runners disappear.'] },
   ],
   events: [
+    {
+      id: 'memorial', x: 27, y: 24, w: 2, h: 2, on: 'action',
+      run: async (s) => {
+        await s.narrate('THE DROWNED SAINT · IN MEMORY OF THE LOWER WARDS, ’61. Somebody has hung a lantern for every name. There is room for more.');
+        if (s.inParty('rook') && !s.flag('memorial_rook')) {
+          s.set('memorial_rook');
+          await s.say('rook', 'I hang one every year. Don’t ask me who for.');
+        }
+      },
+    },
     { id: 'first_fight', x: 15, y: 16, w: 26, h: 1, on: 'touch', once: true, when: (f) => !!f.intro && !f.first_fight, run: firstFight },
     {
       id: 'barricade', x: 2, y: 9, h: 5, on: 'touch', run: async (s) => {

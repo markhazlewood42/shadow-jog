@@ -258,3 +258,13 @@ test('maps overview + cast', async ({ page }) => {
   await page.waitForTimeout(1200);
   await shot(page, '32-crowd-sprites');
 });
+
+test('33 menu places', async ({ page }) => {
+  await open(page, 'sinkline');
+  await sj(page, 'sj.menu()');
+  await page.waitForTimeout(400);
+  await key(page, 'ArrowDown', 6);
+  await key(page, 'Enter');
+  await page.waitForTimeout(300);
+  await shot(page, '33-menu-places');
+});

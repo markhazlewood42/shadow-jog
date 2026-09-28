@@ -25,7 +25,7 @@ const COMBO_ROWS = 6;
 /** Display names for enemy families. */
 const FAMILY_NAME: Record<string, string> = { human: 'Human', machine: 'Machine', beast: 'Beast', spirit: 'Spirit', ghoul: 'Ghoul' };
 
-type Mode = 'bestiary' | 'main' | 'pickMember' | 'items' | 'itemTarget' | 'techs' | 'techTarget' | 'equipSlots' | 'equipList' | 'status' | 'combos' | 'save' | 'saveConfirm';
+type Mode = 'places' | 'bestiary' | 'main' | 'pickMember' | 'items' | 'itemTarget' | 'techs' | 'techTarget' | 'equipSlots' | 'equipList' | 'status' | 'combos' | 'save' | 'saveConfirm';
 
 export type MenuResult = { kind: 'close' } | { kind: 'special'; item: string } | { kind: 'title' };
 
@@ -36,6 +36,7 @@ export class MenuScene extends Scene<MenuResult> {
   private mode: Mode = 'main';
   private main = new ListMenu<string>([], 9);
   private beasts = new ListMenu<string>([], 17);
+  private places = new ListMenu<string>([], 12);
   private sub = new ListMenu<string>([], 12);
   private comboScroll = 0;
   private memberIdx = 0;
@@ -56,6 +57,7 @@ export class MenuScene extends Scene<MenuResult> {
       { label: 'Status', value: 'status' },
       { label: 'Combos', value: 'combos' },
       { label: 'Bestiary', value: 'bestiary' },
+      { label: 'Places', value: 'places' },
       { label: 'Save', value: 'save', enabled: canSave },
       { label: 'Options', value: 'options' },
       { label: 'Close', value: 'close' },
@@ -104,6 +106,13 @@ export class MenuScene extends Scene<MenuResult> {
           this.beasts.index = 0;
           this.beasts.scroll = 0;
           this.mode = 'bestiary';
+        }
+        else if (v === 'places') {
+          this.places.setItems(
+            PLACES.filter((p) => state.flags[`visit:${p.id}`]).map((p) => ({ label: p.name, value: p.id, right: p.id === state.map ? 'here' : undefined })),
+          );
+          this.places.index = Math.max(0, this.places.items.findIndex((i) => i.value === state.map));
+          this.mode = 'places';
         }
         else if (v === 'save') {
           this.buildSaveList();
@@ -200,6 +209,11 @@ export class MenuScene extends Scene<MenuResult> {
       case 'bestiary': {
         const r = this.beasts.update(inp);
         if (r === 'cancel') this.mode = 'main';
+        break;
+      }
+      case 'places': {
+        const r = this.places.update(inp);
+        if (r === 'cancel' || r === 'confirm') this.mode = 'main';
         break;
       }
       case 'combos': {
@@ -413,6 +427,10 @@ export class MenuScene extends Scene<MenuResult> {
     }
     if (this.mode === 'bestiary') {
       this.renderBestiary(ctx);
+      return;
+    }
+    if (this.mode === 'places') {
+      this.renderPlaces(ctx);
       return;
     }
     // Main command column
@@ -652,6 +670,29 @@ export class MenuScene extends Scene<MenuResult> {
     drawParagraph(ctx, 'Notes are logged when a hit lands weak or is resisted, when a status fails to stick, or when Hex runs Analyze.', x + 10, H - 34, w - 20, { color: UI.dim, lineH: 10 });
   }
 
+  /** Places the crew has been: what each is for and how to get there, plus the objective. */
+  private renderPlaces(ctx: Ctx): void {
+    drawWindow(ctx, 8, 8, 150, H - 16, { title: 'PLACES', accent: UI.cyan });
+    this.places.render(ctx, 16, 24, 136, true, 'Nowhere yet.');
+    const x = 164, w = W - x - 8;
+    drawWindow(ctx, x, 8, w, H - 16, { plain: true });
+    const cur = PLACES.find((p) => p.id === this.places.current?.value);
+    if (cur) {
+      drawText(ctx, cur.name, x + 10, 18, { color: UI.cyan });
+      if (cur.id === state.map) drawText(ctx, 'You are here', x + w - 10, 18, { align: 'right', color: UI.amber });
+      drawParagraph(ctx, cur.about, x + 10, 34, w - 20, { color: '#d0cee4', lineH: 11 });
+      drawDivider(ctx, x + 6, 104, w - 12);
+      drawText(ctx, 'Getting there', x + 10, 112, { color: UI.dim });
+      drawParagraph(ctx, cur.route, x + 10, 124, w - 20, { color: '#b8bcd0', lineH: 11 });
+    }
+    const obj = state.flags.objective;
+    if (typeof obj === 'string' && obj) {
+      drawDivider(ctx, x + 6, H - 58, w - 12);
+      drawText(ctx, 'Objective', x + 10, H - 50, { color: UI.amber });
+      drawParagraph(ctx, obj, x + 10, H - 38, w - 20, { color: '#ffe7a0', lineH: 11 });
+    }
+  }
+
   private renderCombos(ctx: Ctx): void {
     drawWindow(ctx, 8, 8, W - 16, H - 16, { title: 'COMBO LOG', accent: UI.amber });
     drawText(ctx, 'Choose the right pair of abilities in the same round and they fuse.', 18, 22, { color: UI.dim });
@@ -671,6 +712,16 @@ export class MenuScene extends Scene<MenuResult> {
     });
   }
 }
+
+/** The places a player can have been, in the order the chapter reaches them. */
+const PLACES: { id: string; name: string; about: string; route: string }[] = [
+  { id: 'lantern_row', name: 'Lantern Row', about: 'Home turf. The Drowned Saint (Dutch’s bar), Doc Yun’s clinic, the shops, Sleeptube capsules, Mama Ono’s noodles. Rook’s flat and Hex’s den are on the south row.', route: 'The east end of the street opens onto the Sprawl.' },
+  { id: 'world', name: 'The Sprawl', about: 'The Lower Wards between the neighbourhoods: the Barrens to the east, Hollowmere Park, the canal. The arcology road north is sealed.', route: 'Lantern Row is west. The Rustyard is north-east up the highway spur. The Sinkline station is south, over the canal bridge.' },
+  { id: 'rustyard', name: 'The Rustyard', about: 'A scav camp in the Barrens, squeezed by the Rustfang gang. Old Mags trades the best salvage in the Wards.', route: 'From the Sprawl, follow the old highway spur north-east.' },
+  { id: 'sinkline_1', name: 'The Sinkline · B1', about: 'The flooded metro, drowned since ’61. The pump station is south down the maintenance corridor; the junction is east.', route: 'The station entrance is south of the canal bridge.' },
+  { id: 'annex', name: 'K-M Annex 7', about: 'A Kessler-Mori research annex, officially decommissioned. Officially.', route: 'A maintenance hatch at the bottom of the Sinkline’s junction.' },
+  { id: 'dock', name: 'Loading Dock 7', about: 'Where Mr. Pale said to bring the core.', route: 'The Annex freight lift comes up here.' },
+];
 
 function kindIcon(it: ItemDef): string {
   return it.kind === 'use' ? '+' : it.kind === 'key' ? '*' : it.kind === 'loot' ? '$' : '#';

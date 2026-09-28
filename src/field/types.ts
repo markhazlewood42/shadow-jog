@@ -53,7 +53,7 @@ export type PropKind =
   | 'holo' | 'poster' | 'counter' | 'shelf' | 'bed' | 'table' | 'stool' | 'couch' | 'plant' | 'screen'
   | 'capsule' | 'bar' | 'rack' | 'desk' | 'pod' | 'server' | 'tank' | 'fence' | 'sandbags' | 'tent' | 'pylon'
   | 'catwalk_rail' | 'train' | 'valve' | 'cryopod' | 'door_lab' | 'jukebox' | 'arcade' | 'sign_post' | 'bollard'
-  | 'window' | 'lampfloor' | 'sign_board' | 'tires' | 'body' | 'ladder' | 'tag' | 'banner' | 'crest';
+  | 'window' | 'lampfloor' | 'sign_board' | 'tires' | 'body' | 'ladder' | 'tag' | 'banner' | 'crest' | 'memorial';
 
 export interface PropDef {
   kind: PropKind;
@@ -116,6 +116,8 @@ export interface WarpDef {
   when?: (flags: Record<string, unknown>) => boolean;
   /** Script to run instead when `when` fails. */
   blocked?: ScriptFn;
+  /** Ask before going (a point of no return); declining steps back off the tile. */
+  confirm?: string;
 }
 
 export interface EventDef {

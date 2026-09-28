@@ -122,6 +122,12 @@ function migrate(s: GameState): GameState {
   s.dir ??= 'down';
   s.steps ??= 0;
   s.flags ??= {};
+  // Saves from before the Places list: infer where the crew has been from the story so far.
+  const seen: [string, boolean][] = [
+    ['lantern_row', true], ['world', !!s.flags.met_dutch], ['rustyard', !!s.flags.rustyard_gate],
+    ['sinkline_1', !!s.flags.sinkline_gate], ['annex', !!s.flags.annex_key], ['dock', !!s.flags.betrayal],
+  ];
+  for (const [id, been] of seen) if (been) s.flags[`visit:${id}`] ??= true;
   // Now it has every field this version expects: say so, so a later migration starts from here.
   s.version = SAVE_VERSION;
   return s;

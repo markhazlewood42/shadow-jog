@@ -152,7 +152,7 @@ export const annex: MapDef = {
     { id: 'relay_a', x: 15, y: 21, on: 'action', run: relay('a') },
     {
       id: 'memo', x: 17, y: 4, w: 2, on: 'action',
-      run: annexLog('MEMO · LATTICE AUDIT', 'Relay A feeds emitters 1 and 2. Relay C feeds 2 and 3. Relay B is wired to all three. Cycling a relay flips every emitter it feeds. Keep this taped to the desk, Dmitri.'),
+      run: annexLog('MEMO · LATTICE AUDIT', 'Relay A feeds emitters 1 and 2. Cycling a relay flips every emitter it feeds. The refit rewired B and C and nobody updated this memo, so watch the beams when you cycle them. Keep this taped to the desk, Dmitri.'),
     },
     {
       id: 'requisition', x: 23, y: 18, h: 2, on: 'action',
@@ -190,6 +190,7 @@ export const annex: MapDef = {
     {
       x: 37, y: 32, w: 3, to: 'dock', tx: 9, ty: 4, dir: 'down',
       when: (f) => !!f.warden,
+      confirm: 'The freight lift only goes up. Anything left in the Annex stays here for good. Ride up?',
       blocked: async (s) => s.narrate('The freight lift. The call panel is dead until the facility releases its security lock.'),
     },
   ],

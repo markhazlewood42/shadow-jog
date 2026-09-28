@@ -383,6 +383,36 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     });
   },
 
+  memorial(b, p) {
+    // A verdigris saint on a stone plinth, hooded and head bowed, ringed by hanging lanterns.
+    const w = (p.w ?? 2) * TS;
+    blockFoot(b, p, p.w ?? 2, 1);
+    const { x, y } = tall(b, { ...p, w: p.w ?? 2 }, w, 48, (c, e) => {
+      // Plinth
+      c.fillStyle = '#0f0e17'; c.fillRect(2, 36, w - 4, 12);
+      c.fillStyle = '#5a5a66'; c.fillRect(3, 37, w - 6, 10);
+      c.fillStyle = '#6e6e7a'; c.fillRect(3, 37, w - 6, 2);
+      c.fillStyle = '#44444e'; c.fillRect(3, 44, w - 6, 3);
+      // The saint: hood, bowed head, robe falling to the plinth, hands together.
+      const cx = w / 2;
+      c.fillStyle = '#0f0e17'; c.fillRect(cx - 6, 6, 12, 31);
+      c.fillStyle = '#3f6e62'; c.fillRect(cx - 5, 7, 10, 29);
+      c.fillStyle = '#5a9484'; c.fillRect(cx - 5, 7, 3, 29);
+      c.fillStyle = '#2a4a42'; c.fillRect(cx - 2, 10, 4, 5); // shadow under the hood
+      c.fillStyle = '#6aa898'; c.fillRect(cx - 1, 18, 2, 3); // hands
+      c.fillStyle = '#2a4a42'; c.fillRect(cx + 2, 22, 1, 13); c.fillRect(cx - 3, 24, 1, 11); // robe folds
+      // Lanterns on cords around it, glowing.
+      both(c, e, (k) => {
+        for (const [lx, ly] of [[3, 12], [w - 6, 9], [5, 24], [w - 7, 22], [cx - 1, 1]] as const) {
+          k.fillStyle = '#0f0e17'; k.fillRect(lx, ly - 2, 1, 2);
+          k.fillStyle = '#ffb040'; k.fillRect(lx - 1, ly, 3, 4);
+          k.fillStyle = '#ffe8a0'; k.fillRect(lx, ly + 1, 1, 2);
+        }
+      });
+    });
+    b.lights.push({ x: x + w / 2, y: y + 18, r: 70, color: '#ffb040', i: 0.7 });
+  },
+
   holo(b, p) {
     blockFoot(b, p);
     const col = p.color ?? '#3fe0f0';
