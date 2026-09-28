@@ -769,7 +769,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const p = this.floatPos(uid);
     let stacked = 0;
     for (const f of this.floaters) if (f.uid === uid && f.t < 26) stacked++;
-    this.floaters.push({ text, x: p.x, y: Math.max(14, p.y - 8 - stacked * 10), t: 0, color, style, uid });
+    // 12px a row: 7px glyphs, their shadow, and air (the hit's bounce reaches 3px). Near the top
+    // of the frame the stack grows downward instead, so the clamp can't pile rows on each other.
+    this.floaters.push({ text, x: p.x, y: Math.max(22 + stacked * 12, p.y - 8 - stacked * 12), t: 0, color, style, uid });
   }
 
   private say(text: string): void {
@@ -997,9 +999,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     }
     // Floaters
     for (const fl of this.floaters) {
-      // Hits pop up with a decaying bounce, then hold and drift; labels rise; DoT ticks sink.
+      // Hits and labels pop up, hold and drift together (so a WEAK!/CRITICAL keeps its row over
+      // its number the whole time); only the hit bounces. DoT ticks sink.
       const hit = fl.style === 'hit';
-      const rise = hit ? 8 * (1 - (1 - Math.min(1, fl.t / 8)) ** 3) + Math.max(0, fl.t - 24) * 0.15 : fl.style === 'tick' ? -Math.min(8, fl.t * 0.25) : fl.t * 0.4;
+      const pop = 8 * (1 - (1 - Math.min(1, fl.t / 8)) ** 3);
+      const rise = fl.style === 'tick' ? -Math.min(8, fl.t * 0.25) : pop + Math.max(0, fl.t - 24) * 0.15;
       const bounce = hit && fl.t >= 8 && fl.t < 20 ? Math.abs(Math.sin((fl.t - 8) * 0.52)) * 3 * (1 - (fl.t - 8) / 12) : 0;
       g.globalAlpha = fl.t > 38 ? Math.max(0, 1 - (fl.t - 38) / 12) : 1;
       drawText(g, fl.text, Math.round(fl.x), Math.round(fl.y - rise - bounce), { color: fl.color, align: 'center', shadow: '#0a0913' });
@@ -1439,10 +1443,13 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         drawText(ctx, `${Math.round(dd.shownTp)}/${p.base.maxTp}`, x + 110, y + 33, { align: 'right' });
         drawBar(ctx, x + 7, y + 44, 102, 2, dd.shownTp / p.base.maxTp, UI.cyan);
       } else {
-        // Rook: skill charges instead of TP
-        const total = knownAbilities(state.members[p.key as MemberId]!, 'skill').reduce((n, id) => n + (p.uses[id] ?? 0), 0);
+        // Rook: skill charges instead of TP, with the same bar (charges left of the full set).
+        const known = knownAbilities(state.members[p.key as MemberId]!, 'skill');
+        const total = known.reduce((n, id) => n + (p.uses[id] ?? 0), 0);
+        const full = known.reduce((n, id) => n + (ABILITIES[id]!.uses ?? 0), 0);
         drawText(ctx, 'SKILL', x + 7, y + 33, { color: UI.dim });
-        drawText(ctx, `${total} uses`, x + 110, y + 33, { align: 'right' });
+        drawText(ctx, `${total}/${full} uses`, x + 110, y + 33, { align: 'right' });
+        drawBar(ctx, x + 7, y + 44, 102, 2, full ? total / full : 0, UI.amber);
       }
       // Status: the first ailment tagged on the portrait's lower edge, plus a count.
       let tags = 0;

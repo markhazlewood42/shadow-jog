@@ -10,7 +10,7 @@ import { LOOKS } from '../data/looks';
 import { MEMBERS, xpFor } from '../data/party';
 import type { Ctx } from '../engine/canvas';
 import { drawParagraph, drawText, fitText, measure, wrap } from '../engine/font';
-import { COMBO_TEXT_W, MENU_OBJ_W } from '../ui/layout';
+import { COMBO_TEXT_W, EQUIP_DESC_W, MENU_OBJ_W } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { applyEffects } from '../game/fielduse';
 import { canEquip, equip, knownAbilities, memberStats } from '../game/party';
@@ -584,7 +584,7 @@ export class MenuScene extends Scene<MenuResult> {
         drawParagraph(ctx, `No other ${SLOT_NAMES[this.equipSlot].toLowerCase()} gear in the bag. Shops and chests have more.`, x + 164, 104, w - 176, { color: UI.dim, lineH: 10 });
       const it = this.sub.current && this.sub.current.value !== '__none' ? ITEMS[this.sub.current.value] : null;
       if (it) {
-        drawParagraph(ctx, it.desc + (canEquip(m, it.id) ? '' : ` {r}${MEMBERS[m.id].name} can’t use this.{/}`), x + 10, 172, 142, { color: '#d0cee4', lineH: 10 });
+        drawParagraph(ctx, it.desc + (canEquip(m, it.id) ? '' : ` {r}${MEMBERS[m.id].name} can’t use this.{/}`), x + 10, 172, EQUIP_DESC_W, { color: '#d0cee4', lineH: 10 });
       }
     }
   }

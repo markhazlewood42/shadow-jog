@@ -20,7 +20,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npx playwright install --with-deps chromium webkit
-      - name: E2E (full chapter, game over / save, frame budget, shipped build; WebKit for game over and the shipped build)
-        run: npx playwright test e2e/playthrough.spec.ts e2e/gameover.spec.ts e2e/perf.spec.ts e2e/prod.spec.ts
+      - name: E2E (full chapter, game over / save, frame budget, shipped build, zone walk and shop; WebKit for game over and the shipped build)
+        run: npx playwright test e2e/playthrough.spec.ts e2e/gameover.spec.ts e2e/perf.spec.ts e2e/prod.spec.ts e2e/economy.spec.ts
         env:
           CI: '1'

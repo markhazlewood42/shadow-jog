@@ -3,7 +3,7 @@ import { Game, FPS } from './engine/game';
 import { Input } from './engine/input';
 import { boot } from './boot';
 import { currentNotice, reportError } from './engine/errors';
-import { drawText } from './engine/font';
+import { drawText, fitText, wrap } from './engine/font';
 import { perf } from './engine/perf';
 import { settings } from './game/settings';
 
@@ -64,10 +64,13 @@ function start(): void {
       drawText(ctx, `{c}♦{/} ${n.text}`, 480 - 66, 270 - 13, { color: '#b8bcd0' });
       return;
     }
-    ctx.fillStyle = n.tone === 'warn' ? 'rgba(46,34,6,0.92)' : 'rgba(40,6,16,0.9)';
-    ctx.fillRect(0, 0, 480, 13);
+    // Up to two wrapped lines; anything longer ends in an ellipsis rather than mid-word.
     const text = n.tone === 'warn' ? n.text : `Something went wrong: ${n.text}`;
-    drawText(ctx, text.slice(0, 92), 4, 2, { color: n.tone === 'warn' ? '#ffe0a0' : '#ffb0b0' });
+    const lines = wrap(text, 472);
+    if (lines.length > 2) lines.splice(1, lines.length - 1, fitText(lines.slice(1).join(' '), 472));
+    ctx.fillStyle = n.tone === 'warn' ? 'rgba(46,34,6,0.92)' : 'rgba(40,6,16,0.9)';
+    ctx.fillRect(0, 0, 480, 3 + lines.length * 10);
+    for (const [i, ln] of lines.entries()) drawText(ctx, ln, 4, 2 + i * 10, { color: n.tone === 'warn' ? '#ffe0a0' : '#ffb0b0' });
   });
   document.getElementById('boot')!.style.display = 'none';
   screen.focus();

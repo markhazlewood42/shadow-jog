@@ -20,6 +20,9 @@ const KEYMAP: Record<string, Action> = {
 };
 
 /** A key code as a player reads it. */
+/** The four directions, in a fixed order (hoisted: dir() runs every field tick). */
+const DIRS = ['up', 'down', 'left', 'right'] as const;
+
 export function keyLabel(code: string): string {
   const names: Record<string, string> = {
     ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Escape: 'Esc', Enter: 'Enter', NumpadEnter: 'NumEnter',
@@ -200,7 +203,7 @@ export class Input {
   dir(): 'up' | 'down' | 'left' | 'right' | null {
     let best: 'up' | 'down' | 'left' | 'right' | null = null;
     let bestN = Infinity;
-    for (const d of ['up', 'down', 'left', 'right'] as const) {
+    for (const d of DIRS) {
       const n = this.held.get(d);
       if (n !== undefined && n < bestN) {
         bestN = n;

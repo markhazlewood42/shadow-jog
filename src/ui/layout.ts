@@ -13,3 +13,8 @@ export const MENU_OBJ_W = W - 116 - 28;
 export const COMBO_TEXT_W = W - 8 - 30 - 12;
 /** A "Learned X!" line in the level-up panel (single line). */
 export const LEVELUP_TEXT_W = 230 - 28;
+/** Shop: a member's stat-change line in the detail pane (pane at 298, width 174; the line starts 26px in). */
+export const SHOP_COMPARE_W = W - (96 + 196 + 6) - 8 - 16 - 18;
+/** Equip screen: the item description (and "can't use" reason) under the list, 6 lines of 10px. */
+export const EQUIP_DESC_W = 142;
+export const EQUIP_DESC_LINES = 6;

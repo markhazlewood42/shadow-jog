@@ -86,7 +86,7 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 
 ## 6. Progression
 
-* Levels 1–20 (chapter 1 ends around Lv 9–11). Per-character stat growth curves; techs and skills unlock at set levels.
+* Levels 1–30 (`MAX_LEVEL`; chapter 1 ends around Lv 9–11, leaving room for later chapters). Per-character stat growth curves; techs and skills unlock at set levels.
 * Equipment slots: Weapon, Body, Head, Mod (cyberware/fetish accessory). Class restrictions apply.
 * XP goes in full to every conscious member. Downed members get none.
 
@@ -112,10 +112,14 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 | Action | Keyboard | Gamepad |
 |---|---|---|
 | Move | Arrows / WASD | D-pad / left stick |
-| Confirm / talk | Z · Enter · Space | A |
-| Cancel / menu | X · Esc · Backspace | B / Start |
-| Dash (hold) | Shift | X / RB |
+| Confirm / talk | Z · Enter · Space | A / Cross |
+| Cancel (opens the menu in the field) | X · Esc · Backspace | B / Circle |
+| Menu | C · Tab | Y / Triangle · Start |
+| Dash (hold) | Shift | X / Square · RB |
 | Fullscreen | F | — |
+
+Every keyboard action can be rebound in Options → Controls (the in-game Controls page is the reference; this table
+mirrors its defaults).
 
 ## 10. Tech
 

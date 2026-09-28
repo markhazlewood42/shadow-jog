@@ -222,7 +222,9 @@ export const SONGS: Record<string, SongSpec> = {
   gameover: {
     bpm: 66,
     chords: 'Am | F | Dm | E | Am',
-    loop: false,
+    // Loops from the second bar: the player may sit on Retry / Load / Title for a while, and a
+    // one-shot dirge used to leave that screen in silence.
+    loopBar: 1,
     space: 'hall',
     parts: [
       { inst: 'bell', vol: 0.9, rev: 0.6, del: 0.4, notes: 'E5 - - - C5 - - - | A4 - - - F4 - - - | D5 - C5 - B4 - A4 - | G#4 - - - - - - - | A4 - - - - - - -' },

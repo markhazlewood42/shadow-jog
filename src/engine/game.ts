@@ -70,7 +70,7 @@ export class Game {
   readonly ctx: Ctx;
   readonly stack: AnyScene[] = [];
   frame = 0;
-  /** Seconds of play time (only counts while unpaused and not on title). */
+  /** Frames of play time (only counts while countPlayTime is set: not on the title or menus that stop the clock). */
   playFrames = 0;
   countPlayTime = false;
   private timers: Timer[] = [];
@@ -87,7 +87,6 @@ export class Game {
   flashFrames = 0;
   flashColor = '#ffffff';
   private flashTotal = 1;
-  paused = false;
   /** Hooks run after the scene stack renders (overlays like touch controls or debug). */
   overlays: ((ctx: Ctx) => void)[] = [];
   /** Hooks run every tick before scenes (audio sequencer etc.). */
@@ -213,48 +212,46 @@ export class Game {
         this.fault(e);
       }
     }
-    if (!this.paused) {
-      this.frame++;
-      if (this.countPlayTime) this.playFrames++;
-      // Timers
-      if (this.timers.length) {
-        // Compact in place and collect the due ones into a reused buffer: no allocation per tick.
-        let keep = 0, due = 0;
-        for (let i = 0; i < this.timers.length; i++) {
-          const t = this.timers[i]!;
-          if (t.at <= this.frame) this.dueBuf[due++] = t;
-          else this.timers[keep++] = t;
-        }
-        this.timers.length = keep;
-        for (let i = 0; i < due; i++) {
-          const t = this.dueBuf[i]!;
-          this.dueBuf[i] = undefined;
-          t.resolve();
-        }
+    this.frame++;
+    if (this.countPlayTime) this.playFrames++;
+    // Timers
+    if (this.timers.length) {
+      // Compact in place and collect the due ones into a reused buffer: no allocation per tick.
+      let keep = 0, due = 0;
+      for (let i = 0; i < this.timers.length; i++) {
+        const t = this.timers[i]!;
+        if (t.at <= this.frame) this.dueBuf[due++] = t;
+        else this.timers[keep++] = t;
       }
-      // Fade
-      if (this.fade) {
-        const f = this.fade;
-        f.t++;
-        const k = Math.min(1, f.t / f.frames);
-        this.fadeLevel = f.from + (f.to - f.from) * k;
-        if (k >= 1) {
-          this.fade = null;
-          f.resolve();
-        }
+      this.timers.length = keep;
+      for (let i = 0; i < due; i++) {
+        const t = this.dueBuf[i]!;
+        this.dueBuf[i] = undefined;
+        t.resolve();
       }
-      if (this.shakeFrames > 0) this.shakeFrames--;
-      if (this.flashFrames > 0) this.flashFrames--;
-      // Scenes: top always updates; lower scenes update while the one above passes updates through.
-      for (let i = this.stack.length - 1; i >= 0; i--) {
-        const s = this.stack[i]!;
-        try {
-          s.update();
-        } catch (e) {
-          this.fault(e);
-        }
-        if (!s.passUpdate) break;
+    }
+    // Fade
+    if (this.fade) {
+      const f = this.fade;
+      f.t++;
+      const k = Math.min(1, f.t / f.frames);
+      this.fadeLevel = f.from + (f.to - f.from) * k;
+      if (k >= 1) {
+        this.fade = null;
+        f.resolve();
       }
+    }
+    if (this.shakeFrames > 0) this.shakeFrames--;
+    if (this.flashFrames > 0) this.flashFrames--;
+    // Scenes: top always updates; lower scenes update while the one above passes updates through.
+    for (let i = this.stack.length - 1; i >= 0; i--) {
+      const s = this.stack[i]!;
+      try {
+        s.update();
+      } catch (e) {
+        this.fault(e);
+      }
+      if (!s.passUpdate) break;
     }
     this.input.endFrame();
     this.faults = this.faultedThisTick ? this.faults + 1 : 0;

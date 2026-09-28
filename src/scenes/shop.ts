@@ -7,7 +7,8 @@ import { LOOKS } from '../data/looks';
 import { MEMBERS } from '../data/party';
 import { SHOPS, type ShopDef } from '../data/shops';
 import type { Ctx } from '../engine/canvas';
-import { drawParagraph, drawText } from '../engine/font';
+import { drawParagraph, drawText, fitText } from '../engine/font';
+import { SHOP_COMPARE_W } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { canEquip, memberStats } from '../game/party';
 import { state, type MemberState } from '../game/state';
@@ -225,6 +226,6 @@ export class ShopScene extends Scene<void> {
     }
     const equipped = m.equip[it.slot!] === id;
     const text = equipped ? '{c}Equipped{/}' : diffs.length ? diffs.join(' ') : '{d}no change{/}';
-    drawText(ctx, text, x + 18, y + 10);
+    drawText(ctx, fitText(text, SHOP_COMPARE_W), x + 18, y + 10);
   }
 }

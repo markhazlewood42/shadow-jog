@@ -33,13 +33,13 @@ type Page = Panel[];
 /** Page layouts are authored for an 8..262 frame; they are squeezed into 8..FOOT_TOP to keep a footer strip. */
 const FOOT_TOP = H - 18;
 const FOOT_Y = H - 13;
-function fitPanel(p: Panel): Panel {
+export function fitPanel(p: Panel): Panel {
   const k = (FOOT_TOP - 8) / (H - 16);
   const y = Math.round(8 + (p.y - 8) * k);
   return { ...p, y, h: Math.round(8 + (p.y + p.h - 8) * k) - y };
 }
 
-const PAGES: Record<string, Page[]> = {
+export const PAGES: Record<string, Page[]> = {
   intro: [
     [
       { x: 8, y: 8, w: 464, h: 132, bg: 'city', caption: 'SALTREACH, 2079.', from: 'top' },
@@ -76,6 +76,30 @@ const PAGES: Record<string, Page[]> = {
 };
 
 const PAGE_BG = '#0a0914';
+
+/** Where a panel's portrait is drawn horizontally (its left edge and size), or null if none. */
+export function portraitRect(pn: Panel, x: number): { px: number; pw: number } | null {
+  if (!pn.portrait) return null;
+  const s = pn.portrait.scale ?? Math.max(2, Math.floor(Math.min(pn.h, 150) / 48));
+  const pw = 48 * s;
+  const px = pn.portrait.dx !== undefined ? x + pn.portrait.dx : pn.portrait.flip ? x + pn.w - pw - 6 : x + 6;
+  return { px, pw };
+}
+
+/**
+ * A speech bubble's placement: in the wider gap beside the portrait's drawn rect, wrapped to fit
+ * it, so it never covers the speaker's face (tests/layout.test.ts checks every panel).
+ */
+export function speechLayout(pn: Panel, x: number, name: string): { bx: number; w: number; lines: string[]; leftSide: boolean } {
+  const por = portraitRect(pn, x);
+  const freeL = por ? por.px - x - 12 : 0;
+  const freeR = por ? x + pn.w - (por.px + por.pw) - 12 : pn.w - 24;
+  const leftSide = !!por && freeL >= freeR;
+  const maxW = Math.min(220, (leftSide ? freeL : freeR) - 14);
+  const lines = wrap(pn.speech!.text, Math.max(80, maxW));
+  const w = Math.max(measure(name), ...lines.map(measure)) + 14;
+  return { bx: leftSide ? x + 8 : x + pn.w - w - 8, w, lines, leftSide };
+}
 
 /** Title text rendered once at 1× for scaling up (nearest-neighbour keeps it crisp). */
 const titleCache = new Map<string, { canvas: HTMLCanvasElement; w: number }>();
@@ -212,10 +236,8 @@ export class PanelScene extends Scene<void> {
     if (pn.portrait) {
       const por = getPortrait(pn.portrait.key, pn.portrait.face);
       if (por) {
-        const s = pn.portrait.scale ?? Math.max(2, Math.floor(Math.min(pn.h, 150) / 48));
-        const pw = 48 * s;
-        const px = pn.portrait.dx !== undefined ? x + pn.portrait.dx : pn.portrait.flip ? x + pn.w - pw - 6 : x + 6;
-        const py = y + pn.h - 48 * s + Math.round((1 - e) * 10);
+        const { px, pw } = portraitRect(pn, x)!;
+        const py = y + pn.h - pw + Math.round((1 - e) * 10);
         ctx.imageSmoothingEnabled = false;
         if (pn.portrait.flip) {
           ctx.save();
@@ -273,12 +295,8 @@ export class PanelScene extends Scene<void> {
   private speech(ctx: Ctx, pn: Panel, x: number, y: number, typed: number): void {
     const sp = pn.speech!;
     const name = SPEAKERS[sp.who]?.name ?? sp.who;
-    const maxW = Math.min(pn.w - (pn.portrait ? 96 : 24), 220);
-    const lines = wrap(sp.text, Math.max(80, maxW));
-    const w = Math.max(measure(name), ...lines.map(measure)) + 14;
+    const { bx, w, lines, leftSide } = speechLayout(pn, x, name);
     const h = lines.length * 11 + 20;
-    const leftSide = pn.portrait?.flip || pn.portrait?.dx !== undefined;
-    const bx = leftSide ? x + 8 : x + pn.w - w - 8;
     const by = y + 8;
     const reveal = Math.floor(typed);
     ctx.fillStyle = '#000';
