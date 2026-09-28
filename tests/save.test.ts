@@ -179,6 +179,63 @@ describe('save / load', () => {
     expect(loadSave(1)!.version).toBe(stateMod.SAVE_VERSION);
   });
 
+  it('rejects non-finite and off-map numbers, and clamps the ones that are only out of range', () => {
+    const ls = (globalThis as unknown as { localStorage: MemStorage }).localStorage;
+    // JSON can't write Infinity, but a hand-edited 1e999 parses to it.
+    const tamper = (slot: 1 | 2 | 3, ...edits: [path: string, value: string][]) => {
+      writeSave(slot, 0);
+      const raw = JSON.parse(ls.getItem(`shadowjog.save.${slot}`)!);
+      edits.forEach(([path, _], i) => {
+        const parts = path.split('.');
+        let o = raw;
+        for (const p of parts.slice(0, -1)) o = o[p];
+        o[parts.at(-1)!] = `__X${i}__`;
+      });
+      let text = JSON.stringify(raw);
+      edits.forEach(([_, value], i) => {
+        text = text.replace(`"__X${i}__"`, value);
+      });
+      ls.setItem(`shadowjog.save.${slot}`, text);
+    };
+    for (const [path, value] of [
+      ['state.cred', '1e999'],
+      ['state.members.kit.hp', '-1e999'],
+      ['state.members.rook.level', '1e999'],
+      ['state.x', '4.5'],
+      ['state.y', '-3'],
+      ['state.x', '100000'],
+      ['state.lastTown.y', '1e999'],
+      ['meta.cred', '1e999'],
+    ] as const) {
+      tamper(1, [path, value]);
+      expect(slotStatus(1), `${path}=${value}`).toBe('damaged');
+    }
+    tamper(2, ['state.cred', '-50'], ['state.members.kit.level', '250']);
+    const s = loadSave(2)!;
+    expect(s.cred).toBe(0);
+    expect(s.members.kit!.level).toBe(99);
+    tamper(3, ['state.steps', '1e999']);
+    expect(loadSave(3)!.steps).toBe(0);
+  });
+
+  it('treats storage that throws on read as empty, not as a crash', () => {
+    writeSave(1, 0);
+    const ls = (globalThis as unknown as { localStorage: MemStorage }).localStorage;
+    const real = ls.getItem;
+    ls.getItem = () => {
+      throw new DOMException('denied', 'SecurityError');
+    };
+    try {
+      expect(slotStatus(1)).toBe('empty');
+      expect(loadSave(1)).toBeNull();
+      expect(readMeta(1)).toBeNull();
+      expect(hasAnySave()).toBe(false);
+      expect(() => latestSlot()).not.toThrow();
+    } finally {
+      ls.getItem = real;
+    }
+  });
+
   it('rejects a header with missing fields', () => {
     const ls = (globalThis as unknown as { localStorage: MemStorage }).localStorage;
     writeSave(1, 0);

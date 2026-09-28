@@ -43,6 +43,18 @@ function storage(): Storage | null {
   }
 }
 
+/** A slot's raw text, or null. Reading can throw too (blocked storage, a revoked origin), not just writing. */
+function readRaw(slot: SlotId): string | null {
+  try {
+    return storage()?.getItem(key(slot)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** A real number: JSON can carry 1e999 (Infinity), and a hand-edited save can carry anything. */
+const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
 export function locationName(mapId: string): string {
   try {
     return getMap(mapId).name;
@@ -77,12 +89,12 @@ export function writeSave(slot: SlotId, playFrames: number): boolean {
 }
 
 export function readMeta(slot: SlotId): SaveMeta | null {
-  const raw = storage()?.getItem(key(slot));
+  const raw = readRaw(slot);
   if (!raw) return null;
   try {
     const m = (JSON.parse(raw) as Partial<SaveFile>).meta;
-    const ok = !!m && typeof m.when === 'number' && typeof m.location === 'string' && typeof m.leaderLevel === 'number'
-      && Array.isArray(m.party) && typeof m.playFrames === 'number' && typeof m.cred === 'number';
+    const ok = !!m && num(m.when) && typeof m.location === 'string' && num(m.leaderLevel)
+      && Array.isArray(m.party) && num(m.playFrames) && num(m.cred);
     return ok ? m : null;
   } catch {
     return null;
@@ -93,12 +105,12 @@ export type SlotStatus = 'empty' | 'ok' | 'damaged';
 
 /** Whether a slot holds a save that will actually load (full parse and validation, not just the header). */
 export function slotStatus(slot: SlotId): SlotStatus {
-  if (!storage()?.getItem(key(slot))) return 'empty';
+  if (!readRaw(slot)) return 'empty';
   return readMeta(slot) && loadSave(slot) ? 'ok' : 'damaged';
 }
 
 export function loadSave(slot: SlotId): GameState | null {
-  const raw = storage()?.getItem(key(slot));
+  const raw = readRaw(slot);
   if (!raw) return null;
   try {
     const f = JSON.parse(raw) as SaveFile;
@@ -143,20 +155,22 @@ export function validState(s: GameState): boolean {
   if (!s.party.every((id) => MEMBER_IDS.includes(id) && s.members?.[id])) return false;
   for (const id of s.party) {
     const m = s.members[id]!;
-    if (typeof m.level !== 'number' || typeof m.hp !== 'number' || typeof m.tp !== 'number' || typeof m.equip !== 'object' || !m.uses || !Array.isArray(m.ailments)) return false;
+    if (!num(m.level) || !num(m.hp) || !num(m.tp) || typeof m.equip !== 'object' || !m.uses || !Array.isArray(m.ailments)) return false;
   }
-  if (typeof s.map !== 'string' || typeof s.x !== 'number' || typeof s.y !== 'number') return false;
-  try {
-    getMap(s.map);
-  } catch {
-    return false;
-  }
-  if (typeof s.inventory !== 'object' || s.inventory === null || typeof s.flags !== 'object' || typeof s.cred !== 'number') return false;
-  if (!s.lastTown || !mapExists(s.lastTown.map)) return false;
+  if (!onMap(s.map, s.x, s.y)) return false;
+  if (typeof s.inventory !== 'object' || s.inventory === null || typeof s.flags !== 'object' || !num(s.cred)) return false;
+  if (!s.lastTown || !onMap(s.lastTown.map, s.lastTown.x, s.lastTown.y)) return false;
   for (const book of [s.bestiary, s.weakSeen, s.resistSeen, s.immuneSeen, s.lastOrders]) {
     if (typeof book !== 'object' || book === null) return false;
   }
   return Array.isArray(s.combos);
+}
+
+/** A position the player can actually be put at: a known map, whole-tile coordinates inside it. */
+function onMap(id: unknown, x: unknown, y: unknown): boolean {
+  if (!mapExists(id) || !Number.isInteger(x) || !Number.isInteger(y)) return false;
+  const t = getMap(id as string).terrain;
+  return (y as number) >= 0 && (y as number) < t.length && (x as number) >= 0 && (x as number) < (t[0]?.length ?? 0);
 }
 
 function mapExists(id: unknown): boolean {
@@ -184,8 +198,15 @@ export function sanitize(s: GameState): GameState {
     }
     for (const [ab, n] of Object.entries(m.uses)) if (!ABILITIES[ab] || typeof n !== 'number') delete m.uses[ab];
     m.ailments = m.ailments.filter((a) => typeof a === 'string');
-    m.hp = Math.max(0, m.hp);
+    m.level = Math.min(99, Math.max(1, Math.floor(m.level)));
+    m.hp = Math.max(0, Math.floor(m.hp));
+    m.tp = Math.max(0, Math.floor(m.tp));
+    if (!num(m.xp) || m.xp < 0) m.xp = 0;
   }
+  s.cred = Math.max(0, Math.floor(s.cred));
+  // Counters only feed displays and pacing: a bad one resets rather than rejecting the save.
+  for (const k of ['steps', 'playFrames', 'battles'] as const) if (!num(s[k]) || s[k] < 0) s[k] = 0;
+  for (const k of ['rngState', 'rngBattle'] as const) if (!num(s[k])) delete (s as Partial<GameState>)[k];
   for (const book of [s.bestiary, s.weakSeen, s.resistSeen, s.immuneSeen]) {
     for (const k of Object.keys(book)) if (!ENEMIES[k]) delete book[k];
   }
@@ -197,7 +218,7 @@ export function sanitize(s: GameState): GameState {
   for (const [id, o] of Object.entries(s.lastOrders)) {
     if (!o || typeof o.cmd !== 'string' || (o.id !== undefined && !ABILITIES[o.id] && !ITEMS[o.id])) delete s.lastOrders[id as MemberId];
   }
-  if (s.lastEntrance && !mapExists(s.lastEntrance.map)) s.lastEntrance = null;
+  if (s.lastEntrance && !onMap(s.lastEntrance.map, s.lastEntrance.x, s.lastEntrance.y)) s.lastEntrance = null;
   return s;
 }
 

@@ -9,10 +9,15 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: 'http://localhost:3007',
-    // Edge locally (Windows); the bundled Chromium on CI.
-    channel: process.env.CI ? undefined : 'msedge',
     viewport: { width: 960, height: 540 },
   },
+  projects: [
+    // Edge locally (Windows); the bundled Chromium on CI.
+    { name: 'chromium', use: { channel: process.env.CI ? undefined : 'msedge' } },
+    // Safari's engine on CI, for the flows most likely to differ between engines: storage, the
+    // unload prompt, keyboard, audio unlock. (Not installed locally.)
+    ...(process.env.CI ? [{ name: 'webkit', use: { browserName: 'webkit' as const }, testMatch: /(prod|gameover)\.spec\.ts/ }] : []),
+  ],
   webServer: [
     { command: 'npm run dev', url: 'http://localhost:3007', reuseExistingServer: true, timeout: 60_000 },
     // The shipped bundle, for e2e/prod.spec.ts. Always built fresh: a reused preview server

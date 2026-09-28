@@ -1,7 +1,7 @@
 /**
  * The shipped build (`vite build` served by `vite preview`), driven by keyboard only: there is no
  * debug API in production. Boots clean, starts a new game, saves from the menu, survives a reload,
- * and continues from that save.
+ * and continues from that save; and closing the tab with unsaved progress asks first.
  */
 import { expect, test, type Page } from '@playwright/test';
 
@@ -68,4 +68,25 @@ test('production build: new game, save, reload, continue, with no errors', async
   expect((await frame(page)).equals(menu)).toBe(false);
 
   expect(errors).toEqual([]);
+});
+
+test('production build: closing the tab with unsaved progress asks first', async ({ page }) => {
+  await page.goto(PROD);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.waitForTimeout(1500);
+  await key(page, 'Enter');
+  await page.waitForTimeout(400);
+  await key(page, 'Enter');
+  await page.waitForTimeout(1500);
+  await key(page, 'x');
+  await page.waitForTimeout(1200);
+  await key(page, 'z', 60, 160);
+  // Past the 30 s of unsaved play the prompt waits for (no autosave fires this early).
+  await page.waitForTimeout(32_000);
+  const dialog = page.waitForEvent('dialog');
+  await page.close({ runBeforeUnload: true });
+  const d = await dialog;
+  expect(d.type()).toBe('beforeunload');
+  await d.accept();
 });
