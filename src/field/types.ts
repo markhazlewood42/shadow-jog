@@ -49,7 +49,7 @@ export interface BuildingDef {
 
 export type PropKind =
   | 'lamp' | 'vending' | 'barrel' | 'firebarrel' | 'crates' | 'dumpster' | 'trash' | 'car' | 'wreck' | 'hydrant'
-  | 'bench' | 'stall' | 'pillar' | 'tree' | 'planter' | 'terminal' | 'pipe_v' | 'steam' | 'barrier' | 'cone'
+  | 'bench' | 'stall' | 'pillar' | 'tree' | 'wildtree' | 'planter' | 'terminal' | 'pipe_v' | 'steam' | 'barrier' | 'cone'
   | 'holo' | 'poster' | 'counter' | 'shelf' | 'bed' | 'table' | 'stool' | 'couch' | 'plant' | 'screen'
   | 'capsule' | 'bar' | 'rack' | 'desk' | 'pod' | 'server' | 'tank' | 'fence' | 'sandbags' | 'tent' | 'pylon'
   | 'catwalk_rail' | 'train' | 'valve' | 'cryopod' | 'door_lab' | 'jukebox' | 'arcade' | 'sign_post' | 'bollard'

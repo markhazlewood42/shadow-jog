@@ -136,6 +136,7 @@ export class FieldMap {
     }
     if (this.def.weather === 'rain') this.bakeWetStreets(emit.ctx);
     this.bakePuddleReflections(emit.ctx);
+    if (this.waterTiles.length && this.def.kind === 'dungeon') this.bakeBiolume(emit.ctx);
     if (this.waterTiles.length) this.anims.push(this.waterShimmer());
     this.ground = ground.canvas;
     this.emit = emit.canvas;
@@ -244,13 +245,60 @@ export class FieldMap {
     }
   }
 
+  /** Flooded dungeons: faint bioluminescent plankton in the black water (unlit, so it reads in the dark). */
+  private bakeBiolume(e: Ctx): void {
+    for (const k of this.waterTiles) {
+      const tx = k % this.w, ty = (k / this.w) | 0;
+      if (!isWater(this.at(tx, ty - 1))) continue; // keep the far-bank lip clean
+      for (let i = 0; i < 3; i++) {
+        const h = hash2(tx, ty, 300 + i);
+        if (h > 0.55) continue;
+        const px = tx * TS + ((hash2(tx, ty, 310 + i) * 15) | 0), py = ty * TS + ((hash2(tx, ty, 320 + i) * 15) | 0);
+        e.globalAlpha = 0.25 + h * 0.6;
+        e.fillStyle = h < 0.12 ? '#9affe0' : '#3fd0a8';
+        e.fillRect(px, py, 1, 1);
+      }
+      if (hash2(tx, ty, 330) < 0.05) {
+        const cx = tx * TS + 8, cy = ty * TS + 8;
+        const g = e.createRadialGradient(cx, cy, 0, cx, cy, 14);
+        g.addColorStop(0, 'rgba(60,210,170,0.10)');
+        g.addColorStop(1, 'rgba(60,210,170,0)');
+        e.globalAlpha = 1;
+        e.fillStyle = g;
+        e.fillRect(cx - 14, cy - 14, 28, 28);
+      }
+    }
+    e.globalAlpha = 1;
+  }
+
   private waterShimmer(): AnimFx {
     const tiles = this.waterTiles;
     const w = this.w;
+    const dungeon = this.def.kind === 'dungeon';
     return {
       x: 0, y: 0, w: this.w * TS, h: this.h * TS,
       draw: (ctx, frame, ox, oy) => {
-        ctx.fillStyle = '#6ab8d8';
+        // Drip rings: a few slots, each expanding and fading on a random on-screen water tile.
+        if (tiles.length) {
+          for (let slot = 0; slot < 5; slot++) {
+            const period = 110 + slot * 17;
+            const cycle = Math.floor((frame + slot * 40) / period);
+            const t = ((frame + slot * 40) % period) / 60;
+            if (t > 1) continue;
+            const k = tiles[Math.floor(hash2(slot, cycle, 340) * tiles.length)]!;
+            const tx = k % w, ty = (k / w) | 0;
+            const cx = tx * TS + 8 - ox, cy = ty * TS + 9 - oy;
+            if (cx < -16 || cy < -16 || cx > 496 || cy > 286) continue;
+            const rx = 1 + t * 7, ry = 0.5 + t * 2.5;
+            ctx.globalAlpha = (1 - t) * 0.6;
+            ctx.fillStyle = dungeon ? '#8af0d8' : '#8ab8e8';
+            for (let a = 0; a < 16; a++) {
+              const th = (a / 16) * Math.PI * 2;
+              ctx.fillRect(Math.round(cx + Math.cos(th) * rx), Math.round(cy + Math.sin(th) * ry), 1, 1);
+            }
+          }
+        }
+        ctx.fillStyle = dungeon ? '#7ae8d0' : '#6ab8d8';
         for (const k of tiles) {
           const tx = k % w, ty = (k / w) | 0;
           const sx = tx * TS - ox, sy = ty * TS - oy;

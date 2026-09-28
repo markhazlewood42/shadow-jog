@@ -155,13 +155,26 @@ const grate: Painter = (lx, ly) => {
   return lx % 3 === 0 ? P.grate : P.grateD;
 };
 
-const waterP = (base: RGB, light: RGB, dark: RGB, lipC: RGB, lipDC: RGB, shadow: RGB): Painter =>
-  (_lx, ly, wx, wy, tx, ty, q) => {
-    const above = q.at(tx, ty - 1);
-    if (!isWater(above) && above !== 'bridge' && above !== 'w_bridge') {
+const bank = (t: TerrainId) => !isWater(t) && t !== 'bridge' && t !== 'w_bridge';
+
+/**
+ * Water sunk below the walkway: a lit lip and cast shadow under the far bank, dark lips on
+ * the side and near banks, ripples, and (optionally) caustic light webs.
+ */
+const waterP = (base: RGB, light: RGB, dark: RGB, lipC: RGB, lipDC: RGB, shadow: RGB, caustic?: RGB): Painter =>
+  (lx, ly, wx, wy, tx, ty, q) => {
+    if (bank(q.at(tx, ty - 1))) {
       if (ly === 0) return lipC;
       if (ly === 1) return lipDC;
       if (ly <= 3) return shadow;
+    }
+    const bl = bank(q.at(tx - 1, ty)), br = bank(q.at(tx + 1, ty));
+    if ((bl && lx === 0) || (br && lx === 15) || (bank(q.at(tx, ty + 1)) && ly === 15)) return lipDC;
+    if ((bl && lx === 1) || (br && lx === 14)) return shadow;
+    if (caustic) {
+      const c1 = Math.abs(Math.sin(wx * 0.31 + Math.sin(wy * 0.23) * 2.2));
+      const c2 = Math.abs(Math.sin(wy * 0.37 + Math.sin(wx * 0.19) * 2.4));
+      if ((c1 < 0.1 || c2 < 0.1) && hash2(wx, wy, 5) > 0.3) return caustic;
     }
     const wave = Math.sin(wx * 0.35 + Math.sin(wy * 0.5) * 2 + wy * 0.9);
     if (wave > 0.85 && hash2(wx, wy, 3) > 0.3) return light;
@@ -182,13 +195,21 @@ const bridge: Painter = (lx, ly, wx, wy) => {
   return P.plank;
 };
 
+/** Checkered paving with wear: grimy traffic lanes, cracked and chipped slabs. */
 const plaza: Painter = (lx, ly, wx, wy) => {
-  if (lx % 8 === 0 || ly % 8 === 0) return P.plazaSeam;
+  const grime = fbm(wx / 24, wy / 24, 3, 53);
+  if (lx % 8 === 0 || ly % 8 === 0) return grime < 0.42 ? lerpC(P.plazaSeam, [0, 0, 0], 0.3) : P.plazaSeam;
+  const sx = wx % 8, sy = wy % 8;
+  const slab = hash2(Math.floor(wx / 8), Math.floor(wy / 8), 54);
   const checker = (Math.floor(wx / 8) + Math.floor(wy / 8)) % 2 === 0;
-  const h = hash2(wx, wy, 51);
-  if (h < 0.03) return P.sideD;
-  const base = checker ? P.plazaA : P.plazaB;
-  if (lx % 8 === 1 || ly % 8 === 1) return lerpC(base, [255, 255, 255], 0.06);
+  let base = checker ? P.plazaA : P.plazaB;
+  if (grime < 0.45) base = lerpC(base, P.plazaSeam, (0.45 - grime) * 1.4);
+  // Cracked slab: one hairline diagonal, direction per slab.
+  if (slab < 0.09 && (slab < 0.045 ? sx + sy : sx - sy + 7) === 3 + Math.floor(slab * 60) % 5) return P.plazaSeam;
+  // Chipped corner.
+  if (slab > 0.94 && sx + sy <= 2) return P.sideD;
+  if (hash2(wx, wy, 51) < 0.025) return P.sideD;
+  if (sx === 1 || sy === 1) return lerpC(base, [255, 255, 255], 0.06);
   return base;
 };
 
@@ -212,12 +233,20 @@ const grass: Painter = (lx, ly, wx, wy) => {
   return P.grass;
 };
 
+/** Broken stone: domain-warped so heaps don't repeat on a grid, lit from the upper left. */
 const rubble: Painter = (_lx, _ly, wx, wy) => {
-  const n = valueNoise(wx / 4, wy / 4, 81);
+  const warp = (fbm(wx / 13, wy / 13, 2, 83) - 0.5) * 10;
+  const at = (x: number, y: number) => fbm((x + warp) / 5, (y - warp) / 5, 3, 81);
+  const n = at(wx, wy);
   const h = hash2(wx, wy, 82);
-  if (n > 0.72) return h < 0.4 ? P.rubbleL : P.rubble;
-  if (n < 0.3) return P.rubbleD;
-  return h < 0.08 ? P.rubbleL : lerpC(P.rubble, P.dirt, 0.4);
+  if (n > 0.58) {
+    const slope = n - at(wx - 1, wy - 1);
+    if (slope > 0.025) return P.rubbleL;
+    if (slope < -0.025) return P.rubbleD;
+    return h < 0.12 ? P.rubbleL : P.rubble;
+  }
+  if (n < 0.36) return P.rubbleD;
+  return h < 0.06 ? P.rubbleL : lerpC(P.rubble, P.dirt, 0.45);
 };
 
 /** Heaped scrap: solid junk walls (Rustyard). Face shading where open ground is below. */
@@ -320,7 +349,7 @@ const labWallFace: Painter = (lx, ly) => {
   return P.labWallFace;
 };
 
-const dfloor: Painter = (_lx, _ly, wx, wy) => {
+const dfloorDry: Painter = (_lx, _ly, wx, wy) => {
   const h = hash2(wx, wy, 131);
   if (h < 0.05) return P.dfloorD;
   if (h > 0.975) return P.dfloorL;
@@ -330,7 +359,15 @@ const dfloor: Painter = (_lx, _ly, wx, wy) => {
   return P.dfloor;
 };
 
-const dwater = waterP(P.dwater, P.dwaterL, P.dwaterD, P.dfloorL, P.dfloorD, [8, 22, 18]);
+/** Dungeon floor, darkened and algae-stained where it meets the flood (wet lips). */
+const dfloor: Painter = (lx, ly, wx, wy, tx, ty, q) => {
+  const c = dfloorDry(lx, ly, wx, wy, tx, ty, q);
+  const wet = (dx: number, dy: number, d: number) => isWater(q.at(tx + dx, ty + dy)) && d < 4 && (d < 2 || hash2(wx, wy, 134) < 0.5);
+  if (wet(0, 1, 15 - ly) || wet(-1, 0, lx) || wet(1, 0, 15 - lx) || wet(0, -1, ly)) return lerpC(c, P.dwaterD, 0.45);
+  return c;
+};
+
+const dwater = waterP(P.dwater, P.dwaterL, P.dwaterD, P.dfloorL, P.dfloorD, [8, 22, 18], C('#347060'));
 
 const shallow: Painter = (lx, ly, wx, wy, tx, ty, q) => {
   const base = dfloor(lx, ly, wx, wy, tx, ty, q);
@@ -345,10 +382,15 @@ const catwalk: Painter = (lx, ly, wx, wy) => {
   return lx % 4 === 0 ? P.catwalkD : P.catwalk;
 };
 
-const labFloor: Painter = (lx, ly) => {
+/** Abandoned-lab tiles: dust drifts, boot scuffs, the odd stain. */
+const labFloor: Painter = (lx, ly, wx, wy) => {
   if (lx === 0 || ly === 0) return P.labSeam;
-  if (lx === 15 || ly === 15) return P.labFloorD;
-  return P.labFloor;
+  let base = lx === 15 || ly === 15 ? P.labFloorD : P.labFloor;
+  const dust = fbm(wx / 20, wy / 20, 3, 361);
+  if (dust < 0.4) base = lerpC(base, P.labSeam, (0.4 - dust) * 1.5);
+  if (hash2(Math.floor(wx / 6), Math.floor(wy / 3), 362) < 0.06 && (wx + wy * 2) % 7 === 0) return lerpC(base, [40, 44, 56], 0.3);
+  if (hash2(wx, wy, 363) < 0.012) return P.labFloorD;
+  return base;
 };
 
 const labDoor: Painter = (lx, ly) => {
@@ -435,17 +477,67 @@ export const SOLID_TERRAIN = new Set<TerrainId>([
 /** Terrain with a 3/4 wall face (for lighting / occlusion decisions). */
 export const WALL_TERRAIN = new Set<TerrainId>(['iwall', 'd_wall', 'lab_wall']);
 
+/**
+ * Natural ground types blend into their neighbours: a higher-priority terrain bleeds into a
+ * lower one over BLEND_BAND pixels with a noisy, ordered-dither falloff, so grass eats into
+ * dirt and dirt into road instead of meeting on a ruler-straight tile seam. Built surfaces
+ * (asphalt, walls, water, blocks) keep crisp edges.
+ */
+const BLEND: Partial<Record<TerrainId, number>> = {
+  grass: 5, w_park: 5, dirt: 4, w_barrens: 4, rubble: 3, w_ruins: 3, w_road: 2, d_shallow: 2, d_floor: 1,
+};
+const BLEND_BAND = 6;
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+
+interface Bleed {
+  dx: number;
+  dy: number;
+  id: TerrainId;
+  p: number;
+}
+
+function bleeders(q: TerrainQuery, tx: number, ty: number, own: number): Bleed[] {
+  const out: Bleed[] = [];
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const nx = tx + dx, ny = ty + dy;
+      if (nx < 0 || ny < 0 || nx >= q.w || ny >= q.h) continue;
+      const id = q.at(nx, ny);
+      const p = BLEND[id];
+      if (p !== undefined && p > own) out.push({ dx, dy, id, p });
+    }
+  return out;
+}
+
 export function paintTerrain(buf: PixelBuf, q: TerrainQuery): void {
   const { data, w } = buf;
   for (let ty = 0; ty < q.h; ty++) {
     for (let tx = 0; tx < q.w; tx++) {
       const id = q.at(tx, ty);
       const painter = PAINTERS[id] ?? PAINTERS.void;
+      const own = BLEND[id];
+      const nbs = own === undefined ? [] : bleeders(q, tx, ty, own);
       for (let ly = 0; ly < TS; ly++) {
         const wy = ty * TS + ly;
         for (let lx = 0; lx < TS; lx++) {
           const wx = tx * TS + lx;
-          const c = painter(lx, ly, wx, wy, tx, ty, q);
+          let c: RGB | null = null;
+          if (nbs.length) {
+            let best: Bleed | null = null;
+            const dither = BAYER4[(wy & 3) * 4 + (wx & 3)]! / 16;
+            const wobble = (valueNoise(wx / 5, wy / 5, 7) - 0.5) * 0.8;
+            for (const nb of nbs) {
+              const ddx = nb.dx < 0 ? lx : nb.dx > 0 ? TS - 1 - lx : Infinity;
+              const ddy = nb.dy < 0 ? ly : nb.dy > 0 ? TS - 1 - ly : Infinity;
+              const d = nb.dx && nb.dy ? Math.max(ddx, ddy) : Math.min(ddx, ddy);
+              if (d >= BLEND_BAND) continue;
+              const t = 1 - (d + 0.5) / BLEND_BAND + wobble;
+              if (t > dither && (!best || nb.p > best.p)) best = nb;
+            }
+            if (best) c = (PAINTERS[best.id] ?? painter)(lx, ly, wx, wy, tx + best.dx, ty + best.dy, q);
+          }
+          c ??= painter(lx, ly, wx, wy, tx, ty, q);
           const i = (wy * w + wx) * 4;
           data[i] = c[0];
           data[i + 1] = c[1];

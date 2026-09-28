@@ -540,7 +540,26 @@ const HAIR: Record<HairStyle, HairSet> = {
       '..........HH....',
     ],
   },
-  bald: { down: [], up: [], side: [] },
+  bald: {
+    down: [],
+    // From behind a bare scalp needs landmarks or it reads as a plain ball: ears, shading
+    // falling off to the right and the nape, and a datajack behind the ear.
+    up: [
+      '................',
+      '................',
+      '................',
+      '................',
+      '...........S....',
+      '...........S....',
+      '.....gG....S....',
+      '...S........S...',
+      '...S........S...',
+      '....S.....SS....',
+      '.....SSSSSS.....',
+      '................',
+    ],
+    side: [],
+  },
   bob: {
     down: [
       '................',

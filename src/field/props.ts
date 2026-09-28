@@ -598,24 +598,123 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     b.both((c) => { c.fillStyle = '#ffcc3d'; c.fillRect(x + 2, y + 1, 12, 1); });
   },
 
-  tent(b, p) {
+  /** Awakened-forest tree for the wilds: gnarled trunk and roots, clumped canopy lit from the
+   * upper left, glowing moss strands and fungus. Distinct from the tidy street `tree`. */
+  wildtree(b, p, rng) {
+    blockFoot(b, p);
+    const glow = p.color ?? '#62e06a';
+    const W = 40, H = 54;
+    const { x, y } = tall(b, p, W, H, (c, e) => {
+      const ol = '#0c0b12';
+      // Trunk with a twist and splayed roots.
+      c.fillStyle = ol;
+      c.beginPath();
+      c.moveTo(15, H); c.lineTo(17, 34); c.lineTo(16, 26); c.lineTo(24, 26); c.lineTo(22, 34); c.lineTo(26, H);
+      c.fill();
+      c.fillStyle = '#3a2a24';
+      c.beginPath();
+      c.moveTo(16, H - 1); c.lineTo(18, 34); c.lineTo(17, 27); c.lineTo(23, 27); c.lineTo(21, 34); c.lineTo(25, H - 1);
+      c.fill();
+      c.fillStyle = '#4e3a30';
+      c.fillRect(18, 30, 1, 20);
+      c.fillRect(20, 40, 1, 8);
+      for (const [rx, dir] of [[15, -1], [25, 1]] as const) {
+        c.fillStyle = ol;
+        c.fillRect(rx + dir * 3, H - 3, 5, 3);
+        c.fillStyle = '#3a2a24';
+        c.fillRect(rx + dir * 3 + (dir < 0 ? 1 : 0), H - 2, 4, 1);
+      }
+      // Canopy: overlapping clumps, each dark-rimmed with a lit upper-left face.
+      const clumps: [number, number, number][] = [
+        [20, 17, 14], [10, 20, 9], [30, 20, 9], [14, 10, 9], [27, 9, 9], [20, 5, 7], [6, 14, 6], [34, 14, 6],
+      ];
+      for (const [cx, cy, r] of clumps) disc(c, cx, cy, r + 1, ol);
+      for (const [cx, cy, r] of clumps) disc(c, cx, cy, r, '#163a2a');
+      for (const [cx, cy, r] of clumps) disc(c, cx - r * 0.25, cy - r * 0.3, r * 0.72, '#1f5038');
+      for (const [cx, cy, r] of clumps) disc(c, cx - r * 0.42, cy - r * 0.48, r * 0.38, '#2c6a4a');
+      // Dithered leaf texture over the canopy.
+      for (let yy = 0; yy < 32; yy++)
+        for (let xx = 0; xx < W; xx++) {
+          if (((xx + yy) & 1) || rng.next() > 0.18) continue;
+          if (clumps.some(([cx, cy, r]) => (xx - cx) ** 2 + (yy - cy) ** 2 <= (r - 1) ** 2)) {
+            c.fillStyle = rng.chance(0.5) ? '#12301f' : '#3a7a56';
+            c.fillRect(xx, yy, 1, 1);
+          }
+        }
+      // Hanging glow-moss strands and cap fungus on the trunk (emissive).
+      both(c, e, (k) => {
+        k.fillStyle = glow;
+        for (const [sx, sy, len] of [[9, 26, 5], [13, 28, 3], [28, 27, 6], [32, 24, 3], [22, 30, 2]] as const) {
+          for (let i = 0; i < len; i++) if (i % 3 !== 2) k.fillRect(sx, sy + i, 1, 1);
+        }
+        for (const [gx, gy] of [[8, 16], [26, 6], [16, 12], [33, 17], [12, 22]] as const) k.fillRect(gx, gy, 1, 1);
+        k.fillStyle = mix(glow, '#ffffff', 0.45);
+        k.fillRect(22, 41, 2, 1);
+        k.fillRect(16, 45, 2, 1);
+      });
+    });
+    groundShadow(b, x + W / 2, y + H - 1, 13, 3);
+    b.lights.push({ x: x + W / 2, y: y + 22, r: 36, color: glow, i: 0.3 });
+  },
+
+  tent(b, p, rng) {
     const w = p.w ?? 2;
     blockFoot(b, p, w, 1);
     const col = p.color ?? '#6a5a3a';
-    const { x, y } = tall(b, { ...p, w }, w * TS + 4, 28, (c, e) => {
-      const W = w * TS + 4;
-      c.fillStyle = '#0f0e17';
-      c.beginPath(); c.moveTo(0, 28); c.lineTo(W / 2, 2); c.lineTo(W, 28); c.fill();
+    const W = w * TS + 6, H = 30;
+    const { x, y } = tall(b, { ...p, w }, W, H, (c, e) => {
+      const ol = '#0f0e17';
+      const mid = Math.round(W / 2);
+      const lit = shade(col, 0.18), dark = shade(col, -0.32), seam = shade(col, -0.5);
+      // Guy ropes and stakes behind the canvas.
+      c.fillStyle = '#8a7a60';
+      for (let i = 0; i < 6; i++) {
+        c.fillRect(1 + i, H - 3 - i * 2, 1, 1);
+        c.fillRect(W - 2 - i, H - 3 - i * 2, 1, 1);
+      }
+      c.fillStyle = '#2a2020';
+      c.fillRect(0, H - 3, 2, 3);
+      c.fillRect(W - 2, H - 3, 2, 3);
+      // Silhouette, then the lit left slope and the shaded right slope.
+      c.fillStyle = ol;
+      c.beginPath(); c.moveTo(3, H); c.lineTo(mid, 1); c.lineTo(W - 3, H); c.fill();
+      c.fillStyle = lit;
+      c.beginPath(); c.moveTo(5, H - 1); c.lineTo(mid, 3); c.lineTo(mid, H - 1); c.fill();
       c.fillStyle = col;
-      c.beginPath(); c.moveTo(2, 27); c.lineTo(W / 2, 4); c.lineTo(W - 2, 27); c.fill();
-      c.fillStyle = shade(col, -0.3);
-      c.beginPath(); c.moveTo(W / 2, 4); c.lineTo(W - 2, 27); c.lineTo(W / 2 + 2, 27); c.fill();
-      c.fillStyle = shade(col, 0.2);
-      for (let i = 6; i < 26; i += 5) c.fillRect(W / 2 - i / 2, 4 + i, 2, 1);
-      both(c, e, (k) => { k.fillStyle = '#ffb45a'; k.fillRect(W / 2 - 3, 18, 6, 9); });
-      c.fillStyle = '#3a2418'; c.fillRect(W / 2 - 3, 18, 1, 9);
+      c.beginPath(); c.moveTo(mid, 3); c.lineTo(W - 5, H - 1); c.lineTo(mid, H - 1); c.fill();
+      c.fillStyle = dark;
+      c.beginPath(); c.moveTo(mid + 3, 9); c.lineTo(W - 5, H - 1); c.lineTo(W - 9, H - 1); c.fill();
+      // Ridge pole cap, fold lines sagging between stakes, and stitched seams.
+      c.fillStyle = '#b8a888';
+      c.fillRect(mid - 1, 0, 2, 2);
+      c.fillStyle = seam;
+      for (let t = 0.25; t < 1; t += 0.25) {
+        const yy = Math.round(3 + (H - 4) * t);
+        const half = Math.round((W / 2 - 5) * t);
+        for (let xx = mid - half; xx < mid + half; xx += 2) c.fillRect(xx, yy + (Math.abs(xx - mid) < half / 2 ? 1 : 0), 1, 1);
+      }
+      // A patch of mismatched tarp, stitched on.
+      const pc = rng.pick(['#3a5a7a', '#7a3a3a', '#5a6a3a', '#8a7a4a']);
+      const px = mid + 3 + rng.int(0, 3), py = 14 + rng.int(0, 4);
+      c.fillStyle = pc;
+      c.fillRect(px, py, 5, 4);
+      c.fillStyle = shade(pc, -0.35);
+      c.fillRect(px, py + 3, 5, 1);
+      c.fillStyle = '#d8d0c0';
+      for (let i = 0; i < 5; i += 2) { c.fillRect(px + i, py - 1, 1, 1); c.fillRect(px + i, py + 4, 1, 1); }
+      // Open door flap with a warm lamp inside.
+      both(c, e, (k) => {
+        k.fillStyle = '#ffb45a';
+        k.beginPath(); k.moveTo(mid - 4, H - 1); k.lineTo(mid, H - 12); k.lineTo(mid + 3, H - 1); k.fill();
+        k.fillStyle = '#ffe0a0';
+        k.fillRect(mid - 1, H - 5, 2, 2);
+      });
+      c.fillStyle = dark;
+      c.beginPath(); c.moveTo(mid + 3, H - 1); c.lineTo(mid, H - 12); c.lineTo(mid + 6, H - 1); c.fill();
+      c.fillStyle = seam;
+      c.fillRect(mid - 4, H - 1, 1, 1);
     });
-    b.lights.push({ x: x + (w * TS + 4) / 2, y: y + 24, r: 30, color: '#ffb45a', i: 0.6 });
+    b.lights.push({ x: x + W / 2, y: y + H - 6, r: 30, color: '#ffb45a', i: 0.6 });
   },
 
   tires(b, p) {
