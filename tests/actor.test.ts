@@ -40,6 +40,25 @@ describe('actor', () => {
     expect(a.moving).toBe(true);
   });
 
+  it('settle() eases the second half of a step to a stop, and lands exactly on the tile', () => {
+    const a = new Actor('t', look, 2, 2);
+    a.step('right', 12);
+    for (let f = 0; f < 6; f++) a.update();
+    a.settle();
+    let frames = 6;
+    while (!a.update()) frames++;
+    frames++;
+    expect(frames).toBeGreaterThan(12); // takes longer than a clipped step…
+    expect(a.px).toBe(3 * TS + 8); // …and still ends on the tile
+    // A quick tap (settling in the first half) keeps its normal length.
+    a.step('right', 12);
+    a.update();
+    a.settle();
+    let n = 1;
+    while (!a.update()) n++;
+    expect(n + 1).toBe(12);
+  });
+
   it('place() snaps position and cancels a move in progress', () => {
     const a = new Actor('t', look, 1, 1);
     a.step('left', 8);

@@ -170,7 +170,10 @@ export class PanelScene extends Scene<void> {
     for (let y = 0; y < H; y += 6) for (let x = (y / 6) % 2 ? 3 : 0; x < W; x += 6) ctx.fillRect(x, y, 1, 1);
     const p = this.pages[this.page];
     if (!p) return;
+    ctx.save();
+    ctx.translate(this.game.shakeX, this.game.shakeY);
     for (let i = 0; i < this.shown; i++) this.drawPanel(ctx, fitPanel(p[i]!), this.panelT[i] ?? 0, this.typed[i] ?? 0);
+    ctx.restore();
     // Footer strip below the panels: skip hint left, page-advance marker right.
     const lastT = this.panelT[this.shown - 1] ?? 0;
     if (lastT > 20 && Math.floor(this.t / 20) % 2 === 0) drawText(ctx, '▼', W - 14, FOOT_Y, { color: '#ffffff' });

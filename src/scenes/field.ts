@@ -25,6 +25,8 @@ import { reportError } from '../engine/errors';
 
 const WALK = 12;
 const DASH = 7;
+/** Ground that throws up dust under a dashing foot. */
+const SOFT_GROUND = new Set(['dirt', 'w_barrens', 'rubble', 'sand', 'grass', 'w_park']);
 const mapCache = new Map<string, FieldMap>();
 const MAP_CACHE_MAX = 8;
 
@@ -205,23 +207,26 @@ export class FieldScene extends Scene<void> {
   private handleInput(): void {
     const inp = this.game.input;
     const l = this.leader;
-    if (!l.moving) {
-      const d = inp.dir();
-      if (d) {
-        // Walking into a wall thuds once per press (and slowly while held), never every frame.
-        if (!this.tryStep(d, inp.down('dash') ? DASH : WALK) && (inp.pressed(d) || this.frame - this.lastBump > 24)) {
-          this.lastBump = this.frame;
-          sfx('bump');
-        }
-        return;
+    if (l.moving) {
+      // Let go mid-step and the crew eases to a stop rather than halting on the tile line.
+      if (!inp.dir()) for (const a of this.party) a.settle();
+      return;
+    }
+    const d = inp.dir();
+    if (d) {
+      // Walking into a wall thuds once per press (and slowly while held), never every frame.
+      if (!this.tryStep(d, inp.down('dash') ? DASH : WALK) && (inp.pressed(d) || this.frame - this.lastBump > 24)) {
+        this.lastBump = this.frame;
+        sfx('bump');
       }
-      if (inp.pressed('confirm')) {
-        void this.interact();
-        return;
-      }
-      if (inp.pressed('cancel') || inp.pressed('menu')) {
-        fieldHooks.openMenu?.(this);
-      }
+      return;
+    }
+    if (inp.pressed('confirm')) {
+      void this.interact();
+      return;
+    }
+    if (inp.pressed('cancel') || inp.pressed('menu')) {
+      fieldHooks.openMenu?.(this);
     }
   }
 
@@ -259,6 +264,11 @@ export class FieldScene extends Scene<void> {
 
   private onLeaderArrive(): void {
     const l = this.leader;
+    const dashing = this.game.input.down('dash');
+    const soft = SOFT_GROUND.has(this.map.at(l.x, l.y));
+    if (this.lastStepDash && !this.game.input.dir()) this.kickDust(l.px, l.py, 6, true);
+    else if (dashing && soft) this.kickDust(l.px, l.py, 2, false);
+    this.lastStepDash = dashing;
     state.x = l.x;
     state.y = l.y;
     state.dir = l.dir;
@@ -517,7 +527,8 @@ export class FieldScene extends Scene<void> {
 
   // ------------------------------------------------------------------ render
   render(ctx: Ctx): void {
-    const cx = this.camX, cy = this.camY;
+    // Shake moves the camera (the world); the banner and objective are drawn in screen space.
+    const cx = this.camX - this.game.shakeX, cy = this.camY - this.game.shakeY;
     const f = this.frame;
     ctx.fillStyle = this.def.voidColor ?? '#07060d';
     ctx.fillRect(0, 0, W, H);
@@ -567,6 +578,7 @@ export class FieldScene extends Scene<void> {
       blit(ctx, this.map.overEmit, cx, cy);
     }
     this.lighting.bloom(ctx, this.map.lights, cx, cy, f, this.def.kind === 'interior' ? 0.08 : 0.14);
+    this.renderDust(ctx, cx, cy);
     this.weather.render(ctx);
     for (const a of actors) if (a.emote) drawEmote(ctx, a, cx, cy);
     this.renderBanner(ctx);
@@ -605,6 +617,46 @@ export class FieldScene extends Scene<void> {
     s.anim?.(ctx, f, sx, sy);
   }
 
+  /** Dust kicked up by dashing and by stopping out of a dash (pooled; world coordinates). */
+  private dust: { x: number; y: number; vx: number; vy: number; t: number }[] = [];
+  private dustCount = 0;
+
+  private kickDust(x: number, y: number, n: number, color: boolean): void {
+    for (let i = 0; i < n && this.dustCount < 40; i++) {
+      this.dust[this.dustCount] ??= { x: 0, y: 0, vx: 0, vy: 0, t: 0 };
+      const d = this.dust[this.dustCount]!;
+      d.x = x + (Math.random() - 0.5) * 6;
+      d.y = y - Math.random() * 2;
+      d.vx = (Math.random() - 0.5) * (color ? 0.9 : 0.5);
+      d.vy = -0.15 - Math.random() * 0.35;
+      d.t = 0;
+      this.dustCount++;
+    }
+  }
+
+  private renderDust(ctx: Ctx, cx: number, cy: number): void {
+    let n = 0;
+    for (let i = 0; i < this.dustCount; i++) {
+      const d = this.dust[i]!;
+      d.t++;
+      d.x += d.vx;
+      d.y += d.vy;
+      d.vx *= 0.9;
+      d.vy *= 0.92;
+      if (d.t >= 22) continue;
+      ctx.globalAlpha = 0.45 * (1 - d.t / 22);
+      ctx.fillStyle = '#c8bca8';
+      const r = d.t < 8 ? 1 : 2;
+      ctx.fillRect(Math.round(d.x - cx), Math.round(d.y - cy), r, r);
+      this.dust[i] = this.dust[n]!;
+      this.dust[n] = d;
+      n++;
+    }
+    ctx.globalAlpha = 1;
+    this.dustCount = n;
+  }
+
+  private lastStepDash = false;
   private visibleBuf: Actor[] = [];
   private drawPool: DrawEntry[] = [];
   private bannerGrad: { x: number; g: CanvasGradient } | null = null;

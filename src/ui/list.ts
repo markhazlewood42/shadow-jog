@@ -83,11 +83,18 @@ export class ListMenu<T> {
   }
 
   /** `empty` is drawn in place of the rows when there is nothing to list. */
+  /** Row the highlight is drawn at (eases toward the cursor's row; snaps on wrap-around). */
+  private shownRow = -1;
+
   render(ctx: Ctx, x: number, y: number, w: number, active = true, empty?: string): void {
     if (!this.items.length) {
       if (empty) drawText(ctx, empty, x + 4, y, { color: UI.dim });
       return;
     }
+    const targetRow = Math.floor(this.index / this.cols) - this.scroll;
+    if (this.shownRow < 0 || this.cols > 1 || Math.abs(targetRow - this.shownRow) > 2) this.shownRow = targetRow;
+    else this.shownRow += (targetRow - this.shownRow) * 0.5;
+    if (Math.abs(targetRow - this.shownRow) < 0.05) this.shownRow = targetRow;
     const colW = Math.floor(w / this.cols);
     const start = this.scroll * this.cols;
     const end = Math.min(this.items.length, start + this.rows * this.cols);
@@ -96,8 +103,9 @@ export class ListMenu<T> {
       const r = Math.floor((i - start) / this.cols), c = (i - start) % this.cols;
       const rx = x + c * colW, ry = y + r * this.rowH;
       const sel = i === this.index;
-      if (sel && active) drawSelect(ctx, rx - 2, ry - 1, colW - 2, this.rowH);
-      if (sel) drawCursor(ctx, rx, ry, active ? this.frame : 0, active ? UI.cyan : UI.dim);
+      const hy = this.cols > 1 ? ry : Math.round(y + this.shownRow * this.rowH);
+      if (sel && active) drawSelect(ctx, rx - 2, hy - 1, colW - 2, this.rowH);
+      if (sel) drawCursor(ctx, rx, hy, active ? this.frame : 0, active ? UI.cyan : UI.dim);
       const enabled = it.enabled !== false;
       let lx = rx + 9;
       if (it.icon) {

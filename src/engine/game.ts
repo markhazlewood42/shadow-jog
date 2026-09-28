@@ -80,6 +80,9 @@ export class Game {
   fadeColor = '#07060d';
   shakeFrames = 0;
   shakeMag = 0;
+  /** This frame's shake offset in screen pixels; scenes apply it to their world layer only. */
+  shakeX = 0;
+  shakeY = 0;
   flashFrames = 0;
   flashColor = '#ffffff';
   private flashTotal = 1;
@@ -255,9 +258,15 @@ export class Game {
   render(): void {
     const ctx = this.ctx;
     ctx.save();
+    // Shake is not applied here: each scene offsets its world by (shakeX, shakeY) and draws its
+    // HUD still, so the numbers being read never jitter.
     if (this.shakeFrames > 0) {
       const m = this.shakeMag * this.shakeScale() * Math.min(1, this.shakeFrames / 8);
-      ctx.translate(Math.round((Math.random() * 2 - 1) * m), Math.round((Math.random() * 2 - 1) * m));
+      this.shakeX = Math.round((Math.random() * 2 - 1) * m);
+      this.shakeY = Math.round((Math.random() * 2 - 1) * m);
+    } else {
+      this.shakeX = 0;
+      this.shakeY = 0;
     }
     let start = this.stack.length - 1;
     while (start > 0 && !this.stack[start]!.opaque) start--;

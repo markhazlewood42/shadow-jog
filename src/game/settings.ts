@@ -22,7 +22,8 @@ export const DEFAULT_SETTINGS: Settings = {
   textSpeed: 2,
   battleSpeed: 1,
   scale: 'fit',
-  shake: 2,
+  // Gentle by default; players who want the full kick can turn it up.
+  shake: 1,
   crt: false,
   touch: 'auto',
 };

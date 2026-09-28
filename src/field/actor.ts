@@ -96,6 +96,7 @@ export class Actor {
     this.t = 0;
     this.dur = dur;
     this.moving = true;
+    this.settleFrom = -1;
   }
 
   /** Move to an arbitrary adjacent-or-same tile (followers). */
@@ -109,6 +110,25 @@ export class Actor {
     this.t = 0;
     this.dur = dur;
     this.moving = true;
+    this.settleFrom = -1;
+  }
+
+  /** Easing out of the current step: progress when it began (−1 = not settling), frames in, length. */
+  private settleFrom = -1;
+  private settleT = 0;
+  private settleDur = 0;
+
+  /**
+   * The player let go mid-step: the rest of the step decelerates to a stop (twice the remaining
+   * time, ease-out, so it leaves at the walking speed and arrives at rest) instead of halting dead.
+   */
+  settle(): void {
+    if (!this.moving || this.settleFrom >= 0) return;
+    const k = Math.min(1, this.t / this.dur);
+    if (k < 0.5) return; // a quick tap still takes one clean step
+    this.settleFrom = k;
+    this.settleT = 0;
+    this.settleDur = Math.max(2, Math.round((1 - k) * this.dur * 2));
   }
 
   /** Advance interpolation. Returns true on the frame a step completes. */
@@ -119,12 +139,18 @@ export class Actor {
     }
     if (!this.moving) return false;
     this.t++;
-    const k = Math.min(1, this.t / this.dur);
+    let k = Math.min(1, this.t / this.dur);
+    if (this.settleFrom >= 0) {
+      this.settleT++;
+      const u = Math.min(1, this.settleT / this.settleDur);
+      k = u >= 1 ? 1 : this.settleFrom + (1 - this.settleFrom) * (1 - (1 - u) ** 2);
+    }
     this.px = (this.fromX + (this.x - this.fromX) * k) * TS + 8;
     this.py = (this.fromY + (this.y - this.fromY) * k) * TS + 15;
     this.stride += 2 / this.dur;
     if (k >= 1) {
       this.moving = false;
+      this.settleFrom = -1;
       return true;
     }
     return false;

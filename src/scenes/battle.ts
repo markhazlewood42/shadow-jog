@@ -912,11 +912,22 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     this.close('win');
   }
 
+  private defeatT = 0;
+
   private async defeat(): Promise<void> {
     this.mode = 'end';
+    // The last blow lands in silence: the music cuts, the frame flashes and drains, the crew
+    // buckles; only then the dirge.
+    music(null, 4);
+    sfx('ko');
+    this.game.flash('#ff2a4a', 16);
+    this.game.shake(26, 4);
+    for (const p of this.battle.party) this.setPose(p, 'hurt', 400);
+    this.defeatT = 1;
+    await this.w(debug.autoLose ? 2 : 55);
     music('gameover', 0);
     this.say('The crew has fallen…');
-    await this.w(debug.autoLose ? 2 : 90);
+    await this.w(debug.autoLose ? 2 : 80);
     this.writeBack();
     this.close('lose');
   }
@@ -1027,7 +1038,19 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       g.globalAlpha = 1;
     }
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(this.world.canvas, 0, 0, W, H);
+    // Shake moves the battlefield only: HP bars, numbers and menus stay put.
+    const shx = this.game.shakeX, shy = this.game.shakeY;
+    if (shx || shy) {
+      ctx.fillStyle = '#07060d';
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.drawImage(this.world.canvas, shx, shy, W, H);
+    if (this.defeatT > 0) {
+      // The killing blow drains the frame toward red-black.
+      this.defeatT++;
+      ctx.fillStyle = `rgba(36,0,10,${Math.min(0.62, this.defeatT / 70).toFixed(3)})`;
+      ctx.fillRect(0, 0, W, H);
+    }
     // Intro shatter
     if (this.setup.intro && this.introT < 30) this.drawShatter(ctx);
     this.renderUi(ctx);
