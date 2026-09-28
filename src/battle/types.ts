@@ -54,6 +54,8 @@ export interface Ability {
   /** Can be used from the field menu. */
   field?: boolean | undefined;
   /** Short flavor shown on the action banner (enemy moves). */
+  /** Announced a turn ahead (a wind-up, a named mark): Guard takes a quarter of it, not half. */
+  telegraphed?: boolean | undefined;
   cry?: string | undefined;
 }
 

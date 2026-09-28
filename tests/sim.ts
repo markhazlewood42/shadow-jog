@@ -57,7 +57,7 @@ const frac = (c: Combatant) => c.hp / c.base.maxHp;
  * and in boss fights sets up combos on purpose. Every learnable ability and every combo gets used
  * somewhere across the stage table (see the ability-coverage test).
  */
-export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, conserve = false): Command[] {
+export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, conserve = false, readTells = true): Command[] {
   const cmds: Command[] = [];
   const party = b.alive('party');
   const foes = b.alive('enemy');
@@ -99,7 +99,27 @@ export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, 
   }
 
   // Against a machine boss, shields go up before its first big shot.
-  if (boss?.family === 'machine' && b.round <= 2 && !party.some((p) => hasStatus(p, 'def_up')) && can(hex, 'firewall')) give(hex, 'tech', 'firewall');
+  // (readTells: false is the crew that doesn't read wind-ups; tests/auto.test.ts shows it pays.)
+  if (readTells && boss?.family === 'machine' && b.round <= 2 && !party.some((p) => hasStatus(p, 'def_up')) && can(hex, 'firewall')) give(hex, 'tech', 'firewall');
+
+  // Tells first: a named mark or a coming blast outranks any plan.
+  // The Warden's cannon has named its mark: that member braces, or Rook's Guardian takes the shot.
+  if (readTells && boss?.ai === 'warden' && boss.memory.charging && boss.memory.lock) {
+    const mark = b.unit(boss.memory.lock - 1);
+    if (mark && mark.hp > 0) {
+      if (mark !== rook && can(rook, 'guardian')) give(rook, 'skill', 'guardian');
+      else give(mark, 'guard');
+    }
+  }
+
+  // A telegraphed party-wide attack is coming: ward up, and the badly hurt brace.
+  if (readTells && boss?.memory.breath) {
+    const warded = party.some((p) => hasStatus(p, 'res_up'));
+    // Best answer: Crow's Wing guards everyone at once. Otherwise Sable wards alone.
+    if (!warded && useCombos) pair(rook, 'guardian', sable, 'spirit_ward');
+    if (!warded && can(sable, 'spirit_ward')) give(sable, 'skill', 'spirit_ward');
+    for (const p of party) if (p !== sable && frac(p) < 0.5) give(p, 'guard');
+  }
 
   // Deliberate combos when they matter: bosses, or big packs.
   if (useCombos && (boss || foes.length >= 3)) {
@@ -124,19 +144,10 @@ export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, 
 
   // A turret spinning up or an arcanist channelling: Scramble interrupts either (jam / blind);
   // failing that, the hurt brace.
-  const winding = foes.find((f) => f.memory.spin || f.memory.surge);
+  const winding = readTells ? foes.find((f) => f.memory.spin || f.memory.surge) : undefined;
   if (winding) {
     if (can(hex, 'scramble')) give(hex, 'tech', 'scramble', winding.uid);
     for (const p of party) if (frac(p) < 0.4) give(p, 'guard');
-  }
-
-  // A telegraphed party-wide attack is coming: ward up, and the badly hurt brace.
-  if (boss?.memory.breath) {
-    const warded = party.some((p) => hasStatus(p, 'res_up'));
-    // Best answer: Crow's Wing guards everyone at once. Otherwise Sable wards alone.
-    if (!warded && useCombos) pair(rook, 'guardian', sable, 'spirit_ward');
-    if (!warded && can(sable, 'spirit_ward')) give(sable, 'skill', 'spirit_ward');
-    for (const p of party) if (p !== sable && frac(p) < 0.5) give(p, 'guard');
   }
 
   for (const u of party) {

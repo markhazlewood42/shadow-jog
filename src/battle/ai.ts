@@ -103,10 +103,14 @@ export function chooseEnemyAction(b: Battle, self: Combatant): EnemyChoice | nul
     }
     case 'warden': {
       // Telegraphed Pulse Cannon: charge on one turn, fire on the next.
+      // It names its mark while charging, so the crew has a real answer: that member guards, or
+      // Rook's Guardian takes the shot for them.
       if (mem.charging) {
         mem.charging = 0;
         const ab = ABILITIES.e_pulse_cannon!;
-        return { ability: ab, target: pickTarget(b, self, ab) };
+        const locked = mem.lock ? b.unit(mem.lock - 1) : undefined;
+        mem.lock = 0;
+        return { ability: ab, target: locked && locked.hp > 0 ? locked.uid : pickTarget(b, self, ab) };
       }
       const hp = self.hp / self.base.maxHp;
       if (hp < 0.7 && !mem.deployed1) {
@@ -119,7 +123,10 @@ export function chooseEnemyAction(b: Battle, self: Combatant): EnemyChoice | nul
       }
       if (mem.turn % 3 === 1) {
         mem.charging = 1;
-        return { ability: ABILITIES.attack!, target: -1, message: 'WARDEN’s cannon whines as it charges. Its cooling vents are open!', skip: true };
+        const mark = pickTarget(b, self, ABILITIES.e_pulse_cannon!);
+        mem.lock = mark + 1;
+        const name = b.unit(mark)?.name ?? 'the crew';
+        return { ability: ABILITIES.attack!, target: -1, message: `WARDEN’s cannon whines, locking onto ${name}. Its cooling vents are open!`, skip: true };
       }
       break;
     }

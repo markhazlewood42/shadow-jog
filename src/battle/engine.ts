@@ -636,7 +636,8 @@ export class Battle {
     const vented = t.ai === 'warden' && !!t.memory.charging;
     if (vented) amount *= 1.5;
     if (this.has(t, 'exposed')) amount *= 1.25;
-    if (this.has(t, 'guard')) amount *= 0.5;
+    // Bracing for a blow you saw coming is the point of the tells: a quarter, not a half.
+    if (this.has(t, 'guard')) amount *= ab.telegraphed ? 0.25 : 0.5;
     const final = mult === 0 ? 0 : Math.max(1, Math.round(amount));
     t.hp = Math.max(0, t.hp - final);
     this.ev.push({ t: 'damage', target: t.uid, amount: final, crit, element, weak: mult > 1 || vented, resist: mult < 1, hp: t.hp });
@@ -692,7 +693,7 @@ export class Battle {
   }
 }
 
-const GUARD: Ability = { id: 'guard', name: 'Guard', desc: 'Halve damage this round. Recovers a little TP, but not two rounds running.', kind: 'skill', target: 'self', effects: [], fx: 'guard' };
+const GUARD: Ability = { id: 'guard', name: 'Guard', desc: 'Halve damage this round (a quarter from a blow you saw coming). Recovers a little TP, but not two rounds running.', kind: 'skill', target: 'self', effects: [], fx: 'guard' };
 
 export function itemAbility(id: string): Ability {
   const it = ITEMS[id]!;

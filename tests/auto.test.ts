@@ -4,7 +4,7 @@
  * lose fights a competent player wins. The street is the tutorial and may be Auto-able.
  */
 import { describe, expect, it } from 'vitest';
-import { autoPolicy, simulate } from './sim';
+import { autoPolicy, policy, simulate } from './sim';
 import { STAGE_PARTY } from './stages';
 
 const trash = [
@@ -33,4 +33,13 @@ describe('Auto baseline underperforms a competent player', () => {
       expect(auto.wins / auto.n).toBeLessThanOrEqual(0.3);
     });
   }
+});
+
+describe('reading the tells pays', () => {
+  it('the Warden: a crew that braces for the named cannon and wards the scream wins clearly more', () => {
+    const reads = simulate('warden', STAGE_PARTY.warden!, 'f_warden', 200, 3);
+    const blind = simulate('warden', STAGE_PARTY.warden!, 'f_warden', 200, 3, true, (b, bag) => policy(b, true, bag, false, false));
+    expect(reads.wins / reads.n).toBeGreaterThanOrEqual(blind.wins / blind.n + 0.15);
+    expect(reads.hpLostPct).toBeLessThan(blind.hpLostPct - 10);
+  });
 });
