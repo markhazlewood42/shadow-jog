@@ -94,7 +94,11 @@ export class Lighting {
       ctx.drawImage(img, sx, sy);
       return;
     }
-    const s = this.scratch.ctx;
+    // A scratch exactly the sprite's size: 'copy' and 'destination-in' are unbounded operators,
+    // so on a shared full-screen scratch each sprite touched every pixel of it. Free on a GPU; on
+    // a software canvas (CI, blocklisted GPUs) that was 80% of the field's frame time.
+    const sc = this.fitted(w, h);
+    const s = sc.ctx;
     s.globalCompositeOperation = 'copy';
     s.drawImage(img, 0, 0);
     s.globalCompositeOperation = 'multiply';
@@ -104,7 +108,16 @@ export class Lighting {
     s.globalCompositeOperation = 'destination-in';
     s.drawImage(img, 0, 0);
     s.globalCompositeOperation = 'source-over';
-    ctx.drawImage(this.scratch.canvas, 0, 0, w, h, sx, sy, w, h);
+    ctx.drawImage(sc.canvas, sx, sy);
+  }
+
+  /** Per-size scratch surfaces for drawLit (a map has a few dozen distinct sprite sizes). */
+  private fittedCache = new Map<number, Surface>();
+  private fitted(w: number, h: number): Surface {
+    const k = w * 4096 + h;
+    let sc = this.fittedCache.get(k);
+    if (!sc) this.fittedCache.set(k, (sc = surface(w, h)));
+    return sc;
   }
 
   /** Light a full-screen layer (e.g. the overhead layer) in place via the scratch buffer. */

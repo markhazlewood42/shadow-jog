@@ -13,7 +13,14 @@ export default defineConfig({
   },
   projects: [
     // Edge locally (Windows); the bundled Chromium on CI.
-    { name: 'chromium', use: { channel: process.env.CI ? undefined : 'msedge' } },
+    // PW_NOGPU=1 reproduces CI's GPU-less software canvas locally (for perf work).
+    {
+      name: 'chromium',
+      use: {
+        channel: process.env.CI ? undefined : 'msedge',
+        ...(process.env.PW_NOGPU ? { launchOptions: { args: ['--disable-gpu', '--disable-accelerated-2d-canvas'] } } : {}),
+      },
+    },
     // Safari's engine on CI, for the flows most likely to differ between engines: storage, the
     // unload prompt, keyboard, audio unlock. (Not installed locally.)
     ...(process.env.CI ? [{ name: 'webkit', use: { browserName: 'webkit' as const }, testMatch: /(prod|gameover)\.spec\.ts/ }] : []),
