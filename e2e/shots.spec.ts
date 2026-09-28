@@ -201,3 +201,16 @@ test('24 ending results + 25 next chapter', async ({ page }) => {
   await page.waitForTimeout(3600);
   await shot(page, '25-ending-next');
 });
+
+test('26 menu bestiary', async ({ page }) => {
+  await open(page, 'sinkline');
+  await sj(page, "Object.assign(sj.state.bestiary, { rustfang_punk: 6, rustfang_medic: 2, glowrat: 9, scrap_hound: 4, smog_wisp: 2, knuckles: 1, drowned_shade: 3 })");
+  await sj(page, "Object.assign(sj.state.weakSeen, { rustfang_punk: ['cyber'], smog_wisp: ['mana'], glowrat: ['fire'] })");
+  await sj(page, 'sj.menu()');
+  await page.waitForTimeout(400);
+  await key(page, 'ArrowDown', 5);
+  await key(page, 'Enter');
+  await key(page, 'ArrowDown', 4);
+  await page.waitForTimeout(300);
+  await shot(page, '26-menu-bestiary');
+});
