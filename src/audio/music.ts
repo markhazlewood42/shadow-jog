@@ -131,6 +131,7 @@ export function compile(spec: SongSpec): Compiled {
       continue;
     }
     const oct = part.octave ?? 3;
+    let counterPrev = -1;
     for (let s = 0; s < length; s++) {
       const ch = chords[s];
       if (!ch) continue;
@@ -194,6 +195,18 @@ export function compile(spec: SongSpec): Compiled {
         case 'stab':
           if (pos % 4 === 2) push(s, { ...base, midi: ch.tones.slice(0, 3).map((t) => t + (oct + 1) * 12), len: 1, vel: 0.8 });
           break;
+        case 'counter': {
+          // A second voice: two notes a bar on the off-beats, each the chord tone nearest the
+          // last one (voice-led), so it answers the melody rather than doubling it.
+          if (pos !== 4 && pos !== 10) break;
+          const lo = (oct + 1) * 12;
+          const pool = ch.tones.flatMap((t) => [t + lo, t + lo + 12]);
+          const target = counterPrev < 0 ? pool[1]! : counterPrev;
+          const pick = pool.filter((m) => m !== counterPrev).sort((a, b) => Math.abs(a - target) - Math.abs(b - target))[0]!;
+          counterPrev = pick;
+          push(s, { ...base, midi: [pick], len: pos === 4 ? 5 : 6, vel: pos === 4 ? 0.75 : 0.65 });
+          break;
+        }
         case 'bells':
           if (segStart) push(s, { ...base, midi: [tone(ch.tones.length > 3 ? 3 : 2, oct)], len: 6, vel: 0.7 });
           break;
@@ -385,7 +398,7 @@ function stopCurrent(fade: number): void {
  * Play a song (no-op if it's already playing). `fade` is in frames (60/s) for the outgoing song.
  * Call with null to stop.
  */
-export function music(name: string | null, fade = 30): void {
+export function music(name: string | null, fade = 30, fadeIn?: number): void {
   if (!audio.unlocked) {
     pendingName = name;
     return;
@@ -394,7 +407,7 @@ export function music(name: string | null, fade = 30): void {
   // A song replacing another eases in under the outgoing fade instead of cutting in.
   const replacing = !!current && fade > 0;
   stopCurrent(fade / 60);
-  if (name) begin(name, 0, replacing ? Math.min(0.8, fade / 60) : 0);
+  if (name) begin(name, 0, fadeIn ?? (replacing ? Math.min(0.8, fade / 60) : 0));
 }
 
 /** Save the current song position and switch (battles). */

@@ -158,6 +158,33 @@ const S: Record<string, Maker> = {
     notes(c, 'square', [1047, 1319, 1568, 2093], 0.05, 0.2, 0.04, o, t + 0.1);
     noise(c, t, 0.4, 0.1, o, 'highpass', 2000, 8000);
   },
+  // Combo signatures, layered under the shared fanfare: each pair has its own motif and colour.
+  sting_rift: (c, o, t) => {
+    notes(c, 'sawtooth', [330, 494, 659], 0.04, 0.25, 0.05, o, t);
+    noise(c, t + 0.1, 0.5, 0.18, o, 'bandpass', 5000, 900, 3);
+    osc(c, 'square', 1200, 180, t + 0.1, 0.35, 0.05, o);
+  },
+  sting_lock: (c, o, t) => {
+    notes(c, 'square', [1568, 1568, 2093], 0.07, 0.06, 0.05, o, t);
+    osc(c, 'sine', 2093, 2093, t + 0.22, 0.3, 0.06, o, 'lin');
+  },
+  sting_circuit: (c, o, t) => {
+    notes(c, 'square', [392, 784, 587, 1175, 880], 0.035, 0.08, 0.045, o, t);
+    notes(c, 'sine', [220, 330], 0.2, 0.5, 0.08, o, t + 0.1);
+  },
+  sting_pyre: (c, o, t) => {
+    noise(c, t, 0.9, 0.22, o, 'lowpass', 600, 4000);
+    notes(c, 'sawtooth', [196, 294, 392], 0.08, 0.4, 0.05, o, t + 0.05);
+  },
+  sting_crow: (c, o, t) => {
+    notes(c, 'triangle', [880, 740, 988, 880], 0.06, 0.18, 0.06, o, t);
+    noise(c, t, 0.3, 0.1, o, 'bandpass', 1200, 2400, 2);
+  },
+  sting_life: (c, o, t) => notes(c, 'sine', [523, 784, 1047, 1319, 1568], 0.06, 0.5, 0.06, o, t),
+  sting_ward: (c, o, t) => {
+    notes(c, 'triangle', [294, 440, 587], 0.0, 0.9, 0.06, o, t);
+    notes(c, 'sine', [1175, 880], 0.12, 0.4, 0.04, o, t + 0.15);
+  },
   combo_ready: (c, o, t) => notes(c, 'triangle', [1319, 1760, 2349], 0.04, 0.12, 0.06, o, t),
   explosion: (c, o, t) => {
     noise(c, t, 1.2, 0.35, o, 'lowpass', 3000, 80);
@@ -207,4 +234,8 @@ export function sfx(name: string, pitch = 1): void {
   last.set(name, now);
   if (last.size > 64) last = new Map();
   make(c, audio.sfx, now + 0.005, pitch);
+  if (HEAVY.has(name)) audio.duckForHit(name === 'crit' || name === 'combo' ? 0.5 : 0.62);
 }
+
+/** Impacts big enough to dip the music under them. */
+const HEAVY = new Set(['explosion', 'crit', 'combo', 'phase', 'beam', 'wave', 'summon', 'ko']);

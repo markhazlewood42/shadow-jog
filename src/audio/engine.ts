@@ -61,6 +61,8 @@ class AudioEngine {
   music!: GainNode;
   /** Sits after the music bus: dips the score while someone is talking. */
   private duckNode!: GainNode;
+  /** A second, momentary dip under heavy impacts (explosions, crits, combos). */
+  private hitDuck!: GainNode;
   private ducks = 0;
   sfx!: GainNode;
   /** Two convolvers so a change of space crossfades instead of swapping a ringing buffer. */
@@ -99,20 +101,28 @@ class AudioEngine {
 
   private build(): void {
     const c = this.ctx!;
-    const comp = c.createDynamicsCompressor();
-    comp.threshold.value = -14;
-    comp.knee.value = 12;
-    comp.ratio.value = 4;
-    comp.attack.value = 0.004;
-    comp.release.value = 0.2;
+    // Mix: music and SFX are compressed separately (so a pile-up of hits can't pump the score),
+    // then meet at a brick-wall limiter that only catches true peaks.
+    const comp = (threshold: number, ratio: number, attack: number, release: number) => {
+      const k = c.createDynamicsCompressor();
+      k.threshold.value = threshold;
+      k.knee.value = 8;
+      k.ratio.value = ratio;
+      k.attack.value = attack;
+      k.release.value = release;
+      return k;
+    };
+    const limiter = comp(-2, 20, 0.002, 0.12);
+    limiter.knee.value = 0;
     this.master = c.createGain();
     this.master.gain.value = 0.9;
-    this.master.connect(comp).connect(c.destination);
+    this.master.connect(limiter).connect(c.destination);
     this.music = c.createGain();
     this.sfx = c.createGain();
     this.duckNode = c.createGain();
-    this.music.connect(this.duckNode).connect(this.master);
-    this.sfx.connect(this.master);
+    this.hitDuck = c.createGain();
+    this.music.connect(comp(-18, 2.5, 0.02, 0.3)).connect(this.duckNode).connect(this.hitDuck).connect(this.master);
+    this.sfx.connect(comp(-12, 4, 0.003, 0.15)).connect(this.master);
     // Reverb: one synthetic impulse per acoustic space, swapped when the song changes.
     for (const [name, sp] of Object.entries(SPACES) as [Space, SpaceDef][]) this.spaces.set(name, impulse(c, sp));
     this.reverbSend = c.createGain();
@@ -169,6 +179,16 @@ class AudioEngine {
     this.ducks = Math.max(0, this.ducks + (on ? 1 : -1));
     if (!this.ctx) return;
     this.duckNode.gain.setTargetAtTime(this.ducks > 0 ? 0.55 : 1, this.ctx.currentTime, on ? 0.08 : 0.25);
+  }
+
+  /** Briefly pull the music down under a big hit so the impact reads, then let it swell back. */
+  duckForHit(depth = 0.6): void {
+    if (!this.ctx) return;
+    const g = this.hitDuck.gain, t = this.ctx.currentTime;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(depth, t + 0.02);
+    g.setTargetAtTime(1, t + 0.16, 0.18);
   }
 
   applyVolumes(): void {
@@ -244,6 +264,9 @@ function spread(c: AudioContext, p: number): StereoPannerNode {
  * Where each instrument sits in the stereo field: rhythm section and bass centred, lead just
  * left, plucks and bells right, arps drifting side to side, chords spread by pitch.
  */
+/** Patches that spread their own oscillators across the stereo field; they bypass placement(). */
+const SELF_SPREAD = new Set<InstId>(['lead', 'lead2', 'pad', 'choir', 'organ']);
+
 function placement(inst: InstId, freq: number, t: number): number {
   switch (inst) {
     case 'bass': case 'sub': case 'kick': case 'snare': return 0;
@@ -574,9 +597,16 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
     }
   }
   if (!chain) return;
-  const pan = c.createStereoPanner();
-  pan.pan.value = placement(inst, freq, t);
-  chain.out.connect(pan).connect(dest);
+  let pan: AudioNode;
+  if (SELF_SPREAD.has(inst)) {
+    pan = chain.out;
+    pan.connect(dest);
+  } else {
+    const p = c.createStereoPanner();
+    p.pan.value = placement(inst, freq, t);
+    chain.out.connect(p).connect(dest);
+    pan = p;
+  }
   if (sends.rev) {
     const g = c.createGain();
     g.gain.value = sends.rev;

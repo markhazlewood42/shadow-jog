@@ -636,6 +636,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           if (u.side === 'party') this.setPose(u, u.key === 'hex' || u.key === 'sable' ? 'cast' : 'attack', 70);
         }
         sfx('combo');
+        // Each combo lands with its own voice under the shared fanfare.
+        const sting = COMBO_STING[this.comboId(e.name)];
+        if (sting) void this.game.wait(10).then(() => sfx(sting));
         e.actors.forEach((a, i) => {
           const u = this.battle.unit(a)!;
           if (u.side === 'party') this.cutins.push({ key: u.key, face: 'angry', t: 0, fromLeft: i === 0, life: 70 });
@@ -785,11 +788,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         dd.hp = e.hp;
         dd.alpha = 0;
         dd.dying = 0;
-        music('boss2', 0);
+        music(null, 10);
         for (let t = 0; t < 30; t++) {
           dd.alpha = t / 30;
           await this.game.wait(1);
         }
+        music('boss2', 0, 1.6);
         await this.w(20);
         break;
       }
@@ -1754,6 +1758,17 @@ function drawBig(ctx: Ctx, text: string, cx: number, y: number, color: string): 
 }
 
 let bigBandGrad: CanvasGradient | null = null;
+
+/** A signature sting per combo, layered under the shared combo fanfare. */
+const COMBO_STING: Record<string, string> = {
+  combo_thunder_rift: 'sting_rift',
+  combo_target_lock: 'sting_lock',
+  combo_ghost_circuit: 'sting_circuit',
+  combo_pyre_storm: 'sting_pyre',
+  combo_spirit_walk: 'sting_crow',
+  combo_lifeline: 'sting_life',
+  combo_crows_wing: 'sting_ward',
+};
 
 function fxSound(fx: string): string {
   if (['slash', 'claw', 'whip', 'arc_cut', 'moonfall', 'flash_step'].includes(fx)) return 'slash';

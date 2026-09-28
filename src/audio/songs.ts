@@ -34,6 +34,7 @@ export const SONGS: Record<string, SongSpec> = {
       { inst: 'bass', gen: 'walk', octave: 1, vol: 0.8 },
       { inst: 'pluck', gen: 'broken', octave: 4, vol: 0.55, rev: 0.3 },
       { inst: 'pad', gen: 'chord', octave: 3, vol: 0.8, rev: 0.5 },
+      { inst: 'reed', gen: 'counter', octave: 4, vol: 0.4, rev: 0.4 },
     ],
   },
 
@@ -136,6 +137,7 @@ export const SONGS: Record<string, SongSpec> = {
       { inst: 'bass', gen: 'drive', octave: 1, vol: 0.9 },
       { inst: 'arp', gen: 'updown', octave: 4, vol: 0.3 },
       { inst: 'pad', gen: 'stab', octave: 4, vol: 0.6 },
+      { inst: 'lead', gen: 'counter', octave: 4, vol: 0.32, rev: 0.2 },
     ],
   },
 
@@ -158,6 +160,7 @@ export const SONGS: Record<string, SongSpec> = {
       { inst: 'bass', gen: 'drive', octave: 1, vol: 1 },
       { inst: 'organ', gen: 'chord', octave: 3, vol: 0.7 },
       { inst: 'arp', gen: 'up16', octave: 4, vol: 0.25 },
+      { inst: 'lead', gen: 'counter', octave: 4, vol: 0.3, rev: 0.2 },
     ],
   },
 
