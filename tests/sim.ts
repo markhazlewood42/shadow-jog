@@ -3,7 +3,7 @@ import { Battle } from '../src/battle/engine';
 import { enemyParty, partyCombatant } from '../src/battle/setup';
 import type { Combatant, Command } from '../src/battle/types';
 import { ABILITIES } from '../src/data/abilities';
-import { ENCOUNTERS } from '../src/data/enemies';
+import { ENCOUNTERS, ENEMIES } from '../src/data/enemies';
 import { createMember, knownAbilities } from '../src/game/party';
 import type { EquipSlot, MemberId, MemberState } from '../src/game/state';
 import { Rng } from '../src/engine/rng';
@@ -65,7 +65,10 @@ export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, 
   const humans = foes.filter((f) => f.family === 'human');
   const hurt = party.filter((p) => frac(p) < 0.45).sort((a, c) => a.hp - c.hp);
   const weakest = [...foes].sort((a, c) => a.hp - c.hp)[0]!;
-  const focus = boss ?? weakest;
+  // Healers go first: an enemy whose kit can restore HP.
+  const healer = foes.find((f) => !f.boss && (ENEMIES[f.key]?.moves ?? []).some((m) => ABILITIES[m.id]?.effects.some((e) => e.type === 'heal')));
+  const focus = boss ?? healer ?? weakest;
+  const burnable = foes.find((f) => (f.weak?.fire ?? 1) > 1 && !hasStatus(f, 'burn'));
   const solid = (spirit ? foes.find((f) => f.family !== 'spirit') : undefined) ?? focus;
   const byKey = (k: string) => party.find((p) => p.key === k);
   const kit = byKey('kit'), rook = byKey('rook'), hex = byKey('hex'), sable = byKey('sable');
@@ -92,6 +95,9 @@ export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, 
     const user = [...party].sort((x, y) => frac(y) - frac(x))[0]!;
     give(user, 'item', 'medkit', critical.uid);
   }
+
+  // Against a machine boss, shields go up before its first big shot.
+  if (boss?.family === 'machine' && b.round <= 2 && !party.some((p) => hasStatus(p, 'def_up')) && can(hex, 'firewall')) give(hex, 'tech', 'firewall');
 
   // Deliberate combos when they matter: bosses, or big packs.
   if (useCombos && (boss || foes.length >= 3)) {
@@ -147,6 +153,7 @@ export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, 
       if (boss && ward && can(u, 'guardian')) give(u, 'skill', 'guardian');
       else if (boss && frac(u) < 0.5 && can(u, 'stim_rush')) give(u, 'skill', 'stim_rush');
       else if (boss && boss.hp > 250 && can(u, 'moonfall')) give(u, 'skill', 'moonfall');
+      else if (burnable && can(u, 'incendiary')) give(u, 'skill', 'incendiary', burnable.uid);
       else if (foes.length >= 3 && can(u, 'quickdraw')) give(u, 'skill', 'quickdraw');
       else if (foes.length >= 2 && b.round === 1 && humans.length && can(u, 'suppress')) give(u, 'skill', 'suppress');
       else if (boss && can(u, 'arc_cut')) give(u, 'skill', 'arc_cut');

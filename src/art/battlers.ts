@@ -7,8 +7,8 @@ import { backGrid, paint, type CharLook } from './chars';
 import { Pix, scale2x } from './pix';
 import { surface } from '../engine/canvas';
 
-export type Pose = 'idle' | 'attack' | 'cast' | 'item' | 'hurt' | 'victory';
-export const POSES: Pose[] = ['idle', 'attack', 'cast', 'item', 'hurt', 'victory'];
+export type Pose = 'idle' | 'attack' | 'cast' | 'item' | 'hurt' | 'victory' | 'thrust' | 'brace' | 'aim';
+export const POSES: Pose[] = ['idle', 'attack', 'cast', 'item', 'hurt', 'victory', 'thrust', 'brace', 'aim'];
 
 export interface Battler {
   frames: Record<Pose, HTMLCanvasElement>;
@@ -156,6 +156,18 @@ function drawGlow(g: Pix, id: string, w: Weapon, pose: Pose, hand: [number, numb
       return true;
     }
   }
+  if (pose === 'thrust' && other) {
+    for (const [x, y] of [hand, other]) {
+      g.ellipse(x + 1, y - 1, 2, 2, tint);
+      g.set(x + 1, y - 1, '#ffffff');
+    }
+    return true;
+  }
+  if (pose === 'aim') {
+    g.ellipse(hx, hy - 5, 2, 2, '#ffe07a');
+    g.set(hx, hy - 5, '#ffffff');
+    return true;
+  }
   if (pose === 'victory' && w === 'staff') {
     g.ellipse(hx + 1, hy - 10, 2, 2, tint);
     return true;
@@ -181,15 +193,29 @@ function pose(id: string, look: CharLook, which: Pose): { canvas: HTMLCanvasElem
     hunch(rows, rig);
     hand = raise(rows, rig, 'right', 2, 1);
     raise(rows, rig, 'left', 2, 1);
+  } else if (which === 'thrust') {
+    // Both palms driven forward at chest height.
+    hand = raise(rows, rig, 'right', 2, 2);
+    other = raise(rows, rig, 'left', 2, 2);
+  } else if (which === 'brace') {
+    // Arms up close to the head: guarding, steeling, rallying.
+    hand = raise(rows, rig, 'right', 3, 0);
+    raise(rows, rig, 'left', 3, 0);
+  } else if (which === 'aim') {
+    hand = raise(rows, rig, 'right', 5, 2);
   }
-  if (weapon === 'staff' && which !== 'attack' && which !== 'cast' && which !== 'victory') hand = [rig.right, rig.hand];
+  if (weapon === 'staff' && which !== 'attack' && which !== 'cast' && which !== 'victory' && which !== 'thrust') hand = [rig.right, rig.hand];
   const body = paint(rows, pal);
   const w = body.width + PAD_X * 2, h = body.height + PAD_TOP;
   const handPx = px(hand[0], hand[1]);
   const back = new Pix(w, h);
-  drawWeapon(back, weapon, which, handPx, rig, 'back');
+  // Aiming always shows a sidearm, whatever the member usually carries.
+  const shown: Weapon = which === 'aim' ? 'pistol' : weapon;
+  const drawn: Pose = which === 'aim' ? 'attack' : which === 'thrust' || which === 'brace' ? 'idle' : which;
+  // The member's own weapon stays where it rests (e.g. Rook's katana on his back) while they aim.
+  drawWeapon(back, weapon, which === 'aim' ? 'idle' : drawn, handPx, rig, 'back');
   const front = new Pix(w, h);
-  drawWeapon(front, weapon, which, handPx, rig, 'front');
+  drawWeapon(front, shown, drawn, handPx, rig, 'front');
   if (which === 'item') {
     // A medkit in the raised hand.
     front.rect(handPx[0] - 1, handPx[1] - 3, 3, 3, '#e8ecef');

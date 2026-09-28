@@ -1,5 +1,6 @@
 /** Battle presentation: command entry, targeting, event playback, rewards. */
 import { battler, type Battler, type Pose } from '../art/battlers';
+import { getPortrait } from '../art/portraits';
 import { battleBg, type BattleBg } from '../art/battlebg';
 import { enemyArt, type EnemyArt } from '../art/enemies';
 import { music } from '../audio/music';
@@ -49,6 +50,8 @@ interface Disp {
   /** Party action pose and how many frames it holds (idle when 0). */
   pose: Pose;
   poseT: number;
+  /** Frames of speed afterimages left (Flash Step, Hundred Rain). */
+  afterimage: number;
 }
 
 interface Floater {
@@ -82,6 +85,14 @@ const STATUS_LABEL: Partial<Record<StatusId, [string, string]>> = {
 const STATUS_SFX: Partial<Record<StatusId, string>> = {
   poison: 'st_poison', burn: 'st_burn', stun: 'st_stun', blind: 'st_blind', jammed: 'st_jammed', hijacked: 'st_jammed',
 };
+
+/** Offsets and opacity of the speed ghosts behind a dashing party member. */
+const AFTERIMAGES: [number, number, number][] = [[-7, 5, 0.35], [7, 9, 0.22], [0, 13, 0.14]];
+
+/** Short element tags and colours for the weakness readout. */
+const ELEMENTS = ['phys', 'fire', 'shock', 'cyber', 'mana'] as const;
+const ELEMENT_TAG: Record<(typeof ELEMENTS)[number], string> = { phys: 'PHYS', fire: 'FIRE', shock: 'SHOCK', cyber: 'CYBER', mana: 'MANA' };
+const ELEMENT_COLOR: Record<(typeof ELEMENTS)[number], string> = { phys: '#e0dcd0', fire: '#ffa24a', shock: '#9ae8ff', cyber: '#3fe0f0', mana: '#b99bff' };
 
 const STATUS_WORD: Partial<Record<StatusId, string>> = {
   poison: 'POISONED', burn: 'BURNING', stun: 'STUNNED', blind: 'BLINDED', jammed: 'JAMMED', exposed: 'EXPOSED', regen: 'REGEN',
@@ -151,7 +162,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   private initDisp(u: Combatant): void {
-    this.disp.set(u.uid, { hp: u.hp, tp: u.tp, flash: 0, shake: 0, hop: 0, alpha: u.side === 'enemy' ? 0 : 1, dying: 0, lunge: 0, hidden: false, pose: 'idle', poseT: 0 });
+    this.disp.set(u.uid, { hp: u.hp, tp: u.tp, flash: 0, shake: 0, hop: 0, alpha: u.side === 'enemy' ? 0 : 1, dying: 0, lunge: 0, hidden: false, pose: 'idle', poseT: 0, afterimage: 0 });
   }
 
   private d(uid: number): Disp {
@@ -208,7 +219,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     this.roundMenu.setItems([
       { label: 'Fight', value: 'fight' },
       { label: 'Repeat', value: 'repeat', enabled: anyOrders },
-      { label: 'Auto', value: 'auto' },
+      { label: 'Auto', value: 'auto', enabled: !this.setup.boss },
       { label: 'Run', value: 'run', enabled: this.battle.canRun && !this.setup.boss },
     ]);
     this.roundMenu.index = 0;
@@ -413,6 +424,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       if (dd.shake > 0) dd.shake--;
       if (dd.hop > 0) dd.hop = Math.max(0, dd.hop - 0.6);
       if (dd.poseT > 0) dd.poseT--;
+      if (dd.afterimage > 0) dd.afterimage--;
       if (dd.lunge > 0) dd.lunge = Math.max(0, dd.lunge - 0.5);
       if (dd.dying > 0) {
         dd.dying++;
@@ -557,7 +569,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         this.showBanner(e.kind === 'attack' || e.name === 'Attack' ? `${actor.name}` : `${actor.name}: ${e.name}`, color);
         if (actor.side === 'party') {
           dd.lunge = 6;
-          this.setPose(actor, actionPose(actor.key, e.kind, e.targets.map((t) => this.battle.unit(t)?.side)), 34);
+          this.setPose(actor, actionPose(actor.key, e.kind, e.targets.map((t) => this.battle.unit(t)?.side), e.fx), 34);
+          if (e.fx === 'flash_step' || e.fx === 'rain_hits') dd.afterimage = 22;
           sfx(e.kind === 'tech' ? 'cast' : 'swing');
         } else {
           dd.flash = 8;
@@ -726,6 +739,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         const u = this.battle.unit(e.target)!;
         const weak = Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => k.toUpperCase());
         const res = Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) < 1).map(([k]) => k.toUpperCase());
+        // Analyze writes what it finds into the crew's notes (bestiary, target cursor).
+        if (u.side === 'enemy') {
+          state.weakSeen[u.key] ??= [];
+          const notes = state.weakSeen[u.key]!;
+          for (const el of weak) if (!notes.includes(el.toLowerCase())) notes.push(el.toLowerCase());
+        }
         this.say(`${u.name}: HP ${u.hp}/${u.base.maxHp}${weak.length ? `  WEAK ${weak.join(' ')}` : ''}${res.length ? `  RESISTS ${res.join(' ')}` : ''}`);
         await this.w(70);
         break;
@@ -1046,9 +1065,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private drawEnemy(g: Ctx, e: Combatant, f: number): void {
     const dd = this.d(e.uid);
     const { x, y, art } = this.enemyPos(e);
-    const flip = this.dupIndex(e) % 2 === 1;
-    const canvas = flip ? mirrored(art.canvas) : art.canvas;
-    const glow = art.glow && (flip ? mirrored(art.glow) : art.glow);
+    const dup = this.dupIndex(e);
+    const canvas = variant(art.canvas, dup);
+    const glow = art.glow && variant(art.glow, dup);
     let ox = 0, oy = 0;
     switch (art.idle) {
       case 'hover': oy = Math.round(Math.sin(f * 0.08 + e.uid) * 2); break;
@@ -1116,6 +1135,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       g.globalAlpha = 1;
       return;
     }
+    if (dd.afterimage > 0) {
+      // Speed ghosts trailing behind and to either side.
+      for (const [gx, gy, a] of AFTERIMAGES) {
+        g.globalAlpha = a * (dd.afterimage / 22);
+        g.drawImage(silhouetteCache(frame, MEMBERS[p.key as MemberId].color), x + gx, y + gy);
+      }
+      g.globalAlpha = 1;
+    }
     g.drawImage(frame, x, y);
     const glow = art.glow[pose];
     if (glow) {
@@ -1155,12 +1182,27 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   // ------------------------------------------------------------------ UI (1x)
   /** Labelled status chips over each enemy (screen space, so they stay small and legible). */
+  /**
+   * Over each enemy, stacked upward from the head: an HP bar (always shown), active status
+   * chips, and any weaknesses the crew has found (by Analyze or by landing a weak hit).
+   */
   private renderEnemyStatus(ctx: Ctx): void {
     for (const e of this.battle.enemies) {
-      if (e.hp <= 0 || !e.status.length) continue;
+      if (e.hp <= 0) continue;
       const dd = this.d(e.uid);
       if (dd.dying > 0 || dd.alpha < 0.5) continue;
-      // Two passes over the statuses (measure, then draw) so nothing is allocated per frame.
+      const { x, y, art } = this.enemyPos(e);
+      const cx0 = Math.round((x + art.canvas.width / 2) * 2);
+      let row = Math.max(24, (y + opaqueTop(art.canvas)) * 2 - 6);
+      // HP bar (bosses get a wider one).
+      const bw = e.boss ? 72 : 30;
+      const ratio = Math.max(0, dd.hp / e.base.maxHp);
+      ctx.fillStyle = 'rgba(10,9,19,0.85)';
+      ctx.fillRect(cx0 - bw / 2 - 1, row - 1, bw + 2, 4);
+      ctx.fillStyle = hpColor(ratio);
+      ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 2);
+      row -= 11;
+      // Status chips: measure, then draw (two passes, nothing allocated per frame).
       let count = 0, total = 0;
       for (const s of e.status) {
         const l = STATUS_LABEL[s.id];
@@ -1168,26 +1210,46 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         if (count < 3) total += measure(l[0]) + 5;
         count++;
       }
-      if (!count) continue;
-      const more = count - Math.min(count, 3);
-      if (more) total += measure(`+${more}`) + 3;
-      const { x, y, art } = this.enemyPos(e);
-      let cx = Math.round((x + art.canvas.width / 2) * 2 - total / 2);
-      const cy = Math.max(2, y * 2 - 11);
-      let drawn = 0;
-      for (const s of e.status) {
-        const l = STATUS_LABEL[s.id];
-        if (!l || s.id === 'guard' || drawn === 3) continue;
-        const w = measure(l[0]) + 4;
-        ctx.fillStyle = 'rgba(10,9,19,0.85)';
-        ctx.fillRect(cx, cy, w, 9);
-        ctx.fillStyle = l[1];
-        ctx.fillRect(cx, cy + 8, w, 1);
-        drawText(ctx, l[0], cx + 2, cy + 1, { color: l[1], shadow: false });
-        cx += w + 1;
-        drawn++;
+      if (count) {
+        const more = count - Math.min(count, 3);
+        if (more) total += measure(`+${more}`) + 3;
+        let cx = Math.round(cx0 - total / 2);
+        let drawn = 0;
+        for (const s of e.status) {
+          const l = STATUS_LABEL[s.id];
+          if (!l || s.id === 'guard' || drawn === 3) continue;
+          const w = measure(l[0]) + 4;
+          ctx.fillStyle = 'rgba(10,9,19,0.85)';
+          ctx.fillRect(cx, row, w, 9);
+          ctx.fillStyle = l[1];
+          ctx.fillRect(cx, row + 8, w, 1);
+          drawText(ctx, l[0], cx + 2, row + 1, { color: l[1], shadow: false });
+          cx += w + 1;
+          drawn++;
+        }
+        if (more) drawText(ctx, `+${more}`, cx + 1, row + 1, { color: UI.dim });
+        row -= 11;
       }
-      if (more) drawText(ctx, `+${more}`, cx + 1, cy + 1, { color: UI.dim });
+      // Known weaknesses.
+      const seen = state.weakSeen[e.key];
+      let n = 0, width = measure('WEAK') + 2;
+      for (const el of ELEMENTS) {
+        if (e.analyzed ? (e.weak?.[el] ?? 1) > 1 : seen?.includes(el)) {
+          width += measure(ELEMENT_TAG[el]) + 3;
+          n++;
+        }
+      }
+      if (!n) continue;
+      let wx = Math.round(cx0 - width / 2);
+      ctx.fillStyle = 'rgba(10,9,19,0.85)';
+      ctx.fillRect(wx - 2, row, width + 4, 9);
+      drawText(ctx, 'WEAK', wx, row + 1, { color: UI.amber, shadow: false });
+      wx += measure('WEAK') + 4;
+      for (const el of ELEMENTS) {
+        if (!(e.analyzed ? (e.weak?.[el] ?? 1) > 1 : seen?.includes(el))) continue;
+        drawText(ctx, ELEMENT_TAG[el], wx, row + 1, { color: ELEMENT_COLOR[el], shadow: false });
+        wx += measure(ELEMENT_TAG[el]) + 3;
+      }
     }
   }
 
@@ -1265,18 +1327,28 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const y = PANEL_Y - (active ? 3 : 0);
       drawWindow(ctx, x, y, 116, 52, { accent: active || targeted ? m.color : '#3a3f6e', plain: !(active || targeted), alpha: 0.94 });
       const down = dd.hp <= 0;
-      drawText(ctx, m.name, x + 7, y + 5, { color: down ? UI.disabled : m.color });
+      const ratio = dd.hp / p.base.maxHp;
+      // Portrait: the member's face reacts to the fight.
+      const face = down || (dd.poseT > 0 && dd.pose === 'hurt') || ratio < 0.3 ? 'hurt' : dd.poseT > 0 && dd.pose === 'victory' ? 'happy' : 'neutral';
+      const port = getPortrait(p.key, face);
+      ctx.fillStyle = UI.outline;
+      ctx.fillRect(x + 4, y + 4, 26, 26);
+      if (port) {
+        if (down) ctx.globalAlpha = 0.35;
+        ctx.drawImage(port, x + 5, y + 5, 24, 24);
+        ctx.globalAlpha = 1;
+      }
+      drawText(ctx, m.name, x + 34, y + 5, { color: down ? UI.disabled : m.color });
       drawText(ctx, down ? 'DOWN' : `Lv${p.level}`, x + 110, y + 5, { color: down ? UI.red : UI.dim, align: 'right' });
-      // Queued command indicator
+      // Queued command mark on the portrait's corner.
       const queued = this.cmds.find((c) => c.actor === p.uid);
       if (queued && (this.mode === 'command' || this.mode === 'list' || this.mode === 'target')) {
         const inCombo = this.comboActors.has(p.uid);
-        drawText(ctx, inCombo ? '★' : '•', x + 52, y + 5, { color: inCombo ? UI.amber : UI.green });
+        drawText(ctx, inCombo ? '★' : '•', x + 24, y + 3, { color: inCombo ? UI.amber : UI.green });
       }
-      const ratio = dd.hp / p.base.maxHp;
-      drawText(ctx, 'HP', x + 7, y + 17, { color: UI.dim });
+      drawText(ctx, 'HP', x + 34, y + 17, { color: UI.dim });
       drawText(ctx, `${Math.max(0, Math.round(dd.hp))}/${p.base.maxHp}`, x + 110, y + 17, { align: 'right', color: ratio < 0.25 && !down ? UI.red : UI.text });
-      drawBar(ctx, x + 7, y + 28, 102, 2, ratio, hpColor(ratio));
+      drawBar(ctx, x + 34, y + 28, 75, 2, ratio, hpColor(ratio));
       if (p.base.maxTp > 0) {
         drawText(ctx, m.tpLabel, x + 7, y + 33, { color: UI.dim });
         drawText(ctx, `${dd.tp}/${p.base.maxTp}`, x + 110, y + 33, { align: 'right' });
@@ -1287,17 +1359,18 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         drawText(ctx, 'SKILL', x + 7, y + 33, { color: UI.dim });
         drawText(ctx, `${total} uses`, x + 110, y + 33, { align: 'right' });
       }
-      // Status tags: up to two, then a count.
-      let sx = x + 26, tags = 0;
-      for (const s of p.status) {
-        const lab = STATUS_LABEL[s.id];
-        if (!lab || s.id === 'guard' || s.id === 'cover') continue;
-        if (tags++ < 2) {
-          drawText(ctx, lab[0], sx, y + 17, { color: lab[1] });
-          sx += measure(lab[0]) + 3;
+      // Status: the first ailment tagged on the portrait's lower edge, plus a count.
+      let tags = 0;
+      for (const st of p.status) {
+        const lab = STATUS_LABEL[st.id];
+        if (!lab || st.id === 'guard' || st.id === 'cover') continue;
+        if (tags++ === 0) {
+          ctx.fillStyle = 'rgba(10,9,19,0.85)';
+          ctx.fillRect(x + 5, y + 21, measure(lab[0]) + 3, 8);
+          drawText(ctx, lab[0], x + 6, y + 21, { color: lab[1], shadow: false });
         }
       }
-      if (tags > 2) drawText(ctx, `+${tags - 2}`, sx, y + 17, { color: UI.dim });
+      if (tags > 1) drawText(ctx, `+${tags - 1}`, x + 8 + measure('WWW'), y + 21, { color: UI.dim, shadow: false });
     });
   }
 
@@ -1316,7 +1389,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const help: Record<string, string> = {
       fight: 'Give each crew member orders.',
       repeat: 'Repeat last round\'s orders.',
-      auto: 'Everyone attacks.',
+      auto: this.setup.boss ? 'Not against a boss. Give orders.' : 'Everyone attacks.',
       run: this.battle.canRun && !this.setup.boss ? 'Try to escape.' : 'You can\'t run from this fight.',
     };
     const h = help[this.roundMenu.current?.value ?? ''];
@@ -1414,6 +1487,22 @@ function summarize(names: string[]): string[] {
 }
 
 const silCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
+const topCache = new WeakMap<HTMLCanvasElement, number>();
+/** First row with any opaque pixel (sprite canvases carry padding); measured once per canvas. */
+function opaqueTop(c: HTMLCanvasElement): number {
+  let top = topCache.get(c);
+  if (top === undefined) {
+    top = 0;
+    const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+    scan: for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3]! > 0) {
+      top = y;
+      break scan;
+    }
+    topCache.set(c, top);
+  }
+  return top;
+}
+
 const flipCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 /** Horizontally mirrored copy (cached): every other duplicate enemy faces the other way. */
 function mirrored(src: HTMLCanvasElement): HTMLCanvasElement {
@@ -1427,6 +1516,30 @@ function mirrored(src: HTMLCanvasElement): HTMLCanvasElement {
     flipCache.set(src, c);
   }
   return c;
+}
+
+/**
+ * The n-th copy of an enemy in a fight gets its own look: a shifted palette (and every other
+ * copy faces the other way), so a pair reads as two individuals, not twins. Cached per copy.
+ */
+const variantCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement[]>();
+const VARIANT_FILTERS = ['', 'hue-rotate(32deg) saturate(1.2) brightness(0.9)', 'hue-rotate(-38deg) saturate(1.1) brightness(1.05)', 'hue-rotate(80deg) brightness(0.92)'];
+function variant(src: HTMLCanvasElement, dup: number): HTMLCanvasElement {
+  if (dup === 0) return src;
+  let list = variantCache.get(src);
+  if (!list) {
+    list = [];
+    variantCache.set(src, list);
+  }
+  let v = list[dup];
+  if (!v) {
+    const s = surface(src.width, src.height);
+    s.ctx.filter = VARIANT_FILTERS[dup % VARIANT_FILTERS.length] || 'none';
+    s.ctx.drawImage(dup % 2 ? mirrored(src) : src, 0, 0);
+    v = s.canvas;
+    list[dup] = v;
+  }
+  return v;
 }
 
 function silhouetteCache(src: HTMLCanvasElement, color: string): HTMLCanvasElement {
@@ -1466,8 +1579,11 @@ function fxSound(fx: string): string {
 }
 
 /** Which battle pose a party action plays: blades and fists strike, programs and spirits are cast. */
-function actionPose(key: string, kind: Ability['kind'], targets: (string | undefined)[]): Pose {
+function actionPose(key: string, kind: Ability['kind'], targets: (string | undefined)[], fx = ''): Pose {
   if (kind === 'item') return 'item';
+  if (fx === 'palm' || fx === 'coil') return 'thrust';
+  if (fx === 'gunfire' || fx === 'shot') return 'aim';
+  if (fx === 'shield' || fx === 'buff' || fx === 'guard' || fx === 'roar') return 'brace';
   if (kind === 'attack' || kind === 'skill') return 'attack';
   const onAllies = targets.length > 0 && targets.every((t) => t === 'party');
   if (key === 'kit' && !onAllies) return 'attack';

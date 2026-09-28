@@ -39,7 +39,7 @@ export const STAGE_PARTY: Record<string, Loadout[]> = {
     { id: 'kit', level: 7, equip: { weapon: 'mono_claws', body: 'ballistic_vest' } },
     { id: 'rook', level: 7, equip: { weapon: 'vibro_katana' } },
     { id: 'hex', level: 7, equip: { weapon: 'heavy_pistol' } },
-    { id: 'sable', level: 7 },
+    { id: 'sable', level: 7, equip: { weapon: 'bone_staff' } },
   ],
   warden: [
     { id: 'kit', level: 8, equip: { weapon: 'dragon_fang', body: 'ballistic_vest' } },

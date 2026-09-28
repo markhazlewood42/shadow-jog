@@ -591,11 +591,14 @@ export class Battle {
     amount *= this.rng.range(0.9, 1.1);
     const mult = t.weak?.[element] ?? 1;
     amount *= mult;
+    // The Warden vents heat while its cannon charges: a telegraphed window to hit it hard.
+    const vented = t.ai === 'warden' && !!t.memory.charging;
+    if (vented) amount *= 1.5;
     if (this.has(t, 'exposed')) amount *= 1.25;
     if (this.has(t, 'guard')) amount *= 0.5;
     const final = mult === 0 ? 0 : Math.max(1, Math.round(amount));
     t.hp = Math.max(0, t.hp - final);
-    this.ev.push({ t: 'damage', target: t.uid, amount: final, crit, element, weak: mult > 1, resist: mult < 1, hp: t.hp });
+    this.ev.push({ t: 'damage', target: t.uid, amount: final, crit, element, weak: mult > 1 || vented, resist: mult < 1, hp: t.hp });
     if (eff.drain && final > 0 && user.hp > 0) {
       const h = Math.round(final * eff.drain);
       user.hp = Math.min(user.base.maxHp, user.hp + h);

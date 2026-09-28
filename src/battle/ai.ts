@@ -116,7 +116,7 @@ export function chooseEnemyAction(b: Battle, self: Combatant): EnemyChoice | nul
       }
       if (mem.turn % 3 === 1) {
         mem.charging = 1;
-        return { ability: ABILITIES.attack!, target: -1, message: 'WARDEN\'s cannon begins to whine. It\'s charging!', skip: true };
+        return { ability: ABILITIES.attack!, target: -1, message: 'WARDEN’s cannon whines as it charges. Its cooling vents are open!', skip: true };
       }
       break;
     }

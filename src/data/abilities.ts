@@ -50,6 +50,11 @@ export const ABILITIES: Record<string, Ability> = {
     desc: 'A committed two-handed slash. Heavy damage.',
     effects: [{ type: 'damage', stat: 'atk', mult: 1.8 }], fx: 'arc_cut',
   }),
+  incendiary: A({
+    id: 'incendiary', name: 'Incendiary Round', kind: 'skill', uses: 3, target: 'enemy', element: 'fire',
+    desc: 'A dragon-breath shell from Rook’s sidearm. Fire damage; may set the target burning.',
+    effects: [{ type: 'damage', stat: 'atk', mult: 1.05 }, { type: 'status', status: 'burn', chance: 0.5, turns: 3 }], fx: 'shot',
+  }),
   quickdraw: A({
     id: 'quickdraw', name: 'Quickdraw', kind: 'skill', uses: 4, target: 'enemies', priority: 20,
     desc: 'Smartgun burst across every enemy.',
@@ -205,6 +210,7 @@ export const ABILITIES: Record<string, Ability> = {
   e_pincer: A({ id: 'e_pincer', name: 'Pincer', kind: 'enemy', target: 'enemy', desc: '', effects: [{ type: 'damage', stat: 'atk', mult: 1.3 }], fx: 'claw' }),
   e_harden: A({ id: 'e_harden', name: 'Harden Shell', kind: 'enemy', target: 'self', desc: '', effects: [{ type: 'buff', status: 'def_up', turns: 3 }], fx: 'shield' }),
   e_welder: A({ id: 'e_welder', name: 'Arc Welder', kind: 'enemy', target: 'enemy', element: 'fire', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 10 }, { type: 'status', status: 'burn', chance: 0.3, turns: 3 }], fx: 'zap' }),
+  e_stim: A({ id: 'e_stim', name: 'Combat Stim', kind: 'enemy', target: 'ally', desc: '', cry: 'Hold still, you idiot!', effects: [{ type: 'heal', power: 26 }], fx: 'heal' }),
   e_repair: A({ id: 'e_repair', name: 'Repair Protocol', kind: 'enemy', target: 'ally', desc: '', effects: [{ type: 'heal', power: 30 }], fx: 'heal' }),
   e_chill: A({ id: 'e_chill', name: 'Chill Touch', kind: 'enemy', target: 'enemy', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 10, drain: 0.5 }], fx: 'dark' }),
   e_wail: A({ id: 'e_wail', name: 'Drowned Wail', kind: 'enemy', target: 'enemies', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 4 }, { type: 'status', status: 'blind', chance: 0.3, turns: 3 }], fx: 'wail' }),
@@ -249,6 +255,7 @@ export const LEARNSETS: Record<string, Learn[]> = {
   rook: [
     { level: 1, id: 'arc_cut' },
     { level: 1, id: 'quickdraw' },
+    { level: 2, id: 'incendiary' },
     { level: 4, id: 'suppress' },
     { level: 5, id: 'stim_rush' },
     { level: 7, id: 'guardian' },

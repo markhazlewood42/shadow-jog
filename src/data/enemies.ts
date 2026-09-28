@@ -56,6 +56,14 @@ const E = (d: EnemyDef) => d;
 
 export const ENEMIES: Record<string, EnemyDef> = {
   // ------------------------------------------------------------------ streets & barrens
+  rustfang_medic: E({
+    id: 'rustfang_medic', name: 'Rustfang Patcher', family: 'human', sprite: 'medic',
+    hp: 30, atk: 10, def: 5, mnd: 12, res: 6, agi: 12, xp: 11, cred: 22,
+    drops: [{ id: 'medkit', chance: 0.35 }],
+    // Keeps the gang on its feet: take the medic down first or the fight drags on.
+    moves: [{ id: 'e_stim', w: 5, when: 'ally_hurt' }, { id: 'attack', w: 2 }],
+    lore: 'The gang’s back-alley medic. Patches up bruisers with whatever’s in the bag.',
+  }),
   rustfang_punk: E({
     id: 'rustfang_punk', name: 'Rustfang Punk', family: 'human', sprite: 'punk',
     hp: 33, atk: 15, def: 6, mnd: 4, res: 4, agi: 10, xp: 9, cred: 19,
@@ -217,6 +225,7 @@ export const ENCOUNTERS: Record<string, EncounterGroup[]> = {
   street: [
     { w: 3, e: ['rustfang_punk', 'rustfang_punk'] },
     { w: 2, e: ['rustfang_punk', 'rustfang_slinger'] },
+    { w: 2, e: ['rustfang_punk', 'rustfang_medic'] },
     { w: 3, e: ['glowrat', 'glowrat', 'glowrat'] },
     { w: 2, e: ['street_drone', 'street_drone'] },
     { w: 1, e: ['scrap_hound', 'glowrat'] },
@@ -224,6 +233,7 @@ export const ENCOUNTERS: Record<string, EncounterGroup[]> = {
   barrens: [
     { w: 3, e: ['scrap_hound', 'scrap_hound'] },
     { w: 2, e: ['rustfang_punk', 'rustfang_slinger', 'rustfang_punk'] },
+    { w: 2, e: ['rustfang_punk', 'rustfang_medic', 'rustfang_slinger'] },
     { w: 2, e: ['smog_wisp', 'glowrat', 'glowrat'] },
     { w: 2, e: ['street_drone', 'scrap_hound'] },
     { w: 1, e: ['smog_wisp', 'smog_wisp'] },
@@ -247,7 +257,7 @@ export const ENCOUNTERS: Record<string, EncounterGroup[]> = {
     { w: 2, e: ['km_sentinel', 'km_arcanist'] },
     { w: 2, e: ['hunter_drone', 'maint_drone'] },
     { w: 2, e: ['sentry_turret', 'km_sentinel'] },
-    { w: 1, e: ['bound_spirit', 'km_arcanist'] },
+    { w: 1, e: ['bound_spirit', 'km_sentinel'] },
     { w: 1, e: ['hunter_drone', 'hunter_drone'] },
   ],
   // Fixed battles

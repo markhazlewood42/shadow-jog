@@ -1,8 +1,10 @@
 /** Field menu: party overview plus Items / Techs / Equip / Status / Combos / Save / Options. */
 import { buildChar } from '../art/chars';
+import { enemyArt } from '../art/enemies';
 import { getPortrait } from '../art/portraits';
 import { sfx } from '../audio/sfx';
 import { ABILITIES, COMBOS } from '../data/abilities';
+import { ENEMIES } from '../data/enemies';
 import { ITEMS, type ItemDef } from '../data/items';
 import { LOOKS } from '../data/looks';
 import { MEMBERS, xpFor } from '../data/party';
@@ -20,7 +22,10 @@ import { OptionsScene } from './options';
 /** Combo log entries visible at once (36px each under the header). */
 const COMBO_ROWS = 6;
 
-type Mode = 'main' | 'pickMember' | 'items' | 'itemTarget' | 'techs' | 'techTarget' | 'equipSlots' | 'equipList' | 'status' | 'combos' | 'save' | 'saveConfirm';
+/** Display names for enemy families. */
+const FAMILY_NAME: Record<string, string> = { human: 'Human', machine: 'Machine', beast: 'Beast', spirit: 'Spirit', ghoul: 'Ghoul' };
+
+type Mode = 'bestiary' | 'main' | 'pickMember' | 'items' | 'itemTarget' | 'techs' | 'techTarget' | 'equipSlots' | 'equipList' | 'status' | 'combos' | 'save' | 'saveConfirm';
 
 export type MenuResult = { kind: 'close' } | { kind: 'special'; item: string } | { kind: 'title' };
 
@@ -29,7 +34,8 @@ const SLOT_NAMES: Record<EquipSlot, string> = { weapon: 'Weapon', body: 'Body', 
 export class MenuScene extends Scene<MenuResult> {
   override opaque = false;
   private mode: Mode = 'main';
-  private main = new ListMenu<string>([], 8);
+  private main = new ListMenu<string>([], 9);
+  private beasts = new ListMenu<string>([], 17);
   private sub = new ListMenu<string>([], 12);
   private comboScroll = 0;
   private memberIdx = 0;
@@ -49,6 +55,7 @@ export class MenuScene extends Scene<MenuResult> {
       { label: 'Equip', value: 'equip' },
       { label: 'Status', value: 'status' },
       { label: 'Combos', value: 'combos' },
+      { label: 'Bestiary', value: 'bestiary' },
       { label: 'Save', value: 'save', enabled: canSave },
       { label: 'Options', value: 'options' },
       { label: 'Close', value: 'close' },
@@ -88,6 +95,15 @@ export class MenuScene extends Scene<MenuResult> {
         } else if (v === 'combos') {
           this.comboScroll = 0;
           this.mode = 'combos';
+        } else if (v === 'bestiary') {
+          this.beasts.setItems(
+            Object.keys(ENEMIES)
+              .filter((k) => (state.bestiary[k] ?? 0) > 0)
+              .map((k) => ({ label: ENEMIES[k]!.name, value: k, right: `×${state.bestiary[k]}` })),
+          );
+          this.beasts.index = 0;
+          this.beasts.scroll = 0;
+          this.mode = 'bestiary';
         }
         else if (v === 'save') {
           this.buildSaveList();
@@ -179,6 +195,11 @@ export class MenuScene extends Scene<MenuResult> {
           sfx('cancel');
           this.mode = 'pickMember';
         }
+        break;
+      }
+      case 'bestiary': {
+        const r = this.beasts.update(inp);
+        if (r === 'cancel') this.mode = 'main';
         break;
       }
       case 'combos': {
@@ -389,6 +410,10 @@ export class MenuScene extends Scene<MenuResult> {
       this.renderCombos(ctx);
       return;
     }
+    if (this.mode === 'bestiary') {
+      this.renderBestiary(ctx);
+      return;
+    }
     // Main command column
     drawWindow(ctx, 8, 8, 92, this.main.items.length * 11 + 14, { title: 'MENU' });
     this.main.render(ctx, 15, 15, 82, this.mode === 'main');
@@ -584,6 +609,38 @@ export class MenuScene extends Scene<MenuResult> {
       const col = i < 9 ? 0 : 1;
       drawText(ctx, `${ab.kind === 'tech' ? '•' : '★'} ${ab.name}`, 240 + col * 110, 137 + (i % 9) * 11, { color: ab.kind === 'tech' ? '#d0f4ff' : '#ffe8b0' });
     });
+  }
+
+  /** Every enemy the crew has beaten: what it looks like, what hurts it, and field notes. */
+  private renderBestiary(ctx: Ctx): void {
+    const n = Object.keys(ENEMIES).filter((k) => !ENEMIES[k]!.boss || (state.bestiary[k] ?? 0) > 0).length;
+    drawWindow(ctx, 8, 8, 150, H - 16, { title: `BESTIARY ${this.beasts.items.length}/${n}`, accent: UI.amber });
+    this.beasts.render(ctx, 16, 24, 136, true, 'Nothing logged yet. Win a fight.');
+    const cur = this.beasts.current;
+    const x = 164, w = W - x - 8;
+    drawWindow(ctx, x, 8, w, H - 16, { plain: true });
+    if (!cur) return;
+    const e = ENEMIES[cur.value]!;
+    const kills = state.bestiary[e.id] ?? 0;
+    // Portrait box with the battle sprite, as large as whole pixels allow.
+    const art = enemyArt(e.sprite).canvas;
+    const box = { x: x + 8, y: 16, w: 120, h: 104 };
+    ctx.fillStyle = '#0c0b14';
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    const k = Math.max(1, Math.min(2, Math.floor(Math.min(box.w / art.width, box.h / art.height))));
+    ctx.drawImage(art, Math.round(box.x + (box.w - art.width * k) / 2), Math.round(box.y + box.h - art.height * k - 4), art.width * k, art.height * k);
+    const tx = box.x + box.w + 10;
+    drawText(ctx, e.name, tx, 18, { color: e.boss ? UI.amber : UI.cyan });
+    drawText(ctx, FAMILY_NAME[e.family] ?? e.family, tx, 30, { color: UI.dim });
+    drawText(ctx, `Defeated ×${kills}`, tx, 44);
+    // HP becomes known after a few kills.
+    drawText(ctx, kills >= 3 ? `HP ${e.hp}` : 'HP ???', tx, 56, { color: kills >= 3 ? UI.text : UI.disabled });
+    const seen = state.weakSeen[e.id] ?? [];
+    drawText(ctx, 'Weak to', tx, 72, { color: UI.dim });
+    drawText(ctx, seen.length ? seen.map((el) => el.toUpperCase()).join(' ') : 'unknown', tx, 84, { color: seen.length ? UI.amber : UI.disabled });
+    drawDivider(ctx, x + 6, 128, w - 12);
+    drawParagraph(ctx, e.lore, x + 10, 136, w - 20, { color: '#d0cee4', lineH: 11 });
+    drawParagraph(ctx, 'Weaknesses are logged when a hit lands weak, or when Hex runs Analyze.', x + 10, H - 34, w - 20, { color: UI.dim, lineH: 10 });
   }
 
   private renderCombos(ctx: Ctx): void {

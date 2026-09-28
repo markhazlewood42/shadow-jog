@@ -23,12 +23,12 @@ export class CharTestScene extends Scene {
         drawText(ctx, id, 4, 6 + row * 66, { color: '#fff' });
         POSES.forEach((p, i) => {
           const fr = b.frames[p];
-          const x = 40 + i * 72, y = 4 + row * 66;
-          ctx.drawImage(fr, x, y, fr.width * 1.2, fr.height * 1.2);
+          const x = 36 + i * 49, y = 4 + row * 66;
+          ctx.drawImage(fr, x, y, fr.width * 0.8, fr.height * 0.8);
           const g = b.glow[p];
           if (g) {
             ctx.globalCompositeOperation = 'lighter';
-            ctx.drawImage(g, x, y, g.width * 1.2, g.height * 1.2);
+            ctx.drawImage(g, x, y, g.width * 0.8, g.height * 0.8);
             ctx.globalCompositeOperation = 'source-over';
           }
           if (row === 0) drawText(ctx, p, x, H - 10, { color: '#aaa' });

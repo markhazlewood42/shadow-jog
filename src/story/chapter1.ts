@@ -15,7 +15,7 @@ export const OBJ = {
   flood: 'Find a way across the flooded junction.',
   deeper: 'Go deeper. Find Annex 7.',
   core: 'Find the data core.',
-  escape: 'Escape Annex 7. Head for the freight lift.',
+  escape: 'Gear up from the Annex armory, then head for the freight lift in the south wing.',
 };
 
 // ------------------------------------------------------------------ opening
@@ -396,7 +396,8 @@ export const cryopod: ScriptFn = async (s) => {
   s.sfx('alert');
   await s.narrate('{r}ALERT. ASSET S-7 CONTAINMENT BREACH. WARDEN PROTOCOL ENGAGED.{/}');
   await s.say('hex', 'WARDEN protocol. That sounds big. Things named "Warden" are always big.', { face: 'surprised' });
-  await s.say('rook', 'Freight lift. East wing. Move.');
+  await s.say('rook', 'Freight lift. South, through the containment door. Move.');
+  await s.say('hex', 'One stop first: that armory by the hall had weapon cases. Whatever WARDEN is, I want to meet it holding something better.');
   s.objective(OBJ.escape);
 };
 

@@ -66,7 +66,7 @@ export const ITEMS: Record<string, ItemDef> = {
   razor_tekko: I({ id: 'razor_tekko', name: 'Razor Tekko', kind: 'weapon', slot: 'weapon', who: ['kit'], price: 380, atk: 12, crit: 12, desc: 'Bladed knuckle-dusters. Lighter than Shock Knuckles, but +12% critical.' }),
   old_katana: I({ id: 'old_katana', name: 'Old Katana', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 40, atk: 10, desc: 'Rook\'s blade. Nicked, never dull.' }),
   vibro_katana: I({ id: 'vibro_katana', name: 'Vibro-Katana', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 420, atk: 17, desc: 'Ultrasonic edge.' }),
-  nodachi: I({ id: 'nodachi', name: 'Nodachi', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 520, atk: 21, agi: -3, desc: 'A two-meter field sword. Hits like a truck, swings like one. -3 AGI.' }),
+  nodachi: I({ id: 'nodachi', name: 'Nodachi', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 480, atk: 19, crit: 10, agi: -2, desc: 'A two-meter field sword. Slower than a katana, but its reach finds gaps: +10% critical, -2 AGI.' }),
   mono_katana: I({ id: 'mono_katana', name: 'Mono-Katana', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 1150, atk: 25, crit: 5, desc: 'Monomolecular edge. Cuts steel. +5% critical.' }),
   holdout: I({ id: 'holdout', name: 'Hold-out Pistol', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 30, atk: 5, desc: 'Fits in a boot. Barely a gun.' }),
   heavy_pistol: I({ id: 'heavy_pistol', name: 'Heavy Pistol', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 200, atk: 11, desc: 'Solid stopping power.' }),
@@ -88,7 +88,7 @@ export const ITEMS: Record<string, ItemDef> = {
   // ------------------------------------------------------------------ head
   bandana: I({ id: 'bandana', name: 'Bandana', kind: 'head', slot: 'head', who: ALL, price: 15, def: 1, desc: 'Keeps the rain out of your eyes.' }),
   helmet: I({ id: 'helmet', name: 'Riot Helmet', kind: 'head', slot: 'head', who: ['kit', 'rook'], price: 150, def: 5, agi: -1, desc: 'Scuffed police surplus. -1 AGI.' }),
-  tac_visor: I({ id: 'tac_visor', name: 'Tactical Visor', kind: 'head', slot: 'head', who: ALL, price: 280, def: 3, hit: 8, immune: ['blind'], desc: '+8% hit. Immune to blindness.' }),
+  tac_visor: I({ id: 'tac_visor', name: 'Tactical Visor', kind: 'head', slot: 'head', who: ALL, price: 280, def: 3, hit: 12, desc: 'Targeting overlay. +3 DEF, +12% hit.' }),
   spirit_band: I({ id: 'spirit_band', name: 'Spirit Band', kind: 'head', slot: 'head', who: ['kit', 'sable'], price: 340, def: 2, mnd: 4, res: 3, desc: '+4 MND, +3 RES.' }),
 
   // ------------------------------------------------------------------ mods (accessories)
@@ -101,7 +101,7 @@ export const ITEMS: Record<string, ItemDef> = {
   ghost_lens: I({ id: 'ghost_lens', name: 'Ghost Lens', kind: 'mod', slot: 'mod', who: ALL, price: 420, res: 6, mnd: 3, desc: 'A cracked monocle that sees a little too much. +6 RES, +3 MND.' }),
   adrenal_pump: I({ id: 'adrenal_pump', name: 'Adrenal Pump', kind: 'mod', slot: 'mod', who: ALL, price: 620, regen: 4, desc: 'Regenerate 4% HP each round.' }),
   spirit_fetish: I({ id: 'spirit_fetish', name: 'Spirit Fetish', kind: 'mod', slot: 'mod', who: ALL, price: 300, res: 7, immune: ['poison'], desc: '+7 RES. Immune to poison.' }),
-  cyber_eye: I({ id: 'cyber_eye', name: 'Cyber Eye', kind: 'mod', slot: 'mod', who: ALL, price: 320, hit: 10, immune: ['blind'], desc: '+10% hit. Immune to blindness.' }),
+  cyber_eye: I({ id: 'cyber_eye', name: 'Cyber Eye', kind: 'mod', slot: 'mod', who: ALL, price: 320, crit: 6, immune: ['blind'], desc: 'Flare-damped optics. Immune to blindness, +6% critical.' }),
 
   // ------------------------------------------------------------------ key items
   coprocessor: I({ id: 'coprocessor', name: 'Stingray Coprocessor', kind: 'key', price: 0, desc: 'A decker-grade coprocessor, still in anti-static wrap. For Hex.' }),

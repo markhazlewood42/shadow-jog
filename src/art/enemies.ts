@@ -102,6 +102,20 @@ const HUMANS: Record<string, () => EnemyArt> = {
         p.rect(21, 30, 2, 2, '#c8ccd8');
       },
     ),
+  medic: () =>
+    rigArt(
+      { skin: '#d8a47e', hair: '#e8452e', hairStyle: 'bun', top: '#c8c4bc', sleeves: '#c8c4bc', inner: '#3a2a2a', accent: '#e8452e', pants: '#3a3448', boots: '#1a1418', accessories: ['goggles'], goggles: '#2a2838' },
+      (p) => {
+        face(p, { brows: 'flat', mouth: 'line' });
+        // Red-cross armband and a battered med bag on the hip.
+        p.rect(7, 19, 2, 2, '#e8452e');
+        p.set(7, 20, '#ffffff');
+        p.rect(20, 23, 5, 4, '#4a3a30');
+        p.rect(21, 24, 3, 1, '#e8452e');
+        p.set(22, 23, '#e8452e');
+        p.set(22, 25, '#e8452e');
+      },
+    ),
   slinger: () =>
     rigArt(
       { skin: '#d8a47e', hair: '#1a1418', hairStyle: 'hood', top: '#2f5a3a', inner: '#1a2a1e', accent: '#ffcc3d', pants: '#3a3448', boots: '#1a1418', accessories: ['mask'], goggles: '#1a1a22' },

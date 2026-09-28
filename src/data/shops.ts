@@ -50,7 +50,7 @@ export const SHOPS: Record<string, ShopDef> = {
     id: 'fence', name: 'WIRE’S STASH', keeper: 'Wire', accent: '#ff4fb0',
     greeting: 'Runners get runner prices. Everyone else gets shot. You look like runners.',
     thanks: 'Pleasure. Don’t tell anyone where I sleep.',
-    items: ['trauma_patch', 'neurotab', 'adrenal_stim', 'omni_patch', 'toxin_dart', 'mono_claws', 'ballistic_vest', 'formfit', 'cyber_eye', 'reflex_booster'],
+    items: ['trauma_patch', 'neurotab', 'adrenal_stim', 'omni_patch', 'toxin_dart', 'mono_claws', 'taser_pistol', 'ballistic_vest', 'formfit', 'cyber_eye', 'reflex_booster'],
   },
   automat: {
     id: 'automat', name: 'TRANSIT AUTOMAT', keeper: 'Automat', accent: '#3fe0f0',

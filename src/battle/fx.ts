@@ -231,13 +231,27 @@ export class FxLayer {
         each((t, i) => {
           const shots = id === 'shot' ? 1 : 3;
           for (let k = 0; k < shots; k++) {
+            const d = i * 2 + k * 3;
             const tt = { x: t.x + this.rng.range(-5, 5), y: t.y + this.rng.range(-6, 6) };
-            this.tracer(from, tt, '#ffe07a', i * 2 + k * 3);
-            this.burst(tt, '#ffe07a', 4, 1.4, i * 2 + k * 3 + 3, 10);
+            // Muzzle flash: a hot star at the barrel for each shot.
+            this.s(4, (ctx, kk) => {
+              const r = 4 * (1 - kk) + 1;
+              ctx.globalAlpha = 1 - kk * 0.6;
+              ctx.fillStyle = '#fff4c0';
+              ctx.fillRect(Math.round(from.x - r), Math.round(from.y - 12), Math.round(r * 2), 1);
+              ctx.fillRect(Math.round(from.x), Math.round(from.y - 12 - r), 1, Math.round(r * 2));
+              ctx.fillStyle = '#ffb040';
+              ctx.fillRect(Math.round(from.x - 1), Math.round(from.y - 13), 3, 3);
+              ctx.globalAlpha = 1;
+            }, d);
+            this.tracer(from, tt, '#ffe07a', d);
+            // Impact: white pop, spark spray and a little dust.
+            this.ring(tt, '#ffffff', 1, 5, 6, d + 3, 1);
+            this.burst(tt, '#ffe07a', 6, 1.8, d + 3, 12);
+            this.burst(tt, '#8a8490', 3, 0.6, d + 4, 18);
           }
         });
-        this.burst(from, '#ffffff', 5, 1, 0, 6);
-        return { impact: 5, total: 18 };
+        return { impact: 5, total: 20 };
       case 'palm':
       case 'coil':
         each((t) => {
