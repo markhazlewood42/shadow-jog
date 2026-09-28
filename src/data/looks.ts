@@ -15,6 +15,8 @@ export const LOOKS = {
     top: '#4d5238', coat: '#4d5238', inner: '#23232e', accent: '#b58a4a',
     pants: '#2a2a33', boots: '#1c1a22', cyberArm: 'right',
     accessories: ['shades', 'beard'], goggles: '#1a1822', visor: '#ffb13d',
+    // The katana on his back: the hilt over his shoulder is how you spot Rook in a crowd.
+    carry: 'katana',
   },
   hex: {
     body: 'short', skin: '#f0c7a4', hair: '#2fbfb0', hairStyle: 'bun',
@@ -23,6 +25,8 @@ export const LOOKS = {
     accessories: ['goggles'], goggles: '#3b3448', visor: '#3fe0f0',
     // Talks with her whole face.
     mouth: 'grin', brows: 'thick',
+    // Her deck rides on her back, its whip antenna up over her head.
+    carry: 'antenna',
   },
   sable: {
     body: 'big', skin: '#8a9a6a', hair: '#e8e4da', hairStyle: 'long',
@@ -30,6 +34,8 @@ export const LOOKS = {
     pants: '#4a3a30', boots: '#2a2020', accessories: ['tusks'],
     // Half-lidded, far away; gold eyes, and the tusks do the talking.
     eyeShape: 'narrow', eyes: '#c9a040', mouth: 'none',
+    // The staff she walks with, taller than she is, feathers under its head.
+    carry: 'staff',
   },
   pale: {
     skin: '#eadbd0', hair: '#dcd8cf', hairStyle: 'slick',

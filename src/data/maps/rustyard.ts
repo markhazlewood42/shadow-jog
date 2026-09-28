@@ -39,7 +39,7 @@ export const rustyard: MapDef = {
   town: true,
   terrain: g.rows(),
   legend: { J: 'junk', d: 'dirt', r: 'rubble', K: 'floor_concrete' },
-  ambient: '#56507a',
+  ambient: '#605a86',
   weather: 'rain',
   music: 'rustyard',
   battleBg: 'rustyard',

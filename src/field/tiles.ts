@@ -252,6 +252,34 @@ const rubble: Painter = (_lx, _ly, wx, wy) => {
   return h < 0.06 ? P.rubbleL : lerpC(P.rubble, P.dirt, 0.45);
 };
 
+/**
+ * The Barrens' ruins at world scale: the footprints of buildings that came down. Each 48px lot
+ * holds one (or stands empty): wall stubs, lit on top, broken where the noise says so, round a
+ * darker floor slab, with the rubble spilling out through the gaps. Structure you can read from
+ * the road, where plain rubble reads as empty ground.
+ */
+const RUIN_TOP = C('#9a94a4'), RUIN_FACE = C('#4a4552'), RUIN_SLAB = C('#24222c');
+const wRuins: Painter = (lx, ly, wx, wy, tx, ty, q) => {
+  const base = rubble(lx, ly, wx, wy, tx, ty, q);
+  const L = 48;
+  const lx0 = Math.floor(wx / L), ly0 = Math.floor(wy / L);
+  const lot = hash2(lx0, ly0, 301);
+  if (lot < 0.2) return base;
+  const px = wx - lx0 * L, py = wy - ly0 * L;
+  const x0 = 4 + Math.floor(hash2(lx0, ly0, 302) * 8), y0 = 4 + Math.floor(hash2(lx0, ly0, 303) * 8);
+  const x1 = L - 5 - Math.floor(hash2(lx0, ly0, 304) * 8), y1 = L - 5 - Math.floor(hash2(lx0, ly0, 305) * 8);
+  if (px < x0 || px > x1 || py < y0 || py > y1) return base;
+  const wallX = px <= x0 + 1 || px >= x1 - 1, wallY = py <= y0 + 1 || py >= y1 - 1;
+  if (wallX || wallY) {
+    if (valueNoise(wx / 7, wy / 7, 306) < 0.36) return lerpC(base, RUIN_SLAB, 0.25);
+    // The top course catches the light; the rest is face.
+    return (wallY && py <= y0) || (wallX && px <= x0) ? RUIN_TOP : RUIN_FACE;
+  }
+  // Inside: the slab, darkest in the lee of the north and west walls.
+  const lee = py <= y0 + 4 || px <= x0 + 3;
+  return lerpC(base, RUIN_SLAB, lee ? 0.7 : 0.5);
+};
+
 /** Heaped scrap: solid junk walls (Rustyard). Face shading where open ground is below. */
 const JUNK_COLS: RGB[] = [C('#3a3d4a'), C('#4a4e5c'), C('#5a3e30'), C('#6a4a36'), C('#2a2c36'), C('#5a5f70'), C('#7a5a3a')];
 const junk: Painter = (lx, ly, wx, wy, tx, ty, q) => {
@@ -692,7 +720,7 @@ export const PAINTERS: Record<TerrainId, Painter> = {
   lab_door: labDoor,
   lab_laser: labLaser,
   lab_laser_off: labLaserOff,
-  w_ruins: rubble, w_road: wRoad, w_barrens: wBarrens, w_toxic: wToxic, w_park: grass, w_highway: wHighway,
+  w_ruins: wRuins, w_road: wRoad, w_barrens: wBarrens, w_toxic: wToxic, w_park: grass, w_highway: wHighway,
   w_bridge: bridge, w_block: wBlock,
 };
 

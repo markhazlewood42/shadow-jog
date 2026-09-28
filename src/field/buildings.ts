@@ -132,6 +132,16 @@ function paintRoof(b: BakeCtx, def: BuildingDef, x: number, y: number, w: number
       }
     }
   }
+  // Workshops are roofed in corrugated sheet: ribs, and a lighter crest on each.
+  const industrial = def.style === 'shanty' || def.style === 'metal';
+  if (industrial) {
+    for (let px = 0; px < w; px += 4) {
+      g.fillStyle = shade(col.roof, -0.2);
+      g.fillRect(x + px, y, 1, h);
+      g.fillStyle = shade(col.roof, 0.12);
+      g.fillRect(x + px + 2, y, 1, h);
+    }
+  }
   // Parapet
   g.fillStyle = col.parapet;
   g.fillRect(x, y, w, 3);
@@ -167,7 +177,7 @@ function paintRoof(b: BakeCtx, def: BuildingDef, x: number, y: number, w: number
 
   // Clutter
   const area = (w * h) / 256;
-  const n = Math.max(1, Math.round(area * 0.7));
+  const n = Math.max(1, Math.round(area * (industrial ? 0.25 : 0.7)));
   const placed: [number, number, number, number][] = [];
   const free = (px: number, py: number, pw: number, ph: number) =>
     placed.every(([a, bb, c, d]) => px + pw + 2 < a || a + c + 2 < px || py + ph + 2 < bb || bb + d + 2 < py);
@@ -317,7 +327,10 @@ function paintWindow(b: BakeCtx, x: number, y: number, rng: Rng, style: Building
   g.fillRect(x - 1, y - 1, 10, 10);
   const roll = rng.next();
   let col: string | null = null;
-  if (roll < 0.36) col = WARM;
+  // Workshops and yards keep one light: warm or dark, so the frontage reads as one business
+  // instead of a strip of colour swatches.
+  if (style === 'shanty' || style === 'metal') col = roll < 0.4 ? WARM : null;
+  else if (roll < 0.36) col = WARM;
   else if (roll < 0.5) col = COOL;
   else if (roll < 0.58) col = rng.chance(0.5) ? PINK : VIOLET;
   if (col) {

@@ -271,7 +271,7 @@ export const dock: MapDef = {
   kind: 'town',
   terrain: dg.rows(),
   legend: {},
-  ambient: '#3a3a6a',
+  ambient: '#46467a',
   weather: 'rain',
   music: 'tension',
   space: 'hall', // open air under the cranes, whatever room the cue came from

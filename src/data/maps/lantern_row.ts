@@ -37,7 +37,7 @@ export const lanternRow: MapDef = {
   town: true,
   terrain: g.rows(),
   legend: {},
-  ambient: '#3c4072',
+  ambient: '#4a4e84',
   weather: 'rain',
   music: 'town',
   structures: [

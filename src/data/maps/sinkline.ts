@@ -47,7 +47,7 @@ export const sinkline1: MapDef = {
   kind: 'dungeon',
   terrain: g.rows(),
   legend: { X: 'd_wall', '.': 'd_floor', t: 'd_track', w: 'd_shallow', '~': 'd_water', '=': 'd_catwalk', '+': 'grate' },
-  ambient: '#4a5680',
+  ambient: '#56628e',
   weather: 'drip',
   music: 'dungeon',
   battleBg: 'sewer',
@@ -121,6 +121,17 @@ export const sinkline1: MapDef = {
     { kind: 'body', x: 12, y: 19, color: '#4a2a2a' },
     { kind: 'body', x: 14, y: 17, color: '#34344a' },
     { kind: 'crates', x: 22, y: 20 },
+    // Wire's corner of the concourse: a fire, a bed, the stuff he's salvaged.
+    { kind: 'firebarrel', x: 14, y: 5 },
+    { kind: 'bedroll', x: 17, y: 6, pass: true },
+    { kind: 'crates', x: 13, y: 6 },
+    // The platform, where the '61 crowd was waiting: a dropped bag, a fallen timetable, a body
+    // nobody came back for, cases bobbing in the track water.
+    { kind: 'trash', x: 6, y: 8 },
+    { kind: 'body', x: 10, y: 9, color: '#3a3848' },
+    { kind: 'sign_board', x: 20, y: 8 },
+    { kind: 'barrel', x: 9, y: 12, color: '#3a4a5a', pass: true },
+    { kind: 'barrel', x: 25, y: 12, color: '#5a3a2a', pass: true },
     { kind: 'barrel', x: 15, y: 31, color: '#3a5a4a' },
     { kind: 'barrel', x: 3, y: 31, color: '#3a5a4a' },
     { kind: 'ladder', x: 44, y: 30 },
@@ -191,6 +202,7 @@ export const sinkline1: MapDef = {
     },
   ],
   lights: [
+    { x: 14, y: 5, r: 50, color: '#ff9a4a', i: 0.6, flicker: true },
     { x: 6, y: 3, r: 60, color: '#b8d8ff', i: 0.5, flicker: true },
     { x: 14, y: 3, r: 50, color: '#3fe0f0', i: 0.5 },
     { x: 8, y: 8, r: 55, color: '#ffd07a', i: 0.55, flicker: true },

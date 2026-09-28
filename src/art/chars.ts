@@ -49,6 +49,11 @@ export interface CharLook {
   /** Carrying an umbrella: its canopy colour. With `umbrellaClear`, a clear canopy and a neon rim. */
   umbrella?: string;
   umbrellaClear?: boolean;
+  /**
+   * Something carried that changes the silhouette at play scale, rising above the head: a katana
+   * on the back, a staff in hand, a deck's whip antenna.
+   */
+  carry?: 'katana' | 'staff' | 'antenna';
 }
 
 export interface CharSprite {
@@ -832,13 +837,17 @@ function crossArms(rows: string[]): void {
     if (!r || r[x] === undefined) return;
     rows[y] = r.slice(0, x) + ch + r.slice(x + 1);
   };
-  for (let x = 4; x <= 7; x++) set(15, x, 'j');
-  for (let x = 8; x <= 11; x++) set(15, x, 'k');
-  set(16, 4, 'o');
-  set(16, 11, 'n');
+  // A shadow line where the folded arms meet the chest, then the forearms, one over the other,
+  // each hand tucked at the far elbow (skin against cloth is what reads at play size).
+  for (let x = 4; x <= 11; x++) set(13, x, 'T');
+  for (let x = 4; x <= 11; x++) set(14, x, x < 8 ? 'k' : 'j');
+  for (let x = 4; x <= 11; x++) set(15, x, x < 8 ? 'j' : 'k');
+  set(14, 11, 'o');
+  set(15, 4, 'n');
+  // Below the elbows the sides are empty: the silhouette narrows at the waist.
   for (const y of [16, 17]) {
-    if (rows[y]?.[3] !== '.') set(y, 3, '.');
-    if (rows[y]?.[12] !== '.') set(y, 12, '.');
+    set(y, 3, '.');
+    set(y, 12, '.');
   }
 }
 
@@ -912,6 +921,69 @@ function withUmbrella(fr: HTMLCanvasElement, look: CharLook): HTMLCanvasElement 
   return s.canvas;
 }
 
+/** Rows added above a frame for a carried thing that rises past the head. */
+const HEADROOM = 5;
+
+/**
+ * A frame with its carried thing. Frames are the 16×24 rig plus a 1px outline (18×26); the
+ * frame is drawn HEADROOM rows down. Things worn on the back go behind the body facing us and on
+ * top of it seen from behind; a staff is held in the right hand, in front.
+ */
+function withCarry(fr: HTMLCanvasElement, carry: NonNullable<CharLook['carry']>, dir: Dir): HTMLCanvasElement {
+  const s = surface(fr.width, fr.height + HEADROOM);
+  const c = s.ctx;
+  const O = HEADROOM;
+  const flip = (x: number) => (dir === 'right' ? fr.width - 1 - x : x);
+  const dot = (x: number, y: number, col: string) => {
+    c.fillStyle = col;
+    c.fillRect(flip(x), y, 1, 1);
+  };
+  /** A 1px line with a dark edge on its left, so it reads against anything. */
+  const line = (x0: number, y0: number, x1: number, y1: number, col: (i: number, n: number) => string) => {
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let i = 0; i <= n; i++) {
+      const x = Math.round(x0 + ((x1 - x0) * i) / n), y = Math.round(y0 + ((y1 - y0) * i) / n);
+      dot(x - 1, y, '#0c0b12');
+      dot(x, y, col(i, n));
+    }
+  };
+  const katana = () => {
+    // Scabbard low, hilt high: lacquer, a gold guard, the wrapped grip.
+    // The grip is a pale cord wrap in bands, so it reads against dark hair and a dark coat.
+    const col = (i: number, n: number) => (i > n - 4 ? (i % 2 ? '#c8b894' : '#6a5a44') : i === n - 4 ? '#f0c860' : '#1c1a22');
+    if (dir === 'down') line(9, O + 20, 15, O + 1, col);
+    else if (dir === 'up') line(13, O + 21, 4, O + 2, col);
+    else line(13, O + 22, 14, O + 0, col);
+  };
+  const staff = () => {
+    const x = dir === 'down' ? 3 : dir === 'up' ? 15 : 6;
+    line(x, O + 24, x, O - 3, (i, n) => (i > n - 2 ? '#d9b36c' : '#6a4a30'));
+    // Crow feathers bound under the head of the staff.
+    dot(x - 1, O - 1, '#1a1418');
+    dot(x + 1, O, '#1a1418');
+    dot(x + 1, O + 1, '#2a2430');
+  };
+  const antenna = () => {
+    const x = dir === 'down' ? 13 : dir === 'up' ? 11 : 12;
+    if (dir === 'up') {
+      c.fillStyle = '#0c0b12';
+      c.fillRect(5, O + 13, 8, 6);
+      c.fillStyle = '#2a2438';
+      c.fillRect(6, O + 14, 6, 4);
+      c.fillStyle = '#3fe0f0';
+      c.fillRect(10, O + 15, 1, 1);
+    }
+    line(x, O + 13, x, O - 4, () => '#4a4458');
+    dot(x, O - 4, '#3fe0f0');
+  };
+  const draw = { katana, staff, antenna }[carry];
+  const onTop = carry === 'staff' || dir === 'up';
+  if (!onTop) draw();
+  c.drawImage(fr, 0, O);
+  if (onTop) draw();
+  return s.canvas;
+}
+
 export function buildChar(look: CharLook): CharSprite {
   const key = JSON.stringify(look);
   const hit = cache.get(key);
@@ -932,6 +1004,8 @@ export function buildChar(look: CharLook): CharSprite {
     frames.right.push(paint(flipped, palette(look, 'right')));
   }
   if (look.umbrella) for (const d of Object.keys(frames) as Dir[]) frames[d] = frames[d].map((fr) => withUmbrella(fr, look));
+  const carry = look.carry;
+  if (carry) for (const d of Object.keys(frames) as Dir[]) frames[d] = frames[d].map((fr) => withCarry(fr, carry, d));
   const w = frames.down[0]!.width;
   const h = frames.down[0]!.height;
   const sprite: CharSprite = { frames, w, h, ax: Math.floor(w / 2), ay: h - 2 };
