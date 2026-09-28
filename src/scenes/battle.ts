@@ -5,7 +5,7 @@ import { battleBg, type BattleBg } from '../art/battlebg';
 import { enemyArt, type EnemyArt } from '../art/enemies';
 import { music } from '../audio/music';
 import { sfx } from '../audio/sfx';
-import { Battle } from '../battle/engine';
+import { Battle, type Timing, type TimingPrompt } from '../battle/engine';
 import { FxLayer, type Pt } from '../battle/fx';
 import { enemyParty, partyCombatant, writeBack } from '../battle/setup';
 import type { Ability, Combatant, Command, Element } from '../battle/types';
@@ -17,20 +17,22 @@ import { MEMBERS } from '../data/party';
 import { surface, type Ctx, type Surface } from '../engine/canvas';
 import { drawText, fitText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
+import { keyLabel } from '../engine/input';
 import { Rng, streams } from '../engine/rng';
 import { equipRegen, grantXp, knownAbilities, levelProgress, type LevelUp } from '../game/party';
-import { battleSpeed } from '../game/settings';
-import { removeItem, state, type MemberId } from '../game/state';
+import { battleSpeed, settings } from '../game/settings';
+import { flags, removeItem, state, type MemberId } from '../game/state';
 import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../ui/draw';
 import { ListMenu } from '../ui/list';
 import { LEVELUP_TEXT_W, TARGET_INFO_W } from '../ui/layout';
 import { drawVictoryBanner } from './battlekit/banner';
 import { battleDriver } from './battlekit/driver';
+import { TimingWindow, drawRing, timingWord } from './battlekit/timing';
 import { playEvent, type PlaybackView } from './battlekit/playback';
 import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
 import { ShatterIntro } from './battlekit/intro';
-import { ENEMY_POSE_T, RIM, drawBig, drawLag, marked, mirrored, opaqueTop, rimOf, silhouetteCache, variant } from './battlekit/sprites';
+import { DISSOLVE_STEPS, ENEMY_POSE_T, RIM, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, opaqueTop, rimOf, silhouetteCache, variant } from './battlekit/sprites';
 import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_TAG, STATUS_LABEL, groupNames, pickGroup, statusName, summarize } from './battlekit/tables';
 
 export interface BattleSetup {
@@ -97,6 +99,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private waitingConfirm: (() => void) | null = null;
   /** Frames the scene has been waiting on the player (for a registered driver). */
   private idleT = 0;
+  /** The timed press on the action being played (battlekit/timing.ts). */
+  private timing = new TimingWindow();
   private readonly drawOrder: Combatant[] = [];
   /** Portrait cut-ins sliding across the screen for combos and big crits. */
   private cutins: { key: string; face: string; t: number; fromLeft: boolean; life: number }[] = [];
@@ -174,8 +178,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       return;
     }
     sfx('encounter');
-    for (let t = 0; t < 30; t++) {
-      this.introT = t;
+    // The shatter keeps pace with the battle-speed setting, like everything after it.
+    for (let t = 0; t < 30; t += this.speed()) {
+      this.introT = Math.floor(t);
       for (const e of this.battle.enemies) this.d(e.uid).alpha = Math.min(1, t / 20);
       await this.game.wait(1);
     }
@@ -189,6 +194,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   // ------------------------------------------------------------------ command entry
   private startRound(): void {
     if (this.battle.outcome) return;
+    // Initiative for the coming round, rolled now so the order strip shows the real order.
+    this.battle.rollInitiative();
     this.cmds = [];
     this.comboActors.clear();
     this.reserved = {};
@@ -332,6 +339,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   // ------------------------------------------------------------------ update
   update(): void {
     this.frame++;
+    if (this.timing.isOpen && !this.timing.result) {
+      // A registered driver (a test harness) presses on the beat by itself.
+      const auto = battleDriver()?.timing() ?? null;
+      const now = this.game.frame;
+      const pressed = auto ? now === this.timing.impactAt + (auto === 'good' ? -6 : 0) : this.game.input.pressed('confirm');
+      if (pressed) {
+        const r = this.timing.press(now);
+        if (r) this.onTimed(r);
+      }
+    }
     if (this.hitstop > 0) {
       // Freeze-frame on heavy hits: everything holds, the event script waits it out.
       this.hitstop--;
@@ -469,8 +486,19 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   // ------------------------------------------------------------------ execution
   private async executeRound(): Promise<void> {
     this.mode = 'play';
-    const events = this.battle.resolveRound(this.cmds);
-    for (const e of events) await playEvent(this.view, e);
+    for (const e of this.battle.startRound(this.cmds)) await playEvent(this.view, e);
+    // Each action is declared, played up to its hit (a ring closing, if it offers a timed press),
+    // then resolved with how the press landed.
+    for (let step = this.battle.next(); step; step = this.battle.next()) {
+      const mode = settings.timing;
+      this.timing.arm(step.prompt && mode === 'on' ? step.prompt : null);
+      if (this.timing.prompt) this.teachTiming(this.timing.prompt);
+      for (const e of step.events) await playEvent(this.view, e);
+      const grade: Timing = !step.prompt || mode === 'off' ? 'none' : mode === 'assist' ? 'good' : await this.settleTiming();
+      for (const e of this.battle.land(grade)) await playEvent(this.view, e);
+    }
+    for (const e of this.battle.endRound()) await playEvent(this.view, e);
+    this.timing.arm(null);
     await this.w(10);
     // Refresh displayed HP/TP to the authoritative values.
     for (const u of this.battle.units) {
@@ -488,6 +516,36 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     else if (o === 'lose') await this.defeat();
     else if (o === 'fled') await this.fled();
     else this.startRound();
+  }
+
+  /** Wait out the late side of the window (if nobody has pressed yet), then take the grade. */
+  private async settleTiming(): Promise<Timing> {
+    while (this.timing.lateLeft(this.game.frame) > 0) await this.game.wait(1);
+    const g = this.timing.grade();
+    this.timing.disarm();
+    return g;
+  }
+
+  /** The first time each kind of press comes up, say how it works (with the player's own key). */
+  private teachTiming(p: TimingPrompt): void {
+    const flag = p.kind === 'strike' ? 'tut_strike' : 'tut_brace';
+    if (flags.has(flag)) return;
+    flags.set(flag);
+    const code = this.game.input.keysFor('confirm')[0];
+    const key = code ? keyLabel(code) : 'Confirm';
+    this.say(p.kind === 'strike' ? `Press ${key} as the gold ring closes: a harder hit.` : `Press ${key} as the blue ring closes: brace and take less.`);
+  }
+
+  /** A press landed (or whiffed): say so over the target and give it a sound. */
+  private onTimed(r: Timing | 'early' | 'late'): void {
+    const p = this.timing.prompt;
+    if (!p) return;
+    const word = timingWord(p.kind, r);
+    // One word per press: on the struck enemy, or on each member braced.
+    const on = p.kind === 'strike' ? p.targets.slice(0, 1) : p.targets;
+    for (const uid of on) this.floatOn(uid, word.text, word.color, 'label');
+    if (r === 'perfect') sfx(p.kind === 'strike' ? 'timed_perfect' : 'parry');
+    else if (r === 'good') sfx('timed_good');
   }
 
   private pos(uid: number): Pt {
@@ -554,6 +612,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         scene.layoutVersion++;
       },
       comboId: (name) => scene.comboId(name),
+      timingArmed: () => scene.timing.armed && !scene.timing.isOpen,
+      openTiming: (lead) => scene.timing.open(scene.game.frame, lead),
     };
   })();
 
@@ -698,6 +758,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     music('gameover', 0);
     this.say('The crew has fallen…');
     await this.w(hurry ? 2 : 80);
+    // Out to black, not a cut: Game Over fades up from it.
+    await this.game.fadeOut(hurry ? 2 : 40);
     this.writeBack();
     this.close('lose');
   }
@@ -795,6 +857,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     // Foreground framing (rails, cables) over the fighters; FX and numbers stay on top of it.
     if (this.bg.fg) g.drawImage(this.bg.fg, 0, 0);
     this.fx.render(g, (c, ch, x, y, col) => drawText(c, ch, x, y, { color: col, shadow: false }));
+    // A timed press: the ring closing on each target.
+    const tp = this.timing.prompt;
+    if (tp && this.timing.isOpen) {
+      for (const uid of tp.targets) {
+        const p = this.pos(uid);
+        drawRing(g, p.x, p.y, this.game.frame, this.timing);
+      }
+    }
     // Targeting arrows (world space)
     if (this.mode === 'target') {
       const t = this.targetList[this.targetIdx];
@@ -912,11 +982,15 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     let alpha = dd.alpha;
     if (art.idle === 'flicker') alpha *= 0.82 + 0.18 * Math.sin(f * 0.2 + e.uid);
     if (dd.dying > 0) {
-      // Dissolve: shrink vertically and fade with a white flash.
+      // Defeat: a brief white blink over the intact sprite, then it breaks up block by block
+      // from the top, drifting up as it goes.
       const k = Math.min(1, dd.dying / 28);
-      g.globalAlpha = Math.max(0, 1 - k);
-      const hh = Math.round(art.canvas.height * (1 - k * 0.5));
-      g.drawImage(silhouetteCache(canvas, k < 0.3 ? '#ffffff' : '#ff4fb0'), dx, dy + (art.canvas.height - hh), art.canvas.width, hh);
+      const lift = Math.round(k * 4);
+      g.drawImage(dissolved(canvas, Math.min(DISSOLVE_STEPS, Math.floor(k * (DISSOLVE_STEPS + 1)))), dx, dy - lift);
+      if (dd.dying < 6) {
+        g.globalAlpha = 0.5 * (1 - dd.dying / 6);
+        g.drawImage(silhouetteCache(canvas, '#ffffff'), dx, dy - lift);
+      }
       g.globalAlpha = 1;
       return;
     }
@@ -1017,7 +1091,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     }
     if (active && this.mode !== 'target') this.drawArrow(g, p.uid, f, MEMBERS[p.key as MemberId].color);
     if (dd.flash > 0 && dd.flash % 4 < 2) {
-      g.globalAlpha = 0.6;
+      g.globalAlpha = 0.45;
       g.drawImage(silhouetteCache(frame, '#ff5a5a'), x, y);
       g.globalAlpha = 1;
     }
@@ -1176,6 +1250,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         this.renderTargetInfo(ctx);
         break;
     }
+    if (this.mode === 'round' || this.mode === 'command' || this.mode === 'list' || this.mode === 'target') this.renderOrder(ctx);
     this.renderCutins(ctx);
     if (this.bannerStart >= 0) drawVictoryBanner(ctx, this.frame - this.bannerStart);
     if (this.endPanel) this.endPanel(ctx);
@@ -1183,6 +1258,61 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   /** Frame the victory banner started, or -1. */
   private bannerStart = -1;
+
+  /** The coming round's turn order, cached against the orders given so far. */
+  private order: { key: number; list: number[][] } | null = null;
+
+  /** Turn order as it stands: orders given so far, everyone else assumed to attack. */
+  private turnOrder(): number[][] {
+    const key = this.battle.round * 100 + this.cmds.length;
+    if (this.order?.key === key) return this.order.list;
+    const given = new Set(this.cmds.map((c) => c.actor));
+    const rest: Command[] = this.actors().filter((p) => !given.has(p.uid)).map((p) => ({ actor: p.uid, type: 'attack', target: -1 }));
+    const list = this.battle.previewOrder([...this.cmds, ...rest]);
+    this.order = { key, list };
+    return list;
+  }
+
+  /**
+   * The turn-order strip (top left while orders are given): who acts when this round, as faces,
+   * updating as orders go in (Guard goes first, items early, a combo as one). The member giving
+   * orders is outlined; the enemy being aimed at is too.
+   */
+  private renderOrder(ctx: Ctx): void {
+    const list = this.turnOrder();
+    const y = 8;
+    let x = 8;
+    drawText(ctx, 'TURN', x, y + 4, { color: UI.dim });
+    x += measure('TURN') + 5;
+    const acting = this.mode === 'round' ? undefined : this.actor?.uid;
+    const aimed = this.mode === 'target' ? this.targetList[this.targetIdx] : undefined;
+    for (const actors of list) {
+      const w = actors.length * 13 + 1;
+      const lead = this.battle.unit(actors[0]!);
+      if (!lead) continue;
+      const hot = actors.includes(acting ?? -1) || actors.includes(aimed ?? -1);
+      const edge = actors.length > 1 ? '#ffe07a' : lead.side === 'party' ? MEMBERS[lead.key as MemberId].color : '#ff6a6a';
+      ctx.fillStyle = hot ? '#ffffff' : edge;
+      ctx.fillRect(x - 1, y - 1, w + 2, 16);
+      ctx.fillStyle = '#0a0913';
+      ctx.fillRect(x, y, w, 14);
+      actors.forEach((uid, i) => {
+        const u = this.battle.unit(uid);
+        if (!u) return;
+        const img = u.side === 'party' ? getPortrait(u.key, 'neutral') : enemyThumb(enemyArt(ENEMIES[u.key]!.sprite).canvas);
+        if (img) ctx.drawImage(img, x + 1 + i * 13, y + 1, 12, 12);
+        // Two of a kind: which one (their squad number, as marked on them).
+        const dup = u.side === 'enemy' ? this.dupIndex(u) : 0;
+        if (dup) drawText(ctx, String(dup + 1), x + i * 13 + 9, y + 6, { color: '#ffffff' });
+      });
+      if (hot) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x + Math.floor(w / 2) - 1, y + 16, 3, 1);
+        ctx.fillRect(x + Math.floor(w / 2), y + 17, 1, 1);
+      }
+      x += w + 4;
+    }
+  }
 
 
   private renderCutins(ctx: Ctx): void {

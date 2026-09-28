@@ -184,6 +184,14 @@ test('A scene that throws every frame recovers to the title instead of freezing'
   await waitFor(page, 'sj.idle()', 'field after continue');
 });
 
+test('A scene whose drawing throws every frame recovers too', async ({ page }) => {
+  await stage(page, 'town');
+  expect(await sj<boolean>(page, 'sj.save(1)')).toBe(true);
+  await sj(page, "(sj.game.top.render = () => { throw new Error('draw'); }, true)");
+  await waitFor(page, "sj.top() === 'TitleScene'", 'title after render fault');
+  expect((await sj<{ text: string } | null>(page, 'sj.notice()'))?.text).toMatch(/recovered/i);
+});
+
 test('Two tabs on one save: both are warned, and only the first keeps autosaving', async ({ context }) => {
   const a = await context.newPage();
   await a.goto('/?debug');

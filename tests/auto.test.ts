@@ -35,6 +35,21 @@ describe('Auto baseline underperforms a competent player', () => {
   }
 });
 
+describe('timed presses pay, without making the bosses a formality', () => {
+  // A player landing about half their presses (a fifth of them perfect).
+  const hands = { perfect: 0.2, good: 0.3 };
+  for (const [stage, table] of bosses) {
+    it(`${stage}: timing wins more and costs less HP; a boss still isn't a sure thing`, () => {
+      const plain = simulate(stage, STAGE_PARTY[stage]!, table, 200, 5);
+      const timed = simulate(stage, STAGE_PARTY[stage]!, table, 200, 5, true, undefined, hands);
+      expect(timed.wins).toBeGreaterThanOrEqual(plain.wins);
+      expect(timed.hpLostPct).toBeLessThan(plain.hpLostPct - 4);
+      expect(timed.rounds).toBeLessThan(plain.rounds);
+      expect(timed.wins / timed.n).toBeLessThanOrEqual(0.985);
+    });
+  }
+});
+
 describe('reading the tells pays', () => {
   it('the Warden: a crew that braces for the named cannon and wards the scream wins clearly more', () => {
     const reads = simulate('warden', STAGE_PARTY.warden!, 'f_warden', 200, 3);

@@ -304,7 +304,10 @@ export async function runBattle(
       popMusic();
       return 'lose';
     }
-    const choice = await game.run(new GameOverScene(true));
+    // The defeat faded to black; Game Over fades up from it.
+    const over = game.run(new GameOverScene(true));
+    void game.fadeIn(30);
+    const choice = await over;
     if (choice === 'retry') {
       // Rewind to the instant before the fight and try again.
       setState(clone(snapshot));

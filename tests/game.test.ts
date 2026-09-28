@@ -83,6 +83,40 @@ describe('game fault isolation', () => {
     expect(faults).toBe(1);
   });
 
+  it('trips onFault when only render throws, every frame (a frozen picture is a softlock too)', () => {
+    const g = new Game(ctx, input);
+    let faults = 0;
+    g.onFault = () => {
+      faults++;
+      g.abandon();
+    };
+    const s = new Faulty(() => false, true);
+    void g.run(s);
+    for (let i = 0; i < FAULT_LIMIT - 1; i++) {
+      g.tick();
+      g.render();
+    }
+    expect(faults).toBe(0);
+    g.tick();
+    g.render();
+    expect(faults).toBe(1);
+    expect(g.stack.length).toBe(0);
+  });
+
+  it('an intermittent render fault never trips recovery', () => {
+    const g = new Game(ctx, input);
+    let faults = 0;
+    g.onFault = () => faults++;
+    let n = 0;
+    const s = new Faulty(() => false);
+    s.render = () => {
+      if (++n % 2 === 0) throw new Error('every other frame');
+    };
+    void g.run(s);
+    for (let i = 0; i < FAULT_LIMIT * 3; i++) g.render();
+    expect(faults).toBe(0);
+  });
+
   it('abandon() drops scenes and timers without resolving them', async () => {
     const g = new Game(ctx, input);
     let woke = false;

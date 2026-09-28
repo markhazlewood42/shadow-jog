@@ -366,6 +366,16 @@ export class FxLayer {
       this.p({ x: at.x + this.rng.range(-10, 10), y: at.y + this.rng.range(-8, 8), vx: this.rng.range(-0.4, 0.4), vy: -this.rng.range(0.1, 0.5), max: this.rng.int(26, 40), color, kind: 'smoke', size: this.rng.int(3, 6), delay: delay + this.rng.int(0, 8) });
   }
 
+  private static scratch: FxLayer | null = null;
+  /** When `id`'s hit lands, without showing it: the same catalogue runs on a scratch layer. */
+  impactOf(id: string, from: Pt, targets: Pt[], color?: string): number {
+    if (!FxLayer.scratch) FxLayer.scratch = new FxLayer();
+    const s = FxLayer.scratch;
+    const t = s.play(id, from, targets, color);
+    s.clear();
+    return t.impact;
+  }
+
   // ------------------------------------------------------------------ catalogue
   play(id: string, from: Pt, targets: Pt[], color?: string): FxTiming {
     const T = targets.length ? targets : [from];

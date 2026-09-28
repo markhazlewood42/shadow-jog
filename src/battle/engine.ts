@@ -2,6 +2,14 @@
  * Round-based battle resolution (Phantasy Star IV style): all commands are entered, then everyone
  * acts in agility order. `resolveRound` mutates the battle state and returns a list of events that
  * the presentation layer replays. Deterministic for a given RNG seed.
+ *
+ * The scene drives the same round a step at a time: `startRound`, then `next()` declares each
+ * action (who, what, at whom) and `land(timing)` resolves it, so a timed press between the two —
+ * a strike landed on the beat, a blow braced for — can change the hit. `resolveRound` is that loop
+ * with a grader (tests and the balance sim).
+ *
+ * Initiative is rolled when a round's orders open (`rollInitiative`), so the turn order the menu
+ * previews is the order the round plays.
  */
 import { ABILITIES, COMBOS } from '../data/abilities';
 import { ENEMIES, FAMILY_IMMUNE, FAMILY_WEAK, type EnemyDef } from '../data/enemies';
@@ -28,6 +36,26 @@ export interface BattleOpts {
   useItem?: (id: string) => boolean;
   /** Party member regen from equipment (% per round). */
   regen?: Record<number, number>;
+}
+
+/** How well a timed press landed. */
+export type Timing = 'perfect' | 'good' | 'none';
+/** A timed input the declared action offers: strike harder, or brace against the blow. */
+export interface TimingPrompt {
+  kind: 'strike' | 'brace';
+  actor: number;
+  /** The units the ring closes on: the struck enemies, or the party members being hit. */
+  targets: number[];
+}
+/** Damage dealt on a timed strike, and taken on a timed brace. */
+export const STRIKE_MULT: Record<Timing, number> = { perfect: 1.2, good: 1.08, none: 1 };
+export const BRACE_MULT: Record<Timing, number> = { perfect: 0.7, good: 0.85, none: 1 };
+
+interface Declared {
+  actors: Combatant[];
+  ab: Ability;
+  targets: Combatant[];
+  item?: string | undefined;
 }
 
 const BUFF_MULT = 1.3;
@@ -76,6 +104,16 @@ export class Battle {
   /** Combos triggered this battle. */
   combosUsed: string[] = [];
   private ev: BattleEvent[] = [];
+  /** The round's action queue and how far through it we are. */
+  private queue: QueuedAction[] = [];
+  private qi = 0;
+  /** The action `next()` declared and `land()` will resolve. */
+  private declared: Declared | null = null;
+  /** The timed press applying to the damage being resolved now. */
+  private graded: { kind: TimingPrompt['kind']; timing: Timing } | null = null;
+  /** Per-unit initiative factor for round `rolledFor` (±15% on agility). */
+  private initiative = new Map<number, number>();
+  private rolledFor = -1;
 
   /** Side rosters, kept in step with `units` (only summons add to it) so reads never allocate. */
   private partyList: Combatant[];
@@ -169,8 +207,29 @@ export class Battle {
     return out;
   }
 
+  /**
+   * Roll the coming round's initiative (once per round; later calls are no-ops). The scene calls
+   * this when the orders open, so the previewed turn order is the real one.
+   */
+  rollInitiative(): void {
+    const r = this.round + 1;
+    if (this.rolledFor === r) return;
+    this.rolledFor = r;
+    this.initiative.clear();
+    for (const u of this.units) if (u.hp > 0) this.initiative.set(u.uid, this.rng.range(0.85, 1.15));
+  }
+
   private speedOf(u: Combatant, priority = 0): number {
-    return this.eff(u).agi * this.rng.range(0.85, 1.15) + priority;
+    return this.eff(u).agi * (this.initiative.get(u.uid) ?? 1) + priority;
+  }
+
+  /**
+   * Who acts in what order if these orders stand (each entry is one action's actors; a combo is
+   * one entry). Enemies appear as their placeholders. Pure: rolls initiative if it isn't yet.
+   */
+  previewOrder(cmds: Command[]): number[][] {
+    this.rollInitiative();
+    return this.plan(cmds).map((q) => q.actors);
   }
 
   private plan(cmds: Command[]): QueuedAction[] {
@@ -218,23 +277,76 @@ export class Battle {
   }
 
   // ------------------------------------------------------------------ round
-  resolveRound(cmds: Command[]): BattleEvent[] {
+  /** A whole round at once: every timed prompt graded by `time` (none, if absent). */
+  resolveRound(cmds: Command[], time?: (p: TimingPrompt) => Timing): BattleEvent[] {
+    const out = this.startRound(cmds);
+    for (let s = this.next(); s; s = this.next()) {
+      out.push(...s.events, ...this.land(s.prompt && time ? time(s.prompt) : 'none'));
+    }
+    out.push(...this.endRound());
+    return out;
+  }
+
+  /** Begin a round with these orders: an escape attempt, then the action queue. */
+  startRound(cmds: Command[]): BattleEvent[] {
     this.ev = [];
+    this.rollInitiative();
     this.round++;
+    this.queue = [];
+    this.qi = 0;
+    this.declared = null;
     if (cmds.some((c) => c.type === 'run')) {
       if (this.tryRun()) return this.flush();
       // Failed escape: enemies get a free round.
       cmds = [];
     }
-    const queue = this.plan(cmds);
-    for (const act of queue) {
-      if (this.outcome) break;
-      this.execute(act);
-      this.checkOutcome();
+    this.queue = this.plan(cmds);
+    return this.flush();
+  }
+
+  /**
+   * Declare the next action: everything up to the moment it's committed (a stun, an enemy's
+   * choice, its target). Returns its events and the timed prompt it offers, or null when the
+   * round has nothing left to play.
+   */
+  next(): { events: BattleEvent[]; prompt: TimingPrompt | null } | null {
+    if (this.outcome || this.qi >= this.queue.length) return null;
+    this.declare(this.queue[this.qi++]!);
+    return { events: this.flush(), prompt: this.declared ? this.promptFor(this.declared) : null };
+  }
+
+  /** Resolve the declared action, with how the player's timed press landed. */
+  land(timing: Timing = 'none'): BattleEvent[] {
+    const d = this.declared;
+    this.declared = null;
+    if (d) {
+      const p = this.promptFor(d);
+      this.graded = p ? { kind: p.kind, timing } : null;
+      this.applyEffects(d.actors, d.ab, d.targets, d.item);
+      this.graded = null;
     }
+    this.checkOutcome();
+    return this.flush();
+  }
+
+  /** Close the round: damage over time, regen, status timers. */
+  endRound(): BattleEvent[] {
     if (!this.outcome) this.endOfRound();
     this.checkOutcome();
     return this.flush();
+  }
+
+  /** The timed input a declared action offers: a party member's hit, or a blow at the party. */
+  private promptFor(d: Declared): TimingPrompt | null {
+    if (!d.targets.length || !d.ab.effects.some((e) => e.type === 'damage')) return null;
+    const lead = d.actors[0]!;
+    if (lead.side === 'party') {
+      if (d.ab.kind === 'item') return null;
+      const hit = d.targets.filter((t) => t.side === 'enemy');
+      return hit.length ? { kind: 'strike', actor: lead.uid, targets: hit.map((t) => t.uid) } : null;
+    }
+    const hit = d.targets.filter((t) => t.side === 'party');
+    return hit.length ? { kind: 'brace', actor: lead.uid, targets: hit.map((t) => t.uid) } : null;
   }
 
   private flush(): BattleEvent[] {
@@ -301,7 +413,8 @@ export class Battle {
   }
 
   // ------------------------------------------------------------------ execution
-  private execute(act: QueuedAction): void {
+  /** Run an action up to its commitment; a damaging one is left in `declared` for `land()`. */
+  private declare(act: QueuedAction): void {
     const actors = act.actors.map((id) => this.unit(id)).filter((u): u is Combatant => !!u);
     const lead = actors[0];
     if (!lead || actors.length !== act.actors.length) return;
@@ -384,7 +497,7 @@ export class Battle {
       }
       return;
     }
-    this.applyEffects(actors, ab, targets, act.item);
+    this.declared = { actors, ab, targets, item: act.item };
   }
 
   /** A telegraphed attack (turret spin-up, arcanist surge) is lost if its user loses the turn. */
@@ -638,6 +751,12 @@ export class Battle {
     if (this.has(t, 'exposed')) amount *= 1.25;
     // Bracing for a blow you saw coming is the point of the tells: a quarter, not a half.
     if (this.has(t, 'guard')) amount *= ab.telegraphed ? 0.25 : 0.5;
+    // A timed press: a strike landed on the beat bites deeper; a blow braced for on the beat is
+    // turned. Stacks with Guard (bracing twice over is the whole point of reading a tell).
+    if (this.graded) {
+      if (this.graded.kind === 'strike' && t.side === 'enemy') amount *= STRIKE_MULT[this.graded.timing];
+      else if (this.graded.kind === 'brace' && t.side === 'party') amount *= BRACE_MULT[this.graded.timing];
+    }
     const final = mult === 0 ? 0 : Math.max(1, Math.round(amount));
     t.hp = Math.max(0, t.hp - final);
     this.ev.push({ t: 'damage', target: t.uid, amount: final, crit, element, weak: mult > 1 || vented, resist: mult < 1, hp: t.hp });

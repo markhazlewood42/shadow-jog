@@ -16,6 +16,7 @@ import type { BattleEvent, Combatant } from '../../battle/types';
 import type { FxLayer, Pt } from '../../battle/fx';
 import type { Pose } from '../../art/battlers';
 import type { Disp, Floater } from './types';
+import { RING_LEAD } from './timing';
 
 /** What playback may do to the scene. */
 export interface PlaybackView {
@@ -44,11 +45,44 @@ export interface PlaybackView {
   /** The roster changed (a summon, a phase shift): recompute enemy placement. */
   relayout(): void;
   comboId(name: string): string;
+  /** This action offers a timed press whose ring hasn't opened yet. */
+  timingArmed(): boolean;
+  /** Open the ring: it meets its target `lead` real frames from now. */
+  openTiming(lead: number): void;
 }
+
+/**
+ * Wind up, play the move's effect and wait for its hit. With a timed press armed, the windup is
+ * held long enough for the ring to be read (real frames: battle speed can't squeeze the beat) and
+ * the ring closes exactly as the effect lands.
+ */
+async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], windup: number, color?: string): Promise<void> {
+  if (v.timingArmed()) {
+    const impact = v.fx.impactOf(fx, from, to, color);
+    const lead = Math.max(RING_LEAD, windup + impact);
+    v.openTiming(lead);
+    await v.game.wait(lead - impact);
+    v.fx.play(fx, from, to, color);
+    sfx(fxSound(fx));
+    await v.game.wait(impact);
+    return;
+  }
+  await v.w(windup);
+  const timing = v.fx.play(fx, from, to, color);
+  sfx(fxSound(fx));
+  await v.w(timing.impact);
+}
+
+/**
+ * Freeze-frames spent in the current action. A blast that lands heavy on three enemies stops time
+ * once, on the first; the rest ride the shake, so area attacks punch instead of stuttering.
+ */
+let actionStops = 0;
 
 export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> {
   switch (e.t) {
     case 'act': {
+      actionStops = 0;
       const actor = v.battle.unit(e.actor)!;
       v.lastActor = actor;
       const dd = v.d(e.actor);
@@ -69,13 +103,12 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       }
       const cry = e.kind === 'enemy' ? ABILITIES[e.id]?.cry : undefined;
       if (cry) v.say(cry);
-      await v.w(actor.side === 'enemy' ? 12 : e.kind === 'attack' ? 8 : 16);
-      const timing = v.fx.play(e.fx, v.pos(e.actor), e.targets.map((t) => v.pos(t)), e.element === 'shock' ? '#9ae8ff' : undefined);
-      sfx(fxSound(e.fx));
-      await v.w(timing.impact);
+      const windup = actor.side === 'enemy' ? 12 : e.kind === 'attack' ? 8 : 16;
+      await windupAndHit(v, e.fx, v.pos(e.actor), e.targets.map((t) => v.pos(t)), windup, e.element === 'shock' ? '#9ae8ff' : undefined);
       break;
     }
     case 'combo': {
+      actionStops = 0;
       const names = e.actors.map((a) => v.battle.unit(a)!.name).join(' + ');
       const first = !state.combos.includes(v.comboId(e.name));
       if (first) state.combos.push(v.comboId(e.name));
@@ -97,9 +130,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       await v.w(40);
       // The name clears before the hits land, so the numbers never appear under it.
       v.endBanner();
-      const timing = v.fx.play(e.fx, v.pos(e.actors[0]!), e.targets.map((t) => v.pos(t)));
-      sfx(fxSound(e.fx));
-      await v.w(timing.impact);
+      await windupAndHit(v, e.fx, v.pos(e.actors[0]!), e.targets.map((t) => v.pos(t)), 0);
       break;
     }
     case 'damage': {
@@ -131,7 +162,8 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       const share = e.amount / u.base.maxHp;
       const tier = e.crit || share >= 0.4 ? 3 : share >= 0.2 ? 2 : share >= 0.08 ? 1 : 0;
       if (tier) v.game.shake(4 + tier * 3, tier + 1 + (e.crit ? 1 : 0));
-      if (tier >= 2) {
+      if (tier >= 2 && actionStops === 0) {
+        actionStops++;
         await v.hitstop(tier === 3 ? 5 : 3);
       }
       await v.w(14);

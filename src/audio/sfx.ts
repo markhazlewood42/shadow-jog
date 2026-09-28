@@ -186,6 +186,18 @@ const S: Record<string, Maker> = {
     notes(c, 'sine', [1175, 880], 0.12, 0.4, 0.04, o, t + 0.15);
   },
   combo_ready: (c, o, t) => notes(c, 'triangle', [1319, 1760, 2349], 0.04, 0.12, 0.06, o, t),
+  // Timed presses: a bright ping for a perfect strike, a softer one for a good press, and a
+  // metal clang for a perfect brace.
+  timed_perfect: (c, o, t) => {
+    notes(c, 'square', [1760, 2637], 0.035, 0.09, 0.05, o, t);
+    noise(c, t, 0.05, 0.08, o, 'highpass', 5000);
+  },
+  timed_good: (c, o, t) => osc(c, 'triangle', 1568, 1568, t, 0.07, 0.07, o),
+  parry: (c, o, t) => {
+    noise(c, t, 0.12, 0.14, o, 'bandpass', 3200, 2200, 6);
+    osc(c, 'square', 988, 740, t, 0.1, 0.05, o);
+    osc(c, 'triangle', 2960, 2960, t + 0.01, 0.16, 0.04, o);
+  },
   explosion: (c, o, t) => {
     noise(c, t, 1.2, 0.35, o, 'lowpass', 3000, 80);
     osc(c, 'sine', 90, 30, t, 0.8, 0.4, o);
@@ -255,7 +267,7 @@ export function sfx(name: string, pitch = 1): void {
  * under the music.
  */
 const LEVEL: Record<string, number> = {
-  alert: 6.33, beam: 3.29, blip: 25.88, buff: 10.59, bump: 17.59, buy: 2.44, buzz: 8.64, cancel: 4.1, cast: 4.78, cheer: 4.0, chest: 4.2, code: 3.21, combo: 5.15, combo_ready: 3.8, confirm: 3.63, cred: 2.81, crit: 4.06, cursor: 14.49, debuff: 10.64, door: 1.13, emote: 14.64, encounter: 2.79, enemy_act: 20.06, enemy_die: 4.97, equip: 2.62, explosion: 1.73, fire: 4.37, flee: 8.8, gun: 1.14, heal: 2.28, heal_field: 1.81, hit: 11.46, hurt: 9.57, item: 2.3, keyitem: 1.61, ko: 3.42, levelup: 3.38, miss: 30.4, page: 14.06, phase: 1.69, punch: 4.95, revive: 1.55, save: 1.7, slash: 6.45, spirit: 7.38, st_blind: 4.37, st_burn: 3.48, st_jammed: 3.96, st_poison: 2.79, st_stun: 3.42, step: 25.86, step_metal: 11.5, step_soft: 29.37, step_water: 8.87, sting_circuit: 2.31, sting_crow: 3.8, sting_life: 2.34, sting_lock: 4.7, sting_pyre: 3.33, sting_rift: 1.89, sting_ward: 2.46, summon: 7.2, swing: 31.62, tick: 16.78, wave: 9.77, zap: 7.22,
+  alert: 6.33, parry: 2.6, timed_good: 4.5, timed_perfect: 3.2, beam: 3.29, blip: 25.88, buff: 10.59, bump: 17.59, buy: 2.44, buzz: 8.64, cancel: 4.1, cast: 4.78, cheer: 4.0, chest: 4.2, code: 3.21, combo: 5.15, combo_ready: 3.8, confirm: 3.63, cred: 2.81, crit: 4.06, cursor: 14.49, debuff: 10.64, door: 1.13, emote: 14.64, encounter: 2.79, enemy_act: 20.06, enemy_die: 4.97, equip: 2.62, explosion: 1.73, fire: 4.37, flee: 8.8, gun: 1.14, heal: 2.28, heal_field: 1.81, hit: 11.46, hurt: 9.57, item: 2.3, keyitem: 1.61, ko: 3.42, levelup: 3.38, miss: 30.4, page: 14.06, phase: 1.69, punch: 4.95, revive: 1.55, save: 1.7, slash: 6.45, spirit: 7.38, st_blind: 4.37, st_burn: 3.48, st_jammed: 3.96, st_poison: 2.79, st_stun: 3.42, step: 25.86, step_metal: 11.5, step_soft: 29.37, step_water: 8.87, sting_circuit: 2.31, sting_crow: 3.8, sting_life: 2.34, sting_lock: 4.7, sting_pyre: 3.33, sting_rift: 1.89, sting_ward: 2.46, summon: 7.2, swing: 31.62, tick: 16.78, wave: 9.77, zap: 7.22,
 };
 
 /** Every effect's name (the audio evidence measures them all). */

@@ -110,7 +110,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   knuckles: E({
     id: 'knuckles', name: '"Knuckles" Tran', family: 'human', sprite: 'brute', boss: true,
-    hp: 440, atk: 32, def: 11, mnd: 10, res: 8, agi: 11, xp: 130, cred: 300,
+    hp: 485, atk: 32, def: 11, mnd: 10, res: 8, agi: 11, xp: 130, cred: 300,
     drops: [{ id: 'lucky_coin', chance: 1 }],
     moves: [{ id: 'attack', w: 3 }, { id: 'e_haymaker', w: 2 }, { id: 'e_rally', w: 2, when: 'no_atk_buff' }, { id: 'e_pipe_bomb', w: 1.5 }],
     lore: 'Rustfang enforcer. Named for his hands, both of which are chrome.',
@@ -155,7 +155,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   lurker: E({
     id: 'lurker', name: 'The Lurker', family: 'beast', sprite: 'lurker', boss: true, ai: 'lurker',
-    hp: 1500, atk: 43, def: 16, mnd: 32, res: 16, agi: 13, xp: 420, cred: 520,
+    hp: 1720, atk: 46, def: 16, mnd: 32, res: 16, agi: 13, xp: 420, cred: 520,
     // Waterlogged: one clear weakness (shock), and the beast's usual fire weakness drowned out.
     weak: { shock: 1.5, fire: 0.6 }, immune: ['stun'],
     drops: [{ id: 'mana_crystal', chance: 1 }],
@@ -203,7 +203,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   warden: E({
     id: 'warden', name: 'WARDEN', family: 'machine', sprite: 'warden', boss: true, ai: 'warden',
-    hp: 1800, atk: 38, def: 30, mnd: 34, res: 22, agi: 12, xp: 0, cred: 0,
+    hp: 1850, atk: 38, def: 30, mnd: 34, res: 22, agi: 12, xp: 0, cred: 0,
     immune: ['stun', 'jammed', 'hijacked'],
     moves: [{ id: 'attack', w: 1 }, { id: 'e_suppression', w: 3 }],
     lore: 'Annex 7 security platform. Its core runs on something that screams.',
@@ -257,11 +257,13 @@ export const ENCOUNTERS: Record<string, EncounterGroup[]> = {
     // A mixed pack from the flooded platforms: something for every element, and a hunter.
     { w: 2, e: ['sewer_ghoul', 'gutter_eel', 'glowrat'] },
   ],
+  // The last stretch before the Warden: squads, not pairs, so the pressure climbs into the boss
+  // instead of dipping (tests/balance.test.ts checks the Annex costs more than the Sinkline).
   annex: [
-    { w: 3, e: ['km_sentinel', 'km_sentinel'] },
+    { w: 3, e: ['km_sentinel', 'km_sentinel', 'maint_drone'] },
     { w: 2, e: ['km_sentinel', 'km_arcanist'] },
-    { w: 1, e: ['km_sentinel', 'maint_drone'] },
-    { w: 2, e: ['hunter_drone', 'maint_drone'] },
+    { w: 1, e: ['km_sentinel', 'km_sentinel'] },
+    { w: 2, e: ['hunter_drone', 'maint_drone', 'hunter_drone'] },
     { w: 2, e: ['sentry_turret', 'km_sentinel'] },
     { w: 1, e: ['bound_spirit', 'km_sentinel'] },
     { w: 1, e: ['hunter_drone', 'hunter_drone'] },

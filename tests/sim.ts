@@ -1,5 +1,5 @@
 /** Headless combat simulator with a "competent player" policy, for balance checks. */
-import { Battle } from '../src/battle/engine';
+import { Battle, type Timing } from '../src/battle/engine';
 import { enemyParty, partyCombatant } from '../src/battle/setup';
 import type { Combatant, Command } from '../src/battle/types';
 import { ABILITIES } from '../src/data/abilities';
@@ -216,8 +216,20 @@ export function autoPolicy(b: Battle): Command[] {
   return b.alive('party').map((u) => ({ actor: u.uid, type: 'attack' as const, target: -1 }));
 }
 
-export function simulate(label: string, loadout: Loadout[], table: string, n = 200, seed = 1, useCombos = true, pick?: (b: Battle, bag: Bag) => Command[]): SimResult {
+/** How often a player lands timed presses: share perfect, share good (the rest missed). */
+export interface Skill {
+  perfect: number;
+  good: number;
+}
+
+export function simulate(label: string, loadout: Loadout[], table: string, n = 200, seed = 1, useCombos = true, pick?: (b: Battle, bag: Bag) => Command[], skill?: Skill): SimResult {
   const rng = new Rng(seed);
+  // A separate stream for the player's hands, so the same fights play out with and without skill.
+  const hands = new Rng(seed + 7);
+  const time = skill ? (): Timing => {
+    const r = hands.next();
+    return r < skill.perfect ? 'perfect' : r < skill.perfect + skill.good ? 'good' : 'none';
+  } : undefined;
   let wins = 0, rounds = 0, lost = 0, combos = 0, downs = 0;
   const used = new Set<string>();
   const groups = ENCOUNTERS[table]!;
@@ -230,7 +242,7 @@ export function simulate(label: string, loadout: Loadout[], table: string, n = 2
     while (!b.outcome && b.round < 60) {
       const cmds = pick ? pick(b, bag) : policy(b, useCombos, bag);
       for (const c of cmds) if ((c.type === 'tech' || c.type === 'skill') && c.id) used.add(c.id);
-      b.resolveRound(cmds);
+      b.resolveRound(cmds, time);
     }
     for (const c of b.combosUsed) used.add(c);
     if (b.outcome === 'win') wins++;

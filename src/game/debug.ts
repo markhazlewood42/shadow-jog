@@ -34,4 +34,6 @@ export const debugBattleDriver: BattleDriver = {
   // A few real rounds for the camera, then a guaranteed win so the run keeps moving.
   endAsWin: (b) => debug.playtest && (b.outcome === 'lose' || b.round >= PLAYTEST_ROUNDS || b.party.some((p) => p.hp < p.base.maxHp * 0.35)),
   hurry: () => debug.autoBattle || debug.autoLose,
+  // Playtest capture lands its presses, so the screenshots show the ring and its payoff.
+  timing: () => (debug.playtest ? 'perfect' : null),
 };

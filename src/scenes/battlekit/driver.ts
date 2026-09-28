@@ -18,6 +18,8 @@ export interface BattleDriver {
   endAsWin(battle: Battle): boolean;
   /** Skip the results panels and the defeat beats' long waits. */
   hurry(): boolean;
+  /** Press timed prompts by itself: on the beat ('perfect'), a little early ('good'), or not (null). */
+  timing(): 'perfect' | 'good' | null;
 }
 
 let current: BattleDriver | null = null;

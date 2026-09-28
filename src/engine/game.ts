@@ -5,8 +5,9 @@
  * This lets story scripts `await` dialogs, shops and battles linearly.
  *
  * Fault isolation: an exception in one scene's update or render is reported and that scene skips
- * the frame; the loop never dies. A flow that keeps throwing trips `onFault`, which boot uses to
- * abandon it and return to the title.
+ * the frame; the loop never dies. A flow that keeps throwing — in update or in render, counted
+ * separately so one can't mask the other — trips `onFault`, which boot uses to abandon it and
+ * return to the title.
  */
 import type { Ctx } from './canvas';
 import { reportError } from './errors';
@@ -100,6 +101,9 @@ export class Game {
   /** Consecutive ticks in which something threw. */
   private faults = 0;
   private faultedThisTick = false;
+  /** Consecutive renders in which a scene threw (a draw bug can freeze the picture on its own). */
+  private renderFaults = 0;
+  private faultedThisRender = false;
 
   constructor(ctx: Ctx, input: Input) {
     this.ctx = ctx;
@@ -147,6 +151,7 @@ export class Game {
     this.timers = [];
     this.fade = null;
     this.faults = 0;
+    this.renderFaults = 0;
   }
 
   private fault(e: unknown): void {
@@ -283,16 +288,25 @@ export class Game {
       ctx.fillStyle = '#07060d';
       ctx.fillRect(0, 0, W, H);
     }
+    this.faultedThisRender = false;
     for (let i = Math.max(0, start); i < this.stack.length; i++) {
       ctx.save();
       try {
         this.stack[i]!.render(ctx);
       } catch (e) {
-        this.fault(e);
+        if (!this.faultedThisRender) reportError(e);
+        this.faultedThisRender = true;
       }
       ctx.restore();
     }
     ctx.restore();
+    // A scene that throws on every draw leaves the last good frame on screen: to the player, a
+    // freeze. Same limit as update faults, counted per rendered frame.
+    this.renderFaults = this.faultedThisRender ? this.renderFaults + 1 : 0;
+    if (this.renderFaults >= FAULT_LIMIT) {
+      this.renderFaults = 0;
+      this.onFault?.();
+    }
     if (this.flashFrames > 0) {
       ctx.globalAlpha = (this.flashFrames / this.flashTotal) * 0.8;
       ctx.fillStyle = this.flashColor;

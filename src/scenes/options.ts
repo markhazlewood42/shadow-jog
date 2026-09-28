@@ -45,6 +45,14 @@ export class OptionsScene extends Scene<'back' | 'title'> {
         adjust: (d) => (settings.battleSpeed = Math.max(1, Math.min(BATTLE_SPEEDS.length, settings.battleSpeed + d))),
       },
       {
+        // Assist lands every press as a good one, for players who'd rather not play the timing.
+        id: 'timing', label: 'Timed presses', value: () => ({ on: 'On', assist: 'Assist', off: 'Off' })[settings.timing],
+        adjust: (d) => {
+          const modes = ['on', 'assist', 'off'] as const;
+          settings.timing = modes[(modes.indexOf(settings.timing) + d + 3) % 3]!;
+        },
+      },
+      {
         id: 'shake', label: 'Screen shake', value: () => ['Off', 'Gentle', 'Full'][settings.shake] ?? 'Full',
         adjust: (d) => {
           settings.shake = (settings.shake + d + 3) % 3;

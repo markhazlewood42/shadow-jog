@@ -11,9 +11,11 @@ import { COMBOS, LEARNSETS } from '../src/data/abilities';
 
 /**
  * Bosses have a ceiling as well as a floor: a competent (not optimal) player should usually win,
- * but not always; one who never loses isn't being tested.
+ * but not always; one who never loses isn't being tested. The floor is for a player who ignores
+ * the timed presses; the ceiling for one who lands about a third of them (TIMED_HANDS).
  */
 const BOSS_WIN_MAX = 0.93;
+const TIMED_HANDS = { perfect: 0.1, good: 0.25 };
 const stages: { label: string; stage: string; table: string; win: number; rounds: [number, number]; hp: [number, number] }[] = [
   { label: 'street  (opening)', stage: 'street', table: 'street', win: 0.97, rounds: [1.5, 5], hp: [5, 40] },
   { label: 'barrens (to Rustyard)', stage: 'barrens', table: 'barrens', win: 0.95, rounds: [1.5, 5], hp: [8, 45] },
@@ -25,9 +27,14 @@ const stages: { label: string; stage: string; table: string; win: number; rounds
 ];
 
 describe('balance', () => {
-  const results = stages.map((s) => ({ s, r: simulate(s.label, STAGE_PARTY[s.stage]!, s.table, s.table.startsWith('f_') ? 120 : 240) }));
+  const results = stages.map((s) => {
+    const boss = s.table.startsWith('f_');
+    const r = simulate(s.label, STAGE_PARTY[s.stage]!, s.table, boss ? 120 : 240);
+    const timed = boss ? simulate(`${s.label} (timed)`, STAGE_PARTY[s.stage]!, s.table, 120, 1, true, undefined, TIMED_HANDS) : null;
+    return { s, r, timed };
+  });
   it('prints the balance table', () => {
-    console.log(`\n${results.map(({ r }) => fmt(r)).join('\n')}`);
+    console.log(`\n${results.flatMap(({ r, timed }) => (timed ? [fmt(r), fmt(timed)] : [fmt(r)])).join('\n')}`);
   });
   it('the policy uses every ability learnable by the Warden and every combo', () => {
     const used = new Set(results.flatMap(({ r }) => [...r.used]));
@@ -36,10 +43,10 @@ describe('balance', () => {
     expect(learnable.filter((id) => !used.has(id))).toEqual([]);
     expect(COMBOS.map((c) => c.id).filter((id) => !used.has(id))).toEqual([]);
   });
-  for (const { s, r } of results) {
+  for (const { s, r, timed } of results) {
     it(`${s.label} within targets`, () => {
       expect(r.wins / r.n).toBeGreaterThanOrEqual(s.win);
-      if (s.table.startsWith('f_')) expect(r.wins / r.n).toBeLessThanOrEqual(BOSS_WIN_MAX);
+      if (timed) expect(timed.wins / timed.n).toBeLessThanOrEqual(BOSS_WIN_MAX);
       expect(r.rounds).toBeGreaterThanOrEqual(s.rounds[0]);
       expect(r.rounds).toBeLessThanOrEqual(s.rounds[1]);
       expect(r.hpLostPct).toBeGreaterThanOrEqual(s.hp[0]);
@@ -52,8 +59,13 @@ describe('dungeon attrition', () => {
   const runs = [
     { r: simulateRun('barrens x4', STAGE_PARTY.barrens!, 'barrens', 4, { medkit: 4, stim: 0, detox: 2 }), min: 0.9 },
     { r: simulateRun('sinkline x6', STAGE_PARTY.sinkline!, 'sinkline', 6, { medkit: 6, stim: 1, detox: 2, neurotab: 1 }), min: 0.85 },
-    { r: simulateRun('annex x5', STAGE_PARTY.annex!, 'annex', 5, { medkit: 6, stim: 2, detox: 2, neurotab: 2 }), min: 0.85 },
+    { r: simulateRun('annex x7', STAGE_PARTY.annex!, 'annex', 7, { medkit: 6, stim: 2, detox: 2, neurotab: 2 }), min: 0.85 },
   ];
+  it('the pressure climbs into the Warden: the Annex costs at least what the Sinkline did', () => {
+    const [, sink, annex] = runs.map(({ r }) => r);
+    expect(annex!.medkitsUsed).toBeGreaterThanOrEqual(sink!.medkitsUsed * 0.9);
+    expect(annex!.endHpPct).toBeLessThanOrEqual(sink!.endHpPct + 3);
+  });
   it('prints the attrition table', () => {
     console.log(['', ...runs.map(({ r }) => fmtRun(r))].join('\n'));
   });

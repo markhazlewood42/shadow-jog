@@ -164,6 +164,63 @@ export function variant(src: HTMLCanvasElement, dup: number): HTMLCanvasElement 
   return v;
 }
 
+const thumbCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+/** A 12×12 head-and-shoulders crop of an enemy sprite (the turn-order strip), at its pixel scale. */
+export function enemyThumb(src: HTMLCanvasElement): HTMLCanvasElement {
+  let c = thumbCache.get(src);
+  if (!c) {
+    const s = Math.min(src.width, 24);
+    const top = opaqueTop(src);
+    const t = surface(12, 12);
+    t.ctx.imageSmoothingEnabled = false;
+    t.ctx.drawImage(src, Math.floor((src.width - s) / 2), top, s, s, 0, 0, 12, 12);
+    c = t.canvas;
+    thumbCache.set(src, c);
+  }
+  return c;
+}
+
+export const DISSOLVE_STEPS = 10;
+const dissolveCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement[]>();
+/**
+ * A defeated enemy breaking up: `step` of DISSOLVE_STEPS, in 2px blocks (the sprites' pixel
+ * scale), with a hot-pink edge eating in ahead of the gaps. The sprite's own detail stays until
+ * the pixels go, so every frame of a kill still reads as that enemy.
+ */
+export function dissolved(src: HTMLCanvasElement, step: number): HTMLCanvasElement {
+  let list = dissolveCache.get(src);
+  if (!list) {
+    list = [];
+    dissolveCache.set(src, list);
+  }
+  const hit = list[step];
+  if (hit) return hit;
+  const w = src.width, h = src.height;
+  const s = surface(w, h);
+  s.ctx.drawImage(src, 0, 0);
+  const img = s.ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const cut = step / DISSOLVE_STEPS;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (d[i + 3] === 0) continue;
+      // Per-block noise, biased so the top goes first (the body drains downward).
+      const bx = x >> 1, by = y >> 1;
+      const n = (((bx * 73856093) ^ (by * 19349663)) >>> 0) % 1000 / 1000 * 0.75 + (1 - y / h) * 0.25;
+      if (n < cut) d[i + 3] = 0;
+      else if (n < cut + 0.1) {
+        d[i] = 255;
+        d[i + 1] = 79;
+        d[i + 2] = 176;
+      }
+    }
+  }
+  s.ctx.putImageData(img, 0, 0);
+  list[step] = s.canvas;
+  return s.canvas;
+}
+
 export function silhouetteCache(src: HTMLCanvasElement, color: string): HTMLCanvasElement {
   let m = silCache.get(src);
   if (!m) {

@@ -13,6 +13,8 @@ export interface Settings {
   shake: number;
   crt: boolean;
   touch: 'auto' | 'on' | 'off';
+  /** Timed presses in battle: rings to hit (on), always a good press (assist), or none (off). */
+  timing: 'on' | 'assist' | 'off';
   /** The player's own key for an action (on top of the defaults), by KeyboardEvent.code. */
   keys: Partial<Record<Action, string>>;
 }
@@ -29,6 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
   shake: 1,
   crt: false,
   touch: 'auto',
+  timing: 'on',
   keys: {},
 };
 
