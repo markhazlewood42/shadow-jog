@@ -161,7 +161,10 @@ export const annex: MapDef = {
       run: async (s) => {
         if (!s.flag('req_badge')) {
           s.set('req_badge');
+          await s.narrate('A badge is still clipped into the reader: {c}D. PETROV, FACILITIES{/}.');
           await s.say('hex', 'Dmitri’s badge is still live. Dmitri, you beautiful, careless man.', { face: 'happy' });
+          // The clue to the crawlspace: Dmitri never left.
+          await s.narrate('{c}EVAC HEADCOUNT · 41 OF 42.{/} Missing: D. Petrov, Facilities. Last badge-in: west utility corridor, the night of the evacuation.');
           await s.say('rook', 'Stock up. Whatever’s behind that door, it isn’t a vending machine.');
         }
         await s.shop('km_requisition');
@@ -170,7 +173,11 @@ export const annex: MapDef = {
     {
       id: 'panel', x: 14, y: 22, on: 'action', when: (f) => !f.annex_panel,
       run: async (s) => {
-        await s.narrate('One wall panel sits a few millimetres proud of the rest. Scratches round the screws. Cold air on your fingers.');
+        if (!s.flag('req_badge')) {
+          await s.narrate('A utility corridor wall panel, scuffed like everything down here.');
+          return;
+        }
+        await s.narrate('The west utility corridor, where Dmitri last badged in. One wall panel sits a few millimetres proud of the rest. Scratches round the screws. Cold air on your fingers.');
         const pick = await s.ask(null, 'Pry the panel off?', ['Pry it off', 'Leave it'], { cancel: 1 });
         if (pick !== 0) return;
         s.sfx('door');

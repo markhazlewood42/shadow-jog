@@ -278,9 +278,14 @@ export const floodgate: ScriptFn = async (s) => {
   await s.fadeOut(40, '#07060d');
   s.set('floodgate');
   s.refreshMap();
-  await s.wait(20);
+  // Show the payoff where it happens: cut to the junction, drained, the catwalk standing clear.
+  await s.pan(37, 16, 1);
   await s.fadeIn(40);
-  await s.narrate('Somewhere below, pumps groan to life. The black water begins to fall.');
+  s.sfx('wave');
+  await s.narrate('Across the level, pumps groan to life. The black water in the junction falls away, and a catwalk rises out of it.');
+  await s.fadeOut(20, '#07060d');
+  await s.panBack(1);
+  await s.fadeIn(20);
   s.objective(OBJ.flood);
 };
 
@@ -369,10 +374,23 @@ export const relay = (id: string): ScriptFn => async (s) => {
   s.refreshMap(); // the beams down the hall change as the relay flips
   const on = emitters(s);
   if (on.every((e) => !e)) {
+    // Watch it go: the camera finds the lattice, which stutters twice and dies.
+    await s.pan(30, 7, 36);
+    for (let i = 0; i < 2; i++) {
+      s.set('lattice_off');
+      s.refreshMap();
+      await s.wait(5);
+      s.set('lattice_off', false);
+      s.refreshMap();
+      await s.wait(8);
+    }
     s.set('lattice_off');
     s.sfx('phase');
+    s.shake(10, 1);
     s.refreshMap();
+    await s.wait(24);
     await s.narrate('Down the hall, the laser lattice stutters, flickers, and dies.');
+    await s.panBack(30);
     await s.say('hex', 'Lattice is down! Turns out I can lie to a lab too.', { face: 'happy' });
     return;
   }

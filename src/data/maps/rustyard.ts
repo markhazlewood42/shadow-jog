@@ -130,14 +130,24 @@ export const rustyard: MapDef = {
     },
     {
       id: 'scav_kid', x: 24, y: 17, dir: 'left', name: 'Scav Kid', look: randomLook(313), move: 'wander', radius: 2,
-      talk: ['The Rustfangs took our water filter. Auntie Mags says we’ll get it back. She doesn’t look like she believes it.'],
+      // The clue to the tribute stash: where the camp leaves what the Rustfangs take.
+      talk: async (s) => {
+        await s.say('Scav Kid', 'The Rustfangs took our water filter. Auntie Mags says we’ll get it back. She doesn’t look like she believes it.');
+        if (s.flag('tribute_stash')) return;
+        await s.say('Scav Kid', 'Every week we leave the tribute at the west heap. The one with their tag on it. They come for it at night, and they never take it far.');
+        s.set('tribute_hint');
+      },
     },
   ],
   events: [
     {
       id: 'loose_scrap', x: 2, y: 14, on: 'action', when: (f) => !f.tribute_stash,
       run: async (s) => {
-        await s.narrate('This scrap is stacked loose, with a Rustfang tag sprayed across it. Someone moves it often.');
+        if (!s.flag('tribute_hint')) {
+          await s.narrate('Scrap, stacked loose, a Rustfang tag sprayed across it. Their mark is on half the camp.');
+          return;
+        }
+        await s.narrate('The heap with the tag on it, where the camp leaves its tribute. The scrap is stacked loose. Someone moves it often.');
         const pick = await s.ask(null, 'Pull it aside?', ['Pull it aside', 'Leave it'], { cancel: 1 });
         if (pick !== 0) return;
         s.sfx('bump');
