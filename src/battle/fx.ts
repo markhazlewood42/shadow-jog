@@ -108,6 +108,45 @@ export class FxLayer {
     }, delay);
   }
 
+  /** The contact frame of a hit: a white four-point star, then a smaller coloured one. */
+  private impact(at: Pt, color: string, delay = 0, r = 7): void {
+    this.s(5, (ctx, k) => {
+      const hot = k < 0.4, len = Math.round(r * (hot ? 1 : 0.6));
+      const x = Math.round(at.x), y = Math.round(at.y);
+      ctx.fillStyle = hot ? '#ffffff' : color;
+      ctx.fillRect(x - len, y, len * 2 + 1, 1);
+      ctx.fillRect(x, y - len, 1, len * 2 + 1);
+      const d = Math.round(len * 0.55);
+      for (let i = 1; i <= d; i++) {
+        ctx.fillRect(x - i, y - i, 1, 1);
+        ctx.fillRect(x + i, y - i, 1, 1);
+        ctx.fillRect(x - i, y + i, 1, 1);
+        ctx.fillRect(x + i, y + i, 1, 1);
+      }
+      if (hot) ctx.fillRect(x - 1, y - 1, 3, 3);
+    }, delay);
+  }
+
+  /** Chips knocked off the target: flung up and out, then falling. */
+  private debris(at: Pt, color: string, n: number, delay = 0): void {
+    for (let i = 0; i < n; i++)
+      this.p({ x: at.x + this.rng.range(-3, 3), y: at.y + this.rng.range(-3, 3), vx: this.rng.range(-1.6, 1.6), vy: -this.rng.range(0.8, 2.2), g: 0.16, drag: 0.98, max: this.rng.int(18, 28), color, size: this.rng.chance(0.35) ? 2 : 1, kind: 'spark', delay });
+  }
+
+  /** Speed lines converging on the point of impact just before contact. */
+  private converge(at: Pt, color: string, frames = 4, delay = 0): void {
+    const angles = [this.rng.range(2.4, 3.0), this.rng.range(3.3, 3.8), this.rng.range(-0.4, 0.3)];
+    this.s(frames, (ctx, k) => {
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.9;
+      for (const a of angles) {
+        const r0 = 22 * (1 - k) + 4, r1 = r0 + 7;
+        for (let r = r0; r < r1; r++) ctx.fillRect(Math.round(at.x + Math.cos(a) * r), Math.round(at.y + Math.sin(a) * r * 0.6), 1, 1);
+      }
+      ctx.globalAlpha = 1;
+    }, delay);
+  }
+
   private ring(at: Pt, color: string, r0: number, r1: number, frames: number, delay = 0, thick = 1): void {
     this.s(frames, (ctx, k) => {
       const r = r0 + (r1 - r0) * k;
@@ -336,20 +375,29 @@ export class FxLayer {
       case 'claw':
       case 'whip':
         each((t) => {
-          this.slash(t, color ?? '#e8f0ff', 0, 12, id === 'claw' ? -1.1 : -0.8);
+          const col = color ?? '#e8f0ff', ang = id === 'claw' ? -1.1 : -0.8;
+          this.slash(t, col, 0, 12, ang);
+          // Afterimage: a thinner cut trailing a frame behind.
+          this.slash({ x: t.x + 2, y: t.y + 1 }, col, 2, 10, ang, 1);
           if (id === 'claw') this.slash({ x: t.x + 4, y: t.y }, '#e8f0ff', 2, 11, -1.1);
+          this.impact(t, col, 3, 6);
           this.burst(t, '#ffffff', 6, 1.6, 3);
+          this.debris(t, id === 'claw' ? '#ff9a9a' : '#c8d0e0', 4, 4);
         });
-        return { impact: 4, total: 16 };
+        return { impact: 4, total: 18 };
       case 'punch':
       case 'bite':
       case 'crush':
         each((t) => {
-          this.ring(t, '#ffffff', 2, 12, 10, 0, 1);
-          this.burst(t, id === 'bite' ? '#ff6a6a' : '#ffe07a', 10, 2.2, 0);
+          const hot = id === 'bite' ? '#ff6a6a' : '#ffe07a';
+          this.converge(t, '#ffffff', 3, 0);
+          this.impact(t, hot, 2, id === 'crush' ? 9 : 7);
+          this.ring(t, '#ffffff', 2, 12, 10, 2, 1);
+          this.burst(t, hot, 10, 2.2, 2);
+          this.debris(t, id === 'crush' ? '#8a8490' : hot, id === 'crush' ? 8 : 4, 3);
         });
         this.shake = id === 'crush' ? 8 : 3;
-        return { impact: 2, total: 16 };
+        return { impact: 3, total: 18 };
       case 'flash_step':
         each((t) => {
           this.s(8, (ctx, k) => {
