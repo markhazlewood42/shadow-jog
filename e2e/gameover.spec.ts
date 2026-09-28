@@ -183,3 +183,30 @@ test('A scene that throws every frame recovers to the title instead of freezing'
   await key(page, 'Enter');
   await waitFor(page, 'sj.idle()', 'field after continue');
 });
+
+test('Two tabs on one save: both are warned, and only the first keeps autosaving', async ({ context }) => {
+  const a = await context.newPage();
+  await a.goto('/?debug');
+  await a.waitForTimeout(800);
+  await a.evaluate(() => localStorage.clear());
+  const b = await context.newPage();
+  await b.goto('/?debug');
+  await b.waitForTimeout(1200);
+  const noticeOf = (p: Page) => sj<{ text: string } | null>(p, 'sj.notice()');
+  expect((await noticeOf(a))?.text).toContain('another tab');
+  expect((await noticeOf(b))?.text).toContain('another tab');
+  // The second tab walks out into the Sprawl: its autosave stays off, and it says so.
+  // (sj.stage in place: reloading a tab would make it the newcomer.)
+  await sj(b, "sj.stage('town')");
+  await waitFor(b, 'sj.idle()', 'field idle');
+  await sj(b, "sj.tp('world', 13, 22, 'right')");
+  await b.waitForTimeout(1500);
+  expect(await b.evaluate(() => localStorage.getItem('shadowjog.save.auto'))).toBeNull();
+  expect((await noticeOf(b))?.text).toContain('Autosave is paused');
+  // The first tab does the same, and its autosave writes.
+  await sj(a, "sj.stage('town')");
+  await waitFor(a, 'sj.idle()', 'field idle');
+  await sj(a, "sj.tp('world', 13, 22, 'right')");
+  await a.waitForTimeout(1500);
+  expect(await a.evaluate(() => localStorage.getItem('shadowjog.save.auto'))).toBeTruthy();
+});

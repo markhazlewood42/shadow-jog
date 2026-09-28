@@ -21,9 +21,11 @@ export default defineConfig({
         ...(process.env.PW_NOGPU ? { launchOptions: { args: ['--disable-gpu', '--disable-accelerated-2d-canvas'] } } : {}),
       },
     },
-    // Safari's engine on CI, for the flows most likely to differ between engines: storage, the
-    // unload prompt, keyboard, audio unlock. (Not installed locally.)
-    ...(process.env.CI ? [{ name: 'webkit', use: { browserName: 'webkit' as const }, testMatch: /(prod|gameover)\.spec\.ts/ }] : []),
+    // Safari's and Firefox's engines on CI (or PW_ALL_ENGINES=1 locally), for the flows most
+    // likely to differ between engines: storage, the unload prompt, keyboard, audio unlock.
+    ...(process.env.CI || process.env.PW_ALL_ENGINES
+      ? (['webkit', 'firefox'] as const).map((b) => ({ name: b, use: { browserName: b }, testMatch: /(prod|gameover)\.spec\.ts/ }))
+      : []),
   ],
   webServer: [
     { command: 'npm run dev', url: 'http://localhost:3007', reuseExistingServer: true, timeout: 60_000 },

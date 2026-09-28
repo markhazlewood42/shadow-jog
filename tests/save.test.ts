@@ -236,6 +236,39 @@ describe('save / load', () => {
     }
   });
 
+  it('structural migrations run as a chain, in order, from the save’s own version', async () => {
+    const { MIGRATIONS, migrateTo } = await import('../src/game/save');
+    const order: number[] = [];
+    // Two future steps: v1 renames `cred` to `credits`, v2 renames it back and doubles it.
+    MIGRATIONS[1] = (s) => {
+      order.push(1);
+      (s as unknown as { credits: number }).credits = s.cred;
+    };
+    MIGRATIONS[2] = (s) => {
+      order.push(2);
+      s.cred = (s as unknown as { credits: number }).credits * 2;
+    };
+    try {
+      const s = JSON.parse(JSON.stringify(stateMod.state)) as typeof stateMod.state;
+      s.version = 1;
+      s.cred = 100;
+      const out = migrateTo(s, 3);
+      expect(order).toEqual([1, 2]);
+      expect(out.cred).toBe(200);
+      expect(out.version).toBe(3);
+      // A save already at v2 only takes the v2 step.
+      order.length = 0;
+      const t = JSON.parse(JSON.stringify(stateMod.state)) as typeof stateMod.state;
+      t.version = 2;
+      (t as unknown as { credits: number }).credits = 5;
+      expect(migrateTo(t, 3).cred).toBe(10);
+      expect(order).toEqual([2]);
+    } finally {
+      delete MIGRATIONS[1];
+      delete MIGRATIONS[2];
+    }
+  });
+
   it('rejects a header with missing fields', () => {
     const ls = (globalThis as unknown as { localStorage: MemStorage }).localStorage;
     writeSave(1, 0);

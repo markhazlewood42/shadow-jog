@@ -115,14 +115,31 @@ export function loadSave(slot: SlotId): GameState | null {
   try {
     const f = JSON.parse(raw) as SaveFile;
     if (!f.state || (f.state.version ?? 0) > SAVE_VERSION) return null;
-    const s = migrate(f.state);
+    const s = migrateTo(f.state, SAVE_VERSION);
     return validState(s) ? sanitize(s) : null;
   } catch {
     return null;
   }
 }
 
-function migrate(s: GameState): GameState {
+/**
+ * Structural migrations, one per version step: MIGRATIONS[v] turns a v save into a v + 1 save
+ * (a renamed field, a reshaped record). They run in order from the save's version. Purely
+ * additive changes need no step: backfill() below fills anything missing at any version. A
+ * change that renames or reshapes adds a step here and bumps SAVE_VERSION.
+ */
+export const MIGRATIONS: Record<number, (s: GameState) => void> = {};
+
+/** Bring a save from its version up to `target`: each step in order, then the backfill. */
+export function migrateTo(s: GameState, target: number): GameState {
+  for (let v = s.version ?? 0; v < target; v++) MIGRATIONS[v]?.(s);
+  backfill(s);
+  // Now it has every field this version expects: say so, so a later migration starts from here.
+  s.version = target;
+  return s;
+}
+
+function backfill(s: GameState): void {
   // Fill in any fields added after the save was written.
   s.combos ??= [];
   s.bestiary ??= {};
@@ -141,9 +158,6 @@ function migrate(s: GameState): GameState {
     ['sinkline_1', !!s.flags.sinkline_gate], ['annex', !!s.flags.annex_key], ['dock', !!s.flags.betrayal],
   ];
   for (const [id, been] of seen) if (been) s.flags[`visit:${id}`] ??= true;
-  // Now it has every field this version expects: say so, so a later migration starts from here.
-  s.version = SAVE_VERSION;
-  return s;
 }
 
 const MEMBER_IDS: MemberId[] = ['kit', 'rook', 'hex', 'sable'];
