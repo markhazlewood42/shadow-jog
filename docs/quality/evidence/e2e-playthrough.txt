@@ -1,28 +1,24 @@
-[WebServer] [plugin builtin:vite-reporter] 
-[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:
-[WebServer] - Using dynamic import() to code-split the application
-[WebServer] - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
-[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
 
-Running 15 tests using 1 worker
+Running 16 tests using 1 worker
 
-  ok  1 [chromium] › e2e\economy.spec.ts:27:1 › walking the Barrens turns up fights that pay out (20.9s)
-  ok  2 [chromium] › e2e\economy.spec.ts:71:1 › a shop takes the cred and hands over the goods (10.5s)
-  ok  3 [chromium] › e2e\gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight (3.6s)
-  ok  4 [chromium] › e2e\gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.2s)
-  ok  5 [chromium] › e2e\gameover.spec.ts:73:1 › Return to Title from Game Over (3.5s)
-  ok  6 [chromium] › e2e\gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it (3.9s)
-  ok  7 [chromium] › e2e\gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title (3.3s)
-  ok  8 [chromium] › e2e\gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable (924ms)
-  ok  9 [chromium] › e2e\gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently (4.7s)
-  ok 10 [chromium] › e2e\gameover.spec.ts:171:1 › A scene that throws every frame recovers to the title instead of freezing (3.5s)
-  ok 11 [chromium] › e2e\gameover.spec.ts:187:1 › Two tabs on one save: both are warned, and only the first keeps autosaving (5.6s)
-  ok 12 [chromium] › e2e\playtest.spec.ts:15:1 › playtest capture: Chapter 1 (5.2m)
-  ok 13 [chromium] › e2e\playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish (36.2s)
-  ok 14 [chromium] › e2e\prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors (29.3s)
-  ok 15 [chromium] › e2e\prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first (51.8s)
+  ok  1 [chromium] › e2e\economy.spec.ts:27:1 › walking the Barrens turns up fights that pay out (21.6s)
+  ok  2 [chromium] › e2e\economy.spec.ts:71:1 › a shop takes the cred and hands over the goods (10.6s)
+  ok  3 [chromium] › e2e\economy.spec.ts:115:1 › selling loot turns it into cred (2.9s)
+  ok  4 [chromium] › e2e\gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight (3.6s)
+  ok  5 [chromium] › e2e\gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.2s)
+  ok  6 [chromium] › e2e\gameover.spec.ts:73:1 › Return to Title from Game Over (3.5s)
+  ok  7 [chromium] › e2e\gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it (3.9s)
+  ok  8 [chromium] › e2e\gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title (3.3s)
+  ok  9 [chromium] › e2e\gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable (913ms)
+  ok 10 [chromium] › e2e\gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently (4.6s)
+  ok 11 [chromium] › e2e\gameover.spec.ts:171:1 › A scene that throws every frame recovers to the title instead of freezing (3.5s)
+  ok 12 [chromium] › e2e\gameover.spec.ts:187:1 › Two tabs on one save: both are warned, and only the first keeps autosaving (5.6s)
+  ok 13 [chromium] › e2e\playtest.spec.ts:15:1 › playtest capture: Chapter 1 (5.3m)
+  ok 14 [chromium] › e2e\playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish (1.2m)
+  ok 15 [chromium] › e2e\prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors (29.2s)
+  ok 16 [chromium] › e2e\prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first (51.8s)
 
-  Slow test file: [chromium] › e2e\playtest.spec.ts (5.2m)
+  Slow test file: [chromium] › e2e\playtest.spec.ts (5.3m)
   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
-  15 passed (8.3m)
+  16 passed (9.0m)
 exit=0

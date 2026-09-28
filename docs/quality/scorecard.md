@@ -29,6 +29,18 @@ Round 7 note: the evidence got richer (audio measurements, more screenshots, mor
 new, concrete defects — several real bugs (text collisions, the Warden's hidden head, the menu's hidden Close, a stale
 save baseline, a continuity slip). Reviewer spread remains ±0.5–1.0 per area; the trend is judged on defects fixed.
 
+## Round 8 (verification pending)
+
+- [x] **Bugs**: combo name clears before its hits land; chips and WEAK tags step aside while numbers rise (opaque plates); enemies clear the prompt strip (the Warden's visor); main menu shows all ten entries; one shared overlay dim; target box measured (Maintenance Drone overflowed); New Game resets the unsaved baseline (tested); throwing tickers/overlays are dropped (tested); Pale's "all week" → "all night".
+- [x] **Audio**: per-song loudness trims (spread now the intended ~3.6 dB); drum rests so boss themes breathe (range 0.4 → 1.3 dB); a high bell layer for the quiet cues; all 66 effects measured.
+- [x] **Engine**: BattleDriver hook (no debug flags in the scene; registered in DEV only); dev routes and test scenes out of the shipped bundle (<500 kB); content-integrity test; the real-speed playtest in CI.
+- [x] **Combat**: the tells have teeth (the Warden names its mark; bracing takes a quarter of a seen blow; telegraphed attacks hit hard) — reading them wins 84% vs 57%, tested.
+- [x] **Economy**: Hex's same-tier choice (Flechette Pistol); a Sell E2E and screenshot; the results screen captured from a driven run (24c) with a note.
+- [x] **Narrative**: one fewer hint at the core; Sable pushes back before joining; ending caption and Kit's echo of Rook; small fixes.
+- [x] **Field / level art**: a second stance and more builds in the crowd; wing-coloured wainscots; the emptied pod's spill and glass; the Sprawl's rooftops as buildings with features; Dmitri's camp; the Sinkline's floor as the lit plane; re-aimed Annex shots.
+- [x] **Feel / battle art**: Game Over uses the shared rain; the Drowned Shade screams; the lab conduit is a shaded pipe.
+- [ ] Deferred: an execution-skill layer (timed inputs) — the engine resolves a round before playback, so this needs per-action resolution; a second party rig; more enemy motion types.
+
 ## Round 7 (verified 2026-09-28)
 
 Worked the round-6 findings, bugs first.

@@ -4,9 +4,9 @@
 stdout | tests/pacing.test.ts > pacing > estimates Chapter 1 inside the GDD’s 45–75 minute target
 walking   3.4 min (1212 tiles)
 fighting  21.0 min (28.3 fights: 22.3 random + 6 scripted)
-reading   26.9 min (18596 chars of story, 22016 optional × 0.4)
+reading   27.0 min (18721 chars of story, 22016 optional × 0.4)
 menus     10.0 min
-total     61.2 min
+total     61.3 min
 
 stdout | tests/balance.test.ts > balance > prints the balance table
 
@@ -16,7 +16,7 @@ KNUCKLES                     win  91%  rounds  4.8  hp lost  42%  combos/battle 
 sinkline                     win 100%  rounds  2.0  hp lost  11%  combos/battle 1.01
 LURKER                       win  92%  rounds  7.7  hp lost  43%  combos/battle 1.00
 annex                        win 100%  rounds  2.5  hp lost  12%  combos/battle 1.00
-WARDEN                       win  92%  rounds 11.2  hp lost  43%  combos/battle 3.67
+WARDEN                       win  79%  rounds 12.2  hp lost  42%  combos/battle 4.88
 
 stdout | tests/balance.test.ts > dungeon attrition > prints the attrition table
 
@@ -32,11 +32,17 @@ sinkline (alt)               win 100%  rounds  1.9  hp lost   9%  combos/battle 
 stdout | tests/balance.test.ts > alternative builds > lurker with razor_tekko, reflex_booster, nodachi, dermal_plating holds up
 lurker (alt)                 win  89%  rounds  8.4  hp lost  47%  combos/battle 1.00
 
+stdout | tests/balance.test.ts > alternative builds > sinkline with flechette_pistol holds up
+sinkline (alt)               win 100%  rounds  2.1  hp lost  11%  combos/battle 1.00
+
+stdout | tests/balance.test.ts > alternative builds > lurker with flechette_pistol holds up
+lurker (alt)                 win  92%  rounds  7.7  hp lost  43%  combos/battle 1.00
+
 stdout | tests/balance.test.ts > alternative builds > annex with thorn_rod, spirit_fetish, adrenal_pump holds up
 annex (alt)                  win 100%  rounds  2.5  hp lost  12%  combos/battle 1.00
 
 stdout | tests/balance.test.ts > alternative builds > warden with lucky_coin, reflex_booster, bone_staff holds up
-warden (alt)                 win  94%  rounds 10.1  hp lost  39%  combos/battle 3.48
+warden (alt)                 win  88%  rounds 10.7  hp lost  35%  combos/battle 4.70
 
 stdout | tests/economy.test.ts > economy > prints the route
 Walk to the Rustyard           walks 39 steps of street (1 in 28), 25 steps of barrens (1 in 20)
@@ -77,12 +83,12 @@ minimal: CP5 into Annex 7               p10   -65¢  median   254¢  affordable 
 minimal: CP6 WARDEN                     p10   224¢  median   663¢  affordable 98%
 
 
- Test Files  14 passed (14)
-      Tests  178 passed (178)
-   Start at  17:47:09
-   Duration  569ms (transform 62%, import 23%, tests 14%, worker 2%)
+ Test Files  15 passed (15)
+      Tests  189 passed (189)
+   Start at  18:41:46
+   Duration  632ms (transform 62%, import 24%, tests 13%, worker 1%)
 
-  Transform  transforming modules took 2.26s · 62% of tracked time, re-done on every run
+  Transform  transforming modules took 2.90s · 62% of tracked time, re-done on every run
              persist transforms across runs with fsModuleCache: true
              learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
 
