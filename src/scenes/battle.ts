@@ -23,8 +23,11 @@ import { battleSpeed } from '../game/settings';
 import { debug, PLAYTEST_ROUNDS } from '../game/debug';
 import { learn, removeItem, state, type MemberId } from '../game/state';
 import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../ui/draw';
-import { ListMenu, type ListItem } from '../ui/list';
+import { ListMenu } from '../ui/list';
 import { LEVELUP_TEXT_W } from '../ui/layout';
+import { drawVictoryBanner } from './battlekit/banner';
+import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
+import { ShatterIntro } from './battlekit/intro';
 import { ENEMY_POSE_T, RIM, drawBig, drawLag, marked, mirrored, opaqueTop, rimOf, silhouetteCache, variant } from './battlekit/sprites';
 import { AFTERIMAGES, COMBO_STING, ELEMENTS, ELEMENT_COLOR, ELEMENT_TAG, STATUS_LABEL, STATUS_SFX, STATUS_WORD, actionPose, enemyMotion, fxSound, groupNames, pickGroup, statusName, summarize } from './battlekit/tables';
 
@@ -264,38 +267,13 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   private buildCmdMenu(a: Combatant): void {
-    const m = state.members[a.key as MemberId]!;
-    const techs = knownAbilities(m, 'tech');
-    const skills = knownAbilities(m, 'skill');
-    const items: ListItem<string>[] = [{ label: 'Attack', value: 'attack' }];
-    if (techs.length) items.push({ label: MEMBERS[a.key as MemberId].tpLabel === 'KI' ? 'Ki Arts' : a.key === 'hex' ? 'Programs' : 'Spirits', value: 'tech' });
-    if (skills.length) items.push({ label: 'Skills', value: 'skill' });
-    items.push({ label: 'Item', value: 'item', enabled: this.battleItems().length > 0 });
-    items.push({ label: 'Guard', value: 'guard' });
-    this.cmdMenu.setItems(items);
+    this.cmdMenu.setItems(commandItems(a, this.reserved));
     this.cmdMenu.index = 0;
   }
 
-  private battleItems(): string[] {
-    return Object.keys(state.inventory).filter((id) => ITEMS[id]?.battle && (state.inventory[id] ?? 0) - (this.reserved[id] ?? 0) > 0);
-  }
-
   private openList(kind: 'tech' | 'skill' | 'item'): void {
-    const a = this.actor!;
-    const m = state.members[a.key as MemberId]!;
     this.listKind = kind;
-    let items: ListItem<string>[];
-    if (kind === 'item') {
-      items = this.battleItems().map((id) => ({ label: ITEMS[id]!.name, value: id, right: `×${(state.inventory[id] ?? 0) - (this.reserved[id] ?? 0)}` }));
-    } else {
-      items = knownAbilities(m, kind).map((id) => {
-        const ab = ABILITIES[id]!;
-        const ok = kind === 'tech' ? a.tp >= (ab.cost ?? 0) : (a.uses[id] ?? 0) > 0;
-        const right = kind === 'tech' ? `${ab.cost} ${MEMBERS[a.key as MemberId].tpLabel}` : `${a.uses[id] ?? 0}/${ab.uses}`;
-        return { label: ab.name, value: id, right, enabled: ok };
-      });
-    }
-    this.listMenu.setItems(items);
+    this.listMenu.setItems(choiceItems(this.actor!, kind, this.reserved));
     this.listMenu.index = 0;
     this.listMenu.scroll = 0;
     this.mode = 'list';
@@ -324,13 +302,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         return;
     }
     // Default target: remember a sensible choice (the first enemy, or self for heals).
-    this.targetIdx = Math.max(0, ab.target === 'ally' ? this.targetList.indexOf(this.mostHurt()) : 0);
+    this.targetIdx = Math.max(0, ab.target === 'ally' ? this.targetList.indexOf(mostHurt(this.battle.party)) : 0);
     this.mode = 'target';
-  }
-
-  private mostHurt(): number {
-    const alive = this.battle.party.filter((p) => p.hp > 0);
-    return [...alive].sort((x, y) => x.hp / x.base.maxHp - y.hp / y.base.maxHp)[0]?.uid ?? -1;
   }
 
   private commit(target: number): void {
@@ -351,11 +324,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   /** Recompute which queued actors form combos (call whenever `cmds` changes). */
   private refreshCombos(): void {
-    this.comboActors.clear();
-    for (const c of Battle.findCombos(this.cmds, this.battle.units)) {
-      this.comboActors.add(c.a.actor);
-      this.comboActors.add(c.b.actor);
-    }
+    comboActors(this.cmds, this.battle.units, this.comboActors);
     this.hintKey = '';
   }
 
@@ -366,9 +335,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const key = `${actor.uid}:${this.listKind}:${id}:${this.cmds.length}`;
     if (key === this.hintKey) return this.hintText;
     this.hintKey = key;
-    const trial = [...this.cmds, { actor: actor.uid, type: this.listKind, id, target: -1 } as Command];
-    const combos = Battle.findCombos(trial, this.battle.units).filter((c) => c.a.actor === actor.uid || c.b.actor === actor.uid);
-    this.hintText = !combos.length ? '' : state.combos.includes(combos[0]!.combo) ? `★ COMBO: ${ABILITIES[combos[0]!.combo]!.name}` : '★ Something resonates… (combo!)';
+    this.hintText = comboHint(this.cmds, this.battle.units, actor, this.listKind, id);
     return this.hintText;
   }
 
@@ -377,26 +344,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   private autoCommands(): Command[] {
-    return this.actors().map((a) => ({ actor: a.uid, type: 'attack' as const, target: -1 }));
+    return autoOrders(this.actors());
   }
 
   private repeatCommands(): Command[] {
-    const out: Command[] = [];
-    const reserved: Record<string, number> = {};
-    for (const a of this.actors()) {
-      const o = state.lastOrders[a.key as MemberId];
-      let cmd: Command = { actor: a.uid, type: 'attack', target: -1 };
-      if (o && o.cmd !== 'run') {
-        if (o.cmd === 'tech' && o.id && a.tp >= (ABILITIES[o.id]?.cost ?? 0)) cmd = { actor: a.uid, type: 'tech', id: o.id, target: -1 };
-        else if (o.cmd === 'skill' && o.id && (a.uses[o.id] ?? 0) > 0) cmd = { actor: a.uid, type: 'skill', id: o.id, target: -1 };
-        else if (o.cmd === 'item' && o.id && (state.inventory[o.id] ?? 0) - (reserved[o.id] ?? 0) > 0) {
-          cmd = { actor: a.uid, type: 'item', id: o.id, target: -1 };
-          reserved[o.id] = (reserved[o.id] ?? 0) + 1;
-        } else if (o.cmd === 'guard') cmd = { actor: a.uid, type: 'guard' };
-      }
-      out.push(cmd);
-    }
-    return out;
+    return repeatOrders(this.actors());
   }
 
   // ------------------------------------------------------------------ update
@@ -1068,85 +1020,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       ctx.fillRect(0, 0, W, H);
     }
     // Intro shatter
-    if (this.setup.intro && this.introT < 30) this.drawShatter(ctx);
+    if (this.setup.intro && this.introT < 30) {
+      if (!this.shatter) this.shatter = new ShatterIntro(this.setup.intro);
+      this.shatter.draw(ctx, this.introT);
+    }
     this.renderUi(ctx);
   }
 
   /** Shards of the field snapshot: a jittered triangle mesh, each flying out from the centre. */
-  private shards: { pts: [number, number][]; cx: number; cy: number; vx: number; vy: number; spin: number }[] | null = null;
-
-  private buildShards(): void {
-    const cols = 9, rows = 5;
-    let seed = 1234567;
-    const rnd = () => {
-      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-      return seed / 0x7fffffff;
-    };
-    const grid: [number, number][][] = [];
-    for (let j = 0; j <= rows; j++) {
-      grid.push([]);
-      for (let i = 0; i <= cols; i++) {
-        const edge = i === 0 || j === 0 || i === cols || j === rows;
-        const jx = edge ? 0 : (rnd() - 0.5) * (W / cols) * 0.7;
-        const jy = edge ? 0 : (rnd() - 0.5) * (H / rows) * 0.7;
-        grid[j]!.push([(i * W) / cols + jx, (j * H) / rows + jy]);
-      }
-    }
-    this.shards = [];
-    for (let j = 0; j < rows; j++)
-      for (let i = 0; i < cols; i++) {
-        const a = grid[j]![i]!, b = grid[j]![i + 1]!, c = grid[j + 1]![i + 1]!, d = grid[j + 1]![i]!;
-        const tris = (i + j) % 2 ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]];
-        for (const pts of tris as [number, number][][]) {
-          const cx = (pts[0]![0] + pts[1]![0] + pts[2]![0]) / 3, cy = (pts[0]![1] + pts[1]![1] + pts[2]![1]) / 3;
-          const dx = cx - W / 2, dy = cy - H / 2, len = Math.hypot(dx, dy) || 1;
-          const sp = 3 + rnd() * 4;
-          this.shards.push({ pts, cx, cy, vx: (dx / len) * sp, vy: (dy / len) * sp - 2 - rnd() * 2, spin: (rnd() - 0.5) * 0.3 });
-        }
-      }
-  }
-
-  private drawShatter(ctx: Ctx): void {
-    const img = this.setup.intro!;
-    const t = this.introT;
-    if (!this.shards) this.buildShards();
-    const CRACK = 6;
-    if (t < CRACK) {
-      // The frame freezes and cracks spread from the centre along the shard seams.
-      ctx.drawImage(img, 0, 0, W, H);
-      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-      ctx.lineWidth = 1;
-      const reach = ((t + 1) / CRACK) * Math.hypot(W, H) * 0.55;
-      ctx.beginPath();
-      for (const sh of this.shards!) {
-        if (Math.hypot(sh.cx - W / 2, sh.cy - H / 2) > reach) continue;
-        const [p0, p1, p2] = sh.pts;
-        ctx.moveTo(p0![0], p0![1]);
-        ctx.lineTo(p1![0], p1![1]);
-        ctx.lineTo(p2![0], p2![1]);
-        ctx.closePath();
-      }
-      ctx.stroke();
-      return;
-    }
-    const k = t - CRACK;
-    ctx.globalAlpha = Math.max(0, 1 - k / 24);
-    for (const sh of this.shards!) {
-      const ox = sh.vx * k, oy = sh.vy * k + 0.35 * k * k;
-      ctx.save();
-      ctx.translate(sh.cx + ox, sh.cy + oy);
-      ctx.rotate(sh.spin * k);
-      ctx.beginPath();
-      ctx.moveTo(sh.pts[0]![0] - sh.cx, sh.pts[0]![1] - sh.cy);
-      ctx.lineTo(sh.pts[1]![0] - sh.cx, sh.pts[1]![1] - sh.cy);
-      ctx.lineTo(sh.pts[2]![0] - sh.cx, sh.pts[2]![1] - sh.cy);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(img, -sh.cx, -sh.cy, W, H);
-      ctx.restore();
-    }
-    ctx.globalAlpha = 1;
-  }
+  /** The frame the fight broke out of, shattering (built on the first intro frame). */
+  private shatter: ShatterIntro | null = null;
 
   private feetY(e: Combatant): number {
     const p = this.enemyPos(e);
@@ -1476,38 +1359,13 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         break;
     }
     this.renderCutins(ctx);
-    if (this.bannerStart >= 0) this.renderBanner(ctx, this.frame - this.bannerStart);
+    if (this.bannerStart >= 0) drawVictoryBanner(ctx, this.frame - this.bannerStart);
     if (this.endPanel) this.endPanel(ctx);
   }
 
   /** Frame the victory banner started, or -1. */
   private bannerStart = -1;
 
-  /** VICTORY at 3x: slides in on an ease-out, a light sweep crosses it, a rule underlines it. */
-  private renderBanner(ctx: Ctx, t: number): void {
-    const text = 'VICTORY';
-    const buf = this.bannerBuf;
-    buf.ctx.clearRect(0, 0, buf.canvas.width, buf.canvas.height);
-    const tw = drawText(buf.ctx, text, 1, 1, { color: UI.amber, shadow: '#3a1a08' }) + 2;
-    const k = 3, bw = tw * k, bh = 12 * k;
-    const ease = 1 - (1 - Math.min(1, t / 12)) ** 3;
-    const x = Math.round(-bw + ((W - bw) / 2 + bw) * ease), y = 58;
-    ctx.fillStyle = 'rgba(8,6,16,0.55)';
-    ctx.fillRect(0, y - 6, W, bh + 10);
-    ctx.fillStyle = UI.amber;
-    ctx.fillRect(0, y + bh + 3, Math.round(W * ease), 1);
-    ctx.drawImage(buf.canvas, 0, 0, tw, 12, x, y, bw, bh);
-    // The sweep: a white band clipped to the letters.
-    const sx = ((t - 10) * 9) % (bw + 60) - 30;
-    if (t > 10 && sx < bw) {
-      buf.ctx.globalCompositeOperation = 'source-atop';
-      buf.ctx.fillStyle = '#fff6d8';
-      buf.ctx.fillRect(sx / k, 0, 4, 12);
-      buf.ctx.globalCompositeOperation = 'source-over';
-      ctx.drawImage(buf.canvas, 0, 0, tw, 12, x, y, bw, bh);
-    }
-  }
-  private bannerBuf = surface(120, 12);
 
   private renderCutins(ctx: Ctx): void {
     for (const c of this.cutins) {
