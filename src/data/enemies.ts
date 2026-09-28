@@ -5,7 +5,7 @@ export interface EnemyMove {
   id: string;
   w: number;
   /** Condition gate for the move. */
-  when?: 'ally_hurt' | 'no_atk_buff' | 'no_def_buff' | 'no_res_buff' | 'lockon_ready' | 'no_lockon' | 'hp_below_half' | 'every_3';
+  when?: 'ally_hurt' | 'shield_ally' | 'no_atk_buff' | 'no_def_buff' | 'no_res_buff' | 'lockon_ready' | 'no_lockon' | 'hp_below_half' | 'every_3';
 }
 
 export interface EnemyDef {
@@ -128,7 +128,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     id: 'rust_crab', name: 'Rust Crab', family: 'beast', sprite: 'crab',
     hp: 94, atk: 27, def: 30, mnd: 5, res: 10, agi: 7, xp: 29, cred: 28, weak: { mana: 1.3 },
     drops: [{ id: 'crab_shell', chance: 0.3 }],
-    moves: [{ id: 'e_pincer', w: 3 }, { id: 'e_harden', w: 1, when: 'no_def_buff' }],
+    moves: [{ id: 'e_pincer', w: 3 }, { id: 'e_harden', w: 1, when: 'no_def_buff' }, { id: 'e_shell_wall', w: 4, when: 'shield_ally' }],
     lore: 'Armored like a tank. Techs and magic get under the shell.',
   }),
   maint_drone: E({
@@ -155,7 +155,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
   lurker: E({
     id: 'lurker', name: 'The Lurker', family: 'beast', sprite: 'lurker', boss: true, ai: 'lurker',
     hp: 1500, atk: 43, def: 16, mnd: 32, res: 16, agi: 13, xp: 420, cred: 520,
-    weak: { shock: 1.5, fire: 1.25, mana: 1.2 }, immune: ['stun'],
+    // Waterlogged: one clear weakness (shock), and the beast's usual fire weakness drowned out.
+    weak: { shock: 1.5, fire: 0.6 }, immune: ['stun'],
     drops: [{ id: 'mana_crystal', chance: 1 }],
     moves: [{ id: 'e_crush_coil', w: 3 }, { id: 'e_tidal', w: 2 }, { id: 'e_biolume', w: 1 }, { id: 'attack', w: 1 }],
     lore: 'Something Awakened in the flooded junction and grew fat on what fell in.',
@@ -250,11 +251,13 @@ export const ENCOUNTERS: Record<string, EncounterGroup[]> = {
     { w: 2, e: ['drowned_shade', 'sewer_ghoul'] },
     { w: 2, e: ['gutter_eel', 'gutter_eel'] },
     { w: 1, e: ['rust_crab', 'maint_drone'] },
+    { w: 1, e: ['rust_crab', 'sewer_ghoul'] },
     { w: 1, e: ['drowned_shade', 'drowned_shade', 'glowrat'] },
   ],
   annex: [
     { w: 3, e: ['km_sentinel', 'km_sentinel'] },
     { w: 2, e: ['km_sentinel', 'km_arcanist'] },
+    { w: 1, e: ['km_sentinel', 'maint_drone'] },
     { w: 2, e: ['hunter_drone', 'maint_drone'] },
     { w: 2, e: ['sentry_turret', 'km_sentinel'] },
     { w: 1, e: ['bound_spirit', 'km_sentinel'] },

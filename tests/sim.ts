@@ -52,7 +52,7 @@ const frac = (c: Combatant) => c.hp / c.base.maxHp;
 /**
  * "Competent player" policy. Heals when hurt, reads the enemy family (Iron Palm and Crow Spirit
  * for spirits, Spike/Overload for machines, Scramble for gunmen), buffs before a boss hits hard,
- * and in boss fights sets up combos on purpose. Every learnable ability and all six combos get used
+ * and in boss fights sets up combos on purpose. Every learnable ability and every combo gets used
  * somewhere across the stage table (see the ability-coverage test).
  */
 export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, conserve = false): Command[] {
@@ -111,7 +111,10 @@ export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, 
 
   // A telegraphed party-wide attack is coming: ward up, and the badly hurt brace.
   if (boss?.memory.breath) {
-    if (!party.some((p) => hasStatus(p, 'res_up')) && can(sable, 'spirit_ward')) give(sable, 'skill', 'spirit_ward');
+    const warded = party.some((p) => hasStatus(p, 'res_up'));
+    // Best answer: Crow's Wing guards everyone at once. Otherwise Sable wards alone.
+    if (!warded && useCombos) pair(rook, 'guardian', sable, 'spirit_ward');
+    if (!warded && can(sable, 'spirit_ward')) give(sable, 'skill', 'spirit_ward');
     for (const p of party) if (p !== sable && frac(p) < 0.5) give(p, 'guard');
   }
 

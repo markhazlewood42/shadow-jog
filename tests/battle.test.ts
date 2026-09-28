@@ -156,6 +156,41 @@ describe('hijack', () => {
   });
 });
 
+describe('support roles and field notes', () => {
+  it('a Shell Wall crab takes single-target hits aimed at its packmate', () => {
+    const b = new Battle(party(['kit'], 6), enemyParty(['rust_crab', 'sewer_ghoul']), new Rng(4));
+    const [crab, ghoul] = b.enemies;
+    crab!.status.push({ id: 'cover', turns: 2 });
+    const ev = b.resolveRound([{ actor: b.party[0]!.uid, type: 'attack', target: ghoul!.uid }]);
+    const hit = ev.find((e) => e.t === 'damage' && b.unit(e.target)?.side === 'enemy');
+    expect(hit?.t === 'damage' && hit.target).toBe(crab!.uid);
+    expect(ev.some((e) => e.t === 'msg' && e.text.includes('steps in front'))).toBe(true);
+  });
+
+  it('the crab only raises Shell Wall once a packmate is hurt', () => {
+    let walls = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const b = new Battle(party(['kit'], 6), enemyParty(['rust_crab', 'sewer_ghoul']), new Rng(seed));
+      const ev = b.resolveRound([{ actor: b.party[0]!.uid, type: 'guard' }]);
+      expect(ev.some((e) => e.t === 'act' && e.name === 'Shell Wall')).toBe(false); // everyone healthy
+      b.enemies[1]!.hp = 10;
+      const ev2 = b.resolveRound([{ actor: b.party[0]!.uid, type: 'guard' }]);
+      if (ev2.some((e) => e.t === 'act' && e.name === 'Shell Wall')) walls++;
+    }
+    expect(walls).toBeGreaterThan(10);
+  });
+
+  it('a status an enemy is immune to reports a structured immune event', () => {
+    // Spirits can't be blinded: Crow Spirit's blind rider bounces off every time, not by chance.
+    const b = new Battle(party(['sable'], 8), enemyParty(['drowned_shade', 'drowned_shade']), new Rng(2));
+    for (const e of b.enemies) e.hp = 5000;
+    const ev = b.resolveRound([{ actor: b.party[0]!.uid, type: 'tech', id: 'crow_spirit', target: -1 }]);
+    const immune = ev.filter((e) => e.t === 'immune');
+    expect(immune.length).toBe(2);
+    expect(immune.every((e) => e.t === 'immune' && e.status === 'blind')).toBe(true);
+  });
+});
+
 describe('maps', () => {
   it('every prop kind placed on a map has a painter', async () => {
     const { PROPS } = await import('../src/field/props');

@@ -26,24 +26,30 @@ function start(): void {
   let last = performance.now();
   let acc = 0;
   const loop = (now: number) => {
+    // Scheduled first: whatever throws below, the next frame still runs.
+    requestAnimationFrame(loop);
     const t0 = performance.now();
     acc += Math.min(250, now - last);
     last = now;
     let n = 0;
-    while (acc >= step && n < 5) {
-      for (let i = 0; i < game.speed; i++) game.tick();
-      acc -= step;
-      n++;
+    try {
+      while (acc >= step && n < 5) {
+        for (let i = 0; i < game.speed; i++) game.tick();
+        acc -= step;
+        n++;
+      }
+      if (n === 5) acc = 0;
+      game.render();
+      display.present();
+    } catch (e) {
+      reportError(e);
     }
-    if (n === 5) acc = 0;
-    game.render();
-    display.present();
     perf.record(performance.now() - t0);
-    requestAnimationFrame(loop);
   };
 
   boot(game, display);
-  // Non-fatal errors surface as a small notice instead of silently freezing.
+  // Non-fatal errors surface as a small notice instead of silently freezing; Game isolates
+  // per-scene exceptions so this overlay keeps drawing even when a scene's render throws.
   game.overlays.push((ctx) => {
     const n = currentNotice();
     if (!n) return;

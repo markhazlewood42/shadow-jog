@@ -2,7 +2,7 @@
  * Installs the field hooks: items, party changes, random encounters, battles (with retry),
  * shops, inn, clinic, save prompts, tutorials and the menu.
  */
-import { notice } from '../engine/errors';
+import { notice, reportError } from '../engine/errors';
 import { popMusic, pushMusic } from '../audio/music';
 import { sfx } from '../audio/sfx';
 import { ENCOUNTERS } from '../data/enemies';
@@ -78,6 +78,11 @@ export function installSystems(game: Game, h: SystemHandlers): void {
   };
 
   fieldHooks.leave = (f, id) => {
+    // The field and battle both assume a leader; a script can never empty the party.
+    if (state.party.length <= 1 && state.party.includes(id)) {
+      reportError(new Error(`Script tried to remove the last party member (${id})`));
+      return;
+    }
     state.party = state.party.filter((p) => p !== id);
     f.refreshParty();
   };
@@ -277,13 +282,15 @@ export async function runBattle(
       continue;
     }
     if (choice === 'load') {
-      const slot = latestSlot();
+      const newest = latestSlot();
+      const slot = latestSlot(true);
       const s = slot ? loadSave(slot) : null;
       if (s) {
         loadIntoGame(game, s);
+        if (slot !== newest) notice('Your newest save is damaged. Loaded the one before it.', 'warn');
         return 'lose';
       }
-      notice(slot ? 'Your last save is damaged and could not be loaded. Returning to the title.' : 'There is no save to load. Returning to the title.', 'warn');
+      notice(newest ? 'Your last save is damaged and could not be loaded. Returning to the title.' : 'There is no save to load. Returning to the title.', 'warn');
     }
     handlers!.toTitle();
     return 'lose';

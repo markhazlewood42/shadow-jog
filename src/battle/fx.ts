@@ -452,6 +452,16 @@ export class FxLayer {
         this.flash = { color: '#ffa24a', frames: 10 };
         this.shake = 10;
         return { impact: 8, total: 36 };
+      case 'crows_wing':
+        // A wall of crows settles over the crew, then the ward rings close.
+        each((t, i) => {
+          this.crows({ x: t.x + 40, y: -10 }, t, 4, i * 3);
+          this.ring(t, '#b07cff', 26, 3, 20, 10 + i * 2, 1);
+          this.ring(t, '#6ff3ff', 4, 18, 18, 16 + i * 2, 1);
+          this.rise(t, '#86f08c', 10, 10, 20 + i * 2, 0.7);
+        });
+        this.flash = { color: '#6ff3ff', frames: 8 };
+        return { impact: 18, total: 40 };
       case 'spirit_walk':
         each((t) => this.crows(from, t, 6));
         each((t) => {

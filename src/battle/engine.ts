@@ -188,7 +188,7 @@ export class Battle {
         actors: [ua.uid, ub.uid],
         ability: ab,
         target: ab.target === 'enemy' ? (aimed?.target ?? -1) : -1,
-        speed: Math.max(this.speedOf(ua), this.speedOf(ub)) + 10,
+        speed: Math.max(this.speedOf(ua), this.speedOf(ub)) + 10 + (ab.priority ?? 0),
         combo: c.combo,
       });
     }
@@ -294,7 +294,8 @@ export class Battle {
         if (s.turns <= 0) this.removeStatus(u, s.id);
       }
       this.removeStatus(u, 'guard');
-      this.removeStatus(u, 'cover');
+      // Rook's cover is for the round he called it; an enemy's lasts its timer (it acts late).
+      if (u.side === 'party') this.removeStatus(u, 'cover');
     }
   }
 
@@ -432,9 +433,9 @@ export class Battle {
         let t = this.unit(target);
         if (!t || t.hp <= 0 || t.side === user.side) t = foes.length ? this.rng.pick(foes) : undefined;
         if (!t) return [];
-        // Guardian: redirect single-target enemy attacks to the covering ally.
-        if (user.side === 'enemy' && t.side === 'party') {
-          const cover = this.alive('party').find((p) => p !== t && this.has(p, 'cover'));
+        // Cover (Rook's Guardian, a crab's Shell Wall): single-target attacks go to the coverer.
+        {
+          const cover = this.alive(t.side).find((p) => p !== t && this.has(p, 'cover'));
           if (cover && ab.effects.some((e) => e.type === 'damage')) {
             this.ev.push({ t: 'msg', text: `${cover.name} steps in front!` });
             return [cover];
@@ -485,7 +486,7 @@ export class Battle {
             if (eff.only && (!t.family || !eff.only.includes(t.family))) continue;
             const chance = t.boss && (eff.status === 'stun' || eff.status === 'hijacked') ? eff.chance * 0.3 : eff.chance;
             if (t.immune?.includes(eff.status)) {
-              if (targets.length === 1) this.ev.push({ t: 'msg', text: `${t.name} is unaffected.` });
+              this.ev.push({ t: 'immune', target: t.uid, status: eff.status });
               continue;
             }
             if (this.rng.chance(chance)) this.addStatus(t, eff.status, eff.status === 'poison' ? UNTIMED : (eff.turns ?? 3), user.uid);

@@ -13,19 +13,32 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 
 | # | Area | Score | Round | Date | Δ | Blocking issues (short) |
 |---|---|---|---|---|---|---|
-| 1 | Engine & code | 7.2 | 2 | 2026-09-28 | +0.7 | Per-frame array allocs in BattleScene render/update; `noUncheckedIndexedAccess` off; no lint/CI; no frame-budget check; 1400-line BattleScene |
-| 2 | Field art | 7.0 | 2 | 2026-09-28 | +1.5 | Neon hair on bulky styles reads as a ball; Sinkline too dark; empty flood arena; Rook's shades/beard illegible; arbitrary Annex terminal colours; sparse world stretches; floating light strings |
-| 3 | Battle presentation | 7.0 | 2 | 2026-09-28 | +0.5 | Blank trash-mob faces; human mobs read as reskins; one pose per action kind; mirror flip invisible on symmetric sprites; thin gunfire FX; no party faces in battle UI |
-| 4 | UI / UX | 6.0 | 2 | 2026-09-28 | 0 | **Cap:** compact party card numbers overflow (menu.ts renderCards); "Battles won 0" on ending evidence; unframed "Rook: missing"; silent autosave; shop detail vanishes on empty list; no long-word wrap |
-| 5 | Combat design | 7.0 | 2 | 2026-09-28 | 0 | Enemy HP/weaknesses hidden unless Analyzed; Rook purely physical; trash fights resolve by attacking; no bestiary UI; Warden has no bespoke weakness; Auto allowed on bosses |
-| 6 | Progression & economy | 7.3 | 2 | 2026-09-28 | +3.8 | No nudge to loot Annex gear before the Warden; bound_spirit+arcanist outlier; Nodachi price trap; tac visor = cyber eye; step counts hand-typed; Hex/Sable gear moments |
-| 7 | Narrative & writing | 7.8 | 2 | 2026-09-28 | +0.2 | Shared hedge-joke cadence across the cast; ambiguous "her" in Pale's last line; betrayal confirmed 3× in advance; Rook's guilt has no setup; uniformly quippy NPCs; flat logs; thin Pale |
-| 8 | Level design | 7.3 | 2 | 2026-09-28 | +0.1 | No Annex signage; objective only in menu; no connectivity test; dead lake/plaza space; no map screen; POIs don't feed the critical path |
-| 9 | Audio | 6.5 | 2 | 2026-09-28 | −0.5 | Dry mix entirely mono (no panning); ~12 patches, no reedy/brassy timbre for the jazz bar; convolver buffer hot-swap can click; no audio checks in tests; held clashes (world bar 2, dungeon bar 2); no volume preview; no wall-bump SFX |
-| 10 | Feel & polish | 7.4 | 2 | 2026-09-28 | +0.2 | Comic panels skip mid-sentence and ignore Text Speed; dialog eats the first tap for 100 ms; no perf log in evidence; per-frame sort in battle render |
-| 11 | Stability | 8.0 | 2 | 2026-09-28 | +2.0 | Autosave failures silent; Game Over "Load" can drop to title wordlessly; "Saltreach" absent from GDD; migrations untested by a real bump; full-state clone per battle |
+| 1 | Engine & code | 7.5 | 3 | 2026-09-28 | +0.3 | Debug API shipped in production; thin unit coverage outside battle/save (input, list, actor); per-frame allocations left in weather and banners |
+| 2 | Field art | 7.4 | 3 | 2026-09-28 | +0.4 | Field sprites have no mouth/brow; bar interior bare; lamp-floor and car painters flat; Rustyard dirt too uniform; lab floor noisy; rain has one depth layer |
+| 3 | Battle presentation | 7.0 | 3 | 2026-09-28 | 0 | Duplicate variants are hue-only; small FX vocabulary; bosses not scaled up; little character acting (no cut-ins); weak enemy tells |
+| 4 | UI / UX | 8.2 | 3 | 2026-09-28 | +2.2 | Minor overflow in save/options labels; menu backdrop clips world signs; parent list not dimmed under battle submenus; shop doesn't say why an item is locked |
+| 5 | Combat design | 7.0 | 3 | 2026-09-28 | 0 | No Rook+Sable combo; resistances and immunities not remembered; Lurker weak to three elements; few support enemies in random fights; Repeat works through boss telegraphs |
+| 6 | Progression & economy | 6.5 | 3 | 2026-09-28 | −0.8 | Mods not validated by the sim; early stretch with nothing worth buying; Warden payout mistimed; Sable's gear moment missing |
+| 7 | Narrative & writing | 8.0 | 3 | 2026-09-28 | +0.2 | Pale's distinctive beat comes late; final panel lacks a crescendo; log cluster too dense; Hex's anxious voice inconsistent; apostrophe styles mixed |
+| 8 | Level design | 7.3 | 3 | 2026-09-28 | 0 | Puzzles are fetch-the-switch, not spatial; no hidden secret; overworld texture thin between POIs |
+| 9 | Audio | 7.2 | 3 | 2026-09-28 | +0.7 | Short boss loops; battle music drops the field's reverb space; hard music cuts; no ducking under dialogue; Rustyard lacks a twangy timbre; no SFX rate limit |
+| 10 | Feel & polish | 7.5 | 3 | 2026-09-28 | +0.1 | HP/TP bars jump instead of tweening; enemy damage numbers not above heads; no fast-forward hint in dialogue; no shake-intensity setting; short lunges |
+| 11 | Stability | 7.3 | 3 | 2026-09-28 | −0.7 | Game loop has no error boundary (one throw freezes the game); saves not checked for unknown ids; title Continue/Load swallows a damaged save; header not validated |
 
-## Round 3 work plan (in progress)
+## Round 4 work plan (in progress, last round before parking)
+
+Per the rubric, an area still under 8.5 after this round is parked with its reasons.
+
+- [x] **Stability**: per-scene fault isolation + rAF always rescheduled; a flow that keeps throwing recovers to the title (tested); unknown ids dropped at load (inventory, equip, uses, bestiary, combos, orders); header validation; `slotStatus` marks damaged slots in Load; Continue and Game Over use the newest *loadable* save (E2E); the party can never be emptied by a script.
+- [x] **Combat**: Rook+Sable combo *Crow's Wing* (Guardian + Spirit Ward; a priority party guard that answers telegraphs); resistances and immunities remembered and shown (target info, bestiary); Lurker shock-only weakness (fire resisted); Rust Crab *Shell Wall* protector role + more support groups; Repeat disabled while a boss telegraphs.
+- [x] **Engine**: debug API is DEV-only; unit tests for input, ListMenu, actor, game-loop faults; ListMenu scroll clamp fixed (found by a test).
+- [x] **Economy**: alternative-build tests (every stage's gear must be obtainable; sidegrades must win within 5 points); mods in stage loadouts; `focus_rod` for Sable.
+- [~] **Battle presentation**: combo cut-ins and crit-on-boss cut-in; enemy art tells (wisp core, turret sensors); skyline landmarks. Open: variants beyond hue, FX vocabulary.
+- [ ] **Feel**: tween HP/TP bars; enemy floaters above heads; dialogue fast-forward hint; shake slider; longer lunge.
+- [ ] **Audio**: longer boss loops; keep the field's space in battle; music crossfade-in; duck under dialogue; Rustyard twang; SFX rate limit.
+- [ ] **Field art / Level / Narrative / UI**: remaining round-3 asks (see table).
+
+## Round 3 work plan (done)
 
 - [x] **Engine**: pooled/cached enemy & party lists and floaters in BattleScene; ~~noUncheckedIndexedAccess~~ (on); ~~lint + CI~~ (Biome, GitHub Actions); ~~frame-budget E2E~~ (e2e/perf.spec.ts); perf log in evidence.
 - [x] **UI/UX**: ~~compact card overflow~~; ~~frame "Rook: missing"~~; ~~realistic stage battle counts~~; ~~shop detail on empty list~~; ~~long-word wrap~~; autosave indicator + failure notice; wrap-safe battle top line.

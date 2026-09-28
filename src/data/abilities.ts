@@ -186,6 +186,11 @@ export const ABILITIES: Record<string, Ability> = {
     desc: 'Kit moves with the crow\'s wings. Eight mana-charged strikes.',
     effects: [{ type: 'damage', stat: 'atk', mult: 0.9, hits: 8, ignoreDef: true }], fx: 'spirit_walk',
   }),
+  combo_crows_wing: A({
+    id: 'combo_crows_wing', name: 'Crow’s Wing', kind: 'combo', target: 'allies', priority: 100,
+    desc: 'Rook holds the line; the crow spreads its wings over it. The crew guards, gains RES and regen.',
+    effects: [{ type: 'buff', status: 'guard', turns: 1 }, { type: 'buff', status: 'res_up', turns: 3 }, { type: 'buff', status: 'regen', turns: 3 }], fx: 'crows_wing',
+  }),
   combo_lifeline: A({
     id: 'combo_lifeline', name: 'Lifeline', kind: 'combo', target: 'allies',
     desc: 'Nanites carry the spirit\'s blessing. Full heal, cleanse and regen for all.',
@@ -208,6 +213,7 @@ export const ABILITIES: Record<string, Ability> = {
   e_claw: A({ id: 'e_claw', name: 'Claw', kind: 'enemy', target: 'enemy', desc: '', effects: [{ type: 'damage', stat: 'atk', mult: 1.1 }], fx: 'claw' }),
   e_rot_bite: A({ id: 'e_rot_bite', name: 'Rotten Bite', kind: 'enemy', target: 'enemy', desc: '', effects: [{ type: 'damage', stat: 'atk', mult: 1 }, { type: 'status', status: 'poison', chance: 0.45 }], fx: 'bite' }),
   e_pincer: A({ id: 'e_pincer', name: 'Pincer', kind: 'enemy', target: 'enemy', desc: '', effects: [{ type: 'damage', stat: 'atk', mult: 1.3 }], fx: 'claw' }),
+  e_shell_wall: A({ id: 'e_shell_wall', name: 'Shell Wall', kind: 'enemy', target: 'self', desc: '', effects: [{ type: 'buff', status: 'cover', turns: 2 }, { type: 'buff', status: 'def_up', turns: 3 }], fx: 'shield' }),
   e_harden: A({ id: 'e_harden', name: 'Harden Shell', kind: 'enemy', target: 'self', desc: '', effects: [{ type: 'buff', status: 'def_up', turns: 3 }], fx: 'shield' }),
   e_welder: A({ id: 'e_welder', name: 'Arc Welder', kind: 'enemy', target: 'enemy', element: 'fire', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 10 }, { type: 'status', status: 'burn', chance: 0.3, turns: 3 }], fx: 'zap' }),
   e_stim: A({ id: 'e_stim', name: 'Combat Stim', kind: 'enemy', target: 'ally', desc: '', cry: 'Hold still, you idiot!', effects: [{ type: 'heal', power: 26 }], fx: 'heal' }),
@@ -314,6 +320,11 @@ export const COMBOS: ComboDef[] = [
     id: 'combo_spirit_walk',
     parts: [{ member: 'sable', ability: 'crow_spirit' }, { member: 'kit', ability: 'hundred_rain' }],
     hint: 'When the crow flies, the fists follow.',
+  },
+  {
+    id: 'combo_crows_wing',
+    parts: [{ member: 'rook', ability: 'guardian' }, { member: 'sable', ability: 'spirit_ward' }],
+    hint: 'The old soldier plants his feet; the crow spreads its wings over him.',
   },
   {
     id: 'combo_lifeline',

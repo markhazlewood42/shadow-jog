@@ -18,7 +18,7 @@ class MemStorage {
 }
 (globalThis as unknown as { localStorage: MemStorage }).localStorage = new MemStorage();
 
-const { hasAnySave, latestSlot, loadSave, readMeta, validState, writeSave, applySave } = await import('../src/game/save');
+const { hasAnySave, latestSlot, loadSave, readMeta, slotStatus, validState, writeSave, applySave } = await import('../src/game/save');
 const { addMember } = await import('../src/game/party');
 const stateMod = await import('../src/game/state');
 const { newState, setState } = stateMod;
@@ -117,5 +117,53 @@ describe('save / load', () => {
     const s = loadSave(1)!;
     expect(s.combos).toEqual([]);
     expect(s.bestiary).toEqual({});
+  });
+
+  it('drops content ids that no longer exist instead of crashing a menu later', () => {
+    const st = stateMod.state;
+    st.inventory = { medkit: 2, no_such_item: 3, neurotab: -1 };
+    st.members.kit!.equip = { weapon: 'no_such_blade', body: 'medkit' };
+    st.members.kit!.uses = { iron_palm: 2, no_such_move: 1 };
+    st.bestiary = { glowrat: 4, no_such_enemy: 2 };
+    st.weakSeen = { glowrat: ['fire'], no_such_enemy: ['mana'] };
+    st.combos = ['combo_lifeline', 'combo_gone'];
+    st.lastOrders = { kit: { cmd: 'tech', id: 'no_such_move' }, rook: { cmd: 'attack' } };
+    st.lastEntrance = { map: 'no_such_map', x: 1, y: 1 };
+    writeSave(1, 0);
+    const s = loadSave(1)!;
+    expect(s.inventory).toEqual({ medkit: 2 });
+    expect(s.members.kit!.equip).toEqual({}); // unknown blade, and a medkit is not body armour
+    expect(Object.keys(s.members.kit!.uses)).toEqual(['iron_palm']);
+    expect(s.bestiary).toEqual({ glowrat: 4 });
+    expect(s.weakSeen).toEqual({ glowrat: ['fire'] });
+    expect(s.combos).toEqual(['combo_lifeline']);
+    expect(s.lastOrders).toEqual({ rook: { cmd: 'attack' } });
+    expect(s.lastEntrance).toBeNull();
+  });
+
+  it('marks a slot damaged when the header parses but the state will not load', () => {
+    const ls = (globalThis as unknown as { localStorage: MemStorage }).localStorage;
+    writeSave(1, 0);
+    writeSave(2, 0);
+    const raw = JSON.parse(ls.getItem('shadowjog.save.2')!);
+    raw.meta.when += 1000; // the newest save...
+    delete raw.state.members.kit; // ...is the broken one
+    ls.setItem('shadowjog.save.2', JSON.stringify(raw));
+    expect(slotStatus(1)).toBe('ok');
+    expect(slotStatus(2)).toBe('damaged');
+    expect(slotStatus(3)).toBe('empty');
+    expect(latestSlot()).toBe(2);
+    expect(latestSlot(true)).toBe(1); // Continue and Game Over skip to the newest good save
+    expect(hasAnySave()).toBe(true);
+  });
+
+  it('rejects a header with missing fields', () => {
+    const ls = (globalThis as unknown as { localStorage: MemStorage }).localStorage;
+    writeSave(1, 0);
+    const raw = JSON.parse(ls.getItem('shadowjog.save.1')!);
+    delete raw.meta.location;
+    ls.setItem('shadowjog.save.1', JSON.stringify(raw));
+    expect(readMeta(1)).toBeNull();
+    expect(slotStatus(1)).toBe('damaged');
   });
 });

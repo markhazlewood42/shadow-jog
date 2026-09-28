@@ -15,13 +15,13 @@ import { ITEMS } from '../data/items';
 import { LOOKS } from '../data/looks';
 import { MEMBERS } from '../data/party';
 import { silhouette, surface, type Ctx, type Surface } from '../engine/canvas';
-import { drawText, measure, wrap } from '../engine/font';
+import { drawText, fitText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { Rng, rng as globalRng } from '../engine/rng';
 import { equipRegen, grantXp, knownAbilities, type LevelUp } from '../game/party';
 import { settings } from '../game/settings';
 import { debug, PLAYTEST_ROUNDS } from '../game/debug';
-import { removeItem, state, type MemberId } from '../game/state';
+import { learn, removeItem, state, type MemberId } from '../game/state';
 import { drawBar, drawWindow, hpColor, UI } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
 
@@ -85,6 +85,11 @@ const STATUS_LABEL: Partial<Record<StatusId, [string, string]>> = {
 const STATUS_SFX: Partial<Record<StatusId, string>> = {
   poison: 'st_poison', burn: 'st_burn', stun: 'st_stun', blind: 'st_blind', jammed: 'st_jammed', hijacked: 'st_jammed',
 };
+
+/** A status id as the crew would say it. */
+function statusName(st: string): string {
+  return st === 'hijacked' ? 'HIJACK' : st.replace('_', ' ').toUpperCase();
+}
 
 /** Offsets and opacity of the speed ghosts behind a dashing party member. */
 const AFTERIMAGES: [number, number, number][] = [[-7, 5, 0.35], [7, 9, 0.22], [0, 13, 0.14]];
@@ -225,7 +230,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const anyOrders = state.party.some((id) => state.lastOrders[id]);
     this.roundMenu.setItems([
       { label: 'Fight', value: 'fight' },
-      { label: 'Repeat', value: 'repeat', enabled: anyOrders },
+      { label: 'Repeat', value: 'repeat', enabled: anyOrders && !this.telegraphed() },
       { label: 'Auto', value: 'auto', enabled: !this.setup.boss },
       { label: 'Run', value: 'run', enabled: this.battle.canRun && !this.setup.boss },
     ]);
@@ -630,12 +635,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           this.float(String(e.amount), p, e.crit ? '#ffe07a' : e.weak ? '#ffa24a' : e.resist ? '#b8bcd0' : u.side === 'party' ? '#ff9a9a' : '#ffffff', true);
           if (e.crit) this.float('CRITICAL', { x: p.x, y: p.y - 10 }, '#ffe07a', false);
           else if (e.weak) this.float('WEAK!', { x: p.x, y: p.y - 10 }, '#ffa24a', false);
-          if (e.weak && u.side === 'enemy') {
-            state.weakSeen[u.key] ??= [];
-            const seen = state.weakSeen[u.key]!;
-            if (!seen.includes(e.element)) seen.push(e.element);
-          }
           else if (e.resist) this.float('RESIST', { x: p.x, y: p.y - 10 }, '#b8bcd0', false);
+          // Field notes: what the crew learns the hard way sticks (target info, bestiary).
+          if (u.side === 'enemy') {
+            if (e.weak) learn(state.weakSeen, u.key, e.element);
+            else if (e.resist) learn(state.resistSeen, u.key, e.element);
+          }
         }
         sfx(e.crit ? 'crit' : u.side === 'party' ? 'hurt' : 'hit');
         // A critical on a boss gets the striker's face.
@@ -707,6 +712,15 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         this.say(e.text);
         await this.w(40);
         break;
+      case 'immune': {
+        const u = this.battle.unit(e.target)!;
+        this.float('IMMUNE', this.pos(e.target), '#c9b8ff', false);
+        if (u.side === 'enemy') learn(state.immuneSeen, u.key, e.status);
+        this.say(`${u.name} is immune to ${statusName(e.status)}.`);
+        sfx('miss');
+        await this.w(24);
+        break;
+      }
       case 'fail':
         this.say(e.reason);
         this.d(e.actor).shake = 6;
@@ -759,9 +773,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         const res = Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) < 1).map(([k]) => k.toUpperCase());
         // Analyze writes what it finds into the crew's notes (bestiary, target cursor).
         if (u.side === 'enemy') {
-          state.weakSeen[u.key] ??= [];
-          const notes = state.weakSeen[u.key]!;
-          for (const el of weak) if (!notes.includes(el.toLowerCase())) notes.push(el.toLowerCase());
+          for (const el of weak) learn(state.weakSeen, u.key, el.toLowerCase());
+          for (const el of res) learn(state.resistSeen, u.key, el.toLowerCase());
+          for (const st of u.immune ?? []) learn(state.immuneSeen, u.key, st);
         }
         this.say(`${u.name}: HP ${u.hp}/${u.base.maxHp}${weak.length ? `  WEAK ${weak.join(' ')}` : ''}${res.length ? `  RESISTS ${res.join(' ')}` : ''}`);
         await this.w(70);
@@ -1437,13 +1451,18 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     });
   }
 
+  /** A boss is winding up a big move: the round deserves fresh orders, not muscle memory. */
+  private telegraphed(): boolean {
+    return this.battle.alive('enemy').some((u) => u.boss && (u.memory.breath || u.memory.charging));
+  }
+
   private renderRoundMenu(ctx: Ctx): void {
     const x = MENU_X, y = PANEL_Y - 60;
     drawWindow(ctx, x, y, 84, 54, { title: `ROUND ${this.battle.round + 1}` });
     this.roundMenu.render(ctx, x + 8, y + 8, 72);
     const help: Record<string, string> = {
       fight: 'Give each crew member orders.',
-      repeat: 'Repeat last round\'s orders.',
+      repeat: this.telegraphed() ? 'Something big is coming. Give fresh orders.' : 'Repeat last round\'s orders.',
       auto: this.setup.boss ? 'Not against a boss. Give orders.' : 'Everyone attacks.',
       run: this.battle.canRun && !this.setup.boss ? 'Try to escape.' : 'You can\'t run from this fight.',
     };
@@ -1494,22 +1513,32 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const u = uid !== undefined ? this.battle.unit(uid) : undefined;
     if (!u) return;
     const w = 190, x = (W - w) / 2, y = 44;
-    drawWindow(ctx, x, y, w, u.side === 'enemy' && u.analyzed ? 30 : 19, { plain: true, accent: UI.amber });
-    drawText(ctx, u.name, x + 8, y + 5, { color: u.side === 'enemy' ? '#ffd0d0' : MEMBERS[u.key as MemberId]?.color ?? UI.text });
     if (u.side === 'enemy') {
+      // Analyzed: the whole chart. Otherwise what the crew has learned the hard way.
+      const weak = u.analyzed ? Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => k) : (state.weakSeen[u.key] ?? []);
+      const res = u.analyzed ? Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) < 1).map(([k]) => k) : (state.resistSeen[u.key] ?? []);
+      const imm = u.analyzed ? (u.immune ?? []) : (state.immuneSeen[u.key] ?? []);
+      const notes: [string, string][] = [];
+      if (res.length) notes.push([`RESISTS ${res.map((el) => el.toUpperCase()).join(' ')}`, '#b8bcd0']);
+      if (imm.length) notes.push([`IMMUNE ${imm.map(statusName).join(' ')}`, '#c9b8ff']);
+      drawWindow(ctx, x, y, w, 19 + (u.analyzed ? 11 : 0) + notes.length * 10, { plain: true, accent: UI.amber });
+      drawText(ctx, u.name, x + 8, y + 5, { color: '#ffd0d0' });
+      const bestiary = state.bestiary[u.key] ?? 0;
+      if (weak.length) drawText(ctx, `WEAK ${weak.map((el) => el.toUpperCase()).join(' ')}`, x + w - 8, y + 5, { align: 'right', color: UI.amber });
+      else if (!u.analyzed) drawText(ctx, bestiary ? `Defeated ×${bestiary}` : 'Unknown', x + w - 8, y + 5, { align: 'right', color: UI.dim });
+      let ny = y + 15;
       if (u.analyzed) {
         drawBar(ctx, x + 8, y + 19, w - 70, 3, u.hp / u.base.maxHp, hpColor(u.hp / u.base.maxHp));
         drawText(ctx, `${u.hp}/${u.base.maxHp}`, x + w - 8, y + 15, { align: 'right', color: UI.dim });
-        const weak = Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => k.toUpperCase());
-        if (weak.length) drawText(ctx, `WEAK ${weak.join(' ')}`, x + w - 8, y + 5, { align: 'right', color: UI.amber });
-      } else {
-        // Not analyzed: show what the crew has learned the hard way, else the kill count.
-        const seen = state.weakSeen[u.key] ?? [];
-        const bestiary = state.bestiary[u.key] ?? 0;
-        if (seen.length) drawText(ctx, `WEAK ${seen.map((el) => el.toUpperCase()).join(' ')}`, x + w - 8, y + 5, { align: 'right', color: UI.amber });
-        else drawText(ctx, bestiary ? `Defeated ×${bestiary}` : 'Unknown', x + w - 8, y + 5, { align: 'right', color: UI.dim });
+        ny += 11;
+      }
+      for (const [text, color] of notes) {
+        drawText(ctx, fitText(text, w - 16), x + 8, ny, { color });
+        ny += 10;
       }
     } else {
+      drawWindow(ctx, x, y, w, 19, { plain: true, accent: UI.amber });
+      drawText(ctx, u.name, x + 8, y + 5, { color: MEMBERS[u.key as MemberId]?.color ?? UI.text });
       drawText(ctx, `${u.hp}/${u.base.maxHp}`, x + w - 8, y + 5, { align: 'right', color: UI.dim });
     }
   }
@@ -1627,7 +1656,7 @@ function fxSound(fx: string): string {
   if (['code', 'glitch', 'scan', 'ghost_circuit'].includes(fx)) return 'code';
   if (['heal', 'heal_all', 'heal_self', 'revive', 'cleanse', 'tp', 'lifeline'].includes(fx)) return 'heal';
   if (['punch', 'bite', 'crush', 'palm', 'coil', 'rain_hits'].includes(fx)) return 'punch';
-  if (['crow', 'spirit_walk', 'dark', 'wail', 'smog'].includes(fx)) return 'spirit';
+  if (['crow', 'spirit_walk', 'crows_wing', 'dark', 'wail', 'smog'].includes(fx)) return 'spirit';
   if (fx === 'beam') return 'beam';
   if (fx === 'wave') return 'wave';
   return 'hit';
@@ -1638,7 +1667,7 @@ function actionPose(key: string, kind: Ability['kind'], targets: (string | undef
   if (kind === 'item') return 'item';
   if (fx === 'palm' || fx === 'coil') return 'thrust';
   if (fx === 'gunfire' || fx === 'shot') return 'aim';
-  if (fx === 'shield' || fx === 'buff' || fx === 'guard' || fx === 'roar') return 'brace';
+  if (fx === 'shield' || fx === 'buff' || fx === 'guard' || fx === 'roar' || fx === 'crows_wing') return 'brace';
   if (kind === 'attack' || kind === 'skill') return 'attack';
   const onAllies = targets.length > 0 && targets.every((t) => t === 'party');
   if (key === 'kit' && !onAllies) return 'attack';

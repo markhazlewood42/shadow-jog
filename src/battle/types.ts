@@ -131,6 +131,7 @@ export type BattleEvent =
   | { t: 'down'; target: number }
   | { t: 'revive'; target: number; hp: number }
   | { t: 'msg'; text: string }
+  | { t: 'immune'; target: number; status: string }
   | { t: 'flee'; ok: boolean }
   | { t: 'summon'; uids: number[] }
   | { t: 'phase'; target: number; key: string; name: string; hp: number }

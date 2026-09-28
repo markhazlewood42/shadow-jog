@@ -24,7 +24,7 @@ describe('balance', () => {
   it('prints the balance table', () => {
     console.log(`\n${results.map(({ r }) => fmt(r)).join('\n')}`);
   });
-  it('the policy uses every ability learnable by the Warden and all six combos', () => {
+  it('the policy uses every ability learnable by the Warden and every combo', () => {
     const used = new Set(results.flatMap(({ r }) => [...r.used]));
     const lv = Object.fromEntries(STAGE_PARTY.warden!.map((l) => [l.id, l.level]));
     const learnable = Object.entries(LEARNSETS).flatMap(([who, ls]) => ls.filter((l) => l.level <= (lv[who] ?? 0)).map((l) => l.id));

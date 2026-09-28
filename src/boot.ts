@@ -22,7 +22,7 @@ import type { GameState } from './game/state';
 import * as stateMod from './game/state';
 import { applyStage } from './game/stages';
 import { perf } from './engine/perf';
-import { currentNotice } from './engine/errors';
+import { currentNotice, notice } from './engine/errors';
 import { EndingScene } from './scenes/ending';
 import { fieldHooks } from './game/hooks';
 
@@ -84,6 +84,13 @@ export function boot(game: Game, display: Display): void {
   window.addEventListener('keydown', unlock);
   window.addEventListener('pointerdown', unlock);
   document.addEventListener('visibilitychange', () => (document.hidden ? audio.suspend() : audio.resume()));
+  // A flow that throws every frame can't be trusted to finish: drop it and go back to the title,
+  // where Continue picks up the last good save.
+  game.onFault = () => {
+    game.abandon();
+    notice('Something broke and the game recovered to the title. Continue loads your last save.', 'warn');
+    void startTitle(game, 30);
+  };
   const scene = params.get('scene');
   switch (scene) {
     case 'field': {
@@ -125,9 +132,11 @@ export function boot(game: Game, display: Display): void {
   }
 }
 
-export async function startTitle(game: GameT): Promise<void> {
-  await game.fadeTo(0, 0);
-  const choice = await game.reset(new TitleScene());
+/** Show the title (fading in over `fadeIn` frames) and act on the choice. */
+export async function startTitle(game: GameT, fadeIn = 0): Promise<void> {
+  const title = game.reset(new TitleScene());
+  void game.fadeTo(0, fadeIn);
+  const choice = await title;
   await game.fadeOut(30);
   if (choice.kind === 'new') {
     await newGame(game);
@@ -135,7 +144,8 @@ export async function startTitle(game: GameT): Promise<void> {
   }
   const s = loadSave(choice.slot);
   if (!s) {
-    void startTitle(game);
+    notice('That save is damaged and could not be loaded. Your other slots are unaffected.', 'warn');
+    void startTitle(game, 30);
     return;
   }
   loadIntoGame(game, s);

@@ -6,7 +6,7 @@ import { LOOKS } from '../data/looks';
 import type { Ctx } from '../engine/canvas';
 import { drawText, fitText, measure } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
-import { formatPlayTime, readMeta, writeSave, type SaveMeta, type SlotId } from '../game/save';
+import { formatPlayTime, readMeta, slotStatus, writeSave, type SaveMeta, type SlotId, type SlotStatus } from '../game/save';
 import { drawSelect, drawWindow, UI } from '../ui/draw';
 
 export class SaveScene extends Scene<SlotId | null> {
@@ -17,20 +17,27 @@ export class SaveScene extends Scene<SlotId | null> {
   private note = '';
   private t = 0;
 
+  /** Slot headers and loadability, read once (full validation is too costly per frame). */
+  private info: { meta: SaveMeta | null; status: SlotStatus }[] = [];
+
   constructor(private mode: 'save' | 'load') {
     super();
     this.slots = mode === 'load' ? ['auto', 1, 2, 3] : [1, 2, 3];
+    this.refresh();
     if (mode === 'load') {
-      // Start on the most recent save.
+      // Start on the most recent save that will load.
       let best = -1;
-      this.slots.forEach((s, i) => {
-        const m = readMeta(s);
-        if (m && m.when > best) {
-          best = m.when;
+      this.info.forEach(({ meta, status }, i) => {
+        if (meta && status === 'ok' && meta.when > best) {
+          best = meta.when;
           this.idx = i;
         }
       });
     }
+  }
+
+  private refresh(): void {
+    this.info = this.slots.map((s) => ({ meta: readMeta(s), status: slotStatus(s) }));
   }
 
   update(): void {
@@ -58,11 +65,11 @@ export class SaveScene extends Scene<SlotId | null> {
       return;
     }
     if (!inp.pressed('confirm')) return;
-    const meta = readMeta(slot);
+    const { meta, status } = this.info[this.idx]!;
     if (this.mode === 'load') {
-      if (!meta) {
+      if (status !== 'ok') {
         sfx('buzz');
-        this.note = 'That slot is empty.';
+        this.note = status === 'empty' ? 'That slot is empty.' : 'That save is damaged and can’t be loaded.';
         return;
       }
       sfx('confirm');
@@ -75,6 +82,7 @@ export class SaveScene extends Scene<SlotId | null> {
 
   private write(slot: SlotId): void {
     if (writeSave(slot, this.game.playFrames)) {
+      this.refresh();
       sfx('save');
       this.note = `Saved to slot ${slot}.`;
       this.confirm = false;
@@ -98,15 +106,19 @@ export class SaveScene extends Scene<SlotId | null> {
       const sel = i === this.idx;
       drawWindow(ctx, x + 8, ry, w - 16, rowH, { plain: !sel, accent: sel ? UI.cyan : undefined });
       if (sel) drawSelect(ctx, x + 10, ry + 2, w - 20, rowH - 4, 'rgba(63,224,240,0.08)');
-      const meta = readMeta(s);
+      const { meta, status } = this.info[i]!;
       drawText(ctx, s === 'auto' ? 'AUTOSAVE' : `SLOT ${s}`, x + 16, ry + 6, { color: s === 'auto' ? UI.amber : UI.cyan });
-      if (!meta) {
+      if (status === 'empty') {
         drawText(ctx, 'Empty', x + 16, ry + 20, { color: UI.disabled });
+        return;
+      }
+      if (status === 'damaged' || !meta) {
+        drawText(ctx, this.mode === 'load' ? 'Damaged — can’t be loaded' : 'Damaged — saving here replaces it', x + 16, ry + 20, { color: UI.red });
         return;
       }
       this.drawMeta(ctx, meta, x + 16, ry, w - 32);
     });
-    if (this.note) drawText(ctx, this.note, W / 2, y + h + 6, { align: 'center', color: UI.green });
+    if (this.note) drawText(ctx, this.note, W / 2, y + h + 6, { align: 'center', color: this.note.startsWith('Saved') ? UI.green : UI.amber });
     if (this.confirm) {
       drawWindow(ctx, x + 40, y + h / 2 - 16, w - 80, 32, { accent: UI.amber });
       drawText(ctx, 'Overwrite this save?', W / 2, y + h / 2 - 10, { align: 'center' });

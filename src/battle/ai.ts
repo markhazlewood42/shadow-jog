@@ -20,6 +20,8 @@ function moveOk(b: Battle, self: Combatant, m: EnemyMove): boolean {
       return true;
     case 'ally_hurt':
       return allies.some((a) => a.hp / a.base.maxHp < 0.6);
+    case 'shield_ally':
+      return !b.has(self, 'cover') && allies.some((a) => a !== self && a.hp / a.base.maxHp < 0.7);
     case 'no_atk_buff':
       return !allies.some((a) => b.has(a, 'atk_up'));
     case 'no_def_buff':

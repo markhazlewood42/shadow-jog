@@ -3,9 +3,17 @@
  *
  * Scenes are pushed with `run()` which returns a promise resolved when the scene calls `close(result)`.
  * This lets story scripts `await` dialogs, shops and battles linearly.
+ *
+ * Fault isolation: an exception in one scene's update or render is reported and that scene skips
+ * the frame; the loop never dies. A flow that keeps throwing trips `onFault`, which boot uses to
+ * abandon it and return to the title.
  */
 import type { Ctx } from './canvas';
+import { reportError } from './errors';
 import type { Input } from './input';
+
+/** Consecutive faulting ticks before the game gives up on the current flow. */
+export const FAULT_LIMIT = 30;
 
 export const W = 480;
 export const H = 270;
@@ -82,6 +90,11 @@ export class Game {
   tickers: (() => void)[] = [];
   /** Speed multiplier for debug / tests (ticks per frame). */
   speed = 1;
+  /** Called once when something keeps throwing (see FAULT_LIMIT). */
+  onFault: (() => void) | null = null;
+  /** Consecutive ticks in which something threw. */
+  private faults = 0;
+  private faultedThisTick = false;
 
   constructor(ctx: Ctx, input: Input) {
     this.ctx = ctx;
@@ -110,6 +123,23 @@ export class Game {
     }
     this.stack.length = 0;
     return this.run(scene);
+  }
+
+  /**
+   * Drop every scene, timer and fade without resolving them, so a story flow waiting on any of
+   * them stops dead instead of resuming on top of whatever runs next. Used for fault recovery.
+   */
+  abandon(): void {
+    for (const s of this.stack) s.closed = true;
+    this.stack.length = 0;
+    this.timers = [];
+    this.fade = null;
+    this.faults = 0;
+  }
+
+  private fault(e: unknown): void {
+    if (!this.faultedThisTick) reportError(e);
+    this.faultedThisTick = true;
   }
 
   remove(scene: AnyScene): void {
@@ -161,8 +191,15 @@ export class Game {
 
   /** One fixed tick. */
   tick(): void {
+    this.faultedThisTick = false;
     this.input.update();
-    for (const t of this.tickers) t();
+    for (const t of this.tickers) {
+      try {
+        t();
+      } catch (e) {
+        this.fault(e);
+      }
+    }
     if (!this.paused) {
       this.frame++;
       if (this.countPlayTime) this.playFrames++;
@@ -190,11 +227,20 @@ export class Game {
       // Scenes: top always updates; lower scenes update while the one above passes updates through.
       for (let i = this.stack.length - 1; i >= 0; i--) {
         const s = this.stack[i]!;
-        s.update();
+        try {
+          s.update();
+        } catch (e) {
+          this.fault(e);
+        }
         if (!s.passUpdate) break;
       }
     }
     this.input.endFrame();
+    this.faults = this.faultedThisTick ? this.faults + 1 : 0;
+    if (this.faults >= FAULT_LIMIT) {
+      this.faults = 0;
+      this.onFault?.();
+    }
   }
 
   render(): void {
@@ -210,7 +256,15 @@ export class Game {
       ctx.fillStyle = '#07060d';
       ctx.fillRect(0, 0, W, H);
     }
-    for (let i = Math.max(0, start); i < this.stack.length; i++) this.stack[i]!.render(ctx);
+    for (let i = Math.max(0, start); i < this.stack.length; i++) {
+      ctx.save();
+      try {
+        this.stack[i]!.render(ctx);
+      } catch (e) {
+        this.fault(e);
+      }
+      ctx.restore();
+    }
     ctx.restore();
     if (this.flashFrames > 0) {
       ctx.globalAlpha = (this.flashFrames / this.flashTotal) * 0.8;
@@ -224,6 +278,12 @@ export class Game {
       ctx.fillRect(0, 0, W, H);
       ctx.globalAlpha = 1;
     }
-    for (const o of this.overlays) o(ctx);
+    for (const o of this.overlays) {
+      try {
+        o(ctx);
+      } catch (e) {
+        this.fault(e);
+      }
+    }
   }
 }

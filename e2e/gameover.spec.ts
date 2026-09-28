@@ -134,3 +134,52 @@ test('Autosave reports success, and failure when storage is unavailable', async 
   expect(n?.tone).toBe('warn');
   expect(n?.text).toMatch(/Autosave failed/);
 });
+
+test('Title: Continue skips a damaged newest save, and Load marks it instead of failing silently', async ({ page }) => {
+  await stage(page, 'town');
+  expect(await sj<boolean>(page, 'sj.save(1)')).toBe(true);
+  // Slot 2: newer than slot 1, but its state is broken.
+  await page.evaluate(() => {
+    localStorage.removeItem('shadowjog.save.auto');
+    const raw = JSON.parse(localStorage.getItem('shadowjog.save.1')!);
+    raw.meta.when += 60_000;
+    delete raw.state.members.kit;
+    localStorage.setItem('shadowjog.save.2', JSON.stringify(raw));
+  });
+  await page.goto('/?debug'); // a fresh boot lands on the title
+  await waitFor(page, "sj.top() === 'TitleScene'", 'title');
+  await page.waitForTimeout(800);
+  await key(page, 'Enter'); // press start
+  await page.waitForTimeout(400);
+  // Load Game: the damaged slot says so and refuses.
+  await key(page, 'ArrowDown');
+  await key(page, 'Enter');
+  await waitFor(page, "sj.top() === 'SaveScene'", 'load menu');
+  expect(await sj<number>(page, 'sj.game.top.idx')).toBe(1); // cursor starts on the newest good save (slot 1)
+  await key(page, 'ArrowDown'); // slot 2
+  await key(page, 'Enter');
+  expect(await sj<string>(page, 'sj.game.top.note')).toMatch(/damaged/i);
+  await key(page, 'Escape');
+  await waitFor(page, "sj.top() === 'TitleScene'", 'back to title');
+  // Continue loads the newest save that works.
+  await key(page, 'ArrowUp');
+  await key(page, 'Enter');
+  await waitFor(page, 'sj.idle()', 'field after continue');
+  expect(await sj<string>(page, 'sj.state.map')).toBe('lantern_row');
+});
+
+test('A scene that throws every frame recovers to the title instead of freezing', async ({ page }) => {
+  await stage(page, 'town');
+  expect(await sj<boolean>(page, 'sj.save(1)')).toBe(true);
+  await sj(page, "(sj.game.top.update = () => { throw new Error('boom'); }, true)");
+  await waitFor(page, "sj.top() === 'TitleScene'", 'title after fault');
+  const n = await sj<{ text: string; tone: string } | null>(page, 'sj.notice()');
+  expect(n?.tone).toBe('warn');
+  expect(n?.text).toMatch(/recovered/i);
+  // And the game is fully alive: Continue gets back into the field.
+  await page.waitForTimeout(800);
+  await key(page, 'Enter');
+  await page.waitForTimeout(400);
+  await key(page, 'Enter');
+  await waitFor(page, 'sj.idle()', 'field after continue');
+});

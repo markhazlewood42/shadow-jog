@@ -9,7 +9,7 @@ import { ITEMS, type ItemDef } from '../data/items';
 import { LOOKS } from '../data/looks';
 import { MEMBERS, xpFor } from '../data/party';
 import type { Ctx } from '../engine/canvas';
-import { drawParagraph, drawText, measure } from '../engine/font';
+import { drawParagraph, drawText, fitText, measure } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { applyEffects } from '../game/fielduse';
 import { canEquip, equip, knownAbilities, memberStats } from '../game/party';
@@ -635,12 +635,20 @@ export class MenuScene extends Scene<MenuResult> {
     drawText(ctx, `Defeated ×${kills}`, tx, 44);
     // HP becomes known after a few kills.
     drawText(ctx, kills >= 3 ? `HP ${e.hp}` : 'HP ???', tx, 56, { color: kills >= 3 ? UI.text : UI.disabled });
-    const seen = state.weakSeen[e.id] ?? [];
-    drawText(ctx, 'Weak to', tx, 72, { color: UI.dim });
-    drawText(ctx, seen.length ? seen.map((el) => el.toUpperCase()).join(' ') : 'unknown', tx, 84, { color: seen.length ? UI.amber : UI.disabled });
+    // Field notes: only what the crew has actually seen.
+    const rows: [string, string[], string][] = [
+      ['Weak', state.weakSeen[e.id] ?? [], UI.amber],
+      ['Resists', state.resistSeen[e.id] ?? [], '#b8bcd0'],
+      ['Immune', (state.immuneSeen[e.id] ?? []).map((st) => (st === 'hijacked' ? 'hijack' : st)), '#c9b8ff'],
+    ];
+    rows.forEach(([label, seen, color], i) => {
+      drawText(ctx, label, tx, 72 + i * 12, { color: UI.dim });
+      const text = seen.length ? seen.map((v) => v.toUpperCase()).join(' ') : '?';
+      drawText(ctx, fitText(text, x + w - tx - 58), tx + 48, 72 + i * 12, { color: seen.length ? color : UI.disabled });
+    });
     drawDivider(ctx, x + 6, 128, w - 12);
     drawParagraph(ctx, e.lore, x + 10, 136, w - 20, { color: '#d0cee4', lineH: 11 });
-    drawParagraph(ctx, 'Weaknesses are logged when a hit lands weak, or when Hex runs Analyze.', x + 10, H - 34, w - 20, { color: UI.dim, lineH: 10 });
+    drawParagraph(ctx, 'Notes are logged when a hit lands weak or is resisted, when a status fails to stick, or when Hex runs Analyze.', x + 10, H - 34, w - 20, { color: UI.dim, lineH: 10 });
   }
 
   private renderCombos(ctx: Ctx): void {

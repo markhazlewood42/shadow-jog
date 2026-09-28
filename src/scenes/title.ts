@@ -136,16 +136,17 @@ export class TitleScene extends Scene<TitleChoice> {
     this.near = { ...cityLayer(9, 126, 10, 30, '#08060f', ['#ffd98a', '#ff8ad0'], 0.06, 0.25), speed: 0.2 };
     this.roof = this.buildRoof();
     const saves = hasAnySave();
+    const resumable = latestSlot(true) !== null;
     this.menu = new ListMenu<string>(
       [
         { label: 'New Game', value: 'new' },
-        { label: 'Continue', value: 'continue', enabled: saves },
+        { label: 'Continue', value: 'continue', enabled: resumable },
         { label: 'Load Game', value: 'load', enabled: saves },
         { label: 'Options', value: 'options' },
       ],
       4,
     );
-    if (saves) this.menu.index = 1;
+    if (saves) this.menu.index = resumable ? 1 : 2;
     this.logo = this.buildLogo();
   }
 
@@ -257,7 +258,7 @@ export class TitleScene extends Scene<TitleChoice> {
     const v = this.menu.current!.value;
     if (v === 'new') this.close({ kind: 'new' });
     else if (v === 'continue') {
-      const slot = latestSlot();
+      const slot = latestSlot(true);
       if (slot) this.close({ kind: 'load', slot });
     } else if (v === 'load') {
       this.busy = true;

@@ -38,6 +38,10 @@ export interface GameState {
   bestiary: Record<string, number>;
   /** Elements each enemy kind has been seen to be weak to (shown on the target cursor). */
   weakSeen: Record<string, string[]>;
+  /** Elements each enemy kind has been seen to resist. */
+  resistSeen: Record<string, string[]>;
+  /** Statuses each enemy kind has been seen to shrug off. */
+  immuneSeen: Record<string, string[]>;
   /** Last round's battle orders per member (for "Repeat"). */
   lastOrders: Partial<Record<MemberId, { cmd: string; id?: string }>>;
   rngState: number;
@@ -65,10 +69,18 @@ export function newState(): GameState {
     combos: [],
     bestiary: {},
     weakSeen: {},
+    resistSeen: {},
+    immuneSeen: {},
     lastOrders: {},
     rngState: 1,
     battles: 0,
   };
+}
+
+/** Record one fact in a field-notes book (weakSeen / resistSeen / immuneSeen). */
+export function learn(book: Record<string, string[]>, enemy: string, what: string): void {
+  book[enemy] ??= [];
+  if (!book[enemy].includes(what)) book[enemy].push(what);
 }
 
 /** The live state. Replaced wholesale on load / new game. */
