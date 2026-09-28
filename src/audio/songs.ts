@@ -4,6 +4,7 @@ import type { SongSpec } from './music';
 export const SONGS: Record<string, SongSpec> = {
   // Title — "Saltreach Nights". Brooding synthwave in A minor.
   title: {
+    intro: 2,
     bpm: 92,
     chords: 'Am | F | C | G | Am | F | C | E | F | G | Am | Am | F | G | E | E',
     drums: 'title',
@@ -11,7 +12,7 @@ export const SONGS: Record<string, SongSpec> = {
     space: 'hall',
     parts: [
       { inst: 'lead2', vol: 0.9, rev: 0.35, del: 0.3, notes:
-        'E5 - - - D5 - C5 - | C5 - - - A4 - - - | G4 - C5 - E5 - D5 - | D5 - - - - - . . |' +
+        'E5! - - - D5 - C5 - | C5 - - - A4 - - - | G4 - C5 - E5 - D5 - | D5 - - - - - . . |' +
         'E5 - - - D5 - C5 - | C5 - - - A4 - F5 - | E5 - - - D5 - C5 - | B4 - - - G#4 - - - |' +
         'A4 - C5 - F5 - E5 - | D5 - - - B4 - G4 - | A4 - C5 - E5 - A5 - | G5 - - - E5 - - - |' +
         'F5 - E5 - D5 - C5 - | D5 - - - G5 - - - | G#5 - - - E5 - B4 - | E5 - - - - - . .' },
@@ -23,6 +24,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Lantern Row — lo-fi rain-on-glass.
   town: {
+    intro: 1,
     bpm: 80,
     swing: 0.16,
     chords: 'Dm9 | G9 | Cmaj7 | A7 | Dm9 | G9 | Bbmaj7 | A7',
@@ -60,6 +62,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // World map — "Sprawl Run".
   world: {
+    intro: 2,
     bpm: 116,
     chords: 'Em | C | G | D | Em | C | Am | B | C | D | Em | Em | C | D | B | B',
     drums: 'synthwave',
@@ -78,6 +81,8 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Rustyard — dusty, twangy.
   rustyard: {
+    swing: 0.1,
+    intro: 1,
     bpm: 100,
     chords: 'G | F | C | G | Em | F | C | D',
     drums: 'halftime',
@@ -93,6 +98,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // The Sinkline — cold water, distant drips.
   dungeon: {
+    intro: 2,
     bpm: 88,
     chords: 'Cm | Cm | Ab | G | Cm | Cm | Db | G',
     drums: 'sparse',
@@ -109,6 +115,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // K-M Annex 7 — clinical arpeggios.
   lab: {
+    intro: 2,
     bpm: 124,
     chords: 'F#m | D | A | E | F#m | D | Bm | C#',
     drums: 'pulse',
@@ -132,7 +139,7 @@ export const SONGS: Record<string, SongSpec> = {
     space: 'here',
     parts: [
       { inst: 'lead2', vol: 0.8, rev: 0.18, del: 0.12, notes:
-        'E5 - E5 - G5 - E5 - B5 - - - A5 - G5 - | F#5 - G5 - F#5 - E5 - D5 - - - B4 - - - |' +
+        'E5! - E5 - G5 - E5 - B5 - - - A5 - G5 - | F#5 - G5 - F#5 - E5 - D5 - - - B4 - - - |' +
         'C5 - E5 - G5 - C6 - B5 - A5 - G5 - - - | A5 - - - F#5 - D5 - F#5 - A5 - D6 - - - |' +
         'E5 - E5 - G5 - E5 - B5 - - - A5 - G5 - | F#5 - G5 - A5 - B5 - G5 - - - E5 - - - |' +
         'C6 - B5 - A5 - G5 - E5 - - - G5 - - - | F#5 - - - D#5 - - - B4 - - - F#5 - - - |' +
@@ -156,7 +163,7 @@ export const SONGS: Record<string, SongSpec> = {
     space: 'here',
     parts: [
       { inst: 'lead2', vol: 0.85, rev: 0.2, del: 0.1, notes:
-        'D5 - - D5 - - F5 - E5 - D5 - C#5 - D5 - | A5 - - - G#5 - - - A5 - - - F5 - - - |' +
+        'D5! - - D5 - - F5 - E5 - D5 - C#5 - D5 - | A5 - - - G#5 - - - A5 - - - F5 - - - |' +
         'Bb5 - - Bb5 - - A5 - G5 - F5 - G5 - A5 - | E5 - - - C#5 - - - A4 - - - C#5 - E5 - |' +
         'D6 - - D6 - - C6 - A5 - F5 - A5 - C6 - | D6 - - - C#6 - - - D6 - - - A5 - - - |' +
         'G5 - - G5 - - Bb5 - Eb6 - D6 - Bb5 - G5 - | A5 - - - E5 - - - C#5 - - - A4 - - - |' +
@@ -235,6 +242,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Sable's theme — for quiet, heavy moments.
   sable: {
+    swing: 0.08,
     bpm: 70,
     chords: 'Cm | Ab | Eb | Bb | Cm | Ab | Fm | G',
     // Story cues play in the scene they score.

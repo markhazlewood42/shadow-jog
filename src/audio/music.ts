@@ -32,6 +32,8 @@ export interface SongSpec {
   /** Bar index to loop back to (default 0). */
   loopBar?: number;
   loop?: boolean;
+  /** Bars the drums sit out the first time through: the song arrives before the groove does. */
+  intro?: number;
   /**
    * Acoustic space the song plays in. 'here' keeps whatever room the player is already in: battle
    * music, jingles and story cues happen *in* the current place and must not re-reverb it.
@@ -47,6 +49,8 @@ interface Ev {
   vol: number;
   rev: number;
   del: number;
+  /** Part of the generated drum kit (rests during an intro, humanised less). */
+  drum?: boolean;
 }
 
 interface Compiled {
@@ -55,6 +59,8 @@ interface Compiled {
   length: number;
   loopStep: number;
   loop: boolean;
+  /** Steps at the top where drums rest on the first pass. */
+  introSteps: number;
   steps: Ev[][];
 }
 
@@ -129,7 +135,8 @@ export function compile(spec: SongSpec): Compiled {
         for (let j = i + 1; j < toks.length && toks[j]!.tok === '-'; j++) len += toks[j]!.len;
         const acc = t.tok.endsWith('!');
         const names = t.tok.replace('!', '').split('+');
-        push(t.step, { ...base, midi: names.map(noteToMidi), len, vel: acc ? 1 : 0.8 });
+        // Written accents (!) hit hardest; a note on the bar's downbeat leans in a little.
+        push(t.step, { ...base, midi: names.map(noteToMidi), len, vel: acc ? 1 : t.step % STEPS === 0 ? 0.88 : 0.8 });
       }
       continue;
     }
@@ -219,7 +226,7 @@ export function compile(spec: SongSpec): Compiled {
 
   // Drums
   const dv = spec.drumVol ?? 1;
-  const drum = (s: number, inst: InstId, vel: number) => push(s, { inst, midi: [0], len: 1, vel: vel * dv, vol: 1, rev: inst === 'snare' || inst === 'clap' ? 0.25 : 0.04, del: 0 });
+  const drum = (s: number, inst: InstId, vel: number) => push(s, { inst, midi: [0], len: 1, vel: vel * dv, vol: 1, rev: inst === 'snare' || inst === 'clap' ? 0.25 : 0.04, del: 0, drum: true });
   for (let s = 0; s < length; s++) {
     const pos = s % STEPS;
     const bar = Math.floor(s / STEPS);
@@ -306,7 +313,7 @@ export function compile(spec: SongSpec): Compiled {
     }
   }
   const loopStep = (spec.loopBar ?? 0) * STEPS;
-  return { bpm: spec.bpm, swing: spec.swing ?? 0, length, loopStep, loop: spec.loop !== false, steps };
+  return { bpm: spec.bpm, swing: spec.swing ?? 0, length, loopStep, loop: spec.loop !== false, introSteps: (spec.intro ?? 0) * STEPS, steps };
 }
 
 // ------------------------------------------------------------------ sequencer
@@ -329,6 +336,8 @@ interface Playing {
   gain: GainNode;
   step: number;
   nextTime: number;
+  /** Times round the loop (0 on the first pass, when an intro rests the drums). */
+  pass: number;
 }
 
 let current: Playing | null = null;
@@ -338,6 +347,31 @@ const stack: { name: string; step: number }[] = [];
 
 function stepDur(song: Compiled): number {
   return 60 / song.bpm / 4;
+}
+
+/** A repeatable pseudo-random value in [-1, 1) for a note, so humanising is the same every play. */
+function jitter(a: number, b: number, c: number): number {
+  let h = (a * 374761393 + b * 668265263 + c * 2147483647) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) & 0xffff) / 32768 - 1;
+}
+
+/**
+ * Queue one step's notes at time `at` (the live scheduler and the offline render share this).
+ * Played, not typed: each note lands a few milliseconds off the grid and a few percent off its
+ * written velocity (drums much less, so the groove stays tight).
+ */
+function scheduleStep(song: Compiled, step: number, at: number, dest: AudioNode, pass: number): void {
+  const sd = stepDur(song);
+  const t0 = at + (step % 2 === 1 ? song.swing * sd : 0);
+  const drumsRest = pass === 0 && step < song.introSteps;
+  song.steps[step]!.forEach((e, i) => {
+    if (e.drum && drumsRest) return;
+    const k = jitter(step, i, pass);
+    const t = Math.max(0, t0 + k * (e.drum ? 0.0015 : 0.004));
+    const vel = e.vel * e.vol * (1 + jitter(i, step, pass + 7) * (e.drum ? 0.04 : 0.07));
+    for (const m of e.midi) playNote(e.inst, { t, dur: e.len * sd * 0.95, freq: m ? midiToFreq(m) : 0, vel }, dest, { rev: e.rev, del: e.del });
+  });
 }
 
 function tick(): void {
@@ -352,18 +386,37 @@ function tick(): void {
         return;
       }
       p.step = p.song.loopStep;
+      p.pass++;
     }
-    const sd = stepDur(p.song);
-    const swingOff = p.step % 2 === 1 ? p.song.swing * sd : 0;
-    const t = p.nextTime + swingOff;
-    for (const e of p.song.steps[p.step]!) {
-      for (const m of e.midi) {
-        playNote(e.inst, { t, dur: e.len * sd * 0.95, freq: m ? midiToFreq(m) : 0, vel: e.vel * e.vol }, p.gain, { rev: e.rev, del: e.del });
-      }
-    }
+    scheduleStep(p.song, p.step, p.nextTime, p.gain, p.pass);
     p.step++;
-    p.nextTime += sd;
+    p.nextTime += stepDur(p.song);
   }
+}
+
+/**
+ * Render `seconds` of a song offline, from the top, looping as it would in play (dev tooling:
+ * the audio evidence). Uses the full mix graph, including the song's reverb space.
+ */
+export async function renderSong(name: string, seconds: number, rate = 44100): Promise<AudioBuffer | null> {
+  const song = get(name);
+  if (!song) return null;
+  const off = new OfflineAudioContext(2, Math.ceil(seconds * rate), rate);
+  const sp = SONGS[name]?.space ?? 'hall';
+  return audio.renderOffline(off, sp === 'here' ? 'hall' : sp, () => {
+    const gain = off.createGain();
+    gain.connect(audio.music);
+    let step = 0, pass = 0;
+    for (let t = 0.05; t < seconds; t += stepDur(song)) {
+      if (step >= song.length) {
+        if (!song.loop) break;
+        step = song.loopStep;
+        pass++;
+      }
+      scheduleStep(song, step, t, gain, pass);
+      step++;
+    }
+  });
 }
 
 function startTimer(): void {
@@ -383,7 +436,8 @@ function begin(name: string, fromStep = 0, fadeIn = 0, keepSpace = false): void 
   }
   const space = SONGS[name]?.space ?? 'hall';
   if (!keepSpace && space !== 'here') audio.setSpace(space);
-  current = { name, song, gain, step: fromStep % song.length, nextTime: c.currentTime + 0.06 };
+  // Resuming mid-song (after a battle) is not a first pass: no drum-less intro again.
+  current = { name, song, gain, step: fromStep % song.length, nextTime: c.currentTime + 0.06, pass: fromStep > 0 ? 1 : 0 };
   startTimer();
 }
 

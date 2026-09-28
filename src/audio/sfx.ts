@@ -233,8 +233,38 @@ export function sfx(name: string, pitch = 1): void {
   if (now - prev < 0.025 && name !== 'blip') return;
   last.set(name, now);
   if (last.size > 64) last = new Map();
-  make(c, audio.sfx, now + 0.005, pitch);
+  // Each effect at its category's loudness (see LEVEL); most need a boost, which goes on a
+  // per-call gain so the synths themselves keep their internal balance.
+  const level = LEVEL[name] ?? 1;
+  if (level === 1) make(c, audio.sfx, now + 0.005, pitch);
+  else {
+    const g = c.createGain();
+    g.gain.value = level;
+    g.connect(audio.sfx);
+    make(c, g, now + 0.005, pitch);
+    setTimeout(() => g.disconnect(), 4000);
+  }
   if (HEAVY.has(name)) audio.duckForHit(name === 'crit' || name === 'combo' ? 0.5 : 0.62);
+}
+
+/**
+ * Per-effect loudness, calibrated from offline renders (e2e/audio-evidence.spec.ts) against the
+ * music's ~-20 dBFS RMS: footsteps a soft texture (~-32 dBFS peak), menu ticks light (~-24), UI
+ * confirmations ~-19, hits and casts clearly over the score (~-14), big impacts loudest (-10 to
+ * -6). The synths were written at wildly different levels (-65 to -11 dBFS); a hit sat 15 dB
+ * under the music.
+ */
+const LEVEL: Record<string, number> = {
+  alert: 6.33, beam: 3.29, blip: 25.88, buff: 10.59, bump: 17.59, buy: 2.44, buzz: 8.64, cancel: 4.1, cast: 4.78, cheer: 4.0, chest: 4.2, code: 3.21, combo: 5.15, combo_ready: 3.8, confirm: 3.63, cred: 2.81, crit: 4.06, cursor: 14.49, debuff: 10.64, door: 1.13, emote: 14.64, encounter: 2.79, enemy_act: 20.06, enemy_die: 4.97, equip: 2.62, explosion: 1.73, fire: 4.37, flee: 8.8, gun: 1.14, heal: 2.28, heal_field: 1.81, hit: 11.46, hurt: 9.57, item: 2.3, keyitem: 1.61, ko: 3.42, levelup: 3.38, miss: 30.4, page: 14.06, phase: 1.69, punch: 4.95, revive: 1.55, save: 1.7, slash: 6.45, spirit: 7.38, st_blind: 4.37, st_burn: 3.48, st_jammed: 3.96, st_poison: 2.79, st_stun: 3.42, step: 25.86, step_metal: 11.5, step_soft: 29.37, step_water: 8.87, sting_circuit: 2.31, sting_crow: 3.8, sting_life: 2.34, sting_lock: 4.7, sting_pyre: 3.33, sting_rift: 1.89, sting_ward: 2.46, summon: 7.2, swing: 31.62, tick: 16.78, wave: 9.77, zap: 7.22,
+};
+
+/** Every effect's name (the audio evidence measures them all). */
+export const SFX_NAMES = (): string[] => Object.keys(S);
+
+/** Render one effect offline through the full mix graph (dev tooling: the audio evidence). */
+export function renderSfx(name: string, seconds = 2): Promise<AudioBuffer> {
+  const off = new OfflineAudioContext(2, Math.ceil(44100 * seconds), 44100);
+  return audio.renderOffline(off, 'hall', () => sfx(name));
 }
 
 /** Impacts big enough to dip the music under them. */

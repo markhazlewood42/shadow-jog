@@ -133,7 +133,48 @@ class AudioEngine {
     this.sfx = c.createGain();
     this.duckNode = c.createGain();
     this.hitDuck = c.createGain();
-    this.music.connect(comp(-18, 2.5, 0.02, 0.3)).connect(this.duckNode).connect(this.hitDuck).connect(this.master);
+    // The music bus is shaped before its compressor: the sub trimmed and the low mids cleared
+    // (every part's fundamentals pile up there), presence lifted so leads have edge, a gentle
+    // tape-style saturation for harmonics, and a stereo chorus on everything above the bass for
+    // width and sheen. (The offline renders in docs/quality/evidence/audio.txt measured the old
+    // bus at ~50% of its energy under 120 Hz and ~1% at 2-6 kHz.)
+    const musicComp = comp(-18, 2.5, 0.02, 0.3);
+    const eq = (type: BiquadFilterType, f: number, gain = 0, q = 0.7) => {
+      const k = c.createBiquadFilter();
+      k.type = type;
+      k.frequency.value = f;
+      k.gain.value = gain;
+      k.Q.value = q;
+      return k;
+    };
+    const sat = c.createWaveShaper();
+    const curve = new Float32Array(1024);
+    for (let i = 0; i < curve.length; i++) {
+      const x = (i / (curve.length - 1)) * 2 - 1;
+      curve[i] = Math.tanh(1.6 * x) / Math.tanh(1.6);
+    }
+    sat.curve = curve;
+    sat.oversample = '2x';
+    const shaped = this.music.connect(eq('highpass', 32)).connect(eq('lowshelf', 180, -3.5)).connect(eq('peaking', 380, -2, 0.9)).connect(eq('highshelf', 3000, 4.5)).connect(sat);
+    shaped.connect(musicComp);
+    const chorusIn = eq('highpass', 350);
+    shaped.connect(chorusIn);
+    for (const [side, rate, base] of [[-1, 0.31, 0.011], [1, 0.37, 0.014]] as const) {
+      const d = c.createDelay(0.05);
+      d.delayTime.value = base;
+      const lfo = c.createOscillator();
+      lfo.frequency.value = rate;
+      const depth = c.createGain();
+      depth.gain.value = 0.0025;
+      lfo.connect(depth).connect(d.delayTime);
+      lfo.start();
+      const pan = c.createStereoPanner();
+      pan.pan.value = side * 0.7;
+      const mix = c.createGain();
+      mix.gain.value = 0.22;
+      chorusIn.connect(d).connect(pan).connect(mix).connect(musicComp);
+    }
+    musicComp.connect(this.duckNode).connect(this.hitDuck).connect(this.master);
     this.sfx.connect(comp(-12, 4, 0.003, 0.15)).connect(this.master);
     // Reverb: one synthetic impulse per acoustic space, swapped when the song changes. Only the
     // first is built now: unlock runs inside the player's first keypress, and building all four
@@ -191,11 +232,37 @@ class AudioEngine {
     const idle = (fn: () => void) => (ric ? ric(fn, { timeout: 2000 }) : setTimeout(fn, 200));
     const next = () => {
       const s = todo.shift();
-      if (!s) return;
+      if (!s || !this.ctx) return;
       this.impulseFor(s);
       idle(next);
     };
     idle(next);
+  }
+
+  /**
+   * Render into an offline context (dev tooling: the audio evidence renders every song). Builds
+   * the whole mix graph on `off`, lets `schedule` queue notes from t = 0, renders, and puts the
+   * live graph back untouched. OfflineAudioContext provides every node factory the graph uses;
+   * the live-only members (resume, suspend) are never reached on this path, hence the cast.
+   */
+  async renderOffline(off: OfflineAudioContext, space: Space, schedule: () => void): Promise<AudioBuffer> {
+    const saved = {
+      ctx: this.ctx, master: this.master, music: this.music, duckNode: this.duckNode, hitDuck: this.hitDuck, sfx: this.sfx,
+      verbs: this.verbs, verbGains: this.verbGains, verbActive: this.verbActive, reverbSend: this.reverbSend, delay: this.delay,
+      delayFb: this.delayFb, spaces: this.spaces, space: this.space, delaySend: this.delaySend, noise: this.noise, unlocked: this.unlocked,
+    };
+    try {
+      this.ctx = off as unknown as AudioContext;
+      this.spaces = new Map();
+      this.verbActive = 0;
+      this.build();
+      this.unlocked = true;
+      this.setSpace(space);
+      schedule();
+      return await off.startRendering();
+    } finally {
+      Object.assign(this, saved);
+    }
   }
 
   /** Move the music into a different acoustic space (reverb character and echo). */
@@ -224,9 +291,13 @@ class AudioEngine {
   }
 
   /** Briefly pull the music down under a big hit so the impact reads, then let it swell back. */
+  private lastHitDuck = -1;
   duckForHit(depth = 0.6): void {
     if (!this.ctx) return;
     const g = this.hitDuck.gain, t = this.ctx.currentTime;
+    // One dip per quarter second at most: a chain of crits shouldn't pump the score.
+    if (t - this.lastHitDuck < 0.25) return;
+    this.lastHitDuck = t;
     g.cancelScheduledValues(t);
     g.setValueAtTime(g.value, t);
     g.linearRampToValueAtTime(depth, t + 0.02);
@@ -236,7 +307,7 @@ class AudioEngine {
   applyVolumes(): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    this.music.gain.setTargetAtTime(settings.musicVol * 0.55, t, 0.05);
+    this.music.gain.setTargetAtTime(settings.musicVol * 0.66, t, 0.05);
     this.sfx.gain.setTargetAtTime(settings.sfxVol * 0.7, t, 0.05);
   }
 

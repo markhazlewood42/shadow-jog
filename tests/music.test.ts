@@ -43,7 +43,7 @@ function melody(src: string): { midi: number; step: number; len: number }[] {
       const last = out[out.length - 1];
       if (last) last.len += t.len;
     } else if (t.tok === '.') out.push({ midi: -1, step: t.step, len: t.len });
-    else out.push({ midi: noteToMidi(t.tok), step: t.step, len: t.len });
+    else out.push({ midi: noteToMidi(t.tok.replace('!', '').split('+')[0]!), step: t.step, len: t.len });
   }
   return out.filter((n) => n.midi >= 0);
 }
