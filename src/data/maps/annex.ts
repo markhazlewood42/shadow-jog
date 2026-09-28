@@ -6,29 +6,30 @@ import { Grid } from './grid';
 
 const W = 44, H = 34;
 
-// L lab wall · _ lab floor · D sealed door · Z laser lattice · + floor grate
+// L lab wall · _ lab floor (halls) · c service concrete · a armory steel · f cryo frost ·
+// r containment grating · D sealed door · Z laser lattice · + floor grate
 const g = new Grid(W, H, 'L')
   // Service room (ladder down from the Sinkline)
-  .rect(2, 2, 9, 6, '_')
+  .rect(2, 2, 9, 6, 'c')
   // Corridor east to the security checkpoint
-  .rect(6, 8, 3, 3, '_')
-  .rect(6, 10, 8, 2, '_')
+  .rect(6, 8, 3, 3, 'c')
+  .rect(6, 10, 8, 2, 'c')
   .rect(14, 10, 1, 2, 'D')
   // Central lab hall
   .rect(15, 3, 15, 16, '_')
   // Side armory (west of the hall)
-  .rect(15, 20, 6, 4, '_')
-  .rect(17, 19, 2, 1, '_')
+  .rect(15, 20, 6, 4, 'a')
+  .rect(17, 19, 2, 1, 'a')
   // Cryo lab (north-east)
-  .rect(31, 3, 11, 9, '_')
+  .rect(31, 3, 11, 9, 'f')
   .rect(30, 6, 1, 3, '_')
   // Passage south to the Warden chamber
-  .rect(26, 19, 3, 3, '_')
+  .rect(26, 19, 3, 3, 'r')
   .rect(26, 22, 3, 1, 'D')
   // Warden chamber
-  .rect(18, 23, 22, 9, '_')
+  .rect(18, 23, 22, 9, 'r')
   // (The crawlspace behind the armory's loose panel is carved in by a patch.)
-  .rect(37, 32, 3, 1, '_');
+  .rect(37, 32, 3, 1, 'r');
 
 export const annex: MapDef = {
   id: 'annex',
@@ -37,7 +38,10 @@ export const annex: MapDef = {
   bannerSub: 'Kessler-Mori · Decommissioned',
   kind: 'dungeon',
   terrain: g.rows(),
-  legend: { L: 'lab_wall', _: 'lab_floor', D: 'lab_door', Z: 'lab_laser', z: 'lab_laser_off', '+': 'grate' },
+  legend: {
+    L: 'lab_wall', _: 'lab_floor', c: 'floor_concrete', a: 'lab_floor_steel', f: 'lab_floor_frost', r: 'lab_floor_contain',
+    D: 'lab_door', Z: 'lab_laser', z: 'lab_laser_off', '+': 'grate',
+  },
   ambient: '#6a7aa0',
   weather: 'none',
   music: 'lab',
@@ -45,7 +49,7 @@ export const annex: MapDef = {
   entrance: { map: 'world', x: 26, y: 38 },
   encounters: [{ table: 'annex', rate: 22, bg: 'lab', rect: [15, 3, 27, 29] }],
   patches: [
-    { when: (f) => !!f.annex_key, rects: [[14, 10, 1, 2, '_']] },
+    { when: (f) => !!f.annex_key, rects: [[14, 10, 1, 2, 'c']] },
     // The laser lattice across the cryo-wing passage: one beam row per emitter, live or dark,
     // sealed until all three are dark.
     ...[0, 1, 2].flatMap((i) => [
@@ -53,13 +57,17 @@ export const annex: MapDef = {
       { when: (f: Record<string, unknown>) => !f.lattice_off && !latticeEmitters(f)[i], rects: [[30, 6 + i, 1, 1, 'z']] as [number, number, number, number, string][] },
     ]),
     // A loose panel in the armory's west wall hides a crawlspace.
-    { when: (f) => !!f.annex_panel, rects: [[11, 21, 3, 2, '_'], [14, 22, 1, 1, '_']] },
-    { when: (f) => !!f.sable_joined, rects: [[26, 22, 3, 1, '_']] },
+    { when: (f) => !!f.annex_panel, rects: [[11, 21, 3, 2, 'c'], [14, 22, 1, 1, 'c']] },
+    { when: (f) => !!f.sable_joined, rects: [[26, 22, 3, 1, 'r']] },
   ],
   props: [
     { kind: 'ladder', x: 3, y: 2 },
     { kind: 'crates', x: 9, y: 3 },
     { kind: 'crates', x: 2, y: 6 },
+    // Service bay: the building's plumbing, out in the open.
+    { kind: 'pipe_v', x: 5, y: 2 },
+    { kind: 'pipe_v', x: 8, y: 2 },
+    { kind: 'barrel', x: 10, y: 6, color: '#8a6a2a' },
     { kind: 'desk', x: 17, y: 4, w: 2 },
     // The company crest over the central hall: the one thing in here meant to impress.
     { kind: 'crest', x: 21, y: 2, w: 3 },
@@ -80,13 +88,23 @@ export const annex: MapDef = {
     { kind: 'cryopod', x: 36, y: 4, w: 2, when: (f) => !f.sable_joined },
     // After the rescue: the same pod, shattered and empty.
     { kind: 'cryopod', x: 36, y: 4, w: 2, color: 'empty', when: (f) => !!f.sable_joined },
-    { kind: 'tank', x: 33, y: 5, color: '#9ad8ff' },
-    { kind: 'tank', x: 40, y: 5, color: '#9ad8ff' },
+    // The other subjects' pods: drained, dark, their labels still on.
+    { kind: 'cryopod', x: 32, y: 4, w: 2, color: 'drained' },
+    { kind: 'cryopod', x: 39, y: 4, w: 2, color: 'drained' },
+    { kind: 'steam', x: 41, y: 8, color: '#dff6ff' },
     { kind: 'desk', x: 33, y: 9, w: 2 },
     { kind: 'rack', x: 16, y: 20, w: 2 },
     { kind: 'rack', x: 19, y: 20, w: 2 },
+    { kind: 'crates', x: 15, y: 23 },
     { kind: 'tank', x: 21, y: 25, color: '#ff3a4a' },
     { kind: 'tank', x: 36, y: 25, color: '#ff3a4a' },
+    // Containment: field pylons round the arena, coolant venting from the floor.
+    { kind: 'pylon', x: 19, y: 24, color: '#ff3a4a' },
+    { kind: 'pylon', x: 38, y: 24, color: '#ff3a4a' },
+    { kind: 'pylon', x: 19, y: 30, color: '#ff3a4a' },
+    { kind: 'pylon', x: 38, y: 30, color: '#ff3a4a' },
+    { kind: 'steam', x: 24, y: 31, color: '#ff9aa8' },
+    { kind: 'steam', x: 33, y: 31, color: '#ff9aa8' },
     { kind: 'barrier', x: 37, y: 31, w: 3, pass: true },
     // Wayfinding: the lab's own wall signs.
     { kind: 'sign_post', x: 9, y: 7, text: 'LABS ↓' },
@@ -204,12 +222,12 @@ export const annex: MapDef = {
     },
   ],
   lights: [
-    { x: 6, y: 4, r: 60, color: '#dff6ff', i: 0.55 },
+    { x: 6, y: 4, r: 60, color: '#ffd89a', i: 0.5 },
     { x: 22, y: 6, r: 90, color: '#dff6ff', i: 0.55 },
     { x: 22, y: 14, r: 80, color: '#b8e8ff', i: 0.45 },
-    { x: 36, y: 7, r: 70, color: '#9ad8ff', i: 0.6 },
+    { x: 36, y: 7, r: 80, color: '#cdeeff', i: 0.6 },
     { x: 29, y: 27, r: 110, color: '#ff3a4a', i: 0.45, flicker: true },
-    { x: 18, y: 21, r: 50, color: '#ffd07a', i: 0.45 },
+    { x: 18, y: 21, r: 60, color: '#ffb13d', i: 0.55 },
     { x: 23, y: 18, r: 40, color: '#ff6a5a', i: 0.4 },
     // One red glow per live emitter, so the lattice's state reads from across the hall.
     { x: 30, y: 6, r: 26, color: '#ff3a4a', i: 0.6, flicker: true, when: (f) => !f.lattice_off && !!latticeEmitters(f)[0] },

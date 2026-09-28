@@ -10,6 +10,7 @@ export type TerrainId =
   | 'floor_wood' | 'floor_tile' | 'floor_metal' | 'floor_carpet' | 'floor_concrete' | 'iwall'
   // dungeon
   | 'd_floor' | 'd_wall' | 'd_water' | 'd_shallow' | 'd_catwalk' | 'd_track' | 'lab_floor' | 'lab_wall' | 'lab_door' | 'lab_laser' | 'lab_laser_off'
+  | 'lab_floor_steel' | 'lab_floor_frost' | 'lab_floor_contain'
   // world map
   | 'w_ruins' | 'w_road' | 'w_barrens' | 'w_toxic' | 'w_park' | 'w_highway' | 'w_bridge' | 'w_block';
 

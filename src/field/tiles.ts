@@ -349,11 +349,53 @@ const dwallFace: Painter = (lx, ly, wx, wy) => {
   return hash2(wx, wy, 122) < 0.1 ? P.dwallFaceD : P.dwallFace;
 };
 
-const labWallFace: Painter = (lx, ly) => {
+/** Wing colours for the Annex tiles below, parsed once (painters run per pixel at bake). */
+const K_15121A = C('#15121a');
+const K_2A2620 = C('#2a2620');
+const K_2A2A30 = C('#2a2a30');
+const K_2C2834 = C('#2c2834');
+const K_2C313A = C('#2c313a');
+const K_347060 = C('#347060');
+const K_383E49 = C('#383e49');
+const K_3A3542 = C('#3a3542');
+const K_3C3642 = C('#3c3642');
+const K_4A2A30 = C('#4a2a30');
+const K_4E5664 = C('#4e5664');
+const K_6A1A26 = C('#6a1a26');
+const K_6A6E7A = C('#6a6e7a');
+const K_77808F = C('#77808f');
+const K_8A8E9A = C('#8a8e9a');
+const K_9AB4CC = C('#9ab4cc');
+const K_C4D6E6 = C('#c4d6e6');
+const K_CDEEFF = C('#cdeeff');
+const K_D6E4F0 = C('#d6e4f0');
+const K_E8C040 = C('#e8c040');
+const K_EEF6FC = C('#eef6fc');
+const K_EEF8FF = C('#eef8ff');
+const K_F6FBFF = C('#f6fbff');
+const K_FF3A4A = C('#ff3a4a');
+const K_FFB13D = C('#ffb13d');
+
+/**
+ * Lab wall face. Its trim stripe takes the colour of the wing it faces (the floor below it), so
+ * each wing reads at a glance: cyan halls, amber armory, ice cryo wing, red containment, and a
+ * hazard band over the service bay.
+ */
+const WING_STRIPE: Partial<Record<TerrainId, RGB>> = {
+  lab_floor_steel: K_FFB13D, lab_floor_frost: K_CDEEFF, lab_floor_contain: K_FF3A4A,
+};
+const labWallFace: Painter = (lx, ly, _wx, _wy, tx, ty, q) => {
+  const wing = q.at(tx, ty + 1);
   if (ly === 15) return P.labSeam;
-  if (ly === 10 || ly === 11) return P.labStripe;
+  if (ly === 10 || ly === 11) {
+    if (wing === 'floor_concrete') return (lx + ly) % 6 < 3 ? K_E8C040 : K_2A2A30;
+    return WING_STRIPE[wing] ?? P.labStripe;
+  }
   if (lx === 0) return P.labSeam;
   if (ly <= 1) return P.labWallD;
+  // Containment's walls are scorched darker; the cryo wing's carry a rime line under the trim.
+  if (wing === 'lab_floor_contain') return ly >= 12 ? K_6A6E7A : K_8A8E9A;
+  if (wing === 'lab_floor_frost' && ly === 12) return K_EEF8FF;
   return P.labWallFace;
 };
 
@@ -375,7 +417,7 @@ const dfloor: Painter = (lx, ly, wx, wy, tx, ty, q) => {
   return c;
 };
 
-const dwater = waterP(P.dwater, P.dwaterL, P.dwaterD, P.dfloorL, P.dfloorD, [8, 22, 18], C('#347060'));
+const dwater = waterP(P.dwater, P.dwaterL, P.dwaterD, P.dfloorL, P.dfloorD, [8, 22, 18], K_347060);
 
 /**
  * Ankle-deep water over the floor. The floor shows through, bent by the surface; the surface
@@ -417,6 +459,46 @@ const labFloor: Painter = (lx, ly, wx, wy) => {
   // Polished sheen: a soft diagonal highlight across each tile.
   if (lx + ly === 9 || lx + ly === 10) base = lerpC(base, [255, 255, 255], 0.12);
   if (hash2(wx, wy, 363) < 0.003) return P.labFloorD;
+  return base;
+};
+
+/** Armory: steel tread plate, raised diagonal bosses lit from the upper left, oil and grime. */
+const labFloorSteel: Painter = (lx, ly, wx, wy) => {
+  if (lx === 0 || ly === 0) return K_2C313A;
+  const bx = lx >> 2, by = ly >> 2, ix = lx & 3, iy = ly & 3;
+  let base = K_4E5664;
+  const back = (bx + by) % 2 === 0;
+  const on = back ? ix === iy && ix >= 1 && ix <= 2 : ix + iy === 3 && ix >= 1 && ix <= 2;
+  const under = back ? ix === iy + 1 && ix >= 2 : ix + iy === 4 && ix >= 2;
+  if (on) base = K_77808F;
+  else if (under) base = K_383E49;
+  const grime = fbm(wx / 18, wy / 18, 2, 371);
+  if (grime < 0.32) base = lerpC(base, K_2A2620, (0.32 - grime) * 1.4);
+  return base;
+};
+
+/** Cryo wing: pale tile under rime, crystalline frost veins, a cold sheen. */
+const labFloorFrost: Painter = (lx, ly, wx, wy) => {
+  if (lx === 0 || ly === 0) return K_9AB4CC;
+  let base = K_C4D6E6;
+  if (lx + ly === 9 || lx + ly === 10) base = K_D6E4F0;
+  const rime = fbm(wx / 7, wy / 7, 2, 381);
+  if (rime > 0.6) base = lerpC(base, K_EEF6FC, Math.min(1, (rime - 0.6) * 4));
+  const vein = valueNoise(wx / 9 + valueNoise(wx / 23, wy / 23, 383) * 1.6, wy / 9, 382);
+  if (Math.abs(vein - 0.5) < 0.016) return K_F6FBFF;
+  return base;
+};
+
+/** Containment: dark grating over a red-lit void, heavier seams where the plates meet. */
+const labFloorContain: Painter = (lx, ly, wx, wy) => {
+  if (lx === 0 || ly === 0) return K_3C3642;
+  if (lx % 4 === 0 || ly % 4 === 0) {
+    const glow = valueNoise(wx / 22, wy / 16, 391);
+    return lerpC(K_15121A, K_6A1A26, Math.max(0, glow - 0.35) * 1.5);
+  }
+  let base = K_2C2834;
+  if ((lx & 3) === 1 && (ly & 3) === 1) base = K_3A3542;
+  if (hash2(wx, wy, 392) < 0.01) base = K_4A2A30;
   return base;
 };
 
@@ -534,7 +616,7 @@ export const PAINTERS: Record<TerrainId, Painter> = {
   d_wall: wallP('d_wall', dwallFace, P.dwallTop, P.dwallEdge),
   d_water: dwater, d_shallow: shallow, d_catwalk: catwalk,
   d_track: rail,
-  lab_floor: labFloor,
+  lab_floor: labFloor, lab_floor_steel: labFloorSteel, lab_floor_frost: labFloorFrost, lab_floor_contain: labFloorContain,
   lab_wall: wallP('lab_wall', labWallFace, P.labTop, P.labEdge),
   lab_door: labDoor,
   lab_laser: labLaser,

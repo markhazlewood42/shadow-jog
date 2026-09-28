@@ -308,6 +308,41 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     });
   },
 
+  /** Containment field pylon: a squat emitter column, a lit coil and a cap that glows its colour. */
+  pylon(b, p) {
+    blockFoot(b, p);
+    const col = p.color ?? '#3fe0f0';
+    const { x, y } = tall(b, p, 16, 30, (c, e) => {
+      c.fillStyle = '#0f0e17'; c.fillRect(3, 2, 10, 28); c.fillRect(1, 24, 14, 6);
+      c.fillStyle = '#3a3e4c'; c.fillRect(4, 3, 8, 26);
+      c.fillStyle = '#4e5364'; c.fillRect(4, 3, 2, 26);
+      c.fillStyle = '#2a2d38'; c.fillRect(2, 25, 12, 4);
+      c.fillStyle = '#d8b02a';
+      for (let xx = 2; xx < 14; xx += 3) c.fillRect(xx, 27, 2, 1);
+      both(c, e, (k) => {
+        k.fillStyle = col;
+        for (let yy = 8; yy < 22; yy += 3) k.fillRect(5, yy, 6, 1);
+        k.fillRect(5, 2, 6, 2);
+        k.fillStyle = '#ffffff'; k.fillRect(7, 2, 2, 1);
+      });
+    });
+    b.lights.push({ x: x + 8, y: y + 6, r: 34, color: col, i: 0.5, flicker: true });
+  },
+
+  /** A pipe run up the wall: bracketed at the joints, a valve wheel partway, sweating at the base. */
+  pipe_v(b, p) {
+    const x = p.x * TS, y = p.y * TS;
+    const h = (p.h ?? 2) * TS;
+    const g = b.g;
+    g.fillStyle = '#0f0e17'; g.fillRect(x + 5, y - h + TS, 6, h);
+    g.fillStyle = '#5a6070'; g.fillRect(x + 6, y - h + TS, 4, h);
+    g.fillStyle = '#7a8090'; g.fillRect(x + 6, y - h + TS, 1, h);
+    g.fillStyle = '#3a3e4c';
+    for (let yy = y - h + TS + 4; yy < y + TS; yy += 10) g.fillRect(x + 4, yy, 8, 2);
+    g.fillStyle = '#c04040'; g.fillRect(x + 3, y - h / 2 + TS - 2, 10, 2); g.fillRect(x + 7, y - h / 2 + TS - 5, 2, 8);
+    g.fillStyle = 'rgba(120,150,170,0.5)'; g.fillRect(x + 5, y + TS - 3, 7, 2);
+  },
+
   tree(b, p) {
     blockFoot(b, p);
     const glow = p.color ?? '#62e06a';
@@ -673,7 +708,7 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
 
   cryopod(b, p) {
     const w = p.w ?? 2;
-    const empty = p.color === 'empty';
+    const empty = p.color === 'empty', drained = p.color === 'drained';
     blockFoot(b, p, w, 1);
     const { x, y } = tall(b, { ...p, w }, w * TS, 40, (c, e) => {
       const W = w * TS;
@@ -704,6 +739,19 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
         c.fillStyle = '#ffb13d'; c.fillRect(W / 2 - 2, 36, 4, 1);
         return;
       }
+      if (drained) {
+        both(c, e, (k) => {
+          k.fillStyle = '#16222e'; k.fillRect(4, 6, W - 8, 28);
+          k.fillStyle = '#2a4050'; k.fillRect(4, 6, W - 8, 2);
+          k.fillStyle = '#9ab4cc'; k.globalAlpha = 0.5;
+          k.fillRect(4, 8, 3, 18); k.fillRect(W - 7, 10, 3, 16); k.fillRect(6, 30, W - 12, 3);
+          k.globalAlpha = 1;
+        });
+        // The restraint cradle, empty.
+        c.fillStyle = '#3a4a58'; c.fillRect(W / 2 - 5, 12, 10, 1); c.fillRect(W / 2 - 5, 24, 10, 1);
+        c.fillStyle = '#6a4a20'; c.fillRect(W / 2 - 2, 36, 4, 1);
+        return;
+      }
       // The sleeper, framed and outlined so she reads against the lit glass: bone-white hair,
       // green skin, closed eyes, tusks, the red coat, arms folded.
       const cx = W / 2;
@@ -728,6 +776,7 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
       });
       c.fillStyle = '#ff3a4a'; c.fillRect(cx - 2, 36, 4, 1);
     });
+    if (drained) return;
     if (!empty) b.lights.push({ x: x + w * 8, y: y + 20, r: 60, color: '#9ad8ff', i: 0.8, flicker: true });
     else b.lights.push({ x: x + w * 8, y: y + 20, r: 26, color: '#ffb13d', i: 0.4 });
   },
