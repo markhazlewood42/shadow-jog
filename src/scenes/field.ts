@@ -33,7 +33,9 @@ const MAP_CACHE_MAX = 8;
 
 function loadMap(id: string): FieldMap {
   const def = getMap(id);
-  const sig = `${id}:${(def.patches ?? []).map((p) => (p.when(state.flags) ? 1 : 0)).join('')}`;
+  // Everything that bakes differently by story flag is part of the key.
+  const bits = (xs: { when?: ((f: Record<string, unknown>) => boolean) | undefined }[]) => xs.map((x) => (!x.when || x.when(state.flags) ? 1 : 0)).join('');
+  const sig = `${id}:${bits(def.patches ?? [])}:${bits(def.props ?? [])}:${bits(def.lights ?? [])}`;
   let m = mapCache.get(sig);
   if (m) {
     // Refresh LRU position.

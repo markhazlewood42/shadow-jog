@@ -77,7 +77,9 @@ export const annex: MapDef = {
     { kind: 'tank', x: 22, y: 15 },
     { kind: 'screen', x: 20, y: 2, w: 3, color: '#3fe0f0' },
     { kind: 'screen', x: 33, y: 2, w: 3, color: '#9ad8ff' },
-    { kind: 'cryopod', x: 36, y: 4, w: 2 },
+    { kind: 'cryopod', x: 36, y: 4, w: 2, when: (f) => !f.sable_joined },
+    // After the rescue: the same pod, shattered and empty.
+    { kind: 'cryopod', x: 36, y: 4, w: 2, color: 'empty', when: (f) => !!f.sable_joined },
     { kind: 'tank', x: 33, y: 5, color: '#9ad8ff' },
     { kind: 'tank', x: 40, y: 5, color: '#9ad8ff' },
     { kind: 'desk', x: 33, y: 9, w: 2 },

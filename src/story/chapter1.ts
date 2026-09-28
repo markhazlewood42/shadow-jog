@@ -410,7 +410,7 @@ export const cryopod: ScriptFn = async (s) => {
   await s.say('kit', 'Started last month. I don’t know why.', { face: 'surprised' });
   await s.say('sable', 'Mm. The crow says you’re loud. That’s not an insult.');
   await s.say('sable', 'I am Sable. I don’t know how long I was in there. They took— they took a lot. I still have enough.');
-  s.despawn('sable_pod');
+  s.refreshMap(); // the pod, shattered and empty
   await s.join('sable');
   s.set('sable_joined');
   s.music('tension');

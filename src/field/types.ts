@@ -69,6 +69,8 @@ export interface PropDef {
   /** Walkable despite being a prop. */
   pass?: boolean | undefined;
   id?: string | undefined;
+  /** Only placed while this holds (evaluated when the map is built; part of the map cache key). */
+  when?: ((flags: Record<string, unknown>) => boolean) | undefined;
 }
 
 export interface LightDef {

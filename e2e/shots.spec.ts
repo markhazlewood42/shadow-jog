@@ -245,6 +245,16 @@ test('27 level features: lattice, secret panel, intake, radio lot', async ({ pag
   await shot(page, '31-world-radio-lot');
 });
 
+test('37 cryopod before and after the rescue', async ({ page }) => {
+  await open(page, 'annex');
+  await sj(page, "(delete sj.state.flags.sable_joined, sj.state.flags.lattice_off = true, sj.tp('annex', 36, 8, 'up'))");
+  await page.waitForTimeout(900);
+  await shot(page, '37-annex-cryopod');
+  await sj(page, "(sj.state.flags.sable_joined = true, sj.tp('annex', 36, 8, 'up'))");
+  await page.waitForTimeout(900);
+  await shot(page, '37b-annex-cryopod-empty');
+});
+
 test('maps overview + cast', async ({ page }) => {
   for (const id of ['lantern_row', 'bar', 'world', 'rustyard', 'sinkline_1', 'annex', 'dock']) {
     await page.goto(`/?debug&scene=mapview&map=${id}`);

@@ -673,6 +673,7 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
 
   cryopod(b, p) {
     const w = p.w ?? 2;
+    const empty = p.color === 'empty';
     blockFoot(b, p, w, 1);
     const { x, y } = tall(b, { ...p, w }, w * TS, 40, (c, e) => {
       const W = w * TS;
@@ -688,14 +689,47 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
         for (let i = 0; i < 14; i++) k.fillRect(5 + ((i * 7) % (W - 10)), 7 + ((i * 11) % 26), 2, 1);
         k.globalAlpha = 1;
       });
-      // The sleeper: bone-white hair, green skin.
-      c.fillStyle = '#e8e4da'; c.fillRect(W / 2 - 4, 9, 8, 6); c.fillRect(W / 2 - 5, 12, 2, 10); c.fillRect(W / 2 + 3, 12, 2, 10);
-      c.fillStyle = '#8a9a6a'; c.fillRect(W / 2 - 3, 12, 6, 5);
-      c.fillStyle = '#6a2a30'; c.fillRect(W / 2 - 4, 17, 8, 12);
-      e.fillStyle = '#e8e4da'; e.globalAlpha = 0.6; e.fillRect(W / 2 - 4, 9, 8, 6); e.globalAlpha = 1;
-      c.fillStyle = '#ff3a4a'; c.fillRect(W / 2 - 2, 36, 4, 1);
+      if (empty) {
+        // Shattered: dark interior, glass teeth left in the frame, frost melting down the back.
+        both(c, e, (k) => {
+          k.fillStyle = '#0c1520'; k.fillRect(4, 6, W - 8, 28);
+          k.fillStyle = '#16283a'; k.fillRect(5, 7, W - 10, 3);
+          k.fillStyle = '#9ad8ff';
+          for (const [sx, sw, sh] of [[4, 3, 5], [8, 2, 3], [W - 7, 3, 6], [W - 11, 2, 2]] as const) {
+            for (let r = 0; r < sh; r++) k.fillRect(sx + Math.floor((r * sw) / sh / 2), 6 + r, Math.max(1, sw - Math.floor((r * sw) / sh)), 1);
+          }
+          k.fillStyle = '#5a8ab0';
+          for (let i = 0; i < 5; i++) k.fillRect(6 + i * 5, 26 + (i % 2), 3, 1); // shards on the sill
+        });
+        c.fillStyle = '#ffb13d'; c.fillRect(W / 2 - 2, 36, 4, 1);
+        return;
+      }
+      // The sleeper, framed and outlined so she reads against the lit glass: bone-white hair,
+      // green skin, closed eyes, tusks, the red coat, arms folded.
+      const cx = W / 2;
+      both(c, e, (k) => {
+        k.fillStyle = '#0f1a2a';
+        k.fillRect(cx - 7, 8, 14, 25);
+        k.fillStyle = '#e8e4da';
+        k.fillRect(cx - 5, 9, 10, 3); k.fillRect(cx - 6, 11, 2, 11); k.fillRect(cx + 4, 11, 2, 11);
+        k.fillStyle = '#8a9a6a'; k.fillRect(cx - 4, 12, 8, 6);
+        k.fillStyle = '#4a5a3a'; k.fillRect(cx - 3, 14, 2, 1); k.fillRect(cx + 1, 14, 2, 1);
+        k.fillStyle = '#f2eee4'; k.fillRect(cx - 3, 17, 1, 1); k.fillRect(cx + 2, 17, 1, 1);
+        k.fillStyle = '#8c2f39'; k.fillRect(cx - 5, 19, 10, 13);
+        k.fillStyle = '#6a2229'; k.fillRect(cx - 5, 19, 1, 13); k.fillRect(cx + 4, 19, 1, 13);
+        k.fillStyle = '#d9b36c'; k.fillRect(cx - 4, 23, 8, 2);
+        k.fillStyle = '#8a9a6a'; k.fillRect(cx - 4, 24, 2, 1); k.fillRect(cx + 2, 24, 2, 1);
+      });
+      // Frost over the glass, in front of her.
+      both(c, e, (k) => {
+        k.fillStyle = '#e6f6ff'; k.globalAlpha = 0.45;
+        k.fillRect(4, 6, W - 8, 1); k.fillRect(4, 7, 3, 2); k.fillRect(W - 7, 7, 3, 3); k.fillRect(5, 30, 4, 3); k.fillRect(W - 9, 31, 5, 2);
+        k.globalAlpha = 1;
+      });
+      c.fillStyle = '#ff3a4a'; c.fillRect(cx - 2, 36, 4, 1);
     });
-    b.lights.push({ x: x + w * 8, y: y + 20, r: 60, color: '#9ad8ff', i: 0.8, flicker: true });
+    if (!empty) b.lights.push({ x: x + w * 8, y: y + 20, r: 60, color: '#9ad8ff', i: 0.8, flicker: true });
+    else b.lights.push({ x: x + w * 8, y: y + 20, r: 26, color: '#ffb13d', i: 0.4 });
   },
 
   body(b, p) {
