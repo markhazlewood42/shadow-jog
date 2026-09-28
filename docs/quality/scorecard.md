@@ -13,19 +13,23 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 
 | # | Area | Score | Round | Date | Δ | Blocking issues (short) |
 |---|---|---|---|---|---|---|
-| 1 | Engine & code | 7.7 | 6 | 2026-09-28 | −0.5 | BattleScene still one class for flow, playback, layout and rendering (split EventPlayer/Renderer); economy.spec not in CI; FieldScene 923 lines; dense non-null assertions in combo/target resolution; `Input.dir()` allocates per tick |
-| 2 | Field art | 7.2 | 6 | 2026-09-28 | +0.7 | Annex rooms read as one room (no per-wing accent/props); Rustfang tag illegible; faces don't survive play-camera distance; tank specimens all read alike; crowd shares one silhouette per body; world ground lacks macro detail |
-| 3 | Battle presentation | 7.6 | 6 | 2026-09-28 | +0.4 | Enemies have no attack keyframe (lunge is an offset); hit-flash frame reads as a glitch in a still; human duplicates only a skin swap; no foreground framing layer in backdrops; generic enemy cast/aim motion |
-| 4 | UI / UX | 8.0 | 6 | 2026-09-28 | +2.0 | Rook's battle card has no bar under SKILL; notice banner hard-slices text; shop compare / equip-reason lines unclamped and untested; GDD control table disagrees with Controls screen |
-| 5 | Combat design | 7.5 | 6 | 2026-09-28 | +0.7 | Combos almost never fire in trash; bosses won 92–99% by a competent (not optimal) player vs a 70–75% design floor; trash over in 2–3 rounds; human shock weakness mild; Rook's uses in no-rest runs unverified; Guardian silently doesn't cover AoE |
-| 6 | Progression & economy | 8.1 | 6 | 2026-09-28 | +0.9 | No endgame cred sink (900–1,150¢ idle); trash nearly risk-free; no-grind proven only with optional chests opened; GDD level cap (20) vs MAX_LEVEL 30; top-tier gear chest-only with no buyable fallback |
-| 7 | Narrative & writing | 8.0 | 6 | 2026-09-28 | 0.0 | Shared trail-off/deflate joke rhythm (Dutch, Hex, Mags); the cryopod reveal is compressed; Pale's motive for Kit vague; corporate satire never escalates; Pale's intro monologue long; Hex's anxious self-narration twice in her arc |
-| 8 | Level design | 7.2 | 6 | 2026-09-28 | +0.2 | Annex wings indistinguishable; Rustyard maze has no signposts; flooded junction an undifferentiated lake; boxy rect geometry, no set-piece shapes; maze secret shallow |
-| 9 | Audio | 7.2 | 6 | 2026-09-28 | −0.6 | No rendered audio evidence; bare-oscillator timbres thin; fully quantized, accents unused, little swing; Game Over cue ends and leaves silence; music/SFX gain asymmetry; crit ducking may pump |
-| 10 | Feel & polish | 7.0 | 6 | 2026-09-28 | −0.2 | **Bug:** Pale's speech bubble covers his own portrait on the finale panel (`dx` portraits); **bug:** WEAK!/CRITICAL label and the damage number still overlap during the first frames; victory bars start slow |
-| 11 | Stability | **8.7** | 6 | 2026-09-28 | +0.5 | **PASS.** Nice-to-haves: Firefox in CI; step-chain migrations; unused `game.paused` is a softlock trap; no two-tab E2E |
+| 1 | Engine & code | 7.6 | 7 | 2026-09-28 | −0.1 | BattleScene still a god-class (controller/renderer/tween); playtest branches inline in the scene (inject a hook); CI omits playtest/shots/audio specs; content-id lookups asserted, no integrity test; >500 kB chunk; `alive()` allocates |
+| 2 | Field art | 7.3 | 7 | 2026-09-28 | +0.1 | Crowd near-clones (one stance, 78% std body); faces don't survive play scale; 21/27 Annex shots identical (the lattice never shown); Sinkline value contrast muddy; overworld flat; wing colours too subtle; empty pod reads the same at a glance |
+| 3 | Battle presentation | 7.0 | 7 | 2026-09-28 | −0.6 | **Bug:** combo banner over the floaters and WEAK tags; **bug:** the Warden's head hidden behind the command prompt; one shared party rig; three enemy motion kinds; the Drowned Shade reads cute |
+| 4 | UI / UX | 7.2 | 7 | 2026-09-28 | −0.8 | **Bug:** main menu hard-codes 9 rows (Close scrolled off below dead space); shop dim lets map text read through; no shared dim constant; battle target-info WEAK line unclamped; element names tagged in one place, spelled out in another |
+| 5 | Combat design | 8.1 | 7 | 2026-09-28 | +0.6 | No execution-skill layer (timed guard/crit); no test that ignoring telegraphs underperforms; combo vocabulary thin and maxed early; AoE removes target choice; 95% hit floor |
+| 6 | Progression & economy | 7.8 | 7 | 2026-09-28 | −0.3 | Ending-results evidence from a hand-set stage; lean runs 87% at CP4/CP5 (the hardest bosses); Hex's weapon line strictly linear; Sell never shown or tested; Warden payout sits on phase 2 |
+| 7 | Narrative & writing | 7.4 | 7 | 2026-09-28 | −0.6 | **Bug:** Pale's "all week" contradicts a one-night chapter; the twist is telegraphed three times; Sable thin before joining; one long ending caption; Rook/Kit last lines don't echo |
+| 8 | Level design | 7.0 | 7 | 2026-09-28 | −0.2 | Overworld blocks read as padding; the crawlspace shows none of what its narration promises; one gating puzzle per dungeon; Lantern Row symmetric; valve walk has no shortcut; future-chapter zones blocked by invisible walls |
+| 9 | Audio | 6.5 | 7 | 2026-09-28 | −0.7 | SFX evidence covers 7 of 66; ~7 dB RMS spread between songs, no normalization; quiet cues have no top end; boss tracks pinned to the compressor (0.4 dB range); bottom-heavy |
+| 10 | Feel & polish | 7.5 | 7 | 2026-09-28 | +0.5 | **Bug:** combo floaters collide with the persistent WEAK tag; Game Over rain is a cheap one-off renderer; no test gating text collisions in combos |
+| 11 | Stability | 7.5 | 7 | 2026-09-28 | −1.2 | **Bug:** New Game after a load leaves `savedAt` stale (unload prompt and tab-hide autosave off for a while); `abandon()` keeps tickers/overlays; dead error-listener API; playtest not in CI |
 
-## Round 7 (in progress)
+Round 7 note: the evidence got richer (audio measurements, more screenshots, more tests) and reviewers used it to find
+new, concrete defects — several real bugs (text collisions, the Warden's hidden head, the menu's hidden Close, a stale
+save baseline, a continuity slip). Reviewer spread remains ±0.5–1.0 per area; the trend is judged on defects fixed.
+
+## Round 7 (verified 2026-09-28)
 
 Worked the round-6 findings, bugs first.
 
