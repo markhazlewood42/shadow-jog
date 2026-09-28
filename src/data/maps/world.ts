@@ -142,6 +142,7 @@ export const world: MapDef = {
       talk: async (s) => {
         if (s.flag('warden')) await s.say('K-M Checkpoint', 'All units, Annex 7 is dark. Repeat, Annex 7 is— ...Step back, citizen. Please. Today of all days.');
         else if (s.flag('lurker')) await s.say('K-M Checkpoint', 'Something tripped every sensor in the Sinkline an hour ago. Probably rats. Very large rats. ...Why am I telling you this? Step back.');
+        else if (s.flag('annex_key')) await s.say('K-M Checkpoint', 'Tonight’s registration drive is running late in the Lower Wards. If a van stops for you, get in. It is easier for everyone if you get in.');
         else if (s.flag('hex_joined')) await s.say('K-M Checkpoint', 'Registered guests only. Your decker friend is not a registered guest. We have her face on file. We have several of her faces on file.');
         else {
           await s.say('K-M Checkpoint', 'Arcology access is restricted to Kessler-Mori personnel and registered guests.');

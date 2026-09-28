@@ -65,7 +65,7 @@ export const firstFight: ScriptFn = async (s) => {
 // ------------------------------------------------------------------ the job
 export const meetDutch: ScriptFn = async (s) => {
   if (s.flag('met_dutch')) {
-    await s.say('dutch', s.flag('sable_joined') ? 'Whatever you’re carrying, darlin’, carry it somewhere else.' : 'The meter’s running on Mr. Pale’s patience. Go find your decker.');
+    await s.say('dutch', s.flag('sable_joined') ? 'Whoever that is with you, darlin’, I never saw them. I never saw any of you.' : 'The meter’s running on Mr. Pale’s patience. Go find your decker.');
     return;
   }
   await s.say('dutch', 'There they are. My favorite disaster and his apprentice. Sit, sit. Mind the stain, it’s load-bearing.', { face: 'happy' });
@@ -80,7 +80,6 @@ export const meetDutch: ScriptFn = async (s) => {
   await s.say('dutch', 'Which you haven’t got, since your last one moved to Neo-Lagos and stopped taking my calls.');
   await s.say('rook', '...Hex.');
   await s.say('dutch', 'Hex! Hex owes me money. Two birds, one run. Tell her if she does this, her tab goes in the canal.', { face: 'happy' });
-  await s.say('pale', 'The annex location and what codes we have.');
   await s.give('pale_chip', 1);
   await s.say('pale', 'Loading Dock 7, when you have it. I keep very exact hours.');
   await s.say('pale', 'Miss Kit. The two Rustfangs outside. I watched from the window.', { face: 'smirk' });
@@ -136,7 +135,7 @@ export const meetHex: ScriptFn = async (s) => {
   await s.say('rook', 'Dutch will forget your debt.');
   await s.say('hex', '...How much of it?', { face: 'smirk' });
   await s.say('rook', 'Some.');
-  await s.say('hex', 'Okay. Okay. Breathe, Hex. There’s a scavver in the Rustyard, {y}Old Mags{/}. She had a Stingray last month. Rustyard’s east, past the Barrens. Get me that chip and I’m your decker. Your professional, sober decker.');
+  await s.say('hex', 'Some is a number. I can work with a number. There’s a scavver in the Rustyard, {y}Old Mags{/}. She had a Stingray last month. Rustyard’s east, past the Barrens. Get me that chip and I’m your decker. Your professional, sober decker.');
   await s.say('hex', 'The Barrens are nasty. Here, I can spare these.', { face: 'happy' });
   await s.give('detox', 2);
   s.set('met_hex');
@@ -146,7 +145,7 @@ export const meetHex: ScriptFn = async (s) => {
 // ------------------------------------------------------------------ Rustyard
 export const rustyardGate: ScriptFn = async (s) => {
   s.followers(true);
-  await s.say('mags', 'Get off my lot, you rust-brained, gear-licking—', { face: 'angry' });
+  await s.say('mags', 'Off my lot. Forty years I’ve held this yard against worse than you, and I’m still counting.', { face: 'angry' });
   await s.say('Rustfang Punk', 'Knuckles says this yard pays tribute now, grandma. Hounds! Fetch.');
   await s.say('kit', 'Hey! Grandma says no.', { face: 'angry' });
   const r = await s.battle('f_rustyard_gate', { canRun: false, bg: 'rustyard' });
@@ -432,7 +431,11 @@ export const cryopod: ScriptFn = async (s) => {
   await s.say('kit', 'Started last month. I don’t know why.', { face: 'surprised' });
   await s.say('sable', 'Mm. The crow says you’re loud. That’s not an insult.');
   await s.say('sable', 'I am Sable. I don’t know how long I was in there. They took— they took a lot. I still have enough.');
+  await s.fadeOut(30, '#07060d');
   s.refreshMap(); // the pod, shattered and empty
+  await s.wait(20);
+  await s.narrate('Hex puts her jacket round Sable’s shoulders. Rook watches the door. Nobody says anything about three thousand cred.');
+  await s.fadeIn(30);
   await s.join('sable');
   s.set('sable_joined');
   s.music('tension');
@@ -478,6 +481,7 @@ export const betrayal: ScriptFn = async (s) => {
   await s.say('pale', 'A figure of speech.');
   await s.say('pale', 'Nine seconds, Miss Kit. I have thought about those nine seconds all week.', { face: 'smirk' });
   await s.say('pale', 'You came in as a contractor. You are leaving as a line item.');
+  await s.say('pale', 'Except you, Miss Kit. The Vessel program is always short of subjects, and you have never once been measured.');
   await s.narrate('The watch snaps shut.');
   s.sfx('alert');
   await s.say('K-M Sentinel', 'Targets confirmed. Weapons free on your word, sir.');
