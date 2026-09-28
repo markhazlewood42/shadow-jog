@@ -62,7 +62,7 @@ export const ITEMS: Record<string, ItemDef> = {
   iron_knuckles: I({ id: 'iron_knuckles', name: 'Iron Knuckles', kind: 'weapon', slot: 'weapon', who: ['kit'], price: 120, atk: 9, desc: 'Weighted brass for heavier hits.' }),
   shock_knuckles: I({ id: 'shock_knuckles', name: 'Shock Knuckles', kind: 'weapon', slot: 'weapon', who: ['kit'], price: 380, atk: 14, element: 'shock', desc: 'Capacitor gloves. Attacks deal SHOCK damage.' }),
   mono_claws: I({ id: 'mono_claws', name: 'Monowire Claws', kind: 'weapon', slot: 'weapon', who: ['kit'], price: 760, atk: 21, crit: 8, desc: 'Retractable wire claws. +8% critical.' }),
-  dragon_fang: I({ id: 'dragon_fang', name: 'Dragon Fang', kind: 'weapon', slot: 'weapon', who: ['kit'], price: 0, atk: 27, mnd: 6, desc: 'A talisman gauntlet humming with ki. +6 MND.' }),
+  dragon_fang: I({ id: 'dragon_fang', name: 'Dragon Fang', kind: 'weapon', slot: 'weapon', who: ['kit'], price: 1100, atk: 27, mnd: 6, desc: 'A talisman gauntlet humming with ki. +6 MND.' }),
   razor_tekko: I({ id: 'razor_tekko', name: 'Razor Tekko', kind: 'weapon', slot: 'weapon', who: ['kit'], price: 380, atk: 12, crit: 12, desc: 'Bladed knuckle-dusters. Lighter than Shock Knuckles, but +12% critical.' }),
   old_katana: I({ id: 'old_katana', name: 'Old Katana', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 40, atk: 10, desc: 'Rook’s blade. Nicked, never dull.' }),
   vibro_katana: I({ id: 'vibro_katana', name: 'Vibro-Katana', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 420, atk: 17, desc: 'Ultrasonic edge.' }),
@@ -98,6 +98,9 @@ export const ITEMS: Record<string, ItemDef> = {
   neural_buffer: I({ id: 'neural_buffer', name: 'Neural Buffer', kind: 'mod', slot: 'mod', who: ALL, price: 360, mnd: 4, tp: 8, desc: '+4 MND, +8 max TP.' }),
   lucky_coin: I({ id: 'lucky_coin', name: 'Lucky Coin', kind: 'mod', slot: 'mod', who: ALL, price: 250, crit: 10, desc: 'A Kowloon-era coin. +10% critical.' }),
   // Chest-only finds: not sold anywhere, so exploring pays off in something a shop can't give.
+  // The lab's own kit, sold at Requisition: the endgame's cred sink (a player who kept their
+  // money has something worth buying before the last fight).
+  km_lace: I({ id: 'km_lace', name: 'K-M Neural Lace', kind: 'mod', slot: 'mod', who: ALL, price: 1200, agi: 5, mnd: 5, crit: 5, desc: 'Lab-grade wetware. +5 AGI, +5 MND, +5% critical.' }),
   grounding_coil: I({ id: 'grounding_coil', name: 'Grounding Coil', kind: 'mod', slot: 'mod', who: ALL, price: 460, def: 4, immune: ['stun'], desc: 'Salvaged surge sink. +4 DEF. Immune to stun.' }),
   ghost_lens: I({ id: 'ghost_lens', name: 'Ghost Lens', kind: 'mod', slot: 'mod', who: ALL, price: 420, res: 6, mnd: 3, desc: 'A cracked monocle that sees a little too much. +6 RES, +3 MND.' }),
   adrenal_pump: I({ id: 'adrenal_pump', name: 'Adrenal Pump', kind: 'mod', slot: 'mod', who: ALL, price: 620, regen: 4, desc: 'Regenerate 4% HP each round.' }),

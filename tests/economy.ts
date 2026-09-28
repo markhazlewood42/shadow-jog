@@ -34,6 +34,8 @@ export interface Leg {
   walk?: [string, number, number][];
   /** Cred found in chests / rewards on this leg. */
   cred?: number;
+  /** The part of `cred` that's optional (chests off the path, side interactions). */
+  optional?: number;
   /** Party members joining at the end of this leg. */
   joins?: MemberId[];
   /** Nights at an inn (cost per head). */
@@ -170,7 +172,7 @@ function rollEncounters(steps: number, rate: number, rng: Rng): number {
  * the mean crew down per won fight, from the battle simulator. Returns, per checkpoint, the
  * cred left after its buys in every run.
  */
-export function runEconomyMC(route: Leg[], startCred: number, startParty: Partial<Record<MemberId, number>>, runs: number, seed: number, downRate: (table: string) => number): Map<string, number[]> {
+export function runEconomyMC(route: Leg[], startCred: number, startParty: Partial<Record<MemberId, number>>, runs: number, seed: number, downRate: (table: string) => number, minimal = false): Map<string, number[]> {
   const rng = new Rng(seed);
   const out = new Map<string, number[]>();
   for (let run = 0; run < runs; run++) {
@@ -189,7 +191,7 @@ export function runEconomyMC(route: Leg[], startCred: number, startParty: Partia
     for (const leg of route) {
       for (const [table, steps, rate] of leg.walk ?? []) for (let i = rollEncounters(steps, rate, rng); i > 0; i--) fight(table);
       for (const f of leg.fixed ?? []) fight(f);
-      cred += leg.cred ?? 0;
+      cred += (leg.cred ?? 0) - (minimal ? (leg.optional ?? 0) : 0);
       cred -= (leg.rests ?? 0) * innPrice(10, avgLevel()) * Object.keys(party).length;
       cred -= leg.supplies ?? 0;
       for (const id of leg.joins ?? []) {

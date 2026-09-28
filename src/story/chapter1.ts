@@ -81,6 +81,8 @@ export const meetDutch: ScriptFn = async (s) => {
   await s.say('rook', '...Hex.');
   await s.say('dutch', 'Hex! Hex owes me money. Two birds, one run. Tell her if she does this, her tab goes in the canal.', { face: 'happy' });
   await s.give('pale_chip', 1);
+  await s.say('pale', 'Expenses. I will not be asking for receipts.');
+  await s.cred(250);
   await s.say('pale', 'Loading Dock 7, when you have it. I keep very exact hours.');
   await s.say('pale', 'Miss Kit. The two Rustfangs outside. I watched from the window.', { face: 'smirk' });
   await s.say('pale', 'Nine seconds, no weapon, no chrome in those hands. Nothing on your breath but noodles.');

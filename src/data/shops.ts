@@ -59,7 +59,9 @@ export const SHOPS: Record<string, ShopDef> = {
     id: 'km_requisition', name: 'K-M REQUISITION', keeper: 'Terminal', accent: '#ff6a5a',
     greeting: 'BADGE ACCEPTED: D. PETROV, FACILITIES. REQUISITION LIMIT: UNLIMITED.',
     thanks: 'CHARGED TO COST CENTRE 7. HAVE A PRODUCTIVE SHIFT.',
-    items: ['medkit', 'trauma_patch', 'omni_patch', 'neurotab', 'adrenal_stim', 'detox', 'optic_flush', 'frag'],
+    // Consumables, plus the lab's top gear: a fallback for anyone who missed the armory cases,
+    // and the Neural Lace for anyone who kept their money.
+    items: ['medkit', 'trauma_patch', 'omni_patch', 'neurotab', 'adrenal_stim', 'detox', 'optic_flush', 'frag', 'dragon_fang', 'mono_katana', 'smartpistol', 'focus_rod', 'km_lace'],
   },
   automat: {
     id: 'automat', name: 'TRANSIT AUTOMAT', keeper: 'Automat', accent: '#3fe0f0',

@@ -65,6 +65,26 @@ describe('economy', () => {
     });
   }
 
+  // A straight-line player who opens no optional chest: the gear is still in reach for most runs
+  // without grinding (a few extra fights at worst).
+  const lean = runEconomyMC(ROUTE, 150, { kit: 1, rook: 3 }, 400, 11, downRate, true);
+  it('prints the minimal-exploration spread', () => {
+    for (const [cp, xs] of lean) console.log(`minimal: ${cp.padEnd(30)} p10 ${String(Math.round(pct(xs, 0.1))).padStart(5)}¢  median ${String(Math.round(pct(xs, 0.5))).padStart(5)}¢  affordable ${((xs.filter((x) => x >= 0).length / xs.length) * 100).toFixed(0)}%`);
+  });
+  for (const [cp, xs] of lean) {
+    it(`${cp}: affordable in three runs of four even skipping every optional chest`, () => {
+      expect(xs.filter((x) => x >= 0).length / xs.length).toBeGreaterThanOrEqual(0.75);
+    });
+  }
+
+  it('the endgame has something worth buying: Requisition sells the lab gear and the Neural Lace', async () => {
+    const { SHOPS } = await import('../src/data/shops');
+    const req = SHOPS.km_requisition!.items;
+    for (const id of ['dragon_fang', 'mono_katana', 'smartpistol', 'focus_rod', 'km_lace']) expect(req, id).toContain(id);
+    const median = pct(mc.get('CP6 WARDEN')!, 0.5);
+    expect(ITEMS.km_lace!.price).toBeGreaterThan(median * 0.8);
+  });
+
   it('the whole chapter takes a sensible number of fights', () => {
     const last = report[report.length - 1]!;
     expect(last.battles).toBeGreaterThan(18);
