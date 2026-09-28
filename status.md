@@ -41,7 +41,15 @@ The original prompt that started the project: `docs/original-prompt.md`.
 ## Future Plans
 
 - Touch controls.
-- Deploy (GitHub Pages or Vercel; ask first).
+- **Deploy to shadowjog.com** (domain bought 2026-09-28; hosting probably Vercel). Confirm with Mark before any deploy.
+- **Last step, after the alpha is fully working: interest sign-up.** The final screen (the "Chapter 2 coming soon"
+  card, `src/scenes/ending.ts`) gets an email field so players can ask to hear about updates. It must be secure. The
+  details are to be designed with Mark later; points to cover then:
+  - the address goes to a server endpoint (a Vercel function), never straight from the browser to a mailing service,
+    and no secret or API key ships in the client bundle;
+  - validate and rate-limit on the server; bot protection (honeypot or similar); double opt-in confirmation;
+  - HTTPS only; a short privacy note at the field; an unsubscribe path; store no more than the address and consent;
+  - the game keeps working (and the field fails gracefully, with a visible error state) if the endpoint is down.
 - Chapter 2 ("Deniable Assets"): getting Rook back.
 
 ## Notes
