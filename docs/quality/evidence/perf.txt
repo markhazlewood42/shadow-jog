@@ -1,5 +1,27 @@
-title baseline {"frames":151,"mean":0.23245033108635454,"p95":0.30000001192092896,"max":0.4000000059604645,"sim":{"frames":151,"mean":0.01721854340161709,"p95":0.10000000894069672,"max":0.10000000894069672}}
-field {"frames":241,"mean":1.3062240655120478,"p95":1.7000000029802322,"max":2.2999999970197678,"sim":{"frames":241,"mean":0.025311203542092035,"p95":0.10000000894069672,"max":0.20000000298023224}}
-  ok  9 e2e\perf.spec.ts:50:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget (6.6s)
-battle {"frames":361,"mean":0.4742382269074052,"p95":0.6000000089406967,"max":5.4000000059604645,"sim":{"frames":361,"mean":0.025484764716301598,"p95":0.10000000894069672,"max":1.2999999970197678}}
-  ok 10 e2e\perf.spec.ts:61:1 › a live battle stays inside the frame budget (9.7s)
+
+Running 3 tests using 1 worker
+
+title baseline {"frames":150,"mean":0.3333333326379458,"p95":0.5,"max":0.7000000029802322,"sim":{"frames":150,"mean":0.02666666656732559,"p95":0.10000000894069672,"max":0.10000000894069672}}
+field {"frames":241,"mean":1.2875518668983983,"p95":2.0999999940395355,"max":3.1000000089406967,"sim":{"frames":241,"mean":0.031950207357584685,"p95":0.10000000894069672,"max":0.20000000298023224}}
+  ok 1 [chromium] › e2e\perf.spec.ts:48:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget (6.6s)
+battle {"frames":361,"mean":0.585041551172238,"p95":1,"max":6.9000000059604645,"sim":{"frames":361,"mean":0.029916897911444265,"p95":0.10000000894069672,"max":1.2999999970197678}}
+  ok 2 [chromium] › e2e\perf.spec.ts:59:1 › a live battle stays inside the frame budget (9.7s)
+input latency ms {"move":[16.2,9,16.4,11.3,15.3,12.1,4.7,13.8],"menu":[16.6,13.2,9,9.7],"moveMedian":13.799999997019768,"menuMedian":13.200000002980232}
+  ok 3 [chromium] › e2e\perf.spec.ts:79:1 › input answers within two frames (field movement, opening the menu) (10.7s)
+
+  3 passed (34.0s)
+exit=0
+--- software canvas (PW_NOGPU=1, as CI) ---
+
+Running 3 tests using 1 worker
+
+title baseline {"frames":151,"mean":0.581456952833182,"p95":0.7000000029802322,"max":1,"sim":{"frames":151,"mean":0.023178808045703055,"p95":0.10000000894069672,"max":0.10000000894069672}}
+field {"frames":241,"mean":2.5834024884270437,"p95":2.8999999910593033,"max":5.700000002980232,"sim":{"frames":241,"mean":0.02946058070263922,"p95":0.10000000894069672,"max":0.20000000298023224}}
+  ok 1 [chromium] › e2e\perf.spec.ts:48:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget (6.6s)
+battle {"frames":360,"mean":0.9577777766519122,"p95":1.699999988079071,"max":2.4000000059604645,"sim":{"frames":360,"mean":0.03222222204009692,"p95":0.10000000894069672,"max":1.2999999970197678}}
+  ok 2 [chromium] › e2e\perf.spec.ts:59:1 › a live battle stays inside the frame budget (9.7s)
+input latency ms {"move":[6.3,11,15.8,12.6,15.7,10.8,15.1,7.4],"menu":[22.9,9.2,5.4,10.2],"moveMedian":12.600000008940697,"menuMedian":10.199999988079071}
+  ok 3 [chromium] › e2e\perf.spec.ts:79:1 › input answers within two frames (field movement, opening the menu) (10.7s)
+
+  3 passed (33.9s)
+exit=0
