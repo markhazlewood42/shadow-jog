@@ -615,13 +615,15 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           if (e.fx === 'flash_step' || e.fx === 'rain_hits') dd.afterimage = 22;
           sfx(e.kind === 'tech' ? 'cast' : 'swing');
         } else {
-          dd.flash = 8;
-          dd.lunge = 5;
+          // Enemies act with their bodies: strikes wind up and lunge, guns kick, casters rise and glow.
+          const motion = enemyMotion(e.fx);
+          this.setPose(actor, motion, ENEMY_POSE_T);
+          if (motion !== 'attack') dd.flash = 8;
           sfx('enemy_act');
         }
         const cry = e.kind === 'enemy' ? ABILITIES[e.id]?.cry : undefined;
         if (cry) this.say(cry);
-        await this.w(e.kind === 'attack' ? 8 : 16);
+        await this.w(actor.side === 'enemy' ? 12 : e.kind === 'attack' ? 8 : 16);
         const timing = this.fx.play(e.fx, this.pos(e.actor), e.targets.map((t) => this.pos(t)), e.element === 'shock' ? '#9ae8ff' : undefined);
         sfx(fxSound(e.fx));
         await this.w(timing.impact);
@@ -658,6 +660,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         dd.hp = e.hp;
         dd.shake = 12;
         dd.flash = u.side === 'enemy' ? 5 : 8;
+        if (u.side === 'enemy' && e.hp > 0 && (e.crit || e.amount >= u.base.maxHp * 0.12)) this.setPose(u, 'hurt', 16);
         if (u.side === 'party' && e.hp > 0) this.setPose(u, 'hurt', 16);
         const p = this.floatPos(e.target);
         if (e.amount === 0) this.float('NO EFFECT', p, '#8b8fa8', false);
@@ -1155,7 +1158,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     // Duplicates: a distinct individual where the sprite has one, else a palette and mirror.
     const who = dup ? enemyArt(ENEMIES[e.key]!.sprite, dup) : art;
     const flip = (c: HTMLCanvasElement) => (dup % 2 ? mirrored(c) : c);
-    const canvas = who.individual ? flip(who.canvas) : variant(art.canvas, dup);
+    const canvas = who.individual ? flip(who.canvas) : marked(variant(art.canvas, dup), e.family ?? '', dup);
     const glow = who.individual ? who.glow && flip(who.glow) : art.glow && variant(art.glow, dup);
     let ox = 0, oy = 0;
     switch (art.idle) {
@@ -1167,6 +1170,28 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     }
     if (dd.shake > 0) ox += dd.shake % 4 < 2 ? 2 : -2;
     oy += Math.round(dd.lunge);
+    // Body motion while acting or reeling (battle-world pixels; the party is below).
+    let castGlow = 0;
+    if (dd.poseT > 0) {
+      const k = dd.pose === 'hurt' ? 16 - dd.poseT : ENEMY_POSE_T - dd.poseT;
+      switch (dd.pose) {
+        case 'attack': // rear back, lunge down at the crew, settle
+          oy += k < 9 ? -Math.round(k / 3) : k < 15 ? Math.round((k - 9) * 1.6) - 3 : Math.max(0, 7 - (k - 15));
+          break;
+        case 'aim': // shoulder the kick
+          oy += k >= 10 && k < 16 ? -2 : 0;
+          ox += k >= 10 && k < 13 ? (e.uid % 2 ? 1 : -1) : 0;
+          break;
+        case 'cast': // lift and gather light
+          oy -= Math.round(Math.min(3, k / 3) * (k < 24 ? 1 : Math.max(0, 1 - (k - 24) / 8)));
+          castGlow = Math.sin(Math.min(1, k / 22) * Math.PI) * 0.45;
+          break;
+        case 'hurt': // knocked back, then recover
+          oy -= k < 6 ? 2 : k < 12 ? 1 : 0;
+          ox += k < 10 ? (e.uid % 2 ? 2 : -2) : 0;
+          break;
+      }
+    }
     const dx = x + ox, dy = y + oy;
     // Shadow
     if (art.shadow) {
@@ -1200,6 +1225,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       g.globalAlpha = alpha;
     }
     if (glow) g.drawImage(glow, dx, dy);
+    if (castGlow > 0) {
+      g.globalAlpha = alpha * castGlow;
+      g.drawImage(silhouetteCache(canvas, '#e8d8ff'), dx, dy);
+      g.globalAlpha = alpha;
+    }
     if (dd.flash > 0 && dd.flash % 4 < 2) {
       g.globalAlpha = 0.85 * alpha;
       g.drawImage(silhouetteCache(canvas, '#ffffff'), dx, dy);
@@ -1320,11 +1350,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       // HP bar (bosses get a wider one).
       const bw = e.boss ? 72 : 30;
       const ratio = Math.max(0, dd.shownHp / e.base.maxHp);
-      ctx.fillStyle = 'rgba(10,9,19,0.85)';
-      ctx.fillRect(cx0 - bw / 2 - 1, row - 1, bw + 2, 4);
+      // A solid dark plate and a 3px bar, so it holds up over bright signage.
+      ctx.fillStyle = '#0a0913';
+      ctx.fillRect(cx0 - bw / 2 - 2, row - 2, bw + 4, 7);
+      ctx.fillStyle = '#2a2838';
+      ctx.fillRect(cx0 - bw / 2, row, bw, 3);
       ctx.fillStyle = hpColor(ratio);
-      ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 2);
-      drawLag(ctx, cx0 - bw / 2, row, bw, 2, ratio, dd.lagHp / e.base.maxHp);
+      ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 1);
+      drawLag(ctx, cx0 - bw / 2, row, bw, 3, ratio, dd.lagHp / e.base.maxHp);
       row -= 11;
       // Status chips: measure, then draw (two passes, nothing allocated per frame).
       let count = 0, total = 0;
@@ -1688,6 +1723,67 @@ function opaqueTop(c: HTMLCanvasElement): number {
 
 const flipCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 /** Horizontally mirrored copy (cached): every other duplicate enemy faces the other way. */
+/** How long an enemy's action pose runs, in frames. */
+const ENEMY_POSE_T = 30;
+
+/** An enemy move's body motion, from its effect: melee strikes, gunfire, or casting. */
+function enemyMotion(fx: string): Pose {
+  if (['slash', 'claw', 'whip', 'punch', 'bite', 'crush', 'coil', 'palm'].includes(fx)) return 'attack';
+  if (['gunfire', 'shot', 'beam', 'bolt', 'zap', 'lightning', 'target_lock'].includes(fx)) return 'aim';
+  return 'cast';
+}
+
+/**
+ * Markings that make a second or third creature an individual, not a recolour: machines carry a
+ * stencilled unit number and a hazard stripe, beasts a scar, spirits a cluster of bright motes.
+ * Painted only onto opaque pixels, near the body's middle.
+ */
+const markCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
+const DIGITS: Record<string, string[]> = {
+  '2': ['111', '001', '111', '100', '111'], '3': ['111', '001', '011', '001', '111'], '4': ['101', '101', '111', '001', '001'],
+};
+function marked(src: HTMLCanvasElement, family: string, dup: number): HTMLCanvasElement {
+  if (dup === 0 || !['machine', 'beast', 'spirit'].includes(family)) return src;
+  let m = markCache.get(src);
+  if (!m) {
+    m = new Map();
+    markCache.set(src, m);
+  }
+  const key = `${family}:${dup}`;
+  let c = m.get(key);
+  if (c) return c;
+  const w = src.width, h = src.height;
+  const s = surface(w, h);
+  s.ctx.drawImage(src, 0, 0);
+  const data = s.ctx.getImageData(0, 0, w, h).data;
+  const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && data[(y * w + x) * 4 + 3]! > 200;
+  // Opaque bounds, to find the body's middle.
+  let x0 = w, y0 = h, x1 = 0, y1 = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (solid(x, y)) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  const cx = Math.round((x0 + x1) / 2), cy = Math.round(y0 + (y1 - y0) * 0.45);
+  const dot = (x: number, y: number, col: string) => {
+    if (!solid(x, y)) return;
+    s.ctx.fillStyle = col;
+    s.ctx.fillRect(x, y, 1, 1);
+  };
+  if (family === 'machine') {
+    const glyph = DIGITS[String(Math.min(4, dup + 1))]!;
+    const gx = cx - 5, gy = cy - 2;
+    for (let j = 0; j < glyph.length; j++) {
+      for (let i = 0; i < 3; i++) if (glyph[j]![i] === '1') dot(gx + i, gy + j, '#f0e8c8');
+    }
+    for (let i = 0; i < 5; i++) dot(cx + 2 + i, cy - 4 + i, i % 2 ? '#1a1820' : '#ffcc3d');
+  } else if (family === 'beast') {
+    const dir = dup % 2 ? 1 : -1;
+    for (let i = 0; i < 6; i++) dot(cx + dir * (i - 2), cy - 3 + i, i % 3 === 1 ? '#f0c0b8' : '#c07878');
+  } else {
+    for (const [dx, dy] of [[-3, -2], [2, -3], [0, 2], [4, 1]] as const) dot(cx + dx * dup, cy + dy, '#ffffff');
+  }
+  c = s.canvas;
+  m.set(key, c);
+  return c;
+}
+
 /** Rim-light colour per battle backdrop: a light the enemies catch that the set doesn't have. */
 const RIM: Record<string, string> = {
   street: '#ffc27a', barrens: '#9ae8ff', rustyard: '#9ae8ff', park: '#ffd0f0',

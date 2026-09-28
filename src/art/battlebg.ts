@@ -593,6 +593,26 @@ const MAKERS: Record<string, Maker> = {
     const s = surface(BW, BH), gl = surface(BW, BH);
     const c = s.ctx, g = gl.ctx;
     ditherV(c, 0, 0, BW, HORIZON + 4, ['#0a0612', '#1a0a1e', '#2a0e24']);
+    // Back wall: server racks with blinking status lights, pipes along the ceiling.
+    for (let x = 4; x < BW; x += 26) {
+      if (Math.abs(x + 9 - BW / 2) < 58) continue; // leave the containment ring clear
+      c.fillStyle = '#140c1a'; c.fillRect(x, 18, 18, HORIZON - 22);
+      c.fillStyle = '#221628'; c.fillRect(x + 1, 19, 16, 1);
+      for (let y = 24; y < HORIZON - 8; y += 5) {
+        c.fillStyle = '#1c1224'; c.fillRect(x + 2, y, 14, 3);
+        for (const k of [c, g]) { k.fillStyle = (x + y) % 3 ? '#62e06a' : '#ff5a4a'; k.fillRect(x + 3 + ((x * 7 + y) % 9), y + 1, 1, 1); }
+      }
+    }
+    for (const [y, col] of [[4, '#2a2030'], [8, '#241a2a'], [11, '#30243a']] as const) {
+      c.fillStyle = col; c.fillRect(0, y, BW, 2);
+      for (let x = 12; x < BW; x += 30) { c.fillStyle = '#3a3040'; c.fillRect(x, y - 1, 3, 4); }
+    }
+    // Coolant towers either side, lit bands glowing.
+    for (const tx of [14, BW - 30]) {
+      c.fillStyle = '#1a1422'; c.fillRect(tx, 14, 16, HORIZON - 12);
+      c.fillStyle = '#2a2034'; c.fillRect(tx + 2, 14, 3, HORIZON - 12);
+      for (let y = 20; y < HORIZON; y += 9) for (const k of [c, g]) { k.fillStyle = '#6ff3ff'; k.fillRect(tx + 1, y, 14, 1); }
+    }
     // Containment ring
     for (let r = 50; r > 30; r -= 1) {
       c.strokeStyle = r % 4 === 0 ? '#3a3040' : '#2a2030';
@@ -614,11 +634,21 @@ const MAKERS: Record<string, Maker> = {
     return {
       canvas: s.canvas, glow: gl.canvas, ground: 98, tint: '#6a2a4a', tintAmt: 0.2,
       anim: (ctx, f) => {
-        // Alarm sweep
-        const a = 0.12 + 0.1 * Math.sin(f * 0.1);
+        // Alarm: a lighter red pulse, and two beacon beams sweeping the ceiling.
+        const a = 0.06 + 0.05 * Math.sin(f * 0.1);
         ctx.fillStyle = '#ff2a3a';
         ctx.globalAlpha = a;
         ctx.fillRect(0, 0, BW, BH);
+        for (const [bx, ph] of [[22, 0], [BW - 22, Math.PI]] as const) {
+          const ang = Math.sin(f * 0.05 + ph) * 0.9;
+          ctx.globalAlpha = 0.18;
+          for (let r = 4; r < 70; r += 2) {
+            const w = Math.round(r * 0.35);
+            ctx.fillRect(Math.round(bx + Math.sin(ang) * r - w / 2), Math.round(12 + Math.cos(ang) * r * 0.5), w, 1);
+          }
+          ctx.globalAlpha = 0.9;
+          ctx.fillRect(bx - 1, 10, 3, 3);
+        }
         ctx.globalAlpha = 1;
       },
     };
