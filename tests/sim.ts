@@ -20,6 +20,8 @@ export interface SimResult {
   n: number;
   rounds: number;
   hpLostPct: number;
+  /** Crew members at 0 HP when the fight ends, per fight (each is a clinic revive). */
+  downs: number;
   combos: number;
   /** Abilities and combos the policy used at least once. */
   used: Set<string>;
@@ -194,7 +196,7 @@ export function autoPolicy(b: Battle): Command[] {
 
 export function simulate(label: string, loadout: Loadout[], table: string, n = 200, seed = 1, useCombos = true, pick?: (b: Battle, bag: Bag) => Command[]): SimResult {
   const rng = new Rng(seed);
-  let wins = 0, rounds = 0, lost = 0, combos = 0;
+  let wins = 0, rounds = 0, lost = 0, combos = 0, downs = 0;
   const used = new Set<string>();
   const groups = ENCOUNTERS[table]!;
   for (let i = 0; i < n; i++) {
@@ -214,8 +216,9 @@ export function simulate(label: string, loadout: Loadout[], table: string, n = 2
     combos += b.combosUsed.length;
     const hpNow = p.reduce((s, c) => s + Math.max(0, c.hp), 0);
     lost += 1 - hpNow / maxHp;
+    if (b.outcome === 'win') downs += p.filter((c) => c.hp <= 0).length;
   }
-  return { label, wins, n, rounds: rounds / n, hpLostPct: (lost / n) * 100, combos: combos / n, used };
+  return { label, wins, n, rounds: rounds / n, hpLostPct: (lost / n) * 100, combos: combos / n, downs: downs / n, used };
 }
 
 export function fmt(r: SimResult): string {

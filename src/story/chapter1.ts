@@ -115,6 +115,8 @@ export const meetHex: ScriptFn = async (s) => {
     s.despawn('hex');
     await s.join('hex');
     s.set('hex_joined');
+    await s.say('hex', 'Also, my emergency fund. It’s mostly been emergencies.');
+    await s.cred(80);
     await s.say('hex', 'One more thing. I run a scanner, {c}Analyze{/}. Feed its target data into Rook’s smartgun and he literally cannot miss. I call it {y}Target Lock{/}. Patent pending.');
     await s.tutorial('COMBOS', 'Some abilities fuse when chosen in the {y}same round{/}. Try {c}Hex: Analyze{/} with {c}Rook: Quickdraw{/}. A {y}★{/} hint appears when a pairing will combo. Found combos are listed under {c}Combos{/} in the menu.');
     s.objective(OBJ.sinkline);
@@ -181,6 +183,8 @@ export const magsReward: ScriptFn = async (s) => {
     await s.give('coprocessor', 1);
     s.set('coprocessor');
     s.set('coprocessor_given');
+    await s.say('mags', 'And this. The camp took up a collection for whoever ran Knuckles off. Don’t argue with me, I’m old.');
+    await s.cred(150);
     await s.say('mags', 'And tell Hex she still owes me for the last one.');
     s.objective(OBJ.bringChip);
     return;

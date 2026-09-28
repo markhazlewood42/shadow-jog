@@ -790,7 +790,7 @@ function faceFeatures(rows: string[], look: CharLook): void {
   };
   if (look.brows !== false) for (const x of look.brows === 'thick' ? [4, 5, 6, 9, 10, 11] : [5, 6, 9, 10]) put(x, 5, 'H');
   // Half-lidded: the eye's top pixel becomes lid (skin shade), leaving a one-pixel slit.
-  if (look.eyeShape === 'narrow') for (const x of [6, 9]) if (rows[7]?.[x] === 'e') rows[7] = rows[7].slice(0, x) + 'S' + rows[7].slice(x + 1);
+  if (look.eyeShape === 'narrow') for (const x of [6, 9]) if (rows[7]?.[x] === 'e') rows[7] = `${rows[7].slice(0, x)}S${rows[7].slice(x + 1)}`;
   const mouth = look.mouth ?? 'line';
   if (mouth === 'line') {
     put(7, 10, 'm');

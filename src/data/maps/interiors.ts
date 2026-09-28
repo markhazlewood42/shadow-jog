@@ -57,6 +57,18 @@ export const rookFlat: MapDef = {
       },
     },
     {
+      id: 'rent_tin', x: 9, y: 6, w: 3, on: 'action', run: async (s) => {
+        if (s.flag('rent_tin')) {
+          await s.narrate('The rent tin. Lighter than it should be. Everything is.');
+          return;
+        }
+        s.set('rent_tin');
+        await s.narrate('A biscuit tin behind the kettle, RENT scratched in the lid.');
+        await s.say('rook', 'Take half. The landlord can wait a week. The Rustfangs won’t.');
+        await s.cred(60);
+      },
+    },
+    {
       id: 'rack', x: 12, y: 3, on: 'action', run: async (s) => {
         await s.say('rook', 'Hands off the rack. Every blade there has a story, and every story ends with somebody bleeding.');
       },

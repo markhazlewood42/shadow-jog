@@ -7,6 +7,7 @@ import { ITEMS, sellPrice } from '../src/data/items';
 import { levelForXp, MEMBERS, xpFor } from '../src/data/party';
 import { innPrice } from '../src/game/party';
 import type { MemberId } from '../src/game/state';
+import { Rng } from '../src/engine/rng';
 
 /** Expected cred, XP and loot resale value of one fight from a table. */
 export function tableValue(table: string): { cred: number; xp: number; loot: number } {
@@ -123,6 +124,89 @@ export function runEconomy(route: Leg[], startCred: number, startParty: Partial<
       ok,
       notes,
     });
+  }
+  return out;
+}
+
+/** One fight from a table, rolled: a group by weight, each drop by its chance. */
+function rollFight(table: string, rng: Rng): { cred: number; xp: number } {
+  const groups = ENCOUNTERS[table]!;
+  let r = rng.next() * groups.reduce((n, g) => n + g.w, 0);
+  let g = groups[groups.length - 1]!;
+  for (const x of groups) {
+    r -= x.w;
+    if (r < 0) {
+      g = x;
+      break;
+    }
+  }
+  let cred = 0, xp = 0;
+  for (const id of g.e) {
+    const e = ENEMIES[id]!;
+    cred += e.cred;
+    xp += e.xp;
+    for (const d of e.drops ?? []) if (rng.chance(d.chance)) cred += ITEMS[d.id]!.kind === 'loot' ? sellPrice(d.id) : sellPrice(d.id) * 0.5;
+  }
+  return { cred, xp };
+}
+
+/** Random encounters over a walk, rolled as the field does: 5 safe steps, then 1 in (rate - 5). */
+function rollEncounters(steps: number, rate: number, rng: Rng): number {
+  let n = 0, since = 0;
+  for (let i = 0; i < steps; i++) {
+    since++;
+    if (since < 6) continue;
+    if (rng.chance(1 / Math.max(2, rate - 5))) {
+      n++;
+      since = 0;
+    }
+  }
+  return n;
+}
+
+/**
+ * Monte Carlo over the route: encounter counts, groups and drops are rolled, and every crew
+ * member a fight leaves down costs a clinic revive (30 + 10 × level). `downRate(table)` is
+ * the mean crew down per won fight, from the battle simulator. Returns, per checkpoint, the
+ * cred left after its buys in every run.
+ */
+export function runEconomyMC(route: Leg[], startCred: number, startParty: Partial<Record<MemberId, number>>, runs: number, seed: number, downRate: (table: string) => number): Map<string, number[]> {
+  const rng = new Rng(seed);
+  const out = new Map<string, number[]>();
+  for (let run = 0; run < runs; run++) {
+    let cred = startCred;
+    const party: Partial<Record<MemberId, number>> = {};
+    for (const [id, lv] of Object.entries(startParty) as [MemberId, number][]) party[id] = xpFor(lv);
+    const owned = new Set<string>();
+    const avgLevel = () => Object.values(party).reduce((n, x) => n + levelForXp(x!), 0) / Math.max(1, Object.keys(party).length);
+    const fight = (table: string) => {
+      const v = rollFight(table, rng);
+      cred += v.cred;
+      for (const id of Object.keys(party) as MemberId[]) party[id]! += v.xp;
+      const size = Object.keys(party).length, p = Math.min(1, downRate(table) / size);
+      for (let i = 0; i < size; i++) if (rng.chance(p)) cred -= 30 + 10 * Math.round(avgLevel());
+    };
+    for (const leg of route) {
+      for (const [table, steps, rate] of leg.walk ?? []) for (let i = rollEncounters(steps, rate, rng); i > 0; i--) fight(table);
+      for (const f of leg.fixed ?? []) fight(f);
+      cred += leg.cred ?? 0;
+      cred -= (leg.rests ?? 0) * innPrice(10, avgLevel()) * Object.keys(party).length;
+      cred -= leg.supplies ?? 0;
+      for (const id of leg.joins ?? []) {
+        const lead = Math.max(...Object.values(party).map((x) => levelForXp(x!)));
+        party[id] = xpFor(Math.max(MEMBERS[id].startLevel, lead - 1));
+      }
+      if (leg.checkpoint) {
+        for (const it of leg.checkpoint.buys) {
+          if (owned.has(it)) continue;
+          owned.add(it);
+          cred -= ITEMS[it]!.price;
+        }
+        const list = out.get(leg.checkpoint.name) ?? [];
+        list.push(cred);
+        out.set(leg.checkpoint.name, list);
+      }
+    }
   }
   return out;
 }
