@@ -34,6 +34,15 @@ export interface SongSpec {
   loop?: boolean;
   /** Bars the drums sit out the first time through: the song arrives before the groove does. */
   intro?: number;
+  /** Bars (0-based) where the drums rest on every pass: a breath inside the loop, so a long
+   *  fight's theme surges and releases instead of sitting pinned at one level. */
+  rests?: number[];
+  /**
+   * Loudness trim in dB, so every song sits at its intended level rather than wherever its
+   * parts' volumes happened to sum (set from the offline renders: docs/quality/evidence/audio.txt;
+   * targets about -21 dBFS RMS for places, -20 for fights, -22.5 for the quiet cues).
+   */
+  gain?: number;
   /**
    * Acoustic space the song plays in. 'here' keeps whatever room the player is already in: battle
    * music, jingles and story cues happen *in* the current place and must not re-reverb it.
@@ -61,6 +70,10 @@ interface Compiled {
   loop: boolean;
   /** Steps at the top where drums rest on the first pass. */
   introSteps: number;
+  /** Bars where the drums rest on every pass. */
+  restBars: Set<number>;
+  /** Linear loudness trim. */
+  trim: number;
   steps: Ev[][];
 }
 
@@ -313,7 +326,10 @@ export function compile(spec: SongSpec): Compiled {
     }
   }
   const loopStep = (spec.loopBar ?? 0) * STEPS;
-  return { bpm: spec.bpm, swing: spec.swing ?? 0, length, loopStep, loop: spec.loop !== false, introSteps: (spec.intro ?? 0) * STEPS, steps };
+  return {
+    bpm: spec.bpm, swing: spec.swing ?? 0, length, loopStep, loop: spec.loop !== false, introSteps: (spec.intro ?? 0) * STEPS,
+    restBars: new Set(spec.rests ?? []), trim: 10 ** ((spec.gain ?? 0) / 20), steps,
+  };
 }
 
 // ------------------------------------------------------------------ sequencer
@@ -364,7 +380,7 @@ function jitter(a: number, b: number, c: number): number {
 function scheduleStep(song: Compiled, step: number, at: number, dest: AudioNode, pass: number): void {
   const sd = stepDur(song);
   const t0 = at + (step % 2 === 1 ? song.swing * sd : 0);
-  const drumsRest = pass === 0 && step < song.introSteps;
+  const drumsRest = (pass === 0 && step < song.introSteps) || song.restBars.has(Math.floor(step / STEPS));
   song.steps[step]!.forEach((e, i) => {
     if (e.drum && drumsRest) return;
     const k = jitter(step, i, pass);
@@ -405,6 +421,7 @@ export async function renderSong(name: string, seconds: number, rate = 44100): P
   const sp = SONGS[name]?.space ?? 'hall';
   return audio.renderOffline(off, sp === 'here' ? 'hall' : sp, () => {
     const gain = off.createGain();
+    gain.gain.value = song.trim;
     gain.connect(audio.music);
     let step = 0, pass = 0;
     for (let t = 0.05; t < seconds; t += stepDur(song)) {
@@ -432,8 +449,8 @@ function begin(name: string, fromStep = 0, fadeIn = 0, keepSpace = false): void 
   gain.connect(audio.music);
   if (fadeIn > 0) {
     gain.gain.setValueAtTime(0.0001, c.currentTime);
-    gain.gain.linearRampToValueAtTime(1, c.currentTime + fadeIn);
-  }
+    gain.gain.linearRampToValueAtTime(song.trim, c.currentTime + fadeIn);
+  } else gain.gain.value = song.trim;
   const space = SONGS[name]?.space ?? 'hall';
   if (!keepSpace && space !== 'here') audio.setSpace(space);
   // Resuming mid-song (after a battle) is not a first pass: no drum-less intro again.

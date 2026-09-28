@@ -24,6 +24,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Lantern Row — lo-fi rain-on-glass.
   town: {
+    gain: 1.1,
     intro: 1,
     bpm: 80,
     swing: 0.16,
@@ -45,6 +46,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // The Drowned Saint — smoky lounge jazz.
   bar: {
+    gain: -1.4,
     bpm: 76,
     swing: 0.28,
     chords: 'Gm7 | C9 | Fmaj7 | Bbmaj7 | Em7b5 | A7 | Dm7 | D7',
@@ -62,6 +64,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // World map — "Sprawl Run".
   world: {
+    gain: 0.7,
     intro: 2,
     bpm: 116,
     chords: 'Em | C | G | D | Em | C | Am | B | C | D | Em | Em | C | D | B | B',
@@ -81,6 +84,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Rustyard — dusty, twangy.
   rustyard: {
+    gain: 1.1,
     swing: 0.1,
     intro: 1,
     bpm: 100,
@@ -98,12 +102,14 @@ export const SONGS: Record<string, SongSpec> = {
 
   // The Sinkline — cold water, distant drips.
   dungeon: {
+    gain: 2.0,
     intro: 2,
     bpm: 88,
     chords: 'Cm | Cm | Ab | G | Cm | Cm | Db | G',
     drums: 'sparse',
     space: 'cave',
     parts: [
+      { inst: 'bell', gen: 'bells', octave: 7, vol: 0.3, rev: 0.6, del: 0.35 },
       { inst: 'bell', vol: 1, rev: 0.5, del: 0.45, notes:
         'C5 - - - . . Eb5 - | D5 - C5 - . . G4 - | C5 - - - Eb5 - C5 - | B4 - - - - - . . |' +
         'G5 - - - . . F5 - | Eb5 - - - . . C5 - | F5 - - - Eb5 - Db5 - | D5 - - - B4 - - -' },
@@ -115,6 +121,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // K-M Annex 7 — clinical arpeggios.
   lab: {
+    gain: 0.4,
     intro: 2,
     bpm: 124,
     chords: 'F#m | D | A | E | F#m | D | Bm | C#',
@@ -156,6 +163,8 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Boss — "Heavy Metal Warden".
   boss: {
+    rests: [7],
+    gain: -1.6,
     bpm: 164,
     chords: 'Dm | Dm | Bb | A | Dm | Dm | Eb | A | Gm | Gm | Dm | Dm | Bb | C | A | A',
     drums: 'boss',
@@ -180,6 +189,8 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Boss phase two — the bound spirit.
   boss2: {
+    rests: [11],
+    gain: -1.7,
     bpm: 140,
     chords: 'Dm | Bb | Gm | A | Dm | F | Gm | A | Gm | Eb | Bb | F | Gm | Eb | A | A',
     drums: 'boss2',
@@ -198,6 +209,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Victory fanfare, then a short celebratory loop.
   victory: {
+    gain: 0.4,
     bpm: 140,
     chords: 'C | G | F | C | C | Am | F | G',
     drums: 'fanfare',
@@ -212,6 +224,7 @@ export const SONGS: Record<string, SongSpec> = {
     ],
   },
   victory_boss: {
+    gain: -0.5,
     bpm: 120,
     chords: 'C | G/B | Am | F | C | G | F | C',
     drums: 'march',
@@ -227,6 +240,7 @@ export const SONGS: Record<string, SongSpec> = {
   },
 
   gameover: {
+    gain: 2.0,
     bpm: 66,
     chords: 'Am | F | Dm | E | Am',
     // Loops from the second bar: the player may sit on Retry / Load / Title for a while, and a
@@ -234,6 +248,7 @@ export const SONGS: Record<string, SongSpec> = {
     loopBar: 1,
     space: 'hall',
     parts: [
+      { inst: 'bell', gen: 'bells', octave: 7, vol: 0.3, rev: 0.6, del: 0.35 },
       { inst: 'bell', vol: 0.9, rev: 0.6, del: 0.4, notes: 'E5 - - - C5 - - - | A4 - - - F4 - - - | D5 - C5 - B4 - A4 - | G#4 - - - - - - - | A4 - - - - - - -' },
       { inst: 'pad', gen: 'chord', octave: 3, vol: 1, rev: 0.6 },
       { inst: 'sub', gen: 'long', octave: 1, vol: 0.3 },
@@ -242,12 +257,14 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Sable's theme — for quiet, heavy moments.
   sable: {
+    gain: 2.5,
     swing: 0.08,
     bpm: 70,
     chords: 'Cm | Ab | Eb | Bb | Cm | Ab | Fm | G',
     // Story cues play in the scene they score.
     space: 'here',
     parts: [
+      { inst: 'bell', gen: 'bells', octave: 7, vol: 0.3, rev: 0.6, del: 0.35 },
       { inst: 'bell', vol: 0.9, rev: 0.55, del: 0.35, notes:
         'G5 - - - Eb5 - D5 - | C5 - - - Eb5 - - - | Bb4 - - - G5 - F5 - | F5 - - - D5 - - - |' +
         'G5 - - - Bb5 - Ab5 - | G5 - - - Eb5 - C5 - | Ab5 - - - G5 - F5 - | D5 - - - B4 - - -' },
@@ -264,6 +281,7 @@ export const SONGS: Record<string, SongSpec> = {
     drums: 'heartbeat',
     space: 'here',
     parts: [
+      { inst: 'bell', gen: 'bells', octave: 7, vol: 0.3, rev: 0.6, del: 0.35 },
       { inst: 'lead', vol: 0.6, rev: 0.4, del: 0.3, notes:
         '. . . . F#5 - - - | G5 - F#5 - D5 - - - | B4 - - - D5 - E5 - | C#5 - - - A#4 - - - |' +
         '. . . . F#5 - - - | A5 - G5 - F#5 - - - | E5 - D5 - B4 - G4 - | F#4 - - - - - . .' },

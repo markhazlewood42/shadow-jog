@@ -139,9 +139,9 @@ test('render and measure every song', async ({ page }) => {
   }
   // Sound effects against the music: each rendered alone through the same graph at default volume.
   const sfxRows = (await page.evaluate(`(async () => {
-    const { renderSfx } = await import('/src/audio/sfx.ts');
+    const { renderSfx, SFX_NAMES } = await import('/src/audio/sfx.ts');
     const out = [];
-    for (const name of ['cursor', 'confirm', 'hit', 'crit', 'heal', 'combo', 'explosion']) {
+    for (const name of SFX_NAMES()) {
       const buf = await renderSfx(name);
       const L = buf.getChannelData(0), R = buf.getChannelData(1);
       let peak = 0, sum = 0, loud = 0;
@@ -163,7 +163,7 @@ test('render and measure every song', async ({ page }) => {
     `${'song'.padEnd(14)}  peak    rms  range  clipped   <120   -500   -2k    -6k    6k+`,
     ...rows.map((r) => `${r.name.padEnd(14)}${f(r.peakDb)}${f(r.rmsDb)}${f(r.rangeDb)}${String(r.clipped).padStart(8)} ${r.bands.map((b) => f(b)).join('')}`),
     '',
-    'Sound effects (default volume; RMS over the audible part):',
+    `Sound effects: all ${sfxRows.length}, each rendered alone at default volume (RMS over the audible part).`,
     `${'sfx'.padEnd(14)}  peak    rms`,
     ...sfxRows.map((r) => `${r.name.padEnd(14)}${f(r.peakDb)}${f(r.rmsDb)}`),
   ];
