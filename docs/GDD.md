@@ -45,9 +45,13 @@ tags: [gdd, design]
 6. **K-M Annex B2.** Sterile labs. Terminals with lore. The "data core" is a cryopod: **Sable**, an orc shaman being
    drained of their magic. Kit's latent power flares in resonance. Sable joins. Alarm.
 7. **Boss: WARDEN.** Security mech with a bound spirit for a core; phase 2 when the spirit tears loose.
-8. **Betrayal.** Mr. Pale waits at the exit with a K-M strike team. It was never a job — it was a retrieval of stolen
-   property, and the crew are now loose ends. Rook buys them a window; they vanish into the rain.
-   *End of Chapter 1 — to be continued.* Stats screen.
+8. **Betrayal.** Mr. Pale waits at Loading Dock 7 with a K-M strike team. It was never a job — it was a retrieval of
+   stolen property (Sable is "Asset S-7"), and the crew are now loose ends. Rook's flashbang buys eleven seconds; he
+   stays behind and is taken.
+9. **Ending (comic panels).** Kit, Hex and Sable surface three wards over. Sable's crow followed the vans up the
+   arcology: Rook is hurt, alive. The crew decides to go get him. Pale orders them found, and Rook kept breathing
+   ("I want to know who taught Miss Kit to fight like that"). *END OF CHAPTER ONE — They have until morning.*
+   Results screen (time, battles, level, combos found, bestiary), then a "Next time" card.
 
 ## 3. The crew
 

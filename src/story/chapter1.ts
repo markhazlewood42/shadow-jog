@@ -70,6 +70,7 @@ export const meetDutch: ScriptFn = async (s) => {
   }
   await s.say('dutch', 'There they are. My favorite disaster and his apprentice. Sit, sit. Mind the stain, it’s load-bearing.', { face: 'happy' });
   await s.say('dutch', 'This is Mr. Pale. He represents, let’s say, an interested party.');
+  await s.narrate('Mr. Pale sets a brass wind-up watch face-up on the table. No chip, no signal. Nothing in the bar can read it but him.');
   await s.say('pale', 'A pleasure. I’ll be brief; I bill by the minute. Under the flooded Sinkline there is a sealed research annex. Kessler-Mori wrote it off after the flood of ’61.');
   await s.say('pale', 'Inside is a {y}data core{/}. Bring it to me intact and you will be paid {y}three thousand cred{/}.');
   await s.say('kit', 'Three thou—', { face: 'surprised' });
@@ -88,6 +89,7 @@ export const meetDutch: ScriptFn = async (s) => {
   await s.say('pale', 'So nothing. I collect numbers. That one is unusual.');
   await s.say('rook', 'She’s not part of the price.');
   await s.say('pale', 'Everything is part of the price, Mr. Rook. Most things just haven’t been told yet.');
+  await s.narrate('He winds the watch twice, pockets it, and is gone before the door finishes swinging.');
   s.despawn('pale');
   s.sfx('door');
   await s.wait(20);
@@ -268,7 +270,7 @@ export const floodgate: ScriptFn = async (s) => {
   }
   await s.say('hex', 'Pump control. Still got power, somehow. If I spin up the drainage pumps, the junction should empty out.');
   await s.say('kit', 'And whatever lives in the junction?', { face: 'sad' });
-  await s.say('hex', 'Will have fewer places to hide! Positive framing.');
+  await s.say('hex', 'Will be a lot easier to see coming. Best I can do from a pump console.');
   s.sfx('code');
   s.shake(60, 2);
   await s.wait(30);
@@ -317,7 +319,7 @@ export const annexGuards: ScriptFn = async (s) => {
   await s.say('hex', 'One chunk of plastic, acquired. Told you somebody down here had one.');
   await s.say('hex', 'Huh. The door log has us in it. “Contractor team, due the 14th. Status: pending resolution.” That’s a weird word for a door to use.');
   await s.say('rook', 'Active security in an abandoned lab. Pale lied.');
-  await s.say('hex', 'Pale lied, the lab lied, the lights are lying. Everything down here is lying. I hate it here.', { face: 'sad' });
+  await s.say('hex', 'Pale lied, the lab lied, the lights are lying. I read systems for a living, and nothing down here will tell me the truth.', { face: 'sad' });
   s.objective(OBJ.core);
 };
 
@@ -371,7 +373,7 @@ export const relay = (id: string): ScriptFn => async (s) => {
     s.sfx('phase');
     s.refreshMap();
     await s.narrate('Down the hall, the laser lattice stutters, flickers, and dies.');
-    await s.say('hex', 'Lattice is down! I am a genius. Nobody check my work.', { face: 'happy' });
+    await s.say('hex', 'Lattice is down! Turns out I can lie to a lab too.', { face: 'happy' });
     return;
   }
   await s.narrate(`The relay clunks over. Lattice emitters: ${emitterLine(on)}`);
@@ -390,6 +392,8 @@ export const cryopod: ScriptFn = async (s) => {
   await s.say('rook', '...');
   await s.say('kit', 'We’re getting them out.', { face: 'angry' });
   await s.say('rook', 'Kit. Three thousand cred, the rent, Hex’s debt—');
+  await s.say('kit', 'Nine seconds. Pale timed me in the street and wrote it down.', { face: 'sad' });
+  await s.say('kit', 'That’s how you end up in there, Rook. Somebody likes your numbers.');
   await s.say('kit', 'We’re getting them OUT.', { face: 'angry' });
   await s.say('rook', '...');
   await s.say('rook', 'Twenty years ago I stood in a lab like this. Different logo. My crew got paid, and I walked out past a tank with somebody still in it.');
@@ -443,6 +447,7 @@ export const betrayal: ScriptFn = async (s) => {
   s.set('betrayal');
   s.music('tension');
   await s.wait(20);
+  await s.narrate('Mr. Pale is waiting under the cranes, the brass watch open in his palm.');
   await s.say('pale', 'Three minutes early. I do appreciate punctuality in a liability. And my property, in better shape than I dared hope.', { face: 'smirk' });
   await s.say('kit', 'Your "property" is a person.', { face: 'angry' });
   await s.say('pale', 'Asset S-7 is Kessler-Mori property, recovered from a site we officially abandoned, by deniable contractors.');
@@ -451,6 +456,7 @@ export const betrayal: ScriptFn = async (s) => {
   await s.say('pale', 'A figure of speech.');
   await s.say('pale', 'Nine seconds, Miss Kit. I have thought about those nine seconds all week.', { face: 'smirk' });
   await s.say('pale', 'You came in as a contractor. You are leaving as a line item.');
+  await s.narrate('The watch snaps shut.');
   s.sfx('alert');
   await s.say('K-M Sentinel', 'Targets confirmed. Weapons free on your word, sir.');
   await s.say('rook', 'Kit. When I say run, you run. You don’t look back, you don’t wait for me.');
