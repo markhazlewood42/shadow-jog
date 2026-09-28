@@ -273,6 +273,27 @@ describe('enemy wind-ups', () => {
     }
   });
 
+  it('the Warden pays out: breaking the mech always frees the spirit, and the spirit carries the reward', () => {
+    const b = new Battle(party(['kit', 'rook'], 12), enemyParty(['warden']), new Rng(3));
+    const mech = b.enemies[0]!;
+    mech.hp = 1;
+    const hitAll = () => b.resolveRound(b.alive('party').map((u) => ({ actor: u.uid, type: 'attack' as const, target: b.alive('enemy')[0]?.uid ?? -1 })));
+    for (let i = 0; i < 6 && !b.alive('enemy').some((e) => e.key === 'warden_spirit'); i++) hitAll();
+    // Killing the mech is not a win: the phase change fires first.
+    expect(b.outcome).toBeNull();
+    const spirit = b.alive('enemy').find((e) => e.key === 'warden_spirit');
+    expect(spirit).toBeDefined();
+    expect(b.rewards().xp).toBe(0);
+    spirit!.hp = 1;
+    for (let i = 0; i < 12 && !b.outcome; i++) {
+      for (const p of b.party) p.hp = p.base.maxHp;
+      hitAll();
+    }
+    expect(b.outcome).toBe('win');
+    expect(b.rewards().xp).toBe(ENEMIES.warden_spirit!.xp);
+    expect(b.rewards().cred).toBe(ENEMIES.warden_spirit!.cred);
+  });
+
   it('a random multi-hit spreads across targets before doubling up', () => {
     const b = new Battle(party(['kit'], 12), enemyParty(['sewer_ghoul', 'sewer_ghoul', 'sewer_ghoul']), new Rng(5));
     for (const e of b.enemies) e.hp = 9999;

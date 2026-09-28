@@ -3,7 +3,7 @@ import { Game, FPS } from './engine/game';
 import { Input } from './engine/input';
 import { boot } from './boot';
 import { currentNotice, reportError } from './engine/errors';
-import { drawText, fitText, wrap } from './engine/font';
+import { drawText, fitText, measure, wrap } from './engine/font';
 import { perf } from './engine/perf';
 import { settings } from './game/settings';
 
@@ -62,6 +62,14 @@ function start(): void {
       ctx.fillStyle = 'rgba(10,9,19,0.8)';
       ctx.fillRect(480 - 70, 270 - 14, 66, 11);
       drawText(ctx, `{c}♦{/} ${n.text}`, 480 - 66, 270 - 13, { color: '#b8bcd0' });
+      return;
+    }
+    if (n.tone === 'news') {
+      // A nudge along the bottom edge: worth knowing, never in the way.
+      const w = Math.min(472, measure(n.text) + 20);
+      ctx.fillStyle = 'rgba(10,9,19,0.86)';
+      ctx.fillRect(240 - w / 2, 270 - 16, w, 12);
+      drawText(ctx, `{y}★{/} ${fitText(n.text, w - 20)}`, 240 - w / 2 + 5, 270 - 15, { color: '#e8e4ff' });
       return;
     }
     // Up to two wrapped lines; anything longer ends in an ellipsis rather than mid-word.

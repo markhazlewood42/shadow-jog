@@ -90,6 +90,8 @@ describe('alternative builds', () => {
     { stage: 'lurker', table: 'f_lurker', swap: { hex: { weapon: 'flechette_pistol' } } },
     { stage: 'annex', table: 'annex', swap: { sable: { weapon: 'thorn_rod', mod: 'spirit_fetish' }, rook: { mod: 'adrenal_pump' } } },
     { stage: 'warden', table: 'f_warden', swap: { kit: { mod: 'lucky_coin' }, hex: { mod: 'reflex_booster' }, sable: { weapon: 'bone_staff' } } },
+    // A crew that skipped the armory and bought from Requisition instead.
+    { stage: 'warden', table: 'f_warden', swap: { kit: { weapon: 'arc_gauntlets' }, rook: { weapon: 'thermal_katana' }, hex: { weapon: 'burst_smg' }, sable: { weapon: 'ward_staff' } } },
   ];
   for (const a of alts) {
     const target = stages.find((s) => s.stage === a.stage)!;

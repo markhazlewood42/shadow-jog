@@ -63,6 +63,12 @@ export const ITEMS: Record<string, ItemDef> = {
   shock_knuckles: I({ id: 'shock_knuckles', name: 'Shock Knuckles', kind: 'weapon', slot: 'weapon', who: ['kit'], price: 380, atk: 14, element: 'shock', desc: 'Capacitor gloves. Attacks deal SHOCK damage.' }),
   mono_claws: I({ id: 'mono_claws', name: 'Monowire Claws', kind: 'weapon', slot: 'weapon', who: ['kit'], price: 760, atk: 21, crit: 8, desc: 'Retractable wire claws. +8% critical.' }),
   dragon_fang: I({ id: 'dragon_fang', name: 'Dragon Fang', kind: 'weapon', slot: 'weapon', who: ['kit'], price: 1100, atk: 27, mnd: 6, desc: 'A talisman gauntlet humming with ki. +6 MND.' }),
+  // The Annex's requisition stock: same tier as the armory's finds, built the other way, so a
+  // crew that skipped a case can still arm up, and one that found it still has a choice to make.
+  arc_gauntlets: I({ id: 'arc_gauntlets', name: 'Arc Gauntlets', kind: 'weapon', slot: 'weapon', who: ['kit'], price: 1050, atk: 21, agi: 3, element: 'shock', desc: 'K-M riot gauntlets. Attacks deal SHOCK damage. +3 AGI. Less ki than the Dragon Fang, more bite on chrome.' }),
+  thermal_katana: I({ id: 'thermal_katana', name: 'Thermal Katana', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 1100, atk: 23, element: 'fire', desc: 'A heat-edged security blade. Attacks deal FIRE damage, which spirits can’t shrug off the way they do steel.' }),
+  burst_smg: I({ id: 'burst_smg', name: 'Burst SMG', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 880, atk: 15, crit: 14, desc: 'A machine pistol locked to three-round bursts. +14% critical; wilder than the Smartpistol.' }),
+  ward_staff: I({ id: 'ward_staff', name: 'Ward Staff', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 880, atk: 9, mnd: 7, res: 8, desc: 'A containment officer’s ward-staff. +7 MND, +8 RES: a shield first, a focus second.' }),
   razor_tekko: I({ id: 'razor_tekko', name: 'Razor Tekko', kind: 'weapon', slot: 'weapon', who: ['kit'], price: 380, atk: 12, crit: 12, desc: 'Bladed knuckle-dusters. Lighter than Shock Knuckles, but +12% critical.' }),
   old_katana: I({ id: 'old_katana', name: 'Old Katana', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 40, atk: 10, desc: 'Rook’s blade. Nicked, never dull.' }),
   vibro_katana: I({ id: 'vibro_katana', name: 'Vibro-Katana', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 420, atk: 17, desc: 'Ultrasonic edge.' }),

@@ -89,14 +89,14 @@ export const meetDutch: ScriptFn = async (s) => {
   await s.say('kit', 'So?', { face: 'angry' });
   await s.say('pale', 'So nothing. I collect numbers. That one is unusual.');
   await s.say('rook', 'She’s not part of the price.');
-  await s.say('pale', 'Everything is part of the price, Mr. Rook. Most things just haven’t been told yet.');
+  await s.say('pale', 'Of course not, Mr. Rook. Prices are for things one pays for.');
   await s.narrate('He winds the watch twice, pockets it, and is gone before the door finishes swinging.');
   s.despawn('pale');
   s.sfx('door');
   await s.wait(20);
   await s.say('dutch', 'Word of advice? Get paid before you get proud.');
-  await s.say('kit', 'Why would I lick—', { face: 'angry' });
-  await s.say('dutch', 'People do things, darlin’. Oh, and if you need pocket money, the {c}job board{/} by the door always has something.');
+  await s.say('kit', 'I’m always proud.', { face: 'smirk' });
+  await s.say('dutch', 'I know, darlin’. That’s why I said it to you and not him. Oh, and if you need pocket money, the {c}job board{/} by the door always has something.');
   s.set('met_dutch');
   s.objective(OBJ.hex);
 };
@@ -170,6 +170,10 @@ export const knucklesFight: ScriptFn = async (s) => {
   if (r !== 'win') return;
   s.despawn('knuckles');
   await s.say('"Knuckles" Tran', 'Ugh... fine... take your junk... I’m moving to Neo-Lagos...');
+  await s.say('"Knuckles" Tran', 'Your fixer’s got a big mouth, y’know. Whole yard knew you were hunting a decker before you did.');
+  await s.say('rook', '...Dutch.');
+  await s.say('kit', 'Dutch talks. That’s not the same as selling us.', { face: 'angry' });
+  await s.say('rook', 'With Dutch it usually is.');
   s.set('knuckles');
   await s.say('kit', 'The crate. Mags’ stuff should be in there.', { face: 'happy' });
 };
@@ -214,9 +218,11 @@ export const sinklineGate: ScriptFn = async (s) => {
 export const deadCrew: ScriptFn = async (s) => {
   await s.narrate('Three bodies in expensive gear, slumped against the platform. Whatever got them wasn’t a ghoul. Their wounds are cauterized.');
   await s.say('hex', 'That’s the {c}Glass Wolves{/}. Runners out of Harbor Ward. Good ones.', { face: 'sad' });
-  await s.narrate('One of them clutches a data slate. The last message reads: {c}"Pale says it’s a milk run. In and out."{/}');
-  await s.say('kit', 'Pale. As in, our Mr. Pale?', { face: 'surprised' });
-  await s.say('rook', 'Same job. Different crew. Before us.');
+  await s.narrate('One of them clutches a data slate. The last message reads: {c}"Dutch set it up. Milk run. In and out."{/}');
+  await s.say('kit', 'Dutch? Our Dutch?', { face: 'surprised' });
+  await s.say('rook', 'Same job. Different crew. Before us. And he sat there and poured us drinks and didn’t say a word.');
+  await s.say('hex', 'Maybe he didn’t know they didn’t come back.', { face: 'sad' });
+  await s.say('rook', 'Dutch knows everything that happens below the canal. That’s what he sells.');
   await s.say('rook', 'Eyes open.');
   await s.give('trauma_patch', 2);
 };
@@ -437,6 +443,11 @@ export const cryopod: ScriptFn = async (s) => {
   await s.say('sable', 'Everyone who opened this glass said something kind. The crow remembers each of them.', { face: 'sad' });
   await s.say('kit', 'We’re not them.', { face: 'angry' });
   await s.say('sable', 'No. None of them burned.');
+  await s.say('sable', 'There were others. S-5. S-6. The pods beside mine went dark, one night and then another. Nobody wrote down where they went.', { face: 'sad' });
+  await s.say('hex', 'Somebody did. It’s in the pod logs.', { face: 'angry' });
+  await s.narrate('Hex jacks into the pod’s panel. For a long minute the only sound is the deck, copying: intake dates, yields, transfer orders. Every name.');
+  await s.say('hex', 'Got it. All of it. It goes wherever we go, and it doesn’t go to Pale.');
+  await s.say('sable', '...Then I will walk with you. As far as the door. After that I will decide.');
   await s.fadeOut(30, '#07060d');
   s.refreshMap(); // the pod, shattered and empty
   await s.wait(20);
@@ -485,12 +496,12 @@ export const betrayal: ScriptFn = async (s) => {
   await s.say('pale', 'You were the deniable contractors.');
   await s.say('rook', 'And the three thousand?');
   await s.say('pale', 'A figure of speech.');
-  await s.say('pale', 'Nine seconds, Miss Kit. I have thought about those nine seconds all night.', { face: 'smirk' });
-  await s.say('pale', 'You came in as a contractor. You are leaving as a line item.');
+  await s.say('pale', 'I did tell you I collect numbers, Miss Kit. I have already sold yours.', { face: 'smirk' });
+  await s.say('pale', 'Contractors are paid on completion. You have completed.');
   await s.say('pale', 'Except you, Miss Kit. The Vessel program is always short of subjects, and you have never once been measured.');
   await s.narrate('The watch snaps shut.');
   s.sfx('alert');
-  await s.say('K-M Sentinel', 'Targets confirmed. Weapons free on your word, sir.');
+  await s.say('K-M Sentinel', 'Contractor tags read. Four signatures. One flagged for intake, three for disposal.');
   await s.say('rook', 'Kit. When I say run, you run. You don’t look back, you don’t wait for me.');
   await s.say('kit', 'Rook—', { face: 'sad' });
   await s.say('rook', 'Run.');

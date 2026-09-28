@@ -71,7 +71,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     drops: [{ id: 'gang_colors', chance: 0.25 }, { id: 'medkit', chance: 0.08 }],
     // Cornered punks stop pulling punches.
     moves: [{ id: 'attack', w: 3 }, { id: 'e_chain_whip', w: 2 }, { id: 'e_chain_whip', w: 4, when: 'hp_below_half' }],
-    lore: 'Rustfang gang muscle. More teeth than sense.',
+    lore: 'Rustfang muscle. Earns his colours one broken window at a time, and wears them in the rain so they run.',
   }),
   rustfang_slinger: E({
     id: 'rustfang_slinger', name: 'Rustfang Slinger', family: 'human', sprite: 'slinger',
@@ -92,14 +92,14 @@ export const ENEMIES: Record<string, EnemyDef> = {
     hp: 49, atk: 15, def: 10, mnd: 5, res: 5, agi: 13, xp: 13, cred: 16,
     drops: [{ id: 'scrap_chip', chance: 0.3 }],
     moves: [{ id: 'e_bite', w: 3 }, { id: 'e_howl', w: 1, when: 'no_atk_buff' }],
-    lore: 'Feral security dogs, half chrome. Nobody owns them anymore.',
+    lore: 'Kessler-Mori perimeter hounds, auctioned off when the Annex closed. The buyers stopped feeding them. They never stopped guarding.',
   }),
   street_drone: E({
     id: 'street_drone', name: 'Street Drone', family: 'machine', sprite: 'drone',
     hp: 34, atk: 12, def: 8, mnd: 9, res: 8, agi: 15, xp: 12, cred: 26,
     drops: [{ id: 'scrap_chip', chance: 0.25 }, { id: 'drone_optic', chance: 0.05 }],
     moves: [{ id: 'attack', w: 2 }, { id: 'e_taser', w: 2 }],
-    lore: 'Decommissioned police drone running corrupted patrol code.',
+    lore: 'A Saltreach PD patrol unit written off after the ’71 riots and never switched off. Still issuing citations to anything that moves.',
   }),
   smog_wisp: E({
     id: 'smog_wisp', name: 'Smog Wisp', family: 'spirit', sprite: 'wisp',
@@ -170,7 +170,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     drops: [{ id: 'km_badge', chance: 0.2 }, { id: 'medkit', chance: 0.2 }],
     // Sentinels run a drill: a flashbang is likely every third round.
     moves: [{ id: 'attack', w: 2 }, { id: 'e_burst', w: 2 }, { id: 'e_flashbang', w: 3, when: 'every_3' }],
-    lore: 'Kessler-Mori internal security. Paid well, trained better.',
+    lore: 'Kessler-Mori internal security. Their contracts forbid them to remember your face, and they are very good at their contracts.',
   }),
   sentry_turret: E({
     id: 'sentry_turret', name: 'Sentry Turret', family: 'machine', sprite: 'turret', ai: 'turret',

@@ -61,7 +61,7 @@ export const SHOPS: Record<string, ShopDef> = {
     thanks: 'CHARGED TO COST CENTRE 7. HAVE A PRODUCTIVE SHIFT.',
     // Consumables, plus the lab's top gear: a fallback for anyone who missed the armory cases,
     // and the Neural Lace for anyone who kept their money.
-    items: ['medkit', 'trauma_patch', 'omni_patch', 'neurotab', 'adrenal_stim', 'detox', 'optic_flush', 'frag', 'dragon_fang', 'mono_katana', 'smartpistol', 'focus_rod', 'km_lace'],
+    items: ['medkit', 'trauma_patch', 'omni_patch', 'neurotab', 'adrenal_stim', 'detox', 'optic_flush', 'frag', 'arc_gauntlets', 'thermal_katana', 'burst_smg', 'ward_staff', 'km_lace'],
   },
   automat: {
     id: 'automat', name: 'TRANSIT AUTOMAT', keeper: 'Automat', accent: '#3fe0f0',

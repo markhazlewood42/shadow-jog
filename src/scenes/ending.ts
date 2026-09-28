@@ -8,6 +8,7 @@ import { MEMBERS } from '../data/party';
 import { surface, type Ctx } from '../engine/canvas';
 import { drawText, measure } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
+import { keyLabel } from '../engine/input';
 import { formatPlayTime } from '../game/save';
 import { state } from '../game/state';
 import { drawDivider, drawWindow, UI } from '../ui/draw';
@@ -105,9 +106,10 @@ export class EndingScene extends Scene<void> {
     ctx.globalAlpha = fade(80);
     drawText(ctx, 'coming soon', W / 2, 138, { align: 'center', color: UI.dim });
     ctx.globalAlpha = fade(130);
-    drawText(ctx, 'Thank you for playing the Shadow Jog alpha.', W / 2, 206, { align: 'center', color: '#8a87a8' });
+    drawText(ctx, 'Thank you for playing Chapter One.', W / 2, 206, { align: 'center', color: '#8a87a8' });
     ctx.globalAlpha = 1;
-    if (this.t > 150 && Math.floor(this.t / 25) % 2 === 0) drawText(ctx, 'Press Z to return to the title', W / 2, 250, { align: 'center', color: UI.cyan });
+    const ok = this.game.input.keysFor('confirm')[0];
+    if (this.t > 150 && Math.floor(this.t / 25) % 2 === 0) drawText(ctx, `Press ${ok ? keyLabel(ok) : 'Confirm'} to return to the title`, W / 2, 250, { align: 'center', color: UI.cyan });
   }
 }
 

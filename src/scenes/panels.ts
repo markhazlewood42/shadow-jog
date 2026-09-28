@@ -48,8 +48,8 @@ export const PAGES: Record<string, Page[]> = {
     ],
     [
       { x: 8, y: 8, w: 200, h: 254, bg: 'rooftop', caption: 'In the Lower Wards, people take the work that comes.', from: 'left' },
-      { x: 214, y: 8, w: 258, h: 124, bg: 'dark', portrait: { key: 'rook', face: 'neutral' }, speech: { who: 'rook', text: 'One job. Easy. We walk in, we walk out.' }, from: 'right' },
-      { x: 214, y: 138, w: 258, h: 124, bg: 'dark', portrait: { key: 'kit', face: 'smirk', flip: true }, speech: { who: 'kit', text: 'You always say that.' }, from: 'right' },
+      { x: 214, y: 8, w: 258, h: 124, bg: 'dark', portrait: { key: 'rook', face: 'neutral' }, speech: { who: 'rook', text: 'Two rules, kid. Get paid. And don’t die for anyone who isn’t paying.' }, from: 'right' },
+      { x: 214, y: 138, w: 258, h: 124, bg: 'dark', portrait: { key: 'kit', face: 'smirk', flip: true }, speech: { who: 'kit', text: 'Who’s paying for me?' }, from: 'right' },
     ],
   ],
   ending: [

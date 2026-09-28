@@ -77,10 +77,18 @@ describe('economy', () => {
     });
   }
 
-  it('the endgame has something worth buying: Requisition sells the lab gear and the Neural Lace', async () => {
+  it('the endgame has something worth buying, and exploring still pays: Requisition sells a same-tier alternative to each armory find, never the find itself', async () => {
     const { SHOPS } = await import('../src/data/shops');
     const req = SHOPS.km_requisition!.items;
-    for (const id of ['dragon_fang', 'mono_katana', 'smartpistol', 'focus_rod', 'km_lace']) expect(req, id).toContain(id);
+    const found: Record<string, string> = { kit: 'dragon_fang', rook: 'mono_katana', hex: 'smartpistol', sable: 'focus_rod' };
+    for (const [who, find] of Object.entries(found)) {
+      expect(req, find).not.toContain(find);
+      const alt = req.map((id) => ITEMS[id]!).filter((it) => it.slot === 'weapon' && it.who?.includes(who as never));
+      expect(alt.length, who).toBe(1);
+      // Same tier: within 15% of the find's price.
+      expect(Math.abs(alt[0]!.price - ITEMS[find]!.price) / ITEMS[find]!.price, who).toBeLessThan(0.15);
+    }
+    expect(req).toContain('km_lace');
     const median = pct(mc.get('CP6 WARDEN')!, 0.5);
     expect(ITEMS.km_lace!.price).toBeGreaterThan(median * 0.8);
   });

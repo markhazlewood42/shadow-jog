@@ -2,7 +2,8 @@
  * Non-fatal error reporting: logs, and shows a small in-game notice so failures are never silent.
  * Fatal boot errors are handled in main.ts.
  */
-export type NoticeTone = 'error' | 'warn' | 'saved';
+/** error/warn: something went wrong; saved: the save badge; news: good news worth a nudge (a job done). */
+export type NoticeTone = 'error' | 'warn' | 'saved' | 'news';
 
 let lastMessage = '';
 let lastTone: NoticeTone = 'error';

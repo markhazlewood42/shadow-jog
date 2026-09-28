@@ -93,7 +93,8 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 ## 7. Economy
 
 * Currency: **cred (¢)**. Sources: battles, chests, side jobs, selling loot. Sinks: gear, consumables, rest, revives.
-* Shops: weapons, armor, items (per town tier). Sell price = 50%.
+* Shops: weapons, armor, items (per town tier). Sell price = 50% for gear and consumables; **loot** (gang colours, rat tails, drone optics: things with no use but their value) sells at 100%, since selling it is its only purpose.
+* The Annex's Requisition terminal sells a same-tier alternative to each armory find, never the find itself: a crew that skipped a case can still arm up, and one that found it has a real choice.
 * **Capsule hotel** (inn): pay per head to rest, which restores HP, TP and skill uses. **Street clinic**: revive and cure, for a fee.
 * Utility consumables mirror PSIV's pipes: **Smoke Pellet** (escape a battle), **Getaway Chit** (exit dungeon), **Cab Voucher** (return to last town).
 

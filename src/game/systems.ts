@@ -296,7 +296,12 @@ export async function runBattle(
       popMusic();
       // Rustfang bounty tally (job board).
       const gangs = ['rustfang_punk', 'rustfang_slinger'].reduce((n, k) => n + (state.bestiary[k] ?? 0) - (snapshot.bestiary[k] ?? 0), 0);
-      if (gangs > 0) flags.inc('rustfangs', gangs);
+      if (gangs > 0) {
+        const before = Number(flags.get('rustfangs')) || 0;
+        flags.inc('rustfangs', gangs);
+        // The job board only pays when you visit it: say so the moment the bounty's earned.
+        if (before < 10 && before + gangs >= 10 && !flags.has('job_bounty_done')) notice('Rustfang bounty complete: Dutch pays at the Drowned Saint’s job board.', 'news');
+      }
       return result;
     }
     if (opts.loseOk) {
