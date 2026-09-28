@@ -74,6 +74,8 @@ describe('alternative builds', () => {
   const alts: { stage: string; table: string; swap: Swap }[] = [
     { stage: 'sinkline', table: 'sinkline', swap: { kit: { weapon: 'shock_knuckles', mod: 'lucky_coin' }, hex: { weapon: 'taser_pistol', mod: 'cyber_eye' } } },
     { stage: 'lurker', table: 'f_lurker', swap: { kit: { weapon: 'razor_tekko', mod: 'reflex_booster' }, rook: { weapon: 'nodachi', mod: 'dermal_plating' } } },
+    { stage: 'sinkline', table: 'sinkline', swap: { hex: { weapon: 'flechette_pistol' } } },
+    { stage: 'lurker', table: 'f_lurker', swap: { hex: { weapon: 'flechette_pistol' } } },
     { stage: 'annex', table: 'annex', swap: { sable: { weapon: 'thorn_rod', mod: 'spirit_fetish' }, rook: { mod: 'adrenal_pump' } } },
     { stage: 'warden', table: 'f_warden', swap: { kit: { mod: 'lucky_coin' }, hex: { mod: 'reflex_booster' }, sable: { weapon: 'bone_staff' } } },
   ];

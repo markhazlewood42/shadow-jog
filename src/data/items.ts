@@ -69,6 +69,8 @@ export const ITEMS: Record<string, ItemDef> = {
   nodachi: I({ id: 'nodachi', name: 'Nodachi', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 480, atk: 19, crit: 10, agi: -2, desc: 'A two-meter field sword. Slower than a katana, but its reach finds gaps: +10% critical, -2 AGI.' }),
   mono_katana: I({ id: 'mono_katana', name: 'Mono-Katana', kind: 'weapon', slot: 'weapon', who: ['rook'], price: 1150, atk: 25, crit: 5, desc: 'Monomolecular edge. Cuts steel. +5% critical.' }),
   holdout: I({ id: 'holdout', name: 'Hold-out Pistol', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 30, atk: 5, desc: 'Fits in a boot. Barely a gun.' }),
+  // Hex's same-tier choice: the heavy pistol hits harder; needles hit less but crit far more.
+  flechette_pistol: I({ id: 'flechette_pistol', name: 'Flechette Pistol', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 210, atk: 8, crit: 12, desc: 'Needle rounds. Lighter hits, far more of them land critical. +12% critical.' }),
   heavy_pistol: I({ id: 'heavy_pistol', name: 'Heavy Pistol', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 200, atk: 11, desc: 'Solid stopping power.' }),
   taser_pistol: I({ id: 'taser_pistol', name: 'Taser Pistol', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 400, atk: 12, element: 'shock', desc: 'Attacks deal SHOCK damage. Great on drones and chromed gangers.' }),
   smartpistol: I({ id: 'smartpistol', name: 'Smartpistol', kind: 'weapon', slot: 'weapon', who: ['hex'], price: 900, atk: 17, hit: 10, desc: 'Linked to Hex’s deck. +10% hit.' }),

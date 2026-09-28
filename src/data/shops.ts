@@ -20,7 +20,7 @@ export const SHOPS: Record<string, ShopDef> = {
     id: 'lr_weapons', name: 'IRON SAINT ARMS', keeper: 'Brother Tomas', accent: '#ff6a3a',
     greeting: 'Every blade here is blessed. The guns are just loaded.',
     thanks: 'Go with steel.',
-    items: ['iron_knuckles', 'shock_knuckles', 'vibro_katana', 'nodachi', 'heavy_pistol', 'taser_pistol', 'bone_staff', 'flashbang', 'frag', 'toxin_dart'],
+    items: ['iron_knuckles', 'shock_knuckles', 'vibro_katana', 'nodachi', 'heavy_pistol', 'flechette_pistol', 'taser_pistol', 'bone_staff', 'flashbang', 'frag', 'toxin_dart'],
   },
   lr_armor: {
     id: 'lr_armor', name: 'KOWLOON THREADS', keeper: 'Auntie Wen', accent: '#b07cff',

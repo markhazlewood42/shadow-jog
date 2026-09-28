@@ -99,6 +99,14 @@ test('10 shop', async ({ page }) => {
   await key(page, 'ArrowDown');
   await page.waitForTimeout(400);
   await shot(page, '10-shop');
+  // The Sell tab, with something to sell.
+  await sj(page, "(sj.state.inventory = { ...sj.state.inventory, gang_colors: 2 }, true)");
+  await key(page, 'Escape');
+  await page.waitForTimeout(300);
+  await key(page, 'ArrowDown');
+  await key(page, 'Enter');
+  await page.waitForTimeout(400);
+  await shot(page, '10b-shop-sell');
 });
 
 test('11 battle command + techs', async ({ page }) => {

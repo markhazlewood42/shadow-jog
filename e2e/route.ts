@@ -39,7 +39,7 @@ async function press(page: Page, key: string): Promise<void> {
 }
 
 /** From a fresh New Game to the chapter-end flag. */
-export async function playChapter1(page: Page): Promise<void> {
+export async function playChapter1(page: Page, beforeEnding?: () => Promise<void>): Promise<void> {
   await waitFlag(page, 'intro');
   // First fight in the plaza
   await tp(page, 'lantern_row', 27, 15, 'down');
@@ -111,6 +111,7 @@ export async function playChapter1(page: Page): Promise<void> {
   await press(page, 'ArrowDown');
   await waitFlag(page, 'warden');
   // Lift to the dock: the betrayal and the ending.
+  await beforeEnding?.();
   await tp(page, 'annex', 38, 31, 'down');
   await press(page, 'ArrowDown');
   await waitFlag(page, 'chapter_end');

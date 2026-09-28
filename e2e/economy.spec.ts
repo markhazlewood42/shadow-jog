@@ -111,3 +111,26 @@ test('a shop takes the cred and hands over the goods', async ({ page }) => {
   for (let i = 0; i < 8 && (await sj<string>(page, 'sj.state.map')) === 'armory'; i++) await tap(page, 'ArrowDown', 220);
   expect(await waitFor(page, "sj.state.map === 'lantern_row'", 4000), 'back on the street').toBe(true);
 });
+
+test('selling loot turns it into cred', async ({ page }) => {
+  await page.goto('/?debug');
+  await page.waitForTimeout(800);
+  await sj(page, "sj.stage('town')");
+  await waitFor(page, 'sj.idle()', 3000);
+  await sj(page, "(sj.state.inventory = { gang_colors: 2, medkit: 1 }, sj.state.cred = 100, true)");
+  await sj(page, "sj.shop('lr_weapons')");
+  expect(await waitFor(page, "sj.top() === 'ShopScene'", 3000)).toBe(true);
+  await page.waitForTimeout(400);
+  // Root menu: Buy, Sell, Leave. Sell -> first item -> quantity 1 -> confirm.
+  await tap(page, 'ArrowDown');
+  await page.waitForTimeout(200);
+  for (const k of ['Enter', 'Enter', 'Enter']) {
+    await tap(page, k);
+    await page.waitForTimeout(300);
+  }
+  const cred = await sj<number>(page, 'sj.state.cred');
+  const inv = await sj<Record<string, number>>(page, '({ ...sj.state.inventory })');
+  expect(cred).toBeGreaterThan(100);
+  const sold = (inv.gang_colors ?? 0) < 2 || (inv.medkit ?? 0) < 1;
+  expect(sold, 'one item line went down').toBe(true);
+});
