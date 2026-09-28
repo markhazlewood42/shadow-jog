@@ -84,6 +84,11 @@ class AudioEngine {
   delaySend!: GainNode;
   noise!: AudioBuffer;
   unlocked = false;
+  /**
+   * The page is going away (pagehide). Firefox throws on every audio call made after navigation
+   * starts, and the music scheduler and effects would keep making them until teardown.
+   */
+  closing = false;
   private listeners: (() => void)[] = [];
 
   /** Must be called from a user gesture. Safe to call repeatedly. */
@@ -232,7 +237,7 @@ class AudioEngine {
     const idle = (fn: () => void) => (ric ? ric(fn, { timeout: 2000 }) : setTimeout(fn, 200));
     const next = () => {
       const s = todo.shift();
-      if (!s || !this.ctx) return;
+      if (!s || !this.ctx || this.closing) return;
       this.impulseFor(s);
       idle(next);
     };
@@ -324,6 +329,29 @@ class AudioEngine {
 
   suspend(): void {
     if (this.ctx?.state === 'running') void this.ctx.suspend();
+  }
+
+  /** Leaving the page: go quiet and make no more audio calls. */
+  close(): void {
+    this.closing = true;
+    this.unlocked = false;
+  }
+
+  /**
+   * An audio call failed because the document is going away (Firefox throws InvalidStateError
+   * from navigation start, before pagehide): close quietly. Anything else is a real error.
+   */
+  gone(e: unknown): boolean {
+    if (!(e instanceof DOMException) || e.name !== 'InvalidStateError') return false;
+    this.close();
+    return true;
+  }
+
+  /** Back from the back/forward cache: the context is still ours. */
+  reopen(): void {
+    if (!this.closing) return;
+    this.closing = false;
+    this.unlocked = !!this.ctx;
   }
 
   resume(): void {

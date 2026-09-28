@@ -392,7 +392,7 @@ function scheduleStep(song: Compiled, step: number, at: number, dest: AudioNode,
 
 function tick(): void {
   const c = audio.ctx;
-  if (!c || !current) return;
+  if (!c || !current || audio.closing) return;
   const p = current;
   const ahead = c.currentTime + 0.14;
   while (p.nextTime < ahead) {
@@ -404,7 +404,12 @@ function tick(): void {
       p.step = p.song.loopStep;
       p.pass++;
     }
-    scheduleStep(p.song, p.step, p.nextTime, p.gain, p.pass);
+    try {
+      scheduleStep(p.song, p.step, p.nextTime, p.gain, p.pass);
+    } catch (e) {
+      if (audio.gone(e)) return;
+      throw e;
+    }
     p.step++;
     p.nextTime += stepDur(p.song);
   }

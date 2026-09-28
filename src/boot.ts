@@ -84,6 +84,11 @@ export function boot(game: Game, display: Display): void {
   const unlock = () => audio.unlock();
   window.addEventListener('keydown', unlock);
   window.addEventListener('pointerdown', unlock);
+  // Navigating away: stop making audio calls (Firefox rejects every one after navigation starts).
+  window.addEventListener('pagehide', () => audio.close());
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) audio.reopen();
+  });
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       audio.resume();

@@ -248,13 +248,18 @@ export function sfx(name: string, pitch = 1): void {
   // Each effect at its category's loudness (see LEVEL); most need a boost, which goes on a
   // per-call gain so the synths themselves keep their internal balance.
   const level = LEVEL[name] ?? 1;
-  if (level === 1) make(c, audio.sfx, now + 0.005, pitch);
-  else {
-    const g = c.createGain();
-    g.gain.value = level;
-    g.connect(audio.sfx);
-    make(c, g, now + 0.005, pitch);
-    setTimeout(() => g.disconnect(), 4000);
+  try {
+    if (level === 1) make(c, audio.sfx, now + 0.005, pitch);
+    else {
+      const g = c.createGain();
+      g.gain.value = level;
+      g.connect(audio.sfx);
+      make(c, g, now + 0.005, pitch);
+      setTimeout(() => g.disconnect(), 4000);
+    }
+  } catch (e) {
+    if (audio.gone(e)) return;
+    throw e;
   }
   if (HEAVY.has(name)) audio.duckForHit(name === 'crit' || name === 'combo' ? 0.5 : 0.62);
 }
