@@ -1,5 +1,6 @@
 /** Options: volumes, text & battle speed, shake, scaling, fullscreen, controls. */
 import { audio } from '../audio/engine';
+import { previewMusic } from '../audio/music';
 import { sfx } from '../audio/sfx';
 import type { Ctx } from '../engine/canvas';
 import { drawText, fitText } from '../engine/font';
@@ -26,8 +27,10 @@ export class OptionsScene extends Scene<'back' | 'title'> {
       adjust: (d: number) => {
         settings[k] = Math.max(0, Math.min(1, Math.round((settings[k] + d * 0.1) * 10) / 10));
         audio.applyVolumes();
-        // Let the player hear the new level: a representative hit for sound effects.
+        // Let the player hear the new level: a representative hit for sound effects, a chime for
+        // music when no song is playing to judge it by.
         if (k === 'sfxVol') sfx('hit');
+        else previewMusic();
       },
     });
     this.rows = [

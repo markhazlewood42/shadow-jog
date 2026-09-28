@@ -32,8 +32,11 @@ export interface SongSpec {
   /** Bar index to loop back to (default 0). */
   loopBar?: number;
   loop?: boolean;
-  /** Acoustic space the song plays in (default 'hall'). */
-  space?: Space;
+  /**
+   * Acoustic space the song plays in. 'here' keeps whatever room the player is already in: battle
+   * music, jingles and story cues happen *in* the current place and must not re-reverb it.
+   */
+  space: Space | 'here';
 }
 
 interface Ev {
@@ -378,7 +381,8 @@ function begin(name: string, fromStep = 0, fadeIn = 0, keepSpace = false): void 
     gain.gain.setValueAtTime(0.0001, c.currentTime);
     gain.gain.linearRampToValueAtTime(1, c.currentTime + fadeIn);
   }
-  if (!keepSpace) audio.setSpace(SONGS[name]?.space ?? 'hall');
+  const space = SONGS[name]?.space ?? 'hall';
+  if (!keepSpace && space !== 'here') audio.setSpace(space);
   current = { name, song, gain, step: fromStep % song.length, nextTime: c.currentTime + 0.06 };
   startTimer();
 }
@@ -428,6 +432,29 @@ export function popMusic(): void {
   const prev = stack.pop();
   stopCurrent(0.3);
   if (prev && audio.unlocked) begin(prev.name, prev.step, 1.2, true);
+}
+
+/** A place's song, in the place's acoustic space (its own, or the song's). */
+export function placeMusic(name: string, space?: Space): void {
+  music(name);
+  const sp = space ?? SONGS[name]?.space;
+  if (sp && sp !== 'here') audio.setSpace(sp);
+}
+
+/**
+ * Let the player hear a new music volume. Usually a song is already playing; when none is, a
+ * short chime through the music bus (so it carries the music level, not the sound-effects one).
+ */
+export function previewMusic(): void {
+  const c = audio.ctx;
+  if (!c || current) return;
+  const g = c.createGain();
+  g.connect(audio.music);
+  const t = c.currentTime + 0.02;
+  ['E5', 'B5'].forEach((n, i) => {
+    playNote('bell', { t: t + i * 0.12, dur: 0.5, freq: midiToFreq(noteToMidi(n)), vel: 0.8 }, g, { rev: 0.4 });
+  });
+  setTimeout(() => g.disconnect(), 2500);
 }
 
 export function currentSong(): string | null {

@@ -8,6 +8,7 @@ export const SONGS: Record<string, SongSpec> = {
     chords: 'Am | F | C | G | Am | F | C | E | F | G | Am | Am | F | G | E | E',
     drums: 'title',
     drumVol: 0.8,
+    space: 'hall',
     parts: [
       { inst: 'lead2', vol: 0.9, rev: 0.35, del: 0.3, notes:
         'E5 - - - D5 - C5 - | C5 - - - A4 - - - | G4 - C5 - E5 - D5 - | D5 - - - - - . . |' +
@@ -27,6 +28,8 @@ export const SONGS: Record<string, SongSpec> = {
     chords: 'Dm9 | G9 | Cmaj7 | A7 | Dm9 | G9 | Bbmaj7 | A7',
     drums: 'lofi',
     drumVol: 0.75,
+    // Close walls and awnings: short, near reflections.
+    space: 'room',
     parts: [
       { inst: 'bell', vol: 0.9, rev: 0.35, del: 0.25, notes:
         '. F5 - E5 D5 - A4 - | . B4 - C5 D5 - - - | . E5 - D5 C5 - G4 - | C#5 - - - A4 - - - |' +
@@ -60,6 +63,7 @@ export const SONGS: Record<string, SongSpec> = {
     bpm: 116,
     chords: 'Em | C | G | D | Em | C | Am | B | C | D | Em | Em | C | D | B | B',
     drums: 'synthwave',
+    space: 'hall',
     parts: [
       { inst: 'lead2', vol: 0.85, rev: 0.25, del: 0.22, notes:
         'E5 - - B4 E5 - G5 - | G5 - E5 - - - B4 - | D5 - - B4 D5 - G5 - | A5 - F#5 - - - D5 - |' +
@@ -77,6 +81,7 @@ export const SONGS: Record<string, SongSpec> = {
     bpm: 100,
     chords: 'G | F | C | G | Em | F | C | D',
     drums: 'halftime',
+    space: 'hall',
     parts: [
       { inst: 'twang', vol: 1.3, rev: 0.25, del: 0.3, notes:
         'G4 - B4 - D5 - B4 - | C5 - A4 - F4 - A4 - | G4 - C5 - D5 - C5 - | B4 - - - G4 - - - |' +
@@ -124,6 +129,7 @@ export const SONGS: Record<string, SongSpec> = {
     bpm: 152,
     chords: 'Em | Em | C | D | Em | Em | C | B | Am | C | Em | Em | Am | C | B | B',
     drums: 'battle',
+    space: 'here',
     parts: [
       { inst: 'lead2', vol: 0.8, rev: 0.18, del: 0.12, notes:
         'E5 - E5 - G5 - E5 - B5 - - - A5 - G5 - | F#5 - G5 - F#5 - E5 - D5 - - - B4 - - - |' +
@@ -146,7 +152,8 @@ export const SONGS: Record<string, SongSpec> = {
     bpm: 164,
     chords: 'Dm | Dm | Bb | A | Dm | Dm | Eb | A | Gm | Gm | Dm | Dm | Bb | C | A | A',
     drums: 'boss',
-    space: 'tunnel',
+    // Fights (and their jingles) happen in the room they broke out in.
+    space: 'here',
     parts: [
       { inst: 'lead2', vol: 0.85, rev: 0.2, del: 0.1, notes:
         'D5 - - D5 - - F5 - E5 - D5 - C#5 - D5 - | A5 - - - G#5 - - - A5 - - - F5 - - - |' +
@@ -169,7 +176,7 @@ export const SONGS: Record<string, SongSpec> = {
     bpm: 140,
     chords: 'Dm | Bb | Gm | A | Dm | F | Gm | A | Gm | Eb | Bb | F | Gm | Eb | A | A',
     drums: 'boss2',
-    space: 'cave',
+    space: 'here',
     parts: [
       { inst: 'lead', vol: 0.8, rev: 0.4, del: 0.2, notes:
         'D5 - - - F5 - A5 - | Bb5 - - - A5 - F5 - | G5 - - - Bb5 - D6 - | C#6 - - - A5 - - - |' +
@@ -188,6 +195,7 @@ export const SONGS: Record<string, SongSpec> = {
     chords: 'C | G | F | C | C | Am | F | G',
     drums: 'fanfare',
     loopBar: 4,
+    space: 'here',
     parts: [
       { inst: 'lead2', vol: 0.9, rev: 0.3, del: 0.15, notes:
         'C5 - E5 - G5 - C6 - | B5 - - - D6 - - - | C6 - A5 - F5 - A5 - | G5 - - - - - . . |' +
@@ -201,6 +209,7 @@ export const SONGS: Record<string, SongSpec> = {
     chords: 'C | G/B | Am | F | C | G | F | C',
     drums: 'march',
     loopBar: 4,
+    space: 'here',
     parts: [
       { inst: 'lead2', vol: 0.9, rev: 0.4, del: 0.2, notes:
         'G5 - - - C6 - - - | B5 - - - D6 - - - | C6 - - - E6 - - - | F6 - - - - - - - |' +
@@ -214,6 +223,7 @@ export const SONGS: Record<string, SongSpec> = {
     bpm: 66,
     chords: 'Am | F | Dm | E | Am',
     loop: false,
+    space: 'hall',
     parts: [
       { inst: 'bell', vol: 0.9, rev: 0.6, del: 0.4, notes: 'E5 - - - C5 - - - | A4 - - - F4 - - - | D5 - C5 - B4 - A4 - | G#4 - - - - - - - | A4 - - - - - - -' },
       { inst: 'pad', gen: 'chord', octave: 3, vol: 1, rev: 0.6 },
@@ -225,6 +235,8 @@ export const SONGS: Record<string, SongSpec> = {
   sable: {
     bpm: 70,
     chords: 'Cm | Ab | Eb | Bb | Cm | Ab | Fm | G',
+    // Story cues play in the scene they score.
+    space: 'here',
     parts: [
       { inst: 'bell', vol: 0.9, rev: 0.55, del: 0.35, notes:
         'G5 - - - Eb5 - D5 - | C5 - - - Eb5 - - - | Bb4 - - - G5 - F5 - | F5 - - - D5 - - - |' +
@@ -240,6 +252,7 @@ export const SONGS: Record<string, SongSpec> = {
     bpm: 112,
     chords: 'Bm | Bm | G | F# | Bm | Bm | G | F#',
     drums: 'heartbeat',
+    space: 'here',
     parts: [
       { inst: 'lead', vol: 0.6, rev: 0.4, del: 0.3, notes:
         '. . . . F#5 - - - | G5 - F#5 - D5 - - - | B4 - - - D5 - E5 - | C#5 - - - A#4 - - - |' +

@@ -2,6 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { chordTimeline, compile, stepsOf } from '../src/audio/music';
 import { noteToMidi } from '../src/audio/engine';
 import { SONGS } from '../src/audio/songs';
+import { getMap, mapIds } from '../src/data/maps';
+
+describe('acoustic spaces', () => {
+  const maps = mapIds().map(getMap);
+  const placeSongs = new Set(maps.map((m) => m.music));
+  it('every place sounds like somewhere: its song or the map names a space', () => {
+    for (const m of maps) expect(m.space ?? SONGS[m.music]?.space, m.id).not.toBe('here');
+  });
+  it('fights, jingles and story cues keep the room they play in', () => {
+    const own = ['title', 'gameover']; // their own screens
+    for (const [name, spec] of Object.entries(SONGS)) {
+      if (!placeSongs.has(name) && !own.includes(name)) expect(spec.space, name).toBe('here');
+    }
+  });
+});
 
 describe('soundtrack', () => {
   for (const [name, spec] of Object.entries(SONGS)) {

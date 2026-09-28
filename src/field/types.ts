@@ -1,4 +1,5 @@
 /** Map definition types (authoring format). */
+import type { Space } from '../audio/engine';
 import type { CharLook, Dir } from '../art/chars';
 import type { ScriptFn } from '../game/script';
 
@@ -174,6 +175,8 @@ export interface MapDef {
   ambient: string;
   weather?: 'rain' | 'drip' | 'dust' | 'none' | undefined;
   music: string;
+  /** Acoustic space, when the place's song doesn't set one (a story cue used as a place's theme). */
+  space?: Space | undefined;
   encounters?: EncounterZone[] | undefined;
   onEnter?: ScriptFn | undefined;
   /** Overhead cables / lantern strings: [x0, y0, x1, y1] in tiles, sag px, color. */

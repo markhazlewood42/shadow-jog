@@ -1,7 +1,7 @@
 /** The field: towns, interiors, dungeons and the world map. Hosts story scripts. */
 import type { Dir } from '../art/chars';
 import { sfx } from '../audio/sfx';
-import { music } from '../audio/music';
+import { music, placeMusic } from '../audio/music';
 import type { Ctx } from '../engine/canvas';
 import { drawText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
@@ -143,7 +143,7 @@ export class FieldScene extends Scene<void> {
 
   override enter(): void {
     this.game.countPlayTime = true;
-    if (this.def.music) music(this.def.music);
+    if (this.def.music) placeMusic(this.def.music, this.def.space);
     void this.onMapEnter();
   }
 
@@ -363,7 +363,7 @@ export class FieldScene extends Scene<void> {
       if (fade) await this.game.fadeOut(14);
       const prevMusic = this.def.music;
       this.load(mapId, x, y, dir);
-      if (this.def.music && this.def.music !== prevMusic) music(this.def.music);
+      if (this.def.music && (this.def.music !== prevMusic || this.def.space)) placeMusic(this.def.music, this.def.space);
       fieldHooks.onWarp?.(this);
     } catch (e) {
       reportError(e);

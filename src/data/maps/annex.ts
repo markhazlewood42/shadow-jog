@@ -234,6 +234,7 @@ export const dock: MapDef = {
   ambient: '#3a3a6a',
   weather: 'rain',
   music: 'tension',
+  space: 'hall', // open air under the cranes, whatever room the cue came from
   battleBg: 'street',
   structures: [
     // The freight lift housing they came up in, and the K-M warehouse wall across the bay.

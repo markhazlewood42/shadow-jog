@@ -129,10 +129,13 @@ class AudioEngine {
     this.reverbSend.gain.value = 0.22;
     this.verbs = [c.createConvolver(), c.createConvolver()];
     this.verbGains = [c.createGain(), c.createGain()];
+    // The wet returns are music (only song notes send to them), so they come back in through the
+    // music bus: the volume slider, the bus compressor and the dialogue/hit ducks all act on the
+    // tails too. Returned straight to master, music at 0 still left reverb and echo audible.
     for (let i = 0; i < 2; i++) {
       this.verbs[i]!.buffer = this.spaces.get('hall')!;
       this.verbGains[i]!.gain.value = i === 0 ? 1 : 0;
-      this.reverbSend.connect(this.verbs[i]!).connect(this.verbGains[i]!).connect(this.master);
+      this.reverbSend.connect(this.verbs[i]!).connect(this.verbGains[i]!).connect(this.music);
     }
     this.space = 'hall';
     // Tempo-free slapback/echo delay.
@@ -148,7 +151,7 @@ class AudioEngine {
     this.delaySend.gain.value = 0.18;
     this.delaySend.connect(this.delay);
     this.delay.connect(dl).connect(fb).connect(this.delay);
-    dl.connect(this.master);
+    dl.connect(this.music);
     // White noise buffer for drums & effects.
     this.noise = c.createBuffer(1, c.sampleRate, c.sampleRate);
     const nd = this.noise.getChannelData(0);
