@@ -369,9 +369,12 @@ const dfloor: Painter = (lx, ly, wx, wy, tx, ty, q) => {
 
 const dwater = waterP(P.dwater, P.dwaterL, P.dwaterD, P.dfloorL, P.dfloorD, [8, 22, 18], C('#347060'));
 
+/** Ankle-deep water over the floor: soft noise ripples and sparse glints, no repeating marks. */
 const shallow: Painter = (lx, ly, wx, wy, tx, ty, q) => {
-  const base = dfloor(lx, ly, wx, wy, tx, ty, q);
-  const w = Math.sin(wx * 0.4 + wy * 1.1) > 0.9 ? P.shallowL : P.shallow;
+  const base = dfloorDry(lx, ly, wx, wy, tx, ty, q);
+  const n = fbm(wx / 10, wy / 7, 2, 141);
+  let w = lerpC(P.shallow, P.shallowL, Math.min(1, Math.max(0, (n - 0.55) * 2.5)));
+  if (hash2(wx, wy, 142) < 0.01) w = P.shallowL;
   return lerpC(base, w, 0.72);
 };
 
@@ -391,6 +394,15 @@ const labFloor: Painter = (lx, ly, wx, wy) => {
   if (hash2(Math.floor(wx / 6), Math.floor(wy / 3), 362) < 0.06 && (wx + wy * 2) % 7 === 0) return lerpC(base, [40, 44, 56], 0.3);
   if (hash2(wx, wy, 363) < 0.012) return P.labFloorD;
   return base;
+};
+
+/** Security laser lattice across a doorway: emitter posts at the tile edges, red beams between. */
+const labLaser: Painter = (lx, ly, wx, wy, tx, ty, q) => {
+  const floor = labFloor(lx, ly, wx, wy, tx, ty, q);
+  const beam = ly === 3 || ly === 8 || ly === 13;
+  if (beam) return lx % 5 === 2 ? C('#ffd0d0') : C('#ff3a4a');
+  if (ly === 2 || ly === 4 || ly === 7 || ly === 9 || ly === 12 || ly === 14) return lerpC(floor, C('#ff3a4a'), 0.35);
+  return floor;
 };
 
 const labDoor: Painter = (lx, ly) => {
@@ -465,13 +477,14 @@ export const PAINTERS: Record<TerrainId, Painter> = {
   lab_floor: labFloor,
   lab_wall: wallP('lab_wall', labWallFace, P.labTop, P.labEdge),
   lab_door: labDoor,
+  lab_laser: labLaser,
   w_ruins: rubble, w_road: wRoad, w_barrens: wBarrens, w_toxic: wToxic, w_park: grass, w_highway: wHighway,
   w_bridge: bridge, w_block: wBlock,
 };
 
 /** Terrain that blocks movement. */
 export const SOLID_TERRAIN = new Set<TerrainId>([
-  'void', 'water', 'wall', 'junk', 'lab_door', 'iwall', 'd_wall', 'd_water', 'lab_wall', 'w_toxic', 'w_highway', 'w_block',
+  'void', 'water', 'wall', 'junk', 'lab_door', 'lab_laser', 'iwall', 'd_wall', 'd_water', 'lab_wall', 'w_toxic', 'w_highway', 'w_block',
 ]);
 
 /** Terrain with a 3/4 wall face (for lighting / occlusion decisions). */

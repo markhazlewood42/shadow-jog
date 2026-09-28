@@ -208,9 +208,54 @@ export const deadCrew: ScriptFn = async (s) => {
   await s.give('trauma_patch', 2);
 };
 
+/** Pump intakes, west to east, and the order they must be opened in (lowest pressure first). */
+const VALVES: Record<string, number> = { v1: 50, v2: 30, v3: 70 };
+const VALVE_ORDER = Object.keys(VALVES).sort((a, b) => VALVES[a]! - VALVES[b]!);
+
+export const pumpValve = (id: string): ScriptFn => async (s) => {
+  const psi = VALVES[id]!;
+  const opened = Number(s.get('valves') ?? 0);
+  if (s.flag('floodgate') || opened >= VALVE_ORDER.length || s.flag(`valve_${id}`)) {
+    await s.narrate(`An open intake valve. The gauge sits steady at {c}${psi} psi{/}.`);
+    return;
+  }
+  const pick = await s.ask(null, `A rusted intake valve. Its gauge reads {c}${psi} psi{/}.`, ['Open it', 'Leave it'], { cancel: 1 });
+  if (pick !== 0) return;
+  if (VALVE_ORDER[opened] === id) {
+    s.set(`valve_${id}`);
+    s.set('valves', opened + 1);
+    s.sfx('wave');
+    if (opened + 1 < VALVE_ORDER.length) {
+      await s.narrate('The wheel grinds round. Water hisses into the intake, steady.');
+      return;
+    }
+    await s.narrate('The last wheel turns. Every pipe in the room drums once, then settles into a low, even hum.');
+    await s.say('hex', 'Pressure’s balanced. Pumps are primed. Console, please!', { face: 'happy' });
+    return;
+  }
+  // Out of order: a pressure kick slams every valve shut.
+  s.sfx('explosion');
+  s.shake(30, 3);
+  for (const v of VALVE_ORDER) s.set(`valve_${v}`, false);
+  s.set('valves', 0);
+  await s.narrate('{r}BANG.{/} A pressure kick hammers down the line and every valve slams shut.');
+  if (!s.flag('valve_hint')) {
+    s.set('valve_hint');
+    await s.say('hex', 'Okay. Order matters. The console said lowest pressure first. I read that. I was busy being scared.', { face: 'sad' });
+  }
+};
+
 export const floodgate: ScriptFn = async (s) => {
   if (s.flag('floodgate')) {
     await s.narrate('The pump console hums. Water levels: {g}NOMINAL{/}.');
+    return;
+  }
+  if (Number(s.get('valves') ?? 0) < VALVE_ORDER.length) {
+    await s.narrate('The pump console flickers awake: {r}INTAKES DRY.{/} {c}PRIME SEQUENCE: OPEN INTAKE VALVES, LOWEST PRESSURE FIRST.{/}');
+    if (!s.flag('pump_seen')) {
+      s.set('pump_seen');
+      await s.say('hex', 'Pumps won’t spin dry. Three intake valves on this wall, three gauges. Read them, then open them in order.');
+    }
     return;
   }
   await s.say('hex', 'Pump control. Still got power, somehow. If I spin up the drainage pumps, the junction should empty out.');
@@ -265,6 +310,56 @@ export const annexGuards: ScriptFn = async (s) => {
   await s.say('rook', 'Active security in an abandoned lab. Pale lied.');
   await s.say('hex', 'Pale lied, the lab lied, the lights are lying. Everything down here is lying. I hate it here.', { face: 'sad' });
   s.objective(OBJ.core);
+};
+
+/**
+ * The laser lattice sealing the cryo wing has three emitters, fed by three relays. Relay A
+ * feeds emitters 1+2, C feeds 2+3, B is wired to all three. Every relay toggles what it feeds;
+ * the lattice drops when all three are dark. (From all-on, the only answer is B alone.)
+ */
+const RELAYS: Record<string, number[]> = { a: [0, 1], b: [0, 1, 2], c: [1, 2] };
+
+function emitters(s: ScriptApi): boolean[] {
+  const on = [true, true, true];
+  for (const [r, feeds] of Object.entries(RELAYS)) if (s.flag(`relay_${r}`)) for (const i of feeds) on[i] = !on[i];
+  return on;
+}
+
+const emitterLine = (on: boolean[]) => on.map((e, i) => `${i + 1} ${e ? '{r}LIVE{/}' : '{g}DARK{/}'}`).join('  ·  ');
+
+export const lattice: ScriptFn = async (s) => {
+  if (s.flag('lattice_off')) return;
+  await s.narrate(`A security lattice: three emitters, beams humming across the passage.\nEmitters: ${emitterLine(emitters(s))}`);
+  if (!s.flag('lattice_seen')) {
+    s.set('lattice_seen');
+    await s.say('hex', 'Can’t hack a laser. But lasers need power, and power comes through relays. Find the relays.');
+  }
+};
+
+export const relay = (id: string): ScriptFn => async (s) => {
+  const name = `Relay ${id.toUpperCase()}`;
+  if (s.flag('lattice_off')) {
+    await s.narrate(`${name}. The lattice is down; nothing left to route.`);
+    return;
+  }
+  if (!s.flag('relay_seen')) {
+    s.set('relay_seen');
+    await s.say('hex', 'Security relay. I can cycle it, but I can’t see what it feeds from here. Only one way to find out.');
+  }
+  const pick = await s.ask(null, `${name}. Lattice emitters: ${emitterLine(emitters(s))}`, ['Cycle the relay', 'Leave it'], { cancel: 1 });
+  if (pick !== 0) return;
+  s.set(`relay_${id}`, !s.flag(`relay_${id}`));
+  s.sfx('code');
+  const on = emitters(s);
+  if (on.every((e) => !e)) {
+    s.set('lattice_off');
+    s.sfx('phase');
+    s.refreshMap();
+    await s.narrate('Down the hall, the laser lattice stutters, flickers, and dies.');
+    await s.say('hex', 'Lattice is down! I am a genius. Nobody check my work.', { face: 'happy' });
+    return;
+  }
+  await s.narrate(`The relay clunks over. Lattice emitters: ${emitterLine(on)}`);
 };
 
 export const annexLog = (title: string, body: string): ScriptFn => async (s) => {

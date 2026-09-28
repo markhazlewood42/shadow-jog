@@ -8,7 +8,7 @@ export type TerrainId =
   // interiors
   | 'floor_wood' | 'floor_tile' | 'floor_metal' | 'floor_carpet' | 'floor_concrete' | 'iwall'
   // dungeon
-  | 'd_floor' | 'd_wall' | 'd_water' | 'd_shallow' | 'd_catwalk' | 'd_track' | 'lab_floor' | 'lab_wall' | 'lab_door'
+  | 'd_floor' | 'd_wall' | 'd_water' | 'd_shallow' | 'd_catwalk' | 'd_track' | 'lab_floor' | 'lab_wall' | 'lab_door' | 'lab_laser'
   // world map
   | 'w_ruins' | 'w_road' | 'w_barrens' | 'w_toxic' | 'w_park' | 'w_highway' | 'w_bridge' | 'w_block';
 
@@ -49,7 +49,7 @@ export interface BuildingDef {
 
 export type PropKind =
   | 'lamp' | 'vending' | 'barrel' | 'firebarrel' | 'crates' | 'dumpster' | 'trash' | 'car' | 'wreck' | 'hydrant'
-  | 'bench' | 'stall' | 'pillar' | 'tree' | 'wildtree' | 'planter' | 'terminal' | 'pipe_v' | 'steam' | 'barrier' | 'cone'
+  | 'bench' | 'stall' | 'pillar' | 'tree' | 'wildtree' | 'shrine' | 'planter' | 'terminal' | 'pipe_v' | 'steam' | 'barrier' | 'cone'
   | 'holo' | 'poster' | 'counter' | 'shelf' | 'bed' | 'table' | 'stool' | 'couch' | 'plant' | 'screen'
   | 'capsule' | 'bar' | 'rack' | 'desk' | 'pod' | 'server' | 'tank' | 'fence' | 'sandbags' | 'tent' | 'pylon'
   | 'catwalk_rail' | 'train' | 'valve' | 'cryopod' | 'door_lab' | 'jukebox' | 'arcade' | 'sign_post' | 'bollard'
@@ -79,6 +79,8 @@ export interface LightDef {
   flicker?: boolean;
   /** Pixel coordinates instead of tiles. */
   px?: boolean;
+  /** Only lit while this holds (evaluated when the map is built). */
+  when?: (flags: Record<string, unknown>) => boolean;
 }
 
 export interface NpcDef {

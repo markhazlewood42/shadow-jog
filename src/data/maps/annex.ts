@@ -1,12 +1,12 @@
 /** K-M Annex 7 (B2) and the loading dock where the job goes wrong. */
 import type { MapDef } from '../../field/types';
-import { annexDoor, annexGuards, annexLog, betrayal, cryopod, wardenFight } from '../../story/chapter1';
+import { annexDoor, annexGuards, annexLog, betrayal, cryopod, lattice, relay, wardenFight } from '../../story/chapter1';
 import { LOOKS } from '../looks';
 import { Grid } from './grid';
 
 const W = 44, H = 34;
 
-// L lab wall · _ lab floor · D sealed door · + floor grate
+// L lab wall · _ lab floor · D sealed door · Z laser lattice · + floor grate
 const g = new Grid(W, H, 'L')
   // Service room (ladder down from the Sinkline)
   .rect(2, 2, 9, 6, '_')
@@ -36,7 +36,7 @@ export const annex: MapDef = {
   bannerSub: 'Kessler-Mori · Decommissioned',
   kind: 'dungeon',
   terrain: g.rows(),
-  legend: { L: 'lab_wall', _: 'lab_floor', D: 'lab_door', '+': 'grate' },
+  legend: { L: 'lab_wall', _: 'lab_floor', D: 'lab_door', Z: 'lab_laser', '+': 'grate' },
   ambient: '#6a7aa0',
   weather: 'none',
   music: 'lab',
@@ -45,6 +45,8 @@ export const annex: MapDef = {
   encounters: [{ table: 'annex', rate: 22, bg: 'lab', rect: [15, 3, 27, 29] }],
   patches: [
     { when: (f) => !!f.annex_key, rects: [[14, 10, 1, 2, '_']] },
+    // The laser lattice across the cryo-wing passage, until the relays drop it.
+    { when: (f) => !f.lattice_off, rects: [[30, 6, 1, 3, 'Z']] },
     { when: (f) => !!f.sable_joined, rects: [[26, 22, 3, 1, '_']] },
   ],
   props: [
@@ -73,6 +75,10 @@ export const annex: MapDef = {
     { kind: 'tank', x: 21, y: 25, color: '#ff3a4a' },
     { kind: 'tank', x: 36, y: 25, color: '#ff3a4a' },
     { kind: 'barrier', x: 37, y: 31, w: 3, pass: true },
+    // Lattice relays: one in the service room, one in the hall, one in the armory.
+    { kind: 'terminal', x: 10, y: 4, color: '#ff6a5a' },
+    { kind: 'terminal', x: 15, y: 8, color: '#ff6a5a' },
+    { kind: 'terminal', x: 15, y: 21, color: '#ff6a5a' },
   ],
   chests: [
     { id: 'a1', x: 9, y: 6, item: 'trauma_patch', qty: 2, kind: 'locker' },
@@ -115,6 +121,14 @@ export const annex: MapDef = {
       run: annexLog('SUBJECT LOG · S-7', 'Subject S-7 (orc, shamanic, "crow" totem). Resistance to sedation: high. Yield: exceptional. Transfer to Arcology Level 90 on completion.'),
     },
     { id: 'pod', x: 36, y: 4, w: 2, on: 'action', run: cryopod },
+    { id: 'lattice', x: 30, y: 6, h: 3, on: 'action', when: (f) => !f.lattice_off, run: lattice },
+    { id: 'relay_c', x: 10, y: 4, on: 'action', run: relay('c') },
+    { id: 'relay_b', x: 15, y: 8, on: 'action', run: relay('b') },
+    { id: 'relay_a', x: 15, y: 21, on: 'action', run: relay('a') },
+    {
+      id: 'memo', x: 17, y: 4, w: 2, on: 'action',
+      run: annexLog('MEMO · LATTICE AUDIT', 'Relay A feeds emitters 1 and 2. Relay C feeds 2 and 3. Relay B is wired to all three. Cycling a relay flips every emitter it feeds. Keep this taped to the desk, Dmitri.'),
+    },
     { id: 'pod_near', x: 35, y: 6, w: 4, h: 1, on: 'touch', once: true, when: (f) => !f.sable_joined, run: cryopod },
     { id: 'warden', x: 18, y: 24, w: 22, h: 1, on: 'touch', once: true, when: (f) => !!f.sable_joined && !f.warden, run: wardenFight },
     {
@@ -137,6 +151,7 @@ export const annex: MapDef = {
     { x: 36, y: 7, r: 70, color: '#9ad8ff', i: 0.6 },
     { x: 29, y: 27, r: 110, color: '#ff3a4a', i: 0.45, flicker: true },
     { x: 18, y: 21, r: 50, color: '#ffd07a', i: 0.45 },
+    { x: 30, y: 7, r: 45, color: '#ff3a4a', i: 0.6, flicker: true, when: (f) => !f.lattice_off },
   ],
 };
 
@@ -144,7 +159,12 @@ const DW = 20, DH = 14;
 const dg = new Grid(DW, DH, '#')
   .rect(1, 2, 18, 11, '=')
   .rect(1, 2, 18, 2, ',')
-  .rect(8, 1, 3, 1, ',');
+  .rect(8, 1, 3, 1, ',')
+  // Loading bay markings, rain puddles and a drain in the asphalt.
+  .rect(2, 6, 1, 6, '-')
+  .rect(17, 6, 1, 6, '-')
+  .dots([[5, 7], [6, 7], [12, 11], [13, 11], [4, 12], [15, 6]], 'o')
+  .set(10, 8, '+');
 
 export const dock: MapDef = {
   id: 'dock',
@@ -158,14 +178,35 @@ export const dock: MapDef = {
   weather: 'rain',
   music: 'tension',
   battleBg: 'street',
+  structures: [
+    // The freight lift housing they came up in, and the K-M warehouse wall across the bay.
+    { kind: 'building', x: 6, y: 0, w: 8, h: 1, style: 'concrete', doors: [], sign: { text: 'FREIGHT 7', color: '#ffcc3d' } },
+  ],
   props: [
-    { kind: 'car', x: 3, y: 9, w: 2, color: '#e4e4ea' },
+    // Pale's ride and the K-M vans boxing the crew in.
+    { kind: 'car', x: 8, y: 11, w: 2, color: '#e4e4ea' },
+    { kind: 'car', x: 3, y: 10, w: 2, color: '#1f2a44' },
     { kind: 'car', x: 14, y: 10, w: 2, color: '#1f2a44' },
+    { kind: 'barrier', x: 1, y: 12, w: 3 },
+    { kind: 'barrier', x: 16, y: 12, w: 3 },
+    // Freight stacked for pickup that was never coming.
     { kind: 'crates', x: 1, y: 4 },
+    { kind: 'crates', x: 1, y: 5 },
+    { kind: 'crates', x: 2, y: 4 },
+    { kind: 'crates', x: 17, y: 4 },
     { kind: 'crates', x: 17, y: 5 },
+    { kind: 'barrel', x: 3, y: 4, color: '#3a5a6a' },
+    { kind: 'barrel', x: 16, y: 4, color: '#5a3a2a' },
+    { kind: 'barrel', x: 18, y: 7, color: '#3a5a6a' },
+    { kind: 'tires', x: 1, y: 8 },
+    { kind: 'dumpster', x: 16, y: 8, w: 2, color: '#2c3b5e' },
+    { kind: 'hydrant', x: 1, y: 10 },
+    // Floodlights on the bay and street lamps beyond.
+    { kind: 'lampfloor', x: 4, y: 6, color: '#e8f4ff' },
+    { kind: 'lampfloor', x: 15, y: 6, color: '#e8f4ff' },
     { kind: 'lamp', x: 5, y: 3, dir: 'right' },
     { kind: 'lamp', x: 15, y: 3, dir: 'left' },
-    { kind: 'barrier', x: 7, y: 12, w: 6 },
+    { kind: 'sign_post', x: 12, y: 2, text: 'K-M LOGISTICS' },
   ],
   npcs: [
     { id: 'pale', x: 9, y: 9, dir: 'up', look: LOOKS.pale, name: 'Mr. Pale', talk: betrayal },
@@ -179,7 +220,8 @@ export const dock: MapDef = {
     await betrayal(s);
   },
   lights: [
-    { x: 4, y: 9, r: 50, color: '#fff0c0', i: 0.5 },
-    { x: 15, y: 10, r: 50, color: '#ff3a3a', i: 0.5, flicker: true },
+    { x: 4, y: 11, r: 45, color: '#3f8af0', i: 0.55, flicker: true },
+    { x: 15, y: 11, r: 45, color: '#ff3a3a', i: 0.55, flicker: true },
+    { x: 9, y: 12, r: 40, color: '#fff0c0', i: 0.45 },
   ],
 };

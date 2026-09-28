@@ -12,11 +12,15 @@ const g = new Grid(W, H, 'J')
   .rect(13, 22, 5, 6, 'd')
   // Camp pad
   .rect(6, 14, 22, 7, 'K')
-  // Scrap maze separating the camp from Knuckles' yard
-  .rect(1, 9, 32, 3, 'J')
-  .rect(4, 9, 3, 3, 'r')
-  .rect(27, 9, 3, 3, 'r')
-  .rect(14, 10, 4, 1, 'J')
+  // Scrap maze between the camp and Knuckles' yard. Three ways in from the camp: the
+  // obvious middle one dead-ends at a scav's stash; west and east both come out north.
+  .paste(0, 8, [
+    'JJJJdJJJJJJJJJJJJJJJJJJJJJdJJJJJJJ',
+    'JJJJdddddJJJJJJddddddddJJJdddddJJJ',
+    'JJJJJJJJdJJJJJJdJJJJJJdJJJJJJJdJJJ',
+    'JJdddddddddJJJJdJJddddddJJJJJJdJJJ',
+    'JJdJJJJJJJdJJJJdJJJJJJJJJJdddddJJJ',
+  ])
   // North yard texture
   .rect(3, 3, 5, 3, 'r')
   .rect(24, 2, 6, 4, 'r')
@@ -71,6 +75,7 @@ export const rustyard: MapDef = {
     { id: 'depot_case', x: 21, y: 6, item: 'med_case', kind: 'case' },
     { id: 'yard_cache', x: 2, y: 3, cred: 120, kind: 'crate' },
     { id: 'maze_cache', x: 31, y: 7, item: 'trauma_patch', qty: 2, kind: 'crate' },
+    { id: 'maze_stash', x: 18, y: 11, item: 'flashbang', qty: 2, kind: 'crate' },
   ],
   npcs: [
     {
@@ -91,7 +96,7 @@ export const rustyard: MapDef = {
       id: 'nephew', x: 17, y: 20, dir: 'down', name: 'Tobin', look: randomLook(310), move: 'static',
       talk: async (s) => {
         if (!s.flag('rustyard_gate')) await s.say('Tobin', 'Auntie Mags says don’t fight the Rustfangs. Auntie Mags also says I’m useless. Both are true.');
-        else if (!s.flag('knuckles')) await s.say('Tobin', 'Knuckles lives up at the tire depot. Go around the junk walls. East or west, both work. Mind the hounds.');
+        else if (!s.flag('knuckles')) await s.say('Tobin', 'Knuckles lives up at the tire depot, past the scrap maze. The heaps shift every time it rains, so don’t ask me the way. Mind the hounds.');
         else await s.say('Tobin', 'You beat KNUCKLES? Can I have your autograph? Can I have your jacket?');
       },
     },

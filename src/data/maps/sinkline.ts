@@ -1,6 +1,6 @@
 /** The Sinkline, level B1 — a flooded metro station. The junction drains when the pumps run. */
 import type { MapDef } from '../../field/types';
-import { deadCrew, floodgate, lurkerFight } from '../../story/chapter1';
+import { deadCrew, floodgate, lurkerFight, pumpValve } from '../../story/chapter1';
 import { Grid } from './grid';
 
 const W = 48, H = 38;
@@ -20,6 +20,9 @@ const g = new Grid(W, H, 'X')
   // The flooded junction chamber with a catwalk along its north wall
   .rect(30, 5, 16, 1, '=')
   .rect(30, 6, 16, 25, '~')
+  // Signal Island 4: a catwalk ring around a sump, the Lurker's lair. Cut off until the drain.
+  .rect(33, 12, 9, 9, '=')
+  .rect(35, 14, 5, 5, '~')
   // Maintenance corridor south to the pump room
   .rect(8, 14, 3, 12, '.')
   .rect(11, 17, 4, 3, '.')
@@ -48,6 +51,7 @@ export const sinkline1: MapDef = {
       when: (f) => !!f.floodgate,
       rects: [
         [30, 6, 16, 25, 'w'],
+        [33, 12, 9, 9, '='],
         [35, 14, 5, 5, '~'],
         [31, 24, 3, 3, '~'],
         [42, 9, 3, 3, '~'],
@@ -67,7 +71,21 @@ export const sinkline1: MapDef = {
     { kind: 'trash', x: 18, y: 3 },
     { kind: 'crates', x: 2, y: 3 },
     { kind: 'terminal', x: 6, y: 26, color: '#62e06a' },
-    { kind: 'crates', x: 12, y: 27 },
+    { kind: 'valve', x: 9, y: 26 },
+    { kind: 'valve', x: 11, y: 26 },
+    { kind: 'valve', x: 13, y: 26 },
+    { kind: 'crates', x: 12, y: 31 },
+    { kind: 'sign_post', x: 10, y: 14, text: 'PUMPS ↓' },
+    { kind: 'sign_post', x: 28, y: 7, text: 'JUNCTION 4 →' },
+    { kind: 'sign_post', x: 16, y: 26, text: 'PUMP STATION' },
+    // Signal Island 4: floodlamps on the ring, a warning board, the wreck it dragged down.
+    { kind: 'lampfloor', x: 33, y: 12 },
+    { kind: 'lampfloor', x: 41, y: 12 },
+    { kind: 'lampfloor', x: 33, y: 20 },
+    { kind: 'lampfloor', x: 41, y: 20, color: '#ff8a6a' },
+    { kind: 'sign_post', x: 37, y: 12, text: 'DANGER · SUMP' },
+    { kind: 'wreck', x: 43, y: 23, w: 2 },
+    { kind: 'body', x: 40, y: 21, color: '#3a3848' },
     { kind: 'body', x: 13, y: 18, color: '#2c3b5e' },
     { kind: 'body', x: 12, y: 19, color: '#4a2a2a' },
     { kind: 'body', x: 14, y: 17, color: '#34344a' },
@@ -114,6 +132,9 @@ export const sinkline1: MapDef = {
     { id: 'automat', x: 12, y: 3, on: 'action', run: async (s) => s.shop('automat') },
     { id: 'crew', x: 12, y: 17, w: 3, h: 3, on: 'touch', once: true, run: deadCrew },
     { id: 'pump', x: 6, y: 26, on: 'action', run: floodgate },
+    { id: 'valve1', x: 9, y: 26, on: 'action', run: pumpValve('v1') },
+    { id: 'valve2', x: 11, y: 26, on: 'action', run: pumpValve('v2') },
+    { id: 'valve3', x: 13, y: 26, on: 'action', run: pumpValve('v3') },
     {
       id: 'flood_hint', x: 29, y: 8, h: 2, on: 'touch', once: true, when: (f) => !f.floodgate,
       run: async (s) => {
@@ -145,7 +166,8 @@ export const sinkline1: MapDef = {
     { x: 9, y: 20, r: 40, color: '#ff6a5a', i: 0.45, flicker: true },
     { x: 9, y: 29, r: 70, color: '#62e06a', i: 0.55 },
     { x: 20, y: 21, r: 40, color: '#ffd07a', i: 0.4 },
-    { x: 38, y: 16, r: 90, color: '#4affb0', i: 0.45 },
+    { x: 37, y: 16, r: 70, color: '#4affb0', i: 0.5 },
+    { x: 41, y: 20, r: 40, color: '#ff6a5a', i: 0.45, flicker: true },
     { x: 38, y: 5, r: 60, color: '#ffd07a', i: 0.4, flicker: true },
     { x: 44, y: 30, r: 40, color: '#ffcc3d', i: 0.5 },
   ],

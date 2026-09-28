@@ -57,7 +57,7 @@ export async function playChapter1(page: Page): Promise<void> {
   await tp(page, 'rustyard', 15, 21, 'up');
   await press(page, 'ArrowUp');
   await waitFlag(page, 'rustyard_gate');
-  await tp(page, 'rustyard', 11, 8, 'right');
+  await tp(page, 'rustyard', 11, 7, 'right');
   await press(page, 'ArrowRight');
   await waitFlag(page, 'knuckles');
   await tp(page, 'rustyard', 21, 7, 'up');
@@ -78,6 +78,12 @@ export async function playChapter1(page: Page): Promise<void> {
   await waitIdle(page);
   await press(page, 'ArrowUp');
   await waitFor(page, "sj.state.map === 'sinkline_1'", 'enter Sinkline');
+  // Prime the pump intakes, lowest pressure first (30, 50, 70 psi), then run the pumps.
+  for (const x of [11, 9, 13]) {
+    await tp(page, 'sinkline_1', x, 27, 'up');
+    await press(page, 'z');
+  }
+  await waitFor(page, "sj.state.flags.valves === 3", 'pumps primed');
   await tp(page, 'sinkline_1', 6, 27, 'up');
   await press(page, 'z');
   await waitFlag(page, 'floodgate');
@@ -91,6 +97,10 @@ export async function playChapter1(page: Page): Promise<void> {
   await tp(page, 'annex', 8, 9, 'down');
   await press(page, 'ArrowDown');
   await waitFlag(page, 'annex_key');
+  // The laser lattice: relay B alone drops all three emitters.
+  await tp(page, 'annex', 16, 8, 'left');
+  await press(page, 'z');
+  await waitFlag(page, 'lattice_off');
   await tp(page, 'annex', 36, 7, 'up');
   await press(page, 'ArrowUp');
   await waitFlag(page, 'sable_joined');

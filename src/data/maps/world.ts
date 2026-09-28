@@ -53,6 +53,16 @@ export const world: MapDef = {
   weather: 'rain',
   music: 'world',
   battleBg: 'street',
+  events: [
+    {
+      id: 'av_wreck', x: 41, y: 35, w: 2, on: 'action',
+      run: async (s) => {
+        await s.narrate('A Kessler-Mori courier AV, nose-down in the mud. Two weeks down, by the rust. The flight recorder has been pried out, neatly.');
+        if (s.inParty('hex')) await s.say('hex', 'Somebody came back for the black box and left the pilot. That’s a very K-M set of priorities.', { face: 'sad' });
+        else await s.say('rook', 'They came back for the black box. Not the pilot.');
+      },
+    },
+  ],
   encounters: [
     { table: 'park', rate: 18, terrain: ['w_park'], bg: 'park' },
     { table: 'barrens', rate: 20, terrain: ['w_barrens', 'w_ruins'], bg: 'barrens' },
@@ -90,17 +100,52 @@ export const world: MapDef = {
     { kind: 'sign_post', x: 21, y: 25, text: 'SINKLINE ↓' },
     { kind: 'lamp', x: 21, y: 37, dir: 'right' },
     { kind: 'car', x: 29, y: 21, w: 2, color: '#5a5f7a' },
+    // POI: the wayside shrine deep in Hollowmere Park.
+    { kind: 'shrine', x: 22, y: 13, w: 2 },
+    // POI: a K-M courier AV that came down in the south barrens.
+    { kind: 'wreck', x: 41, y: 35, w: 2 },
+    { kind: 'body', x: 43, y: 36, color: '#2c3b5e' },
+    { kind: 'firebarrel', x: 39, y: 38 },
+    { kind: 'crates', x: 44, y: 38 },
   ],
   chests: [
     { id: 'park_cache', x: 23, y: 16, item: 'ghost_lens', kind: 'case' },
     { id: 'barrens_cache', x: 57, y: 27, cred: 180, kind: 'crate' },
     { id: 'ruin_cache', x: 45, y: 19, item: 'neurotab', qty: 2, kind: 'crate' },
+    { id: 'shrine_offering', x: 21, y: 13, item: 'omni_patch', qty: 2, kind: 'crate' },
+    { id: 'av_locker', x: 44, y: 37, item: 'trauma_patch', qty: 2, kind: 'locker' },
   ],
   npcs: [
     {
       id: 'km_gate', x: 29, y: 9, dir: 'down', name: 'K-M Checkpoint',
       look: { skin: '#d8b090', hair: '#20202a', hairStyle: 'cap', hat: '#1f2a44', top: '#2c3b5e', inner: '#2c3b5e', accent: '#9aa3b8', pants: '#1f2a44', boots: '#101018', accessories: ['visor'], visor: '#3fe0f0' },
-      talk: ['Arcology access is restricted to Kessler-Mori personnel and registered guests.', 'You are neither. Please step back from the checkpoint.'],
+      // The checkpoint notices what the crew has been up to.
+      talk: async (s) => {
+        if (s.flag('warden')) await s.say('K-M Checkpoint', 'All units, Annex 7 is dark. Repeat, Annex 7 is— ...Step back, citizen. Please. Today of all days.');
+        else if (s.flag('lurker')) await s.say('K-M Checkpoint', 'Something tripped every sensor in the Sinkline an hour ago. Probably rats. Very large rats. ...Why am I telling you this? Step back.');
+        else if (s.flag('hex_joined')) await s.say('K-M Checkpoint', 'Registered guests only. Your decker friend is not a registered guest. We have her face on file. We have several of her faces on file.');
+        else {
+          await s.say('K-M Checkpoint', 'Arcology access is restricted to Kessler-Mori personnel and registered guests.');
+          await s.say('K-M Checkpoint', 'You are neither. Please step back from the checkpoint.');
+        }
+      },
+    },
+    {
+      id: 'hermit', x: 24, y: 14, dir: 'left', name: 'Old Marrow', move: 'static',
+      look: { skin: '#9a8a6a', hair: '#e8e4da', hairStyle: 'long', top: '#3a4a3a', coat: '#3a4a3a', inner: '#2a2a24', accent: '#62e06a', pants: '#2a2a24', boots: '#1a1a14', accessories: ['beard'] },
+      talk: async (s) => {
+        await s.say('Old Marrow', 'The trees woke up before the people did. This shrine was here before both.');
+        await s.say('Old Marrow', 'Spirits don’t mind blades. They mind will. Hit them with what you believe, not what you’re holding.');
+        if (s.inParty('sable')) await s.say('sable', 'The crow knows this place. It says the old man is right, and also that he talks too much.');
+      },
+    },
+    {
+      id: 'fisher', x: 7, y: 30, dir: 'down', name: 'Canal Fisher', move: 'static',
+      look: { skin: '#c28a64', hair: '#3a3a36', hairStyle: 'cap', hat: '#5a4a2a', top: '#4a5a6a', inner: '#2a2a30', accent: '#ffcc3d', pants: '#2a2a33', boots: '#1a1418' },
+      talk: async (s) => {
+        await s.say('Canal Fisher', 'Nothing bites in the canal. Not since ’61. Whatever lives down the Sinkline outflow ate everything with fins.');
+        await s.say('Canal Fisher', 'Saw it once, from the bridge. Big as a train car. Hates light. Hates heat worse. And my old taser gave it a real bad day.');
+      },
     },
     {
       id: 'wanderer', x: 45, y: 25, dir: 'left', name: 'Scav', move: 'wander', radius: 3,

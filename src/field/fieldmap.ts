@@ -126,6 +126,7 @@ export class FieldMap {
     for (const s of this.def.structures ?? []) paintBuilding(b, s);
     (this.def.props ?? []).forEach((p, i) => paintProp(b, p, i * 977 + p.x * 31 + p.y));
     for (const l of this.def.lights ?? []) {
+      if (l.when && !l.when(flagsNow())) continue;
       const k = l.px ? 1 : TS;
       const off = l.px ? 0 : TS / 2;
       this.lights.push({ x: l.x * k + off, y: l.y * k + off, r: l.r, color: l.color, i: l.i ?? 0.8, flicker: l.flicker });
@@ -228,6 +229,9 @@ export class FieldMap {
           }
         }
         if (!best) continue;
+        // Standing water across a whole floor reflects each light only in the column beneath it;
+        // a streak on every tile would read as a pattern.
+        if (id === 'd_shallow' && (Math.abs(best.x - cx) > 10 || cy < best.y || cy - best.y > 64)) continue;
         const a = Math.max(0.12, 0.55 * (1 - bd / 90));
         const col = best.color;
         const rx = Math.round(Math.max(tx * TS + 3, Math.min(tx * TS + 12, best.x)));

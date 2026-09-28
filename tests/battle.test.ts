@@ -155,3 +155,11 @@ describe('hijack', () => {
     }
   });
 });
+
+describe('maps', () => {
+  it('every prop kind placed on a map has a painter', async () => {
+    const { PROPS } = await import('../src/field/props');
+    const { getMap, mapIds } = await import('../src/data/maps');
+    for (const id of mapIds()) for (const p of getMap(id).props ?? []) expect(PROPS[p.kind], `${id}: ${p.kind}`).toBeDefined();
+  });
+});

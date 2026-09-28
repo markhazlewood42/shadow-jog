@@ -730,6 +730,92 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     });
   },
 
+  /** Wayside spirit shrine: stone posts and lintel, paper talismans, candles and an offering bowl. */
+  shrine(b, p) {
+    const w = p.w ?? 2;
+    blockFoot(b, p, w, 1);
+    const W = w * TS, H = 30;
+    const { x, y } = tall(b, { ...p, w }, W, H, (c, e) => {
+      const ol = '#0f0e17', stone = '#6a6a70', stoneL = '#8a8a90', stoneD = '#4a4a52';
+      // Posts and a curved lintel.
+      for (const px of [4, W - 8]) {
+        c.fillStyle = ol; c.fillRect(px - 1, 6, 6, H - 6);
+        c.fillStyle = stone; c.fillRect(px, 7, 4, H - 8);
+        c.fillStyle = stoneL; c.fillRect(px, 7, 1, H - 8);
+        c.fillStyle = stoneD; c.fillRect(px + 3, 7, 1, H - 8);
+      }
+      c.fillStyle = ol; c.fillRect(0, 2, W, 5);
+      c.fillStyle = stone; c.fillRect(1, 3, W - 2, 3);
+      c.fillStyle = stoneL; c.fillRect(1, 3, W - 2, 1);
+      c.fillStyle = ol; c.fillRect(2, 9, W - 4, 2);
+      c.fillStyle = stoneD; c.fillRect(3, 9, W - 6, 1);
+      // Moss on the lintel.
+      c.fillStyle = '#2c6a4a'; for (const mx of [3, 7, 20, 25]) if (mx < W - 2) c.fillRect(mx, 3, 2, 1);
+      // Paper talismans hanging from the lintel, and candles on the step (emissive).
+      both(c, e, (k) => {
+        k.fillStyle = '#f0e6c8';
+        for (const tx of [10, 14, 18, 22]) if (tx < W - 6) k.fillRect(tx, 11, 2, 5);
+        k.fillStyle = '#ffcf7a';
+        for (const cx of [9, 13, 19, 23]) if (cx < W - 6) k.fillRect(cx, H - 6, 1, 2);
+      });
+      c.fillStyle = '#c23a2a';
+      for (const tx of [10, 14, 18, 22]) if (tx < W - 6) c.fillRect(tx, 13, 2, 1);
+      // Offering bowl on a low step.
+      c.fillStyle = ol; c.fillRect(9, H - 3, W - 18, 3);
+      c.fillStyle = stoneD; c.fillRect(10, H - 2, W - 20, 2);
+      c.fillStyle = '#8a5a34'; c.fillRect(W / 2 - 3, H - 5, 6, 2);
+    });
+    b.lights.push({ x: x + W / 2, y: y + H - 6, r: 38, color: '#ffcf7a', i: 0.6, flicker: true });
+  },
+
+  /** Wall intake valve: pipe riser, red hand-wheel, and a lit pressure gauge. */
+  valve(b, p) {
+    blockFoot(b, p);
+    tall(b, p, 16, 26, (c, e) => {
+      const ol = '#0f0e17';
+      c.fillStyle = ol; c.fillRect(5, 0, 6, 26);
+      c.fillStyle = '#4a5058'; c.fillRect(6, 0, 4, 26);
+      c.fillStyle = '#6a7078'; c.fillRect(6, 0, 1, 26);
+      c.fillStyle = '#5a3a2a'; c.fillRect(6, 4, 4, 1); c.fillRect(6, 20, 4, 1);
+      // Hand-wheel.
+      disc(c, 8, 12, 6, ol);
+      disc(c, 8, 12, 5, '#c23a2a');
+      disc(c, 8, 12, 3, ol);
+      c.fillStyle = '#c23a2a';
+      c.fillRect(7, 7, 2, 10); c.fillRect(3, 11, 10, 2);
+      c.fillStyle = '#e86a4a'; c.fillRect(4, 9, 2, 1); c.fillRect(7, 7, 1, 2);
+      disc(c, 8, 12, 1.5, '#8a8e9c');
+      // Gauge above the wheel (emissive face, dark needle).
+      disc(c, 12, 3, 3, ol);
+      both(c, e, (k) => disc(k, 12, 3, 2, '#e8f0d8'));
+      c.fillStyle = '#2a2020'; c.fillRect(12, 2, 1, 2);
+    });
+  },
+
+  /** Rusted wreck half-swallowed by the flood: a car roof and broken windows. */
+  wreck(b, p, rng) {
+    const w = p.w ?? 2;
+    blockFoot(b, p, w, 1);
+    const W = w * TS, H = 18;
+    tall(b, { ...p, w }, W, H, (c) => {
+      const ol = '#0f0e17';
+      const rust = rng.pick(['#6a3a2a', '#5a4a3a', '#4a3a3a']);
+      c.fillStyle = ol;
+      c.beginPath(); c.moveTo(1, H); c.lineTo(4, 5); c.lineTo(W - 8, 3); c.lineTo(W - 1, H); c.fill();
+      c.fillStyle = rust;
+      c.beginPath(); c.moveTo(2, H - 1); c.lineTo(5, 6); c.lineTo(W - 8, 4); c.lineTo(W - 2, H - 1); c.fill();
+      c.fillStyle = shade(rust, 0.25); c.fillRect(6, 6, W - 16, 1);
+      // Broken windows.
+      c.fillStyle = '#10181c';
+      c.fillRect(7, 8, 7, 5); c.fillRect(16, 8, W - 26, 5);
+      c.fillStyle = '#5a7a88'; c.fillRect(8, 8, 2, 1); c.fillRect(17, 9, 1, 1);
+      // Rust streaks and the waterline.
+      for (let i = 0; i < 6; i++) { c.fillStyle = shade(rust, -0.3); c.fillRect(4 + rng.int(0, W - 10), 10 + rng.int(0, 4), 1, 3); }
+      c.fillStyle = '#1b4038'; c.fillRect(0, H - 3, W, 3);
+      c.fillStyle = '#2d6a5a'; c.fillRect(2, H - 3, W - 4, 1);
+    });
+  },
+
   lampfloor(b, p) {
     blockFoot(b, p);
     const col = p.color ?? '#ffcf7a';
