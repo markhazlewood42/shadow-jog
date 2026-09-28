@@ -2,7 +2,7 @@
 import type { Stats, StatusId } from '../battle/types';
 import { ABILITIES, LEARNSETS } from '../data/abilities';
 import { ITEMS } from '../data/items';
-import { baseStatsAt, levelForXp, MEMBERS, xpFor } from '../data/party';
+import { baseStatsAt, levelForXp, MAX_LEVEL, MEMBERS, xpFor } from '../data/party';
 import type { EquipSlot, MemberId, MemberState } from './state';
 import { state } from './state';
 
@@ -191,4 +191,11 @@ export function addMember(id: MemberId, level?: number): MemberState {
   }
   if (!state.party.includes(id)) state.party.push(id);
   return m;
+}
+
+/** How far through the current level an amount of XP is (0..1; 1 at the level cap). */
+export function levelProgress(level: number, xp: number): number {
+  if (level >= MAX_LEVEL) return 1;
+  const lo = xpFor(level), hi = xpFor(level + 1);
+  return Math.max(0, Math.min(1, (xp - lo) / (hi - lo)));
 }

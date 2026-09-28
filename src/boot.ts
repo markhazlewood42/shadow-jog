@@ -20,6 +20,7 @@ import { settings, shakeScale } from './game/settings';
 import { debug } from './game/debug';
 import type { GameState } from './game/state';
 import type { ScriptFn } from './game/script';
+import { ENCOUNTERS } from './data/enemies';
 import * as stateMod from './game/state';
 import { applyStage } from './game/stages';
 import { perf } from './engine/perf';
@@ -58,6 +59,10 @@ export function boot(game: Game, display: Display): void {
       game.playFrames = st.minutes * 60 * 60;
       void game.reset(new FieldScene(st.map, st.x, st.y, st.dir));
       await game.fadeTo(0, 0);
+    },
+    /** Register a one-group encounter (screenshots of a specific line-up). */
+    defineEncounter: (id: string, e: string[]) => {
+      ENCOUNTERS[id] = [{ w: 1, e }];
     },
     battle: (enc: string, bg = 'street', boss = false) => void field()?.runScript((s) => s.battle(enc, { bg, boss, canRun: !boss }).then(() => undefined)),
     say: (who: string, text: string, face = 'neutral') => void field()?.runScript((s) => s.say(who, text, { face })),

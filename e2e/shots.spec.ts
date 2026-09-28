@@ -175,6 +175,8 @@ test('18 world + dungeons', async ({ page }) => {
 
 test('22 victory', async ({ page }) => {
   await open(page, 'annex');
+  // Hex a few XP short of a level, so the panel shows a bar rolling over.
+  await page.evaluate(`(async () => { const { xpFor } = await import('/src/data/party.ts'); const m = window.__SJ__.state.members.hex; m.xp = xpFor(m.level + 1) - 4; })()`);
   await sj(page, "sj.battle('f_first_fight', 'street')");
   await page.waitForTimeout(3200);
   await key(page, 'ArrowDown', 2);
@@ -253,6 +255,16 @@ test('37 cryopod before and after the rescue', async ({ page }) => {
   await sj(page, "(sj.state.flags.sable_joined = true, sj.tp('annex', 36, 8, 'up'))");
   await page.waitForTimeout(900);
   await shot(page, '37b-annex-cryopod-empty');
+});
+
+test('38 packs: three rats, three hounds, each an individual', async ({ page }) => {
+  for (const [name, who] of [['38-battle-rat-pack', 'glowrat'], ['38b-battle-hound-pack', 'scrap_hound']] as const) {
+    await open(page, 'town');
+    await sj(page, `sj.defineEncounter('f_shot_pack', ['${who}', '${who}', '${who}'])`);
+    await sj(page, "sj.battle('f_shot_pack', 'street')");
+    await page.waitForTimeout(3200);
+    await shot(page, name);
+  }
 });
 
 test('maps overview + cast', async ({ page }) => {

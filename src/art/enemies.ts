@@ -53,9 +53,15 @@ const VARIANTS: Record<string, { look: Partial<CharLook>; face?: Partial<Face> }
   ],
 };
 
+/**
+ * Creatures that pack up get anatomy of their own per individual (their makers read V): a torn
+ * ear or a stub tail, not just a tint. (Tint, mirror and markings still layer on in battle.)
+ */
+const CREATURE_INDIVIDUALS: Record<string, number> = { rat: 3, hound: 3 };
+
 /** How many distinct individuals a sprite has (1 = base only). */
 export function individuals(key: string): number {
-  return (VARIANTS[key]?.length ?? 0) + 1;
+  return CREATURE_INDIVIDUALS[key] ?? (VARIANTS[key]?.length ?? 0) + 1;
 }
 
 // ------------------------------------------------------------------ humanoids (rig based)
@@ -266,16 +272,29 @@ function art(p: Pix, idle: EnemyArt['idle'], shadow: number, glow?: Pix): EnemyA
 const CREATURES: Record<string, () => EnemyArt> = {
   rat: () => {
     const p = P(22, 16), g = P(22, 16);
-    p.limb([[18, 11], [20, 8], [21, 4]], 1, 0.6, '#b07080');
-    p.ball(12, 10, 7, 4.5, '#6a5a60');
-    p.ball(5, 9, 4, 3.5, '#6a5a60');
+    // V1: the chewed one (a torn ear, a kinked stub of tail, fat with boils).
+    // V2: the lean one (ribby, long tail held high, both eyes lit).
+    if (V === 1) p.limb([[18, 11], [20, 10], [21, 8]], 1, 0.8, '#b07080');
+    else if (V === 2) p.limb([[18, 10], [19, 6], [21, 3], [21, 1]], 1, 0.5, '#b07080');
+    else p.limb([[18, 11], [20, 8], [21, 4]], 1, 0.6, '#b07080');
+    const fur = V === 2 ? '#7a6a64' : '#6a5a60';
+    if (V === 2) p.ball(12, 10, 6.5, 3.8, fur);
+    else p.ball(12, 10, V === 1 ? 7.5 : 7, V === 1 ? 5 : 4.5, fur);
+    p.ball(5, 9, 4, 3.5, fur);
     p.ellipse(4, 5.5, 1.5, 1.8, '#d88a9a');
-    p.ellipse(7, 5, 1.5, 1.8, '#d88a9a');
+    if (V === 1) p.set(7, 6, '#d88a9a'); // the torn ear: a nub
+    else p.ellipse(7, 5, 1.5, 1.8, '#d88a9a');
     p.set(1, 10, '#d88a9a');
     for (const [x, y] of [[7, 13], [9, 14], [15, 14], [17, 13]] as const) p.rect(x, y, 2, 1, '#4a3a40');
-    for (const [x, y] of [[10, 8], [13, 9], [15, 7], [12, 11]] as const) g.set(x, y, '#9aff6a');
+    if (V === 2) for (let x = 10; x < 16; x += 2) p.set(x, 11, '#4a3a40'); // ribs
+    const boils = V === 1 ? [[10, 8], [13, 9], [15, 7], [12, 11], [9, 11], [16, 10], [14, 6]] : [[10, 8], [13, 9], [15, 7], [12, 11]];
+    for (const [x, y] of boils) g.set(x!, y!, '#9aff6a');
     g.set(3, 8, '#ff4a4a');
     p.set(3, 8, '#ff4a4a');
+    if (V === 2) {
+      g.set(5, 8, '#ff4a4a');
+      p.set(5, 8, '#ff4a4a');
+    }
     return art(p, 'breathe', 12, g);
   },
   hound: () => {
@@ -285,14 +304,23 @@ const CREATURES: Record<string, () => EnemyArt> = {
     p.limb([[13, 16], [14, 21], [13, 24]], 1.6, 1.2, '#5a5f70');
     p.limb([[22, 16], [23, 21], [22, 24]], 1.6, 1.2, '#4a4e5c');
     p.limb([[26, 15], [27, 20], [28, 24]], 1.6, 1.2, '#5a5f70');
+    // V1: the scrapped one (a strut for a hind leg, no tail, rust plates, open ribs).
+    // V2: the scout (antenna, twin eyes, lighter plating).
+    if (V === 1) p.limb([[26, 15], [27, 20], [28, 24]], 1.2, 1, '#9a7a4a');
     // Tail
-    p.limb([[27, 11], [30, 7], [31, 5]], 1.2, 0.6, '#5a5f70');
+    if (V === 1) p.rect(27, 10, 2, 2, '#5a5f70');
+    else p.limb([[27, 11], [30, 7], [31, 5]], 1.2, 0.6, '#5a5f70');
     // Body
-    p.ball(18, 12, 10, 5.5, '#7a8090');
+    p.ball(18, 12, 10, 5.5, V === 2 ? '#8e94a4' : '#7a8090');
+    if (V === 1) {
+      p.rect(15, 8, 5, 3, '#8a5a3a');
+      p.rect(22, 9, 3, 2, '#9a6a3a');
+    }
     p.rect(12, 9, 3, 2, '#8a5a3a');
     p.rect(21, 13, 2, 3, '#8a5a3a');
     // Ribs / wires
-    for (let x = 14; x < 24; x += 3) p.set(x, 14, '#3a3d48');
+    for (let x = 14; x < 24; x += V === 1 ? 2 : 3) p.set(x, 14, '#3a3d48');
+    if (V === 1) for (let x = 15; x < 23; x += 2) p.set(x, 15, '#2a2d38');
     p.set(17, 16, '#ff6a3a');
     // Head
     p.ball(7, 9, 5.5, 4.5, '#8a90a0');
@@ -302,6 +330,13 @@ const CREATURES: Record<string, () => EnemyArt> = {
     p.set(4, 8, '#ff3a3a');
     g.set(4, 8, '#ff5a3a');
     g.set(3, 8, '#ff9a6a');
+    if (V === 2) {
+      p.line(8, 5, 11, 1, '#3a3d48', 1);
+      p.set(11, 1, '#3fe0f0');
+      g.set(11, 1, '#3fe0f0');
+      p.set(6, 8, '#ff3a3a');
+      g.set(6, 8, '#ff5a3a');
+    }
     return art(p, 'breathe', 22, g);
   },
   drone: () => {

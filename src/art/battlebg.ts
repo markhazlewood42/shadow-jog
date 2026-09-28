@@ -525,19 +525,22 @@ const MAKERS: Record<string, Maker> = {
     for (const k of [c, g]) { k.fillStyle = '#2fb8c8'; k.fillRect(0, 48, BW, 2); }
     // Ceiling light strips
     for (const k of [c, g]) { k.fillStyle = '#eaf6ff'; for (let x = 10; x < BW; x += 48) k.fillRect(x, 2, 28, 2); }
-    // Observation windows with tanks
+    // Observation windows with tanks. They sit at the height of the enemies' heads, so they're
+    // kept dim and cool: set dressing, not a second focal point.
     for (let i = 0; i < 4; i++) {
       const x = 14 + i * 60;
       c.fillStyle = '#2a3a4a';
       c.fillRect(x, 16, 30, 24);
-      c.fillStyle = '#3a6a7a';
+      c.fillStyle = '#2e4c5a';
       c.fillRect(x + 2, 18, 26, 20);
-      for (const k of [c, g]) {
-        k.fillStyle = '#6affe0';
-        k.fillRect(x + 12, 22, 6, 14);
-        k.fillStyle = '#2a8a7a';
-        k.fillRect(x + 14, 26, 2, 6);
-      }
+      c.fillStyle = '#3e8a80';
+      c.fillRect(x + 12, 22, 6, 14);
+      c.fillStyle = '#24605a';
+      c.fillRect(x + 14, 26, 2, 6);
+      g.globalAlpha = 0.3;
+      g.fillStyle = '#6affe0';
+      g.fillRect(x + 12, 22, 6, 14);
+      g.globalAlpha = 1;
     }
     // Readout monitors between the windows (content animates).
     for (let i = 0; i < 3; i++) {
@@ -561,7 +564,7 @@ const MAKERS: Record<string, Maker> = {
               if (age > 12) continue;
               const phase = (k + Math.floor(f / 32) * 5) % 16;
               const y = phase === 6 ? 20 : phase === 7 ? 29 : phase === 8 ? 23 : 25;
-              ctx.globalAlpha = 1 - age / 13;
+              ctx.globalAlpha = 0.6 * (1 - age / 13);
               ctx.fillStyle = '#6affa0';
               ctx.fillRect(x + k, y, 1, 1);
             }
@@ -570,7 +573,7 @@ const MAKERS: Record<string, Maker> = {
             for (let r = 0; r < 4; r++) {
               const n = Math.floor(f / 20) + r + i * 7;
               const len = 3 + Math.floor(hash2(n, i) * 11);
-              ctx.globalAlpha = 0.9;
+              ctx.globalAlpha = 0.5;
               ctx.fillStyle = r === 0 && Math.floor(f / 15) % 2 ? '#ffd07a' : '#6ad8ff';
               ctx.fillRect(x + 2, 20 + r * 3, len, 1);
             }
@@ -581,7 +584,7 @@ const MAKERS: Record<string, Maker> = {
         for (let i = 0; i < 4; i++) {
           for (let b = 0; b < 2; b++) {
             const t = (f * 0.4 + b * 17 + i * 9) % 30;
-            ctx.globalAlpha = 0.8;
+            ctx.globalAlpha = 0.45;
             ctx.fillRect(14 + i * 60 + 13 + ((b + i) % 2) * 3, Math.round(36 - t * 0.45), 1, 1);
           }
         }

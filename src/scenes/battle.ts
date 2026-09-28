@@ -18,7 +18,7 @@ import { surface, type Ctx, type Surface } from '../engine/canvas';
 import { drawText, fitText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { Rng, streams } from '../engine/rng';
-import { equipRegen, grantXp, knownAbilities, type LevelUp } from '../game/party';
+import { equipRegen, grantXp, knownAbilities, levelProgress, type LevelUp } from '../game/party';
 import { battleSpeed } from '../game/settings';
 import { debug, PLAYTEST_ROUNDS } from '../game/debug';
 import { learn, removeItem, state, type MemberId } from '../game/state';
@@ -846,29 +846,60 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     for (const p of living) this.setPose(p, 'victory', 100000);
     this.fx.play('victory', this.pos(living[0]?.uid ?? 0), living.map((p) => this.pos(p.uid)));
     sfx('cheer');
+    // The banner sweeps in over the hops; the rewards panel takes over from it.
+    this.bannerStart = this.frame;
     for (let i = 0; i < 3; i++) {
       for (const p of living) this.d(p.uid).hop = 6;
       await this.game.wait(14);
     }
     const r = this.battle.rewards();
+    const walletBefore = state.cred;
     state.cred += r.cred;
     for (const id of r.drops) state.inventory[id] = Math.min(99, (state.inventory[id] ?? 0) + 1);
     // Write back first so level-ups apply to the post-battle HP.
     this.writeBack();
     const ups: LevelUp[] = [];
-    for (const p of living) ups.push(...grantXp(state.members[p.key as MemberId]!, r.xp));
+    const bars: { id: MemberId; lv0: number; r0: number; lv1: number; r1: number }[] = [];
+    for (const p of living) {
+      const m = state.members[p.key as MemberId]!;
+      const lv0 = m.level, r0 = levelProgress(m.level, m.xp);
+      ups.push(...grantXp(m, r.xp));
+      bars.push({ id: m.id, lv0, r0, lv1: m.level, r1: levelProgress(m.level, m.xp) });
+    }
     const dropNames = summarize(r.drops.map((id) => ITEMS[id]!.name));
+    const start = this.frame;
+    // Tally ticks while the numbers count up.
+    void (async () => {
+      for (let i = 0; i < 7 && this.endPanel; i++) {
+        sfx('cursor', 1 + i * 0.06);
+        await this.game.wait(4);
+      }
+    })();
+    this.bannerStart = -1;
     await this.panel((ctx) => {
-      const w = 260, h = 70 + dropNames.length * 11;
-      const x = (W - w) / 2, y = 60;
+      const t = this.frame - start;
+      const tally = Math.min(1, t / 28), fill = Math.min(1, Math.max(0, (t - 10) / 44));
+      const w = 272, h = 58 + dropNames.length * 11 + bars.length * 13;
+      const x = (W - w) / 2, y = 44;
       drawWindow(ctx, x, y, w, h, { title: 'VICTORY', accent: UI.amber });
-      drawText(ctx, `{y}${r.xp}{/} XP each`, x + 14, y + 14);
-      drawText(ctx, `{y}${r.cred.toLocaleString('en-US')}¢{/} cred`, x + 14, y + 26);
-      drawText(ctx, `Wallet: ${state.cred.toLocaleString('en-US')}¢`, x + w - 14, y + 26, { color: UI.dim, align: 'right' });
+      drawText(ctx, `{y}${Math.round(r.xp * tally)}{/} XP each`, x + 14, y + 14);
+      drawText(ctx, `{y}${Math.round(r.cred * tally).toLocaleString('en-US')}¢{/} cred`, x + 14, y + 26);
+      drawText(ctx, `Wallet: ${Math.round(walletBefore + r.cred * tally).toLocaleString('en-US')}¢`, x + w - 14, y + 26, { color: UI.dim, align: 'right' });
+      // Each survivor's progress to the next level fills; a level-up fills, flips and rolls over.
+      bars.forEach((b, i) => {
+        const by = y + 42 + i * 13;
+        const up = b.lv1 > b.lv0, flipped = up && fill >= 0.6;
+        const ratio = !up ? b.r0 + (b.r1 - b.r0) * fill : !flipped ? b.r0 + (1 - b.r0) * (fill / 0.6) : b.r1 * ((fill - 0.6) / 0.4);
+        drawText(ctx, MEMBERS[b.id].name, x + 14, by, { color: MEMBERS[b.id].color });
+        drawText(ctx, `Lv ${flipped ? b.lv1 : b.lv0}`, x + 70, by, { color: flipped ? UI.amber : UI.dim });
+        drawBar(ctx, x + 104, by + 3, 110, 4, ratio, flipped ? UI.amber : UI.cyan);
+        if (flipped && this.frame % 24 < 16) drawText(ctx, 'LV UP!', x + w - 14, by, { color: UI.amber, align: 'right' });
+      });
+      const dy = y + 46 + bars.length * 13;
       if (dropNames.length) {
-        drawText(ctx, 'Found:', x + 14, y + 42, { color: UI.dim });
+        drawText(ctx, 'Found:', x + 14, dy, { color: UI.dim });
         dropNames.forEach((n, i) => {
-          drawText(ctx, n, x + 54, y + 42 + i * 11, { color: UI.cyan });
+          drawText(ctx, n, x + 54, dy + i * 11, { color: UI.cyan });
         });
       }
       if (this.frame % 40 < 28) drawText(ctx, '▼', x + w - 16, y + h - 13, { color: UI.cyan });
@@ -1137,10 +1168,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const { x, y, art } = this.enemyPos(e);
     const dup = this.dupIndex(e);
     // Duplicates: a distinct individual where the sprite has one, else a palette and mirror.
+    // Creatures get both: their own anatomy, and the tint, mirror and markings on top.
     const who = dup ? enemyArt(ENEMIES[e.key]!.sprite, dup) : art;
     const flip = (c: HTMLCanvasElement) => (dup % 2 ? mirrored(c) : c);
-    const canvas = who.individual ? flip(who.canvas) : marked(variant(art.canvas, dup), e.family ?? '', dup);
-    const glow = who.individual ? who.glow && flip(who.glow) : art.glow && variant(art.glow, dup);
+    const creature = e.family === 'beast' || e.family === 'machine' || e.family === 'spirit';
+    const canvas = who.individual && !creature ? flip(who.canvas) : marked(variant(who.canvas, dup), e.family ?? '', dup);
+    const glow = who.individual && !creature ? who.glow && flip(who.glow) : who.glow && variant(who.glow, dup);
     let ox = 0, oy = 0;
     switch (art.idle) {
       case 'hover': oy = Math.round(Math.sin(f * 0.08 + e.uid) * 2); break;
@@ -1443,8 +1476,38 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         break;
     }
     this.renderCutins(ctx);
+    if (this.bannerStart >= 0) this.renderBanner(ctx, this.frame - this.bannerStart);
     if (this.endPanel) this.endPanel(ctx);
   }
+
+  /** Frame the victory banner started, or -1. */
+  private bannerStart = -1;
+
+  /** VICTORY at 3x: slides in on an ease-out, a light sweep crosses it, a rule underlines it. */
+  private renderBanner(ctx: Ctx, t: number): void {
+    const text = 'VICTORY';
+    const buf = this.bannerBuf;
+    buf.ctx.clearRect(0, 0, buf.canvas.width, buf.canvas.height);
+    const tw = drawText(buf.ctx, text, 1, 1, { color: UI.amber, shadow: '#3a1a08' }) + 2;
+    const k = 3, bw = tw * k, bh = 12 * k;
+    const ease = 1 - (1 - Math.min(1, t / 12)) ** 3;
+    const x = Math.round(-bw + ((W - bw) / 2 + bw) * ease), y = 58;
+    ctx.fillStyle = 'rgba(8,6,16,0.55)';
+    ctx.fillRect(0, y - 6, W, bh + 10);
+    ctx.fillStyle = UI.amber;
+    ctx.fillRect(0, y + bh + 3, Math.round(W * ease), 1);
+    ctx.drawImage(buf.canvas, 0, 0, tw, 12, x, y, bw, bh);
+    // The sweep: a white band clipped to the letters.
+    const sx = ((t - 10) * 9) % (bw + 60) - 30;
+    if (t > 10 && sx < bw) {
+      buf.ctx.globalCompositeOperation = 'source-atop';
+      buf.ctx.fillStyle = '#fff6d8';
+      buf.ctx.fillRect(sx / k, 0, 4, 12);
+      buf.ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(buf.canvas, 0, 0, tw, 12, x, y, bw, bh);
+    }
+  }
+  private bannerBuf = surface(120, 12);
 
   private renderCutins(ctx: Ctx): void {
     for (const c of this.cutins) {
