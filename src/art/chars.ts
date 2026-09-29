@@ -54,6 +54,11 @@ export interface CharLook {
    * on the back, a staff in hand, a deck's whip antenna.
    */
   carry?: 'katana' | 'staff' | 'antenna';
+  /**
+   * What they do standing still, facing us, once they've been still a while: fold their arms
+   * (crossed) or bounce on their toes (bounce). Personality at play scale.
+   */
+  idle?: 'crossed' | 'bounce';
 }
 
 export interface CharSprite {
@@ -64,6 +69,10 @@ export interface CharSprite {
   /** Pixel inside the frame that sits on the entity's ground point. */
   ax: number;
   ay: number;
+  /** The still-standing idle frame (front view), if they have one. */
+  idle?: HTMLCanvasElement | undefined;
+  /** Bounces on their toes when standing still. */
+  bounce?: boolean | undefined;
 }
 
 // ---------------------------------------------------------------- body templates (std)
@@ -1009,6 +1018,12 @@ export function buildChar(look: CharLook): CharSprite {
   const w = frames.down[0]!.width;
   const h = frames.down[0]!.height;
   const sprite: CharSprite = { frames, w, h, ax: Math.floor(w / 2), ay: h - 2 };
+  if (look.idle === 'crossed') {
+    let fr = paint(buildGrid({ ...look, stance: 'crossed' }, 'down', 0), palFront);
+    if (look.umbrella) fr = withUmbrella(fr, look);
+    if (carry) fr = withCarry(fr, carry, 'down');
+    sprite.idle = fr;
+  } else if (look.idle === 'bounce') sprite.bounce = true;
   cache.set(key, sprite);
   return sprite;
 }

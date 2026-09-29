@@ -38,7 +38,7 @@ export const SONGS: Record<string, SongSpec> = {
     parts: [
       { inst: 'bell', vol: 0.9, rev: 0.35, del: 0.25, notes:
         '. F5 - E5 D5 - A4 - | . B4 - C5 D5 - - - | . E5 - D5 C5 - G4 - | C#5 - - - A4 - - - |' +
-        '. F5 - E5 D5 - A5 - | G5 - F5 - E5 - D5 - | F5 - - - D5 - Bb4 - | A4 - - - - - . .' },
+        '. F5 - E5 D5 - A5 - | G5 - F5 - E5 - D5 - | F5 - - - D5 - Bb4 - | A4 - C#5 - E5 - G5 -' },
       { inst: 'bass', gen: 'walk', octave: 1, vol: 0.8 },
       { inst: 'pluck', gen: 'broken', octave: 4, vol: 0.55, rev: 0.3 },
       { inst: 'pad', gen: 'chord', octave: 3, vol: 0.8, rev: 0.5 },
@@ -58,7 +58,7 @@ export const SONGS: Record<string, SongSpec> = {
     parts: [
       { inst: 'reed', vol: 0.75, rev: 0.45, del: 0.15, notes:
         'D5 - F5 - A5 - G5 - | E5 - - - Bb4 - - - | A4 - C5 - E5 - D5 - | D5 - - - A4 - - - |' +
-        'Bb4 - D5 - G5 - F5 - | E5 - C#5 - A4 - - - | F5 - E5 - D5 - C5 - | C5 - - - F#4 - - -' },
+        'Bb4 - D5 - G5 - F5 - | E5 - C#5 - A4 - - - | F5 - E5 - D5 - C5 - | C5 - A4 - F#4 - A4 -' },
       { inst: 'bass', gen: 'walk', octave: 1, vol: 0.85 },
       { inst: 'organ', gen: 'chord', octave: 3, vol: 0.7, rev: 0.3 },
     ],
@@ -98,7 +98,7 @@ export const SONGS: Record<string, SongSpec> = {
     parts: [
       { inst: 'twang', vol: 1.3, rev: 0.25, del: 0.3, notes:
         'G4 - B4 - D5 - B4 - | C5 - A4 - F4 - A4 - | G4 - C5 - D5 - C5 - | B4 - - - G4 - - - |' +
-        'E5 - D5 - B4 - G4 - | A4 - C5 - F5 - E5 - | E5 - G5 - E5 - C5 - | D5 - - - F#5 - - -' },
+        'E5 - D5 - B4 - G4 - | A4 - C5 - F5 - E5 - | E5 - G5 - E5 - C5 - | D5 - C5 - A4 - F#4 -' },
       { inst: 'bass', gen: 'pulse8', octave: 1, vol: 0.8 },
       { inst: 'organ', gen: 'chord', octave: 3, vol: 0.5, rev: 0.3 },
     ],
@@ -295,7 +295,7 @@ export const SONGS: Record<string, SongSpec> = {
       { inst: 'bell', gen: 'bells', octave: 7, vol: 0.3, rev: 0.6, del: 0.35 },
       { inst: 'lead', vol: 0.6, rev: 0.4, del: 0.3, notes:
         '. . . . F#5 - - - | G5 - F#5 - D5 - - - | B4 - - - D5 - E5 - | C#5 - - - A#4 - - - |' +
-        '. . . . F#5 - - - | A5 - G5 - F#5 - - - | E5 - D5 - B4 - G4 - | F#4 - - - - - . .' },
+        '. . . . F#5 - - - | A5 - G5 - F#5 - - - | E5 - D5 - B4 - G4 - | F#4 - - - A#4 - C#5 -' },
       { inst: 'bass', gen: 'pulse8', octave: 1, vol: 0.9 },
       { inst: 'choir', gen: 'chord', octave: 3, vol: 0.8, rev: 0.5 },
       { inst: 'pluck', gen: 'up8', octave: 4, vol: 0.4, del: 0.3 },

@@ -243,7 +243,11 @@ export const annex: MapDef = {
     { x: 6, y: 4, r: 60, color: '#ffd89a', i: 0.5 },
     { x: 22, y: 6, r: 90, color: '#dff6ff', i: 0.55 },
     { x: 22, y: 14, r: 80, color: '#b8e8ff', i: 0.45 },
-    { x: 36, y: 7, r: 80, color: '#cdeeff', i: 0.6 },
+    // The cryo wing: cold and steady while Sable is under; once the glass breaks, the breach
+    // alarm washes it red.
+    { x: 36, y: 7, r: 80, color: '#cdeeff', i: 0.6, when: (f) => !f.sable_joined },
+    { x: 36, y: 7, r: 70, color: '#cdeeff', i: 0.3, when: (f) => !!f.sable_joined },
+    { x: 37, y: 5, r: 90, color: '#ff3a4a', i: 0.55, flicker: true, when: (f) => !!f.sable_joined },
     { x: 29, y: 27, r: 110, color: '#ff3a4a', i: 0.45, flicker: true },
     { x: 18, y: 21, r: 60, color: '#ffb13d', i: 0.55 },
     { x: 23, y: 18, r: 40, color: '#ff6a5a', i: 0.4 },

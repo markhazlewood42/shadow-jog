@@ -266,11 +266,13 @@ test('27 level features: lattice, secret panel, intake, radio lot', async ({ pag
 
 test('37 cryopod before and after the rescue', async ({ page }) => {
   await open(page, 'annex');
-  await sj(page, "(delete sj.state.flags.sable_joined, sj.state.flags.lattice_off = true, sj.tp('annex', 36, 8, 'up'))");
-  await page.waitForTimeout(900);
+  // Before: three of them, the pod lit cold and steady. After: Sable with them, the glass broken,
+  // the breach alarm washing the wing red.
+  await sj(page, "(delete sj.state.flags.sable_joined, sj.state.flags.lattice_off = true, sj.state.party = ['kit', 'rook', 'hex'], sj.tp('annex', 36, 8, 'up'))");
+  await page.waitForTimeout(3200);
   await shot(page, '37-annex-cryopod');
-  await sj(page, "(sj.state.flags.sable_joined = true, sj.tp('annex', 36, 8, 'up'))");
-  await page.waitForTimeout(900);
+  await sj(page, "(sj.state.flags.sable_joined = true, sj.state.party = ['kit', 'rook', 'hex', 'sable'], sj.tp('annex', 37, 7, 'left'))");
+  await page.waitForTimeout(2500);
   await shot(page, '37b-annex-cryopod-empty');
 });
 

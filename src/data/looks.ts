@@ -7,8 +7,9 @@ export const LOOKS = {
     skin: '#b97a52', hair: '#2e1d33', hairStyle: 'ponytail',
     top: '#d8452e', inner: '#1d1b2a', accent: '#f2b84b',
     pants: '#2b3350', boots: '#3a2a2a',
-    // Cocky and quick: a smirk.
+    // Cocky and quick: a smirk, and she can't stand still.
     mouth: 'smirk',
+    idle: 'bounce',
   },
   rook: {
     skin: '#e0b08a', hair: '#8d8f99', hairStyle: 'short',
@@ -17,6 +18,8 @@ export const LOOKS = {
     accessories: ['shades', 'beard'], goggles: '#1a1822', visor: '#ffb13d',
     // The katana on his back: the hilt over his shoulder is how you spot Rook in a crowd.
     carry: 'katana',
+    // Stands with his arms folded, waiting on everyone else.
+    idle: 'crossed',
   },
   hex: {
     body: 'short', skin: '#f0c7a4', hair: '#2fbfb0', hairStyle: 'bun',

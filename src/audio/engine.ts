@@ -143,7 +143,7 @@ class AudioEngine {
     // tape-style saturation for harmonics, and a stereo chorus on everything above the bass for
     // width and sheen. (The offline renders in docs/quality/evidence/audio.txt measured the old
     // bus at ~50% of its energy under 120 Hz and ~1% at 2-6 kHz.)
-    const musicComp = comp(-18, 2.5, 0.02, 0.3);
+    const musicComp = comp(-15, 1.8, 0.02, 0.3);
     const eq = (type: BiquadFilterType, f: number, gain = 0, q = 0.7) => {
       const k = c.createBiquadFilter();
       k.type = type;
@@ -586,7 +586,7 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
       f.type = 'lowpass';
       f.Q.value = 8;
       f.frequency.setValueAtTime(3400 + vel * 900, t);
-      f.frequency.exponentialRampToValueAtTime(650, t + 0.28);
+      f.frequency.exponentialRampToValueAtTime(1300, t + 0.28);
       const hg = c.createGain();
       hg.gain.value = 0.25;
       o.connect(f);
@@ -604,8 +604,8 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
       o.frequency.value = freq;
       const f = c.createBiquadFilter();
       f.type = 'lowpass';
-      f.frequency.setValueAtTime(inst === 'arp' ? 4200 : 3000, t);
-      f.frequency.exponentialRampToValueAtTime(600, t + 0.18);
+      f.frequency.setValueAtTime(inst === 'arp' ? 5200 : 3800, t);
+      f.frequency.exponentialRampToValueAtTime(1800, t + 0.18);
       o.connect(f).connect(out);
       const end = env(out, t, 0.003, 0.12, 0.25, Math.min(dur, 0.15), 0.12, (inst === 'arp' ? 0.07 : 0.12) * vel);
       o.start(t);

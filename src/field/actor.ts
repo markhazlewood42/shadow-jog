@@ -21,6 +21,9 @@ export function opposite(d: Dir): Dir {
   return d === 'up' ? 'down' : d === 'down' ? 'up' : d === 'left' ? 'right' : 'left';
 }
 
+/** Frames standing still before an actor's idle personality shows (2.5 s). */
+const IDLE_AFTER = 150;
+
 export class Actor {
   id: string;
   sprite: CharSprite;
@@ -131,8 +134,12 @@ export class Actor {
     this.settleDur = Math.max(2, Math.round((1 - k) * this.dur * 2));
   }
 
+  /** Frames spent standing still (idle personality starts after a while). */
+  stillT = 0;
+
   /** Advance interpolation. Returns true on the frame a step completes. */
   update(): boolean {
+    this.stillT = this.moving ? 0 : this.stillT + 1;
     if (this.emote) {
       this.emote.t++;
       if (this.emote.t >= this.emote.dur) this.emote = null;
@@ -157,6 +164,7 @@ export class Actor {
   }
 
   frame(): HTMLCanvasElement {
+    if (!this.moving && this.dir === 'down' && this.stillT > IDLE_AFTER && this.sprite.idle) return this.sprite.idle;
     const phase = this.moving ? Math.floor(this.stride + 1) & 3 : 0;
     const idx = this.moving ? walkFrame(phase) : 0;
     return this.sprite.frames[this.dir][idx]!;
@@ -167,6 +175,8 @@ export class Actor {
     return Math.round(this.px - this.sprite.ax);
   }
   drawY(): number {
-    return Math.round(this.py - this.sprite.ay - this.hop);
+    // Some can't stand still: up on their toes every third of a second.
+    const bounce = this.sprite.bounce && !this.moving && this.stillT > IDLE_AFTER ? (this.stillT >> 4) & 1 : 0;
+    return Math.round(this.py - this.sprite.ay - this.hop - bounce);
   }
 }
