@@ -27,10 +27,10 @@ Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. C
 
 ## Current Status
 
-**Content-complete and playable start to finish.** Quality gate: rounds 1–5 verified (scores in the scorecard); Mark asked for unattended rounds past the rubric's 4-round cap, pausing only at usage limits. **Round 6 fixes landed (2026-09-28) and are being verified**: see the scorecard's round-6 work plan. Headlines: UI overflow and floater collisions fixed with tests; a software-canvas perf pathology found and fixed (CI field frame 24 → 4.4 ms; CI green again after 6 red commits); Monte Carlo economy model with padded checkpoints; audio wet returns now on the music bus; distinct lead faces; cryopod continuity; Places maps; BattleScene split further.
+**Content-complete and playable start to finish.** Quality gate: rounds 1–8 verified (scores in the scorecard; round 8 averaged 7.57, none at 8.5 yet); Mark asked for unattended rounds past the rubric's 4-round cap, pausing only at usage limits. **Round 9 fixes landed (2026-09-28) and are being verified**: see the scorecard's round-9 work log. Headlines: timed presses in battle (strike/brace rings, On/Assist/Off) with a turn-order strip; impact frames and a camera push on big hits; render-fault recovery; Firefox reload errors fixed (pending AudioContext promises); interiors in a building shell; drawing split out of BattleScene; misdirection in the story; visible Annex secrets, catwalk height and three loops; an air bed and measured loop seams in the audio.
 
 **Resume here**
-1. Read the latest verifier results in the scorecard. Deferred on purpose in round 6: a second mechanic per dungeon, Warden arena terrain, alternate combo recipes.
+1. Read the latest verifier results in the scorecard. Deferred on purpose in round 9: three-member combos and combo ranks, a pre-fight intel source, distinct counterplay per tell beyond Guard, rat/hound anatomy, hand-authored signature melodies.
 2. After any change: `npx tsc --noEmit`, `npm run lint` (judge by exit code, not the last line), `npx vitest run`, `npx playwright test` (full suite), commit, push, then `gh run list -L 3` to confirm CI. `PW_NOGPU=1` reproduces CI's software canvas for perf work.
 3. Evidence: `npm run shots` (screenshots incl. map overviews), logs in `docs/quality/evidence/`.
 
