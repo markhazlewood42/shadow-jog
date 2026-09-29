@@ -1,6 +1,6 @@
 /** The Sinkline, level B1 — a flooded metro station. The junction drains when the pumps run. */
 import type { MapDef } from '../../field/types';
-import { deadCrew, floodgate, lurkerFight, pumpValve } from '../../story/chapter1';
+import { deadCrew, floodgate, lurkerFight, OBJ, pumpValve } from '../../story/chapter1';
 import { Grid } from './grid';
 
 const W = 48, H = 38;
@@ -172,6 +172,13 @@ export const sinkline1: MapDef = {
           s.set('met_wire');
           await s.say('Wire', 'Whoa, whoa. Runners? Down here? …Relax, I’m not K-M. I’m Wire. I live here. Rent’s free if you don’t mind ghosts.');
           await s.say('Wire', 'I fence what the tunnels cough up. You need gear, I got gear. Mags-grade, no backtracking.');
+          // The puzzle, announced (Mark's playthrough, 2026-09-29: nothing said there was one).
+          if (!s.flag('floodgate')) {
+            await s.say('Wire', 'Going east? Junction’s been a lake since ’61. The old pump crew could drain it, though. Three intakes on this level and a console in the pump room, south of the platform.');
+            await s.say('Wire', 'Word of advice: read the gauges before you touch a wheel. Open them in the wrong order and the whole manifold kicks you in the teeth.');
+          }
+        } else if (!s.flag('floodgate')) {
+          await s.say('Wire', 'Junction still wet? Pump room’s south. The console knows the order, if you ask it nicely.');
         }
         await s.shop('fence');
       },
@@ -199,6 +206,7 @@ export const sinkline1: MapDef = {
       run: async (s) => {
         await s.say('hex', 'The tracks run straight into the junction. Which is currently a lake.', { face: 'sad' });
         await s.say('rook', 'There’s a pump room somewhere down the maintenance corridor. Off the platform, south.');
+        s.objective(OBJ.drain);
       },
     },
     { id: 'lurker', x: 34, y: 12, w: 7, h: 9, on: 'touch', once: true, when: (f) => !!f.floodgate && !f.lurker, run: lurkerFight },

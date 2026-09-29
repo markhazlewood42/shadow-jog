@@ -9,7 +9,7 @@
  *   rook_mended when Sable joins.
  * Side paths and choices: tribute_hint, tribute_stash, camp_kept (Mags' fork), annex_panel,
  *   req_badge, rent_tin, cat_found / job_cat_done, job_case_done, job_bounty_done, ono_free.
- * Seen-once lines (so a beat isn't repeated): met_wire, met_mary, pump_seen, valve_hint,
+ * Seen-once lines (so a beat isn't repeated): met_wire, met_mary, pump_seen, valve_first, valve_hint,
  *   lattice_seen, relay_seen, read_mail, rook_log, memorial_rook, ate, rumor, tut_whiff.
  * (tests/maps.test.ts sets them in this order and checks, at every step, that no map strands the
  *  player: from every arrival a way out is walkable.)
@@ -24,6 +24,7 @@ export const OBJ = {
   bringChip: 'Bring the coprocessor to Hex in Lantern Row.',
   sinkline: 'Enter the Sinkline. The station is south of Lantern Row, over the canal.',
   flood: 'Find a way across the flooded junction.',
+  drain: 'Drain the junction: the pump room is south of the platform.',
   deeper: 'Go deeper. Find Annex 7.',
   core: 'Find the data core.',
   escape: 'Gear up from the Annex armory, then head for the freight lift in the south wing.',
@@ -281,6 +282,11 @@ export const pumpValve = (id: string): ScriptFn => async (s) => {
     await s.narrate(`${INTAKE[id]}, open. The gauge sits steady at {c}${psi} psi{/}.`);
     return;
   }
+  // A wheel found before the console: point at the console, once, without giving the order away.
+  if (!s.flag('pump_seen') && !s.flag('valve_first')) {
+    s.set('valve_first');
+    await s.say('hex', 'Hold on. Before anybody cranks a random wheel: this is one of the pump intakes. The pump room console should say how they want opening. South, off the platform.');
+  }
   const pick = await s.ask(null, `${INTAKE[id]}: a rusted valve wheel. Its gauge reads {c}${psi} psi{/}.`, ['Open it', 'Leave it'], { cancel: 1 });
   if (pick !== 0) return;
   if (VALVE_ORDER[opened] === id) {
@@ -309,7 +315,9 @@ export const pumpValve = (id: string): ScriptFn => async (s) => {
   await s.narrate(last ? `{r}BANG.{/} A pressure kick hammers down the line, and ${INTAKE[last]}’s wheel spins shut again.` : '{r}BANG.{/} A pressure kick hammers down the line. The wheel won’t budge.');
   if (!s.flag('valve_hint')) {
     s.set('valve_hint');
-    await s.say('hex', 'Okay. Order matters. Lowest pressure first, and that means reading all three gauges before we touch anything. I did say that. Out loud.', { face: 'sad' });
+    await s.say('hex', s.flag('pump_seen')
+      ? 'Okay. Order matters. Lowest pressure first, and that means reading all three gauges before we touch anything. I did say that. Out loud.'
+      : 'Okay. Order matters. There’s a right order, and the pump console in the pump room knows it. Let’s go ask it.', { face: 'sad' });
   }
 };
 
