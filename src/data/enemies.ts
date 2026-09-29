@@ -155,7 +155,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   lurker: E({
     id: 'lurker', name: 'The Lurker', family: 'beast', sprite: 'lurker', boss: true, ai: 'lurker',
-    hp: 1720, atk: 46, def: 16, mnd: 32, res: 16, agi: 13, xp: 420, cred: 520,
+    hp: 1720, atk: 46, def: 16, mnd: 32, res: 16, agi: 13, xp: 420, cred: 540,
     // Waterlogged: one clear weakness (shock), and the beast's usual fire weakness drowned out.
     weak: { shock: 1.5, fire: 0.6 }, immune: ['stun'],
     drops: [{ id: 'mana_crystal', chance: 1 }],

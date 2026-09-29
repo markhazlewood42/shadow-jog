@@ -5,7 +5,7 @@
  */
 import { music } from '../../audio/music';
 import { sfx } from '../../audio/sfx';
-import { ABILITIES } from '../../data/abilities';
+import { ABILITIES, COMBOS } from '../../data/abilities';
 import { MEMBERS } from '../../data/party';
 import { learn, state, type MemberId } from '../../game/state';
 import { ENEMY_POSE_T } from './sprites';
@@ -20,6 +20,17 @@ import { WINDOWS } from './timing';
 import type { TimingProfile } from '../../battle/engine';
 
 /** What playback may do to the scene. */
+/** A face sliding in over a big moment; `line` is what they say, `row` stacks a third above. */
+export interface Cutin {
+  key: string;
+  face: string;
+  t: number;
+  fromLeft: boolean;
+  life: number;
+  line?: string;
+  row?: number;
+}
+
 export interface PlaybackView {
   readonly battle: Battle;
   readonly fx: FxLayer;
@@ -38,7 +49,7 @@ export interface PlaybackView {
   endBanner(): void;
   setPose(u: Combatant, pose: Pose, frames: number): void;
   initDisp(u: Combatant): void;
-  cutin(c: { key: string; face: string; t: number; fromLeft: boolean; life: number }): void;
+  cutin(c: Cutin): void;
   cutinCount(): number;
   /** Freeze the battle for `frames` (a heavy hit landing). */
   hitstop(frames: number): Promise<void>;
@@ -108,8 +119,9 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         if (motion !== 'attack') dd.flash = 8;
         sfx('enemy_act');
       }
-      const cry = e.kind === 'enemy' ? ABILITIES[e.id]?.cry : undefined;
-      if (cry) v.say(cry);
+      // Enemies call their moves; the crew calls its big ones.
+      const cry = ABILITIES[e.id]?.cry;
+      if (cry && (e.kind === 'enemy' || actor.side === 'party')) v.say(cry);
       const windup = actor.side === 'enemy' ? 12 : e.kind === 'attack' ? 8 : 16;
       await windupAndHit(v, e.fx, v.pos(e.actor), e.targets.map((t) => v.pos(t)), windup, e.element === 'shock' ? '#9ae8ff' : undefined);
       break;
@@ -129,9 +141,13 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       // Each combo lands with its own voice under the shared fanfare.
       const sting = COMBO_STING[v.comboId(e.name)];
       if (sting) void v.game.wait(10).then(() => sfx(sting));
+      // The caller says the word on their cut-in; a third partner's slides in on the row above.
+      const call = COMBOS.find((c) => c.id === v.comboId(e.name))?.call;
       e.actors.forEach((a, i) => {
         const u = v.battle.unit(a)!;
-        if (u.side === 'party') v.cutin({ key: u.key, face: 'angry', t: 0, fromLeft: i === 0, life: 70 });
+        if (u.side !== 'party') return;
+        const line = call?.member === u.key ? call.line : undefined;
+        v.cutin({ key: u.key, face: line ? 'angry' : 'smirk', t: 0, fromLeft: i % 2 === 0, life: 70, row: i >> 1, ...(line ? { line } : {}) });
       });
       v.setBanner({ text: `★ ${e.name.toUpperCase()} ★`, sub: first ? `${names}  —  COMBO DISCOVERED!` : names, t: 0, color: '#ffe07a', big: true });
       v.game.flash('#ffffff', 6);

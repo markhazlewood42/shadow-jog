@@ -160,6 +160,27 @@ test('14 combo hint', async ({ page }) => {
   await shot(page, '15-battle-combo');
 });
 
+test('15b three-part combo, called', async ({ page }) => {
+  await open(page, 'annex');
+  await sj(page, "sj.battle('f_annex_door', 'lab')");
+  await page.waitForTimeout(3200);
+  // Orders straight into the round: Kit's Flash Step, Rook's Arc Cut and Hex's Analyze fuse.
+  await sj(page, `(() => {
+    const s = sj.game.top, p = s.battle.party, e = s.battle.enemies[0].uid;
+    const by = (k) => p.find((u) => u.key === k).uid;
+    s.cmds = [
+      { actor: by('kit'), type: 'tech', id: 'flash_step', target: e },
+      { actor: by('rook'), type: 'skill', id: 'arc_cut', target: e },
+      { actor: by('hex'), type: 'skill', id: 'analyze', target: e },
+      { actor: by('sable'), type: 'attack', target: e },
+    ];
+    void s.executeRound();
+    return true;
+  })()`);
+  await page.waitForTimeout(700);
+  await shot(page, '15b-battle-triple-combo');
+});
+
 test('16 bosses', async ({ page }) => {
   await open(page, 'annex');
   await sj(page, "sj.battle('f_warden', 'core', true)");

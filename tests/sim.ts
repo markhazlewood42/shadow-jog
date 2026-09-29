@@ -131,6 +131,9 @@ export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, 
     if (foes.length >= 3 && !hasStatus(foes[0]!, 'exposed')) pair(hex, 'analyze', rook, 'quickdraw', foes[0]!.uid);
   }
 
+  // A fresh pack of people or machines: Blackout on round one slows them all and takes their aim.
+  if (useCombos && !boss && foes.length >= 3 && b.round === 1 && humans.length + machines.length >= 2) pair(rook, 'suppress', hex, 'scramble', foes[0]!.uid);
+
   // Everyday combos: a competent crew fuses whenever the partners are free and can pay, not only
   // for bosses. Against any group: Target Lock's sure shots on everyone once Hex is along, else
   // Thunder Rift to delete the toughest; Pyre Storm burns a machine pair. Rook keeps a reserve.
@@ -216,10 +219,11 @@ export function autoPolicy(b: Battle): Command[] {
   return b.alive('party').map((u) => ({ actor: u.uid, type: 'attack' as const, target: -1 }));
 }
 
-/** How often a player lands timed presses: share perfect, share good (the rest missed). */
+/** How often a player lands timed presses: share perfect, share good, share pressed off the beat (the rest not pressed). */
 export interface Skill {
   perfect: number;
   good: number;
+  whiff?: number;
 }
 
 export function simulate(label: string, loadout: Loadout[], table: string, n = 200, seed = 1, useCombos = true, pick?: (b: Battle, bag: Bag) => Command[], skill?: Skill): SimResult {
@@ -228,7 +232,7 @@ export function simulate(label: string, loadout: Loadout[], table: string, n = 2
   const hands = new Rng(seed + 7);
   const time = skill ? (): Timing => {
     const r = hands.next();
-    return r < skill.perfect ? 'perfect' : r < skill.perfect + skill.good ? 'good' : 'none';
+    return r < skill.perfect ? 'perfect' : r < skill.perfect + skill.good ? 'good' : r < skill.perfect + skill.good + (skill.whiff ?? 0) ? 'whiff' : 'none';
   } : undefined;
   let wins = 0, rounds = 0, lost = 0, combos = 0, downs = 0;
   const used = new Set<string>();

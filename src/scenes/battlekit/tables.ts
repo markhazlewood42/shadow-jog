@@ -76,11 +76,13 @@ export const COMBO_STING: Record<string, string> = {
   combo_spirit_walk: 'sting_crow',
   combo_lifeline: 'sting_life',
   combo_crows_wing: 'sting_ward',
+  combo_blackout: 'sting_circuit',
+  combo_clean_job: 'sting_rift',
 };
 
 export function fxSound(fx: string): string {
-  if (['slash', 'claw', 'whip', 'arc_cut', 'moonfall', 'flash_step'].includes(fx)) return 'slash';
-  if (['gunfire', 'shot', 'target_lock'].includes(fx)) return 'gun';
+  if (['slash', 'claw', 'whip', 'arc_cut', 'moonfall', 'flash_step', 'clean_job'].includes(fx)) return 'slash';
+  if (['gunfire', 'shot', 'target_lock', 'blackout'].includes(fx)) return 'gun';
   if (['lightning', 'zap', 'thunder_rift', 'pyre_storm'].includes(fx)) return 'zap';
   if (['fire', 'fire_all', 'explosion'].includes(fx)) return 'fire';
   if (['code', 'glitch', 'scan', 'ghost_circuit'].includes(fx)) return 'code';

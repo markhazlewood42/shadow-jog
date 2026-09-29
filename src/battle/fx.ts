@@ -707,6 +707,46 @@ export class FxLayer {
         });
         this.flash = { color: '#b07cff', frames: 8 };
         return { impact: 14, total: 40 };
+      case 'blackout':
+        // The lights go: a dark sweep across the pack, muzzle flashes in it, dead-screen static.
+        this.flash = { color: '#000000', frames: 14 };
+        each((t, i) => {
+          this.s(22, (ctx, k) => {
+            ctx.globalAlpha = 0.55 * (1 - k);
+            ctx.fillStyle = '#05040a';
+            ctx.fillRect(Math.round(t.x - 16), Math.round(t.y - 16), 32, 32);
+            ctx.globalAlpha = 1;
+          }, i * 2);
+          for (let k = 0; k < 3; k++) this.tracer(from, t, '#ffcc3d', 4 + i * 2 + k * 3);
+          this.glyphs(t, '#3fe0f0', 5, 10 + i * 2);
+          this.burst(t, '#ffcc3d', 6, 1.8, 8 + i * 2);
+        });
+        this.shake = 6;
+        return { impact: 10, total: 30 };
+      case 'clean_job':
+        // Hex's crosshair finds the seam; Kit's blur opens it; Rook's cut goes through.
+        each((t) => {
+          this.s(14, (ctx, k) => {
+            const r = 16 - k * 10;
+            ctx.fillStyle = '#62e06a';
+            ctx.fillRect(Math.round(t.x - r), Math.round(t.y), Math.round(r * 2), 1);
+            ctx.fillRect(Math.round(t.x), Math.round(t.y - r), 1, Math.round(r * 2));
+          });
+          this.s(8, (ctx, k) => {
+            ctx.globalAlpha = 1 - k;
+            ctx.fillStyle = '#ff8a6a';
+            ctx.fillRect(0, Math.round(t.y), Math.round(240 * k), 2);
+            ctx.globalAlpha = 1;
+          }, 10);
+          this.bolt(t, '#9ae8ff', 14);
+          this.slash(t, '#ffffff', 16, 30, -0.9, 3);
+          this.slash({ x: t.x + 3, y: t.y + 2 }, '#ffe07a', 18, 26, -0.9, 2);
+          this.burst(t, '#ffe07a', 34, 4.2, 16, 26);
+          this.fissure(t, '#ffe07a', 16);
+        });
+        this.flash = { color: '#ffffff', frames: 10 };
+        this.shake = 14;
+        return { impact: 17, total: 40 };
       default:
         each((t) => this.burst(t, color ?? '#ffffff', 8, 1.8));
         return { impact: 3, total: 14 };

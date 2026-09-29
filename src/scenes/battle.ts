@@ -25,7 +25,7 @@ import { ListMenu } from '../ui/list';
 import { LEVELUP_TEXT_W } from '../ui/layout';
 import { battleDriver } from './battlekit/driver';
 import { TimingWindow, timingWord } from './battlekit/timing';
-import { playEvent, type PlaybackView } from './battlekit/playback';
+import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
 import { BHT, BW, MENU_X, PARTY_BOTTOM } from './battlekit/geom';
 import type { Disp, Floater } from './battlekit/types';
@@ -97,7 +97,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   timing = new TimingWindow();
   readonly drawOrder: Combatant[] = [];
   /** Portrait cut-ins sliding across the screen for combos and big crits. */
-  cutins: { key: string; face: string; t: number; fromLeft: boolean; life: number }[] = [];
+  cutins: Cutin[] = [];
   private lastActor: Combatant | null = null;
   /** Frames of freeze-frame left (heavy hits). */
   private hitstop = 0;
@@ -552,6 +552,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     for (const uid of on) this.floatOn(uid, word.text, word.color, 'label');
     if (r === 'perfect') sfx(p.kind === 'strike' ? 'timed_perfect' : 'parry');
     else if (r === 'good') sfx('timed_good');
+    else {
+      sfx('miss');
+      // The first whiff says what it cost, once.
+      if (!flags.has('tut_whiff')) {
+        flags.set('tut_whiff');
+        this.say(p.kind === 'strike' ? 'Off the beat: an overswing hits softer. Better no press than a guess.' : 'Off the beat: tensed at the wrong moment, it hurts more. Better no press than a guess.');
+      }
+    }
   }
 
   pos(uid: number): Pt {

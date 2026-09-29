@@ -25,11 +25,13 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   hundred_rain: A({
     id: 'hundred_rain', name: 'Hundred Rain', kind: 'tech', cost: 9, target: 'random_enemies',
+    cry: 'Kit: “Keep up with this!”',
     desc: 'A storm of blows: 5 hits on random enemies.',
     effects: [{ type: 'damage', stat: 'atk', mult: 0.62, hits: 5 }], fx: 'rain_hits',
   }),
   dragon_coil: A({
     id: 'dragon_coil', name: 'Dragon Coil', kind: 'tech', cost: 12, target: 'enemies', element: 'mana',
+    cry: 'Kit: “Everything I’ve got!”',
     desc: 'Unleash a spiral of ki through every enemy.',
     effects: [{ type: 'damage', stat: 'mnd', power: 34, ignoreDef: true }], fx: 'coil',
   }),
@@ -40,6 +42,7 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   killing_intent: A({
     id: 'killing_intent', name: 'Killing Intent', kind: 'skill', uses: 2, target: 'enemies',
+    cry: 'Kit: “Walk away. Now.”',
     desc: 'A glare that freezes the weak-willed. May stun all enemies.',
     effects: [{ type: 'status', status: 'stun', chance: 0.45, turns: 1 }], fx: 'glare',
   }),
@@ -72,11 +75,13 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   guardian: A({
     id: 'guardian', name: 'Guardian', kind: 'skill', uses: 3, target: 'self', priority: 60,
+    cry: 'Rook: “Not while I’m standing.”',
     desc: 'Rook takes single-target hits aimed at allies this round, at half damage. Blasts still hit everyone.',
     effects: [{ type: 'buff', status: 'cover', turns: 1 }, { type: 'buff', status: 'guard', turns: 1 }], fx: 'buff',
   }),
   moonfall: A({
     id: 'moonfall', name: 'Moonfall', kind: 'skill', uses: 2, target: 'enemy',
+    cry: 'Rook: “Stay down.”',
     desc: 'Iaido masterstroke. Enormous damage to one enemy.',
     effects: [{ type: 'damage', stat: 'atk', mult: 3.2, critBonus: 15 }], fx: 'moonfall',
   }),
@@ -109,6 +114,7 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   hijack: A({
     id: 'hijack', name: 'Hijack', kind: 'tech', cost: 10, target: 'enemy',
+    cry: 'Hex: “You work for me now.”',
     desc: 'Seize control of a machine. It fights for you for 3 turns.',
     effects: [{ type: 'status', status: 'hijacked', chance: 0.75, turns: 3, only: ['machine'] }], fx: 'glitch',
   }),
@@ -141,16 +147,19 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   crow_spirit: A({
     id: 'crow_spirit', name: 'Crow Spirit', kind: 'tech', cost: 9, target: 'enemies', element: 'mana',
+    cry: 'Sable: “Crow. Eat.”',
     desc: 'Call Sable’s totem. Mana damage to all; may blind.',
     effects: [{ type: 'damage', stat: 'mnd', power: 26 }, { type: 'status', status: 'blind', chance: 0.3, turns: 3 }], fx: 'crow',
   }),
   rekindle: A({
     id: 'rekindle', name: 'Rekindle', kind: 'tech', cost: 12, target: 'ally_down', field: true,
+    cry: 'Sable: “Not yet. Come back.”',
     desc: 'Call a fallen ally back to their body with 40% HP.',
     effects: [{ type: 'revive', pct: 0.4 }], fx: 'revive',
   }),
   wildfire: A({
     id: 'wildfire', name: 'Wildfire', kind: 'tech', cost: 14, target: 'enemies', element: 'fire',
+    cry: 'Sable: “Burn, then.”',
     desc: 'A roaring spirit-blaze. Fire damage to all.',
     effects: [{ type: 'damage', stat: 'mnd', power: 40 }, { type: 'status', status: 'burn', chance: 0.25, turns: 3 }], fx: 'fire_all',
   }),
@@ -190,6 +199,23 @@ export const ABILITIES: Record<string, Ability> = {
     id: 'combo_crows_wing', name: 'Crow’s Wing', kind: 'combo', target: 'allies', priority: 100,
     desc: 'The crow spreads its wings over the whole crew: everyone braces, and gains RES and regen.',
     effects: [{ type: 'buff', status: 'guard', turns: 1 }, { type: 'buff', status: 'res_up', turns: 3 }, { type: 'buff', status: 'regen', turns: 3 }], fx: 'crows_wing',
+  }),
+  combo_blackout: A({
+    id: 'combo_blackout', name: 'Blackout', kind: 'combo', target: 'enemies',
+    desc: 'Rook pins them down, Hex kills the lights: slows all, blinds people, jams machines.',
+    effects: [
+      { type: 'damage', stat: 'atk', mult: 0.6 },
+      { type: 'status', status: 'agi_down', chance: 0.9, turns: 3 },
+      { type: 'status', status: 'blind', chance: 0.75, turns: 3, only: ['human'] },
+      { type: 'status', status: 'jammed', chance: 0.8, turns: 2, only: ['machine'] },
+    ],
+    fx: 'blackout',
+  }),
+  combo_clean_job: A({
+    id: 'combo_clean_job', name: 'Clean Job', kind: 'combo', target: 'enemy', element: 'shock',
+    desc: 'Hex finds the seam, Kit opens it, Rook finishes: reads the target, a huge cut, may stun.',
+    effects: [{ type: 'analyze' }, { type: 'damage', stat: 'atk', mult: 4.6, critBonus: 25, splash: 0.15 }, { type: 'status', status: 'stun', chance: 0.6, turns: 1 }],
+    fx: 'clean_job',
   }),
   combo_lifeline: A({
     id: 'combo_lifeline', name: 'Lifeline', kind: 'combo', target: 'allies',
@@ -292,9 +318,11 @@ export const LEARNSETS: Record<string, Learn[]> = {
 
 export interface ComboDef {
   id: string;
-  /** Two (member, ability) pairs; order-independent. */
-  parts: [{ member: string; ability: string }, { member: string; ability: string }];
+  /** Two or three (member, ability) pairs, order-independent; each member at most once. */
+  parts: { member: string; ability: string }[];
   hint: string;
+  /** Who calls it, and what they say (on the combo's cut-in). */
+  call: { member: string; line: string };
 }
 
 export const COMBOS: ComboDef[] = [
@@ -302,35 +330,56 @@ export const COMBOS: ComboDef[] = [
     id: 'combo_thunder_rift',
     parts: [{ member: 'kit', ability: 'flash_step' }, { member: 'rook', ability: 'arc_cut' }],
     hint: 'Old runners say Rook’s crew had a move: one blurs in, the blade follows.',
+    call: { member: 'kit', line: 'Rook, now! Through the gap!' },
   },
   {
     id: 'combo_target_lock',
     parts: [{ member: 'hex', ability: 'analyze' }, { member: 'rook', ability: 'quickdraw' }],
     hint: 'A smartgun fed live target data never misses.',
+    call: { member: 'hex', line: 'Painted. All yours, old man.' },
   },
   {
     id: 'combo_ghost_circuit',
     parts: [{ member: 'hex', ability: 'spike' }, { member: 'kit', ability: 'iron_palm' }],
     hint: 'Code and ki, striking the same point at once.',
+    call: { member: 'kit', line: 'Same spot, Hex. On three.' },
   },
   {
     id: 'combo_pyre_storm',
     parts: [{ member: 'sable', ability: 'firebrand' }, { member: 'hex', ability: 'overload' }],
     hint: 'Spirit-fire, carried on a power surge.',
+    call: { member: 'sable', line: 'Give me your current, Hex.' },
   },
   {
     id: 'combo_spirit_walk',
     parts: [{ member: 'sable', ability: 'crow_spirit' }, { member: 'kit', ability: 'hundred_rain' }],
     hint: 'When the crow flies, the fists follow.',
+    call: { member: 'sable', line: 'Run with the crow, Kit.' },
   },
   {
     id: 'combo_crows_wing',
     parts: [{ member: 'rook', ability: 'guardian' }, { member: 'sable', ability: 'spirit_ward' }],
     hint: 'The old soldier plants his feet; the crow spreads its wings over him.',
+    call: { member: 'rook', line: 'Everybody behind me.' },
   },
   {
     id: 'combo_lifeline',
     parts: [{ member: 'sable', ability: 'mending_rain' }, { member: 'hex', ability: 'patch' }],
     hint: 'Nanites and spirits, mending together.',
+    call: { member: 'hex', line: 'Nanites up. Sable, bless them.' },
+  },
+  {
+    id: 'combo_blackout',
+    parts: [{ member: 'rook', ability: 'suppress' }, { member: 'hex', ability: 'scramble' }],
+    hint: 'Pin them down, then take their eyes: a street crew’s oldest trick.',
+    call: { member: 'rook', line: 'Heads down. Hex, lights.' },
+  },
+  {
+    // The crew's old signature, from before Hex's code met Kit's fists: three of them, one job.
+    id: 'combo_clean_job',
+    // Kit first: the lead part's striker sets the blow's accuracy and crit, as in Thunder Rift.
+    parts: [{ member: 'kit', ability: 'flash_step' }, { member: 'rook', ability: 'arc_cut' }, { member: 'hex', ability: 'analyze' }],
+    hint: 'Rook’s old crew ran it three-handed: one finds the seam, one opens it, one finishes.',
+    call: { member: 'rook', line: 'Like the old days. Clean.' },
   },
 ];

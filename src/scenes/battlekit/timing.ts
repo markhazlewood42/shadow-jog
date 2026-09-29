@@ -78,9 +78,10 @@ export class TimingWindow {
     return Math.max(0, this.impactAt + WINDOWS[this.prompt?.profile ?? 'normal'].late - now);
   }
 
-  /** The grade the engine gets. Anything but a timely press counts for nothing. */
+  /** The grade the engine gets: a timely press, a press off the beat (a whiff), or no press. */
   grade(): Timing {
-    return this.result === 'perfect' || this.result === 'good' ? this.result : 'none';
+    if (this.result === 'perfect' || this.result === 'good') return this.result;
+    return this.result ? 'whiff' : 'none';
   }
 
   /** No more presses (the action is resolving); a press already made still shows its pop. */
@@ -157,8 +158,8 @@ export function drawRing(g: Ctx, x: number, y: number, now: number, win: TimingW
 
 /** What the player reads when a press lands. */
 export function timingWord(kind: TimingPrompt['kind'], r: Timing | 'early' | 'late'): { text: string; color: string } {
-  if (r === 'early') return { text: 'EARLY', color: '#8b8fa8' };
-  if (r === 'late') return { text: 'LATE', color: '#8b8fa8' };
+  // A press off the beat costs something, and reads like it.
+  if (r === 'early' || r === 'late' || r === 'whiff' || r === 'none') return { text: r === 'late' ? 'LATE' : 'EARLY', color: '#c85a64' };
   if (kind === 'strike') return r === 'perfect' ? { text: 'PERFECT!', color: '#ffe07a' } : { text: 'GOOD', color: '#ffe07a' };
   return r === 'perfect' ? { text: 'BLOCKED!', color: '#6ff3ff' } : { text: 'BRACED', color: '#6ff3ff' };
 }

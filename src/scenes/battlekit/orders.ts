@@ -77,16 +77,13 @@ export function repeatOrders(actors: Combatant[]): Command[] {
 /** The actors whose queued orders fuse into a combo. */
 export function comboActors(cmds: Command[], units: Combatant[], into: Set<number>): void {
   into.clear();
-  for (const c of Battle.findCombos(cmds, units)) {
-    into.add(c.a.actor);
-    into.add(c.b.actor);
-  }
+  for (const c of Battle.findCombos(cmds, units)) for (const x of c.cmds) into.add(x.actor);
 }
 
 /** The ★ hint for choosing `id` now: the combo's name once found, a teaser before. '' if none. */
 export function comboHint(cmds: Command[], units: Combatant[], actor: Combatant, kind: 'tech' | 'skill', id: string): string {
   const trial = [...cmds, { actor: actor.uid, type: kind, id, target: -1 } as Command];
-  const combos = Battle.findCombos(trial, units).filter((c) => c.a.actor === actor.uid || c.b.actor === actor.uid);
+  const combos = Battle.findCombos(trial, units).filter((c) => c.cmds.some((x) => x.actor === actor.uid));
   if (!combos.length) return '';
   return state.combos.includes(combos[0]!.combo) ? `★ COMBO: ${ABILITIES[combos[0]!.combo]!.name}` : '★ Something resonates… (combo!)';
 }

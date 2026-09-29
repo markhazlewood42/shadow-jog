@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Battle } from '../src/battle/engine';
+import { BRACE_MULT, Battle, STRIKE_MULT } from '../src/battle/engine';
 import { enemyParty, partyCombatant } from '../src/battle/setup';
 import type { Combatant, Command } from '../src/battle/types';
 import { ABILITIES, COMBOS, LEARNSETS } from '../src/data/abilities';
@@ -29,7 +29,8 @@ describe('data integrity', () => {
   });
   it('every combo pairs two different members with abilities they actually learn', () => {
     for (const c of COMBOS) {
-      expect(c.parts[0].member, c.id).not.toBe(c.parts[1].member);
+      expect(new Set(c.parts.map((p) => p.member)).size, c.id).toBe(c.parts.length);
+      expect(c.parts.map((p) => p.member), `${c.id} caller`).toContain(c.call.member);
       for (const p of c.parts) {
         const learns = LEARNSETS[p.member]!.map((l) => l.id);
         expect(learns, `${c.id}: ${p.member} learns ${p.ability}`).toContain(p.ability);
@@ -217,12 +218,23 @@ describe('enemy wind-ups', () => {
     expect(ev.some((e) => e.t === 'act' && e.name === 'Full Auto')).toBe(false);
   });
 
-  it('Guard recovers a little TP as well as halving damage', () => {
-    const b = new Battle(party(['hex'], 6), enemyParty(['glowrat']), new Rng(1));
-    const hex = b.party[0]!;
-    hex.tp = 0;
-    const ev = b.resolveRound([{ actor: hex.uid, type: 'guard' }]);
-    expect(ev.some((e) => e.t === 'tp' && e.target === hex.uid && e.amount >= 2)).toBe(true);
+  it('Guard pays TP back only off a blow it actually takes', () => {
+    let hits = 0;
+    for (let seed = 1; seed <= 6; seed++) {
+      const b = new Battle(party(['hex'], 6), enemyParty(['glowrat']), new Rng(seed));
+      const hex = b.party[0]!;
+      b.enemies[0]!.hp = 9999;
+      for (let r = 0; r < 4; r++) {
+        hex.hp = hex.base.maxHp;
+        hex.tp = 0;
+        const ev = b.resolveRound([{ actor: hex.uid, type: 'guard' }]);
+        const hit = ev.some((e) => e.t === 'damage' && e.target === hex.uid && e.amount > 0);
+        const tp = ev.some((e) => e.t === 'tp' && e.target === hex.uid && e.amount >= 2);
+        expect(tp, `seed ${seed} round ${r}`).toBe(hit);
+        if (hit) hits++;
+      }
+    }
+    expect(hits).toBeGreaterThan(0);
   });
 
   it('orders naming a missing unit are dropped, not carried into the round', () => {
@@ -254,17 +266,65 @@ describe('enemy wind-ups', () => {
     expect(said).toBe(true);
   });
 
-  it('Guard gives no TP two rounds running, so turtling is not a TP battery', () => {
+  it('guarding against nothing earns nothing: Guard/Attack is not a TP battery', () => {
     const b = new Battle(party(['hex'], 6), enemyParty(['glowrat']), new Rng(1));
     const hex = b.party[0]!;
-    b.enemies[0]!.hp = 9999;
-    hex.hp = 9999;
+    const rat = b.enemies[0]!;
+    rat.hp = 9999;
     hex.tp = 0;
-    const tpGain = (ev: ReturnType<Battle['resolveRound']>) => ev.some((e) => e.t === 'tp' && e.target === hex.uid);
-    expect(tpGain(b.resolveRound([{ actor: hex.uid, type: 'guard' }]))).toBe(true);
-    expect(tpGain(b.resolveRound([{ actor: hex.uid, type: 'guard' }]))).toBe(false);
-    b.resolveRound([{ actor: hex.uid, type: 'attack', target: b.enemies[0]!.uid }]);
-    expect(tpGain(b.resolveRound([{ actor: hex.uid, type: 'guard' }]))).toBe(true);
+    for (let r = 0; r < 6; r++) {
+      // The rat is held (stunned) every round: nothing ever lands on the guard.
+      rat.status = [{ id: 'stun', turns: 2 }];
+      const cmd: Command = r % 2 ? { actor: hex.uid, type: 'attack', target: rat.uid } : { actor: hex.uid, type: 'guard' };
+      const ev = b.resolveRound([cmd]);
+      expect(ev.some((e) => e.t === 'tp' && e.target === hex.uid)).toBe(false);
+    }
+    expect(hex.tp).toBe(0);
+  });
+
+  it('Rook, who has no TP, gets one spent charge back off a guarded blow, once a fight', () => {
+    let got = 0;
+    for (let seed = 1; seed <= 6; seed++) {
+      const b = new Battle(party(['rook'], 8), enemyParty(['glowrat']), new Rng(seed));
+      const rook = b.party[0]!;
+      b.enemies[0]!.hp = 9999;
+      rook.uses.arc_cut = 0;
+      let backs = 0;
+      for (let r = 0; r < 5; r++) {
+        rook.hp = rook.base.maxHp;
+        const ev = b.resolveRound([{ actor: rook.uid, type: 'guard' }]);
+        if (ev.some((e) => e.t === 'msg' && e.text.includes('one more'))) backs++;
+      }
+      expect(backs).toBeLessThanOrEqual(1);
+      if (backs) expect(rook.uses.arc_cut).toBe(1);
+      got += backs;
+    }
+    expect(got).toBeGreaterThan(0);
+  });
+
+  it('a target just out of a stun can’t be stunned again for two rounds', () => {
+    const b = new Battle(party(['kit'], 12), enemyParty(['glowrat', 'glowrat']), new Rng(4));
+    const kit = b.party[0]!;
+    for (const e of b.enemies) e.hp = 9999;
+    const stunnedEach: number[][] = [];
+    for (let r = 0; r < 6; r++) {
+      kit.uses.killing_intent = 2;
+      kit.hp = kit.base.maxHp;
+      const ev = b.resolveRound([{ actor: kit.uid, type: 'skill', id: 'killing_intent' }]);
+      stunnedEach.push(ev.filter((e) => e.t === 'status' && e.status === 'stun' && e.on).map((e) => (e as { target: number }).target));
+    }
+    for (const e of b.enemies) {
+      const rounds = stunnedEach.flatMap((uids, r) => (uids.includes(e.uid) ? [r] : []));
+      for (let i = 1; i < rounds.length; i++) expect(rounds[i]! - rounds[i - 1]!, `${e.uid} restunned`).toBeGreaterThan(2);
+    }
+  });
+
+  it('a press off the beat costs: a softer strike, a harder blow taken', () => {
+    for (const p of ['quick', 'normal', 'heavy'] as const) {
+      expect(STRIKE_MULT[p].whiff).toBeLessThan(1);
+      expect(BRACE_MULT[p].whiff).toBeGreaterThan(1);
+      expect(STRIKE_MULT[p].perfect).toBeGreaterThan(STRIKE_MULT[p].good);
+    }
   });
 
   it('every enemy family has at least one elemental weakness to find', () => {

@@ -12,6 +12,9 @@
  * previews is the order the round plays.
  */
 import { ABILITIES, COMBOS } from '../data/abilities';
+
+/** Combos, largest first (findCombos matches triples before pairs). */
+const COMBOS_BY_SIZE = [...COMBOS].sort((a, b) => b.parts.length - a.parts.length);
 import { ENEMIES, FAMILY_IMMUNE, FAMILY_WEAK, type EnemyDef } from '../data/enemies';
 import { ITEMS } from '../data/items';
 import type { Rng } from '../engine/rng';
@@ -38,8 +41,12 @@ export interface BattleOpts {
   regen?: Record<number, number>;
 }
 
-/** How well a timed press landed. */
-export type Timing = 'perfect' | 'good' | 'none';
+/**
+ * How well a timed press landed. 'none' is no press at all; 'whiff' is a press off the beat, and
+ * it costs: an overswing hits softer, a brace tensed at the wrong moment takes more. Not pressing
+ * is always safer than guessing.
+ */
+export type Timing = 'perfect' | 'good' | 'none' | 'whiff';
 /**
  * How a move's timing feels. Quick moves (first-strike techs, snap shots) give a tight window
  * and a big payoff; heavy ones (combos, big swings) a wide window and a smaller one; a blow you
@@ -56,14 +63,14 @@ export interface TimingPrompt {
 }
 /** Damage dealt on a timed strike, and taken on a timed brace, by profile. */
 export const STRIKE_MULT: Record<TimingProfile, Record<Timing, number>> = {
-  quick: { perfect: 1.3, good: 1.1, none: 1 },
-  normal: { perfect: 1.2, good: 1.08, none: 1 },
-  heavy: { perfect: 1.15, good: 1.06, none: 1 },
+  quick: { perfect: 1.3, good: 1.1, none: 1, whiff: 0.85 },
+  normal: { perfect: 1.2, good: 1.08, none: 1, whiff: 0.9 },
+  heavy: { perfect: 1.15, good: 1.06, none: 1, whiff: 0.94 },
 };
 export const BRACE_MULT: Record<TimingProfile, Record<Timing, number>> = {
-  quick: { perfect: 0.75, good: 0.88, none: 1 },
-  normal: { perfect: 0.7, good: 0.85, none: 1 },
-  heavy: { perfect: 0.5, good: 0.8, none: 1 },
+  quick: { perfect: 0.75, good: 0.88, none: 1, whiff: 1.1 },
+  normal: { perfect: 0.7, good: 0.85, none: 1, whiff: 1.1 },
+  heavy: { perfect: 0.5, good: 0.8, none: 1, whiff: 1.15 },
 };
 
 /** The timing profile of a move: its speed class for a strike, its tell for a brace. */
@@ -228,23 +235,27 @@ export class Battle {
   }
 
   // ------------------------------------------------------------------ command planning
-  /** Detect combos among the party's commands (used by the UI hint and by resolution). */
-  static findCombos(cmds: Command[], units: Combatant[]): { combo: string; a: Command; b: Command }[] {
-    const out: { combo: string; a: Command; b: Command }[] = [];
+  /**
+   * Detect combos among the party's commands (used by the UI hint and by resolution). The found
+   * orders keep the combo's part order: its first part's member is the blow's striker. Three-part
+   * combos are matched first: orders that make a triple aren't split into a pair and a leftover.
+   */
+  static findCombos(cmds: Command[], units: Combatant[]): { combo: string; cmds: Command[] }[] {
+    const out: { combo: string; cmds: Command[] }[] = [];
     const used = new Set<number>();
-    for (const c of COMBOS) {
-      const find = (member: string, ability: string) =>
-        cmds.find((cmd) => {
-          const u = units.find((x) => x.uid === cmd.actor);
-          return !!u && u.key === member && cmd.id === ability && (cmd.type === 'tech' || cmd.type === 'skill') && !used.has(cmd.actor);
+    for (const c of COMBOS_BY_SIZE) {
+      const found: Command[] = [];
+      for (const p of c.parts) {
+        const cmd = cmds.find((x) => {
+          if (used.has(x.actor) || found.includes(x) || x.id !== p.ability || (x.type !== 'tech' && x.type !== 'skill')) return false;
+          return units.find((u) => u.uid === x.actor)?.key === p.member;
         });
-      const a = find(c.parts[0].member, c.parts[0].ability);
-      const b = find(c.parts[1].member, c.parts[1].ability);
-      if (a && b) {
-        used.add(a.actor);
-        used.add(b.actor);
-        out.push({ combo: c.id, a, b });
+        if (!cmd) break;
+        found.push(cmd);
       }
+      if (found.length !== c.parts.length) continue;
+      for (const f of found) used.add(f.actor);
+      out.push({ combo: c.id, cmds: found });
     }
     return out;
   }
@@ -281,16 +292,17 @@ export class Battle {
     for (const c of combos) {
       // A stale uid or an unknown combo id drops the fusion (each order then runs on its own)
       // rather than carrying an undefined into the round.
-      const ua = this.unit(c.a.actor), ub = this.unit(c.b.actor), ab = ABILITIES[c.combo];
-      if (!ua || !ub || !ab || ua.hp <= 0 || ub.hp <= 0) continue;
-      inCombo.add(ua.uid);
-      inCombo.add(ub.uid);
-      const aimed = [c.a, c.b].find((x) => x.id !== undefined && ABILITIES[x.id]?.target === 'enemy' && (x.target ?? -1) >= 0);
+      const us = c.cmds.map((x) => this.unit(x.actor));
+      const ab = ABILITIES[c.combo];
+      if (!ab || us.some((u) => !u || u.hp <= 0)) continue;
+      const members = us as Combatant[];
+      for (const u of members) inCombo.add(u.uid);
+      const aimed = c.cmds.find((x) => x.id !== undefined && ABILITIES[x.id]?.target === 'enemy' && (x.target ?? -1) >= 0);
       q.push({
-        actors: [ua.uid, ub.uid],
+        actors: members.map((u) => u.uid),
         ability: ab,
         target: ab.target === 'enemy' ? (aimed?.target ?? -1) : -1,
-        speed: Math.max(this.speedOf(ua), this.speedOf(ub)) + 10 + (ab.priority ?? 0),
+        speed: Math.max(...members.map((u) => this.speedOf(u))) + 10 + (ab.priority ?? 0),
         combo: c.combo,
       });
     }
@@ -527,16 +539,9 @@ export class Battle {
     if (act.combo) this.ev.push({ t: 'combo', name: ab.name, actors: act.actors, fx: ab.fx, targets: targets.map((t) => t.uid) });
     else this.ev.push({ t: 'act', actor: lead.uid, id: ab.id, name: ab.name, kind: ab.kind, fx: ab.fx, targets: targets.map((t) => t.uid), element: ab.element ?? (ab.kind === 'attack' ? lead.weaponElement : undefined) });
     if (ab === GUARD) {
+      // What Guard gives back comes from the blow it turns (breathe(), in damage): guarding
+      // against nothing earns nothing, so Guard/Attack can't be run as a TP battery.
       this.addStatus(lead, 'guard', 1);
-      // Bracing is also a breath: a little TP back, so guarding is a play, not just a pass. Only
-      // after a round of doing something else, though, or turtling becomes a free TP battery.
-      const rested = lead.memory.guardRound === this.round - 1;
-      lead.memory.guardRound = this.round;
-      if (!rested && lead.base.maxTp > 0 && lead.tp < lead.base.maxTp) {
-        const amt = Math.min(lead.base.maxTp - lead.tp, Math.max(2, Math.round(lead.base.maxTp * 0.12)));
-        lead.tp += amt;
-        this.ev.push({ t: 'tp', target: lead.uid, amount: amt, tp: lead.tp });
-      }
       return;
     }
     this.declared = { actors, ab, targets, item: act.item };
@@ -680,11 +685,17 @@ export class Battle {
             if (t.hp <= 0) continue;
             if (eff.only && (!t.family || !eff.only.includes(t.family))) continue;
             const chance = t.boss && (eff.status === 'stun' || eff.status === 'hijacked') ? eff.chance * 0.3 : eff.chance;
-            if (t.immune?.includes(eff.status)) {
+            // Just out of a stun, a target has its guard up for two rounds: a pack can be frozen
+            // once, not held frozen by chaining stuns.
+            const wary = eff.status === 'stun' && t.memory.stunAt !== undefined && this.round - t.memory.stunAt <= 2;
+            if (t.immune?.includes(eff.status) || wary) {
               this.ev.push({ t: 'immune', target: t.uid, status: eff.status });
               continue;
             }
-            if (this.rng.chance(chance)) this.addStatus(t, eff.status, eff.status === 'poison' ? UNTIMED : (eff.turns ?? 3), user.uid);
+            if (this.rng.chance(chance)) {
+              this.addStatus(t, eff.status, eff.status === 'poison' ? UNTIMED : (eff.turns ?? 3), user.uid);
+              if (eff.status === 'stun') t.memory.stunAt = this.round;
+            }
             else if (targets.length === 1 && !ab.effects.some((e) => e.type === 'damage')) this.ev.push({ t: 'miss', target: t.uid });
           }
           break;
@@ -810,6 +821,37 @@ export class Battle {
     }
     // Being hit breaks hijack control only on the attacker's own side — ignore.
     if (t.hp <= 0) this.kill(t);
+    else if (t.side === 'party' && final > 0 && this.has(t, 'guard') && t.memory.braced !== this.round) this.breathe(t, !!ab.telegraphed);
+  }
+
+  /**
+   * A blow taken on a guard, turned into breath: TP back (twice as much off a tell you read and
+   * braced for), once a round. Rook has no TP; for him it's one spent charge back, once a fight:
+   * the old hand finding his feet, and the one way to stretch his charges through a dungeon.
+   */
+  private breathe(t: Combatant, read: boolean): void {
+    t.memory.braced = this.round;
+    if (t.base.maxTp > 0) {
+      if (t.tp >= t.base.maxTp) return;
+      const amt = Math.min(t.base.maxTp - t.tp, Math.max(2, Math.round(t.base.maxTp * (read ? 0.25 : 0.12))));
+      t.tp += amt;
+      this.ev.push({ t: 'tp', target: t.uid, amount: amt, tp: t.tp });
+      return;
+    }
+    if (t.memory.recharged) return;
+    // The charge he's spent most of (by share of its full count).
+    let best: string | null = null, gap = 0;
+    for (const [id, left] of Object.entries(t.uses)) {
+      const full = ABILITIES[id]?.uses ?? 0;
+      if (full > 0 && left < full && (full - left) / full > gap) {
+        best = id;
+        gap = (full - left) / full;
+      }
+    }
+    if (!best) return;
+    t.uses[best] = (t.uses[best] ?? 0) + 1;
+    t.memory.recharged = 1;
+    this.ev.push({ t: 'msg', text: `${t.name} takes it and resets: one more ${ABILITIES[best]!.name}.` });
   }
 
   private kill(t: Combatant): void {
@@ -855,7 +897,7 @@ export class Battle {
   }
 }
 
-const GUARD: Ability = { id: 'guard', name: 'Guard', desc: 'Halve damage this round (a quarter from a blow you saw coming). Recovers a little TP, but not two rounds running.', kind: 'skill', target: 'self', effects: [], fx: 'guard' };
+const GUARD: Ability = { id: 'guard', name: 'Guard', desc: 'Halve damage this round (a quarter from a blow you saw coming). A blow taken on a guard gives TP back; for Rook, a spent charge, once a fight.', kind: 'skill', target: 'self', effects: [], fx: 'guard' };
 
 export function itemAbility(id: string): Ability {
   const it = ITEMS[id]!;

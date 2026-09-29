@@ -12,7 +12,7 @@ import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
 import type { Ctx } from '../../engine/canvas';
-import { drawText, fitText, measure, wrap } from '../../engine/font';
+import { drawParagraph, drawText, fitText, measure, wrap } from '../../engine/font';
 import { H, W } from '../../engine/game';
 import { knownAbilities } from '../../game/party';
 import { state, type MemberId } from '../../game/state';
@@ -565,7 +565,7 @@ export class BattleRenderer {
       // Slide in fast, hold, slide back out.
       const inK = Math.min(1, c.t / 8), outK = Math.max(0, (c.t - (c.life - 10)) / 10);
       const k = (1 - (1 - inK) ** 3) * (1 - outK);
-      const w = 132, h = 58, y = c.fromLeft ? 132 : 132 + 0;
+      const w = c.line ? 184 : 132, h = 58, y = 132 - (c.row ?? 0) * 62;
       const x = c.fromLeft ? Math.round(-w + k * (w + 12)) : Math.round(W - k * (w + 12));
       ctx.fillStyle = 'rgba(10,9,19,0.92)';
       ctx.fillRect(x, y, w, h);
@@ -577,7 +577,11 @@ export class BattleRenderer {
       ctx.fillStyle = UI.outline;
       ctx.fillRect(px - 1, y + 4, 50, 50);
       ctx.drawImage(port, px, y + 5, 48, 48);
-      drawText(ctx, m.name.toUpperCase(), c.fromLeft ? x + 10 : x + 62, y + 22, { color: m.color });
+      const tx = c.fromLeft ? x + 10 : x + 62;
+      if (c.line) {
+        drawText(ctx, m.name.toUpperCase(), tx, y + 10, { color: m.color });
+        drawParagraph(ctx, `“${c.line}”`, tx, y + 23, w - 72, { color: UI.text, lineH: 11 });
+      } else drawText(ctx, m.name.toUpperCase(), tx, y + 22, { color: m.color });
     }
   }
 

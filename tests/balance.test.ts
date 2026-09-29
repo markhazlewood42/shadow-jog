@@ -12,10 +12,11 @@ import { COMBOS, LEARNSETS } from '../src/data/abilities';
 /**
  * Bosses have a ceiling as well as a floor: a competent (not optimal) player should usually win,
  * but not always; one who never loses isn't being tested. The floor is for a player who ignores
- * the timed presses; the ceiling for one who lands about a third of them (TIMED_HANDS).
+ * the timed presses; the ceiling for one who lands about a third of them and guesses wrong on a
+ * tenth (TIMED_HANDS).
  */
 const BOSS_WIN_MAX = 0.93;
-const TIMED_HANDS = { perfect: 0.1, good: 0.25 };
+const TIMED_HANDS = { perfect: 0.1, good: 0.25, whiff: 0.1 };
 const stages: { label: string; stage: string; table: string; win: number; rounds: [number, number]; hp: [number, number] }[] = [
   { label: 'street  (opening)', stage: 'street', table: 'street', win: 0.97, rounds: [1.5, 5], hp: [5, 40] },
   { label: 'barrens (to Rustyard)', stage: 'barrens', table: 'barrens', win: 0.95, rounds: [1.5, 5], hp: [8, 45] },
@@ -59,7 +60,8 @@ describe('dungeon attrition', () => {
   const runs = [
     { r: simulateRun('barrens x4', STAGE_PARTY.barrens!, 'barrens', 4, { medkit: 4, stim: 0, detox: 2 }), min: 0.9 },
     { r: simulateRun('sinkline x6', STAGE_PARTY.sinkline!, 'sinkline', 6, { medkit: 6, stim: 1, detox: 2, neurotab: 1 }), min: 0.85 },
-    { r: simulateRun('annex x7', STAGE_PARTY.annex!, 'annex', 7, { medkit: 6, stim: 2, detox: 2, neurotab: 2 }), min: 0.85 },
+    // 120 runs, not 60: the annex's clear rate sits near its floor, and 60 runs swing ±5 points.
+    { r: simulateRun('annex x7', STAGE_PARTY.annex!, 'annex', 7, { medkit: 6, stim: 2, detox: 2, neurotab: 2 }, 120), min: 0.85 },
   ];
   it('the pressure climbs into the Warden: the Annex costs at least what the Sinkline did', () => {
     const [, sink, annex] = runs.map(({ r }) => r);
@@ -71,8 +73,9 @@ describe('dungeon attrition', () => {
   });
   for (const { r, min } of runs) {
     it(`${r.label}: Rook doesn't end the dungeon on Attack alone`, () => {
-      // Combos and his openers draw on his charges; a run that empties them has spent Rook.
-      expect(r.rookDry).toBeLessThanOrEqual(0.2);
+      // Combos and his openers draw on his charges; a run that empties them has spent Rook. A
+      // guarded blow buys one back each fight, so a careful run should never see him dry.
+      expect(r.rookDry).toBeLessThanOrEqual(0.05);
     });
     it(`${r.label} is survivable`, () => {
       expect(r.cleared / r.n).toBeGreaterThanOrEqual(min);
