@@ -171,6 +171,33 @@ export class Pix {
     return this;
   }
 
+  /**
+   * Form shading over the whole silhouette, light from the upper left: a lit band just inside
+   * the top and left edges, a shadow band inside the bottom and right. Flat fills (rects, limbs,
+   * polygons) get two more tonal steps and read as solid; a limb too thin for both keeps its
+   * colour. Run before outline().
+   */
+  form(lift = 0.2, drop = 0.26): this {
+    const w = this.w, h = this.h, src = this.px.slice();
+    const at = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : src[y * w + x]!);
+    const d = Math.max(1, Math.round(this.k));
+    const tone = (c: number, t: number) => {
+      const r = c & 255, g = (c >> 8) & 255, b = (c >> 16) & 255;
+      const f = (v: number) => Math.round(t > 0 ? v + (255 - v) * t : v * (1 + t));
+      return (255 << 24) | (f(b) << 16) | (f(g) << 8) | f(r);
+    };
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const c = src[y * w + x]!;
+        if (!c) continue;
+        const lit = !at(x - d, y) || !at(x, y - d);
+        const dark = !at(x + d, y) || !at(x, y + d);
+        if (lit && !dark) this.px[y * w + x] = tone(c, lift);
+        else if (dark && !lit) this.px[y * w + x] = tone(c, -drop);
+      }
+    return this;
+  }
+
   /** 1px outline around opaque pixels (outside only). */
   outline(c = '#0e0b16'): this {
     const p = this.pack(c);

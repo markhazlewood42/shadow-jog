@@ -161,7 +161,9 @@ export class BattleRenderer {
     const creature = e.family === 'beast' || e.family === 'machine' || e.family === 'spirit';
     // The strike frame through the lunge of an attack (from rearing back to the settle).
     const k = dd.poseT > 0 && dd.pose === 'attack' ? ENEMY_POSE_T - dd.poseT : -1;
-    const src = who.attack && k >= 6 && k < 18 ? who.attack : who;
+    // And the flinch frame for most of a hit's knock-back (the last frames ease back to idle).
+    const flinch = dd.poseT > 4 && dd.pose === 'hurt';
+    const src = who.attack && k >= 6 && k < 18 ? who.attack : who.hurt && flinch ? who.hurt : who;
     // Humans with their own individual art still get the squad armband (marked()).
     const own = who.individual && !creature;
     const canvas = own ? marked(dup % 2 ? mirrored(src.canvas) : src.canvas, e.family ?? '', dup) : marked(variant(src.canvas, dup), e.family ?? '', dup);

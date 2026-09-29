@@ -195,6 +195,45 @@ test('15b three-part combo, called', async ({ page }) => {
   await shot(page, '15b-battle-triple-combo');
 });
 
+test('16b every recurring enemy: idle, strike, flinch', async ({ page }) => {
+  await page.goto('/?debug');
+  await page.waitForTimeout(600);
+  // A contact sheet straight from the art module: three frames per sprite, at battle scale.
+  await page.evaluate(async () => {
+    const url = '/src/art/enemies.ts';
+    const { enemyArt } = (await import(/* @vite-ignore */ url)) as typeof import('../src/art/enemies');
+    const keys = ['punk', 'medic', 'slinger', 'brute', 'ghoul', 'sentinel', 'arcanist', 'rat', 'hound', 'drone', 'wisp', 'crab', 'maint', 'shade', 'turret', 'hunter'];
+    // Two sprites a row, three frames each, drawn at the battle's 2x.
+    const cell = 124;
+    const c = document.createElement('canvas');
+    c.id = 'sheet';
+    c.width = 6 * cell;
+    c.height = Math.ceil(keys.length / 2) * cell;
+    Object.assign(c.style, { position: 'fixed', left: '0', top: '0', zIndex: '99', background: '#12101c', imageRendering: 'pixelated' });
+    const g = c.getContext('2d')!;
+    g.imageSmoothingEnabled = false;
+    g.fillStyle = '#12101c';
+    g.fillRect(0, 0, c.width, c.height);
+    keys.forEach((k, i) => {
+      const a = enemyArt(k);
+      const frames = [a, a.attack ?? a, a.hurt ?? a];
+      const col = i % 2, row = Math.floor(i / 2);
+      frames.forEach((f, j) => {
+        const x = (col * 3 + j) * cell + 4, y = row * cell + 4;
+        const s = Math.min(2, (cell - 8) / Math.max(f.canvas.width, f.canvas.height));
+        g.drawImage(f.canvas, x, y, f.canvas.width * s, f.canvas.height * s);
+        if (f.glow) {
+          g.globalCompositeOperation = 'lighter';
+          g.drawImage(f.glow, x, y, f.canvas.width * s, f.canvas.height * s);
+          g.globalCompositeOperation = 'source-over';
+        }
+      });
+    });
+    document.body.appendChild(c);
+  });
+  await page.locator('#sheet').screenshot({ path: `${OUT}/16b-enemy-poses.png` });
+});
+
 test('16 bosses', async ({ page }) => {
   await open(page, 'annex');
   await sj(page, "sj.battle('f_warden', 'core', true)");
