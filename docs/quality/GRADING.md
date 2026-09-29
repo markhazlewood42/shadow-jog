@@ -254,7 +254,9 @@ and Battle presentation is reachable by iteration or needs hand-made assets.
   palette, but not boredom, confusion over 20 minutes, or a fight that's tedious the fifth time.
 - **Reviewers were sometimes wrong.** Round 1's economy reviewer missed the job board entirely (and scored 3.5).
   Round 11's progression reviewer said the results screenshot was mislabelled; it was labelled, in a text file they
-  may not have read (it was renamed anyway, to be unmissable).
+  may not have read (it was renamed anyway, to be unmissable). Round 12's battle-presentation reviewer said Rook's
+  body "does not shift one pixel" across the four swing shots; a pixel diff shows it moves 15 px
+  (`reviews/round-12.md`, "Checked after the reports came in").
 - **The writer chose what to show.** The screenshot list and evidence files were chosen by the writer. Reviewers
   could explore further, and often did, but the staged evidence set the agenda.
 
@@ -267,18 +269,18 @@ re-reviewed that round).
 
 | Area | R1 | R2 | R3 | R4 | R5 | R6 | R7 | R8 | R9 | R10 | R11 | R12 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Engine & code | 6.5 | 7.2 | 7.5 | 7.7 | 8.2 | 7.7 | 7.6 | 7.7 | 8.0 | **8.5** | 8.3 | {r12_1} |
-| Field art | 5.5 | 7.0 | 7.4 | 7.0 | 6.5 | 7.2 | 7.3 | 7.6 | 5.8* | 7.0 | 7.5 | {r12_2} |
-| Battle presentation | 6.5 | 7.0 | 7.0 | 7.3 | 7.2 | 7.6 | 7.0 | 7.2 | 7.2 | 7.0 | 6.5 | {r12_3} |
-| UI / UX | 6.0 | 6.0 | 8.2 | 8.3 | 6.0 | 8.0 | 7.2 | 7.8 | 5.5* | 7.6 | **8.7** | {r12_4} |
-| Combat design | 7.0 | 7.0 | 7.0 | 7.8 | 6.8 | 7.5 | 8.1 | 8.1 | 7.2 | 7.5 | 7.8 | {r12_5} |
-| Progression & economy | 3.5 | 7.3 | 6.5 | 6.5 | 7.2 | 8.1 | 7.8 | 7.5 | 7.5 | 8.0 | 7.6 | {r12_6} |
-| Narrative & writing | 7.6 | 7.8 | 8.0 | 7.5 | 8.0 | 8.0 | 7.4 | 7.6 | 7.8 | 8.0 | 7.8 | {r12_7} |
-| Level design | 7.2 | 7.3 | 7.3 | 7.6 | 7.0 | 7.2 | 7.0 | 7.2 | 7.4 | 7.7 | 7.8 | {r12_8} |
-| Audio | 7.0 | 6.5 | 7.2 | 7.0 | 7.8 | 7.2 | 6.5 | 7.2 | 7.0 | 7.2 | 7.2 | {r12_9} |
-| Feel & polish | 7.2 | 7.4 | 7.5 | 7.8 | 7.2 | 7.0 | 7.5 | 7.4 | 8.3 | 7.8 | 8.4 | {r12_10} |
-| Stability | 6.0 | 8.0 | 7.3 | 8.0 | 8.2 | **8.7** | 7.5 | 8.0 | 8.3 | **8.8** | **9.0** | {r12_11} |
-| **Average** | 6.36 | 7.14 | 7.35 | 7.50 | 7.28 | 7.65 | 7.35 | 7.57 | 7.27 | 7.74 | 7.87 | {r12_avg} |
+| Engine & code | 6.5 | 7.2 | 7.5 | 7.7 | 8.2 | 7.7 | 7.6 | 7.7 | 8.0 | **8.5** | 8.3 | 8.2 |
+| Field art | 5.5 | 7.0 | 7.4 | 7.0 | 6.5 | 7.2 | 7.3 | 7.6 | 5.8* | 7.0 | 7.5 | 7.8 |
+| Battle presentation | 6.5 | 7.0 | 7.0 | 7.3 | 7.2 | 7.6 | 7.0 | 7.2 | 7.2 | 7.0 | 6.5 | 7.3 |
+| UI / UX | 6.0 | 6.0 | 8.2 | 8.3 | 6.0 | 8.0 | 7.2 | 7.8 | 5.5* | 7.6 | **8.7** | 8.2 |
+| Combat design | 7.0 | 7.0 | 7.0 | 7.8 | 6.8 | 7.5 | 8.1 | 8.1 | 7.2 | 7.5 | 7.8 | 8.0 |
+| Progression & economy | 3.5 | 7.3 | 6.5 | 6.5 | 7.2 | 8.1 | 7.8 | 7.5 | 7.5 | 8.0 | 7.6 | 7.6 |
+| Narrative & writing | 7.6 | 7.8 | 8.0 | 7.5 | 8.0 | 8.0 | 7.4 | 7.6 | 7.8 | 8.0 | 7.8 | 8.2 |
+| Level design | 7.2 | 7.3 | 7.3 | 7.6 | 7.0 | 7.2 | 7.0 | 7.2 | 7.4 | 7.7 | 7.8 | 7.8 |
+| Audio | 7.0 | 6.5 | 7.2 | 7.0 | 7.8 | 7.2 | 6.5 | 7.2 | 7.0 | 7.2 | 7.2 | 7.8 |
+| Feel & polish | 7.2 | 7.4 | 7.5 | 7.8 | 7.2 | 7.0 | 7.5 | 7.4 | 8.3 | 7.8 | 8.4 | 8.3 |
+| Stability | 6.0 | 8.0 | 7.3 | 8.0 | 8.2 | **8.7** | 7.5 | 8.0 | 8.3 | **8.8** | **9.0** | **8.6** |
+| **Average** | 6.36 | 7.14 | 7.35 | 7.50 | 7.28 | 7.65 | 7.35 | 7.57 | 7.27 | 7.74 | 7.87 | 7.98 |
 
 \* capped (section 3). Bold: a pass.
 
@@ -288,8 +290,11 @@ re-reviewed that round).
   economy, placeholder-feeling art, missing systems.
 - From round 4 to round 11 the average wandered between 7.27 and 7.87. The trend over those eight rounds is up
   (about +0.05 a round), but no single round's number means much on its own.
-- Four areas trended up steadily in the last rounds: Stability, UI/UX, Level design and Combat. Two stayed flat for the
-  whole run: Audio and Battle presentation (section 6).
+- Four areas trended up steadily in the last rounds: Stability, UI/UX, Level design and Combat. Two stayed flat through
+  round 11: Audio and Battle presentation (section 6).
+- **Round 12, the closing measurement, came in at 7.98**, the highest of the run. Both flat areas finally moved
+  (Battle presentation 6.5 to 7.3, Audio 7.2 to 7.8), and nothing fell below 7.3. Only Stability passed 8.5; nine
+  areas sit between 7.6 and 8.3, close to the fallback and still short of the target.
 
 ---
 
@@ -305,6 +310,10 @@ and set an exit:
 - **For the record, the numeric target the loop was chasing** was 8.5 in every area. The fallback proposed with the
   exit was: average ≥ 8.0, no area below 7.0, no open bugs. Round 12's result is compared against both in the
   scorecard, as information, not as a gate.
+- **Round 12's result:** average 7.98, lowest area 7.3 (Battle presentation), and one bug found and fixed (the
+  settings crashed the boot where browser storage is blocked; now tested). The 8.5 target is met in one area
+  (Stability). The fallback is met on two counts of three and missed on the average by 0.02. The loop ended as
+  planned either way.
 - **After the alpha is accepted:** the deploy to shadowjog.com with the secure email sign-up (status.md, Future
   Plans), and Mark's review of this document, the glossary and the setting bible.
 

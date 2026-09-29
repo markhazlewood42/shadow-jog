@@ -33,7 +33,10 @@ on every push to `main`.
    write-up, the glossary and the setting bible, so work can resume cold in a fresh session.
 
 ### Right now
-- **Round 12's fixes are in** (see the scorecard's round-12 work log). Its evidence was regenerated; **its verification (the closing measurement) is the one open step**: if round 12's scores aren't in the scorecard yet, either run the 11 reviewers (`docs/DEVELOPING.md` §6) or, if Mark prefers, skip it and record that the loop ended with round 11's measurements.
+- **Round 12 is verified, and the automated loop is over.** The closing measurement averaged **7.98**, the highest
+  of the run (round 11: 7.87). Stability passes (8.6); the lowest area is Battle presentation (7.3). The one bug the
+  reviewers found (the settings crashed the boot where browser storage is blocked) is fixed, with a test.
+  Verbatim reports: `docs/quality/reviews/round-12.md`; scores: `docs/quality/scorecard.md`.
 - **Waiting on Mark's playthrough.** He's playing the shipped build end to end (`npm run build && npm run preview`,
   http://localhost:3008). His notes are the next work queue.
 
@@ -47,10 +50,13 @@ on every push to `main`.
 4. **Chapter 2, "Deniable Assets"**: getting Rook back (seeds in `docs/SETTING.md` §10).
 
 ### Known gaps (from the last reviews; none are bugs)
-- **Audio (7.2) and Battle presentation (6.5 in round 11)** plateaued against hand-made references; more procedural
-  tweaking has shrinking returns (GRADING.md §6). Hand-made or commissioned assets are the likely next step if they
+- **Audio (7.8) and Battle presentation (7.3)** were flat for most of the run against hand-made references; round
+  12 moved both, but more procedural tweaking has shrinking returns (GRADING.md §6). Hand-made or commissioned assets are the likely next step if they
   matter at 8.5.
-- Stability: no gamepad or touch E2E, no long-session soak, no boot test with storage blocked from the start.
+- Stability: no gamepad or touch E2E, no long-session soak. (A storage-blocked boot is now covered by a unit test.)
+- The fullest current list of design notes is round 12's reviewer reports (`docs/quality/reviews/round-12.md`):
+  trash fights end in about 2 rounds, few enemies telegraph, required gear is never a budget decision, menus snap
+  open, rooms are all rectangles, and more. None are bugs; they wait for Mark's triage.
 - UI: no colour-blind palette or text-size option.
 - Feel: key story portraits have few expressions; no camera punch on the biggest combos; one swing timing for all
   weapons.

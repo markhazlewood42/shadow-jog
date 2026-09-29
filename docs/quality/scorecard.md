@@ -3,7 +3,7 @@ type: log
 title: Shadow Jog — Quality Scorecard
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-09-28
+updated: 2026-09-29
 tags: [quality, scorecard]
 ---
 
@@ -13,17 +13,23 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 
 | # | Area | Score | Round | Date | Δ | Blocking issues (short) |
 |---|---|---|---|---|---|---|
-| 1 | Engine & code | 8.3 | 11 | 2026-09-29 | −0.2 | ~555 non-null assertions with the lint rule off; props.ts (1,671 lines), tiles.ts, battle.ts and render.ts still monoliths; no archived bundle-size evidence; the software-canvas perf gate has no headroom |
-| 2 | Field art | 7.5 | 11 | 2026-09-29 | +0.5 | Crowd is one pose in many palettes; rooftop clutter repeats; puddle reflections smudge; the emptied cryopod is just dark (no open hatch); the bar floor and aisles grid-regular |
-| 3 | Battle presentation | 6.5 | 11 | 2026-09-29 | −0.5 | The swing only lifts (the blade never changes angle); the Lurker and the Warden had no strike/flinch frames; the party reads flat from behind; packs of one species blur; windows lack the GDD’s cyberpunk trim; the street backdrop is thinnest |
-| 4 | UI / UX | 8.7 | 11 | 2026-09-29 | +1.1 | **Passed.** Remaining: the fullscreen toggle fails silently; raw error text in the notice bar; no colour-blind or text-size option; the menu’s objective panel is unlabelled |
-| 5 | Combat design | 7.8 | 11 | 2026-09-29 | +0.3 | Turret, Arcanist, Warden and its spirit share one charge-then-fire shape; Knuckles has no tell; Moonfall, Rekindle, Wildfire and Dragon Coil unlock above the chapter’s level ceiling; trash rarely tests choices |
-| 6 | Progression & economy | 7.6 | 11 | 2026-09-29 | −0.4 | Mags’ discount has no reachable payoff (the route never returns to the Rustyard); p10 still has 400–700¢ spare after the needed buys; loot is only vendor fodder; 24c is a driven run and reads like a real one |
-| 7 | Narrative & writing | 7.8 | 11 | 2026-09-29 | −0.2 | The betrayal is foreshadowed three times; the capture is over in twenty lines with no struggle; Pale is a stock polite menace; Hex’s lines run long; the Annex logs are briefing blocks |
-| 8 | Level design | 7.8 | 11 | 2026-09-29 | +0.1 | The valve and relay puzzles are still confirm-dialogs; the lattice solves blind in two tries; the Lurker has no arena of its own; world landmarks don’t read from the art |
-| 9 | Audio | 7.2 | 11 | 2026-09-29 | ±0 | Still dark: 6 kHz+ at 2–9% (bar 2%); 0.5–2 dB of range inside every song (rests don’t release); the quiet cues are as dense as the fights; soft cues click on every onset |
-| 10 | Feel & polish | 8.4 | 11 | 2026-09-29 | +0.6 | Hit-pauses don’t shorten with Battle Speed or fast-forward; comic panels drop an early press; no camera punch on the big combos; one swing curve for every weapon; key story faces lack range |
-| 11 | Stability | 9.0 | 11 | 2026-09-29 | +0.2 | **Passed.** Remaining: no gamepad or touch E2E; the battle-mashing test hands off to the autopilot; no long-session soak; no boot with storage blocked from the start |
+| 1 | Engine & code | 8.2 | 12 | 2026-09-29 | −0.1 | Victory and Level-Up panels drawn inside BattleScene, not the renderer; two per-frame closures (lighting build, FX render); `!` still common outside engine/battle; bundle at 189.5 of 200 kB gzip |
+| 2 | Field art | 7.8 | 12 | 2026-09-29 | +0.3 | Crowd is three rigs in many palettes; portraits have one expression (Dutch); Sprawl terrain blurs path and clutter under rain; dungeon corners drop to black; the bar is under-dressed |
+| 3 | Battle presentation | 7.3 | 12 | 2026-09-29 | +0.8 | The swing moves the sprite and blade but the torso never leans (the reviewer's "doesn't move at all" was wrong; see round-12.md); beast packs marked by a faint scar vs the machines' numerals; HP bars against neon signage; FX are small rect particles; flat victory screen |
+| 4 | UI / UX | 8.2 | 12 | 2026-09-29 | −0.5 | Full-screen menus snap open (only dialogue and game over ease in); item icons are glyphs; disabled text about 2.75:1 contrast; one window chrome for everything; confirms have no cursor |
+| 5 | Combat design | 8.0 | 12 | 2026-09-29 | +0.2 | Trash clears in about 2 rounds; tells on 4 of 18 enemies; the sim leans on Thunder Rift; no balance target needs timed presses; crit bonuses spread 15 to 60 without a stated reason; guard with a perfect brace takes 87.5% off the cannon, untested |
+| 6 | Progression & economy | 7.6 | 12 | 2026-09-29 | ±0 | Required gear is never a budget decision (unlucky tenth keeps 334 to 781¢); the Neural Lace (1,200¢) sits below the Warden median spare (1,222¢); loot only sells; no crafting; the equip screen lacks the shop's element line |
+| 7 | Narrative & writing | 8.2 | 12 | 2026-09-29 | +0.4 | Dutch's and the cryopod scenes run long unbroken; the satsuma callback repeats its clause; tutorials sit bare against noir lines; two modern quips; Pale stacks tics; Knuckles has no speaker colour; the S-5/S-6 thread isn't paid off |
+| 8 | Level design | 7.8 | 12 | 2026-09-29 | ±0 | Every room is a rectangle; the Warden arena is a blank box; one dungeon; catwalks read flat (no height cue); one maze; both floors share a palette; the Places map marks nothing undiscovered |
+| 9 | Audio | 7.8 | 12 | 2026-09-29 | +0.6 | One bright bus EQ for every mood (6 kHz+ 10 to 22% everywhere); title and boss seams at +1.2 and +1.0 dB (gate 1.5); battle bass-heavy (33% under 120 Hz); victory flat and bright; the swing whoosh is quiet |
+| 10 | Feel & polish | 8.3 | 12 | 2026-09-29 | −0.1 | The boss-crit face slides in from off-screen (caught clipped in shot 15); it's skipped while another cut-in is up; the smear sits on the raise, not the cut |
+| 11 | Stability | 8.6 | 12 | 2026-09-29 | −0.4 | **Passed.** Settings crashed the boot where storage is blocked (fixed after the review, with a test); no gamepad or touch E2E; no long-session soak; the chaos test doesn't assert it reached the round; CI is one sample per run |
+
+Round 12 note (the closing measurement): average 7.98 (round 11: 7.87), the highest of the twelve rounds. Stability
+passes (8.6). The two areas that had been flat moved: Battle presentation 6.5 to 7.3, Audio 7.2 to 7.8. Against the
+fallback proposed with the exit: average 7.98 (short of 8.0 by 0.02), no area below 7.0 (met; lowest 7.3), no open
+bugs (met: the one bug found, a boot crash where browser storage is blocked, was fixed the same day with a test).
+The automated loop ends here; Mark's playthrough is the gate. Verbatim reports: `reviews/round-12.md`.
 
 Round 11 note: average 7.87 (round 10: 7.74). Stability (9.0) and UI/UX (8.7) pass; Engine slipped to 8.3 under a
 reviewer counting non-null assertions and file sizes. Battle presentation fell to 6.5: the new swing only moved the
@@ -46,7 +52,7 @@ Round 7 note: the evidence got richer (audio measurements, more screenshots, mor
 new, concrete defects — several real bugs (text collisions, the Warden's hidden head, the menu's hidden Close, a stale
 save baseline, a continuity slip). Reviewer spread remains ±0.5–1.0 per area; the trend is judged on defects fixed.
 
-## Round 12 (verification pending)
+## Round 12 (verified 2026-09-29, the closing measurement)
 
 Worked the round-11 findings, the lowest area (battle presentation) first.
 
@@ -60,6 +66,7 @@ Worked the round-11 findings, the lowest area (battle presentation) first.
 - [x] **Level**: the lattice's loom shows which relay feeds which emitter (the memo is wrong, the cables aren't); the Lurker's lure glows in the sump before the fight; a test walks every map at all 25 story stages for dead ends.
 - [x] **Field art**: a third stance (a lit phone at the chest); the emptied cryopod is broken open (hatch, torn feed lines, coolant on the floor).
 - [x] **UI**: fullscreen says when it's refused; the menu's objective is labelled; error notices lead in the game's voice.
+- [x] **After the review**: the settings no longer crash the boot where browser storage is blocked (`tests/settings.test.ts`).
 - [ ] Deferred: gamepad/touch E2E and a long-session soak (stability); expressive portraits for key beats; props.ts/tiles.ts splits.
 
 ## Round 11 (verified 2026-09-29)
