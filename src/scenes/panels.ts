@@ -65,11 +65,11 @@ export const PAGES: Record<string, Page[]> = {
     ],
     [
       { x: 8, y: 8, w: 464, h: 150, bg: 'rooftop', portrait: { key: 'sable', face: 'sad', dx: 140 }, speech: { who: 'sable', text: 'The crow followed the vans all the way up the arcology. He is hurt. He is alive.' }, from: 'top' },
-      { x: 8, y: 164, w: 228, h: 98, bg: 'dark', portrait: { key: 'hex', face: 'angry' }, speech: { who: 'hex', text: 'Then we go get him.' }, from: 'left' },
+      { x: 8, y: 164, w: 228, h: 98, bg: 'dark', portrait: { key: 'hex', face: 'angry' }, speech: { who: 'hex', text: 'Then we go get him. On the way, we ask Dutch what he knew.' }, from: 'left' },
       { x: 242, y: 164, w: 230, h: 98, bg: 'dark', portrait: { key: 'kit', face: 'angry', flip: true }, speech: { who: 'kit', text: 'We go get him.' }, from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 464, h: 150, bg: 'spire', portrait: { key: 'pale', face: 'smirk', dx: 140 }, speech: { who: 'pale', text: 'Find them. The orc, the decker, and Miss Kit. Keep the old samurai breathing: I want to know who taught Miss Kit to fight like that. You have until morning.' }, from: 'top' },
+      { x: 8, y: 8, w: 464, h: 150, bg: 'spire', portrait: { key: 'pale', face: 'smirk', dx: 140 }, speech: { who: 'pale', text: 'Find them. The orc, the jockey, and Miss Kit. Keep the old samurai breathing: I want to know who taught Miss Kit to fight like that. You have until morning.' }, from: 'top' },
       { x: 8, y: 164, w: 464, h: 98, bg: 'dark', finale: { title: 'END OF CHAPTER ONE', sub: 'They have until morning.' }, from: 'bottom' },
     ],
   ],

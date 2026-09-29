@@ -1126,7 +1126,7 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     b.both((c) => { c.fillStyle = '#ffcc3d'; c.fillRect(x + 2, y + 1, 12, 1); });
   },
 
-  /** Awakened-forest tree for the wilds: gnarled trunk and roots, clumped canopy lit from the
+  /** Woken-forest tree for the wilds: gnarled trunk and roots, clumped canopy lit from the
    * upper left, glowing moss strands and fungus. Distinct from the tidy street `tree`. */
   wildtree(b, p, rng) {
     blockFoot(b, p);

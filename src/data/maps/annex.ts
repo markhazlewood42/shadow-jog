@@ -153,7 +153,7 @@ export const annex: MapDef = {
     { id: 'door', x: 14, y: 10, h: 2, on: 'action', when: (f) => !f.annex_key, run: annexDoor },
     {
       id: 'log1', x: 27, y: 3, on: 'action',
-      run: annexLog('PROJECT VESSEL · OVERVIEW', 'Awakened subjects carry measurable essence reserves. Extraction yields a stable, transferable mana substrate. Applications: power, weapons, obedience.'),
+      run: annexLog('PROJECT VESSEL · OVERVIEW', 'Woken subjects carry measurable spark reserves. Extraction yields a stable, transferable mana substrate. Applications: power, weapons, obedience.'),
     },
     {
       id: 'log2', x: 16, y: 12, on: 'action',
@@ -161,7 +161,7 @@ export const annex: MapDef = {
         await annexLog('SUBJECT LOG · S-3', 'Subject S-3 (human, hermetic) expired during extraction. Residual spirit bound to the WARDEN security core. Recommendation: repurpose all future expirees. Waste nothing.')(s);
         if (!s.flag('rook_log')) {
           s.set('rook_log');
-          await s.say('rook', '...');
+          await s.say('rook', '…');
           await s.say('kit', 'Rook?');
           await s.say('rook', 'Seen a room like this before. Keep moving.');
         }

@@ -83,7 +83,7 @@ export const ITEMS: Record<string, ItemDef> = {
   ash_staff: I({ id: 'ash_staff', name: 'Ash Staff', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 40, atk: 6, mnd: 2, desc: 'Carved ash wood. +2 MND.' }),
   bone_staff: I({ id: 'bone_staff', name: 'Bone Fetish Staff', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 420, atk: 10, mnd: 6, desc: 'Strung with charms. +6 MND.' }),
   thorn_rod: I({ id: 'thorn_rod', name: 'Thorn Rod', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 440, atk: 12, mnd: 3, element: 'fire', desc: 'Spirit-hardened thornwood. +3 MND; attacks deal FIRE damage.' }),
-  focus_rod: I({ id: 'focus_rod', name: 'K-M Focus Rod', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 900, atk: 11, mnd: 9, res: 3, desc: 'The lab’s own essence-extraction focus, turned around. +9 MND, +3 RES. Found, never sold.' }),
+  focus_rod: I({ id: 'focus_rod', name: 'K-M Focus Rod', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 900, atk: 11, mnd: 9, res: 3, desc: 'The lab’s own spark-extraction focus, turned around. +9 MND, +3 RES. Found, never sold.' }),
   crow_staff: I({ id: 'crow_staff', name: 'Crow Staff', kind: 'weapon', slot: 'weapon', who: ['sable'], price: 0, atk: 14, mnd: 10, desc: 'Black feathers, black iron. +10 MND.' }),
 
   // ------------------------------------------------------------------ body
@@ -98,12 +98,18 @@ export const ITEMS: Record<string, ItemDef> = {
   bandana: I({ id: 'bandana', name: 'Bandana', kind: 'head', slot: 'head', who: ALL, price: 15, def: 1, desc: 'Keeps the rain out of your eyes.' }),
   helmet: I({ id: 'helmet', name: 'Riot Helmet', kind: 'head', slot: 'head', who: ['kit', 'rook'], price: 150, def: 5, agi: -1, desc: 'Scuffed police surplus. -1 AGI.' }),
   tac_visor: I({ id: 'tac_visor', name: 'Tactical Visor', kind: 'head', slot: 'head', who: ALL, price: 280, def: 3, hit: 12, desc: 'Targeting overlay. +3 DEF, +12% hit.' }),
+  // One headpiece per crew member, like the character mods: a sidegrade in their own style.
+  sparring_band: I({ id: 'sparring_band', name: 'Sparring Band', kind: 'head', slot: 'head', who: ['kit'], price: 300, def: 1, agi: 3, crit: 4, desc: 'Red cloth, knotted twice at the back. +3 AGI, +4% critical.' }),
+  mempo: I({ id: 'mempo', name: 'Iron Mempo', kind: 'head', slot: 'head', who: ['rook'], price: 320, def: 4, hit: 6, desc: 'A lacquered half-mask from a war nobody remembers. +4 DEF, +6% hit.' }),
+  trode_net: I({ id: 'trode_net', name: 'Trode Net', kind: 'head', slot: 'head', who: ['hex'], price: 320, mnd: 5, tp: 3, def: -1, desc: 'Electrodes woven into a hairnet: faster than a jack. +5 MND, +3 RAM, -1 DEF.' }),
+  feather_circlet: I({ id: 'feather_circlet', name: 'Feather Circlet', kind: 'head', slot: 'head', who: ['sable'], price: 360, mnd: 3, res: 4, immune: ['blind'], desc: 'Crow feathers on braided copper; the crow keeps watch. +3 MND, +4 RES, immune to blindness.' }),
   spirit_band: I({ id: 'spirit_band', name: 'Spirit Band', kind: 'head', slot: 'head', who: ['kit', 'sable'], price: 340, def: 2, mnd: 4, res: 3, desc: '+4 MND, +3 RES.' }),
 
   // ------------------------------------------------------------------ mods (accessories)
   reflex_booster: I({ id: 'reflex_booster', name: 'Reflex Booster', kind: 'mod', slot: 'mod', who: ALL, price: 380, agi: 6, desc: 'Wired reflexes. +6 AGI.' }),
   dermal_plating: I({ id: 'dermal_plating', name: 'Dermal Plating', kind: 'mod', slot: 'mod', who: ALL, price: 340, def: 6, desc: 'Subdermal armor. +6 DEF.' }),
-  neural_buffer: I({ id: 'neural_buffer', name: 'Neural Buffer', kind: 'mod', slot: 'mod', who: ALL, price: 360, mnd: 4, tp: 8, desc: '+4 MND, +8 max TP.' }),
+  // Rook has no TP to buffer: the shop shows him as unable to wear it rather than let it go to waste.
+  neural_buffer: I({ id: 'neural_buffer', name: 'Neural Buffer', kind: 'mod', slot: 'mod', who: ['kit', 'hex', 'sable'], price: 360, mnd: 4, tp: 8, desc: '+4 MND, +8 max TP (not for Rook: no TP to buffer).' }),
   lucky_coin: I({ id: 'lucky_coin', name: 'Lucky Coin', kind: 'mod', slot: 'mod', who: ALL, price: 250, crit: 10, desc: 'A Kowloon-era coin. +10% critical.' }),
   // Chest-only finds: not sold anywhere, so exploring pays off in something a shop can't give.
   // The lab's own kit, sold at Requisition: the endgame's cred sink (a player who kept their
@@ -119,12 +125,12 @@ export const ITEMS: Record<string, ItemDef> = {
   // something for their own style, so the mod slot is a per-character choice, not a shopping list.
   ki_beads: I({ id: 'ki_beads', name: 'Ki Beads', kind: 'mod', slot: 'mod', who: ['kit'], price: 360, mnd: 6, agi: 2, def: -2, desc: 'Prayer beads wound round the wrist. +6 MND, +2 AGI for Ki Arts; -2 DEF, nothing between you and the hit.' }),
   ronin_guard: I({ id: 'ronin_guard', name: 'Ronin Guard', kind: 'mod', slot: 'mod', who: ['rook'], price: 380, def: 5, res: 3, agi: -2, desc: 'An old bracer plate and a vow. +5 DEF, +3 RES for the one who stands in front; -2 AGI.' }),
-  coolant_rig: I({ id: 'coolant_rig', name: 'Coolant Rig', kind: 'mod', slot: 'mod', who: ['hex'], price: 360, mnd: 7, tp: 4, def: -3, desc: 'Liquid-cooled deck. +7 MND, +4 RAM: hotter programs, fragile decker. -3 DEF.' }),
+  coolant_rig: I({ id: 'coolant_rig', name: 'Coolant Rig', kind: 'mod', slot: 'mod', who: ['hex'], price: 360, mnd: 7, tp: 4, def: -3, desc: 'Liquid-cooled deck. +7 MND, +4 RAM: hotter programs, fragile jockey. -3 DEF.' }),
   crow_torc: I({ id: 'crow_torc', name: 'Crow Torc', kind: 'mod', slot: 'mod', who: ['sable'], price: 360, res: 5, mnd: 5, agi: -1, desc: 'Copper torc hung with crow feathers. +5 RES, +5 MND: the spirits listen. -1 AGI.' }),
   cyber_eye: I({ id: 'cyber_eye', name: 'Cyber Eye', kind: 'mod', slot: 'mod', who: ALL, price: 320, crit: 6, immune: ['blind'], desc: 'Flare-damped optics. Immune to blindness, +6% critical.' }),
 
   // ------------------------------------------------------------------ key items
-  coprocessor: I({ id: 'coprocessor', name: 'Stingray Coprocessor', kind: 'key', price: 0, desc: 'A decker-grade coprocessor, still in anti-static wrap. For Hex.' }),
+  coprocessor: I({ id: 'coprocessor', name: 'Stingray Coprocessor', kind: 'key', price: 0, desc: 'A jockey-grade coprocessor, still in anti-static wrap. For Hex.' }),
   maint_key: I({ id: 'maint_key', name: 'Maintenance Keycard', kind: 'key', price: 0, desc: 'Transit authority card. Opens Sinkline service gates.' }),
   annex_key: I({ id: 'annex_key', name: 'Annex Passkey', kind: 'key', price: 0, desc: 'Kessler-Mori security passkey, lifted from a guard.' }),
   med_case: I({ id: 'med_case', name: 'Doc Yun’s Med-Case', kind: 'key', price: 0, desc: 'A battered surgical case stamped YUN. Somebody at the clinic wants this back.' }),

@@ -11,7 +11,7 @@ import { drawParagraph, drawText, fitText } from '../engine/font';
 import { SHOP_COMPARE_W } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { canEquip, memberStats } from '../game/party';
-import { state, type MemberState } from '../game/state';
+import { flags, state, type MemberState } from '../game/state';
 import { drawDivider, drawWindow, keyLegend, UI, OVERLAY_DIM } from '../ui/draw';
 import { ListMenu } from '../ui/list';
 
@@ -65,7 +65,7 @@ export class ShopScene extends Scene<void> {
         if (r === 'blocked' && this.mode === 'buy') {
           // Say why: a greyed-out row with no reason reads as a bug.
           const it = ITEMS[this.list.current!.value]!;
-          this.line = `That’s ${(it.price - state.cred).toLocaleString('en-US')}¢ more than you’ve got.`;
+          this.line = `That’s ${(this.price(it.id) - state.cred).toLocaleString('en-US')}¢ more than you’ve got.`;
         }
         if (r === 'confirm') {
           this.qtyMode = this.mode;
@@ -98,7 +98,7 @@ export class ShopScene extends Scene<void> {
     if (this.qtyMode === 'sell') return state.inventory[id] ?? 0;
     const it = ITEMS[id]!;
     const room = 99 - (state.inventory[id] ?? 0);
-    return Math.max(1, Math.min(room, Math.floor(state.cred / Math.max(1, it.price))));
+    return Math.max(1, Math.min(room, Math.floor(state.cred / Math.max(1, this.price(it.id)))));
   }
 
   private openBuy(): void {
@@ -106,8 +106,9 @@ export class ShopScene extends Scene<void> {
       this.shop.items.map((id) => {
         const it = ITEMS[id]!;
         // Out of reach reads as a price problem (red), not as an item you can never have.
-        const afford = it.price <= state.cred;
-        return { label: it.name, value: id, right: `${it.price}¢`, enabled: afford, rightColor: afford ? undefined : '#c85a64' };
+        const price = this.price(id);
+        const afford = price <= state.cred;
+        return { label: it.name, value: id, right: `${price}¢`, enabled: afford, rightColor: afford ? undefined : '#c85a64' };
       }),
     );
     this.list.index = 0;
@@ -129,10 +130,17 @@ export class ShopScene extends Scene<void> {
     this.line = 'What are you selling?';
   }
 
+  /** What this keeper asks for an item (the list price, less any discount you've earned). */
+  private price(id: string): number {
+    const base = ITEMS[id]!.price;
+    const d = this.shop.discount;
+    return d && flags.has(d.flag) ? Math.round(base * d.mult) : base;
+  }
+
   private transact(id: string): void {
     const it = ITEMS[id]!;
     if (this.qtyMode === 'buy') {
-      const cost = it.price * this.qty;
+      const cost = this.price(it.id) * this.qty;
       if (cost > state.cred) {
         sfx('buzz');
         this.line = 'Cred first, then goods.';
@@ -189,7 +197,7 @@ export class ShopScene extends Scene<void> {
     drawText(ctx, `Owned: ${state.inventory[it.id] ?? 0}`, dx + dw - 8, 52, { align: 'right', color: UI.dim });
     const lines = drawParagraph(ctx, it.desc, dx + 8, 64, dw - 16, { color: '#d0cee4', lineH: 10 });
     let y = 70 + lines * 10;
-    const short = it.price - state.cred;
+    const short = this.price(it.id) - state.cred;
     if (this.mode === 'buy' && short > 0) {
       drawText(ctx, `Need ${short.toLocaleString('en-US')}¢ more`, dx + 8, y - 4, { color: UI.red });
       y += 10;
@@ -203,7 +211,7 @@ export class ShopScene extends Scene<void> {
       }
     }
     if (this.mode === 'qty') {
-      const price = this.qtyMode === 'buy' ? it.price : sellPrice(it.id);
+      const price = this.qtyMode === 'buy' ? this.price(it.id) : sellPrice(it.id);
       const w = 150, x = lx + (lw - w) / 2, qy = 120;
       drawWindow(ctx, x, qy, w, 36, { accent: UI.amber });
       drawText(ctx, `Quantity  ◀ {y}${this.qty}{/} ▶`, x + 10, qy + 7);

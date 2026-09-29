@@ -31,7 +31,7 @@ export interface MemberDef {
 
 export const MEMBERS: Record<MemberId, MemberDef> = {
   kit: {
-    id: 'kit', name: 'Kit', role: 'Physical Adept', color: '#ff8a6a', tpLabel: 'KI',
+    id: 'kit', name: 'Kit', role: 'Ki Brawler', color: '#ff8a6a', tpLabel: 'KI',
     bio: '19. Lantern Row born, Rook raised. Her magic came late and came out through her fists.',
     base: { hp: 44, tp: 12, str: 12, mnd: 9, agi: 14, def: 6 },
     growth: { hp: 8.5, tp: 2.2, str: 2.4, mnd: 1.5, agi: 2.1, def: 1.2 },
@@ -47,7 +47,7 @@ export const MEMBERS: Record<MemberId, MemberDef> = {
     startEquip: { weapon: 'old_katana', body: 'lined_coat', mod: 'dermal_plating' },
   },
   hex: {
-    id: 'hex', name: 'Hex', role: 'Decker', color: '#c3a0ff', tpLabel: 'RAM',
+    id: 'hex', name: 'Hex', role: 'Deck Jockey', color: '#c3a0ff', tpLabel: 'RAM',
     bio: '34. Dwarf, genius, insomniac. Owes money to people who don’t send reminders.',
     base: { hp: 34, tp: 15, str: 7, mnd: 13, agi: 11, def: 5 },
     growth: { hp: 6.8, tp: 3.3, str: 1.2, mnd: 2.4, agi: 1.8, def: 1.0 },

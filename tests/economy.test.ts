@@ -99,6 +99,17 @@ describe('economy', () => {
     expect(ITEMS.km_lace!.price).toBeGreaterThan(median * 0.8);
   });
 
+  it('Mags’ fork is a real choice: her discount on the route’s later buys is worth about the 150¢ it costs', async () => {
+    const { SHOPS } = await import('../src/data/shops');
+    const mags = SHOPS.rustyard!;
+    const later = [...STAGE_GEAR.lurker, ...STAGE_GEAR.annex].filter((id) => mags.items.includes(id));
+    const saving = later.reduce((n, id) => n + ITEMS[id]!.price * (1 - mags.discount!.mult), 0);
+    // Neither option dominates: a crew that buys its gear from Mags roughly breaks even, one that
+    // doesn't is out of pocket, and the 150¢ now is worth more early than a discount later.
+    expect(saving).toBeGreaterThan(150 * 0.75);
+    expect(saving).toBeLessThan(150 * 2);
+  });
+
   it('the whole chapter takes a sensible number of fights', () => {
     const last = report[report.length - 1]!;
     expect(last.battles).toBeGreaterThan(18);

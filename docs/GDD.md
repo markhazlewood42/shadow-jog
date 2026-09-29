@@ -9,13 +9,25 @@ tags: [gdd, design]
 
 # SHADOW JOG — Game Design Document
 
-> **Pitch.** A 16-bit-style cyberpunk-fantasy JRPG for the browser. A mentor, an apprentice, a decker and a
+> **Pitch.** A 16-bit-style cyberpunk-fantasy JRPG for the browser. A mentor, an apprentice, a deck jockey and a
 > shaman take a simple "jog" (street slang for a small, low-risk job) that turns out to be anything but.
 > Gameplay follows the *Phantasy Star IV* loop: town → world map → dungeon → boss, with a small squad,
 > round-based combat, techniques + limited-use skills, **combination attacks**, and a simple economy. The setting
-> borrows the *feel* of the magic-meets-megacorp genre (street samurai, deckers, shamans, metahumans), but
-> every name, place and term is original. The city is **Saltreach** (2079), a drowned coastal megacity; Chapter 1
+> borrows the *feel* of the magic-meets-megacorp genre (street samurai, hackers, shamans, orcs and dwarves), but
+> every name, place and term is original (see the glossary below). The city is **Saltreach** (2079), a drowned coastal megacity; Chapter 1
 > stays in its Lower Wards.
+
+### Glossary (Saltreach's own words)
+
+| Term | Means | Instead of the genre's usual |
+|---|---|---|
+| **Woken** | Born with (or come into) magic; a Woken kid, a Woken forest | "Awakened" |
+| **spark** | The magic in a Woken person, and what Kessler-Mori extracts and measures ("spark yield") | "essence" |
+| **deck jockey** / jockey | A hacker who rides a cyberdeck into systems | "decker" |
+| **ki brawler** | A fighter whose magic comes out through the body | "physical adept" |
+| **jog** | A small, supposedly easy job | — |
+
+Kept, because they're older and wider than any one game: street samurai (Gibson), deck, fixer, chrome, shaman, orc, dwarf.
 
 ## 1. Pillars
 
@@ -36,12 +48,12 @@ tags: [gdd, design]
 ### Story beats
 1. **Cold open (comic panels).** Rain over the city. Rook and Kit on a rooftop. "One last easy job, then we eat."
 2. **Lantern Row.** Fixer **Dutch** at the *Drowned Saint* bar introduces **Mr. Pale** (a Johnson). The job: retrieve a
-   "data core" from a derelict Kessler-Mori research annex under the flooded Sinkline. Doors are corp-locked → need a decker.
-3. **Hex.** Dwarf decker, holed up in her den, deck fried. She'll come if the crew fetch a replacement
+   "data core" from a derelict Kessler-Mori research annex under the flooded Sinkline. Doors are corp-locked → need a deck jockey.
+3. **Hex.** Dwarf deck jockey, holed up in her den, deck fried. She'll come if the crew fetch a replacement
    coprocessor from **Old Mags** in Rustyard.
 4. **Rustyard.** Scav camp under siege from a Rustfang gang pack. Clear them → Mags hands over the part. Hex joins.
 5. **The Sinkline B1.** Flooded platforms, maintenance catwalks, a dead rival crew (foreshadowing). Hex hacks the
-   floodgate; mid-boss **The Lurker** (awakened eel) guards the junction.
+   floodgate; mid-boss **The Lurker** (Woken eel) guards the junction.
 6. **K-M Annex B2.** Sterile labs. Terminals with lore. The "data core" is a cryopod: **Sable**, an orc shaman being
    drained of their magic. Kit's latent power flares in resonance. Sable joins. Alarm.
 7. **Boss: WARDEN.** Security mech with a bound spirit for a core; phase 2 when the spirit tears loose.
@@ -58,8 +70,8 @@ tags: [gdd, design]
 | | Kit | Rook | Hex | Sable |
 |---|---|---|---|---|
 | Pronouns | she/her | he/him | she/her | they/them |
-| Metatype / age | Human, 19 | Human, 41 | Dwarf, 34 | Orc, 24 |
-| Role | Physical adept (magic-fuelled martial artist) | Street samurai (heavily chromed, no magic) | Decker (programs vs machines, debuffs) | Shaman (healing, spirits, fire) |
+| Folk / age | Human, 19 | Human, 41 | Dwarf, 34 | Orc, 24 |
+| Role | Ki brawler (magic-fuelled martial artist) | Street samurai (heavily chromed, no magic) | Deck jockey (programs vs machines, debuffs) | Shaman (healing, spirits, fire) |
 | Resource | TP (Ki) | Skills only (TP 0) | TP (RAM) | TP (Mana) |
 | Weapons | Knuckles | Blades, Guns | Pistols | Staves, Fetishes |
 | Joins | Start | Start | Lantern Row (after Rustyard) | Sinkline B2 |

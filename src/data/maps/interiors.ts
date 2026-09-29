@@ -75,7 +75,7 @@ export const rookFlat: MapDef = {
     },
     {
       id: 'tv', x: 3, y: 2, w: 2, on: 'action', run: async (s) => {
-        await s.narrate('{c}K-M NEWSFEED:{/} “...Kessler-Mori reminds citizens that Awakened individuals must register their abilities. Registration is free, safe, and mandatory...”');
+        await s.narrate('{c}K-M NEWSFEED:{/} “…Kessler-Mori reminds citizens that Woken individuals must register their abilities. Registration is free, safe, and mandatory…”');
       },
     },
   ],
@@ -149,7 +149,7 @@ export const bar: MapDef = {
           const rumors = [
             'Knuckles and the Rustfangs have been leaning on the Rustyard. Old Mags won’t pay. Good for her.',
             'Folk who go down the Sinkline hear commuters. The last train left in ’61.',
-            'Kessler-Mori’s buying up every Awakened kid in the Wards. “Scholarships.” Right.',
+            'Kessler-Mori’s buying up every Woken kid in the Wards. “Scholarships.” Right.',
             'A crew called the Glass Wolves drank here last week. Big job, big talk. Haven’t seen ’em since.',
           ];
           await s.say('Saint', rumors[(s.get('rumor') as number | undefined ?? 0) % rumors.length]!);
@@ -162,7 +162,7 @@ export const bar: MapDef = {
       'He and his old partner had a move: she’d {y}blur in fast{/}, he’d {y}follow through with the heaviest cut{/} he had. Same breath. Called it the {c}Thunder Rift{/}.',
       'Pick a quick strike for you and Rook’s big cut in the same round. You’ll see.',
     ], 'up'),
-    patron('drinker', 4, 10, 402, 'Patron', ['I’m not drunk. I’m Awakened. The room is spinning magically.'], 'up'),
+    patron('drinker', 4, 10, 402, 'Patron', ['I’m not drunk. I’m Woken. The room is spinning magically.'], 'up'),
     patron('dancer', 12, 11, 118, 'Regular', ['The jukebox only plays one song. Nobody knows who put it there. Nobody’s brave enough to unplug it.'], 'left', 'wander'),
   ],
   events: [

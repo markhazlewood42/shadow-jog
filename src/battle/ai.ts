@@ -165,7 +165,7 @@ export function chooseEnemyAction(b: Battle, self: Combatant): EnemyChoice | nul
       }
       if (mem.turn % 4 === 0) {
         mem.breath = 1;
-        return { ability: ABILITIES.attack!, target: -1, message: 'The spirit draws in a long, ragged breath...', skip: true };
+        return { ability: ABILITIES.attack!, target: -1, message: 'The spirit draws in a long, ragged breath…', skip: true };
       }
       break;
     }

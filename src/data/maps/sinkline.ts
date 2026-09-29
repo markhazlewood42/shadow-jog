@@ -161,7 +161,7 @@ export const sinkline1: MapDef = {
       talk: async (s) => {
         if (!s.flag('met_wire')) {
           s.set('met_wire');
-          await s.say('Wire', 'Whoa, whoa. Runners? Down here? ...Relax, I’m not K-M. I’m Wire. I live here. Rent’s free if you don’t mind ghosts.');
+          await s.say('Wire', 'Whoa, whoa. Runners? Down here? …Relax, I’m not K-M. I’m Wire. I live here. Rent’s free if you don’t mind ghosts.');
           await s.say('Wire', 'I fence what the tunnels cough up. You need gear, I got gear. Mags-grade, no backtracking.');
         }
         await s.shop('fence');

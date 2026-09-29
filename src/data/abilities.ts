@@ -86,7 +86,7 @@ export const ABILITIES: Record<string, Ability> = {
     effects: [{ type: 'damage', stat: 'atk', mult: 3.2, critBonus: 15 }], fx: 'moonfall',
   }),
 
-  // ------------------------------------------------------------------ HEX (decker)
+  // ------------------------------------------------------------------ HEX (deck jockey)
   spike: A({
     id: 'spike', name: 'Spike', kind: 'tech', cost: 3, target: 'enemy', element: 'cyber',
     desc: 'Attack program. Fries machines; barely tickles flesh.',
@@ -247,7 +247,7 @@ export const ABILITIES: Record<string, Ability> = {
   e_chill: A({ id: 'e_chill', name: 'Chill Touch', kind: 'enemy', target: 'enemy', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 10, drain: 0.5 }], fx: 'dark' }),
   e_wail: A({ id: 'e_wail', name: 'Drowned Wail', kind: 'enemy', target: 'enemies', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 4 }, { type: 'status', status: 'blind', chance: 0.3, turns: 3 }], fx: 'wail' }),
   e_coil_shock: A({ id: 'e_coil_shock', name: 'Coil Shock', kind: 'enemy', target: 'enemy', element: 'shock', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 8 }, { type: 'status', status: 'stun', chance: 0.2, turns: 1 }], fx: 'zap' }),
-  e_crush_coil: A({ id: 'e_crush_coil', name: 'Crushing Coil', kind: 'enemy', target: 'enemy', desc: '', cry: 'The water heaves...', effects: [{ type: 'damage', stat: 'atk', mult: 1.8 }, { type: 'status', status: 'stun', chance: 0.35, turns: 1 }], fx: 'crush' }),
+  e_crush_coil: A({ id: 'e_crush_coil', name: 'Crushing Coil', kind: 'enemy', target: 'enemy', desc: '', cry: 'The water heaves…', effects: [{ type: 'damage', stat: 'atk', mult: 1.8 }, { type: 'status', status: 'stun', chance: 0.35, turns: 1 }], fx: 'crush' }),
   e_tidal: A({ id: 'e_tidal', name: 'Tidal Surge', kind: 'enemy', target: 'enemies', desc: '', effects: [{ type: 'damage', stat: 'atk', mult: 0.85 }], fx: 'wave' }),
   e_biolume: A({ id: 'e_biolume', name: 'Bioluminescence', kind: 'enemy', target: 'enemies', desc: '', effects: [{ type: 'status', status: 'blind', chance: 0.55, turns: 3 }], fx: 'flash' }),
   e_burst: A({ id: 'e_burst', name: 'Burst Fire', kind: 'enemy', target: 'random_enemies', desc: '', effects: [{ type: 'damage', stat: 'atk', mult: 0.7, hits: 2 }], fx: 'gunfire' }),
@@ -257,7 +257,7 @@ export const ABILITIES: Record<string, Ability> = {
   e_volley: A({ id: 'e_volley', name: 'Volley', kind: 'enemy', target: 'enemies', desc: '', effects: [{ type: 'damage', stat: 'atk', mult: 0.7 }], fx: 'gunfire' }),
   e_mana_bolt: A({ id: 'e_mana_bolt', name: 'Mana Bolt', kind: 'enemy', target: 'enemy', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 20 }], fx: 'bolt' }),
   e_barrier: A({ id: 'e_barrier', name: 'Barrier', kind: 'enemy', target: 'allies', desc: '', effects: [{ type: 'buff', status: 'res_up', turns: 3 }, { type: 'buff', status: 'def_up', turns: 3 }], fx: 'shield' }),
-  e_drain: A({ id: 'e_drain', name: 'Essence Drain', kind: 'enemy', target: 'enemy', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 20, drain: 1 }], fx: 'dark' }),
+  e_drain: A({ id: 'e_drain', name: 'Spark Drain', kind: 'enemy', target: 'enemy', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 20, drain: 1 }], fx: 'dark' }),
   e_lockon: A({ id: 'e_lockon', name: 'Target Acquired', kind: 'enemy', target: 'enemy', desc: '', effects: [{ type: 'status', status: 'lockon', chance: 1, turns: 2 }], fx: 'scan' }),
   e_missile: A({ id: 'e_missile', name: 'Micro-Missile', kind: 'enemy', target: 'enemy', element: 'fire', desc: '', effects: [{ type: 'damage', stat: 'atk', mult: 2.1 }], fx: 'explosion' }),
   e_anguish: A({ id: 'e_anguish', name: 'Anguish', kind: 'enemy', target: 'enemies', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 18 }], fx: 'wail' }),

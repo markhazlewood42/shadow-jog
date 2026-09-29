@@ -65,7 +65,7 @@ export const firstFight: ScriptFn = async (s) => {
 // ------------------------------------------------------------------ the job
 export const meetDutch: ScriptFn = async (s) => {
   if (s.flag('met_dutch')) {
-    await s.say('dutch', s.flag('sable_joined') ? 'Whoever that is with you, darlin’, I never saw them. I never saw any of you.' : 'The meter’s running on Mr. Pale’s patience. Go find your decker.');
+    await s.say('dutch', s.flag('sable_joined') ? 'Whoever that is with you, darlin’, I never saw them. I never saw any of you.' : 'The meter’s running on Mr. Pale’s patience. Go find your jockey.');
     return;
   }
   await s.say('dutch', 'There they are. My favorite disaster and his apprentice. Sit, sit. Mind the stain, it’s load-bearing.', { face: 'happy' });
@@ -76,9 +76,9 @@ export const meetDutch: ScriptFn = async (s) => {
   await s.say('kit', 'Three thou—', { face: 'surprised' });
   await s.say('rook', 'Kit.');
   await s.say('rook', 'A written-off annex. A milk run. You could send anybody. Why us?');
-  await s.say('pale', 'Because “anybody” asks more questions. Also, the annex doors are still corporate-locked. You will need a decker.', { face: 'smirk' });
+  await s.say('pale', 'Because “anybody” asks more questions. Also, the annex doors are still corporate-locked. You will need a deck jockey.', { face: 'smirk' });
   await s.say('dutch', 'Which you haven’t got, since your last one moved to Neo-Lagos and stopped taking my calls.');
-  await s.say('rook', '...Hex.');
+  await s.say('rook', '…Hex.');
   await s.say('dutch', 'Hex! Hex owes me money. Two birds, one run. Tell her if she does this, her tab goes in the canal.', { face: 'happy' });
   await s.give('pale_chip', 1);
   await s.say('pale', 'Expenses. I will not be asking for receipts.');
@@ -134,9 +134,9 @@ export const meetHex: ScriptFn = async (s) => {
   await s.say('kit', 'So buy a new one.');
   await s.say('hex', 'With what cred? The cred I owe Dutch? A Stingray coprocessor costs more than this building. Which I also owe money on.');
   await s.say('rook', 'Dutch will forget your debt.');
-  await s.say('hex', '...How much of it?', { face: 'smirk' });
+  await s.say('hex', '…How much of it?', { face: 'smirk' });
   await s.say('rook', 'Some.');
-  await s.say('hex', 'Some is a number. I can work with a number. There’s a scavver in the Rustyard, {y}Old Mags{/}. She had a Stingray last month. Rustyard’s east, past the Barrens. Get me that chip and I’m your decker. Your professional, sober decker.');
+  await s.say('hex', 'Some is a number. I can work with a number. There’s a scavver in the Rustyard, {y}Old Mags{/}. She had a Stingray last month. Rustyard’s east, past the Barrens. Get me that chip and I’m your jockey. Your professional, sober deck jockey.');
   await s.say('hex', 'The Barrens are nasty. Here, I can spare these.', { face: 'happy' });
   await s.give('detox', 2);
   s.set('met_hex');
@@ -168,9 +168,9 @@ export const knucklesFight: ScriptFn = async (s) => {
   const r = await s.battle('f_knuckles', { canRun: false, boss: true, bg: 'rustyard' });
   if (r !== 'win') return;
   s.despawn('knuckles');
-  await s.say('“Knuckles” Tran', 'Ugh... fine... take your junk... I’m moving to Neo-Lagos...');
-  await s.say('“Knuckles” Tran', 'Your fixer’s got a big mouth, y’know. Whole yard knew you were hunting a decker before you did.');
-  await s.say('rook', '...Dutch.');
+  await s.say('“Knuckles” Tran', 'Ugh… fine… take your junk… I’m moving to Neo-Lagos…');
+  await s.say('“Knuckles” Tran', 'Your fixer’s got a big mouth, y’know. Whole yard knew you were hunting a deck jockey before you did.');
+  await s.say('rook', '…Dutch.');
   await s.say('kit', 'Dutch talks. That’s not the same as selling us.', { face: 'angry' });
   await s.say('rook', 'With Dutch it usually is.');
   s.set('knuckles');
@@ -192,8 +192,14 @@ export const magsReward: ScriptFn = async (s) => {
       await s.say('kit', 'We found the camp’s tribute as well. Behind the tagged heap. It’s yours.');
       await s.say('mags', 'Keep it. Where you’re going you’ll need it more than we will. The camp voted. I counted.');
     }
-    await s.say('mags', 'And this. The camp took up a collection for whoever ran Knuckles off. Don’t argue with me, I’m old.');
-    await s.cred(150);
+    // A real fork: the cred now, or the camp keeps it and Mags remembers (a fifth off her stock).
+    const keep = await s.ask('mags', 'And this. The camp took up a collection for whoever ran Knuckles off: {y}150¢{/}. Don’t argue with me, I’m old.', ['Take it', 'Leave it with the camp'], { cancel: 0 });
+    if (keep === 0) await s.cred(150);
+    else {
+      s.set('camp_kept');
+      await s.say('kit', 'Keep it. The little ones need it more than our rent does.');
+      await s.say('mags', 'Hmph. Then here’s what it buys you: anything on my lot, a fifth off. For as long as I’m breathing.', { face: 'happy' });
+    }
     await s.say('mags', 'And tell Hex she still owes me for the last one.');
     s.objective(OBJ.bringChip);
     return;
@@ -207,7 +213,7 @@ export const magsReward: ScriptFn = async (s) => {
 export const sinklineGate: ScriptFn = async (s) => {
   if (!s.inParty('hex')) {
     await s.narrate('A transit-authority service gate. The lock panel blinks {r}LOCKED{/}: corporate encryption.');
-    await s.say('rook', 'This is what the decker’s for.');
+    await s.say('rook', 'This is what the jockey’s for.');
     return;
   }
   await s.say('hex', 'Transit authority lock with Kessler-Mori wrapping. Cute. Give me a second.');
@@ -424,25 +430,28 @@ export const annexLog = (title: string, body: string): ScriptFn => async (s) => 
 export const cryopod: ScriptFn = async (s) => {
   if (s.flag('sable_joined')) return;
   await s.narrate('A cryopod, humming, lit from within. Frost on the glass. Behind it, a figure: an orc, bone-white hair, eyes closed.');
-  await s.say('hex', 'Label reads {c}ASSET S-7 · “VESSEL” · ESSENCE YIELD 94%{/}. Oh no. Oh no no no.', { face: 'sad' });
+  await s.say('hex', 'Label reads {c}ASSET S-7 · “VESSEL” · SPARK YIELD 94%{/}. Oh no. Oh no no no.', { face: 'sad' });
   await s.say('hex', 'This is the data core. It’s not data. It’s a person.', { face: 'sad' });
-  await s.say('rook', '...');
+  await s.say('rook', '…');
   await s.say('kit', 'We’re getting them out.', { face: 'angry' });
   await s.say('rook', 'Kit. Three thousand cred, the rent, Hex’s debt—');
   await s.say('kit', 'Nine seconds. Pale timed me in the street and wrote it down.', { face: 'sad' });
   await s.say('kit', 'That’s how you end up in there, Rook. Somebody likes your numbers.');
   await s.say('kit', 'We’re getting them OUT.', { face: 'angry' });
-  await s.say('rook', '...');
+  await s.say('rook', '…');
   await s.say('rook', 'Twenty years ago I stood in a lab like this. Different logo. My crew got paid, and I walked out past a tank with somebody still in it.');
   await s.say('rook', 'I told myself it wasn’t my job. I’ve been telling myself that every night since.');
   await s.say('rook', 'Do it, kid. Whatever it costs.');
+  await s.say('kit', 'You never told me that.', { face: 'sad' });
+  await s.say('rook', 'You never needed to carry it. Now you do. Go on.');
+  await s.say('hex', 'For the record, I hate “whatever it costs.” I’m doing it anyway.', { face: 'angry' });
   s.flash('#ffffff', 20);
   s.shake(30, 3);
   s.sfx('phase');
   await s.narrate('Kit’s hand touches the glass, and something in her answers. Ki surges up through her arm like a struck match. Frost blooms, cracks, and shatters.');
   s.music('sable');
   await s.wait(30);
-  await s.say('sable', '...The crow was screaming. For so long. Now it’s quiet.', { face: 'sad' });
+  await s.say('sable', '…The crow was screaming. For so long. Now it’s quiet.', { face: 'sad' });
   await s.say('sable', 'You. Your hands are burning.');
   await s.say('kit', 'Started last month. I don’t know why.', { face: 'surprised' });
   await s.say('sable', 'Mm. The crow says you’re loud. That’s not an insult.');
@@ -455,11 +464,12 @@ export const cryopod: ScriptFn = async (s) => {
   await s.say('hex', 'Somebody did. It’s in the pod logs.', { face: 'angry' });
   await s.narrate('Hex jacks into the pod’s panel. For a long minute the only sound is the deck, copying: intake dates, yields, transfer orders. Every name.');
   await s.say('hex', 'Got it. All of it. It goes wherever we go, and it doesn’t go to Pale.');
-  await s.say('sable', '...Then I will walk with you. As far as the door. After that I will decide.');
+  await s.say('sable', '…Then I will walk with you. As far as the door. After that I will decide.');
   await s.fadeOut(30, '#07060d');
   s.refreshMap(); // the pod, shattered and empty
   await s.wait(20);
   await s.narrate('Hex puts her jacket round Sable’s shoulders. Rook watches the door. Nobody says anything about three thousand cred.');
+  await s.narrate('Kit falls in beside Rook. She doesn’t ask about the other tank, and he doesn’t offer. Their shoulders touch, once, on the way to the door.');
   await s.fadeIn(30);
   await s.join('sable');
   s.set('sable_joined');

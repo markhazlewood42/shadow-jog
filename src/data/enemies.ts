@@ -85,7 +85,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     hp: 20, atk: 12, def: 3, mnd: 3, res: 3, agi: 16, xp: 5, cred: 5,
     drops: [{ id: 'rat_tail', chance: 0.35 }],
     moves: [{ id: 'attack', w: 2 }, { id: 'e_gnaw', w: 2 }],
-    lore: 'Awakened sewer rats. The glow is magic. The bite is worse.',
+    lore: 'Woken sewer rats. The glow is magic. The bite is worse.',
   }),
   scrap_hound: E({
     id: 'scrap_hound', name: 'Scrap Hound', family: 'machine', sprite: 'hound',
@@ -123,7 +123,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     drops: [{ id: 'ghoul_tooth', chance: 0.25 }],
     // Wounded ghouls frenzy.
     moves: [{ id: 'e_claw', w: 3 }, { id: 'e_rot_bite', w: 2 }, { id: 'e_rot_bite', w: 5, when: 'hp_below_half' }],
-    lore: 'Infected metahumans who went down into the dark and stayed.',
+    lore: 'Infected people who went down into the dark and stayed.',
   }),
   rust_crab: E({
     id: 'rust_crab', name: 'Rust Crab', family: 'beast', sprite: 'crab',
@@ -160,7 +160,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     weak: { shock: 1.5, fire: 0.6 }, immune: ['stun'],
     drops: [{ id: 'mana_crystal', chance: 1 }],
     moves: [{ id: 'e_crush_coil', w: 3 }, { id: 'e_tidal', w: 2 }, { id: 'e_biolume', w: 1 }, { id: 'attack', w: 1 }],
-    lore: 'Something Awakened in the flooded junction and grew fat on what fell in.',
+    lore: 'Something Woke in the flooded junction and grew fat on what fell in.',
   }),
 
   // ------------------------------------------------------------------ K-M Annex 7

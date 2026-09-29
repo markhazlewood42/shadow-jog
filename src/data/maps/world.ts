@@ -5,7 +5,7 @@ import { Grid } from './grid';
 
 const W = 60, H = 42;
 
-// B city blocks · R road · . barrens · r ruins · ~ toxic canal · = bridge · f awakened park · H highway
+// B city blocks · R road · . barrens · r ruins · ~ toxic canal · = bridge · f woken park · H highway
 const g = new Grid(W, H, 'B')
   // Elevated highway sealing off the north (future chapters).
   .rect(0, 6, W, 2, 'H')
@@ -15,7 +15,7 @@ const g = new Grid(W, H, 'B')
   .rect(44, 18, 7, 5, 'r')
   .rect(30, 24, 5, 3, 'r')
   .rect(52, 22, 6, 5, 'r')
-  // Hollowmere Park (awakened forest).
+  // Hollowmere Park (a Woken forest).
   .rect(20, 10, 10, 8, 'f')
   .rect(22, 9, 6, 1, 'f')
   // Main street east out of Lantern Row, then the old highway spur into the Barrens.
@@ -156,10 +156,10 @@ export const world: MapDef = {
       look: { skin: '#d8b090', hair: '#20202a', hairStyle: 'cap', hat: '#1f2a44', top: '#2c3b5e', inner: '#2c3b5e', accent: '#9aa3b8', pants: '#1f2a44', boots: '#101018', accessories: ['visor'], visor: '#3fe0f0' },
       // The checkpoint notices what the crew has been up to.
       talk: async (s) => {
-        if (s.flag('warden')) await s.say('K-M Checkpoint', 'All units, Annex 7 is dark. Repeat, Annex 7 is— ...Step back, citizen. Please. Today of all days.');
-        else if (s.flag('lurker')) await s.say('K-M Checkpoint', 'Something tripped every sensor in the Sinkline an hour ago. Probably rats. Very large rats. ...Why am I telling you this? Step back.');
+        if (s.flag('warden')) await s.say('K-M Checkpoint', 'All units, Annex 7 is dark. Repeat, Annex 7 is— …Step back, citizen. Please. Today of all days.');
+        else if (s.flag('lurker')) await s.say('K-M Checkpoint', 'Something tripped every sensor in the Sinkline an hour ago. Probably rats. Very large rats. …Why am I telling you this? Step back.');
         else if (s.flag('annex_key')) await s.say('K-M Checkpoint', 'Tonight’s registration drive is running late in the Lower Wards. If a van stops for you, get in. It is easier for everyone if you get in.');
-        else if (s.flag('hex_joined')) await s.say('K-M Checkpoint', 'Registered guests only. Your decker friend is not a registered guest. We have her face on file. We have several of her faces on file.');
+        else if (s.flag('hex_joined')) await s.say('K-M Checkpoint', 'Registered guests only. Your jockey friend is not a registered guest. We have her face on file. We have several of her faces on file.');
         else {
           await s.say('K-M Checkpoint', 'Arcology access is restricted to Kessler-Mori personnel and registered guests.');
           await s.say('K-M Checkpoint', 'You are neither. Please step back from the checkpoint.');

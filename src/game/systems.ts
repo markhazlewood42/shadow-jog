@@ -133,10 +133,14 @@ export function installSystems(game: Game, h: SystemHandlers): void {
     const crew = partyMembers();
     const avg = crew.reduce((n, m) => n + m.level, 0) / Math.max(1, crew.length);
     const each = innPrice(price, avg);
-    const cost = each * state.party.length;
+    // Only heads that wake up better pay: a downed member gets nothing from a bed, so no charge.
+    const standing = crew.filter((m) => m.hp > 0).length;
+    const cost = each * standing;
+    const out = crew.length - standing;
     const downed = crew.filter((m) => m.hp <= 0 || m.ailments.length).length;
-    const note = downed ? ' {d}(Sleep won’t help the downed or the sick: that’s Doc Yun.){/}' : '';
-    const choice = await f.api.ask(null, `${name ?? 'A capsule for the night'}: {y}${each}¢{/} a head, {y}${cost}¢{/} for the crew. Rest?${note}`, ['Rest', 'Not now'], { cancel: 1 });
+    const note = downed ? ` {d}(Sleep won’t help the downed or the sick: that’s Doc Yun.${out ? ' No charge for the downed.' : ''}){/}` : '';
+    const heads = out ? `${standing} awake` : 'the crew';
+    const choice = await f.api.ask(null, `${name ?? 'A capsule for the night'}: {y}${each}¢{/} a head, {y}${cost}¢{/} for ${heads}. Rest?${note}`, ['Rest', 'Not now'], { cancel: 1 });
     if (choice !== 0) return;
     if (state.cred < cost) {
       sfx('buzz');
