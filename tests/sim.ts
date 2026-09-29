@@ -104,7 +104,7 @@ export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, 
 
   // Tells first: a named mark or a coming blast outranks any plan.
   // The Warden's cannon has named its mark: that member braces, or Rook's Guardian takes the shot.
-  if (readTells && boss?.ai === 'warden' && boss.memory.charging && boss.memory.lock) {
+  if (readTells && boss?.memory.charging && boss.memory.lock) {
     const mark = b.unit(boss.memory.lock - 1);
     if (mark && mark.hp > 0) {
       if (mark !== rook && can(rook, 'guardian')) give(rook, 'skill', 'guardian');

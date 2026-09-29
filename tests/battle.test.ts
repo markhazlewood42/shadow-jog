@@ -218,6 +218,48 @@ describe('enemy wind-ups', () => {
     expect(ev.some((e) => e.t === 'act' && e.name === 'Full Auto')).toBe(false);
   });
 
+  it('Knuckles names his mark a turn ahead, then swings the wound-up haymaker at exactly them', () => {
+    let seen = 0;
+    for (let seed = 1; seed <= 6; seed++) {
+      const b = new Battle(party(['kit', 'rook'], 4), enemyParty(['knuckles']), new Rng(seed));
+      b.enemies[0]!.hp = 99999;
+      let marked: string | null = null;
+      for (let r = 0; r < 6 && !b.outcome; r++) {
+        for (const p of b.party) p.hp = p.base.maxHp;
+        const ev = b.resolveRound(b.party.map((p) => ({ actor: p.uid, type: 'guard' as const })));
+        const hit = ev.find((e) => e.t === 'act' && e.name === 'Wound-Up Haymaker');
+        if (hit && hit.t === 'act') {
+          expect(marked, `seed ${seed}: swung without squaring up first`).not.toBeNull();
+          expect(b.unit(hit.targets[0]!)?.name).toBe(marked);
+          seen++;
+          marked = null;
+        }
+        const tell = ev.find((e) => e.t === 'msg' && e.text.includes('squares up to'));
+        if (tell && tell.t === 'msg') marked = tell.text.replace(/.*squares up to (.*)\.$/, '$1');
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+
+  it('the Arcanist’s surge breaks under enough damage while she draws it', () => {
+    const b = new Battle(party(['kit', 'rook'], 8), enemyParty(['km_arcanist']), new Rng(3));
+    const arc = b.enemies[0]!;
+    arc.hp = arc.base.maxHp;
+    let broke = false, fired = false;
+    for (let r = 0; r < 12 && !b.outcome; r++) {
+      for (const p of b.party) p.hp = p.base.maxHp;
+      const drawing = !!arc.memory.surge;
+      // While she draws, knock a quarter off her; otherwise leave her be.
+      if (drawing) arc.hp = Math.max(1, arc.hp - Math.ceil(arc.base.maxHp * 0.25));
+      const ev = b.resolveRound(b.party.map((p) => ({ actor: p.uid, type: 'guard' as const })));
+      if (ev.some((e) => e.t === 'msg' && e.text.includes('surge breaks apart'))) broke = true;
+      if (ev.some((e) => e.t === 'act' && e.name === 'Mana Surge')) fired = true;
+      arc.hp = Math.max(arc.hp, Math.ceil(arc.base.maxHp * 0.6));
+    }
+    expect(broke).toBe(true);
+    expect(fired).toBe(false);
+  });
+
   it('Guard pays TP back only off a blow it actually takes', () => {
     let hits = 0;
     for (let seed = 1; seed <= 6; seed++) {

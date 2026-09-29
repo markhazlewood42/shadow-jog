@@ -143,16 +143,39 @@ export function chooseEnemyAction(b: Battle, self: Combatant): EnemyChoice | nul
       }
       break;
     }
+    case 'knuckles': {
+      // The chapter's first tell, taught plainly: he squares up to someone by name, then swings a
+      // turn later. Guard (or cover them) and it glances off; ignore it and it can stun.
+      if (mem.charging) {
+        mem.charging = 0;
+        const ab = ABILITIES.e_wound_haymaker!;
+        const mark = mem.lock ? b.unit(mem.lock - 1) : undefined;
+        mem.lock = 0;
+        return { ability: ab, target: mark && mark.hp > 0 ? mark.uid : pickTarget(b, self, ab) };
+      }
+      if (mem.turn % 3 === 2) {
+        mem.charging = 1;
+        const mark = pickTarget(b, self, ABILITIES.e_wound_haymaker!);
+        mem.lock = mark + 1;
+        const name = b.unit(mark)?.name ?? 'the crew';
+        return { ability: ABILITIES.attack!, target: -1, message: `Knuckles cracks his chrome knuckles and squares up to ${name}.`, skip: true };
+      }
+      break;
+    }
     case 'arcanist': {
-      // Every fourth turn she channels a surge; blinded, it fizzles in her hands.
+      // A different shape from the cannon and the turret: she draws a surge for a turn, and it's
+      // broken by pressure, not bracing. Blind her, or hit her for a fifth of her health while
+      // she draws, and it comes apart in her hands.
       if (mem.surge) {
         mem.surge = 0;
         if (b.has(self, 'blind')) return { ability: ABILITIES.attack!, target: -1, message: `${self.name} can’t find her targets. The surge fizzles out.`, skip: true };
+        if (self.hp <= (mem.surgeHp ?? self.hp) - self.base.maxHp * 0.2) return { ability: ABILITIES.attack!, target: -1, message: `The blows knock ${self.name}’s focus loose. The surge breaks apart.`, skip: true };
         return { ability: ABILITIES.e_mana_storm!, target: -1 };
       }
       if (mem.turn % 4 === 3) {
         mem.surge = 1;
-        return { ability: ABILITIES.attack!, target: -1, message: `${self.name} draws the building’s current through her visor…`, skip: true };
+        mem.surgeHp = self.hp;
+        return { ability: ABILITIES.attack!, target: -1, message: `${self.name} draws the building’s current through her visor… hit her before it’s full!`, skip: true };
       }
       break;
     }

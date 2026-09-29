@@ -233,6 +233,8 @@ export const ABILITIES: Record<string, Ability> = {
   e_taser: A({ id: 'e_taser', name: 'Taser', kind: 'enemy', target: 'enemy', element: 'shock', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 6 }, { type: 'status', status: 'stun', chance: 0.25, turns: 1 }], fx: 'zap' }),
   e_choke: A({ id: 'e_choke', name: 'Choking Smog', kind: 'enemy', target: 'enemies', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 0 }, { type: 'status', status: 'poison', chance: 0.3 }], fx: 'smog' }),
   e_wisp_flame: A({ id: 'e_wisp_flame', name: 'Wisp Flame', kind: 'enemy', target: 'enemy', element: 'fire', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 6 }], fx: 'fire' }),
+  // Knuckles' telegraphed finisher: he names his mark a turn ahead (the chapter's first tell).
+  e_wound_haymaker: A({ id: 'e_wound_haymaker', name: 'Wound-Up Haymaker', kind: 'enemy', telegraphed: true, target: 'enemy', desc: '', cry: 'LIGHTS OUT!', effects: [{ type: 'damage', stat: 'atk', mult: 2.6 }, { type: 'status', status: 'stun', chance: 0.35, turns: 1 }], fx: 'punch' }),
   e_haymaker: A({ id: 'e_haymaker', name: 'Haymaker', kind: 'enemy', target: 'enemy', desc: '', cry: 'Lights out!', effects: [{ type: 'damage', stat: 'atk', mult: 1.9 }, { type: 'status', status: 'stun', chance: 0.2, turns: 1 }], fx: 'punch' }),
   e_rally: A({ id: 'e_rally', name: 'Rally', kind: 'enemy', target: 'allies', desc: '', cry: 'Rustfangs, BITE!', effects: [{ type: 'buff', status: 'atk_up', turns: 3 }], fx: 'roar' }),
   e_pipe_bomb: A({ id: 'e_pipe_bomb', name: 'Pipe Bomb', kind: 'enemy', target: 'enemies', element: 'fire', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 8 }], fx: 'explosion' }),
@@ -284,7 +286,7 @@ export const LEARNSETS: Record<string, Learn[]> = {
     { level: 5, id: 'focus_breath' },
     { level: 7, id: 'killing_intent' },
     { level: 8, id: 'hundred_rain' },
-    { level: 12, id: 'dragon_coil' },
+    { level: 9, id: 'dragon_coil' },
   ],
   rook: [
     { level: 1, id: 'arc_cut' },
@@ -293,7 +295,7 @@ export const LEARNSETS: Record<string, Learn[]> = {
     { level: 4, id: 'suppress' },
     { level: 5, id: 'stim_rush' },
     { level: 7, id: 'guardian' },
-    { level: 10, id: 'moonfall' },
+    { level: 9, id: 'moonfall' },
   ],
   hex: [
     { level: 1, id: 'spike' },
@@ -311,8 +313,8 @@ export const LEARNSETS: Record<string, Learn[]> = {
     { level: 5, id: 'mending_rain' },
     { level: 6, id: 'spirit_ward' },
     { level: 7, id: 'crow_spirit' },
-    { level: 9, id: 'rekindle' },
-    { level: 11, id: 'wildfire' },
+    { level: 8, id: 'rekindle' },
+    { level: 9, id: 'wildfire' },
   ],
 };
 
