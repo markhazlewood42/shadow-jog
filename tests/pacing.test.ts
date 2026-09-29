@@ -18,14 +18,18 @@ const EXPLORE = 1.35;
 const READ_CPS = 17;
 /** Share of optional NPC and lore text a typical player stops to read. */
 const OPTIONAL_READ = 0.4;
-/** One battle round: giving four orders, then watching them play out. */
-const ROUND_S = 11;
-/** Per fight: the transition, intro, victory fanfare and rewards. */
-const FIGHT_OVERHEAD_S = 9;
+/**
+ * One battle round: giving four orders, then watching them play out. Re-estimated for the slower
+ * pace of 2026-09-29 (animations at 0.65x, each action's effect let finish, a 22-frame beat after
+ * it): about 1.6 s an action over about 5.5 actions, plus some 6 s of orders. Was 11.
+ */
+const ROUND_S = 15;
+/** Per fight: the transition (now about 1.2 s), intro, victory fanfare and rewards. */
+const FIGHT_OVERHEAD_S = 9.5;
 /** Trash fights: mean rounds from the balance sim (docs/quality/evidence/unit-tests.txt). */
-const TRASH_ROUNDS = 2.6;
-/** Scripted fights: sim mean rounds. */
-const BOSS_ROUNDS: Record<string, number> = { f_first_fight: 2.5, f_rustyard_gate: 2.4, f_knuckles: 6.6, f_lurker: 7.7, f_annex_door: 3.2, f_warden: 10.8 };
+const TRASH_ROUNDS = 2.3;
+/** Scripted fights: sim mean rounds (after the 2026-09-29 retune). */
+const BOSS_ROUNDS: Record<string, number> = { f_first_fight: 2.0, f_rustyard_gate: 2.4, f_knuckles: 9.1, f_lurker: 8.9, f_annex_door: 3.2, f_warden: 12.1 };
 /** Shopping, equipping and menus at each checkpoint. */
 const MENU_S = 100;
 

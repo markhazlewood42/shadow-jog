@@ -89,7 +89,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   scrap_hound: E({
     id: 'scrap_hound', name: 'Scrap Hound', family: 'machine', sprite: 'hound',
-    hp: 56, atk: 18, def: 10, mnd: 5, res: 5, agi: 13, xp: 13, cred: 16,
+    hp: 49, atk: 15, def: 10, mnd: 5, res: 5, agi: 13, xp: 13, cred: 16,
     drops: [{ id: 'scrap_chip', chance: 0.3 }],
     moves: [{ id: 'e_bite', w: 3 }, { id: 'e_howl', w: 1, when: 'no_atk_buff' }],
     lore: 'Kessler-Mori perimeter hounds, auctioned off when the Annex closed. The buyers stopped feeding them. They never stopped guarding.',

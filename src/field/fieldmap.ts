@@ -5,7 +5,7 @@ import { hash2 } from '../engine/rng';
 import type { AnimFx, BakeCtx, BakedLight, SortedSprite } from './bake';
 import { paintBuilding } from './buildings';
 import { paintProp } from './props';
-import { isWater, paintTerrain, SOLID_TERRAIN, TS } from './tiles';
+import { isWater, paintTerrain, SOLID_TERRAIN, TS, WALL_TERRAIN } from './tiles';
 import type { MapDef, TerrainId } from './types';
 import { state } from '../game/state';
 
@@ -141,6 +141,7 @@ export class FieldMap {
     if (this.def.weather === 'rain') this.bakeWetStreets(emit.ctx);
     this.bakePuddleReflections(emit.ctx);
     if (this.waterTiles.length && this.def.kind === 'dungeon') this.bakeBiolume(emit.ctx);
+    if (this.def.kind === 'dungeon') this.bakeStructureEdges(emit.ctx);
     if (this.waterTiles.length) this.anims.push(this.waterShimmer());
     this.ground = ground.canvas;
     this.emit = emit.canvas;
@@ -253,6 +254,28 @@ export class FieldMap {
   }
 
   /** Flooded dungeons: faint bioluminescent plankton in the black water (unlit, so it reads in the dark). */
+  /**
+   * Dungeons: a faint line, unlit, wherever walkable floor meets a wall or the void. Away from
+   * the lamps the light map pushes floor and wall towards the same black; this keeps the edge of
+   * where you can walk readable between them (Mark's playthrough, 2026-09-29: "hard to tell what's
+   * surface level vs. what's structural"). Faint on purpose: an edge, not a neon outline.
+   */
+  private bakeStructureEdges(e: Ctx): void {
+    const edge = (t: TerrainId) => WALL_TERRAIN.has(t) || t === 'void' || t === 'd_wall_crack';
+    e.fillStyle = 'rgba(170,184,210,0.2)';
+    for (let ty = 0; ty < this.h; ty++) {
+      for (let tx = 0; tx < this.w; tx++) {
+        const t = this.at(tx, ty);
+        if (SOLID_TERRAIN.has(t)) continue;
+        const x = tx * TS, y = ty * TS;
+        if (edge(this.at(tx, ty - 1))) e.fillRect(x, y, TS, 1);
+        if (edge(this.at(tx, ty + 1))) e.fillRect(x, y + TS - 1, TS, 1);
+        if (edge(this.at(tx - 1, ty))) e.fillRect(x, y, 1, TS);
+        if (edge(this.at(tx + 1, ty))) e.fillRect(x + TS - 1, y, 1, TS);
+      }
+    }
+  }
+
   private bakeBiolume(e: Ctx): void {
     for (const k of this.waterTiles) {
       const tx = k % this.w, ty = (k / this.w) | 0;

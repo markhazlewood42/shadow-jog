@@ -28,6 +28,19 @@ async function key(page: Page, k: string, n = 1, gap = 180): Promise<void> {
   }
 }
 
+/**
+ * Move a list's cursor to the entry with this label, by name rather than by a count of presses:
+ * menu entries come and go with the story (the Deck page appears once the Stingray is in).
+ * `list` is the path from the top scene to its ListMenu (the main menu is 'main').
+ */
+async function pick(page: Page, label: string, list = 'main'): Promise<void> {
+  const i = await sj<number>(page, `sj.game.top.${list}.items.findIndex((it) => it.label === ${JSON.stringify(label)})`);
+  expect(i, `no "${label}" in ${list}`).toBeGreaterThanOrEqual(0);
+  const at = await sj<number>(page, `sj.game.top.${list}.index`);
+  if (i > at) await key(page, 'ArrowDown', i - at);
+  else if (i < at) await key(page, 'ArrowUp', at - i);
+}
+
 async function shot(page: Page, name: string): Promise<void> {
   await page.locator('#screen').screenshot({ path: `${OUT}/${name}.png` });
 }
@@ -359,11 +372,18 @@ test('26 menu bestiary', async ({ page }) => {
   await sj(page, "Object.assign(sj.state.weakSeen, { rustfang_punk: ['cyber'], smog_wisp: ['mana'], glowrat: ['fire'] })");
   await sj(page, 'sj.menu()');
   await page.waitForTimeout(400);
-  await key(page, 'ArrowDown', 5);
+  await pick(page, 'Bestiary');
   await key(page, 'Enter');
-  await key(page, 'ArrowDown', 4);
+  await pick(page, 'Drowned Shade', 'beasts');
   await page.waitForTimeout(300);
   await shot(page, '26-menu-bestiary');
+  // A boss's page: the portrait fits its box at any art resolution.
+  await sj(page, '(sj.state.bestiary.lurker = 1, true)');
+  await key(page, 'Escape');
+  await key(page, 'Enter');
+  await pick(page, 'The Lurker', 'beasts');
+  await page.waitForTimeout(300);
+  await shot(page, '26b-menu-bestiary-boss');
 });
 
 test('27 level features: lattice, secret panel, intake, radio lot', async ({ page }) => {
@@ -430,7 +450,7 @@ test('33 menu places', async ({ page }) => {
   await open(page, 'sinkline');
   await sj(page, 'sj.menu()');
   await page.waitForTimeout(400);
-  await key(page, 'ArrowDown', 6);
+  await pick(page, 'Places');
   await key(page, 'Enter');
   await page.waitForTimeout(300);
   await shot(page, '33-menu-places');
@@ -495,7 +515,7 @@ test('42 the Deck page in the menu', async ({ page }) => {
   await open(page, 'sinkline');
   await sj(page, 'sj.menu()');
   await page.waitForTimeout(500);
-  await key(page, 'ArrowDown', 4);
+  await pick(page, 'Deck');
   await key(page, 'Enter');
   await page.waitForTimeout(800);
   await shot(page, '42-deck-menu');
@@ -549,4 +569,24 @@ test('47 a chest, lit, with the interact marker', async ({ page }) => {
   await sj(page, "sj.tp('sinkline_1', 26, 12, 'right')");
   await page.waitForTimeout(4200);
   await shot(page, '47-field-chest-and-marker');
+});
+
+test('48 the target box: weakness symbols, on the far side from the target', async ({ page }) => {
+  await open(page, 'sinkline');
+  await sj(page, "Object.assign(sj.state.weakSeen, { sewer_ghoul: ['fire'], rust_crab: ['mana'], glowrat: ['fire'] })");
+  await sj(page, "sj.battle('sinkline', 'sewer')");
+  await page.waitForTimeout(3200);
+  // Fight -> Attack -> the target picker.
+  await key(page, 'Enter', 2, 300);
+  await page.waitForTimeout(400);
+  await shot(page, '48-battle-target-box');
+});
+
+test('49 Hex’s deck over her card while a program runs', async ({ page }) => {
+  await open(page, 'sinkline');
+  await sj(page, "sj.battle('sinkline', 'sewer')");
+  await page.waitForTimeout(3200);
+  await sj(page, '(sj.game.top.deckT = 18, true)');
+  await page.waitForTimeout(150);
+  await shot(page, '49-battle-deck-cutin');
 });
