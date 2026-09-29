@@ -1,0 +1,149 @@
+{
+ "meta": {
+  "slot": 1,
+  "when": 1790642553983,
+  "location": "K-M Annex 7",
+  "leaderLevel": 7,
+  "party": [
+   "Kit",
+   "Rook",
+   "Hex",
+   "Sable"
+  ],
+  "playFrames": 180000,
+  "cred": 1400
+ },
+ "state": {
+  "version": 1,
+  "party": [
+   "kit",
+   "rook",
+   "hex",
+   "sable"
+  ],
+  "members": {
+   "kit": {
+    "id": "kit",
+    "level": 7,
+    "xp": 965,
+    "hp": 107,
+    "tp": 28,
+    "uses": {
+     "second_wind": 2,
+     "killing_intent": 2
+    },
+    "equip": {
+     "weapon": "mono_claws",
+     "body": "ballistic_vest",
+     "head": "helmet"
+    },
+    "ailments": []
+   },
+   "rook": {
+    "id": "rook",
+    "level": 7,
+    "xp": 965,
+    "hp": 130,
+    "tp": 0,
+    "uses": {
+     "arc_cut": 5,
+     "quickdraw": 4,
+     "incendiary": 3,
+     "suppress": 3,
+     "stim_rush": 2,
+     "guardian": 3
+    },
+    "equip": {
+     "weapon": "vibro_katana",
+     "body": "lined_coat",
+     "mod": "dermal_plating"
+    },
+    "ailments": []
+   },
+   "hex": {
+    "id": "hex",
+    "level": 7,
+    "xp": 965,
+    "hp": 85,
+    "tp": 40,
+    "uses": {
+     "analyze": 5
+    },
+    "equip": {
+     "weapon": "heavy_pistol",
+     "body": "lined_coat",
+     "head": "tac_visor"
+    },
+    "ailments": []
+   },
+   "sable": {
+    "id": "sable",
+    "level": 7,
+    "xp": 965,
+    "hp": 97,
+    "tp": 43,
+    "uses": {
+     "spirit_ward": 2
+    },
+    "equip": {
+     "weapon": "ash_staff",
+     "body": "street_clothes"
+    },
+    "ailments": []
+   }
+  },
+  "inventory": {
+   "medkit": 6,
+   "trauma_patch": 4,
+   "neurotab": 3,
+   "adrenal_stim": 2,
+   "omni_patch": 1,
+   "frag": 2
+  },
+  "cred": 1400,
+  "flags": {
+   "intro": true,
+   "first_fight": true,
+   "met_dutch": true,
+   "visit:lantern_row": true,
+   "visit:world": true,
+   "objective": "Gear up from the Annex armory, then head for the freight lift in the south wing.",
+   "met_hex": true,
+   "rustyard_gate": true,
+   "knuckles": true,
+   "coprocessor_given": true,
+   "hex_joined": true,
+   "sinkline_gate": true,
+   "visit:rustyard": true,
+   "visit:sinkline_1": true,
+   "floodgate": true,
+   "lurker": true,
+   "annex_key": true,
+   "sable_joined": true
+  },
+  "map": "annex",
+  "x": 22,
+  "y": 20,
+  "dir": "down",
+  "lastTown": {
+   "map": "lantern_row",
+   "x": 36,
+   "y": 16
+  },
+  "lastEntrance": null,
+  "steps": 0,
+  "playFrames": 180000,
+  "combos": [
+   "combo_target_lock",
+   "combo_thunder_rift"
+  ],
+  "bestiary": {},
+  "weakSeen": {},
+  "resistSeen": {},
+  "immuneSeen": {},
+  "lastOrders": {},
+  "rngState": 1957330402,
+  "rngBattle": 796628087,
+  "battles": 27
+ }
+}

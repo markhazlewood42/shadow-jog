@@ -165,9 +165,19 @@ export class Game {
     const i = this.stack.indexOf(scene);
     if (i < 0) return;
     this.stack.splice(i, 1);
-    scene.exit();
+    // A scene's cleanup throwing must not leave the stack half-changed: report it and carry on,
+    // as abandon() does for a faulting flow.
+    try {
+      scene.exit();
+    } catch (e) {
+      reportError(e);
+    }
     this.input.consume();
-    this.top?.resume();
+    try {
+      this.top?.resume();
+    } catch (e) {
+      reportError(e);
+    }
   }
 
   wait(frames: number): Promise<void> {

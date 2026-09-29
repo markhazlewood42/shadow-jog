@@ -288,3 +288,28 @@ describe('save / load', () => {
     expect(slotStatus(1)).toBe('damaged');
   });
 });
+
+describe('a save from a shipped build keeps loading', () => {
+  // A real save file written by version 1 of the save format (the Annex, the full crew), kept as
+  // a fixture. Every later format change has to load it: that is what MIGRATIONS and backfill()
+  // are for, and this is the save they are tested against.
+  it('the version-1 Annex save loads, with its crew, place, money and story intact', async () => {
+    const { readFileSync } = await import('node:fs');
+    const raw = readFileSync('tests/fixtures/save-v1-annex.json', 'utf8');
+    const file = JSON.parse(raw) as { state: { version: number } };
+    expect(file.state.version).toBe(1);
+    localStorage.clear();
+    localStorage.setItem('shadowjog.save.2', JSON.stringify(file));
+    expect(slotStatus(2)).toBe('ok');
+    const s = loadSave(2)!;
+    expect(s).not.toBeNull();
+    expect(s.party).toEqual(['kit', 'rook', 'hex', 'sable']);
+    expect(s.map).toBe('annex');
+    expect(s.cred).toBe(1400);
+    expect(s.members.sable?.level).toBeGreaterThanOrEqual(7);
+    expect(s.flags.annex_key).toBeTruthy();
+    // Loaded into the game, it's a playable state.
+    applySave(s);
+    expect(validState(stateMod.state)).toBe(true);
+  });
+});

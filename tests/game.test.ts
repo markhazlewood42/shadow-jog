@@ -117,6 +117,31 @@ describe('game fault isolation', () => {
     expect(faults).toBe(0);
   });
 
+  it('a scene whose exit() throws still leaves the stack cleanly (and says so)', async () => {
+    const { notice } = await import('../src/engine/errors');
+    notice('clear', 'warn');
+    const g = new Game(ctx, input);
+    const a = new Faulty(() => false);
+    const b = new Faulty(() => false);
+    b.exit = () => {
+      throw new Error('bad cleanup');
+    };
+    void g.run(a);
+    void g.run(b);
+    g.remove(b);
+    expect(g.stack).toEqual([a]);
+    expect(currentNotice()?.text).toContain('bad cleanup');
+  });
+
+  it('a second error while the first is showing is counted, not shown over it', async () => {
+    const { reportError, notice } = await import('../src/engine/errors');
+    notice('clear', 'warn');
+    reportError(new Error('root cause'));
+    reportError(new Error('fallout'));
+    reportError(new Error('more fallout'));
+    expect(currentNotice()?.text).toBe('root cause (+2 more)');
+  });
+
   it('abandon() drops scenes and timers without resolving them', async () => {
     const g = new Game(ctx, input);
     let woke = false;

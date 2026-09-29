@@ -8,6 +8,8 @@ export type NoticeTone = 'error' | 'warn' | 'saved' | 'news';
 let lastMessage = '';
 let lastTone: NoticeTone = 'error';
 let shownAt = -1;
+/** Errors that arrived while an earlier one was still showing (it stays: it's usually the cause). */
+let moreErrors = 0;
 
 export function reportError(e: unknown): void {
   const msg = e instanceof Error ? e.message : String(e);
@@ -17,6 +19,13 @@ export function reportError(e: unknown): void {
 
 /** A short on-screen notice: a warning bar, or the small corner "saved" badge. */
 export function notice(text: string, tone: NoticeTone): void {
+  // A second error while the first is on screen doesn't replace it: the first is usually the
+  // root cause, the rest its fallout. They're counted instead.
+  if (tone === 'error' && lastTone === 'error' && currentNotice()) {
+    moreErrors++;
+    return;
+  }
+  if (tone === 'error') moreErrors = 0;
   lastMessage = text;
   lastTone = tone;
   shownAt = performance.now();
@@ -26,5 +35,6 @@ export function notice(text: string, tone: NoticeTone): void {
 export function currentNotice(): { text: string; tone: NoticeTone } | null {
   const life = lastTone === 'saved' ? 1800 : 6000;
   if (shownAt < 0 || performance.now() - shownAt > life) return null;
-  return { text: lastMessage, tone: lastTone };
+  const more = lastTone === 'error' && moreErrors ? ` (+${moreErrors} more)` : '';
+  return { text: lastMessage + more, tone: lastTone };
 }
