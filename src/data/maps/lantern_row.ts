@@ -43,7 +43,7 @@ export const lanternRow: MapDef = {
   structures: [
     // North side
     { kind: 'building', x: 0, y: 0, w: 9, h: 7, style: 'tile', doors: [4], shopfront: true, sign: { text: '+ DOC YUN', color: '#62e06a' } },
-    { kind: 'building', x: 9, y: 0, w: 8, h: 7, style: 'brick', doors: [12], shopfront: true, awning: '#8c2f39', sign: { text: 'IRON SAINT', color: '#ff6a3a' } },
+    { kind: 'building', x: 9, y: 0, w: 8, h: 7, style: 'brick', doors: [12], shopfront: true, awning: '#8c2f39', sign: { text: 'LAST RITES', color: '#ff6a3a' } },
     {
       kind: 'building', x: 17, y: 0, w: 12, h: 7, facade: 3, style: 'concrete', doors: [22],
       sign: { text: 'THE DROWNED SAINT', color: '#ff4fb0' },

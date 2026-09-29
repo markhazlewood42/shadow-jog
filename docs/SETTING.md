@@ -95,7 +95,7 @@ to Neo-Lagos [new].
 Unreclaimed since ’61 [new: the legal status]. Everything in Chapter 1 happens here.
 
 - **Lantern Row** [canon]: the street that stayed dry, and home to Rook and Kit. The Drowned Saint, Doc Yun's, Mama
-  Ono's, Sleeptube 24H, Kwik-Mart, Iron Saint Arms and Kowloon Threads.
+  Ono's, Sleeptube 24H, Kwik-Mart, Last Rites Arms and Kowloon Threads.
 - **The Sprawl** [canon]: the Lower Wards between neighbourhoods.
   - **The Barrens** [canon]: the broken east, ruins and wrecks.
   - **Hollowmere Park** [canon]: the old city park, which Woke during the Blue Hour [new] and is now a forest that
@@ -179,7 +179,7 @@ as good with machines, which Hex finds tiresome and accurate.
 - **The Drowned Saint** itself: a statue of Saint Brendan, patron of sailors, found standing upright in the flooded
   chapel after ’61. Dutch built the bar around it. The house drink is named for him [canon: "mostly drain
   cleaner"].
-- **The Order of the Iron Saint:** a militant lay order, of which Brother Tomas [canon] is the last in the Wards.
+- **The Order of Last Rites:** a militant lay order, of which Brother Tomas [canon] is the last in the Wards.
   Blessed blades and merely loaded guns [canon].
 - **Canal shamanism:** a spirit practice that grew up on the houseboats after the Return. Totem spirits (Sable's
   crow [canon]), offerings at the Hollowmere shrine, and a strong taboo against binding spirits, which is what K-M
@@ -307,7 +307,7 @@ Static Mary's pirate station [canon]. [new:] It moves every week; the mast on he
   and Civic Security for triple.
 - **Mama Ono** [canon: noodles; her cat Noodle]. [new:] Has fed Kit since she was four. Knew Mara.
 - **Auntie Wen** [canon: Kowloon Threads]. [new:] The last tailor from the Kowloon Quarter.
-- **Brother Tomas** [canon: Iron Saint Arms]. [new:] The last of the Order of the Iron Saint in the Wards.
+- **Brother Tomas** [canon: Last Rites Arms]. [new:] The last of the Order of Last Rites in the Wards.
 - **Saint** [canon: the bartender]. [new:] Nobody knows Saint's real name, pronouns or age. Saint prefers it that way.
 
 ### The Barrens and below

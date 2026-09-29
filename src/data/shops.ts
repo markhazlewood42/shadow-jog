@@ -19,7 +19,7 @@ export const SHOPS: Record<string, ShopDef> = {
     items: ['medkit', 'detox', 'optic_flush', 'neurotab', 'smoke_pellet', 'getaway_chit', 'cab_voucher'],
   },
   lr_weapons: {
-    id: 'lr_weapons', name: 'IRON SAINT ARMS', keeper: 'Brother Tomas', accent: '#ff6a3a',
+    id: 'lr_weapons', name: 'LAST RITES ARMS', keeper: 'Brother Tomas', accent: '#ff6a3a',
     greeting: 'Every blade here is blessed. The guns are just loaded.',
     thanks: 'Go with steel.',
     items: ['iron_knuckles', 'shock_knuckles', 'vibro_katana', 'nodachi', 'heavy_pistol', 'flechette_pistol', 'taser_pistol', 'bone_staff', 'flashbang', 'frag', 'toxin_dart'],

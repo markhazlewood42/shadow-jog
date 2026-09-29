@@ -222,9 +222,9 @@ export const clinic: MapDef = {
   warps: [exit(14, 10, 7, 4, 7)],
 };
 
-// ------------------------------------------------------------------ Iron Saint Arms
+// ------------------------------------------------------------------ Last Rites Arms
 export const armory: MapDef = {
-  id: 'armory', name: 'Iron Saint Arms', kind: 'interior',
+  id: 'armory', name: 'Last Rites Arms', kind: 'interior',
   terrain: room(14, 10, 'M', 7), legend: {},
   ambient: '#8a7a8a', music: 'town', battleBg: 'street',
   props: [

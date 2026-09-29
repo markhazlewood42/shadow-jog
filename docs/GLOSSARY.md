@@ -72,7 +72,7 @@ water used to be.
 | **Sleeptube 24H** | The capsule hotel (the inn). "Clean tubes, working locks, no questions." |
 | **Mama Ono's** | Noodle shop. Sells Ono's Noodles (a party-wide heal). |
 | **KWIK-MART 24/7** | Consumables. |
-| **Iron Saint Arms** | Weapons, run by Brother Tomas. "Every blade here is blessed. The guns are merely loaded." |
+| **Last Rites Arms** | Weapons, run by Brother Tomas. "Every blade here is blessed. The guns are merely loaded." (Was Iron Saint Arms until 2026-09-29: too close to the Drowned Saint.) |
 | **Kowloon Threads** | Armour and mods, run by Auntie Wen. |
 | **Rook's flat, Hex's den** | On the south row. |
 | **Lower Wards Access Point Seven** | A checkpoint closed by K-M Civic Security. |
@@ -168,7 +168,7 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | **Doc Yun** | Runs the clinic. Getting back the stolen med-case is a side job. (The game never gives Doc Yun's pronouns.) |
 | **Mama Ono** | Runs the noodle shop. Her lost orange cat, **Noodle** (one ear), is a side job. |
 | **Auntie Wen** | Kowloon Threads. Calls Kit "Rook's girl"; sewed a ballistic lining into a customer's wedding dress. |
-| **Brother Tomas** | Iron Saint Arms. Blesses the blades. |
+| **Brother Tomas** | Last Rites Arms. Blesses the blades. |
 | **Saint** | The Drowned Saint's bartender: drinks and rumours. |
 | **Wire** | Lives in the Sinkline concourse; sells black-market stock at **Wire's Stash**. "I'm not K-M. I live here. Rent's free." |
 | **Static Mary** | Runs Radio Static from her lot on the west side. |
@@ -327,7 +327,7 @@ yet.
 | **The Brannock Tire Works** | What the Rustyard was before ’61. |
 | **The Saltreach Planetarium** | The fallen dome. |
 | **Line 4** | The Sinkline line whose train is still in the tunnels. |
-| **The Order of the Iron Saint** | Brother Tomas's militant lay order. |
+| **The Order of Last Rites** | Brother Tomas's militant lay order. |
 | **Canal shamanism** | The houseboat spirit practice Sable comes from; binding spirits is its worst taboo. |
 | **Fathom Systems** | The makers of the Stingray (the fin logo). |
 | **Low Tide** | Rook's old crew: Rook, Mara Oduya, Juniper (jockey), Sal (driver). |

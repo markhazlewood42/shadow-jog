@@ -13,7 +13,7 @@ import { drawParagraph, drawText, fitText, measure, wrap } from '../engine/font'
 import { COMBO_TEXT_W, EQUIP_DESC_W, MENU_OBJ_W } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { applyEffects } from '../game/fielduse';
-import { canEquip, equip, knownAbilities, memberStats } from '../game/party';
+import { canEquip, equip, knownAbilities, memberStats, SLOT_NAMES } from '../game/party';
 import { formatPlayTime, locationName, readMeta, SLOTS, writeSave, type SlotId } from '../game/save';
 import { flags, state, type EquipSlot, type MemberId, type MemberState } from '../game/state';
 import { drawBar, drawDivider, drawSelect, drawWindow, keyLegend, hpColor, UI, OVERLAY_DIM } from '../ui/draw';
@@ -30,8 +30,6 @@ const FAMILY_NAME: Record<string, string> = { human: 'Human', machine: 'Machine'
 type Mode = 'places' | 'bestiary' | 'main' | 'pickMember' | 'items' | 'itemTarget' | 'techs' | 'techTarget' | 'equipSlots' | 'equipList' | 'status' | 'combos' | 'save' | 'saveConfirm';
 
 export type MenuResult = { kind: 'close' } | { kind: 'special'; item: string } | { kind: 'title' };
-
-const SLOT_NAMES: Record<EquipSlot, string> = { weapon: 'Weapon', body: 'Body', head: 'Head', mod: 'Mod' };
 
 export class MenuScene extends Scene<MenuResult> {
   override opaque = false;

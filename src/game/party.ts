@@ -129,6 +129,9 @@ export function grantXp(m: MemberState, xp: number): LevelUp[] {
   return ups;
 }
 
+/** How the menus and the shop name each equipment slot. */
+export const SLOT_NAMES: Record<EquipSlot, string> = { weapon: 'Weapon', body: 'Body', head: 'Head', mod: 'Mod' };
+
 export function canEquip(m: MemberState, itemId: string): boolean {
   const it = ITEMS[itemId];
   if (!it?.slot) return false;

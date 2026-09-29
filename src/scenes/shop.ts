@@ -1,4 +1,8 @@
-/** Shop: buy with quantity + party equip comparison, sell anything that isn't a key item. */
+/**
+ * Shop: buy with quantity + party equip comparison, sell anything that isn't a key item.
+ * Gear bought here can be put on straight away (a picker after the purchase), and loot can be
+ * sold in one go.
+ */
 import { FAMILY_WEAK } from '../data/enemies';
 import { buildChar } from '../art/chars';
 import { sfx } from '../audio/sfx';
@@ -8,15 +12,18 @@ import { LOOKS } from '../data/looks';
 import { MEMBERS } from '../data/party';
 import { SHOPS, type ShopDef } from '../data/shops';
 import type { Ctx } from '../engine/canvas';
-import { drawParagraph, drawText, fitText } from '../engine/font';
+import { drawParagraph, drawText, fitText, measure } from '../engine/font';
 import { SHOP_COMPARE_W } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
-import { canEquip, memberStats } from '../game/party';
+import { canEquip, equip, memberStats, SLOT_NAMES } from '../game/party';
 import { flags, state, type MemberState } from '../game/state';
 import { drawDivider, drawWindow, keyLegend, UI, OVERLAY_DIM } from '../ui/draw';
-import { ListMenu } from '../ui/list';
+import { ListMenu, type ListItem } from '../ui/list';
 
-type Mode = 'root' | 'buy' | 'sell' | 'qty';
+type Mode = 'root' | 'buy' | 'sell' | 'qty' | 'equip' | 'junk';
+
+/** The sell list's first row when there's loot: sell every piece at once. */
+const ALL_LOOT = '__all_loot__';
 
 /** Enemy families in the order the shop lists them, and how it names them. */
 const FAMILY_ORDER = ['human', 'machine', 'beast', 'spirit', 'ghoul'] as const;
@@ -31,6 +38,11 @@ export class ShopScene extends Scene<void> {
   private list = new ListMenu<string>([], 11);
   private qty = 1;
   private qtyMode: 'buy' | 'sell' = 'buy';
+  /** After buying gear: who puts it on now (member ids, then 'none'). */
+  private equipList = new ListMenu<string>([], 5);
+  private equipItem = '';
+  /** Sell-all-loot confirmation. */
+  private junkList = new ListMenu<string>([{ label: 'Sell it all', value: 'yes' }, { label: 'Keep it', value: 'no' }], 2);
   private line: string;
   private t = 0;
 
@@ -73,10 +85,35 @@ export class ShopScene extends Scene<void> {
           this.line = `That’s ${(this.price(it.id) - state.cred).toLocaleString('en-US')}¢ more than you’ve got.`;
         }
         if (r === 'confirm') {
+          const id = this.list.current!.value;
+          if (id === ALL_LOOT) {
+            this.junkList.index = 0;
+            this.mode = 'junk';
+            return;
+          }
           this.qtyMode = this.mode;
-          this.qty = 1;
+          // Loot is only ever sold, so the whole stack is the likely answer; gear and supplies start at one.
+          this.qty = this.mode === 'sell' && ITEMS[id]?.kind === 'loot' ? this.maxQty(id) : 1;
           this.mode = 'qty';
         }
+        break;
+      }
+      case 'equip': {
+        const r = this.equipList.update(inp);
+        if (r === 'cancel' || (r === 'confirm' && this.equipList.current!.value === 'none')) {
+          this.backToBuy();
+          return;
+        }
+        if (r === 'confirm') this.equipNow(this.equipList.current!.value);
+        break;
+      }
+      case 'junk': {
+        const r = this.junkList.update(inp);
+        if (r === 'cancel' || (r === 'confirm' && this.junkList.current!.value === 'no')) {
+          this.mode = 'sell';
+          return;
+        }
+        if (r === 'confirm') this.sellAllLoot();
         break;
       }
       case 'qty': {
@@ -129,10 +166,73 @@ export class ShopScene extends Scene<void> {
       return;
     }
     ids.sort((a, b) => (ITEMS[b]!.kind === 'loot' ? 1 : 0) - (ITEMS[a]!.kind === 'loot' ? 1 : 0) || ITEMS[a]!.name.localeCompare(ITEMS[b]!.name));
-    this.list.setItems(ids.map((id) => ({ label: ITEMS[id]!.name, value: id, right: `${sellPrice(id)}¢ ×${state.inventory[id]}`, color: ITEMS[id]!.kind === 'loot' ? UI.violet : undefined })));
+    const rows: ListItem<string>[] = ids.map((id) => ({ label: ITEMS[id]!.name, value: id, right: `${sellPrice(id)}¢ ×${state.inventory[id]}`, color: ITEMS[id]!.kind === 'loot' ? UI.violet : undefined }));
+    const loot = this.lootTotal();
+    if (loot.count) rows.unshift({ label: 'Sell all loot', value: ALL_LOOT, right: `${loot.cred}¢`, color: UI.amber });
+    this.list.setItems(rows);
     this.list.index = 0;
     this.mode = 'sell';
     this.line = 'What are you selling?';
+  }
+
+  /** Every piece of loot you're carrying: how many, and what it all fetches. */
+  private lootTotal(): { count: number; cred: number; ids: string[] } {
+    const ids = Object.keys(state.inventory).filter((id) => ITEMS[id]?.kind === 'loot' && (state.inventory[id] ?? 0) > 0 && sellPrice(id) > 0);
+    let count = 0, cred = 0;
+    for (const id of ids) {
+      const n = state.inventory[id] ?? 0;
+      count += n;
+      cred += sellPrice(id) * n;
+    }
+    return { count, cred, ids };
+  }
+
+  private sellAllLoot(): void {
+    const loot = this.lootTotal();
+    for (const id of loot.ids) delete state.inventory[id];
+    state.cred += loot.cred;
+    sfx('cred');
+    this.line = `${loot.cred.toLocaleString('en-US')}¢ for the lot. Pleasure.`;
+    this.openSell();
+    if (this.mode !== 'sell') this.mode = 'root';
+    else this.list.index = 0;
+  }
+
+  /** After buying gear: offer it to whoever in the party can wear it, if anyone. */
+  private offerEquip(id: string): boolean {
+    const who = state.party.map((p) => state.members[p]).filter((m): m is MemberState => !!m && canEquip(m, id));
+    const slot = ITEMS[id]?.slot;
+    if (!who.length || !slot) return false;
+    this.equipItem = id;
+    this.equipList.setItems([
+      ...who.map((m) => {
+        const on = m.equip[slot] === id;
+        const worn = m.equip[slot];
+        return { label: MEMBERS[m.id].name, value: m.id, color: MEMBERS[m.id].color, enabled: !on, why: 'Already wearing one.', right: on ? 'Equipped' : worn ? `swap ${ITEMS[worn]?.name ?? ''}` : undefined };
+      }),
+      { label: 'Not now', value: 'none' },
+    ]);
+    this.equipList.index = Math.max(0, this.equipList.items.findIndex((r) => r.enabled !== false));
+    this.mode = 'equip';
+    return true;
+  }
+
+  private equipNow(memberId: string): void {
+    const m = state.members[memberId as MemberState['id']];
+    const it = ITEMS[this.equipItem];
+    if (!m || !it?.slot) return;
+    equip(m, it.id, it.slot);
+    sfx('equip');
+    this.line = `${MEMBERS[m.id].name} puts on the ${it.name}.`;
+    // More copies and someone else who could use one: keep the picker up; otherwise back to the shelf.
+    if ((state.inventory[it.id] ?? 0) > 0 && this.offerEquip(it.id) && this.equipList.items.some((r) => r.value !== 'none' && r.enabled !== false)) return;
+    this.backToBuy();
+  }
+
+  private backToBuy(): void {
+    const id = this.equipItem;
+    this.openBuy();
+    this.list.index = Math.max(0, this.shop.items.indexOf(id));
   }
 
   /** What this keeper asks for an item (the list price, less any discount you've earned). */
@@ -155,8 +255,10 @@ export class ShopScene extends Scene<void> {
       state.inventory[id] = (state.inventory[id] ?? 0) + this.qty;
       sfx('buy');
       this.line = this.qty > 1 ? `${this.qty} ${it.name}s. ${this.shop.thanks}` : this.shop.thanks;
-      this.openBuy();
-      this.list.index = this.shop.items.indexOf(id);
+      this.equipItem = id;
+      // Gear: offer to put it on here rather than sending you to the menu.
+      if (this.isEquip(id) && this.offerEquip(id)) return;
+      this.backToBuy();
     } else {
       const have = state.inventory[id] ?? 0;
       const n = Math.min(have, this.qty);
@@ -187,8 +289,9 @@ export class ShopScene extends Scene<void> {
     if (this.mode === 'root') return;
     // List
     const lx = 96, lw = 196;
-    drawWindow(ctx, lx, 46, lw, H - 54, { title: this.mode === 'sell' || this.qtyMode === 'sell' && this.mode === 'qty' ? 'SELL' : 'BUY', accent: acc , footer: keyLegend(this.game.input) });
-    this.list.render(ctx, lx + 8, 54, lw - 14, this.mode !== 'qty', this.mode === 'sell' ? 'Nothing to sell.' : 'Sold out.');
+    const selling = this.mode === 'sell' || this.mode === 'junk' || (this.qtyMode === 'sell' && this.mode === 'qty');
+    drawWindow(ctx, lx, 46, lw, H - 54, { title: selling ? 'SELL' : 'BUY', accent: acc, footer: keyLegend(this.game.input) });
+    this.list.render(ctx, lx + 8, 54, lw - 14, this.mode === 'buy' || this.mode === 'sell', this.mode === 'sell' ? 'Nothing to sell.' : 'Sold out.');
     // Detail panel (kept on screen, with a hint, even when the list is empty).
     const dx = lx + lw + 6, dw = W - dx - 8;
     drawWindow(ctx, dx, 46, dw, H - 54, { plain: true });
@@ -197,11 +300,30 @@ export class ShopScene extends Scene<void> {
       drawParagraph(ctx, this.mode === 'sell' ? 'Loot and spare gear you pick up can be sold here.' : 'Check back later.', dx + 8, 52, dw - 16, { color: UI.dim, lineH: 10 });
       return;
     }
-    const it = ITEMS[cur.value]!;
+    if (cur.value === ALL_LOOT) {
+      this.renderLootSummary(ctx, dx, dw);
+      if (this.mode === 'junk') this.renderJunkConfirm(ctx, lx, lw);
+      return;
+    }
+    const it = ITEMS[this.mode === 'equip' ? this.equipItem : cur.value]!;
     drawText(ctx, it.name, dx + 8, 52, { color: UI.cyan });
     drawText(ctx, `Owned: ${state.inventory[it.id] ?? 0}`, dx + dw - 8, 52, { align: 'right', color: UI.dim });
-    const lines = drawParagraph(ctx, it.desc, dx + 8, 64, dw - 16, { color: '#d0cee4', lineH: 10 });
-    let y = 70 + lines * 10;
+    let top = 64;
+    if (it.slot) {
+      // Which slot it takes comes first, as a tag: the thing to know before the flavour text.
+      const tag = SLOT_NAMES[it.slot].toUpperCase();
+      const tw = measure(tag) + 8;
+      ctx.fillStyle = '#2a3a58';
+      ctx.fillRect(dx + 8, top - 2, tw, 10);
+      ctx.fillStyle = UI.cyan;
+      ctx.fillRect(dx + 8, top - 2, 1, 10);
+      drawText(ctx, tag, dx + 12, top - 1, { color: '#ffffff', shadow: false });
+      const who = it.who ? `${it.who.map((w) => MEMBERS[w as MemberState['id']]?.name ?? w).join(', ')} only` : 'Anyone';
+      drawText(ctx, fitText(who, dw - 24 - tw), dx + 14 + tw, top - 1, { color: UI.dim });
+      top += 13;
+    }
+    const lines = drawParagraph(ctx, it.desc, dx + 8, top, dw - 16, { color: '#d0cee4', lineH: 10 });
+    let y = top + 6 + lines * 10;
     if (it.element && it.element !== 'phys') {
       // What the element bites and what shrugs it off, from the battle's own weakness table.
       const bites = FAMILY_ORDER.filter((f) => (FAMILY_WEAK[f][it.element!] ?? 1) > 1).map((f) => FAMILY_PLURAL[f]);
@@ -229,6 +351,36 @@ export class ShopScene extends Scene<void> {
       drawText(ctx, `Quantity  ◀ {y}${this.qty}{/} ▶`, x + 10, qy + 7);
       drawText(ctx, `${this.qtyMode === 'buy' ? 'Total' : 'You get'}: ${(price * this.qty).toLocaleString('en-US')}¢`, x + 10, qy + 19, { color: UI.dim });
     }
+    if (this.mode === 'equip') {
+      const w = 176, h = 22 + this.equipList.items.length * 11, x = lx + (lw - w) / 2, ey = 96;
+      drawWindow(ctx, x, ey, w, h, { title: 'EQUIP NOW?', accent: UI.amber });
+      this.equipList.render(ctx, x + 8, ey + 10, w - 14, true);
+    }
+  }
+
+  /** The sell-all row's detail: what goes, and what it fetches. */
+  private renderLootSummary(ctx: Ctx, dx: number, dw: number): void {
+    const loot = this.lootTotal();
+    drawText(ctx, 'All loot', dx + 8, 52, { color: UI.violet });
+    drawText(ctx, `${loot.count} pieces`, dx + dw - 8, 52, { align: 'right', color: UI.dim });
+    let y = 66;
+    for (const id of loot.ids.slice(0, 14)) {
+      drawText(ctx, fitText(ITEMS[id]!.name, dw - 60), dx + 8, y, { color: '#d0cee4' });
+      drawText(ctx, `×${state.inventory[id]}`, dx + dw - 8, y, { align: 'right', color: UI.dim });
+      y += 10;
+    }
+    if (loot.ids.length > 14) {
+      drawText(ctx, `+${loot.ids.length - 14} more`, dx + 8, y, { color: UI.dim });
+      y += 10;
+    }
+    drawDivider(ctx, dx + 6, y + 2, dw - 12);
+    drawText(ctx, `{y}${loot.cred.toLocaleString('en-US')}¢{/} for the lot`, dx + 8, y + 8);
+  }
+
+  private renderJunkConfirm(ctx: Ctx, lx: number, lw: number): void {
+    const w = 150, x = lx + (lw - w) / 2, qy = 110;
+    drawWindow(ctx, x, qy, w, 44, { title: 'SELL ALL LOOT?', accent: UI.amber });
+    this.junkList.render(ctx, x + 8, qy + 12, w - 14, true);
   }
 
   private drawCompare(ctx: Ctx, m: MemberState, id: string, x: number, y: number, w: number): void {
