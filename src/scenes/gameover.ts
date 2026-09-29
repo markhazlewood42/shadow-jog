@@ -21,6 +21,7 @@ export class GameOverScene extends Scene<GameOverChoice> {
   private rain = new Weather();
   /** The crew as the fight left them: on their knees, backs to us, facing the city. */
   private crew: HTMLCanvasElement[];
+  private backlight: CanvasGradient | null = null;
 
   constructor(canRetry: boolean) {
     super();
@@ -57,12 +58,12 @@ export class GameOverScene extends Scene<GameOverChoice> {
     this.renderCrew(ctx, Math.min(1, this.t / 45));
     ctx.globalAlpha = a;
     this.rain.render(ctx);
-    drawText(ctx, 'THE RUN IS OVER', W / 2, 88, { align: 'center', color: UI.red });
-    drawText(ctx, 'Saltreach keeps what it takes.', W / 2, 104, { align: 'center', color: UI.dim });
+    drawText(ctx, 'THE RUN IS OVER', W / 2, 44, { align: 'center', color: UI.red });
+    drawText(ctx, 'Saltreach keeps what it takes.', W / 2, 60, { align: 'center', color: UI.dim });
     ctx.globalAlpha = 1;
     if (this.t >= 70) {
-      drawWindow(ctx, W / 2 - 70, 132, 140, 46);
-      this.menu.render(ctx, W / 2 - 62, 139, 128);
+      drawWindow(ctx, W / 2 - 70, 80, 140, 46);
+      this.menu.render(ctx, W / 2 - 62, 87, 128);
     }
   }
 
@@ -70,11 +71,21 @@ export class GameOverScene extends Scene<GameOverChoice> {
   private renderCrew(ctx: Ctx, a: number): void {
     const street = 244;
     ctx.globalAlpha = a;
+    // The city's red glow behind them, so the shapes read against it.
+    this.backlight ??= (() => {
+      const g = ctx.createRadialGradient(W / 2, street, 10, W / 2, street, 200);
+      g.addColorStop(0, 'rgba(255,58,90,0.34)');
+      g.addColorStop(0.5, 'rgba(160,30,70,0.14)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      return g;
+    })();
+    ctx.fillStyle = this.backlight;
+    ctx.fillRect(0, street - 200, W, 200);
     ctx.fillStyle = '#0c0a16';
     ctx.fillRect(0, street, W, H - street);
     ctx.fillStyle = 'rgba(255,58,90,0.18)';
     ctx.fillRect(0, street, W, 1);
-    const gap = 58;
+    const gap = 74;
     const x0 = W / 2 - ((this.crew.length - 1) * gap) / 2;
     this.crew.forEach((c, i) => {
       const w = c.width * 2, h = c.height * 2;
