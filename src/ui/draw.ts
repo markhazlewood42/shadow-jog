@@ -88,6 +88,15 @@ export function drawWindow(ctx: Ctx, x: number, y: number, w: number, h: number,
   ctx.fillRect(x + w - 2, y + 1, 1, h - 2);
   ctx.fillStyle = UI.inner;
   ctx.fillRect(x + 2, y + 2, w - 4, 1);
+  // Circuit trim, on the frame itself so it never meets the content: solder ticks along the
+  // bottom edge, and a lit trace with a node on the top edge's right end.
+  if (w >= 40) {
+    ctx.fillStyle = UI.frameLit;
+    for (let tx = x + 12; tx < x + w - 12; tx += 16) ctx.fillRect(tx, y + h - 2, 2, 1);
+    ctx.fillStyle = opts.plain ? UI.frameLit : accent;
+    ctx.fillRect(x + w - 22, y + 1, 8, 1);
+    ctx.fillRect(x + w - 13, y + 1, 1, 1);
+  }
   if (!opts.plain) {
     // Neon corner brackets
     ctx.fillStyle = accent;

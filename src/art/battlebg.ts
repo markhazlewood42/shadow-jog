@@ -148,6 +148,104 @@ function floor(c: Ctx, top: number, colA: string, colB: string, lines: string | 
   }
 }
 
+/**
+ * The street's midground: a row of Lower Wards frontages standing on the far kerb (a noodle bar,
+ * a capsule hotel, a pawn shop, a shuttered unit), with lit windows, neon signs, striped awnings,
+ * lamp posts and a vending machine between them. Emissive parts go in the glow layer.
+ */
+function storefronts(c: Ctx, g: Ctx, rng: Rng, base: number): void {
+  const neon = ['#ff4fb0', '#3fe0f0', '#ffcc3d', '#62e06a', '#b07cff'];
+  const walls = ['#1a1830', '#221a34', '#16202e', '#241a26'];
+  let x = -6;
+  let i = 0;
+  while (x < BW + 4) {
+    const w = rng.int(30, 46), h = rng.int(20, 30), top = base - h;
+    const wall = walls[i % walls.length]!;
+    c.fillStyle = wall;
+    c.fillRect(x, top, w, h);
+    c.fillStyle = shade(wall, 0.25);
+    c.fillRect(x, top, w, 1);
+    const shut = i % 4 === 3;
+    // Shopfront: a lit window (or a rolled shutter) at street level.
+    const wx = x + 3, wy = base - 11, ww = w - 6;
+    if (shut) {
+      c.fillStyle = '#2e2c3a';
+      c.fillRect(wx, wy, ww, 11);
+      c.fillStyle = '#23212e';
+      for (let yy = wy + 1; yy < base; yy += 2) c.fillRect(wx, yy, ww, 1);
+    } else {
+      const warm = rng.pick(['#ffd98a', '#ffb46a', '#8ad8ff', '#ffe0c0']);
+      c.fillStyle = mix(warm, '#0a0814', 0.78);
+      c.fillRect(wx, wy, ww, 10);
+      // Lit, but across the street: dim enough that the fight in front stays the brightest thing.
+      g.globalAlpha = 0.2;
+      g.fillStyle = warm;
+      g.fillRect(wx + 1, wy + 1, ww - 2, 8);
+      g.globalAlpha = 1;
+      // Figures behind the glass: the place is open.
+      c.fillStyle = '#0c0b16';
+      for (let k = 0; k < 2; k++) {
+        const fx = wx + 3 + rng.int(0, Math.max(1, ww - 8));
+        c.fillRect(fx, wy + 4, 3, 6);
+        c.fillRect(fx + 1, wy + 2, 2, 2);
+      }
+      // A striped awning over the window.
+      const aw = rng.pick(['#8c2f39', '#2f6a5a', '#6a3fa0', '#a0652f']);
+      for (let ax = wx - 1; ax < wx + ww + 1; ax++) {
+        c.fillStyle = (ax - wx) % 4 < 2 ? aw : shade(aw, 0.3);
+        c.fillRect(ax, wy - 3, 1, 3);
+      }
+    }
+    // A neon sign above: a bar of light with a glyph block, some on the wall, some hung out.
+    const col = neon[(i * 3 + 1) % neon.length]!;
+    const sw = Math.min(w - 8, rng.int(14, 24)), sx = x + Math.round((w - sw) / 2), sy = top + 3;
+    c.fillStyle = mix(col, '#0a0814', 0.82);
+    c.fillRect(sx, sy, sw, 5);
+    g.globalAlpha = 0.55;
+    g.fillStyle = col;
+    g.fillRect(sx, sy, sw, 1);
+    g.fillRect(sx, sy + 4, sw, 1);
+    for (let gx = sx + 2; gx < sx + sw - 2; gx += 3) g.fillRect(gx, sy + 2, 2, 1);
+    g.globalAlpha = 1;
+    // Upper-floor windows, a few lit.
+    for (let wy2 = top + 10; wy2 < wy - 5; wy2 += 5)
+      for (let wx2 = x + 3; wx2 < x + w - 4; wx2 += 6) {
+        c.fillStyle = '#0e0d18';
+        c.fillRect(wx2, wy2, 3, 3);
+        if (hash2(wx2, wy2, 7) < 0.3) {
+          g.globalAlpha = 0.35;
+          g.fillStyle = rng.pick(['#ffd98a', '#8ad8ff']);
+          g.fillRect(wx2, wy2, 3, 3);
+          g.globalAlpha = 1;
+        }
+      }
+    x += w;
+    // Between buildings: a lamp post, or a vending machine against the wall.
+    if (i % 2 === 0) {
+      c.fillStyle = '#2a2a3c';
+      c.fillRect(x + 1, base - 22, 1, 22);
+      c.fillRect(x - 1, base - 22, 5, 1);
+      g.fillStyle = '#ffe0b0';
+      g.fillRect(x, base - 21, 3, 1);
+      g.globalAlpha = 0.25;
+      g.fillRect(x - 3, base - 20, 9, 4);
+      g.globalAlpha = 1;
+      x += 4;
+    } else {
+      c.fillStyle = '#2c3a5a';
+      c.fillRect(x, base - 12, 6, 12);
+      g.globalAlpha = 0.45;
+      g.fillStyle = '#9ae8ff';
+      g.fillRect(x + 1, base - 11, 4, 5);
+      g.fillStyle = '#ff4fb0';
+      g.fillRect(x + 1, base - 5, 4, 1);
+      g.globalAlpha = 1;
+      x += 7;
+    }
+    i++;
+  }
+}
+
 function reflections(g: Ctx, top: number, rng: Rng, colors: string[], n: number): void {
   for (let i = 0; i < n; i++) {
     const x = rng.int(0, BW - 1);
@@ -185,6 +283,8 @@ const MAKERS: Record<string, Maker> = {
     ditherV(c, 0, 0, BW, HORIZON + 4, ['#07061a', '#120c2e', '#2a1446', '#4a1e58', '#6a2a60']);
     skyline(c, g, rng, HORIZON + 2, 18, 46, '#1c1636', ['#6a7ab8', '#8a6ab8', '#4a5a98'], 0.08);
     skyline(c, g, rng, HORIZON + 4, 10, 34, '#110e22', ['#ffd98a', '#8ad8ff', '#ff8ad0'], 0.13, 0.45);
+    // The far kerb: the street's own shops, not only a distant skyline.
+    storefronts(c, g, new Rng(29), HORIZON + 4);
     floor(c, HORIZON + 4, '#1a1a2c', '#1e1e32', '#2a2a44');
     // Lane markings
     c.fillStyle = '#6a5a2a';
