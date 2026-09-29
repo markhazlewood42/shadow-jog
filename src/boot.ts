@@ -133,8 +133,12 @@ export function boot(game: Game, display: Display): void {
       }
     };
     tabs.postMessage({ t: 'hello', born });
-    window.addEventListener('pagehide', () => {
+    window.addEventListener('pagehide', (e) => {
       if (autosavePolicy.enabled) tabs.postMessage({ t: 'bye', born });
+      // Gone: a closing page can still be alive for a moment, and must not answer the next
+      // tab's hello (it would take autosave straight back). A page kept in the back-forward
+      // cache is frozen instead, and keeps its channel for when it comes back.
+      if (!e.persisted) tabs.close();
     });
   } catch {
     /* no BroadcastChannel: nothing to coordinate */

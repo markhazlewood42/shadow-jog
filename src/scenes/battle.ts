@@ -682,6 +682,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     for (const e of this.battle.alive('enemy')) {
       e.hp = 0;
       this.battle.defeated.push(e.key);
+      // A win resolved at once still met these enemies: the bestiary counts them, as a fought
+      // win's 'down' events would.
+      state.bestiary[e.key] = (state.bestiary[e.key] ?? 0) + 1;
     }
     this.battle.outcome = 'win';
     await this.victory();

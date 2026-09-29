@@ -61,7 +61,7 @@ export class EndingScene extends Scene<void> {
     const found = COMBOS.filter((c) => state.combos.includes(c.id)).length;
     const species = Object.keys(state.bestiary).filter((k) => ENEMIES[k]).length;
     const rows: [string, string][] = [
-      ['Play time', formatPlayTime(this.playFrames)],
+      ['Play time', formatPlayTime(this.playFrames, true)],
       ['Battles won', String(state.battles)],
       ['Combos discovered', `${found} / ${COMBOS.length}`],
       ['Bestiary', `${species} / ${Object.keys(ENEMIES).length - 1} species`],

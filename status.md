@@ -3,7 +3,7 @@ type: status
 title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-09-28
+updated: 2026-09-29
 tags: [status]
 ---
 
@@ -27,10 +27,10 @@ Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. C
 
 ## Current Status
 
-**Content-complete and playable start to finish.** Quality gate: rounds 1–8 verified (scores in the scorecard; round 8 averaged 7.57, none at 8.5 yet); Mark asked for unattended rounds past the rubric's 4-round cap, pausing only at usage limits. **Round 9 fixes landed (2026-09-28) and are being verified**: see the scorecard's round-9 work log. Headlines: timed presses in battle (strike/brace rings, On/Assist/Off) with a turn-order strip; impact frames and a camera push on big hits; render-fault recovery; Firefox reload errors fixed (pending AudioContext promises); interiors in a building shell; drawing split out of BattleScene; misdirection in the story; visible Annex secrets, catwalk height and three loops; an air bed and measured loop seams in the audio.
+**Content-complete and playable start to finish.** Quality gate: rounds 1–10 verified (round 10 averaged 7.74; Stability 8.8 and Engine 8.5 pass, the first areas to clear 8.5). Mark asked for unattended rounds past the rubric's 4-round cap, pausing only at usage limits. **Round 11 fixes landed (2026-09-29) and are being verified**: see the scorecard's round-11 work log. Headlines: menus composite one at a time and locked rows say why; a mistimed press costs, Guard earns TP only off a real blow, a three-part combo; the crew speaks in battle; Saltreach's own terminology (Woken, spark, deck jockey); swings in beats and directional shake; every recurring enemy has drawn strike and flinch frames; tab handover, a real save migration and a boot that can't hang; field.ts split; a brighter mix and longer loops; intakes that show their state; Dutch's hat, Mags' cane.
 
 **Resume here**
-1. Read the latest verifier results in the scorecard. Deferred on purpose in round 9: three-member combos and combo ranks, a pre-fight intel source, distinct counterplay per tell beyond Guard, rat/hound anatomy, hand-authored signature melodies.
+1. Read the latest verifier results in the scorecard. Deferred on purpose in round 11: Annex set-piece rooms, the Barrens middle, neon in puddles, distinct terminal/tank silhouettes, hand-authored signature melodies.
 2. After any change: `npx tsc --noEmit`, `npm run lint` (judge by exit code, not the last line), `npx vitest run`, `npx playwright test` (full suite), commit, push, then `gh run list -L 3` to confirm CI. `PW_NOGPU=1` reproduces CI's software canvas for perf work.
 3. Evidence: `npm run shots` (screenshots incl. map overviews), logs in `docs/quality/evidence/`.
 

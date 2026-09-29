@@ -275,8 +275,9 @@ export function latestSlot(loadable = false): SlotId | null {
   return best?.slot ?? null;
 }
 
-export function formatPlayTime(frames: number): string {
+/** Play time as H:MM, or H:MM:SS with `seconds` (the results screen: a short run isn't 0:00). */
+export function formatPlayTime(frames: number, seconds = false): string {
   const secs = Math.floor(frames / 60);
-  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60);
-  return `${h}:${String(m).padStart(2, '0')}`;
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+  return `${h}:${String(m).padStart(2, '0')}${seconds ? `:${String(s).padStart(2, '0')}` : ''}`;
 }

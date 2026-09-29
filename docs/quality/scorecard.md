@@ -42,6 +42,23 @@ Round 7 note: the evidence got richer (audio measurements, more screenshots, mor
 new, concrete defects — several real bugs (text collisions, the Warden's hidden head, the menu's hidden Close, a stale
 save baseline, a continuity slip). Reviewer spread remains ±0.5–1.0 per area; the trend is judged on defects fixed.
 
+## Round 11 (verification pending)
+
+Worked the round-10 findings, the UI compositing bug first.
+
+- [x] **UI**: only the topmost full-screen menu draws over the world (Options no longer ghosts through Controls; tested); locked rows say why (Game Over, title, battle Repeat); menu windows carry a key reminder in the player's own bindings; the results page says "Press Z to continue" like the page after it.
+- [x] **Combat**: a press off the beat costs (a softer strike, a harder blow taken), taught once; Guard pays TP only off a blow it takes, and Rook gets a spent charge back once a fight (he never runs dry in the attrition sims); a target just out of a stun shrugs off another for two rounds; Blackout (Rook + Hex) and Clean Job, a three-part combo (Kit + Rook + Hex).
+- [x] **Narrative**: combo callers speak on their cut-ins and big techs have battle cries; the terminology is Saltreach's own (Woken, spark, deck jockey, ki brawler; glossary in the GDD); Kit and Hex answer Rook's confession; the ending carries the Dutch hook; one ellipsis glyph throughout.
+- [x] **Feel**: melee swings in three beats (gather, snap with a smear, settle); screen shake kicks along the blow and springs back (rumbles are smooth); big hits on the crew push the camera in and a crushing one flashes red; presses during a hit-pause carry over.
+- [x] **Battle presentation**: all 16 recurring enemies have drawn strike and flinch frames (shot 16b); creatures get a form-shading pass.
+- [x] **Economy**: the inn charges only members who wake up better; a headpiece per crew member; Neural Buffer no longer offered to Rook; Mags' collection is a real fork (150 now, or a fifth off her lot for good; tested to roughly break even).
+- [x] **Stability**: the oldest open tab autosaves, and closing it hands over (E2E); save format v2 with a real migration; any failure before the game runs is shown (was LOADING… forever; E2E with no 2D canvas); systems' handlers guarded.
+- [x] **Engine**: field.ts split into fieldkit (api, draw, dust); single-pass rain; weather and lighting tests.
+- [x] **Audio**: low end trimmed at source (pads/choir high-passed, the bass's sub-octave halved), presence up; lab and tension loops doubled with B sections; the boss breathes twice a loop.
+- [x] **Level**: intakes show shut/open from across the map; a wrong valve costs one step, not three; a test fails any overlapping signs (it caught INTAKE 3 under PUMP STATION); the maze's KEEP OUT is a scav lie.
+- [x] **Field art**: Dutch's hat, Mags' cane, Pale's umbrella at the dock; guards are different people.
+- [ ] Deferred: Annex set-piece rooms, the Barrens middle, neon in puddles, distinct terminal/tank silhouettes.
+
 ## Round 10 (verified 2026-09-29)
 
 Worked the round-9 findings, the two caps first.
