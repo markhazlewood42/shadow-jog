@@ -295,6 +295,45 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 
 ---
 
+## 13. Proposed in the setting bible (not in the game yet)
+
+`docs/SETTING.md` (2026-09-29) fills the setting's gaps with invented history, politics and people, all tagged
+**[new]** there. Its terms are listed here so the vocabulary lives in one place; none of them appear in the game
+yet.
+
+| Term | One line |
+|---|---|
+| **The Long Tide** | 2031–2044: the sea rise that turned Saltreach's streets into canals. |
+| **The Blue Hour** | 2049: the night magic came back; every flame burned blue for an hour. |
+| **The Recasting**, **the Recast** | 2050–2055: people changed to older shapes (dwarves, orcs, the long-eared); later just "folk". |
+| **The Halden Wall** | The sea wall whose breach caused the flood of ’61. |
+| **The Reclamation Compact** | 2062: the corporations rebuilt the walls and took the dry wards as payment. |
+| **Unreclaimed** | The Lower Wards' legal status since the Compact: no services, no vote, no court. |
+| **Up top**, **the Upper Wards** | The reclaimed city: Halden Quay, Mori Heights, Vey Crescent. |
+| **The Spire** | Street name for K-M's arcology. |
+| **The Blackwater Riots** | The ’71 riots' name: four nights after Civic Security's first sweep for unregistered Woken. |
+| **The Woken Registration Act** | 2072: mandatory registration, with a hidden spark assessment. |
+| **The Futures Scholarship** | K-M's name for recruiting Woken children ("scholarships"). |
+| **The Warden incident** | 2077: the bound spirit woke screaming, and Annex 7 was evacuated. |
+| **The Vessel audit** | 2079: why K-M suddenly needs its abandoned assets back. |
+| **Kessler-Mori divisions** | Civic Security, Registration, Thaumic Energy, Asset Recovery (Pale's). |
+| **Halden Tidewater** | The corporation that owns the walls and the harbour. |
+| **Vey Consolidated** | Newsfeeds, terminals and transit; founded by Octavia Vey. |
+| **Orison Biotech** | The first spark lab (defunct, bought by K-M in 2064); Rook's "different logo". |
+| **The Saltreach Assembly**, **Mayor Joaquim Tell** | The city government, and its figurehead. |
+| **The Lagos Line** | The smugglers' ships from Harbor Ward to Neo-Lagos. |
+| **The Kowloon Quarter** | A pre-flood district; one in-world origin for "Kowloon-era". |
+| **The Brannock Tire Works** | What the Rustyard was before ’61. |
+| **The Saltreach Planetarium** | The fallen dome. |
+| **Line 4** | The Sinkline line whose train is still in the tunnels. |
+| **The Order of the Iron Saint** | Brother Tomas's militant lay order. |
+| **Canal shamanism** | The houseboat spirit practice Sable comes from; binding spirits is its worst taboo. |
+| **Fathom Systems** | The makers of the Stingray (the fin logo). |
+| **Low Tide** | Rook's old crew: Rook, Mara Oduya, Juniper (jockey), Sal (driver). |
+| **Invented names** | Kit's mother Mara Oduya; Rook as Emil Rourke; Hex as Hester Xu; Dutch as Dirk Vandermeer; Mags as Margarethe Brannock; Knuckles as Duc Tran; Glass Wolves leader Ines Calder; K-M CEO Helena Mori; Vessel's director Dr. Anselm Vey-Hart; the Warden's spirit, Ada. |
+
+---
+
 ## Open questions for the review
 
 1. Section 1: keep the four coinages (Woken, spark, deck jockey, ki brawler), or restore any of the genre's words?
