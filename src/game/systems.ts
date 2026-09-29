@@ -310,8 +310,10 @@ export async function runBattle(
   for (;;) {
     const intro = snapshotScreen(game);
     pushMusic(opts.music ?? (opts.boss ? 'boss' : 'battle'));
-    game.flash('#ffffff', 8);
-    const [{ BattleScene }] = await Promise.all([loadBattle(), game.wait(10)]);
+    // The field holds on the flash a moment before it shatters (longer since Mark's first
+    // playthrough, 2026-09-29): a fight should land as an event, not a cut.
+    game.flash('#ffffff', 12);
+    const [{ BattleScene }] = await Promise.all([loadBattle(), game.wait(18)]);
     const result = await game.run(new BattleScene({ encounter: enc, bg: opts.bg, canRun: opts.canRun, boss: opts.boss, music: opts.music, intro }));
     if (result !== 'lose') {
       popMusic();

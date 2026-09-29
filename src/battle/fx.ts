@@ -59,6 +59,17 @@ export class FxLayer {
   /** Screen flash requests consumed by the scene. */
   flash: { color: string; frames: number } | null = null;
   shake = 0;
+  /**
+   * Effect frames per real frame. The scene sets it every frame (battle pace, Battle Speed, held
+   * confirm): below 1 the effects play slower than they're authored and linger. Every duration in
+   * the catalogue below is in effect frames; `realFrames` converts.
+   */
+  rate = 1;
+
+  /** How many real frames `frames` effect frames take at the current rate. */
+  realFrames(frames: number): number {
+    return Math.max(1, Math.round(frames / this.rate));
+  }
 
   get busy(): boolean {
     return this.parts.length > 0 || this.shapes.length > 0;
@@ -761,24 +772,30 @@ export class FxLayer {
   }
 
   update(): void {
+    // Integrated in effect frames (dt of them per real frame), so a slower rate stretches every
+    // effect smoothly instead of skipping frames.
+    const dt = this.rate;
     for (const p of this.parts) {
       if (p.delay > 0) {
-        p.delay--;
+        p.delay -= dt;
         continue;
       }
-      p.life++;
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += p.g;
-      p.vx *= p.drag;
-      p.vy *= p.drag;
+      p.life += dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += p.g * dt;
+      if (p.drag !== 1) {
+        const d = p.drag ** dt;
+        p.vx *= d;
+        p.vy *= d;
+      }
     }
     let w = 0;
     for (const p of this.parts) if (p.life < p.max) this.parts[w++] = p;
     this.parts.length = w;
     for (const s of this.shapes) {
-      if (s.delay > 0) s.delay--;
-      else s.t++;
+      if (s.delay > 0) s.delay -= dt;
+      else s.t += dt;
     }
     let k = 0;
     for (const s of this.shapes) if (s.t < s.max) this.shapes[k++] = s;

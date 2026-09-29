@@ -14,9 +14,11 @@ import type { Ctx } from '../../engine/canvas';
  * are a snap, heavy ones a wind-up you can read.
  */
 export const WINDOWS: Record<TimingProfile, { lead: number; perfect: number; early: number; late: number; radius: number }> = {
-  quick: { lead: 18, perfect: 2, early: 6, late: 3, radius: 16 },
-  normal: { lead: 24, perfect: 3, early: 9, late: 5, radius: 20 },
-  heavy: { lead: 32, perfect: 5, early: 12, late: 7, radius: 26 },
+  // Slowed after Mark's first playthrough (2026-09-29: "a bit too fast, both attacks and
+  // blocks"): the ring takes about 40% longer to close and each window is a little wider.
+  quick: { lead: 26, perfect: 3, early: 8, late: 4, radius: 18 },
+  normal: { lead: 34, perfect: 4, early: 11, late: 6, radius: 22 },
+  heavy: { lead: 44, perfect: 6, early: 15, late: 9, radius: 28 },
 };
 /** The normal beat (the minimum lead playback allows). */
 export const RING_LEAD = WINDOWS.normal.lead;

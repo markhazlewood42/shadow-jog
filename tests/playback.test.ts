@@ -51,6 +51,9 @@ function recorder(armed = false) {
     d,
     pos: (): Pt => ({ x: 0, y: 0 }),
     w: wait,
+    // Animation frames map one to one here (the scene's FX_PACE is a presentation choice).
+    anim: (n) => n,
+    label: (u) => u.name,
     floatOn: (uid, text) => log.push(`float:${uid}:${text}`),
     say: (text) => log.push(`say:${text}`),
     showBanner: (text) => log.push(`banner:${text}`),

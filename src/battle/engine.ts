@@ -140,6 +140,8 @@ export class Battle {
   /** The round's action queue and how far through it we are. */
   private queue: QueuedAction[] = [];
   private qi = 0;
+  /** The queue's actors, built once per round (the turn-order strip reads it every frame). */
+  private queueActors: number[][] = [];
   /** The action `next()` declared and `land()` will resolve. */
   private declared: Declared | null = null;
   /** The timed press applying to the damage being resolved now. */
@@ -347,6 +349,7 @@ export class Battle {
     this.rollInitiative();
     this.round++;
     this.queue = [];
+    this.queueActors = [];
     this.qi = 0;
     this.declared = null;
     if (cmds.some((c) => c.type === 'run')) {
@@ -355,7 +358,19 @@ export class Battle {
       cmds = [];
     }
     this.queue = this.plan(cmds);
+    this.queueActors = this.queue.map((q) => q.actors);
     return this.flush();
+  }
+
+  /**
+   * The round being played, for the turn-order strip: each queued action's actors in order (the
+   * same array all round), and the index of the one declared last (-1 before the first).
+   */
+  get roundOrder(): readonly number[][] {
+    return this.queueActors;
+  }
+  get roundAt(): number {
+    return this.qi - 1;
   }
 
   /**

@@ -4,13 +4,30 @@
  * without a scene (tests/orders.test.ts); BattleScene owns only the menu flow.
  */
 import { Battle } from '../../battle/engine';
-import type { Combatant, Command } from '../../battle/types';
+import type { Ability, Combatant, Command, Element } from '../../battle/types';
 import { ABILITIES } from '../../data/abilities';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
 import { knownAbilities } from '../../game/party';
 import { state, type MemberId } from '../../game/state';
 import type { ListItem } from '../../ui/list';
+import { ELEMENT_COLOR, ELEMENT_ICON } from './tables';
+
+/**
+ * The damage type an order deals, or null if it deals none (heals, buffs, statuses): the move's
+ * own element, else the item's, else (for Attack) the weapon's, else physical. The engine resolves
+ * it the same way (engine.ts, the damage step).
+ */
+export function damageElement(ab: Ability, a: Combatant, itemId?: string): Element | null {
+  const effects = itemId ? (ITEMS[itemId]?.effects ?? []) : ab.effects;
+  if (!effects.some((e) => e.type === 'damage')) return null;
+  return ab.element ?? (itemId ? ITEMS[itemId]?.element : undefined) ?? (ab.kind === 'attack' ? a.weaponElement : undefined) ?? 'phys';
+}
+
+/** A list row's icon for an order's damage type: a blank of the same width when it deals none, so labels line up. */
+function elementIcon(el: Element | null): Pick<ListItem<string>, 'icon' | 'iconColor'> {
+  return el ? { icon: ELEMENT_ICON[el], iconColor: ELEMENT_COLOR[el] } : { icon: '\uE000', iconColor: undefined };
+}
 
 /** Items usable in battle that aren't already promised to an earlier order this round. */
 export function battleItems(reserved: Record<string, number>): string[] {
@@ -20,23 +37,31 @@ export function battleItems(reserved: Record<string, number>): string[] {
 /** A member's command menu: Attack, their tech family (named for them), Skills, Item, Guard. */
 export function commandItems(a: Combatant, reserved: Record<string, number>): ListItem<string>[] {
   const m = state.members[a.key as MemberId]!;
-  const items: ListItem<string>[] = [{ label: 'Attack', value: 'attack' }];
-  if (knownAbilities(m, 'tech').length) items.push({ label: MEMBERS[a.key as MemberId].tpLabel === 'KI' ? 'Ki Arts' : a.key === 'hex' ? 'Programs' : 'Spirits', value: 'tech' });
-  if (knownAbilities(m, 'skill').length) items.push({ label: 'Skills', value: 'skill' });
-  items.push({ label: 'Item', value: 'item', enabled: battleItems(reserved).length > 0 });
-  items.push({ label: 'Guard', value: 'guard' });
+  // Attack shows the weapon's damage type; the rest carry a blank so the column lines up.
+  const blank = elementIcon(null);
+  const items: ListItem<string>[] = [{ label: 'Attack', value: 'attack', ...elementIcon(damageElement(ABILITIES.attack!, a)) }];
+  if (knownAbilities(m, 'tech').length) items.push({ label: MEMBERS[a.key as MemberId].tpLabel === 'KI' ? 'Ki Arts' : a.key === 'hex' ? 'Programs' : 'Spirits', value: 'tech', ...blank });
+  if (knownAbilities(m, 'skill').length) items.push({ label: 'Skills', value: 'skill', ...blank });
+  items.push({ label: 'Item', value: 'item', enabled: battleItems(reserved).length > 0, ...blank });
+  items.push({ label: 'Guard', value: 'guard', ...blank });
   return items;
 }
 
 /** The techs, skills or items list, with costs and what can't be afforded greyed out. */
 export function choiceItems(a: Combatant, kind: 'tech' | 'skill' | 'item', reserved: Record<string, number>): ListItem<string>[] {
-  if (kind === 'item') return battleItems(reserved).map((id) => ({ label: ITEMS[id]!.name, value: id, right: `×${(state.inventory[id] ?? 0) - (reserved[id] ?? 0)}` }));
+  if (kind === 'item') {
+    return battleItems(reserved).map((id) => {
+      const it = ITEMS[id]!;
+      const el = it.effects?.some((e) => e.type === 'damage') ? (it.element ?? 'phys') : null;
+      return { label: it.name, value: id, right: `×${(state.inventory[id] ?? 0) - (reserved[id] ?? 0)}`, ...elementIcon(el) };
+    });
+  }
   const m = state.members[a.key as MemberId]!;
   return knownAbilities(m, kind).map((id) => {
     const ab = ABILITIES[id]!;
     const ok = kind === 'tech' ? a.tp >= (ab.cost ?? 0) : (a.uses[id] ?? 0) > 0;
     const right = kind === 'tech' ? `${ab.cost} ${MEMBERS[a.key as MemberId].tpLabel}` : `${a.uses[id] ?? 0}/${ab.uses}`;
-    return { label: ab.name, value: id, right, enabled: ok };
+    return { label: ab.name, value: id, right, enabled: ok, ...elementIcon(damageElement(ab, a)) };
   });
 }
 

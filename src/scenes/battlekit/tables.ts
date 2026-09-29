@@ -27,6 +27,15 @@ export const AFTERIMAGES: [number, number, number][] = [[-7, 5, 0.35], [7, 9, 0.
 export const ELEMENTS = ['phys', 'fire', 'shock', 'cyber', 'mana'] as const;
 export const ELEMENT_TAG: Record<(typeof ELEMENTS)[number], string> = { phys: 'PHYS', fire: 'FIRE', shock: 'SHOCK', cyber: 'CYBER', mana: 'MANA' };
 export const ELEMENT_COLOR: Record<(typeof ELEMENTS)[number], string> = { phys: '#e0dcd0', fire: '#ffa24a', shock: '#9ae8ff', cyber: '#3fe0f0', mana: '#b99bff' };
+/**
+ * The damage-type symbols (font glyphs): shown beside every attack, tech, skill and item in the
+ * battle menus and in the weakness readouts, so "this is fire" and "weak to fire" read the same.
+ */
+export const ELEMENT_ICON: Record<(typeof ELEMENTS)[number], string> = { phys: '\uE001', fire: '\uE002', shock: '\uE003', cyber: '\uE004', mana: '\uE005' };
+/** A symbol in its element's colour, as inline text (the font's colour code for any hex). */
+export function elementMark(el: (typeof ELEMENTS)[number]): string {
+  return `{#${ELEMENT_COLOR[el].slice(1)}}${ELEMENT_ICON[el]}{/}`;
+}
 
 export const STATUS_WORD: Partial<Record<StatusId, string>> = {
   poison: 'POISONED', burn: 'BURNING', stun: 'STUNNED', blind: 'BLINDED', jammed: 'JAMMED', exposed: 'EXPOSED', regen: 'REGEN',

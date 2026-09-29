@@ -9,10 +9,10 @@ import { ABILITIES, COMBOS } from '../../data/abilities';
 import { MEMBERS } from '../../data/party';
 import { learn, state, type MemberId } from '../../game/state';
 import { ENEMY_POSE_T } from './sprites';
-import { COMBO_STING, STATUS_LABEL, STATUS_SFX, STATUS_WORD, actionPose, enemyMotion, fxSound, statusName } from './tables';
+import { COMBO_STING, ELEMENT_TAG, STATUS_LABEL, STATUS_SFX, STATUS_WORD, actionPose, elementMark, enemyMotion, fxSound, statusName } from './tables';
 import type { Game } from '../../engine/game';
 import type { Battle } from '../../battle/engine';
-import type { BattleEvent, Combatant } from '../../battle/types';
+import type { BattleEvent, Combatant, Element } from '../../battle/types';
 import type { FxLayer, Pt } from '../../battle/fx';
 import type { Pose } from '../../art/battlers';
 import type { Disp, Floater } from './types';
@@ -43,6 +43,10 @@ export interface PlaybackView {
   pos(uid: number): Pt;
   /** Wait `frames`, scaled by the battle speed setting. */
   w(frames: number): Promise<void>;
+  /** Real frames that `frames` of animation (poses and effects, on the effect clock) take now. */
+  anim(frames: number): number;
+  /** What the UI calls a combatant (two of a kind get a letter). */
+  label(u: Combatant): string;
   floatOn(uid: number, text: string, color: string, style: Floater['style']): void;
   say(text: string): void;
   showBanner(text: string, color: string, big?: boolean): void;
@@ -68,15 +72,17 @@ export interface PlaybackView {
 }
 
 /**
- * Wind up, play the move's effect and wait for its hit. With a timed press armed, the windup is
+ * Wind up, play the move's effect and wait for its hit. The windup and the effect are animation
+ * (effect frames: the pose and the effect run on the same clock, see BattleScene FX_PACE), so
+ * they're converted to real frames at the current rate. With a timed press armed, the windup is
  * held long enough for the ring to be read (real frames: battle speed can't squeeze the beat) and
  * the ring closes exactly as the effect lands.
  */
 async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], windup: number, color?: string): Promise<void> {
   const profile = v.timingArmed();
   if (profile) {
-    const impact = v.fx.impactOf(fx, from, to, color);
-    const lead = Math.max(WINDOWS[profile].lead, windup + impact);
+    const impact = v.anim(v.fx.impactOf(fx, from, to, color));
+    const lead = Math.max(WINDOWS[profile].lead, v.anim(windup) + impact);
     v.openTiming(lead);
     await v.game.wait(lead - impact);
     v.fx.play(fx, from, to, color);
@@ -84,10 +90,10 @@ async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], win
     await v.game.wait(impact);
     return;
   }
-  await v.w(windup);
+  await v.game.wait(v.anim(windup));
   const timing = v.fx.play(fx, from, to, color);
   sfx(fxSound(fx));
-  await v.w(timing.impact);
+  await v.game.wait(v.anim(timing.impact));
 }
 
 /**
@@ -107,7 +113,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       v.lastActor = actor;
       const dd = v.d(e.actor);
       const color = actor.side === 'party' ? MEMBERS[actor.key as MemberId].color : '#ff8a8a';
-      v.showBanner(e.kind === 'attack' || e.name === 'Attack' ? `${actor.name}` : `${actor.name}: ${e.name}`, color);
+      v.showBanner(e.kind === 'attack' || e.name === 'Attack' ? v.label(actor) : `${v.label(actor)}: ${e.name}`, color);
       if (actor.side === 'party') {
         const pose = actionPose(actor.key, e.kind, e.targets.map((t) => v.battle.unit(t)?.side), e.fx);
         // Melee poses move by their swing beats (motion.ts); the rest just rise a little.
@@ -154,7 +160,8 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       });
       v.setBanner({ text: `★ ${e.name.toUpperCase()} ★`, sub: first ? `${names}  —  COMBO DISCOVERED!` : names, t: 0, color: '#ffe07a', big: true });
       v.game.flash('#ffffff', 6);
-      await v.w(40);
+      // Held long enough to read the name and the call (longer since the 2026-09-29 playthrough).
+      await v.w(56);
       // The name clears before the hits land, so the numbers never appear under it.
       v.endBanner();
       await windupAndHit(v, e.fx, v.pos(e.actors[0]!), e.targets.map((t) => v.pos(t)), 0);
@@ -247,7 +254,8 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         sfx('ko');
         v.say(`${u.name} is down!`);
       }
-      await v.w(u.side === 'enemy' ? 16 : 26);
+      // An enemy's dissolve is animation (28 effect frames): wait most of it out.
+      await v.game.wait(u.side === 'enemy' ? v.anim(22) : v.anim(26));
       break;
     }
     case 'revive':
@@ -264,7 +272,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       const u = v.battle.unit(e.target)!;
       v.floatOn(e.target, 'IMMUNE', '#c9b8ff', 'label');
       if (u.side === 'enemy') learn(state.immuneSeen, u.key, e.status);
-      v.say(`${u.name} is immune to ${statusName(e.status)}.`);
+      v.say(`${v.label(u)} is immune to ${statusName(e.status)}.`);
       sfx('miss');
       await v.w(24);
       break;
@@ -318,15 +326,17 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
     }
     case 'analyze': {
       const u = v.battle.unit(e.target)!;
-      const weak = Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => k.toUpperCase());
-      const res = Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) < 1).map(([k]) => k.toUpperCase());
+      const weak = Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => k as Element);
+      const res = Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) < 1).map(([k]) => k as Element);
       // Analyze writes what it finds into the crew's notes (bestiary, target cursor).
       if (u.side === 'enemy') {
-        for (const el of weak) learn(state.weakSeen, u.key, el.toLowerCase());
-        for (const el of res) learn(state.resistSeen, u.key, el.toLowerCase());
+        for (const el of weak) learn(state.weakSeen, u.key, el);
+        for (const el of res) learn(state.resistSeen, u.key, el);
         for (const st of u.immune ?? []) learn(state.immuneSeen, u.key, st);
       }
-      v.say(`${u.name}: HP ${u.hp}/${u.base.maxHp}${weak.length ? `  WEAK ${weak.join(' ')}` : ''}${res.length ? `  RESISTS ${res.join(' ')}` : ''}`);
+      // Symbol and word together: this is where the damage-type symbols get taught.
+      const named = (els: Element[]) => els.map((el) => `${elementMark(el)} ${ELEMENT_TAG[el]}`).join('  ');
+      v.say(`${v.label(u)}: HP ${u.hp}/${u.base.maxHp}${weak.length ? `  WEAK ${named(weak)}` : ''}${res.length ? `  RESISTS ${named(res)}` : ''}`);
       await v.w(70);
       break;
     }

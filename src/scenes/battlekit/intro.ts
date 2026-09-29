@@ -11,6 +11,16 @@ interface Shard {
   spin: number;
 }
 
+/**
+ * Frames the shatter takes at Normal battle speed: CRACK of cracks racing out over the frozen
+ * frame, then the fall. Lengthened after Mark's first playthrough (2026-09-29: "make it longer"),
+ * from 6 + 24: the fall is the same motion, played slower.
+ */
+export const INTRO_T = 52;
+const CRACK = 16;
+/** The fall as first authored ran 24 frames; it now spans the rest of INTRO_T at the same shapes. */
+const FALL_SCALE = 24 / (INTRO_T - CRACK);
+
 export class ShatterIntro {
   private shards: Shard[];
 
@@ -52,13 +62,15 @@ export class ShatterIntro {
 
   draw(ctx: Ctx, t: number): void {
     const img = this.img;
-    const CRACK = 6;
     if (t < CRACK) {
-      // The frame freezes and cracks spread from the centre along the shard seams.
+      // The frame freezes and cracks spread from the centre along the shard seams; the seams
+      // glow brighter as they reach the edges, a beat before it all gives way.
       ctx.drawImage(img, 0, 0, W, H);
-      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillStyle = `rgba(10,8,20,${(0.25 * (t / CRACK)).toFixed(3)})`;
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = `rgba(255,255,255,${(0.6 + 0.4 * (t / CRACK)).toFixed(3)})`;
       ctx.lineWidth = 1;
-      const reach = ((t + 1) / CRACK) * Math.hypot(W, H) * 0.55;
+      const reach = Math.min(1, (t + 1) / (CRACK * 0.7)) * Math.hypot(W, H) * 0.55;
       ctx.beginPath();
       for (const sh of this.shards) {
         if (Math.hypot(sh.cx - W / 2, sh.cy - H / 2) > reach) continue;
@@ -71,7 +83,7 @@ export class ShatterIntro {
       ctx.stroke();
       return;
     }
-    const k = t - CRACK;
+    const k = (t - CRACK) * FALL_SCALE;
     ctx.globalAlpha = Math.max(0, 1 - k / 24);
     for (const sh of this.shards) {
       const ox = sh.vx * k, oy = sh.vy * k + 0.35 * k * k;

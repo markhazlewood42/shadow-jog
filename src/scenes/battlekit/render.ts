@@ -22,9 +22,17 @@ import { TARGET_INFO_W } from '../../ui/layout';
 import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
 import { BHT, BW, CMD_W, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, orderStripLayout } from './geom';
-import { ShatterIntro } from './intro';
+import { INTRO_T, ShatterIntro } from './intro';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, opaqueTop, rimOf, silhouetteCache, variant } from './sprites';
-import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_TAG, STATUS_LABEL, statusName } from './tables';
+import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, statusName } from './tables';
+
+/**
+ * Who is acting: one bright colour for the bouncing arrow, their status card and their turn-order
+ * entry, so the three read as one signal (made louder after Mark's first playthrough, 2026-09-29).
+ * Picking a target uses the menu cursor's cyan instead: acting and aiming never look alike.
+ */
+const ACTIVE = '#fff04a';
+const AIMING = '#6ff3ff';
 import { drawRing } from './timing';
 
 let bigBandGrad: CanvasGradient | null = null;
@@ -83,7 +91,12 @@ export class BattleRenderer {
     // Targeting arrows (world space)
     if (this.s.mode === 'target') {
       const t = this.s.targetList[this.s.targetIdx];
-      if (t !== undefined) this.drawArrow(g, t, f);
+      if (t !== undefined) this.drawArrow(g, t, f, AIMING);
+    }
+    // While the round plays, the arrow rides whoever's turn it is (both partners of a combo).
+    if (this.s.mode === 'play') {
+      const acts = this.s.battle.roundOrder[this.s.battle.roundAt];
+      if (acts) for (const uid of acts) if ((this.s.battle.unit(uid)?.hp ?? 0) > 0) this.drawArrow(g, uid, f, ACTIVE);
     }
     // Floaters
     for (const fl of this.s.floaters) {
@@ -121,7 +134,7 @@ export class BattleRenderer {
       ctx.fillRect(0, 0, W, H);
     }
     // Intro shatter
-    if (this.s.setup.intro && this.s.introT < 30) {
+    if (this.s.setup.intro && this.s.introT < INTRO_T) {
       if (!this.shatter) this.shatter = new ShatterIntro(this.s.setup.intro);
       this.shatter.draw(ctx, this.s.introT);
     }
@@ -342,7 +355,7 @@ export class BattleRenderer {
       g.globalAlpha = 1;
       g.globalCompositeOperation = 'source-over';
     }
-    if (active && this.s.mode !== 'target') this.drawArrow(g, p.uid, f, MEMBERS[p.key as MemberId].color);
+    if (active && this.s.mode !== 'target') this.drawArrow(g, p.uid, f, ACTIVE);
     if (dd.flash > 0 && dd.flash % 4 < 2) {
       g.globalAlpha = 0.45;
       g.drawImage(silhouetteCache(frame, '#ff5a5a'), x, y);
@@ -350,7 +363,8 @@ export class BattleRenderer {
     }
   }
 
-  private drawArrow(g: Ctx, uid: number, f: number, color = '#ffe07a'): void {
+  /** A bouncing chevron over a combatant (world space: each pixel is two on screen). */
+  private drawArrow(g: Ctx, uid: number, f: number, color: string): void {
     const u = this.s.battle.unit(uid);
     if (!u) return;
     let x: number, y: number;
@@ -363,11 +377,20 @@ export class BattleRenderer {
       x = p.x;
       y = PARTY_BOTTOM - this.s.partyArt.get(uid)!.headH - 3;
     }
-    const b = Math.round(Math.sin(f * 0.25) * 2);
+    const b = Math.round(Math.sin(f * 0.25) * 3);
+    const top = y - 9 + b;
+    // A chunky chevron (9 wide, 5 deep) with a dark outline all round, so it holds against any
+    // backdrop, and a white glint across its top on the beat.
     g.fillStyle = '#0a0913';
-    g.fillRect(x - 3, y - 6 + b, 7, 1);
+    for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
+      for (let i = 0; i < 5; i++) g.fillRect(x - 4 + i + ox, top + i + oy, 9 - i * 2, 1);
+    }
     g.fillStyle = color;
-    for (let i = 0; i < 4; i++) g.fillRect(x - 3 + i, y - 5 + b + i, 7 - i * 2, 1);
+    for (let i = 0; i < 5; i++) g.fillRect(x - 4 + i, top + i, 9 - i * 2, 1);
+    if (Math.sin(f * 0.25) > 0.3) {
+      g.fillStyle = '#ffffff';
+      g.fillRect(x - 3, top, 7, 1);
+    }
   }
 
   /**
@@ -434,7 +457,7 @@ export class BattleRenderer {
       let n = 0, width = measure('WEAK') + 2;
       for (const el of ELEMENTS) {
         if (e.analyzed ? (e.weak?.[el] ?? 1) > 1 : seen?.includes(el)) {
-          width += measure(ELEMENT_TAG[el]) + 3;
+          width += measure(ELEMENT_ICON[el]) + 3;
           n++;
         }
       }
@@ -446,8 +469,9 @@ export class BattleRenderer {
       wx += measure('WEAK') + 4;
       for (const el of ELEMENTS) {
         if (!(e.analyzed ? (e.weak?.[el] ?? 1) > 1 : seen?.includes(el))) continue;
-        drawText(ctx, ELEMENT_TAG[el], wx, row + 1, { color: ELEMENT_COLOR[el], shadow: false });
-        wx += measure(ELEMENT_TAG[el]) + 3;
+        // The same symbols as the battle menus, so "weak to this" matches "this move is".
+        drawText(ctx, ELEMENT_ICON[el], wx, row + 1, { color: ELEMENT_COLOR[el], shadow: false });
+        wx += measure(ELEMENT_ICON[el]) + 3;
       }
     }
   }
@@ -501,7 +525,7 @@ export class BattleRenderer {
         this.renderTargetInfo(ctx);
         break;
     }
-    if (this.s.mode === 'round' || this.s.mode === 'command' || this.s.mode === 'list' || this.s.mode === 'target') this.renderOrder(ctx);
+    if (this.s.mode === 'round' || this.s.mode === 'command' || this.s.mode === 'list' || this.s.mode === 'target' || this.s.mode === 'play') this.renderOrder(ctx);
     this.renderCutins(ctx);
     if (this.s.bannerStart >= 0) drawVictoryBanner(ctx, this.s.frame - this.s.bannerStart);
     if (this.s.endPanel) this.s.endPanel(ctx);
@@ -511,7 +535,7 @@ export class BattleRenderer {
   private order: { key: number; list: number[][] } | null = null;
 
   /** Turn order as it stands: orders given so far, everyone else assumed to attack. */
-  private turnOrder(): number[][] {
+  private turnOrder(): readonly number[][] {
     const key = this.s.battle.round * 100 + this.s.cmds.length;
     if (this.order?.key === key) return this.order.list;
     const given = new Set(this.s.cmds.map((c) => c.actor));
@@ -522,15 +546,18 @@ export class BattleRenderer {
   }
 
   /**
-   * The turn-order strip (top left while orders are given): who acts when this round, as faces,
-   * updating as orders go in (Guard goes first, items early, a combo as one). The member giving
-   * orders is outlined; the enemy being aimed at is too.
+   * The turn-order strip, down the right edge (the menus keep the left): who acts when this
+   * round, as faces. While orders are given it updates as they go in (Guard goes first, items
+   * early, a combo as one) and outlines the member giving orders and the enemy being aimed at.
+   * While the round plays it is the real queue: the entry acting now stands out, the ones done
+   * fade back.
    */
   private renderOrder(ctx: Ctx): void {
-    const list = this.turnOrder();
-    // Opposite the acting member's menus (they open on that member's side of the screen).
-    const a = this.s.mode === 'round' ? undefined : this.s.actor;
-    const side = a && this.s.menuX(a, CMD_W) > W / 2 ? 'left' : 'right';
+    const playing = this.s.mode === 'play';
+    const list = playing ? this.s.battle.roundOrder : this.turnOrder();
+    if (!list.length) return;
+    const at = playing ? this.s.battle.roundAt : -1;
+    const side = 'right';
     // Laid out once per change of order or side (orderStripLayout), like the list itself.
     if (this.orderRects.source !== list || this.orderRects.side !== side) {
       const faces: number[] = [];
@@ -540,16 +567,32 @@ export class BattleRenderer {
     const rects = this.orderRects.rects;
     const edgeX = side === 'right' ? ORDER_RIGHT : ORDER_LEFT;
     drawText(ctx, 'TURN', edgeX, ORDER_TOP - 10, { color: UI.dim, align: side });
-    const acting = this.s.mode === 'round' ? undefined : this.s.actor?.uid;
+    const acting = this.s.mode === 'round' || playing ? undefined : this.s.actor?.uid;
     const aimed = this.s.mode === 'target' ? this.s.targetList[this.s.targetIdx] : undefined;
+    const pulse = 0.6 + 0.4 * Math.sin(this.s.frame * 0.18);
     for (let k = 0; k < rects.length; k++) {
-      const actors = list[k]!, r = rects[k]!;
+      const actors = list[k]!, rr = rects[k]!;
       const lead = this.s.battle.unit(actors[0]!);
       if (!lead) continue;
-      const hot = actors.includes(acting ?? -1) || actors.includes(aimed ?? -1);
+      const now = playing ? k === at : actors.includes(acting ?? -1);
+      const hot = now || actors.includes(aimed ?? -1);
+      const done = playing && k < at;
+      // The entry acting now steps out toward the field, so the eye finds it without reading faces.
+      const r = now ? { x: rr.x - 5, y: rr.y, w: rr.w, h: rr.h } : rr;
+      if (done) ctx.globalAlpha = 0.35;
       const edge = actors.length > 1 ? '#ffe07a' : lead.side === 'party' ? MEMBERS[lead.key as MemberId].color : '#ff6a6a';
-      ctx.fillStyle = hot ? '#ffffff' : edge;
-      ctx.fillRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2);
+      if (now) {
+        // A two-pixel frame in the acting colour, breathing.
+        ctx.fillStyle = '#0a0913';
+        ctx.fillRect(r.x - 3, r.y - 3, r.w + 6, r.h + 6);
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = ACTIVE;
+        ctx.fillRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+        ctx.globalAlpha = 1;
+      } else {
+        ctx.fillStyle = hot ? AIMING : edge;
+        ctx.fillRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2);
+      }
       ctx.fillStyle = '#0a0913';
       ctx.fillRect(r.x, r.y, r.w, r.h);
       for (let i = 0; i < actors.length; i++) {
@@ -557,22 +600,28 @@ export class BattleRenderer {
         if (!u) continue;
         const img = u.side === 'party' ? getPortrait(u.key, 'neutral') : enemyThumb(enemyArt(ENEMIES[u.key]!.sprite).canvas);
         if (img) ctx.drawImage(img, r.x + 1 + i * ORDER_FACE, r.y + 1, 12, 12);
-        // Two of a kind: which one (their squad number, as marked on them).
-        const dup = u.side === 'enemy' ? this.s.dupIndex(u) : 0;
-        if (dup) drawText(ctx, String(dup + 1), r.x + i * ORDER_FACE + 9, r.y + 6, { color: '#ffffff' });
+        // Two of a kind: which one, by the letter in its name (Glowrat A, Glowrat B).
+        if (u.side === 'enemy' && this.s.twins(u)) {
+          const lx = r.x + i * ORDER_FACE + 8, ly = r.y + 6;
+          ctx.fillStyle = '#0a0913';
+          ctx.fillRect(lx - 1, ly - 1, 7, 9);
+          drawText(ctx, String.fromCharCode(65 + this.s.dupIndex(u)), lx, ly, { color: '#ffffff', shadow: false });
+        }
       }
       if (hot) {
         // A pointer on the inside edge, toward the field.
-        ctx.fillStyle = '#ffffff';
-        const px = side === 'right' ? r.x - 4 : r.x + r.w + 2;
-        ctx.fillRect(px, r.y + 6, 2, 3);
-        ctx.fillRect(side === 'right' ? px - 1 : px + 2, r.y + 7, 1, 1);
+        ctx.fillStyle = now ? ACTIVE : AIMING;
+        const px = r.x - 6;
+        ctx.fillRect(px, r.y + 4, 3, 7);
+        ctx.fillRect(px - 1, r.y + 5, 1, 5);
+        ctx.fillRect(px - 2, r.y + 6, 1, 3);
       }
+      ctx.globalAlpha = 1;
     }
     if (rects.length < list.length) drawText(ctx, `+${list.length - rects.length}`, edgeX, ORDER_BOTTOM - 2, { color: UI.dim, align: side });
   }
   /** The strip's rects for the current order (recomputed only when the order changes). */
-  private orderRects: { source: number[][] | null; side: 'left' | 'right'; rects: { x: number; y: number; w: number; h: number }[] } = { source: null, side: 'right', rects: [] };
+  private orderRects: { source: readonly number[][] | null; side: 'left' | 'right'; rects: { x: number; y: number; w: number; h: number }[] } = { source: null, side: 'right', rects: [] };
 
 
   private renderCutins(ctx: Ctx): void {
@@ -612,8 +661,19 @@ export class BattleRenderer {
       const active = (this.s.mode === 'command' || this.s.mode === 'list' || this.s.mode === 'target') && this.s.actor?.uid === p.uid;
       const targeted = this.s.mode === 'target' && this.s.targetList[this.s.targetIdx] === p.uid;
       const x = this.s.boxX(i) + (dd.shake > 0 ? (dd.shake % 4 < 2 ? 1 : -1) : 0);
-      const y = PANEL_Y - (active ? 3 : 0);
+      const y = PANEL_Y - (active ? 5 : 0);
       drawWindow(ctx, x, y, 116, 52, { accent: active || targeted ? m.color : '#3a3f6e', plain: !(active || targeted), alpha: 0.94 });
+      if (active || targeted) {
+        // The card of whoever is giving orders (or being aimed at): a two-pixel frame outside the
+        // window in the acting colour, breathing, so it reads from across the room.
+        ctx.globalAlpha = 0.6 + 0.4 * Math.sin(this.s.frame * 0.18);
+        ctx.fillStyle = targeted ? AIMING : ACTIVE;
+        ctx.fillRect(x - 2, y - 2, 120, 2);
+        ctx.fillRect(x - 2, y + 52, 120, 2);
+        ctx.fillRect(x - 2, y, 2, 52);
+        ctx.fillRect(x + 116, y, 2, 52);
+        ctx.globalAlpha = 1;
+      }
       const down = dd.hp <= 0;
       const ratio = dd.hp / p.base.maxHp;
       // Portrait: the member's face reacts to the fight.
@@ -747,15 +807,15 @@ export class BattleRenderer {
     const imm = u.analyzed ? (u.immune ?? []) : (state.immuneSeen[u.key] ?? []);
     const notes: [string, string][] = [];
     // Element names as the chips over the enemies write them (ELEMENT_TAG), everywhere.
-    if (res.length) notes.push([`RESISTS ${res.map((el) => ELEMENT_TAG[el as Element]).join(' ')}`, '#b8bcd0']);
+    if (res.length) notes.push([`RESISTS ${res.map((el) => `${elementMark(el as Element)}${ELEMENT_TAG[el as Element]}`).join(' ')}`, '#b8bcd0']);
     if (imm.length) notes.push([`IMMUNE ${imm.map(statusName).join(' ')}`, '#c9b8ff']);
     // Nothing learned yet: what everyone on the street knows about its kind.
     let guess = '';
     if (!weak.length && u.family) {
-      const fam = Object.entries(FAMILY_WEAK[u.family] ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => ELEMENT_TAG[k as Element]);
+      const fam = Object.entries(FAMILY_WEAK[u.family] ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => `${elementMark(k as Element)}${ELEMENT_TAG[k as Element]}`);
       if (fam.length) guess = `${FAMILY_NAME[u.family]}: likely weak to ${fam.join(' ')}?`;
     }
-    const value = { weak: weak.length ? `WEAK ${weak.map((el) => ELEMENT_TAG[el as Element]).join(' ')}` : '', guess, notes };
+    const value = { weak: weak.length ? `WEAK ${weak.map((el) => `${elementMark(el as Element)}${ELEMENT_TAG[el as Element]}`).join(' ')}` : '', guess, notes };
     if (guess) value.notes.unshift([guess, '#b89a66']);
     this.targetCache = { key, value };
     return value;
@@ -766,13 +826,18 @@ export class BattleRenderer {
     const uid = this.s.targetList[this.s.targetIdx];
     const u = uid !== undefined ? this.s.battle.unit(uid) : undefined;
     if (!u) return;
-    const w = TARGET_INFO_W, x = (W - w) / 2, y = 44;
+    // The box sits on the far side of the screen from its target (clear of the turn-order strip
+    // on the right), so it never covers the target or the arrow over it.
+    const w = TARGET_INFO_W, y = 44;
+    const tx = this.s.pos(u.uid).x * 2;
+    const x = tx < W / 2 ? W - 44 - w : 8;
+    const name = this.s.label(u);
     if (u.side === 'enemy') {
       const { weak, notes } = this.targetNotes(u);
       drawWindow(ctx, x, y, w, 19 + (u.analyzed ? 11 : 0) + notes.length * 10, { plain: true, accent: UI.amber });
-      drawText(ctx, u.name, x + 8, y + 5, { color: '#ffd0d0' });
+      drawText(ctx, name, x + 8, y + 5, { color: '#ffd0d0' });
       const bestiary = state.bestiary[u.key] ?? 0;
-      if (weak) drawText(ctx, fitText(weak, w - 24 - measure(u.name)), x + w - 8, y + 5, { align: 'right', color: UI.amber });
+      if (weak) drawText(ctx, fitText(weak, w - 24 - measure(name)), x + w - 8, y + 5, { align: 'right', color: UI.amber });
       else if (!u.analyzed) drawText(ctx, bestiary ? `Defeated ×${bestiary}` : 'Unknown', x + w - 8, y + 5, { align: 'right', color: UI.dim });
       let ny = y + 15;
       if (u.analyzed) {
@@ -786,7 +851,7 @@ export class BattleRenderer {
       }
     } else {
       drawWindow(ctx, x, y, w, 19, { plain: true, accent: UI.amber });
-      drawText(ctx, u.name, x + 8, y + 5, { color: MEMBERS[u.key as MemberId]?.color ?? UI.text });
+      drawText(ctx, name, x + 8, y + 5, { color: MEMBERS[u.key as MemberId]?.color ?? UI.text });
       drawText(ctx, `${u.hp}/${u.base.maxHp}`, x + w - 8, y + 5, { align: 'right', color: UI.dim });
     }
   }

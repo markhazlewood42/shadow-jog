@@ -28,6 +28,7 @@ import { TimingWindow, timingWord } from './battlekit/timing';
 import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
 import { BHT, BW, MENU_X, PARTY_BOTTOM } from './battlekit/geom';
+import { INTRO_T } from './battlekit/intro';
 import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
 import { RIM, opaqueTop } from './battlekit/sprites';
@@ -50,6 +51,14 @@ type Mode = 'intro' | 'round' | 'command' | 'list' | 'target' | 'play' | 'end';
  * party's heads (top ≈ y 81) sit below their feet; bosses stay forward and loom.
  */
 const ENEMY_LIFT = 14, BOSS_LIFT = 4;
+/**
+ * The battle's pace, set after Mark's first playthrough (2026-09-29: moves "go by pretty quickly
+ * and I can't appreciate them"). Every move's animation (poses, effects, cut-ins, damage numbers)
+ * runs on one clock at FX_PACE effect frames per real frame at Normal battle speed, so it all
+ * slows together and stays in sync. Then each action lets its effect finish (up to LINGER_MAX
+ * frames) and holds TURN_GAP frames before the next one steps up.
+ */
+const FX_PACE = 0.65, LINGER_MAX = 50, TURN_GAP = 22;
 /**
  * The top prompt / banner strip (UI y 6-23, world y 0-12): a sprite whose first opaque row would
  * sit under it is placed lower, so a tall boss's head is never hidden behind "Give each crew
@@ -160,6 +169,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private speed(): number {
     return battleSpeed().mult;
   }
+  /**
+   * Effect frames per real frame: the battle pace, Battle Speed, and held confirm/cancel. Not
+   * while a timed press is armed: pressing confirm on the beat mustn't speed up the blow.
+   */
+  private animRate(): number {
+    const held = !this.timing.armed && (this.game.input.down('confirm') || this.game.input.down('cancel'));
+    return FX_PACE * this.speed() * (held ? 1.6 : 1);
+  }
   /** Frames at the player's pace: Battle Speed, and faster still while confirm or cancel is held. */
   scaled(frames: number): number {
     const fast = this.game.input.down('confirm') || this.game.input.down('cancel') ? 1.6 : 1;
@@ -184,15 +201,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     }
     sfx('encounter');
     // The shatter keeps pace with the battle-speed setting, like everything after it.
-    for (let t = 0; t < 30; t += this.speed()) {
+    for (let t = 0; t < INTRO_T; t += this.speed()) {
       this.introT = Math.floor(t);
-      for (const e of this.battle.enemies) this.d(e.uid).alpha = Math.min(1, t / 20);
+      for (const e of this.battle.enemies) this.d(e.uid).alpha = Math.min(1, Math.max(0, (t - INTRO_T * 0.35) / (INTRO_T * 0.5)));
       await this.game.wait(1);
     }
     this.introT = 999;
+    for (const e of this.battle.enemies) this.d(e.uid).alpha = 1;
     const names = groupNames(this.battle.enemies);
     this.say(this.setup.boss ? `${names} blocks the way!` : `${names} ${this.battle.enemies.length > 1 ? 'appear' : 'appears'}!`);
-    await this.w(46);
+    await this.w(58);
     this.startRound();
   }
 
@@ -344,6 +362,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   // ------------------------------------------------------------------ update
   update(): void {
     this.frame++;
+    this.fx.rate = this.animRate();
     if (this.timing.isOpen && !this.timing.result) {
       // A registered driver (a test harness) presses on the beat by itself.
       const auto = battleDriver()?.timing() ?? null;
@@ -384,10 +403,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const dd = this.dispList[i]!;
       if (dd.flash > 0) dd.flash--;
       if (dd.shake > 0) dd.shake--;
-      if (dd.hop > 0) dd.hop = Math.max(0, dd.hop - 0.6);
-      if (dd.poseT > 0) dd.poseT--;
-      if (dd.afterimage > 0) dd.afterimage--;
-      if (dd.lunge > 0) dd.lunge = Math.max(0, dd.lunge - (dd.lunge > 6 ? 1.2 : 0.5));
+      // Bodies in motion run on the effect clock (see FX_PACE), so a pose and its effect stay in step.
+      const r = this.fx.rate;
+      if (dd.hop > 0) dd.hop = Math.max(0, dd.hop - 0.6 * r);
+      if (dd.poseT > 0) dd.poseT = Math.max(0, dd.poseT - r);
+      if (dd.afterimage > 0) dd.afterimage = Math.max(0, dd.afterimage - r);
+      if (dd.lunge > 0) dd.lunge = Math.max(0, dd.lunge - (dd.lunge > 6 ? 1.2 : 0.5) * r);
       // Bars: shown values chase the real ones; the damage ghost holds, then drains.
       dd.shownHp += Math.abs(dd.hp - dd.shownHp) < 0.5 ? dd.hp - dd.shownHp : (dd.hp - dd.shownHp) * 0.22;
       dd.shownTp += Math.abs(dd.tp - dd.shownTp) < 0.5 ? dd.tp - dd.shownTp : (dd.tp - dd.shownTp) * 0.22;
@@ -397,12 +418,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       } else if (dd.lagHold < 24) dd.lagHold++;
       else dd.lagHp = Math.max(dd.hp, dd.lagHp - Math.max(0.8, (dd.lagHp - dd.hp) * 0.08));
       if (dd.dying > 0) {
-        dd.dying++;
+        dd.dying += this.fx.rate;
         dd.alpha = Math.max(0, 1 - dd.dying / 28);
       }
     }
-    for (const f of this.floaters) f.t++;
-    for (const c of this.cutins) c.t++;
+    for (const f of this.floaters) f.t += this.fx.rate;
+    for (const c of this.cutins) c.t += this.fx.rate;
     if (this.cutins.length && this.cutins.every((c) => c.t > c.life)) this.cutins.length = 0;
     // Compact finished floaters in place (no per-tick array).
     let live = 0;
@@ -513,6 +534,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       for (const e of step.events) await playEvent(this.view, e);
       const grade: Timing = !step.prompt || mode === 'off' ? 'none' : mode === 'assist' ? 'good' : await this.settleTiming();
       for (const e of this.battle.land(grade)) await playEvent(this.view, e);
+      await this.afterAction();
     }
     for (const e of this.battle.endRound()) await playEvent(this.view, e);
     this.timing.arm(null);
@@ -533,6 +555,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     else if (o === 'lose') await this.defeat();
     else if (o === 'fled') await this.fled();
     else this.startRound();
+  }
+
+  /**
+   * Between actions: let the move's effect play out (up to a cap: some leave embers drifting),
+   * then a beat with nothing moving, so each action reads as its own before the next one starts.
+   */
+  private async afterAction(): Promise<void> {
+    if (this.battle.outcome) return;
+    for (let i = 0; i < LINGER_MAX && this.fx.busy; i++) await this.game.wait(1);
+    await this.w(TURN_GAP);
   }
 
   /** Wait out the late side of the window (if nobody has pressed yet), then take the grade. */
@@ -653,6 +685,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         }
       },
       timingArmed: () => (scene.timing.armed && !scene.timing.isOpen ? scene.timing.prompt!.profile : null),
+      anim: (frames) => scene.fx.realFrames(frames),
+      label: (u) => scene.label(u),
       openTiming: (lead) => scene.timing.open(scene.game.frame, lead),
     };
   })();
@@ -909,6 +943,18 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return n;
   }
 
+  /** How the UI names a combatant: two or more of a kind get a letter each ("Glowrat A", "Glowrat B"). */
+  label(u: Combatant): string {
+    if (u.side !== 'enemy') return u.name;
+    return this.twins(u) ? `${u.name} ${String.fromCharCode(65 + this.dupIndex(u))}` : u.name;
+  }
+
+  /** Whether another enemy in this fight shares this one's kind (counted without allocating: the strip asks every frame). */
+  twins(u: Combatant): boolean {
+    for (const o of this.battle.enemies) if (o !== u && o.key === u.key) return true;
+    return false;
+  }
+
   /** Left edge of party member i's status card. */
   boxX(i: number): number {
     const n = this.battle.party.length;
@@ -923,10 +969,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   /**
-   * Command and ability windows sit in the screen corner on the actor's side. Party sprites
-   * never reach the outer 90px, so the acting character is never covered by their own menu.
+   * Command and ability windows sit in the bottom-left corner, whoever is acting (the turn-order
+   * strip keeps the right edge): the same place every time, so the eye never has to hunt for them
+   * (Mark's playthrough, 2026-09-29). Party sprites never reach the outer 90px, so no one is covered.
    */
-  menuX(a: Combatant, w: number): number {
-    return this.partyPos(a).x * 2 < W / 2 ? MENU_X : W - MENU_X - w;
+  menuX(_a: Combatant, _w: number): number {
+    return MENU_X;
   }
 }

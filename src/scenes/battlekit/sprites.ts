@@ -41,8 +41,9 @@ export const ENEMY_POSE_T = 30;
  * Painted only onto opaque pixels, near the body's middle.
  */
 export const markCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
-export const DIGITS: Record<string, string[]> = {
-  '2': ['111', '001', '111', '100', '111'], '3': ['111', '001', '011', '001', '111'], '4': ['101', '101', '111', '001', '001'],
+/** Stencil letters for a machine's unit mark: the same letter as in its name (the first, A, is unmarked). */
+export const STENCIL: Record<string, string[]> = {
+  B: ['110', '101', '110', '101', '110'], C: ['111', '100', '100', '100', '111'], D: ['110', '101', '101', '101', '110'],
 };
 export function marked(src: HTMLCanvasElement, family: string, dup: number): HTMLCanvasElement {
   if (dup === 0 || !['machine', 'beast', 'spirit', 'human', 'ghoul'].includes(family)) return src;
@@ -69,9 +70,9 @@ export function marked(src: HTMLCanvasElement, family: string, dup: number): HTM
     s.ctx.fillRect(x, y, 1, 1);
   };
   if (family === 'machine') {
-    // A stencilled unit number at the sprites' 2x pixel scale (1x vanished at play size), on a
+    // A stencilled unit letter at the sprites' 2x pixel scale (1x vanished at play size), on a
     // dark plate, and a hazard stripe.
-    const glyph = DIGITS[String(Math.min(4, dup + 1))]!;
+    const glyph = STENCIL[String.fromCharCode(65 + Math.min(3, dup))]!;
     const gx = cx - 8, gy = cy - 5;
     for (let j = -1; j <= glyph.length; j++) for (let i = -1; i <= 3; i++) for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) dot(gx + i * 2 + ox, gy + j * 2 + oy, '#1a1820');
     for (let j = 0; j < glyph.length; j++) {

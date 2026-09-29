@@ -24,14 +24,14 @@ describe('timing profiles', () => {
   });
 
   it('the same press grades differently by profile', () => {
-    // Four frames early: a heavy move's perfect, a normal move's good, a quick move's good.
-    expect(judge(-4, 'heavy')).toBe('perfect');
-    expect(judge(-4, 'normal')).toBe('good');
-    expect(judge(-4, 'quick')).toBe('good');
-    // Eight frames early: too early for a quick move.
-    expect(judge(-8, 'quick')).toBe('early');
-    expect(judge(-8, 'normal')).toBe('good');
-    expect(judge(6, 'normal')).toBe('late');
-    expect(judge(6, 'heavy')).toBe('good');
+    // Five frames early: a heavy move's perfect, a normal move's good, a quick move's good.
+    expect(judge(-5, 'heavy')).toBe('perfect');
+    expect(judge(-5, 'normal')).toBe('good');
+    expect(judge(-5, 'quick')).toBe('good');
+    // Ten frames early: too early for a quick move.
+    expect(judge(-10, 'quick')).toBe('early');
+    expect(judge(-10, 'normal')).toBe('good');
+    expect(judge(7, 'normal')).toBe('late');
+    expect(judge(7, 'heavy')).toBe('good');
   });
 });
