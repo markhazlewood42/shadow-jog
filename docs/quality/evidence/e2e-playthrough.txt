@@ -23,6 +23,6 @@ Running 22 tests using 1 worker
 [20/22] [chromium] › e2e\playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish
 [21/22] [chromium] › e2e\prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors
 [22/22] [chromium] › e2e\prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first
-  Slow test file: [chromium] › e2e\playtest.spec.ts (5.6m)
+  Slow test file: [chromium] › e2e\playtest.spec.ts (5.8m)
   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
   22 passed (10.1m)

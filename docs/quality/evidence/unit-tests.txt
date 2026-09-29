@@ -4,9 +4,9 @@
 stdout | tests/pacing.test.ts > pacing > estimates Chapter 1 inside the GDD’s 45–75 minute target
 walking   3.4 min (1207 tiles)
 fighting  20.8 min (28.0 fights: 22.0 random + 6 scripted)
-reading   29.2 min (20621 chars of story, 23017 optional × 0.4)
+reading   30.4 min (21746 chars of story, 23212 optional × 0.4)
 menus     10.0 min
-total     63.4 min
+total     64.5 min
 
 stdout | tests/economy.test.ts > economy > prints the route
 Walk to the Rustyard           walks 39 steps of street (1 in 28), 25 steps of barrens (1 in 20)
@@ -32,26 +32,29 @@ CP6 WARDEN                     after buys  1512¢ (spent 0)  fights 27  {"kit":9
 stdout | tests/economy.test.ts > economy > prints the Monte Carlo spread
 CP1 before the Rustyard trip   p10   358¢  median   363¢  affordable 100%
 CP2 Knuckles                   p10   387¢  median   479¢  affordable 100%
-CP3 into the Sinkline          p10   330¢  median   484¢  affordable 100%
-CP4 the Lurker                 p10   442¢  median   706¢  affordable 100%
-CP5 into Annex 7               p10   431¢  median   725¢  affordable 100%
-CP6 WARDEN                     p10   777¢  median  1211¢  affordable 100%
-down rates: f_first_fight 0.00, street 0.00, barrens 0.00, f_rustyard_gate 0.00, f_knuckles 0.22, sinkline 0.01, f_lurker 0.65, annex 0.08, f_annex_door 0.12, park 0.01
+CP3 into the Sinkline          p10   334¢  median   490¢  affordable 100%
+CP4 the Lurker                 p10   452¢  median   709¢  affordable 100%
+CP5 into Annex 7               p10   447¢  median   735¢  affordable 100%
+CP6 WARDEN                     p10   781¢  median  1222¢  affordable 100%
+down rates: f_first_fight 0.00, street 0.00, barrens 0.00, f_rustyard_gate 0.00, f_knuckles 0.12, sinkline 0.01, f_lurker 0.65, annex 0.08, f_annex_door 0.12, park 0.01
 
 stdout | tests/economy.test.ts > economy > prints the minimal-exploration spread
 minimal: CP1 before the Rustyard trip   p10   298¢  median   303¢  affordable 100%
 minimal: CP2 Knuckles                   p10   193¢  median   297¢  affordable 100%
-minimal: CP3 into the Sinkline          p10   140¢  median   289¢  affordable 100%
-minimal: CP4 the Lurker                 p10    34¢  median   311¢  affordable 93%
-minimal: CP5 into Annex 7               p10    19¢  median   334¢  affordable 92%
-minimal: CP6 WARDEN                     p10   379¢  median   842¢  affordable 99%
+minimal: CP3 into the Sinkline          p10   154¢  median   302¢  affordable 100%
+minimal: CP4 the Lurker                 p10    50¢  median   317¢  affordable 94%
+minimal: CP5 into Annex 7               p10    41¢  median   337¢  affordable 94%
+minimal: CP6 WARDEN                     p10   389¢  median   852¢  affordable 99%
+
+stdout | tests/economy.test.ts > economy > nobody can buy everything: the crew’s own upgrades cost more than even a lucky run has spare
+wish list 3960¢ vs luckiest-tenth spare at the Warden 1756¢
 
 stdout | tests/balance.test.ts > balance > prints the balance table
 
 street  (opening)            win 100%  rounds  2.1  hp lost  10%  combos/battle 1.00
 barrens (to Rustyard)        win 100%  rounds  2.1  hp lost  11%  combos/battle 1.00
-KNUCKLES                     win  85%  rounds  5.7  hp lost  50%  combos/battle 1.00
-KNUCKLES (timed)             win  90%  rounds  5.1  hp lost  44%  combos/battle 1.00
+KNUCKLES                     win  81%  rounds  8.9  hp lost  50%  combos/battle 1.00
+KNUCKLES (timed)             win  86%  rounds  8.3  hp lost  47%  combos/battle 1.00
 sinkline                     win 100%  rounds  2.0  hp lost  11%  combos/battle 1.01
 LURKER                       win  82%  rounds  9.6  hp lost  53%  combos/battle 1.99
 LURKER (timed)               win  87%  rounds  9.0  hp lost  47%  combos/battle 1.99
@@ -64,8 +67,8 @@ stdout | tests/balance.test.ts > dungeon attrition > prints the attrition table
 barrens x4                   cleared 100%  end hp  89%  medkits 2.5  rounds/battle 2.2  rook charges left 62% (dry 0%)
 sinkline x6                  cleared  95%  end hp  86%  medkits 3.6  rounds/battle 2.6  rook charges left 46% (dry 0%)
     lost to: drowned_shade+drowned_shade+glowrat @4 lose ×1, drowned_shade+drowned_shade+glowrat @6 lose ×1, drowned_shade+drowned_shade+glowrat @5 lose ×1
-annex x7                     cleared  87%  end hp  74%  medkits 3.7  rounds/battle 4.2  rook charges left 52% (dry 0%)
-    lost to: sentry_turret+km_sentinel @7 lose ×3, hunter_drone+maint_drone+hunter_drone @7 lose ×2, hunter_drone+maint_drone+hunter_drone @6 lose ×2, bound_spirit+km_sentinel @6 lose ×2, bound_spirit+km_sentinel @5 lose ×2, hunter_drone+hunter_drone @7 lose ×1, bound_spirit+km_sentinel @7 lose ×1, km_sentinel+km_arcanist @6 lose ×1, km_sentinel+km_arcanist @7 lose ×1, km_sentinel+km_sentinel+maint_drone @7 lose ×1
+annex x7                     cleared  88%  end hp  75%  medkits 3.8  rounds/battle 4.2  rook charges left 52% (dry 0%)
+    lost to: sentry_turret+km_sentinel @7 lose ×3, hunter_drone+maint_drone+hunter_drone @7 lose ×2, hunter_drone+maint_drone+hunter_drone @6 lose ×2, bound_spirit+km_sentinel @6 lose ×2, bound_spirit+km_sentinel @5 lose ×2, hunter_drone+hunter_drone @7 lose ×1, bound_spirit+km_sentinel @7 lose ×1, km_sentinel+km_arcanist @6 lose ×1, km_sentinel+km_sentinel+maint_drone @7 lose ×1
 
 stdout | tests/balance.test.ts > alternative builds > sinkline with shock_knuckles, lucky_coin, taser_pistol, cyber_eye holds up
 sinkline (alt)               win 100%  rounds  1.9  hp lost   9%  combos/battle 1.00
@@ -96,11 +99,11 @@ warden (alt)                 win  84%  rounds 12.5  hp lost  37%  combos/battle 
 
 
  Test Files  20 passed (20)
-      Tests  234 passed (234)
-   Start at  22:37:38
-   Duration  887ms (transform 61%, import 21%, tests 17%, worker 1%)
+      Tests  262 passed (262)
+   Start at  00:02:24
+   Duration  849ms (transform 59%, import 21%, tests 18%, worker 1%)
 
-  Transform  transforming modules took 4.33s · 61% of tracked time, re-done on every run
+  Transform  transforming modules took 4.03s · 59% of tracked time, re-done on every run
              persist transforms across runs with fsModuleCache: true
              learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
 

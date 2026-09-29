@@ -3,21 +3,21 @@ Peak and RMS in dBFS; range = loudest minus quietest 3 s window; bands = share o
 Spectrograms: docs/quality/evidence/audio/<song>.png (time →, 40 Hz – 16 kHz log ↑). WAVs: playtest/audio/.
 
 song            peak    rms  range  clipped   <120   -500   -2k    -6k    6k+
-title           -4.2 -21.3   0.9       0   24.4  26.7  29.5   9.1  10.2
-town            -3.4 -21.1   1.2       0   20.6  30.7  30.6   6.7  11.2
-bar             -5.6 -20.4   1.3       0   10.0  26.6  42.7   5.5  15.2
-world           -2.1 -20.9   2.0       0   27.6  21.6  22.6  11.1  17.1
-rustyard        -1.9 -21.4   1.1       0   29.6  32.3  20.6   5.1  12.4
-dungeon         -4.9 -22.5   1.4       0   19.1  43.1  16.7   5.2  15.8
-lab             -3.6 -21.7   1.4       0   30.0  21.1  23.0   7.6  18.4
-battle          -1.8 -21.7   3.8       0   32.3  23.7  16.4  10.4  17.3
-boss            -1.9 -19.8   2.7       0   28.2  30.5  19.7   7.7  14.0
-boss2           -1.6 -19.7   2.8       0   23.4  29.3  24.2   9.2  14.0
-victory         -2.1 -20.5   0.7       0   24.6  19.1  21.2  13.9  21.2
-victory_boss    -4.3 -20.5   0.8       0   21.3  32.3  21.7  11.0  13.7
-gameover        -6.6 -22.3   1.1       0   15.0  37.0  27.1   5.8  15.1
-sable           -7.5 -22.0   1.0       0   12.9  28.6  35.4   7.3  15.7
-tension         -3.0 -21.3   1.1       0   30.5  34.2  14.7   5.7  14.9
+title           -4.6 -21.3   0.9       0   24.4  26.8  29.4   9.0  10.3
+town            -3.3 -21.2   1.2       0   20.8  30.8  30.6   6.6  11.2
+bar             -5.0 -20.4   1.3       0   10.1  26.4  42.8   5.6  15.2
+world           -1.9 -20.9   2.0       0   27.4  21.4  22.5  10.5  18.2
+rustyard        -1.5 -21.3   1.1       0   29.5  32.4  20.6   5.3  12.3
+dungeon         -5.4 -22.5   1.3       0   19.1  43.0  16.6   5.3  16.0
+lab             -3.5 -21.7   1.4       0   29.9  21.1  23.0   7.6  18.3
+battle          -1.3 -21.7   3.7       0   32.6  24.0  16.5  10.3  16.7
+boss            -1.9 -19.8   2.6       0   28.4  30.5  19.6   7.7  13.8
+boss2           -2.1 -19.7   2.8       0   23.4  29.3  24.2   8.8  14.3
+victory         -1.9 -20.6   0.6       0   24.6  19.1  21.1  13.6  21.7
+victory_boss    -4.5 -20.5   0.8       0   21.2  32.7  21.4  11.1  13.7
+gameover        -6.9 -22.4   1.1       0   15.2  36.9  27.1   5.8  14.9
+sable           -7.6 -22.0   1.0       0   13.0  28.6  35.4   7.3  15.7
+tension         -2.7 -21.3   1.1       0   30.3  34.6  14.7   5.7  14.8
 
 Sound effects: all 69, each rendered alone at default volume (RMS over the audible part).
 sfx             peak    rms
@@ -36,57 +36,57 @@ save           -14.0 -26.7
 buy            -19.0 -30.6
 alert          -12.0 -24.5
 emote          -19.3 -28.2
-bump           -19.1 -27.7
-step           -33.4 -43.4
-step_soft      -35.6 -45.9
-step_metal     -32.6 -41.1
-step_water     -32.3 -45.4
+bump           -19.0 -27.8
+step           -35.4 -45.1
+step_soft      -35.8 -45.8
+step_metal     -33.6 -41.1
+step_water     -34.2 -45.5
 heal_field     -14.0 -27.0
-encounter      -13.2 -28.2
-swing          -18.6 -32.3
+encounter      -13.5 -28.2
+swing          -19.5 -32.4
 cast           -14.0 -26.8
 enemy_act      -19.9 -25.4
-slash          -15.0 -28.9
-gun            -13.0 -31.5
-zap            -14.4 -27.7
-fire           -14.0 -29.3
+slash          -14.8 -29.3
+gun            -13.5 -31.1
+zap            -14.1 -27.8
+fire           -13.4 -29.2
 code           -19.0 -31.5
 heal           -14.0 -26.4
-punch          -15.8 -24.2
+punch          -15.8 -24.1
 spirit         -14.1 -23.1
-beam           -12.2 -27.8
-wave           -11.6 -27.5
-hit            -15.0 -28.0
-crit           -12.7 -23.8
-hurt           -14.6 -26.0
-miss           -18.2 -31.9
-enemy_die      -13.5 -25.1
+beam           -11.8 -27.8
+wave           -13.2 -28.1
+hit            -14.9 -27.5
+crit           -12.8 -23.7
+hurt           -15.6 -26.0
+miss           -18.5 -33.0
+enemy_die      -13.2 -25.0
 ko             -10.0 -24.7
 revive         -14.0 -27.0
 buff           -14.3 -24.3
 debuff         -14.3 -24.3
 tick           -24.3 -29.9
-flee           -17.0 -32.3
+flee           -16.1 -31.8
 summon         -12.0 -23.5
-phase          -10.0 -22.2
-combo           -8.4 -21.3
-sting_rift     -12.0 -29.9
+phase           -9.9 -22.1
+combo           -8.0 -21.3
+sting_rift     -13.8 -30.0
 sting_lock     -12.0 -25.3
 sting_circuit  -12.0 -26.4
-sting_pyre     -12.7 -28.3
-sting_crow     -12.5 -25.8
+sting_pyre     -12.9 -28.2
+sting_crow     -12.5 -25.9
 sting_life     -12.0 -25.3
 sting_ward     -12.0 -27.1
 combo_ready    -14.0 -28.0
-timed_perfect  -20.7 -32.3
+timed_perfect  -20.5 -32.3
 timed_good     -30.7 -39.1
-parry          -26.1 -37.7
-explosion       -7.1 -21.3
+parry          -26.3 -38.0
+explosion       -7.0 -21.3
 levelup        -14.0 -24.2
 equip          -19.0 -33.3
 st_poison      -15.0 -28.1
-st_burn        -13.9 -30.1
+st_burn        -13.1 -30.2
 st_stun        -15.0 -30.0
-st_blind       -15.5 -29.2
+st_blind       -15.9 -29.5
 st_jammed      -15.0 -28.3
-cheer          -13.5 -26.9
+cheer          -14.1 -26.9
