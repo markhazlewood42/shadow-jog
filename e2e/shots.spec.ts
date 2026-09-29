@@ -470,3 +470,83 @@ test('35 options + 36 controls', async ({ page }) => {
   expect(await sj<string>(page, 'sj.top()')).toBe('ControlsScene');
   await shot(page, '36-controls');
 });
+
+// ---- Mark's first playthrough (2026-09-29): the new pieces, for the reviewers.
+
+test('39 hex deck: dead, seating the Stingray, booted', async ({ page }) => {
+  await open(page, 'town');
+  await sj(page, "(sj.run((s) => s.deck('dead')), true)");
+  await page.waitForTimeout(900);
+  await shot(page, '39-deck-dead');
+  await key(page, 'Escape');
+  await page.waitForTimeout(500);
+  await sj(page, "(sj.run((s) => s.deck('seat')), true)");
+  await page.waitForTimeout(1100);
+  await shot(page, '40-deck-seat-align');
+  // Seat it without the timed press (a script can't aim it reliably): drop, both clips, the boot.
+  await sj(page, '(sj.game.stack.at(-1).go("drop"), true)');
+  await page.waitForTimeout(700);
+  await key(page, 'Enter', 2, 400);
+  await page.waitForTimeout(3600);
+  await shot(page, '41-deck-seat-booted');
+});
+
+test('42 the Deck page in the menu', async ({ page }) => {
+  await open(page, 'sinkline');
+  await sj(page, 'sj.menu()');
+  await page.waitForTimeout(500);
+  await key(page, 'ArrowDown', 4);
+  await key(page, 'Enter');
+  await page.waitForTimeout(800);
+  await shot(page, '42-deck-menu');
+});
+
+test('43 shop: equip it now, and sell all loot', async ({ page }) => {
+  await open(page, 'town');
+  await sj(page, '(sj.state.cred = 5000, sj.state.inventory = { ...sj.state.inventory, gang_colors: 3, rat_tail: 4 }, true)');
+  await sj(page, "sj.shop('lr_weapons')");
+  await page.waitForTimeout(500);
+  // Buy -> the Vibro-Katana (Rook's, and he isn't wearing one) -> quantity 1 -> the equip picker.
+  await key(page, 'Enter');
+  await key(page, 'ArrowDown', 2);
+  await key(page, 'Enter', 2, 300);
+  await page.waitForTimeout(400);
+  await shot(page, '43-shop-equip-now');
+  await key(page, 'Escape', 2, 300);
+  // Sell -> the first row is "Sell all loot".
+  await key(page, 'ArrowDown');
+  await key(page, 'Enter');
+  await page.waitForTimeout(400);
+  await shot(page, '44-shop-sell-all');
+});
+
+test('45 Rook, wounded, on his status page', async ({ page }) => {
+  await open(page, 'town');
+  await sj(page, 'sj.menu()');
+  await page.waitForTimeout(500);
+  await key(page, 'ArrowDown', 3);
+  await key(page, 'Enter');
+  await key(page, 'ArrowDown');
+  await key(page, 'Enter');
+  await page.waitForTimeout(500);
+  await shot(page, '45-menu-status-rook-wounded');
+});
+
+test('46 a round in play: the turn strip and the acting arrow', async ({ page }) => {
+  await open(page, 'sinkline');
+  await sj(page, "sj.battle('sinkline', 'sewer')");
+  await page.waitForTimeout(3200);
+  // Auto: everyone attacks; catch the second action.
+  await key(page, 'ArrowDown', 2);
+  await key(page, 'Enter');
+  await page.waitForTimeout(2600);
+  await shot(page, '46-battle-round-in-play');
+});
+
+test('47 a chest, lit, with the interact marker', async ({ page }) => {
+  await open(page, 'sinkline');
+  // Beside the platform-end crate, facing it, once the map's name banner has gone.
+  await sj(page, "sj.tp('sinkline_1', 26, 12, 'right')");
+  await page.waitForTimeout(4200);
+  await shot(page, '47-field-chest-and-marker');
+});

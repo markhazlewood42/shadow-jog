@@ -202,7 +202,8 @@ export class ShopScene extends Scene<void> {
   private offerEquip(id: string): boolean {
     const who = state.party.map((p) => state.members[p]).filter((m): m is MemberState => !!m && canEquip(m, id));
     const slot = ITEMS[id]?.slot;
-    if (!who.length || !slot) return false;
+    // Nobody who could newly put it on (it only fits someone already wearing one): no question to ask.
+    if (!slot || !who.some((m) => m.equip[slot] !== id)) return false;
     this.equipItem = id;
     this.equipList.setItems([
       ...who.map((m) => {
