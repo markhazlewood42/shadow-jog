@@ -33,6 +33,21 @@ Round 7 note: the evidence got richer (audio measurements, more screenshots, mor
 new, concrete defects — several real bugs (text collisions, the Warden's hidden head, the menu's hidden Close, a stale
 save baseline, a continuity slip). Reviewer spread remains ±0.5–1.0 per area; the trend is judged on defects fixed.
 
+## Round 9 (verification pending)
+
+Worked the round-8 findings, bugs first.
+
+- [x] **Bugs**: a scene whose render throws every frame trips recovery (unit + E2E); defeat fades to black and Game Over fades up; the kill frame breaks up pixel by pixel instead of a white smear; the bar (and every interior) sits in its building instead of a void; Firefox's reload errors traced to pending AudioContext.resume() promises (Mozilla bug 1528319) and fixed.
+- [x] **Combat**: timed presses (strike on the beat for x1.2, brace for x0.7; On/Assist/Off); the engine declares then lands each action so the press shapes the hit; a turn-order strip that updates as orders go in; bosses retuned so the ceiling holds for a player landing a third of presses; the Annex runs squads, so the pressure climbs into the Warden (tested against the Sinkline).
+- [x] **Battle presentation / feel**: impact frames and a camera push on criticals and combo finishers; duplicates recoloured per pixel (WebKit ignored ctx.filter); machine numbers at 2x; ghoul bandages; Rustfang punks with pads, fang and bat; one freeze per area attack; the intro keeps pace with battle speed; the fallen crew in Game Over's rain.
+- [x] **UI**: the building shell round interiors; fill-window snaps to whole multiples; glyph-coverage and place-map label tests.
+- [x] **Engine**: alive() cached; no Map iterator or sort closure per frame; playback unit-tested against a recording view; a bundle budget in CI; drawing split out of BattleScene into battlekit/render.ts.
+- [x] **Narrative**: misdirection (the slate and Knuckles point at Dutch); "nine seconds" pays off instead of repeating; Pale in his own clerk's voice; Sable earns trust in a concrete beat; the opening sets the theme; bestiary and guard lines made specific; Chapter One thanks on the last card.
+- [x] **Economy**: Requisition sells same-tier alternatives, never the armory finds; the GDD's sell rule matches the game; the bounty says when it's earned; the Warden's reward tested across its phase change.
+- [x] **Levels / field art**: visible secrets (the lattice's beam curtain, the proud panel, Dmitri's lamp-lit camp); catwalks read as raised; three loops (the Sinkline's west tunnel, the Annex duct, the Barrens pipe crossing); plaza clutter; leads carry a silhouette (katana, staff, antenna); a readable crossed-arms stance; a higher ambient floor; ruins as building footprints; workshop frontages as businesses.
+- [x] **Audio**: an air bed on the quiet cues (6 kHz+ from 0.1-2% to 4-12%); pads and lead opened up; the organ high-passed (boss mud); battle's peak under the limiter; loop seams measured (docs/quality/evidence/audio-loops.txt); GDD audio scope current.
+- [ ] Deferred: three-member combos and combo ranks; a pre-fight intel source; distinct counterplay per tell beyond Guard; rat/hound anatomy; hand-authored signature melodies.
+
 ## Round 8 (verified 2026-09-28)
 
 - [x] **Bugs**: combo name clears before its hits land; chips and WEAK tags step aside while numbers rise (opaque plates); enemies clear the prompt strip (the Warden's visor); main menu shows all ten entries; one shared overlay dim; target box measured (Maintenance Drone overflowed); New Game resets the unsaved baseline (tested); throwing tickers/overlays are dropped (tested); Pale's "all week" → "all night".

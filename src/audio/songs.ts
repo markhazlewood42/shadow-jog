@@ -4,6 +4,7 @@ import type { SongSpec } from './music';
 export const SONGS: Record<string, SongSpec> = {
   // Title — "Saltreach Nights". Brooding synthwave in A minor.
   title: {
+    air: 0.012,
     intro: 2,
     bpm: 92,
     chords: 'Am | F | C | G | Am | F | C | E | F | G | Am | Am | F | G | E | E',
@@ -24,6 +25,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Lantern Row — lo-fi rain-on-glass.
   town: {
+    air: 0.01,
     gain: 1.1,
     intro: 1,
     bpm: 80,
@@ -64,6 +66,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // World map — "Sprawl Run".
   world: {
+    air: 0.012,
     gain: 0.7,
     intro: 2,
     bpm: 116,
@@ -84,6 +87,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Rustyard — dusty, twangy.
   rustyard: {
+    air: 0.01,
     gain: 1.1,
     swing: 0.1,
     intro: 1,
@@ -102,6 +106,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // The Sinkline — cold water, distant drips.
   dungeon: {
+    air: 0.011,
     gain: 2.0,
     intro: 2,
     bpm: 88,
@@ -121,6 +126,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // K-M Annex 7 — clinical arpeggios.
   lab: {
+    air: 0.016,
     gain: 0.4,
     intro: 2,
     bpm: 124,
@@ -140,6 +146,8 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Battle — "Crossfire".
   battle: {
+    // Its peaks sat 0.6 dB over the limiter's threshold.
+    gain: -0.8,
     bpm: 152,
     chords: 'Em | Em | C | D | Em | Em | C | B | Am | C | Em | Em | Am | C | B | B',
     drums: 'battle',
@@ -240,6 +248,7 @@ export const SONGS: Record<string, SongSpec> = {
   },
 
   gameover: {
+    air: 0.011,
     gain: 2.0,
     bpm: 66,
     chords: 'Am | F | Dm | E | Am',
@@ -257,6 +266,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Sable's theme — for quiet, heavy moments.
   sable: {
+    air: 0.011,
     gain: 2.5,
     swing: 0.08,
     bpm: 70,
@@ -276,6 +286,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Tension — betrayals, alarms, ambushes.
   tension: {
+    air: 0.016,
     bpm: 112,
     chords: 'Bm | Bm | G | F# | Bm | Bm | G | F#',
     drums: 'heartbeat',

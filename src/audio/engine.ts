@@ -320,6 +320,44 @@ class AudioEngine {
     return this.ctx?.currentTime ?? 0;
   }
 
+  /**
+   * A song's air: filtered noise very low in the mix, breathing slowly, like rain on glass or tape
+   * hiss. The quiet cues had almost nothing above 6 kHz; this puts a sheen over them without a
+   * new part. Returns the source so the caller can stop it.
+   */
+  airBed(dest: AudioNode, level: number, at: number, until?: number): AudioBufferSourceNode | null {
+    const c = this.ctx;
+    if (!c) return null;
+    const src = this.noiseSource();
+    const hp = c.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 6500;
+    hp.Q.value = 0.6;
+    const g = c.createGain();
+    g.gain.value = level;
+    const lfo = c.createOscillator();
+    const lg = c.createGain();
+    lfo.frequency.value = 0.09;
+    lg.gain.value = level * 0.35;
+    lfo.connect(lg).connect(g.gain);
+    src.connect(hp).connect(g).connect(dest);
+    src.start(at);
+    lfo.start(at);
+    if (until !== undefined) {
+      src.stop(until);
+      lfo.stop(until);
+    }
+    src.onended = () => {
+      try {
+        lfo.stop();
+      } catch {
+        /* already stopped */
+      }
+      g.disconnect();
+    };
+    return src;
+  }
+
   noiseSource(): AudioBufferSourceNode {
     const s = this.ctx!.createBufferSource();
     s.buffer = this.noise;
@@ -472,7 +510,7 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
       f.Q.value = 3;
       f.frequency.setValueAtTime(900, t);
       f.frequency.linearRampToValueAtTime(3200 + vel * 1500, t + 0.03);
-      f.frequency.setTargetAtTime(1600, t + 0.05, 0.2);
+      f.frequency.setTargetAtTime(2500, t + 0.05, 0.2);
       const mix = c.createGain();
       mix.gain.value = 0.5;
       o1.connect(spread(c, -0.35)).connect(mix);
@@ -615,8 +653,8 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
     case 'organ': {
       const f = c.createBiquadFilter();
       f.type = 'lowpass';
-      f.frequency.value = inst === 'choir' ? 1400 : inst === 'organ' ? 2400 : 1100;
-      f.Q.value = inst === 'choir' ? 8 : 1;
+      f.frequency.value = inst === 'choir' ? 2000 : inst === 'organ' ? 3200 : 2100;
+      f.Q.value = inst === 'choir' ? 6 : 1;
       const oscs: OscillatorNode[] = [];
       const detunes = inst === 'organ' ? [0, 1200, 1902] : [-9, 0, 9];
       detunes.forEach((dt, i) => {
@@ -636,7 +674,14 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
         lfo.connect(lg).connect(f.frequency);
         oscs.push(lfo);
       }
-      f.connect(out);
+      if (inst === 'organ') {
+        // The organ's drawbars stack octaves over the chord root; under a boss's bass and arp its
+        // low end was mud. Cut below 200 Hz.
+        const hp = c.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 200;
+        f.connect(hp).connect(out);
+      } else f.connect(out);
       const a = inst === 'organ' ? 0.02 : 0.35;
       const end = env(out, t, a, 0.5, 0.85, dur, inst === 'organ' ? 0.1 : 0.6, (inst === 'organ' ? 0.06 : 0.045) * vel);
       for (const o of oscs) { o.start(t); o.stop(end); }

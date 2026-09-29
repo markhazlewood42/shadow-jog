@@ -44,6 +44,11 @@ export interface SongSpec {
    */
   gain?: number;
   /**
+   * An air bed under the song (linear level, ~0.01–0.03): filtered high noise that gives the quiet
+   * cues a top end without another part.
+   */
+  air?: number;
+  /**
    * Acoustic space the song plays in. 'here' keeps whatever room the player is already in: battle
    * music, jingles and story cues happen *in* the current place and must not re-reverb it.
    */
@@ -354,6 +359,8 @@ interface Playing {
   nextTime: number;
   /** Times round the loop (0 on the first pass, when an intro rests the drums). */
   pass: number;
+  /** The song's air bed, if it has one (stopped with the song). */
+  air: AudioBufferSourceNode | null;
 }
 
 let current: Playing | null = null;
@@ -428,6 +435,8 @@ export async function renderSong(name: string, seconds: number, rate = 44100): P
     const gain = off.createGain();
     gain.gain.value = song.trim;
     gain.connect(audio.music);
+    const airLevel = SONGS[name]?.air;
+    if (airLevel) audio.airBed(gain, airLevel, 0.05, seconds);
     let step = 0, pass = 0;
     for (let t = 0.05; t < seconds; t += stepDur(song)) {
       if (step >= song.length) {
@@ -439,6 +448,16 @@ export async function renderSong(name: string, seconds: number, rate = 44100): P
       step++;
     }
   });
+}
+
+/**
+ * When a song first loops, in seconds from the start of a `renderSong` render, or null if it
+ * doesn't loop: the seam the audio evidence measures.
+ */
+export function loopPoint(name: string): number | null {
+  const song = get(name);
+  if (!song?.loop) return null;
+  return 0.05 + song.length * stepDur(song);
 }
 
 function startTimer(): void {
@@ -459,7 +478,9 @@ function begin(name: string, fromStep = 0, fadeIn = 0, keepSpace = false): void 
   const space = SONGS[name]?.space ?? 'hall';
   if (!keepSpace && space !== 'here') audio.setSpace(space);
   // Resuming mid-song (after a battle) is not a first pass: no drum-less intro again.
-  current = { name, song, gain, step: fromStep % song.length, nextTime: c.currentTime + 0.06, pass: fromStep > 0 ? 1 : 0 };
+  const airLevel = SONGS[name]?.air;
+  const air = airLevel ? audio.airBed(gain, airLevel, c.currentTime + 0.05) : null;
+  current = { name, song, gain, step: fromStep % song.length, nextTime: c.currentTime + 0.06, pass: fromStep > 0 ? 1 : 0, air };
   startTimer();
 }
 
@@ -470,6 +491,7 @@ function stopCurrent(fade: number): void {
   g.gain.cancelScheduledValues(c.currentTime);
   g.gain.setValueAtTime(g.gain.value, c.currentTime);
   g.gain.linearRampToValueAtTime(0.0001, c.currentTime + Math.max(0.02, fade));
+  current.air?.stop(c.currentTime + Math.max(0.02, fade) + 0.1);
   setTimeout(() => g.disconnect(), (fade + 1.5) * 1000);
   current = null;
 }

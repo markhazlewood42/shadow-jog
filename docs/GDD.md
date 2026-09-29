@@ -105,7 +105,7 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
   vector-to-pixel enemies. The world map, towns and dungeons use a 3/4 top-down view.
 * Light map: ambient darkness × additive coloured lights (neon, lamps). Rain, fog and steam particles.
 * Custom bitmap font. Framed windows with a cyberpunk trim.
-* Audio: WebAudio chiptune/synthwave sequencer with ~9 tracks and synthesized SFX.
+* Audio: WebAudio chiptune/synthwave sequencer with 15 songs (places, fights, story cues and jingles), each in its own acoustic space, and 69 synthesized SFX. Measured offline through the real mix (docs/quality/evidence/audio*): loudness, spectrum, loop seams.
 * Comic-panel cutscenes (PSIV signature).
 
 ## 9. Controls
