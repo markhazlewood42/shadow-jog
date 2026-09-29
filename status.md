@@ -38,7 +38,11 @@ on every push to `main`.
   reviewers found (the settings crashed the boot where browser storage is blocked) is fixed, with a test.
   Verbatim reports: `docs/quality/reviews/round-12.md`; scores: `docs/quality/scorecard.md`.
 - **Waiting on Mark's playthrough.** He's playing the shipped build end to end (`npm run build && npm run preview`,
-  http://localhost:3008). His notes are the next work queue.
+  http://localhost:3008). **He'll bring his notes to a new session**; they are the next work queue. Start that
+  session by reading this file, then take his notes one at a time (step 1 below). Rebuild before reproducing anything:
+  the build he's playing predates the settings fix (e1b7c70), which only matters where storage is blocked.
+- **State at the handoff (2026-09-29):** working tree clean, `main` level with `origin`, CI green through ef982ab
+  (unit 263, E2E on Chromium, WebKit and Firefox). No servers of ours running; 3008 is Mark's preview.
 
 ### What happens next, in order
 1. **Triage Mark's playthrough notes**: bugs get fixed before the alpha ships (with tests where it makes sense);
