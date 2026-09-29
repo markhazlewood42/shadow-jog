@@ -46,6 +46,22 @@ Round 7 note: the evidence got richer (audio measurements, more screenshots, mor
 new, concrete defects — several real bugs (text collisions, the Warden's hidden head, the menu's hidden Close, a stale
 save baseline, a continuity slip). Reviewer spread remains ±0.5–1.0 per area; the trend is judged on defects fixed.
 
+## Round 12 (verification pending)
+
+Worked the round-11 findings, the lowest area (battle presentation) first.
+
+- [x] **Battle presentation**: the swing is an arc in four beats (gather, raise, cut with a lit trail on a new follow-through frame, settle); the Lurker and both Warden forms have drawn strike and flinch frames (shot 16c); the street backdrop has its far kerb of shops; window frames carry circuit trim.
+- [x] **Audio**: a real top end (6 kHz+ from 2–9% to 10–21%, the bar 2% to 15%); rest bars are breakdowns (bass and sub out, chords pulled back), with in-song range for battle 1.2 to 3.8 dB; bells without the onset click; the quiet cues thinned.
+- [x] **Combat**: Knuckles names his mark a turn before a wound-up haymaker (the first tell, taught at the first boss; retuned to 81% / 86%); the Arcanist's surge breaks under pressure (a different answer from the turret's jam and the Warden's guard); capstones inside the chapter's level range.
+- [x] **Feel**: hit-pauses shorten with Battle Speed and fast-forward; comic panels keep an early press.
+- [x] **Engine**: engine/ and battle/ hold no non-null assertions (must() names what's missing; biome enforces it there); the battle system is its own lazily loaded chunk (boot chunk 558 to 452 kB), budgets re-set with the reasoning in the script, bundle evidence archived; the software perf gate has headroom.
+- [x] **Progression**: Hedda's cart carries Mags' stock (and discount) in town; the shop explains elements; the driven run's shot is named as such; a test shows the crew can't buy everything it wants.
+- [x] **Narrative**: Pale peels a satsuma in one spiral, counts the segments (eleven, at the dock), never eats it; the Annex mail reads as accounting, so the dock still turns; Kit acts before the flashbang (a choice); Hex trimmed.
+- [x] **Level**: the lattice's loom shows which relay feeds which emitter (the memo is wrong, the cables aren't); the Lurker's lure glows in the sump before the fight; a test walks every map at all 25 story stages for dead ends.
+- [x] **Field art**: a third stance (a lit phone at the chest); the emptied cryopod is broken open (hatch, torn feed lines, coolant on the floor).
+- [x] **UI**: fullscreen says when it's refused; the menu's objective is labelled; error notices lead in the game's voice.
+- [ ] Deferred: gamepad/touch E2E and a long-session soak (stability); expressive portraits for key beats; props.ts/tiles.ts splits.
+
 ## Round 11 (verified 2026-09-29)
 
 Worked the round-10 findings, the UI compositing bug first.
