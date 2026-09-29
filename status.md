@@ -27,7 +27,12 @@ Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. C
 
 ## Current Status
 
-**Content-complete and playable start to finish.** Quality gate: rounds 1–10 verified (round 10 averaged 7.74; Stability 8.8 and Engine 8.5 pass, the first areas to clear 8.5). Mark asked for unattended rounds past the rubric's 4-round cap, pausing only at usage limits. **Round 11 fixes landed (2026-09-29) and are being verified**: see the scorecard's round-11 work log. Headlines: menus composite one at a time and locked rows say why; a mistimed press costs, Guard earns TP only off a real blow, a three-part combo; the crew speaks in battle; Saltreach's own terminology (Woken, spark, deck jockey); swings in beats and directional shake; every recurring enemy has drawn strike and flinch frames; tab handover, a real save migration and a boot that can't hang; field.ts split; a brighter mix and longer loops; intakes that show their state; Dutch's hat, Mags' cane.
+**Content-complete and playable start to finish.** Quality gate: rounds 1–11 verified (round 11 averaged 7.87; Stability 9.0 and UI/UX 8.7 pass). Mark asked for unattended rounds past the rubric's 4-round cap, pausing only at usage limits. **Round 12 fixes landed (2026-09-29) and are being verified**: see the scorecard's round-12 work log. Headlines: a swing that arcs and bosses with drawn frames; a brighter mix whose fights swell; a first boss that teaches the tell; no unchecked assertions in the core and a split bundle; Mags' discount reachable; Pale's satsuma and a struggle at the dock; readable relay wiring and a Lurker tell; a crowd on its phones and a broken-open cryopod.
+
+**Exit set (2026-09-29).** Round 12 is the last automated round: its verification runs as the closing measurement,
+then the loop stops. The real exit gate is Mark's own end-to-end playthrough; what he finds is triaged as bugs (fix
+before the alpha ships) or design notes (next milestone). How the grading worked, and where it fell short:
+`docs/quality/GRADING.md`.
 
 **Resume here**
 1. Read the latest verifier results in the scorecard. Deferred on purpose in round 11: Annex set-piece rooms, the Barrens middle, neon in puddles, distinct terminal/tank silhouettes, hand-authored signature melodies.

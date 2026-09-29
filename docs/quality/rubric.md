@@ -3,11 +3,14 @@ type: process
 title: Shadow Jog — Quality Gate Rubric
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-29
 tags: [quality, verification]
 ---
 
 # Quality gate
+
+> **How this was used, what it got wrong, the full score history and the exit set on 2026-09-29:**
+> `docs/quality/GRADING.md`. (The 4-round cap below was lifted by Mark on 2026-09-28; the loop ran 12 rounds.)
 
 Every area below is scored out of 10 by an **independent verifier**: a fresh `Agent` subagent (model `sonnet`, not a
 fork) with no knowledge of the writer's intent beyond the GDD. An area passes at **≥ 8.5**. Anything lower goes
