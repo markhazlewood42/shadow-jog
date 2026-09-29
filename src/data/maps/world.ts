@@ -57,7 +57,9 @@ export const world: MapDef = {
   legend: {
     B: 'w_block', R: 'w_road', '.': 'w_barrens', r: 'w_ruins', '~': 'w_toxic', '=': 'w_bridge', f: 'w_park', H: 'w_highway',
   },
-  ambient: '#6a6aa8',
+  // Lifted (was #6a6aa8) with the streets, curbs and block facades (2026-09-29): the Sprawl's
+  // walkable streets and its rooftops had merged into one dark mass.
+  ambient: '#8080b4',
   weather: 'rain',
   music: 'world',
   battleBg: 'street',

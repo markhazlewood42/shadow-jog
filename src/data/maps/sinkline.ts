@@ -50,7 +50,9 @@ export const sinkline1: MapDef = {
   kind: 'dungeon',
   terrain: g.rows(),
   legend: { X: 'd_wall', '.': 'd_floor', t: 'd_track', w: 'd_shallow', '~': 'd_water', '=': 'd_catwalk', '+': 'grate', '%': 'd_wall_crack' },
-  ambient: '#56628e',
+  // Lifted (was #56628e) after Mark's first playthrough: floors, walls and the track bed all sank
+  // into one dark band away from the lamps. The lamps still pool; the structure reads between them.
+  ambient: '#7280a6',
   weather: 'drip',
   music: 'dungeon',
   battleBg: 'sewer',

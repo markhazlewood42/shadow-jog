@@ -56,12 +56,12 @@ const P = {
   // Sinkline: the floor is the lighter plane and the walls sit darker, so the walkable path reads
   // at a glance in the flooded gloom (they used to be the other way round, and read as one mass).
   dfloor: C('#4a5058'), dfloorD: C('#40464e'), dfloorAlgae: C('#3a5246'), dfloorL: C('#585e67'),
-  dwallFace: C('#343944'), dwallFaceD: C('#2d313b'), dwallSeam: C('#22252c'), dwallStain: C('#28322f'), dwallTop: C('#101114'), dwallEdge: C('#1e2026'),
+  dwallFace: C('#343944'), dwallFaceD: C('#2d313b'), dwallSeam: C('#22252c'), dwallStain: C('#28322f'), dwallTop: C('#323641'), dwallEdge: C('#626878'),
   dwater: C('#13302b'), dwaterL: C('#1b4038'), dwaterD: C('#0c2420'),
   shallow: C('#233f3f'), shallowL: C('#2d504e'),
   catwalk: C('#555b6a'), catwalkD: C('#3c4150'), catwalkHole: C('#0b1a18'),
   labFloor: C('#b9c3d0'), labFloorD: C('#a6b0be'), labSeam: C('#8a94a4'), labWallFace: C('#d3dbe6'), labWallD: C('#bcc6d2'), labStripe: C('#2fb8c8'), labTop: C('#1a1e28'), labEdge: C('#2a303e'),
-  wRoad: C('#3a3a48'), wRoadD: C('#30303c'), wRoadLine: C('#6a6450'),
+  wRoad: C('#46465a'), wRoadD: C('#3a3a4c'), wRoadLine: C('#6a6450'),
   wBarren: C('#5a4a3a'), wBarrenD: C('#4a3c30'), wBarrenL: C('#6a5846'),
   toxic: C('#1c3a1e'), toxicL: C('#2f6a2a'), toxicGlow: C('#7af06a'),
   hwy: C('#4a4d5c'), hwyD: C('#383a46'), hwyLine: C('#c9b04a'),
@@ -322,6 +322,12 @@ const junk: Painter = (lx, ly, wx, wy, tx, ty, q) => {
 };
 
 const rail: Painter = (lx, ly, wx, wy, tx, ty, q) => {
+  // Below a platform, the platform's vertical edge: the track bed is a step down, not the same floor.
+  const above = q.at(tx, ty - 1);
+  if (above === 'd_floor' || above === 'd_shallow') {
+    if (ly <= 2) return ly === 0 ? P.dfloorD : lerpC(P.dwallFace, [0, 0, 0], 0.25 + ly * 0.1);
+    if (ly === 3) return [10, 11, 16];
+  }
   if (lx % 8 < 3 && lx % 8 >= 1) return P.tie;
   if (ly === 4 || ly === 11) return P.rail;
   if (ly === 5 || ly === 12) return lerpC(P.rail, [0, 0, 0], 0.4);
@@ -375,14 +381,23 @@ const floorConcrete: Painter = (_lx, _ly, wx, wy) => {
   return fbm(wx / 12, wy / 12, 2, 112) < 0.4 ? P.concD : P.conc;
 };
 
-/** 3/4-view wall autotile: face where the tile below is open, cap elsewhere. */
-function wallP(id: TerrainId, face: Painter, top: RGB, edge: RGB): Painter {
+/**
+ * 3/4-view wall autotile: face where the tile below is open, cap elsewhere. `cap`, if given,
+ * textures the cap (the Sinkline's: a concrete slab, so the tops of walls read as structure and
+ * not as the black of a hole).
+ */
+function wallP(id: TerrainId, face: Painter, top: RGB, edge: RGB, cap?: Painter): Painter {
   return (lx, ly, wx, wy, tx, ty, q) => {
     const below = q.at(tx, ty + 1);
     if (below !== id && below !== 'void') return face(lx, ly, wx, wy, tx, ty, q);
     const l = q.at(tx - 1, ty), r = q.at(tx + 1, ty), u = q.at(tx, ty - 1);
     if ((l !== id && l !== 'void' && lx === 0) || (r !== id && r !== 'void' && lx === 15) || (u !== id && u !== 'void' && ly === 0)) return edge;
-    return top;
+    // The cap's front lip, just above the face: a lit edge where the top turns down.
+    if (cap && ly === 15 && below === id) {
+      const under = q.at(tx, ty + 2);
+      if (under !== id && under !== 'void') return edge;
+    }
+    return cap ? cap(lx, ly, wx, wy, tx, ty, q) : top;
   };
 }
 
@@ -390,6 +405,13 @@ const iwallFace: Painter = (_lx, ly, wx) => {
   if (ly <= 1) return P.iwallTrim;
   if (ly >= 13) return ly === 13 ? P.iwallTrim : P.iwallBase;
   return wx % 6 === 0 ? P.iwallFaceD : P.iwallFace;
+};
+
+/** The top of a Sinkline wall: a dark concrete slab, faintly mottled, never flat black. */
+const dwallCap: Painter = (_lx, _ly, wx, wy) => {
+  const n = fbm(wx / 10, wy / 10, 2, 125);
+  if (hash2(wx, wy, 126) < 0.04) return lerpC(P.dwallTop, [255, 255, 255], 0.06);
+  return n < 0.4 ? lerpC(P.dwallTop, [0, 0, 0], 0.18) : P.dwallTop;
 };
 
 const dwallFace: Painter = (lx, ly, wx, wy) => {
@@ -472,6 +494,11 @@ const dfloorDry: Painter = (_lx, _ly, wx, wy) => {
 
 /** Dungeon floor, darkened and algae-stained where it meets the flood (wet lips). */
 const dfloor: Painter = (lx, ly, wx, wy, tx, ty, q) => {
+  // A platform's edge over the track bed: the old yellow safety line, then the lip.
+  if (q.at(tx, ty + 1) === 'd_track') {
+    if (ly === 12 || ly === 13) return (wx >> 1) % 2 ? [196, 164, 64] : [150, 126, 52];
+    if (ly === 15) return P.dfloorL;
+  }
   const c = dfloorDry(lx, ly, wx, wy, tx, ty, q);
   const wet = (dx: number, dy: number, d: number) => isWater(q.at(tx + dx, ty + dy)) && d < 4 && (d < 2 || hash2(wx, wy, 134) < 0.5);
   if (wet(0, 1, 15 - ly) || wet(-1, 0, lx) || wet(1, 0, 15 - lx) || wet(0, -1, ly)) return lerpC(c, P.dwaterD, 0.45);
@@ -625,8 +652,21 @@ const labDoor: Painter = (lx, ly) => {
 };
 
 // ---- world map
+/** Pale curb stone along a street's edge where it meets a block: the line you can't walk past. */
+const K_CURB = C('#8a8ca4'), K_CURB_D = C('#5a5c74'), K_GUTTER = C('#1a1a26');
+function curb(lx: number, ly: number, tx: number, ty: number, q: TerrainQuery): RGB | null {
+  const at = (dx: number, dy: number) => q.at(tx + dx, ty + dy) === 'w_block';
+  if (at(0, -1) && ly <= 2) return ly === 0 ? K_CURB : ly === 1 ? K_CURB_D : K_GUTTER;
+  if (at(0, 1) && ly >= 14) return ly === 15 ? K_CURB : K_CURB_D;
+  if (at(-1, 0) && lx <= 1) return lx === 0 ? K_CURB : K_GUTTER;
+  if (at(1, 0) && lx >= 14) return lx === 15 ? K_CURB : K_CURB_D;
+  return null;
+}
+
 /** The Sprawl's arterials: patched asphalt, oil stains, hairline cracks, aggregate glints. */
-const wRoad: Painter = (_lx, _ly, wx, wy) => {
+const wRoad: Painter = (lx, ly, wx, wy, tx, ty, q) => {
+  const edge = curb(lx, ly, tx, ty, q);
+  if (edge) return edge;
   const h = hash2(wx, wy, 141);
   if (h < 0.03) return P.wRoadD;
   if (h > 0.988) return lerpC(P.wRoad, [140, 140, 160], 0.35);
@@ -703,6 +743,19 @@ const wBlock: Painter = (lx, ly, wx, wy, tx, ty, q) => {
   const edgeR = bx === 47 || (lx === 15 && q.at(tx + 1, ty) !== 'w_block');
   const edgeT = by === 0 || (ly === 0 && q.at(tx, ty - 1) !== 'w_block');
   const edgeB = by === 31 || (ly === 15 && q.at(tx, ty + 1) !== 'w_block');
+  // A block's south face, where it meets open ground: the building's wall seen at 3/4, a band of
+  // facade with lit windows under a dark parapet shadow. It gives the blocks height, so rooftops
+  // stop reading as the same ground as the streets (Mark's playthrough, 2026-09-29).
+  if (ly >= 10 && q.at(tx, ty + 1) !== 'w_block' && ty + 1 < q.h) {
+    if (ly === 10) return P.blockRoofD;
+    if (ly === 15) return [18, 18, 28];
+    const win = (wx % 5 === 1 || wx % 5 === 2) && (ly === 12 || ly === 13);
+    if (win) {
+      const h = hash2(Math.floor(wx / 5), ty, 176);
+      return h < 0.35 ? P.blockWin : h < 0.5 ? P.blockWinC : h < 0.56 ? P.blockWinP : [30, 32, 48];
+    }
+    return lx === 0 && q.at(tx - 1, ty) !== 'w_block' ? [34, 36, 52] : [46, 48, 68];
+  }
   if (edgeL || edgeT) return P.blockRoofL;
   if (edgeR || edgeB) return P.blockRoofD;
   const kind = Math.floor(seed * 6);
@@ -755,7 +808,7 @@ export const PAINTERS: Record<TerrainId, Painter> = {
   floor_wood: floorWood, floor_tile: floorTile, floor_metal: floorMetal, floor_carpet: floorCarpet, floor_concrete: floorConcrete,
   iwall: wallP('iwall', iwallFace, P.iwallTop, P.iwallEdge),
   d_floor: dfloor,
-  d_wall: wallP('d_wall', dwallFace, P.dwallTop, P.dwallEdge),
+  d_wall: wallP('d_wall', dwallFace, P.dwallTop, P.dwallEdge, dwallCap),
   d_water: underCatwalk(dwater), d_shallow: underCatwalk(shallow), d_catwalk: catwalk, d_wall_crack: dWallCrack, junk_loose: junkLoose,
   d_track: rail,
   lab_floor: labFloor, lab_floor_steel: labFloorSteel, lab_floor_frost: labFloorFrost, lab_floor_contain: labFloorContain, lab_floor_plate: labFloorPlate,
@@ -808,6 +861,43 @@ function bleeders(q: TerrainQuery, tx: number, ty: number, own: number): Bleed[]
   return out;
 }
 
+/**
+ * Terrain that stands up out of the ground (walls, city blocks). With the light from the upper
+ * left, it throws a shadow on the ground at its foot and to its right: the depth cue that tells
+ * structure from floor at a glance (Mark's playthrough, 2026-09-29: "hard to tell what's surface
+ * level vs. what's structural").
+ */
+const RAISED = new Set<TerrainId>(['iwall', 'd_wall', 'd_wall_crack', 'lab_wall', 'w_block', 'wall']);
+/** Shade by pixel row under a raised tile, and by column beside one. */
+const SHADE_DOWN = [0.58, 0.7, 0.82, 0.92];
+const SHADE_SIDE = [0.66, 0.8, 0.92];
+
+function relief(buf: PixelBuf, q: TerrainQuery): void {
+  const { data, w } = buf;
+  for (let ty = 0; ty < q.h; ty++) {
+    for (let tx = 0; tx < q.w; tx++) {
+      if (RAISED.has(q.at(tx, ty))) continue;
+      const up = ty > 0 && RAISED.has(q.at(tx, ty - 1));
+      const left = tx > 0 && RAISED.has(q.at(tx - 1, ty));
+      const corner = tx > 0 && ty > 0 && RAISED.has(q.at(tx - 1, ty - 1));
+      if (!up && !left && !corner) continue;
+      for (let ly = 0; ly < TS; ly++) {
+        for (let lx = 0; lx < TS; lx++) {
+          let k = 1;
+          if (up && ly < SHADE_DOWN.length) k *= SHADE_DOWN[ly]!;
+          if (left && lx < SHADE_SIDE.length) k *= SHADE_SIDE[lx]!;
+          if (!up && !left && corner && lx + ly < 3) k *= 0.72 + (lx + ly) * 0.08;
+          if (k === 1) continue;
+          const i = ((ty * TS + ly) * w + tx * TS + lx) * 4;
+          data[i] = Math.round(data[i]! * k);
+          data[i + 1] = Math.round(data[i + 1]! * k);
+          data[i + 2] = Math.round(data[i + 2]! * k);
+        }
+      }
+    }
+  }
+}
+
 export function paintTerrain(buf: PixelBuf, q: TerrainQuery): void {
   const { data, w } = buf;
   for (let ty = 0; ty < q.h; ty++) {
@@ -845,4 +935,5 @@ export function paintTerrain(buf: PixelBuf, q: TerrainQuery): void {
       }
     }
   }
+  relief(buf, q);
 }

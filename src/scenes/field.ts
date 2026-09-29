@@ -17,7 +17,7 @@ import type { ScriptApi, ScriptFn } from '../game/script';
 import { flags, state } from '../game/state';
 import { LOOKS } from '../data/looks';
 import { getMap } from '../data/maps';
-import { chestSprites } from '../field/chests';
+import { chestHalo, chestSprites } from '../field/chests';
 import { bandGradient, UI } from '../ui/draw';
 import { FIELD_OBJ_W } from '../ui/layout';
 import { fieldHooks } from '../game/hooks';
@@ -74,6 +74,12 @@ export class FieldScene extends Scene<void> {
   private lighting = new Lighting();
   private weather = new Weather();
   busy = 0;
+  /**
+   * What Confirm would reach from where the leader stands (an NPC, a closed chest, something to
+   * examine), in world pixels, for the small marker over it; null when nothing is. Worked out every
+   * few frames, and only while the field takes input.
+   */
+  private cue: { x: number; y: number } | null = null;
   private frame = 0;
   private lastBump = -99;
   private banner: { text: string; sub: string; t: number } | null = null;
@@ -206,6 +212,8 @@ export class FieldScene extends Scene<void> {
     }
     if (leaderArrived) this.onLeaderArrive();
     if (!this.busy && !this.pendingWarp) this.handleInput();
+    if (this.frame % 4 === 0) this.cue = !this.busy && !this.pendingWarp && !this.leader.moving ? this.interactTarget() : null;
+    else if (this.busy || this.leader.moving) this.cue = null;
     this.updateCamera();
     this.weather.update(this.camX - prevCamX, this.camY - prevCamY);
   }
@@ -389,6 +397,43 @@ export class FieldScene extends Scene<void> {
   }
 
   // ------------------------------------------------------------------ interaction
+  /**
+   * Where the marker goes for what interact() would reach, without doing it (the same order: an
+   * NPC, across a counter too; a chest; an action event). Added after Mark's first playthrough
+   * (2026-09-29: interactive things "blend into the background").
+   */
+  private interactTarget(): { x: number; y: number } | null {
+    const l = this.leader;
+    const [dx, dy] = DIRS[l.dir];
+    const ax = l.x + dx, ay = l.y + dy;
+    let npc = this.actorAt(ax, ay);
+    if (!npc && this.counterAt(ax, ay)) npc = this.actorAt(ax + dx, ay + dy);
+    if (npc?.npc) return { x: npc.px, y: npc.drawY() - 3 };
+    for (const c of this.chests) if (!c.open && c.def.x === ax && c.def.y === ay) return { x: ax * TS + 8, y: ay * TS - 1 };
+    const ev = this.eventAt(ax, ay, 'action');
+    if (ev) return { x: ax * TS + 8, y: ay * TS - 2 };
+    return null;
+  }
+
+  /** Is there a counter (bar, table, stall) on this tile, to talk across? */
+  private counterAt(x: number, y: number): boolean {
+    for (const p of this.def.props ?? []) {
+      if ((p.kind === 'counter' || p.kind === 'bar' || p.kind === 'table' || p.kind === 'stall') && x >= p.x && x < p.x + (p.w ?? 1) && y === p.y) return true;
+    }
+    return false;
+  }
+
+  /** The interact marker: a small bobbing chevron in the menu cursor's cyan, outlined dark. */
+  private drawCue(ctx: Ctx, x: number, y: number, f: number): void {
+    const b = Math.round(Math.sin(f * 0.15) * 1.5);
+    const top = Math.round(y - 5 + b), left = Math.round(x) - 3;
+    ctx.fillStyle = '#0a0913';
+    ctx.fillRect(left - 1, top - 1, 9, 2);
+    for (let i = 0; i < 4; i++) ctx.fillRect(left - 1 + i, top + i, 9 - i * 2, 2);
+    ctx.fillStyle = UI.cyan;
+    for (let i = 0; i < 4; i++) ctx.fillRect(left + i, top + i, 7 - i * 2, 1);
+  }
+
   private async interact(): Promise<void> {
     const l = this.leader;
     const [dx, dy] = DIRS[l.dir];
@@ -587,7 +632,29 @@ export class FieldScene extends Scene<void> {
         const c = it.ref as Chest;
         const spr = chestSprites(c.def.kind ?? 'crate');
         const img = c.open ? spr.open : spr.closed;
-        this.lighting.drawLit(ctx, img, c.def.x * TS - cx, (c.def.y + 1) * TS - img.height - cy);
+        const x = c.def.x * TS - cx, y = (c.def.y + 1) * TS - img.height - cy;
+        if (!c.open) {
+          // A closed chest breathes a soft halo in its trim colour, whatever the room's light.
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.globalAlpha = 0.5 + 0.3 * Math.sin(f * 0.06 + c.def.x * 1.7);
+          ctx.drawImage(chestHalo(spr.trim), x - 12, y - 4);
+          ctx.globalAlpha = 1;
+          ctx.globalCompositeOperation = 'source-over';
+        }
+        this.lighting.drawLit(ctx, img, x, y);
+        if (!c.open) {
+          // Its trim and lock lit (unlit by the room), and now and then a glint across the lid.
+          ctx.drawImage(spr.glow, x, y);
+          const g = (f + c.def.x * 37 + c.def.y * 53) % 160;
+          if (g < 10) {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(x + 2 + g, y + 6, 1, 1);
+            if (g > 2 && g < 8) {
+              ctx.fillRect(x + 2 + g, y + 5, 1, 3);
+              ctx.fillRect(x + 1 + g, y + 6, 3, 1);
+            }
+          }
+        }
       } else {
         const a = it.ref as Actor;
         this.lighting.drawLit(ctx, a.frame(), a.drawX() - cx, a.drawY() - cy);
@@ -602,6 +669,7 @@ export class FieldScene extends Scene<void> {
     this.dust.render(ctx, cx, cy);
     this.weather.render(ctx);
     for (const a of actors) if (a.emote) drawEmote(ctx, a, cx, cy);
+    if (this.cue) this.drawCue(ctx, this.cue.x - cx, this.cue.y - cy, f);
     this.renderBanner(ctx);
     this.renderObjective(ctx);
     fieldHooks.renderOverlay?.(this, ctx);
