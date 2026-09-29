@@ -13,17 +13,21 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 
 | # | Area | Score | Round | Date | Δ | Blocking issues (short) |
 |---|---|---|---|---|---|---|
-| 1 | Engine & code | 8.5 | 10 | 2026-09-29 | +0.5 | **Passed.** Remaining: FieldScene not split like BattleScene; no tests for lighting/weather pooling; rain drawn in three passes; bundle budget 94% used |
-| 2 | Field art | 7.0 | 10 | 2026-09-29 | +1.2 | Named cast share one template (only Rook and Sable read at a glance); crowd sheet one pose; terminal/tank/cryopod one glowing slab; guards pixel-identical; puddles ignore neon |
-| 3 | Battle presentation | 7.0 | 10 | 2026-09-29 | −0.2 | Only rats, hounds and drones have a drawn attack frame; no drawn enemy hurt pose; creature art flat (few tonal steps); street encounter backdrops thinner than boss sets |
-| 4 | UI / UX | 7.6 | 10 | 2026-09-29 | +2.1 | **Bug:** the OPTIONS tab shows above the Controls window (overlays repaint the stack at 98.5%); Game Over’s disabled Load gives no reason; the results page’s bare ▼; cancel legend only on the title |
-| 5 | Combat design | 7.5 | 10 | 2026-09-29 | +0.3 | A missed press costs nothing (no risk); Guard/Attack alternation farms TP; Rook can run dry; 7 fixed combos; shallow trash movesets; Killing Intent could stun-lock packs, untested |
-| 6 | Progression & economy | 8.0 | 10 | 2026-09-29 | +0.5 | The inn charges for downed members who get nothing; no per-character head gear; no real scarcity on the route; Neural Buffer’s TP wasted on Rook; results evidence reads broken without its note |
-| 7 | Narrative & writing | 8.0 | 10 | 2026-09-29 | +0.2 | The leads never speak in battle; Shadowrun terms (physical adept, metatype, Awakened, essence, decker) against the GDD’s originality rule; thin side jobs; the cryopod turn gets no reaction beat |
-| 8 | Level design | 7.7 | 10 | 2026-09-29 | +0.3 | Puzzles are dialogue picks with no spatial consequence; Annex wings read alike; the Barrens middle is empty; a wrong valve resets all three; the decoy’s KEEP OUT sign is on the nose |
-| 9 | Audio | 7.2 | 10 | 2026-09-29 | +0.2 | 60–80% of energy under 500 Hz (trim pad/choir/sub at source, lift presence); lab and tension loops 15–17 s; boss drum rests one bar in sixteen |
-| 10 | Feel & polish | 7.8 | 10 | 2026-09-29 | −0.5 | Attacks are a held pose on a lunge curve (no multi-frame swing); only the party’s hits get the camera push; shake is uncorrelated per-frame noise; a press during hitstop is dropped |
-| 11 | Stability | 8.8 | 10 | 2026-09-29 | +0.5 | **Passed.** Remaining: a second tab never re-enables autosave when the first closes; the boot-failure overlay is untested; no real migration yet |
+| 1 | Engine & code | 8.3 | 11 | 2026-09-29 | −0.2 | ~555 non-null assertions with the lint rule off; props.ts (1,671 lines), tiles.ts, battle.ts and render.ts still monoliths; no archived bundle-size evidence; the software-canvas perf gate has no headroom |
+| 2 | Field art | 7.5 | 11 | 2026-09-29 | +0.5 | Crowd is one pose in many palettes; rooftop clutter repeats; puddle reflections smudge; the emptied cryopod is just dark (no open hatch); the bar floor and aisles grid-regular |
+| 3 | Battle presentation | 6.5 | 11 | 2026-09-29 | −0.5 | The swing only lifts (the blade never changes angle); the Lurker and the Warden had no strike/flinch frames; the party reads flat from behind; packs of one species blur; windows lack the GDD’s cyberpunk trim; the street backdrop is thinnest |
+| 4 | UI / UX | 8.7 | 11 | 2026-09-29 | +1.1 | **Passed.** Remaining: the fullscreen toggle fails silently; raw error text in the notice bar; no colour-blind or text-size option; the menu’s objective panel is unlabelled |
+| 5 | Combat design | 7.8 | 11 | 2026-09-29 | +0.3 | Turret, Arcanist, Warden and its spirit share one charge-then-fire shape; Knuckles has no tell; Moonfall, Rekindle, Wildfire and Dragon Coil unlock above the chapter’s level ceiling; trash rarely tests choices |
+| 6 | Progression & economy | 7.6 | 11 | 2026-09-29 | −0.4 | Mags’ discount has no reachable payoff (the route never returns to the Rustyard); p10 still has 400–700¢ spare after the needed buys; loot is only vendor fodder; 24c is a driven run and reads like a real one |
+| 7 | Narrative & writing | 7.8 | 11 | 2026-09-29 | −0.2 | The betrayal is foreshadowed three times; the capture is over in twenty lines with no struggle; Pale is a stock polite menace; Hex’s lines run long; the Annex logs are briefing blocks |
+| 8 | Level design | 7.8 | 11 | 2026-09-29 | +0.1 | The valve and relay puzzles are still confirm-dialogs; the lattice solves blind in two tries; the Lurker has no arena of its own; world landmarks don’t read from the art |
+| 9 | Audio | 7.2 | 11 | 2026-09-29 | ±0 | Still dark: 6 kHz+ at 2–9% (bar 2%); 0.5–2 dB of range inside every song (rests don’t release); the quiet cues are as dense as the fights; soft cues click on every onset |
+| 10 | Feel & polish | 8.4 | 11 | 2026-09-29 | +0.6 | Hit-pauses don’t shorten with Battle Speed or fast-forward; comic panels drop an early press; no camera punch on the big combos; one swing curve for every weapon; key story faces lack range |
+| 11 | Stability | 9.0 | 11 | 2026-09-29 | +0.2 | **Passed.** Remaining: no gamepad or touch E2E; the battle-mashing test hands off to the autopilot; no long-session soak; no boot with storage blocked from the start |
+
+Round 11 note: average 7.87 (round 10: 7.74). Stability (9.0) and UI/UX (8.7) pass; Engine slipped to 8.3 under a
+reviewer counting non-null assertions and file sizes. Battle presentation fell to 6.5: the new swing only moved the
+sprite, and the bosses had no drawn frames, both fixed first in round 12.
 
 Round 10 note: average 7.74 (round 9: 7.27). The first two areas pass: Stability 8.8 and Engine 8.5. Both caps from
 round 9 are lifted (UI 5.5 → 7.6, Field art 5.8 → 7.0). Feel dropped 0.5 under a reviewer weighing animation depth
@@ -42,7 +46,7 @@ Round 7 note: the evidence got richer (audio measurements, more screenshots, mor
 new, concrete defects — several real bugs (text collisions, the Warden's hidden head, the menu's hidden Close, a stale
 save baseline, a continuity slip). Reviewer spread remains ±0.5–1.0 per area; the trend is judged on defects fixed.
 
-## Round 11 (verification pending)
+## Round 11 (verified 2026-09-29)
 
 Worked the round-10 findings, the UI compositing bug first.
 
