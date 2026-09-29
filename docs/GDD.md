@@ -90,9 +90,29 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 * **Status:** Poison, Stun, Burn, Blind, Jammed (machines skip turn), Guard, buffs (ATK/DEF/AGI up), Regen, Down (KO).
 * **Defeat:** Game Over screen with *Retry Battle*, *Load Save* and *Title*.
 
+**As built (2026-09-29).** The systems above grew during the quality rounds:
+
+* **Turn order** is rolled when orders open and previewed in a strip at the screen's edge, so it can be planned around.
+* **Timed presses** (Options: On / Assist / Off): as a blow comes in, a ring closes on the target. Press on the beat to
+  *strike* harder (the crew's hits) or *brace* (hits on the crew). Quick moves have a tight window and a big payoff,
+  heavy ones a wide window; a blow you saw coming can be braced hardest. **A press off the beat costs** (a softer
+  strike, a harder hit taken): not pressing is always safer than guessing.
+* **Guard** halves damage (a quarter against a telegraphed blow). A blow taken on a guard gives TP back; for Rook, who
+  has no TP, one spent skill charge, once a fight. Guarding against nothing earns nothing.
+* **Tells:** bosses and some enemies announce big moves a turn ahead, and each asks a different answer. Knuckles
+  squares up to a named member (guard or cover them); the Warden locks its cannon on one (guard, or Rook's Guardian);
+  the sentry turret spins up (jam or stun it); the Arcanist draws a surge (blind her, or hit her hard while she
+  draws); the Warden's spirit draws breath (ward the crew).
+* **Combos:** nine, including **Clean Job**, a three-member combo (Kit, Rook, Hex). Each has a caller who says a line
+  on their cut-in. A combo's first use is logged in the menu's Combo Log, with hints for the undiscovered ones.
+* **Analyze** reveals HP and weaknesses and exposes the target (+25% damage taken). Weaknesses found in battle are
+  remembered in the Bestiary and shown on the target cursor.
+* **Stun** can't be chained: a target just out of a stun shrugs off another for two rounds.
+* The leads call out their big techs in battle.
+
 ## 6. Progression
 
-* Levels 1–30 (`MAX_LEVEL`; chapter 1 ends around Lv 9–11, leaving room for later chapters). Per-character stat growth curves; techs and skills unlock at set levels.
+* Levels 1–30 (`MAX_LEVEL`; chapter 1 ends around Lv 8–9 without grinding, leaving room for later chapters). Per-character stat growth curves; techs and skills unlock at set levels, the chapter's capstones (Moonfall, Dragon Coil, Rekindle, Wildfire) at 8–9 so they're reachable.
 * Equipment slots: Weapon, Body, Head, Mod (cyberware/fetish accessory). Class restrictions apply.
 * XP goes in full to every conscious member. Downed members get none.
 
@@ -103,6 +123,18 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 * The Annex's Requisition terminal sells a same-tier alternative to each armory find, never the find itself: a crew that skipped a case can still arm up, and one that found it has a real choice.
 * **Capsule hotel** (inn): pay per head to rest, which restores HP, TP and skill uses. **Street clinic**: revive and cure, for a fee.
 * Utility consumables mirror PSIV's pipes: **Smoke Pellet** (escape a battle), **Getaway Chit** (exit dungeon), **Cab Voucher** (return to last town).
+
+**As built (2026-09-29).**
+
+* Each crew member has their own headpiece and mod on sale, beside the shared gear: more worth buying than a crew can
+  afford (a test shows the upgrades cost more than twice what even a lucky run has spare).
+* **A choice at Mags':** take the camp's 150¢ collection, or leave it with them and get a fifth off her stock for good.
+  Her sister **Hedda**'s cart on Lantern Row carries the same stock and honours the discount.
+* **Side jobs** on the Drowned Saint's board: a lost cat, a stolen med-case, and a Rustfang bounty (Dutch pays 250¢).
+* The inn charges only for members who wake up better; the downed sleep free (they need the clinic).
+* The shop explains elemental gear ("SHOCK bites people, machines; spirits shrug it off").
+* Balance and affordability are checked by simulation: `tests/balance.test.ts` (fights and dungeon runs) and
+  `tests/economy.test.ts` (Monte Carlo over the route, including a player who skips every optional chest).
 
 ## 8. Presentation
 

@@ -6,3 +6,7 @@ playwright-report/
 .DS_Store
 .vite/
 playtest/
+
+# Session tooling output (scripts/evidence.sh, scripts/verifier-prompts.py)
+evidence.log
+reviewer-prompts/

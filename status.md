@@ -9,39 +9,86 @@ tags: [status]
 
 # Shadow Jog
 
-Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. Chapter 1, "Milk Run", covers the town (Lantern Row), the world map (the Sprawl), an outpost (the Rustyard) and a two-floor dungeon (the Sinkline B1 and K-M Annex 7). Design lives in `docs/GDD.md`.
+Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. Chapter 1, "Milk Run", covers the town
+(Lantern Row), the world map (the Sprawl), an outpost (the Rustyard) and a two-floor dungeon (the Sinkline B1 and
+K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
-**GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog)
+**GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog) (public). CI: GitHub Actions
+on every push to `main`.
 
-## Architecture
+## Where we left off (2026-09-29)
+
+### The whole process so far
+1. **Build (2026-09-27 → 28).** From the original prompt (`docs/original-prompt.md`) to a content-complete chapter:
+   town, world map, outpost, two-floor dungeon, four party members, 21 enemies and three bosses, nine combos, an
+   economy, a story with a comic-panel intro and ending, 15 songs and 69 sound effects, all generated in code.
+2. **Quality loop (rounds 1–12, 2026-09-28 → 29).** Eleven areas scored out of 10 by fresh independent reviewers
+   each round; fixes between rounds. The average went 6.36 → 7.50 in rounds 1–4, then wandered 7.27–7.87 through
+   round 11. Three areas passed 8.5 at some point (Stability 9.0, UI/UX 8.7, Engine 8.5 in round 10). Everything
+   about it is in `docs/quality/GRADING.md`; scores and work logs in `docs/quality/scorecard.md`.
+3. **Exit (2026-09-29).** Mark asked whether we were going in circles; gains per round had shrunk to the size of
+   reviewer noise. He set an exit: **round 12 is the last automated round**, and **the real gate is his own
+   end-to-end playthrough**.
+4. **Documentation (2026-09-29).** Architecture, developer guide, AI-session instructions (`CLAUDE.md`), the grading
+   write-up, the glossary and the setting bible, so work can resume cold in a fresh session.
+
+### Right now
+- **Round 12's fixes are in** (see the scorecard's round-12 work log). Its evidence was regenerated; **its verification (the closing measurement) is the one open step**: if round 12's scores aren't in the scorecard yet, either run the 11 reviewers (`docs/DEVELOPING.md` §6) or, if Mark prefers, skip it and record that the loop ended with round 11's measurements.
+- **Waiting on Mark's playthrough.** He's playing the shipped build end to end (`npm run build && npm run preview`,
+  http://localhost:3008). His notes are the next work queue.
+
+### What happens next, in order
+1. **Triage Mark's playthrough notes**: bugs get fixed before the alpha ships (with tests where it makes sense);
+   design notes go to a list for the next milestone.
+2. **Mark's reviews**: `docs/quality/GRADING.md` (its closing questions), `docs/GLOSSARY.md` (the **[review]** marks
+   and open questions, including the Shadowrun-term swap), `docs/SETTING.md` (everything tagged **[new]**).
+3. **Ship the alpha**: deploy to shadowjog.com (Vercel, probably) with the secure email sign-up on the last card.
+   **Only with Mark's go-ahead.** Requirements under Future Plans.
+4. **Chapter 2, "Deniable Assets"**: getting Rook back (seeds in `docs/SETTING.md` §10).
+
+### Known gaps (from the last reviews; none are bugs)
+- **Audio (7.2) and Battle presentation (6.5 in round 11)** plateaued against hand-made references; more procedural
+  tweaking has shrinking returns (GRADING.md §6). Hand-made or commissioned assets are the likely next step if they
+  matter at 8.5.
+- Stability: no gamepad or touch E2E, no long-session soak, no boot test with storage blocked from the start.
+- UI: no colour-blind palette or text-size option.
+- Feel: key story portraits have few expressions; no camera punch on the biggest combos; one swing timing for all
+  weapons.
+- Field art: rooftop clutter repeats; puddle reflections are smudgy; the bar interior is sparse.
+- Level: the Barrens' middle is empty; the Annex wings could use set-piece rooms.
+- Progression: loot is only sold, never used (no crafting layer).
+- Engine: `field/props.ts` (1,756 lines) and `field/tiles.ts` are big single files; `!` assertions remain outside
+  `engine/` and `battle/`.
+- Touch controls (the input layer supports touch; there's no on-screen pad yet).
+
+## Documentation map
+
+| Doc | For |
+|---|---|
+| `CLAUDE.md` | AI sessions: read order and rules (loaded automatically in this folder) |
+| `docs/ARCHITECTURE.md` | How the code is organised and how the pieces talk |
+| `docs/DEVELOPING.md` | Commands, tests, debug tools, conventions, traps, recipes |
+| `docs/GDD.md` | The game's design |
+| `docs/GLOSSARY.md` | Every name, place, faction, term and mechanic (with [review] marks) |
+| `docs/SETTING.md` | The world bible: history, politics, society, figures ([canon] vs [new]) |
+| `docs/quality/GRADING.md` | How quality was graded, the full score history, what it got wrong, the exit |
+| `docs/quality/rubric.md`, `scorecard.md`, `reviews/` | The rubric, the scores and work logs, each round's reviewer notes |
+| `docs/original-prompt.md` | The prompt that started it |
+
+## Architecture (summary; full version in docs/ARCHITECTURE.md)
 
 - Vite + TypeScript (strict), zero runtime deps, Canvas 2D at 480x270. All art and audio are generated in code.
 - `src/engine/`: loop, scene stack, input, bitmap font, display scaling.
 - `src/field/`: map baking (tiles, buildings, props), light map, weather, actors, chests.
-- `src/battle/`: pure deterministic engine, AI, FX. `src/scenes/battle.ts` is the presentation.
-- `src/audio/`: WebAudio synth, sequencer and composition DSL; 14 songs (`songs.ts`) and SFX.
+- `src/battle/`: pure deterministic engine, AI, FX. `src/scenes/battle.ts` + `battlekit/` are the presentation
+  (loaded as a separate chunk).
+- `src/audio/`: WebAudio synth, sequencer and composition DSL; 15 songs (`songs.ts`) and 69 SFX.
 - `src/story/chapter1.ts`: every story beat. `src/data/maps/*.ts`: all maps, NPCs and events.
-- `src/game/`: state, party, save (3 slots + autosave), systems hooks, debug and stage presets.
-- Tests: Vitest (battle, balance simulator, economy model, save, music) and Playwright E2E (`e2e/playthrough.spec.ts` full chapter, `e2e/gameover.spec.ts`). Screenshot evidence: `npm run shots` writes `docs/screenshots/`. Playtest capture: `npx playwright test e2e/playtest.spec.ts` plays Chapter 1 hands-off with real dialogs/battles and writes a frame every 2.5s to `playtest/latest/` (gitignored).
-- Dev: `npm run dev` (port 3007). Debug routes: `?scene=field&map=ID&x=&y=`, `?scene=battle&enc=&bg=`, `?scene=chars|bestiary|portraits|mapview&map=ID`. `window.__SJ__` offers `stage(name)`, `tp()`, `battle()`, `say()`, `menu()` and `debug.autoDialog/autoBattle`.
-
-## Current Status
-
-**Content-complete and playable start to finish.** Quality gate: rounds 1–11 verified (round 11 averaged 7.87; Stability 9.0 and UI/UX 8.7 pass). Mark asked for unattended rounds past the rubric's 4-round cap, pausing only at usage limits. **Round 12 fixes landed (2026-09-29) and are being verified**: see the scorecard's round-12 work log. Headlines: a swing that arcs and bosses with drawn frames; a brighter mix whose fights swell; a first boss that teaches the tell; no unchecked assertions in the core and a split bundle; Mags' discount reachable; Pale's satsuma and a struggle at the dock; readable relay wiring and a Lurker tell; a crowd on its phones and a broken-open cryopod.
-
-**Exit set (2026-09-29).** Round 12 is the last automated round: its verification runs as the closing measurement,
-then the loop stops. The real exit gate is Mark's own end-to-end playthrough; what he finds is triaged as bugs (fix
-before the alpha ships) or design notes (next milestone). How the grading worked, and where it fell short:
-`docs/quality/GRADING.md`.
-
-**Resume here**
-1. Read the latest verifier results in the scorecard. Deferred on purpose in round 11: Annex set-piece rooms, the Barrens middle, neon in puddles, distinct terminal/tank silhouettes, hand-authored signature melodies.
-2. After any change: `npx tsc --noEmit`, `npm run lint` (judge by exit code, not the last line), `npx vitest run`, `npx playwright test` (full suite), commit, push, then `gh run list -L 3` to confirm CI. `PW_NOGPU=1` reproduces CI's software canvas for perf work.
-3. Evidence: `npm run shots` (screenshots incl. map overviews), logs in `docs/quality/evidence/`.
-
-Don't edit `src/` while a Playwright run is going: Vite hot-reloads and the run dies.
-
-The original prompt that started the project: `docs/original-prompt.md`.
+- `src/game/`: state, party, save (3 slots + autosave, format v2 with migrations), systems hooks, debug and stage
+  presets.
+- Tests: Vitest (battle rules, balance simulator, economy Monte Carlo, save, maps, layout, music…) and Playwright
+  E2E (full chapter, playtest capture, game over and saves, chaos input, shipped build, perf, audio, screenshots).
+- Dev: `npm run dev` (port 3007). Debug routes and the `window.__SJ__` hook are in `docs/DEVELOPING.md` §4.
 
 ## Future Plans
 
@@ -61,6 +108,7 @@ The original prompt that started the project: `docs/original-prompt.md`.
 
 ## Notes
 
-- Python edits on Windows: write with `newline='\n'`. Avoid `'` inside Python heredocs; use ’ in dialogue.
+- Python edits on Windows: write with `newline='\n'`. Avoid `'` inside Python heredocs; use ’ in dialogue. Scripts
+  with backslashes: write them to a file rather than a heredoc.
 - No Co-Authored-By lines in commits (per CLAUDE.md).
 - Biome's formatter is deliberately off: palettes, glyph tables, maps and ability data are hand-grouped, and the formatter explodes them one entry per line (tried in round 5: +6.8k lines, much harder to read). Lint is enforced in CI; `.editorconfig` covers whitespace.

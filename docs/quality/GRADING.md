@@ -332,4 +332,4 @@ and set an exit:
 | Current scores and each round's work log | `docs/quality/scorecard.md` |
 | Each round's reviewer notes | `docs/quality/reviews/round-NN.md` (condensed for rounds 6–11; verbatim from round 12) |
 | The evidence | `docs/quality/evidence/`, `docs/screenshots/` |
-| The generator for the per-area prompts | reproduced in section 5 (it lived in the session's scratch space) |
+| The tools | `scripts/evidence.sh` (regenerate all evidence), `scripts/verifier-prompts.py <round>` (the 11 reviewer prompts, with the per-area lists of section 5), `scripts/score-history.py` (the history table in section 8); how to run a round: `docs/DEVELOPING.md` §6 |
