@@ -103,7 +103,7 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
   squares up to a named member (guard or cover them); the Warden locks its cannon on one (guard, or Rook's Guardian);
   the sentry turret spins up (jam or stun it); the Arcanist draws a surge (blind her, or hit her hard while she
   draws); the Warden's spirit draws breath (ward the crew).
-* **Combos:** nine, including **Clean Job**, a three-member combo (Kit, Rook, Hex). Each has a caller who says a line
+* **Combos:** nine (eight reachable in Chapter 1), including **Clean Job**, a three-member combo (Kit, Rook, Hex). Each has a caller who says a line
   on their cut-in. A combo's first use is logged in the menu's Combo Log, with hints for the undiscovered ones.
 * **Analyze** reveals HP and weaknesses and exposes the target (+25% damage taken). Weaknesses found in battle are
   remembered in the Bestiary and shown on the target cursor.
@@ -112,7 +112,9 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 
 ## 6. Progression
 
-* Levels 1–30 (`MAX_LEVEL`; chapter 1 ends around Lv 8–9 without grinding, leaving room for later chapters). Per-character stat growth curves; techs and skills unlock at set levels, the chapter's capstones (Moonfall, Dragon Coil, Rekindle, Wildfire) at 8–9 so they're reachable.
+* Levels 1–30 (`MAX_LEVEL`). **Chapter 1 ends around level 6** without grinding (retuned 2026-09-29 after Mark's first playthrough; it was 8–9), treating the chapter as about a tenth of the full game. Levels are rarer, so each carries more growth, and **a level-up is a full recovery** (HP, TP, charges).
+* **New abilities are rare.** In Chapter 1 only three come from levels (Kit: Iron Palm at 3, Hundred Rain at 5; Hex: Scramble at 4). The rest come from the story: seating the Stingray gives Hex **Overload**; Rook gets his locked skills back in two beats. The capstones (Moonfall, Dragon Coil, Rekindle, Wildfire) and Spirit Walk's parts wait for later chapters; 8 of the 9 combos are reachable in Chapter 1.
+* **Rook is a veteran (level 10) who starts the chapter wounded:** less HP, ATK and AGI, a charge short on every skill, four skills locked. Hex re-tunes his chrome when the Stingray boots (half the penalty lifts; Suppression and Incendiary Round come back); Sable closes the wound when she joins (whole again; Guardian and Stim Rush). Joiners and prices follow the crew's level, not his.
 * Equipment slots: Weapon, Body, Head, Mod (cyberware/fetish accessory). Class restrictions apply.
 * XP goes in full to every conscious member. Downed members get none.
 
