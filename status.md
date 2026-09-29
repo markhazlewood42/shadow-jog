@@ -41,6 +41,7 @@ The original prompt that started the project: `docs/original-prompt.md`.
 ## Future Plans
 
 - Touch controls.
+- **Glossary review.** `docs/GLOSSARY.md` holds every term and concept in the setting; Mark reviews it as a whole once the alpha phase completes (asked 2026-09-29). Its **[review]** marks and closing questions are the agenda. Keep it current in the same change as any new name or term.
 - **Deploy to shadowjog.com** (domain bought 2026-09-28; hosting probably Vercel). Confirm with Mark before any deploy.
 - **Last step, after the alpha is fully working: interest sign-up.** The final screen (the "Chapter 2 coming soon"
   card, `src/scenes/ending.ts`) gets an email field so players can ask to hear about updates. It must be secure. The

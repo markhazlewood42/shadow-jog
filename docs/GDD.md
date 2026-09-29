@@ -3,7 +3,7 @@ type: design
 title: Shadow Jog — Game Design Document
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-29
 tags: [gdd, design]
 ---
 
@@ -17,17 +17,11 @@ tags: [gdd, design]
 > every name, place and term is original (see the glossary below). The city is **Saltreach** (2079), a drowned coastal megacity; Chapter 1
 > stays in its Lower Wards.
 
-### Glossary (Saltreach's own words)
+### Glossary
 
-| Term | Means | Instead of the genre's usual |
-|---|---|---|
-| **Woken** | Born with (or come into) magic; a Woken kid, a Woken forest | "Awakened" |
-| **spark** | The magic in a Woken person, and what Kessler-Mori extracts and measures ("spark yield") | "essence" |
-| **deck jockey** / jockey | A hacker who rides a cyberdeck into systems | "decker" |
-| **ki brawler** | A fighter whose magic comes out through the body | "physical adept" |
-| **jog** | A small, supposedly easy job | — |
-
-Kept, because they're older and wider than any one game: street samurai (Gibson), deck, fixer, chrome, shaman, orc, dwarf.
+Every name, place, faction, slang word and mechanic in the setting lives in **`docs/GLOSSARY.md`**. That includes
+the words Shadow Jog uses instead of the genre's usual ones (Woken, spark, deck jockey, ki brawler). Mark reviews
+the glossary as a whole at the end of the alpha.
 
 ## 1. Pillars
 
