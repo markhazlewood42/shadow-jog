@@ -120,6 +120,8 @@ export class PanelScene extends Scene<void> {
   private shown = 0;
   private t = 0;
   private panelT: number[] = [];
+  /** A confirm pressed before the newest panel landed, waiting to advance. */
+  private queued = false;
   /** Characters of each panel's speech revealed so far. */
   private typed: number[] = [];
   private cache = new Map<string, HTMLCanvasElement>();
@@ -177,7 +179,11 @@ export class PanelScene extends Scene<void> {
       this.typed[this.shown - 1] = cur.text.length;
       return;
     }
-    if (inp.pressed('confirm') && lastT > 12) {
+    // A press while the newest panel is still sliding in isn't lost (the dialogue contract): it
+    // waits, and advances the moment the panel has landed.
+    if (inp.pressed('confirm')) this.queued = true;
+    if (this.queued && lastT > 12) {
+      this.queued = false;
       if (this.shown < p.length) this.revealNext();
       else {
         this.page++;

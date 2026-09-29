@@ -160,9 +160,13 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private speed(): number {
     return battleSpeed().mult;
   }
-  private w(frames: number): Promise<void> {
+  /** Frames at the player's pace: Battle Speed, and faster still while confirm or cancel is held. */
+  scaled(frames: number): number {
     const fast = this.game.input.down('confirm') || this.game.input.down('cancel') ? 1.6 : 1;
-    return this.game.wait(Math.max(1, Math.round(frames / this.speed() / fast)));
+    return Math.max(1, Math.round(frames / this.speed() / fast));
+  }
+  private w(frames: number): Promise<void> {
+    return this.game.wait(this.scaled(frames));
   }
 
   private async intro(): Promise<void> {
@@ -624,8 +628,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       hitstop: (frames) => {
         // Players can turn freeze-frames off (Options → Hit pause).
         if (!settings.hitPause) return Promise.resolve();
-        scene.hitstop = frames;
-        return scene.game.wait(frames);
+        // At the player's pace like every other wait: a faster battle gets shorter freezes.
+        const f = scene.scaled(frames);
+        scene.hitstop = f;
+        return scene.game.wait(f);
       },
       markDead: (uid) => {
         scene.dead.add(uid);
