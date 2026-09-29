@@ -5,6 +5,7 @@ import { sfx } from '../audio/sfx';
 import type { Ctx } from '../engine/canvas';
 import { drawText, fitText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
+import { notice } from '../engine/errors';
 import { BATTLE_SPEEDS, battleSpeed, saveSettings, settings, TEXT_SPEEDS, textSpeed } from '../game/settings';
 import { drawBar, drawCursor, drawSelect, drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
 import { keyLabel, type Action } from '../engine/input';
@@ -163,10 +164,14 @@ export class OptionsScene extends Scene<'back' | 'title'> {
 }
 
 export function toggleFullscreen(): void {
+  // A refusal (no support, an iframe without permission, a browser setting) says so, like every
+  // other blocked action: the row not changing isn't an explanation.
+  const refused = () => notice('Fullscreen isn’t available here: the browser refused it. The window scale options still work.', 'warn');
   try {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen();
+    const req = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
+    if (!req) refused();
+    else req.catch(refused);
   } catch {
-    /* not supported */
+    refused();
   }
 }

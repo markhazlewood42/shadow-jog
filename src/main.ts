@@ -73,7 +73,9 @@ function start(): void {
       return;
     }
     // Up to two wrapped lines; anything longer ends in an ellipsis rather than mid-word.
-    const text = n.tone === 'warn' ? n.text : `Something went wrong: ${n.text}`;
+    // An error keeps its detail (it's what a bug report needs) but leads with what happened in the
+    // game's own voice: something broke, and play carried on.
+    const text = n.tone === 'warn' ? n.text : `Something glitched, and the game kept going. (${n.text})`;
     const lines = wrap(text, 472);
     if (lines.length > 2) lines.splice(1, lines.length - 1, fitText(lines.slice(1).join(' '), 472));
     ctx.fillStyle = n.tone === 'warn' ? 'rgba(46,34,6,0.92)' : 'rgba(40,6,16,0.9)';

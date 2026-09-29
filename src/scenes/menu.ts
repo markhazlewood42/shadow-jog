@@ -452,7 +452,7 @@ export class MenuScene extends Scene<MenuResult> {
       // Wrapped to the box (it grows upward for a second line), never drawn past its frame.
       const lines = wrap(obj, MENU_OBJ_W);
       const h = 12 + lines.length * 10;
-      drawWindow(ctx, 108, H - 8 - h, W - 116, h, { plain: true, accent: UI.amber });
+      drawWindow(ctx, 108, H - 8 - h, W - 116, h, { plain: true, accent: UI.amber, title: 'OBJECTIVE' });
       for (const [i, ln] of lines.entries()) drawText(ctx, (i === 0 ? '{y}▶{/} ' : '   ') + ln, 116, H - 2 - h + 4 + i * 10);
     }
     // Right side: party cards or sub-list
