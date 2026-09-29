@@ -347,16 +347,26 @@ export class ShopScene extends Scene<void> {
     }
     if (this.mode === 'qty') {
       const price = this.qtyMode === 'buy' ? this.price(it.id) : sellPrice(it.id);
-      const w = 150, x = lx + (lw - w) / 2, qy = 120;
-      drawWindow(ctx, x, qy, w, 36, { accent: UI.amber });
+      const w = 150, x = lx + (lw - w) / 2, qy = this.popupY(36);
+      drawWindow(ctx, x, qy, w, 36, { accent: UI.amber, alpha: 1 });
       drawText(ctx, `Quantity  ◀ {y}${this.qty}{/} ▶`, x + 10, qy + 7);
       drawText(ctx, `${this.qtyMode === 'buy' ? 'Total' : 'You get'}: ${(price * this.qty).toLocaleString('en-US')}¢`, x + 10, qy + 19, { color: UI.dim });
     }
     if (this.mode === 'equip') {
-      const w = 176, h = 22 + this.equipList.items.length * 11, x = lx + (lw - w) / 2, ey = 96;
-      drawWindow(ctx, x, ey, w, h, { title: 'EQUIP NOW?', accent: UI.amber });
+      const w = 176, h = 22 + this.equipList.items.length * 11, x = lx + (lw - w) / 2, ey = this.popupY(h);
+      drawWindow(ctx, x, ey, w, h, { title: 'EQUIP NOW?', accent: UI.amber, alpha: 1 });
       this.equipList.render(ctx, x + 8, ey + 10, w - 14, true);
     }
+  }
+
+  /**
+   * Where a popup over the list goes: just under the chosen row (its title tab clear of the row),
+   * or just over it when there's no room below; opaque, so the list doesn't ghost through.
+   */
+  private popupY(h: number): number {
+    const row = 54 + (this.list.index - this.list.scroll) * 11;
+    const below = row + 16;
+    return below + h <= H - 12 ? below : Math.max(50, row - h - 6);
   }
 
   /** The sell-all row's detail: what goes, and what it fetches. */
@@ -379,8 +389,8 @@ export class ShopScene extends Scene<void> {
   }
 
   private renderJunkConfirm(ctx: Ctx, lx: number, lw: number): void {
-    const w = 150, x = lx + (lw - w) / 2, qy = 110;
-    drawWindow(ctx, x, qy, w, 44, { title: 'SELL ALL LOOT?', accent: UI.amber });
+    const w = 150, x = lx + (lw - w) / 2, qy = this.popupY(44);
+    drawWindow(ctx, x, qy, w, 44, { title: 'SELL ALL LOOT?', accent: UI.amber, alpha: 1 });
     this.junkList.render(ctx, x + 8, qy + 12, w - 14, true);
   }
 

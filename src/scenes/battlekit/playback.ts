@@ -160,7 +160,8 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         const u = v.battle.unit(a)!;
         if (u.side !== 'party') return;
         const line = call?.member === u.key ? call.line : undefined;
-        v.cutin({ key: u.key, face: line ? 'angry' : 'smirk', t: 0, fromLeft: i % 2 === 0, life: 70, row: i >> 1, ...(line ? { line } : {}) });
+        // As long as the name card holds (below), so the crew is in view again when the blow lands.
+        v.cutin({ key: u.key, face: line ? 'angry' : 'smirk', t: 0, fromLeft: i % 2 === 0, life: 56, row: i >> 1, ...(line ? { line } : {}) });
       });
       v.setBanner({ text: `★ ${e.name.toUpperCase()} ★`, sub: first ? `${names}  —  COMBO DISCOVERED!` : names, t: 0, color: '#ffe07a', big: true });
       v.game.flash('#ffffff', 6);

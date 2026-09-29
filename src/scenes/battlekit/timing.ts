@@ -16,9 +16,9 @@ import type { Ctx } from '../../engine/canvas';
 export const WINDOWS: Record<TimingProfile, { lead: number; perfect: number; early: number; late: number; radius: number }> = {
   // Slowed after Mark's first playthrough (2026-09-29: "a bit too fast, both attacks and
   // blocks"): the ring takes about 40% longer to close and each window is a little wider.
-  quick: { lead: 26, perfect: 3, early: 8, late: 4, radius: 18 },
-  normal: { lead: 34, perfect: 4, early: 11, late: 6, radius: 22 },
-  heavy: { lead: 44, perfect: 6, early: 15, late: 9, radius: 28 },
+  quick: { lead: 26, perfect: 3, early: 8, late: 4, radius: 16 },
+  normal: { lead: 34, perfect: 4, early: 11, late: 6, radius: 20 },
+  heavy: { lead: 44, perfect: 6, early: 15, late: 9, radius: 26 },
 };
 /** The normal beat (the minimum lead playback allows). */
 export const RING_LEAD = WINDOWS.normal.lead;

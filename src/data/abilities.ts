@@ -183,7 +183,7 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   combo_ghost_circuit: A({
     id: 'combo_ghost_circuit', name: 'Ghost Circuit', kind: 'combo', target: 'enemy', element: 'mana',
-    desc: 'Code and ki braided together. Ignores all resistance.',
+    desc: 'Code and ki braided together: it goes straight through wards and armour (ignores RES).',
     effects: [{ type: 'damage', stat: 'mnd', power: 95, ignoreDef: true }], fx: 'ghost_circuit',
   }),
   combo_pyre_storm: A({
@@ -354,6 +354,13 @@ export interface ComboDef {
   hint: string;
   /** Who calls it, and what they say (on the combo's cut-in). */
   call: { member: string; line: string };
+  /** Needs an ability Chapter 1 doesn't reach (tests/balance.test.ts checks this matches the learnsets). */
+  later?: true;
+}
+
+/** The combos a Chapter 1 crew can find (what the Combo Log and the results screen count). */
+export function chapterCombos(): ComboDef[] {
+  return COMBOS.filter((c) => !c.later);
 }
 
 export const COMBOS: ComboDef[] = [
@@ -386,6 +393,8 @@ export const COMBOS: ComboDef[] = [
     parts: [{ member: 'sable', ability: 'crow_spirit' }, { member: 'kit', ability: 'hundred_rain' }],
     hint: 'When the crow flies, the fists follow.',
     call: { member: 'sable', line: 'Run with the crow, Kit.' },
+    // Sable's Crow Spirit comes at 8, past where Chapter 1 ends.
+    later: true,
   },
   {
     id: 'combo_crows_wing',

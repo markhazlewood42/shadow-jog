@@ -113,6 +113,8 @@ export class Game {
   onFault: (() => void) | null = null;
   /** Consecutive ticks in which something threw. */
   private faults = 0;
+  /** Input polling has thrown once (reported); later throws are dropped silently. */
+  private inputFaulted = false;
   private faultedThisTick = false;
   /** Consecutive renders in which a scene threw (a draw bug can freeze the picture on its own). */
   private renderFaults = 0;
@@ -241,7 +243,15 @@ export class Game {
   /** One fixed tick. */
   tick(): void {
     this.faultedThisTick = false;
-    this.input.update();
+    // Input polling shouldn't throw (Input guards the Gamepad API itself), but if it does, the
+    // loop reports it once and carries on rather than dying on a black screen. It isn't a scene
+    // fault: a persistent input failure mustn't send the player back to the title every 30 ticks.
+    try {
+      this.input.update();
+    } catch (e) {
+      if (!this.inputFaulted) reportError(e);
+      this.inputFaulted = true;
+    }
     // A hook that throws is reported and dropped: it isn't a scene, so going back to the title
     // wouldn't clear it, and left in place it would trip the fault limit over and over.
     for (let i = 0; i < this.tickers.length; i++) {

@@ -25,6 +25,7 @@ export const OBJ = {
   sinkline: 'Enter the Sinkline. The station is south of Lantern Row, over the canal.',
   flood: 'Find a way across the flooded junction.',
   drain: 'Drain the junction: the pump room is south of the platform.',
+  cross: 'Cross the drained junction. The way down is past Signal Island, in the south-east.',
   deeper: 'Go deeper. Find Annex 7.',
   core: 'Find the data core.',
   escape: 'Gear up from the Annex armory, then head for the freight lift in the south wing.',
@@ -352,7 +353,7 @@ export const floodgate: ScriptFn = async (s) => {
   await s.fadeOut(20, '#07060d');
   await s.panBack(1);
   await s.fadeIn(20);
-  s.objective(OBJ.flood);
+  s.objective(OBJ.cross);
 };
 
 export const lurkerFight: ScriptFn = async (s) => {
@@ -528,7 +529,7 @@ export const cryopod: ScriptFn = async (s) => {
   await s.say('sable', 'The crow doesn’t care how old it is. Hold still.');
   s.flash('#ffffff', 10);
   s.sfx('spirit');
-  await s.narrate('Sable lays two fingers against Rook’s side. Something black-feathered and warm passes through the room. When she steps back, the stitches are just a scar.');
+  await s.narrate('Sable lays two fingers against Rook’s side. Something black-feathered and warm passes through the room. When they step back, the stitches are just a scar.');
   const mended = s.unlock('rook_mended');
   s.sfx('levelup');
   await s.narrate(`Rook’s wound is closed: full strength, every charge back, and {y}${mended.join('{/} and {y}')}{/} too.`);

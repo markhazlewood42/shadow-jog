@@ -157,3 +157,32 @@ describe('signs', () => {
     expect(clashes).toEqual([]);
   });
 });
+
+describe('secrets are reachable', () => {
+  // The connectivity tests above ignore props; this one doesn't. Props block their footprint (as
+  // field/props.ts blockFoot does by default: x..x+w-1, y..y+h-1, unless `pass`), in every story
+  // state they appear in (a valve's closed and opened versions both count), and so do the other
+  // chests. Each chest must have a walkable tile beside it that the player can reach from where
+  // they arrive on the map. (Found by round 13: Intake 3's valve stood on the only way into the
+  // Sinkline's sealed closet.)
+  for (const id of mapIds()) {
+    const def = getMap(id);
+    if (!def.chests?.length) continue;
+    it(`${id}: every chest can be reached`, () => {
+      const g = grid(id);
+      const blocked = new Set<number>();
+      for (const p of def.props ?? []) {
+        if ((p as { pass?: boolean }).pass) continue;
+        for (let y = p.y; y < p.y + ((p as { h?: number }).h ?? 1); y++) for (let x = p.x; x < p.x + (p.w ?? 1); x++) blocked.add(y * g.w + x);
+      }
+      for (const c of def.chests ?? []) blocked.add(c.y * g.w + c.x);
+      const open = (x: number, y: number) => g.open(x, y) && !blocked.has(y * g.w + x);
+      const walk = { ...g, open };
+      const starts = arrivals(id).filter(([x, y]) => g.open(x, y));
+      if (def.entrance) starts.push([def.entrance.x, def.entrance.y]);
+      const d = distances(walk, starts);
+      const stuck = (def.chests ?? []).filter((c) => ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => d.has((c.y + dy!) * g.w + c.x + dx!))).map((c) => c.id);
+      expect(stuck).toEqual([]);
+    });
+  }
+});

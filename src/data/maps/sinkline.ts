@@ -96,8 +96,9 @@ export const sinkline1: MapDef = {
     { kind: 'valve', x: 2, y: 10, color: 'open', when: (f) => !!f.valve_v1 },
     { kind: 'valve', x: 18, y: 19, when: (f) => !f.valve_v2 },
     { kind: 'valve', x: 18, y: 19, color: 'open', when: (f) => !!f.valve_v2 },
-    { kind: 'valve', x: 13, y: 26, when: (f) => !f.valve_v3 },
-    { kind: 'valve', x: 13, y: 26, color: 'open', when: (f) => !!f.valve_v3 },
+    // Intake 3 sits beside its sign, clear of the tile below the cracked closet wall (13,26).
+    { kind: 'valve', x: 12, y: 26, when: (f) => !f.valve_v3 },
+    { kind: 'valve', x: 12, y: 26, color: 'open', when: (f) => !!f.valve_v3 },
     { kind: 'sign_post', x: 3, y: 9, text: 'INTAKE 1' },
     { kind: 'sign_post', x: 19, y: 19, text: 'INTAKE 2' },
     { kind: 'sign_post', x: 11, y: 26, text: 'INTAKE 3' },
@@ -176,11 +177,10 @@ export const sinkline1: MapDef = {
           await s.say('Wire', 'I fence what the tunnels cough up. You need gear, I got gear. Mags-grade, no backtracking.');
           // The puzzle, announced (Mark's playthrough, 2026-09-29: nothing said there was one).
           if (!s.flag('floodgate')) {
-            await s.say('Wire', 'Going east? Junction’s been a lake since ’61. The old pump crew could drain it, though. Three intakes on this level and a console in the pump room, south of the platform.');
-            await s.say('Wire', 'Word of advice: read the gauges before you touch a wheel. Open them in the wrong order and the whole manifold kicks you in the teeth.');
+            await s.say('Wire', 'Going east? Junction’s been a lake since ’61. The old pump crew could drain it, though, if anybody still remembered how. Their pump room’s south of the platform.');
           }
         } else if (!s.flag('floodgate')) {
-          await s.say('Wire', 'Junction still wet? Pump room’s south. The console knows the order, if you ask it nicely.');
+          await s.say('Wire', 'Junction still wet? Pump room’s south. The console down there still talks, if you ask it nicely.');
         }
         await s.shop('fence');
       },
@@ -202,7 +202,7 @@ export const sinkline1: MapDef = {
     { id: 'pump', x: 6, y: 26, on: 'action', run: floodgate },
     { id: 'valve1', x: 2, y: 10, h: 2, on: 'action', run: pumpValve('v1') },
     { id: 'valve2', x: 18, y: 19, h: 2, on: 'action', run: pumpValve('v2') },
-    { id: 'valve3', x: 13, y: 26, h: 2, on: 'action', run: pumpValve('v3') },
+    { id: 'valve3', x: 12, y: 26, h: 2, on: 'action', run: pumpValve('v3') },
     {
       id: 'flood_hint', x: 29, y: 8, h: 2, on: 'touch', once: true, when: (f) => !f.floodgate,
       run: async (s) => {
@@ -245,8 +245,8 @@ export const sinkline1: MapDef = {
     { x: 2, y: 11, r: 36, color: '#62e06a', i: 0.55, when: (f) => !!f.valve_v1 },
     { x: 18, y: 20, r: 30, color: '#ff5a4a', i: 0.35, when: (f) => !f.valve_v2 },
     { x: 18, y: 20, r: 36, color: '#62e06a', i: 0.55, when: (f) => !!f.valve_v2 },
-    { x: 13, y: 27, r: 28, color: '#ff5a4a', i: 0.32, when: (f) => !f.valve_v3 },
-    { x: 13, y: 27, r: 32, color: '#62e06a', i: 0.5, when: (f) => !!f.valve_v3 },
+    { x: 12, y: 27, r: 28, color: '#ff5a4a', i: 0.32, when: (f) => !f.valve_v3 },
+    { x: 12, y: 27, r: 32, color: '#62e06a', i: 0.5, when: (f) => !!f.valve_v3 },
     { x: 20, y: 21, r: 40, color: '#ffd07a', i: 0.4 },
     { x: 37, y: 16, r: 70, color: '#4affb0', i: 0.5 },
     { x: 41, y: 20, r: 40, color: '#ff6a5a', i: 0.45, flicker: true },

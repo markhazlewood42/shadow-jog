@@ -15,7 +15,6 @@ import { MEMBERS } from '../../data/party';
 import type { Ctx } from '../../engine/canvas';
 import { drawParagraph, drawText, fitText, measure, wrap } from '../../engine/font';
 import { H, W } from '../../engine/game';
-import { knownAbilities, maxUses } from '../../game/party';
 import { state, type MemberId } from '../../game/state';
 import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
 import { TARGET_INFO_W } from '../../ui/layout';
@@ -51,6 +50,11 @@ const CONDUITS: readonly (readonly [number, number, number, number, number])[] =
 
 /** How the street names each kind of enemy (the target box's hint line). */
 const FAMILY_NAME: Record<string, string> = { human: 'Chromed', machine: 'Machine', beast: 'Beast', spirit: 'Spirit', ghoul: 'Ghoul' };
+
+/** Draw an enemy-art canvas at its battle-world size (its art may be finer than the world). */
+function putArt(g: Ctx, c: HTMLCanvasElement, x: number, y: number, res: number): void {
+  g.drawImage(c, x, y, c.width / res, c.height / res);
+}
 
 export class BattleRenderer {
   constructor(private readonly s: BattleScene) {}
@@ -203,7 +207,6 @@ export class BattleRenderer {
     // Every canvas below is at the art's resolution: placed at its world size (the 2x transform
     // on the enemy layer turns a creature's art pixels into screen pixels).
     const res = art.res;
-    const put = (c: HTMLCanvasElement, px: number, py: number) => g.drawImage(c, px, py, c.width / res, c.height / res);
     let ox = 0, oy = 0;
     switch (art.idle) {
       case 'hover': oy = Math.round(Math.sin(f * 0.08 + e.uid) * 2); break;
@@ -252,10 +255,10 @@ export class BattleRenderer {
       // from the top, drifting up as it goes.
       const k = Math.min(1, dd.dying / 28);
       const lift = Math.round(k * 4);
-      put(dissolved(canvas, Math.min(DISSOLVE_STEPS, Math.floor(k * (DISSOLVE_STEPS + 1)))), dx, dy - lift);
+      putArt(g, dissolved(canvas, Math.min(DISSOLVE_STEPS, Math.floor(k * (DISSOLVE_STEPS + 1)))), dx, dy - lift, res);
       if (dd.dying < 6) {
         g.globalAlpha = 0.5 * (1 - dd.dying / 6);
-        put(silhouetteCache(canvas, '#ffffff'), dx, dy - lift);
+        putArt(g, silhouetteCache(canvas, '#ffffff'), dx, dy - lift, res);
       }
       g.globalAlpha = 1;
       return;
@@ -273,26 +276,26 @@ export class BattleRenderer {
     }
     // Rim light in a colour the backdrop doesn't use, so no enemy blends into the set.
     g.globalAlpha = alpha * 0.55;
-    put(rimOf(canvas, this.s.rim), dx - 1 / res, dy - 1 / res);
+    putArt(g, rimOf(canvas, this.s.rim), dx - 1 / res, dy - 1 / res, res);
     g.globalAlpha = alpha;
-    put(canvas, dx, dy);
+    putArt(g, canvas, dx, dy, res);
     if (this.s.bg.tintAmt > 0) {
       // Ambient tint: multiply-ish wash using the background light color.
       g.globalAlpha = alpha * this.s.bg.tintAmt;
-      put(silhouetteCache(canvas, this.s.bg.tint), dx, dy);
+      putArt(g, silhouetteCache(canvas, this.s.bg.tint), dx, dy, res);
       g.globalAlpha = alpha;
     }
-    if (glow) put(glow, dx, dy);
+    if (glow) putArt(g, glow, dx, dy, res);
     if (castGlow > 0) {
       g.globalAlpha = alpha * castGlow;
-      put(silhouetteCache(canvas, '#e8d8ff'), dx, dy);
+      putArt(g, silhouetteCache(canvas, '#e8d8ff'), dx, dy, res);
       g.globalAlpha = alpha;
     }
     if (dd.flash > 0 && dd.flash % 4 < 2) {
       // A blink, not a blank: the sprite's detail stays visible under the white, so a still
       // caught on this frame reads as a hit rather than a white smear.
       g.globalAlpha = 0.55 * alpha;
-      put(silhouetteCache(canvas, '#ffffff'), dx, dy);
+      putArt(g, silhouetteCache(canvas, '#ffffff'), dx, dy, res);
     }
     g.globalAlpha = 1;
     if (squash > 0) g.restore();
@@ -401,8 +404,10 @@ export class BattleRenderer {
       x = p.x;
       y = PARTY_BOTTOM - this.s.partyArt.get(uid)!.headH - 3;
     }
-    const b = Math.round(Math.sin(f * 0.25) * 3);
-    const top = y - 9 + b;
+    // Over an enemy it hangs above the head; over the crew it sits right on the hair, so it never
+    // reaches up into the enemy row and reads as a target cursor (round 13).
+    const b = Math.round(Math.sin(f * 0.25) * (u.side === 'enemy' ? 3 : 1.5));
+    const top = u.side === 'enemy' ? y - 9 + b : y - 2 + b;
     // A chunky chevron (9 wide, 5 deep) with a dark outline all round, so it holds against any
     // backdrop, and a white glint across its top on the beat.
     g.fillStyle = '#0a0913';
@@ -746,9 +751,11 @@ export class BattleRenderer {
         drawBar(ctx, x + 7, y + 44, 102, 2, dd.shownTp / p.base.maxTp, UI.cyan);
       } else {
         // Rook: skill charges instead of TP, with the same bar (charges left of the full set).
-        const known = knownAbilities(state.members[p.key as MemberId]!, 'skill');
-        const total = known.reduce((n, id) => n + (p.uses[id] ?? 0), 0);
-        const full = known.reduce((n, id) => n + maxUses(p.key as MemberId, id), 0);
+        let total = 0, full = 0;
+        for (const id in p.maxUses) {
+          total += p.uses[id] ?? 0;
+          full += p.maxUses[id] ?? 0;
+        }
         drawText(ctx, 'SKILL', x + 7, y + 33, { color: UI.dim });
         drawText(ctx, `${total}/${full} uses`, x + 110, y + 33, { align: 'right' });
         drawBar(ctx, x + 7, y + 44, 102, 2, full ? total / full : 0, UI.amber);
@@ -817,8 +824,10 @@ export class BattleRenderer {
     if (!a) return;
     // Stacked above the command window, and above the party's heads, so the field stays readable.
     const items = this.s.listMenu.items;
-    const widest = items.reduce((m, it) => Math.max(m, measure(it.label) + (it.right ? measure(it.right) + 12 : 0)), measure('Nothing to use.'));
-    const w = Math.min(190, Math.max(120, widest + 30));
+    let widest = measure('Nothing to use.');
+    for (const it of items) widest = Math.max(widest, measure(it.label) + (it.icon ? measure(it.icon) + 3 : 0) + (it.right ? measure(it.right) + 12 : 0));
+    // Cursor and margins (the list draws labels 9px in, and the window has 8px either side).
+    const w = Math.min(210, Math.max(120, widest + 32));
     const h = Math.min(this.s.listMenu.rows, Math.max(1, items.length)) * 11 + 14;
     const cmdTop = PANEL_Y - (this.s.cmdMenu.items.length * 11 + 12) - 6;
     const x = this.s.menuX(a, w), y = cmdTop - h - 4;
@@ -853,7 +862,8 @@ export class BattleRenderer {
     // Nothing learned yet: what everyone on the street knows about its kind.
     let guess = '';
     if (!weak.length && u.family) {
-      const fam = Object.entries(FAMILY_WEAK[u.family] ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => `${elementMark(k as Element)}${ELEMENT_TAG[k as Element]}`);
+      const own = ENEMIES[u.key]?.weak;
+      const fam = Object.entries(FAMILY_WEAK[u.family] ?? {}).filter(([k, v]) => (v ?? 1) > 1 && (own?.[k as Element] ?? 2) > 1).map(([k]) => `${elementMark(k as Element)}${ELEMENT_TAG[k as Element]}`);
       if (fam.length) guess = `${FAMILY_NAME[u.family]}: likely weak to ${fam.join(' ')}?`;
     }
     const value = { weak: weak.length ? `WEAK ${weak.map((el) => `${elementMark(el as Element)}${ELEMENT_TAG[el as Element]}`).join(' ')}` : '', guess, notes };

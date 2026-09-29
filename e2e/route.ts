@@ -79,7 +79,7 @@ export async function playChapter1(page: Page, beforeEnding?: () => Promise<void
   await press(page, 'ArrowUp');
   await waitFor(page, "sj.state.map === 'sinkline_1'", 'enter Sinkline');
   // Prime the pump intakes, lowest pressure first: service bay (30), track bed (50), station (70).
-  for (const [x, y] of [[18, 20], [2, 11], [13, 27]] as const) {
+  for (const [x, y] of [[18, 20], [2, 11], [12, 28]] as const) {
     await tp(page, 'sinkline_1', x, y, 'up');
     await press(page, 'z');
   }

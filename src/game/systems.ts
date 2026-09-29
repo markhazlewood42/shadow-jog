@@ -41,7 +41,11 @@ let handlers: SystemHandlers | null = null;
  */
 let battleModule: Promise<typeof import('../scenes/battle')> | null = null;
 function loadBattle(): Promise<typeof import('../scenes/battle')> {
-  battleModule ??= import('../scenes/battle');
+  // A failed fetch (a dropped connection) isn't cached: the next fight tries again.
+  battleModule ??= import('../scenes/battle').catch((e: unknown) => {
+    battleModule = null;
+    throw e;
+  });
   return battleModule;
 }
 

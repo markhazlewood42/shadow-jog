@@ -51,7 +51,7 @@ export interface GameState {
   battles: number;
 }
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export function newState(): GameState {
   return {

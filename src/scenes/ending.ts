@@ -2,7 +2,7 @@
 import { music } from '../audio/music';
 import { sfx } from '../audio/sfx';
 import { autoClose } from '../game/debug';
-import { COMBOS } from '../data/abilities';
+import { chapterCombos, COMBOS } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
 import { MEMBERS } from '../data/party';
 import { surface, type Ctx } from '../engine/canvas';
@@ -63,7 +63,7 @@ export class EndingScene extends Scene<void> {
     const rows: [string, string][] = [
       ['Play time', formatPlayTime(this.playFrames, true)],
       ['Battles won', String(state.battles)],
-      ['Combos discovered', `${found} / ${COMBOS.length}`],
+      ['Combos discovered', `${found} / ${chapterCombos().length}`],
       ['Bestiary', `${species} / ${Object.keys(ENEMIES).length - 1} species`],
       ['Cred (carries over)', `${state.cred.toLocaleString('en-US')}¢`],
       ['Side jobs', `${['job_cat_done', 'job_case_done', 'job_bounty_done'].filter((f) => state.flags[f]).length} / 3`],

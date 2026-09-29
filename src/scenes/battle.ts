@@ -172,7 +172,19 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   override enter(): void {
     music(this.setup.music ?? (this.setup.boss ? 'boss' : 'battle'), 0);
-    void this.intro();
+    this.flow(this.intro());
+  }
+
+  /**
+   * An error from one of the battle's async flows (the intro, a round), held for update() to
+   * rethrow. Uncaught, it would end the chain and leave the fight hanging with nothing to notice;
+   * rethrown each tick, the game's fault handling sees it and recovers (round 13's stability review).
+   */
+  private flowError: unknown = null;
+  private flow(p: Promise<void>): void {
+    p.catch((e: unknown) => {
+      this.flowError = e;
+    });
   }
 
   // ------------------------------------------------------------------ timing helpers
@@ -260,7 +272,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     this.actorIdx++;
     const a = this.actor;
     if (!a) {
-      void this.executeRound();
+      this.flow(this.executeRound());
       return;
     }
     this.buildCmdMenu(a);
@@ -371,6 +383,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   // ------------------------------------------------------------------ update
   update(): void {
+    if (this.flowError) throw this.flowError;
     this.frame++;
     this.fx.rate = this.animRate();
     if (this.timing.isOpen && !this.timing.result) {
@@ -433,7 +446,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       }
     }
     for (const f of this.floaters) f.t += this.fx.rate;
-    for (const c of this.cutins) c.t += this.fx.rate;
+    // Cut-ins keep real time: they belong to the combo's name card, which holds a fixed beat, and
+    // must be gone before the blow they announce lands.
+    for (const c of this.cutins) c.t++;
     if (this.deckT >= 0) this.deckT = this.deckT + this.fx.rate > DECK_CUT_LIFE ? -1 : this.deckT + this.fx.rate;
     if (this.cutins.length && this.cutins.every((c) => c.t > c.life)) this.cutins.length = 0;
     // Compact finished floaters in place (no per-tick array).
@@ -461,7 +476,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           cb();
         } else if (move === 'auto' && this.mode === 'round') {
           this.cmds = this.autoCommands();
-          void this.executeRound();
+          this.flow(this.executeRound());
         }
         return;
       }
@@ -481,13 +496,13 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           if (v === 'fight') this.nextActor();
           else if (v === 'auto') {
             this.cmds = this.autoCommands();
-            void this.executeRound();
+            this.flow(this.executeRound());
           } else if (v === 'repeat') {
             this.cmds = this.repeatCommands();
-            void this.executeRound();
+            this.flow(this.executeRound());
           } else if (v === 'run') {
             this.cmds = [{ actor: this.actors()[0]!.uid, type: 'run' }];
-            void this.executeRound();
+            this.flow(this.executeRound());
           }
         }
         break;
@@ -818,6 +833,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         const x = (W - w) / 2, y = 56;
         drawWindow(ctx, x, y, w, h, { title: 'LEVEL UP', accent: MEMBERS[u.id].color });
         drawText(ctx, `${name} reached {y}Lv ${u.level}{/}!`, x + 14, y + 14);
+        // A level-up is a full recovery: say so (grantXp restores HP, TP and charges).
+        drawText(ctx, '{g}Fully restored{/}', x + w - 14, y + 14, { align: 'right' });
         gains.forEach(([k, v], i) => {
           drawText(ctx, `${k.toUpperCase()} {g}+${v}{/}`, x + 14 + (i % 2) * 100, y + 30 + Math.floor(i / 2) * 11);
         });

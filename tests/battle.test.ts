@@ -108,6 +108,18 @@ describe('progression', () => {
     }
   });
 
+  it('a new game starts Kit at 1 and Rook at his veteran 10, wounded (round 13 found it starting him at 3)', async () => {
+    const { freshGame } = await import('../src/game/newgame');
+    // Through the module: freshGame replaces the state object, so a destructured copy would be stale.
+    const st = await import('../src/game/state');
+    freshGame();
+    expect(st.state.members.kit!.level).toBe(1);
+    expect(st.state.members.rook!.level).toBe(10);
+    expect(st.state.members.rook!.xp).toBe(xpFor(10));
+    expect(isWounded('rook')).toBe(true);
+    expect(st.state.members.rook!.hp).toBe(memberStats(st.state.members.rook!).maxHp);
+  });
+
   it('the Stingray unlocks Overload, not a level', () => {
     for (const f of CH1_STORY_FLAGS) flags.clear(f);
     try {

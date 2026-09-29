@@ -170,3 +170,20 @@ describe('game fault isolation', () => {
     expect(g.stack.length).toBe(0);
   });
 });
+
+// Last in the file: its notice would otherwise be what the tests above read.
+describe('input polling', () => {
+  it('input polling that throws (a blocked Gamepad API) is reported, and the scene still ticks', () => {
+    const throwing = { ...input, update: () => { throw new Error('gamepad blocked'); } } as unknown as Input;
+    const g = new Game(ctx, throwing);
+    const s = new Faulty(() => false);
+    void g.run(s);
+    for (let i = 0; i < FAULT_LIMIT + 5; i++) expect(() => g.tick()).not.toThrow();
+    // Every tick still reached the scene, and a persistent input failure never tripped recovery.
+    expect(s.updates).toBe(FAULT_LIMIT + 5);
+    expect(g.stack.includes(s)).toBe(true);
+    // Reported once (the on-screen notice merges with earlier tests' ones; the log doesn't).
+    const logged = vi.mocked(console.error).mock.calls.filter((c) => String(c[1]).includes('gamepad blocked'));
+    expect(logged.length).toBe(1);
+  });
+});

@@ -138,9 +138,21 @@ export class Input {
     } else this.touchHeld.delete(action);
   }
 
+  /** Set once the Gamepad API has refused us (a blocking permissions policy): stop asking. */
+  private padBlocked = false;
+
   private pollPad(): void {
     this.padHeld.clear();
-    const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
+    if (this.padBlocked) return;
+    let pads: readonly (Gamepad | null)[] = [];
+    try {
+      pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
+    } catch {
+      // Where the page may not read gamepads (an embed with a blocking policy), getGamepads throws:
+      // play on with the keyboard and touch rather than letting the game loop die.
+      this.padBlocked = true;
+      return;
+    }
     for (const p of pads) {
       if (!p?.connected) continue;
       const b = (i: number) => !!p.buttons[i]?.pressed;

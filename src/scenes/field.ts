@@ -326,8 +326,12 @@ export class FieldScene extends Scene<void> {
   }
 
   private async fireEvent(e: EventDef): Promise<void> {
-    if (e.once) flags.set(`ev:${this.def.id}:${e.id}`);
-    await this.runScript(e.run);
+    const key = `ev:${this.def.id}:${e.id}`;
+    // Marked done as it starts (a scripted walk over its own tile mustn't fire it again), and
+    // unmarked if it throws partway: a story beat that aborted can be walked into again, rather
+    // than leaving the chapter unfinishable (round 13's stability review).
+    if (e.once) flags.set(key);
+    if (!(await this.runScript(e.run)) && e.once) flags.clear(key);
   }
 
   async doWarp(w: WarpDef): Promise<void> {
@@ -540,12 +544,15 @@ export class FieldScene extends Scene<void> {
   }
 
   // ------------------------------------------------------------------ scripts
-  async runScript(fn: ScriptFn): Promise<void> {
+  /** Run a story script with the field locked; false if it threw (reported, not rethrown). */
+  async runScript(fn: ScriptFn): Promise<boolean> {
     this.busy++;
     try {
       await fn(this.api);
+      return true;
     } catch (e) {
       reportError(e);
+      return false;
     } finally {
       this.busy--;
     }

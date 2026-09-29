@@ -78,6 +78,7 @@ export class FxLayer {
   clear(): void {
     this.parts = [];
     this.shapes = [];
+    this.held = null;
   }
 
   private p(o: Partial<Particle> & { x: number; y: number }): void {
@@ -394,8 +395,32 @@ export class FxLayer {
     return t.impact;
   }
 
-  // ------------------------------------------------------------------ catalogue
+  /**
+   * A move's screen flash and shake, held until its hit lands. The catalogue asks for them as it
+   * starts the effect; played back slower (FX_PACE), a combo's flash and rumble would otherwise go
+   * off during the windup, well before the blow (round 13).
+   */
+  private held: { flash: { color: string; frames: number } | null; shake: number; at: number } | null = null;
+
+  /** Play an effect: see `cue` for the catalogue. Flash and shake wait for the effect's impact. */
   play(id: string, from: Pt, targets: Pt[], color?: string): FxTiming {
+    const flash0 = this.flash, shake0 = this.shake;
+    this.flash = null;
+    this.shake = 0;
+    const t = this.cue(id, from, targets, color);
+    if ((this.flash || this.shake) && t.impact > 0) {
+      this.held = { flash: this.flash, shake: this.shake, at: t.impact };
+      this.flash = flash0;
+      this.shake = shake0;
+    } else {
+      this.flash ??= flash0;
+      this.shake = Math.max(this.shake, shake0);
+    }
+    return t;
+  }
+
+  // ------------------------------------------------------------------ catalogue
+  private cue(id: string, from: Pt, targets: Pt[], color?: string): FxTiming {
     const T = targets.length ? targets : [from];
     const each = (fn: (t: Pt, i: number) => void) => T.forEach(fn);
     switch (id) {
@@ -775,6 +800,14 @@ export class FxLayer {
     // Integrated in effect frames (dt of them per real frame), so a slower rate stretches every
     // effect smoothly instead of skipping frames.
     const dt = this.rate;
+    if (this.held) {
+      this.held.at -= dt;
+      if (this.held.at <= 0) {
+        if (this.held.flash) this.flash = this.held.flash;
+        this.shake = Math.max(this.shake, this.held.shake);
+        this.held = null;
+      }
+    }
     for (const p of this.parts) {
       if (p.delay > 0) {
         p.delay -= dt;

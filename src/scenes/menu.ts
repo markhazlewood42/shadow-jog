@@ -3,7 +3,7 @@ import { buildChar } from '../art/chars';
 import { enemyArt } from '../art/enemies';
 import { getPortrait } from '../art/portraits';
 import { sfx } from '../audio/sfx';
-import { ABILITIES, COMBOS } from '../data/abilities';
+import { ABILITIES, chapterCombos, COMBOS } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
 import { ITEMS, type ItemDef } from '../data/items';
 import { LOOKS } from '../data/looks';
@@ -649,10 +649,13 @@ export class MenuScene extends Scene<MenuResult> {
     });
     // What the story is still holding back (Rook's skills, while he's hurt): shown greyed, so the
     // player knows there's more to come.
-    lockedAbilities(m).forEach((id, j) => {
+    const locked = lockedAbilities(m);
+    locked.forEach((id, j) => {
       const i = abs.length + j;
-      drawText(ctx, fitText(`× ${ABILITIES[id]!.name} (locked)`, 104), 240 + (i < 9 ? 0 : 110), 137 + (i % 9) * 11, { color: UI.disabled });
+      drawText(ctx, fitText(`× ${ABILITIES[id]!.name}`, 104), 240 + (i < 9 ? 0 : 110), 137 + (i % 9) * 11, { color: UI.disabled });
     });
+    // The key to the greyed rows, once, on the header line (a suffix on each row didn't fit).
+    if (locked.length) drawText(ctx, '× locked for now', W - 22, 124, { align: 'right', color: UI.disabled });
   }
 
   /** Every enemy the crew has beaten: what it looks like, what hurts it, and field notes. */
@@ -667,12 +670,17 @@ export class MenuScene extends Scene<MenuResult> {
     const e = ENEMIES[cur.value]!;
     const kills = state.bestiary[e.id] ?? 0;
     // Portrait box with the battle sprite, as large as whole pixels allow.
-    const art = enemyArt(e.sprite).canvas;
+    const ea = enemyArt(e.sprite);
+    const art = ea.canvas;
     const box = { x: x + 8, y: 16, w: 120, h: 104 };
     ctx.fillStyle = '#0c0b14';
     ctx.fillRect(box.x, box.y, box.w, box.h);
-    const k = Math.max(1, Math.min(2, Math.floor(Math.min(box.w / art.width, box.h / art.height))));
-    ctx.drawImage(art, Math.round(box.x + (box.w - art.width * k) / 2), Math.round(box.y + box.h - art.height * k - 4), art.width * k, art.height * k);
+    // Sized by its battle-world size (creatures' art is finer than the world): whole screen pixels
+    // per world pixel where they fit, else scaled down to fit the box.
+    const fit = Math.min(box.w / ea.w, box.h / ea.h);
+    const k = fit >= 1 ? Math.min(2, Math.floor(fit)) : fit;
+    const dw = Math.round(ea.w * k), dh = Math.round(ea.h * k);
+    ctx.drawImage(art, Math.round(box.x + (box.w - dw) / 2), Math.round(box.y + box.h - dh - 4), dw, dh);
     const tx = box.x + box.w + 10;
     drawText(ctx, e.name, tx, 18, { color: e.boss ? UI.amber : UI.cyan });
     drawText(ctx, FAMILY_NAME[e.family] ?? e.family, tx, 30, { color: UI.dim });
@@ -723,7 +731,7 @@ export class MenuScene extends Scene<MenuResult> {
     drawWindow(ctx, 8, 8, W - 16, H - 16, { title: 'COMBO LOG', accent: UI.amber , footer: keyLegend(this.game.input) });
     drawText(ctx, 'Choose the right pair of abilities in the same round and they fuse.', 18, 22, { color: UI.dim });
     const found = COMBOS.filter((c) => state.combos.includes(c.id)).length;
-    drawText(ctx, `${found}/${COMBOS.length} found`, W - 18, 22, { align: 'right', color: UI.amber });
+    drawText(ctx, `${found}/${chapterCombos().length} found`, W - 18, 22, { align: 'right', color: UI.amber });
     const first = this.comboScroll;
     if (first > 0) drawText(ctx, '▲', W - 24, 32, { color: UI.cyan });
     if (first + COMBO_ROWS < COMBOS.length) drawText(ctx, '▼', W - 24, H - 20, { color: UI.cyan });
@@ -733,7 +741,9 @@ export class MenuScene extends Scene<MenuResult> {
       const ab = ABILITIES[c.id]!;
       const names = c.parts.map((p) => `${MEMBERS[p.member as MemberId].name}: ${ABILITIES[p.ability]!.name}`).join('  +  ');
       drawText(ctx, known ? `★ ${ab.name}` : '★ ???', 18, y, { color: known ? UI.amber : UI.disabled });
-      drawText(ctx, fitText(known ? names : `Hint: ${c.hint}`, COMBO_TEXT_W), 30, y + 11, { color: known ? '#d0cee4' : UI.dim });
+      // One the crew can't reach yet says so, rather than leaving a hint nobody can act on.
+      const hint = c.later && !known ? 'Not in this chapter: the crew hasn’t learned its parts yet.' : `Hint: ${c.hint}`;
+      drawText(ctx, fitText(known ? names : hint, COMBO_TEXT_W), 30, y + 11, { color: known ? '#d0cee4' : UI.dim });
       if (known) drawText(ctx, fitText(ab.desc, COMBO_TEXT_W), 30, y + 22, { color: UI.dim });
     });
   }

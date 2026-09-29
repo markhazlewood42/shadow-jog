@@ -19,7 +19,9 @@ class MemStorage {
 (globalThis as unknown as { localStorage: MemStorage }).localStorage = new MemStorage();
 
 const { hasAnySave, latestSlot, loadSave, readMeta, slotStatus, unsavedFrames, validState, writeSave, applySave } = await import('../src/game/save');
-const { addMember } = await import('../src/game/party');
+const { addMember, knownAbilities, memberStats } = await import('../src/game/party');
+const { ABILITIES } = await import('../src/data/abilities');
+type GameState = import('../src/game/state').GameState;
 const stateMod = await import('../src/game/state');
 const { newState, setState } = stateMod;
 const { streams } = await import('../src/engine/rng');
@@ -306,7 +308,10 @@ describe('a save from a shipped build keeps loading', () => {
     expect(s.party).toEqual(['kit', 'rook', 'hex', 'sable']);
     expect(s.map).toBe('annex');
     expect(s.cred).toBe(1400);
-    expect(s.members.sable?.level).toBeGreaterThanOrEqual(7);
+    // Levels worked out again on today's curve from the XP earned (965: level 5), Rook at his 10.
+    expect(s.members.kit?.level).toBe(5);
+    expect(s.members.sable?.level).toBe(5);
+    expect(s.members.rook?.level).toBe(10);
     expect(s.flags.annex_key).toBeTruthy();
     // Loaded into the game, it's a playable state.
     applySave(s);
@@ -323,10 +328,34 @@ describe('a save from a shipped build keeps loading', () => {
     localStorage.clear();
     localStorage.setItem('shadowjog.save.3', JSON.stringify(file));
     const s = loadSave(3)!;
-    expect(s.version).toBe(2);
+    expect(s.version).toBe(stateMod.SAVE_VERSION);
     expect(s.members.rook!.equip.mod).toBeUndefined();
     expect(s.inventory.neural_buffer).toBe(before + 1);
     // Nothing else about Rook changed.
     expect(s.members.rook!.equip.weapon).toBe(file.state.members.rook.equip.weapon);
+  });
+
+  it('v2 -> v3: a save from before the 2026-09-29 retune gets the story unlocks it has earned', async () => {
+    const { readFileSync } = await import('node:fs');
+    const file = JSON.parse(readFileSync('tests/fixtures/save-v1-annex.json', 'utf8')) as { state: GameState };
+    file.state.version = 2;
+    // Mid-Sinkline: Hex has joined, Sable hasn't.
+    delete file.state.flags.sable_joined;
+    file.state.party = ['kit', 'rook', 'hex'];
+    delete file.state.members.sable;
+    file.state.members.rook!.uses = { arc_cut: 1 };
+    localStorage.clear();
+    localStorage.setItem('shadowjog.save.1', JSON.stringify(file));
+    const s = loadSave(1)!;
+    expect(s.flags.stingray_seated).toBe(true);
+    expect(s.flags.rook_tuned).toBe(true);
+    expect(s.flags.rook_mended).toBeUndefined();
+    applySave(s);
+    const rook = stateMod.state.members.rook!;
+    // Re-tuned but still hurt: his unlocked skills have charges, a charge short of full.
+    expect(knownAbilities(rook, 'skill')).toEqual(expect.arrayContaining(['suppress', 'incendiary']));
+    expect(rook.uses.suppress).toBe((ABILITIES.suppress!.uses ?? 1) - 1);
+    expect(rook.hp).toBeLessThanOrEqual(memberStats(rook).maxHp);
+    expect(knownAbilities(stateMod.state.members.hex!)).toContain('overload');
   });
 });

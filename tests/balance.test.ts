@@ -45,8 +45,10 @@ describe('balance', () => {
     expect([...learnable].filter((id) => !used.has(id))).toEqual([]);
     const reachable = COMBOS.filter((c) => c.parts.every((p) => learnable.has(p.ability)));
     expect(reachable.map((c) => c.id).filter((id) => !used.has(id))).toEqual([]);
-    // Chapter 1 keeps the combo core; only what needs a later-chapter ability waits (Spirit Walk).
+    // Chapter 1 keeps the combo core; only what needs a later-chapter ability waits (Spirit Walk),
+    // and exactly those are marked `later` (the Combo Log and the results screen count the rest).
     expect(COMBOS.length - reachable.length).toBeLessThanOrEqual(1);
+    expect(COMBOS.filter((c) => !reachable.includes(c)).map((c) => c.id)).toEqual(COMBOS.filter((c) => c.later).map((c) => c.id));
   });
   for (const { s, r, timed } of results) {
     it(`${s.label} within targets`, () => {

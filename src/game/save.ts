@@ -3,7 +3,8 @@ import { ABILITIES, COMBOS } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
 import { ITEMS } from '../data/items';
 import { getMap } from '../data/maps';
-import { MEMBERS } from '../data/party';
+import { levelForXp, MEMBERS, xpFor } from '../data/party';
+import { reconcileParty } from './party';
 import { streams } from '../engine/rng';
 import { SAVE_VERSION, setState, state, type EquipSlot, type GameState, type MemberId } from './state';
 
@@ -145,6 +146,25 @@ export const MIGRATIONS: Record<number, (s: GameState) => void> = {
       s.inventory.neural_buffer = (s.inventory.neural_buffer ?? 0) + 1;
     }
   },
+  // v2 -> v3: the retune after Mark's first playthrough (2026-09-29). Levels are rarer on a new XP
+  // curve, Rook is a level-10 veteran, and some abilities come from story flags. A save keeps the
+  // XP it earned: levels are worked out again on the new curve (never below a member's starting
+  // level, so Rook is his 10), and the beats the crew has passed set their flags (Hex's Stingray
+  // and Rook's re-tune once she has joined; Rook's mending once Sable has).
+  2: (s) => {
+    s.flags ??= {};
+    if (s.flags.hex_joined) {
+      s.flags.stingray_seated = true;
+      s.flags.rook_tuned = true;
+    }
+    if (s.flags.sable_joined) s.flags.rook_mended = true;
+    for (const m of Object.values(s.members)) {
+      if (!m || !MEMBERS[m.id]) continue;
+      const lv = Math.max(MEMBERS[m.id].startLevel, levelForXp(m.xp));
+      m.level = lv;
+      m.xp = Math.max(m.xp, xpFor(lv));
+    }
+  },
 };
 
 /** Bring a save from its version up to `target`: each step in order, then the backfill. */
@@ -255,6 +275,8 @@ export function sanitize(s: GameState): GameState {
 
 export function applySave(s: GameState): void {
   setState(s);
+  // HP and TP within today's maximums, and charges for every skill the crew now knows.
+  reconcileParty();
   savedAt = s.playFrames;
   if (s.rngState) streams.encounter.state = s.rngState;
   if (s.rngBattle) streams.battle.state = s.rngBattle;

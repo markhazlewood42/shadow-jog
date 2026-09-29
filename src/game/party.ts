@@ -198,6 +198,24 @@ export function equip(m: MemberState, itemId: string | null, slot: EquipSlot): v
   m.tp = Math.min(m.tp, s.maxTp);
 }
 
+/**
+ * After loading a save: each member's HP and TP within their maximums, and charges (up to full)
+ * for every skill they know. A save written before a retune (levels, story unlocks) can have HP
+ * over a lower maximum, or no charges at all for a skill it now has.
+ */
+export function reconcileParty(): void {
+  for (const m of Object.values(state.members)) {
+    if (!m) continue;
+    const s = memberStats(m);
+    m.hp = Math.min(m.hp, s.maxHp);
+    m.tp = Math.min(m.tp, s.maxTp);
+    for (const id of knownAbilities(m, 'skill')) {
+      const full = maxUses(m.id, id);
+      m.uses[id] = Math.min(m.uses[id] ?? full, full);
+    }
+  }
+}
+
 export function fullRestore(m: MemberState): void {
   const s = memberStats(m);
   m.hp = s.maxHp;
