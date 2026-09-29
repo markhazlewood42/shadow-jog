@@ -160,7 +160,8 @@ class AudioEngine {
     }
     sat.curve = curve;
     sat.oversample = '2x';
-    const shaped = this.music.connect(eq('highpass', 32)).connect(eq('lowshelf', 180, -3.5)).connect(eq('peaking', 380, -2, 0.9)).connect(eq('highshelf', 3000, 4.5)).connect(sat);
+    // Presence (1.8 kHz) is where leads and bells speak on laptop speakers and earbuds.
+    const shaped = this.music.connect(eq('highpass', 32)).connect(eq('lowshelf', 180, -3.5)).connect(eq('peaking', 380, -3, 0.9)).connect(eq('peaking', 1800, 3, 0.8)).connect(eq('highshelf', 3000, 4.5)).connect(sat);
     shaped.connect(musicComp);
     const chorusIn = eq('highpass', 350);
     shaped.connect(chorusIn);
@@ -625,9 +626,12 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
       f.Q.value = 6;
       f.frequency.setValueAtTime(220, t);
       f.frequency.linearRampToValueAtTime(900 + vel * 900, t + 0.01);
-      f.frequency.setTargetAtTime(260, t + 0.02, 0.09);
+      // Settles open enough to keep the saw's edge (its upper harmonics say which note it is).
+      f.frequency.setTargetAtTime(340, t + 0.02, 0.09);
+      // The sine an octave under the saw: felt more than heard, and it was most of the mix's
+      // energy under 120 Hz. Half as much leaves the weight and clears room for everything else.
       const sg = c.createGain();
-      sg.gain.value = 0.7;
+      sg.gain.value = 0.4;
       o.connect(f);
       s.connect(sg);
       f.connect(out);
@@ -642,7 +646,7 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
       o.type = 'triangle';
       o.frequency.value = freq;
       o.connect(out);
-      const end = env(out, t, 0.006, 0.3, 0.8, dur, 0.08, 0.3 * vel);
+      const end = env(out, t, 0.006, 0.3, 0.8, dur, 0.08, 0.24 * vel);
       o.start(t);
       o.stop(end);
       chain = { out, end };
@@ -674,14 +678,14 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
         lfo.connect(lg).connect(f.frequency);
         oscs.push(lfo);
       }
-      if (inst === 'organ') {
-        // The organ's drawbars stack octaves over the chord root; under a boss's bass and arp its
-        // low end was mud. Cut below 200 Hz.
-        const hp = c.createBiquadFilter();
-        hp.type = 'highpass';
-        hp.frequency.value = 200;
-        f.connect(hp).connect(out);
-      } else f.connect(out);
+      // Chords live above the bass: the organ's drawbars stack octaves over the root, and a pad or
+      // choir voiced low doubles the bass line. Cut them below the bass's range (organ 200 Hz,
+      // pad and choir 170) so the low end is the bass's alone.
+      const hp = c.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = inst === 'organ' ? 200 : 170;
+      hp.Q.value = 0.6;
+      f.connect(hp).connect(out);
       const a = inst === 'organ' ? 0.02 : 0.35;
       const end = env(out, t, a, 0.5, 0.85, dur, inst === 'organ' ? 0.1 : 0.6, (inst === 'organ' ? 0.06 : 0.045) * vel);
       for (const o of oscs) { o.start(t); o.stop(end); }
@@ -711,7 +715,7 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
       o.frequency.setValueAtTime(150, t);
       o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
       o.connect(out);
-      out.gain.setValueAtTime(0.55 * vel, t);
+      out.gain.setValueAtTime(0.46 * vel, t);
       out.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
       o.start(t);
       o.stop(t + 0.4);

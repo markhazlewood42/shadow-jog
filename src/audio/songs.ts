@@ -131,14 +131,17 @@ export const SONGS: Record<string, SongSpec> = {
     gain: 0.4,
     intro: 2,
     bpm: 124,
-    chords: 'F#m | D | A | E | F#m | D | Bm | C#',
+    // A: the corridor theme. B: lower and sparser, turning back through C# to the top (31 s loop).
+    chords: 'F#m | D | A | E | F#m | D | Bm | C# | Bm | Bm | G | G | D | A | Bm | C#',
     drums: 'pulse',
     space: 'tunnel',
     drumVol: 0.8,
     parts: [
       { inst: 'lead', vol: 0.6, rev: 0.3, del: 0.4, notes:
         '. . C#5 - F#5 - E5 - | D5 - - - A4 - - - | . . E5 - A5 - G#5 - | E5 - - - B4 - - - |' +
-        '. . C#5 - F#5 - A5 - | G#5 - F#5 - D5 - - - | F#5 - E5 - D5 - B4 - | C#5 - - - F5 - - -' },
+        '. . C#5 - F#5 - A5 - | G#5 - F#5 - D5 - - - | F#5 - E5 - D5 - B4 - | C#5 - - - F5 - - - |' +
+        'B4 - - - D5 - F#5 - | E5 - D5 - C#5 - B4 - | D5 - - - G5 - - - | F#5 - E5 - D5 - - - |' +
+        'A4 - D5 - F#5 - A5 - | G#5 - - - E5 - C#5 - | D5 - C#5 - B4 - D5 - | C#5 - - - - - . .' },
       { inst: 'arp', gen: 'up16', octave: 4, vol: 0.5, del: 0.2 },
       { inst: 'bass', gen: 'pulse8', octave: 1, vol: 0.8 },
       { inst: 'pad', gen: 'chord', octave: 3, vol: 0.6, rev: 0.4 },
@@ -173,7 +176,8 @@ export const SONGS: Record<string, SongSpec> = {
   // Boss — "Heavy Metal Warden".
   boss: {
     air: 0.01,
-    rests: [7],
+    // Two breaths in the loop: the end of the first phrase and of the third.
+    rests: [7, 11],
     gain: -1.6,
     bpm: 164,
     chords: 'Dm | Dm | Bb | A | Dm | Dm | Eb | A | Gm | Gm | Dm | Dm | Bb | C | A | A',
@@ -292,14 +296,17 @@ export const SONGS: Record<string, SongSpec> = {
   tension: {
     air: 0.016,
     bpm: 112,
-    chords: 'Bm | Bm | G | F# | Bm | Bm | G | F#',
+    // A: the held breath. B: a climb through Em and G before it falls back to F# (34 s loop).
+    chords: 'Bm | Bm | G | F# | Bm | Bm | G | F# | Em | Em | Bm | Bm | G | G | F# | F#',
     drums: 'heartbeat',
     space: 'here',
     parts: [
       { inst: 'bell', gen: 'bells', octave: 7, vol: 0.3, rev: 0.6, del: 0.35 },
       { inst: 'lead', vol: 0.6, rev: 0.4, del: 0.3, notes:
         '. . . . F#5 - - - | G5 - F#5 - D5 - - - | B4 - - - D5 - E5 - | C#5 - - - A#4 - - - |' +
-        '. . . . F#5 - - - | A5 - G5 - F#5 - - - | E5 - D5 - B4 - G4 - | F#4 - - - A#4 - C#5 -' },
+        '. . . . F#5 - - - | A5 - G5 - F#5 - - - | E5 - D5 - B4 - G4 - | F#4 - - - A#4 - C#5 - |' +
+        'E5 - - - G5 - - - | F#5 - E5 - D5 - B4 - | D5 - - - - - . . | . . B4 - C#5 - D5 - |' +
+        'B5 - - - A5 - G5 - | F#5 - - - D5 - - - | C#5 - - - E5 - - - | F#5 - - - - - . .' },
       { inst: 'bass', gen: 'pulse8', octave: 1, vol: 0.9 },
       { inst: 'choir', gen: 'chord', octave: 3, vol: 0.8, rev: 0.5 },
       { inst: 'pluck', gen: 'up8', octave: 4, vol: 0.4, del: 0.3 },
