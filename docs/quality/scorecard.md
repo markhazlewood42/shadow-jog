@@ -13,17 +13,21 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 
 | # | Area | Score | Round | Date | Δ | Blocking issues (short) |
 |---|---|---|---|---|---|---|
-| 1 | Engine & code | 8.0 | 9 | 2026-09-29 | +0.3 | Text pipeline allocates a closure per draw call; a few per-frame allocations left in render.ts; FieldScene not split like BattleScene; 336 non-null assertions with the rule off; Battle.unit a linear scan |
-| 2 | Field art | 5.8 | 9 | 2026-09-29 | −1.8 | **Cap:** the Warden arena floor reads as a debug test pattern (22×9 of uniform grating, 4 pylons); world map two noise fields; leads share one body template; crowd one pose; cryopod shots identical but the sprite |
-| 3 | Battle presentation | 7.2 | 9 | 2026-09-29 | ±0 | Anatomical duplicates only for rats and hounds (shades, wisps, drones only recoloured); enemies have no hurt frame; trash creatures built from primitives; victory shows the crew as silhouettes; WEAK and buff share amber |
-| 4 | UI / UX | 5.5 | 9 | 2026-09-29 | −2.3 | **Bug (cap):** the new turn-order strip paints over the start of the tech/skill description line; **bug:** a lit field sign shows through the menu dim; 03 dialog frame half black; the controls shot shows Options, not the rebind screen; no occlusion test |
-| 5 | Combat design | 7.2 | 9 | 2026-09-29 | −0.9 | Timed presses are one global curve for every move; trash fights end in ~2 rounds (one real decision); one combo per pair; no weakness signal before Hex joins; nothing weak to phys; Crow’s Wing text promises cover it doesn’t give |
-| 6 | Progression & economy | 7.5 | 9 | 2026-09-29 | ±0 | Minimal-exploration runs dip negative before the Lurker and the Annex (p10 −32¢/−36¢, 86–88%); ending evidence not from a walked run; body/head/mod slots have no per-character branches; unaffordable and unusable look the same in shops |
-| 7 | Narrative & writing | 7.8 | 9 | 2026-09-29 | +0.2 | Ending caption "Three of them came up" has no antecedent; the Rustyard tribute and water filter promises never pay off; straight vs curly quotes; Pale’s pitch and betrayal speeches run long |
-| 8 | Level design | 7.4 | 9 | 2026-09-29 | +0.2 | The Warden chamber is the plainest room in the dungeon; the world map is wallpaper between roads; the lattice still reads thin; secrets are mostly single-tile chests; wayfinding leans on text signs; the Rustyard maze is token |
-| 9 | Audio | 7.0 | 9 | 2026-09-29 | −0.2 | Loop seams step 1.5–3.4 dB (want <1: tails or crossfade); arp/pluck lowpassed at 600 Hz and the lead at 2.5 kHz, so bar/boss/title/town stay dull; loudness range under 1 dB (double compression); victory_boss the dullest cue |
-| 10 | Feel & polish | 8.3 | 9 | 2026-09-29 | +0.9 | No screen-flash setting (shake has one); hitstop not adjustable; a dead crt setting; orphaned doc comments left in battle.ts by the split |
-| 11 | Stability | 8.3 | 9 | 2026-09-29 | +0.3 | E2E covers the happy path only (no input mashing mid-fade, menu mid-warp, reload mid-script); no real save migration with a fixture; a script stalled on an await never faults; remove() calls exit() unguarded |
+| 1 | Engine & code | 8.5 | 10 | 2026-09-29 | +0.5 | **Passed.** Remaining: FieldScene not split like BattleScene; no tests for lighting/weather pooling; rain drawn in three passes; bundle budget 94% used |
+| 2 | Field art | 7.0 | 10 | 2026-09-29 | +1.2 | Named cast share one template (only Rook and Sable read at a glance); crowd sheet one pose; terminal/tank/cryopod one glowing slab; guards pixel-identical; puddles ignore neon |
+| 3 | Battle presentation | 7.0 | 10 | 2026-09-29 | −0.2 | Only rats, hounds and drones have a drawn attack frame; no drawn enemy hurt pose; creature art flat (few tonal steps); street encounter backdrops thinner than boss sets |
+| 4 | UI / UX | 7.6 | 10 | 2026-09-29 | +2.1 | **Bug:** the OPTIONS tab shows above the Controls window (overlays repaint the stack at 98.5%); Game Over’s disabled Load gives no reason; the results page’s bare ▼; cancel legend only on the title |
+| 5 | Combat design | 7.5 | 10 | 2026-09-29 | +0.3 | A missed press costs nothing (no risk); Guard/Attack alternation farms TP; Rook can run dry; 7 fixed combos; shallow trash movesets; Killing Intent could stun-lock packs, untested |
+| 6 | Progression & economy | 8.0 | 10 | 2026-09-29 | +0.5 | The inn charges for downed members who get nothing; no per-character head gear; no real scarcity on the route; Neural Buffer’s TP wasted on Rook; results evidence reads broken without its note |
+| 7 | Narrative & writing | 8.0 | 10 | 2026-09-29 | +0.2 | The leads never speak in battle; Shadowrun terms (physical adept, metatype, Awakened, essence, decker) against the GDD’s originality rule; thin side jobs; the cryopod turn gets no reaction beat |
+| 8 | Level design | 7.7 | 10 | 2026-09-29 | +0.3 | Puzzles are dialogue picks with no spatial consequence; Annex wings read alike; the Barrens middle is empty; a wrong valve resets all three; the decoy’s KEEP OUT sign is on the nose |
+| 9 | Audio | 7.2 | 10 | 2026-09-29 | +0.2 | 60–80% of energy under 500 Hz (trim pad/choir/sub at source, lift presence); lab and tension loops 15–17 s; boss drum rests one bar in sixteen |
+| 10 | Feel & polish | 7.8 | 10 | 2026-09-29 | −0.5 | Attacks are a held pose on a lunge curve (no multi-frame swing); only the party’s hits get the camera push; shake is uncorrelated per-frame noise; a press during hitstop is dropped |
+| 11 | Stability | 8.8 | 10 | 2026-09-29 | +0.5 | **Passed.** Remaining: a second tab never re-enables autosave when the first closes; the boot-failure overlay is untested; no real migration yet |
+
+Round 10 note: average 7.74 (round 9: 7.27). The first two areas pass: Stability 8.8 and Engine 8.5. Both caps from
+round 9 are lifted (UI 5.5 → 7.6, Field art 5.8 → 7.0). Feel dropped 0.5 under a reviewer weighing animation depth
+(a held pose on a lunge curve, not a multi-frame swing).
 
 Round 9 note: average 7.27 (round 8: 7.57). Six areas rose (Feel 8.3, Stability 8.3 and Engine 8.0 are the closest
 to target), but two automatic caps pulled the average down: a real bug introduced this round (the turn-order strip paints
@@ -38,7 +42,7 @@ Round 7 note: the evidence got richer (audio measurements, more screenshots, mor
 new, concrete defects — several real bugs (text collisions, the Warden's hidden head, the menu's hidden Close, a stale
 save baseline, a continuity slip). Reviewer spread remains ±0.5–1.0 per area; the trend is judged on defects fixed.
 
-## Round 10 (verification pending)
+## Round 10 (verified 2026-09-29)
 
 Worked the round-9 findings, the two caps first.
 
