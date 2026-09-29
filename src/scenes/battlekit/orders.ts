@@ -60,7 +60,7 @@ export function choiceItems(a: Combatant, kind: 'tech' | 'skill' | 'item', reser
   return knownAbilities(m, kind).map((id) => {
     const ab = ABILITIES[id]!;
     const ok = kind === 'tech' ? a.tp >= (ab.cost ?? 0) : (a.uses[id] ?? 0) > 0;
-    const right = kind === 'tech' ? `${ab.cost} ${MEMBERS[a.key as MemberId].tpLabel}` : `${a.uses[id] ?? 0}/${ab.uses}`;
+    const right = kind === 'tech' ? `${ab.cost} ${MEMBERS[a.key as MemberId].tpLabel}` : `${a.uses[id] ?? 0}/${a.maxUses?.[id] ?? ab.uses}`;
     return { label: ab.name, value: id, right, enabled: ok, ...elementIcon(damageElement(ab, a)) };
   });
 }

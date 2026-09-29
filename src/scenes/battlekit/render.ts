@@ -15,14 +15,15 @@ import { MEMBERS } from '../../data/party';
 import type { Ctx } from '../../engine/canvas';
 import { drawParagraph, drawText, fitText, measure, wrap } from '../../engine/font';
 import { H, W } from '../../engine/game';
-import { knownAbilities } from '../../game/party';
+import { knownAbilities, maxUses } from '../../game/party';
 import { state, type MemberId } from '../../game/state';
 import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
 import { TARGET_INFO_W } from '../../ui/layout';
 import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
-import { BHT, BW, CMD_W, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, orderStripLayout } from './geom';
+import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
+import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, opaqueTop, rimOf, silhouetteCache, variant } from './sprites';
 import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, statusName } from './tables';
 
@@ -624,7 +625,23 @@ export class BattleRenderer {
   private orderRects: { source: readonly number[][] | null; side: 'left' | 'right'; rects: { x: number; y: number; w: number; h: number }[] } = { source: null, side: 'right', rects: [] };
 
 
+  /** Hex's deck, up over her card while a program runs: slides up, scrolls code, slides away. */
+  private renderDeckCutin(ctx: Ctx): void {
+    const t = this.s.deckT;
+    const i = this.s.battle.party.findIndex((p) => p.key === 'hex');
+    if (t < 0 || i < 0) return;
+    const inK = Math.min(1, t / 8), outK = Math.max(0, (t - (DECK_CUT_LIFE - 8)) / 8);
+    const k = (1 - (1 - inK) ** 3) * (1 - outK);
+    const x = this.s.boxX(i) + 116 - 80, y = Math.round(PANEL_Y - 4 - k * 44);
+    ctx.fillStyle = 'rgba(10,9,19,0.9)';
+    ctx.fillRect(x - 4, y - 4, 80, 48);
+    ctx.fillStyle = '#c3a0ff';
+    ctx.fillRect(x - 4, y - 4, 80, 1);
+    drawMiniDeck(ctx, x, y, t);
+  }
+
   private renderCutins(ctx: Ctx): void {
+    this.renderDeckCutin(ctx);
     for (const c of this.s.cutins) {
       if (c.t > c.life) continue;
       const m = MEMBERS[c.key as MemberId];
@@ -707,7 +724,7 @@ export class BattleRenderer {
         // Rook: skill charges instead of TP, with the same bar (charges left of the full set).
         const known = knownAbilities(state.members[p.key as MemberId]!, 'skill');
         const total = known.reduce((n, id) => n + (p.uses[id] ?? 0), 0);
-        const full = known.reduce((n, id) => n + (ABILITIES[id]!.uses ?? 0), 0);
+        const full = known.reduce((n, id) => n + maxUses(p.key as MemberId, id), 0);
         drawText(ctx, 'SKILL', x + 7, y + 33, { color: UI.dim });
         drawText(ctx, `${total}/${full} uses`, x + 110, y + 33, { align: 'right' });
         drawBar(ctx, x + 7, y + 44, 102, 2, full ? total / full : 0, UI.amber);

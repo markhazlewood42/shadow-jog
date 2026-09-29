@@ -89,7 +89,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   scrap_hound: E({
     id: 'scrap_hound', name: 'Scrap Hound', family: 'machine', sprite: 'hound',
-    hp: 49, atk: 15, def: 10, mnd: 5, res: 5, agi: 13, xp: 13, cred: 16,
+    hp: 56, atk: 18, def: 10, mnd: 5, res: 5, agi: 13, xp: 13, cred: 16,
     drops: [{ id: 'scrap_chip', chance: 0.3 }],
     moves: [{ id: 'e_bite', w: 3 }, { id: 'e_howl', w: 1, when: 'no_atk_buff' }],
     lore: 'Kessler-Mori perimeter hounds, auctioned off when the Annex closed. The buyers stopped feeding them. They never stopped guarding.',
@@ -103,23 +103,25 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   smog_wisp: E({
     id: 'smog_wisp', name: 'Smog Wisp', family: 'spirit', sprite: 'wisp',
-    hp: 44, atk: 8, def: 6, mnd: 10, res: 14, agi: 12, xp: 15, cred: 10,
+    hp: 48, atk: 8, def: 6, mnd: 10, res: 14, agi: 12, xp: 15, cred: 10,
     drops: [{ id: 'ecto_vial', chance: 0.15 }],
     moves: [{ id: 'e_choke', w: 2 }, { id: 'e_wisp_flame', w: 2 }],
     lore: 'A spirit born of exhaust and neglect. Blades pass right through.',
   }),
   knuckles: E({
     id: 'knuckles', name: '“Knuckles” Tran', family: 'human', sprite: 'brute', boss: true, ai: 'knuckles',
-    hp: 560, atk: 40, def: 11, mnd: 10, res: 8, agi: 11, xp: 130, cred: 300,
+    hp: 460, atk: 38, def: 11, mnd: 10, res: 8, agi: 11, xp: 130, cred: 380,
     drops: [{ id: 'lucky_coin', chance: 1 }],
     moves: [{ id: 'attack', w: 3 }, { id: 'e_haymaker', w: 2 }, { id: 'e_rally', w: 2, when: 'no_atk_buff' }, { id: 'e_pipe_bomb', w: 1.5 }],
     lore: 'Rustfang enforcer. Named for his hands, both of which are chrome.',
   }),
 
   // ------------------------------------------------------------------ the Sinkline
+  // (Its own enemies pay about 1.6× what they did: the floor has fewer random fights since the
+  // 2026-09-29 retune, and the Lurker's gear still has to be affordable from them.)
   sewer_ghoul: E({
     id: 'sewer_ghoul', name: 'Sewer Ghoul', family: 'ghoul', sprite: 'ghoul',
-    hp: 124, atk: 35, def: 10, mnd: 9, res: 8, agi: 9, xp: 26, cred: 20,
+    hp: 124, atk: 36, def: 10, mnd: 9, res: 8, agi: 9, xp: 26, cred: 32,
     drops: [{ id: 'ghoul_tooth', chance: 0.25 }],
     // Wounded ghouls frenzy.
     moves: [{ id: 'e_claw', w: 3 }, { id: 'e_rot_bite', w: 2 }, { id: 'e_rot_bite', w: 5, when: 'hp_below_half' }],
@@ -127,7 +129,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   rust_crab: E({
     id: 'rust_crab', name: 'Rust Crab', family: 'beast', sprite: 'crab',
-    hp: 98, atk: 31, def: 30, mnd: 5, res: 10, agi: 7, xp: 29, cred: 28, weak: { mana: 1.3 },
+    hp: 98, atk: 31, def: 30, mnd: 5, res: 10, agi: 7, xp: 29, cred: 44, weak: { mana: 1.3 },
     drops: [{ id: 'crab_shell', chance: 0.3 }],
     moves: [{ id: 'e_pincer', w: 3 }, { id: 'e_harden', w: 1, when: 'no_def_buff' }, { id: 'e_shell_wall', w: 4, when: 'shield_ally' }],
     lore: 'Armored like a tank. Techs and magic get under the shell.',
@@ -141,7 +143,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   drowned_shade: E({
     id: 'drowned_shade', name: 'Drowned Shade', family: 'spirit', sprite: 'shade',
-    hp: 80, atk: 13, def: 10, mnd: 23, res: 20, agi: 14, xp: 31, cred: 24,
+    hp: 80, atk: 13, def: 10, mnd: 23, res: 20, agi: 14, xp: 31, cred: 38,
     drops: [{ id: 'ecto_vial', chance: 0.2 }],
     // Shades wail together on a rhythm: every third round, expect it.
     moves: [{ id: 'e_chill', w: 3 }, { id: 'e_wail', w: 1 }, { id: 'e_wail', w: 8, when: 'every_3' }],
@@ -149,13 +151,13 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   gutter_eel: E({
     id: 'gutter_eel', name: 'Gutter Eel', family: 'beast', sprite: 'eel', weak: { shock: 1.5 },
-    hp: 94, atk: 35, def: 10, mnd: 20, res: 8, agi: 18, xp: 26, cred: 18,
+    hp: 94, atk: 35, def: 10, mnd: 20, res: 8, agi: 18, xp: 26, cred: 29,
     moves: [{ id: 'e_bite', w: 2 }, { id: 'e_coil_shock', w: 2 }, { id: 'e_coil_shock', w: 4, when: 'hp_below_half' }],
     lore: 'Two meters of teeth and bioelectric spite.',
   }),
   lurker: E({
     id: 'lurker', name: 'The Lurker', family: 'beast', sprite: 'lurker', boss: true, ai: 'lurker',
-    hp: 1720, atk: 46, def: 16, mnd: 32, res: 16, agi: 13, xp: 420, cred: 540,
+    hp: 1560, atk: 43, def: 16, mnd: 32, res: 16, agi: 13, xp: 420, cred: 540,
     // Waterlogged: one clear weakness (shock), and the beast's usual fire weakness drowned out.
     weak: { shock: 1.5, fire: 0.6 }, immune: ['stun'],
     drops: [{ id: 'mana_crystal', chance: 1 }],
@@ -166,7 +168,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   // ------------------------------------------------------------------ K-M Annex 7
   km_sentinel: E({
     id: 'km_sentinel', name: 'K-M Sentinel', family: 'human', sprite: 'sentinel',
-    hp: 246, atk: 49, def: 26, mnd: 15, res: 16, agi: 15, xp: 48, cred: 63,
+    hp: 246, atk: 47, def: 26, mnd: 15, res: 16, agi: 15, xp: 48, cred: 63,
     drops: [{ id: 'km_badge', chance: 0.2 }, { id: 'medkit', chance: 0.2 }],
     // Sentinels run a drill: a flashbang is likely every third round.
     moves: [{ id: 'attack', w: 2 }, { id: 'e_burst', w: 2 }, { id: 'e_flashbang', w: 3, when: 'every_3' }],
@@ -174,7 +176,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   sentry_turret: E({
     id: 'sentry_turret', name: 'Sentry Turret', family: 'machine', sprite: 'turret', ai: 'turret',
-    hp: 208, atk: 53, def: 34, mnd: 10, res: 18, agi: 6, xp: 43, cred: 42,
+    hp: 208, atk: 52, def: 34, mnd: 10, res: 18, agi: 6, xp: 43, cred: 42,
     drops: [{ id: 'drone_optic', chance: 0.2 }],
     moves: [{ id: 'e_volley', w: 2 }, { id: 'attack', w: 2 }],
     lore: 'Ceiling-mounted autogun. When its barrels glow it is about to sweep the room: jam it, stun it, or brace.',
@@ -189,14 +191,16 @@ export const ENEMIES: Record<string, EnemyDef> = {
   }),
   hunter_drone: E({
     id: 'hunter_drone', name: 'Hunter Drone', family: 'machine', sprite: 'hunter',
-    hp: 192, atk: 51, def: 22, mnd: 14, res: 14, agi: 22, xp: 48, cred: 45,
+    hp: 192, atk: 50, def: 22, mnd: 14, res: 14, agi: 22, xp: 48, cred: 45,
     drops: [{ id: 'drone_optic', chance: 0.25 }],
     moves: [{ id: 'e_lockon', w: 2, when: 'no_lockon' }, { id: 'e_missile', w: 4, when: 'lockon_ready' }, { id: 'attack', w: 1 }],
     lore: 'Paints a target, then erases it. Break the lock or scatter.',
   }),
   bound_spirit: E({
     id: 'bound_spirit', name: 'Bound Spirit', family: 'spirit', sprite: 'bound',
-    hp: 200, atk: 14, def: 14, mnd: 31, res: 26, agi: 15, xp: 55, cred: 25,
+    // Softened for the 2026-09-29 retune: Sable's Crow Spirit, the crew's answer to spirits, now
+    // waits for a later chapter.
+    hp: 170, atk: 14, def: 14, mnd: 28, res: 26, agi: 15, xp: 55, cred: 25,
     drops: [{ id: 'ecto_vial', chance: 0.3 }],
     moves: [{ id: 'e_anguish', w: 2 }, { id: 'e_chill', w: 2 }, { id: 'e_anguish', w: 2, when: 'hp_below_half' }],
     lore: 'A spirit caged in a corporate ward. It hates everyone equally.',

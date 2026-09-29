@@ -16,36 +16,42 @@ export const STAGE_GEAR = {
   warden: [] as string[],
 } satisfies Record<string, string[]>;
 
+/**
+ * Levels since the 2026-09-29 retune: Kit 1 → 6 over the chapter; Rook a wounded veteran at 10
+ * (his locked skills come back with the story flags each stage carries); Hex joins at 3, Sable at 5.
+ */
+const TUNED = ['stingray_seated', 'rook_tuned'];
+const MENDED = [...TUNED, 'rook_mended'];
 export const STAGE_PARTY: Record<string, Loadout[]> = {
-  street: [{ id: 'kit', level: 1 }, { id: 'rook', level: 3 }],
+  street: [{ id: 'kit', level: 1 }, { id: 'rook', level: 10 }],
   barrens: [
     { id: 'kit', level: 2, equip: { weapon: 'iron_knuckles' } },
-    { id: 'rook', level: 3 },
+    { id: 'rook', level: 10 },
   ],
   knuckles: [
-    { id: 'kit', level: 3, equip: { weapon: 'iron_knuckles', body: 'armored_jacket' } },
-    { id: 'rook', level: 4, equip: { head: 'helmet' } },
+    { id: 'kit', level: 2, equip: { weapon: 'iron_knuckles', body: 'armored_jacket' } },
+    { id: 'rook', level: 10, equip: { head: 'helmet' } },
   ],
   sinkline: [
-    { id: 'kit', level: 5, equip: { weapon: 'iron_knuckles', body: 'armored_jacket' } },
-    { id: 'rook', level: 5, equip: { weapon: 'vibro_katana', head: 'helmet' } },
-    { id: 'hex', level: 4, equip: { weapon: 'heavy_pistol', mod: 'ghost_lens' } },
+    { id: 'kit', level: 3, equip: { weapon: 'iron_knuckles', body: 'armored_jacket' } },
+    { id: 'rook', level: 10, equip: { weapon: 'vibro_katana', head: 'helmet' }, flags: TUNED },
+    { id: 'hex', level: 3, equip: { weapon: 'heavy_pistol', mod: 'ghost_lens' } },
   ],
   lurker: [
-    { id: 'kit', level: 6, equip: { weapon: 'mono_claws', body: 'armored_jacket', mod: 'grounding_coil' } },
-    { id: 'rook', level: 6, equip: { weapon: 'vibro_katana', head: 'helmet' } },
-    { id: 'hex', level: 6, equip: { weapon: 'heavy_pistol', mod: 'neural_buffer' } },
+    { id: 'kit', level: 4, equip: { weapon: 'mono_claws', body: 'armored_jacket', mod: 'grounding_coil' } },
+    { id: 'rook', level: 10, equip: { weapon: 'vibro_katana', head: 'helmet' }, flags: TUNED },
+    { id: 'hex', level: 4, equip: { weapon: 'heavy_pistol', mod: 'neural_buffer' } },
   ],
   annex: [
-    { id: 'kit', level: 7, equip: { weapon: 'mono_claws', body: 'ballistic_vest', mod: 'grounding_coil' } },
-    { id: 'rook', level: 7, equip: { weapon: 'vibro_katana', head: 'helmet' } },
-    { id: 'hex', level: 7, equip: { weapon: 'heavy_pistol', mod: 'neural_buffer' } },
-    { id: 'sable', level: 7, equip: { weapon: 'focus_rod', mod: 'ghost_lens' } },
+    { id: 'kit', level: 5, equip: { weapon: 'mono_claws', body: 'ballistic_vest', mod: 'grounding_coil' } },
+    { id: 'rook', level: 10, equip: { weapon: 'vibro_katana', head: 'helmet' }, flags: MENDED },
+    { id: 'hex', level: 5, equip: { weapon: 'heavy_pistol', mod: 'neural_buffer' } },
+    { id: 'sable', level: 5, equip: { weapon: 'focus_rod', mod: 'ghost_lens' } },
   ],
   warden: [
-    { id: 'kit', level: 8, equip: { weapon: 'dragon_fang', body: 'ballistic_vest', mod: 'grounding_coil' } },
-    { id: 'rook', level: 8, equip: { weapon: 'mono_katana', head: 'helmet' } },
-    { id: 'hex', level: 8, equip: { weapon: 'smartpistol', mod: 'neural_buffer' } },
-    { id: 'sable', level: 7, equip: { weapon: 'focus_rod', mod: 'ghost_lens' } },
+    { id: 'kit', level: 6, equip: { weapon: 'dragon_fang', body: 'ballistic_vest', mod: 'grounding_coil' } },
+    { id: 'rook', level: 11, equip: { weapon: 'mono_katana', head: 'helmet' }, flags: MENDED },
+    { id: 'hex', level: 6, equip: { weapon: 'smartpistol', mod: 'neural_buffer' } },
+    { id: 'sable', level: 5, equip: { weapon: 'focus_rod', mod: 'ghost_lens' } },
   ],
 };

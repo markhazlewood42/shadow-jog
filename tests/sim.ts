@@ -5,6 +5,8 @@ import type { Combatant, Command } from '../src/battle/types';
 import { ABILITIES } from '../src/data/abilities';
 import { ENCOUNTERS, ENEMIES } from '../src/data/enemies';
 import { createMember, knownAbilities } from '../src/game/party';
+import { flags } from '../src/game/state';
+import { CH1_STORY_FLAGS } from '../src/data/abilities';
 import type { EquipSlot, MemberId, MemberState } from '../src/game/state';
 import { Rng } from '../src/engine/rng';
 
@@ -12,6 +14,8 @@ export interface Loadout {
   id: MemberId;
   level: number;
   equip?: Partial<Record<EquipSlot, string>>;
+  /** Story flags this stage has passed (abilities they unlock: the Stingray, Rook's recovery). */
+  flags?: readonly string[];
 }
 
 export interface SimResult {
@@ -202,7 +206,15 @@ export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, 
   return cmds;
 }
 
+/** Whether a combatant knows an ability (level and story flags, as the game decides it). */
+function knows(c: Combatant, id: string): boolean {
+  return knownAbilities({ id: c.key as MemberId, level: c.level } as MemberState).includes(id);
+}
+
 export function buildParty(loadout: Loadout[]): Combatant[] {
+  // The story so far, as the loadout says: who knows what depends on it (knownAbilities reads flags).
+  for (const f of CH1_STORY_FLAGS) flags.clear(f);
+  for (const l of loadout) for (const f of l.flags ?? []) flags.set(f);
   return loadout.map((l, i) => {
     const m = createMember(l.id, l.level);
     if (l.equip) Object.assign(m.equip, l.equip);
@@ -290,9 +302,10 @@ export interface Supplies {
  * Dungeon attrition: `battles` fights in a row with no rest. HP/TP/skill uses carry over, and
  * the policy conserves TP for what needs it. Between fights the player field-heals (Mend /
  * Patch, keeping a reserve), cures poison (Purge or a Detox Shot), revives with a stim, medkits
- * anyone under 65%, and tops up an empty Kit or Sable with a Neurotab.
+ * anyone under 65%, and tops up an empty Kit or Sable with a Neurotab. `levelUps`: where the
+ * route's XP says members level mid-run, a full recovery for them (a level-up restores all).
  */
-export function simulateRun(label: string, loadout: Loadout[], table: string, battles: number, kit: Supplies, n = 60, seed = 3): RunResult {
+export function simulateRun(label: string, loadout: Loadout[], table: string, battles: number, kit: Supplies, n = 60, seed = 3, levelUps: { after: number; who: MemberId[] }[] = []): RunResult {
   const rng = new Rng(seed);
   const groups = ENCOUNTERS[table]!;
   let cleared = 0, endHp = 0, used = 0, rounds = 0, fights = 0, rookLeft = 0, rookDry = 0;
@@ -316,10 +329,20 @@ export function simulateRun(label: string, loadout: Loadout[], table: string, ba
         break;
       }
       for (const c of p) if (c.hp <= 0 && bag.stim > 0) { bag.stim--; c.hp = Math.round(c.base.maxHp * 0.3); }
+      for (const up of levelUps) {
+        if (up.after !== k + 1) continue;
+        for (const c of p) {
+          if (!up.who.includes(c.key as MemberId) || c.hp <= 0) continue;
+          c.hp = c.base.maxHp;
+          c.tp = c.base.maxTp;
+          c.status = [];
+          for (const id of Object.keys(c.uses)) c.uses[id] = c.maxUses?.[id] ?? ABILITIES[id]?.uses ?? 0;
+        }
+      }
       // Field heals first (Sable's Mend / Hex's Patch), keeping a TP reserve for the next fight.
       for (const healer of p.filter((c) => c.hp > 0 && (c.key === 'sable' || c.key === 'hex'))) {
         const id = healer.key === 'sable' ? 'mend' : 'patch';
-        if (healer.level < (id === 'patch' ? 3 : 1)) continue;
+        if (!knows(healer, id)) continue;
         const ab = ABILITIES[id]!;
         for (const c of p) {
           while (c.hp > 0 && c.hp < c.base.maxHp * 0.7 && healer.tp - (ab.cost ?? 0) >= healer.base.maxTp * 0.3) {
@@ -328,7 +351,7 @@ export function simulateRun(label: string, loadout: Loadout[], table: string, ba
           }
         }
       }
-      const sable = p.find((c) => c.key === 'sable' && c.hp > 0 && c.level >= 3);
+      const sable = p.find((c) => c.key === 'sable' && c.hp > 0 && knows(c, 'purge'));
       for (const c of p) {
         c.status = c.status.filter((s) => s.id === 'poison');
         if (c.status.length && sable && sable.tp - 3 >= sable.base.maxTp * 0.3) { sable.tp -= 3; c.status = []; }
@@ -341,7 +364,7 @@ export function simulateRun(label: string, loadout: Loadout[], table: string, ba
       cleared++;
       const rook = p.find((c) => c.key === 'rook');
       if (rook) {
-        const full = Object.keys(rook.uses).reduce((n, id) => n + (ABILITIES[id]?.uses ?? 0), 0);
+        const full = Object.keys(rook.uses).reduce((n, id) => n + (rook.maxUses?.[id] ?? ABILITIES[id]?.uses ?? 0), 0);
         const left = Object.values(rook.uses).reduce((n, v) => n + v, 0);
         rookLeft += full ? left / full : 1;
         if (left === 0) rookDry++;

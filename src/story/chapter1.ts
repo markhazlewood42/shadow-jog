@@ -5,6 +5,8 @@
  *   intro, first_fight, met_dutch, met_hex, rustyard_gate, knuckles, coprocessor, coprocessor_given,
  *   hex_joined, sinkline_gate, valve_v1..3 + valves (the intake count), floodgate, lurker,
  *   annex_key, relay_a..c, lattice_off, sable_joined, warden, betrayal, chapter_end.
+ * Ability unlocks (CH1_STORY_FLAGS, set with s.unlock): stingray_seated and rook_tuned at Hex's,
+ *   rook_mended when Sable joins.
  * Side paths and choices: tribute_hint, tribute_stash, camp_kept (Mags' fork), annex_panel,
  *   req_badge, rent_tin, cat_found / job_cat_done, job_case_done, job_bounty_done, ono_free.
  * Seen-once lines (so a beat isn't repeated): met_wire, met_mary, pump_seen, valve_hint,
@@ -45,6 +47,9 @@ export const introFlat: ScriptFn = async (s) => {
   await s.say('kit', 'Real work? Like, paying work? Not “hold this bag and don’t look inside” work?', { face: 'surprised' });
   await s.say('rook', 'The Drowned Saint. Ten minutes. And eat something first. Nobody punches well on an empty stomach.');
   await s.say('kit', 'Hungry’s fine. Hungry’s how I win.', { face: 'happy' });
+  await s.narrate('Rook takes his coat from the hook the slow way, keeping his left side still.');
+  await s.say('kit', 'Doc Yun said three weeks off. It’s been one.', { face: 'sad' });
+  await s.say('rook', 'Then I’m two weeks ahead. The ribs are fine. It’s the wiring that’s sulking.');
   await s.move('rook', 'lld', { speed: 14 });
   s.regroup();
   s.set('intro');
@@ -69,6 +74,8 @@ export const firstFight: ScriptFn = async (s) => {
   await s.say('rook', 'Sloppy. You dropped your guard twice.');
   await s.say('kit', 'I won, didn’t I?', { face: 'happy' });
   await s.say('rook', 'You beat Rustfangs. That’s like beating the weather. Come on.');
+  await s.narrate('He says it with a hand pressed flat to his side, where he thinks she can’t see.');
+  await s.tutorial('ROOK IS WOUNDED', 'Rook is a veteran (level 10), but he came into this job hurt: less HP, attack and speed, a charge short on each skill, and some skills locked. His {c}Status{/} page shows what it costs him. The job may yet fix him.');
 };
 
 // ------------------------------------------------------------------ the job
@@ -116,11 +123,20 @@ export const meetHex: ScriptFn = async (s) => {
   if (s.flag('coprocessor')) {
     await s.say('hex', 'Is that— is that a Stingray? Don’t drop it. Please don’t drop it. Slowly. Give it here slowly.', { face: 'surprised' });
     s.take('coprocessor');
-    await s.fadeOut(30);
+    await s.say('hex', 'No. You do it. My hands are shaking. Pins to pins, then the clips. I’ll talk you through it.', { face: 'sad' });
+    await s.deck('seat');
+    s.unlock('stingray_seated');
+    await s.narrate('Hex’s deck runs a new program: {y}Overload{/}, a surge that fries machines. Her deck’s under {c}Deck{/} in the menu now.');
+    await s.say('hex', 'Okay. While she’s warm.', { face: 'smirk' });
+    await s.say('hex', 'Rook. Sit. Your reflex wiring’s been double-firing since you walked in. I can hear it clicking. Chrome shouldn’t click.');
+    await s.say('rook', 'It’s fine.');
+    await s.say('hex', 'It’s clicking. Sit.', { face: 'angry' });
     s.sfx('code');
-    await s.wait(50);
-    await s.fadeIn(30);
-    await s.say('hex', 'Aaand she lives. Hi, baby. Did you miss me? You missed me.', { face: 'happy' });
+    await s.narrate('Hex runs a cable from the deck to the port behind Rook’s ear. Thirty seconds of scrolling numbers. Something in his shoulder stops twitching.');
+    const tuned = s.unlock('rook_tuned');
+    s.sfx('levelup');
+    await s.narrate(`Rook’s chrome is re-tuned: {y}${tuned.join('{/} and {y}')}{/} are back, and his wound costs him less.`);
+    await s.say('hex', 'Your side’s still a mess, though. That’s meat. I don’t do meat.');
     await s.say('hex', 'Okay. A deal’s a deal. I’m already regretting it. Let’s go rob a haunted subway.');
     s.despawn('hex');
     await s.join('hex');
@@ -141,6 +157,7 @@ export const meetHex: ScriptFn = async (s) => {
   await s.say('hex', 'Right. Knew that. Hi, Kit.');
   await s.say('rook', 'We have a job. Corporate doors, down in the Sinkline.');
   await s.say('hex', 'No. Absolutely not. Also I can’t: my deck’s dead. Fried the coprocessor on an all-nighter. A hobby. Look at her. She’s crying.', { face: 'sad' });
+  await s.deck('dead');
   await s.say('kit', 'So buy a new one.');
   await s.say('hex', 'With what cred? A Stingray costs more than this building. Which I also owe money on.');
   await s.say('rook', 'Dutch will forget your debt.');
@@ -498,6 +515,17 @@ export const cryopod: ScriptFn = async (s) => {
   await s.fadeIn(30);
   await s.join('sable');
   s.set('sable_joined');
+  await s.say('sable', 'You. The old one. You’re bleeding under that coat.');
+  await s.say('rook', 'Old news.');
+  await s.say('sable', 'The crow doesn’t care how old it is. Hold still.');
+  s.flash('#ffffff', 10);
+  s.sfx('spirit');
+  await s.narrate('Sable lays two fingers against Rook’s side. Something black-feathered and warm passes through the room. When she steps back, the stitches are just a scar.');
+  const mended = s.unlock('rook_mended');
+  s.sfx('levelup');
+  await s.narrate(`Rook’s wound is closed: full strength, every charge back, and {y}${mended.join('{/} and {y}')}{/} too.`);
+  await s.say('rook', '…Huh.');
+  await s.say('kit', 'Don’t get used to it. You still owe Doc Yun for the stitches.', { face: 'smirk' });
   s.music('tension');
   s.shake(40, 2);
   s.sfx('alert');

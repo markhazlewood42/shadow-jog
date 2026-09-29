@@ -25,12 +25,14 @@ function crew(members: Partial<Record<MemberId, Kit>>): void {
 const FLAGS_BEFORE_HEX = { intro: true, first_fight: true, met_dutch: true, 'visit:lantern_row': true, 'visit:world': true, objective: 'Find Hex. She lives above Chrome+Circuit, by the canal.' };
 const FLAGS_SINKLINE = {
   ...FLAGS_BEFORE_HEX, met_hex: true, rustyard_gate: true, knuckles: true, coprocessor_given: true, hex_joined: true, sinkline_gate: true, 'visit:rustyard': true, 'visit:sinkline_1': true,
+  // The Stingray is seated (Hex's Overload) and Rook's chrome re-tuned (two skills back).
+  stingray_seated: true, rook_tuned: true,
   objective: 'Find a way across the flooded junction.',
 };
 
 export const STAGES: Record<string, () => Stage> = {
   start: () => {
-    crew({ kit: { level: 1 }, rook: { level: 3 } });
+    crew({ kit: { level: 1 }, rook: { level: 10 } });
     Object.assign(state.flags, { intro: true, objective: 'Meet Dutch at the Drowned Saint (north side of the street).' });
     state.cred = 150;
     state.battles = 1;
@@ -38,7 +40,7 @@ export const STAGES: Record<string, () => Stage> = {
     return { map: 'lantern_row', x: 22, y: 8, dir: 'up', minutes: 4 };
   },
   town: () => {
-    crew({ kit: { level: 2, equip: { weapon: 'iron_knuckles', body: 'armored_jacket' } }, rook: { level: 3 } });
+    crew({ kit: { level: 2, equip: { weapon: 'iron_knuckles', body: 'armored_jacket' } }, rook: { level: 10 } });
     Object.assign(state.flags, FLAGS_BEFORE_HEX);
     state.cred = 420;
     state.battles = 7;
@@ -46,12 +48,13 @@ export const STAGES: Record<string, () => Stage> = {
     return { map: 'lantern_row', x: 27, y: 21, dir: 'down', minutes: 14 };
   },
   sinkline: () => {
-    crew({
-      kit: { level: 5, equip: { weapon: 'iron_knuckles', body: 'armored_jacket', head: 'bandana' } },
-      rook: { level: 5, equip: { weapon: 'vibro_katana' } },
-      hex: { level: 4, equip: { weapon: 'heavy_pistol' } },
-    });
+    // Flags first: which abilities (and charges) the crew starts with depends on them.
     Object.assign(state.flags, FLAGS_SINKLINE);
+    crew({
+      kit: { level: 3, equip: { weapon: 'iron_knuckles', body: 'armored_jacket', head: 'bandana' } },
+      rook: { level: 10, equip: { weapon: 'vibro_katana' } },
+      hex: { level: 3, equip: { weapon: 'heavy_pistol' } },
+    });
     state.cred = 640;
     state.battles = 11;
     state.inventory = { medkit: 5, trauma_patch: 2, neurotab: 2, detox: 2, smoke_pellet: 1, getaway_chit: 1, scrap_chip: 2 };
@@ -59,13 +62,13 @@ export const STAGES: Record<string, () => Stage> = {
     return { map: 'sinkline_1', x: 10, y: 9, dir: 'down', minutes: 30 };
   },
   annex: () => {
+    Object.assign(state.flags, { ...FLAGS_SINKLINE, floodgate: true, lurker: true, annex_key: true, sable_joined: true, rook_mended: true, objective: 'Gear up from the Annex armory, then head for the freight lift in the south wing.' });
     crew({
-      kit: { level: 7, equip: { weapon: 'mono_claws', body: 'ballistic_vest', head: 'helmet' } },
-      rook: { level: 7, equip: { weapon: 'vibro_katana', body: 'lined_coat' } },
-      hex: { level: 7, equip: { weapon: 'heavy_pistol', body: 'lined_coat' } },
-      sable: { level: 7 },
+      kit: { level: 5, equip: { weapon: 'mono_claws', body: 'ballistic_vest', head: 'helmet' } },
+      rook: { level: 10, equip: { weapon: 'vibro_katana', body: 'lined_coat' } },
+      hex: { level: 5, equip: { weapon: 'heavy_pistol', body: 'lined_coat' } },
+      sable: { level: 5 },
     });
-    Object.assign(state.flags, { ...FLAGS_SINKLINE, floodgate: true, lurker: true, annex_key: true, sable_joined: true, objective: 'Gear up from the Annex armory, then head for the freight lift in the south wing.' });
     state.cred = 1400;
     state.battles = 27;
     state.inventory = { medkit: 6, trauma_patch: 4, neurotab: 3, adrenal_stim: 2, omni_patch: 1, frag: 2 };
@@ -79,10 +82,10 @@ export const STAGES: Record<string, () => Stage> = {
     state.members = {};
     state.party = [];
     crew({
-      kit: { level: 9, equip: { weapon: 'dragon_fang', body: 'ballistic_vest', head: 'helmet', mod: 'grounding_coil' } },
-      rook: { level: 9, equip: { weapon: 'mono_katana', body: 'lined_coat', head: 'helmet' } },
-      hex: { level: 8, equip: { weapon: 'smartpistol', body: 'lined_coat', mod: 'neural_buffer' } },
-      sable: { level: 8, equip: { weapon: 'focus_rod', mod: 'ghost_lens' } },
+      kit: { level: 6, equip: { weapon: 'dragon_fang', body: 'ballistic_vest', head: 'helmet', mod: 'grounding_coil' } },
+      rook: { level: 11, equip: { weapon: 'mono_katana', body: 'lined_coat', head: 'helmet' } },
+      hex: { level: 6, equip: { weapon: 'smartpistol', body: 'lined_coat', mod: 'neural_buffer' } },
+      sable: { level: 5, equip: { weapon: 'focus_rod', mod: 'ghost_lens' } },
     });
     Object.assign(state.flags, { warden: true, objective: 'Take the freight lift up to Loading Dock 7.' });
     state.cred = 1150;

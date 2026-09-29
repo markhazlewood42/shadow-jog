@@ -52,6 +52,10 @@ export function scriptApi(f: FieldScene): ScriptApi {
     },
     inParty: (id) => state.party.includes(id),
     restoreParty: () => fieldHooks.restoreParty?.(),
+    unlock: (flag) => fieldHooks.unlock?.(flag) ?? [],
+    deck: async (mode) => {
+      await fieldHooks.deck?.(f, mode);
+    },
     refreshFocus: () => fieldHooks.refreshFocus?.(),
     battle: async (enc, opts) => (fieldHooks.battle ? fieldHooks.battle(f, enc, opts ?? {}) : 'win'),
     warp: async (mapId, x, y, dir, opts) => {

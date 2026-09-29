@@ -151,7 +151,7 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | Name | Who they are |
 |---|---|
 | **Kit** (she/her) | 19, human, born in Lantern Row and raised by Rook. A ki brawler: her magic came late (last month) and comes out through her fists. The protagonist. Reckless, loyal, funny. Resource: **KI**. |
-| **Rook** (he/him) | 41, human street samurai. "More chrome than conscience, or so he says." Twenty years of runs. He walked past a tank with somebody still in it once, and has told himself every night since that it wasn't his job. Has no TP; fights with limited-use **skill charges**. Taken at the end of the chapter. |
+| **Rook** (he/him) | 41, human street samurai. "More chrome than conscience, or so he says." Twenty years of runs. He walked past a tank with somebody still in it once, and has told himself every night since that it wasn't his job. Has no TP; fights with limited-use **skill charges**. Taken at the end of the chapter. A level-10 veteran who starts the chapter **wounded** (a stitched side from his last run, and reflex wiring that misfires); Hex re-tunes the wiring, Sable closes the wound. **[new]** |
 | **Hex** (she/her) | 34, dwarf deck jockey. Genius, insomniac, anxious and sarcastic; owes money to Dutch and everyone else. Resource: **RAM**. |
 | **Sable** (they/them) | 24, orc shaman, crow-sworn. Found in K-M's cryopod S-7, "Asset S-7 · VESSEL", with a spark yield of 94%. Doesn't remember how long they were in the tank. Resource: **MANA**. |
 | **The crow** | Sable's totem spirit. It screamed the whole time Sable was in the tank; it follows the vans up the arcology at the end. |
@@ -201,7 +201,7 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | Term | Meaning |
 |---|---|
 | **Chrome** | Cyberware; a chromed person is one with a lot of it (Rook, Knuckles' hands). |
-| **Cyberdeck**, **deck** | A jockey's rig. Hex's has a whip antenna and a coprocessor slot. |
+| **Cyberdeck**, **deck** | A jockey's rig. Hex's has a whip antenna and a coprocessor slot. Stickered plating ("HEX" on tape, a cat, hazard tape, a voided warranty seal), hand-lettered violet function keys, a co-processor bay and two expansion slots. Shown close up when she talks about it, in battle when she runs a program, and on the menu's Deck page. |
 | **Coprocessor** | The deck's accelerator. The **Stingray** (a brand with a little fin logo) is the one Hex needs, and it "costs more than this building". |
 | **RAM** | Hex's resource: working memory for programs. |
 | **Programs** | Hex's techs: Spike, Scramble, Patch, Firewall, Overload, Hijack. |
@@ -237,11 +237,15 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | **TP** | The umbrella name for a member's resource: KI (Kit), RAM (Hex), MANA (Sable). Rook has none. |
 | **Techs** | Abilities paid for in TP (Ki Arts, programs, spirit-work). |
 | **Skills** | Abilities with a limited number of uses per rest (all of Rook's, plus a few for everyone). |
-| **Combos** | Two or three members' moves fused when ordered in the same round. Thunder Rift, Target Lock, Ghost Circuit, Pyre Storm, Spirit Walk, Crow's Wing, Lifeline, Blackout, and **Clean Job** (the three-part one). Each has a caller who says a line. |
+| **Combos** | Two or three members' moves fused when ordered in the same round. Thunder Rift, Target Lock, Ghost Circuit, Pyre Storm, Spirit Walk, Crow's Wing, Lifeline, Blackout, and **Clean Job** (the three-part one). Each has a caller who says a line. Since 2026-09-29 Spirit Walk needs abilities past Chapter 1's levels, so it waits for a later chapter. |
 | **Timed presses** | A ring closes on the target as a blow comes in: press on the beat to **strike** harder or **brace** against a hit. A press off the beat (a **whiff**) costs. |
 | **Guard** | Brace for the round. A blow taken on a guard gives TP back, and gives Rook a spent charge once a fight. |
 | **Tells** | An enemy winding up something big (a turret spinning up, an arcanist surging, the Warden's cannon charging). |
-| **Elements** | Phys, Fire, Shock, Mana, Cyber. |
+| **Elements** | Phys, Fire, Shock, Mana, Cyber. Each has a **damage-type symbol** (a blade, a flame, a bolt, a chip, a four-pointed spark) shown beside every attack, tech, skill and item in the battle menus and in the weakness readouts (added 2026-09-29). |
+| **Wounded** | Rook's condition for most of Chapter 1: less HP, ATK and AGI, a charge short on every skill, and some skills locked (listed greyed on his Status page). Hex's re-tune halves it and gives two skills back; Sable closes it. |
+| **Level-up** | Rarer since 2026-09-29 (Chapter 1 ends around level 6; the full game near 30). Each one is a full recovery (HP, TP, charges), and new abilities come from a level only three times in Chapter 1; the rest come from the story. |
+| **Deck** (menu page) | Hex's cyberdeck, close up: the Stingray in its co-processor slot, two empty **expansion slots** (where later chapters' parts go), and her programs. |
+| **Two of a kind** | Enemies of the same kind in one fight are lettered (Glowrat A, Glowrat B), in their names, the turn strip and, on machines, a stencil. |
 | **Families** | Human, Machine, Beast, Spirit, Ghoul (each with its own weaknesses). |
 | **Bestiary**, **Places**, **Combo log** | The menu's records. |
 
@@ -275,7 +279,7 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | Item | Why it matters |
 |---|---|
 | **Job Chip** | Mr. Pale's job: "data core, K-M Annex 7, under the Sinkline". |
-| **Stingray Coprocessor** | The price of Hex joining. |
+| **Stingray Coprocessor** | The price of Hex joining. The player seats it by hand (line the pins up, snap the clips); it boots and unlocks her **Overload**. |
 | **Maintenance Keycard**, **Annex Passkey** | Transit-authority and K-M keys that open the way down. |
 | **Doc Yun's Med-Case** | A side job: stolen by Rustfangs. |
 | **Flood Charm** | A ’61 transit pass on a chain, "kept by someone who didn't get out". |

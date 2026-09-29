@@ -37,6 +37,13 @@ export interface ScriptApi {
   restoreParty(): void;
   /** TP and skill uses back for the standing crew (no healing). */
   refreshFocus(): void;
+  /**
+   * Set a story flag that unlocks abilities (CH1_STORY_FLAGS): newly usable skills get their
+   * charges. Returns the names of what it unlocked, for the script to announce.
+   */
+  unlock(flag: string): string[];
+  /** Hex's deck, close up: 'dead' (no coprocessor), 'seat' (the Stingray, hands-on), or 'view'. */
+  deck(mode: 'dead' | 'seat' | 'view'): Promise<void>;
 
   battle(encounter: string, opts?: { canRun?: boolean; boss?: boolean; music?: string; bg?: string; loseOk?: boolean }): Promise<BattleResult>;
   warp(map: string, x: number, y: number, dir?: Dir, opts?: { fade?: boolean }): Promise<void>;

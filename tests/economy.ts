@@ -57,6 +57,14 @@ export interface Report {
   notes: string[];
 }
 
+/**
+ * The levels of the crew members who level from 1: what joiners match and what prices follow
+ * (as the game does: systems.ts join, party.ts crewLevel). Rook's veteran 10 is neither.
+ */
+function peerLevels(party: Partial<Record<MemberId, number>>): number[] {
+  return (Object.entries(party) as [MemberId, number][]).filter(([id]) => (MEMBERS[id].baseLevel ?? 1) === 1).map(([, x]) => levelForXp(x));
+}
+
 /** Walk the route; at checkpoints, buy the assumed gear (cheapest-first) and check levels. */
 export function runEconomy(route: Leg[], startCred: number, startParty: Partial<Record<MemberId, number>>): Report[] {
   let cred = startCred;
@@ -86,11 +94,11 @@ export function runEconomy(route: Leg[], startCred: number, startParty: Partial<
     }
     battles += fights.length + expected;
     cred += leg.cred ?? 0;
-    const avg = Object.values(party).reduce((n, x) => n + levelForXp(x!), 0) / Math.max(1, Object.keys(party).length);
+    const avg = peerLevels(party).reduce((n, l) => n + l, 0) / Math.max(1, peerLevels(party).length);
     cred -= (leg.rests ?? 0) * innPrice(10, avg) * Object.keys(party).length;
     cred -= leg.supplies ?? 0;
     for (const id of leg.joins ?? []) {
-      const lead = Math.max(...Object.values(party).map((x) => levelForXp(x!)));
+      const lead = Math.max(...peerLevels(party));
       party[id] = xpFor(Math.max(MEMBERS[id].startLevel, lead - 1));
     }
     let spent = 0;
@@ -180,7 +188,7 @@ export function runEconomyMC(route: Leg[], startCred: number, startParty: Partia
     const party: Partial<Record<MemberId, number>> = {};
     for (const [id, lv] of Object.entries(startParty) as [MemberId, number][]) party[id] = xpFor(lv);
     const owned = new Set<string>();
-    const avgLevel = () => Object.values(party).reduce((n, x) => n + levelForXp(x!), 0) / Math.max(1, Object.keys(party).length);
+    const avgLevel = () => peerLevels(party).reduce((n, l) => n + l, 0) / Math.max(1, peerLevels(party).length);
     const fight = (table: string) => {
       const v = rollFight(table, rng);
       cred += v.cred;
@@ -195,7 +203,7 @@ export function runEconomyMC(route: Leg[], startCred: number, startParty: Partia
       cred -= (leg.rests ?? 0) * innPrice(10, avgLevel()) * Object.keys(party).length;
       cred -= leg.supplies ?? 0;
       for (const id of leg.joins ?? []) {
-        const lead = Math.max(...Object.values(party).map((x) => levelForXp(x!)));
+        const lead = Math.max(...peerLevels(party));
         party[id] = xpFor(Math.max(MEMBERS[id].startLevel, lead - 1));
       }
       if (leg.checkpoint) {

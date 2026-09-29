@@ -11,7 +11,7 @@ import { ROUTE } from './route';
 import { STAGE_GEAR } from './stages';
 
 describe('economy', () => {
-  const report = runEconomy(ROUTE, 150, { kit: 1, rook: 3 });
+  const report = runEconomy(ROUTE, 150, { kit: 1, rook: 10 });
 
   it('prints the route', () => {
     for (const leg of ROUTE) if (leg.walk) console.log(`${leg.label.padEnd(30)} walks ${leg.walk.map(([t, n, r]) => `${n} steps of ${t} (1 in ${r})`).join(', ')}`);
@@ -51,7 +51,7 @@ describe('economy', () => {
     }
     return downs.get(table)!;
   };
-  const mc = runEconomyMC(ROUTE, 150, { kit: 1, rook: 3 }, 400, 7, downRate);
+  const mc = runEconomyMC(ROUTE, 150, { kit: 1, rook: 10 }, 400, 7, downRate);
   const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.floor((xs.length - 1) * p)]!;
 
   it('prints the Monte Carlo spread', () => {
@@ -67,7 +67,7 @@ describe('economy', () => {
 
   // A straight-line player who opens no optional chest: the gear is still in reach for most runs
   // without grinding (a few extra fights at worst).
-  const lean = runEconomyMC(ROUTE, 150, { kit: 1, rook: 3 }, 400, 11, downRate, true);
+  const lean = runEconomyMC(ROUTE, 150, { kit: 1, rook: 10 }, 400, 11, downRate, true);
   it('prints the minimal-exploration spread', () => {
     for (const [cp, xs] of lean) console.log(`minimal: ${cp.padEnd(30)} p10 ${String(Math.round(pct(xs, 0.1))).padStart(5)}¢  median ${String(Math.round(pct(xs, 0.5))).padStart(5)}¢  affordable ${((xs.filter((x) => x >= 0).length / xs.length) * 100).toFixed(0)}%`);
   });

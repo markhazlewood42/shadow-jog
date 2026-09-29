@@ -37,12 +37,16 @@ describe('balance', () => {
   it('prints the balance table', () => {
     console.log(`\n${results.flatMap(({ r, timed }) => (timed ? [fmt(r), fmt(timed)] : [fmt(r)])).join('\n')}`);
   });
-  it('the policy uses every ability learnable by the Warden and every combo', () => {
+  it('the policy uses every ability learnable by the Warden and every combo the chapter can reach', () => {
     const used = new Set(results.flatMap(({ r }) => [...r.used]));
     const lv = Object.fromEntries(STAGE_PARTY.warden!.map((l) => [l.id, l.level]));
-    const learnable = Object.entries(LEARNSETS).flatMap(([who, ls]) => ls.filter((l) => l.level <= (lv[who] ?? 0)).map((l) => l.id));
-    expect(learnable.filter((id) => !used.has(id))).toEqual([]);
-    expect(COMBOS.map((c) => c.id).filter((id) => !used.has(id))).toEqual([]);
+    // By the Warden every Chapter 1 story unlock has happened (the Stingray, Rook re-tuned and mended).
+    const learnable = new Set(Object.entries(LEARNSETS).flatMap(([who, ls]) => ls.filter((l) => l.level <= (lv[who] ?? 0)).map((l) => l.id)));
+    expect([...learnable].filter((id) => !used.has(id))).toEqual([]);
+    const reachable = COMBOS.filter((c) => c.parts.every((p) => learnable.has(p.ability)));
+    expect(reachable.map((c) => c.id).filter((id) => !used.has(id))).toEqual([]);
+    // Chapter 1 keeps the combo core; only what needs a later-chapter ability waits (Spirit Walk).
+    expect(COMBOS.length - reachable.length).toBeLessThanOrEqual(1);
   });
   for (const { s, r, timed } of results) {
     it(`${s.label} within targets`, () => {
@@ -57,11 +61,17 @@ describe('balance', () => {
 });
 
 describe('dungeon attrition', () => {
+  // Level-ups mid-run where the route's XP puts them (tests/economy.test.ts prints it): Kit
+  // reaches 4 about three fights into the Sinkline and Hex about five (and learns Scramble then,
+  // which the run can't use: its levels are fixed); Kit and Hex reach 6 about three into the Annex. A
+  // level-up is a full recovery for whoever levels.
   const runs = [
     { r: simulateRun('barrens x4', STAGE_PARTY.barrens!, 'barrens', 4, { medkit: 4, stim: 0, detox: 2 }), min: 0.9 },
-    { r: simulateRun('sinkline x6', STAGE_PARTY.sinkline!, 'sinkline', 6, { medkit: 6, stim: 1, detox: 2, neurotab: 1 }), min: 0.85 },
+    // Five, not six: since the Sinkline's encounter rate dropped (1 in 40 steps, 2026-09-29) the
+    // whole floor holds about five and a half random fights (tests/economy.test.ts prints it).
+    { r: simulateRun('sinkline x5', STAGE_PARTY.sinkline!, 'sinkline', 5, { medkit: 6, stim: 1, detox: 2, neurotab: 1 }, 60, 3, [{ after: 3, who: ['kit'] }, { after: 5, who: ['hex'] }]), min: 0.85 },
     // 120 runs, not 60: the annex's clear rate sits near its floor, and 60 runs swing ±5 points.
-    { r: simulateRun('annex x7', STAGE_PARTY.annex!, 'annex', 7, { medkit: 6, stim: 2, detox: 2, neurotab: 2 }, 120), min: 0.85 },
+    { r: simulateRun('annex x7', STAGE_PARTY.annex!, 'annex', 7, { medkit: 6, stim: 2, detox: 2, neurotab: 2 }, 120, 3, [{ after: 3, who: ['kit', 'hex'] }]), min: 0.85 },
   ];
   it('the pressure climbs into the Warden: the Annex costs at least what the Sinkline did', () => {
     const [, sink, annex] = runs.map(({ r }) => r);

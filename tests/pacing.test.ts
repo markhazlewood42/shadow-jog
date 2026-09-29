@@ -66,7 +66,7 @@ function proseChars(path: string): number {
 }
 
 describe('pacing', () => {
-  const report = runEconomy(ROUTE, 150, { kit: 1, rook: 3 });
+  const report = runEconomy(ROUTE, 150, { kit: 1, rook: 10 });
   const fights = report[report.length - 1]!.battles + 1; // + the Warden itself
 
   const routeSteps = ROUTE.reduce((n, leg) => n + (leg.walk ?? []).reduce((m, [, s]) => m + s, 0), 0);

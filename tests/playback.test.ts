@@ -54,6 +54,7 @@ function recorder(armed = false) {
     // Animation frames map one to one here (the scene's FX_PACE is a presentation choice).
     anim: (n) => n,
     label: (u) => u.name,
+    deckCutin: () => undefined,
     floatOn: (uid, text) => log.push(`float:${uid}:${text}`),
     say: (text) => log.push(`say:${text}`),
     showBanner: (text) => log.push(`banner:${text}`),

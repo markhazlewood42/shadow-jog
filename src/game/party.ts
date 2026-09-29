@@ -4,7 +4,7 @@ import { ABILITIES, LEARNSETS } from '../data/abilities';
 import { ITEMS } from '../data/items';
 import { baseStatsAt, levelForXp, MAX_LEVEL, MEMBERS, xpFor } from '../data/party';
 import type { EquipSlot, MemberId, MemberState } from './state';
-import { state } from './state';
+import { flags, state } from './state';
 
 export function createMember(id: MemberId, level?: number): MemberState {
   const def = MEMBERS[id];
@@ -56,19 +56,61 @@ export function memberStats(m: MemberState): Stats {
     s.hit += it.hit ?? 0;
   }
   if (m.id === 'rook') s.maxTp = 0;
+  if (isWounded(m.id)) {
+    const w = woundNow();
+    s.maxHp = Math.round(s.maxHp * w.hp);
+    s.atk = Math.round(s.atk * w.atk);
+    s.agi = Math.round(s.agi * w.agi);
+  }
   return s;
+}
+
+/**
+ * What Rook's wound costs him, healing in two steps with the story: Hex's re-tune lets his chrome
+ * carry half of it (and gives two skills back), then Sable closes it. Early on he's about as
+ * strong as the old level-3 Rook was, so the opening fights keep their bite; whole, he's the
+ * veteran his level says. Shown on his status page.
+ */
+export const WOUND = { hp: 0.7, atk: 0.72, agi: 0.85 };
+export const WOUND_TUNED = { hp: 0.85, atk: 0.86, agi: 0.92 };
+function woundNow(): typeof WOUND {
+  return flags.has('rook_tuned') ? WOUND_TUNED : WOUND;
+}
+
+/** What the wound costs this member right now (null if they aren't wounded), for the status page. */
+export function currentWound(id: MemberId): typeof WOUND | null {
+  return isWounded(id) ? woundNow() : null;
+}
+
+/** Abilities this member has the level for but the story hasn't unlocked yet (Rook's, while hurt). */
+export function lockedAbilities(m: MemberState): string[] {
+  return (LEARNSETS[m.id] ?? []).filter((l) => l.level <= m.level && l.flag && !flags.has(l.flag)).map((l) => l.id);
 }
 
 /** Ability ids known at the member's level, in learn order. */
 export function knownAbilities(m: MemberState, kind?: 'tech' | 'skill'): string[] {
   return (LEARNSETS[m.id] ?? [])
-    .filter((l) => l.level <= m.level)
+    .filter((l) => l.level <= m.level && (!l.flag || flags.has(l.flag)))
     .map((l) => l.id)
     .filter((id) => !kind || ABILITIES[id]?.kind === kind);
 }
 
+/**
+ * Rook came into Chapter 1 hurt: until Sable closes the wound he's weaker (WOUND) and each of his
+ * skills holds one charge fewer.
+ */
+export function isWounded(id: MemberId): boolean {
+  return id === 'rook' && !flags.has('rook_mended');
+}
+
+/** A skill's charges when full: its listed uses, one fewer (at least one) while Rook is wounded. */
+export function maxUses(id: MemberId, abilityId: string): number {
+  const full = ABILITIES[abilityId]?.uses ?? 1;
+  return isWounded(id) ? Math.max(1, full - 1) : full;
+}
+
 export function restoreUses(m: MemberState): void {
-  for (const id of knownAbilities(m, 'skill')) m.uses[id] = ABILITIES[id]!.uses ?? 1;
+  for (const id of knownAbilities(m, 'skill')) m.uses[id] = maxUses(m.id, id);
 }
 
 export function equipImmunities(m: MemberState): StatusId[] {
@@ -111,7 +153,7 @@ export function grantXp(m: MemberState, xp: number): LevelUp[] {
     m.hp += after.maxHp - before.maxHp;
     m.tp += after.maxTp - before.maxTp;
     const learned = knownAbilities(m).filter((id) => !knownBefore.has(id));
-    for (const id of learned) if (ABILITIES[id]!.kind === 'skill') m.uses[id] = ABILITIES[id]!.uses ?? 1;
+    for (const id of learned) if (ABILITIES[id]!.kind === 'skill') m.uses[id] = maxUses(m.id, id);
     ups.push({
       id: m.id,
       level: m.level,
@@ -126,6 +168,9 @@ export function grantXp(m: MemberState, xp: number): LevelUp[] {
       learned,
     });
   }
+  // A level-up is a full recovery (Mark's playthrough, 2026-09-29): HP, TP and charges, with
+  // ailments shaken off. Levels are rare now, so it's a moment, not a free heal every fight.
+  if (ups.length) fullRestore(m);
   return ups;
 }
 
@@ -174,6 +219,15 @@ export function rest(m: MemberState): void {
 }
 
 /** Capsule price per head: rooms get dearer as the crew's reputation (and level) grows. */
+/**
+ * The crew's level for prices (the inn, the clinic): the average of everyone who levels from 1.
+ * Rook's veteran 10 would otherwise double every bill from the first night.
+ */
+export function crewLevel(): number {
+  const peers = partyMembers().filter((m) => (MEMBERS[m.id].baseLevel ?? 1) === 1);
+  return peers.length ? peers.reduce((n, m) => n + m.level, 0) / peers.length : 1;
+}
+
 export function innPrice(base: number, avgLevel: number): number {
   return Math.round(base + 4 * avgLevel);
 }

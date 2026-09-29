@@ -859,7 +859,7 @@ export class Battle {
     // The charge he's spent most of (by share of its full count).
     let best: string | null = null, gap = 0;
     for (const [id, left] of Object.entries(t.uses)) {
-      const full = ABILITIES[id]?.uses ?? 0;
+      const full = t.maxUses?.[id] ?? ABILITIES[id]?.uses ?? 0;
       if (full > 0 && left < full && (full - left) / full > gap) {
         best = id;
         gap = (full - left) / full;

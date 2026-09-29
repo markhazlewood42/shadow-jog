@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { BRACE_MULT, Battle, STRIKE_MULT } from '../src/battle/engine';
 import { enemyParty, partyCombatant } from '../src/battle/setup';
 import type { Combatant, Command } from '../src/battle/types';
-import { ABILITIES, COMBOS, LEARNSETS } from '../src/data/abilities';
+import { ABILITIES, CH1_STORY_FLAGS, COMBOS, LEARNSETS } from '../src/data/abilities';
 import { ENCOUNTERS, ENEMIES, FAMILY_WEAK } from '../src/data/enemies';
 import { ITEMS } from '../src/data/items';
 import { levelForXp, xpFor } from '../src/data/party';
-import { createMember, grantXp, knownAbilities, memberStats } from '../src/game/party';
-import type { MemberId } from '../src/game/state';
+import { createMember, grantXp, isWounded, knownAbilities, maxUses, memberStats } from '../src/game/party';
+import { flags, type MemberId } from '../src/game/state';
 import { Rng } from '../src/engine/rng';
 
 function party(ids: MemberId[], level: number): Combatant[] {
@@ -62,7 +62,62 @@ describe('progression', () => {
     expect(ups.length).toBe(4);
     expect(memberStats(m).atk).toBeGreaterThan(before.atk);
     expect(knownAbilities(m)).toContain('iron_palm');
-    expect(ups.flatMap((u) => u.learned)).toContain('focus_breath');
+    expect(ups.flatMap((u) => u.learned)).toContain('hundred_rain');
+  });
+
+  it('a level-up is a full recovery: HP, TP and charges', () => {
+    const m = createMember('kit', 1);
+    m.hp = 1;
+    m.tp = 0;
+    m.uses.second_wind = 0;
+    grantXp(m, xpFor(2));
+    const s = memberStats(m);
+    expect(m.hp).toBe(s.maxHp);
+    expect(m.tp).toBe(s.maxTp);
+    expect(m.uses.second_wind).toBe(ABILITIES.second_wind!.uses);
+  });
+
+  it('new abilities are rare: Chapter 1 teaches three by level, the rest by story', () => {
+    // Levels 1 to 6 (where Chapter 1 ends): what each member learns on a level-up, not on joining.
+    const joins: Record<string, number> = { kit: 1, hex: 3, sable: 5 };
+    const byLevel = Object.entries(joins).flatMap(([who, from]) => (LEARNSETS[who] ?? []).filter((l) => !l.flag && l.level > from && l.level <= 6));
+    expect(byLevel.map((l) => l.id).sort()).toEqual(['hundred_rain', 'iron_palm', 'scramble']);
+  });
+
+  it('Rook starts a wounded veteran: locked skills and a charge short, until the story mends him', () => {
+    for (const f of CH1_STORY_FLAGS) flags.clear(f);
+    try {
+      const rook = createMember('rook');
+      expect(rook.level).toBe(10);
+      expect(knownAbilities(rook, 'skill').sort()).toEqual(['arc_cut', 'quickdraw']);
+      expect(isWounded('rook')).toBe(true);
+      expect(maxUses('rook', 'arc_cut')).toBe((ABILITIES.arc_cut!.uses ?? 1) - 1);
+      const hurt = memberStats(rook);
+      flags.set('rook_tuned');
+      expect(knownAbilities(rook, 'skill')).toEqual(expect.arrayContaining(['suppress', 'incendiary']));
+      expect(knownAbilities(rook, 'skill')).not.toContain('guardian');
+      flags.set('rook_mended');
+      expect(isWounded('rook')).toBe(false);
+      expect(knownAbilities(rook, 'skill')).toEqual(expect.arrayContaining(['guardian', 'stim_rush']));
+      expect(knownAbilities(rook, 'skill')).not.toContain('moonfall');
+      const whole = memberStats(rook);
+      expect(whole.maxHp).toBeGreaterThan(hurt.maxHp);
+      expect(whole.atk).toBeGreaterThan(hurt.atk);
+    } finally {
+      for (const f of CH1_STORY_FLAGS) flags.clear(f);
+    }
+  });
+
+  it('the Stingray unlocks Overload, not a level', () => {
+    for (const f of CH1_STORY_FLAGS) flags.clear(f);
+    try {
+      const hex = createMember('hex', 6);
+      expect(knownAbilities(hex)).not.toContain('overload');
+      flags.set('stingray_seated');
+      expect(knownAbilities(hex)).toContain('overload');
+    } finally {
+      for (const f of CH1_STORY_FLAGS) flags.clear(f);
+    }
   });
 });
 

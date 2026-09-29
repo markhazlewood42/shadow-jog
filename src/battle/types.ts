@@ -94,6 +94,8 @@ export interface Combatant {
   status: StatusState[];
   /** Skills remaining uses. */
   uses: Record<string, number>;
+  /** Each skill's full charges, where they differ from its listed uses (Rook, wounded). */
+  maxUses?: Record<string, number> | undefined;
   family?: Family | undefined;
   weak?: Partial<Record<Element, number>> | undefined;
   immune?: StatusId[] | undefined;

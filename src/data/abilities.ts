@@ -281,46 +281,69 @@ export function ability(id: string): Ability {
 export interface Learn {
   level: number;
   id: string;
+  /**
+   * A story flag that must be set as well: a program the Stingray unlocks, a skill Rook's wound
+   * has locked away until someone fixes it. (Flags in CH1_STORY_FLAGS.)
+   */
+  flag?: string;
 }
 
-/** Abilities learned per member by level. */
+/**
+ * The story beats that hand out abilities in Chapter 1, in order: Hex seats the Stingray (and
+ * with it, tunes Rook's misfiring reflex wiring), then Sable closes Rook's wound.
+ */
+export const CH1_STORY_FLAGS = ['stingray_seated', 'rook_tuned', 'rook_mended'] as const;
+
+/**
+ * Abilities learned per member by level (and story). Retuned after Mark's first playthrough
+ * (2026-09-29): new abilities were coming "too frequently… it should feel really special", and
+ * Chapter 1 now ends around level 6, not 9. In Chapter 1 only three come from levels (Kit twice,
+ * Hex once); the rest arrive through the story. What's past level 6 waits for later chapters,
+ * with the combo that needs it (Spirit Walk).
+ */
 export const LEARNSETS: Record<string, Learn[]> = {
   kit: [
     { level: 1, id: 'flash_step' },
     { level: 1, id: 'second_wind' },
-    { level: 2, id: 'iron_palm' },
-    { level: 5, id: 'focus_breath' },
-    { level: 7, id: 'killing_intent' },
-    { level: 8, id: 'hundred_rain' },
-    { level: 9, id: 'dragon_coil' },
+    { level: 3, id: 'iron_palm' },
+    { level: 5, id: 'hundred_rain' },
+    { level: 7, id: 'focus_breath' },
+    { level: 9, id: 'killing_intent' },
+    { level: 11, id: 'dragon_coil' },
   ],
+  // A veteran (he starts at 10) who came into the chapter hurt: two skills of his own, two more
+  // when Hex re-tunes his chrome, two when Sable closes the wound. His finisher is for later.
   rook: [
     { level: 1, id: 'arc_cut' },
     { level: 1, id: 'quickdraw' },
-    { level: 2, id: 'incendiary' },
-    { level: 4, id: 'suppress' },
-    { level: 5, id: 'stim_rush' },
-    { level: 7, id: 'guardian' },
-    { level: 9, id: 'moonfall' },
+    { level: 1, id: 'suppress', flag: 'rook_tuned' },
+    { level: 1, id: 'incendiary', flag: 'rook_tuned' },
+    { level: 1, id: 'guardian', flag: 'rook_mended' },
+    { level: 1, id: 'stim_rush', flag: 'rook_mended' },
+    { level: 13, id: 'moonfall' },
   ],
   hex: [
     { level: 1, id: 'spike' },
     { level: 1, id: 'analyze' },
-    { level: 2, id: 'scramble' },
+    // Hex joins at 3 with a heal: the crew's only one until Sable, and the Sinkline needs it.
     { level: 3, id: 'patch' },
-    { level: 5, id: 'firewall' },
-    { level: 6, id: 'overload' },
-    { level: 10, id: 'hijack' },
+    // The Stingray's first gift: seating it (the deck scene) unlocks the program.
+    { level: 1, id: 'overload', flag: 'stingray_seated' },
+    // The one program Hex learns by level in Chapter 1, partway through the Sinkline.
+    { level: 4, id: 'scramble' },
+    { level: 8, id: 'firewall' },
+    { level: 12, id: 'hijack' },
   ],
+  // Sable joins last, at 5, with four (heal, fire, rain, ward); she learns nothing more in Chapter 1.
   sable: [
     { level: 1, id: 'mend' },
     { level: 1, id: 'firebrand' },
-    { level: 3, id: 'purge' },
-    { level: 5, id: 'mending_rain' },
-    { level: 6, id: 'spirit_ward' },
-    { level: 7, id: 'crow_spirit' },
-    { level: 8, id: 'rekindle' },
-    { level: 9, id: 'wildfire' },
+    { level: 1, id: 'mending_rain' },
+    { level: 5, id: 'spirit_ward' },
+    { level: 7, id: 'purge' },
+    { level: 8, id: 'crow_spirit' },
+    { level: 9, id: 'rekindle' },
+    { level: 11, id: 'wildfire' },
   ],
 };
 

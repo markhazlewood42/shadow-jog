@@ -13,11 +13,12 @@ import { drawParagraph, drawText, fitText, measure, wrap } from '../engine/font'
 import { COMBO_TEXT_W, EQUIP_DESC_W, MENU_OBJ_W } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { applyEffects } from '../game/fielduse';
-import { canEquip, equip, knownAbilities, memberStats, SLOT_NAMES } from '../game/party';
+import { canEquip, currentWound, equip, knownAbilities, lockedAbilities, maxUses, memberStats, SLOT_NAMES } from '../game/party';
 import { formatPlayTime, locationName, readMeta, SLOTS, writeSave, type SlotId } from '../game/save';
 import { flags, state, type EquipSlot, type MemberId, type MemberState } from '../game/state';
 import { drawBar, drawDivider, drawSelect, drawWindow, keyLegend, hpColor, UI, OVERLAY_DIM } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
+import { DeckScene } from './deck';
 import { OptionsScene } from './options';
 import { PlaceMapScene } from './placemap';
 
@@ -56,6 +57,8 @@ export class MenuScene extends Scene<MenuResult> {
       { label: 'Techs', value: 'techs' },
       { label: 'Equip', value: 'equip' },
       { label: 'Status', value: 'status' },
+      // Hex's deck, once the Stingray is in it (the slots later chapters' parts go in).
+      ...(flags.has('stingray_seated') && state.party.includes('hex') ? [{ label: 'Deck', value: 'deck' }] : []),
       { label: 'Combos', value: 'combos' },
       { label: 'Bestiary', value: 'bestiary' },
       { label: 'Places', value: 'places' },
@@ -121,6 +124,7 @@ export class MenuScene extends Scene<MenuResult> {
           this.buildSaveList();
           this.mode = 'save';
         } else if (v === 'options') void this.game.run(new OptionsScene(true)).then((r) => r === 'title' && this.close({ kind: 'title' }));
+        else if (v === 'deck') void this.game.run(new DeckScene('view'));
         break;
       }
       case 'pickMember':
@@ -315,7 +319,7 @@ export class MenuScene extends Scene<MenuResult> {
     this.sub.setItems(
       all.map((id) => {
         const ab = ABILITIES[id]!;
-        const cost = ab.kind === 'tech' ? `${ab.cost} ${MEMBERS[m.id].tpLabel}` : `${m.uses[id] ?? 0}/${ab.uses}`;
+        const cost = ab.kind === 'tech' ? `${ab.cost} ${MEMBERS[m.id].tpLabel}` : `${m.uses[id] ?? 0}/${maxUses(m.id, id)}`;
         const affordable = ab.kind === 'tech' && m.tp >= (ab.cost ?? 0) && m.hp > 0;
         return { label: ab.name, value: id, right: cost, enabled: !!ab.field && affordable, icon: ab.kind === 'tech' ? '•' : '★', iconColor: ab.kind === 'tech' ? UI.cyan : UI.amber };
       }),
@@ -614,7 +618,13 @@ export class MenuScene extends Scene<MenuResult> {
     drawText(ctx, def.role, 94, 34, { color: UI.dim });
     drawText(ctx, `Level {y}${m.level}{/}`, 94, 48);
     drawText(ctx, `XP ${m.xp.toLocaleString('en-US')}  ·  Next in ${(xpFor(m.level + 1) - m.xp).toLocaleString('en-US')}`, 94, 60, { color: UI.dim });
-    drawParagraph(ctx, def.bio, 94, 74, 200, { color: '#d0cee4', lineH: 10 });
+    const bioLines = drawParagraph(ctx, def.bio, 94, 74, 200, { color: '#d0cee4', lineH: 10 });
+    const wound = currentWound(m.id);
+    if (wound) {
+      // What the wound costs, in numbers, so the tutorial's promise can be checked here.
+      const pct = (k: number) => `-${Math.round((1 - k) * 100)}%`;
+      drawText(ctx, fitText(`{r}WOUNDED{/}  {d}HP ${pct(wound.hp)}  ATK ${pct(wound.atk)}  AGI ${pct(wound.agi)}{/}`, 206), 94, 76 + bioLines * 10);
+    }
     // Stats
     const sx = 310;
     const rows: [string, string][] = [
@@ -637,6 +647,12 @@ export class MenuScene extends Scene<MenuResult> {
       const ab = ABILITIES[id]!;
       const col = i < 9 ? 0 : 1;
       drawText(ctx, fitText(`${ab.kind === 'tech' ? '•' : '★'} ${ab.name}`, 104), 240 + col * 110, 137 + (i % 9) * 11, { color: ab.kind === 'tech' ? '#d0f4ff' : '#ffe8b0' });
+    });
+    // What the story is still holding back (Rook's skills, while he's hurt): shown greyed, so the
+    // player knows there's more to come.
+    lockedAbilities(m).forEach((id, j) => {
+      const i = abs.length + j;
+      drawText(ctx, fitText(`× ${ABILITIES[id]!.name} (locked)`, 104), 240 + (i < 9 ? 0 : 110), 137 + (i % 9) * 11, { color: UI.disabled });
     });
   }
 

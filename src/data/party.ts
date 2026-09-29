@@ -20,6 +20,11 @@ export interface MemberDef {
   base: Growth;
   growth: Growth;
   startLevel: number;
+  /**
+   * The level `base` describes (1 for the crew; Rook's 10: a veteran whose stats are set where he
+   * is, and who grows slowly from there). Levels below it never happen.
+   */
+  baseLevel?: number;
   startEquip: Partial<Record<EquipSlot, string>>;
   /** Default basic-attack element if the weapon has none. */
   element?: Element;
@@ -41,9 +46,12 @@ export const MEMBERS: Record<MemberId, MemberDef> = {
   rook: {
     id: 'rook', name: 'Rook', role: 'Street Samurai', color: '#d8c08a', tpLabel: '—',
     bio: '41. More chrome than conscience, or so he says. Twenty years of runs and one kid he never planned on.',
-    base: { hp: 56, tp: 0, str: 15, mnd: 4, agi: 9, def: 9 },
-    growth: { hp: 10, tp: 0, str: 2.7, mnd: 0.6, agi: 1.4, def: 1.6 },
-    startLevel: 3, crit: 5,
+    // At 10, healthy: the strongest of the crew, not by a mile. Chapter 1 opens with him hurt
+    // (party.ts WOUND: less HP, strength and speed until Sable closes it). A veteran has little
+    // left to grow; the kids catch up with him over the chapter.
+    base: { hp: 130, tp: 0, str: 35, mnd: 8, agi: 19, def: 21 },
+    growth: { hp: 5, tp: 0, str: 1.3, mnd: 0.3, agi: 0.7, def: 0.8 },
+    startLevel: 10, baseLevel: 10, crit: 5,
     startEquip: { weapon: 'old_katana', body: 'lined_coat', mod: 'dermal_plating' },
   },
   hex: {
@@ -59,16 +67,20 @@ export const MEMBERS: Record<MemberId, MemberDef> = {
     bio: '24. Orc. Crow-sworn. Doesn’t remember how long they were in the tank.',
     base: { hp: 40, tp: 16, str: 8, mnd: 14, agi: 8, def: 6 },
     growth: { hp: 7.6, tp: 3.6, str: 1.3, mnd: 2.6, agi: 1.2, def: 1.1 },
-    startLevel: 6, crit: 3,
+    startLevel: 5, crit: 3,
     startEquip: { weapon: 'ash_staff', body: 'street_clothes' },
   },
 };
 
-/** Total XP required to *reach* `level`. */
+/**
+ * Total XP required to *reach* `level`. Fitted (after Mark's first playthrough, 2026-09-29) so a
+ * player who doesn't grind reaches 2 on the way to the Rustyard, 3 after Knuckles, 4 in the
+ * Sinkline, 5 after the Lurker and 6 in Annex 7: Chapter 1 ends around 6, not 9, out of a full
+ * game that tops out near 30 (tests/economy.test.ts checks the checkpoints).
+ */
 export function xpFor(level: number): number {
   if (level <= 1) return 0;
-  const l = level - 1;
-  return Math.floor(15 * l ** 2.25 + 20 * l);
+  return 60 * (level - 1) ** 2;
 }
 
 export const MAX_LEVEL = 30;
@@ -79,10 +91,23 @@ export function levelForXp(xp: number): number {
   return l;
 }
 
+/**
+ * Growth steps reached at each level (the step count the growth formula below is applied to).
+ * Levels are rarer since the 2026-09-29 retune (six in Chapter 1, not nine), so each is worth
+ * more: fitted so a crew at each story stage's new level is as strong as it was at the old one,
+ * which keeps every fight's tuned difficulty (tests/balance.test.ts). Past 6, a steady step a
+ * level, to be tuned with Chapter 2.
+ */
+const STEPS = [0, 0, 1.5, 3.5, 5, 6, 7];
+function growthSteps(level: number): number {
+  return level < STEPS.length ? (STEPS[Math.max(1, level)] ?? 0) : 7 + (level - 6);
+}
+
 /** Base (unequipped) stats at a level. */
 export function baseStatsAt(id: MemberId, level: number): Growth {
   const d = MEMBERS[id];
-  const n = level - 1;
+  // A veteran (baseLevel > 1) is described at his base level and grows a plain step a level after it.
+  const n = d.baseLevel ? Math.max(0, level - d.baseLevel) : growthSteps(level);
   // Slight acceleration so late levels feel meaty.
   const k = (g: number) => g * n + g * 0.04 * n * n;
   return {

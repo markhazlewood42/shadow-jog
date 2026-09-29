@@ -55,7 +55,9 @@ export const sinkline1: MapDef = {
   music: 'dungeon',
   battleBg: 'sewer',
   entrance: { map: 'world', x: 26, y: 38 },
-  encounters: [{ table: 'sinkline', rate: 24, bg: 'sewer' }],
+  // Rarer than the other zones (24 until Mark's first playthrough, 2026-09-29): it's a puzzle floor,
+  // and a fight every few steps made it hard to keep track of the valves between them.
+  encounters: [{ table: 'sinkline', rate: 40, bg: 'sewer' }],
   patches: [
     {
       when: (f) => !!f.floodgate,

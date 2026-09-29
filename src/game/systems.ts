@@ -6,6 +6,7 @@ import { notice, reportError } from '../engine/errors';
 import { popMusic, pushMusic } from '../audio/music';
 import { sfx } from '../audio/sfx';
 import { ENCOUNTERS } from '../data/enemies';
+import { ABILITIES } from '../data/abilities';
 import { ITEMS } from '../data/items';
 import { MEMBERS } from '../data/party';
 import { surface } from '../engine/canvas';
@@ -20,8 +21,9 @@ import { PanelScene } from '../scenes/panels';
 import { EndingScene } from '../scenes/ending';
 import { SaveScene } from '../scenes/saveload';
 import { ShopScene } from '../scenes/shop';
+import { DeckScene } from '../scenes/deck';
 import { fieldHooks } from './hooks';
-import { addMember, fullRestore, innPrice, memberStats, partyMembers, rest, restoreUses } from './party';
+import { addMember, crewLevel, fullRestore, innPrice, knownAbilities, maxUses, memberStats, partyMembers, rest, restoreUses } from './party';
 import { applySave, latestSlot, loadSave, unsavedFrames, writeSave } from './save';
 import type { BattleResult } from './script';
 import { flags, setState, state, type GameState, type MemberId } from './state';
@@ -84,7 +86,8 @@ export function installSystems(game: Game, h: SystemHandlers): void {
   };
 
   fieldHooks.join = async (f, id, quiet) => {
-    const leadLevel = Math.max(...partyMembers().map((m) => m.level), 1);
+    // Joiners match the crew they join, not the veteran among them (Rook starts at 10).
+    const leadLevel = Math.max(...partyMembers().filter((m) => (MEMBERS[m.id].baseLevel ?? 1) === 1).map((m) => m.level), 1);
     const m = addMember(id, Math.max(MEMBERS[id].startLevel, leadLevel - 1));
     fullRestore(m);
     f.refreshParty();
@@ -106,6 +109,27 @@ export function installSystems(game: Game, h: SystemHandlers): void {
 
   fieldHooks.restoreParty = () => {
     for (const m of partyMembers()) fullRestore(m);
+  };
+
+  fieldHooks.unlock = (flag) => {
+    const before = new Map(Object.values(state.members).map((m) => [m.id, new Set(knownAbilities(m))]));
+    flags.set(flag);
+    const names: string[] = [];
+    for (const m of Object.values(state.members)) {
+      const had = before.get(m.id);
+      for (const id of knownAbilities(m)) {
+        if (had?.has(id)) continue;
+        names.push(ABILITIES[id]?.name ?? id);
+        if (ABILITIES[id]?.kind === 'skill') m.uses[id] = maxUses(m.id, id);
+      }
+      // A wound closed: whole again, every charge back to its full count.
+      if (flag === 'rook_mended' && m.id === 'rook') fullRestore(m);
+    }
+    return names;
+  };
+
+  fieldHooks.deck = async (_f, mode) => {
+    await game.run(new DeckScene(mode));
   };
 
   fieldHooks.refreshFocus = () => {
@@ -148,8 +172,7 @@ export function installSystems(game: Game, h: SystemHandlers): void {
 
   fieldHooks.inn = async (f, price, name) => {
     const crew = partyMembers();
-    const avg = crew.reduce((n, m) => n + m.level, 0) / Math.max(1, crew.length);
-    const each = innPrice(price, avg);
+    const each = innPrice(price, crewLevel());
     // Only heads that wake up better pay: a downed member gets nothing from a bed, so no charge.
     const standing = crew.filter((m) => m.hp > 0).length;
     const cost = each * standing;
@@ -267,7 +290,8 @@ export function autosave(game: Game): void {
 
 function treatCost(id: MemberId): number {
   const m = state.members[id]!;
-  return m.hp <= 0 ? 30 + m.level * 10 : 20;
+  // Priced by the crew's level, not the member's: Rook's veteran 10 isn't a surcharge.
+  return m.hp <= 0 ? 30 + Math.round(crewLevel()) * 10 : 20;
 }
 
 async function useSpecial(game: Game, f: FieldScene, id: string): Promise<void> {

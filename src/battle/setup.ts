@@ -1,6 +1,6 @@
 /** Bridges persistent party state and battle combatants. */
 import { MEMBERS } from '../data/party';
-import { equipImmunities, memberStats, weaponElement } from '../game/party';
+import { equipImmunities, knownAbilities, maxUses, memberStats, weaponElement } from '../game/party';
 import type { MemberState } from '../game/state';
 import { enemyCombatant } from './engine';
 import type { Combatant, StatusId } from './types';
@@ -20,6 +20,7 @@ export function partyCombatant(m: MemberState, uid: number, order: number): Comb
     base: s,
     status: m.ailments.filter((a): a is StatusId => PERSIST.includes(a as StatusId)).map((id) => ({ id, turns: 99 })),
     uses: { ...m.uses },
+    maxUses: Object.fromEntries(knownAbilities(m, 'skill').map((id) => [id, maxUses(m.id, id)])),
     immune: equipImmunities(m),
     weaponElement: weaponElement(m),
     memory: {},

@@ -27,7 +27,7 @@ import { battleDriver } from './battlekit/driver';
 import { TimingWindow, timingWord } from './battlekit/timing';
 import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
-import { BHT, BW, MENU_X, PARTY_BOTTOM } from './battlekit/geom';
+import { BHT, BW, DECK_CUT_LIFE, MENU_X, PARTY_BOTTOM } from './battlekit/geom';
 import { INTRO_T } from './battlekit/intro';
 import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
@@ -98,6 +98,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   banner: { text: string; sub?: string; t: number; color: string; big?: boolean } | null = null;
   message: { text: string; t: number } | null = null;
   introT = 0;
+  /** Effect frames into Hex's deck cut-in (-1: not showing). */
+  deckT = -1;
   endPanel: ((ctx: Ctx) => void) | null = null;
   private waitingConfirm: (() => void) | null = null;
   /** Frames the scene has been waiting on the player (for a registered driver). */
@@ -424,6 +426,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     }
     for (const f of this.floaters) f.t += this.fx.rate;
     for (const c of this.cutins) c.t += this.fx.rate;
+    if (this.deckT >= 0) this.deckT = this.deckT + this.fx.rate > DECK_CUT_LIFE ? -1 : this.deckT + this.fx.rate;
     if (this.cutins.length && this.cutins.every((c) => c.t > c.life)) this.cutins.length = 0;
     // Compact finished floaters in place (no per-tick array).
     let live = 0;
@@ -687,6 +690,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       timingArmed: () => (scene.timing.armed && !scene.timing.isOpen ? scene.timing.prompt!.profile : null),
       anim: (frames) => scene.fx.realFrames(frames),
       label: (u) => scene.label(u),
+      deckCutin: () => {
+        scene.deckT = 0;
+      },
       openTiming: (lead) => scene.timing.open(scene.game.frame, lead),
     };
   })();

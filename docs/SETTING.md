@@ -67,6 +67,7 @@ Years are written the way Saltreach writes them: ’61 is 2061 [canon].
 | 2077 | **The Warden incident.** The spirit bound into Annex 7's security platform wakes screaming, and the lattice fails. K-M evacuates the Annex (41 of 42 staff; **Dmitri Petrov**, Facilities, is missing). The Annex is declared decommissioned; its perimeter hounds are auctioned off. The subjects are left in stasis. | The evacuation, Petrov and the hounds are [canon]; the date and the Warden's role in the evacuation are [new] |
 | 2079, early | K-M's board orders a **Vessel audit** ahead of a merger. Every asset has to be accounted for, including the ones in a sealed annex. Retrieving them officially would put Annex 7 on the record, so it's done deniably. | [new] |
 | 2079, "last week" | Mr. Pale hires the **Glass Wolves** through Dutch. They die in the Sinkline. | [canon] |
+| 2079, a week before | Rook's last run goes wrong: shrapnel in his left side (Doc Yun stitches it and orders three weeks off) and his reflex wiring misfiring ever since. | [canon] since 2026-09-29 (the wound is in the game; the run itself is [new], unnamed) |
 | 2079, now | **Chapter One: Milk Run.** Pale hires Rook's crew for the same job. | [canon] |
 
 ---

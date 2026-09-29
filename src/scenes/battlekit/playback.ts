@@ -47,6 +47,8 @@ export interface PlaybackView {
   anim(frames: number): number;
   /** What the UI calls a combatant (two of a kind get a letter). */
   label(u: Combatant): string;
+  /** Hex's deck pops up over her card while a program runs. */
+  deckCutin(): void;
   floatOn(uid: number, text: string, color: string, style: Floater['style']): void;
   say(text: string): void;
   showBanner(text: string, color: string, big?: boolean): void;
@@ -121,6 +123,8 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         v.setPose(actor, pose, PARTY_POSE_T);
         if (e.fx === 'flash_step' || e.fx === 'rain_hits') dd.afterimage = 22;
         sfx(e.kind === 'tech' ? 'cast' : 'swing');
+        // Hex's programs run on her deck: show it (Mark's playthrough: "I want to see it!").
+        if (actor.key === 'hex' && e.kind === 'tech') v.deckCutin();
       } else {
         // Enemies act with their bodies: strikes wind up and lunge, guns kick, casters rise and glow.
         const motion = enemyMotion(e.fx);
