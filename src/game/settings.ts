@@ -41,7 +41,8 @@ export const DEFAULT_SETTINGS: Settings = {
 
 function load(): Settings {
   try {
-    const raw = localStorage.getItem(KEY);
+    // Where storage is blocked, even naming localStorage throws, so the check sits inside the try.
+    const raw = typeof localStorage === 'undefined' ? null : localStorage.getItem(KEY);
     if (raw) {
       const s = { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) };
       // v1 stored shake as on/off.
@@ -56,7 +57,7 @@ function load(): Settings {
   return { ...DEFAULT_SETTINGS };
 }
 
-export const settings: Settings = typeof localStorage === 'undefined' ? { ...DEFAULT_SETTINGS } : load();
+export const settings: Settings = load();
 
 export function saveSettings(): void {
   try {
