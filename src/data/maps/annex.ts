@@ -146,7 +146,7 @@ export const annex: MapDef = {
   ],
   npcs: [
     { id: 'sentinel_a', x: 11, y: 10, dir: 'left', look: LOOKS.corpsec, name: 'K-M Sentinel', when: (f) => !f.annex_key, talk: annexGuards },
-    { id: 'sentinel_b', x: 12, y: 11, dir: 'left', look: LOOKS.corpsec, name: 'K-M Sentinel', when: (f) => !f.annex_key, talk: annexGuards },
+    { id: 'sentinel_b', x: 12, y: 11, dir: 'left', look: LOOKS.corpsec2, name: 'K-M Sentinel', when: (f) => !f.annex_key, talk: annexGuards },
   ],
   events: [
     { id: 'guards', x: 8, y: 10, w: 2, h: 2, on: 'touch', once: true, when: (f) => !f.annex_key, run: annexGuards },
@@ -316,9 +316,9 @@ export const dock: MapDef = {
     { kind: 'sign_post', x: 12, y: 2, text: 'K-M LOGISTICS' },
   ],
   npcs: [
-    { id: 'pale', x: 9, y: 9, dir: 'up', look: LOOKS.pale, name: 'Mr. Pale', talk: betrayal },
+    { id: 'pale', x: 9, y: 9, dir: 'up', look: LOOKS.pale_rain, name: 'Mr. Pale', talk: betrayal },
     { id: 'guard1', x: 7, y: 10, dir: 'up', look: LOOKS.corpsec, name: 'K-M Sentinel', talk: ['Eyes front. Mr. Pale doesn’t like to be kept waiting.'] },
-    { id: 'guard2', x: 11, y: 10, dir: 'up', look: LOOKS.corpsec, name: 'K-M Sentinel', talk: ['Nothing personal, runners. You’re a line item.'] },
+    { id: 'guard2', x: 11, y: 10, dir: 'up', look: LOOKS.corpsec3, name: 'K-M Sentinel', talk: ['Nothing personal, runners. You’re a line item.'] },
   ],
   onEnter: async (s) => {
     if (s.flag('chapter_end')) return;

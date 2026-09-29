@@ -53,7 +53,7 @@ export interface CharLook {
    * Something carried that changes the silhouette at play scale, rising above the head: a katana
    * on the back, a staff in hand, a deck's whip antenna.
    */
-  carry?: 'katana' | 'staff' | 'antenna';
+  carry?: 'katana' | 'staff' | 'antenna' | 'cane' | 'hat';
   /**
    * What they do standing still, facing us, once they've been still a while: fold their arms
    * (crossed) or bounce on their toes (bounce). Personality at play scale.
@@ -985,8 +985,30 @@ function withCarry(fr: HTMLCanvasElement, carry: NonNullable<CharLook['carry']>,
     line(x, O + 13, x, O - 4, () => '#4a4458');
     dot(x, O - 4, '#3fe0f0');
   };
-  const draw = { katana, staff, antenna }[carry];
-  const onTop = carry === 'staff' || dir === 'up';
+  const cane = () => {
+    // A walking stick planted beside the leading foot, crooked handle at the hand.
+    const x = dir === 'down' ? 2 : dir === 'up' ? 13 : 3;
+    line(x, O + 24, x, O + 15, (i, n) => (i > n - 2 ? '#c89a5e' : '#7a4a2a'));
+    dot(x + 1, O + 14, '#c89a5e');
+    dot(x + 2, O + 15, '#7a4a2a');
+  };
+  const hat = () => {
+    // A wide-brimmed hat: the brim a pixel past the head each side, a gold band on the crown.
+    const e = '#0c0b12', crown = '#2a1a24';
+    c.fillStyle = e;
+    c.fillRect(4, O - 2, 8, 4);
+    c.fillRect(1, O + 1, 14, 3);
+    c.fillStyle = crown;
+    c.fillRect(5, O - 1, 6, 2);
+    c.fillStyle = '#4a3040';
+    c.fillRect(5, O - 1, 6, 1);
+    c.fillStyle = '#e8c85a';
+    c.fillRect(5, O + 1, 6, 1);
+    c.fillStyle = crown;
+    c.fillRect(2, O + 2, 12, 1);
+  };
+  const draw = { katana, staff, antenna, cane, hat }[carry];
+  const onTop = carry === 'staff' || carry === 'hat' || carry === 'cane' || dir === 'up';
   if (!onTop) draw();
   c.drawImage(fr, 0, O);
   if (onTop) draw();
