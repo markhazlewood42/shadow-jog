@@ -11,9 +11,13 @@ import { gzipSync } from 'node:zlib';
  * went from 558 kB to 452 kB, so its cap drops to 480 kB (it gates the first download). The
  * total grows with content (it was 186 kB of 190 before the split, 188 kB after); it now sits
  * 12 kB above the measured size, to catch an unplanned jump rather than every new line of story.
+ * Total re-set to 212 kB the same evening, for the planned work on Mark's first playthrough notes
+ * (Hex's deck scene and art, the shop's equip and sell-all, the damage-type symbols, the terrain
+ * relief pass, the chest glow, finer creature art): measured 200 kB, with the deck scene split
+ * into its own chunk so the boot chunk stays under its cap.
  */
 const CHUNK_MAX = 480 * 1000;
-const GZIP_TOTAL_MAX = 200 * 1000;
+const GZIP_TOTAL_MAX = 212 * 1000;
 
 const dir = 'dist/assets';
 const js = readdirSync(dir).filter((f) => f.endsWith('.js'));

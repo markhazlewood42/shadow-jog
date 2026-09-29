@@ -18,7 +18,6 @@ import { formatPlayTime, locationName, readMeta, SLOTS, writeSave, type SlotId }
 import { flags, state, type EquipSlot, type MemberId, type MemberState } from '../game/state';
 import { drawBar, drawDivider, drawSelect, drawWindow, keyLegend, hpColor, UI, OVERLAY_DIM } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
-import { DeckScene } from './deck';
 import { OptionsScene } from './options';
 import { PlaceMapScene } from './placemap';
 
@@ -124,7 +123,7 @@ export class MenuScene extends Scene<MenuResult> {
           this.buildSaveList();
           this.mode = 'save';
         } else if (v === 'options') void this.game.run(new OptionsScene(true)).then((r) => r === 'title' && this.close({ kind: 'title' }));
-        else if (v === 'deck') void this.game.run(new DeckScene('view'));
+        else if (v === 'deck') void import('./deck').then(({ DeckScene }) => this.game.run(new DeckScene('view')));
         break;
       }
       case 'pickMember':

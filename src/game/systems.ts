@@ -21,7 +21,6 @@ import { PanelScene } from '../scenes/panels';
 import { EndingScene } from '../scenes/ending';
 import { SaveScene } from '../scenes/saveload';
 import { ShopScene } from '../scenes/shop';
-import { DeckScene } from '../scenes/deck';
 import { fieldHooks } from './hooks';
 import { addMember, crewLevel, fullRestore, innPrice, knownAbilities, maxUses, memberStats, partyMembers, rest, restoreUses } from './party';
 import { applySave, latestSlot, loadSave, unsavedFrames, writeSave } from './save';
@@ -129,6 +128,8 @@ export function installSystems(game: Game, h: SystemHandlers): void {
   };
 
   fieldHooks.deck = async (_f, mode) => {
+    // Its own chunk, loaded when first shown (it's seen three times a chapter; the boot chunk is capped).
+    const { DeckScene } = await import('../scenes/deck');
     await game.run(new DeckScene(mode));
   };
 
