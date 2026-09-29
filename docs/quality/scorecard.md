@@ -13,17 +13,22 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 
 | # | Area | Score | Round | Date | Δ | Blocking issues (short) |
 |---|---|---|---|---|---|---|
-| 1 | Engine & code | 7.7 | 8 | 2026-09-28 | +0.1 | BattleScene still controller + renderer (extract the renderer); `alive()` allocates; per-frame Map iterator and sort closure in the battle loop; bundle size has no CI gate (499.9 kB); playback.ts untested |
-| 2 | Field art | 7.6 | 8 | 2026-09-28 | +0.3 | Ambient dark crushes tile detail outside light pools; leads read as one blob at play scale; crowd sheet shows one stance; Sinkline floors sparse; barrens read as empty ground; two facades read as icon grids |
-| 3 | Battle presentation | 7.2 | 8 | 2026-09-28 | +0.2 | Death dissolve is a stretched white blob; duplicate machines identical; first thugs the weakest art; no camera push on big hits; no impact frame for crits/finishers; skyline neon at enemy HP height |
-| 4 | UI / UX | 7.8 | 8 | 2026-09-28 | +0.6 | **Bug:** the bar interior leaves black bands (room smaller than the camera); default scaling is Smooth fit; no glyph-coverage test; place-map labels unchecked |
-| 5 | Combat design | 8.1 | 8 | 2026-09-28 | ±0 | No execution layer; no turn-order preview; 7 fixed combos, no upgrades; trash AI thins to charge-then-attack; every tell answered by Guard; weakness intel only reactive |
-| 6 | Progression & economy | 7.5 | 8 | 2026-09-28 | −0.3 | Annex trash easier than the Sinkline right before the Warden; GDD says sell 50% (loot sells 100%); Requisition resells the Annex chest uniques; thin sidegrades; Warden reward untested across phases; side jobs never nudged |
-| 7 | Narrative & writing | 7.6 | 8 | 2026-09-28 | +0.2 | Betrayal called early with no misdirection; "alpha" thanks on the cliffhanger card; "nine seconds" recited three times; Sable joins fast; the opening repeats its joke; generic bestiary lines |
-| 8 | Level design | 7.2 | 8 | 2026-09-28 | +0.2 | Every room an axis-aligned box, no height; Annex secrets not visible on the field (27/28/29 look like 21); one branching route in the chapter; Lantern Row sparse; world map one road each way |
-| 9 | Audio | 7.2 | 8 | 2026-09-28 | +0.7 | Place cues dark (6 kHz+ at 0.1–2%; pad/lead filters low); set pieces stack parts on a bass-heavy bus; battle peak over the limiter threshold; loop seam unmeasured; no hummable hook |
-| 10 | Feel & polish | 7.4 | 8 | 2026-09-28 | −0.1 | **Bug:** defeat hard-cuts to Game Over (no fade); white blob on a kill frame; Game Over carries nothing from the fall; AoE stacks a hitstop per target; the shatter intro ignores battle speed |
-| 11 | Stability | 8.0 | 8 | 2026-09-28 | +0.5 | **Bug:** a scene whose render throws every frame never trips recovery (fault counter lives in tick); WebKit/Firefox runs not in the evidence; migrations never exercised by a real entry |
+| 1 | Engine & code | 8.0 | 9 | 2026-09-29 | +0.3 | Text pipeline allocates a closure per draw call; a few per-frame allocations left in render.ts; FieldScene not split like BattleScene; 336 non-null assertions with the rule off; Battle.unit a linear scan |
+| 2 | Field art | 5.8 | 9 | 2026-09-29 | −1.8 | **Cap:** the Warden arena floor reads as a debug test pattern (22×9 of uniform grating, 4 pylons); world map two noise fields; leads share one body template; crowd one pose; cryopod shots identical but the sprite |
+| 3 | Battle presentation | 7.2 | 9 | 2026-09-29 | ±0 | Anatomical duplicates only for rats and hounds (shades, wisps, drones only recoloured); enemies have no hurt frame; trash creatures built from primitives; victory shows the crew as silhouettes; WEAK and buff share amber |
+| 4 | UI / UX | 5.5 | 9 | 2026-09-29 | −2.3 | **Bug (cap):** the new turn-order strip paints over the start of the tech/skill description line; **bug:** a lit field sign shows through the menu dim; 03 dialog frame half black; the controls shot shows Options, not the rebind screen; no occlusion test |
+| 5 | Combat design | 7.2 | 9 | 2026-09-29 | −0.9 | Timed presses are one global curve for every move; trash fights end in ~2 rounds (one real decision); one combo per pair; no weakness signal before Hex joins; nothing weak to phys; Crow’s Wing text promises cover it doesn’t give |
+| 6 | Progression & economy | 7.5 | 9 | 2026-09-29 | ±0 | Minimal-exploration runs dip negative before the Lurker and the Annex (p10 −32¢/−36¢, 86–88%); ending evidence not from a walked run; body/head/mod slots have no per-character branches; unaffordable and unusable look the same in shops |
+| 7 | Narrative & writing | 7.8 | 9 | 2026-09-29 | +0.2 | Ending caption "Three of them came up" has no antecedent; the Rustyard tribute and water filter promises never pay off; straight vs curly quotes; Pale’s pitch and betrayal speeches run long |
+| 8 | Level design | 7.4 | 9 | 2026-09-29 | +0.2 | The Warden chamber is the plainest room in the dungeon; the world map is wallpaper between roads; the lattice still reads thin; secrets are mostly single-tile chests; wayfinding leans on text signs; the Rustyard maze is token |
+| 9 | Audio | 7.0 | 9 | 2026-09-29 | −0.2 | Loop seams step 1.5–3.4 dB (want <1: tails or crossfade); arp/pluck lowpassed at 600 Hz and the lead at 2.5 kHz, so bar/boss/title/town stay dull; loudness range under 1 dB (double compression); victory_boss the dullest cue |
+| 10 | Feel & polish | 8.3 | 9 | 2026-09-29 | +0.9 | No screen-flash setting (shake has one); hitstop not adjustable; a dead crt setting; orphaned doc comments left in battle.ts by the split |
+| 11 | Stability | 8.3 | 9 | 2026-09-29 | +0.3 | E2E covers the happy path only (no input mashing mid-fade, menu mid-warp, reload mid-script); no real save migration with a fixture; a script stalled on an await never faults; remove() calls exit() unguarded |
+
+Round 9 note: average 7.27 (round 8: 7.57). Six areas rose (Feel 8.3, Stability 8.3 and Engine 8.0 are the closest
+to target), but two automatic caps pulled the average down: a real bug introduced this round (the turn-order strip paints
+over the description line) and the Warden arena floor judged as a debug-looking test pattern. Combat fell 0.9 under a
+reviewer who weighed the new timing layer as one global curve.
 
 Round 8 note: average 7.57 (round 7: 7.35); eight areas rose. Stability reached 8.0 and combat held at 8.1. The
 reviewers found three new bugs from the evidence: a render-only fault loop that never recovers, a hard cut into Game Over,
@@ -33,7 +38,7 @@ Round 7 note: the evidence got richer (audio measurements, more screenshots, mor
 new, concrete defects — several real bugs (text collisions, the Warden's hidden head, the menu's hidden Close, a stale
 save baseline, a continuity slip). Reviewer spread remains ±0.5–1.0 per area; the trend is judged on defects fixed.
 
-## Round 9 (verification pending)
+## Round 9 (verified 2026-09-29)
 
 Worked the round-8 findings, bugs first.
 
