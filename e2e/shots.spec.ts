@@ -2,7 +2,7 @@
  * Evidence capture for quality reviews: drives the game to fixed states and writes PNGs to
  * docs/screenshots/. Run with `npm run shots`.
  */
-import { test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 const OUT = 'docs/screenshots';
 
@@ -49,8 +49,13 @@ test('02 intro panels + first dialog', async ({ page }) => {
   await key(page, 'z', 2, 500);
   await page.waitForTimeout(1200);
   await shot(page, '02-intro-panels');
-  await key(page, 'z', 3, 400);
-  await page.waitForTimeout(3200);
+  // Through the rest of the comic to the first spoken line in the field (not a half-drawn page).
+  for (let i = 0; i < 24 && (await sj<string>(page, 'sj.top()')) !== 'DialogScene'; i++) {
+    await key(page, 'z');
+    await page.waitForTimeout(600);
+  }
+  expect(await sj<string>(page, 'sj.top()')).toBe('DialogScene');
+  await page.waitForTimeout(1600);
   await shot(page, '03-dialog-portrait');
 });
 
@@ -330,8 +335,10 @@ test('35 options + 36 controls', async ({ page }) => {
   await key(page, 'Enter');
   await page.waitForTimeout(400);
   await shot(page, '35-options');
-  await key(page, 'ArrowDown', 7); // Controls
+  // Down to Controls by its label, not a row count (rows get added).
+  for (let i = 0; i < 12 && (await sj<string>(page, "sj.game.top.rows[sj.game.top.idx].id")) !== 'controls'; i++) await key(page, 'ArrowDown');
   await key(page, 'Enter');
   await page.waitForTimeout(400);
+  expect(await sj<string>(page, 'sj.top()')).toBe('ControlsScene');
   await shot(page, '36-controls');
 });

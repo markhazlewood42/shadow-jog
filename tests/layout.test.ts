@@ -113,3 +113,41 @@ describe('place map', () => {
     expect(bad).toEqual([]);
   });
 });
+
+describe('battle turn-order strip', () => {
+  const overlap = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+  it('the top line never grows past its band: every description is at most two lines, every combo hint one', async () => {
+    const { TOP_BAND_BOTTOM } = await import('../src/scenes/battlekit/geom');
+    const { W } = await import('../src/engine/game');
+    const maxW = W - 44;
+    for (const ab of Object.values(ABILITIES)) expect(wrap(ab.desc, maxW).length, ab.id).toBeLessThanOrEqual(2);
+    for (const it of Object.values(ITEMS)) expect(wrap(it.desc, maxW).length, it.id).toBeLessThanOrEqual(2);
+    // Three lines at most (two of description, one of hint): the window ends by the band's edge.
+    expect(6 + 6 + 3 * 11).toBeLessThanOrEqual(TOP_BAND_BOTTOM);
+  });
+
+  it('stays clear of the top line, the target box, the party panel and the menus, on either side', async () => {
+    const { orderStripLayout, TOP_BAND_BOTTOM, ORDER_TOP, PANEL_Y, MENU_X } = await import('../src/scenes/battlekit/geom');
+    const { W } = await import('../src/engine/game');
+    // The target box as renderTargetInfo draws it at its tallest (analyzed, three notes).
+    const target = { x: (W - TARGET_INFO_W) / 2, y: 44, w: TARGET_INFO_W, h: 19 + 11 + 3 * 10 };
+    // The widest crowd: a combo (two faces) and eight single actions.
+    const faces = [2, 1, 1, 1, 1, 1, 1, 1, 1];
+    expect(ORDER_TOP - 10).toBeGreaterThanOrEqual(TOP_BAND_BOTTOM);
+    for (const side of ['left', 'right'] as const) {
+      // The acting member's menus open on the other side: a list up to 190 wide above the command window.
+      const menus = side === 'right' ? { x: MENU_X, y: TOP_BAND_BOTTOM, w: 190, h: PANEL_Y - TOP_BAND_BOTTOM } : { x: W - MENU_X - 190, y: TOP_BAND_BOTTOM, w: 190, h: PANEL_Y - TOP_BAND_BOTTOM };
+      const rects = orderStripLayout(faces, side);
+      expect(rects.length).toBeGreaterThanOrEqual(7);
+      for (const r of rects) {
+        expect(r.y).toBeGreaterThanOrEqual(TOP_BAND_BOTTOM);
+        expect(r.y + r.h).toBeLessThanOrEqual(PANEL_Y - 2);
+        expect(r.x >= 0 && r.x + r.w <= W).toBe(true);
+        expect(overlap(r, target), `${side} strip vs target box`).toBe(false);
+        expect(overlap(r, menus), `${side} strip vs menus`).toBe(false);
+      }
+    }
+  });
+});

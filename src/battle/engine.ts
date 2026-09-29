@@ -40,16 +40,41 @@ export interface BattleOpts {
 
 /** How well a timed press landed. */
 export type Timing = 'perfect' | 'good' | 'none';
+/**
+ * How a move's timing feels. Quick moves (first-strike techs, snap shots) give a tight window
+ * and a big payoff; heavy ones (combos, big swings) a wide window and a smaller one; a blow you
+ * saw coming (a telegraphed attack) can be braced for hardest.
+ */
+export type TimingProfile = 'quick' | 'normal' | 'heavy';
 /** A timed input the declared action offers: strike harder, or brace against the blow. */
 export interface TimingPrompt {
   kind: 'strike' | 'brace';
+  profile: TimingProfile;
   actor: number;
   /** The units the ring closes on: the struck enemies, or the party members being hit. */
   targets: number[];
 }
-/** Damage dealt on a timed strike, and taken on a timed brace. */
-export const STRIKE_MULT: Record<Timing, number> = { perfect: 1.2, good: 1.08, none: 1 };
-export const BRACE_MULT: Record<Timing, number> = { perfect: 0.7, good: 0.85, none: 1 };
+/** Damage dealt on a timed strike, and taken on a timed brace, by profile. */
+export const STRIKE_MULT: Record<TimingProfile, Record<Timing, number>> = {
+  quick: { perfect: 1.3, good: 1.1, none: 1 },
+  normal: { perfect: 1.2, good: 1.08, none: 1 },
+  heavy: { perfect: 1.15, good: 1.06, none: 1 },
+};
+export const BRACE_MULT: Record<TimingProfile, Record<Timing, number>> = {
+  quick: { perfect: 0.75, good: 0.88, none: 1 },
+  normal: { perfect: 0.7, good: 0.85, none: 1 },
+  heavy: { perfect: 0.5, good: 0.8, none: 1 },
+};
+
+/** The timing profile of a move: its speed class for a strike, its tell for a brace. */
+export function timingProfile(ab: Ability, kind: TimingPrompt['kind']): TimingProfile {
+  if (kind === 'brace') return ab.telegraphed ? 'heavy' : 'normal';
+  if (ab.kind === 'combo') return 'heavy';
+  if ((ab.priority ?? 0) > 0) return 'quick';
+  const dmg = ab.effects.find((e) => e.type === 'damage');
+  const heavy = !!dmg && dmg.type === 'damage' && ((dmg.mult ?? 1) >= 1.6 || (dmg.power ?? 0) >= 60);
+  return heavy ? 'heavy' : 'normal';
+}
 
 interface Declared {
   actors: Combatant[];
@@ -110,7 +135,7 @@ export class Battle {
   /** The action `next()` declared and `land()` will resolve. */
   private declared: Declared | null = null;
   /** The timed press applying to the damage being resolved now. */
-  private graded: { kind: TimingPrompt['kind']; timing: Timing } | null = null;
+  private graded: { kind: TimingPrompt['kind']; profile: TimingProfile; timing: Timing } | null = null;
   /** Per-unit initiative factor for round `rolledFor` (±15% on agility). */
   private initiative = new Map<number, number>();
   private rolledFor = -1;
@@ -335,7 +360,7 @@ export class Battle {
     this.declared = null;
     if (d) {
       const p = this.promptFor(d);
-      this.graded = p ? { kind: p.kind, timing } : null;
+      this.graded = p ? { kind: p.kind, profile: p.profile, timing } : null;
       this.applyEffects(d.actors, d.ab, d.targets, d.item);
       this.graded = null;
     }
@@ -357,10 +382,10 @@ export class Battle {
     if (lead.side === 'party') {
       if (d.ab.kind === 'item') return null;
       const hit = d.targets.filter((t) => t.side === 'enemy');
-      return hit.length ? { kind: 'strike', actor: lead.uid, targets: hit.map((t) => t.uid) } : null;
+      return hit.length ? { kind: 'strike', profile: timingProfile(d.ab, 'strike'), actor: lead.uid, targets: hit.map((t) => t.uid) } : null;
     }
     const hit = d.targets.filter((t) => t.side === 'party');
-    return hit.length ? { kind: 'brace', actor: lead.uid, targets: hit.map((t) => t.uid) } : null;
+    return hit.length ? { kind: 'brace', profile: timingProfile(d.ab, 'brace'), actor: lead.uid, targets: hit.map((t) => t.uid) } : null;
   }
 
   private flush(): BattleEvent[] {
@@ -768,8 +793,8 @@ export class Battle {
     // A timed press: a strike landed on the beat bites deeper; a blow braced for on the beat is
     // turned. Stacks with Guard (bracing twice over is the whole point of reading a tell).
     if (this.graded) {
-      if (this.graded.kind === 'strike' && t.side === 'enemy') amount *= STRIKE_MULT[this.graded.timing];
-      else if (this.graded.kind === 'brace' && t.side === 'party') amount *= BRACE_MULT[this.graded.timing];
+      if (this.graded.kind === 'strike' && t.side === 'enemy') amount *= STRIKE_MULT[this.graded.profile][this.graded.timing];
+      else if (this.graded.kind === 'brace' && t.side === 'party') amount *= BRACE_MULT[this.graded.profile][this.graded.timing];
     }
     const final = mult === 0 ? 0 : Math.max(1, Math.round(amount));
     t.hp = Math.max(0, t.hp - final);

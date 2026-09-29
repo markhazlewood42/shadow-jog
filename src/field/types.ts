@@ -10,7 +10,7 @@ export type TerrainId =
   | 'floor_wood' | 'floor_tile' | 'floor_metal' | 'floor_carpet' | 'floor_concrete' | 'iwall'
   // dungeon
   | 'd_floor' | 'd_wall' | 'd_water' | 'd_shallow' | 'd_catwalk' | 'd_track' | 'lab_floor' | 'lab_wall' | 'lab_door' | 'lab_laser' | 'lab_laser_off'
-  | 'lab_floor_steel' | 'lab_floor_frost' | 'lab_floor_contain'
+  | 'lab_floor_steel' | 'lab_floor_frost' | 'lab_floor_contain' | 'lab_floor_plate'
   // world map
   | 'w_ruins' | 'w_road' | 'w_barrens' | 'w_toxic' | 'w_park' | 'w_highway' | 'w_bridge' | 'w_block';
 
@@ -56,7 +56,7 @@ export type PropKind =
   | 'capsule' | 'bar' | 'rack' | 'desk' | 'pod' | 'server' | 'tank' | 'fence' | 'sandbags' | 'tent' | 'pylon'
   | 'catwalk_rail' | 'train' | 'valve' | 'cryopod' | 'door_lab' | 'jukebox' | 'arcade' | 'sign_post' | 'bollard'
   | 'window' | 'lampfloor' | 'sign_board' | 'tires' | 'body' | 'ladder' | 'tag' | 'banner' | 'crest' | 'memorial' | 'bedroll'
-  | 'laser' | 'panel_loose';
+  | 'laser' | 'panel_loose' | 'binding_circle' | 'hazard_lane' | 'dome' | 'mast' | 'watertower';
 
 export interface PropDef {
   kind: PropKind;

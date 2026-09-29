@@ -182,7 +182,7 @@ export const lanternRow: MapDef = {
     { x: 44, y: 31, to: 'noodles', tx: 7, ty: 8, dir: 'up' },
     {
       x: 49, y: 22, to: 'lantern_row', tx: 49, ty: 23, when: () => false,
-      blocked: async (s) => s.narrate('A note on the shutter: {c}"NIX AUTO — CLOSED. GONE FISHING. DON’T STEAL ANYTHING."{/}'),
+      blocked: async (s) => s.narrate('A note on the shutter: {c}“NIX AUTO — CLOSED. GONE FISHING. DON’T STEAL ANYTHING.”{/}'),
     },
   ],
   npcs: [
@@ -198,7 +198,7 @@ export const lanternRow: MapDef = {
     ped('p3', 24, 28, 13, ['Heading to the Rustyard? Go east out of the Row, follow the old highway, then cut across the Barrens. Watch for scrap hounds.']),
     ped('p4', 38, 29, 14, ['Eight hours on the pumps, two in the noodle queue. Whatever you’re selling, I’m not buying.']),
     ped('p5', 10, 8, 15, ['The Sinkline station’s south of here, across the canal. Folks say the water down there moves by itself.'], 'wander'),
-    ped('p6', 45, 14, 16, ['Watch yourself east of here. Rustfangs have been collecting "tolls" on anyone walking alone.'], 'wander'),
+    ped('p6', 45, 14, 16, ['Watch yourself east of here. Rustfangs have been collecting “tolls” on anyone walking alone.'], 'wander'),
     ped('p7', 30, 8, 17, ['If you’ve got a shaman friend and a decker friend, have ’em try working together. Spirits love a power surge. Or so I hear.'], 'wander'),
     ped('p8', 16, 33, 18, ['Autocabs will take you back to town from anywhere on the street. Cab Vouchers at the Kwik-Mart. Worth every cred.'], 'static', 'down'),
     {
@@ -247,7 +247,7 @@ export const lanternRow: MapDef = {
     },
     {
       id: 'terminal', x: 15, y: 22, on: 'action', run: async (s) => {
-        await s.narrate('{c}PUBLIC TERMINAL{/} · "Lantern Row. Saltreach Lower Wards. Population: unknown. Flood level: manageable. Have a K-M day."');
+        await s.narrate('{c}PUBLIC TERMINAL{/} · “Lantern Row. Saltreach Lower Wards. Population: unknown. Flood level: manageable. Have a K-M day.”');
       },
     },
     {

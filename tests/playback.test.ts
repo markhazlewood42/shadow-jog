@@ -68,7 +68,7 @@ function recorder(armed = false) {
     impact: (uid) => log.push(`impact:${uid}`),
     relayout: () => undefined,
     comboId: (name) => name,
-    timingArmed: () => !ringOpen,
+    timingArmed: () => (ringOpen ? null : 'normal'),
     openTiming: (lead) => {
       ringOpen = true;
       log.push(`ring:${lead}@${clock}`);

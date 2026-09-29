@@ -390,6 +390,194 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     });
   },
 
+  /**
+   * The Warden's binding circle, painted into the chamber floor where the spirit is held: two
+   * rings with rune ticks between them, a worn inner disc, and cable runs out to the field pylons.
+   * The rings glow faintly and a pulse runs round them. Centred on the left edge of tile x and the
+   * middle of row y; `w` is its diameter in tiles. `text` lists pylon tiles as "x,y x,y ...".
+   */
+  binding_circle(b, p) {
+    const cx = p.x * TS, cy = p.y * TS + TS / 2, r = ((p.w ?? 6) * TS) / 2;
+    const g = b.g;
+    // Cables first (under the rings): thick dark runs with a highlight along their top edge.
+    const pylons = (p.text ?? '').split(' ').filter(Boolean).map((s) => s.split(',').map(Number) as [number, number]);
+    for (const [tx, ty] of pylons) {
+      const px = tx * TS + 8, py = ty * TS + 8;
+      const dx = px - cx, dy = py - cy, len = Math.hypot(dx, dy);
+      const ux = dx / len, uy = dy / len;
+      for (let d = r - 2; d < len - 6; d++) {
+        const x = Math.round(cx + ux * d), y = Math.round(cy + uy * d);
+        g.fillStyle = '#0c0a12';
+        g.fillRect(x - 1, y - 1, 3, 3);
+        g.fillStyle = '#3a3440';
+        g.fillRect(x, y - 1, 1, 1);
+      }
+    }
+    for (let y = Math.floor(cy - r - 2); y <= cy + r + 2; y++) {
+      for (let x = Math.floor(cx - r - 2); x <= cx + r + 2; x++) {
+        const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+        const a = Math.atan2(y + 0.5 - cy, x + 0.5 - cx);
+        let col: string | null = null;
+        if (Math.abs(d - r) < 1.2) col = '#8a2a36';
+        else if (Math.abs(d - (r - 9)) < 0.8) col = '#6a1a26';
+        else if (d > r - 8 && d < r - 1 && Math.abs(((a * 12) / Math.PI) % 1) < 0.08) col = '#7a2230';
+        else if (d < r - 12) col = d < 10 ? '#3a1a24' : null;
+        if (col) {
+          g.fillStyle = col;
+          g.fillRect(x, y, 1, 1);
+        } else if (d < r - 10) {
+          // The worn inner disc: a shade darker, scuffed.
+          g.fillStyle = 'rgba(8,4,12,0.28)';
+          g.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+    // The rings glow faintly in their own light.
+    const e = b.e;
+    e.globalAlpha = 0.35;
+    e.strokeStyle = '#ff3a4a';
+    e.lineWidth = 1;
+    e.beginPath();
+    e.arc(cx, cy, r, 0, Math.PI * 2);
+    e.stroke();
+    e.globalAlpha = 1;
+    b.lights.push({ x: cx, y: cy, r: r * 1.6, color: '#ff3a5a', i: 0.35 });
+    // A pulse running round the outer ring, and the core breathing.
+    b.anims.push({
+      x: cx - r - 4, y: cy - r - 4, w: r * 2 + 8, h: r * 2 + 8,
+      draw: (ctx, f, ox, oy) => {
+        const t = f * 0.03;
+        for (let i = 0; i < 3; i++) {
+          const a = t + (i * Math.PI * 2) / 3;
+          const x = Math.round(cx + Math.cos(a) * r - ox), y = Math.round(cy + Math.sin(a) * r - oy);
+          ctx.fillStyle = '#ffd0d8';
+          ctx.fillRect(x - 1, y, 3, 1);
+          ctx.fillRect(x, y - 1, 1, 3);
+        }
+        ctx.globalAlpha = 0.25 + 0.2 * Math.sin(f * 0.05);
+        ctx.fillStyle = '#ff5a6a';
+        ctx.fillRect(Math.round(cx - ox) - 3, Math.round(cy - oy) - 3, 6, 6);
+        ctx.globalAlpha = 1;
+      },
+    });
+  },
+
+  /**
+   * World map landmark: the old Saltreach dome, a stadium that fell in '61. Stepped seating in
+   * rings round a dark, overgrown pitch; the roof's truss ribs still arch over one side, and the
+   * other side is a spill of rubble. Painted flat into the block it stands on; `w` is its width.
+   */
+  dome(b, p) {
+    const g = b.g, r = ((p.w ?? 6) * TS) / 2;
+    const cx = p.x * TS + r, cy = p.y * TS + r * 0.82;
+    for (let y = Math.floor(cy - r); y <= cy + r; y++) {
+      for (let x = Math.floor(cx - r); x <= cx + r; x++) {
+        const dx = x + 0.5 - cx, dy = (y + 0.5 - cy) / 0.82;
+        const d = Math.hypot(dx, dy);
+        if (d > r) continue;
+        const a = Math.atan2(dy, dx);
+        let col: string;
+        if (d > r - 2) col = '#1a1822';
+        else if (d > r * 0.55) col = Math.floor((r - d) / 3) % 2 ? '#4a4552' : '#3a3642';
+        else col = (Math.floor(x / 5) + Math.floor(y / 5)) % 2 ? '#1f3024' : '#243828';
+        // The collapsed quarter: rubble where the roof came down.
+        if (a > 0.3 && a < 1.5 && d > r * 0.3) col = (x * 7 + y * 13) % 5 < 2 ? '#5a5048' : '#3a342e';
+        g.fillStyle = col;
+        g.fillRect(x, y, 1, 1);
+      }
+    }
+    // The surviving roof ribs: pale truss arcs over the north half.
+    g.fillStyle = '#8a8494';
+    for (let k = -3; k <= 3; k++) {
+      const ax = cx + (k * r) / 4;
+      for (let t = 0; t <= 20; t++) {
+        const y = cy - Math.sin((t / 20) * Math.PI) * r * 0.7;
+        const x = Math.round(ax + (t / 20 - 0.5) * 6);
+        if (y < cy - 2) g.fillRect(x, Math.round(y), 1, 1);
+      }
+    }
+    g.fillStyle = '#9a94a4';
+    for (let x = Math.round(cx - r * 0.8); x < cx + r * 0.8; x++) g.fillRect(x, Math.round(cy - r * 0.7), 1, 1);
+    // A few fires on the pitch: people live in it now.
+    for (const [ox, oy] of [[-8, 4], [6, -2]] as const) {
+      b.both((c) => {
+        c.fillStyle = '#ffb04a';
+        c.fillRect(Math.round(cx + ox), Math.round(cy + oy), 2, 2);
+      });
+      b.lights.push({ x: cx + ox, y: cy + oy, r: 18, color: '#ff9a4a', i: 0.5 });
+    }
+  },
+
+  /** Static Mary's radio mast: a lattice tower, guyed, its beacon blinking red over the blocks. */
+  mast(b, p) {
+    const W = 18, H = 88;
+    const { x, y } = tall(b, p, W, H, (c, e) => {
+      c.fillStyle = '#2a2830';
+      for (let yy = 6; yy < H; yy++) {
+        const half = 1 + Math.floor((yy / H) * 6);
+        c.fillRect(W / 2 - half, yy, 1, 1);
+        c.fillRect(W / 2 + half - 1, yy, 1, 1);
+        // Cross-bracing every 8px.
+        if (yy % 8 === 0) for (let i = -half; i < half; i++) c.fillRect(W / 2 + i, yy, 1, 1);
+        if (yy % 8 < 4) c.fillRect(W / 2 - half + (yy % 8) * (half / 2), yy, 1, 1);
+      }
+      c.fillStyle = '#6a6470';
+      c.fillRect(W / 2 - 1, 0, 2, 8);
+      e.fillStyle = '#ff3a3a';
+      e.fillRect(W / 2 - 1, 0, 2, 2);
+    }, {
+      anim: (ctx, f, sx, sy) => {
+        if (Math.floor(f / 40) % 2) return;
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = '#ff5a5a';
+        ctx.fillRect(sx + W / 2 - 3, sy - 2, 6, 6);
+        ctx.globalAlpha = 1;
+      },
+    });
+    b.lights.push({ x: x + W / 2, y, r: 26, color: '#ff3a3a', i: 0.5, flicker: true });
+  },
+
+  /** A rooftop water tower: a rusted tank on four legs, the kind every block had before the rain went bad. */
+  watertower(b, p) {
+    tall(b, p, 22, 34, (c) => {
+      c.fillStyle = '#2a2420';
+      for (const lx of [3, 8, 13, 18]) c.fillRect(lx, 18, 1, 16);
+      c.fillRect(3, 26, 16, 1);
+      c.fillStyle = '#0f0e17';
+      c.fillRect(1, 3, 20, 16);
+      c.fillStyle = '#6a4a32';
+      c.fillRect(2, 4, 18, 14);
+      c.fillStyle = '#8a6040';
+      for (let i = 4; i < 20; i += 4) c.fillRect(i, 4, 1, 14);
+      c.fillStyle = '#4a3222';
+      c.fillRect(2, 15, 18, 3);
+      c.fillStyle = '#0f0e17';
+      c.fillRect(4, 0, 14, 4);
+      c.fillStyle = '#5a4030';
+      c.fillRect(5, 1, 12, 3);
+    });
+  },
+
+  /** Yellow-and-black chevrons marking the safe way in from a door; `w` tiles wide, `h` deep. */
+  hazard_lane(b, p) {
+    const x0 = p.x * TS, y0 = p.y * TS, w = (p.w ?? 3) * TS, h = (p.h ?? 1) * TS;
+    const g = b.g;
+    for (const x of [x0 + 1, x0 + w - 4]) {
+      for (let y = y0; y < y0 + h; y++) {
+        g.fillStyle = Math.floor((y + x) / 4) % 2 ? '#e8c040' : '#15121a';
+        g.fillRect(x, y, 3, 1);
+      }
+    }
+    // Chevrons pointing into the room.
+    for (let y = y0 + 3; y < y0 + h - 2; y += 6) {
+      for (let i = 0; i < 5; i++) {
+        g.fillStyle = '#c8a038';
+        g.fillRect(x0 + w / 2 - 5 + i, y + i, 2, 1);
+        g.fillRect(x0 + w / 2 + 3 - i, y + i, 2, 1);
+      }
+    }
+  },
+
   bedroll(b, p) {
     const x = p.x * TS, y = p.y * TS, g = b.g;
     g.fillStyle = '#0f0e17'; g.fillRect(x + 1, y + 4, 22, 10);

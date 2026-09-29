@@ -610,6 +610,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       },
       cutinCount: () => scene.cutins.length,
       hitstop: (frames) => {
+        // Players can turn freeze-frames off (Options → Hit pause).
+        if (!settings.hitPause) return Promise.resolve();
         scene.hitstop = frames;
         return scene.game.wait(frames);
       },
@@ -625,14 +627,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         if (!u) return;
         const p = scene.pos(uid);
         scene.push = { x: p.x, y: p.y, t: 0, life: 20 };
-        // The cut-out flash is skipped with screen shake off (the same players who asked for less motion).
-        if (u.side === 'enemy' && settings.shake > 0) {
+        // The cut-out is a full-screen flash: only with Screen flash at Full.
+        if (u.side === 'enemy' && settings.flash >= 2) {
           scene.impactT = 2;
           scene.impactOn = u;
           scene.impactColor = color;
         }
       },
-      timingArmed: () => scene.timing.armed && !scene.timing.isOpen,
+      timingArmed: () => (scene.timing.armed && !scene.timing.isOpen ? scene.timing.prompt!.profile : null),
       openTiming: (lead) => scene.timing.open(scene.game.frame, lead),
     };
   })();
@@ -857,7 +859,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return { x: Math.round(BW / 2 + (i - (n - 1) / 2) * 44), y: PARTY_BOTTOM - 34 };
   }
 
-  // ------------------------------------------------------------------ render
+  // ------------------------------------------------------------------ state the renderer reads
 
   /** The camera push on a big hit (battle-world focus point; frames). */
   push: { x: number; y: number; t: number; life: number } | null = null;
@@ -865,19 +867,18 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   impactT = 0;
   impactOn: Combatant | null = null;
   impactColor = '#ffe07a';
-
-
-  /** Shards of the field snapshot: a jittered triangle mesh, each flying out from the centre. */
+  /** Frame the victory banner started, or -1. */
+  bannerStart = -1;
 
   private feetY(e: Combatant): number {
     const p = this.enemyPos(e);
     return p.y + p.art.canvas.height;
   }
 
-  /** 0 for the first enemy of its kind in this fight, 1 for the second, ... */
   /** Draw order for enemies: back to front by where their feet are (one comparator, made once). */
   readonly byFeet = (a: Combatant, b: Combatant): number => this.feetY(a) - this.feetY(b);
 
+  /** 0 for the first enemy of its kind in this fight, 1 for the second, ... */
   dupIndex(e: Combatant): number {
     let n = 0;
     for (const o of this.battle.enemies) {
@@ -887,22 +888,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return n;
   }
 
-
-
-
-
-  // ------------------------------------------------------------------ UI (1x)
-  /** Labelled status chips over each enemy (screen space, so they stay small and legible). */
-
-
-  /** Frame the victory banner started, or -1. */
-  bannerStart = -1;
-
-
-
-
-
-
+  /** Left edge of party member i's status card. */
   boxX(i: number): number {
     const n = this.battle.party.length;
     const w = 116;
@@ -910,13 +896,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return Math.round((W - total) / 2) + i * (w + 3);
   }
 
-
-
   /** Something is winding up a big move: the round deserves fresh orders, not muscle memory. */
   telegraphed(): boolean {
     return this.battle.alive('enemy').some((u) => u.memory.breath || u.memory.charging || u.memory.spin || u.memory.surge);
   }
-
 
   /**
    * Command and ability windows sit in the screen corner on the actor's side. Party sprites
@@ -925,7 +908,4 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   menuX(a: Combatant, w: number): number {
     return this.partyPos(a).x * 2 < W / 2 ? MENU_X : W - MENU_X - w;
   }
-
-
-
 }

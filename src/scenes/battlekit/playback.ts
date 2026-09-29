@@ -16,7 +16,8 @@ import type { BattleEvent, Combatant } from '../../battle/types';
 import type { FxLayer, Pt } from '../../battle/fx';
 import type { Pose } from '../../art/battlers';
 import type { Disp, Floater } from './types';
-import { RING_LEAD } from './timing';
+import { WINDOWS } from './timing';
+import type { TimingProfile } from '../../battle/engine';
 
 /** What playback may do to the scene. */
 export interface PlaybackView {
@@ -45,8 +46,8 @@ export interface PlaybackView {
   /** The roster changed (a summon, a phase shift): recompute enemy placement. */
   relayout(): void;
   comboId(name: string): string;
-  /** This action offers a timed press whose ring hasn't opened yet. */
-  timingArmed(): boolean;
+  /** This action offers a timed press whose ring hasn't opened yet: its profile, or null. */
+  timingArmed(): TimingProfile | null;
   /** Open the ring: it meets its target `lead` real frames from now. */
   openTiming(lead: number): void;
   /** A hit that ends things: the camera pushes in and, on an enemy, an impact frame cuts in. */
@@ -59,9 +60,10 @@ export interface PlaybackView {
  * the ring closes exactly as the effect lands.
  */
 async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], windup: number, color?: string): Promise<void> {
-  if (v.timingArmed()) {
+  const profile = v.timingArmed();
+  if (profile) {
     const impact = v.fx.impactOf(fx, from, to, color);
-    const lead = Math.max(RING_LEAD, windup + impact);
+    const lead = Math.max(WINDOWS[profile].lead, windup + impact);
     v.openTiming(lead);
     await v.game.wait(lead - impact);
     v.fx.play(fx, from, to, color);

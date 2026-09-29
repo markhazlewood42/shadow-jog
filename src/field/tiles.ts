@@ -406,6 +406,8 @@ const K_F6FBFF = C('#f6fbff');
 const K_FF3A4A = C('#ff3a4a');
 const K_FFB13D = C('#ffb13d');
 const K_2A2E38 = C('#2a2e38');
+const K_1E1A24 = C('#1e1a24');
+const K_2A2630 = C('#2a2630');
 const K_06080C = C('#06080c');
 
 /**
@@ -414,7 +416,7 @@ const K_06080C = C('#06080c');
  * hazard band over the service bay.
  */
 const WING_STRIPE: Partial<Record<TerrainId, RGB>> = {
-  lab_floor_steel: K_FFB13D, lab_floor_frost: K_CDEEFF, lab_floor_contain: K_FF3A4A,
+  lab_floor_steel: K_FFB13D, lab_floor_frost: K_CDEEFF, lab_floor_contain: K_FF3A4A, lab_floor_plate: K_FF3A4A,
 };
 const labWallFace: Painter = (lx, ly, _wx, _wy, tx, ty, q) => {
   const wing = q.at(tx, ty + 1);
@@ -426,7 +428,7 @@ const labWallFace: Painter = (lx, ly, _wx, _wy, tx, ty, q) => {
   if (lx === 0) return P.labSeam;
   if (ly <= 1) return P.labWallD;
   // Containment's walls are scorched darker; the cryo wing's carry a rime line under the trim.
-  if (wing === 'lab_floor_contain') return ly >= 12 ? K_6A6E7A : K_8A8E9A;
+  if (wing === 'lab_floor_contain' || wing === 'lab_floor_plate') return ly >= 12 ? K_6A6E7A : K_8A8E9A;
   if (wing === 'lab_floor_frost' && ly === 12) return K_EEF8FF;
   // Below the trim, a wainscot washed in the wing's colour: wayfinding at a glance, not a line.
   const tint = WING_STRIPE[wing];
@@ -546,13 +548,30 @@ const labFloorFrost: Painter = (lx, ly, wx, wy) => {
 /** Containment: dark grating over a red-lit void, heavier seams where the plates meet. */
 const labFloorContain: Painter = (lx, ly, wx, wy) => {
   if (lx === 0 || ly === 0) return K_3C3642;
+  // Grating bars every 4px, with red light from the sump below glowing through in slow patches.
   if (lx % 4 === 0 || ly % 4 === 0) {
-    const glow = valueNoise(wx / 22, wy / 16, 391);
-    return lerpC(K_15121A, K_6A1A26, Math.max(0, glow - 0.35) * 1.5);
+    const glow = valueNoise(wx / 40, wy / 30, 391);
+    return lerpC(K_15121A, K_6A1A26, Math.max(0, glow - 0.45) * 1.2);
   }
-  let base = K_2C2834;
-  if ((lx & 3) === 1 && (ly & 3) === 1) base = K_3A3542;
-  if (hash2(wx, wy, 392) < 0.01) base = K_4A2A30;
+  if (hash2(wx, wy, 392) < 0.006) return K_4A2A30;
+  return K_2C2834;
+};
+
+/**
+ * The Warden chamber's deck: heavy 32px plates, bevelled (lit from the upper left), riveted at
+ * the corners, stained where coolant has run. Large, calm shapes, so the room's centrepiece (the
+ * binding circle) is what the eye finds, not a field of grating.
+ */
+const labFloorPlate: Painter = (_lx, _ly, wx, wy) => {
+  const px = ((wx % 32) + 32) % 32, py = ((wy % 32) + 32) % 32;
+  if (px === 0 || py === 0) return K_15121A;
+  if (px === 1 || py === 1) return K_3C3642;
+  if (px === 31 || py === 31) return K_1E1A24;
+  if ((px === 4 || px === 28) && (py === 4 || py === 28)) return K_4E5664;
+  let base = K_2A2630;
+  const stain = valueNoise(wx / 26, wy / 18, 395);
+  if (stain < 0.28) base = lerpC(base, K_4A2A30, (0.28 - stain) * 1.6);
+  if (hash2(wx, wy, 396) < 0.004) return K_3A3542;
   return base;
 };
 
@@ -715,7 +734,7 @@ export const PAINTERS: Record<TerrainId, Painter> = {
   d_wall: wallP('d_wall', dwallFace, P.dwallTop, P.dwallEdge),
   d_water: underCatwalk(dwater), d_shallow: underCatwalk(shallow), d_catwalk: catwalk,
   d_track: rail,
-  lab_floor: labFloor, lab_floor_steel: labFloorSteel, lab_floor_frost: labFloorFrost, lab_floor_contain: labFloorContain,
+  lab_floor: labFloor, lab_floor_steel: labFloorSteel, lab_floor_frost: labFloorFrost, lab_floor_contain: labFloorContain, lab_floor_plate: labFloorPlate,
   lab_wall: wallP('lab_wall', labWallFace, P.labTop, P.labEdge),
   lab_door: labDoor,
   lab_laser: labLaser,

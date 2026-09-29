@@ -75,7 +75,7 @@ export const rookFlat: MapDef = {
     },
     {
       id: 'tv', x: 3, y: 2, w: 2, on: 'action', run: async (s) => {
-        await s.narrate('{c}K-M NEWSFEED:{/} "...Kessler-Mori reminds citizens that Awakened individuals must register their abilities. Registration is free, safe, and mandatory..."');
+        await s.narrate('{c}K-M NEWSFEED:{/} “...Kessler-Mori reminds citizens that Awakened individuals must register their abilities. Registration is free, safe, and mandatory...”');
       },
     },
   ],
@@ -149,7 +149,7 @@ export const bar: MapDef = {
           const rumors = [
             'Knuckles and the Rustfangs have been leaning on the Rustyard. Old Mags won’t pay. Good for her.',
             'Folk who go down the Sinkline hear commuters. The last train left in ’61.',
-            'Kessler-Mori’s buying up every Awakened kid in the Wards. "Scholarships." Right.',
+            'Kessler-Mori’s buying up every Awakened kid in the Wards. “Scholarships.” Right.',
             'A crew called the Glass Wolves drank here last week. Big job, big talk. Haven’t seen ’em since.',
           ];
           await s.say('Saint', rumors[(s.get('rumor') as number | undefined ?? 0) % rumors.length]!);
@@ -169,7 +169,7 @@ export const bar: MapDef = {
     {
       id: 'board', x: 13, y: 2, w: 2, on: 'action', run: async (s) => {
         const jobs = [
-          s.flag('job_cat_done') ? '{d}[DONE] Lost cat "Noodle".{/}' : s.flag('cat_found') ? '{g}[FOUND] Return Noodle to Mama Ono.{/}' : '{y}LOST CAT{/}: "Noodle", orange, one ear. Last seen near the Sinkline. Reward from Mama Ono.',
+          s.flag('job_cat_done') ? '{d}[DONE] Lost cat “Noodle”.{/}' : s.flag('cat_found') ? '{g}[FOUND] Return Noodle to Mama Ono.{/}' : '{y}LOST CAT{/}: “Noodle”, orange, one ear. Last seen near the Sinkline. Reward from Mama Ono.',
           s.flag('job_case_done') ? '{d}[DONE] Doc Yun’s med-case.{/}' : '{y}STOLEN{/}: Doc Yun’s medical case, taken by Rustfangs. Probably stashed in the Rustyard. Reward.',
           s.flag('job_bounty_done') ? '{d}[DONE] Rustfang bounty.{/}' : `{y}BOUNTY{/}: Rustfangs defeated: ${Math.min(10, (s.get('rustfangs') as number | undefined) ?? 0)}/10. Dutch pays 250¢.`,
         ];

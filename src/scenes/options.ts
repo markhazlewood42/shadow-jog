@@ -60,6 +60,19 @@ export class OptionsScene extends Scene<'back' | 'title'> {
         },
       },
       {
+        id: 'flash', label: 'Screen flash', value: () => ['Off', 'Reduced', 'Full'][settings.flash] ?? 'Full',
+        adjust: (d) => {
+          settings.flash = (settings.flash + d + 3) % 3;
+          this.game.flash('#ffffff', 10); // preview at the new strength
+        },
+      },
+      {
+        id: 'hitpause', label: 'Hit pause', value: () => (settings.hitPause ? 'On' : 'Off'),
+        adjust: () => {
+          settings.hitPause = !settings.hitPause;
+        },
+      },
+      {
         id: 'scale', label: 'Scaling', value: () => (settings.scale === 'fit' ? 'Fill window' : 'Pixel-perfect'),
         adjust: () => {
           settings.scale = settings.scale === 'fit' ? 'integer' : 'fit';

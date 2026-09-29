@@ -8,6 +8,7 @@ import { silhouette, surface, type Ctx, type Surface } from '../engine/canvas';
 import { mix, rgb } from '../engine/color';
 import { drawText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
+import { flashScale } from '../game/settings';
 import { hash2, Rng } from '../engine/rng';
 import { hasAnySave, latestSlot, type SlotId } from '../game/save';
 import { UI } from '../ui/draw';
@@ -326,8 +327,9 @@ export class TitleScene extends Scene<TitleChoice> {
       b.fillRect(Math.round(x), Math.round(y), 1, 3);
     }
     b.globalAlpha = 1;
-    if (this.flashT > 0) {
-      b.globalAlpha = (this.flashT / 14) * 0.5;
+    // Lightning over the skyline, scaled by the Screen flash setting (and gone with it off).
+    if (this.flashT > 0 && flashScale() > 0) {
+      b.globalAlpha = (this.flashT / 14) * 0.5 * flashScale();
       b.fillStyle = '#e8e0ff';
       b.fillRect(0, 0, BW, BH);
       b.globalAlpha = 1;

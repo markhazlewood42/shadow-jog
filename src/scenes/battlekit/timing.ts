@@ -5,23 +5,29 @@
  *
  * The window runs in real frames, not battle-speed frames: the beat you learn is the beat you get.
  */
-import type { Timing, TimingPrompt } from '../../battle/engine';
+import type { Timing, TimingProfile, TimingPrompt } from '../../battle/engine';
 import type { Ctx } from '../../engine/canvas';
 
-/** Frames from the ring opening to the hit landing (at least; a slow windup runs longer). */
-export const RING_LEAD = 24;
-/** A press this close to the hit (either side) is perfect. */
-export const PERFECT_WINDOW = 3;
-/** Good: up to this early, or this late. Earlier than that is a whiff; later, the moment's gone. */
-export const GOOD_EARLY = 9;
-export const GOOD_LATE = 5;
+/**
+ * Each profile's beat: how long the ring takes to close (at least; a slow windup runs longer),
+ * how close to the hit a press is perfect, and how early or late it's still good. Quick moves
+ * are a snap, heavy ones a wind-up you can read.
+ */
+export const WINDOWS: Record<TimingProfile, { lead: number; perfect: number; early: number; late: number; radius: number }> = {
+  quick: { lead: 18, perfect: 2, early: 6, late: 3, radius: 16 },
+  normal: { lead: 24, perfect: 3, early: 9, late: 5, radius: 20 },
+  heavy: { lead: 32, perfect: 5, early: 12, late: 7, radius: 26 },
+};
+/** The normal beat (the minimum lead playback allows). */
+export const RING_LEAD = WINDOWS.normal.lead;
 
 export type TimingMode = 'on' | 'assist' | 'off';
 
-/** How a press at `dt` frames from the hit (negative = early) grades. */
-export function judge(dt: number): Timing | 'early' | 'late' {
-  if (Math.abs(dt) <= PERFECT_WINDOW) return 'perfect';
-  if (dt >= -GOOD_EARLY && dt <= GOOD_LATE) return 'good';
+/** How a press at `dt` frames from the hit (negative = early) grades, for a move's profile. */
+export function judge(dt: number, profile: TimingProfile = 'normal'): Timing | 'early' | 'late' {
+  const w = WINDOWS[profile];
+  if (Math.abs(dt) <= w.perfect) return 'perfect';
+  if (dt >= -w.early && dt <= w.late) return 'good';
   return dt < 0 ? 'early' : 'late';
 }
 
@@ -61,7 +67,7 @@ export class TimingWindow {
   /** A press at frame `now`. Returns the judgement, or null if there's nothing to press for. */
   press(now: number): Timing | 'early' | 'late' | null {
     if (!this.isOpen || this.result || this.done) return null;
-    this.result = judge(now - this.impactAt);
+    this.result = judge(now - this.impactAt, this.prompt?.profile);
     this.pressedAt = now;
     return this.result;
   }
@@ -69,7 +75,7 @@ export class TimingWindow {
   /** Frames still worth waiting after the hit for a late press (0 once judged). */
   lateLeft(now: number): number {
     if (!this.isOpen || this.result) return 0;
-    return Math.max(0, this.impactAt + GOOD_LATE - now);
+    return Math.max(0, this.impactAt + WINDOWS[this.prompt?.profile ?? 'normal'].late - now);
   }
 
   /** The grade the engine gets. Anything but a timely press counts for nothing. */
@@ -127,7 +133,8 @@ export function drawRing(g: Ctx, x: number, y: number, now: number, win: TimingW
   const color = RING_COLOR[p.kind];
   const lead = win.impactAt - win.openAt;
   const k = Math.max(0, Math.min(1, (win.impactAt - now) / Math.max(1, lead)));
-  const onBeat = Math.abs(now - win.impactAt) <= PERFECT_WINDOW;
+  const w = WINDOWS[p.profile];
+  const onBeat = Math.abs(now - win.impactAt) <= w.perfect;
   if (win.result) {
     // The press: the ring snaps to the mark and pops outward.
     const t = now - win.pressedAt;
@@ -138,13 +145,13 @@ export function drawRing(g: Ctx, x: number, y: number, now: number, win: TimingW
     g.globalAlpha = 1;
     return;
   }
-  if (win.done || now > win.impactAt + GOOD_LATE) return;
+  if (win.done || now > win.impactAt + w.late) return;
   // The mark: where the ring has to be. White while a press would be perfect.
   g.globalAlpha = onBeat ? 1 : 0.6;
   ring(g, cx, cy, 7, onBeat ? '#ffffff' : color);
   // The closing ring.
   g.globalAlpha = 0.4 + 0.6 * (1 - k);
-  ring(g, cx, cy, 7 + Math.round(20 * k), color);
+  ring(g, cx, cy, 7 + Math.round(w.radius * k), color);
   g.globalAlpha = 1;
 }
 

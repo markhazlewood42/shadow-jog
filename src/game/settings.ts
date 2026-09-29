@@ -11,7 +11,10 @@ export interface Settings {
   scale: 'fit' | 'integer';
   /** 0 = off, 1 = gentle, 2 = full. */
   shake: number;
-  crt: boolean;
+  /** Full-screen flashes (hits, combos, the finale): 0 = off, 1 = reduced, 2 = full. */
+  flash: number;
+  /** Freeze-frames on heavy hits. */
+  hitPause: boolean;
   touch: 'auto' | 'on' | 'off';
   /** Timed presses in battle: rings to hit (on), always a good press (assist), or none (off). */
   timing: 'on' | 'assist' | 'off';
@@ -29,7 +32,8 @@ export const DEFAULT_SETTINGS: Settings = {
   scale: 'fit',
   // Gentle by default; players who want the full kick can turn it up.
   shake: 1,
-  crt: false,
+  flash: 2,
+  hitPause: true,
   touch: 'auto',
   timing: 'on',
   keys: {},
@@ -42,6 +46,8 @@ function load(): Settings {
       const s = { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) };
       // v1 stored shake as on/off.
       if (typeof s.shake === 'boolean') s.shake = s.shake ? 2 : 0;
+      // An old CRT toggle that never did anything.
+      delete (s as Partial<Settings> & { crt?: unknown }).crt;
       return s;
     }
   } catch {
@@ -58,6 +64,11 @@ export function saveSettings(): void {
   } catch {
     /* ignore */
   }
+}
+
+/** Multiplier applied to every full-screen flash (0 skips them). */
+export function flashScale(): number {
+  return [0, 0.4, 1][settings.flash] ?? 1;
 }
 
 /** Multiplier applied to every screen shake. */

@@ -188,7 +188,7 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   combo_crows_wing: A({
     id: 'combo_crows_wing', name: 'Crow’s Wing', kind: 'combo', target: 'allies', priority: 100,
-    desc: 'Rook holds the line; the crow spreads its wings over it. The crew guards, gains RES and regen.',
+    desc: 'The crow spreads its wings over the whole crew: everyone braces, and gains RES and regen.',
     effects: [{ type: 'buff', status: 'guard', turns: 1 }, { type: 'buff', status: 'res_up', turns: 3 }, { type: 'buff', status: 'regen', turns: 3 }], fx: 'crows_wing',
   }),
   combo_lifeline: A({

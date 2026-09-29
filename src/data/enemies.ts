@@ -109,8 +109,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
     lore: 'A spirit born of exhaust and neglect. Blades pass right through.',
   }),
   knuckles: E({
-    id: 'knuckles', name: '"Knuckles" Tran', family: 'human', sprite: 'brute', boss: true,
-    hp: 485, atk: 32, def: 11, mnd: 10, res: 8, agi: 11, xp: 130, cred: 300,
+    id: 'knuckles', name: '“Knuckles” Tran', family: 'human', sprite: 'brute', boss: true,
+    hp: 500, atk: 32, def: 11, mnd: 10, res: 8, agi: 11, xp: 130, cred: 300,
     drops: [{ id: 'lucky_coin', chance: 1 }],
     moves: [{ id: 'attack', w: 3 }, { id: 'e_haymaker', w: 2 }, { id: 'e_rally', w: 2, when: 'no_atk_buff' }, { id: 'e_pipe_bomb', w: 1.5 }],
     lore: 'Rustfang enforcer. Named for his hands, both of which are chrome.',

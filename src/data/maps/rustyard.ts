@@ -108,7 +108,7 @@ export const rustyard: MapDef = {
       talk: ['Get lost. Tribute collection in progress.'],
     },
     {
-      id: 'knuckles', x: 16, y: 6, dir: 'down', name: '"Knuckles" Tran', when: (f) => !f.knuckles,
+      id: 'knuckles', x: 16, y: 6, dir: 'down', name: '“Knuckles” Tran', when: (f) => !f.knuckles,
       look: { body: 'big', skin: '#b87a52', hair: '#e8452e', hairStyle: 'mohawk', top: '#4a2a2a', sleeves: '#b87a52', inner: '#2a2a30', accent: '#ffcc3d', pants: '#2a2a33', boots: '#1a1418', cyberArm: 'right', accessories: ['visor'], visor: '#ff3a3a' },
       talk: knucklesFight,
     },
@@ -137,6 +137,10 @@ export const rustyard: MapDef = {
       id: 'scav_kid', x: 24, y: 17, dir: 'left', name: 'Scav Kid', look: randomLook(313), move: 'wander', radius: 2,
       // The clue to the tribute stash: where the camp leaves what the Rustfangs take.
       talk: async (s) => {
+        if (s.flag('coprocessor_given')) {
+          await s.say('Scav Kid', 'You got our filter back! The water tastes like water again. Mostly.');
+          return;
+        }
         await s.say('Scav Kid', 'The Rustfangs took our water filter. Auntie Mags says we’ll get it back. She doesn’t look like she believes it.');
         if (s.flag('tribute_stash')) return;
         await s.say('Scav Kid', 'Every week we leave the tribute at the west heap. The one with their tag on it. They come for it at night, and they never take it far.');

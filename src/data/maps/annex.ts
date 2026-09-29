@@ -26,8 +26,9 @@ const g = new Grid(W, H, 'L')
   // Passage south to the Warden chamber
   .rect(26, 19, 3, 3, 'r')
   .rect(26, 22, 3, 1, 'D')
-  // Warden chamber
+  // Warden chamber: a drainage border of grating round a plated deck
   .rect(18, 23, 22, 9, 'r')
+  .rect(19, 24, 20, 7, 'P')
   // (The crawlspace behind the armory's loose panel is carved in by a patch.)
   .rect(37, 32, 3, 1, 'r');
 
@@ -39,7 +40,7 @@ export const annex: MapDef = {
   kind: 'dungeon',
   terrain: g.rows(),
   legend: {
-    L: 'lab_wall', _: 'lab_floor', c: 'floor_concrete', a: 'lab_floor_steel', f: 'lab_floor_frost', r: 'lab_floor_contain',
+    L: 'lab_wall', _: 'lab_floor', c: 'floor_concrete', a: 'lab_floor_steel', f: 'lab_floor_frost', r: 'lab_floor_contain', P: 'lab_floor_plate',
     D: 'lab_door', Z: 'lab_laser', z: 'lab_laser_off', '+': 'grate',
   },
   ambient: '#6a7aa0',
@@ -100,6 +101,10 @@ export const annex: MapDef = {
     { kind: 'crates', x: 15, y: 23 },
     { kind: 'tank', x: 21, y: 25, color: '#ff3a4a' },
     { kind: 'tank', x: 36, y: 25, color: '#ff3a4a' },
+    // The chamber's centrepiece: the circle the spirit is bound in, cabled to the field pylons,
+    // and the marked way in from the door.
+    { kind: 'binding_circle', x: 29, y: 27, w: 6.5, text: '19,24 38,24 19,30 38,30', pass: true },
+    { kind: 'hazard_lane', x: 26, y: 23, w: 3, h: 1, pass: true },
     // Containment: field pylons round the arena, coolant venting from the floor.
     { kind: 'pylon', x: 19, y: 24, color: '#ff3a4a' },
     { kind: 'pylon', x: 38, y: 24, color: '#ff3a4a' },
@@ -176,7 +181,7 @@ export const annex: MapDef = {
     },
     {
       id: 'log4', x: 33, y: 9, on: 'action',
-      run: annexLog('SUBJECT LOG · S-7', 'Subject S-7 (orc, shamanic, "crow" totem). Resistance to sedation: high. Yield: exceptional. On completion, transfer to Arcology Level 90; residue to a WARDEN-class core, as with S-3.'),
+      run: annexLog('SUBJECT LOG · S-7', 'Subject S-7 (orc, shamanic, “crow” totem). Resistance to sedation: high. Yield: exceptional. On completion, transfer to Arcology Level 90; residue to a WARDEN-class core, as with S-3.'),
     },
     { id: 'pod', x: 36, y: 4, w: 2, on: 'action', run: cryopod },
     { id: 'lattice', x: 30, y: 6, h: 3, on: 'action', when: (f) => !f.lattice_off, run: lattice },

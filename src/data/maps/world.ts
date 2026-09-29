@@ -89,6 +89,16 @@ export const world: MapDef = {
   ],
   props: [
     { kind: 'barrier', x: 28, y: 8, w: 3 },
+    // Landmarks you can steer by: the fallen dome in the west blocks, Static Mary's mast over her
+    // lot, water towers on the roofs, and a wreck pile where the spur meets the Barrens.
+    { kind: 'dome', x: 1, y: 9, w: 7 },
+    { kind: 'mast', x: 1, y: 25 },
+    { kind: 'watertower', x: 10, y: 2 },
+    { kind: 'watertower', x: 56, y: 29 },
+    { kind: 'watertower', x: 9, y: 35 },
+    { kind: 'wreck', x: 41, y: 25, w: 2 },
+    { kind: 'car', x: 43, y: 26, w: 2, color: '#4a3a30' },
+    { kind: 'tires', x: 40, y: 27 },
     // The pipe crossing's tell: a scav's fire at the north end, a rag tied to the rail.
     { kind: 'firebarrel', x: 46, y: 28 },
     { kind: 'lamp', x: 14, y: 20, dir: 'right' },

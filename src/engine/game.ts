@@ -96,6 +96,8 @@ export class Game {
   speed = 1;
   /** Screen-shake strength multiplier (the player's setting); 0 turns every shake off. */
   shakeScale: () => number = () => 1;
+  /** Player setting for full-screen flashes (0 = off). */
+  flashScale: () => number = () => 1;
   /** Called once when something keeps throwing (see FAULT_LIMIT). */
   onFault: (() => void) | null = null;
   /** Consecutive ticks in which something threw. */
@@ -307,8 +309,9 @@ export class Game {
       this.renderFaults = 0;
       this.onFault?.();
     }
-    if (this.flashFrames > 0) {
-      ctx.globalAlpha = (this.flashFrames / this.flashTotal) * 0.8;
+    const flash = this.flashScale();
+    if (this.flashFrames > 0 && flash > 0) {
+      ctx.globalAlpha = (this.flashFrames / this.flashTotal) * 0.8 * flash;
       ctx.fillStyle = this.flashColor;
       ctx.fillRect(0, 0, W, H);
       ctx.globalAlpha = 1;

@@ -33,7 +33,7 @@ export const introFlat: ScriptFn = async (s) => {
   s.face('rook', 'left');
   await s.say('rook', 'Dutch called with work.');
   await s.emote('player', '!');
-  await s.say('kit', 'Real work? Like, paying work? Not "hold this bag and don’t look inside" work?', { face: 'surprised' });
+  await s.say('kit', 'Real work? Like, paying work? Not “hold this bag and don’t look inside” work?', { face: 'surprised' });
   await s.say('rook', 'The Drowned Saint. Ten minutes. And eat something first. Nobody punches well on an empty stomach.');
   await s.say('kit', 'Hungry’s fine. Hungry’s how I win.', { face: 'happy' });
   await s.move('rook', 'lld', { speed: 14 });
@@ -76,7 +76,7 @@ export const meetDutch: ScriptFn = async (s) => {
   await s.say('kit', 'Three thou—', { face: 'surprised' });
   await s.say('rook', 'Kit.');
   await s.say('rook', 'A written-off annex. A milk run. You could send anybody. Why us?');
-  await s.say('pale', 'Because "anybody" asks more questions. Also, the annex doors are still corporate-locked. You will need a decker.', { face: 'smirk' });
+  await s.say('pale', 'Because “anybody” asks more questions. Also, the annex doors are still corporate-locked. You will need a decker.', { face: 'smirk' });
   await s.say('dutch', 'Which you haven’t got, since your last one moved to Neo-Lagos and stopped taking my calls.');
   await s.say('rook', '...Hex.');
   await s.say('dutch', 'Hex! Hex owes me money. Two birds, one run. Tell her if she does this, her tab goes in the canal.', { face: 'happy' });
@@ -84,8 +84,7 @@ export const meetDutch: ScriptFn = async (s) => {
   await s.say('pale', 'Expenses. I will not be asking for receipts.');
   await s.cred(250);
   await s.say('pale', 'Loading Dock 7, when you have it. I keep very exact hours.');
-  await s.say('pale', 'Miss Kit. The two Rustfangs outside. I watched from the window.', { face: 'smirk' });
-  await s.say('pale', 'Nine seconds, no weapon, no chrome in those hands. Nothing on your breath but noodles.');
+  await s.say('pale', 'Miss Kit. Those two Rustfangs outside: nine seconds, no weapon, no chrome in those hands. I watched from the window.', { face: 'smirk' });
   await s.say('kit', 'So?', { face: 'angry' });
   await s.say('pale', 'So nothing. I collect numbers. That one is unusual.');
   await s.say('rook', 'She’s not part of the price.');
@@ -164,13 +163,13 @@ export const rustyardGate: ScriptFn = async (s) => {
 };
 
 export const knucklesFight: ScriptFn = async (s) => {
-  await s.say('"Knuckles" Tran', 'So these are the heroes. Know what I do to heroes? I charge ’em rent.');
+  await s.say('“Knuckles” Tran', 'So these are the heroes. Know what I do to heroes? I charge ’em rent.');
   await s.say('rook', 'We’ll pay you in teeth.');
   const r = await s.battle('f_knuckles', { canRun: false, boss: true, bg: 'rustyard' });
   if (r !== 'win') return;
   s.despawn('knuckles');
-  await s.say('"Knuckles" Tran', 'Ugh... fine... take your junk... I’m moving to Neo-Lagos...');
-  await s.say('"Knuckles" Tran', 'Your fixer’s got a big mouth, y’know. Whole yard knew you were hunting a decker before you did.');
+  await s.say('“Knuckles” Tran', 'Ugh... fine... take your junk... I’m moving to Neo-Lagos...');
+  await s.say('“Knuckles” Tran', 'Your fixer’s got a big mouth, y’know. Whole yard knew you were hunting a decker before you did.');
   await s.say('rook', '...Dutch.');
   await s.say('kit', 'Dutch talks. That’s not the same as selling us.', { face: 'angry' });
   await s.say('rook', 'With Dutch it usually is.');
@@ -188,6 +187,11 @@ export const magsReward: ScriptFn = async (s) => {
     await s.give('coprocessor', 1);
     s.set('coprocessor');
     s.set('coprocessor_given');
+    await s.say('mags', 'Our water filter was in that crate too. The little ones have been drinking canal for a month.');
+    if (s.flag('tribute_stash')) {
+      await s.say('kit', 'We found the camp’s tribute as well. Behind the tagged heap. It’s yours.');
+      await s.say('mags', 'Keep it. Where you’re going you’ll need it more than we will. The camp voted. I counted.');
+    }
     await s.say('mags', 'And this. The camp took up a collection for whoever ran Knuckles off. Don’t argue with me, I’m old.');
     await s.cred(150);
     await s.say('mags', 'And tell Hex she still owes me for the last one.');
@@ -218,7 +222,7 @@ export const sinklineGate: ScriptFn = async (s) => {
 export const deadCrew: ScriptFn = async (s) => {
   await s.narrate('Three bodies in expensive gear, slumped against the platform. Whatever got them wasn’t a ghoul. Their wounds are cauterized.');
   await s.say('hex', 'That’s the {c}Glass Wolves{/}. Runners out of Harbor Ward. Good ones.', { face: 'sad' });
-  await s.narrate('One of them clutches a data slate. The last message reads: {c}"Dutch set it up. Milk run. In and out."{/}');
+  await s.narrate('One of them clutches a data slate. The last message reads: {c}“Dutch set it up. Milk run. In and out.”{/}');
   await s.say('kit', 'Dutch? Our Dutch?', { face: 'surprised' });
   await s.say('rook', 'Same job. Different crew. Before us. And he sat there and poured us drinks and didn’t say a word.');
   await s.say('hex', 'Maybe he didn’t know they didn’t come back.', { face: 'sad' });
@@ -416,7 +420,7 @@ export const annexLog = (title: string, body: string): ScriptFn => async (s) => 
 export const cryopod: ScriptFn = async (s) => {
   if (s.flag('sable_joined')) return;
   await s.narrate('A cryopod, humming, lit from within. Frost on the glass. Behind it, a figure: an orc, bone-white hair, eyes closed.');
-  await s.say('hex', 'Label reads {c}ASSET S-7 · "VESSEL" · ESSENCE YIELD 94%{/}. Oh no. Oh no no no.', { face: 'sad' });
+  await s.say('hex', 'Label reads {c}ASSET S-7 · “VESSEL” · ESSENCE YIELD 94%{/}. Oh no. Oh no no no.', { face: 'sad' });
   await s.say('hex', 'This is the data core. It’s not data. It’s a person.', { face: 'sad' });
   await s.say('rook', '...');
   await s.say('kit', 'We’re getting them out.', { face: 'angry' });
@@ -459,7 +463,7 @@ export const cryopod: ScriptFn = async (s) => {
   s.shake(40, 2);
   s.sfx('alert');
   await s.narrate('{r}ALERT. ASSET S-7 CONTAINMENT BREACH. WARDEN PROTOCOL ENGAGED.{/}');
-  await s.say('hex', 'WARDEN protocol. That sounds big. Things named "Warden" are always big.', { face: 'surprised' });
+  await s.say('hex', 'WARDEN protocol. That sounds big. Things named “Warden” are always big.', { face: 'surprised' });
   await s.say('rook', 'Freight lift. South, through the containment door. Move.');
   await s.say('hex', 'One stop first: that armory by the hall had weapon cases. Whatever WARDEN is, I want to meet it holding something better.');
   s.objective(OBJ.escape);
@@ -490,15 +494,15 @@ export const betrayal: ScriptFn = async (s) => {
   s.music('tension');
   await s.wait(20);
   await s.narrate('Mr. Pale is waiting under the cranes, the brass watch open in his palm.');
-  await s.say('pale', 'Three minutes early. I do appreciate punctuality in a liability. And my property, in better shape than I dared hope.', { face: 'smirk' });
-  await s.say('kit', 'Your "property" is a person.', { face: 'angry' });
-  await s.say('pale', 'Asset S-7 is Kessler-Mori property, recovered from a site we officially abandoned, by deniable contractors.');
+  await s.say('pale', 'Three minutes early. I do appreciate punctuality in a liability.', { face: 'smirk' });
+  await s.say('kit', 'Your “property” is a person.', { face: 'angry' });
+  await s.say('pale', 'Asset S-7 is Kessler-Mori property, recovered from a site we officially abandoned by deniable contractors.');
   await s.say('pale', 'You were the deniable contractors.');
   await s.say('rook', 'And the three thousand?');
   await s.say('pale', 'A figure of speech.');
   await s.say('pale', 'I did tell you I collect numbers, Miss Kit. I have already sold yours.', { face: 'smirk' });
   await s.say('pale', 'Contractors are paid on completion. You have completed.');
-  await s.say('pale', 'Except you, Miss Kit. The Vessel program is always short of subjects, and you have never once been measured.');
+  await s.say('pale', 'Except you, Miss Kit. The Vessel program is always short of subjects.');
   await s.narrate('The watch snaps shut.');
   s.sfx('alert');
   await s.say('K-M Sentinel', 'Contractor tags read. Four signatures. One flagged for intake, three for disposal.');

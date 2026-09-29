@@ -8,7 +8,7 @@ import { enemyArt } from '../../art/enemies';
 import { getPortrait } from '../../art/portraits';
 import type { Combatant, Command, Element } from '../../battle/types';
 import { ABILITIES } from '../../data/abilities';
-import { ENEMIES } from '../../data/enemies';
+import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
 import type { Ctx } from '../../engine/canvas';
@@ -20,13 +20,16 @@ import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
 import { TARGET_INFO_W } from '../../ui/layout';
 import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
-import { BHT, BW, CMD_W, MENU_X, PANEL_Y, PARTY_BOTTOM } from './geom';
+import { BHT, BW, CMD_W, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, orderStripLayout } from './geom';
 import { ShatterIntro } from './intro';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, opaqueTop, rimOf, silhouetteCache, variant } from './sprites';
 import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_TAG, STATUS_LABEL, statusName } from './tables';
 import { drawRing } from './timing';
 
 let bigBandGrad: CanvasGradient | null = null;
+
+/** How the street names each kind of enemy (the target box's hint line). */
+const FAMILY_NAME: Record<string, string> = { human: 'Chromed', machine: 'Machine', beast: 'Beast', spirit: 'Spirit', ghoul: 'Ghoul' };
 
 export class BattleRenderer {
   constructor(private readonly s: BattleScene) {}
@@ -488,39 +491,52 @@ export class BattleRenderer {
    */
   private renderOrder(ctx: Ctx): void {
     const list = this.turnOrder();
-    const y = 8;
-    let x = 8;
-    drawText(ctx, 'TURN', x, y + 4, { color: UI.dim });
-    x += measure('TURN') + 5;
+    // Opposite the acting member's menus (they open on that member's side of the screen).
+    const a = this.s.mode === 'round' ? undefined : this.s.actor;
+    const side = a && this.s.menuX(a, CMD_W) > W / 2 ? 'left' : 'right';
+    // Laid out once per change of order or side (orderStripLayout), like the list itself.
+    if (this.orderRects.source !== list || this.orderRects.side !== side) {
+      const faces: number[] = [];
+      for (const acts of list) faces.push(acts.length);
+      this.orderRects = { source: list, side, rects: orderStripLayout(faces, side) };
+    }
+    const rects = this.orderRects.rects;
+    const edgeX = side === 'right' ? ORDER_RIGHT : ORDER_LEFT;
+    drawText(ctx, 'TURN', edgeX, ORDER_TOP - 10, { color: UI.dim, align: side });
     const acting = this.s.mode === 'round' ? undefined : this.s.actor?.uid;
     const aimed = this.s.mode === 'target' ? this.s.targetList[this.s.targetIdx] : undefined;
-    for (const actors of list) {
-      const w = actors.length * 13 + 1;
+    for (let k = 0; k < rects.length; k++) {
+      const actors = list[k]!, r = rects[k]!;
       const lead = this.s.battle.unit(actors[0]!);
       if (!lead) continue;
       const hot = actors.includes(acting ?? -1) || actors.includes(aimed ?? -1);
       const edge = actors.length > 1 ? '#ffe07a' : lead.side === 'party' ? MEMBERS[lead.key as MemberId].color : '#ff6a6a';
       ctx.fillStyle = hot ? '#ffffff' : edge;
-      ctx.fillRect(x - 1, y - 1, w + 2, 16);
+      ctx.fillRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2);
       ctx.fillStyle = '#0a0913';
-      ctx.fillRect(x, y, w, 14);
-      actors.forEach((uid, i) => {
-        const u = this.s.battle.unit(uid);
-        if (!u) return;
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      for (let i = 0; i < actors.length; i++) {
+        const u = this.s.battle.unit(actors[i]!);
+        if (!u) continue;
         const img = u.side === 'party' ? getPortrait(u.key, 'neutral') : enemyThumb(enemyArt(ENEMIES[u.key]!.sprite).canvas);
-        if (img) ctx.drawImage(img, x + 1 + i * 13, y + 1, 12, 12);
+        if (img) ctx.drawImage(img, r.x + 1 + i * ORDER_FACE, r.y + 1, 12, 12);
         // Two of a kind: which one (their squad number, as marked on them).
         const dup = u.side === 'enemy' ? this.s.dupIndex(u) : 0;
-        if (dup) drawText(ctx, String(dup + 1), x + i * 13 + 9, y + 6, { color: '#ffffff' });
-      });
-      if (hot) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(x + Math.floor(w / 2) - 1, y + 16, 3, 1);
-        ctx.fillRect(x + Math.floor(w / 2), y + 17, 1, 1);
+        if (dup) drawText(ctx, String(dup + 1), r.x + i * ORDER_FACE + 9, r.y + 6, { color: '#ffffff' });
       }
-      x += w + 4;
+      if (hot) {
+        // A pointer on the inside edge, toward the field.
+        ctx.fillStyle = '#ffffff';
+        const px = side === 'right' ? r.x - 4 : r.x + r.w + 2;
+        ctx.fillRect(px, r.y + 6, 2, 3);
+        ctx.fillRect(side === 'right' ? px - 1 : px + 2, r.y + 7, 1, 1);
+      }
     }
+    if (rects.length < list.length) drawText(ctx, `+${list.length - rects.length}`, edgeX, ORDER_BOTTOM - 2, { color: UI.dim, align: side });
   }
+  /** The strip's rects for the current order (recomputed only when the order changes). */
+  private orderRects: { source: number[][] | null; side: 'left' | 'right'; rects: { x: number; y: number; w: number; h: number }[] } = { source: null, side: 'right', rects: [] };
+
 
   private renderCutins(ctx: Ctx): void {
     for (const c of this.s.cutins) {
@@ -673,24 +689,47 @@ export class BattleRenderer {
     this.topLine(ctx, desc, '#d8d6ec', hint ? { text: hint, color: UI.amber } : undefined);
   }
 
+  /**
+   * What the target box says about an enemy, worked out when the target or the crew's notes change
+   * (not every frame): its weaknesses as far as they're known, its resistances and immunities, and
+   * before anything is known, the street wisdom about its kind ("likely weak", with a question mark).
+   */
+  private targetNotes(u: Combatant): { weak: string; guess: string; notes: [string, string][] } {
+    const seenW = state.weakSeen[u.key]?.length ?? 0, seenR = state.resistSeen[u.key]?.length ?? 0, seenI = state.immuneSeen[u.key]?.length ?? 0;
+    const key = u.uid * 10000 + (u.analyzed ? 5000 : 0) + seenW * 100 + seenR * 10 + seenI;
+    if (this.targetCache?.key === key) return this.targetCache.value;
+    // Analyzed: the whole chart. Otherwise what the crew has learned the hard way.
+    const weak = u.analyzed ? Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => k) : (state.weakSeen[u.key] ?? []);
+    const res = u.analyzed ? Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) < 1).map(([k]) => k) : (state.resistSeen[u.key] ?? []);
+    const imm = u.analyzed ? (u.immune ?? []) : (state.immuneSeen[u.key] ?? []);
+    const notes: [string, string][] = [];
+    // Element names as the chips over the enemies write them (ELEMENT_TAG), everywhere.
+    if (res.length) notes.push([`RESISTS ${res.map((el) => ELEMENT_TAG[el as Element]).join(' ')}`, '#b8bcd0']);
+    if (imm.length) notes.push([`IMMUNE ${imm.map(statusName).join(' ')}`, '#c9b8ff']);
+    // Nothing learned yet: what everyone on the street knows about its kind.
+    let guess = '';
+    if (!weak.length && u.family) {
+      const fam = Object.entries(FAMILY_WEAK[u.family] ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => ELEMENT_TAG[k as Element]);
+      if (fam.length) guess = `${FAMILY_NAME[u.family]}: likely weak to ${fam.join(' ')}?`;
+    }
+    const value = { weak: weak.length ? `WEAK ${weak.map((el) => ELEMENT_TAG[el as Element]).join(' ')}` : '', guess, notes };
+    if (guess) value.notes.unshift([guess, '#b89a66']);
+    this.targetCache = { key, value };
+    return value;
+  }
+  private targetCache: { key: number; value: { weak: string; guess: string; notes: [string, string][] } } | null = null;
+
   private renderTargetInfo(ctx: Ctx): void {
     const uid = this.s.targetList[this.s.targetIdx];
     const u = uid !== undefined ? this.s.battle.unit(uid) : undefined;
     if (!u) return;
     const w = TARGET_INFO_W, x = (W - w) / 2, y = 44;
     if (u.side === 'enemy') {
-      // Analyzed: the whole chart. Otherwise what the crew has learned the hard way.
-      const weak = u.analyzed ? Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) > 1).map(([k]) => k) : (state.weakSeen[u.key] ?? []);
-      const res = u.analyzed ? Object.entries(u.weak ?? {}).filter(([, v]) => (v ?? 1) < 1).map(([k]) => k) : (state.resistSeen[u.key] ?? []);
-      const imm = u.analyzed ? (u.immune ?? []) : (state.immuneSeen[u.key] ?? []);
-      const notes: [string, string][] = [];
-      // Element names as the chips over the enemies write them (ELEMENT_TAG), everywhere.
-      if (res.length) notes.push([`RESISTS ${res.map((el) => ELEMENT_TAG[el as Element]).join(' ')}`, '#b8bcd0']);
-      if (imm.length) notes.push([`IMMUNE ${imm.map(statusName).join(' ')}`, '#c9b8ff']);
+      const { weak, notes } = this.targetNotes(u);
       drawWindow(ctx, x, y, w, 19 + (u.analyzed ? 11 : 0) + notes.length * 10, { plain: true, accent: UI.amber });
       drawText(ctx, u.name, x + 8, y + 5, { color: '#ffd0d0' });
       const bestiary = state.bestiary[u.key] ?? 0;
-      if (weak.length) drawText(ctx, fitText(`WEAK ${weak.map((el) => ELEMENT_TAG[el as Element]).join(' ')}`, w - 24 - measure(u.name)), x + w - 8, y + 5, { align: 'right', color: UI.amber });
+      if (weak) drawText(ctx, fitText(weak, w - 24 - measure(u.name)), x + w - 8, y + 5, { align: 'right', color: UI.amber });
       else if (!u.analyzed) drawText(ctx, bestiary ? `Defeated ×${bestiary}` : 'Unknown', x + w - 8, y + 5, { align: 'right', color: UI.dim });
       let ny = y + 15;
       if (u.analyzed) {
@@ -708,4 +747,5 @@ export class BattleRenderer {
       drawText(ctx, `${u.hp}/${u.base.maxHp}`, x + w - 8, y + 5, { align: 'right', color: UI.dim });
     }
   }
+
 }

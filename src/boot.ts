@@ -8,7 +8,7 @@ import { TitleScene } from './scenes/title';
 import { loadSave, unsavedFrames, writeSave } from './game/save';
 import { newGame } from './story/newgame';
 import type { Game as GameT } from './engine/game';
-import { settings, shakeScale } from './game/settings';
+import { flashScale, settings, shakeScale } from './game/settings';
 import { debug, debugBattleDriver } from './game/debug';
 import { setBattleDriver } from './scenes/battlekit/driver';
 import type { GameState } from './game/state';
@@ -128,6 +128,7 @@ export function boot(game: Game, display: Display): void {
   // A flow that throws every frame can't be trusted to finish: drop it and go back to the title,
   // where Continue picks up the last good save.
   game.shakeScale = shakeScale;
+  game.flashScale = flashScale;
   game.onFault = () => {
     game.abandon();
     notice('Something broke and the game recovered to the title. Continue loads your last save.', 'warn');

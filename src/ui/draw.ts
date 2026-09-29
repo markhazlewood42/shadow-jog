@@ -6,7 +6,7 @@ import { drawText, measure } from '../engine/font';
  * The dim laid over the field behind a full-screen menu (menu, map, shop, saves, options,
  * controls): dark enough that no map text or signage behind it is readable.
  */
-export const OVERLAY_DIM = 'rgba(7,6,13,0.94)';
+export const OVERLAY_DIM = 'rgba(7,6,13,0.985)';
 
 export const UI = {
   outline: '#07060d',
