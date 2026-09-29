@@ -388,11 +388,16 @@ function scheduleStep(song: Compiled, step: number, at: number, dest: AudioNode,
   const sd = stepDur(song);
   const t0 = at + (step % 2 === 1 ? song.swing * sd : 0);
   const drumsRest = (pass === 0 && step < song.introSteps) || song.restBars.has(Math.floor(step / STEPS));
+  // A rest bar is a real breakdown, not only a drum drop: the low end goes too and the chords
+  // pull back, so the bar after it lands as a surge.
+  const breakdown = song.restBars.has(Math.floor(step / STEPS));
   song.steps[step]!.forEach((e, i) => {
     if (e.drum && drumsRest) return;
+    if (breakdown && (e.inst === 'bass' || e.inst === 'sub')) return;
+    const pull = !breakdown ? 1 : e.inst === 'pad' || e.inst === 'organ' || e.inst === 'choir' ? 0.45 : 0.8;
     const k = jitter(step, i, pass);
     const t = Math.max(0, t0 + k * (e.drum ? 0.0015 : 0.004));
-    const vel = e.vel * e.vol * (1 + jitter(i, step, pass + 7) * (e.drum ? 0.04 : 0.07));
+    const vel = pull * e.vel * e.vol * (1 + jitter(i, step, pass + 7) * (e.drum ? 0.04 : 0.07));
     for (const m of e.midi) playNote(e.inst, { t, dur: e.len * sd * 0.95, freq: m ? midiToFreq(m) : 0, vel }, dest, { rev: e.rev, del: e.del });
   });
 }

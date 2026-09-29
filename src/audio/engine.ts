@@ -161,7 +161,7 @@ class AudioEngine {
     sat.curve = curve;
     sat.oversample = '2x';
     // Presence (1.8 kHz) is where leads and bells speak on laptop speakers and earbuds.
-    const shaped = this.music.connect(eq('highpass', 32)).connect(eq('lowshelf', 180, -3.5)).connect(eq('peaking', 380, -3, 0.9)).connect(eq('peaking', 1800, 3, 0.8)).connect(eq('highshelf', 3000, 4.5)).connect(sat);
+    const shaped = this.music.connect(eq('highpass', 32)).connect(eq('lowshelf', 180, -3.5)).connect(eq('peaking', 380, -3, 0.9)).connect(eq('peaking', 1800, 3, 0.8)).connect(eq('highshelf', 3000, 6)).connect(eq('highshelf', 9000, 3)).connect(sat);
     shaped.connect(musicComp);
     const chorusIn = eq('highpass', 350);
     shaped.connect(chorusIn);
@@ -704,7 +704,8 @@ export function playNote(inst: InstId, v: Voice, dest: AudioNode, sends: { rev?:
       mg.gain.exponentialRampToValueAtTime(freq * 0.1, t + 0.8);
       mod.connect(mg).connect(car.frequency);
       car.connect(out);
-      const end = env(out, t, 0.002, 0.6, 0.2, dur, 0.9, 0.12 * vel);
+      // A 6 ms onset: still a strike, but no click across the whole spectrum on every note.
+      const end = env(out, t, 0.006, 0.6, 0.2, dur, 0.9, 0.12 * vel);
       car.start(t); mod.start(t); car.stop(end); mod.stop(end);
       chain = { out, end };
       break;

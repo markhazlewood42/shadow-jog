@@ -48,7 +48,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // The Drowned Saint — smoky lounge jazz.
   bar: {
-    air: 0.009,
+    air: 0.02,
     gain: -1.4,
     bpm: 76,
     swing: 0.28,
@@ -151,6 +151,8 @@ export const SONGS: Record<string, SongSpec> = {
   // Battle — "Crossfire".
   battle: {
     // Its peaks sat over the limiter's threshold (-1.4 dBFS, then -1.3 with the gentler bus).
+    // A breakdown at the end of the second phrase: the low end drops out, then everything lands.
+    rests: [11],
     gain: -1.6,
     bpm: 152,
     chords: 'Em | Em | C | D | Em | Em | C | B | Am | C | Em | Em | Am | C | B | B',
@@ -265,7 +267,7 @@ export const SONGS: Record<string, SongSpec> = {
     loopBar: 1,
     space: 'hall',
     parts: [
-      { inst: 'bell', gen: 'bells', octave: 7, vol: 0.3, rev: 0.6, del: 0.35 },
+      { inst: 'bell', gen: 'bells', octave: 7, vol: 0.16, rev: 0.6, del: 0.35 },
       { inst: 'bell', vol: 0.9, rev: 0.6, del: 0.4, notes: 'E5 - - - C5 - - - | A4 - - - F4 - - - | D5 - C5 - B4 - A4 - | G#4 - - - - - - - | A4 - - - - - - -' },
       { inst: 'pad', gen: 'chord', octave: 3, vol: 1, rev: 0.6 },
       { inst: 'sub', gen: 'long', octave: 1, vol: 0.3 },
@@ -282,12 +284,12 @@ export const SONGS: Record<string, SongSpec> = {
     // Story cues play in the scene they score.
     space: 'here',
     parts: [
-      { inst: 'bell', gen: 'bells', octave: 7, vol: 0.3, rev: 0.6, del: 0.35 },
+      { inst: 'bell', gen: 'bells', octave: 7, vol: 0.16, rev: 0.6, del: 0.35 },
       { inst: 'bell', vol: 0.9, rev: 0.55, del: 0.35, notes:
         'G5 - - - Eb5 - D5 - | C5 - - - Eb5 - - - | Bb4 - - - G5 - F5 - | F5 - - - D5 - - - |' +
         'G5 - - - Bb5 - Ab5 - | G5 - - - Eb5 - C5 - | Ab5 - - - G5 - F5 - | D5 - - - B4 - - -' },
       { inst: 'pad', gen: 'chord', octave: 3, vol: 0.9, rev: 0.6 },
-      { inst: 'pluck', gen: 'broken', octave: 3, vol: 0.45, rev: 0.4 },
+      { inst: 'pluck', gen: 'broken', octave: 3, vol: 0.28, rev: 0.4 },
       { inst: 'sub', gen: 'long', octave: 1, vol: 0.28 },
     ],
   },
