@@ -1,6 +1,7 @@
 /** UI drawing primitives: framed windows, bars, cursors, icons. */
 import type { Ctx } from '../engine/canvas';
 import { drawText, measure } from '../engine/font';
+import type { Input } from '../engine/input';
 
 /**
  * The dim laid over the field behind a full-screen menu (menu, map, shop, saves, options,
@@ -33,6 +34,17 @@ export interface WindowOpts {
   alpha?: number | undefined;
   /** Skip corner accents (compact popups). */
   plain?: boolean | undefined;
+  /** A small tab on the lower edge, right-aligned: the key reminder on menu screens. */
+  footer?: string | undefined;
+}
+
+/**
+ * The key reminder for a menu screen, in the player's own bindings: '{c}X{/} back', with the
+ * confirm key first when `ok` names what it does.
+ */
+export function keyLegend(input: Pick<Input, 'keyName'>, back = 'back', ok?: string): string {
+  const b = `{c}${input.keyName('cancel')}{/} ${back}`;
+  return ok ? `{c}${input.keyName('confirm')}{/} ${ok}   ${b}` : b;
 }
 
 const gradCache = new Map<string, CanvasGradient>();
@@ -89,6 +101,15 @@ export function drawWindow(ctx: Ctx, x: number, y: number, w: number, h: number,
   }
   ctx.restore();
   if (opts.title) drawTab(ctx, x + 6, y - 5, opts.title, accent);
+  if (opts.footer) {
+    const fw = measure(opts.footer) + 8;
+    const fx = x + w - fw - 12, fy = y + h - 5;
+    ctx.fillStyle = UI.outline;
+    ctx.fillRect(fx - 1, fy - 1, fw + 2, 12);
+    ctx.fillStyle = '#12112a';
+    ctx.fillRect(fx, fy, fw, 10);
+    drawText(ctx, opts.footer, fx + 4, fy + 1, { color: UI.dim });
+  }
 }
 
 /** Small label tab that sits on a window's top edge. */

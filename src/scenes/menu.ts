@@ -16,11 +16,10 @@ import { applyEffects } from '../game/fielduse';
 import { canEquip, equip, knownAbilities, memberStats } from '../game/party';
 import { formatPlayTime, locationName, readMeta, SLOTS, writeSave, type SlotId } from '../game/save';
 import { flags, state, type EquipSlot, type MemberId, type MemberState } from '../game/state';
-import { drawBar, drawDivider, drawSelect, drawWindow, hpColor, UI, OVERLAY_DIM } from '../ui/draw';
+import { drawBar, drawDivider, drawSelect, drawWindow, keyLegend, hpColor, UI, OVERLAY_DIM } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
 import { OptionsScene } from './options';
 import { PlaceMapScene } from './placemap';
-import { keyLabel } from '../engine/input';
 
 /** Combo log entries visible at once (36px each under the header). */
 const COMBO_ROWS = 6;
@@ -36,6 +35,7 @@ const SLOT_NAMES: Record<EquipSlot, string> = { weapon: 'Weapon', body: 'Body', 
 
 export class MenuScene extends Scene<MenuResult> {
   override opaque = false;
+  override curtain = true;
   private mode: Mode = 'main';
   private main = new ListMenu<string>([], 9);
   private beasts = new ListMenu<string>([], 17);
@@ -440,7 +440,7 @@ export class MenuScene extends Scene<MenuResult> {
       return;
     }
     // Main command column
-    drawWindow(ctx, 8, 8, 92, this.main.items.length * 11 + 14, { title: 'MENU' });
+    drawWindow(ctx, 8, 8, 92, this.main.items.length * 11 + 14, { title: 'MENU' , footer: keyLegend(this.game.input, 'close') });
     this.main.render(ctx, 15, 15, 82, this.mode === 'main');
     // Info
     drawWindow(ctx, 8, H - 74, 92, 66, { plain: true });
@@ -522,7 +522,7 @@ export class MenuScene extends Scene<MenuResult> {
   private renderItems(ctx: Ctx): void {
     const x = 108, w = this.mode === 'itemTarget' ? 186 : W - 116;
     const h = H - 16 - 34;
-    drawWindow(ctx, x, 8, w, h, { title: 'ITEMS' });
+    drawWindow(ctx, x, 8, w, h, { title: 'ITEMS' , footer: keyLegend(this.game.input) });
     this.sub.rows = Math.floor((h - 40) / 11);
     this.sub.render(ctx, x + 8, 16, w - 14, this.mode === 'items', 'Your pockets are empty.');
     const cur = this.sub.current;
@@ -536,7 +536,7 @@ export class MenuScene extends Scene<MenuResult> {
     const m = this.members[this.memberIdx]!;
     const x = 108, w = this.mode === 'techTarget' ? 186 : W - 116;
     const h = H - 16 - 34;
-    drawWindow(ctx, x, 8, w, h, { title: `${MEMBERS[m.id].name.toUpperCase()} · ${m.tp}/${memberStats(m).maxTp} ${MEMBERS[m.id].tpLabel}`, accent: MEMBERS[m.id].color });
+    drawWindow(ctx, x, 8, w, h, { title: `${MEMBERS[m.id].name.toUpperCase()} · ${m.tp}/${memberStats(m).maxTp} ${MEMBERS[m.id].tpLabel}`, accent: MEMBERS[m.id].color , footer: keyLegend(this.game.input) });
     this.sub.render(ctx, x + 8, 16, w - 14, this.mode === 'techs', 'Nothing learned yet.');
     const cur = this.sub.current;
     if (cur) {
@@ -605,7 +605,7 @@ export class MenuScene extends Scene<MenuResult> {
     const m = this.members[this.memberIdx]!;
     const def = MEMBERS[m.id];
     const s = memberStats(m);
-    drawWindow(ctx, 8, 8, W - 16, H - 16, { title: `STATUS  ◀ ${this.memberIdx + 1}/${this.members.length} ▶`, accent: def.color });
+    drawWindow(ctx, 8, 8, W - 16, H - 16, { title: `STATUS  ◀ ${this.memberIdx + 1}/${this.members.length} ▶`, accent: def.color , footer: keyLegend(this.game.input, 'back') });
     const port = getPortrait(m.id, 'neutral');
     if (port) ctx.drawImage(port, 18, 20, 64, 64);
     else {
@@ -645,7 +645,7 @@ export class MenuScene extends Scene<MenuResult> {
   /** Every enemy the crew has beaten: what it looks like, what hurts it, and field notes. */
   private renderBestiary(ctx: Ctx): void {
     const n = Object.keys(ENEMIES).filter((k) => !ENEMIES[k]!.boss || (state.bestiary[k] ?? 0) > 0).length;
-    drawWindow(ctx, 8, 8, 150, H - 16, { title: `BESTIARY ${this.beasts.items.length}/${n}`, accent: UI.amber });
+    drawWindow(ctx, 8, 8, 150, H - 16, { title: `BESTIARY ${this.beasts.items.length}/${n}`, accent: UI.amber , footer: keyLegend(this.game.input) });
     this.beasts.render(ctx, 16, 24, 136, true, 'Nothing logged yet. Win a fight.');
     const cur = this.beasts.current;
     const x = 164, w = W - x - 8;
@@ -684,7 +684,7 @@ export class MenuScene extends Scene<MenuResult> {
 
   /** Places the crew has been: what each is for and how to get there, plus the objective. */
   private renderPlaces(ctx: Ctx): void {
-    drawWindow(ctx, 8, 8, 150, H - 16, { title: 'PLACES', accent: UI.cyan });
+    drawWindow(ctx, 8, 8, 150, H - 16, { title: 'PLACES', accent: UI.cyan , footer: keyLegend(this.game.input) });
     this.places.render(ctx, 16, 24, 136, true, 'Nowhere yet.');
     const x = 164, w = W - x - 8;
     drawWindow(ctx, x, 8, w, H - 16, { plain: true });
@@ -696,8 +696,7 @@ export class MenuScene extends Scene<MenuResult> {
       drawDivider(ctx, x + 6, 104, w - 12);
       drawText(ctx, 'Getting there', x + 10, 112, { color: UI.dim });
       drawParagraph(ctx, cur.route, x + 10, 124, w - 20, { color: '#b8bcd0', lineH: 11 });
-      const ok = this.game.input.keysFor('confirm')[0];
-      drawText(ctx, `${ok ? keyLabel(ok) : 'Confirm'}: map`, x + w - 10, 112, { color: UI.cyan, align: 'right' });
+      drawText(ctx, `${this.game.input.keyName('confirm')}: map`, x + w - 10, 112, { color: UI.cyan, align: 'right' });
     }
     const obj = state.flags.objective;
     if (typeof obj === 'string' && obj) {
@@ -708,7 +707,7 @@ export class MenuScene extends Scene<MenuResult> {
   }
 
   private renderCombos(ctx: Ctx): void {
-    drawWindow(ctx, 8, 8, W - 16, H - 16, { title: 'COMBO LOG', accent: UI.amber });
+    drawWindow(ctx, 8, 8, W - 16, H - 16, { title: 'COMBO LOG', accent: UI.amber , footer: keyLegend(this.game.input) });
     drawText(ctx, 'Choose the right pair of abilities in the same round and they fuse.', 18, 22, { color: UI.dim });
     const found = COMBOS.filter((c) => state.combos.includes(c.id)).length;
     drawText(ctx, `${found}/${COMBOS.length} found`, W - 18, 22, { align: 'right', color: UI.amber });

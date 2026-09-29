@@ -141,8 +141,8 @@ export class TitleScene extends Scene<TitleChoice> {
     this.menu = new ListMenu<string>(
       [
         { label: 'New Game', value: 'new' },
-        { label: 'Continue', value: 'continue', enabled: resumable },
-        { label: 'Load Game', value: 'load', enabled: saves },
+        { label: 'Continue', value: 'continue', enabled: resumable, why: saves ? 'No save to pick up from.' : 'No save yet: start a New Game.' },
+        { label: 'Load Game', value: 'load', enabled: saves, why: 'No saved games yet.' },
         { label: 'Options', value: 'options' },
       ],
       4,
@@ -372,9 +372,12 @@ export class TitleScene extends Scene<TitleChoice> {
       ctx.fillRect(mx, my - 4, mw, 1);
       ctx.fillRect(mx, my + 45, mw, 1);
       this.menu.render(ctx, mx + 22, my, mw - 30);
+      this.menu.renderWhy(ctx, W / 2, my + 52);
       ctx.globalAlpha = 1;
     }
     drawText(ctx, 'v0.1 alpha', 6, H - 12, { color: mix('#8b8fa8', '#000000', 0.2) });
-    drawText(ctx, 'Z / Enter  confirm   ·   X / Esc  back', W - 6, H - 12, { align: 'right', color: mix('#8b8fa8', '#000000', 0.2) });
+    // The player's own keys: a rebound confirm shows here too.
+    const inp = this.game.input;
+    drawText(ctx, `${inp.keyName('confirm', 2)}  confirm   ·   ${inp.keyName('cancel', 2)}  back`, W - 6, H - 12, { align: 'right', color: mix('#8b8fa8', '#000000', 0.2) });
   }
 }

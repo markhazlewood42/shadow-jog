@@ -12,6 +12,8 @@ export interface ListItem<T> {
   /** Colour for the right-hand detail (a price you can't afford reads red). */
   rightColor?: string | undefined;
   enabled?: boolean | undefined;
+  /** Why a disabled row can't be chosen: shown while it is selected, flashed when pressed. */
+  why?: string | undefined;
   color?: string | undefined;
   /** Small colored tag drawn before the label (e.g. an icon glyph). */
   icon?: string | undefined;
@@ -28,6 +30,8 @@ export class ListMenu<T> {
   frame = 0;
   /** Play sounds on navigation (disable for passive lists). */
   sounds = true;
+  /** Frames left of the flash on a locked row's reason after it was pressed. */
+  private buzzT = 0;
 
   constructor(items: ListItem<T>[], rows = 6, cols = 1) {
     this.items = items;
@@ -57,6 +61,7 @@ export class ListMenu<T> {
   /** Returns 'confirm' | 'cancel' | 'move' | null. Confirm on disabled rows returns 'blocked'. */
   update(input: Input): 'confirm' | 'cancel' | 'move' | 'blocked' | null {
     this.frame++;
+    if (this.buzzT > 0) this.buzzT--;
     const n = this.items.length;
     if (input.pressed('cancel')) {
       if (this.sounds) sfx('cancel');
@@ -76,12 +81,25 @@ export class ListMenu<T> {
     if (input.pressed('confirm')) {
       if (this.current?.enabled === false) {
         sfx('buzz');
+        this.buzzT = 24;
         return 'blocked';
       }
       if (this.sounds) sfx('confirm');
       return 'confirm';
     }
     return null;
+  }
+
+  /** The selected row's reason for being locked, if it is; nothing otherwise. */
+  get why(): string | undefined {
+    const it = this.current;
+    return it && it.enabled === false ? it.why : undefined;
+  }
+
+  /** Draws `why` centred at (cx, y), flashing amber just after the locked row was pressed. */
+  renderWhy(ctx: Ctx, cx: number, y: number): void {
+    const why = this.why;
+    if (why) drawText(ctx, why, cx, y, { align: 'center', color: this.buzzT > 0 && (this.buzzT >> 2) % 2 === 0 ? UI.amber : UI.dim });
   }
 
   /** `empty` is drawn in place of the rows when there is nothing to list. */

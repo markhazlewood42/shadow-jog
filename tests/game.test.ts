@@ -142,6 +142,22 @@ describe('game fault isolation', () => {
     expect(currentNotice()?.text).toBe('root cause (+2 more)');
   });
 
+  it('draws only the topmost curtain over the world: menus under it are not repainted', () => {
+    const g = new Game(ctx, input);
+    const field = new Faulty(() => false);
+    const menu = Object.assign(new Faulty(() => false), { opaque: false, curtain: true });
+    const dialog = Object.assign(new Faulty(() => false), { opaque: false });
+    const options = Object.assign(new Faulty(() => false), { opaque: false, curtain: true });
+    const toast = Object.assign(new Faulty(() => false), { opaque: false });
+    void g.run(field);
+    void g.run(menu);
+    void g.run(dialog);
+    void g.run(options);
+    void g.run(toast);
+    g.render();
+    expect([field, menu, dialog, options, toast].map((s) => s.renders)).toEqual([1, 0, 0, 1, 1]);
+  });
+
   it('abandon() drops scenes and timers without resolving them', async () => {
     const g = new Game(ctx, input);
     let woke = false;

@@ -14,6 +14,7 @@ type Row = { id: string; label: string; value: () => string; bar?: () => number;
 
 export class OptionsScene extends Scene<'back' | 'title'> {
   override opaque = false;
+  override curtain = true;
   private idx = 0;
   private rows: Row[];
   private t = 0;

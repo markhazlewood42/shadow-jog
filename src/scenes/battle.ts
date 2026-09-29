@@ -16,7 +16,6 @@ import { MEMBERS } from '../data/party';
 import { surface, type Ctx, type Surface } from '../engine/canvas';
 import { drawText, fitText } from '../engine/font';
 import { Scene, W } from '../engine/game';
-import { keyLabel } from '../engine/input';
 import { Rng, streams } from '../engine/rng';
 import { equipRegen, grantXp, levelProgress, type LevelUp } from '../game/party';
 import { battleSpeed, settings } from '../game/settings';
@@ -539,8 +538,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const flag = p.kind === 'strike' ? 'tut_strike' : 'tut_brace';
     if (flags.has(flag)) return;
     flags.set(flag);
-    const code = this.game.input.keysFor('confirm')[0];
-    const key = code ? keyLabel(code) : 'Confirm';
+    const key = this.game.input.keyName('confirm');
     this.say(p.kind === 'strike' ? `Press ${key} as the gold ring closes: a harder hit.` : `Press ${key} as the blue ring closes: brace and take less.`);
   }
 

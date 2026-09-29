@@ -5,7 +5,6 @@
 import { sfx } from '../audio/sfx';
 import type { Ctx } from '../engine/canvas';
 import { drawText, measure } from '../engine/font';
-import { keyLabel } from '../engine/input';
 import { H, Scene, W } from '../engine/game';
 import { getMap } from '../data/maps';
 import { FieldMap } from '../field/fieldmap';
@@ -70,6 +69,7 @@ const baked = new Map<string, FieldMap>();
 
 export class PlaceMapScene extends Scene<void> {
   override opaque = false;
+  override curtain = true;
   private m: FieldMap;
   private t = 0;
   private labels: ExitLabel[] | null = null;
@@ -137,7 +137,6 @@ export class PlaceMapScene extends Scene<void> {
       ctx.fillRect(px - 1, py - 1, 3, 3);
       drawText(ctx, 'You are here', 14, H - 20, { color: UI.pink });
     }
-    const back = this.game.input.keysFor('cancel')[0];
-    drawText(ctx, `${back ? keyLabel(back) : 'Cancel'}: back`, W - 14, H - 20, { color: UI.dim, align: 'right' });
+    drawText(ctx, `${this.game.input.keyName('cancel')}: back`, W - 14, H - 20, { color: UI.dim, align: 'right' });
   }
 }

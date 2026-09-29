@@ -7,10 +7,11 @@ import type { Ctx } from '../engine/canvas';
 import { drawText, fitText, measure } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { formatPlayTime, readMeta, slotStatus, writeSave, type SaveMeta, type SlotId, type SlotStatus } from '../game/save';
-import { drawSelect, drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
+import { drawSelect, drawWindow, keyLegend, UI, OVERLAY_DIM } from '../ui/draw';
 
 export class SaveScene extends Scene<SlotId | null> {
   override opaque = false;
+  override curtain = true;
   private slots: SlotId[];
   private idx = 0;
   private confirm = false;
@@ -100,7 +101,7 @@ export class SaveScene extends Scene<SlotId | null> {
     const w = 330, rowH = 40;
     const h = this.slots.length * (rowH + 4) + 30;
     const x = (W - w) / 2, y = (H - h) / 2;
-    drawWindow(ctx, x, y, w, h, { title: this.mode === 'save' ? 'SAVE GAME' : 'LOAD GAME' });
+    drawWindow(ctx, x, y, w, h, { title: this.mode === 'save' ? 'SAVE GAME' : 'LOAD GAME' , footer: keyLegend(this.game.input) });
     this.slots.forEach((s, i) => {
       const ry = y + 10 + i * (rowH + 4);
       const sel = i === this.idx;

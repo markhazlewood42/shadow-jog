@@ -27,8 +27,8 @@ export class GameOverScene extends Scene<GameOverChoice> {
     super();
     this.menu = new ListMenu<GameOverChoice>(
       [
-        { label: 'Retry the fight', value: 'retry', enabled: canRetry },
-        { label: 'Load last save', value: 'load', enabled: hasAnySave() },
+        { label: 'Retry the fight', value: 'retry', enabled: canRetry, why: 'This fight can’t be retried.' },
+        { label: 'Load last save', value: 'load', enabled: hasAnySave(), why: 'Nothing saved yet: back to the title.' },
         { label: 'Return to title', value: 'title' },
       ],
       3,
@@ -64,6 +64,7 @@ export class GameOverScene extends Scene<GameOverChoice> {
     if (this.t >= 70) {
       drawWindow(ctx, W / 2 - 70, 80, 140, 46);
       this.menu.render(ctx, W / 2 - 62, 87, 128);
+      this.menu.renderWhy(ctx, W / 2, 132);
     }
   }
 

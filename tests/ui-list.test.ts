@@ -36,6 +36,22 @@ describe('ListMenu', () => {
     expect(m.scroll).toBe(2);
   });
 
+  it('a locked row says why while it is selected, and only then', () => {
+    const m = new ListMenu(
+      [
+        { label: 'New', value: 'new' },
+        { label: 'Load', value: 'load', enabled: false, why: 'No saved games yet.' },
+      ],
+      3,
+    );
+    expect(m.why).toBeUndefined();
+    m.update(press('down'));
+    expect(m.why).toBe('No saved games yet.');
+    expect(m.update(press('confirm'))).toBe('blocked');
+    m.update(press('up'));
+    expect(m.why).toBeUndefined();
+  });
+
   it('refuses to confirm a disabled row', () => {
     const m = new ListMenu([{ label: 'Save', value: 'save', enabled: false }], 3);
     expect(m.update(press('confirm'))).toBe('blocked');

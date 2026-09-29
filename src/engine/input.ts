@@ -100,6 +100,12 @@ export class Input {
     return Object.keys(this.map).filter((c) => this.map[c] === action);
   }
 
+  /** The first key bound to an action as a player reads it ('Z'), or the action's own name. */
+  keyName(action: Action, count = 1): string {
+    const keys = this.keysFor(action).slice(0, count).map(keyLabel);
+    return keys.length ? keys.join(' / ') : action[0]!.toUpperCase() + action.slice(1);
+  }
+
   /**
    * Give `action` the key `code`. Returns the new custom map, or null if that would leave some
    * other action with no key at all.

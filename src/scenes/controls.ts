@@ -5,7 +5,7 @@ import { drawText, fitText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { ACTIONS, keyLabel, type Action } from '../engine/input';
 import { saveSettings, settings } from '../game/settings';
-import { drawCursor, drawSelect, drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
+import { drawCursor, drawSelect, drawWindow, keyLegend, UI, OVERLAY_DIM } from '../ui/draw';
 
 const NAMES: Record<Action, string> = {
   up: 'Up', down: 'Down', left: 'Left', right: 'Right', confirm: 'Confirm', cancel: 'Cancel / Back',
@@ -22,6 +22,7 @@ type Row = { kind: 'action'; action: Action } | { kind: 'reset' } | { kind: 'bac
 
 export class ControlsScene extends Scene<void> {
   override opaque = false;
+  override curtain = true;
   private idx = 0;
   private t = 0;
   private note = '';
@@ -82,7 +83,7 @@ export class ControlsScene extends Scene<void> {
     ctx.fillRect(0, 0, W, H);
     const w = 360, h = this.rows.length * 13 + 46;
     const x = (W - w) / 2, y = (H - h) / 2;
-    drawWindow(ctx, x, y, w, h, { title: 'CONTROLS' });
+    drawWindow(ctx, x, y, w, h, { title: 'CONTROLS' , footer: keyLegend(this.game.input, 'back', 'rebind') });
     drawText(ctx, 'Keyboard', x + 110, y + 10, { color: UI.dim });
     drawText(ctx, 'Gamepad', x + w - 12, y + 10, { align: 'right', color: UI.dim });
     const input = this.game.input;

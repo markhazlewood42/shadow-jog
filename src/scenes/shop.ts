@@ -12,13 +12,14 @@ import { SHOP_COMPARE_W } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { canEquip, memberStats } from '../game/party';
 import { state, type MemberState } from '../game/state';
-import { drawDivider, drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
+import { drawDivider, drawWindow, keyLegend, UI, OVERLAY_DIM } from '../ui/draw';
 import { ListMenu } from '../ui/list';
 
 type Mode = 'root' | 'buy' | 'sell' | 'qty';
 
 export class ShopScene extends Scene<void> {
   override opaque = false;
+  override curtain = true;
   private shop: ShopDef;
   private mode: Mode = 'root';
   private root = new ListMenu<string>([{ label: 'Buy', value: 'buy' }, { label: 'Sell', value: 'sell' }, { label: 'Leave', value: 'leave' }], 3);
@@ -173,7 +174,7 @@ export class ShopScene extends Scene<void> {
     if (this.mode === 'root') return;
     // List
     const lx = 96, lw = 196;
-    drawWindow(ctx, lx, 46, lw, H - 54, { title: this.mode === 'sell' || this.qtyMode === 'sell' && this.mode === 'qty' ? 'SELL' : 'BUY', accent: acc });
+    drawWindow(ctx, lx, 46, lw, H - 54, { title: this.mode === 'sell' || this.qtyMode === 'sell' && this.mode === 'qty' ? 'SELL' : 'BUY', accent: acc , footer: keyLegend(this.game.input) });
     this.list.render(ctx, lx + 8, 54, lw - 14, this.mode !== 'qty', this.mode === 'sell' ? 'Nothing to sell.' : 'Sold out.');
     // Detail panel (kept on screen, with a hint, even when the list is empty).
     const dx = lx + lw + 6, dw = W - dx - 8;

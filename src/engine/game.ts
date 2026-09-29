@@ -24,6 +24,12 @@ export abstract class Scene<R = unknown> {
   game!: Game;
   /** When true, scenes below this one are not rendered. */
   opaque = true;
+  /**
+   * A full-screen menu that dims everything under it (menu, options, controls, saves, map, shop).
+   * Only the topmost curtain draws over the world: menus it was opened from are not repainted
+   * beneath it, so an Options title never ghosts through the Controls window above it.
+   */
+  curtain = false;
   /** When true, the scene below keeps updating (e.g. ambient field animation under a dialog). */
   passUpdate = false;
   private resolver: ((r: R) => void) | null = null;
@@ -296,12 +302,17 @@ export class Game {
     }
     let start = this.stack.length - 1;
     while (start > 0 && !this.stack[start]!.opaque) start--;
+    // The world (the opaque base) still shows faintly behind the topmost curtain; anything between
+    // them is hidden by it and skipped.
+    let curtain = this.stack.length - 1;
+    while (curtain > start && !this.stack[curtain]!.curtain) curtain--;
     if (this.stack.length === 0) {
       ctx.fillStyle = '#07060d';
       ctx.fillRect(0, 0, W, H);
     }
     this.faultedThisRender = false;
     for (let i = Math.max(0, start); i < this.stack.length; i++) {
+      if (i > start && i < curtain) continue;
       ctx.save();
       try {
         this.stack[i]!.render(ctx);

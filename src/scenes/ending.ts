@@ -8,7 +8,6 @@ import { MEMBERS } from '../data/party';
 import { surface, type Ctx } from '../engine/canvas';
 import { drawText, measure } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
-import { keyLabel } from '../engine/input';
 import { formatPlayTime } from '../game/save';
 import { state } from '../game/state';
 import { drawDivider, drawWindow, UI } from '../ui/draw';
@@ -94,7 +93,8 @@ export class EndingScene extends Scene<void> {
     drawWindow(ctx, (W - mw) / 2, 208, mw, 19, { plain: true, accent: UI.red });
     drawText(ctx, 'Rook: {r}missing{/}', W / 2, 213, { align: 'center' });
     ctx.globalAlpha = 1;
-    if (this.t > MISSING_AT + 60 && Math.floor(this.t / 25) % 2 === 0) drawText(ctx, '▼', W / 2, 250, { align: 'center', color: UI.cyan });
+    // Same words as the page after it: a bare arrow read as decoration, not as "press something".
+    if (this.t > MISSING_AT + 60 && Math.floor(this.t / 25) % 2 === 0) drawText(ctx, `Press ${this.game.input.keyName('confirm')} to continue`, W / 2, 250, { align: 'center', color: UI.cyan });
   }
 
   private renderNext(ctx: Ctx): void {
@@ -108,8 +108,7 @@ export class EndingScene extends Scene<void> {
     ctx.globalAlpha = fade(130);
     drawText(ctx, 'Thank you for playing Chapter One.', W / 2, 206, { align: 'center', color: '#8a87a8' });
     ctx.globalAlpha = 1;
-    const ok = this.game.input.keysFor('confirm')[0];
-    if (this.t > 150 && Math.floor(this.t / 25) % 2 === 0) drawText(ctx, `Press ${ok ? keyLabel(ok) : 'Confirm'} to return to the title`, W / 2, 250, { align: 'center', color: UI.cyan });
+    if (this.t > 150 && Math.floor(this.t / 25) % 2 === 0) drawText(ctx, `Press ${this.game.input.keyName('confirm')} to return to the title`, W / 2, 250, { align: 'center', color: UI.cyan });
   }
 }
 

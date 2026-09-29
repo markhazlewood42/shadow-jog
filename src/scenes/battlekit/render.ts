@@ -669,7 +669,9 @@ export class BattleRenderer {
     this.s.roundMenu.render(ctx, x + 8, y + 8, 72);
     const help: Record<string, string> = {
       fight: 'Give each crew member orders.',
-      repeat: this.s.telegraphed() ? 'Something big is coming. Give fresh orders.' : 'Repeat last round’s orders.',
+      repeat: this.s.telegraphed()
+        ? 'Something big is coming. Give fresh orders.'
+        : this.s.roundMenu.items[1]?.enabled === false ? 'No orders to repeat yet.' : 'Repeat last round’s orders.',
       auto: this.s.setup.boss ? 'Not against a boss. Give orders.' : 'Everyone attacks.',
       run: this.s.battle.canRun && !this.s.setup.boss ? 'Try to escape.' : 'You can’t run from this fight.',
     };
