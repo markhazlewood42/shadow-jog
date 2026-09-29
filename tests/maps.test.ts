@@ -4,7 +4,8 @@
  * hand-authored grid that silently walls off content.
  */
 import { describe, expect, it } from 'vitest';
-import { mapIds } from '../src/data/maps';
+import { getMap, mapIds } from '../src/data/maps';
+import { measure } from '../src/engine/font';
 import { arrivals, distances, grid } from './mapgraph';
 
 const NEAR = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const;
@@ -98,5 +99,28 @@ describe('props', () => {
     const { PROPS } = await import('../src/field/props');
     const missing = mapIds().flatMap((id) => (getMap(id).props ?? []).filter((p) => !PROPS[p.kind]).map((p) => `${id}: ${p.kind}`));
     expect(missing).toEqual([]);
+  });
+});
+
+describe('signs', () => {
+  it('no two sign boards on a map overlap (their text would be clipped under the other)', () => {
+    const clashes: string[] = [];
+    for (const id of mapIds()) {
+      const signs = (getMap(id).props ?? [])
+        .filter((p) => p.kind === 'sign_post')
+        .map((p) => {
+          // As drawn (props.ts sign_post): a board measure(text) + 6 wide, centred on its tile.
+          const w = Math.max(12, measure(p.text ?? '→') + 6);
+          const x = p.x * 16 + Math.round((16 - w) / 2);
+          return { text: p.text ?? '→', y: p.y, x0: x, x1: x + w, when: p.when };
+        });
+      for (let i = 0; i < signs.length; i++)
+        for (let j = i + 1; j < signs.length; j++) {
+          const a = signs[i]!, b = signs[j]!;
+          if (Math.abs(a.y - b.y) > 0 || a.when || b.when) continue;
+          if (a.x0 < b.x1 && b.x0 < a.x1) clashes.push(`${id}: "${a.text}" and "${b.text}"`);
+        }
+    }
+    expect(clashes).toEqual([]);
   });
 });

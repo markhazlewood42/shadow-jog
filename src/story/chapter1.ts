@@ -259,6 +259,7 @@ export const pumpValve = (id: string): ScriptFn => async (s) => {
   if (VALVE_ORDER[opened] === id) {
     s.set(`valve_${id}`);
     s.set('valves', opened + 1);
+    s.refreshMap(); // the wheel turns green, its light changes, water runs
     s.sfx('wave');
     if (opened + 1 < VALVE_ORDER.length) {
       await s.narrate(`The wheel grinds round. Water hisses into ${INTAKE[id]}, and somewhere across the level a pipe knocks in answer.`);
@@ -268,12 +269,17 @@ export const pumpValve = (id: string): ScriptFn => async (s) => {
     await s.say('hex', 'Pressure’s balanced and the pumps are primed. Now the console in the pump room.', { face: 'happy' });
     return;
   }
-  // Out of order: a pressure kick slams every valve shut.
+  // Out of order: a pressure kick slams the last intake you opened shut again (one step back,
+  // not all three: the lesson is the order, not a re-walk of the whole level).
   s.sfx('explosion');
   s.shake(30, 3);
-  for (const v of VALVE_ORDER) s.set(`valve_${v}`, false);
-  s.set('valves', 0);
-  await s.narrate('{r}BANG.{/} A pressure kick hammers down the line and every valve slams shut.');
+  const last = opened > 0 ? VALVE_ORDER[opened - 1]! : null;
+  if (last) {
+    s.set(`valve_${last}`, false);
+    s.set('valves', opened - 1);
+    s.refreshMap();
+  }
+  await s.narrate(last ? `{r}BANG.{/} A pressure kick hammers down the line, and ${INTAKE[last]}’s wheel spins shut again.` : '{r}BANG.{/} A pressure kick hammers down the line. The wheel won’t budge.');
   if (!s.flag('valve_hint')) {
     s.set('valve_hint');
     await s.say('hex', 'Okay. Order matters. Lowest pressure first, and that means reading all three gauges before we touch anything. I did say that. Out loud.', { face: 'sad' });

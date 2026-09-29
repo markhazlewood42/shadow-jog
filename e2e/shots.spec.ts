@@ -262,6 +262,15 @@ test('18 world + dungeons', async ({ page }) => {
   await shot(page, '21-annex');
 });
 
+test('18b intakes: one open, one shut', async ({ page }) => {
+  await open(page, 'sinkline');
+  // Intake 2 (the service bay) opened; intake 3 in the pump station beside it still shut.
+  await sj(page, "(sj.state.flags.valve_v2 = true, sj.state.flags.valves = 1, true)");
+  await sj(page, "sj.tp('sinkline_1', 16, 22, 'up')");
+  await page.waitForTimeout(2500);
+  await shot(page, '18b-sinkline-intakes');
+});
+
 test('22 victory', async ({ page }) => {
   await open(page, 'annex');
   // Hex a few XP short of a level, so the panel shows a bar rolling over.

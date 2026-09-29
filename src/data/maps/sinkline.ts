@@ -87,12 +87,16 @@ export const sinkline1: MapDef = {
     { kind: 'crates', x: 2, y: 3 },
     { kind: 'terminal', x: 6, y: 26, color: '#62e06a' },
     // Three intakes in three corners of the level: the order is a route, not a lookup.
-    { kind: 'valve', x: 2, y: 10 },
-    { kind: 'valve', x: 18, y: 19 },
-    { kind: 'valve', x: 13, y: 26 },
+    // Each intake shows its state: shut (red wheel), or open (green, turned, running water).
+    { kind: 'valve', x: 2, y: 10, when: (f) => !f.valve_v1 },
+    { kind: 'valve', x: 2, y: 10, color: 'open', when: (f) => !!f.valve_v1 },
+    { kind: 'valve', x: 18, y: 19, when: (f) => !f.valve_v2 },
+    { kind: 'valve', x: 18, y: 19, color: 'open', when: (f) => !!f.valve_v2 },
+    { kind: 'valve', x: 13, y: 26, when: (f) => !f.valve_v3 },
+    { kind: 'valve', x: 13, y: 26, color: 'open', when: (f) => !!f.valve_v3 },
     { kind: 'sign_post', x: 3, y: 9, text: 'INTAKE 1' },
     { kind: 'sign_post', x: 19, y: 19, text: 'INTAKE 2' },
-    { kind: 'sign_post', x: 14, y: 26, text: 'INTAKE 3' },
+    { kind: 'sign_post', x: 11, y: 26, text: 'INTAKE 3' },
     { kind: 'crates', x: 12, y: 31 },
     { kind: 'sign_post', x: 10, y: 14, text: 'PUMPS ↓' },
     { kind: 'sign_post', x: 4, y: 14, text: 'SERVICE ↓' },
@@ -220,10 +224,14 @@ export const sinkline1: MapDef = {
     { x: 9, y: 29, r: 70, color: '#62e06a', i: 0.55 },
     // A dim work light left on in the drowned locker room since ’61.
     { x: 40, y: 32, r: 36, color: '#ffd07a', i: 0.45, flicker: true, when: (f) => !!f.floodgate },
-    // Each intake gets a green work light, so the three read as one system across the map.
-    { x: 2, y: 11, r: 34, color: '#62e06a', i: 0.5 },
-    { x: 18, y: 20, r: 34, color: '#62e06a', i: 0.5 },
-    { x: 13, y: 27, r: 30, color: '#62e06a', i: 0.45 },
+    // Each intake's work light says where it stands: a dim red warning while it's shut, green once
+    // it's open, so the three read as one system, and progress reads from across the map.
+    { x: 2, y: 11, r: 30, color: '#ff5a4a', i: 0.35, when: (f) => !f.valve_v1 },
+    { x: 2, y: 11, r: 36, color: '#62e06a', i: 0.55, when: (f) => !!f.valve_v1 },
+    { x: 18, y: 20, r: 30, color: '#ff5a4a', i: 0.35, when: (f) => !f.valve_v2 },
+    { x: 18, y: 20, r: 36, color: '#62e06a', i: 0.55, when: (f) => !!f.valve_v2 },
+    { x: 13, y: 27, r: 28, color: '#ff5a4a', i: 0.32, when: (f) => !f.valve_v3 },
+    { x: 13, y: 27, r: 32, color: '#62e06a', i: 0.5, when: (f) => !!f.valve_v3 },
     { x: 20, y: 21, r: 40, color: '#ffd07a', i: 0.4 },
     { x: 37, y: 16, r: 70, color: '#4affb0', i: 0.5 },
     { x: 41, y: 20, r: 40, color: '#ff6a5a', i: 0.45, flicker: true },

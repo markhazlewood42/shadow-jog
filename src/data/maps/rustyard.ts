@@ -75,10 +75,11 @@ export const rustyard: MapDef = {
     { kind: 'lamp', x: 18, y: 21, dir: 'left' },
     { kind: 'dumpster', x: 23, y: 20, w: 2, color: '#5a3a2a' },
     // Rustfang territory: tags on the scrap walls facing the camp, banners staking the north yard.
-    // The scavs' own wayfinding through the maze, repainted whenever the heaps shift; the middle
-    // way's sign is a warning that marks somebody's stash.
+    // The scavs' own wayfinding through the maze, repainted whenever the heaps shift. The middle
+    // way's board is a scav lie: there's no sinkhole, just the kids' stash, and a board like that
+    // keeps Rustfangs out better than a lock would.
     { kind: 'sign_post', x: 11, y: 13, text: 'DEPOT ↑' },
-    { kind: 'sign_post', x: 16, y: 13, text: 'KEEP OUT' },
+    { kind: 'sign_post', x: 16, y: 13, text: 'SINKHOLE!' },
     { kind: 'sign_post', x: 25, y: 13, text: 'DEPOT ↑' },
     // A painted arrow at the stash's dead end, pointing into the heap (the camp's own mark).
     { kind: 'sign_post', x: 23, y: 12, text: '→' },
@@ -127,7 +128,11 @@ export const rustyard: MapDef = {
       talk: async (s) => {
         if (!s.flag('rustyard_gate')) await s.say('Tobin', 'Auntie Mags says don’t fight the Rustfangs. They broke Pell’s hands last week for coming up short on tribute.');
         else if (!s.flag('knuckles')) await s.say('Tobin', 'Knuckles lives up at the tire depot, past the scrap maze. The heaps shift every time it rains; follow the painted arrows, we move them when the heaps move. Mind the hounds.');
-        else await s.say('Tobin', 'You beat KNUCKLES? Can I have your autograph? Can I have your jacket?');
+        else {
+          await s.say('Tobin', 'You beat KNUCKLES? Can I have your autograph? Can I have your jacket?');
+          // The maze's middle board, owned up to.
+          await s.say('Tobin', 'Oh, and the SINKHOLE board in the maze? There’s no sinkhole. I painted that. Rustfangs are scared of holes. Don’t tell.');
+        }
       },
     },
     {
@@ -147,6 +152,7 @@ export const rustyard: MapDef = {
       talk: async (s) => {
         if (s.flag('coprocessor_given')) {
           await s.say('Scav Kid', 'You got our filter back! The water tastes like water again. Mostly.');
+          if (s.flag('camp_kept')) await s.say('Scav Kid', 'And Auntie says you didn’t take the collection. She says that’s stupid. She was smiling when she said it.');
           return;
         }
         await s.say('Scav Kid', 'The Rustfangs took our water filter. Auntie Mags says we’ll get it back. She doesn’t look like she believes it.');

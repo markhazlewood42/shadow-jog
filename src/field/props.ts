@@ -1311,9 +1311,14 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     });
   },
 
-  /** Wall intake valve: pipe riser, red hand-wheel, and a lit pressure gauge. */
+  /**
+   * Wall intake valve: pipe riser, red hand-wheel, and a lit pressure gauge. Opened (color
+   * 'open'), the wheel is turned to green, the gauge reads high, and water runs from the riser's
+   * foot: an intake you've done reads as done from across the room.
+   */
   valve(b, p) {
     blockFoot(b, p);
+    const open = p.color === 'open';
     tall(b, p, 16, 26, (c, e) => {
       const ol = '#0f0e17';
       c.fillStyle = ol; c.fillRect(5, 0, 6, 26);
@@ -1322,16 +1327,25 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
       c.fillStyle = '#5a3a2a'; c.fillRect(6, 4, 4, 1); c.fillRect(6, 20, 4, 1);
       // Hand-wheel.
       disc(c, 8, 12, 6, ol);
-      disc(c, 8, 12, 5, '#c23a2a');
+      const wheel = open ? '#3a9a4a' : '#c23a2a', hi = open ? '#6ae07a' : '#e86a4a';
+      disc(c, 8, 12, 5, wheel);
       disc(c, 8, 12, 3, ol);
-      c.fillStyle = '#c23a2a';
-      c.fillRect(7, 7, 2, 10); c.fillRect(3, 11, 10, 2);
-      c.fillStyle = '#e86a4a'; c.fillRect(4, 9, 2, 1); c.fillRect(7, 7, 1, 2);
+      c.fillStyle = wheel;
+      // Opened, the spokes sit turned a quarter: a diagonal cross, not the square one.
+      if (open) for (let i = -4; i <= 4; i++) { c.fillRect(8 + i, 12 + i, 1, 1); c.fillRect(8 + i, 12 - i, 1, 1); }
+      else { c.fillRect(7, 7, 2, 10); c.fillRect(3, 11, 10, 2); }
+      c.fillStyle = hi; c.fillRect(4, 9, 2, 1); c.fillRect(7, 7, 1, 2);
       disc(c, 8, 12, 1.5, '#8a8e9c');
-      // Gauge above the wheel (emissive face, dark needle).
+      // Gauge above the wheel (emissive face, dark needle: up at the top of its range when open).
       disc(c, 12, 3, 3, ol);
-      both(c, e, (k) => disc(k, 12, 3, 2, '#e8f0d8'));
-      c.fillStyle = '#2a2020'; c.fillRect(12, 2, 1, 2);
+      both(c, e, (k) => disc(k, 12, 3, 2, open ? '#c8ffd0' : '#e8f0d8'));
+      c.fillStyle = '#2a2020';
+      if (open) { c.fillRect(12, 2, 1, 1); c.fillRect(13, 1, 1, 1); } else c.fillRect(12, 2, 1, 2);
+      if (open) {
+        // Water running from the riser's foot and pooling.
+        both(c, e, (k) => { k.fillStyle = '#6ac8e8'; k.fillRect(10, 20, 1, 5); });
+        c.fillStyle = '#3a7a98'; c.fillRect(8, 25, 6, 1);
+      }
     });
   },
 
