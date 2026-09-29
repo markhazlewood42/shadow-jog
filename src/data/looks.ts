@@ -142,6 +142,8 @@ export function randomLook(seed: number): CharLook {
   // A face of their own: most people look neutral, some grin, a few give nothing away.
   look.mouth = r.pick(['line', 'line', 'line', 'grin', 'none'] as const);
   look.brows = r.chance(0.75);
+  // Different ways of standing, so a crowd isn't one pose in many palettes.
   if (r.chance(0.3)) look.stance = 'crossed';
+  else if (r.chance(0.3)) look.stance = 'phone';
   return look;
 }

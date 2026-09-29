@@ -44,8 +44,8 @@ export interface CharLook {
   brows?: boolean | 'thick';
   /** Front-view eyes: two pixels tall (default) or narrow (one, half-lidded). */
   eyeShape?: 'round' | 'narrow';
-  /** Front-view stance: arms at the sides (default) or crossed over the chest. */
-  stance?: 'crossed';
+  /** Front-view stance: arms at the sides (default), crossed over the chest, or one hand up at a lit phone. */
+  stance?: 'crossed' | 'phone';
   /** Carrying an umbrella: its canopy colour. With `umbrellaClear`, a clear canopy and a neon rim. */
   umbrella?: string;
   umbrellaClear?: boolean;
@@ -727,6 +727,8 @@ function palette(look: CharLook, nearArm: 'left' | 'right' | null): Pal {
     k: armColor(leftSide), K: sd(armColor(leftSide)), n: handColor(leftSide),
     j: armColor(rightSide), J: sd(armColor(rightSide)), o: handColor(rightSide),
     p: look.pants, P: sd(look.pants),
+    // A phone screen, held at the chest (the 'phone' stance).
+    Z: '#aef4ff',
     q: upper, Q: sd(upper),
     b: look.boots, B: sd(look.boots, -0.45),
     h: look.hair, H: sd(look.hair, -0.4), l: shade(look.hair, 0.4),
@@ -860,6 +862,26 @@ function crossArms(rows: string[]): void {
   }
 }
 
+/**
+ * One hand up at the chest holding a lit phone, head bent to it: half the Wards stand like this
+ * in the rain. The arm on screen-left lifts off the side; the silhouette changes, not just the
+ * colours.
+ */
+function phoneHand(rows: string[]): void {
+  const set = (y: number, x: number, ch: string) => {
+    const r = rows[y];
+    if (!r || r[x] === undefined) return;
+    rows[y] = r.slice(0, x) + ch + r.slice(x + 1);
+  };
+  // Rows: the head is 0-11, the chest 13-15, the hand normally at 17. The forearm comes across
+  // at 15, the hand holds the phone up at the chest, and below the elbow the side is empty.
+  for (const y of [16, 17]) set(y, 3, '.');
+  set(15, 4, 'k');
+  set(15, 5, 'K');
+  set(15, 6, 'n');
+  for (const [y, x] of [[13, 6], [13, 7], [14, 6], [14, 7]] as const) set(y, x, 'Z');
+}
+
 function buildGrid(look: CharLook, view: 'down' | 'up' | 'side', frame: number): string[] {
   const rows = [...BODY[view][frame]!];
   const hair = HAIR[look.hairStyle][view];
@@ -871,6 +893,7 @@ function buildGrid(look: CharLook, view: 'down' | 'up' | 'side', frame: number):
   if (view === 'up') hairStrands(rows);
   if (view === 'down') faceFeatures(rows, look);
   if (view === 'down' && look.stance === 'crossed') crossArms(rows);
+  if (view === 'down' && look.stance === 'phone') phoneHand(rows);
   for (const a of accs) if (a !== 'elfears' && a !== 'beard') overlay(rows, ACC[a][view]);
   return reshape(rows, look.body ?? 'std');
 }

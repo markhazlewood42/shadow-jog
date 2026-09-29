@@ -1070,6 +1070,27 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     const w = p.w ?? 2;
     const empty = p.color === 'empty', drained = p.color === 'drained';
     blockFoot(b, p, w, 1);
+    if (empty) {
+      // Coolant run out across the floor in front of the shattered pod, and cold rising off it.
+      const fx = p.x * TS, fy = (p.y + 1) * TS + 1;
+      b.g.fillStyle = '#1e3a4e'; b.g.fillRect(fx + 2, fy, w * TS - 4, 5);
+      b.g.fillRect(fx + 5, fy + 5, w * TS - 12, 3);
+      b.g.fillStyle = '#3a6a8a'; b.g.fillRect(fx + 4, fy + 1, w * TS - 9, 2);
+      b.g.fillStyle = '#9ad8ff'; b.g.fillRect(fx + 7, fy + 1, 4, 1);
+      b.anims.push({
+        x: fx, y: fy - 24, w: w * TS, h: 30, lit: true,
+        draw: (ctx, f, ox, oy) => {
+          for (let i = 0; i < 5; i++) {
+            const t = (f * 0.3 + i * 11) % 30;
+            ctx.globalAlpha = 0.18 * (1 - t / 30);
+            ctx.fillStyle = '#c8ecff';
+            const r = 1 + t / 10;
+            ctx.fillRect(Math.round(fx - ox + 6 + i * 4 + Math.sin((f + i * 20) * 0.04) * 2 - r), Math.round(fy - oy + 2 - t * 0.7 - r), Math.round(r * 2), Math.round(r));
+          }
+          ctx.globalAlpha = 1;
+        },
+      });
+    }
     const { x, y } = tall(b, { ...p, w }, w * TS, 40, (c, e) => {
       const W = w * TS;
       c.fillStyle = '#0f0e17'; c.fillRect(2, 0, W - 4, 40);
@@ -1095,6 +1116,19 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
           }
           k.fillStyle = '#5a8ab0';
           for (let i = 0; i < 5; i++) k.fillRect(6 + i * 5, 26 + (i % 2), 3, 1); // shards on the sill
+        });
+        // The feed lines she was on, torn loose and hanging, one still spitting at its end.
+        c.fillStyle = '#2a2d38';
+        for (const [lx, len] of [[W / 2 - 4, 13], [W / 2 + 3, 17], [W / 2 - 1, 9]] as const) c.fillRect(lx, 6, 1, len);
+        both(c, e, (k) => {
+          k.fillStyle = '#ffcc3d';
+          k.fillRect(W / 2 + 3, 23, 1, 1);
+        });
+        // The front hatch, blown open: a pane of glass hanging off its hinge on the right.
+        c.fillStyle = '#0f0e17'; c.fillRect(W - 4, 4, 4, 32);
+        c.fillStyle = '#8a92a0'; c.fillRect(W - 3, 5, 2, 30);
+        both(c, e, (k) => {
+          k.fillStyle = '#9ad8ff'; k.globalAlpha = 0.45; k.fillRect(W - 3, 7, 1, 26); k.globalAlpha = 1;
         });
         c.fillStyle = '#ffb13d'; c.fillRect(W / 2 - 2, 36, 4, 1);
         return;
