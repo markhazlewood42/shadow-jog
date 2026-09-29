@@ -50,6 +50,8 @@ export class Input {
   private justDown = new Set<Action>();
   /** Keyboard presses between ticks (so a very quick tap is never lost). */
   private tapped = new Set<Action>();
+  /** Presses held over to the next tick (a scene frozen for a frame shouldn't eat them). */
+  private carried = new Set<Action>();
   lastDevice: InputDevice = 'keyboard';
   /** Effective key map: the defaults, with the player's custom keys applied. */
   private map: Record<string, Action> = { ...KEYMAP };
@@ -177,6 +179,13 @@ export class Input {
     // A tap that was released before this tick still counts as held for exactly one tick.
     this.tapped.clear();
     for (const a of this.justDown) if (!this.keys.has(a) && !this.padHeld.has(a) && !this.touchHeld.has(a)) this.prev.delete(a);
+    for (const a of this.carried) this.justDown.add(a);
+    this.carried.clear();
+  }
+
+  /** Hold this tick's press of `a` over to the next tick, as a fresh press. */
+  carry(a: Action): void {
+    if (this.justDown.has(a)) this.carried.add(a);
   }
 
   /** Clear typed buffer — call after scenes have consumed it. */

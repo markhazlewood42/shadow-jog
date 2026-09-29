@@ -17,6 +17,8 @@ import type { FxLayer, Pt } from '../../battle/fx';
 import type { Pose } from '../../art/battlers';
 import type { Disp, Floater } from './types';
 import { WINDOWS } from './timing';
+import { PARTY_POSE_T } from './motion';
+import { direction } from '../../engine/shake';
 import type { TimingProfile } from '../../battle/engine';
 
 /** What playback may do to the scene. */
@@ -108,8 +110,9 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       v.showBanner(e.kind === 'attack' || e.name === 'Attack' ? `${actor.name}` : `${actor.name}: ${e.name}`, color);
       if (actor.side === 'party') {
         const pose = actionPose(actor.key, e.kind, e.targets.map((t) => v.battle.unit(t)?.side), e.fx);
-        dd.lunge = pose === 'attack' || pose === 'thrust' ? 14 : 6;
-        v.setPose(actor, pose, 34);
+        // Melee poses move by their swing beats (motion.ts); the rest just rise a little.
+        dd.lunge = pose === 'attack' || pose === 'thrust' ? 0 : 6;
+        v.setPose(actor, pose, PARTY_POSE_T);
         if (e.fx === 'flash_step' || e.fx === 'rain_hits') dd.afterimage = 22;
         sfx(e.kind === 'tech' ? 'cast' : 'swing');
       } else {
@@ -185,11 +188,19 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       // Weight by share of the target's max HP: light taps barely move the camera, big hits stop time.
       const share = e.amount / u.base.maxHp;
       const tier = e.crit || share >= 0.4 ? 3 : share >= 0.2 ? 2 : share >= 0.08 ? 1 : 0;
-      if (tier) v.game.shake(4 + tier * 3, tier + 1 + (e.crit ? 1 : 0));
+      // The frame kicks the way the blow travelled, then springs back.
+      const from = v.lastActor && v.lastActor.uid !== e.target ? v.pos(v.lastActor.uid) : null;
+      if (tier) v.game.shake(6 + tier * 3, tier + 1 + (e.crit ? 1 : 0), from ? direction(from, v.pos(e.target)) : undefined);
       if (tier >= 2 && actionStops === 0) {
         actionStops++;
         // A critical or a combo landing is a different kind of moment: push in, cut to the impact.
         if (u.side === 'enemy' && (e.crit || comboAction)) v.impact(e.target, e.crit ? '#ffe07a' : '#ff9ae0');
+        // A big blow on the crew lands as hard as one of theirs: the camera pushes in on who took
+        // it, and a crushing one flashes the frame red.
+        if (u.side === 'party') {
+          v.impact(e.target, '#ff5a5a');
+          if (tier === 3) v.game.flash('#ff2a4a', 4);
+        }
         await v.hitstop(tier === 3 ? 5 : 3);
       }
       await v.w(14);

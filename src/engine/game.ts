@@ -9,6 +9,7 @@
  * separately so one can't mask the other — trips `onFault`, which boot uses to abandon it and
  * return to the title.
  */
+import { shakeOffset } from './shake';
 import type { Ctx } from './canvas';
 import { reportError } from './errors';
 import type { Input } from './input';
@@ -88,6 +89,10 @@ export class Game {
   fadeColor = '#07060d';
   shakeFrames = 0;
   shakeMag = 0;
+  /** The running shake: frames into it, its length, and the blow's direction (null: a rumble). */
+  private shakeT = 0;
+  private shakeLen = 0;
+  private shakeDir: { x: number; y: number } | null = null;
   /** This frame's shake offset in screen pixels; scenes apply it to their world layer only. */
   shakeX = 0;
   shakeY = 0;
@@ -212,10 +217,19 @@ export class Game {
     return this.fadeTo(0, frames);
   }
 
-  /** Screen shake; overlapping shakes keep the stronger amplitude, a fresh one starts from its own. */
-  shake(frames = 12, mag = 3): void {
-    this.shakeMag = this.shakeFrames > 0 ? Math.max(mag, this.shakeMag) : mag;
-    this.shakeFrames = Math.max(this.shakeFrames, frames);
+  /**
+   * Screen shake. `dir` is the way the blow travelled (see engine/shake.ts): the frame kicks that
+   * way and springs back; without one it's a rumble. A stronger shake takes over from a running
+   * one (and its direction); a weaker one only extends it.
+   */
+  shake(frames = 12, mag = 3, dir?: { x: number; y: number }): void {
+    if (this.shakeFrames <= 0 || mag >= this.shakeMag) {
+      this.shakeMag = mag;
+      this.shakeT = 0;
+      this.shakeLen = frames;
+      this.shakeDir = dir ?? null;
+    } else this.shakeLen = Math.max(this.shakeLen, this.shakeT + frames);
+    this.shakeFrames = this.shakeLen - this.shakeT;
   }
 
   flash(color = '#ffffff', frames = 6): void {
@@ -267,7 +281,10 @@ export class Game {
         f.resolve();
       }
     }
-    if (this.shakeFrames > 0) this.shakeFrames--;
+    if (this.shakeFrames > 0) {
+      this.shakeFrames--;
+      this.shakeT++;
+    }
     if (this.flashFrames > 0) this.flashFrames--;
     // Scenes: top always updates; lower scenes update while the one above passes updates through.
     for (let i = this.stack.length - 1; i >= 0; i--) {
@@ -293,9 +310,9 @@ export class Game {
     // Shake is not applied here: each scene offsets its world by (shakeX, shakeY) and draws its
     // HUD still, so the numbers being read never jitter.
     if (this.shakeFrames > 0) {
-      const m = this.shakeMag * this.shakeScale() * Math.min(1, this.shakeFrames / 8);
-      this.shakeX = Math.round((Math.random() * 2 - 1) * m);
-      this.shakeY = Math.round((Math.random() * 2 - 1) * m);
+      const o = shakeOffset({ t: this.shakeT, len: this.shakeLen, mag: this.shakeMag * this.shakeScale(), dir: this.shakeDir });
+      this.shakeX = o.x;
+      this.shakeY = o.y;
     } else {
       this.shakeX = 0;
       this.shakeY = 0;

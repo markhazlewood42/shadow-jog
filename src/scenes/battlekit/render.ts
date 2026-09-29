@@ -8,6 +8,7 @@ import { enemyArt } from '../../art/enemies';
 import { getPortrait } from '../../art/portraits';
 import type { Combatant, Command, Element } from '../../battle/types';
 import { ABILITIES } from '../../data/abilities';
+import { PARTY_POSE_T, swingBeat } from './motion';
 import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
@@ -291,7 +292,9 @@ export class BattleRenderer {
     const pos = this.s.partyPos(p);
     const active = (this.s.mode === 'command' || this.s.mode === 'list' || this.s.mode === 'target') && this.s.actor?.uid === p.uid;
     const down = dd.hp <= 0 && p.hp <= 0;
-    const pose: Pose = dd.poseT > 0 ? dd.pose : 'idle';
+    // Melee moves play in beats: drawn in (the brace frame), the snap forward, the settle.
+    const beat = dd.poseT > 0 && (dd.pose === 'attack' || dd.pose === 'thrust') ? swingBeat(PARTY_POSE_T - dd.poseT) : null;
+    const pose: Pose = dd.poseT > 0 ? (beat?.phase === 'gather' ? 'brace' : dd.pose) : 'idle';
     const frame = art.frames[pose];
     let ox = 0;
     if (dd.shake > 0) ox = dd.shake % 4 < 2 ? 2 : -2;
@@ -299,7 +302,8 @@ export class BattleRenderer {
     // Idle breathing: a 1px rise, staggered per member; faster and higher while choosing orders.
     const breathe = pose === 'idle' ? (Math.floor((f + p.uid * 23) / (active ? 16 : 34)) % 2) * (active ? 2 : 1) : 0;
     const x = Math.round(pos.x - frame.width / 2 + ox);
-    const y = Math.round(PARTY_BOTTOM - frame.height - dd.hop - dd.lunge - breathe + (pose === 'hurt' ? 2 : 0));
+    const lift = beat ? beat.lift : dd.lunge;
+    const y = Math.round(PARTY_BOTTOM - frame.height - dd.hop - lift - breathe + (pose === 'hurt' ? 2 : 0));
     if (down) {
       g.globalAlpha = 0.5;
       g.drawImage(silhouetteCache(art.frames.hurt, '#3a3450'), x, y + 10);
@@ -311,6 +315,15 @@ export class BattleRenderer {
       for (const [gx, gy, a] of AFTERIMAGES) {
         g.globalAlpha = a * (dd.afterimage / 22);
         g.drawImage(silhouetteCache(frame, MEMBERS[p.key as MemberId].color), x + gx, y + gy);
+      }
+      g.globalAlpha = 1;
+    }
+    if (beat && beat.smear > 0) {
+      // The snap leaves a smear: tinted copies trailing back toward the line.
+      const tint = MEMBERS[p.key as MemberId].color;
+      for (let i = beat.smear; i >= 1; i--) {
+        g.globalAlpha = 0.18 + 0.1 * (beat.smear - i);
+        g.drawImage(silhouetteCache(frame, tint), x, y + i * 4);
       }
       g.globalAlpha = 1;
     }

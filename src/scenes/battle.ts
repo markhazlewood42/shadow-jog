@@ -356,8 +356,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     }
     if (this.impactT > 0) this.impactT--;
     if (this.hitstop > 0) {
-      // Freeze-frame on heavy hits: everything holds, the event script waits it out.
+      // Freeze-frame on heavy hits: everything holds, the event script waits it out. A press
+      // made during the freeze isn't lost: it carries to the first frame after (unless a ring is
+      // armed: that press was judged above, or belongs to a ring that hasn't opened).
       this.hitstop--;
+      if (!this.timing.armed) {
+        this.game.input.carry('confirm');
+        this.game.input.carry('cancel');
+      }
       return;
     }
     this.fx.update();

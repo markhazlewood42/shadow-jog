@@ -137,6 +137,20 @@ test('13 battle action', async ({ page }) => {
   await shot(page, '13-battle-action');
 });
 
+test('13b the swing, beat by beat', async ({ page }) => {
+  await open(page, 'town');
+  await sj(page, "sj.battle('street', 'street')");
+  await page.waitForTimeout(3200);
+  // Freeze the simulation (rendering carries on), then pose Rook on each beat of a swing.
+  await sj(page, '(sj.__tick = sj.game.tick, sj.game.tick = () => undefined, true)');
+  for (const [k, name] of [[3, 'gather'], [7, 'snap'], [14, 'settle']] as const) {
+    await sj(page, `(() => { const s = sj.game.top, r = s.battle.party.find((u) => u.key === 'rook'); const d = s.d(r.uid); d.pose = 'attack'; d.poseT = 34 - ${k}; return true; })()`);
+    await page.waitForTimeout(120);
+    await shot(page, `13b-swing-${name}`);
+  }
+  await sj(page, '(sj.game.tick = sj.__tick, true)');
+});
+
 test('14 combo hint', async ({ page }) => {
   await open(page, 'annex');
   await sj(page, "sj.battle('f_annex_door', 'lab')");
