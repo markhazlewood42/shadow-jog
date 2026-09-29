@@ -12,7 +12,6 @@ import { surface } from '../engine/canvas';
 import { streams } from '../engine/rng';
 import type { Game } from '../engine/game';
 import { TS } from '../field/tiles';
-import { BattleScene } from '../scenes/battle';
 import { CardScene } from '../scenes/card';
 import type { FieldScene } from '../scenes/field';
 import { GameOverScene } from '../scenes/gameover';
@@ -34,6 +33,17 @@ export interface SystemHandlers {
 
 let handlers: SystemHandlers | null = null;
 
+/**
+ * The battle system (scene, playback, renderer, FX) is its own chunk: out of the boot download,
+ * fetched in the background as soon as systems are installed, and awaited (already there, in
+ * practice) at the first fight.
+ */
+let battleModule: Promise<typeof import('../scenes/battle')> | null = null;
+function loadBattle(): Promise<typeof import('../scenes/battle')> {
+  battleModule ??= import('../scenes/battle');
+  return battleModule;
+}
+
 /** The installed handlers: a clear error, not a null dereference, if installSystems hasn't run. */
 function sys(): SystemHandlers {
   if (!handlers) throw new Error('installSystems() must run before the game can change scenes');
@@ -53,6 +63,7 @@ function snapshotScreen(game: Game): HTMLCanvasElement {
 
 export function installSystems(game: Game, h: SystemHandlers): void {
   handlers = h;
+  void loadBattle();
 
   fieldHooks.give = async (f, id, qty, quiet) => {
     const it = ITEMS[id];
@@ -300,7 +311,7 @@ export async function runBattle(
     const intro = snapshotScreen(game);
     pushMusic(opts.music ?? (opts.boss ? 'boss' : 'battle'));
     game.flash('#ffffff', 8);
-    await game.wait(10);
+    const [{ BattleScene }] = await Promise.all([loadBattle(), game.wait(10)]);
     const result = await game.run(new BattleScene({ encounter: enc, bg: opts.bg, canRun: opts.canRun, boss: opts.boss, music: opts.music, intro }));
     if (result !== 'lose') {
       popMusic();

@@ -11,7 +11,8 @@
  * Initiative is rolled when a round's orders open (`rollInitiative`), so the turn order the menu
  * previews is the order the round plays.
  */
-import { ABILITIES, COMBOS } from '../data/abilities';
+import { must } from '../engine/assert';
+import { ABILITIES, COMBOS, ability } from '../data/abilities';
 
 /** Combos, largest first (findCombos matches triples before pairs). */
 const COMBOS_BY_SIZE = [...COMBOS].sort((a, b) => b.parts.length - a.parts.length);
@@ -315,17 +316,16 @@ export class Battle {
         continue;
       }
       if (cmd.type === 'item') {
-        const it = ITEMS[cmd.id!];
-        if (!it) continue;
-        q.push({ actors: [u.uid], ability: itemAbility(cmd.id!), item: cmd.id, target: cmd.target ?? -1, speed: this.speedOf(u, 25) });
+        if (!cmd.id || !ITEMS[cmd.id]) continue;
+        q.push({ actors: [u.uid], ability: itemAbility(cmd.id), item: cmd.id, target: cmd.target ?? -1, speed: this.speedOf(u, 25) });
         continue;
       }
-      const ab = cmd.type === 'attack' ? ABILITIES.attack! : ABILITIES[cmd.id!];
+      const ab = cmd.type === 'attack' ? ability('attack') : cmd.id ? ABILITIES[cmd.id] : undefined;
       if (!ab) continue;
       q.push({ actors: [u.uid], ability: ab, target: cmd.target ?? -1, speed: this.speedOf(u, ab.priority ?? 0) });
     }
     // Enemies decide at their turn; queue placeholders by speed.
-    for (const e of this.alive('enemy')) q.push({ actors: [e.uid], ability: ABILITIES.attack!, target: -2, speed: this.speedOf(e) });
+    for (const e of this.alive('enemy')) q.push({ actors: [e.uid], ability: ability('attack'), target: -2, speed: this.speedOf(e) });
     q.sort((a, b) => b.speed - a.speed);
     return q;
   }
@@ -364,8 +364,9 @@ export class Battle {
    * round has nothing left to play.
    */
   next(): { events: BattleEvent[]; prompt: TimingPrompt | null } | null {
-    if (this.outcome || this.qi >= this.queue.length) return null;
-    this.declare(this.queue[this.qi++]!);
+    const queued = this.outcome ? undefined : this.queue[this.qi++];
+    if (!queued) return null;
+    this.declare(queued);
     return { events: this.flush(), prompt: this.declared ? this.promptFor(this.declared) : null };
   }
 
@@ -393,7 +394,7 @@ export class Battle {
   /** The timed input a declared action offers: a party member's hit, or a blow at the party. */
   private promptFor(d: Declared): TimingPrompt | null {
     if (!d.targets.length || !d.ab.effects.some((e) => e.type === 'damage')) return null;
-    const lead = d.actors[0]!;
+    const lead = must(d.actors[0], 'the lead of a declared action');
     if (lead.side === 'party') {
       if (d.ab.kind === 'item') return null;
       const hit = d.targets.filter((t) => t.side === 'enemy');
@@ -489,10 +490,10 @@ export class Battle {
         return;
       }
       if (this.has(a, 'jammed')) {
-        const s = a.status.find((x) => x.id === 'jammed')!;
-        s.turns--;
+        const s = a.status.find((x) => x.id === 'jammed');
+        if (s) s.turns--;
         this.ev.push({ t: 'fail', actor: a.uid, reason: `${a.name} is jammed!` });
-        if (s.turns <= 0) this.removeStatus(a, 'jammed');
+        if (!s || s.turns <= 0) this.removeStatus(a, 'jammed');
         this.interruptWindup(a);
         return;
       }
@@ -582,7 +583,7 @@ export class Battle {
     const own = (ENEMIES[u.key]?.moves ?? [])
       .map((m) => ABILITIES[m.id])
       .filter((ab): ab is Ability => !!ab && ab.effects.some((e) => e.type === 'damage'));
-    const ab = own.length ? this.rng.pick(own) : { ...ABILITIES.attack!, effects: [{ type: 'damage' as const, stat: 'atk' as const, mult: 1.3 }] };
+    const ab = own.length ? this.rng.pick(own) : { ...ability('attack'), effects: [{ type: 'damage' as const, stat: 'atk' as const, mult: 1.3 }] };
     const targets = ab.target === 'enemies' || ab.target === 'random_enemies' ? victims : [this.rng.pick(victims)];
     this.ev.push({ t: 'act', actor: u.uid, id: ab.id, name: `Hijacked: ${ab.name}`, kind: 'enemy', fx: ab.fx, targets: targets.map((t) => t.uid), element: ab.element });
     this.applyEffects([u], ab, targets);
@@ -610,14 +611,14 @@ export class Battle {
         const t = this.unit(target);
         if (t && t.side === user.side && t.hp <= 0) return [t];
         const down = this.units.filter((u) => u.side === user.side && u.hp <= 0);
-        return down.length ? [down[0]!] : [];
+        return down.slice(0, 1);
       }
       case 'ally': {
         const t = this.unit(target);
         if (t && t.side === user.side && t.hp > 0) return [t];
         // Retarget to the most hurt ally.
         const hurt = [...friends].sort((a, b) => a.hp / a.base.maxHp - b.hp / b.base.maxHp);
-        return hurt.length ? [hurt[0]!] : [];
+        return hurt.slice(0, 1);
       }
       case 'enemy': {
         let t = this.unit(target);
@@ -637,7 +638,7 @@ export class Battle {
   }
 
   private applyEffects(actors: Combatant[], ab: Ability, targets: Combatant[], itemId?: string): void {
-    const user = actors[0]!;
+    const user = must(actors[0], `a user for ${ab.id}`);
     for (const eff of ab.effects) {
       switch (eff.type) {
         case 'damage': {
@@ -655,8 +656,8 @@ export class Battle {
             }
           } else {
             for (const t of targets) for (let h = 0; h < hits; h++) if (t.hp > 0) this.damage(actors, ab, eff, t, itemId);
-            if (eff.splash && targets.length === 1) {
-              const primary = targets[0]!;
+            const primary = targets[0];
+            if (eff.splash && targets.length === 1 && primary) {
               const arc = { ...eff, mult: (eff.mult ?? 1) * eff.splash, critBonus: 0, splash: undefined, hits: 1 };
               for (const o of this.alive(primary.side)) if (o !== primary) this.damage(actors, ab, arc, o, itemId);
             }
@@ -761,12 +762,13 @@ export class Battle {
 
   /** Stat used by an action; combos sum both participants (scaled). */
   private comboStat(actors: Combatant[], stat: 'atk' | 'mnd'): number {
-    if (actors.length === 1) return this.eff(actors[0]!)[stat];
+    const solo = actors.length === 1 ? actors[0] : undefined;
+    if (solo) return this.eff(solo)[stat];
     return actors.reduce((n, a) => n + this.eff(a)[stat], 0) * 0.62;
   }
 
   private damage(actors: Combatant[], ab: Ability, eff: Extract<Effect, { type: 'damage' }>, t: Combatant, itemId?: string): void {
-    const user = actors[0]!;
+    const user = must(actors[0], `a user for ${ab.id}`);
     const ue = this.eff(user);
     const te = this.eff(t);
     const element: Element = ab.element ?? (itemId ? ITEMS[itemId]?.element : undefined) ?? (ab.kind === 'attack' ? user.weaponElement : undefined) ?? 'phys';
@@ -851,7 +853,7 @@ export class Battle {
     if (!best) return;
     t.uses[best] = (t.uses[best] ?? 0) + 1;
     t.memory.recharged = 1;
-    this.ev.push({ t: 'msg', text: `${t.name} takes it and resets: one more ${ABILITIES[best]!.name}.` });
+    this.ev.push({ t: 'msg', text: `${t.name} takes it and resets: one more ${ABILITIES[best]?.name ?? best}.` });
   }
 
   private kill(t: Combatant): void {
@@ -874,7 +876,7 @@ export class Battle {
       this.ev.push({ t: 'down', target: e.uid });
       this.defeated.push(e.key);
     }
-    const d = ENEMIES.warden_spirit!;
+    const d = must(ENEMIES.warden_spirit, 'the Warden’s spirit');
     const c = enemyCombatant('warden_spirit', t.uid, t.slot ?? 0);
     Object.assign(t, c);
     t.memory = {};
@@ -900,7 +902,7 @@ export class Battle {
 const GUARD: Ability = { id: 'guard', name: 'Guard', desc: 'Halve damage this round (a quarter from a blow you saw coming). A blow taken on a guard gives TP back; for Rook, a spent charge, once a fight.', kind: 'skill', target: 'self', effects: [], fx: 'guard' };
 
 export function itemAbility(id: string): Ability {
-  const it = ITEMS[id]!;
+  const it = must(ITEMS[id], `item ${id}`);
   return { id: `item:${id}`, name: it.name, desc: it.desc, kind: 'item', target: it.target ?? 'ally', effects: it.effects ?? [], fx: it.fx ?? 'item', element: it.element };
 }
 

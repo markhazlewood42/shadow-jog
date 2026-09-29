@@ -8,6 +8,7 @@
  * common sizes (1080p, 1440p, 4K and most maximised browser windows) are pixel-exact by
  * default; only an awkward window size gets the (slight) resampling. Pixel-perfect always snaps.
  */
+import { must } from './assert';
 import { H, W } from './game';
 
 export type ScaleMode = 'fit' | 'integer';
@@ -22,11 +23,11 @@ export class Display {
 
   constructor(screen: HTMLCanvasElement) {
     this.screen = screen;
-    this.sctx = screen.getContext('2d', { alpha: false })!;
+    this.sctx = must(screen.getContext('2d', { alpha: false }), 'a 2D canvas context for the screen (this browser has no canvas drawing)');
     this.back = document.createElement('canvas');
     this.back.width = W;
     this.back.height = H;
-    this.backCtx = this.back.getContext('2d', { alpha: false })!;
+    this.backCtx = must(this.back.getContext('2d', { alpha: false }), 'a 2D canvas context for the back buffer');
     this.backCtx.imageSmoothingEnabled = false;
     window.addEventListener('resize', () => this.resize());
     this.resize();

@@ -26,8 +26,11 @@ async function measure(page: Page, ms: number): Promise<Stats & { sim: Stats }> 
 const SIM_MEAN_MS = 2;
 const SIM_P95_MS = 4;
 const SOFTWARE = !!(process.env.CI || process.env.PW_NOGPU);
-const MEAN_MS = SOFTWARE ? 10 : 4; // CI measures ~4.4 ms in the plaza, ~1.7 ms in battle
-const P95_MS = SOFTWARE ? 16.7 : 6;
+// CI's software canvas measures the plaza at ~5.6 ms mean / 6.5 ms p95, battle ~2.3 / 3.0. The gate
+// sits well above that but well inside the 16.7 ms frame, so a regression fails the run before
+// it drops frames, not after.
+const MEAN_MS = SOFTWARE ? 8 : 4;
+const P95_MS = SOFTWARE ? 11 : 6;
 
 // The title's cost, logged for context in the evidence (the machine's floor), not gated.
 test.beforeAll(async ({ browser }) => {

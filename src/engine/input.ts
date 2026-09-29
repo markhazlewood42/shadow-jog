@@ -29,7 +29,8 @@ export function keyLabel(code: string): string {
     Space: 'Space', Backspace: 'Bksp', Tab: 'Tab', ShiftLeft: 'Shift', ShiftRight: 'RShift', ControlLeft: 'Ctrl', ControlRight: 'RCtrl',
     AltLeft: 'Alt', AltRight: 'RAlt',
   };
-  if (names[code]) return names[code]!;
+  const named = names[code];
+  if (named) return named;
   if (code.startsWith('Key')) return code.slice(3);
   if (code.startsWith('Digit')) return code.slice(5);
   if (code.startsWith('Numpad')) return `Num${code.slice(6)}`;
@@ -105,7 +106,7 @@ export class Input {
   /** The first key bound to an action as a player reads it ('Z'), or the action's own name. */
   keyName(action: Action, count = 1): string {
     const keys = this.keysFor(action).slice(0, count).map(keyLabel);
-    return keys.length ? keys.join(' / ') : action[0]!.toUpperCase() + action.slice(1);
+    return keys.length ? keys.join(' / ') : action.charAt(0).toUpperCase() + action.slice(1);
   }
 
   /**

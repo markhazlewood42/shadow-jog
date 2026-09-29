@@ -1,4 +1,5 @@
 /** Offscreen canvas helpers. Every canvas the game makes is pixel-art configured (no smoothing). */
+import { must } from './assert';
 
 export type Ctx = CanvasRenderingContext2D;
 
@@ -13,7 +14,7 @@ export function surface(w: number, h: number): Surface {
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.ceil(w));
   canvas.height = Math.max(1, Math.ceil(h));
-  const ctx = canvas.getContext('2d', { willReadFrequently: false })!;
+  const ctx = must(canvas.getContext('2d', { willReadFrequently: false }), 'a 2D canvas context (this browser has no canvas drawing)');
   ctx.imageSmoothingEnabled = false;
   return { canvas, ctx, w: canvas.width, h: canvas.height };
 }
@@ -23,7 +24,7 @@ export function pixelSurface(w: number, h: number): Surface {
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.ceil(w));
   canvas.height = Math.max(1, Math.ceil(h));
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  const ctx = must(canvas.getContext('2d', { willReadFrequently: true }), 'a 2D canvas context (this browser has no canvas drawing)');
   ctx.imageSmoothingEnabled = false;
   return { canvas, ctx, w: canvas.width, h: canvas.height };
 }

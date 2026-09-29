@@ -8,7 +8,7 @@ export function rgb(hex: string): RGB {
   let c = cache.get(hex);
   if (c) return c;
   let h = hex.startsWith('#') ? hex.slice(1) : hex;
-  if (h.length === 3) h = h[0]! + h[0] + h[1] + h[1] + h[2] + h[2];
+  if (h.length === 3) h = h.charAt(0).repeat(2) + h.charAt(1).repeat(2) + h.charAt(2).repeat(2);
   const n = parseInt(h.slice(0, 6), 16);
   c = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   cache.set(hex, c);

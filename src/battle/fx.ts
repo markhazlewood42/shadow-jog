@@ -172,7 +172,8 @@ export class FxLayer {
     this.s(12, (ctx, k) => {
       if (k > 0.7 && Math.floor(k * 20) % 2) return;
       for (let i = 1; i < pts.length; i++) {
-        const a = pts[i - 1]!, b = pts[i]!;
+        const a = pts[i - 1], b = pts[i];
+        if (!a || !b) continue;
         const n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y));
         for (let j = 0; j <= n; j++) {
           const xx = a.x + ((b.x - a.x) * j) / n, yy = a.y + ((b.y - a.y) * j) / n;
@@ -267,7 +268,8 @@ export class FxLayer {
       ctx.globalAlpha = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4;
       const mid = Math.floor(pts.length / 2), span = Math.ceil(mid * reach);
       for (let i = Math.max(1, mid - span); i < Math.min(pts.length, mid + span); i++) {
-        const a = pts[i - 1]!, b = pts[i]!;
+        const a = pts[i - 1], b = pts[i];
+        if (!a || !b) continue;
         for (let j = 0; j < 3; j++) {
           const xx = a.x + ((b.x - a.x) * j) / 3, yy = a.y + ((b.y - a.y) * j) / 3;
           ctx.fillStyle = color;
@@ -294,10 +296,15 @@ export class FxLayer {
       const run = Math.min(1, k / 0.6);
       ctx.globalAlpha = k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25;
       for (const p of paths) {
-        const lens = [1, 2, 3].map((i) => Math.hypot(p[i]!.x - p[i - 1]!.x, p[i]!.y - p[i - 1]!.y));
-        let left = (lens[0]! + lens[1]! + lens[2]!) * run;
+        const seg = (i: number) => {
+          const a = p[i - 1], b = p[i];
+          return a && b ? Math.hypot(b.x - a.x, b.y - a.y) : 0;
+        };
+        const lens = [seg(1), seg(2), seg(3)];
+        let left = lens.reduce((n, l) => n + l, 0) * run;
         for (let i = 1; i < 4 && left > 0; i++) {
-          const a = p[i - 1]!, b = p[i]!, len = lens[i - 1]!;
+          const a = p[i - 1], b = p[i], len = lens[i - 1] ?? 0;
+          if (!a || !b || !len) continue;
           const n = Math.min(len, left);
           for (let j = 0; j <= n; j++) {
             ctx.fillStyle = color;
@@ -573,7 +580,7 @@ export class FxLayer {
           for (let n = 0; n < 16; n++) {
             const a = -Math.PI / 2 + (this.rng.next() - 0.5) * 1.8;
             const sp = 1.6 + this.rng.next() * 1.8;
-            this.p({ x: t.x, y: t.y - 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 0.09, max: 34 + n, color: cols[(n + i) % cols.length]!, size: 1, kind: 'spark', delay: i * 4 });
+            this.p({ x: t.x, y: t.y - 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 0.09, max: 34 + n, color: cols[(n + i) % cols.length] ?? '#ffffff', size: 1, kind: 'spark', delay: i * 4 });
           }
           this.rise(t, '#ffe07a', 10, 18, 10 + i * 4, 0.4);
         });
@@ -767,14 +774,14 @@ export class FxLayer {
       p.vy *= p.drag;
     }
     let w = 0;
-    for (let i = 0; i < this.parts.length; i++) if (this.parts[i]!.life < this.parts[i]!.max) this.parts[w++] = this.parts[i]!;
+    for (const p of this.parts) if (p.life < p.max) this.parts[w++] = p;
     this.parts.length = w;
     for (const s of this.shapes) {
       if (s.delay > 0) s.delay--;
       else s.t++;
     }
     let k = 0;
-    for (let i = 0; i < this.shapes.length; i++) if (this.shapes[i]!.t < this.shapes[i]!.max) this.shapes[k++] = this.shapes[i]!;
+    for (const s of this.shapes) if (s.t < s.max) this.shapes[k++] = s;
     this.shapes.length = k;
   }
 

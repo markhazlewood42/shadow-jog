@@ -1,0 +1,6 @@
+Bundle budget, from `npm run build && node scripts/bundle-budget.mjs` (the same gate CI runs on every push).
+
+battle-umLLONaT.js                 108.3 kB  gzip   37.0 kB
+index-CUIksvmJ.js                  452.3 kB  gzip  150.9 kB
+total gzip 188.0 kB (budget 200 kB); largest chunk budget 480 kB
+exit=0

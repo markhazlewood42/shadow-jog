@@ -12,5 +12,11 @@
 				"noNonNullAssertion": "off"
 			}
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": ["src/engine/**", "src/battle/**"],
+			"linter": { "rules": { "style": { "noNonNullAssertion": "error" } } }
+		}
+	]
 }

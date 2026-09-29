@@ -7,6 +7,7 @@
  *   {/}                                  — reset to the call's base color
  *   {p}                                  — typewriter pause (dialog only)
  */
+import { must } from './assert';
 import { surface, type Ctx } from './canvas';
 
 const G: Record<string, string[]> = {
@@ -166,16 +167,24 @@ let atlas: HTMLCanvasElement | null = null;
 const glyphs = new Map<string, Glyph>();
 const tinted = new Map<string, HTMLCanvasElement>();
 
+/** A glyph's rows (the '?' box for anything the font doesn't have). */
+function rowsOf(ch: string): readonly string[] {
+  return G[ch] ?? FALLBACK;
+}
+
+/** The box drawn for any character the font lacks. */
+const FALLBACK: readonly string[] = must(G['?'], "the font's '?' glyph");
+
 function buildAtlas(): void {
   const chars = Object.keys(G);
   let total = 0;
-  for (const ch of chars) total += G[ch]![0]!.length + 1;
+  for (const ch of chars) total += glyphWidth(ch) + 1;
   const s = surface(total, GLYPH_H);
   s.ctx.fillStyle = '#ffffff';
   let x = 0;
   for (const ch of chars) {
-    const rows = G[ch]!;
-    const w = rows[0]!.length;
+    const rows = rowsOf(ch);
+    const w = glyphWidth(ch);
     rows.forEach((row, ry) => {
       for (let rx = 0; rx < row.length; rx++) if (row[rx] === '#') s.ctx.fillRect(x + rx, ry, 1, 1);
     });
@@ -187,10 +196,11 @@ function buildAtlas(): void {
 
 function atlasFor(color: string): HTMLCanvasElement {
   if (!atlas) buildAtlas();
+  const base = must(atlas, 'the font atlas');
   let t = tinted.get(color);
   if (!t) {
-    const s = surface(atlas!.width, atlas!.height);
-    s.ctx.drawImage(atlas!, 0, 0);
+    const s = surface(base.width, base.height);
+    s.ctx.drawImage(base, 0, 0);
     s.ctx.globalCompositeOperation = 'source-in';
     s.ctx.fillStyle = color;
     s.ctx.fillRect(0, 0, s.w, s.h);
@@ -202,7 +212,7 @@ function atlasFor(color: string): HTMLCanvasElement {
 
 function glyph(ch: string): Glyph {
   if (!atlas) buildAtlas();
-  return glyphs.get(ch) ?? glyphs.get('?')!;
+  return glyphs.get(ch) ?? must(glyphs.get('?'), "the font's '?' glyph");
 }
 
 /**
@@ -218,8 +228,8 @@ function skipCode(text: string, i: number, base: string): number {
   if (end <= i) return -1;
   const code = text.slice(i + 1, end);
   if (code === '/') codeColor = base;
-  else if (COLOR_CODES[code]) codeColor = COLOR_CODES[code]!;
   else if (code.startsWith('#')) codeColor = code;
+  else codeColor = COLOR_CODES[code] ?? codeColor;
   return end;
 }
 
@@ -236,7 +246,7 @@ export function measure(text: string): number {
       i = end;
       continue;
     }
-    const ch = text[i]!;
+    const ch = text.charAt(i);
     if (ch === '\n') continue;
     w += glyphWidth(ch) + SPACING;
     any = true;
@@ -246,7 +256,7 @@ export function measure(text: string): number {
 
 /** A glyph's advance, straight from the glyph table (no canvas, so layout can be measured anywhere). */
 function glyphWidth(ch: string): number {
-  return (G[ch] ?? G['?']!)[0]!.length;
+  return rowsOf(ch)[0]?.length ?? 0;
 }
 
 export interface TextOpts {
@@ -279,7 +289,7 @@ export function drawText(ctx: Ctx, text: string, x: number, y: number, opts: Tex
       i = end;
       continue;
     }
-    const ch = text[i]!;
+    const ch = text.charAt(i);
     if (n >= max || ch === '\n') continue;
     n++;
     const g = glyph(ch);

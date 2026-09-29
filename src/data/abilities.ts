@@ -1,4 +1,5 @@
 /** Every action in battle: party techs & skills, combos, enemy moves. */
+import { must } from '../engine/assert';
 import type { Ability } from '../battle/types';
 
 const A = (a: Ability): Ability => a;
@@ -271,6 +272,11 @@ export const ABILITIES: Record<string, Ability> = {
   e_siphon: A({ id: 'e_siphon', name: 'Siphon', kind: 'enemy', target: 'enemy', element: 'mana', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 18, drain: 1 }], fx: 'dark' }),
   e_spark_swarm: A({ id: 'e_spark_swarm', name: 'Spark Swarm', kind: 'enemy', target: 'enemies', element: 'shock', desc: '', effects: [{ type: 'damage', stat: 'mnd', power: 12 }], fx: 'lightning' }),
 };
+
+/** An ability the code names by id: must exist in the data (a clear error if it was renamed). */
+export function ability(id: string): Ability {
+  return must(ABILITIES[id], `ability ${id}`);
+}
 
 export interface Learn {
   level: number;

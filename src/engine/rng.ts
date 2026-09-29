@@ -1,4 +1,5 @@
 /** Deterministic RNG (mulberry32) plus stateless hash noise for procedural art. */
+import { must } from './assert';
 
 export class Rng {
   private s: number;
@@ -23,7 +24,7 @@ export class Rng {
     return this.next() < p;
   }
   pick<T>(arr: readonly T[]): T {
-    return arr[Math.floor(this.next() * arr.length)]!;
+    return must(arr[Math.floor(this.next() * arr.length)], 'a choice (Rng.pick from an empty list)');
   }
   get state(): number {
     return this.s;

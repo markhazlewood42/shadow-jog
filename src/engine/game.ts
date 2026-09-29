@@ -246,7 +246,7 @@ export class Game {
     // wouldn't clear it, and left in place it would trip the fault limit over and over.
     for (let i = 0; i < this.tickers.length; i++) {
       try {
-        this.tickers[i]!();
+        this.tickers[i]?.();
       } catch (e) {
         this.fault(e);
         this.tickers.splice(i--, 1);
@@ -258,16 +258,15 @@ export class Game {
     if (this.timers.length) {
       // Compact in place and collect the due ones into a reused buffer: no allocation per tick.
       let keep = 0, due = 0;
-      for (let i = 0; i < this.timers.length; i++) {
-        const t = this.timers[i]!;
+      for (const t of this.timers) {
         if (t.at <= this.frame) this.dueBuf[due++] = t;
         else this.timers[keep++] = t;
       }
       this.timers.length = keep;
       for (let i = 0; i < due; i++) {
-        const t = this.dueBuf[i]!;
+        const t = this.dueBuf[i];
         this.dueBuf[i] = undefined;
-        t.resolve();
+        t?.resolve();
       }
     }
     // Fade
@@ -288,7 +287,8 @@ export class Game {
     if (this.flashFrames > 0) this.flashFrames--;
     // Scenes: top always updates; lower scenes update while the one above passes updates through.
     for (let i = this.stack.length - 1; i >= 0; i--) {
-      const s = this.stack[i]!;
+      const s = this.stack[i];
+      if (!s) continue;
       try {
         s.update();
       } catch (e) {
@@ -318,11 +318,11 @@ export class Game {
       this.shakeY = 0;
     }
     let start = this.stack.length - 1;
-    while (start > 0 && !this.stack[start]!.opaque) start--;
+    while (start > 0 && !this.stack[start]?.opaque) start--;
     // The world (the opaque base) still shows faintly behind the topmost curtain; anything between
     // them is hidden by it and skipped.
     let curtain = this.stack.length - 1;
-    while (curtain > start && !this.stack[curtain]!.curtain) curtain--;
+    while (curtain > start && !this.stack[curtain]?.curtain) curtain--;
     if (this.stack.length === 0) {
       ctx.fillStyle = '#07060d';
       ctx.fillRect(0, 0, W, H);
@@ -332,7 +332,7 @@ export class Game {
       if (i > start && i < curtain) continue;
       ctx.save();
       try {
-        this.stack[i]!.render(ctx);
+        this.stack[i]?.render(ctx);
       } catch (e) {
         if (!this.faultedThisRender) reportError(e);
         this.faultedThisRender = true;
@@ -362,7 +362,7 @@ export class Game {
     }
     for (let i = 0; i < this.overlays.length; i++) {
       try {
-        this.overlays[i]!(ctx);
+        this.overlays[i]?.(ctx);
       } catch (e) {
         this.fault(e);
         this.overlays.splice(i--, 1);
