@@ -143,7 +143,7 @@ test('13b the swing, beat by beat', async ({ page }) => {
   await page.waitForTimeout(3200);
   // Freeze the simulation (rendering carries on), then pose Rook on each beat of a swing.
   await sj(page, '(sj.__tick = sj.game.tick, sj.game.tick = () => undefined, true)');
-  for (const [k, name] of [[3, 'gather'], [7, 'snap'], [14, 'settle']] as const) {
+  for (const [k, name] of [[3, 'gather'], [7, 'raise'], [9, 'cut'], [15, 'settle']] as const) {
     await sj(page, `(() => { const s = sj.game.top, r = s.battle.party.find((u) => u.key === 'rook'); const d = s.d(r.uid); d.pose = 'attack'; d.poseT = 34 - ${k}; return true; })()`);
     await page.waitForTimeout(120);
     await shot(page, `13b-swing-${name}`);
@@ -232,6 +232,41 @@ test('16b every recurring enemy: idle, strike, flinch', async ({ page }) => {
     document.body.appendChild(c);
   });
   await page.locator('#sheet').screenshot({ path: `${OUT}/16b-enemy-poses.png` });
+});
+
+test('16c the bosses: idle, strike, flinch', async ({ page }) => {
+  await page.goto('/?debug');
+  await page.waitForTimeout(600);
+  await page.evaluate(async () => {
+    const url = '/src/art/enemies.ts';
+    const { enemyArt } = (await import(/* @vite-ignore */ url)) as typeof import('../src/art/enemies');
+    const keys = ['lurker', 'warden', 'warden_spirit'];
+    const cell = 200;
+    const c = document.createElement('canvas');
+    c.id = 'sheet';
+    c.width = 3 * cell;
+    c.height = keys.length * cell;
+    Object.assign(c.style, { position: 'fixed', left: '0', top: '0', zIndex: '99', background: '#12101c' });
+    const g = c.getContext('2d')!;
+    g.imageSmoothingEnabled = false;
+    g.fillStyle = '#12101c';
+    g.fillRect(0, 0, c.width, c.height);
+    keys.forEach((k, row) => {
+      const a = enemyArt(k);
+      [a, a.attack ?? a, a.hurt ?? a].forEach((f, j) => {
+        const s = Math.min(2, (cell - 8) / Math.max(f.canvas.width, f.canvas.height));
+        const x = j * cell + 4, y = row * cell + 4;
+        g.drawImage(f.canvas, x, y, f.canvas.width * s, f.canvas.height * s);
+        if (f.glow) {
+          g.globalCompositeOperation = 'lighter';
+          g.drawImage(f.glow, x, y, f.canvas.width * s, f.canvas.height * s);
+          g.globalCompositeOperation = 'source-over';
+        }
+      });
+    });
+    document.body.appendChild(c);
+  });
+  await page.locator('#sheet').screenshot({ path: `${OUT}/16c-boss-poses.png` });
 });
 
 test('16 bosses', async ({ page }) => {

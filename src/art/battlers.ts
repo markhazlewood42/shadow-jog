@@ -7,8 +7,13 @@ import { backGrid, paint, type CharLook } from './chars';
 import { Pix, scale2x } from './pix';
 import { surface } from '../engine/canvas';
 
-export type Pose = 'idle' | 'attack' | 'cast' | 'item' | 'hurt' | 'victory' | 'thrust' | 'brace' | 'aim';
-export const POSES: Pose[] = ['idle', 'attack', 'cast', 'item', 'hurt', 'victory', 'thrust', 'brace', 'aim'];
+/**
+ * 'attack' is the weapon raised to strike; 'strike' is the follow-through a beat later (the blade swept
+ * down across the body, the fist punched out to full reach, the pistol kicking), so a swing reads
+ * as an arc, not a pose that moves.
+ */
+export type Pose = 'idle' | 'attack' | 'strike' | 'cast' | 'item' | 'hurt' | 'victory' | 'thrust' | 'brace' | 'aim';
+export const POSES: Pose[] = ['idle', 'attack', 'strike', 'cast', 'item', 'hurt', 'victory', 'thrust', 'brace', 'aim'];
 
 export interface Battler {
   frames: Record<Pose, HTMLCanvasElement>;
@@ -89,6 +94,16 @@ function drawWeapon(p: Pix, w: Weapon, pose: Pose, hand: [number, number], rig: 
       return;
     }
     if (layer !== 'front') return;
+    if (pose === 'strike') {
+      // The cut, finished: the blade swept down and out across the body, point low on the left.
+      p.rect(hx - 1, hy, 3, 1, '#b58a4a');
+      for (let i = 1; i <= 11; i++) {
+        const x = hx - i, y = hy + Math.round(i * 0.45);
+        p.set(x, y, i === 11 ? '#ffffff' : '#e8eef8');
+        p.set(x, y + 1, '#8e9ab0');
+      }
+      return;
+    }
     // Drawn blade held high, angled over the head.
     const len = pose === 'victory' ? 11 : 10;
     const dx = pose === 'victory' ? 0 : -1;
@@ -113,13 +128,13 @@ function drawWeapon(p: Pix, w: Weapon, pose: Pose, hand: [number, number], rig: 
     return;
   }
   if (w === 'pistol') {
-    if (layer !== 'front' || (pose !== 'attack' && pose !== 'victory')) return;
+    if (layer !== 'front' || (pose !== 'attack' && pose !== 'strike' && pose !== 'victory')) return;
     p.rect(hx, hy - 3, 2, 3, '#2a2c34');
     p.set(hx, hy - 3, '#5a5e6c');
     return;
   }
   // Fists: knuckle plates on a raised hand.
-  if (layer === 'front' && (pose === 'attack' || pose === 'victory')) {
+  if (layer === 'front' && (pose === 'attack' || pose === 'strike' || pose === 'victory')) {
     p.set(hx, hy, '#c8ccd8');
     p.set(hx + 1, hy, '#8a8e9c');
   }
@@ -139,6 +154,29 @@ function drawGlow(g: Pix, id: string, w: Weapon, pose: Pose, hand: [number, numb
       g.set(x + (x < cx ? 1 : 0), y - 1, tint);
     }
     return true;
+  }
+  if (pose === 'strike') {
+    if (w === 'katana' && other) {
+      // The cut's trail: an arc from where the blade was raised to where it finished.
+      const [cx, cy] = other;
+      for (let a = -1.75; a <= -0.1; a += 0.09) {
+        const x = Math.round(cx + Math.cos(a + Math.PI) * 12), y = Math.round(cy + Math.sin(a + Math.PI) * -10);
+        g.set(x, y, '#7a8aa8');
+        g.set(x, y + 1, '#4a5670');
+      }
+      return true;
+    }
+    if (w === 'fists' || w === 'pistol') {
+      // Full reach: a flare at the fist, or the muzzle's kick.
+      const [fx, fy] = w === 'pistol' ? [hx, hy - 5] : [hx, hy - 1];
+      g.ellipse(fx, fy, 3, 3, w === 'pistol' ? '#ffe07a' : tint);
+      g.set(fx, fy, '#ffffff');
+      return true;
+    }
+    if (w === 'staff') {
+      g.ellipse(hx + 1, hy - 10, 3, 3, tint);
+      return true;
+    }
   }
   if (pose === 'attack') {
     if (w === 'fists') {
@@ -184,6 +222,12 @@ function pose(id: string, look: CharLook, which: Pose): { canvas: HTMLCanvasElem
   let hand: [number, number] = [rig.right, rig.hand];
   let other: [number, number] | undefined;
   if (which === 'attack') hand = raise(rows, rig, 'right', weapon === 'pistol' ? 5 : 4);
+  else if (which === 'strike') {
+    // Follow-through: a blade arm comes down and across; a fist reaches to its full height.
+    hand = weapon === 'katana' ? raise(rows, rig, 'right', 1, 3) : raise(rows, rig, 'right', weapon === 'pistol' ? 6 : 6, 0);
+    // The cut's trail is centred on the shoulder it swings from.
+    if (weapon === 'katana') other = [rig.right - 3, rig.shoulder + 1];
+  }
   else if (which === 'victory') hand = raise(rows, rig, 'right', 6, 1);
   else if (which === 'item') hand = raise(rows, rig, 'right', 3);
   else if (which === 'cast') {
@@ -204,7 +248,7 @@ function pose(id: string, look: CharLook, which: Pose): { canvas: HTMLCanvasElem
   } else if (which === 'aim') {
     hand = raise(rows, rig, 'right', 5, 2);
   }
-  if (weapon === 'staff' && which !== 'attack' && which !== 'cast' && which !== 'victory' && which !== 'thrust') hand = [rig.right, rig.hand];
+  if (weapon === 'staff' && which !== 'attack' && which !== 'strike' && which !== 'cast' && which !== 'victory' && which !== 'thrust') hand = [rig.right, rig.hand];
   const body = paint(rows, pal);
   const w = body.width + PAD_X * 2, h = body.height + PAD_TOP;
   const handPx = px(hand[0], hand[1]);

@@ -30,11 +30,8 @@ let V = 0;
 let building = '';
 /** Which frame a maker is drawing: its idle stance, its strike, or taking a hit. */
 let POSE: 'idle' | 'attack' | 'hurt' = 'idle';
-/**
- * Everything the crew fights more than once has a drawn strike and a drawn flinch; the bosses
- * (one fight each, with their own staging) animate by motion alone.
- */
-const POSED = new Set(['punk', 'medic', 'slinger', 'brute', 'ghoul', 'sentinel', 'arcanist', 'rat', 'hound', 'drone', 'wisp', 'crab', 'maint', 'shade', 'turret', 'hunter']);
+/** Every sprite with a drawn strike and a drawn flinch: everything recurring, and the bosses. */
+const POSED = new Set(['punk', 'medic', 'slinger', 'brute', 'ghoul', 'sentinel', 'arcanist', 'rat', 'hound', 'drone', 'wisp', 'crab', 'maint', 'shade', 'turret', 'hunter', 'lurker', 'warden', 'warden_spirit']);
 
 /** A burst of sparks off a struck machine, lit in the glow layer too. */
 function sparks(p: Pix, g: Pix, x: number, y: number): void {
@@ -874,19 +871,23 @@ const CREATURES: Record<string, () => EnemyArt> = {
     p.limb([[70, 80], [74, 62], [70, 46], [60, 34], [50, 28]], 14, 9, body);
     // Belly plates
     for (let i = 0; i < 6; i++) p.ellipse(72 - i * 2.5, 70 - i * 7, 6, 2, '#5a7a6a');
-    // Head
+    // Head. On the strike the jaw drops wide, lower teeth a hand lower; on a hit it clamps shut.
     p.ball(40, 28, 20, 14, '#2f5252');
-    p.poly([[18, 30], [40, 36], [58, 36], [40, 44], [22, 38]], '#1a2a2a');
+    const gape = POSE === 'attack' ? 7 : POSE === 'hurt' ? -4 : 0;
+    p.poly([[18, 30], [40, 36], [58, 36], [40 + (gape > 0 ? 3 : 0), 44 + gape], [22, 38 + Math.max(0, gape - 2)]], '#1a2a2a');
+    if (gape > 0) p.poly([[26, 40], [40, 44], [52, 40], [42, 48]], '#3a0a14');
     // Teeth
     for (let x = 24; x < 54; x += 3) {
       p.poly([[x, 35], [x + 2, 35], [x + 1, 39]], '#e8e0cc');
-      p.poly([[x + 1, 43], [x + 3, 43], [x + 2, 39]], '#d8d0bc');
+      p.poly([[x + 1, 43 + gape], [x + 3, 43 + gape], [x + 2, 39 + gape]], '#d8d0bc');
     }
-    // Eyes
-    p.ellipse(30, 22, 3, 2.5, '#0a1414');
-    p.ellipse(48, 21, 3, 2.5, '#0a1414');
-    p.set(30, 22, '#ffe07a');
-    p.set(48, 21, '#ffe07a');
+    // Eyes (screwed to slits when it's hit)
+    p.ellipse(30, 22, 3, POSE === 'hurt' ? 1 : 2.5, '#0a1414');
+    p.ellipse(48, 21, 3, POSE === 'hurt' ? 1 : 2.5, '#0a1414');
+    if (POSE !== 'hurt') {
+      p.set(30, 22, '#ffe07a');
+      p.set(48, 21, '#ffe07a');
+    }
     // Angler lure
     p.limb([[40, 15], [36, 6], [28, 2], [22, 6]], 1.2, 0.8, '#3a5a5a');
     p.ball(21, 8, 3, 3, '#6affc8');
@@ -899,9 +900,16 @@ const CREATURES: Record<string, () => EnemyArt> = {
       p.set(x, y, '#6affc8');
       g.set(x, y, '#9affe0');
     }
-    g.ellipse(21, 8, 2.5, 2.5, '#b8ffe8');
-    g.set(30, 22, '#ffe07a');
-    g.set(48, 21, '#ffe07a');
+    // The lure flares on the strike and gutters on a hit; so do the eyes.
+    if (POSE === 'attack') g.ball(21, 8, 4.5, 4.5, '#dfffff');
+    else if (POSE !== 'hurt') g.ellipse(21, 8, 2.5, 2.5, '#b8ffe8');
+    if (POSE === 'attack') {
+      g.ellipse(30, 22, 2, 1.5, '#fff0a0');
+      g.ellipse(48, 21, 2, 1.5, '#fff0a0');
+    } else if (POSE !== 'hurt') {
+      g.set(30, 22, '#ffe07a');
+      g.set(48, 21, '#ffe07a');
+    }
     // Waterline foam
     for (let x = 0; x < 120; x++) if (p.get(x, 76) || p.get(x, 74)) p.set(x, 76, '#9ac8d8');
     return art(p, 'sway', 0, g);
@@ -948,16 +956,32 @@ const CREATURES: Record<string, () => EnemyArt> = {
     p.rect(40, 10, 16, 12, '#5a6070');
     p.rect(40, 10, 16, 2, '#7a8090');
     p.rect(42, 15, 12, 3, '#1a0a0a');
-    for (let x = 43; x < 53; x++) p.set(x, 16, '#ff3a3a');
+    if (POSE !== 'hurt') for (let x = 43; x < 53; x++) p.set(x, 16, '#ff3a3a');
     // K-M mark
     p.rect(30, 30, 3, 8, '#3f8af0');
     p.rect(63, 30, 3, 8, '#3f8af0');
+    if (POSE === 'attack') {
+      // Firing: the cannon's mouth blazes and the beam's first metre leaves it; the left arm braces.
+      p.rect(4, 44, 14, 8, '#5a6070');
+      for (let x = 44; x < 62; x++) p.set(x, 14, x % 2 ? '#dffcff' : '#9af0ff');
+      p.ball(60, 14, 4, 4, '#dffcff');
+    } else if (POSE === 'hurt') {
+      // Hit: the visor goes dark, a plate cracks, sparks off the shoulder and the core stutters.
+      p.line(26, 24, 34, 36, '#3a3f4c');
+      p.line(34, 36, 31, 44, '#3a3f4c');
+      sparks(p, g, 82, 22);
+      sparks(p, g, 30, 30);
+    }
     // Glow
-    g.ball(48, 40, 7, 6.5, '#8a6aff');
+    g.ball(48, 40, POSE === 'hurt' ? 4 : 7, POSE === 'hurt' ? 3.5 : 6.5, POSE === 'hurt' ? '#4a3a8a' : '#8a6aff');
     g.ellipse(45, 38, 1, 1.5, '#e0d0ff');
     g.ellipse(51, 38, 1, 1.5, '#e0d0ff');
-    for (let x = 43; x < 53; x++) g.set(x, 16, '#ff5a5a');
+    if (POSE !== 'hurt') for (let x = 43; x < 53; x++) g.set(x, 16, '#ff5a5a');
     g.ellipse(62, 14, 1.5, 2.5, '#9af0ff');
+    if (POSE === 'attack') {
+      for (let x = 44; x < 62; x++) g.set(x, 14, '#dffcff');
+      g.ball(60, 14, 5, 5, '#ffffff');
+    }
     p.outline();
     return { canvas: p.toCanvas(), glow: g.toCanvas(), idle: 'breathe', shadow: 70 };
   },
@@ -970,17 +994,28 @@ const CREATURES: Record<string, () => EnemyArt> = {
     // Spectral body
     p.ball(48, 52, 22, 30, body);
     p.limb([[48, 78], [40, 86], [48, 94]], 12, 2, shade(body, -0.2));
-    // Arms flung wide
-    p.limb([[30, 40], [18, 30], [6, 14]], 6, 2.5, body);
-    p.limb([[66, 40], [78, 30], [90, 14]], 6, 2.5, body);
-    for (const [x, y] of [[4, 10], [8, 9], [3, 14]] as const) p.line(6, 14, x, y, '#b8a0ff');
-    for (const [x, y] of [[92, 10], [88, 9], [93, 14]] as const) p.line(90, 14, x, y, '#b8a0ff');
+    // Arms flung wide; on the strike they claw down at the crew, on a hit they fold in.
+    if (POSE === 'attack') {
+      p.limb([[30, 40], [18, 56], [10, 72]], 6, 2.5, body);
+      p.limb([[66, 40], [78, 56], [86, 72]], 6, 2.5, body);
+      for (const [x, y] of [[6, 76], [10, 78], [13, 76]] as const) p.line(10, 72, x, y, '#b8a0ff');
+      for (const [x, y] of [[90, 76], [86, 78], [83, 76]] as const) p.line(86, 72, x, y, '#b8a0ff');
+    } else if (POSE === 'hurt') {
+      p.limb([[30, 40], [24, 30], [34, 22]], 6, 2.5, body);
+      p.limb([[66, 40], [72, 30], [62, 22]], 6, 2.5, body);
+    } else {
+      p.limb([[30, 40], [18, 30], [6, 14]], 6, 2.5, body);
+      p.limb([[66, 40], [78, 30], [90, 14]], 6, 2.5, body);
+      for (const [x, y] of [[4, 10], [8, 9], [3, 14]] as const) p.line(6, 14, x, y, '#b8a0ff');
+      for (const [x, y] of [[92, 10], [88, 9], [93, 14]] as const) p.line(90, 14, x, y, '#b8a0ff');
+    }
     // Head
     p.ball(48, 22, 13, 13, mix(body, '#ffffff', 0.15));
-    // Screaming face
-    p.ellipse(42, 20, 2.5, 3.5, '#0a0614');
-    p.ellipse(54, 20, 2.5, 3.5, '#0a0614');
-    p.ellipse(48, 30, 4, 6, '#0a0614');
+    // Screaming face (wider on the strike; eyes crushed shut on a hit)
+    p.ellipse(42, 20, 2.5, POSE === 'hurt' ? 1 : 3.5, '#0a0614');
+    p.ellipse(54, 20, 2.5, POSE === 'hurt' ? 1 : 3.5, '#0a0614');
+    p.ellipse(48, 30, POSE === 'attack' ? 5.5 : 4, POSE === 'attack' ? 8 : POSE === 'hurt' ? 3 : 6, '#0a0614');
+    if (POSE === 'hurt') for (const [x, y] of [[40, 50], [56, 58], [46, 66], [60, 44]] as const) p.ellipse(x, y, 2.4, 2, '#2a1a4a');
     // Snapping chains
     for (const [x0, y0, x1, y1] of [[20, 52, 4, 60], [76, 52, 92, 60], [30, 70, 18, 84], [66, 70, 78, 84]] as const) {
       const n = 6;

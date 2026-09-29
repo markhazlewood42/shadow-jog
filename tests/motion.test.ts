@@ -5,10 +5,13 @@ import { direction, shakeOffset } from '../src/engine/shake';
 import { PARTY_POSE_T, swingBeat } from '../src/scenes/battlekit/motion';
 
 describe('the swing', () => {
-  it('gathers (crouching), snaps forward with a smear, then settles back to the line', () => {
+  it('gathers (crouching), snaps up with a smear, cuts through, then settles back to the line', () => {
     const beats = Array.from({ length: PARTY_POSE_T }, (_, k) => swingBeat(k));
     expect(beats.slice(0, 6).every((b) => b.phase === 'gather' && b.lift <= 0 && b.smear === 0)).toBe(true);
-    expect(beats[6]!.phase).toBe('strike');
+    expect(beats[6]!.phase).toBe('raise');
+    // The cut lands on frame 8, when the hit's effects start.
+    expect(beats[8]!.phase).toBe('cut');
+    expect(beats.map((b) => b.phase).filter((p, i, a) => p !== a[i - 1])).toEqual(['gather', 'raise', 'cut', 'settle']);
     expect(beats[6]!.lift).toBeGreaterThanOrEqual(14);
     expect(beats[6]!.smear).toBeGreaterThan(0);
     // The snap is the fastest move of the swing: one frame from crouch to full reach.

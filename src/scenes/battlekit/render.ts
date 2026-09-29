@@ -296,7 +296,10 @@ export class BattleRenderer {
     const down = dd.hp <= 0 && p.hp <= 0;
     // Melee moves play in beats: drawn in (the brace frame), the snap forward, the settle.
     const beat = dd.poseT > 0 && (dd.pose === 'attack' || dd.pose === 'thrust') ? swingBeat(PARTY_POSE_T - dd.poseT) : null;
-    const pose: Pose = dd.poseT > 0 ? (beat?.phase === 'gather' ? 'brace' : dd.pose) : 'idle';
+    // The frame for each beat: gathered (brace), raised (the pose itself), then swept through
+    // (strike) for the cut and the settle. Palm strikes (thrust) keep their own frame throughout.
+    const through = beat && dd.pose === 'attack' && (beat.phase === 'cut' || beat.phase === 'settle');
+    const pose: Pose = dd.poseT > 0 ? (beat?.phase === 'gather' ? 'brace' : through ? 'strike' : dd.pose) : 'idle';
     const frame = art.frames[pose];
     let ox = 0;
     if (dd.shake > 0) ox = dd.shake % 4 < 2 ? 2 : -2;
@@ -330,7 +333,8 @@ export class BattleRenderer {
       g.globalAlpha = 1;
     }
     g.drawImage(frame, x, y);
-    const glow = art.glow[pose];
+    // The cut's lit trail shows only while the cut is happening, not through the settle.
+    const glow = pose === 'strike' && beat?.phase === 'settle' ? undefined : art.glow[pose];
     if (glow) {
       g.globalCompositeOperation = 'lighter';
       g.globalAlpha = 0.75 + 0.25 * Math.sin(f * 0.5);
