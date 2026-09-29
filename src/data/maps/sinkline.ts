@@ -35,6 +35,9 @@ const g = new Grid(W, H, 'X')
   // the short way from Intake 1 to Intake 3), with a niche halfway where someone kept supplies.
   .rect(2, 14, 2, 12, 'w')
   .rect(4, 19, 2, 2, '.')
+  // A maintenance closet sealed off in '61; the wall between it and the pump room has cracked.
+  .rect(12, 23, 3, 2, '.')
+  .set(13, 25, '%')
   // Pump room
   .rect(3, 26, 14, 7, '.')
   .rect(6, 28, 2, 2, 'w');
@@ -46,7 +49,7 @@ export const sinkline1: MapDef = {
   bannerSub: 'Flooded since ’61',
   kind: 'dungeon',
   terrain: g.rows(),
-  legend: { X: 'd_wall', '.': 'd_floor', t: 'd_track', w: 'd_shallow', '~': 'd_water', '=': 'd_catwalk', '+': 'grate' },
+  legend: { X: 'd_wall', '.': 'd_floor', t: 'd_track', w: 'd_shallow', '~': 'd_water', '=': 'd_catwalk', '+': 'grate', '%': 'd_wall_crack' },
   ambient: '#56628e',
   weather: 'drip',
   music: 'dungeon',
@@ -147,6 +150,9 @@ export const sinkline1: MapDef = {
     { id: 'c7', x: 3, y: 12, item: 'omni_patch', qty: 1, kind: 'crate' },
     { id: 'c8', x: 22, y: 23, cred: 220, kind: 'locker' },
     { id: 'c9', x: 5, y: 19, item: 'detox', qty: 2, kind: 'locker' },
+    // Behind the cracked wall: what the pump crew locked away when the water came.
+    { id: 'closet', x: 12, y: 23, item: 'cyber_eye', kind: 'case' },
+    { id: 'closet2', x: 14, y: 23, cred: 180, kind: 'locker' },
   ],
   npcs: [
     {
@@ -202,6 +208,8 @@ export const sinkline1: MapDef = {
     },
   ],
   lights: [
+    // The closet's emergency lamp, still on, leaking through the crack.
+    { x: 13, y: 24, r: 22, color: '#6ad8e8', i: 0.45, flicker: true },
     { x: 14, y: 5, r: 50, color: '#ff9a4a', i: 0.6, flicker: true },
     { x: 6, y: 3, r: 60, color: '#b8d8ff', i: 0.5, flicker: true },
     { x: 14, y: 3, r: 50, color: '#3fe0f0', i: 0.5 },

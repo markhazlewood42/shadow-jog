@@ -332,27 +332,28 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
       return;
     }
     b.anims.push({
-      x, y, w: TS, h: TS,
+      x: x - 4, y, w: TS + 8, h: TS,
       draw: (ctx, f, ox, oy) => {
         const py = y - oy;
+        // The whole curtain pulses together, harder every couple of seconds: it hums.
+        const surge = 0.8 + 0.2 * Math.sin(f * 0.12) + (f % 120 < 6 ? 0.3 : 0);
         for (const [i, cx] of cols.entries()) {
           const px = x + cx - ox;
-          const flick = 0.72 + 0.28 * Math.sin(f * 0.55 + i * 2.1 + p.y * 1.7);
+          const flick = (0.75 + 0.25 * Math.sin(f * 0.55 + i * 2.1 + p.y * 1.7)) * surge;
           ctx.fillStyle = '#ff3a4a';
-          ctx.globalAlpha = 0.14 * flick;
-          ctx.fillRect(px - 2, py, 5, TS);
-          ctx.globalAlpha = 0.34 * flick;
+          ctx.globalAlpha = Math.min(1, 0.16 * flick);
+          ctx.fillRect(px - 3, py, 7, TS);
+          ctx.globalAlpha = Math.min(1, 0.42 * flick);
           ctx.fillRect(px - 1, py, 3, TS);
-          ctx.globalAlpha = flick;
-          ctx.fillStyle = '#ffc8d0';
+          ctx.globalAlpha = Math.min(1, flick);
+          ctx.fillStyle = '#ffe0e8';
           ctx.fillRect(px, py, 1, TS);
-          // A spark running down the beam.
+          // A spark running down the beam, and one spitting where it meets the floor.
           const s = (f * 0.9 + i * 7 + p.y * 5) % 22;
-          if (s < TS) {
-            ctx.globalAlpha = 1;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(px, py + Math.floor(s), 1, 2);
-          }
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#ffffff';
+          if (s < TS) ctx.fillRect(px, py + Math.floor(s), 1, 2);
+          if ((f + i * 5) % 9 < 2) ctx.fillRect(px + ((f >> 1) % 3) - 1, py + TS - 2, 1, 1);
         }
         ctx.globalAlpha = 1;
       },

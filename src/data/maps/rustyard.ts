@@ -21,6 +21,10 @@ const g = new Grid(W, H, 'J')
     'JJdddddddddJJJJdJJddddddJJJJJJdJJJ',
     'JJdJJJJJJJdJJJJdJJJJJJJJJJdddddJJJ',
   ])
+  // Behind the scav stash's dead end, a crawl-through the camp keeps open: loose scrap east to the
+  // far route, with a pocket halfway where the kids hide things.
+  .rect(24, 11, 6, 1, 'L')
+  .set(26, 10, 'L')
   // North yard texture
   .rect(3, 3, 5, 3, 'r')
   .rect(24, 2, 6, 4, 'r')
@@ -38,7 +42,7 @@ export const rustyard: MapDef = {
   kind: 'town',
   town: true,
   terrain: g.rows(),
-  legend: { J: 'junk', d: 'dirt', r: 'rubble', K: 'floor_concrete' },
+  legend: { J: 'junk', d: 'dirt', r: 'rubble', K: 'floor_concrete', L: 'junk_loose' },
   ambient: '#605a86',
   weather: 'rain',
   music: 'rustyard',
@@ -76,6 +80,8 @@ export const rustyard: MapDef = {
     { kind: 'sign_post', x: 11, y: 13, text: 'DEPOT ↑' },
     { kind: 'sign_post', x: 16, y: 13, text: 'KEEP OUT' },
     { kind: 'sign_post', x: 25, y: 13, text: 'DEPOT ↑' },
+    // A painted arrow at the stash's dead end, pointing into the heap (the camp's own mark).
+    { kind: 'sign_post', x: 23, y: 12, text: '→' },
     { kind: 'tag', x: 5, y: 12 },
     // Their mark on the loose scrap in the camp's west corner: where they stash the tribute.
     { kind: 'tag', x: 2, y: 14, color: '#ffb02e' },
@@ -98,6 +104,8 @@ export const rustyard: MapDef = {
     { id: 'yard_cache', x: 2, y: 3, cred: 120, kind: 'crate' },
     { id: 'maze_cache', x: 31, y: 7, item: 'trauma_patch', qty: 2, kind: 'crate' },
     { id: 'maze_stash', x: 18, y: 11, item: 'flashbang', qty: 2, kind: 'crate' },
+    // In the crawl-through's pocket: the kids' hoard.
+    { id: 'heap_pocket', x: 26, y: 10, cred: 140, kind: 'crate' },
   ],
   npcs: [
     {

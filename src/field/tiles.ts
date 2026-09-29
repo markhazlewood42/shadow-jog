@@ -280,6 +280,29 @@ const wRuins: Painter = (lx, ly, wx, wy, tx, ty, q) => {
   return lerpC(base, RUIN_SLAB, lee ? 0.7 : 0.5);
 };
 
+/**
+ * A cracked stretch of tunnel wall you can squeeze through: the brick face, split by a jagged
+ * dark fissure top to bottom, with cold air (a faint cyan) at its foot. Walkable; the tell is
+ * the crack and the draught, nothing else.
+ */
+const dWallCrack: Painter = (lx, ly, wx, wy, tx, ty, q) => {
+  const face = dwallFace(lx, ly, wx, wy, tx, ty, q);
+  const mid = 7 + Math.round(Math.sin(ly * 0.9) * 2);
+  if (Math.abs(lx - mid) <= (ly > 10 ? 2 : 1)) return ly > 12 ? K_1E3A44 : K_06080C;
+  if (Math.abs(lx - mid) === (ly > 10 ? 3 : 2)) return lerpC(face, K_06080C, 0.5);
+  return face;
+};
+
+/**
+ * A heap of loose scrap you can crawl through: the same junk, with a dark gap running through its
+ * middle where someone has pulled a way in. Walkable.
+ */
+const junkLoose: Painter = (lx, ly, wx, wy, tx, ty, q) => {
+  const heap = junk(lx, ly, wx, wy, tx, ty, q);
+  if (ly >= 6 && ly <= 10) return ly === 6 || ly === 10 ? lerpC(heap, K_06080C, 0.55) : lerpC(K_15121A, heap, 0.25);
+  return heap;
+};
+
 /** Heaped scrap: solid junk walls (Rustyard). Face shading where open ground is below. */
 const JUNK_COLS: RGB[] = [C('#3a3d4a'), C('#4a4e5c'), C('#5a3e30'), C('#6a4a36'), C('#2a2c36'), C('#5a5f70'), C('#7a5a3a')];
 const junk: Painter = (lx, ly, wx, wy, tx, ty, q) => {
@@ -407,6 +430,7 @@ const K_FF3A4A = C('#ff3a4a');
 const K_FFB13D = C('#ffb13d');
 const K_2A2E38 = C('#2a2e38');
 const K_1E1A24 = C('#1e1a24');
+const K_1E3A44 = C('#1e3a44');
 const K_2A2630 = C('#2a2630');
 const K_06080C = C('#06080c');
 
@@ -732,7 +756,7 @@ export const PAINTERS: Record<TerrainId, Painter> = {
   iwall: wallP('iwall', iwallFace, P.iwallTop, P.iwallEdge),
   d_floor: dfloor,
   d_wall: wallP('d_wall', dwallFace, P.dwallTop, P.dwallEdge),
-  d_water: underCatwalk(dwater), d_shallow: underCatwalk(shallow), d_catwalk: catwalk,
+  d_water: underCatwalk(dwater), d_shallow: underCatwalk(shallow), d_catwalk: catwalk, d_wall_crack: dWallCrack, junk_loose: junkLoose,
   d_track: rail,
   lab_floor: labFloor, lab_floor_steel: labFloorSteel, lab_floor_frost: labFloorFrost, lab_floor_contain: labFloorContain, lab_floor_plate: labFloorPlate,
   lab_wall: wallP('lab_wall', labWallFace, P.labTop, P.labEdge),
