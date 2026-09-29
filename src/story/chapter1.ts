@@ -1,7 +1,16 @@
 /**
  * Chapter 1 — "Milk Run". Story beats as field scripts.
- * Flags: intro, first_fight, met_dutch, met_hex, rustyard_gate, knuckles, coprocessor, hex_joined,
- * sinkline_gate, floodgate, lurker, annex_key, sable_joined, warden, chapter_end.
+ *
+ * Story flags, in the order the chapter sets them (the ones that gate the way forward first):
+ *   intro, first_fight, met_dutch, met_hex, rustyard_gate, knuckles, coprocessor, coprocessor_given,
+ *   hex_joined, sinkline_gate, valve_v1..3 + valves (the intake count), floodgate, lurker,
+ *   annex_key, relay_a..c, lattice_off, sable_joined, warden, betrayal, chapter_end.
+ * Side paths and choices: tribute_hint, tribute_stash, camp_kept (Mags' fork), annex_panel,
+ *   req_badge, rent_tin, cat_found / job_cat_done, job_case_done, job_bounty_done, ono_free.
+ * Seen-once lines (so a beat isn't repeated): met_wire, met_mary, pump_seen, valve_hint,
+ *   lattice_seen, relay_seen, read_mail, rook_log, memorial_rook, ate, rumor, tut_whiff.
+ * (tests/maps.test.ts sets them in this order and checks, at every step, that no map strands the
+ *  player: from every arrival a way out is walkable.)
  */
 import type { ScriptApi, ScriptFn } from '../game/script';
 
@@ -365,7 +374,16 @@ export const annexGuards: ScriptFn = async (s) => {
  * feeds emitters 1+2, C feeds 2+3, B is wired to all three. Every relay toggles what it feeds;
  * the lattice drops when all three are dark. (From all-on, the only answer is B alone.)
  */
-const RELAYS: Record<string, number[]> = { a: [0, 1], b: [0, 1, 2], c: [1, 2] };
+export const RELAYS: Record<string, number[]> = { a: [0, 1], b: [0, 1, 2], c: [1, 2] };
+/**
+ * Each relay's cable colour: on its terminal's screen, and on the loom that runs into the lattice's
+ * frame, tapping the emitters it really feeds. The memo is wrong; the cables aren't.
+ */
+export const RELAY_COLOR: Record<string, { hex: string; name: string }> = {
+  a: { hex: '#ffcc3d', name: 'amber' },
+  b: { hex: '#62e06a', name: 'green' },
+  c: { hex: '#b07cff', name: 'violet' },
+};
 
 /** Which emitters are live, from the relay flags. Shared with the map, which draws each beam row. */
 export function latticeEmitters(flags: Record<string, unknown>): boolean[] {
@@ -382,7 +400,7 @@ const emitterLine = (on: boolean[]) => on.map((e, i) => `${i + 1} ${e ? '{r}LIVE
 
 export const lattice: ScriptFn = async (s) => {
   if (s.flag('lattice_off')) return;
-  await s.narrate(`A security lattice: three emitters, beams humming across the passage.\nEmitters: ${emitterLine(emitters(s))}`);
+  await s.narrate(`A security lattice: three emitters, beams humming across the passage. Three cables climb its frame, amber, green and violet, each tapping into some of the emitters.\nEmitters: ${emitterLine(emitters(s))}`);
   if (!s.flag('lattice_seen')) {
     s.set('lattice_seen');
     await s.say('hex', 'Can’t hack a laser. But lasers need power, and power comes through relays. Find the relays.');
@@ -390,7 +408,7 @@ export const lattice: ScriptFn = async (s) => {
 };
 
 export const relay = (id: string): ScriptFn => async (s) => {
-  const name = `Relay ${id.toUpperCase()}`;
+  const name = `Relay ${id.toUpperCase()} (${RELAY_COLOR[id]?.name ?? 'unmarked'} cable)`;
   if (s.flag('lattice_off')) {
     await s.narrate(`${name}. The lattice is down; nothing left to route.`);
     return;

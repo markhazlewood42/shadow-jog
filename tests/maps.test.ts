@@ -36,6 +36,39 @@ describe('map connectivity', () => {
   }
 });
 
+/**
+ * The story's flags in the order the chapter sets them (see the header of src/story/chapter1.ts).
+ * At every point along it, no map may strand the player: from wherever they can arrive, some
+ * way out has to be walkable. (The all-flags test above can't see a mid-story dead end.)
+ */
+const STORY = ['intro', 'first_fight', 'met_dutch', 'met_hex', 'rustyard_gate', 'tribute_stash', 'knuckles', 'coprocessor', 'coprocessor_given', 'hex_joined', 'sinkline_gate', 'valve_v2', 'valve_v1', 'valve_v3', 'floodgate', 'lurker', 'annex_key', 'relay_a', 'relay_b', 'lattice_off', 'annex_panel', 'sable_joined', 'warden', 'betrayal'];
+
+describe('no mid-story dead ends', () => {
+  for (let i = 0; i <= STORY.length; i++) {
+    const flags: Record<string, unknown> = Object.fromEntries(STORY.slice(0, i).map((f) => [f, true]));
+    const stage = i ? `after ${STORY[i - 1]}` : 'at the start';
+    it(`${stage}: from every arrival on every map, a way out is walkable`, () => {
+      const stuck: string[] = [];
+      for (const id of mapIds()) {
+        const g = grid(id, flags);
+        const exits = (g.def.warps ?? []).filter((w) => !w.when || w.when(flags));
+        if (!exits.length) continue;
+        for (const start of arrivals(id)) {
+          if (!g.open(start[0], start[1])) continue;
+          const d = distances(g, [start]);
+          const reach = (x: number, y: number) => NEAR.some(([dx, dy]) => d.has((y + dy) * g.w + x + dx));
+          const out = exits.some((w) => {
+            for (let yy = w.y; yy < w.y + (w.h ?? 1); yy++) for (let xx = w.x; xx < w.x + (w.w ?? 1); xx++) if (reach(xx, yy)) return true;
+            return false;
+          });
+          if (!out) stuck.push(`${id} from (${start[0]},${start[1]})`);
+        }
+      }
+      expect(stuck).toEqual([]);
+    });
+  }
+});
+
 describe('text style', () => {
   it('player-facing strings use typographic apostrophes (’), never escaped straight ones', async () => {
     const { readFileSync, readdirSync, statSync } = await import('node:fs');

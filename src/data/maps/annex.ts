@@ -1,6 +1,6 @@
 /** K-M Annex 7 (B2) and the loading dock where the job goes wrong. */
 import type { MapDef } from '../../field/types';
-import { annexDoor, annexGuards, annexLog, betrayal, cryopod, lattice, latticeEmitters, relay, wardenFight } from '../../story/chapter1';
+import { annexDoor, annexGuards, annexLog, betrayal, cryopod, lattice, latticeEmitters, relay, RELAY_COLOR, RELAYS, wardenFight } from '../../story/chapter1';
 import { LOOKS } from '../looks';
 import { Grid } from './grid';
 
@@ -123,16 +123,23 @@ export const annex: MapDef = {
     { kind: 'panel_loose', x: 15, y: 23, color: 'open', pass: true, when: (f) => !!f.annex_panel },
     // The lattice: a curtain of beams across the cryo-wing passage, one tile per live emitter.
     { kind: 'laser', x: 30, y: 6, h: 3, color: 'housing', pass: true },
+    // The loom up the lattice's frame: one cable per relay, in its colour, tapping exactly the
+    // emitters it feeds (from the puzzle's own table, so the art can't disagree with it).
+    ...Object.entries(RELAYS).map(([r, feeds], lane) => ({
+      kind: 'loom' as const, x: 30, y: 6, h: 3, pass: true, color: RELAY_COLOR[r]!.hex,
+      text: `${lane}:${[0, 1, 2].map((i) => (feeds.includes(i) ? '1' : '0')).join('')}`,
+    })),
     ...[0, 1, 2].map((i) => ({ kind: 'laser' as const, x: 30, y: 6 + i, pass: true, when: (f: Record<string, unknown>) => !f.lattice_off && !!latticeEmitters(f)[i] })),
     // Wayfinding: the lab's own wall signs.
     { kind: 'sign_post', x: 9, y: 7, text: 'LABS ↓' },
     { kind: 'sign_post', x: 16, y: 18, text: 'ARMORY ↓' },
     { kind: 'sign_post', x: 27, y: 10, text: 'CRYO WING →' },
     { kind: 'sign_post', x: 25, y: 18, text: 'CONTAINMENT ↓' },
-    // Lattice relays (red, unlike the cyan lore terminals): service room, hall, armory.
-    { kind: 'terminal', x: 10, y: 4, color: '#ff6a5a' },
-    { kind: 'terminal', x: 15, y: 8, color: '#ff6a5a' },
-    { kind: 'terminal', x: 15, y: 21, color: '#ff6a5a' },
+    // Lattice relays, each lit in its cable's colour (the lore terminals are cyan): C in the
+    // service room, B in the hall, A in the armory.
+    { kind: 'terminal', x: 10, y: 4, color: RELAY_COLOR.c!.hex },
+    { kind: 'terminal', x: 15, y: 8, color: RELAY_COLOR.b!.hex },
+    { kind: 'terminal', x: 15, y: 21, color: RELAY_COLOR.a!.hex },
   ],
   chests: [
     { id: 'petrov', x: 11, y: 21, item: 'proto_chip', kind: 'case', when: (f) => !!f.annex_panel },

@@ -297,6 +297,14 @@ test('18 world + dungeons', async ({ page }) => {
   await shot(page, '21-annex');
 });
 
+test('18c the junction drained: something glowing in the sump', async ({ page }) => {
+  await open(page, 'sinkline');
+  await sj(page, "(Object.assign(sj.state.flags, { floodgate: true, lurker: false }), true)");
+  await sj(page, "sj.tp('sinkline_1', 37, 10, 'down')");
+  await page.waitForTimeout(2500);
+  await shot(page, '18c-sinkline-lure');
+});
+
 test('18b intakes: one open, one shut', async ({ page }) => {
   await open(page, 'sinkline');
   // Intake 2 (the service bay) opened; intake 3 in the pump station beside it still shut.

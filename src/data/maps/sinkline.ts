@@ -109,6 +109,9 @@ export const sinkline1: MapDef = {
     { kind: 'lampfloor', x: 33, y: 20 },
     { kind: 'lampfloor', x: 41, y: 20, color: '#ff8a6a' },
     { kind: 'sign_post', x: 37, y: 12, text: 'DANGER · SUMP' },
+    // Once the junction drains, something's lure glows up through the sump, breathing: the fight
+    // announces itself before it starts.
+    { kind: 'lure', x: 37, y: 16, pass: true, when: (f) => !!f.floodgate && !f.lurker },
     { kind: 'wreck', x: 43, y: 23, w: 2 },
     // Flood debris: what the water brought down with it in '61.
     // The junction's bones: support columns standing in the flood round Signal Island, and a

@@ -19,12 +19,13 @@ export interface Grid {
   open(x: number, y: number): boolean;
 }
 
-export function grid(id: string): Grid {
+/** The map's walkable grid with its patches evaluated against `flags` (default: every flag set). */
+export function grid(id: string, flags: Record<string, unknown> = ALL_SET): Grid {
   const def = getMap(id);
   const legend = { ...DEFAULT_LEGEND, ...def.legend };
   const rows = def.terrain.map((r) => r.split(''));
   for (const patch of def.patches ?? []) {
-    if (!patch.when(ALL_SET)) continue;
+    if (!patch.when(flags)) continue;
     for (const [px, py, pw, ph, ch] of patch.rects) for (let y = py; y < py + ph; y++) for (let x = px; x < px + pw; x++) if (rows[y]) rows[y]![x] = ch;
   }
   const h = rows.length;

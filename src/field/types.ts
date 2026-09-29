@@ -58,7 +58,11 @@ export type PropKind =
   | 'capsule' | 'bar' | 'rack' | 'desk' | 'pod' | 'server' | 'tank' | 'fence' | 'sandbags' | 'tent' | 'pylon'
   | 'catwalk_rail' | 'train' | 'valve' | 'cryopod' | 'door_lab' | 'jukebox' | 'arcade' | 'sign_post' | 'bollard'
   | 'window' | 'lampfloor' | 'sign_board' | 'tires' | 'body' | 'ladder' | 'tag' | 'banner' | 'crest' | 'memorial' | 'bedroll'
-  | 'laser' | 'panel_loose' | 'binding_circle' | 'hazard_lane' | 'dome' | 'mast' | 'watertower';
+  | 'laser'
+  // A cable up a frame: its lane and which rows it taps, as text 'lane:bits' (e.g. '1:011').
+  | 'loom'
+  // Something's lure glowing up through dark water, bubbles rising: a boss's tell before the fight.
+  | 'lure' | 'panel_loose' | 'binding_circle' | 'hazard_lane' | 'dome' | 'mast' | 'watertower';
 
 export interface PropDef {
   kind: PropKind;

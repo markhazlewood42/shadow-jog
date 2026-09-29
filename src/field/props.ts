@@ -314,6 +314,29 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
    * draws the emitter housings where the curtain meets the walls, `h` tiles apart; a live tile
    * draws its three beams, bright and shimmering, over the light pass so they read from afar.
    */
+  loom(b, p) {
+    // A cable run hugging the wall beside a frame, dropping a tap into each row it feeds.
+    const [laneS, bits = ''] = (p.text ?? '0:').split(':');
+    const lane = Number(laneS) || 0;
+    const col = p.color ?? '#ffcc3d';
+    const x = p.x * TS - 3 - lane * 2, y0 = p.y * TS - 4, rows = p.h ?? 1;
+    b.g.fillStyle = '#0f0e17';
+    b.g.fillRect(x - 1, y0, 3, rows * TS + 4);
+    b.g.fillStyle = shade(col, -0.35);
+    b.g.fillRect(x, y0, 1, rows * TS + 4);
+    for (let i = 0; i < rows; i++) {
+      if (bits[i] !== '1') continue;
+      const ty = p.y * TS + i * TS + 5 + lane * 2;
+      b.g.fillStyle = '#0f0e17';
+      b.g.fillRect(x, ty - 1, p.x * TS - x + 1, 3);
+      b.both((c) => {
+        c.fillStyle = col;
+        c.fillRect(x, ty, p.x * TS - x + 1, 1);
+        c.fillRect(p.x * TS, ty - 1, 1, 3);
+      });
+    }
+  },
+
   laser(b, p) {
     const x = p.x * TS, y = p.y * TS;
     const cols = [3, 8, 12];
@@ -794,6 +817,34 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
       c.fillStyle = '#0f0e17'; c.fillRect(0, 0, W, 10);
       c.fillStyle = '#2f6a5a'; c.fillRect(1, 1, W - 2, 8);
       drawText(c, text, W / 2, 1, { color: '#efe6d4', shadow: false, align: 'center' });
+    });
+  },
+
+  lure(b, p) {
+    const x = p.x * TS + 8, y = p.y * TS + 8;
+    b.lights.push({ x, y, r: 34, color: '#6affc8', i: 0.45, flicker: true });
+    b.anims.push({
+      x: x - 16, y: y - 20, w: 32, h: 36, lit: true,
+      draw: (ctx, f, ox, oy) => {
+        const px = x - ox, py = y - oy;
+        // A slow pulse under the water, drifting a little: something down there, breathing.
+        const pulse = 0.5 + 0.5 * Math.sin(f * 0.06);
+        const dx = Math.round(Math.sin(f * 0.013) * 3);
+        ctx.fillStyle = '#6affc8';
+        ctx.globalAlpha = 0.12 * pulse;
+        ctx.fillRect(px + dx - 7, py - 7, 15, 15);
+        ctx.globalAlpha = 0.3 + 0.4 * pulse;
+        ctx.fillRect(px + dx - 1, py - 1, 3, 3);
+        // Bubbles breaking the surface, now and then.
+        ctx.fillStyle = '#c8f8ff';
+        for (let i = 0; i < 3; i++) {
+          const t = (f * 0.35 + i * 23) % 40;
+          if (t > 18) continue;
+          ctx.globalAlpha = 0.6 * (1 - t / 18);
+          ctx.fillRect(px + dx + (i - 1) * 5, py - Math.round(t * 0.6) - 2, 1, 1);
+        }
+        ctx.globalAlpha = 1;
+      },
     });
   },
 
