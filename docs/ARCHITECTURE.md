@@ -101,14 +101,20 @@ hue; use `mix(c, dark, t)` for a true darkening), `rng.ts` (seeded mulberry32 `R
 
 - **`state.ts`**: `GameState`, one plain JSON-able object: party, members (level, xp, hp, tp, skill uses, equipment,
   ailments), inventory, cred, **flags** (the story's memory), position, lastTown, lastEntrance, play time, combos
-  found, bestiary and weakness notes, last orders, RNG stream states. `SAVE_VERSION` (currently **2**). `flags` is
+  found, bestiary and weakness notes, last orders, RNG stream states. `SAVE_VERSION` (currently **3**: v2 → v3 re-levels
+  a save on the 2026-09-29 XP curve and sets the story unlocks it has passed). `flags` is
   a helper over `state.flags`.
 - **`save.ts`**: 3 slots + `auto`. A save file is `{ meta, state }`; `readMeta` for the slot list,
   `loadSave` = parse → `migrateTo(SAVE_VERSION)` (the `MIGRATIONS[v]` chain, then `backfill` for added fields) →
-  `validState` → `sanitize` (clamps numbers, drops unknown items/abilities/enemies). `slotStatus` distinguishes
+  `validState` → `sanitize` (clamps numbers, drops unknown items/abilities/enemies). `applySave` then runs
+  `reconcileParty` (HP/TP inside today's maximums, charges for every known skill). `slotStatus` distinguishes
   empty, ok and damaged. `tests/fixtures/save-v1-annex.json` is a real v1 save that must keep loading.
 - **`party.ts`**: member stats from base + growth + equipment (`memberStats`), XP curve, learnsets, `rest`,
-  `innPrice`, `canEquip`.
+  `innPrice`, `canEquip`. Since 2026-09-29: abilities can need a **story flag** as well as a level
+  (`CH1_STORY_FLAGS` in `data/abilities.ts`: `stingray_seated`, `rook_tuned`, `rook_mended`, set by the script API's
+  `unlock`); Rook's **wound** (`isWounded`, `WOUND`/`WOUND_TUNED`, `maxUses` a charge short) lifts in two story steps;
+  a **level-up is a full restore**; prices follow `crewLevel()` (Rook's veteran 10 excluded).
+- **`newgame.ts`**: `freshGame()`, the state a new game starts from (pure, tested).
 - **`settings.ts`**: persistent options (volumes, text and battle speed, timed presses on/assist/off, shake, flash,
   hit pause, scale, custom keys), saved separately from games.
 - **`script.ts`**: the `ScriptApi` type: everything a story script can do (see section 5).
@@ -151,6 +157,8 @@ A `MapDef` is authored data:
 `TerrainId`, 16×16 px), structures, sprites (props and buildings as depth-sorted sprites with an emissive layer), an
 overhead layer, animated props (`anims`), and lights. The field scene caches built maps (`MAP_CACHE_MAX` 8 in `scenes/field.ts`); `refreshMap()`
 rebuilds after a flag change. `SOLID_TERRAIN` decides walkability; props block their footprint unless `pass: true`.
+After the tiles, a **relief** pass shades the ground at the foot and right of raised terrain (walls, city blocks);
+dungeons also bake a faint unlit edge where floor meets wall or void (`bakeStructureEdges`).
 
 ### Actors, lighting, weather
 - `actor.ts`: grid movement with smooth steps, walk frames, idle poses after standing still, emotes, and path
@@ -232,7 +240,16 @@ round, victory, defeat, fleeing). Its parts:
 - `timing.ts` (the ring and its judgement), `orders.ts` (building menus and orders, combo hints), `motion.ts` (the
   swing's beats), `sprites.ts` (enemy frame caches, recolours, dissolve), `geom.ts` (layout constants),
   `tables.ts` (poses, sounds and stings per effect), `intro.ts` (the glass-shatter transition), `driver.ts` (test hook).
-- The world is drawn at 240×135 and scaled 2× under a full-resolution UI.
+- Three layers under a full-resolution UI: the backdrop world (240×135, scaled 2×), the **enemies** on a
+  screen-resolution layer (drawn through a 2× transform, so creatures' finer art lands 1:1; `EnemyArt.res`, `w`, `h`),
+  and a clear world-scale layer for the party, effects, rings, arrows and numbers.
+- **Pace:** every move's animation (effects, poses, cut-ins, numbers) runs on one clock, `FxLayer.rate` =
+  `FX_PACE` (0.65) × Battle Speed; each action lets its effect finish and holds `TURN_GAP` before the next. A move's
+  flash and shake are held until its impact. The intro shatter is `INTRO_T` (52) frames.
+- The command menu is always bottom-left and the turn strip always right; the strip also shows the live queue while
+  the round plays. Damage-type symbols (`ELEMENT_ICON`, private-use glyphs in the font) mark every order.
+- `scenes/deck.ts` (Hex's deck: dead, the Stingray seated by hand, the menu's Deck page) and `art/deck.ts` (the
+  deck drawn in code, plus the mini deck for the in-battle cut-in). The deck scene is its own lazy chunk.
 
 ### Art for battles
 `art/battlers.ts` (party battle frames from the back: idle, attack, strike, cast, item, hurt, victory, thrust,

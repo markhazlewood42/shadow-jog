@@ -13,17 +13,26 @@ Latest verifier score per area (see `rubric.md`). Target ≥ 8.5 everywhere.
 
 | # | Area | Score | Round | Date | Δ | Blocking issues (short) |
 |---|---|---|---|---|---|---|
-| 1 | Engine & code | 8.2 | 12 | 2026-09-29 | −0.1 | Victory and Level-Up panels drawn inside BattleScene, not the renderer; two per-frame closures (lighting build, FX render); `!` still common outside engine/battle; bundle at 189.5 of 200 kB gzip |
-| 2 | Field art | 7.8 | 12 | 2026-09-29 | +0.3 | Crowd is three rigs in many palettes; portraits have one expression (Dutch); Sprawl terrain blurs path and clutter under rain; dungeon corners drop to black; the bar is under-dressed |
-| 3 | Battle presentation | 7.3 | 12 | 2026-09-29 | +0.8 | The swing moves the sprite and blade but the torso never leans (the reviewer's "doesn't move at all" was wrong; see round-12.md); beast packs marked by a faint scar vs the machines' numerals; HP bars against neon signage; FX are small rect particles; flat victory screen |
-| 4 | UI / UX | 8.2 | 12 | 2026-09-29 | −0.5 | Full-screen menus snap open (only dialogue and game over ease in); item icons are glyphs; disabled text about 2.75:1 contrast; one window chrome for everything; confirms have no cursor |
-| 5 | Combat design | 8.0 | 12 | 2026-09-29 | +0.2 | Trash clears in about 2 rounds; tells on 4 of 18 enemies; the sim leans on Thunder Rift; no balance target needs timed presses; crit bonuses spread 15 to 60 without a stated reason; guard with a perfect brace takes 87.5% off the cannon, untested |
-| 6 | Progression & economy | 7.6 | 12 | 2026-09-29 | ±0 | Required gear is never a budget decision (unlucky tenth keeps 334 to 781¢); the Neural Lace (1,200¢) sits below the Warden median spare (1,222¢); loot only sells; no crafting; the equip screen lacks the shop's element line |
-| 7 | Narrative & writing | 8.2 | 12 | 2026-09-29 | +0.4 | Dutch's and the cryopod scenes run long unbroken; the satsuma callback repeats its clause; tutorials sit bare against noir lines; two modern quips; Pale stacks tics; Knuckles has no speaker colour; the S-5/S-6 thread isn't paid off |
-| 8 | Level design | 7.8 | 12 | 2026-09-29 | ±0 | Every room is a rectangle; the Warden arena is a blank box; one dungeon; catwalks read flat (no height cue); one maze; both floors share a palette; the Places map marks nothing undiscovered |
+| 1 | Engine & code | 7.6 | 13 | 2026-09-29 | −0.6 | Per-frame allocations in battle and text paths (two of the new ones removed after); BattleRenderer reads the whole scene; boundaries by habit; orchestration logic untested; `!` outside engine/battle |
+| 2 | Field art | 7.0 | 13 | 2026-09-29 | −0.8 | Rustyard scrap heaps read as noise; the Sinkline was one dark mass away from lamps (faint edge lines added after); six rooftop stamps; the toxic canal reads as foliage; crowd is one body |
+| 3 | Battle presentation | 7.5 | 13 | 2026-09-29 | +0.2 | Back-of-head party blocks enemies; mixed pixel density (finer creatures, per Mark's note); cut-ins buried the combo (fixed after); acting arrow in the enemy row (fixed after); primitive spell FX |
+| 4 | UI / UX | 6.5 | 13 | 2026-09-29 | −1.7 | Clipped labels from the symbol column (fixed after); screenshots of Bestiary and Places were wrong screens (fixed after); shop popups fixed-position (fixed after); equip list starts on Remove; fractional scaling |
+| 5 | Combat design | 7.7 | 13 | 2026-09-29 | −0.3 | Trash fights are two-decision formalities; few tells reach normal fights; the Lurker has no tell; misleading guess and Ghost Circuit text (fixed after) |
+| 6 | Progression & economy | 6.8 | 13 | 2026-09-29 | −0.8 | New Game started Rook at 3 (fixed after, with a test); finale XP ended the chapter at 7 (fixed after); XP variance unasserted; shopping low-stakes; needs a human playthrough of the retune |
+| 7 | Narrative & writing | 6.0 | 13 | 2026-09-29 | −2.2 | Capped: the crew rides Pale's lift with no stated reason (a pre-existing gap scored 8.2 in round 12); Pale's plan arithmetic; ending repetition; Sable's pronoun (fixed after); puzzle over-explained (trimmed after) |
+| 8 | Level design | 7.0 | 13 | 2026-09-29 | −0.8 | The Sinkline closet was unreachable (fixed after, with a prop-aware test); stale objective after the drain (fixed after); Places shots wrong (fixed after); thin puzzle grammar; small linear dungeon |
 | 9 | Audio | 7.8 | 12 | 2026-09-29 | +0.6 | One bright bus EQ for every mood (6 kHz+ 10 to 22% everywhere); title and boss seams at +1.2 and +1.0 dB (gate 1.5); battle bass-heavy (33% under 120 Hz); victory flat and bright; the swing whoosh is quiet |
-| 10 | Feel & polish | 8.3 | 12 | 2026-09-29 | −0.1 | The boss-crit face slides in from off-screen (caught clipped in shot 15); it's skipped while another cut-in is up; the smear sits on the raise, not the cut |
-| 11 | Stability | 8.6 | 12 | 2026-09-29 | −0.4 | **Passed.** Settings crashed the boot where storage is blocked (fixed after the review, with a test); no gamepad or touch E2E; no long-session soak; the chaos test doesn't assert it reached the round; CI is one sample per run |
+| 10 | Feel & polish | 7.6 | 13 | 2026-09-29 | −0.7 | Field drops presses mid-step; combo flash fired before the hit (fixed after); Gentle shake near-invisible; menus snap open; results panel closes on one press; death-to-retry unskippable |
+| 11 | Stability | 7.9 | 13 | 2026-09-29 | −0.7 | A throw in a battle's async flow hung the fight (fixed after); story beats not retryable (fixed after); blocked Gamepad API killed the loop (fixed after); E2E is teleport-driven; evidence from a different tree |
+
+Round 13 note (after Mark's first playthrough, at his request): average 7.22 (round 12: 7.98; Audio not re-scored,
+carried at 7.8). No area passes. The drop has three parts: regressions the playthrough work introduced (New Game's
+Rook, old saves, broken screenshot navigation hiding a Bestiary overflow, clipped labels, the arrow and cut-ins,
+the finale XP), all fixed after the reports in de5fff5 and c7c055b; trade-offs the notes asked for (finer creatures
+beside the chunkier party, slower battles); and older findings scored more strictly (Narrative's cap is a script
+round 12 scored 8.2). The fixed state isn't re-scored. A twelfth reviewer checked each of Mark's 25 notes: 21
+addressed, 4 partial (Sinkline contrast, human enemies not refined, the interact marker only confirming, Rook's level
+beside the level-6 chapter); see `reviews/round-13.md` and `playthrough-1.md` for what was done about each.
 
 Round 12 note (the closing measurement): average 7.98 (round 11: 7.87), the highest of the twelve rounds. Stability
 passes (8.6). The two areas that had been flat moved: Battle presentation 6.5 to 7.3, Audio 7.2 to 7.8. Against the

@@ -1,81 +1,81 @@
-CI run 36639140862 (commit fc4a651, 2026-09-29, the playthrough-1 work; GitHub Actions ubuntu-latest): unit tests, then every E2E test on Chromium, with WebKit and Firefox running the save / game-over / shipped-build flows. Regenerated each verification round from the latest green run.
-https://github.com/markhazlewood42/shadow-jog/actions/runs/36639140862
+CI run 36643638213 (commit c7c055b, 2026-09-29, the round-13 fixes; GitHub Actions ubuntu-latest): unit tests, then every E2E test on Chromium, with WebKit and Firefox running the save / game-over / shipped-build flows. Regenerated each verification round from the latest green run.
+https://github.com/markhazlewood42/shadow-jog/actions/runs/36643638213
 
- ✓ tests/save.test.ts (17 tests) 25ms
- ✓ tests/battle.test.ts (35 tests) 368ms
- ✓ tests/layout.test.ts (10 tests) 416ms
- ✓ tests/maps.test.ts (45 tests) 377ms
- ✓ tests/playback.test.ts (5 tests) 18ms
- ✓ tests/balance.test.ts (30 tests) 256ms
- ✓ tests/economy.test.ts (27 tests) 30ms
- ✓ tests/game.test.ts (10 tests) 15ms
- ✓ tests/pacing.test.ts (2 tests) 7ms
- ✓ tests/music.test.ts (32 tests) 49ms
- ✓ tests/atmosphere.test.ts (6 tests) 182ms
- ✓ tests/motion.test.ts (5 tests) 11ms
- ✓ tests/input.test.ts (6 tests) 11ms
- ✓ tests/orders.test.ts (6 tests) 17ms
- ✓ tests/actor.test.ts (5 tests) 8ms
- ✓ tests/content.test.ts (5 tests) 7ms
- ✓ tests/ui-list.test.ts (6 tests) 8ms
- ✓ tests/glyphs.test.ts (1 test) 78ms
- ✓ tests/timing.test.ts (3 tests) 7ms
- ✓ tests/settings.test.ts (1 test) 9ms
- ✓ tests/auto.test.ts (10 tests) 1185ms
+ ✓ tests/save.test.ts (18 tests) 22ms
+ ✓ tests/battle.test.ts (36 tests) 265ms
+ ✓ tests/maps.test.ts (49 tests) 272ms
+ ✓ tests/layout.test.ts (10 tests) 297ms
+ ✓ tests/game.test.ts (11 tests) 13ms
+ ✓ tests/balance.test.ts (30 tests) 123ms
+ ✓ tests/economy.test.ts (27 tests) 25ms
+ ✓ tests/pacing.test.ts (2 tests) 4ms
+ ✓ tests/playback.test.ts (5 tests) 9ms
+ ✓ tests/motion.test.ts (5 tests) 7ms
+ ✓ tests/music.test.ts (32 tests) 23ms
+ ✓ tests/atmosphere.test.ts (6 tests) 90ms
+ ✓ tests/input.test.ts (6 tests) 7ms
+ ✓ tests/orders.test.ts (6 tests) 8ms
+ ✓ tests/actor.test.ts (5 tests) 4ms
+ ✓ tests/content.test.ts (5 tests) 6ms
+ ✓ tests/ui-list.test.ts (6 tests) 6ms
+ ✓ tests/glyphs.test.ts (1 test) 26ms
+ ✓ tests/timing.test.ts (3 tests) 4ms
+ ✓ tests/settings.test.ts (1 test) 6ms
+ ✓ tests/auto.test.ts (10 tests) 699ms
  Test Files  21 passed (21)
-      Tests  267 passed (267)
-✓ 100 modules transformed.
-✓ built in 412ms
-  ✓   1 [chromium] › e2e/chaos.spec.ts:58:1 › mashing every key while walking through a door ends up in the room, playable (4.6s)
-  ✓   2 [chromium] › e2e/chaos.spec.ts:70:1 › opening the menu over and over during a warp never strands the crew (4.5s)
-  ✓   3 [chromium] › e2e/chaos.spec.ts:92:1 › reloading in the middle of a conversation, then Continue, lands in a playable field (4.9s)
-  ✓   4 [chromium] › e2e/chaos.spec.ts:108:1 › hammering keys through a battle never breaks it: it plays out to a result (20.5s)
-  ✓   5 [chromium] › e2e/economy.spec.ts:27:1 › walking the Barrens turns up fights that pay out (36.5s)
+      Tests  274 passed (274)
+✓ 101 modules transformed.
+✓ built in 311ms
+  ✓   1 [chromium] › e2e/chaos.spec.ts:67:1 › mashing every key while walking through a door ends up in the room, playable (4.4s)
+  ✓   2 [chromium] › e2e/chaos.spec.ts:79:1 › opening the menu over and over during a warp never strands the crew (4.5s)
+  ✓   3 [chromium] › e2e/chaos.spec.ts:101:1 › reloading in the middle of a conversation, then Continue, lands in a playable field (4.4s)
+  ✓   4 [chromium] › e2e/chaos.spec.ts:117:1 › hammering keys through a battle never breaks it: it plays out to a result (20.3s)
+  ✓   5 [chromium] › e2e/economy.spec.ts:27:1 › walking the Barrens turns up fights that pay out (40.6s)
   ✓   6 [chromium] › e2e/economy.spec.ts:71:1 › a shop takes the cred and hands over the goods (10.4s)
-  ✓   7 [chromium] › e2e/economy.spec.ts:115:1 › selling loot turns it into cred (3.6s)
-  ✓   8 [chromium] › e2e/economy.spec.ts:138:1 › gear bought in a shop can be put on there and then (3.7s)
+  ✓   7 [chromium] › e2e/economy.spec.ts:115:1 › selling loot turns it into cred (3.4s)
+  ✓   8 [chromium] › e2e/economy.spec.ts:138:1 › gear bought in a shop can be put on there and then (3.5s)
   ✓   9 [chromium] › e2e/gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight (3.9s)
-  ✓  10 [chromium] › e2e/gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.5s)
-  ✓  11 [chromium] › e2e/gameover.spec.ts:73:1 › Return to Title from Game Over (4.4s)
-  ✓  12 [chromium] › e2e/gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it (4.0s)
+  ✓  10 [chromium] › e2e/gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.4s)
+  ✓  11 [chromium] › e2e/gameover.spec.ts:73:1 › Return to Title from Game Over (4.1s)
+  ✓  12 [chromium] › e2e/gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it (3.9s)
   ✓  13 [chromium] › e2e/gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title (3.4s)
-  ✓  14 [chromium] › e2e/gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable (1.9s)
-  ✓  15 [chromium] › e2e/gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently (6.1s)
-  ✓  16 [chromium] › e2e/gameover.spec.ts:171:1 › A scene that throws every frame recovers to the title instead of freezing (4.2s)
-  ✓  17 [chromium] › e2e/gameover.spec.ts:187:1 › A scene whose drawing throws every frame recovers too (2.1s)
-  ✓  18 [chromium] › e2e/gameover.spec.ts:195:1 › Two tabs on one save: both are warned, and only the first keeps autosaving (9.4s)
-  ✓  19 [chromium] › e2e/gameover.spec.ts:230:1 › A browser that can’t start the game says so, instead of a black screen (1.0s)
-  ✓  20 [chromium] › e2e/perf.spec.ts:51:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget (6.7s)
-  ✓  21 [chromium] › e2e/perf.spec.ts:62:1 › a live battle stays inside the frame budget (9.8s)
-  ✓  22 [chromium] › e2e/perf.spec.ts:82:1 › input answers within two frames (field movement, opening the menu) (10.6s)
-  ✓  23 [chromium] › e2e/playtest.spec.ts:15:1 › playtest capture: Chapter 1 (6.9m)
+  ✓  14 [chromium] › e2e/gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable (1.7s)
+  ✓  15 [chromium] › e2e/gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently (5.7s)
+  ✓  16 [chromium] › e2e/gameover.spec.ts:171:1 › A scene that throws every frame recovers to the title instead of freezing (4.0s)
+  ✓  17 [chromium] › e2e/gameover.spec.ts:187:1 › A scene whose drawing throws every frame recovers too (1.9s)
+  ✓  18 [chromium] › e2e/gameover.spec.ts:195:1 › Two tabs on one save: both are warned, and only the first keeps autosaving (8.9s)
+  ✓  19 [chromium] › e2e/gameover.spec.ts:230:1 › A browser that can’t start the game says so, instead of a black screen (968ms)
+  ✓  20 [chromium] › e2e/perf.spec.ts:51:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget (6.6s)
+  ✓  21 [chromium] › e2e/perf.spec.ts:62:1 › a live battle stays inside the frame budget (9.7s)
+  ✓  22 [chromium] › e2e/perf.spec.ts:82:1 › input answers within two frames (field movement, opening the menu) (10.5s)
+  ✓  23 [chromium] › e2e/playtest.spec.ts:15:1 › playtest capture: Chapter 1 (6.8m)
   ✓  24 [chromium] › e2e/playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish (1.2m)
-  ✓  25 [chromium] › e2e/prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors (27.8s)
+  ✓  25 [chromium] › e2e/prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors (27.7s)
   ✓  26 [chromium] › e2e/prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first (50.5s)
-  ✓  27 [webkit] › e2e/gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight (6.1s)
-  ✓  28 [webkit] › e2e/gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.9s)
-  ✓  29 [webkit] › e2e/gameover.spec.ts:73:1 › Return to Title from Game Over (4.3s)
-  ✓  30 [webkit] › e2e/gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it (4.4s)
-  ✓  31 [webkit] › e2e/gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title (3.8s)
-  ✓  32 [webkit] › e2e/gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable (1.4s)
-  ✓  33 [webkit] › e2e/gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently (5.2s)
+  ✓  27 [webkit] › e2e/gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight (6.7s)
+  ✓  28 [webkit] › e2e/gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.6s)
+  ✓  29 [webkit] › e2e/gameover.spec.ts:73:1 › Return to Title from Game Over (4.0s)
+  ✓  30 [webkit] › e2e/gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it (4.1s)
+  ✓  31 [webkit] › e2e/gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title (3.6s)
+  ✓  32 [webkit] › e2e/gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable (1.2s)
+  ✓  33 [webkit] › e2e/gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently (4.9s)
   ✓  34 [webkit] › e2e/gameover.spec.ts:171:1 › A scene that throws every frame recovers to the title instead of freezing (3.8s)
-  ✓  35 [webkit] › e2e/gameover.spec.ts:187:1 › A scene whose drawing throws every frame recovers too (1.7s)
-  ✓  36 [webkit] › e2e/gameover.spec.ts:195:1 › Two tabs on one save: both are warned, and only the first keeps autosaving (9.1s)
+  ✓  35 [webkit] › e2e/gameover.spec.ts:187:1 › A scene whose drawing throws every frame recovers too (1.6s)
+  ✓  36 [webkit] › e2e/gameover.spec.ts:195:1 › Two tabs on one save: both are warned, and only the first keeps autosaving (8.5s)
   ✓  37 [webkit] › e2e/gameover.spec.ts:230:1 › A browser that can’t start the game says so, instead of a black screen (1.1s)
-  ✓  38 [webkit] › e2e/prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors (28.4s)
-  ✓  39 [webkit] › e2e/prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first (50.9s)
-  ✓  40 [firefox] › e2e/gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight (5.2s)
-  ✓  41 [firefox] › e2e/gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.8s)
-  ✓  42 [firefox] › e2e/gameover.spec.ts:73:1 › Return to Title from Game Over (4.0s)
-  ✓  43 [firefox] › e2e/gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it (4.5s)
-  ✓  44 [firefox] › e2e/gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title (3.7s)
-  ✓  45 [firefox] › e2e/gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable (1.5s)
-  ✓  46 [firefox] › e2e/gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently (5.3s)
-  ✓  47 [firefox] › e2e/gameover.spec.ts:171:1 › A scene that throws every frame recovers to the title instead of freezing (3.9s)
-  ✓  48 [firefox] › e2e/gameover.spec.ts:187:1 › A scene whose drawing throws every frame recovers too (1.8s)
-  ✓  49 [firefox] › e2e/gameover.spec.ts:195:1 › Two tabs on one save: both are warned, and only the first keeps autosaving (9.3s)
-  ✓  50 [firefox] › e2e/gameover.spec.ts:230:1 › A browser that can’t start the game says so, instead of a black screen (1.3s)
-  ✓  51 [firefox] › e2e/prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors (28.1s)
-  ✓  52 [firefox] › e2e/prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first (50.9s)
-  52 passed (16.4m)
+  ✓  38 [webkit] › e2e/prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors (28.2s)
+  ✓  39 [webkit] › e2e/prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first (50.8s)
+  ✓  40 [firefox] › e2e/gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight (4.8s)
+  ✓  41 [firefox] › e2e/gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time (3.6s)
+  ✓  42 [firefox] › e2e/gameover.spec.ts:73:1 › Return to Title from Game Over (3.9s)
+  ✓  43 [firefox] › e2e/gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it (4.3s)
+  ✓  44 [firefox] › e2e/gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title (3.6s)
+  ✓  45 [firefox] › e2e/gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable (1.3s)
+  ✓  46 [firefox] › e2e/gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently (5.0s)
+  ✓  47 [firefox] › e2e/gameover.spec.ts:171:1 › A scene that throws every frame recovers to the title instead of freezing (3.7s)
+  ✓  48 [firefox] › e2e/gameover.spec.ts:187:1 › A scene whose drawing throws every frame recovers too (1.6s)
+  ✓  49 [firefox] › e2e/gameover.spec.ts:195:1 › Two tabs on one save: both are warned, and only the first keeps autosaving (8.7s)
+  ✓  50 [firefox] › e2e/gameover.spec.ts:230:1 › A browser that can’t start the game says so, instead of a black screen (1.2s)
+  ✓  51 [firefox] › e2e/prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors (28.2s)
+  ✓  52 [firefox] › e2e/prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first (50.8s)
+  52 passed (16.3m)

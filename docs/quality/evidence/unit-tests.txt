@@ -3,10 +3,10 @@
 
 stdout | tests/pacing.test.ts > pacing > estimates Chapter 1 inside the GDD’s 45–75 minute target
 walking   3.4 min (1207 tiles)
-fighting  18.5 min (24.4 fights: 18.4 random + 6 scripted)
-reading   34.2 min (25426 chars of story, 23640 optional × 0.4)
+fighting  23.9 min (24.4 fights: 18.4 random + 6 scripted)
+reading   34.2 min (25508 chars of story, 23505 optional × 0.4)
 menus     10.0 min
-total     66.1 min
+total     71.4 min
 
 stdout | tests/economy.test.ts > economy > prints the route
 Walk to the Rustyard           walks 39 steps of street (1 in 28), 25 steps of barrens (1 in 20)
@@ -64,7 +64,7 @@ WARDEN (timed)               win  90%  rounds 11.0  hp lost  32%  combos/battle 
 
 stdout | tests/balance.test.ts > dungeon attrition > prints the attrition table
 
-barrens x4                   cleared  93%  end hp  71%  medkits 3.1  rounds/battle 3.2  rook charges left 46% (dry 0%)
+barrens x4                   cleared  93%  end hp  72%  medkits 3.0  rounds/battle 3.1  rook charges left 46% (dry 0%)
     lost to: smog_wisp+glowrat+glowrat @4 lose ×1, rustfang_punk+rustfang_medic+rustfang_slinger @4 lose ×1, scrap_hound+scrap_hound @4 lose ×1, smog_wisp+smog_wisp @4 lose ×1
 sinkline x5                  cleared 100%  end hp  96%  medkits 2.2  rounds/battle 2.6  rook charges left 40% (dry 0%)
 annex x7                     cleared  87%  end hp  75%  medkits 2.9  rounds/battle 4.2  rook charges left 51% (dry 0%)
@@ -99,11 +99,11 @@ warden (alt)                 win  79%  rounds 13.1  hp lost  44%  combos/battle 
 
 
  Test Files  21 passed (21)
-      Tests  267 passed (267)
-   Start at  18:20:06
-   Duration  852ms (transform 60%, import 20%, tests 19%, worker 1%)
+      Tests  274 passed (274)
+   Start at  19:09:18
+   Duration  844ms (transform 60%, import 20%, tests 18%, worker 1%)
 
-  Transform  transforming modules took 4.18s · 60% of tracked time, re-done on every run
+  Transform  transforming modules took 4.27s · 60% of tracked time, re-done on every run
              persist transforms across runs with fsModuleCache: true
              learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
 

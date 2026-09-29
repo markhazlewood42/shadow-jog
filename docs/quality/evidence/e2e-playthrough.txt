@@ -1,10 +1,10 @@
 
 Running 23 tests using 1 worker
 
-[1/23] [chromium] › e2e\chaos.spec.ts:58:1 › mashing every key while walking through a door ends up in the room, playable
-[2/23] [chromium] › e2e\chaos.spec.ts:70:1 › opening the menu over and over during a warp never strands the crew
-[3/23] [chromium] › e2e\chaos.spec.ts:92:1 › reloading in the middle of a conversation, then Continue, lands in a playable field
-[4/23] [chromium] › e2e\chaos.spec.ts:108:1 › hammering keys through a battle never breaks it: it plays out to a result
+[1/23] [chromium] › e2e\chaos.spec.ts:67:1 › mashing every key while walking through a door ends up in the room, playable
+[2/23] [chromium] › e2e\chaos.spec.ts:79:1 › opening the menu over and over during a warp never strands the crew
+[3/23] [chromium] › e2e\chaos.spec.ts:101:1 › reloading in the middle of a conversation, then Continue, lands in a playable field
+[4/23] [chromium] › e2e\chaos.spec.ts:117:1 › hammering keys through a battle never breaks it: it plays out to a result
 [5/23] [chromium] › e2e\economy.spec.ts:27:1 › walking the Barrens turns up fights that pay out
 [6/23] [chromium] › e2e\economy.spec.ts:71:1 › a shop takes the cred and hands over the goods
 [7/23] [chromium] › e2e\economy.spec.ts:115:1 › selling loot turns it into cred
@@ -26,4 +26,4 @@ Running 23 tests using 1 worker
 [23/23] [chromium] › e2e\prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first
   Slow test file: [chromium] › e2e\playtest.spec.ts (6.9m)
   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
-  23 passed (11.6m)
+  23 passed (11.8m)

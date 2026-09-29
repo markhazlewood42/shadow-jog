@@ -1,2 +1,2 @@
-Checked 146 files in 64ms. No fixes applied.
+Checked 147 files in 62ms. No fixes applied.
 biome exit=0

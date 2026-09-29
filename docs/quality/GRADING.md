@@ -307,6 +307,13 @@ and set an exit:
   is recorded here and in the scorecard. No round 13 starts without Mark asking for one.
 - **The real exit gate is Mark's own end-to-end playthrough.** Anything he finds is triaged as a bug (fixed before
   the alpha ships) or a design note (goes to the next milestone).
+- **Round 13 (2026-09-29, at Mark's request).** After his first partial playthrough Mark asked for his 25 notes to be
+  worked through "with reasonable verification using a similar rubric as the initial build". That was one round:
+  ten areas re-scored (Audio untouched) plus a reviewer checking each note, then the defects it found were fixed.
+  It averaged 7.22 (round 12: 7.98). Much of the drop was regressions the notes' work introduced (fixed the same
+  day); some is the trade-offs his notes asked for; some is older findings scored more strictly. The fixed state
+  wasn't re-scored: the gate is still Mark's playthrough. Details: `docs/quality/playthrough-1.md`,
+  `reviews/round-13.md`.
 - **For the record, the numeric target the loop was chasing** was 8.5 in every area. The fallback proposed with the
   exit was: average ≥ 8.0, no area below 7.0, no open bugs. Round 12's result is compared against both in the
   scorecard, as information, not as a gate.

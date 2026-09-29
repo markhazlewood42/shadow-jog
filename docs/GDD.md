@@ -100,7 +100,7 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 * **Guard** halves damage (a quarter against a telegraphed blow). A blow taken on a guard gives TP back; for Rook, who
   has no TP, one spent skill charge, once a fight. Guarding against nothing earns nothing.
 * **Tells:** bosses and some enemies announce big moves a turn ahead, and each asks a different answer. Knuckles
-  squares up to a named member (guard or cover them); the Warden locks its cannon on one (guard, or Rook's Guardian);
+  squares up to a named member (guard: Rook's cover is still locked by his wound then); the Warden locks its cannon on one (guard, or Rook's Guardian);
   the sentry turret spins up (jam or stun it); the Arcanist draws a surge (blind her, or hit her hard while she
   draws); the Warden's spirit draws breath (ward the crew).
 * **Combos:** nine (eight reachable in Chapter 1), including **Clean Job**, a three-member combo (Kit, Rook, Hex). Each has a caller who says a line
