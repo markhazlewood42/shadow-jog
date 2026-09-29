@@ -20,7 +20,7 @@ test('Chapter 1 can be played start to finish', async ({ page }) => {
   await playChapter1(page, () => sj(page, 'Object.assign(sj.debug, { autoDialog: false, playtest: true })'));
   await waitFor(page, "sj.top() === 'EndingScene'", 'results screen', 120_000);
   await page.waitForTimeout(2600);
-  await page.locator('#screen').screenshot({ path: 'docs/screenshots/24c-ending-results-playthrough.png' });
+  await page.locator('#screen').screenshot({ path: 'docs/screenshots/24c-ending-results-driven-test-run.png' });
   await waitFor(page, "sj.top() === 'TitleScene'", 'back to title', 60_000);
   expect(errors).toEqual([]);
 });

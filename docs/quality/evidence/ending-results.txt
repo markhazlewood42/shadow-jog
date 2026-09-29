@@ -3,7 +3,7 @@ Two captures of the chapter's results screen:
 - docs/screenshots/24-ending-results.png: the 'finale' stage preset (src/game/stages.ts), with levels, cred and
   bestiary set to what the economy model predicts for a non-grinding player (tests/economy.test.ts: CP6 median
   ~1,070 cred; Monte Carlo levels 8-9).
-- docs/screenshots/24c-ending-results-playthrough.png: the end of e2e/playthrough.spec.ts, a driven run through
+- docs/screenshots/24c-ending-results-driven-test-run.png: NOT a real playthrough. The end of e2e/playthrough.spec.ts, a driven run through
   the real story scripts. It teleports between beats and resolves each fight instantly as a win, so it walks no
   random encounters (6 battles, level ~6, under a minute of field time: the results show play time to the second,
   0:00:57), and its bestiary holds only the story fights' enemies (8 species; a win resolved at once counts its

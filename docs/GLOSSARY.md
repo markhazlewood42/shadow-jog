@@ -163,6 +163,7 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | **Dutch** | The fixer who runs the Drowned Saint. Big, bearded, a wide hat with a gold band. Knew the Glass Wolves took this job before the crew did. The chapter ends on "we ask Dutch what he knew." |
 | **Mr. Pale** | The client. White suit, red visor, brass watch, exact hours. Works for Kessler-Mori. Clerk's voice: "Contractors are paid on completion. You have completed." |
 | **Old Mags** ("Auntie Mags" to the camp kids) | Runs the Rustyard scav camp and its salvage trade. Walks with a cane. Has the Stingray coprocessor Hex needs. |
+| **Hedda** | Mags' sister. Her cart on Lantern Row carries Mags' stock in town once the Rustyard owes the crew (at Mags' prices, discount included). |
 | **"Knuckles" Tran** | Rustfang enforcer at the tire depot; both hands are chrome. The chapter's first mini-boss. |
 | **Doc Yun** | Runs the clinic. Getting back the stolen med-case is a side job. (The game never gives Doc Yun's pronouns.) |
 | **Mama Ono** | Runs the noodle shop. Her lost orange cat, **Noodle** (one ear), is a side job. |

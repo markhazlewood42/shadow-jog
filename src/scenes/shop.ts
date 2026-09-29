@@ -1,4 +1,5 @@
 /** Shop: buy with quantity + party equip comparison, sell anything that isn't a key item. */
+import { FAMILY_WEAK } from '../data/enemies';
 import { buildChar } from '../art/chars';
 import { sfx } from '../audio/sfx';
 import { autoClose } from '../game/debug';
@@ -16,6 +17,10 @@ import { drawDivider, drawWindow, keyLegend, UI, OVERLAY_DIM } from '../ui/draw'
 import { ListMenu } from '../ui/list';
 
 type Mode = 'root' | 'buy' | 'sell' | 'qty';
+
+/** Enemy families in the order the shop lists them, and how it names them. */
+const FAMILY_ORDER = ['human', 'machine', 'beast', 'spirit', 'ghoul'] as const;
+const FAMILY_PLURAL: Record<(typeof FAMILY_ORDER)[number], string> = { human: 'people', machine: 'machines', beast: 'beasts', spirit: 'spirits', ghoul: 'ghouls' };
 
 export class ShopScene extends Scene<void> {
   override opaque = false;
@@ -197,6 +202,13 @@ export class ShopScene extends Scene<void> {
     drawText(ctx, `Owned: ${state.inventory[it.id] ?? 0}`, dx + dw - 8, 52, { align: 'right', color: UI.dim });
     const lines = drawParagraph(ctx, it.desc, dx + 8, 64, dw - 16, { color: '#d0cee4', lineH: 10 });
     let y = 70 + lines * 10;
+    if (it.element && it.element !== 'phys') {
+      // What the element bites and what shrugs it off, from the battle's own weakness table.
+      const bites = FAMILY_ORDER.filter((f) => (FAMILY_WEAK[f][it.element!] ?? 1) > 1).map((f) => FAMILY_PLURAL[f]);
+      const shrugs = FAMILY_ORDER.filter((f) => (FAMILY_WEAK[f][it.element!] ?? 1) < 1).map((f) => FAMILY_PLURAL[f]);
+      const text = `{y}${it.element.toUpperCase()}{/}${bites.length ? ` bites ${bites.join(', ')}` : ''}${shrugs.length ? `; ${shrugs.join(', ')} shrug it off` : ''}.`;
+      y += 10 * drawParagraph(ctx, text, dx + 8, y - 4, dw - 16, { color: UI.dim, lineH: 10 });
+    }
     const short = this.price(it.id) - state.cred;
     if (this.mode === 'buy' && short > 0) {
       drawText(ctx, `Need ${short.toLocaleString('en-US')}¢ more`, dx + 8, y - 4, { color: UI.red });

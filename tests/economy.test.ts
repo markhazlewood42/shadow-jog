@@ -110,6 +110,16 @@ describe('economy', () => {
     expect(saving).toBeLessThan(150 * 2);
   });
 
+  it('nobody can buy everything: the crew’s own upgrades cost more than even a lucky run has spare', () => {
+    // Beyond the gear the route needs, each member has their own headpiece and mod on sale, and
+    // Requisition has the Neural Lace. A run in the luckiest tenth still has to choose.
+    const wish = ['sparring_band', 'mempo', 'trode_net', 'feather_circlet', 'ki_beads', 'ronin_guard', 'coolant_rig', 'crow_torc', 'km_lace'];
+    const cost = wish.reduce((n, id) => n + ITEMS[id]!.price, 0);
+    const p90 = pct(mc.get('CP6 WARDEN')!, 0.9);
+    console.log(`wish list ${cost}¢ vs luckiest-tenth spare at the Warden ${Math.round(p90)}¢`);
+    expect(cost).toBeGreaterThan(p90 * 1.5);
+  });
+
   it('the whole chapter takes a sensible number of fights', () => {
     const last = report[report.length - 1]!;
     expect(last.battles).toBeGreaterThan(18);

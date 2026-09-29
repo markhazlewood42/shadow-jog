@@ -206,8 +206,17 @@ export const lanternRow: MapDef = {
       talk: ['Rat-on-a-stick! Not glowrat, no no. Regular rat. Organic! Very fresh!'],
     },
     {
-      id: 'junk', x: 32, y: 17, dir: 'down', look: LOOKS.mags, name: 'Junk Dealer', fixedDir: true,
-      talk: ['Decks, chips, parts! You want a coprocessor? Ha! For those, try Old Mags out in the Rustyard. She gets the good salvage.'],
+      // Mags' sister Hedda: once the Rustyard's in your debt, her cart carries Mags' stock in town
+      // (at Mags' prices, discount included), so a crew that never walks back out there can shop it.
+      id: 'junk', x: 32, y: 17, dir: 'down', look: LOOKS.mags, name: 'Hedda’s Cart', fixedDir: true,
+      talk: async (s) => {
+        if (!s.flag('coprocessor_given')) {
+          await s.say('Hedda', 'Decks, chips, parts! You want a coprocessor? Ha! For those, try my sister, Old Mags, out in the Rustyard. She gets the good salvage.');
+          return;
+        }
+        const c = await s.ask('Hedda', s.flag('camp_kept') ? 'Mags sent word: you left the camp its collection. Her stock, her prices, a fifth off. Family rates.' : 'Mags sent word you ran Knuckles off. I carry her stock in town now. Take a look.', ['Shop', 'Leave'], { cancel: 1 });
+        if (c === 0) await s.shop('rustyard');
+      },
     },
     {
       id: 'fetish', x: 35, y: 25, dir: 'down', name: 'Charm Seller', fixedDir: true,
