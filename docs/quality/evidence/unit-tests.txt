@@ -4,9 +4,9 @@
 stdout | tests/pacing.test.ts > pacing > estimates Chapter 1 inside the GDD’s 45–75 minute target
 walking   3.4 min (1207 tiles)
 fighting  20.8 min (28.0 fights: 22.0 random + 6 scripted)
-reading   28.3 min (19846 chars of story, 22677 optional × 0.4)
+reading   29.2 min (20621 chars of story, 23017 optional × 0.4)
 menus     10.0 min
-total     62.5 min
+total     63.4 min
 
 stdout | tests/economy.test.ts > economy > prints the route
 Walk to the Rustyard           walks 39 steps of street (1 in 28), 25 steps of barrens (1 in 20)
@@ -26,81 +26,81 @@ Knuckles                       after buys   938¢ (spent 0)  fights 6.9  {"kit":
 CP3 into the Sinkline          after buys   575¢ (spent 620)  fights 10.7  {"kit":4,"rook":5,"hex":4} 
 Walk to the Sinkline           after buys   636¢ (spent 0)  fights 12  {"kit":4,"rook":5,"hex":4} 
 CP4 the Lurker                 after buys   843¢ (spent 760)  fights 21.1  {"kit":6,"rook":7,"hex":6} 
-CP5 into Annex 7               after buys   903¢ (spent 520)  fights 22.1  {"kit":7,"rook":8,"hex":7} 
-CP6 WARDEN                     after buys  1492¢ (spent 0)  fights 27  {"kit":9,"rook":9,"hex":8,"sable":8} 
+CP5 into Annex 7               after buys   923¢ (spent 520)  fights 22.1  {"kit":7,"rook":8,"hex":7} 
+CP6 WARDEN                     after buys  1512¢ (spent 0)  fights 27  {"kit":9,"rook":9,"hex":8,"sable":8} 
 
 stdout | tests/economy.test.ts > economy > prints the Monte Carlo spread
 CP1 before the Rustyard trip   p10   358¢  median   363¢  affordable 100%
 CP2 Knuckles                   p10   387¢  median   479¢  affordable 100%
-CP3 into the Sinkline          p10   334¢  median   486¢  affordable 100%
-CP4 the Lurker                 p10   445¢  median   709¢  affordable 100%
-CP5 into Annex 7               p10   463¢  median   724¢  affordable 100%
-CP6 WARDEN                     p10   776¢  median  1223¢  affordable 100%
-down rates: f_first_fight 0.00, street 0.00, barrens 0.00, f_rustyard_gate 0.00, f_knuckles 0.17, sinkline 0.01, f_lurker 0.48, annex 0.08, f_annex_door 0.17, park 0.01
+CP3 into the Sinkline          p10   330¢  median   484¢  affordable 100%
+CP4 the Lurker                 p10   442¢  median   706¢  affordable 100%
+CP5 into Annex 7               p10   431¢  median   725¢  affordable 100%
+CP6 WARDEN                     p10   777¢  median  1211¢  affordable 100%
+down rates: f_first_fight 0.00, street 0.00, barrens 0.00, f_rustyard_gate 0.00, f_knuckles 0.22, sinkline 0.01, f_lurker 0.65, annex 0.08, f_annex_door 0.12, park 0.01
 
 stdout | tests/economy.test.ts > economy > prints the minimal-exploration spread
 minimal: CP1 before the Rustyard trip   p10   298¢  median   303¢  affordable 100%
 minimal: CP2 Knuckles                   p10   193¢  median   297¢  affordable 100%
-minimal: CP3 into the Sinkline          p10   147¢  median   296¢  affordable 100%
-minimal: CP4 the Lurker                 p10    46¢  median   317¢  affordable 93%
-minimal: CP5 into Annex 7               p10    25¢  median   325¢  affordable 92%
-minimal: CP6 WARDEN                     p10   359¢  median   838¢  affordable 99%
+minimal: CP3 into the Sinkline          p10   140¢  median   289¢  affordable 100%
+minimal: CP4 the Lurker                 p10    34¢  median   311¢  affordable 93%
+minimal: CP5 into Annex 7               p10    19¢  median   334¢  affordable 92%
+minimal: CP6 WARDEN                     p10   379¢  median   842¢  affordable 99%
 
 stdout | tests/balance.test.ts > balance > prints the balance table
 
 street  (opening)            win 100%  rounds  2.1  hp lost  10%  combos/battle 1.00
 barrens (to Rustyard)        win 100%  rounds  2.1  hp lost  11%  combos/battle 1.00
-KNUCKLES                     win  87%  rounds  5.5  hp lost  48%  combos/battle 1.00
-KNUCKLES (timed)             win  92%  rounds  5.3  hp lost  42%  combos/battle 1.00
+KNUCKLES                     win  85%  rounds  5.7  hp lost  50%  combos/battle 1.00
+KNUCKLES (timed)             win  90%  rounds  5.1  hp lost  44%  combos/battle 1.00
 sinkline                     win 100%  rounds  2.0  hp lost  11%  combos/battle 1.01
-LURKER                       win  78%  rounds 10.8  hp lost  57%  combos/battle 1.00
-LURKER (timed)               win  88%  rounds  9.5  hp lost  49%  combos/battle 1.00
-annex                        win 100%  rounds  2.6  hp lost  13%  combos/battle 1.17
-WARDEN                       win  79%  rounds 12.3  hp lost  41%  combos/battle 4.92
-WARDEN (timed)               win  91%  rounds 11.0  hp lost  34%  combos/battle 4.79
+LURKER                       win  82%  rounds  9.6  hp lost  53%  combos/battle 1.99
+LURKER (timed)               win  87%  rounds  9.0  hp lost  47%  combos/battle 1.99
+annex                        win 100%  rounds  2.6  hp lost  13%  combos/battle 1.45
+WARDEN                       win  82%  rounds 12.3  hp lost  40%  combos/battle 5.16
+WARDEN (timed)               win  90%  rounds 11.4  hp lost  36%  combos/battle 4.98
 
 stdout | tests/balance.test.ts > dungeon attrition > prints the attrition table
 
 barrens x4                   cleared 100%  end hp  89%  medkits 2.5  rounds/battle 2.2  rook charges left 62% (dry 0%)
-sinkline x6                  cleared  95%  end hp  85%  medkits 3.7  rounds/battle 2.6  rook charges left 46% (dry 0%)
+sinkline x6                  cleared  95%  end hp  86%  medkits 3.6  rounds/battle 2.6  rook charges left 46% (dry 0%)
     lost to: drowned_shade+drowned_shade+glowrat @4 lose ×1, drowned_shade+drowned_shade+glowrat @6 lose ×1, drowned_shade+drowned_shade+glowrat @5 lose ×1
-annex x7                     cleared  90%  end hp  76%  medkits 3.7  rounds/battle 4.3  rook charges left 52% (dry 0%)
-    lost to: sentry_turret+km_sentinel @7 lose ×1, hunter_drone+hunter_drone @6 lose ×1, bound_spirit+km_sentinel @7 lose ×1, km_sentinel+km_sentinel @6 lose ×1, km_sentinel+km_sentinel+maint_drone @7 lose ×1, bound_spirit+km_sentinel @6 lose ×1
+annex x7                     cleared  87%  end hp  74%  medkits 3.7  rounds/battle 4.2  rook charges left 52% (dry 0%)
+    lost to: sentry_turret+km_sentinel @7 lose ×3, hunter_drone+maint_drone+hunter_drone @7 lose ×2, hunter_drone+maint_drone+hunter_drone @6 lose ×2, bound_spirit+km_sentinel @6 lose ×2, bound_spirit+km_sentinel @5 lose ×2, hunter_drone+hunter_drone @7 lose ×1, bound_spirit+km_sentinel @7 lose ×1, km_sentinel+km_arcanist @6 lose ×1, km_sentinel+km_arcanist @7 lose ×1, km_sentinel+km_sentinel+maint_drone @7 lose ×1
 
 stdout | tests/balance.test.ts > alternative builds > sinkline with shock_knuckles, lucky_coin, taser_pistol, cyber_eye holds up
 sinkline (alt)               win 100%  rounds  1.9  hp lost   9%  combos/battle 1.00
 
 stdout | tests/balance.test.ts > alternative builds > lurker with razor_tekko, reflex_booster, nodachi, dermal_plating holds up
-lurker (alt)                 win  76%  rounds 11.9  hp lost  61%  combos/battle 1.00
+lurker (alt)                 win  74%  rounds 11.2  hp lost  60%  combos/battle 1.99
 
 stdout | tests/balance.test.ts > alternative builds > sinkline with flechette_pistol holds up
 sinkline (alt)               win 100%  rounds  2.1  hp lost  11%  combos/battle 1.00
 
 stdout | tests/balance.test.ts > alternative builds > lurker with flechette_pistol holds up
-lurker (alt)                 win  80%  rounds 10.7  hp lost  57%  combos/battle 1.00
+lurker (alt)                 win  81%  rounds  9.7  hp lost  54%  combos/battle 1.99
 
 stdout | tests/balance.test.ts > alternative builds > annex with thorn_rod, spirit_fetish, adrenal_pump holds up
-annex (alt)                  win 100%  rounds  2.6  hp lost  13%  combos/battle 1.18
+annex (alt)                  win 100%  rounds  2.6  hp lost  13%  combos/battle 1.48
 
 stdout | tests/balance.test.ts > alternative builds > warden with lucky_coin, reflex_booster, bone_staff holds up
-warden (alt)                 win  83%  rounds 12.0  hp lost  41%  combos/battle 4.62
+warden (alt)                 win  82%  rounds 11.9  hp lost  39%  combos/battle 4.88
 
 stdout | tests/balance.test.ts > alternative builds > sinkline with ki_beads, ronin_guard, coolant_rig holds up
 sinkline (alt)               win 100%  rounds  2.0  hp lost  11%  combos/battle 1.02
 
 stdout | tests/balance.test.ts > alternative builds > warden with crow_torc, coolant_rig holds up
-warden (alt)                 win  81%  rounds 12.1  hp lost  39%  combos/battle 4.75
+warden (alt)                 win  79%  rounds 12.2  hp lost  42%  combos/battle 4.92
 
 stdout | tests/balance.test.ts > alternative builds > warden with arc_gauntlets, thermal_katana, burst_smg, ward_staff holds up
-warden (alt)                 win  83%  rounds 12.7  hp lost  41%  combos/battle 5.00
+warden (alt)                 win  84%  rounds 12.5  hp lost  37%  combos/battle 5.28
 
 
- Test Files  18 passed (18)
-      Tests  215 passed (215)
-   Start at  20:53:17
-   Duration  769ms (transform 64%, import 20%, tests 14%, worker 1%)
+ Test Files  20 passed (20)
+      Tests  234 passed (234)
+   Start at  22:37:38
+   Duration  887ms (transform 61%, import 21%, tests 17%, worker 1%)
 
-  Transform  transforming modules took 3.76s · 64% of tracked time, re-done on every run
+  Transform  transforming modules took 4.33s · 61% of tracked time, re-done on every run
              persist transforms across runs with fsModuleCache: true
              learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
 
