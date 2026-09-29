@@ -1,28 +1,30 @@
 /** The field: towns, interiors, dungeons and the world map. Hosts story scripts. */
 import type { Dir } from '../art/chars';
 import { sfx } from '../audio/sfx';
-import { music, placeMusic } from '../audio/music';
-import { surface, type Ctx } from '../engine/canvas';
+import { placeMusic } from '../audio/music';
+import type { Ctx } from '../engine/canvas';
 import { drawText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { Rng } from '../engine/rng';
-import { Actor, DIRS, dirTo, opposite } from '../field/actor';
+import { Actor, DIRS, opposite } from '../field/actor';
 import type { SortedSprite } from '../field/bake';
 import { FieldMap } from '../field/fieldmap';
 import { Lighting } from '../field/lighting';
 import { TS } from '../field/tiles';
-import type { ChestDef, EventDef, MapDef, NpcDef, WarpDef } from '../field/types';
+import type { ChestDef, EventDef, MapDef, WarpDef } from '../field/types';
 import { Weather } from '../field/weather';
-import type { Emote, ScriptApi, ScriptFn } from '../game/script';
+import type { ScriptApi, ScriptFn } from '../game/script';
 import { flags, state } from '../game/state';
 import { LOOKS } from '../data/looks';
 import { getMap } from '../data/maps';
-import { DialogScene } from './dialog';
 import { chestSprites } from '../field/chests';
 import { bandGradient, UI } from '../ui/draw';
 import { FIELD_OBJ_W } from '../ui/layout';
 import { fieldHooks } from '../game/hooks';
 import { reportError } from '../engine/errors';
+import { scriptApi } from './fieldkit/api';
+import { blit, byBaseY, drawEmote, drawShell, inView, type DrawEntry } from './fieldkit/draw';
+import { Dust } from './fieldkit/dust';
 
 const WALK = 12;
 const DASH = 7;
@@ -54,7 +56,7 @@ export function invalidateMap(id: string): void {
   mapCache.delete(id);
 }
 
-interface Chest {
+export interface Chest {
   def: ChestDef;
   open: boolean;
 }
@@ -65,10 +67,10 @@ export class FieldScene extends Scene<void> {
   party: Actor[] = [];
   npcs: Actor[] = [];
   chests: Chest[] = [];
-  private trail: [number, number][] = [];
+  trail: [number, number][] = [];
   camX = 0;
   camY = 0;
-  private camOverride: { x: number; y: number } | null = null;
+  camOverride: { x: number; y: number } | null = null;
   private lighting = new Lighting();
   private weather = new Weather();
   busy = 0;
@@ -80,7 +82,7 @@ export class FieldScene extends Scene<void> {
   /** Steps since the last random battle. */
   stepsSinceBattle = 0;
   private pendingWarp = false;
-  private objectiveText = '';
+  objectiveText = '';
   private objKey = '';
   private objLines: string[] = [];
   private objW = 0;
@@ -270,8 +272,8 @@ export class FieldScene extends Scene<void> {
     const l = this.leader;
     const dashing = this.game.input.down('dash');
     const soft = SOFT_GROUND.has(this.map.at(l.x, l.y));
-    if (this.lastStepDash && !this.game.input.dir()) this.kickDust(l.px, l.py, 6, true);
-    else if (dashing && soft) this.kickDust(l.px, l.py, 2, false);
+    if (this.lastStepDash && !this.game.input.dir()) this.dust.kick(l.px, l.py, 6, true);
+    else if (dashing && soft) this.dust.kick(l.px, l.py, 2, false);
     this.lastStepDash = dashing;
     state.x = l.x;
     state.y = l.y;
@@ -465,7 +467,7 @@ export class FieldScene extends Scene<void> {
     }
   }
 
-  private advancePath(a: Actor): void {
+  advancePath(a: Actor): void {
     const d = a.path.shift()!;
     // Scripted moves ignore collision so cutscenes can't deadlock.
     a.dir = d;
@@ -505,7 +507,7 @@ export class FieldScene extends Scene<void> {
   }
 
   // ------------------------------------------------------------------ camera
-  private targetCam(): { x: number; y: number } {
+  targetCam(): { x: number; y: number } {
     const mw = this.map.w * TS, mh = this.map.h * TS;
     const fx = this.camOverride?.x ?? this.leader.px;
     const fy = this.camOverride?.y ?? this.leader.py - 8;
@@ -522,7 +524,7 @@ export class FieldScene extends Scene<void> {
     this.camY = t.y;
   }
 
-  private panTarget: { x: number; y: number; frames: number; t: number; sx: number; sy: number; res: () => void } | null = null;
+  panTarget: { x: number; y: number; frames: number; t: number; sx: number; sy: number; res: () => void } | null = null;
 
   private updateCamera(): void {
     if (this.panTarget) {
@@ -597,7 +599,7 @@ export class FieldScene extends Scene<void> {
       blit(ctx, this.map.overEmit, cx, cy);
     }
     this.lighting.bloom(ctx, this.map.lights, cx, cy, f, this.def.kind === 'interior' ? 0.08 : 0.14);
-    this.renderDust(ctx, cx, cy);
+    this.dust.render(ctx, cx, cy);
     this.weather.render(ctx);
     for (const a of actors) if (a.emote) drawEmote(ctx, a, cx, cy);
     this.renderBanner(ctx);
@@ -636,44 +638,8 @@ export class FieldScene extends Scene<void> {
     s.anim?.(ctx, f, sx, sy);
   }
 
-  /** Dust kicked up by dashing and by stopping out of a dash (pooled; world coordinates). */
-  private dust: { x: number; y: number; vx: number; vy: number; t: number }[] = [];
-  private dustCount = 0;
-
-  private kickDust(x: number, y: number, n: number, color: boolean): void {
-    for (let i = 0; i < n && this.dustCount < 40; i++) {
-      this.dust[this.dustCount] ??= { x: 0, y: 0, vx: 0, vy: 0, t: 0 };
-      const d = this.dust[this.dustCount]!;
-      d.x = x + (Math.random() - 0.5) * 6;
-      d.y = y - Math.random() * 2;
-      d.vx = (Math.random() - 0.5) * (color ? 0.9 : 0.5);
-      d.vy = -0.15 - Math.random() * 0.35;
-      d.t = 0;
-      this.dustCount++;
-    }
-  }
-
-  private renderDust(ctx: Ctx, cx: number, cy: number): void {
-    let n = 0;
-    for (let i = 0; i < this.dustCount; i++) {
-      const d = this.dust[i]!;
-      d.t++;
-      d.x += d.vx;
-      d.y += d.vy;
-      d.vx *= 0.9;
-      d.vy *= 0.92;
-      if (d.t >= 22) continue;
-      ctx.globalAlpha = 0.45 * (1 - d.t / 22);
-      ctx.fillStyle = '#c8bca8';
-      const r = d.t < 8 ? 1 : 2;
-      ctx.fillRect(Math.round(d.x - cx), Math.round(d.y - cy), r, r);
-      this.dust[i] = this.dust[n]!;
-      this.dust[n] = d;
-      n++;
-    }
-    ctx.globalAlpha = 1;
-    this.dustCount = n;
-  }
+  /** Dust kicked up by dashing and by stopping out of a dash. */
+  private dust = new Dust();
 
   private lastStepDash = false;
   private visibleBuf: Actor[] = [];
@@ -732,240 +698,10 @@ export class FieldScene extends Scene<void> {
   }
 
   // ------------------------------------------------------------------ script API
-  readonly api: ScriptApi = {
-    say: async (who, text, opts) => {
-      await this.game.run(new DialogScene({ who, text, top: opts?.top, face: opts?.face, auto: opts?.auto }));
-    },
-    narrate: async (text, opts) => {
-      await this.game.run(new DialogScene({ who: null, text, top: opts?.top, auto: opts?.auto }));
-    },
-    ask: async (who, text, options, opts) =>
-      this.game.run(new DialogScene({ who, text, choices: options, cancel: opts?.cancel, top: opts?.top, face: opts?.face })),
-    wait: (n) => this.game.wait(n),
-    flag: (n) => flags.has(n),
-    get: (n) => flags.get(n),
-    set: (n, v) => flags.set(n, v),
-    give: async (item, qty = 1, quiet) => {
-      await fieldHooks.give?.(this, item, qty, !!quiet);
-    },
-    take: (item, qty = 1) => fieldHooks.take?.(item, qty) ?? false,
-    has: (item, qty = 1) => (state.inventory[item] ?? 0) >= qty,
-    cred: async (delta, quiet) => {
-      state.cred = Math.max(0, state.cred + delta);
-      if (!quiet && delta > 0) {
-        sfx('cred');
-        await this.api.narrate(`Got {y}${delta.toLocaleString('en-US')}¢{/}.`);
-      }
-    },
-    credits: () => state.cred,
-    join: async (id, quiet) => {
-      await fieldHooks.join?.(this, id, !!quiet);
-    },
-    leave: (id) => {
-      fieldHooks.leave?.(this, id);
-    },
-    inParty: (id) => state.party.includes(id),
-    restoreParty: () => fieldHooks.restoreParty?.(),
-    refreshFocus: () => fieldHooks.refreshFocus?.(),
-    battle: async (enc, opts) => (fieldHooks.battle ? fieldHooks.battle(this, enc, opts ?? {}) : 'win'),
-    warp: async (mapId, x, y, dir, opts) => {
-      await this.warp(mapId, x, y, dir ?? this.leader.dir, opts?.fade !== false);
-    },
-    move: (who, path, opts) =>
-      new Promise<void>((res) => {
-        const a = this.find(who);
-        if (!a) return res();
-        const map: Record<string, Dir> = { u: 'up', d: 'down', l: 'left', r: 'right' };
-        const steps = path.split('').map((c) => map[c]).filter(Boolean) as Dir[];
-        if (!steps.length) {
-          if (opts?.face) a.dir = opts.face;
-          return res();
-        }
-        a.path.push(...steps);
-        a.pathSpeed = opts?.speed ?? 14;
-        a.onPathDone = () => {
-          if (opts?.face) a.dir = opts.face;
-          if (a === this.leader) {
-            state.x = a.x;
-            state.y = a.y;
-          }
-          res();
-        };
-        if (!a.moving) this.advancePath(a);
-        if (opts?.wait === false) res();
-      }),
-    face: (who, dir) => {
-      const a = this.find(who);
-      if (!a) return;
-      a.dir = dir === 'player' ? dirTo(a.x, a.y, this.leader.x, this.leader.y) : dir;
-    },
-    emote: async (who, e: Emote, frames = 50) => {
-      const a = this.find(who);
-      if (!a) return;
-      sfx(e === '!' || e === '!!' ? 'alert' : 'emote');
-      a.emote = { kind: e, t: 0, dur: frames };
-      await this.game.wait(frames);
-    },
-    spawn: (id, x, y, dir, look) => {
-      this.npcs = this.npcs.filter((n) => n.id !== id);
-      const lk = LOOKS[look as keyof typeof LOOKS];
-      const a = new Actor(id, lk, x, y, dir);
-      a.npc = { id, x, y, look: lk, move: 'static' } as NpcDef;
-      this.npcs.push(a);
-    },
-    despawn: (id) => {
-      this.npcs = this.npcs.filter((n) => n.id !== id);
-    },
-    followers: (v) => {
-      this.followersVisible = v;
-    },
-    actor: (id, x, y, dir) => {
-      const p = this.party.find((a) => a.id === id);
-      if (!p) return;
-      p.follower = false;
-      p.place(x, y, dir);
-    },
-    regroup: () => {
-      const l = this.leader;
-      for (const p of this.party) {
-        if (p === l) continue;
-        p.follower = true;
-        p.place(l.x, l.y, l.dir);
-      }
-      this.trail = this.party.map(() => [l.x, l.y] as [number, number]);
-      this.followersVisible = true;
-    },
-    pan: (x, y, frames = 40) =>
-      new Promise<void>((res) => {
-        const mw = this.map.w * TS, mh = this.map.h * TS;
-        const tx = Math.max(0, Math.min(mw - W, Math.round(x * TS + 8 - W / 2)));
-        const ty = Math.max(0, Math.min(mh - H, Math.round(y * TS + 8 - H / 2)));
-        this.camOverride = { x: x * TS + 8, y: y * TS + 8 };
-        this.panTarget = { x: tx, y: ty, frames, t: 0, sx: this.camX, sy: this.camY, res };
-      }),
-    panBack: (frames = 30) =>
-      new Promise<void>((res) => {
-        this.camOverride = null;
-        const t = this.targetCam();
-        this.panTarget = { x: t.x, y: t.y, frames, t: 0, sx: this.camX, sy: this.camY, res };
-      }),
-    fadeOut: (frames = 20, color) => this.game.fadeOut(frames, color),
-    fadeIn: (frames = 20) => this.game.fadeIn(frames),
-    shake: (frames, mag) => this.game.shake(frames, mag),
-    flash: (color, frames) => this.game.flash(color, frames),
-    sfx: (n) => sfx(n),
-    music: (n, fade) => music(n, fade),
-    shop: async (id) => { await fieldHooks.shop?.(this, id); },
-    inn: async (price, name) => { await fieldHooks.inn?.(this, price, name); },
-    clinic: async () => { await fieldHooks.clinic?.(this); },
-    banner: async (text, sub) => {
-      this.showBanner(text, sub ?? '');
-      await this.game.wait(60);
-    },
-    panels: async (id) => { await fieldHooks.panels?.(this, id); },
-    endChapter: async () => { await fieldHooks.endChapter?.(this); },
-    savePrompt: async () => { await fieldHooks.savePrompt?.(this); },
-    tutorial: async (title, body) => { await fieldHooks.tutorial?.(this, title, body); },
-    refreshMap: () => {
-      const l = this.leader;
-      const followers = this.followersVisible;
-      this.load(this.def.id, l.x, l.y, l.dir);
-      this.followersVisible = followers;
-    },
-    objective: (text) => {
-      this.objectiveText = text;
-      flags.set('objective', text);
-    },
-  };
+  /** What story scripts can do on this field (fieldkit/api.ts). */
+  readonly api: ScriptApi = scriptApi(this);
 
   get objective(): string {
     return (flags.get('objective') as string) ?? this.objectiveText;
   }
-}
-
-interface DrawEntry {
-  baseY: number;
-  kind: 0 | 1 | 2;
-  ref: SortedSprite | Chest | Actor;
-}
-
-const byBaseY = (a: DrawEntry, b: DrawEntry) => a.baseY - b.baseY;
-
-function inView(a: { x: number; y: number; w: number; h: number }, cx: number, cy: number): boolean {
-  return a.x - cx < W && a.y - cy < H && a.x + a.w - cx > 0 && a.y + a.h - cy > 0;
-}
-
-let shellPattern: CanvasPattern | null = null;
-/** The shadow's steps outward from the room's edge (built once: no strings per frame). */
-const SHELL_SHADE = Array.from({ length: 14 }, (_, i) => `rgba(4,3,9,${(0.6 * (1 - i / 14)).toFixed(3)})`);
-
-/**
- * A room smaller than the screen sits inside its building, not in a void: dark brick around it,
- * anchored to the world so it doesn't swim under a shake, with the room's edge cut clean and a
- * shadow falling from it into the shell.
- */
-function drawShell(ctx: Ctx, mw: number, mh: number, cx: number, cy: number): void {
-  if (mw >= W && mh >= H) return;
-  if (!shellPattern) {
-    const s = surface(32, 16);
-    const g = s.ctx;
-    g.fillStyle = '#100d18';
-    g.fillRect(0, 0, 32, 16);
-    for (const [bx, by] of [[0, 0], [16, 0], [-8, 8], [8, 8], [24, 8]] as const) {
-      g.fillStyle = '#231d31';
-      g.fillRect(bx + 1, by + 1, 14, 6);
-      g.fillStyle = '#2e263f';
-      g.fillRect(bx + 1, by + 1, 14, 1);
-      g.fillStyle = '#1b1626';
-      g.fillRect(bx + 1, by + 6, 14, 1);
-    }
-    shellPattern = ctx.createPattern(s.canvas, 'repeat');
-  }
-  if (!shellPattern) return;
-  ctx.save();
-  ctx.translate(-cx, -cy);
-  ctx.fillStyle = shellPattern;
-  ctx.fillRect(cx, cy, W, H);
-  ctx.restore();
-  const x0 = -cx, y0 = -cy;
-  for (let i = 0; i < 14; i++) {
-    ctx.fillStyle = SHELL_SHADE[i]!;
-    ctx.fillRect(x0 - i - 1, y0 - i - 1, mw + i * 2 + 2, 1);
-    ctx.fillRect(x0 - i - 1, y0 + mh + i, mw + i * 2 + 2, 1);
-    ctx.fillRect(x0 - i - 1, y0 - i, 1, mh + i * 2);
-    ctx.fillRect(x0 + mw + i, y0 - i, 1, mh + i * 2);
-  }
-  ctx.fillStyle = '#050409';
-  ctx.fillRect(x0 - 2, y0 - 2, mw + 4, 2);
-  ctx.fillRect(x0 - 2, y0 + mh, mw + 4, 2);
-  ctx.fillRect(x0 - 2, y0, 2, mh);
-  ctx.fillRect(x0 + mw, y0, 2, mh);
-}
-
-/** Draw the camera window of a map-sized layer, handling maps smaller than the screen. */
-function blit(ctx: Ctx, layer: HTMLCanvasElement, cx: number, cy: number): void {
-  const sx = Math.max(0, cx), sy = Math.max(0, cy);
-  const dx = sx - cx, dy = sy - cy;
-  const w = Math.min(layer.width - sx, W - dx);
-  const h = Math.min(layer.height - sy, H - dy);
-  if (w <= 0 || h <= 0) return;
-  ctx.drawImage(layer, sx, sy, w, h, dx, dy, w, h);
-}
-
-function drawEmote(ctx: Ctx, a: Actor, cx: number, cy: number): void {
-  const e = a.emote!;
-  const pop = Math.min(1, e.t / 6);
-  const x = Math.round(a.px - cx);
-  const y = Math.round(a.drawY() - cy - 4 - pop * 4);
-  const label = e.kind === 'anger' ? '#' : e.kind === 'sweat' ? ';' : e.kind === 'zzz' ? 'z' : e.kind;
-  const tw = measure(label) + 6;
-  ctx.fillStyle = UI.outline;
-  ctx.fillRect(x - tw / 2 - 1, y - 11, tw + 2, 12);
-  ctx.fillStyle = '#f4f1ff';
-  ctx.fillRect(x - tw / 2, y - 10, tw, 10);
-  ctx.fillRect(x - 1, y, 3, 2);
-  ctx.fillStyle = UI.outline;
-  ctx.fillRect(x - 1, y + 2, 3, 1);
-  const col = e.kind === '!' || e.kind === '!!' || e.kind === 'anger' ? '#d8302a' : e.kind === '♥' ? '#ff4fb0' : '#2a2840';
-  drawText(ctx, label, x, y - 9, { align: 'center', color: col, shadow: false });
 }

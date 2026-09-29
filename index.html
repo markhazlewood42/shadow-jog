@@ -47,6 +47,18 @@
     <div id="stage"><canvas id="screen" tabindex="0" aria-label="SHADOW JOG game screen"></canvas></div>
     <div id="boot">LOADING…</div>
     <noscript>SHADOW JOG needs JavaScript to run.</noscript>
+    <script>
+      // Anything that goes wrong before the game is running (a script that fails to load, or
+      // throws while it's being imported) is shown here, not left as LOADING… forever.
+      window.addEventListener('error', function (e) {
+        if (window.__sjStarted) return;
+        var el = document.getElementById('boot');
+        if (!el) return;
+        el.className = 'error';
+        el.style.display = 'flex';
+        el.textContent = 'SHADOW JOG failed to start.\n\n' + ((e.error && e.error.message) || e.message || 'A game file failed to load. Check your connection and reload.');
+      }, true);
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -217,4 +217,25 @@ test('Two tabs on one save: both are warned, and only the first keeps autosaving
   await sj(a, "sj.tp('world', 13, 22, 'right')");
   await a.waitForTimeout(1500);
   expect(await a.evaluate(() => localStorage.getItem('shadowjog.save.auto'))).toBeTruthy();
+  // The first tab closes: it says goodbye, and the second takes over autosaving.
+  await a.close();
+  await b.waitForTimeout(600);
+  expect((await noticeOf(b))?.text).toContain('autosave is back on');
+  await b.evaluate(() => localStorage.removeItem('shadowjog.save.auto'));
+  await sj(b, "sj.tp('lantern_row', 54, 11, 'left')");
+  await b.waitForTimeout(1500);
+  expect(await b.evaluate(() => localStorage.getItem('shadowjog.save.auto'))).toBeTruthy();
+});
+
+test('A browser that can’t start the game says so, instead of a black screen', async ({ page }) => {
+  // No 2D canvas (a locked-down or broken browser): the display can't be built at boot.
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.getContext = () => null;
+  });
+  await page.goto('/');
+  await page.waitForTimeout(800);
+  const boot = page.locator('#boot');
+  await expect(boot).toBeVisible();
+  await expect(boot).toHaveClass(/error/);
+  await expect(boot).toContainText('failed to start');
 });

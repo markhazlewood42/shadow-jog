@@ -135,7 +135,17 @@ export function loadSave(slot: SlotId): GameState | null {
  * additive changes need no step: backfill() below fills anything missing at any version. A
  * change that renames or reshapes adds a step here and bumps SAVE_VERSION.
  */
-export const MIGRATIONS: Record<number, (s: GameState) => void> = {};
+export const MIGRATIONS: Record<number, (s: GameState) => void> = {
+  // v1 -> v2: the Neural Buffer stopped fitting Rook (he has no TP for it to hold). One he was
+  // wearing goes back in the bag, where anyone else can put it on.
+  1: (s) => {
+    const rook = s.members.rook;
+    if (rook?.equip.mod === 'neural_buffer') {
+      delete rook.equip.mod;
+      s.inventory.neural_buffer = (s.inventory.neural_buffer ?? 0) + 1;
+    }
+  },
+};
 
 /** Bring a save from its version up to `target`: each step in order, then the backfill. */
 export function migrateTo(s: GameState, target: number): GameState {

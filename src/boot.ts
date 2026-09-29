@@ -108,20 +108,34 @@ export function boot(game: Game, display: Display): void {
       e.returnValue = '';
     });
   }
-  // Two tabs on one save file overwrite each other: warn in both, and only the first keeps autosaving.
+  // Two tabs on one save file overwrite each other: warn in both, and only the oldest open tab
+  // autosaves. When it closes it says goodbye, and the next oldest takes over.
   try {
     const tabs = new BroadcastChannel('shadowjog');
+    const born = Date.now() + Math.random();
     const warn = () => notice('Shadow Jog is open in another tab: saves from either tab can overwrite each other.', 'warn');
     tabs.onmessage = (e) => {
-      if (e.data === 'hello') {
-        tabs.postMessage('here');
+      const m = e.data as { t?: string; born?: number } | null;
+      if (!m || typeof m.born !== 'number') return;
+      if (m.t === 'hello') {
+        tabs.postMessage({ t: 'here', born });
+        if (m.born < born) autosavePolicy.enabled = false;
         warn();
-      } else if (e.data === 'here') {
-        autosavePolicy.enabled = false;
+      } else if (m.t === 'here') {
+        if (m.born < born) autosavePolicy.enabled = false;
         warn();
+      } else if (m.t === 'bye' && !autosavePolicy.enabled) {
+        // Take over, then ask again: an older tab still open will answer and take it back.
+        autosavePolicy.enabled = true;
+        autosavePolicy.pausedNoticeShown = false;
+        notice('The other tab closed: autosave is back on here.', 'news');
+        tabs.postMessage({ t: 'hello', born });
       }
     };
-    tabs.postMessage('hello');
+    tabs.postMessage({ t: 'hello', born });
+    window.addEventListener('pagehide', () => {
+      if (autosavePolicy.enabled) tabs.postMessage({ t: 'bye', born });
+    });
   } catch {
     /* no BroadcastChannel: nothing to coordinate */
   }

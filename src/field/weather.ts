@@ -48,11 +48,25 @@ export class Weather {
     this.drops.length = 0;
     this.splashCount = 0;
     const n = this.count();
+    // Each drop keeps its depth for life, and the pool is laid out far to near: one pass over
+    // it draws back to front, changing style only at the two layer boundaries.
     for (let i = 0; i < n; i++) {
-      const d: Drop = { x: 0, y: 0, len: 0, speed: 0, life: 0, land: 0, depth: 1 };
+      const k = i / Math.max(1, n);
+      const depth = this.kind !== 'rain' ? 1 : k < LAYERS[0].share ? 0 : k < LAYERS[0].share + LAYERS[1].share ? 1 : 2;
+      const d: Drop = { x: 0, y: 0, len: 0, speed: 0, life: 0, land: 0, depth };
       this.reset(d, true);
       this.drops.push(d);
     }
+  }
+
+  /** Live drops, far layer first (for tests and debugging). */
+  get pool(): readonly Readonly<Drop>[] {
+    return this.drops;
+  }
+
+  /** Splashes on the ground right now. */
+  get splashesLive(): number {
+    return this.splashCount;
   }
 
   private count(): number {
@@ -82,8 +96,6 @@ export class Weather {
       d.speed = r.range(2.5, 3.5);
       d.len = 3;
     } else {
-      const roll = r.next();
-      d.depth = roll < LAYERS[0].share ? 0 : roll < LAYERS[0].share + LAYERS[1].share ? 1 : 2;
       const layer = LAYERS[d.depth]!;
       d.speed = r.range(5.5, 8) * layer.speed;
       d.len = r.int(layer.len[0], layer.len[1]);
@@ -158,11 +170,15 @@ export class Weather {
       ctx.fillStyle = '#b8c8ff';
       for (const d of this.drops) this.streak(ctx, d);
     } else {
-      // Back to front, one fill style per layer.
-      for (let layer = 0; layer < LAYERS.length; layer++) {
-        ctx.globalAlpha = LAYERS[layer]!.alpha;
-        ctx.fillStyle = LAYERS[layer]!.color;
-        for (const d of this.drops) if (d.depth === layer) this.streak(ctx, d);
+      // One pass, back to front: the pool is ordered by depth, so the style changes twice.
+      let layer = -1;
+      for (const d of this.drops) {
+        if (d.depth !== layer) {
+          layer = d.depth;
+          ctx.globalAlpha = LAYERS[layer]!.alpha;
+          ctx.fillStyle = LAYERS[layer]!.color;
+        }
+        this.streak(ctx, d);
       }
     }
     ctx.globalAlpha = 0.5;

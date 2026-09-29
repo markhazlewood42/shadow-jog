@@ -34,6 +34,12 @@ export interface SystemHandlers {
 
 let handlers: SystemHandlers | null = null;
 
+/** The installed handlers: a clear error, not a null dereference, if installSystems hasn't run. */
+function sys(): SystemHandlers {
+  if (!handlers) throw new Error('installSystems() must run before the game can change scenes');
+  return handlers;
+}
+
 function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
@@ -212,13 +218,13 @@ export function installSystems(game: Game, h: SystemHandlers): void {
     await game.fadeIn(20);
     await game.run(new EndingScene(game.playFrames));
     await game.fadeOut(40);
-    handlers!.toTitle();
+    sys().toTitle();
   };
 
   fieldHooks.openMenu = (f) => {
     void f.runScript(async () => {
       const r = await game.run(new MenuScene(true));
-      if (r.kind === 'title') handlers!.toTitle();
+      if (r.kind === 'title') sys().toTitle();
       else if (r.kind === 'special') await useSpecial(game, f, r.item);
     });
   };
@@ -337,7 +343,7 @@ export async function runBattle(
       }
       notice(newest ? 'Your last save is damaged and could not be loaded. Returning to the title.' : 'There is no save to load. Returning to the title.', 'warn');
     }
-    handlers!.toTitle();
+    sys().toTitle();
     return 'lose';
   }
 }
@@ -346,7 +352,7 @@ export async function runBattle(
 export function loadIntoGame(game: Game, s: GameState): void {
   applySave(s);
   game.playFrames = s.playFrames;
-  handlers!.toField(s.map, s.x, s.y, s.dir);
+  sys().toField(s.map, s.x, s.y, s.dir);
 }
 
 /** Tile-accurate helper for scripts that need pixel coords. */

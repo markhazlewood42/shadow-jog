@@ -84,6 +84,8 @@ function start(): void {
   screen.focus();
   requestAnimationFrame(loop);
   started = true;
+  // The page's own pre-start error screen (index.html) stands down.
+  (window as unknown as { __sjStarted?: boolean }).__sjStarted = true;
 }
 
 let started = false;

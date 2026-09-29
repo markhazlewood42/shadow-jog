@@ -248,33 +248,33 @@ describe('save / load', () => {
   it('structural migrations run as a chain, in order, from the save’s own version', async () => {
     const { MIGRATIONS, migrateTo } = await import('../src/game/save');
     const order: number[] = [];
-    // Two future steps: v1 renames `cred` to `credits`, v2 renames it back and doubles it.
-    MIGRATIONS[1] = (s) => {
-      order.push(1);
+    // Two future steps: v10 renames `cred` to `credits`, v11 renames it back and doubles it.
+    MIGRATIONS[10] = (s) => {
+      order.push(10);
       (s as unknown as { credits: number }).credits = s.cred;
     };
-    MIGRATIONS[2] = (s) => {
-      order.push(2);
+    MIGRATIONS[11] = (s) => {
+      order.push(11);
       s.cred = (s as unknown as { credits: number }).credits * 2;
     };
     try {
       const s = JSON.parse(JSON.stringify(stateMod.state)) as typeof stateMod.state;
-      s.version = 1;
+      s.version = 10;
       s.cred = 100;
-      const out = migrateTo(s, 3);
-      expect(order).toEqual([1, 2]);
+      const out = migrateTo(s, 12);
+      expect(order).toEqual([10, 11]);
       expect(out.cred).toBe(200);
-      expect(out.version).toBe(3);
-      // A save already at v2 only takes the v2 step.
+      expect(out.version).toBe(12);
+      // A save already at v11 only takes the v11 step.
       order.length = 0;
       const t = JSON.parse(JSON.stringify(stateMod.state)) as typeof stateMod.state;
-      t.version = 2;
+      t.version = 11;
       (t as unknown as { credits: number }).credits = 5;
-      expect(migrateTo(t, 3).cred).toBe(10);
-      expect(order).toEqual([2]);
+      expect(migrateTo(t, 12).cred).toBe(10);
+      expect(order).toEqual([11]);
     } finally {
-      delete MIGRATIONS[1];
-      delete MIGRATIONS[2];
+      delete MIGRATIONS[10];
+      delete MIGRATIONS[11];
     }
   });
 
@@ -311,5 +311,22 @@ describe('a save from a shipped build keeps loading', () => {
     // Loaded into the game, it's a playable state.
     applySave(s);
     expect(validState(stateMod.state)).toBe(true);
+    // It comes out at today's version.
+    expect(s.version).toBe(stateMod.SAVE_VERSION);
+  });
+
+  it('v1 -> v2: a Neural Buffer on Rook (who can no longer wear it) goes back in the bag', async () => {
+    const { readFileSync } = await import('node:fs');
+    const file = JSON.parse(readFileSync('tests/fixtures/save-v1-annex.json', 'utf8')) as { state: { members: { rook: { equip: Record<string, string> } }; inventory: Record<string, number> } };
+    file.state.members.rook.equip.mod = 'neural_buffer';
+    const before = file.state.inventory.neural_buffer ?? 0;
+    localStorage.clear();
+    localStorage.setItem('shadowjog.save.3', JSON.stringify(file));
+    const s = loadSave(3)!;
+    expect(s.version).toBe(2);
+    expect(s.members.rook!.equip.mod).toBeUndefined();
+    expect(s.inventory.neural_buffer).toBe(before + 1);
+    // Nothing else about Rook changed.
+    expect(s.members.rook!.equip.weapon).toBe(file.state.members.rook.equip.weapon);
   });
 });
