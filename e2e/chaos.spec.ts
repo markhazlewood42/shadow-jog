@@ -46,10 +46,19 @@ async function stage(page: Page, name: string): Promise<string[]> {
   return errors;
 }
 
-/** Back out of anything open (menus, dialogs) until the field is idle. */
+/**
+ * Back out of anything open (menus, dialogs) until the field is idle. Mashing can walk the crew
+ * into a random encounter on the Sprawl, and no key backs out of a fight: the playtest driver plays
+ * it out (Auto, then a guaranteed win) and is switched off again once the fight is over.
+ */
 async function settle(page: Page): Promise<void> {
   for (let i = 0; i < 40 && !(await sj<boolean>(page, 'sj.idle()')); i++) {
-    await tap(page, (await sj<string>(page, 'sj.top()')) === 'DialogScene' ? 'z' : 'Escape');
+    const top = await sj<string>(page, 'sj.top()');
+    if (top === 'BattleScene') {
+      await sj(page, '(sj.debug.playtest = true, true)');
+      await waitFor(page, "sj.top() !== 'BattleScene'", 'the fight to play out', 40_000);
+      await sj(page, '(sj.debug.playtest = false, true)');
+    } else await tap(page, top === 'DialogScene' ? 'z' : 'Escape');
     await page.waitForTimeout(150);
   }
   await waitFor(page, 'sj.idle()', 'field idle after the chaos');
