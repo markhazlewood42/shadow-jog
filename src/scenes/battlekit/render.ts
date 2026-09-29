@@ -24,7 +24,7 @@ import { drawVictoryBanner } from './banner';
 import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
 import { drawMiniDeck } from '../../art/deck';
-import { DISSOLVE_STEPS, ENEMY_POSE_T, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, opaqueTop, rimOf, silhouetteCache, variant } from './sprites';
+import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
 import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, statusName } from './tables';
 
 /**
@@ -63,19 +63,31 @@ export class BattleRenderer {
   private topW = 0;
 
   render(ctx: Ctx): void {
-    const g = this.s.world.ctx;
+    // Three layers: the backdrop (world scale), the enemies (screen resolution, drawn through a
+    // 2x transform so world coordinates still place them), then the party, effects and numbers
+    // (a clear world-scale layer). Creatures paint finer than the world; everything else is as was.
+    const back = this.s.world.ctx;
     const f = this.s.frame;
+    back.imageSmoothingEnabled = false;
+    back.drawImage(this.s.bg.canvas, 0, 0);
+    if (this.s.bg.glow) back.drawImage(this.s.bg.glow, 0, 0);
+    this.s.bg.anim?.(back, f);
+    const el = this.s.enemyLayer.ctx;
+    el.setTransform(1, 0, 0, 1, 0, 0);
+    el.clearRect(0, 0, W, H);
+    el.setTransform(2, 0, 0, 2, 0, 0);
+    el.imageSmoothingEnabled = false;
+    const g = this.s.front.ctx;
+    g.clearRect(0, 0, BW, BHT);
     g.imageSmoothingEnabled = false;
-    g.drawImage(this.s.bg.canvas, 0, 0);
-    if (this.s.bg.glow) g.drawImage(this.s.bg.glow, 0, 0);
-    this.s.bg.anim?.(g, f);
     // Enemies, back to front
     // Back to front, into a reused buffer.
     const order = this.s.drawOrder;
     order.length = 0;
     for (const e of this.s.battle.enemies) if (this.s.d(e.uid).alpha > 0.01) order.push(e);
     order.sort(this.s.byFeet);
-    for (const e of order) this.drawEnemy(g, e, f);
+    for (const e of order) this.drawEnemy(el, e, f);
+    el.setTransform(1, 0, 0, 1, 0, 0);
     // Party (back view)
     for (const p of this.s.battle.party) this.drawPartyMember(g, p, f);
     // Foreground framing (rails, cables) over the fighters; FX and numbers stay on top of it.
@@ -126,7 +138,13 @@ export class BattleRenderer {
       const sw = BW / z, sh = BHT / z;
       const sx = Math.max(0, Math.min(BW - sw, push.x - sw / 2)), sy = Math.max(0, Math.min(BHT - sh, push.y - sh / 2));
       ctx.drawImage(this.s.world.canvas, sx, sy, sw, sh, shx, shy, W, H);
-    } else ctx.drawImage(this.s.world.canvas, shx, shy, W, H);
+      ctx.drawImage(this.s.enemyLayer.canvas, sx * 2, sy * 2, sw * 2, sh * 2, shx, shy, W, H);
+      ctx.drawImage(this.s.front.canvas, sx, sy, sw, sh, shx, shy, W, H);
+    } else {
+      ctx.drawImage(this.s.world.canvas, shx, shy, W, H);
+      ctx.drawImage(this.s.enemyLayer.canvas, shx, shy);
+      ctx.drawImage(this.s.front.canvas, shx, shy, W, H);
+    }
     if (this.s.impactT > 0 && this.s.impactOn) this.renderImpact(ctx, shx, shy);
     if (this.s.defeatT > 0) {
       // The killing blow drains the frame toward red-black.
@@ -150,7 +168,7 @@ export class BattleRenderer {
   private renderImpact(ctx: Ctx, shx: number, shy: number): void {
     const u = this.s.impactOn!;
     const { x, y, art } = this.s.enemyPos(u);
-    const cx = (x + art.canvas.width / 2) * 2 + shx, cy = (y + art.canvas.height / 2) * 2 + shy;
+    const cx = (x + art.w / 2) * 2 + shx, cy = (y + art.h / 2) * 2 + shy;
     ctx.fillStyle = 'rgba(8,4,16,0.86)';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = this.s.impactColor;
@@ -159,7 +177,7 @@ export class BattleRenderer {
       const r0 = 34 + (i % 3) * 10, r1 = 260;
       for (let r = r0; r < r1; r += 3) ctx.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.62), i % 2 ? 1 : 2, 1);
     }
-    ctx.drawImage(silhouetteCache(art.canvas, '#ffffff'), x * 2 + shx, y * 2 + shy, art.canvas.width * 2, art.canvas.height * 2);
+    ctx.drawImage(silhouetteCache(art.canvas, '#ffffff'), x * 2 + shx, y * 2 + shy, art.w * 2, art.h * 2);
   }
 
   /** The frame the fight broke out of, shattering (built on the first intro frame). */
@@ -182,6 +200,10 @@ export class BattleRenderer {
     const own = who.individual && !creature;
     const canvas = own ? marked(dup % 2 ? mirrored(src.canvas) : src.canvas, e.family ?? '', dup) : marked(variant(src.canvas, dup), e.family ?? '', dup);
     const glow = !src.glow ? undefined : own ? (dup % 2 ? mirrored(src.glow) : src.glow) : variant(src.glow, dup);
+    // Every canvas below is at the art's resolution: placed at its world size (the 2x transform
+    // on the enemy layer turns a creature's art pixels into screen pixels).
+    const res = art.res;
+    const put = (c: HTMLCanvasElement, px: number, py: number) => g.drawImage(c, px, py, c.width / res, c.height / res);
     let ox = 0, oy = 0;
     switch (art.idle) {
       case 'hover': oy = Math.round(Math.sin(f * 0.08 + e.uid) * 2); break;
@@ -218,8 +240,8 @@ export class BattleRenderer {
     // Shadow
     if (art.shadow) {
       g.fillStyle = 'rgba(0,0,0,0.35)';
-      const cx = x + art.canvas.width / 2;
-      const gy = y + art.canvas.height - 1;
+      const cx = x + art.w / 2;
+      const gy = y + art.h - 1;
       g.fillRect(Math.round(cx - art.shadow / 2), gy, art.shadow, 2);
       g.fillRect(Math.round(cx - art.shadow / 2 + 2), gy + 2, art.shadow - 4, 1);
     }
@@ -230,20 +252,20 @@ export class BattleRenderer {
       // from the top, drifting up as it goes.
       const k = Math.min(1, dd.dying / 28);
       const lift = Math.round(k * 4);
-      g.drawImage(dissolved(canvas, Math.min(DISSOLVE_STEPS, Math.floor(k * (DISSOLVE_STEPS + 1)))), dx, dy - lift);
+      put(dissolved(canvas, Math.min(DISSOLVE_STEPS, Math.floor(k * (DISSOLVE_STEPS + 1)))), dx, dy - lift);
       if (dd.dying < 6) {
         g.globalAlpha = 0.5 * (1 - dd.dying / 6);
-        g.drawImage(silhouetteCache(canvas, '#ffffff'), dx, dy - lift);
+        put(silhouetteCache(canvas, '#ffffff'), dx, dy - lift);
       }
       g.globalAlpha = 1;
       return;
     }
-    if (e.key === 'warden') this.drawConduits(g, dx, dy, art.canvas.width, f, !!e.memory.charging);
+    if (e.key === 'warden') this.drawConduits(g, dx, dy, art.w, art.size, f, !!e.memory.charging);
     // A heavy hit lands on the body: it squashes flat and wide from the feet, then snaps back.
     const hurtK = dd.poseT > 0 && dd.pose === 'hurt' ? 16 - dd.poseT : -1;
     const squash = hurtK >= 0 && hurtK < 8 ? (hurtK < 2 ? 1 : 1 - (hurtK - 2) / 6) : 0;
     if (squash > 0) {
-      const fx = dx + art.canvas.width / 2, fy = dy + art.canvas.height;
+      const fx = dx + art.w / 2, fy = dy + art.h;
       g.save();
       g.translate(fx, fy);
       g.scale(1 + 0.12 * squash, 1 - 0.1 * squash);
@@ -251,38 +273,39 @@ export class BattleRenderer {
     }
     // Rim light in a colour the backdrop doesn't use, so no enemy blends into the set.
     g.globalAlpha = alpha * 0.55;
-    g.drawImage(rimOf(canvas, this.s.rim), dx - 1, dy - 1);
+    put(rimOf(canvas, this.s.rim), dx - 1 / res, dy - 1 / res);
     g.globalAlpha = alpha;
-    g.drawImage(canvas, dx, dy);
+    put(canvas, dx, dy);
     if (this.s.bg.tintAmt > 0) {
       // Ambient tint: multiply-ish wash using the background light color.
       g.globalAlpha = alpha * this.s.bg.tintAmt;
-      g.drawImage(silhouetteCache(canvas, this.s.bg.tint), dx, dy);
+      put(silhouetteCache(canvas, this.s.bg.tint), dx, dy);
       g.globalAlpha = alpha;
     }
-    if (glow) g.drawImage(glow, dx, dy);
+    if (glow) put(glow, dx, dy);
     if (castGlow > 0) {
       g.globalAlpha = alpha * castGlow;
-      g.drawImage(silhouetteCache(canvas, '#e8d8ff'), dx, dy);
+      put(silhouetteCache(canvas, '#e8d8ff'), dx, dy);
       g.globalAlpha = alpha;
     }
     if (dd.flash > 0 && dd.flash % 4 < 2) {
       // A blink, not a blank: the sprite's detail stays visible under the white, so a still
       // caught on this frame reads as a hit rather than a white smear.
       g.globalAlpha = 0.55 * alpha;
-      g.drawImage(silhouetteCache(canvas, '#ffffff'), dx, dy);
+      put(silhouetteCache(canvas, '#ffffff'), dx, dy);
     }
     g.globalAlpha = 1;
     if (squash > 0) g.restore();
   }
 
   /** The Warden is wired into the facility: sagging conduits run from its frame to the screen edges. */
-  private drawConduits(g: Ctx, x: number, y: number, w: number, f: number, charging: boolean): void {
+  private drawConduits(g: Ctx, x: number, y: number, w: number, size: number, f: number, charging: boolean): void {
     const pulse = charging ? '#ff5a4a' : '#6ff3ff';
     const speed = charging ? 0.05 : 0.018;
     for (let i = 0; i < CONDUITS.length; i++) {
       const [from, fy, x1, ty, sag] = CONDUITS[i]!;
-      const x0 = from >= 0 ? x + from : x + w + from, y0 = y + fy, y1 = y + ty;
+      // Anchor points were authored on the sprite at its first size: scale them with it.
+      const x0 = from >= 0 ? x + from * size : x + w + from * size, y0 = y + fy * size, y1 = y + ty * size;
       const n = Math.ceil(Math.abs(x1 - x0));
       for (let j = 0; j <= n; j++) {
         const t = j / n;
@@ -371,7 +394,7 @@ export class BattleRenderer {
     let x: number, y: number;
     if (u.side === 'enemy') {
       const p = this.s.enemyPos(u);
-      x = p.x + p.art.canvas.width / 2;
+      x = p.x + p.art.w / 2;
       y = p.y - 4;
     } else {
       const p = this.s.partyPos(u);
@@ -404,8 +427,8 @@ export class BattleRenderer {
       const dd = this.s.d(e.uid);
       if (dd.dying > 0 || dd.alpha < 0.5) continue;
       const { x, y, art } = this.s.enemyPos(e);
-      const cx0 = Math.round((x + art.canvas.width / 2) * 2);
-      let row = Math.max(24, (y + opaqueTop(art.canvas)) * 2 - 6);
+      const cx0 = Math.round((x + art.w / 2) * 2);
+      let row = Math.max(24, (y + artTop(art)) * 2 - 6);
       // HP bar (bosses get a wider one).
       const bw = e.boss ? 72 : 30;
       const ratio = Math.max(0, dd.shownHp / e.base.maxHp);
@@ -599,7 +622,8 @@ export class BattleRenderer {
       for (let i = 0; i < actors.length; i++) {
         const u = this.s.battle.unit(actors[i]!);
         if (!u) continue;
-        const img = u.side === 'party' ? getPortrait(u.key, 'neutral') : enemyThumb(enemyArt(ENEMIES[u.key]!.sprite).canvas);
+        const eart = u.side === 'party' ? null : enemyArt(ENEMIES[u.key]!.sprite);
+        const img = eart ? enemyThumb(eart.canvas, eart.res) : getPortrait(u.key, 'neutral');
         if (img) ctx.drawImage(img, r.x + 1 + i * ORDER_FACE, r.y + 1, 12, 12);
         // Two of a kind: which one, by the letter in its name (Glowrat A, Glowrat B).
         if (u.side === 'enemy' && this.s.twins(u)) {

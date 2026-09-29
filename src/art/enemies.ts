@@ -9,6 +9,17 @@ import { mix, shade } from '../engine/color';
 
 export interface EnemyArt {
   canvas: HTMLCanvasElement;
+  /**
+   * Art pixels per battle-world pixel. Human enemies are 1 (the party's pixel scale); creatures
+   * are painted at twice the world's resolution (2) and drawn onto the screen at 1:1, so they're
+   * finer-grained than the chunky world around them (Mark's playthrough, 2026-09-29).
+   */
+  res: number;
+  /** Size in battle-world pixels (the canvas's size over `res`): what layout and aiming use. */
+  w: number;
+  h: number;
+  /** Size relative to the art as first designed (creatures 0.8 since 2026-09-29, humans 1). */
+  size: number;
   /** Optional emissive overlay (eyes, lights) drawn un-darkened. */
   glow?: HTMLCanvasElement | undefined;
   /** Idle motion style. */
@@ -109,7 +120,8 @@ function rigArt(look: CharLook, extra?: (p: Pix, w: number, h: number) => void, 
     glowFn(g);
     glow = scale2x(g.toCanvas());
   }
-  return { canvas: scale2x(canvas), glow, idle: 'breathe', shadow: 26 };
+  const out = scale2x(canvas);
+  return { canvas: out, glow, idle: 'breathe', shadow: 26, res: 1, w: out.width, h: out.height, size: 1 };
 }
 
 /**
@@ -367,8 +379,15 @@ const HUMANS: Record<string, () => EnemyArt> = {
 };
 
 // ------------------------------------------------------------------ creatures
-/** Resolution multiplier for the creature being built (see SCALE). */
+/**
+ * Creatures are painted at CREATURE_DETAIL × their design scale, in art pixels at twice the world's
+ * resolution (RES 2): 1.6 / 2 = 0.8 of their old on-screen size, at 1.6× the detail. Their shapes
+ * are resolution-free (Pix works in design units), so the same painters simply paint finer.
+ */
+const CREATURE_DETAIL = 1.6, CREATURE_RES = 2;
+/** Resolution multiplier for the creature being built (see SCALE), and its art pixels per world pixel. */
 let K = 1;
+let RES = 1;
 const P = (w: number, h: number) => new Pix(w, h, K);
 const SCALE: Record<string, number> = {
   rat: 1.4, hound: 1.6, drone: 1.6, wisp: 1.7, crab: 1.6, maint: 1.6, shade: 1.7, eel: 1.6, turret: 1.7, hunter: 1.6, bound: 1.7, lurker: 1.15,
@@ -377,7 +396,14 @@ function art(p: Pix, idle: EnemyArt['idle'], shadow: number, glow?: Pix): EnemyA
   // Creatures are built from flat shapes: a form pass gives the whole body light and shadow.
   p.form();
   p.outline();
-  return { canvas: p.toCanvas(), glow: glow?.toCanvas(), idle, shadow: Math.round(shadow * p.k) };
+  const canvas = p.toCanvas();
+  return { canvas, glow: glow?.toCanvas(), idle, shadow: Math.round((shadow * p.k) / RES), res: RES, w: canvas.width / RES, h: canvas.height / RES, size: RES > 1 ? CREATURE_DETAIL / RES : 1 };
+}
+
+/** Art that skips the form and outline passes (the Warden's plate is lit by hand). */
+function plain(p: Pix, glow: Pix, idle: EnemyArt['idle'], shadow: number): EnemyArt {
+  const canvas = p.toCanvas();
+  return { canvas, glow: glow.toCanvas(), idle, shadow: Math.round((shadow * p.k) / RES), res: RES, w: canvas.width / RES, h: canvas.height / RES, size: RES > 1 ? CREATURE_DETAIL / RES : 1 };
 }
 
 const CREATURES: Record<string, () => EnemyArt> = {
@@ -983,7 +1009,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
       g.ball(60, 14, 5, 5, '#ffffff');
     }
     p.outline();
-    return { canvas: p.toCanvas(), glow: g.toCanvas(), idle: 'breathe', shadow: 70 };
+    return plain(p, g, 'breathe', 70);
   },
   warden_spirit: () => {
     const p = P(96, 96), g = P(96, 96);
@@ -1030,7 +1056,7 @@ const CREATURES: Record<string, () => EnemyArt> = {
     g.ellipse(42, 20, 1.2, 2, '#ffffff');
     g.ellipse(54, 20, 1.2, 2, '#ffffff');
     p.outline();
-    return { canvas: p.toCanvas(), glow: g.toCanvas(), idle: 'flicker', shadow: 0 };
+    return plain(p, g, 'flicker', 0);
   },
 };
 
@@ -1042,7 +1068,9 @@ export function enemyArt(key: string, dup = 0): EnemyArt {
   if (a) return a;
   const make = HUMANS[key] ?? CREATURES[key];
   if (!make) throw new Error(`No art for enemy sprite ${key}`);
-  K = SCALE[key] ?? 1;
+  const creature = !HUMANS[key];
+  RES = creature ? CREATURE_RES : 1;
+  K = (SCALE[key] ?? 1) * (creature ? CREATURE_DETAIL : 1);
   V = v;
   building = key;
   try {
@@ -1057,6 +1085,7 @@ export function enemyArt(key: string, dup = 0): EnemyArt {
     }
   } finally {
     K = 1;
+    RES = 1;
     V = 0;
     POSE = 'idle';
   }

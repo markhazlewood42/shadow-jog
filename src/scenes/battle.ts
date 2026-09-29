@@ -15,7 +15,7 @@ import { LOOKS } from '../data/looks';
 import { MEMBERS } from '../data/party';
 import { surface, type Ctx, type Surface } from '../engine/canvas';
 import { drawText, fitText } from '../engine/font';
-import { Scene, W } from '../engine/game';
+import { Scene, W, H } from '../engine/game';
 import { Rng, streams } from '../engine/rng';
 import { equipRegen, grantXp, levelProgress, type LevelUp } from '../game/party';
 import { battleSpeed, settings } from '../game/settings';
@@ -31,7 +31,7 @@ import { BHT, BW, DECK_CUT_LIFE, MENU_X, PARTY_BOTTOM } from './battlekit/geom';
 import { INTRO_T } from './battlekit/intro';
 import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
-import { RIM, opaqueTop } from './battlekit/sprites';
+import { RIM, artTop } from './battlekit/sprites';
 import { groupNames, pickGroup, summarize } from './battlekit/tables';
 
 export interface BattleSetup {
@@ -65,13 +65,17 @@ const FX_PACE = 0.65, LINGER_MAX = 50, TURN_GAP = 22;
  * member orders" (the Warden's visor was).
  */
 const PROMPT_CLEAR = 14;
-function clearOfPrompt(y: number, canvas: HTMLCanvasElement): number {
-  return Math.max(y, PROMPT_CLEAR - opaqueTop(canvas));
+function clearOfPrompt(y: number, art: EnemyArt): number {
+  return Math.max(y, PROMPT_CLEAR - artTop(art));
 }
 
 export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   battle: Battle;
   world: Surface;
+  /** Enemies, at screen resolution, between the backdrop and the front layer. */
+  enemyLayer: Surface;
+  /** The party, effects, rings, arrows and numbers: a transparent world-scale layer over the enemies. */
+  front: Surface;
   bg: BattleBg;
   /** Rim-light colour for enemies against this backdrop. */
   rim: string;
@@ -128,6 +132,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     this.bg = battleBg(setup.bg);
     this.rim = RIM[setup.bg] ?? '#ffc27a';
     this.world = surface(BW, BHT);
+    // Enemies paint onto a screen-resolution layer (creatures are finer than the world), and the
+    // party, effects and numbers onto a clear world layer in front of them (battlekit/render.ts).
+    this.enemyLayer = surface(W, H);
+    this.front = surface(BW, BHT);
     const party = state.party.map((id, i) => partyCombatant(state.members[id]!, i, i));
     const group = setup.enemies ?? pickGroup(setup.encounter);
     const enemies = enemyParty(group);
@@ -618,7 +626,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const u = this.battle.unit(uid);
     if (u?.side !== 'enemy') return this.pos(uid);
     const { x, y, art } = this.enemyPos(u);
-    return { x: x + art.canvas.width / 2, y: Math.max(22, y + opaqueTop(art.canvas) + 4) };
+    return { x: x + art.w / 2, y: Math.max(22, y + artTop(art) + 4) };
   }
 
   /** The scene as playback sees it (battlekit/playback.ts): a narrow view, built once. */
@@ -887,14 +895,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const next = new Map<number, { x: number; y: number; art: EnemyArt }>();
       const living = this.battle.enemies.filter((e) => !this.dead.has(e.uid)).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
       const gap = 6;
-      const total = living.reduce((n, e) => n + enemyArt(ENEMIES[e.key]!.sprite).canvas.width, 0) + gap * Math.max(0, living.length - 1);
+      const total = living.reduce((n, e) => n + enemyArt(ENEMIES[e.key]!.sprite).w, 0) + gap * Math.max(0, living.length - 1);
       let x = Math.round((BW - total) / 2);
       living.forEach((e, i) => {
         const art = enemyArt(ENEMIES[e.key]!.sprite);
         const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0);
         const back = e.boss ? 0 : (i % 2) * 4;
-        next.set(e.uid, { x, y: clearOfPrompt(ground - art.canvas.height - back, art.canvas), art });
-        x += art.canvas.width + gap;
+        next.set(e.uid, { x, y: clearOfPrompt(ground - art.h - back, art), art });
+        x += art.w + gap;
       });
       // The fallen keep their last spot while they dissolve.
       for (const e of this.battle.enemies) if (!next.has(e.uid) && prev.has(e.uid)) next.set(e.uid, prev.get(e.uid)!);
@@ -903,7 +911,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     let p = this.layout.get(u.uid);
     if (!p) {
       const art = enemyArt(ENEMIES[u.key]!.sprite);
-      p = { x: Math.round((BW - art.canvas.width) / 2), y: clearOfPrompt(this.bg.ground - (u.boss ? BOSS_LIFT : ENEMY_LIFT) - art.canvas.height, art.canvas), art };
+      p = { x: Math.round((BW - art.w) / 2), y: clearOfPrompt(this.bg.ground - (u.boss ? BOSS_LIFT : ENEMY_LIFT) - art.h, art), art };
       this.layout.set(u.uid, p);
     }
     return p;
@@ -911,7 +919,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   private enemyCenter(u: Combatant): Pt {
     const p = this.enemyPos(u);
-    return { x: p.x + p.art.canvas.width / 2, y: p.y + p.art.canvas.height * 0.45 };
+    return { x: p.x + p.art.w / 2, y: p.y + p.art.h * 0.45 };
   }
 
   partyPos(u: Combatant): Pt {
@@ -933,7 +941,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   private feetY(e: Combatant): number {
     const p = this.enemyPos(e);
-    return p.y + p.art.canvas.height;
+    return p.y + p.art.h;
   }
 
   /** Draw order for enemies: back to front by where their feet are (one comparator, made once). */

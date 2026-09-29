@@ -2,6 +2,7 @@
 import { silhouette, surface, type Ctx } from '../../engine/canvas';
 import { drawText } from '../../engine/font';
 import { W } from '../../engine/game';
+import type { EnemyArt } from '../../art/enemies';
 
 export const silCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
 export const topCache = new WeakMap<HTMLCanvasElement, number>();
@@ -13,6 +14,11 @@ export function drawLag(ctx: Ctx, x: number, y: number, w: number, h: number, sh
   if (b <= a) return;
   ctx.fillStyle = '#ffd7c0';
   ctx.fillRect(x + a, y, b - a, h);
+}
+
+/** An enemy's first opaque row, in battle-world pixels (its art may be finer than the world). */
+export function artTop(art: EnemyArt): number {
+  return opaqueTop(art.canvas) / art.res;
 }
 
 export function opaqueTop(c: HTMLCanvasElement): number {
@@ -210,10 +216,11 @@ export function variant(src: HTMLCanvasElement, dup: number): HTMLCanvasElement 
 
 const thumbCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 /** A 12×12 head-and-shoulders crop of an enemy sprite (the turn-order strip), at its pixel scale. */
-export function enemyThumb(src: HTMLCanvasElement): HTMLCanvasElement {
+export function enemyThumb(src: HTMLCanvasElement, res = 1): HTMLCanvasElement {
   let c = thumbCache.get(src);
   if (!c) {
-    const s = Math.min(src.width, 24);
+    // The same patch of body whatever the art's resolution (24 world pixels square).
+    const s = Math.min(src.width, 24 * res);
     const top = opaqueTop(src);
     const t = surface(12, 12);
     t.ctx.imageSmoothingEnabled = false;

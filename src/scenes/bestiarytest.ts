@@ -19,7 +19,7 @@ export class BestiaryTestScene extends Scene {
     let x = 6, y = 6, rowH = 0;
     for (const k of keys) {
       const a = enemyArt(k);
-      const w = a.canvas.width * 2, h = a.canvas.height * 2;
+      const w = a.w * 2, h = a.h * 2;
       if (x + w > W - 4) { x = 6; y += rowH + 12; rowH = 0; }
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(a.canvas, x, y, w, h);
