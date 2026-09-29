@@ -170,12 +170,12 @@ export const annex: MapDef = {
     {
       id: 'log3', x: 6, y: 2, on: 'action',
       run: async (s) => {
-        await annexLog('MAIL · to: J. PALE', 'Your contractors should reach S-7 by the 14th. On recovery, contractor exposure is to be {r}resolved per standard protocol{/}. — Operations')(s);
+        await annexLog('MAIL · to: J. PALE', 'Your contractors should reach S-7 by the 14th. On recovery, please {c}close out the contractor account per standard protocol{/} and file the audit copy with Finance. — Operations')(s);
         if (!s.flag('read_mail')) {
           s.set('read_mail');
-          await s.say('kit', '“Resolved.” What does “resolved” mean?', { face: 'angry' });
-          await s.say('rook', 'Nothing good.');
-          await s.say('hex', 'Standard protocol. Great. Nobody in history has ever been resolved in a nice way, per standard protocol.', { face: 'sad' });
+          await s.say('kit', '“Close out the account.” That’s us getting paid, right?');
+          await s.say('hex', 'Probably. Finance. Audit copy. It’s the most boring email I’ve ever read.');
+          await s.say('rook', '…Probably.');
         }
       },
     },

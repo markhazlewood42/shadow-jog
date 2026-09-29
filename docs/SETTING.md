@@ -325,7 +325,7 @@ Static Mary's pirate station [canon]. [new:] It moves every week; the mast on he
   Prototype Chip]. [new:] Alive, maybe. He took more than a chip out of Annex 7.
 
 ### Kessler-Mori
-- **Mr. Pale** [canon: the client; white suit, red visor, brass watch, exact hours; "Contractors are paid on
+- **Mr. Pale** [canon: the client; white suit, red visor, exact hours; peels a satsuma in one spiral, counts the segments, never eats it; "Contractors are paid on
   completion. You have completed."]. [new:] Head of Asset Recovery. His name on K-M's books is a string of
   characters that changes every quarter. He collects numbers, including Kit's nine seconds [canon], because numbers
   are how K-M decides what a person is worth. He was on the Orison acquisition team in 2064, which is how he knows

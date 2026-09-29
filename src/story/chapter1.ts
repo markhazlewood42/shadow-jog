@@ -70,7 +70,7 @@ export const meetDutch: ScriptFn = async (s) => {
   }
   await s.say('dutch', 'There they are. My favorite disaster and his apprentice. Sit, sit. Mind the stain, it’s load-bearing.', { face: 'happy' });
   await s.say('dutch', 'This is Mr. Pale. He represents, let’s say, an interested party.');
-  await s.narrate('Mr. Pale sets a brass wind-up watch face-up on the table. No chip, no signal. Nothing in the bar can read it but him.');
+  await s.narrate('Mr. Pale is peeling a satsuma with a small folding knife. The peel comes away in one unbroken spiral. He never looks at his hands.');
   await s.say('pale', 'A pleasure. I’ll be brief; I bill by the minute. Under the flooded Sinkline there is a sealed research annex. Kessler-Mori wrote it off after the flood of ’61.');
   await s.say('pale', 'Inside is a {y}data core{/}. Bring it to me intact and you will be paid {y}three thousand cred{/}.');
   await s.say('kit', 'Three thou—', { face: 'surprised' });
@@ -89,7 +89,8 @@ export const meetDutch: ScriptFn = async (s) => {
   await s.say('pale', 'So nothing. I collect numbers. That one is unusual.');
   await s.say('rook', 'She’s not part of the price.');
   await s.say('pale', 'Of course not, Mr. Rook. Prices are for things one pays for.');
-  await s.narrate('He winds the watch twice, pockets it, and is gone before the door finishes swinging.');
+  await s.narrate('He splits the satsuma, counts the segments under his breath, and leaves it on the table uneaten. He is gone before the door finishes swinging.');
+  await s.say('dutch', 'Does that every time. Never eats one. Don’t ask.');
   s.despawn('pale');
   s.sfx('door');
   await s.wait(20);
@@ -111,7 +112,7 @@ export const meetHex: ScriptFn = async (s) => {
     await s.wait(50);
     await s.fadeIn(30);
     await s.say('hex', 'Aaand she lives. Hi, baby. Did you miss me? You missed me.', { face: 'happy' });
-    await s.say('hex', 'Okay. A deal’s a deal. I’m going to regret this. I’m already regretting it. Let’s go rob a haunted subway.');
+    await s.say('hex', 'Okay. A deal’s a deal. I’m already regretting it. Let’s go rob a haunted subway.');
     s.despawn('hex');
     await s.join('hex');
     s.set('hex_joined');
@@ -130,9 +131,9 @@ export const meetHex: ScriptFn = async (s) => {
   await s.say('kit', 'Kit. My name’s been Kit for nineteen years.', { face: 'angry' });
   await s.say('hex', 'Right. Knew that. Hi, Kit.');
   await s.say('rook', 'We have a job. Corporate doors, down in the Sinkline.');
-  await s.say('hex', 'No. Absolutely not. Also I can’t, because my deck is dead. I fried the coprocessor pulling an all-nighter on a, um, hobby. Look at her. She’s crying.', { face: 'sad' });
+  await s.say('hex', 'No. Absolutely not. Also I can’t: my deck’s dead. Fried the coprocessor on an all-nighter. A hobby. Look at her. She’s crying.', { face: 'sad' });
   await s.say('kit', 'So buy a new one.');
-  await s.say('hex', 'With what cred? The cred I owe Dutch? A Stingray coprocessor costs more than this building. Which I also owe money on.');
+  await s.say('hex', 'With what cred? A Stingray costs more than this building. Which I also owe money on.');
   await s.say('rook', 'Dutch will forget your debt.');
   await s.say('hex', '…How much of it?', { face: 'smirk' });
   await s.say('rook', 'Some.');
@@ -513,7 +514,7 @@ export const betrayal: ScriptFn = async (s) => {
   s.set('betrayal');
   s.music('tension');
   await s.wait(20);
-  await s.narrate('Mr. Pale is waiting under the cranes, the brass watch open in his palm.');
+  await s.narrate('Mr. Pale is waiting under the cranes, peeling a satsuma. The spiral of peel hangs from his knife, unbroken.');
   await s.say('pale', 'Three minutes early. I do appreciate punctuality in a liability.', { face: 'smirk' });
   await s.say('kit', 'Your “property” is a person.', { face: 'angry' });
   await s.say('pale', 'Asset S-7 is Kessler-Mori property, recovered from a site we officially abandoned by deniable contractors.');
@@ -521,12 +522,26 @@ export const betrayal: ScriptFn = async (s) => {
   await s.say('rook', 'And the three thousand?');
   await s.say('pale', 'A figure of speech.');
   await s.say('pale', 'I did tell you I collect numbers, Miss Kit. I have already sold yours.', { face: 'smirk' });
+  await s.narrate('He splits the satsuma and counts the segments under his breath. Eleven.');
   await s.say('pale', 'Contractors are paid on completion. You have completed.');
   await s.say('pale', 'Except you, Miss Kit. The Vessel program is always short of subjects.');
-  await s.narrate('The watch snaps shut.');
+  await s.narrate('The peel drops to the wet concrete. One unbroken spiral.');
   s.sfx('alert');
   await s.say('K-M Sentinel', 'Contractor tags read. Four signatures. One flagged for intake, three for disposal.');
+  // The struggle: Kit acts before Rook's plan does. Either way the dock is lost; how she loses it is hers.
+  const act = await s.ask(null, 'Rifles come up all along the dock.', ['Go for Pale', 'Get in front of Hex and Sable'], { cancel: 1 });
+  if (act === 0) {
+    s.sfx('punch');
+    s.shake(12, 3);
+    await s.narrate('Kit is across the gap before she has decided to be. A Sentinel’s rifle butt meets her halfway, and the concrete meets her after that.');
+    await s.say('pale', 'Nine seconds in the street, Miss Kit. You were faster when nobody was watching.', { face: 'smirk' });
+  } else {
+    s.sfx('buff');
+    await s.narrate('Kit plants herself in front of Hex and Sable, fists up, burning. The crow screams from a crane. Every red dot on the dock finds her chest.');
+    await s.say('pale', 'Touching. Inefficient, but touching.', { face: 'smirk' });
+  }
   await s.say('rook', 'Kit. When I say run, you run. You don’t look back, you don’t wait for me.');
+  await s.narrate('Rook’s hand comes out of his coat with something small and round in it. The pin is already gone.');
   await s.say('kit', 'Rook—', { face: 'sad' });
   await s.say('rook', 'Run.');
   s.flash('#ffffff', 30);
