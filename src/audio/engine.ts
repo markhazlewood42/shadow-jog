@@ -312,7 +312,7 @@ class AudioEngine {
   applyVolumes(): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    this.music.gain.setTargetAtTime(settings.musicVol * 0.66, t, 0.05);
+    this.music.gain.setTargetAtTime(settings.musicVol * 0.78, t, 0.05);
     this.sfx.gain.setTargetAtTime(settings.sfxVol * 0.7, t, 0.05);
   }
 

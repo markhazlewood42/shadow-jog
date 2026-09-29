@@ -460,6 +460,12 @@ export function loopPoint(name: string): number | null {
   return 0.05 + song.length * stepDur(song);
 }
 
+/** A bar's length in seconds (16 sixteenth-note steps), for measuring bar lines. */
+export function barLength(name: string): number | null {
+  const song = get(name);
+  return song ? stepDur(song) * 16 : null;
+}
+
 function startTimer(): void {
   if (timer === null) timer = window.setInterval(tick, 25);
 }

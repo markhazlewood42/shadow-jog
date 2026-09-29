@@ -38,6 +38,24 @@ Round 7 note: the evidence got richer (audio measurements, more screenshots, mor
 new, concrete defects — several real bugs (text collisions, the Warden's hidden head, the menu's hidden Close, a stale
 save baseline, a continuity slip). Reviewer spread remains ±0.5–1.0 per area; the trend is judged on defects fixed.
 
+## Round 10 (verification pending)
+
+Worked the round-9 findings, the two caps first.
+
+- [x] **Caps**: the turn-order strip is a column on the edge opposite the acting member's menus, laid out by a pure function and tested against every other top-of-screen panel (descriptions tested to fit their band); the Warden chamber is a composed room (plated deck, a binding circle cabled to the pylons, a marked way in), and the containment grating is calmer.
+- [x] **UI**: the menu dim is near-opaque; the controls and dialog shots reach the screens they're named for (asserted); unaffordable prices read red.
+- [x] **Feel**: Screen flash (Off/Reduced/Full) and Hit pause options; the dead CRT setting gone; the renderer split's stray comments cleaned.
+- [x] **Combat**: timed presses have profiles (quick: tight window, big payoff; heavy: wide window, smaller payoff; a telegraphed blow braced hardest), tested; street-wisdom weakness hints before anything is known; Crow's Wing says what it does. (Tried: a fifth more HP on ordinary enemies to make fights longer; it barely moved round counts and wrecked dungeon attrition, so it was reverted.)
+- [x] **Battle presentation**: Drowned Shades and street drones are individuals; enemies squash and snap back on heavy hits.
+- [x] **Economy**: the Glass Wolves' cred stick on the critical path, so p10 stays above zero before every boss (tested); a mod per crew member only they wear.
+- [x] **Stability**: chaos E2E in CI (mashing through fades, menus mid-warp, reload mid-dialogue, keys through a battle); a real version-1 save fixture that must keep loading; remove() survives a throwing exit(); the first error stays on screen, later ones counted.
+- [x] **Engine**: no closure per text draw; the Warden's conduits and duplicate flips allocate nothing; Battle.unit indexed; target notes computed on change.
+- [x] **Level**: world landmarks (the fallen dome, Static Mary's mast, water towers, a wreck pile); two secrets found by looking (the Sinkline's cracked wall into a sealed closet, the Rustyard's loose heap behind a painted arrow); the lattice pulses as one curtain.
+- [x] **Narrative**: the ending caption names who surfaced; the Rustyard's promises pay off; curly quotes throughout; Pale trimmed.
+- [x] **Audio**: tonal parts keep a top end (plucks/arps close to 1.8 kHz, not 600 Hz); a gentler bus compressor; four themes' last bars lead back into the loop.
+- [x] **Field art**: Rook folds his arms and Kit bounces on her toes when standing still; the cryo wing turns to the breach alarm's red after the rescue, and the before/after shots show three, then four.
+- [ ] Deferred: FieldScene's render split; three-member combos; hand-authored signature melodies.
+
 ## Round 9 (verified 2026-09-29)
 
 Worked the round-8 findings, bugs first.

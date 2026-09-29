@@ -3,19 +3,19 @@ Running 3 tests using 1 worker
 
 [1/3] [chromium] › e2e\perf.spec.ts:48:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget
 [chromium] › e2e\perf.spec.ts:48:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget
-title baseline {"frames":140,"mean":0.2335714268897261,"p95":0.30000001192092896,"max":0.5999999940395355,"sim":{"frames":140,"mean":0.012142857377018248,"p95":0.10000000894069672,"max":0.10000000894069672}}
+title baseline {"frames":151,"mean":0.3463576160716695,"p95":0.5999999940395355,"max":0.7999999970197678,"sim":{"frames":151,"mean":0.020529801285030038,"p95":0.10000000894069672,"max":0.10000000894069672}}
 
-field {"frames":225,"mean":1.2391111116939122,"p95":1.5,"max":2,"sim":{"frames":225,"mean":0.02222222242090437,"p95":0.10000000894069672,"max":0.20000000298023224}}
+field {"frames":240,"mean":1.6275000000372528,"p95":2.5,"max":3.9000000059604645,"sim":{"frames":240,"mean":0.04000000065813462,"p95":0.10000000894069672,"max":0.20000000298023224}}
 
 [2/3] [chromium] › e2e\perf.spec.ts:59:1 › a live battle stays inside the frame budget
 [chromium] › e2e\perf.spec.ts:59:1 › a live battle stays inside the frame budget
-battle {"frames":336,"mean":0.5434523814668258,"p95":0.7999999970197678,"max":1.7999999970197678,"sim":{"frames":336,"mean":0.020535714569545928,"p95":0.10000000894069672,"max":1.199999988079071}}
+battle {"frames":360,"mean":0.6611111114008559,"p95":0.9000000059604645,"max":7.300000011920929,"sim":{"frames":360,"mean":0.03833333311809434,"p95":0.10000000894069672,"max":1.2999999970197678}}
 
 [3/3] [chromium] › e2e\perf.spec.ts:79:1 › input answers within two frames (field movement, opening the menu)
 [chromium] › e2e\perf.spec.ts:79:1 › input answers within two frames (field movement, opening the menu)
-input latency ms {"move":[8.6,3,15.7,15.8,15.6,12.5,12.5,4.9],"menu":[16.2,18,11.3,4.5],"moveMedian":12.5,"menuMedian":16.200000002980232}
+input latency ms {"move":[15.7,9.8,15.1,4.9,11.4,14.8,4,11.7],"menu":[16,8.4,8.3,8.6],"moveMedian":11.700000002980232,"menuMedian":8.600000008940697}
 
-  3 passed (34.0s)
+  3 passed (33.9s)
 gpu exit=0
 --- software canvas (PW_NOGPU=1, as CI) ---
 
@@ -23,17 +23,17 @@ Running 3 tests using 1 worker
 
 [1/3] [chromium] › e2e\perf.spec.ts:48:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget
 [chromium] › e2e\perf.spec.ts:48:1 › field (Lantern Row plaza, rain, crowds) stays inside the frame budget
-title baseline {"frames":151,"mean":0.5086092717008085,"p95":0.6000000089406967,"max":0.7000000029802322,"sim":{"frames":151,"mean":0.011258277968065628,"p95":0.09999999403953552,"max":0.10000000894069672}}
+title baseline {"frames":150,"mean":0.6299999996026358,"p95":0.7000000029802322,"max":1.2999999970197678,"sim":{"frames":150,"mean":0.021333333750565845,"p95":0.10000000894069672,"max":0.20000000298023224}}
 
-field {"frames":241,"mean":2.5302904562336774,"p95":2.9000000059604645,"max":3.699999988079071,"sim":{"frames":241,"mean":0.023651452603676508,"p95":0.10000000894069672,"max":0.20000000298023224}}
+field {"frames":240,"mean":2.7924999995778004,"p95":3,"max":3.5999999940395355,"sim":{"frames":240,"mean":0.030833333109815914,"p95":0.10000000894069672,"max":0.19999998807907104}}
 
 [2/3] [chromium] › e2e\perf.spec.ts:59:1 › a live battle stays inside the frame budget
 [chromium] › e2e\perf.spec.ts:59:1 › a live battle stays inside the frame budget
-battle {"frames":361,"mean":1.0401662045320976,"p95":1.4000000059604645,"max":2.300000011920929,"sim":{"frames":361,"mean":0.018282548913995316,"p95":0.10000000894069672,"max":1.2000000029802322}}
+battle {"frames":360,"mean":1.1647222220069833,"p95":1.6000000089406967,"max":2.3999999910593033,"sim":{"frames":361,"mean":0.03878116289829613,"p95":0.10000000894069672,"max":1.2999999970197678}}
 
 [3/3] [chromium] › e2e\perf.spec.ts:79:1 › input answers within two frames (field movement, opening the menu)
 [chromium] › e2e\perf.spec.ts:79:1 › input answers within two frames (field movement, opening the menu)
-input latency ms {"move":[14.9,4.8,15.7,8.5,5.3,14.7,4.3,9.9],"menu":[15.3,13.2,6.8,9.2],"moveMedian":9.900000005960464,"menuMedian":13.200000002980232}
+input latency ms {"move":[4.8,11.7,14.9,13,14.6,5.3,14.5,16.1],"menu":[20,12.7,15.9,16.9],"moveMedian":14.5,"menuMedian":16.900000005960464}
 
-  3 passed (33.8s)
+  3 passed (34.0s)
 software exit=0

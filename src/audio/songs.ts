@@ -48,6 +48,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // The Drowned Saint — smoky lounge jazz.
   bar: {
+    air: 0.009,
     gain: -1.4,
     bpm: 76,
     swing: 0.28,
@@ -117,7 +118,7 @@ export const SONGS: Record<string, SongSpec> = {
       { inst: 'bell', gen: 'bells', octave: 7, vol: 0.3, rev: 0.6, del: 0.35 },
       { inst: 'bell', vol: 1, rev: 0.5, del: 0.45, notes:
         'C5 - - - . . Eb5 - | D5 - C5 - . . G4 - | C5 - - - Eb5 - C5 - | B4 - - - - - . . |' +
-        'G5 - - - . . F5 - | Eb5 - - - . . C5 - | F5 - - - Eb5 - Db5 - | D5 - - - B4 - - -' },
+        'G5 - - - . . F5 - | Eb5 - - - . . C5 - | F5 - - - Eb5 - Db5 - | D5 - B4 - D5 - F5 -' },
       { inst: 'sub', gen: 'long', octave: 1, vol: 0.32 },
       { inst: 'choir', gen: 'chord', octave: 3, vol: 0.9, rev: 0.6 },
       { inst: 'pluck', gen: 'broken', octave: 3, vol: 0.4, del: 0.3 },
@@ -146,8 +147,8 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Battle — "Crossfire".
   battle: {
-    // Its peaks sat 0.6 dB over the limiter's threshold.
-    gain: -0.8,
+    // Its peaks sat over the limiter's threshold (-1.4 dBFS, then -1.3 with the gentler bus).
+    gain: -1.6,
     bpm: 152,
     chords: 'Em | Em | C | D | Em | Em | C | B | Am | C | Em | Em | Am | C | B | B',
     drums: 'battle',
@@ -171,6 +172,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Boss — "Heavy Metal Warden".
   boss: {
+    air: 0.01,
     rests: [7],
     gain: -1.6,
     bpm: 164,
@@ -197,6 +199,7 @@ export const SONGS: Record<string, SongSpec> = {
 
   // Boss phase two — the bound spirit.
   boss2: {
+    air: 0.01,
     rests: [11],
     gain: -1.7,
     bpm: 140,
@@ -232,6 +235,7 @@ export const SONGS: Record<string, SongSpec> = {
     ],
   },
   victory_boss: {
+    air: 0.014,
     gain: -0.5,
     bpm: 120,
     chords: 'C | G/B | Am | F | C | G | F | C',

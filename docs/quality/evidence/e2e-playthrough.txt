@@ -1,23 +1,27 @@
 
-Running 17 tests using 1 worker
+Running 21 tests using 1 worker
 
-[1/17] [chromium] › e2e\economy.spec.ts:27:1 › walking the Barrens turns up fights that pay out
-[2/17] [chromium] › e2e\economy.spec.ts:71:1 › a shop takes the cred and hands over the goods
-[3/17] [chromium] › e2e\economy.spec.ts:115:1 › selling loot turns it into cred
-[4/17] [chromium] › e2e\gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight
-[5/17] [chromium] › e2e\gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time
-[6/17] [chromium] › e2e\gameover.spec.ts:73:1 › Return to Title from Game Over
-[7/17] [chromium] › e2e\gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it
-[8/17] [chromium] › e2e\gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title
-[9/17] [chromium] › e2e\gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable
-[10/17] [chromium] › e2e\gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently
-[11/17] [chromium] › e2e\gameover.spec.ts:171:1 › A scene that throws every frame recovers to the title instead of freezing
-[12/17] [chromium] › e2e\gameover.spec.ts:187:1 › A scene whose drawing throws every frame recovers too
-[13/17] [chromium] › e2e\gameover.spec.ts:195:1 › Two tabs on one save: both are warned, and only the first keeps autosaving
-[14/17] [chromium] › e2e\playtest.spec.ts:15:1 › playtest capture: Chapter 1
-[15/17] [chromium] › e2e\playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish
-[16/17] [chromium] › e2e\prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors
-[17/17] [chromium] › e2e\prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first
-  Slow test file: [chromium] › e2e\playtest.spec.ts (5.5m)
+[1/21] [chromium] › e2e\chaos.spec.ts:58:1 › mashing every key while walking through a door ends up in the room, playable
+[2/21] [chromium] › e2e\chaos.spec.ts:70:1 › opening the menu over and over during a warp never strands the crew
+[3/21] [chromium] › e2e\chaos.spec.ts:92:1 › reloading in the middle of a conversation, then Continue, lands in a playable field
+[4/21] [chromium] › e2e\chaos.spec.ts:108:1 › hammering keys through a battle never breaks it: it plays out to a result
+[5/21] [chromium] › e2e\economy.spec.ts:27:1 › walking the Barrens turns up fights that pay out
+[6/21] [chromium] › e2e\economy.spec.ts:71:1 › a shop takes the cred and hands over the goods
+[7/21] [chromium] › e2e\economy.spec.ts:115:1 › selling loot turns it into cred
+[8/21] [chromium] › e2e\gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight
+[9/21] [chromium] › e2e\gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time
+[10/21] [chromium] › e2e\gameover.spec.ts:73:1 › Return to Title from Game Over
+[11/21] [chromium] › e2e\gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it
+[12/21] [chromium] › e2e\gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title
+[13/21] [chromium] › e2e\gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable
+[14/21] [chromium] › e2e\gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently
+[15/21] [chromium] › e2e\gameover.spec.ts:171:1 › A scene that throws every frame recovers to the title instead of freezing
+[16/21] [chromium] › e2e\gameover.spec.ts:187:1 › A scene whose drawing throws every frame recovers too
+[17/21] [chromium] › e2e\gameover.spec.ts:195:1 › Two tabs on one save: both are warned, and only the first keeps autosaving
+[18/21] [chromium] › e2e\playtest.spec.ts:15:1 › playtest capture: Chapter 1
+[19/21] [chromium] › e2e\playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish
+[20/21] [chromium] › e2e\prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors
+[21/21] [chromium] › e2e\prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first
+  Slow test file: [chromium] › e2e\playtest.spec.ts (5.6m)
   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
-  17 passed (9.2m)
+  21 passed (9.8m)

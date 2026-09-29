@@ -177,13 +177,17 @@ test('every looping song joins cleanly at its loop point', async ({ page }) => {
   await page.goto('/?debug');
   await page.waitForTimeout(800);
   const names = await page.evaluate(`(async () => Object.keys((await import('/src/audio/songs.ts')).SONGS))()`) as string[];
-  const lines: string[] = ['song            loop at   level before  after   Δ dB   seam step  typical step (99.9%)'];
+  // A downbeat is always louder than the beat before it, so a raw before/after step at the seam
+  // mostly measures the downbeat. What matters is whether the loop's bar line steps more than the
+  // song's ordinary bar lines do: 'excess' is the seam's step minus the median bar line's.
+  const lines: string[] = ['song            loop at   before  after   Δ dB   bar-line Δ (median)   excess   seam step  typical step (99.9%)'];
   const bad: string[] = [];
   for (const name of names) {
     const r = (await page.evaluate(`(async () => {
-      const { renderSong, loopPoint } = await import('/src/audio/music.ts');
+      const { renderSong, loopPoint, barLength } = await import('/src/audio/music.ts');
       const at = loopPoint(${JSON.stringify(name)});
-      if (at === null) return null;
+      const bar = barLength(${JSON.stringify(name)});
+      if (at === null || bar === null) return null;
       const buf = await renderSong(${JSON.stringify(name)}, at + 3);
       const L = buf.getChannelData(0), sr = buf.sampleRate, n = L.length, k = Math.round(at * sr);
       const rms = (a, b) => { let s = 0; for (let i = a; i < b; i++) s += L[i] * L[i]; return 20 * Math.log10(Math.max(1e-9, Math.sqrt(s / (b - a)))); };
@@ -194,14 +198,23 @@ test('every looping song joins cleanly at its loop point', async ({ page }) => {
       const typical = sorted[Math.floor(sorted.length * 0.999)];
       let seam = 0;
       for (let i = Math.max(1, k - Math.round(sr * 0.005)); i < Math.min(n, k + Math.round(sr * 0.005)); i++) seam = Math.max(seam, Math.abs(L[i] - L[i - 1]));
-      return { at, before: rms(k - half, k), after: rms(k, k + half), seam, typical };
-    })()`)) as { at: number; before: number; after: number; seam: number; typical: number } | null;
+      const deltas = [];
+      for (let b = 0.05 + bar; b < at - bar / 2; b += bar) {
+        const kb = Math.round(b * sr);
+        deltas.push(rms(kb, kb + half) - rms(kb - half, kb));
+      }
+      deltas.sort((a, b) => a - b);
+      const barLine = deltas.length ? deltas[Math.floor(deltas.length / 2)] : 0;
+      return { at, before: rms(k - half, k), after: rms(k, k + half), seam, typical, barLine };
+    })()`)) as { at: number; before: number; after: number; seam: number; typical: number; barLine: number } | null;
     if (!r) continue;
     const d = r.after - r.before;
-    lines.push(`${name.padEnd(15)} ${r.at.toFixed(2).padStart(7)}s  ${r.before.toFixed(1).padStart(8)}  ${r.after.toFixed(1).padStart(6)}  ${d.toFixed(1).padStart(5)}  ${r.seam.toFixed(4).padStart(9)}  ${r.typical.toFixed(4).padStart(9)}`);
-    // A seam is clean if the level carries across it and the join is no sharper than the music's
-    // own sharpest moments (a click would stand far above them).
-    if (Math.abs(d) > 6 || r.seam > r.typical * 1.5) bad.push(name);
+    const excess = d - r.barLine;
+    lines.push(`${name.padEnd(15)} ${r.at.toFixed(2).padStart(7)}s  ${r.before.toFixed(1).padStart(6)}  ${r.after.toFixed(1).padStart(6)}  ${d.toFixed(1).padStart(5)}  ${r.barLine.toFixed(1).padStart(12)}          ${excess.toFixed(1).padStart(5)}  ${r.seam.toFixed(4).padStart(9)}  ${r.typical.toFixed(4).padStart(9)}`);
+    // A seam is clean if it steps up no more than 1.5 dB beyond the song's own bar lines (a seam
+    // that lands softer than an ordinary downbeat isn't a jump, unless it's a hole: 2.5 dB) and the
+    // join is no sharper than the music's own sharpest moments (a click would stand far above them).
+    if (excess > 1.5 || excess < -2.5 || r.seam > r.typical * 1.5) bad.push(name);
   }
   writeFileSync('docs/quality/evidence/audio-loops.txt', `${lines.join('\n')}\n`);
   if (bad.length) throw new Error(`loop seams: ${bad.join(', ')}`);
