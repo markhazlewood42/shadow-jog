@@ -205,24 +205,22 @@ function glyph(ch: string): Glyph {
   return glyphs.get(ch) ?? glyphs.get('?')!;
 }
 
-/** Iterate text as runs, resolving control codes. Calls `emit` per visible char. */
-function walk(text: string, base: string, emit: (ch: string, color: string) => void): void {
-  let color = base;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i]!;
-    if (ch === '{') {
-      const end = text.indexOf('}', i);
-      if (end > i) {
-        const code = text.slice(i + 1, end);
-        if (code === '/') color = base;
-        else if (COLOR_CODES[code]) color = COLOR_CODES[code]!;
-        else if (code.startsWith('#')) color = code;
-        i = end;
-        continue;
-      }
-    }
-    emit(ch, color);
-  }
+/**
+ * Control codes ({c}, {/}, {#rrggbb}...) are read in place by the loops below rather than through a
+ * per-call callback: text is drawn dozens of times a frame, and a closure per call was the one
+ * allocation left in the draw path. `codeColor` is the colour after the last code read.
+ */
+let codeColor = TEXT;
+/** If a control code starts at `i`, apply it to `codeColor` and return the index of its '}', else -1. */
+function skipCode(text: string, i: number, base: string): number {
+  if (text.charCodeAt(i) !== 123) return -1;
+  const end = text.indexOf('}', i);
+  if (end <= i) return -1;
+  const code = text.slice(i + 1, end);
+  if (code === '/') codeColor = base;
+  else if (COLOR_CODES[code]) codeColor = COLOR_CODES[code]!;
+  else if (code.startsWith('#')) codeColor = code;
+  return end;
 }
 
 export function stripCodes(text: string): string {
@@ -232,11 +230,17 @@ export function stripCodes(text: string): string {
 export function measure(text: string): number {
   let w = 0;
   let any = false;
-  walk(text, TEXT, (ch) => {
-    if (ch === '\n') return;
+  for (let i = 0; i < text.length; i++) {
+    const end = skipCode(text, i, TEXT);
+    if (end >= 0) {
+      i = end;
+      continue;
+    }
+    const ch = text[i]!;
+    if (ch === '\n') continue;
     w += glyphWidth(ch) + SPACING;
     any = true;
-  });
+  }
   return any ? w - SPACING : 0;
 }
 
@@ -267,25 +271,35 @@ export function drawText(ctx: Ctx, text: string, x: number, y: number, opts: Tex
   let cx = x;
   let n = 0;
   const max = opts.max ?? Infinity;
-  walk(text, base, (ch, color) => {
-    if (n >= max || ch === '\n') return;
+  // After measure() (which reads codes too): start from this call's own colour.
+  codeColor = base;
+  for (let i = 0; i < text.length; i++) {
+    const end = skipCode(text, i, base);
+    if (end >= 0) {
+      i = end;
+      continue;
+    }
+    const ch = text[i]!;
+    if (n >= max || ch === '\n') continue;
     n++;
     const g = glyph(ch);
     if (ch !== ' ') {
       if (shadow) ctx.drawImage(atlasFor(shadow), g.x, 0, g.w, GLYPH_H, cx + 1, y + 1, g.w, GLYPH_H);
-      ctx.drawImage(atlasFor(color), g.x, 0, g.w, GLYPH_H, cx, y, g.w, GLYPH_H);
+      ctx.drawImage(atlasFor(codeColor), g.x, 0, g.w, GLYPH_H, cx, y, g.w, GLYPH_H);
     }
     cx += g.w + SPACING;
-  });
+  }
   return cx - x - SPACING;
 }
 
 /** Visible character count (excludes control codes and newlines). */
 export function visibleLength(text: string): number {
   let n = 0;
-  walk(text, TEXT, (ch) => {
-    if (ch !== '\n') n++;
-  });
+  for (let i = 0; i < text.length; i++) {
+    const end = skipCode(text, i, TEXT);
+    if (end >= 0) i = end;
+    else if (text[i] !== '\n') n++;
+  }
   return n;
 }
 

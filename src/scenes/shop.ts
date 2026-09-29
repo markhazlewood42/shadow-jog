@@ -104,7 +104,9 @@ export class ShopScene extends Scene<void> {
     this.list.setItems(
       this.shop.items.map((id) => {
         const it = ITEMS[id]!;
-        return { label: it.name, value: id, right: `${it.price}¢`, enabled: it.price <= state.cred };
+        // Out of reach reads as a price problem (red), not as an item you can never have.
+        const afford = it.price <= state.cred;
+        return { label: it.name, value: id, right: `${it.price}¢`, enabled: afford, rightColor: afford ? undefined : '#c85a64' };
       }),
     );
     this.list.index = 0;

@@ -28,6 +28,17 @@ import { drawRing } from './timing';
 
 let bigBandGrad: CanvasGradient | null = null;
 
+/**
+ * The Warden's conduits, relative to its sprite: [from x (from the left edge if ≥ 0, else from the
+ * right), from y, to x (screen-world), to y, sag]. A constant, so drawing them allocates nothing.
+ */
+const CONDUITS: readonly (readonly [number, number, number, number, number])[] = [
+  [10, 24, -6, 4, 10],
+  [-10, 24, BW + 6, 0, 12],
+  [14, 44, -6, 58, 6],
+  [-14, 44, BW + 6, 62, 6],
+];
+
 /** How the street names each kind of enemy (the target box's hint line). */
 const FAMILY_NAME: Record<string, string> = { human: 'Chromed', machine: 'Machine', beast: 'Beast', spirit: 'Spirit', ghoul: 'Ghoul' };
 
@@ -146,14 +157,14 @@ export class BattleRenderer {
     // Duplicates: a distinct individual where the sprite has one, else a palette and mirror.
     // Creatures get both: their own anatomy, and the tint, mirror and markings on top.
     const who = dup ? enemyArt(ENEMIES[e.key]!.sprite, dup) : art;
-    const flip = (c: HTMLCanvasElement) => (dup % 2 ? mirrored(c) : c);
     const creature = e.family === 'beast' || e.family === 'machine' || e.family === 'spirit';
     // The strike frame through the lunge of an attack (from rearing back to the settle).
     const k = dd.poseT > 0 && dd.pose === 'attack' ? ENEMY_POSE_T - dd.poseT : -1;
     const src = who.attack && k >= 6 && k < 18 ? who.attack : who;
     // Humans with their own individual art still get the squad armband (marked()).
-    const canvas = who.individual && !creature ? marked(flip(src.canvas), e.family ?? '', dup) : marked(variant(src.canvas, dup), e.family ?? '', dup);
-    const glow = who.individual && !creature ? src.glow && flip(src.glow) : src.glow && variant(src.glow, dup);
+    const own = who.individual && !creature;
+    const canvas = own ? marked(dup % 2 ? mirrored(src.canvas) : src.canvas, e.family ?? '', dup) : marked(variant(src.canvas, dup), e.family ?? '', dup);
+    const glow = !src.glow ? undefined : own ? (dup % 2 ? mirrored(src.glow) : src.glow) : variant(src.glow, dup);
     let ox = 0, oy = 0;
     switch (art.idle) {
       case 'hover': oy = Math.round(Math.sin(f * 0.08 + e.uid) * 2); break;
@@ -211,6 +222,16 @@ export class BattleRenderer {
       return;
     }
     if (e.key === 'warden') this.drawConduits(g, dx, dy, art.canvas.width, f, !!e.memory.charging);
+    // A heavy hit lands on the body: it squashes flat and wide from the feet, then snaps back.
+    const hurtK = dd.poseT > 0 && dd.pose === 'hurt' ? 16 - dd.poseT : -1;
+    const squash = hurtK >= 0 && hurtK < 8 ? (hurtK < 2 ? 1 : 1 - (hurtK - 2) / 6) : 0;
+    if (squash > 0) {
+      const fx = dx + art.canvas.width / 2, fy = dy + art.canvas.height;
+      g.save();
+      g.translate(fx, fy);
+      g.scale(1 + 0.12 * squash, 1 - 0.1 * squash);
+      g.translate(-fx, -fy);
+    }
     // Rim light in a colour the backdrop doesn't use, so no enemy blends into the set.
     g.globalAlpha = alpha * 0.55;
     g.drawImage(rimOf(canvas, this.s.rim), dx - 1, dy - 1);
@@ -235,19 +256,16 @@ export class BattleRenderer {
       g.drawImage(silhouetteCache(canvas, '#ffffff'), dx, dy);
     }
     g.globalAlpha = 1;
+    if (squash > 0) g.restore();
   }
 
   /** The Warden is wired into the facility: sagging conduits run from its frame to the screen edges. */
   private drawConduits(g: Ctx, x: number, y: number, w: number, f: number, charging: boolean): void {
-    const runs: [number, number, number, number, number][] = [
-      [x + 10, y + 24, -6, y + 4, 10],
-      [x + w - 10, y + 24, BW + 6, y, 12],
-      [x + 14, y + 44, -6, y + 58, 6],
-      [x + w - 14, y + 44, BW + 6, y + 62, 6],
-    ];
     const pulse = charging ? '#ff5a4a' : '#6ff3ff';
     const speed = charging ? 0.05 : 0.018;
-    runs.forEach(([x0, y0, x1, y1, sag], i) => {
+    for (let i = 0; i < CONDUITS.length; i++) {
+      const [from, fy, x1, ty, sag] = CONDUITS[i]!;
+      const x0 = from >= 0 ? x + from : x + w + from, y0 = y + fy, y1 = y + ty;
       const n = Math.ceil(Math.abs(x1 - x0));
       for (let j = 0; j <= n; j++) {
         const t = j / n;
@@ -264,7 +282,7 @@ export class BattleRenderer {
         g.fillStyle = pulse;
         g.fillRect(px - 1, py, 3, 1);
       }
-    });
+    }
   }
 
   private drawPartyMember(g: Ctx, p: Combatant, f: number): void {

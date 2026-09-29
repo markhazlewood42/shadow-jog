@@ -229,6 +229,10 @@ export const deadCrew: ScriptFn = async (s) => {
   await s.say('rook', 'Dutch knows everything that happens below the canal. That’s what he sells.');
   await s.say('rook', 'Eyes open.');
   await s.give('trauma_patch', 2);
+  await s.narrate('A cred stick in the leader’s jacket, still warm with charge.');
+  await s.say('hex', 'Feels wrong.', { face: 'sad' });
+  await s.say('rook', 'They’d want it spent on the job that killed them. Take it.');
+  await s.cred(90);
 };
 
 /** Pump intakes, west to east, and the order they must be opened in (lowest pressure first). */

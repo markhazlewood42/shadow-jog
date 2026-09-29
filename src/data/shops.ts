@@ -26,7 +26,7 @@ export const SHOPS: Record<string, ShopDef> = {
     id: 'lr_armor', name: 'KOWLOON THREADS', keeper: 'Auntie Wen', accent: '#b07cff',
     greeting: 'Fashion that stops bullets. Mostly.',
     thanks: 'You wear it well. Try not to bleed on it.',
-    items: ['armored_jacket', 'lined_coat', 'bandana', 'helmet', 'tac_visor', 'spirit_band', 'spirit_fetish', 'lucky_coin'],
+    items: ['armored_jacket', 'lined_coat', 'bandana', 'helmet', 'tac_visor', 'spirit_band', 'spirit_fetish', 'lucky_coin', 'ki_beads', 'ronin_guard'],
   },
   noodles: {
     id: 'noodles', name: 'MAMA ONO’S', keeper: 'Mama Ono', accent: '#ff8a4a',
@@ -52,7 +52,7 @@ export const SHOPS: Record<string, ShopDef> = {
     thanks: 'Pleasure. Don’t tell anyone where I sleep.',
     // Wire's line is the black-market stuff: stims, darts, grenades, the taser. Only the two
     // pieces you need for the Lurker overlap with Mags, so nobody has to walk back up top.
-    items: ['trauma_patch', 'neurotab', 'adrenal_stim', 'omni_patch', 'toxin_dart', 'flashbang', 'mono_claws', 'taser_pistol', 'ballistic_vest', 'formfit'],
+    items: ['trauma_patch', 'neurotab', 'adrenal_stim', 'omni_patch', 'toxin_dart', 'flashbang', 'mono_claws', 'taser_pistol', 'ballistic_vest', 'formfit', 'coolant_rig'],
   },
   // Annex 7, outside the Warden chamber: the last place to spend before the job goes wrong.
   km_requisition: {
@@ -61,7 +61,7 @@ export const SHOPS: Record<string, ShopDef> = {
     thanks: 'CHARGED TO COST CENTRE 7. HAVE A PRODUCTIVE SHIFT.',
     // Consumables, plus the lab's top gear: a fallback for anyone who missed the armory cases,
     // and the Neural Lace for anyone who kept their money.
-    items: ['medkit', 'trauma_patch', 'omni_patch', 'neurotab', 'adrenal_stim', 'detox', 'optic_flush', 'frag', 'arc_gauntlets', 'thermal_katana', 'burst_smg', 'ward_staff', 'km_lace'],
+    items: ['medkit', 'trauma_patch', 'omni_patch', 'neurotab', 'adrenal_stim', 'detox', 'optic_flush', 'frag', 'arc_gauntlets', 'thermal_katana', 'burst_smg', 'ward_staff', 'km_lace', 'crow_torc'],
   },
   automat: {
     id: 'automat', name: 'TRANSIT AUTOMAT', keeper: 'Automat', accent: '#3fe0f0',

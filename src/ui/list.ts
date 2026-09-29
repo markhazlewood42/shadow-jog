@@ -9,6 +9,8 @@ export interface ListItem<T> {
   label: string;
   value: T;
   right?: string | undefined;
+  /** Colour for the right-hand detail (a price you can't afford reads red). */
+  rightColor?: string | undefined;
   enabled?: boolean | undefined;
   color?: string | undefined;
   /** Small colored tag drawn before the label (e.g. an icon glyph). */
@@ -116,7 +118,7 @@ export class ListMenu<T> {
       const room = rx + colW - 6 - (it.right ? measure(it.right) + 6 : 0) - lx;
       const color = !enabled ? UI.disabled : !active ? (sel ? '#b8bcd0' : '#7d8098') : it.color ?? (sel ? UI.text : '#d0cee4');
       drawText(ctx, fitText(it.label, room), lx, ry, { color });
-      if (it.right) drawText(ctx, it.right, rx + colW - 6, ry, { color: enabled ? UI.dim : UI.disabled, align: 'right' });
+      if (it.right) drawText(ctx, it.right, rx + colW - 6, ry, { color: it.rightColor ?? (enabled ? UI.dim : UI.disabled), align: 'right' });
     }
     // Scroll indicators
     const totalRows = Math.ceil(this.items.length / this.cols);

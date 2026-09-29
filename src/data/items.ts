@@ -115,6 +115,12 @@ export const ITEMS: Record<string, ItemDef> = {
   spirit_fetish: I({ id: 'spirit_fetish', name: 'Spirit Fetish', kind: 'mod', slot: 'mod', who: ALL, price: 300, res: 7, immune: ['poison'], desc: '+7 RES. Immune to poison.' }),
   flood_charm: I({ id: 'flood_charm', name: 'Flood Charm', kind: 'mod', slot: 'mod', who: ALL, price: 0, res: 5, immune: ['poison'], desc: 'A ’61 transit pass on a chain, kept by someone who didn’t get out. +5 RES, immune to poison.' }),
   proto_chip: I({ id: 'proto_chip', name: 'Prototype Chip', kind: 'mod', slot: 'mod', who: ALL, price: 0, agi: 4, crit: 8, desc: 'Unreleased K-M reflex coprocessor, pocketed by a man who knew what was coming. +4 AGI, +8% critical.' }),
+  // One mod per crew member that only they can wear, priced against the general ones: each trades
+  // something for their own style, so the mod slot is a per-character choice, not a shopping list.
+  ki_beads: I({ id: 'ki_beads', name: 'Ki Beads', kind: 'mod', slot: 'mod', who: ['kit'], price: 360, mnd: 6, agi: 2, def: -2, desc: 'Prayer beads wound round the wrist. +6 MND, +2 AGI for Ki Arts; -2 DEF, nothing between you and the hit.' }),
+  ronin_guard: I({ id: 'ronin_guard', name: 'Ronin Guard', kind: 'mod', slot: 'mod', who: ['rook'], price: 380, def: 5, res: 3, agi: -2, desc: 'An old bracer plate and a vow. +5 DEF, +3 RES for the one who stands in front; -2 AGI.' }),
+  coolant_rig: I({ id: 'coolant_rig', name: 'Coolant Rig', kind: 'mod', slot: 'mod', who: ['hex'], price: 360, mnd: 7, tp: 4, def: -3, desc: 'Liquid-cooled deck. +7 MND, +4 RAM: hotter programs, fragile decker. -3 DEF.' }),
+  crow_torc: I({ id: 'crow_torc', name: 'Crow Torc', kind: 'mod', slot: 'mod', who: ['sable'], price: 360, res: 5, mnd: 5, agi: -1, desc: 'Copper torc hung with crow feathers. +5 RES, +5 MND: the spirits listen. -1 AGI.' }),
   cyber_eye: I({ id: 'cyber_eye', name: 'Cyber Eye', kind: 'mod', slot: 'mod', who: ALL, price: 320, crit: 6, immune: ['blind'], desc: 'Flare-damped optics. Immune to blindness, +6% critical.' }),
 
   // ------------------------------------------------------------------ key items

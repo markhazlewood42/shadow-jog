@@ -76,6 +76,12 @@ describe('economy', () => {
       expect(xs.filter((x) => x >= 0).length / xs.length).toBeGreaterThanOrEqual(0.75);
     });
   }
+  it('a straight-line player never walks into a boss behind: p10 ≥ 0 at every checkpoint before one', () => {
+    for (const [cp, xs] of lean) {
+      if (!/Knuckles|Lurker|Annex|WARDEN/.test(cp)) continue;
+      expect(pct(xs, 0.1), cp).toBeGreaterThanOrEqual(0);
+    }
+  });
 
   it('the endgame has something worth buying, and exploring still pays: Requisition sells a same-tier alternative to each armory find, never the find itself', async () => {
     const { SHOPS } = await import('../src/data/shops');

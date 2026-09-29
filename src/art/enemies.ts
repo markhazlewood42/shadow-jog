@@ -63,7 +63,7 @@ const VARIANTS: Record<string, { look: Partial<CharLook>; face?: Partial<Face> }
  * Creatures that pack up get anatomy of their own per individual (their makers read V): a torn
  * ear or a stub tail, not just a tint. (Tint, mirror and markings still layer on in battle.)
  */
-const CREATURE_INDIVIDUALS: Record<string, number> = { rat: 3, hound: 3 };
+const CREATURE_INDIVIDUALS: Record<string, number> = { rat: 3, hound: 3, shade: 3, drone: 3 };
 
 /** How many distinct individuals a sprite has (1 = base only). */
 export function individuals(key: string): number {
@@ -391,13 +391,23 @@ const CREATURES: Record<string, () => EnemyArt> = {
     // Arms
     p.line(5, 7, 12, 10, '#3a3d48', 2);
     p.line(23, 7, 16, 10, '#3a3d48', 2);
-    // Rotors (motion blur ellipses)
+    // Rotors (motion blur ellipses). The second unit lost a rotor guard and flies lopsided; the
+    // third was patched with a salvaged orange panel and a whip antenna.
     p.ellipse(5, 6, 5, 1.2, '#9aa3b8');
-    p.ellipse(23, 6, 5, 1.2, '#9aa3b8');
+    p.ellipse(23, 6, V === 1 ? 3 : 5, 1.2, '#9aa3b8');
     p.ellipse(5, 6, 2, 0.8, '#d8dce8');
     p.ellipse(23, 6, 2, 0.8, '#d8dce8');
     // Body
     p.ball(14, 11, 7, 4.5, '#3a4058');
+    if (V === 1) {
+      p.line(20, 11, 23, 13, '#1a1c28');
+      p.set(21, 13, '#ffcc3d');
+    } else if (V === 2) {
+      p.rect(15, 9, 5, 4, '#c8702a');
+      p.set(16, 10, '#e8a050');
+      p.line(8, 9, 5, 1, '#6a6e7a');
+      g.set(5, 1, '#ff5a5a');
+    }
     p.rect(9, 7, 10, 2, '#1a1c28');
     // Light bar
     p.rect(9, 7, 5, 1, '#ff3a3a');
@@ -505,14 +515,29 @@ const CREATURES: Record<string, () => EnemyArt> = {
     return art(p, 'breathe', 24, g);
   },
   shade: () => {
+    // Three commuters the flood took: the one in the hat with the briefcase, a hatless one with
+    // lank hair and a scarf still trailing, and a transit worker in a peaked cap with an ID card.
     const p = P(26, 34), g = P(26, 34);
-    p.ball(13, 16, 8, 11, '#3a6a78');
-    p.ball(13, 8, 5, 5, '#4a7a88');
-    // Hat brim (a drowned commuter)
-    p.rect(7, 4, 12, 1, '#2a4a58');
-    p.rect(9, 1, 8, 3, '#2a4a58');
+    const tall = V === 2;
+    p.ball(13, 16, tall ? 7 : 8, tall ? 12 : 11, V === 1 ? '#3a5a78' : '#3a6a78');
+    p.ball(13, 8, 5, 5, V === 1 ? '#4a6a88' : '#4a7a88');
+    if (V === 0) {
+      // Hat brim (a drowned commuter)
+      p.rect(7, 4, 12, 1, '#2a4a58');
+      p.rect(9, 1, 8, 3, '#2a4a58');
+    } else if (V === 1) {
+      // Hair plastered down in strands.
+      for (let i = 0; i < 5; i++) p.rect(9 + i * 2, 3, 1, 4 + (i % 2) * 2, '#1e3a44');
+      p.limb([[16, 12], [20, 15], [22, 20], [21, 25]], 1.4, 0.8, '#6a3040');
+    } else {
+      // Peaked transit cap with a badge.
+      p.rect(8, 2, 10, 3, '#1a3448');
+      p.rect(6, 5, 8, 1, '#1a3448');
+      p.set(13, 3, '#b8b070');
+    }
     // Dripping tail
-    for (let i = 0; i < 5; i++) p.limb([[7 + i * 3, 24], [6 + i * 3, 28 + (i % 2) * 2], [7 + i * 3, 32]], 1.6, 0.4, '#2e5a68');
+    const drips = V === 1 ? 4 : 5;
+    for (let i = 0; i < drips; i++) p.limb([[7 + i * 3, 24], [6 + i * 3, 28 + ((i + V) % 2) * 2], [7 + i * 3, 32 - (V === 2 && i % 2 ? 2 : 0)]], 1.6, 0.4, '#2e5a68');
     // Hollow, running eyes and a long drowned gape: a commuter still screaming underwater, not a
     // friendly blob.
     p.ellipse(10.5, 8.5, 1, 2.2, '#0a141a');
@@ -521,8 +546,15 @@ const CREATURES: Record<string, () => EnemyArt> = {
     p.rect(16, 11, 1, 5, '#1e3a44');
     p.ellipse(13, 14.5, 1.4, 3, '#0a141a');
     p.rect(12, 17, 1, 3, '#1e3a44');
-    // Briefcase
-    p.rect(17, 18, 6, 4, '#2a4048');
+    if (V === 0) {
+      // Briefcase
+      p.rect(17, 18, 6, 4, '#2a4048');
+    } else if (V === 2) {
+      // Transit ID on a lanyard.
+      p.line(11, 13, 13, 17, '#8a3040');
+      p.rect(12, 17, 3, 3, '#c8c8b0');
+      g.set(13, 18, '#8adcf0');
+    }
     g.set(10, 10, '#6adcf0');
     g.set(15, 10, '#6adcf0');
     return art(p, 'flicker', 0, g);

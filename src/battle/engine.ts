@@ -146,6 +146,7 @@ export class Battle {
 
   constructor(party: Combatant[], enemies: Combatant[], rng: Rng, opts: BattleOpts = {}) {
     this.units = [...party, ...enemies];
+    for (const u of this.units) this.byUid.set(u.uid, u);
     this.partyList = [...party];
     this.enemyList = [...enemies];
     this.rng = rng;
@@ -176,9 +177,11 @@ export class Battle {
   }
   private aliveParty: { sig: number; n: number; list: Combatant[] } = { sig: -1, n: -1, list: [] };
   private aliveEnemy: { sig: number; n: number; list: Combatant[] } = { sig: -1, n: -1, list: [] };
+  /** A combatant by uid: an index kept in step with `units`, not a scan (called throughout a round). */
   unit(uid: number): Combatant | undefined {
-    return this.units.find((u) => u.uid === uid);
+    return this.byUid.get(uid);
   }
+  private byUid = new Map<number, Combatant>();
 
   // ------------------------------------------------------------------ stats & status
   has(u: Combatant, s: StatusId): boolean {
@@ -734,6 +737,7 @@ export class Battle {
             usedSlots.add(slot);
             const c = enemyCombatant(id, this.nextUid++, slot);
             this.units.push(c);
+            this.byUid.set(c.uid, c);
             this.enemyList.push(c);
             uids.push(c.uid);
           }
