@@ -37,6 +37,8 @@ interface Option {
   preview?: Preview;
   /** Animations PixelLab failed or stalled on (the next run asks again). */
   animErrors?: string[] | null;
+  /** Battle key poses inpainted onto the standing sprite: tries per pose (scripts/pixellab/poses.mjs). */
+  poses?: Record<string, string[]>;
 }
 /** A tileset in context: the whole map baked with it, and an in-game shot where its terrains meet. */
 interface Preview {
@@ -277,7 +279,7 @@ function stage(...kids: HTMLElement[]): HTMLElement {
  * One animation's frames in a row, to find glitches: hover a frame to hold the big view on it,
  * click it to flag it (a red frame). Flags save with the review as "<animation>/<direction>".
  */
-function frameStrip(a: Asset, o: Option, anim: string, dir: string, frames: string[], main: HTMLCanvasElement | null, label: string): HTMLElement {
+function frameStrip(a: Asset, o: Option, anim: string, dir: string, frames: string[], main: HTMLCanvasElement | null, label: string, preview?: (i: number | null) => void): HTMLElement {
   const rev = optReview(a.id, o.id);
   const key = `${anim}/${dir}`;
   // Thumbnails at a fixed size, whatever the page zoom: big battle frames 1x, field frames 3x.
@@ -296,10 +298,10 @@ function frameStrip(a: Asset, o: Option, anim: string, dir: string, frames: stri
       fr.classList.toggle('flagged', flagged(i));
       save();
     };
-    fr.onmouseenter = () => hold(main, i);
+    fr.onmouseenter = () => (preview ? preview(i) : hold(main, i));
     strip.append(fr);
   });
-  strip.onmouseleave = () => hold(main, null);
+  strip.onmouseleave = () => (preview ? preview(null) : hold(main, null));
   return strip;
 }
 
@@ -343,7 +345,27 @@ function characterView(a: Asset, o: Option): HTMLElement {
       chips.append(b);
     }
     show(anims.find(([n]) => n === 'idle') ? 'idle' : null);
-    return h('div', {}, box, chips, framesBox);
+    // Key poses (inpainted onto the standing frame): what the game will actually use in battle.
+    const poseBox = h('div', {});
+    const poses = Object.entries(o.poses ?? {}).filter(([, list]) => list.length);
+    if (poses.length) {
+      const big = stage();
+      const shown = (path: string, label: string) => {
+        big.textContent = '';
+        big.append(cell(sprite([rot[dir] ?? ''], scale), 'standing'), cell(sprite([path], scale), label));
+      };
+      const first = poses[0];
+      if (first?.[1][0]) shown(first[1][0], `${first[0]} 1`);
+      poseBox.append(h('div', { class: 'strip-label' }, 'Key poses for battle (inpainted: only the arm is redrawn). Hover a try to see it big; click to flag a bad one. The game uses the first unflagged try, with code-drawn sparks and arcs.'), big);
+      for (const [name, list] of poses)
+        poseBox.append(
+          frameStrip(a, o, `pose-${name}`, 'north', list, null, `${name[0]?.toUpperCase()}${name.slice(1)}: tries`, (i) => {
+            const path = i == null ? list[0] : list[i];
+            if (path) shown(path, `${name} ${(i ?? 0) + 1}`);
+          }),
+        );
+    }
+    return h('div', {}, poseBox, box, chips, framesBox);
   }
   // Field sprites: the four facings, walking if there's a walk cycle.
   const walk = o.anims?.walk?.frames;

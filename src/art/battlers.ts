@@ -282,7 +282,7 @@ const cache = new Map<string, Battler>();
  * Use drawn frames for this crew member from now on (dev tooling: art-pass options tried in the
  * game, src/dev/artswap.ts). Poses without a drawn frame keep the generated one, scaled up to match.
  */
-export function replaceBattler(id: string, look: CharLook, frames: Partial<Record<Pose, HTMLCanvasElement>>, headH: number, res = 2): void {
+export function replaceBattler(id: string, look: CharLook, frames: Partial<Record<Pose, HTMLCanvasElement>>, headH: number, res = 2, glow: Partial<Record<Pose, HTMLCanvasElement>> = {}): void {
   const base = battler(id, look);
   const up = (c: HTMLCanvasElement) => {
     const out = document.createElement('canvas');
@@ -297,7 +297,7 @@ export function replaceBattler(id: string, look: CharLook, frames: Partial<Recor
   };
   const all = {} as Record<Pose, HTMLCanvasElement>;
   for (const p of POSES) all[p] = frames[p] ?? up(base.frames[p]);
-  cache.set(id, { frames: all, glow: {}, headH, res });
+  cache.set(id, { frames: all, glow, headH, res });
 }
 
 export function battler(id: string, look: CharLook): Battler {

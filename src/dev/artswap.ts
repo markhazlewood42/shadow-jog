@@ -26,7 +26,11 @@ interface Option {
   anims?: Record<string, { frames?: Record<string, string[]> }>;
   image?: string;
   tiles?: { file: string; corners?: Record<string, string> | null }[];
+  /** Battle key poses inpainted onto the standing sprite (scripts/pixellab/poses.mjs): tries per pose. */
+  poses?: Record<string, string[]>;
 }
+/** Mark's flags on an option's frames and pose tries, by "<animation>/<direction>". */
+type Flags = Record<string, number[]>;
 /** A tileset's place in the game: the map, and which terrain types are its lower and upper. */
 interface TerrainPlace {
   map: string;
@@ -147,8 +151,72 @@ const POSE_FROM: Record<Pose, [string, number][]> = {
   aim: [['cast', 2], ['attack', 1]],
 };
 
-async function battleFrames(o: Option): Promise<Partial<Record<Pose, HTMLCanvasElement>>> {
+/** The crew's light colours (as src/art/battlers.ts tints their procedural poses). */
+const TINT: Record<string, string> = { kit: '#ffa24a', rook: '#ffe07a', hex: '#3fe0f0', sable: '#ff7a3a' };
+
+/** Where a key pose's hand ended up: the topmost pixel that differs from the standing frame. */
+function handOf(still: HTMLCanvasElement, pose: HTMLCanvasElement): [number, number] | null {
+  const w = still.width;
+  const h = still.height;
+  const a = still.getContext('2d')?.getImageData(0, 0, w, h).data;
+  const b = pose.getContext('2d')?.getImageData(0, 0, w, h).data;
+  if (!a || !b) return null;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if ((b[i + 3] ?? 0) > 0 && ((a[i] ?? 0) !== b[i] || (a[i + 1] ?? 0) !== b[i + 1] || (a[i + 2] ?? 0) !== b[i + 2] || (a[i + 3] ?? 0) !== b[i + 3])) return [x, y];
+    }
+  return null;
+}
+
+/**
+ * The light a key pose throws, drawn in pixels on a layer the battle renderer adds on top (it
+ * pulses it): a spark gathering in a raised hand, or an impact burst at a fist with the arc it swept.
+ * Phantasy Star IV sells its 2-3 frame moves the same way.
+ */
+function poseGlow(w: number, h: number, hand: [number, number], kind: 'raise' | 'strike', tint: string): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d');
+  if (!g) return c;
+  const [x, y] = hand;
+  const dot = (px: number, py: number, color: string) => {
+    g.fillStyle = color;
+    g.fillRect(Math.round(px), Math.round(py), 1, 1);
+  };
+  const rays = (cx: number, cy: number, from: number, to: number, color: string) => {
+    for (let k = 0; k < 8; k++) {
+      const ang = (k / 8) * Math.PI * 2 + Math.PI / 8;
+      for (let r = from; r <= to; r++) dot(cx + Math.cos(ang) * r, cy + Math.sin(ang) * r, color);
+    }
+  };
+  const halo = g.createRadialGradient(x, y, 0, x, y, kind === 'raise' ? 11 : 9);
+  halo.addColorStop(0, tint);
+  halo.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = halo;
+  g.fillRect(x - 12, y - 12, 24, 24);
+  if (kind === 'raise') {
+    // A spark gathering over the open hand.
+    rays(x, y - 3, 3, 5, '#ffffff');
+    dot(x, y - 3, '#ffffff');
+    dot(x - 1, y - 3, tint);
+    dot(x + 1, y - 3, tint);
+  } else {
+    // Impact at the fist, and the arc it swept up from the shoulder.
+    rays(x + 1, y - 1, 3, 7, '#ffffff');
+    for (let t = 0; t <= 1; t += 0.04) {
+      const ax = x - 26 + 26 * t + Math.sin(t * Math.PI) * -6;
+      const ay = y + 26 - 26 * t - Math.sin(t * Math.PI) * 8;
+      dot(ax, ay, t > 0.5 ? '#ffffff' : tint);
+    }
+  }
+  return c;
+}
+
+async function battleFrames(o: Option, member: string, flags: Flags): Promise<{ frames: Partial<Record<Pose, HTMLCanvasElement>>; glow: Partial<Record<Pose, HTMLCanvasElement>> }> {
   const out: Partial<Record<Pose, HTMLCanvasElement>> = {};
+  const glow: Partial<Record<Pose, HTMLCanvasElement>> = {};
   // Mark's review (2026-09-30): PixelLab's battle animations are unusable (bodies drift, clothes
   // change, the moves don't read). The battle renderer animates with code anyway (lunge, strike
   // smear, hurt drop, hop, breathing), so every pose uses the standing back view, unless
@@ -157,7 +225,29 @@ async function battleFrames(o: Option): Promise<Partial<Record<Pose, HTMLCanvasE
   if (!useAnims && o.rotations?.north) {
     const still = toCanvas(await loadImage(o.rotations.north));
     for (const pose of Object.keys(POSE_FROM) as Pose[]) out[pose] = still;
-    return out;
+    // Key poses inpainted onto the standing frame, if there are any: the first try Mark didn't flag.
+    const pick = async (name: string) => {
+      const bad = new Set(flags[`pose-${name}/north`] ?? []);
+      const i = (o.poses?.[name] ?? []).findIndex((_, n) => !bad.has(n));
+      const path = i >= 0 ? o.poses?.[name]?.[i] : undefined;
+      return path ? toCanvas(await loadImage(path)) : null;
+    };
+    const tint = TINT[member] ?? '#ffffff';
+    const raise = await pick('raise');
+    const strike = await pick('strike');
+    const raiseHand = raise && handOf(still, raise);
+    const strikeHand = strike && handOf(still, strike);
+    for (const pose of ['cast', 'item', 'aim', 'victory'] as Pose[]) {
+      if (!raise) continue;
+      out[pose] = raise;
+      if (raiseHand && pose !== 'victory') glow[pose] = poseGlow(still.width, still.height, raiseHand, 'raise', tint);
+    }
+    for (const pose of ['attack', 'strike', 'thrust'] as Pose[]) {
+      if (!strike) continue;
+      out[pose] = strike;
+      if (strikeHand && pose !== 'attack') glow[pose] = poseGlow(still.width, still.height, strikeHand, 'strike', tint);
+    }
+    return { frames: out, glow };
   }
   for (const [pose, choices] of Object.entries(POSE_FROM) as [Pose, [string, number][]][]) {
     for (const [anim, i] of choices) {
@@ -170,7 +260,7 @@ async function battleFrames(o: Option): Promise<Partial<Record<Pose, HTMLCanvasE
     }
     if (!out[pose] && o.rotations?.north) out[pose] = toCanvas(await loadImage(o.rotations.north));
   }
-  return out;
+  return { frames: out, glow };
 }
 
 /**
@@ -214,7 +304,7 @@ async function terrainOverlay(o: Option, place: TerrainPlace): Promise<TerrainOv
 }
 
 /** Apply one option. Returns a label for the notice, or throws. */
-async function apply(a: Asset, o: Option, pool: Map<number, CharSprite>): Promise<string> {
+async function apply(a: Asset, o: Option, pool: Map<number, CharSprite>, flags: Flags): Promise<string> {
   const [, key = ''] = a.id.split('.');
   if (a.kind === 'field' && key in LOOKS) {
     replaceCharSprite(LOOKS[key as keyof typeof LOOKS], await fieldSprite(o));
@@ -232,11 +322,11 @@ async function apply(a: Asset, o: Option, pool: Map<number, CharSprite>): Promis
     return a.id;
   }
   if (a.kind === 'battler' && key in LOOKS) {
-    const frames = await battleFrames(o);
+    const { frames, glow } = await battleFrames(o, key, flags);
     const idle = frames.idle;
     if (!idle) throw new Error('no idle frame');
     // Head height in battle pixels, for the arrow and the damage numbers.
-    replaceBattler(key, LOOKS[key as keyof typeof LOOKS], frames, Math.ceil((feetRow(idle) - headRow(idle)) / 2));
+    replaceBattler(key, LOOKS[key as keyof typeof LOOKS], frames, Math.ceil((feetRow(idle) - headRow(idle)) / 2), 2, glow);
     return `${key} (battle)`;
   }
   if (a.kind === 'enemy' && o.image) {
@@ -281,7 +371,7 @@ export async function applyReview(params: URLSearchParams): Promise<{ done: stri
       continue;
     }
     try {
-      done.push(await apply(a, o, pool));
+      done.push(await apply(a, o, pool, (data.review.assets?.[aid]?.options?.[oid] as { flags?: Flags } | undefined)?.flags ?? {}));
     } catch (e) {
       failed.push(`${aid}/${oid}: ${e instanceof Error ? e.message : String(e)}`);
     }
