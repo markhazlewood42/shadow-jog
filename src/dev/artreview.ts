@@ -58,6 +58,10 @@ interface Asset {
 interface OptionReview {
   verdict?: Verdict | null;
   note?: string;
+  /** Glitched frames Mark flagged, by "<animation>/<direction>": frame indexes (0-based). */
+  flags?: Record<string, number[]>;
+  /** What's wrong with an animation, by animation name. */
+  animNotes?: Record<string, string>;
 }
 interface Review {
   assets: Record<string, { note?: string; options?: Record<string, OptionReview> }>;
@@ -125,8 +129,19 @@ interface Player {
   scale: number;
   shown: number;
   visible: boolean;
+  /** Held on one frame (while a frame in its strip is hovered), or null to play. */
+  hold: number | null;
 }
 const players = new Set<Player>();
+const playerOf = new WeakMap<HTMLCanvasElement, Player>();
+
+/** Hold an animation on frame `i` (null plays it again). */
+function hold(canvas: HTMLCanvasElement | null, i: number | null): void {
+  const p = canvas ? playerOf.get(canvas) : undefined;
+  if (!p) return;
+  p.hold = i;
+  if (i != null) paint(p, i);
+}
 const seen = new IntersectionObserver((entries) => {
   for (const e of entries) for (const p of players) if (p.canvas === e.target) p.visible = e.isIntersecting;
 });
@@ -152,7 +167,8 @@ function sprite(paths: string[], scale: number, fps = 8): HTMLCanvasElement {
       const hgt = Math.max(...frames.map((f) => f.height));
       canvas.width = w * s;
       canvas.height = hgt * s;
-      const p: Player = { canvas, frames, fps, scale: s, shown: -1, visible: true };
+      const p: Player = { canvas, frames, fps, scale: s, shown: -1, visible: true, hold: null };
+      playerOf.set(canvas, p);
       paint(p, 0);
       if (frames.length > 1) {
         players.add(p);
@@ -171,7 +187,7 @@ function sprite(paths: string[], scale: number, fps = 8): HTMLCanvasElement {
 function tick(t: number): void {
   for (const p of players) {
     if (!p.visible || !p.canvas.isConnected) continue;
-    const i = Math.floor((t / 1000) * p.fps) % p.frames.length;
+    const i = p.hold ?? Math.floor((t / 1000) * p.fps) % p.frames.length;
     if (i !== p.shown) paint(p, i);
   }
   requestAnimationFrame(tick);
@@ -257,6 +273,49 @@ function stage(...kids: HTMLElement[]): HTMLElement {
   return h('div', { class: `stage ${prefs.bg}` }, ...kids);
 }
 
+/**
+ * One animation's frames in a row, to find glitches: hover a frame to hold the big view on it,
+ * click it to flag it (a red frame). Flags save with the review as "<animation>/<direction>".
+ */
+function frameStrip(a: Asset, o: Option, anim: string, dir: string, frames: string[], main: HTMLCanvasElement | null, label: string): HTMLElement {
+  const rev = optReview(a.id, o.id);
+  const key = `${anim}/${dir}`;
+  // Thumbnails at a fixed size, whatever the page zoom: big battle frames 1x, field frames 3x.
+  const thumb = (a.kind === 'battler' ? 1 : 3) / prefs.zoom;
+  const strip = h('div', { class: 'strip' }, h('span', { class: 'strip-label' }, label));
+  const flagged = (i: number) => rev.flags?.[key]?.includes(i) ?? false;
+  frames.forEach((f, i) => {
+    const fr = h('button', { class: `frame${flagged(i) ? ' flagged' : ''}`, title: `Frame ${i + 1}: click to flag it as glitched (click again to unflag). Hovering holds the animation on it.` }, sprite([f], thumb), h('span', {}, String(i + 1)));
+    fr.onclick = () => {
+      rev.flags ??= {};
+      const set = new Set(rev.flags[key] ?? []);
+      if (set.has(i)) set.delete(i);
+      else set.add(i);
+      if (set.size) rev.flags[key] = [...set].sort((x, y) => x - y);
+      else delete rev.flags[key];
+      fr.classList.toggle('flagged', flagged(i));
+      save();
+    };
+    fr.onmouseenter = () => hold(main, i);
+    strip.append(fr);
+  });
+  strip.onmouseleave = () => hold(main, null);
+  return strip;
+}
+
+/** A note on one animation ("the arm jumps between 3 and 4"). */
+function animNote(a: Asset, o: Option, anim: string, label: string): HTMLElement {
+  const rev = optReview(a.id, o.id);
+  const input = h('input', { class: 'optnote', placeholder: `What's wrong with ${label.toLowerCase()}? (optional)`, value: rev.animNotes?.[anim] ?? '' });
+  input.oninput = () => {
+    rev.animNotes ??= {};
+    if (input.value) rev.animNotes[anim] = input.value;
+    else delete rev.animNotes[anim];
+    save();
+  };
+  return input;
+}
+
 function characterView(a: Asset, o: Option): HTMLElement {
   const scale = o.scale ?? 1;
   const rot = o.rotations ?? {};
@@ -266,11 +325,16 @@ function characterView(a: Asset, o: Option): HTMLElement {
     const dir = o.showDir ?? 'north';
     const box = stage();
     const chips = h('div', { class: 'chips' });
+    const framesBox = h('div', {});
     const show = (name: string | null) => {
       box.textContent = '';
+      framesBox.textContent = '';
       const frames = name ? o.anims?.[name]?.frames?.[dir] : null;
-      box.append(cell(sprite(frames ?? [rot[dir] ?? Object.values(rot)[0] ?? ''], scale, 10), name ? (o.anims?.[name]?.label ?? name) : 'standing'));
+      const label = name ? (o.anims?.[name]?.label ?? name) : 'standing';
+      const main = sprite(frames ?? [rot[dir] ?? Object.values(rot)[0] ?? ''], scale, 10);
+      box.append(cell(main, label));
       if (rot.south) box.append(cell(sprite([rot.south], scale / 2), 'front (½)'));
+      if (name && frames && frames.length > 1) framesBox.append(frameStrip(a, o, name, dir, frames, main, `${label}: hover a frame to hold it, click to flag a glitch`), animNote(a, o, name, label));
       for (const c of chips.children) c.setAttribute('aria-pressed', String((c as HTMLElement).dataset.name === (name ?? '')));
     };
     for (const [name, v] of [['', { label: 'Standing' }] as const, ...anims]) {
@@ -279,18 +343,31 @@ function characterView(a: Asset, o: Option): HTMLElement {
       chips.append(b);
     }
     show(anims.find(([n]) => n === 'idle') ? 'idle' : null);
-    return h('div', {}, box, chips);
+    return h('div', {}, box, chips, framesBox);
   }
   // Field sprites: the four facings, walking if there's a walk cycle.
   const walk = o.anims?.walk?.frames;
   const box = stage();
+  const mains: Record<string, HTMLCanvasElement> = {};
   for (const d of DIRS) {
     const frames = walk?.[d] ?? (rot[d] ? [rot[d]] : null);
-    if (frames) box.append(cell(sprite(frames, scale, 7), DIR_LABEL[d] ?? d));
+    if (!frames) continue;
+    const c = sprite(frames, scale, 7);
+    mains[d] = c;
+    box.append(cell(c, DIR_LABEL[d] ?? d));
   }
   const still = stage();
   for (const d of DIRS) if (rot[d]) still.append(cell(sprite([rot[d]], scale), DIR_LABEL[d] ?? d));
-  return walk ? h('div', {}, box, h('div', { style: 'height:6px' }), still) : box;
+  if (!walk) return box;
+  // The walk's frames, folded away until wanted: one strip per facing.
+  const flags = Object.keys(optReview(a.id, o.id).flags ?? {}).filter((k) => k.startsWith('walk/')).length;
+  const details = h('details', { class: 'frames' }, h('summary', {}, `Walk frames: flag glitches${flags ? ` (${flags} flagged)` : ''}`));
+  for (const d of DIRS) {
+    const frames = walk[d];
+    if (frames && frames.length > 1) details.append(frameStrip(a, o, 'walk', d, frames, mains[d] ?? null, `Walking ${DIR_LABEL[d] ?? d}`));
+  }
+  details.append(animNote(a, o, 'walk', 'the walk'));
+  return h('div', {}, box, h('div', { style: 'height:6px' }), still, details);
 }
 
 /**

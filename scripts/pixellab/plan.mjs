@@ -371,6 +371,9 @@ function props() {
       options: [
         { id: 'redraw', kind: 'image', size: exact, prompt: `${desc}, top-down 3/4 view game prop, 16-bit JRPG pixel art, two shadow tones, dark outline`, style: cur, styleOptions: { color_palette: true, outline: true, detail: false, shading: false }, cost: 5, label: 'Redraw at today’s size', recipe: `Pro Flash image ${exact.width}x${exact.height} · style: today’s prop` },
         { id: 'mapobj', kind: 'mapobject', size: mapSize, prompt: desc, view: 'high top-down', body: { outline: 'single color outline', shading: 'basic shading', detail: 'medium detail' }, cost: 1, label: 'Map-object tool', recipe: `Map object ${mapSize.width}x${mapSize.height} · high top-down` },
+        // Round 1b (Mark, 2026-09-30): the first two often came back turned at an angle ("3/4 view" also means
+        // rotated 45°), but the game draws props straight-on. This one asks for the front, facing the camera.
+        { id: 'front', kind: 'mapobject', size: mapSize, prompt: `${desc}, seen from the front facing the camera straight on, symmetrical, flat front view, not turned or rotated, no perspective`, view: 'low top-down', body: { outline: 'single color outline', shading: 'basic shading', detail: 'medium detail' }, cost: 1, label: 'Facing the camera', recipe: `Map object ${mapSize.width}x${mapSize.height} · low top-down, front-on` },
       ],
     };
   });

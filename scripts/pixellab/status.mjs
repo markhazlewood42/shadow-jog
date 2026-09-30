@@ -25,10 +25,15 @@ if (process.argv.includes('--review')) {
   for (const m of metas) {
     const r = review.assets?.[m.id];
     if (!r) continue;
-    const opts = Object.entries(r.options ?? {}).filter(([, v]) => v.verdict || v.note);
+    const opts = Object.entries(r.options ?? {}).filter(([, v]) => v.verdict || v.note || Object.keys(v.flags ?? {}).length || Object.keys(v.animNotes ?? {}).length);
     if (!opts.length && !r.note) continue;
     console.log(`  ${m.id} (${m.title})`);
-    for (const [id, v] of opts) console.log(`    ${id}: ${v.verdict ?? '-'}${v.note ? ` · ${v.note}` : ''}`);
+    for (const [id, v] of opts) {
+      console.log(`    ${id}: ${v.verdict ?? '-'}${v.note ? ` · ${v.note}` : ''}`);
+      // Flagged frames, numbered from 1 as the review page shows them.
+      for (const [key, frames] of Object.entries(v.flags ?? {})) console.log(`      flagged ${key}: frames ${frames.map((i) => i + 1).join(', ')}`);
+      for (const [anim, note] of Object.entries(v.animNotes ?? {})) console.log(`      ${anim}: ${note}`);
+    }
     if (r.note) console.log(`    note: ${r.note}`);
   }
 }
