@@ -169,10 +169,30 @@ const ROWS: Dir[] = ['down', 'right', 'up', 'left'];
  * Load the drawn art and swap it in. Resolves with what was swapped and what wasn't (with why);
  * it never rejects for a missing piece, which just keeps its code-drawn art.
  */
-export async function loadDrawnArt(base = 'art/'): Promise<{ done: number; failed: string[] }> {
+/** The kinds of drawn art, each of which can be loaded or left code-drawn. */
+export type DrawnKind = 'chars' | 'battlers' | 'enemies' | 'tilesets' | 'props' | 'portraits';
+export const ALL_DRAWN: readonly DrawnKind[] = ['chars', 'battlers', 'enemies', 'tilesets', 'props', 'portraits'];
+/**
+ * What the game loads by default (Mark, 2026-09-30): the PixelLab tilesets and props he liked; the
+ * characters, enemies and portraits went back to code-drawn art (to be upgraded in code).
+ */
+export const DEFAULT_DRAWN: readonly DrawnKind[] = ['tilesets', 'props'];
+
+export async function loadDrawnArt(base = 'art/', kinds: readonly DrawnKind[] = DEFAULT_DRAWN): Promise<{ done: number; failed: string[] }> {
   const res = await fetch(`${base}manifest.json`, { cache: 'no-cache' });
   if (!res.ok) throw new Error(`no drawn art (${res.status})`);
-  const m = (await res.json()) as Manifest;
+  const full = (await res.json()) as Manifest;
+  // Only the kinds asked for; the rest keep their code-drawn art.
+  const on = new Set(kinds);
+  const m: Manifest = {
+    ...full,
+    chars: on.has('chars') ? full.chars : [],
+    battlers: on.has('battlers') ? full.battlers : {},
+    enemies: on.has('enemies') ? full.enemies : {},
+    tilesets: on.has('tilesets') ? full.tilesets : [],
+    props: on.has('props') ? full.props : {},
+    portraits: on.has('portraits') ? (full.portraits ?? {}) : {},
+  };
   const failed: string[] = [];
   let done = 0;
   const each = async <T>(items: [string, T][], fn: (key: string, item: T) => Promise<void>) => {

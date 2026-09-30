@@ -22,7 +22,7 @@ import { EndingScene } from './scenes/ending';
 import { fieldHooks } from './game/hooks';
 import { postfx } from './engine/postfx';
 import { FX } from './data/fx';
-import { loadDrawnArt } from './art/drawn';
+import { ALL_DRAWN, DEFAULT_DRAWN, loadDrawnArt } from './art/drawn';
 
 declare global {
   interface Window {
@@ -196,15 +196,16 @@ export function boot(game: Game, display: Display): void {
       });
     } else void startTitle(game);
   };
-  // The drawn art (the PixelLab pass's picks, src/art/drawn.ts) is off by default since
-  // 2026-09-30: Mark went back to code-drawn art (snapshot tag snapshot/2026-09-30-pixellab-picks).
-  // `?art=drawn` loads it for comparing. It goes in before anything is built (swaps apply to sprites
-  // made after them); anything that doesn't load keeps its code-drawn art, with a notice.
+  // Drawn art (the PixelLab pass's picks, src/art/drawn.ts): by default only the tilesets and props
+  // (Mark, 2026-09-30: the characters, enemies and portraits went back to code-drawn art; snapshot
+  // tag snapshot/2026-09-30-pixellab-picks). `?art=drawn` loads all of it and `?art=classic` none,
+  // for comparing. It goes in before anything is built (swaps apply to sprites made after them);
+  // anything that doesn't load keeps its code-drawn art, with a notice.
   const art = params.get('art');
   const drawn: Promise<void> =
-    art !== 'drawn'
+    art === 'classic'
       ? Promise.resolve()
-      : Promise.race([loadDrawnArt(), new Promise<never>((_, reject) => setTimeout(() => reject(new Error('it took too long')), 10_000))]).then(
+      : Promise.race([loadDrawnArt('art/', art === 'drawn' ? ALL_DRAWN : DEFAULT_DRAWN), new Promise<never>((_, reject) => setTimeout(() => reject(new Error('it took too long')), 10_000))]).then(
           ({ failed }) => {
             if (failed.length) notice(`Some drawn art didn't load, so the original shows for it (${failed.length}: ${failed.slice(0, 2).join('; ')}${failed.length > 2 ? '…' : ''})`, 'warn');
           },

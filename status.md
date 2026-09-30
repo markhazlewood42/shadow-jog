@@ -67,7 +67,8 @@ on every push to `main`.
 - **Direction change (2026-09-30, late): back to code-drawn art, made better.** Mark: the game's UX was better with
   the code-drawn assets; PixelLab's glitches and inconsistency aren't worth it. Goal: code-drawn pixel art that looks
   better than before but keeps the flexibility to animate and improve incrementally, using the PixelLab picks he
-  liked as reference. The drawn art is **off by default** (`?art=drawn` shows it for comparison). Snapshots to roll
+  liked as reference. **Kept from PixelLab by default: the tilesets and props** (Mark: he likes them); characters,
+enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab picks, `?art=classic` none). Snapshots to roll
   back to: tag `snapshot/2026-09-30-procedural` (all code-drawn), tag `snapshot/2026-09-30-pixellab-picks` (picks
   shipped), and `media/snapshots/art-pass-2026-09-30.tar.gz` (every generated option and his full review; local).
   **Plan:** a rig v2 for characters: chibi proportions from the picks (~18x28 field sprites, faces in every
