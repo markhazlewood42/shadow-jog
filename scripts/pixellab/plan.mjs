@@ -287,6 +287,22 @@ const TERRAIN = [
 ];
 const PNG = (path) => ({ type: 'base64', base64: readFileSync(path).toString('base64'), format: 'png' });
 
+/**
+ * Where each tileset goes in the game: the map it's shown on, and which of the game's terrain types
+ * are its lower and upper terrain (src/field/types.ts TerrainId). src/dev/artswap.ts lays the drawn
+ * tiles over those cells when the map is baked; render-maps.mjs photographs the result.
+ */
+const TERRAIN_PLACE = {
+  street: { map: 'lantern_row', lower: ['asphalt', 'puddle'], upper: ['sidewalk'], keep: ['roadline', 'crosswalk', 'grate'] },
+  canal: { map: 'lantern_row', lower: ['water'], upper: ['plaza', 'sidewalk', 'alley'] },
+  sewer: { map: 'sinkline_1', lower: ['d_water', 'd_shallow'], upper: ['d_floor'] },
+  yard: { map: 'rustyard', lower: ['dirt'], upper: ['junk', 'rubble'] },
+  // No map has grass beside the plaza: this one shows Lantern Row's plaza paved with its stones.
+  park: { map: 'lantern_row', lower: ['grass'], upper: ['plaza'] },
+  // No map has docks or planks yet, so the harbour set has no level to go in.
+  dock: null,
+};
+
 function terrain() {
   return TERRAIN.map(([id, title, lower, upper, transition, place]) => {
     const base = { lower_description: lower, upper_description: upper, transition_description: transition, tile_size: { width: 16, height: 16 }, view: 'high top-down' };
@@ -295,7 +311,11 @@ function terrain() {
       category: 'Terrain',
       title,
       kind: 'tileset',
-      note: 'A 16-tile Wang set (every corner combination of the two terrains), shown as a sample patch and as the raw tiles. Now: the game’s view of that area today.',
+      note: TERRAIN_PLACE[id]
+        ? `A 16-tile set covering every way the two terrains can meet, laid into ${TERRAIN_PLACE[id].map} (${TERRAIN_PLACE[id].lower.join(', ')} → lower; ${TERRAIN_PLACE[id].upper.join(', ')} → upper) with the level's buildings and props on top. Try ↗ walks it in the game.`
+        : 'A 16-tile set covering every way the two terrains can meet. No map has docks or planks yet, so it has no level to be shown in.',
+      terrains: TERRAIN_PLACE[id],
+      map: TERRAIN_PLACE[id]?.map,
       current: [{ file: `${CUR}/place/${place}.crop.png`, label: 'Now (a patch of the game today)', scale: 1 }],
       options: [
         { id: 'match', kind: 'tileset', cost: 3, body: { ...base, outline: 'lineless', shading: 'basic shading', detail: 'medium detail', color_image: PNG(`media/art-pass/current/place/${place}.crop.png`) }, label: 'Today’s colours', recipe: 'Wang tileset 16 px · palette from the game today · flat shading' },

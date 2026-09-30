@@ -5,7 +5,7 @@ import { hash2 } from '../engine/rng';
 import type { AnimFx, BakeCtx, BakedLight, SortedSprite } from './bake';
 import { paintBuilding } from './buildings';
 import { paintProp } from './props';
-import { isWater, paintTerrain, SOLID_TERRAIN, TS, WALL_TERRAIN } from './tiles';
+import { isWater, overlayTerrain, paintTerrain, SOLID_TERRAIN, TS, WALL_TERRAIN } from './tiles';
 import type { MapDef, TerrainId } from './types';
 import { state } from '../game/state';
 
@@ -91,8 +91,10 @@ export class FieldMap {
     const pw = this.w * TS, ph = this.h * TS;
     const gs = pixelSurface(pw, ph);
     const img = gs.ctx.createImageData(pw, ph);
-    paintTerrain({ data: img.data, w: pw, h: ph }, { at: (x, y) => this.at(x, y), w: this.w, h: this.h });
+    const q = { at: (x: number, y: number) => this.at(x, y), w: this.w, h: this.h };
+    paintTerrain({ data: img.data, w: pw, h: ph }, q);
     gs.ctx.putImageData(img, 0, 0);
+    overlayTerrain(gs.ctx, q);
     const ground = surface(pw, ph);
     ground.ctx.drawImage(gs.canvas, 0, 0);
     const emit = surface(pw, ph);

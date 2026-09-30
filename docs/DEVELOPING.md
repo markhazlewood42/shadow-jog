@@ -279,12 +279,17 @@ kept out of the game and out of git until Mark picks. Everything generated lives
   the same screen scale (walk cycles and battle animations play; tilesets are laid out as a patch of map). Mark
   marks options ★ Best (one per asset) / ✓ Good / ✗ No and writes notes, per option and per asset; it saves as he
   goes to `media/art-pass/review.json` (the `/__artpass` plugin in `vite.config.ts`). **Try ↗** opens the game with
-  that option swapped in; **Try picks in game** swaps in every Best.
+  that option swapped in; **Try picks in game** swaps in every Best. Tilesets are judged in a level, not as loose
+  tiles: `node scripts/pixellab/render-maps.mjs` (free, dev server running) bakes each tileset option into its map
+  (`TERRAIN_PLACE` in `plan.mjs` says which map, and which of the game's terrain types are its lower and upper) and
+  saves the whole map plus an in-game shot where the two terrains meet; the review page switches between "In the
+  game", "Whole map" and "Tiles". Re-run it after generating new tilesets.
 - **Swapping into the game** (`src/dev/artswap.ts`, loaded by `?art=review`; boot waits for it before starting a
   scene): field sprites for the crew, named and one-off NPCs and the townsfolk pool (with drawn walk cycles:
   `CharSprite.walk`), the crew's battle sprites (`replaceBattler`, drawn at twice the battle world's resolution:
-  `Battler.res`), enemies (`replaceEnemyArt`) and portraits (`replacePortrait`). Terrain and props aren't swappable
-  yet: that's the integration step after picks. None of this ships: it's all behind `import.meta.env.DEV`.
+  `Battler.res`), enemies (`replaceEnemyArt`), portraits (`replacePortrait`) and terrain (`addTerrainOverlay` in
+  `field/tiles.ts`: the drawn Wang tiles laid over the painted terrain when a map bakes). Props aren't swappable yet:
+  that's the integration step after picks. None of this ships: it's all behind `import.meta.env.DEV`.
 - **The house recipe** (from the first tests with Mark): Pro Flash, Low Top-Down, a style image, and a prompt that
   describes the look ("chibi proportions about 2.5 heads tall, … at most 15 colors, bold black outline"). Naming
   Phantasy Star IV made results noisier. All battle art is made at the field's pixel size (the battle world's

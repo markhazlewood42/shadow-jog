@@ -17,6 +17,7 @@ import { replacePortrait } from '../art/portraits';
 import { ENEMIES } from '../data/enemies';
 import { LOOKS } from '../data/looks';
 import { getMap, mapIds } from '../data/maps';
+import { addTerrainOverlay, type TerrainOverlay, TS } from '../field/tiles';
 
 interface Option {
   id: string;
@@ -24,6 +25,15 @@ interface Option {
   rotations?: Record<string, string>;
   anims?: Record<string, { frames?: Record<string, string[]> }>;
   image?: string;
+  tiles?: { file: string; corners?: Record<string, string> | null }[];
+}
+/** A tileset's place in the game: the map, and which terrain types are its lower and upper. */
+interface TerrainPlace {
+  map: string;
+  lower: string[];
+  upper: string[];
+  /** Counted as lower for the corners, but left as the game paints them (road markings, grates). */
+  keep?: string[];
 }
 interface Asset {
   id: string;
@@ -31,6 +41,7 @@ interface Asset {
   look?: string;
   npc?: string;
   pool?: number;
+  terrains?: TerrainPlace | null;
   options: Option[];
 }
 interface Review {
@@ -152,6 +163,46 @@ async function battleFrames(o: Option): Promise<Partial<Record<Pose, HTMLCanvasE
   return out;
 }
 
+/**
+ * Lay a Wang tileset over the terrain it stands for. Every map corner (where four cells meet) is
+ * upper when at least half of the covered cells around it are; each covered cell then takes the
+ * tile whose four corners match. So where upper meets lower, the lower side's edge cells carry the
+ * transition (the curb, the bank), and cells of other terrain are left as the game paints them.
+ */
+async function terrainOverlay(o: Option, place: TerrainPlace): Promise<TerrainOverlay> {
+  const byCorners = new Map<string, HTMLImageElement>();
+  for (const t of o.tiles ?? []) {
+    const c = t.corners;
+    if (c) byCorners.set(`${c.NW}|${c.NE}|${c.SW}|${c.SE}`, await loadImage(t.file));
+  }
+  const lower = new Set([...place.lower, ...(place.keep ?? [])]);
+  const upper = new Set(place.upper);
+  const keep = new Set(place.keep ?? []);
+  return (g, q) => {
+    const kind = (x: number, y: number) => {
+      const id = q.at(x, y);
+      return upper.has(id) ? 1 : lower.has(id) ? 0 : -1;
+    };
+    const corner = (vx: number, vy: number) => {
+      let up = 0;
+      let n = 0;
+      for (const [dx, dy] of [[-1, -1], [0, -1], [-1, 0], [0, 0]] as const) {
+        const k = kind(vx + dx, vy + dy);
+        if (k < 0) continue;
+        n++;
+        up += k;
+      }
+      return n && up * 2 >= n ? 'upper' : 'lower';
+    };
+    for (let y = 0; y < q.h; y++)
+      for (let x = 0; x < q.w; x++) {
+        if (kind(x, y) < 0 || keep.has(q.at(x, y))) continue;
+        const img = byCorners.get(`${corner(x, y)}|${corner(x + 1, y)}|${corner(x, y + 1)}|${corner(x + 1, y + 1)}`);
+        if (img) g.drawImage(img, x * TS, y * TS, TS, TS);
+      }
+  };
+}
+
 /** Apply one option. Returns a label for the notice, or throws. */
 async function apply(a: Asset, o: Option, pool: Map<number, CharSprite>): Promise<string> {
   const [, key = ''] = a.id.split('.');
@@ -183,6 +234,11 @@ async function apply(a: Asset, o: Option, pool: Map<number, CharSprite>): Promis
     if (!sprite) throw new Error(`no enemy ${key}`);
     replaceEnemyArt(sprite, toCanvas(await loadImage(o.image)));
     return ENEMIES[key]?.name ?? key;
+  }
+  if (a.kind === 'tileset' && o.tiles?.length) {
+    if (!a.terrains) throw new Error('no map uses this terrain yet');
+    addTerrainOverlay(await terrainOverlay(o, a.terrains));
+    return `${key} terrain`;
   }
   if (a.kind === 'portrait' && o.image) {
     replacePortrait(key, await loadImage(o.image));

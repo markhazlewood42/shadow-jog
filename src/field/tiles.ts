@@ -898,6 +898,19 @@ function relief(buf: PixelBuf, q: TerrainQuery): void {
   }
 }
 
+/**
+ * Drawn tiles laid over the painted terrain when a map is baked (dev tooling: art-pass tilesets
+ * tried in the game, src/dev/artswap.ts). Each overlay draws over whichever cells it covers.
+ */
+export type TerrainOverlay = (g: CanvasRenderingContext2D, q: TerrainQuery) => void;
+const overlays: TerrainOverlay[] = [];
+export function addTerrainOverlay(fn: TerrainOverlay): void {
+  overlays.push(fn);
+}
+export function overlayTerrain(g: CanvasRenderingContext2D, q: TerrainQuery): void {
+  for (const fn of overlays) fn(g, q);
+}
+
 export function paintTerrain(buf: PixelBuf, q: TerrainQuery): void {
   const { data, w } = buf;
   for (let ty = 0; ty < q.h; ty++) {

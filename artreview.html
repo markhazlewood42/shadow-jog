@@ -70,6 +70,10 @@
       .stage.light { background: #8a8698; }
       .stage.mid { background: #4a4658; }
       .stage canvas { image-rendering: pixelated; display: block; }
+      .row.wide { flex-direction: column; }
+      .row.wide figure { max-width: 100%; }
+      img.shot { display: block; max-width: 100%; width: 960px; image-rendering: pixelated; border-radius: 6px; }
+      img.shot.map { width: auto; max-width: 100%; }
       .cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
       .cell span { font-size: 10px; color: var(--dim); }
       .chips { display: flex; flex-wrap: wrap; gap: 4px; }

@@ -33,6 +33,13 @@ interface Option {
   anims?: Record<string, Anim>;
   image?: string;
   tiles?: { file: string; corners?: Record<string, string> | null }[];
+  /** Tilesets: the level with these tiles laid in (render-maps.mjs). */
+  preview?: Preview;
+}
+/** A tileset in context: the whole map baked with it, and an in-game shot where its terrains meet. */
+interface Preview {
+  map: string;
+  game: string;
 }
 interface Asset {
   id: string;
@@ -42,6 +49,8 @@ interface Asset {
   note?: string;
   map?: string;
   current?: Current[];
+  /** Tilesets: today's level, for the Now column. */
+  preview?: Preview;
   options: Option[];
 }
 interface OptionReview {
@@ -324,7 +333,24 @@ function wangPatch(o: Option, cols = 14, rows = 9): HTMLCanvasElement {
   return canvas;
 }
 
+/** Which picture tilesets show: in the game, the whole map, or the tiles themselves. */
+let terrainView: 'game' | 'map' | 'tiles' = 'game';
+
+/** A level picture (already at screen scale) that fits the column. */
+function shot(path: string, cls = ''): HTMLElement {
+  const img = h('img', { src: ROOT + path, class: `shot ${cls}`, alt: '' });
+  img.onerror = () => img.replaceWith(h('div', { class: 'failed' }, `missing: ${path}`));
+  return img;
+}
+
+function contextView(p: Preview | undefined): HTMLElement | null {
+  if (!p || terrainView === 'tiles') return null;
+  return terrainView === 'game' ? shot(p.game) : shot(p.map, 'map');
+}
+
 function tilesetView(o: Option): HTMLElement {
+  const context = contextView(o.preview);
+  if (context) return context;
   const tiles = o.tiles ?? [];
   const grid = stage(...tiles.map((t) => sprite([t.file], o.scale ?? 1)));
   grid.style.gap = '2px';
@@ -408,8 +434,28 @@ function assetArticle(a: Asset): HTMLElement {
   const art = h('article', { id: a.id, class: decided(a) ? 'decided' : '' });
   art.append(h('h3', {}, a.title, h('small', {}, a.id)));
   if (a.note) art.append(h('p', { class: 'note' }, a.note));
-  const row = h('div', { class: 'row' });
-  if (a.current?.length) {
+  const row = h('div', { class: a.kind === 'tileset' && a.preview ? 'row wide' : 'row' });
+  if (a.kind === 'tileset' && a.preview) {
+    // Tilesets are judged in a level: a switch for which picture, and today's level as Now.
+    const views: [typeof terrainView, string][] = [
+      ['game', 'In the game'],
+      ['map', 'Whole map'],
+      ['tiles', 'Tiles'],
+    ];
+    const bar = h('div', { class: 'chips' });
+    for (const [v, label] of views) {
+      const b = h('button', { class: 'chip', 'aria-pressed': String(terrainView === v) }, label);
+      b.onclick = () => {
+        terrainView = v;
+        for (const other of data?.assets ?? []) if (other.kind === 'tileset') rerenderAsset(other);
+      };
+      bar.append(b);
+    }
+    art.append(bar);
+    const cur = h('figure', { class: 'current' });
+    cur.append(contextView(a.preview) ?? stage(...(a.current ?? []).map((c) => cell(sprite([c.file], c.scale), 'now'))), h('figcaption', {}, h('b', {}, 'Now'), ' · the game today'));
+    row.append(cur);
+  } else if (a.current?.length) {
     const cur = h('figure', { class: 'current' });
     const box = stage(...a.current.map((c) => cell(sprite([c.file], c.scale), c.label.replace(/^Now:?\s*/, '') || 'now')));
     cur.append(box, h('figcaption', {}, h('b', {}, 'Now'), ' · the game today, same scale'));
