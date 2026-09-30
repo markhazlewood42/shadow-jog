@@ -132,12 +132,15 @@ export type BattleEvent =
   | { t: 'combo'; name: string; actors: number[]; fx: string; targets: number[] }
   | { t: 'damage'; target: number; amount: number; crit: boolean; element: Element; weak: boolean; resist: boolean; hp: number }
   | { t: 'miss'; target: number }
-  | { t: 'heal'; target: number; amount: number; hp: number }
+  /** `crit`: a healing skill landed on the beat (a perfect timed press). */
+  | { t: 'heal'; target: number; amount: number; hp: number; crit?: boolean }
   | { t: 'tp'; target: number; amount: number; tp: number }
   | { t: 'status'; target: number; status: StatusId; on: boolean }
   | { t: 'down'; target: number }
   | { t: 'revive'; target: number; hp: number }
   | { t: 'msg'; text: string }
+  /** An enemy says what it's about to do (a boss's tell): pinned on screen until it has done it. */
+  | { t: 'tell'; actor: number; text: string }
   | { t: 'immune'; target: number; status: string }
   | { t: 'flee'; ok: boolean }
   | { t: 'summon'; uids: number[] }

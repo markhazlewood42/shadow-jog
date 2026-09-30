@@ -56,7 +56,8 @@ export type Timing = 'perfect' | 'good' | 'none' | 'whiff';
 export type TimingProfile = 'quick' | 'normal' | 'heavy';
 /** A timed input the declared action offers: strike harder, or brace against the blow. */
 export interface TimingPrompt {
-  kind: 'strike' | 'brace';
+  /** Strike harder, brace against a blow, or (a healing skill) mend deeper. */
+  kind: 'strike' | 'brace' | 'mend';
   profile: TimingProfile;
   actor: number;
   /** The units the ring closes on: the struck enemies, or the party members being hit. */
@@ -68,6 +69,12 @@ export const STRIKE_MULT: Record<TimingProfile, Record<Timing, number>> = {
   normal: { perfect: 1.2, good: 1.08, none: 1, whiff: 0.9 },
   heavy: { perfect: 1.15, good: 1.06, none: 1, whiff: 0.94 },
 };
+/**
+ * Healing on a timed press (a crew member's healing skill; items don't ask). The same shape as a
+ * strike: the beat is worth about a fifth more, a guess costs a little (Mark's playthrough:
+ * "healing abilities should have a crit interaction also").
+ */
+export const MEND_MULT: Record<Timing, number> = { perfect: 1.3, good: 1.12, none: 1, whiff: 0.9 };
 export const BRACE_MULT: Record<TimingProfile, Record<Timing, number>> = {
   quick: { perfect: 0.75, good: 0.88, none: 1, whiff: 1.1 },
   normal: { perfect: 0.7, good: 0.85, none: 1, whiff: 1.1 },
@@ -77,6 +84,7 @@ export const BRACE_MULT: Record<TimingProfile, Record<Timing, number>> = {
 /** The timing profile of a move: its speed class for a strike, its tell for a brace. */
 export function timingProfile(ab: Ability, kind: TimingPrompt['kind']): TimingProfile {
   if (kind === 'brace') return ab.telegraphed ? 'heavy' : 'normal';
+  if (kind === 'mend') return 'normal';
   if (ab.kind === 'combo') return 'heavy';
   if ((ab.priority ?? 0) > 0) return 'quick';
   const dmg = ab.effects.find((e) => e.type === 'damage');
@@ -408,8 +416,14 @@ export class Battle {
 
   /** The timed input a declared action offers: a party member's hit, or a blow at the party. */
   private promptFor(d: Declared): TimingPrompt | null {
-    if (!d.targets.length || !d.ab.effects.some((e) => e.type === 'damage')) return null;
+    if (!d.targets.length) return null;
     const lead = must(d.actors[0], 'the lead of a declared action');
+    if (!d.ab.effects.some((e) => e.type === 'damage')) {
+      // A crew member's healing skill: a ring on the members it mends.
+      if (lead.side !== 'party' || d.ab.kind === 'item' || !d.ab.effects.some((e) => e.type === 'heal')) return null;
+      const mended = d.targets.filter((t) => t.side === 'party' && t.hp > 0);
+      return mended.length ? { kind: 'mend', profile: timingProfile(d.ab, 'mend'), actor: lead.uid, targets: mended.map((t) => t.uid) } : null;
+    }
     if (lead.side === 'party') {
       if (d.ab.kind === 'item') return null;
       const hit = d.targets.filter((t) => t.side === 'enemy');
@@ -522,7 +536,7 @@ export class Battle {
       const choice = chooseEnemyAction(this, lead);
       if (!choice) return;
       act = { ...act, ability: choice.ability, target: choice.target };
-      if (choice.message) this.ev.push({ t: 'msg', text: choice.message });
+      if (choice.message) this.ev.push({ t: 'tell', actor: lead.uid, text: choice.message });
       if (choice.skip) return;
     }
     const ab = act.ability;
@@ -683,9 +697,10 @@ export class Battle {
           for (const t of targets) {
             if (t.hp <= 0) continue;
             const pow = eff.pct !== undefined ? t.base.maxHp * eff.pct : (eff.power ?? 0) + (itemId ? 0 : this.comboStat(actors, 'mnd') * 1.5);
-            const amt = Math.max(1, Math.round(pow * (itemId ? 1 : this.rng.range(0.95, 1.05))));
+            const timed = this.graded?.kind === 'mend' ? MEND_MULT[this.graded.timing] : 1;
+            const amt = Math.max(1, Math.round(pow * timed * (itemId ? 1 : this.rng.range(0.95, 1.05))));
             t.hp = Math.min(t.base.maxHp, t.hp + amt);
-            this.ev.push({ t: 'heal', target: t.uid, amount: amt, hp: t.hp });
+            this.ev.push({ t: 'heal', target: t.uid, amount: amt, hp: t.hp, ...(timed > 1.2 ? { crit: true } : {}) });
           }
           break;
         case 'tp':

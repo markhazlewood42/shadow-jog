@@ -427,32 +427,6 @@ export class FieldScene extends Scene<void> {
     return false;
   }
 
-  /**
-   * Something to examine near the crew (an action event within five tiles) catches the light now
-   * and then: a small twinkle on its tile, each on its own beat, so it can be found before you're
-   * standing at it (round 13: the facing marker only confirms). Nothing allocated per frame.
-   */
-  private drawTwinkles(ctx: Ctx, cx: number, cy: number, f: number): void {
-    if (this.busy) return;
-    const lx = this.leader.x, ly = this.leader.y;
-    for (const e of this.def.events ?? []) {
-      if (e.on !== 'action' || Math.abs(e.x - lx) > 5 || Math.abs(e.y - ly) > 5) continue;
-      if (e.once && flags.has(`ev:${this.def.id}:${e.id}`)) continue;
-      if (e.when && !e.when(state.flags)) continue;
-      const beat = (f + e.x * 41 + e.y * 23) % 150;
-      if (beat > 14) continue;
-      const a = beat < 7 ? beat / 7 : (14 - beat) / 7;
-      const x = e.x * TS + 8 - cx, y = e.y * TS + 3 - cy;
-      ctx.globalAlpha = a;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(x, y - 2, 1, 5);
-      ctx.fillRect(x - 2, y, 5, 1);
-      ctx.fillStyle = '#9ae8ff';
-      ctx.fillRect(x, y, 1, 1);
-      ctx.globalAlpha = 1;
-    }
-  }
-
   /** The interact marker: a small bobbing chevron in the menu cursor's cyan, outlined dark. */
   private drawCue(ctx: Ctx, x: number, y: number, f: number): void {
     const b = Math.round(Math.sin(f * 0.15) * 1.5);
@@ -702,7 +676,6 @@ export class FieldScene extends Scene<void> {
     this.dust.render(ctx, cx, cy);
     this.weather.render(ctx);
     for (const a of actors) if (a.emote) drawEmote(ctx, a, cx, cy);
-    this.drawTwinkles(ctx, cx, cy, f);
     if (this.cue) this.drawCue(ctx, this.cue.x - cx, this.cue.y - cy, f);
     this.renderBanner(ctx);
     this.renderObjective(ctx);

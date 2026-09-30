@@ -294,11 +294,15 @@ export const pumpValve = (id: string): ScriptFn => async (s) => {
     s.set(`valve_${id}`);
     s.set('valves', opened + 1);
     s.refreshMap(); // the wheel turns green, its light changes, water runs
-    s.sfx('wave');
+    s.sfx('valve');
+    await s.wait(50);
     if (opened + 1 < VALVE_ORDER.length) {
       await s.narrate(`The wheel grinds round. Water hisses into ${INTAKE[id]}, and somewhere across the level a pipe knocks in answer.`);
       return;
     }
+    s.sfx('pipes_prime');
+    s.shake(24, 1);
+    await s.wait(40);
     await s.narrate('The last wheel turns. Every pipe in the room drums once, then settles into a low, even hum.');
     await s.say('hex', 'Pressure’s balanced and the pumps are primed. Now the console in the pump room.', { face: 'happy' });
     return;
@@ -339,9 +343,10 @@ export const floodgate: ScriptFn = async (s) => {
   await s.say('kit', 'And whatever lives in the junction?', { face: 'sad' });
   await s.say('hex', 'Will be a lot easier to see coming. Best I can do from a pump console.');
   s.sfx('code');
-  s.shake(60, 2);
-  await s.wait(30);
-  s.sfx('wave');
+  await s.wait(20);
+  s.sfx('pumps');
+  s.shake(90, 2);
+  await s.wait(50);
   await s.fadeOut(40, '#07060d');
   s.set('floodgate');
   s.refreshMap();

@@ -22,7 +22,7 @@ import { autoClose } from '../game/debug';
 import { knownAbilities } from '../game/party';
 import { state } from '../game/state';
 import { drawWindow, keyLegend, OVERLAY_DIM, UI } from '../ui/draw';
-import { ELEMENT_COLOR, ELEMENT_ICON } from './battlekit/tables';
+import { ELEMENT_COLOR, ELEMENT_ICON, markElements } from './battlekit/tables';
 
 export type DeckMode = 'dead' | 'seat' | 'view';
 
@@ -293,7 +293,7 @@ export class DeckScene extends Scene<void> {
     const px = DX + DECK_W + 18, pw = W - px - 10;
     drawWindow(ctx, px, DY + 6, pw, 70, { plain: true, accent: UI.violet });
     drawParagraph(ctx, prompt, px + 8, DY + 14, pw - 16, { lineH: 11 });
-    if (this.phase === 'done') drawParagraph(ctx, ABILITIES.overload?.desc ?? '', px + 8, DY + 36, pw - 16, { color: UI.dim, lineH: 10 });
+    if (this.phase === 'done') drawParagraph(ctx, markElements(ABILITIES.overload?.desc ?? ''), px + 8, DY + 36, pw - 16, { color: UI.dim, lineH: 10 });
   }
 
   private overloadLine(): string {

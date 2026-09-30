@@ -51,6 +51,8 @@ export interface PlaybackView {
   deckCutin(): void;
   floatOn(uid: number, text: string, color: string, style: Floater['style']): void;
   say(text: string): void;
+  /** Pin an enemy's tell on screen until that enemy has acted on it. */
+  tell(text: string, actor: number): void;
   showBanner(text: string, color: string, big?: boolean): void;
   setBanner(b: { text: string; sub?: string; t: number; color: string; big?: boolean }): void;
   /** Clear the banner quickly (a combo's name gives way as its strike lands). */
@@ -225,9 +227,14 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       break;
     case 'heal':
       v.d(e.target).hp = e.hp;
-      v.floatOn(e.target, `+${e.amount}`, '#86f08c', 'hit');
+      // A perfect press on a healing skill: a brighter number, and a chime on top of the heal.
+      v.floatOn(e.target, `+${e.amount}`, e.crit ? '#d8ffc8' : '#86f08c', 'hit');
       sfx('heal');
-      await v.w(12);
+      if (e.crit) {
+        v.d(e.target).flash = 10;
+        sfx('sting_life');
+      }
+      await v.w(e.crit ? 18 : 12);
       break;
     case 'tp':
       v.d(e.target).tp = e.tp;
@@ -272,6 +279,13 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
     case 'msg':
       v.say(e.text);
       await v.w(40);
+      break;
+    case 'tell':
+      // A tell is the fight's most important line: time to read it before anything moves (and it
+      // stays pinned after; see BattleScene.tell). Mark's playthrough: "impossible to read".
+      v.tell(e.text, e.actor);
+      sfx('alert');
+      await v.w(40 + Math.round(e.text.length * 1.2));
       break;
     case 'immune': {
       const u = v.battle.unit(e.target)!;

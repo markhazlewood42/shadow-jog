@@ -1,5 +1,6 @@
 /** Enemy decision-making: weighted move tables with conditions, plus scripted boss routines. */
 import { ABILITIES, ability } from '../data/abilities';
+import { must } from '../engine/assert';
 import { ENEMIES, type EnemyMove } from '../data/enemies';
 import type { Battle } from './engine';
 import type { Ability, Combatant } from './types';
@@ -51,6 +52,31 @@ function weightedPick(b: Battle, moves: EnemyMove[]): EnemyMove | null {
   return moves[moves.length - 1] ?? null;
 }
 
+/**
+ * Who a single-target blow goes for: anyone, but more likely whoever is lowest on HP for their
+ * size (predators smell blood). Not guaranteed: the lowest counts half again as much as each of
+ * the others, about 43% of blows in a crew of three and a third in a crew of four; at full health
+ * it's an even spread. Hurt is measured against each member's own max HP. By raw HP the smallest
+ * pool (Hex's) always looked weakest, so she drew over half of all blows even when unhurt (Mark's
+ * playthrough: "targeting Hex almost exclusively"; then "more likely to target the lowest percent
+ * character, but not guaranteed").
+ */
+export const BLOOD_WEIGHT = 1.5;
+export function smellBlood(b: Battle, foes: readonly Combatant[]): Combatant {
+  const pct = (f: Combatant) => f.hp / Math.max(1, f.base.maxHp);
+  let low = 1;
+  for (const f of foes) low = Math.min(low, pct(f));
+  const weight = (f: Combatant) => (low < 1 && pct(f) === low ? BLOOD_WEIGHT : 1);
+  let total = 0;
+  for (const f of foes) total += weight(f);
+  let r = b.rng.next() * total;
+  for (const f of foes) {
+    r -= weight(f);
+    if (r <= 0) return f;
+  }
+  return must(foes[foes.length - 1], 'a foe to target');
+}
+
 function pickTarget(b: Battle, self: Combatant, ab: Ability): number {
   const foes = b.alive('party');
   const allies = b.alive('enemy');
@@ -64,12 +90,7 @@ function pickTarget(b: Battle, self: Combatant, ab: Ability): number {
       const locked = foes.find((f) => b.has(f, 'lockon'));
       if (locked) return locked.uid;
     }
-    // Mild preference for wounded targets (predators smell blood).
-    if (foes.length > 1 && b.rng.chance(0.3)) {
-      const weakest = [...foes].sort((a, c) => a.hp - c.hp)[0];
-      if (weakest) return weakest.uid;
-    }
-    return foes.length ? b.rng.pick(foes).uid : -1;
+    return foes.length ? smellBlood(b, foes).uid : -1;
   }
   return -1;
 }

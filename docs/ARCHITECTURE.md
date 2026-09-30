@@ -216,9 +216,14 @@ The API (`game/script.ts`): `say`, `narrate`, `ask` (returns the chosen index), 
   `resolveRound(cmds, grader?)` runs that loop in one call (tests and sims).
 - **Combos** (`data/abilities.ts` `COMBOS`): two or three members' specific abilities in the same round fuse into one
   stronger action (`Battle.findCombos`, largest first). Each has a caller and a line.
-- **Timed presses**: an action offers a `TimingPrompt` (`strike` for the crew's hits, `brace` for hits on the crew)
-  with a profile (`quick`, `normal`, `heavy`). The grade (`perfect`, `good`, `none`, `whiff`) multiplies damage
-  (`STRIKE_MULT`, `BRACE_MULT`); a whiff costs. The window itself is `battlekit/timing.ts`.
+- **Timed presses**: an action offers a `TimingPrompt` (`strike` for the crew's hits, `brace` for hits on the crew,
+  `mend` for a crew member's healing skill) with a profile (`quick`, `normal`, `heavy`). The grade (`perfect`, `good`,
+  `none`, `whiff`) multiplies damage or healing (`STRIKE_MULT`, `BRACE_MULT`, `MEND_MULT`); a whiff costs. The window
+  itself is `battlekit/timing.ts`.
+- **Tells** are their own event (`{ t: 'tell', actor, text }`, from an enemy AI's `message`): the scene pins them at
+  the top of the screen until that enemy has acted (`BattleScene.tell`). Plain `msg` events are transient lines.
+- **Targeting**: single-target enemy blows go through `ai.ts` `smellBlood` (the member lowest by HP percent weighs
+  `BLOOD_WEIGHT` = 1.5, everyone else 1).
 - Damage: physical (ATK² / (ATK + DEF)) or tech (power + MND vs RES); elements (`phys fire shock mana cyber`) against
   **family** weaknesses (`data/enemies.ts` `FAMILY_WEAK`, per-enemy overrides); crits; Guard (half, a quarter against a
   telegraphed blow; a guarded hit gives TP back, or Rook a spent charge once a fight); statuses (stun, with two

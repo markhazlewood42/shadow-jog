@@ -56,7 +56,7 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   incendiary: A({
     id: 'incendiary', name: 'Incendiary Round', kind: 'skill', uses: 3, target: 'enemy', element: 'fire',
-    desc: 'A dragon-breath shell from Rook’s sidearm. Fire damage; may set the target burning.',
+    desc: 'A dragon-breath shell from Rook’s sidearm. FIRE damage; may set the target burning.',
     effects: [{ type: 'damage', stat: 'atk', mult: 1.05 }, { type: 'status', status: 'burn', chance: 0.5, turns: 3 }], fx: 'shot',
   }),
   quickdraw: A({
@@ -110,7 +110,7 @@ export const ABILITIES: Record<string, Ability> = {
   }),
   overload: A({
     id: 'overload', name: 'Overload', kind: 'tech', cost: 8, target: 'enemies', element: 'shock',
-    desc: 'Dump the grid into everything nearby. Shock damage to all.',
+    desc: 'Dump the grid into everything nearby. SHOCK damage to all.',
     effects: [{ type: 'damage', stat: 'mnd', power: 22 }], fx: 'lightning',
   }),
   hijack: A({
@@ -149,7 +149,7 @@ export const ABILITIES: Record<string, Ability> = {
   crow_spirit: A({
     id: 'crow_spirit', name: 'Crow Spirit', kind: 'tech', cost: 9, target: 'enemies', element: 'mana',
     cry: 'Sable: “Crow. Eat.”',
-    desc: 'Call Sable’s totem. Mana damage to all; may blind.',
+    desc: 'Call Sable’s totem. MANA damage to all; may blind.',
     effects: [{ type: 'damage', stat: 'mnd', power: 26 }, { type: 'status', status: 'blind', chance: 0.3, turns: 3 }], fx: 'crow',
   }),
   rekindle: A({
@@ -161,7 +161,7 @@ export const ABILITIES: Record<string, Ability> = {
   wildfire: A({
     id: 'wildfire', name: 'Wildfire', kind: 'tech', cost: 14, target: 'enemies', element: 'fire',
     cry: 'Sable: “Burn, then.”',
-    desc: 'A roaring spirit-blaze. Fire damage to all.',
+    desc: 'A roaring spirit-blaze. FIRE damage to all.',
     effects: [{ type: 'damage', stat: 'mnd', power: 40 }, { type: 'status', status: 'burn', chance: 0.25, turns: 3 }], fx: 'fire_all',
   }),
   spirit_ward: A({

@@ -1650,6 +1650,39 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
     });
   },
 
+  garments(b, p, rng) {
+    // A clothes rail: chrome bar on two posts, coats and jackets hung shoulder to shoulder, each
+    // with its own cut and colour (a tailor's rack; the blades live on the gun shop's 'rack').
+    const w = p.w ?? 1;
+    blockFoot(b, p, w, 1);
+    tall(b, { ...p, w }, w * TS, 28, (c) => {
+      const W = w * TS;
+      // Posts and feet
+      c.fillStyle = '#0f0e17';
+      c.fillRect(0, 2, 3, 26); c.fillRect(W - 3, 2, 3, 26);
+      c.fillStyle = '#8a90a4';
+      c.fillRect(1, 3, 1, 24); c.fillRect(W - 2, 3, 1, 24);
+      c.fillStyle = '#0f0e17'; c.fillRect(0, 26, 5, 2); c.fillRect(W - 5, 26, 5, 2);
+      // The rail
+      c.fillStyle = '#0f0e17'; c.fillRect(0, 2, W, 3);
+      c.fillStyle = '#c8ccd8'; c.fillRect(1, 3, W - 2, 1);
+      const cols = ['#b07cff', '#3fe0f0', '#ff4fb0', '#ffcc3d', '#62e06a', '#e8452e', '#efe6d4', '#2a2438', '#8c2f39'];
+      for (let x = 3; x < W - 6; x += 5) {
+        const col = rng.pick(cols);
+        const len = rng.int(12, 19);
+        // Hanger hook over the rail, then shoulders sloping out to a body and a hem.
+        c.fillStyle = '#9aa3b8'; c.fillRect(x + 2, 1, 1, 3);
+        c.fillStyle = '#0f0e17'; c.fillRect(x - 1, 4, 7, len + 1);
+        c.fillStyle = col; c.fillRect(x, 5, 5, len - 1);
+        c.fillStyle = shade(col, 0.3); c.fillRect(x, 5, 5, 1);
+        c.fillStyle = shade(col, -0.35); c.fillRect(x + 4, 6, 1, len - 2);
+        // A lapel or a zip down the middle, and now and then a hood or a fur collar.
+        c.fillStyle = shade(col, -0.5); c.fillRect(x + 2, 6, 1, Math.min(6, len - 3));
+        if (rng.chance(0.3)) { c.fillStyle = rng.pick(['#e8e4da', '#3a3040', '#d9b36c']); c.fillRect(x, 5, 5, 2); }
+      }
+    });
+  },
+
   desk(b, p) {
     const w = p.w ?? 2;
     blockFoot(b, p, w, 1);

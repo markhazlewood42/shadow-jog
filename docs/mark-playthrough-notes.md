@@ -1,25 +1,14 @@
-- The names of the Drowned Saint and the Iron Saint are too similar Let's rename one of those
-- I would like to see more of the attack and skill animations during battles. They go by pretty quickly and I can't appreciate them enough.
-- Same for the battle transition animation. Make it longer. In general we should sit the the special effects longer.
-- When choosing abilities, attacks, skills, etc., make it obvious what damage type they'll do. Somewhere in the battle menu next to that item. Use symbols instead of words.
-- The character highlight needs to be more prominent in all areas during battles. Give the bouncing down arrow and panel highlight a more prominent color. Make the highlight in the turn order more prominent.
-- In the Sprawl, there needs to be more contrast between map elements. They blend together quite a bit. The overall style is good it's just hard to tell the difference between certain elements, and definitely hard to tell where it's possible to walk vs. where you'll be blocked.
-- Rook is supposed to be a veteran. His starting level doesn't really reflect that. Bump that up and balance the rest accordingly. Maybe he starts injured or something and doesn't have access to his full skillset? Let's brainstorm.
-- When Hex is talking about or using their deck, I want to see it! Show me the deck somewhere. It should look cool. Maybe a mini-interaction or crafting system to insert the component we retrieved that can be built on later.
-- When browsing any equipment in a store, make it obvious which slot it uses. Should be tagged at the top of the decription.
-- When purchasing any equipement, allow it to be equipped immediately by eligible characters right from the store UI. Don't require backing out to the main menu.
-- When selling junk items, default to the full quantity rather than 1
-- Add an option to vendors to sell all junk items
-- Same contrast note in the SinkLine. Actually same overall - it's hard to tell what's surface level vs. what's structural (walls, etc.). Everything blends together. Needs better contrast and depth cues.
-- In battles, it's OK to reduce the size and increase the resolution of enemies a bit. I get the styling you were going for, but doesn't need to be so drastic.
-- Slow down the "tap for crit" interaction (what's that called?). It's a bit too fast. Both attacks and blocks.
-- In battles, the enemy description block covers the floating enemy selection indicator.
-- Make chests and other interactive elements more prominent, within reason. They blend into the background
-- Random battles in the sinkline are happening too frequently. Especially for a puzzle area. It's hard to make progress and remember where I was between battles.
-- Give a small hint about the SinkLine puzzle. I wasn't sure what to do. Don't make it TOO obvious but even the fact there's a puzzle to solve wasn't communicated (unless I totally missed it!). Maybe have an NPC talk about it.
-- No idea what the "2" on some enemies is indicating.
-- Add a longer delay between turns during battles, after commands are given. It goes by too quickly to know what's going on and the turn order bar doesn't make it obvious enough.
-- In battles, keep the turn order bar and command menu in the same place regardless of which character is active.
-- New abilities happen too frequently when leveling up. Reduce that by at least half. It should feel really special. Balance everything else accordingly.
-- In fact, I think leveling happens too quickly overall. If we assume this first chapter is, let's say, 1/10th of the full game, and max level for the full game is ... in the 20's? Or 30's? Maybe let's have characters get to a max of level 5 or 6 in the first chapter. Not 9 or 10. See how that feels.
-- Restore full stats on leveling up
+- Whenever you write out a damage type by name (in bestiary weaknesses, for example) include the corresponding icon.
+- I should be able to sleep in my own bed!
+- Make the apartment building taller, "high rise" vibes. Doesn't have to go off the screen but should look taller than the building next door.
+- Dutch's hat is askew. Is that intentional? Even if so, put it on straight.
+- In the hotel, the text reads, "Capsules at 10c a head: 30c a head, 90c for the crew. Rest?" Those numbers don't make sense. I think the 10c part is confusing.
+- The shelves on the "threads" shop also have swords on them. That doesn't make sense.
+- When in the equipment screen, don't make me click in to a slot to see what's available. Show what's available for that slot when it's simply highlighted (with stat diffs), then selecting moves the focus to that panel.
+- I'm seeing random sparkles, not sure why. I thought it was interactive objects but definitely not the case.
+- I'm in the SinkLine, and enemies seem to be targeting Hex almost exclusively. Not sure what determines the AI targeting but it might be unbalanced.
+- Healing abilities should have a crit interaction also
+- Show the stats filling up on level up, and make it feel more special. Leveling up music sting.
+- I want to hear some sound effects when I open the valves, and a bigger one when the puzzle completes. Something atmospheric and appropriate for valves opening and pumps priming.
+- Boss text that signals what the boss is about to do (and maybe enemies in general?) needs to be on screen longer. It's impossible to read.
+- The equipment limitations list characters we haven't met yet. Let's avoid that.

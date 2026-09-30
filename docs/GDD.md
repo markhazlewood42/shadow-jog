@@ -95,14 +95,18 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 * **Turn order** is rolled when orders open and previewed in a strip at the screen's edge, so it can be planned around.
 * **Timed presses** (Options: On / Assist / Off): as a blow comes in, a ring closes on the target. Press on the beat to
   *strike* harder (the crew's hits) or *brace* (hits on the crew). Quick moves have a tight window and a big payoff,
-  heavy ones a wide window; a blow you saw coming can be braced hardest. **A press off the beat costs** (a softer
-  strike, a harder hit taken): not pressing is always safer than guessing.
+  heavy ones a wide window; a blow you saw coming can be braced hardest. A crew member's **healing skill** closes a
+  green ring on the members it heals: on the beat heals 30% more (items don't ask). **A press off the beat costs**
+  (a softer strike, a harder hit taken, a smaller heal): not pressing is always safer than guessing.
 * **Guard** halves damage (a quarter against a telegraphed blow). A blow taken on a guard gives TP back; for Rook, who
   has no TP, one spent skill charge, once a fight. Guarding against nothing earns nothing.
 * **Tells:** bosses and some enemies announce big moves a turn ahead, and each asks a different answer. Knuckles
   squares up to a named member (guard: Rook's cover is still locked by his wound then); the Warden locks its cannon on one (guard, or Rook's Guardian);
   the sentry turret spins up (jam or stun it); the Arcanist draws a surge (blind her, or hit her hard while she
-  draws); the Warden's spirit draws breath (ward the crew).
+  draws); the Warden's spirit draws breath (ward the crew). A tell is **pinned at the top of the screen** in amber
+  until the enemy has acted on it, so it can be read while giving orders.
+* **Who enemies hit:** anyone, leaning toward whoever is lowest on HP *for their size* (the lowest by percent counts
+  1.5× each other member; an even spread at full health). Bosses' scripted moves pick their own marks.
 * **Combos:** nine (eight reachable in Chapter 1), including **Clean Job**, a three-member combo (Kit, Rook, Hex). Each has a caller who says a line
   on their cut-in. A combo's first use is logged in the menu's Combo Log, with hints for the undiscovered ones.
 * **Analyze** reveals HP and weaknesses and exposes the target (+25% damage taken). Weaknesses found in battle are
@@ -112,7 +116,8 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 
 ## 6. Progression
 
-* Levels 1–30 (`MAX_LEVEL`). **Chapter 1 ends around level 6** without grinding (retuned 2026-09-29 after Mark's first playthrough; it was 8–9), treating the chapter as about a tenth of the full game. Levels are rarer, so each carries more growth, and **a level-up is a full recovery** (HP, TP, charges).
+* Levels 1–30 (`MAX_LEVEL`). **Chapter 1 ends around level 6** without grinding (retuned 2026-09-29 after Mark's first playthrough; it was 8–9), treating the chapter as about a tenth of the full game. Levels are rarer, so each carries more growth, and **a level-up is a full recovery** (HP, TP, charges). It plays as a moment: a fanfare, each stat counting up
+  in turn, then the restore and anything learned.
 * **New abilities are rare.** In Chapter 1 only three come from levels (Kit: Iron Palm at 3, Hundred Rain at 5; Hex: Scramble at 4). The rest come from the story: seating the Stingray gives Hex **Overload**; Rook gets his locked skills back in two beats. The capstones (Moonfall, Dragon Coil, Rekindle, Wildfire) and Spirit Walk's parts wait for later chapters; 8 of the 9 combos are reachable in Chapter 1.
 * **Rook is a veteran (level 10) who starts the chapter wounded:** less HP, ATK and AGI, a charge short on every skill, four skills locked. Hex re-tunes his chrome when the Stingray boots (half the penalty lifts; Suppression and Incendiary Round come back); Sable closes the wound when she joins (whole again; Guardian and Stim Rush). Joiners and prices follow the crew's level, not his.
 * Equipment slots: Weapon, Body, Head, Mod (cyberware/fetish accessory). Class restrictions apply.
@@ -123,7 +128,8 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 * Currency: **cred (¢)**. Sources: battles, chests, side jobs, selling loot. Sinks: gear, consumables, rest, revives.
 * Shops: weapons, armor, items (per town tier). Sell price = 50% for gear and consumables; **loot** (gang colours, rat tails, drone optics: things with no use but their value) sells at 100%, since selling it is its only purpose.
 * The Annex's Requisition terminal sells a same-tier alternative to each armory find, never the find itself: a crew that skipped a case can still arm up, and one that found it has a real choice.
-* **Capsule hotel** (inn): pay per head to rest, which restores HP, TP and skill uses. **Street clinic**: revive and cure, for a fee.
+* **Capsule hotel** (inn): pay per head to rest, which restores HP, TP and skill uses. Kit's own bed in Rook's flat
+  does the same for free. **Street clinic**: revive and cure, for a fee.
 * Utility consumables mirror PSIV's pipes: **Smoke Pellet** (escape a battle), **Getaway Chit** (exit dungeon), **Cab Voucher** (return to last town).
 
 **As built (2026-09-29).**

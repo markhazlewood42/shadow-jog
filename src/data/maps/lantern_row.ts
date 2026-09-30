@@ -64,7 +64,9 @@ export const lanternRow: MapDef = {
     { kind: 'building', x: 0, y: 16, w: 13, h: 7, style: 'concrete', doors: [6], shopfront: true, awning: '#2f6a5a', sign: { text: 'KWIK-MART 24/7', color: '#62e0c0' } },
     { kind: 'building', x: 43, y: 16, w: 13, h: 7, style: 'metal', shutters: [45, 46, 52], doors: [49], sign: { text: 'NIX AUTO', color: '#ffa24a' } },
     // Rear block (faces the canal)
-    { kind: 'building', x: 0, y: 25, w: 9, h: 7, style: 'brick', doors: [4], signs: [{ text: 'APTS', color: '#ffcc3d', vertical: true, x: 8 }] },
+    // Rook and Kit's block: a high-rise over the canal, a storey of windows for every one its
+    // neighbours have (Mark's playthrough: "high rise vibes").
+    { kind: 'building', x: 0, y: 25, w: 9, h: 7, facade: 5, style: 'brick', doors: [4], signs: [{ text: 'APTS', color: '#ffcc3d', vertical: true, x: 8 }] },
     { kind: 'building', x: 9, y: 25, w: 6, h: 7, style: 'shanty', doors: [11], sign: { text: 'CHROME+CIRCUIT', color: '#3fe0f0', flicker: true } },
     { kind: 'building', x: 41, y: 25, w: 8, h: 7, style: 'tile', doors: [44], shopfront: true, awning: '#d8452e', sign: { text: 'MAMA ONO', color: '#ff8a4a' } },
     { kind: 'building', x: 49, y: 25, w: 7, h: 7, style: 'metal', shutters: [51, 53], roof: 'garden' },

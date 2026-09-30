@@ -14,10 +14,12 @@ import { ITEMS } from '../data/items';
 import { LOOKS } from '../data/looks';
 import { MEMBERS } from '../data/party';
 import { surface, type Ctx, type Surface } from '../engine/canvas';
-import { drawText, fitText } from '../engine/font';
+import { shade } from '../engine/color';
+import { drawText, fitText, measure } from '../engine/font';
+import { getPortrait } from '../art/portraits';
 import { Scene, W, H } from '../engine/game';
 import { Rng, streams } from '../engine/rng';
-import { equipRegen, grantXp, levelProgress, type LevelUp } from '../game/party';
+import { equipRegen, grantXp, levelProgress, type GrowthStat, type LevelUp } from '../game/party';
 import { battleSpeed, settings } from '../game/settings';
 import { flags, removeItem, state, type MemberId } from '../game/state';
 import { drawBar, drawWindow, UI } from '../ui/draw';
@@ -31,8 +33,8 @@ import { BHT, BW, DECK_CUT_LIFE, MENU_X, PARTY_BOTTOM } from './battlekit/geom';
 import { INTRO_T } from './battlekit/intro';
 import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
-import { RIM, artTop } from './battlekit/sprites';
-import { groupNames, pickGroup, summarize } from './battlekit/tables';
+import { RIM, artTop, drawBig } from './battlekit/sprites';
+import { abilityLabel, groupNames, pickGroup, summarize } from './battlekit/tables';
 
 export interface BattleSetup {
   encounter: string;
@@ -59,6 +61,15 @@ const ENEMY_LIFT = 14, BOSS_LIFT = 4;
  * frames) and holds TURN_GAP frames before the next one steps up.
  */
 const FX_PACE = 0.65, LINGER_MAX = 50, TURN_GAP = 22;
+/** The level-up panel's stats, in the order they count up, and the frames between them. */
+const LEVEL_STATS: readonly (readonly [GrowthStat, string])[] = [['hp', 'HP'], ['tp', 'TP'], ['atk', 'ATK'], ['def', 'DEF'], ['mnd', 'MND'], ['agi', 'AGI']];
+const LEVEL_ROW_T = 9;
+/** An enemy's memory flags that mean it's winding up a telegraphed move (its tell still stands). */
+const WINDUPS = ['breath', 'charging', 'spin', 'surge'] as const;
+/** The least time a tell stays up (real frames): two seconds, plus about 30 characters a second. */
+function tellMin(text: string): number {
+  return 120 + 2 * text.length;
+}
 /**
  * The top prompt / banner strip (UI y 6-23, world y 0-12): a sprite whose first opaque row would
  * sit under it is placed lower, so a tall boss's head is never hidden behind "Give each crew
@@ -101,11 +112,19 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   // Presentation
   banner: { text: string; sub?: string; t: number; color: string; big?: boolean } | null = null;
   message: { text: string; t: number } | null = null;
+  /**
+   * An enemy's tell, pinned at the top of the screen over everything else there: it stays until
+   * the enemy that gave it has acted on it (a charge stays up through the orders for the next
+   * round), and for at least as long as it takes to read.
+   */
+  tell: { text: string; t: number; actor: number; done: boolean } | null = null;
   introT = 0;
   /** Effect frames into Hex's deck cut-in (-1: not showing). */
   deckT = -1;
   endPanel: ((ctx: Ctx) => void) | null = null;
   private waitingConfirm: (() => void) | null = null;
+  /** The open results panel's finish-first hooks (see panel()). */
+  private panelFinish: { done: () => boolean; skip: () => void } | null = null;
   /** Frames the scene has been waiting on the player (for a registered driver). */
   private idleT = 0;
   /** The timed press on the action being played (battlekit/timing.ts). */
@@ -463,6 +482,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       this.message.t++;
       if (this.message.t > 90) this.message = null;
     }
+    if (this.tell) {
+      this.tell.t++;
+      const teller = this.battle.unit(this.tell.actor);
+      if (!teller || teller.hp <= 0 || (this.tell.done && this.tell.t >= tellMin(this.tell.text))) this.tell = null;
+    }
     const inp = this.game.input;
     // A registered driver (a test harness) may act on a waiting panel or round menu.
     const driver = battleDriver();
@@ -482,6 +506,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       }
     }
     if (this.waitingConfirm && inp.pressed('confirm')) {
+      if (this.panelFinish && !this.panelFinish.done()) {
+        this.panelFinish.skip();
+        sfx('cursor');
+        return;
+      }
       const cb = this.waitingConfirm;
       this.waitingConfirm = null;
       sfx('confirm');
@@ -588,6 +617,13 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
    * then a beat with nothing moving, so each action reads as its own before the next one starts.
    */
   private async afterAction(): Promise<void> {
+    // The enemy that gave the tell has now done what it said, or its windup is over some other way
+    // (stunned or jammed mid-charge, or the tell was an outcome: "the surge fizzles out").
+    if (this.tell) {
+      const teller = this.battle.unit(this.tell.actor);
+      const winding = !!teller && WINDUPS.some((k) => teller.memory[k]);
+      if (this.lastActor?.uid === this.tell.actor || !winding) this.tell.done = true;
+    }
     if (this.battle.outcome) return;
     for (let i = 0; i < LINGER_MAX && this.fx.busy; i++) await this.game.wait(1);
     await this.w(TURN_GAP);
@@ -603,11 +639,15 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   /** The first time each kind of press comes up, say how it works (with the player's own key). */
   private teachTiming(p: TimingPrompt): void {
-    const flag = p.kind === 'strike' ? 'tut_strike' : 'tut_brace';
+    const flag = `tut_${p.kind}`;
     if (flags.has(flag)) return;
     flags.set(flag);
     const key = this.game.input.keyName('confirm');
-    this.say(p.kind === 'strike' ? `Press ${key} as the gold ring closes: a harder hit.` : `Press ${key} as the blue ring closes: brace and take less.`);
+    this.say(
+      p.kind === 'strike' ? `Press ${key} as the gold ring closes: a harder hit.`
+      : p.kind === 'mend' ? `Press ${key} as the green ring closes: a stronger heal.`
+      : `Press ${key} as the blue ring closes: brace and take less.`,
+    );
   }
 
   /** A press landed (or whiffed): say so over the target and give it a sound. */
@@ -618,14 +658,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     // One word per press: on the struck enemy, or on each member braced.
     const on = p.kind === 'strike' ? p.targets.slice(0, 1) : p.targets;
     for (const uid of on) this.floatOn(uid, word.text, word.color, 'label');
-    if (r === 'perfect') sfx(p.kind === 'strike' ? 'timed_perfect' : 'parry');
+    if (r === 'perfect') sfx(p.kind === 'brace' ? 'parry' : 'timed_perfect');
     else if (r === 'good') sfx('timed_good');
     else {
       sfx('miss');
       // The first whiff says what it cost, once.
       if (!flags.has('tut_whiff')) {
         flags.set('tut_whiff');
-        this.say(p.kind === 'strike' ? 'Off the beat: an overswing hits softer. Better no press than a guess.' : 'Off the beat: tensed at the wrong moment, it hurts more. Better no press than a guess.');
+        this.say(p.kind === 'strike' ? 'Off the beat: an overswing hits softer. Better no press than a guess.' : p.kind === 'mend' ? 'Off the beat: a rushed heal mends a little less. Better no press than a guess.' : 'Off the beat: tensed at the wrong moment, it hurts more. Better no press than a guess.');
       }
     }
   }
@@ -669,6 +709,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       w: (frames) => scene.w(frames),
       floatOn: (uid, text, color, style) => scene.floatOn(uid, text, color, style),
       say: (text) => scene.say(text),
+      tell: (text, actor) => {
+        scene.tell = { text, t: 0, actor, done: false };
+        // Its own act clears it: forget any earlier act by this enemy.
+        scene.lastActor = null;
+      },
       showBanner: (text, color, big) => scene.showBanner(text, color, big),
       setBanner: (b) => {
         scene.banner = b;
@@ -761,6 +806,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   private async victory(): Promise<void> {
     this.mode = 'end';
+    this.tell = null;
     music(this.setup.boss ? 'victory_boss' : 'victory', 0);
     const living = this.battle.party.filter((p) => p.hp > 0);
     for (const p of living) this.setPose(p, 'victory', 100000);
@@ -787,16 +833,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       bars.push({ id: m.id, lv0, r0, lv1: m.level, r1: levelProgress(m.level, m.xp) });
     }
     const dropNames = summarize(r.drops.map((id) => ITEMS[id]!.name));
-    const start = this.frame;
-    // Tally ticks while the numbers count up.
-    void (async () => {
-      for (let i = 0; i < 7 && this.endPanel; i++) {
-        sfx('cursor', 1 + i * 0.06);
-        await this.game.wait(4);
-      }
-    })();
+    let start = this.frame;
     this.bannerStart = -1;
-    await this.panel((ctx) => {
+    const tallied = this.panel((ctx) => {
       const t = this.frame - start;
       const tally = Math.min(1, t / 28), fill = Math.min(1, Math.max(0, (t - 10) / 44));
       const w = 272, h = 58 + dropNames.length * 11 + bars.length * 13;
@@ -823,28 +862,19 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         });
       }
       if (this.frame % 40 < 28) drawText(ctx, '▼', x + w - 16, y + h - 13, { color: UI.cyan });
-    });
-    for (const u of ups) {
-      sfx('levelup');
-      const name = MEMBERS[u.id].name;
-      const gains = Object.entries(u.gains).filter(([, v]) => (v ?? 0) > 0);
-      await this.panel((ctx) => {
-        const w = 230, h = 58 + Math.ceil(gains.length / 2) * 11 + u.learned.length * 11;
-        const x = (W - w) / 2, y = 56;
-        drawWindow(ctx, x, y, w, h, { title: 'LEVEL UP', accent: MEMBERS[u.id].color });
-        drawText(ctx, `${name} reached {y}Lv ${u.level}{/}!`, x + 14, y + 14);
-        // A level-up is a full recovery: say so (grantXp restores HP, TP and charges).
-        drawText(ctx, '{g}Fully restored{/}', x + w - 14, y + 14, { align: 'right' });
-        gains.forEach(([k, v], i) => {
-          drawText(ctx, `${k.toUpperCase()} {g}+${v}{/}`, x + 14 + (i % 2) * 100, y + 30 + Math.floor(i / 2) * 11);
-        });
-        const ly = y + 34 + Math.ceil(gains.length / 2) * 11;
-        u.learned.forEach((id, i) => {
-          drawText(ctx, fitText(`Learned {c}${ABILITIES[id]!.name}{/}!`, LEVELUP_TEXT_W), x + 14, ly + i * 11);
-        });
-        if (this.frame % 40 < 28) drawText(ctx, '▼', x + w - 16, y + h - 13, { color: UI.cyan });
-      });
-    }
+    }, { done: () => this.frame - start >= 54, skip: () => { start = this.frame - 54; } });
+    // Tally ticks while the numbers count up (started once the panel is up: until round 2 of
+    // Mark's notes they ran before it and so never played).
+    let tallying = true;
+    void (async () => {
+      for (let i = 0; i < 7 && tallying; i++) {
+        sfx('cursor', 1 + i * 0.06);
+        await this.game.wait(4);
+      }
+    })();
+    await tallied;
+    tallying = false;
+    for (const u of ups) await this.levelUpPanel(u);
     state.battles++;
     this.close('win');
   }
@@ -853,6 +883,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   private async defeat(): Promise<void> {
     this.mode = 'end';
+    this.tell = null;
     // The last blow lands in silence: the music cuts, the frame flashes and drains, the crew
     // buckles; only then the dirge.
     music(null, 4);
@@ -886,15 +917,129 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     for (const p of this.battle.party) writeBack(p, state.members[p.key as MemberId]!);
   }
 
-  private panel(draw: (ctx: Ctx) => void): Promise<void> {
+  /**
+   * Hold a results panel until confirm. With `finish`, a press while it's still counting up
+   * completes it instead (the same key the player was just hitting for timed presses; a stray
+   * press mustn't throw away the tally).
+   */
+  private panel(draw: (ctx: Ctx) => void, finish?: { done: () => boolean; skip: () => void }): Promise<void> {
     if (battleDriver()?.hurry()) return Promise.resolve();
     return new Promise((res) => {
       this.endPanel = draw;
+      this.panelFinish = finish ?? null;
       this.waitingConfirm = () => {
         this.endPanel = null;
+        this.panelFinish = null;
         res();
       };
     });
+  }
+
+  /**
+   * A level-up, as a moment (Mark's playthrough: "show the stats filling up, and make it feel more
+   * special. Leveling up music sting"): a fanfare, the member lit up, each stat counting up in
+   * turn with its bar filling to the new mark, then the full restore, then anything learned.
+   */
+  private async levelUpPanel(u: LevelUp): Promise<void> {
+    music('levelup', 6);
+    const mem = MEMBERS[u.id];
+    const stats = LEVEL_STATS.filter(([k]) => u.to[k] > 0);
+    const rowAt = (i: number) => 18 + i * LEVEL_ROW_T;
+    const restoredAt = rowAt(stats.length) + 10;
+    const learnAt = (j: number) => restoredAt + 22 + j * 18;
+    const end = learnAt(u.learned.length) + 4;
+    let start = this.frame;
+    // Sounds on their beats: a tick as each stat counts (rising), a chime for the restore, a
+    // key-item flourish for each thing learned. Skipping ahead plays whatever it jumped past.
+    // Started once the panel is up, and stopped by its own flag (not `endPanel`, which the next
+    // panel sets again in the same tick this one closes).
+    const cues = [...stats.map((_, i) => rowAt(i)), restoredAt, ...u.learned.map((_, j) => learnAt(j))];
+    let open = true;
+    const playCues = async () => {
+      let fired = 0;
+      while (open && fired < cues.length) {
+        const t = this.frame - start;
+        let played = false;
+        while (fired < cues.length && t >= (cues[fired] ?? 0)) {
+          if (!played) sfx(fired < stats.length ? 'blip' : fired === stats.length ? 'heal' : 'keyitem', 1 + fired * 0.12);
+          played = true;
+          fired++;
+        }
+        await this.game.wait(1);
+      }
+    };
+    const port = getPortrait(u.id, 'happy');
+    const restores = `{g}Fully restored:{/} HP and ${u.id === 'rook' ? 'skill uses' : mem.tpLabel}, ailments cleared`;
+    const w = 300, h = 76 + stats.length * 12 + 16 + u.learned.length * 18 + 8;
+    const x = (W - w) / 2, y = Math.max(8, Math.round((H - h) / 2) - 20);
+    const shown = this.panel((ctx) => {
+      const t = this.frame - start;
+      drawWindow(ctx, x, y, w, h, { title: 'LEVEL UP', accent: mem.color });
+      // The member, lit: a slow wheel of light behind the portrait.
+      const pcx = x + 38, pcy = y + 38;
+      ctx.fillStyle = mem.color;
+      for (let k = 0; k < 12; k++) {
+        const a = (k * Math.PI) / 6 + this.frame * 0.015;
+        const ca = Math.cos(a), sa = Math.sin(a);
+        for (let r = 22 + (((this.frame >> 3) + k) % 4); r < 36; r += 4) {
+          const py = Math.round(pcy + sa * r);
+          // Kept above the stat rows.
+          if (py < y + 60) ctx.fillRect(Math.round(pcx + ca * r), py, 1, 1);
+        }
+      }
+      if (port) ctx.drawImage(port, pcx - 24, pcy - 24);
+      drawText(ctx, mem.name, x + 76, y + 14, { color: mem.color });
+      // The new level stamps in: white as it lands, then amber.
+      drawText(ctx, `Lv ${u.level - 1}  →`, x + 76, y + 32, { color: UI.dim });
+      const lv = String(u.level);
+      drawBig(ctx, lv, x + 118 + measure(lv), y + 28, t < 10 ? '#ffffff' : UI.amber);
+      // Each stat counts up in turn, its bar filling from the old value to the new.
+      const top = y + 64;
+      stats.forEach(([k, label], i) => {
+        const ry = top + i * 12;
+        const p = Math.max(0, Math.min(1, (t - rowAt(i)) / 12));
+        const from = u.from[k], to = u.to[k], gain = to - from;
+        const cur = Math.round(from + gain * p);
+        drawText(ctx, label, x + 14, ry, { color: UI.dim });
+        drawText(ctx, String(from), x + 70, ry, { align: 'right', color: UI.dim });
+        const bx = x + 78, bw = 124;
+        drawBar(ctx, bx, ry + 2, bw, 4, from / to, shade(mem.color, -0.3));
+        // The gained stretch: white while it fills, then amber.
+        const gx = Math.round((bw * from) / to), gw = Math.round((bw * cur) / to) - gx;
+        if (gw > 0) {
+          ctx.fillStyle = p < 1 ? '#ffffff' : UI.amber;
+          ctx.fillRect(bx + gx, ry + 2, gw, 4);
+        }
+        drawText(ctx, String(cur), x + 238, ry, { align: 'right', color: p <= 0 ? UI.disabled : p < 1 ? UI.amber : UI.text });
+        if (p > 0 && gain > 0) drawText(ctx, `+${gain}`, x + 246, ry, { color: UI.green });
+      });
+      const ry = top + stats.length * 12 + 4;
+      if (t >= restoredAt) drawText(ctx, fitText(restores, w - 28), x + 14, ry);
+      u.learned.forEach((id, j) => {
+        const ab = ABILITIES[id];
+        if (!ab || t < learnAt(j)) return;
+        const ly = ry + 16 + j * 18;
+        const tag = ab.kind === 'skill' ? 'NEW SKILL' : 'NEW TECH';
+        const tw = measure(tag) + 8;
+        ctx.fillStyle = UI.amber;
+        ctx.fillRect(x + 14, ly - 2, tw, 11);
+        drawText(ctx, tag, x + 18, ly, { color: '#1a1020', shadow: false });
+        const nx = x + 22 + tw;
+        drawText(ctx, fitText(abilityLabel(ab), LEVELUP_TEXT_W), nx, ly, { color: UI.cyan });
+        // A glint runs across the new name as it arrives.
+        const gt = t - learnAt(j);
+        if (gt < 16) {
+          ctx.globalAlpha = 0.7;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(nx + gt * 8, ly - 1, 3, 9);
+          ctx.globalAlpha = 1;
+        }
+      });
+      if (t >= end && this.frame % 40 < 28) drawText(ctx, '▼', x + w - 16, y + h - 13, { color: UI.cyan });
+    }, { done: () => this.frame - start >= end, skip: () => { start = this.frame - end; } });
+    void playCues();
+    await shown;
+    open = false;
   }
 
   // ------------------------------------------------------------------ layout
@@ -996,7 +1141,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   /** Something is winding up a big move: the round deserves fresh orders, not muscle memory. */
   telegraphed(): boolean {
-    return this.battle.alive('enemy').some((u) => u.memory.breath || u.memory.charging || u.memory.spin || u.memory.surge);
+    return this.battle.alive('enemy').some((u) => WINDUPS.some((k) => u.memory[k]));
   }
 
   /**

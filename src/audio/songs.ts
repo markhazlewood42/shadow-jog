@@ -240,6 +240,22 @@ export const SONGS: Record<string, SongSpec> = {
       { inst: 'pad', gen: 'chord', octave: 3, vol: 0.7 },
     ],
   },
+  // Level up (Mark's playthrough: "leveling up music sting"): a rising run over a snare roll into
+  // a held major chord with a crash and bells. Plays once over the level-up panel.
+  levelup: {
+    gain: 0,
+    bpm: 150,
+    loop: false,
+    chords: 'F | G | C',
+    drums: 'sting',
+    space: 'here',
+    parts: [
+      { inst: 'lead2', vol: 0.9, rev: 0.35, del: 0.2, notes: 'C5 E5 F5 A5 C6 - A5 C6 | D6 - B5 D6 G6 - F6 D6 | E6 - - - - - - -' },
+      { inst: 'bell', vol: 0.7, rev: 0.5, notes: '. . . . . . . . | . . . . . . . . | C7 - - - G6 - E7 -' },
+      { inst: 'choir', gen: 'chord', octave: 4, vol: 0.8, rev: 0.5 },
+      { inst: 'bass', gen: 'long', octave: 1, vol: 0.9 },
+    ],
+  },
   victory_boss: {
     air: 0.014,
     gain: -0.5,

@@ -55,7 +55,7 @@ export type PropKind =
   | 'lamp' | 'vending' | 'barrel' | 'firebarrel' | 'crates' | 'dumpster' | 'trash' | 'car' | 'wreck' | 'hydrant'
   | 'bench' | 'stall' | 'pillar' | 'tree' | 'wildtree' | 'shrine' | 'pole' | 'planter' | 'terminal' | 'pipe_v' | 'steam' | 'barrier' | 'cone'
   | 'holo' | 'poster' | 'counter' | 'shelf' | 'bed' | 'table' | 'stool' | 'couch' | 'plant' | 'screen'
-  | 'capsule' | 'bar' | 'rack' | 'desk' | 'pod' | 'server' | 'tank' | 'fence' | 'sandbags' | 'tent' | 'pylon'
+  | 'capsule' | 'bar' | 'rack' | 'garments' | 'desk' | 'pod' | 'server' | 'tank' | 'fence' | 'sandbags' | 'tent' | 'pylon'
   | 'catwalk_rail' | 'train' | 'valve' | 'cryopod' | 'door_lab' | 'jukebox' | 'arcade' | 'sign_post' | 'bollard'
   | 'window' | 'lampfloor' | 'sign_board' | 'tires' | 'body' | 'ladder' | 'tag' | 'banner' | 'crest' | 'memorial' | 'bedroll'
   | 'laser'

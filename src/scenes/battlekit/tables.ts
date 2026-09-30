@@ -37,6 +37,31 @@ export function elementMark(el: (typeof ELEMENTS)[number]): string {
   return `{#${ELEMENT_COLOR[el].slice(1)}}${ELEMENT_ICON[el]}{/}`;
 }
 
+/**
+ * A symbol and its colour reset just before a name: that name is already marked. A regex literal,
+ * not a string: the range's ends are code points, not text to draw (tests/glyphs.test.ts).
+ */
+const MARKED = /[-]\{\/\}\s?/.source;
+/** A damage type's name in capitals, unless its symbol already comes first. */
+const ELEMENT_WORD = new RegExp(`(?<!${MARKED})\\b(${ELEMENTS.map((e) => e.toUpperCase()).join('|')})\\b`, 'g');
+
+/**
+ * Every damage type written by name (FIRE, SHOCK...) gets its symbol in front, in its colour
+ * (Mark's playthrough: "whenever you write out a damage type by name, include the icon"). Damage
+ * types are written in capitals wherever one is meant, so an item called "Shock Knuckles" isn't
+ * touched; a name that already has its symbol isn't marked twice.
+ */
+export function markElements(text: string): string {
+  return text.replace(ELEMENT_WORD, (word: string) => `${elementMark(word.toLowerCase() as (typeof ELEMENTS)[number])}${word}`);
+}
+
+/** An ability's name with its damage type's symbol in front (PHYS included), when it deals damage. */
+export function abilityLabel(ab: Pick<Ability, 'name' | 'element' | 'effects'>): string {
+  if (!ab.effects.some((e) => e.type === 'damage')) return ab.name;
+  return `${elementMark(ab.element ?? 'phys')} ${ab.name}`;
+}
+
+
 export const STATUS_WORD: Partial<Record<StatusId, string>> = {
   poison: 'POISONED', burn: 'BURNING', stun: 'STUNNED', blind: 'BLINDED', jammed: 'JAMMED', exposed: 'EXPOSED', regen: 'REGEN',
   hijacked: 'HIJACKED', atk_up: 'ATK UP', def_up: 'DEF UP', res_up: 'RES UP', agi_up: 'AGI UP', atk_down: 'ATK DOWN', def_down: 'DEF DOWN',

@@ -953,6 +953,30 @@ function withUmbrella(fr: HTMLCanvasElement, look: CharLook): HTMLCanvasElement 
   return s.canvas;
 }
 
+/**
+ * The columns the head covers in a frame, outline included: the widest of the figure's top six
+ * rows (a head is round: its full width shows a few rows down). Anything worn on it centres on this.
+ */
+function headSpan(fr: HTMLCanvasElement): { x0: number; x1: number } {
+  const g = fr.getContext('2d');
+  if (!g) return { x0: 1, x1: fr.width - 2 };
+  const d = g.getImageData(0, 0, fr.width, fr.height).data;
+  let x0 = fr.width, x1 = -1, rows = 0;
+  for (let y = 0; y < fr.height && rows < 6; y++) {
+    let a = -1, b = -1;
+    for (let x = 0; x < fr.width; x++) {
+      if ((d[(y * fr.width + x) * 4 + 3] ?? 0) === 0) continue;
+      if (a < 0) a = x;
+      b = x;
+    }
+    if (a < 0) continue;
+    rows++;
+    x0 = Math.min(x0, a);
+    x1 = Math.max(x1, b);
+  }
+  return x1 < 0 ? { x0: 1, x1: fr.width - 2 } : { x0, x1 };
+}
+
 /** Rows added above a frame for a carried thing that rises past the head. */
 const HEADROOM = 5;
 
@@ -1017,18 +1041,22 @@ function withCarry(fr: HTMLCanvasElement, carry: NonNullable<CharLook['carry']>,
   };
   const hat = () => {
     // A wide-brimmed hat: the brim a pixel past the head each side, a gold band on the crown.
+    // Centred on the head as drawn, not on the frame: a big body's head sits wider and further
+    // right, and a fixed position left the hat hanging off one side (Mark's playthrough).
+    const { x0, x1 } = headSpan(fr);
+    const hw = x1 - x0 + 1, cx = x0 + Math.floor((hw - 8) / 2);
     const e = '#0c0b12', crown = '#2a1a24';
     c.fillStyle = e;
-    c.fillRect(4, O - 2, 8, 4);
-    c.fillRect(1, O + 1, 14, 3);
+    c.fillRect(cx, O - 2, 8, 4);
+    c.fillRect(x0 - 1, O + 1, hw + 2, 3);
     c.fillStyle = crown;
-    c.fillRect(5, O - 1, 6, 2);
+    c.fillRect(cx + 1, O - 1, 6, 2);
     c.fillStyle = '#4a3040';
-    c.fillRect(5, O - 1, 6, 1);
+    c.fillRect(cx + 1, O - 1, 6, 1);
     c.fillStyle = '#e8c85a';
-    c.fillRect(5, O + 1, 6, 1);
+    c.fillRect(cx + 1, O + 1, 6, 1);
     c.fillStyle = crown;
-    c.fillRect(2, O + 2, 12, 1);
+    c.fillRect(x0, O + 2, hw, 1);
   };
   const draw = { katana, staff, antenna, cane, hat }[carry];
   const onTop = carry === 'staff' || carry === 'hat' || carry === 'cane' || dir === 'up';

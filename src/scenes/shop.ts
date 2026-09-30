@@ -4,6 +4,7 @@
  * sold in one go.
  */
 import { FAMILY_WEAK } from '../data/enemies';
+import { elementMark, markElements } from './battlekit/tables';
 import { buildChar } from '../art/chars';
 import { sfx } from '../audio/sfx';
 import { autoClose } from '../game/debug';
@@ -319,17 +320,21 @@ export class ShopScene extends Scene<void> {
       ctx.fillStyle = UI.cyan;
       ctx.fillRect(dx + 8, top - 2, 1, 10);
       drawText(ctx, tag, dx + 12, top - 1, { color: '#ffffff', shadow: false });
-      const who = it.who ? `${it.who.map((w) => MEMBERS[w as MemberState['id']]?.name ?? w).join(', ')} only` : 'Anyone';
+      // Only the crew you've met: a name you don't know yet is a spoiler, and no use to you.
+      // Gear anyone can wear lists all four: that's "Anyone", not the members met so far.
+      const anyone = !it.who || Object.keys(MEMBERS).every((id) => it.who?.includes(id as MemberState['id']));
+      const met = it.who?.filter((w) => !!state.members[w as MemberState['id']]);
+      const who = anyone ? 'Anyone' : met?.length ? `${met.map((w) => MEMBERS[w as MemberState['id']]?.name ?? w).join(', ')} only` : 'No one in the crew';
       drawText(ctx, fitText(who, dw - 24 - tw), dx + 14 + tw, top - 1, { color: UI.dim });
       top += 13;
     }
-    const lines = drawParagraph(ctx, it.desc, dx + 8, top, dw - 16, { color: '#d0cee4', lineH: 10 });
+    const lines = drawParagraph(ctx, markElements(it.desc), dx + 8, top, dw - 16, { color: '#d0cee4', lineH: 10 });
     let y = top + 6 + lines * 10;
     if (it.element && it.element !== 'phys') {
       // What the element bites and what shrugs it off, from the battle's own weakness table.
       const bites = FAMILY_ORDER.filter((f) => (FAMILY_WEAK[f][it.element!] ?? 1) > 1).map((f) => FAMILY_PLURAL[f]);
       const shrugs = FAMILY_ORDER.filter((f) => (FAMILY_WEAK[f][it.element!] ?? 1) < 1).map((f) => FAMILY_PLURAL[f]);
-      const text = `{y}${it.element.toUpperCase()}{/}${bites.length ? ` bites ${bites.join(', ')}` : ''}${shrugs.length ? `; ${shrugs.join(', ')} shrug it off` : ''}.`;
+      const text = `${elementMark(it.element)}{y}${it.element.toUpperCase()}{/}${bites.length ? ` bites ${bites.join(', ')}` : ''}${shrugs.length ? `; ${shrugs.join(', ')} shrug it off` : ''}.`;
       y += 10 * drawParagraph(ctx, text, dx + 8, y - 4, dw - 16, { color: UI.dim, lineH: 10 });
     }
     const short = this.price(it.id) - state.cred;

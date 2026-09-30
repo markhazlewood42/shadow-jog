@@ -57,6 +57,7 @@ function recorder(armed = false) {
     deckCutin: () => undefined,
     floatOn: (uid, text) => log.push(`float:${uid}:${text}`),
     say: (text) => log.push(`say:${text}`),
+    tell: (text, actor) => log.push(`tell:${actor}:${text}`),
     showBanner: (text) => log.push(`banner:${text}`),
     setBanner: (b) => log.push(`setBanner:${b.text}`),
     endBanner: () => log.push(`endBanner@${clock}`),

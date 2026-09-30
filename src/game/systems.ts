@@ -175,17 +175,20 @@ export function installSystems(game: Game, h: SystemHandlers): void {
     await game.run(new ShopScene(id));
   };
 
+  // A price of 0 is a bed of your own: no charge, and the question is just whether to sleep.
   fieldHooks.inn = async (f, price, name) => {
     const crew = partyMembers();
-    const each = innPrice(price, crewLevel());
+    const free = price <= 0;
+    const each = free ? 0 : innPrice(price, crewLevel());
     // Only heads that wake up better pay: a downed member gets nothing from a bed, so no charge.
     const standing = crew.filter((m) => m.hp > 0).length;
     const cost = each * standing;
     const out = crew.length - standing;
     const downed = crew.filter((m) => m.hp <= 0 || m.ailments.length).length;
-    const note = downed ? ` {d}(Sleep won’t help the downed or the sick: that’s Doc Yun.${out ? ' No charge for the downed.' : ''}){/}` : '';
+    const note = downed ? ` {d}(Sleep won’t help the downed or the sick: that’s Doc Yun.${out && !free ? ' No charge for the downed.' : ''}){/}` : '';
     const heads = out ? `${standing} awake` : 'the crew';
-    const choice = await f.api.ask(null, `${name ?? 'A capsule for the night'}: {y}${each}¢{/} a head, {y}${cost}¢{/} for ${heads}. Rest?${note}`, ['Rest', 'Not now'], { cancel: 1 });
+    const ask = free ? `${name ?? 'Your own bed'}. Get some sleep?${note}` : `${name ?? 'A capsule for the night'}: {y}${each}¢{/} a head, {y}${cost}¢{/} for ${heads}. Rest?${note}`;
+    const choice = await f.api.ask(null, ask, [free ? 'Sleep' : 'Rest', 'Not now'], { cancel: 1 });
     if (choice !== 0) return;
     if (state.cred < cost) {
       sfx('buzz');

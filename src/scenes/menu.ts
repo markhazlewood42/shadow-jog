@@ -5,6 +5,37 @@ import { getPortrait } from '../art/portraits';
 import { sfx } from '../audio/sfx';
 import { ABILITIES, chapterCombos, COMBOS } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
+import { markElements } from './battlekit/tables';
+
+const EQUIP_SLOTS: readonly EquipSlot[] = ['weapon', 'body', 'head', 'mod'];
+
+/** A member as they'd be with `id` (or nothing) in `slot`: for comparing stats before choosing. */
+function trialWith(m: MemberState, slot: EquipSlot, id: string | null): MemberState {
+  const trial: MemberState = { ...m, equip: { ...m.equip } };
+  if (id === null) delete trial.equip[slot];
+  else if (canEquip(m, id)) trial.equip[slot] = id;
+  return trial;
+}
+
+/** What a piece would change, in a gear row: the biggest one or two stat moves, or no change. */
+function gearDiff(m: MemberState, slot: EquipSlot, id: string | null): string {
+  const a = memberStats(m), b = memberStats(trialWith(m, slot, id));
+  const moves = GEAR_STATS.map(([k, label]) => ({ label, d: b[k] - a[k] })).filter((s) => s.d !== 0);
+  if (!moves.length) {
+    // No number moves, but the piece may still do something: say what, rather than "same".
+    const it = id ? ITEMS[id] : undefined;
+    const does = [it?.element && it.element !== 'phys' ? markElements(it.element.toUpperCase()) : '', it?.regen ? 'regen' : '', it?.immune?.length ? 'ward' : ''].filter(Boolean);
+    return does.length ? does.join(' ') : '{d}same{/}';
+  }
+  return moves
+    .sort((p, q) => Math.abs(q.d) - Math.abs(p.d))
+    .slice(0, 2)
+    .map((s) => `${s.d > 0 ? '{g}+' : '{r}'}${s.d}{/} ${s.label}`)
+    .join(' ');
+}
+const GEAR_STATS: readonly (readonly [keyof ReturnType<typeof memberStats>, string])[] = [
+  ['atk', 'ATK'], ['def', 'DEF'], ['mnd', 'MND'], ['res', 'RES'], ['agi', 'AGI'], ['maxHp', 'HP'], ['maxTp', 'TP'], ['crit', 'CRIT'], ['hit', 'HIT'],
+];
 import { ITEMS, type ItemDef } from '../data/items';
 import { LOOKS } from '../data/looks';
 import { MEMBERS, xpFor } from '../data/party';
@@ -45,6 +76,8 @@ export class MenuScene extends Scene<MenuResult> {
   private pendingItem: string | null = null;
   private pendingTech: { user: MemberId; id: string } | null = null;
   private equipSlot: EquipSlot = 'weapon';
+  /** The gear list beside the slots (the slots themselves use `sub`). */
+  private gear = new ListMenu<string>([], 8);
   private toast: { text: string; t: number } | null = null;
   private t = 0;
   private saveSlot: SlotId = 1;
@@ -179,26 +212,35 @@ export class MenuScene extends Scene<MenuResult> {
         break;
       }
       case 'equipSlots': {
+        // The gear for the highlighted slot is already showing (with what each piece would change);
+        // confirm moves into that list (Mark's playthrough: "don't make me click in to a slot to
+        // see what's available").
         const r = this.sub.update(inp);
         if (r === 'cancel') this.mode = 'pickMember';
+        else if (r === 'move') this.refreshGear();
         else if (r === 'confirm') {
+          if (!this.gear.items.length) {
+            sfx('buzz');
+            this.say('Nothing to equip there.');
+            return;
+          }
           this.equipSlot = this.sub.current!.value as EquipSlot;
-          this.openEquipList();
+          this.mode = 'equipList';
         }
         break;
       }
       case 'equipList': {
-        const r = this.sub.update(inp);
+        const r = this.gear.update(inp);
         if (r === 'cancel') {
-          this.openEquip(this.members[this.memberIdx]!);
+          this.mode = 'equipSlots';
           return;
         }
         if (r === 'confirm') {
-          const v = this.sub.current!.value;
+          const v = this.gear.current!.value;
           const m = this.members[this.memberIdx]!;
           equip(m, v === '__none' ? null : v, this.equipSlot);
           sfx('equip');
-          this.openEquip(m);
+          this.openEquip(m, false);
         }
         break;
       }
@@ -367,31 +409,43 @@ export class MenuScene extends Scene<MenuResult> {
   }
 
   // ------------------------------------------------------------------ equip
-  private openEquip(m: MemberState): void {
-    sfx('confirm');
+  /** The slot list (first time in: from the top; after equipping: where the cursor was). */
+  private openEquip(m: MemberState, fresh = true): void {
+    if (fresh) sfx('confirm');
     this.sub.setItems(
-      (['weapon', 'body', 'head', 'mod'] as EquipSlot[]).map((slot) => ({
+      EQUIP_SLOTS.map((slot) => ({
         label: SLOT_NAMES[slot], value: slot, right: m.equip[slot] ? ITEMS[m.equip[slot]!]!.name : '—',
       })),
     );
+    if (fresh) this.sub.index = 0;
     this.sub.rows = 4;
     this.mode = 'equipSlots';
+    this.refreshGear();
   }
 
-  private openEquipList(): void {
+  /**
+   * The gear in the bag for the highlighted slot, each row with what it would change: the one
+   * or two biggest stat moves against what's worn now, or who it's for if this member can't.
+   */
+  private refreshGear(): void {
     const m = this.members[this.memberIdx]!;
+    const slot = (this.sub.current?.value ?? 'weapon') as EquipSlot;
     const items: ListItem<string>[] = Object.keys(state.inventory)
-      .filter((id) => ITEMS[id]?.slot === this.equipSlot && (state.inventory[id] ?? 0) > 0)
-      .map((id) => ({ label: ITEMS[id]!.name, value: id, right: `×${state.inventory[id]}`, enabled: canEquip(m, id) }));
-    if (m.equip[this.equipSlot]) items.push({ label: '(Remove)', value: '__none', color: UI.dim });
-    if (!items.length) {
-      sfx('buzz');
-      this.say('Nothing to equip there.');
-      return;
-    }
-    this.sub.setItems(items);
-    this.sub.rows = 8;
-    this.mode = 'equipList';
+      .filter((id) => ITEMS[id]?.slot === slot && (state.inventory[id] ?? 0) > 0)
+      .map((id) => {
+        const ok = canEquip(m, id);
+        return {
+          label: `${ITEMS[id]!.name}${(state.inventory[id] ?? 0) > 1 ? ` ×${state.inventory[id]}` : ''}`,
+          value: id,
+          right: ok ? gearDiff(m, slot, id) : 'can’t use',
+          enabled: ok,
+          why: ok ? undefined : `${MEMBERS[m.id].name} can’t use this.`,
+        };
+      });
+    if (m.equip[slot]) items.push({ label: '(Remove)', value: '__none', color: UI.dim, right: gearDiff(m, slot, null) });
+    this.gear.setItems(items);
+    this.gear.index = 0;
+    this.gear.scroll = 0;
   }
 
   // ------------------------------------------------------------------ save
@@ -529,7 +583,7 @@ export class MenuScene extends Scene<MenuResult> {
     const cur = this.sub.current;
     if (cur) {
       drawDivider(ctx, x + 6, 8 + h - 30, w - 12);
-      drawParagraph(ctx, ITEMS[cur.value]!.desc, x + 8, 8 + h - 26, w - 16, { color: '#d0cee4', lineH: 10 });
+      drawParagraph(ctx, markElements(ITEMS[cur.value]!.desc), x + 8, 8 + h - 26, w - 16, { color: '#d0cee4', lineH: 10 });
     }
   }
 
@@ -543,31 +597,23 @@ export class MenuScene extends Scene<MenuResult> {
     if (cur) {
       const ab = ABILITIES[cur.value]!;
       drawDivider(ctx, x + 6, 8 + h - 30, w - 12);
-      drawParagraph(ctx, ab.desc + (ab.field ? '' : ' {d}(Battle only){/}'), x + 8, 8 + h - 26, w - 16, { color: '#d0cee4', lineH: 10 });
+      drawParagraph(ctx, markElements(ab.desc) + (ab.field ? '' : ' {d}(Battle only){/}'), x + 8, 8 + h - 26, w - 16, { color: '#d0cee4', lineH: 10 });
     }
   }
 
   private renderEquip(ctx: Ctx): void {
     const m = this.members[this.memberIdx]!;
     const x = 108, w = W - 116;
+    const listing = this.mode === 'equipList';
+    const slot = (listing ? this.equipSlot : this.sub.current?.value ?? 'weapon') as EquipSlot;
     drawWindow(ctx, x, 8, w, 64, { title: `EQUIP · ${MEMBERS[m.id].name.toUpperCase()}`, accent: MEMBERS[m.id].color });
-    if (this.mode === 'equipSlots') this.sub.render(ctx, x + 8, 16, w - 14, true);
-    else {
-      (['weapon', 'body', 'head', 'mod'] as EquipSlot[]).forEach((slot, i) => {
-        const on = slot === this.equipSlot;
-        drawText(ctx, SLOT_NAMES[slot], x + 17, 16 + i * 11, { color: on ? UI.cyan : UI.dim });
-        drawText(ctx, m.equip[slot] ? ITEMS[m.equip[slot]!]!.name : '—', x + w - 14, 16 + i * 11, { align: 'right', color: on ? UI.text : UI.dim });
-      });
-    }
-    // Stats comparison
+    this.sub.render(ctx, x + 8, 16, w - 14, !listing);
+    // Stats comparison: against the piece under the cursor, once you're in the gear list.
     const cur = memberStats(m);
     let preview = cur;
-    if (this.mode === 'equipList' && this.sub.current) {
-      const v = this.sub.current.value;
-      const trial: MemberState = { ...m, equip: { ...m.equip } };
-      if (v === '__none') delete trial.equip[this.equipSlot];
-      else if (canEquip(m, v)) trial.equip[this.equipSlot] = v;
-      preview = memberStats(trial);
+    if (listing && this.gear.current) {
+      const v = this.gear.current.value;
+      preview = memberStats(trialWith(m, slot, v === '__none' ? null : v));
     }
     drawWindow(ctx, x, 78, 150, 88, { plain: true });
     const rows: [string, keyof typeof cur][] = [['ATK', 'atk'], ['DEF', 'def'], ['MND', 'mnd'], ['RES', 'res'], ['AGI', 'agi'], ['HP', 'maxHp'], ['TP', 'maxTp']];
@@ -580,15 +626,20 @@ export class MenuScene extends Scene<MenuResult> {
         drawText(ctx, String(b), x + 118, 84 + i * 11, { align: 'right', color: b > a ? UI.green : UI.red });
       }
     });
-    if (this.mode === 'equipList') {
-      drawWindow(ctx, x + 156, 78, w - 156, H - 78 - 38, { title: SLOT_NAMES[this.equipSlot].toUpperCase() });
-      this.sub.render(ctx, x + 164, 86, w - 170, true);
-      if (this.sub.items.length === 1 && this.sub.items[0]!.value === '__none')
-        drawParagraph(ctx, `No other ${SLOT_NAMES[this.equipSlot].toLowerCase()} gear in the bag. Shops and chests have more.`, x + 164, 104, w - 176, { color: UI.dim, lineH: 10 });
-      const it = this.sub.current && this.sub.current.value !== '__none' ? ITEMS[this.sub.current.value] : null;
-      if (it) {
-        drawParagraph(ctx, it.desc + (canEquip(m, it.id) ? '' : ` {r}${MEMBERS[m.id].name} can’t use this.{/}`), x + 10, 172, EQUIP_DESC_W, { color: '#d0cee4', lineH: 10 });
-      }
+    // The slot's gear, always in view: dimmed while you're choosing a slot, live once you're in it.
+    drawWindow(ctx, x + 156, 78, w - 156, H - 78 - 38, { title: SLOT_NAMES[slot].toUpperCase(), accent: listing ? MEMBERS[m.id].color : undefined });
+    const none = `No other ${SLOT_NAMES[slot].toLowerCase()} gear in the bag. Shops and chests have more.`;
+    if (!this.gear.items.length) drawParagraph(ctx, none, x + 164, 86, w - 176, { color: UI.dim, lineH: 10 });
+    else {
+      this.gear.render(ctx, x + 164, 86, w - 170, listing);
+      if (this.gear.items.length === 1 && this.gear.items[0]!.value === '__none') drawParagraph(ctx, none, x + 164, 104, w - 176, { color: UI.dim, lineH: 10 });
+    }
+    // Under the stats: the piece under the cursor, or (choosing a slot) what's worn there now.
+    const id = listing ? (this.gear.current && this.gear.current.value !== '__none' ? this.gear.current.value : null) : (m.equip[slot] ?? null);
+    const it = id ? ITEMS[id] : null;
+    if (it) {
+      const note = canEquip(m, it.id) ? '' : ` {r}${MEMBERS[m.id].name} can’t use this.{/}`;
+      drawParagraph(ctx, `${listing ? '' : '{d}Worn:{/} '}${markElements(it.desc)}${note}`, x + 10, 172, EQUIP_DESC_W, { color: '#d0cee4', lineH: 10 });
     }
   }
 
@@ -695,7 +746,8 @@ export class MenuScene extends Scene<MenuResult> {
     ];
     rows.forEach(([label, seen, color], i) => {
       drawText(ctx, label, tx, 72 + i * 12, { color: UI.dim });
-      const text = seen.length ? seen.map((v) => v.toUpperCase()).join(' ') : 'not seen yet';
+      // Damage types with their symbols, as the battle writes them; statuses (Immune) as words.
+      const text = seen.length ? seen.map((v) => (label === 'Immune' ? v.toUpperCase() : markElements(v.toUpperCase()))).join(' ') : 'not seen yet';
       drawText(ctx, fitText(text, x + w - tx - 58), tx + 48, 72 + i * 12, { color: seen.length ? color : UI.disabled });
     });
     drawDivider(ctx, x + 6, 128, w - 12);
@@ -744,7 +796,7 @@ export class MenuScene extends Scene<MenuResult> {
       // One the crew can't reach yet says so, rather than leaving a hint nobody can act on.
       const hint = c.later && !known ? 'Not in this chapter: the crew hasn’t learned its parts yet.' : `Hint: ${c.hint}`;
       drawText(ctx, fitText(known ? names : hint, COMBO_TEXT_W), 30, y + 11, { color: known ? '#d0cee4' : UI.dim });
-      if (known) drawText(ctx, fitText(ab.desc, COMBO_TEXT_W), 30, y + 22, { color: UI.dim });
+      if (known) drawText(ctx, fitText(markElements(ab.desc), COMBO_TEXT_W), 30, y + 22, { color: UI.dim });
     });
   }
 }

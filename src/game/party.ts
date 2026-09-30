@@ -133,11 +133,19 @@ export function weaponElement(m: MemberState) {
   return w?.element ?? MEMBERS[m.id].element;
 }
 
+export type GrowthStat = 'hp' | 'tp' | 'atk' | 'def' | 'mnd' | 'agi';
 export interface LevelUp {
   id: MemberId;
   level: number;
-  gains: Partial<Record<'hp' | 'tp' | 'atk' | 'def' | 'mnd' | 'agi', number>>;
+  gains: Partial<Record<GrowthStat, number>>;
+  /** Each stat before and after the level (max HP and TP for hp/tp): the panel counts them up. */
+  from: Record<GrowthStat, number>;
+  to: Record<GrowthStat, number>;
   learned: string[];
+}
+
+function growthStats(s: ReturnType<typeof memberStats>): Record<GrowthStat, number> {
+  return { hp: s.maxHp, tp: s.maxTp, atk: s.atk, def: s.def, mnd: s.mnd, agi: s.agi };
 }
 
 /** Add XP; returns one entry per level gained. HP/TP rise by the gained max. */
@@ -165,6 +173,8 @@ export function grantXp(m: MemberState, xp: number): LevelUp[] {
         mnd: after.mnd - before.mnd,
         agi: after.agi - before.agi,
       },
+      from: growthStats(before),
+      to: growthStats(after),
       learned,
     });
   }
@@ -236,7 +246,6 @@ export function rest(m: MemberState): void {
   restoreUses(m);
 }
 
-/** Capsule price per head: rooms get dearer as the crew's reputation (and level) grows. */
 /**
  * The crew's level for prices (the inn, the clinic): the average of everyone who levels from 1.
  * Rook's veteran 10 would otherwise double every bill from the first night.
@@ -246,6 +255,7 @@ export function crewLevel(): number {
   return peers.length ? peers.reduce((n, m) => n + m.level, 0) / peers.length : 1;
 }
 
+/** Capsule price per head: rooms get dearer as the crew's reputation (and level) grows. */
 export function innPrice(base: number, avgLevel: number): number {
   return Math.round(base + 4 * avgLevel);
 }

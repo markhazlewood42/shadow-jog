@@ -24,7 +24,7 @@ import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_
 import { INTRO_T, ShatterIntro } from './intro';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
-import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, statusName } from './tables';
+import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, markElements, statusName } from './tables';
 
 /**
  * Who is acting: one bright colour for the bouncing arrow, their status card and their turn-order
@@ -32,6 +32,8 @@ import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS
  * Picking a target uses the menu cursor's cyan instead: acting and aiming never look alike.
  */
 const ACTIVE = '#fff04a';
+/** An enemy's tell: amber, the colour of a warning. */
+const TELL_COLOR = '#ffb23a';
 const AIMING = '#6ff3ff';
 import { drawRing } from './timing';
 
@@ -505,9 +507,31 @@ export class BattleRenderer {
     }
   }
 
+  /** Top of the top-line strip: under a pinned tell when there is one. */
+  private topY(): number {
+    return this.s.tell ? 26 : 6;
+  }
+
+  /** A pinned enemy tell: an amber box across the top, with a warning mark, flashing as it arrives. */
+  private renderTell(ctx: Ctx): void {
+    const t = this.s.tell;
+    if (!t) return;
+    const text = fitText(t.text, W - 56);
+    const tw = measure(text) + 34;
+    const x = Math.round((W - tw) / 2);
+    const flash = t.t < 24 && (t.t >> 2) % 2 === 0;
+    drawWindow(ctx, x, 6, tw, 17, { plain: true, accent: flash ? '#ffffff' : TELL_COLOR });
+    ctx.fillStyle = TELL_COLOR;
+    ctx.fillRect(x + 8, 9, 9, 11);
+    drawText(ctx, '!', x + 11, 10, { color: '#1a1020', shadow: false });
+    drawText(ctx, text, x + 22, 10, { color: '#ffe2a8' });
+  }
+
   private renderUi(ctx: Ctx): void {
     if (this.s.mode !== 'intro') this.renderEnemyStatus(ctx);
     this.renderPanel(ctx);
+    this.renderTell(ctx);
+    const top = this.topY();
     // Top line: action banner or message
     if (this.s.banner) {
       const b = this.s.banner;
@@ -525,19 +549,19 @@ export class BattleRenderer {
         if (b.sub) drawText(ctx, b.sub, W / 2, y + 22, { align: 'center', color: '#ffffff' });
       } else {
         const tw = measure(b.text) + 24;
-        drawWindow(ctx, (W - tw) / 2, 6, tw, 17, { plain: true, accent: b.color });
-        drawText(ctx, b.text, W / 2, 10, { align: 'center', color: b.color });
+        drawWindow(ctx, (W - tw) / 2, top, tw, 17, { plain: true, accent: b.color });
+        drawText(ctx, b.text, W / 2, top + 4, { align: 'center', color: b.color });
       }
       ctx.globalAlpha = 1;
     } else if (this.s.message) {
       const tw = Math.min(W - 20, measure(this.s.message.text) + 24);
-      drawWindow(ctx, (W - tw) / 2, 6, tw, 17, { plain: true });
-      drawText(ctx, this.s.message.text, W / 2, 10, { align: 'center' });
+      drawWindow(ctx, (W - tw) / 2, top, tw, 17, { plain: true });
+      drawText(ctx, this.s.message.text, W / 2, top + 4, { align: 'center' });
     }
     if (this.s.message && this.s.banner && !this.s.banner.big) {
       const tw = Math.min(W - 20, measure(this.s.message.text) + 24);
-      drawWindow(ctx, (W - tw) / 2, 26, tw, 17, { plain: true });
-      drawText(ctx, this.s.message.text, W / 2, 30, { align: 'center' });
+      drawWindow(ctx, (W - tw) / 2, top + 20, tw, 17, { plain: true });
+      drawText(ctx, this.s.message.text, W / 2, top + 24, { align: 'center' });
     }
     switch (this.s.mode) {
       case 'round':
@@ -787,10 +811,10 @@ export class BattleRenderer {
       this.topLines = [...lines, ...extra];
       this.topW = Math.min(W - 20, Math.max(...this.topLines.map((a) => measure(a.l))) + 24);
     }
-    const all = this.topLines, tw = this.topW;
-    drawWindow(ctx, (W - tw) / 2, 6, tw, 6 + all.length * 11, { plain: true, accent: second ? second.color : UI.cyan });
+    const all = this.topLines, tw = this.topW, y = this.topY();
+    drawWindow(ctx, (W - tw) / 2, y, tw, 6 + all.length * 11, { plain: true, accent: second ? second.color : UI.cyan });
     all.forEach((a, i) => {
-      drawText(ctx, a.l, W / 2, 10 + i * 11, { align: 'center', color: a.c });
+      drawText(ctx, a.l, W / 2, y + 4 + i * 11, { align: 'center', color: a.c });
     });
   }
 
@@ -839,7 +863,7 @@ export class BattleRenderer {
     const desc = this.s.listKind === 'item' ? ITEMS[cur.value]!.desc : ABILITIES[cur.value]!.desc;
     // Combo hint: would this choice pair with an order already given?
     const hint = this.s.listKind === 'item' ? '' : this.s.comboHint(cur.value);
-    this.topLine(ctx, desc, '#d8d6ec', hint ? { text: hint, color: UI.amber } : undefined);
+    this.topLine(ctx, markElements(desc), '#d8d6ec', hint ? { text: hint, color: UI.amber } : undefined);
   }
 
   /**

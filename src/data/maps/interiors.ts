@@ -47,6 +47,9 @@ export const rookFlat: MapDef = {
     if (!s.flag('intro')) await introFlat(s);
   },
   events: [
+    // Home: the one bed in Saltreach that doesn't charge by the head (Mark's playthrough: "I
+    // should be able to sleep in my own bed!").
+    { id: 'bed', x: 1, y: 2, h: 2, on: 'action', run: async (s) => s.inn(0, 'Kit’s own bed: lumpy, familiar, free') },
     {
       id: 'fridge', x: 10, y: 5, on: 'action', run: async (s) => {
         if (!s.flag('ate')) {
@@ -254,9 +257,10 @@ export const threads: MapDef = {
   ambient: '#8a78a8', music: 'town', battleBg: 'street',
   props: [
     { kind: 'counter', x: 8, y: 4, w: 4, color: '#3a2a4a' },
-    { kind: 'rack', x: 1, y: 2, w: 2 },
-    { kind: 'rack', x: 4, y: 2, w: 2 },
-    { kind: 'rack', x: 1, y: 6, w: 2 },
+    // Clothes rails, not the gun shop's blade racks (Mark's playthrough: "swords on the shelves").
+    { kind: 'garments', x: 1, y: 2, w: 2 },
+    { kind: 'garments', x: 4, y: 2, w: 2 },
+    { kind: 'garments', x: 1, y: 6, w: 2 },
     { kind: 'plant', x: 12, y: 2 },
     { kind: 'screen', x: 9, y: 1, w: 2, color: '#b07cff' },
     { kind: 'lampfloor', x: 12, y: 7, color: '#ff9ad2' },
@@ -316,7 +320,7 @@ export const hotel: MapDef = {
       look: { skin: '#f2c9a5', hair: '#3fe0f0', hairStyle: 'short', top: '#2c3b5e', inner: '#e8e8f0', accent: '#3fe0f0', pants: '#1f2a44', boots: '#101018', accessories: ['visor'], visor: '#3fe0f0' },
       talk: async (s) => {
         await s.say('Desk Clerk', 'Welcome to Sleeptube. Clean tubes, working locks, no questions.');
-        await s.inn(10, 'Capsules at 10¢ a head');
+        await s.inn(10);
       },
     },
     patron('sleeper', 14, 7, 902, 'Guest', ['I’ve lived in tube 44 for six years. It’s cozy. The walls are close enough to hug.'], 'left'),

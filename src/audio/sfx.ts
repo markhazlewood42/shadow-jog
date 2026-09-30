@@ -32,6 +32,60 @@ function noise(c: AudioContext, t: number, dur: number, vol: number, out: AudioN
   n.stop(t + dur + 0.02);
 }
 
+/**
+ * Filtered noise that rises to its peak at `peakAt` (0..1 of the length) and falls away: water
+ * rushing into a pipe, a surge draining. `noise` only decays; this one arrives.
+ */
+function swell(c: AudioContext, t: number, dur: number, vol: number, out: AudioNode, filter: BiquadFilterType, f0: number, f1: number, q = 1, peakAt = 0.4): void {
+  const n = audio.noiseSource();
+  const f = c.createBiquadFilter();
+  const g = c.createGain();
+  f.type = filter;
+  f.Q.value = q;
+  f.frequency.setValueAtTime(f0, t);
+  f.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur);
+  g.gain.setValueAtTime(0.0008, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + dur * peakAt);
+  g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  n.connect(f).connect(g).connect(out);
+  n.start(t);
+  n.stop(t + dur + 0.02);
+}
+
+/**
+ * A machine running up: a low sawtooth climbing from f0 to f1 Hz through a lowpass, its level
+ * throbbing with the pistons (an LFO speeding up with the motor), easing in and out.
+ */
+function motor(c: AudioContext, t: number, dur: number, vol: number, out: AudioNode, f0: number, f1: number, throb0: number, throb1: number): void {
+  const o = c.createOscillator();
+  const f = c.createBiquadFilter();
+  const g = c.createGain();
+  // The throb is its own stage (0.55 ± 0.45) before the envelope, so the envelope scales it too.
+  const trem = c.createGain();
+  const lfo = c.createOscillator();
+  const depth = c.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(f0, t);
+  o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.7);
+  f.type = 'lowpass';
+  f.frequency.setValueAtTime(160, t);
+  f.frequency.linearRampToValueAtTime(420, t + dur * 0.7);
+  lfo.frequency.setValueAtTime(throb0, t);
+  lfo.frequency.exponentialRampToValueAtTime(throb1, t + dur * 0.7);
+  trem.gain.value = 0.55;
+  depth.gain.value = 0.45;
+  g.gain.setValueAtTime(0.0008, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + dur * 0.35);
+  g.gain.setValueAtTime(vol, t + dur * 0.75);
+  g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  lfo.connect(depth).connect(trem.gain);
+  o.connect(f).connect(trem).connect(g).connect(out);
+  o.start(t);
+  lfo.start(t);
+  o.stop(t + dur + 0.02);
+  lfo.stop(t + dur + 0.02);
+}
+
 function notes(c: AudioContext, type: OscillatorType, freqs: number[], step: number, dur: number, vol: number, out: AudioNode, t: number): void {
   freqs.forEach((f, i) => {
     osc(c, type, f, f, t + i * step, dur, vol, out);
@@ -203,6 +257,43 @@ const S: Record<string, Maker> = {
     osc(c, 'sine', 90, 30, t, 0.8, 0.4, o);
   },
   levelup: (c, o, t) => notes(c, 'square', [523, 659, 784, 1047, 784, 1047], 0.07, 0.14, 0.06, o, t),
+  // The Sinkline's pump intakes (Mark's playthrough: "sound effects when I open the valves, and a
+  // bigger one when the puzzle completes"). A valve: the rusted wheel creaking round in three
+  // pulls, a clunk as it seats, water hissing into the pipe, and a knock from somewhere far off.
+  valve: (c, o, t) => {
+    for (let i = 0; i < 3; i++) {
+      // Fixed pitch: a narrow band swept this late in a sound can run away (it did: 0 dBFS).
+      noise(c, t + i * 0.26, 0.2, 0.18, o, 'bandpass', 950 + i * 140, 950 + i * 140, 5);
+      osc(c, 'square', 170 - i * 8, 140 - i * 8, t + i * 0.26, 0.18, 0.025, o, 'lin');
+    }
+    osc(c, 'sine', 95, 50, t + 0.8, 0.25, 0.35, o);
+    noise(c, t + 0.8, 0.12, 0.18, o, 'lowpass', 900, 200);
+    swell(c, t + 0.86, 1.1, 0.12, o, 'bandpass', 500, 2200, 1.5, 0.3);
+    osc(c, 'sine', 150, 120, t + 1.55, 0.16, 0.12, o);
+    osc(c, 'triangle', 640, 610, t + 1.56, 0.35, 0.03, o);
+  },
+  // The last intake: every pipe in the room drums once, low to high across the level, then a low,
+  // even hum settles in as the pumps prime.
+  pipes_prime: (c, o, t) => {
+    for (let i = 0; i < 6; i++) {
+      const at = t + i * 0.17 + (i % 2) * 0.03;
+      osc(c, 'sine', 110 + i * 14, 70 + i * 10, at, 0.22, 0.3, o);
+      osc(c, 'triangle', 420 + i * 90, 400 + i * 85, at + 0.005, 0.4, 0.04, o);
+      noise(c, at, 0.06, 0.1, o, 'lowpass', 1400, 300);
+    }
+    motor(c, t + 0.9, 2.6, 0.2, o, 48, 55, 2, 3.5);
+    osc(c, 'sine', 110, 110, t + 1.2, 2.2, 0.06, o);
+  },
+  // Hex spins up the drainage pumps: a heavy clank, the motors running up under a steam blow-off,
+  // then the junction's water surging away down the drains.
+  pumps: (c, o, t) => {
+    osc(c, 'sine', 75, 38, t, 0.5, 0.45, o);
+    noise(c, t, 0.35, 0.25, o, 'lowpass', 1600, 180);
+    motor(c, t + 0.2, 3.4, 0.28, o, 22, 68, 2.5, 9);
+    noise(c, t + 0.6, 1.3, 0.1, o, 'highpass', 3200, 5200);
+    swell(c, t + 1.4, 3.2, 0.3, o, 'lowpass', 900, 260, 0.8, 0.35);
+    osc(c, 'sine', 60, 45, t + 1.6, 2.4, 0.1, o);
+  },
   // Gear: a short metal clank and a settle.
   equip: (c, o, t) => {
     noise(c, t, 0.06, 0.12, o, 'bandpass', 3400, 1800, 5);
@@ -272,6 +363,7 @@ export function sfx(name: string, pitch = 1): void {
  * under the music.
  */
 const LEVEL: Record<string, number> = {
+  valve: 1.2, pipes_prime: 1.35, pumps: 1.5,
   alert: 6.33, parry: 2.6, timed_good: 4.5, timed_perfect: 3.2, beam: 3.29, blip: 25.88, buff: 10.59, bump: 17.59, buy: 2.44, buzz: 8.64, cancel: 4.1, cast: 4.78, cheer: 4.0, chest: 4.2, code: 3.21, combo: 5.15, combo_ready: 3.8, confirm: 3.63, cred: 2.81, crit: 4.06, cursor: 14.49, debuff: 10.64, door: 1.13, emote: 14.64, encounter: 2.79, enemy_act: 20.06, enemy_die: 4.97, equip: 2.62, explosion: 1.73, fire: 4.37, flee: 8.8, gun: 1.14, heal: 2.28, heal_field: 1.81, hit: 11.46, hurt: 9.57, item: 2.3, keyitem: 1.61, ko: 3.42, levelup: 3.38, miss: 30.4, page: 14.06, phase: 1.69, punch: 4.95, revive: 1.55, save: 1.7, slash: 6.45, spirit: 7.38, st_blind: 4.37, st_burn: 3.48, st_jammed: 3.96, st_poison: 2.79, st_stun: 3.42, step: 25.86, step_metal: 11.5, step_soft: 29.37, step_water: 8.87, sting_circuit: 2.31, sting_crow: 3.8, sting_life: 2.34, sting_lock: 4.7, sting_pyre: 3.33, sting_rift: 1.89, sting_ward: 2.46, summon: 7.2, swing: 31.62, tick: 16.78, wave: 9.77, zap: 7.22,
 };
 

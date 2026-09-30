@@ -266,7 +266,7 @@ describe('enemy wind-ups', () => {
     const b = new Battle(party(['kit', 'rook'], 8), enemyParty(['sentry_turret']), new Rng(3));
     const all: string[] = [];
     for (let r = 0; r < 4 && !b.outcome; r++) {
-      for (const e of b.resolveRound(guardAll(b))) if (e.t === 'msg' || e.t === 'act') all.push(e.t === 'msg' ? e.text : e.name);
+      for (const e of b.resolveRound(guardAll(b))) if (e.t === 'msg' || e.t === 'tell' || e.t === 'act') all.push(e.t === 'act' ? e.name : e.text);
     }
     const spin = all.findIndex((t) => t.includes('spins up'));
     expect(spin).toBeGreaterThanOrEqual(0);
@@ -301,8 +301,8 @@ describe('enemy wind-ups', () => {
           seen++;
           marked = null;
         }
-        const tell = ev.find((e) => e.t === 'msg' && e.text.includes('squares up to'));
-        if (tell && tell.t === 'msg') marked = tell.text.replace(/.*squares up to (.*)\.$/, '$1');
+        const tell = ev.find((e) => e.t === 'tell' && e.text.includes('squares up to'));
+        if (tell && tell.t === 'tell') marked = tell.text.replace(/.*squares up to (.*)\.$/, '$1');
       }
     }
     expect(seen).toBeGreaterThan(0);
@@ -319,7 +319,7 @@ describe('enemy wind-ups', () => {
       // While she draws, knock a quarter off her; otherwise leave her be.
       if (drawing) arc.hp = Math.max(1, arc.hp - Math.ceil(arc.base.maxHp * 0.25));
       const ev = b.resolveRound(b.party.map((p) => ({ actor: p.uid, type: 'guard' as const })));
-      if (ev.some((e) => e.t === 'msg' && e.text.includes('surge breaks apart'))) broke = true;
+      if (ev.some((e) => e.t === 'tell' && e.text.includes('surge breaks apart'))) broke = true;
       if (ev.some((e) => e.t === 'act' && e.name === 'Mana Surge')) fired = true;
       arc.hp = Math.max(arc.hp, Math.ceil(arc.base.maxHp * 0.6));
     }
@@ -480,5 +480,78 @@ describe('maps', () => {
     const { PROPS } = await import('../src/field/props');
     const { getMap, mapIds } = await import('../src/data/maps');
     for (const id of mapIds()) for (const p of getMap(id).props ?? []) expect(PROPS[p.kind], `${id}: ${p.kind}`).toBeDefined();
+  });
+});
+
+describe('Mark’s second playthrough', () => {
+  it('enemies spread their blows: even at full health, and leaning (not locked) onto whoever is lowest by percent', async () => {
+    const { smellBlood, BLOOD_WEIGHT } = await import('../src/battle/ai');
+    const b = new Battle(party(['kit', 'rook', 'hex'], 6), enemyParty(['sewer_ghoul']), new Rng(11));
+    const foes = b.alive('party');
+    const share = (n: number) => {
+      const hits = new Map<number, number>();
+      for (let i = 0; i < n; i++) {
+        const t = smellBlood(b, foes);
+        hits.set(t.uid, (hits.get(t.uid) ?? 0) + 1);
+      }
+      return (uid: number) => (hits.get(uid) ?? 0) / n;
+    };
+    // Full health: Hex's small HP pool no longer draws the fire (it drew over half before).
+    const even = share(6000);
+    for (const f of foes) expect(even(f.uid), f.name).toBeGreaterThan(0.28);
+    for (const f of foes) expect(even(f.uid), f.name).toBeLessThan(0.39);
+    // Kit hurt worst by percent (Hex still has fewer points): Kit is favoured, not guaranteed.
+    const kit = foes.find((f) => f.key === 'kit')!, hex = foes.find((f) => f.key === 'hex')!;
+    kit.hp = Math.round(kit.base.maxHp * 0.4);
+    hex.hp = Math.round(hex.base.maxHp * 0.7);
+    const lean = share(6000);
+    const expected = BLOOD_WEIGHT / (BLOOD_WEIGHT + foes.length - 1);
+    expect(lean(kit.uid)).toBeGreaterThan(expected - 0.03);
+    expect(lean(kit.uid)).toBeLessThan(expected + 0.03);
+    expect(lean(hex.uid)).toBeGreaterThan(0.2);
+  });
+
+  it('a healing skill offers a green ring, and a perfect press heals about 30% more', () => {
+    const heal = (timing: 'perfect' | 'none') => {
+      const p = party(['sable', 'kit'], 8);
+      const b = new Battle(p, enemyParty(['glowrat']), new Rng(21));
+      const kit = p[1]!;
+      kit.hp = 10;
+      let kind = '';
+      const ev = b.resolveRound([{ actor: p[0]!.uid, type: 'tech', id: 'mend', target: kit.uid }, { actor: kit.uid, type: 'guard' }], (pr) => {
+        if (pr.actor === p[0]!.uid) kind = pr.kind;
+        return pr.actor === p[0]!.uid ? timing : 'none';
+      });
+      const h = ev.find((e) => e.t === 'heal');
+      return { kind, amount: h && h.t === 'heal' ? h.amount : 0, crit: h && h.t === 'heal' ? !!h.crit : false };
+    };
+    const plain = heal('none'), perfect = heal('perfect');
+    expect(perfect.kind).toBe('mend');
+    expect(perfect.amount / plain.amount).toBeGreaterThan(1.25);
+    expect(perfect.amount / plain.amount).toBeLessThan(1.35);
+    expect(perfect.crit).toBe(true);
+    expect(plain.crit).toBe(false);
+  });
+
+  it('damage types written by name carry their symbol, once, and names of things are left alone', async () => {
+    const { markElements, ELEMENT_ICON } = await import('../src/scenes/battlekit/tables');
+    const once = markElements('Attacks deal SHOCK damage.');
+    expect(once).toContain(ELEMENT_ICON.shock);
+    expect(markElements(once)).toBe(once);
+    expect(markElements('Shock Knuckles')).toBe('Shock Knuckles');
+    expect(markElements('FIRE bites spirits; MANA too')).toContain(ELEMENT_ICON.mana);
+    // Every description that names a damage type does so in capitals (so it gets its symbol).
+    for (const d of [...Object.values(ABILITIES), ...Object.values(ITEMS)].map((x) => x.desc)) {
+      expect(d, d).not.toMatch(/\b(Fire|Shock|Cyber|Mana|fire|shock|cyber|mana) damage\b/);
+    }
+  });
+
+  it('a level-up records each stat before and after, for the panel to count up', () => {
+    const m = createMember('kit', 1);
+    const ups = grantXp(m, xpFor(2));
+    expect(ups).toHaveLength(1);
+    const u = ups[0]!;
+    for (const k of ['hp', 'tp', 'atk', 'def', 'mnd', 'agi'] as const) expect(u.to[k] - u.from[k], k).toBe(u.gains[k]);
+    expect(u.to.hp).toBe(memberStats(m).maxHp);
   });
 });

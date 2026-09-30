@@ -275,6 +275,16 @@ export function compile(spec: SongSpec): Compiled {
         drum(s, 'hat', pos % 2 === 0 ? 0.6 : 0.3);
         if (bar % 4 === 0 && pos === 0) drum(s, 'crash', 0.9);
         break;
+      case 'sting':
+        // A one-shot jingle: a snare roll building through the first bar, a crash on the arrival.
+        if (bar === 0 && pos >= 8) drum(s, 'snare', 0.3 + (pos - 8) * 0.08);
+        if (bar === 1 && (pos === 0 || pos === 8)) drum(s, 'kick', 0.9);
+        if (bar === 1 && pos === 12) drum(s, 'snare', 0.8);
+        if (bar === 2 && pos === 0) {
+          drum(s, 'kick', 1);
+          drum(s, 'crash', 1);
+        }
+        break;
       case 'halftime':
         if (pos === 0 || pos === 6) drum(s, 'kick', 1);
         if (pos === 8) drum(s, 'snare', 0.9);

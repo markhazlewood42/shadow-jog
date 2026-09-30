@@ -93,8 +93,8 @@ export class TimingWindow {
   done = false;
 }
 
-/** Ring colours: gold for your strike, cyan for a brace. */
-export const RING_COLOR = { strike: '#ffe07a', brace: '#6ff3ff' } as const;
+/** Ring colours: gold for your strike, cyan for a brace, green for a heal. */
+export const RING_COLOR = { strike: '#ffe07a', brace: '#6ff3ff', mend: '#86f08c' } as const;
 
 /** A 1px pixel circle (midpoint), crisp at the battle's pixel scale. */
 function circle(g: Ctx, cx: number, cy: number, r: number): void {
@@ -163,5 +163,6 @@ export function timingWord(kind: TimingPrompt['kind'], r: Timing | 'early' | 'la
   // A press off the beat costs something, and reads like it.
   if (r === 'early' || r === 'late' || r === 'whiff' || r === 'none') return { text: r === 'late' ? 'LATE' : 'EARLY', color: '#c85a64' };
   if (kind === 'strike') return r === 'perfect' ? { text: 'PERFECT!', color: '#ffe07a' } : { text: 'GOOD', color: '#ffe07a' };
+  if (kind === 'mend') return r === 'perfect' ? { text: 'PERFECT!', color: '#86f08c' } : { text: 'GOOD', color: '#86f08c' };
   return r === 'perfect' ? { text: 'BLOCKED!', color: '#6ff3ff' } : { text: 'BRACED', color: '#6ff3ff' };
 }

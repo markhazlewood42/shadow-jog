@@ -21,7 +21,8 @@ on every push to `main`.
 ### The whole process so far
 1. **Build (2026-09-27 → 28).** From the original prompt (`docs/original-prompt.md`) to a content-complete chapter:
    town, world map, outpost, two-floor dungeon, four party members, 21 enemies and three bosses, nine combos, an
-   economy, a story with a comic-panel intro and ending, 15 songs and 69 sound effects, all generated in code.
+   economy, a story with a comic-panel intro and ending, 15 songs and 69 sound effects, all generated in code (16 and
+   72 since playthrough 2).
 2. **Quality loop (rounds 1–12, 2026-09-28 → 29).** Eleven areas scored by fresh independent reviewers each round.
    The average went 6.36 → 7.98. All of it is in `docs/quality/GRADING.md`; scores in `docs/quality/scorecard.md`.
 3. **Exit (2026-09-29).** Round 12 was the last automated round; Mark's own playthrough became the gate.
@@ -40,8 +41,19 @@ on every push to `main`.
    Rook at 3, old saves didn't migrate, broken screenshot navigation hid a Bestiary overflow, clipped labels, …) were
    all fixed after the reports (de5fff5, c7c055b), with tests; the rest is trade-offs the notes asked for and older
    findings scored more strictly. The fixed state isn't re-scored. Reports: `docs/quality/reviews/round-13.md`.
+6. **Playthrough 2 (2026-09-29, same save, to just past the Lurker).** 14 more notes, all worked through;
+   `docs/quality/playthrough-2.md` answers each. Big pieces: enemies no longer gang up on Hex (they lean, 1.5×, on
+   whoever is lowest by percent, per Mark's follow-up); boss tells pinned on screen until acted on; healing skills get a
+   green timed ring (+30% on the beat); a real level-up moment (fanfare jingle, stats counting up, restore, new
+   abilities); valve, pipe and pump sounds; the equip screen shows the highlighted slot's gear with stat diffs; damage
+   types written by name carry their symbol everywhere; Kit's own bed is a free rest; the inn's price line fixed; the
+   stray examine twinkles removed; Dutch's hat centred; clothes rails in Kowloon Threads; a taller APTS block; shop tags
+   name only crew you've met. Verified with unit tests, the affected E2E specs and hand checks of each screen (no
+   scored round: Mark didn't ask for one).
 
 ### Right now
+- **Next up (Mark, 2026-09-29): the GPU effects layer** (Future Plans): targeted WebGL effects over the current
+  renderer, not the PixiJS rewrite. Playthrough 2's changes are testable first.
 - **Waiting on Mark's next playthrough.** His existing save loads: saves migrate to format v3 (levels re-worked on
   the new curve from the XP earned, Rook at 10, story unlocks already passed are set). A new game shows the new
   opening (Rook's wound). Rebuild first: `npm run build && npm run preview` (http://localhost:3008).
@@ -70,7 +82,8 @@ on every push to `main`.
 - Narrative (6.0, capped): nobody says why the crew rides Pale's lift; Pale's intake arithmetic; ending repetition.
 - Field art (7.0): Rustyard scrap heaps read as noise; six rooftop stamps; the toxic canal reads as foliage.
 - Level design (7.0): small, linear dungeon; one-note puzzles.
-- Feel (7.6): the field drops presses mid-step; menus snap open; results close on one press; retry is unskippable.
+- Feel (7.6): the field drops presses mid-step; menus snap open; retry is unskippable. (Results panels now finish
+  their count on the first press instead of closing: fixed in playthrough 2.)
 - Stability (7.9): the E2E run teleports and auto-resolves; no save/reload mid-chapter test.
 - UI: no colour-blind palette or text-size option. Touch controls: no on-screen pad yet.
 
@@ -86,8 +99,9 @@ on every push to `main`.
 | `docs/SETTING.md` | The world bible: history, politics, society, figures ([canon] vs [new]) |
 | `docs/quality/GRADING.md` | How quality was graded, the full score history, what it got wrong, the exit |
 | `docs/quality/rubric.md`, `scorecard.md`, `reviews/` | The rubric, the scores and work logs, each round's reviewer notes |
-| `docs/mark-playthrough-notes.md` | Mark's first playthrough notes (25) |
-| `docs/quality/playthrough-1.md` | What changed for each note, the judgment calls, what round 13 found and what was fixed |
+| `docs/mark-playthrough-notes.md` | Mark's latest playthrough notes (now playthrough 2's 14; the first 25 are in git history) |
+| `docs/quality/playthrough-1.md` | Playthrough 1: what changed for each note, the judgment calls, what round 13 found and fixed |
+| `docs/quality/playthrough-2.md` | Playthrough 2: what changed for each note and the judgment calls |
 | `docs/original-prompt.md` | The prompt that started it |
 
 ## Architecture (summary; full version in docs/ARCHITECTURE.md)
@@ -97,9 +111,9 @@ on every push to `main`.
 - `src/field/`: map baking (tiles, buildings, props), light map, weather, actors, chests.
 - `src/battle/`: pure deterministic engine, AI, FX. `src/scenes/battle.ts` + `battlekit/` are the presentation
   (loaded as a separate chunk).
-- `src/audio/`: WebAudio synth, sequencer and composition DSL; 15 songs (`songs.ts`) and 69 SFX.
+- `src/audio/`: WebAudio synth, sequencer and composition DSL; 16 songs (`songs.ts`) and 72 SFX.
 - `src/story/chapter1.ts`: every story beat. `src/data/maps/*.ts`: all maps, NPCs and events.
-- `src/game/`: state, party, save (3 slots + autosave, format v2 with migrations), systems hooks, debug and stage
+- `src/game/`: state, party, save (3 slots + autosave, format v3 with migrations), systems hooks, debug and stage
   presets.
 - Tests: Vitest (battle rules, balance simulator, economy Monte Carlo, save, maps, layout, music…) and Playwright
   E2E (full chapter, playtest capture, game over and saves, chaos input, shipped build, perf, audio, screenshots).
@@ -109,8 +123,8 @@ on every push to `main`.
 
 - **GPU effects layer** (Mark interested, 2026-09-29): keep the Canvas 2D game and renderer; send the finished frame
   through a small hand-written WebGL pass (bloom, shockwave, heat haze, colour grading) and draw big effects with GPU
-  particles, with a Canvas 2D fallback. Mark has particle-system experience and could design emitters. After the
-  playthrough notes.
+  particles, with a Canvas 2D fallback. Mark has particle-system experience and could design emitters. **Started
+  after playthrough 2 (Mark, 2026-09-29): targeted improvements, not the full PixiJS port.**
 - **Unity port** (pinned 2026-09-29): feasible (the procedural art exports to PNG sheets, audio to WAV, the battle
   engine ports mechanically to C#; Unity's own MCP needs its AI plan, community MCPs are free). Proposed first step
   if revisited: a one-battle spike.
@@ -130,6 +144,8 @@ on every push to `main`.
 
 ## Notes
 
+- Line endings: a CRLF-to-LF fix must skip binary files (a byte replace corrupts PNGs; E2E runs rewrite some
+  screenshots under `docs/screenshots/`, so `git diff --name-only` can list them).
 - Python edits on Windows: write with `newline='\n'`. Avoid `'` inside Python heredocs; use ’ in dialogue. Scripts
   with backslashes: write them to a file rather than a heredoc.
 - No Co-Authored-By lines in commits (per CLAUDE.md).
