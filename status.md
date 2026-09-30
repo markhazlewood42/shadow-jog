@@ -3,7 +3,7 @@ type: status
 title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-09-29
+updated: 2026-09-30
 tags: [status]
 ---
 
@@ -16,7 +16,7 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 **GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog) (public). CI: GitHub Actions
 on every push to `main`.
 
-## Where we left off (2026-09-29, evening)
+## Where we left off (2026-09-30, afternoon)
 
 ### The whole process so far
 1. **Build (2026-09-27 → 28).** From the original prompt (`docs/original-prompt.md`) to a content-complete chapter:
@@ -64,8 +64,39 @@ on every push to `main`.
 - **Trailer, "before" record (2026-09-30):** `media/shadow-jog-trailer-2026-09-30.mp4` (94.7 s, 1080p60, game audio;
   not in git) records the game as it stands with everything made in code, before any AI-generated art. Shot by
   `node scripts/trailer.mjs`; re-shoot after the art changes for the "after".
-- **Next with Mark: PixelLab trial** (he signed up for the free tier 2026-09-30; his outputs are in the untracked
-  `pixellab-tests/`). First candidates: Kit, and the scrap hounds (his newest note: they "look janky").
+- **PixelLab art pass, round 1: generated, waiting on Mark's review (2026-09-30).** Mark subscribed to PixelLab (Tier 1,
+  2,000 generations a month) and asked for a full pass over the game's art, with options to choose between, reviewed in
+  a tool of its own rather than swapped in place. Budget: at most half the month (the client stops at a balance of
+  1,000). **Review it:** `npm run dev`, then http://localhost:3007/artreview.html (★ Best / ✓ Good / ✗ No and notes per
+  option; saves to `media/art-pass/review.json`; **Try ↗** opens the game with an option swapped in). Read his verdicts
+  next session with `node scripts/pixellab/status.mjs --review`. What was made, and the recipes: `scripts/pixellab/plan.mjs`;
+  how it all works: `docs/DEVELOPING.md` §8 "The PixelLab art pass". The art is in `media/art-pass/` (not in git) until
+  he picks; **integration (putting picks into the game for real) is the next step after his review.**
+  **What round 1 made** (about 1,000 generations; options side by side):
+  - *Crew, field:* Kit and Rook (Mark's picks from the tests) with walk cycles; Hex and Sable two ways each (styled on
+    their own sprite / on the new Kit), with walks.
+  - *Crew, battle (from behind, 128 px, twice today's detail):* two recipes each (styled on the new Kit: saturated
+    but it misreads details, e.g. Hex's bun as a hat and Rook's katana as a red bar; prompt only: taller, more faithful),
+    each with a fight-stance idle, attack, special or cast, hurt, item and (some) victory animations.
+  - *Enemies and bosses (21):* "redraw of today's design" (today's sprite as the style image) and "new look, crew
+    style". The redraws are the stronger set; the crew-style ones often come out small in their frame. The bosses
+    are the best of the lot.
+  - *Portraits (8):* styled on today's portrait (consistently strong) and prompt only (mostly came out as tiny
+    full figures, not busts).
+  - *NPCs:* the 8 named looks (with walks), 18 one-off NPCs, Noodle, and 8 townsfolk looks for the passers-by
+    (with walks), one option each, styled on the new Kit.
+  - *Props (20):* redrawn at today's size, and PixelLab's map-object tool (32 px minimum, so often bigger).
+  - *Terrain (6 two-terrain tilesets × 3 recipes):* shown laid into the real levels (Mark asked to judge them in
+    context: `scripts/pixellab/render-maps.mjs`). **The weakest category:** the tileset tool makes generic
+    raised-block tiles; "today's colours, more texture" is closest. The harbour set has no map to go in.
+  **Integration questions for after the review:** the game has been all-code so far, and picks become PNG files it
+  loads (the one exception to "every asset generated in code"); a scale pass (Mark: the new sprites run large);
+  which animation frames become each battle pose; portraits need the other expressions (only neutral was made);
+  enemies have no strike or flinch frames yet; the game's palette shift for a second copy of an enemy recolours drawn
+  art badly (green skin).
+- **CI was red from the GPU effects commit (965795d) until 8ea2335:** headless Chromium on the runners gives a
+  software (SwiftShader) WebGL 2 context without a "performance caveat", so the effects ran on the CPU at ~25 fps and
+  `e2e/perf.spec.ts` failed. The presenter now also refuses software renderers by name.
 - **Waiting on Mark's next playthrough.** His existing save loads: saves migrate to format v3 (levels re-worked on
   the new curve from the XP earned, Rook at 10, story unlocks already passed are set). A new game shows the new
   opening (Rook's wound). Rebuild first: `npm run build && npm run preview` (http://localhost:3008).
@@ -78,14 +109,17 @@ on every push to `main`.
 - **State at this handoff:** see the end of this section's commit (`git log -1`); CI runs on every push.
 
 ### What happens next, in order
-1. **Mark's next playthrough**: new notes are the work queue, same process (triage, fix, one verification round if he
+1. **Mark reviews the art pass** (`/artreview.html`), then **integration**: read his picks and notes
+   (`node scripts/pixellab/status.mjs --review`), regenerate what he asks for (the month's other ~1,000 generations,
+   his call), then put the picks into the game for real (the integration questions are above).
+2. **Mark's next playthrough**: new notes are the work queue, same process (triage, fix, one verification round if he
    asks for it).
-2. **Triage round 13's design notes** with Mark (`reviews/round-13.md`): the lift scene's motivation (Narrative's
+3. **Triage round 13's design notes** with Mark (`reviews/round-13.md`): the lift scene's motivation (Narrative's
    cap), trash-fight depth and a Lurker tell, the Rustyard scrap heaps and Sprawl rooftops, party back-sprites that
    cover enemies, menu transitions, a real (unforced) E2E playthrough.
-3. **Mark's reviews**: `docs/quality/GRADING.md`, `docs/GLOSSARY.md` ([review] marks), `docs/SETTING.md` ([new]).
-4. **Ship the alpha**: shadowjog.com with the secure email sign-up. **Only with Mark's go-ahead.**
-5. **Chapter 2, "Deniable Assets"**: getting Rook back (seeds in `docs/SETTING.md` §10).
+4. **Mark's reviews**: `docs/quality/GRADING.md`, `docs/GLOSSARY.md` ([review] marks), `docs/SETTING.md` ([new]).
+5. **Ship the alpha**: shadowjog.com with the secure email sign-up. **Only with Mark's go-ahead.**
+6. **Chapter 2, "Deniable Assets"**: getting Rook back (seeds in `docs/SETTING.md` §10).
 
 ### Known gaps (from round 13; none are bugs)
 - Battle presentation (7.5): the party are back-of-head sprites that cover enemies; creatures are finer than the party
@@ -108,6 +142,7 @@ on every push to `main`.
 | `docs/DEVELOPING.md` | Commands, tests, debug tools, conventions, traps, recipes |
 | `docs/GDD.md` | The game's design |
 | `docs/GLOSSARY.md` | Every name, place, faction, term and mechanic (with [review] marks) |
+| `docs/CONCEPTS.md` | Game-dev and JRPG concepts behind the game, in plain words, kept current (Mark's learning record) |
 | `docs/SETTING.md` | The world bible: history, politics, society, figures ([canon] vs [new]) |
 | `docs/quality/GRADING.md` | How quality was graded, the full score history, what it got wrong, the exit |
 | `docs/quality/rubric.md`, `scorecard.md`, `reviews/` | The rubric, the scores and work logs, each round's reviewer notes |
