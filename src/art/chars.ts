@@ -1066,6 +1066,14 @@ function withCarry(fr: HTMLCanvasElement, carry: NonNullable<CharLook['carry']>,
   return s.canvas;
 }
 
+/**
+ * Use `sprite` for this look from now on (dev tooling: trying drawn sprite sheets in place of the
+ * generated ones, src/dev/artswap.ts). Actors built before this keep their old sprite.
+ */
+export function replaceCharSprite(look: CharLook, sprite: CharSprite): void {
+  cache.set(JSON.stringify(look), sprite);
+}
+
 export function buildChar(look: CharLook): CharSprite {
   const key = JSON.stringify(look);
   const hit = cache.get(key);

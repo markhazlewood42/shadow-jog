@@ -185,6 +185,13 @@ export function boot(game: Game, display: Display): void {
     notice('Something broke and the game recovered to the title. Continue loads your last save.', 'warn');
     void startTitle(game, 30);
   };
+  // ?art=pixellab (DEV only): PixelLab sprite sheets in place of Kit's and Rook's generated ones.
+  if (import.meta.env.DEV && params.get('art') === 'pixellab') {
+    void import('./dev/artswap').then(async (m) => {
+      const swapped = await m.applyPixelLab();
+      notice(swapped.length ? `Trying PixelLab sprites: ${swapped.join(', ')}` : 'PixelLab sprites not found in media/pixellab-preview/', swapped.length ? 'news' : 'warn');
+    });
+  }
   // Dev routes (?scene=field|battle|mapview|portraits|bestiary|chars|font) load only in DEV
   // builds: the test scenes aren't part of the shipped bundle.
   const scene = params.get('scene');
