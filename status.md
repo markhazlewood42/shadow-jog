@@ -96,7 +96,15 @@ on every push to `main`.
   **Decided from Mark's review so far (2026-09-30):** PixelLab's battle animations are unusable (bodies drift,
   clothes and hair change, the moves don't read), so battle sprites use **only the standing back view** and the
   game's code-driven motion (lunge, strike smear, hurt drop, hop); `?art=review` already does this (`&frames=anim`
-  shows the drawn frames). Don't spend more on battle animations. He prefers the **faithful redraws** of today's
+  shows the drawn frames). Don't spend more on battle animations.
+  **But no animation at all feels stiff, a UX regression** (Mark): PSIV-style battles need 2–3 key poses per action
+  (stance → strike, arm raised to cast) plus effects. Tried: inpainting just the arm on Kit's standing back view
+  (`scripts/pixellab/poses.mjs`, 24 generations): identity held, but the poses were wrong for the character (her
+  strike should start from her **fighting stance**, the unflagged frames of her PixelLab idle, and end with the fist
+  extended in that stance). **Pinned (2026-09-30): Mark will make the key poses himself in PixelLab's editor**,
+  character by character. Don't generate battle poses without his pose direction. The game side is ready:
+  `?art=review` shows `poses` (per option in meta.json) with code-drawn sparks and arcs; hand-made frames can be
+  wired in the same way when he has them (ask him how he'd like to hand them over). He prefers the **faithful redraws** of today's
   designs (enemies especially); the crew's field sprites styled on the new Kit. Walk cycles: small glitches he
   flags per frame, fixable at integration (e.g. snapping each frame to the standing sprite's colours).
 - **CI was red from the GPU effects commit (965795d) until 8ea2335:** headless Chromium on the runners gives a
