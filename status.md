@@ -76,8 +76,15 @@ on every push to `main`.
   fixed; shrine half; dumpster still angled), and new walking-away frames for Mags, Pale, Hex, Rook and three
   townsfolk (salaryman, scav, Hex fixed; Mags and Pale still show a front-facing or tie frame, repaired at export
   where it's detected, or by his flags; Rook's sword is now missing from the whole cycle).
-  **Next decisions:** the scale pass (new field sprites and props run large: measure, propose); portrait
-  expressions (inpaint eyes and mouth: up to ~240 generations for all, or the main speakers only).
+  **Portrait expressions (Mark chose "main speakers, inpainted"):** `scripts/pixellab/expressions.mjs` redraws only
+  the face box of the picked portrait per expression the game uses (counted per speaker: Kit, Rook, Hex all six;
+  Sable five; Dutch and Pale two; Mags three; Yun one). Done and in the game: **Kit, Hex, Sable, Dutch** (19 faces,
+  95 generations; balance ~828). Waiting: **Rook and Pale** (8 faces, ~40) until Mark picks their round-2 portraits;
+  Mags and Yun (4, ~20) not yet approved.
+  **Scale (measured 2026-09-30):** new characters are ~15% taller (median; 0.91–1.29x) and much wider (chibi heads:
+  ~13x25 → ~19x29 px); props median 1.07x, outliers the barrels (15 → 26 px) and the terminal (22 → 28). Proposal to
+  Mark: don't shrink pixel art; most of the mismatch is the code-drawn Kit among new characters (goes away when he
+  picks a round-2 Kit); then only fix the outliers (barrels at today's size) and check 16 px doorways.
 - **PixelLab art pass, round 1: generated, waiting on Mark's review (2026-09-30).** Mark subscribed to PixelLab (Tier 1,
   2,000 generations a month) and asked for a full pass over the game's art, with options to choose between, reviewed in
   a tool of its own rather than swapped in place. Budget: at most half the month (the client stops at a balance of
