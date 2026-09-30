@@ -1,6 +1,7 @@
 /** DEV-only scene routes (?scene=...): loaded by boot.ts through a dynamic import in DEV builds. */
 import { createMember } from './game/party';
 import { state, type MemberId } from './game/state';
+import type { Display } from './engine/display';
 import type { Game } from './engine/game';
 import { BattleScene } from './scenes/battle';
 import { BestiaryTestScene } from './scenes/bestiarytest';
@@ -11,8 +12,12 @@ import { MapViewScene } from './scenes/mapview';
 import { PortraitTestScene } from './scenes/portraittest';
 
 /** Run the named dev scene; false if the name isn't one (the caller shows the title). */
-export function runDevScene(game: Game, scene: string, params: URLSearchParams): boolean {
+export function runDevScene(game: Game, scene: string, params: URLSearchParams, display: Display): boolean {
   switch (scene) {
+    case 'fxlab':
+      // The FX lab: tune particle presets and battle moments, save them to src/data/fx.json.
+      void import('./dev/fxlab').then(({ FxLabScene }) => game.run(new FxLabScene(display)));
+      break;
     case 'field': {
       state.party = ['kit', 'rook'];
       const x = Number(params.get('x') ?? 26), y = Number(params.get('y') ?? 15);

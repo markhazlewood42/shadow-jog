@@ -32,6 +32,8 @@ import { BattleRenderer } from './battlekit/render';
 import { BHT, BW, DECK_CUT_LIFE, MENU_X, PANEL_Y, PARTY_BOTTOM } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
 import { postfx } from '../engine/postfx';
+import { playMoment } from '../engine/moments';
+import { FX } from '../data/fx';
 import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
 import { RIM, artTop, drawBig } from './battlekit/sprites';
@@ -255,10 +257,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       this.introT = Math.floor(t);
       for (const e of this.battle.enemies) this.d(e.uid).alpha = Math.min(1, Math.max(0, (t - INTRO_T * 0.35) / (INTRO_T * 0.5)));
       // The glass breaks: the air ripples out from the middle of the screen (GPU effects).
-      if (t < CRACK && t + this.speed() >= CRACK) {
-        postfx.shock(W / 2, H / 2, { strength: 6, reach: 320, life: 40, width: 24 });
-        postfx.aberrate(3);
-      }
+      if (t < CRACK && t + this.speed() >= CRACK) playMoment(FX, 'intro', W / 2, H / 2);
       await this.game.wait(1);
     }
     this.introT = 999;

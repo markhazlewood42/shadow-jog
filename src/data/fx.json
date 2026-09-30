@@ -1,0 +1,259 @@
+{
+  "presets": {
+    "hit_sparks": {
+      "note": "A blade or fist landing: white-hot sparks flying off the struck side.",
+      "shape": "spark",
+      "count": [12, 18],
+      "life": [14, 26],
+      "speed": [2.6, 5.2],
+      "spread": 120,
+      "gravity": 0.12,
+      "drag": 0.92,
+      "size": [2.4, 1.2],
+      "alpha": [1, 0],
+      "colors": ["#ffffff", "#ffe07a", "#ff8a3a"],
+      "stretch": 3
+    },
+    "crit_sparks": {
+      "note": "A critical: sparks every way, bigger and brighter.",
+      "shape": "spark",
+      "count": [24, 32],
+      "life": [18, 32],
+      "speed": [3.2, 6.6],
+      "spread": 360,
+      "gravity": 0.1,
+      "drag": 0.92,
+      "size": [2.8, 1.2],
+      "alpha": [1, 0],
+      "colors": ["#ffffff", "#fff04a", "#ff8a3a"],
+      "stretch": 3.2
+    },
+    "crit_ring": {
+      "note": "A critical's ring of light, spreading and fading.",
+      "shape": "ring",
+      "count": [1, 1],
+      "life": [18, 18],
+      "speed": [0, 0],
+      "size": [10, 70],
+      "alpha": [0.9, 0],
+      "colors": ["#fff6c8", "#ffb23a"]
+    },
+    "embers": {
+      "note": "FIRE: embers that rise and flicker out.",
+      "shape": "soft",
+      "count": [18, 26],
+      "life": [36, 70],
+      "speed": [0.8, 2.6],
+      "angle": -90,
+      "spread": 140,
+      "radius": 8,
+      "gravity": -0.03,
+      "drag": 0.94,
+      "size": [5, 1.5],
+      "alpha": [1, 0],
+      "colors": ["#fff2b0", "#ffb23a", "#ff4a1a", "#6a1a10"],
+      "wobble": 1.2
+    },
+    "fire_flash": {
+      "note": "FIRE: the hot flash where it lands.",
+      "shape": "soft",
+      "count": [1, 1],
+      "life": [14, 14],
+      "speed": [0, 0],
+      "size": [40, 70],
+      "alpha": [0.7, 0],
+      "colors": ["#ffcf6a", "#ff5a1a"]
+    },
+    "arcs": {
+      "note": "SHOCK: short, fast arcs that snap outward and die.",
+      "shape": "spark",
+      "count": [16, 22],
+      "life": [8, 16],
+      "speed": [3.5, 7],
+      "spread": 360,
+      "drag": 0.84,
+      "size": [2, 1.2],
+      "alpha": [1, 0],
+      "colors": ["#ffffff", "#9ae8ff", "#3f8af0"],
+      "stretch": 3.6
+    },
+    "motes": {
+      "note": "MANA: slow motes drifting up in a loose column, a spirit's light.",
+      "shape": "soft",
+      "count": [14, 20],
+      "life": [40, 70],
+      "speed": [0.2, 0.9],
+      "angle": -90,
+      "spread": 90,
+      "radius": 14,
+      "gravity": -0.02,
+      "drag": 0.97,
+      "size": [6, 2],
+      "alpha": [0.9, 0],
+      "colors": ["#f0e2ff", "#c3a0ff", "#6a4ad0"],
+      "wobble": 2
+    },
+    "glitch": {
+      "note": "CYBER: pixel shards that pop off and fall, a glitch coming apart.",
+      "shape": "square",
+      "blend": "alpha",
+      "count": [14, 22],
+      "life": [18, 34],
+      "speed": [1, 3],
+      "spread": 360,
+      "radius": 6,
+      "gravity": 0.08,
+      "drag": 0.92,
+      "size": [3, 1],
+      "alpha": [1, 0.2],
+      "colors": ["#62ffd0", "#3fe0f0", "#ff4fb0"],
+      "snap": true
+    },
+    "heal_motes": {
+      "note": "A heal: green-gold motes rising off the member.",
+      "shape": "soft",
+      "count": [12, 18],
+      "life": [30, 50],
+      "speed": [0.3, 1.1],
+      "angle": -90,
+      "spread": 70,
+      "radius": 12,
+      "gravity": -0.03,
+      "drag": 0.96,
+      "size": [5, 1.5],
+      "alpha": [1, 0],
+      "colors": ["#f2ffe0", "#86f08c", "#2a9a5a"],
+      "wobble": 1.4
+    },
+    "dissolve": {
+      "note": "An enemy going down: its light scattering.",
+      "shape": "soft",
+      "count": [20, 30],
+      "life": [24, 44],
+      "speed": [0.4, 1.6],
+      "angle": -90,
+      "spread": 200,
+      "radius": 16,
+      "gravity": -0.02,
+      "drag": 0.95,
+      "size": [4.5, 1.2],
+      "alpha": [0.9, 0],
+      "colors": ["#ffffff", "#c9b8ff", "#5a4a8a"]
+    },
+    "combo_burst": {
+      "note": "A combo landing: a wide shower of gold on top of the element's own burst.",
+      "shape": "spark",
+      "count": [40, 56],
+      "life": [20, 44],
+      "speed": [2.4, 6.4],
+      "spread": 360,
+      "gravity": 0.08,
+      "drag": 0.92,
+      "size": [3, 1.2],
+      "alpha": [1, 0],
+      "colors": ["#ffffff", "#ffe07a", "#ff9a3a", "#a03a2a"],
+      "stretch": 3
+    }
+  },
+  "moments": {
+    "hit.phys": {
+      "note": "A PHYS blow lands. Weighted: a heavier blow or a weak hit bursts bigger. Aimed: debris flies the way the blow travelled.",
+      "layers": [
+        { "emit": "hit_sparks", "weighted": true, "aim": true }
+      ]
+    },
+    "hit.fire": {
+      "note": "A FIRE blow lands.",
+      "layers": [
+        { "emit": "embers", "weighted": true, "aim": true },
+        { "emit": "fire_flash" }
+      ]
+    },
+    "hit.shock": {
+      "note": "A SHOCK blow lands.",
+      "layers": [
+        { "emit": "arcs", "weighted": true, "aim": true }
+      ]
+    },
+    "hit.mana": {
+      "note": "A MANA blow lands.",
+      "layers": [
+        { "emit": "motes", "weighted": true, "aim": true }
+      ]
+    },
+    "hit.cyber": {
+      "note": "A CYBER blow lands.",
+      "layers": [
+        { "emit": "glitch", "weighted": true, "aim": true }
+      ]
+    },
+    "hit.heavy": {
+      "note": "On top of the hit: a heavy blow (a fifth of the target’s HP or more) that isn’t a critical or a combo.",
+      "layers": [
+        { "shock": { "strength": 2.4, "reach": 80, "life": 22 } }
+      ]
+    },
+    "crit": {
+      "note": "On top of the hit: a critical.",
+      "layers": [
+        { "emit": "crit_sparks" },
+        { "emit": "crit_ring" },
+        { "shock": { "strength": 4, "reach": 120 } },
+        { "aberrate": 2.5 },
+        { "flare": 0.3 }
+      ]
+    },
+    "combo": {
+      "note": "On top of the hit: a combo landing (its first heavy blow).",
+      "layers": [
+        { "emit": "combo_burst" },
+        { "shock": { "strength": 6, "reach": 170, "life": 36, "width": 14 } },
+        { "aberrate": 3.5 },
+        { "flare": 0.7 }
+      ]
+    },
+    "heal": {
+      "note": "A heal lands on a member.",
+      "layers": [
+        { "emit": "heal_motes" }
+      ]
+    },
+    "heal.perfect": {
+      "note": "A healing skill on the beat (a perfect timed press).",
+      "layers": [
+        { "emit": "heal_motes", "scale": 1.8 },
+        { "flare": 0.35 }
+      ]
+    },
+    "down": {
+      "note": "An enemy goes down.",
+      "layers": [
+        { "emit": "dissolve" }
+      ]
+    },
+    "down.boss": {
+      "note": "A boss goes down.",
+      "layers": [
+        { "emit": "dissolve", "scale": 2.5 },
+        { "shock": { "strength": 7, "reach": 240, "life": 44, "width": 18 } },
+        { "flare": 1.4 }
+      ]
+    },
+    "phase": {
+      "note": "A boss changes form (the Warden’s spirit tearing free).",
+      "layers": [
+        { "shock": { "strength": 8, "reach": 260, "life": 48, "width": 20 } },
+        { "aberrate": 4 },
+        { "emit": "motes", "scale": 3 },
+        { "flare": 1.5 }
+      ]
+    },
+    "intro": {
+      "note": "The battle transition: the glass breaks (at the middle of the screen).",
+      "layers": [
+        { "shock": { "strength": 6, "reach": 320, "life": 40, "width": 24 } },
+        { "aberrate": 3 }
+      ]
+    }
+  }
+}

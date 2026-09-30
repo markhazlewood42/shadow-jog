@@ -110,8 +110,10 @@ describe('font coverage', () => {
     const walk = (d: string) => {
       for (const f of readdirSync(d)) {
         const p = join(d, f);
-        if (statSync(p).isDirectory()) walk(p);
-        else if (f.endsWith('.ts') && !skip.has(f)) files.push(p);
+        // src/dev holds dev-only tools (the FX lab) whose panel text is HTML in the browser's font.
+        if (statSync(p).isDirectory()) {
+          if (f !== 'dev') walk(p);
+        } else if (f.endsWith('.ts') && !skip.has(f)) files.push(p);
       }
     };
     walk('src');

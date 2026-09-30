@@ -113,7 +113,11 @@ game draws exactly as before). Nothing in the game's drawing changed to allow it
   seconds with them on, `main.ts` switches them off for the session with a notice ("Paused (slow)").
 - **`ParticleSim`**: typed-array simulation (no allocation per particle), drawn as instanced quads with shapes made in
   the fragment shader (`soft`, `dot`, `spark` stretched along its flight, `square` snapped to pixels, `ring`).
-  Presets are data: `src/data/emitters.ts`. The battle's moments map to effects in `scenes/battlekit/gpufx.ts`.
+  Presets and **moments** (what plays on each game event: stacks of layers, each a burst, a shockwave, a colour
+  split or a flare, with a delay) are data: `src/data/fx.json`, typed and checked by `engine/fxdata.ts`, played by
+  `engine/moments.ts`. Battle events call moments by name in `scenes/battlekit/gpufx.ts`. The **FX lab**
+  (`src/dev/fxlab.ts`, `?scene=fxlab`, dev only) edits the file and saves it through a dev-server plugin in
+  `vite.config.ts`; `data/fx.ts` takes the new data live (Vite HMR), so a running dev game changes at once.
 
 `Display.beginFrame()` (called before `game.render()`) decides each frame whether the layer is live and clears its
 layers; `Display.present()` hands them to the presenter. A battle clears every effect in flight in `exit()`, however

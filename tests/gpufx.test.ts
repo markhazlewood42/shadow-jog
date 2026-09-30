@@ -1,6 +1,9 @@
 /** The GPU effects layer's logic: the particle simulation and the effects façade (no WebGL needed). */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { EMITTERS } from '../src/data/emitters';
+import { FX, GAME_MOMENTS } from '../src/data/fx';
+import { checkFx, type FxData, formatFx } from '../src/engine/fxdata';
+import { playMoment } from '../src/engine/moments';
 import { type EmitterPreset, PARTICLE_STRIDE, ParticleSim, SHAPE_ID } from '../src/engine/particles';
 import { MAX_SHOCKS, postfx } from '../src/engine/postfx';
 
@@ -53,7 +56,7 @@ describe('particles', () => {
 
   it('covering particles are packed after the glowing ones, and the cap holds', () => {
     const sim = new ParticleSim(10, 1);
-    sim.burst(EMITTERS.glitch, 0, 0, { scale: 0.2 }); // covering squares
+    sim.burst(FX.presets.glitch!, 0, 0, { scale: 0.2 }); // covering squares
     sim.burst(dot, 0, 0); // glowing
     const out = new Float32Array(10 * PARTICLE_STRIDE);
     const { add, alpha } = sim.write(out);
@@ -85,7 +88,7 @@ describe('particles', () => {
   it('the same seed gives the same bursts', () => {
     const run = () => {
       const s = new ParticleSim(64, 42);
-      s.burst(EMITTERS.crit_sparks, 10, 10);
+      s.burst(FX.presets.crit_sparks!, 10, 10);
       s.step(3);
       const out = new Float32Array(64 * PARTICLE_STRIDE);
       s.write(out);
@@ -95,7 +98,7 @@ describe('particles', () => {
   });
 
   it('every preset is well formed', () => {
-    for (const [id, p] of Object.entries(EMITTERS) as [string, EmitterPreset][]) {
+    for (const [id, p] of Object.entries(FX.presets) as [string, EmitterPreset][]) {
       expect(p.count[0], id).toBeLessThanOrEqual(p.count[1]);
       expect(p.life[0], id).toBeGreaterThan(0);
       expect(p.colors.length, id).toBeGreaterThan(0);
@@ -139,6 +142,53 @@ describe('effects façade', () => {
     expect(postfx.shocks.length).toBe(0);
     postfx.active = false;
     postfx.motion = 1;
+    postfx.clear();
+  });
+});
+
+describe('fx data (src/data/fx.json, edited in the FX lab)', () => {
+  it('is valid, and every moment the game plays is in it', () => {
+    expect(checkFx(FX)).toEqual([]);
+    for (const m of Object.keys(GAME_MOMENTS)) expect(FX.moments[m], m).toBeDefined();
+  });
+
+  it('is written in its own format (a lab save round-trips to the same file)', () => {
+    const text = readFileSync('src/data/fx.json', 'utf8').replace(/\r\n/g, '\n');
+    expect(formatFx(JSON.parse(text) as FxData)).toBe(text);
+    expect(JSON.parse(formatFx(FX))).toEqual(JSON.parse(text));
+  });
+
+  it('says what is wrong with bad data', () => {
+    expect(checkFx(null)).not.toEqual([]);
+    const bad = JSON.parse(JSON.stringify(FX)) as FxData;
+    (bad.presets.embers as unknown as Record<string, unknown>).count = [9, 2];
+    (bad.presets.embers as unknown as Record<string, unknown>).colors = ['red'];
+    bad.moments.crit!.layers.push({ emit: 'no_such_preset' });
+    bad.moments.crit!.layers.push({ flare: 1, aberrate: 2 });
+    const problems = checkFx(bad).join('\n');
+    expect(problems).toContain('count');
+    expect(problems).toContain('colors');
+    expect(problems).toContain('no preset "no_such_preset"');
+    expect(problems).toContain('exactly one of');
+  });
+
+  it('a moment plays its layers, the delayed ones on the effects clock', () => {
+    postfx.clear();
+    postfx.active = true;
+    const fx: FxData = {
+      presets: { p: dot },
+      moments: { m: { layers: [{ emit: 'p' }, { emit: 'p', delay: 5, weighted: true }, { shock: { strength: 2 } }] } },
+    };
+    playMoment(fx, 'm', 10, 10, { weight: 2 });
+    expect(postfx.particles.count).toBe(5);
+    expect(postfx.shocks.length).toBe(1);
+    for (let i = 0; i < 4; i++) postfx.update();
+    expect(postfx.particles.count).toBe(5);
+    postfx.update();
+    // The delayed, weighted layer: twice the count, on top of what's still alive.
+    expect(postfx.particles.count).toBe(15);
+    playMoment(fx, 'no_such_moment', 0, 0);
+    postfx.active = false;
     postfx.clear();
   });
 });

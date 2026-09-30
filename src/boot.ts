@@ -21,6 +21,7 @@ import { currentNotice, notice } from './engine/errors';
 import { EndingScene } from './scenes/ending';
 import { fieldHooks } from './game/hooks';
 import { postfx } from './engine/postfx';
+import { FX } from './data/fx';
 
 declare global {
   interface Window {
@@ -71,8 +72,10 @@ export function boot(game: Game, display: Display): void {
     notice: () => currentNotice(),
     /** The end-of-chapter results and next-chapter card, without the comic pages. */
     ending: () => void game.run(new EndingScene(game.playFrames)),
-    /** GPU effects: the façade (engine/postfx.ts), and the switch as Options flips it. */
+    /** GPU effects: the façade (engine/postfx.ts), the live presets and moments (data/fx.ts), and
+     *  the switch as Options flips it. */
     postfx,
+    fx: FX,
     gpu: (on: boolean) => {
       settings.gpuFx = on;
       saveSettings();
@@ -181,7 +184,7 @@ export function boot(game: Game, display: Display): void {
   const scene = params.get('scene');
   if (import.meta.env.DEV && scene) {
     void import('./devroutes').then((m) => {
-      if (!m.runDevScene(game, scene, params)) void startTitle(game);
+      if (!m.runDevScene(game, scene, params, display)) void startTitle(game);
     });
   } else void startTitle(game);
 }

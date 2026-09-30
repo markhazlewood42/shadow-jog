@@ -90,8 +90,11 @@ export class Display {
 
   resize(): void {
     const dpr = window.devicePixelRatio || 1;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    // The stage the canvas sits in (the whole window, unless a dev page such as the FX lab has
+    // taken a side of it for a panel).
+    const stage = this.screen.parentElement;
+    const vw = stage?.clientWidth || window.innerWidth;
+    const vh = stage?.clientHeight || window.innerHeight;
     const fit = Math.min(vw / W, vh / H);
     const whole = Math.floor(fit * dpr) / dpr;
     let cssScale = fit;

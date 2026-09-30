@@ -3,7 +3,7 @@
  * tested and so the presenter just reads the results. Up to `cap` particles live at once, stored
  * as parallel typed arrays (structure of arrays): nothing is allocated per particle or per frame.
  *
- * An emitter preset (data/emitters.ts) says how a burst looks: how many, how fast and which way,
+ * An emitter preset (src/data/fx.json, tuned in the FX lab) says how a burst looks: how many, how fast and which way,
  * how long they live, and how size, colour and opacity change over that life. `burst(preset, x, y)`
  * spawns one; `step(rate)` moves everything on; `write(out)` packs what's alive for drawing.
  *
@@ -115,6 +115,12 @@ export class ParticleSim {
   private compile(p: EmitterPreset): number {
     const known = this.kindOf.get(p);
     if (known !== undefined) return known;
+    // Presets are compiled by identity, and the FX lab makes a new one for every edit: with
+    // nothing alive, start the table over rather than let it grow.
+    if (this.count === 0 && this.kinds.length > 64) {
+      this.kinds.length = 0;
+      this.kindOf.clear();
+    }
     const rgb = new Float32Array(Math.max(1, p.colors.length) * 3);
     p.colors.forEach((c, i) => {
       hexRgb(c, rgb, i * 3);

@@ -110,6 +110,7 @@ time. Run a single spec: `npx playwright test e2e/chaos.spec.ts --reporter=line`
 - `?scene=mapview&map=ID`: the whole map rendered.
 - `?scene=chars[&zoom=4][&npcs][&battlers]`, `?scene=bestiary[&page=1]`, `?scene=portraits`, `?scene=font`:
   asset sheets.
+- `?scene=fxlab`: the FX lab (particle presets and battle moments; see §8).
 
 **`window.__SJ__`** (open the console on `http://localhost:3007/?debug`):
 - `game`, `display`, `state`, `field()`, `top()` (the top scene's class name), `idle()` (field ready for input);
@@ -118,7 +119,8 @@ time. Run a single spec: `npx playwright test e2e/chaos.spec.ts --reporter=line`
 - `battle(encounter, bg, boss)`, `defineEncounter(id, enemies)`;
 - `say(who, text)`, `menu()`, `shop(id)`, `run(scriptFn)`, `save(slot)`, `ending()`, `notice()`;
 - `debug`: `{ autoDialog, autoBattle, autoLose, playtest }`.
-- `postfx` (the GPU effects façade: try `sj.postfx.shock(240, 135)`), `gpu(on)` (the Options switch).
+- `postfx` (the GPU effects façade: try `sj.postfx.shock(240, 135)`), `fx` (the live presets and moments),
+  `gpu(on)` (the Options switch).
 
 Setting flags by hand: `sj.state.flags.floodgate = true`, then `sj.field().api.refreshMap()`.
 
@@ -219,13 +221,25 @@ Objectives go in `OBJ`. New names go in the glossary.
   (`music.test.ts`). Check loudness and loop seams with `npx playwright test e2e/audio-evidence.spec.ts`.
 - Effects: a synth function and a `LEVEL` entry in `src/audio/sfx.ts` (measure it with the audio evidence).
 
-### A new particle effect (GPU effects)
-- A preset in `src/data/emitters.ts` (fields and units in `engine/particles.ts`: count, life, speed, direction and
-  spread, gravity, drag, size and colour over life, shape, blend). Fire it with `postfx.emit(EMITTERS.id, x, y)`
-  in screen pixels (battle world coordinates ×2); battle moments are wired in `scenes/battlekit/gpufx.ts`.
-- Try one live on the dev server: `sj.postfx.emit((await import('/src/data/emitters.ts')).EMITTERS.embers, 240, 135)`
-  in the console of a `?debug` page (in a battle: particles are clipped to the battlefield).
-- `tests/gpufx.test.ts` checks every preset is well formed; `e2e/gpufx.spec.ts` fires them all in a battle.
+### Particle effects and battle moments: the FX lab
+- **Open it:** `npm run dev`, then http://localhost:3007/?scene=fxlab. The game screen (a battle backdrop and an
+  enemy to aim at, with the real GPU effects) is on the left; the panel is on the right.
+- **Presets** (the Particle presets tab): every field has a slider and a number box (count, life, speed, direction,
+  spread, spawn radius, gravity, drag, size and opacity over life, colours over life, shape, blend, spark length,
+  spin, wobble, pixel snap). New, Duplicate, Rename (moments follow the new name) and Delete (refused while a
+  moment uses it). Each edit fires a burst (turn that off with "Fire on every change"); auto-repeat keeps firing.
+- **Moments** (the Moments tab): what plays on each game event (`GAME_MOMENTS` in `src/data/fx.ts`: a hit by damage
+  type, heavy hits, criticals, combos, heals, kills, a boss's phase, the battle transition). A moment is a stack of
+  layers: particles (a preset, a count multiplier, weighted by the blow, aimed the way it travelled), a shockwave,
+  a colour split or a bloom flare, each with a delay and an offset. "Test weight" and "Aim angle" stand in for the
+  blow when you play it. Moments the game doesn't play yet can be made and saved; code has to call them.
+- **Save to game** writes `src/data/fx.json` (checked first; the file keeps one field per line, so the diff is
+  small). A dev game running in another tab takes the change at once, no reload. Commit the file to ship it.
+  **Revert** reloads the file. **Export / import**: one preset, one moment or the whole file as JSON.
+- The data's shapes, checks and file format are `src/engine/fxdata.ts`; the save endpoint is the plugin in
+  `vite.config.ts` (dev server only); `tests/gpufx.test.ts` checks the file and `e2e/fxlab.spec.ts` the lab.
+- In code: `playMoment(FX, 'crit', x, y, { angle, weight })` (`engine/moments.ts`); one preset:
+  `postfx.emit(FX.presets.embers, x, y)`. Screen pixels (battle world coordinates ×2).
 
 ### A new save field
 Add it to `GameState` and `newState()`. If it's purely additive, give it a default in `backfill()` (`save.ts`). If

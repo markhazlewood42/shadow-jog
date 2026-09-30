@@ -91,6 +91,15 @@ class PostFx {
     this.pulse = Math.max(this.pulse, amount * this.intensity);
   }
 
+  /** Calls waiting on the effects clock (a moment's delayed layers). */
+  private pending: { t: number; fn: () => void }[] = [];
+
+  /** Run `fn` after `frames` frames of the effects clock (dropped if the effects are cleared first). */
+  later(frames: number, fn: () => void): void {
+    if (!this.active) return;
+    this.pending.push({ t: frames, fn });
+  }
+
   /** A particle burst at (x, y). */
   emit(p: EmitterPreset, x: number, y: number, opts: { angle?: number; scale?: number } = {}): void {
     if (!this.active) return;
@@ -109,6 +118,17 @@ class PostFx {
     this.aberration = this.aberration < 0.05 ? 0 : this.aberration * 0.86 ** dt;
     this.pulse = this.pulse < 0.01 ? 0 : this.pulse * 0.9 ** dt;
     if (this.particles.count) this.particles.step(dt);
+    if (this.pending.length) {
+      let keepP = 0;
+      const due: (() => void)[] = [];
+      for (const p of this.pending) {
+        p.t -= dt;
+        if (p.t <= 0) due.push(p.fn);
+        else this.pending[keepP++] = p;
+      }
+      this.pending.length = keepP;
+      for (const fn of due) fn();
+    }
   }
 
   /** Drop everything in flight (a scene change: effects don't follow you out of a fight). */
@@ -117,6 +137,7 @@ class PostFx {
     this.aberration = 0;
     this.pulse = 0;
     this.particles.clear();
+    this.pending.length = 0;
     this.clip = null;
     this.rate = 1;
   }

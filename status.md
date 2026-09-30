@@ -56,8 +56,10 @@ on every push to `main`.
   rewrite): real bloom on neon, lamps and spells, shockwaves, a colour split on big impacts, and GPU particles from
   data presets (`src/data/emitters.ts`), wired to battle moments (`battlekit/gpufx.ts`). Options → GPU effects
   (on by default); without WebGL 2 the game is unchanged. How it works: `docs/ARCHITECTURE.md` §2 "GPU effects".
-  **Next slices, for Mark to pick:** an FX lab page to tune emitters live (his particle-system experience);
-  per-spell looks (heat haze for FIRE, a lightning flash for SHOCK, a Warden cannon charge); field weather (rain
+  **FX lab built (2026-09-30):** `npm run dev`, then http://localhost:3007/?scene=fxlab. Mark tunes every preset
+  and every battle moment (what plays on a FIRE hit, a crit, a combo…) with sliders, fires them on a battle
+  backdrop, and **Save** writes `src/data/fx.json` (commit it to ship). Guide: `docs/DEVELOPING.md` §8.
+  **Next slices, for Mark to pick:** per-spell looks (heat haze for FIRE, a lightning flash for SHOCK, a Warden cannon charge); field weather (rain
   splashes, lamp flicker into the bloom); per-place colour grading.
 - **Waiting on Mark's next playthrough.** His existing save loads: saves migrate to format v3 (levels re-worked on
   the new curve from the XP earned, Rook at 10, story unlocks already passed are set). A new game shows the new

@@ -35,9 +35,8 @@ test('with WebGL 2, the effects layer draws the game, through a battle full of e
   // every emitter preset.
   await sj(page, `(async () => {
     const postfx = sj.postfx;
-    const { EMITTERS } = await import('/src/data/emitters.ts');
     for (let i = 0; i < 6; i++) {
-      for (const p of Object.values(EMITTERS)) postfx.emit(p, 120 + i * 40, 100);
+      for (const p of Object.values(sj.fx.presets)) postfx.emit(p, 120 + i * 40, 100);
       postfx.shock(240, 120, { strength: 6, reach: 200 });
       postfx.aberrate(4, 240, 120);
       postfx.flare(1.5);
@@ -87,7 +86,7 @@ test('without WebGL 2 the game plays on the 2D canvas as before', async ({ page 
   await sj(page, "sj.battle('sinkline', 'sewer')");
   await page.waitForTimeout(3500);
   // Effect calls are harmless no-ops here.
-  await sj(page, "(async () => { const { EMITTERS } = await import('/src/data/emitters.ts'); sj.postfx.shock(1, 1); sj.postfx.emit(EMITTERS.embers, 10, 10); })()");
+  await sj(page, "(async () => { sj.postfx.shock(1, 1); sj.postfx.emit(sj.fx.presets.embers, 10, 10); })()");
   expect(await sj<number>(page, "sj.postfx.particles.count")).toBe(0);
   expect(await sj<string>(page, 'sj.top()')).toBe('BattleScene');
   // The frame is drawn (not a blank canvas): the screenshot has more than one colour in it.
