@@ -7,6 +7,7 @@ import { drawText, fitText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { notice } from '../engine/errors';
 import { BATTLE_SPEEDS, battleSpeed, saveSettings, settings, TEXT_SPEEDS, textSpeed } from '../game/settings';
+import { postfx } from '../engine/postfx';
 import { drawBar, drawCursor, drawSelect, drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
 import { keyLabel, type Action } from '../engine/input';
 import { ControlsScene } from './controls';
@@ -72,6 +73,14 @@ export class OptionsScene extends Scene<'back' | 'title'> {
         id: 'hitpause', label: 'Hit pause', value: () => (settings.hitPause ? 'On' : 'Off'),
         adjust: () => {
           settings.hitPause = !settings.hitPause;
+        },
+      },
+      {
+        // On but not running: no WebGL 2 here, or switched off this session for speed (main.ts).
+        id: 'gpu', label: 'GPU effects', value: () => (!settings.gpuFx ? 'Off' : postfx.active ? 'On' : postfx.suspended ? 'Paused (slow)' : 'Unavailable'),
+        adjust: () => {
+          settings.gpuFx = !settings.gpuFx;
+          window.dispatchEvent(new Event('sj-gpu'));
         },
       },
       {

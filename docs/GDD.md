@@ -150,8 +150,12 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 * All art is generated in code: procedural tiles and structures, part-based character sprites with auto-outline, and
   vector-to-pixel enemies. The world map, towns and dungeons use a 3/4 top-down view.
 * Light map: ambient darkness × additive coloured lights (neon, lamps). Rain, fog and steam particles.
+* **GPU effects** (Options, on by default where WebGL 2 exists; the game looks the same without them otherwise):
+  real bloom on neon, lamps and spells; shockwaves that ripple the picture on criticals, combos, boss deaths and the
+  battle transition; a colour split on big impacts; particle bursts by damage type (sparks, embers, arcs, motes,
+  glitch shards), heals and kills. The pixel art stays sharp; the UI is never bent or bloomed.
 * Custom bitmap font. Framed windows with a cyberpunk trim.
-* Audio: WebAudio chiptune/synthwave sequencer with 15 songs (places, fights, story cues and jingles), each in its own acoustic space, and 69 synthesized SFX. Measured offline through the real mix (docs/quality/evidence/audio*): loudness, spectrum, loop seams.
+* Audio: WebAudio chiptune/synthwave sequencer with 16 songs (places, fights, story cues and jingles), each in its own acoustic space, and 72 synthesized SFX. Measured offline through the real mix (docs/quality/evidence/audio*): loudness, spectrum, loop seams.
 * Comic-panel cutscenes (PSIV signature).
 
 ## 9. Controls

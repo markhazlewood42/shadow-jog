@@ -12,7 +12,8 @@ import { PARTY_POSE_T, swingBeat } from './motion';
 import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
-import type { Ctx } from '../../engine/canvas';
+import { surface, type Ctx, type Surface } from '../../engine/canvas';
+import { postfx } from '../../engine/postfx';
 import { drawParagraph, drawText, fitText, measure, wrap } from '../../engine/font';
 import { H, W } from '../../engine/game';
 import { state, type MemberId } from '../../game/state';
@@ -38,6 +39,9 @@ const AIMING = '#6ff3ff';
 import { drawRing } from './timing';
 
 let bigBandGrad: CanvasGradient | null = null;
+
+/** Glyph effects (spell runes, numbers) don't glow: the glow pass skips them. */
+const NO_GLYPH = (): void => undefined;
 
 /**
  * The Warden's conduits, relative to its sprite: [from x (from the left edge if ≥ 0, else from the
@@ -163,7 +167,35 @@ export class BattleRenderer {
       if (!this.shatter) this.shatter = new ShatterIntro(this.s.setup.intro);
       this.shatter.draw(ctx, this.s.introT);
     }
-    this.renderUi(ctx);
+    // GPU effects: what glows goes into the glow layer, framed like the world; the UI goes on
+    // its own layer, laid over after bloom and shockwaves so it never smears.
+    // No light through the impact frame's blackout; the defeat drain dims it with the rest.
+    const dark = (this.s.setup.intro && this.s.introT < INTRO_T) || (this.s.impactT > 0 && !!this.s.impactOn);
+    const glow = dark ? null : postfx.glowLayer();
+    if (glow) {
+      postfx.bloom = 0.7 * (1 - Math.min(0.62, this.s.defeatT / 70));
+      this.renderGlow(glow, shx, shy);
+    }
+    this.renderUi(postfx.active && postfx.ui ? postfx.ui : ctx);
+  }
+
+  /** The battle's light for the bloom: the backdrop's neon and every effect in flight. */
+  private glowWorld: Surface | null = null;
+  private renderGlow(glow: Ctx, shx: number, shy: number): void {
+    this.glowWorld ??= surface(BW, BHT);
+    const g = this.glowWorld.ctx;
+    g.clearRect(0, 0, BW, BHT);
+    if (this.s.bg.glow) g.drawImage(this.s.bg.glow, 0, 0);
+    this.s.fx.render(g, NO_GLYPH, true);
+    glow.imageSmoothingEnabled = false;
+    const push = this.s.push;
+    if (push && push.t < push.life) {
+      const k = push.t < 4 ? push.t / 4 : 1 - (push.t - 4) / (push.life - 4);
+      const z = 1 + 0.09 * k * k;
+      const sw = BW / z, sh = BHT / z;
+      const sx = Math.max(0, Math.min(BW - sw, push.x - sw / 2)), sy = Math.max(0, Math.min(BHT - sh, push.y - sh / 2));
+      glow.drawImage(this.glowWorld.canvas, sx, sy, sw, sh, shx, shy, W, H);
+    } else glow.drawImage(this.glowWorld.canvas, shx, shy, W, H);
   }
 
   /**

@@ -95,6 +95,30 @@ hue; use `mix(c, dark, t)` for a true darkening), `rng.ts` (seeded mulberry32 `R
 `reportError`), `assert.ts` (`must(value, what)`: the only sanctioned non-null assertion in `engine/` and
 `battle/`), `perf.ts`.
 
+### GPU effects (`engine/postfx.ts`, `engine/gl/presenter.ts`, `engine/particles.ts`)
+An optional layer over the Canvas 2D renderer (Options → GPU effects, on by default; off, or without WebGL 2, the
+game draws exactly as before). Nothing in the game's drawing changed to allow it; three things were added:
+- **`postfx`** (the façade game code talks to): `shock(x, y)` (a ring of distortion), `aberrate(px, x, y)` (a colour
+  split easing out), `flare(amount)` (extra bloom), `emit(preset, x, y)` (a particle burst). All no-ops while
+  `postfx.active` is false. Two layers: `glowLayer()` (draw what should bloom: the field's baked emissive map and
+  sprite emits, the battle backdrop's neon and every effect in flight) and `ui` (everything above the world scene;
+  `Game.render` routes to it, and the battle draws its HUD there). Shockwaves follow Screen shake and pulses
+  follow Screen flash. `rate` is the battle's animation clock; `clip` keeps particles on the battlefield.
+- **`GlPresenter`**: a WebGL 2 canvas (`#fx`) laid exactly over `#screen` (which keeps focus and input). Per frame:
+  the glow layer plus glowing particles into a light buffer, blurred at half and quarter size (bloom); a composite
+  of the back buffer (nearest-neighbour, so pixels stay sharp) bent by up to four shockwaves, colour-split, with the
+  bloom, the hit flash and a vignette; the particles again, sharp; the UI layer (where `Game.render` also draws the
+  fade, under the notices, as in 2D). A lost context falls back to 2D until it's restored; a shader that won't
+  compile means no GPU effects at all (Options then says "Unavailable"). If the game runs under 25 fps for a few
+  seconds with them on, `main.ts` switches them off for the session with a notice ("Paused (slow)").
+- **`ParticleSim`**: typed-array simulation (no allocation per particle), drawn as instanced quads with shapes made in
+  the fragment shader (`soft`, `dot`, `spark` stretched along its flight, `square` snapped to pixels, `ring`).
+  Presets are data: `src/data/emitters.ts`. The battle's moments map to effects in `scenes/battlekit/gpufx.ts`.
+
+`Display.beginFrame()` (called before `game.render()`) decides each frame whether the layer is live and clears its
+layers; `Display.present()` hands them to the presenter. A battle clears every effect in flight in `exit()`, however
+it ends; GPU particles hold still through a hit pause.
+
 ---
 
 ## 3. Game state and systems (`src/game/`)

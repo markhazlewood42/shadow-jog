@@ -20,6 +20,9 @@ export interface Settings {
   timing: 'on' | 'assist' | 'off';
   /** The player's own key for an action (on top of the defaults), by KeyboardEvent.code. */
   keys: Partial<Record<Action, string>>;
+  /** GPU effects (engine/postfx.ts): bloom, shockwaves, particles. Off, or without WebGL 2, the
+   *  game draws exactly as before. */
+  gpuFx: boolean;
 }
 
 const KEY = 'shadowjog.settings.v1';
@@ -37,6 +40,7 @@ export const DEFAULT_SETTINGS: Settings = {
   touch: 'auto',
   timing: 'on',
   keys: {},
+  gpuFx: true,
 };
 
 function load(): Settings {

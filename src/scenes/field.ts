@@ -3,6 +3,7 @@ import type { Dir } from '../art/chars';
 import { sfx } from '../audio/sfx';
 import { placeMusic } from '../audio/music';
 import type { Ctx } from '../engine/canvas';
+import { postfx } from '../engine/postfx';
 import { drawText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { Rng } from '../engine/rng';
@@ -72,6 +73,8 @@ export class FieldScene extends Scene<void> {
   camY = 0;
   camOverride: { x: number; y: number } | null = null;
   private lighting = new Lighting();
+  /** This frame's glow layer (GPU effects on), or null. */
+  private glow: Ctx | null = null;
   private weather = new Weather();
   busy = 0;
   /**
@@ -619,6 +622,13 @@ export class FieldScene extends Scene<void> {
     }
     this.lighting.apply(ctx);
     blit(ctx, this.map.emit, cx, cy);
+    // GPU effects: the same light into the glow layer, so neon, lamps and lit windows bloom for
+    // real (sprites add theirs in drawSprite). Towns glow harder than rooms.
+    this.glow = postfx.glowLayer();
+    if (this.glow) {
+      postfx.bloom = this.def.kind === 'interior' ? 0.5 : 0.9;
+      blit(this.glow, this.map.emit, cx, cy);
+    }
     for (const a of this.map.anims) if (!a.lit && inView(a, cx, cy)) a.draw(ctx, f, cx, cy);
 
     // Depth-sorted sprites (pooled entries; no per-frame closures or objects).
@@ -709,7 +719,10 @@ export class FieldScene extends Scene<void> {
   private drawSprite(ctx: Ctx, s: SortedSprite, cx: number, cy: number, f: number): void {
     const sx = s.x - cx, sy = s.y - cy;
     this.lighting.drawLit(ctx, s.canvas, sx, sy);
-    if (s.emit) ctx.drawImage(s.emit, sx, sy);
+    if (s.emit) {
+      ctx.drawImage(s.emit, sx, sy);
+      this.glow?.drawImage(s.emit, sx, sy);
+    }
     s.anim?.(ctx, f, sx, sy);
   }
 

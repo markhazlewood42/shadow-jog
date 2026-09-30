@@ -52,8 +52,13 @@ on every push to `main`.
    scored round: Mark didn't ask for one).
 
 ### Right now
-- **Next up (Mark, 2026-09-29): the GPU effects layer** (Future Plans): targeted WebGL effects over the current
-  renderer, not the PixiJS rewrite. Playthrough 2's changes are testable first.
+- **GPU effects layer: first slice in (2026-09-30).** A WebGL 2 presenter over the Canvas 2D game (not the PixiJS
+  rewrite): real bloom on neon, lamps and spells, shockwaves, a colour split on big impacts, and GPU particles from
+  data presets (`src/data/emitters.ts`), wired to battle moments (`battlekit/gpufx.ts`). Options → GPU effects
+  (on by default); without WebGL 2 the game is unchanged. How it works: `docs/ARCHITECTURE.md` §2 "GPU effects".
+  **Next slices, for Mark to pick:** an FX lab page to tune emitters live (his particle-system experience);
+  per-spell looks (heat haze for FIRE, a lightning flash for SHOCK, a Warden cannon charge); field weather (rain
+  splashes, lamp flicker into the bloom); per-place colour grading.
 - **Waiting on Mark's next playthrough.** His existing save loads: saves migrate to format v3 (levels re-worked on
   the new curve from the XP earned, Rook at 10, story unlocks already passed are set). A new game shows the new
   opening (Rook's wound). Rebuild first: `npm run build && npm run preview` (http://localhost:3008).
@@ -107,7 +112,8 @@ on every push to `main`.
 ## Architecture (summary; full version in docs/ARCHITECTURE.md)
 
 - Vite + TypeScript (strict), zero runtime deps, Canvas 2D at 480x270. All art and audio are generated in code.
-- `src/engine/`: loop, scene stack, input, bitmap font, display scaling.
+- `src/engine/`: loop, scene stack, input, bitmap font, display scaling; the optional GPU effects layer
+  (`postfx.ts`, `gl/presenter.ts`, `particles.ts`).
 - `src/field/`: map baking (tiles, buildings, props), light map, weather, actors, chests.
 - `src/battle/`: pure deterministic engine, AI, FX. `src/scenes/battle.ts` + `battlekit/` are the presentation
   (loaded as a separate chunk).
@@ -123,8 +129,8 @@ on every push to `main`.
 
 - **GPU effects layer** (Mark interested, 2026-09-29): keep the Canvas 2D game and renderer; send the finished frame
   through a small hand-written WebGL pass (bloom, shockwave, heat haze, colour grading) and draw big effects with GPU
-  particles, with a Canvas 2D fallback. Mark has particle-system experience and could design emitters. **Started
-  after playthrough 2 (Mark, 2026-09-29): targeted improvements, not the full PixiJS port.**
+  particles, with a Canvas 2D fallback. Mark has particle-system experience and could design emitters. **First
+  slice built 2026-09-30** (see "Right now"); targeted improvements, not the full PixiJS port.
 - **Unity port** (pinned 2026-09-29): feasible (the procedural art exports to PNG sheets, audio to WAV, the battle
   engine ports mechanically to C#; Unity's own MCP needs its AI plan, community MCPs are free). Proposed first step
   if revisited: a one-battle spike.

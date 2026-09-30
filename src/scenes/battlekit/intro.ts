@@ -17,7 +17,7 @@ interface Shard {
  * from 6 + 24: the fall is the same motion, played slower.
  */
 export const INTRO_T = 52;
-const CRACK = 16;
+export const CRACK = 16;
 /** The fall as first authored ran 24 frames; it now spans the rest of INTRO_T at the same shapes. */
 const FALL_SCALE = 24 / (INTRO_T - CRACK);
 

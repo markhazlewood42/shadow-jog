@@ -15,9 +15,12 @@ import { gzipSync } from 'node:zlib';
  * (Hex's deck scene and art, the shop's equip and sell-all, the damage-type symbols, the terrain
  * relief pass, the chest glow, finer creature art): measured 200 kB, with the deck scene split
  * into its own chunk so the boot chunk stays under its cap.
+ * Re-set to 224 kB on 2026-09-30 for playthrough 2 (the level-up panel, the jingle, the valve
+ * sounds, the equip screen) and the GPU effects layer Mark asked for (the WebGL presenter and its
+ * shaders, the particle simulation and emitter presets, about 4 kB): measured 213.7 kB.
  */
 const CHUNK_MAX = 480 * 1000;
-const GZIP_TOTAL_MAX = 212 * 1000;
+const GZIP_TOTAL_MAX = 224 * 1000;
 
 const dir = 'dist/assets';
 const js = readdirSync(dir).filter((f) => f.endsWith('.js'));

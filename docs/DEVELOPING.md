@@ -118,6 +118,7 @@ time. Run a single spec: `npx playwright test e2e/chaos.spec.ts --reporter=line`
 - `battle(encounter, bg, boss)`, `defineEncounter(id, enemies)`;
 - `say(who, text)`, `menu()`, `shop(id)`, `run(scriptFn)`, `save(slot)`, `ending()`, `notice()`;
 - `debug`: `{ autoDialog, autoBattle, autoLose, playtest }`.
+- `postfx` (the GPU effects façade: try `sj.postfx.shock(240, 135)`), `gpu(on)` (the Options switch).
 
 Setting flags by hand: `sj.state.flags.floodgate = true`, then `sj.field().api.refreshMap()`.
 
@@ -174,6 +175,12 @@ including why it ended at round 12. If a future milestone brings it back:
   more, re-set it in `scripts/bundle-budget.mjs` with the reason in the comment.
 - **Screenshots are staged**, not played: `e2e/shots.spec.ts` sets flags and positions directly. When a feature
   changes a scene, update or add its shot.
+- **Importing a module by URL in a test page** (`import('/src/…')`) can hand back a *second copy* of it on a
+  long-running dev server: a module edited since the server started is served to the app with a `?t=` query. Go
+  through `window.__SJ__` (which holds the app's own copies) for anything with state (`settings`, `postfx`).
+- **GPU effects in tests**: headless Chromium on CI has no GPU; WebGL is either missing (the game falls back to 2D)
+  or software (slower: `PW_NOGPU=1` reproduces it locally). `e2e/gpufx.spec.ts` skips its WebGL checks where
+  there's no WebGL 2 and always checks the fallback.
 - **Evidence runs take ~25 minutes** and use ports 3007/3008; don't start a manual preview on 3008 during one.
 
 ---
@@ -211,6 +218,14 @@ Objectives go in `OBJ`. New names go in the glossary.
 - Songs: a `SongSpec` in `src/audio/songs.ts` (see the notation at the top of `music.ts`). Bars must add up
   (`music.test.ts`). Check loudness and loop seams with `npx playwright test e2e/audio-evidence.spec.ts`.
 - Effects: a synth function and a `LEVEL` entry in `src/audio/sfx.ts` (measure it with the audio evidence).
+
+### A new particle effect (GPU effects)
+- A preset in `src/data/emitters.ts` (fields and units in `engine/particles.ts`: count, life, speed, direction and
+  spread, gravity, drag, size and colour over life, shape, blend). Fire it with `postfx.emit(EMITTERS.id, x, y)`
+  in screen pixels (battle world coordinates ×2); battle moments are wired in `scenes/battlekit/gpufx.ts`.
+- Try one live on the dev server: `sj.postfx.emit((await import('/src/data/emitters.ts')).EMITTERS.embers, 240, 135)`
+  in the console of a `?debug` page (in a battle: particles are clipped to the battlefield).
+- `tests/gpufx.test.ts` checks every preset is well formed; `e2e/gpufx.spec.ts` fires them all in a battle.
 
 ### A new save field
 Add it to `GameState` and `newState()`. If it's purely additive, give it a default in `backfill()` (`save.ts`). If

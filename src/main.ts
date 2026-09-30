@@ -5,6 +5,7 @@ import { boot } from './boot';
 import { currentNotice, reportError } from './engine/errors';
 import { drawText, fitText, measure, wrap } from './engine/font';
 import { perf } from './engine/perf';
+import { postfx } from './engine/postfx';
 import { settings } from './game/settings';
 
 function fail(err: unknown): void {
@@ -27,12 +28,23 @@ function start(): void {
   const step = 1000 / FPS;
   let last = performance.now();
   let acc = 0;
+  // GPU effects that can't keep up switch themselves off for the session (a weak or blocklisted
+  // GPU draws them in software): a long run of frames under 25 fps, with the tab in view.
+  let slowRun = 0;
   const loop = (now: number) => {
     // Scheduled first: whatever throws below, the next frame still runs.
     requestAnimationFrame(loop);
     const t0 = performance.now();
-    acc += Math.min(250, now - last);
+    const delta = now - last;
+    acc += Math.min(250, delta);
     last = now;
+    if (postfx.active && !document.hidden && delta < 250) {
+      slowRun = delta > 40 ? slowRun + 1 : Math.max(0, slowRun - 2);
+      if (slowRun >= 90) {
+        slowRun = 0;
+        window.dispatchEvent(new Event('sj-gpu-slow'));
+      }
+    }
     let n = 0;
     let simMs = 0;
     try {
@@ -43,6 +55,7 @@ function start(): void {
       }
       if (n === 5) acc = 0;
       simMs = performance.now() - t0;
+      display.beginFrame();
       game.render();
       display.present();
     } catch (e) {

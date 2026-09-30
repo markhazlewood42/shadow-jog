@@ -835,10 +835,12 @@ export class FxLayer {
     this.shapes.length = k;
   }
 
-  render(ctx: Ctx, drawGlyph: (ctx: Ctx, ch: string, x: number, y: number, color: string) => void): void {
+  /** Draw everything in flight. `glow`: for the GPU bloom's light only (no smoke, no glyphs). */
+  render(ctx: Ctx, drawGlyph: (ctx: Ctx, ch: string, x: number, y: number, color: string) => void, glow = false): void {
     for (const s of this.shapes) if (s.delay <= 0) s.draw(ctx, s.t / s.max, s.t);
     for (const p of this.parts) {
       if (p.delay > 0) continue;
+      if (glow && (p.kind === 'smoke' || p.kind === 'glyph')) continue;
       const k = p.life / p.max;
       const x = Math.round(p.x), y = Math.round(p.y);
       switch (p.kind) {

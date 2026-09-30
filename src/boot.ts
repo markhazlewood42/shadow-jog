@@ -8,7 +8,7 @@ import { TitleScene } from './scenes/title';
 import { loadSave, unsavedFrames, writeSave } from './game/save';
 import { newGame } from './story/newgame';
 import type { Game as GameT } from './engine/game';
-import { flashScale, settings, shakeScale } from './game/settings';
+import { flashScale, saveSettings, settings, shakeScale } from './game/settings';
 import { debug, debugBattleDriver } from './game/debug';
 import { setBattleDriver } from './scenes/battlekit/driver';
 import type { GameState } from './game/state';
@@ -20,6 +20,7 @@ import { perf } from './engine/perf';
 import { currentNotice, notice } from './engine/errors';
 import { EndingScene } from './scenes/ending';
 import { fieldHooks } from './game/hooks';
+import { postfx } from './engine/postfx';
 
 declare global {
   interface Window {
@@ -70,6 +71,13 @@ export function boot(game: Game, display: Display): void {
     notice: () => currentNotice(),
     /** The end-of-chapter results and next-chapter card, without the comic pages. */
     ending: () => void game.run(new EndingScene(game.playFrames)),
+    /** GPU effects: the façade (engine/postfx.ts), and the switch as Options flips it. */
+    postfx,
+    gpu: (on: boolean) => {
+      settings.gpuFx = on;
+      saveSettings();
+      window.dispatchEvent(new Event('sj-gpu'));
+    },
   };
   display.mode = settings.scale;
   display.resize();
@@ -147,6 +155,22 @@ export function boot(game: Game, display: Display): void {
   // where Continue picks up the last good save.
   game.shakeScale = shakeScale;
   game.flashScale = flashScale;
+  // GPU effects: on when the setting says so and WebGL 2 works. Shockwaves follow Screen shake
+  // and pulses follow Screen flash, so the comfort options cover them too.
+  display.setGpu(settings.gpuFx);
+  window.addEventListener('sj-gpu-slow', () => {
+    display.setGpu(false);
+    postfx.suspended = true;
+    notice('The GPU effects were slowing the game down, so they’re off for now. Options → GPU effects turns them back on.', 'warn');
+  });
+  window.addEventListener('sj-gpu', () => {
+    if (!display.setGpu(settings.gpuFx) && settings.gpuFx) notice('GPU effects need WebGL 2, which this browser doesn’t offer. The game looks as before.', 'warn');
+  });
+  game.tickers.push(() => {
+    postfx.motion = [0, 0.6, 1][settings.shake] ?? 1;
+    postfx.intensity = [0, 0.5, 1][settings.flash] ?? 1;
+    postfx.update();
+  });
   game.onFault = () => {
     game.abandon();
     notice('Something broke and the game recovered to the title. Continue loads your last save.', 'warn');

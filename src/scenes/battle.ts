@@ -29,8 +29,9 @@ import { battleDriver } from './battlekit/driver';
 import { TimingWindow, timingWord } from './battlekit/timing';
 import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
-import { BHT, BW, DECK_CUT_LIFE, MENU_X, PARTY_BOTTOM } from './battlekit/geom';
-import { INTRO_T } from './battlekit/intro';
+import { BHT, BW, DECK_CUT_LIFE, MENU_X, PANEL_Y, PARTY_BOTTOM } from './battlekit/geom';
+import { CRACK, INTRO_T } from './battlekit/intro';
+import { postfx } from '../engine/postfx';
 import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
 import { RIM, artTop, drawBig } from './battlekit/sprites';
@@ -155,6 +156,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     // party, effects and numbers onto a clear world layer in front of them (battlekit/render.ts).
     this.enemyLayer = surface(W, H);
     this.front = surface(BW, BHT);
+    // GPU particles stay on the battlefield: above the status cards.
+    postfx.clear();
+    postfx.clip = { x: 0, y: 0, w: W, h: PANEL_Y };
     const party = state.party.map((id, i) => partyCombatant(state.members[id]!, i, i));
     const group = setup.enemies ?? pickGroup(setup.encounter);
     const enemies = enemyParty(group);
@@ -187,6 +191,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   d(uid: number): Disp {
     return this.disp.get(uid)!;
+  }
+
+  /** However the fight ends (won, lost, fled, or abandoned after a fault), its effects end with it. */
+  override exit(): void {
+    postfx.clear();
   }
 
   override enter(): void {
@@ -245,6 +254,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     for (let t = 0; t < INTRO_T; t += this.speed()) {
       this.introT = Math.floor(t);
       for (const e of this.battle.enemies) this.d(e.uid).alpha = Math.min(1, Math.max(0, (t - INTRO_T * 0.35) / (INTRO_T * 0.5)));
+      // The glass breaks: the air ripples out from the middle of the screen (GPU effects).
+      if (t < CRACK && t + this.speed() >= CRACK) {
+        postfx.shock(W / 2, H / 2, { strength: 6, reach: 320, life: 40, width: 24 });
+        postfx.aberrate(3);
+      }
       await this.game.wait(1);
     }
     this.introT = 999;
@@ -405,6 +419,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     if (this.flowError) throw this.flowError;
     this.frame++;
     this.fx.rate = this.animRate();
+    // GPU particles and shockwaves run on the battle's animation clock too, and hold in a hit pause.
+    postfx.rate = this.hitstop > 0 ? 0 : this.fx.rate;
     if (this.timing.isOpen && !this.timing.result) {
       // A registered driver (a test harness) presses on the beat by itself.
       const auto = battleDriver()?.timing() ?? null;

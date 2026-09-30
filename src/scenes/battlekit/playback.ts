@@ -19,6 +19,7 @@ import type { Disp, Floater } from './types';
 import { WINDOWS } from './timing';
 import { PARTY_POSE_T } from './motion';
 import { direction } from '../../engine/shake';
+import { gpuDown, gpuHeal, gpuHit, gpuPhase } from './gpufx';
 import type { TimingProfile } from '../../battle/engine';
 
 /** What playback may do to the scene. */
@@ -205,6 +206,8 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       // The frame kicks the way the blow travelled, then springs back.
       const from = v.lastActor && v.lastActor.uid !== e.target ? v.pos(v.lastActor.uid) : null;
       if (tier) v.game.shake(6 + tier * 3, tier + 1 + (e.crit ? 1 : 0), from ? direction(from, v.pos(e.target)) : undefined);
+      // GPU effects (when on): the damage type's burst, and for the big ones a shockwave.
+      if (e.amount > 0) gpuHit(v.pos(e.target), from, e.element, tier, { crit: !!e.crit, weak: !!e.weak, combo: comboAction && tier >= 2 && actionStops === 0 });
       if (tier >= 2 && actionStops === 0) {
         actionStops++;
         // A critical or a combo landing is a different kind of moment: push in, cut to the impact.
@@ -229,6 +232,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       v.d(e.target).hp = e.hp;
       // A perfect press on a healing skill: a brighter number, and a chime on top of the heal.
       v.floatOn(e.target, `+${e.amount}`, e.crit ? '#d8ffc8' : '#86f08c', 'hit');
+      gpuHeal(v.pos(e.target), !!e.crit);
       sfx('heal');
       if (e.crit) {
         v.d(e.target).flash = 10;
@@ -260,6 +264,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         dd.flash = 10;
         dd.dying = 1;
         sfx('enemy_die');
+        gpuDown(v.pos(e.target), !!u.boss);
         v.markDead(u.uid);
         state.bestiary[u.key] = (state.bestiary[u.key] ?? 0) + 1;
       } else {
@@ -328,6 +333,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       v.relayout();
       const dd = v.d(e.target);
       sfx('phase');
+      gpuPhase(v.pos(e.target));
       v.game.flash('#ffffff', 20);
       v.game.shake(30, 4);
       v.showBanner(`${e.name}!`, '#b89aff', true);

@@ -12,6 +12,7 @@
 import { shakeOffset } from './shake';
 import type { Ctx } from './canvas';
 import { reportError } from './errors';
+import { postfx } from './postfx';
 import type { Input } from './input';
 
 /** Consecutive faulting ticks before the game gives up on the current flow. */
@@ -338,16 +339,20 @@ export class Game {
       ctx.fillRect(0, 0, W, H);
     }
     this.faultedThisRender = false;
+    // With GPU effects on, everything above the world (menus, dialog, notices) draws into the UI
+    // layer, which the presenter lays on top after bloom and distortion (engine/postfx.ts).
+    const ui = postfx.active && postfx.ui ? postfx.ui : ctx;
     for (let i = Math.max(0, start); i < this.stack.length; i++) {
       if (i > start && i < curtain) continue;
-      ctx.save();
+      const c = i > start ? ui : ctx;
+      c.save();
       try {
-        this.stack[i]?.render(ctx);
+        this.stack[i]?.render(c);
       } catch (e) {
         if (!this.faultedThisRender) reportError(e);
         this.faultedThisRender = true;
       }
-      ctx.restore();
+      c.restore();
     }
     ctx.restore();
     // A scene that throws on every draw leaves the last good frame on screen: to the player, a
@@ -358,21 +363,35 @@ export class Game {
       this.onFault?.();
     }
     const flash = this.flashScale();
-    if (this.flashFrames > 0 && flash > 0) {
-      ctx.globalAlpha = (this.flashFrames / this.flashTotal) * 0.8 * flash;
-      ctx.fillStyle = this.flashColor;
-      ctx.fillRect(0, 0, W, H);
-      ctx.globalAlpha = 1;
-    }
-    if (this.fadeLevel > 0.001) {
-      ctx.globalAlpha = Math.min(1, this.fadeLevel);
-      ctx.fillStyle = this.fadeColor;
-      ctx.fillRect(0, 0, W, H);
-      ctx.globalAlpha = 1;
+    const flashA = this.flashFrames > 0 && flash > 0 ? (this.flashFrames / this.flashTotal) * 0.8 * flash : 0;
+    if (postfx.active) {
+      // The presenter washes the world with the flash (not the UI); the fade covers the world and
+      // the UI alike from the UI layer, with the notices still drawn over it, as in 2D.
+      postfx.flashColor = this.flashColor;
+      postfx.flashAlpha = flashA;
+      if (this.fadeLevel > 0.001) {
+        ui.globalAlpha = Math.min(1, this.fadeLevel);
+        ui.fillStyle = this.fadeColor;
+        ui.fillRect(0, 0, W, H);
+        ui.globalAlpha = 1;
+      }
+    } else {
+      if (flashA > 0) {
+        ctx.globalAlpha = flashA;
+        ctx.fillStyle = this.flashColor;
+        ctx.fillRect(0, 0, W, H);
+        ctx.globalAlpha = 1;
+      }
+      if (this.fadeLevel > 0.001) {
+        ctx.globalAlpha = Math.min(1, this.fadeLevel);
+        ctx.fillStyle = this.fadeColor;
+        ctx.fillRect(0, 0, W, H);
+        ctx.globalAlpha = 1;
+      }
     }
     for (let i = 0; i < this.overlays.length; i++) {
       try {
-        this.overlays[i]?.(ctx);
+        this.overlays[i]?.(ui);
       } catch (e) {
         this.fault(e);
         this.overlays.splice(i--, 1);
