@@ -71,6 +71,14 @@ on every push to `main`.
 enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab picks, `?art=classic` none). Snapshots to roll
   back to: tag `snapshot/2026-09-30-procedural` (all code-drawn), tag `snapshot/2026-09-30-pixellab-picks` (picks
   shipped), and `media/snapshots/art-pass-2026-09-30.tar.gz` (every generated option and his full review; local).
+  **Next focus after this (Mark): special effects, "the real differentiator"**, once the art is in a good middle
+  ground (scalable, decent animation). **The review tool stays in use for the code-drawn art** (Mark): each rig
+  iteration is rendered onto /artreview.html (`scripts/art/review-rig.mjs`) as a new version beside the old sprite
+  and the PixelLab pick.
+  **First build done (rig v2, the crew in the field):** Kit (from the round-2 redo, with a face in profile), Rook,
+  Hex and Sable traced and walking in code (`src/art/rig2/`); review versions v1 and v2 on the page. Next in the
+  slice: Kit's battle back from her fighting-stance frame, with stance → strike and a cast raise by code (Mark's
+  direction: the strike starts in her stance and ends fist out in it).
   **Plan:** a rig v2 for characters: chibi proportions from the picks (~18x28 field sprites, faces in every
   facing), 3-4 tone hue-shifted ramps per material with one light direction, selective outlines, parts drawn in code
   and layered per facing, animation in code (walks; battle key poses as part swaps, directable by Mark). First build:

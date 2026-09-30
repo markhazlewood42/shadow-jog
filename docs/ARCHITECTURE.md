@@ -304,6 +304,14 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
   `smirk`, `hurt`).
 - **`critters.ts`**: cats and crows.
 - `data/looks.ts`: the cast's looks (`LOOKS`) and `randomLook(seed)` / `streetLook(seed)` for crowds.
+- **Rig v2 (`rig2/`, since 2026-09-30): characters drawn in code from traced standing frames.** A look with
+  `rig: 'kit'` (the crew so far) is built by `rigSprite()` instead of the letter-grid templates. `rig2/traced.ts`
+  holds each character's standing frame per facing, traced from the PixelLab pick Mark liked by
+  `scripts/art/trace.mjs` (palette-indexed pixels, one palette per character, outline removed, the feet and hip
+  rows). Everything else is code and identical every time: below the hip only trouser and boot colours move
+  (`legColours`), so hair, coat hems and staffs hang still; facing us or away a step lifts one foot a pixel; side on,
+  the legs swing apart about the hip by RotSprite (Scale2x up 8x, rotate, sample down), the far leg a shade darker;
+  the body bobs on passing steps; the outline is drawn around each finished pose. Walks go in `CharSprite.walk`.
 - **Drawn art (`drawn.ts`, shipped since 2026-09-30).** At startup `boot.ts` awaits `loadDrawnArt()`: it reads
   `public/art/manifest.json` (written by `scripts/pixellab/export-picks.mjs` from Mark's review) and hands each piece
   to its cache's replace hook: characters (a sheet per character: a row per facing, standing frame then walk),

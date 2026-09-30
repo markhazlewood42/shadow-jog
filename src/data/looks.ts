@@ -4,6 +4,7 @@ import { Rng } from '../engine/rng';
 
 export const LOOKS = {
   kit: {
+    rig: 'kit',
     skin: '#b97a52', hair: '#2e1d33', hairStyle: 'ponytail',
     top: '#d8452e', inner: '#1d1b2a', accent: '#f2b84b',
     pants: '#2b3350', boots: '#3a2a2a',
@@ -12,6 +13,7 @@ export const LOOKS = {
     idle: 'bounce',
   },
   rook: {
+    rig: 'rook',
     skin: '#e0b08a', hair: '#8d8f99', hairStyle: 'short',
     top: '#4d5238', coat: '#4d5238', inner: '#23232e', accent: '#b58a4a',
     pants: '#2a2a33', boots: '#1c1a22', cyberArm: 'right',
@@ -22,6 +24,7 @@ export const LOOKS = {
     idle: 'crossed',
   },
   hex: {
+    rig: 'hex',
     body: 'short', skin: '#f0c7a4', hair: '#2fbfb0', hairStyle: 'bun',
     top: '#6a3fa0', inner: '#2a2438', accent: '#ffcc3d',
     pants: '#3a3350', boots: '#2a2030',
@@ -32,6 +35,7 @@ export const LOOKS = {
     carry: 'antenna',
   },
   sable: {
+    rig: 'sable',
     body: 'big', skin: '#8a9a6a', hair: '#e8e4da', hairStyle: 'long',
     top: '#8c2f39', inner: '#3a2a24', accent: '#d9b36c',
     pants: '#4a3a30', boots: '#2a2020', accessories: ['tusks'],

@@ -9,6 +9,8 @@
  */
 import { pixelSurface, surface } from '../engine/canvas';
 import { rgb, shade } from '../engine/color';
+import { rigSprite } from './rig2/rig';
+import { TRACED } from './rig2/traced';
 
 export type Dir = 'down' | 'up' | 'left' | 'right';
 export type Body = 'std' | 'short' | 'big';
@@ -59,6 +61,11 @@ export interface CharLook {
    * (crossed) or bounce on their toes (bounce). Personality at play scale.
    */
   idle?: 'crossed' | 'bounce';
+  /**
+   * Drawn by rig v2 (src/art/rig2/): the traced character of this name, with code walks and poses,
+   * instead of the letter-grid templates below. The crew first (2026-09-30).
+   */
+  rig?: 'kit' | 'rook' | 'hex' | 'sable';
 }
 
 export interface CharSprite {
@@ -1083,6 +1090,12 @@ export function buildChar(look: CharLook): CharSprite {
   const key = JSON.stringify(look);
   const hit = cache.get(key);
   if (hit) return hit;
+  const traced = look.rig ? TRACED[look.rig] : undefined;
+  if (traced) {
+    const sprite = rigSprite(traced, look.idle === 'bounce');
+    cache.set(key, sprite);
+    return sprite;
+  }
   const frames: Record<Dir, HTMLCanvasElement[]> = { down: [], up: [], left: [], right: [] };
   const palFront = palette(look, null);
   const palBack = backGrid(look).pal;

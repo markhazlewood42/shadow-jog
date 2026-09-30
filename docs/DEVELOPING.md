@@ -301,6 +301,17 @@ kept out of the game and out of git until Mark picks. Everything generated lives
   Phantasy Star IV made results noisier. All battle art is made at the field's pixel size (the battle world's
   `res 2`), so the game has one pixel size throughout.
 
+### Rig v2: characters drawn in code
+- **Tracing a character:** add it to `SOURCES` in `scripts/art/trace.mjs` (the PixelLab frames to trace), run it,
+  and give its look `rig: '<name>'` in `src/data/looks.ts`. The tracer writes `src/art/rig2/traced.ts`
+  (regenerate, don't hand-edit).
+- **Reviewing it:** `node scripts/art/review-rig.mjs --label "what changed"` (dev server running) renders every rig
+  character's standing frames and walks onto the review page (category "Rig v2 · crew") as a new version beside
+  the earlier ones, with the old code-drawn sprite and the PixelLab pick as "Now". Mark flags frames and leaves
+  notes there like any other asset; read them with `node scripts/pixellab/status.mjs --review`.
+- **Tuning the animation:** `src/art/rig2/rig.ts` (`STRIDE`, `BOB`, how feet lift). Change, re-run the review
+  script, compare versions.
+
 ### A new save field
 Add it to `GameState` and `newState()`. If it's purely additive, give it a default in `backfill()` (`save.ts`). If
 it renames or reshapes data, bump `SAVE_VERSION` and add a `MIGRATIONS[oldVersion]` step, with a test against a
