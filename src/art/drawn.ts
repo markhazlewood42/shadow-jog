@@ -10,6 +10,7 @@
 import { replaceBattler } from './battlers';
 import { type CharLook, type CharSprite, type Dir, replaceCharSprite } from './chars';
 import { replaceEnemyArt } from './enemies';
+import { FACES, replacePortrait } from './portraits';
 import { LOOKS } from '../data/looks';
 import { getMap, mapIds } from '../data/maps';
 import { replacePropArt } from '../field/props';
@@ -34,6 +35,8 @@ interface Manifest {
   enemies: Record<string, { file: string }>;
   tilesets: (TerrainPlace & { id: string; file: string; corners: (string | null)[] })[];
   props: Record<string, { file: string }>;
+  /** Dialogue portraits: a file per expression; a missing expression uses the neutral face. */
+  portraits?: Record<string, Record<string, string>>;
   /** Every one-off NPC the pass covered (map.id), picked or not: they're never townsfolk. */
   oneOffs?: string[];
 }
@@ -235,5 +238,15 @@ export async function loadDrawnArt(base = 'art/'): Promise<{ done: number; faile
   );
   for (const o of overlays) if (o) addTerrainOverlay(o);
   await each(Object.entries(m.props), async (kind, p) => replacePropArt(kind as PropKind, toCanvas(await loadImage(base + p.file))));
+  await each(Object.entries(m.portraits ?? {}), async (key, files) => {
+    const neutral = files.neutral;
+    if (!neutral) throw new Error('no neutral face');
+    // Every expression without its own drawing uses the neutral one, all in the new style.
+    replacePortrait(key, await loadImage(base + neutral));
+    for (const face of FACES) {
+      const f = files[face];
+      if (f && face !== 'neutral') replacePortrait(key, await loadImage(base + f), [face]);
+    }
+  });
   return { done, failed };
 }

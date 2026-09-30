@@ -375,7 +375,7 @@ export const PORTRAIT_KEYS = Object.keys(SPECS);
  * Use a drawn portrait for this character from now on, for every expression (dev tooling: art-pass
  * options tried in the game, src/dev/artswap.ts). A transparent image goes on the portrait's card.
  */
-export function replacePortrait(key: string, img: CanvasImageSource & { width: number; height: number }): void {
+export function replacePortrait(key: string, img: CanvasImageSource & { width: number; height: number }, faces: readonly string[] = FACES): void {
   const spec = SPECS[key];
   if (!spec) return;
   // The same card paint() draws behind the face.
@@ -391,5 +391,8 @@ export function replacePortrait(key: string, img: CanvasImageSource & { width: n
   for (let y = 1; y < S; y += 3) g.fillRect(0, y, S, 1);
   g.globalAlpha = 1;
   g.drawImage(img, Math.floor((S - img.width) / 2), S - img.height);
-  for (const face of ['neutral', 'happy', 'angry', 'sad', 'surprised', 'smirk', 'hurt']) cache.set(`${key}:${face}`, s.canvas);
+  for (const face of faces) cache.set(`${key}:${face}`, s.canvas);
 }
+
+/** Every expression a portrait has. */
+export const FACES = ['neutral', 'happy', 'angry', 'sad', 'surprised', 'smirk', 'hurt'] as const;

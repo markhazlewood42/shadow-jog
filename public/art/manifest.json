@@ -1,6 +1,6 @@
 {
  "version": 1,
- "made": "2026-09-30T22:19:26.967Z",
+ "made": "2026-09-30T22:34:45.559Z",
  "chars": [
   {
    "id": "crew.hex",
@@ -11,12 +11,12 @@
    "look": "hex"
   },
   {
-   "id": "crew.rook",
-   "file": "chars/crew_rook.png",
+   "id": "crew.kit",
+   "file": "chars/crew_kit.png",
    "cell": 32,
    "frames": 5,
    "walk": true,
-   "look": "rook"
+   "look": "kit"
   },
   {
    "id": "crew.sable",
@@ -581,6 +581,9 @@
   "lamp": {
    "file": "props/lamp.png"
   },
+  "shrine": {
+   "file": "props/shrine.png"
+  },
   "stall": {
    "file": "props/stall.png"
   },
@@ -604,13 +607,9 @@
   }
  },
  "held": [
-  "portrait.dutch: portraits wait for their other expressions",
-  "portrait.hex: portraits wait for their other expressions",
-  "portrait.kit: portraits wait for their other expressions",
   "portrait.mags: portraits wait for their other expressions",
   "portrait.pale: portraits wait for their other expressions",
   "portrait.rook: portraits wait for their other expressions",
-  "portrait.sable: portraits wait for their other expressions",
   "portrait.yun: portraits wait for their other expressions",
   "critter.noodle: critters aren't drawn from sprites yet",
   "terrain.dock: no map uses this terrain yet"
@@ -634,5 +633,38 @@
   "world.fisher",
   "world.hermit",
   "world.km_gate"
- ]
+ ],
+ "portraits": {
+  "dutch": {
+   "neutral": "portraits/dutch.png",
+   "smirk": "portraits/dutch-smirk.png",
+   "happy": "portraits/dutch-happy.png"
+  },
+  "hex": {
+   "neutral": "portraits/hex.png",
+   "happy": "portraits/hex-happy.png",
+   "sad": "portraits/hex-sad.png",
+   "surprised": "portraits/hex-surprised.png",
+   "angry": "portraits/hex-angry.png",
+   "hurt": "portraits/hex-hurt.png",
+   "smirk": "portraits/hex-smirk.png"
+  },
+  "kit": {
+   "neutral": "portraits/kit.png",
+   "happy": "portraits/kit-happy.png",
+   "smirk": "portraits/kit-smirk.png",
+   "angry": "portraits/kit-angry.png",
+   "hurt": "portraits/kit-hurt.png",
+   "surprised": "portraits/kit-surprised.png",
+   "sad": "portraits/kit-sad.png"
+  },
+  "sable": {
+   "neutral": "portraits/sable.png",
+   "happy": "portraits/sable-happy.png",
+   "sad": "portraits/sable-sad.png",
+   "angry": "portraits/sable-angry.png",
+   "hurt": "portraits/sable-hurt.png",
+   "surprised": "portraits/sable-surprised.png"
+  }
+ }
 }

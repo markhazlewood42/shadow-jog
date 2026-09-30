@@ -65,7 +65,22 @@ const jobs = []; // work for the browser page: { out, op, ... }
 for (const { meta, opt, flags } of picks()) {
   const [cat, key = ''] = meta.id.split('.');
   if (meta.kind === 'portrait') {
-    manifest.held.push(`${meta.id}: portraits wait for their other expressions`);
+    // Only with its expressions (the dialogue uses six besides neutral); a flagged one falls back
+    // to the new neutral face.
+    const faces = Object.entries(opt.faces ?? {});
+    if (!faces.length) {
+      manifest.held.push(`${meta.id}: portraits wait for their other expressions`);
+      continue;
+    }
+    const bad = new Set((flags['faces/front'] ?? []).map((i) => Object.keys(opt.faces)[i]));
+    const files = { neutral: `portraits/${key}.png` };
+    jobs.push({ op: 'copy', out: files.neutral, src: b64(opt.image) });
+    for (const [face, file] of faces) {
+      if (bad.has(face)) continue;
+      files[face] = `portraits/${key}-${face}.png`;
+      jobs.push({ op: 'copy', out: files[face], src: b64(file) });
+    }
+    (manifest.portraits ??= {})[key] = files;
     continue;
   }
   if (meta.kind === 'critter') {

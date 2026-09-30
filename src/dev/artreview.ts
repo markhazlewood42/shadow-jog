@@ -39,6 +39,8 @@ interface Option {
   animErrors?: string[] | null;
   /** Battle key poses inpainted onto the standing sprite: tries per pose (scripts/pixellab/poses.mjs). */
   poses?: Record<string, string[]>;
+  /** Portrait expressions inpainted onto the picked portrait (scripts/pixellab/expressions.mjs). */
+  faces?: Record<string, string>;
 }
 /** A tileset in context: the whole map baked with it, and an in-game shot where its terrains meet. */
 interface Preview {
@@ -279,15 +281,15 @@ function stage(...kids: HTMLElement[]): HTMLElement {
  * One animation's frames in a row, to find glitches: hover a frame to hold the big view on it,
  * click it to flag it (a red frame). Flags save with the review as "<animation>/<direction>".
  */
-function frameStrip(a: Asset, o: Option, anim: string, dir: string, frames: string[], main: HTMLCanvasElement | null, label: string, preview?: (i: number | null) => void): HTMLElement {
+function frameStrip(a: Asset, o: Option, anim: string, dir: string, frames: string[], main: HTMLCanvasElement | null, label: string, preview?: (i: number | null) => void, names?: string[]): HTMLElement {
   const rev = optReview(a.id, o.id);
   const key = `${anim}/${dir}`;
   // Thumbnails at a fixed size, whatever the page zoom: big battle frames 1x, field frames 3x.
-  const thumb = (a.kind === 'battler' ? 1 : 3) / prefs.zoom;
+  const thumb = (a.kind === 'battler' ? 1 : a.kind === 'portrait' ? 2 : 3) / prefs.zoom;
   const strip = h('div', { class: 'strip' }, h('span', { class: 'strip-label' }, label));
   const flagged = (i: number) => rev.flags?.[key]?.includes(i) ?? false;
   frames.forEach((f, i) => {
-    const fr = h('button', { class: `frame${flagged(i) ? ' flagged' : ''}`, title: `Frame ${i + 1}: click to flag it as glitched (click again to unflag). Hovering holds the animation on it.` }, sprite([f], thumb), h('span', {}, String(i + 1)));
+    const fr = h('button', { class: `frame${flagged(i) ? ' flagged' : ''}`, title: `Frame ${i + 1}: click to flag it as glitched (click again to unflag). Hovering holds the animation on it.` }, sprite([f], thumb), h('span', {}, names?.[i] ?? String(i + 1)));
     fr.onclick = () => {
       rev.flags ??= {};
       const set = new Set(rev.flags[key] ?? []);
@@ -474,6 +476,12 @@ function optionBody(a: Asset, o: Option): HTMLElement {
     return h('div', {}, view, h('div', { class: 'pending' }, `Not animated yet: ${names} (PixelLab stalled; the next run retries)`));
   }
   if (o.kind === 'tileset') return tilesetView(o);
+  if (o.image && o.faces && Object.keys(o.faces).length) {
+    // Portrait expressions: click one to flag it (the game then uses the neutral face for it).
+    const names = Object.keys(o.faces);
+    const files = names.map((n) => o.faces?.[n] ?? '');
+    return h('div', {}, stage(sprite([o.image], o.scale ?? 1)), frameStrip(a, o, 'faces', 'front', files, null, 'Expressions (only the face is redrawn): click one to flag it', undefined, names), animNote(a, o, 'faces', 'the expressions'));
+  }
   if (o.image) return stage(sprite([o.image], o.scale ?? 1));
   return h('div', { class: 'failed' }, 'Nothing to show');
 }
