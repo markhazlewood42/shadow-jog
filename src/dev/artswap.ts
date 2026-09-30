@@ -357,7 +357,16 @@ export async function applyReview(params: URLSearchParams): Promise<{ done: stri
   const tryList = params.get('try');
   if (params.get('art') === 'pixellab') picks = [['crew.kit', 'chosen'], ['crew.rook', 'chosen']];
   else if (tryList) picks = tryList.split(',').map((t) => t.split('/') as [string, string]);
-  else picks = Object.entries(data.review.assets ?? {}).flatMap(([aid, r]) => Object.entries(r.options ?? {}).filter(([, v]) => v.verdict === 'best').map(([oid]) => [aid, oid] as [string, string]));
+  else
+    // Mark's picks: an asset's ★ Best; where nothing is Best, its ✓ Good stands in (a crew member with
+    // one option gets Good, meaning "this one"). The townsfolk pool takes every look marked either.
+    picks = Object.entries(data.review.assets ?? {}).flatMap(([aid, r]) => {
+      const opts = Object.entries(r.options ?? {});
+      const best = opts.filter(([, v]) => v.verdict === 'best');
+      const good = opts.filter(([, v]) => v.verdict === 'good');
+      const chosen = best.length ? best : aid.startsWith('town.') ? good : good.slice(0, 1);
+      return chosen.map(([oid]) => [aid, oid] as [string, string]);
+    });
   const oneOffs = new Set(data.assets.flatMap((a) => (a.npc ? [a.npc] : [])));
   const pool = new Map<number, CharSprite>();
   const done: string[] = [];

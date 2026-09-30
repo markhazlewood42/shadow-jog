@@ -629,7 +629,7 @@ function renderMain(): void {
       h('b', {}, 'Try ↗'),
       ' opens the game with that option swapped in; ',
       h('b', {}, 'Try picks in game'),
-      ' swaps in every Best.',
+      ' swaps in every Best (or the Good, where nothing is Best).',
     ),
   );
   for (const [cat, list] of categories()) {
@@ -698,10 +698,11 @@ async function refresh(): Promise<void> {
   if (first && location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
   else window.scrollTo(0, y);
   first = false;
-  const picks = (data?.assets ?? []).flatMap((a) => a.options.filter((o) => optReview(a.id, o.id).verdict === 'best').map((o) => `${a.id}/${o.id}`));
-  const t = $<HTMLAnchorElement>('trypicks');
-  t.href = picks.length ? `/?debug&art=review&try=${picks.join(',')}` : '/?debug&art=review';
 }
+
+// The game reads the saved picks itself (src/dev/artswap.ts), so the link is always current.
+$<HTMLAnchorElement>('trypicks').href = '/?debug&art=review';
+$('trypicks').title = 'Opens the game with every ★ Best swapped in (or the ✓ Good, where nothing is Best). Start or continue a game from the title.';
 
 $('reload').onclick = () => void refresh();
 controls();
