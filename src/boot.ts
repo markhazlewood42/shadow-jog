@@ -22,6 +22,7 @@ import { EndingScene } from './scenes/ending';
 import { fieldHooks } from './game/hooks';
 import { postfx } from './engine/postfx';
 import { FX } from './data/fx';
+import { loadDrawnArt } from './art/drawn';
 
 declare global {
   interface Window {
@@ -195,11 +196,23 @@ export function boot(game: Game, display: Display): void {
       });
     } else void startTitle(game);
   };
-  // ?art=review (DEV only): art-pass picks in place of the generated art (src/dev/artswap.ts).
-  // The swaps apply to sprites built after them, so the scene waits for them.
+  // The drawn art (the PixelLab pass's picks, src/art/drawn.ts) goes in before anything is built:
+  // swaps apply to sprites made after them. Anything that doesn't load keeps its code-drawn art,
+  // with a notice. `?art=classic` keeps the code-drawn art everywhere (for comparing).
   const art = params.get('art');
+  const drawn: Promise<void> =
+    art === 'classic'
+      ? Promise.resolve()
+      : Promise.race([loadDrawnArt(), new Promise<never>((_, reject) => setTimeout(() => reject(new Error('it took too long')), 10_000))]).then(
+          ({ failed }) => {
+            if (failed.length) notice(`Some drawn art didn't load, so the original shows for it (${failed.length}: ${failed.slice(0, 2).join('; ')}${failed.length > 2 ? '…' : ''})`, 'warn');
+          },
+          (e: unknown) => notice(`The drawn art didn't load, so the game shows its original art (${e instanceof Error ? e.message : String(e)})`, 'warn'),
+        );
+  // ?art=review (DEV only): art-pass options tried in the game on top (src/dev/artswap.ts).
   if (import.meta.env.DEV && (art === 'review' || art === 'pixellab')) {
-    void import('./dev/artswap')
+    void drawn
+      .then(() => import('./dev/artswap'))
       .then((m) => m.applyReview(params))
       .then(
         ({ done, failed }) => {
@@ -210,7 +223,7 @@ export function boot(game: Game, display: Display): void {
         (e: unknown) => notice(`Art pass not available: ${e instanceof Error ? e.message : String(e)}`, 'warn'),
       )
       .finally(start);
-  } else start();
+  } else void drawn.finally(start);
 }
 
 /** Show the title (fading in over `fadeIn` frames) and act on the choice. */

@@ -13,8 +13,9 @@ How the code is organised and how the pieces talk to each other. For *what* the 
 day-to-day work (commands, tests, conventions, recipes), read `docs/DEVELOPING.md`.
 
 **In one paragraph:** a browser game with **zero runtime dependencies**. Vite + TypeScript (strict), Canvas 2D at
-**480×270**, scaled to the window. **Every asset is generated in code**: sprites from letter grids and shape
-routines, tiles from procedural painters, music from a small score format played by a WebAudio synthesizer. A
+**480×270**, scaled to the window. The art is **generated in code** (sprites from letter grids and shape routines,
+tiles from procedural painters), with **drawn art** from the PixelLab pass loaded over it at startup where Mark picked
+it (§7, "Drawn art"); music comes from a small score format played by a WebAudio synthesizer. A
 **scene stack** runs at a fixed 60 Hz. The **field** (towns, dungeons, world map) runs **story scripts**, async
 functions that `await` dialogue, battles and camera moves. **Battles** are a pure, deterministic engine that the
 battle scene replays as animation. The game state is one plain object, saved to `localStorage`.
@@ -303,6 +304,16 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
   `smirk`, `hurt`).
 - **`critters.ts`**: cats and crows.
 - `data/looks.ts`: the cast's looks (`LOOKS`) and `randomLook(seed)` / `streetLook(seed)` for crowds.
+- **Drawn art (`drawn.ts`, shipped since 2026-09-30).** At startup `boot.ts` awaits `loadDrawnArt()`: it reads
+  `public/art/manifest.json` (written by `scripts/pixellab/export-picks.mjs` from Mark's review) and hands each piece
+  to its cache's replace hook: characters (a sheet per character: a row per facing, standing frame then walk),
+  the crew's battle backs (the standing frame for every pose; the battle animates it in code), enemies (marked
+  `individual`, so a second copy is mirrored and marked, not palette-shifted), terrain (Wang tilesets laid over the
+  painted terrain as a map bakes: `addTerrainOverlay` in `field/tiles.ts`) and props (`replacePropArt` in
+  `field/props.ts`: the prop's painter still runs for its light, flicker and blocking, into scratch, and the picture
+  stands on its footprint with a shadow and its bright pixels glowing). A piece that fails to load keeps its
+  code-drawn art, with a notice; `?art=classic` skips all of it. Portraits are held back until they have all their
+  expressions.
 - **Drawn art, tried in place (dev only).** Each art cache has a `replace…` hook (`replaceCharSprite`,
   `replaceBattler`, `replaceEnemyArt`, `replacePortrait`) that `src/dev/artswap.ts` uses to put PixelLab art-pass
   picks into the running game (`?art=review`). Two fields exist for that art: `CharSprite.walk` (a drawn four-frame

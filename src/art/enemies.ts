@@ -1103,6 +1103,8 @@ export const ENEMY_ART_KEYS = [...Object.keys(HUMANS), ...Object.keys(CREATURES)
  */
 export function replaceEnemyArt(key: string, canvas: HTMLCanvasElement, res = 2): void {
   const base = enemyArt(key);
-  const art: EnemyArt = { canvas, res, w: canvas.width / res, h: canvas.height / res, size: base.size, idle: base.idle, shadow: base.shadow };
+  // `individual`: a second copy in a fight is mirrored and marked, not palette-shifted (which
+  // turned drawn skin green).
+  const art: EnemyArt = { canvas, res, w: canvas.width / res, h: canvas.height / res, size: base.size, idle: base.idle, shadow: base.shadow, individual: true };
   for (let v = 0; v < individuals(key); v++) cache.set(v ? `${key}#${v}` : key, art);
 }

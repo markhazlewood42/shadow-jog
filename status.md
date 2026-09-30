@@ -64,6 +64,20 @@ on every push to `main`.
 - **Trailer, "before" record (2026-09-30):** `media/shadow-jog-trailer-2026-09-30.mp4` (94.7 s, 1080p60, game audio;
   not in git) records the game as it stands with everything made in code, before any AI-generated art. Shot by
   `node scripts/trailer.mjs`; re-shoot after the art changes for the "after".
+- **Art pass, phase 1 in the game (2026-09-30, evening).** Mark reviewed round 1 (98 assets) and his picks now ship:
+  `public/art/` + `src/art/drawn.ts`, loaded at startup over the code-drawn art (which stays as the fallback;
+  `?art=classic` compares). In: 33 characters (Hex, Rook, Sable in the field; 25 named and one-off NPCs; the
+  townsfolk pool), the 4 crew battle backs (standing frame; code motion), all 21 enemies (redraws), 5 tilesets laid
+  into their maps, 17 props. Held: portraits (need expressions), Noodle (critters aren't sprite-based), the harbour
+  tileset (no map). Kit's field sprite stays code-drawn until he picks a round-2 redo. E2E (prod, perf, gpufx,
+  gameover) pass with it; 60 fps held.
+  **Round 2 (70 generations, balance 923) is waiting on his review:** Kit field redo ×2 (faces in the side views
+  now), Pale and Rook portraits with his notes, bed/car/shrine/dumpster each with its own camera (bed and car
+  fixed; shrine half; dumpster still angled), and new walking-away frames for Mags, Pale, Hex, Rook and three
+  townsfolk (salaryman, scav, Hex fixed; Mags and Pale still show a front-facing or tie frame, repaired at export
+  where it's detected, or by his flags; Rook's sword is now missing from the whole cycle).
+  **Next decisions:** the scale pass (new field sprites and props run large: measure, propose); portrait
+  expressions (inpaint eyes and mouth: up to ~240 generations for all, or the main speakers only).
 - **PixelLab art pass, round 1: generated, waiting on Mark's review (2026-09-30).** Mark subscribed to PixelLab (Tier 1,
   2,000 generations a month) and asked for a full pass over the game's art, with options to choose between, reviewed in
   a tool of its own rather than swapped in place. Budget: at most half the month (the client stops at a balance of
@@ -174,7 +188,8 @@ on every push to `main`.
 
 ## Architecture (summary; full version in docs/ARCHITECTURE.md)
 
-- Vite + TypeScript (strict), zero runtime deps, Canvas 2D at 480x270. All art and audio are generated in code.
+- Vite + TypeScript (strict), zero runtime deps, Canvas 2D at 480x270. Audio is generated in code; art is generated in
+  code with Mark's picks from the PixelLab pass loaded over it (`public/art/`, `src/art/drawn.ts`).
 - `src/engine/`: loop, scene stack, input, bitmap font, display scaling; the optional GPU effects layer
   (`postfx.ts`, `gl/presenter.ts`, `particles.ts`).
 - `src/field/`: map baking (tiles, buildings, props), light map, weather, actors, chests.

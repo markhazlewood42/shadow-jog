@@ -11,13 +11,14 @@
  * boot waits for them before starting a scene.
  */
 import { replaceBattler, type Pose } from '../art/battlers';
-import { type CharLook, type CharSprite, type Dir, replaceCharSprite } from '../art/chars';
+import { type CharSprite, type Dir, replaceCharSprite } from '../art/chars';
+import { feetRow, hashLook, headRow, spriteFrom, type TerrainPlace, toCanvas, townsfolkLooks, wangOverlay } from '../art/drawn';
 import { replaceEnemyArt } from '../art/enemies';
 import { replacePortrait } from '../art/portraits';
 import { ENEMIES } from '../data/enemies';
 import { LOOKS } from '../data/looks';
-import { getMap, mapIds } from '../data/maps';
-import { addTerrainOverlay, type TerrainOverlay, TS } from '../field/tiles';
+import { getMap } from '../data/maps';
+import { addTerrainOverlay, type TerrainOverlay } from '../field/tiles';
 
 interface Option {
   id: string;
@@ -31,14 +32,6 @@ interface Option {
 }
 /** Mark's flags on an option's frames and pose tries, by "<animation>/<direction>". */
 type Flags = Record<string, number[]>;
-/** A tileset's place in the game: the map, and which terrain types are its lower and upper. */
-interface TerrainPlace {
-  map: string;
-  lower: string[];
-  upper: string[];
-  /** Counted as lower for the corners, but left as the game paints them (road markings, grates). */
-  keep?: string[];
-}
 interface Asset {
   id: string;
   kind: string;
@@ -65,77 +58,21 @@ function loadImage(path: string): Promise<HTMLImageElement> {
   });
 }
 
-function toCanvas(img: HTMLImageElement): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = img.width;
-  c.height = img.height;
-  c.getContext('2d')?.drawImage(img, 0, 0);
-  return c;
-}
-
-function mirror(c: HTMLCanvasElement): HTMLCanvasElement {
-  const out = document.createElement('canvas');
-  out.width = c.width;
-  out.height = c.height;
-  const g = out.getContext('2d');
-  if (g) {
-    g.scale(-1, 1);
-    g.drawImage(c, -c.width, 0);
-  }
-  return out;
-}
-
-/** The lowest row with anything drawn in it (where the feet are). */
-function feetRow(c: HTMLCanvasElement): number {
-  const g = c.getContext('2d');
-  if (!g) return c.height - 1;
-  const px = g.getImageData(0, 0, c.width, c.height).data;
-  for (let y = c.height - 1; y >= 0; y--) for (let x = 0; x < c.width; x++) if ((px[(y * c.width + x) * 4 + 3] ?? 0) > 0) return y;
-  return c.height - 1;
-}
-
-/** The topmost row with anything drawn in it. */
-function headRow(c: HTMLCanvasElement): number {
-  const g = c.getContext('2d');
-  if (!g) return 0;
-  const px = g.getImageData(0, 0, c.width, c.height).data;
-  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if ((px[(y * c.width + x) * 4 + 3] ?? 0) > 0) return y;
-  return 0;
-}
-
 /** A field sprite from PixelLab rotations (and a walk cycle, if there is one). */
 async function fieldSprite(o: Option): Promise<CharSprite> {
   const rot = o.rotations ?? {};
   const walkFrames = o.anims?.walk?.frames;
-  const frames = {} as Record<Dir, HTMLCanvasElement[]>;
-  const walk: Partial<Record<Dir, HTMLCanvasElement[]>> = {};
+  const stand = {} as Record<Dir, HTMLCanvasElement>;
+  const walks: Partial<Record<Dir, HTMLCanvasElement[]>> = {};
   for (const [dir, pl] of Object.entries(FACING) as [Dir, string][]) {
     const path = rot[pl];
     if (!path) throw new Error(`no ${pl} rotation`);
-    const stand = toCanvas(await loadImage(path));
-    frames[dir] = [stand, stand, stand];
+    stand[dir] = toCanvas(await loadImage(path));
     const w = walkFrames?.[pl];
-    if (w?.length) walk[dir] = await Promise.all(w.map(async (p) => toCanvas(await loadImage(p))));
+    if (w?.length) walks[dir] = await Promise.all(w.map(async (p) => toCanvas(await loadImage(p))));
   }
-  // A side view that came back without its walk borrows the other side's, mirrored; anything
-  // else without a walk just stands (and glides).
-  if (!walk.left && walk.right) walk.left = walk.right.map(mirror);
-  if (!walk.right && walk.left) walk.right = walk.left.map(mirror);
-  for (const d of Object.keys(FACING) as Dir[]) walk[d] ??= frames[d].slice(0, 1);
-  const down = frames.down[0] as HTMLCanvasElement;
-  const hasWalk = !!walkFrames;
-  return { frames, w: down.width, h: down.height, ax: Math.floor(down.width / 2), ay: feetRow(down), walk: hasWalk ? (walk as Record<Dir, HTMLCanvasElement[]>) : undefined };
+  return spriteFrom(stand, walkFrames ? walks : null);
 }
-
-/** Every look used by a townsperson who isn't a named or one-off NPC (the pool's customers). */
-function townsfolkLooks(oneOffs: Set<string>): CharLook[] {
-  const named = new Set<CharLook>(Object.values(LOOKS));
-  const out: CharLook[] = [];
-  for (const mid of mapIds()) for (const n of getMap(mid).npcs ?? []) if (n.look && !named.has(n.look) && !oneOffs.has(`${mid}.${n.id}`)) out.push(n.look);
-  return out;
-}
-
-const hashLook = (l: CharLook) => [...JSON.stringify(l)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
 
 /** Battle poses from the drawn animations: which animation, and which of its frames. */
 const POSE_FROM: Record<Pose, [string, number][]> = {
@@ -263,44 +200,14 @@ async function battleFrames(o: Option, member: string, flags: Flags): Promise<{ 
   return { frames: out, glow };
 }
 
-/**
- * Lay a Wang tileset over the terrain it stands for. Every map corner (where four cells meet) is
- * upper when at least half of the covered cells around it are; each covered cell then takes the
- * tile whose four corners match. So where upper meets lower, the lower side's edge cells carry the
- * transition (the curb, the bank), and cells of other terrain are left as the game paints them.
- */
+/** A tileset option laid over the terrain it stands for (the shipped loader's overlay). */
 async function terrainOverlay(o: Option, place: TerrainPlace): Promise<TerrainOverlay> {
-  const byCorners = new Map<string, HTMLImageElement>();
+  const byCorners = new Map<string, CanvasImageSource>();
   for (const t of o.tiles ?? []) {
     const c = t.corners;
     if (c) byCorners.set(`${c.NW}|${c.NE}|${c.SW}|${c.SE}`, await loadImage(t.file));
   }
-  const lower = new Set([...place.lower, ...(place.keep ?? [])]);
-  const upper = new Set(place.upper);
-  const keep = new Set(place.keep ?? []);
-  return (g, q) => {
-    const kind = (x: number, y: number) => {
-      const id = q.at(x, y);
-      return upper.has(id) ? 1 : lower.has(id) ? 0 : -1;
-    };
-    const corner = (vx: number, vy: number) => {
-      let up = 0;
-      let n = 0;
-      for (const [dx, dy] of [[-1, -1], [0, -1], [-1, 0], [0, 0]] as const) {
-        const k = kind(vx + dx, vy + dy);
-        if (k < 0) continue;
-        n++;
-        up += k;
-      }
-      return n && up * 2 >= n ? 'upper' : 'lower';
-    };
-    for (let y = 0; y < q.h; y++)
-      for (let x = 0; x < q.w; x++) {
-        if (kind(x, y) < 0 || keep.has(q.at(x, y))) continue;
-        const img = byCorners.get(`${corner(x, y)}|${corner(x + 1, y)}|${corner(x, y + 1)}|${corner(x + 1, y + 1)}`);
-        if (img) g.drawImage(img, x * TS, y * TS, TS, TS);
-      }
-  };
+  return wangOverlay(byCorners, place);
 }
 
 /** Apply one option. Returns a label for the notice, or throws. */

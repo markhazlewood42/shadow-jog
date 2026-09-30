@@ -290,6 +290,12 @@ kept out of the game and out of git until Mark picks. Everything generated lives
   `Battler.res`), enemies (`replaceEnemyArt`), portraits (`replacePortrait`) and terrain (`addTerrainOverlay` in
   `field/tiles.ts`: the drawn Wang tiles laid over the painted terrain when a map bakes). Props aren't swappable yet:
   that's the integration step after picks. None of this ships: it's all behind `import.meta.env.DEV`.
+- **Putting picks into the game:** `node scripts/pixellab/export-picks.mjs` writes Mark's picks to `public/art/`
+  (committed, shipped) with `manifest.json`; `src/art/drawn.ts` loads them at startup. The pick is an asset's ★ Best,
+  else its ✓ Good; the townsfolk pool takes every look marked either. On the way it snaps each walk frame to its
+  standing frame's colours and replaces a walk frame that faces the wrong way (or that Mark flagged) with the
+  mirrored opposite step. It holds back portraits (neutral only so far), critters and tilesets no map uses, and
+  says so. Re-run it after every review round, then check the game with and without `?art=classic`.
 - **The house recipe** (from the first tests with Mark): Pro Flash, Low Top-Down, a style image, and a prompt that
   describes the look ("chibi proportions about 2.5 heads tall, … at most 15 colors, bold black outline"). Naming
   Phantasy Star IV made results noisier. All battle art is made at the field's pixel size (the battle world's

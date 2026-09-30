@@ -45,7 +45,13 @@ function crew() {
       out.push({
         ...base,
         note: who === 'kit' ? 'Your pick from the tests (hand wraps, not despeckled), now with a walk cycle.' : 'The Rook from the tests, now with a walk cycle.',
-        options: [{ id: 'chosen', kind: 'character', characterId: ids[who], label: 'From the tests', recipe: 'Pro Flash 32 px · style: his/her current sprite', anims: [WALK] }],
+        options: [
+          { id: 'chosen', kind: 'character', characterId: ids[who], label: 'From the tests', recipe: 'Pro Flash 32 px · style: his/her current sprite', anims: [WALK] },
+          // Round 2 (Mark's review, 2026-09-30): the test Kit has no face in her side views.
+          ...(who === 'kit'
+            ? [1, 2].map((n) => ({ id: `redo${n}`, kind: 'character', size: { width: 32, height: 32 }, prompt: field(`${desc}, her face clearly drawn in the side views (eye, nose and mouth in profile)`), style: STYLE_KIT, seed: n * 37, cost: 6, label: `Round 2, try ${n}`, recipe: 'Pro Flash 32 px · style: the test Kit · face in profile asked for', anims: [WALK] }))
+            : []),
+        ],
       });
       continue;
     }
@@ -168,9 +174,19 @@ function portraits() {
     options: [
       { id: 'faithful', kind: 'image', size: { width: 48, height: 48 }, prompt: `${desc}, ${PORTRAIT_TAIL}`, style: `media/art-pass/current/portrait/${key}.png`, cost: 5, label: 'Styled on today’s portrait', recipe: 'Pro Flash image 48 px · style: current portrait' },
       { id: 'fresh', kind: 'image', size: { width: 48, height: 48 }, prompt: `${desc}, ${PORTRAIT_TAIL}`, cost: 5, label: 'Prompt only', recipe: 'Pro Flash image 48 px · no style image' },
+      // Round 2 (Mark's review): his notes on the ones he liked.
+      ...(PORTRAIT_FIX[key]
+        ? [1, 2].map((n) => ({ id: `fix${n}`, kind: 'image', size: { width: 48, height: 48 }, prompt: `${PORTRAIT_FIX[key]}, ${PORTRAIT_TAIL}`, style: `media/art-pass/current/portrait/${key}.png`, seed: n * 41, cost: 5, label: `Round 2, try ${n}`, recipe: 'Pro Flash image 48 px · style: current portrait · your notes' }))
+        : []),
     ],
   }));
 }
+
+/** Round 2 portraits: Mark's notes folded into the description. */
+const PORTRAIT_FIX = {
+  pale: 'Mr. Pale, a pale thin man, slicked-back white hair, a glowing red visor across his eyes drawn in detail (a bright scan line, a reflective glint, a dark frame), white suit, red tie, expressionless',
+  rook: '41-year-old man with broad powerful shoulders, light tan skin, short grey hair, short grey beard, dark sunglasses, olive-green coat, his chrome cybernetic right arm clearly visible from the shoulder down, stern',
+};
 
 // ------------------------------------------------------------------ townsfolk and named NPCs
 
@@ -355,6 +371,14 @@ const pngSize = (path) => {
   return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
 };
 
+/** Round 2 props (Mark's review): each needs its own camera, not one setting for all. */
+const PROP_FIX = {
+  bed: { angle: 'seen from directly above, straight top-down bird’s-eye view, flat, no perspective', short: 'straight down', view: 'high top-down' },
+  car: { angle: 'seen from the side in profile, a flat side view facing left, no perspective', short: 'side-on', view: 'side' },
+  shrine: { angle: 'seen from the front facing the camera straight on, symmetrical, flat front view, not turned', short: 'front-on', view: 'low top-down' },
+  dumpster: { angle: 'seen from the front facing the camera straight on, detailed dents, rust, stickers and a lid handle', short: 'front-on, more detail', view: 'low top-down', detail: 'high detail' },
+};
+
 function props() {
   return Object.entries(PROP).map(([kind, desc]) => {
     const cur = `media/art-pass/current/prop/${kind}.png`;
@@ -373,6 +397,12 @@ function props() {
         { id: 'mapobj', kind: 'mapobject', size: mapSize, prompt: desc, view: 'high top-down', body: { outline: 'single color outline', shading: 'basic shading', detail: 'medium detail' }, cost: 1, label: 'Map-object tool', recipe: `Map object ${mapSize.width}x${mapSize.height} · high top-down` },
         // Round 1b (Mark, 2026-09-30): the first two often came back turned at an angle ("3/4 view" also means
         // rotated 45°), but the game draws props straight-on. This one asks for the front, facing the camera.
+        ...(PROP_FIX[kind]
+          ? [
+              { id: 'fix', kind: 'image', size: exact, prompt: `${desc}, ${PROP_FIX[kind].angle}, 16-bit JRPG game prop, pixel art, two shadow tones, dark outline`, style: cur, styleOptions: { color_palette: true, outline: true, detail: false, shading: false }, cost: 5, label: 'Round 2: its own camera', recipe: `Pro Flash image ${exact.width}x${exact.height} · style: today’s prop · ${PROP_FIX[kind].short}` },
+              { id: 'fixmo', kind: 'mapobject', size: mapSize, prompt: `${desc}, ${PROP_FIX[kind].angle}`, view: PROP_FIX[kind].view, body: { outline: 'single color outline', shading: 'basic shading', detail: PROP_FIX[kind].detail ?? 'medium detail' }, cost: 1, label: 'Round 2: map-object tool', recipe: `Map object ${mapSize.width}x${mapSize.height} · ${PROP_FIX[kind].view} · ${PROP_FIX[kind].short}` },
+            ]
+          : []),
         { id: 'front', kind: 'mapobject', size: mapSize, prompt: `${desc}, seen from the front facing the camera straight on, symmetrical, flat front view, not turned or rotated, no perspective`, view: 'low top-down', body: { outline: 'single color outline', shading: 'basic shading', detail: 'medium detail' }, cost: 1, label: 'Facing the camera', recipe: `Map object ${mapSize.width}x${mapSize.height} · low top-down, front-on` },
       ],
     };

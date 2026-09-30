@@ -1,0 +1,638 @@
+{
+ "version": 1,
+ "made": "2026-09-30T22:19:26.967Z",
+ "chars": [
+  {
+   "id": "crew.hex",
+   "file": "chars/crew_hex.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "look": "hex"
+  },
+  {
+   "id": "crew.rook",
+   "file": "chars/crew_rook.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "look": "rook"
+  },
+  {
+   "id": "crew.sable",
+   "file": "chars/crew_sable.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "look": "sable"
+  },
+  {
+   "id": "npc.armory-tomas",
+   "file": "chars/npc_armory-tomas.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "armory.tomas"
+  },
+  {
+   "id": "npc.bar-barkeep",
+   "file": "chars/npc_bar-barkeep.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "bar.barkeep"
+  },
+  {
+   "id": "npc.bar-old_runner",
+   "file": "chars/npc_bar-old_runner.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "bar.old_runner"
+  },
+  {
+   "id": "npc.clinic-yun",
+   "file": "chars/npc_clinic-yun.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "clinic.yun"
+  },
+  {
+   "id": "npc.corpsec",
+   "file": "chars/npc_corpsec.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "look": "corpsec"
+  },
+  {
+   "id": "npc.corpsec2",
+   "file": "chars/npc_corpsec2.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "look": "corpsec2"
+  },
+  {
+   "id": "npc.corpsec3",
+   "file": "chars/npc_corpsec3.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "look": "corpsec3"
+  },
+  {
+   "id": "npc.dutch",
+   "file": "chars/npc_dutch.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "look": "dutch"
+  },
+  {
+   "id": "npc.ganger",
+   "file": "chars/npc_ganger.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "look": "ganger"
+  },
+  {
+   "id": "npc.hotel-hotelclerk",
+   "file": "chars/npc_hotel-hotelclerk.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "hotel.hotelclerk"
+  },
+  {
+   "id": "npc.kwikmart-clerk",
+   "file": "chars/npc_kwikmart-clerk.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "kwikmart.clerk"
+  },
+  {
+   "id": "npc.lantern_row-fetish",
+   "file": "chars/npc_lantern_row-fetish.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "lantern_row.fetish"
+  },
+  {
+   "id": "npc.lantern_row-skewer",
+   "file": "chars/npc_lantern_row-skewer.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "lantern_row.skewer"
+  },
+  {
+   "id": "npc.noodles-ono",
+   "file": "chars/npc_noodles-ono.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "noodles.ono"
+  },
+  {
+   "id": "npc.pale",
+   "file": "chars/npc_pale.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "look": "pale"
+  },
+  {
+   "id": "npc.pale_rain",
+   "file": "chars/npc_pale_rain.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "look": "pale_rain"
+  },
+  {
+   "id": "npc.rustyard-guard_b",
+   "file": "chars/npc_rustyard-guard_b.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "rustyard.guard_b"
+  },
+  {
+   "id": "npc.rustyard-knuckles",
+   "file": "chars/npc_rustyard-knuckles.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "rustyard.knuckles"
+  },
+  {
+   "id": "npc.rustyard-nephew",
+   "file": "chars/npc_rustyard-nephew.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "rustyard.nephew"
+  },
+  {
+   "id": "npc.sinkline_1-wire",
+   "file": "chars/npc_sinkline_1-wire.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "sinkline_1.wire"
+  },
+  {
+   "id": "npc.threads-wen",
+   "file": "chars/npc_threads-wen.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "threads.wen"
+  },
+  {
+   "id": "npc.world-dj",
+   "file": "chars/npc_world-dj.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "world.dj"
+  },
+  {
+   "id": "npc.world-fisher",
+   "file": "chars/npc_world-fisher.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "world.fisher"
+  },
+  {
+   "id": "npc.world-hermit",
+   "file": "chars/npc_world-hermit.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "world.hermit"
+  },
+  {
+   "id": "npc.world-km_gate",
+   "file": "chars/npc_world-km_gate.png",
+   "cell": 32,
+   "frames": 1,
+   "walk": false,
+   "npc": "world.km_gate"
+  },
+  {
+   "id": "town.01",
+   "file": "chars/town_01.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "pool": 0
+  },
+  {
+   "id": "town.02",
+   "file": "chars/town_02.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "pool": 1
+  },
+  {
+   "id": "town.04",
+   "file": "chars/town_04.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "pool": 3
+  },
+  {
+   "id": "town.06",
+   "file": "chars/town_06.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "pool": 5
+  },
+  {
+   "id": "town.08",
+   "file": "chars/town_08.png",
+   "cell": 32,
+   "frames": 5,
+   "walk": true,
+   "pool": 7
+  }
+ ],
+ "battlers": {
+  "hex": {
+   "file": "battle/hex.png"
+  },
+  "kit": {
+   "file": "battle/kit.png"
+  },
+  "rook": {
+   "file": "battle/rook.png"
+  },
+  "sable": {
+   "file": "battle/sable.png"
+  }
+ },
+ "enemies": {
+  "bound": {
+   "file": "enemies/bound.png",
+   "enemy": "bound_spirit",
+   "family": "spirit"
+  },
+  "shade": {
+   "file": "enemies/shade.png",
+   "enemy": "drowned_shade",
+   "family": "spirit"
+  },
+  "rat": {
+   "file": "enemies/rat.png",
+   "enemy": "glowrat",
+   "family": "beast"
+  },
+  "eel": {
+   "file": "enemies/eel.png",
+   "enemy": "gutter_eel",
+   "family": "beast"
+  },
+  "hunter": {
+   "file": "enemies/hunter.png",
+   "enemy": "hunter_drone",
+   "family": "machine"
+  },
+  "arcanist": {
+   "file": "enemies/arcanist.png",
+   "enemy": "km_arcanist",
+   "family": "human"
+  },
+  "sentinel": {
+   "file": "enemies/sentinel.png",
+   "enemy": "km_sentinel",
+   "family": "human"
+  },
+  "maint": {
+   "file": "enemies/maint.png",
+   "enemy": "maint_drone",
+   "family": "machine"
+  },
+  "medic": {
+   "file": "enemies/medic.png",
+   "enemy": "rustfang_medic",
+   "family": "human"
+  },
+  "punk": {
+   "file": "enemies/punk.png",
+   "enemy": "rustfang_punk",
+   "family": "human"
+  },
+  "slinger": {
+   "file": "enemies/slinger.png",
+   "enemy": "rustfang_slinger",
+   "family": "human"
+  },
+  "crab": {
+   "file": "enemies/crab.png",
+   "enemy": "rust_crab",
+   "family": "beast"
+  },
+  "hound": {
+   "file": "enemies/hound.png",
+   "enemy": "scrap_hound",
+   "family": "machine"
+  },
+  "turret": {
+   "file": "enemies/turret.png",
+   "enemy": "sentry_turret",
+   "family": "machine"
+  },
+  "ghoul": {
+   "file": "enemies/ghoul.png",
+   "enemy": "sewer_ghoul",
+   "family": "ghoul"
+  },
+  "wisp": {
+   "file": "enemies/wisp.png",
+   "enemy": "smog_wisp",
+   "family": "spirit"
+  },
+  "drone": {
+   "file": "enemies/drone.png",
+   "enemy": "street_drone",
+   "family": "machine"
+  },
+  "brute": {
+   "file": "enemies/brute.png",
+   "enemy": "knuckles",
+   "family": "human"
+  },
+  "lurker": {
+   "file": "enemies/lurker.png",
+   "enemy": "lurker",
+   "family": "beast"
+  },
+  "warden": {
+   "file": "enemies/warden.png",
+   "enemy": "warden",
+   "family": "machine"
+  },
+  "warden_spirit": {
+   "file": "enemies/warden_spirit.png",
+   "enemy": "warden_spirit",
+   "family": "spirit"
+  }
+ },
+ "tilesets": [
+  {
+   "id": "park",
+   "file": "tiles/park.png",
+   "map": "lantern_row",
+   "lower": [
+    "grass"
+   ],
+   "upper": [
+    "plaza"
+   ],
+   "drawUpper": true,
+   "corners": [
+    "upper|upper|lower|upper",
+    "upper|lower|upper|lower",
+    "lower|upper|lower|lower",
+    "upper|upper|lower|lower",
+    "lower|upper|upper|lower",
+    "upper|lower|lower|lower",
+    "lower|lower|lower|lower",
+    "lower|lower|lower|upper",
+    "upper|lower|upper|upper",
+    "lower|lower|upper|upper",
+    "lower|lower|upper|lower",
+    "lower|upper|lower|upper",
+    "upper|upper|upper|upper",
+    "upper|upper|upper|lower",
+    "upper|lower|lower|upper",
+    "lower|upper|upper|upper"
+   ]
+  },
+  {
+   "id": "sewer",
+   "file": "tiles/sewer.png",
+   "map": "sinkline_1",
+   "lower": [
+    "d_water",
+    "d_shallow"
+   ],
+   "upper": [
+    "d_floor"
+   ],
+   "drawUpper": true,
+   "corners": [
+    "upper|upper|lower|upper",
+    "upper|lower|upper|lower",
+    "lower|upper|lower|lower",
+    "upper|upper|lower|lower",
+    "lower|upper|upper|lower",
+    "upper|lower|lower|lower",
+    "lower|lower|lower|lower",
+    "lower|lower|lower|upper",
+    "upper|lower|upper|upper",
+    "lower|lower|upper|upper",
+    "lower|lower|upper|lower",
+    "lower|upper|lower|upper",
+    "upper|upper|upper|upper",
+    "upper|upper|upper|lower",
+    "upper|lower|lower|upper",
+    "lower|upper|upper|upper"
+   ]
+  },
+  {
+   "id": "street",
+   "file": "tiles/street.png",
+   "map": "lantern_row",
+   "lower": [
+    "asphalt",
+    "puddle"
+   ],
+   "upper": [
+    "sidewalk"
+   ],
+   "keep": [
+    "roadline",
+    "crosswalk",
+    "grate"
+   ],
+   "drawUpper": true,
+   "corners": [
+    "upper|upper|lower|upper",
+    "upper|lower|upper|lower",
+    "lower|upper|lower|lower",
+    "upper|upper|lower|lower",
+    "lower|upper|upper|lower",
+    "upper|lower|lower|lower",
+    "lower|lower|lower|lower",
+    "lower|lower|lower|upper",
+    "upper|lower|upper|upper",
+    "lower|lower|upper|upper",
+    "lower|lower|upper|lower",
+    "lower|upper|lower|upper",
+    "upper|upper|upper|upper",
+    "upper|upper|upper|lower",
+    "upper|lower|lower|upper",
+    "lower|upper|upper|upper"
+   ]
+  },
+  {
+   "id": "yard",
+   "file": "tiles/yard.png",
+   "map": "rustyard",
+   "lower": [
+    "dirt"
+   ],
+   "upper": [
+    "junk",
+    "rubble"
+   ],
+   "drawUpper": true,
+   "corners": [
+    "upper|upper|lower|upper",
+    "upper|lower|upper|lower",
+    "lower|upper|lower|lower",
+    "upper|upper|lower|lower",
+    "lower|upper|upper|lower",
+    "upper|lower|lower|lower",
+    "lower|lower|lower|lower",
+    "lower|lower|lower|upper",
+    "upper|lower|upper|upper",
+    "lower|lower|upper|upper",
+    "lower|lower|upper|lower",
+    "lower|upper|lower|upper",
+    "upper|upper|upper|upper",
+    "upper|upper|upper|lower",
+    "upper|lower|lower|upper",
+    "lower|upper|upper|upper"
+   ]
+  },
+  {
+   "id": "canal",
+   "file": "tiles/canal.png",
+   "map": "lantern_row",
+   "lower": [
+    "water"
+   ],
+   "upper": [
+    "plaza",
+    "sidewalk",
+    "alley"
+   ],
+   "drawUpper": false,
+   "corners": [
+    "upper|upper|lower|upper",
+    "upper|lower|upper|lower",
+    "lower|upper|lower|lower",
+    "upper|upper|lower|lower",
+    "lower|upper|upper|lower",
+    "upper|lower|lower|lower",
+    "lower|lower|lower|lower",
+    "lower|lower|lower|upper",
+    "upper|lower|upper|upper",
+    "lower|lower|upper|upper",
+    "lower|lower|upper|lower",
+    "lower|upper|lower|upper",
+    "upper|upper|upper|upper",
+    "upper|upper|upper|lower",
+    "upper|lower|lower|upper",
+    "lower|upper|upper|upper"
+   ]
+  }
+ ],
+ "props": {
+  "arcade": {
+   "file": "props/arcade.png"
+  },
+  "barrel": {
+   "file": "props/barrel.png"
+  },
+  "barrier": {
+   "file": "props/barrier.png"
+  },
+  "bench": {
+   "file": "props/bench.png"
+  },
+  "crates": {
+   "file": "props/crates.png"
+  },
+  "cryopod": {
+   "file": "props/cryopod.png"
+  },
+  "dumpster": {
+   "file": "props/dumpster.png"
+  },
+  "firebarrel": {
+   "file": "props/firebarrel.png"
+  },
+  "hydrant": {
+   "file": "props/hydrant.png"
+  },
+  "lamp": {
+   "file": "props/lamp.png"
+  },
+  "stall": {
+   "file": "props/stall.png"
+  },
+  "tent": {
+   "file": "props/tent.png"
+  },
+  "terminal": {
+   "file": "props/terminal.png"
+  },
+  "trash": {
+   "file": "props/trash.png"
+  },
+  "tree": {
+   "file": "props/tree.png"
+  },
+  "vending": {
+   "file": "props/vending.png"
+  },
+  "wreck": {
+   "file": "props/wreck.png"
+  }
+ },
+ "held": [
+  "portrait.dutch: portraits wait for their other expressions",
+  "portrait.hex: portraits wait for their other expressions",
+  "portrait.kit: portraits wait for their other expressions",
+  "portrait.mags: portraits wait for their other expressions",
+  "portrait.pale: portraits wait for their other expressions",
+  "portrait.rook: portraits wait for their other expressions",
+  "portrait.sable: portraits wait for their other expressions",
+  "portrait.yun: portraits wait for their other expressions",
+  "critter.noodle: critters aren't drawn from sprites yet",
+  "terrain.dock: no map uses this terrain yet"
+ ],
+ "oneOffs": [
+  "armory.tomas",
+  "bar.barkeep",
+  "bar.old_runner",
+  "clinic.yun",
+  "hotel.hotelclerk",
+  "kwikmart.clerk",
+  "lantern_row.fetish",
+  "lantern_row.skewer",
+  "noodles.ono",
+  "rustyard.guard_b",
+  "rustyard.knuckles",
+  "rustyard.nephew",
+  "sinkline_1.wire",
+  "threads.wen",
+  "world.dj",
+  "world.fisher",
+  "world.hermit",
+  "world.km_gate"
+ ]
+}

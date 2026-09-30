@@ -147,8 +147,10 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 ## 8. Presentation
 
 * Internal resolution **480×270**, 16px tiles, integer/fit scaling, nearest-neighbour.
-* All art is generated in code: procedural tiles and structures, part-based character sprites with auto-outline, and
-  vector-to-pixel enemies. The world map, towns and dungeons use a 3/4 top-down view.
+* Art is generated in code (procedural tiles and structures, part-based character sprites with auto-outline, and
+  vector-to-pixel enemies), with drawn art from the PixelLab pass laid over it where Mark picked it (since
+  2026-09-30: characters, battle backs, enemies, terrain and props; the code-drawn art remains the fallback). The
+  world map, towns and dungeons use a 3/4 top-down view.
 * Light map: ambient darkness × additive coloured lights (neon, lamps). Rain, fog and steam particles.
 * **GPU effects** (Options, on by default where WebGL 2 exists; the game looks the same without them otherwise):
   real bloom on neon, lamps and spells; shockwaves that ripple the picture on criticals, combos, boss deaths and the

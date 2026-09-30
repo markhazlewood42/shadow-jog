@@ -1773,9 +1773,61 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
 
 const missing = new Set<string>();
 
+/** Drawn art for a prop kind (src/art/drawn.ts), in place of its painter's picture. */
+const drawnProps = new Map<PropKind, HTMLCanvasElement>();
+export function replacePropArt(kind: PropKind, art: HTMLCanvasElement): void {
+  drawnProps.set(kind, art);
+}
+
+/** The glowing parts of a drawn prop (bright, saturated or near-white pixels), for the night's light. */
+function emissiveOf(art: HTMLCanvasElement): HTMLCanvasElement {
+  const s = surface(art.width, art.height);
+  const src = art.getContext('2d')?.getImageData(0, 0, art.width, art.height);
+  if (!src) return s.canvas;
+  const out = s.ctx.createImageData(art.width, art.height);
+  const d = src.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i] ?? 0, g = d[i + 1] ?? 0, bl = d[i + 2] ?? 0;
+    const hi = Math.max(r, g, bl), lo = Math.min(r, g, bl);
+    if ((d[i + 3] ?? 0) > 0 && ((hi >= 225 && hi - lo >= 60) || r + g + bl >= 690)) {
+      out.data[i] = r;
+      out.data[i + 1] = g;
+      out.data[i + 2] = bl;
+      out.data[i + 3] = 255;
+    }
+  }
+  s.ctx.putImageData(out, 0, 0);
+  return s.canvas;
+}
+
+/**
+ * A prop with drawn art: its painter still runs (for the light it casts, its flicker or steam, and
+ * which tiles it blocks) but draws into scratch, and the drawn picture stands in its place on the
+ * prop's footprint, bottom-centred, with a ground shadow and its bright parts glowing at night.
+ */
+function paintDrawnProp(b: BakeCtx, p: PropDef, rng: Rng, art: HTMLCanvasElement, painter: PropPainter | undefined): void {
+  if (painter) {
+    const scratch = surface(1, 1).ctx;
+    const quiet: BakeCtx = { ...b, g: scratch, e: scratch, o: scratch, oe: scratch, sprites: [], both: (fn) => fn(scratch), bothOver: (fn) => fn(scratch) };
+    painter(quiet, p, rng);
+  } else blockFoot(b, p);
+  const glow = emissiveOf(art);
+  const { x } = tall(b, p, art.width, art.height, (c, e) => {
+    c.drawImage(art, 0, 0);
+    e.drawImage(glow, 0, 0);
+  });
+  const baseY = (p.y + (p.h ?? 1)) * TS;
+  groundShadow(b, x + art.width / 2, baseY - 2, Math.max(4, art.width * 0.42), 2.5);
+}
+
 export function paintProp(b: BakeCtx, p: PropDef, seed: number): void {
   const painter = PROPS[p.kind];
   const rng = new Rng(seed);
+  const drawn = drawnProps.get(p.kind);
+  if (drawn) {
+    paintDrawnProp(b, p, rng, drawn, painter);
+    return;
+  }
   if (painter) painter(b, p, rng);
   else {
     // A kind with no painter (tests/maps.test.ts checks every map, so this is a content bug that
