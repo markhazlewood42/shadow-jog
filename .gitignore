@@ -12,3 +12,7 @@ evidence.log
 reviewer-prompts/
 # Trailer recordings and previews (scripts/trailer.mjs): too big for a public repo; re-shoot them instead.
 media/
+
+# Local secrets (API keys, e.g. PIXELLAB_API_KEY): never committed, this repo is public.
+.env
+.env.*
