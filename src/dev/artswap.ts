@@ -149,6 +149,16 @@ const POSE_FROM: Record<Pose, [string, number][]> = {
 
 async function battleFrames(o: Option): Promise<Partial<Record<Pose, HTMLCanvasElement>>> {
   const out: Partial<Record<Pose, HTMLCanvasElement>> = {};
+  // Mark's review (2026-09-30): PixelLab's battle animations are unusable (bodies drift, clothes
+  // change, the moves don't read). The battle renderer animates with code anyway (lunge, strike
+  // smear, hurt drop, hop, breathing), so every pose uses the standing back view, unless
+  // `&frames=anim` asks for the drawn frames.
+  const useAnims = new URLSearchParams(location.search).get('frames') === 'anim';
+  if (!useAnims && o.rotations?.north) {
+    const still = toCanvas(await loadImage(o.rotations.north));
+    for (const pose of Object.keys(POSE_FROM) as Pose[]) out[pose] = still;
+    return out;
+  }
   for (const [pose, choices] of Object.entries(POSE_FROM) as [Pose, [string, number][]][]) {
     for (const [anim, i] of choices) {
       const frames = o.anims?.[anim]?.frames?.north;

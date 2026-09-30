@@ -91,9 +91,14 @@ on every push to `main`.
     raised-block tiles; "today's colours, more texture" is closest. The harbour set has no map to go in.
   **Integration questions for after the review:** the game has been all-code so far, and picks become PNG files it
   loads (the one exception to "every asset generated in code"); a scale pass (Mark: the new sprites run large);
-  which animation frames become each battle pose; portraits need the other expressions (only neutral was made);
-  enemies have no strike or flinch frames yet; the game's palette shift for a second copy of an enemy recolours drawn
-  art badly (green skin).
+  portraits need the other expressions (only neutral was made); enemies have no strike or flinch frames yet; the
+  game's palette shift for a second copy of an enemy recolours drawn art badly (green skin).
+  **Decided from Mark's review so far (2026-09-30):** PixelLab's battle animations are unusable (bodies drift,
+  clothes and hair change, the moves don't read), so battle sprites use **only the standing back view** and the
+  game's code-driven motion (lunge, strike smear, hurt drop, hop); `?art=review` already does this (`&frames=anim`
+  shows the drawn frames). Don't spend more on battle animations. He prefers the **faithful redraws** of today's
+  designs (enemies especially); the crew's field sprites styled on the new Kit. Walk cycles: small glitches he
+  flags per frame, fixable at integration (e.g. snapping each frame to the standing sprite's colours).
 - **CI was red from the GPU effects commit (965795d) until 8ea2335:** headless Chromium on the runners gives a
   software (SwiftShader) WebGL 2 context without a "performance caveat", so the effects ran on the CPU at ~25 fps and
   `e2e/perf.spec.ts` failed. The presenter now also refuses software renderers by name.
