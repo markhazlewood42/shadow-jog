@@ -112,14 +112,22 @@ on every push to `main`.
 1. **Mark reviews the art pass** (`/artreview.html`), then **integration**: read his picks and notes
    (`node scripts/pixellab/status.mjs --review`), regenerate what he asks for (the month's other ~1,000 generations,
    his call), then put the picks into the game for real (the integration questions are above).
-2. **Mark's next playthrough**: new notes are the work queue, same process (triage, fix, one verification round if he
+2. **Random-NPC generator prototype** (Mark, 2026-09-30: "try the small prototype after this pass of art review is
+   done"). Townsfolk made from one clean PixelLab base body plus outfit variants, recoloured at runtime, instead of a
+   fixed set of sprites. Scope: one base townsperson with a clean walk; about 4 outfit variants through PixelLab's
+   `/create-character-state` (a text edit applied across all directions) and `/transfer-outfit-v2` or
+   `/edit-animation-v2` (re-dress the walk keeping its motion), neither tested yet; a recolouring step (skin, hair,
+   clothes in known colour slots) hooked into the existing `randomLook(seed)` crowd code (`src/art/chars.ts`,
+   `src/data/looks.ts`); tried in game on Lantern Row. **Price it first** (guess: 40–60 generations). Story and named
+   characters stay hand-picked. Background: `docs/CONCEPTS.md` ("Paper-doll characters", "Palette swap").
+3. **Mark's next playthrough**: new notes are the work queue, same process (triage, fix, one verification round if he
    asks for it).
-3. **Triage round 13's design notes** with Mark (`reviews/round-13.md`): the lift scene's motivation (Narrative's
+4. **Triage round 13's design notes** with Mark (`reviews/round-13.md`): the lift scene's motivation (Narrative's
    cap), trash-fight depth and a Lurker tell, the Rustyard scrap heaps and Sprawl rooftops, party back-sprites that
    cover enemies, menu transitions, a real (unforced) E2E playthrough.
-4. **Mark's reviews**: `docs/quality/GRADING.md`, `docs/GLOSSARY.md` ([review] marks), `docs/SETTING.md` ([new]).
-5. **Ship the alpha**: shadowjog.com with the secure email sign-up. **Only with Mark's go-ahead.**
-6. **Chapter 2, "Deniable Assets"**: getting Rook back (seeds in `docs/SETTING.md` §10).
+5. **Mark's reviews**: `docs/quality/GRADING.md`, `docs/GLOSSARY.md` ([review] marks), `docs/SETTING.md` ([new]).
+6. **Ship the alpha**: shadowjog.com with the secure email sign-up. **Only with Mark's go-ahead.**
+7. **Chapter 2, "Deniable Assets"**: getting Rook back (seeds in `docs/SETTING.md` §10).
 
 ### Known gaps (from round 13; none are bugs)
 - Battle presentation (7.5): the party are back-of-head sprites that cover enemies; creatures are finer than the party
