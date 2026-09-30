@@ -13,7 +13,8 @@
  *
  * It draws into its own canvas laid exactly over the game's 2D canvas (#screen), which keeps its
  * size, focus and input. If WebGL 2 is missing or a shader fails, `create` returns null and the
- * game presents in 2D as before; a lost context falls back the same way until it's restored.
+ * game presents in 2D as before; so does a software-only WebGL (no GPU, or a blocklisted one); a
+ * lost context falls back the same way until it's restored.
  */
 import { H, W } from '../game';
 import { PARTICLE_STRIDE } from '../particles';
@@ -268,7 +269,9 @@ export class GlPresenter {
   /** A presenter on a new canvas, or null when this browser can't (no WebGL 2, or a shader fails). */
   static create(): GlPresenter | null {
     const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: true, preserveDrawingBuffer: false });
+    // failIfMajorPerformanceCaveat: no context on a software renderer (no GPU, or a blocklisted
+    // one): drawing the effects on the CPU would slow the game to ~30 fps. The 2D path takes over.
+    const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: true, preserveDrawingBuffer: false, failIfMajorPerformanceCaveat: true });
     if (!gl) return null;
     try {
       return new GlPresenter(canvas, gl);

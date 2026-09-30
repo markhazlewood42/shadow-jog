@@ -167,7 +167,7 @@ export function boot(game: Game, display: Display): void {
     notice('The GPU effects were slowing the game down, so they’re off for now. Options → GPU effects turns them back on.', 'warn');
   });
   window.addEventListener('sj-gpu', () => {
-    if (!display.setGpu(settings.gpuFx) && settings.gpuFx) notice('GPU effects need WebGL 2, which this browser doesn’t offer. The game looks as before.', 'warn');
+    if (!display.setGpu(settings.gpuFx) && settings.gpuFx) notice('GPU effects need a graphics card this browser can use (WebGL 2). The game looks as before.', 'warn');
   });
   game.tickers.push(() => {
     postfx.motion = [0, 0.6, 1][settings.shake] ?? 1;

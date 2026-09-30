@@ -18,7 +18,8 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 
-const hasWebGl2 = (page: Page) => page.evaluate(() => !!document.createElement('canvas').getContext('webgl2'));
+/** WebGL 2 on a real GPU, as the presenter asks for it (a software renderer, as on CI, doesn't count). */
+const hasWebGl2 = (page: Page) => page.evaluate(() => !!document.createElement('canvas').getContext('webgl2', { failIfMajorPerformanceCaveat: true }));
 
 test('with WebGL 2, the effects layer draws the game, through a battle full of effects', async ({ page }) => {
   const errors = watchErrors(page);
@@ -68,7 +69,7 @@ test('GPU effects switch off and on from Options, and the choice is remembered',
   expect(errors).toEqual([]);
 });
 
-test('without WebGL 2 the game plays on the 2D canvas as before', async ({ page }) => {
+test('without WebGL 2 (or with only a software renderer) the game plays on the 2D canvas as before', async ({ page }) => {
   const errors = watchErrors(page);
   // A browser with no WebGL 2 at all.
   await page.addInitScript(() => {
