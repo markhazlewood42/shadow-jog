@@ -209,7 +209,8 @@ export async function applyReview(params: URLSearchParams): Promise<{ done: stri
   for (const [aid, oid] of picks) {
     const a = byId.get(aid);
     const o = a?.options.find((x) => x.id === oid);
-    if (!a || !o || o.status !== 'done') {
+    // A character still getting its animations can be tried already.
+    if (!a || !o || (o.status !== 'done' && !o.rotations)) {
       failed.push(`${aid}/${oid} (not generated)`);
       continue;
     }

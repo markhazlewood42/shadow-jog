@@ -93,7 +93,22 @@ async function rotations(asset, opt, id) {
 async function animate(asset, opt, id, rec) {
   const anims = { ...(rec.anims ?? {}) };
   const pending = [];
-  const mine = new Set();
+  // Each animation is waited on as soon as it starts, so its job slots come back when its jobs
+  // finish, not when the last of this character's animations has been asked for.
+  const waits = [];
+  const waitFor = (a, own) => {
+    const run = anims[a.name].fillGroup ? anims[a.name].fill : anims[a.name];
+    const jobs = run?.jobs ?? [];
+    if (!own) return resume(jobs, 0);
+    return (async () => {
+      try {
+        await Promise.all(jobs.map((j) => waitJob(j, { timeoutMs: 45 * 60_000 })));
+      } finally {
+        settle(run.cost ?? 0);
+        release(run.slots ?? a.directions.length);
+      }
+    })();
+  };
   // A character made before this pass (Kit, Rook) may already have the animation: adopt it.
   const existing = opt.characterId ? ((await api('GET', `/characters/${id}`)).animations ?? []) : [];
   const missingOf = (a) => a.directions.filter((d) => !anims[a.name]?.frames?.[d]);
@@ -107,6 +122,7 @@ async function animate(asset, opt, id, rec) {
     }
     // Nothing started yet, or it came back short: start the directions still missing.
     const fill = !!anims[a.name]?.frames;
+    let own = false;
     if (!anims[a.name]?.group || (fill && !anims[a.name].fillGroup)) {
       const cost = a.cost ? Math.ceil((a.cost / a.directions.length) * missing.length) : missing.length;
       const body = {
@@ -119,25 +135,16 @@ async function animate(asset, opt, id, rec) {
       const started = { jobs: r.background_job_ids ?? [], cost, slots: missing.length };
       if (fill) anims[a.name] = { ...anims[a.name], fillGroup: r.animation_group_id, fill: started };
       else anims[a.name] = { group: r.animation_group_id, ...started };
-      mine.add(a.name);
+      own = true;
       upsertOption(baseOf(asset), { id: opt.id, anims });
     }
     pending.push(a);
+    const w = waitFor(a, own);
+    // If a later request throws, this one still finishes (and frees its slots) on its own.
+    w.catch(() => {});
+    waits.push(w);
   }
-  // Wait for all of them together (they run in parallel on PixelLab's side).
-  await Promise.all(
-    pending.map(async (a) => {
-      const run = anims[a.name].fillGroup ? anims[a.name].fill : anims[a.name];
-      const jobs = run?.jobs ?? [];
-      if (!mine.has(a.name)) return resume(jobs, 0);
-      try {
-        await Promise.all(jobs.map((j) => waitJob(j, { timeoutMs: 45 * 60_000 })));
-      } finally {
-        settle(run.cost ?? 0);
-        release(run.slots ?? a.directions.length);
-      }
-    }),
-  );
+  await Promise.all(waits);
   if (!pending.length) return anims;
   const c = await api('GET', `/characters/${id}`);
   for (const a of pending) {

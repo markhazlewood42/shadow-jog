@@ -1,5 +1,7 @@
 // Where the art pass stands: options per category by status, and the balance.
-//   node scripts/pixellab/status.mjs [--list]   (--list: every option that isn't done, with its error)
+//   node scripts/pixellab/status.mjs [--list] [--review]
+//   --list: every option that isn't done, with its error. --review: Mark's picks and notes
+//   (media/art-pass/review.json, saved by the review page), asset by asset.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { ROOT, balance } from './lib.mjs';
 
@@ -16,5 +18,19 @@ for (const m of metas)
   }
 for (const [cat, row] of Object.entries(by)) console.log(`${cat.padEnd(16)} ${Object.entries(row).map(([k, v]) => `${k} ${v}`).join(', ')}`);
 if (process.argv.includes('--list')) for (const l of open) console.log(`  ${l}`);
+if (process.argv.includes('--review')) {
+  const path = `${ROOT}/review.json`;
+  const review = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : { assets: {} };
+  console.log(`\nreview (saved ${review.saved ?? 'never'}):`);
+  for (const m of metas) {
+    const r = review.assets?.[m.id];
+    if (!r) continue;
+    const opts = Object.entries(r.options ?? {}).filter(([, v]) => v.verdict || v.note);
+    if (!opts.length && !r.note) continue;
+    console.log(`  ${m.id} (${m.title})`);
+    for (const [id, v] of opts) console.log(`    ${id}: ${v.verdict ?? '-'}${v.note ? ` · ${v.note}` : ''}`);
+    if (r.note) console.log(`    note: ${r.note}`);
+  }
+}
 console.log(`balance ${await balance()}`);
 process.exit(0);

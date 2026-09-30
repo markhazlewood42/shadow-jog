@@ -331,7 +331,11 @@ function tilesetView(o: Option): HTMLElement {
   return h('div', {}, stage(cell(wangPatch(o), 'laid out as a map would use it')), h('div', { style: 'height:6px' }), grid);
 }
 
+/** Something to show already (a character still getting its animations counts). */
+const ready = (o: Option) => o.status === 'done' || (o.kind === 'character' && !!o.rotations && Object.keys(o.rotations).length > 0);
+
 function optionBody(a: Asset, o: Option): HTMLElement {
+  if (o.status !== 'done' && ready(o)) return h('div', {}, characterView(a, o), h('div', { class: 'pending' }, 'Still animating… (Refresh to check)'));
   if (o.status !== 'done') {
     if (o.status === 'failed' || o.status === 'budget') return h('div', { class: 'failed' }, `Didn’t generate: ${o.error ?? 'unknown error'}`);
     return h('div', { class: 'pending' }, 'Generating… (Refresh to check)');
@@ -387,7 +391,7 @@ function optionFigure(a: Asset, o: Option): HTMLElement {
     };
     verdicts.append(b);
   }
-  if (TRYABLE.has(a.kind) && o.status === 'done') {
+  if (TRYABLE.has(a.kind) && ready(o)) {
     const t = h('a', { class: 'chip try', href: tryUrl(a, [`${a.id}/${o.id}`]), target: '_blank', rel: 'noopener', title: 'Open the game with this one swapped in' }, 'Try ↗');
     verdicts.append(t);
   }
