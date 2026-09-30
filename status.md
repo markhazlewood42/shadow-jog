@@ -72,7 +72,7 @@ on every push to `main`.
   next session with `node scripts/pixellab/status.mjs --review`. What was made, and the recipes: `scripts/pixellab/plan.mjs`;
   how it all works: `docs/DEVELOPING.md` §8 "The PixelLab art pass". The art is in `media/art-pass/` (not in git) until
   he picks; **integration (putting picks into the game for real) is the next step after his review.**
-  **What round 1 made** (about 1,000 generations; options side by side):
+  **What round 1 made** (963 of the 1,000 generations allowed; 165 options across 98 assets, side by side):
   - *Crew, field:* Kit and Rook (Mark's picks from the tests) with walk cycles; Hex and Sable two ways each (styled on
     their own sprite / on the new Kit), with walks.
   - *Crew, battle (from behind, 128 px, twice today's detail):* two recipes each (styled on the new Kit: saturated
