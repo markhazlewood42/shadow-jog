@@ -64,6 +64,16 @@ on every push to `main`.
 - **Trailer, "before" record (2026-09-30):** `media/shadow-jog-trailer-2026-09-30.mp4` (94.7 s, 1080p60, game audio;
   not in git) records the game as it stands with everything made in code, before any AI-generated art. Shot by
   `node scripts/trailer.mjs`; re-shoot after the art changes for the "after".
+- **Direction change (2026-09-30, late): back to code-drawn art, made better.** Mark: the game's UX was better with
+  the code-drawn assets; PixelLab's glitches and inconsistency aren't worth it. Goal: code-drawn pixel art that looks
+  better than before but keeps the flexibility to animate and improve incrementally, using the PixelLab picks he
+  liked as reference. The drawn art is **off by default** (`?art=drawn` shows it for comparison). Snapshots to roll
+  back to: tag `snapshot/2026-09-30-procedural` (all code-drawn), tag `snapshot/2026-09-30-pixellab-picks` (picks
+  shipped), and `media/snapshots/art-pass-2026-09-30.tar.gz` (every generated option and his full review; local).
+  **Plan:** a rig v2 for characters: chibi proportions from the picks (~18x28 field sprites, faces in every
+  facing), 3-4 tone hue-shifted ramps per material with one light direction, selective outlines, parts drawn in code
+  and layered per facing, animation in code (walks; battle key poses as part swaps, directable by Mark). First build:
+  the four crew in the field + Kit's battle back with stance, strike and cast.
 - **Art pass, phase 1 in the game (2026-09-30, evening).** Mark reviewed round 1 (98 assets) and his picks now ship:
   `public/art/` + `src/art/drawn.ts`, loaded at startup over the code-drawn art (which stays as the fallback;
   `?art=classic` compares). In: 33 characters (Hex, Rook, Sable in the field; 25 named and one-off NPCs; the

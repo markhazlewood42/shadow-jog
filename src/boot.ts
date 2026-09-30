@@ -196,12 +196,13 @@ export function boot(game: Game, display: Display): void {
       });
     } else void startTitle(game);
   };
-  // The drawn art (the PixelLab pass's picks, src/art/drawn.ts) goes in before anything is built:
-  // swaps apply to sprites made after them. Anything that doesn't load keeps its code-drawn art,
-  // with a notice. `?art=classic` keeps the code-drawn art everywhere (for comparing).
+  // The drawn art (the PixelLab pass's picks, src/art/drawn.ts) is off by default since
+  // 2026-09-30: Mark went back to code-drawn art (snapshot tag snapshot/2026-09-30-pixellab-picks).
+  // `?art=drawn` loads it for comparing. It goes in before anything is built (swaps apply to sprites
+  // made after them); anything that doesn't load keeps its code-drawn art, with a notice.
   const art = params.get('art');
   const drawn: Promise<void> =
-    art === 'classic'
+    art !== 'drawn'
       ? Promise.resolve()
       : Promise.race([loadDrawnArt(), new Promise<never>((_, reject) => setTimeout(() => reject(new Error('it took too long')), 10_000))]).then(
           ({ failed }) => {
