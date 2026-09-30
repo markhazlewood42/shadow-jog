@@ -19,7 +19,15 @@ function watchErrors(page: Page): string[] {
 }
 
 /** WebGL 2 on a real GPU, as the presenter asks for it (a software renderer, as on CI, doesn't count). */
-const hasWebGl2 = (page: Page) => page.evaluate(() => !!document.createElement('canvas').getContext('webgl2', { failIfMajorPerformanceCaveat: true }));
+const hasWebGl2 = (page: Page) =>
+  page.evaluate(() => {
+    const gl = document.createElement('canvas').getContext('webgl2', { failIfMajorPerformanceCaveat: true });
+    if (!gl) return false;
+    // The same test as GlPresenter.create (engine/gl/presenter.ts SOFTWARE_GL).
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? '');
+    return !/swiftshader|llvmpipe|softpipe|software|basic render driver/i.test(name);
+  });
 
 test('with WebGL 2, the effects layer draws the game, through a battle full of effects', async ({ page }) => {
   const errors = watchErrors(page);

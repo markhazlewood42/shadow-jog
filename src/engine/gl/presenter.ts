@@ -232,6 +232,16 @@ function rgbInto(hex: string, out: Float32Array): void {
   out[2] = (n & 255) / 255;
 }
 
+/** Renderer names of WebGL drawn on the CPU (no GPU, or one the browser won't use). */
+export const SOFTWARE_GL = /swiftshader|llvmpipe|softpipe|software|basic render driver/i;
+
+/** Is this context drawn in software? (By the unmasked driver name where the browser gives it.) */
+export function softwareRenderer(gl: GL): boolean {
+  const info = gl.getExtension('WEBGL_debug_renderer_info');
+  const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? '');
+  return SOFTWARE_GL.test(name);
+}
+
 export class GlPresenter {
   readonly canvas: HTMLCanvasElement;
   private gl: GL;
@@ -273,6 +283,12 @@ export class GlPresenter {
     // one): drawing the effects on the CPU would slow the game to ~30 fps. The 2D path takes over.
     const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: true, preserveDrawingBuffer: false, failIfMajorPerformanceCaveat: true });
     if (!gl) return null;
+    // Some software renderers don't count as a "major caveat" (headless Chromium's SwiftShader, on
+    // CI, hands out a context and the game drops to ~25 fps), so ask the driver's name as well.
+    if (softwareRenderer(gl)) {
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      return null;
+    }
     try {
       return new GlPresenter(canvas, gl);
     } catch (e) {
