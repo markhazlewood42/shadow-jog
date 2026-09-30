@@ -370,3 +370,26 @@ export function getPortrait(key: string, face: string): HTMLCanvasElement | null
 }
 
 export const PORTRAIT_KEYS = Object.keys(SPECS);
+
+/**
+ * Use a drawn portrait for this character from now on, for every expression (dev tooling: art-pass
+ * options tried in the game, src/dev/artswap.ts). A transparent image goes on the portrait's card.
+ */
+export function replacePortrait(key: string, img: CanvasImageSource & { width: number; height: number }): void {
+  const spec = SPECS[key];
+  if (!spec) return;
+  // The same card paint() draws behind the face.
+  const s = surface(S, S);
+  const g = s.ctx;
+  const grd = g.createLinearGradient(0, 0, 0, S);
+  grd.addColorStop(0, shade(spec.bg, 0.2));
+  grd.addColorStop(1, shade(spec.bg, -0.45));
+  g.fillStyle = grd;
+  g.fillRect(0, 0, S, S);
+  g.globalAlpha = 0.16;
+  g.fillStyle = spec.accent;
+  for (let y = 1; y < S; y += 3) g.fillRect(0, y, S, 1);
+  g.globalAlpha = 1;
+  g.drawImage(img, Math.floor((S - img.width) / 2), S - img.height);
+  for (const face of ['neutral', 'happy', 'angry', 'sad', 'surprised', 'smirk', 'hurt']) cache.set(`${key}:${face}`, s.canvas);
+}

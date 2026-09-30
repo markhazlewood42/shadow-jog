@@ -185,21 +185,32 @@ export function boot(game: Game, display: Display): void {
     notice('Something broke and the game recovered to the title. Continue loads your last save.', 'warn');
     void startTitle(game, 30);
   };
-  // ?art=pixellab (DEV only): PixelLab sprite sheets in place of Kit's and Rook's generated ones.
-  if (import.meta.env.DEV && params.get('art') === 'pixellab') {
-    void import('./dev/artswap').then(async (m) => {
-      const swapped = await m.applyPixelLab();
-      notice(swapped.length ? `Trying PixelLab sprites: ${swapped.join(', ')}` : 'PixelLab sprites not found in media/pixellab-preview/', swapped.length ? 'news' : 'warn');
-    });
-  }
   // Dev routes (?scene=field|battle|mapview|portraits|bestiary|chars|font) load only in DEV
   // builds: the test scenes aren't part of the shipped bundle.
   const scene = params.get('scene');
-  if (import.meta.env.DEV && scene) {
-    void import('./devroutes').then((m) => {
-      if (!m.runDevScene(game, scene, params, display)) void startTitle(game);
-    });
-  } else void startTitle(game);
+  const start = () => {
+    if (import.meta.env.DEV && scene) {
+      void import('./devroutes').then((m) => {
+        if (!m.runDevScene(game, scene, params, display)) void startTitle(game);
+      });
+    } else void startTitle(game);
+  };
+  // ?art=review (DEV only): art-pass picks in place of the generated art (src/dev/artswap.ts).
+  // The swaps apply to sprites built after them, so the scene waits for them.
+  const art = params.get('art');
+  if (import.meta.env.DEV && (art === 'review' || art === 'pixellab')) {
+    void import('./dev/artswap')
+      .then((m) => m.applyReview(params))
+      .then(
+        ({ done, failed }) => {
+          if (done.length) notice(`Trying art-pass picks: ${done.join(', ')}`, 'news');
+          if (failed.length) notice(`Couldn't swap in: ${failed.join('; ')}`, 'warn');
+          if (!done.length && !failed.length) notice('No art-pass picks to try yet: mark some ★ Best on /artreview.html', 'warn');
+        },
+        (e: unknown) => notice(`Art pass not available: ${e instanceof Error ? e.message : String(e)}`, 'warn'),
+      )
+      .finally(start);
+  } else start();
 }
 
 /** Show the title (fading in over `fadeIn` frames) and act on the choice. */

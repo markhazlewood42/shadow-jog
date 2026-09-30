@@ -166,6 +166,8 @@ export class Actor {
   frame(): HTMLCanvasElement {
     if (!this.moving && this.dir === 'down' && this.stillT > IDLE_AFTER && this.sprite.idle) return this.sprite.idle;
     const phase = this.moving ? Math.floor(this.stride + 1) & 3 : 0;
+    const walk = this.moving ? this.sprite.walk?.[this.dir] : undefined;
+    if (walk?.length) return walk[phase % walk.length]!;
     const idx = this.moving ? walkFrame(phase) : 0;
     return this.sprite.frames[this.dir][idx]!;
   }

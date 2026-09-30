@@ -1095,3 +1095,14 @@ export function enemyArt(key: string, dup = 0): EnemyArt {
 }
 
 export const ENEMY_ART_KEYS = [...Object.keys(HUMANS), ...Object.keys(CREATURES)];
+
+/**
+ * Use a drawn image for this sprite from now on (dev tooling: art-pass options tried in the game,
+ * src/dev/artswap.ts). `res` is its art pixels per battle pixel. It keeps the original's motion and
+ * shadow; it has no strike or flinch frames or glow yet. Every individual of the kind gets it.
+ */
+export function replaceEnemyArt(key: string, canvas: HTMLCanvasElement, res = 2): void {
+  const base = enemyArt(key);
+  const art: EnemyArt = { canvas, res, w: canvas.width / res, h: canvas.height / res, size: base.size, idle: base.idle, shadow: base.shadow };
+  for (let v = 0; v < individuals(key); v++) cache.set(v ? `${key}#${v}` : key, art);
+}

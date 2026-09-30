@@ -21,6 +21,8 @@ export interface Battler {
   glow: Partial<Record<Pose, HTMLCanvasElement>>;
   /** Height from the frame's bottom edge to the top of the head, in battle pixels. */
   headH: number;
+  /** Art pixels per battle pixel (1, or 2 for drawn art at the field's pixel size). */
+  res?: number | undefined;
 }
 
 type Weapon = 'fists' | 'katana' | 'pistol' | 'staff';
@@ -275,6 +277,28 @@ function pose(id: string, look: CharLook, which: Pose): { canvas: HTMLCanvasElem
 }
 
 const cache = new Map<string, Battler>();
+
+/**
+ * Use drawn frames for this crew member from now on (dev tooling: art-pass options tried in the
+ * game, src/dev/artswap.ts). Poses without a drawn frame keep the generated one, scaled up to match.
+ */
+export function replaceBattler(id: string, look: CharLook, frames: Partial<Record<Pose, HTMLCanvasElement>>, headH: number, res = 2): void {
+  const base = battler(id, look);
+  const up = (c: HTMLCanvasElement) => {
+    const out = document.createElement('canvas');
+    out.width = c.width * res;
+    out.height = c.height * res;
+    const g = out.getContext('2d');
+    if (g) {
+      g.imageSmoothingEnabled = false;
+      g.drawImage(c, 0, 0, out.width, out.height);
+    }
+    return out;
+  };
+  const all = {} as Record<Pose, HTMLCanvasElement>;
+  for (const p of POSES) all[p] = frames[p] ?? up(base.frames[p]);
+  cache.set(id, { frames: all, glow: {}, headH, res });
+}
 
 export function battler(id: string, look: CharLook): Battler {
   const hit = cache.get(id);

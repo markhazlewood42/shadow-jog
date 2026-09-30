@@ -73,6 +73,11 @@ export interface CharSprite {
   idle?: HTMLCanvasElement | undefined;
   /** Bounces on their toes when standing still. */
   bounce?: boolean | undefined;
+  /**
+   * A drawn four-frame walk cycle per facing, used instead of stand/step/stand/step when present
+   * (dev: drawn sprites tried in the game, src/dev/artswap.ts).
+   */
+  walk?: Record<Dir, HTMLCanvasElement[]> | undefined;
 }
 
 // ---------------------------------------------------------------- body templates (std)

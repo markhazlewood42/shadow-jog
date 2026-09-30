@@ -375,17 +375,19 @@ export class BattleRenderer {
     const through = beat && dd.pose === 'attack' && (beat.phase === 'cut' || beat.phase === 'settle');
     const pose: Pose = dd.poseT > 0 ? (beat?.phase === 'gather' ? 'brace' : through ? 'strike' : dd.pose) : 'idle';
     const frame = art.frames[pose];
+    // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
+    const res = art.res ?? 1;
     let ox = 0;
     if (dd.shake > 0) ox = dd.shake % 4 < 2 ? 2 : -2;
     if (pose === 'hurt') ox += 1;
     // Idle breathing: a 1px rise, staggered per member; faster and higher while choosing orders.
     const breathe = pose === 'idle' ? (Math.floor((f + p.uid * 23) / (active ? 16 : 34)) % 2) * (active ? 2 : 1) : 0;
-    const x = Math.round(pos.x - frame.width / 2 + ox);
+    const x = Math.round(pos.x - frame.width / res / 2 + ox);
     const lift = beat ? beat.lift : dd.lunge;
-    const y = Math.round(PARTY_BOTTOM - frame.height - dd.hop - lift - breathe + (pose === 'hurt' ? 2 : 0));
+    const y = Math.round(PARTY_BOTTOM - frame.height / res - dd.hop - lift - breathe + (pose === 'hurt' ? 2 : 0));
     if (down) {
       g.globalAlpha = 0.5;
-      g.drawImage(silhouetteCache(art.frames.hurt, '#3a3450'), x, y + 10);
+      putArt(g, silhouetteCache(art.frames.hurt, '#3a3450'), x, y + 10, res);
       g.globalAlpha = 1;
       return;
     }
@@ -393,7 +395,7 @@ export class BattleRenderer {
       // Speed ghosts trailing behind and to either side.
       for (const [gx, gy, a] of AFTERIMAGES) {
         g.globalAlpha = a * (dd.afterimage / 22);
-        g.drawImage(silhouetteCache(frame, MEMBERS[p.key as MemberId].color), x + gx, y + gy);
+        putArt(g, silhouetteCache(frame, MEMBERS[p.key as MemberId].color), x + gx, y + gy, res);
       }
       g.globalAlpha = 1;
     }
@@ -402,24 +404,24 @@ export class BattleRenderer {
       const tint = MEMBERS[p.key as MemberId].color;
       for (let i = beat.smear; i >= 1; i--) {
         g.globalAlpha = 0.18 + 0.1 * (beat.smear - i);
-        g.drawImage(silhouetteCache(frame, tint), x, y + i * 4);
+        putArt(g, silhouetteCache(frame, tint), x, y + i * 4, res);
       }
       g.globalAlpha = 1;
     }
-    g.drawImage(frame, x, y);
+    putArt(g, frame, x, y, res);
     // The cut's lit trail shows only while the cut is happening, not through the settle.
     const glow = pose === 'strike' && beat?.phase === 'settle' ? undefined : art.glow[pose];
     if (glow) {
       g.globalCompositeOperation = 'lighter';
       g.globalAlpha = 0.75 + 0.25 * Math.sin(f * 0.5);
-      g.drawImage(glow, x, y);
+      putArt(g, glow, x, y, res);
       g.globalAlpha = 1;
       g.globalCompositeOperation = 'source-over';
     }
     if (active && this.s.mode !== 'target') this.drawArrow(g, p.uid, f, ACTIVE);
     if (dd.flash > 0 && dd.flash % 4 < 2) {
       g.globalAlpha = 0.45;
-      g.drawImage(silhouetteCache(frame, '#ff5a5a'), x, y);
+      putArt(g, silhouetteCache(frame, '#ff5a5a'), x, y, res);
       g.globalAlpha = 1;
     }
   }

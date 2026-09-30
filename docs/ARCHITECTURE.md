@@ -303,6 +303,12 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
   `smirk`, `hurt`).
 - **`critters.ts`**: cats and crows.
 - `data/looks.ts`: the cast's looks (`LOOKS`) and `randomLook(seed)` / `streetLook(seed)` for crowds.
+- **Drawn art, tried in place (dev only).** Each art cache has a `replace…` hook (`replaceCharSprite`,
+  `replaceBattler`, `replaceEnemyArt`, `replacePortrait`) that `src/dev/artswap.ts` uses to put PixelLab art-pass
+  picks into the running game (`?art=review`). Two fields exist for that art: `CharSprite.walk` (a drawn four-frame
+  walk per facing, which `Actor.frame()` prefers over stand/step/stand/step) and `Battler.res` (art pixels per
+  battle pixel, as `EnemyArt.res` already had; the party is drawn through `putArt`). The pipeline and the review
+  page: DEVELOPING.md §8, "The PixelLab art pass".
 
 ---
 

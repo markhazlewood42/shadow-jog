@@ -111,6 +111,8 @@ time. Run a single spec: `npx playwright test e2e/chaos.spec.ts --reporter=line`
 - `?scene=chars[&zoom=4][&npcs][&battlers]`, `?scene=bestiary[&page=1]`, `?scene=portraits`, `?scene=font`:
   asset sheets.
 - `?scene=fxlab`: the FX lab (particle presets and battle moments; see §8).
+- `/artreview.html`: the art-pass review page; `?art=review[&try=asset/option,...]` on any route swaps art-pass
+  options into the game (see §8, "The PixelLab art pass").
 
 **`window.__SJ__`** (open the console on `http://localhost:3007/?debug`):
 - `game`, `display`, `state`, `field()`, `top()` (the top scene's class name), `idle()` (field ready for input);
@@ -250,6 +252,43 @@ Objectives go in `OBJ`. New names go in the glossary.
   framing first (`media/trailer-preview/`).
 - The shots are the script's shot list; the in-page tools (caption cards in the game font, one held song per
   section, the recorder) are `src/dev/trailer.ts`. Re-shoot it after changing the art for a before/after pair.
+
+### The PixelLab art pass and the review page
+Drawn art made with [PixelLab](https://www.pixellab.ai) (a paid account; its REST API, `https://api.pixellab.ai/v2`),
+kept out of the game and out of git until Mark picks. Everything generated lives in `media/art-pass/`.
+- **The key** is `PIXELLAB_API_KEY` in `.env.local` (git-ignored). Scripts read it; nothing prints it.
+- **What today's art looks like:** `node scripts/pixellab/render-current.mjs` (dev server running) renders the
+  game's own art to `media/art-pass/current/`: every character look (4 facings, plus a 32×32 style image), the
+  crew's battle poses, the enemies, the portraits, each prop as the game draws it, NPC placements, and in-game
+  shots of the places the terrain comes from. These are the review's "Now" column and the style images.
+- **Recipes** are `scripts/pixellab/plan.mjs`, in groups: `crew`, `battle`, `enemies`, `portraits`, `npcs`,
+  `terrain`, `props`. Each asset has options (different recipes) for Mark to choose between.
+- **Generating:** `node scripts/pixellab/pass.mjs <groups…> [--only id,id] [--dry]`. It's resumable (a finished
+  option is skipped; one with a PixelLab id recorded is picked up, not paid for twice) and it forgets jobs PixelLab
+  failed ("heavy load"), so just run it again. Each asset's options and files go in
+  `media/art-pass/assets/<asset>/`, with a `meta.json` the review page reads; every paid request is logged in
+  `media/art-pass/ledger.jsonl`.
+- **Budget:** the client (`scripts/pixellab/lib.mjs`) refuses any request that could take the account's balance
+  below `ARTPASS_FLOOR` (1000 by default: this pass may spend half the month's 2,000). Costs seen: Pro Flash
+  character 6 (32 px) to 8 (128 px) with its 8 directions; image 5–9 by size; a template animation 1 per
+  direction; a custom (v3) animation 2 per direction at 128 px; a Wang tileset 3; a map object 1.
+- **Speed:** Tier 1 runs at most 8 jobs at once (an animation is one job per direction). The runner takes job slots
+  before starting anything (`ARTPASS_SLOTS`, default 8; run two at once with, say, 7 and 1). A character's
+  8-direction rotation takes 5–8 minutes; images take about a minute, tilesets and map objects under one.
+- **The review page:** `npm run dev`, then http://localhost:3007/artreview.html. Per asset: "Now" and each option at
+  the same screen scale (walk cycles and battle animations play; tilesets are laid out as a patch of map). Mark
+  marks options ★ Best (one per asset) / ✓ Good / ✗ No and writes notes, per option and per asset; it saves as he
+  goes to `media/art-pass/review.json` (the `/__artpass` plugin in `vite.config.ts`). **Try ↗** opens the game with
+  that option swapped in; **Try picks in game** swaps in every Best.
+- **Swapping into the game** (`src/dev/artswap.ts`, loaded by `?art=review`; boot waits for it before starting a
+  scene): field sprites for the crew, named and one-off NPCs and the townsfolk pool (with drawn walk cycles:
+  `CharSprite.walk`), the crew's battle sprites (`replaceBattler`, drawn at twice the battle world's resolution:
+  `Battler.res`), enemies (`replaceEnemyArt`) and portraits (`replacePortrait`). Terrain and props aren't swappable
+  yet: that's the integration step after picks. None of this ships: it's all behind `import.meta.env.DEV`.
+- **The house recipe** (from the first tests with Mark): Pro Flash, Low Top-Down, a style image, and a prompt that
+  describes the look ("chibi proportions about 2.5 heads tall, … at most 15 colors, bold black outline"). Naming
+  Phantasy Star IV made results noisier. All battle art is made at the field's pixel size (the battle world's
+  `res 2`), so the game has one pixel size throughout.
 
 ### A new save field
 Add it to `GameState` and `newState()`. If it's purely additive, give it a default in `backfill()` (`save.ts`). If
