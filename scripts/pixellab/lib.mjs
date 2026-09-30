@@ -27,14 +27,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // a 429 for it anyway (jobs left running by an earlier run) just waits its turn.
 export const MAX_SLOTS = Number(process.env.ARTPASS_SLOTS ?? 8);
 let used = 0;
-const waiting = [];
+// First come, first served: a request for 4 slots (a 4-direction walk) isn't starved by a stream
+// of 1-slot requests that would otherwise take each slot as it frees.
+const queue = [];
 export async function acquire(n) {
-  while (used + n > MAX_SLOTS) await new Promise((r) => waiting.push(r));
-  used += n;
+  if (!queue.length && used + n <= MAX_SLOTS) {
+    used += n;
+    return;
+  }
+  await new Promise((r) => queue.push({ n: Math.min(n, MAX_SLOTS), r }));
 }
 export function release(n) {
   used = Math.max(0, used - n);
-  for (const r of waiting.splice(0)) r();
+  while (queue.length && used + queue[0].n <= MAX_SLOTS) {
+    const w = queue.shift();
+    used += w.n;
+    w.r();
+  }
 }
 
 /** One API call, with retries on rate limits and server errors. Returns parsed JSON. */

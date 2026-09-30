@@ -35,6 +35,8 @@ interface Option {
   tiles?: { file: string; corners?: Record<string, string> | null }[];
   /** Tilesets: the level with these tiles laid in (render-maps.mjs). */
   preview?: Preview;
+  /** Animations PixelLab failed or stalled on (the next run asks again). */
+  animErrors?: string[] | null;
 }
 /** A tileset in context: the whole map baked with it, and an in-game shot where its terrains meet. */
 interface Preview {
@@ -366,7 +368,12 @@ function optionBody(a: Asset, o: Option): HTMLElement {
     if (o.status === 'failed' || o.status === 'budget') return h('div', { class: 'failed' }, `Didn’t generate: ${o.error ?? 'unknown error'}`);
     return h('div', { class: 'pending' }, 'Generating… (Refresh to check)');
   }
-  if (o.kind === 'character') return characterView(a, o);
+  if (o.kind === 'character') {
+    const view = characterView(a, o);
+    if (!o.animErrors?.length) return view;
+    const names = o.animErrors.map((e) => e.split(':')[0]).join(', ');
+    return h('div', {}, view, h('div', { class: 'pending' }, `Not animated yet: ${names} (PixelLab stalled; the next run retries)`));
+  }
   if (o.kind === 'tileset') return tilesetView(o);
   if (o.image) return stage(sprite([o.image], o.scale ?? 1));
   return h('div', { class: 'failed' }, 'Nothing to show');

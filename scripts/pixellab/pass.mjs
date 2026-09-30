@@ -40,7 +40,7 @@ async function resume(jobIds, cost) {
   await acquire(jobIds.length);
   reserve(cost);
   try {
-    await Promise.all(jobIds.map((j) => waitJob(j, { timeoutMs: 45 * 60_000 })));
+    await Promise.all(jobIds.map((j) => waitJob(j, { timeoutMs: 90 * 60_000 })));
   } finally {
     settle(cost);
     release(jobIds.length);
@@ -102,7 +102,7 @@ async function animate(asset, opt, id, rec) {
     if (!own) return resume(jobs, 0);
     return (async () => {
       try {
-        await Promise.all(jobs.map((j) => waitJob(j, { timeoutMs: 45 * 60_000 })));
+        await Promise.all(jobs.map((j) => waitJob(j, { timeoutMs: 90 * 60_000 })));
       } finally {
         settle(run.cost ?? 0);
         release(run.slots ?? a.directions.length);
@@ -144,10 +144,27 @@ async function animate(asset, opt, id, rec) {
     w.catch(() => {});
     waits.push(w);
   }
-  await Promise.all(waits);
-  if (!pending.length) return anims;
+  // One animation stuck or failed on PixelLab's side doesn't cost the others: keep what finished,
+  // and forget the failed one so the next run asks for it again.
+  const settled = await Promise.allSettled(waits);
+  const errors = [];
+  const finished = [];
+  pending.forEach((a, i) => {
+    const r = settled[i];
+    if (r?.status === 'fulfilled') {
+      finished.push(a);
+      return;
+    }
+    errors.push(`${a.name}: ${String(r?.reason?.message ?? r?.reason).slice(0, 160)}`);
+    const cur = anims[a.name];
+    if (cur?.fillGroup) {
+      const { fillGroup, fill, ...rest } = cur;
+      anims[a.name] = rest;
+    } else delete anims[a.name];
+  });
+  if (!finished.length) return { anims, errors };
   const c = await api('GET', `/characters/${id}`);
-  for (const a of pending) {
+  for (const a of finished) {
     const cur = anims[a.name];
     const group = cur.fillGroup ?? cur.group;
     const got = (c.animations ?? []).find((x) => x.animation_group_id === group);
@@ -164,7 +181,7 @@ async function animate(asset, opt, id, rec) {
     if (still.length) anims[a.name].missing = still;
     else delete anims[a.name].missing;
   }
-  return anims;
+  return { anims, errors };
 }
 
 // ------------------------------------------------------------------ images and objects
@@ -278,7 +295,10 @@ async function runOption(asset, opt) {
       upsertOption(baseOf(asset), { id: opt.id, characterId: id });
       const rot = rec.rotations && existsSync(`${ROOT}/${Object.values(rec.rotations)[0]}`) ? rec.rotations : await rotations(asset, opt, id);
       upsertOption(baseOf(asset), { id: opt.id, rotations: rot });
-      out = { rotations: rot, anims: await animate(asset, opt, id, rec) };
+      const { anims, errors } = await animate(asset, opt, id, rec);
+      // The character is usable without every animation; the review shows what's missing.
+      out = { rotations: rot, anims, animErrors: errors.length ? errors : null };
+      if (errors.length) console.log(`  ~ ${asset.id}/${opt.id}: ${errors.join('; ')}`);
     } else if (opt.kind === 'image') out = await createImage(asset, opt, rec);
     else if (opt.kind === 'tileset') out = await createTileset(asset, opt, rec);
     else if (opt.kind === 'mapobject') out = await createMapObject(asset, opt, rec);
