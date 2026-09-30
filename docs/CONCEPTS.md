@@ -28,6 +28,9 @@ Mark asked (2026-09-30) for a running record of the game-dev and JRPG ideas that
 - **Back-view battle.** Phantasy Star IV (and Shadow Jog) show the party from behind at the bottom of the screen facing the enemies, rather than side-on (Final Fantasy) or first-person (Dragon Quest).
 - **Skeleton / template animation.** Animating a character by fitting it to a stick-figure skeleton and moving the skeleton through a stock motion (walk, punch, cast), instead of drawing each frame. Cheap and consistent, less expressive. *Here:* PixelLab's template animations (1 generation per direction).
 - **Idle animation.** Small motion while standing still (breathing, bouncing) so the scene doesn't look frozen. *Here:* Kit bounces; party members breathe in battle.
+- **Paper-doll (modular) characters.** A character assembled at runtime from layered parts (body, head, hair, hat, top, legs) drawn to line up on a shared body template, so a few dozen parts make thousands of people. Used by Stardew Valley's farmer, RPG Maker's generator and the open "LPC" sprite sets. The engine is the easy part; the art is the hard part: every part needs every facing and walk frame, all aligned to the same anchor points, with the layer order changing by facing (hair goes behind the head when walking away). *Here:* the game's own procedural characters already work this way (`src/art/chars.ts`: letter-grid body, hair and accessory layers through a palette; `randomLook(seed)` for crowds). Discussed 2026-09-30 as a way to vary townsfolk made with PixelLab.
+- **Palette swap (recolouring).** Drawing a sprite once with its colours in known slots (skin, hair, top, trousers) and swapping the slots at runtime for new colours, for variety at no art cost. Classic for enemies and crowds. It needs each colour slot to be known, which is easy for art made that way and takes a labelling step for AI art.
+- **Layer order (z-order).** Which parts draw over which. It changes with facing and with motion (an arm in front of the body on one step, behind it on the next), which is one of the things AI-generated animation gets wrong from frame to frame.
 
 ## Tiles and maps
 
@@ -59,7 +62,7 @@ Mark asked (2026-09-30) for a running record of the game-dev and JRPG ideas that
 - **Timed hits (action commands).** Pressing a button on a beat during an attack or defence for a bonus, as in Super Mario RPG and Paper Mario. *Here:* the strike, brace and mend rings.
 - **Combos (combination techniques).** Two or three party members' moves fusing into one stronger move when ordered together, as in Phantasy Star IV and Chrono Trigger. *Here:* Clean Job, Thunder Rift and the rest.
 - **Targeting AI / aggro.** How enemies choose whom to hit. Pure random feels unfair one way, always-the-weakest feels unfair the other. *Here:* "smell blood" weights the lowest-HP member 1.5×, likely but not certain.
-- **Palette swap.** Reusing one enemy sprite in new colours for a stronger or different enemy, a classic way to stretch art. *Here:* a second copy of an enemy in one fight is shifted in colour so they read as different.
+- **Palette-swapped enemies.** Reusing one enemy sprite in new colours for a stronger or different enemy (see *Palette swap* above), a classic way to stretch art. *Here:* a second copy of an enemy in one fight is shifted in colour so they read as different.
 - **Encounter rate.** How often random battles trigger while walking. Too high is tiring. *Here:* about 1 in 40 steps in the Sinkline.
 
 ## Progression and economy
