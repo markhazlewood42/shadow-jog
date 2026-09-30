@@ -377,6 +377,20 @@ let current: Playing | null = null;
 let pendingName: string | null = null;
 let timer: number | null = null;
 const stack: { name: string; step: number }[] = [];
+/**
+ * A song held regardless of what scenes ask for (the trailer recorder, src/dev/trailer.ts: one
+ * song per section rather than a jump at every cut). Null in play: nothing holds the music.
+ */
+let held: string | null = null;
+
+/** Play `name` and hold it (scene changes don't change it) until `holdMusic(null)`. Dev tooling only. */
+export function holdMusic(name: string | null, fade = 30): void {
+  held = null;
+  if (name) {
+    music(name, fade);
+    held = name;
+  }
+}
 
 function stepDur(song: Compiled): number {
   return 60 / song.bpm / 4;
@@ -522,6 +536,7 @@ function stopCurrent(fade: number): void {
  * Call with null to stop.
  */
 export function music(name: string | null, fade = 30, fadeIn?: number): void {
+  if (held) return;
   if (!audio.unlocked) {
     pendingName = name;
     return;
@@ -535,6 +550,7 @@ export function music(name: string | null, fade = 30, fadeIn?: number): void {
 
 /** Save the current song position and switch (battles). */
 export function pushMusic(name: string): void {
+  if (held) return;
   if (current) stack.push({ name: current.name, step: current.step });
   if (!audio.unlocked) {
     pendingName = name;
@@ -548,6 +564,7 @@ export function pushMusic(name: string): void {
 
 /** Resume the song saved by pushMusic from where it left off. */
 export function popMusic(): void {
+  if (held) return;
   const prev = stack.pop();
   stopCurrent(0.3);
   if (prev && audio.unlocked) begin(prev.name, prev.step, 1.2, true);

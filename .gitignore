@@ -10,3 +10,5 @@ playtest/
 # Session tooling output (scripts/evidence.sh, scripts/verifier-prompts.py)
 evidence.log
 reviewer-prompts/
+# Trailer recordings and previews (scripts/trailer.mjs): too big for a public repo; re-shoot them instead.
+media/

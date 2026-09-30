@@ -76,6 +76,12 @@ export function boot(game: Game, display: Display): void {
      *  the switch as Options flips it. */
     postfx,
     fx: FX,
+    /** The trailer tools (src/dev/trailer.ts, for scripts/trailer.mjs), loaded on first use. */
+    trailer: async () => {
+      const t = await import('./dev/trailer');
+      t.attach(game);
+      return t;
+    },
     gpu: (on: boolean) => {
       settings.gpuFx = on;
       saveSettings();

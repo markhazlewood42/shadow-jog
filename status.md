@@ -61,6 +61,11 @@ on every push to `main`.
   backdrop, and **Save** writes `src/data/fx.json` (commit it to ship). Guide: `docs/DEVELOPING.md` §8.
   **Next slices, for Mark to pick:** per-spell looks (heat haze for FIRE, a lightning flash for SHOCK, a Warden cannon charge); field weather (rain
   splashes, lamp flicker into the bloom); per-place colour grading.
+- **Trailer, "before" record (2026-09-30):** `media/shadow-jog-trailer-2026-09-30.mp4` (94.7 s, 1080p60, game audio;
+  not in git) records the game as it stands with everything made in code, before any AI-generated art. Shot by
+  `node scripts/trailer.mjs`; re-shoot after the art changes for the "after".
+- **Next with Mark: PixelLab trial** (he signed up for the free tier 2026-09-30; his outputs are in the untracked
+  `pixellab-tests/`). First candidates: Kit, and the scrap hounds (his newest note: they "look janky").
 - **Waiting on Mark's next playthrough.** His existing save loads: saves migrate to format v3 (levels re-worked on
   the new curve from the XP earned, Rook at 10, story unlocks already passed are set). A new game shows the new
   opening (Rook's wound). Rebuild first: `npm run build && npm run preview` (http://localhost:3008).
