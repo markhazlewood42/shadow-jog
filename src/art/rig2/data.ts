@@ -5,6 +5,7 @@
  * letter-grid rig, so nothing breaks; boot says so if it fails.
  */
 import type { Dir } from '../chars';
+import type { BattleRig } from './battle';
 import type { TracedPortrait } from './portrait';
 import type { Traced } from './rig';
 
@@ -16,6 +17,8 @@ export const BATTLE_TRACED: Record<string, Traced & { ox: number; oy: number }> 
 export const ENEMY_TRACED: Record<string, Traced> = {};
 /** Dialogue portraits: every face the art pass made per speaker, and where the eyes and mouth are. */
 export const PORTRAIT_TRACED: Record<string, TracedPortrait> = {};
+/** Battle backs' skeletons and key poses (set in the animation editor, /rigedit.html). */
+export const SKELETONS: Record<string, BattleRig> = {};
 
 /** Load the traced frames. Resolves with how many characters came in; rejects if none could. */
 export async function loadRigData(base = 'art/rig/'): Promise<number> {
@@ -24,10 +27,11 @@ export async function loadRigData(base = 'art/rig/'): Promise<number> {
     if (!res.ok) throw new Error(`${file}: ${res.status}`);
     return res.json();
   };
-  const [field, battle, enemies, portraits] = await Promise.all([get('field.json'), get('battle.json'), get('enemies.json'), get('portraits.json')]);
+  const [field, battle, enemies, portraits, skeletons] = await Promise.all([get('field.json'), get('battle.json'), get('enemies.json'), get('portraits.json'), get('skeleton.json')]);
   Object.assign(TRACED, field);
   Object.assign(BATTLE_TRACED, battle);
   Object.assign(ENEMY_TRACED, enemies);
   Object.assign(PORTRAIT_TRACED, portraits);
+  Object.assign(SKELETONS, skeletons);
   return Object.keys(TRACED).length;
 }

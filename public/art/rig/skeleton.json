@@ -1,0 +1,400 @@
+{
+ "kit": {
+  "arm": {
+   "shoulder": [
+    72,
+    48
+   ],
+   "elbow": [
+    80,
+    62
+   ],
+   "wrist": [
+    79,
+    48
+   ],
+   "box": [
+    70,
+    34,
+    90,
+    68
+   ],
+   "keep": [
+    [
+     60,
+     20
+    ],
+    [
+     66,
+     30
+    ],
+    [
+     72,
+     44
+    ],
+    [
+     62,
+     60
+    ],
+    [
+     70,
+     62
+    ],
+    [
+     56,
+     58
+    ],
+    [
+     64,
+     80
+    ],
+    [
+     66,
+     50
+    ]
+   ],
+   "reach": [
+    0,
+    4
+   ],
+   "hand": [
+    76,
+    36,
+    86,
+    48
+   ],
+   "sleeve": "#d82d17",
+   "width": 5
+  },
+  "light": "#ffa24a",
+  "poses": {
+   "brace": {
+    "hand": [
+     82,
+     51
+    ]
+   },
+   "strike": {
+    "hand": [
+     88,
+     34
+    ],
+    "light": "impact",
+    "lightAt": "hand"
+   },
+   "raise": {
+    "hand": [
+     86,
+     10
+    ],
+    "light": "spark",
+    "lightAt": "hand"
+   },
+   "victory": {
+    "hand": [
+     86,
+     10
+    ],
+    "light": "spark",
+    "lightAt": "hand"
+   }
+  }
+ },
+ "rook": {
+  "arm": {
+   "shoulder": [
+    83,
+    56
+   ],
+   "elbow": [
+    85,
+    66
+   ],
+   "wrist": [
+    85,
+    74
+   ],
+   "box": [
+    77,
+    54,
+    93,
+    82
+   ],
+   "keep": [
+    [
+     70,
+     60
+    ],
+    [
+     72,
+     76
+    ],
+    [
+     64,
+     50
+    ],
+    [
+     60,
+     84
+    ],
+    [
+     74,
+     88
+    ]
+   ],
+   "reach": [
+    4,
+    4
+   ],
+   "hand": [
+    79,
+    73,
+    93,
+    82
+   ],
+   "sleeve": "#9a9aa8",
+   "width": 6
+  },
+  "hide": {
+   "box": [
+    30,
+    20,
+    48,
+    46
+   ],
+   "keep": [
+    [
+     52,
+     46
+    ],
+    [
+     58,
+     40
+    ],
+    [
+     48,
+     52
+    ],
+    [
+     46,
+     60
+    ]
+   ]
+  },
+  "light": "#ffe07a",
+  "poses": {
+   "brace": {
+    "hand": [
+     93,
+     60
+    ],
+    "weapon": {
+     "kind": "katana",
+     "angle": -156
+    }
+   },
+   "strike": {
+    "hand": [
+     97,
+     30
+    ],
+    "weapon": {
+     "kind": "katana",
+     "angle": -90
+    },
+    "light": "impact",
+    "lightAt": "tip"
+   },
+   "raise": {
+    "hand": [
+     92,
+     38
+    ],
+    "weapon": {
+     "kind": "katana",
+     "angle": -34
+    },
+    "light": "spark",
+    "lightAt": "tip"
+   },
+   "victory": {
+    "hand": [
+     92,
+     38
+    ],
+    "weapon": {
+     "kind": "katana",
+     "angle": -34
+    },
+    "light": "spark",
+    "lightAt": "tip"
+   }
+  }
+ },
+ "hex": {
+  "arm": {
+   "shoulder": [
+    80,
+    50
+   ],
+   "elbow": [
+    86,
+    64
+   ],
+   "wrist": [
+    88,
+    77
+   ],
+   "box": [
+    78,
+    44,
+    94,
+    88
+   ],
+   "keep": [],
+   "reach": [
+    4,
+    4.5
+   ],
+   "hand": [
+    84,
+    77,
+    93,
+    87
+   ],
+   "sleeve": "#7a3aa8",
+   "width": 6
+  },
+  "light": "#3fe0f0",
+  "aim": "strike",
+  "poses": {
+   "brace": {
+    "hand": [
+     92,
+     70
+    ],
+    "weapon": {
+     "kind": "pistol",
+     "angle": 163
+    }
+   },
+   "strike": {
+    "hand": [
+     92,
+     42
+    ],
+    "weapon": {
+     "kind": "pistol",
+     "angle": -113
+    },
+    "light": "shot",
+    "lightAt": "tip"
+   },
+   "raise": {
+    "hand": [
+     90,
+     16
+    ],
+    "light": "spark",
+    "lightAt": "hand"
+   },
+   "victory": {
+    "hand": [
+     90,
+     16
+    ],
+    "light": "spark",
+    "lightAt": "hand"
+   }
+  }
+ },
+ "sable": {
+  "arm": {
+   "shoulder": [
+    55,
+    53
+   ],
+   "elbow": [
+    48,
+    64
+   ],
+   "wrist": [
+    43,
+    60
+   ],
+   "box": [
+    18,
+    4,
+    56,
+    114
+   ],
+   "keep": [
+    [
+     52,
+     70
+    ],
+    [
+     56,
+     60
+    ],
+    [
+     60,
+     90
+    ],
+    [
+     50,
+     100
+    ]
+   ],
+   "reach": [
+    0,
+    3
+   ],
+   "hand": [
+    18,
+    4,
+    47,
+    114
+   ],
+   "sleeve": "#8a9a6a",
+   "width": 6
+  },
+  "light": "#ff7a3a",
+  "poses": {
+   "brace": {
+    "hand": [
+     39,
+     66
+    ],
+    "grip": 65
+   },
+   "strike": {
+    "hand": [
+     46,
+     50
+    ],
+    "light": "impact",
+    "lightAt": "tip",
+    "grip": -50
+   },
+   "raise": {
+    "hand": [
+     43,
+     54
+    ],
+    "light": "spark",
+    "lightAt": "top",
+    "grip": -35
+   },
+   "victory": {
+    "hand": [
+     43,
+     54
+    ],
+    "light": "spark",
+    "lightAt": "top",
+    "grip": -35
+   }
+  }
+ }
+}

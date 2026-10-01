@@ -312,8 +312,14 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
   (`legColours`), so hair, coat hems and staffs hang still; facing us or away a step lifts one foot a pixel; side on,
   the legs swing apart about the hip by RotSprite (Scale2x up 8x, rotate, sample down), the far leg a shade darker;
   the body bobs on passing steps; the outline is drawn around each finished pose. Walks go in `CharSprite.walk`.
-  The crew's battle backs (`rig2/battle.ts`, from `battle.json`) pose by code: the moving hand or staff cut out by
-  colour and turned, a forearm drawn to it, weapons drawn in code, and the light each pose throws. NPCs and
+  The crew's battle backs (`rig2/battle.ts`, from `battle.json`) pose **on a skeleton** (`skeleton.json`, since
+  2026-09-30): the moving arm is shoulder, elbow, wrist and hand with fixed bone lengths; a key pose (brace, strike,
+  raise, victory) is where the wrist goes, the elbow comes from two-bone IK (`solveArm`), and each bone's pixels
+  (picked from the traced frame by colour and distance from the bone) turn rigidly at its joint, so a limb can't
+  stretch. Where the arm leaves the body the gap is filled from around it and loose bits are dropped; a bone with
+  no pixels of its own is drawn as a sleeve; weapons are drawn in code in the hand, and each pose throws its light.
+  Poses and joints are set in the **animation editor** (`/rigedit.html`, `src/dev/rigedit.ts`, dev only), which saves
+  through the dev server (`vite.config.ts` `rigEdit`). NPCs and
   townsfolk (`rig2/npcs.ts`) are swapped in after loading; passers-by take the townsfolk looks in turn. **Enemies**
   (`rig2/enemy.ts`, from `enemies.json`, keyed by sprite name): `enemyArt()` takes the traced redraw where there is
   one, keeping the code-drawn art's idle motion, shadow and size; the strike frame leans it in and the flinch tips it

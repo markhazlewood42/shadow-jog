@@ -18,9 +18,12 @@ import { gzipSync } from 'node:zlib';
  * Re-set to 224 kB on 2026-09-30 for playthrough 2 (the level-up panel, the jingle, the valve
  * sounds, the equip screen) and the GPU effects layer Mark asked for (the WebGL presenter and its
  * shaders, the particle simulation and emitter presets, about 4 kB): measured 213.7 kB.
+ * Re-set to 236 kB the night of 2026-09-30 (Mark): rig v2 (characters, enemies and portraits drawn
+ * and animated in code from traced frames, their data loaded as JSON) and the battle skeleton
+ * filled the 224; measured 224.9 kB, with room for the rest of the rig and the effects pass.
  */
 const CHUNK_MAX = 480 * 1000;
-const GZIP_TOTAL_MAX = 224 * 1000;
+const GZIP_TOTAL_MAX = 236 * 1000;
 
 const dir = 'dist/assets';
 const js = readdirSync(dir).filter((f) => f.endsWith('.js'));

@@ -137,9 +137,66 @@ function artPass(): Plugin {
   };
 }
 
+const SKELETON_FILE = resolve(import.meta.dirname, 'public/art/rig/skeleton.json');
+
+/**
+ * The animation editor's save endpoint (dev server only; the editor is /rigedit.html):
+ * GET /__rig/skeleton returns public/art/rig/skeleton.json, POST checks the posted skeletons (each
+ * has an arm and poses) and writes them. Answers `{ ok: true }` or `{ ok: false, problem }`.
+ */
+function rigEdit(): Plugin {
+  return {
+    name: 'shadowjog-rigedit',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__rig/skeleton', (req, res) => {
+        const reply = (code: number, body: unknown) => {
+          res.statusCode = code;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(body));
+        };
+        if (req.method === 'GET') {
+          reply(200, { ok: true, data: JSON.parse(readFileSync(SKELETON_FILE, 'utf8')) });
+          return;
+        }
+        if (req.method !== 'POST') {
+          reply(405, { ok: false, problem: 'GET or POST only' });
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: Buffer) => {
+          body += chunk.toString('utf8');
+          if (body.length > 1_000_000) req.destroy();
+        });
+        req.on('end', () => {
+          let data: Record<string, { arm?: unknown; poses?: unknown }>;
+          try {
+            data = JSON.parse(body);
+          } catch {
+            reply(400, { ok: false, problem: 'not valid JSON' });
+            return;
+          }
+          const bad = Object.entries(data ?? {}).find(([, r]) => !r || typeof r.arm !== 'object' || typeof r.poses !== 'object');
+          if (!data || typeof data !== 'object' || bad) {
+            reply(400, { ok: false, problem: bad ? `${bad[0]} has no arm or poses` : 'expected an object of skeletons' });
+            return;
+          }
+          try {
+            writeFileSync(SKELETON_FILE, `${JSON.stringify(data, null, 1)}
+`);
+            reply(200, { ok: true });
+          } catch (e) {
+            reply(500, { ok: false, problem: `couldn't write skeleton.json: ${String(e)}` });
+          }
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
   base: './',
-  plugins: [fxLab(), artPass()],
+  plugins: [fxLab(), artPass(), rigEdit()],
   server: { port: 3007, watch: { usePolling: true } },
   // The chunk warning matches the CI budget (scripts/bundle-budget.mjs).
   build: { target: 'es2022', assetsInlineLimit: 0, sourcemap: true, chunkSizeWarningLimit: 480 },

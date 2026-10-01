@@ -304,6 +304,14 @@ Mark cancels the plan around 2026-10-30: what it does, what we learned and what 
   `res 2`), so the game has one pixel size throughout.
 
 ### Rig v2: characters drawn in code
+- **Posing the crew in battle: the animation editor.** `npm run dev`, then `/rigedit.html`. Pick someone and a
+  pose; drag the hand (orange) and the elbow bends by itself (IK); drag the elbow (blue) across the arm to flip the
+  bend; the green dot turns the hand and what it holds; sliders for a weapon's angle, a lean, a crouch, the light.
+  The faint figure is the pose the move comes from; "Play the move" loops it at game speed. **Save** writes
+  `public/art/rig/skeleton.json` (commit it to ship). "Skeleton setup…" moves the rest joints and how far each
+  bone's pixels reach (once per character). **Notes for Claude:** each pose has a note box; the notes are saved in
+  `skeleton.json` (`notes`), and a session works through them (read the note, change the pose or the skeleton,
+  re-render with `node scripts/art/review-rig.mjs`, clear the note).
 - **Tracing a character:** add it to `SOURCES` in `scripts/art/trace.mjs` (the PixelLab frames to trace), run it,
   and give its look `rig: '<name>'` in `src/data/looks.ts`. The tracer writes `public/art/rig/field.json`, `battle.json`, `enemies.json` (each enemy's review pick, from `ENEMY_SPRITE`) and `portraits.json` (each portrait pick with its redrawn faces; eye and mouth boxes in `PORTRAIT_FEATURES`, read off the neutral face), which the game loads at startup (`src/art/rig2/data.ts`; `?rig=old` skips them)
   (regenerate, don't hand-edit).

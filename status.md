@@ -64,6 +64,11 @@ on every push to `main`.
 - **Trailer, "before" record (2026-09-30):** `media/shadow-jog-trailer-2026-09-30.mp4` (94.7 s, 1080p60, game audio;
   not in git) records the game as it stands with everything made in code, before any AI-generated art. Shot by
   `node scripts/trailer.mjs`; re-shoot after the art changes for the "after".
+- **Skeleton and animation editor: first build done (2026-09-30, night).** The crew's battle arms are bones now
+  (`skeleton.json`; limbs can't stretch) and `/rigedit.html` poses them (drag the hand; notes per pose for Claude;
+  Save writes the file). The poses are the old ones converted, waiting on Mark's eye. **Next in this thread:** his
+  pass in the editor; then the live "tell Claude" box; then in-betweens (tweening between key poses) and the field
+  sprites on the same bones.
 - **Next (Mark, 2026-09-30, night): a skeleton rig, then a novice-friendly animation editor.** Battle limbs stretch
   today (the forearm is a band from a fixed elbow to wherever the hand goes); fixed-length bones fix that by
   construction. Then an editor page (dev only): pick a character and pose, drag a hand and the elbow bends (IK),
@@ -95,7 +100,7 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
   **Portraits on the rig too:** the 8 picks traced with the faces the art pass redrew (Kit, Hex, Sable, Dutch); the
   rest drawn in code (all of Rook, Pale, Mags and Yun's expressions; Dutch's unused ones); every portrait now talks
   while a line types and blinks (Rig v2 · portraits on the review page, the blink and talk last in the strip).
-  The script bundle is at 223.9 of its 224 kB budget: the next feature needs trimming or a decision on raising it.
+  The script bundle budget is 236 kB since the skeleton (Mark's call; measured 224.9 kB).
   **First build done (rig v2, the crew in the field):** Kit (from the round-2 redo, with a face in profile), Rook,
   Hex and Sable traced and walking in code (`src/art/rig2/`); review versions v1 and v2 on the page. Next in the
   slice: Kit's battle back from her fighting-stance frame, with stance → strike and a cast raise by code (Mark's
