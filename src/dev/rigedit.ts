@@ -61,7 +61,7 @@ let who: string = WHO[0];
 let pose: KeyPose = 'strike';
 let dirty = false;
 const undo: string[] = [];
-let drag: null | 'hand' | 'elbow' | 'grip' | 'shoulder' | 'restElbow' | 'wrist' | 'arcFrom' | 'arcBend' = null;
+let drag: null | 'hand' | 'elbow' | 'grip' | 'shoulder' | 'restElbow' | 'wrist' | 'arcFrom' | 'arcBend' | 'freeHand' | 'freeElbow' | 'freeShoulder' | 'freeRestElbow' | 'freeWrist' = null;
 /** The impact's swept arc as last drawn: where it starts, its bend and where it lands (for the handles). */
 let arcShown: { from: Pt; bend: Pt; to: Pt } | null = null;
 let setup = false;
@@ -98,6 +98,10 @@ edit.height = SIZE * Z;
 const g = edit.getContext('2d') as CanvasRenderingContext2D;
 g.imageSmoothingEnabled = false;
 let shown: Posed | null = null;
+
+/** The free arm's handles: its hand and its elbow. */
+const FREE_HAND = '#ff6ad5';
+const FREE_ELBOW = '#ffb3ec';
 
 /** Where the green handle sits: past the wrist along the hand's direction. */
 function gripHandle(p: Posed, a: ArmPose): Pt {
@@ -355,12 +359,24 @@ function draw(): void {
       g.setLineDash([]);
     };
     box(r.arm.box, 'rgba(255,255,255,0.4)');
+    for (const b of r.arm.more ?? []) box(b, 'rgba(255,255,255,0.4)');
     box(r.arm.hand, 'rgba(255,162,74,0.6)');
     line(r.arm.shoulder, r.arm.elbow, 'rgba(255,255,255,0.7)');
     line(r.arm.elbow, r.arm.wrist, 'rgba(255,255,255,0.7)');
     dot(r.arm.shoulder, '#8a86a0', 6);
     dot(r.arm.elbow, '#3fe0f0', 6);
     dot(r.arm.wrist, '#ffa24a', 7);
+    // The free arm, in pink.
+    const f = r.free?.arm;
+    if (f) {
+      for (const b of [f.box, ...(f.more ?? [])]) box(b, 'rgba(255,106,213,0.45)');
+      box(f.hand, 'rgba(255,106,213,0.8)');
+      line(f.shoulder, f.elbow, 'rgba(255,179,236,0.7)');
+      line(f.elbow, f.wrist, 'rgba(255,179,236,0.7)');
+      dot(f.shoulder, '#8a86a0', 6);
+      dot(f.elbow, FREE_ELBOW, 6);
+      dot(f.wrist, FREE_HAND, 7);
+    }
     return;
   }
   // While the hand is dragged, how far the arm reaches.
@@ -372,6 +388,14 @@ function draw(): void {
     g.arc(p.shoulder[0] * Z, p.shoulder[1] * Z, reach * Z, 0, Math.PI * 2);
     g.stroke();
     g.setLineDash([]);
+  }
+  // The free arm (the same in every pose), in pink.
+  if (p.free) {
+    line(p.free.shoulder, p.free.elbow, 'rgba(255,179,236,0.6)');
+    line(p.free.elbow, p.free.wrist, 'rgba(255,179,236,0.6)');
+    dot(p.free.shoulder, '#8a86a0', 4);
+    dot(p.free.elbow, FREE_ELBOW, 5);
+    dot(p.free.wrist, FREE_HAND, 7);
   }
   line(p.shoulder, p.elbow, 'rgba(255,255,255,0.6)');
   line(p.elbow, p.wrist, 'rgba(255,255,255,0.6)');
@@ -427,8 +451,13 @@ edit.addEventListener('pointerdown', (e) => {
   const m = toArt(e);
   const r = rig();
   const p = shown;
-  if (setup) drag = near(r.arm.wrist, m) ? 'wrist' : near(r.arm.elbow, m) ? 'restElbow' : near(r.arm.shoulder, m) ? 'shoulder' : null;
-  else if (p) drag = arcShown && near(arcShown.from, m) ? 'arcFrom' : arcShown && near(arcShown.bend, m) ? 'arcBend' : near(p.wrist, m) ? 'hand' : near(gripHandle(p, current()), m) ? 'grip' : near(p.elbow, m) ? 'elbow' : null;
+  const f = r.free?.arm;
+  if (setup)
+    drag = near(r.arm.wrist, m) ? 'wrist' : near(r.arm.elbow, m) ? 'restElbow' : near(r.arm.shoulder, m) ? 'shoulder'
+      : f && near(f.wrist, m) ? 'freeWrist' : f && near(f.elbow, m) ? 'freeRestElbow' : f && near(f.shoulder, m) ? 'freeShoulder' : null;
+  else if (p)
+    drag = arcShown && near(arcShown.from, m) ? 'arcFrom' : arcShown && near(arcShown.bend, m) ? 'arcBend' : near(p.wrist, m) ? 'hand' : near(gripHandle(p, current()), m) ? 'grip' : near(p.elbow, m) ? 'elbow'
+      : p.free && near(p.free.wrist, m) ? 'freeHand' : p.free && near(p.free.elbow, m) ? 'freeElbow' : null;
   // Anywhere else on the figure moves the hand there (the easiest thing to do).
   if (!drag && !setup) drag = 'hand';
   if (!drag) return;
@@ -456,13 +485,30 @@ function move(m: Pt): void {
       // The hand goes where it's dropped as seen; with depth, its spot is that before the lift.
       a.hand = [Math.round(m[0]), Math.round(m[1] + (a.depth ?? 0) * TILT)];
       break;
-    case 'elbow': {
+    case 'elbow':
+    case 'freeElbow': {
       // Which side of the shoulder-to-hand line the pointer is on picks the bend.
-      const p = shown;
-      if (!p) break;
+      const p = drag === 'elbow' ? shown : shown?.free;
+      const pa = drag === 'elbow' ? a : r.free?.pose;
+      if (!p || !pa) break;
       const side = Math.sign((p.wrist[0] - p.shoulder[0]) * (m[1] - p.shoulder[1]) - (p.wrist[1] - p.shoulder[1]) * (m[0] - p.shoulder[0]));
       const now = Math.sign((p.wrist[0] - p.shoulder[0]) * (p.elbow[1] - p.shoulder[1]) - (p.wrist[1] - p.shoulder[1]) * (p.elbow[0] - p.shoulder[0]));
-      if (side && now && side !== now) a.flip = !a.flip;
+      if (side && now && side !== now) opt(pa, 'flip', !pa.flip);
+      break;
+    }
+    case 'freeHand': {
+      const fp = r.free?.pose;
+      if (fp) fp.hand = [Math.round(m[0]), Math.round(m[1] + (fp.depth ?? 0) * TILT)];
+      break;
+    }
+    case 'freeShoulder':
+    case 'freeRestElbow':
+    case 'freeWrist': {
+      const f = r.free?.arm;
+      if (!f) break;
+      if (drag === 'freeShoulder') f.shoulder = round(m);
+      else if (drag === 'freeRestElbow') f.elbow = round(m);
+      else f.wrist = round(m);
       break;
     }
     case 'grip': {
@@ -585,11 +631,13 @@ function side(): void {
   ];
   if (setup) {
     kids.push(
-      h('p', { class: 'hint' }, 'Skeleton setup: drag the joints to where the shoulder, elbow and wrist are in the standing frame. The dashed boxes are where the arm’s and the hand’s pixels come from. Every pose of this character changes with it.'),
+      h('p', { class: 'hint' }, `Skeleton setup: drag the joints to where the shoulder, elbow and wrist are in the standing frame. The dashed boxes are where the arm’s and the hand’s pixels come from. Every pose of this character changes with it.${r.free ? ' The pink ones are the free arm’s.' : ''}`),
       slider('Upper arm reach', r.arm.reach[0], 0, 8, (v) => (r.arm.reach[0] = v), '0: the upper arm is drawn as a sleeve (when it’s hidden under hair or a coat)'),
       slider('Forearm reach', r.arm.reach[1], 0, 8, (v) => (r.arm.reach[1] = v), 'How far from the bone its pixels go'),
       slider('Sleeve width', r.arm.width, 2, 10, (v) => (r.arm.width = v)),
     );
+    const f = r.free?.arm;
+    if (f) kids.push(slider('Free arm’s sleeve width', f.width, 2, 10, (v) => (f.width = v)));
   } else {
     kids.push(
       check('Bend the elbow the other way', !!a.flip, (v) => opt(a, 'flip', v)),
@@ -615,6 +663,24 @@ function side(): void {
           : null,
       );
   }
+  const fp = r.free?.pose;
+  if (!setup && fp)
+    kids.push(
+      h('hr'),
+      h('h2', {}, 'Free arm (every pose)'),
+      h('p', { class: 'hint' }, 'Drag the pink dot to place the other hand: it’s the same in Ready, Strike, Cast and Victory, out for balance. Standing, the arm hangs as drawn.'),
+      check('Bend its elbow the other way', !!fp.flip, (v) => opt(fp, 'flip', v)),
+      slider('Turn its hand', fp.grip ?? 0, -180, 180, (v) => opt(fp, 'grip', v)),
+      check('Behind the body', !!fp.behind, (v) => opt(fp, 'behind', v)),
+    );
+  const st = r.stance;
+  if (!setup && st)
+    kids.push(
+      h('hr'),
+      h('h2', {}, 'Stance (every pose)'),
+      slider('Bend the knees', st.sink, 0, 6, (v) => (st.sink = v), 'How much lower the body stands, over the legs (the feet stay put)'),
+      slider('Feet apart', st.spread, 0, 6, (v) => (st.spread = v), 'How far each foot moves out, the shins leaning out from the knees'),
+    );
   kids.push(h('hr'), h('h2', {}, 'Note for Claude'), note);
   const save = h('button', { class: 'primary', onclick: () => void doSave() }, 'Save');
   const undoBtn = h('button', { onclick: doUndo }, 'Undo');

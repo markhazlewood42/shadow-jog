@@ -92,10 +92,13 @@ on every push to `main`.
   (2026-10-01: **Kit done for now, Mark happy with her**: her jacket sleeve moves with her arm, drawn clean past
   30° and traced below, torso filled when the arm leaves; a round wrapped fist and an open hand (her Cast) drawn
   in code; his poses saved, including a hand-placed swept arc on her strike. Editor additions: a turntable of
-  each crew member's 8 drawn views, a Hand choice per pose, draggable arc handles. Rook, Hex and Sable next); then in-betweens (tweening between key poses) and the field
-  sprites on the same bones. **Pinned (Mark, 2026-10-01): a 2.5D depth prototype on Kit's strike** (a depth
-  control for the hand: the arm foreshortens reaching into the screen, the fist shrinks a little, draw order
-  follows depth; maybe a drawn end-on fist swapped in), after the current kinks are worked out.
+  each crew member's 8 drawn views, a Hand choice per pose, draggable arc handles. **Rook in progress** on branch
+  `rook-battle-rig` (PR when Mark is happy with him): his coat shoulder moves with the arm, no stray bits of arm
+  left by the torso, Lean and Crouch removed from the editor (they only tipped or slid the whole figure), and
+  (2026-10-01) his other arm out for balance in every pose plus a bent-knee stance, both set in the editor (pink
+  free hand; Stance sliders). Hex and Sable next); then in-betweens (tweening between key poses) and the field
+  sprites on the same bones. **2.5D prototype in** (Mark, 2026-10-01): "Reach forward" and the side view; the arm
+  foreshortens reaching into the screen and the hand shrinks a little.
 - **Next (Mark, 2026-09-30, night): a skeleton rig, then a novice-friendly animation editor.** Battle limbs stretch
   today (the forearm is a band from a fixed elbow to wherever the hand goes); fixed-length bones fix that by
   construction. Then an editor page (dev only): pick a character and pose, drag a hand and the elbow bends (IK),

@@ -322,7 +322,10 @@ Mark cancels the plan around 2026-10-30: what it does, what we learned and what 
 - **Posing the crew in battle: the animation editor.** `npm run dev`, then `/rigedit.html`. Pick someone and a
   pose; drag the hand (orange) and the elbow bends by itself (IK); drag the elbow (blue) across the arm to flip the
   bend; the green dot turns the hand and what it holds; sliders for a weapon's angle, how far the hand reaches into the screen (also the side view), the light.
-  The faint figure is the pose the move comes from; "Play the move" loops it at game speed. **Save** writes
+  The faint figure is the pose the move comes from; "Play the move" loops it at game speed. A character with a
+  free arm (Rook) shows its hand as a pink dot: one pose for that arm, shared by every pose (out for balance), and
+  a "Stance" section bends the knees and spreads the feet for every pose (`free` and `stance` in `skeleton.json`;
+  standing stays as traced). **Save** writes
   `public/art/rig/skeleton.json` (commit it to ship). "Skeleton setup…" moves the rest joints and how far each
   bone's pixels reach (once per character). **Notes for Claude:** each pose has a note box; the notes are saved in
   `skeleton.json` (`notes`), and a session works through them (read the note, change the pose or the skeleton,

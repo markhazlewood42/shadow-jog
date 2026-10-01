@@ -74,58 +74,78 @@ export interface DrawnHand {
 export const KEY_POSES = ['brace', 'strike', 'raise', 'victory'] as const;
 export type KeyPose = (typeof KEY_POSES)[number];
 
-/** A crew member's skeleton (joints at rest, in the 128x128 canvas's coordinates) and poses. */
+/** An arm's skeleton (joints at rest, in the 128x128 canvas's coordinates) and where its pixels are. */
+export interface ArmRig {
+  shoulder: Pt;
+  elbow: Pt;
+  wrist: Pt;
+  /** Where the arm's pixels can be. */
+  box: Box;
+  /**
+   * More of it, when one rectangle can't fit the arm: Rook's coat sleeve is wide at the shoulder
+   * and his chrome arm narrow below it, beside his coat (Mark, 2026-10-01).
+   */
+  more?: Box[];
+  /** Points on the body whose colours are never the arm's (hair, coat). */
+  keep: Pt[];
+  /** How far from the upper arm and the forearm their pixels reach (0: the bone is drawn instead). */
+  reach: [number, number];
+  /** Pixels in here are the hand (and what it holds). */
+  hand: Box;
+  /** The sleeve drawn for a bone with no pixels of its own, and its width. */
+  sleeve: string;
+  width: number;
+  /**
+   * The side of the body to build back when the arm leaves it (its pixels went with the arm):
+   * rows y0 to y1, the edge pushed out `top` pixels at y0 tapering to `bottom` at y1, in the
+   * body's own colours (Mark, 2026-10-01: Kit's chest looked cut out with her arm extended).
+   */
+  fill?: [number, number, number, number];
+  /**
+   * Everything in the box (but the kept colours) leaves the body with the arm, even what no bone
+   * claims; then an upper arm with no pixels of its own is drawn as a sleeve in front of the body
+   * (Kit: her whole sleeve moves, drawn clean, instead of a foreshortened lump turned).
+   */
+  clear?: boolean;
+  /**
+   * Past this many degrees of turn the upper arm is drawn (a clean sleeve); below it, its own
+   * traced pixels turn with it, folds and shading and all, and so does the forearm (Kit's Ready
+   * pose barely moves the arm and looked flat drawn; Mark, 2026-10-01). Needs `reach` for the
+   * upper arm, to have pixels to show.
+   */
+  drawnFrom?: number;
+  /**
+   * A hand drawn in code for the arm's big moves (with `drawnFrom`): a little pixel grid
+   * pointing up, knuckles first, a letter per pixel from `colors` ('.' empty), turned with the
+   * forearm and joined to it at `pivot` (grid coordinates). The traced hand stays for the small
+   * moves. Kit's traced fist is seen edge-on in her guard and read as a thin blob held out
+   * (Mark, 2026-10-01: "bigger, more round").
+   */
+  fist?: DrawnHand;
+  /** An open hand, fingers out, drawn the same way: for poses with `shape: 'open'` (Kit's cast). */
+  open?: DrawnHand;
+  /**
+   * Where the body's side runs once the arm has gone from it: a line from (x0, y0) down to (x1, y1).
+   * Each row is filled from the line in to the body in the sleeve's colour, its outer pixel shaded
+   * (Rook's free arm hangs in a sleeve of his coat; lifted, the coat behind it shows).
+   */
+  side?: [number, number, number, number];
+}
+
+/** A crew member's skeleton and poses. */
 export interface BattleRig {
-  arm: {
-    shoulder: Pt;
-    elbow: Pt;
-    wrist: Pt;
-    /** Where the arm's pixels can be. */
-    box: Box;
-    /**
-     * More of it, when one rectangle can't fit the arm: Rook's coat sleeve is wide at the shoulder
-     * and his chrome arm narrow below it, beside his coat (Mark, 2026-10-01).
-     */
-    more?: Box[];
-    /** Points on the body whose colours are never the arm's (hair, coat). */
-    keep: Pt[];
-    /** How far from the upper arm and the forearm their pixels reach (0: the bone is drawn instead). */
-    reach: [number, number];
-    /** Pixels in here are the hand (and what it holds). */
-    hand: Box;
-    /** The sleeve drawn for a bone with no pixels of its own, and its width. */
-    sleeve: string;
-    width: number;
-    /**
-     * The side of the body to build back when the arm leaves it (its pixels went with the arm):
-     * rows y0 to y1, the edge pushed out `top` pixels at y0 tapering to `bottom` at y1, in the
-     * body's own colours (Mark, 2026-10-01: Kit's chest looked cut out with her arm extended).
-     */
-    fill?: [number, number, number, number];
-    /**
-     * Everything in the box (but the kept colours) leaves the body with the arm, even what no bone
-     * claims; then an upper arm with no pixels of its own is drawn as a sleeve in front of the body
-     * (Kit: her whole sleeve moves, drawn clean, instead of a foreshortened lump turned).
-     */
-    clear?: boolean;
-    /**
-     * Past this many degrees of turn the upper arm is drawn (a clean sleeve); below it, its own
-     * traced pixels turn with it, folds and shading and all, and so does the forearm (Kit's Ready
-     * pose barely moves the arm and looked flat drawn; Mark, 2026-10-01). Needs `reach` for the
-     * upper arm, to have pixels to show.
-     */
-    drawnFrom?: number;
-    /**
-     * A hand drawn in code for the arm's big moves (with `drawnFrom`): a little pixel grid
-     * pointing up, knuckles first, a letter per pixel from `colors` ('.' empty), turned with the
-     * forearm and joined to it at `pivot` (grid coordinates). The traced hand stays for the small
-     * moves. Kit's traced fist is seen edge-on in her guard and read as a thin blob held out
-     * (Mark, 2026-10-01: "bigger, more round").
-     */
-    fist?: DrawnHand;
-    /** An open hand, fingers out, drawn the same way: for poses with `shape: 'open'` (Kit's cast). */
-    open?: DrawnHand;
-  };
+  /** The arm the poses move (the weapon arm). */
+  arm: ArmRig;
+  /**
+   * The other arm, in one pose for every pose: out for balance as the weapon arm swings (Rook's
+   * free hand; Mark, 2026-10-01). Standing, it hangs as traced.
+   */
+  free?: { arm: ArmRig; pose: ArmPose };
+  /**
+   * How every pose stands: knees bent, the body `sink` pixels lower, the feet `spread` pixels
+   * further apart, the legs from row `legs` down (where they show under a coat). Standing is as traced.
+   */
+  stance?: { legs: number; sink: number; spread: number };
   /** What goes while a weapon is out (Rook's hilt on his back). */
   hide?: { box: Box; keep: Pt[] };
   /** The colour of the light the poses throw. */
@@ -372,14 +392,14 @@ export function solveArm(shoulder: Pt, upper: number, fore: number, target: Pt, 
 }
 
 /** The arm's pixels split by bone, and the body without them (the gaps filled from around them). */
-function split(base: Layer, rig: BattleRig): { body: Layer; upper: Layer; fore: Layer; hand: Layer } {
-  const { shoulder, elbow, wrist, box, keep, reach, hand } = rig.arm;
+function split(base: Layer, arm: ArmRig): { body: Layer; upper: Layer; fore: Layer; hand: Layer } {
+  const { shoulder, elbow, wrist, box, keep, reach, hand } = arm;
   const keepCols = new Set(keep.map(([x, y]) => indexAt(base, x, y)).filter((i) => i >= 0));
   const blank = (): Layer => ({ ...base, px: new Int16Array(base.px.length).fill(-1) });
   const parts = { body: { ...base, px: base.px.slice() }, upper: blank(), fore: blank(), hand: blank() };
   const at = (x: number, y: number) => (y - base.oy) * base.w + (x - base.ox);
   const inBox = (b: Box, x: number, y: number) => x >= b[0] && x < b[2] && y >= b[1] && y < b[3];
-  const boxes = [box, ...(rig.arm.more ?? [])];
+  const boxes = [box, ...(arm.more ?? [])];
   const done = new Set<number>();
   for (const bx of boxes)
   for (let y = bx[1]; y < bx[3]; y++)
@@ -392,14 +412,14 @@ function split(base: Layer, rig: BattleRig): { body: Layer; upper: Layer; fore: 
       const u = toSegment(p, shoulder, elbow);
       const f = toSegment(p, elbow, wrist);
       const which = inBox(hand, x, y) ? 'hand' : f.d <= reach[1] && f.d <= u.d ? 'fore' : u.d <= reach[0] ? 'upper' : null;
-      if (!which && !rig.arm.clear) continue;
+      if (!which && !arm.clear) continue;
       if (which) parts[which].px[at(x, y)] = c;
       parts.body.px[at(x, y)] = -1;
     }
   fillGaps(parts.body, base);
   // Loose bits anywhere in the boxes (their bounds).
   dropIslands(parts.body, [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1])), Math.max(...boxes.map((b) => b[2])), Math.max(...boxes.map((b) => b[3]))]);
-  if (rig.arm.fill) widen(parts.body, rig.arm.fill, Math.sign(elbow[0] - shoulder[0]) || 1);
+  if (arm.fill) widen(parts.body, arm.fill, Math.sign(elbow[0] - shoulder[0]) || 1);
   return parts;
 }
 
@@ -502,6 +522,63 @@ function fillGaps(body: Layer, base: Layer): void {
   }
 }
 
+/**
+ * Fill the body's side back in where an arm left it: each row from the line (x0, y0)-(x1, y1) in to
+ * the body (`dir` -1: the line is on the body's left), in `lit` with the outer pixel in `shade`. A
+ * row with no body within reach of the line is left alone.
+ */
+function fillSide(body: Layer, [x0, y0, x1, y1]: [number, number, number, number], dir: number, lit: number, shade: number): void {
+  for (let y = y0; y <= y1; y++) {
+    const ly = y - body.oy;
+    if (ly < 0 || ly >= body.h) continue;
+    const edge = Math.round(x0 + ((x1 - x0) * (y - y0)) / Math.max(1, y1 - y0));
+    const at = (k: number) => edge - dir * k - body.ox;
+    let reach = -1;
+    for (let k = 0; k < 16; k++) {
+      const lx = at(k);
+      if (lx < 0 || lx >= body.w) break;
+      if ((body.px[ly * body.w + lx] ?? -1) >= 0) {
+        reach = k;
+        break;
+      }
+    }
+    for (let k = 0; k < reach; k++) body.px[ly * body.w + at(k)] = k === 0 ? shade : lit;
+  }
+}
+
+/**
+ * The body in a stance: the legs (from row `legs` down) spread toward the feet, and everything above
+ * them `sink` pixels lower, over their tops, so the knees read as bent (the feet stay planted).
+ */
+function stand(body: Layer, stance: BattleRig['stance']): Layer[] {
+  if (!stance || (!stance.sink && !stance.spread)) return [body];
+  const top = cut(body, body.ox, body.oy, body.ox + body.w, stance.legs);
+  const legs = cut(body, body.ox, stance.legs, body.ox + body.w, body.oy + body.h);
+  const { w, h, px } = legs;
+  const solid = (x: number, y: number) => (px[y * w + x] ?? -1) >= 0;
+  // Between the feet: the emptiest column near the middle.
+  let mid = Math.floor(w / 2);
+  let fewest = Infinity;
+  for (let x = Math.floor(w * 0.3); x <= Math.ceil(w * 0.7); x++) {
+    let n = 0;
+    for (let y = 0; y < h; y++) if (solid(x, y)) n++;
+    if (n < fewest || (n === fewest && Math.abs(x - w / 2) < Math.abs(mid - w / 2))) {
+      fewest = n;
+      mid = x;
+    }
+  }
+  let bottom = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (solid(x, y)) bottom = y;
+  // Each foot out by up to `spread`, more toward the ground: the shins lean out from the knees.
+  const s = stance.spread;
+  const out: Layer = { w: w + 2 * s, h, ox: legs.ox - s, oy: legs.oy, px: new Int16Array((w + 2 * s) * h).fill(-1) };
+  for (let y = 0; y < h; y++) {
+    const k = Math.round((s * y) / Math.max(1, bottom));
+    for (let x = 0; x < w; x++) if (solid(x, y)) out.px[y * out.w + x + s + (x < mid ? -k : k)] = px[y * w + x] ?? -1;
+  }
+  return [out, moved(top, 0, stance.sink)];
+}
+
 /** One posed frame of a crew member, and where its joints and its tip ended up (for the editor and the light). */
 export interface Posed {
   frame: HTMLCanvasElement;
@@ -511,18 +588,15 @@ export interface Posed {
   tip: Pt;
   /** With depth: the elbow and the wrist in 3D (the editor's side view). */
   depth?: { elbow: V3; wrist: V3 };
+  /** The free arm's joints, posed (the editor's handles). */
+  free?: { shoulder: Pt; elbow: Pt; wrist: Pt };
 }
 
-function build(id: string, rig: BattleRig) {
-  const t = BATTLE_TRACED[id];
-  if (!t) return null;
-  const base = { ...decode(t), ox: t.ox, oy: t.oy };
-  const parts = split(base, rig);
-  // While a weapon is out, what it replaces (Rook's hilt on his back) goes too.
-  const armed = rig.hide ? pick(parts.body, rig.hide.box, rig.hide.keep).rest : parts.body;
-  const lit = nearest(t.pal, rig.arm.sleeve);
-  const shade = darker({ w: 1, h: 1, ox: 0, oy: 0, px: Int16Array.of(lit) }, t.pal).px[0] ?? lit;
-  const { shoulder, elbow, wrist } = rig.arm;
+/** An arm's pixels by bone, and what drawing it needs: its sleeve colours, its drawn hands, its bones. */
+function armOf(pal: string[], parts: { upper: Layer; fore: Layer; hand: Layer }, arm: ArmRig) {
+  const lit = nearest(pal, arm.sleeve);
+  const shade = darker({ w: 1, h: 1, ox: 0, oy: 0, px: Int16Array.of(lit) }, pal).px[0] ?? lit;
+  const { shoulder, elbow, wrist } = arm;
   const has = (l: Layer) => l.px.some((p) => p >= 0);
   // Which way the elbow bends at rest (the side of the shoulder-wrist line it's on).
   const bend = Math.sign((elbow[0] - shoulder[0]) * (wrist[1] - shoulder[1]) - (elbow[1] - shoulder[1]) * (wrist[0] - shoulder[0])) || 1;
@@ -531,7 +605,7 @@ function build(id: string, rig: BattleRig) {
     if (!hand) return null;
     const { rows, colors, pivot } = hand;
     const fw = Math.max(...rows.map((r) => r.length));
-    const index = Object.fromEntries(Object.entries(colors).map(([k, hex]) => [k, nearest(t.pal, hex)]));
+    const index = Object.fromEntries(Object.entries(colors).map(([k, hex]) => [k, nearest(pal, hex)]));
     const fpx = new Int16Array(fw * rows.length).fill(-1);
     rows.forEach((r, y) => {
       [...r].forEach((ch, x) => {
@@ -552,8 +626,28 @@ function build(id: string, rig: BattleRig) {
       }
     capLit = [...n].sort((p, q) => q[1] - p[1])[0]?.[0] ?? lit;
   }
-  const capShade = darker({ w: 1, h: 1, ox: 0, oy: 0, px: Int16Array.of(capLit) }, t.pal).px[0] ?? capLit;
-  return { t, base, parts, armed, lit, shade, capLit, capShade, fist: drawn(rig.arm.fist), open: drawn(rig.arm.open), bend: -bend, upperLen: dist(shoulder, elbow), foreLen: dist(elbow, wrist), hasUpper: has(parts.upper), hasFore: has(parts.fore) };
+  const capShade = darker({ w: 1, h: 1, ox: 0, oy: 0, px: Int16Array.of(capLit) }, pal).px[0] ?? capLit;
+  return { parts, lit, shade, capLit, capShade, fist: drawn(arm.fist), open: drawn(arm.open), bend: -bend, upperLen: dist(shoulder, elbow), foreLen: dist(elbow, wrist), hasUpper: has(parts.upper), hasFore: has(parts.fore) };
+}
+type BuiltArm = ReturnType<typeof armOf>;
+
+function build(id: string, rig: BattleRig) {
+  const t = BATTLE_TRACED[id];
+  if (!t) return null;
+  const base = { ...decode(t), ox: t.ox, oy: t.oy };
+  const main = split(base, rig.arm);
+  // The free arm comes out of what the weapon arm left.
+  const free = rig.free ? split(main.body, rig.free.arm) : null;
+  const body = free?.body ?? main.body;
+  const arm = armOf(t.pal, main, rig.arm);
+  const freeArm = free && rig.free ? armOf(t.pal, free, rig.free.arm) : null;
+  // The body's sides back where the arms were (the side away from the body's middle).
+  const middle = t.ox + t.w / 2;
+  for (const [a, made] of [[rig.arm, arm], [rig.free?.arm, freeArm]] as const)
+    if (a?.side && made) fillSide(body, a.side, Math.sign(a.side[0] - middle) || 1, made.lit, made.shade);
+  // While a weapon is out, what it replaces (Rook's hilt on his back) goes too.
+  const armed = rig.hide ? pick(body, rig.hide.box, rig.hide.keep).rest : body;
+  return { t, base, body, armed, arm, free: freeArm };
 }
 const built = new Map<string, ReturnType<typeof build>>();
 
@@ -563,19 +657,13 @@ export function resetRig(id?: string): void {
   else built.clear();
 }
 
-/** A crew member in a pose (null pose: standing) or null without a traced frame and skeleton. `rig`: the editor's, unsaved. */
-export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id]): Posed | null {
-  if (!rig) return null;
-  // Built once per skeleton (the editor's unsaved ones keyed by their joints).
-  const key = rig === SKELETONS[id] ? id : `${id}|${JSON.stringify([rig.arm, rig.hide ?? null])}`;
-  let b = built.get(key);
-  if (b === undefined) {
-    b = build(id, rig);
-    built.set(key, b);
-  }
-  if (!b) return null;
-  const { shoulder, elbow: restElbow, wrist: restWrist } = rig.arm;
-  if (!pose) return { frame: renderLayers([b.base], b.t.pal, SIZE, SIZE), shoulder, elbow: restElbow, wrist: restWrist, tip: restWrist };
+/**
+ * One arm in a pose: its layers (and a sleeve to go under the body), where its joints went, its
+ * hand, and the weapon in it. `sink`: how much lower the body stands (the shoulder goes with it).
+ */
+function poseArm(arm: ArmRig, b: BuiltArm, pose: ArmPose, pal: string[], sink: number) {
+  const { shoulder: restShoulder, elbow: restElbow, wrist: restWrist } = arm;
+  const shoulder: Pt = [restShoulder[0], restShoulder[1] + sink];
   const bendSign = pose.flip ? -b.bend : b.bend;
   let elbow: Pt;
   let wrist: Pt;
@@ -589,41 +677,41 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
     elbow = project(depth.elbow);
     wrist = project(depth.wrist);
   } else ({ elbow, wrist } = solveArm(shoulder, b.upperLen, b.foreLen, pose.hand, bendSign));
-  const turnUpper = angleOf(shoulder, elbow) - angleOf(shoulder, restElbow);
+  const turnUpper = angleOf(shoulder, elbow) - angleOf(restShoulder, restElbow);
   const turnFore = angleOf(elbow, wrist) - angleOf(restElbow, restWrist);
   // A bone's pixels turned at its joint, then carried to where that joint is now.
   const place = (l: Layer, turn: number, from: Pt, to: Pt) => moved(rotSprite(l, turn, from[0], from[1]), Math.round(to[0] - from[0]), Math.round(to[1] - from[1]));
   // A drawn sleeve, narrowing with depth from `za` at its start to `zc` at its end.
-  const sleeve = (a: Pt, c: Pt, za = 0, zc = 0) => band(a, c, rig.arm.width * sizeAt(za), b.lit, b.shade, true, rig.arm.width * sizeAt(zc));
+  const sleeve = (a: Pt, c: Pt, za = 0, zc = 0) => band(a, c, arm.width * sizeAt(za), b.lit, b.shade, true, arm.width * sizeAt(zc));
   const ez = depth?.elbow[2] ?? 0;
   const wz = depth?.wrist[2] ?? 0;
-  const arm: Layer[] = [];
+  const layers: Layer[] = [];
   const cap = () => {
     const a = Math.atan2(elbow[1] - shoulder[1], elbow[0] - shoulder[0]);
-    return band(shoulder, [shoulder[0] + Math.cos(a) * 4, shoulder[1] + Math.sin(a) * 4], rig.arm.width + 2, b.capLit, b.capShade, true);
+    return band(shoulder, [shoulder[0] + Math.cos(a) * 4, shoulder[1] + Math.sin(a) * 4], arm.width + 2, b.capLit, b.capShade, true);
   };
   // The upper arm: its own traced pixels turned, or (past `drawnFrom` degrees, or with none of
   // its own) a sleeve drawn clean. The shoulder cap, a stub of sleeve under the joint, closes the
   // seam where the jacket meets a turned arm (Mark, 2026-10-01, on Kit); a barely turned arm has
   // no seam to close, and a cap there only bulges over the shoulder.
-  const small = (deg: number) => Math.abs(((deg + 540) % 360) - 180) <= (rig.arm.drawnFrom ?? 360);
+  const small = (deg: number) => Math.abs(((deg + 540) % 360) - 180) <= (arm.drawnFrom ?? 360);
   const traced = b.hasUpper && small(turnUpper) && !pose.depth;
   if (traced) {
-    if (!rig.arm.drawnFrom) arm.push(cap());
-    arm.push(place(b.parts.upper, turnUpper, shoulder, shoulder));
-  } else if (b.hasUpper || rig.arm.clear) arm.push(cap(), sleeve(shoulder, elbow, 0, ez));
+    if (!arm.drawnFrom) layers.push(cap());
+    layers.push(place(b.parts.upper, turnUpper, restShoulder, shoulder));
+  } else if (b.hasUpper || arm.clear) layers.push(cap(), sleeve(shoulder, elbow, 0, ez));
   // The forearm's sleeve under its own pixels: it covers the joint as the bones turn (not needed
   // while the traced arm barely turns: its own pixels are all there).
   // It stops a sleeve's half-width short of the wrist, so its round end stays inside the hand
   // instead of showing past the fist.
-  if (!(traced && rig.arm.drawnFrom && small(turnFore))) {
+  if (!(traced && arm.drawnFrom && small(turnFore))) {
     const fl = Math.hypot(wrist[0] - elbow[0], wrist[1] - elbow[1]) || 1;
-    const k = Math.max(0, 1 - rig.arm.width / 2 / fl);
-    arm.push(sleeve(elbow, [elbow[0] + (wrist[0] - elbow[0]) * k, elbow[1] + (wrist[1] - elbow[1]) * k], ez, ez + (wz - ez) * k));
+    const k = Math.max(0, 1 - arm.width / 2 / fl);
+    layers.push(sleeve(elbow, [elbow[0] + (wrist[0] - elbow[0]) * k, elbow[1] + (wrist[1] - elbow[1]) * k], ez, ez + (wz - ez) * k));
   }
   // The forearm's own pixels are its full length: skip them when it's foreshortened (reaching into
   // the screen), and let the drawn sleeve show it.
-  if (b.hasFore && dist(elbow, wrist) > b.foreLen * 0.85) arm.push(place(b.parts.fore, turnFore, restElbow, elbow));
+  if (b.hasFore && dist(elbow, wrist) > b.foreLen * 0.85) layers.push(place(b.parts.fore, turnFore, restElbow, elbow));
   // The hand: the drawn fist (or open hand) on a big move, turned to point along the forearm;
   // else its own traced pixels.
   const drawnHand = pose.shape === 'open' ? (b.open ?? b.fist) : b.fist;
@@ -632,15 +720,48 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
     drawnHand && !(traced && small(turnFore))
       ? moved(rotSprite(drawnHand, angleOf(elbow, wrist) + 90 + (pose.grip ?? 0), 0, 0, sizeAt(depth?.wrist[2] ?? 0)), Math.round(wrist[0]), Math.round(wrist[1]))
       : place(b.parts.hand, handTurn, restWrist, wrist);
-  arm.push(hand);
-  const w = pose.weapon ? weapon({ ...pose.weapon, angle: angleOf(elbow, wrist) + (pose.grip ?? 0) + pose.weapon.angle }, wrist, b.t.pal) : null;
-  if (w) arm.push(...w.layers);
-  const body = w ? b.armed : b.parts.body;
+  layers.push(hand);
+  const w = pose.weapon ? weapon({ ...pose.weapon, angle: angleOf(elbow, wrist) + (pose.grip ?? 0) + pose.weapon.angle }, wrist, pal) : null;
+  if (w) layers.push(...w.layers);
   // An upper arm with no pixels of its own (under hair or a coat) is a sleeve behind the body.
-  const under = b.hasUpper || rig.arm.clear ? [] : [sleeve(shoulder, elbow)];
-  const layers = pose.behind ? [...under, ...arm, body] : [...under, body, ...arm];
-  const tip = w ? w.tip : pose.lightAt === 'top' ? topOf(hand) : farEnd(hand, wrist);
-  return { frame: renderLayers(layers, b.t.pal, SIZE, SIZE), shoulder, elbow, wrist, tip, ...(depth ? { depth } : {}) };
+  const under = b.hasUpper || arm.clear ? [] : [sleeve(shoulder, elbow)];
+  return { layers, under, shoulder, elbow, wrist, hand, w, depth };
+}
+
+/** A crew member in a pose (null pose: standing) or null without a traced frame and skeleton. `rig`: the editor's, unsaved. */
+export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id]): Posed | null {
+  if (!rig) return null;
+  // Built once per skeleton (the editor's unsaved ones keyed by their joints).
+  const key = rig === SKELETONS[id] ? id : `${id}|${JSON.stringify([rig.arm, rig.free?.arm ?? null, rig.hide ?? null])}`;
+  let b = built.get(key);
+  if (b === undefined) {
+    b = build(id, rig);
+    built.set(key, b);
+  }
+  if (!b) return null;
+  if (!pose) {
+    const { shoulder, elbow, wrist } = rig.arm;
+    return { frame: renderLayers([b.base], b.t.pal, SIZE, SIZE), shoulder, elbow, wrist, tip: wrist };
+  }
+  const sink = rig.stance?.sink ?? 0;
+  const main = poseArm(rig.arm, b.arm, pose, b.t.pal, sink);
+  const fp = rig.free?.pose;
+  const free = rig.free && b.free && fp ? poseArm(rig.free.arm, b.free, fp, b.t.pal, sink) : null;
+  const body = stand(main.w ? b.armed : b.body, rig.stance);
+  // Each arm in front of the body, or (`behind`) behind it.
+  const back = [...(pose.behind ? main.layers : []), ...(free && fp?.behind ? free.layers : [])];
+  const front = [...(free && !fp?.behind ? free.layers : []), ...(pose.behind ? [] : main.layers)];
+  const layers = [...main.under, ...(free?.under ?? []), ...back, ...body, ...front];
+  const tip = main.w ? main.w.tip : pose.lightAt === 'top' ? topOf(main.hand) : farEnd(main.hand, main.wrist);
+  return {
+    frame: renderLayers(layers, b.t.pal, SIZE, SIZE),
+    shoulder: main.shoulder,
+    elbow: main.elbow,
+    wrist: main.wrist,
+    tip,
+    ...(main.depth ? { depth: main.depth } : {}),
+    ...(free ? { free: { shoulder: free.shoulder, elbow: free.elbow, wrist: free.wrist } } : {}),
+  };
 }
 
 /** The light a pose throws, from where the previous pose left the hand (for a strike's swept arc). */
