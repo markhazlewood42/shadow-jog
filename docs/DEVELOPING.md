@@ -104,7 +104,14 @@ time. Run a single spec: `npx playwright test e2e/chaos.spec.ts --reporter=line`
 
 ## 4. Debug tools (DEV builds only)
 
+**The DEV menu:** on the game page (`http://localhost:3007/`), the DEV tab in the top-left corner (or the ` key)
+lists every tool below with a line on what it's for; `/?devmenu` opens the page with it open, and the editors link
+back to it. `npm run dev` prints the main ones under the server's addresses. The list is `src/dev/tools.ts`: a new
+tool, page or route goes there. The menu isn't mounted under Playwright (`navigator.webdriver`) or in a build.
+
 **URL routes** (`src/devroutes.ts`):
+- `?scene=stage&stage=ID`: straight to a chapter preset (`start`, `town`, `sinkline`, `annex`, `finale`:
+  `game/stages.ts`), with its party, levels, gear and flags.
 - `?scene=field&map=ID&x=&y=`: straight into a map.
 - `?scene=battle&enc=ID&bg=ID[&boss]`: a battle on loop.
 - `?scene=mapview&map=ID`: the whole map rendered.

@@ -39,6 +39,8 @@ export function boot(game: Game, display: Display): void {
   // Debug/test hook: dev server only (E2E and screenshot tooling), never in a production build.
   // Test harness hooks exist only in DEV builds: a shipped build's battles have no driver.
   if (import.meta.env.DEV) setBattleDriver(debugBattleDriver);
+  // The DEV menu: every dev tool one click away (src/dev/devmenu.ts; not in the shipped game).
+  if (import.meta.env.DEV) void import('./dev/devmenu').then((m) => m.mountDevMenu(params.has('devmenu')));
   if (import.meta.env.DEV) window.__SJ__ = {
     game,
     display,

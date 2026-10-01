@@ -2,6 +2,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
+import { DEV_TOOLS } from './src/dev/tools';
 import { defineConfig } from 'vitest/config';
 
 const FX_FILE = resolve(import.meta.dirname, 'src/data/fx.json');
@@ -230,9 +231,31 @@ function rigEdit(): Plugin {
   };
 }
 
+/**
+ * `npm run dev` prints the main dev tools under the server's own addresses (the full list is the
+ * DEV menu on the game page; both come from src/dev/tools.ts).
+ */
+function devTools(): Plugin {
+  return {
+    name: 'shadowjog-devtools',
+    apply: 'serve',
+    configureServer(server) {
+      const print = server.printUrls.bind(server);
+      server.printUrls = () => {
+        print();
+        const base = (server.resolvedUrls?.local[0] ?? 'http://localhost:3007/').replace(/\/$/, '');
+        const main = DEV_TOOLS.flatMap((g) => g.tools).filter((t) => t.print);
+        const width = Math.max(...main.map((t) => t.name.length));
+        server.config.logger.info('\n  Dev tools (all of them: the DEV tab on the game page, or the ` key):');
+        for (const t of main) server.config.logger.info(`  [2m➜[0m  ${t.name.padEnd(width)}  [36m${base}${t.path}[0m`);
+      };
+    },
+  };
+}
+
 export default defineConfig({
   base: './',
-  plugins: [fxLab(), artPass(), rigEdit()],
+  plugins: [fxLab(), artPass(), rigEdit(), devTools()],
   server: { port: 3007, watch: { usePolling: true } },
   // The chunk warning matches the CI budget (scripts/bundle-budget.mjs).
   build: { target: 'es2022', assetsInlineLimit: 0, sourcemap: true, chunkSizeWarningLimit: 480 },
