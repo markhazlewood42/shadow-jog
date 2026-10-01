@@ -2,7 +2,7 @@
  * The animation editor (dev only, /rigedit.html): Mark poses the crew's battle backs on their
  * skeletons (src/art/rig2/battle.ts). Pick someone and a pose, drag the hand, and the elbow bends
  * by itself (two-bone IK), so an arm can't stretch. Sliders cover the rest (the hand's turn, a
- * weapon's angle, a lean, a crouch, the light). Save writes public/art/rig/skeleton.json through
+ * weapon's angle, how far it reaches into the screen, the light). Save writes public/art/rig/skeleton.json through
  * the dev server (vite.config.ts `rigEdit`); the game loads it at startup. A note per pose is for
  * Claude to work through in a session ("her fist should end higher, level with her ear").
  *
@@ -602,8 +602,6 @@ function side(): void {
         }));
     kids.push(
       slider('Reach forward', a.depth ?? 0, -24, 64, (v) => opt(a, 'depth', v), 'How far the hand reaches into the screen, toward the enemy (or the side view below the picture)'),
-      slider('Lean the body', a.lean ?? 0, -12, 12, (v) => opt(a, 'lean', v), 'Tips the whole figure about the feet'),
-      slider('Crouch', a.drop ?? 0, 0, 8, (v) => opt(a, 'drop', v)),
       check('Arm behind the body', !!a.behind, (v) => opt(a, 'behind', v)),
       choice('Light', a.light ?? 'none', [['none', 'None'], ['spark', 'Spark'], ['impact', 'Impact (with swept arc)'], ['shot', 'Muzzle flash']], (v) => opt(a, 'light', v === 'none' ? undefined : v)),
     );

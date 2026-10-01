@@ -321,7 +321,7 @@ Mark cancels the plan around 2026-10-30: what it does, what we learned and what 
 ### Rig v2: characters drawn in code
 - **Posing the crew in battle: the animation editor.** `npm run dev`, then `/rigedit.html`. Pick someone and a
   pose; drag the hand (orange) and the elbow bends by itself (IK); drag the elbow (blue) across the arm to flip the
-  bend; the green dot turns the hand and what it holds; sliders for a weapon's angle, a lean, a crouch, the light.
+  bend; the green dot turns the hand and what it holds; sliders for a weapon's angle, how far the hand reaches into the screen (also the side view), the light.
   The faint figure is the pose the move comes from; "Play the move" loops it at game speed. **Save** writes
   `public/art/rig/skeleton.json` (commit it to ship). "Skeleton setup…" moves the rest joints and how far each
   bone's pixels reach (once per character). **Notes for Claude:** each pose has a note box; the notes are saved in

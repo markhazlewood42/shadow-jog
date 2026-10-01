@@ -50,9 +50,6 @@ export interface ArmPose {
    * the hand was in the pose before, bowed a little up and out.
    */
   arc?: { from: Pt; bend: Pt };
-  /** The whole body tipped (degrees, > 0 clockwise, about the feet) and dropped (pixels). */
-  lean?: number;
-  drop?: number;
   /** The drawn hand to show: the fist (the default) or the open hand, fingers out (a cast). */
   shape?: 'fist' | 'open';
   /**
@@ -641,10 +638,7 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
   const body = w ? b.armed : b.parts.body;
   // An upper arm with no pixels of its own (under hair or a coat) is a sleeve behind the body.
   const under = b.hasUpper || rig.arm.clear ? [] : [sleeve(shoulder, elbow)];
-  let layers = pose.behind ? [...under, ...arm, body] : [...under, body, ...arm];
-  const feet: Pt = [b.t.ox + b.t.w / 2, b.t.oy + b.t.feet];
-  if (pose.lean) layers = layers.map((l) => rotSprite(l, pose.lean ?? 0, feet[0], feet[1]));
-  if (pose.drop) layers = layers.map((l) => moved(l, 0, Math.round(pose.drop ?? 0)));
+  const layers = pose.behind ? [...under, ...arm, body] : [...under, body, ...arm];
   const tip = w ? w.tip : pose.lightAt === 'top' ? topOf(hand) : farEnd(hand, wrist);
   return { frame: renderLayers(layers, b.t.pal, SIZE, SIZE), shoulder, elbow, wrist, tip, ...(depth ? { depth } : {}) };
 }
