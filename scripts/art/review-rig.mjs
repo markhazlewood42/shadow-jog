@@ -16,7 +16,7 @@ const page = await browser.newPage();
 await page.goto('http://localhost:3007/?debug&art=classic');
 await page.waitForFunction(() => !!window.__SJ__, null, { timeout: 30_000 });
 const POSES = ['idle', 'brace', 'strike', 'cast', 'hurt', 'victory'];
-const { shots, battle, npcs, enemies } = await page.evaluate(async ({ who, POSES }) => {
+const { shots, battle, npcs, enemies, portraits } = await page.evaluate(async ({ who, POSES }) => {
   await (await import('/src/art/rig2/data.ts')).loadRigData();
   const { buildChar } = await import('/src/art/chars.ts');
   const { battler } = await import('/src/art/battlers.ts');
@@ -72,7 +72,21 @@ const { shots, battle, npcs, enemies } = await page.evaluate(async ({ who, POSES
     const a = enemyArt(key);
     enemies[key] = [lit(a.canvas, a.glow), a.attack ? lit(a.attack.canvas, a.attack.glow) : null, a.hurt ? lit(a.hurt.canvas, a.hurt.glow) : null];
   }
-  return { shots, battle, npcs, enemies };
+  // Portraits on their card, as dialogue shows them: every expression, then the neutral face's blink and talk.
+  const { PORTRAIT_TRACED } = await import('/src/art/rig2/data.ts');
+  const { applyRigPortraits } = await import('/src/art/rig2/portrait.ts');
+  // The game's own copy of portraits.ts: after an edit the dev server serves it as portraits.ts?t=…,
+  // and a plain import would get a second, empty copy.
+  const live = performance.getEntriesByType('resource').map((e) => new URL(e.name).pathname + new URL(e.name).search).find((n) => n.startsWith('/src/art/portraits.ts?'));
+  const { getPortrait, FACES } = await import(live ?? '/src/art/portraits.ts');
+  applyRigPortraits();
+  const portraits = {};
+  for (const key of Object.keys(PORTRAIT_TRACED)) {
+    portraits[key] = Object.fromEntries(FACES.map((f) => [f, getPortrait(key, f).toDataURL()]));
+    portraits[key].blink = getPortrait(key, 'neutral', 'blink').toDataURL();
+    portraits[key].talk = getPortrait(key, 'neutral', 'talk').toDataURL();
+  }
+  return { shots, battle, npcs, enemies, portraits };
 }, { who: Object.keys(CREW), POSES });
 await browser.close();
 
@@ -209,3 +223,27 @@ for (const [key, frames] of Object.entries(enemies)) {
   writeFileSync(metaPath, JSON.stringify(meta, null, 1));
 }
 console.log(`Enemies: ${Object.keys(enemies).length}`);
+
+// Portraits: the neutral face, with every expression (and its blink and talk) as a strip to flag.
+for (const [key, faces] of Object.entries(portraits)) {
+  const id = `rig.portrait.${key}`;
+  const metaPath = `${ROOT}/assets/${id}/meta.json`;
+  const meta = existsSync(metaPath)
+    ? JSON.parse(readFileSync(metaPath, 'utf8'))
+    : {
+        id,
+        category: 'Rig v2 · portraits',
+        title: `${key[0].toUpperCase()}${key.slice(1)} (code-drawn)`,
+        kind: 'portrait',
+        note: 'Traced from your portrait pick, with the expressions the art pass redrew for it; the ones it didn’t make are drawn in code (eyes and mouth moved a pixel or two). New: a blink and a talking mouth, which dialogue plays while a line types (the last two in the strip). Click a face to flag it.',
+        current: [{ file: `current/portrait/${key}.png`, label: 'Now: the old code-drawn portrait', scale: 1 }],
+        options: [],
+      };
+  const version = `v${meta.options.length + 1}`;
+  const dir = `${ROOT}/assets/${id}/${version}`;
+  const files = Object.fromEntries(Object.entries(faces).map(([f, url]) => [f, save(`${dir}/face-${f}.png`, url)]));
+  const { neutral, ...rest } = files;
+  if (keepIfChanged(meta, version)) meta.options.push({ id: version, kind: 'image', status: 'done', label: `${label} (${version})`, recipe: `rig v2 portrait · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, scale: 1, image: neutral, faces: rest });
+  writeFileSync(metaPath, JSON.stringify(meta, null, 1));
+}
+console.log(`Portraits: ${Object.keys(portraits).length}`);

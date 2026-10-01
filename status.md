@@ -83,6 +83,10 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
   script bundle over its budget as code). All 21 enemies on the rig too (traced from his redraw picks; strike and
   flinch by code; glow from their bright pixels). All of it on the review page (Rig v2 · crew / battle / enemies /
   NPCs / townsfolk), code-drawn art only (Mark: no PixelLab sprites there; an "Art" chip brings back the archive).
+  **Portraits on the rig too:** the 8 picks traced with the faces the art pass redrew (Kit, Hex, Sable, Dutch); the
+  rest drawn in code (all of Rook, Pale, Mags and Yun's expressions; Dutch's unused ones); every portrait now talks
+  while a line types and blinks (Rig v2 · portraits on the review page, the blink and talk last in the strip).
+  The script bundle is at 223.9 of its 224 kB budget: the next feature needs trimming or a decision on raising it.
   **First build done (rig v2, the crew in the field):** Kit (from the round-2 redo, with a face in profile), Rook,
   Hex and Sable traced and walking in code (`src/art/rig2/`); review versions v1 and v2 on the page. Next in the
   slice: Kit's battle back from her fighting-stance frame, with stance → strike and a cast raise by code (Mark's

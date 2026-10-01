@@ -357,7 +357,13 @@ function paint(spec: Spec, face: Face): HTMLCanvasElement {
 
 const cache = new Map<string, HTMLCanvasElement>();
 
-export function getPortrait(key: string, face: string): HTMLCanvasElement | null {
+/**
+ * A speaker's portrait. `mod` asks for its blink or talking frame, which rig v2 portraits have
+ * (src/art/rig2/portrait.ts); without one it's the face itself.
+ */
+export function getPortrait(key: string, face: string, mod?: 'blink' | 'talk'): HTMLCanvasElement | null {
+  const v = mod && cache.get(`${key}:${face}:${mod}`);
+  if (v) return v;
   const spec = SPECS[key];
   if (!spec) return null;
   const k = `${key}:${face}`;
@@ -375,7 +381,7 @@ export const PORTRAIT_KEYS = Object.keys(SPECS);
  * Use a drawn portrait for this character from now on, for every expression (dev tooling: art-pass
  * options tried in the game, src/dev/artswap.ts). A transparent image goes on the portrait's card.
  */
-export function replacePortrait(key: string, img: CanvasImageSource & { width: number; height: number }, faces: readonly string[] = FACES): void {
+export function replacePortrait(key: string, img: CanvasImageSource & { width: number; height: number }, faces: readonly string[] = FACES, mod?: 'blink' | 'talk'): void {
   const spec = SPECS[key];
   if (!spec) return;
   // The same card paint() draws behind the face.
@@ -391,7 +397,7 @@ export function replacePortrait(key: string, img: CanvasImageSource & { width: n
   for (let y = 1; y < S; y += 3) g.fillRect(0, y, S, 1);
   g.globalAlpha = 1;
   g.drawImage(img, Math.floor((S - img.width) / 2), S - img.height);
-  for (const face of faces) cache.set(`${key}:${face}`, s.canvas);
+  for (const face of faces) cache.set(`${key}:${face}${mod ? `:${mod}` : ''}`, s.canvas);
 }
 
 /** Every expression a portrait has. */

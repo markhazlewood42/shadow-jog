@@ -5,6 +5,7 @@
  * letter-grid rig, so nothing breaks; boot says so if it fails.
  */
 import type { Dir } from '../chars';
+import type { TracedPortrait } from './portrait';
 import type { Traced } from './rig';
 
 /** Field characters: a standing frame per facing. */
@@ -13,6 +14,8 @@ export const TRACED: Record<string, Record<Dir, Traced>> = {};
 export const BATTLE_TRACED: Record<string, Traced & { ox: number; oy: number }> = {};
 /** Enemies: one frame each, keyed by the game's sprite name. */
 export const ENEMY_TRACED: Record<string, Traced> = {};
+/** Dialogue portraits: every face the art pass made per speaker, and where the eyes and mouth are. */
+export const PORTRAIT_TRACED: Record<string, TracedPortrait> = {};
 
 /** Load the traced frames. Resolves with how many characters came in; rejects if none could. */
 export async function loadRigData(base = 'art/rig/'): Promise<number> {
@@ -21,9 +24,10 @@ export async function loadRigData(base = 'art/rig/'): Promise<number> {
     if (!res.ok) throw new Error(`${file}: ${res.status}`);
     return res.json();
   };
-  const [field, battle, enemies] = await Promise.all([get('field.json'), get('battle.json'), get('enemies.json')]);
+  const [field, battle, enemies, portraits] = await Promise.all([get('field.json'), get('battle.json'), get('enemies.json'), get('portraits.json')]);
   Object.assign(TRACED, field);
   Object.assign(BATTLE_TRACED, battle);
   Object.assign(ENEMY_TRACED, enemies);
+  Object.assign(PORTRAIT_TRACED, portraits);
   return Object.keys(TRACED).length;
 }

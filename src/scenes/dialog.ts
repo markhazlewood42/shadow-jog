@@ -156,7 +156,10 @@ export class DialogScene extends Scene<number> {
       const px = 8 + 7, py = y0 + 7;
       ctx.fillStyle = UI.outline;
       ctx.fillRect(px - 1, py - 1, 50, 50);
-      ctx.drawImage(this.portrait, px, py, 48, 48);
+      // Rig v2 portraits work the mouth while the line types and blink now and then.
+      const mod = this.typing && !this.waitFrames ? ((this.frame >> 2) % 2 ? 'talk' : undefined) : this.frame % 210 < 6 ? 'blink' : undefined;
+      const face = mod && this.sp?.portrait ? getPortrait(this.sp.portrait, this.o.face ?? 'neutral', mod) : null;
+      ctx.drawImage(face ?? this.portrait, px, py, 48, 48);
       ctx.fillStyle = accent;
       ctx.fillRect(px - 1, py + 48, 50, 1);
       tx += 56;

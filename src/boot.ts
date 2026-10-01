@@ -25,6 +25,7 @@ import { FX } from './data/fx';
 import { ALL_DRAWN, DEFAULT_DRAWN, loadDrawnArt } from './art/drawn';
 import { loadRigData } from './art/rig2/data';
 import { applyRigNpcs } from './art/rig2/npcs';
+import { applyRigPortraits } from './art/rig2/portrait';
 
 declare global {
   interface Window {
@@ -220,7 +221,10 @@ export function boot(game: Game, display: Display): void {
     params.get('rig') === 'old'
       ? Promise.resolve()
       : Promise.race([loadRigData(), timeout()]).then(
-          () => void applyRigNpcs(),
+          () => {
+            applyRigNpcs();
+            applyRigPortraits();
+          },
           (e: unknown) => notice(`The character art didn't load, so the crew use their older sprites (${e instanceof Error ? e.message : String(e)})`, 'warn'),
         );
   const drawn = Promise.all([drawnArt, rigData]).then(() => undefined);

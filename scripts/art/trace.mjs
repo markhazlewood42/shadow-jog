@@ -57,14 +57,42 @@ for (const [enemy, sprite] of Object.entries(ENEMY_SPRITE)) {
   const file = `${A}/enemy.${enemy}/${pick}/image.png`;
   if (existsSync(file)) ENEMIES[sprite] = file;
 }
+/**
+ * Dialogue portraits (48x48): the picked portrait and every expression redrawn for it, traced
+ * together so a speaker's faces share one palette; the outline stays (portraits aren't posed).
+ * With each, where its eyes and mouth are (x0, y0, x1, y1, inclusive; read off the neutral face):
+ * the game blinks the eyes, works the mouth while a line types, and draws in code the expressions
+ * the art pass didn't make. No eyes for Rook (shades) or Pale (visor).
+ */
+const PORTRAIT_FEATURES = {
+  kit: { eyes: [[12, 23, 17, 25], [24, 23, 29, 25]], mouth: [18, 30, 23, 31] },
+  hex: { eyes: [[13, 25, 18, 26], [23, 24, 28, 26]], mouth: [20, 29, 24, 31] },
+  sable: { eyes: [[15, 20, 19, 22], [26, 20, 30, 22]], mouth: [20, 28, 25, 29] },
+  dutch: { eyes: [[14, 20, 19, 21], [25, 20, 30, 21]], mouth: [17, 27, 26, 29] },
+  rook: { eyes: [], mouth: [21, 30, 27, 30] },
+  pale: { eyes: [], mouth: [22, 30, 26, 30] },
+  mags: { eyes: [[15, 23, 19, 24], [26, 23, 31, 24]], mouth: [20, 30, 26, 30] },
+  yun: { eyes: [[15, 23, 20, 25], [26, 23, 30, 25]], mouth: [22, 29, 25, 29] },
+};
+const PORTRAITS = {};
+for (const key of Object.keys(PORTRAIT_FEATURES)) {
+  const opts = Object.entries(review.assets?.[`portrait.${key}`]?.options ?? {});
+  const pick = opts.find(([, v]) => v.verdict === 'best')?.[0] ?? opts.find(([, v]) => v.verdict === 'good')?.[0] ?? 'faithful';
+  const dir = `${A}/portrait.${key}/${pick}`;
+  if (!existsSync(`${dir}/image.png`)) continue;
+  PORTRAITS[key] = { neutral: `${dir}/image.png` };
+  for (const f of readdirSync(dir)) if (f.startsWith('face-')) PORTRAITS[key][f.slice(5, -4)] = `${dir}/${f}`;
+}
 
 /** At most this many colours per character (shared by its four facings); battle art, more detailed, gets more. */
-const MAX_COLOURS = { field: 28, battle: 40, enemy: 40 };
+const MAX_COLOURS = { field: 28, battle: 40, enemy: 40, portrait: 40 };
 const jobs = [];
 for (const [who, dir] of Object.entries(SOURCES))
   for (const [facing, pl] of Object.entries(FACINGS)) jobs.push({ group: who, kind: 'field', who, facing, src: readFileSync(`${dir}/${pl}.png`).toString('base64') });
 for (const [who, file] of Object.entries(BATTLE)) jobs.push({ group: `battle:${who}`, kind: 'battle', who, facing: 'up', src: readFileSync(file).toString('base64') });
 for (const [sprite, file] of Object.entries(ENEMIES)) jobs.push({ group: `enemy:${sprite}`, kind: 'enemy', who: sprite, facing: 'down', src: readFileSync(file).toString('base64') });
+for (const [key, faces] of Object.entries(PORTRAITS))
+  for (const [face, file] of Object.entries(faces)) jobs.push({ group: `portrait:${key}`, kind: 'portrait', who: key, facing: face, src: readFileSync(file).toString('base64') });
 
 const browser = await chromium.launch({ channel: 'msedge' });
 const page = await browser.newPage();
@@ -92,6 +120,8 @@ const all = await page.evaluate(async ({ jobs, MAXES }) => {
     // The outer outline: dark pixels touching the outside. Taken off in one pass (the rig
     // re-outlines); dark lines inside the sprite (seams, folds, the eyes) stay.
     const outline = new Set();
+    // (A portrait keeps its outline and its whole canvas, so every face lines up.)
+    if (j.kind !== 'portrait')
     for (let y = 0; y < h; y++)
       for (let x = 0; x < w; x++) {
         const p = at(x, y);
@@ -102,7 +132,7 @@ const all = await page.evaluate(async ({ jobs, MAXES }) => {
     let x0 = w, y0 = h, x1 = -1, y1 = -1;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (keep(x, y)) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
     // The kept pixels (cropped, with a pixel of room for the outline), as colours for now.
-    x0 -= 1; y0 -= 1; x1 += 1; y1 += 1;
+    if (j.kind === 'portrait') { x0 = 0; y0 = 0; x1 = w - 1; y1 = h - 1; } else { x0 -= 1; y0 -= 1; x1 += 1; y1 += 1; }
     const px = [];
     for (let y = y0; y <= y1; y++) {
       const row = [];
@@ -171,6 +201,7 @@ await browser.close();
 const traced = all.filter((t) => t.kind === 'field');
 const battle = all.filter((t) => t.kind === 'battle');
 const enemies = all.filter((t) => t.kind === 'enemy');
+const portraits = all.filter((t) => t.kind === 'portrait');
 
 // Legs start at the crotch facing us or away; the side views take their hip row from the front's.
 const byWho = {};
@@ -211,3 +242,12 @@ const enemyOut = {};
 for (const t of enemies) enemyOut[t.who] = { w: t.w, h: t.h, feet: t.feet, hip: t.feet, pal: t.pal, rows: t.rows };
 writeFileSync('public/art/rig/enemies.json', JSON.stringify(enemyOut));
 console.log(`enemies: ${enemies.length} (${enemies.map((t) => `${t.who} ${t.w}x${t.h}`).join(', ')})`);
+
+// Portraits: each speaker's faces (rows per expression, one palette) and where the eyes and mouth are.
+const portraitOut = {};
+for (const t of portraits) {
+  const o = (portraitOut[t.who] ??= { w: t.w, h: t.h, pal: t.pal, faces: {}, ...PORTRAIT_FEATURES[t.who] });
+  o.faces[t.facing] = t.rows;
+}
+writeFileSync('public/art/rig/portraits.json', JSON.stringify(portraitOut));
+console.log(`portraits: ${Object.entries(portraitOut).map(([k, o]) => `${k} (${Object.keys(o.faces).join(' ')}; ${o.pal.length} colours)`).join(', ')}`);

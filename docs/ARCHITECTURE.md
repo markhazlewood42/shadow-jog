@@ -318,7 +318,12 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
   (`rig2/enemy.ts`, from `enemies.json`, keyed by sprite name): `enemyArt()` takes the traced redraw where there is
   one, keeping the code-drawn art's idle motion, shadow and size; the strike frame leans it in and the flinch tips it
   back (RotSprite about its feet), and its bright, saturated pixels make its glow. It's `individual`, so a second
-  copy in a fight is mirrored and marked.
+  copy in a fight is mirrored and marked. **Portraits** (`rig2/portrait.ts`, from `portraits.json`): each speaker's
+  pick and the faces the art pass redrew for it, on one palette; the faces it didn't make are drawn in code on the
+  neutral one (eyes shut, half-lidded, widened or angled; the mouth as a smile, frown, small o or gritted teeth), and
+  every face gets a talking frame (and a blink where its eyes are the neutral ones). They go into `portraits.ts`'s
+  cache as `key:face:talk` and `key:face:blink`; `getPortrait(key, face, mod)` falls back to the face itself, and
+  dialogue asks for them while a line types.
 - **Drawn art (`drawn.ts`, shipped since 2026-09-30).** At startup `boot.ts` awaits `loadDrawnArt()`: it reads
   `public/art/manifest.json` (written by `scripts/pixellab/export-picks.mjs` from Mark's review) and hands each piece
   to its cache's replace hook: characters (a sheet per character: a row per facing, standing frame then walk),

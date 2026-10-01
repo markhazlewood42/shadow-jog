@@ -303,15 +303,19 @@ kept out of the game and out of git until Mark picks. Everything generated lives
 
 ### Rig v2: characters drawn in code
 - **Tracing a character:** add it to `SOURCES` in `scripts/art/trace.mjs` (the PixelLab frames to trace), run it,
-  and give its look `rig: '<name>'` in `src/data/looks.ts`. The tracer writes `public/art/rig/field.json`, `battle.json` and `enemies.json` (each enemy's review pick, from `ENEMY_SPRITE`), which the game loads at startup (`src/art/rig2/data.ts`; `?rig=old` skips them)
+  and give its look `rig: '<name>'` in `src/data/looks.ts`. The tracer writes `public/art/rig/field.json`, `battle.json`, `enemies.json` (each enemy's review pick, from `ENEMY_SPRITE`) and `portraits.json` (each portrait pick with its redrawn faces; eye and mouth boxes in `PORTRAIT_FEATURES`, read off the neutral face), which the game loads at startup (`src/art/rig2/data.ts`; `?rig=old` skips them)
   (regenerate, don't hand-edit).
 - **Reviewing it:** `node scripts/art/review-rig.mjs --label "what changed"` (dev server running) renders every rig
-  character's standing frames and walks onto the review page (categories "Rig v2 · crew / battle / enemies / NPCs / townsfolk") as a new version beside
+  character's standing frames and walks onto the review page (categories "Rig v2 · crew / battle / enemies / portraits / NPCs / townsfolk") as a new version beside
   the earlier ones, with the old code-drawn sprite as "Now" (no PixelLab sprites: Mark found them clutter; the page's
   "+ PixelLab archive" chip shows the old art-pass assets). An unchanged render isn't added as a new version. Mark flags frames and leaves
   notes there like any other asset; read them with `node scripts/pixellab/status.mjs --review`.
 - **Tuning the animation:** `src/art/rig2/rig.ts` (`STRIDE`, `BOB`, how feet lift). Change, re-run the review
   script, compare versions.
+- **The dev server can serve a stale module for a few seconds after an edit** (it polls for changes), and a module
+  edited since it started is served as `name.ts?t=…`: a plain `import('/src/…')` in a script gets a second copy
+  with its own state. `review-rig.mjs` imports `portraits.ts` by the game's own URL for that reason; if a version
+  comes out unchanged after an edit, run it again.
 
 ### A new save field
 Add it to `GameState` and `newState()`. If it's purely additive, give it a default in `backfill()` (`save.ts`). If
