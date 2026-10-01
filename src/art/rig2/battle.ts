@@ -84,6 +84,13 @@ export interface BattleRig {
      * (Kit: her whole sleeve moves, drawn clean, instead of a foreshortened lump turned).
      */
     clear?: boolean;
+    /**
+     * Past this many degrees of turn the upper arm is drawn (a clean sleeve); below it, its own
+     * traced pixels turn with it, folds and shading and all, and so does the forearm (Kit's Ready
+     * pose barely moves the arm and looked flat drawn; Mark, 2026-10-01). Needs `reach` for the
+     * upper arm, to have pixels to show.
+     */
+    drawnFrom?: number;
   };
   /** What goes while a weapon is out (Rook's hilt on his back). */
   hide?: { box: Box; keep: Pt[] };
@@ -475,16 +482,25 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
     const a = Math.atan2(elbow[1] - shoulder[1], elbow[0] - shoulder[0]);
     return band(shoulder, [shoulder[0] + Math.cos(a) * 4, shoulder[1] + Math.sin(a) * 4], rig.arm.width + 2, b.lit, b.shade, true);
   };
-  if (!b.hasUpper && rig.arm.clear) arm.push(cap(), sleeve(shoulder, elbow));
-  if (b.hasUpper) {
-    // The shoulder cap: a stub of sleeve at the joint, under the upper arm, so the jacket meets
-    // the arm as it lifts instead of tearing open there (Mark, 2026-10-01, on Kit).
-    const a = Math.atan2(elbow[1] - shoulder[1], elbow[0] - shoulder[0]);
-    arm.push(band(shoulder, [shoulder[0] + Math.cos(a) * 4, shoulder[1] + Math.sin(a) * 4], rig.arm.width + 2, b.lit, b.shade, true));
+  // The upper arm: its own traced pixels turned, or (past `drawnFrom` degrees, or with none of
+  // its own) a sleeve drawn clean. The shoulder cap, a stub of sleeve under the joint, closes the
+  // seam where the jacket meets a turned arm (Mark, 2026-10-01, on Kit); a barely turned arm has
+  // no seam to close, and a cap there only bulges over the shoulder.
+  const small = (deg: number) => Math.abs(((deg + 540) % 360) - 180) <= (rig.arm.drawnFrom ?? 360);
+  const traced = b.hasUpper && small(turnUpper);
+  if (traced) {
+    if (!rig.arm.drawnFrom) arm.push(cap());
     arm.push(place(b.parts.upper, turnUpper, shoulder, shoulder));
+  } else if (b.hasUpper || rig.arm.clear) arm.push(cap(), sleeve(shoulder, elbow));
+  // The forearm's sleeve under its own pixels: it covers the joint as the bones turn (not needed
+  // while the traced arm barely turns: its own pixels are all there).
+  // It stops a sleeve's half-width short of the wrist, so its round end stays inside the hand
+  // instead of showing past the fist.
+  if (!(traced && rig.arm.drawnFrom && small(turnFore))) {
+    const fl = Math.hypot(wrist[0] - elbow[0], wrist[1] - elbow[1]) || 1;
+    const k = Math.max(0, 1 - rig.arm.width / 2 / fl);
+    arm.push(sleeve(elbow, [elbow[0] + (wrist[0] - elbow[0]) * k, elbow[1] + (wrist[1] - elbow[1]) * k]));
   }
-  // The forearm's sleeve under its own pixels: it covers the joint as the bones turn.
-  arm.push(sleeve(elbow, wrist));
   if (b.hasFore) arm.push(place(b.parts.fore, turnFore, restElbow, elbow));
   const hand = place(b.parts.hand, turnFore + (pose.grip ?? 0), restWrist, wrist);
   arm.push(hand);
