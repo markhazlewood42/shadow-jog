@@ -88,8 +88,12 @@ on every push to `main`.
   (`skeleton.json`; limbs can't stretch) and `/rigedit.html` poses them (drag the hand; notes per pose for Claude;
   Save writes the file), and **"Ask Claude to fix it"** works: Claude Code headless on his plan reads the pose
   and his note and changes the pose in ~5–30 s (tested: "fist straight up, calling down lightning" took 5 s).
-  The poses are the old ones converted, waiting on Mark's eye. **Next in this thread:** his pass in the editor;
-  then in-betweens (tweening between key poses) and the field sprites on the same bones.
+  The poses are the old ones converted, waiting on Mark's eye. **Next in this thread:** his pass in the editor
+  (under way 2026-10-01, Kit first: her jacket sleeve now moves with her arm, drawn clean, torso filled; a
+  turntable shows each crew member's 8 drawn views); then in-betweens (tweening between key poses) and the field
+  sprites on the same bones. **Pinned (Mark, 2026-10-01): a 2.5D depth prototype on Kit's strike** (a depth
+  control for the hand: the arm foreshortens reaching into the screen, the fist shrinks a little, draw order
+  follows depth; maybe a drawn end-on fist swapped in), after the current kinks are worked out.
 - **Next (Mark, 2026-09-30, night): a skeleton rig, then a novice-friendly animation editor.** Battle limbs stretch
   today (the forearm is a band from a fixed elbow to wherever the hand goes); fixed-length bones fix that by
   construction. Then an editor page (dev only): pick a character and pose, drag a hand and the elbow bends (IK),
