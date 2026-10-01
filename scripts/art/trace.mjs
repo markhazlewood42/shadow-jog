@@ -41,6 +41,17 @@ const BATTLE = {
   hex: `${A}/battle.hex/plain/north.png`,
   sable: `${A}/battle.sable/house/north.png`,
 };
+/**
+ * Each crew member's battle drawing from all 8 sides, for the animation editor's turntable (Mark,
+ * 2026-10-01); the battle itself only shows the back. The picks have 8 views each; the back is the
+ * battle frame above (Kit's fighting stance; her other views are her standing drawings).
+ */
+const VIEW_DIRS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+const VIEWS = {};
+for (const [who, file] of Object.entries(BATTLE)) {
+  const dir = file.slice(0, file.lastIndexOf('/'));
+  VIEWS[who] = Object.fromEntries(VIEW_DIRS.map((d) => [d, d === 'north' ? file : `${dir}/${d}.png`]).filter(([, f]) => existsSync(f)));
+}
 
 /**
  * Enemies: the redraw Mark picked ("redraw of today's design", the PixelLab image styled on the
@@ -91,11 +102,13 @@ for (const key of Object.keys(PORTRAIT_FEATURES)) {
 }
 
 /** At most this many colours per character (shared by its four facings); battle art, more detailed, gets more. */
-const MAX_COLOURS = { field: 28, battle: 40, enemy: 40, portrait: 40 };
+const MAX_COLOURS = { field: 28, battle: 40, view: 40, enemy: 40, portrait: 40 };
 const jobs = [];
 for (const [who, dir] of Object.entries(SOURCES))
   for (const [facing, pl] of Object.entries(FACINGS)) jobs.push({ group: who, kind: 'field', who, facing, src: readFileSync(`${dir}/${pl}.png`).toString('base64') });
 for (const [who, file] of Object.entries(BATTLE)) jobs.push({ group: `battle:${who}`, kind: 'battle', who, facing: 'up', src: readFileSync(file).toString('base64') });
+for (const [who, views] of Object.entries(VIEWS))
+  for (const [d, file] of Object.entries(views)) jobs.push({ group: `views:${who}`, kind: 'view', who, facing: d, src: readFileSync(file).toString('base64') });
 for (const [sprite, file] of Object.entries(ENEMIES)) jobs.push({ group: `enemy:${sprite}`, kind: 'enemy', who: sprite, facing: 'down', src: readFileSync(file).toString('base64') });
 for (const [key, faces] of Object.entries(PORTRAITS))
   for (const [face, file] of Object.entries(faces)) jobs.push({ group: `portrait:${key}`, kind: 'portrait', who: key, facing: face, src: readFileSync(file).toString('base64') });
@@ -232,6 +245,7 @@ const all = await page.evaluate(async ({ jobs, MAXES }) => {
 await browser.close();
 const traced = all.filter((t) => t.kind === 'field');
 const battle = all.filter((t) => t.kind === 'battle');
+const views = all.filter((t) => t.kind === 'view');
 const enemies = all.filter((t) => t.kind === 'enemy');
 const portraits = all.filter((t) => t.kind === 'portrait');
 
@@ -313,6 +327,11 @@ for (const t of traced) console.log(`${t.who.padEnd(6)} ${t.facing.padEnd(5)} ${
 const battleOut = {};
 for (const t of battle) battleOut[t.who] = { w: t.w, h: t.h, ox: t.ox, oy: t.oy, feet: t.feet, hip: t.feet, pal: t.pal, rows: t.rows };
 writeFileSync('public/art/rig/battle.json', JSON.stringify(battleOut));
+// The turntable's views (the editor loads these; the game doesn't).
+const viewsOut = {};
+for (const t of views) (viewsOut[t.who] ??= {})[t.facing] = { w: t.w, h: t.h, ox: t.ox, oy: t.oy, feet: t.feet, hip: t.feet, pal: t.pal, rows: t.rows };
+writeFileSync('public/art/rig/views.json', JSON.stringify(viewsOut));
+console.log(`views: ${Object.entries(viewsOut).map(([w, v]) => `${w} ${Object.keys(v).length}`).join(', ')}`);
 for (const t of battle) console.log(`battle ${t.who}: ${t.w}x${t.h} at (${t.ox}, ${t.oy}), colours ${t.pal.length}`);
 
 // Enemies: one frame each (the game makes the strike and flinch from it).

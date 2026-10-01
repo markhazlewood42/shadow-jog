@@ -8,9 +8,14 @@
  *
  * The skeleton's own joints (where the shoulder, elbow and wrist are at rest, and how far each
  * bone's pixels reach) are under "Skeleton setup": set once per character.
+ *
+ * The turntable (the dial in the canvas's corner, or [ and ]) turns the character to each of the
+ * 8 drawn views (public/art/rig/views.json, traced from the picks). Posing works on the back view,
+ * the one the battle shows; the others are the drawings, for now.
  */
 import { type ArmPose, type BattleRig, KEY_POSES, type KeyPose, type Posed, poseFrame, poseGlow, resetRig } from '../art/rig2/battle';
 import { SKELETONS, loadRigData } from '../art/rig2/data';
+import { type Traced, decode, renderLayers } from '../art/rig2/rig';
 
 type Pt = [number, number];
 
@@ -102,6 +107,91 @@ function gripHandle(p: Posed, a: ArmPose): Pt {
   return [p.wrist[0] + Math.cos(ang) * 9, p.wrist[1] + Math.sin(ang) * 9];
 }
 
+// ---- Turntable ------------------------------------------------------------------------------
+
+/** The 8 views, clockwise from the back (the battle's), as seen from above with us at the bottom. */
+const DIRS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'] as const;
+const DIR_NAMES = ['Back', 'Back, turned right', 'Right side', 'Front, turned right', 'Front', 'Front, turned left', 'Left side', 'Back, turned left'];
+/** Every crew member's drawing from each side (loaded at start; the game doesn't use these). */
+let views: Record<string, Record<string, Traced & { ox: number; oy: number }>> = {};
+let view = 0;
+const viewCache = new Map<string, HTMLCanvasElement>();
+function viewFrame(id: string, d: string): HTMLCanvasElement | null {
+  const k = `${id}:${d}`;
+  const hit = viewCache.get(k);
+  if (hit) return hit;
+  const t = views[id]?.[d];
+  if (!t) return null;
+  const c = renderLayers([{ ...decode(t), ox: t.ox, oy: t.oy }], t.pal, SIZE, SIZE);
+  viewCache.set(k, c);
+  return c;
+}
+
+const dial = $<HTMLCanvasElement>('dialc');
+const dg = dial.getContext('2d') as CanvasRenderingContext2D;
+function drawDial(): void {
+  const s = dial.width, c = s / 2, r = s / 2 - 10;
+  dg.clearRect(0, 0, s, s);
+  dg.strokeStyle = '#3a3550';
+  dg.lineWidth = 2;
+  dg.beginPath();
+  dg.arc(c, c, r, 0, Math.PI * 2);
+  dg.stroke();
+  // A tick per view; the ones with a drawing are brighter.
+  DIRS.forEach((d, i) => {
+    const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+    dg.fillStyle = i === view ? '#ffa24a' : views[who]?.[d] ? '#8a86a0' : '#3a3550';
+    dg.beginPath();
+    dg.arc(c + Math.cos(a) * r, c + Math.sin(a) * r, i === view ? 5 : 3, 0, Math.PI * 2);
+    dg.fill();
+  });
+  // The way the character faces, from the middle.
+  const a = (view / 8) * Math.PI * 2 - Math.PI / 2;
+  dg.strokeStyle = '#ffa24a';
+  dg.lineWidth = 3;
+  dg.beginPath();
+  dg.moveTo(c, c);
+  dg.lineTo(c + Math.cos(a) * (r - 6), c + Math.sin(a) * (r - 6));
+  dg.stroke();
+  dg.fillStyle = '#e9e6f2';
+  dg.beginPath();
+  dg.arc(c, c, 4, 0, Math.PI * 2);
+  dg.fill();
+  // Where we are: below the circle, looking up at the character.
+  dg.fillStyle = '#9b96ad';
+  dg.beginPath();
+  dg.moveTo(c, s - 7);
+  dg.lineTo(c - 5, s - 1);
+  dg.lineTo(c + 5, s - 1);
+  dg.fill();
+  const name = $('view-name');
+  name.textContent = view ? `${DIR_NAMES[view]}: the drawing (posing is on the back)` : 'Back: the battle’s view, posable';
+}
+function turn(to: number): void {
+  view = ((to % 8) + 8) % 8;
+  drawDial();
+  draw();
+}
+let turning = false;
+const dialAt = (e: PointerEvent) => {
+  const b = dial.getBoundingClientRect();
+  const x = e.clientX - b.left - b.width / 2, y = e.clientY - b.top - b.height / 2;
+  // Clockwise from straight up, snapped to the nearest view.
+  const deg = ((Math.atan2(x, -y) * 180) / Math.PI + 360) % 360;
+  turn(Math.round(deg / 45));
+};
+dial.addEventListener('pointerdown', (e) => {
+  turning = true;
+  dial.setPointerCapture(e.pointerId);
+  dialAt(e);
+});
+dial.addEventListener('pointermove', (e) => {
+  if (turning) dialAt(e);
+});
+dial.addEventListener('pointerup', () => {
+  turning = false;
+});
+
 function draw(): void {
   const r = rig();
   const a = current();
@@ -110,6 +200,13 @@ function draw(): void {
   g.fillStyle = 'rgba(255,255,255,0.035)';
   for (let x = 0; x < SIZE; x += 8) g.fillRect(x * Z, 0, 1, edit.height);
   for (let y = 0; y < SIZE; y += 8) g.fillRect(0, y * Z, edit.width, 1);
+  // Turned away from the back: the drawing for that side, nothing to pose.
+  if (view) {
+    shown = null;
+    const f = viewFrame(who, DIRS[view] ?? 'north');
+    if (f) g.drawImage(f, 0, 0, edit.width, edit.height);
+    return;
+  }
   const before = BEFORE[pose];
   if (($<HTMLInputElement>('onion')).checked) {
     const b = poseFrame(who, before ? (r.poses[before] ?? null) : null, r);
@@ -209,6 +306,10 @@ const toArt = (e: PointerEvent): Pt => {
 const near = (q: readonly [number, number], m: Pt) => Math.hypot(q[0] - m[0], q[1] - m[1]) <= 12 / Z + 1;
 
 edit.addEventListener('pointerdown', (e) => {
+  if (view && !setup) {
+    status('Posing works on the back view: turn the dial back to the top (or press [ / ]).');
+    return;
+  }
   const m = toArt(e);
   const r = rig();
   const p = shown;
@@ -277,6 +378,11 @@ window.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
     e.preventDefault();
     doUndo();
+    return;
+  }
+  // [ and ] turn the character a view at a time.
+  if (e.key === '[' || e.key === ']') {
+    turn(view + (e.key === ']' ? 1 : -1));
     return;
   }
   const d: Record<string, Pt> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
@@ -571,6 +677,7 @@ function pickers(): void {
           onclick: () => {
             who = id;
             pickers();
+            drawDial();
             changed();
           },
         },
@@ -645,9 +752,19 @@ window.addEventListener('beforeunload', (e) => {
   if (dirty) e.preventDefault();
 });
 
+// The turntable's views: the editor works without them (the dial then has only the back).
+fetch('art/rig/views.json', { cache: 'no-cache' })
+  .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`views.json: ${r.status}`))))
+  .then((v: typeof views) => {
+    views = v;
+    drawDial();
+  })
+  .catch((e: unknown) => status(`The turntable’s views didn’t load (${e instanceof Error ? e.message : String(e)}); only the back is shown.`, 'bad'));
+
 loadRigData()
   .then(() => {
     work = structuredClone(SKELETONS);
+    drawDial();
     if (!work[who]) who = Object.keys(work)[0] ?? who;
     pickers();
     draw();
