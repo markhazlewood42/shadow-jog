@@ -419,7 +419,13 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
   const place = (l: Layer, turn: number, from: Pt, to: Pt) => moved(rotSprite(l, turn, from[0], from[1]), Math.round(to[0] - from[0]), Math.round(to[1] - from[1]));
   const sleeve = (a: Pt, c: Pt) => band(a, c, rig.arm.width, b.lit, b.shade);
   const arm: Layer[] = [];
-  if (b.hasUpper) arm.push(place(b.parts.upper, turnUpper, shoulder, shoulder));
+  if (b.hasUpper) {
+    // The shoulder cap: a stub of sleeve at the joint, under the upper arm, so the jacket meets
+    // the arm as it lifts instead of tearing open there (Mark, 2026-10-01, on Kit).
+    const a = Math.atan2(elbow[1] - shoulder[1], elbow[0] - shoulder[0]);
+    arm.push(band(shoulder, [shoulder[0] + Math.cos(a) * 4, shoulder[1] + Math.sin(a) * 4], rig.arm.width + 2, b.lit, b.shade));
+    arm.push(place(b.parts.upper, turnUpper, shoulder, shoulder));
+  }
   // The forearm's sleeve under its own pixels: it covers the joint as the bones turn.
   arm.push(sleeve(elbow, wrist));
   if (b.hasFore) arm.push(place(b.parts.fore, turnFore, restElbow, elbow));
