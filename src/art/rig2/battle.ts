@@ -353,9 +353,10 @@ function widen(body: Layer, [y0, y1, top, bottom]: [number, number, number, numb
         break;
       }
     if (edge < 0) continue;
-    // The row's main colour, from a few pixels in from the edge.
+    // The row's colour at its edge: the commonest of the last three pixels (wider, a trim running
+    // across the back could win, and the fill came out as a gold bar; Mark, 2026-10-01).
     const n = new Map<number, number>();
-    for (let k = 1; k <= 6; k++) {
+    for (let k = 0; k <= 2; k++) {
       const c = px[ly * w + edge - side * k] ?? -1;
       if (c >= 0) n.set(c, (n.get(c) ?? 0) + 1);
     }
