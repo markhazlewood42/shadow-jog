@@ -256,6 +256,8 @@ Objectives go in `OBJ`. New names go in the glossary.
 ### The PixelLab art pass and the review page
 Drawn art made with [PixelLab](https://www.pixellab.ai) (a paid account; its REST API, `https://api.pixellab.ai/v2`),
 kept out of the game and out of git until Mark picks. Everything generated lives in `media/art-pass/`.
+Mark cancels the plan around 2026-10-30: what it does, what we learned and what replaces each capability is in
+`docs/PIXELLAB-LESSONS.md`.
 - **The key** is `PIXELLAB_API_KEY` in `.env.local` (git-ignored). Scripts read it; nothing prints it.
 - **What today's art looks like:** `node scripts/pixellab/render-current.mjs` (dev server running) renders the
   game's own art to `media/art-pass/current/`: every character look (4 facings, plus a 32×32 style image), the

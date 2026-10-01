@@ -64,6 +64,15 @@ on every push to `main`.
 - **Trailer, "before" record (2026-09-30):** `media/shadow-jog-trailer-2026-09-30.mp4` (94.7 s, 1080p60, game audio;
   not in git) records the game as it stands with everything made in code, before any AI-generated art. Shot by
   `node scripts/trailer.mjs`; re-shoot after the art changes for the "after".
+- **Next (Mark, 2026-09-30, night): a skeleton rig, then a novice-friendly animation editor.** Battle limbs stretch
+  today (the forearm is a band from a fixed elbow to wherever the hand goes); fixed-length bones fix that by
+  construction. Then an editor page (dev only): pick a character and pose, drag a hand and the elbow bends (IK),
+  onion skin, play at game speed, save to pose data the game reads; notes per frame for Claude, and later a live
+  "tell Claude" box (Claude Code run headless by the dev server, on his Max plan) that proposes a pose he accepts or
+  rejects. Everything feeds back into the code-drawn sprites. Special effects after that.
+  **PixelLab ends ~2026-10-30** (Mark cancels after a month): `docs/PIXELLAB-LESSONS.md` maps every capability to our
+  replacement and lists what's worth generating before then (needs his OK; 827 generations left): mainly standing
+  frames for future characters, the one thing code can't make.
 - **Direction change (2026-09-30, late): back to code-drawn art, made better.** Mark: the game's UX was better with
   the code-drawn assets; PixelLab's glitches and inconsistency aren't worth it. Goal: code-drawn pixel art that looks
   better than before but keeps the flexibility to animate and improve incrementally, using the PixelLab picks he
