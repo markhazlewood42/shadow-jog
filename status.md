@@ -64,6 +64,17 @@ on every push to `main`.
 - **Trailer, "before" record (2026-09-30):** `media/shadow-jog-trailer-2026-09-30.mp4` (94.7 s, 1080p60, game audio;
   not in git) records the game as it stands with everything made in code, before any AI-generated art. Shot by
   `node scripts/trailer.mjs`; re-shoot after the art changes for the "after".
+- **Mark's review of the code-drawn art (2026-10-01): every asset marked Best.** His three notes are done (new
+  versions on the review page): Sable's staff was half gone in her down view (the tracer took a thin dark staff for
+  outline; it now keeps thin dark lines with nothing behind them, which also restored Hex's antenna and a few
+  enemy details); the hooded scav townsperson (pool 6) has a human face instead of the gas mask he read as an ewok
+  (`FACE_FIXES` in `scripts/art/trace.mjs`); Rook's portrait is traced from round 2's first redo, made from the
+  same note (broad shoulders, the chrome arm prominent). He hasn't looked at the animations yet.
+- **Pixel-art library (2026-10-01, Mark's ask):** `knowledge/pixel-art/` is the craft in depth, written to be
+  taught: 16 modules in teaching order (README has the curriculum map and a learning path), a glossary, and a page
+  per source (55). Each module ends with "In Shadow Jog". Its five suggestions for the game's art (one pixel
+  density in battle, labelled palette slots, silhouette/greyscale toggles on the review page, light direction,
+  a pixel-art lint) are in the README; none is acted on yet.
 - **Spells that look like spells (2026-10-01, Mark's pick for the first effects slice).** Each element has its
   own signature, with a cast, a travel and an impact: Firebrand (embers gather, a fireball arcs over, the target
   stands in flames under a heat haze), Wildfire (the stage dims, the ground catches under every enemy in turn),

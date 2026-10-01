@@ -69,15 +69,21 @@ const PORTRAIT_FEATURES = {
   hex: { eyes: [[13, 25, 18, 26], [23, 24, 28, 26]], mouth: [20, 29, 24, 31] },
   sable: { eyes: [[15, 20, 19, 22], [26, 20, 30, 22]], mouth: [20, 28, 25, 29] },
   dutch: { eyes: [[14, 20, 19, 21], [25, 20, 30, 21]], mouth: [17, 27, 26, 29] },
-  rook: { eyes: [], mouth: [21, 30, 27, 30] },
+  rook: { eyes: [], mouth: [21, 23, 24, 23] },
   pale: { eyes: [], mouth: [22, 30, 26, 30] },
   mags: { eyes: [[15, 23, 19, 24], [26, 23, 31, 24]], mouth: [20, 30, 26, 30] },
   yun: { eyes: [[15, 23, 20, 25], [26, 23, 30, 25]], mouth: [22, 29, 25, 29] },
 };
+/**
+ * Portraits traced from another option than the review's pick: Rook from round 2's first redo,
+ * made from Mark's note on the original ("broader shoulders, and the robot arm more visible"),
+ * which he repeated on the traced one (2026-10-01).
+ */
+const PORTRAIT_PICK = { rook: 'fix1' };
 const PORTRAITS = {};
 for (const key of Object.keys(PORTRAIT_FEATURES)) {
   const opts = Object.entries(review.assets?.[`portrait.${key}`]?.options ?? {});
-  const pick = opts.find(([, v]) => v.verdict === 'best')?.[0] ?? opts.find(([, v]) => v.verdict === 'good')?.[0] ?? 'faithful';
+  const pick = PORTRAIT_PICK[key] ?? opts.find(([, v]) => v.verdict === 'best')?.[0] ?? opts.find(([, v]) => v.verdict === 'good')?.[0] ?? 'faithful';
   const dir = `${A}/portrait.${key}/${pick}`;
   if (!existsSync(`${dir}/image.png`)) continue;
   PORTRAITS[key] = { neutral: `${dir}/image.png` };
@@ -128,6 +134,32 @@ const all = await page.evaluate(async ({ jobs, MAXES }) => {
         if (!p || p[3] === 0 || lum(p) > 48) continue;
         if (!solid(x - 1, y) || !solid(x + 1, y) || !solid(x, y - 1) || !solid(x, y + 1)) outline.add(`${x},${y}`);
       }
+    // A thin dark line (a staff, an antenna, a whip) touches the outside everywhere too, but there
+    // is nothing behind it: an outline has body next to it (diagonals count, for stair steps). Dark
+    // edge pixels with no body anywhere around them stay, when there are at least 3 of them joined up
+    // (Mark, 2026-10-01: half of Sable's staff had gone in her down view).
+    const near8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    const lone = new Set([...outline].filter((k) => {
+      const [x, y] = k.split(',').map(Number);
+      return !near8.some(([dx, dy]) => solid(x + dx, y + dy) && !outline.has(`${x + dx},${y + dy}`));
+    }));
+    const seen = new Set();
+    for (const k of lone) {
+      if (seen.has(k)) continue;
+      const group = [k];
+      seen.add(k);
+      for (let i = 0; i < group.length; i++) {
+        const [x, y] = group[i].split(',').map(Number);
+        for (const [dx, dy] of near8) {
+          const n = `${x + dx},${y + dy}`;
+          if (lone.has(n) && !seen.has(n)) {
+            seen.add(n);
+            group.push(n);
+          }
+        }
+      }
+      if (group.length >= 3) for (const g of group) outline.delete(g);
+    }
     const keep = (x, y) => solid(x, y) && !outline.has(`${x},${y}`);
     let x0 = w, y0 = h, x1 = -1, y1 = -1;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (keep(x, y)) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
@@ -202,6 +234,52 @@ const traced = all.filter((t) => t.kind === 'field');
 const battle = all.filter((t) => t.kind === 'battle');
 const enemies = all.filter((t) => t.kind === 'enemy');
 const portraits = all.filter((t) => t.kind === 'portrait');
+
+/**
+ * Faces redrawn over a traced character, where the pick's face doesn't work (Mark, 2026-10-01, the
+ * hooded scav, pool 6: "face should look more human. looks like an ewok"; its gas mask and goggle
+ * eyes read as an animal). Each is a little pixel grid laid over the traced rows at (x, y) in that
+ * facing's coordinates: a letter is a colour from `colors` (added to the character's palette if
+ * new), '.' leaves the traced pixel, 'x' clears it. A mirrored grid (`mirror`) serves the other side.
+ */
+const FACE_FIXES = {
+  'pool:6': {
+    colors: { H: '#2c1d25', B: '#3a241a', S: '#d29a74', D: '#9e6448', M: '#b7805c', E: '#120b1e', O: '#6e302d' },
+    down: { x: 4, y: 9, rows: ['HBBBBBBBBBH', 'HDSSSSSSSDH', 'HDSESSSESDH', 'HDSESSSESDH', 'HDSSSMSSSDH', 'HHDSMOMSDHH', 'HHHDDDDDHHH'] },
+    right: { x: 13, y: 9, rows: ['HHBBBBSx', 'HBBSSSSS', 'HBSSSESS', 'HDSSSSSS', 'HDSSSSOx', 'HHDDDDDx'] },
+    left: { x: 1, y: 9, mirror: 'right' },
+  },
+};
+for (const [who, fix] of Object.entries(FACE_FIXES)) {
+  const frames = traced.filter((t) => t.who === who);
+  const pal = frames[0]?.pal;
+  if (!pal) continue;
+  const CHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const index = {};
+  for (const [k, hex] of Object.entries(fix.colors)) {
+    let i = pal.indexOf(hex);
+    if (i < 0) {
+      pal.push(hex);
+      i = pal.length - 1;
+    }
+    index[k] = CHARS[i];
+  }
+  for (const t of frames) {
+    t.pal = pal;
+    const spec = fix[t.facing];
+    if (!spec) continue;
+    const grid = spec.mirror ? fix[spec.mirror].rows.map((r) => [...r].reverse().join('')) : spec.rows;
+    grid.forEach((line, dy) => {
+      const row = [...(t.rows[spec.y + dy] ?? '')];
+      [...line].forEach((ch, dx) => {
+        const x = spec.x + dx;
+        if (ch === '.' || x >= row.length) return;
+        row[x] = ch === 'x' ? '.' : index[ch];
+      });
+      t.rows[spec.y + dy] = row.join('');
+    });
+  }
+}
 
 // Legs start at the crotch facing us or away; the side views take their hip row from the front's.
 const byWho = {};

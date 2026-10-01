@@ -8,6 +8,8 @@ Mark asked (2026-09-30) for a running record of the game-dev and JRPG ideas that
 
 ## Pixel art
 
+*The craft in depth, in teaching order with sources and Shadow Jog notes: `knowledge/pixel-art/README.md`.*
+
 - **Pixel density (resolution).** How many screen pixels one art pixel covers. Mixing densities (a chunky character next to a finely drawn monster) reads as a flaw, because the eye sees two different pixel sizes on one screen. *Here:* the field is drawn 1:1 at 480×270; the battle world was 240×135 drawn at 2×, so human enemies were chunky while creatures (`res 2`) were fine. The PixelLab art pass makes everything at the field's density.
 - **Palette and colour count.** Pixel art usually limits itself to a small set of colours; a limited palette makes a set of sprites look like they belong together. *Here:* prompts ask for "at most 15 colors"; the art-pass "Today's colours" options take the palette from the game's own screens.
 - **Outline.** A dark line around a sprite so it reads against any background. Styles: a solid black outline, a single-colour outline, or *selective* outlining (darker shades of the sprite's own colours on the lit side). *Here:* "bold black outline" is part of the house recipe.
@@ -67,6 +69,10 @@ Mark asked (2026-09-30) for a running record of the game-dev and JRPG ideas that
 - **Chromatic aberration (colour split).** Separating the red, green and blue channels a little, like a cheap lens; used for a jolt on big hits.
 - **Shockwave.** A ring that distorts the picture outward from an impact.
 - **Particles and emitters.** Many tiny sprites (sparks, embers, dust) spawned by an *emitter* with rules for speed, spread, gravity, lifetime and colour. *Here:* presets in `src/data/fx.json`, tuned in the FX lab.
+- **Anticipation (charge-up).** A beat before the action that tells the player something big is coming: power gathering in a hand, a crouch, a glint. It makes the hit land harder because the eye was ready for it. *Here:* every spell's `cast.<fx>` moment gathers particles inward at the caster through the windup (2026-10-01).
+- **Heat haze (refraction).** Hot air bends light, so whatever is behind it shimmers. In a game it's a small wavering distortion of the picture over a patch, drifting upward. *Here:* over Firebrand's and Wildfire's flames (`postfx.haze`).
+- **Stage dim.** Darkening everything except the effect for the length of a big spell, so its light owns the screen. A JRPG staple for summons and ultimates. *Here:* Wildfire, Overload and Dragon Coil (`postfx.dim`; whatever glows stays lit).
+- **Glitch effect.** Slices of the picture sliding sideways with the colour channels split, the look of corrupted video. *Here:* where Hex's hacks land (`postfx.glitch`).
 - **Hitstop.** Freezing the action for a few frames when a blow lands, so it feels heavy. A fighting-game staple.
 - **Screen shake and flash.** Shaking or flashing the screen for impact. Used sparingly, and turned down for comfort (the Options menu has settings for both).
 - **Software vs hardware rendering.** Graphics drawn by the GPU (hardware) versus emulated on the CPU (software). The same effect can run at 60 fps on a GPU and 25 fps in software. *Here:* CI's machines have no GPU, which is why the game refuses software WebGL (2026-09-30).
