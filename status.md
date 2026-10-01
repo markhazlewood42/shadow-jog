@@ -89,8 +89,10 @@ on every push to `main`.
   Save writes the file), and **"Ask Claude to fix it"** works: Claude Code headless on his plan reads the pose
   and his note and changes the pose in ~5–30 s (tested: "fist straight up, calling down lightning" took 5 s).
   The poses are the old ones converted, waiting on Mark's eye. **Next in this thread:** his pass in the editor
-  (under way 2026-10-01, Kit first: her jacket sleeve now moves with her arm, drawn clean, torso filled; a
-  turntable shows each crew member's 8 drawn views); then in-betweens (tweening between key poses) and the field
+  (2026-10-01: **Kit done for now, Mark happy with her**: her jacket sleeve moves with her arm, drawn clean past
+  30° and traced below, torso filled when the arm leaves; a round wrapped fist and an open hand (her Cast) drawn
+  in code; his poses saved, including a hand-placed swept arc on her strike. Editor additions: a turntable of
+  each crew member's 8 drawn views, a Hand choice per pose, draggable arc handles. Rook, Hex and Sable next); then in-betweens (tweening between key poses) and the field
   sprites on the same bones. **Pinned (Mark, 2026-10-01): a 2.5D depth prototype on Kit's strike** (a depth
   control for the hand: the arm foreshortens reaching into the screen, the fist shrinks a little, draw order
   follows depth; maybe a drawn end-on fist swapped in), after the current kinks are worked out.
