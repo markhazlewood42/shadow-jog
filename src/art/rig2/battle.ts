@@ -72,6 +72,18 @@ export interface BattleRig {
     /** The sleeve drawn for a bone with no pixels of its own, and its width. */
     sleeve: string;
     width: number;
+    /**
+     * The side of the body to build back when the arm leaves it (its pixels went with the arm):
+     * rows y0 to y1, the edge pushed out `top` pixels at y0 tapering to `bottom` at y1, in the
+     * body's own colours (Mark, 2026-10-01: Kit's chest looked cut out with her arm extended).
+     */
+    fill?: [number, number, number, number];
+    /**
+     * Everything in the box (but the kept colours) leaves the body with the arm, even what no bone
+     * claims; then an upper arm with no pixels of its own is drawn as a sleeve in front of the body
+     * (Kit: her whole sleeve moves, drawn clean, instead of a foreshortened lump turned).
+     */
+    clear?: boolean;
   };
   /** What goes while a weapon is out (Rook's hilt on his back). */
   hide?: { box: Box; keep: Pt[] };
@@ -135,8 +147,11 @@ function pick(l: Layer, box: Box, not: readonly Pt[]): { part: Layer; rest: Laye
   return { part, rest };
 }
 
-/** A band from `a` to `b`, `width` wide with round ends, lit on the side facing the top left. */
-function band(a: Pt, b: Pt, width: number, lit: number, shade: number): Layer {
+/**
+ * A band from `a` to `b`, `width` wide with round ends, lit on the side facing the top left: half
+ * shaded, or (`rim`, for cloth) only its outermost pixel on the shadow side.
+ */
+function band(a: Pt, b: Pt, width: number, lit: number, shade: number, rim = false): Layer {
   const x0 = Math.floor(Math.min(a[0], b[0]) - width);
   const y0 = Math.floor(Math.min(a[1], b[1]) - width);
   const w = Math.ceil(Math.abs(a[0] - b[0]) + 2 * width) + 1;
@@ -159,8 +174,10 @@ function band(a: Pt, b: Pt, width: number, lit: number, shade: number): Layer {
       const t = Math.max(0, Math.min(1, (qx * vx + qy * vy) / len2));
       const dx = qx - t * vx;
       const dy = qy - t * vy;
-      if (dx * dx + dy * dy > (width / 2) ** 2) continue;
-      px[y * w + x] = dx * nx + dy * ny > 0 ? lit : shade;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > (width / 2) ** 2) continue;
+      const shadowSide = dx * nx + dy * ny <= 0;
+      px[y * w + x] = shadowSide && (!rim || d2 > (width / 2 - 1.2) ** 2) ? shade : lit;
     }
   return { w, h, ox: x0, oy: y0, px };
 }
@@ -294,13 +311,48 @@ function split(base: Layer, rig: BattleRig): { body: Layer; upper: Layer; fore: 
       const u = toSegment(p, shoulder, elbow);
       const f = toSegment(p, elbow, wrist);
       const which = inBox(hand, x, y) ? 'hand' : f.d <= reach[1] && f.d <= u.d ? 'fore' : u.d <= reach[0] ? 'upper' : null;
-      if (!which) continue;
-      parts[which].px[at(x, y)] = c;
+      if (!which && !rig.arm.clear) continue;
+      if (which) parts[which].px[at(x, y)] = c;
       parts.body.px[at(x, y)] = -1;
     }
   fillGaps(parts.body, base);
   dropIslands(parts.body, box);
+  if (rig.arm.fill) widen(parts.body, rig.arm.fill, Math.sign(elbow[0] - shoulder[0]) || 1);
   return parts;
+}
+
+/**
+ * Build the body's side back out where the arm took it: on each row of the span, the edge facing the
+ * arm (`side` 1: right, -1: left) moves out, the new pixels in the row's main colour with its old
+ * edge colour on the outside, so the side keeps its shading.
+ */
+function widen(body: Layer, [y0, y1, top, bottom]: [number, number, number, number], side: number): void {
+  const { w, px } = body;
+  for (let y = y0; y <= y1; y++) {
+    const ly = y - body.oy;
+    if (ly < 0 || ly >= body.h) continue;
+    let edge = -1;
+    for (let x = side > 0 ? w - 1 : 0; side > 0 ? x >= 0 : x < w; x -= side)
+      if ((px[ly * w + x] ?? -1) >= 0) {
+        edge = x;
+        break;
+      }
+    if (edge < 0) continue;
+    // The row's main colour, from a few pixels in from the edge.
+    const n = new Map<number, number>();
+    for (let k = 1; k <= 6; k++) {
+      const c = px[ly * w + edge - side * k] ?? -1;
+      if (c >= 0) n.set(c, (n.get(c) ?? 0) + 1);
+    }
+    const main = [...n].sort((a, b) => b[1] - a[1])[0]?.[0] ?? px[ly * w + edge] ?? -1;
+    const rimC = px[ly * w + edge] ?? main;
+    const out = Math.round(top + ((bottom - top) * (y - y0)) / Math.max(1, y1 - y0));
+    for (let k = 0; k <= out; k++) {
+      const x = edge + side * k;
+      if (x < 0 || x >= w) break;
+      px[ly * w + x] = k === out ? rimC : main;
+    }
+  }
 }
 
 /**
@@ -417,13 +469,18 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
   const turnFore = angleOf(elbow, wrist) - angleOf(restElbow, restWrist);
   // A bone's pixels turned at its joint, then carried to where that joint is now.
   const place = (l: Layer, turn: number, from: Pt, to: Pt) => moved(rotSprite(l, turn, from[0], from[1]), Math.round(to[0] - from[0]), Math.round(to[1] - from[1]));
-  const sleeve = (a: Pt, c: Pt) => band(a, c, rig.arm.width, b.lit, b.shade);
+  const sleeve = (a: Pt, c: Pt) => band(a, c, rig.arm.width, b.lit, b.shade, true);
   const arm: Layer[] = [];
+  const cap = () => {
+    const a = Math.atan2(elbow[1] - shoulder[1], elbow[0] - shoulder[0]);
+    return band(shoulder, [shoulder[0] + Math.cos(a) * 4, shoulder[1] + Math.sin(a) * 4], rig.arm.width + 2, b.lit, b.shade, true);
+  };
+  if (!b.hasUpper && rig.arm.clear) arm.push(cap(), sleeve(shoulder, elbow));
   if (b.hasUpper) {
     // The shoulder cap: a stub of sleeve at the joint, under the upper arm, so the jacket meets
     // the arm as it lifts instead of tearing open there (Mark, 2026-10-01, on Kit).
     const a = Math.atan2(elbow[1] - shoulder[1], elbow[0] - shoulder[0]);
-    arm.push(band(shoulder, [shoulder[0] + Math.cos(a) * 4, shoulder[1] + Math.sin(a) * 4], rig.arm.width + 2, b.lit, b.shade));
+    arm.push(band(shoulder, [shoulder[0] + Math.cos(a) * 4, shoulder[1] + Math.sin(a) * 4], rig.arm.width + 2, b.lit, b.shade, true));
     arm.push(place(b.parts.upper, turnUpper, shoulder, shoulder));
   }
   // The forearm's sleeve under its own pixels: it covers the joint as the bones turn.
@@ -435,7 +492,7 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
   if (w) arm.push(...w.layers);
   const body = w ? b.armed : b.parts.body;
   // An upper arm with no pixels of its own (under hair or a coat) is a sleeve behind the body.
-  const under = b.hasUpper ? [] : [sleeve(shoulder, elbow)];
+  const under = b.hasUpper || rig.arm.clear ? [] : [sleeve(shoulder, elbow)];
   let layers = pose.behind ? [...under, ...arm, body] : [...under, body, ...arm];
   const feet: Pt = [b.t.ox + b.t.w / 2, b.t.oy + b.t.feet];
   if (pose.lean) layers = layers.map((l) => rotSprite(l, pose.lean ?? 0, feet[0], feet[1]));
