@@ -65,10 +65,6 @@ let drag: null | 'hand' | 'elbow' | 'grip' | 'shoulder' | 'restElbow' | 'wrist' 
 /** The impact's swept arc as last drawn: where it starts, its bend and where it lands (for the handles). */
 let arcShown: { from: Pt; bend: Pt; to: Pt } | null = null;
 let setup = false;
-/** "Ask Claude": which model, whether it's working (and since when), and its last answer. */
-let model: 'sonnet' | 'opus' = 'sonnet';
-let askingSince = 0;
-let claudeSaid: string | null = null;
 
 const rig = () => work[who] as BattleRig;
 const current = (): ArmPose => {
@@ -530,18 +526,6 @@ function side(): void {
       );
   }
   kids.push(h('hr'), h('h2', {}, 'Note for Claude'), note);
-  if (!setup) {
-    const pickModel = h('select', {}, h('option', { value: 'sonnet', selected: model === 'sonnet' }, 'Quick (Sonnet)'), h('option', { value: 'opus', selected: model === 'opus' }, 'Careful (Opus)'));
-    pickModel.addEventListener('change', () => {
-      model = pickModel.value === 'opus' ? 'opus' : 'sonnet';
-    });
-    const ask = h('button', { class: 'primary', disabled: askingSince > 0, onclick: () => void askClaude(note.value) }, askingSince ? 'Claude is looking…' : 'Ask Claude to fix it');
-    kids.push(h('div', { class: 'buttons' }, ask, pickModel), h('p', { class: 'hint' }, 'Claude looks at the pose and your note and changes the pose (Undo puts it back). It takes about 10–60 seconds and uses your Claude plan.'));
-    if (claudeSaid)
-      kids.push(
-        h('div', { class: 'panel', style: 'border-color: var(--grip); margin-top: 8px' }, h('h2', {}, 'Claude'), h('p', { style: 'margin: 0 0 6px' }, claudeSaid), h('div', { class: 'buttons' }, h('button', { onclick: () => dismiss(false) }, 'Keep it'), h('button', { onclick: () => dismiss(true) }, 'Undo Claude’s change'))),
-      );
-  }
   const save = h('button', { class: 'primary', onclick: () => void doSave() }, 'Save');
   const undoBtn = h('button', { onclick: doUndo }, 'Undo');
   const reset = h(
@@ -588,121 +572,6 @@ async function doSave(): Promise<void> {
     status('Saved. Reload the game to see it in battle.', 'good');
   } catch (e) {
     status(`Not saved: the dev server didn’t answer (${e instanceof Error ? e.message : String(e)}). Is npm run dev running?`, 'bad');
-  }
-}
-
-// ---- Ask Claude -----------------------------------------------------------------------------
-
-/** A pose drawn for Claude: 4x, on a grid every 8 pixels with its coordinates, joints marked. */
-function annotated(a: ArmPose | null, marks: boolean): string | null {
-  const r = rig();
-  const p = poseFrame(who, a, r);
-  if (!p) return null;
-  const c = h('canvas', { width: SIZE * Z, height: SIZE * Z });
-  const x = c.getContext('2d');
-  if (!x) return null;
-  x.imageSmoothingEnabled = false;
-  x.fillStyle = '#221f2e';
-  x.fillRect(0, 0, c.width, c.height);
-  x.font = '11px sans-serif';
-  for (let k = 0; k <= SIZE; k += 8) {
-    x.fillStyle = k % 32 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.14)';
-    x.fillRect(k * Z, 0, 1, c.height);
-    x.fillRect(0, k * Z, c.width, 1);
-    if (k % 16 === 0 && k < SIZE) {
-      x.fillStyle = 'rgba(255,255,255,0.6)';
-      x.fillText(String(k), k * Z + 2, 11);
-      x.fillText(String(k), 2, k * Z + 11);
-    }
-  }
-  x.drawImage(p.frame, 0, 0, c.width, c.height);
-  if (marks)
-    for (const [q, color] of [[p.shoulder, '#8a86a0'], [p.elbow, '#3fe0f0'], [p.wrist, '#ffa24a']] as const) {
-      x.fillStyle = color;
-      x.beginPath();
-      x.arc(q[0] * Z, q[1] * Z, 6, 0, Math.PI * 2);
-      x.fill();
-    }
-  return c.toDataURL('image/png');
-}
-
-/** Only the pose fields the game knows, with sensible values (Claude's answer is checked, not trusted). */
-function cleanPose(raw: unknown, was: ArmPose): ArmPose {
-  const o = (raw ?? {}) as Record<string, unknown>;
-  const num = (v: unknown, lo: number, hi: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : undefined);
-  const hand = Array.isArray(o.hand) ? o.hand : [];
-  const out: ArmPose = { hand: [num(hand[0], -20, SIZE + 20) ?? was.hand[0], num(hand[1], -20, SIZE + 20) ?? was.hand[1]] };
-  opt(out, 'flip', o.flip === true);
-  opt(out, 'grip', num(o.grip, -180, 180));
-  opt(out, 'lean', num(o.lean, -12, 12));
-  opt(out, 'drop', num(o.drop, 0, 8));
-  opt(out, 'behind', o.behind === true);
-  if (o.shape === 'open') out.shape = 'open';
-  // The arc is placed by hand; Claude's answer keeps it as it was.
-  if (was.arc) out.arc = was.arc;
-  const w = o.weapon as { kind?: unknown; angle?: unknown } | undefined;
-  if (was.weapon) out.weapon = { kind: was.weapon.kind, angle: num(w?.angle, -180, 180) ?? was.weapon.angle };
-  if (o.light === 'spark' || o.light === 'impact' || o.light === 'shot') out.light = o.light;
-  if (o.lightAt === 'hand' || o.lightAt === 'tip' || o.lightAt === 'top') out.lightAt = o.lightAt;
-  return out;
-}
-
-/** Close Claude's answer, keeping its change or undoing it. */
-function dismiss(undoIt: boolean): void {
-  claudeSaid = null;
-  if (undoIt) doUndo();
-  else side();
-}
-
-async function askClaude(note: string): Promise<void> {
-  if (!note.trim()) {
-    status('Write what’s wrong in the note first, in your own words.', 'bad');
-    return;
-  }
-  const r = rig();
-  const a = current();
-  const p = poseFrame(who, a, r);
-  const before = BEFORE[pose];
-  const now = annotated(a, true);
-  if (!p || !now) return;
-  const dist = (u: readonly number[], v: readonly number[]) => Math.hypot((u[0] ?? 0) - (v[0] ?? 0), (u[1] ?? 0) - (v[1] ?? 0));
-  askingSince = Date.now();
-  claudeSaid = null;
-  side();
-  const tick = setInterval(() => status(`Claude is looking at it… ${Math.round((Date.now() - askingSince) / 1000)} s`), 1000);
-  try {
-    const res = await fetch('/__rig/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        who: NAMES[who] ?? who,
-        poseName: POSE_HELP[pose][0],
-        poseHelp: POSE_HELP[pose][1],
-        note,
-        pose: a,
-        arm: r.arm,
-        joints: { shoulder: p.shoulder, elbow: p.elbow, wrist: p.wrist, tip: p.tip, upper: dist(r.arm.shoulder, r.arm.elbow), fore: dist(r.arm.elbow, r.arm.wrist) },
-        images: { now, before: before ? annotated(r.poses[before] ?? null, false) : null },
-        model,
-      }),
-    });
-    const out = (await res.json().catch(() => ({ ok: false, problem: `the dev server answered ${res.status}` }))) as { ok: boolean; problem?: string; pose?: unknown; say?: string };
-    if (!out.ok) {
-      status(`Claude couldn’t help this time: ${out.problem ?? 'unknown problem'}`, 'bad');
-      return;
-    }
-    remember();
-    r.poses[pose] = cleanPose(out.pose, a);
-    claudeSaid = out.say ?? 'Done.';
-    dirty = true;
-    draw();
-    pickers();
-  } catch (e) {
-    status(`Couldn’t reach the dev server (${e instanceof Error ? e.message : String(e)}). Is npm run dev running?`, 'bad');
-  } finally {
-    clearInterval(tick);
-    askingSince = 0;
-    side();
   }
 }
 

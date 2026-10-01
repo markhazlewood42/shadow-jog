@@ -86,8 +86,8 @@ on every push to `main`.
   battle, and say what to push further; then the combos, the enemy casters and the rest of the moves.
 - **Skeleton and animation editor: first build done (2026-09-30, night).** The crew's battle arms are bones now
   (`skeleton.json`; limbs can't stretch) and `/rigedit.html` poses them (drag the hand; notes per pose for Claude;
-  Save writes the file), and **"Ask Claude to fix it"** works: Claude Code headless on his plan reads the pose
-  and his note and changes the pose in ~5–30 s (tested: "fist straight up, calling down lightning" took 5 s).
+  Save writes the file). (A live "Ask Claude to fix it" button was built and removed on 2026-10-01: Mark didn't use
+  it; the per-pose notes for a session remain.)
   The poses are the old ones converted, waiting on Mark's eye. **Next in this thread:** his pass in the editor
   (2026-10-01: **Kit done for now, Mark happy with her**: her jacket sleeve moves with her arm, drawn clean past
   30° and traced below, torso filled when the arm leaves; a round wrapped fist and an open hand (her Cast) drawn
