@@ -85,6 +85,11 @@ export interface BattleRig {
     wrist: Pt;
     /** Where the arm's pixels can be. */
     box: Box;
+    /**
+     * More of it, when one rectangle can't fit the arm: Rook's coat sleeve is wide at the shoulder
+     * and his chrome arm narrow below it, beside his coat (Mark, 2026-10-01).
+     */
+    more?: Box[];
     /** Points on the body whose colours are never the arm's (hair, coat). */
     keep: Pt[];
     /** How far from the upper arm and the forearm their pixels reach (0: the bone is drawn instead). */
@@ -377,8 +382,13 @@ function split(base: Layer, rig: BattleRig): { body: Layer; upper: Layer; fore: 
   const parts = { body: { ...base, px: base.px.slice() }, upper: blank(), fore: blank(), hand: blank() };
   const at = (x: number, y: number) => (y - base.oy) * base.w + (x - base.ox);
   const inBox = (b: Box, x: number, y: number) => x >= b[0] && x < b[2] && y >= b[1] && y < b[3];
-  for (let y = box[1]; y < box[3]; y++)
-    for (let x = box[0]; x < box[2]; x++) {
+  const boxes = [box, ...(rig.arm.more ?? [])];
+  const done = new Set<number>();
+  for (const bx of boxes)
+  for (let y = bx[1]; y < bx[3]; y++)
+    for (let x = bx[0]; x < bx[2]; x++) {
+      if (done.has(at(x, y))) continue;
+      done.add(at(x, y));
       const c = indexAt(base, x, y);
       if (c < 0 || keepCols.has(c)) continue;
       const p: Pt = [x + 0.5, y + 0.5];
@@ -390,7 +400,8 @@ function split(base: Layer, rig: BattleRig): { body: Layer; upper: Layer; fore: 
       parts.body.px[at(x, y)] = -1;
     }
   fillGaps(parts.body, base);
-  dropIslands(parts.body, box);
+  // Loose bits anywhere in the boxes (their bounds).
+  dropIslands(parts.body, [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1])), Math.max(...boxes.map((b) => b[2])), Math.max(...boxes.map((b) => b[3]))]);
   if (rig.arm.fill) widen(parts.body, rig.arm.fill, Math.sign(elbow[0] - shoulder[0]) || 1);
   return parts;
 }
