@@ -52,7 +52,35 @@
     1
    ],
    "clear": true,
-   "drawnFrom": 30
+   "drawnFrom": 30,
+   "fist": {
+    "rows": [
+     "...tuut...",
+     ".utputput.",
+     "DDDDDCDDxv",
+     "CDDDCDDDxv",
+     "BBCBBBBxxv",
+     "CDDDDCDxxv",
+     ".CDDDDDxv.",
+     ".CDDDDxxv.",
+     "..CDDDxv.."
+    ],
+    "colors": {
+     "u": "#ca7646",
+     "t": "#bf725a",
+     "p": "#a35632",
+     "o": "#994a40",
+     "D": "#f3f3ed",
+     "C": "#e8e3d5",
+     "B": "#dccec3",
+     "x": "#b4afa2",
+     "v": "#928c85"
+    },
+    "pivot": [
+     4.5,
+     8
+    ]
+   }
   },
   "light": "#ffa24a",
   "poses": {
@@ -66,18 +94,21 @@
    "strike": {
     "hand": [
      88,
-     34
+     23
     ],
     "light": "impact",
-    "lightAt": "hand"
+    "lightAt": "hand",
+    "behind": true
    },
    "raise": {
     "hand": [
-     86,
-     10
+     88,
+     21
     ],
     "light": "spark",
-    "lightAt": "hand"
+    "lightAt": "hand",
+    "behind": true,
+    "flip": false
    },
    "victory": {
     "hand": [

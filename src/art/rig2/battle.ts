@@ -91,6 +91,14 @@ export interface BattleRig {
      * upper arm, to have pixels to show.
      */
     drawnFrom?: number;
+    /**
+     * A hand drawn in code for the arm's big moves (with `drawnFrom`): a little pixel grid
+     * pointing up, knuckles first, a letter per pixel from `colors` ('.' empty), turned with the
+     * forearm and joined to it at `pivot` (grid coordinates). The traced hand stays for the small
+     * moves. Kit's traced fist is seen edge-on in her guard and read as a thin blob held out
+     * (Mark, 2026-10-01: "bigger, more round").
+     */
+    fist?: { rows: string[]; colors: Record<string, string>; pivot: Pt };
   };
   /** What goes while a weapon is out (Rook's hilt on his back). */
   hide?: { box: Box; keep: Pt[] };
@@ -448,7 +456,21 @@ function build(id: string, rig: BattleRig) {
   const has = (l: Layer) => l.px.some((p) => p >= 0);
   // Which way the elbow bends at rest (the side of the shoulder-wrist line it's on).
   const bend = Math.sign((elbow[0] - shoulder[0]) * (wrist[1] - shoulder[1]) - (elbow[1] - shoulder[1]) * (wrist[0] - shoulder[0])) || 1;
-  return { t, base, parts, armed, lit, shade, bend: -bend, upperLen: dist(shoulder, elbow), foreLen: dist(elbow, wrist), hasUpper: has(parts.upper), hasFore: has(parts.fore) };
+  // The drawn fist, as a layer whose (0, 0) is its pivot (where it joins the wrist).
+  let fist: Layer | null = null;
+  if (rig.arm.fist) {
+    const { rows, colors, pivot } = rig.arm.fist;
+    const fw = Math.max(...rows.map((r) => r.length));
+    const index = Object.fromEntries(Object.entries(colors).map(([k, hex]) => [k, nearest(t.pal, hex)]));
+    const fpx = new Int16Array(fw * rows.length).fill(-1);
+    rows.forEach((r, y) => {
+      [...r].forEach((ch, x) => {
+        fpx[y * fw + x] = index[ch] ?? -1;
+      });
+    });
+    fist = { w: fw, h: rows.length, ox: -Math.round(pivot[0]), oy: -Math.round(pivot[1]), px: fpx };
+  }
+  return { t, base, parts, armed, lit, shade, fist, bend: -bend, upperLen: dist(shoulder, elbow), foreLen: dist(elbow, wrist), hasUpper: has(parts.upper), hasFore: has(parts.fore) };
 }
 const built = new Map<string, ReturnType<typeof build>>();
 
@@ -502,7 +524,13 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
     arm.push(sleeve(elbow, [elbow[0] + (wrist[0] - elbow[0]) * k, elbow[1] + (wrist[1] - elbow[1]) * k]));
   }
   if (b.hasFore) arm.push(place(b.parts.fore, turnFore, restElbow, elbow));
-  const hand = place(b.parts.hand, turnFore + (pose.grip ?? 0), restWrist, wrist);
+  // The hand: the drawn fist on a big move (turned to point along the forearm), else its own
+  // traced pixels.
+  const handTurn = turnFore + (pose.grip ?? 0);
+  const hand =
+    b.fist && !(traced && small(turnFore))
+      ? moved(rotSprite(b.fist, angleOf(elbow, wrist) + 90 + (pose.grip ?? 0), 0, 0), Math.round(wrist[0]), Math.round(wrist[1]))
+      : place(b.parts.hand, handTurn, restWrist, wrist);
   arm.push(hand);
   const w = pose.weapon ? weapon({ ...pose.weapon, angle: angleOf(elbow, wrist) + (pose.grip ?? 0) + pose.weapon.angle }, wrist, b.t.pal) : null;
   if (w) arm.push(...w.layers);
