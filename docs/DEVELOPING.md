@@ -312,6 +312,12 @@ Mark cancels the plan around 2026-10-30: what it does, what we learned and what 
   bone's pixels reach (once per character). **Notes for Claude:** each pose has a note box; the notes are saved in
   `skeleton.json` (`notes`), and a session works through them (read the note, change the pose or the skeleton,
   re-render with `node scripts/art/review-rig.mjs`, clear the note).
+- **"Ask Claude to fix it"** (in the editor): the dev server runs Claude Code headless (`scripts/rig-ask.mjs`) with
+  the pose drawn on a coordinate grid, the pose before it, the pose's data and the note, and puts its answer in as an
+  undoable change with a plain-words explanation. Claude runs with no tools, no MCP servers, no skills and its own
+  system prompt, from an empty temp folder: about 3–7k tokens a call instead of the 300k+ a default headless
+  session loads, and it can't touch files. Quick = Sonnet, Careful = Opus. Needs the `claude` command signed in
+  (or `CLAUDE_BIN` pointing at it). The answer is checked field by field before it's used (`cleanPose`).
 - **Tracing a character:** add it to `SOURCES` in `scripts/art/trace.mjs` (the PixelLab frames to trace), run it,
   and give its look `rig: '<name>'` in `src/data/looks.ts`. The tracer writes `public/art/rig/field.json`, `battle.json`, `enemies.json` (each enemy's review pick, from `ENEMY_SPRITE`) and `portraits.json` (each portrait pick with its redrawn faces; eye and mouth boxes in `PORTRAIT_FEATURES`, read off the neutral face), which the game loads at startup (`src/art/rig2/data.ts`; `?rig=old` skips them)
   (regenerate, don't hand-edit).

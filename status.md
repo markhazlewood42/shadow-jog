@@ -66,9 +66,10 @@ on every push to `main`.
   `node scripts/trailer.mjs`; re-shoot after the art changes for the "after".
 - **Skeleton and animation editor: first build done (2026-09-30, night).** The crew's battle arms are bones now
   (`skeleton.json`; limbs can't stretch) and `/rigedit.html` poses them (drag the hand; notes per pose for Claude;
-  Save writes the file). The poses are the old ones converted, waiting on Mark's eye. **Next in this thread:** his
-  pass in the editor; then the live "tell Claude" box; then in-betweens (tweening between key poses) and the field
-  sprites on the same bones.
+  Save writes the file), and **"Ask Claude to fix it"** works: Claude Code headless on his plan reads the pose
+  and his note and changes the pose in ~5–30 s (tested: "fist straight up, calling down lightning" took 5 s).
+  The poses are the old ones converted, waiting on Mark's eye. **Next in this thread:** his pass in the editor;
+  then in-betweens (tweening between key poses) and the field sprites on the same bones.
 - **Next (Mark, 2026-09-30, night): a skeleton rig, then a novice-friendly animation editor.** Battle limbs stretch
   today (the forearm is a band from a fixed elbow to wherever the hand goes); fixed-length bones fix that by
   construction. Then an editor page (dev only): pick a character and pose, drag a hand and the elbow bends (IK),

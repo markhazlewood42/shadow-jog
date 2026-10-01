@@ -140,7 +140,8 @@ function artPass(): Plugin {
 const SKELETON_FILE = resolve(import.meta.dirname, 'public/art/rig/skeleton.json');
 
 /**
- * The animation editor's save endpoint (dev server only; the editor is /rigedit.html):
+ * The animation editor's endpoints (dev server only; the editor is /rigedit.html). /__rig/ask: see
+ * below. Saving:
  * GET /__rig/skeleton returns public/art/rig/skeleton.json, POST checks the posted skeletons (each
  * has an arm and poses) and writes them. Answers `{ ok: true }` or `{ ok: false, problem }`.
  */
@@ -149,6 +150,41 @@ function rigEdit(): Plugin {
     name: 'shadowjog-rigedit',
     apply: 'serve',
     configureServer(server) {
+      // "Ask Claude": Claude Code, headless, looks at the pose and Mark's note and answers with a
+      // changed pose (scripts/rig-ask.mjs). One at a time.
+      let asking = false;
+      server.middlewares.use('/__rig/ask', (req, res) => {
+        const reply = (code: number, body: unknown) => {
+          res.statusCode = code;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(body));
+        };
+        if (req.method !== 'POST') {
+          reply(405, { ok: false, problem: 'POST only' });
+          return;
+        }
+        if (asking) {
+          reply(409, { ok: false, problem: 'Claude is still working on the last question.' });
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: Buffer) => {
+          body += chunk.toString('utf8');
+          if (body.length > 8_000_000) req.destroy();
+        });
+        req.on('end', async () => {
+          asking = true;
+          try {
+            const { askClaude } = await import('./scripts/rig-ask.mjs');
+            const answer = await askClaude(JSON.parse(body));
+            reply(200, { ok: true, ...answer });
+          } catch (e) {
+            reply(500, { ok: false, problem: e instanceof Error ? e.message : String(e) });
+          } finally {
+            asking = false;
+          }
+        });
+      });
       server.middlewares.use('/__rig/skeleton', (req, res) => {
         const reply = (code: number, body: unknown) => {
           res.statusCode = code;

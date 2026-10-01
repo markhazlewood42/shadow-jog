@@ -319,7 +319,8 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
   stretch. Where the arm leaves the body the gap is filled from around it and loose bits are dropped; a bone with
   no pixels of its own is drawn as a sleeve; weapons are drawn in code in the hand, and each pose throws its light.
   Poses and joints are set in the **animation editor** (`/rigedit.html`, `src/dev/rigedit.ts`, dev only), which saves
-  through the dev server (`vite.config.ts` `rigEdit`). NPCs and
+  through the dev server (`vite.config.ts` `rigEdit`) and can ask Claude Code, run headless, to fix a pose from
+  Mark's note (`scripts/rig-ask.mjs`). NPCs and
   townsfolk (`rig2/npcs.ts`) are swapped in after loading; passers-by take the townsfolk looks in turn. **Enemies**
   (`rig2/enemy.ts`, from `enemies.json`, keyed by sprite name): `enemyArt()` takes the traced redraw where there is
   one, keeping the code-drawn art's idle motion, shadow and size; the strike frame leans it in and the flinch tips it
