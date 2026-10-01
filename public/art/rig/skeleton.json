@@ -124,8 +124,8 @@
    },
    "strike": {
     "hand": [
-     89,
-     25
+     85,
+     42
     ],
     "light": "impact",
     "lightAt": "hand",
@@ -139,19 +139,22 @@
       116,
       35
      ]
-    }
+    },
+    "depth": 26,
+    "grip": -46
    },
    "raise": {
     "hand": [
      84,
-     19
+     28
     ],
     "lightAt": "tip",
     "behind": true,
     "flip": false,
     "shape": "open",
     "light": "spark",
-    "grip": 12
+    "grip": 12,
+    "depth": 20
    },
    "victory": {
     "hand": [
@@ -166,47 +169,26 @@
  "rook": {
   "arm": {
    "shoulder": [
-    83,
-    56
+    76,
+    49
    ],
    "elbow": [
-    85,
-    66
+    83,
+    60
    ],
    "wrist": [
-    85,
-    74
+    87,
+    75
    ],
    "box": [
     77,
-    54,
+    43,
     93,
     82
    ],
-   "keep": [
-    [
-     70,
-     60
-    ],
-    [
-     72,
-     76
-    ],
-    [
-     64,
-     50
-    ],
-    [
-     60,
-     84
-    ],
-    [
-     74,
-     88
-    ]
-   ],
+   "keep": [],
    "reach": [
-    4,
+    12,
     4
    ],
    "hand": [
@@ -216,7 +198,14 @@
     82
    ],
    "sleeve": "#9a9aa8",
-   "width": 6
+   "width": 6,
+   "clear": true,
+   "fill": [
+    46,
+    82,
+    3,
+    1
+   ]
   },
   "hide": {
    "box": [
@@ -248,13 +237,16 @@
   "poses": {
    "brace": {
     "hand": [
-     93,
-     60
+     118,
+     23
     ],
     "weapon": {
      "kind": "katana",
      "angle": -156
-    }
+    },
+    "behind": true,
+    "grip": 130,
+    "flip": true
    },
    "strike": {
     "hand": [

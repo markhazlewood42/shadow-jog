@@ -532,7 +532,20 @@ function build(id: string, rig: BattleRig) {
     });
     return { w: fw, h: rows.length, ox: -Math.round(pivot[0]), oy: -Math.round(pivot[1]), px: fpx };
   };
-  return { t, base, parts, armed, lit, shade, fist: drawn(rig.arm.fist), open: drawn(rig.arm.open), bend: -bend, upperLen: dist(shoulder, elbow), foreLen: dist(elbow, wrist), hasUpper: has(parts.upper), hasFore: has(parts.fore) };
+  // The shoulder cap's colour: what the upper arm is made of right at the shoulder (Rook's coat,
+  // Kit's jacket), else the sleeve colour.
+  let capLit = lit;
+  if (has(parts.upper)) {
+    const n = new Map<number, number>();
+    for (let y = Math.round(shoulder[1]) - 4; y <= Math.round(shoulder[1]) + 4; y++)
+      for (let x = Math.round(shoulder[0]) - 4; x <= Math.round(shoulder[0]) + 4; x++) {
+        const c = indexAt(parts.upper, x, y);
+        if (c >= 0) n.set(c, (n.get(c) ?? 0) + 1);
+      }
+    capLit = [...n].sort((p, q) => q[1] - p[1])[0]?.[0] ?? lit;
+  }
+  const capShade = darker({ w: 1, h: 1, ox: 0, oy: 0, px: Int16Array.of(capLit) }, t.pal).px[0] ?? capLit;
+  return { t, base, parts, armed, lit, shade, capLit, capShade, fist: drawn(rig.arm.fist), open: drawn(rig.arm.open), bend: -bend, upperLen: dist(shoulder, elbow), foreLen: dist(elbow, wrist), hasUpper: has(parts.upper), hasFore: has(parts.fore) };
 }
 const built = new Map<string, ReturnType<typeof build>>();
 
@@ -579,7 +592,7 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
   const arm: Layer[] = [];
   const cap = () => {
     const a = Math.atan2(elbow[1] - shoulder[1], elbow[0] - shoulder[0]);
-    return band(shoulder, [shoulder[0] + Math.cos(a) * 4, shoulder[1] + Math.sin(a) * 4], rig.arm.width + 2, b.lit, b.shade, true);
+    return band(shoulder, [shoulder[0] + Math.cos(a) * 4, shoulder[1] + Math.sin(a) * 4], rig.arm.width + 2, b.capLit, b.capShade, true);
   };
   // The upper arm: its own traced pixels turned, or (past `drawnFrom` degrees, or with none of
   // its own) a sleeve drawn clean. The shoulder cap, a stub of sleeve under the joint, closes the

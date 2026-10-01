@@ -19,8 +19,11 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
   rounds unless Mark asks. The current gate is **Mark's own end-to-end playthrough**; his notes are the work queue.
 - **Don't deploy** (shadowjog.com) without Mark's explicit go-ahead; it's the last alpha step, with a secure email
   sign-up whose requirements are in `status.md`.
+- **Branches and PRs (Mark, 2026-10-01):** work goes on a branch per relatively major feature (not per small fix),
+  pushed as you go; when the feature is done, open a PR so it can get an independent code review (Copilot), and
+  Mark merges. Don't commit to `main` directly.
 - Before committing: `git fetch` and `git rev-list --left-right --count HEAD...origin/main`. Commit each meaningful
-  piece of work and **push right away**; check CI with `gh run list -L 3`. **No `Co-Authored-By` lines.**
+  piece of work and **push right away** (the branch); check CI with `gh run list -L 3`. **No `Co-Authored-By` lines.**
 - Judge `biome lint` and `tsc` by **exit code**, not their last line.
 - **Don't edit `src/` while a Playwright run is going** (Vite hot-reload kills the run).
 - Ports: 3007 dev, 3008 preview. Never touch 3002–3006 (other projects).
