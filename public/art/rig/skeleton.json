@@ -129,26 +129,37 @@
     ],
     "light": "impact",
     "lightAt": "hand",
-    "behind": true
+    "behind": true,
+    "arc": {
+     "from": [
+      88,
+      55
+     ],
+     "bend": [
+      116,
+      35
+     ]
+    }
    },
    "raise": {
     "hand": [
-     88,
-     21
+     84,
+     19
     ],
     "lightAt": "tip",
     "behind": true,
     "flip": false,
     "shape": "open",
-    "light": "spark"
+    "light": "spark",
+    "grip": 12
    },
    "victory": {
     "hand": [
-     86,
-     10
+     90,
+     24
     ],
-    "light": "spark",
-    "lightAt": "hand"
+    "lightAt": "hand",
+    "behind": true
    }
   }
  },
