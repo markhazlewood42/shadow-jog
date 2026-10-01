@@ -19,7 +19,7 @@ import type { Disp, Floater } from './types';
 import { WINDOWS } from './timing';
 import { PARTY_POSE_T } from './motion';
 import { direction } from '../../engine/shake';
-import { gpuDown, gpuHeal, gpuHit, gpuPhase } from './gpufx';
+import { gpuCast, gpuDown, gpuHeal, gpuHit, gpuPhase, gpuSpell } from './gpufx';
 import type { TimingProfile } from '../../battle/engine';
 
 /** What playback may do to the scene. */
@@ -84,19 +84,23 @@ export interface PlaybackView {
  * the ring closes exactly as the effect lands.
  */
 async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], windup: number, color?: string): Promise<void> {
+  // The power gathers at the caster through the windup (GPU effects; most moves have no cast).
+  gpuCast(fx, from);
   const profile = v.timingArmed();
   if (profile) {
     const impact = v.anim(v.fx.impactOf(fx, from, to, color));
     const lead = Math.max(WINDOWS[profile].lead, v.anim(windup) + impact);
     v.openTiming(lead);
     await v.game.wait(lead - impact);
-    v.fx.play(fx, from, to, color);
+    const t = v.fx.play(fx, from, to, color);
+    gpuSpell(fx, to, t.impact);
     sfx(fxSound(fx));
     await v.game.wait(impact);
     return;
   }
   await v.game.wait(v.anim(windup));
   const timing = v.fx.play(fx, from, to, color);
+  gpuSpell(fx, to, timing.impact);
   sfx(fxSound(fx));
   await v.game.wait(v.anim(timing.impact));
 }

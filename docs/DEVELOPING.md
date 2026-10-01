@@ -240,8 +240,16 @@ Objectives go in `OBJ`. New names go in the glossary.
 - **Moments** (the Moments tab): what plays on each game event (`GAME_MOMENTS` in `src/data/fx.ts`: a hit by damage
   type, heavy hits, criticals, combos, heals, kills, a boss's phase, the battle transition). A moment is a stack of
   layers: particles (a preset, a count multiplier, weighted by the blow, aimed the way it travelled), a shockwave,
-  a colour split or a bloom flare, each with a delay and an offset. "Test weight" and "Aim angle" stand in for the
-  blow when you play it. Moments the game doesn't play yet can be made and saved; code has to call them.
+  a colour split, a bloom flare, a heat haze (a shimmering patch), a glitch (a rectangle whose slices slide and
+  split colour) or a stage dim (the battlefield darkens, but anything glowing stays lit), each with a delay and an
+  offset. "Test weight" and "Aim angle" stand in for the blow when you play it. Moments the game doesn't play yet
+  can be made and saved; code has to call them. A preset can also gather inward (spawn on its radius, fly to the
+  point): power drawn into a caster's hand.
+- **Spells** (the Spells tab): casts a whole spell as the battle does, from a caster at the lower left onto the
+  target (three targets for spells that hit everyone): its shapes (code, `src/battle/fx.ts`) and its two moments,
+  `cast.<fx>` at the caster through the windup and `spell.<fx>` on each target as it lands. "Cast ›" and
+  "Lands ›" jump to those moments to tune them. Any move whose effect id has `cast.`/`spell.` moments gets them in
+  battle (`scenes/battlekit/gpufx.ts` `gpuCast`, `gpuSpell`, called from playback's windup).
 - **Save to game** writes `src/data/fx.json` (checked first; the file keeps one field per line, so the diff is
   small). A dev game running in another tab takes the change at once, no reload. Commit the file to ship it.
   **Revert** reloads the file. **Export / import**: one preset, one moment or the whole file as JSON.

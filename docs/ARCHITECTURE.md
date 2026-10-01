@@ -100,7 +100,10 @@ hue; use `mix(c, dark, t)` for a true darkening), `rng.ts` (seeded mulberry32 `R
 An optional layer over the Canvas 2D renderer (Options → GPU effects, on by default; off, or without WebGL 2, the
 game draws exactly as before). Nothing in the game's drawing changed to allow it; three things were added:
 - **`postfx`** (the façade game code talks to): `shock(x, y)` (a ring of distortion), `aberrate(px, x, y)` (a colour
-  split easing out), `flare(amount)` (extra bloom), `emit(preset, x, y)` (a particle burst). All no-ops while
+  split easing out), `flare(amount)` (extra bloom), `emit(preset, x, y)` (a particle burst), `haze(x, y)` (heat
+  shimmer over a patch), `glitch(x, y)` (slices of a rectangle sliding sideways with split colour) and
+  `dim(amount, life)` (the stage darkened around a big spell; the composite spares whatever is in the light layer,
+  so the spell itself stays bright). All no-ops while
   `postfx.active` is false. Two layers: `glowLayer()` (draw what should bloom: the field's baked emissive map and
   sprite emits, the battle backdrop's neon and every effect in flight) and `ui` (everything above the world scene;
   `Game.render` routes to it, and the battle draws its HUD there). Shockwaves follow Screen shake and pulses

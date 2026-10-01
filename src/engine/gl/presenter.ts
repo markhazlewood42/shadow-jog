@@ -18,7 +18,7 @@
  */
 import { H, W } from '../game';
 import { PARTICLE_STRIDE } from '../particles';
-import { MAX_SHOCKS, postfx } from '../postfx';
+import { MAX_GLITCHES, MAX_HAZES, MAX_SHOCKS, envelope, postfx } from '../postfx';
 
 const VS_FULL = `#version 300 es
 out vec2 vUv;
@@ -50,6 +50,7 @@ out vec4 o;
 uniform sampler2D uScene;
 uniform sampler2D uBloomA;
 uniform sampler2D uBloomB;
+uniform sampler2D uLight;
 uniform vec2 uRes;
 uniform vec4 uShock[${MAX_SHOCKS}];
 uniform float uShockW[${MAX_SHOCKS}];
@@ -57,6 +58,12 @@ uniform vec3 uAberr;
 uniform float uBloom;
 uniform vec4 uFlash;
 uniform float uVignette;
+uniform vec4 uHaze[${MAX_HAZES}];
+uniform vec4 uGlitch[${MAX_GLITCHES}];
+uniform vec2 uGlitchP[${MAX_GLITCHES}];
+uniform float uTime;
+uniform float uDim;
+uniform float uLightOn;
 vec2 toUv(vec2 p) { return vec2(p.x / uRes.x, 1.0 - p.y / uRes.y); }
 void main() {
   vec2 gp = vec2(vUv.x, 1.0 - vUv.y) * uRes;
@@ -70,6 +77,31 @@ void main() {
     float x = (dist - s.z) / uShockW[i];
     off += (d / max(dist, 0.001)) * exp(-x * x) * s.w;
   }
+  // Heat haze: a shimmer, strongest mid-patch, wavering upward as time runs.
+  for (int i = 0; i < ${MAX_HAZES}; i++) {
+    vec4 h = uHaze[i];
+    if (h.w == 0.0) continue;
+    vec2 d = (gp - h.xy) / h.z;
+    float f = 1.0 - dot(d, d);
+    if (f <= 0.0) continue;
+    f *= f;
+    off += vec2(sin(gp.y * 0.45 + uTime * 0.21), sin(gp.x * 0.3 + gp.y * 0.2 + uTime * 0.33)) * h.w * f;
+  }
+  // Glitch: inside each rectangle, 3-pixel slices slide sideways (a new pattern every 4 frames)
+  // and the colour channels part.
+  float split = 0.0;
+  for (int i = 0; i < ${MAX_GLITCHES}; i++) {
+    vec2 gs = uGlitchP[i];
+    if (gs.x == 0.0) continue;
+    vec4 r = uGlitch[i];
+    vec2 d = abs(gp - r.xy);
+    if (d.x > r.z * 0.5 || d.y > r.w * 0.5) continue;
+    float n = fract(sin(floor(gp.y / 3.0) * 12.9898 + floor(uTime / 4.0) * 78.233 + gs.y) * 43758.5453);
+    if (n > 0.5) {
+      off.x += (n - 0.75) * 4.0 * gs.x;
+      split = max(split, gs.x * 0.35);
+    }
+  }
   vec2 p = gp - off;
   vec3 col;
   if (uAberr.x > 0.0) {
@@ -79,6 +111,15 @@ void main() {
     col = vec3(texture(uScene, toUv(p + dir)).r, texture(uScene, toUv(p)).g, texture(uScene, toUv(p - dir)).b);
   } else {
     col = texture(uScene, toUv(p)).rgb;
+  }
+  if (split > 0.0) {
+    col.r = texture(uScene, toUv(p + vec2(split, 0.0))).r;
+    col.b = texture(uScene, toUv(p - vec2(split, 0.0))).b;
+  }
+  // The stage dimmed for a big spell: the picture darkens, but not what glows (the light layer).
+  if (uDim > 0.0) {
+    vec3 l = uLightOn > 0.0 ? texture(uLight, toUv(p)).rgb : vec3(0.0);
+    col *= 1.0 - uDim * (1.0 - clamp(max(l.r, max(l.g, l.b)) * 3.0, 0.0, 1.0));
   }
   vec2 bu = toUv(p);
   col += (texture(uBloomA, bu).rgb * 0.9 + texture(uBloomB, bu).rgb * 0.8) * uBloom;
@@ -154,7 +195,7 @@ interface Res {
   /** Every uniform location, looked up once (no string keys per frame). */
   u: {
     blur: Uni<'uTex' | 'uStep'>;
-    comp: Uni<'uScene' | 'uBloomA' | 'uBloomB' | 'uRes' | 'uShock' | 'uShockW' | 'uAberr' | 'uBloom' | 'uFlash' | 'uVignette'>;
+    comp: Uni<'uScene' | 'uBloomA' | 'uBloomB' | 'uRes' | 'uShock' | 'uShockW' | 'uAberr' | 'uBloom' | 'uFlash' | 'uVignette' | 'uLight' | 'uHaze' | 'uGlitch' | 'uGlitchP' | 'uTime' | 'uDim' | 'uLightOn'>;
     layer: Uni<'uTex'>;
     part: Uni<'uRes'>;
   };
@@ -267,6 +308,9 @@ export class GlPresenter {
   private flashRgb = new Float32Array([1, 1, 1]);
   private shockBuf = new Float32Array(MAX_SHOCKS * 4);
   private shockW = new Float32Array(MAX_SHOCKS);
+  private hazeBuf = new Float32Array(MAX_HAZES * 4);
+  private glitchBuf = new Float32Array(MAX_GLITCHES * 4);
+  private glitchP = new Float32Array(MAX_GLITCHES * 2);
 
   private constructor(canvas: HTMLCanvasElement, gl: GL) {
     this.canvas = canvas;
@@ -323,7 +367,7 @@ export class GlPresenter {
     };
     r.u = {
       blur: uniforms(gl, r.blur, ['uTex', 'uStep']),
-      comp: uniforms(gl, r.comp, ['uScene', 'uBloomA', 'uBloomB', 'uRes', 'uShock', 'uShockW', 'uAberr', 'uBloom', 'uFlash', 'uVignette']),
+      comp: uniforms(gl, r.comp, ['uScene', 'uBloomA', 'uBloomB', 'uRes', 'uShock', 'uShockW', 'uAberr', 'uBloom', 'uFlash', 'uVignette', 'uLight', 'uHaze', 'uGlitch', 'uGlitchP', 'uTime', 'uDim', 'uLightOn']),
       layer: uniforms(gl, r.layer, ['uTex']),
       part: uniforms(gl, r.part, ['uRes']),
     };
@@ -433,6 +477,26 @@ export class GlPresenter {
     gl.uniform1i(this.r.u.comp.uScene, 0);
     gl.uniform1i(this.r.u.comp.uBloomA, 1);
     gl.uniform1i(this.r.u.comp.uBloomB, 2);
+    // The full-size light, so the stage dim can spare what glows.
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, this.r.lit.tex);
+    gl.uniform1i(this.r.u.comp.uLight, 3);
+    gl.uniform1f(this.r.u.comp.uLightOn, bloom > 0 ? 1 : 0);
+    gl.uniform1f(this.r.u.comp.uDim, postfx.dimNow);
+    gl.uniform1f(this.r.u.comp.uTime, postfx.time);
+    this.hazeBuf.fill(0);
+    postfx.hazes.slice(0, MAX_HAZES).forEach((h, i) => {
+      this.hazeBuf.set([h.x, h.y, h.radius, h.strength * envelope(h.t, h.life, 8, 20)], i * 4);
+    });
+    this.glitchBuf.fill(0);
+    this.glitchP.fill(0);
+    postfx.glitches.slice(0, MAX_GLITCHES).forEach((g, i) => {
+      this.glitchBuf.set([g.x, g.y, g.w, g.h], i * 4);
+      this.glitchP.set([g.strength * envelope(g.t, g.life, 2, 6), g.seed], i * 2);
+    });
+    gl.uniform4fv(this.r.u.comp.uHaze, this.hazeBuf);
+    gl.uniform4fv(this.r.u.comp.uGlitch, this.glitchBuf);
+    gl.uniform2fv(this.r.u.comp.uGlitchP, this.glitchP);
     gl.uniform2f(this.r.u.comp.uRes, W, H);
     this.shockBuf.fill(0);
     const shocks = postfx.shocks;

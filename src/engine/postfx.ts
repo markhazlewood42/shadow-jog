@@ -27,6 +27,45 @@ export interface Shock {
 /** The most shockwaves at once (the shader has this many slots). */
 export const MAX_SHOCKS = 4;
 
+/** Heat shimmer over a patch of the picture (fire, a hot muzzle, a furnace), rising as it wavers. */
+export interface Haze {
+  x: number;
+  y: number;
+  radius: number;
+  /** Peak waver in pixels. */
+  strength: number;
+  t: number;
+  life: number;
+}
+/** The most heat hazes at once. */
+export const MAX_HAZES = 4;
+
+/** Corruption over a rectangle (a hack, a glitch): slices of it slide sideways and split colour. */
+export interface Glitch {
+  x: number;
+  y: number;
+  /** Width and height of the rectangle, centred on (x, y). */
+  w: number;
+  h: number;
+  /** How far slices slide, in pixels. */
+  strength: number;
+  t: number;
+  life: number;
+  /** Its own pattern (two glitches don't slice in step). */
+  seed: number;
+}
+/** The most glitches at once. */
+export const MAX_GLITCHES = 2;
+
+/**
+ * How much of the haze, glitch or dim shows `t` frames into a `life`-frame run: in over `fadeIn`
+ * frames, out over the last `fadeOut`.
+ */
+export function envelope(t: number, life: number, fadeIn: number, fadeOut: number): number {
+  if (t < 0 || t >= life) return 0;
+  return Math.min(1, t / Math.max(1, fadeIn), (life - t) / Math.max(1, fadeOut));
+}
+
 class PostFx {
   /** True while the WebGL presenter is drawing the frames (Display sets it). */
   active = false;
@@ -45,6 +84,17 @@ class PostFx {
   aberrationY = 135;
   /** Extra bloom for a moment (a combo landing), easing out. */
   pulse = 0;
+  readonly hazes: Haze[] = [];
+  readonly glitches: Glitch[] = [];
+  /**
+   * The stage dimmed around a big spell, so its light stands out: how dark (0..1) at full, and how
+   * far through its run. Anything glowing stays lit (the presenter spares the light layer).
+   */
+  dimAmount = 0;
+  dimT = 0;
+  dimLife = 0;
+  /** Frames the effects clock has run (the haze and glitch patterns move with it). */
+  time = 0;
   /** The game-wide flash, drawn by the presenter over the world but not the UI. Set each frame by
    *  Game.render (fades stay in the UI layer, under the notices, as in 2D). */
   flashColor = '#ffffff';
@@ -85,6 +135,35 @@ class PostFx {
     this.aberrationY = y;
   }
 
+  /** Heat shimmer around (x, y) for `life` frames. */
+  haze(x: number, y: number, opts: { radius?: number; strength?: number; life?: number } = {}): void {
+    if (!this.active || this.motion <= 0) return;
+    if (this.hazes.length >= MAX_HAZES) this.hazes.shift();
+    this.hazes.push({ x, y, t: 0, radius: opts.radius ?? 40, strength: (opts.strength ?? 1.5) * this.motion, life: opts.life ?? 60 });
+  }
+
+  /** Corrupt a w x h rectangle centred on (x, y) for `life` frames. */
+  glitch(x: number, y: number, opts: { w?: number; h?: number; strength?: number; life?: number } = {}): void {
+    if (!this.active || this.motion <= 0) return;
+    if (this.glitches.length >= MAX_GLITCHES) this.glitches.shift();
+    this.glitches.push({ x, y, t: 0, w: opts.w ?? 90, h: opts.h ?? 60, strength: (opts.strength ?? 6) * this.motion, life: opts.life ?? 24, seed: Math.random() * 100 });
+  }
+
+  /** Dim the stage by `amount` (0..1) for `life` frames, easing in and out; a deeper dim wins. */
+  dim(amount: number, life = 60): void {
+    if (!this.active) return;
+    const now = this.dimAmount * envelope(this.dimT, this.dimLife, 10, 16);
+    if (amount < now) return;
+    this.dimAmount = amount;
+    this.dimT = 0;
+    this.dimLife = life;
+  }
+
+  /** How dim the stage is this frame. */
+  get dimNow(): number {
+    return this.dimAmount * envelope(this.dimT, this.dimLife, 10, 16);
+  }
+
   /** Brighten the bloom for a moment. */
   flare(amount: number): void {
     if (!this.active || this.intensity <= 0) return;
@@ -115,6 +194,21 @@ class PostFx {
       if (s.t < s.life) this.shocks[keep++] = s;
     }
     this.shocks.length = keep;
+    this.time += dt;
+    const age = <T extends { t: number; life: number }>(list: T[]) => {
+      let k = 0;
+      for (const h of list) {
+        h.t += dt;
+        if (h.t < h.life) list[k++] = h;
+      }
+      list.length = k;
+    };
+    age(this.hazes);
+    age(this.glitches);
+    if (this.dimLife) {
+      this.dimT += dt;
+      if (this.dimT >= this.dimLife) this.dimAmount = this.dimLife = this.dimT = 0;
+    }
     this.aberration = this.aberration < 0.05 ? 0 : this.aberration * 0.86 ** dt;
     this.pulse = this.pulse < 0.01 ? 0 : this.pulse * 0.9 ** dt;
     if (this.particles.count) this.particles.step(dt);
@@ -134,6 +228,9 @@ class PostFx {
   /** Drop everything in flight (a scene change: effects don't follow you out of a fight). */
   clear(): void {
     this.shocks.length = 0;
+    this.hazes.length = 0;
+    this.glitches.length = 0;
+    this.dimAmount = this.dimLife = this.dimT = 0;
     this.aberration = 0;
     this.pulse = 0;
     this.particles.clear();

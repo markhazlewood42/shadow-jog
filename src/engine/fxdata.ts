@@ -27,6 +27,12 @@ export interface MomentLayer {
   shock?: { strength?: number; reach?: number; life?: number; width?: number };
   aberrate?: number;
   flare?: number;
+  /** Heat shimmer around the point (fire). */
+  haze?: { radius?: number; strength?: number; life?: number };
+  /** Corruption over a rectangle centred on the point (a hack). */
+  glitch?: { w?: number; h?: number; strength?: number; life?: number };
+  /** The whole stage dimmed (0..1) while a big spell plays; what glows stays lit. */
+  dim?: { amount?: number; life?: number };
   delay?: number;
   dx?: number;
   dy?: number;
@@ -45,6 +51,9 @@ export interface FxData {
 const SHAPES: readonly ParticleShape[] = ['soft', 'dot', 'spark', 'square', 'ring'];
 const ID = /^[a-z][a-z0-9_.]*$/;
 const HEX = /^#[0-9a-f]{6}$/i;
+
+/** What a moment layer can do (each layer does exactly one). */
+export const LAYER_KINDS = ['emit', 'shock', 'aberrate', 'flare', 'haze', 'glitch', 'dim'] as const;
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -74,6 +83,7 @@ export function checkFx(d: unknown): string[] {
     }
     if (isNum(p.drag) && (p.drag <= 0 || p.drag > 1)) out.push(`${at}: drag must be above 0 and at most 1`);
     if (p.snap !== undefined && typeof p.snap !== 'boolean') out.push(`${at}: snap must be true or false`);
+    if (p.inward !== undefined && typeof p.inward !== 'boolean') out.push(`${at}: inward must be true or false`);
     if (p.note !== undefined && typeof p.note !== 'string') out.push(`${at}: note must be text`);
   }
   for (const [id, m] of Object.entries(d.moments)) {
@@ -89,10 +99,14 @@ export function checkFx(d: unknown): string[] {
         out.push(`${la}: not an object`);
         return;
       }
-      const does = ['emit', 'shock', 'aberrate', 'flare'].filter((k) => l[k] !== undefined);
-      if (does.length !== 1) out.push(`${la}: does exactly one of emit, shock, aberrate, flare`);
+      const does = LAYER_KINDS.filter((k) => l[k] !== undefined);
+      if (does.length !== 1) out.push(`${la}: does exactly one of ${LAYER_KINDS.join(', ')}`);
       if (l.emit !== undefined && (typeof l.emit !== 'string' || !(l.emit in (d.presets as object)))) out.push(`${la}: no preset "${String(l.emit)}"`);
       if (l.shock !== undefined && (!isObj(l.shock) || !Object.values(l.shock).every(isNum))) out.push(`${la}: shock takes numbers (strength, reach, life, width)`);
+      if (l.haze !== undefined && (!isObj(l.haze) || !Object.values(l.haze).every(isNum))) out.push(`${la}: haze takes numbers (radius, strength, life)`);
+      if (l.glitch !== undefined && (!isObj(l.glitch) || !Object.values(l.glitch).every(isNum))) out.push(`${la}: glitch takes numbers (w, h, strength, life)`);
+      if (l.dim !== undefined && (!isObj(l.dim) || !Object.values(l.dim).every(isNum))) out.push(`${la}: dim takes numbers (amount, life)`);
+      if (isObj(l.dim) && isNum(l.dim.amount) && (l.dim.amount < 0 || l.dim.amount > 1)) out.push(`${la}: dim amount is 0 to 1`);
       for (const k of ['scale', 'aberrate', 'flare', 'delay', 'dx', 'dy'] as const) if (l[k] !== undefined && !isNum(l[k])) out.push(`${la}: ${k} must be a number`);
       if (isNum(l.delay) && l.delay < 0) out.push(`${la}: delay can't be negative`);
     });
@@ -101,8 +115,8 @@ export function checkFx(d: unknown): string[] {
 }
 
 /** Preset fields in the order they're written (and shown in the lab). */
-export const PRESET_KEYS = ['note', 'shape', 'blend', 'count', 'life', 'speed', 'angle', 'spread', 'radius', 'gravity', 'drag', 'size', 'alpha', 'colors', 'stretch', 'spin', 'wobble', 'snap'] as const;
-const LAYER_KEYS = ['emit', 'shock', 'aberrate', 'flare', 'scale', 'weighted', 'aim', 'delay', 'dx', 'dy'] as const;
+export const PRESET_KEYS = ['note', 'shape', 'blend', 'count', 'life', 'speed', 'angle', 'spread', 'radius', 'gravity', 'drag', 'size', 'alpha', 'colors', 'stretch', 'spin', 'wobble', 'snap', 'inward'] as const;
+const LAYER_KEYS = ['emit', 'shock', 'aberrate', 'flare', 'haze', 'glitch', 'dim', 'scale', 'weighted', 'aim', 'delay', 'dx', 'dy'] as const;
 
 /** A value on one line: arrays and small objects inline, so each field is one line of diff. */
 function inline(v: unknown): string {

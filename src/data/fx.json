@@ -153,6 +153,123 @@
       "alpha": [1, 0],
       "colors": ["#ffffff", "#ffe07a", "#ff9a3a", "#a03a2a"],
       "stretch": 3
+    },
+    "gather_fire": {
+      "note": "Embers drawn in to the caster (a fire spell gathering)",
+      "shape": "spark",
+      "blend": "add",
+      "count": [16, 24],
+      "life": [14, 18],
+      "speed": [1.8, 2.4],
+      "radius": 30,
+      "drag": 1,
+      "size": [1.6, 1],
+      "alpha": [0.2, 1],
+      "colors": ["#ff6a2a", "#ffb03a", "#ffe9a0"],
+      "stretch": 2,
+      "inward": true
+    },
+    "gather_ki": {
+      "note": "Ki drawn in to the fist (Kit winding up)",
+      "shape": "soft",
+      "blend": "add",
+      "count": [14, 20],
+      "life": [16, 20],
+      "speed": [1.6, 2],
+      "radius": 32,
+      "drag": 1,
+      "size": [4, 1.5],
+      "alpha": [0.1, 0.9],
+      "colors": ["#ffb46a", "#fff1b0"],
+      "inward": true
+    },
+    "gather_shock": {
+      "note": "Sparks drawn in (Hex charging a surge)",
+      "shape": "spark",
+      "blend": "add",
+      "count": [16, 24],
+      "life": [10, 14],
+      "speed": [2.4, 3.2],
+      "radius": 30,
+      "drag": 1,
+      "size": [1.4, 1],
+      "alpha": [0.2, 1],
+      "colors": ["#3fe0f0", "#d8f6ff", "#ffffff"],
+      "stretch": 3,
+      "inward": true
+    },
+    "gather_code": {
+      "note": "Bits of code drawn in to the deck",
+      "shape": "square",
+      "blend": "add",
+      "count": [16, 24],
+      "life": [14, 18],
+      "speed": [1.8, 2.4],
+      "radius": 30,
+      "drag": 1,
+      "size": [2, 1],
+      "alpha": [0.2, 1],
+      "colors": ["#3fe0f0", "#ff4fb0"],
+      "snap": true,
+      "inward": true
+    },
+    "gather_heal": {
+      "note": "Healing light drawn in to the caster",
+      "shape": "soft",
+      "blend": "add",
+      "count": [16, 24],
+      "life": [14, 18],
+      "speed": [1.8, 2.4],
+      "radius": 30,
+      "drag": 1,
+      "size": [4, 1.5],
+      "alpha": [0.1, 0.8],
+      "colors": ["#86f08c", "#e0ffe0"],
+      "inward": true
+    },
+    "flame_lick": {
+      "note": "Soft flames rising off a burning target (heat into the bloom)",
+      "shape": "soft",
+      "blend": "add",
+      "count": [22, 30],
+      "life": [30, 52],
+      "speed": [0.2, 0.9],
+      "angle": -90,
+      "spread": 50,
+      "radius": 14,
+      "gravity": -0.04,
+      "drag": 0.98,
+      "size": [7, 1],
+      "alpha": [0.9, 0],
+      "colors": ["#ffe9a0", "#ffb03a", "#ff6a2a", "#a8201a"],
+      "wobble": 1.5
+    },
+    "bolt_sparks": {
+      "note": "White-hot sparks thrown off where lightning strikes",
+      "shape": "spark",
+      "blend": "add",
+      "count": [26, 36],
+      "life": [10, 20],
+      "speed": [2, 5.5],
+      "spread": 360,
+      "drag": 0.88,
+      "size": [1.5, 1],
+      "colors": ["#ffffff", "#d8f6ff", "#3fe0f0"],
+      "stretch": 3
+    },
+    "data_shards": {
+      "note": "Shards of corrupted data flung off a hacked target",
+      "shape": "square",
+      "blend": "add",
+      "count": [18, 26],
+      "life": [16, 30],
+      "speed": [0.8, 3],
+      "spread": 360,
+      "drag": 0.9,
+      "size": [3, 1],
+      "colors": ["#3fe0f0", "#ff4fb0", "#ffffff"],
+      "spin": 0.2,
+      "snap": true
     }
   },
   "moments": {
@@ -253,6 +370,170 @@
       "layers": [
         { "shock": { "strength": 6, "reach": 320, "life": 40, "width": 24 } },
         { "aberrate": 3 }
+      ]
+    },
+    "cast.fire": {
+      "note": "Firebrand and other fire spells: embers gather as the caster winds up",
+      "layers": [
+        { "emit": "gather_fire", "dy": -16 },
+        { "flare": 0.15, "delay": 10 }
+      ]
+    },
+    "cast.fire_all": {
+      "note": "Wildfire: more embers, and the stage dims so the fire stands out",
+      "layers": [
+        { "emit": "gather_fire", "scale": 1.5, "dy": -16 },
+        { "dim": { "amount": 0.45, "life": 100 } }
+      ]
+    },
+    "cast.lightning": {
+      "note": "Overload: sparks gather, the stage darkens before the strike",
+      "layers": [
+        { "emit": "gather_shock", "dy": -16 },
+        { "dim": { "amount": 0.55, "life": 70 } }
+      ]
+    },
+    "cast.code": {
+      "note": "Spike: code gathers at the deck",
+      "layers": [
+        { "emit": "gather_code", "dy": -12 }
+      ]
+    },
+    "cast.glitch": {
+      "note": "Scramble and Hijack: code gathers at the deck",
+      "layers": [
+        { "emit": "gather_code", "dy": -12 }
+      ]
+    },
+    "cast.palm": {
+      "note": "Iron Palm: ki gathers in the fist",
+      "layers": [
+        { "emit": "gather_ki", "dy": -16 }
+      ]
+    },
+    "cast.coil": {
+      "note": "Dragon Coil: a lot of ki, and the stage dims for the dragon",
+      "layers": [
+        { "emit": "gather_ki", "scale": 1.6, "dy": -16 },
+        { "dim": { "amount": 0.5, "life": 90 } }
+      ]
+    },
+    "cast.heal": {
+      "note": "Healing: light gathers at the caster",
+      "layers": [
+        { "emit": "gather_heal", "dy": -16 }
+      ]
+    },
+    "cast.heal_all": {
+      "note": "Healing: light gathers at the caster",
+      "layers": [
+        { "emit": "gather_heal", "dy": -16 }
+      ]
+    },
+    "cast.heal_self": {
+      "note": "Healing: light gathers at the caster",
+      "layers": [
+        { "emit": "gather_heal", "dy": -16 }
+      ]
+    },
+    "cast.revive": {
+      "note": "Healing: light gathers at the caster",
+      "layers": [
+        { "emit": "gather_heal", "dy": -16 }
+      ]
+    },
+    "spell.fire": {
+      "note": "A fire spell lands: heat haze over the flames, soft fire rising into the bloom",
+      "layers": [
+        { "haze": { "radius": 44, "strength": 1.6, "life": 70 }, "dy": -4 },
+        { "emit": "flame_lick" },
+        { "shock": { "strength": 2, "reach": 50, "life": 20, "width": 8 } },
+        { "flare": 0.35 }
+      ]
+    },
+    "spell.fire_all": {
+      "note": "Wildfire on each enemy: wider haze, more fire",
+      "layers": [
+        { "haze": { "radius": 52, "strength": 2, "life": 90 }, "dy": -8 },
+        { "emit": "flame_lick", "scale": 1.4 },
+        { "shock": { "strength": 2.5, "reach": 70, "life": 22, "width": 10 } },
+        { "flare": 0.5 }
+      ]
+    },
+    "spell.lightning": {
+      "note": "Overload strikes: colour split, sparks, a shock ring, a flare",
+      "layers": [
+        { "aberrate": 2.5 },
+        { "emit": "bolt_sparks" },
+        { "shock": { "strength": 3, "reach": 70, "life": 22, "width": 10 } },
+        { "flare": 0.9 }
+      ]
+    },
+    "spell.zap": {
+      "note": "A small shock lands (tasers, coils)",
+      "layers": [
+        { "emit": "bolt_sparks", "scale": 0.6 },
+        { "flare": 0.4 }
+      ]
+    },
+    "spell.code": {
+      "note": "Spike lands: the screen tears over the target",
+      "layers": [
+        { "glitch": { "w": 80, "h": 64, "strength": 7, "life": 28 }, "dy": -10 },
+        { "emit": "data_shards" },
+        { "aberrate": 1.5 }
+      ]
+    },
+    "spell.glitch": {
+      "note": "Scramble or Hijack lands: a bigger, longer tear",
+      "layers": [
+        { "glitch": { "w": 100, "h": 72, "strength": 10, "life": 30 }, "dy": -10 },
+        { "emit": "data_shards", "scale": 1.2 },
+        { "aberrate": 2 }
+      ]
+    },
+    "spell.palm": {
+      "note": "Iron Palm lands: a hard push of ki",
+      "layers": [
+        { "shock": { "strength": 5, "reach": 90, "life": 24, "width": 12 } },
+        { "flare": 0.6 },
+        { "emit": "motes" }
+      ]
+    },
+    "spell.coil": {
+      "note": "Dragon Coil strikes each enemy",
+      "layers": [
+        { "shock": { "strength": 4, "reach": 80, "life": 24, "width": 10 } },
+        { "flare": 0.5 },
+        { "emit": "motes" }
+      ]
+    },
+    "spell.heal": {
+      "note": "Healing lands",
+      "layers": [
+        { "emit": "heal_motes" },
+        { "flare": 0.2 }
+      ]
+    },
+    "spell.heal_all": {
+      "note": "Healing lands",
+      "layers": [
+        { "emit": "heal_motes" },
+        { "flare": 0.2 }
+      ]
+    },
+    "spell.heal_self": {
+      "note": "Healing lands",
+      "layers": [
+        { "emit": "heal_motes" },
+        { "flare": 0.2 }
+      ]
+    },
+    "spell.revive": {
+      "note": "Healing lands",
+      "layers": [
+        { "emit": "heal_motes" },
+        { "flare": 0.2 }
       ]
     }
   }

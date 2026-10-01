@@ -7,11 +7,15 @@
  * shockwaves, colour split, bloom flare, each with a delay). Click the picture to fire the preset
  * or play the moment there; auto-repeat keeps firing while you drag. Save writes fx.json through
  * the dev server (vite.config.ts), and a running dev game takes the change at once; Revert reloads
- * it. Export and Import move one preset, one moment or the whole file as JSON.
+ * it. Export and Import move one preset, one moment or the whole file as JSON. The Spells tab casts
+ * a whole spell as the battle does: its shapes (code, src/battle/fx.ts) and its moments
+ * (`cast.<id>` at the caster as they wind up, `spell.<id>` on each target as it lands).
  *
  * Nothing here ships: it's loaded by devroutes.ts, itself only imported in DEV builds.
  */
 import { BG_IDS, battleBg, type BattleBg } from '../art/battlebg';
+import { FxLayer, type Pt } from '../battle/fx';
+import { gpuCast, gpuSpell } from '../scenes/battlekit/gpufx';
 import { type EnemyArt, enemyArt } from '../art/enemies';
 import { ENEMIES } from '../data/enemies';
 import { FX, GAME_MOMENTS, replaceFx } from '../data/fx';
@@ -27,6 +31,26 @@ import { postfx } from '../engine/postfx';
 import { PANEL_Y } from '../scenes/battlekit/geom';
 
 const PANEL_W = 400;
+
+/** The spells the Spells tab casts: effect id, what uses it, and whether it hits every enemy. */
+const SPELLS: readonly [string, string, boolean][] = [
+  ['fire', 'Firebrand (Sable); Molotov, Wisp Flame', false],
+  ['fire_all', 'Wildfire (Sable): every enemy', true],
+  ['lightning', 'Overload (Hex): every enemy', true],
+  ['zap', 'Taser, Coil Shock, Arc Welder (enemies)', false],
+  ['code', 'Spike (Hex)', false],
+  ['glitch', 'Scramble, Hijack (Hex)', false],
+  ['palm', 'Iron Palm (Kit)', false],
+  ['coil', 'Dragon Coil (Kit): every enemy', true],
+  ['heal', 'Mend, Patch', false],
+  ['heal_all', 'Mending Rain', true],
+  ['revive', 'Rekindle', false],
+  ['explosion', 'Pipe Bomb, Micro-Missile', false],
+];
+/** Where the caster stands (battle world, as a party member in the lower row would). */
+const CASTER: Pt = { x: 64, y: 96 };
+/** Frames of windup before the effect plays (a party tech's, in battle). */
+const WINDUP = 16;
 const ID = /^[a-z][a-z0-9_.]*$/;
 
 /** A fresh preset: a soft white-to-cyan puff, easy to see and to change. */
@@ -104,7 +128,15 @@ export class FxLabScene extends Scene<void> {
   private style: HTMLStyleElement | null = null;
   private body: HTMLDivElement | null = null;
   private statusEl: HTMLDivElement | null = null;
-  private tab: 'presets' | 'moments' = 'presets';
+  private tab: 'presets' | 'moments' | 'spells' = 'presets';
+  private spellId = 'fire';
+  /** The battle's own effect layer, for the Spells tab (battle-world coordinates). */
+  private fxl = new FxLayer();
+  private fxWorld = surface(240, 135);
+  private fxGlow = surface(240, 135);
+  private pendingSpell: { at: number; id: string; targets: Pt[] } | null = null;
+  private flashLeft = 0;
+  private flashColor = '#ffffff';
   private presetId = Object.keys(FX.presets)[0] ?? '';
   private momentId = Object.keys(GAME_MOMENTS)[0] ?? '';
   private bgId = 'sewer';
@@ -178,6 +210,20 @@ export class FxLabScene extends Scene<void> {
     this.frame++;
     postfx.rate = 1;
     postfx.clip = this.clip ? { x: 0, y: 0, w: W, h: PANEL_Y } : null;
+    this.fxl.rate = 1;
+    this.fxl.update();
+    if (this.fxl.flash) {
+      this.flashColor = this.fxl.flash.color;
+      this.flashLeft = this.fxl.flash.frames;
+      this.fxl.flash = null;
+    }
+    this.fxl.shake = 0;
+    if (this.pendingSpell && this.frame >= this.pendingSpell.at) {
+      const { id, targets } = this.pendingSpell;
+      this.pendingSpell = null;
+      const t = this.fxl.play(id, CASTER, targets, id === 'lightning' ? '#9ae8ff' : undefined);
+      gpuSpell(id, targets, t.impact);
+    }
     if (this.auto && ++this.autoT >= this.every) {
       this.autoT = 0;
       this.fire();
@@ -194,13 +240,34 @@ export class FxLabScene extends Scene<void> {
     const art = this.art;
     if (art) {
       const x = Math.round(W / 2 - art.w), y = Math.round(this.bg.ground * 2 - art.h * 2);
-      ctx.drawImage(art.canvas, x, y, art.w * 2, art.h * 2);
+      // A spell on every enemy gets three of them to land on.
+      const many = this.tab === 'spells' && SPELLS.find(([id]) => id === this.spellId)?.[2];
+      for (const dx of many ? [-100, 0, 100] : [0]) ctx.drawImage(art.canvas, x + dx, y, art.w * 2, art.h * 2);
+    }
+    // The battle's effect shapes, over the enemy, and into the bloom.
+    const fg = this.fxWorld.ctx;
+    fg.clearRect(0, 0, 240, 135);
+    this.fxl.render(fg, (c, ch, gx, gy, col) => drawText(c, ch, gx, gy, { color: col, shadow: false }));
+    ctx.drawImage(this.fxWorld.canvas, 0, 0, W, H);
+    if (this.flashLeft > 0) {
+      ctx.globalAlpha = Math.min(0.5, this.flashLeft / 10);
+      ctx.fillStyle = this.flashColor;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+      this.flashLeft--;
     }
     const glow = postfx.glowLayer();
     if (glow && this.bg.glow) {
       postfx.bloom = 0.7;
       glow.imageSmoothingEnabled = false;
       glow.drawImage(this.bg.glow, 0, 0, W, H);
+    }
+    if (glow && this.fxl.busy) {
+      const gg = this.fxGlow.ctx;
+      gg.clearRect(0, 0, 240, 135);
+      this.fxl.render(gg, () => undefined, true);
+      glow.imageSmoothingEnabled = false;
+      glow.drawImage(this.fxGlow.canvas, 0, 0, W, H);
     }
     // Where things fire, and the battlefield's edge (the status cards start there in battle).
     ctx.fillStyle = '#ffffff';
@@ -224,13 +291,30 @@ export class FxLabScene extends Scene<void> {
     if (this.art) this.target = { x: W / 2, y: Math.round(this.bg.ground * 2 - this.art.h) };
   }
 
-  /** Fire what's selected at the target: the preset, or the moment. */
+  /** Fire what's selected at the target: the preset, the moment, or the whole spell. */
   private fire(): void {
     const { x, y } = this.target;
+    if (this.tab === 'spells') {
+      this.castSpell();
+      return;
+    }
     if (this.tab === 'presets') {
       const p = FX.presets[this.presetId];
       if (p) postfx.emit(p, x, y, this.aim ? { angle: this.aimAngle } : {});
     } else playMoment(FX, this.momentId, x, y, { ...(this.aim ? { angle: this.aimAngle } : {}), weight: this.weight });
+  }
+
+  /**
+   * Cast the selected spell as the battle does: it gathers at the caster through the windup, then
+   * its shapes play and its moment lands on each target with the impact.
+   */
+  private castSpell(): void {
+    if (this.pendingSpell || this.fxl.busy) return;
+    const many = SPELLS.find(([id]) => id === this.spellId)?.[2];
+    const t = { x: this.target.x / 2, y: this.target.y / 2 };
+    const targets = many ? [{ x: t.x - 50, y: t.y }, t, { x: t.x + 50, y: t.y }] : [t];
+    gpuCast(this.spellId, CASTER);
+    this.pendingSpell = { at: this.frame + WINDUP, id: this.spellId, targets };
   }
 
   /** After an edit: mark unsaved, and show it (a burst on each change, at most every 0.15 s). */
@@ -269,8 +353,8 @@ export class FxLabScene extends Scene<void> {
     p.append(this.statusEl);
     this.stageControls(p);
     const tabs = el('div', { class: 'bar tabs' });
-    for (const t of ['presets', 'moments'] as const) {
-      const b = el('button', t === this.tab ? { class: 'on' } : {}, t === 'presets' ? 'Particle presets' : 'Moments');
+    for (const t of ['presets', 'moments', 'spells'] as const) {
+      const b = el('button', t === this.tab ? { class: 'on' } : {}, t === 'presets' ? 'Particle presets' : t === 'moments' ? 'Moments' : 'Spells');
       b.onclick = () => {
         this.tab = t;
         this.build();
@@ -281,7 +365,8 @@ export class FxLabScene extends Scene<void> {
     this.body = el('div');
     p.append(this.body);
     if (this.tab === 'presets') this.presetEditor(this.body);
-    else this.momentEditor(this.body);
+    else if (this.tab === 'moments') this.momentEditor(this.body);
+    else this.spellPicker(this.body);
     this.exchange(p);
     this.status(this.dirty() ? 'Unsaved changes.' : 'Saved state (src/data/fx.json).', 'dim');
   }
@@ -312,6 +397,33 @@ export class FxLabScene extends Scene<void> {
     const row = el('div', { class: 'bar' });
     row.append(fire, el('span', { class: 'dim' }, 'or click the picture'));
     p.append(row);
+  }
+
+  // ---- spells
+  private spellPicker(b: HTMLElement): void {
+    b.append(el('p', { class: 'dim' }, 'Cast a whole spell as the battle does, from a caster at the lower left onto the target. The shapes are code (src/battle/fx.ts); what you tune here are its two moments: cast.<id> gathers at the caster during the windup, spell.<id> lands on each target.'));
+    for (const [id, label] of SPELLS) {
+      const row = el('div', { class: 'bar' });
+      const cast = el('button', id === this.spellId ? { class: 'on' } : {}, label);
+      cast.onclick = () => {
+        this.spellId = id;
+        this.build();
+        this.castSpell();
+      };
+      row.append(cast);
+      for (const part of ['cast', 'spell'] as const) {
+        const name = `${part}.${id}`;
+        if (!FX.moments[name]) continue;
+        const edit = el('button', { title: `Edit the moment ${name}` }, part === 'cast' ? 'Cast ›' : 'Lands ›');
+        edit.onclick = () => {
+          this.tab = 'moments';
+          this.momentId = name;
+          this.build();
+        };
+        row.append(edit);
+      }
+      b.append(row);
+    }
   }
 
   // ---- presets
@@ -376,6 +488,7 @@ export class FxLabScene extends Scene<void> {
       b.append(this.number(label, () => FX.presets[this.presetId]?.[k] ?? def, (v) => set({ [k]: v } as Partial<FxPreset>), min, max, step, false));
     }
     b.append(this.check('Snap squares to whole pixels', () => !!FX.presets[this.presetId]?.snap, (v) => (v ? set({ snap: true }) : set({}, 'snap'))));
+    b.append(this.check('Gather inward (start on the spawn radius, fly to the point)', () => !!FX.presets[this.presetId]?.inward, (v) => (v ? set({ inward: true }) : set({}, 'inward'))));
     // Colours over life.
     b.append(el('div', { class: 'dim', style: 'margin-top:6px' }, 'Colours over life (birth → death)'));
     const cols = el('div', { class: 'bar' });
@@ -532,10 +645,10 @@ export class FxLabScene extends Scene<void> {
 
   private layerCard(m: Moment, l: MomentLayer, i: number): HTMLElement {
     const card = el('div', { class: 'card' });
-    const kind = l.emit !== undefined ? 'emit' : l.shock ? 'shock' : l.aberrate !== undefined ? 'aberrate' : 'flare';
+    const kind = l.emit !== undefined ? 'emit' : l.shock ? 'shock' : l.aberrate !== undefined ? 'aberrate' : l.haze ? 'haze' : l.glitch ? 'glitch' : l.dim ? 'dim' : 'flare';
     const head = el('div', { class: 'bar' });
     const type = el('select');
-    for (const [v, t] of [['emit', 'Particles'], ['shock', 'Shockwave'], ['aberrate', 'Colour split'], ['flare', 'Bloom flare']] as const) {
+    for (const [v, t] of [['emit', 'Particles'], ['shock', 'Shockwave'], ['aberrate', 'Colour split'], ['flare', 'Bloom flare'], ['haze', 'Heat haze'], ['glitch', 'Glitch'], ['dim', 'Dim the stage']] as const) {
       type.append(el('option', v === kind ? { value: v, selected: '' } : { value: v }, t));
     }
     type.onchange = () => {
@@ -544,6 +657,9 @@ export class FxLabScene extends Scene<void> {
       if (type.value === 'emit') keep.emit = Object.keys(FX.presets)[0] ?? '';
       else if (type.value === 'shock') keep.shock = { strength: 4, reach: 120, life: 26, width: 10 };
       else if (type.value === 'aberrate') keep.aberrate = 2.5;
+      else if (type.value === 'haze') keep.haze = { radius: 40, strength: 1.5, life: 60 };
+      else if (type.value === 'glitch') keep.glitch = { w: 90, h: 60, strength: 6, life: 24 };
+      else if (type.value === 'dim') keep.dim = { amount: 0.5, life: 60 };
       else keep.flare = 0.5;
       m.layers[i] = keep;
       this.build();
@@ -604,6 +720,24 @@ export class FxLabScene extends Scene<void> {
       num('Ring width (px)', () => s.width ?? 10, (v) => (s.width = v), 1, 60, 0.5);
     } else if (kind === 'aberrate') {
       num('Split (px)', () => l.aberrate ?? 0, (v) => (l.aberrate = v), 0, 10, 0.1);
+    } else if (kind === 'haze') {
+      l.haze ??= {};
+      const s = l.haze;
+      num('Radius (px)', () => s.radius ?? 40, (v) => (s.radius = v), 4, 240, 1);
+      num('Waver (px)', () => s.strength ?? 1.5, (v) => (s.strength = v), 0, 8, 0.1);
+      num('Life (frames)', () => s.life ?? 60, (v) => (s.life = v), 1, 240, 1);
+    } else if (kind === 'glitch') {
+      l.glitch ??= {};
+      const s = l.glitch;
+      num('Width (px)', () => s.w ?? 90, (v) => (s.w = v), 4, 480, 1);
+      num('Height (px)', () => s.h ?? 60, (v) => (s.h = v), 4, 270, 1);
+      num('Slide (px)', () => s.strength ?? 6, (v) => (s.strength = v), 0, 30, 0.5);
+      num('Life (frames)', () => s.life ?? 24, (v) => (s.life = v), 1, 120, 1);
+    } else if (kind === 'dim') {
+      l.dim ??= {};
+      const s = l.dim;
+      num('How dark (0-1)', () => s.amount ?? 0.5, (v) => (s.amount = v), 0, 1, 0.01);
+      num('Life (frames)', () => s.life ?? 60, (v) => (s.life = v), 1, 240, 1);
     } else {
       num('Flare', () => l.flare ?? 0, (v) => (l.flare = v), 0, 3, 0.05);
     }

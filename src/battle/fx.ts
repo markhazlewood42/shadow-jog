@@ -29,6 +29,8 @@ export interface FxTiming {
 }
 
 const GLYPHS = '01#$%&*+<>=/\\{}[]|?';
+/** Fire, from the tips of the flames to their core. */
+const FIRE = ['#a8201a', '#ff6a2a', '#ffb03a', '#ffe9a0'] as const;
 
 /** Crescent sprites, drawn once per size and colour. */
 const crescentCache = new Map<string, HTMLCanvasElement>();
@@ -333,25 +335,6 @@ export class FxLayer {
     }, delay);
   }
 
-  /** A serpent of ki: a sinuous body that winds from the user to the target, head first. */
-  private dragon(from: Pt, to: Pt, color: string, delay = 0, frames = 22): void {
-    this.s(frames, (ctx, k) => {
-      const head = Math.min(1, k / 0.55);
-      const tail = Math.max(0, head - 0.5);
-      ctx.globalAlpha = k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25;
-      const n = 48;
-      for (let j = 0; j <= n; j++) {
-        const u = tail + (head - tail) * (j / n);
-        const x = from.x + (to.x - from.x) * u;
-        const y = from.y + (to.y - from.y) * u + Math.sin(u * 13 + k * 5) * 9 * (1 - u * 0.6);
-        const w = 1 + Math.round(3 * (j / n));
-        ctx.fillStyle = j > n - 4 ? '#ffffff' : j % 6 === 0 ? '#ffe0b0' : color;
-        ctx.fillRect(Math.round(x - w / 2), Math.round(y - w / 2), w, w);
-      }
-      ctx.globalAlpha = 1;
-    }, delay);
-  }
-
   /** A flattened ground ring pushed out from an impact. */
   private shockwave(at: Pt, color: string, delay = 0, r1 = 44): void {
     this.s(16, (ctx, k) => {
@@ -383,6 +366,280 @@ export class FxLayer {
   private smoke(at: Pt, color: string, n: number, delay = 0): void {
     for (let i = 0; i < n; i++)
       this.p({ x: at.x + this.rng.range(-10, 10), y: at.y + this.rng.range(-8, 8), vx: this.rng.range(-0.4, 0.4), vy: -this.rng.range(0.1, 0.5), max: this.rng.int(26, 40), color, kind: 'smoke', size: this.rng.int(3, 6), delay: delay + this.rng.int(0, 8) });
+  }
+
+  // ------------------------------------------------------------------ spells
+  // Each element its own look (Mark, 2026-09-30: "spells that look like spells"): a cast that
+  // gathers at the caster (GPU, scenes/battlekit/gpufx.ts), something that travels, and an impact
+  // that stays a moment (flames that burn down, arcs that crawl, a screen that tears).
+
+  /** A filled disc of pixels. */
+  private static disc(ctx: Ctx, cx: number, cy: number, r: number): void {
+    for (let y = -Math.floor(r); y <= Math.floor(r); y++) {
+      const w = Math.floor(Math.sqrt(Math.max(0, r * r - y * y)));
+      ctx.fillRect(Math.round(cx - w), Math.round(cy + y), w * 2 + 1, 1);
+    }
+  }
+
+  /** A glowing ball flying from `from` to `to` over `frames` in a shallow arc, shedding a trail. */
+  private orb(from: Pt, to: Pt, frames: number, color: string, core: string, trail: readonly string[], delay = 0, r = 3): void {
+    const arc = Math.min(18, Math.hypot(to.x - from.x, to.y - from.y) * 0.18);
+    const at = (u: number): Pt => ({ x: from.x + (to.x - from.x) * u, y: from.y + (to.y - from.y) * u - Math.sin(u * Math.PI) * arc });
+    this.s(frames, (ctx, k, t) => {
+      const p = at(k);
+      ctx.fillStyle = color;
+      FxLayer.disc(ctx, p.x, p.y, r + (Math.floor(t) % 2) * 0.6);
+      ctx.fillStyle = core;
+      FxLayer.disc(ctx, p.x, p.y, r * 0.55);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+    }, delay);
+    for (let i = 0; i <= frames; i++) {
+      const p = at(i / frames);
+      for (let n = 0; n < 2; n++)
+        this.p({ x: p.x + this.rng.range(-1.5, 1.5), y: p.y + this.rng.range(-1.5, 1.5), vx: this.rng.range(-0.3, 0.3), vy: this.rng.range(-0.6, -0.1), max: this.rng.int(10, 18), color: trail[(i + n) % trail.length] ?? color, size: 1, kind: 'spark', delay: delay + i });
+    }
+  }
+
+  /**
+   * Flames licking up from the ground under `at`: tongues of fire that rise, burn and die down,
+   * flickering as they go. `cols` runs from the tips to the core.
+   */
+  private flames(at: Pt, w: number, h: number, frames: number, delay = 0, cols: readonly [string, string, string, string] = FIRE): void {
+    const seed = this.rng.range(0, 100);
+    const base = Math.round(at.y + 12);
+    this.s(frames, (ctx, k, t) => {
+      const life = k < 0.15 ? k / 0.15 : k > 0.6 ? 1 - (k - 0.6) / 0.4 : 1;
+      for (let x = -w; x <= w; x++) {
+        const edge = 1 - Math.abs(x) / (w + 1);
+        const n = Math.sin(x * 0.9 + seed) * 0.5 + Math.sin(x * 0.37 + t * 0.55 + seed) * 0.35 + Math.sin(x * 1.7 - t * 0.9) * 0.15;
+        const height = Math.round(h * life * edge * (0.55 + 0.45 * n));
+        if (height <= 0) continue;
+        // Bands from the base up: core, amber, orange, the dark tips.
+        const bands: [number, string][] = [[0.25, cols[3]], [0.55, cols[2]], [0.85, cols[1]], [1, cols[0]]];
+        let y0 = 0;
+        for (const [to, c] of bands) {
+          const y1 = Math.round(height * to);
+          if (y1 > y0) {
+            ctx.fillStyle = c;
+            ctx.fillRect(Math.round(at.x + x), base - y1, 1, y1 - y0);
+          }
+          y0 = y1;
+        }
+      }
+    }, delay);
+  }
+
+  /** A line of fire running along the ground from x0 to x1 at `y`, burning out behind. */
+  private groundFire(x0: number, x1: number, y: number, frames: number, delay = 0): void {
+    this.s(frames, (ctx, k, t) => {
+      const head = x0 + (x1 - x0) * Math.min(1, k / 0.45);
+      for (let x = Math.round(x0); x < head; x++) {
+        const age = (head - x) / Math.max(1, x1 - x0);
+        const hgt = Math.max(0, Math.round((3 + Math.sin(x * 1.3 + t * 0.8) * 2) * (1 - age * 1.4) * (k > 0.7 ? (1 - k) / 0.3 : 1)));
+        if (!hgt) continue;
+        ctx.fillStyle = FIRE[1];
+        ctx.fillRect(x, Math.round(y) - hgt, 1, hgt);
+        ctx.fillStyle = FIRE[3];
+        ctx.fillRect(x, Math.round(y) - 1, 1, 1);
+      }
+    }, delay);
+  }
+
+  /** A jagged path from a to b by midpoint displacement (lightning), `disp` pixels of wander. */
+  private jag(a: Pt, b: Pt, disp: number, depth: number, out: Pt[]): void {
+    if (depth <= 0) {
+      out.push(b);
+      return;
+    }
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+    const off = this.rng.range(-disp, disp);
+    const m = { x: (a.x + b.x) / 2 - (dy / len) * off, y: (a.y + b.y) / 2 + (dx / len) * off };
+    this.jag(a, m, disp / 2, depth - 1, out);
+    this.jag(m, b, disp / 2, depth - 1, out);
+  }
+
+  /** Lines through points, `w` wide in `color` with a 1-pixel white core. */
+  private static polyline(ctx: Ctx, pts: Pt[], color: string, w: number): void {
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      if (!a || !b) continue;
+      const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y)));
+      for (let j = 0; j <= n; j++) {
+        const x = Math.round(a.x + ((b.x - a.x) * j) / n), y = Math.round(a.y + ((b.y - a.y) * j) / n);
+        if (w > 1) {
+          ctx.fillStyle = color;
+          ctx.fillRect(x - (w >> 1), y, w, 1);
+        }
+        ctx.fillStyle = w > 1 ? '#ffffff' : color;
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+
+  /** Forked lightning from the sky down to `to`, struck afresh every two frames, flickering out. */
+  private forked(to: Pt, color: string, delay = 0, frames = 14, fromY = -6): void {
+    let paths: Pt[][] = [];
+    let struck = -1;
+    const strike = () => {
+      const top = { x: to.x + this.rng.range(-16, 16), y: fromY };
+      const main: Pt[] = [top];
+      this.jag(top, to, 14, 5, main);
+      const out = [main];
+      for (let f = 0; f < 2; f++) {
+        const at = main[this.rng.int(4, Math.max(5, main.length - 6))] ?? to;
+        const end = { x: at.x + this.rng.range(-26, 26), y: at.y + this.rng.range(10, 26) };
+        const fork: Pt[] = [at];
+        this.jag(at, end, 7, 3, fork);
+        out.push(fork);
+      }
+      return out;
+    };
+    this.s(frames, (ctx, k, t) => {
+      const step = Math.floor(t / 2);
+      if (step !== struck) {
+        struck = step;
+        paths = strike();
+      }
+      if (k > 0.6 && step % 2) return;
+      paths.forEach((p, i) => {
+        FxLayer.polyline(ctx, p, color, i ? 1 : 3);
+      });
+    }, delay);
+  }
+
+  /** Little arcs crawling over the target after a shock: short zigzags that jump about. */
+  private crawl(at: Pt, color: string, frames: number, delay = 0): void {
+    let arcs: Pt[][] = [];
+    let at2 = -1;
+    this.s(frames, (ctx, k, t) => {
+      const step = Math.floor(t / 2);
+      if (step !== at2) {
+        at2 = step;
+        arcs = [];
+        const n = k < 0.6 ? 3 : 1;
+        for (let i = 0; i < n; i++) {
+          const a = { x: at.x + this.rng.range(-11, 11), y: at.y + this.rng.range(-14, 10) };
+          const b = { x: a.x + this.rng.range(-7, 7), y: a.y + this.rng.range(-6, 6) };
+          const p: Pt[] = [a];
+          this.jag(a, b, 4, 2, p);
+          arcs.push(p);
+        }
+      }
+      for (const p of arcs) FxLayer.polyline(ctx, p, k < 0.5 ? '#ffffff' : color, 1);
+    }, delay);
+  }
+
+  /** A stream of code from `from` to `to` (a program flying at its target): glyphs and bits. */
+  private packets(from: Pt, to: Pt, color: string, frames: number, delay = 0): void {
+    for (let i = 0; i < 16; i++) {
+      const d = delay + (i * frames) / 22;
+      const vx = (to.x - from.x) / frames, vy = (to.y - from.y) / frames;
+      const jitter = { x: this.rng.range(-3, 3), y: this.rng.range(-3, 3) };
+      if (i % 2) this.p({ x: from.x + jitter.x, y: from.y + jitter.y, vx, vy, max: frames, color, kind: 'glyph', ch: GLYPHS[this.rng.int(0, GLYPHS.length - 1)], delay: d });
+      else this.p({ x: from.x + jitter.x, y: from.y + jitter.y, vx, vy, max: frames, color: i % 4 ? color : '#ffffff', size: 2, delay: d });
+    }
+  }
+
+  /** Corruption over the target: blocks of colour torn sideways, a new tear every few frames. */
+  private corrupt(at: Pt, cols: readonly string[], frames: number, delay = 0): void {
+    let tears: [number, number, number, number, string][] = [];
+    let at2 = -1;
+    this.s(frames, (ctx, k, t) => {
+      const step = Math.floor(t / 3);
+      if (step !== at2) {
+        at2 = step;
+        tears = [];
+        for (let i = 0; i < (k < 0.6 ? 6 : 3); i++)
+          tears.push([at.x + this.rng.range(-16, 10), at.y + this.rng.range(-18, 12), this.rng.int(5, 18), this.rng.int(1, 3), cols[this.rng.int(0, cols.length - 1)] ?? '#ffffff']);
+      }
+      ctx.globalAlpha = k < 0.7 ? 0.85 : (1 - k) / 0.3;
+      for (const [x, y, w, h, c] of tears) {
+        ctx.fillStyle = c;
+        ctx.fillRect(Math.round(x), Math.round(y), w, h);
+      }
+      ctx.globalAlpha = 1;
+    }, delay);
+  }
+
+  /** A ring of runes on the ground under the target, turning as it glows (heals, wards). */
+  private sigil(at: Pt, color: string, frames: number, delay = 0): void {
+    const cy = at.y + 11;
+    this.s(frames, (ctx, k, t) => {
+      ctx.globalAlpha = k < 0.2 ? k / 0.2 : k > 0.7 ? (1 - k) / 0.3 : 1;
+      ctx.fillStyle = color;
+      const rx = 14, ry = 5;
+      for (let i = 0; i < 48; i++) {
+        const a = (i / 48) * Math.PI * 2;
+        ctx.fillRect(Math.round(at.x + Math.cos(a) * rx), Math.round(cy + Math.sin(a) * ry), 1, 1);
+      }
+      // Runes round the ring: little ticks that turn with it.
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + t * 0.06;
+        const x = Math.round(at.x + Math.cos(a) * (rx - 3)), y = Math.round(cy + Math.sin(a) * (ry - 1));
+        ctx.fillRect(x, y - 1, 1, 2);
+        ctx.fillRect(x - 1, y, 3, 1);
+      }
+      ctx.globalAlpha = 1;
+    }, delay);
+  }
+
+  /** Drops of light falling on the target (Mending Rain). */
+  private lightRain(at: Pt, color: string, n: number, delay = 0): void {
+    for (let i = 0; i < n; i++)
+      this.p({ x: at.x + this.rng.range(-14, 14), y: at.y - 40 - this.rng.range(0, 20), vy: this.rng.range(1.4, 2), max: 26, color: i % 3 ? color : '#ffffff', size: 1, kind: 'spark', delay: delay + this.rng.int(0, 18) });
+  }
+
+  /** An open hand of ki pressed onto the target: a palm and five fingers, flaring and fading. */
+  private palmPrint(at: Pt, color: string, delay = 0): void {
+    this.s(20, (ctx, k) => {
+      const g = 1 + k * 0.5;
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = color;
+      FxLayer.disc(ctx, at.x, at.y + 2 * g, 4 * g);
+      for (let f = 0; f < 5; f++) {
+        const a = -Math.PI / 2 + (f - 2) * 0.38 + (f === 0 ? -0.35 : 0);
+        const len = (f === 0 ? 5 : f === 2 ? 8 : 7) * g;
+        for (let j = 3; j < len + 3; j++) ctx.fillRect(Math.round(at.x + Math.cos(a) * j * g * 0.8), Math.round(at.y + Math.sin(a) * j * g * 0.8), 1, 1);
+      }
+      ctx.globalAlpha = 1;
+    }, delay);
+  }
+
+  /**
+   * A serpent of ki winding through every point of `path` (Dragon Coil): a smooth curve, the body a
+   * stretch of it behind the head, thick to thin, sparks shed where it passes.
+   */
+  private serpent(path: Pt[], color: string, frames: number, delay = 0): void {
+    const at = (u: number): Pt => {
+      // Catmull-Rom through the points (u from 0 to 1 over the whole path).
+      const n = path.length - 1;
+      const f = Math.max(0, Math.min(n - 1e-6, u * n));
+      const i = Math.floor(f), s = f - i;
+      const p0 = path[Math.max(0, i - 1)] ?? path[0], p1 = path[i], p2 = path[i + 1], p3 = path[Math.min(n, i + 2)] ?? p2;
+      if (!p0 || !p1 || !p2 || !p3) return path[0] ?? { x: 0, y: 0 };
+      const c = (a: number, b: number, cc: number, d: number) => 0.5 * (2 * b + (-a + cc) * s + (2 * a - 5 * b + 4 * cc - d) * s * s + (-a + 3 * b - 3 * cc + d) * s * s * s);
+      return { x: c(p0.x, p1.x, p2.x, p3.x), y: c(p0.y, p1.y, p2.y, p3.y) };
+    };
+    this.s(frames, (ctx, k) => {
+      const head = Math.min(1, k / 0.8);
+      const tail = Math.max(0, head - 0.3);
+      ctx.globalAlpha = k < 0.85 ? 1 : (1 - k) / 0.15;
+      const n = 60;
+      for (let j = 0; j <= n; j++) {
+        const u = tail + (head - tail) * (j / n);
+        const p = at(u);
+        const w = 1 + Math.round(4 * (j / n));
+        ctx.fillStyle = j > n - 3 ? '#ffffff' : j % 7 === 0 ? '#ffe0b0' : color;
+        ctx.fillRect(Math.round(p.x - w / 2), Math.round(p.y - w / 2), w, w);
+      }
+      ctx.globalAlpha = 1;
+    }, delay);
+    for (let i = 0; i < 40; i++) {
+      const p = at(i / 40);
+      this.p({ x: p.x, y: p.y, vx: this.rng.range(-0.4, 0.4), vy: this.rng.range(-0.5, 0.2), max: this.rng.int(12, 20), color: i % 2 ? '#ffe0b0' : color, size: 1, kind: 'spark', delay: delay + (i / 40) * frames * 0.8 });
+    }
   }
 
   private static scratch: FxLayer | null = null;
@@ -519,31 +776,56 @@ export class FxLayer {
           }
         });
         return { impact: 5, total: 20 };
-      case 'coil':
-        each((t, i) => {
-          this.dragon(from, t, '#ffb46a', i * 2);
-          this.ring(t, '#ffb46a', 2, 22, 14, 11 + i * 2, 2);
-          this.burst(t, '#ffe0b0', 16, 2.6, 12 + i * 2, 20);
+      case 'coil': {
+        // Up out of Kit, round and through every enemy left to right, and away.
+        const row = [...T].sort((a, b) => a.x - b.x);
+        const first = row[0] ?? from, last = row[row.length - 1] ?? from;
+        const path: Pt[] = [from, { x: from.x - 10, y: from.y - 34 }, { x: first.x - 24, y: first.y - 18 }];
+        row.forEach((t, i) => {
+          path.push({ x: t.x, y: t.y + (i % 2 ? -8 : 6) });
+        });
+        path.push({ x: last.x + 26, y: last.y - 22 }, { x: last.x + 10, y: -20 });
+        const frames = 40;
+        this.serpent(path, '#ffb46a', frames);
+        // Each enemy is struck as the head passes it.
+        row.forEach((t, i) => {
+          const d = Math.round(((i + 3) / (path.length - 1)) * frames * 0.8);
+          this.ring(t, '#ffb46a', 2, 22, 14, d, 2);
+          this.burst(t, '#ffe0b0', 16, 2.6, d, 20);
         });
         this.flash = { color: '#ffb46a', frames: 6 };
-        return { impact: 12, total: 34 };
+        this.shake = 4;
+        return { impact: Math.round((3 / (path.length - 1)) * frames * 0.8), total: frames + 14 };
+      }
       case 'palm':
         each((t) => {
-          this.ring(t, '#ffb46a', 2, 18, 14, 0, 2);
-          this.ring(t, '#ffffff', 2, 10, 10, 3, 1);
-          this.rise(t, '#ffd0a0', 10, 8, 4);
+          this.palmPrint(t, '#ffd27a', 2);
+          this.ring(t, '#ffb46a', 2, 20, 14, 2, 2);
+          this.ring(t, '#ffffff', 2, 10, 10, 4, 1);
+          this.ring(t, '#7ae8ff', 6, 30, 20, 6, 1);
+          this.burst(t, '#ffe0b0', 12, 2.4, 4, 16);
+          this.rise(t, '#ffd0a0', 10, 8, 6);
         });
-        return { impact: 5, total: 26 };
+        this.shake = 3;
+        return { impact: 4, total: 30 };
       case 'rain_hits':
         each((t) => {
           for (let k = 0; k < 5; k++) this.burst({ x: t.x + this.rng.range(-10, 10), y: t.y + this.rng.range(-10, 10) }, '#ffd0a0', 5, 1.8, k * 3, 10);
         });
         return { impact: 3, total: 22 };
       case 'code':
+        each((t) => {
+          this.packets(from, t, '#3fe0f0', 12);
+          this.corrupt(t, ['#3fe0f0', '#ff4fb0', '#ffffff', '#1a1830'], 22, 12);
+          this.glyphs(t, '#3fe0f0', 12, 12);
+          this.burst(t, '#d8f6ff', 8, 1.8, 12, 14);
+        });
+        return { impact: 12, total: 38 };
       case 'glitch':
       case 'scan':
         each((t) => {
-          this.glyphs(t, id === 'scan' ? '#62e06a' : '#3fe0f0', id === 'code' ? 14 : 10);
+          if (id === 'glitch') this.corrupt(t, ['#ff4fb0', '#3fe0f0', '#1a1830'], 24, 4);
+          this.glyphs(t, id === 'scan' ? '#62e06a' : '#3fe0f0', 10);
           if (id === 'scan') {
             this.s(24, (ctx, k) => {
               ctx.fillStyle = '#62e06a';
@@ -563,31 +845,67 @@ export class FxLayer {
         });
         return { impact: 12, total: 28 };
       case 'lightning':
-      case 'zap':
+        // Overload: forked bolts out of the sky onto each target, then arcs crawling over them.
         each((t, i) => {
-          if (id === 'lightning') this.bolt(t, '#9ae8ff', i * 3);
-          else this.bolt(t, '#9ae8ff', 0, t.y - 20);
-          this.burst(t, '#d8f6ff', 10, 2.2, i * 3 + 4);
+          const d = 4 + i * 4;
+          this.forked(t, color ?? '#9ae8ff', d, 14);
+          this.burst(t, '#d8f6ff', 12, 2.4, d + 1);
+          this.ring(t, '#9ae8ff', 2, 14, 10, d + 1, 1);
+          this.crawl(t, '#9ae8ff', 24, d + 4);
         });
-        this.flash = { color: '#9ae8ff', frames: 5 };
-        return { impact: 5, total: 20 };
+        this.flash = { color: '#d8f6ff', frames: 6 };
+        this.shake = 4;
+        return { impact: 5, total: 42 };
+      case 'zap':
+        each((t) => {
+          this.forked(t, '#9ae8ff', 0, 10, t.y - 26);
+          this.burst(t, '#d8f6ff', 10, 2.2, 4);
+          this.crawl(t, '#9ae8ff', 16, 4);
+        });
+        this.flash = { color: '#9ae8ff', frames: 4 };
+        return { impact: 5, total: 24 };
       case 'fire':
-      case 'fire_all':
+        // A fireball arcs over, bursts, and the target stands in flames that burn down.
+        each((t, i) => {
+          const d = i * 3;
+          this.orb(from, t, 12, '#ff6a2a', '#ffe07a', ['#ffa24a', '#ff6a2a', '#ffe07a'], d, 3);
+          this.burst(t, '#ffa24a', 14, 2, d + 12, 20);
+          this.burst(t, '#ffe07a', 8, 1.2, d + 12, 14);
+          this.flames(t, 10, 34, 44, d + 11);
+          this.rise(t, '#ff6a2a', 12, 8, d + 14, 0.9);
+          this.smoke(t, '#5a4a4a', 6, d + 28);
+        });
+        this.shake = 2;
+        return { impact: 12, total: 56 };
+      case 'fire_all': {
+        // The ground catches under every enemy, left to right, a line of fire running between them.
+        const row = [...T].sort((a, b) => a.x - b.x);
+        const x0 = (row[0]?.x ?? 120) - 22, x1 = (row[row.length - 1]?.x ?? 120) + 22;
+        const ground = Math.max(...row.map((t) => t.y)) + 12;
+        this.groundFire(x0, x1, ground, 60, 4);
+        row.forEach((t, i) => {
+          const d = 6 + i * 5;
+          this.flames(t, 13, 44, 50, d);
+          this.burst(t, '#ffe07a', 12, 2.2, d + 2, 18);
+          this.rise(t, '#ff6a2a', 16, 12, d + 4, 1.1);
+          this.smoke(t, '#5a4a4a', 7, d + 30);
+        });
+        this.flash = { color: '#ffa24a', frames: 6 };
+        this.shake = 4;
+        return { impact: 10, total: 70 };
+      }
       case 'explosion':
         each((t, i) => {
           const d = i * 3;
           this.burst(t, '#ffa24a', 14, 2, d, 20);
           this.burst(t, '#ffe07a', 8, 1.2, d, 14);
           this.rise(t, '#ff6a2a', 12, 8, d, 0.9);
-          if (id === 'explosion') {
-            this.ring(t, '#ffe07a', 2, 20, 12, d, 2);
-            this.shockwave(t, '#ffa24a', d, 40);
-          }
-          if (id === 'fire_all') this.pillar(t, '#ff6a2a', '#ffe07a', 34, d);
+          this.ring(t, '#ffe07a', 2, 20, 12, d, 2);
+          this.shockwave(t, '#ffa24a', d, 40);
           this.smoke(t, '#5a4a4a', 5, d + 8);
         });
-        if (id !== 'fire') this.flash = { color: '#ffa24a', frames: 6 };
-        this.shake = id === 'explosion' ? 6 : 2;
+        this.flash = { color: '#ffa24a', frames: 6 };
+        this.shake = 6;
         return { impact: 6, total: 30 };
       case 'heal':
       case 'heal_all':
@@ -598,8 +916,10 @@ export class FxLayer {
       case 'lifeline': {
         const col = id === 'tp' ? '#6ff3ff' : id === 'revive' ? '#ffe07a' : id === 'cleanse' ? '#e0f0ff' : '#86f08c';
         each((t, i) => {
-          this.rise(t, col, 14, 10, i * 2, 0.7);
-          this.ring(t, col, 16, 3, 18, i * 2, 1);
+          this.sigil(t, col, 34, i * 2);
+          if (id === 'heal_all') this.lightRain(t, col, 14, i * 2);
+          this.rise(t, col, 14, 10, i * 2 + 4, 0.7);
+          this.ring(t, col, 16, 3, 18, i * 2 + 4, 1);
           if (id === 'revive' || id === 'lifeline') this.s(24, (ctx, k) => {
             ctx.globalAlpha = 0.6 * (1 - k);
             ctx.fillStyle = col;
@@ -607,7 +927,7 @@ export class FxLayer {
             ctx.globalAlpha = 1;
           });
         });
-        return { impact: 10, total: 30 };
+        return { impact: 12, total: 38 };
       }
       case 'victory': {
         // Confetti of spark colours from each fighter, then a slow rise of motes.

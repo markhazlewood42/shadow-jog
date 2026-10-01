@@ -2,7 +2,10 @@
  * The battle's moments for the GPU effects layer. Playback calls these as events land; what each
  * one looks like is data (src/data/fx.json, "moments"), designed in the FX lab (`?scene=fxlab`).
  * A hit plays its damage type's moment (`hit.fire`...), plus `crit`, `combo` or `hit.heavy` on
- * top; heals, kills and a boss's change of form have their own.
+ * top; heals, kills and a boss's change of form have their own. A spell (any move with an effect,
+ * by its fx id) also gathers at the caster as they wind up (`cast.<fx>`) and lands on each target
+ * with the effect's impact (`spell.<fx>`): the heat haze over Firebrand's flames, the stage dimming
+ * for Overload, the tear in the screen where Spike hits.
  *
  * Positions come in battle-world coordinates (240×135) and go out in screen pixels (×2). With GPU
  * effects off, every call returns at once and the battle looks as it always has.
@@ -27,6 +30,21 @@ export function gpuHit(at: Pt, from: Pt | null, el: Element, tier: number, o: { 
   if (o.combo) playMoment(FX, 'combo', x, y, opts);
   else if (o.crit) playMoment(FX, 'crit', x, y, opts);
   else if (tier >= 2) playMoment(FX, 'hit.heavy', x, y, opts);
+}
+
+/** A move winding up at `at`: its power gathering there (`cast.<fx>`; most moves have none). */
+export function gpuCast(fx: string, at: Pt): void {
+  playMoment(FX, `cast.${fx}`, at.x * 2, at.y * 2);
+}
+
+/** A move's effect landing on each target, `impact` effect frames from now (`spell.<fx>`). */
+export function gpuSpell(fx: string, targets: Pt[], impact: number): void {
+  if (!postfx.active || !FX.moments[`spell.${fx}`]) return;
+  const land = () => {
+    for (const t of targets) playMoment(FX, `spell.${fx}`, t.x * 2, t.y * 2);
+  };
+  if (impact > 0) postfx.later(impact, land);
+  else land();
 }
 
 /** A heal on `at` (a perfect press: its own, fuller moment). */

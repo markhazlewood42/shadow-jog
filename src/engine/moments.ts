@@ -21,6 +21,9 @@ function fire(fx: FxData, l: MomentLayer, x: number, y: number, o: MomentOpts): 
   if (l.shock) postfx.shock(px, py, l.shock);
   if (l.aberrate) postfx.aberrate(l.aberrate * w, px, py);
   if (l.flare) postfx.flare(l.flare * w);
+  if (l.haze) postfx.haze(px, py, l.haze);
+  if (l.glitch) postfx.glitch(px, py, { ...l.glitch, strength: (l.glitch.strength ?? 6) * w });
+  if (l.dim) postfx.dim(l.dim.amount ?? 0.5, l.dim.life ?? 60);
 }
 
 /** Play `name` from `fx` at (x, y), in screen pixels. Unknown names do nothing. */

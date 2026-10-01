@@ -64,6 +64,15 @@ on every push to `main`.
 - **Trailer, "before" record (2026-09-30):** `media/shadow-jog-trailer-2026-09-30.mp4` (94.7 s, 1080p60, game audio;
   not in git) records the game as it stands with everything made in code, before any AI-generated art. Shot by
   `node scripts/trailer.mjs`; re-shoot after the art changes for the "after".
+- **Spells that look like spells (2026-10-01, Mark's pick for the first effects slice).** Each element has its
+  own signature, with a cast, a travel and an impact: Firebrand (embers gather, a fireball arcs over, the target
+  stands in flames under a heat haze), Wildfire (the stage dims, the ground catches under every enemy in turn),
+  Overload (the stage darkens, forked lightning out of the sky, arcs crawling after), Spike (code streams at the
+  target and the screen tears there), Iron Palm (ki in the fist, a palm print, a hard push), Dragon Coil (one ki
+  serpent winding through every enemy), heals (a turning ring of runes; Mending Rain falls as light). New GPU
+  effects: heat haze, glitch, stage dim, inward-gathering particles. All tunable in the FX lab (new Spells tab;
+  `cast.*`/`spell.*` moments). **Next for Mark:** cast them in the lab (DEV menu → FX lab → Spells) and in a
+  battle, and say what to push further; then the combos, the enemy casters and the rest of the moves.
 - **Skeleton and animation editor: first build done (2026-09-30, night).** The crew's battle arms are bones now
   (`skeleton.json`; limbs can't stretch) and `/rigedit.html` poses them (drag the hand; notes per pose for Claude;
   Save writes the file), and **"Ask Claude to fix it"** works: Claude Code headless on his plan reads the pose

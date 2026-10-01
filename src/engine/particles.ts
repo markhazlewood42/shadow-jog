@@ -47,6 +47,11 @@ export interface EmitterPreset {
   wobble?: number;
   /** Squares snap to whole pixels, so debris matches the pixel art. */
   snap?: boolean;
+  /**
+   * Gather instead of burst: each starts on the edge of `radius` and flies in toward the point
+   * (power gathering in a hand before a spell). Life should be about radius / speed.
+   */
+  inward?: boolean;
 }
 
 /** Floats per particle in the packed draw buffer: x, y, width, height, angle, r, g, b, a, shape. */
@@ -144,10 +149,13 @@ export class ParticleSim {
     let made = 0;
     for (let i = 0; i < n && this.count < this.cap; i++) {
       const j = this.count++;
-      const r = (p.radius ?? 0) * Math.sqrt(this.rand()), ra = this.rand() * Math.PI * 2;
+      const ra = this.rand() * Math.PI * 2;
+      // Gathering: on the ring's edge, heading for the middle. Bursting: anywhere inside, any way
+      // within the spread.
+      const r = (p.radius ?? 0) * (p.inward ? 0.75 + this.rand() * 0.25 : Math.sqrt(this.rand()));
       this.x[j] = x + Math.cos(ra) * r;
       this.y[j] = y + Math.sin(ra) * r;
-      const a = dir + (this.rand() * 2 - 1) * spread;
+      const a = p.inward ? ra + Math.PI + (this.rand() * 2 - 1) * spread * 0.1 : dir + (this.rand() * 2 - 1) * spread;
       const s = this.range(p.speed);
       this.vx[j] = Math.cos(a) * s;
       this.vy[j] = Math.sin(a) * s;
