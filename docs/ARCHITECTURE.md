@@ -305,7 +305,7 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
 - **`critters.ts`**: cats and crows.
 - `data/looks.ts`: the cast's looks (`LOOKS`) and `randomLook(seed)` / `streetLook(seed)` for crowds.
 - **Rig v2 (`rig2/`, since 2026-09-30): characters drawn in code from traced standing frames.** A look with
-  `rig: 'kit'` (the crew so far) is built by `rigSprite()` instead of the letter-grid templates. `rig2/traced.ts`
+  `rig: 'kit'` (the crew so far) is built by `rigSprite()` instead of the letter-grid templates. `public/art/rig/field.json` (loaded at startup by `rig2/data.ts`)
   holds each character's standing frame per facing, traced from the PixelLab pick Mark liked by
   `scripts/art/trace.mjs` (palette-indexed pixels, one palette per character, outline removed, the feet and hip
   rows). Everything else is code and identical every time: below the hip only trouser and boot colours move

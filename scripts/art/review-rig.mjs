@@ -16,7 +16,7 @@ const page = await browser.newPage();
 await page.goto('http://localhost:3007/?debug&art=classic');
 await page.waitForFunction(() => !!window.__SJ__, null, { timeout: 30_000 });
 const POSES = ['idle', 'brace', 'strike', 'cast', 'hurt', 'victory'];
-const { shots, battle } = await page.evaluate(async ({ who, POSES }) => {
+const { shots, battle, npcs } = await page.evaluate(async ({ who, POSES }) => {
   await (await import('/src/art/rig2/data.ts')).loadRigData();
   const { buildChar } = await import('/src/art/chars.ts');
   const { battler } = await import('/src/art/battlers.ts');
@@ -42,7 +42,17 @@ const { shots, battle } = await page.evaluate(async ({ who, POSES }) => {
       return c.toDataURL();
     });
   }
-  return { shots, battle };
+  // Everyone else on the rig: NPCs and townsfolk, straight from their traced frames.
+  const { TRACED } = await import('/src/art/rig2/data.ts');
+  const { rigSprite } = await import('/src/art/rig2/rig.ts');
+  const npcs = {};
+  for (const [key, traced] of Object.entries(TRACED)) {
+    if (who.includes(key)) continue;
+    const sp = rigSprite(traced);
+    npcs[key] = {};
+    for (const d of ['down', 'right', 'up', 'left']) npcs[key][d] = { stand: sp.frames[d][0].toDataURL(), walk: (sp.walk?.[d] ?? []).map((c) => c.toDataURL()) };
+  }
+  return { shots, battle, npcs };
 }, { who: Object.keys(CREW), POSES });
 await browser.close();
 
@@ -107,3 +117,38 @@ for (const [who, frames] of Object.entries(battle)) {
   writeFileSync(metaPath, JSON.stringify(meta, null, 1));
   console.log(`${id}: ${version}`);
 }
+
+// NPCs and townsfolk: one asset each, beside the old sprite and the PixelLab pick it was traced from.
+for (const [key, frames] of Object.entries(npcs)) {
+  const slug = key.replace(':', '-').replace(/\./g, '-');
+  const id = `rig.npc.${slug}`;
+  const asset = key.startsWith('map:') ? `npc.${key.slice(4).replace('.', '-')}` : key.startsWith('pool:') ? `town.${String(Number(key.slice(5)) + 1).padStart(2, '0')}` : `npc.${key}`;
+  const old = key.startsWith('map:') ? `current/char/${key.slice(4)}.png` : key.startsWith('pool:') ? `current/char/lantern_row.p${(Number(key.slice(5)) % 8) + 1}.png` : `current/char/${key}.png`;
+  const pickMeta = existsSync(`${ROOT}/assets/${asset}/meta.json`) ? JSON.parse(readFileSync(`${ROOT}/assets/${asset}/meta.json`, 'utf8')) : null;
+  const metaPath = `${ROOT}/assets/${id}/meta.json`;
+  const meta = existsSync(metaPath)
+    ? JSON.parse(readFileSync(metaPath, 'utf8'))
+    : {
+        id,
+        category: key.startsWith('pool:') ? 'Rig v2 · townsfolk' : 'Rig v2 · NPCs',
+        title: `${pickMeta?.title ?? key} (code-drawn)`,
+        kind: 'field',
+        note: 'Traced from the PixelLab standing frames; the walk is the rig’s (so the glitches you flagged in PixelLab’s walks are gone). Flag frames and leave notes as usual.',
+        current: [
+          { file: old, label: 'Now: the old code-drawn sprite', scale: 1 },
+          ...(pickMeta ? [{ file: `assets/${asset}/house/south.png`, label: 'Now: the PixelLab pick', scale: 1 }] : []),
+        ],
+        options: [],
+      };
+  const version = `v${meta.options.length + 1}`;
+  const dir = `${ROOT}/assets/${id}/${version}`;
+  const rotations = {};
+  const walk = {};
+  for (const [d, f] of Object.entries(frames)) {
+    rotations[PL[d]] = save(`${dir}/${PL[d]}.png`, f.stand);
+    walk[PL[d]] = f.walk.map((w, i) => save(`${dir}/walk-${PL[d]}-${i}.png`, w));
+  }
+  meta.options.push({ id: version, kind: 'character', status: 'done', label: `${label} (${version})`, recipe: `rig v2 · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, scale: 1, rotations, anims: { walk: { label: 'Walk', frames: walk } } });
+  writeFileSync(metaPath, JSON.stringify(meta, null, 1));
+}
+console.log(`NPCs and townsfolk: ${Object.keys(npcs).length}`);

@@ -45,6 +45,7 @@ export const LOOKS = {
     carry: 'staff',
   },
   pale: {
+    rig: 'pale',
     skin: '#eadbd0', hair: '#dcd8cf', hairStyle: 'slick',
     top: '#e4e4ea', inner: '#16161e', accent: '#c02040',
     pants: '#e4e4ea', boots: '#16161e', accessories: ['visor'], visor: '#ff3050',
@@ -52,40 +53,47 @@ export const LOOKS = {
   },
   // The fixer: big, bearded, a wide-brimmed hat with a gold band (reads from across the bar).
   dutch: {
+    rig: 'dutch',
     body: 'big', skin: '#6e4430', hair: '#1a1418', hairStyle: 'bald',
     top: '#6a2a58', inner: '#e8c85a', accent: '#e8c85a', coat: '#4a1e3e',
     pants: '#1e1c26', boots: '#1a1418', accessories: ['beard'],
     brows: 'thick', mouth: 'smile', carry: 'hat',
   },
   mags: {
+    rig: 'mags',
     body: 'short', skin: '#d9a47e', hair: '#c9c4bb', hairStyle: 'bob',
     top: '#8a5a2e', inner: '#3a3a3a', accent: '#62e06a',
     pants: '#3d3a30', boots: '#2a2420', accessories: ['goggles'], goggles: '#5a4a3a', visor: '#62e06a',
     mouth: 'frown', eyeShape: 'narrow', carry: 'cane',
   },
   ganger: {
+    rig: 'ganger',
     skin: '#c28a64', hair: '#e8452e', hairStyle: 'mohawk',
     top: '#2a2a30', sleeves: '#c28a64', inner: '#2a2a30', accent: '#e8452e',
     pants: '#3a3448', boots: '#1a1418',
   },
   corpsec: {
+    rig: 'corpsec',
     skin: '#d8b090', hair: '#20202a', hairStyle: 'cap', hat: '#1f2a44',
     top: '#2c3b5e', inner: '#2c3b5e', accent: '#9aa3b8',
     pants: '#1f2a44', boots: '#101018', accessories: ['visor'], visor: '#3fe0f0',
   },
   // The same uniform on different people: a squad, not one sprite twice.
   corpsec2: {
+    rig: 'corpsec2',
     skin: '#7a4a30', hair: '#1a1418', hairStyle: 'short',
     top: '#2c3b5e', inner: '#2c3b5e', accent: '#9aa3b8',
     pants: '#1f2a44', boots: '#101018', accessories: ['shades'], mouth: 'frown',
   },
   corpsec3: {
+    rig: 'corpsec3',
     body: 'big', skin: '#e0b894', hair: '#8a5a2e', hairStyle: 'cap', hat: '#1f2a44',
     top: '#2c3b5e', inner: '#1f2a44', accent: '#ffcc3d',
     pants: '#1f2a44', boots: '#101018', accessories: ['visor'], visor: '#ffcc3d',
   },
   // Pale at the dock, in the rain: a clear umbrella rimmed in K-M red.
   pale_rain: {
+    rig: 'pale_rain',
     skin: '#eadbd0', hair: '#dcd8cf', hairStyle: 'slick',
     top: '#e4e4ea', inner: '#16161e', accent: '#c02040',
     pants: '#e4e4ea', boots: '#16161e', accessories: ['visor'], visor: '#ff3050',

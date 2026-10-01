@@ -4,7 +4,7 @@
 // The pixels come from the art Mark liked; everything done to them after this (walks, poses,
 // outlines, recolouring) is code. See docs/ARCHITECTURE.md §7, "Rig v2".
 //   node scripts/art/trace.mjs
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 
 const A = 'media/art-pass/assets';
@@ -16,6 +16,20 @@ const SOURCES = {
   sable: `${A}/crew.sable/kit`,
 };
 const FACINGS = { down: 'south', right: 'east', up: 'north', left: 'west' };
+/**
+ * NPCs and townsfolk: every one the art pass made (one option each), keyed for the game: a named
+ * look by its LOOKS key, a one-off NPC as "map:<map>.<id>", a townsfolk look as "pool:<n>". Only
+ * their standing frames are used (Mark turned a few down for glitches in PixelLab's walks, which the
+ * rig replaces with its own).
+ */
+for (const d of readdirSync(`${A}`)) {
+  if (!d.startsWith('npc.') && !d.startsWith('town.')) continue;
+  const meta = JSON.parse(readFileSync(`${A}/${d}/meta.json`, 'utf8'));
+  const opt = meta.options.find((o) => o.status === 'done' && o.rotations?.south);
+  if (!opt) continue;
+  const key = meta.look ?? (meta.npc ? `map:${meta.npc}` : meta.pool != null ? `pool:${meta.pool}` : null);
+  if (key) SOURCES[key] = `${A}/${d}/${opt.id}`;
+}
 /**
  * Battle backs (128x128, from behind): the frame each crew member's battle sprite is built on.
  * Kit: her fighting stance (an unflagged frame of her PixelLab idle, the one Mark pointed to); the others:

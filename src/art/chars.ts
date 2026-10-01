@@ -63,9 +63,10 @@ export interface CharLook {
   idle?: 'crossed' | 'bounce';
   /**
    * Drawn by rig v2 (src/art/rig2/): the traced character of this name, with code walks and poses,
-   * instead of the letter-grid templates below. The crew first (2026-09-30).
+   * instead of the letter-grid templates below. The crew and named NPCs (2026-09-30); one-off NPCs
+   * and passers-by get theirs when the traced frames load (rig2/npcs.ts).
    */
-  rig?: 'kit' | 'rook' | 'hex' | 'sable';
+  rig?: string;
 }
 
 export interface CharSprite {

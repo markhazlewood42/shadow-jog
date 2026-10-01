@@ -24,6 +24,7 @@ import { postfx } from './engine/postfx';
 import { FX } from './data/fx';
 import { ALL_DRAWN, DEFAULT_DRAWN, loadDrawnArt } from './art/drawn';
 import { loadRigData } from './art/rig2/data';
+import { applyRigNpcs } from './art/rig2/npcs';
 
 declare global {
   interface Window {
@@ -219,7 +220,7 @@ export function boot(game: Game, display: Display): void {
     params.get('rig') === 'old'
       ? Promise.resolve()
       : Promise.race([loadRigData(), timeout()]).then(
-          () => undefined,
+          () => void applyRigNpcs(),
           (e: unknown) => notice(`The character art didn't load, so the crew use their older sprites (${e instanceof Error ? e.message : String(e)})`, 'warn'),
         );
   const drawn = Promise.all([drawnArt, rigData]).then(() => undefined);
