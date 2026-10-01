@@ -13,7 +13,7 @@
  * 8 drawn views (public/art/rig/views.json, traced from the picks). Posing works on the back view,
  * the one the battle shows; the others are the drawings, for now.
  */
-import { type ArmPose, type BattleRig, KEY_POSES, type KeyPose, type Posed, poseFrame, poseGlow, resetRig } from '../art/rig2/battle';
+import { type ArmPose, type BattleRig, KEY_POSES, type KeyPose, type Posed, arcEnds, defaultBend, poseFrame, poseGlow, resetRig } from '../art/rig2/battle';
 import { SKELETONS, loadRigData } from '../art/rig2/data';
 import { type Traced, decode, renderLayers } from '../art/rig2/rig';
 
@@ -61,7 +61,9 @@ let who: string = WHO[0];
 let pose: KeyPose = 'strike';
 let dirty = false;
 const undo: string[] = [];
-let drag: null | 'hand' | 'elbow' | 'grip' | 'shoulder' | 'restElbow' | 'wrist' = null;
+let drag: null | 'hand' | 'elbow' | 'grip' | 'shoulder' | 'restElbow' | 'wrist' | 'arcFrom' | 'arcBend' = null;
+/** The impact's swept arc as last drawn: where it starts, its bend and where it lands (for the handles). */
+let arcShown: { from: Pt; bend: Pt; to: Pt } | null = null;
 let setup = false;
 /** "Ask Claude": which model, whether it's working (and since when), and its last answer. */
 let model: 'sonnet' | 'opus' = 'sonnet';
@@ -223,8 +225,14 @@ function draw(): void {
     return;
   }
   g.drawImage(p.frame, 0, 0, edit.width, edit.height);
+  arcShown = null;
   if (!setup) {
     const from = poseFrame(who, before ? (r.poses[before] ?? null) : null, r);
+    if (from && a.light === 'impact') {
+      const ends = arcEnds(a, p, from);
+      const start = a.arc?.from ?? ends.from;
+      arcShown = { from: [...start] as Pt, bend: [...(a.arc?.bend ?? defaultBend(start, ends.to))] as Pt, to: [...ends.to] as Pt };
+    }
     const glow = from && poseGlow(r, a, p, from);
     if (glow) {
       g.globalCompositeOperation = 'lighter';
@@ -288,6 +296,26 @@ function draw(): void {
   dot(p.elbow, '#3fe0f0', 6);
   dot(gh, '#62e06a', 5);
   dot(p.wrist, '#ffa24a', 8);
+  // The swept arc's handles: where it starts (a ring) and the point it bends toward (a dot), with
+  // a faint guide through them.
+  if (arcShown) {
+    const { from: af, bend: ab, to: at } = arcShown;
+    g.strokeStyle = 'rgba(255,224,122,0.45)';
+    g.setLineDash([4, 4]);
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(...S(af));
+    g.lineTo(...S(ab));
+    g.lineTo(...S(at));
+    g.stroke();
+    g.setLineDash([]);
+    g.strokeStyle = '#ffe07a';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(af[0] * Z, af[1] * Z, 7, 0, Math.PI * 2);
+    g.stroke();
+    dot(ab, '#ffe07a', 5);
+  }
   // Where the hand was asked to go, when it's out of reach.
   if (Math.hypot(a.hand[0] - p.wrist[0], a.hand[1] - p.wrist[1]) > 1.5) {
     g.strokeStyle = 'rgba(255,162,74,0.7)';
@@ -314,7 +342,7 @@ edit.addEventListener('pointerdown', (e) => {
   const r = rig();
   const p = shown;
   if (setup) drag = near(r.arm.wrist, m) ? 'wrist' : near(r.arm.elbow, m) ? 'restElbow' : near(r.arm.shoulder, m) ? 'shoulder' : null;
-  else if (p) drag = near(p.wrist, m) ? 'hand' : near(gripHandle(p, current()), m) ? 'grip' : near(p.elbow, m) ? 'elbow' : null;
+  else if (p) drag = arcShown && near(arcShown.from, m) ? 'arcFrom' : arcShown && near(arcShown.bend, m) ? 'arcBend' : near(p.wrist, m) ? 'hand' : near(gripHandle(p, current()), m) ? 'grip' : near(p.elbow, m) ? 'elbow' : null;
   // Anywhere else on the figure moves the hand there (the easiest thing to do).
   if (!drag && !setup) drag = 'hand';
   if (!drag) return;
@@ -368,6 +396,14 @@ function move(m: Pt): void {
     case 'wrist':
       r.arm.wrist = round(m);
       break;
+    case 'arcFrom':
+    case 'arcBend': {
+      // The arc becomes the pose's own once a handle moves (until "Reset the arc").
+      if (!arcShown) break;
+      const arc = a.arc ?? { from: arcShown.from, bend: arcShown.bend };
+      a.arc = drag === 'arcFrom' ? { ...arc, from: round(m) } : { ...arc, bend: round(m) };
+      break;
+    }
   }
   changed();
 }
@@ -485,6 +521,13 @@ function side(): void {
     );
     if (a.light)
       kids.push(choice('Light at', a.lightAt ?? 'hand', [['hand', 'The hand'], ['tip', 'The tip (blade, muzzle)'], ['top', 'The top (a staff’s head)']], (v) => (a.lightAt = v)));
+    if (a.light === 'impact')
+      kids.push(
+        h('p', { class: 'hint' }, 'The swept arc: drag the yellow ring (where it starts) and the yellow dot (which way it bends) on the picture.'),
+        a.arc
+          ? h('div', { class: 'buttons' }, h('button', { onclick: () => { remember(); delete a.arc; changed(); } }, 'Reset the arc'))
+          : null,
+      );
   }
   kids.push(h('hr'), h('h2', {}, 'Note for Claude'), note);
   if (!setup) {
@@ -595,6 +638,8 @@ function cleanPose(raw: unknown, was: ArmPose): ArmPose {
   opt(out, 'drop', num(o.drop, 0, 8));
   opt(out, 'behind', o.behind === true);
   if (o.shape === 'open') out.shape = 'open';
+  // The arc is placed by hand; Claude's answer keeps it as it was.
+  if (was.arc) out.arc = was.arc;
   const w = o.weapon as { kind?: unknown; angle?: unknown } | undefined;
   if (was.weapon) out.weapon = { kind: was.weapon.kind, angle: num(w?.angle, -180, 180) ?? was.weapon.angle };
   if (o.light === 'spark' || o.light === 'impact' || o.light === 'shot') out.light = o.light;

@@ -44,6 +44,12 @@ export interface ArmPose {
   /** The light the pose throws, and where: the hand, the tip (a blade's point, a muzzle) or the top (a staff's head). */
   light?: 'spark' | 'impact' | 'shot';
   lightAt?: 'hand' | 'tip' | 'top';
+  /**
+   * The impact's swept arc, placed by hand (the editor's arc handles): where it starts, and the
+   * point it curves toward (a quadratic curve's control point). Without it the arc runs from where
+   * the hand was in the pose before, bowed a little up and out.
+   */
+  arc?: { from: Pt; bend: Pt };
   /** The whole body tipped (degrees, > 0 clockwise, about the feet) and dropped (pixels). */
   lean?: number;
   drop?: number;
@@ -255,7 +261,7 @@ function farEnd(l: Layer, from: Pt): Pt {
 }
 
 /** A canvas of the light a pose throws: a spark, an impact with the arc it swept, or a muzzle flash. */
-function poseLight(at: Pt, from: Pt, kind: 'spark' | 'impact' | 'shot', tint: string): HTMLCanvasElement {
+function poseLight(at: Pt, from: Pt, kind: 'spark' | 'impact' | 'shot', tint: string, arc?: { from: Pt; bend: Pt }): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = SIZE;
   c.height = SIZE;
@@ -285,11 +291,12 @@ function poseLight(at: Pt, from: Pt, kind: 'spark' | 'impact' | 'shot', tint: st
     dot(x, y, '#ffffff');
   } else {
     rays(x, y, 3, 8, '#ffffff');
-    // The arc it swept, from where it started.
+    // The arc it swept: a curve from where it started, through its bend, to the impact.
+    const [sx, sy] = arc?.from ?? from;
+    const [cx, cy] = arc?.bend ?? defaultBend(arc?.from ?? from, at);
     for (let t = 0; t <= 1; t += 0.02) {
-      const ax = from[0] + (x - from[0]) * t + Math.sin(t * Math.PI) * 8;
-      const ay = from[1] + (y - from[1]) * t - Math.sin(t * Math.PI) * 6;
-      dot(ax, ay, t > 0.4 ? '#ffffff' : tint);
+      const u = 1 - t;
+      dot(u * u * sx + 2 * u * t * cx + t * t * x, u * u * sy + 2 * u * t * cy + t * t * y, t > 0.4 ? '#ffffff' : tint);
     }
   }
   return c;
@@ -562,7 +569,18 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
 export function poseGlow(rig: BattleRig, pose: ArmPose, at: Posed, from: Posed): HTMLCanvasElement | undefined {
   if (!pose.light) return undefined;
   const onHand = pose.lightAt === 'hand' || !pose.lightAt;
-  return poseLight(onHand ? at.wrist : at.tip, onHand ? from.wrist : from.tip, pose.light, rig.light);
+  return poseLight(onHand ? at.wrist : at.tip, onHand ? from.wrist : from.tip, pose.light, rig.light, pose.arc);
+}
+
+/** The arc's default bend: off the middle of its line, up and out (as the arc always bowed). */
+export function defaultBend(from: Pt, at: Pt): Pt {
+  return [(from[0] + at[0]) / 2 + 16, (from[1] + at[1]) / 2 - 12];
+}
+
+/** Where a pose's light lands and where its arc starts by default (the editor's arc handles). */
+export function arcEnds(pose: ArmPose, at: Posed, from: Posed): { to: Pt; from: Pt } {
+  const onHand = pose.lightAt === 'hand' || !pose.lightAt;
+  return { to: onHand ? at.wrist : at.tip, from: onHand ? from.wrist : from.tip };
 }
 
 /** The crew member's battle back from their traced frame and skeleton, or null without both. */
