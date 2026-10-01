@@ -11,6 +11,8 @@ import type { Traced } from './rig';
 export const TRACED: Record<string, Record<Dir, Traced>> = {};
 /** Battle backs: one frame each, with where it sits on its 128x128 canvas. */
 export const BATTLE_TRACED: Record<string, Traced & { ox: number; oy: number }> = {};
+/** Enemies: one frame each, keyed by the game's sprite name. */
+export const ENEMY_TRACED: Record<string, Traced> = {};
 
 /** Load the traced frames. Resolves with how many characters came in; rejects if none could. */
 export async function loadRigData(base = 'art/rig/'): Promise<number> {
@@ -19,8 +21,9 @@ export async function loadRigData(base = 'art/rig/'): Promise<number> {
     if (!res.ok) throw new Error(`${file}: ${res.status}`);
     return res.json();
   };
-  const [field, battle] = await Promise.all([get('field.json'), get('battle.json')]);
+  const [field, battle, enemies] = await Promise.all([get('field.json'), get('battle.json'), get('enemies.json')]);
   Object.assign(TRACED, field);
   Object.assign(BATTLE_TRACED, battle);
+  Object.assign(ENEMY_TRACED, enemies);
   return Object.keys(TRACED).length;
 }

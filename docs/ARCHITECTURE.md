@@ -312,6 +312,13 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
   (`legColours`), so hair, coat hems and staffs hang still; facing us or away a step lifts one foot a pixel; side on,
   the legs swing apart about the hip by RotSprite (Scale2x up 8x, rotate, sample down), the far leg a shade darker;
   the body bobs on passing steps; the outline is drawn around each finished pose. Walks go in `CharSprite.walk`.
+  The crew's battle backs (`rig2/battle.ts`, from `battle.json`) pose by code: the moving hand or staff cut out by
+  colour and turned, a forearm drawn to it, weapons drawn in code, and the light each pose throws. NPCs and
+  townsfolk (`rig2/npcs.ts`) are swapped in after loading; passers-by take the townsfolk looks in turn. **Enemies**
+  (`rig2/enemy.ts`, from `enemies.json`, keyed by sprite name): `enemyArt()` takes the traced redraw where there is
+  one, keeping the code-drawn art's idle motion, shadow and size; the strike frame leans it in and the flinch tips it
+  back (RotSprite about its feet), and its bright, saturated pixels make its glow. It's `individual`, so a second
+  copy in a fight is mirrored and marked.
 - **Drawn art (`drawn.ts`, shipped since 2026-09-30).** At startup `boot.ts` awaits `loadDrawnArt()`: it reads
   `public/art/manifest.json` (written by `scripts/pixellab/export-picks.mjs` from Mark's review) and hands each piece
   to its cache's replace hook: characters (a sheet per character: a row per facing, standing frame then walk),

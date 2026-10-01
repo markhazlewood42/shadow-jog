@@ -4,7 +4,7 @@
 // The pixels come from the art Mark liked; everything done to them after this (walks, poses,
 // outlines, recolouring) is code. See docs/ARCHITECTURE.md §7, "Rig v2".
 //   node scripts/art/trace.mjs
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 
 const A = 'media/art-pass/assets';
@@ -42,12 +42,29 @@ const BATTLE = {
   sable: `${A}/battle.sable/house/north.png`,
 };
 
-/** At most this many colours per character (shared by its four facings); battle backs, more detailed, get more. */
-const MAX_COLOURS = { field: 28, battle: 40 };
+/**
+ * Enemies: the redraw Mark picked ("redraw of today's design", the PixelLab image styled on the
+ * game's own sprite), keyed by the game's sprite name (src/data/enemies.ts `sprite`).
+ */
+const ENEMY_SPRITE = {
+  rustfang_medic: 'medic', rustfang_punk: 'punk', rustfang_slinger: 'slinger', glowrat: 'rat', scrap_hound: 'hound', street_drone: 'drone', smog_wisp: 'wisp', knuckles: 'brute', sewer_ghoul: 'ghoul', rust_crab: 'crab', maint_drone: 'maint', drowned_shade: 'shade', gutter_eel: 'eel', lurker: 'lurker', km_sentinel: 'sentinel', sentry_turret: 'turret', km_arcanist: 'arcanist', hunter_drone: 'hunter', bound_spirit: 'bound', warden: 'warden', warden_spirit: 'warden_spirit',
+};
+const review = JSON.parse(readFileSync('media/art-pass/review.json', 'utf8'));
+const ENEMIES = {};
+for (const [enemy, sprite] of Object.entries(ENEMY_SPRITE)) {
+  const opts = Object.entries(review.assets?.[`enemy.${enemy}`]?.options ?? {});
+  const pick = opts.find(([, v]) => v.verdict === 'best')?.[0] ?? opts.find(([, v]) => v.verdict === 'good')?.[0] ?? 'faithful';
+  const file = `${A}/enemy.${enemy}/${pick}/image.png`;
+  if (existsSync(file)) ENEMIES[sprite] = file;
+}
+
+/** At most this many colours per character (shared by its four facings); battle art, more detailed, gets more. */
+const MAX_COLOURS = { field: 28, battle: 40, enemy: 40 };
 const jobs = [];
 for (const [who, dir] of Object.entries(SOURCES))
   for (const [facing, pl] of Object.entries(FACINGS)) jobs.push({ group: who, kind: 'field', who, facing, src: readFileSync(`${dir}/${pl}.png`).toString('base64') });
 for (const [who, file] of Object.entries(BATTLE)) jobs.push({ group: `battle:${who}`, kind: 'battle', who, facing: 'up', src: readFileSync(file).toString('base64') });
+for (const [sprite, file] of Object.entries(ENEMIES)) jobs.push({ group: `enemy:${sprite}`, kind: 'enemy', who: sprite, facing: 'down', src: readFileSync(file).toString('base64') });
 
 const browser = await chromium.launch({ channel: 'msedge' });
 const page = await browser.newPage();
@@ -153,6 +170,7 @@ const all = await page.evaluate(async ({ jobs, MAXES }) => {
 await browser.close();
 const traced = all.filter((t) => t.kind === 'field');
 const battle = all.filter((t) => t.kind === 'battle');
+const enemies = all.filter((t) => t.kind === 'enemy');
 
 // Legs start at the crotch facing us or away; the side views take their hip row from the front's.
 const byWho = {};
@@ -187,3 +205,9 @@ const battleOut = {};
 for (const t of battle) battleOut[t.who] = { w: t.w, h: t.h, ox: t.ox, oy: t.oy, feet: t.feet, hip: t.feet, pal: t.pal, rows: t.rows };
 writeFileSync('public/art/rig/battle.json', JSON.stringify(battleOut));
 for (const t of battle) console.log(`battle ${t.who}: ${t.w}x${t.h} at (${t.ox}, ${t.oy}), colours ${t.pal.length}`);
+
+// Enemies: one frame each (the game makes the strike and flinch from it).
+const enemyOut = {};
+for (const t of enemies) enemyOut[t.who] = { w: t.w, h: t.h, feet: t.feet, hip: t.feet, pal: t.pal, rows: t.rows };
+writeFileSync('public/art/rig/enemies.json', JSON.stringify(enemyOut));
+console.log(`enemies: ${enemies.length} (${enemies.map((t) => `${t.who} ${t.w}x${t.h}`).join(', ')})`);

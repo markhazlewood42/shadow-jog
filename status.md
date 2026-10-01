@@ -80,7 +80,9 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
   staff), with drawn light per pose; every NPC and townsperson on the rig (traced from their PixelLab standing
   frames, including the four he turned down for walk glitches, since the rig's walk replaces PixelLab's); passers-by
   take the 8 townsfolk looks in turn. The traced data loads from `public/art/rig/*.json` at startup (it pushed the
-  script bundle over its budget as code). All of it on the review page (Rig v2 · crew / battle / NPCs / townsfolk).
+  script bundle over its budget as code). All 21 enemies on the rig too (traced from his redraw picks; strike and
+  flinch by code; glow from their bright pixels). All of it on the review page (Rig v2 · crew / battle / enemies /
+  NPCs / townsfolk), code-drawn art only (Mark: no PixelLab sprites there; an "Art" chip brings back the archive).
   **First build done (rig v2, the crew in the field):** Kit (from the round-2 redo, with a face in profile), Rook,
   Hex and Sable traced and walking in code (`src/art/rig2/`); review versions v1 and v2 on the page. Next in the
   slice: Kit's battle back from her fighting-stance frame, with stance → strike and a cast raise by code (Mark's

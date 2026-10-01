@@ -2,6 +2,8 @@
  * Enemy battle sprites. Humanoids reuse the character rig (front view) plus weapon overlays so
  * they share the party's pixel scale; creatures are painted procedurally with the Pix kit.
  */
+import { ENEMY_TRACED } from './rig2/data';
+import { rigEnemy } from './rig2/enemy';
 import { buildChar, type CharLook } from './chars';
 import { Pix, scale2x } from './pix';
 import { surface } from '../engine/canvas';
@@ -1090,6 +1092,11 @@ export function enemyArt(key: string, dup = 0): EnemyArt {
     POSE = 'idle';
   }
   if (v) a.individual = true;
+  // Rig v2 (src/art/rig2/enemy.ts): the traced redraw, posed in code, where there is one; it keeps
+  // the code-drawn art's motion, shadow and size. Every individual of the kind is that drawing
+  // (mirrored and marked in a fight).
+  const rigged = ENEMY_TRACED[key] ? rigEnemy(key, a) : null;
+  if (rigged) a = rigged;
   cache.set(id, a);
   return a;
 }

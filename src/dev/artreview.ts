@@ -77,7 +77,7 @@ interface Data {
 }
 
 const ROOT = '/media/art-pass/';
-const CATEGORY_ORDER = ['Crew · field', 'Crew · battle', 'Enemies', 'Bosses', 'Portraits', 'Named NPCs', 'Townsfolk', 'Terrain', 'Props'];
+const CATEGORY_ORDER = ['Rig v2 · crew', 'Rig v2 · battle', 'Rig v2 · enemies', 'Rig v2 · NPCs', 'Rig v2 · townsfolk', 'Crew · field', 'Crew · battle', 'Enemies', 'Bosses', 'Portraits', 'Named NPCs', 'Townsfolk', 'Terrain', 'Props'];
 const DIRS = ['south', 'east', 'north', 'west'];
 const DIR_LABEL: Record<string, string> = { south: 'down', east: 'right', north: 'up', west: 'left' };
 
@@ -95,7 +95,7 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, 
 
 // ------------------------------------------------------------------ view settings (per viewer)
 
-const prefs = { zoom: 3, bg: 'dark', show: 'all' };
+const prefs = { zoom: 3, bg: 'dark', show: 'all', archive: 'off' };
 try {
   Object.assign(prefs, JSON.parse(localStorage.getItem('artreview.prefs') ?? '{}'));
 } catch {
@@ -598,9 +598,15 @@ function visible(a: Asset): boolean {
   return true;
 }
 
+/**
+ * The code-drawn art (rig v2) is what's under review; the PixelLab pass is an archive, hidden
+ * unless asked for (Mark, 2026-09-30: no PixelLab sprites cluttering the page).
+ */
+const isCodeDrawn = (a: Asset) => a.category.startsWith('Rig v2');
+
 function categories(): [string, Asset[]][] {
   const by = new Map<string, Asset[]>();
-  for (const a of data?.assets ?? []) by.set(a.category, [...(by.get(a.category) ?? []), a]);
+  for (const a of data?.assets ?? []) if (prefs.archive === 'on' || isCodeDrawn(a)) by.set(a.category, [...(by.get(a.category) ?? []), a]);
   const rank = (c: string) => (CATEGORY_ORDER.includes(c) ? CATEGORY_ORDER.indexOf(c) : 99);
   return [...by.entries()].sort((x, y) => rank(x[0]) - rank(y[0]));
 }
@@ -627,17 +633,13 @@ function renderMain(): void {
       { class: 'intro' },
       'Each row is one asset: ',
       h('b', {}, 'Now'),
-      ' is the game today; the rest are PixelLab options at the same screen scale. Mark one ',
+      ' is the game’s older art; the rest are versions of the code-drawn art, newest last, at the same screen scale. Mark one ',
       h('b', {}, '★ Best'),
       ' per asset, ',
       h('b', {}, '✓ Good'),
-      ' for fallbacks, ',
+      ' or ',
       h('b', {}, '✗ No'),
-      ' for misses, and say why in the notes. It all saves as you go. ',
-      h('b', {}, 'Try ↗'),
-      ' opens the game with that option swapped in; ',
-      h('b', {}, 'Try picks in game'),
-      ' swaps in every Best (or the Good, where nothing is Best).',
+      ', flag frames that look wrong, and say why in the notes. It all saves as you go.',
     ),
   );
   for (const [cat, list] of categories()) {
@@ -651,7 +653,7 @@ function renderMain(): void {
 }
 
 function controls(): void {
-  const mk = (groupId: string, key: 'zoom' | 'bg' | 'show', values: [string | number, string][]) => {
+  const mk = (groupId: string, key: 'zoom' | 'bg' | 'show' | 'archive', values: [string | number, string][]) => {
     const g = $(groupId);
     for (const el of [...g.querySelectorAll('button')]) el.remove();
     for (const [v, label] of values) {
@@ -674,6 +676,10 @@ function controls(): void {
     ['dark', 'Dark'],
     ['mid', 'Mid'],
     ['light', 'Light'],
+  ]);
+  mk('archive', 'archive', [
+    ['off', 'Code-drawn'],
+    ['on', '+ PixelLab archive'],
   ]);
   mk('show', 'show', [
     ['all', 'All'],
