@@ -18,10 +18,14 @@ const SOURCES = {
 const FACINGS = { down: 'south', right: 'east', up: 'north', left: 'west' };
 /**
  * Battle backs (128x128, from behind): the frame each crew member's battle sprite is built on.
- * Kit: her fighting stance (an unflagged frame of her PixelLab idle, the one Mark pointed to).
+ * Kit: her fighting stance (an unflagged frame of her PixelLab idle, the one Mark pointed to); the others:
+ * the standing back view Mark picked (crew style for Rook and Sable, prompt only for Hex).
  */
 const BATTLE = {
   kit: `${A}/battle.kit/house/idle-north-4.png`,
+  rook: `${A}/battle.rook/house/north.png`,
+  hex: `${A}/battle.hex/plain/north.png`,
+  sable: `${A}/battle.sable/house/north.png`,
 };
 
 /** At most this many colours per character (shared by its four facings); battle backs, more detailed, get more. */

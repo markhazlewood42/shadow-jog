@@ -165,25 +165,37 @@ export function rotSprite(l: Layer, deg: number, pivotX: number, pivotY: number)
 
 /** A copy with each colour swapped for a darker one from the palette (the far leg, the back arm). */
 export function darker(l: Layer, pal: string[]): Layer {
-  const lum = pal.map((c) => {
+  const map = shadeMap(pal);
+  return { ...l, px: l.px.map((p) => (p >= 0 ? (map[p] ?? p) : p)) };
+}
+
+/**
+ * For each palette colour, the palette's best shade of it: of the colours clearly darker, the one
+ * closest to the colour itself scaled darker (same hue), so chrome shades to grey, not to the
+ * nearest dark orange.
+ */
+export function shadeMap(pal: string[]): number[] {
+  const rgb = pal.map((c) => {
     const n = Number.parseInt(c.slice(1), 16);
-    return 0.3 * ((n >> 16) & 255) + 0.59 * ((n >> 8) & 255) + 0.11 * (n & 255);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255] as const;
   });
-  // The palette is sorted darkest first: the next darker colour of a similar hue is usually one or
-  // two places down. Take the nearest darker by luminance, at least 18 steps darker.
-  const map = lum.map((v, i) => {
+  const lum = rgb.map(([r, g, b]) => 0.3 * r + 0.59 * g + 0.11 * b);
+  return rgb.map(([r, g, b], i) => {
+    const v = lum[i] ?? 0;
+    // The colour as it would look about 30% darker.
+    const want = [r * 0.7, g * 0.7, b * 0.7];
     let best = i;
     let bd = Infinity;
-    for (let j = 0; j < lum.length; j++) {
-      const d = v - (lum[j] ?? 0);
-      if (d >= 18 && d < bd) {
+    rgb.forEach(([r2, g2, b2], j) => {
+      if (v - (lum[j] ?? 0) < 14) return;
+      const d = (r2 - (want[0] ?? 0)) ** 2 + (g2 - (want[1] ?? 0)) ** 2 + (b2 - (want[2] ?? 0)) ** 2;
+      if (d < bd) {
         bd = d;
         best = j;
       }
-    }
+    });
     return best;
   });
-  return { ...l, px: l.px.map((p) => (p >= 0 ? (map[p] ?? p) : p)) };
 }
 
 /** Draw layers (in order) onto a field frame, shifted by (dx, dy), then outline the result. */
