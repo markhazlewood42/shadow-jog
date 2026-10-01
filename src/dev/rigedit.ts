@@ -472,6 +472,8 @@ function side(): void {
       check('Bend the elbow the other way', !!a.flip, (v) => opt(a, 'flip', v)),
       slider('Turn the hand', a.grip ?? 0, -180, 180, (v) => opt(a, 'grip', v), 'The hand and what it holds, at the wrist'),
     );
+    if (r.arm.open)
+      kids.push(choice('Hand', a.shape ?? 'fist', [['fist', 'Fist'], ['open', 'Open, fingers out']], (v) => opt(a, 'shape', v === 'open' ? v : undefined)));
     if (a.weapon) kids.push(slider(`${a.weapon.kind === 'katana' ? 'Sword' : 'Pistol'} angle`, a.weapon.angle, -180, 180, (v) => {
           if (a.weapon) a.weapon.angle = v;
         }));
@@ -592,6 +594,7 @@ function cleanPose(raw: unknown, was: ArmPose): ArmPose {
   opt(out, 'lean', num(o.lean, -12, 12));
   opt(out, 'drop', num(o.drop, 0, 8));
   opt(out, 'behind', o.behind === true);
+  if (o.shape === 'open') out.shape = 'open';
   const w = o.weapon as { kind?: unknown; angle?: unknown } | undefined;
   if (was.weapon) out.weapon = { kind: was.weapon.kind, angle: num(w?.angle, -180, 180) ?? was.weapon.angle };
   if (o.light === 'spark' || o.light === 'impact' || o.light === 'shot') out.light = o.light;

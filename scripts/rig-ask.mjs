@@ -35,6 +35,7 @@ const SCHEMA = {
         lean: { type: 'number', description: 'The whole body tipped about the feet, degrees, > 0 clockwise (-12 to 12)' },
         drop: { type: 'number', description: 'The whole body lowered, pixels (0 to 8)' },
         behind: { type: 'boolean', description: 'The arm drawn behind the body' },
+        shape: { type: 'string', enum: ['fist', 'open'], description: 'The hand: a fist, or open with the fingers out (only if the character has an open hand)' },
       },
       required: ['hand'],
     },

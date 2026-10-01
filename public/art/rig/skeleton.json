@@ -80,6 +80,38 @@
      4.5,
      8
     ]
+   },
+   "open": {
+    "rows": [
+     "....u.....",
+     "..u.ut.u..",
+     "..ut.tut..",
+     "..utpututp",
+     "..utpututp",
+     "t.utpututp",
+     "ut.tptptpo",
+     "utDDDDDDxv",
+     ".tDDDCDDxv",
+     "..CBBBBxxv",
+     "..CDDDCxv.",
+     "...CDDxv..",
+     "...CDxxv.."
+    ],
+    "colors": {
+     "u": "#ca7646",
+     "t": "#bf725a",
+     "p": "#a35632",
+     "o": "#994a40",
+     "D": "#f3f3ed",
+     "C": "#e8e3d5",
+     "B": "#dccec3",
+     "x": "#b4afa2",
+     "v": "#928c85"
+    },
+    "pivot": [
+     4.5,
+     12
+    ]
    }
   },
   "light": "#ffa24a",
@@ -88,13 +120,12 @@
     "hand": [
      82,
      51
-    ],
-    "behind": true
+    ]
    },
    "strike": {
     "hand": [
-     88,
-     23
+     89,
+     25
     ],
     "light": "impact",
     "lightAt": "hand",
@@ -105,10 +136,11 @@
      88,
      21
     ],
-    "light": "spark",
-    "lightAt": "hand",
+    "lightAt": "tip",
     "behind": true,
-    "flip": false
+    "flip": false,
+    "shape": "open",
+    "light": "spark"
    },
    "victory": {
     "hand": [
