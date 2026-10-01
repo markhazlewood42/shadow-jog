@@ -373,7 +373,10 @@ export class BattleRenderer {
     // The frame for each beat: gathered (brace), raised (the pose itself), then swept through
     // (strike) for the cut and the settle. Palm strikes (thrust) keep their own frame throughout.
     const through = beat && dd.pose === 'attack' && (beat.phase === 'cut' || beat.phase === 'settle');
-    const pose: Pose = dd.poseT > 0 ? (beat?.phase === 'gather' ? 'brace' : through ? 'strike' : dd.pose) : 'idle';
+    // Art with a wind-up of its own (Rook's raised sword) shows it for the gather's second half too:
+    // the raise beat alone is two frames, too quick to read.
+    const wound = art.windup && dd.pose === 'attack' && beat?.phase === 'gather' && PARTY_POSE_T - dd.poseT >= 3;
+    const pose: Pose = dd.poseT > 0 ? (wound ? 'attack' : beat?.phase === 'gather' ? 'brace' : through ? 'strike' : dd.pose) : 'idle';
     const frame = art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
     const res = art.res ?? 1;

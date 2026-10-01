@@ -323,9 +323,14 @@ Mark cancels the plan around 2026-10-30: what it does, what we learned and what 
   pose; drag the hand (orange) and the elbow bends by itself (IK); drag the elbow (blue) across the arm to flip the
   bend; the green dot turns the hand and what it holds; sliders for a weapon's angle, how far the hand reaches into the screen (also the side view), the light.
   The faint figure is the pose the move comes from; "Play the move" loops it at game speed. A character with a
-  free arm (Rook) shows its hand as a pink dot: one pose for that arm, shared by every pose (out for balance), and
-  a "Stance" section bends the knees and spreads the feet for every pose (`free` and `stance` in `skeleton.json`;
-  standing stays as traced). **Save** writes
+  free arm (Rook) shows its hand as a pink dot: one pose for that arm, shared by every one-handed pose (out for balance), and
+  a "Stance" section bends the knees, spreads the feet and puts the right foot forward for every pose (`free` and
+  `stance` in `skeleton.json`; standing stays as traced). "Both hands on the sword" puts the free hand on the grip in
+  that pose; "Arm length" lets a drawn arm reach overhead or across behind the body. Rook also has a **Raised** pose
+  (`windup`) between Ready and Strike: the battle shows it from halfway through a swing's gather, as its attack
+  frame. His strike poses also lean the body from the hips, drop it and move each foot (`lean`, `drop`, `feet` on a
+  pose, about the stance's `hip` and `neck`; data only, no editor controls yet), and his katana is drawn pixel by
+  pixel in one style, the same at any angle (`katana()` in `battle.ts`). **Save** writes
   `public/art/rig/skeleton.json` (commit it to ship). "Skeleton setup…" moves the rest joints and how far each
   bone's pixels reach (once per character). **Notes for Claude:** each pose has a note box; the notes are saved in
   `skeleton.json` (`notes`), and a session works through them (read the note, change the pose or the skeleton,

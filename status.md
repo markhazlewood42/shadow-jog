@@ -95,8 +95,14 @@ on every push to `main`.
   each crew member's 8 drawn views, a Hand choice per pose, draggable arc handles. **Rook in progress** on branch
   `rook-battle-rig` (PR when Mark is happy with him): his coat shoulder moves with the arm, no stray bits of arm
   left by the torso, Lean and Crouch removed from the editor (they only tipped or slid the whole figure), and
-  (2026-10-01) his other arm out for balance in every pose plus a bent-knee stance, both set in the editor (pink
-  free hand; Stance sliders). Hex and Sable next); then in-betweens (tweening between key poses) and the field
+  (2026-10-01) his other arm out for balance plus a bent-knee, staggered stance, both set in the editor (pink free
+  hand; Stance sliders); then (Mark, same day) his strike remade as a **two-handed kendo cut** after a Phantasy Star
+  IV reference: Ready (sword up by his shoulder), a new **Raised** pose (overhead, blade down his back) and Strike
+  (both hands low-left, a big arc from his upper right), arms drawn (coat sleeve, chrome forearm, drawn fists); the
+  katana drawn pixel by pixel so it's the same in every frame, and the body leaning from the hips (right on the way
+  up, left into the cut), the feet turning with it. First cut, waiting on his eye; Cast and Victory not tuned yet
+  (Mark: strike first). Kit's strike hand moved in the working copy (to [90,47]) with no record of why: left
+  uncommitted, asked Mark. Hex and Sable next); then in-betweens (tweening between key poses) and the field
   sprites on the same bones. **2.5D prototype in** (Mark, 2026-10-01): "Reach forward" and the side view; the arm
   foreshortens reaching into the screen and the hand shrinks a little.
 - **Next (Mark, 2026-09-30, night): a skeleton rig, then a novice-friendly animation editor.** Battle limbs stretch

@@ -28,15 +28,21 @@ const NAMES: Record<string, string> = { kit: 'Kit', rook: 'Rook', hex: 'Hex', sa
 /** Each pose in plain words: its name, and what it's for. */
 const POSE_HELP: Record<KeyPose, [string, string]> = {
   brace: ['Ready', 'winding up, just before the move'],
+  windup: ['Raised', 'the weapon drawn back, just before the strike'],
   strike: ['Strike', 'the hit itself'],
   raise: ['Cast', 'a spell, a program or an item'],
   victory: ['Victory', 'after a won fight'],
 };
-/** The pose shown faintly behind each one: the one the move comes from. */
-const BEFORE: Record<KeyPose, KeyPose | null> = { brace: null, strike: 'brace', raise: null, victory: null };
+/** The pose shown faintly behind each one: the one the move comes from (a strike's Raised pose, if it has one). */
+const beforeOf = (r: BattleRig, k: KeyPose): KeyPose | null => (k === 'strike' ? (r.poses.windup ? 'windup' : 'brace') : k === 'windup' ? 'brace' : null);
+/** The poses a character has to pick from: Raised only for those with one (Rook's two-handed cut). */
+const posesOf = (r: BattleRig) => KEY_POSES.filter((k) => k !== 'windup' || r.poses.windup);
 /** How each pose plays in the preview: (pose or null for standing, frames held). */
+const moveOf = (r: BattleRig, k: KeyPose) =>
+  k === 'strike' && r.poses.windup ? ([[null, 30], ['brace', 10], ['windup', 10], ['strike', 26]] as [KeyPose | null, number][]) : MOVE[k];
 const MOVE: Record<KeyPose, [KeyPose | null, number][]> = {
   brace: [[null, 40], ['brace', 40]],
+  windup: [[null, 30], ['brace', 12], ['windup', 40]],
   strike: [[null, 30], ['brace', 12], ['strike', 22], ['brace', 8]],
   raise: [[null, 30], ['raise', 40]],
   victory: [[null, 40], ['victory', 50]],
@@ -79,6 +85,10 @@ function remember(): void {
 }
 function changed(): void {
   dirty = true;
+  refresh();
+}
+/** Redraw after looking at something else (another pose, someone else): nothing to save for it. */
+function refresh(): void {
   draw();
   side();
 }
@@ -121,7 +131,8 @@ const SIDE_O: Pt = [44, 54];
 function drawSide(p: Posed | null, a: ArmPose): void {
   sg.clearRect(0, 0, sidec.width, sidec.height);
   const wrap = $('side3d');
-  wrap.style.display = p && !setup && !view ? '' : 'none';
+  // Hidden, not removed, so the picture beside it doesn't jump.
+  wrap.style.visibility = p && !setup && !view ? '' : 'hidden';
   if (!p || setup || view) return;
   const sy = p.shoulder[1];
   const at = (z: number, y: number): Pt => [SIDE_O[0] + z * SZ, SIDE_O[1] + (y - sy) * SZ];
@@ -297,7 +308,7 @@ function draw(): void {
     if (f) g.drawImage(f, 0, 0, edit.width, edit.height);
     return;
   }
-  const before = BEFORE[pose];
+  const before = beforeOf(r, pose);
   if (($<HTMLInputElement>('onion')).checked) {
     const b = poseFrame(who, before ? (r.poses[before] ?? null) : null, r);
     if (b) {
@@ -381,7 +392,7 @@ function draw(): void {
   }
   // While the hand is dragged, how far the arm reaches.
   if (drag === 'hand') {
-    const reach = Math.hypot(r.arm.elbow[0] - r.arm.shoulder[0], r.arm.elbow[1] - r.arm.shoulder[1]) + Math.hypot(r.arm.wrist[0] - r.arm.elbow[0], r.arm.wrist[1] - r.arm.elbow[1]);
+    const reach = (Math.hypot(r.arm.elbow[0] - r.arm.shoulder[0], r.arm.elbow[1] - r.arm.shoulder[1]) + Math.hypot(r.arm.wrist[0] - r.arm.elbow[0], r.arm.wrist[1] - r.arm.elbow[1])) * (a.length ?? 1);
     g.strokeStyle = 'rgba(255,162,74,0.35)';
     g.setLineDash([5, 5]);
     g.beginPath();
@@ -458,6 +469,11 @@ edit.addEventListener('pointerdown', (e) => {
   else if (p)
     drag = arcShown && near(arcShown.from, m) ? 'arcFrom' : arcShown && near(arcShown.bend, m) ? 'arcBend' : near(p.wrist, m) ? 'hand' : near(gripHandle(p, current()), m) ? 'grip' : near(p.elbow, m) ? 'elbow'
       : p.free && near(p.free.wrist, m) ? 'freeHand' : p.free && near(p.free.elbow, m) ? 'freeElbow' : null;
+  if (drag === 'freeHand' && current().both) {
+    status('In this pose the free hand holds the sword’s grip: move the sword hand (orange) instead.');
+    drag = null;
+    return;
+  }
   // Anywhere else on the figure moves the hand there (the easiest thing to do).
   if (!drag && !setup) drag = 'hand';
   if (!drag) return;
@@ -493,7 +509,10 @@ function move(m: Pt): void {
       if (!p || !pa) break;
       const side = Math.sign((p.wrist[0] - p.shoulder[0]) * (m[1] - p.shoulder[1]) - (p.wrist[1] - p.shoulder[1]) * (m[0] - p.shoulder[0]));
       const now = Math.sign((p.wrist[0] - p.shoulder[0]) * (p.elbow[1] - p.shoulder[1]) - (p.wrist[1] - p.shoulder[1]) * (p.elbow[0] - p.shoulder[0]));
-      if (side && now && side !== now) opt(pa, 'flip', !pa.flip);
+      if (!side || !now || side === now) break;
+      // Holding the grip, the free arm's bend is this pose's own.
+      if (drag === 'freeElbow' && a.both) opt(a, 'freeFlip', !a.freeFlip);
+      else opt(pa, 'flip', !pa.flip);
       break;
     }
     case 'freeHand': {
@@ -648,8 +667,17 @@ function side(): void {
     if (a.weapon) kids.push(slider(`${a.weapon.kind === 'katana' ? 'Sword' : 'Pistol'} angle`, a.weapon.angle, -180, 180, (v) => {
           if (a.weapon) a.weapon.angle = v;
         }));
+    if (a.weapon && r.free) {
+      kids.push(check('Both hands on the sword', !!a.both, (v) => opt(a, 'both', v)));
+      if (a.both)
+        kids.push(
+          check('Free arm: bend its elbow the other way', !!a.freeFlip, (v) => opt(a, 'freeFlip', v)),
+          check('Free arm behind the body', !!a.freeBehind, (v) => opt(a, 'freeBehind', v)),
+        );
+    }
     kids.push(
-      slider('Reach forward', a.depth ?? 0, -24, 64, (v) => opt(a, 'depth', v), 'How far the hand reaches into the screen, toward the enemy (or the side view below the picture)'),
+      slider('Arm length (%)', Math.round((a.length ?? 1) * 100), 100, 170, (v) => opt(a, 'length', v === 100 ? undefined : v / 100), 'Longer than traced, for an arm raised overhead or reaching across behind the body (a longer arm is drawn as sleeves)'),
+      slider('Reach forward', a.depth ?? 0, -24, 64, (v) => opt(a, 'depth', v), 'How far the hand reaches into the screen, toward the enemy (or drag in the side view beside the picture)'),
       check('Arm behind the body', !!a.behind, (v) => opt(a, 'behind', v)),
       choice('Light', a.light ?? 'none', [['none', 'None'], ['spark', 'Spark'], ['impact', 'Impact (with swept arc)'], ['shot', 'Muzzle flash']], (v) => opt(a, 'light', v === 'none' ? undefined : v)),
     );
@@ -668,7 +696,7 @@ function side(): void {
     kids.push(
       h('hr'),
       h('h2', {}, 'Free arm (every pose)'),
-      h('p', { class: 'hint' }, 'Drag the pink dot to place the other hand: it’s the same in Ready, Strike, Cast and Victory, out for balance. Standing, the arm hangs as drawn.'),
+      h('p', { class: 'hint' }, a.both ? 'In this pose both hands are on the sword: the pink hand holds its grip. Its own pose (below) is for the poses with one hand on the sword.' : 'Drag the pink dot to place the other hand: it’s the same in every pose with one hand on the sword, out for balance. Standing, the arm hangs as drawn.'),
       check('Bend its elbow the other way', !!fp.flip, (v) => opt(fp, 'flip', v)),
       slider('Turn its hand', fp.grip ?? 0, -180, 180, (v) => opt(fp, 'grip', v)),
       check('Behind the body', !!fp.behind, (v) => opt(fp, 'behind', v)),
@@ -680,6 +708,10 @@ function side(): void {
       h('h2', {}, 'Stance (every pose)'),
       slider('Bend the knees', st.sink, 0, 6, (v) => (st.sink = v), 'How much lower the body stands, over the legs (the feet stay put)'),
       slider('Feet apart', st.spread, 0, 6, (v) => (st.spread = v), 'How far each foot moves out, the shins leaning out from the knees'),
+      slider('Right foot forward', st.stagger ?? 0, 0, 6, (v) => {
+        if (v) st.stagger = v;
+        else delete st.stagger;
+      }, 'A fencer’s stance: the right foot a step toward the enemy'),
     );
   kids.push(h('hr'), h('h2', {}, 'Note for Claude'), note);
   const save = h('button', { class: 'primary', onclick: () => void doSave() }, 'Save');
@@ -702,7 +734,7 @@ function side(): void {
     {
       onclick: () => {
         setup = !setup;
-        changed();
+        refresh();
       },
     },
     setup ? 'Back to posing' : 'Skeleton setup…',
@@ -749,9 +781,10 @@ function pickers(): void {
           class: id === who ? 'on' : '',
           onclick: () => {
             who = id;
+            if (!posesOf(rig()).includes(pose)) pose = 'strike';
             pickers();
             drawDial();
-            changed();
+            refresh();
           },
         },
         thumb(id, null),
@@ -760,7 +793,7 @@ function pickers(): void {
     ),
   );
   $('pose').replaceChildren(
-    ...KEY_POSES.map((k) =>
+    ...posesOf(rig()).map((k) =>
       h(
         'button',
         {
@@ -768,7 +801,7 @@ function pickers(): void {
           onclick: () => {
             pose = k;
             pickers();
-            changed();
+            refresh();
           },
         },
         thumb(who, rig().poses[k] ?? null),
@@ -788,7 +821,7 @@ pg.imageSmoothingEnabled = false;
 let tick = 0;
 function play(): void {
   tick++;
-  const steps = MOVE[pose];
+  const steps = moveOf(rig(), pose);
   const total = steps.reduce((n, [, f]) => n + f, 0);
   let t = tick % total;
   let at: KeyPose | null = null;
@@ -805,7 +838,7 @@ function play(): void {
   pg.clearRect(0, 0, preview.width, preview.height);
   if (p) {
     pg.drawImage(p.frame, 0, 0, preview.width, preview.height);
-    const before = at && BEFORE[at];
+    const before = at && beforeOf(r, at);
     const from = poseFrame(who, before ? (r.poses[before] ?? null) : null, r);
     const glow = a && from ? poseGlow(r, a, p, from) : undefined;
     if (glow) {
