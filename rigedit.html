@@ -40,6 +40,9 @@
       .pick canvas { image-rendering: pixelated; background: var(--stage); border-radius: 4px; flex: none; }
       .stage { display: flex; flex-direction: column; align-items: center; gap: 10px; }
       .canvas-wrap { position: relative; max-width: 100%; }
+      #side3d { position: absolute; left: 10px; bottom: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 6px 4px; background: rgba(13, 12, 20, 0.78); border: 1px solid var(--line); border-radius: 10px; }
+      #sidec { cursor: crosshair; touch-action: none; }
+      #side3d .cap { max-width: 150px; color: var(--dim); font-size: 11px; line-height: 1.3; text-align: center; }
       #dial { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 6px 4px; background: rgba(13, 12, 20, 0.78); border: 1px solid var(--line); border-radius: 10px; }
       #dialc { cursor: grab; touch-action: none; }
       #view-name { max-width: 120px; color: var(--dim); font-size: 11px; line-height: 1.3; text-align: center; }
@@ -81,6 +84,10 @@
       <section class="stage">
         <div class="canvas-wrap">
           <canvas id="edit"></canvas>
+          <div id="side3d" title="The arm from the side: drag the hand to reach toward the enemy">
+            <canvas id="sidec" width="150" height="170"></canvas>
+            <div class="cap">From the side: drag the hand to reach forward</div>
+          </div>
           <div id="dial" title="Turn the character (or press [ and ])">
             <canvas id="dialc" width="88" height="88"></canvas>
             <div id="view-name"></div>

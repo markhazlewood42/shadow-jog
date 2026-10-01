@@ -55,6 +55,13 @@ export interface ArmPose {
   drop?: number;
   /** The drawn hand to show: the fist (the default) or the open hand, fingers out (a cast). */
   shape?: 'fist' | 'open';
+  /**
+   * How far the hand reaches into the screen, toward the enemy, in pixels (negative: back toward
+   * us). The arm is then solved in 3D and seen as the battle sees it: reaching forward lifts the
+   * hand a little on screen, the arm foreshortens, the hand gets a little smaller ("2.5D": Mark,
+   * 2026-10-01, wanting Kit's strike to reach forward). `hand` is then its spot before that lift.
+   */
+  depth?: number;
   /** The arm behind the body, not in front of it. */
   behind?: boolean;
 }
@@ -181,9 +188,10 @@ function pick(l: Layer, box: Box, not: readonly Pt[]): { part: Layer; rest: Laye
 
 /**
  * A band from `a` to `b`, `width` wide with round ends, lit on the side facing the top left: half
- * shaded, or (`rim`, for cloth) only its outermost pixel on the shadow side.
+ * shaded, or (`rim`, for cloth) only its outermost pixel on the shadow side. `width2` tapers it to
+ * that width at `b` (a sleeve narrowing as it reaches away into the screen).
  */
-function band(a: Pt, b: Pt, width: number, lit: number, shade: number, rim = false): Layer {
+function band(a: Pt, b: Pt, width: number, lit: number, shade: number, rim = false, width2 = width): Layer {
   const x0 = Math.floor(Math.min(a[0], b[0]) - width);
   const y0 = Math.floor(Math.min(a[1], b[1]) - width);
   const w = Math.ceil(Math.abs(a[0] - b[0]) + 2 * width) + 1;
@@ -207,9 +215,10 @@ function band(a: Pt, b: Pt, width: number, lit: number, shade: number, rim = fal
       const dx = qx - t * vx;
       const dy = qy - t * vy;
       const d2 = dx * dx + dy * dy;
-      if (d2 > (width / 2) ** 2) continue;
+      const r = (width + (width2 - width) * t) / 2;
+      if (d2 > r * r) continue;
       const shadowSide = dx * nx + dy * ny <= 0;
-      px[y * w + x] = shadowSide && (!rim || d2 > (width / 2 - 1.2) ** 2) ? shade : lit;
+      px[y * w + x] = shadowSide && (!rim || d2 > (r - 1.2) ** 2) ? shade : lit;
     }
   return { w, h, ox: x0, oy: y0, px };
 }
@@ -312,6 +321,38 @@ function toSegment(p: Pt, a: Pt, b: Pt): { d: number; t: number } {
   const t = ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / (vx * vx + vy * vy || 1);
   const c = Math.max(0, Math.min(1, t));
   return { d: Math.hypot(p[0] - a[0] - c * vx, p[1] - a[1] - c * vy), t };
+}
+
+/** A point with depth: x, y as on screen, z into the screen (toward the enemy). */
+export type V3 = [number, number, number];
+/** How far up the screen a point moves per pixel it goes into it (the battle looks down a little). */
+export const TILT = 0.5;
+/** How much smaller per pixel into the screen (a little perspective, for the hand). */
+const PERSPECTIVE = 1 / 160;
+/** A point in depth as the battle sees it. */
+export const project = (v: V3): Pt => [v[0], v[1] - v[2] * TILT];
+/** How big something at depth `z` looks. */
+const sizeAt = (z: number) => 1 / Math.max(0.5, 1 + z * PERSPECTIVE);
+
+/**
+ * Two-bone IK in 3D: the elbow and the wrist for the wrist to reach `target` from `shoulder`, the
+ * elbow bending toward `pole` (a direction). Out of reach, the arm points straight at it.
+ */
+export function solveArm3(shoulder: V3, upper: number, fore: number, target: V3, pole: V3): { elbow: V3; wrist: V3 } {
+  const v: V3 = [target[0] - shoulder[0], target[1] - shoulder[1], target[2] - shoulder[2]];
+  const len = Math.hypot(v[0], v[1], v[2]) || 1e-6;
+  const d = Math.max(Math.abs(upper - fore) + 0.01, Math.min(upper + fore - 0.01, len));
+  const u: V3 = [v[0] / len, v[1] / len, v[2] / len];
+  // The bend direction, square to the reach.
+  const pd = pole[0] * u[0] + pole[1] * u[1] + pole[2] * u[2];
+  let p: V3 = [pole[0] - u[0] * pd, pole[1] - u[1] * pd, pole[2] - u[2] * pd];
+  const pl = Math.hypot(p[0], p[1], p[2]);
+  p = pl > 1e-6 ? [p[0] / pl, p[1] / pl, p[2] / pl] : [-u[1], u[0], 0];
+  // The law of cosines again: how far along the reach the elbow sits, and how far out.
+  const a = (upper * upper - fore * fore + d * d) / (2 * d);
+  const h = Math.sqrt(Math.max(0, upper * upper - a * a));
+  const elbow: V3 = [shoulder[0] + u[0] * a + p[0] * h, shoulder[1] + u[1] * a + p[1] * h, shoulder[2] + u[2] * a + p[2] * h];
+  return { elbow, wrist: [shoulder[0] + u[0] * d, shoulder[1] + u[1] * d, shoulder[2] + u[2] * d] };
 }
 
 /**
@@ -460,6 +501,8 @@ export interface Posed {
   elbow: Pt;
   wrist: Pt;
   tip: Pt;
+  /** With depth: the elbow and the wrist in 3D (the editor's side view). */
+  depth?: { elbow: V3; wrist: V3 };
 }
 
 function build(id: string, rig: BattleRig) {
@@ -512,12 +555,27 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
   if (!b) return null;
   const { shoulder, elbow: restElbow, wrist: restWrist } = rig.arm;
   if (!pose) return { frame: renderLayers([b.base], b.t.pal, SIZE, SIZE), shoulder, elbow: restElbow, wrist: restWrist, tip: restWrist };
-  const { elbow, wrist } = solveArm(shoulder, b.upperLen, b.foreLen, pose.hand, pose.flip ? -b.bend : b.bend);
+  const bendSign = pose.flip ? -b.bend : b.bend;
+  let elbow: Pt;
+  let wrist: Pt;
+  let depth: Posed['depth'];
+  if (pose.depth) {
+    // In 3D: the elbow bends to the same side as on screen (square to the reach, in the screen's
+    // plane), then everything is seen as the battle sees it.
+    const hx = pose.hand[0] - shoulder[0], hy = pose.hand[1] - shoulder[1];
+    const hl = Math.hypot(hx, hy) || 1;
+    depth = solveArm3([shoulder[0], shoulder[1], 0], b.upperLen, b.foreLen, [pose.hand[0], pose.hand[1], pose.depth], [(-hy / hl) * bendSign, (hx / hl) * bendSign, 0]);
+    elbow = project(depth.elbow);
+    wrist = project(depth.wrist);
+  } else ({ elbow, wrist } = solveArm(shoulder, b.upperLen, b.foreLen, pose.hand, bendSign));
   const turnUpper = angleOf(shoulder, elbow) - angleOf(shoulder, restElbow);
   const turnFore = angleOf(elbow, wrist) - angleOf(restElbow, restWrist);
   // A bone's pixels turned at its joint, then carried to where that joint is now.
   const place = (l: Layer, turn: number, from: Pt, to: Pt) => moved(rotSprite(l, turn, from[0], from[1]), Math.round(to[0] - from[0]), Math.round(to[1] - from[1]));
-  const sleeve = (a: Pt, c: Pt) => band(a, c, rig.arm.width, b.lit, b.shade, true);
+  // A drawn sleeve, narrowing with depth from `za` at its start to `zc` at its end.
+  const sleeve = (a: Pt, c: Pt, za = 0, zc = 0) => band(a, c, rig.arm.width * sizeAt(za), b.lit, b.shade, true, rig.arm.width * sizeAt(zc));
+  const ez = depth?.elbow[2] ?? 0;
+  const wz = depth?.wrist[2] ?? 0;
   const arm: Layer[] = [];
   const cap = () => {
     const a = Math.atan2(elbow[1] - shoulder[1], elbow[0] - shoulder[0]);
@@ -528,11 +586,11 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
   // seam where the jacket meets a turned arm (Mark, 2026-10-01, on Kit); a barely turned arm has
   // no seam to close, and a cap there only bulges over the shoulder.
   const small = (deg: number) => Math.abs(((deg + 540) % 360) - 180) <= (rig.arm.drawnFrom ?? 360);
-  const traced = b.hasUpper && small(turnUpper);
+  const traced = b.hasUpper && small(turnUpper) && !pose.depth;
   if (traced) {
     if (!rig.arm.drawnFrom) arm.push(cap());
     arm.push(place(b.parts.upper, turnUpper, shoulder, shoulder));
-  } else if (b.hasUpper || rig.arm.clear) arm.push(cap(), sleeve(shoulder, elbow));
+  } else if (b.hasUpper || rig.arm.clear) arm.push(cap(), sleeve(shoulder, elbow, 0, ez));
   // The forearm's sleeve under its own pixels: it covers the joint as the bones turn (not needed
   // while the traced arm barely turns: its own pixels are all there).
   // It stops a sleeve's half-width short of the wrist, so its round end stays inside the hand
@@ -540,16 +598,18 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
   if (!(traced && rig.arm.drawnFrom && small(turnFore))) {
     const fl = Math.hypot(wrist[0] - elbow[0], wrist[1] - elbow[1]) || 1;
     const k = Math.max(0, 1 - rig.arm.width / 2 / fl);
-    arm.push(sleeve(elbow, [elbow[0] + (wrist[0] - elbow[0]) * k, elbow[1] + (wrist[1] - elbow[1]) * k]));
+    arm.push(sleeve(elbow, [elbow[0] + (wrist[0] - elbow[0]) * k, elbow[1] + (wrist[1] - elbow[1]) * k], ez, ez + (wz - ez) * k));
   }
-  if (b.hasFore) arm.push(place(b.parts.fore, turnFore, restElbow, elbow));
+  // The forearm's own pixels are its full length: skip them when it's foreshortened (reaching into
+  // the screen), and let the drawn sleeve show it.
+  if (b.hasFore && dist(elbow, wrist) > b.foreLen * 0.85) arm.push(place(b.parts.fore, turnFore, restElbow, elbow));
   // The hand: the drawn fist (or open hand) on a big move, turned to point along the forearm;
   // else its own traced pixels.
   const drawnHand = pose.shape === 'open' ? (b.open ?? b.fist) : b.fist;
   const handTurn = turnFore + (pose.grip ?? 0);
   const hand =
     drawnHand && !(traced && small(turnFore))
-      ? moved(rotSprite(drawnHand, angleOf(elbow, wrist) + 90 + (pose.grip ?? 0), 0, 0), Math.round(wrist[0]), Math.round(wrist[1]))
+      ? moved(rotSprite(drawnHand, angleOf(elbow, wrist) + 90 + (pose.grip ?? 0), 0, 0, sizeAt(depth?.wrist[2] ?? 0)), Math.round(wrist[0]), Math.round(wrist[1]))
       : place(b.parts.hand, handTurn, restWrist, wrist);
   arm.push(hand);
   const w = pose.weapon ? weapon({ ...pose.weapon, angle: angleOf(elbow, wrist) + (pose.grip ?? 0) + pose.weapon.angle }, wrist, b.t.pal) : null;
@@ -562,7 +622,7 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
   if (pose.lean) layers = layers.map((l) => rotSprite(l, pose.lean ?? 0, feet[0], feet[1]));
   if (pose.drop) layers = layers.map((l) => moved(l, 0, Math.round(pose.drop ?? 0)));
   const tip = w ? w.tip : pose.lightAt === 'top' ? topOf(hand) : farEnd(hand, wrist);
-  return { frame: renderLayers(layers, b.t.pal, SIZE, SIZE), shoulder, elbow, wrist, tip };
+  return { frame: renderLayers(layers, b.t.pal, SIZE, SIZE), shoulder, elbow, wrist, tip, ...(depth ? { depth } : {}) };
 }
 
 /** The light a pose throws, from where the previous pose left the hand (for a strike's swept arc). */

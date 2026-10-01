@@ -13,7 +13,7 @@
  * 8 drawn views (public/art/rig/views.json, traced from the picks). Posing works on the back view,
  * the one the battle shows; the others are the drawings, for now.
  */
-import { type ArmPose, type BattleRig, KEY_POSES, type KeyPose, type Posed, arcEnds, defaultBend, poseFrame, poseGlow, resetRig } from '../art/rig2/battle';
+import { type ArmPose, type BattleRig, KEY_POSES, type KeyPose, type Posed, TILT, arcEnds, defaultBend, poseFrame, poseGlow, project, resetRig } from '../art/rig2/battle';
 import { SKELETONS, loadRigData } from '../art/rig2/data';
 import { type Traced, decode, renderLayers } from '../art/rig2/rig';
 
@@ -104,6 +104,93 @@ function gripHandle(p: Posed, a: ArmPose): Pt {
   const ang = Math.atan2(p.wrist[1] - p.elbow[1], p.wrist[0] - p.elbow[0]) + ((a.grip ?? 0) * Math.PI) / 180;
   return [p.wrist[0] + Math.cos(ang) * 9, p.wrist[1] + Math.sin(ang) * 9];
 }
+
+// ---- Side view ------------------------------------------------------------------------------
+// The arm seen from the side: depth across (toward the enemy to the right), height down. Drag the
+// hand to reach forward or pull back; the main picture shows what the battle sees.
+
+const sidec = $<HTMLCanvasElement>('sidec');
+const sg = sidec.getContext('2d') as CanvasRenderingContext2D;
+/** Side-view pixels per art pixel, and where the shoulder sits in it. */
+const SZ = 1.6;
+const SIDE_O: Pt = [44, 54];
+function drawSide(p: Posed | null, a: ArmPose): void {
+  sg.clearRect(0, 0, sidec.width, sidec.height);
+  const wrap = $('side3d');
+  wrap.style.display = p && !setup && !view ? '' : 'none';
+  if (!p || setup || view) return;
+  const sy = p.shoulder[1];
+  const at = (z: number, y: number): Pt => [SIDE_O[0] + z * SZ, SIDE_O[1] + (y - sy) * SZ];
+  // The body, side on: a head over a column down to the ground.
+  sg.fillStyle = 'rgba(155,150,173,0.35)';
+  const [hx, hy] = at(0, sy - 16);
+  sg.beginPath();
+  sg.arc(hx, hy, 9, 0, Math.PI * 2);
+  sg.fill();
+  const [bx, by] = at(0, sy - 4);
+  sg.fillRect(bx - 6, by, 12, 62 * SZ);
+  sg.fillStyle = 'rgba(155,150,173,0.25)';
+  sg.fillRect(0, by + 62 * SZ, sidec.width, 1);
+  // Which way the enemy is.
+  sg.fillStyle = '#6f6a82';
+  sg.font = '10px system-ui, sans-serif';
+  sg.fillText('enemy →', sidec.width - 46, 12);
+  // The arm: shoulder, elbow, wrist, with their depth (none: flat on the screen).
+  const e = p.depth?.elbow ?? [p.elbow[0], p.elbow[1], 0];
+  const w = p.depth?.wrist ?? [p.wrist[0], p.wrist[1], 0];
+  const s = at(0, sy), ep = at(e[2], e[1]), wp = at(w[2], w[1]);
+  sg.strokeStyle = 'rgba(255,255,255,0.75)';
+  sg.lineWidth = 2;
+  sg.beginPath();
+  sg.moveTo(...s);
+  sg.lineTo(...ep);
+  sg.lineTo(...wp);
+  sg.stroke();
+  const dot = (q: Pt, c: string, r: number) => {
+    sg.fillStyle = c;
+    sg.beginPath();
+    sg.arc(q[0], q[1], r, 0, Math.PI * 2);
+    sg.fill();
+  };
+  dot(s, '#8a86a0', 4);
+  dot(ep, '#3fe0f0', 4);
+  dot(wp, '#ffa24a', 6);
+  // Where the hand was asked to go, if out of reach.
+  const asked = at(a.depth ?? 0, a.hand[1]);
+  if (Math.hypot(asked[0] - wp[0], asked[1] - wp[1]) > 3) {
+    sg.strokeStyle = 'rgba(255,162,74,0.7)';
+    sg.lineWidth = 1;
+    sg.beginPath();
+    sg.arc(asked[0], asked[1], 6, 0, Math.PI * 2);
+    sg.stroke();
+  }
+}
+let sideDrag = false;
+const sideMove = (e: PointerEvent) => {
+  const b = sidec.getBoundingClientRect();
+  const mx = ((e.clientX - b.left) / b.width) * sidec.width, my = ((e.clientY - b.top) / b.height) * sidec.height;
+  const p = shown;
+  if (!p) return;
+  const a = current();
+  const z = Math.max(-24, Math.min(64, Math.round((mx - SIDE_O[0]) / SZ)));
+  a.hand = [a.hand[0], Math.round(p.shoulder[1] + (my - SIDE_O[1]) / SZ)];
+  if (z) a.depth = z;
+  else delete a.depth;
+  changed();
+};
+sidec.addEventListener('pointerdown', (e) => {
+  if (!shown) return;
+  remember();
+  sideDrag = true;
+  sidec.setPointerCapture(e.pointerId);
+  sideMove(e);
+});
+sidec.addEventListener('pointermove', (e) => {
+  if (sideDrag) sideMove(e);
+});
+sidec.addEventListener('pointerup', () => {
+  sideDrag = false;
+});
 
 // ---- Turntable ------------------------------------------------------------------------------
 
@@ -201,6 +288,7 @@ function draw(): void {
   // Turned away from the back: the drawing for that side, nothing to pose.
   if (view) {
     shown = null;
+    drawSide(null, a);
     const f = viewFrame(who, DIRS[view] ?? 'north');
     if (f) g.drawImage(f, 0, 0, edit.width, edit.height);
     return;
@@ -216,6 +304,7 @@ function draw(): void {
   }
   const p = poseFrame(who, setup ? null : a, r);
   shown = p;
+  drawSide(p, a);
   if (!p) {
     status(`No traced frame for ${NAMES[who] ?? who}.`, 'bad');
     return;
@@ -312,11 +401,12 @@ function draw(): void {
     g.stroke();
     dot(ab, '#ffe07a', 5);
   }
-  // Where the hand was asked to go, when it's out of reach.
-  if (Math.hypot(a.hand[0] - p.wrist[0], a.hand[1] - p.wrist[1]) > 1.5) {
+  // Where the hand was asked to go, when it's out of reach (as seen, with its depth).
+  const asked = project([a.hand[0], a.hand[1], a.depth ?? 0]);
+  if (Math.hypot(asked[0] - p.wrist[0], asked[1] - p.wrist[1]) > 1.5) {
     g.strokeStyle = 'rgba(255,162,74,0.7)';
     g.beginPath();
-    g.arc(a.hand[0] * Z, a.hand[1] * Z, 7, 0, Math.PI * 2);
+    g.arc(asked[0] * Z, asked[1] * Z, 7, 0, Math.PI * 2);
     g.stroke();
   }
 }
@@ -363,7 +453,8 @@ function move(m: Pt): void {
   const round = (q: Pt): Pt => [Math.round(q[0]), Math.round(q[1])];
   switch (drag) {
     case 'hand':
-      a.hand = round(m);
+      // The hand goes where it's dropped as seen; with depth, its spot is that before the lift.
+      a.hand = [Math.round(m[0]), Math.round(m[1] + (a.depth ?? 0) * TILT)];
       break;
     case 'elbow': {
       // Which side of the shoulder-to-hand line the pointer is on picks the bend.
@@ -510,6 +601,7 @@ function side(): void {
           if (a.weapon) a.weapon.angle = v;
         }));
     kids.push(
+      slider('Reach forward', a.depth ?? 0, -24, 64, (v) => opt(a, 'depth', v), 'How far the hand reaches into the screen, toward the enemy (or the side view below the picture)'),
       slider('Lean the body', a.lean ?? 0, -12, 12, (v) => opt(a, 'lean', v), 'Tips the whole figure about the feet'),
       slider('Crouch', a.drop ?? 0, 0, 8, (v) => opt(a, 'drop', v)),
       check('Arm behind the body', !!a.behind, (v) => opt(a, 'behind', v)),

@@ -132,17 +132,18 @@ function scale2x(l: Layer): Layer {
 /**
  * RotSprite: rotate pixel art without it turning to noise. Scale up 8x with Scale2x (which keeps
  * edges clean), rotate that by nearest pixel, and sample it back down. `deg` > 0 swings the part's
- * lower end toward +x, about the pivot (standing-frame coordinates).
+ * lower end toward +x, about the pivot (standing-frame coordinates). `scale` sizes it too, about the
+ * same pivot (a hand a little smaller as it reaches away into the screen).
  */
-export function rotSprite(l: Layer, deg: number, pivotX: number, pivotY: number): Layer {
-  if (!deg) return l;
+export function rotSprite(l: Layer, deg: number, pivotX: number, pivotY: number, scale = 1): Layer {
+  if (!deg && scale === 1) return l;
   const big = scale2x(scale2x(scale2x(l)));
   const k = 8;
   const rad = (deg * Math.PI) / 180;
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
   // The output: the part's box grown enough to hold it at any angle.
-  const r = Math.ceil(Math.hypot(l.w, l.h)) + 1;
+  const r = Math.ceil(Math.hypot(l.w, l.h) * Math.max(1, scale)) + 1;
   const x0 = Math.floor(pivotX - r);
   const y0 = Math.floor(pivotY - r);
   const w = 2 * r + 1;
@@ -153,8 +154,8 @@ export function rotSprite(l: Layer, deg: number, pivotX: number, pivotY: number)
       // This output pixel's centre, relative to the pivot, rotated back into the source.
       const dx = x0 + x + 0.5 - pivotX;
       const dy = y0 + y + 0.5 - pivotY;
-      const sx = pivotX + dx * cos + dy * sin;
-      const sy = pivotY - dx * sin + dy * cos;
+      const sx = pivotX + (dx * cos + dy * sin) / scale;
+      const sy = pivotY + (-dx * sin + dy * cos) / scale;
       const bx = Math.floor((sx - l.ox) * k);
       const by = Math.floor((sy - l.oy) * k);
       if (bx < 0 || by < 0 || bx >= big.w || by >= big.h) continue;
