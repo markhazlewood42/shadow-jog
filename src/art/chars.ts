@@ -10,7 +10,7 @@
 import { pixelSurface, surface } from '../engine/canvas';
 import { rgb, shade } from '../engine/color';
 import { rigSprite } from './rig2/rig';
-import { TRACED } from './rig2/traced';
+import { TRACED } from './rig2/data';
 
 export type Dir = 'down' | 'up' | 'left' | 'right';
 export type Body = 'std' | 'short' | 'big';

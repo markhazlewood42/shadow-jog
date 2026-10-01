@@ -17,6 +17,7 @@ await page.goto('http://localhost:3007/?debug&art=classic');
 await page.waitForFunction(() => !!window.__SJ__, null, { timeout: 30_000 });
 const POSES = ['idle', 'brace', 'strike', 'cast', 'hurt', 'victory'];
 const { shots, battle } = await page.evaluate(async ({ who, POSES }) => {
+  await (await import('/src/art/rig2/data.ts')).loadRigData();
   const { buildChar } = await import('/src/art/chars.ts');
   const { battler } = await import('/src/art/battlers.ts');
   const { LOOKS } = await import('/src/data/looks.ts');

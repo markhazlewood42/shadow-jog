@@ -303,7 +303,7 @@ kept out of the game and out of git until Mark picks. Everything generated lives
 
 ### Rig v2: characters drawn in code
 - **Tracing a character:** add it to `SOURCES` in `scripts/art/trace.mjs` (the PixelLab frames to trace), run it,
-  and give its look `rig: '<name>'` in `src/data/looks.ts`. The tracer writes `src/art/rig2/traced.ts`
+  and give its look `rig: '<name>'` in `src/data/looks.ts`. The tracer writes `public/art/rig/field.json` and `battle.json`, which the game loads at startup (`src/art/rig2/data.ts`; `?rig=old` skips them)
   (regenerate, don't hand-edit).
 - **Reviewing it:** `node scripts/art/review-rig.mjs --label "what changed"` (dev server running) renders every rig
   character's standing frames and walks onto the review page (category "Rig v2 · crew") as a new version beside

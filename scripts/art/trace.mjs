@@ -1,10 +1,10 @@
-// Trace chosen PixelLab frames into the character rig's own data (src/art/rig2/traced.ts): the
+// Trace chosen PixelLab frames into the character rig's own data (public/art/rig/*.json): the
 // standing frame per facing as indexed pixel rows plus its palette, with the outer outline taken
 // off (the rig draws the outline itself, after posing), and the rows the rig animates around.
 // The pixels come from the art Mark liked; everything done to them after this (walks, poses,
 // outlines, recolouring) is code. See docs/ARCHITECTURE.md §7, "Rig v2".
 //   node scripts/art/trace.mjs
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 
 const A = 'media/art-pass/assets';
@@ -153,57 +153,23 @@ for (const t of traced) {
   t.hip = legs >= 3 && legs <= 10 ? t.crotch : t.feet - frontLegs(t.who);
 }
 
-const lines = [
-  '/**',
-  ' * The crew\'s standing frames, traced from the PixelLab picks Mark liked (scripts/art/trace.mjs;',
-  ' * regenerate rather than edit by hand). Per facing: pixel rows (palette index per pixel, "." for',
-  ' * empty) without the outer outline, the palette, and the rows the rig animates around. The rig',
-  ' * (src/art/rig2/rig.ts) does everything else in code: outlines, walks, poses, recolouring.',
-  ' */',
-  "import type { Traced } from './rig';",
-  '',
-  'export const TRACED: Record<string, Record<\'down\' | \'right\' | \'up\' | \'left\', Traced>> = {',
-];
-for (const [who, facings] of Object.entries(byWho)) lines.splice(lines.indexOf("import type { Traced } from './rig';") + 1, 0, `const PAL_${who.toUpperCase()} = [${facings.down.pal.map((p) => `'${p}'`).join(', ')}];`);
+// Written as JSON the game loads at startup (src/art/rig2/data.ts), not code: pixel data is bulky
+// and the script bundle has a size budget.
+mkdirSync('public/art/rig', { recursive: true });
+const field = {};
 for (const [who, facings] of Object.entries(byWho)) {
-  lines.push(`  ${who}: {`);
+  field[who] = {};
   for (const f of ['down', 'right', 'up', 'left']) {
     const t = facings[f];
-    lines.push(`    ${f}: {`);
-    lines.push(`      w: ${t.w}, h: ${t.h}, feet: ${t.feet}, hip: ${t.hip},`);
-    lines.push(`      pal: PAL_${who.toUpperCase()},`);
-    lines.push('      rows: [');
-    for (const r of t.rows) lines.push(`        '${r}',`);
-    lines.push('      ],');
-    lines.push('    },');
+    field[who][f] = { w: t.w, h: t.h, feet: t.feet, hip: t.hip, pal: t.pal, rows: t.rows };
   }
-  lines.push('  },');
 }
-lines.push('};', '');
-writeFileSync('src/art/rig2/traced.ts', lines.join('\n'));
+writeFileSync('public/art/rig/field.json', JSON.stringify(field));
 for (const t of traced) console.log(`${t.who.padEnd(6)} ${t.facing.padEnd(5)} ${t.w}x${t.h} feet ${t.feet} hip ${t.hip} colours ${t.pal.length} (outline px removed ${t.outlined})`);
 
 // Battle backs: one frame each, with where it sat on its 128x128 canvas (the rig's pose points are
 // measured on that canvas).
-const bl = [
-  '/**',
-  " * The crew's battle backs (from behind), traced from the PixelLab frames Mark picked",
-  ' * (scripts/art/trace.mjs; regenerate rather than edit by hand). `ox, oy`: where the trace sat on',
-  ' * its 128x128 canvas. The battle rig (src/art/rig2/battle.ts) builds the poses from it in code.',
-  ' */',
-  "import type { Traced } from './rig';",
-  '',
-  'export const BATTLE_TRACED: Record<string, Traced & { ox: number; oy: number }> = {',
-];
-for (const t of battle) {
-  bl.push(`  ${t.who}: {`);
-  bl.push(`    w: ${t.w}, h: ${t.h}, ox: ${t.ox}, oy: ${t.oy}, feet: ${t.feet}, hip: ${t.feet},`);
-  bl.push(`    pal: [${t.pal.map((p) => `'${p}'`).join(', ')}],`);
-  bl.push('    rows: [');
-  for (const r of t.rows) bl.push(`      '${r}',`);
-  bl.push('    ],');
-  bl.push('  },');
-}
-bl.push('};', '');
-writeFileSync('src/art/rig2/traced-battle.ts', bl.join('\n'));
+const battleOut = {};
+for (const t of battle) battleOut[t.who] = { w: t.w, h: t.h, ox: t.ox, oy: t.oy, feet: t.feet, hip: t.feet, pal: t.pal, rows: t.rows };
+writeFileSync('public/art/rig/battle.json', JSON.stringify(battleOut));
 for (const t of battle) console.log(`battle ${t.who}: ${t.w}x${t.h} at (${t.ox}, ${t.oy}), colours ${t.pal.length}`);

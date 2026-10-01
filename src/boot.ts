@@ -23,6 +23,7 @@ import { fieldHooks } from './game/hooks';
 import { postfx } from './engine/postfx';
 import { FX } from './data/fx';
 import { ALL_DRAWN, DEFAULT_DRAWN, loadDrawnArt } from './art/drawn';
+import { loadRigData } from './art/rig2/data';
 
 declare global {
   interface Window {
@@ -202,15 +203,26 @@ export function boot(game: Game, display: Display): void {
   // for comparing. It goes in before anything is built (swaps apply to sprites made after them);
   // anything that doesn't load keeps its code-drawn art, with a notice.
   const art = params.get('art');
-  const drawn: Promise<void> =
+  const timeout = () => new Promise<never>((_, reject) => setTimeout(() => reject(new Error('it took too long')), 10_000));
+  const drawnArt: Promise<void> =
     art === 'classic'
       ? Promise.resolve()
-      : Promise.race([loadDrawnArt('art/', art === 'drawn' ? ALL_DRAWN : DEFAULT_DRAWN), new Promise<never>((_, reject) => setTimeout(() => reject(new Error('it took too long')), 10_000))]).then(
+      : Promise.race([loadDrawnArt('art/', art === 'drawn' ? ALL_DRAWN : DEFAULT_DRAWN), timeout()]).then(
           ({ failed }) => {
             if (failed.length) notice(`Some drawn art didn't load, so the original shows for it (${failed.length}: ${failed.slice(0, 2).join('; ')}${failed.length > 2 ? '…' : ''})`, 'warn');
           },
           (e: unknown) => notice(`The drawn art didn't load, so the game shows its original art (${e instanceof Error ? e.message : String(e)})`, 'warn'),
         );
+  // Rig v2's traced frames (src/art/rig2/data.ts): without them the crew use the letter-grid rig.
+  // `?rig=old` keeps the letter-grid rig (for comparing).
+  const rigData: Promise<void> =
+    params.get('rig') === 'old'
+      ? Promise.resolve()
+      : Promise.race([loadRigData(), timeout()]).then(
+          () => undefined,
+          (e: unknown) => notice(`The character art didn't load, so the crew use their older sprites (${e instanceof Error ? e.message : String(e)})`, 'warn'),
+        );
+  const drawn = Promise.all([drawnArt, rigData]).then(() => undefined);
   // ?art=review (DEV only): art-pass options tried in the game on top (src/dev/artswap.ts).
   if (import.meta.env.DEV && (art === 'review' || art === 'pixellab')) {
     void drawn

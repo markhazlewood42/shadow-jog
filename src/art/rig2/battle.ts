@@ -13,7 +13,7 @@
  */
 import type { Battler, Pose } from '../battlers';
 import { type Layer, byColour, cut, darker, decode, renderLayers, rotSprite } from './rig';
-import { BATTLE_TRACED } from './traced-battle';
+import { BATTLE_TRACED } from './data';
 
 /** The canvas battle backs are drawn on (art pixels; the battle shows them at twice its resolution). */
 const SIZE = 128;
