@@ -33,7 +33,7 @@ const OUT_H = 36;
 const FEET_Y = OUT_H - 3;
 
 /** Pixels as palette indexes (-1: empty), with an origin so parts keep their place when moved. */
-interface Layer {
+export interface Layer {
   w: number;
   h: number;
   /** Where this layer's (0, 0) sits in the standing frame's coordinates. */
@@ -42,7 +42,7 @@ interface Layer {
   px: Int16Array;
 }
 
-function decode(t: Traced): Layer {
+export function decode(t: Traced): Layer {
   const px = new Int16Array(t.w * t.h).fill(-1);
   for (let y = 0; y < t.h; y++) {
     const row = t.rows[y] ?? '';
@@ -55,7 +55,7 @@ function decode(t: Traced): Layer {
 }
 
 /** The part of a layer inside a rectangle (standing-frame coordinates). */
-function cut(l: Layer, x0: number, y0: number, x1: number, y1: number): Layer {
+export function cut(l: Layer, x0: number, y0: number, x1: number, y1: number): Layer {
   const w = Math.max(0, x1 - x0);
   const h = Math.max(0, y1 - y0);
   const px = new Int16Array(w * h).fill(-1);
@@ -69,7 +69,7 @@ function cut(l: Layer, x0: number, y0: number, x1: number, y1: number): Layer {
 }
 
 /** The pixels of a layer whose colour is (`keep` true) or isn't (false) in a set. */
-function byColour(l: Layer, colours: Set<number>, keep: boolean): Layer {
+export function byColour(l: Layer, colours: Set<number>, keep: boolean): Layer {
   return { ...l, px: l.px.map((p) => (p >= 0 && colours.has(p) === keep ? p : -1)) };
 }
 
@@ -92,7 +92,7 @@ export function legColours(front: Traced): Set<number> {
 }
 
 /** Columns with any pixel in a layer: [first, last], or null. */
-function span(l: Layer): [number, number] | null {
+export function span(l: Layer): [number, number] | null {
   let a = Infinity;
   let b = -Infinity;
   for (let y = 0; y < l.h; y++)
@@ -164,7 +164,7 @@ export function rotSprite(l: Layer, deg: number, pivotX: number, pivotY: number)
 }
 
 /** A copy with each colour swapped for a darker one from the palette (the far leg, the back arm). */
-function darker(l: Layer, pal: string[]): Layer {
+export function darker(l: Layer, pal: string[]): Layer {
   const lum = pal.map((c) => {
     const n = Number.parseInt(c.slice(1), 16);
     return 0.3 * ((n >> 16) & 255) + 0.59 * ((n >> 8) & 255) + 0.11 * (n & 255);
@@ -186,8 +186,13 @@ function darker(l: Layer, pal: string[]): Layer {
   return { ...l, px: l.px.map((p) => (p >= 0 ? (map[p] ?? p) : p)) };
 }
 
-/** Draw layers (in order) onto a frame canvas, shifted by (dx, dy), then outline the result. */
+/** Draw layers (in order) onto a field frame, shifted by (dx, dy), then outline the result. */
 function render(layers: Layer[], pal: string[], dx: number, dy: number): HTMLCanvasElement {
+  return renderLayers(layers, pal, OUT_W, OUT_H, dx, dy);
+}
+
+/** Draw layers (in order) onto a w x h canvas, shifted by (dx, dy), then outline the result. */
+export function renderLayers(layers: Layer[], pal: string[], OUT_W: number, OUT_H: number, dx = 0, dy = 0): HTMLCanvasElement {
   const px = new Int16Array(OUT_W * OUT_H).fill(-1);
   for (const l of layers)
     for (let y = 0; y < l.h; y++)

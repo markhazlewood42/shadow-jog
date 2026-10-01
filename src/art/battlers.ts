@@ -4,6 +4,7 @@
  * braced) plus hand-drawn weapons in front of or behind the body.
  */
 import { backGrid, paint, type CharLook } from './chars';
+import { rigBattler } from './rig2/battle';
 import { Pix, scale2x } from './pix';
 import { surface } from '../engine/canvas';
 
@@ -303,6 +304,12 @@ export function replaceBattler(id: string, look: CharLook, frames: Partial<Recor
 export function battler(id: string, look: CharLook): Battler {
   const hit = cache.get(id);
   if (hit) return hit;
+  // Rig v2 (src/art/rig2/battle.ts): built in code from a traced stance, where there is one.
+  const rigged = look.rig ? rigBattler(look.rig) : null;
+  if (rigged) {
+    cache.set(id, rigged);
+    return rigged;
+  }
   const frames = {} as Record<Pose, HTMLCanvasElement>;
   const glow: Partial<Record<Pose, HTMLCanvasElement>> = {};
   for (const p of POSES) {

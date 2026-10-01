@@ -16,16 +16,24 @@ const SOURCES = {
   sable: `${A}/crew.sable/kit`,
 };
 const FACINGS = { down: 'south', right: 'east', up: 'north', left: 'west' };
+/**
+ * Battle backs (128x128, from behind): the frame each crew member's battle sprite is built on.
+ * Kit: her fighting stance (an unflagged frame of her PixelLab idle, the one Mark pointed to).
+ */
+const BATTLE = {
+  kit: `${A}/battle.kit/house/idle-north-4.png`,
+};
 
-/** At most this many colours per character (shared by its four facings). */
-const MAX_COLOURS = 28;
+/** At most this many colours per character (shared by its four facings); battle backs, more detailed, get more. */
+const MAX_COLOURS = { field: 28, battle: 40 };
 const jobs = [];
 for (const [who, dir] of Object.entries(SOURCES))
-  for (const [facing, pl] of Object.entries(FACINGS)) jobs.push({ who, facing, src: readFileSync(`${dir}/${pl}.png`).toString('base64') });
+  for (const [facing, pl] of Object.entries(FACINGS)) jobs.push({ group: who, kind: 'field', who, facing, src: readFileSync(`${dir}/${pl}.png`).toString('base64') });
+for (const [who, file] of Object.entries(BATTLE)) jobs.push({ group: `battle:${who}`, kind: 'battle', who, facing: 'up', src: readFileSync(file).toString('base64') });
 
 const browser = await chromium.launch({ channel: 'msedge' });
 const page = await browser.newPage();
-const traced = await page.evaluate(async ({ jobs, MAX }) => {
+const all = await page.evaluate(async ({ jobs, MAXES }) => {
   const load = (b) =>
     new Promise((res, rej) => {
       const i = new Image();
@@ -84,14 +92,15 @@ const traced = await page.evaluate(async ({ jobs, MAX }) => {
       }
       crotch = gapTop != null ? gapTop - 1 : feet - 6;
     }
-    out.push({ who: j.who, facing: j.facing, w: W, h: H, px, feet, crotch, outlined: outline.size });
+    out.push({ group: j.group, kind: j.kind, who: j.who, facing: j.facing, w: W, h: H, ox: x0, oy: y0, px, feet, crotch, outlined: outline.size });
   }
   // One palette per character: merge the two closest colours (weighted by how many pixels use
   // them) until at most MAX remain. Noise in the shading goes; the ramps stay.
   const CH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const key = (p) => (p[0] << 16) | (p[1] << 8) | p[2];
-  for (const who of [...new Set(out.map((t) => t.who))]) {
-    const frames = out.filter((t) => t.who === who);
+  for (const group of [...new Set(out.map((t) => t.group))]) {
+    const frames = out.filter((t) => t.group === group);
+    const MAX = MAXES[frames[0].kind];
     const counts = new Map();
     for (const t of frames) for (const r of t.px) for (const p of r) if (p) counts.set(key(p), (counts.get(key(p)) ?? 0) + 1);
     let cl = [...counts].map(([k, n]) => ({ c: [(k >> 16) & 255, (k >> 8) & 255, k & 255], n, members: [k] }));
@@ -122,8 +131,10 @@ const traced = await page.evaluate(async ({ jobs, MAX }) => {
     }
   }
   return out;
-}, { jobs, MAX: MAX_COLOURS });
+}, { jobs, MAXES: MAX_COLOURS });
 await browser.close();
+const traced = all.filter((t) => t.kind === 'field');
+const battle = all.filter((t) => t.kind === 'battle');
 
 // Legs start at the crotch facing us or away; the side views take their hip row from the front's.
 const byWho = {};
@@ -167,3 +178,28 @@ for (const [who, facings] of Object.entries(byWho)) {
 lines.push('};', '');
 writeFileSync('src/art/rig2/traced.ts', lines.join('\n'));
 for (const t of traced) console.log(`${t.who.padEnd(6)} ${t.facing.padEnd(5)} ${t.w}x${t.h} feet ${t.feet} hip ${t.hip} colours ${t.pal.length} (outline px removed ${t.outlined})`);
+
+// Battle backs: one frame each, with where it sat on its 128x128 canvas (the rig's pose points are
+// measured on that canvas).
+const bl = [
+  '/**',
+  " * The crew's battle backs (from behind), traced from the PixelLab frames Mark picked",
+  ' * (scripts/art/trace.mjs; regenerate rather than edit by hand). `ox, oy`: where the trace sat on',
+  ' * its 128x128 canvas. The battle rig (src/art/rig2/battle.ts) builds the poses from it in code.',
+  ' */',
+  "import type { Traced } from './rig';",
+  '',
+  'export const BATTLE_TRACED: Record<string, Traced & { ox: number; oy: number }> = {',
+];
+for (const t of battle) {
+  bl.push(`  ${t.who}: {`);
+  bl.push(`    w: ${t.w}, h: ${t.h}, ox: ${t.ox}, oy: ${t.oy}, feet: ${t.feet}, hip: ${t.feet},`);
+  bl.push(`    pal: [${t.pal.map((p) => `'${p}'`).join(', ')}],`);
+  bl.push('    rows: [');
+  for (const r of t.rows) bl.push(`      '${r}',`);
+  bl.push('    ],');
+  bl.push('  },');
+}
+bl.push('};', '');
+writeFileSync('src/art/rig2/traced-battle.ts', bl.join('\n'));
+for (const t of battle) console.log(`battle ${t.who}: ${t.w}x${t.h} at (${t.ox}, ${t.oy}), colours ${t.pal.length}`);
