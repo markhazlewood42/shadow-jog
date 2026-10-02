@@ -386,22 +386,29 @@ export class BattleRenderer {
     return kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt);
   }
 
-  /** How much of an enemy shows: halved while Rook's body is on it (the dash and the return pass in front of the line, and an enemy he is not hitting must not hide his blade). */
-  private dimFactor(uid: number): number {
+  /**
+   * How much of a body in the span [x0, x1] (world px, a combatant `uid`) shows: halved while Rook's body is on it (the dash and
+   * the return pass in front of the line, and whoever he is not hitting must not hide his blade).
+   */
+  private dimOver(uid: number, x0: number, x1: number): number {
     if (!SIDE_VIEW) return 1;
     let k = 1;
     for (const p of this.s.battle.party) {
       const kb = this.kataOf(p.uid);
       const dd = this.s.d(p.uid);
-      if (!kb || kb.lunge < 0.15 || dd.target === uid) continue;
-      const box = this.s.enemyBox(uid);
-      if (!box) continue;
+      if (!kb || kb.lunge < 0.15 || dd.target === uid || p.uid === uid) continue;
       // His body is about 12 world px wide; the shading ramps in over the first few pixels of overlap.
       const rx = this.s.partyPos(p).x + kb.lunge * (dd.reachX ?? 0);
-      const over = Math.min(rx + 7, box.x1) - Math.max(rx - 7, box.x0);
+      const over = Math.min(rx + 7, x1) - Math.max(rx - 7, x0);
       k = Math.min(k, 1 - 0.5 * Math.max(0, Math.min(1, over / 5)));
     }
     return k;
+  }
+
+  private dimFactor(uid: number): number {
+    if (!SIDE_VIEW) return 1;
+    const box = this.s.enemyBox(uid);
+    return box ? this.dimOver(uid, box.x0, box.x1) : 1;
   }
 
   /** Side view: the screen box (pixels) round a lunging Rook, or null; enemy health bars inside it fade so he does not run under one. */
@@ -439,7 +446,7 @@ export class BattleRenderer {
         if (kp.step === kb.step && kp.t === kb.t) continue;
         const gx = Math.round((pos.x - frame.width / res / 2 + ox + walkLeft + kp.lunge * (dd.reachX ?? 0)) * 2) / 2;
         const gy = y + (kp.lunge - kb.lunge) * (dd.reachY ?? 0);
-        g.globalAlpha = n === 1 ? 0.4 : 0.2;
+        g.globalAlpha = n === 1 ? 0.3 : 0.14;
         putArt(g, silhouetteCache(plain[kp.key], '#e8f0ff'), gx, gy, res);
       }
       g.globalAlpha = 1;
@@ -569,7 +576,10 @@ export class BattleRenderer {
       for (const [dx, dy] of [[-0.5, 0], [0.5, 0], [0, -0.5], [0, 0.5]] as const) putArt(g, sil, x + dx, y + dy, res);
       g.globalAlpha = 1;
     }
+    // Side view: a crewmate Rook is passing in front of shows through him (the dash and the return cross Kit's place).
+    if (SIDE_VIEW && !kb) g.globalAlpha = this.dimOver(p.uid, pos.x + walkLeft - 8, pos.x + walkLeft + 8);
     putArt(g, frame, x, y, res);
+    g.globalAlpha = 1;
     // Side view: the first frames of a hit show the body's own pixels in white, then a faint red tint (instead of a red wash over the whole sprite).
     if (SIDE_VIEW && dd.flash > 0 && !down) {
       if (dd.flash >= 6) {

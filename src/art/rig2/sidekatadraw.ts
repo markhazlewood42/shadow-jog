@@ -92,7 +92,7 @@ function paintSmear(g: CanvasRenderingContext2D, w: number, h: number, pivot: Pt
       // 0 at the old blade, 1 at the new one.
       const s = a1 > a0 ? (th - a0) / (a1 - a0) : (a0 - th) / (a0 - a1);
       // How much of the blade's length the wedge covers here: a sliver at the tip behind, the whole blade at the leading edge.
-      const cover = 1.5 + 5.5 * s ** 1.2;
+      const cover = 1.5 + 3.5 * s ** 1.2;
       if (r < rOut - cover) continue;
       // The leading edge is one pixel of arc (about 1.5 px at the tip's radius) of pure white.
       const edge = ((a1 > a0 ? a1 - th : th - a1) / span) * (Math.PI / 180) * span * rOut < 1.6;

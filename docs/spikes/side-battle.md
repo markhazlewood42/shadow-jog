@@ -108,6 +108,15 @@ A pass needs a median score of **8 or more overall** (the mean of the criteria t
 | B-rook-strike: men-uchi contact, arms extended, blade level at head height, front foot down, back heel up | battle | about 1 min | judge round 1 | 1 pass (grip raised 2 px, blade shortened to 22 px). Held 12 frames through the hit; a dust puff at the front foot for 6 frames. Code-drawn limbs. |
 | B-rook-strike: zanshin (point back up, guard held), then ready again while sliding back | battle | under 1 min | judge round 1 | 0 passes. Zanshin is the guard with the blade higher and the body upright. |
 | B-rook-strike: timeline, lunge and engine wiring (`kataTimeline`, `kataBeat`, `KATA_WINDUP`, `KATA_STOP`, `dd.strikeAt`) | battle | about 5 min | judge round 1 | 3 passes: the timing ring starts the effect about 18 pose frames in, not 8 (so the old fixed beats had the blade arrive 10 frames before the hit), so beats are keyed to the effect start; `at` came in fractional (the contact landed 1.5 frames late), now rounded; the active arrow sat on the raised blade and stayed behind in the dash, so it rides the lunge and lifts 13 px. |
+| B-rook-strike r2: draw (hand over the shoulder to the hilt, a hand of steel out; then the blade up behind the head), and the same two keys read backwards as the sheathe | battle | about 3 min | judge round 2 | 1 pass (draw2's blade crossed the face at -100 degrees; hand moved behind the head, -78). Two `one` rows (`draw1`, `draw2`) in `KATA_POSES`: one hand on the hilt from the far shoulder, the other hanging. The scabbard hilt is already cleared from his back. Replaces the pop from the wait loop. |
+| B-rook-strike r2: ready (chudan) and lift, with a longer stride (front dx -2) | battle | about 1 min | judge round 2 | 0 passes. Data only. Lift grip [-8,-5], blade -100: the fists stay left of the face. |
+| B-rook-strike r2: overhead (furikaburi), fists above the hair, blade laid back at -55 | battle | about 4 min | judge round 2 | 2 passes: arm bones 8 to 10 (`KATA_BONE`, every frame, so the fists can clear the head), then the far shoulder turned in (twist 9) because its reach was pulling the grip down to the brow. The far arm is now drawn under the body, so the pale wedge across the face is gone; glasses and hair read. Turned arm not used (code-drawn limbs, every pose). |
+| B-rook-strike r2: cut in three frames (swing0 -95, swing1 -130, swing2 -162) with a wedge smear between the previous and current blade angle | battle | about 4 min | judge round 2 | 3 passes (the wedge read as a white pennant twice: cover 11 px to 7 to 5). The smear is data (from, to) painted as a wedge pivoting between the hands: full blade length at the leading edge, a sliver at the tip behind, three solid bands (white, pale, pale steel from `fx.ts`), no loose dots. Front foot lifts 1 to 3 rows. |
+| B-rook-strike r2: men-uchi contact, a 3 px blade (white edge, steel, dark spine, glint at the point), stride -7 / +4, crouch 3 | battle | about 3 min | judge round 2 | 0 passes. Needed one small change in shared code: `katana()` got an optional `spine` flag (default off, so the v0.1.0 back view is unchanged). |
+| B-rook-strike r2: zanshin, blade level at chest height (-172), upright | battle | about 1 min | judge round 2 | 1 pass (it first looked the same as ready; now taller, hands higher, blade nearly level). |
+| B-rook-strike r2: timeline (draw, 3 cut frames, contact shown 3 frames BEFORE the effect, continuous lunge, sheathe) and lane (`KATA_MEASURED`, `KATA_BITE_FRAC`, `KATA_LANE_*`, `dd.target`) | battle | about 12 min | judge round 2 | 4 passes: the stop was measured from the target's weapon, not its body (the tip stopped short of the body), so the point now goes 0.4 of the way from the body's centre to its front edge; the lunge's reach is measured from the drawn frame (`KATA_MEASURED`), not a constant; the dim list (computed at the stop) missed the rat crossed on the dash, so dimming is now by Rook's x each frame; Kit was crossed too, so crewmates dim as well. |
+| B-rook-strike r2: effects (ghosts one and two beats back, the plain body in the slash colour; a 3-stage dust puff at the front foot; blade flare on the first three contact frames; health bars fade under the lunge; the arrow hides while he runs) | battle | about 6 min | judge round 2 | 2 passes (ghosts too heavy, 0.4 to 0.3; the puff looked like a bowl, now pale blobs over dark ones). Code in `drawKataFx`, no per-pixel work. |
+| B-rook-strike r2: arm craft: the chrome forearm on a cool steel-blue ramp (hue break from the olive sleeve), far arm under the body | battle | about 2 min | judge round 2 | 1 pass. Replaces the near-white forearm that read as a pale wedge. |
 
 ## Day 1 notes (2026-10-02)
 
@@ -290,6 +299,40 @@ Rook's kendo men-uchi at battle scale, played through the real playback engine b
 | Docs, concepts, check, commit, push | 13:24 to 13:26 | 2 | 0 |
 
 About 22 minutes of wall clock, 7 fix passes, no per-pixel repair: the seven poses are 7 rows of numbers. Judge round 1 is next.
+
+## Item B-rook-strike round 2 (2026-10-02, after the round-1 judges)
+Round 1 scored 5.6 to 7.1 (composition 5, impact 6; readability, motion and craft 7; identity and style 8; cost 8). Images: `media/spike-side-battle/B-rook-strike-r2-*.png` (git-ignored): the frame strip at 4x (every frame, in order, with hold lengths and the lunge), in-battle captures at 2x stepped one tick at a time (draw, chudan, overhead, two cut frames, the blade meeting the target before the flash, the impact with the effect, zanshin, the return and the sheathe), 3x and 4x zooms, the same strike on the middle punk and on the nearest enemy (the Glowrat), and a GIF.
+
+**What changed, against the judges' list.**
+1. Composition. The lunge is no longer a constant: `playback.ts` reads the target's box (`enemyBox`: its opaque columns and its soles row), stops so the blade's point is inside the body, and puts Rook on a row just in front of the enemy line (`KATA_LANE_*`: his soles 8 px below the target's, never higher than Kit's). The dash and the return pass in front, and `dimOver` in `render.ts` halves the opacity of any enemy or crewmate his body is on that frame (Kit is crossed on the way out and back). Enemy health bars fade to 20 per cent where his lunge box crosses them, and the yellow arrow hides while he runs (it sat on the bars).
+2. Furikaburi. The far arm is drawn under the body, the arm bones are 10, the far shoulder turns in, the grip is [-2,-19] and the blade lies back at -55: the fists clear the hair and the glasses show.
+3. Contact. The blade is 3 px (white edge, steel, dark spine, glint at the point). The contact shows 3 pose frames before the effect starts (`KATA_LEAD`), with bright streaks along the blade for the first three, and the effect is anchored 4 px toward Rook, so the steel is seen meeting the target before the flash. The point now measurably lands in the target's body (the stop is computed from the drawn frame).
+4. Smear: a wedge between the previous and current blade angle, three frames of cut (-95, -130, -162) instead of two, three solid bands.
+5. Draw and sheathe: `draw1`, `draw2` at the start, read backwards at the end, so there is no pop from the wait loop; the hilt on his back is cleared while the sword is out.
+6. Craft: the chrome forearm is a steel-blue ramp against the olive sleeve; ghosts are the plain body (no smear) in the slash colour, one and two beats back; the dust is a three-stage puff tied to the stamp.
+7. Weight: stride -7 / +4 at contact, crouch 3, front foot lifted 3 rows in the cut; zanshin is tall with the blade level at chest height, so it differs from ready.
+
+**Honest issues.**
+- When the target is not the nearest, Rook's body still stands over the enemies between (dimmed to half, but present). With enemies a body-width apart there is no clear lane in a flat scene; the dimming is the answer, not a clearance.
+- Kit is dimmed while Rook runs through her place; the crew stand in the dash lane.
+- The 49 px sprite's arms are 10 px bones (it was 8): longer than the traced arm, fine overhead, a little long in the guard.
+- The smear is thin (5 px at the leading edge): it reads as a streak at 1x, not as a big arc.
+- The engine's own flash and slash are unchanged and still cover the target's body; Rook's blade is visible beside them, the contact is not tinted by them.
+- The dust and ghosts are code-drawn blobs and silhouettes, not hand-tuned art.
+- Judged from stills and a GIF, not played at speed by a person. No mp4 (no ffmpeg on this machine).
+
+## Time log, item B-rook-strike round 2 (wall clock, Claude time; sub-step boundaries approximate, the clock was read at 13:25, 13:35, 14:56, 15:02)
+| Sub-step | From to | Minutes | Fix passes |
+|---|---|---|---|
+| Read the spike, the code, the judges' list; dev server on 3007 | 13:25 to 13:30 | 5 | 0 |
+| Data (draw, three cuts, new poses), drawing (behind-the-body far arm, one-handed poses, wedge smear), first strip | 13:30 to 13:35 | 5 | 0 |
+| Strip fixes (smear thickness, chrome ramp, twist, draw2, zanshin) | 13:35 to 13:45 | 10 | 4 |
+| Engine: lane and stop from the target's box, lead frame, health bar fade, arrow, ghosts, dust, flare, test stubs | 13:45 to 14:20 | 35 | 4 |
+| Captures and checks (tip reach, which target, the dim list, party dim, fixing the capture script) | 14:20 to 14:55 | 35 | 3 |
+| `npm run check` (exit 0, after one lint pass), commit | 14:56 to 14:58 | 2 | 1 |
+| Deliverables (strip, 17 captures, 4 zooms, GIF), docs, concepts, check, push | 14:58 to 15:15 | 15 | 0 |
+
+About 105 minutes of wall clock, 12 fix passes, no per-pixel repair: ten poses are ten rows of numbers (`KATA_POSES`), the timeline is a table (`kataTimeline`), and the lane, the dim, the ghosts and the dust are code. The long middle is the engine work and chasing which target a capture hit (a Kit attack killed the first punk before Rook's turn, so early captures hit the Glowrat), not pose tuning. Judge round 2 is next.
 
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED

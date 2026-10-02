@@ -263,7 +263,7 @@ async function kataSheet(zoom: number, at: number): Promise<HTMLCanvasElement> {
   steps.forEach((s, i) => {
     const fr = kata[s.key];
     const pose = KATA_POSES[s.key];
-    put(fr, i + 1, [`#${i + 1}  ${s.key}${pose.smear ? ' + smear arc' : ''}`, `frames ${k}-${k + s.frames - 1}, held ${s.frames} (${s.frames * 1.5 | 0} real)`, `lunge ${s.from.toFixed(2)} to ${s.to.toFixed(2)}`]);
+    put(fr, i + 1, [`#${i + 1}  ${s.key}${pose.smear ? ' + smear' : ''}${i >= 10 ? ' (return: the draw read backwards)' : i < 2 ? ' (draw)' : ''}`, `frames ${k}-${k + s.frames - 1}, held ${s.frames} (${s.frames * 1.5 | 0} real)`, `lunge ${s.from.toFixed(2)} to ${s.to.toFixed(2)}`]);
     k += s.frames;
   });
   return canvas;
