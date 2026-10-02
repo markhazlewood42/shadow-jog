@@ -31,13 +31,13 @@ import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
 import { BHT, BW, DECK_CUT_LIFE, MENU_X, PANEL_Y, PARTY_BOTTOM } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
-import { SF, SF_BOSS_LIFT, SF_ENEMY_FRONT_DROP, SF_ENEMY_GAP_MAX, SF_ENEMY_GAP_ROW, SF_ENEMY_LEFT, SF_ENEMY_LIFT, SF_ENEMY_RIGHT, SIDE_ENEMY_EDGE, SIDE_ENEMY_LIFT_BY_BG, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, SIDE_WALK_LANES, WALK_FROM, sfWalkState, sfWalkTotal, sideBattler, sideSlot, walkFrames, walkRemaining } from './battlekit/sideview';
+import { SF, SF_BAR_RISE, SF_BOSS_LIFT, SF_ENEMY_FRONT_DROP, SF_ENEMY_GAP_MAX, SF_ENEMY_GAP_ROW, SF_ENEMY_LEFT, SF_ENEMY_LIFT, SF_ENEMY_RIGHT, SIDE_ENEMY_EDGE, SIDE_ENEMY_LIFT_BY_BG, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, SIDE_WALK_LANES, WALK_FROM, sfWalkState, sfWalkTotal, sideBattler, sideSlot, walkFrames, walkRemaining } from './battlekit/sideview';
 import { postfx } from '../engine/postfx';
 import { playMoment } from '../engine/moments';
 import { FX } from '../data/fx';
 import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
-import { RIM, artTop, drawBig, opaqueSpan } from './battlekit/sprites';
+import { RIM, artTop, bodySpan, drawBig, opaqueSpan } from './battlekit/sprites';
 import { abilityLabel, groupNames, pickGroup, summarize } from './battlekit/tables';
 
 export interface BattleSetup {
@@ -701,8 +701,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private floatPos(uid: number): Pt {
     const u = this.battle.unit(uid);
     if (u?.side !== 'enemy') return this.pos(uid);
-    const { x, y, art } = this.enemyPos(u);
-    return { x: x + art.w / 2, y: Math.max(22, y + artTop(art) + 4) };
+    const { x, y, art, front } = this.enemyPos(u);
+    // Sprite Fusion side view (round 2): the health plate sits SF_BAR_RISE screen px over the head, so numbers start above it, never half under it (a front-row creature's bar is under its feet).
+    const above = SIDE_VIEW && SF && !front ? SF_BAR_RISE / 2 + 4 : 0;
+    return { x: x + art.w / 2, y: Math.max(22, y + artTop(art) + 4 - above) };
   }
 
   /** The scene as playback sees it (battlekit/playback.ts): a narrow view, built once. */
@@ -1161,12 +1163,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   /** Side view: an enemy's opaque columns and its soles row, in battle-world pixels. */
-  enemyBox(uid: number): { x0: number; x1: number; feet: number; h: number } | null {
+  enemyBox(uid: number): { x0: number; x1: number; feet: number; h: number; body0: number } | null {
     const u = this.battle.unit(uid);
     if (u?.side !== 'enemy') return null;
     const p = this.enemyPos(u);
     const [a, b] = opaqueSpan(p.art.canvas);
-    return { x0: p.x + a / p.art.res, x1: p.x + b / p.art.res, feet: p.y + p.art.h, h: p.art.h };
+    // `body0`: where the BODY begins (a club or tail is not counted), for a blade to aim at.
+    const [body0] = bodySpan(p.art.canvas);
+    return { x0: p.x + a / p.art.res, x1: p.x + b / p.art.res, feet: p.y + p.art.h, h: p.art.h, body0: p.x + body0 / p.art.res };
   }
 
   private enemyCenter(u: Combatant): Pt {

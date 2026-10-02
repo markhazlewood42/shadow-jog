@@ -10,7 +10,7 @@ import type { Combatant, Command, Element } from '../../battle/types';
 import { ABILITIES } from '../../data/abilities';
 import { PARTY_POSE_T, swingBeat } from './motion';
 import { type KataBeat, KATA_MEASURED, KATA_BODY_HALF, KATA_KNOCK, KATA_MEASURED_LOW, KATA_ROOM_GAP, KATA_ROOM_MAX, isContact, kataBeat } from '../../art/rig2/sidekata';
-import { type SfBeat, SF_FADE, SF_MEASURED, SF_ROOM_MAX, SF_SWING, sfBeat } from '../../art/rig2/sfstrike';
+import { type SfBeat, SF_FADE, SF_MEASURED, SF_ROOM, SF_SWING, sfBeat } from '../../art/rig2/sfstrike';
 import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
@@ -81,6 +81,7 @@ export class BattleRenderer {
     // (a clear world-scale layer). Creatures paint finer than the world; everything else is as was.
     const back = this.s.world.ctx;
     const f = this.s.frame;
+    this.partyCuts.length = 0;
     back.imageSmoothingEnabled = false;
     back.drawImage(this.s.bg.canvas, 0, 0);
     if (this.s.bg.glow) back.drawImage(this.s.bg.glow, 0, 0);
@@ -195,11 +196,21 @@ export class BattleRenderer {
 
   /** The battle's light for the bloom: the backdrop's neon and every effect in flight. */
   private glowWorld: Surface | null = null;
+  /** Sprite Fusion side view: this frame's party sprites (canvas, world position, art pixels per world pixel), cut out of the backdrop's glow. */
+  private readonly partyCuts: { c: HTMLCanvasElement; x: number; y: number; res: number }[] = [];
   private renderGlow(glow: Ctx, shx: number, shy: number): void {
     this.glowWorld ??= surface(BW, BHT);
     const g = this.glowWorld.ctx;
     g.clearRect(0, 0, BW, BHT);
     if (this.s.bg.glow) g.drawImage(this.s.bg.glow, 0, 0);
+    // The backdrop's neon blooms over the whole picture, so a sign behind Rook's head washed his grey hair pink or yellow (the judges' tint). The crew's silhouettes are
+    // cut out of the backdrop's light first; effects in flight (drawn after) still glow over them.
+    if (this.partyCuts.length) {
+      g.globalCompositeOperation = 'destination-out';
+      g.imageSmoothingEnabled = false;
+      for (const k of this.partyCuts) g.drawImage(k.c, k.x, k.y, k.c.width / k.res, k.c.height / k.res);
+      g.globalCompositeOperation = 'source-over';
+    }
     this.s.fx.render(g, NO_GLYPH, true);
     glow.imageSmoothingEnabled = false;
     const push = this.s.push;
@@ -417,9 +428,10 @@ export class BattleRenderer {
    * about 25 px long past his body, so against the nearest enemy he ends up standing where Kit does; she slides back toward his empty place
    * (up to 12 px) as he arrives, and returns as he goes home. Nobody is dimmed, and no crewmate is stood on.
    */
-  private makeRoom(q: Combatant): number {
-    if (!SIDE_VIEW) return 0;
+  private makeRoom(q: Combatant): { x: number; y: number } {
+    if (!SIDE_VIEW) return { x: 0, y: 0 };
     let room = 0;
+    let rx2 = 0, ry2 = 0;
     for (const p of this.s.battle.party) {
       if (p.uid === q.uid) continue;
       const kb = this.strikeOf(p.uid);
@@ -430,17 +442,20 @@ export class BattleRenderer {
       const qx = this.s.partyPos(q).x;
       const u = Math.max(0, Math.min(1, (kb.lunge - 0.5) / 0.45));
       if (SF) {
-        // Sprite Fusion art: he runs right, so a crewmate between his place and where he ends steps back to the left, into the place he left (up to SF_ROOM_MAX world px): his body, coat and rear foot take about 30 world px.
-        if (qx <= sx + 4 || qx > rx + 14) continue;
-        const need = Math.max(0, Math.min(SF_ROOM_MAX, qx + 14 - (rx - 28)));
-        room = Math.min(room, -need * u * u * (3 - 2 * u));
+        // Sprite Fusion art (round 2): he runs right along a row of his own, and a crewmate between his place and where he ends gets out of that row for the whole strike: a short
+        // step back and a longer one toward the camera (SF_ROOM), eased in over his dip and wind-up (so she has already gone when he moves) and out as he goes home.
+        // Whoever is not in his way does not move.
+        const sk = this.sfOf(p.uid);
+        if (!sk || qx <= sx + 4 || qx > rx + 14) continue;
+        rx2 = Math.min(rx2, SF_ROOM.dx * sk.room);
+        ry2 = Math.max(ry2, SF_ROOM.dy * sk.room);
         continue;
       }
       if (qx < rx - 4) continue;
       const need = Math.max(0, Math.min(KATA_ROOM_MAX, rx + KATA_BODY_HALF + KATA_ROOM_GAP - (qx - 8)));
       room = Math.max(room, need * u * u * (3 - 2 * u));
     }
-    return Math.round(room * 2) / 2;
+    return SF ? { x: Math.round(rx2 * 2) / 2, y: Math.round(ry2 * 2) / 2 } : { x: Math.round(room * 2) / 2, y: 0 };
   }
 
   /** Side view: the screen box (pixels) round a lunging Rook, or null; enemy health bars inside it fade so he does not run under one. */
@@ -559,14 +574,17 @@ export class BattleRenderer {
     // Sprite Fusion art: over the last few pixels of the walk the run eases into the stance (a skid) where the member has a settle frame.
     const settle = walking && SF && cyc?.settle && Math.abs(walkLeft) < SF_SETTLE_DIST ? cyc.settle[Math.min(cyc.settle.length - 1, Math.floor((1 - Math.abs(walkLeft) / SF_SETTLE_DIST) * cyc.settle.length))] : undefined;
     const idleFrame = cyc ? cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / idleStep) % cyc.idleOrder.length] ?? 0] : undefined;
+    // Side view: a crewmate in the way of Rook's strike steps aside (see makeRoom).
+    const roomV = this.makeRoom(p);
+    // Sprite Fusion art (round 2): while she is out of his row she ducks (her own crouch frame, where she has one), so his boots and coat pass over her head instead of through it.
+    const ducked = SF && SIDE_VIEW && pose === 'idle' && roomV.y > SF_ROOM.dy * 0.3 && art.frames.brace !== art.frames.idle ? art.frames.brace : undefined;
     // A member with no walk frames of its own steps in on the idle loop, so the loop does not jump when it arrives.
-    const frame = sk && art.sfStrike ? (sk.key === 'ready' && idleFrame ? idleFrame : art.sfStrike.frames[sk.key]) : kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walking && cyc.walk.length > 0 ? (settle ?? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length]) : idleFrame) ?? art.frames[pose] : art.frames[pose];
+    const frame = ducked ? ducked : sk && art.sfStrike ? (sk.key === 'ready' && idleFrame ? idleFrame : art.sfStrike.frames[sk.key]) : kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walking && cyc.walk.length > 0 ? (settle ?? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length]) : idleFrame) ?? art.frames[pose] : art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
     const res = art.res ?? 1;
     let ox = 0;
     if (dd.shake > 0) ox = dd.shake % 4 < 2 ? 2 : -2;
-    // Side view: a crewmate in the way of Rook's strike steps aside (see makeRoom).
-    const room = this.makeRoom(p);
+    const room = roomV.x;
     ox += room;
     // Side view: a hit knocks the body back (away from the enemies: against the way the party faces) and it springs back over the pose.
     const hurtK = SIDE_VIEW && dd.poseT > 0 && dd.pose === 'hurt' ? 16 - dd.poseT : -1;
@@ -583,7 +601,7 @@ export class BattleRenderer {
     const x = snap(pos.x - frame.width / res / 2 + ox + walkLeft + lungeX);
     const lift = beat ? beat.lift : dd.lunge;
     const cx2 = Math.round(pos.x + walkLeft + lungeX);
-    const y = snap(this.s.partyFeet(p) - frame.height / res - dd.hop - lift - breathe + lungeY + (pose === 'hurt' && !SIDE_VIEW ? 2 : 0));
+    const y = snap(this.s.partyFeet(p) - frame.height / res - dd.hop - lift - breathe + lungeY + roomV.y + (pose === 'hurt' && !SIDE_VIEW ? 2 : 0));
     if (down) {
       g.globalAlpha = 0.5;
       putArt(g, silhouetteCache(art.frames.hurt, '#3a3450'), x, y + 10, res);
@@ -594,7 +612,7 @@ export class BattleRenderer {
     if (SIDE_VIEW) {
       // The crew plant on the street with a soft contact shadow, as the enemies do (it stays on the ground through a lunge or a hop).
       const cx = Math.round(pos.x + walkLeft + lungeX + (hurtK >= 0 ? ox : room));
-      const gy = Math.round(this.s.partyFeet(p) - 1 + lungeY);
+      const gy = Math.round(this.s.partyFeet(p) - 1 + lungeY + roomV.y);
       g.fillStyle = 'rgba(0,0,0,0.4)';
       g.fillRect(cx - 9, gy, 18, 2);
       g.fillRect(cx - 7, gy + 2, 14, 1);
@@ -620,12 +638,12 @@ export class BattleRenderer {
       g.globalAlpha = 1;
     }
     if (sk?.dash) {
-      // Sprite Fusion's Rook: the two swing frames leave speed ghosts trailing the body (his tint), the second more than the first.
-      const tint = MEMBERS[p.key as MemberId].color;
-      const n = sk.key === 'swingB' ? 3 : 2;
+      // Sprite Fusion's Rook (round 2): the swing frames leave at most two flat steel-blue silhouettes close behind the body (35 and 20 percent, 2 world px apart), never his
+      // own colours (the olive coat read as mud over a crewmate) and never in front of anyone: they are drawn before the body, and his row is clear of the crew.
+      const n = sk.key === 'swingA' ? 1 : 2;
       for (let i = n; i >= 1; i--) {
-        g.globalAlpha = 0.12 + 0.07 * (n - i);
-        putArt(g, silhouetteCache(frame, tint), x - FACE * i * 3.5, y, res);
+        g.globalAlpha = i === 1 ? 0.35 : 0.2;
+        putArt(g, silhouetteCache(frame, '#8ea2c0'), x - FACE * i * 2, y, res);
       }
       g.globalAlpha = 1;
     }
@@ -657,6 +675,8 @@ export class BattleRenderer {
       g.globalAlpha = 1;
     }
     putArt(g, frame, x, y, res);
+    // Sprite Fusion side view: the crew's own pixels are cut out of the backdrop's neon before it blooms (see renderGlow), so a sign behind a head does not wash its hair pink.
+    if (SF && SIDE_VIEW) this.partyCuts.push({ c: frame, x, y, res });
     g.globalAlpha = 1;
     // Side view: the first frames of a hit show the body's own pixels in white, then a faint red tint (instead of a red wash over the whole sprite).
     if (SIDE_VIEW && dd.flash > 0 && !down) {

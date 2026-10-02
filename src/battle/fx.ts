@@ -7,6 +7,12 @@ import { surface, type Ctx } from '../engine/canvas';
 import { mix } from '../engine/color';
 import { Rng } from '../engine/rng';
 
+/**
+ * Rook's cut in Sprite Fusion art ('men_r'): a steep diagonal `len` world px either side of its middle at `angle` radians (down and to the right); `dx`, `dy` are where its lower
+ * (blade-point) end sits from the middle, so playback can place the middle from the point and the spark lands on the end.
+ */
+export const MEN_R = { len: 11, angle: 0.95, dx: Math.round(Math.cos(0.95) * 11), dy: Math.round(Math.sin(0.95) * 11) };
+
 export interface Pt {
   x: number;
   y: number;
@@ -728,11 +734,15 @@ export class FxLayer {
         return { impact: 4, total: 16 };
       case 'men_r':
         // Rook's cut in Sprite Fusion art: the same hard line and spark as 'men', turned to the swing's own direction (down and to the right), the spark on Rook's side (the left).
+        // Round 2: the point `t` is the line's middle; the line ends on the blade's point, and the spark (a star 7 px out, two stages) is centred on THAT end, inside the body.
         each((t) => {
-          this.cutLine(t, 3, 16, 0.95);
-          this.impact({ x: t.x - 3, y: t.y }, '#9ad4ff', 3, 3);
-          this.burst({ x: t.x - 3, y: t.y }, '#ffffff', 5, 1.4, 3);
-          this.debris(t, '#c8d0e0', 3, 4);
+          const end = { x: t.x + MEN_R.dx, y: t.y + MEN_R.dy };
+          this.cutLine(t, 3, MEN_R.len, MEN_R.angle);
+          this.impact(end, '#9ad4ff', 3, 7);
+          this.impact({ x: end.x - 1, y: end.y - 1 }, '#ffffff', 5, 4);
+          this.burst(end, '#ffffff', 7, 1.7, 3);
+          this.ring(end, '#cfe0ff', 2, 9, 5, 4);
+          this.debris(end, '#c8d0e0', 5, 4);
         });
         return { impact: 4, total: 16 };
       case 'slash':
