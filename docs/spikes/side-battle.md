@@ -571,17 +571,17 @@ Images: `media/spike-side-battle/G-sf-rook-strike-r2-*.png` (git-ignored): `fram
 - Full-screen flash: not done (see above). The code art path (`&art=code`) is untouched.
 - Hex and Sable's Sprite Fusion art is Mark's; nothing about them changed.
 
-## Time log, item G-sf-rook-strike round 2 (wall clock, Claude time)
+## Time log, item G-sf-rook-strike round 2 (wall clock from the session clock, Claude time)
 | Sub-step | From to | Minutes | Fix passes |
 |---|---|---|---|
 | Read the spike, the code, the judges' findings and round 1's captures; started the dev server; baseline capture; found the tint (bloom pass) | 17:37 to 17:49 | 12 | 0 |
-| `sfstrike.ts` rewritten (bend, split sword, turned sword, crescents, timeline), frame dump and strip, checked the frames | 17:49 to 17:55 | 6 | 1 (arcs thinner) |
-| Engine wiring: room vector, steel ghosts, glow cut-out, lane at hip height, body-front aim, cut line and spark, hitstop, flash, number position; first stepped capture | 17:55 to 18:00 | 5 | 0 |
-| Kit's duck (her crouch frame), lane limits, checks against the Glowrat and the Warden | 18:00 to 18:05 | 5 | 2 (room dy 14, lane down 0; swing M angle) |
-| `npm run check` (exit 0), commit, the timeline's ready/dip/overhead split, swing M arc join, final captures (punk, Glowrat, Warden) | 18:05 to 18:12 | 7 | 2 |
-| Deliverables (strip, nine captures, zooms, GIF), docs, concepts | 18:12 to 18:20 | 8 | 0 |
+| `sfstrike.ts` rewritten (bend, split sword, turned sword, crescents, timeline), frame dump and strip, checked the frames | 17:49 to 17:52 | 3 | 1 (arcs thinner) |
+| Engine wiring: room vector, steel ghosts, glow cut-out, lane at hip height, body-front aim, cut line and spark, hitstop, flash, number position; first stepped capture | 17:52 to 17:57 | 5 | 0 |
+| Kit's duck (her crouch frame), lane limits, checks against the Glowrat and the Warden, tests, `npm run check` (exit 0) | 17:57 to 18:02 | 5 | 2 (room 14 px, lane down 0; swing M angle) |
+| Commit, the timeline's ready/dip/overhead split, swing M arc join, final captures (punk, Glowrat, Warden) | 18:02 to 18:10 | 8 | 2 |
+| Deliverables (strip, nine captures, zooms, GIF), docs, concepts, push | 18:10 to 18:13 | 3 | 0 |
 
-About 43 minutes of wall clock, 5 fix passes, no per-pixel repair. Three shell commands hung on my own stdin mistake (a heredoc together with a stdin redirect) and cost about 6 of those minutes.
+About 36 minutes of wall clock, 5 fix passes, no per-pixel repair. Three shell commands hung on my own stdin mistake (a heredoc together with a stdin redirect) and cost about 6 of those minutes.
 
 **Sprite Fusion shopping list for Rook's strike, round 2 (what would replace the stand-ins).** Same list as round 1, now ranked by what the judges' eyes go to:
 1. A crouch-anticipation frame between ready and the overhead (knees bent, sword rising): replaces `dip`.
