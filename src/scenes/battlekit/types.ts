@@ -19,6 +19,9 @@ export interface Disp {
   /** Side view: how far (battle-world pixels) a melee strike carries the actor toward its target at the full lunge. */
   reachX?: number;
   reachY?: number;
+  /** Side view, Rook's kendo strike: the pose-clock frame the blow lands on, and the pose's length (`rig2/sidekata.ts`). */
+  strikeAt?: number | undefined;
+  poseLen?: number | undefined;
   hidden: boolean;
   /** Party action pose and how many frames it holds (idle when 0). */
   pose: Pose;

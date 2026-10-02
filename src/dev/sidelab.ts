@@ -15,6 +15,7 @@
 import { renderLayers, type Layer, decode, type Traced } from '../art/rig2/rig';
 import { TRACED, VIEWS_TRACED, loadViews } from '../art/rig2/data';
 import { buildSideCrew } from '../art/rig2/sidecrew';
+import { KATA_POSES, kataTimeline } from '../art/rig2/sidekata';
 import { buildChar } from '../art/chars';
 import { LOOKS } from '../data/looks';
 import {
@@ -200,8 +201,77 @@ async function crewSheet(zoom: number): Promise<HTMLCanvasElement> {
   return canvas;
 }
 
+/**
+ * Rook's kendo strike (`?scene=sidelab&scale=kata&zoom=4[&at=12]`): EVERY frame of the strike in order, each cell
+ * numbered, with the key it shows, the pose-clock frames it is held for and where the body is along its lunge.
+ * `at` is the frame the blow lands on (12 with no timing ring; about 18 when the ring is closing). One cell per
+ * step of `kataTimeline`, so a held frame is one cell with its hold length, not repeated.
+ */
+async function kataSheet(zoom: number, at: number): Promise<HTMLCanvasElement> {
+  const canvas = mount();
+  if (!Object.keys(VIEWS_TRACED).length) await loadViews();
+  const crew = buildSideCrew('rook');
+  const kata = crew?.kata;
+  if (!crew || !kata) throw new Error('Rook has no kata frames');
+  const steps = kataTimeline(at);
+  // The box that holds every frame, so the cells line up and the lunge's growth shows.
+  let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+  for (const f of Object.values(kata)) {
+    const d = f.getContext('2d')?.getImageData(0, 0, f.width, f.height).data;
+    if (!d) continue;
+    for (let y = 0; y < f.height; y++) for (let x = 0; x < f.width; x++) if ((d[(y * f.width + x) * 4 + 3] ?? 0) > 0) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  }
+  const bw = x1 - x0 + 9;
+  const bh = y1 - y0 + 3;
+  const cols = 5;
+  const cw = bw * zoom + 8;
+  const ch = bh * zoom + 46;
+  const rows = Math.ceil((steps.length + 1) / cols);
+  canvas.width = 8 + cols * cw;
+  canvas.height = 50 + rows * ch;
+  const g = canvas.getContext('2d');
+  if (!g) return canvas;
+  g.imageSmoothingEnabled = false;
+  g.fillStyle = BG;
+  g.fillRect(0, 0, canvas.width, canvas.height);
+  g.fillStyle = '#fff';
+  g.font = 'bold 15px sans-serif';
+  g.fillText(`Rook's kendo strike (men-uchi), every frame in order, x${zoom}. Each cell: step number, key, pose frames it covers, how long it is held, the lunge.`, 8, 16);
+  g.font = '12px sans-serif';
+  g.fillText(`The blow lands on pose frame ${at} (the move's effect starts there, the hit follows 4 frames later). Pose clock: 1 frame is about 1.5 real frames at normal battle speed. The wait-loop frame is for scale only.`, 8, 32);
+  const put = (c0: HTMLCanvasElement, i: number, lines: string[]): void => {
+    // A frame on a smaller canvas (the wait loop's) is centred and bottom-aligned on the kata canvas, as the game does.
+    const ref = kata.ready;
+    const c = document.createElement('canvas');
+    c.width = ref.width;
+    c.height = ref.height;
+    c.getContext('2d')?.drawImage(c0, Math.floor((ref.width - c0.width) / 2), ref.height - c0.height);
+    const x = 8 + (i % cols) * cw;
+    const y = 40 + Math.floor(i / cols) * ch;
+    g.fillStyle = '#2e3250';
+    g.fillRect(x, y, bw * zoom, bh * zoom);
+    g.drawImage(c, x0 - 4, y0 - 1, bw, bh, x, y, bw * zoom, bh * zoom);
+    g.fillStyle = '#fff';
+    g.font = '12px sans-serif';
+    lines.forEach((t, n) => {
+      g.fillText(t, x + 3, y + bh * zoom + 14 + n * 14);
+    });
+  };
+  // The wait loop's first frame, for the same character at rest.
+  put(crew.idle[0] as HTMLCanvasElement, 0, ['rest (wait loop)', 'sheathed, hands down']);
+  let k = 0;
+  steps.forEach((s, i) => {
+    const fr = kata[s.key];
+    const pose = KATA_POSES[s.key];
+    put(fr, i + 1, [`#${i + 1}  ${s.key}${pose.smear ? ' + smear arc' : ''}`, `frames ${k}-${k + s.frames - 1}, held ${s.frames} (${s.frames * 1.5 | 0} real)`, `lunge ${s.from.toFixed(2)} to ${s.to.toFixed(2)}`]);
+    k += s.frames;
+  });
+  return canvas;
+}
+
 async function build(which: string, zoom?: number): Promise<HTMLCanvasElement> {
   if (which === 'crew') return crewSheet(zoom || 4);
+  if (which === 'kata') return kataSheet(zoom || 4, Number(new URLSearchParams(location.search).get('at') ?? 12));
   const canvas = mount();
   const field = which !== 'battle';
   const s = { ...(field ? FIELD : BATTLE), ...(zoom ? { zoom } : {}) };

@@ -9,6 +9,7 @@ import { getPortrait } from '../../art/portraits';
 import type { Combatant, Command, Element } from '../../battle/types';
 import { ABILITIES } from '../../data/abilities';
 import { PARTY_POSE_T, swingBeat } from './motion';
+import { kataBeat } from '../../art/rig2/sidekata';
 import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
@@ -388,6 +389,8 @@ export class BattleRenderer {
     // Side view: the strike plays on its own beats (sideBeat: crouch, wind-up, dash, blow, return); the back view's lift beats don't apply.
     const sb = SIDE_VIEW && melee && dd.poseT <= PARTY_POSE_T ? sideBeat(PARTY_POSE_T - dd.poseT) : null;
     const beat = melee && !SIDE_VIEW ? swingBeat(PARTY_POSE_T - dd.poseT) : null;
+    // Side view, Rook: the kendo strike plays on its own timeline (rig2/sidekata.ts), keyed to the frame the move's effect starts on.
+    const kb = SIDE_VIEW && melee && art.kata && dd.strikeAt !== undefined && dd.poseT <= (dd.poseLen ?? 0) ? kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt) : null;
     // The frame for each beat: gathered (brace), raised (the pose itself), then swept through
     // (strike) for the cut and the settle. Palm strikes (thrust) keep their own frame throughout.
     const through = beat && dd.pose === 'attack' && (beat.phase === 'cut' || beat.phase === 'settle');
@@ -398,7 +401,7 @@ export class BattleRenderer {
     // Side view: the wait loop plays in place of the rest frame, and the walk while stepping in.
     const walkLeft = this.s.sideWalk();
     const cyc = art.cycle;
-    const frame = cyc && pose === 'idle' ? (walkLeft > 0 ? cyc.walk[Math.floor((f - this.s.walkStart) / WALK_FRAMES_PER_STEP) % cyc.walk.length] : cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / (active ? IDLE_FRAMES_PER_STEP_ACTIVE : IDLE_FRAMES_PER_STEP)) % cyc.idleOrder.length] ?? 0]) ?? art.frames[pose] : art.frames[pose];
+    const frame = kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walkLeft > 0 ? cyc.walk[Math.floor((f - this.s.walkStart) / WALK_FRAMES_PER_STEP) % cyc.walk.length] : cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / (active ? IDLE_FRAMES_PER_STEP_ACTIVE : IDLE_FRAMES_PER_STEP)) % cyc.idleOrder.length] ?? 0]) ?? art.frames[pose] : art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
     const res = art.res ?? 1;
     let ox = 0;
@@ -412,10 +415,12 @@ export class BattleRenderer {
     // Side view: positions land on a native pixel (half a world pixel); otherwise on a world pixel.
     const snap = SIDE_VIEW ? (v: number) => Math.round(v * 2) / 2 : Math.round;
     // Side view: how far along its lunge the body is, in world pixels.
-    const lungeX = sb ? sb.lunge * (dd.reachX ?? 0) : 0;
-    const lungeY = sb ? sb.lunge * (dd.reachY ?? 0) : 0;
+    const lungeK = kb ? kb.lunge : sb ? sb.lunge : 0;
+    const lungeX = lungeK * (dd.reachX ?? 0);
+    const lungeY = lungeK * (dd.reachY ?? 0);
     const x = snap(pos.x - frame.width / res / 2 + ox + walkLeft + lungeX);
     const lift = beat ? beat.lift : dd.lunge;
+    const cx2 = Math.round(pos.x + walkLeft + lungeX);
     const y = snap(this.s.partyFeet(p) - frame.height / res - dd.hop - lift - breathe + lungeY + (pose === 'hurt' && !SIDE_VIEW ? 2 : 0));
     if (down) {
       g.globalAlpha = 0.5;
@@ -432,6 +437,16 @@ export class BattleRenderer {
       g.fillRect(cx - 7, gy + 2, 14, 1);
       g.fillRect(cx - 7, gy - 1, 14, 1);
     }
+    if (kb?.key === 'contact' && kb.t < 6) {
+      // The front foot stamps: a puff of street dust kicked out in front of it, widening and fading over the first frames.
+      const gy2 = Math.round(this.s.partyFeet(p) - 1 + lungeY);
+      for (let i = 0; i < 5; i++) {
+        g.globalAlpha = 0.65 * (1 - kb.t / 6);
+        g.fillStyle = i % 2 ? '#cfc4e6' : '#8f86ab';
+        g.fillRect(cx2 - 7 - i * 2 - kb.t, gy2 - 1 - ((i * 3 + kb.t) % 4), 2, 1);
+      }
+      g.globalAlpha = 1;
+    }
     if (dd.afterimage > 0) {
       // Speed ghosts trailing behind and to either side.
       for (const [gx, gy, a] of AFTERIMAGES) {
@@ -440,11 +455,12 @@ export class BattleRenderer {
       }
       g.globalAlpha = 1;
     }
-    if (sb && sb.smear > 0) {
+    if (kb?.dash || (sb && sb.smear > 0)) {
       // Side view: the dash leaves speed ghosts trailing behind it, away from the target.
       const tint = MEMBERS[p.key as MemberId].color;
-      for (let i = sb.smear; i >= 1; i--) {
-        g.globalAlpha = 0.14 + 0.07 * (sb.smear - i);
+      const n = kb ? 2 : sb?.smear ?? 0;
+      for (let i = n; i >= 1; i--) {
+        g.globalAlpha = 0.14 + 0.07 * (n - i);
         putArt(g, silhouetteCache(frame, tint), x + i * 2.5, y, res);
       }
       g.globalAlpha = 1;

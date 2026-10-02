@@ -25,6 +25,8 @@ import { collapseBlocks } from './enemy';
 import { band, solveArm } from './battle';
 import { type Layer, decode, renderLayers, shadeMap } from './rig';
 import { type Pt, type SideArm, heldKatana, separateArm, stripOutline } from './side';
+import type { KataKey } from './sidekata';
+import { buildKata } from './sidekatadraw';
 import { at, bendLeg, clearBox, crouch, dropSpecks, embed, type LegBox, lean, leanAt, rise, topRow } from './sideops';
 import type { Pose } from '../battlers';
 
@@ -57,6 +59,8 @@ interface CrewSpec {
   metal?: [number, number, number, number][];
   /** A weapon drawn in the hands in the action poses (Rook's katana), and the box that clears its sheathed copy from his back. */
   katana?: { box: [number, number, number, number] };
+  /** For the kendo strike (`sidekata.ts`): the coat sleeve on the right (the second hand's arm), and a pixel of coat. */
+  kata?: { arm2: SideArm; coat: Pt; padX: number; padT: number };
   /** How the staff-side arm and the staff stay put (Sable): the columns the leg moves leave alone are the legs' own, so nothing to do. */
   hair?: boolean;
 }
@@ -82,6 +86,7 @@ const SPEC: Record<string, CrewSpec> = {
     arm: arm([5, 19], [2, 29.5], 3, [2, 24], [2, 29]),
     farShoulder: [18, 19],
     katana: { box: [19, 2, 28, 17] },
+    kata: { arm2: arm([19, 21], [19.5, 30.5], 3.3, [18, 25], [19, 30]), coat: [13, 33], padX: 44, padT: 36 },
   },
   hex: {
     hip: 40,
@@ -112,6 +117,8 @@ export interface SideCrew {
   walk: HTMLCanvasElement[];
   /** The action frames: brace (the crouch before), attack (the wind-up), strike (the blow), cast, item, thrust, aim, hurt, victory. */
   poses: Partial<Record<Pose, HTMLCanvasElement>>;
+  /** Rook's kendo strike: one frame per key of `sidekata.ts`, each on its own canvas (wider than the others, centred on the same spot). */
+  kata?: Record<KataKey, HTMLCanvasElement>;
   /** Height from the frame's bottom edge to the top of the head, in art pixels. */
   headPx: number;
   /** The frame's size in art pixels. */
@@ -403,5 +410,28 @@ export function buildSideCrew(key: string): SideCrew | null {
     aim: attack,
     item: cast,
   };
-  return { base: idle[0] as HTMLCanvasElement, idle, walk, poses, headPx: H - headRowOf(idle[0] as HTMLCanvasElement), w: W, h: H };
+  // Rook's kendo strike: its own frames, from data.
+  let kata: Record<KataKey, HTMLCanvasElement> | undefined;
+  if (spec.kata && spec.katana) {
+    const kb = spec.katana.box;
+    kata = buildKata({
+      base,
+      pal,
+      arm1: spec.arm,
+      arm2: spec.kata.arm2,
+      coat: spec.kata.coat,
+      hip: spec.hip,
+      knee: spec.knee,
+      chest: spec.chest,
+      front: spec.left,
+      back: spec.right,
+      hilt: kb,
+      isSteel: (p) => p >= 0 && lumOf(pal[p] ?? '#000') > 110 && toHsl(...rgbOf(pal[p] ?? '#000'))[1] < 0.2,
+      isSkin: (p) => p >= 0 && isSkin(t.pal[p] ?? '#000000'),
+      padX: spec.kata.padX,
+      padT: spec.kata.padT,
+      render: (layers, w, h) => finish(renderLayers(layers, pal, w, h, 0, 0), outline, 0.3 + 0.08 * dark),
+    }).frames;
+  }
+  return { base: idle[0] as HTMLCanvasElement, idle, walk, poses, ...(kata ? { kata } : {}), headPx: H - headRowOf(idle[0] as HTMLCanvasElement), w: W, h: H };
 }

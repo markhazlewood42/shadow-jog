@@ -3,6 +3,7 @@
  * humanoid enemies, with action poses built by editing the rig's letter grid (arms raised,
  * braced) plus hand-drawn weapons in front of or behind the body.
  */
+import type { KataKey } from './rig2/sidekata';
 import { backGrid, paint, type CharLook } from './chars';
 import { rigBattler } from './rig2/battle';
 import { Pix, scale2x } from './pix';
@@ -34,6 +35,8 @@ export interface Battler {
    * loop plays in place of the rest frame (in `idleOrder`), the walk while the member steps in.
    */
   cycle?: { idle: HTMLCanvasElement[]; idleOrder: readonly number[]; walk: HTMLCanvasElement[] } | undefined;
+  /** Side-view battle, Rook only: his kendo strike, one frame per key of `rig2/sidekata.ts`, each on its own (wider) canvas centred on the body. */
+  kata?: Record<KataKey, HTMLCanvasElement> | undefined;
 }
 
 type Weapon = 'fists' | 'katana' | 'pistol' | 'staff';

@@ -20,6 +20,7 @@ import { WINDOWS } from './timing';
 import { PARTY_POSE_T } from './motion';
 import { direction } from '../../engine/shake';
 import { SIDE_LUNGE_MAX, SIDE_LUNGE_STOP, SIDE_VIEW } from './sideview';
+import { KATA_STOP, KATA_WINDUP, kataLength } from '../../art/rig2/sidekata';
 import { gpuCast, gpuDown, gpuHeal, gpuHit, gpuPhase, gpuSpell } from './gpufx';
 import type { TimingProfile } from '../../battle/engine';
 
@@ -84,7 +85,9 @@ export interface PlaybackView {
  * held long enough for the ring to be read (real frames: battle speed can't squeeze the beat) and
  * the ring closes exactly as the effect lands.
  */
-async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], windup: number, color?: string): Promise<void> {
+async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], windup: number, color?: string, onStart?: (at: number) => void): Promise<void> {
+  // Pose-clock frames per real frame, to tell a body how long it has before the effect starts (it reads `at` once, up front).
+  const perReal = 100 / v.anim(100);
   // The power gathers at the caster through the windup (GPU effects; most moves have no cast).
   gpuCast(fx, from);
   const profile = v.timingArmed();
@@ -92,6 +95,7 @@ async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], win
     const impact = v.anim(v.fx.impactOf(fx, from, to, color));
     const lead = Math.max(WINDOWS[profile].lead, v.anim(windup) + impact);
     v.openTiming(lead);
+    onStart?.((lead - impact) * perReal);
     await v.game.wait(lead - impact);
     const t = v.fx.play(fx, from, to, color);
     gpuSpell(fx, to, t.impact);
@@ -99,6 +103,7 @@ async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], win
     await v.game.wait(impact);
     return;
   }
+  onStart?.(v.anim(windup) * perReal);
   await v.game.wait(v.anim(windup));
   const timing = v.fx.play(fx, from, to, color);
   gpuSpell(fx, to, timing.impact);
@@ -120,6 +125,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       actionStops = 0;
       comboAction = false;
       const actor = v.battle.unit(e.actor)!;
+      let kata = false;
       v.lastActor = actor;
       const dd = v.d(e.actor);
       const color = actor.side === 'party' ? MEMBERS[actor.key as MemberId].color : '#ff8a8a';
@@ -131,10 +137,14 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         // Side view: a melee strike carries the actor most of the way to its target (data: SIDE_LUNGE_MAX, SIDE_LUNGE_STOP).
         dd.reachX = 0;
         dd.reachY = 0;
+        dd.strikeAt = undefined;
+        dd.poseLen = undefined;
+        // Rook's kendo strike has its own timeline and a longer blade, so he stops further off.
+        kata = SIDE_VIEW && actor.key === 'rook' && pose === 'attack';
         const aim = e.targets[0] === undefined ? null : v.pos(e.targets[0]);
         if (SIDE_VIEW && aim && (pose === 'attack' || pose === 'thrust')) {
           const from = v.pos(e.actor);
-          dd.reachX = Math.max(-SIDE_LUNGE_MAX, Math.min(0, aim.x + SIDE_LUNGE_STOP - from.x));
+          dd.reachX = Math.max(-SIDE_LUNGE_MAX, Math.min(0, aim.x + (kata ? KATA_STOP : SIDE_LUNGE_STOP) - from.x));
           dd.reachY = Math.max(-4, Math.min(4, (aim.y - from.y) * 0.3));
         }
         v.setPose(actor, pose, PARTY_POSE_T);
@@ -152,8 +162,14 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       // Enemies call their moves; the crew calls its big ones.
       const cry = ABILITIES[e.id]?.cry;
       if (cry && (e.kind === 'enemy' || actor.side === 'party')) v.say(cry);
-      const windup = actor.side === 'enemy' ? 12 : e.kind === 'attack' ? 8 : 16;
-      await windupAndHit(v, e.fx, v.pos(e.actor), e.targets.map((t) => v.pos(t)), windup, e.element === 'shock' ? '#9ae8ff' : undefined);
+      const windup = actor.side === 'enemy' ? 12 : kata ? KATA_WINDUP : e.kind === 'attack' ? 8 : 16;
+      const onStart = kata
+        ? (at: number) => {
+            dd.strikeAt = at;
+            dd.poseLen = dd.poseT = kataLength(at);
+          }
+        : undefined;
+      await windupAndHit(v, e.fx, v.pos(e.actor), e.targets.map((t) => v.pos(t)), windup, e.element === 'shock' ? '#9ae8ff' : undefined, onStart);
       break;
     }
     case 'combo': {
@@ -164,6 +180,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       if (first) state.combos.push(v.comboId(e.name));
       for (const a of e.actors) {
         v.d(a).hop = 10;
+        v.d(a).strikeAt = undefined;
         const u = v.battle.unit(a)!;
         if (u.side === 'party') v.setPose(u, u.key === 'hex' || u.key === 'sable' ? 'cast' : 'attack', 70);
       }
