@@ -87,6 +87,12 @@ A pass needs a median score of **8 or more overall** (the mean of the criteria t
 | Sable as a true profile: tried the traced `east` view, mirrored | battle | about 2 min | judge round 2 | FAILED, reverted. The `east` trace is a back view (hair over everything, no face), the `west` trace is a sliver with no face, and `north-west` is a back view; only the three-quarter `south-west` has her face, white hair and staff. A KNOWN BREAK: Sable is still a three-quarter view among three profiles. A true profile needs a re-trace or a hand build (not spent: over the item's time box). |
 | Enemy scale r2: `collapseBlocks` (best 2x2 phase, commonest colour, orphans dropped) then `stretchTo` 1.25 (humanoids) or 1.5 (creatures) | battle | about 3 min | judge round 2 | 0 passes after the first look. Default `fit`: punk about 57 px, ghoul about 60, Glowrat about 35 x 25; `half` is native (a punk 46 px); `full` is the old 91 px. Bosses unreduced. Replaces round 1's nearest shrink. |
 | Layout r2: RPG Maker diagonal, shared ground line, contact shadows, cursor over the HP bar, panel gaps, wide-group overflow | battle | about 4 min | judge round 2 | 4 passes (cursor first hung 15 px high: bounce too big; panel gap; the four-enemy strip ran into the party; strip right edge). No sprite changed. |
+| Crew graded for the night: `grade()` on the palette (saturation x1.28, soft lightness floor, legs higher), crisp outline back, two-tone rim, light soles, hair midtone (Kit) | battle | about 6 min | judge round 3 | 2 passes (a hard floor turned dark navy to pure blue and flattened Rook's coat seams, now a soft pull with saturation eased in proportion; Kit's hair mix came out lilac, halved). Code only: a palette function, no per-pixel edits. |
+| Sable profile head: `east` flip tried, graft of the 3/4 face tried, `west` tried, then a hand-built 11x14 head over her `south-west` body | battle | about 14 min | judge round 3 | HAND WORK, 3 failed attempts first (the `east` mirror shrinks to a 14 px sliver with the face 2 px wide; the grafted face landed on her hand; `west` is a staff with a sliver). The final head is about 90 hand-placed pixels (ASCII rows over her own palette, `SABLE_PROFILE_HEAD`) over the 3/4 body: a face with a nose and an eye in profile, white hair behind. Well inside the 2 h per key pose budget, but not "data through shared code". |
+| Walk r3: Hex's legs 1 px wider, Rook body drop 2 px on the passing frames, hem sway 2 px, heel lift (trailing foot up 1 px, Rook 2) | battle | about 3 min | judge round 3 | 0 passes. Spec fields (`legFat`, `bob`, `heel`), shared code. |
+| Wait loop r3: head rise 0, 2, 3 rows (was 0, 1, 2) | battle | about 1 min | judge round 3 | 0 passes. Judged from the GIF. |
+| Enemy scale r3: humanoids native 1x, creatures exactly 2x (default `fit`); `wide` keeps round 2's 1.25x/1.5x | battle | about 2 min | judge round 3 | 0 passes. No fractional stretch in the default. |
+| Layout r3: crew drawn on the screen-resolution layer, party x 130 + 23 a slot, enemy strip 46 to 120, closing-up groups, per-backdrop ground table, walk gated on the shatter's end, active-member outline, white target chevron, boss contact patch | battle | about 14 min | judge round 3 | 5 passes (the sewer's left ghoul ran under the 5-row command menu; four punks overlapped; the active outline looked dotted, which exposed that the crew were being sampled 2:1 on the 240x135 layer, so they moved to the 480x270 enemy layer). |
 
 ## Day 1 notes (2026-10-02)
 
@@ -166,6 +172,43 @@ Round 1 scored 6.43 overall (identity 7, readability 6, motion 6, craft 6, compo
 | Docs, `npm run check` (exit 0), commit, push | 12:04 to 12:07 | 3 | 0 |
 
 About 23 minutes of wall clock (the layout and crew rows overlap), 8 fix passes, none of them per-pixel repair. The judges' list had 25 distinct fixes; all but Sable's profile and a hem sway that is hard to see are in.
+
+## Item A-layout round 3 (2026-10-02, after the round-2 judges)
+Round 2 scored 6.43 again (identity 6, readability 6, motion 5, craft 6, composition 7, style 6, cost 8; impact unscored). Images: `media/spike-side-battle/A-layout-r3-*.png` (git-ignored; 2x screens, 4x crew sheet, a 3x filmstrip, a GIF and an APNG of the walk-in and the wait loop). The numbers in the round-1 and round-2 sections above (strip, lift, step sizes, `fit` at 1.25x) are superseded by what follows.
+
+**The root cause of "noisy crew" (found this round).** The party was drawn onto the battle's 240x135 world layer, shown 2x, while the enemies are drawn on a 480x270 screen layer. A 47 px battle-scale sprite drawn on the small layer is sampled 2:1 (nearest), so three pixels in four were thrown away: broken lines, a dark arm "seam", dots for hands. In side view the crew are now drawn on the enemy layer (`render.ts`, `drawPartyMember(el, ...)`), at one art pixel per screen pixel, the same density as the enemies, and positions snap to a native pixel. Most of the round-2 craft and readability complaints were this. The v0.1.0 back view still uses the small layer (unchanged).
+
+**Crew.**
+- Colour: each member's palette is graded once (`grade()`): saturation x1.28 and a soft floor on lightness (trousers and boots higher), so Kit's navy, Hex's dark trousers and Rook's coat lift with their hues kept; Kit's near-black hair takes a warm plum midtone; the outline is a crisp near-black again (round 2's lifted outline made dark members ghostly); a cool rim on the back and top edge and a warm one on the front edge (the enemies carry a warm rim), only where a part is at least two pixels thick; light soles.
+- Sable: a hand-built profile head (face with a nose and a yellow eye, white hair behind) over her three-quarter `south-west` body (see the pose log: three data-only tries failed first). She is now a profile at the head and a three-quarter at the body, which at 47 px reads as a profile.
+- Walk: Hex's legs a pixel wider, Rook's body drop 2 px on passing frames, hem sway 2 px, a heel lift on the trailing foot for everyone (Rook 2 px). Wait loop: the head rises 0, 2, 3 rows.
+- Active member: a one-pixel outline in the turn yellow, beating, besides the arrow (raised 3 px so it clears the hair).
+
+**Enemies.** The default is whole-number sizes: humanoids at the collapsed trace's native resolution (a punk 46 px), creatures at exactly 2x (a Glowrat about 47 px wide). `&enemyscale=wide` keeps round 2's 1.25x and 1.5x for comparison, `half` makes creatures native too, `full` is the 91 px trace. Health bars sit 3 px (was 6) above the art; the target chevron is white with its dark outline.
+
+**Composition.** Party x 130, 153, 176, 199 (was 150 to 210), feet 76 to 97; enemy strip world x 46 to 120; a group too wide for it closes up (neighbouring art overlaps by up to 5 px of its transparent margin and every other enemy stands 6 px further back) and never starts left of 38, so a four-enemy group clears the command column. The sewer's enemies stand 5 px lower (`SIDE_ENEMY_LIFT_BY_BG`, data) so their feet are on the walkway; the other seven backdrops were checked and need no offset. The Warden gets a wider contact patch. The party now walks in only after the shatter has cleared (`walkStart` is set when the intro ends; the wait after it is the length of the walk), at 1.5 px a frame, about 85 frames, nearly four walk cycles on a clear screen.
+
+**Honest issues.**
+- There are still no strike, cast or hurt frames: every pose uses the idle frame. The strike and hurt stills (`strike-hit`, `strike-damage`, `hurt-flash`) show the real round (hit arc, damage number, red flash, shake) on that frame, and the crew do not lunge toward the enemy (that is the later strike item). Motion is judged on the walk and the wait loop only.
+- Sable's head is hand work, and her body is still three-quarter; her staff is a thin brown line.
+- Hex's legs are still the weakest part: his trousers are a grey-violet and the walk reads as a shuffle.
+- The Glowrat at 2x is a clean integer size, but its blocks are 2 px against the crew's 1 px, a visible density mismatch (a creature, not a humanoid).
+- A four-enemy group overlaps itself by a few px, and the 5-row command menu can still cover a few transparent pixels of the leftmost enemy in the widest groups.
+- The enemy attack and its GPU hit on a distant target are unchanged: a Glowrat bite lands on Sable across the whole screen with nothing travelling between them.
+
+## Time log, item A-layout round 3 (wall clock, Claude time)
+| Sub-step | From to | Minutes | Fix passes |
+|---|---|---|---|
+| Read the spike, the code, the judges' list; look at the round-2 images; the dev server (an earlier one was already on 3007) | 12:06 to 12:10 | 4 | 0 |
+| Crew grading, rim, heel lift, wider legs, wait loop; crew sheets | 12:10 to 12:15 | 5 | 2 (hair lilac; a hard floor made blue specks and flat seams) |
+| Sable: `east` mirror, face graft, `west`, then the hand-built head | 12:14 to 12:19 | 5 | 3 (three failed tries) |
+| Enemy scale, slots, walk gating, cursor, active outline, boss patch, per-backdrop lift, montage of eight backdrops | 12:16 to 12:22 | 6 | 2 (the sewer's ghoul under the menu; four punks overlapped) |
+| Root cause: the crew moved to the screen-resolution layer | 12:25 to 12:27 | 2 | 1 |
+| `npm run check` (exit 0) | 12:22 | 1 | 0 |
+| Deliverable captures: ten screens, the crew sheet, a filmstrip, a GIF and an APNG, strike and hurt stills | 12:27 to 12:31 | 4 | 0 |
+| Docs, concepts, check, commit, push | 12:31 to 12:40 | 9 | 0 |
+
+About 34 minutes of wall clock (some rows overlap), 8 fix passes, one piece of hand work (Sable's head, about 90 pixels).
 
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED

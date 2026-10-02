@@ -31,7 +31,7 @@ import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
 import { BHT, BW, DECK_CUT_LIFE, MENU_X, PANEL_Y, PARTY_BOTTOM } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
-import { SIDE_ENEMY_EDGE, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, WALK_FROM, WALK_SPEED, sideBattler, sideSlot } from './battlekit/sideview';
+import { SIDE_ENEMY_EDGE, SIDE_ENEMY_LIFT_BY_BG, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, WALK_FROM, WALK_SPEED, sideBattler, sideSlot } from './battlekit/sideview';
 import { postfx } from '../engine/postfx';
 import { playMoment } from '../engine/moments';
 import { FX } from '../data/fx';
@@ -257,7 +257,6 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     // The shatter keeps pace with the battle-speed setting, like everything after it.
     for (let t = 0; t < INTRO_T; t += this.speed()) {
       this.introT = Math.floor(t);
-      if (SIDE_VIEW && this.walkStart < 0 && t >= CRACK) this.walkStart = this.frame;
       for (const e of this.battle.enemies) this.d(e.uid).alpha = Math.min(1, Math.max(0, (t - INTRO_T * 0.35) / (INTRO_T * 0.5)));
       // The glass breaks: the air ripples out from the middle of the screen (GPU effects).
       if (t < CRACK && t + this.speed() >= CRACK) playMoment(FX, 'intro', W / 2, H / 2);
@@ -265,9 +264,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     }
     this.introT = 999;
     for (const e of this.battle.enemies) this.d(e.uid).alpha = 1;
+    // Side view: the party steps in once the shards have cleared (round 2 started during the shatter and the steps were under the glass).
+    if (SIDE_VIEW) this.walkStart = this.frame;
     const names = groupNames(this.battle.enemies);
     this.say(this.setup.boss ? `${names} blocks the way!` : `${names} ${this.battle.enemies.length > 1 ? 'appear' : 'appears'}!`);
-    await this.w(58);
+    // Side view: let the walk finish (about 85 frames at this speed) before the orders begin.
+    await this.w(SIDE_VIEW ? Math.max(58, Math.ceil((WALK_FROM - sideSlot(0, this.battle.party.length).x) / WALK_SPEED) + 12) : 58);
     this.startRound();
   }
 
@@ -1085,8 +1087,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         const art = enemyArt(ENEMIES[e.key]!.sprite);
         // Side view: the enemies stand further back (higher up the street) than any of the crew, which also
         // leaves the band under their feet free for the command and ability windows.
-        const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0) - (SIDE_VIEW ? (e.boss ? SIDE_BOSS_LIFT : SIDE_ENEMY_LIFT) : 0);
-        const back = e.boss ? 0 : (i % 2) * 4;
+        const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0) - (SIDE_VIEW ? (e.boss ? SIDE_BOSS_LIFT : (SIDE_ENEMY_LIFT_BY_BG[this.setup.bg] ?? SIDE_ENEMY_LIFT)) : 0);
+        const back = e.boss ? 0 : (i % 2) * (SIDE_VIEW && gap < 0 ? 6 : 4);
         next.set(e.uid, { x, y: clearOfPrompt(ground - art.h - back, art), art });
         x += art.w + gap;
       });

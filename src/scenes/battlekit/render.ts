@@ -98,9 +98,13 @@ export class BattleRenderer {
     for (const e of this.s.battle.enemies) if (this.s.d(e.uid).alpha > 0.01) order.push(e);
     order.sort(this.s.byFeet);
     for (const e of order) this.drawEnemy(el, e, f);
+    // Side view: the crew are battle-scale art (one art pixel per screen pixel, like the enemies), so they go on this
+    // screen-resolution layer, still at its 2x transform. On the world-resolution layer below (240x135) a 47 px sprite is
+    // sampled 2:1 and loses three pixels in four, which is what made round 2's crew look noisy.
+    if (SIDE_VIEW) for (const p of this.s.battle.party) this.drawPartyMember(el, p, f);
     el.setTransform(1, 0, 0, 1, 0, 0);
     // Party (back view)
-    for (const p of this.s.battle.party) this.drawPartyMember(g, p, f);
+    if (!SIDE_VIEW) for (const p of this.s.battle.party) this.drawPartyMember(g, p, f);
     // Foreground framing (rails, cables) over the fighters; FX and numbers stay on top of it.
     if (this.s.bg.fg) g.drawImage(this.s.bg.fg, 0, 0);
     this.s.fx.render(g, (c, ch, x, y, col) => drawText(c, ch, x, y, { color: col, shadow: false }));
@@ -277,11 +281,16 @@ export class BattleRenderer {
     const dx = x + ox, dy = y + oy;
     // Shadow
     if (art.shadow) {
-      g.fillStyle = 'rgba(0,0,0,0.35)';
+      g.fillStyle = SIDE_VIEW ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.35)';
       const cx = x + art.w / 2;
       const gy = y + art.h - 1;
       g.fillRect(Math.round(cx - art.shadow / 2), gy, art.shadow, 2);
       g.fillRect(Math.round(cx - art.shadow / 2 + 2), gy + 2, art.shadow - 4, 1);
+      // Side view: a boss gets a wider, deeper contact patch, so it stands on the same ground as the crew instead of floating over a strip of it.
+      if (SIDE_VIEW && e.boss) {
+        g.fillRect(Math.round(cx - art.shadow / 2 - 4), gy - 1, art.shadow + 8, 1);
+        g.fillRect(Math.round(cx - art.shadow / 2 + 4), gy + 3, art.shadow - 8, 1);
+      }
     }
     let alpha = dd.alpha;
     if (art.idle === 'flicker') alpha *= 0.82 + 0.18 * Math.sin(f * 0.2 + e.uid);
@@ -389,9 +398,11 @@ export class BattleRenderer {
     if (pose === 'hurt') ox += 1;
     // Idle breathing: a 1px rise, staggered per member; faster and higher while choosing orders.
     const breathe = pose === 'idle' && !cyc ? (Math.floor((f + p.uid * 23) / (active ? 16 : 34)) % 2) * (active ? 2 : 1) : 0;
-    const x = Math.round(pos.x - frame.width / res / 2 + ox + walkLeft);
+    // Side view: positions land on a native pixel (half a world pixel); otherwise on a world pixel.
+    const snap = SIDE_VIEW ? (v: number) => Math.round(v * 2) / 2 : Math.round;
+    const x = snap(pos.x - frame.width / res / 2 + ox + walkLeft);
     const lift = beat ? beat.lift : dd.lunge;
-    const y = Math.round(this.s.partyFeet(p) - frame.height / res - dd.hop - lift - breathe + (pose === 'hurt' ? 2 : 0));
+    const y = snap(this.s.partyFeet(p) - frame.height / res - dd.hop - lift - breathe + (pose === 'hurt' ? 2 : 0));
     if (down) {
       g.globalAlpha = 0.5;
       putArt(g, silhouetteCache(art.frames.hurt, '#3a3450'), x, y + 10, res);
@@ -424,6 +435,14 @@ export class BattleRenderer {
       }
       g.globalAlpha = 1;
     }
+    // Side view: whoever is giving orders gets a one-pixel outline in the active colour, beating on the half second, so the small
+    // sprite reads as the actor without the arrow alone (round 3).
+    if (SIDE_VIEW && active) {
+      const sil = silhouetteCache(frame, ACTIVE);
+      g.globalAlpha = 0.55 + 0.35 * Math.sin(f * 0.15);
+      for (const [dx, dy] of [[-0.5, 0], [0.5, 0], [0, -0.5], [0, 0.5]] as const) putArt(g, sil, x + dx, y + dy, res);
+      g.globalAlpha = 1;
+    }
     putArt(g, frame, x, y, res);
     // The cut's lit trail shows only while the cut is happening, not through the settle.
     const glow = pose === 'strike' && beat?.phase === 'settle' ? undefined : art.glow[pose];
@@ -452,7 +471,7 @@ export class BattleRenderer {
       x = p.x + p.art.w / 2;
       y = p.y - 4;
       // Side view: hang the chevron just over the health bar, wherever the prompt window has pushed it (the bar sits 6 screen pixels over the art, never above row 24).
-      if (SIDE_VIEW) y = Math.max(24, (p.y + artTop(p.art)) * 2 - 6) / 2;
+      if (SIDE_VIEW) y = Math.max(24, (p.y + artTop(p.art)) * 2 - 3) / 2;
     } else {
       const p = this.s.partyPos(u);
       x = p.x;
@@ -461,17 +480,19 @@ export class BattleRenderer {
     // Over an enemy it hangs above the head; over the crew it sits right on the hair, so it never
     // reaches up into the enemy row and reads as a target cursor (round 13).
     const b = Math.round(Math.sin(f * 0.25) * (u.side === 'enemy' ? (SIDE_VIEW ? 1 : 3) : 1.5));
-    const top = u.side === 'enemy' ? Math.max(SIDE_VIEW ? 1 : -99, y - 9 + b) : y - 2 + b;
+    const top = u.side === 'enemy' ? Math.max(SIDE_VIEW ? 1 : -99, y - 9 + b) : y - (SIDE_VIEW ? 5 : 2) + b;
+    // Side view: the target cursor is white (the cyan one vanished against cyan neon signs), with its dark outline.
+    const fill = SIDE_VIEW && color === AIMING ? '#ffffff' : color;
     // A chunky chevron (9 wide, 5 deep) with a dark outline all round, so it holds against any
     // backdrop, and a white glint across its top on the beat.
     g.fillStyle = '#0a0913';
     for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
       for (let i = 0; i < 5; i++) g.fillRect(x - 4 + i + ox, top + i + oy, 9 - i * 2, 1);
     }
-    g.fillStyle = color;
+    g.fillStyle = fill;
     for (let i = 0; i < 5; i++) g.fillRect(x - 4 + i, top + i, 9 - i * 2, 1);
     if (Math.sin(f * 0.25) > 0.3) {
-      g.fillStyle = '#ffffff';
+      g.fillStyle = fill === '#ffffff' ? '#ffd24a' : '#ffffff';
       g.fillRect(x - 3, top, 7, 1);
     }
   }
@@ -487,7 +508,7 @@ export class BattleRenderer {
       if (dd.dying > 0 || dd.alpha < 0.5) continue;
       const { x, y, art } = this.s.enemyPos(e);
       const cx0 = Math.round((x + art.w / 2) * 2);
-      let row = Math.max(24, (y + artTop(art)) * 2 - 6);
+      let row = Math.max(24, (y + artTop(art)) * 2 - (SIDE_VIEW ? 3 : 6));
       // HP bar (bosses get a wider one).
       const bw = e.boss ? 72 : 30;
       const ratio = Math.max(0, dd.shownHp / e.base.maxHp);

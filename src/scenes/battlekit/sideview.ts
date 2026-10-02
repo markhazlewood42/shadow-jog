@@ -5,9 +5,11 @@
  *
  * Flags (all DEV only):
  *   ?battle=side                the layout, the crew at BATTLE scale (~47 px tall, from the traced west view),
- *                               regular enemies at the default size ("fit": humanoids ~0.6, creatures ~0.75 of the trace)
+ *                               regular enemies at "fit": humanoids at the trace's native resolution (the crew's height),
+ *                               creatures at twice it, both whole-number sizes
  *   ?battle=side&scale=field    the day-1 comparison: the crew from their ~30 px field `left` frame
- *   ?battle=side&enemyscale=half  humanoids and creatures at the trace's native resolution (a humanoid is the crew's height)
+ *   ?battle=side&enemyscale=half  humanoids and creatures both at the trace's native resolution
+ *   ?battle=side&enemyscale=wide  round 2's look: humanoids 1.25x and creatures 1.5x native (fractional: uneven line widths)
  *   ?battle=side&enemyscale=full  the traces as they are (91 px humanoids), the day-1 and round-1 look
  *   Bosses (Knuckles, the Lurker, the Warden) are never reduced (Final Fantasy VI style: big bosses, party-sized grunts).
  */
@@ -25,18 +27,23 @@ export const SIDE_VIEW: boolean = import.meta.env.DEV && query().get('battle') =
 /** Which size the crew are drawn at: battle (the default) or the field frame. */
 export const SIDE_SCALE: 'battle' | 'field' = query().get('scale') === 'field' ? 'field' : 'battle';
 /** `&enemyscale=`: how regular enemies are sized next to a 47 px crew. The default is "fit". */
-export type EnemyScale = 'fit' | 'half' | 'full';
-export const ENEMY_SCALE: EnemyScale = !SIDE_VIEW ? 'full' : query().get('enemyscale') === 'full' ? 'full' : query().get('enemyscale') === 'half' ? 'half' : 'fit';
+export type EnemyScale = 'fit' | 'half' | 'wide' | 'full';
+const ES = query().get('enemyscale');
+export const ENEMY_SCALE: EnemyScale = !SIDE_VIEW ? 'full' : ES === 'full' || ES === 'half' || ES === 'wide' ? ES : 'fit';
 
 /**
  * Humanoid regular enemies, and creatures. Each is collapsed to the trace's native resolution (a pixel
- * per 2x2 block), then drawn 1 (half), 1.25 (fit, humanoids: a punk is about 57 px beside the crew's
- * 47) or 1.5 (fit, creatures: a Glowrat is about 35 px wide) times that.
+ * per 2x2 block, so one pixel density with the crew), then drawn at a WHOLE-number multiple by default
+ * (round 3: every fractional stretch doubled every fifth row or column and left beaded outlines):
+ * humanoids at 1 (a punk is 46 px, the crew's height), creatures at 2 (a Glowrat is about 47 px wide).
  */
 const HUMANOIDS = ['punk', 'medic', 'slinger', 'ghoul', 'sentinel', 'arcanist', 'wisp', 'shade', 'bound'];
 const CREATURES = ['rat', 'hound', 'drone', 'crab', 'maint', 'eel', 'turret', 'hunter'];
 if (ENEMY_SCALE === 'half') reduceEnemies([...HUMANOIDS, ...CREATURES], 1);
 else if (ENEMY_SCALE === 'fit') {
+  reduceEnemies(HUMANOIDS, 1);
+  reduceEnemies(CREATURES, 2);
+} else if (ENEMY_SCALE === 'wide') {
   reduceEnemies(HUMANOIDS, 1.25);
   reduceEnemies(CREATURES, 1.5);
 }
@@ -51,28 +58,34 @@ else if (ENEMY_SCALE === 'fit') {
  */
 export function sideSlot(i: number, n: number): { x: number; feet: number } {
   const step = Math.min(1, 3 / Math.max(1, n - 1));
-  return { x: Math.round(150 + i * 20 * step), feet: Math.round(76 + i * 7 * step) };
+  return { x: Math.round(130 + i * 23 * step), feet: Math.round(76 + i * 7 * step) };
 }
 
 /** Left edge of the first enemy: the command menus own the left column (x 4 to 88 on screen), so the enemies start right of it. */
 export const SIDE_ENEMY_LEFT = 46;
 /** How much higher up the street the enemies stand than in the back view (battle-world pixels): their feet at row ~72, a few above slot 0's (76), and clear of the windows under them. */
 export const SIDE_ENEMY_LIFT = 8;
+/**
+ * Per backdrop, how far the enemies stand up the street from the party's ground line, where the default
+ * does not put their feet on the floor (data, not a per-enemy fix). The sewer's lit walkway starts lower
+ * than the street's pavement, so its enemies stand 5 px lower than the default.
+ */
+export const SIDE_ENEMY_LIFT_BY_BG: Record<string, number> = { sewer: 3 };
 /** The same for a boss, less: a tall boss's health bar would run into the top message window. */
 export const SIDE_BOSS_LIFT = 6;
 /** Right limit of the enemies: slot 0's left edge (a staff or a ponytail reaches past the body). */
-export const SIDE_ENEMY_RIGHT = 134;
-/** A group too wide for the strip (four or more) may stand out over the menu column, down to here; the menus start under the enemies' feet, so nothing overlaps. */
-export const SIDE_ENEMY_EDGE = 6;
+export const SIDE_ENEMY_RIGHT = 120;
+/** A group too wide for the strip (four or more) closes up (the art's transparent margins overlap, and every other enemy stands a row further back) rather than standing out over the menu column; this is the furthest left it may start (the menu's right edge is world x 44, and the art has about 3 px of transparent margin). */
+export const SIDE_ENEMY_EDGE = 38;
 /** Extra room (screen pixels) the command menus, the ability list and the target box leave above the party panels: the active member's panel rises 5, so the old 6 left them touching. */
 export const SIDE_PANEL_GAP = 5;
 /** The least room between two enemies' art (battle-world pixels), so a club or an arm never crosses the next one. */
-export const SIDE_ENEMY_GAP_MIN = 2;
+export const SIDE_ENEMY_GAP_MIN = -5;
 /** The most, so a small group doesn't scatter. */
 export const SIDE_ENEMY_GAP_MAX = 10;
 
 /** How the party steps in from the right edge at the start of a fight: world pixels per frame, and frames per step. */
-export const WALK_SPEED = 1.4;
+export const WALK_SPEED = 1.5;
 export const WALK_FRAMES_PER_STEP = 4;
 /** Where a stepping-in member starts: just past the right edge. */
 export const WALK_FROM = 252;

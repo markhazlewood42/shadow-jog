@@ -155,7 +155,7 @@ async function crewSheet(zoom: number): Promise<HTMLCanvasElement> {
   g.fillRect(0, 0, canvas.width, canvas.height);
   g.fillStyle = '#fff';
   g.font = 'bold 16px sans-serif';
-  g.fillText(`The crew at BATTLE scale, round 2 (traced west view; Sable: south-west, a known three-quarter break), nearest shrink to ${BATTLE_FEET} px soles, lifted legs and outline, cool rim, near arm counter-swing, x${zoom}. Columns: field left frame (identity) | wait 1 2 3 (played 1-2-3-2) | walk 1 2 3 4`, 8, 22);
+  g.fillText(`The crew at BATTLE scale, round 3 (traced west view; Sable: south-west body with a hand-built profile head), nearest shrink to ${BATTLE_FEET} px soles, graded colours, crisp outline, cool/warm rim, near arm counter-swing, heel lift, x${zoom}. Columns: field left frame (identity) | wait 1 2 3 (played 1-2-3-2) | walk 1 2 3 4`, 8, 22);
   const heads = ['field frame', 'wait 1', 'wait 2', 'wait 3', 'walk 1', 'walk 2', 'walk 3', 'walk 4'];
   keys.forEach((k, r) => {
     const y = 36 + r * (ch * zoom + 26);
