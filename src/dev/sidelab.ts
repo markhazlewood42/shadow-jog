@@ -207,13 +207,13 @@ async function crewSheet(zoom: number): Promise<HTMLCanvasElement> {
  * `at` is the frame the move's effect starts on (18 with no timing ring; about 24 when the ring is closing); the blade shows on the target 3 frames before it. One cell per
  * step of `kataTimeline`, so a held frame is one cell with its hold length, not repeated.
  */
-async function kataSheet(zoom: number, at: number): Promise<HTMLCanvasElement> {
+async function kataSheet(zoom: number, at: number, low = false): Promise<HTMLCanvasElement> {
   const canvas = mount();
   if (!Object.keys(VIEWS_TRACED).length) await loadViews();
   const crew = buildSideCrew('rook');
   const kata = crew?.kata;
   if (!crew || !kata) throw new Error('Rook has no kata frames');
-  const steps = kataTimeline(at);
+  const steps = kataTimeline(at, low);
   // The box that holds every frame, so the cells line up and the lunge's growth shows.
   let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
   for (const f of Object.values(kata)) {
@@ -260,10 +260,11 @@ async function kataSheet(zoom: number, at: number): Promise<HTMLCanvasElement> {
   // The wait loop's first frame, for the same character at rest.
   put(crew.idle[0] as HTMLCanvasElement, 0, ['rest (wait loop)', 'sheathed, hands down']);
   let k = 0;
+  const zan = steps.findIndex((s) => s.key === 'zanshin');
   steps.forEach((s, i) => {
     const fr = kata[s.key];
     const pose = KATA_POSES[s.key];
-    put(fr, i + 1, [`#${i + 1}  ${s.key}${pose.smear ? ' + smear' : ''}${i >= 10 ? ' (return: the draw read backwards)' : i < 2 ? ' (draw)' : ''}`, `frames ${k}-${k + s.frames - 1}, held ${s.frames} (${s.frames * 1.5 | 0} real)`, `lunge ${s.from.toFixed(2)} to ${s.to.toFixed(2)}`]);
+    put(fr, i + 1, [`#${i + 1}  ${s.key}${pose.smear ? ' + smear' : ''}${i >= zan + 1 ? ' (return)' : i < 2 ? ' (draw)' : ''}`, `frames ${k}-${k + s.frames - 1}, held ${s.frames} (${s.frames * 1.5 | 0} real)`, `lunge ${s.from.toFixed(2)} to ${s.to.toFixed(2)}`]);
     k += s.frames;
   });
   return canvas;
@@ -271,7 +272,7 @@ async function kataSheet(zoom: number, at: number): Promise<HTMLCanvasElement> {
 
 async function build(which: string, zoom?: number): Promise<HTMLCanvasElement> {
   if (which === 'crew') return crewSheet(zoom || 4);
-  if (which === 'kata') return kataSheet(zoom || 4, Number(new URLSearchParams(location.search).get('at') ?? 18));
+  if (which === 'kata') return kataSheet(zoom || 4, Number(new URLSearchParams(location.search).get('at') ?? 18), new URLSearchParams(location.search).get('low') === '1');
   const canvas = mount();
   const field = which !== 'battle';
   const s = { ...(field ? FIELD : BATTLE), ...(zoom ? { zoom } : {}) };

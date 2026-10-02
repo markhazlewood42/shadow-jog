@@ -86,7 +86,7 @@ const SPEC: Record<string, CrewSpec> = {
     arm: arm([5, 19], [2, 29.5], 3, [2, 24], [2, 29]),
     farShoulder: [18, 19],
     katana: { box: [19, 2, 28, 17] },
-    kata: { arm2: arm([19, 21], [19.5, 30.5], 3.3, [18, 25], [19, 30]), coat: [13, 33], padX: 44, padT: 36 },
+    kata: { arm2: arm([19, 21], [19.5, 30.5], 3.3, [18, 25], [19, 30]), coat: [13, 33], padX: 44, padT: 46 },
   },
   hex: {
     hip: 40,

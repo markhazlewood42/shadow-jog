@@ -122,6 +122,26 @@ export class FxLayer {
     }, delay);
   }
 
+  /**
+   * Rook's men-uchi (spike `spike/side-battle`): a hard horizontal cut through the target along the blade, `len` px each side of `at`: three px of hot white on the first
+   * frame, a thinner pale line the second, gone by the third, so the body shows through the hitstop. A flat line, not a burst.
+   */
+  private cutLine(at: Pt, delay: number, len: number): void {
+    this.s(3, (ctx, k) => {
+      const hot = k < 0.5;
+      const x0 = Math.round(at.x - len), x1 = Math.round(at.x + len), y = Math.round(at.y);
+      // The line draws on from the blade's side (the right), tapering to a point at its far end.
+      ctx.globalAlpha = k < 0.75 ? 1 : 0.5;
+      for (let x = x0; x <= x1; x++) {
+        const t = (x - x0) / (x1 - x0 || 1);
+        const h = hot ? (t > 0.15 ? 3 : 1) : t > 0.4 ? 2 : 1;
+        ctx.fillStyle = hot ? '#ffffff' : '#cfe0ff';
+        ctx.fillRect(x, y - (h > 2 ? 1 : 0), 1, h);
+      }
+      ctx.globalAlpha = 1;
+    }, delay);
+  }
+
   /** The contact frame of a hit: a white four-point star, then a smaller coloured one. */
   private impact(at: Pt, color: string, delay = 0, r = 7): void {
     this.s(5, (ctx, k) => {
@@ -681,6 +701,14 @@ export class FxLayer {
     const T = targets.length ? targets : [from];
     const each = (fn: (t: Pt, i: number) => void) => T.forEach(fn);
     switch (id) {
+      case 'men':
+        each((t) => {
+          this.cutLine(t, 3, 13);
+          this.impact({ x: t.x + 3, y: t.y }, '#9ad4ff', 3, 3);
+          this.burst({ x: t.x + 3, y: t.y }, '#ffffff', 5, 1.4, 3);
+          this.debris(t, '#c8d0e0', 3, 4);
+        });
+        return { impact: 4, total: 16 };
       case 'slash':
       case 'claw':
       case 'whip':

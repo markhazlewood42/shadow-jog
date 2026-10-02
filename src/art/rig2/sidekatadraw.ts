@@ -15,7 +15,7 @@
  * contact blade is three pixels across; the frames report where the point and the front foot are (`KATA_MEASURED`).
  */
 import { band, katana, solveArm } from './battle';
-import { GRIP_GAP, KATA_BONE, KATA_DIMS, KATA_MEASURED, KATA_POSES, type KataKey, type KataPose } from './sidekata';
+import { GRIP_GAP, KATA_BONE, KATA_DIMS, KATA_MEASURED, KATA_MEASURED_LOW, KATA_POSES, type KataKey, type KataPose, isContact } from './sidekata';
 import type { Layer } from './rig';
 import { type Pt, type SideArm, separateArm } from './side';
 import { at, bendLeg, clearBox, crouch, dropSpecks, embed, type LegBox, lean, leanAt, rise, topRow } from './sideops';
@@ -74,29 +74,34 @@ function within(s: Pt, p: Pt, r: number): Pt {
 }
 
 /**
- * Paint the blade's sweep (from angle `a0` to `a1`, round `pivot`) onto a canvas as a filled wedge: the full length of the
- * blade where the blade is now, narrowing to a sliver at the tip where it was, in solid bands of white and pale steel (the
- * effect palette of `fx.ts`), the leading edge brightest. It ends sharply at the blade line; no loose dots.
+ * Paint the blade's sweep (from angle `a0` to `a1`, unwrapped degrees, round `pivot`) onto a canvas as a CRESCENT: a band along the
+ * path the point travelled, `KATA_SMEAR_MAX` px thick at the leading edge (where the blade is now) and tapering to nothing where
+ * it was, so it is one solid moon-shaped arc with no hook or flag past the point. Three tones across its thickness (a pale rim on
+ * the point's side, steel, a deep steel on the hand's side), the leading edge brightest; `hot` (the blow itself) paints the leading
+ * edge pure white. It is drawn behind the blade, which keeps its own white edge and dark spine and so stays the brightest line.
  */
-function paintSmear(g: CanvasRenderingContext2D, w: number, h: number, pivot: Pt, a0: number, a1: number, rOut: number): void {
-  const lo = Math.min(a0, a1);
-  const hi = Math.max(a0, a1);
-  const span = Math.max(1, hi - lo);
+export const KATA_SMEAR_MAX = 11;
+function paintSmear(g: CanvasRenderingContext2D, w: number, h: number, pivot: Pt, a0: number, a1: number, rOut: number, kind: 'fan' | 'arc', hot: boolean): void {
+  const mid = (a0 + a1) / 2;
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const dx = x + 0.5 - pivot[0];
       const dy = y + 0.5 - pivot[1];
       const r = Math.hypot(dx, dy);
-      const th = (Math.atan2(dy, dx) * 180) / Math.PI;
-      if (th < lo || th > hi || r > rOut + 0.4) continue;
+      if (r > rOut + 0.3) continue;
+      // The pixel's angle, brought into the same turn as the sweep (the blow crosses 180 degrees).
+      let th = (Math.atan2(dy, dx) * 180) / Math.PI;
+      th += 360 * Math.round((mid - th) / 360);
       // 0 at the old blade, 1 at the new one.
-      const s = a1 > a0 ? (th - a0) / (a1 - a0) : (a0 - th) / (a0 - a1);
-      // How much of the blade's length the wedge covers here: a sliver at the tip behind, the whole blade at the leading edge.
-      const cover = 1.5 + 3.5 * s ** 1.2;
-      if (r < rOut - cover) continue;
-      // The leading edge is one pixel of arc (about 1.5 px at the tip's radius) of pure white.
-      const edge = ((a1 > a0 ? a1 - th : th - a1) / span) * (Math.PI / 180) * span * rOut < 1.6;
-      g.fillStyle = edge || s > 0.78 ? '#ffffff' : s > 0.45 ? '#e8f0ff' : '#9db4d6';
+      const s = (th - a0) / (a1 - a0);
+      if (s < 0 || s > 1) continue;
+      // A fan fills the wedge between the two blade angles from near the hands out to the point (a share of the blade that grows toward the new blade); an arc is only the band at the point's radius.
+      const thick = kind === 'fan' ? 1 + rOut * 0.9 * s ** 1.5 : 1.5 + (KATA_SMEAR_MAX - 1.5) * s ** 1.1;
+      const depth = (rOut - r) / thick;
+      if (depth > 1) continue;
+      const lead = s > 0.88;
+      const rim = rOut - r < 1.8;
+            g.fillStyle = kind === 'fan' ? (rim ? (hot ? '#ffffff' : '#eaf3ff') : lead ? '#dce9fb' : s > 0.55 ? '#b9cde9' : '#8aa5cc') : depth < 0.22 ? (hot && (lead || s > 0.7) ? '#ffffff' : '#eaf3ff') : depth < 0.55 ? (lead ? '#dce9fb' : '#b9cde9') : lead ? '#a9c0e0' : '#7d99c3';
       g.fillRect(x, y, 1, 1);
     }
 }
@@ -184,18 +189,21 @@ export function buildKata(inp: KataInput): KataFrames {
       }
     }
     // Three pixels of blade at the blow and the cut that leads to it (a white edge, the steel, a dark spine).
-    const k = katana(G, pose.deg, pal, { ...KATA_DIMS, tip: pose.one?.blade ?? KATA_DIMS.tip, spine: key === 'contact' || key === 'swing2' });
+    const k = katana(G, pose.deg, pal, { ...KATA_DIMS, tip: pose.one?.blade ?? KATA_DIMS.tip, spine: isContact(key) || key.startsWith('swing') });
 
     // An arm: the elbow below the line from shoulder to fist (the lower of the two answers). The bands and the fist come apart, so the far arm can go behind the body and its fist stay on top.
     const arm = (S: Pt, T: Pt, upper: [number, number], fore: [number, number], fist: [number, number], rimmed: boolean): { bands: Layer[]; fist: Layer[] } => {
       const a = solveArm(S, KATA_BONE, KATA_BONE, T, 1);
       const b = solveArm(S, KATA_BONE, KATA_BONE, T, -1);
       const e = a.elbow[1] > b.elbow[1] ? a : b;
+      // The sleeve's cuff: the coat's olive carries a third of the way down the forearm, and a disc at the elbow joins the two bones, so the steel arm reads as one limb with the sleeve.
+      const cuffEnd: Pt = [e.elbow[0] + (e.wrist[0] - e.elbow[0]) * 0.34, e.elbow[1] + (e.wrist[1] - e.elbow[1]) * 0.34];
       return {
         bands: [
           ...(rimmed ? [band(S, e.elbow, 4.8, rim, rim), band(e.elbow, e.wrist, 4.2, rim, rim)] : []),
           band(S, e.elbow, 3.4, upper[0], upper[1], true),
           band(e.elbow, e.wrist, 3, fore[0], fore[1], true),
+          ...(rimmed ? [band(e.elbow, cuffEnd, 3.6, upper[0], upper[1], true), disc(e.elbow, 2.1, upper[0])] : []),
         ],
         fist: [disc(e.wrist, 2.9, rim), disc(e.wrist, 2.2, fist[0]), disc([e.wrist[0] - 0.5, e.wrist[1] + 0.4], 1.1, fist[1])],
       };
@@ -215,18 +223,19 @@ export function buildKata(inp: KataInput): KataFrames {
       const g = c.getContext('2d');
       if (g) {
         const mid: Pt = [(F[0] + G[0]) / 2, (F[1] + G[1]) / 2];
-        paintSmear(g, W, H, mid, pose.smear[0], pose.smear[1], KATA_DIMS.tip - GRIP_GAP / 2);
+        paintSmear(g, W, H, mid, pose.smear[0], pose.smear[1], (KATA_DIMS.tip - GRIP_GAP / 2) * 0.93, pose.smear[2] ?? 'arc', key === 'contact0' || key === 'contact0Low');
         g.drawImage(out, 0, 0);
         frame = c;
       }
     }
     frames[key] = frame;
     marks[key] = { near: G, far: F, tip: k.tip };
-    if (key === 'contact') {
+    if (key === 'contact' || key === 'contactLow') {
       // What the contact frame measured, for the engine to stop the lunge by (art pixels from the frame's centre).
-      KATA_MEASURED.tipReach = W / 2 - k.tip[0];
-      KATA_MEASURED.tipUp = H - k.tip[1];
-      KATA_MEASURED.footDx = (L.x0 + L.x1) / 2 + pose.front.dx - W / 2;
+      const m = key === 'contact' ? KATA_MEASURED : KATA_MEASURED_LOW;
+      m.tipReach = W / 2 - k.tip[0];
+      m.tipUp = H - k.tip[1];
+      m.footDx = (L.x0 + L.x1) / 2 + pose.front.dx - W / 2;
     }
   }
   return { frames, plain, marks };

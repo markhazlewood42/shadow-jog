@@ -465,6 +465,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const dd = this.dispList[i]!;
       if (dd.flash > 0) dd.flash--;
       if (dd.shake > 0) dd.shake--;
+      if ((dd.knock ?? 0) > 0) dd.knock = (dd.knock ?? 0) - 1;
       // Bodies in motion run on the effect clock (see FX_PACE), so a pose and its effect stay in step.
       const r = this.fx.rate;
       if (dd.hop > 0) dd.hop = Math.max(0, dd.hop - 0.6 * r);
@@ -1111,12 +1112,12 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   /** Side view: an enemy's opaque columns and its soles row, in battle-world pixels. */
-  enemyBox(uid: number): { x0: number; x1: number; feet: number } | null {
+  enemyBox(uid: number): { x0: number; x1: number; feet: number; h: number } | null {
     const u = this.battle.unit(uid);
     if (u?.side !== 'enemy') return null;
     const p = this.enemyPos(u);
     const [a, b] = opaqueSpan(p.art.canvas);
-    return { x0: p.x + a / p.art.res, x1: p.x + b / p.art.res, feet: p.y + p.art.h };
+    return { x0: p.x + a / p.art.res, x1: p.x + b / p.art.res, feet: p.y + p.art.h, h: p.art.h };
   }
 
   private enemyCenter(u: Combatant): Pt {

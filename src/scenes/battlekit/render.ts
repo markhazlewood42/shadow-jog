@@ -3,13 +3,13 @@
  * from the scene's state. The scene (scenes/battle.ts) owns state and flow (command entry, the
  * round, playback); this owns pixels. It reads the scene, and never changes game state.
  */
-import type { Battler, Pose } from '../../art/battlers';
+import type { Pose } from '../../art/battlers';
 import { enemyArt } from '../../art/enemies';
 import { getPortrait } from '../../art/portraits';
 import type { Combatant, Command, Element } from '../../battle/types';
 import { ABILITIES } from '../../data/abilities';
 import { PARTY_POSE_T, swingBeat } from './motion';
-import { type KataBeat, KATA_MEASURED, kataBeat } from '../../art/rig2/sidekata';
+import { type KataBeat, KATA_MEASURED, KATA_BODY_HALF, KATA_KNOCK, KATA_MEASURED_LOW, KATA_ROOM_GAP, KATA_ROOM_MAX, isContact, kataBeat } from '../../art/rig2/sidekata';
 import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
@@ -116,7 +116,12 @@ export class BattleRenderer {
     this.s.fx.render(g, (c, ch, x, y, col) => drawText(c, ch, x, y, { color: col, shadow: false }));
     // A timed press: the ring closing on each target.
     const tp = this.s.timing.prompt;
-    if (tp && this.s.timing.isOpen) {
+    // Side view, Rook's kendo strike: the ring is gone from the first frame the blade is on the target, so nothing hides the blow.
+    const bladeOn = SIDE_VIEW && this.s.battle.party.some((m) => {
+      const kb = this.kataOf(m.uid);
+      return kb !== null && isContact(kb.key);
+    });
+    if (tp && this.s.timing.isOpen && !bladeOn) {
       for (const uid of tp.targets) {
         const p = this.s.pos(uid);
         drawRing(g, p.x, p.y, this.s.game.frame, this.s.timing);
@@ -261,6 +266,8 @@ export class BattleRenderer {
       case 'flicker': oy = Math.round(Math.sin(f * 0.06 + e.uid) * 2); break;
     }
     if (dd.shake > 0) ox += dd.shake % 4 < 2 ? 2 : -2;
+    // Side view, Rook's cut: the body is pushed back 4 px from the blade (away from the crew, to the left) for two frames, then eases home.
+    if (SIDE_VIEW && (dd.knock ?? 0) > 0) ox -= KATA_KNOCK[Math.min(KATA_KNOCK.length - 1, KATA_KNOCK.length - (dd.knock ?? 0))] ?? 0;
     oy += Math.round(dd.lunge);
     // Body motion while acting or reeling (battle-world pixels; the party is below).
     let castGlow = 0;
@@ -298,7 +305,7 @@ export class BattleRenderer {
         g.fillRect(Math.round(cx - art.shadow / 2 + 4), gy + 3, art.shadow - 8, 1);
       }
     }
-    let alpha = dd.alpha * this.dimFactor(e.uid);
+    let alpha = dd.alpha;
     if (art.idle === 'flicker') alpha *= 0.82 + 0.18 * Math.sin(f * 0.2 + e.uid);
     if (dd.dying > 0) {
       // Defeat: a brief white blink over the intact sprite, then it breaks up block by block
@@ -383,32 +390,30 @@ export class BattleRenderer {
     if (!SIDE_VIEW) return null;
     const dd = this.s.d(uid);
     if (!this.s.partyArt.get(uid)?.kata || dd.strikeAt === undefined || dd.poseT <= 0 || dd.poseT > (dd.poseLen ?? 0)) return null;
-    return kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt);
+    return kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.strikeLow);
   }
 
   /**
-   * How much of a body in the span [x0, x1] (world px, a combatant `uid`) shows: halved while Rook's body is on it (the dash and
-   * the return pass in front of the line, and whoever he is not hitting must not hide his blade).
+   * Side view, Rook's kendo strike: how far (world px, to the right) a crewmate steps aside to make room while he is on the target. His blade is
+   * about 25 px long past his body, so against the nearest enemy he ends up standing where Kit does; she slides back toward his empty place
+   * (up to 12 px) as he arrives, and returns as he goes home. Nobody is dimmed, and no crewmate is stood on.
    */
-  private dimOver(uid: number, x0: number, x1: number): number {
-    if (!SIDE_VIEW) return 1;
-    let k = 1;
+  private makeRoom(q: Combatant): number {
+    if (!SIDE_VIEW) return 0;
+    let room = 0;
     for (const p of this.s.battle.party) {
+      if (p.uid === q.uid) continue;
       const kb = this.kataOf(p.uid);
+      if (!kb) continue;
       const dd = this.s.d(p.uid);
-      if (!kb || kb.lunge < 0.15 || dd.target === uid || p.uid === uid) continue;
-      // His body is about 12 world px wide; the shading ramps in over the first few pixels of overlap.
-      const rx = this.s.partyPos(p).x + kb.lunge * (dd.reachX ?? 0);
-      const over = Math.min(rx + 7, x1) - Math.max(rx - 7, x0);
-      k = Math.min(k, 1 - 0.5 * Math.max(0, Math.min(1, over / 5)));
+      const rx = this.s.partyPos(p).x + (dd.reachX ?? 0);
+      const qx = this.s.partyPos(q).x;
+      if (qx < rx - 4) continue;
+      const need = Math.max(0, Math.min(KATA_ROOM_MAX, rx + KATA_BODY_HALF + KATA_ROOM_GAP - (qx - 8)));
+      const u = Math.max(0, Math.min(1, (kb.lunge - 0.5) / 0.45));
+      room = Math.max(room, need * u * u * (3 - 2 * u));
     }
-    return k;
-  }
-
-  private dimFactor(uid: number): number {
-    if (!SIDE_VIEW) return 1;
-    const box = this.s.enemyBox(uid);
-    return box ? this.dimOver(uid, box.x0, box.x1) : 1;
+    return Math.round(room * 2) / 2;
   }
 
   /** Side view: the screen box (pixels) round a lunging Rook, or null; enemy health bars inside it fade so he does not run under one. */
@@ -424,59 +429,51 @@ export class BattleRenderer {
     return null;
   }
 
-  /** A round blob in screen pixels at a world position (the layer is at a 2x transform, so a screen pixel is half a world pixel). */
-  private blob(g: Ctx, cx: number, cy: number, r: number, color: string): void {
-    g.fillStyle = color;
-    for (let sy = -r; sy <= r; sy++) {
-      const w = Math.floor(Math.sqrt(r * r - sy * sy));
-      g.fillRect(Math.round(cx * 2 - w) / 2, Math.round(cy * 2 + sy) / 2, (2 * w + 1) / 2, 0.5);
-    }
-  }
-
-  /** The strike's own effects: speed ghosts filling the lunge's gaps, the blade's flare at contact, the dust where the front foot stamps. */
-  private drawKataFx(g: Ctx, p: Combatant, art: Battler, kb: KataBeat, frame: HTMLCanvasElement, x: number, y: number, res: number, ox: number, walkLeft: number, lungeY: number, cx2: number): void {
+  /**
+   * The strike's own effects. No ghosts and no dimming (round 3): the dash leaves a few speed lines behind the body, the blade flares as it
+   * meets the target, and the front foot stamps a puff of dust. Everything is drawn on whole screen pixels (half a world pixel).
+   */
+  private drawKataFx(g: Ctx, p: Combatant, kb: KataBeat, frame: HTMLCanvasElement, x: number, y: number, res: number, walkLeft: number, lungeY: number, cx2: number): void {
     const dd = this.s.d(p.uid);
-    const pos = this.s.partyPos(p);
-    const k = (dd.poseLen ?? 0) - dd.poseT;
-    // Two ghosts on the cuts and the first frames of the blow: the body where it was one and two pose frames ago (its own pose, without the smear), the pale of the slash.
-    const plain = art.kataPlain;
-    if (plain && (kb.dash || (kb.key === 'contact' && kb.t < 2))) {
-      for (let n = 2; n >= 1; n--) {
-        const kp = kataBeat(Math.max(0, k - n), dd.strikeAt ?? 0);
-        if (kp.step === kb.step && kp.t === kb.t) continue;
-        const gx = Math.round((pos.x - frame.width / res / 2 + ox + walkLeft + kp.lunge * (dd.reachX ?? 0)) * 2) / 2;
-        const gy = y + (kp.lunge - kb.lunge) * (dd.reachY ?? 0);
-        g.globalAlpha = n === 1 ? 0.3 : 0.14;
-        putArt(g, silhouetteCache(plain[kp.key], '#e8f0ff'), gx, gy, res);
-      }
+    const px = (v: number): number => Math.round(v * 2) / 2;
+    // Speed lines on the cuts and the overshoot: thin pale streaks behind the body, level with the shoulders and the hips, longer the faster he is.
+    if (kb.dash || kb.key === 'contact0' || kb.key === 'contact0Low') {
+      const feet = this.s.partyFeet(p) + lungeY;
+      const back = this.s.partyPos(p).x + walkLeft + kb.lunge * (dd.reachX ?? 0) + 7;
+      const n = kb.key === 'swing0' ? 0 : kb.key === 'swing1' ? 1 : 2;
+      const lines: [number, number][] = [[27, 14], [19, 22], [11, 12], [34, 9]];
+      g.fillStyle = '#d8e6ff';
+      g.globalAlpha = 0.6;
+      for (const [up, len] of lines) g.fillRect(px(back + (n - 1) * 2), px(feet - up / 2), (len + n * 5) / 2, 0.5);
       g.globalAlpha = 1;
     }
-    if (kb.key !== 'contact') return;
+    if (!isContact(kb.key)) return;
+    const m = kb.key === 'contactLow' || kb.key === 'contact0Low' ? KATA_MEASURED_LOW : KATA_MEASURED;
     const gy2 = Math.round(this.s.partyFeet(p) - 1 + lungeY);
+    const c = kb.key === 'contact0' || kb.key === 'contact0Low' ? 0 : kb.t + 1;
     // The blade's flare: bright streaks along it for the first frames of the blow, so the steel is seen before the flash.
-    if (kb.t < 3) {
-      const tx = x + frame.width / res / 2 - KATA_MEASURED.tipReach / res;
-      const ty = y + (frame.height - KATA_MEASURED.tipUp) / res;
+    if (c < 4) {
+      const tx = x + frame.width / res / 2 - m.tipReach / res;
+      const ty = y + (frame.height - m.tipUp) / res;
       g.fillStyle = '#ffffff';
-      g.globalAlpha = 0.95 - kb.t * 0.3;
-      for (const [dy, len] of [[-2.5, 12], [3.5, 9], [-4.5, 6]] as const) g.fillRect(Math.round((tx + 1) * 2) / 2, Math.round((ty + dy) * 2) / 2, len - kb.t * 2, 0.5);
+      g.globalAlpha = 0.95 - c * 0.22;
+      for (const [dy, len] of [[-2.5, 12], [3.5, 9], [-4.5, 6]] as const) g.fillRect(px(tx + 1), px(ty + dy), len - c * 2, 0.5);
       g.globalAlpha = 1;
     }
-    // The front foot stamps: a puff of street dust in three stages (small and dark, round and pale on top, wide and thin), each 2 to 3 frames.
-    if (kb.t < 8) {
-      const fx = cx2 + KATA_MEASURED.footDx / res;
-      const st = Math.min(2, Math.floor(kb.t / 2.7));
-      // Each puff is a pale blob over a darker one a pixel lower (screen pixels: x, y from the foot, radius, opacity), growing, spreading and thinning over three stages.
-      const puffs: [number, number, number, number][][] = [
-        [[-1, -1, 2, 0.95], [1, -3, 2, 0.95], [-4, 0, 1, 0.9]],
-        [[-4, -2, 4, 0.8], [0, -5, 3, 0.8], [4, -2, 3, 0.75], [-8, -1, 2, 0.7]],
-        [[-9, -3, 4, 0.45], [-4, -7, 3, 0.4], [2, -4, 3, 0.35], [7, -2, 2, 0.3], [-13, -1, 2, 0.3]],
+    // The front foot stamps: a puff of street dust behind the heel in three stages of 2x2 clumps (one flat colour each, the street's own purples), spreading and rising, each 3 frames.
+    if (c < 9) {
+      const hx = Math.round(cx2 + KATA_MEASURED.footDx / res) + 4;
+      const stage = Math.floor(c / 3);
+      const puffs: [number, number][][] = [
+        [[0, -1], [1, -1], [2, -2]],
+        [[1, -2], [3, -2], [2, -4], [5, -1], [-1, -1]],
+        [[3, -4], [6, -3], [2, -6], [7, -1]],
       ];
-      for (const [dx, dy, r, a] of puffs[st] ?? []) {
-        g.globalAlpha = a;
-        this.blob(g, fx + dx / 2, gy2 + dy / 2 + 0.5, r, '#5f5880');
-        this.blob(g, fx + dx / 2, gy2 + dy / 2, r, '#cfc4e6');
-      }
+      g.globalAlpha = stage === 2 ? 0.65 : 1;
+      (puffs[stage] ?? []).forEach(([dx, dy], i) => {
+        g.fillStyle = i % 2 ? '#8c83ab' : '#b2a9cc';
+        g.fillRect(hx + dx, gy2 + dy, 1, 1);
+      });
       g.globalAlpha = 1;
     }
   }
@@ -493,7 +490,7 @@ export class BattleRenderer {
     const sb = SIDE_VIEW && melee && dd.poseT <= PARTY_POSE_T ? sideBeat(PARTY_POSE_T - dd.poseT) : null;
     const beat = melee && !SIDE_VIEW ? swingBeat(PARTY_POSE_T - dd.poseT) : null;
     // Side view, Rook: the kendo strike plays on its own timeline (rig2/sidekata.ts), keyed to the frame the move's effect starts on.
-    const kb = SIDE_VIEW && melee && art.kata && dd.strikeAt !== undefined && dd.poseT <= (dd.poseLen ?? 0) ? kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt) : null;
+    const kb = SIDE_VIEW && melee && art.kata && dd.strikeAt !== undefined && dd.poseT <= (dd.poseLen ?? 0) ? kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.strikeLow) : null;
     // The frame for each beat: gathered (brace), raised (the pose itself), then swept through
     // (strike) for the cut and the settle. Palm strikes (thrust) keep their own frame throughout.
     const through = beat && dd.pose === 'attack' && (beat.phase === 'cut' || beat.phase === 'settle');
@@ -509,6 +506,9 @@ export class BattleRenderer {
     const res = art.res ?? 1;
     let ox = 0;
     if (dd.shake > 0) ox = dd.shake % 4 < 2 ? 2 : -2;
+    // Side view: a crewmate in the way of Rook's strike steps aside (see makeRoom).
+    const room = this.makeRoom(p);
+    ox += room;
     // Side view: a hit knocks the body back (right, away from the enemies) and it springs back over the pose.
     const hurtK = SIDE_VIEW && dd.poseT > 0 && dd.pose === 'hurt' ? 16 - dd.poseT : -1;
     if (hurtK >= 0) ox += Math.max(0, 2.5 * (1 - hurtK / 10));
@@ -533,14 +533,14 @@ export class BattleRenderer {
     }
     if (SIDE_VIEW) {
       // The crew plant on the street with a soft contact shadow, as the enemies do (it stays on the ground through a lunge or a hop).
-      const cx = Math.round(pos.x + walkLeft + lungeX + (hurtK >= 0 ? ox : 0));
+      const cx = Math.round(pos.x + walkLeft + lungeX + (hurtK >= 0 ? ox : room));
       const gy = Math.round(this.s.partyFeet(p) - 1 + lungeY);
       g.fillStyle = 'rgba(0,0,0,0.4)';
       g.fillRect(cx - 9, gy, 18, 2);
       g.fillRect(cx - 7, gy + 2, 14, 1);
       g.fillRect(cx - 7, gy - 1, 14, 1);
     }
-    if (kb && art.kata) this.drawKataFx(g, p, art, kb, frame, x, y, res, ox, walkLeft, lungeY, cx2);
+    if (kb && art.kata) this.drawKataFx(g, p, kb, frame, x, y, res, walkLeft, lungeY, cx2);
     if (!kb && dd.afterimage > 0) {
       // Speed ghosts trailing behind and to either side.
       for (const [gx, gy, a] of AFTERIMAGES) {
@@ -576,8 +576,6 @@ export class BattleRenderer {
       for (const [dx, dy] of [[-0.5, 0], [0.5, 0], [0, -0.5], [0, 0.5]] as const) putArt(g, sil, x + dx, y + dy, res);
       g.globalAlpha = 1;
     }
-    // Side view: a crewmate Rook is passing in front of shows through him (the dash and the return cross Kit's place).
-    if (SIDE_VIEW && !kb) g.globalAlpha = this.dimOver(p.uid, pos.x + walkLeft - 8, pos.x + walkLeft + 8);
     putArt(g, frame, x, y, res);
     g.globalAlpha = 1;
     // Side view: the first frames of a hit show the body's own pixels in white, then a faint red tint (instead of a red wash over the whole sprite).
@@ -626,7 +624,7 @@ export class BattleRenderer {
       // Side view, Rook's kendo strike: the arrow rides the body through the lunge, and clears the raised blade (it would sit on it).
       const dd = this.s.d(uid);
       if (SIDE_VIEW && this.s.partyArt.get(uid)?.kata && dd.strikeAt !== undefined && dd.poseT > 0 && dd.poseT <= (dd.poseLen ?? 0)) {
-        const kb = kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt);
+        const kb = kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.strikeLow);
         x += kb.lunge * (dd.reachX ?? 0);
         y += kb.lunge * (dd.reachY ?? 0);
         if (kb.key === 'lift' || kb.key === 'overhead' || kb.dash) y -= 13;

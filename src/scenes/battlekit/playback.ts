@@ -20,16 +20,18 @@ import { WINDOWS } from './timing';
 import { PARTY_POSE_T } from './motion';
 import { direction } from '../../engine/shake';
 import { SIDE_LUNGE_MAX, SIDE_LUNGE_STOP, SIDE_VIEW } from './sideview';
-import { KATA_BITE_FRAC, KATA_EFFECT_SHIFT, KATA_MEASURED, KATA_WINDUP, kataLength } from '../../art/rig2/sidekata';
+import { KATA_BITE_FRAC, KATA_EFFECT_SHIFT, KATA_KNOCK, KATA_LOW_BELOW, KATA_MEASURED, KATA_MEASURED_LOW, KATA_WINDUP, kataLength } from '../../art/rig2/sidekata';
 import { gpuCast, gpuDown, gpuHeal, gpuHit, gpuPhase, gpuSpell } from './gpufx';
 import type { TimingProfile } from '../../battle/engine';
 
-/** Rook's lane for the dash (battle-world pixels): his soles `KATA_LANE_DROP` below the target's, but never higher than `KATA_LANE_MIN` below his own place's (he would pass behind Kit). */
-const KATA_LANE_DROP = 8;
-const KATA_LANE_MIN = -5;
+/**
+ * Rook's lane for the dash (battle-world pixels): his soles `KATA_LANE_DROP` below the target's, so he runs in FRONT of the enemy line on a row of his own
+ * and is drawn over whoever he passes; nobody is dimmed or made transparent (round 3). It never rises more than `KATA_LANE_RISE` above his own place.
+ */
+const KATA_LANE_DROP = 7;
 const KATA_LANE_RISE = 12;
 const KATA_LANE_DROP_MAX = 6;
-/** Where Rook stops (world px in front of the target's centre) when the target's box is unknown. */
+/** The stop leaves this much between the blade's point and the target's front edge at most: the body is never inside the target's (art px to world px: halved). */
 const KATA_FALLBACK_STOP = 22;
 
 /** What playback may do to the scene. */
@@ -53,7 +55,7 @@ export interface PlaybackView {
   d(uid: number): Disp;
   pos(uid: number): Pt;
   /** Side view: an enemy's opaque columns and its soles row (battle-world pixels), for a lunge to be routed round the others. */
-  enemyBox(uid: number): { x0: number; x1: number; feet: number } | null;
+  enemyBox(uid: number): { x0: number; x1: number; feet: number; h: number } | null;
   /** Side view: the row a party member's soles stand on (battle-world pixels). */
   feetOf(uid: number): number;
   /** Wait `frames`, scaled by the battle speed setting. */
@@ -128,6 +130,8 @@ async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], win
  * once, on the first; the rest ride the shake, so area attacks punch instead of stuttering.
  */
 let actionStops = 0;
+/** The action being played is Rook's kendo strike in the side view: its hit gets a recoil, a short flash, a screen shake and a hitstop of its own. */
+let kataAction = false;
 /** The action being played is a combo (its first heavy hit gets the impact frame). */
 let comboAction = false;
 
@@ -136,8 +140,10 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
     case 'act': {
       actionStops = 0;
       comboAction = false;
+      kataAction = false;
       const actor = v.battle.unit(e.actor)!;
       let kata = false;
+      let kataTarget: { x: number; bladeY: number } | null = null;
       v.lastActor = actor;
       const dd = v.d(e.actor);
       const color = actor.side === 'party' ? MEMBERS[actor.key as MemberId].color : '#ff8a8a';
@@ -151,6 +157,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         dd.reachY = 0;
         dd.strikeAt = undefined;
         dd.poseLen = undefined;
+        dd.strikeLow = undefined;
         // Rook's kendo strike has its own timeline and a longer blade, so he stops further off.
         kata = SIDE_VIEW && actor.key === 'rook' && pose === 'attack';
         const aim = e.targets[0] === undefined ? null : v.pos(e.targets[0]);
@@ -160,14 +167,17 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
           const box = kata && e.targets[0] !== undefined ? v.enemyBox(e.targets[0]) : null;
           if (kata && box) {
             // Rook's blade must meet the target: stop with the point `KATA_BITE_FRAC` of the way from its centre to its front edge (its weapon may reach further than its body). The lane is a row in front of the enemy line
-            // (never up the street, behind Kit), so the dash passes in front of the others; the renderer dims any enemy his body is on.
+            // (never up the street, behind Kit), so the dash passes in front of the others, who stay opaque. A target under `KATA_LOW_BELOW` px tall (a Glowrat) gets the blade angled down onto it.
+            const low = box.h * 2 < KATA_LOW_BELOW;
+            const m = low ? KATA_MEASURED_LOW : KATA_MEASURED;
             const tipAt = (box.x0 + box.x1) / 2 + ((box.x1 - box.x0) / 2) * KATA_BITE_FRAC;
-            const cx = Math.min(tipAt + KATA_MEASURED.tipReach / 2, from.x);
+            const cx = Math.min(tipAt + m.tipReach / 2, from.x);
             dd.reachX = Math.max(-SIDE_LUNGE_MAX, cx - from.x);
             const feet = v.feetOf(e.actor);
-            const lane = Math.max(box.feet + KATA_LANE_DROP, feet + KATA_LANE_MIN);
-            dd.reachY = Math.max(-KATA_LANE_RISE, Math.min(KATA_LANE_DROP_MAX, lane - feet));
+            dd.reachY = Math.max(-KATA_LANE_RISE, Math.min(KATA_LANE_DROP_MAX, box.feet + KATA_LANE_DROP - feet));
             dd.target = e.targets[0];
+            dd.strikeLow = low;
+            kataTarget = { x: (box.x0 + box.x1) / 2, bladeY: Math.max(box.feet - box.h + 2, Math.min(box.feet - 2, feet + dd.reachY - m.tipUp / 2)) };
           } else {
             dd.reachX = Math.max(-SIDE_LUNGE_MAX, Math.min(0, aim.x + (kata ? KATA_FALLBACK_STOP : SIDE_LUNGE_STOP) - from.x));
             dd.reachY = Math.max(-4, Math.min(4, (aim.y - from.y) * 0.3));
@@ -192,12 +202,14 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       const onStart = kata
         ? (at: number) => {
             dd.strikeAt = at;
-            dd.poseLen = dd.poseT = kataLength(at);
+            dd.poseLen = dd.poseT = kataLength(at, dd.strikeLow);
           }
         : undefined;
       // Rook's effect is anchored a little toward him from the target's centre, so the blade's point shows beside the flash.
-      const to = e.targets.map((t) => (kata ? { ...v.pos(t), x: v.pos(t).x + KATA_EFFECT_SHIFT } : v.pos(t)));
-      await windupAndHit(v, e.fx, v.pos(e.actor), to, windup, e.element === 'shock' ? '#9ae8ff' : undefined, onStart);
+      // The cut's own effect ('men': a hard slash line through the target along the blade, two frames, a small hot spark) replaces the stock slash, whose star and burst covered the whole body.
+      const to = e.targets.map((t, i) => (kata ? { x: kataTarget && i === 0 ? kataTarget.x + KATA_EFFECT_SHIFT : v.pos(t).x + KATA_EFFECT_SHIFT, y: kataTarget && i === 0 ? kataTarget.bladeY : v.pos(t).y } : v.pos(t)));
+      kataAction = kata;
+      await windupAndHit(v, kata && e.fx === 'slash' ? 'men' : e.fx, v.pos(e.actor), to, windup, e.element === 'shock' ? '#9ae8ff' : undefined, onStart);
       break;
     }
     case 'combo': {
@@ -239,7 +251,12 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       const u = v.battle.unit(e.target)!;
       dd.hp = e.hp;
       dd.shake = 12;
-      dd.flash = u.side === 'enemy' ? 5 : 8;
+      dd.flash = u.side === 'enemy' ? (kataAction ? 0 : 5) : 8;
+      // Rook's cut pushes the body back 4 px for two frames and shakes the screen, whatever the damage; the target's body shows through (no white flash: it would hold through the hitstop).
+      if (kataAction && u.side === 'enemy') {
+        dd.knock = KATA_KNOCK.length;
+        v.game.shake(8, 3, v.lastActor ? direction(v.pos(v.lastActor.uid), v.pos(e.target)) : undefined);
+      }
       if (u.side === 'enemy' && e.hp > 0 && (e.crit || e.amount >= u.base.maxHp * 0.12)) v.setPose(u, 'hurt', 16);
       if (u.side === 'party' && e.hp > 0) v.setPose(u, 'hurt', 16);
       if (e.amount === 0) v.floatOn(e.target, 'NO EFFECT', '#8b8fa8', 'label');
@@ -266,7 +283,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       const from = v.lastActor && v.lastActor.uid !== e.target ? v.pos(v.lastActor.uid) : null;
       if (tier) v.game.shake(6 + tier * 3, tier + 1 + (e.crit ? 1 : 0), from ? direction(from, v.pos(e.target)) : undefined);
       // GPU effects (when on): the damage type's burst, and for the big ones a shockwave.
-      if (e.amount > 0) gpuHit(v.pos(e.target), from, e.element, tier, { crit: !!e.crit, weak: !!e.weak, combo: comboAction && tier >= 2 && actionStops === 0 });
+      if (e.amount > 0) gpuHit(v.pos(e.target), from, e.element, kataAction ? Math.min(1, tier) : tier, { crit: !!e.crit, weak: !!e.weak, combo: comboAction && tier >= 2 && actionStops === 0 });
       if (tier >= 2 && actionStops === 0) {
         actionStops++;
         // A critical or a combo landing is a different kind of moment: push in, cut to the impact.
@@ -278,6 +295,10 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
           if (tier === 3) v.game.flash('#ff2a4a', 4);
         }
         await v.hitstop(tier === 3 ? 5 : 3);
+      } else if (kataAction && u.side === 'enemy' && actionStops === 0) {
+        // A light cut still stops time for a beat: the blade is held in the target.
+        actionStops++;
+        await v.hitstop(2);
       }
       await v.w(14);
       break;
