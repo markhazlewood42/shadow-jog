@@ -8,6 +8,7 @@ import { silhouette, surface, type Ctx, type Surface } from '../engine/canvas';
 import { mix, rgb } from '../engine/color';
 import { drawText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
+import { VERSION_LABEL } from '../version';
 import { flashScale } from '../game/settings';
 import { hash2, Rng } from '../engine/rng';
 import { hasAnySave, latestSlot, type SlotId } from '../game/save';
@@ -375,7 +376,8 @@ export class TitleScene extends Scene<TitleChoice> {
       this.menu.renderWhy(ctx, W / 2, my + 52);
       ctx.globalAlpha = 1;
     }
-    drawText(ctx, 'v0.1 alpha', 6, H - 12, { color: mix('#8b8fa8', '#000000', 0.2) });
+    // The build stamp, bottom-left (the key hints are bottom-right).
+    drawText(ctx, VERSION_LABEL, 6, H - 12, { color: mix('#8b8fa8', '#000000', 0.2) });
     // The player's own keys: a rebound confirm shows here too.
     const inp = this.game.input;
     drawText(ctx, `${inp.keyName('confirm', 2)}  confirm   ·   ${inp.keyName('cancel', 2)}  back`, W - 6, H - 12, { align: 'right', color: mix('#8b8fa8', '#000000', 0.2) });

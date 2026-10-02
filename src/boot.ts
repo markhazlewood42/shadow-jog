@@ -23,6 +23,7 @@ import { fieldHooks } from './game/hooks';
 import { postfx } from './engine/postfx';
 import { FX } from './data/fx';
 import { ALL_DRAWN, DEFAULT_DRAWN, loadDrawnArt } from './art/drawn';
+import { APP_VERSION, BUILD_SHA, VERSION_LABEL } from './version';
 import { loadRigData } from './art/rig2/data';
 import { applyRigNpcs } from './art/rig2/npcs';
 import { applyRigPortraits } from './art/rig2/portrait';
@@ -44,6 +45,9 @@ export function boot(game: Game, display: Display): void {
   if (import.meta.env.DEV) window.__SJ__ = {
     game,
     display,
+    /** The build under test: for tests and playtest notes to name. */
+    version: VERSION_LABEL,
+    build: { app: APP_VERSION, sha: BUILD_SHA },
     debug,
     get state(): GameState {
       return stateMod.state;

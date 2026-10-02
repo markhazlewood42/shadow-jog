@@ -1,4 +1,5 @@
 /// <reference types="node" />
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
@@ -258,8 +259,28 @@ function devTools(): Plugin {
   };
 }
 
+/** The game's version, from package.json: the one place it is written down. */
+const APP_VERSION = (JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8')) as { version: string }).version;
+
+/** The short git commit the build was made from; a build with no .git folder (or no git) says 'nogit'. */
+function buildSha(): string {
+  try {
+    // cwd pins git to this project's folder, so a build started from elsewhere can't stamp another repo's commit.
+    return (
+      execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: import.meta.dirname, stdio: ['ignore', 'pipe', 'ignore'] })
+        .toString()
+        .trim() || 'nogit'
+    );
+  } catch {
+    return 'nogit';
+  }
+}
+
 export default defineConfig({
   base: './',
+  // `define` swaps these names for the given values wherever they appear in the source, at build time
+  // (and in tests), so src/version.ts can show the version and commit without reading any file at runtime.
+  define: { __APP_VERSION__: JSON.stringify(APP_VERSION), __BUILD_SHA__: JSON.stringify(buildSha()) },
   plugins: [fxLab(), artPass(), rigEdit(), devTools()],
   server: { port: 3007, watch: { usePolling: true } },
   // The chunk warning matches the CI budget (scripts/bundle-budget.mjs).

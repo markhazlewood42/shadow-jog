@@ -7,6 +7,7 @@
  */
 import { mapIds } from '../data/maps';
 import { STAGES } from '../game/stages';
+import { VERSION_LABEL } from '../version';
 import { DEV_TOOLS, type DevTool } from './tools';
 
 const CSS = `
@@ -16,6 +17,7 @@ const CSS = `
 #devmenu { position: fixed; top: 0; left: 0; bottom: 0; z-index: 49; width: min(380px, 100vw); overflow-y: auto; padding: 38px 14px 16px;
   background: #100e18f2; border-right: 1px solid #2e2a3d; color: #e9e6f2; font: 13px/1.4 system-ui, 'Segoe UI', sans-serif; user-select: text; }
 #devmenu[hidden] { display: none; }
+#devmenu .build { margin: 0; color: #9b96ad; font: 12px/1.3 ui-monospace, Consolas, monospace; }
 #devmenu h2 { margin: 14px 0 6px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #9b96ad; }
 #devmenu a { display: block; padding: 6px 8px; border-radius: 6px; color: inherit; text-decoration: none; border: 1px solid transparent; }
 #devmenu a:hover { background: #1f1c2a; border-color: #3a3550; }
@@ -47,6 +49,11 @@ export function mountDevMenu(open = false): void {
   panel.id = 'devmenu';
   panel.setAttribute('aria-label', 'Dev tools');
   const here = location.pathname + location.search;
+
+  const build = document.createElement('p');
+  build.className = 'build';
+  build.textContent = `Shadow Jog ${VERSION_LABEL}`;
+  panel.append(build);
 
   for (const { group, tools } of DEV_TOOLS) {
     const h = document.createElement('h2');
