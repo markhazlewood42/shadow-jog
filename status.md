@@ -101,8 +101,7 @@ on every push to `main`.
   (both hands low-left, a big arc from his upper right), arms drawn (coat sleeve, chrome forearm, drawn fists); the
   katana drawn pixel by pixel so it's the same in every frame, and the body leaning from the hips (right on the way
   up, left into the cut), the feet turning with it. First cut, waiting on his eye; Cast and Victory not tuned yet
-  (Mark: strike first). Kit's strike hand moved in the working copy (to [90,47]) with no record of why: left
-  uncommitted, asked Mark. Hex and Sable next); then in-betweens (tweening between key poses) and the field
+  (Mark: strike first). (A stray move of Kit's strike hand found in the working copy was reverted: Mark, accident.) Hex and Sable next); then in-betweens (tweening between key poses) and the field
   sprites on the same bones. **2.5D prototype in** (Mark, 2026-10-01): "Reach forward" and the side view; the arm
   foreshortens reaching into the screen and the hand shrinks a little.
 - **Next (Mark, 2026-09-30, night): a skeleton rig, then a novice-friendly animation editor.** Battle limbs stretch
