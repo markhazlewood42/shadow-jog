@@ -263,7 +263,7 @@ export function sfBattler(key: string): Battler | null {
   // Rook's strike (round 1 of G-sf-rook-strike): the frames laid on one canvas size by their front boot, plus the smear arcs.
   let sfStrike: Battler['sfStrike'];
   if (spec.strike) {
-    const built = buildSfStrike(rawOf(spec.idle), rawOf('rook-battle-strike1')[0] as Raw, rawOf('rook-battle-strike2')[0] as Raw);
+    const built = buildSfStrike(rawOf(spec.idle), rawOf('rook-battle-strike1')[0] as Raw, rawOf('rook-battle-strike2')[0] as Raw, rawOf('rook-battle-crouched')[0] as Raw);
     Object.assign(SF_MEASURED, built.measured);
     const fr = {} as Record<SfKey, HTMLCanvasElement>;
     for (const k of SF_KEYS) fr[k] = toCanvas(built.frames[k]);

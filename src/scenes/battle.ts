@@ -140,6 +140,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private lastActor: Combatant | null = null;
   /** Frames of freeze-frame left (heavy hits). */
   private hitstop = 0;
+
+  /** A heavy hit is holding the frame (the renderer alternates the target's white blink through it). */
+  get frozen(): boolean {
+    return this.hitstop > 0;
+  }
   partyArt = new Map<number, Battler>();
   private dead = new Set<number>();
 

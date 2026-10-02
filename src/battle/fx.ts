@@ -11,7 +11,7 @@ import { Rng } from '../engine/rng';
  * Rook's cut in Sprite Fusion art ('men_r'): a steep diagonal `len` world px either side of its middle at `angle` radians (down and to the right); `dx`, `dy` are where its lower
  * (blade-point) end sits from the middle, so playback can place the middle from the point and the spark lands on the end.
  */
-export const MEN_R = { len: 11, angle: 0.95, dx: Math.round(Math.cos(0.95) * 11), dy: Math.round(Math.sin(0.95) * 11) };
+export const MEN_R = { len: 11, angle: 0.95, dx: Math.round(Math.cos(0.95) * 11), dy: Math.round(Math.sin(0.95) * 11), spark: 1 };
 
 export interface Pt {
   x: number;
@@ -749,10 +749,12 @@ export class FxLayer {
             }
             ctx.globalAlpha = 1;
           }, 6);
-          this.impact(end, '#9ad4ff', 3, 7);
-          this.impact({ x: end.x - 1, y: end.y - 1 }, '#ffffff', 5, 4);
-          this.burst(end, '#ffffff', 7, 1.7, 3);
-          this.ring(end, '#cfe0ff', 2, 9, 5, 4);
+          // Round 4: the spark's size follows the target's width (playback sets `MEN_R.spark`, 1 for a body, about 0.6 for a Glowrat), so a small target stays readable under it.
+          const sc = MEN_R.spark;
+          this.impact(end, '#9ad4ff', 3, Math.max(3, Math.round(7 * sc)));
+          this.impact({ x: end.x - 1, y: end.y - 1 }, '#ffffff', 5, Math.max(2, Math.round(4 * sc)));
+          this.burst(end, '#ffffff', 7, 1.7 * sc, 3);
+          this.ring(end, '#cfe0ff', 2, Math.max(4, Math.round(9 * sc)), 5, 4);
           this.debris(end, '#c8d0e0', 5, 4);
         });
         return { impact: 4, total: 16 };

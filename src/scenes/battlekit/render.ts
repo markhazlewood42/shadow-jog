@@ -10,7 +10,7 @@ import type { Combatant, Command, Element } from '../../battle/types';
 import { ABILITIES } from '../../data/abilities';
 import { PARTY_POSE_T, swingBeat } from './motion';
 import { type KataBeat, KATA_MEASURED, KATA_BODY_HALF, KATA_KNOCK, KATA_MEASURED_LOW, KATA_ROOM_GAP, KATA_ROOM_MAX, isContact, kataBeat } from '../../art/rig2/sidekata';
-import { type SfBeat, SF_FADE, SF_MEASURED, SF_ROOM, SF_SWING, sfBeat } from '../../art/rig2/sfstrike';
+import { type SfBeat, SF_FADE, SF_KNOCK, SF_MEASURED, SF_ROOM, SF_SWING, sfBeat } from '../../art/rig2/sfstrike';
 import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
@@ -70,24 +70,36 @@ const smoothStep = (u: number): number => {
   return c * c * (3 - 2 * c);
 };
 
-/** A silhouette with every other pixel (a checkerboard) cleared: a dithered ghost, a trail that reads as speed and not as a flat halo. */
-const ditherMemo = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
-function dithered(src: HTMLCanvasElement): HTMLCanvasElement {
-  let c = ditherMemo.get(src);
+/**
+ * A hard colour swap for the hit blink (round 4): every pixel of the sprite except its dark outline and shadows becomes one flat light tint, so the silhouette and its
+ * outline stay crisp (a translucent white laid over the sprite read as a pale ghost). Pixels darker than `OUTLINE_LUM` keep their own colour. Drawn opaque, no blend.
+ */
+const OUTLINE_LUM = 58;
+const flatMemo = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+function flatLight(src: HTMLCanvasElement, tint: readonly [number, number, number]): HTMLCanvasElement {
+  let c = flatMemo.get(src);
   if (c) return c;
   c = document.createElement('canvas');
   c.width = src.width;
   c.height = src.height;
-  const g = c.getContext('2d');
+  const g = c.getContext('2d', { willReadFrequently: true });
   if (g) {
     g.drawImage(src, 0, 0);
     const im = g.getImageData(0, 0, c.width, c.height);
-    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if ((x + y) % 2 === 0) im.data[(y * c.width + x) * 4 + 3] = 0;
+    for (let i = 0; i < im.data.length; i += 4) {
+      if ((im.data[i + 3] ?? 0) < 128) continue;
+      im.data[i + 3] = 255;
+      if (0.3 * (im.data[i] ?? 0) + 0.59 * (im.data[i + 1] ?? 0) + 0.11 * (im.data[i + 2] ?? 0) < OUTLINE_LUM) continue;
+      im.data[i] = tint[0];
+      im.data[i + 1] = tint[1];
+      im.data[i + 2] = tint[2];
+    }
     g.putImageData(im, 0, 0);
   }
-  ditherMemo.set(src, c);
+  flatMemo.set(src, c);
   return c;
 }
+const HIT_TINT = [244, 236, 255] as const;
 
 export class BattleRenderer {
   constructor(private readonly s: BattleScene) {}
@@ -302,7 +314,7 @@ export class BattleRenderer {
     }
     if (dd.shake > 0) ox += dd.shake % 4 < 2 ? 2 : -2;
     // Side view, Rook's cut: the body is pushed back 4 px from the blade (away from the crew: to the left for the code art, to the right for Sprite Fusion's) for two frames, then eases home.
-    if (SIDE_VIEW && (dd.knock ?? 0) > 0) ox += FACE * (KATA_KNOCK[Math.min(KATA_KNOCK.length - 1, KATA_KNOCK.length - (dd.knock ?? 0))] ?? 0);
+    if (SIDE_VIEW && (dd.knock ?? 0) > 0) { const kt = SF ? SF_KNOCK : KATA_KNOCK; ox += FACE * (kt[Math.min(kt.length - 1, kt.length - (dd.knock ?? 0))] ?? 0); }
     oy += Math.round(dd.lunge);
     // Body motion while acting or reeling (battle-world pixels; the party is below).
     let castGlow = 0;
@@ -388,7 +400,13 @@ export class BattleRenderer {
       putArt(g, silhouetteCache(canvas, '#e8d8ff'), dx, dy, res);
       g.globalAlpha = alpha;
     }
-    if (dd.flash > 0 && dd.flash % 4 < 2) {
+    if (SF && SIDE_VIEW && dd.flash >= 4) {
+      // Sprite Fusion's hit blink (round 4): a hard colour swap, opaque, outline kept (see `flatLight`), on every other pair of frames through the hitstop so the sprite shows between blinks.
+      if (!this.s.frozen || ((f >> 1) & 1) === 0) {
+        g.globalAlpha = alpha;
+        putArt(g, flatLight(canvas, HIT_TINT), dx, dy, res);
+      }
+    } else if (dd.flash > 0 && dd.flash % 4 < 2) {
       // A blink, not a blank: the sprite's detail stays visible under the white, so a still
       // caught on this frame reads as a hit rather than a white smear.
       g.globalAlpha = (SF && SIDE_VIEW ? 0.4 : 0.55) * alpha;
@@ -473,9 +491,9 @@ export class BattleRenderer {
         // Her progress is his lunge, so the two moves are one move. Whoever is not in his way does not move.
         const sk = this.sfOf(p.uid);
         if (!sk || qx <= sx + 4 || qx > rx + 14) continue;
-        const k = smoothStep(sk.lunge / SF_ROOM.by);
-        rx2 = Math.min(rx2, (sx - SF_ROOM.behind - qx) * k);
-        ry2 = Math.min(ry2, (this.s.partyFeet(p) - this.s.partyFeet(q)) * k);
+        const k = smoothStep(sk.room);
+        rx2 = Math.min(rx2, -SF_ROOM.left * k);
+        ry2 = Math.min(ry2, -SF_ROOM.up * smoothStep(sk.room * 2));
         continue;
       }
       if (qx < rx - 4) continue;
@@ -663,10 +681,10 @@ export class BattleRenderer {
       g.globalAlpha = 1;
     }
     if (sk?.dash) {
-      // Sprite Fusion's Rook (round 3): the swipe frames leave one DITHERED ghost close behind the body, tinted the blade's steel (round 2's flat blue silhouettes read as a halo on the
-      // dark backdrop); it is drawn before the body, and the swipe itself is the main trail.
-      g.globalAlpha = 0.55;
-      putArt(g, dithered(silhouetteCache(frame, '#b4c2da')), x - FACE * 3, y, res);
+      // Sprite Fusion's Rook (round 4): the swipe frames leave one SOLID one-tone ghost 1.5 world px behind the body, tinted the blade's steel (round 3's checkerboard read as speckle noise); it is
+      // drawn before the body, and the swipe itself is the main trail.
+      g.globalAlpha = 0.3;
+      putArt(g, silhouetteCache(frame, '#b4c2da'), x - FACE * 1.5, y, res);
       g.globalAlpha = 1;
     }
     if (!kb && sb && sb.smear > 0) {
@@ -748,10 +766,10 @@ export class BattleRenderer {
       const dd = this.s.d(uid);
       const sk = this.sfOf(uid);
       if (sk) {
+        // Round 4: once the strike has begun the chevron is gone (the raised blade ran through it); the body is its own marker.
+        if (sk.key !== 'ready') return;
         x += sk.lunge * (dd.reachX ?? 0);
         y += sk.lunge * (dd.reachY ?? 0);
-        if (sk.key === 'windup' || sk.dash) y -= 13;
-        if (sk.lunge > 0.12) return;
       } else if (SIDE_VIEW && this.s.partyArt.get(uid)?.kata && dd.strikeAt !== undefined && dd.poseT > 0 && dd.poseT <= (dd.poseLen ?? 0)) {
         const kb = kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.strikeLow);
         x += kb.lunge * (dd.reachX ?? 0);

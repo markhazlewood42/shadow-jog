@@ -3,7 +3,7 @@ import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import type { Raw } from '../src/art/rig2/sfgeom';
 import { boxOf } from '../src/art/rig2/sfgeom';
-import { SF_ANCHORS, SF_KEYS, SF_POSES, SF_ROOM, SF_UP, SF_DIP, SF_WINDUP, bend, buildSfStrike, frontBoot, rightmost, sfBeat, sfLength, sfTimeline, soles, splitSword } from '../src/art/rig2/sfstrike';
+import { SF_ANCHORS, SF_FRAME_MS, SF_KEYS, SF_POSES, SF_ROOM, SF_UP, SF_DIP, SF_WINDUP, SF_SWIPES, bend, buildSfStrike, frontBoot, rightmost, sfBeat, sfLength, sfTimeline, soles, splitSword } from '../src/art/rig2/sfstrike';
 
 /**
  * Rook's strike from Mark's Sprite Fusion frames (spike side-battle, item G-sf-rook-strike). The timeline tests run everywhere; the anchor tests read Mark's
@@ -70,7 +70,7 @@ describe('the strike timeline', () => {
         t += s.frames;
       }
       // Swing B (the blade on the target) starts one frame before the effect; the follow-through is held through the cut line, the damage and the hitstop.
-      expect(start.swingB).toBe(Math.max(at - 1, SF_DIP + 2 + SF_UP + 4));
+      expect(start.swingB).toBe(Math.max(at - 1, SF_WINDUP - 2 - 1));
       expect(tl.find((s) => s.key === 'follow')?.frames).toBeGreaterThanOrEqual(12);
       expect(sfLength(at)).toBe(t);
       expect(sfBeat(start.swingB ?? 0, at).key).toBe('swingB');
@@ -79,45 +79,63 @@ describe('the strike timeline', () => {
     }
   });
 
-  it('reads at game speed: a 4-frame dip, a rise, the overhead held 9 frames, each smear frame 2 frames, a recover frame on the way home', () => {
+  it('is a 17-frame lead (about 435 ms at the real 25.6 ms pose frame): his crouch, the stand-up in two steps, a short overhead, the swing', () => {
     const tl = sfTimeline(SF_WINDUP);
     const keys = tl.map((s) => s.key);
     const frames = (k: string): number => tl.find((s) => s.key === k)?.frames ?? 0;
-    expect(frames('dip')).toBeGreaterThanOrEqual(4);
-    expect(frames('windup')).toBeGreaterThanOrEqual(8);
-    expect(frames('windup')).toBeLessThanOrEqual(10);
-    expect(frames('smearA')).toBeGreaterThanOrEqual(2);
-    expect(frames('smearB')).toBeGreaterThanOrEqual(2);
-    expect(keys.indexOf('dip')).toBe(keys.indexOf('rise') - 1);
+    expect(SF_WINDUP).toBeLessThanOrEqual(17);
+    expect(SF_WINDUP * SF_FRAME_MS).toBeLessThan(450);
+    expect(SF_FRAME_MS).toBeCloseTo(25.6, 0);
+    expect(frames('dip')).toBeGreaterThanOrEqual(3);
+    // The overhead is short (3 frames) and the body RISES into it through two stand-up frames (the charge), not a frozen 9-frame hold.
+    expect(frames('windup')).toBeLessThanOrEqual(5);
+    expect(keys.indexOf('dip')).toBe(keys.indexOf('riseA') - 1);
+    expect(keys.indexOf('riseA')).toBe(keys.indexOf('rise') - 1);
     expect(keys.indexOf('rise')).toBe(keys.indexOf('windup') - 1);
-    expect(keys.indexOf('windup')).toBeLessThan(keys.indexOf('smearA'));
+    expect(keys.indexOf('windup')).toBe(keys.indexOf('smearA') - 1);
+    expect(keys.indexOf('smearA')).toBe(keys.indexOf('mid') - 1);
+    expect(keys.indexOf('mid')).toBe(keys.indexOf('smearB') - 1);
     expect(keys.indexOf('recover')).toBe(keys.indexOf('follow') + 1);
     expect(keys.at(-1)).toBe('ready');
-    // The overhead is held the same however long the ready stance runs (round 1 held it 5 to 10, frozen).
+    // The overhead is held the same however long the ready stance runs; the extra time (a timing ring) is the breathing ready stance.
     for (const t of [12, 18, 30]) expect(sfTimeline(t).find((s) => s.key === 'windup')?.frames).toBe(SF_UP);
     expect(sfTimeline(30)[0]?.frames).toBeGreaterThan(sfTimeline(SF_WINDUP)[0]?.frames ?? 99);
-    expect(SF_DIP).toBeGreaterThanOrEqual(4);
+    expect(SF_DIP).toBeGreaterThanOrEqual(3);
   });
 
-  it('keeps a crewmate in his way stepping back into his empty place as he runs, never ducking (her progress is his lunge)', () => {
-    expect(SF_ROOM.by).toBeGreaterThan(0.5);
-    expect(SF_ROOM.behind).toBeGreaterThanOrEqual(0);
+  it('keeps a crewmate in his way stepping back into the second row before he dashes and down again after he has passed (a function of the beat, not of his lunge)', () => {
+    expect(SF_ROOM.up).toBeGreaterThan(8);
+    expect(SF_ROOM.left).toBeGreaterThanOrEqual(0);
     const at = SF_WINDUP;
-    expect(sfBeat(0, at).lunge).toBe(0);
-    expect(sfBeat(sfLength(at) - 1, at).lunge).toBe(0);
+    expect(sfBeat(0, at).room).toBe(0);
+    expect(sfBeat(sfLength(at) - 1, at).room).toBe(0);
+    const tl = sfTimeline(at);
+    let k = 0;
+    for (const s of tl) {
+      // She is fully back by the first dash frame (so he never runs into her mid-swing) and stays back until he is home.
+      if (s.key === 'smearA') expect(sfBeat(k, at).room).toBe(1);
+      k += s.frames;
+    }
+    for (let i = 1; i < sfLength(at); i++) expect(Math.abs(sfBeat(i, at).room - sfBeat(i - 1, at).room)).toBeLessThanOrEqual(0.55);
   });
 
-  it('lunges continuously: each step starts where the one before ended (the dash is the smear frames)', () => {
+  it('lunges at a steady rate through the swing (about 0.14 a frame), each step starting where the one before ended', () => {
     const tl = sfTimeline(18);
-    for (let i = 1; i < tl.length; i++) {
-      const a = tl[i - 1];
-      const b = tl[i];
-      if (!a || !b) continue;
-      // The only jumps are the three dash steps, which the engine draws with a dithered ghost and a swipe.
-      if (b.key !== 'smearA' && b.key !== 'smearB' && b.key !== 'swingB') expect(Math.abs(b.from - a.to)).toBeLessThan(0.06);
-    }
+    const swing = tl.filter((s) => s.key === 'smearA' || s.key === 'mid' || s.key === 'smearB' || s.key === 'swingB');
+    // The lunge at each swing FRAME, in order: no frame skips more than 0.2 of the dash (round 3 skipped 0.32 to 0.50 in one).
+    const per: number[] = [];
+    for (const s of swing) for (let i = 0; i < s.frames; i++) per.push(s.frames > 1 ? s.from + ((s.to - s.from) * i) / (s.frames - 1) : s.from);
+    for (let i = 1; i < per.length; i++) expect((per[i] ?? 0) - (per[i - 1] ?? 0)).toBeLessThanOrEqual(0.2);
+    for (let i = 1; i < per.length; i++) expect((per[i] ?? 0) - (per[i - 1] ?? 0)).toBeGreaterThan(0.05);
     expect(sfBeat(0, 18).lunge).toBe(0);
     expect(sfBeat(sfLength(18) - 1, 18).lunge).toBe(0);
+  });
+
+  it('draws no dither: the swipes are solid bands (data: three tones, a leading blade only where the sword is cut out of strike1)', () => {
+    for (const k of ['smearA', 'mid'] as const) expect(SF_SWIPES[k].blade).toBeGreaterThan(30);
+    for (const k of ['smearB', 'swingB', 'followFade'] as const) expect(SF_SWIPES[k].blade).toBe(0);
+    // No swipe reaches over the name plate (a vertical reach over 37 art px from the wind-up hands would): checked on the built frames below.
+    expect(SF_SWIPES.smearA.ry).toBeLessThanOrEqual(37);
   });
 });
 
@@ -125,6 +143,7 @@ describe.skipIf(!have)('anchors on Mark\'s frames', () => {
   const s1 = have ? readPng(`${DIR}/rook-battle-strike1.png`) : { w: 0, h: 0, px: new Uint8ClampedArray(0) };
   const s2 = have ? readPng(`${DIR}/rook-battle-strike2.png`) : { w: 0, h: 0, px: new Uint8ClampedArray(0) };
   const idle = have ? idleFrames() : [];
+  const crouch = have ? readPng(`${DIR}/rook-battle-crouched.png`) : { w: 0, h: 0, px: new Uint8ClampedArray(0) };
 
   it('re-measures to the recorded data (a regenerated frame must be re-measured)', () => {
     expect([s1.w, s1.h]).toEqual([SF_ANCHORS.windup.w, SF_ANCHORS.windup.h]);
@@ -134,13 +153,16 @@ describe.skipIf(!have)('anchors on Mark\'s frames', () => {
     expect(frontBoot(s2)).toBe(SF_ANCHORS.follow.frontBoot);
     expect(soles(s2)).toBe(SF_ANCHORS.follow.soles);
     expect(rightmost(s2)).toEqual([...SF_ANCHORS.follow.tip]);
+    expect([crouch.w, crouch.h]).toEqual([SF_ANCHORS.crouch.w, SF_ANCHORS.crouch.h]);
+    expect(frontBoot(crouch)).toBe(SF_ANCHORS.crouch.frontBoot);
+    expect(soles(crouch)).toBe(SF_ANCHORS.crouch.soles);
     const fb = idle.reduce((n, r) => n + frontBoot(r), 0) / idle.length;
     expect(Math.abs(fb - SF_ANCHORS.idle.frontBoot)).toBeLessThan(0.3);
     for (const r of idle) expect(soles(r)).toBe(SF_ANCHORS.idle.soles);
   });
 
   it('puts every frame on one canvas size with the soles on the bottom row and the front boot on the same column', () => {
-    const b = buildSfStrike(idle, s1, s2);
+    const b = buildSfStrike(idle, s1, s2, crouch);
     const first = b.frames.ready;
     for (const k of SF_KEYS) {
       const f = b.frames[k];
@@ -154,6 +176,8 @@ describe.skipIf(!have)('anchors on Mark\'s frames', () => {
     expect(col('smearB')).toBe(col('follow'));
     expect(col('swingB')).toBe(col('follow'));
     expect(col('rise')).toBe(col('windup'));
+    expect(col('riseA')).toBe(col('windup'));
+    // Mark's own crouch frame is the dip: its front boot is on the idle's within a pixel too.
     expect(Math.abs(col('dip') - col('ready'))).toBeLessThanOrEqual(1);
     expect(Math.abs(col('recover') - col('ready'))).toBeLessThanOrEqual(1);
     // The name plate (about 24 screen px under the top edge, 40 tall at the strike's row) is 24 px clear: no frame reaches more than 113 art px above the soles.

@@ -21,7 +21,7 @@ import { PARTY_POSE_T } from './motion';
 import { direction } from '../../engine/shake';
 import { SF, SIDE_LUNGE_MAX, SIDE_LUNGE_STOP, SIDE_VIEW } from './sideview';
 import { KATA_BITE_FRAC, KATA_EFFECT_SHIFT, KATA_KNOCK, KATA_LOW_BELOW, KATA_MEASURED, KATA_MEASURED_LOW, KATA_WINDUP, kataLength } from '../../art/rig2/sidekata';
-import { SF_HIT_HEIGHT, SF_LANE_DOWN, SF_LANE_UP, SF_MEASURED, SF_PIERCE, SF_SOLES_ABOVE, SF_WINDUP, sfLength } from '../../art/rig2/sfstrike';
+import { SF_HIT_HEIGHT, SF_KNOCK, SF_LANE_DOWN, SF_LANE_SHARE, SF_LANE_UP, SF_MEASURED, SF_PIERCE, SF_SOLES_ABOVE, SF_SPARK_BODY, SF_WINDUP, sfLength } from '../../art/rig2/sfstrike';
 import { MEN_R } from '../../battle/fx';
 import { gpuCast, gpuDown, gpuHeal, gpuHit, gpuPhase, gpuSpell } from './gpufx';
 import type { TimingProfile } from '../../battle/engine';
@@ -179,13 +179,16 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
             const tipAt = box.body0 + SF_PIERCE;
             dd.reachX = Math.max(0, Math.min(SIDE_LUNGE_MAX, tipAt - SF_MEASURED.tipDx / 2 - from.x));
             const feet = v.feetOf(e.actor);
-            dd.reachY = Math.max(-SF_LANE_UP, Math.min(SF_LANE_DOWN, box.feet - Math.min(SF_SOLES_ABOVE, box.h * SF_HIT_HEIGHT) - feet));
+            dd.reachY = Math.max(-SF_LANE_UP, Math.min(SF_LANE_DOWN, box.feet - Math.min(SF_SOLES_ABOVE, box.h * SF_LANE_SHARE) - feet));
             dd.target = e.targets[0];
             dd.strikeLow = false;
             // The cut line (men_r) runs down and to the right and ends on the blade's point, so the steel, the line and the spark are one stroke: its middle is placed from that end.
-            const tipY = feet + dd.reachY - SF_MEASURED.tipUp / 2;
-            kataPoint = { x: tipAt, y: tipY };
-            kataTarget = { x: tipAt - MEN_R.dx, bladeY: tipY - MEN_R.dy };
+            // Round 4: the cut and the spark land at the middle of the target's body (`SF_HIT_HEIGHT` of its height), not at the blade's point (which is at its shin): the line crosses
+            // the torso, and its end is `SF_PIERCE` inside the body front. The spark's size follows the body's width, so a Glowrat is not buried under it.
+            const hitY = box.feet - box.h * SF_HIT_HEIGHT;
+            kataPoint = { x: tipAt, y: hitY };
+            kataTarget = { x: tipAt - MEN_R.dx, bladeY: hitY - MEN_R.dy };
+            MEN_R.spark = Math.max(0.4, Math.min(1, ((box.x1 - box.x0) * SF_SPARK_BODY) / 9));
           } else if (kata && box) {
             // Rook's blade must meet the target: stop with the point `KATA_BITE_FRAC` of the way from its centre to its front edge (its weapon may reach further than its body). The lane is a row in front of the enemy line
             // (never up the street, behind Kit), so the dash passes in front of the others, who stay opaque. A target under `KATA_LOW_BELOW` px tall (a Glowrat) gets the blade angled down onto it.
@@ -279,7 +282,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       dd.flash = u.side === 'enemy' ? (kataAction ? (SF ? 5 : 0) : 5) : 8;
       // Rook's cut pushes the body back 4 px for two frames and shakes the screen, whatever the damage; the target's body shows through (no white flash: it would hold through the hitstop).
       if (kataAction && u.side === 'enemy') {
-        dd.knock = KATA_KNOCK.length;
+        dd.knock = SF ? SF_KNOCK.length : KATA_KNOCK.length;
         v.game.shake(SF ? 11 : 8, SF ? 4 : 3, v.lastActor ? direction(v.pos(v.lastActor.uid), v.pos(e.target)) : undefined);
       }
       if (u.side === 'enemy' && e.hp > 0 && (e.crit || e.amount >= u.base.maxHp * 0.12)) v.setPose(u, 'hurt', 16);
