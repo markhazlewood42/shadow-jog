@@ -1,35 +1,35 @@
 /**
  * Rook's two-handed strike from Mark's own Sprite Fusion frames (spike `spike/side-battle`, item G-sf-rook-strike). DOM-free: this file holds the data
- * (anchors, bent poses, timeline, measured reach), the pixel work on plain RGBA arrays (the smear crescents, splitting the sword from the wind-up frame,
- * bending a frame by rows, turning the sword, laying frames of different canvases onto one) and `buildSfStrike`; `sfcrew.ts` turns the result into
- * canvases. A pose is a row of data, never a repaint.
+ * (anchors, squash poses, swipes, timeline, measured reach), the pixel work on plain RGBA arrays (the swipe, splitting the sword from the wind-up frame,
+ * squashing a frame by rows, laying frames of different canvases onto one) and `buildSfStrike`; `sfcrew.ts` turns the result into canvases. A pose is a row of data.
  *
  * The frames (all face right, none is mirrored):
  *   - ready:    his battle idle (`rook-battle-idle`, 79x68), the sword drawn in a ready stance.
- *   - dip:      the idle frame coiled (knees bent by deleting leg rows, torso tipped back): the anticipation before the lift.
- *   - windup:   `rook-battle-strike1` (69x110), the sword raised overhead, blade laid back.
- *   - swingA, swingM: the wind-up body bent forward and down by rows, with HIS sword (cut out of that frame, guard and all) turned about the hands to
- *     vertical and then half way down, and a thin crescent trailing it.
- *   - swingB:   `rook-battle-strike2` (101x66), the low follow-through with the coat flared, a streak from head height to the blade point.
- *   - followFade, follow: the same frame, the streak thinning and then gone, held through the hit.
+ *   - dip:      the idle frame squashed (five rows out of the legs, the torso tipped back): the anticipation before the lift.
+ *   - rise:     the wind-up frame squashed four rows (legs only, nothing above the knees moves sideways): the body half way up out of the dip, arms already overhead.
+ *   - windup:   `rook-battle-strike1` (69x110), the sword raised overhead, blade laid back. Held 9 frames: it is the anticipation pose.
+ *   - smearA:   the wind-up body WITHOUT its sword (cut out whole, guard and all) and a code-drawn swipe where the blade is going: a pixel-art fan of steel with a bright edge.
+ *   - smearB:   `rook-battle-strike2` (101x66) as drawn, the swipe carried on down to where its blade is. The body changes pose between the two smear frames; the swipe hides the join.
+ *   - swingB:   the same frame, a last thin swipe, the blade on the target.
+ *   - followFade, follow: the same frame, the swipe gone, held through the hit.
  *   - recover:  the idle frame rising out of the lunge.
- * Mark still has no true in-between frames (his "edit" tool would make the real ones; see the missing-frames list in the spike notes), so the three
- * bent poses are stand-ins, one or two render frames each, covered at game speed by the streaks and ghosts.
+ * Round 3 drops round 2's two bent stand-ins (the wind-up body row-deleted, sheared and its sword turned by nearest pixel): they stretched the forearms and made a scythe.
+ * Every frame of Mark's is now drawn as he drew it, and the in-between is a swipe, as in the SNES chops. His 'edit' tool would make the real in-betweens.
  *
  * ANCHORS. The canvases (68, 79, 69 and 101 wide, 53 to 110 tall) are not the same size and the body is not in the same place in each, so a
  * frame is placed by its FRONT BOOT (the foot he stamps in men-uchi: the heavier of the two boot-sized groups in the lowest eight rows, ignoring the
  * long thin blade-tip run of the follow-through) and its SOLES row (the lowest opaque row). The front boot is put at the same x as the idle's, so the
  * stamping foot never slides; the rear boot and the head do move (the rear leg reaches back, the head comes forward over the front foot), which is the lunge.
- * The bent poses only move rows above the shins, so their boots stay where the source frame's are.
+ * The squash poses only move rows above the shins, so their boots stay where the source frame's are.
  */
 import { boxOf, type Raw } from './sfgeom';
 
-export type SfKey = 'ready' | 'dip' | 'windup' | 'swingA' | 'swingM' | 'swingB' | 'followFade' | 'follow' | 'recover';
-export const SF_KEYS: readonly SfKey[] = ['ready', 'dip', 'windup', 'swingA', 'swingM', 'swingB', 'followFade', 'follow', 'recover'];
+export type SfKey = 'ready' | 'dip' | 'rise' | 'windup' | 'smearA' | 'smearB' | 'swingB' | 'followFade' | 'follow' | 'recover';
+export const SF_KEYS: readonly SfKey[] = ['ready', 'dip', 'rise', 'windup', 'smearA', 'smearB', 'swingB', 'followFade', 'follow', 'recover'];
 
 /**
  * What was measured on Mark's PNGs, recorded as data (`tests/sfstrike.test.ts` re-measures them and fails if he regenerates a frame):
- * the front boot's centre column (a pixel's left edge is its index), the soles' row, and the pivot the swing turns about (between the two hands,
+ * the front boot's centre column (a pixel's left edge is its index), the soles' row, and the hands (the pivot the swipe turns about, between the two hands,
  * in the source frame's pixels). `bladeRoot` and `bladeTip` are the sword's root and tip in the wind-up frame (for cutting it out); `tip` the
  * follow-through's blade point (its rightmost pixel).
  */
@@ -40,37 +40,51 @@ export const SF_ANCHORS = {
 } as const;
 
 /**
- * The in-between poses as data (round 2). `del` are source rows removed (everything above drops one row for each, so the knees bend and the soles stay on the
- * street); `lean` is how far (px) the head is carried forward: each row above `leanRow` shifts sideways in proportion to its height over it (the torso tips over
- * the front foot, the hands come with it); `rot` turns his own sword about the hands, clockwise in degrees (0 = as drawn, overhead and laid back); `arc` is the
- * smear trailing the blade tip: start and end angle (0 right, 90 down, -90 up) and its widest point. Add a pose by adding a row here.
+ * The squashed poses as data. `del` are source rows removed (everything above drops one row for each, so the knees bend and the soles stay on the street);
+ * `lean` is how far (px) the head is carried sideways: each row above `leanRow` shifts in proportion to its height over it (0: a pure squash, nothing sheared).
+ * Add a pose by adding a row here.
  */
 export interface SfPose {
   del: readonly number[];
   lean: number;
   leanRow: number;
-  rot?: number;
-  arc?: { a0: number; a1: number; width: number };
 }
-export const SF_POSES: Record<'dip' | 'swingA' | 'swingM' | 'recover', SfPose> = {
-  // Coil: the idle frame with the knees bent and the weight back over the rear foot.
-  dip: { del: [47, 51, 55], lean: -3, leanRow: 58 },
-  // Swing A: the blade past vertical, the body already tipping over the front foot.
-  swingA: { del: [78, 88, 98], lean: 3, leanRow: 100, rot: 58, arc: { a0: -138, a1: -100, width: 3 } },
-  // Swing M: the blade half way down, rising ahead of him, the body low.
-  swingM: { del: [74, 79, 84, 89, 94, 98, 101], lean: 7, leanRow: 100, rot: 136, arc: { a0: -78, a1: -14, width: 4 } },
+export const SF_POSES: Record<'dip' | 'rise' | 'recover', SfPose> = {
+  // Coil: the idle frame with the knees bent (five rows out of the thighs and shins) and the weight back over the rear foot.
+  dip: { del: [43, 47, 51, 55, 59], lean: -3, leanRow: 58 },
+  // Rise: the wind-up frame with four rows out of the thighs: the arms are overhead already, the body is still low.
+  rise: { del: [84, 89, 94, 99], lean: 0, leanRow: 0 },
   // Recover: rising out of the lunge, still leaning to the target.
   recover: { del: [51, 55], lean: 3, leanRow: 58 },
 };
-/** Swing B's streak starts at head height, as the blade is thrown down, and ends on the blade point; `fade` is the thin one that follows. */
-export const SF_STREAK = { a0: -52, width: 5, fadeA0: -8, fadeWidth: 3 };
-/** The smear's radius about the hands: just inside the wind-up blade's own reach (56 px from the grip to the point). */
-export const SF_SWORD_REACH = 54;
+
+/**
+ * The swipes (round 3): the sweep of the blade, drawn about the hands as a fan of steel with a bright edge. Angles are of the BLADE about the hands (0 right, 90 down,
+ * -90 up), `a0` the trailing edge and `a1` the leading one; `rx` and `ry` the reach sideways and up or down (an ellipse: the blade swings in a plane tipped toward the
+ * viewer, so its reach straight up is shorter, and the wind-up's swipe never rises over the name plate); `edge` the bright rim's thickness at its widest. The wind-up's
+ * blade lies at -160 degrees (back over his shoulder), the follow-through's at 21; the three swipes carry it between them.
+ */
+export interface SfSwipe {
+  hand: 'windup' | 'follow';
+  a0: number;
+  a1: number;
+  rx: number;
+  ry: number;
+  edge: number;
+  /** Share of the fan (from its trailing edge) that stays empty, so the wedge is a streak, not a solid fan. */
+  hollow: number;
+}
+export const SF_SWIPES: Record<'smearA' | 'smearB' | 'swingB' | 'followFade', SfSwipe> = {
+  smearA: { hand: 'windup', a0: -168, a1: -78, rx: 54, ry: 26, edge: 5, hollow: 0.3 },
+  smearB: { hand: 'follow', a0: -100, a1: -18, rx: 51, ry: 48, edge: 5, hollow: 0.35 },
+  swingB: { hand: 'follow', a0: -40, a1: 21, rx: 50, ry: 49, edge: 4, hollow: 0.55 },
+  followFade: { hand: 'follow', a0: -6, a1: 21, rx: 50, ry: 49, edge: 2, hollow: 0.8 },
+};
 /** How many rows of lean count at most (a row this far over the lean row moves the full `lean` px). */
 const LEAN_SPAN = 60;
 
-/** Smear colours: sampled from the follow-through's own blade by `buildSfStrike` (these are what it falls back to). Two bands, never more. */
-const RAMP = { white: [244, 247, 251] as number[], light: [208, 216, 228] as number[] };
+/** Swipe colours: sampled from the follow-through's own blade by `sampleSteel` (these are what it falls back to). Three tones: the bright rim, the light body, the steel fill. */
+const RAMP = { white: [244, 247, 251] as number[], light: [208, 216, 228] as number[], steel: [150, 166, 190] as number[] };
 
 // ------------------------------------------------------------------------------------------------ pixel helpers
 
@@ -155,9 +169,10 @@ export function sampleSteel(s2: Raw): void {
   lum.sort((a, b) => a.l - b.l);
   RAMP.white = (lum[Math.floor(lum.length * 0.93)] as { c: number[] }).c;
   RAMP.light = (lum[Math.floor(lum.length * 0.5)] as { c: number[] }).c;
+  RAMP.steel = (lum[Math.floor(lum.length * 0.15)] as { c: number[] }).c;
 }
 
-// ------------------------------------------------------------------------------------------------ bending and turning
+// ------------------------------------------------------------------------------------------------ bending
 
 const isGold = (r: Raw, x: number, y: number): boolean => {
   const i = (y * r.w + x) * 4;
@@ -211,56 +226,40 @@ export function bend(r: Raw, pose: SfPose): { raw: Raw; at: (x: number, y: numbe
   return { raw: out, at: (x, y) => [x + BEND_PAD + shift(y), y + dropBelow(y)] };
 }
 
-/** Extra room round a turned layer (the sword swings out of its source canvas). */
-const TURN_PAD = 70;
+// ------------------------------------------------------------------------------------------------ the swipe
 
-/** A layer turned `deg` degrees clockwise about (cx, cy) by inverse mapping (nearest pixel: no blur, no new colours). Origin is `TURN_PAD` up and left of the source's. */
-export function turned(src: Raw, cx: number, cy: number, deg: number): Raw {
-  const out = blank(src.w + TURN_PAD * 2, src.h + TURN_PAD * 2);
-  const a = (-deg * Math.PI) / 180, co = Math.cos(a), si = Math.sin(a);
-  for (let y = 0; y < out.h; y++)
-    for (let x = 0; x < out.w; x++) {
-      const ox = x - TURN_PAD + 0.5 - cx, oy = y - TURN_PAD + 0.5 - cy;
-      const sx = Math.floor(cx + ox * co - oy * si), sy = Math.floor(cy + ox * si + oy * co);
-      if (alphaAt(src, sx, sy) === 0) continue;
-      const i = (sy * src.w + sx) * 4;
-      put(out, x, y, [src.px[i] ?? 0, src.px[i + 1] ?? 0, src.px[i + 2] ?? 0]);
-    }
-  return out;
-}
-
-// ------------------------------------------------------------------------------------------------ the smear
-
-export interface Arc {
-  /** The pivot, in the frame's pixels (between the hands). */
-  cx: number;
-  cy: number;
-  /** The outer radius (the blade's reach) and the angles the point swept (degrees, 0 right, 90 down, -90 up), start then end. */
-  r: number;
-  a0: number;
-  a1: number;
-  /** The crescent's thickness at its widest point (80 percent of the way along; it tapers to a point at both ends). */
-  width: number;
-}
+/** A 4x4 ordered-dither matrix (0 to 15): the fan's fill is dithered, so it reads as speed, not as a solid wedge. */
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
 /**
- * A crescent: the band between radius `r - w` and `r`, where w grows from 1 px at the start angle to `width` at 80 percent of the way and narrows again to
- * the leading end, so it tapers to a point at both ends. Two solid bands across it: the blade's bright edge on the outside, its lighter tone inside. A
- * pixel-art smear: no soft alpha, no loose dots.
+ * A swipe (see `SfSwipe`) drawn about the hands at (hx, hy): a fan between the blade's trailing and leading angles, out to an elliptical reach. Its outer rim is a
+ * crescent in two solid bands (the blade's bright edge outside, its lighter tone inside) that is thin at the trailing end and thickest near the leading one; inside
+ * it the steel tone is dithered, denser toward the leading edge and the rim; the leading edge itself is a one-pixel bright blade line. No soft alpha, no loose dots.
  */
-export function drawArc(dst: Raw, a: Arc): void {
-  const x0 = Math.floor(a.cx - a.r - 1), x1 = Math.ceil(a.cx + a.r + 1), y0 = Math.floor(a.cy - a.r - 1), y1 = Math.ceil(a.cy + a.r + 1);
+export function drawSwipe(dst: Raw, hx: number, hy: number, sw: SfSwipe): void {
+  const reach = Math.max(sw.rx, sw.ry);
+  const x0 = Math.floor(hx - reach - 1), x1 = Math.ceil(hx + reach + 1), y0 = Math.floor(hy - reach - 1), y1 = Math.ceil(hy + reach + 1);
   for (let y = y0; y <= y1; y++)
     for (let x = x0; x <= x1; x++) {
-      const dx = x + 0.5 - a.cx, dy = y + 0.5 - a.cy;
-      const rad = Math.hypot(dx, dy);
+      const dx = x + 0.5 - hx, dy = y + 0.5 - hy;
       const deg = (Math.atan2(dy, dx) * 180) / Math.PI;
-      const u = (deg - a.a0) / (a.a1 - a.a0);
+      const u = (deg - sw.a0) / (sw.a1 - sw.a0);
       if (u < 0 || u > 1) continue;
-      const k = u < 0.8 ? (u / 0.8) ** 1.5 : 1 - ((u - 0.8) / 0.2) * 0.55;
-      const w = 1 + (a.width - 1) * k;
-      if (rad > a.r || rad < a.r - w) continue;
-      put(dst, x, y, (rad - (a.r - w)) / w > 0.45 ? RAMP.white : RAMP.light);
+      const th = Math.atan2(dy, dx);
+      const R = (sw.rx * sw.ry) / Math.hypot(sw.ry * Math.cos(th), sw.rx * Math.sin(th));
+      const r = Math.hypot(dx, dy);
+      if (r > R) continue;
+      const w = sw.edge * (u < 0.85 ? 0.3 + 0.7 * (u / 0.85) ** 1.3 : 1 - ((u - 0.85) / 0.15) * 0.25);
+      const rim = r > R - w;
+      // The leading blade line: within a pixel of the leading angle, from the hands out.
+      const lead = Math.abs(((deg - sw.a1) * Math.PI) / 180) * r < 0.9 && r > R * 0.18;
+      if (lead || (rim && r > R - w * 0.45)) put(dst, x, y, RAMP.white);
+      else if (rim) put(dst, x, y, RAMP.light);
+      else if (u > sw.hollow && r > R * 0.3) {
+        const dens = Math.min(1, (u - sw.hollow) / (1 - sw.hollow)) * Math.min(1, (r / R - 0.3) / 0.7) * 0.95;
+        const thr = (BAYER[(y & 3) * 4 + (x & 3)] ?? 0) / 16;
+        if (dens > thr) put(dst, x, y, dens > thr * 1.6 + 0.12 ? RAMP.light : RAMP.steel);
+      }
     }
 }
 
@@ -270,28 +269,34 @@ export function drawArc(dst: Raw, a: Arc): void {
 export const SF_HOLD = 13;
 export const SF_RECOVER = 4;
 export const SF_RETURN = 11;
-/** Frames of animation from the start of the pose to the effect when nothing (a timing ring) stretches it: the ready stance, the dip, a short overhead hold, three swing frames. */
-export const SF_WINDUP = 13;
-/** The overhead is held this many frames before the swing, however long the ready stance before it runs. */
-export const SF_UP = 4;
-/** The dip before the overhead lift. */
-export const SF_DIP = 2;
-/** Swing B's two frames: the blade lands on its first frame, the effect starts on its second. Swing A and M are one frame each, so three frames lead the effect. */
+/** The dip before the lift (4 frames: it has to read at game speed), the rise out of it, and the overhead (the anticipation pose, held 9 frames, always). */
+export const SF_DIP = 4;
+export const SF_RISE = 2;
+export const SF_UP = 9;
+/** Each smear frame is held 2 frames, then swing B (the blade on the target, 2 frames): 5 frames lead the effect (the effect starts on swing B's second frame). */
+export const SF_SMEAR = 2;
 export const SF_SWING = 2;
-export const SF_LEAD = 3;
-/** The streak fades over this many frames after the blade lands. */
+export const SF_LEAD = 2 * SF_SMEAR + 1;
+/** Frames of animation from the start of the pose to the effect when nothing (a timing ring) stretches it: a short ready stance, the dip, the rise, the overhead, the swipes. */
+export const SF_WINDUP = SF_DIP + SF_RISE + SF_UP + SF_LEAD + 4;
+/** The swipe's thin tail fades over this many frames after the blade lands. */
 export const SF_FADE = 2;
 /**
  * How far past the target's body front (battle-world px, two art px each) the blade's point goes: the point is inside the body, so the cut reads as a cut
  * through it, not a touch in front of it. (The enemy's box includes a club or a tail; the body front is measured from its columns.)
  */
-export const SF_PIERCE = 5;
-/** Where on the target the point lands, as a share of its height above its soles (hip height), and how far Rook's row may differ from his own place (world px). */
-export const SF_HIT_HEIGHT = 0.4;
-export const SF_LANE_UP = 10;
-export const SF_LANE_DOWN = 0;
-/** A crewmate in the way steps this far (battle-world px, x then y; y is toward the camera) so Rook's row is clear for the whole strike. */
-export const SF_ROOM = { dx: -6, dy: 14 };
+export const SF_PIERCE = 4;
+/**
+ * Rook's row at the strike (round 3): he stands on the target's floor, not on a ledge above it. His soles are `SF_SOLES_ABOVE` world px above the target's soles at most (the point
+ * is then a hand's width up its leg, the cut line carries the rest), and his row moves from his own place by at most `SF_LANE_UP` up or `SF_LANE_DOWN` down.
+ */
+export const SF_SOLES_ABOVE = 6;
+export const SF_LANE_UP = 6;
+export const SF_LANE_DOWN = 9;
+/** Where on the target the cut line is aimed, as a share of its height above its soles (the spark sits there, on the body, not on the blade's point). */
+export const SF_HIT_HEIGHT = 0.3;
+/** A crewmate in his way steps back to his empty place (a few world px past it) as his lunge reaches `by` of the way, her progress being his lunge. */
+export const SF_ROOM = { by: 0.8, behind: 8 };
 
 export interface SfStep {
   key: SfKey;
@@ -302,22 +307,24 @@ export interface SfStep {
 }
 
 /**
- * The strike's timeline when the effect starts `at` frames in: the ready stance (longer if there is time, as when a timing ring
- * is closing), the dip, the overhead held 4 frames, swing A and M (one frame each), swing B (two), the blow (the fade, then the held follow-through) and the way home. The dash is carried by the
- * swing frames: 0.2, 0.45, then 0.75 to 0.95 of the way.
+ * The strike's timeline when the effect starts `at` frames in: the ready stance (longer if there is time, as when a timing ring is closing), the dip (4), the rise (2),
+ * the overhead held 9 frames, the two smear frames (2 each), swing B (2: the blade lands on its first, the effect starts on its second), the blow (the fade, then the held
+ * follow-through) and the way home. The dash is carried by the smear frames: 0.22 to 0.32, 0.5 to 0.66, then 0.8 to 0.95 of the way.
  */
 export function sfTimeline(at0: number): SfStep[] {
   const at = Math.round(at0);
-  const pre = Math.max(SF_DIP + SF_UP + 3, at - SF_LEAD);
+  const lift = SF_DIP + SF_RISE + SF_UP;
+  const pre = Math.max(lift, at - SF_LEAD);
   // Any extra time (a timing ring closing) is spent in the READY stance, whose idle loop keeps breathing, not in a frozen overhead: the overhead is held SF_UP frames, always.
-  const ready = pre - SF_DIP - SF_UP;
+  const ready = pre - lift;
   return [
     { key: 'ready', frames: ready, from: 0, to: 0 },
-    { key: 'dip', frames: SF_DIP, from: 0, to: -0.02 },
-    { key: 'windup', frames: SF_UP, from: -0.02, to: -0.04 },
-    { key: 'swingA', frames: 1, from: 0.2, to: 0.2 },
-    { key: 'swingM', frames: 1, from: 0.45, to: 0.45 },
-    { key: 'swingB', frames: SF_SWING, from: 0.75, to: 0.95 },
+    { key: 'dip', frames: SF_DIP, from: 0, to: -0.03 },
+    { key: 'rise', frames: SF_RISE, from: -0.03, to: -0.04 },
+    { key: 'windup', frames: SF_UP, from: -0.04, to: -0.05 },
+    { key: 'smearA', frames: SF_SMEAR, from: 0.22, to: 0.32 },
+    { key: 'smearB', frames: SF_SMEAR, from: 0.5, to: 0.66 },
+    { key: 'swingB', frames: SF_SWING, from: 0.8, to: 0.95 },
     { key: 'followFade', frames: SF_FADE, from: 1, to: 1 },
     { key: 'follow', frames: SF_HOLD, from: 1, to: 1 },
     { key: 'recover', frames: SF_RECOVER, from: 1, to: 0.65 },
@@ -332,18 +339,11 @@ export interface SfBeat {
   lunge: number;
   /** Frames into the step. */
   t: number;
-  /** The swing frames: a body in motion (speed ghosts trail it). */
+  /** The swipe frames: a body in motion (a dithered ghost trails it). */
   dash: boolean;
   /** The blade is on the target. */
   contact: boolean;
-  /** How far a crewmate has stepped out of his row (0 to 1): in over the dip and the wind-up, out over the way home. */
-  room: number;
 }
-
-const smooth = (u: number): number => {
-  const c = Math.max(0, Math.min(1, u));
-  return c * c * (3 - 2 * c);
-};
 
 /** The beat `k` frames into the pose (past the end: the last frame). */
 export function sfBeat(k: number, at: number): SfBeat {
@@ -354,15 +354,12 @@ export function sfBeat(k: number, at: number): SfBeat {
     if (t < s.frames || i === tl.length - 1) {
       const u = s.frames > 1 ? Math.max(0, Math.min(1, t / (s.frames - 1))) : 1;
       const lunge = s.from + (s.to - s.from) * u;
-      const swing = s.key === 'swingA' || s.key === 'swingM' || s.key === 'swingB';
-      // The room: nothing while he stands ready; from the dip it eases in over the dip and the first frames of the wind-up, and goes home as the lunge unwinds.
-      const roomIn = i === 0 ? 0 : smooth((k - (tl[0]?.frames ?? 0)) / (SF_DIP + 4));
-      const room = i >= tl.length - 2 ? Math.min(roomIn, smooth(lunge / 0.3)) : roomIn;
-      return { key: s.key, step: i, lunge, t: Math.min(t, s.frames - 1), dash: swing, contact: s.key === 'swingB' || s.key === 'followFade' || s.key === 'follow', room };
+      const swing = s.key === 'smearA' || s.key === 'smearB' || s.key === 'swingB';
+      return { key: s.key, step: i, lunge, t: Math.min(t, s.frames - 1), dash: swing, contact: s.key === 'swingB' || s.key === 'followFade' || s.key === 'follow' };
     }
     t -= s.frames;
   }
-  return { key: 'ready', step: 0, lunge: 0, t: 0, dash: false, contact: false, room: 0 };
+  return { key: 'ready', step: 0, lunge: 0, t: 0, dash: false, contact: false };
 }
 
 /**
@@ -379,8 +376,10 @@ export interface SfBuild {
   /** The canvas's centre column is the axis; its bottom row the soles. */
   axis: number;
   measured: { tipDx: number; tipUp: number; footDx: number };
-  /** Where the hands are in each swing frame (the pivot after bending), on the finished canvas, for the notes and the tests. */
+  /** Where the hands are in each frame that has a swipe, on the finished canvas, for the notes and the tests. */
   pivots: Partial<Record<SfKey, [number, number]>>;
+  /** The rows above the soles the tallest frame reaches (the name plate's clearance is checked against it). */
+  topRows: number;
 }
 
 /**
@@ -412,37 +411,27 @@ export function buildSfStrike(idle: Raw[], s1: Raw, s2: Raw): SfBuild {
     layers[k] = mk();
     blit(layers[k], bend(i0, SF_POSES[k]).raw, pi.dx - BEND_PAD, pi.dy);
   }
+  layers.rise = mk();
+  blit(layers.rise, bend(s1, SF_POSES.rise).raw, pw.dx - BEND_PAD, pw.dy);
   layers.windup = mk();
   blit(layers.windup, s1, pw.dx, pw.dy);
 
-  // Swing A and M: the wind-up body bent forward and down, his sword turned about the hands, a crescent trailing the point (behind the sword, behind the body).
-  const [wcx, wcy] = A.windup.pivot;
-  const { body, sword } = splitSword(s1);
-  for (const k of ['swingA', 'swingM'] as const) {
-    const pose = SF_POSES[k];
-    const bent = bend(body, pose);
-    const [qx, qy] = bent.at(wcx, wcy);
-    const l = mk();
-    if (pose.arc) drawArc(l, { cx: qx - BEND_PAD + pw.dx, cy: qy + pw.dy, r: SF_SWORD_REACH, ...pose.arc });
-    // The sword turns about the hands where they were, then goes with them to where the bend put them.
-    blit(l, turned(sword, wcx, wcy, pose.rot ?? 0), pw.dx + (qx - BEND_PAD - wcx) - TURN_PAD, pw.dy + (qy - wcy) - TURN_PAD);
-    blit(l, bent.raw, pw.dx - BEND_PAD, pw.dy);
-    layers[k] = l;
-    pivots[k] = [qx - BEND_PAD + pw.dx - HALF, qy + pw.dy - H0];
-  }
-
-  // Swing B: the follow-through with its own blade, a streak from head height to the point.
-  const [fcx, fcy] = A.follow.pivot;
-  const tipDist = Math.hypot(A.follow.tip[0] + 1 - fcx, A.follow.tip[1] - fcy);
-  const tipDeg = (Math.atan2(A.follow.tip[1] - fcy, A.follow.tip[0] + 1 - fcx) * 180) / Math.PI;
+  // The swipes: behind the body, about the hands where each frame has them. Smear A's body is the wind-up's without its sword (the swipe is the blade now).
+  const hands = { windup: [A.windup.pivot[0] + pw.dx, A.windup.pivot[1] + pw.dy], follow: [A.follow.pivot[0] + pf.dx, A.follow.pivot[1] + pf.dy] } as const;
+  const { body } = splitSword(s1);
+  layers.smearA = mk();
+  layers.smearB = mk();
   layers.swingB = mk();
-  drawArc(layers.swingB, { cx: fcx + pf.dx, cy: fcy + pf.dy, r: tipDist, a0: SF_STREAK.a0, a1: tipDeg, width: SF_STREAK.width });
-  blit(layers.swingB, s2, pf.dx, pf.dy);
   layers.followFade = mk();
-  drawArc(layers.followFade, { cx: fcx + pf.dx, cy: fcy + pf.dy, r: tipDist - 1, a0: SF_STREAK.fadeA0, a1: tipDeg - 1, width: SF_STREAK.fadeWidth });
-  blit(layers.followFade, s2, pf.dx, pf.dy);
   layers.follow = mk();
-  blit(layers.follow, s2, pf.dx, pf.dy);
+  for (const k of ['smearA', 'smearB', 'swingB', 'followFade'] as const) {
+    const sw = SF_SWIPES[k];
+    const [hx, hy] = hands[sw.hand];
+    drawSwipe(layers[k], hx, hy, sw);
+    pivots[k] = [hx - HALF, hy - H0];
+  }
+  blit(layers.smearA, body, pw.dx, pw.dy);
+  for (const k of ['smearB', 'swingB', 'followFade', 'follow'] as const) blit(layers[k], s2, pf.dx, pf.dy);
 
   // Crop to a common size: symmetric about the axis (the engine centres a canvas on the slot), top at the highest pixel, bottom on the soles.
   let left = HALF, right = HALF, top = H0;
@@ -465,5 +454,5 @@ export function buildSfStrike(idle: Raw[], s1: Raw, s2: Raw): SfBuild {
     pivots[k] = [p[0] + half, p[1] + H0 - top];
   }
   const tipX = A.follow.tip[0] + 1 + pf.dx - HALF;
-  return { frames, axis: half, measured: { tipDx: tipX, tipUp: A.follow.soles - A.follow.tip[1], footDx: Math.round(off) }, pivots };
+  return { frames, axis: half, measured: { tipDx: tipX, tipUp: A.follow.soles - A.follow.tip[1], footDx: Math.round(off) }, pivots, topRows: H0 - top };
 }

@@ -3,7 +3,7 @@ import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import type { Raw } from '../src/art/rig2/sfgeom';
 import { boxOf } from '../src/art/rig2/sfgeom';
-import { SF_ANCHORS, SF_KEYS, SF_ROOM, SF_WINDUP, bend, buildSfStrike, frontBoot, rightmost, sfBeat, sfLength, sfTimeline, soles, splitSword, SF_POSES } from '../src/art/rig2/sfstrike';
+import { SF_ANCHORS, SF_KEYS, SF_POSES, SF_ROOM, SF_UP, SF_DIP, SF_WINDUP, bend, buildSfStrike, frontBoot, rightmost, sfBeat, sfLength, sfTimeline, soles, splitSword } from '../src/art/rig2/sfstrike';
 
 /**
  * Rook's strike from Mark's Sprite Fusion frames (spike side-battle, item G-sf-rook-strike). The timeline tests run everywhere; the anchor tests read Mark's
@@ -70,47 +70,51 @@ describe('the strike timeline', () => {
         t += s.frames;
       }
       // Swing B (the blade on the target) starts one frame before the effect; the follow-through is held through the cut line, the damage and the hitstop.
-      expect(start.swingB).toBe(at - 1);
+      expect(start.swingB).toBe(Math.max(at - 1, SF_DIP + 2 + SF_UP + 4));
       expect(tl.find((s) => s.key === 'follow')?.frames).toBeGreaterThanOrEqual(12);
       expect(sfLength(at)).toBe(t);
-      expect(sfBeat(at - 1, at).key).toBe('swingB');
-      expect(sfBeat(at - 1, at).contact).toBe(true);
-      expect(sfBeat(at - 4, at).contact).toBe(false);
+      expect(sfBeat(start.swingB ?? 0, at).key).toBe('swingB');
+      expect(sfBeat(start.swingB ?? 0, at).contact).toBe(true);
+      expect(sfBeat((start.swingB ?? 0) - 1, at).contact).toBe(false);
     }
   });
 
-  it('has an anticipation dip before the overhead, no long static hold at the default timing, and a recover frame on the way home', () => {
+  it('reads at game speed: a 4-frame dip, a rise, the overhead held 9 frames, each smear frame 2 frames, a recover frame on the way home', () => {
     const tl = sfTimeline(SF_WINDUP);
     const keys = tl.map((s) => s.key);
-    expect(keys.indexOf('dip')).toBe(keys.indexOf('windup') - 1);
-    expect(keys.indexOf('windup')).toBeLessThan(keys.indexOf('swingA'));
+    const frames = (k: string): number => tl.find((s) => s.key === k)?.frames ?? 0;
+    expect(frames('dip')).toBeGreaterThanOrEqual(4);
+    expect(frames('windup')).toBeGreaterThanOrEqual(8);
+    expect(frames('windup')).toBeLessThanOrEqual(10);
+    expect(frames('smearA')).toBeGreaterThanOrEqual(2);
+    expect(frames('smearB')).toBeGreaterThanOrEqual(2);
+    expect(keys.indexOf('dip')).toBe(keys.indexOf('rise') - 1);
+    expect(keys.indexOf('rise')).toBe(keys.indexOf('windup') - 1);
+    expect(keys.indexOf('windup')).toBeLessThan(keys.indexOf('smearA'));
     expect(keys.indexOf('recover')).toBe(keys.indexOf('follow') + 1);
     expect(keys.at(-1)).toBe('ready');
-    // The overhead is held 4 frames however long the ready stance runs (round 1 held it 5 to 10, frozen).
-    for (const t of [12, 18, 30]) expect(sfTimeline(t).find((s) => s.key === 'windup')?.frames).toBe(4);
-    expect(sfTimeline(18)[0]?.frames).toBeGreaterThan(sfTimeline(12)[0]?.frames ?? 99);
+    // The overhead is held the same however long the ready stance runs (round 1 held it 5 to 10, frozen).
+    for (const t of [12, 18, 30]) expect(sfTimeline(t).find((s) => s.key === 'windup')?.frames).toBe(SF_UP);
+    expect(sfTimeline(30)[0]?.frames).toBeGreaterThan(sfTimeline(SF_WINDUP)[0]?.frames ?? 99);
+    expect(SF_DIP).toBeGreaterThanOrEqual(4);
   });
 
-  it('moves a crewmate out of his row before he moves, keeps her out until he is nearly home, and returns her to her place', () => {
+  it('keeps a crewmate in his way stepping back into his empty place as he runs, never ducking (her progress is his lunge)', () => {
+    expect(SF_ROOM.by).toBeGreaterThan(0.5);
+    expect(SF_ROOM.behind).toBeGreaterThanOrEqual(0);
     const at = SF_WINDUP;
-    const tl = sfTimeline(at);
-    const swingStart = tl.slice(0, 3).reduce((n, s) => n + s.frames, 0);
-    expect(sfBeat(0, at).room).toBe(0);
-    expect(sfBeat(swingStart - 1, at).room).toBeGreaterThan(0.9);
-    expect(sfBeat(swingStart, at).room).toBeGreaterThan(0.95);
-    for (let k = swingStart; k < sfLength(at) - 6; k++) expect(sfBeat(k, at).room).toBeGreaterThan(0.95);
-    expect(sfBeat(sfLength(at) - 1, at).room).toBe(0);
-    expect(SF_ROOM.dy).toBeGreaterThan(0);
+    expect(sfBeat(0, at).lunge).toBe(0);
+    expect(sfBeat(sfLength(at) - 1, at).lunge).toBe(0);
   });
 
-  it('lunges continuously: each step starts where the one before ended (the dash is the swing frames)', () => {
+  it('lunges continuously: each step starts where the one before ended (the dash is the smear frames)', () => {
     const tl = sfTimeline(18);
     for (let i = 1; i < tl.length; i++) {
       const a = tl[i - 1];
       const b = tl[i];
       if (!a || !b) continue;
-      // The only jumps are the three swing frames, which the engine draws with steel ghosts and a streak.
-      if (b.key !== 'swingA' && b.key !== 'swingM' && b.key !== 'swingB') expect(Math.abs(b.from - a.to)).toBeLessThan(0.06);
+      // The only jumps are the three dash steps, which the engine draws with a dithered ghost and a swipe.
+      if (b.key !== 'smearA' && b.key !== 'smearB' && b.key !== 'swingB') expect(Math.abs(b.from - a.to)).toBeLessThan(0.06);
     }
     expect(sfBeat(0, 18).lunge).toBe(0);
     expect(sfBeat(sfLength(18) - 1, 18).lunge).toBe(0);
@@ -143,22 +147,24 @@ describe.skipIf(!have)('anchors on Mark\'s frames', () => {
       expect([f.w, f.h]).toEqual([first.w, first.h]);
       expect(boxOf(f).y1).toBe(f.h - 1);
     }
-    // The stamping foot does not slide between the wind-up, the swing and the follow-through (the idle's own boots are measured on its own loop).
+    // The stamping foot does not slide between the wind-up, the smears and the follow-through (the idle's own boots are measured on its own loop).
     const col = (k: (typeof SF_KEYS)[number]): number => frontBoot(b.frames[k]);
     expect(col('windup')).toBe(col('follow'));
     expect(Math.abs(col('ready') - col('follow'))).toBeLessThanOrEqual(1);
-    expect(col('swingA')).toBe(col('windup'));
-    expect(col('swingM')).toBe(col('windup'));
+    expect(col('smearB')).toBe(col('follow'));
     expect(col('swingB')).toBe(col('follow'));
+    expect(col('rise')).toBe(col('windup'));
     expect(Math.abs(col('dip') - col('ready'))).toBeLessThanOrEqual(1);
     expect(Math.abs(col('recover') - col('ready'))).toBeLessThanOrEqual(1);
+    // The name plate (about 24 screen px under the top edge, 40 tall at the strike's row) is 24 px clear: no frame reaches more than 113 art px above the soles.
+    expect(b.topRows).toBeLessThanOrEqual(113);
     // Measured reach: the blade's point is in front of the axis and just above the soles.
     expect(b.measured.tipDx).toBeGreaterThan(b.measured.footDx);
     expect(b.measured.tipUp).toBe(SF_ANCHORS.follow.soles - SF_ANCHORS.follow.tip[1]);
     expect(b.axis * 2).toBe(first.w);
   });
 
-  it('bends by rows without losing a pixel or moving the soles, and keeps his own guard on his own sword', () => {
+  it('squashes by rows without losing a pixel or moving the soles, and cuts his own sword (guard and all) out of the wind-up whole', () => {
     const count = (r: Raw): number => r.px.reduce((n, v, i) => (i % 4 === 3 && v > 0 ? n + 1 : n), 0);
     const gold = (r: Raw): number => {
       let n = 0;
@@ -166,15 +172,15 @@ describe.skipIf(!have)('anchors on Mark\'s frames', () => {
       return n;
     };
     const { body, sword } = splitSword(s1);
-    // A bend only drops the rows it lists: nothing else is lost (the soles stay on the last row).
+    // A squash only drops the rows it lists: nothing else is lost (the soles stay on the last row), and nothing above moves sideways when lean is 0.
     const inRows = (r: Raw, rows: readonly number[]): number => rows.reduce((n, y) => n + count({ w: r.w, h: 1, px: r.px.subarray(y * r.w * 4, (y + 1) * r.w * 4) }), 0);
     expect(count(body) + count(sword)).toBe(count(s1));
-    const bent = bend(body, SF_POSES.swingM).raw;
-    expect(count(bent)).toBe(count(body) - inRows(body, SF_POSES.swingM.del));
-    expect(boxOf(bent).y1).toBe(boxOf(body).y1);
-    // The guard travels with the sword: it is in the sword layer, and the body has none of it left.
+    const rise = bend(s1, SF_POSES.rise).raw;
+    expect(count(rise)).toBe(count(s1) - inRows(s1, SF_POSES.rise.del));
+    expect(boxOf(rise).y1).toBe(boxOf(s1).y1);
+    // The swipe frame's body has none of the sword left (the swipe is the blade): the guard's gold is gone from it.
     expect(gold(sword)).toBeGreaterThanOrEqual(3);
-    const b = buildSfStrike(idle, s1, s2);
-    for (const k of ['swingA', 'swingM'] as const) expect(gold(b.frames[k])).toBeGreaterThanOrEqual(gold(sword) - 3);
+    const top = (r: Raw): Raw => ({ w: r.w, h: 26, px: r.px.subarray(0, r.w * 26 * 4) });
+    expect(gold(top(body))).toBe(gold(top(s1)) - gold(sword));
   });
 });

@@ -65,6 +65,30 @@ function putArt(g: Ctx, c: HTMLCanvasElement, x: number, y: number, res: number)
   g.drawImage(c, x, y, c.width / res, c.height / res);
 }
 
+const smoothStep = (u: number): number => {
+  const c = Math.max(0, Math.min(1, u));
+  return c * c * (3 - 2 * c);
+};
+
+/** A silhouette with every other pixel (a checkerboard) cleared: a dithered ghost, a trail that reads as speed and not as a flat halo. */
+const ditherMemo = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+function dithered(src: HTMLCanvasElement): HTMLCanvasElement {
+  let c = ditherMemo.get(src);
+  if (c) return c;
+  c = document.createElement('canvas');
+  c.width = src.width;
+  c.height = src.height;
+  const g = c.getContext('2d');
+  if (g) {
+    g.drawImage(src, 0, 0);
+    const im = g.getImageData(0, 0, c.width, c.height);
+    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if ((x + y) % 2 === 0) im.data[(y * c.width + x) * 4 + 3] = 0;
+    g.putImageData(im, 0, 0);
+  }
+  ditherMemo.set(src, c);
+  return c;
+}
+
 export class BattleRenderer {
   constructor(private readonly s: BattleScene) {}
 
@@ -350,6 +374,8 @@ export class BattleRenderer {
     }
     g.globalAlpha = alpha;
     putArt(g, canvas, dx, dy, res);
+    // Sprite Fusion side view (round 3): the enemies are cut out of the backdrop's neon too, so the party and the enemies are lit the same way (round 2 cut only the crew, and a magenta sign read through a punk's body).
+    if (SF && SIDE_VIEW) this.partyCuts.push({ c: canvas, x: dx, y: dy, res });
     if (this.s.bg.tintAmt > 0) {
       // Ambient tint: multiply-ish wash using the background light color.
       g.globalAlpha = alpha * this.s.bg.tintAmt;
@@ -365,7 +391,7 @@ export class BattleRenderer {
     if (dd.flash > 0 && dd.flash % 4 < 2) {
       // A blink, not a blank: the sprite's detail stays visible under the white, so a still
       // caught on this frame reads as a hit rather than a white smear.
-      g.globalAlpha = 0.55 * alpha;
+      g.globalAlpha = (SF && SIDE_VIEW ? 0.4 : 0.55) * alpha;
       putArt(g, silhouetteCache(canvas, '#ffffff'), dx, dy, res);
     }
     g.globalAlpha = 1;
@@ -442,13 +468,14 @@ export class BattleRenderer {
       const qx = this.s.partyPos(q).x;
       const u = Math.max(0, Math.min(1, (kb.lunge - 0.5) / 0.45));
       if (SF) {
-        // Sprite Fusion art (round 2): he runs right along a row of his own, and a crewmate between his place and where he ends gets out of that row for the whole strike: a short
-        // step back and a longer one toward the camera (SF_ROOM), eased in over his dip and wind-up (so she has already gone when he moves) and out as he goes home.
-        // Whoever is not in his way does not move.
+        // Sprite Fusion art (round 3): his blade reaches the target from where a crewmate in front of him stands, so she steps BACK into his empty place (a few pixels past it) on the same
+        // stance, as he runs forward: they pass each other in the dash (he is drawn last, in front), she is clear of his coat when he lands, and she walks back as he goes home. No duck, no pop.
+        // Her progress is his lunge, so the two moves are one move. Whoever is not in his way does not move.
         const sk = this.sfOf(p.uid);
         if (!sk || qx <= sx + 4 || qx > rx + 14) continue;
-        rx2 = Math.min(rx2, SF_ROOM.dx * sk.room);
-        ry2 = Math.max(ry2, SF_ROOM.dy * sk.room);
+        const k = smoothStep(sk.lunge / SF_ROOM.by);
+        rx2 = Math.min(rx2, (sx - SF_ROOM.behind - qx) * k);
+        ry2 = Math.min(ry2, (this.s.partyFeet(p) - this.s.partyFeet(q)) * k);
         continue;
       }
       if (qx < rx - 4) continue;
@@ -576,10 +603,8 @@ export class BattleRenderer {
     const idleFrame = cyc ? cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / idleStep) % cyc.idleOrder.length] ?? 0] : undefined;
     // Side view: a crewmate in the way of Rook's strike steps aside (see makeRoom).
     const roomV = this.makeRoom(p);
-    // Sprite Fusion art (round 2): while she is out of his row she ducks (her own crouch frame, where she has one), so his boots and coat pass over her head instead of through it.
-    const ducked = SF && SIDE_VIEW && pose === 'idle' && roomV.y > SF_ROOM.dy * 0.3 && art.frames.brace !== art.frames.idle ? art.frames.brace : undefined;
     // A member with no walk frames of its own steps in on the idle loop, so the loop does not jump when it arrives.
-    const frame = ducked ? ducked : sk && art.sfStrike ? (sk.key === 'ready' && idleFrame ? idleFrame : art.sfStrike.frames[sk.key]) : kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walking && cyc.walk.length > 0 ? (settle ?? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length]) : idleFrame) ?? art.frames[pose] : art.frames[pose];
+    const frame = sk && art.sfStrike ? (sk.key === 'ready' && idleFrame ? idleFrame : art.sfStrike.frames[sk.key]) : kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walking && cyc.walk.length > 0 ? (settle ?? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length]) : idleFrame) ?? art.frames[pose] : art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
     const res = art.res ?? 1;
     let ox = 0;
@@ -638,13 +663,10 @@ export class BattleRenderer {
       g.globalAlpha = 1;
     }
     if (sk?.dash) {
-      // Sprite Fusion's Rook (round 2): the swing frames leave at most two flat steel-blue silhouettes close behind the body (35 and 20 percent, 2 world px apart), never his
-      // own colours (the olive coat read as mud over a crewmate) and never in front of anyone: they are drawn before the body, and his row is clear of the crew.
-      const n = sk.key === 'swingA' ? 1 : 2;
-      for (let i = n; i >= 1; i--) {
-        g.globalAlpha = i === 1 ? 0.35 : 0.2;
-        putArt(g, silhouetteCache(frame, '#8ea2c0'), x - FACE * i * 2, y, res);
-      }
+      // Sprite Fusion's Rook (round 3): the swipe frames leave one DITHERED ghost close behind the body, tinted the blade's steel (round 2's flat blue silhouettes read as a halo on the
+      // dark backdrop); it is drawn before the body, and the swipe itself is the main trail.
+      g.globalAlpha = 0.55;
+      putArt(g, dithered(silhouetteCache(frame, '#b4c2da')), x - FACE * 3, y, res);
       g.globalAlpha = 1;
     }
     if (!kb && sb && sb.smear > 0) {

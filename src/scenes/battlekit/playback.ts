@@ -21,7 +21,7 @@ import { PARTY_POSE_T } from './motion';
 import { direction } from '../../engine/shake';
 import { SF, SIDE_LUNGE_MAX, SIDE_LUNGE_STOP, SIDE_VIEW } from './sideview';
 import { KATA_BITE_FRAC, KATA_EFFECT_SHIFT, KATA_KNOCK, KATA_LOW_BELOW, KATA_MEASURED, KATA_MEASURED_LOW, KATA_WINDUP, kataLength } from '../../art/rig2/sidekata';
-import { SF_HIT_HEIGHT, SF_LANE_DOWN, SF_LANE_UP, SF_MEASURED, SF_PIERCE, SF_WINDUP, sfLength } from '../../art/rig2/sfstrike';
+import { SF_HIT_HEIGHT, SF_LANE_DOWN, SF_LANE_UP, SF_MEASURED, SF_PIERCE, SF_SOLES_ABOVE, SF_WINDUP, sfLength } from '../../art/rig2/sfstrike';
 import { MEN_R } from '../../battle/fx';
 import { gpuCast, gpuDown, gpuHeal, gpuHit, gpuPhase, gpuSpell } from './gpufx';
 import type { TimingProfile } from '../../battle/engine';
@@ -172,13 +172,14 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
           const from = v.pos(e.actor);
           const box = kata && e.targets[0] !== undefined ? v.enemyBox(e.targets[0]) : null;
           if (kata && SF && box) {
-            // Sprite Fusion art (round 2): the point of the blade (SF_MEASURED.tipDx art px in front of his slot's axis at the follow-through) ends `SF_PIERCE` inside the target's BODY
-            // (its front column, not the club's or tail's), and his row is chosen so the point is at the target's hip height (`SF_HIT_HEIGHT`; his soles carry it a hand's width up),
-            // so the cut goes through the body, not the shins. He rises or drops to that row by at most `SF_LANE_UP` / `SF_LANE_DOWN`.
+            // Sprite Fusion art (round 3): the point of the blade (SF_MEASURED.tipDx art px in front of his slot's axis at the follow-through) ends `SF_PIERCE` inside the target's BODY
+            // (its front column, not the club's or tail's). He stands on the TARGET'S floor, not a ledge above it: his soles are at most `SF_SOLES_ABOVE` world px above its soles (less for a
+            // small target, `SF_HIT_HEIGHT` of its height), so the point lands on its leg and the cut line, aimed from higher up, carries the blow through the body. His row moves from his own
+            // place by at most `SF_LANE_UP` up or `SF_LANE_DOWN` down.
             const tipAt = box.body0 + SF_PIERCE;
             dd.reachX = Math.max(0, Math.min(SIDE_LUNGE_MAX, tipAt - SF_MEASURED.tipDx / 2 - from.x));
             const feet = v.feetOf(e.actor);
-            dd.reachY = Math.max(-SF_LANE_UP, Math.min(SF_LANE_DOWN, box.feet - box.h * SF_HIT_HEIGHT + SF_MEASURED.tipUp / 2 - feet));
+            dd.reachY = Math.max(-SF_LANE_UP, Math.min(SF_LANE_DOWN, box.feet - Math.min(SF_SOLES_ABOVE, box.h * SF_HIT_HEIGHT) - feet));
             dd.target = e.targets[0];
             dd.strikeLow = false;
             // The cut line (men_r) runs down and to the right and ends on the blade's point, so the steel, the line and the spark are one stroke: its middle is placed from that end.

@@ -738,6 +738,17 @@ export class FxLayer {
         each((t) => {
           const end = { x: t.x + MEN_R.dx, y: t.y + MEN_R.dy };
           this.cutLine(t, 3, MEN_R.len, MEN_R.angle);
+          // Round 3: the cut lingers as a steel-blue afterimage along the same line for eight frames after its hot first three, fading out (the blow stays on the target through the hitstop).
+          this.s(8, (ctx, k) => {
+            ctx.globalAlpha = 0.65 * (1 - k);
+            ctx.fillStyle = '#9fb4d6';
+            const n = Math.ceil(MEN_R.len * 2);
+            for (let i = 0; i <= n; i++) {
+              const d = ((i / n) * 2 - 1) * MEN_R.len;
+              ctx.fillRect(Math.round(t.x + Math.cos(MEN_R.angle) * d), Math.round(t.y + Math.sin(MEN_R.angle) * d), 1, 1);
+            }
+            ctx.globalAlpha = 1;
+          }, 6);
           this.impact(end, '#9ad4ff', 3, 7);
           this.impact({ x: end.x - 1, y: end.y - 1 }, '#ffffff', 5, 4);
           this.burst(end, '#ffffff', 7, 1.7, 3);
