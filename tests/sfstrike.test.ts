@@ -86,8 +86,9 @@ describe('the strike timeline', () => {
     expect(keys.indexOf('windup')).toBeLessThan(keys.indexOf('swingA'));
     expect(keys.indexOf('recover')).toBe(keys.indexOf('follow') + 1);
     expect(keys.at(-1)).toBe('ready');
-    // The overhead is held at most 6 frames when nothing stretches it (round 1 held it 10).
-    expect(tl.find((s) => s.key === 'windup')?.frames).toBeLessThanOrEqual(6);
+    // The overhead is held 4 frames however long the ready stance runs (round 1 held it 5 to 10, frozen).
+    for (const t of [12, 18, 30]) expect(sfTimeline(t).find((s) => s.key === 'windup')?.frames).toBe(4);
+    expect(sfTimeline(18)[0]?.frames).toBeGreaterThan(sfTimeline(12)[0]?.frames ?? 99);
   });
 
   it('moves a crewmate out of his row before he moves, keeps her out until he is nearly home, and returns her to her place', () => {
@@ -95,7 +96,7 @@ describe('the strike timeline', () => {
     const tl = sfTimeline(at);
     const swingStart = tl.slice(0, 3).reduce((n, s) => n + s.frames, 0);
     expect(sfBeat(0, at).room).toBe(0);
-    expect(sfBeat(swingStart - 1, at).room).toBeGreaterThan(0.95);
+    expect(sfBeat(swingStart - 1, at).room).toBeGreaterThan(0.9);
     expect(sfBeat(swingStart, at).room).toBeGreaterThan(0.95);
     for (let k = swingStart; k < sfLength(at) - 6; k++) expect(sfBeat(k, at).room).toBeGreaterThan(0.95);
     expect(sfBeat(sfLength(at) - 1, at).room).toBe(0);

@@ -58,7 +58,7 @@ export const SF_POSES: Record<'dip' | 'swingA' | 'swingM' | 'recover', SfPose> =
   // Swing A: the blade past vertical, the body already tipping over the front foot.
   swingA: { del: [78, 88, 98], lean: 3, leanRow: 100, rot: 58, arc: { a0: -138, a1: -100, width: 3 } },
   // Swing M: the blade half way down, rising ahead of him, the body low.
-  swingM: { del: [74, 79, 84, 89, 94, 98, 101], lean: 7, leanRow: 100, rot: 128, arc: { a0: -98, a1: -34, width: 4 } },
+  swingM: { del: [74, 79, 84, 89, 94, 98, 101], lean: 7, leanRow: 100, rot: 136, arc: { a0: -78, a1: -14, width: 4 } },
   // Recover: rising out of the lunge, still leaning to the target.
   recover: { del: [51, 55], lean: 3, leanRow: 58 },
 };
@@ -272,6 +272,8 @@ export const SF_RECOVER = 4;
 export const SF_RETURN = 11;
 /** Frames of animation from the start of the pose to the effect when nothing (a timing ring) stretches it: the ready stance, the dip, a short overhead hold, three swing frames. */
 export const SF_WINDUP = 13;
+/** The overhead is held this many frames before the swing, however long the ready stance before it runs. */
+export const SF_UP = 4;
 /** The dip before the overhead lift. */
 export const SF_DIP = 2;
 /** Swing B's two frames: the blade lands on its first frame, the effect starts on its second. Swing A and M are one frame each, so three frames lead the effect. */
@@ -300,18 +302,19 @@ export interface SfStep {
 }
 
 /**
- * The strike's timeline when the effect starts `at` frames in: the ready stance, the dip, the wind-up held (longer if there is time, as when a timing ring
- * is closing), swing A and M (one frame each), swing B (two), the blow (the fade, then the held follow-through) and the way home. The dash is carried by the
+ * The strike's timeline when the effect starts `at` frames in: the ready stance (longer if there is time, as when a timing ring
+ * is closing), the dip, the overhead held 4 frames, swing A and M (one frame each), swing B (two), the blow (the fade, then the held follow-through) and the way home. The dash is carried by the
  * swing frames: 0.2, 0.45, then 0.75 to 0.95 of the way.
  */
 export function sfTimeline(at0: number): SfStep[] {
   const at = Math.round(at0);
-  const pre = Math.max(SF_DIP + 7, at - SF_LEAD);
-  const ready = 3 + Math.floor((pre - 9) / 3);
+  const pre = Math.max(SF_DIP + SF_UP + 3, at - SF_LEAD);
+  // Any extra time (a timing ring closing) is spent in the READY stance, whose idle loop keeps breathing, not in a frozen overhead: the overhead is held SF_UP frames, always.
+  const ready = pre - SF_DIP - SF_UP;
   return [
     { key: 'ready', frames: ready, from: 0, to: 0 },
     { key: 'dip', frames: SF_DIP, from: 0, to: -0.02 },
-    { key: 'windup', frames: pre - ready - SF_DIP, from: -0.02, to: -0.04 },
+    { key: 'windup', frames: SF_UP, from: -0.02, to: -0.04 },
     { key: 'swingA', frames: 1, from: 0.2, to: 0.2 },
     { key: 'swingM', frames: 1, from: 0.45, to: 0.45 },
     { key: 'swingB', frames: SF_SWING, from: 0.75, to: 0.95 },
