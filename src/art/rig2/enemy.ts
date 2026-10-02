@@ -69,20 +69,75 @@ export function collapseBlocks(t: Traced): Traced {
 
 const PAL_CH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-/** A native-resolution trace made `m` times bigger by nearest (m between 1 and 2: every so often a row or column is drawn twice). */
+/**
+ * AdvMAME `scale3x`: every pixel becomes 3x3, with the corners of a diagonal edge pulled toward the neighbour they join, so a diagonal stays a
+ * diagonal instead of a staircase of 3x3 squares. Colours are palette indexes, -1 empty. Returns the 3x grid.
+ */
+function scale3x(src: Int16Array, w: number, h: number): Int16Array {
+  const W = w * 3;
+  const out = new Int16Array(W * h * 3).fill(-1);
+  const at = (x: number, y: number, e: number): number => (x < 0 || y < 0 || x >= w || y >= h ? e : (src[y * w + x] ?? -1));
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const e = src[y * w + x] ?? -1;
+      const b = at(x, y - 1, e), d = at(x - 1, y, e), f = at(x + 1, y, e), hh = at(x, y + 1, e);
+      const a = at(x - 1, y - 1, e), c = at(x + 1, y - 1, e), g = at(x - 1, y + 1, e), i = at(x + 1, y + 1, e);
+      let e0 = e, e1 = e, e2 = e, e3 = e, e5 = e, e6 = e, e7 = e, e8 = e;
+      if (b !== hh && d !== f) {
+        e0 = d === b ? d : e;
+        e1 = (d === b && e !== c) || (b === f && e !== a) ? b : e;
+        e2 = b === f ? f : e;
+        e3 = (d === b && e !== g) || (d === hh && e !== a) ? d : e;
+        e5 = (b === f && e !== i) || (f === hh && e !== c) ? f : e;
+        e6 = d === hh ? d : e;
+        e7 = (d === hh && e !== i) || (f === hh && e !== g) ? hh : e;
+        e8 = f === hh ? f : e;
+      }
+      const o = [e0, e1, e2, e3, e, e5, e6, e7, e8];
+      for (let k = 0; k < 9; k++) out[(y * 3 + Math.floor(k / 3)) * W + x * 3 + (k % 3)] = o[k] ?? -1;
+    }
+  return out;
+}
+
+/**
+ * A native-resolution trace made `m` times bigger. 2 is every pixel drawn twice. 1.5 is `scale3x` (diagonals kept) and then every 2x2 of that
+ * becomes one pixel by vote (the commonest solid colour; fewer than two solid of the four and it is empty), so the result stays on a whole-pixel
+ * grid with no pixel drawn half as wide as its neighbour. Any other `m` between 1 and 2 is nearest (every so often a row or column is drawn twice).
+ */
 function stretchTo(t: Traced, m: number): Traced {
   if (m === 1) return t;
   const src = decode(t).px;
-  const w = Math.round(t.w * m);
-  const h = Math.round(t.h * m);
+  let w = Math.round(t.w * m);
+  let h = Math.round(t.h * m);
   const rows: string[] = [];
-  for (let y = 0; y < h; y++) {
-    let r = '';
-    for (let x = 0; x < w; x++) {
-      const p = src[Math.min(t.h - 1, Math.floor((y + 0.5) / m)) * t.w + Math.min(t.w - 1, Math.floor((x + 0.5) / m))] ?? -1;
-      r += p < 0 ? '.' : (PAL_CH[p] ?? '.');
+  const ch = (p: number): string => (p < 0 ? '.' : (PAL_CH[p] ?? '.'));
+  if (m === 1.5) {
+    const s3 = scale3x(src, t.w, t.h);
+    const W3 = t.w * 3;
+    w = Math.ceil(W3 / 2);
+    h = Math.ceil((t.h * 3) / 2);
+    for (let y = 0; y < h; y++) {
+      let r = '';
+      for (let x = 0; x < w; x++) {
+        const votes = new Map<number, number>();
+        let solid = 0;
+        for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) {
+          if (x * 2 + dx >= W3 || y * 2 + dy >= t.h * 3) continue;
+          const p = s3[(y * 2 + dy) * W3 + x * 2 + dx] ?? -1;
+          if (p < 0) continue;
+          solid++;
+          votes.set(p, (votes.get(p) ?? 0) + 1);
+        }
+        r += solid < 2 ? '.' : ch([...votes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? -1);
+      }
+      rows.push(r);
     }
-    rows.push(r);
+  } else {
+    for (let y = 0; y < h; y++) {
+      let r = '';
+      for (let x = 0; x < w; x++) r += ch(src[Math.min(t.h - 1, Math.floor((y + 0.5) / m)) * t.w + Math.min(t.w - 1, Math.floor((x + 0.5) / m))] ?? -1);
+      rows.push(r);
+    }
   }
   return { ...t, w, h, feet: Math.round(t.feet * m), hip: Math.round(t.hip * m), rows };
 }

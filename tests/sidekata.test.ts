@@ -27,7 +27,7 @@ describe("Rook's kendo strike timeline (spike side-battle)", () => {
         for (const s of tl.slice(back + 1)) expect(s.from + s.to).toBe(0);
       });
       it(`at ${at}${low ? ' (low target)' : ''}: the dash spacing keeps growing and the length adds up`, () => {
-        const lunges = [0, 1, 2, 3, 4, 5].map((j) => kataBeat(starts[tl.findIndex((s) => s.key === 'swing0')] + j, at, low).lunge);
+        const lunges = [0, 1, 2, 3, 4, 5].map((j) => kataBeat((starts[tl.findIndex((s) => s.key === 'swing0')] ?? 0) + j, at, low).lunge);
         for (let j = 1; j < lunges.length; j++) expect(lunges[j] as number).toBeGreaterThan(lunges[j - 1] as number);
         expect(kataLength(at, low)).toBe(n);
       });

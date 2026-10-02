@@ -19,7 +19,7 @@ import type { Disp, Floater } from './types';
 import { WINDOWS } from './timing';
 import { PARTY_POSE_T } from './motion';
 import { direction } from '../../engine/shake';
-import { SIDE_LUNGE_MAX, SIDE_LUNGE_STOP, SIDE_VIEW } from './sideview';
+import { SF, SIDE_LUNGE_MAX, SIDE_LUNGE_STOP, SIDE_VIEW } from './sideview';
 import { KATA_BITE_FRAC, KATA_EFFECT_SHIFT, KATA_KNOCK, KATA_LOW_BELOW, KATA_MEASURED, KATA_MEASURED_LOW, KATA_WINDUP, kataLength } from '../../art/rig2/sidekata';
 import { gpuCast, gpuDown, gpuHeal, gpuHit, gpuPhase, gpuSpell } from './gpufx';
 import type { TimingProfile } from '../../battle/engine';
@@ -159,7 +159,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         dd.poseLen = undefined;
         dd.strikeLow = undefined;
         // Rook's kendo strike has its own timeline and a longer blade, so he stops further off.
-        kata = SIDE_VIEW && actor.key === 'rook' && pose === 'attack';
+        kata = SIDE_VIEW && !SF && actor.key === 'rook' && pose === 'attack';
         const aim = e.targets[0] === undefined ? null : v.pos(e.targets[0]);
         dd.target = undefined;
         if (SIDE_VIEW && aim && (pose === 'attack' || pose === 'thrust')) {
@@ -179,7 +179,8 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
             dd.strikeLow = low;
             kataTarget = { x: (box.x0 + box.x1) / 2, bladeY: Math.max(box.feet - box.h + 2, Math.min(box.feet - 2, feet + dd.reachY - m.tipUp / 2)) };
           } else {
-            dd.reachX = Math.max(-SIDE_LUNGE_MAX, Math.min(0, aim.x + (kata ? KATA_FALLBACK_STOP : SIDE_LUNGE_STOP) - from.x));
+            // Code art: the enemies are on the left, so the lunge is negative; Sprite Fusion art faces right, the lunge is positive and stops short of the target on its left side.
+            dd.reachX = SF ? Math.min(SIDE_LUNGE_MAX, Math.max(0, aim.x - SIDE_LUNGE_STOP - from.x)) : Math.max(-SIDE_LUNGE_MAX, Math.min(0, aim.x + (kata ? KATA_FALLBACK_STOP : SIDE_LUNGE_STOP) - from.x));
             dd.reachY = Math.max(-4, Math.min(4, (aim.y - from.y) * 0.3));
           }
         }

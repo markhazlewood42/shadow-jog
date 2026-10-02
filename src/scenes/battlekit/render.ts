@@ -24,7 +24,7 @@ import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
 import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
-import { IDLE_FRAMES_PER_STEP, IDLE_FRAMES_PER_STEP_ACTIVE, SIDE_PANEL_GAP, SIDE_VIEW, WALK_FRAMES_PER_STEP, sideBeat } from './sideview';
+import { FACE, IDLE_FRAMES_PER_STEP, IDLE_FRAMES_PER_STEP_ACTIVE, SIDE_PANEL_GAP, SIDE_VIEW, WALK_FRAMES_PER_STEP, sideBeat } from './sideview';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
 import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, markElements, statusName } from './tables';
@@ -501,7 +501,8 @@ export class BattleRenderer {
     // Side view: the wait loop plays in place of the rest frame, and the walk while stepping in.
     const walkLeft = this.s.sideWalk();
     const cyc = art.cycle;
-    const frame = kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walkLeft > 0 ? cyc.walk[Math.floor((f - this.s.walkStart) / WALK_FRAMES_PER_STEP) % cyc.walk.length] : cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / (active ? IDLE_FRAMES_PER_STEP_ACTIVE : IDLE_FRAMES_PER_STEP)) % cyc.idleOrder.length] ?? 0]) ?? art.frames[pose] : art.frames[pose];
+    const idleStep = cyc?.idleStep ?? (active ? IDLE_FRAMES_PER_STEP_ACTIVE : IDLE_FRAMES_PER_STEP);
+    const frame = kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walkLeft !== 0 ? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length] : cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / idleStep) % cyc.idleOrder.length] ?? 0]) ?? art.frames[pose] : art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
     const res = art.res ?? 1;
     let ox = 0;
@@ -509,10 +510,10 @@ export class BattleRenderer {
     // Side view: a crewmate in the way of Rook's strike steps aside (see makeRoom).
     const room = this.makeRoom(p);
     ox += room;
-    // Side view: a hit knocks the body back (right, away from the enemies) and it springs back over the pose.
+    // Side view: a hit knocks the body back (away from the enemies: against the way the party faces) and it springs back over the pose.
     const hurtK = SIDE_VIEW && dd.poseT > 0 && dd.pose === 'hurt' ? 16 - dd.poseT : -1;
-    if (hurtK >= 0) ox += Math.max(0, 2.5 * (1 - hurtK / 10));
-    else if (pose === 'hurt') ox += 1;
+    if (hurtK >= 0) ox -= FACE * Math.max(0, 2.5 * (1 - hurtK / 10));
+    else if (pose === 'hurt') ox -= FACE;
     // Idle breathing: a 1px rise, staggered per member; faster and higher while choosing orders.
     const breathe = pose === 'idle' && !cyc ? (Math.floor((f + p.uid * 23) / (active ? 16 : 34)) % 2) * (active ? 2 : 1) : 0;
     // Side view: positions land on a native pixel (half a world pixel); otherwise on a world pixel.
@@ -555,7 +556,7 @@ export class BattleRenderer {
       const n = sb.smear;
       for (let i = n; i >= 1; i--) {
         g.globalAlpha = 0.14 + 0.07 * (n - i);
-        putArt(g, silhouetteCache(frame, tint), x + i * 2.5, y, res);
+        putArt(g, silhouetteCache(frame, tint), x - FACE * i * 2.5, y, res);
       }
       g.globalAlpha = 1;
     }

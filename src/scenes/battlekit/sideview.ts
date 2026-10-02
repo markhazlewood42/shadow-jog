@@ -1,12 +1,14 @@
 /**
  * The side-on battle layout (spike `spike/side-battle`, behind the URL flag `?battle=side`, DEV
- * builds only): the party stands on the right, facing left toward the enemies on the left.
- * Without the flag nothing here is used and the battle is the v0.1.0 back view.
+ * builds only). Without the flag nothing here is used and the battle is the v0.1.0 back view.
  *
  * Flags (all DEV only):
- *   ?battle=side                the layout. The crew are the traced `south-west` views collapsed to their NATIVE resolution
- *                               (49 to 59 px tall, one art pixel per screen pixel), and every enemy is the same: collapsed to
- *                               native, drawn 1x (a punk is 46 px, a Glowrat 23 px wide, the Warden 69 px). One pixel density.
+ *   ?battle=side                Sprite Fusion art (`art=sf`, the default): Mark's own sprites, loaded from `spritefusion-tests/` through the dev
+ *                               server (never copied or committed). The party stands on the LEFT facing RIGHT (every Sprite Fusion sprite faces right, so
+ *                               none is mirrored) and the enemies on the right. Sable has no Sprite Fusion art yet: the code-drawn trace, flipped.
+ *   ?battle=side&art=code       the first loop's layout, kept for comparison: party on the right facing left, code-drawn crew (the traced `south-west`
+ *                               views collapsed to their NATIVE resolution, 49 to 59 px tall), every enemy collapsed to native and drawn 1x.
+ *   ?battle=side&clean=0        Sprite Fusion art without the colour clean-up (the raw ~1,000 shades a sprite)
  *   ?battle=side&scale=field    the day-1 comparison: the crew from their ~30 px field `left` frame
  *   ?battle=side&enemyscale=big   round 3's look: creatures at 2x and bosses at their full trace (the Warden 138 px): 2 px blocks beside the crew's 1 px
  *   ?battle=side&enemyscale=half  humanoids and creatures native, bosses at their full trace
@@ -17,18 +19,35 @@ import { buildChar } from '../../art/chars';
 import { feetRow, headRow } from '../../art/drawn';
 import { reduceEnemies } from '../../art/rig2/enemy';
 import { IDLE_ORDER, buildSideCrew } from '../../art/rig2/sidecrew';
+import { mirrorBattler, sfBattler } from '../../art/rig2/sfcrew';
 import { LOOKS } from '../../data/looks';
 
 const query = (): URLSearchParams => new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 
 /** True when the page was opened with `?battle=side` on a DEV build; a shipped build ignores the flag. */
 export const SIDE_VIEW: boolean = import.meta.env.DEV && query().get('battle') === 'side';
+/**
+ * Which art the side view uses: Mark's Sprite Fusion sprites (`sf`, the default: party left facing right, enemies right) or the first loop's
+ * code-drawn crew (`&art=code`: party right facing left, enemies left). The game's own `?art=` flag (drawn/classic/review) is a different
+ * thing; `&art=code` here is `art=code` in the same URL, which that code ignores.
+ */
+export const SF: boolean = SIDE_VIEW && query().get('art') !== 'code';
+/** The way the party faces: +1 (right) for Sprite Fusion art, -1 (left) for the code-drawn crew. A strike lunges along it; a hit knocks a body back against it. */
+export const FACE: 1 | -1 = SF ? 1 : -1;
+
 /** Which size the crew are drawn at: battle (the default) or the field frame. */
 export const SIDE_SCALE: 'battle' | 'field' = query().get('scale') === 'field' ? 'field' : 'battle';
 /** `&enemyscale=`: how enemies are sized next to the crew. The default is "fit": everything at its native resolution. */
-export type EnemyScale = 'fit' | 'half' | 'big' | 'full';
+export type EnemyScale = 'fit' | 'half' | 'big' | 'full' | 'native';
 const ES = query().get('enemyscale');
-export const ENEMY_SCALE: EnemyScale = !SIDE_VIEW ? 'full' : ES === 'full' || ES === 'half' || ES === 'big' ? ES : 'fit';
+export const ENEMY_SCALE: EnemyScale = !SIDE_VIEW ? 'full' : ES === 'full' || ES === 'half' || ES === 'big' || ES === 'native' ? ES : 'fit';
+/**
+ * Sprite Fusion art, enemies: the crew are 64 to 68 px tall, a punk collapsed to native is 46, so a native enemy reads as a child beside them. The default
+ * (`fit`) draws humanoids and creatures at 1.5 times native (a punk about 69 px: party-sized) and bosses at 2 times (the Warden 138, twice the crew),
+ * by `scale3x` then a 2:1 vote (see `stretchTo`), which keeps the pixel grid (every sprite is still one art pixel per screen pixel, no half pixels).
+ * `&enemyscale=native` is 1x, `&enemyscale=full` the traces (2x2 blocks, a punk 91).
+ */
+export const SF_ENEMY_MULT = { regular: 1.5, boss: 1.5 } as const;
 
 /**
  * Humanoid regular enemies, creatures and bosses. Each is collapsed to the trace's native resolution (a pixel
@@ -37,7 +56,13 @@ export const ENEMY_SCALE: EnemyScale = !SIDE_VIEW ? 'full' : ES === 'full' || ES
 const HUMANOIDS = ['punk', 'medic', 'slinger', 'ghoul', 'sentinel', 'arcanist', 'wisp', 'shade', 'bound'];
 const CREATURES = ['rat', 'hound', 'drone', 'crab', 'maint', 'eel', 'turret', 'hunter'];
 const BOSSES = ['brute', 'lurker', 'warden', 'warden_spirit'];
-if (ENEMY_SCALE === 'fit') reduceEnemies([...HUMANOIDS, ...CREATURES, ...BOSSES], 1);
+if (SF && ENEMY_SCALE === 'fit') {
+  reduceEnemies([...HUMANOIDS, ...CREATURES], SF_ENEMY_MULT.regular);
+  reduceEnemies(BOSSES, SF_ENEMY_MULT.boss);
+} else if (SF && ENEMY_SCALE === 'native') reduceEnemies([...HUMANOIDS, ...CREATURES, ...BOSSES], 1);
+else if (SF && ENEMY_SCALE === 'full') {
+  /* the traces as they are */
+} else if (ENEMY_SCALE === 'fit') reduceEnemies([...HUMANOIDS, ...CREATURES, ...BOSSES], 1);
 else if (ENEMY_SCALE === 'half') reduceEnemies([...HUMANOIDS, ...CREATURES], 1);
 else if (ENEMY_SCALE === 'big') {
   reduceEnemies(HUMANOIDS, 1);
@@ -54,6 +79,8 @@ else if (ENEMY_SCALE === 'big') {
  */
 export function sideSlot(i: number, n: number): { x: number; feet: number } {
   const step = Math.min(1, 3 / Math.max(1, n - 1));
+  // Sprite Fusion art: the mirror of the layout below. Slot 0 (Kit, the first panel) is the top-right one, nearest the enemies, and each next slot is a step lower and to the left.
+  if (SF) return { x: Math.round(SF_PARTY_X - i * SF_PARTY_STEP_X * step), feet: Math.round(SF_PARTY_FEET + i * SF_PARTY_STEP_Y * step) };
   return { x: Math.round(SIDE_PARTY_X + i * SIDE_PARTY_STEP_X * step), feet: Math.round(SIDE_PARTY_FEET + i * SIDE_PARTY_STEP_Y * step) };
 }
 /** Slot 0's centre x and soles row, and the diagonal's step per slot (battle-world pixels). The crew are ~15 world px wide and ~29 tall. */
@@ -61,6 +88,22 @@ export const SIDE_PARTY_X = 154;
 export const SIDE_PARTY_FEET = 79;
 export const SIDE_PARTY_STEP_X = 17;
 export const SIDE_PARTY_STEP_Y = 5.5;
+
+/**
+ * Sprite Fusion layout (battle-world pixels, 240x135 at 2x). Slot 0's centre x and soles row, and the step per slot. The crew are 18 to 21 world px wide
+ * (Kit 36 art px, Rook's body 42 and his coat flares 12 more to the left), so the step is 19: the last slot (x 55) clears the command menu (right edge
+ * x 44, art overhang included). The feet stay above row 87, where the ability list and the target box start under the party.
+ */
+export const SF_PARTY_X = 124;
+export const SF_PARTY_FEET = 72;
+export const SF_PARTY_STEP_X = 24;
+export const SF_PARTY_STEP_Y = 4;
+/** Sprite Fusion layout: the enemies' strip, from just right of slot 0 to short of the turn strip (world x 226). */
+export const SF_ENEMY_LEFT = 142;
+export const SF_ENEMY_RIGHT = 225;
+/** Sprite Fusion layout: the enemies' feet stand this many rows above slot 0's (a regular, a boss), the depth of the street. */
+export const SF_ENEMY_LIFT = 1;
+export const SF_BOSS_LIFT = 3;
 
 /** Left edge of the first enemy: the command menus own the left column (x 4 to 88 on screen), so the enemies start right of it. */
 export const SIDE_ENEMY_LEFT = 46;
@@ -86,10 +129,10 @@ export const SIDE_ENEMY_GAP_MIN = -8;
 export const SIDE_ENEMY_GAP_MAX = 6;
 
 /** How the party steps in from the right edge at the start of a fight: world pixels per frame, and frames per step. */
-export const WALK_SPEED = 1.5;
+export const WALK_SPEED = SF ? 2 : 1.5;
 export const WALK_FRAMES_PER_STEP = 4;
-/** Where a stepping-in member starts: just past the right edge. */
-export const WALK_FROM = 252;
+/** Where a stepping-in member starts: just past the right edge (Sprite Fusion art: just past the left edge, the walk the other way). */
+export const WALK_FROM = SF ? -24 : 252;
 /** How long each step of the wait loop lasts (frames at 60 a second: about half a second, RPG Maker's pace), choosing orders and not. */
 export const IDLE_FRAMES_PER_STEP = 30;
 export const IDLE_FRAMES_PER_STEP_ACTIVE = 20;
@@ -99,6 +142,18 @@ export const IDLE_FRAME_ORDER = IDLE_ORDER;
 
 /** A crew member's side-on battler: at battle scale from the traced view, or (`scale=field`) from the field `left` frame. */
 export function sideBattler(key: string): Battler | null {
+  if (SF) {
+    // Sprite Fusion art where Mark has made it; otherwise (Sable) the first loop's crew member turned to face right.
+    const sf = sfBattler(key);
+    if (sf) return sf;
+    const code = codeBattler(key);
+    return code ? mirrorBattler(code) : null;
+  }
+  return codeBattler(key);
+}
+
+/** The first loop's crew member (code-drawn, facing left), or the field frame at `scale=field`. */
+function codeBattler(key: string): Battler | null {
   if (SIDE_SCALE === 'battle') {
     const crew = buildSideCrew(key);
     if (crew) {

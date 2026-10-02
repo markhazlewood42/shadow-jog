@@ -31,7 +31,7 @@ import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
 import { BHT, BW, DECK_CUT_LIFE, MENU_X, PANEL_Y, PARTY_BOTTOM } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
-import { SIDE_ENEMY_EDGE, SIDE_ENEMY_LIFT_BY_BG, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, SIDE_WALK_LANES, WALK_FROM, WALK_SPEED, sideBattler, sideSlot } from './battlekit/sideview';
+import { SF, SF_BOSS_LIFT, SF_ENEMY_LEFT, SF_ENEMY_LIFT, SF_ENEMY_RIGHT, SIDE_ENEMY_EDGE, SIDE_ENEMY_LIFT_BY_BG, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, SIDE_WALK_LANES, WALK_FROM, WALK_SPEED, sideBattler, sideSlot } from './battlekit/sideview';
 import { postfx } from '../engine/postfx';
 import { playMoment } from '../engine/moments';
 import { FX } from '../data/fx';
@@ -269,7 +269,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const names = groupNames(this.battle.enemies);
     this.say(this.setup.boss ? `${names} blocks the way!` : `${names} ${this.battle.enemies.length > 1 ? 'appear' : 'appears'}!`);
     // Side view: let the walk finish (about 85 frames at this speed) before the orders begin.
-    await this.w(SIDE_VIEW ? Math.max(58, Math.ceil((WALK_FROM - sideSlot(0, this.battle.party.length).x) / WALK_SPEED) + 12) : 58);
+    await this.w(SIDE_VIEW ? Math.max(58, Math.ceil(Math.abs(WALK_FROM - sideSlot(0, this.battle.party.length).x) / WALK_SPEED) + 12) : 58);
     this.startRound();
   }
 
@@ -1086,14 +1086,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const widths = living.reduce((n, e) => n + enemyArt(ENEMIES[e.key]!.sprite).w, 0);
       // Side view: the enemies fill the strip between the command-menu column and the party, closing
       // up (the art's transparent margins overlap) before they would run under either.
-      if (SIDE_VIEW && living.length > 1) gap = Math.max(SIDE_ENEMY_GAP_MIN, Math.min(SIDE_ENEMY_GAP_MAX, Math.floor((SIDE_ENEMY_RIGHT - SIDE_ENEMY_LEFT - widths) / (living.length - 1))));
+      const stripL = SF ? SF_ENEMY_LEFT : SIDE_ENEMY_LEFT, stripR = SF ? SF_ENEMY_RIGHT : SIDE_ENEMY_RIGHT;
+      if (SIDE_VIEW && living.length > 1) gap = Math.max(SIDE_ENEMY_GAP_MIN, Math.min(SIDE_ENEMY_GAP_MAX, Math.floor((stripR - stripL - widths) / (living.length - 1))));
       const total = widths + gap * Math.max(0, living.length - 1);
-      let x = SIDE_VIEW ? Math.max(SIDE_ENEMY_EDGE, SIDE_ENEMY_RIGHT - total) : Math.round((BW - total) / 2);
+      // Side view: the party is on the right (code art), so the enemies hug the party's edge, right-aligned; with Sprite Fusion art the party is on the left and they start at the strip's left edge.
+      let x = SF ? Math.min(stripL, stripR - total) : SIDE_VIEW ? Math.max(SIDE_ENEMY_EDGE, SIDE_ENEMY_RIGHT - total) : Math.round((BW - total) / 2);
       living.forEach((e, i) => {
         const art = enemyArt(ENEMIES[e.key]!.sprite);
         // Side view: the enemies stand further back (higher up the street) than any of the crew, which also
         // leaves the band under their feet free for the command and ability windows.
-        const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0) - (SIDE_VIEW ? (e.boss ? SIDE_BOSS_LIFT : (SIDE_ENEMY_LIFT_BY_BG[this.setup.bg] ?? SIDE_ENEMY_LIFT)) : 0);
+        const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0) - (SF ? (e.boss ? SF_BOSS_LIFT : SF_ENEMY_LIFT) : SIDE_VIEW ? (e.boss ? SIDE_BOSS_LIFT : (SIDE_ENEMY_LIFT_BY_BG[this.setup.bg] ?? SIDE_ENEMY_LIFT)) : 0);
         const back = e.boss ? 0 : (i % 2) * (SIDE_VIEW && gap < 0 ? 6 : 4);
         next.set(e.uid, { x, y: clearOfPrompt(ground - art.h - back, art), art });
         x += art.w + gap;
@@ -1146,11 +1148,13 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   sideWalk(): number {
     if (!SIDE_VIEW) return 0;
     const n = this.battle.party.length;
-    // The distance the leftmost slot (the front one) has to cover from just past the right edge; everyone else is that far from their own place, so the rest start further out.
+    // The distance the front slot has to cover from just past the edge; everyone else is that far from their own place, so the rest start further out.
+    // Signed: positive when they walk in from the right (code art), negative from the left (Sprite Fusion art, who face right): added to the place, it is where they are now.
     const full = WALK_FROM - sideSlot(0, n).x;
-    // Before the walk starts (the first frames of the intro) they are still off the right edge.
+    // Before the walk starts (the first frames of the intro) they are still off the edge.
     if (this.walkStart < 0) return this.mode === 'intro' ? full : 0;
-    return Math.max(0, full - (this.frame - this.walkStart) * WALK_SPEED);
+    const left = Math.max(0, Math.abs(full) - (this.frame - this.walkStart) * WALK_SPEED);
+    return Math.sign(full) * left;
   }
 
   /** The row a party member's soles stand on (battle-world pixels). */
@@ -1160,7 +1164,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const i = u.order ?? 0;
     // Stepping in, each member walks along their own lane (a row or three off their place), converging as they arrive, so the entry has depth.
     const walk = this.sideWalk();
-    const lane = walk > 0 ? (SIDE_WALK_LANES[i % SIDE_WALK_LANES.length] ?? 0) * Math.min(1, walk / 40) : 0;
+    const lane = walk !== 0 ? (SIDE_WALK_LANES[i % SIDE_WALK_LANES.length] ?? 0) * Math.min(1, Math.abs(walk) / 40) : 0;
     return sideSlot(i, n).feet + lane;
   }
 
