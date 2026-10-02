@@ -14,7 +14,7 @@
  */
 import { renderLayers, type Layer, decode, type Traced } from '../art/rig2/rig';
 import { TRACED, VIEWS_TRACED, loadViews } from '../art/rig2/data';
-import { BATTLE_FEET, buildSideCrew } from '../art/rig2/sidecrew';
+import { buildSideCrew } from '../art/rig2/sidecrew';
 import { buildChar } from '../art/chars';
 import { LOOKS } from '../data/looks';
 import {
@@ -135,19 +135,31 @@ function arm(sh: Sheet, base: Layer, pal: string[], a: SideArm, s: Scale): void 
 }
 
 /**
- * The crew sheet (`?scene=sidelab&scale=crew`): each member's field `left` frame for identity, then
- * the battle-scale wait loop (3 frames) and walk (4 frames), all at one zoom (default 4).
+ * The crew sheet (`?scene=sidelab&scale=crew`): each member's field `left` frame for identity, the battle-scale
+ * wait loop (3 frames) and walk (4 frames), then the action poses (brace, wind-up, strike, cast, hurt, victory),
+ * two rows a member, all at one zoom (default 4).
  */
 async function crewSheet(zoom: number): Promise<HTMLCanvasElement> {
   const canvas = mount();
   if (!Object.keys(VIEWS_TRACED).length) await loadViews();
   const keys = ['kit', 'rook', 'hex', 'sable'];
   const crews = keys.map((k) => buildSideCrew(k));
-  const cw = Math.max(...crews.map((c) => c?.w ?? 0), 34);
-  const ch = Math.max(...crews.map((c) => c?.h ?? 0), 36);
+  // Each member's cells are cropped to the box that holds all of their frames (the frames carry room for a katana and a lunge).
+  const boxes = crews.map((c) => {
+    const frames = c ? [...c.idle, ...c.walk, ...Object.values(c.poses)] : [];
+    let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+    for (const f of frames) {
+      const d = f.getContext('2d')?.getImageData(0, 0, f.width, f.height).data;
+      if (!d) continue;
+      for (let y = 0; y < f.height; y++) for (let x = 0; x < f.width; x++) if ((d[(y * f.width + x) * 4 + 3] ?? 0) > 0) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    }
+    return { x0: x0 - 1, y0: y0 - 1, w: x1 - x0 + 3, h: y1 - y0 + 3 };
+  });
+  const cw = Math.max(...boxes.map((b) => b.w), 34);
   const cols = 8;
+  const heights = boxes.map((b) => b.h * zoom + 22);
   canvas.width = 8 + cols * (cw * zoom + 8);
-  canvas.height = 36 + keys.length * (ch * zoom + 26);
+  canvas.height = 36 + heights.reduce((a, h) => a + 2 * h, 0);
   const g = canvas.getContext('2d');
   if (!g) return canvas;
   g.imageSmoothingEnabled = false;
@@ -155,25 +167,35 @@ async function crewSheet(zoom: number): Promise<HTMLCanvasElement> {
   g.fillRect(0, 0, canvas.width, canvas.height);
   g.fillStyle = '#fff';
   g.font = 'bold 16px sans-serif';
-  g.fillText(`The crew at BATTLE scale, round 3 (traced west view; Sable: south-west body with a hand-built profile head), nearest shrink to ${BATTLE_FEET} px soles, graded colours, crisp outline, cool/warm rim, near arm counter-swing, heel lift, x${zoom}. Columns: field left frame (identity) | wait 1 2 3 (played 1-2-3-2) | walk 1 2 3 4`, 8, 22);
-  const heads = ['field frame', 'wait 1', 'wait 2', 'wait 3', 'walk 1', 'walk 2', 'walk 3', 'walk 4'];
+  g.fillText(`The crew at BATTLE scale, round 4: the traced south-west view collapsed to its native resolution (one art pixel per screen pixel), graded, outlined, x${zoom}. Row 1: field frame | wait 1 2 3 (played 1-2-3-2) | walk 1 2 3 4. Row 2: brace | wind-up | strike | cast | hurt | victory`, 8, 22);
+  const heads1 = ['field frame', 'wait 1', 'wait 2', 'wait 3', 'walk 1', 'walk 2', 'walk 3', 'walk 4'];
+  const heads2 = ['', 'brace', 'wind-up (attack)', 'strike', 'cast', 'hurt', 'victory', ''];
+  const put = (c: HTMLCanvasElement | undefined, label: string, i: number, y: number, box: { x0: number; y0: number; w: number; h: number }, field: boolean): void => {
+    const x = 8 + i * (cw * zoom + 8);
+    g.fillStyle = '#2e3250';
+    g.fillRect(x, y, cw * zoom, box.h * zoom);
+    if (c && field) g.drawImage(c, x + Math.floor((cw * zoom - c.width * zoom) / 2), y + box.h * zoom - c.height * zoom, c.width * zoom, c.height * zoom);
+    else if (c) g.drawImage(c, box.x0, box.y0, box.w, box.h, x + Math.floor((cw - box.w) / 2) * zoom, y, box.w * zoom, box.h * zoom);
+    g.fillStyle = '#fff';
+    g.font = '12px sans-serif';
+    g.fillText(label, x + 4, y + box.h * zoom + 14);
+  };
+  let y = 36;
   keys.forEach((k, r) => {
-    const y = 36 + r * (ch * zoom + 26);
     const crew = crews[r];
+    const box = boxes[r];
+    if (!box) return;
     const field = buildChar(LOOKS[k as keyof typeof LOOKS]).frames.left[0];
-    const cells: (HTMLCanvasElement | undefined)[] = [field, ...(crew?.idle ?? []), ...(crew?.walk ?? [])];
-    cells.forEach((c, i) => {
-      const x = 8 + i * (cw * zoom + 8);
-      g.fillStyle = '#2e3250';
-      g.fillRect(x, y, cw * zoom, ch * zoom);
-      if (c) {
-        // Soles on one baseline: every frame bottom-aligned in its cell.
-        g.drawImage(c, x + Math.floor((cw * zoom - c.width * zoom) / 2), y + ch * zoom - c.height * zoom, c.width * zoom, c.height * zoom);
-      }
-      g.fillStyle = '#fff';
-      g.font = '12px sans-serif';
-      g.fillText(`${k} ${heads[i]}`, x + 4, y + ch * zoom + 14);
+    const row1: (HTMLCanvasElement | undefined)[] = [field, ...(crew?.idle ?? []), ...(crew?.walk ?? [])];
+    const row2: (HTMLCanvasElement | undefined)[] = [undefined, crew?.poses.brace, crew?.poses.attack, crew?.poses.strike, crew?.poses.cast, crew?.poses.hurt, crew?.poses.victory, undefined];
+    row1.forEach((c, i) => {
+      put(c, `${k} ${heads1[i]}`, i, y, box, i === 0);
     });
+    y += box.h * zoom + 22;
+    row2.forEach((c, i) => {
+      if (c) put(c, `${k} ${heads2[i]}`, i, y, box, false);
+    });
+    y += box.h * zoom + 22;
   });
   return canvas;
 }

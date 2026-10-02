@@ -23,7 +23,7 @@ import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
 import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
-import { IDLE_FRAMES_PER_STEP, IDLE_FRAMES_PER_STEP_ACTIVE, SIDE_PANEL_GAP, SIDE_VIEW, WALK_FRAMES_PER_STEP } from './sideview';
+import { IDLE_FRAMES_PER_STEP, IDLE_FRAMES_PER_STEP_ACTIVE, SIDE_PANEL_GAP, SIDE_VIEW, WALK_FRAMES_PER_STEP, sideBeat } from './sideview';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
 import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, markElements, statusName } from './tables';
@@ -101,7 +101,12 @@ export class BattleRenderer {
     // Side view: the crew are battle-scale art (one art pixel per screen pixel, like the enemies), so they go on this
     // screen-resolution layer, still at its 2x transform. On the world-resolution layer below (240x135) a 47 px sprite is
     // sampled 2:1 and loses three pixels in four, which is what made round 2's crew look noisy.
-    if (SIDE_VIEW) for (const p of this.s.battle.party) this.drawPartyMember(el, p, f);
+    // Whoever is mid-strike is drawn last, so a lunge passes in front of the line, not behind it.
+    if (SIDE_VIEW) {
+      const striking = (p: Combatant) => (this.s.d(p.uid).reachX ?? 0) !== 0 && this.s.d(p.uid).poseT > 0;
+      for (const p of this.s.battle.party) if (!striking(p)) this.drawPartyMember(el, p, f);
+      for (const p of this.s.battle.party) if (striking(p)) this.drawPartyMember(el, p, f);
+    }
     el.setTransform(1, 0, 0, 1, 0, 0);
     // Party (back view)
     if (!SIDE_VIEW) for (const p of this.s.battle.party) this.drawPartyMember(g, p, f);
@@ -379,14 +384,17 @@ export class BattleRenderer {
     const active = (this.s.mode === 'command' || this.s.mode === 'list' || this.s.mode === 'target') && this.s.actor?.uid === p.uid;
     const down = dd.hp <= 0 && p.hp <= 0;
     // Melee moves play in beats: drawn in (the brace frame), the snap forward, the settle.
-    const beat = dd.poseT > 0 && (dd.pose === 'attack' || dd.pose === 'thrust') ? swingBeat(PARTY_POSE_T - dd.poseT) : null;
+    const melee = dd.poseT > 0 && (dd.pose === 'attack' || dd.pose === 'thrust');
+    // Side view: the strike plays on its own beats (sideBeat: crouch, wind-up, dash, blow, return); the back view's lift beats don't apply.
+    const sb = SIDE_VIEW && melee && dd.poseT <= PARTY_POSE_T ? sideBeat(PARTY_POSE_T - dd.poseT) : null;
+    const beat = melee && !SIDE_VIEW ? swingBeat(PARTY_POSE_T - dd.poseT) : null;
     // The frame for each beat: gathered (brace), raised (the pose itself), then swept through
     // (strike) for the cut and the settle. Palm strikes (thrust) keep their own frame throughout.
     const through = beat && dd.pose === 'attack' && (beat.phase === 'cut' || beat.phase === 'settle');
     // Art with a wind-up of its own (Rook's raised sword) shows it for the gather's second half too:
     // the raise beat alone is two frames, too quick to read.
     const wound = art.windup && dd.pose === 'attack' && beat?.phase === 'gather' && PARTY_POSE_T - dd.poseT >= 3;
-    const pose: Pose = dd.poseT > 0 ? (wound ? 'attack' : beat?.phase === 'gather' ? 'brace' : through ? 'strike' : dd.pose) : 'idle';
+    const pose: Pose = sb ? sb.frame : dd.poseT > 0 ? (wound ? 'attack' : beat?.phase === 'gather' ? 'brace' : through ? 'strike' : dd.pose) : 'idle';
     // Side view: the wait loop plays in place of the rest frame, and the walk while stepping in.
     const walkLeft = this.s.sideWalk();
     const cyc = art.cycle;
@@ -395,14 +403,20 @@ export class BattleRenderer {
     const res = art.res ?? 1;
     let ox = 0;
     if (dd.shake > 0) ox = dd.shake % 4 < 2 ? 2 : -2;
-    if (pose === 'hurt') ox += 1;
+    // Side view: a hit knocks the body back (right, away from the enemies) and it springs back over the pose.
+    const hurtK = SIDE_VIEW && dd.poseT > 0 && dd.pose === 'hurt' ? 16 - dd.poseT : -1;
+    if (hurtK >= 0) ox += Math.max(0, 2.5 * (1 - hurtK / 10));
+    else if (pose === 'hurt') ox += 1;
     // Idle breathing: a 1px rise, staggered per member; faster and higher while choosing orders.
     const breathe = pose === 'idle' && !cyc ? (Math.floor((f + p.uid * 23) / (active ? 16 : 34)) % 2) * (active ? 2 : 1) : 0;
     // Side view: positions land on a native pixel (half a world pixel); otherwise on a world pixel.
     const snap = SIDE_VIEW ? (v: number) => Math.round(v * 2) / 2 : Math.round;
-    const x = snap(pos.x - frame.width / res / 2 + ox + walkLeft);
+    // Side view: how far along its lunge the body is, in world pixels.
+    const lungeX = sb ? sb.lunge * (dd.reachX ?? 0) : 0;
+    const lungeY = sb ? sb.lunge * (dd.reachY ?? 0) : 0;
+    const x = snap(pos.x - frame.width / res / 2 + ox + walkLeft + lungeX);
     const lift = beat ? beat.lift : dd.lunge;
-    const y = snap(this.s.partyFeet(p) - frame.height / res - dd.hop - lift - breathe + (pose === 'hurt' ? 2 : 0));
+    const y = snap(this.s.partyFeet(p) - frame.height / res - dd.hop - lift - breathe + lungeY + (pose === 'hurt' && !SIDE_VIEW ? 2 : 0));
     if (down) {
       g.globalAlpha = 0.5;
       putArt(g, silhouetteCache(art.frames.hurt, '#3a3450'), x, y + 10, res);
@@ -411,18 +425,27 @@ export class BattleRenderer {
     }
     if (SIDE_VIEW) {
       // The crew plant on the street with a soft contact shadow, as the enemies do (it stays on the ground through a lunge or a hop).
-      const cx = Math.round(pos.x + walkLeft);
-      const gy = this.s.partyFeet(p) - 1;
+      const cx = Math.round(pos.x + walkLeft + lungeX + (hurtK >= 0 ? ox : 0));
+      const gy = Math.round(this.s.partyFeet(p) - 1 + lungeY);
       g.fillStyle = 'rgba(0,0,0,0.4)';
-      g.fillRect(cx - 7, gy, 14, 2);
-      g.fillRect(cx - 5, gy + 2, 10, 1);
-      g.fillRect(cx - 5, gy - 1, 10, 1);
+      g.fillRect(cx - 9, gy, 18, 2);
+      g.fillRect(cx - 7, gy + 2, 14, 1);
+      g.fillRect(cx - 7, gy - 1, 14, 1);
     }
     if (dd.afterimage > 0) {
       // Speed ghosts trailing behind and to either side.
       for (const [gx, gy, a] of AFTERIMAGES) {
         g.globalAlpha = a * (dd.afterimage / 22);
         putArt(g, silhouetteCache(frame, MEMBERS[p.key as MemberId].color), x + gx, y + gy, res);
+      }
+      g.globalAlpha = 1;
+    }
+    if (sb && sb.smear > 0) {
+      // Side view: the dash leaves speed ghosts trailing behind it, away from the target.
+      const tint = MEMBERS[p.key as MemberId].color;
+      for (let i = sb.smear; i >= 1; i--) {
+        g.globalAlpha = 0.14 + 0.07 * (sb.smear - i);
+        putArt(g, silhouetteCache(frame, tint), x + i * 2.5, y, res);
       }
       g.globalAlpha = 1;
     }
@@ -444,6 +467,17 @@ export class BattleRenderer {
       g.globalAlpha = 1;
     }
     putArt(g, frame, x, y, res);
+    // Side view: the first frames of a hit show the body's own pixels in white, then a faint red tint (instead of a red wash over the whole sprite).
+    if (SIDE_VIEW && dd.flash > 0 && !down) {
+      if (dd.flash >= 6) {
+        g.globalAlpha = 0.9;
+        putArt(g, silhouetteCache(frame, '#ffffff'), x, y, res);
+      } else if (dd.flash % 4 < 2) {
+        g.globalAlpha = 0.28;
+        putArt(g, silhouetteCache(frame, '#ff5a5a'), x, y, res);
+      }
+      g.globalAlpha = 1;
+    }
     // The cut's lit trail shows only while the cut is happening, not through the settle.
     const glow = pose === 'strike' && beat?.phase === 'settle' ? undefined : art.glow[pose];
     if (glow) {
@@ -454,7 +488,7 @@ export class BattleRenderer {
       g.globalCompositeOperation = 'source-over';
     }
     if (active && this.s.mode !== 'target') this.drawArrow(g, p.uid, f, ACTIVE);
-    if (dd.flash > 0 && dd.flash % 4 < 2) {
+    if (!SIDE_VIEW && dd.flash > 0 && dd.flash % 4 < 2) {
       g.globalAlpha = 0.45;
       putArt(g, silhouetteCache(frame, '#ff5a5a'), x, y, res);
       g.globalAlpha = 1;

@@ -16,6 +16,9 @@ export interface Disp {
   alpha: number;
   dying: number;
   lunge: number;
+  /** Side view: how far (battle-world pixels) a melee strike carries the actor toward its target at the full lunge. */
+  reachX?: number;
+  reachY?: number;
   hidden: boolean;
   /** Party action pose and how many frames it holds (idle when 0). */
   pose: Pose;

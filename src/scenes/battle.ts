@@ -31,7 +31,7 @@ import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
 import { BHT, BW, DECK_CUT_LIFE, MENU_X, PANEL_Y, PARTY_BOTTOM } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
-import { SIDE_ENEMY_EDGE, SIDE_ENEMY_LIFT_BY_BG, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, WALK_FROM, WALK_SPEED, sideBattler, sideSlot } from './battlekit/sideview';
+import { SIDE_ENEMY_EDGE, SIDE_ENEMY_LIFT_BY_BG, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, SIDE_WALK_LANES, WALK_FROM, WALK_SPEED, sideBattler, sideSlot } from './battlekit/sideview';
 import { postfx } from '../engine/postfx';
 import { playMoment } from '../engine/moments';
 import { FX } from '../data/fx';
@@ -1082,7 +1082,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       // up (the art's transparent margins overlap) before they would run under either.
       if (SIDE_VIEW && living.length > 1) gap = Math.max(SIDE_ENEMY_GAP_MIN, Math.min(SIDE_ENEMY_GAP_MAX, Math.floor((SIDE_ENEMY_RIGHT - SIDE_ENEMY_LEFT - widths) / (living.length - 1))));
       const total = widths + gap * Math.max(0, living.length - 1);
-      let x = SIDE_VIEW ? (total <= SIDE_ENEMY_RIGHT - SIDE_ENEMY_LEFT ? Math.round(SIDE_ENEMY_LEFT + (SIDE_ENEMY_RIGHT - SIDE_ENEMY_LEFT - total) / 2) : Math.max(SIDE_ENEMY_EDGE, SIDE_ENEMY_RIGHT - total)) : Math.round((BW - total) / 2);
+      let x = SIDE_VIEW ? Math.max(SIDE_ENEMY_EDGE, SIDE_ENEMY_RIGHT - total) : Math.round((BW - total) / 2);
       living.forEach((e, i) => {
         const art = enemyArt(ENEMIES[e.key]!.sprite);
         // Side view: the enemies stand further back (higher up the street) than any of the crew, which also
@@ -1140,7 +1140,13 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   /** The row a party member's soles stand on (battle-world pixels). */
   partyFeet(u: Combatant): number {
-    return SIDE_VIEW ? sideSlot(u.order ?? 0, this.battle.party.length).feet : PARTY_BOTTOM;
+    if (!SIDE_VIEW) return PARTY_BOTTOM;
+    const n = this.battle.party.length;
+    const i = u.order ?? 0;
+    // Stepping in, each member walks along their own lane (a row or three off their place), converging as they arrive, so the entry has depth.
+    const walk = this.sideWalk();
+    const lane = walk > 0 ? (SIDE_WALK_LANES[i % SIDE_WALK_LANES.length] ?? 0) * Math.min(1, walk / 40) : 0;
+    return sideSlot(i, n).feet + lane;
   }
 
   // ------------------------------------------------------------------ state the renderer reads
