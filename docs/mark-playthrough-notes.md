@@ -1,1 +1,14 @@
-- Oof, the scrap hounds look ... janky. Can we improve them?
+- Whenever you write out a damage type by name (in bestiary weaknesses, for example) include the corresponding icon.
+- I should be able to sleep in my own bed!
+- Make the apartment building taller, "high rise" vibes. Doesn't have to go off the screen but should look taller than the building next door.
+- Dutch's hat is askew. Is that intentional? Even if so, put it on straight.
+- In the hotel, the text reads, "Capsules at 10c a head: 30c a head, 90c for the crew. Rest?" Those numbers don't make sense. I think the 10c part is confusing.
+- The shelves on the "threads" shop also have swords on them. That doesn't make sense.
+- When in the equipment screen, don't make me click in to a slot to see what's available. Show what's available for that slot when it's simply highlighted (with stat diffs), then selecting moves the focus to that panel.
+- I'm seeing random sparkles, not sure why. I thought it was interactive objects but definitely not the case.
+- I'm in the SinkLine, and enemies seem to be targeting Hex almost exclusively. Not sure what determines the AI targeting but it might be unbalanced.
+- Healing abilities should have a crit interaction also
+- Show the stats filling up on level up, and make it feel more special. Leveling up music sting.
+- I want to hear some sound effects when I open the valves, and a bigger one when the puzzle completes. Something atmospheric and appropriate for valves opening and pumps priming.
+- Boss text that signals what the boss is about to do (and maybe enemies in general?) needs to be on screen longer. It's impossible to read.
+- The equipment limitations list characters we haven't met yet. Let's avoid that.
