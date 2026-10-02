@@ -101,6 +101,13 @@ A pass needs a median score of **8 or more overall** (the mean of the criteria t
 | Hurt: recoil frame (lean back, crouch), knockback 2.5 px springing back over 10 frames, the body's own pixels white for the first 2 frames then a faint red tint | battle | about 4 min | judge round 4 | 1 pass (the arm). Replaces the flat red wash. |
 | Enemy scale r4: every enemy (humanoids, creatures, bosses) collapsed to native and drawn 1x: punk 46 px, ghoul 48, Glowrat 23 wide, Warden 69 | battle | about 3 min | judge round 4 | 0 passes. One pixel density for every sprite; `&enemyscale=big` is round 3's look (Glowrat 2x, Warden 138), `half` bosses full, `full` the traces. |
 | Layout r4: party x 154 + 17 a slot, feet 79 + 5.5, enemies right-aligned to x 132, group gap 2 to 6, contact shadows 18 px wide, walk-in lanes (3 rows off, converging) | battle | about 6 min | judge round 4 | 2 passes (the `full` comparison ran an enemy into Kit: the minimum gap now lets a too-wide group overlap itself, not the party). |
+| B-rook-strike: ready (chudan), sword forward, point at the throat | battle | about 2 min (shared with the builder) | judge round 1 | Code-drawn limbs with a dark rim, both arms (the chrome one and the coat sleeve with the bare hand, which is now cut out too) by IK onto a two-handed `katana()` grip. 2 passes: the second arm's coordinates were 4 px off (the hand left a skin block on the coat; a fatter capsule then split the coat), so the bare hand's leftover skin pixels are turned to coat. Data: `KATA_POSES.ready`. |
+| B-rook-strike: lift, hands rising in front of the face, point up | battle | under 1 min | judge round 1 | 0 passes. Code-drawn limbs (rim). Data only. |
+| B-rook-strike: furikaburi, sword raised overhead, blade tilted back | battle | about 3 min | judge round 1 | 2 passes: the hands sat on the visor and the blade crossed the face; hands raised and forward, 3 rows of rise, blade at -64 degrees. The hands still sit in front of the brow (chibi arms cannot reach above the head). Code-drawn limbs (the turned arm vanishes in the coat). |
+| B-rook-strike: cut frames 1 and 2 with a smear arc, front foot lifted | battle | about 2 min | judge round 1 | 1 pass (the smear was a thick white scythe; thinner and paler). The arc is painted on the frame behind the blade from the angles it swept, so it is data (from, to), not pixels. Code-drawn limbs. |
+| B-rook-strike: men-uchi contact, arms extended, blade level at head height, front foot down, back heel up | battle | about 1 min | judge round 1 | 1 pass (grip raised 2 px, blade shortened to 22 px). Held 12 frames through the hit; a dust puff at the front foot for 6 frames. Code-drawn limbs. |
+| B-rook-strike: zanshin (point back up, guard held), then ready again while sliding back | battle | under 1 min | judge round 1 | 0 passes. Zanshin is the guard with the blade higher and the body upright. |
+| B-rook-strike: timeline, lunge and engine wiring (`kataTimeline`, `kataBeat`, `KATA_WINDUP`, `KATA_STOP`, `dd.strikeAt`) | battle | about 5 min | judge round 1 | 3 passes: the timing ring starts the effect about 18 pose frames in, not 8 (so the old fixed beats had the blade arrive 10 frames before the hit), so beats are keyed to the effect start; `at` came in fractional (the contact landed 1.5 frames late), now rounded; the active arrow sat on the raised blade and stayed behind in the dash, so it rides the lunge and lifts 13 px. |
 
 ## Day 1 notes (2026-10-02)
 
@@ -253,6 +260,36 @@ Round 3 scored 5.75 (identity 6, readability 6, motion 5, craft 6, composition 6
 | Docs, concepts, check, commit, push | 13:00 to 13:03 | 3 | 0 |
 
 About 29 minutes of wall clock, 7 fix passes, no per-pixel repair (the `south-west` base replaced round 3's 90 hand-placed pixels).
+
+## Item B-rook-strike round 1 (2026-10-02)
+Rook's kendo men-uchi at battle scale, played through the real playback engine behind `?battle=side`. Images: `media/spike-side-battle/B-rook-strike-r1-*.png` (git-ignored): the frame strips (`frame-strip` for the default case with a timing ring closing, blow on pose frame 18; `frame-strip-no-ring`, blow on frame 12), six in-battle captures at 2x stepped one tick at a time, two 3x zooms and a GIF (`clip`, no mp4: there is no ffmpeg on this machine).
+
+**What it is.** `rig2/sidekata.ts` holds the strike as data: seven key poses (`ready`, `lift`, `overhead`, `swing1`, `swing2`, `contact`, `zanshin`: lean, crouch, rise, torso twist, where the forward fist sits from the shoulder, the blade angle, the two feet, an optional smear arc) and a timeline (`kataTimeline(at)`, which frames are held how long and how far along the lunge the body is). `rig2/sidekatadraw.ts` turns a key into a frame: the body with both arms cut out and the coat filled in, the legs set, a crouch or rise, a lean, `katana()` laid on the grip, both arms by two-bone IK onto the two fists (bone length one constant, `KATA_BONE`), a dark rim round each arm, and the smear arc painted behind the blade. Limbs are code-drawn in every pose, never the turned traced arm (the sleeve is the coat's colour, so a turned arm disappears). The frames are wider than the others (padded 44 px each side of the body, so they stay centred on the same spot) and are the `kata` field of Rook's `Battler`.
+
+**How it plays.** `playback.ts` gives Rook's melee attack a 12-frame wind-up (Kit's stays 8), and `windupAndHit` tells the body `at`, the pose frame the effect starts on, before it waits: 12 with no ring, about 18 while a timing ring is closing (the ring holds the wind-up, so the blade lands on the beat instead of 10 frames before it). The timeline is laid out backwards from `at`: ready, lift, overhead (the spare time goes into these two), two cut frames carrying the dash, contact held 12 frames through the effect, the hit and the hitstop, zanshin 7, then ready again while the body slides back (9). The lunge is `reachX/reachY`, and he stops `KATA_STOP` (22 world px) in front of the target, further than Kit, because the blade reaches about 23. The effect, damage, shake and GPU hit are the engine's, anchored on the target as before; the contact frame lands as the effect starts and the hit follows 4 frames later. The active arrow rides the body through the lunge and rises 13 px over the raised blade. Nothing runs without `?battle=side`.
+
+**Honest issues.**
+- The hands in furikaburi sit in front of the brow, not above the head: a chibi arm cannot reach, and the blade passes in front of the forehead. It reads as a raised sword, not as a perfect overhead.
+- The first frame pops from the wait loop (hands down, sword sheathed on the back) to a drawn sword in chudan; there is no draw frame.
+- The return is a slide back in the guard frame, then a pop to the wait loop (sword back in its scabbard on his back); there is no sheathing.
+- The dash passes in front of the second enemy (it is in front: Rook's feet are lower), and at contact his body overlaps that enemy's left half.
+- The blade at contact is thin (2 px) and the engine's slash and flash over the target hide its tip for the first frames of the hit.
+- The wait loop's lift and the walk are unchanged; the other three members still use the round 4 strike and cast frames.
+- The speed ghosts and the dust puff are quick sketches (a tinted silhouette and five pixels).
+- Judged from stills and a GIF, not played at speed by a person.
+
+## Time log, item B-rook-strike round 1 (wall clock, Claude time)
+| Sub-step | From to | Minutes | Fix passes |
+|---|---|---|---|
+| Read the spike, the code, the data; dev server on 3007 | 13:04 to 13:09 | 5 | 0 |
+| Data module, drawing module, the sidelab strip | 13:09 to 13:12 | 3 | 0 |
+| Strip fixes (second arm coordinates and cut, blade length, smear, overhead, zanshin) | 13:12 to 13:16 | 4 | 4 |
+| Engine wiring (playback, render, battler), first captured round | 13:15 to 13:17 | 3 | 0 |
+| Timeline rounding, `npm run check` (exit 0, after one lint pass), commit, push | 13:19 to 13:21 | 2 | 2 |
+| Arrow fix, deterministic captures (one tick a frame), strips, GIF | 13:21 to 13:24 | 3 | 1 |
+| Docs, concepts, check, commit, push | 13:24 to 13:26 | 2 | 0 |
+
+About 22 minutes of wall clock, 7 fix passes, no per-pixel repair: the seven poses are 7 rows of numbers. Judge round 1 is next.
 
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED

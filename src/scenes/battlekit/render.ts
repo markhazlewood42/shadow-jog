@@ -526,6 +526,14 @@ export class BattleRenderer {
       const p = this.s.partyPos(u);
       x = p.x;
       y = this.s.partyFeet(u) - this.s.partyArt.get(uid)!.headH - 3;
+      // Side view, Rook's kendo strike: the arrow rides the body through the lunge, and clears the raised blade (it would sit on it).
+      const dd = this.s.d(uid);
+      if (SIDE_VIEW && this.s.partyArt.get(uid)?.kata && dd.strikeAt !== undefined && dd.poseT > 0 && dd.poseT <= (dd.poseLen ?? 0)) {
+        const kb = kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt);
+        x += kb.lunge * (dd.reachX ?? 0);
+        y += kb.lunge * (dd.reachY ?? 0);
+        if (kb.key === 'lift' || kb.key === 'overhead' || kb.dash) y -= 13;
+      }
     }
     // Over an enemy it hangs above the head; over the crew it sits right on the hair, so it never
     // reaches up into the enemy row and reads as a target cursor (round 13).
