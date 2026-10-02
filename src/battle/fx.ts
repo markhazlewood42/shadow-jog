@@ -126,7 +126,24 @@ export class FxLayer {
    * Rook's men-uchi (spike `spike/side-battle`): a hard horizontal cut through the target along the blade, `len` px each side of `at`: three px of hot white on the first
    * frame, a thinner pale line the second, gone by the third, so the body shows through the hitstop. A flat line, not a burst.
    */
-  private cutLine(at: Pt, delay: number, len: number): void {
+  private cutLine(at: Pt, delay: number, len: number, angle = 0): void {
+    // Sprite Fusion's Rook cuts down and to the right (overhead to low): a steep diagonal, drawn on from its upper-left end (the blade's side), a pixel thick with a second pixel beside the hot first frame.
+    if (angle !== 0) {
+      this.s(3, (ctx, k) => {
+        const hot = k < 0.5;
+        ctx.globalAlpha = k < 0.75 ? 1 : 0.5;
+        const n = Math.ceil(len * 2);
+        for (let i = 0; i <= n; i++) {
+          const t = i / n, d = (t * 2 - 1) * len;
+          const x = Math.round(at.x + Math.cos(angle) * d), y = Math.round(at.y + Math.sin(angle) * d);
+          ctx.fillStyle = hot ? '#ffffff' : '#cfe0ff';
+          ctx.fillRect(x, y, 1, 1);
+          if (hot && t > 0.15) ctx.fillRect(x + 1, y, 1, 1);
+        }
+        ctx.globalAlpha = 1;
+      }, delay);
+      return;
+    }
     this.s(3, (ctx, k) => {
       const hot = k < 0.5;
       const x0 = Math.round(at.x - len), x1 = Math.round(at.x + len), y = Math.round(at.y);
@@ -706,6 +723,15 @@ export class FxLayer {
           this.cutLine(t, 3, 13);
           this.impact({ x: t.x + 3, y: t.y }, '#9ad4ff', 3, 3);
           this.burst({ x: t.x + 3, y: t.y }, '#ffffff', 5, 1.4, 3);
+          this.debris(t, '#c8d0e0', 3, 4);
+        });
+        return { impact: 4, total: 16 };
+      case 'men_r':
+        // Rook's cut in Sprite Fusion art: the same hard line and spark as 'men', turned to the swing's own direction (down and to the right), the spark on Rook's side (the left).
+        each((t) => {
+          this.cutLine(t, 3, 16, 0.95);
+          this.impact({ x: t.x - 3, y: t.y }, '#9ad4ff', 3, 3);
+          this.burst({ x: t.x - 3, y: t.y }, '#ffffff', 5, 1.4, 3);
           this.debris(t, '#c8d0e0', 3, 4);
         });
         return { impact: 4, total: 16 };

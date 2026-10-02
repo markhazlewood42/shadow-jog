@@ -10,6 +10,7 @@ import type { Combatant, Command, Element } from '../../battle/types';
 import { ABILITIES } from '../../data/abilities';
 import { PARTY_POSE_T, swingBeat } from './motion';
 import { type KataBeat, KATA_MEASURED, KATA_BODY_HALF, KATA_KNOCK, KATA_MEASURED_LOW, KATA_ROOM_GAP, KATA_ROOM_MAX, isContact, kataBeat } from '../../art/rig2/sidekata';
+import { type SfBeat, SF_FADE, SF_MEASURED, SF_ROOM_MAX, SF_SWING, sfBeat } from '../../art/rig2/sfstrike';
 import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
@@ -117,10 +118,7 @@ export class BattleRenderer {
     // A timed press: the ring closing on each target.
     const tp = this.s.timing.prompt;
     // Side view, Rook's kendo strike: the ring is gone from the first frame the blade is on the target, so nothing hides the blow.
-    const bladeOn = SIDE_VIEW && this.s.battle.party.some((m) => {
-      const kb = this.kataOf(m.uid);
-      return kb !== null && isContact(kb.key);
-    });
+    const bladeOn = SIDE_VIEW && this.s.battle.party.some((m) => this.strikeOf(m.uid)?.contact === true);
     if (tp && this.s.timing.isOpen && !bladeOn) {
       for (const uid of tp.targets) {
         const p = this.s.pos(uid);
@@ -268,8 +266,8 @@ export class BattleRenderer {
       case 'flicker': oy = Math.round(Math.sin(f * 0.06 + e.uid) * 2); break;
     }
     if (dd.shake > 0) ox += dd.shake % 4 < 2 ? 2 : -2;
-    // Side view, Rook's cut: the body is pushed back 4 px from the blade (away from the crew, to the left) for two frames, then eases home.
-    if (SIDE_VIEW && (dd.knock ?? 0) > 0) ox -= KATA_KNOCK[Math.min(KATA_KNOCK.length - 1, KATA_KNOCK.length - (dd.knock ?? 0))] ?? 0;
+    // Side view, Rook's cut: the body is pushed back 4 px from the blade (away from the crew: to the left for the code art, to the right for Sprite Fusion's) for two frames, then eases home.
+    if (SIDE_VIEW && (dd.knock ?? 0) > 0) ox += FACE * (KATA_KNOCK[Math.min(KATA_KNOCK.length - 1, KATA_KNOCK.length - (dd.knock ?? 0))] ?? 0);
     oy += Math.round(dd.lunge);
     // Body motion while acting or reeling (battle-world pixels; the party is below).
     let castGlow = 0;
@@ -398,6 +396,22 @@ export class BattleRenderer {
     return kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.strikeLow);
   }
 
+  /** Sprite Fusion art, Rook's strike (rig2/sfstrike.ts): where the pose is (null when he is not mid-strike). */
+  private sfOf(uid: number): SfBeat | null {
+    if (!SIDE_VIEW) return null;
+    const dd = this.s.d(uid);
+    if (!this.s.partyArt.get(uid)?.sfStrike || dd.strikeAt === undefined || dd.poseT <= 0 || dd.poseT > (dd.poseLen ?? 0)) return null;
+    return sfBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt);
+  }
+
+  /** Either strike (the code art's kendo cut or Sprite Fusion's frames): how far along its lunge the body is, and whether the blade is on the target. */
+  private strikeOf(uid: number): { lunge: number; contact: boolean } | null {
+    const kb = this.kataOf(uid);
+    if (kb) return { lunge: kb.lunge, contact: isContact(kb.key) };
+    const sk = this.sfOf(uid);
+    return sk ? { lunge: sk.lunge, contact: sk.contact } : null;
+  }
+
   /**
    * Side view, Rook's kendo strike: how far (world px, to the right) a crewmate steps aside to make room while he is on the target. His blade is
    * about 25 px long past his body, so against the nearest enemy he ends up standing where Kit does; she slides back toward his empty place
@@ -408,14 +422,22 @@ export class BattleRenderer {
     let room = 0;
     for (const p of this.s.battle.party) {
       if (p.uid === q.uid) continue;
-      const kb = this.kataOf(p.uid);
+      const kb = this.strikeOf(p.uid);
       if (!kb) continue;
       const dd = this.s.d(p.uid);
-      const rx = this.s.partyPos(p).x + (dd.reachX ?? 0);
+      const sx = this.s.partyPos(p).x;
+      const rx = sx + (dd.reachX ?? 0);
       const qx = this.s.partyPos(q).x;
+      const u = Math.max(0, Math.min(1, (kb.lunge - 0.5) / 0.45));
+      if (SF) {
+        // Sprite Fusion art: he runs right, so a crewmate between his place and where he ends steps back to the left, into the place he left (up to SF_ROOM_MAX world px): his body, coat and rear foot take about 30 world px.
+        if (qx <= sx + 4 || qx > rx + 14) continue;
+        const need = Math.max(0, Math.min(SF_ROOM_MAX, qx + 14 - (rx - 28)));
+        room = Math.min(room, -need * u * u * (3 - 2 * u));
+        continue;
+      }
       if (qx < rx - 4) continue;
       const need = Math.max(0, Math.min(KATA_ROOM_MAX, rx + KATA_BODY_HALF + KATA_ROOM_GAP - (qx - 8)));
-      const u = Math.max(0, Math.min(1, (kb.lunge - 0.5) / 0.45));
       room = Math.max(room, need * u * u * (3 - 2 * u));
     }
     return Math.round(room * 2) / 2;
@@ -424,12 +446,12 @@ export class BattleRenderer {
   /** Side view: the screen box (pixels) round a lunging Rook, or null; enemy health bars inside it fade so he does not run under one. */
   private lungeBox(): [number, number, number, number] | null {
     for (const p of this.s.battle.party) {
-      const kb = this.kataOf(p.uid);
+      const kb = this.strikeOf(p.uid);
       if (!kb || kb.lunge < 0.05) continue;
       const dd = this.s.d(p.uid);
       const cx = (this.s.partyPos(p).x + kb.lunge * (dd.reachX ?? 0)) * 2;
       const feet = (this.s.partyFeet(p) + kb.lunge * (dd.reachY ?? 0)) * 2;
-      return [cx - 18, feet - 66, cx + 18, feet + 2];
+      return SF ? [cx - 28, feet - 74, cx + 26, feet + 2] : [cx - 18, feet - 66, cx + 18, feet + 2];
     }
     return null;
   }
@@ -483,6 +505,29 @@ export class BattleRenderer {
     }
   }
 
+  /**
+   * Sprite Fusion's Rook strike: the stamping front foot kicks up a puff of street dust behind the heel as the blade lands (three stages of 2x2 clumps, nine frames from
+   * the first swing frame B). Drawn in battle-world pixels on the enemy layer, like the code art's puff.
+   */
+  private drawSfDust(g: Ctx, p: Combatant, sk: SfBeat, lungeX: number, lungeY: number): void {
+    const c = sk.key === 'swingB' ? sk.t : sk.key === 'followFade' ? SF_SWING + sk.t : sk.key === 'follow' ? SF_SWING + SF_FADE + sk.t : -1;
+    if (c < 0 || c >= 9) return;
+    const hx = Math.round(this.s.partyPos(p).x + lungeX + SF_MEASURED.footDx / 2) - 6;
+    const gy = Math.round(this.s.partyFeet(p) - 1 + lungeY);
+    const stage = Math.floor(c / 3);
+    const puffs: [number, number][][] = [
+      [[0, -1], [-1, -1], [-2, -2]],
+      [[-1, -2], [-3, -2], [-2, -4], [-5, -1], [1, -1]],
+      [[-3, -4], [-6, -3], [-2, -6], [-7, -1]],
+    ];
+    g.globalAlpha = stage === 2 ? 0.65 : 1;
+    (puffs[stage] ?? []).forEach(([dx, dy], i) => {
+      g.fillStyle = i % 2 ? '#8c83ab' : '#b2a9cc';
+      g.fillRect(hx + (dx ?? 0), gy + (dy ?? 0), 1, 1);
+    });
+    g.globalAlpha = 1;
+  }
+
   private drawPartyMember(g: Ctx, p: Combatant, f: number): void {
     const dd = this.s.d(p.uid);
     const art = this.s.partyArt.get(p.uid)!;
@@ -492,7 +537,8 @@ export class BattleRenderer {
     // Melee moves play in beats: drawn in (the brace frame), the snap forward, the settle.
     const melee = dd.poseT > 0 && (dd.pose === 'attack' || dd.pose === 'thrust');
     // Side view: the strike plays on its own beats (sideBeat: crouch, wind-up, dash, blow, return); the back view's lift beats don't apply.
-    const sb = SIDE_VIEW && melee && dd.poseT <= PARTY_POSE_T ? sideBeat(PARTY_POSE_T - dd.poseT) : null;
+    const sk = SIDE_VIEW && melee ? this.sfOf(p.uid) : null;
+    const sb = SIDE_VIEW && melee && !sk && dd.poseT <= PARTY_POSE_T ? sideBeat(PARTY_POSE_T - dd.poseT) : null;
     const beat = melee && !SIDE_VIEW ? swingBeat(PARTY_POSE_T - dd.poseT) : null;
     // Side view, Rook: the kendo strike plays on its own timeline (rig2/sidekata.ts), keyed to the frame the move's effect starts on.
     const kb = SIDE_VIEW && melee && art.kata && dd.strikeAt !== undefined && dd.poseT <= (dd.poseLen ?? 0) ? kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.strikeLow) : null;
@@ -514,7 +560,7 @@ export class BattleRenderer {
     const settle = walking && SF && cyc?.settle && Math.abs(walkLeft) < SF_SETTLE_DIST ? cyc.settle[Math.min(cyc.settle.length - 1, Math.floor((1 - Math.abs(walkLeft) / SF_SETTLE_DIST) * cyc.settle.length))] : undefined;
     const idleFrame = cyc ? cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / idleStep) % cyc.idleOrder.length] ?? 0] : undefined;
     // A member with no walk frames of its own steps in on the idle loop, so the loop does not jump when it arrives.
-    const frame = kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walking && cyc.walk.length > 0 ? (settle ?? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length]) : idleFrame) ?? art.frames[pose] : art.frames[pose];
+    const frame = sk && art.sfStrike ? (sk.key === 'ready' && idleFrame ? idleFrame : art.sfStrike.frames[sk.key]) : kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walking && cyc.walk.length > 0 ? (settle ?? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length]) : idleFrame) ?? art.frames[pose] : art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
     const res = art.res ?? 1;
     let ox = 0;
@@ -531,7 +577,7 @@ export class BattleRenderer {
     // Side view: positions land on a native pixel (half a world pixel); otherwise on a world pixel.
     const snap = SIDE_VIEW ? (v: number) => Math.round(v * 2) / 2 : Math.round;
     // Side view: how far along its lunge the body is, in world pixels.
-    const lungeK = kb ? kb.lunge : sb ? sb.lunge : 0;
+    const lungeK = sk ? sk.lunge : kb ? kb.lunge : sb ? sb.lunge : 0;
     const lungeX = lungeK * (dd.reachX ?? 0);
     const lungeY = lungeK * (dd.reachY ?? 0);
     const x = snap(pos.x - frame.width / res / 2 + ox + walkLeft + lungeX);
@@ -563,12 +609,23 @@ export class BattleRenderer {
       }
       g.globalAlpha = walkAlpha;
     }
+    if (sk && art.sfStrike) this.drawSfDust(g, p, sk, lungeX, lungeY);
     if (kb && art.kata) this.drawKataFx(g, p, kb, frame, x, y, res, walkLeft, lungeY, cx2);
     if (!kb && dd.afterimage > 0) {
       // Speed ghosts trailing behind and to either side.
       for (const [gx, gy, a] of AFTERIMAGES) {
         g.globalAlpha = a * (dd.afterimage / 22);
         putArt(g, silhouetteCache(frame, MEMBERS[p.key as MemberId].color), x + gx, y + gy, res);
+      }
+      g.globalAlpha = 1;
+    }
+    if (sk?.dash) {
+      // Sprite Fusion's Rook: the two swing frames leave speed ghosts trailing the body (his tint), the second more than the first.
+      const tint = MEMBERS[p.key as MemberId].color;
+      const n = sk.key === 'swingB' ? 3 : 2;
+      for (let i = n; i >= 1; i--) {
+        g.globalAlpha = 0.12 + 0.07 * (n - i);
+        putArt(g, silhouetteCache(frame, tint), x - FACE * i * 3.5, y, res);
       }
       g.globalAlpha = 1;
     }
@@ -647,7 +704,13 @@ export class BattleRenderer {
       y = this.s.partyFeet(u) - this.s.partyArt.get(uid)!.headH - 3;
       // Side view, Rook's kendo strike: the arrow rides the body through the lunge, and clears the raised blade (it would sit on it).
       const dd = this.s.d(uid);
-      if (SIDE_VIEW && this.s.partyArt.get(uid)?.kata && dd.strikeAt !== undefined && dd.poseT > 0 && dd.poseT <= (dd.poseLen ?? 0)) {
+      const sk = this.sfOf(uid);
+      if (sk) {
+        x += sk.lunge * (dd.reachX ?? 0);
+        y += sk.lunge * (dd.reachY ?? 0);
+        if (sk.key === 'windup' || sk.dash) y -= 13;
+        if (sk.lunge > 0.12) return;
+      } else if (SIDE_VIEW && this.s.partyArt.get(uid)?.kata && dd.strikeAt !== undefined && dd.poseT > 0 && dd.poseT <= (dd.poseLen ?? 0)) {
         const kb = kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.strikeLow);
         x += kb.lunge * (dd.reachX ?? 0);
         y += kb.lunge * (dd.reachY ?? 0);

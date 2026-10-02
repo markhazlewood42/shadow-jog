@@ -4,6 +4,7 @@
  * braced) plus hand-drawn weapons in front of or behind the body.
  */
 import type { KataKey } from './rig2/sidekata';
+import type { SfKey } from './rig2/sfstrike';
 import { backGrid, paint, type CharLook } from './chars';
 import { rigBattler } from './rig2/battle';
 import { Pix, scale2x } from './pix';
@@ -38,6 +39,8 @@ export interface Battler {
   cycle?: { idle: HTMLCanvasElement[]; idleOrder: readonly number[]; walk: HTMLCanvasElement[]; idleStep?: number; walkStep?: number; settle?: HTMLCanvasElement[]; walkGhosts?: number } | undefined;
   /** Side-view battle, Rook only: his kendo strike, one frame per key of `rig2/sidekata.ts`, each on its own (wider) canvas centred on the body. */
   kata?: Record<KataKey, HTMLCanvasElement> | undefined;
+  /** Side-view battle, Sprite Fusion art, Rook only: his strike built from Mark's frames (`rig2/sfstrike.ts`), one canvas per key, all the same size, the slot's axis at the centre column and the soles on the bottom row. */
+  sfStrike?: { frames: Record<SfKey, HTMLCanvasElement> } | undefined;
   /** The same frames without the smear arc, for the speed ghosts. */
   kataPlain?: Record<KataKey, HTMLCanvasElement> | undefined;
 }

@@ -21,6 +21,7 @@ import { PARTY_POSE_T } from './motion';
 import { direction } from '../../engine/shake';
 import { SF, SIDE_LUNGE_MAX, SIDE_LUNGE_STOP, SIDE_VIEW } from './sideview';
 import { KATA_BITE_FRAC, KATA_EFFECT_SHIFT, KATA_KNOCK, KATA_LOW_BELOW, KATA_MEASURED, KATA_MEASURED_LOW, KATA_WINDUP, kataLength } from '../../art/rig2/sidekata';
+import { SF_BITE, SF_MEASURED, sfLength } from '../../art/rig2/sfstrike';
 import { gpuCast, gpuDown, gpuHeal, gpuHit, gpuPhase, gpuSpell } from './gpufx';
 import type { TimingProfile } from '../../battle/engine';
 
@@ -159,13 +160,26 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         dd.poseLen = undefined;
         dd.strikeLow = undefined;
         // Rook's kendo strike has its own timeline and a longer blade, so he stops further off.
-        kata = SIDE_VIEW && !SF && actor.key === 'rook' && pose === 'attack';
+        // Under Sprite Fusion art his strike is Mark's own frames (rig2/sfstrike.ts); the same flag drives both, the geometry below differs.
+        kata = SIDE_VIEW && actor.key === 'rook' && pose === 'attack';
         const aim = e.targets[0] === undefined ? null : v.pos(e.targets[0]);
         dd.target = undefined;
         if (SIDE_VIEW && aim && (pose === 'attack' || pose === 'thrust')) {
           const from = v.pos(e.actor);
           const box = kata && e.targets[0] !== undefined ? v.enemyBox(e.targets[0]) : null;
-          if (kata && box) {
+          if (kata && SF && box) {
+            // Sprite Fusion art: he runs in on a lane just in front of the target's feet, and the point of the blade (SF_MEASURED.tipDx art px in front of his slot's axis at the follow-through)
+            // stops `SF_BITE` of the way from the target's centre to its front (left) edge. The strike is one pose for every target height.
+            const half = (box.x1 - box.x0) / 2;
+            const tipAt = (box.x0 + box.x1) / 2 - half * SF_BITE;
+            dd.reachX = Math.max(0, Math.min(SIDE_LUNGE_MAX, tipAt - SF_MEASURED.tipDx / 2 - from.x));
+            const feet = v.feetOf(e.actor);
+            dd.reachY = Math.max(-KATA_LANE_RISE, Math.min(KATA_LANE_DROP_MAX, box.feet + KATA_LANE_DROP - feet));
+            dd.target = e.targets[0];
+            dd.strikeLow = false;
+            // The cut line runs down and to the right and ends on the blade's point (a hand's width above the soles), so the flash and the steel are one stroke.
+            kataTarget = { x: tipAt - 4, bladeY: box.feet - 12 };
+          } else if (kata && box) {
             // Rook's blade must meet the target: stop with the point `KATA_BITE_FRAC` of the way from its centre to its front edge (its weapon may reach further than its body). The lane is a row in front of the enemy line
             // (never up the street, behind Kit), so the dash passes in front of the others, who stay opaque. A target under `KATA_LOW_BELOW` px tall (a Glowrat) gets the blade angled down onto it.
             const low = box.h * 2 < KATA_LOW_BELOW;
@@ -203,14 +217,16 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       const onStart = kata
         ? (at: number) => {
             dd.strikeAt = at;
-            dd.poseLen = dd.poseT = kataLength(at, dd.strikeLow);
+            dd.poseLen = dd.poseT = SF ? sfLength(at) : kataLength(at, dd.strikeLow);
           }
         : undefined;
       // Rook's effect is anchored a little toward him from the target's centre, so the blade's point shows beside the flash.
       // The cut's own effect ('men': a hard slash line through the target along the blade, two frames, a small hot spark) replaces the stock slash, whose star and burst covered the whole body.
-      const to = e.targets.map((t, i) => (kata ? { x: kataTarget && i === 0 ? kataTarget.x + KATA_EFFECT_SHIFT : v.pos(t).x + KATA_EFFECT_SHIFT, y: kataTarget && i === 0 ? kataTarget.bladeY : v.pos(t).y } : v.pos(t)));
+      // The effect sits a little toward Rook from the target's centre (his side of it: right of it for the left-facing code art, left of it for Sprite Fusion's).
+      const shift = SF ? -2 : KATA_EFFECT_SHIFT;
+      const to = e.targets.map((t, i) => (kata ? { x: kataTarget && i === 0 ? kataTarget.x + shift : v.pos(t).x + shift, y: kataTarget && i === 0 ? kataTarget.bladeY : v.pos(t).y } : v.pos(t)));
       kataAction = kata;
-      await windupAndHit(v, kata && e.fx === 'slash' ? 'men' : e.fx, v.pos(e.actor), to, windup, e.element === 'shock' ? '#9ae8ff' : undefined, onStart);
+      await windupAndHit(v, kata && e.fx === 'slash' ? (SF ? 'men_r' : 'men') : e.fx, v.pos(e.actor), to, windup, e.element === 'shock' ? '#9ae8ff' : undefined, onStart);
       break;
     }
     case 'combo': {

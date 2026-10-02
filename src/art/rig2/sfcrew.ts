@@ -19,6 +19,7 @@
 import type { Battler, Pose } from '../battlers';
 import { POSES } from '../battlers';
 import { bootsMid, boxOf, type Raw } from './sfgeom';
+import { buildSfStrike, SF_KEYS, SF_MEASURED, type SfKey } from './sfstrike';
 
 const BASE = '/spritefusion-tests/';
 /** `&clean=0` shows the raw art (sideview.ts documents the flags; read here too so the two modules do not import each other). */
@@ -53,6 +54,15 @@ const cut = (r: Raw, x0: number, w: number): Raw => {
   const px = new Uint8ClampedArray(w * r.h * 4);
   for (let y = 0; y < r.h; y++) px.set(r.px.subarray((y * r.w + x0) * 4, (y * r.w + x0 + w) * 4), y * w * 4);
   return { w, h: r.h, px };
+};
+
+/** A decoded sprite as a canvas (a copy: the pixel array is not shared). */
+const toCanvas = (r: Raw): HTMLCanvasElement => {
+  const c = document.createElement('canvas');
+  c.width = r.w;
+  c.height = r.h;
+  c.getContext('2d')?.putImageData(new ImageData(new Uint8ClampedArray(r.px), r.w, r.h), 0, 0);
+  return c;
 };
 
 /** Single-frame PNGs the crew use, by file name (without `.png`). */
@@ -174,6 +184,8 @@ interface SfSpec {
   /** The frame per pose; a pose not listed here is filled with `rest` (a placeholder). A sheet's first frame is used. */
   poses: Partial<Record<Pose, string>>;
   rest: string;
+  /** Rook: the two-handed strike is built from his idle and the two strike frames (rig2/sfstrike.ts). */
+  strike?: boolean;
   /** Render frames per idle frame: 60 / the sheet's fps (all the idles are 8 fps). */
   idleStep: number;
 }
@@ -196,6 +208,7 @@ const SPECS: Record<string, SfSpec> = {
     // it is the sword-drawn stance under the engine's recoil and white flash, until Mark makes a hurt frame. Everything else he has no frame for is the stance too.
     poses: { attack: 'rook-battle-strike1', strike: 'rook-battle-strike2', thrust: 'rook-battle-strike2', brace: 'rook-battle-crouched' },
     rest: 'rook-battle-idle',
+    strike: true,
     idleStep: 7.5,
   },
   hex: {
@@ -247,9 +260,19 @@ export function sfBattler(key: string): Battler | null {
     const name = spec.poses[p];
     poseFrames[p] = p === 'idle' ? first : (anchored([rawOf(name ?? spec.rest)[0] as Raw]).canvases[0] as HTMLCanvasElement);
   }
+  // Rook's strike (round 1 of G-sf-rook-strike): the frames laid on one canvas size by their front boot, plus the smear arcs.
+  let sfStrike: Battler['sfStrike'];
+  if (spec.strike) {
+    const built = buildSfStrike(rawOf(spec.idle), rawOf('rook-battle-strike1')[0] as Raw, rawOf('rook-battle-strike2')[0] as Raw);
+    Object.assign(SF_MEASURED, built.measured);
+    const fr = {} as Record<SfKey, HTMLCanvasElement>;
+    for (const k of SF_KEYS) fr[k] = toCanvas(built.frames[k]);
+    sfStrike = { frames: fr };
+  }
   return {
     frames: poseFrames,
     glow: {},
+    ...(sfStrike ? { sfStrike } : {}),
     headH: Math.ceil((first.height - idle.top) / 2),
     res: 2,
     cycle: { idle: idle.canvases, idleOrder: idle.canvases.map((_, i) => i), walk: walk.canvases, idleStep: spec.idleStep, walkStep: spec.walk.step, ...(settle ? { settle } : {}), ...(spec.walk.ghosts ? { walkGhosts: spec.walk.ghosts } : {}) },

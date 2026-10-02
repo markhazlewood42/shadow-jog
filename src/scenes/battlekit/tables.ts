@@ -115,7 +115,7 @@ export const COMBO_STING: Record<string, string> = {
 };
 
 export function fxSound(fx: string): string {
-  if (['slash', 'men', 'claw', 'whip', 'arc_cut', 'moonfall', 'flash_step', 'clean_job'].includes(fx)) return 'slash';
+  if (['slash', 'men', 'men_r', 'claw', 'whip', 'arc_cut', 'moonfall', 'flash_step', 'clean_job'].includes(fx)) return 'slash';
   if (['gunfire', 'shot', 'target_lock', 'blackout'].includes(fx)) return 'gun';
   if (['lightning', 'zap', 'thunder_rift', 'pyre_storm'].includes(fx)) return 'zap';
   if (['fire', 'fire_all', 'explosion'].includes(fx)) return 'fire';
