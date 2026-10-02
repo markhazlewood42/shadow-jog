@@ -156,6 +156,12 @@ A pass needs a median score of **8 or more overall** (the mean of the criteria t
 | F-sf-layout r4: walk-in: Hex and Sable now RUN in like Kit and Rook (their idle loops at 4 frames a step with a 2 px bob and one ghost, no fade), delays 29 and 42 so they land about 6 and 13 frames after Rook; Rook's dash frame anchored by his boots (`bootsMid` in `sfgeom.ts`), not the lowest rows | battle | about 12 min | judge round 4 | 2 passes (the delays; a filmstrip to check Rook's body sits on his slot). Whole entrance about 64 frames. Still no true run cycle for Hex or Sable: a scurry on the idle loop. |
 | F-sf-layout r4: health bar plate raised to 8 px over the art (`SF_BAR_RISE`), target chevron hangs 2 to 6 px over the plate (just over the head for a front-row creature) on a dark plate of its own | battle | about 8 min | judge round 4 | 1 pass (the front-row rat's chevron was floating 14 px up). The plate no longer covers the Warden's scanner. |
 | F-sf-layout r4: enemy strip starts at world x 140 and the lane to Kit is 16 art px (was 144 and 24) | battle | about 2 min | judge round 4 | 0 passes. Tighter stand-off; `tests/sflayout.test.ts` still passes. |
+| G-sf-rook-strike: anchors as data (`SF_ANCHORS` in `rig2/sfstrike.ts`): the four canvases (idle 79x68, strike1 69x110, strike2 101x66) laid on one 122x139 canvas by FRONT BOOT and SOLES, the axis at the centre column | battle | about 3 min (measuring on gridded 8x views and in python included) | judge round 1 | 0 passes. Front boot = the heavier of the two boot-sized column groups in the lowest 8 rows, ignoring the blade tip's long thin run (strike2's lowest rows hold the boots AND the blade point). Idle 53.5, wind-up 60, follow-through 62; soles 67, 109, 65. The stamping foot never slides; the rear foot reaches back 5 px and the head comes forward 11, which is the lunge. `tests/sfstrike.test.ts` re-measures Mark's PNGs and fails if a frame is regenerated. |
+| G-sf-rook-strike: ready and wind-up (the idle loop, then `rook-battle-strike1` as it is) | battle | under 1 min | judge round 1 | 0 passes. Mark's frames, no repaint. Wind-up held 5 to 10 frames (longer when a timing ring is closing); ready 3 to 6. |
+| G-sf-rook-strike: swing A (strike1 body with its sword cut out by geometry, a code blade at -50 degrees and a crescent from -158 degrees) | battle | about 2 min | judge round 1 | 0 passes. The smear is data (pivot, radius, start and end angle, leading width) rasterised in three solid bands in Mark's steel colours. Honest: with a 54 px radius the crescent reads a little like a scythe; the gold guard of the old sword is left at the hands. |
+| G-sf-rook-strike: swing B (`rook-battle-strike2` with a crescent from -46 degrees to the blade point), fade (thin crescent), follow-through (strike2 clean) held 13 frames | battle | about 1 min | judge round 1 | 0 passes. The blade the arc ends on is Mark's own. |
+| G-sf-rook-strike: timeline and lunge (`sfTimeline`, `sfBeat`; effect at the second frame of swing B, held through the cut line, damage and hitstop; the slide back in the ready stance) and the reach from the measured blade point (`SF_MEASURED.tipDx`, `SF_BITE`) | battle | about 4 min | judge round 1 | 1 pass: the point stopped at the club's edge (the enemy box includes the club), `SF_BITE` 0.45 to 0.15. Data: the step table, `SF_HOLD`, `SF_RETURN`, `SF_BITE`, `SF_ROOM_MAX`. |
+| G-sf-rook-strike: engine: `men_r` cut (a steep diagonal ending on the blade point, the spark on Rook's side), Kit steps back to make room (30 world px), speed ghosts, a dust puff at the front boot, the target recoils away from Rook | battle | about 4 min | judge round 1 | 1 pass (the cut line was at chest height while the blade is at the ground, now it ends on the point). Reuses the first loop's lane, hitstop, shake, GPU hit and health-bar fade. |
 
 ## Day 1 notes (2026-10-02)
 
@@ -502,6 +508,41 @@ Round 3 scored 7.06 (identity 8, readability 7, motion 6, craft 7, composition 7
 | Enemy scale trials (1.25, 1.5), area-vote scaler, punk head turn | 16:52 to 17:00 | 8 | 1 (nearest scaling) |
 | Walk-in for Hex and Sable, Rook's boots anchor, bar and chevron, ghoul lift, strip | 17:00 to 17:12 | 12 | 2 |
 | `npm run check` (exit 0), deliverables, docs | 17:12 to 17:22 | 10 | 0 |
+
+## Item G-sf-rook-strike round 1 (2026-10-02, Mark's Sprite Fusion frames)
+Rook's two-handed strike built from Mark's own frames and played through the real playback engine behind `?battle=side` (Sprite Fusion art, the default; `&art=code` keeps the first loop's code-drawn strike). Images: `media/spike-side-battle/G-sf-rook-strike-r1-*.png` (git-ignored): `frame-strip` (every frame at 4x with its hold, lunge, anchors and source file), `source-frames` (Mark's raw frames at 4x), seven in-battle captures at 2x stepped one tick at a time (ready, wind-up, smear A, smear B with the blade on the target, the impact with the cut effect, the follow-through held, the return), `zoom-smear-impact` at 3x and a GIF of the whole strike (`clip`).
+
+**What it is.** `rig2/sfstrike.ts` (no DOM, tested): the anchors as data, the timeline, the measured reach and the pixel work on plain arrays. Ready is Rook's battle idle loop; the wind-up is `rook-battle-strike1` (sword overhead); then two swing frames and the follow-through. Mark has no frame between the two poses, so the swing is: swing A is the wind-up body with its sword cut out by geometry, a code-drawn blade at -50 degrees and a crescent trailing it from where the sword was; swing B is `rook-battle-strike2` (coat flare, blade low) with a crescent trailing its blade up from -46 degrees; then a thinning crescent for two frames and the clean follow-through held 13 frames through the cut line, the damage and the hitstop; then the ready stance slides back. The arcs are data (pivot, radius, two angles, a width), three solid bands in Mark's steel colours, so a swing is a row of numbers, not a repaint.
+
+**Anchors.** The frames come on four different canvases and the body is in a different place in each, so a frame is placed by its FRONT BOOT (the stamping foot of men-uchi) and its SOLES row, put on the same column and row as the idle's. The recorded data: front boot 53.5 (idle), 60 (wind-up), 62 (follow-through); soles 67, 109, 65; blade point at column 100, row 63. All frames end up on one 122x139 canvas whose centre column is the slot and whose bottom row is the street, so the engine's existing placement just works. Anchoring by the front foot means it never slides; the rear foot reaches back 5 px and the head moves forward 11 px between the wind-up and the follow-through (the lunge).
+
+**Playback.** `playback.ts` runs the same Rook branch for both arts: the lunge stops where the measured blade point (`SF_MEASURED.tipDx`, 58 art px in front of the slot) is `SF_BITE` of the way into the target from its centre; the lane is the first loop's (his soles a little in front of the target's); the effect is the new `men_r` (a steep diagonal cut ending on the blade point, the spark on Rook's side) instead of the first loop's flat `men`, and it starts at the second frame of swing B. Kit, who stands in his path, steps back up to 30 world px into his empty place (`makeRoom`, mirrored for the right-facing line-up). The target recoils to the right, away from him (the first loop's recoil was hard-coded to the left). Hitstop, shake and the GPU hit are the engine's; two speed ghosts trail the swing frames and the front boot kicks up a dust puff.
+
+**Honest issues.**
+- There is no frame between the wind-up and the swing, and none between ready and the wind-up. The body goes from a crouch to arms overhead in one frame, and from upright to the deep lunge in two (swing A, swing B); speed ghosts and the arcs cover it at game speed, but a still-by-still judge will see the pops. These are the frames to make in Sprite Fusion (list below).
+- Swing A's blade is code-drawn (three px with an outline), close to Mark's steel but not his art, and the old sword's gold guard is left at the hands. Its crescent is large (radius 54) and reads a little like a scythe.
+- The blade sits at ground level in the follow-through, so the cut line (which ends on the point) runs through a punk's legs rather than its chest; against a Glowrat it is right.
+- Rook's body, coat flare and ghosts overlap Kit's position during the dash (she steps back, and he is drawn in front); the coat's tail can touch her fist for a frame.
+- The first target needed a tuned stop (`SF_BITE` 0.15): the enemy box includes the club, so a body-centred stop is a rough measure.
+- Judged from stills and a GIF, not played at speed by a person.
+
+## Time log, item G-sf-rook-strike round 1 (wall clock, Claude time)
+| Sub-step | From to | Minutes | Fix passes |
+|---|---|---|---|
+| Read the spike, the code, Mark's frames; gridded views and measuring boots, soles and the blade | 17:09 to 17:17 | 8 | 0 |
+| `sfstrike.ts` (anchors, timeline, crescents, builder), the frame dump and the first strip | 17:17 to 17:20 | 3 | 0 |
+| Engine wiring (`sfcrew`, `playback`, `render`, `fx` `men_r`), first stepped captures | 17:20 to 17:24 | 4 | 1 (the point stopped at the club: bite 0.45 to 0.15) |
+| Cut line onto the blade point, dust, `npm run check` (exit 0), test, commit, push | 17:24 to 17:26 | 2 | 1 |
+| Deliverables (stepped captures, strip with anchors, GIF, zoom) and docs; about 6 of these minutes were three shell commands that hung on my own stdin slip | 17:26 to 17:40 | 14 | 0 |
+
+About 31 minutes of wall clock, 2 fix passes, no per-pixel repair: Mark's frames are untouched except the sword cut out of the wind-up body for swing A (a geometry mask), and everything else is rows of data.
+
+**Sprite Fusion shopping list for Rook's strike (what to generate to do it properly).**
+1. A frame between ready and the wind-up: hands rising, sword lifting (the "lift").
+2. Swing frames from his own edit tool: the sword vertical in front (blade pointing up) and the sword level (blade pointing at the target), body in the lunge, so the smear is a blur on real frames, not a code crescent on a code blade.
+3. A contact frame at the target's torso height: blade level, arms extended, front foot stamped (the follow-through he has holds the blade at the ground).
+4. A sheathe or recover frame (the follow-through to ready), so the return is not a slide.
+5. Optional: his low `crouched` dash frame as the lunge-in before the wind-up.
 
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED
