@@ -5,7 +5,8 @@
  * Flags (all DEV only):
  *   ?battle=side                Sprite Fusion art (`art=sf`, the default): Mark's own sprites, loaded from `spritefusion-tests/` through the dev
  *                               server (never copied or committed). The party stands on the LEFT facing RIGHT (every Sprite Fusion sprite faces right, so
- *                               none is mirrored) and the enemies on the right. Sable has no Sprite Fusion art yet: the code-drawn trace, flipped.
+ *                               none is mirrored) and the enemies on the right. All four crew are Mark's art. Enemies get a dark outline and a
+ *                               despeckle (`&finish=0` for round 1's look); `&bossscale=1.5..2` sets the bosses' size (default 1.75).
  *   ?battle=side&art=code       the first loop's layout, kept for comparison: party on the right facing left, code-drawn crew (the traced `south-west`
  *                               views collapsed to their NATIVE resolution, 49 to 59 px tall), every enemy collapsed to native and drawn 1x.
  *   ?battle=side&clean=0        Sprite Fusion art without the colour clean-up (the raw ~1,000 shades a sprite)
@@ -17,7 +18,8 @@
 import { type Battler, POSES, type Pose } from '../../art/battlers';
 import { buildChar } from '../../art/chars';
 import { feetRow, headRow } from '../../art/drawn';
-import { reduceEnemies } from '../../art/rig2/enemy';
+import { finishEnemies, reduceEnemies } from '../../art/rig2/enemy';
+import { SF_SLOTS } from '../../art/rig2/sfgeom';
 import { IDLE_ORDER, buildSideCrew } from '../../art/rig2/sidecrew';
 import { mirrorBattler, sfBattler } from '../../art/rig2/sfcrew';
 import { LOOKS } from '../../data/looks';
@@ -47,7 +49,8 @@ export const ENEMY_SCALE: EnemyScale = !SIDE_VIEW ? 'full' : ES === 'full' || ES
  * by `scale3x` then a 2:1 vote (see `stretchTo`), which keeps the pixel grid (every sprite is still one art pixel per screen pixel, no half pixels).
  * `&enemyscale=native` is 1x, `&enemyscale=full` the traces (2x2 blocks, a punk 91).
  */
-export const SF_ENEMY_MULT = { regular: 1.5, boss: 1.5 } as const;
+const BOSS_MULT = Number(query().get('bossscale'));
+export const SF_ENEMY_MULT = { regular: 1.5, boss: BOSS_MULT >= 1 && BOSS_MULT <= 2 ? BOSS_MULT : 1.75 } as const;
 
 /**
  * Humanoid regular enemies, creatures and bosses. Each is collapsed to the trace's native resolution (a pixel
@@ -59,6 +62,13 @@ const BOSSES = ['brute', 'lurker', 'warden', 'warden_spirit'];
 if (SF && ENEMY_SCALE === 'fit') {
   reduceEnemies([...HUMANOIDS, ...CREATURES], SF_ENEMY_MULT.regular);
   reduceEnemies(BOSSES, SF_ENEMY_MULT.boss);
+}
+if (SF && ENEMY_SCALE !== 'full' && query().get('finish') !== '0') {
+  // Round 2: a dark outline, despeckle, and the punk and the ghoul turned to face the party (the rest are symmetric or already face left). `&finish=0` shows the plain scaled trace.
+  finishEnemies([...HUMANOIDS, ...CREATURES, ...BOSSES], ['punk', 'ghoul']);
+}
+if (SF && ENEMY_SCALE === 'fit') {
+  /* (scaling registered above) */
 } else if (SF && ENEMY_SCALE === 'native') reduceEnemies([...HUMANOIDS, ...CREATURES, ...BOSSES], 1);
 else if (SF && ENEMY_SCALE === 'full') {
   /* the traces as they are */
@@ -80,7 +90,7 @@ else if (ENEMY_SCALE === 'big') {
 export function sideSlot(i: number, n: number): { x: number; feet: number } {
   const step = Math.min(1, 3 / Math.max(1, n - 1));
   // Sprite Fusion art: the mirror of the layout below. Slot 0 (Kit, the first panel) is the top-right one, nearest the enemies, and each next slot is a step lower and to the left.
-  if (SF) return { x: Math.round(SF_PARTY_X - i * SF_PARTY_STEP_X * step), feet: Math.round(SF_PARTY_FEET + i * SF_PARTY_STEP_Y * step) };
+  if (SF) return SF_SLOTS[Math.min(i, SF_SLOTS.length - 1)] ?? { x: 110, feet: 78 };
   return { x: Math.round(SIDE_PARTY_X + i * SIDE_PARTY_STEP_X * step), feet: Math.round(SIDE_PARTY_FEET + i * SIDE_PARTY_STEP_Y * step) };
 }
 /** Slot 0's centre x and soles row, and the diagonal's step per slot (battle-world pixels). The crew are ~15 world px wide and ~29 tall. */
@@ -90,17 +100,19 @@ export const SIDE_PARTY_STEP_X = 17;
 export const SIDE_PARTY_STEP_Y = 5.5;
 
 /**
- * Sprite Fusion layout (battle-world pixels, 240x135 at 2x). Slot 0's centre x and soles row, and the step per slot. The crew are 18 to 21 world px wide
- * (Kit 36 art px, Rook's body 42 and his coat flares 12 more to the left), so the step is 19: the last slot (x 55) clears the command menu (right edge
- * x 44, art overhang included). The feet stay above row 87, where the ability list and the target box start under the party.
+ * Sprite Fusion layout (battle-world pixels, 240x135 at 2x): the party's places are `SF_SLOTS` in `rig2/sfgeom.ts` (a diagonal climbing to the top-left,
+ * spaced by the sprites' real widths, the back two over the menu column). The enemies' strip runs from Kit's front edge plus a 24 art px lane to short
+ * of the turn strip (world x 226); `tests/sflayout.test.ts` checks both against Mark's PNGs.
  */
-export const SF_PARTY_X = 124;
-export const SF_PARTY_FEET = 72;
-export const SF_PARTY_STEP_X = 24;
-export const SF_PARTY_STEP_Y = 4;
-/** Sprite Fusion layout: the enemies' strip, from just right of slot 0 to short of the turn strip (world x 226). */
-export const SF_ENEMY_LEFT = 142;
-export const SF_ENEMY_RIGHT = 225;
+export const SF_PARTY_X = SF_SLOTS[0]?.x ?? 111;
+export const SF_PARTY_FEET = SF_SLOTS[0]?.feet ?? 78;
+/** Sprite Fusion layout: the enemies' strip. */
+export const SF_ENEMY_LEFT = 133;
+export const SF_ENEMY_RIGHT = 226;
+/** Sprite Fusion layout: the least gap (world pixels) between neighbours in one row before the small creatures drop to a front row, the most a small group spreads to, and how many rows lower that front row stands. */
+export const SF_ENEMY_GAP_ROW = 4;
+export const SF_ENEMY_GAP_MAX = 10;
+export const SF_ENEMY_FRONT_DROP = 9;
 /** Sprite Fusion layout: the enemies' feet stand this many rows above slot 0's (a regular, a boss), the depth of the street. */
 export const SF_ENEMY_LIFT = 1;
 export const SF_BOSS_LIFT = 3;
@@ -130,6 +142,28 @@ export const SIDE_ENEMY_GAP_MAX = 6;
 
 /** How the party steps in from the right edge at the start of a fight: world pixels per frame, and frames per step. */
 export const WALK_SPEED = SF ? 2 : 1.5;
+/**
+ * Sprite Fusion art: the last SF_WALK_EASE world pixels slow the walk to a quarter of its speed (a stop, not a halt): over that stretch the remaining
+ * distance is r = E(4/3)e^(-0.75vt/E) - E/3, which starts at the walking speed (no jump) and reaches 0 after (E/0.75v) ln 4 frames.
+ */
+export const SF_WALK_EASE = 24;
+/** How far (battle-world pixels) the party still has to walk `t` frames after the walk began, for a walk of `full` pixels in all. */
+export function walkRemaining(full: number, t: number): number {
+  if (!SF) return Math.max(0, full - t * WALK_SPEED);
+  const E = Math.min(SF_WALK_EASE, full);
+  const t1 = (full - E) / WALK_SPEED;
+  if (t <= t1) return full - t * WALK_SPEED;
+  const r = ((E * 4) / 3) * Math.exp((-0.75 * WALK_SPEED * (t - t1)) / E) - E / 3;
+  return Math.max(0, r);
+}
+/** Frames the whole walk takes. */
+export function walkFrames(full: number): number {
+  if (!SF) return Math.ceil(full / WALK_SPEED);
+  const E = Math.min(SF_WALK_EASE, full);
+  return Math.ceil((full - E) / WALK_SPEED + ((E / (0.75 * WALK_SPEED)) * Math.log(4)));
+}
+/** Sprite Fusion art: the last few pixels of the walk where the run eases into the stance (Kit's skid). */
+export const SF_SETTLE_DIST = 8;
 export const WALK_FRAMES_PER_STEP = 4;
 /** Where a stepping-in member starts: just past the right edge (Sprite Fusion art: just past the left edge, the walk the other way). */
 export const WALK_FROM = SF ? -24 : 252;

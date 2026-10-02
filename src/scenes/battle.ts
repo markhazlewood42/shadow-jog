@@ -31,7 +31,7 @@ import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
 import { BHT, BW, DECK_CUT_LIFE, MENU_X, PANEL_Y, PARTY_BOTTOM } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
-import { SF, SF_BOSS_LIFT, SF_ENEMY_LEFT, SF_ENEMY_LIFT, SF_ENEMY_RIGHT, SIDE_ENEMY_EDGE, SIDE_ENEMY_LIFT_BY_BG, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, SIDE_WALK_LANES, WALK_FROM, WALK_SPEED, sideBattler, sideSlot } from './battlekit/sideview';
+import { SF, SF_BOSS_LIFT, SF_ENEMY_FRONT_DROP, SF_ENEMY_GAP_MAX, SF_ENEMY_GAP_ROW, SF_ENEMY_LEFT, SF_ENEMY_LIFT, SF_ENEMY_RIGHT, SIDE_ENEMY_EDGE, SIDE_ENEMY_LIFT_BY_BG, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, SIDE_WALK_LANES, WALK_FROM, sideBattler, sideSlot, walkFrames, walkRemaining } from './battlekit/sideview';
 import { postfx } from '../engine/postfx';
 import { playMoment } from '../engine/moments';
 import { FX } from '../data/fx';
@@ -269,7 +269,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const names = groupNames(this.battle.enemies);
     this.say(this.setup.boss ? `${names} blocks the way!` : `${names} ${this.battle.enemies.length > 1 ? 'appear' : 'appears'}!`);
     // Side view: let the walk finish (about 85 frames at this speed) before the orders begin.
-    await this.w(SIDE_VIEW ? Math.max(58, Math.ceil(Math.abs(WALK_FROM - sideSlot(0, this.battle.party.length).x) / WALK_SPEED) + 12) : 58);
+    await this.w(SIDE_VIEW ? Math.max(58, walkFrames(Math.abs(WALK_FROM - sideSlot(0, this.battle.party.length).x)) + 12) : 58);
     this.startRound();
   }
 
@@ -1088,6 +1088,51 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       // up (the art's transparent margins overlap) before they would run under either.
       const stripL = SF ? SF_ENEMY_LEFT : SIDE_ENEMY_LEFT, stripR = SF ? SF_ENEMY_RIGHT : SIDE_ENEMY_RIGHT;
       if (SIDE_VIEW && living.length > 1) gap = Math.max(SIDE_ENEMY_GAP_MIN, Math.min(SIDE_ENEMY_GAP_MAX, Math.floor((stripR - stripL - widths) / (living.length - 1))));
+      // Sprite Fusion side view: placed by each sprite's OPAQUE width (the art's transparent margins are not room), in one staggered row, or, when
+      // that does not fit with a gap, the small creatures stand in a front row (lower, drawn last, so never hidden) and the rest in a row behind.
+      if (SF && living.length > 0) {
+        const items = living.map((e) => {
+          const art = enemyArt(ENEMIES[e.key]!.sprite);
+          const [a, b] = opaqueSpan(art.canvas);
+          return { e, art, off: a / art.res, w: (b - a) / art.res };
+        });
+        const avail = SF_ENEMY_RIGHT - SF_ENEMY_LEFT;
+        const fits = (list: typeof items, min: number): boolean => list.reduce((n, it) => n + it.w, 0) + min * Math.max(0, list.length - 1) <= avail;
+        let back = items, front: typeof items = [];
+        if (!fits(items, SF_ENEMY_GAP_ROW)) {
+          const tallest = Math.max(...items.map((it) => it.art.h));
+          front = items.filter((it) => !it.e.boss && it.art.h < tallest * 0.6);
+          back = items.filter((it) => !front.includes(it));
+          if (back.length === 0) { back = items; front = []; }
+        }
+        const sum = back.reduce((n, it) => n + it.w, 0);
+        const gap2 = back.length > 1 ? Math.min(SF_ENEMY_GAP_MAX, Math.floor((avail - sum) / (back.length - 1))) : 0;
+        let cur = SF_ENEMY_LEFT;
+        const left = new Map<number, number>();
+        back.forEach((it, i) => {
+          left.set(it.e.uid, cur);
+          cur += it.w + gap2;
+          void i;
+        });
+        // A front-row creature stands centred on the seam between the two middle sprites behind it (or under the only one).
+        front.forEach((it, i) => {
+          const mid = Math.max(0, Math.min(back.length - 1, Math.floor(back.length / 2) - 1 + i));
+          const m = back[mid];
+          const x0 = m ? (left.get(m.e.uid) ?? SF_ENEMY_LEFT) + m.w + (gap2 > 0 ? gap2 / 2 : 0) - it.w / 2 : SF_ENEMY_LEFT;
+          left.set(it.e.uid, Math.max(SF_ENEMY_LEFT, Math.min(SF_ENEMY_RIGHT - it.w, x0)));
+        });
+        items.forEach((it) => {
+          const e = it.e;
+          const isFront = front.includes(it);
+          const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0) - (e.boss ? SF_BOSS_LIFT : SF_ENEMY_LIFT);
+          const idx = back.indexOf(it);
+          const raise = e.boss || isFront || back.length < 2 ? 0 : (idx % 2) * (gap2 < SF_ENEMY_GAP_ROW ? 6 : 4);
+          next.set(e.uid, { x: Math.round((left.get(e.uid) ?? SF_ENEMY_LEFT) - it.off), y: clearOfPrompt(ground - it.art.h - raise + (isFront ? SF_ENEMY_FRONT_DROP : 0), it.art), art: it.art });
+        });
+        for (const e of this.battle.enemies) if (!next.has(e.uid) && prev.has(e.uid)) next.set(e.uid, prev.get(e.uid)!);
+        this.layout = next;
+        return this.layout.get(u.uid) ?? this.fallbackEnemyPos(u);
+      }
       const total = widths + gap * Math.max(0, living.length - 1);
       // Side view: the party is on the right (code art), so the enemies hug the party's edge, right-aligned; with Sprite Fusion art the party is on the left and they start at the strip's left edge.
       let x = SF ? Math.min(stripL, stripR - total) : SIDE_VIEW ? Math.max(SIDE_ENEMY_EDGE, SIDE_ENEMY_RIGHT - total) : Math.round((BW - total) / 2);
@@ -1104,12 +1149,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       for (const e of this.battle.enemies) if (!next.has(e.uid) && prev.has(e.uid)) next.set(e.uid, prev.get(e.uid)!);
       this.layout = next;
     }
-    let p = this.layout.get(u.uid);
-    if (!p) {
-      const art = enemyArt(ENEMIES[u.key]!.sprite);
-      p = { x: Math.round((BW - art.w) / 2), y: clearOfPrompt(this.bg.ground - (u.boss ? BOSS_LIFT : ENEMY_LIFT) - art.h, art), art };
-      this.layout.set(u.uid, p);
-    }
+    return this.layout.get(u.uid) ?? this.fallbackEnemyPos(u);
+  }
+
+  /** A unit with no place in the layout (summoned mid-turn): centred, on the ground line. */
+  private fallbackEnemyPos(u: Combatant): { x: number; y: number; art: EnemyArt } {
+    const art = enemyArt(ENEMIES[u.key]!.sprite);
+    const p = { x: Math.round((BW - art.w) / 2), y: clearOfPrompt(this.bg.ground - (u.boss ? BOSS_LIFT : ENEMY_LIFT) - art.h, art), art };
+    this.layout.set(u.uid, p);
     return p;
   }
 
@@ -1153,7 +1200,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const full = WALK_FROM - sideSlot(0, n).x;
     // Before the walk starts (the first frames of the intro) they are still off the edge.
     if (this.walkStart < 0) return this.mode === 'intro' ? full : 0;
-    const left = Math.max(0, Math.abs(full) - (this.frame - this.walkStart) * WALK_SPEED);
+    const left = walkRemaining(Math.abs(full), this.frame - this.walkStart);
     return Math.sign(full) * left;
   }
 

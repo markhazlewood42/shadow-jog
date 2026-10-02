@@ -35,7 +35,7 @@ export interface Battler {
    * loop plays in place of the rest frame (in `idleOrder`), the walk while the member steps in. `idleStep` and `walkStep` (render frames per
    * frame of the loop) override the side view's defaults: Sprite Fusion's idles run at 8 fps, 7.5 render frames a frame.
    */
-  cycle?: { idle: HTMLCanvasElement[]; idleOrder: readonly number[]; walk: HTMLCanvasElement[]; idleStep?: number; walkStep?: number } | undefined;
+  cycle?: { idle: HTMLCanvasElement[]; idleOrder: readonly number[]; walk: HTMLCanvasElement[]; idleStep?: number; walkStep?: number; settle?: HTMLCanvasElement[] } | undefined;
   /** Side-view battle, Rook only: his kendo strike, one frame per key of `rig2/sidekata.ts`, each on its own (wider) canvas centred on the body. */
   kata?: Record<KataKey, HTMLCanvasElement> | undefined;
   /** The same frames without the smear arc, for the speed ghosts. */

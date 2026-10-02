@@ -136,6 +136,14 @@ A pass needs a median score of **8 or more overall** (the mean of the criteria t
 | F-sf-layout: enemy scale 1.5 for humanoids, creatures and bosses (`scale3x` then a 2:1 vote) | battle | about 6 min | judge round 1 | 1 pass (the Warden at 2x was 138 px and 2.1x the crew; 1.5 gives 104 px, 1.6x). A punk is about 69 px (Kit 64, Rook 68), the ghoul about 72, the Glowrat about 35 wide. One whole-pixel grid, no half pixels; the source is native-resolution art, so enemies read softer than Mark's sprites (no new detail appears). |
 | F-sf-layout: colour clean-up, one shared palette per character (distance 16) | battle | about 5 min (including the python trial at 8 to 32) | judge round 1 | 0 passes. Kit 5,830 shades across her frames became 143, Rook 3,277 became 94, Hex 1,577 became 111; side by side at 4x the cleaned and raw sprites cannot be told apart, so it is kept for palette discipline, not looks. At 24 the jeans and the steel arm lose shading. `&clean=0` shows the raw art. |
 | F-sf-layout: action poses filled from Mark's static frames (Kit: punch1 wind-up, punch3 blow, punch2 thrust, crouched brace, injured hurt, victory; Rook: strike1 wind-up, strike2 blow and thrust) through the first loop's beats and lunge, which now runs to the right | battle | about 3 min | judge round 1 | PLACEHOLDER for the next items: cast, item, aim are the stance; Rook's hurt, brace and victory are his stance; Hex has no action frames. The lunge stops 13 world px short of the target's centre and Kit's fist overlaps a punk's body at the hit. |
+| F-sf-layout r2: Sable from Mark's `sable-battle-reference.png` and `sable-battle-idle.zip` (8 frames, 8 fps), replacing the traced placeholder | battle | about 1 min | judge round 2 | 0 passes. Two names in `STILLS` / `SHEETS` and a spec; the traced, mirrored Sable is gone from the Sprite Fusion path. Round 1's "Mark needs to make her" was stale: the files had landed at 15:42. She is 61 px tall, same density as the others. |
+| F-sf-layout r2: party slots as data, `SF_SLOTS` in `rig2/sfgeom.ts`: x 111, 77, 45, 15 and feet 78, 69, 60, 58, climbing to the top-left, the back two over the command-menu column | battle | about 10 min (the slot maths from the loop extents included) | judge round 2 | 2 passes (the first spacing gave Rook's blade 2 px from Kit; the loop extents the engine really draws are wider than the quick estimate). Each gap is the next member's widest idle reach plus 4 px. The old descending diagonal put Sable's feet on the menu's rows, so the order is reversed: Kit lowest and nearest, the others further back and up. Cost: Hex and Sable stand on the pavement edge at world row 58 to 60. |
+| F-sf-layout r2: `tests/sflayout.test.ts` | battle | about 4 min | judge round 2 | 0 passes. Reads Mark's PNGs (skipped where they are absent): neighbours' idle frames 4 px apart, nobody off the left edge, 8 px to every menu rectangle (`SF_KEEP_OUT`), 24 px between Kit and the nearest enemy. |
+| F-sf-layout r2: enemy finish, `finishTrace` in `rig2/enemy.ts` (flip the punk and the ghoul to face the party, despeckle, fold near shades at distance 20, a 1 px dark outline except where the trace's own edge is already dark) and the gold rim light off | battle | about 12 min | judge round 2 | 1 pass (the first despeckle left the face squinting; a three-of-four majority pass and the shade fold added). Data in, data out: `finishEnemies(sprites, flip)`. `&finish=0` shows round 1's look. The punks are still front-view, turned only by the club side. |
+| F-sf-layout r2: enemy placement by opaque width (`SF_ENEMY_*`, `enemyPos`): one staggered row, or the small creatures in a front row (9 rows lower, drawn last) when that does not fit | battle | about 8 min | judge round 2 | 1 pass (the rat in the front row stands on the seam between the punks, so it is fully visible). No second copy is mirrored under `art=sf` (a mirrored punk turned its back to the party). |
+| F-sf-layout r2: Warden at 1.75 (was 1.5; `&bossscale=1.5` to 2) | battle | about 2 min | judge round 2 | 0 passes. 1.5 gave 104 px, 1.6 times Rook; 1.75 is 121 px and holds the frame; 2 (a boss in 2x2 blocks) is chunkier than the crew's pixels. Nearest scaling at 1.75 puts a few single and double rows, hard to see at 2x. |
+| F-sf-layout r2: walk-in: Kit the run pose bobbing 0-2-0-2 rows at 4 frames a step, then a skid into the stance over the last 8 px; Rook his sword-drawn idle at twice speed with a 1 row bob (no sword swap on arrival); Hex and Sable their idle loops at twice speed with the bob; the last 24 px ease to a quarter of the speed | battle | about 8 min | judge round 2 | 1 pass (the walk time had to account for the ease so the first orders wait for it: `walkFrames`). Still not a real run or walk cycle: only Kit has a run frame (one). The formation arrives together at one speed, so Kit leads Rook by their slot gap (34 world px) all the way; that is the formation, not a faster Kit. |
+| F-sf-layout r2: pose map: Rook brace and hurt are `rook-battle-crouched` (never the sword-on-back art); everything he has no frame for (cast, item, aim, victory) is the sword-drawn idle frame 0 | battle | about 2 min | judge round 2 | 0 passes. GAPS for the action items: Kit has no KO, no cast, item or aim; Hex and Sable have no action frames at all (every pose is the stance, marked "(stance)" on the crew sheet); Rook's hurt and brace are the same frame; his strike frames are anchored by the lowest rows, which include the blade tip in `strike2`, so his body sits left of his slot at the blow. |
 
 ## Day 1 notes (2026-10-02)
 
@@ -383,6 +391,35 @@ Mark made his own sprites in Sprite Fusion (`spritefusion-tests/`, git-excluded)
 | Docs, concepts, commit, push | 15:52 to 15:55 | 3 | 0 |
 
 About 28 minutes of wall clock for the layout, the loader, the mirror of the engine's direction and nine deliverables; no per-pixel repair anywhere.
+
+## Item F-sf-layout round 2 (2026-10-02, after the round-1 judges)
+Round 1 scored 7.33 (identity 8, readability 7, motion 5.75, craft 7, composition 7, style 6, cost 8.5; impact null). Images: `media/spike-side-battle/F-sf-layout-r2-*.png` (git-ignored; 2x screens, a 4x crew sheet, a 4x crop of the crew against the enemies, a walk-in filmstrip).
+
+**What changed.**
+- Sable is Mark's Sprite Fusion art now (reference and 8-frame idle), so all four crew are his. The mirrored traced Sable is no longer used.
+- Layout: the party's places are data (`SF_SLOTS`), spaced from the real idle extents with a test (`tests/sflayout.test.ts`): Rook's blade is 4 px clear of Kit, nobody touches the menu, the ability list or the target box (8 px), and the nearest enemy starts 24 px in front of Kit. To get there the line now climbs to the top-left (Kit lowest and nearest), so Hex and Sable stand above the command-menu column instead of beside it.
+- Enemies: a dark 1 px outline replaces the gold rim light (the rim was the game's own light, drawn behind the sprite at 55%, switched off for these sprites); the scaler's speckle is cleaned; the punk and the ghoul face the party; copies are not mirrored. Placement uses the opaque width, with a front row for the small creatures, so the Glowrat is never hidden. The Warden is 1.75.
+- Walk-in: Kit's run pose bobs and skids into her stance, Rook walks in with his sword already drawn (no pop), Hex and Sable walk on their idle loops, and the stop is eased.
+- Colour clean-up kept (distance 16): at 4x the cleaned and raw Rook are the same, the chrome arm's highlights intact. `&clean=0` still shows the raw art; `&finish=0` shows round 1's enemies.
+
+**Honest issues.**
+- The enemies are still softer than the crew: a native trace grown 1.5x has pixels of a different size to Kit's, and the despeckle cannot add the detail the crew have. The punks are front-view with a club on the party's side (a flip, not a three-quarter turn); they would need new art.
+- The walk-in is better but not a cycle: one run frame for Kit, idle loops at double speed for the rest. A bob and an ease hide that at game speed; I have not seen it played by a person.
+- Hex and Sable stand on the pavement's edge (world rows 58 to 60) and Kit is 20 rows lower than Sable: a deep diagonal for sprites that do not shrink with distance.
+- Hex's outline is heavier and darker than Kit's (Mark's art; not touched).
+- The party is placed for idle frames. Strike frames lean out of their slot (Rook's `strike2` is 101 px wide and anchored by the lowest rows), which is the F-sf-action items' work.
+- Hex and Sable have no action, hurt, KO or victory frames; Kit no KO; Rook's hurt and brace share a frame.
+
+## Time log, item F-sf-layout round 2 (wall clock, Claude time)
+| Sub-step | From to | Minutes | Fix passes |
+|---|---|---|---|
+| Read the spike, the code, the judges' findings, Mark's sprites and the enemy traces | 15:54 to 16:01 | 7 | 0 |
+| Sable, pose map, slots as data, `finishTrace`, enemy placement, walk-in and easing, first compile | 16:01 to 16:04 | 3 | 1 (the boss scale experiment) |
+| Test on Mark's PNGs and the slot maths | 16:04 to 16:05 | 1 | 2 (blade 2 px from Kit; strip start) |
+| Captures, enemy clean-up trial, Warden at 1.5, 1.75 and 2, walk-in filmstrip, play-through sanity | 16:05 to 16:08 | 3 | 1 (despeckle) |
+| `npm run check` (exit 0), deliverables, docs | 16:08 to 16:12 | 4 | 0 |
+
+About 18 minutes of wall clock; no per-pixel repair.
 
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED

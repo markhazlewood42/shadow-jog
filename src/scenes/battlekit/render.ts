@@ -24,7 +24,7 @@ import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
 import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
-import { FACE, IDLE_FRAMES_PER_STEP, IDLE_FRAMES_PER_STEP_ACTIVE, SIDE_PANEL_GAP, SIDE_VIEW, WALK_FRAMES_PER_STEP, sideBeat } from './sideview';
+import { FACE, IDLE_FRAMES_PER_STEP, IDLE_FRAMES_PER_STEP_ACTIVE, SF, SF_SETTLE_DIST, SIDE_PANEL_GAP, SIDE_VIEW, WALK_FRAMES_PER_STEP, sideBeat } from './sideview';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
 import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, markElements, statusName } from './tables';
@@ -252,8 +252,10 @@ export class BattleRenderer {
     const src = who.attack && k >= 6 && k < 18 ? who.attack : who.hurt && flinch ? who.hurt : who;
     // Humans with their own individual art still get the squad armband (marked()).
     const own = who.individual && !creature;
-    const canvas = own ? marked(dup % 2 ? mirrored(src.canvas) : src.canvas, e.family ?? '', dup) : marked(variant(src.canvas, dup), e.family ?? '', dup);
-    const glow = !src.glow ? undefined : own ? (dup % 2 ? mirrored(src.glow) : src.glow) : variant(src.glow, dup);
+        // Sprite Fusion side view: every copy faces the party (a mirrored second punk would turn its back), so no copy is mirrored; the armband tells them apart.
+    const turn = dup % 2 === 1 && !SF;
+    const canvas = own ? marked(turn ? mirrored(src.canvas) : src.canvas, e.family ?? '', dup) : marked(variant(src.canvas, dup), e.family ?? '', dup);
+    const glow = !src.glow ? undefined : own ? (turn ? mirrored(src.glow) : src.glow) : variant(src.glow, dup);
     // Every canvas below is at the art's resolution: placed at its world size (the 2x transform
     // on the enemy layer turns a creature's art pixels into screen pixels).
     const res = art.res;
@@ -332,8 +334,11 @@ export class BattleRenderer {
       g.translate(-fx, -fy);
     }
     // Rim light in a colour the backdrop doesn't use, so no enemy blends into the set.
-    g.globalAlpha = alpha * 0.55;
-    putArt(g, rimOf(canvas, this.s.rim), dx - 1 / res, dy - 1 / res, res);
+    // (Sprite Fusion side view: the sprite carries its own dark outline instead, like the crew's.)
+    if (!SF) {
+      g.globalAlpha = alpha * 0.55;
+      putArt(g, rimOf(canvas, this.s.rim), dx - 1 / res, dy - 1 / res, res);
+    }
     g.globalAlpha = alpha;
     putArt(g, canvas, dx, dy, res);
     if (this.s.bg.tintAmt > 0) {
@@ -502,7 +507,10 @@ export class BattleRenderer {
     const walkLeft = this.s.sideWalk();
     const cyc = art.cycle;
     const idleStep = cyc?.idleStep ?? (active ? IDLE_FRAMES_PER_STEP_ACTIVE : IDLE_FRAMES_PER_STEP);
-    const frame = kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walkLeft !== 0 ? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length] : cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / idleStep) % cyc.idleOrder.length] ?? 0]) ?? art.frames[pose] : art.frames[pose];
+    const walking = cyc !== undefined && pose === 'idle' && walkLeft !== 0;
+    // Sprite Fusion art: over the last few pixels of the walk the run eases into the stance (a skid) where the member has a settle frame.
+    const settle = walking && SF && cyc?.settle && Math.abs(walkLeft) < SF_SETTLE_DIST ? cyc.settle[Math.min(cyc.settle.length - 1, Math.floor((1 - Math.abs(walkLeft) / SF_SETTLE_DIST) * cyc.settle.length))] : undefined;
+    const frame = kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walking ? (settle ?? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length]) : cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / idleStep) % cyc.idleOrder.length] ?? 0]) ?? art.frames[pose] : art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
     const res = art.res ?? 1;
     let ox = 0;

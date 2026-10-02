@@ -14,21 +14,15 @@
  *   4. The party battler: idle loop, a walk-in, and a frame for each pose the engine asks for. Poses Mark has not made are filled with the stance
  *      (placeholders, listed in `SF_PLACEHOLDERS` and in the spike notes).
  *
- * Sprite Fusion faces everything right. Sable has none yet: `mirrorBattler` flips the first loop's traced crew.
+ * Sprite Fusion faces everything right, so nothing is mirrored. All four crew have Sprite Fusion art; `mirrorBattler` (the first loop's traced crew, flipped) stays only for a member who has none.
  */
 import type { Battler, Pose } from '../battlers';
 import { POSES } from '../battlers';
+import { boxOf, type Raw } from './sfgeom';
 
 const BASE = '/spritefusion-tests/';
 /** `&clean=0` shows the raw art (sideview.ts documents the flags; read here too so the two modules do not import each other). */
 const SF_CLEAN = typeof location === 'undefined' || new URLSearchParams(location.search).get('clean') !== '0';
-
-/** A decoded sprite: RGBA bytes. */
-interface Raw {
-  w: number;
-  h: number;
-  px: Uint8ClampedArray;
-}
 
 /** How far apart (RGB distance) two shades may be and still count as one. At 16, about 1,000 shades fold to 80 to 120 with no change you can see at 1x; at 24 the steel-blue and the jeans lose their shading. */
 export const CLEAN_DISTANCE = 16;
@@ -64,11 +58,12 @@ const cut = (r: Raw, x0: number, w: number): Raw => {
 /** Single-frame PNGs the crew use, by file name (without `.png`). */
 const STILLS = [
   'kit-battle-reference', 'kit-battle-punch1', 'kit-battle-punch2', 'kit-battle-punch3', 'kit-battle-crouched', 'kit-battle-injured', 'kit-battle-running', 'kit-battle-victory',
-  'rook-battle-reference', 'rook-battle-strike1', 'rook-battle-strike2',
+  'rook-battle-reference', 'rook-battle-strike1', 'rook-battle-strike2', 'rook-battle-crouched',
   'hex-battle-reference',
+  'sable-battle-reference',
 ];
 /** Sprite sheets (one row of frames, described by metadata.json), by folder name under `extracted/`. */
-const SHEETS = ['kit-battle-idle', 'rook-battle-idle', 'rook-idle', 'hex-battle-idle'];
+const SHEETS = ['kit-battle-idle', 'rook-battle-idle', 'hex-battle-idle', 'sable-battle-idle'];
 
 /** Fetch everything. Rejects if any file is missing, so the caller can say so and fall back. */
 export async function loadSfArt(): Promise<void> {
@@ -133,36 +128,6 @@ export function cleanColours(all: Raw[], dist: number): { frames: Raw[]; before:
 
 // ------------------------------------------------------------------------------------------------ anchoring
 
-interface Box {
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-  /** The midpoint of the lowest rows' span: where the feet are. */
-  feet: number;
-}
-
-function boxOf(r: Raw): Box {
-  let x0 = r.w, y0 = r.h, x1 = -1, y1 = -1;
-  for (let y = 0; y < r.h; y++)
-    for (let x = 0; x < r.w; x++)
-      if ((r.px[(y * r.w + x) * 4 + 3] ?? 0) > 0) {
-        if (x < x0) x0 = x;
-        if (x > x1) x1 = x;
-        if (y < y0) y0 = y;
-        if (y > y1) y1 = y;
-      }
-  // The feet: the span of the lowest six rows.
-  let fx0 = r.w, fx1 = -1;
-  for (let y = Math.max(0, y1 - 5); y <= y1; y++)
-    for (let x = 0; x < r.w; x++)
-      if ((r.px[(y * r.w + x) * 4 + 3] ?? 0) > 0) {
-        if (x < fx0) fx0 = x;
-        if (x > fx1) fx1 = x;
-      }
-  return { x0, y0, x1, y1, feet: (fx0 + fx1 + 1) / 2 };
-}
-
 /**
  * Frames of one loop (or one pose) cut onto canvases of equal width: the centre column is the mean feet midpoint over the loop, the bottom row the
  * lowest sole, so the member stands on the same spot in every frame. `lift` raises a frame by that many art pixels (a bob): the engine puts a canvas's
@@ -197,9 +162,15 @@ export function anchored(group: Raw[], lift: number[] = []): { canvases: HTMLCan
 /** What the engine needs from a member: the loops and the pose frames, named by the files they come from. */
 interface SfSpec {
   idle: string;
-  /** The walk-in: frames (a sheet is played as it is, a still is repeated); `bob` lifts every second frame one pixel; `step` is render frames (60 a second) per frame. */
-  walk: { names: string[]; bob: boolean; step: number };
-  /** The frame per pose; a pose not listed here is filled with `rest` (a placeholder). */
+  /**
+   * The walk-in: frames (a sheet is played as it is, a still is repeated), `lift` the rows each frame is raised (the bob, cycled over the frames), `step`
+   * render frames (60 a second) per frame. Only Kit has a real run pose; the rest walk in on their own idle loop at twice the speed with the bob
+   * (Rook with his blade already drawn, so nothing is swapped on arrival), until Mark makes walk frames.
+   */
+  walk: { names: string[]; lift: number[]; step: number };
+  /** Frames shown over the last few pixels of the walk, easing from the run into the stance (a skid), if the run pose is not the stance. */
+  settle?: string[];
+  /** The frame per pose; a pose not listed here is filled with `rest` (a placeholder). A sheet's first frame is used. */
   poses: Partial<Record<Pose, string>>;
   rest: string;
   /** Render frames per idle frame: 60 / the sheet's fps (all the idles are 8 fps). */
@@ -209,23 +180,32 @@ interface SfSpec {
 const SPECS: Record<string, SfSpec> = {
   kit: {
     idle: 'kit-battle-idle',
-    walk: { names: ['kit-battle-running'], bob: true, step: 5 },
+    walk: { names: ['kit-battle-running', 'kit-battle-running', 'kit-battle-running', 'kit-battle-running'], lift: [0, 2, 0, 2], step: 4 },
+    settle: ['kit-battle-reference'],
     poses: { attack: 'kit-battle-punch1', strike: 'kit-battle-punch3', thrust: 'kit-battle-punch2', brace: 'kit-battle-crouched', hurt: 'kit-battle-injured', victory: 'kit-battle-victory' },
     rest: 'kit-battle-reference',
     idleStep: 7.5,
   },
   rook: {
     idle: 'rook-battle-idle',
-    walk: { names: ['rook-idle'], bob: false, step: 4 },
-    poses: { attack: 'rook-battle-strike1', strike: 'rook-battle-strike2', thrust: 'rook-battle-strike2' },
-    rest: 'rook-battle-reference',
+    walk: { names: ['rook-battle-idle'], lift: [0, 1], step: 3.75 },
+    // Hurt and brace are his low crouch, never the sword-on-his-back art (the blade would teleport); everything he has no frame for is the sword-drawn stance.
+    poses: { attack: 'rook-battle-strike1', strike: 'rook-battle-strike2', thrust: 'rook-battle-strike2', brace: 'rook-battle-crouched', hurt: 'rook-battle-crouched' },
+    rest: 'rook-battle-idle',
     idleStep: 7.5,
   },
   hex: {
     idle: 'hex-battle-idle',
-    walk: { names: ['hex-battle-reference'], bob: true, step: 5 },
+    walk: { names: ['hex-battle-idle'], lift: [0, 1], step: 3.75 },
     poses: {},
     rest: 'hex-battle-reference',
+    idleStep: 7.5,
+  },
+  sable: {
+    idle: 'sable-battle-idle',
+    walk: { names: ['sable-battle-idle'], lift: [0, 1], step: 3.75 },
+    poses: {},
+    rest: 'sable-battle-reference',
     idleStep: 7.5,
   },
 };
@@ -239,7 +219,7 @@ export function sfBattler(key: string): Battler | null {
   const spec = SPECS[key];
   if (!spec || !loaded) return null;
   // One palette over everything this character has, so a shade cannot differ between two poses.
-  const names = [...new Set([spec.idle, spec.rest, ...spec.walk.names, ...Object.values(spec.poses)])];
+  const names = [...new Set([spec.idle, spec.rest, ...spec.walk.names, ...(spec.settle ?? []), ...Object.values(spec.poses)])];
   const all = names.flatMap((n) => frames(n).map((r) => ({ n, r })));
   let rawOf = (n: string): Raw[] => frames(n);
   if (SF_CLEAN) {
@@ -251,9 +231,9 @@ export function sfBattler(key: string): Battler | null {
     rawOf = (n) => byName.get(n) ?? frames(n);
   }
   const idle = anchored(rawOf(spec.idle));
-  const walkRaw = spec.walk.names.flatMap(rawOf);
-  const walkFrames = spec.walk.bob ? walkRaw.flatMap((r) => [r, r]) : walkRaw;
-  const walk = anchored(walkFrames, spec.walk.bob ? walkFrames.map((_, i) => i % 2) : []);
+  const walkFrames = spec.walk.names.flatMap(rawOf);
+  const walk = anchored(walkFrames, walkFrames.map((_, i) => spec.walk.lift[i % spec.walk.lift.length] ?? 0));
+  const settle = spec.settle ? anchored(spec.settle.map((n) => rawOf(n)[0] as Raw)).canvases : undefined;
   const poseFrames = {} as Record<Pose, HTMLCanvasElement>;
   const first = idle.canvases[0] as HTMLCanvasElement;
   for (const p of POSES) {
@@ -265,7 +245,7 @@ export function sfBattler(key: string): Battler | null {
     glow: {},
     headH: Math.ceil((first.height - idle.top) / 2),
     res: 2,
-    cycle: { idle: idle.canvases, idleOrder: idle.canvases.map((_, i) => i), walk: walk.canvases, idleStep: spec.idleStep, walkStep: spec.walk.step },
+    cycle: { idle: idle.canvases, idleOrder: idle.canvases.map((_, i) => i), walk: walk.canvases, idleStep: spec.idleStep, walkStep: spec.walk.step, ...(settle ? { settle } : {}) },
   };
 }
 

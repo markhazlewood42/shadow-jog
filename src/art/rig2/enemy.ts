@@ -21,6 +21,112 @@ export const reduceEnemies = (sprites: readonly string[], native: number): void 
 };
 
 /**
+ * Sprite Fusion side view (round 2 of F-sf-layout): enemies that get `finishTrace` after they are scaled, so they sit beside Mark's hard-outlined crew
+ * instead of looking like another game. `flip` is the subset turned to face LEFT, toward a party standing on the left.
+ */
+const FINISHED = new Map<string, { flip: boolean }>();
+export const finishEnemies = (sprites: readonly string[], flip: readonly string[] = []): void => {
+  for (const s of sprites) FINISHED.set(s, { flip: flip.includes(s) });
+};
+
+/** The dark line round the crew's sprites (and the code-drawn art's own outline colour). */
+const ENEMY_OUTLINE = '#120e1d';
+/** RGB distance within which two shades of one enemy count as one. */
+const ENEMY_MERGE = 20;
+const lumOf = (hex: string): number => 0.299 * parseInt(hex.slice(1, 3), 16) + 0.587 * parseInt(hex.slice(3, 5), 16) + 0.114 * parseInt(hex.slice(5, 7), 16);
+const satOf = (hex: string): number => {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return Math.max(...c) - Math.min(...c);
+};
+
+/**
+ * A scaled trace made to read like Mark's Sprite Fusion crew, in three passes on the pixel grid (data in, data out, no hand repair):
+ *   1. `flip`: mirror it, so a club or an outstretched arm points at the party on the left.
+ *   2. Despeckle: a solid pixel whose colour none of its four neighbours share, with the neighbours agreeing on one other (similar-brightness) colour, takes
+ *      that colour. This is the scaler's dither noise (dark specks on a grey leg); a lone bright or saturated pixel (an eye, a lamp) is kept.
+ *   3. A 1 px dark outline: every empty pixel beside a solid one becomes outline colour, EXCEPT where the edge pixel is already dark (the trace's own
+ *      line), so the line is one pixel wide everywhere and not two. The game's gold rim light is switched off for these sprites (render.ts).
+ */
+export function finishTrace(t: Traced, flip: boolean): Traced {
+  const w = t.w, h = t.h;
+  const src = decode(t).px;
+  let px: Int16Array = new Int16Array(src);
+  if (flip) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px[y * w + x] = src[y * w + (w - 1 - x)] ?? -1;
+  const at = (g: Int16Array, x: number, y: number): number => (x < 0 || y < 0 || x >= w || y >= h ? -1 : (g[y * w + x] ?? -1));
+  const lum = t.pal.map(lumOf);
+  const sat = t.pal.map(satOf);
+  // 2. Despeckle (reads the grid as it was, writes a copy).
+  const clean = new Int16Array(px);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const a = at(px, x, y);
+      if (a < 0) continue;
+      const nb = [at(px, x - 1, y), at(px, x + 1, y), at(px, x, y - 1), at(px, x, y + 1)].filter((n) => n >= 0);
+      if (nb.length < 3 || nb.includes(a)) continue;
+      const votes = new Map<number, number>();
+      for (const n of nb) votes.set(n, (votes.get(n) ?? 0) + 1);
+      const [best, count] = [...votes.entries()].sort((p, q) => q[1] - p[1])[0] ?? [-1, 0];
+      if (count < 2 || best < 0) continue;
+      if (Math.abs((lum[a] ?? 0) - (lum[best] ?? 0)) > 75 || (sat[a] ?? 0) > 110 || (lum[a] ?? 0) > 200) continue;
+      clean[y * w + x] = best;
+    }
+  px = clean;
+  // 2b. Near-duplicate shades fold into the commoner one (the crew's clean-up, at a gentler distance: these palettes are already small), accents kept.
+  const count = new Map<number, number>();
+  for (const p of px) if (p >= 0) count.set(p, (count.get(p) ?? 0) + 1);
+  const accent = (i: number): boolean => (sat[i] ?? 0) > 110 || (lum[i] ?? 0) > 200;
+  const dist = (i: number, j: number): number => {
+    const a = t.pal[i] ?? '#000000', b = t.pal[j] ?? '#000000';
+    return Math.hypot(...[1, 3, 5].map((k) => parseInt(a.slice(k, k + 2), 16) - parseInt(b.slice(k, k + 2), 16)));
+  };
+  const kept: number[] = [];
+  const into = new Map<number, number>();
+  for (const [i] of [...count.entries()].sort((a, b) => b[1] - a[1])) {
+    const near = accent(i) ? undefined : kept.find((j) => !accent(j) && dist(i, j) <= ENEMY_MERGE);
+    if (near === undefined) kept.push(i);
+    into.set(i, near ?? i);
+  }
+  px = px.map((p) => (p < 0 ? p : (into.get(p) ?? p)));
+  // 2c. Majority: a pixel three of whose four neighbours share another, similar shade takes it (a dent or bump one pixel wide in a flat area).
+  const maj = new Int16Array(px);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const a = at(px, x, y);
+      if (a < 0) continue;
+      const nb = [at(px, x - 1, y), at(px, x + 1, y), at(px, x, y - 1), at(px, x, y + 1)];
+      const b = nb.find((n) => n >= 0 && n !== a && nb.filter((m) => m === n).length >= 3);
+      if (b === undefined || accent(a) || Math.abs((lum[a] ?? 0) - (lum[b] ?? 0)) > 45) continue;
+      maj[y * w + x] = b;
+    }
+  px = maj;
+  // 3. Outline, on a grid one pixel bigger all round.
+  const W = w + 2, H = h + 2;
+  const out = new Int16Array(W * H).fill(-1);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) out[(y + 1) * W + x + 1] = px[y * w + x] ?? -1;
+  const pal = [...t.pal, ENEMY_OUTLINE];
+  const line = pal.length - 1;
+  const DARK = 46;
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      if ((px[(y - 1) * w + x - 1] ?? -1) >= 0 && x >= 1 && y >= 1 && x <= w && y <= h) continue;
+      let need = false;
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
+        const nx = x + dx - 1, ny = y + dy - 1;
+        const n = nx < 0 || ny < 0 || nx >= w || ny >= h ? -1 : (px[ny * w + nx] ?? -1);
+        if (n >= 0 && (lum[n] ?? 0) >= DARK) need = true;
+      }
+      if (need) out[y * W + x] = line;
+    }
+  const rows: string[] = [];
+  for (let y = 0; y < H; y++) {
+    let r = '';
+    for (let x = 0; x < W; x++) r += (out[y * W + x] ?? -1) < 0 ? '.' : (PAL_CH[out[y * W + x] ?? 0] ?? '.');
+    rows.push(r);
+  }
+  return { ...t, w: W, h: H, feet: t.feet + 1, hip: t.hip + 1, pal, rows };
+}
+
+/**
  * A trace brought down to its native resolution: every 2x2 block of pixels becomes one pixel, in the
  * phase (which row and column the blocks start on) where the most blocks are one colour already. A
  * block with fewer than two solid pixels is empty; otherwise it takes its commonest solid colour
@@ -185,7 +291,9 @@ export function rigEnemy(sprite: string, base: EnemyArt): EnemyArt | null {
   const full = ENEMY_TRACED[sprite];
   if (!full) return null;
   const native = REDUCED.get(sprite);
-  const t = native ? stretchTo(collapseBlocks(full), native) : full;
+  const fin = FINISHED.get(sprite);
+  const scaled = native ? stretchTo(collapseBlocks(full), native) : full;
+  const t = fin ? finishTrace(scaled, fin.flip) : scaled;
   // Room around the trace for a leaning pose.
   const pad = native ? Math.max(3, Math.round(3 * native)) : 6;
   const w = t.w + pad * 2;
