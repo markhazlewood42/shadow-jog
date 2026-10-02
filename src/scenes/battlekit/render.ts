@@ -21,7 +21,7 @@ import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
 import { TARGET_INFO_W } from '../../ui/layout';
 import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
-import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, orderStripLayout } from './geom';
+import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
@@ -387,7 +387,7 @@ export class BattleRenderer {
     const breathe = pose === 'idle' ? (Math.floor((f + p.uid * 23) / (active ? 16 : 34)) % 2) * (active ? 2 : 1) : 0;
     const x = Math.round(pos.x - frame.width / res / 2 + ox);
     const lift = beat ? beat.lift : dd.lunge;
-    const y = Math.round(PARTY_BOTTOM - frame.height / res - dd.hop - lift - breathe + (pose === 'hurt' ? 2 : 0));
+    const y = Math.round(this.s.partyFeet(p) - frame.height / res - dd.hop - lift - breathe + (pose === 'hurt' ? 2 : 0));
     if (down) {
       g.globalAlpha = 0.5;
       putArt(g, silhouetteCache(art.frames.hurt, '#3a3450'), x, y + 10, res);
@@ -441,7 +441,7 @@ export class BattleRenderer {
     } else {
       const p = this.s.partyPos(u);
       x = p.x;
-      y = PARTY_BOTTOM - this.s.partyArt.get(uid)!.headH - 3;
+      y = this.s.partyFeet(u) - this.s.partyArt.get(uid)!.headH - 3;
     }
     // Over an enemy it hangs above the head; over the crew it sits right on the hair, so it never
     // reaches up into the enemy row and reads as a target cursor (round 13).

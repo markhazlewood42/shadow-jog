@@ -31,6 +31,7 @@ import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
 import { BHT, BW, DECK_CUT_LIFE, MENU_X, PANEL_Y, PARTY_BOTTOM } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
+import { SIDE_ENEMY_LEFT, SIDE_VIEW, sideBattler, sideSlot } from './battlekit/sideview';
 import { postfx } from '../engine/postfx';
 import { playMoment } from '../engine/moments';
 import { FX } from '../data/fx';
@@ -173,7 +174,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     });
     for (const u of this.battle.units) this.initDisp(u);
     for (const p of party) {
-      this.partyArt.set(p.uid, battler(p.key, LOOKS[p.key as keyof typeof LOOKS]));
+      this.partyArt.set(p.uid, (SIDE_VIEW ? sideBattler(p.key) : null) ?? battler(p.key, LOOKS[p.key as keyof typeof LOOKS]));
     }
   }
 
@@ -1073,7 +1074,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const living = this.battle.enemies.filter((e) => !this.dead.has(e.uid)).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
       const gap = 6;
       const total = living.reduce((n, e) => n + enemyArt(ENEMIES[e.key]!.sprite).w, 0) + gap * Math.max(0, living.length - 1);
-      let x = Math.round((BW - total) / 2);
+      let x = SIDE_VIEW ? SIDE_ENEMY_LEFT : Math.round((BW - total) / 2);
       living.forEach((e, i) => {
         const art = enemyArt(ENEMIES[e.key]!.sprite);
         const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0);
@@ -1102,7 +1103,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   partyPos(u: Combatant): Pt {
     const n = this.battle.party.length;
     const i = u.order ?? 0;
+    if (SIDE_VIEW) {
+      const s = sideSlot(i, n);
+      return { x: s.x, y: s.feet - 8 };
+    }
     return { x: Math.round(BW / 2 + (i - (n - 1) / 2) * 44), y: PARTY_BOTTOM - 34 };
+  }
+
+  /** The row a party member's soles stand on (battle-world pixels). */
+  partyFeet(u: Combatant): number {
+    return SIDE_VIEW ? sideSlot(u.order ?? 0, this.battle.party.length).feet : PARTY_BOTTOM;
   }
 
   // ------------------------------------------------------------------ state the renderer reads
