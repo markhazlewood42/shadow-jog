@@ -136,6 +136,14 @@ export interface ArmRig {
   /** The forearm's colour and width when drawn, if not the sleeve's (Rook's chrome forearm under a coat sleeve). */
   fore?: string;
   foreWidth?: number;
+  /** A drawn upper sleeve's width at the shoulder, tapering to `width` at the elbow (a coat's shoulder is broad). */
+  shoulderWidth?: number;
+  /**
+   * Drawn sleeves get a dark edge of their own, like the lines inside the traced art: Rook's chrome
+   * arm raised over his grey hair, or his coat sleeve over his coat, read as one slab without it
+   * (Mark, 2026-10-01).
+   */
+  outline?: boolean;
   /**
    * The side of the body to build back when the arm leaves it (its pixels went with the arm):
    * rows y0 to y1, the edge pushed out `top` pixels at y0 tapering to `bottom` at y1, in the
@@ -967,15 +975,22 @@ function poseArm(arm: ArmRig, b: BuiltArm, pose: ArmPose, pal: string[], body: (
   // A bone's pixels turned at its joint, then carried to where that joint is now.
   const place = (l: Layer, turn: number, from: Pt, to: Pt) => moved(rotSprite(l, turn, from[0], from[1]), Math.round(to[0] - from[0]), Math.round(to[1] - from[1]));
   // A drawn sleeve, narrowing with depth from `za` at its start to `zc` at its end.
-  const sleeve = (a: Pt, c: Pt, za = 0, zc = 0) => band(a, c, arm.width * sizeAt(za), b.lit, b.shade, true, arm.width * sizeAt(zc));
+  const sw = arm.shoulderWidth ?? arm.width;
+  const sleeve = (a: Pt, c: Pt, za = 0, zc = 0) => band(a, c, sw * sizeAt(za), b.lit, b.shade, true, arm.width * sizeAt(zc));
   const fw = arm.foreWidth ?? arm.width;
   const foreSleeve = (a: Pt, c: Pt, za = 0, zc = 0) => band(a, c, fw * sizeAt(za), b.foreLit, b.foreShade, true, fw * sizeAt(zc));
+  // The dark edges (`outline`), all under every fill, so they show only round the arm's outside.
+  const edges: Layer[] = [];
+  const dark = nearest(pal, '#120e1d');
+  const edge = (a: Pt, c: Pt, w1: number, w2: number) => {
+    if (arm.outline) edges.push(band(a, c, w1 + 2, dark, dark, false, w2 + 2));
+  };
   const ez = depth?.elbow[2] ?? 0;
   const wz = depth?.wrist[2] ?? 0;
   const layers: Layer[] = [];
   const cap = () => {
     const a = Math.atan2(elbow[1] - shoulder[1], elbow[0] - shoulder[0]);
-    return band(shoulder, [shoulder[0] + Math.cos(a) * 4, shoulder[1] + Math.sin(a) * 4], arm.width + 2, b.capLit, b.capShade, true);
+    return band(shoulder, [shoulder[0] + Math.cos(a) * 4, shoulder[1] + Math.sin(a) * 4], Math.max(arm.width, sw) + 2, b.capLit, b.capShade, true);
   };
   // The upper arm: its own traced pixels turned, or (past `drawnFrom` degrees, or with none of
   // its own) a sleeve drawn clean. The shoulder cap, a stub of sleeve under the joint, closes the
@@ -987,7 +1002,10 @@ function poseArm(arm: ArmRig, b: BuiltArm, pose: ArmPose, pal: string[], body: (
   if (traced) {
     if (!arm.drawnFrom) layers.push(cap());
     layers.push(place(b.parts.upper, turnUpper, restShoulder, shoulder));
-  } else if (b.hasUpper || arm.clear) layers.push(cap(), sleeve(shoulder, elbow, 0, ez));
+  } else if (b.hasUpper || arm.clear) {
+    layers.push(cap(), sleeve(shoulder, elbow, 0, ez));
+    edge(shoulder, elbow, sw * sizeAt(0), arm.width * sizeAt(ez));
+  }
   // The forearm's sleeve under its own pixels: it covers the joint as the bones turn (not needed
   // while the traced arm barely turns: its own pixels are all there).
   // It stops a sleeve's half-width short of the wrist, so its round end stays inside the hand
@@ -995,12 +1013,15 @@ function poseArm(arm: ArmRig, b: BuiltArm, pose: ArmPose, pal: string[], body: (
   if (!(traced && arm.drawnFrom && small(turnFore))) {
     const fl = Math.hypot(wrist[0] - elbow[0], wrist[1] - elbow[1]) || 1;
     const f = Math.max(0, 1 - fw / 2 / fl);
-    layers.push(foreSleeve(elbow, [elbow[0] + (wrist[0] - elbow[0]) * f, elbow[1] + (wrist[1] - elbow[1]) * f], ez, ez + (wz - ez) * f));
+    const end: Pt = [elbow[0] + (wrist[0] - elbow[0]) * f, elbow[1] + (wrist[1] - elbow[1]) * f];
+    layers.push(foreSleeve(elbow, end, ez, ez + (wz - ez) * f));
+    edge(elbow, end, fw * sizeAt(ez), fw * sizeAt(ez + (wz - ez) * f));
   }
   // The forearm's own pixels are its full length: skip them when it's foreshortened (reaching into
-  // the screen), and let the drawn sleeve show it.
-  // (Nor on a lengthened arm: they'd stop short of its wrist.)
-  if (b.hasFore && k === 1 && dist(elbow, wrist) > b.foreLen * 0.85) layers.push(place(b.parts.fore, turnFore, restElbow, elbow));
+  // the screen), and let the drawn sleeve show it. On a lengthened arm they're scaled to its length
+  // (Rook's chrome forearm keeps its plating raised overhead; Mark, 2026-10-01).
+  if (b.hasFore && dist(elbow, wrist) > b.foreLen * k * 0.85)
+    layers.push(moved(rotSprite(b.parts.fore, turnFore, restElbow[0], restElbow[1], k), Math.round(elbow[0] - restElbow[0]), Math.round(elbow[1] - restElbow[1])));
   // The hand: the drawn fist (or open hand) on a big move, turned to point along the forearm;
   // else its own traced pixels.
   const drawnHand = pose.shape === 'open' ? (b.open ?? b.fist) : b.fist;
@@ -1023,7 +1044,7 @@ function poseArm(arm: ArmRig, b: BuiltArm, pose: ArmPose, pal: string[], body: (
   }
   // An upper arm with no pixels of its own (under hair or a coat) is a sleeve behind the body.
   const under = b.hasUpper || arm.clear ? [] : [sleeve(shoulder, elbow)];
-  return { layers, under, shoulder, elbow, wrist, hand, w, aim, hold, depth };
+  return { layers: [...edges, ...layers], under, shoulder, elbow, wrist, hand, w, aim, hold, depth };
 }
 
 /** A crew member in a pose (null pose: standing) or null without a traced frame and skeleton. `rig`: the editor's, unsaved. */

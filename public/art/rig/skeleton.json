@@ -236,7 +236,9 @@
      3,
      5
     ]
-   }
+   },
+   "shoulderWidth": 9,
+   "outline": true
   },
   "hide": {
    "box": [
@@ -309,7 +311,7 @@
     },
     "both": true,
     "freeFlip": true,
-    "length": 1.3,
+    "length": 1.4,
     "lean": 5,
     "feet": {
      "left": [
@@ -403,11 +405,11 @@
   "free": {
    "arm": {
     "shoulder": [
-     47,
-     50
+     42,
+     51
     ],
     "elbow": [
-     43,
+     40,
      64
     ],
     "wrist": [
@@ -501,7 +503,9 @@
       2.5,
       6
      ]
-    }
+    },
+    "shoulderWidth": 10,
+    "outline": true
    },
    "pose": {
     "hand": [
