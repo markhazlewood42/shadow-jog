@@ -93,6 +93,14 @@ A pass needs a median score of **8 or more overall** (the mean of the criteria t
 | Wait loop r3: head rise 0, 2, 3 rows (was 0, 1, 2) | battle | about 1 min | judge round 3 | 0 passes. Judged from the GIF. |
 | Enemy scale r3: humanoids native 1x, creatures exactly 2x (default `fit`); `wide` keeps round 2's 1.25x/1.5x | battle | about 2 min | judge round 3 | 0 passes. No fractional stretch in the default. |
 | Layout r3: crew drawn on the screen-resolution layer, party x 130 + 23 a slot, enemy strip 46 to 120, closing-up groups, per-backdrop ground table, walk gated on the shatter's end, active-member outline, white target chevron, boss contact patch | battle | about 14 min | judge round 3 | 5 passes (the sewer's left ghoul ran under the 5-row command menu; four punks overlapped; the active outline looked dotted, which exposed that the crew were being sampled 2:1 on the 240x135 layer, so they moved to the 480x270 enemy layer). |
+| Crew base r4: the `south-west` trace collapsed to native resolution (49 to 59 px), all four, graded (skin exempt), outline redone | battle | about 8 min (finding it included) | judge round 4 | 1 pass (Kit's gloves left white: the metal recolour's saturation limit was too tight). Replaces rounds 1 to 3's nearest shrink of `west` (0.41 of the trace, below native) and Sable's 90 hand-placed head pixels: a member is now a trace, a hip row, a knee row, two leg column ranges, a chest row and a lead arm. |
+| Wait loop r4 and walk r4 (a step lifts one leg's shin and foot 2 rows and swings it a column, the rows taken out so the leg stays one solid shape; a crouch on the passing frames; a lean on the steps) | battle | about 4 min | judge round 4 | 0 passes. `bendLeg`, `crouch`, `rise`, `lean` in `sideops.ts`. No RotSprite, so no ghost legs; leg boxes picked from a gridded view. |
+| Lead arm drawn again for the poses: strike, wind-up, cast, victory, hurt (Kit, Hex, Sable bare fist; Rook with the katana in two hands) | battle | about 12 min (coordinates for four arms included) | judge round 4 | 4 passes (Hex's and Sable's sleeve pixel was a dark seam, so the arm came out black; Rook's wind-up fist sat on his face and the blade was too long; the glove recolour; the hurt arm crossed the chest). A pose is a hand place in arm lengths, an elbow side, a lean and a crouch (`ARM_POSE`, `posed()`). |
+| Brace (the crouch before); item, thrust and aim reuse the cast, strike and wind-up frames | battle | about 3 min | judge round 4 | 0 passes. |
+| Strike beats and lunge: crouch, wind-up, dash with a smear, blow held on the target, return (`sideBeat`), carried to the target by `reachX/reachY` set in `playback.ts` | battle | about 10 min | judge round 4 | 2 passes (the dash stopped 25 screen px short of the first enemy: `SIDE_LUNGE_MAX` 60 to 84; stop distance 15 to 13). Data: `SIDE_LUNGE_MAX`, `SIDE_LUNGE_STOP`, the beat table. |
+| Hurt: recoil frame (lean back, crouch), knockback 2.5 px springing back over 10 frames, the body's own pixels white for the first 2 frames then a faint red tint | battle | about 4 min | judge round 4 | 1 pass (the arm). Replaces the flat red wash. |
+| Enemy scale r4: every enemy (humanoids, creatures, bosses) collapsed to native and drawn 1x: punk 46 px, ghoul 48, Glowrat 23 wide, Warden 69 | battle | about 3 min | judge round 4 | 0 passes. One pixel density for every sprite; `&enemyscale=big` is round 3's look (Glowrat 2x, Warden 138), `half` bosses full, `full` the traces. |
+| Layout r4: party x 154 + 17 a slot, feet 79 + 5.5, enemies right-aligned to x 132, group gap 2 to 6, contact shadows 18 px wide, walk-in lanes (3 rows off, converging) | battle | about 6 min | judge round 4 | 2 passes (the `full` comparison ran an enemy into Kit: the minimum gap now lets a too-wide group overlap itself, not the party). |
 
 ## Day 1 notes (2026-10-02)
 
@@ -209,6 +217,42 @@ Round 2 scored 6.43 again (identity 6, readability 6, motion 5, craft 6, composi
 | Docs, concepts, check, commit, push | 12:31 to 12:40 | 9 | 0 |
 
 About 34 minutes of wall clock (some rows overlap), 8 fix passes, one piece of hand work (Sable's head, about 90 pixels).
+
+## Item A-layout round 4 (2026-10-02, after the round-3 judges)
+Round 3 scored 5.75 (identity 6, readability 6, motion 5, craft 6, composition 6, impact 4, style 6, cost 7). Images: `media/spike-side-battle/A-layout-r4-*.png` (git-ignored; 2x screens, a crew sheet, filmstrips of the strikes, casts and the walk-in, a GIF and an APNG). Rounds 1 to 3's sizes, slots and the crew pipeline are superseded by what follows. The day-1 overstatements the day-1 checker flagged (the code-drawn limb nearly invisible at field scale, field poses covering the eye and mouth, field `left` against battle `west` being different traces, the walk-in not built on day 1) are corrected in "Corrections to day 1" above.
+
+**The finding that changed the crew.** The traced views are drawn in 2x2 pixel blocks, so each collapses exactly to its native resolution with the same `collapseBlocks` the enemies use: Kit 57 px, Rook 49, Hex 59, Sable 53, one art pixel per screen pixel. Rounds 1 to 3 shrank `west` by nearest to 46 px, which is 0.41 of the trace and below native: detail thrown away and sampled unevenly (the noise, the missing faces). That is also the "hero scale" the judges asked for (55 to 60 px) with no fractional stretch, so no separate hero build was made. The second finding: the `south-west` view is the only trace where all four have a readable face (Kit's eyes, Rook's visor and beard and his chrome arm, Hex's goggles, Sable's face and white hair), so every member now uses it. That removes round 3's "Sable is a three-quarter among profiles" break and her hand-built head.
+
+**Crew (`sidecrew.ts`, `sideops.ts`).** A member is data: the trace, a hip row, a knee row, two leg column ranges, a chest row and a lead arm (shoulder, hand, radius, a sleeve pixel and a fist pixel). Grading leaves skin untouched (round 3's boost turned faces orange) and uses lower floors (round 3 turned Hex's dark trousers grey). Kit's gloves take a cool grey-blue metal ramp by box. From the base the code makes: the wait loop (chest row drawn twice, 0, 1, 2 rows), the walk (a leg's shin and foot lifted 2 rows with the rows taken out, so it stays solid; a crouch on the passing frames; a lean on the steps), and brace, wind-up, strike, cast, hurt and victory (the lead arm cut out by a capsule, the torso filled, then drawn again as two bands and a fist reaching where the pose says; a lean and a crouch). Rook draws the katana in two hands (`heldKatana`), overhead for the wind-up, level for the blow, and his sheathed hilt is cleared from his back while it is out.
+
+**Impact.** A melee strike now plays on beats (`sideBeat`): a crouch drawing back, the wind-up frame, a two-frame dash with speed ghosts, the blow held on the target through the hit, then the return. The actor is carried to the target (`reachX/reachY` from `playback.ts`, capped at 84 world px, stopping 13 px in front of the target's centre) and drawn last so it passes in front of the line. Hurt is a recoil frame with a 2.5 px knockback that springs back, the body's own pixels white for 2 frames, then a faint red tint. The hitstop, shake and GPU hit are the engine's, unchanged.
+
+**Composition and scale.** Every enemy is native 1x (punk 46 px, ghoul 48, Glowrat 23 wide, Warden 69), so there is one pixel density across the sprites (the backdrop is still 2 px blocks: sprites finer than their backdrop, which is what Mark asked for). The crew (49 to 59 px) are a little taller than the punks, as in v0.1.0. The party is tighter (x 154, 17 a slot; feet 79, 5.5 a slot), the enemies are right-aligned to x 132 so the band between the two sides is only the lunge, and no group overlaps the party (a group too wide for the strip overlaps itself first). Contact shadows are 18 px wide. The walk-in members start on lanes up to 3 rows off their places and converge. `&enemyscale=big` keeps round 3's 2 px Glowrat and full-size boss for comparison.
+
+**Honest issues.**
+- The backdrop is 2 px blocks and the sprites 1 px: two densities in the frame (sprites against backdrop), not three.
+- The crew are three-quarter (facing left and a little at the camera), not pure profile.
+- The drawn lead arm is two or three pixels wide and reads thin beside the traced body; Rook's chrome arm is on the resting arm only (the strike arm is drawn in the same tone but plain).
+- Cast is an arm raise and a stretch, with no distinct spell stance for Hex or Sable; the effects carry the cast.
+- During a dash the actor crosses a neighbouring enemy when the target is not the nearest one; it is in front, but it overlaps for a few frames.
+- The Warden at 69 px is only about 1.2x the crew's height; it is bulky (73 wide), but far less imposing than the 138 px version (`&enemyscale=big`).
+- Kit's hair is the trace's dark plum, not near-black with a magenta sheen.
+- The top third of the frame is backdrop sky; the battle line was not lowered (the panels and the foreground rail leave about 6 world px).
+- A lifted boot in Hex's walk may read slightly detached; leg boxes were picked from a gridded view and not tuned per frame.
+- Motion and impact are judged from filmstrips and a GIF, not at speed by a person; the KO frame is still the hurt silhouette.
+
+## Time log, item A-layout round 4 (wall clock from the session clock, rounded; Claude time)
+| Sub-step | From to | Minutes | Fix passes |
+|---|---|---|---|
+| Read the spike, the code and the judges' list; the dev server | 12:34 to 12:38 | 4 | 0 |
+| The finding (native collapse, the `south-west` view): grids, views | 12:38 to 12:42 | 4 | 0 |
+| Crew pipeline, leg and arm data, poses, crew sheets | 12:42 to 12:47 | 5 | 4 (sleeve colours, katana, glove ramp, hurt arm) |
+| Engine: beats, lunge, hurt recoil, flash, native enemies, slots, lanes | 12:47 to 12:53 | 6 | 3 (lunge reach, stop, enemy gap) |
+| `npm run check` (exit 0), first commit | 12:56 | 1 | 0 |
+| Deliverable captures: screens, strike and cast filmstrips, hurt, walk-in, crew sheet | 12:56 to 13:00 | 4 | 0 |
+| Docs, concepts, check, commit, push | 13:00 to 13:03 | 3 | 0 |
+
+About 29 minutes of wall clock, 7 fix passes, no per-pixel repair (the `south-west` base replaced round 3's 90 hand-placed pixels).
 
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED
