@@ -379,7 +379,7 @@ export class BattleRenderer {
     const wound = art.windup && dd.pose === 'attack' && beat?.phase === 'gather' && PARTY_POSE_T - dd.poseT >= 3;
     const pose: Pose = dd.poseT > 0 ? (wound ? 'attack' : beat?.phase === 'gather' ? 'brace' : through ? 'strike' : dd.pose) : 'idle';
     // Side view: the wait loop plays in place of the rest frame, and the walk while stepping in.
-    const walkLeft = this.s.sideWalk(p);
+    const walkLeft = this.s.sideWalk();
     const cyc = art.cycle;
     const frame = cyc && pose === 'idle' ? (walkLeft > 0 ? cyc.walk[Math.floor((f - this.s.walkStart) / WALK_FRAMES_PER_STEP) % cyc.walk.length] : cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / (active ? 12 : 20)) % cyc.idleOrder.length] ?? 0]) ?? art.frames[pose] : art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.

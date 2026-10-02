@@ -107,7 +107,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   private actorIdx = 0;
   roundMenu = new ListMenu<string>([], 4);
   cmdMenu = new ListMenu<string>([], 5);
-  listMenu = new ListMenu<string>([], 5);
+  // Side view: four rows, so the window beside the command menu stays under the enemies' feet.
+  listMenu = new ListMenu<string>([], SIDE_VIEW ? 4 : 5);
   listKind: 'tech' | 'skill' | 'item' = 'tech';
   private pending: { type: Command['type']; id?: string | undefined; ability: Ability } | null = null;
   targetList: number[] = [];
@@ -1120,13 +1121,19 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   /** Side view: the frame the party began stepping in (-1: they aren't, or already stood). */
   walkStart = -1;
 
-  /** Side view: how far (battle-world pixels) a member still has to walk to their place; 0 once they stand. */
-  sideWalk(u: Combatant): number {
+  /**
+   * Side view: how far (battle-world pixels) the party still has to walk to their places; 0 once they
+   * stand. It is one distance for everyone, so the formation steps in as a unit and keeps its spacing
+   * (members walking from the same edge at the same speed would bunch up and overlap on the way).
+   */
+  sideWalk(): number {
     if (!SIDE_VIEW) return 0;
-    const slot = sideSlot(u.order ?? 0, this.battle.party.length);
+    const n = this.battle.party.length;
+    // The distance the rearmost slot has to cover from just past the right edge; everyone else is that far from their own place.
+    const full = WALK_FROM - sideSlot(n - 1, n).x;
     // Before the walk starts (the first frames of the intro) they are still off the right edge.
-    if (this.walkStart < 0) return this.mode === 'intro' ? WALK_FROM - slot.x : 0;
-    return Math.max(0, WALK_FROM - slot.x - (this.frame - this.walkStart) * WALK_SPEED);
+    if (this.walkStart < 0) return this.mode === 'intro' ? full : 0;
+    return Math.max(0, full - (this.frame - this.walkStart) * WALK_SPEED);
   }
 
   /** The row a party member's soles stand on (battle-world pixels). */

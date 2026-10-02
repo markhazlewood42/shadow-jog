@@ -11,7 +11,7 @@
  * Nothing is repainted by hand: a member is a trace, a scale, a hip row and a chest row.
  */
 import { VIEWS_TRACED } from './data';
-import { byColour, cut, darker, decode, type Layer, legColours, renderLayers, rotSprite, span, type Traced } from './rig';
+import { byColour, cut, decode, type Layer, legColours, renderLayers, rotSprite, shadeMap, span, type Traced } from './rig';
 import { shrink, stripOutline } from './side';
 
 /** The row the soles stand on in the shrunk frame (so a member is ~47 px tall with hair). */
@@ -80,6 +80,11 @@ function headRowOf(c: HTMLCanvasElement, n = 5): number {
   return 0;
 }
 
+const lum = (c: string): number => {
+  const n = Number.parseInt(c.slice(1), 16);
+  return 0.3 * ((n >> 16) & 255) + 0.59 * ((n >> 8) & 255) + 0.11 * (n & 255);
+};
+
 /** A member's side-on battle-scale frames, or null while the views haven't loaded (or the member has none). */
 export function buildSideCrew(key: string): SideCrew | null {
   const views = VIEWS_TRACED[key];
@@ -111,6 +116,10 @@ export function buildSideCrew(key: string): SideCrew | null {
   const chest = Math.round(sw.feet * spec.chest);
   const idle = [draw([base]), draw([stretch(base, [chest])]), draw([stretch(base, [chest, chest - 7])])];
 
+  // The far leg a shade darker, but not the colours that are nearly black already (Hex's trousers and boots
+  // would turn to a muddy blob where the two legs cross).
+  const shade = shadeMap(sw.pal);
+  const dim = (l: Layer): Layer => ({ ...l, px: l.px.map((p) => (p >= 0 && lum(sw.pal[p] ?? '#000000') > 70 ? (shade[p] ?? p) : p)) });
   // Side on: the legs part about the hip, each shifted a pixel its way, the far one darker and behind.
   const STRIDE = 34;
   const near = (deg: number): Layer => {
@@ -118,7 +127,7 @@ export function buildSideCrew(key: string): SideCrew | null {
     return { ...r, ox: r.ox + Math.sign(deg) };
   };
   const far = (deg: number): Layer => {
-    const r = rotSprite(darker(legs, sw.pal), deg, hipX, sw.hip);
+    const r = rotSprite(dim(legs), deg, hipX, sw.hip);
     return { ...r, ox: r.ox + Math.sign(deg) };
   };
   // Facing left: forward is -x, so the near leg's forward swing is a negative turn.
