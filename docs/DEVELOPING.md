@@ -193,6 +193,13 @@ including why it ended at round 12. If a future milestone brings it back:
   or software (slower: `PW_NOGPU=1` reproduces it locally). `e2e/gpufx.spec.ts` skips its WebGL checks where
   there's no WebGL 2 and always checks the fallback.
 - **Evidence runs take ~25 minutes** and use ports 3007/3008; don't start a manual preview on 3008 during one.
+- **`vite.config.ts` edited in several writes** (a script making one replacement at a time) can leave the dev
+  server running a half-edited config. It restarts on the first write and may miss the rest (2026-10-02: one
+  endpoint had the fix and another didn't). Write it in one go, or touch it afterwards, and confirm with a request.
+- **The dev server's write endpoints write real files.** `/__rig/skeleton` writes `public/art/rig/skeleton.json`
+  and `/__artpass/review` writes `media/art-pass/review.json`. Before probing one, back the file up and
+  byte-compare it afterwards; the FX lab has `?dry=1`. All three refuse requests from other sites (`Origin` /
+  `Sec-Fetch-Site`); a script with neither passes.
 
 ---
 
@@ -321,8 +328,18 @@ Mark cancels the plan around 2026-10-30: what it does, what we learned and what 
 ### Rig v2: characters drawn in code
 - **Posing the crew in battle: the animation editor.** `npm run dev`, then `/rigedit.html`. Pick someone and a
   pose; drag the hand (orange) and the elbow bends by itself (IK); drag the elbow (blue) across the arm to flip the
-  bend; the green dot turns the hand and what it holds; sliders for a weapon's angle, a lean, a crouch, the light.
-  The faint figure is the pose the move comes from; "Play the move" loops it at game speed. **Save** writes
+  bend; the green dot turns the hand and what it holds; sliders for a weapon's angle, how far the hand reaches into the screen (also the side view), the light.
+  The faint figure is the pose the move comes from; "Play the move" loops it at game speed. A character with a
+  free arm (Rook) shows its hand as a pink dot: one pose for that arm, shared by every one-handed pose (out for balance), and
+  a "Stance" section bends the knees, spreads the feet and puts the right foot forward for every pose (`free` and
+  `stance` in `skeleton.json`; standing stays as traced). "Both hands on the sword" puts the free hand on the grip in
+  that pose; "Arm length" lets a drawn arm reach overhead or across behind the body. Rook also has a **Raised** pose
+  (`windup`) between Ready and Strike: the battle shows it from halfway through a swing's gather, as its attack
+  frame. **A new field** on a pose, an arm or a stance (in `battle.ts`) also goes into `src/art/rig2/check.ts`.
+  The save refuses data that check doesn't know, and `tests/rigcheck.test.ts` checks the shipped `skeleton.json`
+  against it. His strike poses also lean the body from the hips, drop it and move each foot (`lean`, `drop`, `feet` on a
+  pose, about the stance's `hip` and `neck`; data only, no editor controls yet), and his katana is drawn pixel by
+  pixel in one style, the same at any angle (`katana()` in `battle.ts`). **Save** writes
   `public/art/rig/skeleton.json` (commit it to ship). "Skeleton setup…" moves the rest joints and how far each
   bone's pixels reach (once per character). **Notes for Claude:** each pose has a note box; the notes are saved in
   `skeleton.json` (`notes`), and a session works through them (read the note, change the pose or the skeleton,

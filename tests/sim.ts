@@ -298,6 +298,17 @@ export interface Supplies {
   neurotab?: number;
 }
 
+/** An encounter group by its weight, as the game picks them (tables.ts `pickGroup`), from the sim's own RNG. */
+function weighted<T extends { w: number }>(rng: Rng, groups: readonly T[]): T {
+  const total = groups.reduce((n, g) => n + g.w, 0);
+  let r = rng.next() * total;
+  for (const g of groups) {
+    r -= g.w;
+    if (r <= 0) return g;
+  }
+  return groups[0] as T;
+}
+
 /**
  * Dungeon attrition: `battles` fights in a row with no rest. HP/TP/skill uses carry over, and
  * the policy conserves TP for what needs it. Between fights the player field-heals (Mend /
@@ -315,7 +326,7 @@ export function simulateRun(label: string, loadout: Loadout[], table: string, ba
     const bag = { ...kit, detox: kit.detox ?? 0, neurotab: kit.neurotab ?? 0 };
     let ok = true;
     for (let k = 0; k < battles; k++) {
-      const g = rng.pick(groups);
+      const g = weighted(rng, groups);
       const b = new Battle(p, enemyParty(g.e), new Rng(rng.int(1, 1e9)), { useItem: () => take(bag) && ++used > 0 });
       // Combos too, as a player would: the everyday ones draw on Rook's charges and stop when
       // his reserve runs low, which is the dungeon's real budget.

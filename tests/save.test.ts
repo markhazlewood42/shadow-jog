@@ -90,6 +90,33 @@ describe('save / load', () => {
     expect(loadSave(3)).toBeNull();
   });
 
+  it('rejects a member whose equipment or skill charges are not plain objects', () => {
+    const kit = stateMod.state.members.kit as unknown as Record<string, unknown>;
+    for (const bad of [true, 1, 'x', null, []]) {
+      const keep = kit.uses;
+      kit.uses = bad;
+      expect(validState(stateMod.state)).toBe(false);
+      kit.uses = keep;
+    }
+    const equip = kit.equip;
+    kit.equip = null;
+    expect(validState(stateMod.state)).toBe(false);
+    kit.equip = equip;
+    expect(validState(stateMod.state)).toBe(true);
+    // A member out of the party is checked too: loading reconciles every stored member.
+    const st = stateMod.state;
+    const benched = { ...(st.members.kit as object), id: 'sable', uses: true } as unknown as NonNullable<typeof st.members.sable>;
+    const party = st.party;
+    st.party = party.filter((id) => id !== 'sable');
+    const had = st.members.sable;
+    st.members.sable = benched;
+    expect(validState(st)).toBe(false);
+    if (had) st.members.sable = had;
+    else delete st.members.sable;
+    st.party = party;
+    expect(validState(st)).toBe(true);
+  });
+
   it('rejects saves pointing at unknown maps', () => {
     stateMod.state.map = 'no_such_map';
     expect(validState(stateMod.state)).toBe(false);

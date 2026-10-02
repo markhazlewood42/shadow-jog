@@ -94,15 +94,27 @@ export const settle = (n) => {
   reserved = Math.max(0, reserved - n);
 };
 
-/** Stop before a job that could take the balance below FLOOR. */
-export async function guard(estimate, what) {
-  const left = (await balance()) - reserved;
-  if (left - estimate < FLOOR) {
-    const e = new Error(`budget: ${what} (~${estimate}) would take the balance from ${left} below ${FLOOR}`);
-    e.budget = true;
-    throw e;
-  }
-  return left;
+/**
+ * Stop before a job that could take the balance below FLOOR, else reserve its estimate (the caller
+ * settles it when the job finishes). Guards run one at a time, the balance check and the
+ * reservation together, so each sees the reservations made before it: concurrent calls (the passes
+ * run several) can't all pass against the same balance and spend below the floor together
+ * (Copilot review of main, 2026-10-02). Returns the balance left before this job.
+ */
+let guarding = Promise.resolve();
+export function guard(estimate, what) {
+  const run = guarding.then(async () => {
+    const left = (await balance()) - reserved;
+    if (left - estimate < FLOOR) {
+      const e = new Error(`budget: ${what} (~${estimate}) would take the balance from ${left} below ${FLOOR}`);
+      e.budget = true;
+      throw e;
+    }
+    reserve(estimate);
+    return left;
+  });
+  guarding = run.catch(() => {});
+  return run;
 }
 
 export function ledger(entry) {
@@ -120,7 +132,6 @@ export async function spend(what, estimate, method, path, body, slots = 1) {
   let res;
   try {
     before = await guard(estimate, what);
-    reserve(estimate);
     try {
       res = await api(method, path, body);
     } catch (e) {

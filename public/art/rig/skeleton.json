@@ -124,8 +124,8 @@
    },
    "strike": {
     "hand": [
-     89,
-     25
+     85,
+     42
     ],
     "light": "impact",
     "lightAt": "hand",
@@ -139,19 +139,22 @@
       116,
       35
      ]
-    }
+    },
+    "depth": 26,
+    "grip": -46
    },
    "raise": {
     "hand": [
      84,
-     19
+     28
     ],
     "lightAt": "tip",
     "behind": true,
     "flip": false,
     "shape": "open",
     "light": "spark",
-    "grip": 12
+    "grip": 12,
+    "depth": 20
    },
    "victory": {
     "hand": [
@@ -166,57 +169,76 @@
  "rook": {
   "arm": {
    "shoulder": [
-    83,
-    56
+    76,
+    49
    ],
    "elbow": [
-    85,
-    66
+    83,
+    60
    ],
    "wrist": [
-    85,
-    74
+    87,
+    75
    ],
    "box": [
-    77,
-    54,
+    71,
+    43,
     93,
-    82
+    62
    ],
-   "keep": [
-    [
-     70,
-     60
-    ],
-    [
-     72,
-     76
-    ],
-    [
-     64,
-     50
-    ],
-    [
-     60,
-     84
-    ],
-    [
-     74,
-     88
-    ]
-   ],
+   "keep": [],
    "reach": [
-    4,
+    12,
     4
    ],
    "hand": [
-    79,
-    73,
+    80,
+    72,
     93,
-    82
+    79
    ],
-   "sleeve": "#9a9aa8",
-   "width": 6
+   "sleeve": "#6d713f",
+   "width": 7,
+   "clear": true,
+   "fill": [
+    43,
+    61,
+    2,
+    7
+   ],
+   "more": [
+    [
+     78,
+     62,
+     93,
+     79
+    ]
+   ],
+   "fore": "#9a9aa8",
+   "foreWidth": 5,
+   "drawnFrom": 30,
+   "fist": {
+    "rows": [
+     ".BCBC.",
+     "BABBCD",
+     "BAABCD",
+     "BBBCCD",
+     ".BCCD.",
+     "..CD.."
+    ],
+    "colors": {
+     "A": "#f2f1f4",
+     "B": "#b6b9c3",
+     "C": "#9fa0a9",
+     "D": "#72747e"
+    },
+    "pivot": [
+     3,
+     5
+    ]
+   },
+   "shoulderWidth": 9,
+   "outline": true
   },
   "hide": {
    "box": [
@@ -248,25 +270,112 @@
   "poses": {
    "brace": {
     "hand": [
-     93,
-     60
+     80,
+     40
     ],
+    "flip": true,
     "weapon": {
      "kind": "katana",
-     "angle": -156
+     "angle": 42
+    },
+    "both": true,
+    "freeBehind": true,
+    "lean": 3,
+    "feet": {
+     "left": [
+      -3,
+      -2
+     ],
+     "right": [
+      4,
+      1
+     ]
+    },
+    "coat": {
+     "flare": [
+      2,
+      3
+     ],
+     "split": 5
+    }
+   },
+   "windup": {
+    "hand": [
+     64,
+     20
+    ],
+    "flip": true,
+    "weapon": {
+     "kind": "katana",
+     "angle": -118
+    },
+    "both": true,
+    "freeFlip": true,
+    "length": 1.4,
+    "lean": 5,
+    "feet": {
+     "left": [
+      -3,
+      -2
+     ],
+     "right": [
+      4,
+      1
+     ]
+    },
+    "coat": {
+     "flare": [
+      2,
+      3
+     ],
+     "split": 5
     }
    },
    "strike": {
     "hand": [
-     97,
-     30
+     38,
+     76
     ],
     "weapon": {
      "kind": "katana",
-     "angle": -90
+     "angle": -28
     },
+    "both": true,
+    "freeBehind": true,
+    "freeFlip": true,
+    "behind": true,
+    "length": 1.6,
     "light": "impact",
-    "lightAt": "tip"
+    "lightAt": "tip",
+    "arc": {
+     "from": [
+      108,
+      10
+     ],
+     "bend": [
+      36,
+      2
+     ]
+    },
+    "lean": -10,
+    "drop": 4,
+    "feet": {
+     "left": [
+      -7,
+      1
+     ],
+     "right": [
+      4,
+      -3
+     ]
+    },
+    "coat": {
+     "flare": [
+      6,
+      4
+     ],
+     "split": 10
+    }
    },
    "raise": {
     "hand": [
@@ -292,6 +401,134 @@
     "light": "spark",
     "lightAt": "tip"
    }
+  },
+  "free": {
+   "arm": {
+    "shoulder": [
+     42,
+     51
+    ],
+    "elbow": [
+     40,
+     64
+    ],
+    "wrist": [
+     41,
+     78
+    ],
+    "box": [
+     37,
+     50,
+     49,
+     72
+    ],
+    "more": [
+     [
+      37,
+      72,
+      47,
+      78
+     ]
+    ],
+    "keep": [
+     [
+      47,
+      50
+     ],
+     [
+      51,
+      56
+     ],
+     [
+      52,
+      56
+     ]
+    ],
+    "reach": [
+     0,
+     0
+    ],
+    "hand": [
+     37,
+     68,
+     47,
+     78
+    ],
+    "sleeve": "#6d713f",
+    "width": 7,
+    "clear": true,
+    "side": [
+     45,
+     51,
+     47,
+     77
+    ],
+    "fist": {
+     "rows": [
+      ".BCBC.",
+      "BABBCD",
+      "BAABCD",
+      "BBBCCD",
+      ".BCCD.",
+      "..CD.."
+     ],
+     "colors": {
+      "A": "#f4c890",
+      "B": "#f5bb70",
+      "C": "#e5a862",
+      "D": "#c6661e"
+     },
+     "pivot": [
+      3,
+      5
+     ]
+    },
+    "open": {
+     "rows": [
+      ".B.B.",
+      "ABBBC",
+      "ABBBC",
+      "ABBCC.",
+      "ABBCCB",
+      ".BBCD.",
+      "..CD.."
+     ],
+     "colors": {
+      "A": "#f4c890",
+      "B": "#f5bb70",
+      "C": "#e5a862",
+      "D": "#c6661e"
+     },
+     "pivot": [
+      2.5,
+      6
+     ]
+    },
+    "shoulderWidth": 10,
+    "outline": true
+   },
+   "pose": {
+    "hand": [
+     22,
+     60
+    ],
+    "shape": "open"
+   }
+  },
+  "stance": {
+   "legs": 96,
+   "sink": 2,
+   "spread": 2,
+   "stagger": 2,
+   "hip": [
+    62,
+    82
+   ],
+   "neck": [
+    64,
+    41
+   ],
+   "waist": 74
   }
  },
  "hex": {

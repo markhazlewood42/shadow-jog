@@ -3,7 +3,7 @@ type: status
 title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-09-30
+updated: 2026-10-02
 tags: [status]
 ---
 
@@ -13,10 +13,11 @@ Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. C
 (Lantern Row), the world map (the Sprawl), an outpost (the Rustyard) and a two-floor dungeon (the Sinkline B1 and
 K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
-**GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog) (public). CI: GitHub Actions
-on every push to `main`.
+**GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog) (public).
+- **CI:** GitHub Actions, on pushes to `main` and on pull requests.
+- **Since 2026-10-01** work goes on a branch per major feature, with a PR for Copilot review, and Mark merges.
 
-## Where we left off (2026-09-30, afternoon)
+## Where we left off (2026-10-02)
 
 ### The whole process so far
 1. **Build (2026-09-27 → 28).** From the original prompt (`docs/original-prompt.md`) to a content-complete chapter:
@@ -52,6 +53,22 @@ on every push to `main`.
    scored round: Mark didn't ask for one).
 
 ### Right now
+- **Copilot review of `main` addressed (2026-10-02, Mark's review), in PR #1 with Rook:**
+  - the dev server's write endpoints refuse requests from other sites
+  - the animation editor's save checks the whole skeleton (`src/art/rig2/check.ts`) and refuses an empty or partial
+    save
+  - the PixelLab budget guard runs one call at a time
+  - the editor's cache keeps one unsaved skeleton per character
+  - a save whose member maps aren't objects fails validation
+  - the dungeon simulator weights encounter groups as the game does
+
+  **Copilot's review of PR #1:** two findings, both fixed and their threads resolved:
+  - save validation now covers members out of the party
+  - a skeleton save whose JSON isn't an object gets a clean 400 instead of a crash
+
+  **PR #1 is ready for Mark to merge.**
+
+  **Bundle:** 233.4 of 236 kB. The next big feature will likely need the budget raised.
 - **GPU effects layer: first slice in (2026-09-30).** A WebGL 2 presenter over the Canvas 2D game (not the PixiJS
   rewrite): real bloom on neon, lamps and spells, shockwaves, a colour split on big impacts, and GPU particles from
   data presets (`src/data/emitters.ts`), wired to battle moments (`battlekit/gpufx.ts`). Options → GPU effects
@@ -84,18 +101,41 @@ on every push to `main`.
   effects: heat haze, glitch, stage dim, inward-gathering particles. All tunable in the FX lab (new Spells tab;
   `cast.*`/`spell.*` moments). **Next for Mark:** cast them in the lab (DEV menu → FX lab → Spells) and in a
   battle, and say what to push further; then the combos, the enemy casters and the rest of the moves.
-- **Skeleton and animation editor: first build done (2026-09-30, night).** The crew's battle arms are bones now
-  (`skeleton.json`; limbs can't stretch) and `/rigedit.html` poses them (drag the hand; notes per pose for Claude;
-  Save writes the file). (A live "Ask Claude to fix it" button was built and removed on 2026-10-01: Mark didn't use
-  it; the per-pose notes for a session remain.)
-  The poses are the old ones converted, waiting on Mark's eye. **Next in this thread:** his pass in the editor
-  (2026-10-01: **Kit done for now, Mark happy with her**: her jacket sleeve moves with her arm, drawn clean past
-  30° and traced below, torso filled when the arm leaves; a round wrapped fist and an open hand (her Cast) drawn
-  in code; his poses saved, including a hand-placed swept arc on her strike. Editor additions: a turntable of
-  each crew member's 8 drawn views, a Hand choice per pose, draggable arc handles. Rook, Hex and Sable next); then in-betweens (tweening between key poses) and the field
-  sprites on the same bones. **Pinned (Mark, 2026-10-01): a 2.5D depth prototype on Kit's strike** (a depth
-  control for the hand: the arm foreshortens reaching into the screen, the fist shrinks a little, draw order
-  follows depth; maybe a drawn end-on fist swapped in), after the current kinks are worked out.
+- **Skeleton and animation editor (since 2026-09-30).**
+  - **How it works:** the crew's battle arms are bones (`skeleton.json`; limbs can't stretch), and
+    `/rigedit.html` poses them. Drag the hand, leave notes per pose for Claude, and Save writes the file.
+  - **Added since:**
+    - a turntable of each crew member's 8 drawn views
+    - a Hand choice per pose
+    - draggable arc handles
+    - a 2.5D "Reach forward" with a side view
+    - free-arm handles and stance sliders
+    - two-hand and arm-length controls
+    - a Raised pose
+  - **Removed:** "Ask Claude to fix it" (2026-10-01), because Mark didn't use it.
+  - **Kit: done for now** (2026-10-01; Mark happy with her):
+    - her jacket sleeve moves with her arm, drawn clean past 30° and traced below
+    - her torso is filled where the arm leaves it
+    - a round wrapped fist and an open hand (her Cast) are drawn in code
+    - a hand-placed swept arc on her strike
+  - **Rook: a first cut of a two-handed kendo strike, in
+    [PR #1](https://github.com/markhazlewood42/shadow-jog/pull/1)** (branch `rook-battle-rig`, opened 2026-10-02
+    for Copilot review; Mark merges). From Mark's kendo and Phantasy Star IV (Chaz) references:
+    - **Ready:** the sword up by his right shoulder.
+    - **Raised (new):** overhead, the blade dropped down his back.
+    - **Strike:** both hands low on his left, a big arc from his upper right.
+    - **The katana** is drawn pixel by pixel, so it's the same thickness and length in every frame.
+    - **The body** leans from the hips (right on the way up, left into the cut), the head half as far. His feet
+      turn with it, and his coat flares into an A-line with a vent.
+    - **His left arm** is out for balance in one-handed poses and on the grip in two-handed ones.
+    - **Overhead,** his arms are drawn about 1.5x longer, because his traced arms are short for his big head.
+    - **Not done:** Cast and Victory aren't tuned yet (Mark: strike first).
+    - **Open for Mark:** the amount of lean, the longer arm overhead, and the coat flare.
+    - (A stray move of Kit's strike hand in the working copy was reverted: Mark said it was an accident.)
+  - **Next:**
+    - Mark's notes on Rook's strike, then Rook's Cast and Victory
+    - Hex and Sable
+    - in-betweens (tweening between key poses), and the field sprites on the same bones
 - **Next (Mark, 2026-09-30, night): a skeleton rig, then a novice-friendly animation editor.** Battle limbs stretch
   today (the forearm is a band from a fixed elbow to wherever the hand goes); fixed-length bones fix that by
   construction. Then an editor page (dev only): pick a character and pose, drag a hand and the elbow bends (IK),

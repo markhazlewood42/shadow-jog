@@ -24,6 +24,11 @@ export interface Battler {
   headH: number;
   /** Art pixels per battle pixel (1, or 2 for drawn art at the field's pixel size). */
   res?: number | undefined;
+  /**
+   * The attack frame is a wind-up of its own (rig v2's Raised pose: Rook's sword drawn back over his
+   * head), shown from halfway through a swing's gather, not just its brief raise beat.
+   */
+  windup?: boolean | undefined;
 }
 
 type Weapon = 'fists' | 'katana' | 'pistol' | 'staff';
