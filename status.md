@@ -53,7 +53,11 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
    scored round: Mark didn't ask for one).
 
 ### Right now
-- **Copilot review of `main` addressed (2026-10-02, Mark's review), in PR #1 with Rook:**
+- **Phase 0.2 (the pivot phase) opened 2026-10-02.** Mark is exploring three pivots: a side-on or 3/4 battle view at smaller scale, a Phaser port, and Sprite Fusion as the AI art generator. The plan, verdicts and open decisions are in `docs/PHASE-0.2.md`.
+  - **Decided so far:** freeze today's game as v0.1.0 and number the new phase 0.2 (new work is features, so it's a minor bump, not 0.1.1); dependencies are fine if they're high quality and free (Mark: "dependency free" was never his requirement); the Phantasy Star IV feel is the loop (combos, panels, cut-ins, pacing), not the over-the-shoulder camera, which can go if the side-view spike passes. Mark also expects side-on to make everything easier overall, since the pixel-art community has far more side-view references and assets, and he wants battle sprites a little more detailed than field sprites for personality and ambience.
+  - **Release path:** the release-prep PR (branch `release-prep-0.1.0`) → Mark merges → annotated tag `v0.1.0` plus a GitHub pre-release on the merge commit → a PR bumping `main` to `0.2.0-dev`. Tags and releases will be listed in `CHANGELOG.md`.
+  - **Dependency policy:** the old "zero runtime dependencies" wording was an AI choice, not Mark's rule.
+- **Copilot review of `main` addressed (2026-10-02, Mark's review), merged with Rook in PR #1:**
   - the dev server's write endpoints refuse requests from other sites
   - the animation editor's save checks the whole skeleton (`src/art/rig2/check.ts`) and refuses an empty or partial
     save
@@ -66,9 +70,9 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
   - save validation now covers members out of the party
   - a skeleton save whose JSON isn't an object gets a clean 400 instead of a crash
 
-  **PR #1 is ready for Mark to merge.**
+  **PR #1 merged 2026-10-02.**
 
-  **Bundle:** 233.4 of 236 kB. The next big feature will likely need the budget raised.
+  **Bundle:** 233.4 of 236 kB. The 236 kB budget (`scripts/bundle-budget.mjs`) is a size alarm to re-set on purpose with the player download in mind, not a hard cap; the next big feature (Phaser would take it to roughly 420–500 kB) will likely need it raised.
 - **GPU effects layer: first slice in (2026-09-30).** A WebGL 2 presenter over the Canvas 2D game (not the PixiJS
   rewrite): real bloom on neon, lamps and spells, shockwaves, a colour split on big impacts, and GPU particles from
   data presets (`src/data/emitters.ts`), wired to battle moments (`battlekit/gpufx.ts`). Options → GPU effects
@@ -118,9 +122,7 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
     - her torso is filled where the arm leaves it
     - a round wrapped fist and an open hand (her Cast) are drawn in code
     - a hand-placed swept arc on her strike
-  - **Rook: a first cut of a two-handed kendo strike, in
-    [PR #1](https://github.com/markhazlewood42/shadow-jog/pull/1)** (branch `rook-battle-rig`, opened 2026-10-02
-    for Copilot review; Mark merges). From Mark's kendo and Phantasy Star IV (Chaz) references:
+  - **Rook: a first cut of a two-handed kendo strike, in [PR #1](https://github.com/markhazlewood42/shadow-jog/pull/1)** (branch `rook-battle-rig`, merged 2026-10-02). From Mark's kendo and Phantasy Star IV (Chaz) references:
     - **Ready:** the sword up by his right shoulder.
     - **Raised (new):** overhead, the blade dropped down his back.
     - **Strike:** both hands low on his left, a big arc from his upper right.
@@ -254,26 +256,25 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
   current renderer, no port); a one-battle Unity spike before any port.
 - **State at this handoff:** see the end of this section's commit (`git log -1`); CI runs on every push.
 
-### What happens next, in order
-1. **Mark reviews the art pass** (`/artreview.html`), then **integration**: read his picks and notes
-   (`node scripts/pixellab/status.mjs --review`), regenerate what he asks for (the month's other ~1,000 generations,
-   his call), then put the picks into the game for real (the integration questions are above).
-2. **Random-NPC generator prototype** (Mark, 2026-09-30: "try the small prototype after this pass of art review is
-   done"). Townsfolk made from one clean PixelLab base body plus outfit variants, recoloured at runtime, instead of a
-   fixed set of sprites. Scope: one base townsperson with a clean walk; about 4 outfit variants through PixelLab's
-   `/create-character-state` (a text edit applied across all directions) and `/transfer-outfit-v2` or
-   `/edit-animation-v2` (re-dress the walk keeping its motion), neither tested yet; a recolouring step (skin, hair,
-   clothes in known colour slots) hooked into the existing `randomLook(seed)` crowd code (`src/art/chars.ts`,
-   `src/data/looks.ts`); tried in game on Lantern Row. **Price it first** (guess: 40–60 generations). Story and named
-   characters stay hand-picked. Background: `docs/CONCEPTS.md` ("Paper-doll characters", "Palette swap").
-3. **Mark's next playthrough**: new notes are the work queue, same process (triage, fix, one verification round if he
-   asks for it).
-4. **Triage round 13's design notes** with Mark (`reviews/round-13.md`): the lift scene's motivation (Narrative's
-   cap), trash-fight depth and a Lurker tell, the Rustyard scrap heaps and Sprawl rooftops, party back-sprites that
-   cover enemies, menu transitions, a real (unforced) E2E playthrough.
-5. **Mark's reviews**: `docs/quality/GRADING.md`, `docs/GLOSSARY.md` ([review] marks), `docs/SETTING.md` ([new]).
-6. **Ship the alpha**: shadowjog.com with the secure email sign-up. **Only with Mark's go-ahead.**
-7. **Chapter 2, "Deniable Assets"**: getting Rook back (seeds in `docs/SETTING.md` §10).
+### What happens next
+**The proposed pivot sequence** (from `docs/PHASE-0.2.md`, "How the three fit together"; everything after the v0.1.0 release work depends on open decisions 3–6):
+1. **Now:** the release-prep PR, then tag v0.1.0 (go-ahead), then the bump to 0.2.0-dev. Pause Hex/Sable back-view tuning (decision 3, still open). Mark turns off PixelLab auto-renew himself if he picks 5(a) or 5(b).
+2. **Week 1:** the side-view battle spike (3 days, if decision 3 is (a)) in parallel with Sprite Fusion Phase A (if decision 4 is (a) or (b)). Mark picks view and size from the comparison sheet.
+3. **Week 2:** the Phaser spike (4 sessions at most, if decision 6 is (a)) with the native slice built on the chosen look; Sprite Fusion Phase B alongside. Mark picks the engine for the production battle scene.
+4. **Weeks 3–5 (inferred):** the production battle view behind `?battle=side`, then it becomes the default.
+5. **Before 10-30:** use any PixelLab generations Mark wants to keep.
+6. **End:** Mark's playthrough, then the v0.2.0 tag (go-ahead).
+
+**Still open from before the pivots; where they fit around the spikes is Mark's call:**
+- **Art pass review and integration.** Mark reviews `/artreview.html`; then read his picks and notes (`node scripts/pixellab/status.mjs --review`), regenerate what he asks for (the month's other ~1,000 generations, his call), and put the picks into the game (the integration questions are above).
+- **Random-NPC generator prototype** (Mark, 2026-09-30: "try the small prototype after this pass of art review is done"). Townsfolk made from one clean PixelLab base body plus outfit variants, recoloured at runtime, instead of a fixed set of sprites. Scope: one base townsperson with a clean walk; about 4 outfit variants through PixelLab's `/create-character-state` and `/transfer-outfit-v2` or `/edit-animation-v2` (neither tested yet); a recolouring step hooked into the existing `randomLook(seed)` crowd code (`src/art/chars.ts`, `src/data/looks.ts`); tried in game on Lantern Row. **Price it first** (guess: 40–60 generations). Story and named characters stay hand-picked. Background: `docs/CONCEPTS.md` ("Paper-doll characters", "Palette swap").
+- **Mark's next playthrough:** new notes are the work queue (including the scrap-hounds note), same process: triage, fix, one verification round if he asks.
+- **Triage round 13's design notes** with Mark (`reviews/round-13.md`): the lift scene's motivation (Narrative's cap), trash-fight depth and a Lurker tell, the Rustyard scrap heaps and Sprawl rooftops, party back-sprites that cover enemies, menu transitions, a real (unforced) E2E playthrough.
+- **Mark's doc reviews:** `docs/quality/GRADING.md`, `docs/GLOSSARY.md` ([review] marks), `docs/SETTING.md` ([new]).
+- **Ship the alpha** to shadowjog.com with the secure email sign-up, only with Mark's go-ahead.
+- **Chapter 2, "Deniable Assets":** getting Rook back (seeds in `docs/SETTING.md` §10).
+
+**Mark's open decisions in the plan** (`docs/PHASE-0.2.md`, "Decisions for Mark"): 3 pause the back-view rig for the side-view spike; 4 Sprite Fusion month and what its output may become; 5 PixelLab end-of-plan use; 6 Phaser spike timing; 8 what happens to the humanoid enemies. Decisions 1, 2 and 7 are settled.
 
 ### Known gaps (from round 13; none are bugs)
 - Battle presentation (7.5): the party are back-of-head sprites that cover enemies; creatures are finer than the party
@@ -307,8 +308,7 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
 
 ## Architecture (summary; full version in docs/ARCHITECTURE.md)
 
-- Vite + TypeScript (strict), zero runtime deps, Canvas 2D at 480x270. Audio is generated in code; art is generated in
-  code with Mark's picks from the PixelLab pass loaded over it (`public/art/`, `src/art/drawn.ts`).
+- Vite + TypeScript (strict), no runtime dependencies so far (high-quality free ones are fine), Canvas 2D at 480x270. Audio is generated in code; art is generated in code with Mark's picks from the PixelLab pass loaded over it (`public/art/`, `src/art/drawn.ts`).
 - `src/engine/`: loop, scene stack, input, bitmap font, display scaling; the optional GPU effects layer
   (`postfx.ts`, `gl/presenter.ts`, `particles.ts`).
 - `src/field/`: map baking (tiles, buildings, props), light map, weather, actors, chests.

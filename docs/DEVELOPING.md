@@ -367,3 +367,38 @@ fixture.
 ### A new screenshot
 A `test()` in `e2e/shots.spec.ts` using `open(page, stage)`, `sj(page, …)` and `shot(page, name)`; if reviewers
 should see it, add it to an area's list in `scripts/verifier-prompts.py`.
+
+---
+
+## 9. Versions, releases and spikes
+
+The why (and the decisions behind it) is in `docs/PHASE-0.2.md`, "Versioning and releases". This is the how-to.
+
+**Where the version lives.** `package.json` `"version"` is the only place to edit it. Vite's `define:` injects it (plus the short git SHA) at build time, `src/version.ts` re-exports it, and it shows on the title screen and in the DEV tab, and `window.__SJ__.version` exposes it on the dev server (never in the shipped game) so test runs and playtest notes can name their build.
+
+**Minor or patch while 0.x.** Minor (0.2.0 to 0.3.0) is anything a player would call a different build: a battle view, an engine, a new chapter or zone, a new system, a save reshape, a new art pipeline. Patch (0.2.0 to 0.2.1) is fixes, balance numbers, copy, and art swaps that change no system. Day-to-day work on `main` carries a `-dev` suffix (`0.2.0-dev`). The major number stays 0 until Mark says 1.0.
+
+**Changelog.** `CHANGELOG.md` is Keep a Changelog 1.1.0: `Unreleased` on top, ISO dates, headings Added / Changed / Deprecated / Removed / Fixed / Security. Every feature PR adds its entry under `Unreleased`.
+
+### Cutting a release
+
+Mark's playtest and go-ahead come first. Pushing a tag and creating a GitHub Release each need his explicit yes.
+
+1. Move the `Unreleased` entries under a new `[X.Y.Z] - date` heading in `CHANGELOG.md` and set `"version"` in `package.json`.
+2. Open the PR. Mark merges it.
+3. Tag the merge commit, annotated: `git tag -a vX.Y.Z -m "Shadow Jog X.Y.Z: one-line summary" <merge-sha>`.
+4. Push the tag: `git push origin vX.Y.Z`. A pushed release tag is never moved or deleted.
+5. `gh release create vX.Y.Z --prerelease --notes-file <notes.md>`. The whole 0.x line is marked pre-release.
+6. A small follow-up PR bumps `"version"` to the next `-dev` (for example `0.2.0-dev`).
+
+`snapshot/*` tags are dated checkpoints and `archive/*` tags are abandoned spikes. `v*` is the only release prefix.
+
+### Spikes
+
+A spike is a time-boxed experiment that answers one question. It lives on a `spike/<topic>` branch with a **draft PR that is never merged**; if it works, the good parts are rebuilt on a normal feature branch. Before any spike code, commit `docs/spikes/<topic>.md` with the question, time box and dated exit criteria (template and rules: `docs/spikes/README.md`). Any deploy of a spike build, even a preview URL, needs Mark's go-ahead.
+
+To abandon one: fill in the Result section of its doc (ABANDONED, date, reason, numbers), tag the branch tip `archive/<topic>-YYYY-MM-DD` (pushing it needs Mark's go-ahead), close the draft PR, delete the branch, and note it in `docs/spikes/`.
+
+### Save policy
+
+`SAVE_VERSION` (`src/game/state.ts`) is independent of the app version. Bump it only when a field is renamed or reshaped, and add a `MIGRATIONS[oldVersion]` step plus a unit test against a fixture save from the previous version (see "A new save field" in section 8). Purely additive fields need no bump: `backfill()` fills them in. A newer 0.x build must load any older 0.x save. Wipes happen only on purpose, announced in-game and in the changelog, never from a half-working migration.
