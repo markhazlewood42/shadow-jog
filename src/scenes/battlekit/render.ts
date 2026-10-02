@@ -3,13 +3,13 @@
  * from the scene's state. The scene (scenes/battle.ts) owns state and flow (command entry, the
  * round, playback); this owns pixels. It reads the scene, and never changes game state.
  */
-import type { Pose } from '../../art/battlers';
+import type { Battler, Pose } from '../../art/battlers';
 import { enemyArt } from '../../art/enemies';
 import { getPortrait } from '../../art/portraits';
 import type { Combatant, Command, Element } from '../../battle/types';
 import { ABILITIES } from '../../data/abilities';
 import { PARTY_POSE_T, swingBeat } from './motion';
-import { kataBeat } from '../../art/rig2/sidekata';
+import { type KataBeat, KATA_MEASURED, kataBeat } from '../../art/rig2/sidekata';
 import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
@@ -298,7 +298,7 @@ export class BattleRenderer {
         g.fillRect(Math.round(cx - art.shadow / 2 + 4), gy + 3, art.shadow - 8, 1);
       }
     }
-    let alpha = dd.alpha;
+    let alpha = dd.alpha * this.dimFactor(e.uid);
     if (art.idle === 'flicker') alpha *= 0.82 + 0.18 * Math.sin(f * 0.2 + e.uid);
     if (dd.dying > 0) {
       // Defeat: a brief white blink over the intact sprite, then it breaks up block by block
@@ -378,6 +378,102 @@ export class BattleRenderer {
     }
   }
 
+  /** Side view, Rook's kendo strike: where the pose is (null when he is not mid-strike). */
+  private kataOf(uid: number): KataBeat | null {
+    if (!SIDE_VIEW) return null;
+    const dd = this.s.d(uid);
+    if (!this.s.partyArt.get(uid)?.kata || dd.strikeAt === undefined || dd.poseT <= 0 || dd.poseT > (dd.poseLen ?? 0)) return null;
+    return kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt);
+  }
+
+  /** How much of an enemy shows: halved while Rook's body is on it (the dash and the return pass in front of the line, and an enemy he is not hitting must not hide his blade). */
+  private dimFactor(uid: number): number {
+    if (!SIDE_VIEW) return 1;
+    let k = 1;
+    for (const p of this.s.battle.party) {
+      const kb = this.kataOf(p.uid);
+      const dd = this.s.d(p.uid);
+      if (!kb || kb.lunge < 0.15 || dd.target === uid) continue;
+      const box = this.s.enemyBox(uid);
+      if (!box) continue;
+      // His body is about 12 world px wide; the shading ramps in over the first few pixels of overlap.
+      const rx = this.s.partyPos(p).x + kb.lunge * (dd.reachX ?? 0);
+      const over = Math.min(rx + 7, box.x1) - Math.max(rx - 7, box.x0);
+      k = Math.min(k, 1 - 0.5 * Math.max(0, Math.min(1, over / 5)));
+    }
+    return k;
+  }
+
+  /** Side view: the screen box (pixels) round a lunging Rook, or null; enemy health bars inside it fade so he does not run under one. */
+  private lungeBox(): [number, number, number, number] | null {
+    for (const p of this.s.battle.party) {
+      const kb = this.kataOf(p.uid);
+      if (!kb || kb.lunge < 0.05) continue;
+      const dd = this.s.d(p.uid);
+      const cx = (this.s.partyPos(p).x + kb.lunge * (dd.reachX ?? 0)) * 2;
+      const feet = (this.s.partyFeet(p) + kb.lunge * (dd.reachY ?? 0)) * 2;
+      return [cx - 18, feet - 66, cx + 18, feet + 2];
+    }
+    return null;
+  }
+
+  /** A round blob in screen pixels at a world position (the layer is at a 2x transform, so a screen pixel is half a world pixel). */
+  private blob(g: Ctx, cx: number, cy: number, r: number, color: string): void {
+    g.fillStyle = color;
+    for (let sy = -r; sy <= r; sy++) {
+      const w = Math.floor(Math.sqrt(r * r - sy * sy));
+      g.fillRect(Math.round(cx * 2 - w) / 2, Math.round(cy * 2 + sy) / 2, (2 * w + 1) / 2, 0.5);
+    }
+  }
+
+  /** The strike's own effects: speed ghosts filling the lunge's gaps, the blade's flare at contact, the dust where the front foot stamps. */
+  private drawKataFx(g: Ctx, p: Combatant, art: Battler, kb: KataBeat, frame: HTMLCanvasElement, x: number, y: number, res: number, ox: number, walkLeft: number, lungeY: number, cx2: number): void {
+    const dd = this.s.d(p.uid);
+    const pos = this.s.partyPos(p);
+    const k = (dd.poseLen ?? 0) - dd.poseT;
+    // Two ghosts on the cuts and the first frames of the blow: the body where it was one and two pose frames ago (its own pose, without the smear), the pale of the slash.
+    const plain = art.kataPlain;
+    if (plain && (kb.dash || (kb.key === 'contact' && kb.t < 2))) {
+      for (let n = 2; n >= 1; n--) {
+        const kp = kataBeat(Math.max(0, k - n), dd.strikeAt ?? 0);
+        if (kp.step === kb.step && kp.t === kb.t) continue;
+        const gx = Math.round((pos.x - frame.width / res / 2 + ox + walkLeft + kp.lunge * (dd.reachX ?? 0)) * 2) / 2;
+        const gy = y + (kp.lunge - kb.lunge) * (dd.reachY ?? 0);
+        g.globalAlpha = n === 1 ? 0.4 : 0.2;
+        putArt(g, silhouetteCache(plain[kp.key], '#e8f0ff'), gx, gy, res);
+      }
+      g.globalAlpha = 1;
+    }
+    if (kb.key !== 'contact') return;
+    const gy2 = Math.round(this.s.partyFeet(p) - 1 + lungeY);
+    // The blade's flare: bright streaks along it for the first frames of the blow, so the steel is seen before the flash.
+    if (kb.t < 3) {
+      const tx = x + frame.width / res / 2 - KATA_MEASURED.tipReach / res;
+      const ty = y + (frame.height - KATA_MEASURED.tipUp) / res;
+      g.fillStyle = '#ffffff';
+      g.globalAlpha = 0.95 - kb.t * 0.3;
+      for (const [dy, len] of [[-2.5, 12], [3.5, 9], [-4.5, 6]] as const) g.fillRect(Math.round((tx + 1) * 2) / 2, Math.round((ty + dy) * 2) / 2, len - kb.t * 2, 0.5);
+      g.globalAlpha = 1;
+    }
+    // The front foot stamps: a puff of street dust in three stages (small and dark, round and pale on top, wide and thin), each 2 to 3 frames.
+    if (kb.t < 8) {
+      const fx = cx2 + KATA_MEASURED.footDx / res;
+      const st = Math.min(2, Math.floor(kb.t / 2.7));
+      // Each puff is a pale blob over a darker one a pixel lower (screen pixels: x, y from the foot, radius, opacity), growing, spreading and thinning over three stages.
+      const puffs: [number, number, number, number][][] = [
+        [[-1, -1, 2, 0.95], [1, -3, 2, 0.95], [-4, 0, 1, 0.9]],
+        [[-4, -2, 4, 0.8], [0, -5, 3, 0.8], [4, -2, 3, 0.75], [-8, -1, 2, 0.7]],
+        [[-9, -3, 4, 0.45], [-4, -7, 3, 0.4], [2, -4, 3, 0.35], [7, -2, 2, 0.3], [-13, -1, 2, 0.3]],
+      ];
+      for (const [dx, dy, r, a] of puffs[st] ?? []) {
+        g.globalAlpha = a;
+        this.blob(g, fx + dx / 2, gy2 + dy / 2 + 0.5, r, '#5f5880');
+        this.blob(g, fx + dx / 2, gy2 + dy / 2, r, '#cfc4e6');
+      }
+      g.globalAlpha = 1;
+    }
+  }
+
   private drawPartyMember(g: Ctx, p: Combatant, f: number): void {
     const dd = this.s.d(p.uid);
     const art = this.s.partyArt.get(p.uid)!;
@@ -437,17 +533,8 @@ export class BattleRenderer {
       g.fillRect(cx - 7, gy + 2, 14, 1);
       g.fillRect(cx - 7, gy - 1, 14, 1);
     }
-    if (kb?.key === 'contact' && kb.t < 6) {
-      // The front foot stamps: a puff of street dust kicked out in front of it, widening and fading over the first frames.
-      const gy2 = Math.round(this.s.partyFeet(p) - 1 + lungeY);
-      for (let i = 0; i < 5; i++) {
-        g.globalAlpha = 0.65 * (1 - kb.t / 6);
-        g.fillStyle = i % 2 ? '#cfc4e6' : '#8f86ab';
-        g.fillRect(cx2 - 7 - i * 2 - kb.t, gy2 - 1 - ((i * 3 + kb.t) % 4), 2, 1);
-      }
-      g.globalAlpha = 1;
-    }
-    if (dd.afterimage > 0) {
+    if (kb && art.kata) this.drawKataFx(g, p, art, kb, frame, x, y, res, ox, walkLeft, lungeY, cx2);
+    if (!kb && dd.afterimage > 0) {
       // Speed ghosts trailing behind and to either side.
       for (const [gx, gy, a] of AFTERIMAGES) {
         g.globalAlpha = a * (dd.afterimage / 22);
@@ -455,10 +542,10 @@ export class BattleRenderer {
       }
       g.globalAlpha = 1;
     }
-    if (kb?.dash || (sb && sb.smear > 0)) {
+    if (!kb && sb && sb.smear > 0) {
       // Side view: the dash leaves speed ghosts trailing behind it, away from the target.
       const tint = MEMBERS[p.key as MemberId].color;
-      const n = kb ? 2 : sb?.smear ?? 0;
+      const n = sb.smear;
       for (let i = n; i >= 1; i--) {
         g.globalAlpha = 0.14 + 0.07 * (n - i);
         putArt(g, silhouetteCache(frame, tint), x + i * 2.5, y, res);
@@ -533,6 +620,8 @@ export class BattleRenderer {
         x += kb.lunge * (dd.reachX ?? 0);
         y += kb.lunge * (dd.reachY ?? 0);
         if (kb.key === 'lift' || kb.key === 'overhead' || kb.dash) y -= 13;
+        // Over the enemy line it would sit on their health bars: the lunging body is its own marker.
+        if (kb.lunge > 0.12) return;
       }
     }
     // Over an enemy it hangs above the head; over the crew it sits right on the hair, so it never
@@ -570,7 +659,9 @@ export class BattleRenderer {
       // HP bar (bosses get a wider one).
       const bw = e.boss ? 72 : 30;
       const ratio = Math.max(0, dd.shownHp / e.base.maxHp);
-      // A solid dark plate and a 3px bar, so it holds up over bright signage.
+      // A solid dark plate and a 3px bar, so it holds up over bright signage. Side view: it fades while Rook's lunge runs through it.
+      const lb = this.lungeBox();
+      if (lb && cx0 + bw / 2 + 2 > lb[0] && cx0 - bw / 2 - 2 < lb[2] && row + 5 > lb[1] && row - 2 < lb[3]) ctx.globalAlpha = 0.2;
       ctx.fillStyle = '#0a0913';
       ctx.fillRect(cx0 - bw / 2 - 2, row - 2, bw + 4, 7);
       ctx.fillStyle = '#2a2838';
@@ -580,6 +671,7 @@ export class BattleRenderer {
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 1);
       drawLag(ctx, cx0 - bw / 2, row, bw, 3, ratio, dd.lagHp / e.base.maxHp);
+      ctx.globalAlpha = 1;
       row -= 11;
       // While numbers are rising off this enemy, its chips and WEAK tag step aside (the HP bar
       // stays): the two text systems share the rows above its head.

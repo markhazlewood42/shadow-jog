@@ -119,6 +119,8 @@ export interface SideCrew {
   poses: Partial<Record<Pose, HTMLCanvasElement>>;
   /** Rook's kendo strike: one frame per key of `sidekata.ts`, each on its own canvas (wider than the others, centred on the same spot). */
   kata?: Record<KataKey, HTMLCanvasElement>;
+  /** The same frames without the smear (the speed ghosts are cut from these). */
+  kataPlain?: Record<KataKey, HTMLCanvasElement>;
   /** Height from the frame's bottom edge to the top of the head, in art pixels. */
   headPx: number;
   /** The frame's size in art pixels. */
@@ -412,9 +414,10 @@ export function buildSideCrew(key: string): SideCrew | null {
   };
   // Rook's kendo strike: its own frames, from data.
   let kata: Record<KataKey, HTMLCanvasElement> | undefined;
+  let kataPlain: Record<KataKey, HTMLCanvasElement> | undefined;
   if (spec.kata && spec.katana) {
     const kb = spec.katana.box;
-    kata = buildKata({
+    const built = buildKata({
       base,
       pal,
       arm1: spec.arm,
@@ -431,7 +434,9 @@ export function buildSideCrew(key: string): SideCrew | null {
       padX: spec.kata.padX,
       padT: spec.kata.padT,
       render: (layers, w, h) => finish(renderLayers(layers, pal, w, h, 0, 0), outline, 0.3 + 0.08 * dark),
-    }).frames;
+    });
+    kata = built.frames;
+    kataPlain = built.plain;
   }
-  return { base: idle[0] as HTMLCanvasElement, idle, walk, poses, ...(kata ? { kata } : {}), headPx: H - headRowOf(idle[0] as HTMLCanvasElement), w: W, h: H };
+  return { base: idle[0] as HTMLCanvasElement, idle, walk, poses, ...(kata ? { kata } : {}), ...(kataPlain ? { kataPlain } : {}), headPx: H - headRowOf(idle[0] as HTMLCanvasElement), w: W, h: H };
 }

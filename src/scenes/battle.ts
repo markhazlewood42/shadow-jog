@@ -37,7 +37,7 @@ import { playMoment } from '../engine/moments';
 import { FX } from '../data/fx';
 import type { Disp, Floater } from './battlekit/types';
 import { autoOrders, choiceItems, comboActors, comboHint, commandItems, mostHurt, repeatOrders } from './battlekit/orders';
-import { RIM, artTop, drawBig } from './battlekit/sprites';
+import { RIM, artTop, drawBig, opaqueSpan } from './battlekit/sprites';
 import { abilityLabel, groupNames, pickGroup, summarize } from './battlekit/tables';
 
 export interface BattleSetup {
@@ -726,6 +726,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       },
       d: (uid) => scene.d(uid),
       pos: (uid) => scene.pos(uid),
+      enemyBox: (uid) => scene.enemyBox(uid),
+      feetOf: (uid) => {
+        const u = scene.battle.unit(uid);
+        return u ? scene.partyFeet(u) : 0;
+      },
       w: (frames) => scene.w(frames),
       floatOn: (uid, text, color, style) => scene.floatOn(uid, text, color, style),
       say: (text) => scene.say(text),
@@ -1103,6 +1108,15 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       this.layout.set(u.uid, p);
     }
     return p;
+  }
+
+  /** Side view: an enemy's opaque columns and its soles row, in battle-world pixels. */
+  enemyBox(uid: number): { x0: number; x1: number; feet: number } | null {
+    const u = this.battle.unit(uid);
+    if (u?.side !== 'enemy') return null;
+    const p = this.enemyPos(u);
+    const [a, b] = opaqueSpan(p.art.canvas);
+    return { x0: p.x + a / p.art.res, x1: p.x + b / p.art.res, feet: p.y + p.art.h };
   }
 
   private enemyCenter(u: Combatant): Pt {

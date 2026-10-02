@@ -8,10 +8,14 @@
  * coat's own colour, so a turned arm vanishes into the torso (day 1's finding), and the rim keeps it apart. Bone
  * lengths are one constant for every frame, so the arm never grows between frames; when a pose asks for a hand
  * further than the arm reaches, the hands stop short (the whole grip is pulled in), the arm doesn't stretch.
- * A frame on the cut gets a smear arc painted behind the blade (the blade's sweep since the last frame).
+ * A frame on the cut gets a smear painted behind the blade: a wedge of the blade's sweep since the last frame.
+ *
+ * Round 2: the far arm (the coat sleeve on the right) is drawn BEHIND the body, so only its fist shows past the coat and
+ * above the head (it was a pale wedge across his face); a pose may be one-handed (`one`: the draw and the sheathe); the
+ * contact blade is three pixels across; the frames report where the point and the front foot are (`KATA_MEASURED`).
  */
 import { band, katana, solveArm } from './battle';
-import { GRIP_GAP, KATA_BONE, KATA_DIMS, KATA_POSES, type KataKey, type KataPose } from './sidekata';
+import { GRIP_GAP, KATA_BONE, KATA_DIMS, KATA_MEASURED, KATA_POSES, type KataKey, type KataPose } from './sidekata';
 import type { Layer } from './rig';
 import { type Pt, type SideArm, separateArm } from './side';
 import { at, bendLeg, clearBox, crouch, dropSpecks, embed, type LegBox, lean, leanAt, rise, topRow } from './sideops';
@@ -45,6 +49,8 @@ export interface KataInput {
 
 export interface KataFrames {
   frames: Record<KataKey, HTMLCanvasElement>;
+  /** The same frames without the smear (what the speed ghosts are cut from). */
+  plain: Record<KataKey, HTMLCanvasElement>;
   /** Where each frame's two fists and the blade's point are, in frame pixels (for the lab and the checks). */
   marks: Record<KataKey, { near: Pt; far: Pt; tip: Pt }>;
 }
@@ -67,25 +73,30 @@ function within(s: Pt, p: Pt, r: number): Pt {
   return d <= r ? p : [s[0] + ((p[0] - s[0]) * r) / d, s[1] + ((p[1] - s[1]) * r) / d];
 }
 
-/** Paint the blade's sweep (from angle `a0` to `a1`, round `pivot`) onto a canvas: a crescent, thick and white where the blade is now, thin and pale behind. */
+/**
+ * Paint the blade's sweep (from angle `a0` to `a1`, round `pivot`) onto a canvas as a filled wedge: the full length of the
+ * blade where the blade is now, narrowing to a sliver at the tip where it was, in solid bands of white and pale steel (the
+ * effect palette of `fx.ts`), the leading edge brightest. It ends sharply at the blade line; no loose dots.
+ */
 function paintSmear(g: CanvasRenderingContext2D, w: number, h: number, pivot: Pt, a0: number, a1: number, rOut: number): void {
   const lo = Math.min(a0, a1);
   const hi = Math.max(a0, a1);
-  const cols = ['#6f9be0', '#b9d8ff', '#ffffff'];
+  const span = Math.max(1, hi - lo);
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const dx = x + 0.5 - pivot[0];
       const dy = y + 0.5 - pivot[1];
       const r = Math.hypot(dx, dy);
       const th = (Math.atan2(dy, dx) * 180) / Math.PI;
-      if (th < lo - 0.01 || th > hi + 0.01) continue;
+      if (th < lo || th > hi || r > rOut + 0.4) continue;
       // 0 at the old blade, 1 at the new one.
       const s = a1 > a0 ? (th - a0) / (a1 - a0) : (a0 - th) / (a0 - a1);
-      const thick = 1.2 + 3.2 * s;
-      if (r > rOut || r < rOut - thick) continue;
-      // The thin tail breaks up (every other pixel) so it reads as speed, not as a solid shape.
-      if (s < 0.3 && (x + y) % 2) continue;
-      g.fillStyle = cols[s > 0.75 ? 2 : s > 0.35 ? 1 : 0] ?? '#fff';
+      // How much of the blade's length the wedge covers here: a sliver at the tip behind, the whole blade at the leading edge.
+      const cover = 1.5 + 5.5 * s ** 1.2;
+      if (r < rOut - cover) continue;
+      // The leading edge is one pixel of arc (about 1.5 px at the tip's radius) of pure white.
+      const edge = ((a1 > a0 ? a1 - th : th - a1) / span) * (Math.PI / 180) * span * rOut < 1.6;
+      g.fillStyle = edge || s > 0.78 ? '#ffffff' : s > 0.45 ? '#e8f0ff' : '#9db4d6';
       g.fillRect(x, y, 1, 1);
     }
 }
@@ -100,7 +111,9 @@ export function buildKata(inp: KataInput): KataFrames {
   const s1 = separateArm(base, inp.arm1, pal);
   const s2 = separateArm(s1.body, inp.arm2, pal);
   const coatCol = at(base, Math.floor(inp.coat[0]), Math.floor(inp.coat[1]));
-  const chrome = s1.sleeveCol;
+  // The chrome forearm: a cool steel blue ramp (lit, shade), so it breaks clearly from the olive sleeve above it.
+  for (const hex of ['#c3d2e6', '#6b819f']) if (!pal.includes(hex)) pal.push(hex);
+  const chrome = pal.indexOf('#c3d2e6');
   const chromeHand = s1.skinCol;
   const hand = s2.skinCol;
   // Colours for the arms: the coat's two tones, a dark rim, the chrome's two tones.
@@ -112,7 +125,7 @@ export function buildKata(inp: KataInput): KataFrames {
   };
   const coatShade = darker(coatCol, 0.7);
   const rim = darker(coatCol, 0.32);
-  const chromeShade = darker(chrome, 0.72);
+  const chromeShade = pal.indexOf('#6b819f');
   const handShade = darker(hand, 0.7);
 
   // The torso with its arms gone, and the sheathed hilt taken off the back while the sword is out.
@@ -129,7 +142,10 @@ export function buildKata(inp: KataInput): KataFrames {
   const R = legBox(inp.back);
 
   const frames = {} as Record<KataKey, HTMLCanvasElement>;
+  const plain = {} as Record<KataKey, HTMLCanvasElement>;
   const marks = {} as KataFrames['marks'];
+  // Steel and its lights, in the palette for the katana (the contact blade's white edge and dark spine).
+  for (const hex of ['#ffffff', '#f2f1f4', '#9fa0a9', '#4b4e63']) if (!pal.includes(hex)) pal.push(hex);
   for (const key of Object.keys(KATA_POSES) as KataKey[]) {
     const pose: KataPose = KATA_POSES[key];
     // Legs first (their rows are below the hip), then the crouch or rise, then the lean.
@@ -150,36 +166,46 @@ export function buildKata(inp: KataInput): KataFrames {
     const u: Pt = [Math.cos(rad(pose.deg)), Math.sin(rad(pose.deg))];
     // The grip: the forward fist F and the one behind it G, pulled in until both arms reach them.
     const reach = 2 * KATA_BONE - 0.2;
-    let F: Pt = [S1[0] + pose.grip[0], S1[1] + pose.grip[1]];
-    let G: Pt = [F[0] - u[0] * GRIP_GAP, F[1] - u[1] * GRIP_GAP];
-    for (let i = 0; i < 3; i++) {
-      F = within(S1, F, reach);
+    let F: Pt;
+    let G: Pt;
+    if (pose.one) {
+      // Drawing or sheathing: the far hand on the hilt, the lead hand hanging.
+      G = within(S2, [S2[0] + pose.grip[0], S2[1] + pose.grip[1]], reach);
+      F = within(S1, [S1[0] + pose.one.off[0], S1[1] + pose.one.off[1]], reach);
+    } else {
+      F = [S1[0] + pose.grip[0], S1[1] + pose.grip[1]];
       G = [F[0] - u[0] * GRIP_GAP, F[1] - u[1] * GRIP_GAP];
-      const G2 = within(S2, G, reach);
-      F = [G2[0] + u[0] * GRIP_GAP, G2[1] + u[1] * GRIP_GAP];
-      G = G2;
+      for (let i = 0; i < 3; i++) {
+        F = within(S1, F, reach);
+        G = [F[0] - u[0] * GRIP_GAP, F[1] - u[1] * GRIP_GAP];
+        const G2 = within(S2, G, reach);
+        F = [G2[0] + u[0] * GRIP_GAP, G2[1] + u[1] * GRIP_GAP];
+        G = G2;
+      }
     }
-    const k = katana(G, pose.deg, pal, KATA_DIMS);
+    // Three pixels of blade at the blow and the cut that leads to it (a white edge, the steel, a dark spine).
+    const k = katana(G, pose.deg, pal, { ...KATA_DIMS, tip: pose.one?.blade ?? KATA_DIMS.tip, spine: key === 'contact' || key === 'swing2' });
 
-    // An arm: elbow below the line from shoulder to fist (the lower of the two answers), rim first, then the sleeve and the forearm, then the fist.
-    const arm = (S: Pt, T: Pt, upper: [number, number], fore: [number, number], fist: [number, number]): Layer[] => {
+    // An arm: the elbow below the line from shoulder to fist (the lower of the two answers). The bands and the fist come apart, so the far arm can go behind the body and its fist stay on top.
+    const arm = (S: Pt, T: Pt, upper: [number, number], fore: [number, number], fist: [number, number], rimmed: boolean): { bands: Layer[]; fist: Layer[] } => {
       const a = solveArm(S, KATA_BONE, KATA_BONE, T, 1);
       const b = solveArm(S, KATA_BONE, KATA_BONE, T, -1);
       const e = a.elbow[1] > b.elbow[1] ? a : b;
-      return [
-        band(S, e.elbow, 5, rim, rim),
-        band(e.elbow, e.wrist, 4.4, rim, rim),
-        band(S, e.elbow, 3.4, upper[0], upper[1], true),
-        band(e.elbow, e.wrist, 3, fore[0], fore[1], true),
-        disc(e.wrist, 2.9, rim),
-        disc(e.wrist, 2.2, fist[0]),
-        disc([e.wrist[0] - 0.5, e.wrist[1] + 0.4], 1.1, fist[1]),
-      ];
+      return {
+        bands: [
+          ...(rimmed ? [band(S, e.elbow, 4.8, rim, rim), band(e.elbow, e.wrist, 4.2, rim, rim)] : []),
+          band(S, e.elbow, 3.4, upper[0], upper[1], true),
+          band(e.elbow, e.wrist, 3, fore[0], fore[1], true),
+        ],
+        fist: [disc(e.wrist, 2.9, rim), disc(e.wrist, 2.2, fist[0]), disc([e.wrist[0] - 0.5, e.wrist[1] + 0.4], 1.1, fist[1])],
+      };
     };
-    const near = arm(S2, G, [coatCol, coatShade], [coatCol, coatShade], [hand, handShade]);
-    const fwd = arm(S1, F, [coatCol, coatShade], [chrome, chromeShade], [chromeHand, chromeShade]);
-    const out = inp.render([body, k.layer, ...near, ...fwd], W, H);
+    const far = arm(S2, G, [coatCol, coatShade], [coatCol, coatShade], [hand, handShade], false);
+    const lead = arm(S1, F, [coatCol, coatShade], [chrome, chromeShade], [chromeHand, chromeShade], true);
+    const layers = [...far.bands, body, k.layer, ...far.fist, ...lead.bands, ...lead.fist];
+    const out = inp.render(layers, W, H);
 
+    plain[key] = out;
     let frame = out;
     if (pose.smear) {
       // The smear goes behind everything: paint it first, then the frame over it.
@@ -196,7 +222,12 @@ export function buildKata(inp: KataInput): KataFrames {
     }
     frames[key] = frame;
     marks[key] = { near: G, far: F, tip: k.tip };
+    if (key === 'contact') {
+      // What the contact frame measured, for the engine to stop the lunge by (art pixels from the frame's centre).
+      KATA_MEASURED.tipReach = W / 2 - k.tip[0];
+      KATA_MEASURED.tipUp = H - k.tip[1];
+      KATA_MEASURED.footDx = (L.x0 + L.x1) / 2 + pose.front.dx - W / 2;
+    }
   }
-  return { frames, marks };
+  return { frames, plain, marks };
 }
-

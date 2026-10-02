@@ -104,7 +104,7 @@ export function sideBattler(key: string): Battler | null {
     if (crew) {
       const frames = {} as Record<Pose, HTMLCanvasElement>;
       for (const p of POSES) frames[p] = crew.poses[p] ?? crew.base;
-      return { frames, glow: {}, headH: Math.ceil(crew.headPx / 2), res: 2, cycle: { idle: crew.idle, idleOrder: IDLE_ORDER, walk: crew.walk }, ...(crew.kata ? { kata: crew.kata } : {}) };
+      return { frames, glow: {}, headH: Math.ceil(crew.headPx / 2), res: 2, cycle: { idle: crew.idle, idleOrder: IDLE_ORDER, walk: crew.walk }, ...(crew.kata ? { kata: crew.kata } : {}), ...(crew.kataPlain ? { kataPlain: crew.kataPlain } : {}) };
     }
   }
   const look = LOOKS[key as keyof typeof LOOKS];

@@ -37,6 +37,8 @@ export interface Battler {
   cycle?: { idle: HTMLCanvasElement[]; idleOrder: readonly number[]; walk: HTMLCanvasElement[] } | undefined;
   /** Side-view battle, Rook only: his kendo strike, one frame per key of `rig2/sidekata.ts`, each on its own (wider) canvas centred on the body. */
   kata?: Record<KataKey, HTMLCanvasElement> | undefined;
+  /** The same frames without the smear arc, for the speed ghosts. */
+  kataPlain?: Record<KataKey, HTMLCanvasElement> | undefined;
 }
 
 type Weapon = 'fists' | 'katana' | 'pistol' | 'staff';

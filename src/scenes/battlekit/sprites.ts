@@ -35,6 +35,23 @@ export function opaqueTop(c: HTMLCanvasElement): number {
   return top;
 }
 
+export const spanCache = new WeakMap<HTMLCanvasElement, [number, number]>();
+/** The first and one past the last opaque column of a sprite canvas, in art pixels (measured once per canvas). */
+export function opaqueSpan(c: HTMLCanvasElement): [number, number] {
+  let span = spanCache.get(c);
+  if (!span) {
+    let x0 = c.width, x1 = 0;
+    const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3]! > 0) {
+      if (x < x0) x0 = x;
+      if (x + 1 > x1) x1 = x + 1;
+    }
+    span = x1 > x0 ? [x0, x1] : [0, c.width];
+    spanCache.set(c, span);
+  }
+  return span;
+}
+
 export const flipCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 /** Horizontally mirrored copy (cached): every other duplicate enemy faces the other way. */
 /** How long an enemy's action pose runs, in frames. */

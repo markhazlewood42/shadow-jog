@@ -324,6 +324,8 @@ export interface KatanaDims {
   guard: number;
   tip: number;
   thin?: boolean;
+  /** Three pixels across for the blade: a white lit edge, the steel, a dark spine, and a bright glint at the point (the side-view kendo contact frame). */
+  spine?: boolean;
 }
 
 /**
@@ -388,9 +390,13 @@ export function katana(hand: Pt, deg: number, pal: string[], dims: KatanaDims = 
   });
   // The blade: two pixels, the lit edge and the steel, one pixel for its last two steps (the point).
   const blade = axisPx(deg, K.guard + 1, K.tip);
+  const edge = K.spine ? c('#ffffff') : steelLit;
+  const spineCol = c('#4b4e63');
   blade.forEach((q, i) => {
-    put(q.x, q.y, steelLit);
-    if (!thin && i < blade.length - 2) put(q.x + sx, q.y + sy, steel);
+    const point = i >= blade.length - 2;
+    put(q.x, q.y, K.spine && i === blade.length - 1 ? c('#ffffff') : edge);
+    if (!thin && !point) put(q.x + sx, q.y + sy, steel);
+    if (K.spine && !point && i < blade.length - 3) put(q.x + 2 * sx, q.y + 2 * sy, spineCol);
   });
   // The tsuba across it: five pixels by two, gold lit and dark.
   const g = axisPx(deg, K.guard, K.guard).at(0) ?? { x: 0, y: 0, d: 0 };

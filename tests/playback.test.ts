@@ -50,6 +50,8 @@ function recorder(armed = false) {
     lastActor: null,
     d,
     pos: (): Pt => ({ x: 0, y: 0 }),
+    enemyBox: () => null,
+    feetOf: () => 0,
     w: wait,
     // Animation frames map one to one here (the scene's FX_PACE is a presentation choice).
     anim: (n) => n,

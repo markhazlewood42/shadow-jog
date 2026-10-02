@@ -204,7 +204,7 @@ async function crewSheet(zoom: number): Promise<HTMLCanvasElement> {
 /**
  * Rook's kendo strike (`?scene=sidelab&scale=kata&zoom=4[&at=12]`): EVERY frame of the strike in order, each cell
  * numbered, with the key it shows, the pose-clock frames it is held for and where the body is along its lunge.
- * `at` is the frame the blow lands on (12 with no timing ring; about 18 when the ring is closing). One cell per
+ * `at` is the frame the move's effect starts on (18 with no timing ring; about 24 when the ring is closing); the blade shows on the target 3 frames before it. One cell per
  * step of `kataTimeline`, so a held frame is one cell with its hold length, not repeated.
  */
 async function kataSheet(zoom: number, at: number): Promise<HTMLCanvasElement> {
@@ -238,7 +238,7 @@ async function kataSheet(zoom: number, at: number): Promise<HTMLCanvasElement> {
   g.font = 'bold 15px sans-serif';
   g.fillText(`Rook's kendo strike (men-uchi), every frame in order, x${zoom}. Each cell: step number, key, pose frames it covers, how long it is held, the lunge.`, 8, 16);
   g.font = '12px sans-serif';
-  g.fillText(`The blow lands on pose frame ${at} (the move's effect starts there, the hit follows 4 frames later). Pose clock: 1 frame is about 1.5 real frames at normal battle speed. The wait-loop frame is for scale only.`, 8, 32);
+  g.fillText(`The effect starts on pose frame ${at} (the contact shows 3 frames before it, the hit follows the effect by 4 frames). Pose clock: 1 frame is about 1.5 real frames at normal battle speed. The wait-loop frame is for scale only.`, 8, 32);
   const put = (c0: HTMLCanvasElement, i: number, lines: string[]): void => {
     // A frame on a smaller canvas (the wait loop's) is centred and bottom-aligned on the kata canvas, as the game does.
     const ref = kata.ready;
@@ -271,7 +271,7 @@ async function kataSheet(zoom: number, at: number): Promise<HTMLCanvasElement> {
 
 async function build(which: string, zoom?: number): Promise<HTMLCanvasElement> {
   if (which === 'crew') return crewSheet(zoom || 4);
-  if (which === 'kata') return kataSheet(zoom || 4, Number(new URLSearchParams(location.search).get('at') ?? 12));
+  if (which === 'kata') return kataSheet(zoom || 4, Number(new URLSearchParams(location.search).get('at') ?? 18));
   const canvas = mount();
   const field = which !== 'battle';
   const s = { ...(field ? FIELD : BATTLE), ...(zoom ? { zoom } : {}) };
