@@ -228,7 +228,7 @@ function indexAt(l: Layer, x: number, y: number): number {
 }
 
 /** The palette index nearest a colour. */
-function nearest(pal: string[], hex: string): number {
+export function nearest(pal: string[], hex: string): number {
   const n = Number.parseInt(hex.slice(1), 16);
   let best = 0;
   let bd = Infinity;
@@ -275,7 +275,7 @@ function pick(l: Layer, box: Box, not: readonly Pt[]): { part: Layer; rest: Laye
  * shaded, or (`rim`, for cloth) only its outermost pixel on the shadow side. `width2` tapers it to
  * that width at `b` (a sleeve narrowing as it reaches away into the screen).
  */
-function band(a: Pt, b: Pt, width: number, lit: number, shade: number, rim = false, width2 = width): Layer {
+export function band(a: Pt, b: Pt, width: number, lit: number, shade: number, rim = false, width2 = width): Layer {
   const x0 = Math.floor(Math.min(a[0], b[0]) - width);
   const y0 = Math.floor(Math.min(a[1], b[1]) - width);
   const w = Math.ceil(Math.abs(a[0] - b[0]) + 2 * width) + 1;
@@ -308,7 +308,7 @@ function band(a: Pt, b: Pt, width: number, lit: number, shade: number, rim = fal
 }
 
 /** The point `len` from `p` in direction `deg` (0 = right, -90 = up). */
-const along = (p: Pt, deg: number, len: number): Pt => [p[0] + Math.cos((deg * Math.PI) / 180) * len, p[1] + Math.sin((deg * Math.PI) / 180) * len];
+export const along = (p: Pt, deg: number, len: number): Pt => [p[0] + Math.cos((deg * Math.PI) / 180) * len, p[1] + Math.sin((deg * Math.PI) / 180) * len];
 
 const PISTOL = 7;
 /** How far apart two hands hold a two-handed grip (a fist's width), the second behind the first. */
@@ -318,6 +318,13 @@ const GRIP = 6;
  * its grip, the guard (tsuba), and the blade's point. The grip has room for both hands.
  */
 const KATANA = { pommel: -12, guard: 4, tip: 32 };
+/** The katana's size along its length, and whether it is drawn thin (a one-pixel blade, for a small sprite). */
+export interface KatanaDims {
+  pommel: number;
+  guard: number;
+  tip: number;
+  thin?: boolean;
+}
 
 /**
  * The centre line of something straight pointing `deg` from (0, 0), from `d0` to `d1` along it:
@@ -348,7 +355,9 @@ function axisPx(deg: number, d0: number, d1: number): { x: number; y: number; d:
  * frame whatever its angle; its pixels are laid from the rounded hand, so they don't shimmer
  * between poses either. Returns the layer and the blade's point.
  */
-function katana(hand: Pt, deg: number, pal: string[]): { layer: Layer; tip: Pt } {
+export function katana(hand: Pt, deg: number, pal: string[], dims: KatanaDims = KATANA): { layer: Layer; tip: Pt } {
+  const K = dims;
+  const thin = dims.thin === true;
   const c = (hex: string) => nearest(pal, hex);
   const steelLit = c('#f2f1f4');
   const steel = c('#9fa0a9');
@@ -365,25 +374,30 @@ function katana(hand: Pt, deg: number, pal: string[]): { layer: Layer; tip: Pt }
   // The grip: three pixels, lit side, middle (a wrap diamond every third step), shade side; the
   // pommel end a step of dark gold.
   // (Counted in steps, not distance: a diagonal takes fewer, longer steps, and the pattern would drift.)
-  axisPx(deg, KATANA.pommel, KATANA.guard - 1).forEach((q, i) => {
+  axisPx(deg, K.pommel, K.guard - 1).forEach((q, i) => {
     const end = i === 0;
     const diamond = i > 0 && i % 3 === 0;
+    if (thin) {
+      put(q.x, q.y, end ? goldDark : diamond ? wrap : navy);
+      put(q.x + sx, q.y + sy, end ? goldDark : navyDark);
+      return;
+    }
     put(q.x - sx, q.y - sy, end ? goldDark : navy);
     put(q.x, q.y, end ? goldDark : diamond ? wrap : navy);
     put(q.x + sx, q.y + sy, end ? goldDark : navyDark);
   });
   // The blade: two pixels, the lit edge and the steel, one pixel for its last two steps (the point).
-  const blade = axisPx(deg, KATANA.guard + 1, KATANA.tip);
+  const blade = axisPx(deg, K.guard + 1, K.tip);
   blade.forEach((q, i) => {
     put(q.x, q.y, steelLit);
-    if (i < blade.length - 2) put(q.x + sx, q.y + sy, steel);
+    if (!thin && i < blade.length - 2) put(q.x + sx, q.y + sy, steel);
   });
   // The tsuba across it: five pixels by two, gold lit and dark.
-  const g = axisPx(deg, KATANA.guard, KATANA.guard).at(0) ?? { x: 0, y: 0, d: 0 };
+  const g = axisPx(deg, K.guard, K.guard).at(0) ?? { x: 0, y: 0, d: 0 };
   const [tx, ty] = side(deg + 90);
-  for (const q of axisPx(deg + 90, -2, 2)) {
+  for (const q of axisPx(deg + 90, thin ? -1 : -2, thin ? 1 : 2)) {
     put(g.x + q.x, g.y + q.y, gold);
-    put(g.x + q.x + tx, g.y + q.y + ty, goldDark);
+    if (!thin) put(g.x + q.x + tx, g.y + q.y + ty, goldDark);
   }
   const xs = [...px.keys()].map((k) => Number(k.split(',')[0]));
   const ys = [...px.keys()].map((k) => Number(k.split(',')[1]));

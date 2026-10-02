@@ -39,6 +39,8 @@ export const DEV_TOOLS: { group: string; tools: DevTool[] }[] = [
       { name: 'Characters', path: '/?scene=chars&zoom=4', about: 'The crew’s sprites, every facing and walk' },
       { name: 'NPCs and townsfolk', path: '/?scene=chars&zoom=4&npcs', about: 'Everyone else’s sprites' },
       { name: 'Battle backs', path: '/?scene=chars&zoom=2&battlers', about: 'The crew from behind, every pose' },
+      { name: 'Side-view arm lab (field scale)', path: '/?scene=sidelab&scale=field', about: 'Spike: Rook seen from the side, the near arm cut out and posed' },
+      { name: 'Side-view arm lab (battle scale)', path: '/?scene=sidelab&scale=battle', about: 'Spike: the same at ~46 px, shrunk from the traced west view' },
       { name: 'Portraits', path: '/?scene=portraits', about: 'Every speaker’s expressions' },
       { name: 'Bestiary', path: '/?scene=bestiary', about: 'The enemies, page by page' },
       { name: 'Font', path: '/?scene=font', about: 'The game’s pixel font' },
