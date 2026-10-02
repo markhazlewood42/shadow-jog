@@ -62,6 +62,12 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
   - a save whose member maps aren't objects fails validation
   - the dungeon simulator weights encounter groups as the game does
 
+  **Copilot's review of PR #1:** two findings, both fixed and their threads resolved:
+  - save validation now covers members out of the party
+  - a skeleton save whose JSON isn't an object gets a clean 400 instead of a crash
+
+  **PR #1 is ready for Mark to merge.**
+
   **Bundle:** 233.4 of 236 kB. The next big feature will likely need the budget raised.
 - **GPU effects layer: first slice in (2026-09-30).** A WebGL 2 presenter over the Canvas 2D game (not the PixiJS
   rewrite): real bloom on neon, lamps and spells, shockwaves, a colour split on big impacts, and GPU particles from
