@@ -81,6 +81,12 @@ A pass needs a median score of **8 or more overall** (the mean of the criteria t
 | Walk-in: the party steps in from the right during the shatter | battle | about 3 min | judge round 1 | 1 pass: members walking at the same speed from the same edge bunched and overlapped, so everyone now moves the same distance and the formation keeps its spacing. About 1.1 s. |
 | Layout: enemy strip, higher enemy row, list beside the command menu, target box on the open ground | battle | about 10 min | judge round 1 | 5 passes (strip and lift, list placement, target box placement, boss lift, list rows). No sprite changed. |
 | `enemyscale=half`: nearest 0.5 shrink of humanoid regular enemies | battle | about 2 min | judge round 1 | 1 pass (the ground shadow was left at full width). Creatures and bosses are untouched. |
+| Crew finish: lifted legs, lifted outline, cool rim, specks dropped (all four) | battle | about 4 min | judge round 2 | 1 pass (the first outline lift was too light: dark members showed ghostly pale lines round near-black legs; halved it). Code only (`finish()` in `sidecrew.ts`), no per-pixel edits. |
+| Walk r2: near arm counter-swing (Kit, Rook, Hex), 1 px body drop, Rook's coat hem sway, stride 40 for Rook, Hex, Sable | battle | about 5 min | judge round 2 | 2 passes (the arm's gap was filled with a dark seam colour on Rook's coat, now the sleeve colour; then a 16 degree swing made seam scribbles, now 9 for Rook). Arm data is a shoulder, a hand and a radius per member, picked from a gridded 10x view. Rook's hem sway is 1 px and hard to see. Sable has no arm swing (she holds the staff). |
+| Wait loop r2: about 0.5 s a step (was 0.2 to 0.3), last frame leans the upper body back 1 px | battle | about 2 min | judge round 2 | 0 passes. Looks the same in stills; judged from the clip. |
+| Sable as a true profile: tried the traced `east` view, mirrored | battle | about 2 min | judge round 2 | FAILED, reverted. The `east` trace is a back view (hair over everything, no face), the `west` trace is a sliver with no face, and `north-west` is a back view; only the three-quarter `south-west` has her face, white hair and staff. A KNOWN BREAK: Sable is still a three-quarter view among three profiles. A true profile needs a re-trace or a hand build (not spent: over the item's time box). |
+| Enemy scale r2: `collapseBlocks` (best 2x2 phase, commonest colour, orphans dropped) then `stretchTo` 1.25 (humanoids) or 1.5 (creatures) | battle | about 3 min | judge round 2 | 0 passes after the first look. Default `fit`: punk about 57 px, ghoul about 60, Glowrat about 35 x 25; `half` is native (a punk 46 px); `full` is the old 91 px. Bosses unreduced. Replaces round 1's nearest shrink. |
+| Layout r2: RPG Maker diagonal, shared ground line, contact shadows, cursor over the HP bar, panel gaps, wide-group overflow | battle | about 4 min | judge round 2 | 4 passes (cursor first hung 15 px high: bounce too big; panel gap; the four-enemy strip ran into the party; strip right edge). No sprite changed. |
 
 ## Day 1 notes (2026-10-02)
 
@@ -131,6 +137,35 @@ Built: `?battle=side` now draws the crew at BATTLE scale by default (`&scale=fie
 | Walk-in as a unit, Hex's muddy far leg, list rows, final captures | 11:35 to 11:41 | 6 | 3 |
 
 The whole item took about 20 minutes of wall clock for four members, the layout and the half-scale test; nine fix passes in all, none of them per-pixel repair.
+
+## Item A-layout round 2 (2026-10-02, after the round-1 judges)
+Round 1 scored 6.43 overall (identity 7, readability 6, motion 6, craft 6, composition 6, style 6, cost 8). The full-size 91 px enemies, the dark-on-dark crew, the fuzzy half-scale enemies and the backwards formation were the shared complaints. Images: `media/spike-side-battle/A-layout-r2-*.png` (git-ignored; 2x screens, 4x crew sheet, a filmstrip and a GIF of the walk-in and the wait loop). The numbers in the round-1 section above (strip, lift, step sizes) are superseded by what follows.
+
+**Enemy scale (the default changed).** `?battle=side` now draws regular enemies at `fit`: each trace is collapsed to its native resolution (the best of four 2x2 phases, the commonest colour per block, orphan pixels dropped), then drawn 1.25x (humanoids) or 1.5x (creatures) by nearest. A punk is about 57 px beside the 47 px crew, the ghoul about 60, the Glowrat about 35 x 25. `&enemyscale=half` is the native size (a punk 46 px, the crew's height) and `&enemyscale=full` the old 91 px (kept for comparison). Bosses (Knuckles, the Lurker, the Warden) are never reduced. The traces are only 56 to 67 per cent uniform 2x2 cells (punk 61 per cent at phase 0, 67 at the best phase; ghoul 62 and 64; Glowrat 44 and 44), so the collapse takes a majority vote and loses a little detail; it keeps the one-block-wide gold rim as a one-pixel rim, which the round-1 nearest shrink broke into stairs. The 1.25x and 1.5x stretches repeat every fifth or third row and column, so line widths are slightly uneven in a zoom; the crew's own shrink (0.47, not 0.5) has the same kind of unevenness, so the two match at 1x. If that irregularity matters, `half` is the clean choice.
+
+**Composition.** Slot 0 (Kit, first panel) is top-left and nearest the enemies; each next slot is 20 world px right and 7 lower (x 150 to 210, feet 76 to 97), the RPG Maker diagonal, so the sprites read in the same order as the panels. Enemies' feet are at about row 72 (lift 8), a few px above slot 0's feet, so the two sides share a ground plane; the strip is world x 46 to 134, and a group too wide for it (four punks) stands out over the menu column (to x 6), which is safe because the menus start under the enemies' feet. Minimum enemy gap is 2 px (it was -4). Every crew member has a contact shadow, like the enemies. The command menus, the ability list and the target box now sit 5 screen px higher so they no longer touch the active member's raised panel. The target cursor hangs just over the enemy's health bar (it was up to 30 px above it) and bounces 1 px, not 3.
+
+**Crew.** All four got a finishing pass (`finish()`): the darkest trouser and boot colours lifted toward the midtone, the outline lifted from near-black (more on dark members), a thin cool rim on the back and top edge, and loose specks removed. The walk got a near-arm counter-swing about the shoulder (the day-1 arm cut) for Kit, Rook and Hex, a 1 px body drop on the passing steps, a longer stride for Rook, Hex and Sable, and a coat-hem sway for Rook. The wait loop is about 0.5 s a step and the last frame leans the upper body back 1 px.
+
+**Honest issues.**
+- Sable is still a three-quarter view (see the pose log): the traced `east` view is a back view, so a true profile needs a re-trace or a hand build.
+- Rook's arm swing is only 9 degrees (at 16 the coat sleeve's dark seams turned to scribbles and left dark patches inside the coat), so his fist moves about 2 px, and his 1 px hem sway is hard to see at 1x: his walk still reads mostly as the bob and the boots.
+- The Hex walk is still the weakest: thin grey-blue legs; the swing reads, the shape is a bit stick-like.
+- The 1.25x enemy stretch is not pixel-perfect (see above), and the Glowrat is small (25 px tall) beside the crew.
+- Nothing here exercises a strike, a cast or a hurt: motion and impact are unscored on this item; the walk-in and the wait loop are judged from the GIF and the filmstrip. The walk-in plays against the shatter intro, so the sprites are under translucent shards for the first second.
+- Backdrop floor polygons are not checked per backdrop: in the sewer corridor the left ghoul stands against the wall base rather than on the lit floor.
+
+## Time log, item A-layout round 2 (wall clock, Claude time)
+| Sub-step | From to | Minutes | Fix passes |
+|---|---|---|---|
+| Read the spike, the code, the data; start the dev server | 11:44 to 11:47 | 3 | 0 |
+| Enemy collapse and stretch, `fit` default, diagonal, shadows, cursor, first look | 11:47 to 11:50 | 3 | 0 |
+| Crew finish, arms, hem, wait lean, Sable `east` attempt, crew sheets | 11:50 to 12:02 | 12 | 4 (outline too light, arm gap colour, Sable `east` failed, Rook's arm angle) |
+| Layout: panel gaps, cursor anchor, wide-group overflow, spacing (interleaved with the crew work) | 11:56 to 12:00 | 4 | 4 |
+| Deliverable captures (screens, crew sheet, filmstrip, GIF); crew sheet, filmstrip and GIF twice, because Rook's arm changed after the first set | 12:00 to 12:04 | 4 | 0 |
+| Docs, `npm run check` (exit 0), commit, push | 12:04 to 12:07 | 3 | 0 |
+
+About 23 minutes of wall clock (the layout and crew rows overlap), 8 fix passes, none of them per-pixel repair. The judges' list had 25 distinct fixes; all but Sable's profile and a hem sway that is hard to see are in.
 
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED

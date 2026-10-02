@@ -23,7 +23,7 @@ import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
 import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
-import { SIDE_VIEW, WALK_FRAMES_PER_STEP } from './sideview';
+import { IDLE_FRAMES_PER_STEP, IDLE_FRAMES_PER_STEP_ACTIVE, SIDE_PANEL_GAP, SIDE_VIEW, WALK_FRAMES_PER_STEP } from './sideview';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
 import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, markElements, statusName } from './tables';
@@ -381,7 +381,7 @@ export class BattleRenderer {
     // Side view: the wait loop plays in place of the rest frame, and the walk while stepping in.
     const walkLeft = this.s.sideWalk();
     const cyc = art.cycle;
-    const frame = cyc && pose === 'idle' ? (walkLeft > 0 ? cyc.walk[Math.floor((f - this.s.walkStart) / WALK_FRAMES_PER_STEP) % cyc.walk.length] : cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / (active ? 12 : 20)) % cyc.idleOrder.length] ?? 0]) ?? art.frames[pose] : art.frames[pose];
+    const frame = cyc && pose === 'idle' ? (walkLeft > 0 ? cyc.walk[Math.floor((f - this.s.walkStart) / WALK_FRAMES_PER_STEP) % cyc.walk.length] : cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / (active ? IDLE_FRAMES_PER_STEP_ACTIVE : IDLE_FRAMES_PER_STEP)) % cyc.idleOrder.length] ?? 0]) ?? art.frames[pose] : art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
     const res = art.res ?? 1;
     let ox = 0;
@@ -397,6 +397,15 @@ export class BattleRenderer {
       putArt(g, silhouetteCache(art.frames.hurt, '#3a3450'), x, y + 10, res);
       g.globalAlpha = 1;
       return;
+    }
+    if (SIDE_VIEW) {
+      // The crew plant on the street with a soft contact shadow, as the enemies do (it stays on the ground through a lunge or a hop).
+      const cx = Math.round(pos.x + walkLeft);
+      const gy = this.s.partyFeet(p) - 1;
+      g.fillStyle = 'rgba(0,0,0,0.4)';
+      g.fillRect(cx - 7, gy, 14, 2);
+      g.fillRect(cx - 5, gy + 2, 10, 1);
+      g.fillRect(cx - 5, gy - 1, 10, 1);
     }
     if (dd.afterimage > 0) {
       // Speed ghosts trailing behind and to either side.
@@ -442,6 +451,8 @@ export class BattleRenderer {
       const p = this.s.enemyPos(u);
       x = p.x + p.art.w / 2;
       y = p.y - 4;
+      // Side view: hang the chevron just over the health bar, wherever the prompt window has pushed it (the bar sits 6 screen pixels over the art, never above row 24).
+      if (SIDE_VIEW) y = Math.max(24, (p.y + artTop(p.art)) * 2 - 6) / 2;
     } else {
       const p = this.s.partyPos(u);
       x = p.x;
@@ -449,8 +460,8 @@ export class BattleRenderer {
     }
     // Over an enemy it hangs above the head; over the crew it sits right on the hair, so it never
     // reaches up into the enemy row and reads as a target cursor (round 13).
-    const b = Math.round(Math.sin(f * 0.25) * (u.side === 'enemy' ? 3 : 1.5));
-    const top = u.side === 'enemy' ? y - 9 + b : y - 2 + b;
+    const b = Math.round(Math.sin(f * 0.25) * (u.side === 'enemy' ? (SIDE_VIEW ? 1 : 3) : 1.5));
+    const top = u.side === 'enemy' ? Math.max(SIDE_VIEW ? 1 : -99, y - 9 + b) : y - 2 + b;
     // A chunky chevron (9 wide, 5 deep) with a dark outline all round, so it holds against any
     // backdrop, and a white glint across its top on the beat.
     g.fillStyle = '#0a0913';
@@ -860,7 +871,7 @@ export class BattleRenderer {
   }
 
   private renderRoundMenu(ctx: Ctx): void {
-    const x = MENU_X, y = PANEL_Y - 60;
+    const x = MENU_X, y = PANEL_Y - 60 - (SIDE_VIEW ? SIDE_PANEL_GAP : 0);
     drawWindow(ctx, x, y, 84, 54, { title: `ROUND ${this.s.battle.round + 1}` });
     this.s.roundMenu.render(ctx, x + 8, y + 8, 72);
     const help: Record<string, string> = {
@@ -879,7 +890,7 @@ export class BattleRenderer {
     const a = this.s.actor;
     if (!a) return;
     const h = this.s.cmdMenu.items.length * 11 + 12;
-    const x = this.s.menuX(a, CMD_W), y = PANEL_Y - h - 6;
+    const x = this.s.menuX(a, CMD_W), y = PANEL_Y - h - 6 - (SIDE_VIEW ? SIDE_PANEL_GAP : 0);
     drawWindow(ctx, x, y, CMD_W, h, { accent: MEMBERS[a.key as MemberId].color, title: a.name.toUpperCase(), alpha: active ? 1 : 0.85 });
     this.s.cmdMenu.render(ctx, x + 7, y + 7, CMD_W - 8, active);
   }
@@ -897,7 +908,7 @@ export class BattleRenderer {
     const cmdTop = PANEL_Y - (this.s.cmdMenu.items.length * 11 + 12) - 6;
     // Side view: the enemies are left of the party, so a window stacked above the command menu would cover
     // them. It sits beside the command menu instead, on the open ground under the enemies.
-    const x = SIDE_VIEW ? MENU_X + CMD_W + 4 : this.s.menuX(a, w), y = SIDE_VIEW ? PANEL_Y - h - 6 : cmdTop - h - 4;
+    const x = SIDE_VIEW ? MENU_X + CMD_W + 4 : this.s.menuX(a, w), y = SIDE_VIEW ? PANEL_Y - h - 6 - SIDE_PANEL_GAP : cmdTop - h - 4;
     const kind = this.s.listKind === 'item' ? 'Items' : this.s.listKind === 'skill' ? 'Skills' : this.s.cmdMenu.items.find((i) => i.value === 'tech')?.label ?? 'Techs';
     drawWindow(ctx, x, y, w, h, { title: `${a.name} · ${kind}`.toUpperCase(), accent: MEMBERS[a.key as MemberId].color });
     this.s.listMenu.render(ctx, x + 8, y + 8, w - 14, true, 'Nothing to use.');
@@ -954,7 +965,7 @@ export class BattleRenderer {
     // Side view: the enemies fill the top and middle of the screen, so the box takes the open ground
     // under them (the command windows' place, which are hidden while aiming), whoever is aimed at.
     const x = SIDE_VIEW ? MENU_X + 4 : tx < W / 2 ? W - 44 - w : 8;
-    const y = SIDE_VIEW ? PANEL_Y - 6 - boxH : 44;
+    const y = SIDE_VIEW ? PANEL_Y - 6 - SIDE_PANEL_GAP - boxH : 44;
     if (info) {
       const { weak, notes } = info;
       drawWindow(ctx, x, y, w, boxH, { plain: true, accent: UI.amber });

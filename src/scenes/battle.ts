@@ -31,7 +31,7 @@ import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
 import { BHT, BW, DECK_CUT_LIFE, MENU_X, PANEL_Y, PARTY_BOTTOM } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
-import { SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, WALK_FROM, WALK_SPEED, sideBattler, sideSlot } from './battlekit/sideview';
+import { SIDE_ENEMY_EDGE, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, WALK_FROM, WALK_SPEED, sideBattler, sideSlot } from './battlekit/sideview';
 import { postfx } from '../engine/postfx';
 import { playMoment } from '../engine/moments';
 import { FX } from '../data/fx';
@@ -1078,9 +1078,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const widths = living.reduce((n, e) => n + enemyArt(ENEMIES[e.key]!.sprite).w, 0);
       // Side view: the enemies fill the strip between the command-menu column and the party, closing
       // up (the art's transparent margins overlap) before they would run under either.
-      if (SIDE_VIEW && living.length > 1) gap = Math.max(-4, Math.min(6, Math.floor((SIDE_ENEMY_RIGHT - SIDE_ENEMY_LEFT - widths) / (living.length - 1))));
+      if (SIDE_VIEW && living.length > 1) gap = Math.max(SIDE_ENEMY_GAP_MIN, Math.min(SIDE_ENEMY_GAP_MAX, Math.floor((SIDE_ENEMY_RIGHT - SIDE_ENEMY_LEFT - widths) / (living.length - 1))));
       const total = widths + gap * Math.max(0, living.length - 1);
-      let x = SIDE_VIEW ? Math.max(SIDE_ENEMY_LEFT, Math.round(SIDE_ENEMY_LEFT + (SIDE_ENEMY_RIGHT - SIDE_ENEMY_LEFT - total) / 2)) : Math.round((BW - total) / 2);
+      let x = SIDE_VIEW ? (total <= SIDE_ENEMY_RIGHT - SIDE_ENEMY_LEFT ? Math.round(SIDE_ENEMY_LEFT + (SIDE_ENEMY_RIGHT - SIDE_ENEMY_LEFT - total) / 2) : Math.max(SIDE_ENEMY_EDGE, SIDE_ENEMY_RIGHT - total)) : Math.round((BW - total) / 2);
       living.forEach((e, i) => {
         const art = enemyArt(ENEMIES[e.key]!.sprite);
         // Side view: the enemies stand further back (higher up the street) than any of the crew, which also
@@ -1129,8 +1129,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   sideWalk(): number {
     if (!SIDE_VIEW) return 0;
     const n = this.battle.party.length;
-    // The distance the rearmost slot has to cover from just past the right edge; everyone else is that far from their own place.
-    const full = WALK_FROM - sideSlot(n - 1, n).x;
+    // The distance the leftmost slot (the front one) has to cover from just past the right edge; everyone else is that far from their own place, so the rest start further out.
+    const full = WALK_FROM - sideSlot(0, n).x;
     // Before the walk starts (the first frames of the intro) they are still off the right edge.
     if (this.walkStart < 0) return this.mode === 'intro' ? full : 0;
     return Math.max(0, full - (this.frame - this.walkStart) * WALK_SPEED);
