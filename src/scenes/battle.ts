@@ -789,7 +789,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
         }
       },
       timingArmed: () => (scene.timing.armed && !scene.timing.isOpen ? scene.timing.prompt!.profile : null),
-      anim: (frames) => scene.fx.realFrames(frames),
+      // The rate is refreshed first: on the tick a round starts, the timing prompt is armed after this tick's rate was set, so a held confirm would make it 1.6x stale for every pose length computed from it.
+      anim: (frames) => {
+        scene.fx.rate = scene.animRate();
+        return scene.fx.realFrames(frames);
+      },
       label: (u) => scene.label(u),
       deckCutin: () => {
         scene.deckT = 0;

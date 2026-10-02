@@ -88,12 +88,20 @@ export const SF_SWIPES: Record<'smearA' | 'mid' | 'smearB' | 'swingB' | 'followF
 const LEAN_SPAN = 60;
 
 /** Swipe colours: sampled from the follow-through's own blade by `sampleSteel` (these are what it falls back to). Three tones: the bright rim, the light body, the steel fill. */
-const RAMP = { white: [244, 247, 251] as number[], light: [208, 216, 228] as number[], steel: [150, 166, 190] as number[], outline: [24, 22, 32] as number[], gold: [226, 170, 48] as number[] };
+/** A swipe's palette: the bright rim, the light body, the fill, the outline and the guard's gold (Rook's is sampled from his sword; Kit's punch builds one from her jacket, `sfpunch.ts`). */
+export interface Ramp {
+  white: number[];
+  light: number[];
+  steel: number[];
+  outline: number[];
+  gold: number[];
+}
+const RAMP: Ramp = { white: [244, 247, 251], light: [208, 216, 228], steel: [150, 166, 190], outline: [24, 22, 32], gold: [226, 170, 48] };
 
 // ------------------------------------------------------------------------------------------------ pixel helpers
 
 export const blank = (w: number, h: number): Raw => ({ w, h, px: new Uint8ClampedArray(w * h * 4) });
-const put = (r: Raw, x: number, y: number, c: readonly number[]): void => {
+export const put = (r: Raw, x: number, y: number, c: readonly number[]): void => {
   if (x < 0 || y < 0 || x >= r.w || y >= r.h) return;
   const i = (y * r.w + x) * 4;
   r.px[i] = c[0] ?? 0;
@@ -275,7 +283,7 @@ export function drawBlade(dst: Raw, hx: number, hy: number, deg: number, len: nu
  * bands (the blade's bright edge outside, its lighter tone, then the steel inside), thin at the trailing end and thickest at the leading one. No fill, no dither,
  * no soft alpha, no loose dots. The drawn blade (if the swipe has one) goes on the leading edge.
  */
-export function drawSwipe(dst: Raw, hx: number, hy: number, sw: SfSwipe): void {
+export function drawSwipe(dst: Raw, hx: number, hy: number, sw: SfSwipe, ramp: Ramp = RAMP): void {
   const reach = Math.max(sw.rx, sw.ry);
   const x0 = Math.floor(hx - reach - 1), x1 = Math.ceil(hx + reach + 1), y0 = Math.floor(hy - reach - 1), y1 = Math.ceil(hy + reach + 1);
   for (let y = y0; y <= y1; y++)
@@ -291,7 +299,7 @@ export function drawSwipe(dst: Raw, hx: number, hy: number, sw: SfSwipe): void {
       const w = sw.edge * (0.2 + 0.8 * u ** 1.3);
       if (r <= R - w) continue;
       const depth = (R - r) / w;
-      put(dst, x, y, depth < 0.4 ? RAMP.white : depth < 0.75 ? RAMP.light : RAMP.steel);
+      put(dst, x, y, depth < 0.4 ? ramp.white : depth < 0.75 ? ramp.light : ramp.steel);
     }
   if (sw.blade > 0) drawBlade(dst, hx, hy, sw.a1, sw.blade);
 }

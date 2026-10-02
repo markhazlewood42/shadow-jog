@@ -10,6 +10,7 @@ import type { Combatant, Command, Element } from '../../battle/types';
 import { ABILITIES } from '../../data/abilities';
 import { PARTY_POSE_T, swingBeat } from './motion';
 import { type KataBeat, KATA_MEASURED, KATA_BODY_HALF, KATA_KNOCK, KATA_MEASURED_LOW, KATA_ROOM_GAP, KATA_ROOM_MAX, isContact, kataBeat } from '../../art/rig2/sidekata';
+import { type PunchBeat, PUNCH_MEASURED, punchBeat } from '../../art/rig2/sfpunch';
 import { type SfBeat, SF_FADE, SF_KNOCK, SF_MEASURED, SF_ROOM, SF_SWING, sfBeat } from '../../art/rig2/sfstrike';
 import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
@@ -459,12 +460,22 @@ export class BattleRenderer {
     return sfBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt);
   }
 
-  /** Either strike (the code art's kendo cut or Sprite Fusion's frames): how far along its lunge the body is, and whether the blade is on the target. */
+  /** Sprite Fusion art, Kit's punch combo (rig2/sfpunch.ts): where the pose is (null when she is not mid-combo). Her reach decides whether a run comes first, so it is part of the clock. */
+  private punchOf(uid: number): PunchBeat | null {
+    if (!SIDE_VIEW) return null;
+    const dd = this.s.d(uid);
+    if (!this.s.partyArt.get(uid)?.sfPunch || dd.pose !== 'attack' || dd.strikeAt === undefined || dd.poseT <= 0 || dd.poseT > (dd.poseLen ?? 0)) return null;
+    return punchBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.reachX ?? 0);
+  }
+
+  /** Either strike (the code art's kendo cut, or Sprite Fusion's frames: Rook's strike, Kit's combo): how far along its lunge the body is, and whether the blow is on the target. */
   private strikeOf(uid: number): { lunge: number; contact: boolean } | null {
     const kb = this.kataOf(uid);
     if (kb) return { lunge: kb.lunge, contact: isContact(kb.key) };
     const sk = this.sfOf(uid);
-    return sk ? { lunge: sk.lunge, contact: sk.contact } : null;
+    if (sk) return { lunge: sk.lunge, contact: sk.contact };
+    const pk = this.punchOf(uid);
+    return pk ? { lunge: pk.lunge, contact: pk.contact } : null;
   }
 
   /**
@@ -588,6 +599,29 @@ export class BattleRenderer {
     g.globalAlpha = 1;
   }
 
+  /**
+   * Kit's combo: a puff of street dust behind her planted front boot as the first blow lands (the same three-stage clumps as Rook's stamp, nine frames from the first jab frame).
+   * Battle-world pixels on the enemy layer.
+   */
+  private drawPunchDust(g: Ctx, p: Combatant, pk: PunchBeat, lungeX: number, lungeY: number): void {
+    const c = pk.key === 'jab' ? pk.t : pk.key === 'crossS' ? 3 : pk.key === 'cross' ? 4 + pk.t : -1;
+    if (c < 0 || c >= 9) return;
+    const hx = Math.round(this.s.partyPos(p).x + lungeX + PUNCH_MEASURED.footDx / 2) - 6;
+    const gy = Math.round(this.s.partyFeet(p) - 1 + lungeY);
+    const stage = Math.floor(c / 3);
+    const puffs: [number, number][][] = [
+      [[0, -1], [-1, -1], [-2, -2]],
+      [[-1, -2], [-3, -2], [-2, -4], [-5, -1], [1, -1]],
+      [[-3, -4], [-6, -3], [-2, -6], [-7, -1]],
+    ];
+    g.globalAlpha = stage === 2 ? 0.65 : 1;
+    (puffs[stage] ?? []).forEach(([dx, dy], i) => {
+      g.fillStyle = i % 2 ? '#8c83ab' : '#b2a9cc';
+      g.fillRect(hx + (dx ?? 0), gy + (dy ?? 0), 1, 1);
+    });
+    g.globalAlpha = 1;
+  }
+
   private drawPartyMember(g: Ctx, p: Combatant, f: number): void {
     const dd = this.s.d(p.uid);
     const art = this.s.partyArt.get(p.uid)!;
@@ -598,7 +632,9 @@ export class BattleRenderer {
     const melee = dd.poseT > 0 && (dd.pose === 'attack' || dd.pose === 'thrust');
     // Side view: the strike plays on its own beats (sideBeat: crouch, wind-up, dash, blow, return); the back view's lift beats don't apply.
     const sk = SIDE_VIEW && melee ? this.sfOf(p.uid) : null;
-    const sb = SIDE_VIEW && melee && !sk && dd.poseT <= PARTY_POSE_T ? sideBeat(PARTY_POSE_T - dd.poseT) : null;
+    // Sprite Fusion art, Kit: the punch combo plays on its own timeline (rig2/sfpunch.ts), keyed to the frame of the first blow.
+    const pk = SIDE_VIEW && melee ? this.punchOf(p.uid) : null;
+    const sb = SIDE_VIEW && melee && !sk && !pk && dd.poseT <= PARTY_POSE_T ? sideBeat(PARTY_POSE_T - dd.poseT) : null;
     const beat = melee && !SIDE_VIEW ? swingBeat(PARTY_POSE_T - dd.poseT) : null;
     // Side view, Rook: the kendo strike plays on its own timeline (rig2/sidekata.ts), keyed to the frame the move's effect starts on.
     const kb = SIDE_VIEW && melee && art.kata && dd.strikeAt !== undefined && dd.poseT <= (dd.poseLen ?? 0) ? kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.strikeLow) : null;
@@ -622,7 +658,7 @@ export class BattleRenderer {
     // Side view: a crewmate in the way of Rook's strike steps aside (see makeRoom).
     const roomV = this.makeRoom(p);
     // A member with no walk frames of its own steps in on the idle loop, so the loop does not jump when it arrives.
-    const frame = sk && art.sfStrike ? (sk.key === 'ready' && idleFrame ? idleFrame : art.sfStrike.frames[sk.key]) : kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walking && cyc.walk.length > 0 ? (settle ?? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length]) : idleFrame) ?? art.frames[pose] : art.frames[pose];
+    const frame = pk && art.sfPunch ? (pk.key === 'ready' && idleFrame ? idleFrame : art.sfPunch.frames[pk.key]) : sk && art.sfStrike ? (sk.key === 'ready' && idleFrame ? idleFrame : art.sfStrike.frames[sk.key]) : kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walking && cyc.walk.length > 0 ? (settle ?? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length]) : idleFrame) ?? art.frames[pose] : art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
     const res = art.res ?? 1;
     let ox = 0;
@@ -638,7 +674,7 @@ export class BattleRenderer {
     // Side view: positions land on a native pixel (half a world pixel); otherwise on a world pixel.
     const snap = SIDE_VIEW ? (v: number) => Math.round(v * 2) / 2 : Math.round;
     // Side view: how far along its lunge the body is, in world pixels.
-    const lungeK = sk ? sk.lunge : kb ? kb.lunge : sb ? sb.lunge : 0;
+    const lungeK = pk ? pk.lunge : sk ? sk.lunge : kb ? kb.lunge : sb ? sb.lunge : 0;
     const lungeX = lungeK * (dd.reachX ?? 0);
     const lungeY = lungeK * (dd.reachY ?? 0);
     const x = snap(pos.x - frame.width / res / 2 + ox + walkLeft + lungeX);
@@ -671,6 +707,7 @@ export class BattleRenderer {
       g.globalAlpha = walkAlpha;
     }
     if (sk && art.sfStrike) this.drawSfDust(g, p, sk, lungeX, lungeY);
+    if (pk && art.sfPunch) this.drawPunchDust(g, p, pk, lungeX, lungeY);
     if (kb && art.kata) this.drawKataFx(g, p, kb, frame, x, y, res, walkLeft, lungeY, cx2);
     if (!kb && dd.afterimage > 0) {
       // Speed ghosts trailing behind and to either side.
@@ -678,6 +715,12 @@ export class BattleRenderer {
         g.globalAlpha = a * (dd.afterimage / 22);
         putArt(g, silhouetteCache(frame, MEMBERS[p.key as MemberId].color), x + gx, y + gy, res);
       }
+      g.globalAlpha = 1;
+    }
+    if (pk?.dash) {
+      // Kit's run in and her smear frames leave one solid ghost behind the body, tinted her ki gold (the same single-tone ghost as Rook's dash, fainter: her smear is on the arm).
+      g.globalAlpha = pk.key === 'run' ? 0.26 : 0.18;
+      putArt(g, silhouetteCache(frame, '#ffc864'), x - FACE * (pk.key === 'run' ? 2.5 : 1.5), y, res);
       g.globalAlpha = 1;
     }
     if (sk?.dash) {
@@ -765,7 +808,13 @@ export class BattleRenderer {
       // Side view, Rook's kendo strike: the arrow rides the body through the lunge, and clears the raised blade (it would sit on it).
       const dd = this.s.d(uid);
       const sk = this.sfOf(uid);
-      if (sk) {
+      const pk = this.punchOf(uid);
+      if (pk) {
+        // Kit's combo: the chevron is gone from the first frame (the body is its own marker once it is on the target).
+        if (pk.key !== 'ready') return;
+        x += pk.lunge * (dd.reachX ?? 0);
+        y += pk.lunge * (dd.reachY ?? 0);
+      } else if (sk) {
         // Round 4: once the strike has begun the chevron is gone (the raised blade ran through it); the body is its own marker.
         if (sk.key !== 'ready') return;
         x += sk.lunge * (dd.reachX ?? 0);

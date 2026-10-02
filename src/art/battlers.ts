@@ -5,6 +5,7 @@
  */
 import type { KataKey } from './rig2/sidekata';
 import type { SfKey } from './rig2/sfstrike';
+import type { PunchKey } from './rig2/sfpunch';
 import { backGrid, paint, type CharLook } from './chars';
 import { rigBattler } from './rig2/battle';
 import { Pix, scale2x } from './pix';
@@ -41,6 +42,8 @@ export interface Battler {
   kata?: Record<KataKey, HTMLCanvasElement> | undefined;
   /** Side-view battle, Sprite Fusion art, Rook only: his strike built from Mark's frames (`rig2/sfstrike.ts`), one canvas per key, all the same size, the slot's axis at the centre column and the soles on the bottom row. */
   sfStrike?: { frames: Record<SfKey, HTMLCanvasElement> } | undefined;
+  /** Side-view battle, Sprite Fusion art, Kit only: her punch combo built from Mark's frames (`rig2/sfpunch.ts`), one canvas per key, same size and axis rules as `sfStrike`. */
+  sfPunch?: { frames: Record<PunchKey, HTMLCanvasElement> } | undefined;
   /** The same frames without the smear arc, for the speed ghosts. */
   kataPlain?: Record<KataKey, HTMLCanvasElement> | undefined;
 }

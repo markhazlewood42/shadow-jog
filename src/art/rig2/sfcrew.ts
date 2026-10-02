@@ -19,6 +19,7 @@
 import type { Battler, Pose } from '../battlers';
 import { POSES } from '../battlers';
 import { bootsMid, boxOf, type Raw } from './sfgeom';
+import { buildSfPunch, dropStrays, PUNCH_KEYS, PUNCH_MEASURED, type PunchKey } from './sfpunch';
 import { buildSfStrike, SF_KEYS, SF_MEASURED, type SfKey } from './sfstrike';
 
 const BASE = '/spritefusion-tests/';
@@ -67,7 +68,7 @@ const toCanvas = (r: Raw): HTMLCanvasElement => {
 
 /** Single-frame PNGs the crew use, by file name (without `.png`). */
 const STILLS = [
-  'kit-battle-reference', 'kit-battle-punch1', 'kit-battle-punch2', 'kit-battle-punch3', 'kit-battle-crouched', 'kit-battle-injured', 'kit-battle-running', 'kit-battle-victory',
+  'kit-battle-reference', 'kit-battle-punch1', 'kit-battle-punch2', 'kit-battle-punch3', 'kit-battle-kick', 'kit-battle-crouched', 'kit-battle-injured', 'kit-battle-running', 'kit-battle-victory',
   'rook-battle-reference', 'rook-battle-strike1', 'rook-battle-strike2', 'rook-battle-crouched',
   'hex-battle-reference',
   'sable-battle-reference',
@@ -79,7 +80,7 @@ const SHEETS = ['kit-battle-idle', 'rook-battle-idle', 'hex-battle-idle', 'sable
 export async function loadSfArt(): Promise<void> {
   if (loaded) return;
   await Promise.all([
-    ...STILLS.map(async (n) => RAW.set(n, [await readPng(`${BASE}${n}.png`)])),
+    ...STILLS.map(async (n) => RAW.set(n, [dropStrays(await readPng(`${BASE}${n}.png`))])),
     ...SHEETS.map(async (n) => {
       const meta = (await (await fetch(`${BASE}extracted/${n}/metadata.json`)).json()) as { frame_w: number; frame_count: number };
       const sheet = await readPng(`${BASE}extracted/${n}/spritesheet.png`);
@@ -186,6 +187,8 @@ interface SfSpec {
   rest: string;
   /** Rook: the two-handed strike is built from his idle and the two strike frames (rig2/sfstrike.ts). */
   strike?: boolean;
+  /** Kit: the punch combo is built from her idle, run and the punch and kick frames (rig2/sfpunch.ts). */
+  punch?: boolean;
   /** Render frames per idle frame: 60 / the sheet's fps (all the idles are 8 fps). */
   idleStep: number;
 }
@@ -197,6 +200,7 @@ const SPECS: Record<string, SfSpec> = {
     settle: ['kit-battle-reference'],
     poses: { attack: 'kit-battle-punch1', strike: 'kit-battle-punch3', thrust: 'kit-battle-punch2', brace: 'kit-battle-crouched', hurt: 'kit-battle-injured', victory: 'kit-battle-victory' },
     rest: 'kit-battle-reference',
+    punch: true,
     idleStep: 7.5,
   },
   rook: {
@@ -239,7 +243,7 @@ export function sfBattler(key: string): Battler | null {
   const spec = SPECS[key];
   if (!spec || !loaded) return null;
   // One palette over everything this character has, so a shade cannot differ between two poses.
-  const names = [...new Set([spec.idle, spec.rest, ...spec.walk.names, ...(spec.settle ?? []), ...Object.values(spec.poses)])];
+  const names = [...new Set([spec.idle, spec.rest, ...spec.walk.names, ...(spec.settle ?? []), ...Object.values(spec.poses), ...(spec.punch ? ['kit-battle-kick'] : [])])];
   const all = names.flatMap((n) => frames(n).map((r) => ({ n, r })));
   let rawOf = (n: string): Raw[] => frames(n);
   if (SF_CLEAN) {
@@ -269,10 +273,21 @@ export function sfBattler(key: string): Battler | null {
     for (const k of SF_KEYS) fr[k] = toCanvas(built.frames[k]);
     sfStrike = { frames: fr };
   }
+  // Kit's punch combo (H-sf-kit-punch): her idle, the run, load, jab, cross and kick laid on one canvas size by their planted boot, plus the smears.
+  let sfPunch: Battler['sfPunch'];
+  if (spec.punch) {
+    const one = (n: string): Raw => rawOf(n)[0] as Raw;
+    const built = buildSfPunch(rawOf(spec.idle), one('kit-battle-running'), one('kit-battle-punch1'), one('kit-battle-punch2'), one('kit-battle-punch3'), one('kit-battle-kick'));
+    Object.assign(PUNCH_MEASURED, built.measured);
+    const fr = {} as Record<PunchKey, HTMLCanvasElement>;
+    for (const k of PUNCH_KEYS) fr[k] = toCanvas(built.frames[k]);
+    sfPunch = { frames: fr };
+  }
   return {
     frames: poseFrames,
     glow: {},
     ...(sfStrike ? { sfStrike } : {}),
+    ...(sfPunch ? { sfPunch } : {}),
     headH: Math.ceil((first.height - idle.top) / 2),
     res: 2,
     cycle: { idle: idle.canvases, idleOrder: idle.canvases.map((_, i) => i), walk: walk.canvases, idleStep: spec.idleStep, walkStep: spec.walk.step, ...(settle ? { settle } : {}), ...(spec.walk.ghosts ? { walkGhosts: spec.walk.ghosts } : {}) },

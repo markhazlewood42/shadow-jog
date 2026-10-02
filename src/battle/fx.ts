@@ -13,6 +13,11 @@ import { Rng } from '../engine/rng';
  */
 export const MEN_R = { len: 11, angle: 0.95, dx: Math.round(Math.cos(0.95) * 11), dy: Math.round(Math.sin(0.95) * 11), spark: 1 };
 
+/**
+ * Kit's blows in Sprite Fusion art ('punch_r': a jab, a cross, a kick): `power` scales the star, the ring and the chips (playback sets 0.8, 1 and 1.3, as it sets `MEN_R.spark`).
+ */
+export const PUNCH_R = { power: 1 };
+
 export interface Pt {
   x: number;
   y: number;
@@ -758,6 +763,23 @@ export class FxLayer {
           this.debris(end, '#c8d0e0', 5, 4);
         });
         return { impact: 4, total: 16 };
+      case 'punch_r':
+        // Kit's blow in Sprite Fusion art: a hard four-point star on the point of contact (the fist or the toe, inside the body), a short flat flare driven on through the target, a small ring and a few
+        // chips. No convergence lines (she is already there) and no wide burst: three of these play in a row, so each stays small and quick (two frames to the flash).
+        each((t) => {
+          const pw = PUNCH_R.power;
+          this.impact(t, '#ffb454', 0, Math.max(3, Math.round(6 * pw)));
+          this.burst(t, '#ffe9a8', Math.round(4 + 4 * pw), 1.4 * pw, 0, 12);
+          this.ring(t, '#ffd9a0', 2, Math.round(5 + 4 * pw), 5, 1);
+          this.s(4, (ctx, k) => {
+            ctx.globalAlpha = 1 - k;
+            ctx.fillStyle = '#fff3d0';
+            for (const [dy, len] of [[-3, 8], [0, 12], [3, 7]] as const) ctx.fillRect(Math.round(t.x + 2), Math.round(t.y + dy), Math.round(len * pw * (0.5 + k)), 1);
+            ctx.globalAlpha = 1;
+          });
+          this.debris(t, '#ffd36a', 2 + Math.round(pw * 2), 0);
+        });
+        return { impact: 2, total: 14 };
       case 'slash':
       case 'claw':
       case 'whip':
