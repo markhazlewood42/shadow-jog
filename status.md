@@ -257,9 +257,9 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
 - **State at this handoff:** see the end of this section's commit (`git log -1`); CI runs on every push.
 
 ### What happens next
-**The proposed pivot sequence** (from `docs/PHASE-0.2.md`, "How the three fit together"; everything after the v0.1.0 release work depends on open decisions 3–6):
-1. **Now:** the release-prep PR, then tag v0.1.0 (go-ahead), then the bump to 0.2.0-dev. Pause Hex/Sable back-view tuning (decision 3, still open). Mark turns off PixelLab auto-renew himself if he picks 5(a) or 5(b).
-2. **Week 1:** the side-view battle spike (3 days, if decision 3 is (a)) in parallel with Sprite Fusion Phase A (if decision 4 is (a) or (b)). Mark picks view and size from the comparison sheet.
+**The proposed pivot sequence** (from `docs/PHASE-0.2.md`, "How the three fit together"; everything after the v0.1.0 release work depends on open decisions 4–6):
+1. **Now:** the release-prep PR, then tag v0.1.0 (go-ahead), then the bump to 0.2.0-dev. Hex/Sable back-view tuning is paused (decision 3, 2026-10-02). Mark turns off PixelLab auto-renew himself if he picks 5(a) or 5(b).
+2. **Week 1:** the side-view battle spike (3 days; decided 2026-10-02, comparing field scale ~30 px with battle scale ~44–48 px) in parallel with Sprite Fusion Phase A (if decision 4 is (a) or (b)). Mark picks view and size from the comparison sheet.
 3. **Week 2:** the Phaser spike (4 sessions at most, if decision 6 is (a)) with the native slice built on the chosen look; Sprite Fusion Phase B alongside. Mark picks the engine for the production battle scene.
 4. **Weeks 3–5 (inferred):** the production battle view behind `?battle=side`, then it becomes the default.
 5. **Before 10-30:** use any PixelLab generations Mark wants to keep.
@@ -274,7 +274,7 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
 - **Ship the alpha** to shadowjog.com with the secure email sign-up, only with Mark's go-ahead.
 - **Chapter 2, "Deniable Assets":** getting Rook back (seeds in `docs/SETTING.md` §10).
 
-**Mark's open decisions in the plan** (`docs/PHASE-0.2.md`, "Decisions for Mark"): 3 pause the back-view rig for the side-view spike; 4 Sprite Fusion month and what its output may become; 5 PixelLab end-of-plan use; 6 Phaser spike timing; 8 what happens to the humanoid enemies. Decisions 1, 2 and 7 are settled.
+**Mark's open decisions in the plan** (`docs/PHASE-0.2.md`, "Decisions for Mark"): 4 Sprite Fusion month and what its output may become; 5 PixelLab end-of-plan use; 6 Phaser spike timing; 8 what happens to the humanoid enemies. Decisions 1, 2, 3 and 7 are settled.
 
 ### Known gaps (from round 13; none are bugs)
 - Battle presentation (7.5): the party are back-of-head sprites that cover enemies; creatures are finer than the party

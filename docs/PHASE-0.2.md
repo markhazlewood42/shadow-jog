@@ -432,7 +432,7 @@ If the battle spike is a NO-GO, 0.2.0 is instead Hex and Sable finished from beh
 
 ## Decisions for Mark
 
-Decided 2026-10-02: 1 (yes, v0.1.0 then 0.2), 2 (the loop, not the camera) and 7 (yes, correct the docs; Mark: "I'm OK with dependencies as long as they're high quality and free").
+Decided 2026-10-02: 1 (yes, v0.1.0 then 0.2), 2 (the loop, not the camera), 3 (run the side-view spike now, comparing field scale with the ~44–48 px battle scale; Hex/Sable back-view tuning paused) and 7 (yes, correct the docs; Mark: "I'm OK with dependencies as long as they're high quality and free").
 
 **1. Should today's game be frozen as v0.1.0, with the new phase numbered 0.2?** — **decided 2026-10-02: (a)** The new work changes features, not bugs, so it belongs in 0.2. Freezing means a small PR with a changelog and an in-game version label, then an annotated tag `v0.1.0`, then a GitHub pre-release, then `main` moving to `0.2.0-dev`.
 Options: (a) yes: 0.1.0 tag plus 0.2.0 phase; (b) call the next step 0.1.1; (c) no tags yet.
@@ -442,7 +442,7 @@ Options: (a) yes: 0.1.0 tag plus 0.2.0 phase; (b) call the next step 0.1.1; (c) 
 Options: (a) the camera, keep the back view; (b) the loop, with any camera.
 **Recommendation: (b), the loop.** Let the camera go if the spike passes.
 
-**3. Should the back-view rig work be paused while a 3-day side-view spike runs?** The spike tests field scale (~30 px) and hero scale (~55 px) with equal effort, starting with your profile references. You choose the size from clips afterwards. Kit's and Rook's finished back-view poses stay in v0.1.0 and behind a flag either way.
+**3. Should the back-view rig work be paused while a 3-day side-view spike runs?** — **decided 2026-10-02: (a), with battle scale (~44–48 px) as the second size** The spike tests field scale (~30 px) and hero scale (~55 px) with equal effort, starting with your profile references. You choose the size from clips afterwards. Kit's and Rook's finished back-view poses stay in v0.1.0 and behind a flag either way.
 Options: (a) pause Hex/Sable tuning and run the spike now; (b) finish the back view first, spike later; (c) don't spike.
 **Recommendation: (a).** The back-view code is deleted from `main` only when the new view ships.
 
