@@ -1055,6 +1055,9 @@ export function poseFrame(id: string, pose: ArmPose | null, rig = SKELETONS[id])
   let b = built.get(key);
   if (b === undefined) {
     b = build(id, rig);
+    // One unsaved skeleton kept per crew member: dragging a joint makes a new one every move, and
+    // keeping them all would grow without end (Copilot review of main, 2026-10-02).
+    if (key !== id) for (const k of built.keys()) if (k.startsWith(`${id}|`)) built.delete(k);
     built.set(key, b);
   }
   if (!b) return null;

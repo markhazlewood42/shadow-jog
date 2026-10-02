@@ -7,6 +7,26 @@ import { defineConfig } from 'vitest/config';
 
 const FX_FILE = resolve(import.meta.dirname, 'src/data/fx.json');
 type FxDataModule = typeof import('./src/engine/fxdata');
+type RigCheckModule = typeof import('./src/art/rig2/check');
+
+/**
+ * Whether a request to one of the dev server's write endpoints came from the dev server's own pages
+ * (the editors), not from another site open in the browser: a browser marks a cross-site request
+ * (Sec-Fetch-Site) and names the page's origin (Origin), and a page elsewhere could otherwise post
+ * to localhost and overwrite project files (Copilot review of main, 2026-10-02). A request with
+ * neither (a script, node's fetch) is allowed: it isn't a web page.
+ */
+function sameOrigin(req: import('node:http').IncomingMessage): boolean {
+  const site = req.headers['sec-fetch-site'];
+  if (site && site !== 'same-origin' && site !== 'none') return false;
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The FX lab's save endpoint (dev server only): GET /__fxlab/fx returns src/data/fx.json; POST
@@ -31,6 +51,10 @@ function fxLab(): Plugin {
         }
         if (req.method !== 'POST') {
           reply(405, { ok: false, problems: ['GET or POST only'] });
+          return;
+        }
+        if (!sameOrigin(req)) {
+          reply(403, { ok: false, problems: ['writes only from the dev server’s own pages'] });
           return;
         }
         let body = '';
@@ -109,6 +133,10 @@ function artPass(): Plugin {
             return;
           }
           if (req.method === 'POST' && route === '/review') {
+            if (!sameOrigin(req)) {
+              reply(403, { ok: false, problem: 'writes only from the dev server’s own pages' });
+              return;
+            }
             let body = '';
             req.on('data', (chunk: Buffer) => {
               body += chunk.toString('utf8');
@@ -142,8 +170,9 @@ const SKELETON_FILE = resolve(import.meta.dirname, 'public/art/rig/skeleton.json
 
 /**
  * The animation editor's save endpoint (dev server only; the editor is /rigedit.html):
- * GET /__rig/skeleton returns public/art/rig/skeleton.json, POST checks the posted skeletons (each
- * has an arm and poses) and writes them. Answers `{ ok: true }` or `{ ok: false, problem }`.
+ * GET /__rig/skeleton returns public/art/rig/skeleton.json; POST, from the dev server's own pages
+ * only, checks the posted skeletons' whole structure (src/art/rig2/check.ts) and writes them.
+ * Answers `{ ok: true }` or `{ ok: false, problem }`.
  */
 function rigEdit(): Plugin {
   return {
@@ -164,22 +193,31 @@ function rigEdit(): Plugin {
           reply(405, { ok: false, problem: 'GET or POST only' });
           return;
         }
+        if (!sameOrigin(req)) {
+          reply(403, { ok: false, problem: 'writes only from the dev server’s own pages' });
+          return;
+        }
         let body = '';
         req.on('data', (chunk: Buffer) => {
           body += chunk.toString('utf8');
           if (body.length > 1_000_000) req.destroy();
         });
-        req.on('end', () => {
-          let data: Record<string, { arm?: unknown; poses?: unknown }>;
+        req.on('end', async () => {
+          let data: unknown;
           try {
             data = JSON.parse(body);
           } catch {
             reply(400, { ok: false, problem: 'not valid JSON' });
             return;
           }
-          const bad = Object.entries(data ?? {}).find(([, r]) => !r || typeof r.arm !== 'object' || typeof r.poses !== 'object');
-          if (!data || typeof data !== 'object' || bad) {
-            reply(400, { ok: false, problem: bad ? `${bad[0]} has no arm or poses` : 'expected an object of skeletons' });
+          // The checks through the dev server (current after any edit to them).
+          const { checkSkeletons } = (await server.ssrLoadModule('/src/art/rig2/check.ts')) as RigCheckModule;
+          const problems = checkSkeletons(data);
+          // A save never drops someone the file has (an empty or partial post would wipe them).
+          const gone = Object.keys(JSON.parse(readFileSync(SKELETON_FILE, 'utf8')) as object).filter((id) => !(id in (data as object)));
+          if (gone.length && !problems.length) problems.push(`would remove ${gone.join(', ')}`);
+          if (problems.length) {
+            reply(400, { ok: false, problem: problems.slice(0, 5).join('; ') + (problems.length > 5 ? ` (and ${problems.length - 5} more)` : '') });
             return;
           }
           try {

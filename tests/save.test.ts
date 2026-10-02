@@ -90,6 +90,21 @@ describe('save / load', () => {
     expect(loadSave(3)).toBeNull();
   });
 
+  it('rejects a member whose equipment or skill charges are not plain objects', () => {
+    const kit = stateMod.state.members.kit as unknown as Record<string, unknown>;
+    for (const bad of [true, 1, 'x', null, []]) {
+      const keep = kit.uses;
+      kit.uses = bad;
+      expect(validState(stateMod.state)).toBe(false);
+      kit.uses = keep;
+    }
+    const equip = kit.equip;
+    kit.equip = null;
+    expect(validState(stateMod.state)).toBe(false);
+    kit.equip = equip;
+    expect(validState(stateMod.state)).toBe(true);
+  });
+
   it('rejects saves pointing at unknown maps', () => {
     stateMod.state.map = 'no_such_map';
     expect(validState(stateMod.state)).toBe(false);

@@ -198,6 +198,8 @@ function backfill(s: GameState): void {
 }
 
 const MEMBER_IDS: MemberId[] = ['kit', 'rook', 'hex', 'sable'];
+/** A plain object (not null, not an array): what a save's maps (equipment, skill charges) must be. */
+const plain = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Structural validation: a save that passes this can be loaded without crashing. */
 export function validState(s: GameState): boolean {
@@ -206,7 +208,8 @@ export function validState(s: GameState): boolean {
   if (!s.party.every((id) => MEMBER_IDS.includes(id) && s.members?.[id])) return false;
   for (const id of s.party) {
     const m = s.members[id]!;
-    if (!num(m.level) || !num(m.hp) || !num(m.tp) || typeof m.equip !== 'object' || !m.uses || !Array.isArray(m.ailments)) return false;
+    // (`uses: true` used to pass and then crash the load, when charges were written into it.)
+    if (!num(m.level) || !num(m.hp) || !num(m.tp) || !plain(m.equip) || !plain(m.uses) || !Array.isArray(m.ailments)) return false;
   }
   if (!onMap(s.map, s.x, s.y)) return false;
   if (typeof s.inventory !== 'object' || s.inventory === null || typeof s.flags !== 'object' || !num(s.cred)) return false;
