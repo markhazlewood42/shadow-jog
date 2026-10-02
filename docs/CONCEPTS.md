@@ -144,6 +144,8 @@ Mark asked (2026-09-30) for a running record of the game-dev and JRPG ideas that
 - **Palette-swapped enemies.** Reusing one enemy sprite in new colours for a stronger or different enemy (see *Palette swap* above), a classic way to stretch art. *Here:* a second copy of an enemy in one fight is shifted in colour so they read as different.
 - **Encounter rate.** How often random battles trigger while walking. Too high is tiring. *Here:* about 1 in 40 steps in the Sinkline.
 
+- **Non-integer pixel scaling.** Enlarging pixel art by 1.25x or 1.5x makes some pixels one screen pixel wide and some two, so the grain looks uneven; blurring it instead would break the palette. A cleaner way is an area vote: each output pixel takes the colour that covers most of the patch of the source it stands for. *Here:* `stretchTo` in `src/art/rig2/enemy.ts` scales the enemies to party size for the side-view spike; the real fix is art drawn at the right size.
+
 ## Progression and economy
 
 - **XP curve.** How much experience each level needs; it sets how long a chapter feels and how strong the party is at each point. *Here:* tuned so Chapter 1 ends around level 6.

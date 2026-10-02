@@ -150,6 +150,12 @@ A pass needs a median score of **8 or more overall** (the mean of the criteria t
 | F-sf-layout r3: walk-in per member (`SF_WALK`): Kit runs, Rook dashes on his low-lunge frame (`rook-battle-crouched`) with speed ghosts and a skid into the stance; Hex and Sable step in 14 px while fading in on their idle loop, once the runners are past them | battle | about 25 min | judge round 3 | 3 passes (Kit and Rook ran through each other; Hex and Sable appeared before the runners and were run through; Rook's delay 4 to 14, the back two's 8 and 14 to 32 and 40). The runner's pose is one still with a bounce: a dash, not a cycle, and it only convinces because it is fast (3.8 world px a frame) and short (about 45 frames). Mark's `*-overworld-walk` sheets are front-facing 32 px field art, so they were not used. |
 | F-sf-layout r3: Rook hurt is his sword-drawn stance under the engine's recoil and white flash (no longer the crouch) | battle | about 1 min | judge round 3 | 0 passes. The crouch read as a lunge, not a hit; still a placeholder until Mark makes a hurt frame. |
 | F-sf-layout r3: front-row creature's HP bar drawn under its feet (below the contact shadow) | battle | about 4 min | judge round 3 | 0 passes. A `front` flag on the layout entry and one line in `renderEnemyStatus`. The Glowrat's bar no longer crosses a punk's legs; checked with the cursor on the Glowrat in the four-enemy shot. |
+| F-sf-layout r4: regular enemies at 1.25x (was 1x) through a new area-vote scaler in `stretchTo` (scale3x, then each output pixel takes the colour with most area in its 3/m block; 1.5 is the old 2x2 vote); bosses stay 2x | battle | about 8 min | judge round 4 | 1 pass (the first try used nearest, which doubles every fifth row and column). A punk is 59 px (Kit 64, Rook 68), the ghoul about 62: party-sized and a group again. Honest cost: one native pixel is 1 or 2 screen pixels by turns, so the grain is a little uneven against the crew's 1:1. 1x, 1.5x and 2x stay behind `&regscale=`. |
+| F-sf-layout r4: punk head turned toward the party: `FACE_FIX.punk.turn` (rows 0 to 17 slide 2 native px toward the club before the flip) | battle | about 4 min | judge round 4 | 0 passes. One number of data. The head now looks past the body toward the party; the torso emblem and feet are still front-view, so it is a lean, not a 3/4 turn. |
+| F-sf-layout r4: ghoul lifted 20 percent toward light (`liftEnemies`) and the enemy outline darkened to #07060c | battle | about 5 min | judge round 4 | 0 passes. Palette only (accents and the outline are skipped). The legs no longer vanish into the navy street. |
+| F-sf-layout r4: walk-in: Hex and Sable now RUN in like Kit and Rook (their idle loops at 4 frames a step with a 2 px bob and one ghost, no fade), delays 29 and 42 so they land about 6 and 13 frames after Rook; Rook's dash frame anchored by his boots (`bootsMid` in `sfgeom.ts`), not the lowest rows | battle | about 12 min | judge round 4 | 2 passes (the delays; a filmstrip to check Rook's body sits on his slot). Whole entrance about 64 frames. Still no true run cycle for Hex or Sable: a scurry on the idle loop. |
+| F-sf-layout r4: health bar plate raised to 8 px over the art (`SF_BAR_RISE`), target chevron hangs 2 to 6 px over the plate (just over the head for a front-row creature) on a dark plate of its own | battle | about 8 min | judge round 4 | 1 pass (the front-row rat's chevron was floating 14 px up). The plate no longer covers the Warden's scanner. |
+| F-sf-layout r4: enemy strip starts at world x 140 and the lane to Kit is 16 art px (was 144 and 24) | battle | about 2 min | judge round 4 | 0 passes. Tighter stand-off; `tests/sflayout.test.ts` still passes. |
 
 ## Day 1 notes (2026-10-02)
 
@@ -465,6 +471,37 @@ Round 2 scored 7.29 (identity 8.5, readability 7, motion 6.5, craft 6.5, composi
 | `npm run check` (exit 0), deliverables, filmstrip, docs, commit | 16:38 to 16:44 | 6 | 1 (the four-enemy cursor landed on a punk) |
 
 No per-pixel repair beyond the punk's 12 face pixels.
+
+## Item F-sf-layout round 4 (2026-10-02, after the round-3 judges; the last round)
+Round 3 scored 7.06 (identity 8, readability 7, motion 6, craft 7, composition 7, impact null, style 6.5, cost 8). Images: `media/spike-side-battle/F-sf-layout-r4-*.png` (git-ignored; 2x screens, 4x sheets).
+
+**What changed, in the judges' order.**
+1. **Enemies (the weak link).** No new art was possible without Mark, so this is stopgap work, logged as one. Regular enemies are 1.25x native through an area-vote scaler (a punk 59 px, about 0.93 of Kit) instead of 1x (48 px, 0.75): they are party-sized and a group again. The punk's head is turned toward the party (data), the ghoul's dark tones are lifted, the outline is darker. The Warden stays 2x.
+2. **Walk-in.** Hex and Sable run in like the others (idle loop, bob, one ghost, no fade), staggered after Rook; Rook is anchored by his boots.
+3. **Warden and bars.** The health plate sits fully over the art, and the chevron sits just over the plate, on a dark plate of its own.
+4. **Composition.** The enemy strip is 4 world px closer to the party.
+5. Hex and Sable: unchanged stance stand-ins; the engine's lunge, smear, recoil and flash are what make their strike and hurt read.
+6. Sewer: a known failure, still not in the ghoul deliverable (the street is).
+
+**Honest issues.**
+- The enemies are still front-view figures from a PixelLab trace, and at 1.25x their grain is a little uneven beside the crew's 1:1. A judge who needs genuine side-view enemy art will not get it from this round.
+- Sable's feet are still on the far pavement (world row 60): the command menu's five-row keep-out holds her up.
+- The Warden is still 2x, chunky beside the crew; the backdrop and v0.1.0 use that grain.
+- Hex and Sable are chibi and have only a stance for every action; not played at speed by a person.
+
+**Sprite Fusion shopping list for Mark (the same list, in the order it buys the most).**
+1. Rustfang Punk, Sewer Ghoul and Glowrat at about 60 to 68 px, facing LEFT, side view, one idle each; a Warden at about 100 to 110 px facing left.
+2. Hex and Sable: hurt, cast and KO frames (and an attack for Hex), ideally in Kit's proportions; a 4-frame run for each.
+3. Kit: KO, cast. Rook: hurt, KO, victory.
+4. A side-on sewer backdrop.
+
+## Time log, item F-sf-layout round 4 (wall clock, Claude time)
+| Sub-step | From to | Minutes | Fix passes |
+|---|---|---|---|
+| Read the spike, the code, the judges' findings; dev server | 16:45 to 16:52 | 7 | 0 |
+| Enemy scale trials (1.25, 1.5), area-vote scaler, punk head turn | 16:52 to 17:00 | 8 | 1 (nearest scaling) |
+| Walk-in for Hex and Sable, Rook's boots anchor, bar and chevron, ghoul lift, strip | 17:00 to 17:12 | 12 | 2 |
+| `npm run check` (exit 0), deliverables, docs | 17:12 to 17:22 | 10 | 0 |
 
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED

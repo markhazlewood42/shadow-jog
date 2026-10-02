@@ -6,7 +6,7 @@
  *   ?battle=side                Sprite Fusion art (`art=sf`, the default): Mark's own sprites, loaded from `spritefusion-tests/` through the dev
  *                               server (never copied or committed). The party stands on the LEFT facing RIGHT (every Sprite Fusion sprite faces right, so
  *                               none is mirrored) and the enemies on the right. All four crew are Mark's art. Enemies get a dark outline and a
- *                               despeckle (`&finish=0` for round 1's look). Round 3: regulars at 1x native and bosses at exactly 2x; `&regscale=` and `&bossscale=` (1 to 2) restore the old 1.5 and 1.75 looks.
+ *                               despeckle (`&finish=0` for round 1's look). Round 4: regulars at 1.25x native (an area-vote scale, party-sized) and bosses at exactly 2x; `&regscale=` and `&bossscale=` (1 to 2) restore the old 1.5 and 1.75 looks.
  *   ?battle=side&art=code       the first loop's layout, kept for comparison: party on the right facing left, code-drawn crew (the traced `south-west`
  *                               views collapsed to their NATIVE resolution, 49 to 59 px tall), every enemy collapsed to native and drawn 1x.
  *   ?battle=side&clean=0        Sprite Fusion art without the colour clean-up (the raw ~1,000 shades a sprite)
@@ -18,7 +18,7 @@
 import { type Battler, POSES, type Pose } from '../../art/battlers';
 import { buildChar } from '../../art/chars';
 import { feetRow, headRow } from '../../art/drawn';
-import { finishEnemies, reduceEnemies } from '../../art/rig2/enemy';
+import { finishEnemies, liftEnemies, reduceEnemies } from '../../art/rig2/enemy';
 import { SF_SLOTS, SF_WALK, SF_WALK_START_X } from '../../art/rig2/sfgeom';
 import { IDLE_ORDER, buildSideCrew } from '../../art/rig2/sidecrew';
 import { mirrorBattler, sfBattler } from '../../art/rig2/sfcrew';
@@ -54,7 +54,7 @@ const numFlag = (k: string, lo: number, hi: number, d: number): number => {
   const v = Number(query().get(k));
   return v >= lo && v <= hi ? v : d;
 };
-export const SF_ENEMY_MULT = { regular: numFlag('regscale', 1, 2, 1), boss: numFlag('bossscale', 1, 2, 2) } as const;
+export const SF_ENEMY_MULT = { regular: numFlag('regscale', 1, 2, 1.25), boss: numFlag('bossscale', 1, 2, 2) } as const;
 
 /**
  * Humanoid regular enemies, creatures and bosses. Each is collapsed to the trace's native resolution (a pixel
@@ -70,6 +70,8 @@ if (SF && ENEMY_SCALE === 'fit') {
 if (SF && ENEMY_SCALE !== 'full' && query().get('finish') !== '0') {
   // Round 2: a dark outline, despeckle, and the punk and the ghoul turned to face the party (the rest are symmetric or already face left). `&finish=0` shows the plain scaled trace.
   finishEnemies([...HUMANOIDS, ...CREATURES, ...BOSSES], ['punk', 'ghoul']);
+  // Round 4: the ghoul is a dark grey body on a navy street: its dark tones are lifted a fifth of the way to light so the silhouette holds.
+  liftEnemies(['ghoul'], 0.2);
 }
 if (SF && ENEMY_SCALE === 'fit') {
   /* (scaling registered above) */
@@ -111,7 +113,7 @@ export const SIDE_PARTY_STEP_Y = 5.5;
 export const SF_PARTY_X = SF_SLOTS[0]?.x ?? 111;
 export const SF_PARTY_FEET = SF_SLOTS[0]?.feet ?? 78;
 /** Sprite Fusion layout: the enemies' strip. */
-export const SF_ENEMY_LEFT = 144;
+export const SF_ENEMY_LEFT = 140;
 export const SF_ENEMY_RIGHT = 226;
 /** Sprite Fusion layout: the least gap (world pixels) between neighbours in one row before the small creatures drop to a front row, the most a small group spreads to, and how many rows lower that front row stands. */
 export const SF_ENEMY_GAP_ROW = 4;
@@ -271,3 +273,6 @@ export function sideBeat(k: number): SideBeat {
   if (k < 34) return { frame: 'idle', lunge: Math.max(0, 1 - (k - 24) / 8), smear: 0 };
   return { frame: 'idle', lunge: 0, smear: 0 };
 }
+
+/** Sprite Fusion art (round 4): how many screen pixels over the top of an enemy's art the bottom of its health bar's plate stands (the plate is 7 tall); the target chevron hangs over it. Round 3 was 3 and the plate overlapped the head by 2. */
+export const SF_BAR_RISE = 8;

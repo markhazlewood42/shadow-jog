@@ -41,6 +41,37 @@ export function boxOf(r: Raw): Box {
   return { x0, y0, x1, y1, feet: (fx0 + fx1 + 1) / 2 };
 }
 
+/**
+ * Where the BOOTS are, for a dash frame whose lowest rows also hold a trailing blade tip or coat: the lowest eight rows' columns are grouped (gaps of up to
+ * three pixels join) and the midpoint of the heaviest group is returned. For a stance it is the same as `Box.feet`; for Rook's low lunge it is his boots, not
+ * the half-way point between the boots and the blade tip 50 pixels behind them (which put his body right of its slot).
+ */
+export function bootsMid(r: Raw): number {
+  const b = boxOf(r);
+  const cols = new Map<number, number>();
+  for (let y = Math.max(0, b.y1 - 7); y <= b.y1; y++)
+    for (let x = 0; x < r.w; x++) if ((r.px[(y * r.w + x) * 4 + 3] ?? 0) > 0) cols.set(x, (cols.get(x) ?? 0) + 1);
+  const xs = [...cols.keys()].sort((p, q) => p - q);
+  let best = { mass: -1, mid: b.feet };
+  let start = xs[0] ?? 0;
+  let mass = 0;
+  let last = start;
+  const close = (): void => {
+    if (mass > best.mass) best = { mass, mid: (start + last + 1) / 2 };
+  };
+  for (const x of xs) {
+    if (x - last > 3) {
+      close();
+      start = x;
+      mass = 0;
+    }
+    mass += cols.get(x) ?? 0;
+    last = x;
+  }
+  close();
+  return best.mid;
+}
+
 /** How far a loop reaches either side of the feet axis (the mean feet midpoint over the loop) and how tall it is, in art pixels: what `anchored` draws. */
 export function loopExtent(group: Raw[]): { left: number; right: number; height: number } {
   const boxes = group.map(boxOf);
@@ -68,8 +99,8 @@ export const SF_SLOTS: readonly { x: number; feet: number }[] = [
  * view and half the size), so the entrance is built from what exists and kept short enough that no loop has to pass for a walk:
  *   - `run`: Kit and Rook DASH in from the left edge on one run or dash pose (Kit `kit-battle-running`, Rook `rook-battle-crouched`, the low lunge with the
  *     blade trailing), with speed ghosts and a bounce, then skid into the stance. A dash this quick (3.8 world px a frame) reads as speed, not as sliding.
- *   - otherwise (Hex, Sable, no run frame): a short step of `from` px, fading in over `fade` frames, on the normal idle loop at its own speed.
- * The runners go first and pass the back two, who step in once the runners are by (Sable at frame 32, Hex at 40), so the four land within about ten frames of each other, one after another, rather than as one gliding block.
+ *   - Round 4: Hex and Sable run in too, on their idle loops with a bob and one ghost (no fade); `run: false` (a short fading step) is kept for a member without any frames.
+ * The order is Kit, Rook, Hex (delay 29), Sable (delay 42), so the four land within about ten frames of each other, one after another, rather than as one gliding block.
  */
 export interface SfWalk {
   run: boolean;
@@ -86,8 +117,8 @@ export const SF_WALK_START_X = -30;
 export const SF_WALK: readonly SfWalk[] = [
   { run: true, from: 0, delay: 0, speed: 3.8, fade: 0 },
   { run: true, from: 0, delay: 14, speed: 3.8, fade: 0 },
-  { run: false, from: -14, delay: 40, speed: 1.2, fade: 10 },
-  { run: false, from: -14, delay: 32, speed: 1.2, fade: 10 },
+  { run: true, from: 0, delay: 29, speed: 3.8, fade: 0 },
+  { run: true, from: 0, delay: 42, speed: 3.8, fade: 0 },
 ];
 
 /** Keep-out rectangles in screen (art) pixels: the command menu column (5 rows), the ability list and the target box under it. */
@@ -97,4 +128,4 @@ export const SF_KEEP_OUT: readonly { name: string; x0: number; y0: number; x1: n
 ];
 /** The least clear space (art pixels) between a party member's art and a menu, and between the front of the party and the nearest enemy. */
 export const SF_MENU_MARGIN = 8;
-export const SF_ENEMY_LANE = 24;
+export const SF_ENEMY_LANE = 16;

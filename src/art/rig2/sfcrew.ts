@@ -18,7 +18,7 @@
  */
 import type { Battler, Pose } from '../battlers';
 import { POSES } from '../battlers';
-import { boxOf, type Raw } from './sfgeom';
+import { bootsMid, boxOf, type Raw } from './sfgeom';
 
 const BASE = '/spritefusion-tests/';
 /** `&clean=0` shows the raw art (sideview.ts documents the flags; read here too so the two modules do not import each other). */
@@ -133,9 +133,9 @@ export function cleanColours(all: Raw[], dist: number): { frames: Raw[]; before:
  * lowest sole, so the member stands on the same spot in every frame. `lift` raises a frame by that many art pixels (a bob): the engine puts a canvas's
  * bottom edge on the street, so a canvas with transparent rows under the sprite shows it that much higher. `top` is the first opaque row (the arrow's height).
  */
-export function anchored(group: Raw[], lift: number[] = []): { canvases: HTMLCanvasElement[]; top: number } {
+export function anchored(group: Raw[], lift: number[] = [], boots = false): { canvases: HTMLCanvasElement[]; top: number } {
   const boxes = group.map(boxOf);
-  const ax = Math.round(boxes.reduce((n, b) => n + b.feet, 0) / boxes.length);
+  const ax = Math.round(group.reduce((n, r, i) => n + (boots ? bootsMid(r) : (boxes[i]?.feet ?? 0)), 0) / boxes.length);
   const left = Math.min(...boxes.map((b) => b.x0));
   const right = Math.max(...boxes.map((b) => b.x1 + 1));
   const half = Math.max(ax - left, right - ax);
@@ -168,7 +168,7 @@ interface SfSpec {
    * `rook-battle-crouched` (both then skid into the stance); Hex and Sable have no run frame, so they list none and step in on their idle loop (the
    * distance, delay and fade are `SF_WALK` in sfgeom.ts), until Mark makes walk frames.
    */
-  walk: { names: string[]; lift: number[]; step: number; ghosts?: number };
+  walk: { names: string[]; lift: number[]; step: number; ghosts?: number; boots?: boolean };
   /** Frames shown over the last few pixels of the walk, easing from the run into the stance (a skid), if the run pose is not the stance. */
   settle?: string[];
   /** The frame per pose; a pose not listed here is filled with `rest` (a placeholder). A sheet's first frame is used. */
@@ -189,7 +189,8 @@ const SPECS: Record<string, SfSpec> = {
   },
   rook: {
     idle: 'rook-battle-idle',
-    walk: { names: ['rook-battle-crouched', 'rook-battle-crouched'], lift: [0, 1], step: 4, ghosts: 2 },
+    // `boots`: the dash frame is anchored by his boots, not the half-way point to the blade tip 50 px behind them (round 4).
+    walk: { names: ['rook-battle-crouched', 'rook-battle-crouched'], lift: [0, 1], step: 4, ghosts: 2, boots: true },
     settle: ['rook-battle-idle'],
     // Brace is his low crouch, never the sword-on-his-back art (the blade would teleport). Round 3: hurt is no longer the crouch (it read as a lunge, not a hit):
     // it is the sword-drawn stance under the engine's recoil and white flash, until Mark makes a hurt frame. Everything else he has no frame for is the stance too.
@@ -199,14 +200,17 @@ const SPECS: Record<string, SfSpec> = {
   },
   hex: {
     idle: 'hex-battle-idle',
-    walk: { names: [], lift: [], step: 7.5 },
+    // Round 4: no run frame, so she scurries in on her idle loop with a 2 px bob per step and one speed ghost (the runners' mechanism), no fade.
+    walk: { names: ['hex-battle-idle'], lift: [0, 2, 0, 2, 0, 2, 0, 2], step: 4, ghosts: 1 },
+    settle: ['hex-battle-idle'],
     poses: {},
     rest: 'hex-battle-reference',
     idleStep: 7.5,
   },
   sable: {
     idle: 'sable-battle-idle',
-    walk: { names: [], lift: [], step: 7.5 },
+    walk: { names: ['sable-battle-idle'], lift: [0, 2, 0, 2, 0, 2, 0, 2], step: 4, ghosts: 1 },
+    settle: ['sable-battle-idle'],
     poses: {},
     rest: 'sable-battle-reference',
     idleStep: 7.5,
@@ -235,7 +239,7 @@ export function sfBattler(key: string): Battler | null {
   }
   const idle = anchored(rawOf(spec.idle));
   const walkFrames = spec.walk.names.flatMap(rawOf);
-  const walk = walkFrames.length ? anchored(walkFrames, walkFrames.map((_, i) => spec.walk.lift[i % spec.walk.lift.length] ?? 0)) : { canvases: [] as HTMLCanvasElement[], top: 0 };
+  const walk = walkFrames.length ? anchored(walkFrames, walkFrames.map((_, i) => spec.walk.lift[i % spec.walk.lift.length] ?? 0), spec.walk.boots) : { canvases: [] as HTMLCanvasElement[], top: 0 };
   const settle = spec.settle ? anchored(spec.settle.map((n) => rawOf(n)[0] as Raw)).canvases : undefined;
   const poseFrames = {} as Record<Pose, HTMLCanvasElement>;
   const first = idle.canvases[0] as HTMLCanvasElement;

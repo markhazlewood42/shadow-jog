@@ -29,8 +29,22 @@ export const finishEnemies = (sprites: readonly string[], flip: readonly string[
   for (const s of sprites) FINISHED.set(s, { flip: flip.includes(s) });
 };
 
+/**
+ * Sprite Fusion side view (round 4): enemies whose dark tones are lifted toward light by a fraction, so a dark-bodied sprite (the ghoul: grey-green on a navy
+ * street) keeps a silhouette beside the crew. Data, applied to the palette only (outline and bright accents are left alone).
+ */
+const LIFTED = new Map<string, number>();
+export const liftEnemies = (sprites: readonly string[], by: number): void => {
+  for (const s of sprites) LIFTED.set(s, by);
+};
+const liftHex = (hex: string, by: number): string => {
+  if (lumOf(hex) > 150 || satOf(hex) > 110) return hex;
+  const c = [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) + (255 - parseInt(hex.slice(i, i + 2), 16)) * by));
+  return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+};
+
 /** The dark line round the crew's sprites (and the code-drawn art's own outline colour). */
-const ENEMY_OUTLINE = '#120e1d';
+const ENEMY_OUTLINE = '#07060c';
 /** RGB distance within which two shades of one enemy count as one (round 3: 20 -> 30, so a material folds into a ramp of a few shades, as the crew's clean-up does). */
 const ENEMY_MERGE = 30;
 
@@ -42,10 +56,12 @@ const ENEMY_MERGE = 30;
 export interface FaceFix {
   flat?: { box: [number, number, number, number]; skin: string; keep: string };
   set: [number, number, string][];
+  /** Round 4: turn the head toward the way the figure faces (the trace is a front view). Rows `y0` to `y1` slide `dx` pixels sideways (positive = toward the club), the body stays. */
+  turn?: { y0: number; y1: number; dx: number };
 }
 export const FACE_FIX: Record<string, FaceFix> = {
   // The punk's face (36x46 collapsed, club on the right, so it looks right: pupil on the right of each eye). `keep` lists the shades that stay in the box.
-  punk: { flat: { box: [8, 10, 18, 17], skin: 'x', keep: 'xtusnk01' }, set: [[10, 14, 'D'], [11, 14, '0'], [16, 14, 'D'], [17, 14, '0'], [10, 13, '0'], [11, 13, '0'], [16, 13, '0'], [17, 13, '0']] },
+  punk: { flat: { box: [8, 10, 18, 17], skin: 'x', keep: 'xtusnk01' }, set: [[10, 14, 'D'], [11, 14, '0'], [16, 14, 'D'], [17, 14, '0'], [10, 13, '0'], [11, 13, '0'], [16, 13, '0'], [17, 13, '0']], turn: { y0: 0, y1: 17, dx: 2 } },
 };
 export function fixFace(t: Traced, fix: FaceFix | undefined): Traced {
   if (!fix) return t;
@@ -53,6 +69,13 @@ export function fixFace(t: Traced, fix: FaceFix | undefined): Traced {
   const f = fix.flat;
   if (f) for (let y = f.box[1]; y <= f.box[3]; y++) for (let x = f.box[0]; x <= f.box[2]; x++) { const c = rows[y]?.[x]; if (c && c !== '.' && !f.keep.includes(c)) (rows[y] as string[])[x] = f.skin; }
   for (const [x, y, c] of fix.set) if (rows[y]?.[x] !== undefined) (rows[y] as string[])[x] = c;
+  const turn = fix.turn;
+  if (turn)
+    for (let y = turn.y0; y <= turn.y1; y++) {
+      const r = rows[y];
+      if (!r) continue;
+      rows[y] = r.map((_, x) => r[x - turn.dx] ?? '.');
+    }
   return { ...t, rows: rows.map((r) => r.join('')) };
 }
 const lumOf = (hex: string): number => 0.299 * parseInt(hex.slice(1, 3), 16) + 0.587 * parseInt(hex.slice(3, 5), 16) + 0.114 * parseInt(hex.slice(5, 7), 16);
@@ -228,42 +251,50 @@ function scale3x(src: Int16Array, w: number, h: number): Int16Array {
 }
 
 /**
- * A native-resolution trace made `m` times bigger. 2 is every pixel drawn twice. 1.5 is `scale3x` (diagonals kept) and then every 2x2 of that
- * becomes one pixel by vote (the commonest solid colour; fewer than two solid of the four and it is empty), so the result stays on a whole-pixel
- * grid with no pixel drawn half as wide as its neighbour. Any other `m` between 1 and 2 is nearest (every so often a row or column is drawn twice).
+ * A native-resolution trace made `m` times bigger, `m` from 1 to 2. 2 is every pixel drawn twice. Anything else is `scale3x` (diagonals kept) and then an
+ * AREA VOTE: each output pixel looks at the 3/m by 3/m block of the 3x grid it covers and takes the colour with the most area in it (empty unless at
+ * least half the block is solid), so the result stays on a whole-pixel grid, keeps its palette (no blends) and no pixel is half as wide as its
+ * neighbour. 1.5 is the block-of-two vote (round 1's scaler); 1.25 (round 4) gives a 36x46 punk 45x58, party-sized beside Kit's 64, in the crew's
+ * 1 px grain with only the odd row or column drawn a pixel wider.
  */
 function stretchTo(t: Traced, m: number): Traced {
   if (m === 1) return t;
   const src = decode(t).px;
+  const ch = (p: number): string => (p < 0 ? '.' : (PAL_CH[p] ?? '.'));
+  const rows: string[] = [];
   let w = Math.round(t.w * m);
   let h = Math.round(t.h * m);
-  const rows: string[] = [];
-  const ch = (p: number): string => (p < 0 ? '.' : (PAL_CH[p] ?? '.'));
-  if (m === 1.5) {
+  if (m === 2) {
+    for (let y = 0; y < h; y++) {
+      let r = '';
+      for (let x = 0; x < w; x++) r += ch(src[Math.min(t.h - 1, y >> 1) * t.w + Math.min(t.w - 1, x >> 1)] ?? -1);
+      rows.push(r);
+    }
+  } else {
     const s3 = scale3x(src, t.w, t.h);
     const W3 = t.w * 3;
-    w = Math.ceil(W3 / 2);
-    h = Math.ceil((t.h * 3) / 2);
+    const H3 = t.h * 3;
+    const k = 3 / m;
+    w = Math.ceil(W3 / k - 1e-6);
+    h = Math.ceil(H3 / k - 1e-6);
     for (let y = 0; y < h; y++) {
       let r = '';
       for (let x = 0; x < w; x++) {
         const votes = new Map<number, number>();
         let solid = 0;
-        for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) {
-          if (x * 2 + dx >= W3 || y * 2 + dy >= t.h * 3) continue;
-          const p = s3[(y * 2 + dy) * W3 + x * 2 + dx] ?? -1;
-          if (p < 0) continue;
-          solid++;
-          votes.set(p, (votes.get(p) ?? 0) + 1);
-        }
-        r += solid < 2 ? '.' : ch([...votes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? -1);
+        for (let sy = Math.floor(y * k); sy < Math.min(H3, Math.ceil((y + 1) * k)); sy++)
+          for (let sx = Math.floor(x * k); sx < Math.min(W3, Math.ceil((x + 1) * k)); sx++) {
+            // The share of this 3x pixel that falls inside the block.
+            const ox = Math.min(sx + 1, (x + 1) * k) - Math.max(sx, x * k);
+            const oy = Math.min(sy + 1, (y + 1) * k) - Math.max(sy, y * k);
+            if (ox <= 0 || oy <= 0) continue;
+            const p = s3[sy * W3 + sx] ?? -1;
+            if (p < 0) continue;
+            solid += ox * oy;
+            votes.set(p, (votes.get(p) ?? 0) + ox * oy);
+          }
+        r += solid < (k * k) / 2 ? '.' : ch([...votes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? -1);
       }
-      rows.push(r);
-    }
-  } else {
-    for (let y = 0; y < h; y++) {
-      let r = '';
-      for (let x = 0; x < w; x++) r += ch(src[Math.min(t.h - 1, Math.floor((y + 0.5) / m)) * t.w + Math.min(t.w - 1, Math.floor((x + 0.5) / m))] ?? -1);
       rows.push(r);
     }
   }
@@ -315,7 +346,9 @@ export function rigEnemy(sprite: string, base: EnemyArt): EnemyArt | null {
   const native = REDUCED.get(sprite);
   const fin = FINISHED.get(sprite);
   const scaled = native ? stretchTo(fixFace(collapseBlocks(full), fin ? FACE_FIX[sprite] : undefined), native) : full;
-  const t = fin ? finishTrace(scaled, fin.flip) : scaled;
+  const finished = fin ? finishTrace(scaled, fin.flip) : scaled;
+  const lift = LIFTED.get(sprite);
+  const t = lift ? { ...finished, pal: finished.pal.map((c, i) => (fin && i === finished.pal.length - 1 ? c : liftHex(c, lift))) } : finished;
   // Room around the trace for a leaning pose.
   const pad = native ? Math.max(3, Math.round(3 * native)) : 6;
   const w = t.w + pad * 2;

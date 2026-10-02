@@ -24,7 +24,7 @@ import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
 import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
-import { FACE, IDLE_FRAMES_PER_STEP, IDLE_FRAMES_PER_STEP_ACTIVE, SF, SF_SETTLE_DIST, SIDE_PANEL_GAP, SIDE_VIEW, WALK_FRAMES_PER_STEP, sideBeat } from './sideview';
+import { FACE, IDLE_FRAMES_PER_STEP, IDLE_FRAMES_PER_STEP_ACTIVE, SF, SF_BAR_RISE, SF_SETTLE_DIST, SIDE_PANEL_GAP, SIDE_VIEW, WALK_FRAMES_PER_STEP, sideBeat } from './sideview';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
 import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, markElements, statusName } from './tables';
@@ -639,7 +639,8 @@ export class BattleRenderer {
       x = p.x + p.art.w / 2;
       y = p.y - 4;
       // Side view: hang the chevron just over the health bar, wherever the prompt window has pushed it (the bar sits 6 screen pixels over the art, never above row 24).
-      if (SIDE_VIEW) y = Math.max(24, (p.y + artTop(p.art)) * 2 - 3) / 2;
+      // Sprite Fusion art (round 4): the chevron rides 2 to 6 screen px over the bar's plate, and, for a front-row creature whose bar is under its feet, just over its head.
+      if (SIDE_VIEW) y = Math.max(24, (p.y + artTop(p.art)) * 2 - (SF ? (p.front ? -1 : SF_BAR_RISE) : 3)) / 2;
     } else {
       const p = this.s.partyPos(u);
       x = p.x;
@@ -658,11 +659,16 @@ export class BattleRenderer {
     // Over an enemy it hangs above the head; over the crew it sits right on the hair, so it never
     // reaches up into the enemy row and reads as a target cursor (round 13).
     const b = Math.round(Math.sin(f * 0.25) * (u.side === 'enemy' ? (SIDE_VIEW ? 1 : 3) : 1.5));
-    const top = u.side === 'enemy' ? Math.max(SIDE_VIEW ? 1 : -99, y - 9 + b) : y - (SIDE_VIEW ? 5 : 2) + b;
+    const top = u.side === 'enemy' ? Math.max(SIDE_VIEW ? 1 : -99, y - (SF ? 8 : 9) + b) : y - (SIDE_VIEW ? 5 : 2) + b;
     // Side view: the target cursor is white (the cyan one vanished against cyan neon signs), with its dark outline.
     const fill = SIDE_VIEW && color === AIMING ? '#ffffff' : color;
     // A chunky chevron (9 wide, 5 deep) with a dark outline all round, so it holds against any
     // backdrop, and a white glint across its top on the beat.
+    // Sprite Fusion art (round 4): a dark plate behind the chevron, like the health bars', so a white chevron holds over a pale shop sign.
+    if (SF && color === AIMING) {
+      g.fillStyle = 'rgba(10,9,19,0.78)';
+      g.fillRect(x - 6, top - 2, 13, 8);
+    }
     g.fillStyle = '#0a0913';
     for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
       for (let i = 0; i < 5; i++) g.fillRect(x - 4 + i + ox, top + i + oy, 9 - i * 2, 1);
@@ -686,7 +692,8 @@ export class BattleRenderer {
       if (dd.dying > 0 || dd.alpha < 0.5) continue;
       const { x, y, art, front } = this.s.enemyPos(e);
       const cx0 = Math.round((x + art.w / 2) * 2);
-      let row = Math.max(24, (y + artTop(art)) * 2 - (SIDE_VIEW ? 3 : 6));
+      // Sprite Fusion side view (round 4): the plate sits fully OVER the art (its bottom 3 screen px above the top of the head), not across the scanner or the mohawk.
+      let row = Math.max(24, (y + artTop(art)) * 2 - (SF ? SF_BAR_RISE : SIDE_VIEW ? 3 : 6));
       // Sprite Fusion side view: a front-row creature stands over the legs of the row behind it, so its bar goes UNDER its feet (below the contact shadow) instead of across them; its chips and tags still stack over its head.
       const barRow = front && SF ? (y + art.h) * 2 + 5 : row;
       // HP bar (bosses get a wider one).
