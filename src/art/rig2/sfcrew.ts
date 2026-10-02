@@ -164,10 +164,11 @@ interface SfSpec {
   idle: string;
   /**
    * The walk-in: frames (a sheet is played as it is, a still is repeated), `lift` the rows each frame is raised (the bob, cycled over the frames), `step`
-   * render frames (60 a second) per frame. Only Kit has a real run pose; the rest walk in on their own idle loop at twice the speed with the bob
-   * (Rook with his blade already drawn, so nothing is swapped on arrival), until Mark makes walk frames.
+   * render frames (60 a second) per frame, `ghosts` the speed ghosts trailing it. Round 3: Kit dashes on `kit-battle-running`, Rook on his low lunge
+   * `rook-battle-crouched` (both then skid into the stance); Hex and Sable have no run frame, so they list none and step in on their idle loop (the
+   * distance, delay and fade are `SF_WALK` in sfgeom.ts), until Mark makes walk frames.
    */
-  walk: { names: string[]; lift: number[]; step: number };
+  walk: { names: string[]; lift: number[]; step: number; ghosts?: number };
   /** Frames shown over the last few pixels of the walk, easing from the run into the stance (a skid), if the run pose is not the stance. */
   settle?: string[];
   /** The frame per pose; a pose not listed here is filled with `rest` (a placeholder). A sheet's first frame is used. */
@@ -180,7 +181,7 @@ interface SfSpec {
 const SPECS: Record<string, SfSpec> = {
   kit: {
     idle: 'kit-battle-idle',
-    walk: { names: ['kit-battle-running', 'kit-battle-running', 'kit-battle-running', 'kit-battle-running'], lift: [0, 2, 0, 2], step: 4 },
+    walk: { names: ['kit-battle-running', 'kit-battle-running', 'kit-battle-running', 'kit-battle-running'], lift: [0, 2, 0, 2], step: 4, ghosts: 2 },
     settle: ['kit-battle-reference'],
     poses: { attack: 'kit-battle-punch1', strike: 'kit-battle-punch3', thrust: 'kit-battle-punch2', brace: 'kit-battle-crouched', hurt: 'kit-battle-injured', victory: 'kit-battle-victory' },
     rest: 'kit-battle-reference',
@@ -188,22 +189,24 @@ const SPECS: Record<string, SfSpec> = {
   },
   rook: {
     idle: 'rook-battle-idle',
-    walk: { names: ['rook-battle-idle'], lift: [0, 1], step: 3.75 },
-    // Hurt and brace are his low crouch, never the sword-on-his-back art (the blade would teleport); everything he has no frame for is the sword-drawn stance.
-    poses: { attack: 'rook-battle-strike1', strike: 'rook-battle-strike2', thrust: 'rook-battle-strike2', brace: 'rook-battle-crouched', hurt: 'rook-battle-crouched' },
+    walk: { names: ['rook-battle-crouched', 'rook-battle-crouched'], lift: [0, 1], step: 4, ghosts: 2 },
+    settle: ['rook-battle-idle'],
+    // Brace is his low crouch, never the sword-on-his-back art (the blade would teleport). Round 3: hurt is no longer the crouch (it read as a lunge, not a hit):
+    // it is the sword-drawn stance under the engine's recoil and white flash, until Mark makes a hurt frame. Everything else he has no frame for is the stance too.
+    poses: { attack: 'rook-battle-strike1', strike: 'rook-battle-strike2', thrust: 'rook-battle-strike2', brace: 'rook-battle-crouched' },
     rest: 'rook-battle-idle',
     idleStep: 7.5,
   },
   hex: {
     idle: 'hex-battle-idle',
-    walk: { names: ['hex-battle-idle'], lift: [0, 1], step: 3.75 },
+    walk: { names: [], lift: [], step: 7.5 },
     poses: {},
     rest: 'hex-battle-reference',
     idleStep: 7.5,
   },
   sable: {
     idle: 'sable-battle-idle',
-    walk: { names: ['sable-battle-idle'], lift: [0, 1], step: 3.75 },
+    walk: { names: [], lift: [], step: 7.5 },
     poses: {},
     rest: 'sable-battle-reference',
     idleStep: 7.5,
@@ -232,7 +235,7 @@ export function sfBattler(key: string): Battler | null {
   }
   const idle = anchored(rawOf(spec.idle));
   const walkFrames = spec.walk.names.flatMap(rawOf);
-  const walk = anchored(walkFrames, walkFrames.map((_, i) => spec.walk.lift[i % spec.walk.lift.length] ?? 0));
+  const walk = walkFrames.length ? anchored(walkFrames, walkFrames.map((_, i) => spec.walk.lift[i % spec.walk.lift.length] ?? 0)) : { canvases: [] as HTMLCanvasElement[], top: 0 };
   const settle = spec.settle ? anchored(spec.settle.map((n) => rawOf(n)[0] as Raw)).canvases : undefined;
   const poseFrames = {} as Record<Pose, HTMLCanvasElement>;
   const first = idle.canvases[0] as HTMLCanvasElement;
@@ -245,7 +248,7 @@ export function sfBattler(key: string): Battler | null {
     glow: {},
     headH: Math.ceil((first.height - idle.top) / 2),
     res: 2,
-    cycle: { idle: idle.canvases, idleOrder: idle.canvases.map((_, i) => i), walk: walk.canvases, idleStep: spec.idleStep, walkStep: spec.walk.step, ...(settle ? { settle } : {}) },
+    cycle: { idle: idle.canvases, idleOrder: idle.canvases.map((_, i) => i), walk: walk.canvases, idleStep: spec.idleStep, walkStep: spec.walk.step, ...(settle ? { settle } : {}), ...(spec.walk.ghosts ? { walkGhosts: spec.walk.ghosts } : {}) },
   };
 }
 

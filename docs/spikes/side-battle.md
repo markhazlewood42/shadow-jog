@@ -144,6 +144,12 @@ A pass needs a median score of **8 or more overall** (the mean of the criteria t
 | F-sf-layout r2: Warden at 1.75 (was 1.5; `&bossscale=1.5` to 2) | battle | about 2 min | judge round 2 | 0 passes. 1.5 gave 104 px, 1.6 times Rook; 1.75 is 121 px and holds the frame; 2 (a boss in 2x2 blocks) is chunkier than the crew's pixels. Nearest scaling at 1.75 puts a few single and double rows, hard to see at 2x. |
 | F-sf-layout r2: walk-in: Kit the run pose bobbing 0-2-0-2 rows at 4 frames a step, then a skid into the stance over the last 8 px; Rook his sword-drawn idle at twice speed with a 1 row bob (no sword swap on arrival); Hex and Sable their idle loops at twice speed with the bob; the last 24 px ease to a quarter of the speed | battle | about 8 min | judge round 2 | 1 pass (the walk time had to account for the ease so the first orders wait for it: `walkFrames`). Still not a real run or walk cycle: only Kit has a run frame (one). The formation arrives together at one speed, so Kit leads Rook by their slot gap (34 world px) all the way; that is the formation, not a faster Kit. |
 | F-sf-layout r2: pose map: Rook brace and hurt are `rook-battle-crouched` (never the sword-on-back art); everything he has no frame for (cast, item, aim, victory) is the sword-drawn idle frame 0 | battle | about 2 min | judge round 2 | 0 passes. GAPS for the action items: Kit has no KO, no cast, item or aim; Hex and Sable have no action frames at all (every pose is the stance, marked "(stance)" on the crew sheet); Rook's hurt and brace are the same frame; his strike frames are anchored by the lowest rows, which include the blade tip in `strike2`, so his body sits left of his slot at the blow. |
+| F-sf-layout r3: enemies at WHOLE multiples only: regulars 1x native (a punk 48 px, the ghoul 50, the Glowrat 25 wide), bosses exactly 2x (the Warden 138); the 1.5 and 1.75 scales are only behind `&regscale=` / `&bossscale=` | battle | about 6 min | judge round 3 | 1 pass (native punks beside Kit's 64 px read small but crisp, on the crew's 1:1 grain; the Warden at 2x is the backdrop's grain and v0.1.0's size and the orb's ghost face is back). No new scaler: `stretchTo` already doubled exactly. Cost of the choice: regulars are about 0.75 of the crew's height, a gap only new enemy art fixes. |
+| F-sf-layout r3: enemy face and palette: `FACE_FIX` data for the punk (cheek noise flattened to one skin tone inside a box; two open eyes, a white pixel beside a dark one, under dark brows, applied at native size before flip and scale) and the shade merge raised 20 to 30 | battle | about 8 min | judge round 3 | 1 pass (the box has to keep the mouth line). 12 single pixels of data for ONE sprite: the only per-pixel work in the round, and it is data, not a repaint. The punks now look at the party with open, angry eyes; the ghoul needed none. |
+| F-sf-layout r3: party slots from PIXEL clearance, not boxes: x 122, 92, 61, 32 and feet 78, 73, 68, 60 (was x 111, 77, 45, 15 and feet 78, 69, 60, 58) | battle | about 12 min (a python solver on Mark's PNGs, and the test) | judge round 3 | 3 passes (the solver rounded the feet axis half-to-even and the engine rounds half-up, so Hex touched Rook by one pixel; Rook and Kit moved one pixel; the box test was replaced by a pixel-mask test). Rook's raised blade passes over Kit's head, so boxes needed 34 world px between members and pixels need 30. Hex stands low because her widest reach is 8 art px right of the command menu; only Sable is held up by the menu. |
+| F-sf-layout r3: walk-in per member (`SF_WALK`): Kit runs, Rook dashes on his low-lunge frame (`rook-battle-crouched`) with speed ghosts and a skid into the stance; Hex and Sable step in 14 px while fading in on their idle loop, once the runners are past them | battle | about 25 min | judge round 3 | 3 passes (Kit and Rook ran through each other; Hex and Sable appeared before the runners and were run through; Rook's delay 4 to 14, the back two's 8 and 14 to 32 and 40). The runner's pose is one still with a bounce: a dash, not a cycle, and it only convinces because it is fast (3.8 world px a frame) and short (about 45 frames). Mark's `*-overworld-walk` sheets are front-facing 32 px field art, so they were not used. |
+| F-sf-layout r3: Rook hurt is his sword-drawn stance under the engine's recoil and white flash (no longer the crouch) | battle | about 1 min | judge round 3 | 0 passes. The crouch read as a lunge, not a hit; still a placeholder until Mark makes a hurt frame. |
+| F-sf-layout r3: front-row creature's HP bar drawn under its feet (below the contact shadow) | battle | about 4 min | judge round 3 | 0 passes. A `front` flag on the layout entry and one line in `renderEnemyStatus`. The Glowrat's bar no longer crosses a punk's legs; checked with the cursor on the Glowrat in the four-enemy shot. |
 
 ## Day 1 notes (2026-10-02)
 
@@ -420,6 +426,45 @@ Round 1 scored 7.33 (identity 8, readability 7, motion 5.75, craft 7, compositio
 | `npm run check` (exit 0), deliverables, docs | 16:08 to 16:12 | 4 | 0 |
 
 About 18 minutes of wall clock; no per-pixel repair.
+
+## Item F-sf-layout round 3 (2026-10-02, after the round-2 judges)
+Round 2 scored 7.29 (identity 8.5, readability 7, motion 6.5, craft 6.5, composition 7, style 6.5, cost 8.5; impact null). Images: `media/spike-side-battle/F-sf-layout-r3-*.png` (git-ignored; 2x screens, 4x sheets).
+
+**What changed, in the judges' order.**
+1. **Enemies on whole multiples.** The 1.5 and 1.75 scales are gone from the default: a regular enemy is the trace at its native resolution (1x), a boss exactly 2x. Every pixel of a regular is one screen pixel like the crew's; the Warden at 2x is the backdrop's own grain and v0.1.0's size, and the orb's face is back. The punks got a face fix (open eyes, flat cheeks) and the shade merge went to 30. `&regscale=` and `&bossscale=` bring the old non-integer looks back for comparison.
+2. **Walk-in.** Per member now (`SF_WALK`): Kit runs on her run pose, Rook dashes on his low-lunge frame (blade trailing, speed ghosts) and both skid into the stance; Hex and Sable, who have no run frame, step in 14 px while fading in, after the runners have gone past, on the idle loop (no loop at double speed any more). The whole entrance is about 60 frames, shorter than round 2's 85.
+3. **Layout.** The party line is shallower (feet 78, 73, 68, 60) and about 11 world px further right, with the gaps solved on real pixels (30 world px, not 34). Hex stands low; only Sable is held up by the command menu. The enemies' strip starts at world x 144, 24 art px past Kit's widest reach, and the native enemies fit it.
+4. **Front-row HP bar.** Under the creature's feet, not across the legs behind it.
+5. **Rook hurt** is the stance with recoil and flash, not the crouch. **Hex and Sable** keep the stance for strike, hurt, cast and KO: the missing frames are the list below.
+6. **Crew sheet and filmstrip** re-made: cells wide enough for their labels, `*` marks a frame that is the stance standing in; the filmstrip frames share one crop and include the skid into the stance.
+7. **Warden** is shot in its own arena (`core`), not the street.
+
+**Honest issues.**
+- **The enemies are still the weak link, now small instead of soft.** A punk is 48 px and the ghoul 50 beside Kit's 64 and Rook's 68 (about 0.75 of them); Hex and Sable are 61 px of chibi-proportioned art. The punks are front-view figures with the club flipped, not turned toward the party; a face fix cannot turn a head. The real fix is new enemy art at crew density facing left (see below).
+- **The sewer backdrop does not suit a side line-up.** It looks down a corridor, so its walls meet the floor along diagonals, and Hex and Sable stand against a wall there (`F-sf-layout-r3-ghoul-glowrat-sewer.png`). The ghoul deliverable is on the street for that reason. A side-on sewer backdrop is needed. I did not add per-backdrop floor lines: on the street and in the Warden's arena the slots are already on the floor, and for the sewer no value works.
+- Hex and Sable are only as low as the command menu allows: their feet are on the street's far pavement strip (world rows 60 to 68), the nearest the menu column lets them be.
+- The runners' dash is one pose with a bounce and ghosts, so it is a slide with attitude; it holds because it is fast. Rook's dash frame is anchored by its lowest rows, which include the trailing blade tip, so his body sits a few pixels right of his slot until the skid.
+- Hurt and cast are still the stance for three of the four, and strike exists only for Kit and Rook. Not played at speed by a person (stills and a filmstrip).
+- A five-row ability list is 69 px tall and covers Rook's and Hex's boots while it is open (transient; the command menu and the list are the game's own windows).
+
+**Sprite Fusion shopping list for Mark (what to generate, in the order it buys the most).**
+1. Rustfang Punk, Sewer Ghoul and Glowrat in Sprite Fusion at about 64 px (the ghoul 64 to 72), facing LEFT, side view, one idle each; a Warden at about 100 to 110 px facing left. The biggest gap: it fixes the enemy size, grain and facing at once.
+2. Hex and Sable: a hurt frame, a cast frame (and an attack for Hex), a KO frame; ideally in Kit's proportions, since they stand 61 px of chibi beside Kit and Rook.
+3. Kit: KO, cast. Rook: hurt, KO, and a sheathe-to-ready frame or two for the walk-in (the dash lands in a drawn-sword stance).
+4. A side-on sewer backdrop (a corridor seen from the side), so the ghoul fights have a floor to stand on.
+5. Optional: a 4-frame side-view walk or run for each member, so the entrance can be a real cycle.
+
+## Time log, item F-sf-layout round 3 (wall clock, Claude time)
+| Sub-step | From to | Minutes | Fix passes |
+|---|---|---|---|
+| Read the spike, the code, the judges' findings, Mark's sprites and the idle extents | 16:13 to 16:19 | 6 | 0 |
+| Enemy trial at native 1x, the punk's pixels, face fix and palette merge | 16:19 to 16:25 | 6 | 1 (the face box has to keep the mouth) |
+| Backdrop floors (looked at, no change), pixel-mask slot solver, slots and the sflayout test | 16:25 to 16:32 | 7 | 3 |
+| Walk-in per member: data, state, render alpha and ghosts, specs, three filmstrip passes | 16:25 to 16:37 | 12 | 3 (stagger, order, delays) |
+| Front-row HP bar, Rook hurt, crew sheet | 16:36 to 16:38 | 2 | 0 |
+| `npm run check` (exit 0), deliverables, filmstrip, docs, commit | 16:38 to 16:44 | 6 | 1 (the four-enemy cursor landed on a punk) |
+
+No per-pixel repair beyond the punk's 12 face pixels.
 
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED

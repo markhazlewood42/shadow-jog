@@ -504,13 +504,17 @@ export class BattleRenderer {
     const wound = art.windup && dd.pose === 'attack' && beat?.phase === 'gather' && PARTY_POSE_T - dd.poseT >= 3;
     const pose: Pose = sb ? sb.frame : dd.poseT > 0 ? (wound ? 'attack' : beat?.phase === 'gather' ? 'brace' : through ? 'strike' : dd.pose) : 'idle';
     // Side view: the wait loop plays in place of the rest frame, and the walk while stepping in.
-    const walkLeft = this.s.sideWalk();
+    const walkLeft = this.s.sideWalk(p.order ?? 0);
+    // Sprite Fusion art: a member who fades in over a short step (no run frame) is drawn at that opacity.
+    const walkAlpha = SF ? this.s.sideWalkAlpha(p.order ?? 0) : 1;
     const cyc = art.cycle;
     const idleStep = cyc?.idleStep ?? (active ? IDLE_FRAMES_PER_STEP_ACTIVE : IDLE_FRAMES_PER_STEP);
     const walking = cyc !== undefined && pose === 'idle' && walkLeft !== 0;
     // Sprite Fusion art: over the last few pixels of the walk the run eases into the stance (a skid) where the member has a settle frame.
     const settle = walking && SF && cyc?.settle && Math.abs(walkLeft) < SF_SETTLE_DIST ? cyc.settle[Math.min(cyc.settle.length - 1, Math.floor((1 - Math.abs(walkLeft) / SF_SETTLE_DIST) * cyc.settle.length))] : undefined;
-    const frame = kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walking ? (settle ?? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length]) : cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / idleStep) % cyc.idleOrder.length] ?? 0]) ?? art.frames[pose] : art.frames[pose];
+    const idleFrame = cyc ? cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / idleStep) % cyc.idleOrder.length] ?? 0] : undefined;
+    // A member with no walk frames of its own steps in on the idle loop, so the loop does not jump when it arrives.
+    const frame = kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walking && cyc.walk.length > 0 ? (settle ?? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length]) : idleFrame) ?? art.frames[pose] : art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
     const res = art.res ?? 1;
     let ox = 0;
@@ -540,6 +544,7 @@ export class BattleRenderer {
       g.globalAlpha = 1;
       return;
     }
+    if (walkAlpha < 1) g.globalAlpha = walkAlpha;
     if (SIDE_VIEW) {
       // The crew plant on the street with a soft contact shadow, as the enemies do (it stays on the ground through a lunge or a hop).
       const cx = Math.round(pos.x + walkLeft + lungeX + (hurtK >= 0 ? ox : room));
@@ -548,6 +553,15 @@ export class BattleRenderer {
       g.fillRect(cx - 9, gy, 18, 2);
       g.fillRect(cx - 7, gy + 2, 14, 1);
       g.fillRect(cx - 7, gy - 1, 14, 1);
+    }
+    // Sprite Fusion art: a dash (Kit's run, Rook's low lunge) leaves speed ghosts trailing behind it until the skid.
+    if (SF && walking && cyc?.walkGhosts && Math.abs(walkLeft) > SF_SETTLE_DIST + 16) {
+      const tint = MEMBERS[p.key as MemberId].color;
+      for (let i = cyc.walkGhosts; i >= 1; i--) {
+        g.globalAlpha = walkAlpha * (0.12 + 0.06 * (cyc.walkGhosts - i));
+        putArt(g, silhouetteCache(frame, tint), x - FACE * i * 3, y, res);
+      }
+      g.globalAlpha = walkAlpha;
     }
     if (kb && art.kata) this.drawKataFx(g, p, kb, frame, x, y, res, walkLeft, lungeY, cx2);
     if (!kb && dd.afterimage > 0) {
@@ -670,26 +684,28 @@ export class BattleRenderer {
       if (e.hp <= 0) continue;
       const dd = this.s.d(e.uid);
       if (dd.dying > 0 || dd.alpha < 0.5) continue;
-      const { x, y, art } = this.s.enemyPos(e);
+      const { x, y, art, front } = this.s.enemyPos(e);
       const cx0 = Math.round((x + art.w / 2) * 2);
       let row = Math.max(24, (y + artTop(art)) * 2 - (SIDE_VIEW ? 3 : 6));
+      // Sprite Fusion side view: a front-row creature stands over the legs of the row behind it, so its bar goes UNDER its feet (below the contact shadow) instead of across them; its chips and tags still stack over its head.
+      const barRow = front && SF ? (y + art.h) * 2 + 5 : row;
       // HP bar (bosses get a wider one).
       const bw = e.boss ? 72 : 30;
       const ratio = Math.max(0, dd.shownHp / e.base.maxHp);
       // A solid dark plate and a 3px bar, so it holds up over bright signage. Side view: it fades while Rook's lunge runs through it.
       const lb = this.lungeBox();
-      if (lb && cx0 + bw / 2 + 2 > lb[0] && cx0 - bw / 2 - 2 < lb[2] && row + 5 > lb[1] && row - 2 < lb[3]) ctx.globalAlpha = 0.2;
+      if (lb && cx0 + bw / 2 + 2 > lb[0] && cx0 - bw / 2 - 2 < lb[2] && barRow + 5 > lb[1] && barRow - 2 < lb[3]) ctx.globalAlpha = 0.2;
       ctx.fillStyle = '#0a0913';
-      ctx.fillRect(cx0 - bw / 2 - 2, row - 2, bw + 4, 7);
+      ctx.fillRect(cx0 - bw / 2 - 2, barRow - 2, bw + 4, 7);
       ctx.fillStyle = '#2a2838';
-      ctx.fillRect(cx0 - bw / 2, row, bw, 3);
+      ctx.fillRect(cx0 - bw / 2, barRow, bw, 3);
       ctx.fillStyle = hpColor(ratio);
-      ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 3);
+      ctx.fillRect(cx0 - bw / 2, barRow, Math.round(bw * ratio), 3);
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 1);
-      drawLag(ctx, cx0 - bw / 2, row, bw, 3, ratio, dd.lagHp / e.base.maxHp);
+      ctx.fillRect(cx0 - bw / 2, barRow, Math.round(bw * ratio), 1);
+      drawLag(ctx, cx0 - bw / 2, barRow, bw, 3, ratio, dd.lagHp / e.base.maxHp);
       ctx.globalAlpha = 1;
-      row -= 11;
+      if (!(front && SF)) row -= 11;
       // While numbers are rising off this enemy, its chips and WEAK tag step aside (the HP bar
       // stays): the two text systems share the rows above its head.
       let floating = false;

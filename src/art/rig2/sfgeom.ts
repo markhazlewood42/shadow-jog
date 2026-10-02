@@ -50,15 +50,44 @@ export function loopExtent(group: Raw[]): { left: number; right: number; height:
 
 /**
  * The party's places, in battle-world pixels (240x135, drawn at 2x onto the 480x270 screen, so a world pixel is two art pixels). Slot 0 (Kit, the first
- * panel) is the lowest and nearest the enemies; each next slot is further back (higher up the street) and to the left, so the line climbs toward the
- * top-left, over the command menu, which fills the bottom-left (its top is screen row 131). Spaced by the widest idle frames (Rook's drawn blade
- * reaches 44 art pixels in front of his feet, Kit's back arm 20 behind hers) plus a 4 px margin, and the back two stand above the menu column.
+ * panel) is the lowest and nearest the enemies; each next slot is a little further back (higher up the street) and to the left, over the command menu.
+ * Round 3: the line is shallower (feet 78, 73, 68, 60 instead of 78, 69, 60, 58) and sits further right. The gaps come from the sprites' real PIXELS
+ * (every idle frame of a member against every idle frame of the one in front, three pixels of clearance, solved on Mark's PNGs), not from their boxes:
+ * Rook's raised blade passes over Kit's head, so the boxes may overlap and the pixels may not. Hex is placed so her widest reach stays 8 art pixels
+ * right of the command menu's edge (so she can stand low); only Sable, whose reach crosses the menu column, is held up (feet 60) above its title tab.
  */
 export const SF_SLOTS: readonly { x: number; feet: number }[] = [
-  { x: 111, feet: 78 },
-  { x: 77, feet: 69 },
-  { x: 45, feet: 60 },
-  { x: 15, feet: 58 },
+  { x: 122, feet: 78 },
+  { x: 92, feet: 73 },
+  { x: 61, feet: 68 },
+  { x: 32, feet: 60 },
+];
+
+/**
+ * The walk-in, per slot (round 3). Nobody has a walk cycle in side view (Mark's `*-overworld-walk` sheets are front-facing 32 px field art, a different
+ * view and half the size), so the entrance is built from what exists and kept short enough that no loop has to pass for a walk:
+ *   - `run`: Kit and Rook DASH in from the left edge on one run or dash pose (Kit `kit-battle-running`, Rook `rook-battle-crouched`, the low lunge with the
+ *     blade trailing), with speed ghosts and a bounce, then skid into the stance. A dash this quick (3.8 world px a frame) reads as speed, not as sliding.
+ *   - otherwise (Hex, Sable, no run frame): a short step of `from` px, fading in over `fade` frames, on the normal idle loop at its own speed.
+ * The runners go first and pass the back two, who step in once the runners are by (Sable at frame 32, Hex at 40), so the four land within about ten frames of each other, one after another, rather than as one gliding block.
+ */
+export interface SfWalk {
+  run: boolean;
+  /** Start offset from the slot (battle-world pixels, negative = left of it); ignored for a runner, which starts off the left edge. */
+  from: number;
+  /** Frames (60 a second) before this member starts. */
+  delay: number;
+  /** World pixels a frame while it moves. */
+  speed: number;
+  /** Frames over which it fades in (0: visible from the start). */
+  fade: number;
+}
+export const SF_WALK_START_X = -30;
+export const SF_WALK: readonly SfWalk[] = [
+  { run: true, from: 0, delay: 0, speed: 3.8, fade: 0 },
+  { run: true, from: 0, delay: 14, speed: 3.8, fade: 0 },
+  { run: false, from: -14, delay: 40, speed: 1.2, fade: 10 },
+  { run: false, from: -14, delay: 32, speed: 1.2, fade: 10 },
 ];
 
 /** Keep-out rectangles in screen (art) pixels: the command menu column (5 rows), the ability list and the target box under it. */

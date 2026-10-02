@@ -6,7 +6,7 @@
  *   ?battle=side                Sprite Fusion art (`art=sf`, the default): Mark's own sprites, loaded from `spritefusion-tests/` through the dev
  *                               server (never copied or committed). The party stands on the LEFT facing RIGHT (every Sprite Fusion sprite faces right, so
  *                               none is mirrored) and the enemies on the right. All four crew are Mark's art. Enemies get a dark outline and a
- *                               despeckle (`&finish=0` for round 1's look); `&bossscale=1.5..2` sets the bosses' size (default 1.75).
+ *                               despeckle (`&finish=0` for round 1's look). Round 3: regulars at 1x native and bosses at exactly 2x; `&regscale=` and `&bossscale=` (1 to 2) restore the old 1.5 and 1.75 looks.
  *   ?battle=side&art=code       the first loop's layout, kept for comparison: party on the right facing left, code-drawn crew (the traced `south-west`
  *                               views collapsed to their NATIVE resolution, 49 to 59 px tall), every enemy collapsed to native and drawn 1x.
  *   ?battle=side&clean=0        Sprite Fusion art without the colour clean-up (the raw ~1,000 shades a sprite)
@@ -19,7 +19,7 @@ import { type Battler, POSES, type Pose } from '../../art/battlers';
 import { buildChar } from '../../art/chars';
 import { feetRow, headRow } from '../../art/drawn';
 import { finishEnemies, reduceEnemies } from '../../art/rig2/enemy';
-import { SF_SLOTS } from '../../art/rig2/sfgeom';
+import { SF_SLOTS, SF_WALK, SF_WALK_START_X } from '../../art/rig2/sfgeom';
 import { IDLE_ORDER, buildSideCrew } from '../../art/rig2/sidecrew';
 import { mirrorBattler, sfBattler } from '../../art/rig2/sfcrew';
 import { LOOKS } from '../../data/looks';
@@ -44,13 +44,17 @@ export type EnemyScale = 'fit' | 'half' | 'big' | 'full' | 'native';
 const ES = query().get('enemyscale');
 export const ENEMY_SCALE: EnemyScale = !SIDE_VIEW ? 'full' : ES === 'full' || ES === 'half' || ES === 'big' || ES === 'native' ? ES : 'fit';
 /**
- * Sprite Fusion art, enemies: the crew are 64 to 68 px tall, a punk collapsed to native is 46, so a native enemy reads as a child beside them. The default
- * (`fit`) draws humanoids and creatures at 1.5 times native (a punk about 69 px: party-sized) and bosses at 2 times (the Warden 138, twice the crew),
- * by `scale3x` then a 2:1 vote (see `stretchTo`), which keeps the pixel grid (every sprite is still one art pixel per screen pixel, no half pixels).
- * `&enemyscale=native` is 1x, `&enemyscale=full` the traces (2x2 blocks, a punk 91).
+ * Sprite Fusion art, enemies (round 3): WHOLE multiples of the trace's native resolution only. Round 2 grew the traces by 1.5 and 1.75; a native pixel then
+ * became one or two screen pixels by turns (uneven grain, mushy faces) beside the crew's even 1:1 pixels. Now a regular enemy is drawn at 1x native (a punk
+ * about 48 px, the ghoul 50, beside Kit's 64: small, but one grain with the crew) and a boss at exactly 2x (the Warden 138 px, the grain of the backdrop and of
+ * v0.1.0's Warden). `&regscale=1.5` / `&bossscale=1.75` (any value from 1 to 2) bring back the old non-integer looks for comparison. The real fix for
+ * party-sized regulars is new enemy art at crew density (see the missing-frames list in the spike notes).
  */
-const BOSS_MULT = Number(query().get('bossscale'));
-export const SF_ENEMY_MULT = { regular: 1.5, boss: BOSS_MULT >= 1 && BOSS_MULT <= 2 ? BOSS_MULT : 1.75 } as const;
+const numFlag = (k: string, lo: number, hi: number, d: number): number => {
+  const v = Number(query().get(k));
+  return v >= lo && v <= hi ? v : d;
+};
+export const SF_ENEMY_MULT = { regular: numFlag('regscale', 1, 2, 1), boss: numFlag('bossscale', 1, 2, 2) } as const;
 
 /**
  * Humanoid regular enemies, creatures and bosses. Each is collapsed to the trace's native resolution (a pixel
@@ -107,11 +111,11 @@ export const SIDE_PARTY_STEP_Y = 5.5;
 export const SF_PARTY_X = SF_SLOTS[0]?.x ?? 111;
 export const SF_PARTY_FEET = SF_SLOTS[0]?.feet ?? 78;
 /** Sprite Fusion layout: the enemies' strip. */
-export const SF_ENEMY_LEFT = 133;
+export const SF_ENEMY_LEFT = 144;
 export const SF_ENEMY_RIGHT = 226;
 /** Sprite Fusion layout: the least gap (world pixels) between neighbours in one row before the small creatures drop to a front row, the most a small group spreads to, and how many rows lower that front row stands. */
 export const SF_ENEMY_GAP_ROW = 4;
-export const SF_ENEMY_GAP_MAX = 10;
+export const SF_ENEMY_GAP_MAX = 14;
 export const SF_ENEMY_FRONT_DROP = 9;
 /** Sprite Fusion layout: the enemies' feet stand this many rows above slot 0's (a regular, a boss), the depth of the street. */
 export const SF_ENEMY_LIFT = 1;
@@ -161,6 +165,34 @@ export function walkFrames(full: number): number {
   if (!SF) return Math.ceil(full / WALK_SPEED);
   const E = Math.min(SF_WALK_EASE, full);
   return Math.ceil((full - E) / WALK_SPEED + ((E / (0.75 * WALK_SPEED)) * Math.log(4)));
+}
+/**
+ * Sprite Fusion art, round 3: the walk-in is per member (`SF_WALK` in rig2/sfgeom.ts). `i` is the member's place in the line, `slotX` its slot's x,
+ * `t` the frames since the walk began (negative: it has not). Returns how far (battle-world pixels, negative = left of the slot) the member still has to
+ * go, whether it is moving, and its opacity (Hex and Sable fade in over their short step). The same ease as `walkRemaining` stops each one, at that
+ * member's own speed.
+ */
+export function sfWalkState(i: number, slotX: number, t: number, introducing: boolean): { left: number; moving: boolean; alpha: number } {
+  const w = SF_WALK[Math.min(i, SF_WALK.length - 1)];
+  if (!w) return { left: 0, moving: false, alpha: 1 };
+  const full = w.run ? slotX - SF_WALK_START_X : -w.from;
+  const tt = t - w.delay;
+  if (t < 0 && !introducing) return { left: 0, moving: false, alpha: 1 };
+  if (t < 0 || tt < 0) return { left: -full, moving: true, alpha: w.fade > 0 ? 0 : 1 };
+  const E = Math.min(SF_WALK_EASE, full);
+  const t1 = (full - E) / w.speed;
+  const left = tt <= t1 ? full - tt * w.speed : Math.max(0, ((E * 4) / 3) * Math.exp((-0.75 * w.speed * (tt - t1)) / E) - E / 3);
+  return { left: -left, moving: left > 0.05, alpha: w.fade > 0 ? Math.min(1, tt / w.fade) : 1 };
+}
+/** Frames until the last member has stopped (the orders wait for it). */
+export function sfWalkTotal(): number {
+  let most = 0;
+  for (const [i, w] of SF_WALK.entries()) {
+    const full = w.run ? (SF_SLOTS[i]?.x ?? 0) - SF_WALK_START_X : -w.from;
+    const E = Math.min(SF_WALK_EASE, full);
+    most = Math.max(most, w.delay + Math.ceil((full - E) / w.speed + (E / (0.75 * w.speed)) * Math.log(4)));
+  }
+  return most;
 }
 /** Sprite Fusion art: the last few pixels of the walk where the run eases into the stance (Kit's skid). */
 export const SF_SETTLE_DIST = 8;

@@ -31,8 +31,30 @@ export const finishEnemies = (sprites: readonly string[], flip: readonly string[
 
 /** The dark line round the crew's sprites (and the code-drawn art's own outline colour). */
 const ENEMY_OUTLINE = '#120e1d';
-/** RGB distance within which two shades of one enemy count as one. */
-const ENEMY_MERGE = 20;
+/** RGB distance within which two shades of one enemy count as one (round 3: 20 -> 30, so a material folds into a ramp of a few shades, as the crew's clean-up does). */
+const ENEMY_MERGE = 30;
+
+/**
+ * Face clean-up for a trace at its NATIVE resolution (round 3; the pixel artist's note that the punks' eyes read as closed slashes and their cheeks as
+ * speckle). Data, applied before scaling and flipping: `flat` turns every non-skin-coloured pixel of a box (the cheek noise) into one skin tone, and `set`
+ * puts single pixels (an eye is a white pixel beside a dark one, a brow a dark pixel over it). Characters are palette letters of that sprite's trace.
+ */
+export interface FaceFix {
+  flat?: { box: [number, number, number, number]; skin: string; keep: string };
+  set: [number, number, string][];
+}
+export const FACE_FIX: Record<string, FaceFix> = {
+  // The punk's face (36x46 collapsed, club on the right, so it looks right: pupil on the right of each eye). `keep` lists the shades that stay in the box.
+  punk: { flat: { box: [8, 10, 18, 17], skin: 'x', keep: 'xtusnk01' }, set: [[10, 14, 'D'], [11, 14, '0'], [16, 14, 'D'], [17, 14, '0'], [10, 13, '0'], [11, 13, '0'], [16, 13, '0'], [17, 13, '0']] },
+};
+export function fixFace(t: Traced, fix: FaceFix | undefined): Traced {
+  if (!fix) return t;
+  const rows = t.rows.map((r) => r.split(''));
+  const f = fix.flat;
+  if (f) for (let y = f.box[1]; y <= f.box[3]; y++) for (let x = f.box[0]; x <= f.box[2]; x++) { const c = rows[y]?.[x]; if (c && c !== '.' && !f.keep.includes(c)) (rows[y] as string[])[x] = f.skin; }
+  for (const [x, y, c] of fix.set) if (rows[y]?.[x] !== undefined) (rows[y] as string[])[x] = c;
+  return { ...t, rows: rows.map((r) => r.join('')) };
+}
 const lumOf = (hex: string): number => 0.299 * parseInt(hex.slice(1, 3), 16) + 0.587 * parseInt(hex.slice(3, 5), 16) + 0.114 * parseInt(hex.slice(5, 7), 16);
 const satOf = (hex: string): number => {
   const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -292,7 +314,7 @@ export function rigEnemy(sprite: string, base: EnemyArt): EnemyArt | null {
   if (!full) return null;
   const native = REDUCED.get(sprite);
   const fin = FINISHED.get(sprite);
-  const scaled = native ? stretchTo(collapseBlocks(full), native) : full;
+  const scaled = native ? stretchTo(fixFace(collapseBlocks(full), fin ? FACE_FIX[sprite] : undefined), native) : full;
   const t = fin ? finishTrace(scaled, fin.flip) : scaled;
   // Room around the trace for a leaning pose.
   const pad = native ? Math.max(3, Math.round(3 * native)) : 6;

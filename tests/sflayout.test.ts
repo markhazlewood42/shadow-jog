@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { type Raw, SF_ENEMY_LANE, SF_KEEP_OUT, SF_MENU_MARGIN, SF_SLOTS, loopExtent } from '../src/art/rig2/sfgeom';
+import { type Raw, SF_ENEMY_LANE, SF_KEEP_OUT, SF_MENU_MARGIN, SF_SLOTS, boxOf, loopExtent } from '../src/art/rig2/sfgeom';
 import { SF_ENEMY_LEFT } from '../src/scenes/battlekit/sideview';
 
 /**
@@ -69,10 +69,38 @@ describe.skipIf(!have)("the Sprite Fusion side layout against Mark's sprites", (
     return { x0: s.x * 2 - e.left, x1: s.x * 2 + e.right, y0: s.feet * 2 - e.height, y1: s.feet * 2 + 2 };
   };
 
-  it('every idle frame of neighbouring members is at least 4 art pixels apart (no blade through the next member)', () => {
+  /** Every opaque pixel of every idle frame of member `i`, placed in screen (art) pixels: a mask of the whole loop. */
+  const mask = (i: number): Uint8Array => {
+    const k = crew[i] as (typeof crew)[number];
+    const frames = sheet(`${k}-battle-idle`);
+    const e = ext[k];
+    void e;
+    const m = new Uint8Array(480 * 270);
+    const slot = SF_SLOTS[i] as { x: number; feet: number };
+    // The feet axis is the mean feet midpoint over the loop, as the engine anchors it; the bottom row of each frame stands on the slot's feet row.
+    const ax = Math.round(frames.reduce((n, f) => n + boxOf(f).feet, 0) / frames.length);
+    for (const f of frames) {
+      const b = boxOf(f);
+      for (let y = 0; y < f.h; y++)
+        for (let x = 0; x < f.w; x++)
+          if ((f.px[(y * f.w + x) * 4 + 3] ?? 0) > 0) {
+            const sx = x - ax + slot.x * 2, sy = y - (b.y1) + slot.feet * 2;
+            if (sx >= 0 && sx < 480 && sy >= 0 && sy < 270) m[sy * 480 + sx] = 1;
+          }
+    }
+    return m;
+  };
+
+  it('no pixel of any idle frame of a member comes within 3 art pixels of the member in front (the raised blade passes over a head: pixels, not boxes)', () => {
     for (let i = 0; i < 3; i++) {
-      const front = box(i), back = box(i + 1);
-      expect(front.x0 - back.x1, `${crew[i + 1]} to ${crew[i]}`).toBeGreaterThanOrEqual(4);
+      const front = mask(i), back = mask(i + 1);
+      let nearest = 99;
+      for (let y = 3; y < 267; y++)
+        for (let x = 3; x < 477; x++) {
+          if (!back[y * 480 + x]) continue;
+          for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) if (front[(y + dy) * 480 + x + dx]) nearest = Math.min(nearest, Math.max(Math.abs(dx), Math.abs(dy)));
+        }
+      expect(nearest, `${crew[i + 1]} against ${crew[i]}`).toBeGreaterThan(3);
     }
   });
 

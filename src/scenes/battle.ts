@@ -31,7 +31,7 @@ import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
 import { BHT, BW, DECK_CUT_LIFE, MENU_X, PANEL_Y, PARTY_BOTTOM } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
-import { SF, SF_BOSS_LIFT, SF_ENEMY_FRONT_DROP, SF_ENEMY_GAP_MAX, SF_ENEMY_GAP_ROW, SF_ENEMY_LEFT, SF_ENEMY_LIFT, SF_ENEMY_RIGHT, SIDE_ENEMY_EDGE, SIDE_ENEMY_LIFT_BY_BG, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, SIDE_WALK_LANES, WALK_FROM, sideBattler, sideSlot, walkFrames, walkRemaining } from './battlekit/sideview';
+import { SF, SF_BOSS_LIFT, SF_ENEMY_FRONT_DROP, SF_ENEMY_GAP_MAX, SF_ENEMY_GAP_ROW, SF_ENEMY_LEFT, SF_ENEMY_LIFT, SF_ENEMY_RIGHT, SIDE_ENEMY_EDGE, SIDE_ENEMY_LIFT_BY_BG, SIDE_ENEMY_GAP_MAX, SIDE_ENEMY_GAP_MIN, SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, SIDE_WALK_LANES, WALK_FROM, sfWalkState, sfWalkTotal, sideBattler, sideSlot, walkFrames, walkRemaining } from './battlekit/sideview';
 import { postfx } from '../engine/postfx';
 import { playMoment } from '../engine/moments';
 import { FX } from '../data/fx';
@@ -269,7 +269,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const names = groupNames(this.battle.enemies);
     this.say(this.setup.boss ? `${names} blocks the way!` : `${names} ${this.battle.enemies.length > 1 ? 'appear' : 'appears'}!`);
     // Side view: let the walk finish (about 85 frames at this speed) before the orders begin.
-    await this.w(SIDE_VIEW ? Math.max(58, walkFrames(Math.abs(WALK_FROM - sideSlot(0, this.battle.party.length).x)) + 12) : 58);
+    await this.w(SIDE_VIEW ? Math.max(58, (SF ? sfWalkTotal() : walkFrames(Math.abs(WALK_FROM - sideSlot(0, this.battle.party.length).x))) + 12) : 58);
     this.startRound();
   }
 
@@ -1069,18 +1069,18 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   // ------------------------------------------------------------------ layout
-  private layout = new Map<number, { x: number; y: number; art: EnemyArt }>();
+  private layout = new Map<number, { x: number; y: number; art: EnemyArt; front?: boolean }>();
   private layoutKey = -1;
   private layoutVersion = 0;
 
   /** Enemy placement, recomputed only when the roster changes (deaths, summons, phase shifts). */
-  enemyPos(u: Combatant): { x: number; y: number; art: EnemyArt } {
+  enemyPos(u: Combatant): { x: number; y: number; art: EnemyArt; front?: boolean } {
     // Numeric layout key (roster size, fallen, phase changes): recomputed per call without allocating.
     const key = this.battle.units.length * 1e6 + this.dead.size * 1e3 + this.layoutVersion;
     if (key !== this.layoutKey) {
       this.layoutKey = key;
       const prev = this.layout;
-      const next = new Map<number, { x: number; y: number; art: EnemyArt }>();
+      const next = new Map<number, { x: number; y: number; art: EnemyArt; front?: boolean }>();
       const living = this.battle.enemies.filter((e) => !this.dead.has(e.uid)).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
       let gap = 6;
       const widths = living.reduce((n, e) => n + enemyArt(ENEMIES[e.key]!.sprite).w, 0);
@@ -1127,7 +1127,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
           const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0) - (e.boss ? SF_BOSS_LIFT : SF_ENEMY_LIFT);
           const idx = back.indexOf(it);
           const raise = e.boss || isFront || back.length < 2 ? 0 : (idx % 2) * (gap2 < SF_ENEMY_GAP_ROW ? 6 : 4);
-          next.set(e.uid, { x: Math.round((left.get(e.uid) ?? SF_ENEMY_LEFT) - it.off), y: clearOfPrompt(ground - it.art.h - raise + (isFront ? SF_ENEMY_FRONT_DROP : 0), it.art), art: it.art });
+          next.set(e.uid, { x: Math.round((left.get(e.uid) ?? SF_ENEMY_LEFT) - it.off), y: clearOfPrompt(ground - it.art.h - raise + (isFront ? SF_ENEMY_FRONT_DROP : 0), it.art), art: it.art, ...(isFront ? { front: true } : {}) });
         });
         for (const e of this.battle.enemies) if (!next.has(e.uid) && prev.has(e.uid)) next.set(e.uid, prev.get(e.uid)!);
         this.layout = next;
@@ -1192,9 +1192,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
    * stand. It is one distance for everyone, so the formation steps in as a unit and keeps its spacing
    * (members walking from the same edge at the same speed would bunch up and overlap on the way).
    */
-  sideWalk(): number {
+  sideWalk(i = 0): number {
     if (!SIDE_VIEW) return 0;
     const n = this.battle.party.length;
+    if (SF) return sfWalkState(i, sideSlot(i, n).x, this.walkStart < 0 ? -1 : this.frame - this.walkStart, this.mode === 'intro').left;
     // The distance the front slot has to cover from just past the edge; everyone else is that far from their own place, so the rest start further out.
     // Signed: positive when they walk in from the right (code art), negative from the left (Sprite Fusion art, who face right): added to the place, it is where they are now.
     const full = WALK_FROM - sideSlot(0, n).x;
@@ -1204,13 +1205,19 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return Math.sign(full) * left;
   }
 
+  /** Sprite Fusion side view: the opacity of member `i` (Hex and Sable fade in over their short step). */
+  sideWalkAlpha(i: number): number {
+    if (!SF) return 1;
+    return sfWalkState(i, sideSlot(i, this.battle.party.length).x, this.walkStart < 0 ? -1 : this.frame - this.walkStart, this.mode === 'intro').alpha;
+  }
+
   /** The row a party member's soles stand on (battle-world pixels). */
   partyFeet(u: Combatant): number {
     if (!SIDE_VIEW) return PARTY_BOTTOM;
     const n = this.battle.party.length;
     const i = u.order ?? 0;
     // Stepping in, each member walks along their own lane (a row or three off their place), converging as they arrive, so the entry has depth.
-    const walk = this.sideWalk();
+    const walk = this.sideWalk(i);
     const lane = walk !== 0 ? (SIDE_WALK_LANES[i % SIDE_WALK_LANES.length] ?? 0) * Math.min(1, Math.abs(walk) / 40) : 0;
     return sideSlot(i, n).feet + lane;
   }
