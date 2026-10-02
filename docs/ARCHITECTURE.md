@@ -321,8 +321,19 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
   (picked from the traced frame by colour and distance from the bone) turn rigidly at its joint, so a limb can't
   stretch. Where the arm leaves the body the gap is filled from around it and loose bits are dropped; a bone with
   no pixels of its own is drawn as a sleeve; weapons are drawn in code in the hand, and each pose throws its light.
+  Since 2026-10-01 (Rook):
+  - **A free arm:** a rig can have a second arm (`free`), posed once for its one-handed poses or put on the
+    weapon's grip in a two-handed pose (`both`; that arm grows to reach).
+  - **A stance:** the body drops over the legs, each foot moves, the upper body leans from the hips with the head
+    half as far, and a coat flares into an A-line with a vent (`stance`; a pose's `lean`, `drop`, `feet`, `coat`).
+  - **Drawn arms:** they can be lengthened per pose, taper from a broad shoulder, and carry a dark outline.
+  - **The katana** is drawn pixel by pixel in one fixed style (`katana()`: a line one pixel per step along its
+    longer axis, thickened along the other), so it looks the same at any angle.
+  - **A Raised key pose** (`windup`): where a rig has one, it's the battle's attack frame, shown from halfway
+    through a swing's gather (`Battler.windup`, `battlekit/render.ts`).
   Poses and joints are set in the **animation editor** (`/rigedit.html`, `src/dev/rigedit.ts`, dev only), which saves
-  through the dev server (`vite.config.ts` `rigEdit`). NPCs and
+  through the dev server (`vite.config.ts` `rigEdit`). The save takes requests only from the dev server's own pages,
+  and only data that passes `rig2/check.ts`, which checks the whole skeleton structure. NPCs and
   townsfolk (`rig2/npcs.ts`) are swapped in after loading; passers-by take the townsfolk looks in turn. **Enemies**
   (`rig2/enemy.ts`, from `enemies.json`, keyed by sprite name): `enemyArt()` takes the traced redraw where there is
   one, keeping the code-drawn art's idle motion, shadow and size; the strike frame leans it in and the flinch tips it
