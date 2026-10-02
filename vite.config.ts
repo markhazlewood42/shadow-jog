@@ -214,8 +214,11 @@ function rigEdit(): Plugin {
           const { checkSkeletons } = (await server.ssrLoadModule('/src/art/rig2/check.ts')) as RigCheckModule;
           const problems = checkSkeletons(data);
           // A save never drops someone the file has (an empty or partial post would wipe them).
-          const gone = Object.keys(JSON.parse(readFileSync(SKELETON_FILE, 'utf8')) as object).filter((id) => !(id in (data as object)));
-          if (gone.length && !problems.length) problems.push(`would remove ${gone.join(', ')}`);
+          // Only once the check has shown it's an object: `id in null` would throw (Copilot review of PR #1).
+          if (!problems.length) {
+            const gone = Object.keys(JSON.parse(readFileSync(SKELETON_FILE, 'utf8')) as object).filter((id) => !(id in (data as object)));
+            if (gone.length) problems.push(`would remove ${gone.join(', ')}`);
+          }
           if (problems.length) {
             reply(400, { ok: false, problem: problems.slice(0, 5).join('; ') + (problems.length > 5 ? ` (and ${problems.length - 5} more)` : '') });
             return;

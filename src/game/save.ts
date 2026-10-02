@@ -205,10 +205,13 @@ const plain = (v: unknown): v is Record<string, unknown> => typeof v === 'object
 export function validState(s: GameState): boolean {
   if (typeof s !== 'object' || s === null) return false;
   if (!Array.isArray(s.party) || s.party.length === 0) return false;
-  if (!s.party.every((id) => MEMBER_IDS.includes(id) && s.members?.[id])) return false;
-  for (const id of s.party) {
-    const m = s.members[id]!;
-    // (`uses: true` used to pass and then crash the load, when charges were written into it.)
+  if (!plain(s.members) || !s.party.every((id) => MEMBER_IDS.includes(id) && s.members[id])) return false;
+  // Every stored member, not just the party: loading reconciles them all (reconcileParty), and a
+  // benched one with a bad shape would crash it as surely (Copilot review of PR #1, 2026-10-02).
+  // (`uses: true` used to pass and then crash the load, when charges were written into it.)
+  for (const [id, m] of Object.entries(s.members)) {
+    if (m === undefined) continue;
+    if (!MEMBER_IDS.includes(id as MemberId) || !plain(m)) return false;
     if (!num(m.level) || !num(m.hp) || !num(m.tp) || !plain(m.equip) || !plain(m.uses) || !Array.isArray(m.ailments)) return false;
   }
   if (!onMap(s.map, s.x, s.y)) return false;
@@ -245,8 +248,8 @@ function mapExists(id: unknown): boolean {
 export function sanitize(s: GameState): GameState {
   const count = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v > 0;
   for (const [id, n] of Object.entries(s.inventory)) if (!ITEMS[id] || !count(n)) delete s.inventory[id];
-  for (const id of s.party) {
-    const m = s.members[id]!;
+  for (const m of Object.values(s.members)) {
+    if (!m) continue;
     for (const [slot, item] of Object.entries(m.equip)) {
       if (typeof item !== 'string' || ITEMS[item]?.slot !== slot) delete m.equip[slot as EquipSlot];
     }

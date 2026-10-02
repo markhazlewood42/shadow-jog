@@ -103,6 +103,18 @@ describe('save / load', () => {
     expect(validState(stateMod.state)).toBe(false);
     kit.equip = equip;
     expect(validState(stateMod.state)).toBe(true);
+    // A member out of the party is checked too: loading reconciles every stored member.
+    const st = stateMod.state;
+    const benched = { ...(st.members.kit as object), id: 'sable', uses: true } as unknown as NonNullable<typeof st.members.sable>;
+    const party = st.party;
+    st.party = party.filter((id) => id !== 'sable');
+    const had = st.members.sable;
+    st.members.sable = benched;
+    expect(validState(st)).toBe(false);
+    if (had) st.members.sable = had;
+    else delete st.members.sable;
+    st.party = party;
+    expect(validState(st)).toBe(true);
   });
 
   it('rejects saves pointing at unknown maps', () => {
