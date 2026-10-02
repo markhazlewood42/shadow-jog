@@ -23,6 +23,7 @@ import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
 import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
+import { SIDE_VIEW, WALK_FRAMES_PER_STEP } from './sideview';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
 import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, markElements, statusName } from './tables';
@@ -377,15 +378,18 @@ export class BattleRenderer {
     // the raise beat alone is two frames, too quick to read.
     const wound = art.windup && dd.pose === 'attack' && beat?.phase === 'gather' && PARTY_POSE_T - dd.poseT >= 3;
     const pose: Pose = dd.poseT > 0 ? (wound ? 'attack' : beat?.phase === 'gather' ? 'brace' : through ? 'strike' : dd.pose) : 'idle';
-    const frame = art.frames[pose];
+    // Side view: the wait loop plays in place of the rest frame, and the walk while stepping in.
+    const walkLeft = this.s.sideWalk(p);
+    const cyc = art.cycle;
+    const frame = cyc && pose === 'idle' ? (walkLeft > 0 ? cyc.walk[Math.floor((f - this.s.walkStart) / WALK_FRAMES_PER_STEP) % cyc.walk.length] : cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / (active ? 12 : 20)) % cyc.idleOrder.length] ?? 0]) ?? art.frames[pose] : art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
     const res = art.res ?? 1;
     let ox = 0;
     if (dd.shake > 0) ox = dd.shake % 4 < 2 ? 2 : -2;
     if (pose === 'hurt') ox += 1;
     // Idle breathing: a 1px rise, staggered per member; faster and higher while choosing orders.
-    const breathe = pose === 'idle' ? (Math.floor((f + p.uid * 23) / (active ? 16 : 34)) % 2) * (active ? 2 : 1) : 0;
-    const x = Math.round(pos.x - frame.width / res / 2 + ox);
+    const breathe = pose === 'idle' && !cyc ? (Math.floor((f + p.uid * 23) / (active ? 16 : 34)) % 2) * (active ? 2 : 1) : 0;
+    const x = Math.round(pos.x - frame.width / res / 2 + ox + walkLeft);
     const lift = beat ? beat.lift : dd.lunge;
     const y = Math.round(this.s.partyFeet(p) - frame.height / res - dd.hop - lift - breathe + (pose === 'hurt' ? 2 : 0));
     if (down) {
@@ -891,7 +895,9 @@ export class BattleRenderer {
     const w = Math.min(210, Math.max(120, widest + 32));
     const h = Math.min(this.s.listMenu.rows, Math.max(1, items.length)) * 11 + 14;
     const cmdTop = PANEL_Y - (this.s.cmdMenu.items.length * 11 + 12) - 6;
-    const x = this.s.menuX(a, w), y = cmdTop - h - 4;
+    // Side view: the enemies are left of the party, so a window stacked above the command menu would cover
+    // them. It sits beside the command menu instead, on the open ground under the enemies.
+    const x = SIDE_VIEW ? MENU_X + CMD_W + 4 : this.s.menuX(a, w), y = SIDE_VIEW ? PANEL_Y - h - 6 : cmdTop - h - 4;
     const kind = this.s.listKind === 'item' ? 'Items' : this.s.listKind === 'skill' ? 'Skills' : this.s.cmdMenu.items.find((i) => i.value === 'tech')?.label ?? 'Techs';
     drawWindow(ctx, x, y, w, h, { title: `${a.name} · ${kind}`.toUpperCase(), accent: MEMBERS[a.key as MemberId].color });
     this.s.listMenu.render(ctx, x + 8, y + 8, w - 14, true, 'Nothing to use.');
@@ -940,13 +946,18 @@ export class BattleRenderer {
     if (!u) return;
     // The box sits on the far side of the screen from its target (clear of the turn-order strip
     // on the right), so it never covers the target or the arrow over it.
-    const w = TARGET_INFO_W, y = 44;
+    const w = TARGET_INFO_W;
     const tx = this.s.pos(u.uid).x * 2;
-    const x = tx < W / 2 ? W - 44 - w : 8;
     const name = this.s.label(u);
-    if (u.side === 'enemy') {
-      const { weak, notes } = this.targetNotes(u);
-      drawWindow(ctx, x, y, w, 19 + (u.analyzed ? 11 : 0) + notes.length * 10, { plain: true, accent: UI.amber });
+    const info = u.side === 'enemy' ? this.targetNotes(u) : null;
+    const boxH = info ? 19 + (u.analyzed ? 11 : 0) + info.notes.length * 10 : 19;
+    // Side view: the enemies fill the top and middle of the screen, so the box takes the open ground
+    // under them (the command windows' place, which are hidden while aiming), whoever is aimed at.
+    const x = SIDE_VIEW ? MENU_X + 4 : tx < W / 2 ? W - 44 - w : 8;
+    const y = SIDE_VIEW ? PANEL_Y - 6 - boxH : 44;
+    if (info) {
+      const { weak, notes } = info;
+      drawWindow(ctx, x, y, w, boxH, { plain: true, accent: UI.amber });
       drawText(ctx, name, x + 8, y + 5, { color: '#ffd0d0' });
       const bestiary = state.bestiary[u.key] ?? 0;
       if (weak) drawText(ctx, fitText(weak, w - 24 - measure(name)), x + w - 8, y + 5, { align: 'right', color: UI.amber });

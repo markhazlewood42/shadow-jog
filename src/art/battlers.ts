@@ -29,6 +29,11 @@ export interface Battler {
    * head), shown from halfway through a swing's gather, not just its brief raise beat.
    */
   windup?: boolean | undefined;
+  /**
+   * Side-view battle (spike `?battle=side`): looping frames for standing and walking. The idle
+   * loop plays in place of the rest frame (in `idleOrder`), the walk while the member steps in.
+   */
+  cycle?: { idle: HTMLCanvasElement[]; idleOrder: readonly number[]; walk: HTMLCanvasElement[] } | undefined;
 }
 
 type Weapon = 'fists' | 'katana' | 'pistol' | 'staff';

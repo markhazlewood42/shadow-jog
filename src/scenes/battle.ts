@@ -31,7 +31,7 @@ import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
 import { BHT, BW, DECK_CUT_LIFE, MENU_X, PANEL_Y, PARTY_BOTTOM } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
-import { SIDE_ENEMY_LEFT, SIDE_VIEW, sideBattler, sideSlot } from './battlekit/sideview';
+import { SIDE_ENEMY_LEFT, SIDE_BOSS_LIFT, SIDE_ENEMY_LIFT, SIDE_ENEMY_RIGHT, SIDE_VIEW, WALK_FROM, WALK_SPEED, sideBattler, sideSlot } from './battlekit/sideview';
 import { postfx } from '../engine/postfx';
 import { playMoment } from '../engine/moments';
 import { FX } from '../data/fx';
@@ -256,6 +256,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     // The shatter keeps pace with the battle-speed setting, like everything after it.
     for (let t = 0; t < INTRO_T; t += this.speed()) {
       this.introT = Math.floor(t);
+      if (SIDE_VIEW && this.walkStart < 0 && t >= CRACK) this.walkStart = this.frame;
       for (const e of this.battle.enemies) this.d(e.uid).alpha = Math.min(1, Math.max(0, (t - INTRO_T * 0.35) / (INTRO_T * 0.5)));
       // The glass breaks: the air ripples out from the middle of the screen (GPU effects).
       if (t < CRACK && t + this.speed() >= CRACK) playMoment(FX, 'intro', W / 2, H / 2);
@@ -1072,12 +1073,18 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const prev = this.layout;
       const next = new Map<number, { x: number; y: number; art: EnemyArt }>();
       const living = this.battle.enemies.filter((e) => !this.dead.has(e.uid)).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
-      const gap = 6;
-      const total = living.reduce((n, e) => n + enemyArt(ENEMIES[e.key]!.sprite).w, 0) + gap * Math.max(0, living.length - 1);
-      let x = SIDE_VIEW ? SIDE_ENEMY_LEFT : Math.round((BW - total) / 2);
+      let gap = 6;
+      const widths = living.reduce((n, e) => n + enemyArt(ENEMIES[e.key]!.sprite).w, 0);
+      // Side view: the enemies fill the strip between the command-menu column and the party, closing
+      // up (the art's transparent margins overlap) before they would run under either.
+      if (SIDE_VIEW && living.length > 1) gap = Math.max(-4, Math.min(6, Math.floor((SIDE_ENEMY_RIGHT - SIDE_ENEMY_LEFT - widths) / (living.length - 1))));
+      const total = widths + gap * Math.max(0, living.length - 1);
+      let x = SIDE_VIEW ? Math.max(SIDE_ENEMY_LEFT, Math.round(SIDE_ENEMY_LEFT + (SIDE_ENEMY_RIGHT - SIDE_ENEMY_LEFT - total) / 2)) : Math.round((BW - total) / 2);
       living.forEach((e, i) => {
         const art = enemyArt(ENEMIES[e.key]!.sprite);
-        const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0);
+        // Side view: the enemies stand further back (higher up the street) than any of the crew, which also
+        // leaves the band under their feet free for the command and ability windows.
+        const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0) - (SIDE_VIEW ? (e.boss ? SIDE_BOSS_LIFT : SIDE_ENEMY_LIFT) : 0);
         const back = e.boss ? 0 : (i % 2) * 4;
         next.set(e.uid, { x, y: clearOfPrompt(ground - art.h - back, art), art });
         x += art.w + gap;
@@ -1108,6 +1115,18 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       return { x: s.x, y: s.feet - 8 };
     }
     return { x: Math.round(BW / 2 + (i - (n - 1) / 2) * 44), y: PARTY_BOTTOM - 34 };
+  }
+
+  /** Side view: the frame the party began stepping in (-1: they aren't, or already stood). */
+  walkStart = -1;
+
+  /** Side view: how far (battle-world pixels) a member still has to walk to their place; 0 once they stand. */
+  sideWalk(u: Combatant): number {
+    if (!SIDE_VIEW) return 0;
+    const slot = sideSlot(u.order ?? 0, this.battle.party.length);
+    // Before the walk starts (the first frames of the intro) they are still off the right edge.
+    if (this.walkStart < 0) return this.mode === 'intro' ? WALK_FROM - slot.x : 0;
+    return Math.max(0, WALK_FROM - slot.x - (this.frame - this.walkStart) * WALK_SPEED);
   }
 
   /** The row a party member's soles stand on (battle-world pixels). */

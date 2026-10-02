@@ -13,7 +13,10 @@
  * screenshotted big: `node scripts/shot.mjs` takes the game canvas, so use the page screenshot.
  */
 import { renderLayers, type Layer, decode, type Traced } from '../art/rig2/rig';
-import { TRACED } from '../art/rig2/data';
+import { TRACED, VIEWS_TRACED, loadViews } from '../art/rig2/data';
+import { BATTLE_FEET, buildSideCrew } from '../art/rig2/sidecrew';
+import { buildChar } from '../art/chars';
+import { LOOKS } from '../data/looks';
 import {
   type Dims,
   POSES,
@@ -131,7 +134,52 @@ function arm(sh: Sheet, base: Layer, pal: string[], a: SideArm, s: Scale): void 
   }
 }
 
+/**
+ * The crew sheet (`?scene=sidelab&scale=crew`): each member's field `left` frame for identity, then
+ * the battle-scale wait loop (3 frames) and walk (4 frames), all at one zoom (default 4).
+ */
+async function crewSheet(zoom: number): Promise<HTMLCanvasElement> {
+  const canvas = mount();
+  if (!Object.keys(VIEWS_TRACED).length) await loadViews();
+  const keys = ['kit', 'rook', 'hex', 'sable'];
+  const crews = keys.map((k) => buildSideCrew(k));
+  const cw = Math.max(...crews.map((c) => c?.w ?? 0), 34);
+  const ch = Math.max(...crews.map((c) => c?.h ?? 0), 36);
+  const cols = 8;
+  canvas.width = 8 + cols * (cw * zoom + 8);
+  canvas.height = 36 + keys.length * (ch * zoom + 26);
+  const g = canvas.getContext('2d');
+  if (!g) return canvas;
+  g.imageSmoothingEnabled = false;
+  g.fillStyle = BG;
+  g.fillRect(0, 0, canvas.width, canvas.height);
+  g.fillStyle = '#fff';
+  g.font = 'bold 16px sans-serif';
+  g.fillText(`The crew at BATTLE scale (traced west view, nearest shrink to ${BATTLE_FEET} px soles), x${zoom}. Columns: field left frame (identity) | wait 1 2 3 (played 1-2-3-2) | walk 1 2 3 4`, 8, 22);
+  const heads = ['field frame', 'wait 1', 'wait 2', 'wait 3', 'walk 1', 'walk 2', 'walk 3', 'walk 4'];
+  keys.forEach((k, r) => {
+    const y = 36 + r * (ch * zoom + 26);
+    const crew = crews[r];
+    const field = buildChar(LOOKS[k as keyof typeof LOOKS]).frames.left[0];
+    const cells: (HTMLCanvasElement | undefined)[] = [field, ...(crew?.idle ?? []), ...(crew?.walk ?? [])];
+    cells.forEach((c, i) => {
+      const x = 8 + i * (cw * zoom + 8);
+      g.fillStyle = '#2e3250';
+      g.fillRect(x, y, cw * zoom, ch * zoom);
+      if (c) {
+        // Soles on one baseline: every frame bottom-aligned in its cell.
+        g.drawImage(c, x + Math.floor((cw * zoom - c.width * zoom) / 2), y + ch * zoom - c.height * zoom, c.width * zoom, c.height * zoom);
+      }
+      g.fillStyle = '#fff';
+      g.font = '12px sans-serif';
+      g.fillText(`${k} ${heads[i]}`, x + 4, y + ch * zoom + 14);
+    });
+  });
+  return canvas;
+}
+
 async function build(which: string, zoom?: number): Promise<HTMLCanvasElement> {
+  if (which === 'crew') return crewSheet(zoom || 4);
   const canvas = mount();
   const field = which !== 'battle';
   const s = { ...(field ? FIELD : BATTLE), ...(zoom ? { zoom } : {}) };

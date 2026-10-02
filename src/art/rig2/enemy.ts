@@ -8,6 +8,17 @@
 import type { EnemyArt } from '../enemies';
 import { decode, renderLayers, rotSprite } from './rig';
 import { ENEMY_TRACED } from './data';
+import { shrink } from './side';
+
+/**
+ * Sprites drawn at half size (a nearest shrink of the trace). Empty in the game; the side-view
+ * battle spike fills it (`?battle=side&enemyscale=half`, DEV only) to check how a 91 px humanoid
+ * stands next to a 47 px crew.
+ */
+const HALVED = new Set<string>();
+export const halveEnemies = (sprites: readonly string[]): void => {
+  for (const s of sprites) HALVED.add(s);
+};
 
 /** The glowing parts of a frame: bright and saturated, or near white. */
 function glowOf(c: HTMLCanvasElement): HTMLCanvasElement {
@@ -49,10 +60,12 @@ function anyPixels(c: HTMLCanvasElement): boolean {
  * art's (for how it idles, its shadow and size: those stay the game's).
  */
 export function rigEnemy(sprite: string, base: EnemyArt): EnemyArt | null {
-  const t = ENEMY_TRACED[sprite];
-  if (!t) return null;
+  const full = ENEMY_TRACED[sprite];
+  if (!full) return null;
+  const half = HALVED.has(sprite);
+  const t = half ? shrink(full, 0.5, 'nearest') : full;
   // Room around the trace for a leaning pose.
-  const pad = 6;
+  const pad = half ? 3 : 6;
   const w = t.w + pad * 2;
   const h = t.h + pad;
   const layer = { ...decode(t), ox: pad, oy: pad };
@@ -73,7 +86,7 @@ export function rigEnemy(sprite: string, base: EnemyArt): EnemyArt | null {
     h: h / 2,
     size: base.size,
     idle: base.idle,
-    shadow: base.shadow,
+    shadow: half ? Math.round(base.shadow / 2) : base.shadow,
     individual: true,
     glow: lit ? glow : undefined,
     attack: { canvas: attack, glow: lit ? glowOf(attack) : undefined },
