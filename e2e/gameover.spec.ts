@@ -239,3 +239,31 @@ test('A browser that can’t start the game says so, instead of a black screen',
   await expect(boot).toHaveClass(/error/);
   await expect(boot).toContainText('failed to start');
 });
+
+test('Title: Load says a newer-version save is from a newer version (not damaged) and refuses it', async ({ page }) => {
+  await stage(page, 'town');
+  expect(await sj<boolean>(page, 'sj.save(1)')).toBe(true);
+  // Slot 2: newest, and written by a newer save format than this build knows.
+  await page.evaluate(() => {
+    localStorage.removeItem('shadowjog.save.auto');
+    const raw = JSON.parse(localStorage.getItem('shadowjog.save.1')!);
+    raw.meta.when += 60_000;
+    raw.meta.appVersion = '9.9.9';
+    raw.state.version = 99;
+    localStorage.setItem('shadowjog.save.2', JSON.stringify(raw));
+  });
+  await page.goto('/?debug');
+  await waitFor(page, "sj.top() === 'TitleScene'", 'title');
+  await page.waitForTimeout(800);
+  await key(page, 'Enter'); // press start
+  await page.waitForTimeout(400);
+  await key(page, 'ArrowDown'); // Load Game
+  await key(page, 'Enter');
+  await waitFor(page, "sj.top() === 'SaveScene'", 'load menu');
+  expect(await sj<number>(page, 'sj.game.top.idx')).toBe(1); // the cursor skips the newer slot to the newest loadable one
+  await key(page, 'ArrowDown'); // slot 2
+  await key(page, 'Enter');
+  expect(await sj<string>(page, 'sj.game.top.note')).toMatch(/newer version/i);
+  expect(await sj<string>(page, 'sj.game.top.note')).not.toMatch(/damaged/i);
+  expect(await sj<string>(page, 'sj.top()')).toBe('SaveScene'); // refused: still on the load screen
+});

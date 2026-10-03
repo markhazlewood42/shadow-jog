@@ -6,7 +6,7 @@ import { LOOKS } from '../data/looks';
 import type { Ctx } from '../engine/canvas';
 import { drawText, fitText, measure } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
-import { formatPlayTime, readMeta, slotStatus, writeSave, type SaveMeta, type SlotId, type SlotStatus } from '../game/save';
+import { formatPlayTime, readMeta, savedByVersion, slotStatus, writeSave, type SaveMeta, type SlotId, type SlotStatus } from '../game/save';
 import { drawSelect, drawWindow, keyLegend, UI, OVERLAY_DIM } from '../ui/draw';
 
 export class SaveScene extends Scene<SlotId | null> {
@@ -70,12 +70,16 @@ export class SaveScene extends Scene<SlotId | null> {
     if (this.mode === 'load') {
       if (status !== 'ok') {
         sfx('buzz');
-        this.note = status === 'empty' ? 'That slot is empty.' : 'That save is damaged and can’t be loaded.';
+        this.note = status === 'empty' ? 'That slot is empty.'
+          : status === 'newer' ? 'That save is from a newer version and can’t be loaded.'
+          : 'That save is damaged and can’t be loaded.';
         return;
       }
       sfx('confirm');
       this.close(slot);
-    } else if (meta) {
+    } else if (meta || status === 'newer') {
+      // A newer-version save always asks first, even if its header is unreadable: it may be the
+      // only copy of progress made on a newer build.
       sfx('confirm');
       this.confirm = true;
     } else this.write(slot);
@@ -113,6 +117,12 @@ export class SaveScene extends Scene<SlotId | null> {
         drawText(ctx, 'Empty', x + 16, ry + 20, { color: UI.disabled });
         return;
       }
+      if (status === 'newer') {
+        const v = savedByVersion(s);
+        drawText(ctx, fitText(v ? `Saved by a newer version (v${v})` : 'Saved by a newer version', w - 86), x + 70, ry + 6, { color: UI.amber });
+        drawText(ctx, this.mode === 'load' ? 'This version can’t load it' : 'Saving here replaces it', x + 70, ry + 20, { color: UI.dim });
+        return;
+      }
       if (status === 'damaged' || !meta) {
         drawText(ctx, this.mode === 'load' ? 'Damaged — can’t be loaded' : 'Damaged — saving here replaces it', x + 16, ry + 20, { color: UI.red });
         return;
@@ -122,7 +132,8 @@ export class SaveScene extends Scene<SlotId | null> {
     if (this.note) drawText(ctx, this.note, W / 2, y + h + 6, { align: 'center', color: this.note.startsWith('Saved') ? UI.green : UI.amber });
     if (this.confirm) {
       drawWindow(ctx, x + 40, y + h / 2 - 16, w - 80, 32, { accent: UI.amber });
-      drawText(ctx, 'Overwrite this save?', W / 2, y + h / 2 - 10, { align: 'center' });
+      const newer = this.info[this.idx]?.status === 'newer';
+      drawText(ctx, newer ? 'Replace this newer-version save?' : 'Overwrite this save?', W / 2, y + h / 2 - 10, { align: 'center' });
       drawText(ctx, '{y}Confirm{/} yes · {d}Cancel{/} no', W / 2, y + h / 2 + 2, { align: 'center' });
     }
   }

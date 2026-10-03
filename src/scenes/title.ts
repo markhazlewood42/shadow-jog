@@ -142,7 +142,7 @@ export class TitleScene extends Scene<TitleChoice> {
     this.menu = new ListMenu<string>(
       [
         { label: 'New Game', value: 'new' },
-        { label: 'Continue', value: 'continue', enabled: resumable, why: saves ? 'No save to pick up from.' : 'No save yet: start a New Game.' },
+        { label: 'Continue', value: 'continue', enabled: resumable, why: saves ? 'No save can be loaded: see Load Game.' : 'No save yet: start a New Game.' },
         { label: 'Load Game', value: 'load', enabled: saves, why: 'No saved games yet.' },
         { label: 'Options', value: 'options' },
       ],

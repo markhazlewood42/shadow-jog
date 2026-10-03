@@ -7,6 +7,7 @@ import { levelForXp, MEMBERS, xpFor } from '../data/party';
 import { reconcileParty } from './party';
 import { streams } from '../engine/rng';
 import { SAVE_VERSION, setState, state, type EquipSlot, type GameState, type MemberId } from './state';
+import { APP_VERSION } from '../version';
 
 export type SlotId = 'auto' | 1 | 2 | 3;
 export const SLOTS: SlotId[] = [1, 2, 3];
@@ -19,6 +20,9 @@ export interface SaveMeta {
   party: string[];
   playFrames: number;
   cred: number;
+  /** The game version (package.json) that wrote this save, such as '0.2.0-dev'. Absent on saves
+   *  written before 0.2.0: that is fine, it is only shown to the player, never needed to load. */
+  appVersion?: string;
 }
 
 interface SaveFile {
@@ -86,6 +90,7 @@ export function writeSave(slot: SlotId, playFrames: number): boolean {
     party: state.party.map((id) => MEMBERS[id].name),
     playFrames,
     cred: state.cred,
+    appVersion: APP_VERSION,
   };
   try {
     st.setItem(key(slot), JSON.stringify({ meta, state } satisfies SaveFile));
@@ -109,12 +114,48 @@ export function readMeta(slot: SlotId): SaveMeta | null {
   }
 }
 
-export type SlotStatus = 'empty' | 'ok' | 'damaged';
+/**
+ * What a slot holds: nothing ('empty'), a save that will load ('ok'), a broken one ('damaged'),
+ * or a good save written by a NEWER save format than this build understands ('newer'). A newer
+ * save is not damaged: it is fine, this build is just too old to read it. It is never loaded and
+ * never silently replaced.
+ */
+export type SlotStatus = 'empty' | 'ok' | 'damaged' | 'newer';
+
+/** The save-format number a slot's raw text claims, or null when it can't be read as a save at all. */
+function savedFormat(raw: string): number | null {
+  try {
+    const v = (JSON.parse(raw) as Partial<SaveFile>).state?.version;
+    return num(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Whether a slot holds a save that will actually load (full parse and validation, not just the header). */
 export function slotStatus(slot: SlotId): SlotStatus {
-  if (!readRaw(slot)) return 'empty';
+  const raw = readRaw(slot);
+  if (!raw) return 'empty';
+  // Checked first, and on the raw text: a newer build may have reshaped the header too, so the
+  // header and the state can't be trusted to validate here.
+  if ((savedFormat(raw) ?? 0) > SAVE_VERSION) return 'newer';
   return readMeta(slot) && loadSave(slot) ? 'ok' : 'damaged';
+}
+
+/**
+ * The game version that wrote a slot, for the "saved by a newer version" line. Null when the save
+ * predates the field, or holds anything but a plain version string (letters, digits, dots, plus
+ * and minus: what package.json versions use, and all the bitmap font can draw safely).
+ */
+export function savedByVersion(slot: SlotId): string | null {
+  const raw = readRaw(slot);
+  if (!raw) return null;
+  try {
+    const v = (JSON.parse(raw) as Partial<SaveFile>).meta?.appVersion;
+    return typeof v === 'string' && /^[0-9A-Za-z.+-]{1,24}$/.test(v) ? v : null;
+  } catch {
+    return null;
+  }
 }
 
 export function loadSave(slot: SlotId): GameState | null {

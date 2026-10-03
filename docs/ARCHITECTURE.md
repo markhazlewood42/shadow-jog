@@ -134,7 +134,8 @@ it ends; GPU particles hold still through a hit pause.
   `loadSave` = parse → `migrateTo(SAVE_VERSION)` (the `MIGRATIONS[v]` chain, then `backfill` for added fields) →
   `validState` → `sanitize` (clamps numbers, drops unknown items/abilities/enemies). `applySave` then runs
   `reconcileParty` (HP/TP inside today's maximums, charges for every known skill). `slotStatus` distinguishes
-  empty, ok and damaged. `tests/fixtures/save-v1-annex.json` is a real v1 save that must keep loading.
+  empty, ok, damaged and newer (a good save from a newer save format: never loaded, never replaced without asking).
+  `meta.appVersion` records the game version that wrote a save (an additive field: no `SAVE_VERSION` bump). `tests/fixtures/save-v1-annex.json` is a real v1 save that must keep loading.
 - **`party.ts`**: member stats from base + growth + equipment (`memberStats`), XP curve, learnsets, `rest`,
   `innPrice`, `canEquip`. Since 2026-09-29: abilities can need a **story flag** as well as a level
   (`CH1_STORY_FLAGS` in `data/abilities.ts`: `stingray_seated`, `rook_tuned`, `rook_mended`, set by the script API's

@@ -383,10 +383,10 @@ export async function runBattle(
       const s = slot ? loadSave(slot) : null;
       if (s) {
         loadIntoGame(game, s);
-        if (slot !== newest) notice('Your newest save is damaged. Loaded the one before it.', 'warn');
+        if (slot !== newest) notice('Your newest save can’t be loaded (damaged, or from a newer version). Loaded the one before it.', 'warn');
         return 'lose';
       }
-      notice(newest ? 'Your last save is damaged and could not be loaded. Returning to the title.' : 'There is no save to load. Returning to the title.', 'warn');
+      notice(newest ? 'Your last save can’t be loaded (damaged, or from a newer version). Returning to the title.' : 'There is no save to load. Returning to the title.', 'warn');
     }
     sys().toTitle();
     return 'lose';

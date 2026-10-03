@@ -45,7 +45,7 @@ import { COMBO_TEXT_W, EQUIP_DESC_W, MENU_OBJ_W } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { applyEffects } from '../game/fielduse';
 import { canEquip, currentWound, equip, knownAbilities, lockedAbilities, maxUses, memberStats, SLOT_NAMES } from '../game/party';
-import { formatPlayTime, locationName, readMeta, SLOTS, writeSave, type SlotId } from '../game/save';
+import { formatPlayTime, locationName, readMeta, SLOTS, savedByVersion, slotStatus, writeSave, type SlotId } from '../game/save';
 import { flags, state, type EquipSlot, type MemberId, type MemberState } from '../game/state';
 import { drawBar, drawDivider, drawSelect, drawWindow, keyLegend, hpColor, UI, OVERLAY_DIM } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
@@ -280,7 +280,8 @@ export class MenuScene extends Scene<MenuResult> {
         if (r === 'cancel') this.mode = 'main';
         else if (r === 'confirm') {
           this.saveSlot = Number(this.sub.current!.value) as SlotId;
-          if (readMeta(this.saveSlot)) this.mode = 'saveConfirm';
+          // A newer-version save always asks first, even when its header can't be read.
+          if (readMeta(this.saveSlot) || slotStatus(this.saveSlot) === 'newer') this.mode = 'saveConfirm';
           else this.doSave();
         }
         break;
@@ -452,6 +453,10 @@ export class MenuScene extends Scene<MenuResult> {
   private buildSaveList(): void {
     this.sub.setItems(
       SLOTS.map((s) => {
+        if (slotStatus(s) === 'newer') {
+          const v = savedByVersion(s);
+          return { label: `Slot ${s}`, value: String(s), right: v ? `Saved by a newer version (v${v})` : 'Saved by a newer version' };
+        }
         const meta = readMeta(s);
         return { label: `Slot ${s}`, value: String(s), right: meta ? `${meta.location} · Lv${meta.leaderLevel} · ${formatPlayTime(meta.playFrames)}` : 'Empty' };
       }),
