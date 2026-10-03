@@ -26,6 +26,8 @@ export interface Disp {
   strikeLow?: boolean | undefined;
   /** Side view, Kit's punch combo: the pose frame it was called off at (a miss: only the first blow is thrown), else undefined. */
   punchStop?: number | undefined;
+  /** A multi-hit action's blows that wait for the engine's answer: `hit` plays them all, `miss` plays a whiff (see `multiHit` in playback.ts). Cleared when read. */
+  followUp?: { target: number; hit: () => Promise<void>; miss: () => Promise<void> } | undefined;
   /** Side view: frames left of the recoil a cut leaves on its target (`KATA_KNOCK`). */
   knock?: number;
   /** Side view, Rook's kendo strike: the target's uid (every other enemy his body passes in front of is dimmed while he is on it). */

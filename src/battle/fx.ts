@@ -14,9 +14,11 @@ import { Rng } from '../engine/rng';
 export const MEN_R = { len: 11, angle: 0.95, dx: Math.round(Math.cos(0.95) * 11), dy: Math.round(Math.sin(0.95) * 11), spark: 1 };
 
 /**
- * Kit's blows in Sprite Fusion art ('punch_r': a jab, a cross, a kick): `power` scales the star, the ring and the chips (playback sets 0.8, 1 and 1.3, as it sets `MEN_R.spark`).
+ * Kit's blows in Sprite Fusion art ('punch_r': a jab, a cross, a kick): `power` scales the star, the ring and the chips (playback sets it per blow, as it sets `MEN_R.spark`). `soft` is a blow
+ * that is not the last (the flare is capped at 10 world px and drawn fainter, so the fist and the face stay readable); `ring` is the ring's colour, so blow 2 is told from blow 1 by more than size.
+ * 'punch_whiff' is the same punch missing: a dull puff and a short air-cut a little short of the target, no star.
  */
-export const PUNCH_R = { power: 1 };
+export const PUNCH_R = { power: 1, soft: false, ring: '#ffd9a0' };
 
 export interface Pt {
   x: number;
@@ -768,18 +770,33 @@ export class FxLayer {
         // chips. No convergence lines (she is already there) and no wide burst: three of these play in a row, so each stays small and quick (two frames to the flash).
         each((t) => {
           const pw = PUNCH_R.power;
-          this.impact(t, '#ffb454', 0, Math.max(3, Math.round(6 * pw)));
+          const soft = PUNCH_R.soft, ringColor = PUNCH_R.ring;
+          this.impact(t, '#ffb454', 0, Math.max(3, Math.round((soft ? 4.5 : 6) * pw)));
           this.burst(t, '#ffe9a8', Math.round(4 + 4 * pw), 1.4 * pw, 0, 12);
-          this.ring(t, '#ffd9a0', 2, Math.round(5 + 4 * pw), 5, 1);
+          this.ring(t, ringColor, 2, Math.round(5 + 5 * pw), soft ? 5 : 6, 1, soft ? 1 : 2);
+          // The flat flare: capped at 10 world px and fainter for a blow that is not the last; the kick's is a quarter shorter than round 2's.
+          const flare = soft ? 0.6 : 0.75;
           this.s(4, (ctx, k) => {
-            ctx.globalAlpha = 1 - k;
+            ctx.globalAlpha = (1 - k) * (soft ? 0.6 : 1);
             ctx.fillStyle = '#fff3d0';
-            for (const [dy, len] of [[-3, 8], [0, 12], [3, 7]] as const) ctx.fillRect(Math.round(t.x + 2), Math.round(t.y + dy), Math.round(len * pw * (0.5 + k)), 1);
+            for (const [dy, len] of [[-3, 8], [0, 12], [3, 7]] as const) ctx.fillRect(Math.round(t.x + 2), Math.round(t.y + dy), Math.min(soft ? 10 : 99, Math.round(len * pw * flare * (0.5 + k) * 1.3)), 1);
             ctx.globalAlpha = 1;
           });
           this.debris(t, '#ffd36a', 2 + Math.round(pw * 2), 0);
         });
         return { impact: 2, total: 14 };
+      case 'punch_whiff':
+        // A punch that finds nothing: the fist stops short of the target, so a small dull puff and a short air-cut a little in front of it (no star, no chips, no ring).
+        each((t) => {
+          this.burst(t, '#b9b2cf', 5, 0.9, 0, 10);
+          this.s(5, (ctx, k) => {
+            ctx.globalAlpha = 0.8 * (1 - k);
+            ctx.fillStyle = '#d6d0ea';
+            for (const [dy, len] of [[-2, 6], [0, 9], [2, 5]] as const) ctx.fillRect(Math.round(t.x - len + k * 4), Math.round(t.y + dy), len, 1);
+            ctx.globalAlpha = 1;
+          });
+        });
+        return { impact: 2, total: 10 };
       case 'slash':
       case 'claw':
       case 'whip':

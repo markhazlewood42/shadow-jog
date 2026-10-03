@@ -20,8 +20,8 @@
 import { boxOf, type Raw } from './sfgeom';
 import { blank, blit, drawSwipe, frontBoot, put, rightmost, soles, type Ramp, type SfSwipe } from './sfstrike';
 
-export type PunchKey = 'ready' | 'run' | 'load' | 'jabS' | 'jabT' | 'jab' | 'crossS' | 'crossT' | 'cross' | 'kickC' | 'kickD' | 'kickS' | 'kickT' | 'kick' | 'lowS' | 'lowT' | 'low';
-export const PUNCH_KEYS: readonly PunchKey[] = ['ready', 'run', 'load', 'jabS', 'jabT', 'jab', 'crossS', 'crossT', 'cross', 'kickC', 'kickD', 'kickS', 'kickT', 'kick', 'lowS', 'lowT', 'low'];
+export type PunchKey = 'ready' | 'run' | 'load' | 'jabS' | 'jabT' | 'jab' | 'crossS' | 'crossT' | 'cross' | 'kickB' | 'kickC' | 'kickD' | 'kickE' | 'kickS' | 'kickT' | 'kick' | 'lowS' | 'lowT' | 'low';
+export const PUNCH_KEYS: readonly PunchKey[] = ['ready', 'run', 'load', 'jabS', 'jabT', 'jab', 'crossS', 'crossT', 'cross', 'kickB', 'kickC', 'kickD', 'kickE', 'kickS', 'kickT', 'kick', 'lowS', 'lowT', 'low'];
 
 /**
  * What was measured on Mark's PNGs (tests/sfpunch.test.ts re-measures them and fails if he regenerates a frame): the front boot's centre column (a pixel's left edge is its index),
@@ -61,17 +61,17 @@ export interface PunchArc {
 }
 export const PUNCH_SMEARS: Record<'jabS' | 'jabT' | 'crossS' | 'crossT' | 'kickS' | 'kickT' | 'lowS' | 'lowT', PunchStreak | PunchArc> = {
   // The jab's arm is thin (rows 20 to 24) from the shoulder (x 36); the streak starts at the elbow (x 41) and fans out to the wraps (x 51 to 52), so it shows as a halo above and below the arm.
-  jabS: { kind: 'streak', src: 'jab', x0: 37, x1: 55, y: 22, w: 15 },
-  jabT: { kind: 'streak', src: 'jab', x0: 43, x1: 56, y: 22, w: 10 },
+  jabS: { kind: 'streak', src: 'jab', x0: 38, x1: 52, y: 22, w: 11 },
+  jabT: { kind: 'streak', src: 'jab', x0: 41, x1: 53, y: 22, w: 10 },
   // The cross is square-on: the sleeve is wider (rows 19 to 26) and the arm runs from x 41.
-  crossS: { kind: 'streak', src: 'cross', x0: 36, x1: 56, y: 23, w: 17 },
-  crossT: { kind: 'streak', src: 'cross', x0: 44, x1: 57, y: 23, w: 11 },
+  crossS: { kind: 'streak', src: 'cross', x0: 24, x1: 53, y: 23, w: 19 },
+  crossT: { kind: 'streak', src: 'cross', x0: 31, x1: 53, y: 23, w: 14 },
   // The hip is at about (24, 31) and the toe at (61, 17), 40 px along the leg at -21 degrees; the foot swings up from below, and the crescent is the toe's path, hugging the leg's underside.
-  kickS: { kind: 'arc', src: 'kick', hip: [24, 31], swipe: { hand: 'follow', a0: 34, a1: -18, rx: 38, ry: 36, edge: 16, blade: 0 } },
-  kickT: { kind: 'arc', src: 'kick', hip: [24, 31], swipe: { hand: 'follow', a0: 10, a1: -18, rx: 38, ry: 36, edge: 10, blade: 0 } },
+  kickS: { kind: 'arc', src: 'kick', hip: [24, 31], swipe: { hand: 'follow', a0: 30, a1: -18, rx: 38, ry: 36, edge: 12, blade: 0 } },
+  kickT: { kind: 'arc', src: 'kick', hip: [24, 31], swipe: { hand: 'follow', a0: 10, a1: -18, rx: 38, ry: 36, edge: 8, blade: 0 } },
   // The crouch's reaching arm is at rows 28 to 34, from the shoulder (x 42) to the fist (x 52 to 53).
-  lowS: { kind: 'streak', src: 'low', x0: 33, x1: 53, y: 31, w: 14 },
-  lowT: { kind: 'streak', src: 'low', x0: 41, x1: 54, y: 31, w: 9 },
+  lowS: { kind: 'streak', src: 'low', x0: 28, x1: 50, y: 31, w: 15 },
+  lowT: { kind: 'streak', src: 'low', x0: 36, x1: 50, y: 31, w: 12 },
 };
 
 /** Kit's smear palette, built from her own jacket (its gold trim and orange body): core near white, a gold body, an orange rim. */
@@ -96,10 +96,12 @@ export function jacketRamp(r: Raw): Ramp {
 export function drawStreak(dst: Raw, sm: PunchStreak, dx: number, dy: number, ramp: Ramp): void {
   for (let x = sm.x0; x <= sm.x1; x++) {
     const u = (x - sm.x0) / (sm.x1 - sm.x0);
-    const hw = (sm.w / 2) * Math.max(0.12, u ** 0.9);
+    const hw = Math.max(1.6, (sm.w / 2) * u ** 0.9);
+    // A white-hot core that thickens toward the fist (1 row at the tail, 3 at the head).
+    const core = 0.5 + 1.2 * u;
     for (let y = Math.ceil(sm.y - hw - 0.5); y <= Math.floor(sm.y + hw - 0.5); y++) {
       const d = Math.abs(y + 0.5 - sm.y);
-      put(dst, x + dx, y + dy, d < 1 ? ramp.white : d / hw < 0.7 ? ramp.light : ramp.steel);
+      put(dst, x + dx, y + dy, d < core ? ramp.white : d / hw < 0.7 ? ramp.light : ramp.steel);
     }
   }
 }
@@ -130,24 +132,146 @@ export function dropStrays(r: Raw): Raw {
 }
 
 /**
- * A kick frame with its shin bent about the knee: every pixel of `src` from column `cut` on (and below row `top`, so the hair that trails past the knee stays) is turned `deg` degrees clockwise
- * (the foot swings down) about `knee`, sampled nearest-neighbour from the original, so no new colour appears; the thigh, the body and the standing leg are Mark's pixels untouched. The chamber
- * (the shin hanging, `kickC`) and the foot dropping or rising (`kickD`) are this at two angles: the in-between frames his Sprite Fusion edit would draw (see the shopping list).
+ * Kit's kicking leg in `kit-battle-kick`, measured on the PNG: a straight band from the hip (29, 31) to the ankle (50, 21), 6 px thick, with the boot beyond the ankle. The knee is
+ * about 45 percent along it. `band` is the half width kept when the leg is cut out (the hand beside it is not leg).
  */
-export function bendLeg(src: Raw, knee: readonly [number, number], cut: number, deg: number, top: number): Raw {
-  const out = blank(src.w + 14, src.h + 14);
+export const PUNCH_LEG = { hip: [29, 31], knee: [39, 26], ankle: [50, 21], band: 7 } as const;
+/**
+ * The chamber and the way back down, as angles (degrees, clockwise = the foot swings down) of the thigh about the hip and the shin about the knee on top of it. In the kick the leg is out at about
+ * -26 degrees; kickB is the knee still coming up, kickC the knee up and the shin folded; the way down is kickD (the thigh dropping, the shin half unfolded) and kickE (the thigh nearly down, the
+ * shin hanging). Nothing is drawn by hand: a rule on Mark's kick.
+ */
+export const PUNCH_BEND = {
+  kickB: { thigh: 34, shin: 62 },
+  kickC: { thigh: 14, shin: 78 },
+  kickD: { thigh: 22, shin: 52 },
+  kickE: { thigh: 46, shin: 24 },
+} as const;
+
+const isSkin = (r: number, g: number): boolean => r > 150 && g > 90;
+const opaqueAt = (r: Raw, x: number, y: number): boolean => x >= 0 && y >= 0 && x < r.w && y < r.h && (r.px[(y * r.w + x) * 4 + 3] ?? 0) > 0;
+
+/**
+ * A kick frame with its leg re-posed: the thigh turned `thigh` degrees about the hip, and the shin and boot `shin` more about the (carried) knee. The leg is cut out of the frame by its band
+ * (so the hand beside it stays), each output pixel looks back through both turns and takes the commonest colour of nine sub-samples of Mark's pixels (so edges are not stair-stepped and no
+ * new colour appears), then the knee is cleaned: gaps at the joint filled with the jeans colour and the new edge outlined in the outline colour, so the thigh-to-shin join is one clean line
+ * (a plain rotation leaves a notch on the outside and a dark seam on the inside). The rest of the frame (body, standing leg) is Mark's pixels untouched. At 0 and 0 it returns the frame.
+ */
+export function poseLeg(src: Raw, thigh: number, shin: number, leg: { hip: readonly number[]; knee: readonly number[]; ankle: readonly number[]; band: number } = PUNCH_LEG): Raw {
+  const PAD = 14;
+  const out = blank(src.w + PAD, src.h + PAD);
+  const hx = leg.hip[0] ?? 0, hy = leg.hip[1] ?? 0;
+  const kx = leg.knee[0] ?? 0, ky = leg.knee[1] ?? 0;
+  const ax = leg.ankle[0] ?? 0, ay = leg.ankle[1] ?? 0;
+  const len = Math.hypot(ax - hx, ay - hy);
+  const ux = (ax - hx) / len, uy = (ay - hy) / len;
+  const sOf = (x: number, y: number): number => (x - hx) * ux + (y - hy) * uy;
+  const dOf = (x: number, y: number): number => -(x - hx) * uy + (y - hy) * ux;
+  const sKnee = sOf(kx, ky);
   const at = (x: number, y: number): number => (x < 0 || y < 0 || x >= src.w || y >= src.h ? 0 : (src.px[(y * src.w + x) * 4 + 3] ?? 0));
+  const rgb = (x: number, y: number): [number, number, number] => [src.px[(y * src.w + x) * 4] ?? 0, src.px[(y * src.w + x) * 4 + 1] ?? 0, src.px[(y * src.w + x) * 4 + 2] ?? 0];
+  // 0: not leg, 1: thigh, 2: shin and boot.
+  const part = new Uint8Array(src.w * src.h);
   for (let y = 0; y < src.h; y++)
-    for (let x = 0; x < src.w; x++)
-      if (at(x, y) > 0 && (x < cut || y < top)) put(out, x, y, [src.px[(y * src.w + x) * 4] ?? 0, src.px[(y * src.w + x) * 4 + 1] ?? 0, src.px[(y * src.w + x) * 4 + 2] ?? 0]);
-  const th = (deg * Math.PI) / 180;
-  const c = Math.cos(th), s = Math.sin(th);
+    for (let x = 0; x < src.w; x++) {
+      if (at(x, y) === 0) continue;
+      const [r, g] = rgb(x, y);
+      const s = sOf(x + 0.5, y + 0.5), d = dOf(x + 0.5, y + 0.5);
+      if (s < 2 || (s <= len ? Math.abs(d) > leg.band : Math.abs(d) > 12 || x < ax - 1)) continue;
+      if (s <= len && isSkin(r, g) && x <= 43 && y <= 24) continue;
+      // Warm rim pixels on the jeans (a highlight that would sit on the new edge as a fleck) are dropped.
+      if (s <= len && r > (src.px[(y * src.w + x) * 4 + 2] ?? 0) + 25) { part[y * src.w + x] = 3; continue; }
+      part[y * src.w + x] = s < sKnee ? 1 : 2;
+    }
+  // The frame without the leg.
+  for (let y = 0; y < src.h; y++) for (let x = 0; x < src.w; x++) if (at(x, y) > 0 && part[y * src.w + x] === 0) put(out, x, y, rgb(x, y));
+  const rot = (x: number, y: number, cx: number, cy: number, deg: number): [number, number] => {
+    const t = (deg * Math.PI) / 180, c = Math.cos(t), s = Math.sin(t);
+    return [cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c];
+  };
+  const sample = (x: number, y: number): [number, number, number] | null => {
+    const [q1x, q1y] = rot(x, y, hx, hy, -thigh);
+    const [q2x, q2y] = rot(q1x, q1y, kx, ky, -shin);
+    const sx = Math.floor(q2x), sy = Math.floor(q2y);
+    if (sx >= 0 && sy >= 0 && sx < src.w && sy < src.h && part[sy * src.w + sx] === 2) return rgb(sx, sy);
+    const tx = Math.floor(q1x), ty = Math.floor(q1y);
+    if (tx >= 0 && ty >= 0 && tx < src.w && ty < src.h && part[ty * src.w + tx] === 1) return rgb(tx, ty);
+    return null;
+  };
+  const legPx = new Uint8Array(out.w * out.h);
   for (let y = 0; y < out.h; y++)
     for (let x = 0; x < out.w; x++) {
-      const dx = x + 0.5 - knee[0], dy = y + 0.5 - knee[1];
-      const ix = Math.floor(dx * c + dy * s + knee[0]), iy = Math.floor(-dx * s + dy * c + knee[1]);
-      if (ix >= cut && iy >= top && at(ix, iy) > 0) put(out, x, y, [src.px[(iy * src.w + ix) * 4] ?? 0, src.px[(iy * src.w + ix) * 4 + 1] ?? 0, src.px[(iy * src.w + ix) * 4 + 2] ?? 0]);
+      const votes = new Map<number, number>();
+      let n = 0;
+      for (let j = 0; j < 3; j++)
+        for (let i = 0; i < 3; i++) {
+          const c = sample(x + (i + 0.5) / 3, y + (j + 0.5) / 3);
+          if (!c) continue;
+          n++;
+          const k = (c[0] << 16) | (c[1] << 8) | c[2];
+          votes.set(k, (votes.get(k) ?? 0) + 1);
+        }
+      if (n < 5) continue;
+      let best = 0, bestN = 0;
+      for (const [k, v] of votes) if (v > bestN) { best = k; bestN = v; }
+      put(out, x, y, [(best >> 16) & 255, (best >> 8) & 255, best & 255]);
+      legPx[y * out.w + x] = 1;
     }
+  // Clean the knee (not when the leg is not bent at all).
+  if (shin === 0 && thigh === 0) return out;
+  // Specks (a leg pixel with fewer than two neighbours) go; warm rim pixels in the jeans become jeans, further down.
+  for (let y = 0; y < out.h; y++)
+    for (let x = 0; x < out.w; x++) {
+      if (legPx[y * out.w + x] !== 1 || (out.px[(y * out.w + x) * 4 + 3] ?? 0) === 0) continue;
+      const nb = +opaqueAt(out, x - 1, y) + +opaqueAt(out, x + 1, y) + +opaqueAt(out, x, y - 1) + +opaqueAt(out, x, y + 1);
+      const thin = (!opaqueAt(out, x - 1, y) && !opaqueAt(out, x + 1, y)) || (!opaqueAt(out, x, y - 1) && !opaqueAt(out, x, y + 1));
+      if (nb < 2 || (thin && y < hy + 4)) out.px[(y * out.w + x) * 4 + 3] = 0;
+    }
+  const [nkx, nky] = rot(kx, ky, hx, hy, thigh);
+  const opaque = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < out.w && y < out.h && (out.px[(y * out.w + x) * 4 + 3] ?? 0) > 0;
+  const lum = (x: number, y: number): number => 0.3 * (out.px[(y * out.w + x) * 4] ?? 0) + 0.59 * (out.px[(y * out.w + x) * 4 + 1] ?? 0) + 0.11 * (out.px[(y * out.w + x) * 4 + 2] ?? 0);
+  // The jeans colour at the joint and the outline colour, sampled from the source: the commonest jeans pixel of the thigh and the commonest dark edge pixel.
+  const tally = (pick: (x: number, y: number) => boolean): [number, number, number] => {
+    const m = new Map<number, number>();
+    for (let y = 0; y < src.h; y++)
+      for (let x = 0; x < src.w; x++)
+        if (at(x, y) > 0 && pick(x, y)) {
+          const c = rgb(x, y);
+          const k = (c[0] << 16) | (c[1] << 8) | c[2];
+          m.set(k, (m.get(k) ?? 0) + 1);
+        }
+    let best = 0, bn = -1;
+    for (const [k, v] of m) if (v > bn) { best = k; bn = v; }
+    return [(best >> 16) & 255, (best >> 8) & 255, best & 255];
+  };
+  const lumSrc = (x: number, y: number): number => 0.3 * (src.px[(y * src.w + x) * 4] ?? 0) + 0.59 * (src.px[(y * src.w + x) * 4 + 1] ?? 0) + 0.11 * (src.px[(y * src.w + x) * 4 + 2] ?? 0);
+  const jeans = tally((x, y) => part[y * src.w + x] === 1 && (src.px[(y * src.w + x) * 4 + 2] ?? 0) > (src.px[(y * src.w + x) * 4] ?? 0) + 8 && lumSrc(x, y) > 28);
+  const edge = tally((x, y) => part[y * src.w + x] !== 0 && lumSrc(x, y) < 24);
+  const R = 8;
+  const near = (x: number, y: number): boolean => Math.hypot(x + 0.5 - nkx, y + 0.5 - nky) <= R;
+  const filled: [number, number][] = [];
+  for (let pass = 0; pass < 2; pass++) {
+    const add: [number, number][] = [];
+    for (let y = 0; y < out.h; y++)
+      for (let x = 0; x < out.w; x++) {
+        if (opaque(x, y) || !near(x, y)) continue;
+        const n4 = +opaque(x - 1, y) + +opaque(x + 1, y) + +opaque(x, y - 1) + +opaque(x, y + 1);
+        if (n4 >= 3) add.push([x, y]);
+      }
+    for (const [x, y] of add) {
+      put(out, x, y, jeans);
+      filled.push([x, y]);
+    }
+  }
+  // The leg's edge is one dark outline all the way round: a leg pixel on the edge that is not dark becomes the outline colour.
+  for (let y = 0; y < out.h; y++)
+    for (let x = 0; x < out.w; x++)
+      if (legPx[y * out.w + x] === 1 && opaque(x, y) && lum(x, y) > 34 && (!opaque(x - 1, y) || !opaque(x + 1, y) || !opaque(x, y - 1) || !opaque(x, y + 1)) && (out.px[(y * out.w + x) * 4 + 2] ?? 0) < 120) put(out, x, y, edge);
+  // The new edge of the joint: the filled pixels that touch the outside get the outline colour.
+  for (const [x, y] of filled) if (!opaque(x - 1, y) || !opaque(x + 1, y) || !opaque(x, y - 1) || !opaque(x, y + 1)) put(out, x, y, edge);
+  // Dark seam pixels now inside the joint (an outline that ended up in the middle of the leg) become jeans.
+  const inside = (x: number, y: number): boolean => opaque(x - 1, y) && opaque(x + 1, y) && opaque(x, y - 1) && opaque(x, y + 1) && opaque(x - 1, y - 1) && opaque(x + 1, y + 1) && opaque(x - 1, y + 1) && opaque(x + 1, y - 1);
+  for (let y = 0; y < out.h; y++) for (let x = 0; x < out.w; x++) if (near(x, y) && legPx[y * out.w + x] === 1 && opaque(x, y) && lum(x, y) < 24 && inside(x, y)) put(out, x, y, jeans);
   return out;
 }
 
@@ -160,7 +284,7 @@ export const PUNCH_FRAME_MS = 1000 / 60 / 0.65;
  * (the arm comes back), `chamber` the load frame between the cross and the kick (the arm comes back, the weight goes onto the back foot), `lift` the kick frame with the shin hanging (the knee comes up),
  * `drop` the foot coming back down after the kick and `settle` the load frame after the last blow.
  */
-export const PUNCH = { load: 2, smear: 2, trail: 1, jab: 2, coil: 2, cross: 2, chamber: 1, lift: 2, hold: 10, low: 2, drop: 1, settle: 1, back: 8 } as const;
+export const PUNCH = { load: 2, smear: 2, trail: 1, jab: 2, coil: 2, cross: 2, chamber: 2, rise: 1, lift: 2, hold: 10, low: 3, drop: 2, fall: 2, settle: 2, back: 8 } as const;
 /** Whether the kick follows the cross as a third blow (it does when `PUNCH_FINISHER`: see the pose log). */
 export const PUNCH_FINISHER = true;
 /** A reach (world px) over this needs a run in; under it she steps in during the load. */
@@ -169,6 +293,14 @@ export const PUNCH_RUN_MIN = 14;
 export const PUNCH_IMPACT = 2;
 /** A target under this many world px tall is hit low (the crouch): the standing frames' fists pass over its back. */
 export const PUNCH_LOW_BELOW = 22;
+/** A low blow's spark and GPU hit sit this share of the target's height up from its feet (the body's centre: on a Glowrat about 8 px, not on its head). */
+export const PUNCH_LOW_AT = 0.7;
+/** Art px the fist goes past its resting column on the first frame of a punch. */
+export const PUNCH_SQUASH = 1;
+/** The share of its opacity a non-target enemy keeps while Kit's sprite overlaps it by 8 px or more (render.ts `punchFade`). */
+export const PUNCH_FADE = 0.4;
+/** World px the jab's and the cross's spark sits below the fist's row, on the chest and jaw, so the fist stays visible at contact (the kick's stays on the toe). */
+export const PUNCH_SOFT_DROP = 3;
 
 /** One blow of the combo: which it is (for its spark size and height). */
 export type PunchBlow = 'jab' | 'cross' | 'kick' | 'low' | 'low2';
@@ -194,8 +326,6 @@ interface Tpl {
  * the frames themselves; these are small enough to read as weight behind the blow, not as a slide.
  */
 export const PUNCH_PUSH = { jab: 0.5, cross: 1.2 } as const;
-/** The shin's angle (degrees) in the kick's chamber (`lift`: the knee up, the shin hanging) and as the foot drops back or rises (`drop`). */
-export const PUNCH_BEND = { lift: 45, drop: 22 } as const;
 /** The kick's toe stops this many world px short of where the fists end (the stand-off: her body is further from the target for the kick than for the blows). */
 export const PUNCH_KICK_SHORT = 1;
 
@@ -208,8 +338,8 @@ function combo(low: boolean, finisher: boolean): Tpl[] {
       { key: 'lowS', frames: P.smear, from: 0.94, to: 0.94, push: [-3, -1], dash: true },
       { key: 'lowT', frames: P.trail, from: 0.94, to: 0.94, push: [-1, S.jab], blow: 'low', contact: true },
       { key: 'low', frames: P.low, from: 0.94, to: 0.96, push: [S.jab, S.jab], contact: true },
-      { key: 'lowT', frames: P.trail, from: 0.96, to: 0.97, push: [S.jab, S.cross], blow: 'low2', contact: true },
-      { key: 'low', frames: P.hold, from: 0.97, to: 0.98, push: [S.cross, S.cross], contact: true },
+      { key: 'lowT', frames: P.trail, from: 0.96, to: 0.97, push: [S.jab + 1, S.cross + 2], blow: 'low2', contact: true },
+      { key: 'low', frames: P.hold, from: 0.97, to: 0.98, push: [S.cross + 2, S.cross + 2], contact: true },
       { key: 'load', frames: P.settle, from: 0.95, to: 0.9, push: [0, 0] },
       { key: 'ready', frames: P.back, from: 0.8, to: 0, push: [0, 0] },
     ];
@@ -230,12 +360,13 @@ function combo(low: boolean, finisher: boolean): Tpl[] {
   if (finisher) {
     steps.push(
       { key: 'load', frames: P.chamber, from: 1, to: 1, push: [S.cross, mid] },
+      { key: 'kickB', frames: P.rise, from: 1, to: 1, push: [mid, mid] },
       { key: 'kickC', frames: P.lift, from: 1, to: 1, push: [mid, mid2] },
       { key: 'kickS', frames: P.smear, from: 1, to: 1, push: [mid2, kickPush], dash: true },
       { key: 'kickT', frames: P.trail, from: 1, to: 1, push: [kickPush, kickPush], blow: 'kick', contact: true },
       { key: 'kick', frames: P.hold, from: 1, to: 1, push: [kickPush, kickPush], contact: true },
       { key: 'kickD', frames: P.drop, from: 1, to: 1, push: [kickPush, mid2] },
-      { key: 'kickC', frames: P.drop, from: 1, to: 1, push: [mid2, mid] },
+      { key: 'kickE', frames: P.fall, from: 1, to: 1, push: [mid2, mid] },
       { key: 'load', frames: P.settle, from: 1, to: 0.9, push: [mid, 1] },
     );
   } else steps.push({ key: 'load', frames: P.settle, from: 1, to: 0.9, push: [S.cross, 1] });
@@ -415,11 +546,13 @@ export function buildSfPunch(idle: Raw[], run: Raw, load: Raw, jab: Raw, cross: 
   const pr = { dx: Math.round(HALF - boxOf(run).feet), dy: H0 - 1 - soles(run) };
   blit(layers.run, run, pr.dx, pr.dy);
   const ramp = jacketRamp(jab);
+  // The kick's crescent fades from gold toward the jacket's darker trim (its outer band is the dark orange mixed with the outline), so it reads as motion, not as an object.
+  const dim = (c: number[], t: number): number[] => c.map((v, i) => Math.round(v + ((ramp.outline[i] ?? 0) - v) * t));
+  const kickRamp: Ramp = { ...ramp, light: dim(ramp.light, 0.15), steel: dim(ramp.steel, 0.45) };
   blit(layers.jab, jab, pj.dx, pj.dy);
   blit(layers.cross, cross, pc.dx, pc.dy);
   blit(layers.kick, kick, pk.dx, pk.dy);
-  blit(layers.kickC, bendLeg(kick, A.kick.knee, A.kick.cut, PUNCH_BEND.lift, A.kick.hairTop), pk.dx, pk.dy);
-  blit(layers.kickD, bendLeg(kick, A.kick.knee, A.kick.cut, PUNCH_BEND.drop, A.kick.hairTop), pk.dx, pk.dy);
+  for (const k of ['kickB', 'kickC', 'kickD', 'kickE'] as const) blit(layers[k], poseLeg(kick, PUNCH_BEND[k].thigh, PUNCH_BEND[k].shin), pk.dx, pk.dy);
   blit(layers.low, low, pw.dx, pw.dy);
   // The smears: a streak BEHIND the arm (drawn first, the body over it, so the wrapped fist stays on top) or the kick's arc behind the leg. S is the full smear, T the short trail that
   // lingers on the first frame of the blow.
@@ -427,9 +560,11 @@ export function buildSfPunch(idle: Raw[], run: Raw, load: Raw, jab: Raw, cross: 
   for (const k of ['jabS', 'jabT', 'crossS', 'crossT', 'kickS', 'kickT', 'lowS', 'lowT'] as const) {
     const sm = PUNCH_SMEARS[k];
     const [src, p] = bodies[sm.src];
-    if (sm.kind === 'streak') drawStreak(layers[k], sm, p.dx, p.dy, ramp);
-    else drawSwipe(layers[k], sm.hip[0] + p.dx, sm.hip[1] + p.dy, sm.swipe, ramp);
-    blit(layers[k], src, p.dx, p.dy);
+    // The first frame of a punch (the trail) has the fist one art px past its resting column: the blow is told by the pose, not only by the flash.
+    const fwd = sm.kind === 'streak' && k.endsWith('T') ? PUNCH_SQUASH : 0;
+    if (sm.kind === 'streak') drawStreak(layers[k], sm, p.dx + fwd, p.dy, ramp);
+    else drawSwipe(layers[k], sm.hip[0] + p.dx, sm.hip[1] + p.dy, sm.swipe, kickRamp);
+    blit(layers[k], src, p.dx + fwd, p.dy);
   }
   // Crop to a common size: symmetric about the axis (the engine centres a canvas on the slot), top at the highest pixel, bottom on the soles.
   let left = HALF, right = HALF, top = H0;

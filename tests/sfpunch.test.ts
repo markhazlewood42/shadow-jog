@@ -9,10 +9,13 @@ import {
   PUNCH_KICK_SHORT,
   PUNCH_MEASURED,
   PUNCH_RUN_MIN,
-  bendLeg,
+  PUNCH_SQUASH,
+  PUNCH_BEND,
+  PUNCH_LEG,
   buildSfPunch,
   dropStrays,
   plantOf,
+  poseLeg,
   punchBeat,
   punchHits,
   punchLead,
@@ -131,9 +134,9 @@ describe('the punch timeline', () => {
     expect(s('crossS') + s('crossT')).toBeGreaterThanOrEqual(3);
     expect(s('kickS') + s('kickT')).toBeGreaterThanOrEqual(3);
     expect(tl.filter((x) => x.dash).every((x) => /S$/.test(x.key) || x.key === 'run')).toBe(true);
-    // jab -> load (the arm comes back) -> cross -> load, kickC (the chamber: the knee comes up) -> kick -> kickD, kickC, load (the foot comes back down) -> ready.
+    // jab -> load (the arm comes back) -> cross -> load, kickB, kickC (the chamber: the knee comes up in two steps) -> kick -> kickD, kickE, load (the foot comes back down in two) -> ready.
     const seq = keys(at, 10).join(' ');
-    expect(seq).toContain('jabT jab load crossS crossT cross load kickC kickS kickT kick kickD kickC load ready');
+    expect(seq).toContain('jabT jab load crossS crossT cross load kickB kickC kickS kickT kick kickD kickE load ready');
     for (const [a, b] of [['jab', 'cross'], ['cross', 'kick']] as const) expect(tl.findIndex((x) => x.key === b) - tl.findIndex((x) => x.key === a)).toBeGreaterThanOrEqual(3);
     expect(PUNCH.hold).toBeGreaterThanOrEqual(10);
   });
@@ -251,9 +254,10 @@ describe.skipIf(!have)("anchors on Mark's frames", () => {
     const col = (k: (typeof PUNCH_KEYS)[number]): number => frontBoot(b.frames[k]);
     // The planted foot does not slide through the combo (the idle's own boots are measured on its own loop, so within a pixel), smears and trails included.
     expect(col('jab')).toBe(col('jabS'));
-    expect(col('jab')).toBe(col('jabT'));
+    // The trail frame (the first of the blow) has the fist PUNCH_SQUASH px past its resting column.
+    expect(col('jabT') - col('jab')).toBe(PUNCH_SQUASH);
     expect(col('cross')).toBe(col('crossS'));
-    expect(col('cross')).toBe(col('crossT'));
+    expect(col('crossT') - col('cross')).toBe(PUNCH_SQUASH);
     expect(Math.abs(col('jab') - col('ready'))).toBeLessThanOrEqual(1);
     expect(Math.abs(col('cross') - col('ready'))).toBeLessThanOrEqual(1);
     expect(Math.abs(col('load') - col('ready'))).toBeLessThanOrEqual(1);
@@ -291,23 +295,25 @@ describe.skipIf(!have)("anchors on Mark's frames", () => {
     expect(b.topRows).toBeLessThanOrEqual(64);
   });
 
-  it('bends the kick leg about the knee without adding a colour, leaving the body and the thigh as drawn', () => {
-    const A = PUNCH_ANCHORS.kick;
+  it('re-poses the kick leg about the hip and the knee without adding a colour, leaving the body and the standing leg as drawn', () => {
     const colours = (r: typeof kick): Set<number> => {
       const o = new Set<number>();
       for (let i = 0; i < r.px.length; i += 4) if ((r.px[i + 3] ?? 0) > 0) o.add(((r.px[i] ?? 0) << 16) | ((r.px[i + 1] ?? 0) << 8) | (r.px[i + 2] ?? 0));
       return o;
     };
     const base = colours(kick);
-    for (const deg of [22, 45]) {
-      const bent = bendLeg(kick, A.knee, A.cut, deg, A.hairTop);
+    const opaque = (r: typeof kick): number => r.px.reduce((n, v, i) => (i % 4 === 3 && v > 0 ? n + 1 : n), 0);
+    for (const k of ['kickB', 'kickC', 'kickD', 'kickE'] as const) {
+      const bent = poseLeg(kick, PUNCH_BEND[k].thigh, PUNCH_BEND[k].shin);
       for (const c of colours(bent)) expect(base.has(c)).toBe(true);
-      // Well left of the cut (the body, the thigh) nothing moved: the bend only lays the shin over the knee.
-      for (let y = 0; y < kick.h; y++) for (let x = 0; x < A.cut - 8; x++) if ((kick.px[(y * kick.w + x) * 4 + 3] ?? 0) > 0) for (let k = 0; k < 4; k++) expect(bent.px[(y * bent.w + x) * 4 + k]).toBe(kick.px[(y * kick.w + x) * 4 + k]);
-      // The toe is lower than the kick's (the foot swung down), and the pixel count is within a fifth of the kick's.
-      const opaque = (r: typeof kick): number => r.px.reduce((n, v, i) => (i % 4 === 3 && v > 0 ? n + 1 : n), 0);
+      // Left of the hip (the head, the torso, the standing leg's lower half) nothing moved.
+      for (let y = 0; y < kick.h; y++) for (let x = 0; x < PUNCH_LEG.hip[0] - 4; x++) if ((kick.px[(y * kick.w + x) * 4 + 3] ?? 0) > 0) for (let c = 0; c < 4; c++) expect(bent.px[(y * bent.w + x) * 4 + c]).toBe(kick.px[(y * kick.w + x) * 4 + c]);
+      // The foot swung down (the toe is lower than the kick's), and the pixel count is within a fifth of the kick's.
       expect(Math.abs(opaque(bent) - opaque(kick))).toBeLessThan(opaque(kick) / 5);
       expect(rightmost(bent)[1]).toBeGreaterThan(rightmost(kick)[1]);
     }
+    // The chamber folds the shin more than the way down does, and the foot is lowest on the last frame of the drop.
+    expect(PUNCH_BEND.kickC.shin).toBeGreaterThan(PUNCH_BEND.kickB.shin);
+    expect(PUNCH_BEND.kickE.thigh).toBeGreaterThan(PUNCH_BEND.kickD.thigh);
   });
 });

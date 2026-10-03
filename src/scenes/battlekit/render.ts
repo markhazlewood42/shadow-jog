@@ -10,7 +10,7 @@ import type { Combatant, Command, Element } from '../../battle/types';
 import { ABILITIES } from '../../data/abilities';
 import { PARTY_POSE_T, swingBeat } from './motion';
 import { type KataBeat, KATA_MEASURED, KATA_BODY_HALF, KATA_KNOCK, KATA_MEASURED_LOW, KATA_ROOM_GAP, KATA_ROOM_MAX, isContact, kataBeat } from '../../art/rig2/sidekata';
-import { type PunchBeat, PUNCH_MEASURED, punchBeat } from '../../art/rig2/sfpunch';
+import { type PunchBeat, PUNCH_FADE, PUNCH_MEASURED, punchBeat } from '../../art/rig2/sfpunch';
 import { type SfBeat, SF_FADE, SF_KNOCK, SF_MEASURED, SF_ROOM, SF_SWING, sfBeat } from '../../art/rig2/sfstrike';
 import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
@@ -28,7 +28,7 @@ import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_
 import { INTRO_T, ShatterIntro } from './intro';
 import { FACE, IDLE_FRAMES_PER_STEP, IDLE_FRAMES_PER_STEP_ACTIVE, SF, SF_BAR_RISE, SF_SETTLE_DIST, SIDE_PANEL_GAP, SIDE_VIEW, WALK_FRAMES_PER_STEP, sideBeat } from './sideview';
 import { drawMiniDeck } from '../../art/deck';
-import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
+import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, opaqueSpan, rimOf, silhouetteCache, variant } from './sprites';
 import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, markElements, statusName } from './tables';
 
 /**
@@ -353,7 +353,7 @@ export class BattleRenderer {
         g.fillRect(Math.round(cx - art.shadow / 2 + 4), gy + 3, art.shadow - 8, 1);
       }
     }
-    let alpha = dd.alpha;
+    let alpha = dd.alpha * this.punchFade(e);
     if (art.idle === 'flicker') alpha *= 0.82 + 0.18 * Math.sin(f * 0.2 + e.uid);
     if (dd.dying > 0) {
       // Defeat: a brief white blink over the intact sprite, then it breaks up block by block
@@ -467,6 +467,32 @@ export class BattleRenderer {
     const dd = this.s.d(uid);
     if (!this.s.partyArt.get(uid)?.sfPunch || dd.pose !== 'attack' || dd.strikeAt === undefined || dd.poseT <= 0 || dd.poseT > (dd.poseLen ?? 0)) return null;
     return punchBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.reachX ?? 0, dd.strikeLow === true, dd.punchStop);
+  }
+
+  /**
+   * Side view, Kit's combo: how opaque an enemy other than her target is while she passes it or stands beside it (1 when she is clear of it, `PUNCH_FADE` when she overlaps it by 8 px or more).
+   * She runs in front of it on a lane of her own, but two 46 px sprites in one lane still merge into one blob, so it steps back into the dark while she is on it, and returns as she goes home.
+   * Worked out from her drawn frame's opaque span, every frame: no state to leak.
+   */
+  private punchFade(e: Combatant): number {
+    if (!SIDE_VIEW) return 1;
+    let k = 1;
+    for (const p of this.s.battle.party) {
+      const pk = this.punchOf(p.uid);
+      const art = this.s.partyArt.get(p.uid);
+      const dd = this.s.d(p.uid);
+      if (!pk || !art?.sfPunch || dd.target === e.uid || pk.lunge < 0.02) continue;
+      const box = this.s.enemyBox(e.uid);
+      if (!box) continue;
+      const fr = art.sfPunch.frames[pk.key];
+      const res = art.res ?? 1;
+      const [a, b] = opaqueSpan(fr);
+      const x0 = this.s.partyPos(p).x + pk.lunge * (dd.reachX ?? 0) + pk.push - fr.width / res / 2 + a / res;
+      const x1 = x0 + (b - a) / res;
+      const over = Math.min(x1, box.x1) - Math.max(x0, box.x0);
+      if (over > 0) k = Math.min(k, 1 - (1 - PUNCH_FADE) * smoothStep(Math.min(1, over / 8)));
+    }
+    return k;
   }
 
   /** Either strike (the code art's kendo cut, or Sprite Fusion's frames: Rook's strike, Kit's combo): how far along its lunge the body is, and whether the blow is on the target. */

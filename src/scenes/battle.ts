@@ -80,6 +80,8 @@ function tellMin(text: string): number {
  * member orders" (the Warden's visor was).
  */
 const PROMPT_CLEAR = 14;
+/** Side view: the furthest right (battle-world px) the centre of a floating number may be: the turn-order column starts at about 223, and a number is up to 20 px wide with 12 px of air. */
+const FLOAT_MAX_X = 200;
 function clearOfPrompt(y: number, art: EnemyArt): number {
   return Math.max(y, PROMPT_CLEAR - artTop(art));
 }
@@ -816,7 +818,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     for (const f of this.floaters) if (f.uid === uid && f.t < 26) stacked++;
     // 12px a row: 7px glyphs, their shadow, and air (the hit's bounce reaches 3px). Near the top
     // of the frame the stack grows downward instead, so the clamp can't pile rows on each other.
-    this.floaters.push({ text, x: p.x, y: Math.max(22 + stacked * 12, p.y - 8 - stacked * 12), t: 0, color, style, uid });
+    // Side view: keep a number inside the battlefield, clear of the turn-order column on the right edge (a Glowrat at the end of the row put its number on the cursor).
+    const x = SIDE_VIEW ? Math.max(16, Math.min(FLOAT_MAX_X, p.x)) : p.x;
+    this.floaters.push({ text, x, y: Math.max(22 + stacked * 12, p.y - 8 - stacked * 12), t: 0, color, style, uid });
   }
 
   private say(text: string): void {
