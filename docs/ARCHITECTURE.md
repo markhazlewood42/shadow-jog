@@ -12,13 +12,7 @@ tags: [architecture, code, reference]
 How the code is organised and how the pieces talk to each other. For *what* the game is, read `docs/GDD.md`; for
 day-to-day work (commands, tests, conventions, recipes), read `docs/DEVELOPING.md`.
 
-**In one paragraph:** a browser game with **zero runtime dependencies**. Vite + TypeScript (strict), Canvas 2D at
-**480×270**, scaled to the window. The art is **generated in code** (sprites from letter grids and shape routines,
-tiles from procedural painters), with **drawn art** from the PixelLab pass loaded over it at startup where Mark picked
-it (§7, "Drawn art"); music comes from a small score format played by a WebAudio synthesizer. A
-**scene stack** runs at a fixed 60 Hz. The **field** (towns, dungeons, world map) runs **story scripts**, async
-functions that `await` dialogue, battles and camera moves. **Battles** are a pure, deterministic engine that the
-battle scene replays as animation. The game state is one plain object, saved to `localStorage`.
+**In one paragraph:** a browser game with **no runtime dependencies today** (a build choice, not a requirement: high-quality, free dependencies are fine, Mark 2026-10-02). Vite + TypeScript (strict), Canvas 2D at **480×270**, scaled to the window. The art is **generated in code** (sprites from letter grids and shape routines, tiles from procedural painters), with **drawn art** from the PixelLab pass loaded over it at startup where Mark picked it (§7, "Drawn art"); music comes from a small score format played by a WebAudio synthesizer. A **scene stack** runs at a fixed 60 Hz. The **field** (towns, dungeons, world map) runs **story scripts**, async functions that `await` dialogue, battles and camera moves. **Battles** are a pure, deterministic engine that the battle scene replays as animation. The game state is one plain object, saved to `localStorage`.
 
 ---
 
@@ -377,7 +371,7 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
 - **`songs.ts`**: the soundtrack (title, town, bar, world, rustyard, dungeon, lab, battle, boss, boss2, victory,
   victory_boss, gameover, sable, tension). `tests/music.test.ts` checks every bar's length and that melodic
   dissonances resolve.
-- **`sfx.ts`**: 69 synthesized effects, levelled by a measured gain table (`LEVEL`).
+- **`sfx.ts`**: 72 synthesized effects, levelled by a measured gain table (`LEVEL`).
 
 ---
 
@@ -395,8 +389,7 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
 
 ## 10. Build, tests and tooling (summary; details in DEVELOPING.md)
 
-- **Build:** `vite build` (after `tsc --noEmit`): two chunks, the boot bundle and the battle system. Budgets in
-  `scripts/bundle-budget.mjs` (chunk 480 kB, total gzip 200 kB).
+- **Build:** `vite build` (after `tsc --noEmit`): two chunks, the boot bundle and the battle system. Budgets in `scripts/bundle-budget.mjs` (chunk 480 kB, total gzip 236 kB; a size alarm to re-set deliberately, not a ceiling).
 - **Unit tests** (`tests/`, Vitest, node): battle rules, **balance simulations** (`tests/sim.ts` plays whole fights
   and dungeon runs with a competent policy), the **economy model** (`tests/economy.ts`, Monte Carlo over the route),
   pacing, save/migration, input, UI list, layout and glyphs, map connectivity and dead ends, music, motion, weather

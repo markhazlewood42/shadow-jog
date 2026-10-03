@@ -1,18 +1,17 @@
 # Shadow Jog: instructions for AI sessions
 
 A browser JRPG (cyberpunk-fantasy, Phantasy Star IV loop), Chapter 1 "Milk Run", built to an indie-alpha bar.
-Vite + TypeScript strict, Canvas 2D at 480×270, zero runtime dependencies. Art: **drawn picks from the PixelLab art
-pass** (`public/art/`, loaded by `src/art/drawn.ts`) over the game's own **code-drawn art**, which stays as the
-fallback for everything; audio all generated in code.
+Vite + TypeScript strict, Canvas 2D at 480×270. No runtime dependencies today (a build choice, not a rule: see Rules). Art: **drawn picks from the PixelLab art pass** (`public/art/`, loaded by `src/art/drawn.ts`) over the game's own **code-drawn art**, which stays as the fallback for everything; audio all generated in code.
 Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 
 ## Start here, in this order
 1. **`status.md`**: where the project stands and what happens next. Read it first, every session.
-2. `docs/ARCHITECTURE.md`: how the code fits together.
-3. `docs/DEVELOPING.md`: commands, tests, debug tools, conventions, traps, and recipes for common changes.
-4. `docs/GDD.md`: the game's design. `docs/GLOSSARY.md`: every name and term. `docs/SETTING.md`: the world.
+2. `docs/PHASE-0.2.md`: the current phase plan (versioning, the three pivot spikes, open decisions for Mark).
+3. `docs/ARCHITECTURE.md`: how the code fits together.
+4. `docs/DEVELOPING.md`: commands, tests, debug tools, conventions, traps, recipes, and the version/release/spike workflow.
+5. `docs/GDD.md`: the game's design. `docs/GLOSSARY.md`: every name and term. `docs/SETTING.md`: the world.
    `docs/CONCEPTS.md`: the game-dev and JRPG ideas behind it, in plain words (for Mark's learning).
-5. `docs/quality/GRADING.md`: how quality was graded over 12 rounds, and why that loop has ended.
+6. `docs/quality/GRADING.md`: how quality was graded over 12 rounds, and why that loop has ended.
 
 ## Rules that matter
 - **The automated quality loop has ended** (exit set 2026-09-29, after round 12). Don't start new verification
@@ -22,6 +21,8 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 - **Branches and PRs (Mark, 2026-10-01):** work goes on a branch per relatively major feature (not per small fix),
   pushed as you go; when the feature is done, open a PR so it can get an independent code review (Copilot), and
   Mark merges. Don't commit to `main` directly.
+- **Dependencies (Mark, 2026-10-02):** "dependency free" was never a requirement. High-quality, free dependencies are fine. The bundle budget (`scripts/bundle-budget.mjs`) is a size alarm to re-set deliberately with the player download in mind, not a ceiling.
+- **Versions and spikes:** `package.json` `"version"` is the source of truth and is shown in the game. Release tags are annotated `v*` tags, cut only after Mark's playtest and go-ahead (`snapshot/*` are dated checkpoints, `archive/*` are abandoned spikes). `CHANGELOG.md` (Keep a Changelog) gets an entry in every feature PR. Spikes live on `spike/<topic>` draft PRs that are never merged, each with a `docs/spikes/<topic>.md` whose exit criteria are committed before any spike code. Tags, GitHub Releases and deploys need Mark's explicit go-ahead. How-to: `docs/DEVELOPING.md` section 9.
 - Before committing: `git fetch` and `git rev-list --left-right --count HEAD...origin/main`. Commit each meaningful
   piece of work and **push right away** (the branch); check CI with `gh run list -L 3`. **No `Co-Authored-By` lines.**
 - Judge `biome lint` and `tsc` by **exit code**, not their last line.
