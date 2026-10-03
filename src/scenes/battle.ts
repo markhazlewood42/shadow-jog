@@ -80,8 +80,8 @@ function tellMin(text: string): number {
  * member orders" (the Warden's visor was).
  */
 const PROMPT_CLEAR = 14;
-/** Side view: the furthest right (battle-world px) the centre of a floating number may be: the turn-order column starts at about 223, and a number is up to 20 px wide with 12 px of air. */
-const FLOAT_MAX_X = 200;
+/** Side view: the furthest right (battle-world px) the centre of a floating number may be: the turn-order column starts at about 230, and a number is up to 20 px wide with 12 px of air. */
+const FLOAT_MAX_X = 207;
 function clearOfPrompt(y: number, art: EnemyArt): number {
   return Math.max(y, PROMPT_CLEAR - artTop(art));
 }

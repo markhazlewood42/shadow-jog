@@ -494,8 +494,8 @@ export const PUNCH_MEASURED = { tipDx: 30, up: { jab: 40, cross: 38, kick: 46, l
 export const PUNCH_PIERCE = 1;
 /** How far past the fist (world px, into the body) the spark and the GPU hit are drawn, so the fist stays visible at contact. */
 export const PUNCH_SPARK_PAST = 2;
-/** Frames of `SF_KNOCK` the target's recoil plays after a blow that is not the last (a later slice of the table is a gentler shove): the jab a light push, the cross a firmer one. */
-export const PUNCH_KNOCK = { jab: 6, cross: 9 } as const;
+/** Frames of `SF_KNOCK` the target's recoil plays after a blow that is not the last (a later slice of the table is a gentler shove): the jab a 2 px push, the cross a 4 px one. */
+export const PUNCH_KNOCK = { jab: 6, cross: 11 } as const;
 /** The row of the blow on a target, as a share of its height above its soles, at most (a short target is hit over its head otherwise). */
 export const PUNCH_HIT_MAX = 0.88;
 
