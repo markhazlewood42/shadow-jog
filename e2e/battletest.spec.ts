@@ -906,6 +906,51 @@ test('the pictures with the stand-in art that CI draws (only when BATTLETEST_MED
   expect(errors).toEqual([]);
 });
 
+test('timing: frame time while real fights play themselves in real time, with the HUD, the effects and six enemies or the boss and two helpers (reported, loose ceiling)', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  const firstFrameMs = await page.evaluate(() => window.__stagelab?.firstFrameMs ?? 0);
+  const renderer = await page.evaluate(() => window.__stagelab?.renderer);
+  const r = (n: number | undefined) => (n ?? 0).toFixed(2);
+  // The two busiest groups: six enemies at once, and the Warden with two helpers (summons, a phase change). Auto-play, real time (speed 1), nothing frozen.
+  for (const setKey of ['6', 'boss+2']) {
+    await page.evaluate((key) => {
+      const e = window.__stageedit;
+      if (!e) throw new Error('no editor');
+      const st = e.session.stage;
+      e.startBattle({ party: st.demo.party, roster: st.demo.rosters[key] ?? [], setKey: key, seed: 8, fullResources: true, speed: 1, auto: true });
+    }, setKey);
+    await flush(page);
+    await page.evaluate(() => window.__stagelab?.resetStats());
+    // Sample the effect count while it plays (to show the window had effects in it) until the fight is over or 8 seconds have passed.
+    const run = await page.evaluate(
+      () =>
+        new Promise<{ fxMax: number; ms: number; over: boolean }>((resolve) => {
+          let fxMax = 0;
+          const t0 = performance.now();
+          const loop = (): void => {
+            const bt = window.__stageedit?.battle();
+            fxMax = Math.max(fxMax, bt?.perf.fxCount ?? 0);
+            const ms = performance.now() - t0;
+            const over = !!bt?.status().outcome;
+            if (over || ms > 8000) resolve({ fxMax, ms, over });
+            else requestAnimationFrame(loop);
+          };
+          loop();
+        }),
+    );
+    const s = await page.evaluate(() => window.__stagelab?.stats());
+    console.log(
+      `battletest timing [${renderer}] group ${setKey}: editor first frame ${Math.round(firstFrameMs)} ms after navigation; ${s?.frames} frames in ${(run.ms / 1000).toFixed(1)} s of auto-play (${run.over ? 'fight over' : 'fight still going'}); ` +
+        `most effects at once ${run.fxMax}; interval p50 ${r(s?.intervalP50)} ms p95 ${r(s?.intervalP95)} ms; CPU work per frame p50 ${r(s?.workP50)} ms p95 ${r(s?.workP95)} ms`,
+    );
+    await page.evaluate(() => window.__stageedit?.stopBattle());
+    expect(s?.frames ?? 0).toBeGreaterThan(60);
+    // Loose on purpose (a GPU-less CI runner is slow); the spike's real target (work p95 under 6 ms) is judged from the logged numbers.
+    expect(s?.workP95 ?? 999).toBeLessThan(50);
+  }
+  expect(errors).toEqual([]);
+});
+
 /** Screenshot the canvas to an exact path. */
 async function shotAt(page: Page, path: string): Promise<void> {
   await flush(page);
