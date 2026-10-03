@@ -38,3 +38,18 @@ export function enemyIdle(kind: IdleKind, frame: number, uid: number): { x: numb
   // "+ 0" turns a -0 (Math.round of a small negative) into a plain 0.
   return { x: x * WORLD_TO_SCREEN + 0, y: y * WORLD_TO_SCREEN + 0 };
 }
+
+/**
+ * Which frame of a looping sheet shows at fixed-step tick `tick` (60 ticks a second), for a sheet that
+ * plays at `fps` and has `count` frames; `phase` starts it that many frames in, so four heroes do not
+ * bounce in unison.
+ *
+ * The stage picks frames from its own tick counter, not from Phaser's animation clock, on purpose: the
+ * animation clock runs on wall-clock time, so a replay would drift from run to run and a hit-pause could
+ * not freeze it. A frame chosen from the tick is the same every run, and when the battle test stops the
+ * tick (hitstop) everything holds still together.
+ */
+export function idleFrame(tick: number, fps: number, count: number, phase = 0): number {
+  const n = Math.floor((tick * fps) / 60) + phase;
+  return ((n % count) + count) % count;
+}

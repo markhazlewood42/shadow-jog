@@ -10,6 +10,9 @@
       { "y": 226, "tint": "#e8e9f4" },
       { "y": 251 }
     ],
+    "lineup": ["hex", "sable", "rook", "kit"],
+    "fight": ["rustfang_punk", "glowrat", "rustfang_punk"],
+    "enemyScale": { "*": 1 },
     "party": [
       { "row": 0, "x": 58 },
       { "row": 1, "x": 98 },
@@ -22,6 +25,6 @@
       "3": [{ "row": 1, "x": 336 }, { "row": 2, "x": 378 }, { "row": 0, "x": 406 }],
       "4": [{ "row": 0, "x": 398 }, { "row": 1, "x": 352 }, { "row": 2, "x": 396 }, { "row": 3, "x": 350 }]
     },
-    "shadow": { "width": 36, "ratio": 0.3, "alpha": 0.5 }
+    "shadow": { "width": 36, "ratio": 0.3, "alpha": 0.5, "enemyScale": 1 }
   }
 }

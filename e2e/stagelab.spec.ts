@@ -18,7 +18,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { HAVE_SPRITES, MEDIA, openLab, SHOTS } from './stagelabkit';
+import { HAVE_SPRITES, hideSprites, hideStatus, MEDIA, openLab, SHOTS } from './stagelabkit';
 
 test('the stage draws the real assets with no errors, and the picture is not blank', async ({ page }) => {
   const errors = await openLab(page);
@@ -32,6 +32,8 @@ test('the stage draws the real assets with no errors, and the picture is not bla
   expect(await page.evaluate(() => window.__stagelab?.scene()?.fighters.filter((f) => f.side === 'party').length)).toBe(4);
 
   const snap = await page.evaluate(() => window.__stagelab?.snapshot() ?? Promise.reject(new Error('no hook')));
+  // On WebGL (a GPU or software GL) the row tints are drawn; on the canvas fallback they are not (see the canvas tests).
+  expect(await page.evaluate(() => window.__stagelab?.rowTints)).toBe(await page.evaluate(() => window.__stagelab?.renderer === 'WEBGL'));
   expect(snap.width).toBe(480);
   expect(snap.height).toBe(270);
   // A backdrop with fighters has hundreds of colours; one flat colour or a handful means a blank or failed draw.
@@ -67,6 +69,7 @@ test('pixel crispness: at zoom 4 every 4 x 4 block of the screen is one flat col
   await page.setViewportSize({ width: 1920, height: 1080 });
   const errors = await openLab(page);
   await page.waitForFunction(() => window.__stagelab?.zoom === 4);
+  await hideStatus(page);
   // Let the enemies sway and the heroes bounce for a moment: movement is where half-pixels would show.
   await page.waitForTimeout(900);
   const png = await page.screenshot({ clip: { x: 0, y: 0, width: 1920, height: 1080 } });
@@ -111,8 +114,9 @@ test('restarting the scene twice leaves no stale fighters and no extra textures'
   const before = await page.evaluate(() => window.__stagelab?.textureCount());
   for (let i = 0; i < 2; i++) await page.evaluate(() => window.__stagelab?.restart());
   expect(await page.evaluate(() => window.__stagelab?.scene()?.fighters.length)).toBe(7);
-  // Every sprite in the display list is alive and there are no stray extras: 7 fighters + 7 shadows + backdrop + foreground.
-  expect(await page.evaluate(() => window.__stagelab?.scene()?.children.length)).toBe(16);
+  // Every sprite in the display list is alive and there are no stray extras: 7 fighters + 7 shadows, the four backdrop pieces
+  // (wall, floor and the two gap-fill strips) + the foreground, and the edit-mode guide.
+  expect(await page.evaluate(() => window.__stagelab?.scene()?.children.length)).toBe(20);
   expect(await page.evaluate(() => window.__stagelab?.textureCount())).toBe(before);
   expect(errors).toEqual([]);
 });
@@ -131,10 +135,21 @@ test('without Mark’s sheets (or with ?standins) the crew are code-drawn stand-
   await page.screenshot({ path: join(SHOTS, 'stagelab-standins.png') });
 });
 
+test('Mark’s folder missing the way Vite shows it (the app’s page instead of a 404) still gives the stand-ins, with no console errors', async ({ page }) => {
+  await hideSprites(page);
+  const errors = await openLab(page);
+  expect(errors).toEqual([]);
+  expect(await page.evaluate(() => window.__stagelab?.standIns)).toBe(true);
+  expect(await page.evaluate(() => window.__stagelab?.error)).toBeNull();
+  expect(await page.evaluate(() => window.__stagelab?.scene()?.fighters.length)).toBe(7);
+});
+
 test('the Phaser canvas renderer fallback draws too', async ({ page }) => {
   const errors = await openLab(page, '?renderer=canvas');
   expect(errors).toEqual([]);
   expect(await page.evaluate(() => window.__stagelab?.renderer)).toBe('CANVAS');
+  // Phaser's tints are WebGL-only, so the per-row depth tint is not drawn here, and the hook says so.
+  expect(await page.evaluate(() => window.__stagelab?.rowTints)).toBe(false);
   const snap = await page.evaluate(() => window.__stagelab?.snapshot() ?? Promise.reject(new Error('no hook')));
   expect(snap.colours).toBeGreaterThan(100);
 });
@@ -168,6 +183,22 @@ test('judge pictures: the stage at 2x and the heroes at 4x', async ({ page }) =>
   // Let the idle loops move on a little so the picture is a typical moment.
   await page.waitForTimeout(600);
   await page.screenshot({ path: join(dir, `p1-${round}-stage-2x.png`) });
+  // The edit-mode view: the guide lines (horizon, floor band, depth rows) over a stage whose horizon was dragged up and the
+  // floor band moved with it, to show the backdrop re-composing (the strip under the floor is the stretched bottom row).
+  await page.evaluate(() => {
+    const s = window.__stagelab?.scene();
+    if (!s) throw new Error('no scene');
+    s.applyStage({ ...s.config, horizon: 104, floor: { top: 150, bottom: 266 } });
+    s.setEditMode(true);
+  });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: join(dir, `p1-${round}-edit-guides-2x.png`) });
+  await page.evaluate(() => {
+    const s = window.__stagelab?.scene();
+    if (!s) throw new Error('no scene');
+    s.applyStage({ ...s.config, horizon: 124 });
+    s.setEditMode(false);
+  });
   // 1920 x 1080 is zoom 4: the heroes' corner, cropped, so each art pixel is a 4 x 4 block.
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.waitForFunction(() => window.__stagelab?.zoom === 4);

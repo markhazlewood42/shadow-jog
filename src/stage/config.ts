@@ -18,6 +18,10 @@
  *    number (ties go to the one further right, so two fighters on one row never flicker).
  *
  * All the numbers are whole screen pixels on the game's 480x270 screen, so nothing lands between pixels.
+ *
+ * The file also says WHO stands where (`lineup`: the crew ids in party order, `fight`: the demo fight's
+ * enemies) and how big the enemies are drawn (`enemyScale`), so an editor changes those by editing data
+ * and never has to touch the asset code.
  */
 
 export const SCREEN_W = 480;
@@ -40,6 +44,8 @@ export interface Slot {
 export interface ShadowStyle {
   /** Width in screen pixels for a party member (an enemy brings its own width from its art). */
   width: number;
+  /** Multiplier on an enemy's own shadow width (its art says how wide that is), so enemy shadows can be tuned too. 1 when absent. */
+  enemyScale?: number;
   /** Height as a share of the width (a floor seen at an angle squashes a circle to about a third). */
   ratio: number;
   /** 0 to 1. */
@@ -55,6 +61,18 @@ export interface StageConfig {
   /** The band of floor fighters may stand on (feet y between `top` and `bottom`). */
   floor: { top: number; bottom: number };
   rows: DepthRow[];
+  /** Exactly four crew ids, in party order: who stands in `party[0]` (furthest back) to `party[3]`. */
+  lineup: string[];
+  /** The enemies of the demo fight (1 to 4 keys of `ENEMIES`); the battle test will replace this with a real troop. */
+  fight: string[];
+  /**
+   * How many screen pixels one art pixel of an enemy covers, by enemy sprite key (`"*"` = every enemy not
+   * named). Whole numbers only (a fractional scale would give uneven pixels). Absent = the art's own
+   * scale (2 divided by its `res`). Today every enemy in the game is painted at screen resolution (res 2),
+   * so that is 1 for all of them, the same pixel size as Mark's 1:1 crew sprites (measured in the spike
+   * notes); `{"*": 1}` writes that down as the stage's rule, and a 2 makes one kind chunkier and bigger.
+   */
+  enemyScale?: Record<string, number>;
   /** Exactly four, in party order: the first stands furthest back. */
   party: Slot[];
   /** Slot sets by number of enemies, keys "1" to "4". */
@@ -91,12 +109,38 @@ function checkSlots(path: string, slots: unknown, count: number, rowCount: numbe
   });
 }
 
+/** A list of names (crew ids or enemy keys): the right count, no empty names, none repeated when `unique`, and all known when a list of known names is given. */
+function checkNames(path: string, v: unknown, min: number, max: number, known: readonly string[] | undefined, unique: boolean, out: string[]): void {
+  if (!Array.isArray(v) || v.length < min || v.length > max) {
+    out.push(`${path}: needs ${min === max ? `exactly ${min}` : `${min} to ${max}`} names`);
+    return;
+  }
+  const seen = new Set<string>();
+  v.forEach((n: unknown, i) => {
+    if (typeof n !== 'string' || !n) {
+      out.push(`${path}[${i}]: needs a name`);
+      return;
+    }
+    if (known && !known.includes(n)) out.push(`${path}[${i}]: "${n}" is not one that exists`);
+    if (unique && seen.has(n)) out.push(`${path}[${i}]: "${n}" appears twice`);
+    seen.add(n);
+  });
+}
+
+/** What else the checker can be told exists, so a typo is caught before it silently shows nothing. */
+export interface Known {
+  /** Enemy keys (`ENEMIES`). */
+  enemies?: readonly string[];
+  /** Crew ids that have a sheet. */
+  crew?: readonly string[];
+}
+
 /**
  * Everything wrong with a stage file, in plain words (empty when it is fine). `knownBackdrops`, when
  * given, is the list of backdrop ids the art can paint, so a typo is caught before it silently shows
- * the default.
+ * the default; `known` does the same for enemy keys and crew ids.
  */
-export function checkStages(data: unknown, knownBackdrops?: readonly string[]): string[] {
+export function checkStages(data: unknown, knownBackdrops?: readonly string[], known: Known = {}): string[] {
   const out: string[] = [];
   if (!isObj(data) || !Object.keys(data).length) return ['stages: needs at least one stage'];
   for (const [id, raw] of Object.entries(data)) {
@@ -137,19 +181,38 @@ export function checkStages(data: unknown, knownBackdrops?: readonly string[]): 
         if (r.tint !== undefined && !(typeof r.tint === 'string' && HEX.test(r.tint))) out.push(`${p} rows[${i}]: tint must look like #rrggbb`);
       });
     }
+    checkNames(`${p} lineup`, raw.lineup, PARTY_SIZE, PARTY_SIZE, known.crew, true, out);
+    checkNames(`${p} fight`, raw.fight, 1, MAX_ENEMIES, known.enemies, false, out);
+    if (raw.enemyScale !== undefined) {
+      if (!isObj(raw.enemyScale)) out.push(`${p}: enemyScale must be an object of whole numbers by enemy sprite key`);
+      else
+        for (const [k, v] of Object.entries(raw.enemyScale)) if (!isInt(v) || v < 1 || v > 4) out.push(`${p} enemyScale["${k}"]: must be a whole number from 1 to 4`);
+    }
     checkSlots(`${p} party`, raw.party, PARTY_SIZE, rowCount, 'party', out);
     if (!isObj(raw.enemies)) out.push(`${p}: needs enemy slot sets`);
     else for (let n = 1; n <= MAX_ENEMIES; n++) checkSlots(`${p} enemies["${n}"]`, raw.enemies[String(n)], n, rowCount, 'enemy', out);
     const sh = raw.shadow;
-    if (!isObj(sh) || !isInt(sh.width) || sh.width < 4 || sh.width > 96 || typeof sh.ratio !== 'number' || sh.ratio < 0.1 || sh.ratio > 0.6 || typeof sh.alpha !== 'number' || sh.alpha < 0 || sh.alpha > 1)
-      out.push(`${p}: shadow needs width 4-96, ratio 0.1-0.6 and alpha 0-1`);
+    if (
+      !isObj(sh) ||
+      !isInt(sh.width) ||
+      sh.width < 4 ||
+      sh.width > 96 ||
+      typeof sh.ratio !== 'number' ||
+      sh.ratio < 0.1 ||
+      sh.ratio > 0.6 ||
+      typeof sh.alpha !== 'number' ||
+      sh.alpha < 0 ||
+      sh.alpha > 1 ||
+      (sh.enemyScale !== undefined && !(typeof sh.enemyScale === 'number' && sh.enemyScale >= 0 && sh.enemyScale <= 3))
+    )
+      out.push(`${p}: shadow needs width 4-96, ratio 0.1-0.6, alpha 0-1 and (optionally) enemyScale 0-3`);
   }
   return out;
 }
 
 /** The stage file, checked. Throws a readable error listing every problem (a bad stage must not half-load). */
-export function loadStages(data: unknown, knownBackdrops?: readonly string[]): StageFile {
-  const problems = checkStages(data, knownBackdrops);
+export function loadStages(data: unknown, knownBackdrops?: readonly string[], known: Known = {}): StageFile {
+  const problems = checkStages(data, knownBackdrops, known);
   if (problems.length) throw new Error(`stages.json is not valid:\n - ${problems.join('\n - ')}`);
   return data as StageFile;
 }
@@ -161,11 +224,50 @@ export function stageOf(file: StageFile, id: string): StageConfig {
   return s;
 }
 
-/** A slot's feet position on the screen. */
+const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
+
+/**
+ * A slot's feet position on the screen. Always inside the floor band and the screen, even if the stage
+ * was edited so a row now sits outside the band: that is how `floor.top` and `floor.bottom` do their job
+ * (nobody can stand on the wall or below the screen), and what an editor's drag relies on.
+ */
 export function slotPoint(stage: StageConfig, slot: Slot): { x: number; y: number } {
   const row = stage.rows[slot.row];
   if (!row) throw new Error(`Slot names row ${slot.row}, which stage "${stage.name}" does not have`);
-  return { x: slot.x, y: row.y };
+  return { x: clamp(slot.x, 0, SCREEN_W), y: clamp(row.y, stage.floor.top, stage.floor.bottom) };
+}
+
+/**
+ * The slot a dragged fighter lands on: the nearest depth row to where the pointer is (the row snaps, the
+ * way RPG Maker snaps a troop member to its grid) and the x kept on the fighter's own half of the screen.
+ * Pure, so a test can drag without a browser.
+ */
+export function snapSlot(stage: StageConfig, side: 'party' | 'enemy', x: number, y: number): Slot {
+  let best = 0;
+  let bestDist = Number.POSITIVE_INFINITY;
+  stage.rows.forEach((r, i) => {
+    const d = Math.abs(clamp(r.y, stage.floor.top, stage.floor.bottom) - y);
+    if (d < bestDist) {
+      best = i;
+      bestDist = d;
+    }
+  });
+  const half = SCREEN_W / 2;
+  return { row: best, x: Math.round(side === 'party' ? clamp(x, 0, half - 1) : clamp(x, half, SCREEN_W)) };
+}
+
+/**
+ * How many screen pixels one art pixel of this enemy covers: the stage's `enemyScale` (by sprite key, else
+ * `"*"`) when it has one, else `natural` (the art's own: 2 over its `res`).
+ */
+export function enemyScaleFor(stage: StageConfig, spriteKey: string, natural: number): number {
+  const table = stage.enemyScale;
+  return table?.[spriteKey] ?? table?.['*'] ?? natural;
+}
+
+/** An enemy's shadow width: its art's width times the stage's `shadow.enemyScale` (1 when absent). */
+export function enemyShadowWidth(stage: StageConfig, artWidth: number): number {
+  return Math.round(artWidth * (stage.shadow.enemyScale ?? 1));
 }
 
 /** The slots enemies take for a fight of `count` of them (1 to 4). */
