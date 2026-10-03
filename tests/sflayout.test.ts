@@ -61,7 +61,8 @@ function sheet(name: string): Raw[] {
 
 describe.skipIf(!have)("the Sprite Fusion side layout against Mark's sprites", () => {
   const crew = ['kit', 'rook', 'hex', 'sable'] as const;
-  const ext = Object.fromEntries(crew.map((k) => [k, loopExtent(sheet(`${k}-battle-idle`))])) as Record<(typeof crew)[number], ReturnType<typeof loopExtent>>;
+  // `describe.skipIf` still RUNS this callback to collect the tests, so without Mark's PNGs (CI) the sheets must not be read here: that threw ENOENT and failed CI's `npm test`.
+  const ext = (have ? Object.fromEntries(crew.map((k) => [k, loopExtent(sheet(`${k}-battle-idle`))])) : {}) as Record<(typeof crew)[number], ReturnType<typeof loopExtent>>;
   const box = (i: number) => {
     const e = ext[crew[i] as (typeof crew)[number]];
     const s = SF_SLOTS[i] as { x: number; feet: number };
