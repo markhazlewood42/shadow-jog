@@ -9,13 +9,13 @@
  *   - cross:  `kit-battle-punch3`. The arm fully out, the shoulders square to us (the other arm hidden behind the body), the hips turned, the ponytail trailing: the CROSS.
  *   - kick:   `kit-battle-kick`. A side kick at head height off the rear leg, body leaning back: the finisher.
  *   - run:    `kit-battle-running`, for a long way to the target (a far enemy): a short run in, then the load.
- * Every body frame is drawn as Mark drew it; the only edits are one stray magenta pixel dropped from the kick and the smears drawn over or behind the frames (data below).
+ * Round 2 adds: `crouched` for a short target (two low blows), `kickC`/`kickD` (the kick's shin bent about the knee in code: the chamber and the foot coming back down), the load frame reused as the coil
+ * between blows, and smears drawn BEHIND the arm. Every body frame is Mark's pixels; the only edits are one stray magenta pixel dropped from the kick, the bent shin of `kickC`/`kickD` and the smears (data below).
  *
- * ANCHORS. Same idea as Rook's strike. Every frame is laid on one canvas size with the slot's axis (the idle's feet midpoint) at the centre column and the soles on the bottom row.
- * A punch is placed by its FRONT BOOT (the foot that stays planted through the combo: the heavier of the two boot-sized groups in the lowest eight rows, the right one), put at the
- * idle's front boot x, so the planted foot never slides and the rear foot and the shoulders move (the load coils, the cross lunges). The kick has no front boot (one foot is
- * off the ground): it is placed so its TOE ends on the same column as the jab's and the cross's fist (`tipDx`), because all three blows have to land on the same spot of the target.
- * Mark drew the jab and the cross with the fist 18.5 px past the front boot, so by construction they land at one distance.
+ * ANCHORS. Every frame is laid on one canvas size with the slot's axis (the idle's feet midpoint) at the centre column and the soles on the bottom row. The load, jab and cross are placed by their
+ * FRONT BOOT (the foot that stays planted through the combo), put at the idle's front boot x. The kick stands on the load's BACK foot (the back leg stays down while the front one comes up), so the chamber
+ * flows into it; its toe is then `toeShort` world px short of the fists' column, which the kick's push makes up. The crouch is placed by its fist. Mark drew the jab and the cross with the fist 18.5 px
+ * past the front boot, so by construction they land at one distance.
  */
 import { boxOf, type Raw } from './sfgeom';
 import { blank, blit, drawSwipe, frontBoot, put, rightmost, soles, type Ramp, type SfSwipe } from './sfstrike';

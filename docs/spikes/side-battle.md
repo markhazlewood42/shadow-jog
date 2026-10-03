@@ -186,6 +186,15 @@ A pass needs a median score of **8 or more overall** (the mean of the criteria t
 | H-sf-kit-punch: `punch_r` effect (`fx.ts`): a four-point star at the contact, a flat flare driven on through the target, a small ring, chips; power .8 / 1 / 1.3 for the jab, cross and kick | battle | about 3 min | judge round 1 | 0 passes. Two frames to the flash. Rook's `men_r` untouched. |
 | H-sf-kit-punch: the kick as the finisher | battle | decision | judge round 1 | KEPT. It reads at once as a different, bigger blow (a leg, not an arm, at head height with the body leaning back) and gives the combo a three-beat rhythm; the cost is the pop from the cross (square on, planted on both feet) to the kick (balanced on one foot) in one smear frame, because Mark has no chamber frame. `PUNCH_FINISHER` turns it off (a two-blow combo, the cross held 13 frames). |
 | H-sf-kit-punch: stray magenta pixel dropped from the kick when the PNGs load (`dropStrays`), a far target gets a run in (`kit-battle-running` with the speed ghost), the active chevron hidden from the first frame, a dust puff at the planted boot | battle | about 3 min | judge round 1 | 0 passes. Data and a rule (fully saturated purple no part of the crew is). |
+| H-sf-kit-punch round 2: retract between the blows | battle | about 4 min | judge round 2 | 0 passes. Mark's `punch1` (the load) is reused as the coil: jab, load 2 frames, cross, so the arm comes back before the next blow goes out. The planted front boot stays planted (load, jab and cross share it). |
+| H-sf-kit-punch round 2: chamber and foot-drop for the kick, `bendLeg` in `rig2/sfpunch.ts` (the kick's shin turned 45 and 22 degrees about the knee, nearest-neighbour, no new colour); the kick now stands on the LOAD's back foot | battle | about 9 min | judge round 2 | 2 passes (a 55 degree bend thinned the shin at the cut, 45 kept; the first anchor was the toe, which put the standing foot 8 world px behind the cross's). Chamber: load 1 frame, `kickC` 2, then smear 2, trail 1, kick held 10; drop: `kickD`, `kickC`, load. Stand-in for the frames Mark's edit tool would draw. |
+| H-sf-kit-punch round 2: smears behind the arm, 3 pose frames each (2 smear + 1 trail on the blow's first frame), from the elbow, 1-2 row core; kick crescent hugging the leg's underside | battle | about 6 min | judge round 2 | 3 passes (the first streak, behind the arm, was invisible: it needs 15 to 17 rows of fan to show beyond a 4 row arm; the crescent was a talon at the toe until its radius and thickness were set from the leg: hip (24, 31), toe 40 px along at -21 degrees). The fist and the wraps stay on top in every frame (tested: the plain frame's pixels are unchanged under the smear). |
+| H-sf-kit-punch round 2: shove per blow (`PUNCH_PUSH` and the kick push, world px forward of the lunge: jab .5, cross 1.2, kick 3), spark and shake and hit pause per blow (`PUNCH_BLOW`: power .5, .8, 1.3; hitstop 2, 3, then the engine's) | battle | about 5 min | judge round 2 | 1 pass. Jab light, cross medium, kick heavy. The spark and the GPU hit are drawn 2 px past the fist (`PUNCH_SPARK_PAST`) so the fist stays visible at contact. |
+| H-sf-kit-punch round 2: target reaction: first two blows a soft tint (flash 1, alpha .2) and a light recoil (6 then 9 frames of the knock table), the last the hard colour swap and the full recoil | battle | about 3 min | judge round 2 | 0 passes. The face and the red mark stay readable through the first two blows. The damage number was already above the target's head (`floatOn`); not changed. |
+| H-sf-kit-punch round 2: lane (`PUNCH_LANE_AHEAD`): her soles go 3 world px below the feet of any enemy nearer than the target, so she runs in front of it on a lane of her own | battle | about 4 min | judge round 2 | 1 pass. Replaces round 1's lane on the target's own floor, where she was drawn over a nearer enemy at the same depth. The silhouettes still overlap in 2D for about 3 frames of the run and while she stands beside it; she is clearly in front of it (feet 4 px lower). |
+| H-sf-kit-punch round 2: crouch variant for targets under `PUNCH_LOW_BELOW` (22 world px): `kit-battle-crouched` placed by its fist, two low blows, no kick | battle | about 6 min | judge round 2 | 1 pass (the fist column was first read from the front boot, which is further right and lower). The fist meets the Glowrat's body (12 px up) instead of passing over its back. The dive from the load into the crouch is about 6 world px, covered by the smear frame, the dash ghost and a negative push on the load. |
+| H-sf-kit-punch round 2: hit or miss is known before the follow-up blows: the act plays the first blow and stops; the `damage` event plays the rest (`punchRest`, keyed to the pose clock); the `miss` event calls the combo off (`dd.punchStop`) | battle | about 9 min | judge round 2 | 1 pass. A miss now plays the jab, the target leans out of it (recoil table, no flash), MISS floats and she settles with no cross or kick. The jab's spark still plays before the engine says miss (the engine rolls at `land`, after the timing press). |
+| H-sf-kit-punch round 2: colours | battle | about 2 min (measured only) | judge round 2 | 0 passes. `cleanColours` already folds Kit's 5,830 shades to 143 at distance 16 (hair and jacket highlights kept); a built frame carries 91 to 99 colours, the smears add none beyond her jacket's three. A coarser fold flattened the jeans and the steel in an earlier round. Not changed. |
 
 ## Day 1 notes (2026-10-02)
 
@@ -733,6 +742,48 @@ About 39 minutes of wall clock for the combo end to end (about 25 for the workin
 4. A low blow (a stoop, or a low sweep kick) for short targets like the Glowrat.
 5. A step-in or hop frame for the short lunge to a near target (now she slides on the load frame).
 6. A cross-to-guard recoil frame (the arm pulling back) for the end of each blow.
+
+## Item H-sf-kit-punch round 2 (2026-10-02, after the round-1 judges)
+Images: `media/spike-side-battle/H-sf-kit-punch-r2-*.png` (git-ignored): `frame-strip` (every built frame at 4x with its hold, push and anchors), `source-frames` (Mark's frames, and the two code-bent kick frames next to the kick), 33 in-battle captures at 2x stepped one game tick at a time, with the timing ring OFF and Rook and Hex acting first so Kit acts mid-round (guard, load, jab smear, blow and its trail, the coil, cross smear and blow, the chamber in two frames, kick smear, blow, hitstop, the held number, the foot dropping, the settle, home; the far target's run in, plant and blows; the Glowrat's crouch and two low blows; the Warden; a miss), `combo-key-frames`, `zoom-blows` (the three contacts at 3x), `zoom-chamber-and-drop`, `far-target-run-in-lane-in-front`, `glowrat-crouch`, `miss-only-the-jab`, and four clips (`clip-near-punk`, `clip-far-target`, `clip-glowrat`, `clip-miss`) as APNG at the real 17 ms a tick and GIF at 20 ms (20 percent slow).
+
+**What changed, in the order the judges listed it.**
+- *Chamber and recovery (all three).* The kick no longer lands from the cross. Cross, then `load` (the arm comes back), then `kickC` (the kick with its shin hanging: the knee comes up) for 2 frames, then the smear, the trail and the kick. After it: `kickD`, `kickC`, `load`, then home. `kickC` and `kickD` are `bendLeg`: Mark's kick with everything from the knee down turned 45 and 22 degrees (a rule, nearest-neighbour, no new colour). The kick now stands on the load's BACK foot (the back leg is the one that stays down), so there is no pop of the planted foot, where round 1 put the kick's toe on the fist column and the standing foot 8.75 world px behind the cross's. That leaves the toe 4 world px short of the fists' column, made up by the kick's push (3 px), so the toe ends at the body front: the stand-off the judges asked for (the body is 2 px further from the target than in round 1).
+- *Jab to cross has no recoil (all three).* Jab, `load` 2 frames, cross; each blow also shoves the whole sprite forward (jab .5, cross 1.2, kick 3 world px), never backward except the 1 px of recoil in the coil.
+- *The smear (all three).* The streak is drawn BEHIND the arm (the wraps stay on top), from the elbow, with a core at most 2 rows, and it lasts 2 smear frames plus a shorter trail on the blow's first frame: 3 pose frames, 77 ms, not 26. The kick crescent hugs the underside of the leg.
+- *Glowrat.* Targets under 22 world px get the crouch (`kit-battle-crouched` as a low blow, twice): the fist meets the body.
+- *Far target.* She runs on a lane 3 px below the nearest enemy she passes, in front of it.
+- *Impact.* Spark, shake and hit pause grow with the blows; the spark sits 2 px past the fist; the first two blows tint the target softly (the face and the mark stay readable) and recoil it lightly (2 px, then 3 px), the kick uses the hard swap and the full recoil.
+- *A miss.* Decided before the follow-up blows (see the pose log): only the jab is thrown.
+- *Colours and the shared `anim` fix.* See the pose log. The `anim` change only refreshes the rate that is already refreshed every tick (`update`), so it differs from before only on the tick a round starts with the confirm held; Rook's and the back view's unit and e2e specs pass (`chaos`, `gpufx`: 7 passed).
+
+**Honest issues.**
+- `kickC` and `kickD` are a rotated shin, not a drawing: at 45 degrees the thigh is a straight line and the knee is a corner. Read at game speed (1 to 2 frames each) it reads as a knee coming up; a still-by-still judge will see the joint.
+- The chamber's first frame is the load (both fists up, both feet planted), so one stance change (load to the leaning kick) is still a single frame, covered by the knee-up frame and the crescent.
+- On a far target she is in front of the nearer enemy but the two sprites still overlap in 2D for about 3 run frames and while she stands beside it.
+- The crouch is Mark's kneeling frame used as a punch: it reads as a low reach, not a punch; the fist is at 12 world px.
+- The jab's spark plays before the engine rolls the hit (a miss still shows the spark, then the lean and MISS).
+- A hit on a Warden-size target is unchanged from round 1 (the crouch is for short targets only).
+- Judged from stepped captures and contact sheets of the clips, not played at speed by a person.
+- The first two blows show no damage number (the engine rolls one): the soft tint, spark, shake and recoil carry them.
+
+## Time log, item H-sf-kit-punch round 2 (wall clock from the session clock, Claude time)
+| Sub-step | From to | Minutes | Fix passes |
+|---|---|---|---|
+| Read the spike, the code, Mark's frames and the judges' findings; measured the boots and the crouch | 19:54 to 20:01 | 7 | 0 |
+| `sfpunch.ts` rewritten (timeline, pushes, anchors, crouch, smears), `playback.ts` (two-phase combo, miss, lane, low), `render.ts`, tests | 20:01 to 20:12 | 11 | 3 (heredoc quoting twice; the crouch's fist column) |
+| Smears reshaped, the kick crescent, `bendLeg` chamber and drop frames | 20:12 to 20:16 | 4 | 4 |
+| Captures (near, far, Glowrat, Warden, miss), `npm run check` (exit 0), e2e `chaos` and `gpufx` (7 passed), commit | 20:16 to 20:25 | 9 | 0 |
+| Deliverables (strip, 33 stills, sheets, four clips) | 20:25 to 20:28 | 3 | 0 |
+| Docs, concepts, pose log, push | 20:28 to 20:34 | 6 | 0 |
+
+About 40 minutes of wall clock, 10 fix passes, no per-pixel repair of Mark's frames: the two bent-knee frames are a rule on his kick.
+
+**Sprite Fusion shopping list for Kit's combo, round 2 (what would replace the stand-ins).**
+1. From `kit-battle-kick` through your edit tool: a real chamber (knee up, shin hanging, standing on the back foot) and a foot-dropping frame (replaces `kickC` and `kickD`).
+2. A jab in two frames (arm half out, then full) and a cross pulled back to the guard (replaces using the load as the coil).
+3. A low blow that is a punch: a stoop with the fist at shin-to-knee height (replaces the crouch as a punch).
+4. A step-in or hop frame for the short lunge, and a dodge or lean-back frame for the enemies' punks (their miss now only leans).
+5. A kick-recovery frame with the fists coming up (replaces the settle's load).
 
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED
