@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import stagesJson from '../src/data/stages.json';
-import { type StageConfig, loadStages } from '../src/stage/config';
+import type { StageConfig } from '../src/stage/config';
+import { shippedStages } from './stagefiles';
 import { buildHudView, foeViews, memberView, type TurnChipView } from '../src/stage/demo';
 import { bandPlans, foeLayout, foeName, stageBarSize, targetTab, timelineLayout } from '../src/stage/hudlayout';
 import { hitKind, HIT_COLOUR, hpColor, numberScale, UI } from '../src/stage/hudcolours';
@@ -9,7 +9,15 @@ import { applyPreset, PRESET_IDS } from '../src/stage/hudpresets';
 import { pickStatuses, STATUS_LOOK, STATUS_MAX } from '../src/stage/hudstatus';
 import { enemyParty } from '../src/battle/setup';
 
-const street = (): StageConfig => JSON.parse(JSON.stringify(loadStages(stagesJson).street)) as StageConfig;
+/**
+ * The street with the DESIGN's HUD layout (the 'timeline-bottom3' preset). These tests check the design's geometry (which box sits
+ * where, how the bottom band is framed), so they do not follow Mark's own layout choice in hud.json (round 1 of his notes: action-left).
+ */
+const street = (): StageConfig => {
+  const s = shippedStages().street as StageConfig;
+  applyPreset(s.hud, 'timeline-bottom3', true);
+  return s;
+};
 
 /** A turn order of n chips alternating heroes and foes, the first being NOW. */
 const order = (n: number): TurnChipView[] => Array.from({ length: n }, (_, i) => (i % 2 === 0 ? { side: 'party' as const, index: i % 4 } : { side: 'enemy' as const, index: i % 3 }));

@@ -94,6 +94,7 @@ function fxLab(): Plugin {
 
 const STAGES_FILE = resolve(import.meta.dirname, 'src/data/stages.json');
 const AXES_FILE = resolve(import.meta.dirname, 'src/data/axes.json');
+const HUD_FILE = resolve(import.meta.dirname, 'src/data/hud.json');
 type StageSaveModule = typeof import('./src/stage/edit/save');
 
 /**
@@ -105,6 +106,10 @@ type StageSaveModule = typeof import('./src/stage/edit/save');
  * `?dry=1` checks and formats without writing. `?scratch=<name>` (letters, digits, dashes) reads and writes a
  * private copy in the OS temp folder instead of the repo files, which is how the tests save and reload without
  * touching the real data: a scratch name that has never been saved reads the real files.
+ *
+ * The one global HUD layout (src/data/hud.json) has its own endpoint, /__stage/hud, with the same contract: GET
+ * returns the file as text, POST checks the posted `{ layout }` with the HUD loader's own check
+ * (`prepareHudSave`) and writes it in the editor's stable format. Stage saves and HUD saves never share a request.
  */
 function stageEdit(): Plugin {
   const scratchDir = (url: URL): string | null => {
@@ -176,6 +181,61 @@ function stageEdit(): Plugin {
             reply(200, { ok: true, problems: [], stages: made.stagesText, axes: made.axesText, file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data/stages.json' });
           } catch (e) {
             reply(500, { ok: false, problems: [`couldn't write the stage files: ${String(e)}`] });
+          }
+        });
+      });
+      server.middlewares.use('/__stage/hud', (req, res) => {
+        const reply = (code: number, body: unknown) => {
+          res.statusCode = code;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(body));
+        };
+        let dir: string | null;
+        let url: URL;
+        try {
+          url = new URL(req.url ?? '/', 'http://localhost');
+          dir = scratchDir(url);
+        } catch (e) {
+          reply(400, { ok: false, problems: [String(e instanceof Error ? e.message : e)] });
+          return;
+        }
+        const hudPath = dir ? join(dir, 'hud.json') : HUD_FILE;
+        if (req.method === 'GET') {
+          reply(200, { ok: true, problems: [], hud: readFileSync(existsSync(hudPath) ? hudPath : HUD_FILE, 'utf8'), scratch: !!dir });
+          return;
+        }
+        if (req.method !== 'POST') {
+          reply(405, { ok: false, problems: ['GET or POST only'] });
+          return;
+        }
+        if (!sameOrigin(req)) {
+          reply(403, { ok: false, problems: ['writes only from the dev server’s own pages'] });
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: Buffer) => {
+          body += chunk.toString('utf8');
+          if (body.length > 1_000_000) req.destroy();
+        });
+        req.on('end', async () => {
+          const { prepareHudSave } = (await server.ssrLoadModule('/src/stage/edit/save.ts')) as StageSaveModule;
+          let data: { layout?: unknown };
+          try {
+            data = JSON.parse(body) as { layout?: unknown };
+          } catch {
+            reply(400, { ok: false, problems: ['not valid JSON'] });
+            return;
+          }
+          const made = prepareHudSave(data.layout);
+          if (!made.ok) {
+            reply(400, { ok: false, problems: made.problems });
+            return;
+          }
+          try {
+            if (!url.searchParams.has('dry')) writeFileSync(hudPath, made.text);
+            reply(200, { ok: true, problems: [], hud: made.text, file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data/hud.json' });
+          } catch (e) {
+            reply(500, { ok: false, problems: [`couldn't write hud.json: ${String(e)}`] });
           }
         });
       });

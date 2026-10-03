@@ -50,6 +50,8 @@
       .tbrow button.primary { background: #3a2a14; border-color: var(--hand); }
       .tbrow button.primary:disabled { background: var(--panel-2); border-color: var(--line); }
       .tbrow button.test { background: #12303a; border-color: var(--elbow); }
+      .tbrow button.help { width: 26px; padding: 0; border-radius: 50%; font-weight: 700; color: var(--elbow); border-color: var(--elbow); }
+      .tbrow .cap[data-tip] { cursor: help; border-bottom: 1px dotted #4a4560; }
       .seg { display: inline-flex; }
       .seg button { border-radius: 0; margin-left: -1px; padding: 0 8px; }
       .seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
@@ -59,9 +61,14 @@
       .lockchip { background: #3a1a1a !important; border-color: var(--bad) !important; }
 
       /* ---- the three columns */
-      main { display: grid; grid-template-columns: 232px minmax(0, 1fr) 330px; min-height: 0; }
+      /* The side panels are wide enough that labels do not wrap. At 1600 px wide they are 280 + 360 = 640, which leaves the stage exactly 960 px (2x); at 1920 they are 336 + 432 and the stage keeps 2x with room to spare. */
+      main { display: grid; grid-template-columns: clamp(268px, 17.5vw, 340px) minmax(0, 1fr) clamp(340px, 22.5vw, 440px); min-height: 0; }
       aside { background: var(--panel); overflow: auto; min-height: 0; }
-      #left { border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+      /* The left panel does not scroll as a whole: the stage list keeps its size and the explorer below it takes the rest of the height and scrolls inside itself, like a layers panel. */
+      #left { border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
+      #stagepanel { flex: none; }
+      #explorer { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; border-bottom: 0; }
+      #explorer-scroll { flex: 1 1 0; min-height: 0; overflow: auto; margin-right: -4px; padding-right: 4px; }
       #right { border-left: 1px solid var(--line); display: flex; flex-direction: column; }
       section.pnl { padding: 10px; border-bottom: 1px solid var(--line); }
       section.pnl h2 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--dim); }
@@ -73,7 +80,7 @@
 
       /* ---- the stage list and palette */
       #find { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; margin-bottom: 6px; }
-      #stages { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 190px; overflow: auto; }
+      #stages { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 132px; overflow: auto; }
       #stages li { padding: 5px 8px; border: 1px solid transparent; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; gap: 6px; }
       #stages li:hover { background: var(--panel-2); }
       #stages li.on { background: var(--panel-2); border-color: var(--hand); }
@@ -88,17 +95,44 @@
       .pal li.on { border-color: var(--pink); background: var(--panel-2); }
       .pal li .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
       .pal li small { color: var(--dim); margin-left: auto; }
-      #enemies { max-height: 260px; overflow: auto; }
       .hint { color: var(--dim); font-size: 12px; margin: 4px 0 6px; }
+      .sub, section.pnl h3.sub { margin: 10px 0 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--dim); }
+      #explorer-scroll > .sub:first-child { margin-top: 2px; }
+      .link { background: none; border: 0; padding: 0; color: var(--elbow); cursor: pointer; text-decoration: underline; font-size: inherit; }
+      .link:hover { color: #fff; }
+      /* the little "?" that explains a setting; its text shows in one floating bubble (#tipbubble) */
+      .qm { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 5px; padding: 0; border: 1px solid #4a4560; border-radius: 50%; background: none; color: var(--dim); font-size: 10px; font-weight: 700; line-height: 1; cursor: help; vertical-align: 1px; text-transform: none; letter-spacing: 0; }
+      .qm:hover, .qm:focus-visible { color: #fff; border-color: var(--elbow); background: #12303a; outline: none; }
+      .seg + .qm, .cap .qm { margin-left: 4px; }
+      #tipbubble { position: fixed; z-index: 120; max-width: 290px; padding: 8px 10px; background: #0b0a12; border: 1px solid #5a5478; border-radius: 8px; color: var(--text); font-size: 12.5px; line-height: 1.4; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55); pointer-events: none; }
+      #tipbubble[hidden] { display: none; }
+      .helpbody { max-width: 560px; }
+      .helpbody h3 { margin: 14px 0 4px; font-size: 13px; color: var(--yellow); text-transform: none; letter-spacing: 0; }
+      .helpbody h3:first-child { margin-top: 0; }
+      .helpbody p { margin: 0 0 6px; }
+      .helpbody ul { margin: 4px 0 8px; padding-left: 18px; }
+      .helpbody code { color: var(--elbow); font: 12px ui-monospace, Consolas, monospace; }
 
       /* ---- the inspector */
       #inspector { padding: 6px 10px 10px; overflow: auto; flex: 1 1 auto; min-height: 120px; }
       details.grp { border-bottom: 1px solid var(--line); padding: 6px 0; }
       details.grp > summary { cursor: pointer; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--dim); padding: 2px 0 6px; }
       .grpwrap.focus details.grp > summary, .rows.focus { color: var(--yellow); }
-      .field { display: grid; grid-template-columns: minmax(70px, 1fr) minmax(0, 1.3fr) 56px 18px; align-items: center; gap: 6px; margin: 4px 0; min-height: 24px; }
-      .field > .lab { grid-column: 1; display: flex; flex-direction: column; line-height: 1.15; }
-      .field > .lab code { font-size: 10.5px; }
+      .field { display: grid; grid-template-columns: minmax(118px, 1.15fr) minmax(0, 1fr) 58px 18px; align-items: center; gap: 6px; margin: 4px 0; min-height: 24px; }
+      .field > .lab { grid-column: 1; display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+      .field > .lab .l { white-space: nowrap; }
+      .field > .lab code { font-size: 10.5px; overflow-wrap: anywhere; }
+      .field.scope { grid-template-columns: minmax(0, 1fr) auto; }
+      .field.scope input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--hand); margin: 0 4px; }
+      .alignbar { display: flex; flex-direction: column; gap: 6px; }
+      .alignbar .seg { display: flex; }
+      .alignbar .alb { flex: 1 1 0; background: var(--panel-2); border: 1px solid var(--line); padding: 4px 6px; cursor: pointer; margin-left: -1px; white-space: nowrap; }
+      .alignbar .alb:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+      .alignbar .alb:last-child { border-radius: 0 6px 6px 0; }
+      .alignbar .alb:hover { border-color: #4a4560; background: #26223a; z-index: 1; position: relative; }
+      details.grp > summary .qm { vertical-align: 0; }
+      .sub + .ovr { margin-top: 0; }
+      .backhint { margin: 10px 0 2px; padding-top: 8px; border-top: 1px solid var(--line); }
       .field > select, .field > input[type='text'], .field > .ro { grid-column: 2 / 4; min-width: 0; }
       .field.col { display: flex; flex-direction: column; align-items: stretch; }
       .field > .rng { grid-column: 2; min-width: 0; }
@@ -192,8 +226,10 @@
         main { display: block; }
         #centre { height: 62vh; }
         aside { overflow: visible; }
-        #left { flex-direction: row; flex-wrap: wrap; }
+        #left { flex-direction: row; flex-wrap: wrap; overflow: visible; }
         #left > section { flex: 1 1 260px; }
+        #explorer { flex: 1 1 260px; }
+        #explorer-scroll { max-height: 320px; }
         #jsonpane { flex: none; }
         #jsontext { max-height: 320px; }
       }
@@ -214,6 +250,7 @@
         <div class="grp-tb">
           <button id="b-test" type="button" class="test" title="Battle Test: run a real fight on this stage (Ctrl+Enter)">Battle Test</button>
           <button id="b-keys" type="button" title="List the keyboard shortcuts">Keys</button>
+          <button id="b-help" type="button" class="help" title="Help: what is a stage? (?)" aria-label="Help: what is a stage?">?</button>
         </div>
       </div>
       <div class="tbrow" id="row2">
@@ -223,33 +260,30 @@
             <button type="button" data-mode="play" title="Play: hide the handles and see the stage as a battle shows it (E)">Play</button>
           </span>
         </div>
-        <div class="grp-tb"><span class="cap">Enemies</span><span class="seg" id="seg-set"></span></div>
+        <div class="grp-tb"><span class="cap" data-tip="Which enemy count the stage shows: 1 to 6, or B for a boss (B+1 and B+2 add helpers). It is a preview. Each count keeps its own positions.">Enemies</span><span class="seg" id="seg-set"></span></div>
         <div class="grp-tb">
-          <span class="cap">Moment</span>
+          <span class="cap" data-tip="Which moment of a turn the stage shows. The HUD changes with it.">Moment</span>
           <span class="seg" id="seg-phase">
-            <button type="button" data-phase="choose" title="The menu is open">Choose</button>
-            <button type="button" data-phase="target" title="Picking a target">Aim</button>
-            <button type="button" data-phase="act" title="An action plays">Act</button>
+            <button type="button" data-phase="choose" data-tip="Choose: the player is picking an action, so the menu is open.">Choose</button>
+            <button type="button" data-phase="target" data-tip="Aim: the player is picking a target.">Aim</button>
+            <button type="button" data-phase="act" data-tip="Act: an attack is playing, so the skill banner and the hit counter show.">Act</button>
           </span>
         </div>
-        <div class="grp-tb"><span class="cap">Snap</span><button id="t-rows" type="button" title="Snap fighters to the depth rows">Rows</button><button id="t-grid" type="button" title="Snap to the 8 px grid (G); hold Ctrl while dragging to flip it">Grid</button></div>
+        <div class="grp-tb"><span class="cap">Snap</span><button id="t-rows" type="button" data-tip="Rows: a dragged fighter jumps to the nearest depth row. Turn it off to place a fighter a few pixels between rows.">Rows</button><button id="t-grid" type="button" data-tip="Grid: a dragged thing lands on a grid of 8-pixel squares. Press G to switch. Hold Ctrl while dragging to flip it for one drag.">Grid</button></div>
         <div class="grp-tb">
           <span class="cap">Show</span>
-          <button id="t-hud" type="button" title="HUD boxes (H)">HUD</button>
-          <button id="t-guides" type="button" title="The frame, the centre line and where the two sides meet">Guides</button>
-          <button id="t-safe" type="button" title="Tint a HUD box red where a fighter stands behind it">Safe zones</button>
-          <button id="t-fg" type="button" title="The foreground layer drawn over everyone">Foreground</button>
-          <button id="t-cam" type="button" title="The 480×270 area the battle camera shows">Camera</button>
-          <button id="t-anchors" type="button" title="Each figure’s foot-anchor crosshair">Anchors</button>
+          <button id="t-hud" type="button" data-tip="HUD: draw an outline around each HUD box so you can grab it. Press H to switch.">HUD</button>
+          <button id="t-guides" type="button" data-tip="Guides: draw the frame of the screen, the centre line, and the line where the two sides meet.">Guides</button>
+          <button id="t-safe" type="button" data-tip="Safe zones: tint a HUD box red where a fighter stands behind it. The menu would cover that fighter.">Safe zones</button>
+          <button id="t-anchors" type="button" data-tip="Anchors: draw a small cross at each fighter’s feet. It is the spot the picture stands on. Click a cross to nudge it.">Anchors</button>
         </div>
-        <div class="grp-tb"><span class="cap">HUD preset</span><select id="s-preset" aria-label="HUD layout preset" title="Switch the HUD layout; boxes you moved by hand keep their place"></select></div>
-        <button id="t-json" type="button" title="Show the stage as it will be saved, with the last change highlighted">JSON</button>
+        <button id="t-json" type="button" data-tip="JSON: show the stage as it will be saved. The lines your last change touched are lit.">JSON</button>
         <span id="locks" class="grp-tb"></span>
       </div>
     </header>
     <main>
       <aside id="left">
-        <section class="pnl">
+        <section class="pnl" id="stagepanel">
           <h2>Stages</h2>
           <input id="find" type="search" placeholder="Find a stage (Ctrl+F)" aria-label="Find a stage" />
           <ul id="stages"></ul>
@@ -259,12 +293,16 @@
             <button id="s-ren" type="button" title="Change the name or the id">Rename</button>
             <button id="s-del" type="button" title="Delete this stage">Delete</button>
           </div>
+          <p class="hint" id="stagehint">A stage is one battleground. Every fight there uses it. <button id="stage-help" type="button" class="link">What is a stage?</button></p>
         </section>
-        <section class="pnl">
-          <h2>Who’s standing here</h2>
-          <div class="hint">Heroes: click to select. Enemies: double-click (or drag onto a slot) to preview one in the selected enemy slot. A preview only: the stage stores places, not people.</div>
-          <ul class="pal" id="heroes"></ul>
-          <ul class="pal" id="enemies"></ul>
+        <section class="pnl" id="explorer">
+          <h2>Who’s standing here <button type="button" class="qm" data-tip="Heroes: click one to select the slot it stands in. Enemies: double-click one, or drag it onto a slot, to preview it there. It is only a preview in this browser. The stage keeps places, not people." aria-label="Help: Who’s standing here">?</button></h2>
+          <div id="explorer-scroll">
+            <h3 class="sub">Heroes</h3>
+            <ul class="pal" id="heroes"></ul>
+            <h3 class="sub">Enemies</h3>
+            <ul class="pal" id="enemies"></ul>
+          </div>
         </section>
       </aside>
       <section id="centre">

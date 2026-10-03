@@ -1,10 +1,10 @@
 /** HUD polish round 3 (spike `spike/phaser-stage`): the combo counter's single source, number placement, timeline tags, head crops, the foe list's columns, colours. */
 import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '../src/data/enemies';
-import stagesJson from '../src/data/stages.json';
 import { measure } from '../src/engine/font';
 import { comboOf, type ShownHit } from '../src/stage/combo';
-import { type StageConfig, SCREEN_W, loadStages } from '../src/stage/config';
+import { type StageConfig, SCREEN_W } from '../src/stage/config';
+import { shippedStages } from './stagefiles';
 import { buildHudView, type TurnChipView } from '../src/stage/demo';
 import { cutHead, defaultHead, ENEMY_FACES, ENEMY_HEADS } from '../src/stage/faces';
 import { HIT_COLOUR, UI } from '../src/stage/hudcolours';
@@ -12,7 +12,7 @@ import { FOE_HP_W, foeColumns, foeGrid, NUMBER_FLOOR, type NumberRect, numberSpo
 import { applyPreset, PRESET_IDS } from '../src/stage/hudpresets';
 import { newRaw } from '../src/stage/pixels';
 
-const stages = loadStages(stagesJson);
+const stages = shippedStages();
 const street = (): StageConfig => JSON.parse(JSON.stringify(stages.street)) as StageConfig;
 
 const hit = (target: number, amount: number, crit = false, weak = false): ShownHit => ({ target, amount, crit, weak });

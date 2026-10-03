@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { shippedStages } from './stagefiles';
 import { ENEMIES } from '../src/data/enemies';
 import { baseStatsAt, MEMBERS } from '../src/data/party';
-import stagesJson from '../src/data/stages.json';
 import { flags } from '../src/game/state';
 import type { MemberId } from '../src/game/state';
 import { SET_KEYS, type StageFile, setSize, stageOf } from '../src/stage/config';
@@ -9,7 +9,7 @@ import { comboOf } from '../src/stage/combo';
 import { buildHudView, demoParty, type Phase } from '../src/stage/demo';
 import { isShown, type RegionName, timelineLayout } from '../src/stage/hudlayout';
 
-const file = stagesJson as unknown as StageFile;
+const file: StageFile = shippedStages();
 const PHASES: Phase[] = ['choose', 'target', 'act'];
 const REGIONS: RegionName[] = ['turnOrder', 'commands', 'partyStatus', 'enemyInfo', 'banner', 'combo'];
 

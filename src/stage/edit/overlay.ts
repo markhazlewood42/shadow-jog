@@ -10,15 +10,16 @@
  * What is drawn (`docs/TOOLING-UI.md` 3.4): the horizon (cyan dashes), the floor bottom (green, with a grip), the
  * depth rows (thin white, numbered, with a swatch of their haze), a badge at every fighter's feet (orange P1 to P4
  * for the party, pink E1.. for enemies, with +1 / -1 where the draw order is overridden), the selection outline,
- * the HUD boxes (yellow, with corner grips on the selected one), and the optional guides, safe zones, camera
- * outline and foot-anchor crosshairs.
+ * the HUD boxes (yellow, with corner grips on the selected one), and the optional guides, safe zones and
+ * foot-anchor crosshairs. (There was a "camera" outline until round 1 of Mark's notes: the battle camera never
+ * moves, so it only repeated the screen's own edge.)
  *
  * This file only DRAWS from the state it is given; the pointer logic that picks and moves things is in
  * `interact.ts`, and the geometry it uses is in `hit.ts`.
  */
 import { SCREEN_H, SCREEN_W, type StageConfig } from '../config';
 import type { Phase } from '../demo';
-import { HUD_REGION_NAMES, HUD_REGIONS, hudOverrides } from '../hudpresets';
+import { HUD_REGION_NAMES, HUD_REGIONS, type HudRegionKey } from '../hudpresets';
 import { isShown } from '../hudlayout';
 import type { Layer } from './hit';
 import type { Item } from './session';
@@ -43,7 +44,6 @@ export interface OverlayShow {
   hud: boolean;
   guides: boolean;
   safe: boolean;
-  camera: boolean;
   anchors: boolean;
 }
 
@@ -52,6 +52,8 @@ export interface OverlayInput {
   figures: OverlayFigure[];
   selection: Item[];
   hover: Item | null;
+  /** The HUD boxes this stage overrides (they get a dot after their name). */
+  hudOverridden: ReadonlySet<HudRegionKey>;
   show: OverlayShow;
   phase: Phase;
   locked: ReadonlySet<Layer>;
@@ -68,7 +70,6 @@ const C = {
   hover: '#ffffff',
   safe: '#ff5a5a',
   guide: '#8a86a0',
-  camera: '#ff9a3c',
   ink: '#07060d',
 };
 
@@ -77,7 +78,7 @@ const same = (a: Item | null, b: Item): boolean => !!a && a.kind === b.kind && J
 
 /** The SVG markup for the handles. `scale` is screen pixels per game pixel (so text can be a fixed readable size). */
 export function overlayMarkup(input: OverlayInput, scale: number): string {
-  const { stage, figures, selection, hover, show, phase, locked } = input;
+  const { stage, figures, selection, hover, hudOverridden, show, phase, locked } = input;
   const u = 1 / scale;
   const fs = 10.5 * u;
   const out: string[] = [];
@@ -106,14 +107,9 @@ export function overlayMarkup(input: OverlayInput, scale: number): string {
       text('meet', meet, stage.backdrop.horizonY + 9 * u * 1.1, C.guide, 'middle', 9 * u);
     }
   }
-  if (show.camera) {
-    rect(1.5, 1.5, SCREEN_W - 3, SCREEN_H - 3, { stroke: C.camera, dash: '6 3', alpha: 0.85 });
-    text('Camera 480×270', SCREEN_W - 4, SCREEN_H - 4 - 40, C.camera, 'end', 9 * u);
-  }
 
   // --- HUD boxes
   if (show.hud) {
-    const overridden = new Set(hudOverrides(stage.hud).map((o) => o.region));
     for (const name of HUD_REGIONS) {
       const r = stage.hud[name];
       const shown = isShown(name, r.show, phase);
@@ -121,7 +117,7 @@ export function overlayMarkup(input: OverlayInput, scale: number): string {
       const sel = isSel(it);
       const hov = same(hover, it);
       rect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, { stroke: C.hud, sw: sel ? 2 : 1, dash: shown ? undefined : '3 2', alpha: sel ? 1 : hov ? 0.95 : 0.7, fill: C.hud, fillAlpha: sel ? 0.1 : 0.03 });
-      const label = `${HUD_REGION_NAMES[name]}${overridden.has(name) ? ' •' : ''}${shown ? '' : ' (not in this moment)'}`;
+      const label = `${HUD_REGION_NAMES[name]}${hudOverridden.has(name) ? ' •' : ''}${shown ? '' : ' (not in this moment)'}`;
       // The name sits just above the box when there is room, else inside its top-left corner.
       text(label, r.x + 2, r.y >= 12 ? r.y - 2 : r.y + 9 * u * 1.2, C.hud, 'start', 9 * u, 600);
       if (sel) {

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { shippedStages } from './stagefiles';
 import movesJson from '../src/data/moves.json';
-import stagesJson from '../src/data/stages.json';
 import type { StageFile } from '../src/stage/config';
 import { type ActionScript, applyEvent, BattleFlow, loadoutStats, makeScript } from '../src/stage/battleflow';
 import { type BattleTestOptions, stageForTest } from '../src/stage/battleflow';
 import { loadMoves } from '../src/stage/moves';
 import { ABILITIES } from '../src/data/abilities';
 
-const stages = stagesJson as unknown as StageFile;
+const stages: StageFile = shippedStages();
 const street = stages.street!;
 
 function newFlow(roster = street.demo.rosters['3']!, seed = 8): BattleFlow {

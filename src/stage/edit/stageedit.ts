@@ -18,16 +18,17 @@
  * the scene repaints the floor, moves the fighters, re-sorts them and redraws the HUD. What you see is the scene.
  * The handles are an overlay on top, and the panels read the session.
  *
- * Saving: Save posts both data files to the dev server (`vite.config.ts` `stageEdit`), which checks them with the
- * module the game loads them with and writes them in a stable format; the page then reads the file back through
- * that same loader and compares, which is the spike's "load the saved stage back" check.
+ * Saving: Save posts the data files to the dev server (`vite.config.ts` `stageEdit`): the stages and the foot-anchor
+ * corrections to one endpoint, the ONE global HUD layout to another. The server checks each with the module the game
+ * loads it with and writes it in a stable format; the page then reads the files back through the same loaders and
+ * compares, which is the spike's "load the saved stage back" check. Only the files that changed are written.
  */
 import Phaser from 'phaser';
 import { BG_IDS } from '../../art/battlebg';
 import { ENEMIES } from '../../data/enemies';
 import { formatJson } from '../../tools/jsonfmt';
 import { bootStage } from '../boot';
-import { type AxesFile, loadAxes, loadStages, type StageConfig, type StageFile } from '../config';
+import { type AxesFile, loadAxes, loadEntries, loadHud, resolveStages, type StageConfig, type StageEntry, type StageFile } from '../config';
 import { connectHook, emptyHook } from '../labhook';
 import { STAGE_KNOWN } from '../known';
 import type { Phase } from '../demo';
@@ -36,17 +37,17 @@ import { BattleTest, type BattleTestOptions, stageForTest } from '../battletest'
 import type { Key } from '../battleflow';
 import { battleTestDialog } from './battledialog';
 import { confirmBox, infoBox, promptBox } from './dialog';
-import { byId, h, isTyping } from './dom';
-import { Inspector, setLabel } from './inspector';
+import { byId, h, installTips, isTyping } from './dom';
+import { type AlignHow, Inspector, setLabel } from './inspector';
 import { Interact } from './interact';
 import { KEYS, matchKey, shown } from './keys';
-import { deleteStage, duplicateStage, newStage, nudgeSlots, renameStage, setFloorBottom, setHorizon, setHudBox, setRowY, stepOrder } from './model';
+import { deleteStage, duplicateStage, hudNow, isOverridden, newStage, nudgeSlots, renameStage, setFloorBottom, setHorizon, setHudBox, setRowY, stepOrder } from './model';
 import { type OverlayFigure, overlayMarkup } from './overlay';
 import { JsonPane, Palette, setButtons, StageList, StatusBar } from './panels';
-import { prepareSave } from './save';
-import { type EditorData, type Item, Session } from './session';
+import { formatHud, HUD_FILE, prepareHudSave, prepareSave, STAGES_FILE } from './save';
+import { type EditorData, type Item, type Part, Session } from './session';
 import { ViewState } from './view';
-import { HUD_PRESETS, HUD_REGION_NAMES, PRESET_IDS, type PresetId } from '../hudpresets';
+import { HUD_REGION_NAMES, HUD_REGIONS } from '../hudpresets';
 import type { Layer } from './hit';
 
 declare global {
@@ -63,6 +64,8 @@ declare global {
       /** Start a Battle Test with these options without the dialog (tests use it; the dialog's Start does the same). */
       startBattle: (opts: BattleTestOptions) => BattleTest;
       stopBattle: () => void;
+      /** Line up the selection, as the Align bar does (tests use it). */
+      align: (how: AlignHow) => boolean;
     };
   }
 }
@@ -71,7 +74,10 @@ const query = new URLSearchParams(location.search);
 const scratch = query.get('scratch');
 /** The save endpoint's address (`?scratch=<name>` makes it use a private copy, for tests). */
 const ENDPOINT = `/__stage/stages${scratch ? `?scratch=${encodeURIComponent(scratch)}` : ''}`;
-const FILE_NAME = scratch ? `scratch copy "${scratch}"` : 'src/data/stages.json';
+/** The global HUD layout has its own endpoint and its own file (`src/data/hud.json`). */
+const HUD_ENDPOINT = `/__stage/hud${scratch ? `?scratch=${encodeURIComponent(scratch)}` : ''}`;
+/** What messages call the files written: the real paths, or the private scratch copy tests use. */
+const fileNames = (parts: readonly Part[]): string => (scratch ? `scratch copy "${scratch}"` : [...(parts.includes('hud') ? [HUD_FILE] : []), ...(parts.includes('stages') || parts.includes('axes') ? [STAGES_FILE] : [])].join(' and '));
 
 const status = new (class {
   el = byId('st-msg');
@@ -81,19 +87,23 @@ let say: (text: string, kind?: '' | 'bad' | 'good') => void = (t, k = '') => {
   status.el.className = `msg ${k}`;
 };
 
-/** Read both data files from the dev server and check them with the loaders the game uses. */
+/** Read the data files from the dev server and check them with the loaders the game uses. */
 async function loadFiles(): Promise<EditorData> {
   let res: Response;
+  let hudRes: Response;
   try {
-    res = await fetch(ENDPOINT, { cache: 'no-store' });
+    [res, hudRes] = await Promise.all([fetch(ENDPOINT, { cache: 'no-store' }), fetch(HUD_ENDPOINT, { cache: 'no-store' })]);
   } catch {
     throw new Error('Could not reach the dev server to read the stage files. Is npm run dev running?');
   }
   const body = (await res.json()) as { ok: boolean; problems: string[]; stages: string; axes: string };
   if (!res.ok || !body.ok) throw new Error(`The dev server could not read the stage files: ${body.problems.join('; ')}`);
-  const stages = loadStages(JSON.parse(body.stages), BG_IDS, STAGE_KNOWN);
+  const hudBody = (await hudRes.json()) as { ok: boolean; problems: string[]; hud: string };
+  if (!hudRes.ok || !hudBody.ok) throw new Error(`The dev server could not read the HUD file: ${hudBody.problems.join('; ')}`);
+  const hud = loadHud(JSON.parse(hudBody.hud));
+  const stages = loadEntries(JSON.parse(body.stages), BG_IDS, STAGE_KNOWN);
   const axes = loadAxes(JSON.parse(body.axes));
-  return { stages, axes };
+  return { stages, axes, hud };
 }
 
 async function main(): Promise<void> {
@@ -120,7 +130,7 @@ async function main(): Promise<void> {
     stageId: session.stageId,
     setKey: session.setKey,
     phase: view.phase,
-    stages: initial.stages,
+    stages: resolveStages(initial.stages, initial.hud),
     axes: initial.axes,
     query,
     onError: fail,
@@ -139,9 +149,9 @@ async function main(): Promise<void> {
     const bar = new StatusBar(session, byId('st-pos'), byId('st-sel'), byId('st-save'), byId('st-msg'));
     say = (t, k) => bar.say(t, k);
 
-    /** The stage as the scene should show it: the saved-to-be data with the previewed enemies swapped in. */
+    /** The stage as the scene should show it: the saved-to-be data with the global HUD filled in and the previewed enemies swapped in. */
     const previewed = (): StageConfig => {
-      const copy = JSON.parse(JSON.stringify(session.stage)) as StageConfig;
+      const copy = JSON.parse(JSON.stringify(session.resolved)) as StageConfig;
       const roster = view.roster(session.stage, session.setKey);
       copy.demo.rosters[session.setKey] = roster;
       return copy;
@@ -202,7 +212,7 @@ async function main(): Promise<void> {
       svg.style.height = `${r.height}px`;
       const handles = view.mode === 'edit' && !testing && r.width > 0;
       svg.style.display = handles ? 'block' : 'none';
-      if (handles) svg.innerHTML = overlayMarkup({ stage: session.stage, figures: figures(), selection: session.selection, hover: interact.hover, show: view.show, phase: view.phase, locked: view.locked }, scale);
+      if (handles) svg.innerHTML = overlayMarkup({ stage: session.resolved, figures: figures(), selection: session.selection, hover: interact.hover, hudOverridden: new Set(HUD_REGIONS.filter((r) => isOverridden(session.stage, r))), show: view.show, phase: view.phase, locked: view.locked }, scale);
       refreshPanels();
     }
 
@@ -238,7 +248,7 @@ async function main(): Promise<void> {
         case 'anchor':
           return `Foot anchor of ${fighterOf(it)?.name ?? 'a figure'}`;
         case 'hud':
-          return `HUD box: ${HUD_REGION_NAMES[it.region]}`;
+          return `HUD box: ${HUD_REGION_NAMES[it.region]} (${isOverridden(session.stage, it.region) ? 'this stage only' : 'all battles'})`;
         case 'horizon':
           return `Horizon ${session.stage.backdrop.horizonY}`;
         case 'floor':
@@ -264,12 +274,12 @@ async function main(): Promise<void> {
         pointer = p;
         bar.pointer(p, hit ? describe(hit) : '');
       },
+      say: (m) => bar.say(m),
     });
 
     function refreshPanels(): void {
       bar.update(describe);
       byId('stagename').textContent = session.stage.name;
-      byId<HTMLSelectElement>('s-preset').value = session.stage.hud.preset;
       byId('dirtydot').hidden = !session.dirty;
       document.title = `${session.dirty ? '• ' : ''}Battle Stage Editor`;
       byId<HTMLButtonElement>('b-save').disabled = !session.dirty;
@@ -285,9 +295,7 @@ async function main(): Promise<void> {
       on('t-hud', view.show.hud);
       on('t-guides', view.show.guides);
       on('t-safe', view.show.safe);
-      on('t-cam', view.show.camera);
       on('t-anchors', view.show.anchors);
-      on('t-fg', false);
       on('t-json', view.jsonOpen);
       for (const b of document.querySelectorAll<HTMLElement>('#seg-mode button')) b.classList.toggle('on', b.dataset.mode === view.mode);
       for (const b of document.querySelectorAll<HTMLElement>('#seg-phase button')) b.classList.toggle('on', b.dataset.phase === view.phase);
@@ -335,22 +343,14 @@ async function main(): Promise<void> {
     toggle('t-safe', () => {
       view.show.safe = !view.show.safe;
     });
-    toggle('t-cam', () => {
-      view.show.camera = !view.show.camera;
-    });
     toggle('t-anchors', () => {
       view.show.anchors = !view.show.anchors;
     });
     toggle('t-json', () => {
       view.jsonOpen = !view.jsonOpen;
     });
-    byId('t-fg').addEventListener('click', () => bar.say('This stage has no foreground layer to show; the street’s rails are part of its picture.'));
-    const presetSel = byId<HTMLSelectElement>('s-preset');
-    presetSel.replaceChildren(...PRESET_IDS.map((id) => h('option', { value: id, title: HUD_PRESETS[id].about }, HUD_PRESETS[id].name)));
-    presetSel.addEventListener('change', () => {
-      inspector.applyPresetNow(presetSel.value as PresetId, false);
-      presetSel.blur();
-    });
+    byId('b-help').addEventListener('click', () => void showHelp());
+    byId('stage-help').addEventListener('click', () => void showHelp());
     byId('b-undo').addEventListener('click', () => doUndo());
     byId('b-redo').addEventListener('click', () => doRedo());
     byId('b-save').addEventListener('click', () => void save());
@@ -457,37 +457,74 @@ async function main(): Promise<void> {
       }
     }
 
-    async function save(): Promise<boolean> {
-      const data = { stages: session.data.stages, axes: session.data.axes };
-      const made = prepareSave(data);
-      if (!made.ok) {
-        bar.say(`Not saved: ${made.problems[0]}${made.problems.length > 1 ? ` (and ${made.problems.length - 1} more)` : ''}`, 'bad');
-        return false;
-      }
+    /** POST one JSON body; returns the problems when the dev server refuses or cannot be reached, else null. */
+    async function post(url: string, payload: unknown): Promise<string | null> {
       let res: Response;
       try {
-        res = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       } catch {
-        bar.say('Not saved: could not reach the dev server. Is npm run dev running?', 'bad');
-        return false;
+        return 'could not reach the dev server. Is npm run dev running?';
       }
       const body = (await res.json().catch(() => null)) as { ok: boolean; problems: string[] } | null;
-      if (!res.ok || !body?.ok) {
-        bar.say(`Not saved: ${body?.problems?.[0] ?? `the dev server answered ${res.status}`}`, 'bad');
+      if (!res.ok || !body?.ok) return body?.problems?.[0] ?? `the dev server answered ${res.status}`;
+      return null;
+    }
+
+    /**
+     * Save (Ctrl+S): write only the files that changed. The global HUD layout goes to its own endpoint and file
+     * (`hud.json`); the stages and the foot-anchor corrections go together to the other (`stages.json`, `axes.json`).
+     * Everything is checked first, as the game will see it, so a bad file never leaves the page. A failed part stays
+     * unsaved and the message says which file did not go.
+     */
+    async function save(): Promise<boolean> {
+      // Tidy first: a stage override keeps only what differs from the all-battles HUD (an empty "different on this stage" box is not saved).
+      session.settle();
+      const data = { stages: session.data.stages, axes: session.data.axes };
+      const hud = session.data.hud;
+      const made = prepareSave({ ...data, hud });
+      const madeHud = prepareHudSave(hud);
+      const problems = [...(made.ok ? [] : made.problems), ...(madeHud.ok ? [] : madeHud.problems)];
+      if (problems.length) {
+        bar.say(`Not saved: ${problems[0]}${problems.length > 1 ? ` (and ${problems.length - 1} more)` : ''}`, 'bad');
         return false;
       }
-      // Load it back through the game's own loader: the file on disk must be what the editor holds.
+      const dirty = session.dirtyParts;
+      const written: Part[] = [];
+      if (dirty.includes('hud')) {
+        const why = await post(HUD_ENDPOINT, { layout: hud });
+        if (why) {
+          bar.say(`Not saved: ${why}`, 'bad');
+          return false;
+        }
+        written.push('hud');
+      }
+      if (dirty.includes('stages') || dirty.includes('axes')) {
+        const why = await post(ENDPOINT, data);
+        if (why) {
+          if (written.length) session.markSaved(written);
+          bar.say(`${written.length ? `The HUD layout was saved (${HUD_FILE}), but the stages were not: ` : 'Not saved: '}${why}`, 'bad');
+          refreshPanels();
+          return false;
+        }
+        written.push('stages', 'axes');
+      }
+      // Load it back through the game's own loaders: the files on disk must be what the editor holds.
       let back: EditorData;
       try {
         back = await loadFiles();
       } catch (e) {
+        session.markSaved(written);
         bar.say(`Saved, but reading it back failed: ${e instanceof Error ? e.message : String(e)}`, 'bad');
         return false;
       }
-      const same = formatJson(back.stages) === formatJson(data.stages) && formatJson(back.axes) === formatJson(stripZero(data.axes));
-      session.markSaved();
+      const same =
+        (!written.includes('stages') || formatJson(back.stages) === formatJson(data.stages)) &&
+        (!written.includes('axes') || formatJson(back.axes) === formatJson(stripZero(data.axes))) &&
+        (!written.includes('hud') || formatHud(back.hud) === formatHud(hud));
+      session.markSaved(written);
       const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      bar.say(same ? `Saved to ${FILE_NAME} at ${t}. Commit it to ship it.` : `Saved to ${FILE_NAME} at ${t}, but the file read back differently from what the editor holds.`, same ? 'good' : 'bad');
+      const where = fileNames(written.length ? written : ['stages']);
+      bar.say(same ? `Saved to ${where} at ${t}. Commit ${written.includes('hud') && written.length > 1 ? 'them' : 'it'} to ship ${written.includes('hud') && written.length > 1 ? 'them' : 'it'}.` : `Saved to ${where} at ${t}, but the file read back differently from what the editor holds.`, same ? 'good' : 'bad');
       refreshPanels();
       return true;
     }
@@ -503,7 +540,7 @@ async function main(): Promise<void> {
       try {
         session.load(await loadFiles());
         syncScene();
-        bar.say(`Reloaded ${FILE_NAME}; unsaved changes are gone.`);
+        bar.say(`Reloaded ${fileNames(['stages', 'hud'])}; unsaved changes are gone.`);
       } catch (e) {
         bar.say(`Could not reload: ${e instanceof Error ? e.message : String(e)}`, 'bad');
       }
@@ -582,9 +619,49 @@ async function main(): Promise<void> {
       previewEnemy(sel && sel.kind === 'fighter' ? sel.index : 0, enemy);
     }
 
+    /** The help panel: what a stage is, and where each setting lives (Mark asked, 2026-10-03: "I need some help with core concepts and orientation"). */
+    async function showHelp(): Promise<void> {
+      const p = (...kids: Array<Node | string>): HTMLElement => h('p', {}, ...kids);
+      const b = (t: string): HTMLElement => h('b', {}, t);
+      await infoBox(
+        'Help: what am I editing?',
+        h(
+          'div',
+          { class: 'helpbody' },
+          h('h3', {}, 'A stage is one battleground'),
+          p('A stage is one place where fights happen, such as the street or the sewer. It holds:'),
+          h(
+            'ul',
+            {},
+            h('li', {}, 'the backdrop picture;'),
+            h('li', {}, 'the horizon and the floor;'),
+            h('li', {}, 'the depth rows, which are the lanes people stand on;'),
+            h('li', {}, 'where the heroes stand;'),
+            h('li', {}, 'where the enemies stand, for each enemy count from 1 to 6 and for a boss.'),
+          ),
+          p('Every fight at that place uses the stage. A map says which stage each area uses with ', h('code', {}, 'bg'), '. The fights in the Sinkline use ', h('code', {}, 'sewer'), '.'),
+          h('h3', {}, 'Who fights is not part of a stage'),
+          p('Who fights is the encounter. RPG Maker calls it a troop. A troop editor will come later. The “Enemies” buttons in the top bar only choose which enemy count you look at. It is a preview.'),
+          h('h3', {}, 'The HUD is the same everywhere'),
+          p(b('The HUD'), ' is the menu and the numbers drawn over a battle. There is ', b('one HUD layout for every battle'), '. Move a box and it moves on every stage. A stage can have its own copy of a single box when it needs one, for example when a big boss covers a box. Select the box and turn on “Different on this stage”.'),
+          h('h3', {}, 'What is live today'),
+          p('Only this editor and Battle Test read stages today. The shipped game will read them after a go-ahead.'),
+          h('h3', {}, 'Where things live'),
+          h(
+            'ul',
+            {},
+            h('li', {}, b('Top bar: '), 'what you look at (enemy count, moment, overlays), Battle Test and Save.'),
+            h('li', {}, b('Right panel: '), 'the settings of what you selected. Nothing selected: the settings of the stage and of the HUD.'),
+            h('li', {}, b('Left panel: '), 'the stage list, and the people standing on the stage.'),
+            h('li', {}, b('The “?” marks: '), 'rest on one to read what a setting does and what you will see change.'),
+          ),
+        ),
+      );
+    }
+
     async function showKeys(): Promise<void> {
       const rows: Node[] = [];
-      for (const group of ['File', 'Edit', 'Move', 'View', 'Test'] as const) {
+      for (const group of ['File', 'Edit', 'Move', 'Align', 'View', 'Test'] as const) {
         rows.push(h('tr', {}, h('th', { colspan: '2' }, group)));
         for (const k of KEYS.filter((x) => x.group === group)) rows.push(h('tr', {}, h('td', {}, ...k.combos.flatMap((c, i) => [i ? ' or ' : '', h('kbd', {}, shown(c))])), h('td', {}, k.label)));
       }
@@ -600,16 +677,15 @@ async function main(): Promise<void> {
         const side = it.side;
         const idx = session.selectedFighters(side);
         // Up and down move whole rows (back is up); sideways moves pixels.
-        session.edit(`Nudge ${idx.length > 1 ? `${idx.length} fighters` : describe(it)}`, (d) => nudgeSlots(d.stages[id] as StageConfig, side, session.setKey, idx, dx, Math.sign(dy)));
+        session.edit(`Nudge ${idx.length > 1 ? `${idx.length} fighters` : describe(it)}`, (d) => nudgeSlots(d.stages[id] as StageEntry, side, session.setKey, idx, dx, Math.sign(dy)));
       } else if (it.kind === 'anchor') inspector.nudgeShift(dx, dy);
-      else if (it.kind === 'horizon') session.edit('Move the horizon', (d) => void setHorizon(d.stages[id] as StageConfig, (d.stages[id] as StageConfig).backdrop.horizonY + dy));
-      else if (it.kind === 'floor') session.edit('Move the floor bottom', (d) => void setFloorBottom(d.stages[id] as StageConfig, (d.stages[id] as StageConfig).floor.y1 + dy));
-      else if (it.kind === 'row') session.edit(`Move row ${it.index + 1}`, (d) => void setRowY(d.stages[id] as StageConfig, it.index, ((d.stages[id] as StageConfig).rows[it.index]?.y ?? 0) + dy));
+      else if (it.kind === 'horizon') session.edit('Move the horizon', (d) => void setHorizon(d.stages[id] as StageEntry, (d.stages[id] as StageEntry).backdrop.horizonY + dy));
+      else if (it.kind === 'floor') session.edit('Move the floor bottom', (d) => void setFloorBottom(d.stages[id] as StageEntry, (d.stages[id] as StageEntry).floor.y1 + dy));
+      else if (it.kind === 'row') session.edit(`Move row ${it.index + 1}`, (d) => void setRowY(d.stages[id] as StageEntry, it.index, ((d.stages[id] as StageEntry).rows[it.index]?.y ?? 0) + dy));
       else if (it.kind === 'hud') {
         const regions = session.selection.flatMap((s) => (s.kind === 'hud' ? [s.region] : []));
         session.edit(`Nudge ${regions.map((r) => HUD_REGION_NAMES[r]).join(', ')}`, (d) => {
-          const st = d.stages[id] as StageConfig;
-          for (const r of regions) setHudBox(st, r, { x: st.hud[r].x + dx, y: st.hud[r].y + dy });
+          for (const r of regions) setHudBox(d, id, r, { x: Number(hudNow(d, id, r, 'x')) + dx, y: Number(hudNow(d, id, r, 'y')) + dy });
         });
       }
     };
@@ -622,7 +698,7 @@ async function main(): Promise<void> {
       }
       let result: number = 0;
       session.edit(by > 0 ? 'Bring forward' : 'Send back', (d) => {
-        for (const it of idx) result = stepOrder(d.stages[session.stageId] as StageConfig, it.side, session.setKey, it.index, by);
+        for (const it of idx) result = stepOrder(d.stages[session.stageId] as StageEntry, it.side, session.setKey, it.index, by);
       });
       bar.say(result === 0 ? 'Draw order: automatic.' : result > 0 ? 'Brought forward: drawn over its neighbours on the same row.' : 'Sent back: drawn behind its neighbours on the same row.');
     };
@@ -661,6 +737,15 @@ async function main(): Promise<void> {
       down8: () => nudge(0, 8),
       forward: () => order(1),
       back: () => order(-1),
+      alignLeft: () => void inspector.alignSelection('left'),
+      alignCentre: () => void inspector.alignSelection('centre'),
+      alignRight: () => void inspector.alignSelection('right'),
+      alignBack: () => void inspector.alignSelection('back'),
+      alignMiddle: () => void inspector.alignSelection('middle'),
+      alignFront: () => void inspector.alignSelection('front'),
+      spreadAcross: () => void inspector.alignSelection('spreadAcross'),
+      spreadDepth: () => void inspector.alignSelection('spreadDepth'),
+      help: () => void showHelp(),
       grid: () => {
         view.snapGrid = !view.snapGrid;
         view.remember();
@@ -731,7 +816,9 @@ async function main(): Promise<void> {
     session.on((e) => {
       switch (e.type) {
         case 'live':
-          // The pointer code asked for its own scene sync (it may freeze the floor); just redraw the handles and panels.
+          // A drag on the stage asked for its own scene sync (it may freeze the floor), so only the handles and panels
+          // are redrawn here. A slider has no sync of its own: it says `scene`, and the stage follows the slider live.
+          if (e.scene) syncScene();
           redraw();
           break;
         default:
@@ -751,7 +838,8 @@ async function main(): Promise<void> {
     new ResizeObserver(redraw).observe(centre);
 
     scene.setEditMode(false);
-    window.__stageedit = { session, view, flush, save, interact, battle: () => testing, startBattle: startTest, stopBattle: stopTest };
+    installTips();
+    window.__stageedit = { session, view, flush, save, interact, battle: () => testing, startBattle: startTest, stopBattle: stopTest, align: (how) => inspector.alignSelection(how) };
     inspector.build();
     flush();
     bar.say(booted.standIns ? 'Mark’s Sprite Fusion sheets are not on this machine: the crew are stand-in blocks.' : 'Click a fighter, the horizon, a row or a HUD box. Drag to move it; Ctrl+S saves; the Keys button lists the shortcuts.');

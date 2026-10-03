@@ -1,17 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { BG_IDS } from '../src/art/battlebg';
-import stagesJson from '../src/data/stages.json';
-import { checkAxes, checkStages, depthFor, loadStages, ORDER_STEP, type StageConfig, type StageFile, setSize, slotPoint } from '../src/stage/config';
+import { checkAxes, checkStages, depthFor, type EntryFile, ORDER_STEP, type StageConfig, type StageEntry, setSize, slotPoint } from '../src/stage/config';
 import { hitGrip, hitHud, hitLine, resizeBox } from '../src/stage/edit/hit';
 import { comboOf, KEYS, matchKey, RESERVED } from '../src/stage/edit/keys';
 import {
   addRow,
+  alignAcross,
+  alignDepth,
   alignedSlots,
   alignEnemies,
   cloneStage,
   copyFromPrevious,
   deleteStage,
+  distributeAcross,
+  distributeDepth,
   duplicateStage,
+  middleRow,
   moveGroup,
   newStage,
   nudgeSlots,
@@ -27,14 +31,23 @@ import {
   stepOrder,
   uniqueId,
 } from '../src/stage/edit/model';
-import { formatAxes, formatStages, prepareSave } from '../src/stage/edit/save';
+import { formatAxes, formatHud, formatStages, prepareSave } from '../src/stage/edit/save';
 import { type EditorData, Session } from '../src/stage/edit/session';
+import { applyPreset } from '../src/stage/hudpresets';
 import { STAGE_KNOWN } from '../src/stage/known';
 import { formatJson } from '../src/tools/jsonfmt';
+import { shippedEntries, shippedHud, shippedStages, stagesJson } from './stagefiles';
 
-const file = (): StageFile => JSON.parse(JSON.stringify(loadStages(stagesJson))) as StageFile;
-const street = (f = file()): StageConfig => f.street as StageConfig;
-const valid = (s: StageConfig): string[] => checkStages({ [s.id]: s }, BG_IDS, STAGE_KNOWN);
+const file = (): EntryFile => shippedEntries();
+const street = (f = file()): StageEntry => f.street as StageEntry;
+/** The street as a battle sees it (the global HUD filled in), for the tests of what the pointer can pick. */
+const resolvedStreet = (): StageConfig => {
+  const s = shippedStages().street as StageConfig;
+  // The design's own HUD layout, so these picking tests do not depend on where Mark has put the boxes in hud.json.
+  applyPreset(s.hud, 'timeline-bottom3', true);
+  return s;
+};
+const valid = (s: StageEntry): string[] => checkStages({ [s.id]: s }, BG_IDS, STAGE_KNOWN);
 
 describe('the ground handles', () => {
   it('the horizon moves the floor top and, on the street, the skyline; it stops above the back row', () => {
@@ -46,7 +59,7 @@ describe('the ground handles', () => {
   });
 
   it('a replaced back wall (the sewer) has no skyline to slide, so its shift stays', () => {
-    const sewer = cloneStage(loadStages(stagesJson).sewer as StageConfig);
+    const sewer = cloneStage(file().sewer as StageEntry);
     const shift = sewer.backdrop.shiftY;
     setHorizon(sewer, 96);
     expect(sewer.backdrop.shiftY).toBe(shift);
@@ -202,7 +215,7 @@ describe('the stage list', () => {
     expect(checkStages(f, BG_IDS, STAGE_KNOWN)).toEqual([]);
     expect(deleteStage(f, 'street-copy', ['troop sinkline-rats'])).toMatchObject({ ok: false, reason: expect.stringContaining('used by') });
     expect(deleteStage(f, 'street-copy')).toEqual({ ok: true, id: 'sewer' });
-    const one: StageFile = { only: street(file()) };
+    const one: EntryFile = { only: street(file()) };
     expect(deleteStage(one, 'only')).toMatchObject({ ok: false });
   });
 });
@@ -219,7 +232,7 @@ describe('picking things on the stage', () => {
   });
 
   it('finds the smallest HUD box under a point, and the corner grips', () => {
-    const s = street();
+    const s = resolvedStreet();
     expect(hitHud(s, 130, 10)).toBe('turnOrder');
     expect(hitHud(s, 10, 240)).toBe('partyStatus');
     expect(hitHud(s, 240, 100)).toBeNull();
@@ -259,9 +272,9 @@ describe('the keyboard table', () => {
 });
 
 describe('the editing session: gestures, undo and the unsaved state', () => {
-  const make = (): Session => new Session({ stages: file(), axes: {} } as EditorData, 'street', formatJson);
+  const make = (): Session => new Session({ stages: file(), axes: {}, hud: shippedHud() }, 'street', formatJson);
   const horizon = (_se: Session, y: number) => (d: EditorData) => {
-    setHorizon(d.stages.street as StageConfig, y);
+    setHorizon(d.stages.street as StageEntry, y);
   };
 
   it('a drag is one undo step however many movements it has, and undo/redo restore the data exactly', () => {
@@ -292,7 +305,7 @@ describe('the editing session: gestures, undo and the unsaved state', () => {
     const se = make();
     for (let i = 0; i < 105; i++) {
       se.edit(`step ${i}`, (d) => {
-        for (const q of (d.stages.street as StageConfig).party) q.dy = i % 2 ? 1 : 2;
+        for (const q of (d.stages.street as StageEntry).party) q.dy = i % 2 ? 1 : 2;
       });
     }
     expect(se.undoStack.depth).toBe(100);
@@ -335,7 +348,7 @@ describe('the editing session: gestures, undo and the unsaved state', () => {
   it('Revert/load replaces everything and clears the history', () => {
     const se = make();
     se.edit('a', horizon(se, 96));
-    se.load({ stages: file(), axes: {} });
+    se.load({ stages: file(), axes: {}, hud: shippedHud() });
     expect(se.dirty).toBe(false);
     expect(se.canUndo).toBe(false);
     expect(se.stage.backdrop.horizonY).toBe(100);
@@ -356,7 +369,7 @@ describe('what Save writes', () => {
   it('refuses a bad file with plain-words problems and writes nothing; accepts a good one in the stable format', () => {
     const bad = file();
     (street(bad).rows[1] as { y: number }).y = 400;
-    const refused = prepareSave({ stages: bad, axes: {} });
+    const refused = prepareSave({ stages: bad, axes: {}, hud: shippedHud() });
     expect(refused.ok).toBe(false);
     if (!refused.ok) expect(refused.problems.join('\n')).toMatch(/outside the floor|grow/);
     expect(prepareSave({ stages: file(), axes: { rook: { x: 99, y: 0 } } })).toMatchObject({ ok: false });
@@ -375,7 +388,165 @@ describe('what Save writes', () => {
     const { readFileSync } = await import('node:fs');
     const onDisk = readFileSync(new URL('../src/data/stages.json', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
     expect(onDisk).toBe(formatStages(stagesJson));
+    const hudOnDisk = readFileSync(new URL('../src/data/hud.json', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+    expect(hudOnDisk).toBe(formatHud(shippedHud()));
     const axes = readFileSync(new URL('../src/data/axes.json', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
     expect(axes).toBe(formatAxes(JSON.parse(axes)));
+  });
+});
+
+describe('the Align bar: fighters line up with their half of the stage, or with each other', () => {
+  // How far each fighter's drawn pixels reach either side of its feet (the page measures this from the scene).
+  const reach = { 0: { left: 20, right: 20 }, 1: { left: 10, right: 30 }, 2: { left: 15, right: 15 }, 3: { left: 25, right: 25 } };
+  const xs = (s: StageEntry): number[] => s.party.map((q) => q.x);
+
+  it('one hero lines up with the left half: his drawn edge touches the edge or the middle line, never crossing it', () => {
+    const s = street();
+    alignAcross(s, 'party', '3', [1], 'left', reach);
+    expect(s.party[1]?.x).toBe(10); // his left edge at the screen's left edge
+    alignAcross(s, 'party', '3', [1], 'right', reach);
+    expect(s.party[1]?.x).toBe(210); // his right edge at the middle line, 240
+    alignAcross(s, 'party', '3', [1], 'centre', reach);
+    expect(s.party[1]?.x).toBe(110); // the centre of his drawn body at 120
+    expect(valid(s)).toEqual([]);
+  });
+
+  it('one enemy lines up with the right half', () => {
+    const s = street();
+    alignAcross(s, 'enemy', '3', [0], 'right', { 0: { left: 30, right: 30 } });
+    expect(s.enemySets['3']?.[0]?.x).toBe(450);
+    alignAcross(s, 'enemy', '3', [0], 'left', { 0: { left: 30, right: 30 } });
+    expect(s.enemySets['3']?.[0]?.x).toBe(270);
+  });
+
+  it('two or more line up with each other: left edges, right edges or centres', () => {
+    // A narrow hero (20 either side of the feet) and a wide one (10 left, 40 right), standing at x 50 and x 100: their drawn pixels span 30 to 140.
+    const two = { 0: { left: 20, right: 20 }, 1: { left: 10, right: 40 } };
+    const fresh = (): StageEntry => {
+      const s = street();
+      s.party[0] = { x: 50, row: 4 };
+      s.party[1] = { x: 100, row: 3 };
+      return s;
+    };
+    const run = (how: 'left' | 'centre' | 'right'): number[] => {
+      const s = fresh();
+      alignAcross(s, 'party', '3', [0, 1], how, two);
+      expect(valid(s)).toEqual([]);
+      return [s.party[0]?.x ?? -1, s.party[1]?.x ?? -1];
+    };
+    expect(run('left')).toEqual([50, 40]); // both left edges at 30
+    expect(run('right')).toEqual([120, 100]); // both right edges at 140
+    expect(run('centre')).toEqual([85, 70]); // both centres at 85
+  });
+
+  it('depth: one fighter goes to the back, middle or front row; several go to the back-most, front-most or middle of the rows they use', () => {
+    const s = street();
+    expect(middleRow(s)).toBe(3);
+    alignDepth(s, 'party', '3', [0], 'back');
+    expect(s.party[0]?.row).toBe(0);
+    alignDepth(s, 'party', '3', [0], 'front');
+    expect(s.party[0]?.row).toBe(4);
+    alignDepth(s, 'party', '3', [0], 'middle');
+    expect(s.party[0]?.row).toBe(3);
+    const t = street();
+    alignDepth(t, 'party', '3', [0, 1, 3], 'back'); // rows 4, 3, 1
+    expect(t.party.map((q) => q.row)).toEqual([1, 1, 2, 1]);
+    const u = street();
+    alignDepth(u, 'party', '3', [0, 3], 'middle'); // rows 4 and 1: the middle is 2.5, which rounds to 3
+    expect([u.party[0]?.row, u.party[3]?.row]).toEqual([3, 3]);
+    // Two fighters landing on one row and one x never share a spot: the second is slid over a pixel.
+    expect(valid(u)).toEqual([]);
+  });
+
+  it('a small up-or-down nudge is cleared when a fighter is aligned to a row', () => {
+    const s = street();
+    (s.party[0] as { dy?: number }).dy = 4;
+    alignDepth(s, 'party', '3', [0], 'back');
+    expect('dy' in (s.party[0] ?? {})).toBe(false);
+  });
+
+  it('three or more can be spread with equal gaps between their drawn edges, or evenly over their rows', () => {
+    const s = street();
+    s.party[0] = { x: 30, row: 4 };
+    s.party[1] = { x: 70, row: 3 };
+    s.party[2] = { x: 200, row: 0 };
+    distributeAcross(s, 'party', '3', [0, 1, 2], { 0: { left: 10, right: 10 }, 1: { left: 10, right: 10 }, 2: { left: 10, right: 10 } });
+    // the outer two stay; the middle one goes halfway: edges 20..40, 120..140 (gap 80), 190..210
+    expect(xs(s).slice(0, 3)).toEqual([30, 115, 200]);
+    const t = street();
+    t.party[0] = { x: 30, row: 4 };
+    t.party[1] = { x: 60, row: 3 };
+    t.party[2] = { x: 90, row: 0 };
+    distributeDepth(t, 'party', '3', [0, 1, 2]);
+    expect([t.party[2]?.row, t.party[1]?.row, t.party[0]?.row]).toEqual([0, 2, 4]);
+    // fewer than three change nothing
+    const u = street();
+    const before = JSON.stringify(u.party);
+    distributeAcross(u, 'party', '3', [0, 1], reach);
+    distributeDepth(u, 'party', '3', [0, 1]);
+    expect(JSON.stringify(u.party)).toBe(before);
+  });
+
+  it('one undo step per Align, and the stage still passes the checker', () => {
+    const se = new Session({ stages: file(), axes: {}, hud: shippedHud() }, 'street', formatJson);
+    const start = JSON.stringify(se.data);
+    se.edit('Align Rook to the back row', (d) => alignDepth(d.stages.street as StageEntry, 'party', '3', [1], 'back'));
+    expect(se.undoStack.depth).toBe(1);
+    expect(valid(se.stage)).toEqual([]);
+    se.undo();
+    expect(JSON.stringify(se.data)).toBe(start);
+  });
+});
+
+describe('the session knows which of the three files changed', () => {
+  const make = (): Session => new Session({ stages: file(), axes: {}, hud: shippedHud() }, 'street', formatJson);
+
+  it('a HUD move makes only hud.json unsaved; saving it leaves other changes unsaved; undo and redo cover the HUD too', () => {
+    const se = make();
+    expect(se.dirtyParts).toEqual([]);
+    se.edit('Move the commands', (d) => {
+      d.hud.commands.x = 60;
+    });
+    expect(se.dirtyParts).toEqual(['hud']);
+    se.edit('Move the horizon', (d) => {
+      setHorizon(d.stages.street as StageEntry, 96);
+    });
+    expect(se.dirtyParts).toEqual(['stages', 'hud']);
+    se.markSaved(['hud']);
+    expect(se.dirtyParts).toEqual(['stages']);
+    expect(se.savedHud.commands.x).toBe(60);
+    expect(se.changeCount).toBe(2); // the horizon is still unsaved, so the count is not reset
+    se.undo();
+    expect(se.dirtyParts).toEqual([]);
+    se.undo();
+    expect(se.data.hud.commands.x).toBe(4);
+    expect(se.dirtyParts).toEqual(['hud']);
+    se.redo();
+    expect(se.data.hud.commands.x).toBe(60);
+    expect(se.dirtyParts).toEqual([]);
+  });
+
+  it('settling drops an empty override without an undo step, and the unsaved mark follows the data', () => {
+    const se = make();
+    se.edit('Override', (d) => {
+      d.stages.street = { ...(d.stages.street as StageEntry), hud: { commands: {} } };
+    });
+    expect(se.dirtyParts).toEqual(['stages']);
+    const steps = se.undoStack.depth;
+    se.settle();
+    expect(se.stage.hud).toBeUndefined();
+    expect(se.undoStack.depth).toBe(steps);
+    expect(se.dirtyParts).toEqual([]);
+  });
+
+  it('the resolved stage is the global HUD with this stage’s overrides laid over it', () => {
+    const se = make();
+    expect(se.resolved.hud.commands.x).toBe(4);
+    se.edit('Override', (d) => {
+      d.stages.street = { ...(d.stages.street as StageEntry), hud: { commands: { x: 77 } } };
+    });
+    expect(se.resolved.hud.commands.x).toBe(77);
+    se.showStage('sewer');
+    expect(se.resolved.hud.commands.x).toBe(4);
   });
 });

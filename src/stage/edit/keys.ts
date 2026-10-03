@@ -12,7 +12,7 @@ export interface KeyDef {
   /** Combos that trigger it; the first is shown on the Keys list. */
   combos: string[];
   label: string;
-  group: 'File' | 'Edit' | 'Move' | 'View' | 'Test';
+  group: 'File' | 'Edit' | 'Move' | 'Align' | 'View' | 'Test';
   /** Run even while typing in a text field. */
   everywhere?: boolean;
 }
@@ -38,10 +38,20 @@ export const KEYS: KeyDef[] = [
   { id: 'down8', combos: ['Shift+ArrowDown'], label: 'Nudge down 8 px', group: 'Move' },
   { id: 'forward', combos: ['Ctrl+]'], label: 'Bring the fighter forward (within its row)', group: 'Move' },
   { id: 'back', combos: ['Ctrl+['], label: 'Send the fighter back (within its row)', group: 'Move' },
+  // Align (Figma's Alt keys: A left, H centre, D right, W top, V middle, S bottom). Alt avoids the browser's own F5, Ctrl+R and F12 and every key above.
+  { id: 'alignLeft', combos: ['Alt+A'], label: 'Align left (one thing: to the stage; several: to each other)', group: 'Align' },
+  { id: 'alignCentre', combos: ['Alt+H'], label: 'Align centre', group: 'Align' },
+  { id: 'alignRight', combos: ['Alt+D'], label: 'Align right', group: 'Align' },
+  { id: 'alignBack', combos: ['Alt+W'], label: 'Align to the back row (a HUD box: to the top)', group: 'Align' },
+  { id: 'alignMiddle', combos: ['Alt+V'], label: 'Align to the middle row (a HUD box: the middle)', group: 'Align' },
+  { id: 'alignFront', combos: ['Alt+S'], label: 'Align to the front row (a HUD box: to the bottom)', group: 'Align' },
+  { id: 'spreadAcross', combos: ['Alt+Shift+H'], label: 'Spread 3 or more evenly across', group: 'Align' },
+  { id: 'spreadDepth', combos: ['Alt+Shift+V'], label: 'Spread 3 or more evenly over the rows (a HUD box: down)', group: 'Align' },
   { id: 'grid', combos: ['G'], label: 'Snap to the 8 px grid on / off (hold Ctrl while dragging to flip it for one drag)', group: 'View' },
   { id: 'lock', combos: ['Ctrl+L'], label: 'Lock / unlock the selection’s layer', group: 'View' },
   { id: 'hud', combos: ['H'], label: 'Show / hide the HUD boxes', group: 'View' },
   { id: 'mode', combos: ['E'], label: 'Edit / Play', group: 'View' },
+  { id: 'help', combos: ['?'], label: 'Help: what is a stage?', group: 'View' },
   { id: 'test', combos: ['Ctrl+Enter'], label: 'Battle Test', group: 'Test' },
 ];
 
@@ -49,8 +59,9 @@ export const KEYS: KeyDef[] = [
 export const RESERVED = ['F5', 'F12', 'Ctrl+R', 'Ctrl+Shift+R'];
 
 /** The combo a key event is, written the way the table writes them ("Ctrl+Shift+Z", "ArrowLeft", "Escape"). */
-export function comboOf(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'altKey'>): string {
-  const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+export function comboOf(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'altKey'> & { code?: string }): string {
+  // With Alt held, some layouts (a Mac's Option key) type another character; the key's position tells which letter it is.
+  const key = e.altKey && e.code?.startsWith('Key') ? e.code.slice(3) : e.key.length === 1 ? e.key.toUpperCase() : e.key;
   const parts: string[] = [];
   if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
   if (e.altKey) parts.push('Alt');
@@ -61,7 +72,7 @@ export function comboOf(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | '
 }
 
 /** Which table entry a key event triggers, or null. */
-export function matchKey(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'altKey'>): KeyDef | null {
+export function matchKey(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'altKey'> & { code?: string }): KeyDef | null {
   const combo = comboOf(e);
   // Ctrl+] / Ctrl+[ may arrive with Shift on some layouts; accept either.
   const loose = combo.replace('Shift+', '');

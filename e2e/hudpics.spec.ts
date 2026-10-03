@@ -81,16 +81,15 @@ test('the preset pictures: each of the four HUD presets and a box dragged off th
   const { errors } = await openEditor(page, scratch);
   const canvas = page.locator('#stage canvas');
   for (const id of ['timeline-bottom3', 'ff-strip', 'action-left', 'ps4-panels']) {
-    await page.locator('#s-preset').selectOption(id);
+    await page.locator('#inspector select[aria-label="Layout preset"]').selectOption(id);
     await flush(page);
     await canvas.screenshot({ path: file(`preset-${id}-2x`) });
   }
   // The shipped layout again, then the command strip pulled up off the row: the band closes round the other two.
-  await page.locator('#s-preset').selectOption('timeline-bottom3');
+  await page.locator('#inspector select[aria-label="Layout preset"]').selectOption('timeline-bottom3');
   await page.evaluate(() => {
     window.__stageedit?.session.edit('move the commands', (d) => {
-      const s = d.stages.street;
-      if (s) s.hud.commands.y = 176;
+      d.hud.commands.y = 176;
     });
   });
   await flush(page);

@@ -209,6 +209,15 @@ test('the three moments of the turn show the regions the design says, and one he
 
 test('the bottom boxes share one frame, and the command strip keeps its slot (dimmed) while an action plays', async ({ page }) => {
   const errors = await open(page);
+  // The design's own layout (the shipped hud.json holds Mark's choice, the action-left preset): this test is about how that band is framed.
+  await page.evaluate(async () => {
+    const url = '/src/stage/hudpresets.ts';
+    const { applyPreset } = await import(/* @vite-ignore */ url);
+    const s = window.__sc();
+    const hud = JSON.parse(JSON.stringify(s.config.hud));
+    applyPreset(hud, 'timeline-bottom3', true);
+    s.applyStage({ ...s.config, hud });
+  });
   const frames = (): Promise<Array<[number, number]>> => page.evaluate(() => window.__sc().hudObjects.frames.map((f) => [f.x, f.y] as [number, number]));
   // One band from the party table to the enemy box.
   expect(await frames()).toEqual([[4, 226]]);
@@ -239,7 +248,13 @@ test('two identical foes carry their A and B on the stage and the lone one carri
 test('HUD regions and the shadow follow the config: move a box, hide one, change the shadow share', async ({ page }) => {
   const errors = await open(page);
   const where = (name: string): Promise<{ x: number; y: number } | null> => page.evaluate((n) => window.__sc().hudObjects.box(n) ?? null, name);
-  expect(await where('partyStatus')).toMatchObject({ x: 4, y: 226 });
+  // Wherever the shipped HUD layout puts the party table, the scene draws it there.
+  const placed = await page.evaluate(() => {
+    const r = window.__sc().config.hud.partyStatus;
+    if (!r) throw new Error('no party status box');
+    return { x: r.x, y: r.y };
+  });
+  expect(await where('partyStatus')).toMatchObject(placed);
   await page.evaluate(() => {
     const s = window.__sc();
     s.applyStage({ ...s.config, hud: { ...s.config.hud, partyStatus: { ...s.config.hud.partyStatus, x: 40, y: 200 }, commands: { ...s.config.hud.commands, show: 'never' } } });

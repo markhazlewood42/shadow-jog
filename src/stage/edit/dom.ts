@@ -60,3 +60,68 @@ export function writeStore(key: string, value: unknown): void {
     // Storage blocked or full: remembered choices are a convenience, so carry on.
   }
 }
+
+// ------------------------------------------------------------------ tooltips ("?" help)
+
+/**
+ * A small "?" button that explains a setting in plain words when the pointer rests on it or the keyboard focuses it.
+ * Write the text for a beginner: what the setting is, then what you will SEE change, one idea per sentence.
+ * The text also becomes the button's accessible name, so a screen reader reads it.
+ */
+export function tip(text: string): HTMLElement {
+  return h('button', { type: 'button', class: 'qm', 'data-tip': text, 'aria-label': `Help: ${text}` }, '?');
+}
+
+/**
+ * Show the text of any element that has `data-tip` in one floating bubble (a "?" button, or a toolbar button that
+ * wants a longer explanation than the browser's own `title` gives). One bubble for the whole page, placed with
+ * `position: fixed`, so a panel that scrolls or clips its contents cannot cut the text off. Call once at start-up.
+ */
+export function installTips(): void {
+  const bubble = h('div', { id: 'tipbubble', role: 'tooltip', hidden: true });
+  document.body.append(bubble);
+  let current: HTMLElement | null = null;
+  const hide = (): void => {
+    current = null;
+    bubble.hidden = true;
+  };
+  const show = (el: HTMLElement): void => {
+    const text = el.dataset.tip;
+    if (!text) return;
+    current = el;
+    bubble.textContent = text;
+    bubble.hidden = false;
+    const r = el.getBoundingClientRect();
+    const b = bubble.getBoundingClientRect();
+    // Prefer the side with more room: panels on the right open their tips to the left, and the other way round.
+    const left = r.left + r.width / 2 > window.innerWidth / 2 ? r.left - b.width - 8 : r.right + 8;
+    const x = Math.min(Math.max(8, left), window.innerWidth - b.width - 8);
+    // Toolbar items open their tip below; side panel items open it level with the "?".
+    const below = r.top < 90;
+    const y = below ? r.bottom + 8 : r.top + r.height / 2 - b.height / 2;
+    bubble.style.left = `${x}px`;
+    bubble.style.top = `${Math.min(Math.max(8, y), window.innerHeight - b.height - 8)}px`;
+  };
+  const owner = (t: EventTarget | null): HTMLElement | null => (t instanceof Element ? (t.closest('[data-tip]') as HTMLElement | null) : null);
+  document.addEventListener('pointerover', (e) => {
+    const el = owner(e.target);
+    if (el && el !== current) show(el);
+  });
+  document.addEventListener('pointerout', (e) => {
+    const el = owner(e.target);
+    if (el && el === current && !el.contains(e.relatedTarget as Node | null) && document.activeElement !== el) hide();
+  });
+  document.addEventListener('focusin', (e) => {
+    const el = owner(e.target);
+    if (el) show(el);
+  });
+  document.addEventListener('focusout', hide);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hide();
+  });
+  document.addEventListener('pointerdown', (e) => {
+    if (!owner(e.target)) hide();
+  });
+  // A panel that scrolls under the bubble would leave it behind.
+  document.addEventListener('scroll', hide, true);
+}

@@ -10,7 +10,7 @@
  *    one can still be reached) and its **corner grips**;
  *  - a fighter's **foot crosshair**.
  */
-import { SCREEN_W, type StageConfig } from '../config';
+import { SCREEN_W, type StageBody, type StageConfig } from '../config';
 import type { HudRegionKey } from '../hudpresets';
 import { HUD_REGIONS } from '../hudpresets';
 import type { Item } from './session';
@@ -21,7 +21,7 @@ export type Corner = 'nw' | 'ne' | 'sw' | 'se';
 export type Layer = 'fighters' | 'hud' | 'ground';
 
 /** The line handle near this point, if any: horizon, then floor bottom, then rows (the front row first, since the floor is seen from above). `tol` is the pick distance in game pixels. */
-export function hitLine(stage: StageConfig, x: number, y: number, tol: number): Item | null {
+export function hitLine(stage: StageBody, x: number, y: number, tol: number): Item | null {
   if (x < -tol || x > SCREEN_W + tol) return null;
   const near = (line: number): boolean => Math.abs(y - (line + 0.5)) <= tol;
   if (near(stage.backdrop.horizonY)) return { kind: 'horizon' };

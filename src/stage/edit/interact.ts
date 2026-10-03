@@ -9,19 +9,21 @@
  *    a click on nothing clears it.
  *  - **Drag** moves the selection. The scene and the panels follow on every movement (one live update, no undo
  *    step yet) and the whole drag is ONE undo step when the mouse is released. Esc during a drag puts everything back.
+ *  - **Shift while dragging** locks the move to one direction, sideways or up and down, whichever the pointer has
+ *    travelled further (like Figma). Press Shift before or during the drag; let go and the lock lifts.
  *  - **Snapping:** fighters snap to the nearest depth row (the Rows toggle), x and the lines to the 8 px grid (the
  *    Grid toggle); holding **Ctrl** flips both for that one drag.
  *  - A press must travel a few screen pixels before it counts as a drag, so a plain click never nudges anything.
  *
  * It never edits stage data itself: it calls the pure functions in `model.ts` through the session.
  */
-import { SCREEN_H, SCREEN_W, type StageConfig } from '../config';
+import { SCREEN_H, SCREEN_W, type StageConfig, type StageEntry } from '../config';
 import { type Corner, hitGrip, hitHud, hitLine, resizeBox } from './hit';
-import { moveGroup, setFloorBottom, setHorizon, setHudBox, setRowY, slotFor, type SlotStart, slotList, startsOf, GRID, type Side, cloneStage } from './model';
+import { moveGroup, setFloorBottom, setHorizon, setHudBox, setRowY, slotFor, type SlotStart, slotList, startsOf, GRID, type Side, cloneStage, isOverridden } from './model';
 import type { Item, Session } from './session';
 import type { ViewState } from './view';
 import type { Fighter, StageScene } from '../stagescene';
-import type { HudRegionKey } from '../hudpresets';
+import { HUD_REGION_NAMES, type HudRegionKey } from '../hudpresets';
 
 export interface InteractHost {
   session: Session;
@@ -36,12 +38,14 @@ export interface InteractHost {
   syncScene: (floorFrom?: StageConfig) => void;
   /** Pointer position for the status line. */
   onPointer: (p: { x: number; y: number } | null, hit: Item | null) => void;
+  /** Say something about a finished gesture on the status line. */
+  say?: (message: string) => void;
 }
 
 type Drag =
   | { kind: 'fighters'; side: Side; primary: number; starts: SlotStart[]; ptr: P; feet: P; frozen: StageConfig }
   | { kind: 'line'; item: Extract<Item, { kind: 'horizon' | 'floor' | 'row' }>; ptr: P; value: number }
-  | { kind: 'hud'; region: HudRegionKey; corner: Corner | null; ptr: P; box: { x: number; y: number; w: number; h: number } };
+  | { kind: 'hud'; region: HudRegionKey; corner: Corner | null; ptr: P; box: { x: number; y: number; w: number; h: number }; others: Array<{ region: HudRegionKey; box: { x: number; y: number } }> };
 
 interface P {
   x: number;
@@ -60,6 +64,8 @@ export class Interact {
   private drag: Drag | null = null;
   private down: { client: P; game: P; item: Item | null; shift: boolean; ctrl: boolean } | null = null;
   private dragging = false;
+  /** A Shift+click on something already selected: it leaves the selection when the button comes up, unless the press turned into a drag. */
+  private toggleOnUp: Item | null = null;
 
   constructor(private readonly host: InteractHost) {
     const layer = host.layer;
@@ -93,7 +99,8 @@ export class Interact {
   /** What is under a point, in the order the editor prefers (see the file header). */
   hitAt(p: P, scale: number): Item | null {
     const { session, view, scene } = this.host;
-    const stage = session.stage;
+    // The handles are drawn from the stage as a battle sees it (the global HUD with this stage's overrides).
+    const stage = session.resolved;
     const tol = PICK_PX / scale;
     const locked = view.locked;
     const sel = session.selection;
@@ -135,7 +142,7 @@ export class Interact {
       case 'anchor':
         return 'crosshair';
       case 'hud': {
-        const corner = hitGrip(this.host.session.stage, hit.region, p.x, p.y, PICK_PX / scale);
+        const corner = hitGrip(this.host.session.resolved, hit.region, p.x, p.y, PICK_PX / scale);
         return corner ? (CURSORS[corner] ?? 'move') : 'move';
       }
       default:
@@ -159,18 +166,21 @@ export class Interact {
     const hit = this.hitAt(p, scale);
     this.down = { client: { x: e.clientX, y: e.clientY }, game: p, item: hit, shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey };
     this.dragging = false;
+    this.toggleOnUp = null;
     if (!hit) {
       if (!e.shiftKey) session.select([]);
       return;
     }
     if (e.shiftKey && (hit.kind === 'fighter' || hit.kind === 'hud')) {
-      // Add to or remove from the selection (only things of one kind and, for fighters, one side).
+      // Add to the selection (only things of one kind and, for fighters, one side). Already in it? A plain click takes it out
+      // when the button comes up; a drag moves the whole selection instead, with the Shift lock on.
       const cur = session.selection;
       const compatible = cur.every((c) => c.kind === hit.kind && (hit.kind !== 'fighter' || (c.kind === 'fighter' && c.side === hit.side)));
       const has = cur.some((c) => JSON.stringify(c) === JSON.stringify(hit));
       if (!compatible) session.select([hit]);
-      else session.select(has ? cur.filter((c) => JSON.stringify(c) !== JSON.stringify(hit)) : [...cur, hit]);
-      this.down = null;
+      else if (has) this.toggleOnUp = hit;
+      else session.select([...cur, hit]);
+      this.drag = this.startDrag(hit, p);
       return;
     }
     const inSel = session.selection.some((c) => JSON.stringify(c) === JSON.stringify(hit));
@@ -180,7 +190,7 @@ export class Interact {
 
   private startDrag(hit: Item, p: P): Drag | null {
     const { session, scene } = this.host;
-    const stage = session.stage;
+    const stage = session.resolved;
     switch (hit.kind) {
       case 'fighter': {
         const side = hit.side;
@@ -199,10 +209,10 @@ export class Interact {
         return { kind: 'line', item: hit, ptr: p, value: stage.rows[hit.index]?.y ?? 0 };
       case 'hud': {
         const r = stage.hud[hit.region];
-        const { scale } = this.toGame({ clientX: 0, clientY: 0 });
-        void scale;
         const corner = hitGrip(stage, hit.region, p.x, p.y, PICK_PX / this.scaleNow());
-        return { kind: 'hud', region: hit.region, corner, ptr: p, box: { x: r.x, y: r.y, w: r.w, h: r.h } };
+        // Boxes selected along with it move together (a corner grip resizes this one box only).
+        const others = corner ? [] : session.selection.flatMap((s) => (s.kind === 'hud' && s.region !== hit.region ? [{ region: s.region, box: { x: stage.hud[s.region].x, y: stage.hud[s.region].y } }] : []));
+        return { kind: 'hud', region: hit.region, corner, ptr: p, box: { x: r.x, y: r.y, w: r.w, h: r.h }, others };
       }
       default:
         return null;
@@ -231,22 +241,31 @@ export class Interact {
     this.host.onPointer(p, null);
     // Ctrl flips the snapping for this movement.
     const flip = e.ctrlKey || e.metaKey;
-    this.applyDrag(this.drag, p, flip);
+    this.applyDrag(this.drag, p, flip, e.shiftKey);
   }
 
-  private applyDrag(drag: Drag, p: P, flip: boolean): void {
+  /** Which way a Shift-locked move goes: whichever way the pointer has travelled further since the press. */
+  private lockAxis(drag: Drag, p: P): 'x' | 'y' {
+    return Math.abs(p.x - drag.ptr.x) >= Math.abs(p.y - drag.ptr.y) ? 'x' : 'y';
+  }
+
+  private applyDrag(drag: Drag, p: P, flip: boolean, shift: boolean): void {
     const { session, view } = this.host;
     const id = session.stageId;
     const snapGrid = view.snapGrid !== flip;
     const snapRows = view.snapRows !== flip;
-    const stageOf = (d: { stages: Record<string, StageConfig> }): StageConfig => d.stages[id] as StageConfig;
-    const dx = p.x - drag.ptr.x;
-    const dy = p.y - drag.ptr.y;
+    const stageOf = (d: { stages: Record<string, StageEntry> }): StageEntry => d.stages[id] as StageEntry;
+    // Shift holds the move to one direction: the other distance counts as zero.
+    const axis = shift && drag.kind !== 'line' ? this.lockAxis(drag, p) : null;
+    const dx = axis === 'y' ? 0 : p.x - drag.ptr.x;
+    const dy = axis === 'x' ? 0 : p.y - drag.ptr.y;
     if (drag.kind === 'fighters') {
       const stage = session.stage;
-      const to = slotFor(stage, drag.side, drag.feet.x + dx, drag.feet.y + dy, { rows: snapRows, grid: snapGrid });
+      const snapped = slotFor(stage, drag.side, drag.feet.x + dx, drag.feet.y + dy, { rows: snapRows, grid: snapGrid });
       const first = drag.starts.find((s) => s.index === drag.primary);
       if (!first) return;
+      // A locked direction leaves the other one exactly where it was: sideways keeps the row and the small nudge, up and down keeps x.
+      const to = axis === 'x' ? { x: snapped.x, row: first.row, dy: first.dy } : axis === 'y' ? { x: first.x, row: snapped.row, dy: snapped.dy } : snapped;
       session.live((d) => moveGroup(stageOf(d), drag.side, session.setKey, drag.starts, to.x - first.x, to.row - first.row, to.dy - first.dy));
       this.host.syncScene(drag.frozen);
     } else if (drag.kind === 'line') {
@@ -259,12 +278,16 @@ export class Interact {
         else if (it.kind === 'floor') setFloorBottom(s, v);
         else setRowY(s, it.index, v);
       });
-      this.host.syncScene(session.stage);
+      this.host.syncScene(session.resolved);
     } else {
       const grid = (n: number): number => (snapGrid ? Math.round(n / GRID) * GRID : n);
       const b = drag.corner ? resizeBox(drag.box, drag.corner, dx, dy) : { ...drag.box, x: drag.box.x + dx, y: drag.box.y + dy };
-      session.live((d) => setHudBox(stageOf(d), drag.region, drag.corner ? { x: grid(b.x), y: grid(b.y), w: grid(b.w), h: grid(b.h) } : { x: grid(b.x), y: grid(b.y) }));
-      this.host.syncScene(session.stage);
+      session.live((d) => {
+        // Each box lands where it belongs: in this stage's own copy if the stage overrides it, else in the all-battles layout.
+        setHudBox(d, id, drag.region, drag.corner ? { x: grid(b.x), y: grid(b.y), w: grid(b.w), h: grid(b.h) } : { x: grid(b.x), y: grid(b.y) });
+        for (const o of drag.others) setHudBox(d, id, o.region, { x: grid(o.box.x + dx), y: grid(o.box.y + dy) });
+      });
+      this.host.syncScene(session.resolved);
     }
   }
 
@@ -274,12 +297,17 @@ export class Interact {
     this.down = null;
     if (this.host.layer.hasPointerCapture(e.pointerId)) this.host.layer.releasePointerCapture(e.pointerId);
     const { scale } = this.toGame(e);
+    const leaving = this.toggleOnUp;
+    this.toggleOnUp = null;
     if (!drag || !this.dragging) {
       this.dragging = false;
+      // A Shift+click on something already selected, with no drag: take it out of the selection.
+      if (leaving) this.host.session.select(this.host.session.selection.filter((c) => JSON.stringify(c) !== JSON.stringify(leaving)));
       return;
     }
     this.dragging = false;
     this.host.session.end(this.labelOf(drag));
+    this.say(drag);
     // One last, unfrozen sync: the floor's puddles settle around where everyone ended up.
     this.host.syncScene();
     const { p } = this.toGame(e);
@@ -287,15 +315,25 @@ export class Interact {
   }
 
   private labelOf(drag: Drag): string {
-    const { session } = this.host;
     if (drag.kind === 'fighters') {
       const n = drag.starts.length;
       const who = n > 1 ? `${n} ${drag.side === 'party' ? 'heroes' : 'enemies'}` : this.nameOf(drag.side, drag.primary);
       return `Move ${who}`;
     }
     if (drag.kind === 'line') return drag.item.kind === 'horizon' ? 'Move the horizon' : drag.item.kind === 'floor' ? 'Move the floor bottom' : `Move row ${drag.item.index + 1}`;
-    void session;
     return drag.corner ? `Resize the ${drag.region} box` : `Move the ${drag.region} box`;
+  }
+
+  /** After a HUD drag, say whose HUD it changed: that matters, because a box that is not overridden is shared by every battle. */
+  private say(drag: Drag): void {
+    if (drag.kind !== 'hud' || !this.host.say) return;
+    const { session } = this.host;
+    const regions = [drag.region, ...drag.others.map((o) => o.region)];
+    const here = regions.filter((r) => isOverridden(session.stage, r)).length;
+    const names = regions.length > 1 ? `${regions.length} HUD boxes` : `the ${HUD_REGION_NAMES[drag.region]} box`;
+    if (here === regions.length) this.host.say(`Moved ${names} on this stage only.`);
+    else if (here === 0) this.host.say(`Moved ${names} for every battle. To change it on this stage only, turn on “Different on this stage”.`);
+    else this.host.say('Moved HUD boxes: some on this stage only, some for every battle.');
   }
 
   private nameOf(side: Side, index: number): string {

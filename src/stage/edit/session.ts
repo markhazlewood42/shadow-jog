@@ -15,15 +15,15 @@
  *    at the last save", so undoing back to the saved state clears it by itself (`docs/TOOLING-UI.md` 2.5).
  */
 import { UndoStack } from '../../tools/undo';
-import type { AxesFile, StageConfig, StageFile } from '../config';
-import { type Side, cloneStage } from './model';
+import { resolveStage, type StageConfig, type StageEntry } from '../config';
+import { cloneStage, type EditorData, type Side, settleData } from './model';
 import type { HudRegionKey } from '../hudpresets';
 
-/** Everything the editor edits and Save writes: both files. */
-export interface EditorData {
-  stages: StageFile;
-  axes: AxesFile;
-}
+export type { EditorData };
+
+/** The files Save writes, as parts of the data: the stages, the foot-anchor corrections and the global HUD layout. */
+export type Part = 'stages' | 'axes' | 'hud';
+const PARTS: readonly Part[] = ['stages', 'axes', 'hud'];
 
 /** One selectable thing. Fighters and HUD boxes can be selected several at a time; the handles one at a time. */
 export type Item =
@@ -51,7 +51,7 @@ export function sameItem(a: Item, b: Item): boolean {
 
 /** What the listeners are told. */
 export type SessionEvent =
-  | { type: 'live' }
+  | { type: 'live'; scene?: boolean }
   | { type: 'commit'; label: string }
   | { type: 'undo'; label: string }
   | { type: 'redo'; label: string }
@@ -59,6 +59,7 @@ export type SessionEvent =
   | { type: 'stage' }
   | { type: 'set' }
   | { type: 'saved' }
+  | { type: 'settle' }
   | { type: 'revert' };
 
 export interface LastChange {
@@ -68,9 +69,14 @@ export interface LastChange {
   after: string;
 }
 
-/** The snapshot text of the data (also what "unsaved" compares). */
+/** The snapshot text of the data (what undo keeps). */
 export function serialize(data: EditorData): string {
-  return JSON.stringify({ stages: data.stages, axes: data.axes });
+  return JSON.stringify({ stages: data.stages, axes: data.axes, hud: data.hud });
+}
+
+/** Each part's text: "unsaved" is a part's text differing from its text at the last save. */
+function partTexts(data: EditorData): Record<Part, string> {
+  return { stages: JSON.stringify(data.stages), axes: JSON.stringify(data.axes), hud: JSON.stringify(data.hud) };
 }
 
 export class Session {
@@ -82,39 +88,61 @@ export class Session {
   readonly undoStack = new UndoStack();
   /** Gestures since the last save (undo takes one off, redo puts it back): what Revert says it will throw away. */
   private steps = 0;
-  private savedText: string;
+  /** Each file's text at the last save (or load): "unsaved" means a part's text differs from this. */
+  private savedParts: Record<Part, string>;
   private savedData: EditorData;
   private gestureBefore: string | null = null;
   private gestureStageText: string | null = null;
   private lastChange: LastChange | null = null;
   private readonly listeners = new Set<(e: SessionEvent) => void>();
   /** Turned into text for the JSON pane; set by the page (the formatter lives outside the session). */
-  private readonly stageText: (stage: StageConfig) => string;
+  private readonly stageText: (stage: StageEntry) => string;
 
-  constructor(initial: EditorData, stageId: string, stageText: (stage: StageConfig) => string = (s) => JSON.stringify(s, null, 2)) {
+  constructor(initial: EditorData, stageId: string, stageText: (stage: StageEntry) => string = (s) => JSON.stringify(s, null, 2)) {
     this.data = cloneStage(initial);
     this.savedData = cloneStage(initial);
-    this.savedText = serialize(this.data);
+    this.savedParts = partTexts(this.data);
     this.stageId = stageId in initial.stages ? stageId : (Object.keys(initial.stages)[0] ?? '');
     this.stageText = stageText;
   }
 
   // ---------------------------------------------------------------- reading
 
-  /** The stage being edited. */
-  get stage(): StageConfig {
+  /** The stage being edited, as the file holds it (its HUD is only the overrides). */
+  get stage(): StageEntry {
     const s = this.data.stages[this.stageId];
     if (!s) throw new Error(`No stage "${this.stageId}"`);
     return s;
   }
 
+  /** The stage as a battle sees it: the global HUD with this stage's overrides laid over it. What the scene and the handles read. */
+  get resolved(): StageConfig {
+    return resolveStage(this.stage, this.data.hud);
+  }
+
   /** The same stage as it was at the last save (for "back to the saved value" arrows); null when it did not exist then. */
-  get savedStage(): StageConfig | null {
+  get savedStage(): StageEntry | null {
     return this.savedData.stages[this.stageId] ?? null;
   }
 
+  /** Everything as it was at the last save (for "back to the saved value" arrows). */
+  get saved(): EditorData {
+    return this.savedData;
+  }
+
+  /** The global HUD layout as it was at the last save. */
+  get savedHud(): EditorData['hud'] {
+    return this.savedData.hud;
+  }
+
+  /** The parts that differ from the last save (so Save writes only those files). */
+  get dirtyParts(): Part[] {
+    const now = partTexts(this.data);
+    return PARTS.filter((p) => now[p] !== this.savedParts[p]);
+  }
+
   get dirty(): boolean {
-    return serialize(this.data) !== this.savedText;
+    return this.dirtyParts.length > 0;
   }
 
   /** How many gestures separate the data from the last save. */
@@ -206,10 +234,10 @@ export class Session {
   }
 
   /** Change the data during a gesture; listeners redraw at once, no undo step is made yet. */
-  live(fn: (data: EditorData) => void): void {
+  live(fn: (data: EditorData) => void, opts: { scene?: boolean } = {}): void {
     this.begin();
     fn(this.data);
-    this.emit({ type: 'live' });
+    this.emit({ type: 'live', scene: !!opts.scene });
   }
 
   /** Finish the gesture. If anything changed it becomes one undo step and `label` names it. Returns whether it changed. */
@@ -245,7 +273,7 @@ export class Session {
     this.gestureStageText = null;
     if (before === null) return;
     this.data = JSON.parse(before) as EditorData;
-    this.emit({ type: 'live' });
+    this.emit({ type: 'live', scene: true });
   }
 
   undo(): boolean {
@@ -279,19 +307,31 @@ export class Session {
 
   // ---------------------------------------------------------------- saving
 
-  /** The data was written to disk: it is now the reference for "unsaved" and "back to the saved value". */
-  markSaved(): void {
-    this.savedText = serialize(this.data);
-    this.savedData = JSON.parse(this.savedText) as EditorData;
-    this.steps = 0;
+  /** These files were written to disk (all of them by default): they are now the reference for "unsaved" and "back to the saved value". */
+  markSaved(parts: readonly Part[] = PARTS): void {
+    const now = partTexts(this.data);
+    for (const p of parts) {
+      this.savedParts[p] = now[p];
+      (this.savedData as unknown as Record<Part, unknown>)[p] = JSON.parse(now[p]);
+    }
+    if (!this.dirty) this.steps = 0;
     this.emit({ type: 'saved' });
+  }
+
+  /**
+   * Tidy the data before it is written (a stage override keeps only what differs from the global HUD; see
+   * `settleData`). Not an undo step: it never changes what anyone sees, only how it is stored.
+   */
+  settle(): void {
+    if (this.inGesture) return;
+    if (settleData(this.data)) this.emit({ type: 'settle' });
   }
 
   /** Replace everything with data freshly loaded from disk (Revert, or a reload): clears the history. */
   load(data: EditorData): void {
     this.data = cloneStage(data);
     this.savedData = cloneStage(data);
-    this.savedText = serialize(this.data);
+    this.savedParts = partTexts(this.data);
     this.undoStack.clear();
     this.steps = 0;
     this.lastChange = null;

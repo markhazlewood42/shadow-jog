@@ -29,10 +29,17 @@
  *
  * All the numbers are whole screen pixels on the game's 480x270 screen, so nothing lands between pixels.
  *
+ * **The HUD is ONE layout for every battle** (`src/data/hud.json`, checked by `checkHudFile`). A stage in
+ * `stages.json` carries no HUD unless it needs to differ: then it holds `hud`, a few overrides of single boxes
+ * (`HudOverrides`). `StageEntry` is what the file holds; `StageConfig` is the same stage with the HUD filled in
+ * (`resolveStage`), which is what the scene, the HUD widgets and the editor's handles read.
+ *
  * Besides the design the file carries a small `demo` block (who stands in the lab's party, which enemies fill
  * each group size, and the settings of the example fight). That is the lab's own, not part of the design: a
  * real battle is given its party and troop by the game.
  */
+
+import { HUD_FIELDS, HUD_REGIONS, type HudRegionKey } from './hudpresets';
 
 export const SCREEN_W = 480;
 export const SCREEN_H = 270;
@@ -302,7 +309,32 @@ export interface StageConfig {
   note?: string;
 }
 
+/** The stage file as the scene reads it: every stage with the global HUD filled in. */
 export type StageFile = Record<string, StageConfig>;
+
+/** What one stage may say about one HUD box instead of the global layout: only the fields that differ. */
+export interface HudBoxOverride {
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  show?: Show;
+  opacity?: number;
+}
+
+/** A stage's HUD overrides: a few boxes, a few fields each. Absent when the stage uses the global HUD as it is. */
+export type HudOverrides = Partial<Record<HudRegionKey, HudBoxOverride>>;
+
+/** A stage without its HUD: the part of it that the editor's ground, row and slot functions work on. */
+export type StageBody = Omit<StageConfig, 'hud'>;
+
+/** One stage as `stages.json` holds it: the body, plus `hud` only when this stage overrides part of the global HUD. */
+export interface StageEntry extends StageBody {
+  hud?: HudOverrides;
+}
+
+/** The stages file as it is on disk. */
+export type EntryFile = Record<string, StageEntry>;
 
 // ------------------------------------------------------------------ checking a file
 
@@ -448,25 +480,93 @@ function checkRegion(p: Problems, path: string, r: unknown): void {
   if (isInt(r.y) && isInt(r.h) && r.y + r.h > SCREEN_H) p.add(path, 'reaches past the bottom edge of the screen');
 }
 
-function checkHud(p: Problems, h: unknown): void {
-  if (!p.obj('hud', h)) return;
-  p.oneOf('hud.preset', h.preset, ['timeline-bottom3', 'ff-strip', 'action-left', 'ps4-panels']);
-  for (const k of ['turnOrder', 'commands', 'partyStatus', 'enemyInfo', 'banner', 'combo']) checkRegion(p, `hud.${k}`, h[k]);
+/** The global layout (`hud.json`), checked. `base` is the name used in messages ("hud" or "layout"). */
+function checkHud(p: Problems, h: unknown, base = 'hud'): void {
+  if (!p.obj(base, h)) return;
+  p.oneOf(`${base}.preset`, h.preset, ['timeline-bottom3', 'ff-strip', 'action-left', 'ps4-panels']);
+  for (const k of HUD_REGIONS) checkRegion(p, `${base}.${k}`, h[k]);
   if (isObj(h.turnOrder)) {
-    p.int('hud.turnOrder.chip', h.turnOrder.chip, 6, 40);
-    p.int('hud.turnOrder.nowChip', h.turnOrder.nowChip, 6, 40);
+    p.int(`${base}.turnOrder.chip`, h.turnOrder.chip, 6, 40);
+    p.int(`${base}.turnOrder.nowChip`, h.turnOrder.nowChip, 6, 40);
   }
-  if (isObj(h.commands) && h.commands.icon !== undefined) p.int('hud.commands.icon', h.commands.icon, 8, 40);
+  if (isObj(h.commands) && h.commands.icon !== undefined) p.int(`${base}.commands.icon`, h.commands.icon, 8, 40);
   if (isObj(h.partyStatus)) {
-    p.int('hud.partyStatus.rowH', h.partyStatus.rowH, 6, 30);
-    p.int('hud.partyStatus.face', h.partyStatus.face, 4, 30);
+    p.int(`${base}.partyStatus.rowH`, h.partyStatus.rowH, 6, 30);
+    p.int(`${base}.partyStatus.face`, h.partyStatus.face, 4, 30);
   }
   if (isObj(h.enemyInfo) && isObj(h.enemyInfo.barsOnStage)) {
-    p.int('hud.enemyInfo.barsOnStage.w', h.enemyInfo.barsOnStage.w, 4, 100);
-    p.int('hud.enemyInfo.barsOnStage.h', h.enemyInfo.barsOnStage.h, 1, 10);
-    p.int('hud.enemyInfo.barsOnStage.gapBelowShadow', h.enemyInfo.barsOnStage.gapBelowShadow, 0, 20);
+    p.int(`${base}.enemyInfo.barsOnStage.w`, h.enemyInfo.barsOnStage.w, 4, 100);
+    p.int(`${base}.enemyInfo.barsOnStage.h`, h.enemyInfo.barsOnStage.h, 1, 10);
+    p.int(`${base}.enemyInfo.barsOnStage.gapBelowShadow`, h.enemyInfo.barsOnStage.gapBelowShadow, 0, 20);
   }
-  if (!isObj(h.limits)) p.add('hud.limits', 'is missing');
+  if (!isObj(h.limits)) p.add(`${base}.limits`, 'is missing');
+}
+
+/** A stage's HUD overrides: only the six box fields, each in range. Whether the merged box still fits the screen is checked once the global layout is known (`checkStagesWith`). */
+function checkHudOverrides(p: Problems, h: unknown): void {
+  if (h === undefined) return;
+  if (!isObj(h)) {
+    p.add('hud', 'must be an object of boxes to override (or left out)');
+    return;
+  }
+  for (const [region, box] of Object.entries(h)) {
+    if (!(HUD_REGIONS as readonly string[]).includes(region)) {
+      p.add(`hud.${region}`, `is not a HUD box (the boxes are ${HUD_REGIONS.join(', ')})`);
+      continue;
+    }
+    if (!isObj(box)) {
+      p.add(`hud.${region}`, 'must be an object of fields to override');
+      continue;
+    }
+    for (const key of Object.keys(box)) if (!(HUD_FIELDS as readonly string[]).includes(key)) p.add(`hud.${region}.${key}`, `a stage can only override ${HUD_FIELDS.join(', ')} (the rest is the global layout's)`);
+    if (box.x !== undefined) p.int(`hud.${region}.x`, box.x, 0, SCREEN_W);
+    if (box.y !== undefined) p.int(`hud.${region}.y`, box.y, 0, SCREEN_H);
+    if (box.w !== undefined) p.int(`hud.${region}.w`, box.w, 1, SCREEN_W);
+    if (box.h !== undefined) p.int(`hud.${region}.h`, box.h, 1, SCREEN_H);
+    if (box.show !== undefined) p.oneOf(`hud.${region}.show`, box.show, ['always', 'input', 'action', 'never']);
+    if (box.opacity !== undefined) p.num(`hud.${region}.opacity`, box.opacity, 0, 1);
+  }
+}
+
+/**
+ * Everything wrong with the global HUD file (`src/data/hud.json`: `{ "version": 1, "layout": { ... } }`), in plain
+ * words. This is the file's own loader check: the editor's HUD endpoint and the game both use it.
+ */
+export function checkHudFile(data: unknown): string[] {
+  const p = new Problems('hud.json');
+  if (!isObj(data)) return ['hud.json: must be an object with a version and a layout'];
+  if (data.version !== 1) p.add('', 'version must be 1');
+  checkHud(p, data.layout, 'layout');
+  return p.list;
+}
+
+/** The global HUD layout from the checked file; throws one readable error listing every problem. */
+export function loadHud(data: unknown): HudLayout {
+  const problems = checkHudFile(data);
+  if (problems.length) throw new Error(`hud.json is not valid:\n - ${problems.join('\n - ')}`);
+  return (data as { layout: HudLayout }).layout;
+}
+
+/** The global layout with a stage's overrides laid over it: the HUD a battle on that stage uses. Returns a fresh object. */
+export function mergeHud(global: HudLayout, over?: HudOverrides): HudLayout {
+  const out = JSON.parse(JSON.stringify(global)) as HudLayout;
+  if (!over) return out;
+  for (const region of HUD_REGIONS) {
+    const box = over[region];
+    if (box) Object.assign(out[region], box);
+  }
+  return out;
+}
+
+/** A stage as the scene reads it: the entry with the global HUD (and its own overrides) filled in. */
+export function resolveStage(entry: StageEntry, global: HudLayout): StageConfig {
+  const { hud, ...body } = entry;
+  return { ...body, hud: mergeHud(global, hud) };
+}
+
+/** Every stage of a file resolved against the global HUD. */
+export function resolveStages(entries: EntryFile, global: HudLayout): StageFile {
+  return Object.fromEntries(Object.entries(entries).map(([id, e]) => [id, resolveStage(e, global)]));
 }
 
 function checkDemo(p: Problems, d: unknown, known: Known): void {
@@ -591,18 +691,42 @@ export function checkStages(data: unknown, knownBackdrops?: readonly string[], k
       p.oneOf('sort.tie', raw.sort.tie, ['outerFirst']);
       p.int('sort.lungeOverTarget', raw.sort.lungeOverTarget, 0, 10);
     }
-    checkHud(p, raw.hud);
+    checkHudOverrides(p, raw.hud);
     checkDemo(p, raw.demo, known);
     out.push(...p.list);
   }
   return out;
 }
 
-/** The stage file, checked. Throws a readable error listing every problem (a bad stage must not half-load). */
-export function loadStages(data: unknown, knownBackdrops?: readonly string[], known: Known = {}): StageFile {
+/**
+ * The stage entries checked on their own, then each one resolved against the global HUD, whose boxes (with the
+ * stage's overrides laid over them) must still fit the screen. Empty means both are fine.
+ */
+export function checkStagesWith(data: unknown, hud: HudLayout, knownBackdrops?: readonly string[], known: Known = {}): string[] {
+  const out = checkStages(data, knownBackdrops, known);
+  if (out.length || !isObj(data)) return out;
+  for (const [id, raw] of Object.entries(data)) {
+    const entry = raw as StageEntry;
+    const p = new Problems(`stage "${id}"`);
+    const merged = mergeHud(hud, entry.hud);
+    for (const k of HUD_REGIONS) if (entry.hud?.[k]) checkRegion(p, `hud.${k}`, merged[k]);
+    out.push(...p.list);
+  }
+  return out;
+}
+
+/** The stage file, checked and resolved against the global HUD. Throws a readable error listing every problem (a bad stage must not half-load). */
+export function loadStages(data: unknown, knownBackdrops: readonly string[] | undefined, known: Known, hud: HudLayout): StageFile {
+  const problems = checkStagesWith(data, hud, knownBackdrops, known);
+  if (problems.length) throw new Error(`stages.json is not valid:\n - ${problems.join('\n - ')}`);
+  return resolveStages(data as EntryFile, hud);
+}
+
+/** The stage entries as they are on disk, checked (no HUD filled in): what the editor edits. Throws like `loadStages`. */
+export function loadEntries(data: unknown, knownBackdrops?: readonly string[], known: Known = {}): EntryFile {
   const problems = checkStages(data, knownBackdrops, known);
   if (problems.length) throw new Error(`stages.json is not valid:\n - ${problems.join('\n - ')}`);
-  return data as StageFile;
+  return data as EntryFile;
 }
 
 /** One stage by id, or a readable error naming the ones there are. */
@@ -685,7 +809,7 @@ export function checkFigures(s: StageConfig, figures: readonly FigureBox[]): str
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
 
 /** The enemy slots for a set key ("3", "boss+1"...), or a readable error. */
-export function enemySlots(stage: StageConfig, key: string): EnemySlot[] {
+export function enemySlots(stage: StageBody, key: string): EnemySlot[] {
   const set = stage.enemySets[key];
   if (!set) throw new Error(`Stage "${stage.name}" has no enemy slots for "${key}" (it has: ${Object.keys(stage.enemySets).join(', ')})`);
   return set;
@@ -696,7 +820,7 @@ export function enemySlots(stage: StageConfig, key: string): EnemySlot[] {
  * screen, even if the stage was edited so a row now sits outside it. That is how the floor's `y0` and `y1` do
  * their job (nobody can stand on the wall or below the screen), and what an editor's drag relies on.
  */
-export function slotPoint(stage: StageConfig, slot: Slot): { x: number; y: number } {
+export function slotPoint(stage: StageBody, slot: Slot): { x: number; y: number } {
   const row = stage.rows[slot.row];
   if (!row) throw new Error(`Slot names row ${slot.row}, which stage "${stage.name}" does not have`);
   return { x: clamp(slot.x, 0, SCREEN_W), y: clamp(row.y + (slot.dy ?? 0), stage.floor.y0, stage.floor.y1) };
@@ -707,7 +831,7 @@ export function slotPoint(stage: StageConfig, slot: Slot): { x: number; y: numbe
  * RPG Maker snaps a troop member to its grid) and the x kept on the fighter's own half of the screen. Pure,
  * so a test can drag without a browser.
  */
-export function snapSlot(stage: StageConfig, side: 'party' | 'enemy', x: number, y: number): { row: number; x: number } {
+export function snapSlot(stage: StageBody, side: 'party' | 'enemy', x: number, y: number): { row: number; x: number } {
   let best = 0;
   let bestDist = Number.POSITIVE_INFINITY;
   stage.rows.forEach((r, i) => {
@@ -722,7 +846,7 @@ export function snapSlot(stage: StageConfig, side: 'party' | 'enemy', x: number,
 }
 
 /** A fighter's contact-shadow width: its sprite's width times the stage's share, kept between the stage's limits (a boss has its own). */
-export function shadowWidth(stage: StageConfig, spriteW: number, boss: boolean): number {
+export function shadowWidth(stage: StageBody, spriteW: number, boss: boolean): number {
   const s = stage.shadow;
   if (s.kind === 'none') return 0;
   if (boss) return Math.round(Math.min(s.bossMaxW, spriteW * s.bossWidthScale));
@@ -730,7 +854,7 @@ export function shadowWidth(stage: StageConfig, spriteW: number, boss: boolean):
 }
 
 /** The shadow oval's height for a width. */
-export function shadowHeight(stage: StageConfig, width: number): number {
+export function shadowHeight(stage: StageBody, width: number): number {
   return Math.max(4, Math.round(width / stage.shadow.aspect));
 }
 
@@ -756,7 +880,7 @@ export const ORDER_STEP = 1000;
  * The feet row a fighter sorts by: its own, or while lunging in contact the target's row plus
  * `sort.lungeOverTarget`, so the attacker's body draws over the one it is hitting.
  */
-export function sortRow(stage: StageConfig, feetY: number, lungeTargetY?: number): number {
+export function sortRow(stage: StageBody, feetY: number, lungeTargetY?: number): number {
   return lungeTargetY === undefined ? feetY : lungeTargetY + stage.sort.lungeOverTarget;
 }
 

@@ -8,7 +8,7 @@
  * stage stores places, not people (`docs/TOOLING-UI.md` 3.3), so the previewed enemies are never saved with the stage.
  */
 import { ENEMIES } from '../../data/enemies';
-import { setSize, type StageConfig } from '../config';
+import { setSize, type StageBody } from '../config';
 import type { Phase } from '../demo';
 import type { Layer } from './hit';
 import { readStore, writeStore } from './dom';
@@ -31,7 +31,7 @@ interface Remembered {
 const DEFAULTS: Remembered = {
   snapRows: true,
   snapGrid: false,
-  show: { hud: true, guides: false, safe: false, camera: false, anchors: false },
+  show: { hud: true, guides: false, safe: false, anchors: false },
   jsonOpen: false,
   phase: 'choose',
   preview: {},
@@ -53,7 +53,9 @@ export class ViewState {
     const r = { ...DEFAULTS, ...readStore<Partial<Remembered>>(KEY, {}) };
     this.snapRows = r.snapRows;
     this.snapGrid = r.snapGrid;
-    this.show = { ...DEFAULTS.show, ...r.show };
+    // Only the overlays that exist now (an old browser may still remember a "camera" one that was taken out).
+    const old = r.show as Partial<OverlayShow>;
+    this.show = { hud: old.hud ?? DEFAULTS.show.hud, guides: old.guides ?? DEFAULTS.show.guides, safe: old.safe ?? DEFAULTS.show.safe, anchors: old.anchors ?? DEFAULTS.show.anchors };
     this.jsonOpen = r.jsonOpen;
     this.phase = r.phase;
     this.preview = r.preview ?? {};
@@ -65,7 +67,7 @@ export class ViewState {
   }
 
   /** The enemies to show in an enemy group of a stage: the previewed ones if they are valid for it, else the stage's own demo roster. */
-  roster(stage: StageConfig, setKey: string): string[] {
+  roster(stage: StageBody, setKey: string): string[] {
     const own = stage.demo.rosters[setKey] ?? [];
     const picked = this.preview[stage.id]?.[setKey];
     if (picked && picked.length === setSize(setKey) && picked.every((k) => k in ENEMIES)) return picked;
@@ -73,7 +75,7 @@ export class ViewState {
   }
 
   /** Preview a different enemy in one slot of a group (a browser-only choice). */
-  setPreview(stage: StageConfig, setKey: string, index: number, enemy: string): void {
+  setPreview(stage: StageBody, setKey: string, index: number, enemy: string): void {
     const roster = [...this.roster(stage, setKey)];
     roster[index] = enemy;
     const forStage = this.preview[stage.id] ?? {};

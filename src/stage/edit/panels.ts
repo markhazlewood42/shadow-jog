@@ -10,6 +10,7 @@ import { formatJson } from '../../tools/jsonfmt';
 import { changedLines } from '../../tools/linediff';
 import { SET_KEYS } from '../config';
 import { h } from './dom';
+import { formatHud } from './save';
 import type { Item, Session } from './session';
 import type { ViewState } from './view';
 import type { StageScene } from '../stagescene';
@@ -61,7 +62,11 @@ export class StageList {
 
 // ------------------------------------------------------------------ who's standing here
 
-/** The palette: the four heroes (click selects the slot they stand in) and every enemy (double-click or drag to preview one in a slot). */
+/**
+ * The explorer panel, "Who's standing here": the four heroes (click selects the slot they stand in) and every enemy
+ * (double-click or drag to preview one in a slot). It fills the height of the left sidebar and scrolls inside itself,
+ * the way a design tool's layers panel does.
+ */
 export class Palette {
   constructor(
     private readonly session: Session,
@@ -142,7 +147,9 @@ export class JsonPane {
     const now = formatJson(s.stage);
     const before = s.openGestureText ?? s.change?.before ?? null;
     const changed = before !== null && before !== now ? new Set(changedLines(before, now)) : new Set<number>();
-    const key = `${now.length}:${[...changed].join(',')}:${JSON.stringify(s.data.axes)}`;
+    const hudNow = formatHud(s.data.hud);
+    const hudSaved = formatHud(s.savedHud);
+    const key = `${now.length}:${[...changed].join(',')}:${JSON.stringify(s.data.axes)}:${JSON.stringify(s.saved.axes)}:${hudNow === hudSaved ? '' : hudNow}`;
     if (key === this.lastChanged && now === this.lastText) return;
     this.lastText = now;
     this.lastChanged = key;
@@ -152,11 +159,24 @@ export class JsonPane {
     const axes = Object.entries(s.data.axes).filter(([, v]) => v.x !== 0 || v.y !== 0);
     if (axes.length) {
       nodes.push(h('span', { class: 'ln', style: { color: '#9b96ad', marginTop: '8px' } }, '// src/data/axes.json'));
-      const axText = formatJson(Object.fromEntries(axes)).replace(/\n$/, '').split('\n');
-      for (const l of axText) nodes.push(h('span', { class: 'ln chg' }, l));
+      const axText = formatJson(Object.fromEntries(axes)).replace(/\n$/, '');
+      // Only the lines that differ from the last save are lit: a correction saved earlier is shown, but not as a change.
+      const savedAx = formatJson(Object.fromEntries(Object.entries(s.saved.axes).filter(([, v]) => v.x !== 0 || v.y !== 0))).replace(/\n$/, '');
+      const litAx = new Set(changedLines(savedAx, axText));
+      for (const [i, l] of axText.split('\n').entries()) nodes.push(h('span', { class: litAx.has(i) ? 'ln chg' : 'ln' }, l));
+    }
+    // The all-battles HUD is its own file: show it, with the lines changed since the last save lit, only while it differs.
+    let hudChanged = 0;
+    if (hudNow !== hudSaved) {
+      const lit = new Set(changedLines(hudSaved, hudNow));
+      hudChanged = lit.size;
+      nodes.push(h('span', { class: 'ln', style: { color: '#9b96ad', marginTop: '8px' } }, '// src/data/hud.json (the HUD for every battle)'));
+      const hudLines = hudNow.replace(/\n$/, '').split('\n');
+      for (const [i, l] of hudLines.entries()) nodes.push(h('span', { class: lit.has(i) ? 'ln chg' : 'ln' }, l || ' '));
     }
     this.text.replaceChildren(...nodes);
-    this.sub.textContent = changed.size ? `${changed.size} line${changed.size === 1 ? '' : 's'} changed${s.change?.label ? ` · ${s.change.label}` : ''}` : s.change?.label ? `Last change: ${s.change.label}` : 'Nothing changed yet. Drag something and the lines it changes light up here.';
+    const total = changed.size + hudChanged;
+    this.sub.textContent = total ? `${total} line${total === 1 ? '' : 's'} changed${s.change?.label ? ` · ${s.change.label}` : ''}` : s.change?.label ? `Last change: ${s.change.label}` : 'Nothing changed yet. Drag something and the lines it changes light up here.';
     const first = this.text.querySelector<HTMLElement>('.ln.chg');
     if (first) {
       const top = first.offsetTop - this.text.clientHeight / 3;

@@ -12,7 +12,7 @@
 import Phaser from 'phaser';
 import { BG_IDS } from '../art/battlebg';
 import { loadRigData } from '../art/rig2/data';
-import { type AxesFile, loadStages, SCREEN_H, SCREEN_W, type StageFile, stageOf } from './config';
+import { type AxesFile, loadHud, loadStages, SCREEN_H, SCREEN_W, type StageFile, stageOf } from './config';
 import type { Phase } from './demo';
 import { FrameStats } from './metrics';
 import { StageScene, type StageInit } from './stagescene';
@@ -31,10 +31,10 @@ export interface BootOptions {
   /** Which moment of the example turn to start on. */
   phase?: Phase;
   /**
-   * The stage file to use instead of the shipped one (already checked by `loadStages`). The editor passes the file it
-   * fetched from the dev server, so a saved change shows after a reload. When absent the shipped `stages.json` is
-   * imported here, on demand: a page that supplies its own never has that file in its module graph, so saving it
-   * does not make Vite reload the page.
+   * The stages to use instead of the shipped files (already checked and resolved against the global HUD by
+   * `loadStages`). The editor passes what it fetched from the dev server, so a saved change shows after a reload.
+   * When absent the shipped `stages.json` and `hud.json` are imported here, on demand: a page that supplies its own
+   * never has those files in its module graph, so saving them does not make Vite reload the page.
    */
   stages?: StageFile;
   /** Foot-anchor corrections per sprite (`src/data/axes.json`). */
@@ -130,17 +130,17 @@ function keepZoomWhole(game: Phaser.Game): () => number {
 /** True once a page has given `bootStage` its own stage file (the editor): such a page manages the file itself and must not be reloaded when the file changes. */
 let managesOwnStages = false;
 
-// The editor saves src/data/stages.json while its page is open. Vite would answer a change to a file in the page's
-// module graph with a full page reload (losing the undo history), and it counts the dynamic import below. Accepting
-// the change here stops that; the plain lab page, which does show the shipped file, still reloads.
-import.meta.hot?.accept('../data/stages.json', () => {
+// The editor saves src/data/stages.json and src/data/hud.json while its page is open. Vite would answer a change to a
+// file in the page's module graph with a full page reload (losing the undo history), and it counts the dynamic imports
+// below. Accepting the change here stops that; the plain lab page, which does show the shipped files, still reloads.
+import.meta.hot?.accept(['../data/stages.json', '../data/hud.json'], () => {
   if (!managesOwnStages) location.reload();
 });
 
 export async function bootStage(opts: BootOptions): Promise<Booted> {
   await loadRigData();
   managesOwnStages = !!opts.stages;
-  const stages = opts.stages ?? loadStages((await import('../data/stages.json')).default, BG_IDS, STAGE_KNOWN);
+  const stages = opts.stages ?? loadStages((await import('../data/stages.json')).default, BG_IDS, STAGE_KNOWN, loadHud((await import('../data/hud.json')).default));
   // A wrong ?stage= should be one readable message naming the stages there are, not a scene that never starts.
   stageOf(stages, opts.stageId);
 
