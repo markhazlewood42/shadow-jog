@@ -227,6 +227,18 @@ test('Two tabs on one save: both are warned, and only the first keeps autosaving
   expect(await b.evaluate(() => localStorage.getItem('shadowjog.save.auto'))).toBeTruthy();
 });
 
+test('Autosave never overwrites an autosave written by a newer version', async ({ page }) => {
+  await stage(page, 'town'); // (stage clears storage, so the newer save is planted after it)
+  // A save format from the future (SAVE_VERSION is 3 today), as a newer build would have left it.
+  const newer = JSON.stringify({ meta: { appVersion: '0.3.0' }, state: { version: 4 } });
+  await page.evaluate((json) => localStorage.setItem('shadowjog.save.auto', json), newer);
+  // Walking out into the Sprawl is a place change, which autosaves.
+  await sj(page, "sj.tp('world', 13, 22, 'right')");
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => localStorage.getItem('shadowjog.save.auto'))).toBe(newer);
+  expect((await sj<{ text: string } | null>(page, 'sj.notice()'))?.text).toContain('newer version');
+});
+
 test('A browser that can’t start the game says so, instead of a black screen', async ({ page }) => {
   // No 2D canvas (a locked-down or broken browser): the display can't be built at boot.
   await page.addInitScript(() => {
@@ -238,4 +250,101 @@ test('A browser that can’t start the game says so, instead of a black screen',
   await expect(boot).toBeVisible();
   await expect(boot).toHaveClass(/error/);
   await expect(boot).toContainText('failed to start');
+});
+
+test('Title: Load says a newer-version save is from a newer version (not damaged) and refuses it', async ({ page }) => {
+  await stage(page, 'town');
+  expect(await sj<boolean>(page, 'sj.save(1)')).toBe(true);
+  // Slot 2: newest, and written by a newer save format than this build knows.
+  await page.evaluate(() => {
+    localStorage.removeItem('shadowjog.save.auto');
+    const raw = JSON.parse(localStorage.getItem('shadowjog.save.1')!);
+    raw.meta.when += 60_000;
+    raw.meta.appVersion = '9.9.9';
+    raw.state.version = 99;
+    localStorage.setItem('shadowjog.save.2', JSON.stringify(raw));
+  });
+  await page.goto('/?debug');
+  await waitFor(page, "sj.top() === 'TitleScene'", 'title');
+  await page.waitForTimeout(800);
+  await key(page, 'Enter'); // press start
+  await page.waitForTimeout(400);
+  await key(page, 'ArrowDown'); // Load Game
+  await key(page, 'Enter');
+  await waitFor(page, "sj.top() === 'SaveScene'", 'load menu');
+  expect(await sj<number>(page, 'sj.game.top.idx')).toBe(1); // the cursor skips the newer slot to the newest loadable one
+  await key(page, 'ArrowDown'); // slot 2
+  await key(page, 'Enter');
+  expect(await sj<string>(page, 'sj.game.top.note')).toMatch(/newer version/i);
+  expect(await sj<string>(page, 'sj.game.top.note')).not.toMatch(/damaged/i);
+  expect(await sj<string>(page, 'sj.top()')).toBe('SaveScene'); // refused: still on the load screen
+});
+
+// A save format from the future (SAVE_VERSION is 3 today), as a newer build would have left it.
+const NEWER_SAVE = JSON.stringify({ meta: { appVersion: '0.3.0' }, state: { version: 4 } });
+
+/** Plant a newer-version save in slot 1 (stage() clears storage, so this runs after it). */
+async function plantNewerSlot1(page: Page): Promise<void> {
+  await page.evaluate((json) => localStorage.setItem('shadowjog.save.1', json), NEWER_SAVE);
+}
+
+const slot1 = (page: Page) => page.evaluate(() => localStorage.getItem('shadowjog.save.1'));
+
+test('Menu: Save never replaces a newer-version slot until confirmed', async ({ page }) => {
+  await stage(page, 'town');
+  await plantNewerSlot1(page);
+  await sj(page, 'sj.menu()');
+  await waitFor(page, "sj.top() === 'MenuScene'", 'menu');
+  await page.waitForTimeout(400);
+  // Walk the cursor down to Save (its position depends on the party and flags).
+  for (let i = 0; i < 12 && (await sj<string>(page, 'sj.game.top.main.current.value')) !== 'save'; i++) await key(page, 'ArrowDown');
+  expect(await sj<string>(page, 'sj.game.top.main.current.value')).toBe('save');
+  await key(page, 'Enter');
+  expect(await sj<string>(page, 'sj.game.top.mode')).toBe('save');
+  await key(page, 'Enter'); // slot 1, the newer one
+  // The prompt asks first, with the newer-version wording; nothing is written yet.
+  expect(await sj<string>(page, 'sj.game.top.mode')).toBe('saveConfirm');
+  expect(await sj<boolean>(page, 'sj.game.top.saveSlotNewer')).toBe(true);
+  expect(await slot1(page)).toBe(NEWER_SAVE);
+  // Cancel goes back to the slot list and leaves the file byte-identical.
+  await key(page, 'Escape');
+  expect(await sj<string>(page, 'sj.game.top.mode')).toBe('save');
+  expect(await slot1(page)).toBe(NEWER_SAVE);
+  // Confirm replaces it with a current save.
+  await key(page, 'Enter');
+  expect(await sj<string>(page, 'sj.game.top.mode')).toBe('saveConfirm');
+  await key(page, 'Enter');
+  const after = await slot1(page);
+  expect(after).not.toBe(NEWER_SAVE);
+  expect(JSON.parse(after!).state.version).toBeLessThan(4);
+  expect(await sj<string>(page, 'sj.game.top.mode')).not.toBe('saveConfirm');
+});
+
+test('Save point: the save screen asks before replacing a newer-version slot', async ({ page }) => {
+  await stage(page, 'town');
+  await plantNewerSlot1(page);
+  await sj(page, 'sj.run((s) => s.savePrompt())');
+  await waitFor(page, '!sj.idle()', 'save prompt');
+  await page.waitForTimeout(600);
+  await key(page, 'Enter'); // "Save" (the first choice)
+  await waitFor(page, "sj.top() === 'SaveScene'", 'save screen');
+  await page.waitForTimeout(400);
+  expect(await sj<number>(page, 'sj.game.top.idx')).toBe(0); // slot 1
+  expect(await sj<string>(page, 'sj.game.top.info[0].status')).toBe('newer');
+  expect(await sj<string>(page, 'sj.game.top.info[0].version')).toBe('0.3.0');
+  await key(page, 'Enter');
+  expect(await sj<boolean>(page, 'sj.game.top.confirm')).toBe(true);
+  expect(await slot1(page)).toBe(NEWER_SAVE);
+  // Cancel: the prompt closes, the screen stays, the file is untouched.
+  await key(page, 'Escape');
+  expect(await sj<boolean>(page, 'sj.game.top.confirm')).toBe(false);
+  expect(await sj<string>(page, 'sj.top()')).toBe('SaveScene');
+  expect(await slot1(page)).toBe(NEWER_SAVE);
+  // Confirm: replaced by a current save.
+  await key(page, 'Enter');
+  expect(await sj<boolean>(page, 'sj.game.top.confirm')).toBe(true);
+  await key(page, 'Enter');
+  const after = await slot1(page);
+  expect(after).not.toBe(NEWER_SAVE);
+  expect(JSON.parse(after!).state.version).toBeLessThan(4);
 });
