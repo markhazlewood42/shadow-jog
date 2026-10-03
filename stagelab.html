@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stage lab (Phaser)</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2307060d'/%3E%3Cpath d='M2 12 L8 6 L14 12' stroke='%238ae8ff' stroke-width='1.6' fill='none'/%3E%3C/svg%3E" />
+    <!-- Dev-only page (npm run dev, then /stagelab.html): the battle stage built in Phaser 4, spike
+         `spike/phaser-stage` (docs/spikes/phaser-stage.md). Not part of the build: vite builds index.html
+         only, so Phaser is not in the shipped game. Code: src/stage/. -->
+    <style>
+      html, body { margin: 0; height: 100%; background: #07060d; overflow: hidden; }
+      /* Phaser puts its canvas in here and centres it; the box must have a size for that to work. */
+      #stage { position: fixed; inset: 0; }
+      /* Phaser draws the canvas at a whole-number zoom, so ask the browser for hard pixel edges too. */
+      #stage canvas { image-rendering: pixelated; }
+      #status { position: fixed; left: 12px; bottom: 10px; max-width: calc(100% - 24px); font: 13px/1.4 system-ui, 'Segoe UI', sans-serif; color: #9b96ad; white-space: pre-wrap; }
+      #status.bad { color: #ff5a5a; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="status">Loading the stage…</div>
+    <script type="module" src="/src/stage/lab.ts"></script>
+  </body>
+</html>

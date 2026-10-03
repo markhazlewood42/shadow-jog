@@ -1,0 +1,27 @@
+{
+  "street": {
+    "name": "Lower Wards street",
+    "backdrop": "street",
+    "horizon": 124,
+    "floor": { "top": 150, "bottom": 266 },
+    "rows": [
+      { "y": 176, "tint": "#c4c8e0" },
+      { "y": 201, "tint": "#d6d8ea" },
+      { "y": 226, "tint": "#e8e9f4" },
+      { "y": 251 }
+    ],
+    "party": [
+      { "row": 0, "x": 58 },
+      { "row": 1, "x": 98 },
+      { "row": 2, "x": 138 },
+      { "row": 3, "x": 178 }
+    ],
+    "enemies": {
+      "1": [{ "row": 1, "x": 372 }],
+      "2": [{ "row": 1, "x": 346 }, { "row": 2, "x": 394 }],
+      "3": [{ "row": 1, "x": 336 }, { "row": 2, "x": 378 }, { "row": 0, "x": 406 }],
+      "4": [{ "row": 0, "x": 398 }, { "row": 1, "x": 352 }, { "row": 2, "x": 396 }, { "row": 3, "x": 350 }]
+    },
+    "shadow": { "width": 36, "ratio": 0.3, "alpha": 0.5 }
+  }
+}
