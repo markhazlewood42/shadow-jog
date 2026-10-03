@@ -23,8 +23,9 @@ import { fieldHooks } from './game/hooks';
 import { postfx } from './engine/postfx';
 import { FX } from './data/fx';
 import { ALL_DRAWN, DEFAULT_DRAWN, loadDrawnArt } from './art/drawn';
+import { loadSfArt } from './art/rig2/sfcrew';
+import { loadRigData, loadViews } from './art/rig2/data';
 import { APP_VERSION, BUILD_SHA, VERSION_LABEL } from './version';
-import { loadRigData } from './art/rig2/data';
 import { applyRigNpcs } from './art/rig2/npcs';
 import { applyRigPortraits } from './art/rig2/portrait';
 
@@ -233,7 +234,13 @@ export function boot(game: Game, display: Display): void {
           },
           (e: unknown) => notice(`The character art didn't load, so the crew use their older sprites (${e instanceof Error ? e.message : String(e)})`, 'warn'),
         );
-  const drawn = Promise.all([drawnArt, rigData]).then(() => undefined);
+  // The side-view battle spike (DEV only, `?battle=side`) shrinks the crew's 8-direction views.
+  const sideViews: Promise<unknown> = import.meta.env.DEV && params.get('battle') === 'side' ? Promise.all([
+    loadViews().catch((e: unknown) => notice(`The side-view art didn't load (${e instanceof Error ? e.message : String(e)})`, 'warn')),
+    // Mark's Sprite Fusion sprites (the default under ?battle=side; &art=code skips them): from the dev server's project root, never copied into the repo.
+    params.get('art') === 'code' ? Promise.resolve() : loadSfArt().catch((e: unknown) => notice(`Mark's Sprite Fusion sprites didn't load, so the crew show the code-drawn art (${e instanceof Error ? e.message : String(e)})`, 'warn')),
+  ]) : Promise.resolve();
+  const drawn = Promise.all([drawnArt, rigData, sideViews]).then(() => undefined);
   // ?art=review (DEV only): art-pass options tried in the game on top (src/dev/artswap.ts).
   if (import.meta.env.DEV && (art === 'review' || art === 'pixellab')) {
     void drawn

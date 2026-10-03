@@ -1,0 +1,630 @@
+/**
+ * Kit's punch combo from Mark's own Sprite Fusion frames (spike `spike/side-battle`, item H-sf-kit-punch). DOM-free, like `sfstrike.ts`, whose pixel helpers it shares: the data
+ * (anchors, smears, timeline, measured reach), the pixel work on plain RGBA arrays and `buildSfPunch`; `sfcrew.ts` turns the result into canvases. A pose is a row of data.
+ *
+ * Mark's frames (64x64 each, all facing right, none mirrored) and what each one IS, worked out from the images, not from his names (he numbers them):
+ *   - ready:  her battle idle loop (`kit-battle-idle`, 8 frames), the guard: fists up, lead hand forward.
+ *   - load:   `kit-battle-punch1`. Both fists up by the face, the body turned in and coiled, the rear shoulder drawn back: the LOAD (the chamber of the jab).
+ *   - jab:    `kit-battle-punch2`. The lead arm out at head height (a long thin line), the other fist guarding the chest, a wide stance: the JAB.
+ *   - cross:  `kit-battle-punch3`. The arm fully out, the shoulders square to us (the other arm hidden behind the body), the hips turned, the ponytail trailing: the CROSS.
+ *   - kick:   `kit-battle-kick`. A side kick at head height off the rear leg, body leaning back: the finisher.
+ *   - run:    `kit-battle-running`, for a long way to the target (a far enemy): a short run in, then the load.
+ * Round 2 adds: `crouched` for a short target (two low blows), `kickC`/`kickD` (the kick's shin bent about the knee in code: the chamber and the foot coming back down), the load frame reused as the coil
+ * between blows, and smears drawn BEHIND the arm. Every body frame is Mark's pixels; the only edits are one stray magenta pixel dropped from the kick, the bent shin of `kickC`/`kickD` and the smears (data below).
+ *
+ * ANCHORS. Every frame is laid on one canvas size with the slot's axis (the idle's feet midpoint) at the centre column and the soles on the bottom row. The load, jab and cross are placed by their
+ * FRONT BOOT (the foot that stays planted through the combo), put at the idle's front boot x. The kick stands on the load's BACK foot (the back leg stays down while the front one comes up), so the chamber
+ * flows into it; its toe is then `toeShort` world px short of the fists' column, which the kick's push makes up. The crouch is placed by its fist. Mark drew the jab and the cross with the fist 18.5 px
+ * past the front boot, so by construction they land at one distance.
+ */
+import { boxOf, type Raw } from './sfgeom';
+import { blank, blit, drawSwipe, frontBoot, put, rightmost, soles, type Ramp, type SfSwipe } from './sfstrike';
+
+export type PunchKey = 'ready' | 'run' | 'load' | 'jabS' | 'jabT' | 'jab' | 'crossS' | 'crossT' | 'cross' | 'kickC' | 'kickD' | 'kickE' | 'kickS' | 'kickT' | 'kick' | 'lowS' | 'lowT' | 'low';
+export const PUNCH_KEYS: readonly PunchKey[] = ['ready', 'run', 'load', 'jabS', 'jabT', 'jab', 'crossS', 'crossT', 'cross', 'kickC', 'kickD', 'kickE', 'kickS', 'kickT', 'kick', 'lowS', 'lowT', 'low'];
+
+/**
+ * What was measured on Mark's PNGs (tests/sfpunch.test.ts re-measures them and fails if he regenerates a frame): the front boot's centre column (a pixel's left edge is its index),
+ * the soles' row, and the blow's tip: the rightmost opaque pixel's column and the row of the fist (the mean row of the pixels within two columns of the tip).
+ * The kick's `plant` is its standing foot's centre column (it has no front boot); `load.rearBoot` is the load's back foot, the one the kick stands on. `low` is the crouch, placed by its fist (the reaching hand; its front boot is a column further right).
+ */
+export const PUNCH_ANCHORS = {
+  idle: { frontBoot: 42, soles: 62 },
+  load: { src: 'kit-battle-punch1', frontBoot: 44, rearBoot: 18.5, soles: 62 },
+  jab: { src: 'kit-battle-punch2', frontBoot: 38.5, soles: 62, tip: [56, 22] },
+  cross: { src: 'kit-battle-punch3', frontBoot: 39.5, soles: 61, tip: [57, 23] },
+  kick: { src: 'kit-battle-kick', plant: 26, soles: 63, tip: [61, 17], knee: [46.5, 20.5], cut: 47, hairTop: 13 },
+  low: { src: 'kit-battle-crouched', soles: 57, tip: [53, 31] },
+  run: { src: 'kit-battle-running', soles: 60 },
+} as const;
+
+// ------------------------------------------------------------------------------------------------ smears
+
+/**
+ * A streak on a punch: the arm drawn as a motion blur from `x0` (trailing, a point) to `x1` (leading, `w` rows thick), in three solid bands (a 1-2 row hot core, gold, an orange rim), at row `y`.
+ * Coordinates are in the source frame's pixels. It is drawn BEHIND the body, so the arm and the wrapped fist stay on top of it (round 1 drew it over the arm and the arm vanished for a frame).
+ */
+export interface PunchStreak {
+  kind: 'streak';
+  src: 'jab' | 'cross' | 'low';
+  x0: number;
+  x1: number;
+  y: number;
+  w: number;
+}
+/** A kick's arc: the foot's path about the hip, a crescent in the same three bands (the swipe code Rook's blade uses), behind the body. */
+export interface PunchArc {
+  kind: 'arc';
+  src: 'kick';
+  hip: [number, number];
+  swipe: SfSwipe;
+}
+export const PUNCH_SMEARS: Record<'jabS' | 'jabT' | 'crossS' | 'crossT' | 'kickS' | 'kickT' | 'lowS' | 'lowT', PunchStreak | PunchArc> = {
+  // The jab's arm is thin (rows 20 to 24) from the shoulder (x 36); the streak starts at the elbow (x 41) and fans out to the wraps (x 51 to 52), so it shows as a halo above and below the arm.
+  jabS: { kind: 'streak', src: 'jab', x0: 38, x1: 52, y: 22, w: 11 },
+  jabT: { kind: 'streak', src: 'jab', x0: 41, x1: 53, y: 22, w: 10 },
+  // The cross is square-on: the sleeve is wider (rows 19 to 26) and the arm runs from x 41.
+  crossS: { kind: 'streak', src: 'cross', x0: 24, x1: 53, y: 23, w: 19 },
+  crossT: { kind: 'streak', src: 'cross', x0: 31, x1: 53, y: 23, w: 14 },
+  // The hip is at about (24, 31) and the toe at (61, 17), 40 px along the leg at -21 degrees; the foot swings up from below, and the crescent is the toe's path, hugging the leg's underside.
+  kickS: { kind: 'arc', src: 'kick', hip: [24, 31], swipe: { hand: 'follow', a0: 30, a1: -18, rx: 38, ry: 36, edge: 12, blade: 0 } },
+  kickT: { kind: 'arc', src: 'kick', hip: [24, 31], swipe: { hand: 'follow', a0: 10, a1: -18, rx: 38, ry: 36, edge: 8, blade: 0 } },
+  // The crouch's reaching arm is at rows 28 to 34, from the shoulder (x 42) to the fist (x 52 to 53).
+  lowS: { kind: 'streak', src: 'low', x0: 28, x1: 50, y: 31, w: 15 },
+  lowT: { kind: 'streak', src: 'low', x0: 36, x1: 50, y: 31, w: 12 },
+};
+
+/** Kit's smear palette, built from her own jacket (its gold trim and orange body): core near white, a gold body, an orange rim. */
+export function jacketRamp(r: Raw): Ramp {
+  const trim: { l: number; c: number[] }[] = [];
+  const body: { l: number; c: number[] }[] = [];
+  for (let i = 0; i < r.px.length; i += 4) {
+    if ((r.px[i + 3] ?? 0) === 0) continue;
+    const c = [r.px[i] ?? 0, r.px[i + 1] ?? 0, r.px[i + 2] ?? 0];
+    const l = 0.3 * (c[0] ?? 0) + 0.59 * (c[1] ?? 0) + 0.11 * (c[2] ?? 0);
+    if ((c[0] ?? 0) > 215 && (c[1] ?? 0) > 150 && (c[2] ?? 0) < 110) trim.push({ l, c });
+    else if ((c[0] ?? 0) > 190 && (c[1] ?? 0) > 60 && (c[1] ?? 0) < 130 && (c[2] ?? 0) < 90) body.push({ l, c });
+  }
+  const pick = (a: { l: number; c: number[] }[], q: number, d: number[]): number[] => (a.length >= 4 ? (a.sort((p, s) => p.l - s.l)[Math.floor(a.length * q)] as { c: number[] }).c : d);
+  const gold = pick(trim, 0.6, [255, 196, 64]);
+  const orange = pick(body, 0.5, [226, 98, 40]);
+  const mixW = (c: number[], t: number): number[] => c.map((v) => Math.round(v + (255 - v) * t));
+  return { white: mixW(gold, 0.75), light: gold, steel: orange, outline: [40, 14, 22], gold };
+}
+
+/** A streak (see `PunchStreak`) drawn onto `dst`, the frame at offset (dx, dy), in three solid bands (a core about 2 rows thick at most), no dither and no soft alpha. */
+export function drawStreak(dst: Raw, sm: PunchStreak, dx: number, dy: number, ramp: Ramp): void {
+  for (let x = sm.x0; x <= sm.x1; x++) {
+    const u = (x - sm.x0) / (sm.x1 - sm.x0);
+    const hw = Math.max(1.6, (sm.w / 2) * u ** 0.9);
+    // A white-hot core that thickens toward the fist (1 row at the tail, 3 at the head).
+    const core = 0.5 + 1.2 * u;
+    for (let y = Math.ceil(sm.y - hw - 0.5); y <= Math.floor(sm.y + hw - 0.5); y++) {
+      const d = Math.abs(y + 0.5 - sm.y);
+      put(dst, x + dx, y + dy, d < core ? ramp.white : d / hw < 0.7 ? ramp.light : ramp.steel);
+    }
+  }
+}
+
+// ------------------------------------------------------------------------------------------------ measuring
+
+/** The fist's (or toe's) row: the mean row of the opaque pixels within two columns of the rightmost one. */
+export function tipOf(r: Raw): [number, number] {
+  const [tx] = rightmost(r);
+  let n = 0, sum = 0;
+  for (let y = 0; y < r.h; y++) for (let x = tx - 2; x <= tx; x++) if ((r.px[(y * r.w + x) * 4 + 3] ?? 0) > 0) { n++; sum += y; }
+  return [tx, Math.round(sum / Math.max(1, n))];
+}
+/** The standing foot of a frame with one foot down: the centre column of the lowest eight rows. */
+export function plantOf(r: Raw): number {
+  const b = boxOf(r);
+  let x0 = r.w, x1 = -1;
+  for (let y = Math.max(0, b.y1 - 7); y <= b.y1; y++) for (let x = 0; x < r.w; x++) if ((r.px[(y * r.w + x) * 4 + 3] ?? 0) > 0) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); }
+  return (x0 + x1 + 1) / 2;
+}
+
+/** A stray pixel of the background removal (Mark's kick has one magenta pixel at the hair's edge): fully saturated purple no part of the crew is. Applied when the PNGs load (`sfcrew.ts`), before the colour clean-up would fold it into a hair shade. */
+export function dropStrays(r: Raw): Raw {
+  const px = new Uint8ClampedArray(r.px);
+  for (let i = 0; i < px.length; i += 4)
+    if ((px[i + 3] ?? 0) > 0 && (px[i] ?? 0) > 100 && (px[i + 2] ?? 0) > 100 && (px[i + 1] ?? 0) < 20) px[i + 3] = 0;
+  return { w: r.w, h: r.h, px };
+}
+
+/** Any 8-connected island of opaque pixels of `maxArea` px or fewer that is not the sprite's biggest piece is removed (flecks left where a cut-out leg's edge was). Returns a new frame. */
+export function despeckle(r: Raw, maxArea = 5): Raw {
+  const px = new Uint8ClampedArray(r.px);
+  const seen = new Uint8Array(r.w * r.h);
+  const comps: number[][] = [];
+  for (let i = 0; i < r.w * r.h; i++) {
+    if (seen[i] || (px[i * 4 + 3] ?? 0) === 0) continue;
+    const comp: number[] = [];
+    const stack = [i];
+    seen[i] = 1;
+    while (stack.length) {
+      const c = stack.pop() as number;
+      comp.push(c);
+      const cx = c % r.w, cy = (c - cx) / r.w;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= r.w || ny >= r.h) continue;
+          const n = ny * r.w + nx;
+          if (!seen[n] && (px[n * 4 + 3] ?? 0) > 0) {
+            seen[n] = 1;
+            stack.push(n);
+          }
+        }
+    }
+    comps.push(comp);
+  }
+  const biggest = comps.reduce((m, c) => Math.max(m, c.length), 0);
+  for (const c of comps) if (c.length <= maxArea && c.length < biggest) for (const i of c) px[i * 4 + 3] = 0;
+  return { w: r.w, h: r.h, px };
+}
+
+/**
+ * Kit's kicking leg in `kit-battle-kick`, measured on the PNG: a straight band from the hip (29, 31) to the ankle (50, 21), 6 px thick, with the boot beyond the ankle. The knee is
+ * about 45 percent along it. `band` is the half width kept when the leg is cut out (the hand beside it is not leg).
+ */
+export const PUNCH_LEG = { hip: [29, 31], knee: [39, 26], ankle: [50, 21], band: 7 } as const;
+/**
+ * The chamber and the way back down, as angles (degrees, clockwise = the foot swings down) of the thigh about the hip and the shin about the knee on top of it. In the kick the leg is out at about
+ * -26 degrees; kickC is the knee up and the shin folded (round 4 dropped round 3's kickB, the knee still rising: it read as a step, and went from the guard to the kick's torso in one frame); the way down is kickD (the thigh dropping, the shin half unfolded) and kickE (the thigh nearly down, the
+ * shin hanging). Nothing is drawn by hand: a rule on Mark's kick.
+ */
+export const PUNCH_BEND = {
+  kickC: { thigh: 14, shin: 78 },
+  kickD: { thigh: 22, shin: 52 },
+  kickE: { thigh: 46, shin: 24 },
+} as const;
+
+const isSkin = (r: number, g: number): boolean => r > 150 && g > 90;
+const opaqueAt = (r: Raw, x: number, y: number): boolean => x >= 0 && y >= 0 && x < r.w && y < r.h && (r.px[(y * r.w + x) * 4 + 3] ?? 0) > 0;
+
+/**
+ * A kick frame with its leg re-posed: the thigh turned `thigh` degrees about the hip, and the shin and boot `shin` more about the (carried) knee. The leg is cut out of the frame by its band
+ * (so the hand beside it stays), each output pixel looks back through both turns and takes the commonest colour of nine sub-samples of Mark's pixels (so edges are not stair-stepped and no
+ * new colour appears), then the knee is cleaned: gaps at the joint filled with the jeans colour and the new edge outlined in the outline colour, so the thigh-to-shin join is one clean line
+ * (a plain rotation leaves a notch on the outside and a dark seam on the inside). The rest of the frame (body, standing leg) is Mark's pixels untouched. At 0 and 0 it returns the frame.
+ */
+export function poseLeg(src: Raw, thigh: number, shin: number, leg: { hip: readonly number[]; knee: readonly number[]; ankle: readonly number[]; band: number } = PUNCH_LEG): Raw {
+  const PAD = 14;
+  const out = blank(src.w + PAD, src.h + PAD);
+  const hx = leg.hip[0] ?? 0, hy = leg.hip[1] ?? 0;
+  const kx = leg.knee[0] ?? 0, ky = leg.knee[1] ?? 0;
+  const ax = leg.ankle[0] ?? 0, ay = leg.ankle[1] ?? 0;
+  const len = Math.hypot(ax - hx, ay - hy);
+  const ux = (ax - hx) / len, uy = (ay - hy) / len;
+  const sOf = (x: number, y: number): number => (x - hx) * ux + (y - hy) * uy;
+  const dOf = (x: number, y: number): number => -(x - hx) * uy + (y - hy) * ux;
+  const sKnee = sOf(kx, ky);
+  const at = (x: number, y: number): number => (x < 0 || y < 0 || x >= src.w || y >= src.h ? 0 : (src.px[(y * src.w + x) * 4 + 3] ?? 0));
+  const rgb = (x: number, y: number): [number, number, number] => [src.px[(y * src.w + x) * 4] ?? 0, src.px[(y * src.w + x) * 4 + 1] ?? 0, src.px[(y * src.w + x) * 4 + 2] ?? 0];
+  // 0: not leg, 1: thigh, 2: shin and boot.
+  const part = new Uint8Array(src.w * src.h);
+  for (let y = 0; y < src.h; y++)
+    for (let x = 0; x < src.w; x++) {
+      if (at(x, y) === 0) continue;
+      const [r, g] = rgb(x, y);
+      const s = sOf(x + 0.5, y + 0.5), d = dOf(x + 0.5, y + 0.5);
+      if (s < 2 || (s <= len ? Math.abs(d) > leg.band : Math.abs(d) > 12 || x < ax - 1)) continue;
+      if (s <= len && isSkin(r, g) && x <= 43 && y <= 24) continue;
+      // Warm rim pixels on the jeans (a highlight that would sit on the new edge as a fleck) are dropped.
+      if (s <= len && r > (src.px[(y * src.w + x) * 4 + 2] ?? 0) + 25) { part[y * src.w + x] = 3; continue; }
+      part[y * src.w + x] = s < sKnee ? 1 : 2;
+    }
+  // The frame without the leg.
+  for (let y = 0; y < src.h; y++) for (let x = 0; x < src.w; x++) if (at(x, y) > 0 && part[y * src.w + x] === 0) put(out, x, y, rgb(x, y));
+  const rot = (x: number, y: number, cx: number, cy: number, deg: number): [number, number] => {
+    const t = (deg * Math.PI) / 180, c = Math.cos(t), s = Math.sin(t);
+    return [cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c];
+  };
+  const sample = (x: number, y: number): [number, number, number] | null => {
+    const [q1x, q1y] = rot(x, y, hx, hy, -thigh);
+    const [q2x, q2y] = rot(q1x, q1y, kx, ky, -shin);
+    const sx = Math.floor(q2x), sy = Math.floor(q2y);
+    if (sx >= 0 && sy >= 0 && sx < src.w && sy < src.h && part[sy * src.w + sx] === 2) return rgb(sx, sy);
+    const tx = Math.floor(q1x), ty = Math.floor(q1y);
+    if (tx >= 0 && ty >= 0 && tx < src.w && ty < src.h && part[ty * src.w + tx] === 1) return rgb(tx, ty);
+    return null;
+  };
+  const legPx = new Uint8Array(out.w * out.h);
+  for (let y = 0; y < out.h; y++)
+    for (let x = 0; x < out.w; x++) {
+      const votes = new Map<number, number>();
+      let n = 0;
+      for (let j = 0; j < 3; j++)
+        for (let i = 0; i < 3; i++) {
+          const c = sample(x + (i + 0.5) / 3, y + (j + 0.5) / 3);
+          if (!c) continue;
+          n++;
+          const k = (c[0] << 16) | (c[1] << 8) | c[2];
+          votes.set(k, (votes.get(k) ?? 0) + 1);
+        }
+      if (n < 5) continue;
+      let best = 0, bestN = 0;
+      for (const [k, v] of votes) if (v > bestN) { best = k; bestN = v; }
+      put(out, x, y, [(best >> 16) & 255, (best >> 8) & 255, best & 255]);
+      legPx[y * out.w + x] = 1;
+    }
+  // Clean the knee (not when the leg is not bent at all).
+  if (shin === 0 && thigh === 0) return out;
+  // Specks (a leg pixel with fewer than two neighbours) go; warm rim pixels in the jeans become jeans, further down.
+  for (let y = 0; y < out.h; y++)
+    for (let x = 0; x < out.w; x++) {
+      if (legPx[y * out.w + x] !== 1 || (out.px[(y * out.w + x) * 4 + 3] ?? 0) === 0) continue;
+      const nb = +opaqueAt(out, x - 1, y) + +opaqueAt(out, x + 1, y) + +opaqueAt(out, x, y - 1) + +opaqueAt(out, x, y + 1);
+      const thin = (!opaqueAt(out, x - 1, y) && !opaqueAt(out, x + 1, y)) || (!opaqueAt(out, x, y - 1) && !opaqueAt(out, x, y + 1));
+      if (nb < 2 || (thin && y < hy + 4)) out.px[(y * out.w + x) * 4 + 3] = 0;
+    }
+  const [nkx, nky] = rot(kx, ky, hx, hy, thigh);
+  const opaque = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < out.w && y < out.h && (out.px[(y * out.w + x) * 4 + 3] ?? 0) > 0;
+  const lum = (x: number, y: number): number => 0.3 * (out.px[(y * out.w + x) * 4] ?? 0) + 0.59 * (out.px[(y * out.w + x) * 4 + 1] ?? 0) + 0.11 * (out.px[(y * out.w + x) * 4 + 2] ?? 0);
+  // The jeans colour at the joint and the outline colour, sampled from the source: the commonest jeans pixel of the thigh and the commonest dark edge pixel.
+  const tally = (pick: (x: number, y: number) => boolean): [number, number, number] => {
+    const m = new Map<number, number>();
+    for (let y = 0; y < src.h; y++)
+      for (let x = 0; x < src.w; x++)
+        if (at(x, y) > 0 && pick(x, y)) {
+          const c = rgb(x, y);
+          const k = (c[0] << 16) | (c[1] << 8) | c[2];
+          m.set(k, (m.get(k) ?? 0) + 1);
+        }
+    let best = 0, bn = -1;
+    for (const [k, v] of m) if (v > bn) { best = k; bn = v; }
+    return [(best >> 16) & 255, (best >> 8) & 255, best & 255];
+  };
+  const lumSrc = (x: number, y: number): number => 0.3 * (src.px[(y * src.w + x) * 4] ?? 0) + 0.59 * (src.px[(y * src.w + x) * 4 + 1] ?? 0) + 0.11 * (src.px[(y * src.w + x) * 4 + 2] ?? 0);
+  const jeans = tally((x, y) => part[y * src.w + x] === 1 && (src.px[(y * src.w + x) * 4 + 2] ?? 0) > (src.px[(y * src.w + x) * 4] ?? 0) + 8 && lumSrc(x, y) > 28);
+  const edge = tally((x, y) => part[y * src.w + x] !== 0 && lumSrc(x, y) < 24);
+  const R = 8;
+  const near = (x: number, y: number): boolean => Math.hypot(x + 0.5 - nkx, y + 0.5 - nky) <= R;
+  const filled: [number, number][] = [];
+  for (let pass = 0; pass < 2; pass++) {
+    const add: [number, number][] = [];
+    for (let y = 0; y < out.h; y++)
+      for (let x = 0; x < out.w; x++) {
+        if (opaque(x, y) || !near(x, y)) continue;
+        const n4 = +opaque(x - 1, y) + +opaque(x + 1, y) + +opaque(x, y - 1) + +opaque(x, y + 1);
+        if (n4 >= 3) add.push([x, y]);
+      }
+    for (const [x, y] of add) {
+      put(out, x, y, jeans);
+      filled.push([x, y]);
+    }
+  }
+  // The leg's edge is one dark outline all the way round: a leg pixel on the edge that is not dark becomes the outline colour.
+  for (let y = 0; y < out.h; y++)
+    for (let x = 0; x < out.w; x++)
+      if (legPx[y * out.w + x] === 1 && opaque(x, y) && lum(x, y) > 34 && (!opaque(x - 1, y) || !opaque(x + 1, y) || !opaque(x, y - 1) || !opaque(x, y + 1)) && (out.px[(y * out.w + x) * 4 + 2] ?? 0) < 120) put(out, x, y, edge);
+  // The new edge of the joint: the filled pixels that touch the outside get the outline colour.
+  for (const [x, y] of filled) if (!opaque(x - 1, y) || !opaque(x + 1, y) || !opaque(x, y - 1) || !opaque(x, y + 1)) put(out, x, y, edge);
+  // Dark seam pixels now inside the joint (an outline that ended up in the middle of the leg) become jeans.
+  const inside = (x: number, y: number): boolean => opaque(x - 1, y) && opaque(x + 1, y) && opaque(x, y - 1) && opaque(x, y + 1) && opaque(x - 1, y - 1) && opaque(x + 1, y + 1) && opaque(x - 1, y + 1) && opaque(x + 1, y - 1);
+  for (let y = 0; y < out.h; y++) for (let x = 0; x < out.w; x++) if (near(x, y) && legPx[y * out.w + x] === 1 && opaque(x, y) && lum(x, y) < 24 && inside(x, y)) put(out, x, y, jeans);
+  return out;
+}
+
+// ------------------------------------------------------------------------------------------------ the timeline
+
+/** Pose-frame length in ms: the effect clock runs 0.65 frames per 60 Hz tick (`FX_PACE` in scenes/battle.ts). */
+export const PUNCH_FRAME_MS = 1000 / 60 / 0.65;
+/**
+ * Frames each step holds (round 2). `smear` is the streak frame before a blow, `trail` the first frame of the blow (a short streak lingers on it), `coil` the load frame between the jab and the cross
+ * (the arm comes back), `chamber` the load frame between the cross and the kick (the arm comes back, the weight goes onto the back foot), `lift` the kick frame with the shin hanging (the knee comes up),
+ * `drop` the foot coming back down after the kick and `settle` the load frame after the last blow.
+ */
+export const PUNCH = { load: 2, smear: 2, trail: 1, jab: 2, coil: 2, cross: 3, chamber: 2, lift: 3, hold: 10, low: 3, drop: 2, fall: 2, settle: 2, back: 8 } as const;
+/** Whether the kick follows the cross as a third blow (it does when `PUNCH_FINISHER`: see the pose log). */
+export const PUNCH_FINISHER = true;
+/** A reach (world px) over this needs a run in; under it she steps in during the load. */
+export const PUNCH_RUN_MIN = 14;
+/** The blow's own effect lasts this many frames to its flash (`punch_r` in battle/fx.ts): what the script waits after playing it. */
+export const PUNCH_IMPACT = 2;
+/** A target under this many world px tall is hit low (the crouch): the standing frames' fists pass over its back. */
+export const PUNCH_LOW_BELOW = 22;
+/** A low blow's spark and GPU hit sit this share of the target's height up from its feet (the body's centre: on a Glowrat about 8 px, not on its head). */
+export const PUNCH_LOW_AT = 0.7;
+/** Art px the fist goes past its resting column on the first frame of a punch. */
+export const PUNCH_SQUASH = 1;
+/** World px the jab's and the cross's spark sits below the fist's row, on the chest and jaw, so the fist stays visible at contact (the kick's stays on the toe). */
+export const PUNCH_SOFT_DROP = 3;
+
+/** One blow of the combo: which it is (for its spark size and height). */
+export type PunchBlow = 'jab' | 'cross' | 'kick' | 'low' | 'low2';
+export interface PunchHit {
+  key: PunchBlow;
+  /** The pose frames after the first blow that it lands on. */
+  at: number;
+}
+
+/** What a step is, before the lead is added: the frame, its length, the lunge and the forward shove (world px) at its start and end, and whether it carries a blow. */
+interface Tpl {
+  key: PunchKey;
+  frames: number;
+  from: number;
+  to: number;
+  push: [number, number];
+  blow?: PunchBlow;
+  contact?: boolean;
+  dash?: boolean;
+}
+/**
+ * How far (world px) her sprite goes on forward of the lunge as each blow lands, a shove that grows with the combo (jab light, cross medium, kick heavy). The planted foot stays planted in
+ * the frames themselves; these are small enough to read as weight behind the blow, not as a slide.
+ */
+export const PUNCH_PUSH = { jab: 0.5, cross: 1.2 } as const;
+/** The kick's toe stops this many world px short of where the fists end (the stand-off: her body is further from the target for the kick than for the blows). */
+export const PUNCH_KICK_SHORT = 0;
+/**
+ * Art px the kick is laid forward of the load's back foot (round 4). Anchoring its standing boot exactly on the load's back boot put the kick's head 12 art px behind the load's (the torso
+ * slides left 6 world px in one frame, the judges' "body slides"); half the gap is taken by the boot (it steps forward 3 world px under the hips as the front leg lifts: a weight shift)
+ * and half by the torso (it leans back), so neither jumps. The kick's toe lands that much nearer the fists' column; `toeShort` measures it.
+ */
+export const PUNCH_KICK_SHIFT = 6;
+
+function combo(low: boolean, finisher: boolean): Tpl[] {
+  const P = PUNCH, S = PUNCH_PUSH;
+  if (low) {
+    // The crouch for a short target: a dive onto one knee with the reaching hand, twice. The frame is placed by its fist, so the dive covers a few px (the ghost hides it).
+    return [
+      { key: 'load', frames: P.load, from: 0.1, to: 0.9, push: [-3, -3] },
+      { key: 'lowS', frames: P.smear, from: 0.94, to: 0.94, push: [-3, -1], dash: true },
+      { key: 'lowT', frames: P.trail, from: 0.94, to: 0.94, push: [-1, S.jab], blow: 'low', contact: true },
+      { key: 'low', frames: P.low, from: 0.94, to: 0.96, push: [S.jab, S.jab], contact: true },
+      { key: 'lowT', frames: P.trail, from: 0.96, to: 0.97, push: [S.jab + 1, S.cross + 2], blow: 'low2', contact: true },
+      { key: 'low', frames: P.hold, from: 0.97, to: 0.98, push: [S.cross + 2, S.cross + 2], contact: true },
+      { key: 'load', frames: P.settle, from: 0.95, to: 0.9, push: [0, 0] },
+      { key: 'ready', frames: P.back, from: 0.8, to: 0, push: [0, 0] },
+    ];
+  }
+  const kickPush = PUNCH_MEASURED.toeShort - PUNCH_KICK_SHORT;
+  const mid = S.cross + (kickPush - S.cross) * 0.5;
+  const mid2 = S.cross + (kickPush - S.cross) * 0.8;
+  const steps: Tpl[] = [
+    { key: 'load', frames: P.load, from: 0.1, to: 0.92, push: [0, 0] },
+    { key: 'jabS', frames: P.smear, from: 0.94, to: 0.94, push: [0, S.jab], dash: true },
+    { key: 'jabT', frames: P.trail, from: 0.94, to: 0.94, push: [S.jab, S.jab], blow: 'jab', contact: true },
+    { key: 'jab', frames: P.jab, from: 0.94, to: 0.96, push: [S.jab, S.jab], contact: true },
+    { key: 'load', frames: P.coil, from: 0.95, to: 0.95, push: [S.jab, 0] },
+    { key: 'crossS', frames: P.smear, from: 0.97, to: 0.97, push: [0, S.cross * 0.7], dash: true },
+    { key: 'crossT', frames: P.trail, from: 0.98, to: 0.98, push: [S.cross * 0.7, S.cross], blow: 'cross', contact: true },
+    { key: 'cross', frames: finisher ? P.cross : P.hold, from: 0.98, to: 1, push: [S.cross, S.cross], contact: true },
+  ];
+  if (finisher) {
+    steps.push(
+      { key: 'load', frames: P.chamber, from: 1, to: 1, push: [S.cross, mid] },
+      { key: 'kickC', frames: P.lift, from: 1, to: 1, push: [mid, mid2] },
+      { key: 'kickS', frames: P.smear, from: 1, to: 1, push: [mid2, kickPush], dash: true },
+      { key: 'kickT', frames: P.trail, from: 1, to: 1, push: [kickPush, kickPush], blow: 'kick', contact: true },
+      { key: 'kick', frames: P.hold, from: 1, to: 1, push: [kickPush, kickPush], contact: true },
+      { key: 'kickD', frames: P.drop, from: 1, to: 1, push: [kickPush, mid2] },
+      { key: 'kickE', frames: P.fall, from: 1, to: 1, push: [mid2, mid] },
+      { key: 'load', frames: P.settle, from: 1, to: 0.9, push: [mid, 1] },
+    );
+  } else steps.push({ key: 'load', frames: P.settle, from: 1, to: 0.9, push: [S.cross, 1] });
+  steps.push({ key: 'ready', frames: P.back, from: 0.8, to: 0, push: [1, 0] });
+  return steps;
+}
+
+/** The blows, in order, and the pose frames after the first blow each lands on. */
+export function punchHits(finisher = PUNCH_FINISHER, low = false): PunchHit[] {
+  const out: PunchHit[] = [];
+  let t = 0;
+  let first = -1;
+  for (const s of combo(low, finisher)) {
+    if (s.blow) {
+      if (first < 0) first = t;
+      out.push({ key: s.blow, at: t - first });
+    }
+    t += s.frames;
+  }
+  return out;
+}
+/** Frames of the run in for a reach (world px): none for a short one, up to eight for the far enemy (about 10 world px a frame, 1.5 times the walk-in's run). */
+export const runFrames = (reach: number): number => (reach > PUNCH_RUN_MIN ? Math.min(8, Math.max(3, Math.round(reach / 10))) : 0);
+/** Pose frames inside the combo before the first blow: the load and the first smear. */
+function before(low: boolean): number {
+  let t = 0;
+  for (const s of combo(low, PUNCH_FINISHER)) {
+    if (s.blow) return t;
+    t += s.frames;
+  }
+  return t;
+}
+/** Frames from the order to the first blow when nothing (a timing ring) stretches it: the run, the load and the first smear. */
+export const punchLead = (reach: number, low = false): number => runFrames(reach) + before(low);
+/** What `playback.ts` asks for as the pose's lead: a short guard stance, then the combo. */
+export const punchWindup = (reach: number, low = false): number => punchLead(reach, low) + 2;
+
+export interface PunchStep {
+  key: PunchKey;
+  frames: number;
+  /** How far along the lunge the body is at the start and end of the step (0 in its place, 1 at the target). */
+  from: number;
+  to: number;
+  /** The forward shove (world px, on top of the lunge) at the start and end of the step. */
+  push: [number, number];
+  /** The blow this step carries on its first frame (an index of `punchHits`), if any. */
+  blow?: number;
+  contact: boolean;
+  dash: boolean;
+}
+
+/**
+ * The combo's timeline when the first blow lands `at` frames in (and the target is `reach` world px away): the guard (longer if there is time, as when a timing ring is closing), the run (a
+ * far target only), then the combo (`combo()`: load, the jab's smear and the jab, the load again as the arm comes back, the cross's smear and the cross, the load as the chamber, the kick's
+ * smear and the kick held through the damage and the hitstop, the load as the settle) and the slide home. `low` is the crouch for a short target (two low blows, no kick).
+ */
+export function punchTimeline(at0: number, reach: number, low = false, finisher = PUNCH_FINISHER): PunchStep[] {
+  const at = Math.round(at0);
+  const run = runFrames(reach);
+  const lead = punchLead(reach, low);
+  const steps: PunchStep[] = [{ key: 'ready', frames: Math.max(0, at - lead), from: 0, to: 0, push: [0, 0], contact: false, dash: false }];
+  if (run > 0) steps.push({ key: 'run', frames: run, from: 0, to: 0.86, push: [0, 0], contact: false, dash: true });
+  let blows = 0;
+  for (const [i, c] of combo(low, finisher).entries()) {
+    const st: PunchStep = { key: c.key, frames: c.frames, from: i === 0 && run > 0 ? 0.86 : c.from, to: c.to, push: c.push, contact: !!c.contact, dash: !!c.dash };
+    if (c.blow) st.blow = blows++;
+    steps.push(st);
+  }
+  return steps;
+}
+export const punchLength = (at: number, reach: number, low = false): number => punchTimeline(at, reach, low).reduce((n, s) => n + s.frames, 0);
+
+export interface PunchBeat {
+  key: PunchKey;
+  step: number;
+  lunge: number;
+  /** The forward shove (world px) on top of the lunge. */
+  push: number;
+  /** Frames into the step. */
+  t: number;
+  /** A body in motion (a run, a smear): a ghost trails it. */
+  dash: boolean;
+  /** A blow is on the target (a held jab, cross or kick). */
+  contact: boolean;
+  /** The blow (an index of `punchHits`) that lands on exactly this frame, else -1. */
+  hit: number;
+}
+
+/**
+ * The beat `k` frames into the pose (past the end: the last frame). `stop` is a combo called off at pose frame `stop` (a miss: the first blow was thrown and nothing more): from there the
+ * body takes the settle (the load) and goes home, with no more blows.
+ */
+export function punchBeat(k: number, at: number, reach: number, low = false, stop?: number): PunchBeat {
+  if (stop !== undefined && k > stop) {
+    const b = punchBeat(stop, at, reach, low);
+    const j = k - stop;
+    if (j < PUNCH.settle) return { key: 'load', step: b.step, lunge: b.lunge, push: b.push * (1 - j / PUNCH.settle), t: j, dash: false, contact: false, hit: -1 };
+    const u = Math.min(1, (j - PUNCH.settle) / PUNCH.back);
+    return { key: 'ready', step: b.step, lunge: Math.min(b.lunge, 0.9) * (1 - u), push: 0, t: j, dash: false, contact: false, hit: -1 };
+  }
+  const tl = punchTimeline(at, reach, low);
+  let t = k;
+  for (let i = 0; i < tl.length; i++) {
+    const s = tl[i] as PunchStep;
+    if (t < s.frames || i === tl.length - 1) {
+      const u = s.frames > 1 ? Math.max(0, Math.min(1, t / (s.frames - 1))) : 1;
+      const lunge = s.from + (s.to - s.from) * u;
+      const push = s.push[0] + (s.push[1] - s.push[0]) * u;
+      // A blow lands on the first frame of its step (`t` under one: a fractional clock stays on that frame until the next).
+      const hit = s.blow !== undefined && t < 1 ? s.blow : -1;
+      return { key: s.key, step: i, lunge, push, t: Math.min(t, s.frames - 1), dash: s.dash, contact: s.contact, hit };
+    }
+    t -= s.frames;
+  }
+  return { key: 'ready', step: 0, lunge: 0, push: 0, t: 0, dash: false, contact: false, hit: -1 };
+}
+
+/**
+ * What the built frames measured (filled in by `buildSfPunch`, so a retuned anchor retunes the stop): in art pixels (one per screen pixel, two per battle-world pixel) how far the tip of
+ * every blow is in front of the member's axis (the same for the jab, the cross, the kick and the low blow), and how high above the soles each is, and how far the planted front boot is.
+ * `toeShort` is how many world px the kick's toe is short of the fists' column when the kick stands on the load's back foot (the kick's push makes most of it up).
+ */
+export const PUNCH_MEASURED = { tipDx: 30, up: { jab: 40, cross: 38, kick: 46, low: 25 }, footDx: 11, toeShort: 4 };
+/** How far (world px) the blow's tip goes past the target's body front: the fist presses into the body, so it reads as a hit, not a touch in front of it. */
+export const PUNCH_PIERCE = 1;
+/** How far past the fist (world px, into the body) the spark and the GPU hit are drawn, so the fist stays visible at contact. */
+export const PUNCH_SPARK_PAST = 2;
+/** Frames of `SF_KNOCK` the target's recoil plays after a blow that is not the last (a later slice of the table is a gentler shove): the jab a 2 px push, the cross a 4 px one. */
+export const PUNCH_KNOCK = { jab: 6, cross: 11 } as const;
+/** The row of the blow on a target, as a share of its height above its soles, at most (a short target is hit over its head otherwise). */
+export const PUNCH_HIT_MAX = 0.88;
+
+// ------------------------------------------------------------------------------------------------ building
+
+export interface PunchBuild {
+  frames: Record<PunchKey, Raw>;
+  /** The canvas's centre column is the axis; its bottom row the soles. */
+  axis: number;
+  measured: typeof PUNCH_MEASURED;
+  /** The rows above the soles the tallest frame reaches. */
+  topRows: number;
+  /** Where the idle frame (the "ready" layer) sits on the finished canvas, as its top-left corner: the Phaser stage uses it to put the axis under the idle's own feet. */
+  readyAt: { dx: number; dy: number };
+}
+
+/**
+ * Lay every frame on one canvas size, axis at the centre column and soles on the bottom row. `idle` is the colour-cleaned idle loop (its feet midpoint defines the axis, as `anchored` in
+ * sfcrew.ts does); `run`, `load`, `jab`, `cross`, `kick` and `low` (the crouch) are Mark's frames, colour-cleaned with it.
+ *
+ * Anchors: the load, the jab and the cross are placed by their FRONT boot (planted through the combo). The kick stands on the load's BACK foot (it is the back leg that stays down while the
+ * front one comes up), so the chamber (the load) flows into it with no pop; that leaves its toe about 4 world px short of the fists' column, which the kick's push mostly makes up. The crouch
+ * has no boot to plant (it is a dive), so it is placed by its fist, on the fists' column.
+ */
+export function buildSfPunch(idle: Raw[], run: Raw, load: Raw, jab: Raw, cross: Raw, kick: Raw, low: Raw): PunchBuild {
+  const boxes = idle.map(boxOf);
+  const ax = Math.round(boxes.reduce((n, b) => n + b.feet, 0) / boxes.length);
+  const idleFront = idle.reduce((n, r) => n + frontBoot(r), 0) / idle.length;
+  const off = idleFront - ax;
+  const HALF = 150, H0 = 160;
+  const mk = (): Raw => blank(HALF * 2, H0);
+  const A = PUNCH_ANCHORS;
+  /** Where a source frame's origin lands on the scratch canvas, from its anchor column and its soles row. */
+  const place = (col: number, sl: number): { dx: number; dy: number } => ({ dx: Math.round(HALF + off - col), dy: H0 - 1 - sl });
+  const layers = {} as Record<PunchKey, Raw>;
+  for (const k of PUNCH_KEYS) layers[k] = mk();
+  const pi = place(A.idle.frontBoot, A.idle.soles);
+  blit(layers.ready, idle[0] as Raw, pi.dx, pi.dy);
+  const pl = place(A.load.frontBoot, A.load.soles);
+  blit(layers.load, load, pl.dx, pl.dy);
+  const pj = place(A.jab.frontBoot, A.jab.soles);
+  const pc = place(A.cross.frontBoot, A.cross.soles);
+  // The jab's and the cross's fists are 18.5 px past their front boots, so they land at the same column.
+  const tipCol = A.jab.tip[0] + 1 + pj.dx;
+  // The kick stands on the load's back foot.
+  const pk = { dx: Math.round(pl.dx + A.load.rearBoot - A.kick.plant + PUNCH_KICK_SHIFT), dy: H0 - 1 - A.kick.soles };
+  const toeCol = A.kick.tip[0] + 1 + pk.dx;
+  // The crouch is placed by its fist.
+  const pw = { dx: tipCol - (A.low.tip[0] + 1), dy: H0 - 1 - A.low.soles };
+  const pr = { dx: Math.round(HALF - boxOf(run).feet), dy: H0 - 1 - soles(run) };
+  blit(layers.run, run, pr.dx, pr.dy);
+  const ramp = jacketRamp(jab);
+  // The kick's crescent fades from gold toward the jacket's darker trim (its outer band is the dark orange mixed with the outline), so it reads as motion, not as an object.
+  const dim = (c: number[], t: number): number[] => c.map((v, i) => Math.round(v + ((ramp.outline[i] ?? 0) - v) * t));
+  const kickRamp: Ramp = { ...ramp, light: dim(ramp.light, 0.15), steel: dim(ramp.steel, 0.45) };
+  blit(layers.jab, jab, pj.dx, pj.dy);
+  blit(layers.cross, cross, pc.dx, pc.dy);
+  blit(layers.kick, kick, pk.dx, pk.dy);
+  // The re-posed legs are rules on Mark's kick, so a stray pixel can be left where the thigh was cut out (round 3: black flecks beside the hip): `despeckle` removes any island of 5 px or fewer.
+  for (const k of ['kickC', 'kickD', 'kickE'] as const) blit(layers[k], despeckle(poseLeg(kick, PUNCH_BEND[k].thigh, PUNCH_BEND[k].shin)), pk.dx, pk.dy);
+  blit(layers.low, low, pw.dx, pw.dy);
+  // The smears: a streak BEHIND the arm (drawn first, the body over it, so the wrapped fist stays on top) or the kick's arc behind the leg. S is the full smear, T the short trail that
+  // lingers on the first frame of the blow.
+  const bodies = { jab: [jab, pj], cross: [cross, pc], kick: [kick, pk], low: [low, pw] } as const;
+  for (const k of ['jabS', 'jabT', 'crossS', 'crossT', 'kickS', 'kickT', 'lowS', 'lowT'] as const) {
+    const sm = PUNCH_SMEARS[k];
+    const [src, p] = bodies[sm.src];
+    // The first frame of a punch (the trail) has the fist one art px past its resting column: the blow is told by the pose, not only by the flash.
+    const fwd = sm.kind === 'streak' && k.endsWith('T') ? PUNCH_SQUASH : 0;
+    if (sm.kind === 'streak') drawStreak(layers[k], sm, p.dx + fwd, p.dy, ramp);
+    else drawSwipe(layers[k], sm.hip[0] + p.dx, sm.hip[1] + p.dy, sm.swipe, kickRamp);
+    blit(layers[k], src, p.dx + fwd, p.dy);
+  }
+  // Crop to a common size: symmetric about the axis (the engine centres a canvas on the slot), top at the highest pixel, bottom on the soles.
+  let left = HALF, right = HALF, top = H0;
+  for (const k of PUNCH_KEYS) {
+    const b = boxOf(layers[k]);
+    left = Math.min(left, b.x0);
+    right = Math.max(right, b.x1 + 1);
+    top = Math.min(top, b.y0);
+  }
+  const half = Math.max(HALF - left, right - HALF);
+  const frames = {} as Record<PunchKey, Raw>;
+  for (const k of PUNCH_KEYS) {
+    const out = blank(half * 2, H0 - top);
+    const l = layers[k];
+    for (let y = top; y < H0; y++) out.px.set(l.px.subarray((y * l.w + (HALF - half)) * 4, (y * l.w + (HALF + half)) * 4), (y - top) * out.w * 4);
+    frames[k] = out;
+  }
+  const up = (sl: number, tipRow: number): number => sl - tipRow;
+  const measured = {
+    tipDx: tipCol - HALF,
+    up: { jab: up(A.jab.soles, A.jab.tip[1]), cross: up(A.cross.soles, A.cross.tip[1]), kick: up(A.kick.soles, A.kick.tip[1]), low: up(A.low.soles, A.low.tip[1]) },
+    footDx: Math.round(off),
+    toeShort: (tipCol - toeCol) / 2,
+  };
+  return { frames, axis: half, measured, topRows: H0 - top, readyAt: { dx: pi.dx - (HALF - half), dy: pi.dy - top } };
+}

@@ -1,9 +1,11 @@
 /// <reference types="node" />
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { DEV_TOOLS } from './src/dev/tools';
+import { saveFailureMessage, writeTogether } from './src/stage/edit/writeset';
 import { defineConfig } from 'vitest/config';
 
 const FX_FILE = resolve(import.meta.dirname, 'src/data/fx.json');
@@ -87,6 +89,132 @@ function fxLab(): Plugin {
             reply(500, { ok: false, problems: [`couldn't write fx.json: ${String(e)}`] });
           }
         });
+      });
+    },
+  };
+}
+
+const STAGES_FILE = resolve(import.meta.dirname, 'src/data/stages.json');
+const AXES_FILE = resolve(import.meta.dirname, 'src/data/axes.json');
+const HUD_FILE = resolve(import.meta.dirname, 'src/data/hud.json');
+type StageSaveModule = typeof import('./src/stage/edit/save');
+
+/**
+ * The Battle Stage Editor's save endpoint (dev server only): GET /__stage/stages returns the two stage files
+ * (src/data/stages.json and src/data/axes.json) as text; POST saves ALL the files of one Save together. The posted body
+ * is `{ stages, axes, hud, write }`: `hud` is the NEW global HUD layout and `write` names the files that changed
+ * ('stages', 'axes', 'hud'; the default is all that were posted). `prepareSave` (src/stage/edit/save.ts) checks the
+ * three TOGETHER with the modules the game loads them with, including every stage's own HUD boxes against the NEW
+ * HUD layout (`checkStagesWith`) when the HUD is among the files written, else against the `hud.json` on disk. Only if every check passes are the files written, and then they are written as a
+ * set (`writeTogether`: a temporary file for each, then a rename each, with the old text put back if one rename fails),
+ * so a refused save changes nothing and a half-written set is never left behind. It answers `{ ok, problems: [], written }`
+ * (docs/TOOLING-UI.md 2.5).
+ *
+ * `?dry=1` checks and formats without writing. `?scratch=<name>` (letters, digits, dashes) reads and writes a
+ * private copy in the OS temp folder instead of the repo files, which is how the tests save and reload without
+ * touching the real data: a file of a scratch name that has never been saved reads the real file.
+ *
+ * The one global HUD layout (src/data/hud.json) is still READ through its own endpoint, /__stage/hud (GET returns the
+ * file as text), but it is never written there: a POST is refused and points to /__stage/stages, so no save can write
+ * the HUD without checking it against the stages.
+ */
+function stageEdit(): Plugin {
+  const scratchDir = (url: URL): string | null => {
+    const name = url.searchParams.get('scratch');
+    if (!name) return null;
+    if (!/^[a-z0-9-]{1,48}$/.test(name)) throw new Error('a scratch name is letters, digits and dashes');
+    const dir = join(tmpdir(), 'shadowjog-stageedit', name);
+    mkdirSync(dir, { recursive: true });
+    return dir;
+  };
+  return {
+    name: 'shadowjog-stageedit',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__stage/stages', (req, res) => {
+        const reply = (code: number, body: unknown) => {
+          res.statusCode = code;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(body));
+        };
+        let dir: string | null;
+        let url: URL;
+        try {
+          url = new URL(req.url ?? '/', 'http://localhost');
+          dir = scratchDir(url);
+        } catch (e) {
+          reply(400, { ok: false, problems: [String(e instanceof Error ? e.message : e)] });
+          return;
+        }
+        const stagesPath = dir ? join(dir, 'stages.json') : STAGES_FILE;
+        const axesPath = dir ? join(dir, 'axes.json') : AXES_FILE;
+        const hudPath = dir ? join(dir, 'hud.json') : HUD_FILE;
+        if (req.method === 'GET') {
+          const from = (path: string, real: string) => readFileSync(existsSync(path) ? path : real, 'utf8');
+          reply(200, { ok: true, problems: [], stages: from(stagesPath, STAGES_FILE), axes: from(axesPath, AXES_FILE), scratch: !!dir });
+          return;
+        }
+        if (req.method !== 'POST') {
+          reply(405, { ok: false, problems: ['GET or POST only'] });
+          return;
+        }
+        if (!sameOrigin(req)) {
+          reply(403, { ok: false, problems: ['writes only from the dev server’s own pages'] });
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: Buffer) => {
+          body += chunk.toString('utf8');
+          if (body.length > 1_000_000) req.destroy();
+        });
+        req.on('end', async () => {
+          const { prepareSave } = (await server.ssrLoadModule('/src/stage/edit/save.ts')) as StageSaveModule;
+          let data: unknown;
+          try {
+            data = JSON.parse(body);
+          } catch {
+            reply(400, { ok: false, problems: ['not valid JSON'] });
+            return;
+          }
+          // Check everything together: the new HUD layout, the stages against it, the axes. A body without a HUD layout is a stage-only save, checked against the HUD file on disk (the scratch copy if there is one).
+          const hudOnDisk = readFileSync(existsSync(hudPath) ? hudPath : HUD_FILE, 'utf8');
+          const made = prepareSave(data, hudOnDisk);
+          if (!made.ok) {
+            reply(400, { ok: false, problems: made.problems });
+            return;
+          }
+          const texts = { stages: made.stagesText, axes: made.axesText, hud: made.hudText };
+          const paths = { stages: stagesPath, axes: axesPath, hud: hudPath };
+          try {
+            if (!url.searchParams.has('dry')) writeTogether(made.write.flatMap((part) => (texts[part] === undefined ? [] : [{ path: paths[part], text: texts[part] as string }])));
+            reply(200, { ok: true, problems: [], stages: made.stagesText, axes: made.axesText, ...(made.hudText !== undefined ? { hud: made.hudText } : {}), written: made.write, file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data' });
+          } catch (e) {
+            reply(500, { ok: false, problems: [saveFailureMessage(e)] });
+          }
+        });
+      });
+      server.middlewares.use('/__stage/hud', (req, res) => {
+        const reply = (code: number, body: unknown) => {
+          res.statusCode = code;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(body));
+        };
+        let dir: string | null;
+        let url: URL;
+        try {
+          url = new URL(req.url ?? '/', 'http://localhost');
+          dir = scratchDir(url);
+        } catch (e) {
+          reply(400, { ok: false, problems: [String(e instanceof Error ? e.message : e)] });
+          return;
+        }
+        const hudPath = dir ? join(dir, 'hud.json') : HUD_FILE;
+        if (req.method === 'GET') {
+          reply(200, { ok: true, problems: [], hud: readFileSync(existsSync(hudPath) ? hudPath : HUD_FILE, 'utf8'), scratch: !!dir });
+          return;
+        }
+        // The HUD is never written on its own: it is saved with the stages (POST /__stage/stages), which checks it against them.
+        reply(405, { ok: false, problems: ['GET only. The HUD layout is saved together with the stages: POST to /__stage/stages'] });
       });
     },
   };
@@ -281,7 +409,7 @@ export default defineConfig({
   // `define` swaps these names for the given values wherever they appear in the source, at build time
   // (and in tests), so src/version.ts can show the version and commit without reading any file at runtime.
   define: { __APP_VERSION__: JSON.stringify(APP_VERSION), __BUILD_SHA__: JSON.stringify(buildSha()) },
-  plugins: [fxLab(), artPass(), rigEdit(), devTools()],
+  plugins: [fxLab(), stageEdit(), artPass(), rigEdit(), devTools()],
   server: { port: 3007, watch: { usePolling: true } },
   // The chunk warning matches the CI budget (scripts/bundle-budget.mjs).
   build: { target: 'es2022', assetsInlineLimit: 0, sourcemap: true, chunkSizeWarningLimit: 480 },

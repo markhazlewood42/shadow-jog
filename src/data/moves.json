@@ -1,0 +1,254 @@
+{
+  "version": 1,
+  "stills": {
+    "rook.dip": { "art": "sf-rook", "key": "dip", "note": "Mark's crouch frame (rook-battle-crouched) as drawn: the coil before the lift." },
+    "rook.riseA": { "art": "sf-rook", "key": "riseA", "note": "The wind-up frame with 8 rows out of the thighs: standing up out of the crouch, arms already overhead." },
+    "rook.rise": { "art": "sf-rook", "key": "rise", "note": "The wind-up frame with 4 rows out of the thighs: nearly upright." },
+    "rook.windup": { "art": "sf-rook", "key": "windup", "note": "Mark's overhead frame (rook-battle-strike1), sword raised, blade laid back." },
+    "rook.smearA": { "art": "sf-rook", "key": "smearA", "note": "The wind-up body 6 rows lower without its sword, and a code-drawn blade with a solid crescent trailing it: the blow starts down." },
+    "rook.mid": { "art": "sf-rook", "key": "mid", "note": "The in-between Mark has not drawn: a deep squat, head carried 6 px forward, a code blade from the grip." },
+    "rook.smearB": { "art": "sf-rook", "key": "smearB", "note": "Mark's follow-through (rook-battle-strike2) with a long crescent trailing his blade." },
+    "rook.swingB": { "art": "sf-rook", "key": "swingB", "note": "The same frame with a shorter crescent: the blade lands." },
+    "rook.followFade": { "art": "sf-rook", "key": "followFade", "note": "The follow-through with the crescent's last thin tail." },
+    "rook.follow": { "art": "sf-rook", "key": "follow", "note": "The follow-through as drawn, held through the hit." },
+    "rook.recover": { "art": "sf-rook", "key": "recover", "note": "The battle idle rising out of the lunge, still leaning to the target." },
+    "kit.run": { "art": "sf-kit", "key": "run", "note": "Mark's running frame (kit-battle-running): the dash in to a far target." },
+    "kit.load": { "art": "sf-kit", "key": "load", "note": "kit-battle-punch1: both fists up, the body coiled. The chamber between blows." },
+    "kit.jabS": { "art": "sf-kit", "key": "jabS", "note": "The jab with a code streak around the arm: the speed frame." },
+    "kit.jabT": { "art": "sf-kit", "key": "jabT", "note": "The jab's first held frame, a short streak lingering." },
+    "kit.jab": { "art": "sf-kit", "key": "jab", "note": "kit-battle-punch2, the lead arm out at head height." },
+    "kit.crossS": { "art": "sf-kit", "key": "crossS", "note": "The cross with its wide streak." },
+    "kit.crossT": { "art": "sf-kit", "key": "crossT", "note": "The cross's first held frame." },
+    "kit.cross": { "art": "sf-kit", "key": "cross", "note": "kit-battle-punch3, the arm fully out, shoulders square." },
+    "kit.kickC": { "art": "sf-kit", "key": "kickC", "note": "The kick's chamber: the shin bent about the knee in code." },
+    "kit.kickS": { "art": "sf-kit", "key": "kickS", "note": "The kick with the toe's crescent behind the leg." },
+    "kit.kickT": { "art": "sf-kit", "key": "kickT", "note": "The kick's first held frame." },
+    "kit.kick": { "art": "sf-kit", "key": "kick", "note": "kit-battle-kick, the side kick at head height, held through the hit." },
+    "kit.kickD": { "art": "sf-kit", "key": "kickD", "note": "The foot coming back down." },
+    "kit.kickE": { "art": "sf-kit", "key": "kickE", "note": "The foot nearly down." },
+    "kit.lowS": { "art": "sf-kit", "key": "lowS", "note": "The crouching blow with a code streak behind the arm (from kit-battle-crouched): the blow Kit throws at a short target." },
+    "kit.lowT": { "art": "sf-kit", "key": "lowT", "note": "The crouching blow's first held frame, a short streak lingering." },
+    "kit.low": { "art": "sf-kit", "key": "low", "note": "kit-battle-crouched as drawn: the fist out at knee height, the body low." }
+  },
+  "moves": {
+    "rook-strike": {
+      "id": "rook-strike",
+      "name": "Rook's overhead strike",
+      "kind": "attack",
+      "reach": { "forward": 58, "pierce": 8 },
+      "note": "Rook's strike from Mark's frames, timed from the side-view spike (G-sf-rook-strike) and restaged in round 2. A breath of idle, a long crouch (8 ticks, the coil people read), the stand-up in two steps, then the DASH: the overhead frame held for 9 ticks while he runs across with the sword raised (the lunge used to happen during the swing, so the blur of the blade played in empty air), and only then the four swing frames that cover the last 0.41 of the distance. The blade lands on the last tick of swingB, 33 ticks in. He runs along the front lane (sw 0 to 1 while rising, back to 0 on the swing) so he passes in front of the crew, not through them, and comes home the same way. Tip: 58 px in front of the feet, 5 up, measured on the follow-through picture. Startup 33, active 1, recovery 27 ticks.",
+      "frames": [
+        { "still": "$idle", "hold": 2, "label": "ready" },
+        { "still": "rook.dip", "hold": 8, "move": { "dx": -0.03 }, "label": "dip" },
+        { "still": "rook.riseA", "hold": 2, "move": { "dx": 0.04, "sw": 0.2 }, "label": "stand up" },
+        { "still": "rook.rise", "hold": 2, "move": { "dx": 0.08, "sw": 0.2 } },
+        { "still": "rook.windup", "hold": 3, "move": { "dx": 0.16, "sw": 0.2 }, "label": "overhead dash" },
+        { "still": "rook.windup", "hold": 3, "offset": [0, -1], "move": { "dx": 0.17, "sw": 0.2 } },
+        { "still": "rook.windup", "hold": 3, "move": { "dx": 0.17, "sw": 0.2 } },
+        { "still": "rook.smearA", "hold": 3, "move": { "dx": 0.12, "dz": 0.2, "sw": -0.3 }, "label": "swing" },
+        { "still": "rook.mid", "hold": 3, "move": { "dx": 0.1, "dz": 0.3, "sw": -0.3 } },
+        { "still": "rook.smearB", "hold": 2, "move": { "dx": 0.08, "dz": 0.2, "sw": -0.2 } },
+        { "still": "rook.swingB", "hold": 3, "move": { "dx": 0.11, "dz": 0.3, "sw": -0.2 }, "front": true, "events": [{ "type": "hit", "at": 2, "stop": 7, "shake": 2, "effect": "cut", "weight": "heavy", "flash": 0.8, "contact": { "dx": 58, "dy": -5 } }], "label": "impact" },
+        { "still": "rook.followFade", "hold": 3, "front": true, "label": "follow-through" },
+        { "still": "rook.follow", "hold": 8, "front": true },
+        { "still": "rook.recover", "hold": 6, "move": { "dx": -0.3, "dz": -0.4, "sw": 0.7 }, "label": "recover" },
+        { "still": "$idle", "hold": 6, "move": { "dx": -0.45, "dz": -0.4, "sw": 0.3 }, "label": "back to the line" },
+        { "still": "$idle", "hold": 4, "move": { "dx": -0.25, "dz": -0.2, "sw": -1 } }
+      ]
+    },
+    "kit-punch": {
+      "id": "kit-punch",
+      "name": "Kit's jab, cross and kick",
+      "kind": "attack",
+      "reach": { "forward": 32, "pierce": 4 },
+      "note": "Kit's three-blow combo from Mark's frames, from the side-view spike (H-sf-kit-punch): a run in to a far target, the load, the jab (light), the load again as the arm comes back, the cross (medium), the chamber, the kick (heavy, held through the damage), the foot coming down and the walk home. The combo is ONE action with ONE damage roll: the engine's single damage lands with the finisher, and the first two hits are only seen (spark, flinch, a short hitstop each). Pose frames of the spike converted at about 1.5 ticks each. Blows on ticks 22, 33 and 51 of 91. Fists and toe end 30 px in front of her axis; the kick's body is shoved 8 px forward to make up its shorter reach.",
+      "frames": [
+        { "still": "$idle", "hold": 4, "label": "guard" },
+        { "still": "kit.run", "hold": 4, "offset": [0, -2], "move": { "dx": 0.3, "dz": 0.3 }, "label": "run in" },
+        { "still": "kit.run", "hold": 4, "move": { "dx": 0.3, "dz": 0.3 } },
+        { "still": "kit.run", "hold": 4, "offset": [0, -2], "move": { "dx": 0.26, "dz": 0.26 } },
+        { "still": "kit.load", "hold": 3, "move": { "dx": 0.06, "dz": 0.06 }, "front": true, "label": "load" },
+        { "still": "kit.jabS", "hold": 3, "move": { "dx": 0.02, "dz": 0.02 }, "front": true, "label": "jab" },
+        { "still": "kit.jabT", "hold": 2, "offset": [1, 0], "front": true, "events": [{ "type": "hit", "at": 0, "stop": 3, "shake": 1, "effect": "spark", "flash": 0.45, "contact": { "dx": 32, "dy": -41 } }], "label": "jab lands" },
+        { "still": "kit.jab", "hold": 3, "offset": [1, 0], "move": { "dx": 0.02, "dz": 0.02 }, "front": true },
+        { "still": "kit.load", "hold": 3, "front": true, "label": "coil" },
+        { "still": "kit.crossS", "hold": 3, "move": { "dx": 0.01, "dz": 0.01 }, "front": true, "label": "cross" },
+        { "still": "kit.crossT", "hold": 2, "offset": [2, 0], "move": { "dx": 0.01, "dz": 0.01 }, "front": true, "events": [{ "type": "hit", "at": 0, "stop": 6, "shake": 2, "effect": "spark", "weight": "heavy", "flash": 0.7, "contact": { "dx": 33, "dy": -39 } }], "label": "cross lands" },
+        { "still": "kit.cross", "hold": 5, "offset": [2, 0], "move": { "dx": 0.02, "dz": 0.02 }, "front": true },
+        { "still": "kit.load", "hold": 3, "offset": [2, 0], "front": true, "label": "chamber" },
+        { "still": "kit.kickC", "hold": 5, "offset": [4, 0], "front": true },
+        { "still": "kit.kickS", "hold": 3, "offset": [7, 0], "front": true, "label": "kick" },
+        { "still": "kit.kickT", "hold": 2, "offset": [8, 0], "front": true, "events": [{ "type": "hit", "at": 0, "stop": 8, "shake": 3, "effect": "cut", "weight": "heavy", "flash": 1, "contact": { "dx": 36, "dy": -44 } }], "label": "kick lands" },
+        { "still": "kit.kick", "hold": 15, "offset": [8, 0], "front": true },
+        { "still": "kit.kickD", "hold": 3, "offset": [7, 0], "front": true },
+        { "still": "kit.kickE", "hold": 3, "offset": [4, 0] },
+        { "still": "kit.load", "hold": 3, "move": { "dx": -0.1, "dz": -0.1 }, "label": "settle" },
+        { "still": "$idle", "hold": 14, "move": { "dx": -0.9, "dz": -0.9 } }
+      ]
+    },
+    "kit-punch-low": {
+      "id": "kit-punch-low",
+      "name": "Kit's crouching combo (short targets)",
+      "kind": "attack",
+      "reach": { "forward": 32, "pierce": 4 },
+      "note": "Kit's combo for a SHORT target (a Glowrat or a drone, anything under the binding's height): her standing fists are 40 px up and would pass over its back, so she drops into the crouch from Mark's kit-battle-crouched drawing for all three blows. Same timing and hit ticks as the standing combo; the fist is 27 px up.",
+      "frames": [
+        { "still": "$idle", "hold": 4, "label": "guard" },
+        { "still": "kit.run", "hold": 4, "offset": [0, -2], "move": { "dx": 0.3, "dz": 0.3 }, "label": "run in" },
+        { "still": "kit.run", "hold": 4, "move": { "dx": 0.3, "dz": 0.3 } },
+        { "still": "kit.run", "hold": 4, "offset": [0, -2], "move": { "dx": 0.26, "dz": 0.26 } },
+        { "still": "kit.load", "hold": 3, "move": { "dx": 0.06, "dz": 0.06 }, "front": true, "label": "load" },
+        { "still": "kit.lowS", "hold": 3, "move": { "dx": 0.02, "dz": 0.02 }, "front": true, "label": "first blow" },
+        { "still": "kit.lowT", "hold": 2, "offset": [1, 0], "front": true, "events": [{ "type": "hit", "at": 0, "stop": 3, "shake": 1, "effect": "spark", "flash": 0.45, "contact": { "dx": 32, "dy": -27 } }], "label": "first lands" },
+        { "still": "kit.low", "hold": 3, "offset": [1, 0], "move": { "dx": 0.02, "dz": 0.02 }, "front": true },
+        { "still": "kit.load", "hold": 3, "front": true, "label": "coil" },
+        { "still": "kit.lowS", "hold": 3, "move": { "dx": 0.01, "dz": 0.01 }, "front": true, "label": "second blow" },
+        { "still": "kit.lowT", "hold": 2, "offset": [2, 0], "move": { "dx": 0.01, "dz": 0.01 }, "front": true, "events": [{ "type": "hit", "at": 0, "stop": 6, "shake": 2, "effect": "spark", "weight": "heavy", "flash": 0.7, "contact": { "dx": 33, "dy": -27 } }], "label": "second lands" },
+        { "still": "kit.low", "hold": 5, "offset": [2, 0], "move": { "dx": 0.02, "dz": 0.02 }, "front": true },
+        { "still": "kit.load", "hold": 3, "offset": [2, 0], "front": true, "label": "chamber" },
+        { "still": "kit.load", "hold": 5, "offset": [1, 0], "front": true },
+        { "still": "kit.lowS", "hold": 3, "offset": [2, 0], "front": true, "label": "hook" },
+        { "still": "kit.lowT", "hold": 2, "offset": [2, 0], "front": true, "events": [{ "type": "hit", "at": 0, "stop": 8, "shake": 3, "effect": "cut", "weight": "heavy", "flash": 1, "contact": { "dx": 33, "dy": -27 } }], "label": "hook lands" },
+        { "still": "kit.low", "hold": 15, "offset": [2, 0], "front": true },
+        { "still": "kit.load", "hold": 3, "offset": [2, 0], "front": true },
+        { "still": "kit.load", "hold": 3, "offset": [1, 0] },
+        { "still": "kit.load", "hold": 3, "move": { "dx": -0.1, "dz": -0.1 }, "label": "settle" },
+        { "still": "$idle", "hold": 14, "move": { "dx": -0.9, "dz": -0.9 } }
+      ]
+    },
+    "melee-hero": {
+      "id": "melee-hero",
+      "name": "Hero lunge (idle picture)",
+      "kind": "attack",
+      "reach": { "forward": "body", "pierce": 4 },
+      "note": "For a hero with no strike art yet: the idle picture leans back, springs forward along the depth lane, hits, and walks home. Same frame model as Rook's strike, so replacing it with real frames is a data change.",
+      "frames": [
+        { "still": "$idle", "hold": 8, "offset": [-3, 0], "label": "lean back" },
+        { "still": "$idle", "hold": 5, "offset": [-4, 1], "move": { "dx": -0.04 } },
+        { "still": "$idle", "hold": 6, "offset": [3, -2], "move": { "dx": 0.64, "dz": 0.6 }, "label": "spring" },
+        { "still": "$idle", "hold": 3, "offset": [4, -1], "move": { "dx": 0.4, "dz": 0.4 }, "front": true, "events": [{ "type": "hit", "at": 2, "stop": 5, "shake": 1, "effect": "spark" }], "label": "impact" },
+        { "still": "$idle", "hold": 12, "offset": [4, 0], "front": true },
+        { "still": "$idle", "hold": 14, "move": { "dx": -0.6, "dz": -0.6 } },
+        { "still": "$idle", "hold": 8, "move": { "dx": -0.4, "dz": -0.4 } }
+      ]
+    },
+    "melee-enemy": {
+      "id": "melee-enemy",
+      "name": "Enemy lunge",
+      "kind": "attack",
+      "reach": { "forward": "body", "pierce": 3 },
+      "note": "Today's enemies are front-facing art that sways: they lean back, hop at the hero's row, strike and shuffle home. Re-art comes later; the frames stay.",
+      "frames": [
+        { "still": "$idle", "hold": 10, "offset": [-4, 0], "label": "lean back" },
+        { "still": "$idle", "hold": 4, "offset": [-6, -2], "move": { "dx": -0.04 } },
+        { "still": "$idle", "hold": 6, "offset": [0, -3], "move": { "dx": 0.64, "dz": 0.6 }, "label": "hop in" },
+        { "still": "$idle", "hold": 3, "offset": [3, 0], "move": { "dx": 0.4, "dz": 0.4 }, "front": true, "events": [{ "type": "hit", "at": 2, "stop": 5, "shake": 1, "effect": "spark" }], "label": "impact" },
+        { "still": "$idle", "hold": 10, "offset": [3, 0], "front": true },
+        { "still": "$idle", "hold": 16, "move": { "dx": -0.6, "dz": -0.6 } },
+        { "still": "$idle", "hold": 8, "move": { "dx": -0.4, "dz": -0.4 } }
+      ]
+    },
+    "shoot": {
+      "id": "shoot",
+      "name": "Shot from the spot",
+      "kind": "attack",
+      "note": "Hex fires from where she stands: a lean to aim, a kick of recoil on the hit tick, and a settle.",
+      "frames": [
+        { "still": "$idle", "hold": 12, "offset": [-2, 0], "events": [{ "type": "glow", "at": 6, "color": "#ffcc3d" }], "label": "aim" },
+        { "still": "$idle", "hold": 4, "offset": [2, 0], "events": [{ "type": "hit", "at": 0, "stop": 3, "shake": 1, "effect": "spark" }], "label": "fire" },
+        { "still": "$idle", "hold": 6, "offset": [3, 0] },
+        { "still": "$idle", "hold": 12, "offset": [1, 0] }
+      ]
+    },
+    "cast": {
+      "id": "cast",
+      "name": "Cast in place",
+      "kind": "attack",
+      "note": "A program, a spirit or a spell: the fighter gathers (a glow), thrusts forward, and the effect lands on the target.",
+      "frames": [
+        { "still": "$idle", "hold": 10, "offset": [-2, 0], "events": [{ "type": "glow", "at": 0 }], "label": "gather" },
+        { "still": "$idle", "hold": 8, "offset": [-3, -2] },
+        { "still": "$idle", "hold": 4, "offset": [3, -2], "events": [{ "type": "hit", "at": 0, "stop": 4, "shake": 1, "effect": "blow" }], "label": "release" },
+        { "still": "$idle", "hold": 10, "offset": [2, -1] },
+        { "still": "$idle", "hold": 10, "offset": [0, 0] }
+      ]
+    },
+    "cast-support": {
+      "id": "cast-support",
+      "name": "Cast on an ally or self",
+      "kind": "attack",
+      "note": "Healing and buffs: the same gathering, a soft release (no hitstop, no shake) with a green glow on whoever it lands on.",
+      "frames": [
+        { "still": "$idle", "hold": 10, "offset": [-1, 0], "events": [{ "type": "glow", "at": 0, "color": "#62e06a" }], "label": "gather" },
+        { "still": "$idle", "hold": 8, "offset": [0, -2] },
+        { "still": "$idle", "hold": 4, "offset": [1, -3], "events": [{ "type": "hit", "at": 0, "stop": 0, "shake": 0, "effect": "heal" }], "label": "release" },
+        { "still": "$idle", "hold": 14, "offset": [0, 0] }
+      ]
+    },
+    "hurt": {
+      "id": "hurt",
+      "name": "Flinch",
+      "kind": "reaction",
+      "note": "The hit reaction, facing-relative so it serves heroes and enemies. During the hitstop the performer holds the flash at the hit's strength and steps it down (1, 0.75, 0.5), so a freeze is not a flat white silhouette; here it keeps fading over 5 ticks (0.5, then 0.25 of the strength) while the body is shoved back 3 to 4 px, hops 1 px and eases home over 11 ticks. A hero also gets a wash of red (`tint`) that fades with it. The design says 1 to 2 flash frames and a 3 px knockback.",
+      "frames": [
+        { "still": "$idle", "hold": 2, "offset": [-3, 0], "flash": 0.5, "tint": 0.4, "label": "flash" },
+        { "still": "$idle", "hold": 3, "offset": [-4, -1], "flash": 0.25, "tint": 0.45 },
+        { "still": "$idle", "hold": 3, "offset": [-3, 0], "tint": 0.3 },
+        { "still": "$idle", "hold": 3, "offset": [-2, 0], "tint": 0.18 },
+        { "still": "$idle", "hold": 3, "offset": [-1, 0], "tint": 0.08 }
+      ]
+    },
+    "dodge": {
+      "id": "dodge",
+      "name": "Dodge",
+      "kind": "reaction",
+      "note": "The target leans out of the way of a miss: back 6 and then 8 px and home again. No flash, no hitstop.",
+      "frames": [
+        { "still": "$idle", "hold": 4, "offset": [-6, 0] },
+        { "still": "$idle", "hold": 6, "offset": [-8, 0] },
+        { "still": "$idle", "hold": 4, "offset": [-4, 0] },
+        { "still": "$idle", "hold": 4, "offset": [-2, 0] }
+      ]
+    },
+    "down-foe": {
+      "id": "down-foe",
+      "name": "Enemy defeated",
+      "kind": "reaction",
+      "note": "The enemy flashes white and blinks out over 15 ticks (alpha steps, no tween).",
+      "frames": [
+        { "still": "$idle", "hold": 3, "offset": [-4, 0], "flash": true },
+        { "still": "$idle", "hold": 2, "offset": [-6, 0], "alpha": 0.5 },
+        { "still": "$idle", "hold": 2, "offset": [-6, -1], "flash": true, "alpha": 0.8 },
+        { "still": "$idle", "hold": 2, "offset": [-6, 0], "alpha": 0.3 },
+        { "still": "$idle", "hold": 2, "offset": [-6, 0], "flash": true, "alpha": 0.6 },
+        { "still": "$idle", "hold": 3, "offset": [-6, 0], "alpha": 0.15 },
+        { "still": "$idle", "hold": 1, "offset": [-6, 0], "alpha": 0 }
+      ]
+    },
+    "down-hero": {
+      "id": "down-hero",
+      "name": "Hero down",
+      "kind": "reaction",
+      "note": "A hero who falls flashes red-white, is shoved back and drops to a kneel (the `$down` picture, which the stage cuts out of the hero's own idle: rows taken out of the thighs, the head dropped forward) and stays there, dimmed. There is no lying-down art yet; when it exists, a still named here replaces `$down`.",
+      "frames": [
+        { "still": "$idle", "hold": 4, "offset": [-4, 0], "flash": 0.7, "tint": 0.5 },
+        { "still": "$down", "hold": 3, "offset": [-6, 1], "tint": 0.35 },
+        { "still": "$down", "hold": 1, "offset": [-6, 0] }
+      ]
+    }
+  },
+  "bindings": [
+    { "actor": "rook", "ability": ["attack", "arc_cut", "moonfall"], "move": "rook-strike" },
+    { "actor": "kit", "ability": ["attack"], "targetBelow": 40, "move": "kit-punch-low" },
+    { "actor": "kit", "ability": ["attack"], "move": "kit-punch" },
+    { "fx": ["heal", "heal_all", "heal_self", "revive", "cleanse", "tp", "shield", "buff", "guard", "roar", "crows_wing", "lifeline"], "move": "cast-support" },
+    { "spread": true, "move": "cast" },
+    { "actor": "hex", "kind": ["attack"], "move": "shoot" },
+    { "side": "party", "fx": ["gunfire", "shot", "target_lock"], "move": "shoot" },
+    { "side": "party", "kind": ["attack"], "move": "melee-hero" },
+    { "side": "party", "fx": ["slash", "men", "men_r", "claw", "whip", "punch", "punch_r", "bite", "crush", "coil", "palm", "arc_cut", "flash_step", "moonfall", "clean_job"], "move": "melee-hero" },
+    { "side": "enemy", "fx": ["slash", "men", "claw", "whip", "punch", "bite", "crush", "coil", "palm"], "move": "melee-enemy" },
+    { "move": "cast" }
+  ],
+  "reactions": { "hurt": "hurt", "dodge": "dodge", "down": "down-foe", "downHero": "down-hero" }
+}
