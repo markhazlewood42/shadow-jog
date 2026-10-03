@@ -1,6 +1,6 @@
 # Shadow Jog tooling UI guide
 
-How every Shadow Jog design tool should look and behave: the shared layout, keys, save model and test button, then a screen-by-screen spec for the Battle Stage Editor and a map for the tools after it. Written 2026-10-02 during step 1 of the Phaser tooling spike (`docs/spikes/phaser-stage.md`); section 3 is the spec for that spike's steps 2 to 4.
+How every Shadow Jog design tool should look and behave: the shared layout, keys, save model and test button, then a screen-by-screen spec for the Battle Stage Editor and a map for the tools after it. Written 2026-10-02 during step 1 of the Phaser tooling spike (`docs/spikes/phaser-stage.md`); section 3 is the spec for that spike's steps 2 to 4. Section 6, added the same day, covers the two jobs RPG Maker has no tool for (battle stages with depth, moves built frame by frame) and what we take from the brawler and fighting-game engines that did build them.
 
 Mark's direction (2026-10-02): "As far as UI design for our tooling, take as much inspiration as you can from engines like rpg maker. Whenever functionality overlaps and it makes sense." RPG Maker's editors have been through many versions doing the same jobs our tools do, so this guide starts from their patterns and says plainly where we go our own way.
 
@@ -11,7 +11,7 @@ Mark's direction (2026-10-02): "As far as UI design for our tooling, take as muc
 ## 1. Principles
 
 1. **Borrow RPG Maker where the job overlaps.** Its Database (tabs, a list on the left, a form on the right), its Troops tab (a placement view plus a Battle Test button) and its animation timing lists are the starting point for our equivalents ([MZ Database](https://rpgmakerofficial.com/product/MZ_help-en/01_08.html), [MZ Troops](https://rpgmakerofficial.com/product/MZ_help-en/01_08_07.html)). Use RPG Maker's names for the same ideas (troop, battleback, battle test, playtest, database, align) so anything Mark reads about RPG Maker transfers directly.
-2. **Where RPG Maker is weak, borrow from the tool that does that job best.** Tiled for placing objects and typed properties, Aseprite for the animation timeline, Godot for the inspector and snapping (section 4 and the research links there).
+2. **Where RPG Maker is weak, borrow from the tool that does that job best.** Tiled for placing objects and typed properties, Aseprite for the animation timeline, Godot for the inspector and snapping (section 4 and the research links there). For the two jobs RPG Maker doesn't do at all, depth on a battle floor and moves assembled from single frames, the models come from OpenBOR, MUGEN and their descendants (section 6).
 3. **Differ on purpose, and write the reason down.** The deliberate differences so far:
 
 | RPG Maker does | We do | Why |
@@ -117,6 +117,7 @@ Keys are ignored while focus is in a text field, as in the animation editor toda
 | Nudge | Arrows; Shift+arrows for 8 px | | 1 px arrows match `rigedit.ts` |
 | Grid snap on/off | G | | Hold Ctrl while dragging to flip snapping for that drag |
 | Lock selection | Ctrl+L | | Godot's lock key |
+| Bring forward / send back | Ctrl+] / Ctrl+[ | | Stage editor, within a row only (3.4); Tiled raises and lowers objects in manual draw order with Page Up and Page Down ([Tiled draw order](https://discourse.mapeditor.org/t/objectgroup-rendering-order/1586)), but those keys step the list here, so (inferred) the common design-tool brackets |
 | Show HUD regions | H | | Overlay only; never changes data. Other overlays are toolbar toggles |
 | Open the DEV menu | ` (backtick) | | On the game page only (`src/dev/devmenu.ts`) |
 | Turn the character | [ and ] | | Animation editor only (`rigedit.ts`) |
@@ -128,7 +129,7 @@ Every tool shows its keys on a "Keys" button in the toolbar, and the same table 
 
 ## 3. Battle Stage Editor
 
-What it edits: one entry of `src/data/stages.json` per stage (today only `street`, with a horizon, a floor band, four depth rows with tints, four party slots, enemy slot sets for 1 to 4 enemies and a shadow setting). Where it runs: the stage lab page (`/stagelab.html`, `src/stage/`) with edit mode switched on. Its RPG Maker counterpart is the Troops tab's placement view plus Battle Test ([MZ Troops](https://rpgmakerofficial.com/product/MZ_help-en/01_08_07.html)), which only lets you drag enemies.
+What it edits: one entry of `src/data/stages.json` per stage (today only `street`, with a horizon, a floor band, four depth rows with tints, four party slots, enemy slot sets for 1 to 4 enemies and a shadow setting). Where it runs: the stage lab page (`/stagelab.html`, `src/stage/`) with edit mode switched on. Its RPG Maker counterpart is the Troops tab's placement view plus Battle Test ([MZ Troops](https://rpgmakerofficial.com/product/MZ_help-en/01_08_07.html)), which only lets you drag enemies. RPG Maker has no model for depth on the floor at all, so the depth rules in 3.4 come from brawler engines and general 2D sorting instead (section 6.1).
 
 ### 3.1 What we can do that RPG Maker can't
 
@@ -140,7 +141,7 @@ What it edits: one entry of `src/data/stages.json` per stage (today only `street
 
 ### 3.2 Toolbar
 
-In order: stage name (read-only, the list chooses), **Edit / Play** toggle, **Enemies: 1 2 3 4** (which formation is shown and edited), snap toggles (**Rows**, **Grid**), show toggles (**HUD**, **Guides**, **Safe zones**, **Foreground**), **Undo**, **Redo**, **Save**, **Revert**, **Battle Test**, **Keys**.
+In order: stage name (read-only, the list chooses), **Edit / Play** toggle, **Enemies: 1 2 3 4** (which formation is shown and edited), snap toggles (**Rows**, **Grid**), show toggles (**HUD**, **Guides**, **Safe zones**, **Foreground**, **Camera**, **Anchors**), **JSON** (the text view, 3.4), **Undo**, **Redo**, **Save**, **Revert**, **Battle Test**, **Keys**.
 
 ### 3.3 Left: stage list and palette
 
@@ -149,7 +150,16 @@ In order: stage name (read-only, the list chooses), **Edit / Play** toggle, **En
 
 ### 3.4 Centre: the stage view
 
-The real `StageScene`, drawn exactly as in battle, with these handles drawn over it in edit mode only:
+**The depth model the handles edit.** The floor is a band of screen rows, not a 3D space. OpenBOR, the long-running open-source brawler engine, stores it the same way, and it is the closest working precedent for Mark's "different Z-axis values" (section 6.1):
+
+- **Three ground numbers, kept apart.** The floor band (`floor.top`, `floor.bottom`) is OpenBOR's walkable `z zmin zmax`, two screen rows counted from the top; the horizon is where the backdrop's floor art meets its wall, which OpenBOR handles with an optional third number for where the background bottoms out ([Z vs. Panel Interaction](https://chronocrash.com/forum/threads/z-vs-panel-interaction.8250/latest)). Separate numbers let Mark fit the standing band to the art without moving the art. The validator already refuses a floor that starts above the horizon and a row outside the band (`src/stage/config.ts`).
+- **Depth is the row.** A slot is a row and an x, with no free z value of its own. Rows run back to front with rising foot y, and a fighter's feet always land on its row's line, clamped into the band (`slotPoint` in `src/stage/config.ts`).
+- **One sort key, taken at the feet.** Draw order is `depthFor(y, x)` in `src/stage/config.ts`: the nearer foot y draws on top and ties go to the right. Godot, Unity and Tiled all sort by y this way, and the Godot and Unity sources both stress that the sort point must be the feet, not the picture's centre, or the order comes out wrong ([KidsCanCode Y-sort](https://kidscancode.org/godot_recipes/4.x/2d/using_ysort/index.html), [Unity 2D sorting](https://docs.unity3d.com/2023.1/Documentation/Manual/2DSorting.html)). Our feet come from each sprite's foot anchor (`src/stage/feet.ts`). No fighter gets a separate z-index, so nothing can fight the sort; a Godot pitfall is exactly a z-index overriding y-sort ([bugnet.io](https://bugnet.io/blog/how-to-fix-godot-ysort-feet-sorting-with-wrong-origin)).
+- **A forward and back override (proposed `order` on a slot: -1, 0 or 1).** Two fighters on one row occasionally overlap the wrong way round. Bring forward or send back fixes that pair, like Tiled's manual draw order ([Tiled draw order](https://discourse.mapeditor.org/t/objectgroup-rendering-order/1586)). It folds into `depthFor` as less than one row's worth, so it can never lift a back-row fighter over a front-row one (inferred design).
+- **A figure sorts as one unit.** Body, weapon, smear and shadow share the figure's key, offset by fractions (the shadow already sits at `depth - 0.5`), the way a Unity Sorting Group keeps a multi-part figure together ([Unity 2D sorting](https://docs.unity3d.com/2023.1/Documentation/Manual/2DSorting.html)).
+- **Shadow rules.** The contact shadow is a flat ellipse centred on the foot anchor, sized by the stage's `shadow` setting. Proposed: an optional per-row `shadow` override (scale and alpha) next to the existing per-row tint, so rear rows can carry smaller, lighter shadows. When a figure leaves the floor (a lunge hop, a knockback), its shadow stays at floor height and follows only x and depth, as OpenBOR's grounded shadow kinds do ([OpenBOR shadows](https://chronocrash.com/obor/wiki/shadows/)); it doesn't shrink with height for now (inferred, keep it simple).
+
+The real `StageScene`, drawn exactly as in battle, carries these handles over it in edit mode only:
 
 | Handle | Looks like | Drag does | Data |
 |---|---|---|---|
@@ -159,9 +169,15 @@ The real `StageScene`, drawn exactly as in battle, with these handles drawn over
 | Party slots | The hero sprite itself, with an orange badge "P1" to "P4" at the feet | Left and right moves x; up and down jumps between rows | `party[]` (`row`, `x`) |
 | Enemy slots | The preview enemy, with a pink badge "E1" to "En" | As above, for the formation chosen in the toolbar | `enemies["n"][]` |
 | HUD regions | Yellow outlined boxes with their name, shown with **H** | Moves the box; corner grips resize it if the region allows | HUD layout (3.6) |
+| Foot anchor | A small crosshair at the selected figure's feet, shown with **Anchors** | Moves the point this sprite stands on; the figure shifts so the new point lands on its row | Per-sprite axis (proposed `src/data/axes.json`), the same record the Animation Composer edits (4.2) |
+| Draw order | A "+1" or "-1" mark beside the slot badge, only when overridden | **Ctrl+]** brings forward, **Ctrl+[** sends back, within the row | `party[].order`, `enemies["n"][].order` (proposed) |
 
 - **Safe zones overlay** tints the HUD's regions red where a fighter overlaps one, because menus cover whatever is under them (see "Safe zones for battle windows" in `docs/CONCEPTS.md`).
 - **Guides**: the 480×270 frame, the centre line and the line where the party and the enemies meet. Dragged guides (Godot's rulers) can come later.
+- **Camera overlay** outlines the 480×270 area the battle camera shows. Today it equals the frame; it earns its toggle once moves pan or push the camera, the job of the red camera box in the OpenBOR community's level editor ([Chronocrash Modders Tools](https://www.chronocrash.com/forum/resources/chronocrash-modders-tools.139/)) (inferred fit).
+- **Foot anchors matter most for Sprite Fusion art.** The crew's stills come in different canvas sizes, and a measured foot that is a pixel off puts the whole figure a pixel off its row. With **Anchors** on, every figure shows its crosshair; an overridden anchor is drawn in white and a measured one in grey, matching the inspector's override colours (3.6).
+- **Snapping on the stage.** Fighters always sit on a row, so up and down move them a whole row. Horizon, floor and row lines move in whole pixels and snap to the 8 px grid when **Grid** is on. The handles refuse to make a stage the validator would reject: a row stops at its neighbours and at the floor band's edges, and the floor top stops at the horizon. Foot anchors ignore the grid and move 1 px at a time, since they are a fine correction.
+- **Text view.** **JSON** opens a read-only pane beside the stage showing the entry as it will be saved, with the lines the last gesture changed highlighted, so Mark can see exactly what a drag did. OpenBOR's community editor switches between a text view and a visual view of the same level for the same reason ([Chronocrash Modders Tools](https://www.chronocrash.com/forum/resources/chronocrash-modders-tools.139/)).
 - **Live feedback**: overlap order and shadows update during the drag, not on drop. Idle animations keep playing so the figures read as they will in battle.
 
 ### 3.5 Battleback layers
@@ -176,6 +192,8 @@ RPG Maker builds a battle background from two pictures, a floor (battleback 1) a
 | Ambient animation (rain, neon flicker) | none | Not drawn yet (step 1 notes) | `backdrop.anim` |
 
 Today's `"backdrop": "street"` keeps working as shorthand for a wall picture that includes its floor (inferred migration; the validator in `src/stage/config.ts` would accept both shapes). Each layer gets a picker in the inspector and a show toggle, and the foreground can be locked so it is never grabbed.
+
+Each layer also carries a parallax ratio (proposed `parallax`, default 1), after OpenBOR's background and foreground layers, which take separate x and z ratios ([fglayer syntax thread](https://www.chronocrash.com/forum/threads/fglayer.1803/latest)). With today's fixed camera every ratio behaves the same and nothing changes on screen. It starts to matter when a move pans or pushes the camera: the wall should drift less than the floor, and the foreground rails more (inferred).
 
 ### 3.6 HUD layout presets and regions
 
@@ -192,14 +210,14 @@ With nothing selected, the inspector shows the stage:
 | Section | Fields |
 |---|---|
 | Basics | Name; id (read-only, change it with Rename); Note for Claude |
-| Battleback | Wall, Floor, Foreground and Ambient pickers, each with a thumbnail |
+| Battleback | Wall, Floor, Foreground and Ambient pickers, each with a thumbnail and a parallax ratio |
 | Ground | Horizon; Floor top; Floor bottom |
-| Depth rows | One line per row: foot height, tint swatch; Add row, Remove row (refused while a slot uses it) |
-| Shadows | Width, ratio (how flat), alpha |
+| Depth rows | One line per row: foot height, tint swatch, shadow scale and alpha (blank inherits Shadows); Add row, Remove row (refused while a slot uses it) |
+| Shadows | Width, ratio (how flat), alpha: the default every row starts from |
 | HUD | Layout picker; list of overridden regions with revert arrows |
 | Formation | Party layout: Free or Diagonal (3.8); Enemies shown: 1 to 4 |
 
-With a slot selected: which slot ("Party 2", "Enemy 3 of 3"), row (a dropdown of rows), x (slider plus number box), and the resulting foot y (read-only, from the row). With a HUD region selected: its name, x, y, width, height, anchor and visibility.
+With a slot selected: which slot ("Party 2", "Enemy 3 of 3"), row (a dropdown of rows), x (slider plus number box), the resulting foot y (read-only, from the row), draw order (Auto, Forward or Back) and the foot anchor of the sprite standing there (measured or overridden, with a revert arrow back to the measurement). With a HUD region selected: its name, x, y, width, height, anchor and visibility.
 
 Every field follows the house pattern: a slider paired with a number box for numbers, a plain-language label with the data name beside it in monospace, and a revert arrow when the value differs from the default or the inherited one ([Godot inspector](https://docs.godotengine.org/en/stable/tutorials/editor/inspector_dock.html)). The spike plan mentions Tweakpane for number fields (`docs/spikes/phaser-stage.md`); it is fine for step 2 if wrapped so the revert arrow, override colours and notes field still appear (inferred).
 
@@ -241,7 +259,7 @@ Each tool gets the standard layout from section 2. The table maps it to its RPG 
 | Tool | RPG Maker counterpart | Best outside pattern |
 |---|---|---|
 | Troop and encounter editor | Troops tab and battle event pages; map encounter list ([MZ Troops](https://rpgmakerofficial.com/product/MZ_help-en/01_08_07.html), [MZ maps](https://rpgmakerofficial.com/product/MZ_help-en/01_07.html)) | Tiled templates and object references ([templates](https://doc.mapeditor.org/en/stable/manual/using-templates/), [objects](https://doc.mapeditor.org/en/stable/manual/objects/)) |
-| Animation Composer | Animations tab timing rows; MV cell animation; the official 2D Animation Editor ([MZ Animations](https://rpgmakerofficial.com/product/MZ_help-en/01_08_09.html), [MV Animations](https://rpgmakerofficial.com/product/MV_Help/page/01_08_09.html), [2D Animation Editor](https://store.rpgmakerofficial.com/products/2d-animation-editor-mz)) | Aseprite timeline, tags, onion skin and slices; Godot call tracks ([Aseprite timeline](https://www.aseprite.org/docs/timeline/), [Godot track types](https://docs.godotengine.org/en/stable/tutorials/animation/animation_track_types.html)) |
+| Animation Composer | Animations tab timing rows; MV cell animation; the official 2D Animation Editor ([MZ Animations](https://rpgmakerofficial.com/product/MZ_help-en/01_08_09.html), [MV Animations](https://rpgmakerofficial.com/product/MV_Help/page/01_08_09.html), [2D Animation Editor](https://store.rpgmakerofficial.com/products/2d-animation-editor-mz)) | MUGEN's AIR frame list and per-sprite axis, OpenBOR's per-frame movement, Spine events (section 6.2); Aseprite timeline, tags, onion skin and slices; Godot call tracks ([Aseprite timeline](https://www.aseprite.org/docs/timeline/), [Godot track types](https://docs.godotengine.org/en/stable/tutorials/animation/animation_track_types.html)) |
 | Database (enemies, skills, items) | Database window ([MZ Database](https://rpgmakerofficial.com/product/MZ_help-en/01_08.html)) | Godot inspector; Tiled typed classes ([custom properties](https://doc.mapeditor.org/en/stable/manual/custom-properties/)) |
 | Maps | Map editor, layers, regions, tileset settings ([MZ map editor](https://rpgmakerofficial.com/product/MZ_help-en/01_07.html)) | Tiled itself ([tile layers](https://doc.mapeditor.org/en/stable/manual/editing-tile-layers/)) |
 
@@ -256,14 +274,34 @@ Each tool gets the standard layout from section 2. The table maps it to its RPG 
 
 ### 4.2 Animation Composer (Sprite Fusion frames)
 
-- **Timeline**: rows are layers (body, weapon, effect) and columns are frames, each cell holding a Sprite Fusion frame reference and an offset, as in Aseprite's cels ([Aseprite cels](https://www.aseprite.org/docs/cel/)). Below the frame rows sit fixed lanes for **Sound**, **Flash** and **Events**. RPG Maker's official 2D Animation Editor add-on uses a four-track timeline of frames, cells, sound effects and flashes ([2D Animation Editor](https://store.rpgmakerofficial.com/products/2d-animation-editor-mz)), and MZ's own Animations tab lists sound and flash timings around an Effekseer effect ([MZ Animations](https://rpgmakerofficial.com/product/MZ_help-en/01_08_09.html)); the **Events** lane is ours, for hit timing.
-- **Holds**: each frame has a duration, shown as cell width, exported per frame the way Aseprite's sheet JSON carries a duration per frame (inferred from its exports; the [Aseprite CLI](https://www.aseprite.org/docs/cli/) page documents a `{duration}` filename variable).
+What it edits: one move per entry (proposed `src/data/moves.json`), such as Rook's strike or Kit's three-blow combo, assembled from hand-picked Sprite Fusion stills. RPG Maker has nothing that does this job (section 6.2). The record below is MUGEN's AIR frame line with a Spine-style event lane added, and the screen borrows Aseprite's timeline.
+
+**The frame record.** Each column of the timeline is one frame:
+
+| Field | What it holds | Precedent |
+|---|---|---|
+| `still` | Which Sprite Fusion picture, by file | AIR's group and image numbers into the sprite file ([Elecbyte AIR docs](https://elecbyte.com/mugendocs/air.html)) |
+| axis | The still's stand-on point, stored once per still rather than per frame | MUGEN's per-sprite axis ([AIR docs](https://elecbyte.com/mugendocs/air.html)) |
+| `offset` | A small x, y shift for this frame only, measured from the axis | AIR's x, y ([AIR docs](https://elecbyte.com/mugendocs/air.html)) |
+| `hold` | How long the frame shows, in ticks; `-1` on the last frame holds until the battle releases it | AIR's time and its `-1` ([AIR docs](https://elecbyte.com/mugendocs/air.html)) |
+| `flip` | Mirror, rarely needed (see "Facing and mirroring" in `docs/CONCEPTS.md`) | AIR's `H`/`V` |
+| `move` | dx and dz of the fighter on this frame, for a lunge | OpenBOR's `move` and `movez` ([OpenBOR animations](https://chronocrash.com/obor/wiki/animations-overview/)) |
+| events | Named cues on this frame: `hit`, `smear`, `fx`, `sfx`, `shake`, `flash` | Spine events, with int, float and string payloads ([Spine events](https://esotericsoftware.com/spine-events)) |
+
+- **Frames of different sizes, lined up by the axis crosshair.** Every still keeps its own canvas; Rook's overhead wind-up is 69x110 and his low follow-through 101x66, and neither gets padded or re-cut. At playback each still is drawn so its axis lands on the fighter's ground point plus that frame's offset, which gives both frames one ground point and stops the body jumping between them. MUGEN works this way, and the community's way of aligning mixed-size sheets is a stored axis per sprite at the feet or body, never the image centre ([ChronoCrash conversion thread](https://www.chronocrash.com/forum/threads/converting-mugen-chars-to-openbor.1074/page-2), [Makko](https://blog.makko.ai/sprite-animation-alignment-anchor-points-scale-and-using-characters-in-multiple-games/)). OpenBOR shows the cost of the alternative: one offset per animation needs pre-aligned canvases, and its wiki warns that mismatched ones make entities "shake or slide" ([OpenBOR Animation Overview](https://chronocrash.com/openbor/wiki/index.php/Animation_Overview)).
+- **Editing the axis.** On the canvas the axis is a crosshair on the selected still: drag it, or nudge it with the arrows (1 px, Shift for 8). A toolbar toggle, **Axis / Offset**, picks which of the two the arrows move. The axis starts at the foot `src/stage/feet.ts` measures, or bottom-centre when none is found. For a lunge Mark can move it to the planted foot instead (see "Anchoring by the planted foot" in `docs/CONCEPTS.md`; `SF_ANCHORS` in `src/art/rig2/sfstrike.ts` is the hand-coded version). Because the axis belongs to the still, fixing it once fixes every move that uses that picture, and the stage editor's foot-anchor handle (3.4) edits the same record. Axis and offset moves go through the shared 100-step undo (2.5).
+- **Holds in ticks.** Holds are whole ticks at 60 per second, drawn as cell width and labelled with milliseconds beside them ("4 ticks, 67 ms"). MUGEN counts the same 60 Hz ticks ([AIR docs](https://elecbyte.com/mugendocs/air.html)); OpenBOR's centisecond default needed hand-tuning when moves were carried between the two ([ChronoCrash conversion thread](https://www.chronocrash.com/forum/threads/converting-mugen-chars-to-openbor.1074/page-2)), which is the argument for one unit everywhere. The battle's own pose clock runs at a different pace (see "Pose frames are not 60 fps frames" in `docs/CONCEPTS.md`), so the conversion happens once, where the battle loads a move, and never inside a move (inferred).
+- **Timeline and lanes.** Rows above are frame layers, usually just the body, with weapon and effect layers when a move needs them, as in Aseprite's cels ([Aseprite cels](https://www.aseprite.org/docs/cel/)). Below sit fixed lanes: **Move** (the lunge), **Effects** (smear, hit spark, GPU hit), **Sound**, and **Events** (hit, shake, flash). RPG Maker's official 2D Animation Editor add-on has frame, cell, sound and flash tracks ([2D Animation Editor](https://store.rpgmakerofficial.com/products/2d-animation-editor-mz)), and MZ's own Animations tab lists sound and flash timings around an Effekseer effect ([MZ Animations](https://rpgmakerofficial.com/product/MZ_help-en/01_08_09.html)). The Move lane and the hit marker are what neither of those has.
+- **The hit frame.** A `hit` event marks the exact tick the blow lands. It carries the hitstop (attacker freeze ticks and target shake ticks, MUGEN's `pausetime` on its HitDef, [MUGEN state controllers](https://elecbyte.com/mugendocs/sctrls.html)), a contact point measured from the axis where sparks spawn, and a reach in depth rows, so a blow can't land on a target several rows away. That reach is IKEMEN GO's `attack.depth` idea reduced to a row count ([Character features](https://github.com/ikemen-engine/Ikemen-GO/wiki/Character-features)). Kit's combo has three `hit` events; the damage still resolves once (see "Combo of blows from one action" in `docs/CONCEPTS.md`). Hitstop appears on the timeline as a hatched gap after its hit, so Mark sees the real time it adds.
+- **Startup, active and recovery.** Above the strip, a bar splits the move into startup (ticks before the first hit), active (the hit frames) and recovery (after the last), with the total in ticks and milliseconds. These are fighting-game frame-data terms ([Dustloop](https://dustloop.com/w/Using_Frame_Data)). The bar is computed from the frames and the hit events and never typed in (inferred; no source showed how any editor displays this, section 6.2). In a turn-based fight it answers two questions at a glance: how long until the blow lands, and how long until the attacker is home.
+- **Effects are spawned, not drawn into stills.** A smear, a hit spark or the GPU hit is an event at a tick with an offset from the axis or from the contact point, and the effect is its own object with its own depth. OpenBOR spawns its hit flash as a separate model at the contact point in the same way ([OpenBOR Hit Effects](https://chronocrash.com/openbor/wiki/index.php/Hit_Effects)). The picker offers the code swipes (`drawSwipe` in `src/art/rig2/sfstrike.ts`) and FX lab presets (`src/data/fx.json`).
+- **Lunge path.** The Move lane holds dx and dz per frame, and the canvas draws the path as one dot per tick from the start slot to the contact, flagging the largest step (see "Constant-rate dash" in `docs/CONCEPTS.md`). A dz lets the attacker change depth row on the way, for instance onto the lane in front of an ally ("Attack lane and depth cue"). Move stays separate from offset: the shadow and the contact point travel with the fighter, while an offset only shifts the picture.
+- **Onion skin and ground guides**: previous and next frames tinted under the current one, toggled with F3 as in Aseprite ([Aseprite onion skinning](https://www.aseprite.org/docs/onion-skinning/)), plus the floor line and the shadow ellipse at the ground point, so a planted foot can be checked against the ground across frames.
 - **Tags**: named frame ranges (idle, wind-up, strike, recover) with a direction: forward, reverse or ping-pong ([Aseprite tags](https://www.aseprite.org/docs/tags/)). MZ's sheet convention fits inside this: three frames per motion, looping 1-2-3-2 (ping-pong) or once 1-2-3 (forward) ([MZ sprite sheets](https://rpgmakerofficial.com/product/MZ_help-en/01_11_02.html)).
-- **Anchors and hit points**: per-frame points drawn on the art, like Aseprite slices with pivots ([Aseprite slices](https://www.aseprite.org/docs/slices/)): the foot anchor (see "Anchoring by the planted foot" in `docs/CONCEPTS.md`) and the impact point.
-- **Onion skin**: previous and next frames tinted under the current one, toggled with F3 as in Aseprite ([Aseprite onion skinning](https://www.aseprite.org/docs/onion-skinning/)), so a planted foot can be checked.
-- **Events lane**: markers for `hit`, `sfx`, `shake` and `flash`, each a name plus a single parameter (like Unity animation events, which take one parameter: a float, int, string or object, [Unity animation events](https://docs.unity3d.com/Manual/script-AnimationWindowEvent.html)). Godot does not fire call-track events in editor preview ([Godot track types](https://docs.godotengine.org/en/stable/tutorials/animation/animation_track_types.html)); ours previews the visuals (flash, shake, hitstop, sound) but never applies damage, and Battle Test fires them for real.
+- **Preview**: Play (looping), Step (one tick forward or back) and Play at battle speed, all in the composer's canvas. Preview fires the visual events (flash, shake, hitstop, sound, effects) and never applies damage; Godot's editor preview skips call-track events for the same reason ([Godot track types](https://docs.godotengine.org/en/stable/tutorials/animation/animation_track_types.html)).
 - **Bulk tools** from MV's editor: copy cells between frames, shift a range, tween between two frames ([MV Animations](https://rpgmakerofficial.com/product/MV_Help/page/01_08_09.html)).
-- **Test button**: "Play in battle" runs the move in the stage view against a target.
+- **Test button**: "Play in battle" runs the move on the real stage against a target on a chosen row, so reach and lunge are checked against real depth rows, and Battle Test fires the events for real.
+- **Not built: hitbox and hurtbox drawing.** MUGEN's attack and body boxes (Clsn1 and Clsn2, [AIR docs](https://elecbyte.com/mugendocs/air.html)) decide hits in a real-time fighter. A turn-based battle already knows who is hit, so a `hit` event with a contact point and a row reach does the job. Boxes come back only if per-frame hurtboxes are ever wanted.
 
 ### 4.3 Database (enemies, skills, items)
 
@@ -310,3 +348,96 @@ Don't rewrite these for the guide's sake; apply the relevant part whenever one i
 13. The tool is dev-only: absent from the production build, not mounted under Playwright where it would get in the way, with a dry-run flag (like FX lab's `?dry=1`) for tests.
 14. Unit tests cover the validator and the save round trip, and an e2e test drags something, saves, reloads and finds it where it was left.
 15. Any place the tool deliberately differs from RPG Maker is written in section 1's table of this guide.
+
+---
+
+## 6. Beyond RPG Maker: depth stages and frame-by-frame moves
+
+Two jobs the Shadow Jog Engine needs have no RPG Maker equivalent, so Mark asked (2026-10-02) how the engines that had to build them did it. The research went through a page-summarising fetcher like the rest of this guide, so wording is paraphrased. Public sources were thin in places; each subsection ends with its gaps rather than filling them with guesses.
+
+### 6.1 Battle stages with depth
+
+**What RPG Maker lacks.** MZ crops a fixed 1000×740 battleback, the lower part in side view ([MZ battlebacks](https://rpgmakerofficial.com/product/MZ_help-en/01_11_01.html)), places side-view actors by a formula in its core script (3.1), and lets you drag enemies freely on a flat picture in the Troops tab ([MZ Troops](https://rpgmakerofficial.com/product/MZ_help-en/01_08_07.html)). Nowhere is there a floor band, a depth row or a draw order to edit. Mark's brief was a stage "angled such that the characters appear on different Z-axis values": heroes on the left facing right, enemies on the right, rear figures higher on screen, nearer ones drawn over them, a contact shadow under each, and a horizon and floor the designer can move.
+
+**OpenBOR**, the open-source 2D brawler engine, solved this decades ago and is the main precedent.
+
+- *Axes.* Z runs toward the camera: lower values are further away, and as an entity comes closer it moves down the screen and draws over farther ones ([OpenBOR axis wiki](https://chronocrash.com/obor/wiki/axis/)).
+- *The walkable band.* Each level sets `z zmin zmax [BGheight]`, all three being screen rows counted from the top. zmin is how high up entities may walk, zmax how far down, with defaults of 160 and 232; the optional third number moves where the background art bottoms out (default 160) so it can be matched to zmin. Forum examples read `z 146 240` and `z 194 249 160`, and modders are told to measure their stage picture in pixels to find where the floor starts and ends ([Z vs. Panel Interaction](https://chronocrash.com/forum/threads/z-vs-panel-interaction.8250/latest)). That measuring step is the manual version of a draggable horizon and floor.
+- *Placement.* `coords x z a` puts an entity at an x, a z and an altitude, measured against the level rather than the screen, and `at N` spawns it when the level has scrolled to N ([coords thread](https://chronocrash.com/forum/threads/param-z-in-coords-is-relative-to-level-and-not-to-screen.3448/), [spawn by level position](https://chronocrash.com/forum/threads/how-to-spawn-entity-at-position-of-level-not-screen-position.5318/)).
+- *Layers.* `bglayer`, `fglayer`, `panel` and `frontpanel` each take a z (positive nearer the screen, negative further), separate x and z parallax ratios, position, spacing, repeat, alpha and a water mode ([fglayer syntax thread](https://www.chronocrash.com/forum/threads/fglayer.1803/latest)).
+- *Shadows.* There are two kinds. Static shadow sprites, picked by an index 0 to 6, sit centred on the entity's offset point; "replica" shadows project the current frame, steered by a level-wide `light` command (x leans it, z sets its length). Flags choose the kind per state (`static_ground`, `replica_air`), and `aironly` shows a shadow only while airborne ([OpenBOR shadows](https://chronocrash.com/obor/wiki/shadows/)).
+- *Editing UI.* The community level editor, Chronocrash Modders Tools, switches between a text view and a visual level view. A red rectangle marks the camera and scrolls with the arrow keys, so a spawn can be seen landing on screen; walls, holes and platforms are dragged out with the mouse, and layers show at their z positions ([Chronocrash Modders Tools](https://www.chronocrash.com/forum/resources/chronocrash-modders-tools.139/)).
+
+**Other brawler engines** publish little. GameMaker's "Beat'em Up Engine" advertises 2.5D movement with a jump on z, depth handling and "battle areas" that bound the camera and the screen, with no data format given ([GameMaker Marketplace](https://marketplace.gamemaker.io/assets/7720/beat-em-up-engine), [itch.io thread](https://itch.io/t/396704/beatem-up-engine-for-game-maker-studio-2)). The Streets of Rage 4 developer material found is design philosophy only ([Gematsu](https://gematsu.com/2019/11/streets-of-rage-4-behind-the-gameplay-developer-diary)).
+
+**General 2D engines** agree on one thing: sort by y, at the feet.
+
+- *Godot* draws a node with a higher y in front when `y_sort_enabled` is on, relative to nodes at the same z-index ([CanvasItem](https://docs.godotengine.org/en/latest/classes/class_canvasitem.html)). The sort point is the node's position, so the sprite must be offset until its origin is at its feet ([KidsCanCode Y-sort](https://kidscancode.org/godot_recipes/4.x/2d/using_ysort/index.html)). A tile layer's `y_sort_origin` adds an integer to each tile's sort value "to fake a different height level" ([TileMapLayer](https://docs.godotengine.org/en/latest/classes/class_tilemaplayer.html)), and a common pitfall is a z-index overriding the y-sort ([bugnet.io](https://bugnet.io/blog/how-to-fix-godot-ysort-feet-sorting-with-wrong-origin)). No y-sort editor gizmo could be verified in Godot's docs.
+- *Unity* sorts by sorting layer, then Order in Layer, then distance along a Transparency Sort Axis (Perspective, Orthographic or a Custom Axis, the last documented for isometric maps). A sprite's sort point is its centre by default or its pivot, set in the Sprite Editor, and a Sorting Group makes a multi-part figure sort as one ([Unity 2D sorting](https://docs.unity3d.com/2023.1/Documentation/Manual/2DSorting.html)).
+- *Tiled* orders an object layer `topdown` (by y, the default) or `index` (by hand, raised and lowered with Page Up and Page Down), with ties going to the object made last ([Tiled draw order](https://discourse.mapeditor.org/t/objectgroup-rendering-order/1586)).
+
+**JRPGs** were the weakest source. A Data Crystal page describing enemy positions as `yyyyxxxx` bytes could not be fetched (403) or confirmed as Final Fantasy VI's battle formations ([Data Crystal](https://datacrystal.tcrf.net/wiki/Final_Fantasy_VI/Monster_Script_Format)), so treat it as unverified. Chrono Trigger and Cosmic Star Heroine fight on the explored map, which makes each layout hand-made per encounter ([Siliconera](https://www.siliconera.com/cosmic-star-heroine-unexpected-psx-surprise/)). Octopath Traveler's HD-2D gets its depth from a 3D camera, depth of field and tilt-shift over flat sprites, not from authored floor rows ([HD-2D](https://en.wikipedia.org/wiki/HD-2D)).
+
+**What we adopt** (all specified in 3.4, 3.5 and 3.7):
+
+1. The floor as two numbers plus a separate horizon, which is OpenBOR's zmin, zmax and background height. Our `floor.top`, `floor.bottom` and `horizon` already match, and the handles move them.
+2. One sort key at the feet, `depthFor(y, x)`, fed by a per-sprite foot anchor, as Godot, Unity and Tiled all require. The anchor gets a visible crosshair because everything depends on it.
+3. A manual forward and back override within a row, from Tiled's index order, for the rare bad overlap.
+4. A whole figure (body, weapon, smear, shadow) sorting as one, from Unity's Sorting Group.
+5. Shadow rules: an ellipse on the foot anchor, a per-row scale and alpha next to the per-row tint, and a shadow that stays on the floor when the figure leaves it, after OpenBOR's grounded kinds.
+6. A parallax ratio per backdrop layer, from OpenBOR's layer ratios.
+7. A camera rectangle overlay, from the OpenBOR editor's red box.
+8. A read-only text view beside the visual one, from the same editor.
+
+**What we reject, and why:**
+
+- *A free z per fighter* (OpenBOR's `coords x z a`). Our rows are the z values; a free number would let fighters drift off rows and break formations (inferred).
+- *Walls, holes and platforms.* They exist for brawler movement through a level. JRPG fighters stand on slots.
+- *Replica shadows.* A projected silhouette per frame, lit from a direction, costs a draw per figure per frame and reads as realistic lighting next to flat pixel ellipses (inferred). Worth a second look only if a stage ever wants one strong light.
+- *A separate "battle area" object.* The floor band already bounds where figures can stand.
+- *Sorting layers or a z-index per fighter.* Two systems can disagree, and the Godot pitfall above is exactly that. One key, with the override folded into it.
+- *More digging for FF6 or Chrono Trigger numbers.* Unverified and slow. Measuring screenshots of the games Mark likes (row spacing, how steep the party's diagonal is, shadow width against sprite width) is cheaper and answers the real question (inferred).
+
+**Gaps.** No authoritative pixel-art convention for contact shadows turned up, only general tutorials and an Aseprite oval-shadow script ([dynamic oval shadow](https://azuna-pixels.itch.io/dinamic-oval-shadow-layer)); the flattened dark ellipse at the feet is common practice, not a cited rule. The FF6 formation data is unverified.
+
+### 6.2 Building moves frame by frame
+
+**What RPG Maker lacks.** MZ's side-view battlers are one fixed sheet: equal cells, three frames per motion, each motion looping 1-2-3-2 or playing once ([MZ sprite sheets](https://rpgmakerofficial.com/product/MZ_help-en/01_11_02.html)). Equal cells leave no room for a per-frame anchor, a per-frame hold or a marked hit frame. The Animations tab times sounds and flashes around an Effekseer effect ([MZ Animations](https://rpgmakerofficial.com/product/MZ_help-en/01_08_09.html)), which is about the effect, not the attacker's body, and when damage lands is the battle system's business rather than a frame's (inferred). The official 2D Animation Editor add-on adds frame, cell, sound and flash tracks ([2D Animation Editor](https://store.rpgmakerofficial.com/products/2d-animation-editor-mz)), with no anchor or hit marker that its store page mentions. Mark's need is the opposite end: hand-picked Sprite Fusion stills of different canvas sizes (Rook's 69x110 wind-up, his 101x66 follow-through), each standing on the same ground point, with chosen holds, an exact hit frame, smear and effect timing, a lunge, and a preview.
+
+**MUGEN** (Elecbyte's fighting-game engine) is the base model.
+
+- *The frame line.* An action is a list of elements, each `group, image, x, y, time, [flip], [blend]`. Group and image point into the sprite file; x and y are offsets from the sprite's axis, positive meaning right and up; time is in 60 Hz ticks, with `-1` on the last element holding forever. `Loopstart` marks where a loop returns to, flip is `H`, `V` or `VH`, and blend is additive, subtractive or an alpha form ([Elecbyte AIR docs](https://elecbyte.com/mugendocs/air.html)).
+- *The axis.* Every sprite carries its own axis, set when the sprite file is built, and frame offsets and boxes are measured from it. That shared reference is what keeps a character steady across frames ([AIR docs](https://elecbyte.com/mugendocs/air.html)).
+- *Boxes.* Clsn1 is an attack box and Clsn2 a body box; the `Default` variants carry over to every later frame until replaced ([AIR docs](https://elecbyte.com/mugendocs/air.html)).
+- *Hit timing.* The animation owns frames, durations and boxes. A separate HitDef in the character's state owns the pausetime (attacker freeze and target shake), the hit spark and where it appears, and the hit sound; a hit happens when an attack box overlaps a body box, and one HitDef is one hit ([MUGEN state controllers](https://elecbyte.com/mugendocs/sctrls.html)). So the moment of the hit belongs to the move and its boxes, not to a flag on a frame (inferred).
+
+**IKEMEN GO** is an open-source (MIT) Go engine aiming at MUGEN 1.1 beta compatibility ([repo](https://github.com/ikemen-engine/Ikemen-GO)). It keeps the frame line untouched and adds, among other things, depth through `depth` and `attack.depth` constants so attacks collide in depth too, extra blend modes, a "Copy Action" shortcut, custom shaders and higher variable limits ([Character features](https://github.com/ikemen-engine/Ikemen-GO/wiki/Character-features)). Its wiki also lists Lua scripting and 3D models, unverified here ([wiki](https://github.com/ikemen-engine/Ikemen-GO/wiki)).
+
+**Fighter Factory**, the community MUGEN editor, has no official UI documentation that could be found. A tutorial describes a Sprites menu with Add and "Add Group to AIR", an animation list, floor-level guidelines, and a collision box drawn on one frame and applied across frames ([FF Ultimate tutorial](https://itstillworks.com/12585853/how-to-make-a-mugen-character-in-fighter-factory-ultimate)). For frames of different sizes the community workflow is to lay every frame on one large canvas with a shared axis, import each with its axis values, save the set "aligned" (a canvas sized to fit all sprites plus a text file of axes), then trim. The axis goes at the body or feet, never the image centre ([ChronoCrash conversion thread](https://www.chronocrash.com/forum/threads/converting-mugen-chars-to-openbor.1074/page-2)). Makko's guide says the same: the anchor is the one pixel where the character meets the world, normally bottom-centre at the feet ([Makko](https://blog.makko.ai/sprite-animation-alignment-anchor-points-scale-and-using-characters-in-multiple-games/)).
+
+**OpenBOR** authors animations as text: `anim`, then `offset`, `delay` and `frame <image>` lines. A `frame` line commits the current state, property lines set the state for the next frame, and one-shot properties such as a frame sound reset after each frame. Delay defaults to centiseconds, and the offset stands each frame on one world point, usually between the feet ([Animation Overview](https://chronocrash.com/openbor/wiki/index.php/Animation_Overview), [animations overview](https://chronocrash.com/obor/wiki/animations-overview/)). Per frame it can also carry body boxes (`bbox`) and attack boxes, movement (`move`, `movea`, `movez`), `jumpframe`, `landframe` and `dropframe`, and attached sounds, spawns and scripts. Its hit flash is a separate model spawned at the contact point with its own z and layer, and the sound can live in that model's animation ([Hit Effects](https://chronocrash.com/openbor/wiki/index.php/Hit_Effects)). Unlike MUGEN it has one offset per animation unless overridden, so it relies on pre-aligned canvases, and its wiki warns that mismatched ones make entities shake or slide ([Animation Overview](https://chronocrash.com/openbor/wiki/index.php/Animation_Overview)).
+
+**Aseprite and Spine** supply the timeline ideas. Aseprite tags name a frame range with a direction ([tags](https://www.aseprite.org/docs/tags/)), and its slices carry a pivot, user data and per-frame keys with bounds, exported to JSON: the nearest existing per-frame anchor format, though it lives in the art file ([slices](https://www.aseprite.org/docs/slices/)). Spine events are named triggers keyed on the timeline with int, float and string payloads and an optional audio path; the game handles them in code (spawn particles, hurt an enemy), and they can be grouped in folders ([Spine events](https://esotericsoftware.com/spine-events)). That is the cleanest model found for hit, smear and sound cues, and more flexible than MUGEN's one HitDef per hit.
+
+**Frame-data vocabulary** comes from fighting games: startup is the time to the first hitting frame, active the frames that can hit, recovery the rest until the character can act; hitstun and blockstun lock the defender; a cancel window is how long after contact another move can interrupt; frame advantage is the difference between the two sides' recovery ([Dustloop](https://dustloop.com/w/Using_Frame_Data), [SRK glossary](https://srk.shib.live/w/Street_Fighter_V/Glossary)). Hitstop, the freeze both fighters get on contact, is MUGEN's `pausetime` ([MUGEN state controllers](https://elecbyte.com/mugendocs/sctrls.html)).
+
+**What we adopt** (all specified in 4.2):
+
+1. MUGEN's frame line as the frame record (still, offset, hold, flip), plus a Spine-style event list on each frame instead of a separate HitDef.
+2. One axis per still, defaulting to the feet, draggable as a crosshair, with stills never re-padded. Mixed canvas sizes then line up by construction.
+3. Ticks at 60 per second as the only authoring unit, with milliseconds shown beside them.
+4. A `hit` event that carries the hitstop (MUGEN's pausetime), a contact point and a row reach (IKEMEN's `attack.depth`, reduced to rows).
+5. Per-frame dx and dz in a Move lane, from OpenBOR's `move` and `movez`, kept apart from the picture offset.
+6. Effects as spawned objects placed relative to the axis or the contact point, from OpenBOR's hit flash.
+7. A startup, active and recovery bar derived from the frames, using the fighting-game vocabulary.
+
+**What we reject, and why:**
+
+- *Hitbox and hurtbox drawing* (Clsn1, Clsn2, OpenBOR's `bbox`). A turn-based battle already knows who is hit; one `hit` event does the job.
+- *One offset per animation over pre-aligned canvases* (OpenBOR's default). Padding Mark's stills to a common canvas is extra work, and the OpenBOR wiki's own warning about shaking and sliding is the failure we are avoiding.
+- *Centiseconds, or any second unit.* The 60 versus 200 Hz mismatch had to be tuned by hand in MUGEN conversions ([ChronoCrash conversion thread](https://www.chronocrash.com/forum/threads/converting-mugen-chars-to-openbor.1074/page-2)).
+- *Hit timing kept in a separate state file* (MUGEN's HitDef). Answering "when does it hit" should not mean opening two places; the hit sits on the timeline where Mark can see it.
+- *Cancel windows and frame advantage.* They matter between real-time inputs. The nearest thing here is the timed-hit ring, which could become an event later if it needs authoring (inferred).
+- *IKEMEN's Lua and 3D models.* Unverified and not needed.
+
+**Gaps.** No documentation turned up for Fighter Factory's panels, onion skin or playback, so the composer's onion skin comes from Aseprite (4.2), not from Fighter Factory. No source showed how any editor displays startup, active and recovery; the bar in 4.2 is our design. DragonBones was not examined, and Elecbyte's sprite-file page returned 403.
