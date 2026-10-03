@@ -410,7 +410,8 @@ export class BattleRenderer {
     } else if (dd.flash > 0 && dd.flash % 4 < 2) {
       // A blink, not a blank: the sprite's detail stays visible under the white, so a still
       // caught on this frame reads as a hit rather than a white smear.
-      g.globalAlpha = (SF && SIDE_VIEW ? 0.4 : 0.55) * alpha;
+      // Flash 1 is the soft tint of Kit's first two blows (a light wash, so the face and the red mark stay readable); the last blow is the hard swap above.
+      g.globalAlpha = (SF && SIDE_VIEW ? (dd.flash === 1 ? 0.2 : 0.4) : 0.55) * alpha;
       putArt(g, silhouetteCache(canvas, '#ffffff'), dx, dy, res);
     }
     g.globalAlpha = 1;
@@ -465,7 +466,7 @@ export class BattleRenderer {
     if (!SIDE_VIEW) return null;
     const dd = this.s.d(uid);
     if (!this.s.partyArt.get(uid)?.sfPunch || dd.pose !== 'attack' || dd.strikeAt === undefined || dd.poseT <= 0 || dd.poseT > (dd.poseLen ?? 0)) return null;
-    return punchBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.reachX ?? 0);
+    return punchBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.reachX ?? 0, dd.strikeLow === true, dd.punchStop);
   }
 
   /** Either strike (the code art's kendo cut, or Sprite Fusion's frames: Rook's strike, Kit's combo): how far along its lunge the body is, and whether the blow is on the target. */
@@ -604,7 +605,7 @@ export class BattleRenderer {
    * Battle-world pixels on the enemy layer.
    */
   private drawPunchDust(g: Ctx, p: Combatant, pk: PunchBeat, lungeX: number, lungeY: number): void {
-    const c = pk.key === 'jab' ? pk.t : pk.key === 'crossS' ? 3 : pk.key === 'cross' ? 4 + pk.t : -1;
+    const c = pk.key === 'jabT' ? 0 : pk.key === 'jab' ? 1 + pk.t : pk.key === 'crossT' ? 4 : pk.key === 'cross' ? 5 + pk.t : -1;
     if (c < 0 || c >= 9) return;
     const hx = Math.round(this.s.partyPos(p).x + lungeX + PUNCH_MEASURED.footDx / 2) - 6;
     const gy = Math.round(this.s.partyFeet(p) - 1 + lungeY);
@@ -675,7 +676,7 @@ export class BattleRenderer {
     const snap = SIDE_VIEW ? (v: number) => Math.round(v * 2) / 2 : Math.round;
     // Side view: how far along its lunge the body is, in world pixels.
     const lungeK = pk ? pk.lunge : sk ? sk.lunge : kb ? kb.lunge : sb ? sb.lunge : 0;
-    const lungeX = lungeK * (dd.reachX ?? 0);
+    const lungeX = lungeK * (dd.reachX ?? 0) + (pk ? pk.push : 0);
     const lungeY = lungeK * (dd.reachY ?? 0);
     const x = snap(pos.x - frame.width / res / 2 + ox + walkLeft + lungeX);
     const lift = beat ? beat.lift : dd.lunge;
@@ -812,7 +813,7 @@ export class BattleRenderer {
       if (pk) {
         // Kit's combo: the chevron is gone from the first frame (the body is its own marker once it is on the target).
         if (pk.key !== 'ready') return;
-        x += pk.lunge * (dd.reachX ?? 0);
+        x += pk.lunge * (dd.reachX ?? 0) + pk.push;
         y += pk.lunge * (dd.reachY ?? 0);
       } else if (sk) {
         // Round 4: once the strike has begun the chevron is gone (the raised blade ran through it); the body is its own marker.

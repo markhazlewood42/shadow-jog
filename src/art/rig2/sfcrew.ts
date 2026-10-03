@@ -273,11 +273,11 @@ export function sfBattler(key: string): Battler | null {
     for (const k of SF_KEYS) fr[k] = toCanvas(built.frames[k]);
     sfStrike = { frames: fr };
   }
-  // Kit's punch combo (H-sf-kit-punch): her idle, the run, load, jab, cross and kick laid on one canvas size by their planted boot, plus the smears.
+  // Kit's punch combo (H-sf-kit-punch): her idle, the run, load, jab, cross, kick and crouch laid on one canvas size by their planted boot, plus the smears.
   let sfPunch: Battler['sfPunch'];
   if (spec.punch) {
     const one = (n: string): Raw => rawOf(n)[0] as Raw;
-    const built = buildSfPunch(rawOf(spec.idle), one('kit-battle-running'), one('kit-battle-punch1'), one('kit-battle-punch2'), one('kit-battle-punch3'), one('kit-battle-kick'));
+    const built = buildSfPunch(rawOf(spec.idle), one('kit-battle-running'), one('kit-battle-punch1'), one('kit-battle-punch2'), one('kit-battle-punch3'), one('kit-battle-kick'), one('kit-battle-crouched'));
     Object.assign(PUNCH_MEASURED, built.measured);
     const fr = {} as Record<PunchKey, HTMLCanvasElement>;
     for (const k of PUNCH_KEYS) fr[k] = toCanvas(built.frames[k]);

@@ -23,7 +23,7 @@ import { SF, SIDE_LUNGE_MAX, SIDE_LUNGE_STOP, SIDE_VIEW } from './sideview';
 import { KATA_BITE_FRAC, KATA_EFFECT_SHIFT, KATA_KNOCK, KATA_LOW_BELOW, KATA_MEASURED, KATA_MEASURED_LOW, KATA_WINDUP, kataLength } from '../../art/rig2/sidekata';
 import { SF_HIT_HEIGHT, SF_KNOCK, SF_LANE_DOWN, SF_LANE_SHARE, SF_LANE_UP, SF_MEASURED, SF_PIERCE, SF_SOLES_ABOVE, SF_SPARK_BODY, SF_WINDUP, sfLength } from '../../art/rig2/sfstrike';
 import { MEN_R, PUNCH_R } from '../../battle/fx';
-import { PUNCH_HIT_MAX, PUNCH_IMPACT, PUNCH_KNOCK, PUNCH_MEASURED, PUNCH_PIERCE, punchHits, punchLength, punchWindup } from '../../art/rig2/sfpunch';
+import { PUNCH_FINISHER, PUNCH_HIT_MAX, PUNCH_KNOCK, PUNCH_LOW_BELOW, PUNCH_MEASURED, PUNCH_PIERCE, PUNCH_SPARK_PAST, punchHits, punchLead, punchLength, punchWindup, type PunchBlow } from '../../art/rig2/sfpunch';
 import { gpuCast, gpuDown, gpuHeal, gpuHit, gpuPhase, gpuSpell } from './gpufx';
 import type { TimingProfile } from '../../battle/engine';
 
@@ -128,36 +128,67 @@ async function windupAndHit(v: PlaybackView, fx: string, from: Pt, to: Pt[], win
   await v.game.wait(v.anim(timing.impact));
 }
 
+/** Kit's blows: the spark's size (`PUNCH_R.power`), the screen shake (size, frames) and the hit pause (frames) each leaves, so the combo escalates: jab light, cross medium, kick heavy. */
+const PUNCH_BLOW: Record<PunchBlow, { power: number; shake: [number, number]; stop: number }> = {
+  jab: { power: 0.5, shake: [3, 2], stop: 2 },
+  cross: { power: 0.8, shake: [5, 2], stop: 3 },
+  kick: { power: 1.3, shake: [8, 3], stop: 4 },
+  low: { power: 0.55, shake: [3, 2], stop: 2 },
+  low2: { power: 0.9, shake: [6, 3], stop: 3 },
+};
+/** Her soles go this many world px below the feet of any enemy her run passes (she runs in front of the others, on a lane of her own, instead of through them). */
+const PUNCH_LANE_AHEAD = 3;
+
+/** What is left of Kit's combo once the first blow is thrown: it waits for the engine to say hit or miss (the `damage` or `miss` event that follows `act`). */
+let punchRest: { actor: number; target: number; run: () => Promise<void> } | null = null;
+
+/** Wait until the pose clock is `k` pose frames in (the pose and the script run on one clock; a hit pause holds both). */
+async function untilPose(v: PlaybackView, uid: number, k: number): Promise<void> {
+  const dd = v.d(uid);
+  for (let i = 0; i < 240 && dd.poseT > 0 && (dd.poseLen ?? 0) - dd.poseT < k; i++) await v.game.wait(1);
+}
+
 /**
- * Kit's combo in Sprite Fusion art: the jab, the cross and the kick, each a blow of its own on the target (`punch_r`, its GPU hit, a short shove, a hitstop), a few frames apart as her
- * frames show them (`punchHits`: the pose and this script both count in pose frames from the first blow). The first blow goes through the usual wind-up (and the timing ring, if one is
- * armed: it closes on the jab). The LAST one only plays its effect: the engine's one real damage event follows and lands the number, the shake and the hitstop, as Rook's cut does.
+ * Kit's combo in Sprite Fusion art: the jab, the cross and the kick (or two low blows for a short target), each a blow of its own on the target (`punch_r`, its GPU hit, a short shove, a hit
+ * pause), as her frames show them (`punchHits`: the pose and this script both count in pose frames from the first blow). The first blow goes through the usual wind-up (and the timing ring, if one is
+ * armed: it closes on the jab). Then the script STOPS and the engine resolves the action: if the first blow missed, nothing more is thrown (`miss` ends the pose early); if it hit, the rest
+ * is played from the `damage` event (`punchRest`), keyed to the pose clock, and the LAST blow only plays its effect: the engine's one real damage event lands the number, the shake and the pause.
  */
-async function punchCombo(v: PlaybackView, target: number, from: Pt, pts: Pt[], windup: number, element: Element | undefined, onStart: ((at: number) => void) | undefined): Promise<void> {
-  const hits = punchHits();
-  const power = { jab: 0.8, cross: 1, kick: 1.3 };
+async function punchCombo(v: PlaybackView, actor: number, target: number, from: Pt, pts: Pt[], low: boolean, windup: number, element: Element | undefined, onStart: ((at: number) => void) | undefined): Promise<void> {
+  const hits = punchHits(PUNCH_FINISHER, low);
   const at = v.pos(target);
-  for (const [i, h] of hits.entries()) {
-    const pt = pts[i] as Pt;
-    PUNCH_R.power = power[h.key];
-    if (i === 0) await windupAndHit(v, 'punch_r', from, [pt], windup, undefined, onStart);
-    else {
-      // The pose clock has run PUNCH_IMPACT frames since the last blow's effect started; wait out the rest of the gap, then this blow's effect.
-      await v.game.wait(v.anim(Math.max(1, h.at - (hits[i - 1] as { at: number }).at - PUNCH_IMPACT)));
-      const t = v.fx.play('punch_r', from, [pt]);
-      gpuSpell('punch_r', [pt], t.impact);
-      await v.game.wait(v.anim(t.impact));
-    }
-    if (i === hits.length - 1) break;
-    // Not the last: the target blinks, is shoved a little, the frame jolts and time stops for a beat (the engine's damage event, later, does the same for the last one).
-    const dd = v.d(target);
-    dd.flash = 5;
-    dd.knock = PUNCH_KNOCK;
+  const dd = v.d(actor);
+  PUNCH_R.power = PUNCH_BLOW[(hits[0] as { key: PunchBlow }).key].power;
+  await windupAndHit(v, 'punch_r', from, [pts[0] as Pt], windup, undefined, onStart);
+  const first = Math.max(Math.round(dd.strikeAt ?? 0), punchLead(dd.reachX ?? 0, low));
+  // Not the last blow: the target blinks (a soft tint, so its face stays readable), is shoved a little, the frame jolts and time stops for a beat. The engine's damage event does the same, harder, for the last.
+  const react = async (i: number): Promise<void> => {
+    const h = hits[i] as { key: PunchBlow };
+    const b = PUNCH_BLOW[h.key];
+    const t = v.d(target);
+    t.flash = 1;
+    t.knock = i === 0 ? PUNCH_KNOCK.jab : PUNCH_KNOCK.cross;
     sfx('hit');
-    gpuHit(pt, from, element ?? 'phys', 0, { crit: false, weak: false, combo: false });
-    v.game.shake(5 + i, 2, direction(from, at));
-    await v.hitstop(3);
-  }
+    gpuHit(pts[i] as Pt, from, element ?? 'phys', 0, { crit: false, weak: false, combo: false });
+    v.game.shake(b.shake[0], b.shake[1], direction(from, at));
+    await v.hitstop(b.stop);
+  };
+  punchRest = {
+    actor,
+    target,
+    run: async () => {
+      await react(0);
+      for (let i = 1; i < hits.length; i++) {
+        const h = hits[i] as { key: PunchBlow; at: number };
+        await untilPose(v, actor, first + h.at);
+        PUNCH_R.power = PUNCH_BLOW[h.key].power;
+        const t = v.fx.play('punch_r', from, [pts[i] as Pt]);
+        gpuSpell('punch_r', [pts[i] as Pt], t.impact);
+        await v.game.wait(v.anim(t.impact));
+        if (i < hits.length - 1) await react(i);
+      }
+    },
+  };
 }
 
 /**
@@ -198,6 +229,8 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         dd.strikeAt = undefined;
         dd.poseLen = undefined;
         dd.strikeLow = undefined;
+        dd.punchStop = undefined;
+        punchRest = null;
         // Rook's kendo strike has its own timeline and a longer blade, so he stops further off.
         // Under Sprite Fusion art his strike is Mark's own frames (rig2/sfstrike.ts); the same flag drives both, the geometry below differs.
         kata = SIDE_VIEW && actor.key === 'rook' && pose === 'attack';
@@ -210,15 +243,21 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
           const box = (kata || punch) && e.targets[0] !== undefined ? v.enemyBox(e.targets[0]) : null;
           if (punch && box) {
             // Kit: the tip of every blow (the fist of the jab and the cross, the toe of the kick, all on one column by construction) ends `PUNCH_PIERCE` inside the target's body front. She
-            // stands on the target's floor, a hair in front of it (drawn over it), and steps or runs in by the lunge. Each blow's point is the height of the tip above her soles, kept inside
-            // the target's body: a short target (a Glowrat) is hit at the top of it.
+            // stands on a lane of her own: the target's floor, or `PUNCH_LANE_AHEAD` below the feet of any enemy nearer than the target (so she runs in front of it, never through it). A target
+            // under `PUNCH_LOW_BELOW` tall (a Glowrat) gets the crouch. The spark and the GPU hit are drawn `PUNCH_SPARK_PAST` px past the fist, so the fist stays visible at contact.
             const tipAt = box.body0 + PUNCH_PIERCE;
             dd.reachX = Math.max(0, Math.min(SIDE_LUNGE_MAX, tipAt - PUNCH_MEASURED.tipDx / 2 - from.x));
             const feet = v.feetOf(e.actor);
-            dd.reachY = Math.max(-SF_LANE_UP, Math.min(SF_LANE_DOWN, box.feet + 1 - feet));
+            let lane = box.feet + 1;
+            for (const o of v.battle.alive('enemy')) {
+              const ob = o.uid === e.targets[0] ? null : v.enemyBox(o.uid);
+              if (ob && ob.x0 < tipAt) lane = Math.max(lane, ob.feet + PUNCH_LANE_AHEAD);
+            }
+            dd.reachY = Math.max(-SF_LANE_UP, Math.min(SF_LANE_DOWN, lane - feet));
             dd.target = e.targets[0];
+            dd.strikeLow = box.h < PUNCH_LOW_BELOW;
             const soles = feet + dd.reachY;
-            punchPts = punchHits().map((h) => ({ x: tipAt, y: Math.max(box.feet - box.h * PUNCH_HIT_MAX, Math.min(box.feet - 2, soles - PUNCH_MEASURED.up[h.key] / 2)) }));
+            punchPts = punchHits(PUNCH_FINISHER, dd.strikeLow).map((h) => ({ x: tipAt + PUNCH_SPARK_PAST, y: Math.max(box.feet - box.h * PUNCH_HIT_MAX, Math.min(box.feet - 2, soles - PUNCH_MEASURED.up[h.key === 'low2' ? 'low' : h.key] / 2)) }));
             kataPoint = punchPts[punchPts.length - 1] ?? null;
           } else if (kata && SF && box) {
             // Sprite Fusion art (round 3): the point of the blade (SF_MEASURED.tipDx art px in front of his slot's axis at the follow-through) ends `SF_PIERCE` inside the target's BODY
@@ -273,7 +312,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       const cry = ABILITIES[e.id]?.cry;
       if (cry && (e.kind === 'enemy' || actor.side === 'party')) v.say(cry);
       const punching = punchPts !== null;
-      const windup = actor.side === 'enemy' ? 12 : punching ? punchWindup(dd.reachX ?? 0) : kata ? (SF ? SF_WINDUP : KATA_WINDUP) : e.kind === 'attack' ? 8 : 16;
+      const windup = actor.side === 'enemy' ? 12 : punching ? punchWindup(dd.reachX ?? 0, dd.strikeLow === true) : kata ? (SF ? SF_WINDUP : KATA_WINDUP) : e.kind === 'attack' ? 8 : 16;
       const onStart = kata
         ? (at: number) => {
             dd.strikeAt = at;
@@ -282,7 +321,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         : punching
           ? (at: number) => {
               dd.strikeAt = at;
-              dd.poseLen = dd.poseT = punchLength(at, dd.reachX ?? 0);
+              dd.poseLen = dd.poseT = punchLength(at, dd.reachX ?? 0, dd.strikeLow === true);
             }
           : undefined;
       // Rook's effect is anchored a little toward him from the target's centre, so the blade's point shows beside the flash.
@@ -292,7 +331,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       const to = e.targets.map((t, i) => (kata ? { x: kataTarget && i === 0 ? kataTarget.x + shift : v.pos(t).x + shift, y: kataTarget && i === 0 ? kataTarget.bladeY : v.pos(t).y } : v.pos(t)));
       kataAction = kata || punching;
       if (punchPts && e.targets[0] !== undefined) {
-        await punchCombo(v, e.targets[0], v.pos(e.actor), punchPts, windup, e.element, onStart);
+        await punchCombo(v, e.actor, e.targets[0], v.pos(e.actor), punchPts, dd.strikeLow === true, windup, e.element, onStart);
         break;
       }
       await windupAndHit(v, kata && e.fx === 'slash' ? (SF ? 'men_r' : 'men') : e.fx, v.pos(e.actor), to, windup, e.element === 'shock' ? '#9ae8ff' : undefined, onStart);
@@ -333,6 +372,12 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       break;
     }
     case 'damage': {
+      // Kit's combo: the engine has said the first blow hit, so the rest of the combo plays out before the number lands.
+      if (punchRest && punchRest.target === e.target) {
+        const rest = punchRest;
+        punchRest = null;
+        await rest.run();
+      }
       const dd = v.d(e.target);
       const u = v.battle.unit(e.target)!;
       dd.hp = e.hp;
@@ -391,6 +436,13 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       break;
     }
     case 'miss':
+      if (punchRest && punchRest.target === e.target) {
+        // The first blow whiffed: nothing more is thrown. She recovers where she is and the target leans out of it (the recoil table, no flash).
+        const a = v.d(punchRest.actor);
+        a.punchStop = (a.poseLen ?? 0) - a.poseT;
+        v.d(e.target).knock = PUNCH_KNOCK.cross;
+        punchRest = null;
+      }
       v.floatOn(e.target, 'MISS', '#b8bcd0', 'label');
       sfx('miss');
       await v.w(14);
