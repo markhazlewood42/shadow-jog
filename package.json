@@ -1,7 +1,7 @@
 {
   "name": "shadow-jog",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0-dev",
   "description": "SHADOW JOG \u2014 a cyberpunk-fantasy JRPG for the browser",
   "type": "module",
   "scripts": {

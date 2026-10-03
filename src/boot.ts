@@ -5,7 +5,7 @@ import type { Game } from './engine/game';
 import { FieldScene } from './scenes/field';
 import { autosave, autosavePolicy, installSystems, loadIntoGame } from './game/systems';
 import { TitleScene } from './scenes/title';
-import { loadSave, unsavedFrames, writeSave } from './game/save';
+import { loadSave, slotStatus, unsavedFrames, writeSave } from './game/save';
 import { newGame } from './story/newgame';
 import type { Game as GameT } from './engine/game';
 import { flashScale, saveSettings, settings, shakeScale } from './game/settings';
@@ -263,7 +263,8 @@ export async function startTitle(game: GameT, fadeIn = 0): Promise<void> {
   }
   const s = loadSave(choice.slot);
   if (!s) {
-    notice('That save is damaged and could not be loaded. Your other slots are unaffected.', 'warn');
+    const why = slotStatus(choice.slot) === 'newer' ? 'was saved by a newer version of the game' : 'is damaged';
+    notice(`That save ${why} and could not be loaded. Your other slots are unaffected.`, 'warn');
     void startTitle(game, 30);
     return;
   }

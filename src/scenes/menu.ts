@@ -45,7 +45,7 @@ import { COMBO_TEXT_W, EQUIP_DESC_W, MENU_OBJ_W } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { applyEffects } from '../game/fielduse';
 import { canEquip, currentWound, equip, knownAbilities, lockedAbilities, maxUses, memberStats, SLOT_NAMES } from '../game/party';
-import { formatPlayTime, locationName, readMeta, SLOTS, writeSave, type SlotId } from '../game/save';
+import { formatPlayTime, locationName, readMeta, SLOTS, savedByVersion, slotStatus, writeSave, type SlotId } from '../game/save';
 import { flags, state, type EquipSlot, type MemberId, type MemberState } from '../game/state';
 import { drawBar, drawDivider, drawSelect, drawWindow, keyLegend, hpColor, UI, OVERLAY_DIM } from '../ui/draw';
 import { ListMenu, type ListItem } from '../ui/list';
@@ -81,6 +81,8 @@ export class MenuScene extends Scene<MenuResult> {
   private toast: { text: string; t: number } | null = null;
   private t = 0;
   private saveSlot: SlotId = 1;
+  /** Whether the slot in the confirm prompt was saved by a newer version. Read once on entering the prompt: slotStatus does storage reads and a full validation, too costly per frame. */
+  private saveSlotNewer = false;
 
   constructor(canSave = true) {
     super();
@@ -280,8 +282,12 @@ export class MenuScene extends Scene<MenuResult> {
         if (r === 'cancel') this.mode = 'main';
         else if (r === 'confirm') {
           this.saveSlot = Number(this.sub.current!.value) as SlotId;
-          if (readMeta(this.saveSlot)) this.mode = 'saveConfirm';
-          else this.doSave();
+          // A newer-version save always asks first, even when its header can't be read.
+          const newer = slotStatus(this.saveSlot) === 'newer';
+          if (readMeta(this.saveSlot) || newer) {
+            this.saveSlotNewer = newer;
+            this.mode = 'saveConfirm';
+          } else this.doSave();
         }
         break;
       }
@@ -452,6 +458,10 @@ export class MenuScene extends Scene<MenuResult> {
   private buildSaveList(): void {
     this.sub.setItems(
       SLOTS.map((s) => {
+        if (slotStatus(s) === 'newer') {
+          const v = savedByVersion(s);
+          return { label: `Slot ${s}`, value: String(s), right: v ? `Saved by a newer version (v${v})` : 'Saved by a newer version' };
+        }
         const meta = readMeta(s);
         return { label: `Slot ${s}`, value: String(s), right: meta ? `${meta.location} · Lv${meta.leaderLevel} · ${formatPlayTime(meta.playFrames)}` : 'Empty' };
       }),
@@ -649,7 +659,7 @@ export class MenuScene extends Scene<MenuResult> {
     this.sub.render(ctx, x + 8, 16, w - 14, this.mode === 'save');
     if (this.mode === 'saveConfirm') {
       drawWindow(ctx, x + 40, 70, w - 80, 30, { accent: UI.amber });
-      drawText(ctx, `Overwrite slot ${this.saveSlot}?  {y}Confirm{/} = yes · {d}Cancel{/} = no`, x + w / 2, 80, { align: 'center' });
+      drawText(ctx, `${this.saveSlotNewer ? `Slot ${this.saveSlot} is newer. Replace?` : `Overwrite slot ${this.saveSlot}?`}  {y}Confirm{/} = yes · {d}Cancel{/} = no`, x + w / 2, 80, { align: 'center' });
     }
   }
 
