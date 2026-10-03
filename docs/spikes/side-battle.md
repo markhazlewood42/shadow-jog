@@ -74,6 +74,18 @@ Three fresh judges score every pass, each with a different lens (pixel artist; J
 
 A pass needs a median score of **8 or more overall** (the mean of the criteria that apply) **and a median of 7 or more on every criterion**. Failing items go back to the builder with the judges' fixes, at most 4 rounds per item. Scores go in the pose log.
 
+## Mark's stage feedback and rubric v2 (2026-10-02, evening)
+After seeing the Sprite Fusion line-up and Rook's strike, Mark: "the camera angle / perspective is pretty off. It needs to be angled such that the characters appear on different Z-axis values. Make sure your rubric measures the look and feel of the battle stage against some of the references I sent you. This might mean redesigning the battlegrounds, menu system, etc. In fact it SHOULD involve that if we're really going to test the side-on battle style pivot. Because the character portraits along the bottom of the screen came pretty squarely from the PS4 style with all the characters lined up there."
+
+So the spike now also redesigns the battle stage (camera, floor and backdrops) and the battle HUD. The Sprite Fusion loop was stopped after Kit's punch (scores so far: line-up ~7.0, Rook's strike ~7.1-7.4, Kit's punch ~7.0-7.8, all under the old rubric).
+
+**Rubric v2** keeps the eight criteria above and adds three, judged with Mark's four reference screenshots open side by side (ref 1: party in a diagonal column with enemies on lanes and a turn timeline on top; ref 2: Final Fantasy II side view; ref 3: a 3/4 view with the party in an arc facing a big enemy; ref 4: side-on action with a combo counter and a left command list):
+9. **Stage, camera and depth:** the floor reads as a 3/4 view seen from above at an angle; party members and enemies stand at clearly different depths (rear figures higher on screen, correct overlap order, contact shadows on the floor); the backdrop's horizon and the floor agree.
+10. **Reference match:** the stage's look and feel sits comfortably next to the references; it would not look out of place among them.
+11. **HUD for a side view:** designed for this view, not the Phantasy Star IV row of four portrait panels; turn order, commands, HP and resources stay readable while the stage stays visible.
+
+Pass bar v2: median overall 8 or more, every criterion 7 or more, **and stage (9) and reference match (10) at 8 or more**, because they are the point of the pivot. A round that gains less than 0.25 overall ends the item early (plateau rule), up to 4 rounds.
+
 ## Pose log
 | Pose | Size | Claude time | Mark's rounds | Notes |
 |---|---|---|---|---|
