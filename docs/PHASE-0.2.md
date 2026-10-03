@@ -387,6 +387,8 @@ His sprites face right, so the side-view spike now puts the party on the left fa
 
 ## How the three fit together
 
+**Update 2026-10-02 evening: the Phaser spike moves up and becomes a tooling spike.** While the side-view spike was running, Mark asked whether, instead of agents iterating on battle layouts by hand, he should get tools to make those design calls himself (like RPG Maker's troop placement view and battle test), and whether moving to Phaser would make building a bespoke "Shadow Jog Engine" toolset easier. The answer was yes for a suite of tools: Phaser keeps a list of on-screen objects with positions and depth and makes them draggable with a setting, so an edit mode can live inside the real battle scene (what you drag is what the game draws); free editors plug in (Tiled maps load natively; Sprite Fusion sheets load as animations); and its animations, tweens, particles and cameras are plain settings objects that tools can write. Building tools on the current immediate-mode engine first would mean building each tool's object layer twice. Mark chose to run the Phaser spike now as a tooling spike: the new side-view battle stage built natively in Phaser 4 with an in-game edit mode (drag heroes and enemies onto depth rows, horizon and floor, HUD layout, battle test), saving to `stages.json`. It answers decision 6 and delivers the first editor in one go. The rest of the game stays on the current engine; porting it is a separate decision for 0.3 or later. Spike doc: `docs/spikes/phaser-stage.md` on branch `spike/phaser-stage`.
+
 **Dependencies:**
 - **Pivot 1 multiplies Pivot 3.** Under the back view, Sprite Fusion is an occasional reference tool. At small scale, it could supply the whole pose set.
 - **Phaser is neutral on art.** Every art path ends as canvases or PNGs, which become textures in either engine. Pose work is never wasted by the engine choice.
@@ -441,7 +443,7 @@ If the battle spike is a NO-GO, 0.2.0 is instead Hex and Sable finished from beh
 
 ## Decisions for Mark
 
-Decided 2026-10-02: 1 (yes, v0.1.0 then 0.2), 2 (the loop, not the camera), 3 (run the side-view spike now, comparing field scale with the ~44–48 px battle scale; Hex/Sable back-view tuning paused) and 7 (yes, correct the docs; Mark: "I'm OK with dependencies as long as they're high quality and free").
+Decided 2026-10-02: 1 (yes, v0.1.0 then 0.2), 2 (the loop, not the camera), 6 (the Phaser spike runs now as a tooling spike), 3 (run the side-view spike now, comparing field scale with the ~44–48 px battle scale; Hex/Sable back-view tuning paused) and 7 (yes, correct the docs; Mark: "I'm OK with dependencies as long as they're high quality and free").
 
 **1. Should today's game be frozen as v0.1.0, with the new phase numbered 0.2?** — **decided 2026-10-02: (a)** The new work changes features, not bugs, so it belongs in 0.2. Freezing means a small PR with a changelog and an in-game version label, then an annotated tag `v0.1.0`, then a GitHub pre-release, then `main` moving to `0.2.0-dev`.
 Options: (a) yes: 0.1.0 tag plus 0.2.0 phase; (b) call the next step 0.1.1; (c) no tags yet.
@@ -463,7 +465,7 @@ Options: (a) run it, with outputs limited to base drawings and references unless
 Options: (a) turn off auto-renew and let it lapse unused; (b) turn off auto-renew and spend it only on tiles, props or portraits for things that already exist; (c) rush Chapter 2 character designs to use it.
 **Recommendation: (b).** Check that access continues to the end of the period after you cancel (unverified).
 
-**6. Should a short Phaser spike run once the battle look is chosen, before the new battle scene is written for real?** It runs the current game inside Phaser (2 sessions maximum), then rebuilds the spike's strike scene in proper Phaser style so you can compare the code and decide which engine to build in. If it's unclear by the end of week 2, the battle scene gets built in the current engine with a port-ready structure.
+**6. Should a short Phaser spike run once the battle look is chosen, before the new battle scene is written for real?** — **decided 2026-10-02: yes, now, as a tooling spike (see the update below)** It runs the current game inside Phaser (2 sessions maximum), then rebuilds the spike's strike scene in proper Phaser style so you can compare the code and decide which engine to build in. If it's unclear by the end of week 2, the battle scene gets built in the current engine with a port-ready structure.
 Options: (a) yes, then; (b) only after 0.2 ships; (c) never.
 **Recommendation: (a).** Porting the rest of the game would be 0.3 or later in any case.
 
