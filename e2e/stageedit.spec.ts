@@ -198,14 +198,14 @@ test('HUD: switching the preset moves the real HUD boxes; a box moved by hand st
     const b = window.__stagelab?.scene()?.hudObjects?.box('partyStatus');
     return b ? { x: b.x, y: b.y } : null;
   });
-  expect(box1).toEqual({ x: 300, y: 228 });
+  expect(box1).toEqual({ x: 280, y: 228 });
   // Drag the command box by hand 20 px left: an override with a revert arrow.
   await dragGame(page, { x: 240, y: 240 }, { x: 220, y: 240 });
-  expect((await stageOf(page)).hud.commands.x).toBe(184 - 20);
+  expect((await stageOf(page)).hud.commands.x).toBe(164 - 20);
   await expect(page.locator('#inspector')).toContainText('HUD box: Commands');
   await expect(page.locator('#inspector .field.moved')).not.toHaveCount(0);
   await page.locator('#inspector .field.moved .rev:not([hidden])').first().click();
-  expect((await stageOf(page)).hud.commands.x).toBe(184);
+  expect((await stageOf(page)).hud.commands.x).toBe(164);
   // Resize by a corner grip: the opposite corner stays put.
   await dragGame(page, { x: 240, y: 240 }, { x: 240, y: 240 }); // select the box again
   const before = (await stageOf(page)).hud.commands;

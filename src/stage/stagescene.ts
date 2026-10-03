@@ -960,6 +960,8 @@ export class StageScene extends Phaser.Scene {
     // A hitstop freezes the world: no idle animation moves, and the live battle's own clocks wait too.
     if (!this.live?.frozen) this.worldFrame++;
     this.live?.tick();
+    // The HUD's low-health blink follows the same clock.
+    this.hud?.tick(this.frame);
     for (const f of this.fighters) {
       if (f.down) continue;
       if (f.sheet) {

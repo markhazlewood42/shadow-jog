@@ -32,19 +32,125 @@ export interface TimelineLayout {
   now: { x: number; y: number; size: number };
   /** The timeline: a horizontal line with an arrow head at its right end. */
   line: { y: number; x0: number; x1: number };
-  /** The rest of the turns, in order, heroes above the line and enemies below it. */
+  /** The rest of this round's turns, in order, heroes above the line and enemies below it. The first is the one who acts next. */
   chips: PlacedChip[];
+  /**
+   * The round after this one, as a preview: where the order starts again (the NOW hero's chip first), drawn dim after `roundMark`.
+   * Empty when the box is too narrow to have room for any. It fills the track that would otherwise stay bare.
+   */
+  later: PlacedChip[];
+  /** The x of the little tick that says "the next round starts here", or null when there are no later chips. */
+  roundMark: number | null;
+  /** The steps between neighbouring chips, left to right. */
+  pitch: number;
 }
 
-/** Where the NOW chip, the line and the other chips go in a turn-order box (the design's layout). */
-export function timelineLayout(t: HudLayout['turnOrder'], rest: readonly TurnChipView[]): TimelineLayout {
+/** The most pixels between two chips' left edges (a chip and four). */
+const PITCH_GAP = 4;
+
+/**
+ * Where the NOW chip, the line and the other chips go in a turn-order box (the design's layout). The chips sit one
+ * `pitch` apart (a chip and a gap, less when there are so many that they would not fit); after the last of this
+ * round's comes a round tick and then the next round's order again, dim, as far as the track allows, so the whole
+ * track says something instead of the last third being a bare line. `now` is the NOW chip's own turn, repeated
+ * first in that preview (it acts first again).
+ */
+export function timelineLayout(t: HudLayout['turnOrder'], rest: readonly TurnChipView[], now?: TurnChipView): TimelineLayout {
   const ns = t.nowChip;
   const s = t.chip;
   const line = { y: Math.floor(t.h / 2), x0: 24 + ns + 4, x1: t.w - 6 };
-  const step = Math.floor((line.x1 - line.x0 - 8) / Math.max(1, rest.length));
-  const chips = rest.map((c, i) => {
-    const cx = line.x0 + 6 + i * step + Math.floor(s / 2);
-    return { ...c, x: cx - Math.floor(s / 2), y: c.side === 'party' ? line.y - s - 1 : line.y + 2 };
-  });
-  return { now: { x: 24, y: Math.floor((t.h - ns) / 2), size: ns }, line, chips };
+  const span = line.x1 - line.x0 - 8;
+  const pitch = rest.length === 0 ? s + PITCH_GAP : Math.max(1, Math.min(s + PITCH_GAP, Math.floor(span / rest.length)));
+  const left = line.x0 + 6;
+  const put = (c: TurnChipView, x: number): PlacedChip => ({ ...c, x, y: c.side === 'party' ? line.y - s - 1 : line.y + 2 });
+  const chips = rest.map((c, i) => put(c, left + i * pitch));
+  const lastRight = rest.length ? left + (rest.length - 1) * pitch + s : left - 3;
+  const roundMark = now ? lastRight + 3 : null;
+  const cycle = now ? [now, ...rest] : [];
+  const later: PlacedChip[] = [];
+  if (roundMark !== null) {
+    for (let j = 0; j < cycle.length; j++) {
+      const x = roundMark + 5 + j * pitch;
+      if (x + s > line.x1) break;
+      later.push(put(cycle[j] as TurnChipView, x));
+    }
+  }
+  return { now: { x: 24, y: Math.floor((t.h - ns) / 2), size: ns }, line, chips, later, roundMark: later.length ? roundMark : null, pitch };
+}
+
+// ------------------------------------------------------------------ the bottom band
+
+/** A frame the HUD draws behind several boxes at once: the unified bottom band. */
+export interface BandPlan {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  opacity: number;
+  /** Which boxes stand on it, left to right. */
+  members: RegionName[];
+  /** Where the thin dividers between the boxes go, as x in screen pixels. */
+  dividers: number[];
+}
+
+/** The most pixels between two boxes that still count as one band (the shipped boxes are 4 apart). */
+const BAND_GAP = 8;
+
+/**
+ * Which boxes share one frame. The party table, the command strip and the enemy box sit side by side along the bottom, and
+ * drawn as three separate windows the stage showed through the gaps and the command strip left a hole when it hid. So boxes
+ * on the same row (same top and height), no more than `BAND_GAP` pixels apart, are framed as ONE window with a divider in
+ * each gap. A box set to "never" is not part of any band, so hiding one by hand still works. The boxes' own x, y, w and h stay what the editor edits; this only decides how they are framed.
+ */
+export function bandPlans(hud: HudLayout): BandPlan[] {
+  const names: RegionName[] = ['partyStatus', 'commands', 'enemyInfo'];
+  const boxes = names.filter((n) => hud[n].show !== 'never').map((n) => ({ n, r: hud[n] }));
+  // Boxes on the same row (same top and height), left to right; a box on another row (a menu floating above the band) is not in the way.
+  boxes.sort((a, b) => a.r.y - b.r.y || a.r.h - b.r.h || a.r.x - b.r.x);
+  const plans: BandPlan[] = [];
+  let chain: typeof boxes = [];
+  const flush = (): void => {
+    const first = chain[0];
+    const last = chain[chain.length - 1];
+    if (first && last && chain.length >= 2) {
+      plans.push({
+        x: first.r.x,
+        y: first.r.y,
+        w: last.r.x + last.r.w - first.r.x,
+        h: first.r.h,
+        opacity: first.r.opacity ?? 1,
+        members: chain.map((c) => c.n),
+        dividers: chain.slice(1).map((c, i) => {
+          const prev = chain[i];
+          const edge = (prev?.r.x ?? 0) + (prev?.r.w ?? 0);
+          return edge + Math.floor((c.r.x - edge) / 2);
+        }),
+      });
+    }
+    chain = [];
+  };
+  for (const b of boxes) {
+    const prev = chain[chain.length - 1];
+    const gap = prev ? b.r.x - (prev.r.x + prev.r.w) : 0;
+    if (prev && !(prev.r.y === b.r.y && prev.r.h === b.r.h && gap >= 0 && gap <= BAND_GAP)) flush();
+    chain.push(b);
+  }
+  flush();
+  return plans;
+}
+
+/** How the enemy box lays out its foes: one big read-out, a list with a row each, or two short columns. */
+export interface FoeLayout {
+  mode: 'detail' | 'list' | 'grid';
+  /** Pixels per row (list and grid). */
+  rowH: number;
+  /** Rows per column (grid) or in all (list). */
+  rows: number;
+}
+
+/** Size the enemy box to what is in it: a lone foe gets the detail read-out, two to four a list that spreads over the box, five or six two columns. */
+export function foeLayout(count: number, boxH: number): FoeLayout {
+  if (count <= 1) return { mode: 'detail', rowH: boxH, rows: 1 };
+  if (count <= 4) return { mode: 'list', rowH: Math.min(11, Math.floor((boxH - 4) / count)), rows: count };
+  return { mode: 'grid', rowH: Math.min(11, Math.floor((boxH - 4) / Math.ceil(count / 2))), rows: Math.ceil(count / 2) };
 }

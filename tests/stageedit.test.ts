@@ -225,9 +225,9 @@ describe('picking things on the stage', () => {
     expect(hitHud(s, 240, 100)).toBeNull();
     s.hud.banner.y = 10; // overlaps the turn order: the smaller banner wins where they overlap
     expect(hitHud(s, 150, 12)).toBe('banner');
-    expect(hitGrip(s, 'commands', 184, 228, 3)).toBe('nw');
-    expect(hitGrip(s, 'commands', 296, 268, 3)).toBe('se');
-    expect(hitGrip(s, 'commands', 240, 248, 3)).toBeNull();
+    expect(hitGrip(s, 'commands', 204, 228, 3)).toBe('nw');
+    expect(hitGrip(s, 'commands', 316, 268, 3)).toBe('se');
+    expect(hitGrip(s, 'commands', 260, 248, 3)).toBeNull();
   });
 
   it('resizing a box moves the dragged corner and keeps the opposite one fixed, never below the smallest size', () => {

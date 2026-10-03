@@ -12,6 +12,17 @@
  * hero's head, the **target label** over the aimed-at enemy (with its A/B letter), and the **damage number**.
  * They are positioned from the figures' current feet and edges (`FigureGeo`) the scene hands in.
  *
+ * **HUD polish, round 1** (docs/spikes/phaser-stage.md): the three boxes along the bottom are framed as ONE band with dividers
+ * (`bandPlans`), and the command strip keeps its slot during an action (a dimmed "standby" strip) so the band never has a hole;
+ * panels are partly see-through; the acting hero's row is lit in the cyan of the ring on the stage; health bars go green, amber,
+ * red and blink under a quarter; the party table shows statuses and a resource bar; the timeline has bigger chips, A/B tags, a
+ * glowing "next" chip and a dim preview of the next round; the commands name every icon; the enemy box sizes itself to its
+ * contents; damage numbers are tinted by the kind of hit and outlined two pixels thick.
+ *
+ * Hero colours: each hero has one colour (`MEMBERS[id].color`: Kit coral, Rook sand, Hex lilac, Sable cream), used the same way
+ * everywhere: the name in the party table, the rim of the hero's chip on the timeline, the text of the name tab over the active
+ * hero. Cyan is never a hero colour; it always means "the one acting now" (the ring, the table row, the tab's stripe).
+ *
  * `render` rebuilds everything that is shown (cheap: it runs when the view changes, not every frame) and then
  * removes the text, window and face textures no longer in use.
  */
@@ -19,9 +30,10 @@ import type Phaser from 'phaser';
 import type { HudRegion, StageConfig } from './config';
 import { SCREEN_W } from './config';
 import type { HudFoeView, HudMemberView, HudView } from './demo';
-import { COMMAND_ICONS, iconRaw } from './icons';
-import { isShown, type RegionName, timelineLayout } from './hudlayout';
-import { CHIP_PREFIX, chipTexture, hpColor, iconTexture, TEXT_PREFIX, textAt, textTexture, type TextOptions, textWidth, UI, WINDOW_PREFIX, windowTexture } from './hudkit';
+import { COMMAND_ICONS, COMMAND_INFO, iconRaw } from './icons';
+import { type BandPlan, bandPlans, foeLayout, isShown, type PlacedChip, type RegionName, timelineLayout } from './hudlayout';
+import { CHIP_PAD, CHIP_PREFIX, chipTexture, HIT_COLOUR, hitKind, hpColor, iconTexture, NUMBER_LOOK, statusIconTexture, TEXT_PREFIX, textAt, textTexture, type TextOptions, textWidth, UI, WINDOW_PREFIX, windowTexture } from './hudkit';
+import { pickStatuses, STATUS_ICON_SIZE } from './hudstatus';
 import { PREFIX, pruneTextures } from './textures';
 
 /** Where a figure is on the screen right now, for the labels placed relative to it. */
@@ -54,8 +66,13 @@ export const MARK_DEPTH = 1_000_000;
 
 export class Hud {
   private readonly boxes = new Map<RegionName, Phaser.GameObjects.Container>();
+  /** Containers that are not one of the six regions: the unified bottom band and the standby command strip. */
+  private extras: Phaser.GameObjects.Container[] = [];
   private marks: Phaser.GameObjects.GameObject[] = [];
   private used = new Set<string>();
+  /** The things that blink when someone is under a quarter health: `on` shows in one half of the blink, `off` (when there is one) in the other. */
+  private blinkers: Array<{ on: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics; off: Phaser.GameObjects.Image | null }> = [];
+  private clock = 0;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -64,7 +81,7 @@ export class Hud {
 
   /** Every game object the HUD currently has (for tests and tools). */
   get objects(): Phaser.GameObjects.GameObject[] {
-    return [...this.boxes.values(), ...this.marks];
+    return [...this.boxes.values(), ...this.extras, ...this.marks];
   }
 
   /** The container of a region (absent when it is hidden). */
@@ -72,10 +89,37 @@ export class Hud {
     return this.boxes.get(name);
   }
 
+  /** The frames that are not one of the six boxes: the unified bottom band and, during an action, the standby command strip (for tests). */
+  get frames(): Phaser.GameObjects.Container[] {
+    return this.extras;
+  }
+
+  /** How many low-health blinkers are on screen (for tests). */
+  get blinking(): number {
+    return this.blinkers.length;
+  }
+
+  /** Whether each blinker's "on" half is showing right now (for tests). */
+  blinkerStates(): boolean[] {
+    return this.blinkers.map((b) => b.on.visible);
+  }
+
   destroy(): void {
     for (const o of this.objects) o.destroy();
     this.boxes.clear();
+    this.extras = [];
     this.marks = [];
+    this.blinkers = [];
+  }
+
+  /** One tick of the stage clock: the low-health blink follows it (every 16 ticks, about a quarter of a second). */
+  tick(clock: number): void {
+    this.clock = clock;
+    const phase = Math.floor(clock / BLINK_TICKS) % 2 === 0;
+    for (const b of this.blinkers) {
+      b.on.setVisible(phase);
+      b.off?.setVisible(!phase);
+    }
   }
 
   /** Rebuild the HUD for this stage's layout and this view. */
@@ -85,10 +129,17 @@ export class Hud {
     const h = stage.hud;
     const show = (name: RegionName, region: HudRegion): boolean => isShown(name, region.show, view.phase);
 
+    // The bottom band first (it sits under the boxes): one frame behind the boxes that stand side by side.
+    const plans = bandPlans(h);
+    const framed = new Set<RegionName>(plans.flatMap((p) => p.members));
+    for (const plan of plans) this.band(plan);
+
     if (show('turnOrder', h.turnOrder)) this.timeline(stage, view);
-    if (show('partyStatus', h.partyStatus)) this.partyTable(stage, view);
-    if (show('commands', h.commands)) this.commands(stage, view);
-    if (show('enemyInfo', h.enemyInfo)) this.enemyBox(stage, view);
+    if (show('partyStatus', h.partyStatus)) this.partyTable(stage, view, framed.has('partyStatus'));
+    if (show('commands', h.commands)) this.commands(stage, view, framed.has('commands'), false);
+    // The strip does not vanish during an action: its slot stays, dimmed, and says what is playing.
+    else if (h.commands.show !== 'never' && framed.has('commands')) this.commands(stage, view, true, true);
+    if (show('enemyInfo', h.enemyInfo)) this.enemyBox(stage, view, framed.has('enemyInfo'));
     if (show('banner', h.banner) && view.banner) this.banner(stage, view);
     if (show('combo', h.combo) && view.act) this.combo(stage, view);
 
@@ -97,6 +148,7 @@ export class Hud {
     if (view.phase === 'target' && view.target !== null && h.enemyInfo.names !== 'never') this.targetLabel(view, geo);
     if (view.phase === 'act' && view.act && !view.act.liveNumbers) this.damageNumber(view, geo);
 
+    this.tick(this.clock);
     for (const prefix of [TEXT_PREFIX, WINDOW_PREFIX, CHIP_PREFIX, PREFIX.face]) pruneTextures(this.scene.textures, prefix, this.used);
   }
 
@@ -109,6 +161,13 @@ export class Hud {
     return c;
   }
 
+  /** A container that is not a region (the band, the standby strip). */
+  private extra(x: number, y: number, depth = HUD_DEPTH): Phaser.GameObjects.Container {
+    const c = this.scene.add.container(x, y).setDepth(depth).setScrollFactor(0);
+    this.extras.push(c);
+    return c;
+  }
+
   private image(c: Phaser.GameObjects.Container | null, key: string, x: number, y: number, depth = HUD_DEPTH): Phaser.GameObjects.Image {
     this.used.add(key);
     const img = this.scene.add.image(x, y, key).setOrigin(0, 0);
@@ -117,7 +176,7 @@ export class Hud {
     return img;
   }
 
-  private window(c: Phaser.GameObjects.Container, w: number, h: number, accent: string, region: HudRegion, plain: boolean): void {
+  private window(c: Phaser.GameObjects.Container, w: number, h: number, accent: string, region: { opacity?: number }, plain: boolean): void {
     this.image(c, windowTexture(this.scene.textures, w, h, accent, region.opacity ?? 1, plain), 0, 0);
   }
 
@@ -140,6 +199,22 @@ export class Hud {
     }
   }
 
+  /**
+   * A health bar that also says how bad it is. Green above half, amber under half, red under a quarter (`hpColor`); under a
+   * quarter the fill blinks to a light red, so a hero (or a foe) in trouble is the first thing the eye lands on.
+   */
+  private healthBar(c: Phaser.GameObjects.Container, g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, ratio: number): void {
+    this.bar(g, x, y, w, h, ratio, hpColor(ratio));
+    const fw = Math.round(w * Math.max(0, Math.min(1, ratio)));
+    if (ratio < LOW_HP && fw > 0) {
+      const lit = this.scene.add.graphics();
+      lit.fillStyle(hex(UI.redLit), 1).fillRect(x, y, fw, h);
+      lit.fillStyle(0xffffff, 0.5).fillRect(x, y, fw, 1);
+      c.add(lit);
+      this.blinkers.push({ on: lit, off: null });
+    }
+  }
+
   private graphics(c: Phaser.GameObjects.Container): Phaser.GameObjects.Graphics {
     const g = this.scene.add.graphics();
     c.add(g);
@@ -150,128 +225,218 @@ export class Hud {
     g.fillStyle(hex(color), alpha).fillRect(x, y, w, h);
   }
 
-  private chip(c: Phaser.GameObjects.Container, x: number, y: number, size: number, face: string, border: string, bg: string, foe: boolean): void {
-    this.used.add(face);
-    this.image(c, chipTexture(this.scene.textures, size, face, border, bg, foe), x, y);
+  /** A chip on the timeline (or the NOW chip), with the A/B letter of a duplicate foe in its corner. */
+  private chip(c: Phaser.GameObjects.Container, x: number, y: number, o: { size: number; face: string; rim: string; bg: string; foe: boolean; dim?: number; glow?: string | null; tag?: string }): void {
+    this.used.add(o.face);
+    const opts = { size: o.size, faceKey: o.face, rim: o.rim, bg: o.bg, foe: o.foe, dim: o.dim ?? 0, glow: o.glow ?? null };
+    this.image(c, chipTexture(this.scene.textures, opts), x - CHIP_PAD, y - CHIP_PAD);
+    if (o.tag) this.text(c, o.tag, x + o.size - 6, y + o.size - 8, { color: UI.text, shadow: false, outline: UI.outline });
   }
 
   // ---------------------------------------------------------------- regions
 
-  /** The turn timeline: NOW chip at the left, the rest on a line (heroes above it, enemies below), real faces. */
+  /** The one frame behind boxes that stand side by side along the bottom, with a divider in each gap. */
+  private band(plan: BandPlan): void {
+    const c = this.extra(plan.x, plan.y, HUD_DEPTH - 1);
+    this.window(c, plan.w, plan.h, UI.cyan, { opacity: plan.opacity }, true);
+    const g = this.graphics(c);
+    for (const dx of plan.dividers) {
+      const x = dx - plan.x;
+      this.fill(g, x, 3, 1, plan.h - 6, UI.outline);
+      this.fill(g, x + 1, 3, 1, plan.h - 6, UI.frame, 0.9);
+      this.fill(g, x + 1, 3, 1, 1, UI.frameLit);
+      this.fill(g, x + 1, plan.h - 4, 1, 1, UI.frameLit);
+    }
+  }
+
+  /** The turn timeline: NOW chip at the left, the rest on a line (heroes above it, enemies below), real faces, then a dim preview of the next round. */
   private timeline(stage: StageConfig, view: HudView): void {
     const t = stage.hud.turnOrder;
     const c = this.container('turnOrder', t);
     this.window(c, t.w, t.h, UI.cyan, t, true);
     const g = this.graphics(c);
-    this.text(c, 'NOW', 5, 9, { color: UI.amber });
     const [now, ...rest] = view.turns;
+    this.text(c, 'NOW', 5, Math.floor(t.h / 2) - 3, { color: UI.amber });
     if (!now) return;
-    const place = timelineLayout(t, rest);
-    const nowFoe = now.side === 'enemy';
-    const nowFace = nowFoe ? this.faces.foe(now.index, place.now.size - 2) : this.faces.party(now.index, place.now.size - 2);
-    this.chip(c, place.now.x, place.now.y, place.now.size, nowFace, UI.amber, nowFoe ? UI.foeBg : UI.chipBg, nowFoe);
+    const place = timelineLayout(t, rest, now);
     const { line } = place;
     this.fill(g, line.x0, line.y, line.x1 - line.x0, 1, UI.frameLit);
     this.fill(g, line.x1 - 1, line.y - 2, 1, 5, UI.frameLit);
     this.fill(g, line.x1, line.y - 1, 1, 3, UI.frameLit);
+    // The round tick: where the next round starts.
+    if (place.roundMark !== null) {
+      this.fill(g, place.roundMark, line.y - 5, 1, 11, UI.frameLit);
+      this.fill(g, place.roundMark - 1, line.y - 5, 3, 1, UI.frameLit);
+      this.fill(g, place.roundMark - 1, line.y + 5, 3, 1, UI.frameLit);
+    }
     const s = t.chip;
-    for (const chip of place.chips) {
+    // A hero's chip is rimmed in the hero's own colour, a foe's in the enemy red; the foe's letter (A, B...) is the same one the lists and the target box use.
+    const drawChip = (chip: PlacedChip, dim: number, glow: string | null): void => {
+      const foe = chip.side === 'enemy';
+      const rim = foe ? UI.foe : (view.party[chip.index]?.color ?? UI.text);
+      const face = foe ? this.faces.foe(chip.index, s - 4) : this.faces.party(chip.index, s - 2);
+      this.chip(c, chip.x, chip.y, { size: s, face, rim, bg: foe ? UI.foeBg : UI.chipBg, foe, dim, glow, tag: foe ? (view.foes[chip.index]?.tag ?? '') : '' });
+    };
+    // The NOW chip: amber rim, bigger.
+    const nowFoe = now.side === 'enemy';
+    const nowFace = nowFoe ? this.faces.foe(now.index, place.now.size - 4) : this.faces.party(now.index, place.now.size - 2);
+    this.chip(c, place.now.x, place.now.y, { size: place.now.size, face: nowFace, rim: UI.amber, bg: nowFoe ? UI.foeBg : UI.chipBg, foe: nowFoe, tag: nowFoe ? (view.foes[now.index]?.tag ?? '') : '' });
+    place.chips.forEach((chip, i) => {
       const mid = chip.x + Math.floor(s / 2);
-      if (chip.side === 'party') {
-        const color = view.party[chip.index]?.color ?? UI.text;
-        this.chip(c, chip.x, chip.y, s, this.faces.party(chip.index, s - 2), color, UI.chipBg, false);
-        this.fill(g, mid, line.y - 1, 1, 1, color);
-      } else {
-        this.chip(c, chip.x, chip.y, s, this.faces.foe(chip.index, s - 2), UI.foe, UI.foeBg, true);
-        this.fill(g, mid, line.y + 1, 1, 1, UI.foe);
-      }
-      this.fill(g, mid, line.y, 1, 1, UI.text);
+      // The one who acts next glows amber and gets a diamond on the line; the rest of this round are a little dimmer.
+      drawChip(chip, i === 0 ? 0 : 0.2, i === 0 ? UI.amber : null);
+      if (i === 0) {
+        this.fill(g, mid - 1, line.y, 3, 1, UI.amber);
+        this.fill(g, mid, line.y - 1, 1, 3, UI.amber);
+      } else this.fill(g, mid, line.y, 1, 1, UI.text);
+    });
+    for (const chip of place.later) {
+      drawChip(chip, 0.55, null);
+      this.fill(g, chip.x + Math.floor(s / 2), line.y, 1, 1, UI.disabled);
     }
   }
 
-  /** The party table: one compact numeric row per hero (face, name, health bar, HP now/max, resource label and value). */
-  private partyTable(stage: StageConfig, view: HudView): void {
+  /** The party table: one numeric row per hero (marker, face, name, statuses, health bar and numbers, resource bar and numbers). */
+  private partyTable(stage: StageConfig, view: HudView, framed: boolean): void {
     const r = stage.hud.partyStatus;
     const c = this.container('partyStatus', r);
-    this.window(c, r.w, r.h, UI.cyan, r, true);
+    if (!framed) this.window(c, r.w, r.h, UI.cyan, r, true);
     const g = this.graphics(c);
     view.party.forEach((m: HudMemberView, i) => {
       const ry = 2 + i * r.rowH;
       const active = i === view.active;
+      const down = m.hp <= 0;
+      const ratio = m.maxHp > 0 ? m.hp / m.maxHp : 0;
+      const low = !down && ratio < LOW_HP;
       if (active) {
-        this.fill(g, 2, ry, r.w - 4, r.rowH, UI.inner, 0.95);
+        // The acting hero's row is lit in the cyan of the ring under their feet: a bright ground, cyan lines above and below, a bar and an arrow.
+        this.fill(g, 2, ry, r.w - 4, r.rowH, UI.cyan, 0.42);
+        this.fill(g, 2, ry, r.w - 4, 1, UI.cyan, 0.9);
+        this.fill(g, 2, ry + r.rowH - 1, r.w - 4, 1, UI.cyan, 0.9);
         this.fill(g, 2, ry, 2, r.rowH, UI.cyan);
+        const mid = ry + Math.floor(r.rowH / 2);
+        this.fill(g, 4, mid - 2, 1, 5, UI.cyan);
+        this.fill(g, 5, mid - 1, 1, 3, UI.cyan);
+        this.fill(g, 6, mid, 1, 1, UI.cyan);
       }
-      this.image(c, this.faces.party(i, r.face), 6, ry + 1);
-      this.text(c, m.name, 17, ry + 1, { color: active ? UI.text : m.color, shadow: false });
-      this.bar(g, 50, ry + 3, 34, 3, m.hp / m.maxHp, hpColor(m.hp / m.maxHp));
-      this.text(c, `${m.hp}/${m.maxHp}`, 130, ry + 1, { shadow: false, align: 'right' });
+      this.image(c, this.faces.party(i, r.face), 8, ry + 1);
+      this.text(c, m.name, 19, ry + 1, { color: down ? UI.disabled : m.color, shadow: false });
+      // Statuses (or KO) between the name and the bar.
+      if (down) this.text(c, 'KO', 47, ry + 1, { color: UI.red, shadow: false });
+      else {
+        const { shown } = pickStatuses(m.status);
+        for (const [k, id] of shown.entries()) this.image(c, statusIconTexture(this.scene.textures, id), 47 + k * (STATUS_ICON_SIZE + 1), ry + Math.floor((r.rowH - STATUS_ICON_SIZE) / 2));
+      }
+      // Health bar, with the resource bar thin under it.
+      this.healthBar(c, g, 74, ry + 2, 30, 3, ratio);
       if (m.resMax > 0) {
-        this.text(c, m.resLabel, r.w - 19, ry + 1, { color: UI.dim, shadow: false, align: 'right' });
-        this.text(c, String(m.res), r.w - 5, ry + 1, { color: UI.cyan, shadow: false, align: 'right' });
+        this.fill(g, 74, ry + 6, 30, 2, UI.barBack);
+        this.fill(g, 74, ry + 6, Math.round((30 * Math.max(0, m.res)) / m.resMax), 2, UI.resource);
+      }
+      // Health numbers: white while healthy, amber under half, red under a quarter (and blinking).
+      const hpText = `${m.hp}/${m.maxHp}`;
+      const base = this.text(c, hpText, 146, ry + 1, { color: ratio > 0.5 ? UI.text : hpColor(ratio), shadow: false, align: 'right' });
+      if (low) {
+        const bright = this.text(c, hpText, 146, ry + 1, { color: UI.redLit, shadow: false, align: 'right' });
+        this.blinkers.push({ on: bright, off: base });
+      }
+      if (m.resMax > 0) {
+        // On the lit row the cyan and grey would sink into the cyan ground, so the resource reads white there.
+        this.text(c, String(m.res), r.w - 5, ry + 1, { color: active ? '#ffffff' : UI.cyan, shadow: false, align: 'right' });
+        this.text(c, m.resLabel, r.w - 5 - textWidth(String(m.res)) - 3, ry + 1, { color: active ? '#cfe6ff' : UI.dim, shadow: false, align: 'right' });
       } else this.text(c, '—', r.w - 5, ry + 1, { color: UI.disabled, shadow: false, align: 'right' });
     });
   }
 
-  /** The command strip: a label line (the skill's name and cost) over a row of icons with the selected one lit. */
-  private commands(stage: StageConfig, view: HudView): void {
+  /**
+   * The command strip: a caption line over a row of icons, with the lit icon's name and its cost (or a one-line hint), and a
+   * three-letter name printed under EVERY icon so none is a mystery. During an action (`standby`) the same strip stays in its
+   * slot, dimmed, and the caption says what is playing.
+   */
+  private commands(stage: StageConfig, view: HudView, framed: boolean, standby: boolean): void {
     const r = stage.hud.commands;
-    const c = this.container('commands', r);
+    const c = standby ? this.extra(r.x, r.y) : this.container('commands', r);
     const hero = view.party[view.active];
-    this.window(c, r.w, r.h, hero?.color ?? UI.cyan, r, false);
+    if (!framed) this.window(c, r.w, r.h, hero?.color ?? UI.cyan, r, false);
     const g = this.graphics(c);
-    this.text(c, view.command.label, 6, 5, { shadow: false });
-    if (view.command.cost) this.text(c, view.command.cost, r.w - 6, 5, { color: UI.dim, shadow: false, align: 'right' });
+    const selected = standby ? null : view.command.selected;
+    const caption = standby ? (view.banner ?? '') : view.command.label;
+    const aside = standby ? '' : view.command.cost || (selected ? COMMAND_INFO[selected].hint : '');
+    this.text(c, caption, 6, 3, { color: standby ? UI.cyan : UI.text, shadow: false });
+    if (aside && textWidth(caption) + textWidth(aside) + 10 <= r.w - 8) this.text(c, aside, r.w - 6, 3, { color: UI.dim, shadow: false, align: 'right' });
     const pitch = 21;
     const bx = Math.floor((r.w - (COMMAND_ICONS.length * pitch - 3)) / 2);
-    const by = 16;
+    const by = 11;
     COMMAND_ICONS.forEach((kind, i) => {
-      const sel = kind === view.command.selected;
+      const sel = kind === selected;
       const x = bx + i * pitch;
       this.fill(g, x, by, 18, 18, UI.outline);
       this.fill(g, x + 1, by + 1, 16, 16, sel ? UI.inner : '#14122a');
       const border = sel ? UI.cyan : '#3a3f6e';
       for (const [dx, dy, w, h] of [[0, 0, 18, 1], [0, 17, 18, 1], [0, 0, 1, 18], [17, 0, 1, 18]] as const) this.fill(g, x + dx, by + dy, w, h, border);
       this.image(c, iconTexture(this.scene.textures, kind, iconRaw(kind)), x + 1, by + 1);
-      if (!sel) this.fill(g, x + 1, by + 1, 16, 16, '#070614', 0.3);
+      if (!sel) this.fill(g, x + 1, by + 1, 16, 16, '#070614', standby ? 0.6 : 0.3);
+      this.text(c, COMMAND_INFO[kind].code, x + 9, by + 19, { color: sel ? UI.cyan : standby ? UI.disabled : UI.dim, shadow: false, align: 'center' });
     });
-    // The little pointer under the selected icon.
-    const cx = bx + Math.max(0, COMMAND_ICONS.indexOf(view.command.selected)) * pitch + 9;
-    this.fill(g, cx - 2, by + 19, 5, 1, UI.cyan);
-    this.fill(g, cx - 1, by + 20, 3, 1, UI.cyan);
   }
 
-  /** The enemy box: the foe list while choosing, the target's details while targeting or while an action plays. */
-  private enemyBox(stage: StageConfig, view: HudView): void {
+  /** The enemy box: sized to what is in it. A lone foe gets a full read-out, two to four a list that spreads over the box, five or six two columns; aiming or acting shows the target's details. */
+  private enemyBox(stage: StageConfig, view: HudView, framed: boolean): void {
     const r = stage.hud.enemyInfo;
     const c = this.container('enemyInfo', r);
-    this.window(c, r.w, r.h, UI.foe, r, true);
+    if (!framed) this.window(c, r.w, r.h, UI.foe, r, true);
     const g = this.graphics(c);
-    if (view.target !== null && view.foes[view.target]) this.targetDetails(c, g, r, view.foes[view.target] as HudFoeView, view.target);
+    const aimed = view.target !== null ? view.foes[view.target] : undefined;
+    if (aimed && view.target !== null) this.foeDetails(c, g, r, aimed, view.target);
+    else if (view.foes.length === 1 && view.foes[0]) this.foeDetails(c, g, r, view.foes[0], 0);
     else this.foeList(c, g, r, view.foes);
   }
 
+  /** Health numbers' colour: white while healthy, then the bar's own amber and red. */
+  private hpTone(f: { hp: number; maxHp: number }): string {
+    const ratio = f.maxHp > 0 ? f.hp / f.maxHp : 0;
+    return ratio > 0.5 ? UI.text : hpColor(ratio);
+  }
+
   private foeList(c: Phaser.GameObjects.Container, g: Phaser.GameObjects.Graphics, r: HudRegion, foes: HudFoeView[]): void {
-    const shown = foes.length <= 4 ? foes : foes.slice(0, 3);
-    if (foes.length > 4) this.text(c, `+${foes.length - 3} more`, 17, 2 + 3 * 9 + 1, { color: UI.dim, shadow: false });
-    shown.forEach((f, i) => {
-      const ry = 2 + i * 9;
-      this.image(c, this.faces.foe(i, 8), 6, ry + 1);
-      this.text(c, f.name, 17, ry + 1, { color: '#ffd0d0', shadow: false });
-      this.bar(g, r.w - 40, ry + 3, 34, 3, f.hp / f.maxHp, hpColor(f.hp / f.maxHp));
+    const lay = foeLayout(foes.length, r.h);
+    const colW = lay.mode === 'grid' ? Math.floor((r.w - 8) / 2) : r.w - 8;
+    foes.forEach((f, i) => {
+      const col = lay.mode === 'grid' ? Math.floor(i / lay.rows) : 0;
+      const row = lay.mode === 'grid' ? i % lay.rows : i;
+      const x0 = 4 + col * colW;
+      const top = 2 + Math.floor((r.h - 4 - lay.rows * lay.rowH) / 2);
+      const ry = top + row * lay.rowH;
+      const ratio = f.maxHp > 0 ? f.hp / f.maxHp : 0;
+      this.image(c, this.faces.foe(i, 8), x0 + 2, ry + 1);
+      if (lay.mode === 'grid') {
+        this.text(c, clip(f.name, 30), x0 + 13, ry + 1, { color: '#ffd0d0', shadow: false });
+        this.healthBar(c, g, x0 + colW - 30, ry + 3, 24, 3, ratio);
+        return;
+      }
+      const nums = `${f.hp}/${f.maxHp}`;
+      const numW = textWidth(nums);
+      this.text(c, nums, r.w - 6, ry + 1, { color: this.hpTone(f), shadow: false, align: 'right' });
+      this.text(c, f.name, x0 + 13, ry + 1, { color: '#ffd0d0', shadow: false });
+      const barRight = r.w - 6 - numW - 4;
+      const barLeft = Math.max(x0 + 13 + textWidth(f.name) + 4, barRight - 28);
+      if (barRight - barLeft >= 10) this.healthBar(c, g, barLeft, ry + 3, barRight - barLeft, 3, ratio);
     });
   }
 
-  private targetDetails(c: Phaser.GameObjects.Container, g: Phaser.GameObjects.Graphics, r: HudRegion, f: HudFoeView, index: number): void {
-    this.chip(c, 6, 5, 12, this.faces.foe(index, 10), UI.foe, UI.foeBg, true);
+  /** One foe in full: chip, name, a long health bar with its numbers, and its states and weak spot as chips. */
+  private foeDetails(c: Phaser.GameObjects.Container, g: Phaser.GameObjects.Graphics, r: HudRegion, f: HudFoeView, index: number): void {
+    this.chip(c, 6, 5, { size: 12, face: this.faces.foe(index, 8), rim: UI.foe, bg: UI.foeBg, foe: true, tag: f.tag });
     this.text(c, f.name, 22, 6, { shadow: false });
-    this.bar(g, 22, 17, 84, 3, f.hp / f.maxHp, hpColor(f.hp / f.maxHp));
-    this.text(c, `${f.hp}/${f.maxHp}`, r.w - 6, 15, { shadow: false, align: 'right' });
+    this.text(c, `${f.hp}/${f.maxHp}`, r.w - 6, 6, { color: this.hpTone(f), shadow: false, align: 'right' });
+    this.healthBar(c, g, 22, 17, r.w - 22 - 6, 3, f.maxHp > 0 ? f.hp / f.maxHp : 0);
     let x = 22;
     for (const tag of f.tags) {
       const color = tag.tone === 'cyan' ? UI.cyan : UI.amber;
       const w = textWidth(tag.text);
+      if (x + w + 6 > r.w - 4) break;
       this.fill(g, x, 26, w + 6, 10, color, 0.2);
+      this.fill(g, x, 26, w + 6, 1, color, 0.6);
       this.text(c, tag.text, x + 3, 27, { color, shadow: false });
       x += w + 10;
     }
@@ -341,32 +506,56 @@ export class Hud {
     if (!foe || !f) return;
     const w = textWidth(foe.name) + 8;
     const x = Math.max(4, Math.min(SCREEN_W - 4 - w, f.x - Math.floor(w / 2)));
-    const y = Math.max(30, f.top - 14);
+    const y = Math.max(HUD_TOP_CLEAR, f.top - 14);
     this.tab(foe.name, x, y, UI.amber, UI.text);
     this.marks.push(this.text(null, '▼', f.x - 2, y + 10, { color: UI.amber, shadow: false, outline: UI.outline, depth: MARK_DEPTH }));
   }
 
-  /** The number that pops from a hit: CRIT over it when critical, drawn at 2x with an outline, above the head (or, for a tall target whose head is under the banner, beside its upper body). */
+  /**
+   * The number that pops from a hit (the lab's still version of the live floating number): tinted by the kind of hit (pale,
+   * amber for a critical, cyan for a weak spot), two-pixel dark outline and a drop shadow, CRIT or WEAK over it. It sits above the
+   * head, off to the side the attacker is NOT on so the cut and its sparks stay clear; for a tall target whose head is under the
+   * banner it goes on the upper body instead, on the far side from the cut.
+   */
   private damageNumber(view: HudView, geo: HudGeo): void {
     const act = view.act;
     const f = geo.foes[act?.target ?? -1];
     if (!act || !f) return;
-    const half = Math.ceil(textWidth(String(act.dmg), 2) / 2) + 2;
-    let nx = f.x;
-    let ny = f.top - 20;
-    if (ny < 54) {
-      // A tall target: its head is under the banner, and its body is white from the hit flash, so the number goes beside its upper body, on the side the attacker comes from.
-      nx = f.left - half - 4;
-      ny = f.top + 16;
+    const kind = hitKind(act.crit, !!act.weak);
+    const scale = kind === 'normal' ? 2 : 3;
+    const half = Math.ceil(textWidth(String(act.dmg), scale) / 2) + 3;
+    let nx = f.x + 14;
+    let ny = f.top - 8 - 7 * scale;
+    if (ny < NUMBER_TOP) {
+      // A tall target: its head is under the banner, and its body is white from the hit flash, so the number goes on the far (right) side of its upper body, clear of the cut that comes from the left.
+      nx = Math.min(f.right - half - 6, f.x + 40);
+      ny = f.top + 12;
     }
     // Keep the whole number on the screen.
     nx = Math.max(4 + half, Math.min(SCREEN_W - 4 - half, nx));
-    if (act.crit) this.marks.push(this.text(null, 'CRIT', nx, ny - 9, { color: UI.amber, shadow: false, outline: UI.outline, align: 'center', depth: MARK_DEPTH }));
-    this.marks.push(this.text(null, String(act.dmg), nx, ny, { color: '#ffffff', shadow: false, outline: UI.outline, align: 'center', scale: 2, depth: MARK_DEPTH }));
+    const label = kind === 'crit' ? 'CRIT' : kind === 'weak' ? 'WEAK' : null;
+    if (label) this.marks.push(this.text(null, label, nx, ny - 10, { color: HIT_COLOUR[kind], ...NUMBER_LOOK, outlineW: 1, align: 'center', depth: MARK_DEPTH }));
+    this.marks.push(this.text(null, String(act.dmg), nx, ny, { color: HIT_COLOUR[kind], ...NUMBER_LOOK, align: 'center', scale, depth: MARK_DEPTH }));
   }
 }
 
 /** How much of the combo window is left, as a share: a placeholder (the real combo timer is a battle-test matter). */
 export const COMBO_WINDOW_LEFT = 0.6;
+/** Under this share of health a bar is red and blinks. */
+export const LOW_HP = 0.25;
+/** The low-health blink: ticks per half-blink. */
+const BLINK_TICKS = 16;
+/** The lowest a label over the stage may sit (just under the turn timeline and the skill banner). */
+const HUD_TOP_CLEAR = 56;
+/** The highest a damage number may sit before it moves to the target's upper body. */
+const NUMBER_TOP = 58;
+
+/** A string cut to fit `max` pixels, with a full stop where it was cut. */
+function clip(text: string, max: number): string {
+  if (textWidth(text) <= max) return text;
+  let t = text;
+  while (t.length > 1 && textWidth(`${t}.`) > max) t = t.slice(0, -1);
+  return `${t}.`;
+}
 
 const hex = (s: string): number => Number.parseInt(s.slice(1), 16);

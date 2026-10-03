@@ -547,6 +547,43 @@ test('a hero who is knocked out kneels (made from the hero’s own idle) and sta
   expect(errors).toEqual([]);
 });
 
+test('a hero under a quarter of their health blinks (bar and numbers), shows their statuses, and the others do not', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  await startFight(page, { setKey: '3', seed: 8 });
+  const read = (): Promise<{ blinking: number; on: boolean[]; frame: number }> =>
+    page.evaluate(() => {
+      const scene = window.__stagelab?.scene();
+      const hud = scene?.hudObjects;
+      if (!scene || !hud) throw new Error('no hud');
+      return { blinking: hud.blinking, on: hud.blinkerStates(), frame: scene.frame };
+    });
+  expect((await read()).blinking).toBe(0);
+  await page.evaluate(() => {
+    const bt = window.__stageedit?.battle();
+    if (!bt) throw new Error('no battle');
+    const [kit, , hex] = bt.flow.battle.party;
+    if (!kit || !hex) throw new Error('no party');
+    kit.hp = 18; // 17%: red and blinking
+    hex.hp = 36; // 42%: amber, steady
+    kit.status.push({ id: 'poison', turns: 3 });
+    bt.flow.sync();
+    bt.press('right');
+    bt.press('left'); // a key press redraws the HUD from the changed state
+  });
+  const a = await read();
+  // Kit's bar and her numbers (two things that blink), nobody else.
+  expect(a.blinking).toBe(2);
+  const first = a.on;
+  await page.evaluate(() => window.__stagelab?.scene()?.step(16));
+  const b = await read();
+  expect(b.on).not.toEqual(first);
+  await page.evaluate(() => window.__stagelab?.scene()?.step(16));
+  expect((await read()).on).toEqual(first);
+  // The poison icon is on the HUD's textures.
+  expect(await page.evaluate(() => window.__stagelab?.textureKeys().some((k) => k === 'chip-status-poison'))).toBe(true);
+  expect(errors).toEqual([]);
+});
+
 test('a summon draws the new enemies, a boss phase swaps the picture, and the HUD follows each only when the stage does', async ({ page }) => {
   const { errors } = await openEditor(page, scratch);
   await startFight(page, { setKey: 'boss', seed: 8, auto: true });

@@ -206,6 +206,7 @@ VisuStella offers named battle layouts (default, list, xp, portrait, border) tha
 - A **HUD layout** is a named entry (its own small list, proposed `src/data/hudlayouts.json`) of regions: turn order, commands, party status, target info, and whatever the side-view HUD design adds. Each region has x, y, width, height and an anchor.
 - A stage picks a layout in its inspector. Dragging a region on that stage records a **per-stage override** of just that region; the inspector shows overridden values in white and inherited ones in grey (our own convention (inferred); Tiled only tracks overrides internally), with a revert arrow to go back to the layout's value. That is Tiled's template model ([Tiled templates](https://doc.mapeditor.org/en/stable/manual/using-templates/)) plus the per-field revert Tiled lacks (it is a planned feature there) and Godot has ([Godot inspector](https://docs.godotengine.org/en/stable/tutorials/editor/inspector_dock.html)).
 - "Save as new layout" turns the current stage's overrides into a new named layout.
+- **The bottom band (HUD polish round 1).** Boxes that sit side by side on one row (the party table, the command strip and the enemy box in every preset but the PS4 one) are framed as one window with a divider in each gap, and a box set to "never" or dragged off the row leaves the band. Each box keeps its own x, y, w and h, so dragging, resizing and the revert arrows work as before; only the frame behind them is shared (`bandPlans` in `src/stage/hudlayout.ts`).
 
 ### 3.7 Inspector
 

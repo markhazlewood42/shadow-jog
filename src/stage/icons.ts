@@ -143,6 +143,20 @@ const ROWS: Record<IconKind, readonly string[]> = {
   ],
 };
 
+/**
+ * What each command icon is called, in three sizes: the three-letter code printed under the icon (so every icon has a
+ * name on the screen all the time, the way ref 1 prints POW/GRD/AGI), the full name on the strip's caption line for the
+ * lit icon, and one short line about what it does (shown beside the name when the icon has no cost).
+ */
+export const COMMAND_INFO: Readonly<Record<IconKind, { code: string; name: string; hint: string }>> = {
+  attack: { code: 'ATK', name: 'Attack', hint: 'Hit one foe' },
+  skill: { code: 'SKL', name: 'Skill', hint: 'Special moves' },
+  combo: { code: 'CMB', name: 'Combo', hint: 'Team chain' },
+  item: { code: 'ITM', name: 'Item', hint: 'Use a kit item' },
+  guard: { code: 'GRD', name: 'Guard', hint: 'Take less damage' },
+  run: { code: 'RUN', name: 'Run', hint: 'Try to escape' },
+};
+
 /** The icon kinds in the order the command strip shows them (run lives on the strip's far end in the real game; the stage shows the first five). */
 export const COMMAND_ICONS: readonly IconKind[] = ['attack', 'skill', 'combo', 'item', 'guard'];
 

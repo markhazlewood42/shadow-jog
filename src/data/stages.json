@@ -135,15 +135,15 @@
         "x": 120,
         "y": 2,
         "w": 240,
-        "h": 25,
+        "h": 35,
         "show": "always",
         "opacity": 0.8,
         "style": "timeline",
-        "chip": 12,
-        "nowChip": 20
+        "chip": 14,
+        "nowChip": 22
       },
       "commands": {
-        "x": 184,
+        "x": 204,
         "y": 228,
         "w": 112,
         "h": 40,
@@ -155,7 +155,7 @@
       "partyStatus": {
         "x": 4,
         "y": 228,
-        "w": 176,
+        "w": 196,
         "h": 40,
         "show": "always",
         "opacity": 0.8,
@@ -164,9 +164,9 @@
         "face": 8
       },
       "enemyInfo": {
-        "x": 300,
+        "x": 320,
         "y": 228,
-        "w": 176,
+        "w": 156,
         "h": 40,
         "show": "input",
         "opacity": 0.8,
@@ -175,7 +175,7 @@
       },
       "banner": {
         "x": 140,
-        "y": 30,
+        "y": 40,
         "w": 200,
         "h": 13,
         "show": "action",
@@ -393,15 +393,15 @@
         "x": 120,
         "y": 2,
         "w": 240,
-        "h": 25,
+        "h": 35,
         "show": "always",
         "opacity": 0.8,
         "style": "timeline",
-        "chip": 12,
-        "nowChip": 20
+        "chip": 14,
+        "nowChip": 22
       },
       "commands": {
-        "x": 184,
+        "x": 204,
         "y": 228,
         "w": 112,
         "h": 40,
@@ -413,7 +413,7 @@
       "partyStatus": {
         "x": 4,
         "y": 228,
-        "w": 176,
+        "w": 196,
         "h": 40,
         "show": "always",
         "opacity": 0.8,
@@ -422,9 +422,9 @@
         "face": 8
       },
       "enemyInfo": {
-        "x": 300,
+        "x": 320,
         "y": 228,
-        "w": 176,
+        "w": 156,
         "h": 40,
         "show": "input",
         "opacity": 0.8,
@@ -433,7 +433,7 @@
       },
       "banner": {
         "x": 140,
-        "y": 30,
+        "y": 40,
         "w": 200,
         "h": 13,
         "show": "action",

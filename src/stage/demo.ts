@@ -18,7 +18,7 @@
  */
 import { Battle } from '../battle/engine';
 import { enemyParty, partyCombatant } from '../battle/setup';
-import type { BattleEvent, Combatant, Element, Command } from '../battle/types';
+import type { BattleEvent, Combatant, Element, Command, StatusId } from '../battle/types';
 import { ABILITIES } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
 import { MEMBERS } from '../data/party';
@@ -44,6 +44,8 @@ export interface HudMemberView {
   res: number;
   /** 0 when the hero has no resource: the table then draws a dash. */
   resMax: number;
+  /** The statuses on the hero (the battle engine's own ids, as displayed now): the table draws an icon for each. */
+  status: StatusId[];
 }
 
 export interface HudTag {
@@ -59,6 +61,8 @@ export interface HudFoeView {
   sprite: string;
   /** Its name, with " A", " B"... when several of one kind are in the fight. */
   name: string;
+  /** The letter alone ("A", "B"...) when several of one kind are in the fight, else "". Every place that marks a duplicate (the timeline chip, the lists, the target box) reads this, so they cannot disagree. */
+  tag: string;
   hp: number;
   maxHp: number;
   boss: boolean;
@@ -80,6 +84,8 @@ export interface ActView {
   /** Damage of the featured hit, and whether it was a critical. */
   dmg: number;
   crit: boolean;
+  /** The featured hit struck a weak spot (its number is drawn in cyan). */
+  weak?: boolean;
   /** Party hits so far this round (the combo counter) and their total damage. */
   hits: number;
   total: number;
@@ -160,8 +166,10 @@ export function tagsFor(c: Combatant): HudTag[] {
 
 export function memberView(c: Combatant): HudMemberView {
   const def = MEMBERS[c.key as MemberId];
-  return { id: c.key, name: def.name, color: def.color, hp: c.hp, maxHp: c.base.maxHp, resLabel: def.tpLabel, res: c.tp, resMax: c.base.maxTp };
+  return { id: c.key, name: def.name, color: def.color, hp: c.hp, maxHp: c.base.maxHp, resLabel: def.tpLabel, res: c.tp, resMax: c.base.maxTp, status: c.status.map((s) => s.id) };
 }
+
+const DUPLICATE_TAGS = 'ABCDEF';
 
 /** Enemy views, with " A", " B" on repeats of one kind. */
 export function foeViews(foes: readonly Combatant[]): HudFoeView[] {
@@ -171,8 +179,9 @@ export function foeViews(foes: readonly Combatant[]): HudFoeView[] {
   return foes.map((f) => {
     const n = (seen.get(f.key) ?? 0) + 1;
     seen.set(f.key, n);
-    const tag = (total.get(f.key) ?? 0) > 1 ? ` ${'ABCDEF'[n - 1]}` : '';
-    return { defId: f.key, sprite: ENEMIES[f.key]?.sprite ?? f.key, name: f.name + tag, hp: f.hp, maxHp: f.base.maxHp, boss: !!f.boss, tags: tagsFor(f) };
+    const letter = (total.get(f.key) ?? 0) > 1 ? (DUPLICATE_TAGS[n - 1] ?? '') : '';
+    const tag = letter ? ` ${letter}` : '';
+    return { defId: f.key, sprite: ENEMIES[f.key]?.sprite ?? f.key, name: f.name + tag, tag: letter, hp: f.hp, maxHp: f.base.maxHp, boss: !!f.boss, tags: tagsFor(f) };
   });
 }
 
@@ -239,7 +248,7 @@ function playAct(demo: StageDemo, roster: string[], seed: number, chain: boolean
     total += onFoes.reduce((n, d) => n + d.amount, 0);
     if (lead.actor === attacker.uid) {
       const hit = onFoes.find((d) => d.target === target.uid) ?? onFoes[0];
-      return { party, foes, act: { attacker: attacker.uid, target: demo.act.target, skillName: ab.name, fx: demo.act.fx, dmg: hit?.amount ?? 0, crit: !!hit?.crit, hits, total } };
+      return { party, foes, act: { attacker: attacker.uid, target: demo.act.target, skillName: ab.name, fx: demo.act.fx, dmg: hit?.amount ?? 0, crit: !!hit?.crit, weak: !!hit?.weak, hits, total } };
     }
   }
   return null;

@@ -45,7 +45,7 @@ type AnyScene = {
   currentPhase: string;
   currentView: { phase: string; active: number; target: number | null; banner: string | null; act: { dmg: number } | null };
   pictureKey: string;
-  hudObjects: { box: (name: string) => { x: number; y: number } | undefined; objects: unknown[] };
+  hudObjects: { box: (name: string) => { x: number; y: number } | undefined; objects: unknown[]; frames: Array<{ x: number; y: number }> };
   children: { length: number };
   applyStage: (s: unknown) => void;
   showStage: (id: string) => void;
@@ -204,6 +204,27 @@ test('the three moments of the turn show the regions the design says, and one he
   await page.evaluate(() => window.__sc().setPhase('choose'));
   expect(await state()).toMatchObject({ active: 1, target: 0, home: 0, flashed: 0 });
   expect(await countOf(page, 'fx-')).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('the bottom boxes share one frame, and the command strip keeps its slot (dimmed) while an action plays', async ({ page }) => {
+  const errors = await open(page);
+  const frames = (): Promise<Array<[number, number]>> => page.evaluate(() => window.__sc().hudObjects.frames.map((f) => [f.x, f.y] as [number, number]));
+  // One band from the party table to the enemy box.
+  expect(await frames()).toEqual([[4, 228]]);
+  await page.evaluate(() => window.__sc().setPhase('act'));
+  // The command box is gone (the existing rule), but its slot holds a standby strip, so the band has no hole.
+  expect(await page.evaluate(() => !!window.__sc().hudObjects.box('commands'))).toBe(false);
+  expect(await frames()).toEqual([[4, 228], [204, 228]]);
+  await page.evaluate(() => window.__sc().setPhase('choose'));
+  expect(await frames()).toEqual([[4, 228]]);
+  // A box hidden by hand leaves the band and no standby strip appears for it.
+  await page.evaluate(() => {
+    const s = window.__sc();
+    s.applyStage({ ...s.config, hud: { ...s.config.hud, commands: { ...s.config.hud.commands, show: 'never' } } });
+    s.setPhase('act');
+  });
+  expect(await frames()).toEqual([]);
   expect(errors).toEqual([]);
 });
 

@@ -22,7 +22,7 @@ import Phaser from 'phaser';
 import { hexRgb, type Raw, seeded } from './pixels';
 import { blowRaw, glowRaw, slashRaw, starRaw } from './fx';
 import { addCanvasOnce, rawToCanvas } from './textures';
-import { textAt, textTexture, UI } from './hudkit';
+import { NUMBER_LOOK, textAt, textTexture, UI } from './hudkit';
 import type { HitEffect } from './moves';
 import { MARK_DEPTH } from './hud';
 
@@ -162,15 +162,16 @@ export class LiveFx {
 
   /**
    * A floating number: rises one pixel every other tick for 20 ticks, holds, then blinks out (46 ticks in all). Drawn in the
-   * game's bitmap font at 2x with an outline. `label` (CRIT, MISS) sits over it at 1x.
+   * game's bitmap font at 2x or 3x with a two-pixel dark outline and a drop shadow (`NUMBER_LOOK`), so it holds on a white target.
+   * `label` (CRIT, WEAK, MISS) sits over it at 1x in `labelColor`.
    */
-  number(x: number, y: number, text: string, color: string, label: string | null, scale = 2): void {
-    const t = textTexture(this.scene.textures, text, { color, shadow: false, outline: UI.outline, scale, prefix: NUM_PREFIX });
+  number(x: number, y: number, text: string, color: string, label: string | null, scale = 2, labelColor: string = UI.amber): void {
+    const t = textTexture(this.scene.textures, text, { color, ...NUMBER_LOOK, scale, prefix: NUM_PREFIX });
     const at = textAt(t, text, Math.round(x), Math.round(y), 'center', scale);
     const img = this.scene.add.image(at.x, at.y, t.key).setOrigin(0, 0).setDepth(MARK_DEPTH);
     let tag: Phaser.GameObjects.Image | null = null;
     if (label) {
-      const l = textTexture(this.scene.textures, label, { color: UI.amber, shadow: false, outline: UI.outline, prefix: NUM_PREFIX });
+      const l = textTexture(this.scene.textures, label, { color: labelColor, ...NUMBER_LOOK, outlineW: 1, prefix: NUM_PREFIX });
       const la = textAt(l, label, Math.round(x), Math.round(y) - 9, 'center');
       tag = this.scene.add.image(la.x, la.y, l.key).setOrigin(0, 0).setDepth(MARK_DEPTH);
     }

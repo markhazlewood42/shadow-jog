@@ -249,7 +249,10 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | **Two of a kind** | Enemies of the same kind in one fight are lettered (Glowrat A, Glowrat B), in their names, the turn strip and, on machines, a stencil. |
 | **Families** | Human, Machine, Beast, Spirit, Ghoul (each with its own weaknesses). |
 | **Bestiary**, **Places**, **Combo log** | The menu's records. |
-| **NOW chip** | On the side-view battle's turn timeline, the portrait at the left that shows whose turn it is; the next turns follow along the line (heroes above it, enemies below, with a pink corner mark). |
+| **NOW chip** | On the side-view battle's turn timeline, the portrait at the left that shows whose turn it is; the next turns follow along the line (heroes above it, enemies below, with a red rim and a pink corner flag). The one acting **next** has an amber glow; after a round tick the line previews the following round in dim chips. |
+| **Hero colour** | Each hero's one colour (Kit coral, Rook sand, Hex lilac, Sable cream; `color` in `src/data/party.ts`). The side-view HUD uses it for the name in the party table, the rim of the hero's turn chip and the name tab over the acting hero. Cyan is not a hero colour: it always means "the one acting now" (the ring, the table row, the tab's stripe). |
+| **Bottom band** | In the side-view battle, the party table, the command strip and the enemy box sit along the bottom as one window with a divider between them. During an action the command strip stays in its slot, dimmed. |
+| **Command codes** | The three-letter names under the command icons (ATK, SKL, CMB, ITM, GRD) so no icon is a mystery; the lit icon also gets its full name and cost (or a one-line hint) on the strip's caption line. |
 | **Hit counter** | The small box at the top right while an action plays: how many hits the crew has landed this round, and their total damage. |
 | **Depth haze** | In the side-view battle, fighters on the back rows are blended a little toward the stage's fog colour, so distance reads without shrinking anyone. |
 

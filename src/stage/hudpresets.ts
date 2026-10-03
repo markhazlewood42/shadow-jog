@@ -48,11 +48,11 @@ const box = (x: number, y: number, w: number, h: number, show: HudRegion['show']
 
 /** The design's own layout: the timeline on top, party / menu / enemies in a band along the bottom. */
 const DESIGN: HudPreset['regions'] = {
-  turnOrder: box(120, 2, 240, 25, 'always'),
-  commands: box(184, 228, 112, 40, 'input'),
-  partyStatus: box(4, 228, 176, 40, 'always'),
-  enemyInfo: box(300, 228, 176, 40, 'input'),
-  banner: box(140, 30, 200, 13, 'action'),
+  turnOrder: box(120, 2, 240, 35, 'always'),
+  commands: box(204, 228, 112, 40, 'input'),
+  partyStatus: box(4, 228, 196, 40, 'always'),
+  enemyInfo: box(320, 228, 156, 40, 'input'),
+  banner: box(140, 40, 200, 13, 'action'),
   combo: box(404, 2, 72, 25, 'action'),
 };
 
@@ -60,25 +60,25 @@ export const HUD_PRESETS: Record<PresetId, HudPreset> = {
   'timeline-bottom3': {
     id: 'timeline-bottom3',
     name: 'Timeline + bottom three',
-    about: 'The final side-view design: the turn timeline on top, the party table, the menu and the enemy box in a band along the bottom.',
+    about: 'The final side-view design: the turn timeline on top, the party table, the menu and the enemy box in ONE band along the bottom (framed as a single window with dividers).',
     regions: DESIGN,
   },
   'ff-strip': {
     id: 'ff-strip',
     name: 'Final Fantasy strip',
     about: 'Enemies on the left of the bottom band and the party on the right, the way the classic Final Fantasy battle screens read.',
-    regions: { ...DESIGN, partyStatus: box(300, 228, 176, 40, 'always'), enemyInfo: box(4, 228, 176, 40, 'input') },
+    regions: { ...DESIGN, partyStatus: box(280, 228, 196, 40, 'always'), commands: box(164, 228, 112, 40, 'input'), enemyInfo: box(4, 228, 156, 40, 'input') },
   },
   'action-left': {
     id: 'action-left',
     name: 'Action, menu on the left',
     about: 'The menu moves to the far left of the bottom band, the party table sits in the middle, and the timeline hugs the top left.',
     regions: {
-      turnOrder: box(4, 2, 240, 25, 'always'),
+      turnOrder: box(4, 2, 240, 35, 'always'),
       commands: box(4, 228, 112, 40, 'input'),
-      partyStatus: box(120, 228, 176, 40, 'always'),
-      enemyInfo: box(300, 228, 176, 40, 'input'),
-      banner: box(4, 30, 200, 13, 'action'),
+      partyStatus: box(120, 228, 196, 40, 'always'),
+      enemyInfo: box(320, 228, 156, 40, 'input'),
+      banner: box(4, 40, 200, 13, 'action'),
       combo: box(404, 2, 72, 25, 'action'),
     },
   },
@@ -87,11 +87,11 @@ export const HUD_PRESETS: Record<PresetId, HudPreset> = {
     name: 'Phantasy Star IV panels',
     about: 'A wide party panel along the bottom with the menu floating in the lane between the two sides, like the old panel layout (kept for comparison).',
     regions: {
-      turnOrder: box(120, 2, 240, 25, 'always', 0.9),
+      turnOrder: box(120, 2, 240, 35, 'always', 0.9),
       commands: box(184, 186, 112, 40, 'input', 0.9),
       partyStatus: box(4, 228, 300, 40, 'always', 0.9),
       enemyInfo: box(308, 228, 168, 40, 'input', 0.9),
-      banner: box(140, 30, 200, 13, 'action', 0.9),
+      banner: box(140, 40, 200, 13, 'action', 0.9),
       combo: box(404, 2, 72, 25, 'action', 0.9),
     },
   },

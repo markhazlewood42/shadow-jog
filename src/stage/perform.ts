@@ -27,7 +27,7 @@ import type { LiveFx } from './livefx';
 import type { Fighter, StageScene } from './stagescene';
 import type { StillInfo } from './stills';
 import { ringTexture } from './textures';
-import { UI } from './hudkit';
+import { HIT_COLOUR, hitKind, UI } from './hudkit';
 
 /** A flinch, dodge or fall in progress on one fighter. */
 interface Reaction {
@@ -574,7 +574,7 @@ export class Performer {
     const flow = this.flow;
     if (imp.kind === 'miss') {
       this.startReaction(t, this.moves.reactions.dodge, false, 0);
-      this.number(t, 'MISS', UI.dim, null, 1, at);
+      this.number(t, 'MISS', UI.dim, null, UI.dim, 1, at);
       return;
     }
     // The displayed numbers catch up with the blow.
@@ -582,7 +582,7 @@ export class Performer {
     applyEvent(flow.disp, synthetic);
     if (imp.kind === 'heal') {
       this.picture(p, 'heal', at, 'light', depth, t);
-      this.number(t, String(imp.amount), UI.green, imp.crit ? 'GREAT' : null, 2, at);
+      this.number(t, String(imp.amount), UI.green, imp.crit ? 'GREAT' : null, UI.green, 2, at);
       return;
     }
     this.picture(p, imp.kind === 'tick' ? 'spark' : effect, at, weight, depth, t);
@@ -591,9 +591,11 @@ export class Performer {
       applyEvent(flow.disp, { t: 'down', target: imp.target });
       this.startReaction(t, t.side === 'party' ? this.moves.reactions.downHero : this.moves.reactions.down, true, shake, peak);
     } else this.startReaction(t, this.moves.reactions.hurt, false, shake, peak);
-    const label = imp.crit ? 'CRIT' : imp.weak ? 'WEAK' : null;
+    // The number is tinted by the kind of hit (pale, amber for a critical, cyan for a weak spot), with the word over it in the same colour.
+    const kind = hitKind(imp.crit, imp.weak);
+    const label = kind === 'crit' ? 'CRIT' : kind === 'weak' ? 'WEAK' : null;
     // A critical or weak hit is a bigger number (3x) than an ordinary one (2x).
-    this.number(t, String(imp.amount), imp.crit ? UI.amber : imp.kind === 'tick' ? UI.violet : '#ffffff', label, imp.kind === 'tick' ? 1 : imp.crit || imp.weak ? 3 : 2, at);
+    this.number(t, String(imp.amount), imp.kind === 'tick' ? UI.violet : HIT_COLOUR[kind], label, HIT_COLOUR[kind], imp.kind === 'tick' ? 1 : kind === 'normal' ? 2 : 3, at);
     if (imp.kind === 'damage' && p.actor?.side === 'party') {
       this.comboHits++;
       this.comboTotal += imp.amount;
@@ -608,18 +610,19 @@ export class Performer {
    * head (where the player looks to see who was hurt); an ENEMY's rises from the point the blow landed, so a number on a tall boss
    * is next to the blade and not up by its head or off at its edge.
    */
-  private number(t: Fighter, text: string, colour: string, label: string | null, scale: number, at: { x: number; y: number }): void {
+  private number(t: Fighter, text: string, colour: string, label: string | null, labelColour: string, scale: number, at: { x: number; y: number }): void {
     const g = this.scene.figureGeo(t);
     const last = this.numbers.get(t.id);
     const stack = last && this.clock - last.at < 40 ? last.stack + 1 : 0;
     this.numbers.set(t.id, { at: this.clock, stack });
     const height = 7 * scale;
-    let nx = t.side === 'party' ? g.x : at.x;
-    let ny = t.side === 'party' ? g.top - height - 8 - stack * 12 : at.y - height - 22 - stack * 12;
+    // An enemy's number rises well clear of the blow (the cut, the glow and the sparks are all within about 15 px of it) and a little to the far side of it, so it never sits on the slash, even on a white target.
+    let nx = t.side === 'party' ? g.x : at.x + 12;
+    let ny = t.side === 'party' ? g.top - height - 8 - stack * 12 : at.y - height - 30 - stack * 12;
     // Never over the timeline and banner at the top, nor off the sides, and never lower than the target's own feet.
     ny = Math.max(50, Math.min(g.y - 8, ny));
     nx = Math.max(16, Math.min(464, nx));
-    this.fx.number(nx, ny, text, colour, label, scale);
+    this.fx.number(nx, ny, text, colour, label, scale, labelColour);
     this.numberLog.push({ target: t.id, text, x: nx, y: ny });
     if (this.numberLog.length > 60) this.numberLog.shift();
   }
