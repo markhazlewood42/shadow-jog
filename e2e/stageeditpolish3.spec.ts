@@ -128,7 +128,8 @@ test('Align keys: A C D align left / centre / right, W M S go to the back / midd
   const right = (await stageOf(page)).party[1]?.x ?? 0;
   expect(right).toBeGreaterThan(left);
   await page.keyboard.press('c');
-  await expect(page.locator('#st-msg')).toContainText('centre');
+  // Rook shares the middle row with Hex now, so Centre can only land where he already stands: round 4 then says "No change".
+  await expect(page.locator('#st-msg')).toContainText(/centre|No change/);
   // Four heroes: X spreads across, Y spreads over the rows.
   await page.keyboard.press('Control+a');
   await page.keyboard.press('x');

@@ -643,7 +643,8 @@ async function main(): Promise<void> {
       session.settle();
       const dirty = session.dirtyParts;
       const body = { stages: session.data.stages, axes: session.data.axes, hud: session.data.hud, write: dirty };
-      const made = prepareSave(body);
+      // The stages are checked against the HUD that will be on disk afterwards: the new one if the HUD is saved now, else the saved one.
+      const made = prepareSave(body, formatHud(session.saved.hud));
       if (!made.ok) {
         bar.say(`Not saved: ${made.problems[0]}${made.problems.length > 1 ? ` (and ${made.problems.length - 1} more)` : ''}. No file was changed.`, 'bad');
         return false;

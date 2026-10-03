@@ -111,8 +111,13 @@ export function unsafeReason(combo: string): string | null {
 
 /** The combo a key event is, written the way the table writes them ("Ctrl+Shift+Z", "ArrowLeft", "Escape"). */
 export function comboOf(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'altKey'> & { code?: string }): string {
-  // With Alt held, some layouts (a Mac's Option key) type another character; the key's position tells which letter it is.
-  const key = e.altKey && e.code?.startsWith('Key') ? e.code.slice(3) : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  // The key's position (`e.code`, "KeyA".."KeyZ") tells which Latin letter it is in two cases:
+  //  - with Alt held, some layouts (a Mac's Option key) type another character;
+  //  - the layout types letters of another script (Cyrillic, Greek, Hebrew, Arabic...): the key at the A position types "ф", not "a",
+  //    so the table's plain-letter keys would never match. (A Latin layout is read by what it types, so AZERTY's "a" is still A, and
+  //    a punctuation key such as AZERTY's comma at the M position stays a comma.)
+  const otherScript = e.key.length === 1 && /\p{L}/u.test(e.key) && !/[a-z]/i.test(e.key);
+  const key = (e.altKey || otherScript) && e.code && /^Key[A-Z]$/.test(e.code) ? e.code.slice(3) : e.key.length === 1 ? e.key.toUpperCase() : e.key;
   const parts: string[] = [];
   if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
   if (e.altKey) parts.push('Alt');

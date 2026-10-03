@@ -517,11 +517,14 @@ test('Align: select Rook and line him up in one click; the single-letter keys do
   await expect(page.locator('#st-msg')).toContainText('left edge');
   // Each press is one undo step.
   expect((await saved(page)).changes).toBe(4);
-  // Several: the heroes line up with each other, here all on the back-most row they use.
+  // Several: the heroes line up with each other on the back-most row they use. The four of them are 226 px wide with their gaps, more than the 205 px the heroes have
+  // once the 55 px gap to the enemies is kept (round 4), so the one that does not fit stays where it was and the status line says so.
   await page.keyboard.press('Control+a');
   await page.keyboard.press('w');
   const rows = (await stageOf(page)).party.map((q) => q.row);
-  expect(new Set(rows).size).toBe(1);
+  expect(new Set(rows).size).toBe(2);
+  expect(rows.filter((r) => r === 0).length).toBe(3);
+  await expect(page.locator('#st-msg')).toContainText('stayed: not enough room');
   // With three or more selected the bar also offers an even spread.
   await expect(page.locator('.alb[data-align="spreadAcross"]')).toBeVisible();
   await page.keyboard.press('x');

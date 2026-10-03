@@ -56,6 +56,20 @@ export interface StageWarning extends RuleBreak {
   setKey: string | null;
 }
 
+/**
+ * How far right a hero's drawn edge may reach so the "gap" rule still holds, when the nearest enemy's drawn left edge is at
+ * `nearestEnemyLeft`: the gap is `nearest enemy left edge - farthest hero right edge`, and it must be `RULE_LIMITS.gap` or more.
+ * (The editor's Align uses this so it never lands a hero where the stage would then warn.)
+ */
+export function heroRightLimit(nearestEnemyLeft: number): number {
+  return nearestEnemyLeft - RULE_LIMITS.gap;
+}
+
+/** The same rule seen from the enemies: the least x their drawn left edge may have when the farthest hero's drawn right edge is at `furthestHeroRight`. */
+export function enemyLeftLimit(furthestHeroRight: number): number {
+  return furthestHeroRight + RULE_LIMITS.gap;
+}
+
 /** Why each rule exists, for the chip's tooltip and the notes: what the player would notice if it were ignored. */
 export const RULE_WHY: Record<RuleId, string> = {
   horizon: 'The wall and the floor need room: with the horizon too high or too low the floor is cramped or the skyline is cut.',

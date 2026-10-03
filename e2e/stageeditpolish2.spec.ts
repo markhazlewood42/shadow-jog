@@ -77,8 +77,10 @@ test('Align left, centre and right pack fighters that share a row, in their old 
     expect(now.order, `${how}: the order stays`).toEqual([1, 0, 2]);
     expect(now.gap, `${how}: no overlap, the minimum gap`).toBeGreaterThanOrEqual(2);
     expect(now.gap, `${how}: packed tight`).toBeLessThanOrEqual(3);
-    await expect(page.locator('#st-msg')).toContainText('packed side by side');
-    await expect(page.locator('#st-msg')).toContainText('3 of them share a row');
+    // Left packs them (they overlapped). After that the block is already tight, so Right and Centre line it up with its own bounds and nothing moves:
+    // round 4 says "No change" instead of repeating the packing note for a move that did not happen.
+    await expect(page.locator('#st-msg')).toContainText(how === 'left' ? 'packed side by side' : 'No change');
+    if (how === 'left') await expect(page.locator('#st-msg')).toContainText('3 of them share a row');
   }
   // Fighters each alone on a row line up as before, and the message does not claim any packing.
   await page.keyboard.press('Control+z');

@@ -32,7 +32,7 @@ import {
   snapSlot,
 } from '../config';
 import { HUD_FIELDS, HUD_REGIONS, type HudField, type HudRegionKey, setField } from '../hudpresets';
-import { RULE_LIMITS } from '../rules';
+import { enemyLeftLimit, heroRightLimit, RULE_LIMITS } from '../rules';
 import type { AxesFile } from '../config';
 
 export type Side = 'party' | 'enemy';
@@ -521,12 +521,24 @@ export const ALIGN_GAP = 2;
  *  - heroes stay in the left half, 0 to 240;
  *  - enemies stay from `RULE_LIMITS.nearest` (260, the nearest an enemy's left edge may be) to the screen's right edge
  *    less `RULE_LIMITS.edgeMargin` (476, an enemy that touches the edge looks cut off).
+ *
+ * `against` is where the OTHER side stands, when the caller knows: for heroes the drawn left edge of the nearest enemy (of
+ * any enemy group of the stage), for enemies the drawn right edge of the farthest hero. The 55 px gap rule then narrows
+ * the range (`heroRightLimit`, `enemyLeftLimit` in `rules.ts`): with enemies at 260 a hero's right edge stops at 205, not 240.
+ * A limit that would leave no room at all is ignored: the stage already breaks the rule and Align cannot mend that.
  */
-export function standingRange(side: Side): { l: number; r: number } {
-  return side === 'party' ? { l: 0, r: SCREEN_W / 2 } : { l: RULE_LIMITS.nearest, r: SCREEN_W - RULE_LIMITS.edgeMargin };
+export function standingRange(side: Side, against?: number): { l: number; r: number } {
+  const base = side === 'party' ? { l: 0, r: SCREEN_W / 2 } : { l: RULE_LIMITS.nearest, r: SCREEN_W - RULE_LIMITS.edgeMargin };
+  if (against === undefined) return base;
+  if (side === 'party') {
+    const r = Math.min(base.r, heroRightLimit(against));
+    return r > base.l ? { l: base.l, r } : base;
+  }
+  const l = Math.max(base.l, enemyLeftLimit(against));
+  return l < base.r ? { l, r: base.r } : base;
 }
 
-/** What an Align that moves fighters sideways did, worked out from where everyone FINALLY stands, so the status line can say what really happened. */
+/** What an Align that moves fighters did, worked out from where everyone FINALLY stands, so the status line can say what really happened. */
 export interface AcrossResult {
   /** Fighters that were packed side by side with a neighbour on their row (0 when every one had a row to itself). */
   packed: number;
@@ -536,13 +548,19 @@ export interface AcrossResult {
   total: number;
   /** How many of them stand where the Align put them in the end. */
   fit: number;
-  /** Fighters left out because the range had no room for them: they stayed where they were. */
+  /** Fighters left out because there was no room for them: they stayed EXACTLY where they were (the same row, x and small nudge). */
   short: number;
   /** Fighters that had to slide a pixel or more off a spot another fighter holds, after the Align had placed them. */
   slid: number;
+  /** How many of them stand somewhere else than before (another row, x or small nudge). The others did not change. */
+  moved: number;
   /** The range the fighters were kept inside (drawn edges). */
   range: { l: number; r: number };
+  /** True when the gap rule to the other side narrowed that range (so the status line can say why a fighter stopped short of the edge). */
+  limited: boolean;
 }
+
+const emptyResult = (range: { l: number; r: number }, limited = false): AcrossResult => ({ packed: 0, packedRows: 0, total: 0, fit: 0, short: 0, slid: 0, moved: 0, range, limited });
 
 /** A fighter being lined up: its place in the list, its slot and how far its picture reaches. */
 interface Placed {
@@ -551,8 +569,81 @@ interface Placed {
   r: Reach;
 }
 
+/** A stretch of a row that something else holds: the drawn edges of a fighter that stays where it is. */
+interface Blocked {
+  l: number;
+  r: number;
+}
+
 /** The slots' drawn left edge. */
 const leftEdge = (p: Placed): number => p.q.x - p.r.left;
+/** The drawn edges of a fighter as it stands now. */
+const intervalOf = (p: Placed): Blocked => ({ l: p.q.x - p.r.left, r: p.q.x + p.r.right });
+/** True when a fighter with this reach standing at `x` would come closer than `ALIGN_GAP` to the blocked stretch (or into it). */
+const hits = (x: number, r: Reach, b: Blocked): boolean => x - r.left < b.r + ALIGN_GAP && x + r.right + ALIGN_GAP > b.l;
+
+/**
+ * The stretches of one row that fighters hold which this Align does NOT move: everyone in the list who is not in `moving` and
+ * stands on `row`. A fighter whose size is not known counts as a point. Whatever is moved must keep `ALIGN_GAP` clear of these.
+ */
+function standingOn(list: ReadonlyArray<PartySlot>, row: number, moving: ReadonlySet<number>, reach: Readonly<Record<number, Reach>>): Blocked[] {
+  return list.flatMap((q, i) => (moving.has(i) || q.row !== row ? [] : [{ l: q.x - (reach[i]?.left ?? 0), r: q.x + (reach[i]?.right ?? 0) }]));
+}
+
+/**
+ * True when some fighter of `group` comes closer than `ALIGN_GAP` to another one of the group or to a fixed stretch (two fixed
+ * stretches near each other are not this Align's business). The test looks at the right edge of the FURTHEST fighter so far in
+ * left-to-right order, not only at the one before: a wide fighter can overlap one that stands two places later.
+ */
+function crowded(group: readonly Placed[], fixed: readonly Blocked[]): boolean {
+  const all = [...group.map((p) => ({ ...intervalOf(p), mine: true })), ...fixed.map((b) => ({ ...b, mine: false }))].sort((a, b) => a.l - b.l);
+  let anyRight = Number.NEGATIVE_INFINITY; // furthest right edge of anything so far
+  let myRight = Number.NEGATIVE_INFINITY; // furthest right edge of the group so far
+  for (const e of all) {
+    if (e.l < (e.mine ? anyRight : myRight) + ALIGN_GAP) return true;
+    anyRight = Math.max(anyRight, e.r);
+    if (e.mine) myRight = Math.max(myRight, e.r);
+  }
+  return false;
+}
+
+/**
+ * Put the fighters, in this order, as far left as they go starting at the drawn edge `from`: each at the first place that is
+ * `ALIGN_GAP` clear of the one before and of every blocker. Stops at the first fighter that has no place left before `limit`
+ * (the range's right end); the ones after it are not placed either.
+ */
+function fillRight(order: readonly Placed[], from: number, limit: number, blockers: readonly Blocked[]): Array<{ p: Placed; x: number }> {
+  const out: Array<{ p: Placed; x: number }> = [];
+  let left = Math.ceil(from);
+  for (const p of order) {
+    let x = Math.ceil(left + p.r.left);
+    for (let hit = blockers.find((b) => hits(x, p.r, b)); hit; hit = blockers.find((b) => hits(x, p.r, b))) {
+      left = Math.max(left + 1, Math.ceil(hit.r + ALIGN_GAP));
+      x = Math.ceil(left + p.r.left);
+    }
+    if (x + p.r.right > limit) break;
+    out.push({ p, x });
+    left = Math.ceil(x + p.r.right + ALIGN_GAP);
+  }
+  return out;
+}
+
+/** The mirror of `fillRight`: the fighters in this order (the right-most first) from the drawn edge `from` toward the left, as far right as they go. */
+function fillLeft(order: readonly Placed[], from: number, limit: number, blockers: readonly Blocked[]): Array<{ p: Placed; x: number }> {
+  const out: Array<{ p: Placed; x: number }> = [];
+  let right = Math.floor(from);
+  for (const p of order) {
+    let x = Math.floor(right - p.r.right);
+    for (let hit = blockers.find((b) => hits(x, p.r, b)); hit; hit = blockers.find((b) => hits(x, p.r, b))) {
+      right = Math.min(right - 1, Math.floor(hit.l - ALIGN_GAP));
+      x = Math.floor(right - p.r.right);
+    }
+    if (x - p.r.left < limit) break;
+    out.push({ p, x });
+    right = Math.floor(x - p.r.left - ALIGN_GAP);
+  }
+  return out;
+}
 
 /**
  * Pack fighters of ONE row side by side in their current left-to-right order, `ALIGN_GAP` apart, as one block that
@@ -560,8 +651,12 @@ const leftEdge = (p: Placed): number => p.q.x - p.r.left;
  * inside the range if that would push it out. When all of them are wider than the range, as many as fit are packed,
  * counted from the side the block lines up against (from the right for Right, else from the left); the rest stay out.
  * Returns the planned x for those that fit, in left-to-right order, and the ones left out.
+ *
+ * `blockers` are stretches of the row that fighters hold which do not move. When the block would land on one, the fighters
+ * are placed around them instead (`fillRight` / `fillLeft`), one by one at the first free place from the block's side; a fighter
+ * with no free place left is one of the ones left out.
  */
-function packRow(group: readonly Placed[], how: AlignAcross, span: { l: number; r: number }, range: { l: number; r: number }): { fit: Array<{ p: Placed; x: number }>; rest: Placed[] } {
+function packRow(group: readonly Placed[], how: AlignAcross, span: { l: number; r: number }, range: { l: number; r: number }, blockers: readonly Blocked[] = []): { fit: Array<{ p: Placed; x: number }>; rest: Placed[] } {
   // Left to right as they stand now (ties: the lower x, then the first selected), so the order never changes.
   const ordered = [...group].sort((a, b) => leftEdge(a) - leftEdge(b) || a.q.x - b.q.x);
   const room = range.r - range.l;
@@ -575,80 +670,140 @@ function packRow(group: readonly Placed[], how: AlignAcross, span: { l: number; 
     width = next;
   }
   const fitOrder = how === 'right' ? chosen.reverse() : chosen;
-  const rest = ordered.filter((p) => !fitOrder.includes(p));
   // Where the block's left drawn edge goes, kept inside the range.
   const wanted = how === 'left' ? span.l : how === 'right' ? span.r - width : (span.l + span.r) / 2 - width / 2;
   const start = clamp(wanted, range.l, range.r - width);
   // Pack left to right. Rounding must never push two fighters back onto each other, so each is at least the gap past the one before.
   let prevRight = Number.NEGATIVE_INFINITY;
   let cursor = Math.round(start);
-  const fit = fitOrder.map((p) => {
+  let fit = fitOrder.map((p) => {
     const left = Math.max(cursor, prevRight + ALIGN_GAP);
     const x = Math.round(left + p.r.left);
     prevRight = x + p.r.right;
     cursor = prevRight + ALIGN_GAP;
     return { p, x };
   });
-  return { fit, rest };
+  if (blockers.some((b) => fit.some(({ p, x }) => hits(x, p.r, b)))) {
+    // Something that does not move stands in the way of the block: place the fighters around it.
+    if (how === 'left') fit = fillRight(ordered, clamp(span.l, range.l, range.r), range.r, blockers);
+    else if (how === 'right') fit = fillLeft([...ordered].reverse(), clamp(span.r, range.l, range.r), range.l, blockers).reverse();
+    else {
+      // Centre: the block as wide as before, from the nearest start (moving out from the centred one) where all of it clears the blockers.
+      const want = fit.map((f) => f.p);
+      const first = fit[0];
+      const s0 = first ? first.x - first.p.r.left : range.l;
+      let found: Array<{ p: Placed; x: number }> | null = null;
+      for (let step = 0; step <= room && !found; step++) {
+        for (const s of step === 0 ? [s0] : [s0 + step, s0 - step]) {
+          if (s < range.l || s > range.r) continue;
+          const placed = fillRight(want, s, range.r, blockers);
+          if (placed.length === want.length) {
+            found = placed;
+            break;
+          }
+        }
+      }
+      fit = found ?? fillRight(ordered, range.l, range.r, blockers);
+    }
+  }
+  return { fit, rest: ordered.filter((p) => !fit.some((f) => f.p === p)) };
 }
 
 /**
- * Write the planned places, let `clearOfOthers` nudge anyone who ended up on exactly another fighter's spot, and then
- * count what really happened from where everyone stands now (so the status line never reports a move that was undone).
+ * `packRow` for a row where some of the fighters that did not fit may still STAND on the row (`standsHere`): they stay where
+ * they are, so they are walls for the others. Without this, the ones that fit could be packed onto the ones that stayed. The
+ * plan is made again with each such fighter as a wall until nobody new is left out; it ends because the walls only grow.
  */
-function settle(list: ReadonlyArray<PartySlot>, side: Side, items: readonly Placed[], planned: Map<number, number>, packedGroups: number[], range: { l: number; r: number }): AcrossResult {
+function planRow(group: readonly Placed[], how: AlignAcross, span: { l: number; r: number }, range: { l: number; r: number }, fixed: readonly Blocked[], standsHere: (p: Placed) => boolean): { fit: Array<{ p: Placed; x: number }>; rest: Placed[] } {
+  let staying: Placed[] = [];
+  for (;;) {
+    const moving = group.filter((p) => !staying.includes(p));
+    const plan = packRow(moving, how, span, range, [...fixed, ...staying.map(intervalOf)]);
+    const stuck = plan.rest.filter(standsHere);
+    if (!stuck.length) return { fit: plan.fit, rest: [...plan.rest, ...staying] };
+    staying = [...staying, ...stuck];
+  }
+}
+
+/** Where a fighter stood before an Align: the three things that say where a slot is. */
+interface Spot {
+  row: number;
+  x: number;
+  dy: number;
+}
+const spotOf = (q: PartySlot): Spot => ({ row: q.row, x: q.x, dy: q.dy ?? 0 });
+
+/**
+ * Write the planned places, let `clearOfOthers` nudge anyone who was PLACED on exactly another fighter's spot, and then
+ * count what really happened from where everyone stands now (so the status line never reports a move that was undone).
+ * A fighter that was not placed is never touched: it stays exactly where it was.
+ */
+function settle(list: ReadonlyArray<PartySlot>, side: Side, items: readonly Placed[], planned: Map<number, number>, packedGroups: number[], range: { l: number; r: number }, before: ReadonlyMap<number, Spot>, limited: boolean): AcrossResult {
   const [lo, hi] = xRange(side);
-  const before = new Map(items.map((p) => [p.i, p.q.x]));
+  const xBefore = new Map(items.map((p) => [p.i, p.q.x]));
   for (const p of items) {
     const x = planned.get(p.i);
     if (x !== undefined) p.q.x = clamp(x, lo, hi);
   }
-  for (const p of items) clearOfOthers(list, p.i, side);
+  for (const p of items) if (planned.has(p.i)) clearOfOthers(list, p.i, side);
   let fit = 0;
   let slid = 0;
+  let moved = 0;
   for (const p of items) {
     const x = planned.get(p.i);
     if (x !== undefined) {
       if (p.q.x === clamp(x, lo, hi)) fit++;
       else slid++;
-    } else if (p.q.x !== before.get(p.i)) slid++;
+    } else if (p.q.x !== xBefore.get(p.i)) slid++;
+    const b = before.get(p.i);
+    if (b && (b.row !== p.q.row || b.x !== p.q.x || b.dy !== (p.q.dy ?? 0))) moved++;
   }
-  return { packed: packedGroups.reduce((sum, n) => sum + n, 0), packedRows: packedGroups.length, total: items.length, fit, short: items.length - planned.size, slid, range };
+  return { packed: packedGroups.reduce((sum, n) => sum + n, 0), packedRows: packedGroups.length, total: items.length, fit, short: items.length - planned.size, slid, moved, range, limited };
 }
 
 /**
  * Line fighters up sideways (the Align bar's Left, Centre, Right). One fighter lines up with its side's standing range
- * (`standingRange`: the heroes' half, or the enemies' from x 260 to 476); two or more line up with each other, inside that
- * range. The fighter's drawn edge is what lines up, not its feet, so a wide boss and a thin hero share an edge.
+ * (`standingRange`: the heroes' half, or the enemies' from x 260 to 476, narrowed by the gap rule when `against` says where
+ * the other side stands); two or more line up with each other, inside that range. The fighter's drawn edge is what lines up,
+ * not its feet, so a wide boss and a thin hero share an edge.
  *
  * Two fighters on the SAME row cannot share an edge without standing on each other. So fighters that share a row are
  * packed side by side in their current left-to-right order, with `ALIGN_GAP` between their drawn edges (`packRow`).
  * Fighters alone on their row line up exactly as before. When a packed block is wider than the range, as many as fit are
- * packed and the rest stay where they were; nobody is ever pushed past the range. The returned counts come from the
- * final positions, so they say what really happened.
+ * packed and the rest stay where they were; nobody is ever pushed past the range.
+ *
+ * `reach` should hold EVERY fighter of the side (not only the selected ones): a fighter that is not selected but stands on
+ * the same row never moves, and the others are placed around it, or stay where they were if there is no room.
+ * The returned counts come from the final positions, so they say what really happened.
  */
-export function alignAcross(s: StageBody, side: Side, setKey: string, indices: readonly number[], how: AlignAcross, reach: Readonly<Record<number, Reach>>): AcrossResult {
+export function alignAcross(s: StageBody, side: Side, setKey: string, indices: readonly number[], how: AlignAcross, reach: Readonly<Record<number, Reach>>, against?: number): AcrossResult {
   const list = slotList(s, side, setKey);
-  const range = standingRange(side);
+  const range = standingRange(side, against);
+  const base = standingRange(side);
+  const limited = range.l !== base.l || range.r !== base.r;
   const items = indices.flatMap((i): Placed[] => {
     const q = list[i];
     const r = reach[i];
     return q && r ? [{ i, q, r }] : [];
   });
-  if (!items.length) return { packed: 0, packedRows: 0, total: 0, fit: 0, short: 0, slid: 0, range };
-  // The span the edges line up with: the fighters' own bounds (one fighter: the whole range), kept inside the range.
-  const own = items.length === 1 ? range : { l: Math.min(...items.map((p) => p.q.x - p.r.left)), r: Math.max(...items.map((p) => p.q.x + p.r.right)) };
-  const span = { l: clamp(own.l, range.l, range.r), r: clamp(own.r, range.l, range.r) };
+  if (!items.length) return emptyResult(range, limited);
+  const before = new Map(items.map((p) => [p.i, spotOf(p.q)]));
+  const moving = new Set(items.map((p) => p.i));
+  // The span the edges line up with: the fighters' own bounds (one fighter: the side's whole standing range), kept inside that range.
+  // It is the side's OWN range, not the one narrowed by the gap rule: Centre still means the middle of the half, and `packRow` then slides the block back inside the narrower range if it would stand outside it.
+  const own = items.length === 1 ? base : { l: Math.min(...items.map((p) => p.q.x - p.r.left)), r: Math.max(...items.map((p) => p.q.x + p.r.right)) };
+  const span = { l: clamp(own.l, base.l, base.r), r: clamp(own.r, base.l, base.r) };
   const byRow = new Map<number, Placed[]>();
   for (const p of items) byRow.set(p.q.row, [...(byRow.get(p.q.row) ?? []), p]);
   const planned = new Map<number, number>();
   const packedGroups: number[] = [];
-  for (const group of byRow.values()) {
-    const plan = packRow(group, how, span, range);
+  for (const [row, group] of byRow) {
+    // Fighters that are not selected but stand on this row are walls.
+    const plan = planRow(group, how, span, range, standingOn(list, row, moving, reach), () => false);
     for (const { p, x } of plan.fit) planned.set(p.i, x);
     if (plan.fit.length > 1) packedGroups.push(plan.fit.length);
   }
-  return settle(list, side, items, planned, packedGroups, range);
+  return settle(list, side, items, planned, packedGroups, range, before, limited);
 }
 
 /**
@@ -665,19 +820,24 @@ export function middleRow(s: StageBody): number {
  * front row or the middle row (`middleRow`); two or more go to the back-most, the front-most or the middle
  * of the rows they already use. Rows are the only places to stand, so this always lands on a valid row.
  *
- * Several fighters landing on one row can end up on top of each other. Those that overlap are packed side by side like
- * Align's Left / Centre / Right does (`packRow`): in their old left-to-right order, `ALIGN_GAP` apart, as one block
- * centred where they stood, inside the side's range. Fighters that already have room keep their x. The result is counted
- * from the final positions, like `alignAcross`'s.
+ * Several fighters landing on one row can end up on top of each other, or on a fighter that is not selected and already
+ * stands there (it never moves). When anyone comes closer than `ALIGN_GAP` to another, the selected fighters are packed
+ * side by side like Align's Left / Centre / Right does (`packRow`): in their old left-to-right order, `ALIGN_GAP` apart, as
+ * one block centred where they stood, inside the side's range, around whatever stands on the row. Fighters that already have
+ * room keep their x. A fighter that does not fit on the row stays EXACTLY where it was (the same row, x and small nudge),
+ * and it is a wall for the others if it stands on the target row. The result is counted from the final positions, like
+ * `alignAcross`'s. `reach` should hold every fighter of the side, for the same reason as in `alignAcross`.
  */
-export function alignDepth(s: StageBody, side: Side, setKey: string, indices: readonly number[], how: AlignDepth, reach: Readonly<Record<number, Reach>> = {}): AcrossResult {
+export function alignDepth(s: StageBody, side: Side, setKey: string, indices: readonly number[], how: AlignDepth, reach: Readonly<Record<number, Reach>> = {}, against?: number): AcrossResult {
   const list = slotList(s, side, setKey);
-  const range = standingRange(side);
+  const range = standingRange(side, against);
+  const base = standingRange(side);
+  const limited = range.l !== base.l || range.r !== base.r;
   const items = indices.flatMap((i): Placed[] => {
     const q = list[i];
     return q ? [{ i, q, r: reach[i] ?? { left: 0, right: 0 } }] : [];
   });
-  if (!items.length) return { packed: 0, packedRows: 0, total: 0, fit: 0, short: 0, slid: 0, range };
+  if (!items.length) return emptyResult(range, limited);
   const last = s.rows.length - 1;
   let target: number;
   if (items.length === 1) target = how === 'back' ? 0 : how === 'front' ? last : middleRow(s);
@@ -687,28 +847,43 @@ export function alignDepth(s: StageBody, side: Side, setKey: string, indices: re
     const hi = Math.max(...rows);
     target = how === 'back' ? lo : how === 'front' ? hi : Math.round((lo + hi) / 2);
   }
-  for (const { q } of items) {
-    q.row = clamp(target, 0, last);
-    delete q.dy;
-  }
-  // They all stand on one row now. Pack them only when some of them overlap; fighters that already have room are left alone.
+  const row = clamp(target, 0, last);
+  const before = new Map(items.map((p) => [p.i, spotOf(p.q)]));
+  const moving = new Set(items.map((p) => p.i));
+  // Fighters that are not selected but already stand on the target row never move: the others must keep clear of them.
+  const fixed = standingOn(list, row, moving, reach);
   const planned = new Map<number, number>();
   const packedGroups: number[] = [];
+  const goes = new Set<number>(); // who ends up on the target row
   const measured = items.filter((p) => reach[p.i]);
-  const ordered = [...measured].sort((a, b) => leftEdge(a) - leftEdge(b) || a.q.x - b.q.x);
-  const overlap = ordered.some((p, k) => k > 0 && leftEdge(p) < (ordered[k - 1] as Placed).q.x + (ordered[k - 1] as Placed).r.right + ALIGN_GAP);
-  if (measured.length > 1 && overlap) {
+  if (measured.length && crowded(measured, fixed)) {
     const bounds = { l: Math.min(...measured.map(leftEdge)), r: Math.max(...measured.map((p) => p.q.x + p.r.right)) };
-    const plan = packRow(measured, 'centre', { l: clamp(bounds.l, range.l, range.r), r: clamp(bounds.r, range.l, range.r) }, range);
-    for (const { p, x } of plan.fit) planned.set(p.i, x);
+    const plan = planRow(measured, 'centre', { l: clamp(bounds.l, base.l, base.r), r: clamp(bounds.r, base.l, base.r) }, range, fixed, (p) => p.q.row === row);
+    for (const { p, x } of plan.fit) {
+      planned.set(p.i, x);
+      goes.add(p.i);
+    }
     if (plan.fit.length > 1) packedGroups.push(plan.fit.length);
-    // Those that did not fit stay where they are, so they are not "planned"; the others are all planned.
-    for (const p of items) if (!measured.includes(p)) planned.set(p.i, p.q.x);
-    return settle(list, side, items, planned, packedGroups, range);
+    // The ones that did not fit are not in `planned` and not in `goes`: they keep their row, x and dy.
+  } else {
+    // Nothing to pack: everyone keeps their x (only an exact same spot is nudged).
+    for (const p of measured) {
+      planned.set(p.i, p.q.x);
+      goes.add(p.i);
+    }
   }
-  // Nothing to pack: everyone keeps their x (only an exact same spot is nudged, as before).
-  for (const p of items) planned.set(p.i, p.q.x);
-  return settle(list, side, items, planned, packedGroups, range);
+  // A fighter whose size is not known is not packed; it just changes row.
+  for (const p of items) {
+    if (reach[p.i]) continue;
+    planned.set(p.i, p.q.x);
+    goes.add(p.i);
+  }
+  for (const p of items) {
+    if (!goes.has(p.i)) continue;
+    p.q.row = row;
+    delete p.q.dy;
+  }
+  return settle(list, side, items, planned, packedGroups, range, before, limited);
 }
 
 /** Spread three or more fighters evenly sideways, keeping the outer two where they are (equal gaps between their drawn edges). */

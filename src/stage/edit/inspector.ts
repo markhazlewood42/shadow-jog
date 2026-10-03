@@ -23,16 +23,16 @@ import { BG_IDS } from '../../art/battlebg';
 import { ENEMIES } from '../../data/enemies';
 import { MEMBERS } from '../../data/party';
 import type { MemberId } from '../../game/state';
-import { checkStages, type PartySlot, setSize, type StageEntry } from '../config';
+import { checkStages, type PartySlot, resolveStage, SET_KEYS, setSize, type StageEntry } from '../config';
 import { applyPreset, HUD_PRESETS, HUD_REGION_NAMES, type HudField, type HudRegionKey, hudOverrides, PRESET_IDS, type PresetId, presetValue, revertField, revertRegion } from '../hudpresets';
 import { STAGE_KNOWN } from '../known';
 import type { StageWarning } from '../rules';
+import { type AlignHow, ALIGN_WORDS, alignStatus } from './alignsay';
 import { h, tip } from './dom';
 import { KEYS, shown } from './keys';
 import {
   addRow,
   type AcrossResult,
-  ALIGN_GAP,
   alignAcross,
   alignBoxes,
   alignDepth,
@@ -107,7 +107,7 @@ interface NumSpec {
 }
 
 /** The choices of the Align bar. A HUD box reads "back" as top and "front" as bottom. */
-export type AlignHow = 'left' | 'centre' | 'right' | 'back' | 'middle' | 'front' | 'spreadAcross' | 'spreadDepth';
+export type { AlignHow };
 
 export class Inspector {
   private readonly updaters: Array<() => void> = [];
@@ -824,61 +824,56 @@ export class Inspector {
     return false;
   }
 
+  /**
+   * Where the OTHER side stands, so Align can keep the design's 55 px gap between the sides (`standingRange`): for heroes the drawn left
+   * edge of the nearest enemy of ANY enemy group of this stage (the rule is checked for each), for enemies the drawn right edge of the
+   * farthest hero. Undefined when it cannot be measured (a stage that is half edited), and Align then uses the side's own range.
+   */
+  private opposingEdge(side: 'party' | 'enemy'): number | undefined {
+    const scene = this.host.scene();
+    try {
+      if (side === 'enemy') {
+        const rights = scene.fighters.filter((f) => f.side === 'party').map((f) => scene.boxOf(f).right);
+        return rights.length ? Math.max(...rights) : undefined;
+      }
+      const cfg = resolveStage(this.session.stage, this.session.data.hud);
+      const lefts = SET_KEYS.flatMap((key) => (cfg.enemySets[key] ? scene.figureBoxesFor(cfg, key, this.host.view.roster(this.session.stage, key)).filter((b) => b.side === 'enemy').map((b) => b.left) : []));
+      return lefts.length ? Math.min(...lefts) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   private alignFighters(items: Array<Extract<Item, { kind: 'fighter' }>>, how: AlignHow): boolean {
     const session = this.session;
     const side = items[0]?.side ?? 'party';
     const idx = items.map((i) => i.index);
     const scene = this.host.scene();
     const mates = scene.fighters.filter((f) => f.side === side);
+    // The size of EVERY fighter of the side, not only the selected ones: a fighter that is not selected never moves, and the others keep clear of it.
     const reach: Record<number, Reach> = {};
-    for (const i of idx) {
-      const f = mates[i];
-      if (!f) continue;
+    mates.forEach((f, i) => {
       const b = scene.boxOf(f);
       reach[i] = { left: Math.max(0, f.x - b.left), right: Math.max(0, b.right - f.x) };
-    }
+    });
     const many = idx.length > 1;
     if ((how === 'spreadAcross' || how === 'spreadDepth') && idx.length < 3) {
       this.host.notify('Spreading needs three or more fighters. Shift+click to add more.', true);
       return false;
     }
     const who = many ? `${idx.length} ${side === 'party' ? 'heroes' : 'enemies'}` : (mates[idx[0] ?? 0]?.name ?? 'fighter');
-    const words: Record<AlignHow, string> = {
-      left: 'to the left edge',
-      centre: 'to the centre',
-      right: 'to the right edge',
-      back: 'to the back row',
-      middle: 'to the middle row',
-      front: 'to the front row',
-      spreadAcross: 'evenly across',
-      spreadDepth: 'evenly over the rows',
-    };
+    const against = this.opposingEdge(side);
     let result: AcrossResult | null = null;
-    session.edit(`Align ${who} ${words[how]}`, (d) => {
+    session.edit(`Align ${who} ${ALIGN_WORDS[how]}`, (d) => {
       const st = this.stageIn(d);
-      if (how === 'left' || how === 'centre' || how === 'right') result = alignAcross(st, side, session.setKey, idx, how, reach);
-      else if (how === 'back' || how === 'middle' || how === 'front') result = alignDepth(st, side, session.setKey, idx, how, reach);
+      if (how === 'left' || how === 'centre' || how === 'right') result = alignAcross(st, side, session.setKey, idx, how, reach, against);
+      else if (how === 'back' || how === 'middle' || how === 'front') result = alignDepth(st, side, session.setKey, idx, how, reach, against);
       else if (how === 'spreadAcross') distributeAcross(st, side, session.setKey, idx, reach);
       else distributeDepth(st, side, session.setKey, idx);
     });
     // One fighter lines up with its side's standing range; several line up with each other.
-    const acrossOne = !many && (how === 'left' || how === 'centre' || how === 'right');
-    const r = result as AcrossResult | null;
-    const range = r?.range;
-    const half = side === 'party' ? 'the heroes’ half of the stage' : `the enemies’ side of the stage (x ${range?.l ?? 260} to ${range?.r ?? 476})`;
-    // Say what really happened, from the final positions: fighters that share a row cannot share an edge, so they were packed side by side;
-    // a block wider than the room is only partly packed; one that slid off an exact same spot is counted too.
-    const note: string[] = [];
-    if (r && r.short > 0) note.push(`there is not enough room: ${r.fit} of ${r.total} fit, the rest stayed where they were`);
-    if (r?.packed && r.short > 0) note.push(`the ${r.packed} that fit were packed side by side in their old left-to-right order, ${ALIGN_GAP} px apart`);
-    else if (r?.packed) note.push(`${r.packed} of them share ${r.packedRows === 1 ? 'a row' : 'rows'}, so ${r.packedRows === 1 ? 'they were' : 'those on one row were'} packed side by side in their old left-to-right order, ${ALIGN_GAP} px apart, so ${r.packedRows === 1 ? 'they do not' : 'none'} overlap`);
-    if (r && r.slid > 0) note.push(`${r.slid} had to slide a pixel or more to stay off another fighter’s spot`);
-    const bad = !!r && r.short > 0;
-    const head = `Aligned ${who} ${words[how]}${acrossOne ? ` of ${half}` : ''}`;
-    // "Aligned X to the left edge, but there is not enough room: 3 of 4 fit, ..." when something did not fit; otherwise the notes follow as sentences.
-    const sentence = (n: string): string => `${n.charAt(0).toUpperCase()}${n.slice(1)}.`;
-    const text = bad ? `${head}, but ${note[0]}.${note.slice(1).map((n) => ` ${sentence(n)}`).join('')}` : `${head}.${note.map((n) => ` ${sentence(n)}`).join('')}`;
-    this.host.notify(text, bad);
+    const say = alignStatus({ how, who, side, result: result as AcrossResult | null, acrossOne: !many && (how === 'left' || how === 'centre' || how === 'right') });
+    this.host.notify(say.text, say.bad);
     return true;
   }
 

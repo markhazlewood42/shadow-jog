@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { DEV_TOOLS } from './src/dev/tools';
-import { writeTogether } from './src/stage/edit/writeset';
+import { saveFailureMessage, writeTogether } from './src/stage/edit/writeset';
 import { defineConfig } from 'vitest/config';
 
 const FX_FILE = resolve(import.meta.dirname, 'src/data/fx.json');
@@ -105,7 +105,7 @@ type StageSaveModule = typeof import('./src/stage/edit/save');
  * is `{ stages, axes, hud, write }`: `hud` is the NEW global HUD layout and `write` names the files that changed
  * ('stages', 'axes', 'hud'; the default is all that were posted). `prepareSave` (src/stage/edit/save.ts) checks the
  * three TOGETHER with the modules the game loads them with, including every stage's own HUD boxes against the NEW
- * HUD layout (`checkStagesWith`). Only if every check passes are the files written, and then they are written as a
+ * HUD layout (`checkStagesWith`) when the HUD is among the files written, else against the `hud.json` on disk. Only if every check passes are the files written, and then they are written as a
  * set (`writeTogether`: a temporary file for each, then a rename each, with the old text put back if one rename fails),
  * so a refused save changes nothing and a half-written set is never left behind. It answers `{ ok, problems: [], written }`
  * (docs/TOOLING-UI.md 2.5).
@@ -189,7 +189,7 @@ function stageEdit(): Plugin {
             if (!url.searchParams.has('dry')) writeTogether(made.write.flatMap((part) => (texts[part] === undefined ? [] : [{ path: paths[part], text: texts[part] as string }])));
             reply(200, { ok: true, problems: [], stages: made.stagesText, axes: made.axesText, ...(made.hudText !== undefined ? { hud: made.hudText } : {}), written: made.write, file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data' });
           } catch (e) {
-            reply(500, { ok: false, problems: [`couldn't write the files, and none was changed: ${String(e)}`] });
+            reply(500, { ok: false, problems: [saveFailureMessage(e)] });
           }
         });
       });
