@@ -26,6 +26,8 @@ export interface Disp {
   strikeLow?: boolean | undefined;
   /** Side view, Kit's punch combo: the pose frame it was called off at (a miss: only the first blow is thrown), else undefined. */
   punchStop?: number | undefined;
+  /** Side view, Kit's combo: the pose clock is held at the first blow's frame while the engine has not yet said hit or miss (no timing press), so the fist does not sit on the target with nothing happening; released the moment it answers. */
+  poseHold?: boolean | undefined;
   /** A multi-hit action's blows that wait for the engine's answer: `hit` plays them all, `miss` plays a whiff (see `multiHit` in playback.ts). Cleared when read. */
   followUp?: { target: number; hit: () => Promise<void>; miss: () => Promise<void> } | undefined;
   /** Side view: frames left of the recoil a cut leaves on its target (`KATA_KNOCK`). */

@@ -6,6 +6,8 @@ import {
   PUNCH_ANCHORS,
   PUNCH_FRAME_MS,
   PUNCH_KEYS,
+  PUNCH_KICK_SHIFT,
+  despeckle,
   PUNCH_KICK_SHORT,
   PUNCH_MEASURED,
   PUNCH_RUN_MIN,
@@ -134,9 +136,9 @@ describe('the punch timeline', () => {
     expect(s('crossS') + s('crossT')).toBeGreaterThanOrEqual(3);
     expect(s('kickS') + s('kickT')).toBeGreaterThanOrEqual(3);
     expect(tl.filter((x) => x.dash).every((x) => /S$/.test(x.key) || x.key === 'run')).toBe(true);
-    // jab -> load (the arm comes back) -> cross -> load, kickB, kickC (the chamber: the knee comes up in two steps) -> kick -> kickD, kickE, load (the foot comes back down in two) -> ready.
+    // jab -> load (the arm comes back) -> cross -> load, kickC (the chamber: the knee up; round 4 dropped the rising-knee frame) -> kick -> kickD, kickE, load (the foot comes back down in two) -> ready.
     const seq = keys(at, 10).join(' ');
-    expect(seq).toContain('jabT jab load crossS crossT cross load kickB kickC kickS kickT kick kickD kickE load ready');
+    expect(seq).toContain('jabT jab load crossS crossT cross load kickC kickS kickT kick kickD kickE load ready');
     for (const [a, b] of [['jab', 'cross'], ['cross', 'kick']] as const) expect(tl.findIndex((x) => x.key === b) - tl.findIndex((x) => x.key === a)).toBeGreaterThanOrEqual(3);
     expect(PUNCH.hold).toBeGreaterThanOrEqual(10);
   });
@@ -261,9 +263,9 @@ describe.skipIf(!have)("anchors on Mark's frames", () => {
     expect(Math.abs(col('jab') - col('ready'))).toBeLessThanOrEqual(1);
     expect(Math.abs(col('cross') - col('ready'))).toBeLessThanOrEqual(1);
     expect(Math.abs(col('load') - col('ready'))).toBeLessThanOrEqual(1);
-    // The kick stands where the load's back foot is (no pop from the chamber), within a pixel.
+    // The kick stands PUNCH_KICK_SHIFT art px forward of the load's back foot (a weight shift: the torso leans back by the rest), within a pixel and a half.
     const plant = (k: 'kick' | 'kickS' | 'kickT'): number => plantOf(b.frames[k]);
-    expect(Math.abs(plant('kick') - (rearBoot(b.frames.load)))).toBeLessThanOrEqual(1.5);
+    expect(Math.abs(plant('kick') - PUNCH_KICK_SHIFT - rearBoot(b.frames.load))).toBeLessThanOrEqual(1.5);
     expect(plant('kickS')).toBe(plant('kick'));
     // All four blows end on the measured column: the fist of the jab and of the cross (a pixel apart, as drawn) and the crouch's reaching hand; the kick's toe is `toeShort` world px short.
     const tip = (k: 'jab' | 'cross' | 'kick'): number => rightmost(b.frames[k])[0] + 1 - b.axis;
@@ -303,7 +305,7 @@ describe.skipIf(!have)("anchors on Mark's frames", () => {
     };
     const base = colours(kick);
     const opaque = (r: typeof kick): number => r.px.reduce((n, v, i) => (i % 4 === 3 && v > 0 ? n + 1 : n), 0);
-    for (const k of ['kickB', 'kickC', 'kickD', 'kickE'] as const) {
+    for (const k of ['kickC', 'kickD', 'kickE'] as const) {
       const bent = poseLeg(kick, PUNCH_BEND[k].thigh, PUNCH_BEND[k].shin);
       for (const c of colours(bent)) expect(base.has(c)).toBe(true);
       // Left of the hip (the head, the torso, the standing leg's lower half) nothing moved.
@@ -313,7 +315,25 @@ describe.skipIf(!have)("anchors on Mark's frames", () => {
       expect(rightmost(bent)[1]).toBeGreaterThan(rightmost(kick)[1]);
     }
     // The chamber folds the shin more than the way down does, and the foot is lowest on the last frame of the drop.
-    expect(PUNCH_BEND.kickC.shin).toBeGreaterThan(PUNCH_BEND.kickB.shin);
+    expect(PUNCH_BEND.kickC.shin).toBeGreaterThan(PUNCH_BEND.kickD.shin);
     expect(PUNCH_BEND.kickE.thigh).toBeGreaterThan(PUNCH_BEND.kickD.thigh);
+  });
+  it('despeckle removes islands of 5 px or fewer and keeps the biggest piece, whatever its size', () => {
+    const w = 8, h = 8;
+    const px = new Uint8ClampedArray(w * h * 4);
+    const on = (x: number, y: number): void => { px.set([10, 20, 30, 255], (y * w + x) * 4); };
+    for (let y = 2; y < 6; y++) for (let x = 2; x < 6; x++) on(x, y); // the body: 16 px
+    on(0, 0); // a fleck
+    on(7, 6); on(7, 7); // a two-pixel island
+    const out = despeckle({ w, h, px }, 5);
+    const alive = (x: number, y: number): boolean => (out.px[(y * w + x) * 4 + 3] ?? 0) > 0;
+    expect(alive(3, 3)).toBe(true);
+    expect(alive(0, 0)).toBe(false);
+    expect(alive(7, 6)).toBe(false);
+    expect(alive(7, 7)).toBe(false);
+    // a diagonal touch joins a speck to the body (8-connected), so it stays
+    const px2 = new Uint8ClampedArray(px);
+    px2.set([10, 20, 30, 255], (1 * w + 1) * 4);
+    expect((despeckle({ w, h, px: px2 }, 5).px[(1 * w + 1) * 4 + 3] ?? 0) > 0).toBe(true);
   });
 });

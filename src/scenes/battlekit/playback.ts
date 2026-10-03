@@ -144,16 +144,21 @@ interface BlowSpec {
   knock: number;
   past: number;
 }
-/** Kit's blows: jab light, cross medium (a white ring and a 4 px shove), kick heavy (the engine's own damage hit follows it). `knock` is frames of the recoil table; `past` is world px of the spark past the fist or toe. */
+/**
+ * Kit's blows: the jab light (a star about the size of her fist), the cross one and a half times that with a white ring, a 4 px shove, a 1 px shake and two more frames of hitstop than the jab's,
+ * the kick the biggest (the engine's own damage hit follows it). `knock` is frames of the recoil table; `past` is world px of the spark past the fist or toe, so the star sits in FRONT of the
+ * knuckles and does not cover the wrap (round 3 drew it on the chest where the fist ends).
+ */
 const PUNCH_BLOW: Record<PunchBlow, Omit<BlowSpec, 'at'>> = {
-  jab: { power: 0.5, ring: '#ffd9a0', shake: [3, 2], stop: 2, knock: PUNCH_KNOCK.jab, past: 2 },
-  cross: { power: 0.85, ring: '#ffffff', shake: [5, 2], stop: 3, knock: PUNCH_KNOCK.cross, past: 2 },
-  kick: { power: 1.3, ring: '#ffb454', shake: [8, 3], stop: 4, knock: 0, past: 4 },
-  low: { power: 0.6, ring: '#ffd9a0', shake: [3, 2], stop: 2, knock: PUNCH_KNOCK.jab, past: 2 },
-  low2: { power: 0.95, ring: '#ffffff', shake: [6, 3], stop: 3, knock: PUNCH_KNOCK.cross, past: 2 },
+  jab: { power: 0.5, ring: '#ffd9a0', shake: [3, 2], stop: 2, knock: PUNCH_KNOCK.jab, past: 3 },
+  cross: { power: 0.85, ring: '#ffffff', shake: [6, 2], stop: 5, knock: PUNCH_KNOCK.cross, past: 4 },
+  kick: { power: 1.3, ring: '#ffb454', shake: [8, 3], stop: 4, knock: 0, past: 5 },
+  low: { power: 0.6, ring: '#ffd9a0', shake: [3, 2], stop: 2, knock: PUNCH_KNOCK.jab, past: 3 },
+  low2: { power: 0.7, ring: '#ffffff', shake: [6, 3], stop: 4, knock: PUNCH_KNOCK.cross, past: 4 },
 };
-/** Her soles go this many world px below the feet of any enemy her run passes (she runs in front of the others, on a lane of her own, instead of through them; the renderer fades whoever she overlaps). */
-const PUNCH_LANE_AHEAD = 7;
+/** Her soles go this many world px below the feet of any enemy her run passes: she runs in front of the others on a lane of her own and is drawn over them (round 4: nothing fades any more), and the lane may go this far below her own place. */
+const PUNCH_LANE_AHEAD = 10;
+const PUNCH_LANE_DOWN = 14;
 
 /** Wait until the pose clock is `k` pose frames in (the pose and the script run on one clock; a hit pause holds both). */
 async function untilPose(v: PlaybackView, uid: number, k: number): Promise<void> {
@@ -184,6 +189,7 @@ async function multiHit(v: PlaybackView, actor: number, target: number, from: Pt
   dd.followUp = {
     target,
     hit: async () => {
+      dd.poseHold = false;
       for (let i = 0; i <= last; i++) {
         const b = specs[i] as BlowSpec;
         await untilPose(v, actor, first + b.at);
@@ -197,14 +203,25 @@ async function multiHit(v: PlaybackView, actor: number, target: number, from: Pt
       }
     },
     miss: async () => {
+      dd.poseHold = false;
       await untilPose(v, actor, first);
       const p = pts[0] as Pt;
-      v.fx.play('punch_whiff', from, [{ x: p.x - 8, y: p.y }]);
+      v.fx.play('punch_whiff', from, [{ x: p.x - PUNCH_BLOW.jab.past + 2, y: p.y }]);
       sfx('swing');
       dd.punchStop = (dd.poseLen ?? 0) - dd.poseT;
       v.d(target).knock = PUNCH_KNOCK.cross;
     },
   };
+  // With no timing press the engine answers only after the ring's late window, so the first blow's frame would sit on the target for about 8 ticks before its spark. Hold the pose clock at that frame
+  // (the fist at full reach, like a hit pause) until the answer comes; a press near the beat answers first and nothing is held.
+  void (async () => {
+    await untilPose(v, actor, first);
+    if (dd.followUp && dd.followUp.target === target) {
+      dd.poseHold = true;
+      for (let i = 0; i < 90 && dd.followUp; i++) await v.game.wait(1);
+      dd.poseHold = false;
+    }
+  })();
 }
 
 /** Kit's combo in Sprite Fusion art: the jab, the cross and the kick (or two low blows for a short target), as a table of blows on `punchHits`' clock (see `multiHit`). */
@@ -223,6 +240,8 @@ async function punchCombo(v: PlaybackView, actor: number, target: number, from: 
 let actionStops = 0;
 /** The action being played is Rook's kendo strike or (Sprite Fusion art) Kit's punch combo in the side view: its hit gets a recoil, a short flash, a screen shake and a hitstop of its own. */
 let kataAction = false;
+/** The action being played is Kit's punch combo (her hurt flash is shorter than Rook's: the target's eyes and tail must read through it). */
+let punchAction = false;
 /** Sprite Fusion's strike: where the blade's point ends (battle-world pixels), the one point the spark, the GPU hit and the numbers key to. */
 let kataPoint: Pt | null = null;
 /** The action being played is a combo (its first heavy hit gets the impact frame). */
@@ -234,6 +253,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       actionStops = 0;
       comboAction = false;
       kataAction = false;
+      punchAction = false;
       kataPoint = null;
       const actor = v.battle.unit(e.actor)!;
       let kata = false;
@@ -255,6 +275,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
         dd.poseLen = undefined;
         dd.strikeLow = undefined;
         dd.punchStop = undefined;
+        dd.poseHold = false;
         dd.followUp = undefined;
         // Rook's kendo strike has its own timeline and a longer blade, so he stops further off.
         // Under Sprite Fusion art his strike is Mark's own frames (rig2/sfstrike.ts); the same flag drives both, the geometry below differs.
@@ -278,7 +299,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
               const ob = o.uid === e.targets[0] ? null : v.enemyBox(o.uid);
               if (ob && ob.x0 < tipAt) lane = Math.max(lane, ob.feet + PUNCH_LANE_AHEAD);
             }
-            dd.reachY = Math.max(-SF_LANE_UP, Math.min(SF_LANE_DOWN, lane - feet));
+            dd.reachY = Math.max(-SF_LANE_UP, Math.min(PUNCH_LANE_DOWN, lane - feet));
             dd.target = e.targets[0];
             dd.strikeLow = box.h < PUNCH_LOW_BELOW;
             const soles = feet + dd.reachY;
@@ -359,6 +380,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       const shift = SF ? 0 : KATA_EFFECT_SHIFT;
       const to = e.targets.map((t, i) => (kata ? { x: kataTarget && i === 0 ? kataTarget.x + shift : v.pos(t).x + shift, y: kataTarget && i === 0 ? kataTarget.bladeY : v.pos(t).y } : v.pos(t)));
       kataAction = kata || punching;
+      punchAction = punching;
       if (punchPts && e.targets[0] !== undefined) {
         await punchCombo(v, e.actor, e.targets[0], v.pos(e.actor), punchPts, dd.strikeLow === true, windup, e.element, onStart);
         break;
@@ -412,7 +434,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
       dd.hp = e.hp;
       dd.shake = 12;
       // Sprite Fusion's cut: the target blinks white over its own pixels for the hit (and holds it through the hitstop, as a freeze-frame does).
-      dd.flash = u.side === 'enemy' ? (kataAction ? (SF ? 5 : 0) : 5) : 8;
+      dd.flash = u.side === 'enemy' ? (kataAction ? (SF ? (punchAction ? 2 : 5) : 0) : 5) : 8;
       // Rook's cut pushes the body back 4 px for two frames and shakes the screen, whatever the damage; the target's body shows through (no white flash: it would hold through the hitstop).
       if (kataAction && u.side === 'enemy') {
         dd.knock = SF ? SF_KNOCK.length : KATA_KNOCK.length;
@@ -473,7 +495,7 @@ export async function playEvent(v: PlaybackView, e: BattleEvent): Promise<void> 
           await fu.miss();
         }
       }
-      v.floatOn(e.target, 'MISS', '#b8bcd0', 'label');
+      v.floatOn(e.target, 'MISS', '#ffe27a', 'label');
       sfx('miss');
       await v.w(14);
       break;

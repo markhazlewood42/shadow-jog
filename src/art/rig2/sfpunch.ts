@@ -20,8 +20,8 @@
 import { boxOf, type Raw } from './sfgeom';
 import { blank, blit, drawSwipe, frontBoot, put, rightmost, soles, type Ramp, type SfSwipe } from './sfstrike';
 
-export type PunchKey = 'ready' | 'run' | 'load' | 'jabS' | 'jabT' | 'jab' | 'crossS' | 'crossT' | 'cross' | 'kickB' | 'kickC' | 'kickD' | 'kickE' | 'kickS' | 'kickT' | 'kick' | 'lowS' | 'lowT' | 'low';
-export const PUNCH_KEYS: readonly PunchKey[] = ['ready', 'run', 'load', 'jabS', 'jabT', 'jab', 'crossS', 'crossT', 'cross', 'kickB', 'kickC', 'kickD', 'kickE', 'kickS', 'kickT', 'kick', 'lowS', 'lowT', 'low'];
+export type PunchKey = 'ready' | 'run' | 'load' | 'jabS' | 'jabT' | 'jab' | 'crossS' | 'crossT' | 'cross' | 'kickC' | 'kickD' | 'kickE' | 'kickS' | 'kickT' | 'kick' | 'lowS' | 'lowT' | 'low';
+export const PUNCH_KEYS: readonly PunchKey[] = ['ready', 'run', 'load', 'jabS', 'jabT', 'jab', 'crossS', 'crossT', 'cross', 'kickC', 'kickD', 'kickE', 'kickS', 'kickT', 'kick', 'lowS', 'lowT', 'low'];
 
 /**
  * What was measured on Mark's PNGs (tests/sfpunch.test.ts re-measures them and fails if he regenerates a frame): the front boot's centre column (a pixel's left edge is its index),
@@ -131,6 +131,38 @@ export function dropStrays(r: Raw): Raw {
   return { w: r.w, h: r.h, px };
 }
 
+/** Any 8-connected island of opaque pixels of `maxArea` px or fewer that is not the sprite's biggest piece is removed (flecks left where a cut-out leg's edge was). Returns a new frame. */
+export function despeckle(r: Raw, maxArea = 5): Raw {
+  const px = new Uint8ClampedArray(r.px);
+  const seen = new Uint8Array(r.w * r.h);
+  const comps: number[][] = [];
+  for (let i = 0; i < r.w * r.h; i++) {
+    if (seen[i] || (px[i * 4 + 3] ?? 0) === 0) continue;
+    const comp: number[] = [];
+    const stack = [i];
+    seen[i] = 1;
+    while (stack.length) {
+      const c = stack.pop() as number;
+      comp.push(c);
+      const cx = c % r.w, cy = (c - cx) / r.w;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= r.w || ny >= r.h) continue;
+          const n = ny * r.w + nx;
+          if (!seen[n] && (px[n * 4 + 3] ?? 0) > 0) {
+            seen[n] = 1;
+            stack.push(n);
+          }
+        }
+    }
+    comps.push(comp);
+  }
+  const biggest = comps.reduce((m, c) => Math.max(m, c.length), 0);
+  for (const c of comps) if (c.length <= maxArea && c.length < biggest) for (const i of c) px[i * 4 + 3] = 0;
+  return { w: r.w, h: r.h, px };
+}
+
 /**
  * Kit's kicking leg in `kit-battle-kick`, measured on the PNG: a straight band from the hip (29, 31) to the ankle (50, 21), 6 px thick, with the boot beyond the ankle. The knee is
  * about 45 percent along it. `band` is the half width kept when the leg is cut out (the hand beside it is not leg).
@@ -138,11 +170,10 @@ export function dropStrays(r: Raw): Raw {
 export const PUNCH_LEG = { hip: [29, 31], knee: [39, 26], ankle: [50, 21], band: 7 } as const;
 /**
  * The chamber and the way back down, as angles (degrees, clockwise = the foot swings down) of the thigh about the hip and the shin about the knee on top of it. In the kick the leg is out at about
- * -26 degrees; kickB is the knee still coming up, kickC the knee up and the shin folded; the way down is kickD (the thigh dropping, the shin half unfolded) and kickE (the thigh nearly down, the
+ * -26 degrees; kickC is the knee up and the shin folded (round 4 dropped round 3's kickB, the knee still rising: it read as a step, and went from the guard to the kick's torso in one frame); the way down is kickD (the thigh dropping, the shin half unfolded) and kickE (the thigh nearly down, the
  * shin hanging). Nothing is drawn by hand: a rule on Mark's kick.
  */
 export const PUNCH_BEND = {
-  kickB: { thigh: 34, shin: 62 },
   kickC: { thigh: 14, shin: 78 },
   kickD: { thigh: 22, shin: 52 },
   kickE: { thigh: 46, shin: 24 },
@@ -284,7 +315,7 @@ export const PUNCH_FRAME_MS = 1000 / 60 / 0.65;
  * (the arm comes back), `chamber` the load frame between the cross and the kick (the arm comes back, the weight goes onto the back foot), `lift` the kick frame with the shin hanging (the knee comes up),
  * `drop` the foot coming back down after the kick and `settle` the load frame after the last blow.
  */
-export const PUNCH = { load: 2, smear: 2, trail: 1, jab: 2, coil: 2, cross: 2, chamber: 2, rise: 1, lift: 2, hold: 10, low: 3, drop: 2, fall: 2, settle: 2, back: 8 } as const;
+export const PUNCH = { load: 2, smear: 2, trail: 1, jab: 2, coil: 2, cross: 3, chamber: 2, lift: 3, hold: 10, low: 3, drop: 2, fall: 2, settle: 2, back: 8 } as const;
 /** Whether the kick follows the cross as a third blow (it does when `PUNCH_FINISHER`: see the pose log). */
 export const PUNCH_FINISHER = true;
 /** A reach (world px) over this needs a run in; under it she steps in during the load. */
@@ -297,8 +328,6 @@ export const PUNCH_LOW_BELOW = 22;
 export const PUNCH_LOW_AT = 0.7;
 /** Art px the fist goes past its resting column on the first frame of a punch. */
 export const PUNCH_SQUASH = 1;
-/** The share of its opacity a non-target enemy keeps while Kit's sprite overlaps it by 8 px or more (render.ts `punchFade`). */
-export const PUNCH_FADE = 0.4;
 /** World px the jab's and the cross's spark sits below the fist's row, on the chest and jaw, so the fist stays visible at contact (the kick's stays on the toe). */
 export const PUNCH_SOFT_DROP = 3;
 
@@ -327,7 +356,13 @@ interface Tpl {
  */
 export const PUNCH_PUSH = { jab: 0.5, cross: 1.2 } as const;
 /** The kick's toe stops this many world px short of where the fists end (the stand-off: her body is further from the target for the kick than for the blows). */
-export const PUNCH_KICK_SHORT = 1;
+export const PUNCH_KICK_SHORT = 0;
+/**
+ * Art px the kick is laid forward of the load's back foot (round 4). Anchoring its standing boot exactly on the load's back boot put the kick's head 12 art px behind the load's (the torso
+ * slides left 6 world px in one frame, the judges' "body slides"); half the gap is taken by the boot (it steps forward 3 world px under the hips as the front leg lifts: a weight shift)
+ * and half by the torso (it leans back), so neither jumps. The kick's toe lands that much nearer the fists' column; `toeShort` measures it.
+ */
+export const PUNCH_KICK_SHIFT = 6;
 
 function combo(low: boolean, finisher: boolean): Tpl[] {
   const P = PUNCH, S = PUNCH_PUSH;
@@ -360,7 +395,6 @@ function combo(low: boolean, finisher: boolean): Tpl[] {
   if (finisher) {
     steps.push(
       { key: 'load', frames: P.chamber, from: 1, to: 1, push: [S.cross, mid] },
-      { key: 'kickB', frames: P.rise, from: 1, to: 1, push: [mid, mid] },
       { key: 'kickC', frames: P.lift, from: 1, to: 1, push: [mid, mid2] },
       { key: 'kickS', frames: P.smear, from: 1, to: 1, push: [mid2, kickPush], dash: true },
       { key: 'kickT', frames: P.trail, from: 1, to: 1, push: [kickPush, kickPush], blow: 'kick', contact: true },
@@ -539,7 +573,7 @@ export function buildSfPunch(idle: Raw[], run: Raw, load: Raw, jab: Raw, cross: 
   // The jab's and the cross's fists are 18.5 px past their front boots, so they land at the same column.
   const tipCol = A.jab.tip[0] + 1 + pj.dx;
   // The kick stands on the load's back foot.
-  const pk = { dx: Math.round(pl.dx + A.load.rearBoot - A.kick.plant), dy: H0 - 1 - A.kick.soles };
+  const pk = { dx: Math.round(pl.dx + A.load.rearBoot - A.kick.plant + PUNCH_KICK_SHIFT), dy: H0 - 1 - A.kick.soles };
   const toeCol = A.kick.tip[0] + 1 + pk.dx;
   // The crouch is placed by its fist.
   const pw = { dx: tipCol - (A.low.tip[0] + 1), dy: H0 - 1 - A.low.soles };
@@ -552,7 +586,8 @@ export function buildSfPunch(idle: Raw[], run: Raw, load: Raw, jab: Raw, cross: 
   blit(layers.jab, jab, pj.dx, pj.dy);
   blit(layers.cross, cross, pc.dx, pc.dy);
   blit(layers.kick, kick, pk.dx, pk.dy);
-  for (const k of ['kickB', 'kickC', 'kickD', 'kickE'] as const) blit(layers[k], poseLeg(kick, PUNCH_BEND[k].thigh, PUNCH_BEND[k].shin), pk.dx, pk.dy);
+  // The re-posed legs are rules on Mark's kick, so a stray pixel can be left where the thigh was cut out (round 3: black flecks beside the hip): `despeckle` removes any island of 5 px or fewer.
+  for (const k of ['kickC', 'kickD', 'kickE'] as const) blit(layers[k], despeckle(poseLeg(kick, PUNCH_BEND[k].thigh, PUNCH_BEND[k].shin)), pk.dx, pk.dy);
   blit(layers.low, low, pw.dx, pw.dy);
   // The smears: a streak BEHIND the arm (drawn first, the body over it, so the wrapped fist stays on top) or the kick's arc behind the leg. S is the full smear, T the short trail that
   // lingers on the first frame of the blow.

@@ -191,10 +191,36 @@ export class FxLayer {
     }, delay);
   }
 
-  /** Chips knocked off the target: flung up and out, then falling. */
-  private debris(at: Pt, color: string, n: number, delay = 0): void {
+  /** Kit's contact star: a four-point star of two-pixel strokes, white at the core, gold, then orange at the tips (her jacket's colours), a 2x2 white core, small diagonals; hot for the first frames, then smaller. */
+  private chunkStar(at: Pt, r: number, soft: boolean): void {
+    this.s(soft ? 4 : 6, (ctx, k) => {
+      const hot = k < 0.4, len = Math.max(2, Math.round(r * (hot ? 1 : 0.65)));
+      const x = Math.round(at.x), y = Math.round(at.y);
+      const tone = (i: number): string => (hot && i < len * 0.4 ? '#ffffff' : i < len * 0.7 ? '#ffd36a' : '#f08a30');
+      for (let i = 0; i < len; i++) {
+        ctx.fillStyle = tone(i);
+        ctx.fillRect(x + 1 + i, y - 1, 1, 2);
+        ctx.fillRect(x - 2 - i, y - 1, 1, 2);
+        ctx.fillRect(x - 1, y + 1 + i, 2, 1);
+        ctx.fillRect(x - 1, y - 2 - i, 2, 1);
+      }
+      ctx.fillStyle = '#ffd36a';
+      for (let i = 1; i <= Math.round(len * 0.5); i++) {
+        ctx.fillRect(x + 1 + i, y + 1 + i, 1, 1);
+        ctx.fillRect(x - 2 - i, y + 1 + i, 1, 1);
+        ctx.fillRect(x + 1 + i, y - 2 - i, 1, 1);
+        ctx.fillRect(x - 2 - i, y - 2 - i, 1, 1);
+      }
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x - 1, y - 1, 2, 2);
+      if (hot && !soft) ctx.fillRect(x - 2, y - 2, 4, 4);
+    });
+  }
+
+  /** Chips knocked off the target: flung up and out, then falling (`life` shortens them). */
+  private debris(at: Pt, color: string, n: number, delay = 0, life?: number): void {
     for (let i = 0; i < n; i++)
-      this.p({ x: at.x + this.rng.range(-3, 3), y: at.y + this.rng.range(-3, 3), vx: this.rng.range(-1.6, 1.6), vy: -this.rng.range(0.8, 2.2), g: 0.16, drag: 0.98, max: this.rng.int(18, 28), color, size: this.rng.chance(0.35) ? 2 : 1, kind: 'spark', delay });
+      this.p({ x: at.x + this.rng.range(-3, 3), y: at.y + this.rng.range(-3, 3), vx: this.rng.range(-1.6, 1.6), vy: -this.rng.range(0.8, 2.2), g: 0.16, drag: 0.98, max: life ?? this.rng.int(18, 28), color, size: this.rng.chance(0.35) ? 2 : 1, kind: 'spark', delay });
   }
 
   /** Speed lines converging on the point of impact just before contact. */
@@ -766,37 +792,38 @@ export class FxLayer {
         });
         return { impact: 4, total: 16 };
       case 'punch_r':
-        // Kit's blow in Sprite Fusion art: a hard four-point star on the point of contact (the fist or the toe, inside the body), a short flat flare driven on through the target, a small ring and a few
-        // chips. No convergence lines (she is already there) and no wide burst: three of these play in a row, so each stays small and quick (two frames to the flash).
+        // Kit's blow in Sprite Fusion art: a chunky four-point star (two px strokes in her jacket's white, gold and orange) just in front of the knuckles or the toe, a short flat flare driven on through
+        // the target, a small ring and a few chips. Three of these play in a row, so each is small and quick, and a blow that is not the last is GONE within a few frames (round 4: the jab's and the
+        // cross's sparks used to hang on the target through the next wind-up and hide it). The star grows with the blow: the jab's is about the size of her fist, the cross's one and a half times that, the kick's the biggest.
         each((t) => {
           const pw = PUNCH_R.power;
           const soft = PUNCH_R.soft, ringColor = PUNCH_R.ring;
-          this.impact(t, '#ffb454', 0, Math.max(3, Math.round((soft ? 4.5 : 6) * pw)));
-          this.burst(t, '#ffe9a8', Math.round(4 + 4 * pw), 1.4 * pw, 0, 12);
-          this.ring(t, ringColor, 2, Math.round(5 + 5 * pw), soft ? 5 : 6, 1, soft ? 1 : 2);
-          // The flat flare: capped at 10 world px and fainter for a blow that is not the last; the kick's is a quarter shorter than round 2's.
+          this.chunkStar(t, Math.max(3, Math.round(6 * pw)), soft);
+          this.burst(t, '#ffe9a8', Math.round(3 + 4 * pw), 1.4 * pw, 0, soft ? 5 : 12);
+          this.ring(t, ringColor, 2, Math.round(5 + 5 * pw), soft ? 4 : 6, 1, soft ? 1 : 2);
+          // The flat flare: capped at 10 world px and fainter for a blow that is not the last.
           const flare = soft ? 0.6 : 0.75;
-          this.s(4, (ctx, k) => {
+          this.s(soft ? 3 : 4, (ctx, k) => {
             ctx.globalAlpha = (1 - k) * (soft ? 0.6 : 1);
             ctx.fillStyle = '#fff3d0';
             for (const [dy, len] of [[-3, 8], [0, 12], [3, 7]] as const) ctx.fillRect(Math.round(t.x + 2), Math.round(t.y + dy), Math.min(soft ? 10 : 99, Math.round(len * pw * flare * (0.5 + k) * 1.3)), 1);
             ctx.globalAlpha = 1;
           });
-          this.debris(t, '#ffd36a', 2 + Math.round(pw * 2), 0);
+          this.debris(t, '#ffd36a', 2 + Math.round(pw * 2), 0, soft ? 6 : undefined);
         });
-        return { impact: 2, total: 14 };
+        return { impact: 2, total: PUNCH_R.soft ? 8 : 14 };
       case 'punch_whiff':
-        // A punch that finds nothing: the fist stops short of the target, so a small dull puff and a short air-cut a little in front of it (no star, no chips, no ring).
+        // A punch that finds nothing: a small 3 px dust puff where the fist stopped (it swells and fades; no star, no air-cut lines, no chips, no ring).
         each((t) => {
-          this.burst(t, '#b9b2cf', 5, 0.9, 0, 10);
-          this.s(5, (ctx, k) => {
-            ctx.globalAlpha = 0.8 * (1 - k);
-            ctx.fillStyle = '#d6d0ea';
-            for (const [dy, len] of [[-2, 6], [0, 9], [2, 5]] as const) ctx.fillRect(Math.round(t.x - len + k * 4), Math.round(t.y + dy), len, 1);
+          this.s(6, (ctx, k) => {
+            ctx.globalAlpha = 0.75 * (1 - k);
+            ctx.fillStyle = '#c9c3df';
+            const r = 2 + Math.round(k * 3);
+            for (const [dx, dy] of [[0, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]] as const) ctx.fillRect(Math.round(t.x + dx * r) - 1, Math.round(t.y + dy * r * 0.7) - 1, 2, 2);
             ctx.globalAlpha = 1;
           });
         });
-        return { impact: 2, total: 10 };
+        return { impact: 2, total: 8 };
       case 'slash':
       case 'claw':
       case 'whip':

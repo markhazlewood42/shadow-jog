@@ -191,6 +191,8 @@ interface SfSpec {
   punch?: boolean;
   /** Render frames per idle frame: 60 / the sheet's fps (all the idles are 8 fps). */
   idleStep: number;
+  /** The colour clean-up distance for this member (`CLEAN_DISTANCE` if absent). Round 4: Kit and Hex take 24 (their palettes fall to about 70 and 65 colours, near Sable's and Rook's, with no visible loss at 5x), so the four share one grain. */
+  clean?: number;
 }
 
 const SPECS: Record<string, SfSpec> = {
@@ -201,6 +203,7 @@ const SPECS: Record<string, SfSpec> = {
     poses: { attack: 'kit-battle-punch1', strike: 'kit-battle-punch3', thrust: 'kit-battle-punch2', brace: 'kit-battle-crouched', hurt: 'kit-battle-injured', victory: 'kit-battle-victory' },
     rest: 'kit-battle-reference',
     punch: true,
+    clean: 24,
     idleStep: 7.5,
   },
   rook: {
@@ -223,6 +226,7 @@ const SPECS: Record<string, SfSpec> = {
     poses: {},
     rest: 'hex-battle-reference',
     idleStep: 7.5,
+    clean: 24,
   },
   sable: {
     idle: 'sable-battle-idle',
@@ -231,6 +235,7 @@ const SPECS: Record<string, SfSpec> = {
     poses: {},
     rest: 'sable-battle-reference',
     idleStep: 7.5,
+    clean: 20,
   },
 };
 
@@ -247,7 +252,7 @@ export function sfBattler(key: string): Battler | null {
   const all = names.flatMap((n) => frames(n).map((r) => ({ n, r })));
   let rawOf = (n: string): Raw[] => frames(n);
   if (SF_CLEAN) {
-    const cleaned = cleanColours(all.map((a) => a.r), CLEAN_DISTANCE);
+    const cleaned = cleanColours(all.map((a) => a.r), spec.clean ?? CLEAN_DISTANCE);
     SF_CLEAN_LOG[key] = { before: cleaned.before, after: cleaned.after };
     console.info(`Sprite Fusion colour clean-up, ${key}: ${cleaned.before} shades -> ${cleaned.after}`);
     const byName = new Map<string, Raw[]>();

@@ -80,8 +80,8 @@ function tellMin(text: string): number {
  * member orders" (the Warden's visor was).
  */
 const PROMPT_CLEAR = 14;
-/** Side view: the furthest right (battle-world px) the centre of a floating number may be: the turn-order column starts at about 230, and a number is up to 20 px wide with 12 px of air. */
-const FLOAT_MAX_X = 207;
+/** Side view: the furthest right (battle-world px) the centre of a floating number may be: the turn-order column starts at about 230, and a number is up to 20 px wide (half of it right of the centre) with air to spare. */
+const FLOAT_MAX_X = 212;
 function clearOfPrompt(y: number, art: EnemyArt): number {
   return Math.max(y, PROMPT_CLEAR - artTop(art));
 }
@@ -476,7 +476,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       // Bodies in motion run on the effect clock (see FX_PACE), so a pose and its effect stay in step.
       const r = this.fx.rate;
       if (dd.hop > 0) dd.hop = Math.max(0, dd.hop - 0.6 * r);
-      if (dd.poseT > 0) dd.poseT = Math.max(0, dd.poseT - r);
+      if (dd.poseT > 0 && !dd.poseHold) dd.poseT = Math.max(0, dd.poseT - r);
       if (dd.afterimage > 0) dd.afterimage = Math.max(0, dd.afterimage - r);
       if (dd.lunge > 0) dd.lunge = Math.max(0, dd.lunge - (dd.lunge > 6 ? 1.2 : 0.5) * r);
       // Bars: shown values chase the real ones; the damage ghost holds, then drains.
@@ -820,6 +820,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     // of the frame the stack grows downward instead, so the clamp can't pile rows on each other.
     // Side view: keep a number inside the battlefield, clear of the turn-order column on the right edge (a Glowrat at the end of the row put its number on the cursor).
     const x = SIDE_VIEW ? Math.max(16, Math.min(FLOAT_MAX_X, p.x)) : p.x;
+    // The same word again over the same target replaces the first (a miss from an earlier action must not stack under this one).
+    for (let i = this.floaters.length - 1; i >= 0; i--) {
+      const old = this.floaters[i];
+      if (old && old.uid === uid && old.text === text && style === 'label') this.floaters.splice(i, 1);
+    }
     this.floaters.push({ text, x, y: Math.max(22 + stacked * 12, p.y - 8 - stacked * 12), t: 0, color, style, uid });
   }
 
