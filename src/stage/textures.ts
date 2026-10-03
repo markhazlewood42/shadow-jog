@@ -1,20 +1,27 @@
 /**
  * The asset pipeline of the Phaser stage (spike `spike/phaser-stage`): everything the stage draws gets here
- * as a Phaser **texture**, from two very different places.
+ * as a Phaser **texture**, from several very different places.
  *
  *  1. **Our own generated art.** The game paints its backdrops and enemies in code onto HTML canvases
  *     (`src/art/battlebg.ts`, `src/art/enemies.ts`). Phaser can use any canvas as a texture
  *     (`textures.addCanvas(key, canvas)`): the canvas becomes a picture on the graphics card and any number
  *     of sprites can show it. We add each canvas ONCE under a stable key and look it up by key afterwards,
  *     so rebuilding the stage never uploads the same picture twice (a "texture leak"), and never even
- *     re-runs the generator: what we learned about a texture (its feet, its light colour) is stored on the
- *     texture itself (`texture.customData`, a small bag Phaser gives every texture), so a scene restart
- *     does no work beyond making new game objects.
+ *     re-runs the generator: what we learned about a texture (its feet, its light colour, its face) is stored
+ *     on the texture itself (`texture.customData`, a small bag Phaser gives every texture), so a scene
+ *     restart does no work beyond making new game objects.
  *  2. **Mark's Sprite Fusion sheets.** A sprite sheet is one PNG holding every frame of an animation side
  *     by side. Phaser's loader fetches it (`load.spritesheet`) and cuts it into numbered frames from the
  *     frame size in the sheet's `metadata.json`; an **animation** (`anims.create`) records the frame list
  *     and the sheet's own fps. The files stay in Mark's local folder and are only ever fetched by the dev
  *     server; nothing here copies them.
+ *  3. **The stage itself.** The wall and the floor are painted pixel by pixel from the stage config
+ *     (`floor.ts`, `sewerwall.ts`) and baked into ONE 480x270 texture, named after a fingerprint of the
+ *     config that made it, so an unchanged config finds its picture again and a changed one makes a new one.
+ *  4. **Variants.** The depth haze blends a sprite toward the fog colour, and a hit flashes it white. Both
+ *     are baked as copies of the sprite's texture (once each, found again by name) instead of being redone
+ *     every frame, which also keeps them working on Phaser's canvas renderer (its tints are WebGL-only).
+ *  5. **Small things made from numbers:** contact shadows, rings, faces, the effects layer.
  *
  * This file only MAKES textures. Who stands where, and which enemies are in the fight, is data in
  * `src/data/stages.json` (see `config.ts`).
@@ -25,13 +32,18 @@
  * where the texture is made and a test (`isCrisp`) can check it.
  */
 import Phaser from 'phaser';
-import { battleBg, HORIZON } from '../art/battlebg';
-import { enemyArt, type EnemyArt } from '../art/enemies';
-import type { Raw } from '../art/rig2/sfgeom';
-import { SCREEN_H, SCREEN_W } from './config';
+import { battleBg } from '../art/battlebg';
+import { enemyArt } from '../art/enemies';
+import { boxOf, type Box } from '../art/rig2/sfgeom';
+import { SCREEN_H, SCREEN_W, type ShadowStyle, type StageConfig } from './config';
 import { sheetFolder } from './crew';
 import { cutSheet, footAnchor, type FootAnchor } from './feet';
+import { cutFace, CREW_FACES, ENEMY_FACES, ENEMY_GRAIN, type Pt } from './faces';
+import { paintFloor, reprojectWall } from './floor';
 import type { IdleKind } from './idle';
+import { hexRgb, lum, mix, type Raw, type RGB } from './pixels';
+import { ringRaw, shadowRaw } from './shadow';
+import { paintWall } from './sewerwall';
 
 // ------------------------------------------------------------------ Mark's Sprite Fusion sheets
 
@@ -75,8 +87,8 @@ export async function fetchSheetMetas(ids: readonly string[]): Promise<Record<st
 
 /**
  * Simple code-drawn figures with the same sheet layout (one row of frames), used when Mark's folder is not
- * there, so the lab, its tests and CI still run the whole pipeline (animation, feet, depth, shadows). They
- * are blocks, not art, and the page says so. `fetchSheetMetas` fails -> the lab calls these instead.
+ * there, so the lab, its tests and CI still run the whole pipeline (animation, feet, depth, shadows, faces).
+ * They are blocks, not art, and the page says so. `fetchSheetMetas` fails -> the lab calls these instead.
  */
 const STAND_INS: Record<string, { w: number; h: number; height: number; colour: string }> = {
   hex: { w: 64, h: 64, height: 50, colour: '#8a5cc8' },
@@ -94,6 +106,13 @@ export function standInMetas(ids: readonly string[]): Record<string, SheetMeta> 
     out[id] = { frame_w: s.w, frame_h: s.h, frame_count: 8, fps: 8 };
   }
   return out;
+}
+
+/** A stand-in's face point in frame 0 (the middle of its head block). */
+function standInFace(id: string): Pt {
+  const s = STAND_INS[id];
+  if (!s) throw new Error(`No stand-in figure for crew member "${id}"`);
+  return { x: Math.round(s.w / 2), y: s.h - 2 - s.height + 6 };
 }
 
 /**
@@ -143,32 +162,56 @@ export function queueCrewSheets(load: Phaser.Loader.LoaderPlugin, textures: Phas
   }
 }
 
-/** A loaded sheet's pixels, read back from the texture Phaser made (to find the feet). */
-function readSheet(textures: Phaser.Textures.TextureManager, key: string): Raw {
+/** A texture's pixels, read back through a 2D canvas (to find the feet, cut a face or bake a variant). */
+function readTexture(textures: Phaser.Textures.TextureManager, key: string): Raw {
   const img = textures.get(key).getSourceImage() as CanvasImageSource & { width: number; height: number };
   const c = document.createElement('canvas');
   c.width = img.width;
   c.height = img.height;
   const g = c.getContext('2d', { willReadFrequently: true });
-  if (!g) throw new Error('no 2d canvas to read the sheet with');
+  if (!g) throw new Error('no 2d canvas to read the texture with');
   g.drawImage(img, 0, 0);
   return { w: c.width, h: c.height, px: g.getImageData(0, 0, c.width, c.height).data };
 }
 
-/** What we remember about a crew sheet on its texture, so a restart does not read its pixels again. */
+/**
+ * What the stage knows about one standing figure's art, kept on its texture: the pixels of the picture its face
+ * is cut from (frame 0 of a crew sheet, or an enemy's art as drawn), the drawn bounds and the feet in that
+ * picture, the face point and the grain (see `faces.ts`).
+ */
+export interface FigureArt {
+  /** Frame 0's pixels (crew) or the whole art (enemy), un-tinted. */
+  raw: Raw;
+  /** The drawn bounds in `raw`. */
+  box: Box;
+  /** Where the feet are in `raw`: x is the middle of the boots, y the row under the lowest sole. */
+  foot: FootAnchor;
+  /** The face point in `raw`'s own pixels. */
+  face: Pt;
+  /** Screen pixels per art pixel (1 for the crew, 2 for the shipped enemies). */
+  grain: number;
+}
+
+/** What we remember about a crew sheet on its texture. */
 interface SheetData {
-  foot?: FootAnchor;
+  fig?: FigureArt;
+}
+
+/** The measurements of a crew member's sheet: where they stand and what they look like. */
+export interface CrewInfo {
+  foot: FootAnchor;
+  fig: FigureArt;
 }
 
 /**
  * After the sheets have loaded: make each crew member's looping idle animation (its frame list at the
- * sheet's own fps) and find where their feet are in the cell. Returns the foot anchors by crew id.
+ * sheet's own fps) and measure them: where their feet are in the cell and the drawn bounds, from the pixels.
  *
  * Reading a sheet's pixels back through a 2D canvas is the slow part, so it is done once per sheet and the
  * answer is kept in the texture's `customData`; a scene restart finds it there.
  */
-export function registerCrew(textures: Phaser.Textures.TextureManager, anims: Phaser.Animations.AnimationManager, metas: Record<string, SheetMeta>, ids: readonly string[]): Record<string, FootAnchor> {
-  const anchors: Record<string, FootAnchor> = {};
+export function registerCrew(textures: Phaser.Textures.TextureManager, anims: Phaser.Animations.AnimationManager, metas: Record<string, SheetMeta>, ids: readonly string[], standIns: boolean): Record<string, CrewInfo> {
+  const out: Record<string, CrewInfo> = {};
   for (const id of ids) {
     const m = metas[id];
     if (!m) throw new Error(`No metadata for ${id}`);
@@ -186,10 +229,17 @@ export function registerCrew(textures: Phaser.Textures.TextureManager, anims: Ph
     const texture = textures.get(sheetKey(id));
     crisp(texture);
     const data = texture.customData as SheetData;
-    data.foot ??= footAnchor(cutSheet(readSheet(textures, sheetKey(id)), m.frame_w, m.frame_count));
-    anchors[id] = data.foot;
+    if (!data.fig) {
+      const frames = cutSheet(readTexture(textures, sheetKey(id)), m.frame_w, m.frame_count);
+      const first = frames[0];
+      if (!first) throw new Error(`The sheet for ${id} has no frames`);
+      const face = standIns ? standInFace(id) : CREW_FACES[id];
+      if (!face) throw new Error(`No face point is known for crew member "${id}"`);
+      data.fig = { raw: first, box: boxOf(first), foot: footAnchor(frames), face, grain: 1 };
+    }
+    out[id] = { foot: data.fig.foot, fig: data.fig };
   }
-  return anchors;
+  return out;
 }
 
 // ------------------------------------------------------------------ the game's own generated art
@@ -210,166 +260,237 @@ export function addCanvasOnce(textures: Phaser.Textures.TextureManager, key: str
 }
 
 /** A new 2D canvas of this size, and its context. */
-function surface(w: number, h: number): { canvas: HTMLCanvasElement; g: CanvasRenderingContext2D } {
+export function surface(w: number, h: number): { canvas: HTMLCanvasElement; g: CanvasRenderingContext2D } {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  const g = canvas.getContext('2d');
+  const g = canvas.getContext('2d', { willReadFrequently: true });
   if (!g) throw new Error('no 2d canvas');
   g.imageSmoothingEnabled = false;
   return { canvas, g };
 }
 
-export interface BackdropTextures {
-  /**
-   * The painted wall and floor with its neon (`glow`) already laid on, 480x270. Its frames: `wall` (above
-   * the baked horizon), `floor` (below it) and two one-pixel-tall strips, `wallTop` and `floorBottom`, that
-   * the scene stretches to fill any gap when the stage's horizon is moved away from the baked one.
-   */
-  back: string;
-  /** Dark rails and cables framing the corners, drawn over the fighters; null when the backdrop has none. */
-  front: string | null;
-  /** The ambient light colour and strength the game washes over enemies standing in this place. */
-  tint: string;
-  tintAmt: number;
-  /** Screen y where the baked picture's wall meets its floor (the game's `HORIZON`, doubled). */
-  artHorizon: number;
+/** A picture's pixels as a canvas. */
+export function rawToCanvas(raw: Raw): HTMLCanvasElement {
+  const s = surface(raw.w, raw.h);
+  s.g.putImageData(new ImageData(new Uint8ClampedArray(raw.px), raw.w, raw.h), 0, 0);
+  return s.canvas;
 }
 
-/** What we remember about a backdrop on its texture. */
-interface BackdropData {
-  tint: string;
-  tintAmt: number;
-  hasFront: boolean;
+/** A canvas's pixels. */
+export function canvasToRaw(canvas: HTMLCanvasElement | OffscreenCanvas): Raw {
+  const c = document.createElement('canvas');
+  c.width = canvas.width;
+  c.height = canvas.height;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  if (!g) throw new Error('no 2d canvas');
+  g.drawImage(canvas, 0, 0);
+  return { w: c.width, h: c.height, px: g.getImageData(0, 0, c.width, c.height).data };
 }
 
-/** The baked picture's horizon on the 480x270 screen: the game paints at 240x135 and shows it twice as big. */
-export const ART_HORIZON = HORIZON * 2;
+// ------------------------------------------------------------------ the stage picture
+
+/** The baked stage picture. */
+export interface StageTextures {
+  /** The texture key of the baked 480x270 picture (wall, kerb and floor). */
+  key: string;
+}
+
+/** The old backdrop pictures at 480x270 (the game paints at 240x135 and shows it twice as big), kept so repainting a floor never redraws the sky. */
+const sources = new Map<string, Raw>();
+
+/** One of the game's battle backdrops as it is shown in the game: blown up 2x with NEAREST sampling, the neon glow laid over it. */
+function backdropSource(id: string): Raw {
+  const have = sources.get(id);
+  if (have) return have;
+  const bg = battleBg(id);
+  const s = surface(SCREEN_W, SCREEN_H);
+  s.g.drawImage(bg.canvas, 0, 0, SCREEN_W, SCREEN_H);
+  if (bg.glow) s.g.drawImage(bg.glow, 0, 0, SCREEN_W, SCREEN_H);
+  const made = canvasToRaw(s.canvas);
+  sources.set(id, made);
+  return made;
+}
+
+/** A short fingerprint (FNV-1a) of a string: the same text always gives the same name. */
+function fingerprint(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(36);
+}
 
 /**
- * Turn one of the game's battle backdrops into textures. The game paints it at 240x135 and shows it
- * twice as big; here it is blown up 2x with NEAREST sampling onto a 480x270 canvas (so the Phaser texture
- * is already screen-sized and shows 1:1), the neon glow layer is laid over it as the game does, and the
- * foreground framing becomes a second texture so the scene can put it in front of the fighters.
- *
- * The generator runs only when the texture is missing; asking again (a scene restart, an editor switching
- * back to a stage it showed before) reads what was remembered on the texture.
+ * The part of a stage config that decides how its picture looks: the backdrop, the floor, the rows and every
+ * slot (puddles are kept away from the places people stand, so moving a slot repaints them). The picture's
+ * texture is named after this, so an unchanged stage finds its picture again and a changed one gets a new one.
  */
-export function addBackdrop(textures: Phaser.Textures.TextureManager, id: string): BackdropTextures {
-  const back = `backdrop-${id}`;
-  const front = `backdrop-fg-${id}`;
-  if (!textures.exists(back)) {
-    const bg = battleBg(id);
-    const s = surface(SCREEN_W, SCREEN_H);
-    s.g.drawImage(bg.canvas, 0, 0, SCREEN_W, SCREEN_H);
-    if (bg.glow) s.g.drawImage(bg.glow, 0, 0, SCREEN_W, SCREEN_H);
-    const texture = addCanvasOnce(textures, back, s.canvas);
-    // Frames are named rectangles of the picture. Cutting the wall from the floor lets the scene move the
-    // horizon: the wall hangs from the horizon line and the floor starts on it.
-    texture.add('wall', 0, 0, 0, SCREEN_W, ART_HORIZON);
-    texture.add('floor', 0, 0, ART_HORIZON, SCREEN_W, SCREEN_H - ART_HORIZON);
-    texture.add('wallTop', 0, 0, 0, SCREEN_W, 1);
-    texture.add('floorBottom', 0, 0, SCREEN_H - 1, SCREEN_W, 1);
-    Object.assign(texture.customData, { tint: bg.tint, tintAmt: bg.tintAmt, hasFront: !!bg.fg } satisfies BackdropData);
-    if (bg.fg) {
-      const f = surface(SCREEN_W, SCREEN_H);
-      f.g.drawImage(bg.fg, 0, 0, SCREEN_W, SCREEN_H);
-      addCanvasOnce(textures, front, f.canvas);
-    }
-  }
-  const data = textures.get(back).customData as BackdropData;
-  return { back, front: data.hasFront ? front : null, tint: data.tint, tintAmt: data.tintAmt, artHorizon: ART_HORIZON };
+export function stagePictureKey(stage: StageConfig): string {
+  return `stage-${stage.id}-${fingerprint(JSON.stringify([stage.backdrop, stage.floor, stage.rows, stage.party, stage.enemySets]))}`;
 }
+
+/**
+ * The stage's picture as a texture: the wall (the old backdrop slid into place, or a painted replacement) with
+ * the floor painted under it, baked into one 480x270 canvas. Painting runs only when no texture of that name
+ * exists. Only the current picture is kept: a dragged horizon would otherwise leave one per step, and switching
+ * stages repaints (a few milliseconds) instead of holding half a megabyte per stage.
+ */
+export function bakeStage(textures: Phaser.Textures.TextureManager, stage: StageConfig): StageTextures {
+  const key = stagePictureKey(stage);
+  const src = backdropSource(stage.backdrop.id);
+  if (!textures.exists(key)) {
+    const wall = stage.backdrop.mode === 'replace' ? paintWall(stage.backdrop.wallId ?? '', stage.backdrop.horizonY) : reprojectWall(src, stage);
+    addCanvasOnce(textures, key, rawToCanvas(paintFloor(wall, stage)));
+    pruneTextures(textures, 'stage-', new Set([key]));
+  }
+  return { key };
+}
+
+// ------------------------------------------------------------------ enemies
 
 export interface EnemyTexture {
   key: string;
-  /** The art's own pixel size on the screen: 2 divided by its `res` (the game draws through a 2x transform, so art painted at res 2 is already screen-sized: 1). */
-  naturalScale: number;
   /** Size of the art in its own pixels. */
   width: number;
   height: number;
-  /** The art's shadow width on the screen at its natural scale (0 for a floating thing with no shadow). */
-  shadow: number;
+  /** The art's own ground-shadow width on the screen (0 for a floating thing with no shadow); the stage's `shadow` block is what draws shadows, this is for reference. */
+  idleShadow: number;
   idle: IdleKind;
+  /** Where the feet are, the drawn bounds, the face (see `FigureArt`). */
+  fig: FigureArt;
 }
 
 /** What we remember about an enemy texture. */
 type EnemyData = Omit<EnemyTexture, 'key'>;
 
 /**
- * An enemy from the game's own art generator as a texture: the painted body washed with the backdrop's
- * ambient light (as the game's battle does), the glowing bits (eyes, lights) laid on top un-darkened.
+ * An enemy from the game's own art generator as a texture, with the glowing bits (eyes, lights) laid on top.
  * `copy` picks the individual when a fight has several of one kind (a second punk is a different person).
  * Needs the traced rig data loaded first (the humans are drawn from it).
  *
- * How big an art pixel is drawn is NOT decided here: this returns the art's `naturalScale` and the scene
- * picks the real one from the stage config (`enemyScale`), so the choice is data an editor can change.
+ * The game's own battle washes enemies with the backdrop's ambient light; the stage design replaces that with
+ * the per-row depth haze (`depthTint`), and the crew are never washed, so enemies are drawn in their true
+ * colours here and stand in the same light as the heroes. Every enemy in the game today is painted at screen
+ * resolution and is drawn 1:1, the same pixel size as the crew.
  */
-export function addEnemy(textures: Phaser.Textures.TextureManager, spriteKey: string, copy: number, backdrop: BackdropTextures): EnemyTexture {
-  const key = `enemy-${spriteKey}-${copy}-${backdrop.back}`;
+export function addEnemy(textures: Phaser.Textures.TextureManager, spriteKey: string, copy: number): EnemyTexture {
+  const key = `enemy-${spriteKey}-${copy}`;
   if (!textures.exists(key)) {
-    const art: EnemyArt = enemyArt(spriteKey, copy);
+    const art = enemyArt(spriteKey, copy);
     const s = surface(art.canvas.width, art.canvas.height);
     s.g.drawImage(art.canvas, 0, 0);
-    if (backdrop.tintAmt > 0) {
-      // "source-atop" paints only where the body already is, so the wash tints the sprite and not its empty corners.
-      s.g.globalCompositeOperation = 'source-atop';
-      s.g.globalAlpha = backdrop.tintAmt;
-      s.g.fillStyle = backdrop.tint;
-      s.g.fillRect(0, 0, s.canvas.width, s.canvas.height);
-      s.g.globalCompositeOperation = 'source-over';
-      s.g.globalAlpha = 1;
-    }
     if (art.glow) s.g.drawImage(art.glow, 0, 0);
+    const raw = canvasToRaw(s.canvas);
     const texture = addCanvasOnce(textures, key, s.canvas);
-    // The game draws every enemy through a 2x transform, so art painted at `res` 2 (every enemy today) lands 1:1 and art painted at res 1 would land at two screen pixels.
-    const info: EnemyData = { naturalScale: 2 / art.res, width: art.canvas.width, height: art.canvas.height, shadow: art.shadow * 2, idle: art.idle };
+    const box = boxOf(raw);
+    const face = ENEMY_FACES[spriteKey];
+    const info: EnemyData = {
+      width: art.canvas.width,
+      height: art.canvas.height,
+      idleShadow: art.shadow * 2,
+      idle: art.idle,
+      fig: {
+        raw,
+        box,
+        foot: footAnchor([raw]),
+        face: face ? { x: box.x0 + face.x, y: box.y0 + face.y } : { x: Math.round((box.x0 + box.x1) / 2), y: box.y0 + Math.round((box.y1 - box.y0) / 6) },
+        grain: ENEMY_GRAIN,
+      },
+    };
     Object.assign(texture.customData, info);
   }
   return { key, ...(textures.get(key).customData as EnemyData) };
 }
 
-/**
- * A flat contact shadow as pixel art: a hard-edged ellipse with a stippled rim (every other pixel), which
- * reads as soft without a blur. Black; the sprite using it sets the strength with its alpha.
- */
-export function addShadow(textures: Phaser.Textures.TextureManager, width: number, height: number): string {
-  const w = Math.max(2, Math.round(width));
-  const h = Math.max(2, Math.round(height));
-  const key = `${SHADOW_PREFIX}${w}x${h}`;
+// ------------------------------------------------------------------ variants: depth haze and hit flash
+
+/** A copy of a texture with every drawn pixel changed by `change`, frames and all. Made once and found again by `key`. */
+function variantOf(textures: Phaser.Textures.TextureManager, baseKey: string, key: string, change: (c: RGB) => RGB): string {
   if (textures.exists(key)) return key;
-  const s = surface(w, h);
-  const rx = w / 2;
-  const ry = h / 2;
-  s.g.fillStyle = '#000000';
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const d = ((x + 0.5 - rx) / rx) ** 2 + ((y + 0.5 - ry) / ry) ** 2;
-      // Solid in the middle, stippled in the outer fifth, empty outside.
-      if (d <= 0.64 || (d <= 1 && (x + y) % 2 === 0)) s.g.fillRect(x, y, 1, 1);
-    }
+  const base = textures.get(baseKey);
+  const raw = readTexture(textures, baseKey);
+  for (let i = 0; i < raw.px.length; i += 4) {
+    if ((raw.px[i + 3] ?? 0) === 0) continue;
+    const c = change([raw.px[i] ?? 0, raw.px[i + 1] ?? 0, raw.px[i + 2] ?? 0]);
+    raw.px[i] = c[0];
+    raw.px[i + 1] = c[1];
+    raw.px[i + 2] = c[2];
   }
-  addCanvasOnce(textures, key, s.canvas);
+  const texture = addCanvasOnce(textures, key, rawToCanvas(raw));
+  // The same named frames as the original (a sheet's numbered cells).
+  for (const name of base.getFrameNames()) {
+    const f = base.get(name);
+    texture.add(name, 0, f.cutX, f.cutY, f.cutWidth, f.cutHeight);
+  }
   return key;
 }
 
+/** The texture of `baseKey` blended toward the fog colour by `amount` (0 = the base itself): the depth haze, baked. */
+export function hazedTexture(textures: Phaser.Textures.TextureManager, baseKey: string, fog: string, amount: number): string {
+  if (amount <= 0) return baseKey;
+  const fogRgb = hexRgb(fog);
+  return variantOf(textures, baseKey, `haze-${baseKey}-${fog.slice(1)}-${Math.round(amount * 100)}`, (c) => mix(c, fogRgb, amount));
+}
+
+/** The texture of `baseKey` as a near-white silhouette that keeps its dark outline: one frame of a hit flash. */
+export function flashTexture(textures: Phaser.Textures.TextureManager, baseKey: string): string {
+  return variantOf(textures, baseKey, `flash-${baseKey}`, (c) => (lum(c) >= 40 ? mix(c, [255, 255, 255], 0.85) : c));
+}
+
+// ------------------------------------------------------------------ shadows, rings, faces, effects
+
 const SHADOW_PREFIX = 'shadow-';
+const RING_PREFIX = 'ring-';
+const FACE_PREFIX = 'face-';
+const FX_PREFIX = 'fx-';
+
+/** A contact shadow `width` wide in the stage's shadow style, as a texture (made once per width and style). */
+export function shadowTexture(textures: Phaser.Textures.TextureManager, width: number, style: ShadowStyle): string {
+  const key = `${SHADOW_PREFIX}${width}-${style.aspect}-${style.color.slice(1)}-${Math.round(style.alpha * 100)}-${Math.round(style.edgeAlpha * 100)}`;
+  if (!textures.exists(key)) addCanvasOnce(textures, key, rawToCanvas(shadowRaw(width, style)));
+  return key;
+}
+
+/** A one-pixel ring (or dotted ring) `width` wide in a colour, as a texture. */
+export function ringTexture(textures: Phaser.Textures.TextureManager, width: number, color: string, dotted = false): string {
+  const key = `${RING_PREFIX}${width}-${color.slice(1)}${dotted ? '-dots' : ''}`;
+  if (!textures.exists(key)) addCanvasOnce(textures, key, rawToCanvas(ringRaw(width, color, dotted)));
+  return key;
+}
+
+/** A face chip picture `size` x `size` cut from a figure's art. */
+export function faceTexture(textures: Phaser.Textures.TextureManager, name: string, fig: FigureArt, size: number): string {
+  const key = `${FACE_PREFIX}${name}-${size}`;
+  if (!textures.exists(key)) addCanvasOnce(textures, key, rawToCanvas(cutFace(fig.raw, fig.face, size, fig.grain)));
+  return key;
+}
+
+let fxCount = 0;
+
+/** A one-off full-screen effects picture (path dashes, the hit's slash). The previous ones are removed. */
+export function effectsTexture(textures: Phaser.Textures.TextureManager, raw: Raw): string {
+  const key = `${FX_PREFIX}${++fxCount}`;
+  addCanvasOnce(textures, key, rawToCanvas(raw));
+  pruneTextures(textures, FX_PREFIX, new Set([key]));
+  return key;
+}
 
 /**
- * Remove every shadow texture that nothing is using any more. Each shadow size is its own little texture,
- * and an editor's size slider asks for a new size on every step; without this the texture list would grow
- * with every tick of the slider. `inUse` is the set of shadow keys the fighters currently show.
+ * Remove every texture whose name starts with `prefix` and is not in `inUse`. Shadows, rings, faces and stage
+ * pictures are made on demand from numbers, and an editor's slider asks for a new size on every step; without
+ * this the texture list would grow with every tick of the slider.
  */
-export function pruneShadows(textures: Phaser.Textures.TextureManager, inUse: ReadonlySet<string>): number {
+export function pruneTextures(textures: Phaser.Textures.TextureManager, prefix: string, inUse: ReadonlySet<string>): number {
   let removed = 0;
   for (const key of textures.getTextureKeys()) {
-    if (key.startsWith(SHADOW_PREFIX) && !inUse.has(key)) {
+    if (key.startsWith(prefix) && !inUse.has(key)) {
       textures.remove(key);
       removed++;
     }
   }
   return removed;
 }
+
+export const PREFIX = { shadow: SHADOW_PREFIX, ring: RING_PREFIX, face: FACE_PREFIX, fx: FX_PREFIX } as const;
 
 /** Whether every source of a texture is set to NEAREST (crisp) and not LINEAR (blurred). */
 export function isCrisp(textures: Phaser.Textures.TextureManager, key: string): boolean {

@@ -19,9 +19,9 @@ export async function hideSprites(page: Page): Promise<void> {
   await page.route('**/spritefusion-tests/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>app</title>' }));
 }
 
-/** Hide the status line (it is page text laid over the canvas's corner, and its anti-aliased letters are not game pixels). */
+/** Hide the status line and the pickers (page text laid over the canvas's corners, whose anti-aliased letters are not game pixels). */
 export async function hideStatus(page: Page): Promise<void> {
-  await page.addStyleTag({ content: '#status { display: none !important; }' });
+  await page.addStyleTag({ content: '#status, #labbar { display: none !important; }' });
 }
 
 /** Open the lab, collecting every console error and page error; resolves when the scene has drawn (or has failed). */

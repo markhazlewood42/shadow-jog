@@ -14,7 +14,8 @@ import { BG_IDS } from '../art/battlebg';
 import { loadRigData } from '../art/rig2/data';
 import { ENEMIES } from '../data/enemies';
 import stagesJson from '../data/stages.json';
-import { loadStages, SCREEN_H, SCREEN_W } from './config';
+import { loadStages, SCREEN_H, SCREEN_W, stageOf } from './config';
+import type { Phase } from './demo';
 import { FrameStats } from './metrics';
 import { StageScene, type StageInit } from './stagescene';
 import { CREW_IDS } from './crew';
@@ -26,6 +27,10 @@ export interface BootOptions {
   parent: string;
   /** Which stage in `stages.json` to show. */
   stageId: string;
+  /** Which enemy group to start with ("1" to "6", "boss", "boss+1", "boss+2"). */
+  setKey?: string;
+  /** Which moment of the example turn to start on. */
+  phase?: Phase;
   /** The page's query string: `?standins` skips Mark's sheets on purpose, `?renderer=canvas` forces Phaser's 2D renderer. */
   query: URLSearchParams;
   /** Called with a readable message when something fails. */
@@ -116,7 +121,9 @@ function keepZoomWhole(game: Phaser.Game): () => number {
 
 export async function bootStage(opts: BootOptions): Promise<Booted> {
   await loadRigData();
-  const stages = loadStages(stagesJson, BG_IDS, { enemies: Object.keys(ENEMIES), crew: CREW_IDS });
+  const stages = loadStages(stagesJson, BG_IDS, { enemies: Object.keys(ENEMIES), bosses: Object.keys(ENEMIES).filter((k) => ENEMIES[k]?.boss), crew: CREW_IDS });
+  // A wrong ?stage= should be one readable message naming the stages there are, not a scene that never starts.
+  stageOf(stages, opts.stageId);
 
   // Mark's sheets live in a git-ignored folder; on a machine without it (CI) show stand-in figures, and say so.
   let standIns = false;
@@ -153,7 +160,7 @@ export async function bootStage(opts: BootOptions): Promise<Booted> {
   });
   const devicePixelsPerPixel = keepZoomWhole(game);
 
-  const init: StageInit = { stages, stageId: opts.stageId, metas, standIns, onError: opts.onError };
+  const init: StageInit = { stages, stageId: opts.stageId, ...(opts.setKey ? { setKey: opts.setKey } : {}), ...(opts.phase ? { phase: opts.phase } : {}), metas, standIns, onError: opts.onError };
   // `scene.add(key, scene, autoStart, data)`: add it and start it at once, handing it `init`.
   game.scene.add('stage', scene, true, init);
   return { game, scene, init, stats, standIns, devicePixelsPerPixel };

@@ -16,8 +16,6 @@ export interface StageLabHook {
   standIns: boolean;
   /** 'WEBGL' or 'CANVAS': which Phaser renderer ended up running. */
   renderer: string;
-  /** Whether the per-row depth tints are drawn (Phaser's `setTint` works only in WebGL). */
-  rowTints: boolean;
   /** The canvas's CSS zoom (device pixels per game pixel divided by the pixel ratio). */
   zoom: number;
   /** Whole device pixels per game pixel (what the monitor really shows). */
@@ -55,7 +53,6 @@ export function emptyHook(): StageLabHook {
     error: null,
     standIns: false,
     renderer: '',
-    rowTints: false,
     zoom: 0,
     devicePixelsPerPixel: 0,
     firstFrameMs: 0,
@@ -81,7 +78,6 @@ export function connectHook(hook: StageLabHook, booted: Booted, onReady: () => v
   // The zoom is settled by the Scale Manager's resize events; read it live so the hook never shows a stale one.
   Object.defineProperty(hook, 'zoom', { get: () => game.scale.zoom, configurable: true });
   Object.defineProperty(hook, 'devicePixelsPerPixel', { get: () => booted.devicePixelsPerPixel(), configurable: true });
-  Object.defineProperty(hook, 'rowTints', { get: () => scene.rowTintsApplied, configurable: true });
 
   // Timing: the interval between frames and the CPU work inside each.
   game.events.on(Phaser.Core.Events.PRE_STEP, (time: number) => stats.begin(time));

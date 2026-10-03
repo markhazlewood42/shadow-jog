@@ -29,7 +29,8 @@ test('AUTO falls back to the canvas renderer and still draws the whole stage', a
   const errors = await openLab(page);
   expect(errors).toEqual([]);
   expect(await page.evaluate(() => window.__stagelab?.renderer)).toBe('CANVAS');
-  expect(await page.evaluate(() => window.__stagelab?.rowTints)).toBe(false);
+  // The depth haze is baked into copies of the pictures, so it shows on this renderer too (Phaser's own tints would not).
+  expect(await page.evaluate(() => window.__stagelab?.scene()?.fighters.some((f) => f.sprite.texture.key.startsWith('haze-')))).toBe(true);
   const snap = await page.evaluate(() => window.__stagelab?.snapshot() ?? Promise.reject(new Error('no hook')));
   expect(snap.colours).toBeGreaterThan(100);
   mkdirSync(SHOTS, { recursive: true });

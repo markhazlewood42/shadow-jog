@@ -32,8 +32,6 @@ test('the stage draws the real assets with no errors, and the picture is not bla
   expect(await page.evaluate(() => window.__stagelab?.scene()?.fighters.filter((f) => f.side === 'party').length)).toBe(4);
 
   const snap = await page.evaluate(() => window.__stagelab?.snapshot() ?? Promise.reject(new Error('no hook')));
-  // On WebGL (a GPU or software GL) the row tints are drawn; on the canvas fallback they are not (see the canvas tests).
-  expect(await page.evaluate(() => window.__stagelab?.rowTints)).toBe(await page.evaluate(() => window.__stagelab?.renderer === 'WEBGL'));
   expect(snap.width).toBe(480);
   expect(snap.height).toBe(270);
   // A backdrop with fighters has hundreds of colours; one flat colour or a handful means a blank or failed draw.
@@ -109,14 +107,15 @@ test('pixel crispness: at zoom 4 every 4 x 4 block of the screen is one flat col
   expect(errors).toEqual([]);
 });
 
-test('restarting the scene twice leaves no stale fighters and no extra textures', async ({ page }) => {
+test('restarting the scene twice leaves no stale fighters and no extra textures or objects', async ({ page }) => {
   const errors = await openLab(page);
   const before = await page.evaluate(() => window.__stagelab?.textureCount());
+  const objects = await page.evaluate(() => window.__stagelab?.scene()?.children.length);
   for (let i = 0; i < 2; i++) await page.evaluate(() => window.__stagelab?.restart());
   expect(await page.evaluate(() => window.__stagelab?.scene()?.fighters.length)).toBe(7);
-  // Every sprite in the display list is alive and there are no stray extras: 7 fighters + 7 shadows, the four backdrop pieces
-  // (wall, floor and the two gap-fill strips) + the foreground, and the edit-mode guide.
-  expect(await page.evaluate(() => window.__stagelab?.scene()?.children.length)).toBe(20);
+  // Every object in the display list is alive and there are no strays: the same count as the first run
+  // (the stage picture, the guide, each fighter's shadow, ring, dotted ring and sprite, an enemy's bar, the HUD's boxes and labels).
+  expect(await page.evaluate(() => window.__stagelab?.scene()?.children.length)).toBe(objects);
   expect(await page.evaluate(() => window.__stagelab?.textureCount())).toBe(before);
   expect(errors).toEqual([]);
 });
@@ -148,8 +147,8 @@ test('the Phaser canvas renderer fallback draws too', async ({ page }) => {
   const errors = await openLab(page, '?renderer=canvas');
   expect(errors).toEqual([]);
   expect(await page.evaluate(() => window.__stagelab?.renderer)).toBe('CANVAS');
-  // Phaser's tints are WebGL-only, so the per-row depth tint is not drawn here, and the hook says so.
-  expect(await page.evaluate(() => window.__stagelab?.rowTints)).toBe(false);
+  // The depth haze is baked into copies of the pictures, so the back rows are hazed here too (Phaser's own tints are WebGL-only).
+  expect(await page.evaluate(() => window.__stagelab?.scene()?.fighters.some((f) => f.sprite.texture.key.startsWith('haze-')))).toBe(true);
   const snap = await page.evaluate(() => window.__stagelab?.snapshot() ?? Promise.reject(new Error('no hook')));
   expect(snap.colours).toBeGreaterThan(100);
 });
@@ -171,37 +170,27 @@ test('timing: load to first frame, and frame time over 5 seconds (reported, with
   expect(s?.workP95 ?? 999).toBeLessThan(50);
 });
 
-test('judge pictures: the stage at 2x and the heroes at 4x', async ({ page }) => {
+test('judge pictures: street line-up, street boss, sewer line-up and an acting state, each at 2x', async ({ page }) => {
   test.skip(!MEDIA, 'set STAGELAB_MEDIA=<folder> to save the judges’ pictures');
   const dir = MEDIA as string;
   mkdirSync(dir, { recursive: true });
   const round = process.env.STAGELAB_ROUND ?? 'r1';
-  // 960 x 540 is exactly zoom 2 (the stage at 2x).
+  // 960 x 540 is exactly zoom 2 (the stage at 2x). The pickers are left out (?clean) so the picture is only the stage.
   await page.setViewportSize({ width: 960, height: 540 });
-  const errors = await openLab(page);
-  expect(errors).toEqual([]);
-  // Let the idle loops move on a little so the picture is a typical moment.
-  await page.waitForTimeout(600);
-  await page.screenshot({ path: join(dir, `p1-${round}-stage-2x.png`) });
-  // The edit-mode view: the guide lines (horizon, floor band, depth rows) over a stage whose horizon was dragged up and the
-  // floor band moved with it, to show the backdrop re-composing (the strip under the floor is the stretched bottom row).
-  await page.evaluate(() => {
-    const s = window.__stagelab?.scene();
-    if (!s) throw new Error('no scene');
-    s.applyStage({ ...s.config, horizon: 104, floor: { top: 150, bottom: 266 } });
-    s.setEditMode(true);
-  });
-  await page.waitForTimeout(300);
-  await page.screenshot({ path: join(dir, `p1-${round}-edit-guides-2x.png`) });
-  await page.evaluate(() => {
-    const s = window.__stagelab?.scene();
-    if (!s) throw new Error('no scene');
-    s.applyStage({ ...s.config, horizon: 124 });
-    s.setEditMode(false);
-  });
-  // 1920 x 1080 is zoom 4: the heroes' corner, cropped, so each art pixel is a 4 x 4 block.
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.waitForFunction(() => window.__stagelab?.zoom === 4);
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: join(dir, `p1-${round}-heroes-4x.png`), clip: { x: 0, y: 4 * 100, width: 4 * 240, height: 4 * 170 } });
+  const shots: Array<[string, string]> = [
+    ['street-lineup', '?clean&stage=street&set=3&phase=choose'],
+    ['street-boss', '?clean&stage=street&set=boss%2B2&phase=target'],
+    ['sewer-lineup', '?clean&stage=sewer&set=3&phase=choose'],
+    ['acting', '?clean&stage=street&set=boss&phase=act'],
+    ['sewer-acting', '?clean&stage=sewer&set=3&phase=act'],
+    ['street-six', '?clean&stage=street&set=6&phase=choose'],
+  ];
+  for (const [name, query] of shots) {
+    const errors = await openLab(page, query);
+    expect(errors).toEqual([]);
+    await hideStatus(page);
+    // Let the idle loops move on a little so the picture is a typical moment.
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: join(dir, `p2-${round}-${name}-2x.png`) });
+  }
 });

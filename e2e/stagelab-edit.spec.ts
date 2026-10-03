@@ -1,38 +1,70 @@
 /**
  * The Phaser stage lab's seams for the editor (spike `spike/phaser-stage`): everything step 2 builds on.
  *
- * Checks that a changed stage config really changes the scene (the horizon, a new backdrop, another party
- * order, a different number of enemies, enemy size, shadow size), that none of it leaks textures or leaves
- * stray objects, that frame choice comes from the fixed tick (so a replay is the same every run), and that in
- * edit mode a fighter can be picked up with the mouse and dropped on another depth row.
+ * Checks that a changed stage config really changes the scene (the horizon repaints the picture, another stage,
+ * another enemy group, another moment of the turn, a moved HUD region, a changed shadow), that none of it leaks
+ * textures or leaves stray objects, that frame choice comes from the fixed tick (so a replay is the same every
+ * run), and that in edit mode a fighter can be picked up with the mouse and dropped on another depth row.
  */
 import { expect, type Page, test } from '@playwright/test';
 import { openLab } from './stagelabkit';
+
+type Part = { visible: boolean; depth: number; texture: { key: string }; x: number; y: number };
 
 /** The page's StageScene, for `page.evaluate` callbacks (typed loosely on purpose: a few private fields are read). */
 type AnyScene = {
   fighters: Array<{
     id: string;
     side: string;
+    boss: boolean;
     slot: { row: number; x: number };
     baseX: number;
     baseY: number;
-    sprite: { x: number; y: number; scaleX: number; depth: number; frame: { name: string | number }; input: { enabled: boolean; hitArea: unknown; hitAreaCallback: (a: unknown, x: number, y: number, o: unknown) => boolean } | null; width: number; height: number; originX: number; originY: number };
-    shadow: { texture: { key: string }; depth: number };
+    x: number;
+    y: number;
+    bodyDx: number;
+    sortY: number;
+    depth: number;
+    shadowW: number;
+    active: boolean;
+    target: boolean;
+    flash: boolean;
+    sprite: { x: number; y: number; scaleX: number; depth: number; frame: { name: string | number }; texture: { key: string }; input: { enabled: boolean; hitArea: unknown; hitAreaCallback: (a: unknown, x: number, y: number, o: unknown) => boolean } | null; width: number; height: number; originX: number; originY: number };
+    shadow: Part;
+    ring: Part;
+    home: Part;
+    bar: { depth: number; x: number; y: number } | null;
     sheet?: { fps: number; count: number; phase: number };
     idle: string;
     uid: number;
   }>;
   frame: number;
-  config: Record<string, unknown> & { horizon: number; backdrop: string; lineup: string[]; shadow: { width: number }; rows: Array<{ y: number }>; floor: { top: number; bottom: number } };
+  config: StageLike;
   enemies: string[];
+  enemySet: string;
+  currentPhase: string;
+  currentView: { phase: string; active: number; target: number | null; banner: string | null; act: { dmg: number } | null };
+  pictureKey: string;
+  hudObjects: { box: (name: string) => { x: number; y: number } | undefined; objects: unknown[] };
   children: { length: number };
-  layers: { front: unknown; wall: { y: number }; floor: { y: number }; wallTop: { visible: boolean; displayHeight: number }; floorBottom: { visible: boolean; displayHeight: number; y: number } };
   applyStage: (s: unknown) => void;
-  setEnemies: (keys: string[]) => void;
+  showStage: (id: string) => void;
+  setEnemySet: (key: string) => void;
+  setEnemies: (keys: string[], setKey?: string) => void;
+  setPhase: (p: string) => void;
   setEditMode: (on: boolean) => void;
   currentStage: () => { party: Array<{ row: number; x: number }> };
   step: (n: number) => void;
+};
+
+type StageLike = {
+  id: string;
+  backdrop: { horizonY: number; shiftY: number; id: string };
+  floor: { y0: number; y1: number; seed?: number };
+  rows: Array<{ y: number }>;
+  shadow: { widthScale: number };
+  hud: Record<string, { x: number; y: number; show: string }>;
+  demo: { lineup: string[] };
 };
 
 declare global {
@@ -43,7 +75,7 @@ declare global {
 }
 
 /** Open the lab and give the page a `window.__sc()` that returns its scene. */
-async function open(page: Page): Promise<string[]> {
+async function open(page: Page, query = ''): Promise<string[]> {
   await page.addInitScript(() => {
     window.__sc = () => {
       const s = window.__stagelab?.scene();
@@ -51,127 +83,176 @@ async function open(page: Page): Promise<string[]> {
       return s as unknown as AnyScene;
     };
   });
-  return openLab(page);
+  return openLab(page, query);
 }
 
-/** Count the shadow textures Phaser holds. */
-const shadowCount = (page: Page): Promise<number> => page.evaluate(() => (window.__stagelab?.textureKeys() ?? []).filter((k) => k.startsWith('shadow-')).length);
+/** How many textures of a kind Phaser holds. */
+const countOf = (page: Page, prefix: string): Promise<number> => page.evaluate((p) => (window.__stagelab?.textureKeys() ?? []).filter((k) => k.startsWith(p)).length, prefix);
 
-test('moving the horizon moves the wall and the floor and always leaves a complete backdrop', async ({ page }) => {
+test('moving the horizon repaints the picture: the kerb follows the horizon, the wall stays complete and old pictures are removed', async ({ page }) => {
   const errors = await open(page);
-  // The window clear colour (the game's backgroundColor): if it shows through, a gap was left.
-  const clear = '#07060d';
-  for (const horizon of [90, 124, 160]) {
+  const keys = new Set<string>();
+  for (const horizon of [92, 100, 112, 100]) {
     await page.evaluate((h) => {
       const s = window.__sc();
-      s.applyStage({ ...s.config, horizon: h, floor: { ...s.config.floor, top: Math.max(s.config.floor.top, h) } });
+      s.applyStage({ ...s.config, backdrop: { ...s.config.backdrop, horizonY: h, shiftY: h - 132 }, floor: { ...s.config.floor, y0: h } });
     }, horizon);
-    const placed = await page.evaluate(() => {
-      const l = window.__sc().layers;
-      return { wallY: l.wall.y, floorY: l.floor.y, top: l.wallTop.visible ? l.wallTop.displayHeight : 0, bottom: l.floorBottom.visible ? l.floorBottom.displayHeight : 0 };
-    });
-    expect(placed.wallY).toBe(horizon);
-    expect(placed.floorY).toBe(horizon);
-    // A horizon lower than the baked one (124) opens a gap at the top; a higher one at the bottom.
-    expect(placed.top).toBe(Math.max(0, horizon - 124));
-    expect(placed.bottom).toBe(Math.max(0, 124 - horizon));
-    const colours = await page.evaluate(() => window.__stagelab?.pixels([[10, 0], [240, 0], [470, 0], [10, 269], [240, 269], [470, 269]]) ?? Promise.reject(new Error('no hook')));
-    expect(colours).not.toContain(clear);
+    keys.add(await page.evaluate(() => window.__sc().pictureKey));
+    // Only the current stage picture exists: a dragged horizon does not leave one behind per step.
+    expect(await countOf(page, 'stage-')).toBe(1);
+    // The kerb row (the street's `edge` colour) sits exactly on the horizon, with the wall above it and floor below.
+    const [above, kerb, floor] = await page.evaluate((h) => window.__stagelab?.pixels([[8, h - 1], [8, h], [8, h + 20]]) ?? Promise.reject(new Error('no hook')), horizon);
+    expect(kerb).toBe('#3a3a5c');
+    expect(above).not.toBe('#07060d'); // the window clear colour: if it shows through, a gap was left
+    expect(floor).not.toBe(above);
   }
+  // Going back to a horizon finds the picture by its name again: 3 distinct pictures for 3 distinct horizons.
+  expect(keys.size).toBe(3);
   expect(errors).toEqual([]);
 });
 
-test('a new backdrop, another party order and another set of enemies rebuild only what they need, with no leaks', async ({ page }) => {
+test('another floor seed repaints the floor; the same config keeps its picture (nothing is painted twice)', async ({ page }) => {
   const errors = await open(page);
-  const baseline = await page.evaluate(() => ({ textures: window.__stagelab?.textureCount() ?? 0, children: window.__sc().children.length, fighters: window.__sc().fighters.length }));
-  expect(baseline.fighters).toBe(7);
-
-  // Party order reversed: the same four crew, other slots.
+  const key = await page.evaluate(() => window.__sc().pictureKey);
+  const textures = await page.evaluate(() => window.__stagelab?.textureCount() ?? 0);
   await page.evaluate(() => {
     const s = window.__sc();
-    s.applyStage({ ...s.config, lineup: [...s.config.lineup].reverse() });
+    s.applyStage({ ...s.config });
   });
-  expect(await page.evaluate(() => window.__sc().fighters.filter((f) => f.side === 'party').map((f) => f.id))).toEqual(['kit', 'rook', 'sable', 'hex']);
-  expect(await page.evaluate(() => window.__sc().children.length)).toBe(baseline.children);
-
-  // Fewer and more enemies: the slot set for that head-count is used.
-  await page.evaluate(() => window.__sc().setEnemies(['glowrat']));
-  expect(await page.evaluate(() => window.__sc().fighters.filter((f) => f.side === 'enemy').length)).toBe(1);
-  const slots1 = await page.evaluate(() => window.__sc().fighters.filter((f) => f.side === 'enemy').map((f) => f.slot));
-  expect(slots1).toEqual([{ row: 1, x: 372 }]);
-  expect(await page.evaluate(() => window.__sc().children.length)).toBe(baseline.children - 4);
-  await page.evaluate(() => window.__sc().setEnemies(['rustfang_punk', 'glowrat', 'rustfang_punk', 'glowrat']));
-  expect(await page.evaluate(() => window.__sc().fighters.length)).toBe(8);
-  expect(await page.evaluate(() => window.__sc().children.length)).toBe(baseline.children + 2);
-
-  // Another backdrop: the enemy pictures are washed with its light, so they are remade; nothing of the old one is left on the display list.
-  const other = await page.evaluate(async () => {
-    const url = '/src/art/battlebg.ts';
-    const m = await import(/* @vite-ignore */ url);
-    return (m.BG_IDS as string[]).find((id) => id !== window.__sc().config.backdrop) ?? '';
-  });
-  expect(other).not.toBe('');
-  await page.evaluate((id) => {
+  expect(await page.evaluate(() => window.__sc().pictureKey)).toBe(key);
+  expect(await page.evaluate(() => window.__stagelab?.textureCount())).toBe(textures);
+  await page.evaluate(() => {
     const s = window.__sc();
-    s.applyStage({ ...s.config, backdrop: id });
-  }, other);
-  expect(await page.evaluate(() => window.__sc().config.backdrop)).toBe(other);
-  expect(await page.evaluate(() => window.__sc().fighters.length)).toBe(8);
-  // Four backdrop pieces, the foreground if this backdrop has one, the guide, and 8 fighters with a shadow each.
-  expect(await page.evaluate(() => window.__sc().children.length)).toBe(await page.evaluate(() => 4 + (window.__sc().layers.front ? 1 : 0) + 1 + 16));
+    s.applyStage({ ...s.config, floor: { ...s.config.floor, seed: 4242 } });
+  });
+  expect(await page.evaluate(() => window.__sc().pictureKey)).not.toBe(key);
+  expect(await countOf(page, 'stage-')).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('another stage, another enemy group and another moment of the turn rebuild what they need, with no leaks', async ({ page }) => {
+  const errors = await open(page);
+  const baseline = await page.evaluate(() => ({ children: window.__sc().children.length, fighters: window.__sc().fighters.length }));
+  expect(baseline.fighters).toBe(7);
+
+  // Every group on both stages, then the same walk again: the second pass finds every picture by name, so nothing grows.
+  const walk = async (): Promise<number> => {
+    for (const id of ['sewer', 'street']) {
+      await page.evaluate((i) => window.__sc().showStage(i), id);
+      expect(await page.evaluate(() => window.__sc().config.id)).toBe(id);
+      expect(await countOf(page, 'stage-')).toBe(1);
+      for (const [key, count] of [['1', 1], ['2', 2], ['4', 4], ['5', 5], ['6', 6], ['boss', 1], ['boss+1', 2], ['boss+2', 3], ['3', 3]] as const) {
+        await page.evaluate((k) => window.__sc().setEnemySet(k), key);
+        expect(await page.evaluate(() => window.__sc().fighters.filter((f) => f.side === 'enemy').length)).toBe(count);
+        expect(await page.evaluate(() => window.__sc().enemySet)).toBe(key);
+      }
+    }
+    return page.evaluate(() => window.__stagelab?.textureCount() ?? 0);
+  };
+  const first = await walk();
+  const second = await walk();
+  expect(second).toBe(first);
+  // Back where we started: the same number of objects (nothing of the other groups is left behind).
+  expect(await page.evaluate(() => window.__sc().children.length)).toBe(baseline.children);
+  expect(await page.evaluate(() => window.__stagelab?.crisp())).toBe(true);
+  const snap = await page.evaluate(() => window.__stagelab?.snapshot() ?? Promise.reject(new Error('no hook')));
+  expect(snap.colours).toBeGreaterThan(100);
+  expect(errors).toEqual([]);
+});
+
+test('the three moments of the turn show the regions the design says, and one hero is active', async ({ page }) => {
+  const errors = await open(page);
+  const boxes = (): Promise<string[]> => page.evaluate(() => ['turnOrder', 'commands', 'partyStatus', 'enemyInfo', 'banner', 'combo'].filter((n) => !!window.__sc().hudObjects.box(n)));
+  const state = (): Promise<{ active: number; target: number; home: number; flashed: number; view: string; banner: string | null }> =>
+    page.evaluate(() => {
+      const s = window.__sc();
+      return {
+        active: s.fighters.filter((f) => f.active).length,
+        target: s.fighters.filter((f) => f.target).length,
+        home: s.fighters.filter((f) => f.home.visible).length,
+        flashed: s.fighters.filter((f) => f.flash).length,
+        view: s.currentView.phase,
+        banner: s.currentView.banner,
+      };
+    });
+
+  expect(await boxes()).toEqual(['turnOrder', 'commands', 'partyStatus', 'enemyInfo']);
+  expect(await state()).toMatchObject({ active: 1, target: 0, home: 0, flashed: 0, view: 'choose', banner: null });
+
+  await page.evaluate(() => window.__sc().setPhase('target'));
+  expect((await boxes()).sort()).toEqual(['banner', 'commands', 'enemyInfo', 'partyStatus', 'turnOrder']);
+  expect(await state()).toMatchObject({ active: 1, target: 1, home: 0, flashed: 0, view: 'target' });
+  expect((await state()).banner).toMatch(/: pick a target$/);
+
+  await page.evaluate(() => window.__sc().setPhase('act'));
+  expect((await boxes()).sort()).toEqual(['banner', 'combo', 'enemyInfo', 'partyStatus', 'turnOrder']);
+  expect(await state()).toMatchObject({ active: 1, target: 1, home: 1, flashed: 1, view: 'act' });
+  // The attacker moved to the target's row, borrows its sort row plus a pixel, and the target is knocked back 3 px.
+  const act = await page.evaluate(() => {
+    const s = window.__sc();
+    const a = s.fighters.find((f) => f.active);
+    const t = s.fighters.find((f) => f.target);
+    if (!a || !t) throw new Error('no attacker or target');
+    return { attackerY: a.y, targetY: t.baseY, sortY: a.sortY, bodyDx: t.bodyDx, attackerMoved: a.x !== a.baseX, targetSortY: t.sortY, lunge: s.config as unknown as { sort: { lungeOverTarget: number } } };
+  });
+  expect(act.attackerY).toBe(act.targetY);
+  expect(act.sortY).toBe(act.targetSortY + act.lunge.sort.lungeOverTarget);
+  expect(act.bodyDx).toBe(3);
+  expect(act.attackerMoved).toBe(true);
+
+  // And back: everyone is home again and the effects picture is gone.
+  await page.evaluate(() => window.__sc().setPhase('choose'));
+  expect(await state()).toMatchObject({ active: 1, target: 0, home: 0, flashed: 0 });
+  expect(await countOf(page, 'fx-')).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('HUD regions and the shadow follow the config: move a box, hide one, change the shadow share', async ({ page }) => {
+  const errors = await open(page);
+  const where = (name: string): Promise<{ x: number; y: number } | null> => page.evaluate((n) => window.__sc().hudObjects.box(n) ?? null, name);
+  expect(await where('partyStatus')).toMatchObject({ x: 4, y: 228 });
+  await page.evaluate(() => {
+    const s = window.__sc();
+    s.applyStage({ ...s.config, hud: { ...s.config.hud, partyStatus: { ...s.config.hud.partyStatus, x: 40, y: 200 }, commands: { ...s.config.hud.commands, show: 'never' } } });
+  });
+  expect(await where('partyStatus')).toMatchObject({ x: 40, y: 200 });
+  expect(await where('commands')).toBeNull();
   const snap = await page.evaluate(() => window.__stagelab?.snapshot() ?? Promise.reject(new Error('no hook')));
   expect(snap.colours).toBeGreaterThan(100);
 
-  // And back, and forth again: the textures are found by name, not re-made, so the count does not move.
-  const afterOther = await page.evaluate(() => window.__stagelab?.textureCount());
-  await page.evaluate(() => {
-    const s = window.__sc();
-    s.applyStage({ ...s.config, backdrop: 'street' });
-  });
-  expect(await page.evaluate(() => window.__stagelab?.textureCount())).toBe(afterOther);
-  await page.evaluate((id) => {
-    const s = window.__sc();
-    s.applyStage({ ...s.config, backdrop: id });
-  }, other);
-  expect(await page.evaluate(() => window.__stagelab?.textureCount())).toBe(afterOther);
-  expect(await page.evaluate(() => window.__stagelab?.crisp())).toBe(true);
+  // A shadow slider: 30 steps, and the number of shadow textures never grows past the sizes in use (7 fighters at most).
+  let most = 0;
+  const widths = new Set<number>();
+  for (let i = 0; i < 30; i++) {
+    const share = 0.3 + i * 0.03;
+    await page.evaluate((w) => {
+      const s = window.__sc();
+      s.applyStage({ ...s.config, shadow: { ...s.config.shadow, widthScale: w } });
+    }, share);
+    most = Math.max(most, await countOf(page, 'shadow-'));
+    for (const w of await page.evaluate(() => window.__sc().fighters.map((f) => f.shadowW))) widths.add(w);
+  }
+  expect(most).toBeLessThanOrEqual(7);
+  expect(widths.size).toBeGreaterThan(5);
   expect(errors).toEqual([]);
 });
 
-test('enemy size and shadow size are data: a changed config changes the sprites, and shadow textures do not pile up', async ({ page }) => {
-  const errors = await open(page);
-  // The shipped rule: every enemy at 1 screen pixel per art pixel, like the crew.
-  expect(await page.evaluate(() => window.__sc().fighters.filter((f) => f.side === 'enemy').map((f) => f.sprite.scaleX))).toEqual([1, 1, 1]);
-  await page.evaluate(() => {
+test('a figure is one unit in the sort: shadow, ring, body and health bar share its number, so a nearer fighter covers all of a farther one', async ({ page }) => {
+  const errors = await open(page, '?set=6');
+  const parts = await page.evaluate(() => {
     const s = window.__sc();
-    s.applyStage({ ...s.config, enemyScale: { punk: 2, '*': 1 } });
+    return s.fighters.map((f) => ({ id: f.id, side: f.side, y: f.sortY, x: f.x, depth: f.depth, body: f.sprite.depth, shadow: f.shadow.depth, ring: f.ring.depth, bar: f.bar?.depth ?? null }));
   });
-  // Punks (ids rustfang_punk#0 and #2) at 2, the rat still 1; positions and scales stay whole numbers.
-  expect(await page.evaluate(() => window.__sc().fighters.filter((f) => f.side === 'enemy').map((f) => f.sprite.scaleX))).toEqual([2, 1, 2]);
-  expect(await page.evaluate(() => window.__sc().fighters.every((f) => Number.isInteger(f.sprite.x) && Number.isInteger(f.sprite.y)))).toBe(true);
-  await page.evaluate(() => {
-    const s = window.__sc();
-    s.applyStage({ ...s.config, enemyScale: { '*': 1 } });
-  });
-  expect(await page.evaluate(() => window.__sc().fighters.filter((f) => f.side === 'enemy').map((f) => f.sprite.scaleX))).toEqual([1, 1, 1]);
-
-  // A size slider: 30 steps, and the number of shadow textures never grows past the sizes in use.
-  const before = await page.evaluate(() => window.__stagelab?.textureCount() ?? 0);
-  let most = 0;
-  for (let w = 10; w < 70; w += 2) {
-    await page.evaluate((width) => {
-      const s = window.__sc();
-      s.applyStage({ ...s.config, shadow: { ...s.config.shadow, width, enemyScale: 1 + (width % 3) / 4 } });
-    }, w);
-    most = Math.max(most, await shadowCount(page));
+  expect(parts.filter((p) => p.side === 'enemy')).toHaveLength(6);
+  for (const p of parts) {
+    expect(p.body).toBe(p.depth);
+    expect(p.shadow).toBe(p.depth - 0.5);
+    expect(p.ring).toBe(p.depth - 0.4);
+    if (p.side === 'enemy') expect(p.bar).toBe(p.depth + 0.25);
+    else expect(p.bar).toBeNull();
   }
-  // One party size plus the enemies' (a punk, the rat; the two punks share one): a handful at most.
-  expect(most).toBeLessThanOrEqual(5);
-  await page.evaluate(() => {
-    const s = window.__sc();
-    s.applyStage({ ...s.config, shadow: { ...s.config.shadow, width: 36, enemyScale: 1 } });
-  });
-  expect(await page.evaluate(() => window.__stagelab?.textureCount())).toBe(before);
+  // Any figure on a nearer row has a shadow above the farther figure's health bar.
+  for (const far of parts) for (const near of parts) if (near.y > far.y) expect(near.shadow).toBeGreaterThan(far.bar ?? far.depth);
   expect(errors).toEqual([]);
 });
 
@@ -189,7 +270,7 @@ test('frames come from the fixed tick: the same tick shows the same picture, and
           if (Number(f.sprite.frame.name) !== want) bad.push(`${f.id} tick ${s.frame}: frame ${f.sprite.frame.name}, wanted ${want}`);
         } else {
           const o = enemyIdle(f.idle as never, s.frame, f.uid);
-          if (f.sprite.x !== f.baseX + o.x || f.sprite.y !== f.baseY + o.y) bad.push(`${f.id} tick ${s.frame}: sway off`);
+          if (f.sprite.x !== f.x + f.bodyDx + o.x || f.sprite.y !== f.y + 1 + o.y) bad.push(`${f.id} tick ${s.frame}: sway off`);
         }
       }
     };
@@ -224,7 +305,7 @@ test('edit mode: a fighter is picked up with the mouse and dropped on another de
   await page.evaluate(() => window.__sc().setEditMode(true));
   expect(await page.evaluate(() => window.__sc().fighters.every((f) => f.sprite.input?.enabled === true))).toBe(true);
 
-  // Find an opaque pixel of Kit (the front hero) to grab: the hit test follows the drawn pixels.
+  // Find an opaque pixel of Kit (the lead, front hero) to grab: the hit test follows the drawn pixels.
   const grab = await page.evaluate(() => {
     const f = window.__sc().fighters.find((x) => x.id === 'kit');
     if (!f?.sprite.input) throw new Error('kit is not interactive');
@@ -242,16 +323,15 @@ test('edit mode: a fighter is picked up with the mouse and dropped on another de
     }
     throw new Error('no opaque pixel found on kit');
   });
-  const startSlot = grab.slot;
-  expect(startSlot.row).toBe(3);
+  expect(grab.slot.row).toBe(4);
 
   const box = await page.locator('canvas').boundingBox();
   if (!box) throw new Error('no canvas');
   const zoom = box.width / 480;
   const at = (gx: number, gy: number): [number, number] => [box.x + gx * zoom, box.y + gy * zoom];
   const [sx, sy] = at(grab.x, grab.y);
-  // Drop so the FEET end up near row 1 (y 201) and x 120: the pointer keeps its offset from the feet.
-  const targetFeet = { x: 120, y: 205 };
+  // Drop so the FEET end up near row 2 (y 174) and x 120: the pointer keeps its offset from the feet.
+  const targetFeet = { x: 120, y: 177 };
   const [ex, ey] = at(targetFeet.x + (grab.x - grab.feetX), targetFeet.y + (grab.y - grab.feetY));
   await page.mouse.move(sx, sy);
   await page.mouse.down();
@@ -263,13 +343,14 @@ test('edit mode: a fighter is picked up with the mouse and dropped on another de
     const s = window.__sc();
     const f = s.fighters.find((x) => x.id === 'kit');
     if (!f) throw new Error('kit gone');
-    return { slot: f.slot, x: f.sprite.x, y: f.sprite.y, depth: f.sprite.depth, shadowDepth: f.shadow.depth, rowY: s.config.rows[f.slot.row]?.y, saved: s.currentStage().party[3] };
+    return { slot: f.slot, x: f.x, y: f.sprite.y, depth: f.sprite.depth, shadowDepth: f.shadow.depth, rowY: s.config.rows[f.slot.row]?.y, saved: s.currentStage().party[0] };
   });
-  // Snapped to the nearest row (1, y 201), x where it was dropped, depth and shadow follow, and the "save" copy of the config has it.
-  expect(after.slot.row).toBe(1);
+  // Snapped to the nearest row (2, y 174), x where it was dropped, depth and shadow follow, and the "save" copy of the config has it.
+  expect(after.slot.row).toBe(2);
   expect(Math.abs(after.slot.x - targetFeet.x)).toBeLessThanOrEqual(3);
-  expect(after.y).toBe(after.rowY);
-  expect(after.depth).toBe(after.rowY === undefined ? -1 : after.rowY * 1000 + after.slot.x);
+  expect(after.y).toBe((after.rowY ?? 0) + 1);
+  const closeness = 240 - Math.min(240, Math.abs(after.x - 240));
+  expect(after.depth).toBe((after.rowY ?? 0) * 1000 + closeness * 2);
   expect(after.shadowDepth).toBe(after.depth - 0.5);
   expect(after.saved).toEqual(after.slot);
 

@@ -248,6 +248,9 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | **Two of a kind** | Enemies of the same kind in one fight are lettered (Glowrat A, Glowrat B), in their names, the turn strip and, on machines, a stencil. |
 | **Families** | Human, Machine, Beast, Spirit, Ghoul (each with its own weaknesses). |
 | **Bestiary**, **Places**, **Combo log** | The menu's records. |
+| **NOW chip** | On the side-view battle's turn timeline, the portrait at the left that shows whose turn it is; the next turns follow along the line (heroes above it, enemies below, with a pink corner mark). |
+| **Hit counter** | The small box at the top right while an action plays: how many hits the crew has landed this round, and their total damage. |
+| **Depth haze** | In the side-view battle, fighters on the back rows are blended a little toward the stage's fog colour, so distance reads without shrinking anyone. |
 
 ---
 

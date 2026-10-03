@@ -23,6 +23,6 @@ jobs:
         run: npm run budget
       - run: npx playwright install --with-deps chromium webkit firefox
       - name: E2E (full chapter, the real-speed playtest, game over / save, frame budget, shipped build, zone walk and shop, input chaos, the Phaser stage lab with its stand-in crew, canvas fallback, edit seams and display-scaling checks; WebKit and Firefox for game over and the shipped build)
-        run: npx playwright test e2e/playthrough.spec.ts e2e/playtest.spec.ts e2e/gameover.spec.ts e2e/perf.spec.ts e2e/prod.spec.ts e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts e2e/stagelab.spec.ts e2e/stagelab-nogl.spec.ts e2e/stagelab-edit.spec.ts e2e/stagelab-dpr.spec.ts
+        run: npx playwright test e2e/playthrough.spec.ts e2e/playtest.spec.ts e2e/gameover.spec.ts e2e/perf.spec.ts e2e/prod.spec.ts e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts e2e/stagelab.spec.ts e2e/stagelab-nogl.spec.ts e2e/stagelab-edit.spec.ts e2e/stagelab-stage.spec.ts e2e/stagelab-dpr.spec.ts
         env:
           CI: '1'

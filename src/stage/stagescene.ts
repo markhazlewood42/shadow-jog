@@ -1,8 +1,8 @@
 /**
- * The battle stage as a Phaser Scene (spike `spike/phaser-stage`): the backdrop, Mark's four heroes on the
- * left and the enemies on the right, each standing on a depth row with a contact shadow and drawn in the
- * right overlap order. No HUD and no battle yet; those are later steps. An EDIT MODE seam is here already:
- * turn it on and every fighter can be picked up and dropped on another depth row.
+ * The battle stage as a Phaser Scene (spike `spike/phaser-stage`): the FINAL stage design drawn natively in
+ * Phaser from a stage config: the painted 3/4 floor, Mark's four heroes on the left, the enemies on the right,
+ * each standing on a depth row with a contact shadow and drawn in the right overlap order, and the side-view HUD.
+ * An EDIT MODE seam is here already: turn it on and every fighter can be picked up and dropped on another row.
  *
  * If you have not met Phaser before, the ideas this file uses:
  *
@@ -14,11 +14,17 @@
  *    "where this fighter stands". A **frame** is one cell of a sprite sheet.
  *  - **Depth** is a number; Phaser draws objects from the smallest depth to the largest. We use the feet's
  *    y (see `depthFor` in config.ts), so whoever stands nearer the viewer draws on top.
+ *  - **A figure is a unit.** One fighter is several Phaser objects: the body sprite, the contact shadow, a
+ *    ring under the feet, the health bar, and (while it strikes) an effects picture. They are all given the
+ *    fighter's one depth number plus a fixed fraction (`PART`), so a nearer fighter covers ALL of a farther
+ *    one, health bar included. (Drawing bars last, over everything, was the design's known gap.)
  *  - **Everything about the layout is read from the stage config** (`src/data/stages.json`), never written
- *    into this file: where the horizon is, the rows, the slots, who stands in them, which enemies fight and
- *    how big their pixels are drawn. Each fighter is a small record (`Fighter`) that remembers its slot, so an
- *    edit mode can grab one, change its slot and call `place` again; `applyStage` re-lays the whole stage out
- *    (and rebuilds whatever a change needs: the backdrop, the party, the enemy set) after the config changes.
+ *    into this file: the horizon, the floor, the rows, the slots, the shadow, the HUD boxes. Each fighter is a
+ *    small record (`Fighter`) that remembers its slot, so an edit mode can grab one, change its slot and call
+ *    `place` again; `applyStage` re-lays the whole stage out after the config changes.
+ *  - **The view.** What the HUD and the fighters' markers show (who is choosing, who is aimed at, health,
+ *    the combo counter) comes from a `HudView` (`demo.ts`), made from the game's real data. `refresh` builds
+ *    it for the current stage, enemy group and phase and applies it to everyone.
  *  - **update() and the fixed step.** Phaser calls `update` once per screen refresh, and screens refresh
  *    at 60, 75, 120 or 144 Hz. Battle logic must not run faster on a faster screen, so `update` adds the
  *    time since the last call to an accumulator and runs `tick()` once for every 1/60 s it holds. The
@@ -29,10 +35,34 @@
  */
 import Phaser from 'phaser';
 import { ENEMIES } from '../data/enemies';
-import { depthFor, enemyScaleFor, enemyShadowWidth, enemySlots, rowTint, type Slot, type StageConfig, type StageFile, SCREEN_H, SCREEN_W, slotPoint, snapSlot, stageOf } from './config';
-import type { FootAnchor } from './feet';
+import { MEMBERS } from '../data/party';
+import type { MemberId } from '../game/state';
+import { type FigureBox, depthFor, enemySlots, type PartySlot, partDepth, SCREEN_H, SCREEN_W, setKeyFor, shadowHeight, shadowWidth, slotPoint, snapSlot, type StageConfig, type StageFile, stageOf } from './config';
+import { buildHudView, type HudView, type Phase } from './demo';
+import { drawCut, drawPalm, drawPath, drawSparks, newFxLayer } from './fx';
+import { Hud, type HudFaces, type HudGeo } from './hud';
 import { enemyIdle, idleFrame, type IdleKind } from './idle';
-import { addBackdrop, addEnemy, addShadow, addStandInSheets, type BackdropTextures, pruneShadows, queueCrewSheets, registerCrew, type SheetMeta, sheetKey } from './textures';
+import {
+  addEnemy,
+  bakeStage,
+  effectsTexture,
+  faceTexture,
+  type FigureArt,
+  flashTexture,
+  hazedTexture,
+  type CrewInfo,
+  PREFIX,
+  pruneTextures,
+  queueCrewSheets,
+  registerCrew,
+  ringTexture,
+  type SheetMeta,
+  addStandInSheets,
+  shadowTexture,
+  sheetKey,
+  stagePictureKey,
+  type StageTextures,
+} from './textures';
 
 /** What the lab hands the scene when it starts it. */
 export interface StageInit {
@@ -42,16 +72,17 @@ export interface StageInit {
   metas: Record<string, SheetMeta>;
   /** True when Mark's sheets were not there and `metas` describe code-drawn stand-ins (nothing to load). */
   standIns: boolean;
-  /** Enemies to show instead of the stage's own demo `fight` (keys of `ENEMIES`, 1 to 4). */
-  enemies?: string[];
+  /** Which enemy group to start with (a key of `enemySets`: "1" to "6", "boss", "boss+1", "boss+2"). Default "3". */
+  setKey?: string;
+  /** Which moment of the example turn to show. Default "choose". */
+  phase?: Phase;
   /** Called with a readable message if something fails; the lab shows it on the page. */
   onError: (message: string) => void;
 }
 
-/** Layers other than the fighters themselves (which use `depthFor`, 150000 and up). */
+/** Layers other than the fighters themselves (which use `depthFor`, below 300,000). */
 const BACKDROP_DEPTH = -1;
 const GUIDE_DEPTH = 900_000;
-const FOREGROUND_DEPTH = 1_000_000;
 
 /** How a crew member's idle sheet plays: frames, speed and where in the loop this one starts. */
 interface SheetPlay {
@@ -60,40 +91,52 @@ interface SheetPlay {
   phase: number;
 }
 
-/** One standing figure on the stage: the picture, its shadow, and the slot it was given. */
+/** One standing figure on the stage: its parts (picture, shadow, ring, bar), the slot it was given and what is happening to it. */
 export interface Fighter {
   id: string;
   side: 'party' | 'enemy';
+  name: string;
+  boss: boolean;
   sprite: Phaser.GameObjects.Sprite;
   shadow: Phaser.GameObjects.Image;
-  slot: Slot;
+  /** The ring under the feet: cyan for the acting hero, amber for the target; hidden otherwise. */
+  ring: Phaser.GameObjects.Image;
+  /** A dotted ring at the spot an attacker left, shown while it lunges. */
+  home: Phaser.GameObjects.Image;
+  /** The health bar under an enemy's shadow (drawn with the figure in the depth sort); absent for heroes. */
+  bar: Phaser.GameObjects.Graphics | null;
+  slot: PartySlot;
+  /** The slot's feet (home) and where the feet are now (they differ while an attacker lunges). */
+  baseX: number;
+  baseY: number;
+  x: number;
+  y: number;
+  /** Knockback of the body only (its shadow stays on the floor). */
+  bodyDx: number;
+  /** The feet row this figure sorts by: its own, or while lunging in contact the target's row plus one. */
+  sortY: number;
   idle: IdleKind;
   /** Keeps two of a kind out of step in their idle motion. */
   uid: number;
-  /** Where the feet are (the slot's point); idle motion is added on top. */
-  baseX: number;
-  baseY: number;
   /** A hero's idle sheet (frames come from the tick); absent for enemies, which sway instead. */
   sheet?: SheetPlay;
-  /** An enemy's art: its sprite key (for `enemyScale`), its natural pixel size on screen and its shadow width at that size. */
-  art?: { spriteKey: string; naturalScale: number; shadow: number };
+  /** The texture before haze or flash, and what the art knows about itself. */
+  baseTex: string;
+  fig: FigureArt;
+  /** The face name used for the HUD chips. */
+  faceName: string;
+  shadowW: number;
+  active: boolean;
+  target: boolean;
+  flash: boolean;
+  /** The draw-order number now. */
+  depth: number;
 }
 
 /** The fixed simulation step: 60 ticks a second. */
 const STEP_MS = 1000 / 60;
 /** At most this many catch-up ticks in one frame, then drop the backlog (a stalled tab must not replay minutes). */
 const MAX_CATCH_UP = 5;
-
-/** The pieces of the backdrop, kept so a moved horizon can reposition them. */
-interface BackdropLayers {
-  wall: Phaser.GameObjects.Image;
-  /** One pixel row of the wall's top, stretched to fill the gap when the horizon is lower than the baked one. */
-  wallTop: Phaser.GameObjects.Image;
-  floor: Phaser.GameObjects.Image;
-  /** One pixel row of the floor's bottom, stretched to fill the gap when the horizon is higher than the baked one. */
-  floorBottom: Phaser.GameObjects.Image;
-  front: Phaser.GameObjects.Image | null;
-}
 
 export class StageScene extends Phaser.Scene {
   /** The party and the enemies, party first. Public so tools can reach them. */
@@ -102,17 +145,19 @@ export class StageScene extends Phaser.Scene {
   frame = 0;
   /** Whether the pointer can pick fighters up (set with `setEditMode`). */
   editMode = false;
-  /** Whether the per-row depth tints are showing: Phaser's `setTint` is WebGL-only, so on the canvas renderer they are not. */
-  rowTintsApplied = false;
 
   private init0!: StageInit;
   private stage!: StageConfig;
-  private backdrop!: BackdropTextures;
-  private layers: BackdropLayers | null = null;
+  private pic!: StageTextures;
+  private picture: Phaser.GameObjects.Image | null = null;
   private guide: Phaser.GameObjects.Graphics | null = null;
-  private anchors: Record<string, FootAnchor> = {};
-  private lineup: string[] = [];
+  private fx: Phaser.GameObjects.Image | null = null;
+  private hud: Hud | null = null;
+  private crew: Record<string, CrewInfo> = {};
   private enemyKeys: string[] = [];
+  private setKey = '3';
+  private phase: Phase = 'choose';
+  private view!: HudView;
   private acc = 0;
 
   constructor() {
@@ -129,16 +174,45 @@ export class StageScene extends Phaser.Scene {
     return this.enemyKeys;
   }
 
+  /** The enemy group in use ("3", "boss"...). */
+  get enemySet(): string {
+    return this.setKey;
+  }
+
+  /** The moment of the example turn shown. */
+  get currentPhase(): Phase {
+    return this.phase;
+  }
+
+  /** What the HUD is showing now. */
+  get currentView(): HudView {
+    return this.view;
+  }
+
+  /** The HUD (its containers are reachable for tests and tools). */
+  get hudObjects(): Hud | null {
+    return this.hud;
+  }
+
+  /** The stage picture's texture key. */
+  get pictureKey(): string {
+    return this.pic.key;
+  }
+
   /** Phaser calls this first, with whatever was passed to `scene.add(..., data)`. */
   init(data: StageInit): void {
     // A restarted scene is the same object again: forget the last run's objects (Phaser has destroyed their sprites).
     this.fighters.length = 0;
-    this.layers = null;
+    this.picture = null;
     this.guide = null;
+    this.fx = null;
+    this.hud = null;
     this.frame = 0;
     this.acc = 0;
     this.init0 = data;
     this.stage = stageOf(data.stages, data.stageId);
+    this.setKey = data.setKey ?? '3';
+    this.phase = data.phase ?? 'choose';
   }
 
   /** Queue the downloads; Phaser holds `create` until they have all arrived. */
@@ -156,6 +230,7 @@ export class StageScene extends Phaser.Scene {
       this.build();
     } catch (e) {
       // A failure here would otherwise leave a black canvas and one line in the console.
+      if (e instanceof Error && e.stack) console.error(e.stack);
       this.init0.onError(e instanceof Error ? e.message : String(e));
       throw e;
     }
@@ -163,104 +238,98 @@ export class StageScene extends Phaser.Scene {
 
   private build(): void {
     if (this.init0.standIns) addStandInSheets(this.textures, this.init0.metas);
-    this.anchors = registerCrew(this.textures, this.anims, this.init0.metas, Object.keys(this.init0.metas));
-    this.rowTintsApplied = this.game.renderer.type === Phaser.WEBGL;
+    this.crew = registerCrew(this.textures, this.anims, this.init0.metas, Object.keys(this.init0.metas), this.init0.standIns);
 
-    this.buildBackdrop();
+    this.hud = new Hud(this, this.faces());
+    this.buildPicture();
     this.guide = this.add.graphics().setDepth(GUIDE_DEPTH).setVisible(this.editMode);
     this.drawGuide();
-    this.setParty(this.stage.lineup);
-    this.setEnemies(this.init0.enemies ?? this.stage.fight);
+    this.makeParty();
+    this.makeEnemies(this.stage.demo.rosters[this.setKey] ?? [], this.setKey);
+    this.refresh();
 
     // Edit mode: one scene-wide listener hears every drag (it is only fired for objects made draggable).
     this.input.on('drag', (_pointer: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject, dragX: number, dragY: number) => {
       const f = this.fighters.find((x) => x.sprite === obj);
-      if (f) this.place(f, snapSlot(this.stage, f.side, dragX, dragY));
+      if (f) {
+        this.place(f, snapSlot(this.stage, f.side, dragX, dragY));
+        // The labels that follow a figure (the acting hero's name tab, the target's) move with it.
+        this.hud?.render(this.stage, this.view, this.geo());
+      }
     });
     this.setEditMode(this.editMode);
   }
 
-  // ---------------------------------------------------------------- backdrop
+  // ---------------------------------------------------------------- picture
 
-  /** (Re)make the backdrop pictures for `stage.backdrop`, positioned for `stage.horizon`. */
-  private buildBackdrop(): void {
-    if (this.layers) {
-      for (const o of [this.layers.wall, this.layers.wallTop, this.layers.floor, this.layers.floorBottom, this.layers.front]) o?.destroy();
-    }
-    this.backdrop = addBackdrop(this.textures, this.stage.backdrop);
-    const b = this.backdrop.back;
-    this.layers = {
-      // The wall hangs from the horizon line (origin = its bottom-left) and the floor starts on it (origin = its top-left).
-      wall: this.add.image(0, 0, b, 'wall').setOrigin(0, 1).setDepth(BACKDROP_DEPTH),
-      wallTop: this.add.image(0, 0, b, 'wallTop').setOrigin(0, 0).setDepth(BACKDROP_DEPTH),
-      floor: this.add.image(0, 0, b, 'floor').setOrigin(0, 0).setDepth(BACKDROP_DEPTH),
-      floorBottom: this.add.image(0, 0, b, 'floorBottom').setOrigin(0, 0).setDepth(BACKDROP_DEPTH),
-      // Rails and cables in the corners, in front of everyone.
-      front: this.backdrop.front ? this.add.image(0, 0, this.backdrop.front).setOrigin(0, 0).setDepth(FOREGROUND_DEPTH) : null,
-    };
-    this.layoutBackdrop();
+  /** (Re)make the stage picture (wall and painted floor) for the current config. */
+  private buildPicture(): void {
+    this.pic = bakeStage(this.textures, this.stage);
+    if (this.picture) this.picture.setTexture(this.pic.key);
+    else this.picture = this.add.image(0, 0, this.pic.key).setOrigin(0, 0).setDepth(BACKDROP_DEPTH);
   }
 
-  /**
-   * Put the wall and floor where `stage.horizon` says. The baked picture has its wall/floor line at
-   * `artHorizon`; moving the horizon slides the wall and floor with it and stretches the picture's top or
-   * bottom pixel row over whatever gap that opens, so dragging the horizon always leaves a complete
-   * backdrop. (Whole pixels only: the strips are scaled by whole numbers.)
-   */
-  private layoutBackdrop(): void {
-    const l = this.layers;
-    if (!l) return;
-    const h = this.stage.horizon;
-    const art = this.backdrop.artHorizon;
-    l.wall.setPosition(0, h);
-    l.floor.setPosition(0, h);
-    const topGap = Math.max(0, h - art);
-    l.wallTop.setVisible(topGap > 0).setPosition(0, 0).setDisplaySize(SCREEN_W, Math.max(1, topGap));
-    const bottomGap = Math.max(0, art - h);
-    l.floorBottom.setVisible(bottomGap > 0).setPosition(0, SCREEN_H - bottomGap).setDisplaySize(SCREEN_W, Math.max(1, bottomGap));
-  }
-
-  /** The edit-mode guide: the horizon, the floor band and the depth rows as thin lines (hidden outside edit mode). */
+  /** The edit-mode guide: the horizon, the floor's edges and the depth rows as thin lines (hidden outside edit mode). */
   private drawGuide(): void {
     const g = this.guide;
     if (!g) return;
-    const { horizon, floor, rows } = this.stage;
+    const { rows, floor, backdrop } = this.stage;
     g.clear();
     const line = (y: number, colour: number, alpha: number): void => {
       g.fillStyle(colour, alpha).fillRect(0, y, SCREEN_W, 1);
     };
     for (const r of rows) line(r.y, 0xffffff, 0.18);
-    line(floor.top, 0xffd35a, 0.7);
-    line(floor.bottom - 1, 0xffd35a, 0.7);
-    line(horizon, 0x5ae8ff, 0.85);
+    // (The floor's top is the horizon, drawn below in cyan.)
+    line(floor.y1 - 1, 0xffd35a, 0.7);
+    line(backdrop.horizonY, 0x5ae8ff, 0.85);
   }
 
   // ---------------------------------------------------------------- fighters
 
-  /** Replace the party with these crew ids, one per party slot, back to front. */
-  setParty(ids: readonly string[]): void {
+  /** Face pictures for the HUD chips, cut from the sprites on the stage. */
+  private faces(): HudFaces {
+    const of = (side: Fighter['side'], index: number): Fighter => {
+      const f = this.fighters.filter((x) => x.side === side)[index];
+      if (!f) throw new Error(`No ${side} fighter ${index} to cut a face from`);
+      return f;
+    };
+    return {
+      party: (i, size) => {
+        const f = of('party', i);
+        return faceTexture(this.textures, f.faceName, f.fig, size);
+      },
+      foe: (i, size) => {
+        const f = of('enemy', i);
+        return faceTexture(this.textures, f.faceName, f.fig, size);
+      },
+    };
+  }
+
+  /** Build the four heroes from the stage's lineup, in the party slots. */
+  private makeParty(): void {
     this.removeSide('party');
-    this.lineup = [...ids];
-    ids.forEach((id, i) => {
+    this.stage.demo.lineup.forEach((id, i) => {
       const slot = this.stage.party[i];
       const meta = this.init0.metas[id];
-      const anchor = this.anchors[id];
-      if (!slot || !meta || !anchor) throw new Error(`No slot, sheet or feet for ${id}`);
+      const info = this.crew[id];
+      if (!slot || !meta || !info) throw new Error(`No slot, sheet or feet for ${id}`);
       // Start the loops on different frames so the four do not bounce in unison.
       const sheet: SheetPlay = { fps: meta.fps, count: meta.frame_count, phase: (i * 3) % meta.frame_count };
       // Origin = the feet as a fraction of the picture, so the sprite's position is where they stand.
-      const sprite = this.add.sprite(0, 0, sheetKey(id), idleFrame(this.frame, sheet.fps, sheet.count, sheet.phase)).setOrigin(anchor.x / meta.frame_w, anchor.y / meta.frame_h);
-      const f = this.makeFighter(id, 'party', sprite, slot, 'still', i);
+      const sprite = this.add.sprite(0, 0, sheetKey(id), idleFrame(this.frame, sheet.fps, sheet.count, sheet.phase)).setOrigin(info.foot.x / meta.frame_w, info.foot.y / meta.frame_h);
+      const f = this.makeFighter(id, 'party', MEMBERS[id as MemberId]?.name ?? id, false, sprite, slot, 'still', i, sheetKey(id), info.fig, id);
       f.sheet = sheet;
       this.place(f, slot);
     });
   }
 
-  /** Replace the enemies with these (keys of `ENEMIES`, 1 to 4), standing in the slot set for that many. */
-  setEnemies(keys: readonly string[]): void {
+  /** Build the enemies from these keys of `ENEMIES`, in the slots of set `setKey`. */
+  private makeEnemies(keys: readonly string[], setKey: string): void {
     this.removeSide('enemy');
     this.enemyKeys = [...keys];
-    const slots = enemySlots(this.stage, keys.length);
+    this.setKey = setKey;
+    const slots = enemySlots(this.stage, setKey);
+    if (slots.length !== keys.length) throw new Error(`The set "${setKey}" has ${slots.length} slots but ${keys.length} enemies were given`);
     const copies = new Map<string, number>();
     keys.forEach((key, i) => {
       const def = ENEMIES[key];
@@ -269,32 +338,36 @@ export class StageScene extends Phaser.Scene {
       // A second punk is a different individual, not the same sprite twice.
       const copy = copies.get(def.sprite) ?? 0;
       copies.set(def.sprite, copy + 1);
-      const tex = addEnemy(this.textures, def.sprite, copy, this.backdrop);
-      // Origin bottom-centre: the art is drawn with its feet on the canvas's bottom edge. Rounded to a whole pixel
-      // column (an 85-pixel-wide picture has its middle at 42.5, half a pixel off the grid) so the sprite never sits between pixels.
-      const sprite = this.add.sprite(0, 0, tex.key).setOrigin(Math.round(tex.width / 2) / tex.width, 1);
-      const f = this.makeFighter(`${key}#${i}`, 'enemy', sprite, slot, tex.idle, i);
-      f.art = { spriteKey: def.sprite, naturalScale: tex.naturalScale, shadow: tex.shadow };
+      const tex = addEnemy(this.textures, def.sprite, copy);
+      // Origin = the feet, found from the art's pixels (a creature's feet are not the middle of its canvas).
+      const sprite = this.add.sprite(0, 0, tex.key).setOrigin(tex.fig.foot.x / tex.width, tex.fig.foot.y / tex.height);
+      const f = this.makeFighter(`${key}#${i}`, 'enemy', def.name, slot.size === 'boss' || !!def.boss, sprite, slot, tex.idle, i, tex.key, tex.fig, `${def.sprite}-${copy}`);
       this.place(f, slot);
     });
   }
 
-  /** Destroy one side's fighters (sprites and shadows) so a replacement does not leave stray objects behind. */
+  /** Destroy one side's fighters (every part) so a replacement does not leave stray objects behind. */
   private removeSide(side: Fighter['side']): void {
     for (let i = this.fighters.length - 1; i >= 0; i--) {
       const f = this.fighters[i];
       if (f?.side !== side) continue;
-      f.sprite.destroy();
-      f.shadow.destroy();
+      for (const part of [f.sprite, f.shadow, f.ring, f.home, f.bar]) part?.destroy();
       this.fighters.splice(i, 1);
     }
   }
 
-  private makeFighter(id: string, side: Fighter['side'], sprite: Phaser.GameObjects.Sprite, slot: Slot, idle: IdleKind, uid: number): Fighter {
-    const shadow = this.add.image(0, 0, addShadow(this.textures, 8, 3));
+  private makeFighter(id: string, side: Fighter['side'], name: string, boss: boolean, sprite: Phaser.GameObjects.Sprite, slot: PartySlot, idle: IdleKind, uid: number, baseTex: string, fig: FigureArt, faceName: string): Fighter {
+    const stub = this.stage.shadow;
+    const shadow = this.add.image(0, 0, shadowTexture(this.textures, 16, stub)).setVisible(false);
+    const ring = this.add.image(0, 0, ringTexture(this.textures, 24, '#3fe0f0')).setVisible(false);
+    const home = this.add.image(0, 0, ringTexture(this.textures, 24, '#3fe0f0', true)).setVisible(false);
+    const bar = side === 'enemy' && this.stage.hud.enemyInfo.barsOnStage ? this.add.graphics() : null;
     // A tag an edit mode can read back from whatever the pointer picks (`setData`/`getData` hang small values on any game object).
     sprite.setData('fighterId', id);
-    const f: Fighter = { id, side, sprite, shadow, slot, idle, uid, baseX: 0, baseY: 0 };
+    const f: Fighter = {
+      id, side, name, boss, sprite, shadow, ring, home, bar, slot, baseX: 0, baseY: 0, x: 0, y: 0, bodyDx: 0, sortY: 0, idle, uid, baseTex, fig, faceName, shadowW: 0,
+      active: false, target: false, flash: false, depth: 0,
+    };
     // Party first in the list, then enemies: keep that order whichever side is rebuilt.
     if (side === 'party') this.fighters.splice(this.fighters.filter((x) => x.side === 'party').length, 0, f);
     else this.fighters.push(f);
@@ -315,73 +388,246 @@ export class StageScene extends Phaser.Scene {
     this.guide?.setVisible(on);
   }
 
+  // ---------------------------------------------------------------- changing what is shown
+
   /**
-   * Re-lay everything out from a changed stage config: the call an editor makes after changing it.
-   * Rebuilds only what a change needs: a new backdrop (its enemy pictures are washed with its light, so they
-   * are remade too), a new party order, another set of enemies; otherwise everything just moves.
+   * Re-lay everything out from a changed stage config: the call an editor makes after changing it. Rebuilds
+   * only what a change needs: a changed floor or backdrop repaints the picture, a different stage swaps its
+   * party and enemy group; otherwise everything just moves.
    */
   applyStage(stage: StageConfig): void {
     const before = this.stage;
     this.stage = stage;
-    if (stage.backdrop !== before.backdrop) {
-      this.buildBackdrop();
-      this.setEnemies(this.enemyKeys);
-    } else this.layoutBackdrop();
-    if (stage.lineup.join() !== this.lineup.join()) this.setParty(stage.lineup);
-    // Slots changed? Move everyone to the config's slots (a different head-count is `setEnemies`' job).
-    const enemySet = enemySlots(stage, this.enemyKeys.length);
-    let p = 0;
-    let e = 0;
-    for (const f of this.fighters) this.place(f, (f.side === 'party' ? stage.party[p++] : enemySet[e++]) ?? f.slot);
+    const repaint = stagePictureKey(stage) !== this.pic.key;
+    if (repaint) this.buildPicture();
+    const newKeys = stage.id !== before.id;
+    if (stage.demo.lineup.join() !== before.demo.lineup.join() || newKeys) this.makeParty();
+    if (newKeys) this.makeEnemies(stage.demo.rosters[this.setKey] ?? this.enemyKeys, this.setKey);
+    else {
+      // Slots changed? Move everyone to the config's slots.
+      const set = enemySlots(stage, this.setKey);
+      let p = 0;
+      let e = 0;
+      for (const f of this.fighters) this.place(f, (f.side === 'party' ? stage.party[p++] : set[e++]) ?? f.slot);
+    }
     this.drawGuide();
+    this.refresh();
+  }
+
+  /** Show another stage of the file by id ("street", "sewer"). */
+  showStage(id: string): void {
+    this.applyStage(stageOf(this.init0.stages, id));
+  }
+
+  /** Show another enemy group of this stage ("1" to "6", "boss", "boss+1", "boss+2") with the stage's own roster for it. */
+  setEnemySet(key: string): void {
+    const roster = this.stage.demo.rosters[key];
+    if (!roster) throw new Error(`Stage "${this.stage.id}" has no roster for "${key}"`);
+    this.makeEnemies(roster, key);
+    this.refresh();
+  }
+
+  /** Replace the enemies with these (keys of `ENEMIES`), standing in the slot set for that many (the boss set when the first is a boss). */
+  setEnemies(keys: readonly string[], setKey?: string): void {
+    this.makeEnemies(keys, setKey ?? setKeyFor(keys.length, !!ENEMIES[keys[0] ?? '']?.boss));
+    this.refresh();
+  }
+
+  /** Show another moment of the example turn: "choose" (the menu is open), "target" (picking whom to hit) or "act" (an action plays). */
+  setPhase(phase: Phase): void {
+    this.phase = phase;
+    this.refresh();
   }
 
   /** The stage config as it stands now, with the fighters' current slots written back (what a Save would store). */
   currentStage(): StageConfig {
     const out = JSON.parse(JSON.stringify(this.stage)) as StageConfig;
     out.party = this.fighters.filter((f) => f.side === 'party').map((f) => ({ ...f.slot }));
-    out.enemies[String(this.enemyKeys.length)] = this.fighters.filter((f) => f.side === 'enemy').map((f) => ({ ...f.slot }));
+    const original = this.stage.enemySets[this.setKey] ?? [];
+    out.enemySets[this.setKey] = this.fighters
+      .filter((f) => f.side === 'enemy')
+      .map((f, i) => {
+        const size = original[i]?.size;
+        return size ? { ...f.slot, size } : { ...f.slot };
+      });
     return out;
   }
 
-  /** Put one fighter in a slot: position, depth, row tint, size and shadow all follow from the config. */
-  place(f: Fighter, slot: Slot): void {
+  /** Put one fighter in a slot: position, depth, haze, size and shadow all follow from the config. */
+  place(f: Fighter, slot: PartySlot): void {
     f.slot = slot;
-    // `slotPoint` keeps the feet inside the floor band, so nothing stands on the wall or off the bottom of the screen.
+    // `slotPoint` keeps the feet inside the floor, so nothing stands on the wall or off the bottom of the screen.
     const p = slotPoint(this.stage, slot);
     f.baseX = p.x;
     f.baseY = p.y;
-    f.sprite.setPosition(p.x, p.y).setDepth(depthFor(p.y, p.x));
-    // Row tint is a multiply tint, which Phaser only draws in WebGL (`rowTintsApplied` says whether it does here).
-    const tint = rowTint(this.stage, slot.row);
-    if (tint === 0xffffff) f.sprite.clearTint();
-    else f.sprite.setTint(tint);
-
-    // An enemy's size comes from the stage: `enemyScale` screen pixels per art pixel, else the art's own.
-    let shadowWidth = this.stage.shadow.width;
-    if (f.art) {
-      const scale = enemyScaleFor(this.stage, f.art.spriteKey, f.art.naturalScale);
-      f.sprite.setScale(scale);
-      // The art's shadow was sized for its natural scale; keep it in proportion if the sprite is drawn bigger or smaller.
-      shadowWidth = enemyShadowWidth(this.stage, (f.art.shadow * scale) / f.art.naturalScale);
-    }
-    // The shadow sits just beneath its own fighter in the draw order, so a nearer fighter covers it.
-    if (shadowWidth <= 0) f.shadow.setVisible(false);
-    else {
-      const h = Math.max(2, Math.round(shadowWidth * this.stage.shadow.ratio));
-      f.shadow
-        .setTexture(addShadow(this.textures, shadowWidth, h))
-        .setVisible(true)
-        .setPosition(p.x, p.y)
-        .setAlpha(this.stage.shadow.alpha)
-        .setDepth(depthFor(p.y, p.x) - 0.5);
-    }
-    this.releaseShadows();
+    f.x = p.x;
+    f.y = p.y;
+    f.sortY = p.y;
+    f.bodyDx = 0;
+    this.restyle(f);
   }
 
-  /** Drop the shadow textures no fighter shows any more (a size slider would otherwise leave one behind per step). */
-  private releaseShadows(): void {
-    pruneShadows(this.textures, new Set(this.fighters.map((f) => f.shadow.texture.key)));
+  /**
+   * Rebuild the view for the current stage, enemy group and phase and apply it to everyone: who is active or
+   * aimed at, the health bars, the lunge and flash of an action that plays, then the HUD.
+   */
+  refresh(): void {
+    if (!this.hud) return;
+    this.view = buildHudView(this.stage.demo, this.setKey, this.phase, this.enemyKeys);
+    const v = this.view;
+    const party = this.fighters.filter((f) => f.side === 'party');
+    const foes = this.fighters.filter((f) => f.side === 'enemy');
+    for (const f of this.fighters) {
+      f.x = f.baseX;
+      f.y = f.baseY;
+      f.sortY = f.baseY;
+      f.bodyDx = 0;
+      f.active = false;
+      f.target = false;
+      f.flash = false;
+    }
+    const hero = party[v.active];
+    if (hero) hero.active = true;
+    const aimed = v.target === null ? undefined : foes[v.target];
+    if (aimed) aimed.target = true;
+
+    let fxImage: string | null = null;
+    if (v.phase === 'act' && v.act && hero && aimed) {
+      const act = v.act;
+      const homeX = hero.baseX;
+      const homeY = hero.baseY;
+      // The attacker arrives at the target's feet row, just left of it, so the weapon or fist meets its body.
+      const targetLeft = aimed.baseX + (aimed.fig.box.x0 - aimed.fig.foot.x);
+      const heroRight = hero.fig.box.x1 + 1 - hero.fig.foot.x;
+      hero.x = targetLeft - heroRight + this.stage.demo.act.reach + 4;
+      hero.y = aimed.baseY;
+      // While in contact the attacker borrows the target's feet row plus a pixel, so its body draws over the target's.
+      hero.sortY = aimed.baseY + this.stage.sort.lungeOverTarget;
+      aimed.flash = true;
+      aimed.bodyDx = 3; // a 3 px knockback of the body (its shadow stays put)
+
+      const layer = newFxLayer(SCREEN_W, SCREEN_H);
+      drawPath(layer, { x: homeX, y: homeY }, { x: hero.x, y: hero.y });
+      const g = this.geoOf(aimed);
+      if (act.fx === 'cut') {
+        const cx = aimed.baseX;
+        const cy = aimed.baseY - Math.floor((aimed.fig.box.y1 - aimed.fig.box.y0 + 1) / 2);
+        drawCut(layer, { x: cx - 30, y: cy - 26 }, { x: cx + 26, y: cy + 22 }, 4.0, { x: 6, y: -8 });
+        drawCut(layer, { x: cx - 20, y: cy - 30 }, { x: cx + 32, y: cy + 4 }, 2.4, { x: 4, y: -6 });
+        drawSparks(layer, cx, cy);
+      } else drawPalm(layer, g.left + 6, aimed.baseY - Math.floor((aimed.fig.box.y1 - aimed.fig.box.y0 + 1) / 2) + 4);
+      fxImage = effectsTexture(this.textures, layer);
+    }
+    for (const f of this.fighters) this.restyle(f);
+    this.applyFx(fxImage, hero);
+    // Only the current action's effects picture is kept.
+    pruneTextures(this.textures, PREFIX.fx, new Set(fxImage ? [fxImage] : []));
+
+    // The home marker: a dotted ring where the attacker started.
+    for (const f of this.fighters) f.home.setVisible(false);
+    if (v.phase === 'act' && hero && (hero.x !== hero.baseX || hero.y !== hero.baseY)) {
+      hero.home
+        .setTexture(ringTexture(this.textures, hero.shadowW + (this.stage.shadow.activeRing?.extraW ?? 6), this.stage.shadow.activeRing?.color ?? '#3fe0f0', true))
+        .setPosition(hero.baseX, hero.baseY + 1)
+        .setDepth(partDepth(hero.depth, 'ring'))
+        .setVisible(true);
+    }
+    this.hud.render(this.stage, v, this.geo());
+    pruneTextures(this.textures, PREFIX.shadow, new Set(this.fighters.map((f) => f.shadow.texture.key)));
+    pruneTextures(this.textures, PREFIX.ring, new Set(this.fighters.flatMap((f) => [f.ring.texture.key, f.home.texture.key])));
+  }
+
+  /** The effects picture of an action in progress, as part of the attacker's figure (it sorts with it: just over its body). */
+  private applyFx(key: string | null, owner: Fighter | undefined): void {
+    if (!key || !owner) {
+      this.fx?.destroy();
+      this.fx = null;
+      return;
+    }
+    if (this.fx) this.fx.setTexture(key);
+    else this.fx = this.add.image(0, 0, key).setOrigin(0, 0);
+    this.fx.setDepth(partDepth(owner.depth, 'smear'));
+  }
+
+  /** Where a figure is on the screen now (its edges include the body's knockback), for the labels placed relative to it. */
+  private geoOf(f: Fighter): HudGeo['party'][number] {
+    const b = f.fig.box;
+    const dx = f.bodyDx;
+    return { x: f.x, y: f.y, top: f.y + 1 - (f.fig.foot.y - b.y0), left: f.x + dx + (b.x0 - f.fig.foot.x), right: f.x + dx + (b.x1 + 1 - f.fig.foot.x), boss: f.boss };
+  }
+
+  private geo(): HudGeo {
+    return { party: this.fighters.filter((f) => f.side === 'party').map((f) => this.geoOf(f)), foes: this.fighters.filter((f) => f.side === 'enemy').map((f) => this.geoOf(f)) };
+  }
+
+  /** Every figure's size on screen, for the design's checks that need it (the lane between the sides, the edges...). */
+  figureBoxes(): FigureBox[] {
+    return this.fighters.map((f) => {
+      const g = this.geoOf(f);
+      return { x: f.baseX, y: f.baseY, left: g.left, right: g.right, top: g.top, boss: f.boss, side: f.side };
+    });
+  }
+
+  /**
+   * Everything about one figure that follows from its state: which picture (hazed by depth, or the white flash),
+   * where each part sits and what depth number it draws at, the shadow and ring sizes, the health bar.
+   */
+  private restyle(f: Fighter): void {
+    const st = this.stage;
+    // The picture: a hit flash, else the depth haze for this row (the acting hero and the target are exempt), else as drawn.
+    let tex = f.baseTex;
+    if (f.flash) tex = flashTexture(this.textures, f.baseTex);
+    else if (st.depthTint) {
+      const amount = st.depthTint.exemptActive && (f.active || f.target) ? 0 : (st.depthTint.amounts[f.slot.row] ?? 0);
+      tex = hazedTexture(this.textures, f.baseTex, st.depthTint.fog, amount);
+    }
+    if (f.sprite.texture.key !== tex) {
+      if (f.sheet) f.sprite.setTexture(tex, f.sprite.frame.name);
+      else f.sprite.setTexture(tex);
+    }
+
+    // The draw order: every part of the figure shares one number (plus its own fraction), so the whole figure sorts as one unit.
+    f.depth = depthFor(f.sortY, f.x, f.side);
+    f.sprite.setPosition(f.x + f.bodyDx, f.y + 1).setDepth(f.depth);
+
+    // The contact shadow: a flat oval on the floor under the feet (it stays at floor height and follows only x and depth).
+    const sprW = f.fig.box.x1 + 1 - f.fig.box.x0;
+    f.shadowW = shadowWidth(st, sprW, f.boss);
+    if (f.shadowW <= 0) f.shadow.setVisible(false);
+    else {
+      f.shadow.setTexture(shadowTexture(this.textures, f.shadowW, st.shadow)).setVisible(true).setPosition(f.x, f.y + 1).setDepth(partDepth(f.depth, 'shadow'));
+    }
+
+    // The ring under the acting hero (cyan) and the target (amber).
+    f.ring.setDepth(partDepth(f.depth, 'ring'));
+    const ringSpec = f.active ? st.shadow.activeRing : f.target ? { color: '#ffcc3d', extraW: st.shadow.activeRing?.extraW ?? 6 } : null;
+    if (ringSpec && f.shadowW > 0) f.ring.setTexture(ringTexture(this.textures, f.shadowW + ringSpec.extraW, ringSpec.color)).setVisible(true).setPosition(f.x, f.y + 1).setDepth(partDepth(f.depth, 'ring'));
+    else f.ring.setVisible(false);
+
+    // The health bar, drawn with its owner: under the shadow, in the sort (a nearer fighter's body covers it).
+    this.drawBar(f);
+  }
+
+  private drawBar(f: Fighter): void {
+    const spec = this.stage.hud.enemyInfo.barsOnStage;
+    if (!f.bar || !spec) return;
+    const foe = this.view?.foes[this.fighters.filter((x) => x.side === 'enemy').indexOf(f)];
+    f.bar.clear();
+    if (!foe) return;
+    const w = f.boss ? 64 : spec.w;
+    const h = f.boss ? 3 : spec.h;
+    const shadowH = f.shadowW > 0 ? shadowHeight(this.stage, f.shadowW) : 0;
+    const by = 1 + Math.floor(shadowH / 2) + spec.gapBelowShadow;
+    const ratio = Math.max(0, Math.min(1, foe.hp / foe.maxHp));
+    const colour = ratio > 0.5 ? 0x62e06a : ratio > 0.25 ? 0xffcc3d : 0xff5a5a;
+    const fw = Math.round(w * ratio);
+    f.bar.fillStyle(0x07060d, 1).fillRect(-Math.floor(w / 2) - 1, by - 1, w + 2, h + 2);
+    f.bar.fillStyle(0x241f3a, 1).fillRect(-Math.floor(w / 2), by, w, h);
+    if (fw > 0) {
+      f.bar.fillStyle(colour, 1).fillRect(-Math.floor(w / 2), by, fw, h);
+      f.bar.fillStyle(0xffffff, 0.45).fillRect(-Math.floor(w / 2), by, fw, 1);
+    }
+    f.bar.setPosition(f.x, f.y).setDepth(partDepth(f.depth, 'bar'));
   }
 
   // ---------------------------------------------------------------- time
@@ -414,7 +660,7 @@ export class StageScene extends Phaser.Scene {
       if (f.sheet) f.sprite.setFrame(idleFrame(this.frame, f.sheet.fps, f.sheet.count, f.sheet.phase));
       else {
         const o = enemyIdle(f.idle, this.frame, f.uid);
-        f.sprite.setPosition(f.baseX + o.x, f.baseY + o.y);
+        f.sprite.setPosition(f.x + f.bodyDx + o.x, f.y + 1 + o.y);
       }
     }
   }

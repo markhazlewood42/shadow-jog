@@ -21,7 +21,7 @@ export const DEV_TOOLS: { group: string; tools: DevTool[] }[] = [
       { name: 'FX lab (particle effects editor)', path: '/?scene=fxlab', about: 'Tune particle presets and what plays at each battle moment; Save writes src/data/fx.json', print: true },
       { name: 'Animation editor', path: '/rigedit.html', about: 'Pose the crew’s battle arms on their skeletons; ask Claude to fix a pose', print: true },
       { name: 'Art review', path: '/artreview.html', about: 'Every version of the code-drawn art side by side; flag frames, leave notes', print: true },
-      { name: 'Stage lab (Phaser spike)', path: '/stagelab.html', about: 'Spike: the side-view battle stage built in Phaser 4 from src/data/stages.json; crew on depth rows (needs the spritefusion-tests link)', print: true },
+      { name: 'Stage lab (Phaser spike)', path: '/stagelab.html', about: 'Spike: the side-view battle stage in Phaser 4 from src/data/stages.json: street and sewer, painted floor, depth rows, HUD; pick the stage, enemy group and moment of the turn (the crew need the spritefusion-tests link, else stand-ins)', print: true },
     ],
   },
   {

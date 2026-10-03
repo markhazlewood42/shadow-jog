@@ -26,10 +26,13 @@ describe('footAnchor (where a sprite stands inside its picture)', () => {
     expect(footAnchor([down, up])).toEqual({ x: 8, y: 16 });
   });
 
-  it('is not fooled by a trailing blade or coat on the lowest rows (it follows the heavy group, the boots)', () => {
-    // Legs at columns 6..9 and a long trailing blade tip on the very last row, 20 columns away.
+  it('uses the span of the lowest six rows: a stance’s centre of balance is where it stands (a trailing blade pulls it, which an idle loop does not have)', () => {
+    // Legs at columns 6..9 and a trailing tip on the very last row, 20 columns away: the span is 6..38, its middle 22.
     const f = frame(40, 20, [[2, 2, 9, 9], [6, 10, 9, 19], [30, 19, 38, 19]]);
-    expect(footAnchor([f])).toEqual({ x: 8, y: 20 });
+    expect(footAnchor([f])).toEqual({ x: 22, y: 20 });
+    // A leaning stance (boots to one side of the body, like Kit's trailing foot): the middle of the boots' span, not of the heavier boot.
+    const lean = frame(40, 20, [[4, 2, 13, 9], [4, 10, 7, 19], [14, 17, 21, 19]]);
+    expect(footAnchor([lean])).toEqual({ x: 13, y: 20 });
   });
 
   it('skips empty frames and refuses a loop with nothing in it', () => {
