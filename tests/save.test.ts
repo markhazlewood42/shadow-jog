@@ -18,7 +18,7 @@ class MemStorage {
 }
 (globalThis as unknown as { localStorage: MemStorage }).localStorage = new MemStorage();
 
-const { hasAnySave, latestSlot, loadSave, readMeta, slotStatus, unsavedFrames, validState, writeSave, applySave } = await import('../src/game/save');
+const { hasAnySave, latestSlot, loadSave, MIGRATIONS, readMeta, savedByVersion, slotStatus, unsavedFrames, validState, writeSave, applySave } = await import('../src/game/save');
 const { addMember, knownAbilities, memberStats } = await import('../src/game/party');
 const { ABILITIES } = await import('../src/data/abilities');
 type GameState = import('../src/game/state').GameState;
@@ -384,5 +384,78 @@ describe('a save from a shipped build keeps loading', () => {
     expect(rook.uses.suppress).toBe((ABILITIES.suppress!.uses ?? 1) - 1);
     expect(rook.hp).toBeLessThanOrEqual(memberStats(rook).maxHp);
     expect(knownAbilities(stateMod.state.members.hex!)).toContain('overload');
+  });
+});
+
+describe('saves record the build that wrote them', () => {
+  const ls = () => (globalThis as unknown as { localStorage: MemStorage }).localStorage;
+
+  it('writeSave puts the game version in meta.appVersion', async () => {
+    const { APP_VERSION } = await import('../src/version');
+    writeSave(1, 100);
+    expect(readMeta(1)!.appVersion).toBe(APP_VERSION);
+    expect(savedByVersion(1)).toBe(APP_VERSION);
+  });
+
+  it('an older save with no appVersion still loads, and its writer is simply unknown', () => {
+    writeSave(1, 100);
+    const raw = JSON.parse(ls().getItem('shadowjog.save.1')!);
+    delete raw.meta.appVersion; // what every save written before 0.2.0 looks like
+    ls().setItem('shadowjog.save.1', JSON.stringify(raw));
+    expect(readMeta(1)).not.toBeNull();
+    expect(slotStatus(1)).toBe('ok');
+    expect(loadSave(1)).not.toBeNull();
+    expect(savedByVersion(1)).toBeNull();
+  });
+
+  it('the appVersion is additive: no SAVE_VERSION bump and no migration were needed for it', () => {
+    expect(stateMod.SAVE_VERSION).toBe(3);
+    expect(Object.keys(MIGRATIONS).map(Number).sort()).toEqual([1, 2]);
+  });
+
+  it('a save from a newer save format is "newer", not "damaged", and is not loaded', () => {
+    writeSave(1, 100);
+    writeSave(2, 100);
+    const raw = JSON.parse(ls().getItem('shadowjog.save.2')!);
+    raw.state.version = 4;
+    raw.meta.appVersion = '0.9.0';
+    raw.meta.when += 1000; // the newest save
+    ls().setItem('shadowjog.save.2', JSON.stringify(raw));
+    expect(slotStatus(2)).toBe('newer');
+    expect(loadSave(2)).toBeNull();
+    expect(savedByVersion(2)).toBe('0.9.0');
+    expect(slotStatus(1)).toBe('ok');
+    // Continue skips it to the newest loadable save; Load Game still offers the slot.
+    expect(latestSlot()).toBe(2);
+    expect(latestSlot(true)).toBe(1);
+    expect(hasAnySave()).toBe(true);
+  });
+
+  it('a newer save is still "newer" when its header has been reshaped too', () => {
+    ls().setItem('shadowjog.save.3', JSON.stringify({ meta: { when: 'later' }, state: { version: 7 } }));
+    expect(slotStatus(3)).toBe('newer');
+    expect(savedByVersion(3)).toBeNull();
+  });
+
+  it('a version string with odd characters is not shown (the font could not draw it)', () => {
+    writeSave(1, 100);
+    const raw = JSON.parse(ls().getItem('shadowjog.save.1')!);
+    raw.meta.appVersion = '<b>é</b>';
+    ls().setItem('shadowjog.save.1', JSON.stringify(raw));
+    expect(savedByVersion(1)).toBeNull();
+  });
+
+  it('every character a version string can hold has a glyph in the bitmap font', async () => {
+    const { hasGlyph } = await import('../src/engine/font');
+    const all = [...'0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.+-() ’—'];
+    expect(all.filter((c) => !hasGlyph(c))).toEqual([]);
+  });
+
+  it('the version-1 fixture still loads under the 0.2 build', async () => {
+    const { readFileSync } = await import('node:fs');
+    ls().setItem('shadowjog.save.1', readFileSync('tests/fixtures/save-v1-annex.json', 'utf8'));
+    expect(slotStatus(1)).toBe('ok');
+    expect(loadSave(1)!.map).toBe('annex');
+    expect(savedByVersion(1)).toBeNull();
   });
 });
