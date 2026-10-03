@@ -614,7 +614,7 @@ function checkDemo(p: Problems, d: unknown, known: Known): void {
  * Everything wrong with a stage file, in plain words (empty when it is fine). `knownBackdrops`, when given, is
  * the list of backdrop ids the art can paint, so a typo is caught before it silently shows the default; `known`
  * does the same for enemy keys and crew ids. This checks that the file is well-formed and can be drawn; whether
- * the LAYOUT follows the design's rules (horizon 92 to 112, row gaps, HUD share...) is `checkLayout`.
+ * the LAYOUT follows the design's rules (horizon 92 to 112, row gaps, HUD share...) is `layoutBreaks` in `rules.ts`.
  */
 export function checkStages(data: unknown, knownBackdrops?: readonly string[], known: Known = {}): string[] {
   if (!isObj(data) || !Object.keys(data).length) return ['stages: needs at least one stage'];
@@ -736,39 +736,10 @@ export function stageOf(file: StageFile, id: string): StageConfig {
   return s;
 }
 
-// ------------------------------------------------------------------ the design's rules (what an editor warns about)
+// ------------------------------------------------------------------ the sizes the design's rules need (the rules themselves are in rules.ts)
 
 /** Where the old street picture's kerb row sits: `shiftY` is `horizonY` minus this. */
 export const ART_KERB_ROW = 132;
-
-/**
- * The design's acceptance rules for a stage's LAYOUT, in plain words (empty when it passes): the horizon sits at
- * 92 to 112, depth rows are 14 to 24 px apart, the HUD's always-on share of the screen is under the limit, the
- * bottom band leaves room above it, and enough floor shows between the HUD bands. These are the checks the
- * design's mockup script printed; an editor shows them as warnings and a unit test runs them over every stage.
- * (The rules that need the sprites' sizes, such as the lane between the sides, are `checkFigures`.)
- */
-export function checkLayout(s: StageConfig): string[] {
-  const out: string[] = [];
-  const hz = s.backdrop.horizonY;
-  if (hz < 92 || hz > 112) out.push(`horizon ${hz} is outside 92 to 112`);
-  if (s.backdrop.mode === 'reproject' && s.backdrop.shiftY !== hz - ART_KERB_ROW) out.push(`shiftY ${s.backdrop.shiftY} should be ${hz - ART_KERB_ROW} so the old picture's kerb lands on the horizon`);
-  const ys = s.rows.map((r) => r.y);
-  const gaps = ys.slice(1).map((y, i) => y - (ys[i] ?? 0));
-  if (gaps.some((g) => g < 14 || g > 24)) out.push(`row gaps ${gaps.join(', ')} are not all 14 to 24`);
-  const h = s.hud;
-  const area = h.turnOrder.w * h.turnOrder.h + h.partyStatus.w * h.partyStatus.h;
-  const share = area / (SCREEN_W * SCREEN_H);
-  if (share > h.limits.maxScreenShare) out.push(`always-on HUD takes ${(share * 100).toFixed(1)}% of the screen (limit ${h.limits.maxScreenShare * 100}%)`);
-  const band = h.partyStatus.y;
-  if (SCREEN_H - band > h.limits.maxBottomBand) out.push(`bottom band is ${SCREEN_H - band} px tall (limit ${h.limits.maxBottomBand})`);
-  const last = Math.max(...ys);
-  // The deepest shadow sits just under the front row's feet (its height is half the oval plus a row of rim).
-  const lowest = last + Math.ceil(s.shadow.maxW / s.shadow.aspect / 2) + 2;
-  if (band - lowest < h.limits.minClearAboveBottom) out.push(`front shadow ends ${band - lowest} px above the bottom band (need ${h.limits.minClearAboveBottom})`);
-  if ((band - s.floor.y0) / SCREEN_H < 0.45) out.push(`only ${(((band - s.floor.y0) / SCREEN_H) * 100).toFixed(1)}% of the screen shows floor between the HUD bands (need 45%)`);
-  return out;
-}
 
 /** A figure's size on screen, for the rules that need it: its feet and the edges of its drawn pixels. */
 export interface FigureBox {
@@ -779,29 +750,6 @@ export interface FigureBox {
   top: number;
   boss: boolean;
   side: 'party' | 'enemy';
-}
-
-/**
- * The design's rules that need the sprites' real sizes (the browser reports the boxes): a lane of at least 55 px
- * between the sides, the nearest enemy no further left than 260, no enemy past 476, and nothing reaching into the
- * top HUD band. Plain words again; empty means it passes.
- */
-export function checkFigures(s: StageConfig, figures: readonly FigureBox[]): string[] {
-  const out: string[] = [];
-  const heroes = figures.filter((f) => f.side === 'party');
-  const foes = figures.filter((f) => f.side === 'enemy');
-  if (heroes.length && foes.length) {
-    const lane = Math.min(...foes.map((f) => f.left)) - Math.max(...heroes.map((f) => f.right));
-    if (lane < 55) out.push(`the lane between the sides is ${lane} px (need 55)`);
-    const nearest = Math.min(...foes.map((f) => f.left));
-    if (nearest < 260) out.push(`the nearest enemy's left edge is ${nearest} (need 260 or more)`);
-    const far = Math.max(...foes.map((f) => f.right));
-    if (far > SCREEN_W - 4) out.push(`an enemy reaches x ${far} (keep it at ${SCREEN_W - 4} or less)`);
-  }
-  const topBand = s.hud.turnOrder.y + s.hud.turnOrder.h;
-  const high = figures.filter((f) => f.top < topBand);
-  if (high.length) out.push(`${high.length} figure(s) reach into the top HUD band (y ${topBand})`);
-  return out;
 }
 
 // ------------------------------------------------------------------ slots and depth

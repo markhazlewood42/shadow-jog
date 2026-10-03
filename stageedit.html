@@ -52,6 +52,21 @@
       .tbrow button.test { background: #12303a; border-color: var(--elbow); }
       .tbrow button.help { width: 26px; padding: 0; border-radius: 50%; font-weight: 700; color: var(--elbow); border-color: var(--elbow); }
       .tbrow .cap[data-tip] { cursor: help; border-bottom: 1px dotted #4a4560; }
+      /* the design-rule warnings chip and its list */
+      .tbrow button.warnchip { border-radius: 12px; height: 24px; padding: 0 11px; color: var(--dim); }
+      .tbrow button.warnchip.has { color: #ffcf6a; border-color: #8a6a1c; background: #2a2210; font-weight: 600; }
+      .tbrow button.warnchip.has:hover:not(:disabled) { border-color: #ffcf6a; }
+      .tbrow button.warnchip.open { box-shadow: 0 0 0 1px #ffcf6a inset; }
+      #warnpop { position: fixed; z-index: 90; width: min(560px, 94vw); max-height: min(70vh, 640px); overflow: auto; padding: 10px 12px; background: var(--panel); border: 1px solid #8a6a1c; border-radius: 10px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55); }
+      #warnpop[hidden] { display: none; }
+      #warnpop h2 { margin: 0 0 4px; font-size: 14px; }
+      #warnpop .wnote { margin: 0 0 8px; color: var(--dim); font-size: 12px; }
+      #warnpop h3 { margin: 10px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--dim); }
+      #warnpop .wi { display: block; width: 100%; text-align: left; background: var(--panel-2); border: 1px solid var(--line); border-left: 3px solid #ff3b3b; border-radius: 6px; padding: 5px 8px; margin: 3px 0; cursor: pointer; line-height: 1.35; }
+      #warnpop .wi:hover { border-color: #ffcf6a; border-left-color: #ff3b3b; }
+      #warnpop .wi b { color: #ffcf6a; font-weight: 600; }
+      #warnpop .wi small { display: block; color: var(--dim); font-size: 11.5px; margin-top: 1px; }
+      #warnpop .wnone { color: var(--good); }
       .seg { display: inline-flex; }
       .seg button { border-radius: 0; margin-left: -1px; padding: 0 8px; }
       .seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
@@ -61,8 +76,16 @@
       .lockchip { background: #3a1a1a !important; border-color: var(--bad) !important; }
 
       /* ---- the three columns */
-      /* The side panels are wide enough that labels do not wrap. At 1600 px wide they are 280 + 360 = 640, which leaves the stage exactly 960 px (2x); at 1920 they are 336 + 432 and the stage keeps 2x with room to spare. */
-      main { display: grid; grid-template-columns: clamp(268px, 17.5vw, 340px) minmax(0, 1fr) clamp(340px, 22.5vw, 440px); min-height: 0; }
+      /* The side panels are wide enough that labels do not wrap. At 1600 px wide they are 280 + 360 = 640, which leaves the stage exactly 960 px (2x); at 1920 they are 336 + 432 and the stage keeps 2x with room to spare.
+         The widths are rounded DOWN to whole pixels (the second line; a browser that does not know round() keeps the first): a panel 268.8 px wide would put the stage on a fraction of a pixel, and pixel art blurs there.
+         On a small screen the left panel can be folded away (the "Left panel" button, or P): the stage then keeps 2x at 1440 px wide. */
+      :root { --left-w: clamp(268px, 17.5vw, 340px); --right-w: clamp(340px, 22.5vw, 440px); }
+      @supports (width: round(down, 10.5px, 1px)) {
+        :root { --left-w: clamp(268px, round(down, 17.5vw, 1px), 340px); --right-w: clamp(340px, round(down, 22.5vw, 1px), 440px); }
+      }
+      main { display: grid; grid-template-columns: var(--left-w) minmax(0, 1fr) var(--right-w); min-height: 0; }
+      body.left-off main { grid-template-columns: minmax(0, 1fr) var(--right-w); }
+      body.left-off #left { display: none; }
       aside { background: var(--panel); overflow: auto; min-height: 0; }
       /* The left panel does not scroll as a whole: the stage list keeps its size and the explorer below it takes the rest of the height and scrolls inside itself, like a layers panel. */
       #left { border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
@@ -93,6 +116,7 @@
       .pal li { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
       .pal li:hover { background: var(--panel-2); }
       .pal li.on { border-color: var(--pink); background: var(--panel-2); }
+      .pal li.sel { border-color: var(--hand); background: #2a2012; }
       .pal li .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
       .pal li small { color: var(--dim); margin-left: auto; }
       .hint { color: var(--dim); font-size: 12px; margin: 4px 0 6px; }
@@ -118,12 +142,21 @@
       details.grp { border-bottom: 1px solid var(--line); padding: 6px 0; }
       details.grp > summary { cursor: pointer; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--dim); padding: 2px 0 6px; }
       .grpwrap.focus details.grp > summary, .rows.focus { color: var(--yellow); }
-      .field { display: grid; grid-template-columns: minmax(118px, 1.15fr) minmax(0, 1fr) 58px 18px; align-items: center; gap: 6px; margin: 4px 0; min-height: 24px; }
+      .field { display: grid; grid-template-columns: minmax(118px, 1.15fr) minmax(0, 1fr) 62px 18px; align-items: center; gap: 6px; margin: 4px 0; min-height: 24px; }
       .field > .lab { grid-column: 1; display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
       .field > .lab .l { white-space: nowrap; }
       .field > .lab code { font-size: 10.5px; overflow-wrap: anywhere; }
       .field.scope { grid-template-columns: minmax(0, 1fr) auto; }
       .field.scope input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--hand); margin: 0 4px; }
+      /* "Stage settings": the way back from a selection to the settings of the stage itself, at the top of the panel where it cannot be missed */
+      .stagebar { display: flex; align-items: center; gap: 10px; padding: 6px 0 8px; border-bottom: 1px solid var(--line); }
+      .stagebar .hint { margin: 0; }
+      .stagebtn { background: #3a2a14; border: 1px solid var(--hand); border-radius: 6px; padding: 4px 12px; cursor: pointer; font-weight: 600; white-space: nowrap; }
+      .stagebtn:hover { background: #4a3418; }
+      /* several things selected with different values: "mixed" in full, and the slider greyed out */
+      .field.mixed > input.num { text-align: left; }
+      .field.mixed > input.num::placeholder { color: var(--text); opacity: 0.9; font-style: italic; }
+      .field.mixed > .rng:disabled { opacity: 0.3; cursor: not-allowed; }
       .alignbar { display: flex; flex-direction: column; gap: 6px; }
       .alignbar .seg { display: flex; }
       .alignbar .alb { flex: 1 1 0; background: var(--panel-2); border: 1px solid var(--line); padding: 4px 6px; cursor: pointer; margin-left: -1px; white-space: nowrap; }
@@ -132,7 +165,6 @@
       .alignbar .alb:hover { border-color: #4a4560; background: #26223a; z-index: 1; position: relative; }
       details.grp > summary .qm { vertical-align: 0; }
       .sub + .ovr { margin-top: 0; }
-      .backhint { margin: 10px 0 2px; padding-top: 8px; border-top: 1px solid var(--line); }
       .field > select, .field > input[type='text'], .field > .ro { grid-column: 2 / 4; min-width: 0; }
       .field.col { display: flex; flex-direction: column; align-items: stretch; }
       .field > .rng { grid-column: 2; min-width: 0; }
@@ -180,6 +212,8 @@
       #statusbar .msg.bad { color: var(--bad); }
       #statusbar .msg.good { color: var(--good); }
       #statusbar .unsaved { color: var(--hand); }
+      #statusbar .warnline { color: #ffcf6a; }
+      #statusbar .warnline[hidden] { display: none; }
       #statusbar .num { font-variant-numeric: tabular-nums; }
 
       /* ---- dialogs */
@@ -240,11 +274,12 @@
       <div class="tbrow">
         <h1><a href="/?devmenu">Dev tools ›</a> <span id="title"><span id="dirtydot" class="dirty" hidden>• </span>Battle Stage Editor</span></h1>
         <span class="hint" id="stagename" style="margin: 0"></span>
+        <button id="b-warn" type="button" class="warnchip" aria-haspopup="dialog" aria-expanded="false" data-tip="Warnings: places where this stage breaks the design’s rules, such as a fighter that reaches into the top menu strip. Click to see them. A warning never stops you from saving.">Warnings (0)</button>
         <span class="sp"></span>
         <div class="grp-tb" id="tb-file">
           <button id="b-undo" type="button" title="Undo (Ctrl+Z)">Undo</button>
           <button id="b-redo" type="button" title="Redo (Ctrl+Y)">Redo</button>
-          <button id="b-save" type="button" class="primary" title="Save to src/data/stages.json (Ctrl+S)">Save</button>
+          <button id="b-save" type="button" class="primary" title="Save the changed files (Ctrl+S)">Save</button>
           <button id="b-revert" type="button" title="Reload the saved file and throw away unsaved changes">Revert</button>
         </div>
         <div class="grp-tb">
@@ -276,11 +311,13 @@
           <button id="t-guides" type="button" data-tip="Guides: draw the frame of the screen, the centre line, and the line where the two sides meet.">Guides</button>
           <button id="t-safe" type="button" data-tip="Safe zones: tint a HUD box red where a fighter stands behind it. The menu would cover that fighter.">Safe zones</button>
           <button id="t-anchors" type="button" data-tip="Anchors: draw a small cross at each fighter’s feet. It is the spot the picture stands on. Click a cross to nudge it.">Anchors</button>
+          <button id="t-left" type="button" data-tip="Left panel: show or hide the stage list and Who’s standing here. Hide it on a small screen so the stage has room to stay at 2x. Press P. The editor remembers your choice.">Left panel</button>
         </div>
         <button id="t-json" type="button" data-tip="JSON: show the stage as it will be saved. The lines your last change touched are lit.">JSON</button>
         <span id="locks" class="grp-tb"></span>
       </div>
     </header>
+    <div id="warnpop" hidden role="dialog" aria-label="Design rule warnings"></div>
     <main>
       <aside id="left">
         <section class="pnl" id="stagepanel">
@@ -290,7 +327,7 @@
           <div class="btnrow" id="stagebtns">
             <button id="s-new" type="button" title="A new stage, started from a copy of this one">New</button>
             <button id="s-dup" type="button" title="Duplicate this stage (Ctrl+D)">Duplicate</button>
-            <button id="s-ren" type="button" title="Change the name or the id">Rename</button>
+            <button id="s-ren" type="button" title="Change this stage’s id, the short name other files use. Every reference is updated. The Name is changed in the inspector.">Change id</button>
             <button id="s-del" type="button" title="Delete this stage">Delete</button>
           </div>
           <p class="hint" id="stagehint">A stage is one battleground. Every fight there uses it. <button id="stage-help" type="button" class="link">What is a stage?</button></p>
@@ -322,6 +359,7 @@
       <span class="num" id="st-pos">x – y –</span>
       <span id="st-sel">Nothing selected</span>
       <span id="st-save">Saved</span>
+      <span class="warnline" id="st-warn" hidden></span>
       <span class="msg" id="st-msg" role="status"></span>
     </footer>
     <script type="module" src="/src/stage/edit/stageedit.ts"></script>

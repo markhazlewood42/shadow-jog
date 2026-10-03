@@ -291,7 +291,7 @@ describe('the editing session: gestures, undo and the unsaved state', () => {
     expect(se.dirty).toBe(false);
     expect(se.redo()).toBe(true);
     expect(se.stage.backdrop.horizonY).toBe(112);
-    expect(se.change?.label).toBe('redo');
+    expect(se.change?.label).toBe('Redid Move the horizon');
   });
 
   it('a gesture that changes nothing makes no undo step and does not mark the data unsaved', () => {
@@ -441,13 +441,15 @@ describe('the Align bar: fighters line up with their half of the stage, or with 
 
   it('depth: one fighter goes to the back, middle or front row; several go to the back-most, front-most or middle of the rows they use', () => {
     const s = street();
-    expect(middleRow(s)).toBe(3);
+    // Middle is the middle row BY COUNT (index floor(rows / 2): row 3 of 5), not the row nearest the middle of the floor band.
+    expect(s.rows).toHaveLength(5);
+    expect(middleRow(s)).toBe(2);
     alignDepth(s, 'party', '3', [0], 'back');
     expect(s.party[0]?.row).toBe(0);
     alignDepth(s, 'party', '3', [0], 'front');
     expect(s.party[0]?.row).toBe(4);
     alignDepth(s, 'party', '3', [0], 'middle');
-    expect(s.party[0]?.row).toBe(3);
+    expect(s.party[0]?.row).toBe(2);
     const t = street();
     alignDepth(t, 'party', '3', [0, 1, 3], 'back'); // rows 4, 3, 1
     expect(t.party.map((q) => q.row)).toEqual([1, 1, 2, 1]);
@@ -531,12 +533,18 @@ describe('the session knows which of the three files changed', () => {
     se.edit('Override', (d) => {
       d.stages.street = { ...(d.stages.street as StageEntry), hud: { commands: {} } };
     });
-    expect(se.dirtyParts).toEqual(['stages']);
+    // An empty “different on this stage” box is not an unsaved change: Save would drop it, so nothing is unsaved.
+    expect(se.dirtyParts).toEqual([]);
     const steps = se.undoStack.depth;
     se.settle();
     expect(se.stage.hud).toBeUndefined();
     expect(se.undoStack.depth).toBe(steps);
     expect(se.dirtyParts).toEqual([]);
+    // A box that really differs is unsaved.
+    se.edit('Move', (d) => {
+      d.stages.street = { ...(d.stages.street as StageEntry), hud: { commands: { x: 9 } } };
+    });
+    expect(se.dirtyParts).toEqual(['stages']);
   });
 
   it('the resolved stage is the global HUD with this stage’s overrides laid over it', () => {

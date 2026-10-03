@@ -17,7 +17,7 @@ import type { Item } from './session';
 
 export type Corner = 'nw' | 'ne' | 'sw' | 'se';
 
-/** Which layers the user has locked (Ctrl+L): a locked layer cannot be picked, so it cannot be grabbed by accident. */
+/** Which layers the user has locked (L): a locked layer cannot be picked, so it cannot be grabbed by accident. */
 export type Layer = 'fighters' | 'hud' | 'ground';
 
 /** The line handle near this point, if any: horizon, then floor bottom, then rows (the front row first, since the floor is seen from above). `tol` is the pick distance in game pixels. */

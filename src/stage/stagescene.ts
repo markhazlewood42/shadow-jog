@@ -852,6 +852,40 @@ export class StageScene extends Phaser.Scene {
   }
 
   /**
+   * The figures' sizes as they WOULD be for any stage and enemy group, without changing what is shown: the heroes of
+   * this scene's crew in the stage's party slots, and these enemies in that group's slots. The editor uses it to check
+   * the design's rules (`rules.ts`) for every enemy count at once, not only the one on screen. `roster` is the enemy
+   * keys for the group (the stage's own demo roster, or the ones previewed in the editor).
+   */
+  figureBoxesFor(stage: StageConfig, setKey: string, roster: readonly string[]): FigureBox[] {
+    const out: FigureBox[] = [];
+    const box = (fig: FigureArt, boss: boolean, side: FigureBox['side'], slot: PartySlot): FigureBox => {
+      const p = slotPoint(stage, slot);
+      const b = fig.box;
+      return { x: p.x, y: p.y, top: p.y + 1 - (fig.foot.y - b.y0), left: p.x + (b.x0 - fig.foot.x), right: p.x + (b.x1 + 1 - fig.foot.x), boss, side };
+    };
+    const crew = this.fighters.filter((f) => f.side === 'party');
+    stage.party.forEach((slot, i) => {
+      const f = crew[i];
+      if (f) out.push(box(f.fig, false, 'party', slot));
+    });
+    const slots = stage.enemySets[setKey] ?? [];
+    const copies = new Map<string, number>();
+    roster.forEach((key, i) => {
+      const def = ENEMIES[key];
+      const slot = slots[i];
+      if (!def || !slot) return;
+      // The same numbering `makeEnemies` uses: a second punk is the second copy of the sprite.
+      const copy = copies.get(def.sprite) ?? 0;
+      copies.set(def.sprite, copy + 1);
+      const art = addEnemy(this.textures, def.sprite, copy).fig;
+      const shift = axisFor(this.axesFile, def.sprite);
+      out.push(box({ ...art, foot: { x: art.foot.x + shift.x, y: art.foot.y + shift.y } }, slot.size === 'boss' || !!def.boss, 'enemy', slot));
+    });
+    return out;
+  }
+
+  /**
    * Everything about one figure that follows from its state: which picture (hazed by depth, or the white flash),
    * where each part sits and what depth number it draws at, the shadow and ring sizes, the health bar.
    */

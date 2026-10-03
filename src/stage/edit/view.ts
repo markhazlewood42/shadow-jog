@@ -23,6 +23,8 @@ interface Remembered {
   snapGrid: boolean;
   show: OverlayShow;
   jsonOpen: boolean;
+  /** Whether the left panel (stage list, Who's standing here) is shown. Folding it away gives a small laptop screen room for the stage at 2x. */
+  leftOpen: boolean;
   phase: Phase;
   /** stage id -> enemy group -> the enemies previewed in its slots. */
   preview: Record<string, Record<string, string[]>>;
@@ -33,6 +35,7 @@ const DEFAULTS: Remembered = {
   snapGrid: false,
   show: { hud: true, guides: false, safe: false, anchors: false },
   jsonOpen: false,
+  leftOpen: true,
   phase: 'choose',
   preview: {},
 };
@@ -43,6 +46,7 @@ export class ViewState {
   snapGrid: boolean;
   show: OverlayShow;
   jsonOpen: boolean;
+  leftOpen: boolean;
   phase: Phase;
   preview: Record<string, Record<string, string[]>>;
   locked = new Set<Layer>();
@@ -57,12 +61,13 @@ export class ViewState {
     const old = r.show as Partial<OverlayShow>;
     this.show = { hud: old.hud ?? DEFAULTS.show.hud, guides: old.guides ?? DEFAULTS.show.guides, safe: old.safe ?? DEFAULTS.show.safe, anchors: old.anchors ?? DEFAULTS.show.anchors };
     this.jsonOpen = r.jsonOpen;
+    this.leftOpen = r.leftOpen !== false;
     this.phase = r.phase;
     this.preview = r.preview ?? {};
   }
 
   remember(): void {
-    const r: Remembered = { snapRows: this.snapRows, snapGrid: this.snapGrid, show: this.show, jsonOpen: this.jsonOpen, phase: this.phase, preview: this.preview };
+    const r: Remembered = { snapRows: this.snapRows, snapGrid: this.snapGrid, show: this.show, jsonOpen: this.jsonOpen, leftOpen: this.leftOpen, phase: this.phase, preview: this.preview };
     writeStore(KEY, r);
   }
 

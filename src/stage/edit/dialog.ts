@@ -60,5 +60,10 @@ export async function promptBox(title: string, label: string, value: string, ok 
 
 /** Show a table or text and one Close button. */
 export async function infoBox(title: string, body: Node): Promise<void> {
-  await showDialog(title, [body], ['Close'], 'Close');
+  // Focus the dialog itself, not the Close button: a long list (the Keys) would open scrolled down to the button, with its first lines out of sight.
+  await showDialog(title, [body], ['Close'], 'Close', () => {
+    const box = document.querySelector<HTMLElement>('.dlg-back .dlg');
+    if (box) box.tabIndex = -1;
+    return box;
+  });
 }

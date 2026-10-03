@@ -10,8 +10,8 @@
  * What is drawn (`docs/TOOLING-UI.md` 3.4): the horizon (cyan dashes), the floor bottom (green, with a grip), the
  * depth rows (thin white, numbered, with a swatch of their haze), a badge at every fighter's feet (orange P1 to P4
  * for the party, pink E1.. for enemies, with +1 / -1 where the draw order is overridden), the selection outline,
- * the HUD boxes (yellow, with corner grips on the selected one), and the optional guides, safe zones and
- * foot-anchor crosshairs. (There was a "camera" outline until round 1 of Mark's notes: the battle camera never
+ * the HUD boxes (yellow, with corner grips on the selected one), a red outline on a fighter that breaks one of the
+ * design's rules (`rules.ts`), and the optional guides, safe zones and foot-anchor crosshairs. (There was a "camera" outline until round 1 of Mark's notes: the battle camera never
  * moves, so it only repeated the screen's own edge.)
  *
  * This file only DRAWS from the state it is given; the pointer logic that picks and moves things is in
@@ -38,6 +38,8 @@ export interface OverlayFigure {
   order: -1 | 0 | 1;
   /** True when this sprite's foot anchor has been corrected (drawn white; a measured one is grey). */
   shifted: boolean;
+  /** True when this fighter breaks one of the design's rules (`rules.ts`) for the enemy count on show: it gets a red outline. */
+  broken?: boolean;
 }
 
 export interface OverlayShow {
@@ -69,6 +71,7 @@ const C = {
   select: '#ffe07a',
   hover: '#ffffff',
   safe: '#ff5a5a',
+  broken: '#ff3b3b',
   guide: '#8a86a0',
   ink: '#07060d',
 };
@@ -173,6 +176,8 @@ export function overlayMarkup(input: OverlayInput, scale: number): string {
     const sel = isSel(it);
     const hov = same(hover, it);
     const color = f.side === 'party' ? C.party : C.enemy;
+    // A fighter that breaks a design rule: a red outline, drawn a little outside the selection outline so both can be seen.
+    if (f.broken) rect(f.left - 2.5, f.top - 2.5, f.right - f.left + 5, f.y - f.top + 6, { stroke: C.broken, sw: 2, fill: C.broken, fillAlpha: 0.1 });
     if (sel || hov) {
       rect(f.left - 0.5, f.top - 0.5, f.right - f.left + 1, f.y - f.top + 3, { stroke: sel ? C.select : C.hover, sw: sel ? 2 : 1, alpha: sel ? 1 : 0.6, dash: sel ? undefined : '3 2' });
     }

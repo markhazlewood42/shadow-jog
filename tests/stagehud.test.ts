@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BG_IDS } from '../src/art/battlebg';
-import { checkHudFile, checkLayout, checkStages, checkStagesWith, type HudLayout, loadHud, loadStages, mergeHud, resolveStage, resolveStages } from '../src/stage/config';
+import { checkHudFile, checkStages, checkStagesWith, type HudLayout, loadHud, loadStages, mergeHud, resolveStage, resolveStages } from '../src/stage/config';
+import { checkLayout } from '../src/stage/rules';
 import {
   alignBoxes,
   clearOverride,

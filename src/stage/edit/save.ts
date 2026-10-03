@@ -49,11 +49,30 @@ export function formatHud(layout: unknown): string {
   return formatJson({ version: 1, layout });
 }
 
-/** Check a posted body and, when it is fine, say exactly what would be written. */
-export function prepareSave(body: unknown): Prepared {
+/**
+ * Check a posted body and, when it is fine, say exactly what would be written.
+ *
+ * The stages are checked AS THE GAME WILL SEE THEM: each stage's HUD overrides are laid over the global HUD and must
+ * still fit the screen (`checkStagesWith`, the check the game's loader runs). Which global HUD? When the dev server
+ * passes the text of the `hud.json` it has on disk (`currentHudText`), that one: it is the file the game will load
+ * next to this stage file, whatever the page believes. (The page saves the HUD first, so the disk copy is the new
+ * one.) Without it, the body's own `hud` is used if there is one, and a stage file alone is checked on its own.
+ */
+export function prepareSave(body: unknown, currentHudText?: string): Prepared {
   if (typeof body !== 'object' || body === null) return { ok: false, problems: ['the posted body must be an object with stages and axes'] };
-  const { stages, axes, hud } = body as Partial<SaveBody>;
-  // With the global HUD at hand, the stages are also checked as the game will see them (a stage's HUD overrides must still fit the screen).
+  const { stages, axes, hud: postedHud } = body as Partial<SaveBody>;
+  let hud: unknown = postedHud;
+  if (currentHudText !== undefined) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(currentHudText);
+    } catch {
+      return { ok: false, problems: [`${HUD_FILE} on disk is not valid JSON, so the stages cannot be checked against it`] };
+    }
+    const hudProblems = checkHudFile(parsed);
+    if (hudProblems.length) return { ok: false, problems: [`${HUD_FILE} on disk is not valid, so the stages cannot be checked against it: ${hudProblems[0]}`] };
+    hud = (parsed as { layout: HudLayout }).layout;
+  }
   const stageProblems = hud === undefined ? checkStages(stages, BG_IDS, STAGE_KNOWN) : checkStagesWith(stages, hud as HudLayout, BG_IDS, STAGE_KNOWN);
   const problems = [...stageProblems, ...checkAxes(axes ?? {})];
   if (problems.length) return { ok: false, problems };

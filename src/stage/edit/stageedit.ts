@@ -12,6 +12,7 @@
  *   `panels.ts`    the stage list, palette, JSON pane, status line
  *   `keys.ts`      the keyboard table
  *   `save.ts`      the checks and file format Save shares with the dev server
+ *   `../rules.ts`  the design's rules, run live: broken ones become warnings (red outline, chip, status line)
  *
  * The idea that keeps it honest (WYSIWYG): the editor never draws a copy of the stage. Every change goes into the
  * session's data; the page then hands the changed stage to the SAME `StageScene` a battle uses (`applyStage`), and
@@ -28,7 +29,8 @@ import { BG_IDS } from '../../art/battlebg';
 import { ENEMIES } from '../../data/enemies';
 import { formatJson } from '../../tools/jsonfmt';
 import { bootStage } from '../boot';
-import { type AxesFile, loadAxes, loadEntries, loadHud, resolveStages, type StageConfig, type StageEntry, type StageFile } from '../config';
+import { type AxesFile, type FigureBox, loadAxes, loadEntries, loadHud, resolveStage, resolveStages, SET_KEYS, type StageConfig, type StageEntry, type StageFile } from '../config';
+import { RULE_WHY, type StageWarning, stageWarnings } from '../rules';
 import { connectHook, emptyHook } from '../labhook';
 import { STAGE_KNOWN } from '../known';
 import type { Phase } from '../demo';
@@ -37,15 +39,15 @@ import { BattleTest, type BattleTestOptions, stageForTest } from '../battletest'
 import type { Key } from '../battleflow';
 import { battleTestDialog } from './battledialog';
 import { confirmBox, infoBox, promptBox } from './dialog';
-import { byId, h, installTips, isTyping } from './dom';
+import { byId, h, hideTips, installTips, isTyping } from './dom';
 import { type AlignHow, Inspector, setLabel } from './inspector';
 import { Interact } from './interact';
-import { KEYS, matchKey, shown } from './keys';
+import { KEYS, matchKey, MOUSE, shown } from './keys';
 import { deleteStage, duplicateStage, hudNow, isOverridden, newStage, nudgeSlots, renameStage, setFloorBottom, setHorizon, setHudBox, setRowY, stepOrder } from './model';
 import { type OverlayFigure, overlayMarkup } from './overlay';
 import { JsonPane, Palette, setButtons, StageList, StatusBar } from './panels';
-import { formatHud, HUD_FILE, prepareHudSave, prepareSave, STAGES_FILE } from './save';
-import { type EditorData, type Item, type Part, Session } from './session';
+import { AXES_FILE, formatHud, HUD_FILE, prepareHudSave, prepareSave, STAGES_FILE } from './save';
+import { type EditorData, type Item, type Part, sameItem, Session, toggleInSelection } from './session';
 import { ViewState } from './view';
 import { HUD_REGION_NAMES, HUD_REGIONS } from '../hudpresets';
 import type { Layer } from './hit';
@@ -66,6 +68,8 @@ declare global {
       stopBattle: () => void;
       /** Line up the selection, as the Align bar does (tests use it). */
       align: (how: AlignHow) => boolean;
+      /** Every design rule broken on every stage right now (what the Warnings chip lists; tests use it). */
+      warnings: () => StageWarning[];
     };
   }
 }
@@ -77,7 +81,14 @@ const ENDPOINT = `/__stage/stages${scratch ? `?scratch=${encodeURIComponent(scra
 /** The global HUD layout has its own endpoint and its own file (`src/data/hud.json`). */
 const HUD_ENDPOINT = `/__stage/hud${scratch ? `?scratch=${encodeURIComponent(scratch)}` : ''}`;
 /** What messages call the files written: the real paths, or the private scratch copy tests use. */
-const fileNames = (parts: readonly Part[]): string => (scratch ? `scratch copy "${scratch}"` : [...(parts.includes('hud') ? [HUD_FILE] : []), ...(parts.includes('stages') || parts.includes('axes') ? [STAGES_FILE] : [])].join(' and '));
+const fileNames = (parts: readonly Part[]): string => {
+  if (scratch) return `scratch copy "${scratch}"`;
+  // A stage save writes the stages and the foot anchors together (two files, one request).
+  const files = [...(parts.includes('hud') ? [HUD_FILE] : []), ...(parts.includes('stages') || parts.includes('axes') ? [STAGES_FILE, AXES_FILE] : [])];
+  return files.length > 1 ? `${files.slice(0, -1).join(', ')} and ${files[files.length - 1]}` : (files[0] ?? '');
+};
+/** The short file names for a tooltip: "hud.json, stages.json, axes.json". */
+const shortNames = (parts: readonly Part[]): string => [...(parts.includes('hud') ? ['hud.json'] : []), ...(parts.includes('stages') || parts.includes('axes') ? ['stages.json', 'axes.json'] : [])].join(', ');
 
 const status = new (class {
   el = byId('st-msg');
@@ -120,6 +131,8 @@ async function main(): Promise<void> {
   const wanted = query.get('stage');
   const session = new Session(initial, wanted ?? Object.keys(initial.stages)[0] ?? '', (s) => formatJson(s));
   const view = new ViewState();
+  // The left panel may be folded away (remembered per browser): do it before the stage boots so the stage measures its real room.
+  document.body.classList.toggle('left-off', !view.leftOpen);
   const setParam = query.get('set');
   session.setKey = setParam && setParam in session.stage.enemySets ? setParam : '3';
   if (query.get('phase') === 'choose' || query.get('phase') === 'target' || query.get('phase') === 'act') view.phase = query.get('phase') as Phase;
@@ -192,16 +205,108 @@ async function main(): Promise<void> {
     }
 
     // ---------------------------------------------------------------- the overlay
-    const figures = (): OverlayFigure[] =>
-      (['party', 'enemy'] as const).flatMap((side) =>
+    /** The fighters that break a rule for the stage and enemy count on show: `side:index` (a red outline is drawn on each). */
+    const brokenNow = (): Set<string> => new Set(warnings.filter((w) => w.stageId === session.stageId && w.setKey === session.setKey).flatMap((w) => w.culprits.map((c) => `${c.side}:${c.index}`)));
+    const figures = (): OverlayFigure[] => {
+      const broken = brokenNow();
+      return (['party', 'enemy'] as const).flatMap((side) =>
         scene.fighters
           .filter((f) => f.side === side)
           .map((f, index): OverlayFigure => {
             const b = scene.boxOf(f);
             const sh = session.data.axes[f.axisKey];
-            return { side, index, x: f.x, y: f.y, left: b.left, right: b.right, top: b.top, order: f.slot.order ?? 0, shifted: !!sh && (sh.x !== 0 || sh.y !== 0) };
+            return { side, index, x: f.x, y: f.y, left: b.left, right: b.right, top: b.top, order: f.slot.order ?? 0, shifted: !!sh && (sh.x !== 0 || sh.y !== 0), broken: broken.has(`${side}:${index}`) };
           }),
       );
+    };
+
+    // ---------------------------------------------------------------- the design's rules, live (rules.ts)
+    /** Every broken rule on every stage and enemy count, worked out again whenever the picture is drawn. */
+    let warnings: StageWarning[] = [];
+    /** The roster each enemy count shows: the previewed enemies if you swapped some in, else the stage's own. */
+    const rosterOf = (cfg: StageConfig, key: string): string[] => view.roster(cfg, key);
+    function computeWarnings(): StageWarning[] {
+      const out: StageWarning[] = [];
+      try {
+        for (const entry of Object.values(session.data.stages)) {
+          const cfg = resolveStage(entry, session.data.hud);
+          const boxes: Record<string, FigureBox[]> = {};
+          for (const key of SET_KEYS) if (cfg.enemySets[key]) boxes[key] = scene.figureBoxesFor(cfg, key, rosterOf(cfg, key));
+          out.push(...stageWarnings(cfg, boxes));
+        }
+      } catch {
+        // A half-edited stage (a row just removed...) can fail to measure for a moment; the save check says what is wrong with it.
+        return [];
+      }
+      return out;
+    }
+    const warnChip = byId<HTMLButtonElement>('b-warn');
+    const warnPop = byId('warnpop');
+    /** Update the chip, the status-bar line and (if open) the list. */
+    function showWarnings(): void {
+      const n = warnings.length;
+      warnChip.textContent = `Warnings (${n})`;
+      warnChip.classList.toggle('has', n > 0);
+      const here = warnings.filter((w) => w.stageId === session.stageId && (w.setKey === null || w.setKey === session.setKey));
+      const line = byId('st-warn');
+      line.hidden = here.length === 0;
+      const first = here[0];
+      line.textContent = first ? `Design rule: ${first.text}${here.length > 1 ? ` (+${here.length - 1} more)` : ''}` : '';
+      line.title = here.map((w) => w.text).join('\n');
+      if (!warnPop.hidden) renderWarnList();
+    }
+    function renderWarnList(): void {
+      const byStage = new Map<string, StageWarning[]>();
+      for (const w of warnings) byStage.set(w.stageId, [...(byStage.get(w.stageId) ?? []), w]);
+      // The stage on show first.
+      const order = [...byStage.keys()].sort((a, b) => Number(b === session.stageId) - Number(a === session.stageId));
+      const kids: Node[] = [
+        h('h2', {}, warnings.length ? `Warnings (${warnings.length})` : 'No warnings'),
+        h('p', { class: 'wnote' }, warnings.length ? 'These places break the design’s rules. They never stop you from saving. Click one to go there.' : 'Every stage follows the design’s rules for every enemy count.'),
+      ];
+      for (const id of order) {
+        const list = byStage.get(id) ?? [];
+        kids.push(h('h3', {}, `${session.data.stages[id]?.name ?? id}${id === session.stageId ? ' (this stage)' : ''}`));
+        for (const w of list)
+          kids.push(
+            h(
+              'button',
+              { type: 'button', class: 'wi', 'data-key': `${w.stageId}${w.setKey ? ` ${w.setKey}` : ''}: ${w.text}`, 'data-rule': w.rule, onclick: () => goToWarning(w) },
+              h('b', {}, w.setKey ? setLabel(w.setKey) : 'Whole stage'),
+              ` · ${w.text}`,
+              h('small', {}, RULE_WHY[w.rule]),
+            ),
+          );
+      }
+      warnPop.replaceChildren(...kids);
+    }
+    function placeWarnPop(): void {
+      const r = warnChip.getBoundingClientRect();
+      warnPop.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - warnPop.offsetWidth - 8))}px`;
+      warnPop.style.top = `${r.bottom + 6}px`;
+    }
+    function toggleWarnPop(open: boolean): void {
+      warnPop.hidden = !open;
+      warnChip.classList.toggle('open', open);
+      warnChip.setAttribute('aria-expanded', String(open));
+      if (open) {
+        hideTips();
+        renderWarnList();
+        placeWarnPop();
+      }
+    }
+    /** Go to a warning: its stage, its enemy count, and the fighters to blame selected. */
+    function goToWarning(w: StageWarning): void {
+      toggleWarnPop(false);
+      if (w.stageId !== session.stageId) session.showStage(w.stageId);
+      if (w.setKey && w.setKey !== session.setKey) session.showSet(w.setKey);
+      session.select(w.culprits.map((c): Item => ({ kind: 'fighter', side: c.side, index: c.index })));
+      bar.say(`${w.setKey ? `${setLabel(w.setKey)}: ` : ''}${w.text}. ${RULE_WHY[w.rule]}`);
+    }
+    warnChip.addEventListener('click', () => toggleWarnPop(!!warnPop.hidden));
+    document.addEventListener('pointerdown', (e) => {
+      if (!warnPop.hidden && !warnPop.contains(e.target as Node) && e.target !== warnChip) toggleWarnPop(false);
+    });
     function redraw(): void {
       const r = canvas.getBoundingClientRect();
       const c = centre.getBoundingClientRect();
@@ -210,9 +315,11 @@ async function main(): Promise<void> {
       svg.style.top = `${r.top - c.top}px`;
       svg.style.width = `${r.width}px`;
       svg.style.height = `${r.height}px`;
+      warnings = computeWarnings();
       const handles = view.mode === 'edit' && !testing && r.width > 0;
       svg.style.display = handles ? 'block' : 'none';
       if (handles) svg.innerHTML = overlayMarkup({ stage: session.resolved, figures: figures(), selection: session.selection, hover: interact.hover, hudOverridden: new Set(HUD_REGIONS.filter((r) => isOverridden(session.stage, r))), show: view.show, phase: view.phase, locked: view.locked }, scale);
+      showWarnings();
       refreshPanels();
     }
 
@@ -228,15 +335,26 @@ async function main(): Promise<void> {
         syncScene();
         bar.say('Back to the stage’s own demo enemies in this group.');
       },
+      warnings: () => warnings.filter((w) => w.stageId === session.stageId),
     });
     const list = new StageList(
       session,
       byId('stages'),
       byId<HTMLInputElement>('find'),
-      { onPick: (id) => session.showStage(id), onNew: () => void listNew(), onDuplicate: () => void listDuplicate(), onRename: () => void listRename(), onDelete: () => void listDelete() },
+      { onPick: (id) => session.showStage(id), onNew: () => void listNew(), onDuplicate: () => void listDuplicate(), onChangeId: () => void listChangeId(), onDelete: () => void listDelete() },
       { new: byId('s-new'), dup: byId('s-dup'), ren: byId('s-ren'), del: byId('s-del') },
     );
-    const palette = new Palette(session, view, sceneNow, byId('heroes'), byId('enemies'), { select: (it) => session.select([it]), apply: (enemy) => applyPaletteEnemy(enemy) });
+    const palette = new Palette(session, view, sceneNow, byId('heroes'), byId('enemies'), {
+      // Shift+click or Ctrl+click in the panel adds to the selection (or takes out what is already in it), like Figma's layers.
+      select: (items, additive) => {
+        if (!additive) return session.select(items);
+        const allIn = items.every((it) => session.selection.some((c) => sameItem(c, it)));
+        let next: Item[] = session.selection;
+        for (const it of items) if (next.some((c) => sameItem(c, it)) === allIn) next = toggleInSelection(next, it);
+        session.select(next);
+      },
+      apply: (enemy) => applyPaletteEnemy(enemy),
+    });
     const json = new JsonPane(session, view, byId('jsonpane'), byId('jsontext'), byId('jsontitle'), byId('jsonsub'));
 
     function describe(it: Item): string {
@@ -282,10 +400,15 @@ async function main(): Promise<void> {
       byId('stagename').textContent = session.stage.name;
       byId('dirtydot').hidden = !session.dirty;
       document.title = `${session.dirty ? '• ' : ''}Battle Stage Editor`;
-      byId<HTMLButtonElement>('b-save').disabled = !session.dirty;
+      const save = byId<HTMLButtonElement>('b-save');
+      save.disabled = !session.dirty;
+      // The tooltip names the files this Save would write: the ones that changed.
+      save.title = session.dirty ? `Save ${shortNames(session.dirtyParts)} (Ctrl+S)` : 'Nothing to save yet. Save writes the files you changed: stages.json, hud.json (the HUD for every battle) and axes.json (foot anchors) (Ctrl+S)';
       byId<HTMLButtonElement>('b-revert').disabled = !session.dirty;
       byId<HTMLButtonElement>('b-undo').disabled = !session.canUndo;
       byId<HTMLButtonElement>('b-redo').disabled = !session.canRedo;
+      byId('b-undo').title = session.canUndo ? `Undo “${session.nextUndoLabel}” (Ctrl+Z)` : 'Nothing to undo (Ctrl+Z)';
+      byId('b-redo').title = session.canRedo ? `Redo “${session.nextRedoLabel}” (Ctrl+Y)` : 'Nothing to redo (Ctrl+Y)';
       // toggles
       const on = (id: string, v: boolean): void => {
         byId(id).classList.toggle('on', v);
@@ -296,6 +419,7 @@ async function main(): Promise<void> {
       on('t-guides', view.show.guides);
       on('t-safe', view.show.safe);
       on('t-anchors', view.show.anchors);
+      on('t-left', view.leftOpen);
       on('t-json', view.jsonOpen);
       for (const b of document.querySelectorAll<HTMLElement>('#seg-mode button')) b.classList.toggle('on', b.dataset.mode === view.mode);
       for (const b of document.querySelectorAll<HTMLElement>('#seg-phase button')) b.classList.toggle('on', b.dataset.phase === view.phase);
@@ -349,6 +473,7 @@ async function main(): Promise<void> {
     toggle('t-json', () => {
       view.jsonOpen = !view.jsonOpen;
     });
+    byId('t-left').addEventListener('click', () => setLeftPanel(!view.leftOpen));
     byId('b-help').addEventListener('click', () => void showHelp());
     byId('stage-help').addEventListener('click', () => void showHelp());
     byId('b-undo').addEventListener('click', () => doUndo());
@@ -362,6 +487,18 @@ async function main(): Promise<void> {
     byId('b-keys').addEventListener('click', () => void showKeys());
     byId('j-copy').addEventListener('click', () => void copyJson());
 
+    /** Show or hide the left panel (remembered per browser). The stage view gets the room back and the stage refits to a whole zoom. */
+    function setLeftPanel(open: boolean): void {
+      view.leftOpen = open;
+      document.body.classList.toggle('left-off', !open);
+      view.remember();
+      // The stage's parent changed size: let the scale manager measure it again, then draw the handles over the new canvas.
+      requestAnimationFrame(() => {
+        booted.game.scale.refresh();
+        redraw();
+      });
+      bar.say(open ? 'Left panel shown.' : 'Left panel hidden: the stage has more room. Press P or use “Left panel” to bring it back.');
+    }
     function setMode(m: 'edit' | 'play'): void {
       view.mode = m;
       if (m === 'play') interact.cancel();
@@ -372,16 +509,20 @@ async function main(): Promise<void> {
     function toggleLock(l: Layer): void {
       if (view.locked.has(l)) view.locked.delete(l);
       else view.locked.add(l);
-      bar.say(view.locked.has(l) ? `Locked ${l}: it can’t be picked until you unlock it (Ctrl+L, or click the red chip).` : `Unlocked ${l}.`);
+      bar.say(view.locked.has(l) ? `Locked ${l}: it can’t be picked until you unlock it (press L again, or click the red chip).` : `Unlocked ${l}.`);
       redraw();
     }
 
     // ---------------------------------------------------------------- actions
     const doUndo = (): void => {
+      const label = session.nextUndoLabel;
       if (!session.undo()) bar.say('Nothing to undo.');
+      else bar.say(label ? `Undid “${label}”.` : 'Undid the last change.');
     };
     const doRedo = (): void => {
+      const label = session.nextRedoLabel;
       if (!session.redo()) bar.say('Nothing to redo.');
+      else bar.say(label ? `Redid “${label}”.` : 'Redid the change.');
     };
 
     /** Battle Test (Ctrl+Enter): ask who fights, then run a real fight on the stage as it is in this page, saved or not. */
@@ -489,6 +630,11 @@ async function main(): Promise<void> {
         return false;
       }
       const dirty = session.dirtyParts;
+      if (!dirty.length) {
+        bar.say('Nothing to save: no file changed. (A “Different on this stage” box with nothing different is not saved.)');
+        refreshPanels();
+        return true;
+      }
       const written: Part[] = [];
       if (dirty.includes('hud')) {
         const why = await post(HUD_ENDPOINT, { layout: hud });
@@ -523,8 +669,9 @@ async function main(): Promise<void> {
         (!written.includes('hud') || formatHud(back.hud) === formatHud(hud));
       session.markSaved(written);
       const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const where = fileNames(written.length ? written : ['stages']);
-      bar.say(same ? `Saved to ${where} at ${t}. Commit ${written.includes('hud') && written.length > 1 ? 'them' : 'it'} to ship ${written.includes('hud') && written.length > 1 ? 'them' : 'it'}.` : `Saved to ${where} at ${t}, but the file read back differently from what the editor holds.`, same ? 'good' : 'bad');
+      const where = fileNames(written);
+      const many = where.includes(' and ') || where.includes(', ');
+      bar.say(same ? `Saved to ${where} at ${t}. Commit ${many ? 'them' : 'it'} to ship ${many ? 'them' : 'it'}.` : `Saved to ${where} at ${t}, but the file read back differently from what the editor holds.`, same ? 'good' : 'bad');
       refreshPanels();
       return true;
     }
@@ -535,7 +682,13 @@ async function main(): Promise<void> {
     async function revert(): Promise<void> {
       if (!session.dirty) return;
       const n = session.changeCount;
-      const ok = await confirmBox('Revert', `Throw away ${n} change${n === 1 ? '' : 's'} to ${session.stageId}? The saved file is loaded again.`, 'Throw away');
+      // Say WHAT the changes are to: the stages that differ from the file, the foot anchors, and the global HUD (which every battle uses).
+      const parts = session.dirtyParts;
+      const ids = new Set([...Object.keys(session.data.stages), ...Object.keys(session.saved.stages)]);
+      const changed = [...ids].filter((id) => JSON.stringify(session.data.stages[id]) !== JSON.stringify(session.saved.stages[id]));
+      const what = [...(parts.includes('stages') ? [changed.length ? changed.join(' and ') : session.stageId] : []), ...(parts.includes('axes') ? ['the foot anchors'] : []), ...(parts.includes('hud') ? ['the global HUD (hud.json, used by every battle)'] : [])];
+      const list = what.length > 1 ? `${what.slice(0, -1).join(', ')} and ${what[what.length - 1]}` : (what[0] ?? session.stageId);
+      const ok = await confirmBox('Revert', `Throw away ${n} change${n === 1 ? '' : 's'} to ${list}? The saved file${what.length > 1 ? 's are' : ' is'} loaded again.`, 'Throw away');
       if (!ok) return;
       try {
         session.load(await loadFiles());
@@ -571,23 +724,22 @@ async function main(): Promise<void> {
       if (id) session.showStage(id);
       if (why) bar.say(why, 'bad');
     }
-    async function listRename(): Promise<void> {
-      const cur = session.stage;
-      const name = await promptBox('Rename stage', 'Name', cur.name, 'Rename');
-      if (name === null) return;
-      const id = await promptBox('Rename stage', 'Id (lowercase words joined by dashes; renaming it updates every reference)', cur.id, 'Rename');
-      if (id === null) return;
-      let to = cur.id;
+    /** The stage's NAME is edited in the inspector (the only place for it). This button changes the ID, the short name other files use. */
+    async function listChangeId(): Promise<void> {
+      const { id: oldId, name } = session.stage;
+      const id = await promptBox('Change id', 'Id (lowercase words joined by dashes; every reference is updated)', oldId, 'Change id');
+      if (id === null || id === oldId) return;
+      let to = oldId;
       let why = '';
-      session.edit(`Rename ${cur.id}`, (d) => {
-        const r = renameStage(d.stages, cur.id, name, id);
+      session.edit(`Change the id of ${oldId}`, (d) => {
+        const r = renameStage(d.stages, oldId, name, id);
         if (r.ok) to = r.id;
         else why = r.reason;
       });
       if (why) bar.say(why, 'bad');
-      else if (to !== cur.id || name !== cur.name) {
-        session.stageId = to;
+      else if (to !== oldId) {
         session.showStage(to);
+        bar.say(`The id is now “${to}”. Save to keep it.`);
       }
     }
     async function listDelete(): Promise<void> {
@@ -635,17 +787,29 @@ async function main(): Promise<void> {
             {},
             h('li', {}, 'the backdrop picture;'),
             h('li', {}, 'the horizon and the floor;'),
-            h('li', {}, 'the depth rows, which are the lanes people stand on;'),
+            h('li', {}, 'the depth rows, which are the rows people stand on;'),
             h('li', {}, 'where the heroes stand;'),
             h('li', {}, 'where the enemies stand, for each enemy count from 1 to 6 and for a boss.'),
           ),
           p('Every fight at that place uses the stage. A map says which stage each area uses with ', h('code', {}, 'bg'), '. The fights in the Sinkline use ', h('code', {}, 'sewer'), '.'),
           h('h3', {}, 'Who fights is not part of a stage'),
-          p('Who fights is the encounter. RPG Maker calls it a troop. A troop editor will come later. The “Enemies” buttons in the top bar only choose which enemy count you look at. It is a preview.'),
+          p('Who fights is the encounter: the list of who you fight in one battle. RPG Maker calls it a troop. A troop editor will come later. The “Enemies” buttons in the top bar only choose which enemy count you look at. It is a preview.'),
+          h('h3', {}, 'Haze, shadows and the floor belong to the stage'),
+          p('The haze, the shadows and the look of the floor are settings of each stage. They are not global. Only the HUD is the same everywhere.'),
           h('h3', {}, 'The HUD is the same everywhere'),
           p(b('The HUD'), ' is the menu and the numbers drawn over a battle. There is ', b('one HUD layout for every battle'), '. Move a box and it moves on every stage. A stage can have its own copy of a single box when it needs one, for example when a big boss covers a box. Select the box and turn on “Different on this stage”.'),
           h('h3', {}, 'What is live today'),
-          p('Only this editor and Battle Test read stages today. The shipped game will read them after a go-ahead.'),
+          p('Only this editor, Battle Test and the stage lab read stages today. The shipped game will read them after a go-ahead.'),
+          h('h3', {}, 'Mouse tricks'),
+          h(
+            'ul',
+            {},
+            h('li', {}, b('Shift+click '), 'adds a thing to the selection, or takes it out. Shift+click or Ctrl+click works in “Who’s standing here” too.'),
+            h('li', {}, b('Shift+drag '), 'locks the move to sideways or up and down.'),
+            h('li', {}, b('Ctrl+drag '), 'flips the grid snap for that one drag.'),
+          ),
+          h('h3', {}, 'Warnings'),
+          p('The design has rules, such as “keep a clear gap between heroes and enemies”. A fighter that breaks one gets a red outline, and the “Warnings” button in the top bar lists every broken rule. A warning never stops you from saving.'),
           h('h3', {}, 'Where things live'),
           h(
             'ul',
@@ -660,7 +824,9 @@ async function main(): Promise<void> {
     }
 
     async function showKeys(): Promise<void> {
-      const rows: Node[] = [];
+      // The mouse tricks come first: they are the ones nobody finds by accident.
+      const rows: Node[] = [h('tr', {}, h('th', { colspan: '2' }, 'Mouse'))];
+      for (const m of MOUSE) rows.push(h('tr', {}, h('td', {}, h('kbd', {}, m.gesture)), h('td', {}, m.label)));
       for (const group of ['File', 'Edit', 'Move', 'Align', 'View', 'Test'] as const) {
         rows.push(h('tr', {}, h('th', { colspan: '2' }, group)));
         for (const k of KEYS.filter((x) => x.group === group)) rows.push(h('tr', {}, h('td', {}, ...k.combos.flatMap((c, i) => [i ? ' or ' : '', h('kbd', {}, shown(c))])), h('td', {}, k.label)));
@@ -746,6 +912,7 @@ async function main(): Promise<void> {
       spreadAcross: () => void inspector.alignSelection('spreadAcross'),
       spreadDepth: () => void inspector.alignSelection('spreadDepth'),
       help: () => void showHelp(),
+      leftPanel: () => setLeftPanel(!view.leftOpen),
       grid: () => {
         view.snapGrid = !view.snapGrid;
         view.remember();
@@ -754,7 +921,7 @@ async function main(): Promise<void> {
       },
       lock: () => {
         const it = session.selection[0];
-        if (!it) return bar.say('Select something first: Ctrl+L locks its layer so it can’t be picked by accident.');
+        if (!it) return bar.say('Select something first: L locks its layer so it can’t be picked by accident.');
         toggleLock(it.kind === 'fighter' || it.kind === 'anchor' ? 'fighters' : it.kind === 'hud' ? 'hud' : 'ground');
       },
       hud: () => {
@@ -767,6 +934,10 @@ async function main(): Promise<void> {
     };
     document.addEventListener('keydown', (e) => {
       if (document.querySelector('.dlg-back')) return; // a dialog handles its own keys
+      if (!warnPop.hidden && e.key === 'Escape') {
+        toggleWarnPop(false);
+        return;
+      }
       if (testing) {
         testKey(e);
         return; // while a fight runs the editor's keys stay out of the way
@@ -822,6 +993,8 @@ async function main(): Promise<void> {
           redraw();
           break;
         default:
+          // A message about the stage you just left does not belong under the next one.
+          if (e.type === 'stage') bar.say('');
           syncScene();
           break;
       }
@@ -839,7 +1012,7 @@ async function main(): Promise<void> {
 
     scene.setEditMode(false);
     installTips();
-    window.__stageedit = { session, view, flush, save, interact, battle: () => testing, startBattle: startTest, stopBattle: stopTest, align: (how) => inspector.alignSelection(how) };
+    window.__stageedit = { session, view, flush, save, interact, battle: () => testing, startBattle: startTest, stopBattle: stopTest, align: (how) => inspector.alignSelection(how), warnings: () => warnings };
     inspector.build();
     flush();
     bar.say(booted.standIns ? 'Mark’s Sprite Fusion sheets are not on this machine: the crew are stand-in blocks.' : 'Click a fighter, the horizon, a row or a HUD box. Drag to move it; Ctrl+S saves; the Keys button lists the shortcuts.');

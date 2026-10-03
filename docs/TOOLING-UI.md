@@ -61,13 +61,15 @@ Every editor is its own DEV page (like `/rigedit.html` and `/stagelab.html`) wit
 | Region | What it holds | RPG Maker counterpart |
 |---|---|---|
 | Header and toolbar | Breadcrumb back to `/?devmenu`, tool name, then mode toggle, snap toggles, show/hide toggles, Undo, Redo, Save, Revert and the test button, always in that order | Toolbar plus menus ([MZ main window](https://rpgmakerofficial.com/product/MZ_help-en/01_03.html)) |
-| List (left, about 220 px) | Every entry of the kind this tool edits, with search, New, Duplicate, Rename, Delete and a right-click menu | Database list panel, Map List ([MZ Database](https://rpgmakerofficial.com/product/MZ_help-en/01_08.html)) |
+| List (left, 268-340 px) | Every entry of the kind this tool edits, with search, New, Duplicate, Change id, Delete and a right-click menu (a name is edited in the inspector, the one place for it) | Database list panel, Map List ([MZ Database](https://rpgmakerofficial.com/product/MZ_help-en/01_08.html)) |
 | Palette (left, under the list) | Things you can add to the view: enemies, heroes, HUD parts, frames | Tile Palette; the Troops tab's enemy list beside the placement view |
 | Centre view | The game scene at a whole-number zoom, with handles, guides and overlays | Map View; Troops placement view |
-| Inspector (right, about 300 px) | A form for the selection; for the entry when nothing is selected | Database form panel |
+| Inspector (right, 360-432 px) | A form for the selection; for the entry when nothing is selected. With something selected, a **Stage settings** button at the top gets back to the entry's own settings | Database form panel |
 | Status line (bottom) | Cursor position in game pixels, what is under it, selection count, save state and the last save message | Status bar |
 
 Below 1100 px wide the three columns stack into one, as the animation editor already does (`rigedit.html`). The centre canvas keeps a whole-number zoom and `touch-action: none`; panel key presses never reach the game.
+
+**Laptops (round 2, 2026-10-03).** The side panels are sized in whole pixels (`round(down, 17.5vw, 1px)` inside the clamp), because a panel 268.8 px wide put the stage on a fraction of a pixel at 1536 x 864 and pixel art blurs there. At 1440 x 900 the two panels leave 832 px for the stage, so it draws at 1x; a **Left panel** toggle in the top bar (key **P**) folds the list and the explorer away and the stage gets 2x back (1100 px of room). The choice is remembered per browser (`localStorage`, read and written inside `try/catch`, so a blocked storage just starts with the panel open).
 
 ### 2.2 Naming
 
@@ -78,12 +80,12 @@ Below 1100 px wide the three columns stack into one, as the animation editor alr
 
 ### 2.3 Selecting and moving things in the view
 
-- **Click** selects; **Shift+click** adds to or removes from the selection; **Ctrl+A** selects everything of the selected kind; **Esc** clears the selection. MZ uses Shift+click to select several Database entries for copying ([MZ Database](https://rpgmakerofficial.com/product/MZ_help-en/01_08.html)) and Tiled does the same on the map ([Tiled objects](https://doc.mapeditor.org/en/stable/manual/objects/)).
+- **Click** selects; **Shift+click** adds to or removes from the selection (in the view, and in the explorer panel "Who's standing here": there Shift+click and Ctrl+click both add or remove, like Figma's layers, so align works from the panel); **Ctrl+A** selects everything of the selected kind; **Esc** clears the selection. MZ uses Shift+click to select several Database entries for copying ([MZ Database](https://rpgmakerofficial.com/product/MZ_help-en/01_08.html)) and Tiled does the same on the map ([Tiled objects](https://doc.mapeditor.org/en/stable/manual/objects/)).
 - **Drag** moves the selection. The inspector updates live, and the drag is one undo step when the mouse is released. **Hold Shift while dragging** to lock the move to sideways or up and down, whichever way the pointer has travelled further (Figma's rule; for fighters, slots, handles and HUD boxes). Press Shift before the drag and a press on something not yet selected also adds it to the selection, as Shift+click does.
 - **Sliders in the inspector** update the stage while the thumb is dragged, and letting go is the one undo step (the stage is the real scene, so the change is visible as it happens).
 - **Arrow keys** nudge by 1 game pixel and **Shift+arrow** by 8 (the 1 px nudge matches `rigedit.ts`; the 8 px step is inferred). Things that live on depth rows move one row up or down with the up and down arrows instead.
 - **Snapping** has separate toggles, as in Godot ([Godot 2D](https://docs.godotengine.org/en/stable/tutorials/2d/introduction_to_2d.html)): snap to rows, snap to grid (8 px, **G** toggles), and whole-pixel snap, which is always on because this is pixel art. Holding **Ctrl** while dragging turns snapping the other way for that drag (Tiled uses Ctrl for grid snap, [Tiled objects](https://doc.mapeditor.org/en/stable/manual/objects/)).
-- **Lock** (**Ctrl+L**, as in Godot) stops a layer or object from being picked, so the backdrop or the HUD can't be grabbed by accident while placing fighters.
+- **Lock** (**L**) stops a layer or object from being picked, so the backdrop or the HUD can't be grabbed by accident while placing fighters. (Godot's key is Ctrl+L, but Ctrl+L is the browser's address bar.)
 - **Multi-select editing.** With several things selected, the inspector shows only shared fields; a field whose values differ shows "mixed" until you type one value for all of them ([Tiled custom properties](https://doc.mapeditor.org/en/stable/manual/custom-properties/)).
 
 ### 2.4 Lists: entries, copy and paste, list size
@@ -122,17 +124,21 @@ Keys are ignored while focus is in a text field, as in the animation editor toda
 | Deselect, close a dialog | Esc | | |
 | Nudge | Arrows; Shift+arrows for 8 px | | 1 px arrows match `rigedit.ts` |
 | Lock a drag to one direction | Hold Shift while dragging | | Figma's rule (3 in 2.3) |
-| Align the selection | Alt+A left, Alt+H centre, Alt+D right; Alt+W back (HUD box: top), Alt+V middle, Alt+S front (HUD box: bottom); Alt+Shift+H and Alt+Shift+V spread three or more evenly | none found | Figma's letters, on Alt so they avoid F5, Ctrl+R, F12 and every key above |
+| Align the selection | Ctrl+Alt+A left, Ctrl+Alt+H centre, Ctrl+Alt+D right; Ctrl+Alt+W back (HUD box: top), Ctrl+Alt+V middle, Ctrl+Alt+S front (HUD box: bottom); Ctrl+Alt+Shift+H and Ctrl+Alt+Shift+V spread three or more evenly | none found | Figma's letters, on Ctrl+Alt. A plain Alt+letter is the browser's: Alt+D is the address bar in Edge and Chrome on Windows, Alt+F and Alt+E open its menu. Ctrl+Alt+letter is left alone by browsers |
 | Help | ? | | Opens "what is a stage?" (3.0) |
 | Grid snap on/off | G | | Hold Ctrl while dragging to flip snapping for that drag |
-| Lock selection | Ctrl+L | | Godot's lock key |
+| Lock selection | L | | Ctrl+L (Godot's key) is the browser's address bar |
+| Show / hide the left panel | P | | Gives the stage room to stay at 2x on a small screen (2.1) |
 | Bring forward / send back | Ctrl+] / Ctrl+[ | | Stage editor, within a row only (3.4); Tiled raises and lowers objects in manual draw order with Page Up and Page Down ([Tiled draw order](https://discourse.mapeditor.org/t/objectgroup-rendering-order/1586)), but those keys step the list here, so (inferred) the common design-tool brackets |
 | Show HUD regions | H | | Overlay only; never changes data. Other overlays are toolbar toggles |
+| Mouse (not keys) | Click selects; Shift+click adds or removes; Shift+drag locks to sideways or up and down; Ctrl+drag flips the grid and row snapping | | Listed in a "Mouse" group at the top of the Keys dialog, and in the help panel |
 | Open the DEV menu | ` (backtick) | | On the game page only (`src/dev/devmenu.ts`) |
 | Turn the character | [ and ] | | Animation editor only (`rigedit.ts`) |
 | Database (when it exists) | F9 is taken by the debug panel, so the Database opens from the DEV menu | In MZ, F9 opens the Debug Screen during playtest ([MZ help](https://rpgmakerofficial.com/product/MZ_help-en/01_05.html)); the Database opens from the toolbar or Tools > Database ([MZ Database](https://rpgmakerofficial.com/product/MZ_help-en/01_08.html)) | (inferred) avoid one key meaning two things |
 
 Every tool shows its keys on a "Keys" button in the toolbar, and the same table drives both the handler and that list (proposed `src/tools/keys.ts`).
+
+**Keys a tool may not take.** The Battle Stage Editor's table is checked by a unit test against a list of the browser's own keys (`RESERVED` in `src/stage/edit/keys.ts`): F5, F6, F11, F12, Ctrl+R, Ctrl+L, Ctrl+T, Ctrl+N, Ctrl+W (and their Shift forms), Ctrl+Tab, Alt+D, Alt+F, Alt+E, Alt+Left, Alt+Right. A tool that wants a letter on Alt uses Ctrl+Alt instead.
 
 ---
 
@@ -146,9 +152,10 @@ Mark asked (2026-10-03) whether the settings here are for all battles or one, an
 
 - **A stage is one battleground**: the street, the sewer. It holds the backdrop picture, the horizon and the floor, the depth rows, where the heroes stand, and where the enemies stand for each enemy count from 1 to 6 and for a boss. RPG Maker calls the picture a battleback and the list of enemies a troop.
 - **Every fight at that place uses the stage.** A map names the battleground for each area with `bg` (the Sinkline's fights use `sewer`). So a setting on a stage applies to every fight there, not to one fight.
-- **Who fights is not part of a stage.** That is the encounter (RPG Maker: a troop), and a troop editor will come later (4.1). The **Enemies** buttons in the top bar only pick which enemy count to look at; it is a preview.
+- **Who fights is not part of a stage.** That is the encounter, the list of who you fight in one battle (RPG Maker: a troop), and a troop editor will come later (4.1). The **Enemies** buttons in the top bar only pick which enemy count to look at; it is a preview.
 - **The HUD is global.** One layout for every battle on every stage (`src/data/hud.json`). A stage can override single boxes (3.6).
-- **What is live today:** only this editor and Battle Test read stages. The shipped game will read them after a go-ahead.
+- **Haze, shadows and the floor's look belong to each stage.** They are not global. Only the HUD is.
+- **What is live today:** only this editor, Battle Test and the stage lab read stages. The shipped game will read them after a go-ahead.
 
 ### 3.1 What we can do that RPG Maker can't
 
@@ -168,7 +175,7 @@ Taken out in round 1 of Mark's notes (2026-10-03): the **HUD preset** picker (it
 
 ### 3.3 Left: stage list and palette
 
-- **Stage list**: every stage in `stages.json` by id and name, with New (from a blank template with the default rows), Duplicate, Rename, Delete and the right-click menu from 2.4. Delete is refused while a troop or map uses the stage (once troops exist).
+- **Stage list**: every stage in `stages.json` by id and name, with New (from a blank template with the default rows), Duplicate, **Change id** (the name is edited in the inspector's Name field, the one place for it), Delete and the right-click menu from 2.4. Delete is refused while a troop or map uses the stage (once troops exist).
 - **Explorer panel, "Who's standing here"** (the palette): it takes the rest of the left panel's height under the stage list and scrolls inside itself, as Figma's layers panel does. The four heroes and the enemy list from `src/data/enemies.ts`. These choose who fills the slots *for the preview only*; the stage stores places, not people. Double-click or drag an enemy onto a slot to preview it there. This mirrors the Troops tab's enemy list, whose background picker is likewise editor-only and shared across the database ([MZ Troops](https://rpgmakerofficial.com/product/MZ_help-en/01_08_07.html)); our preview choice is remembered per browser in `localStorage` and shared with the troop editor later.
 
 ### 3.4 Centre: the stage view
@@ -234,13 +241,13 @@ With nothing selected, the inspector shows the stage:
 
 | Section | Fields |
 |---|---|
-| Basics | Name; id (read-only, change it with Rename); Note for Claude |
+| Basics | Name; id (read-only, change it with Change id in the stage list); Note for Claude |
 | Battleback | Wall, Floor, Foreground and Ambient pickers, each with a thumbnail and a parallax ratio |
 | Ground | Horizon; Floor top; Floor bottom |
 | Depth rows | One line per row: foot height, tint swatch, shadow scale and alpha (blank inherits Shadows); Add row, Remove row (refused while a slot uses it) |
 | Shadows | Width, ratio (how flat), alpha: the default every row starts from |
 | HUD layout · all battles | The preset (global); the values moved by hand, with revert arrows; and under "This stage" the boxes this stage overrides, with revert arrows back to the all-battles value |
-| Enemy positions | The group shown (chosen with Enemies in the top bar), **Lay out evenly**, **Copy from n−1**, Reset preview (3.8) |
+| Enemy positions | The group shown (chosen with Enemies in the top bar), **Lay out evenly**, **Copy from one fewer enemy**, Put back the demo enemies (3.8) |
 
 With a slot selected: an **Align** bar (below), which slot ("Party 2", "Enemy 3 of 3"), row (a dropdown of rows), x (slider plus number box), the resulting foot y (read-only, from the row), draw order (Auto, Forward or Back) and the foot anchor of the sprite standing there (measured or overridden, with a revert arrow back to the measurement). With a HUD region selected: the Align bar, its name, **Different on this stage**, x, y, width, height, visibility and opacity.
 
@@ -255,7 +262,7 @@ Every field follows the house pattern: a slider paired with a number box for num
 `stages.json` already keeps a slot set for each enemy count (`"1"` to `"6"`, `"boss"`, `"boss+1"`, `"boss+2"`), so a fight with three enemies looks composed rather than squeezed. The toolbar's **Enemies** buttons pick which set is shown and edited (they are the only place; the inspector's Enemy positions group says which one is showing).
 
 - **Lay out evenly** re-lays the shown set evenly: enemies spread across the rows from front to back and across the right half of the stage, like MZ's Align button, which re-lays a troop left to right in entry order ([MZ Troops](https://rpgmakerofficial.com/product/MZ_help-en/01_08_07.html)). It is one undo step, so it is safe to try. It was called Align until the design-tool Align bar (3.7) arrived and the two names clashed.
-- **Copy from n−1** starts a new set from the one with one fewer enemy, then adds the extra slot.
+- **Copy from one fewer enemy** starts a new set from the one with one fewer enemy, then adds the extra slot.
 - **Party layout** is either **Free** (four dragged slots, today's data) or **Diagonal**: a front slot, a step across and a row step, which is RPG Maker's diagonal written as three numbers (see "RPG Maker's diagonal" in `docs/CONCEPTS.md`; the formula approach is VisuStella's `ActorHomePosJS`). Dragging a hero while Diagonal is on switches to Free and says so in the status line (inferred).
 - **The cap** is the battle engine's, currently 4 slots in the data; RPG Maker allows 8 enemies per troop ([MZ Troops](https://rpgmakerofficial.com/product/MZ_help-en/01_08_07.html)).
 

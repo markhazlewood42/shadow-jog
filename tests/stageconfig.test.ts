@@ -4,8 +4,6 @@ import { ENEMIES } from '../src/data/enemies';
 import stagesJson from '../src/data/stages.json';
 import { shippedHud, shippedStages } from './stagefiles';
 import {
-  checkFigures,
-  checkLayout,
   checkStages,
   checkStagesWith,
   depthFor,
@@ -29,6 +27,7 @@ import {
   stageOf,
 } from '../src/stage/config';
 import { CREW_IDS } from '../src/stage/crew';
+import { checkFigures, checkLayout } from '../src/stage/rules';
 
 const known = { enemies: Object.keys(ENEMIES), bosses: Object.keys(ENEMIES).filter((k) => ENEMIES[k]?.boss), crew: CREW_IDS };
 /** A fresh copy of the shipped file to break one thing at a time. */
@@ -185,7 +184,7 @@ describe('the design’s figure checks (they need the sprites’ sizes, which th
 
   it('flags a narrow lane, an enemy too far left, one off the right edge and a sprite in the top band', () => {
     const s = shippedStages().street as StageConfig;
-    has(checkFigures(s, [...heroes, foe(240, 300, 100)]), 'lane');
+    has(checkFigures(s, [...heroes, foe(240, 300, 100)]), 'gap between the heroes and the enemies');
     has(checkFigures(s, [...heroes, foe(250, 300, 100)]), 'left edge');
     has(checkFigures(s, [...heroes, foe(300, 480, 100)]), 'reaches x 480');
     has(checkFigures(s, [...heroes, foe(300, 400, 20)]), 'top HUD band');

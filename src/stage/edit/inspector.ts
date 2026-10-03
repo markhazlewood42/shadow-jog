@@ -23,12 +23,16 @@ import { BG_IDS } from '../../art/battlebg';
 import { ENEMIES } from '../../data/enemies';
 import { MEMBERS } from '../../data/party';
 import type { MemberId } from '../../game/state';
-import { checkLayout, checkStages, type PartySlot, setSize, type StageEntry } from '../config';
+import { checkStages, type PartySlot, setSize, type StageEntry } from '../config';
 import { applyPreset, HUD_PRESETS, HUD_REGION_NAMES, type HudField, type HudRegionKey, hudOverrides, PRESET_IDS, type PresetId, presetValue, revertField, revertRegion } from '../hudpresets';
 import { STAGE_KNOWN } from '../known';
+import type { StageWarning } from '../rules';
 import { h, tip } from './dom';
+import { KEYS, shown } from './keys';
 import {
   addRow,
+  type AcrossResult,
+  ALIGN_GAP,
   alignAcross,
   alignBoxes,
   alignDepth,
@@ -69,6 +73,8 @@ export interface InspectorHost {
   previewEnemy: (index: number, key: string) => void;
   /** Forget the previewed enemies of the shown group. */
   resetPreview: () => void;
+  /** The design rules the shown stage breaks right now (the page works them out from the scene; see `rules.ts`). */
+  warnings: () => StageWarning[];
 }
 
 /** A value the field could go back to, and where it comes from. */
@@ -149,8 +155,16 @@ export class Inspector {
     else if (first?.kind === 'anchor') this.anchorForm(first);
     else if (first && sel.every((i) => i.kind === 'hud')) this.hudForm(sel.flatMap((i) => (i.kind === 'hud' ? [i.region] : [])));
     else this.stageForm(first);
-    // Settings of the stage itself (the haze, the shadows) show only while nothing is selected: say so, so nobody hunts for them.
-    if (first) this.root.append(h('div', { class: 'hint backhint' }, 'The settings of the stage itself (haze, shadows, floor) come back when nothing is selected. Press Esc or click empty space.'));
+    // Settings of the stage itself (the haze, the shadows) show only while nothing is selected: a button at the top gets back to them.
+    if (first)
+      this.root.prepend(
+        h(
+          'div',
+          { class: 'stagebar' },
+          h('button', { type: 'button', class: 'stagebtn', id: 'stage-settings', title: 'Deselect, and show the settings of the stage itself: haze, shadows, floor look, rows (Esc does the same)', onclick: () => this.session.select([]) }, 'Stage settings'),
+          h('span', { class: 'hint' }, 'Haze, shadows and the floor are here.'),
+        ),
+      );
     this.sync();
   }
 
@@ -201,14 +215,23 @@ export class Inspector {
       const d = session.data;
       if (!d.stages[session.stageId]) return;
       const v = spec.read(d);
+      // Several things selected with different values: the box says "mixed" in full and the slider is greyed out
+      // (it has no one value to show). Typing a number sets all of them; the slider comes back once they agree.
+      row.classList.toggle('mixed', v === null);
       if (v === null) {
         box.value = '';
         box.placeholder = 'mixed';
-        if (range) range.value = String(spec.min);
+        if (range) {
+          range.value = String(spec.min);
+          range.disabled = true;
+        }
       } else {
         box.value = String(v);
         box.placeholder = '';
-        if (range) range.value = String(v);
+        if (range) {
+          range.value = String(v);
+          range.disabled = !!spec.disabled;
+        }
       }
       const base = spec.baseline ? spec.baseline(d) : this.savedBaseline(spec);
       const differs = base !== null && v !== base.value;
@@ -318,10 +341,11 @@ export class Inspector {
       const s = d.stages[this.session.stageId];
       if (!s) return;
       const problems = checkStages({ [s.id]: s }, BG_IDS, STAGE_KNOWN);
-      const warnings = checkLayout(this.session.resolved);
+      // The design's rules (`rules.ts`) for this stage: the stage-wide ones, and the figure ones for the enemy count on show. Warnings never stop a save.
+      const warnings = this.host.warnings().filter((w) => w.setKey === null || w.setKey === this.session.setKey);
       box.replaceChildren(
         ...problems.map((p) => h('div', { class: 'bad' }, `Will not save: ${p.replace(/^stage "[^"]*" ?/, '')}`)),
-        ...warnings.map((w) => h('div', { class: 'warn' }, `Design rule: ${w}`)),
+        ...warnings.map((w) => h('div', { class: 'warn' }, `Design rule${w.setKey ? ` (${setLabel(w.setKey)})` : ''}: ${w.text}`)),
       );
       box.hidden = !problems.length && !warnings.length;
     });
@@ -338,7 +362,7 @@ export class Inspector {
         this.stageNum({
           label: `Row ${i + 1}${i === 0 ? ' (back)' : i === rowCount - 1 ? ' (front)' : ''}`,
           name: `rows[${i}].y`,
-          tip: 'How far down the screen this lane is. A bigger number sits lower and closer to you. You can also drag the white line on the stage.',
+          tip: 'How far down the screen this row is. A bigger number sits lower and closer to you. You can also drag the white line on the stage.',
           min: 0,
           max: 270,
           read: (s) => s.rows[i]?.y ?? null,
@@ -349,9 +373,9 @@ export class Inspector {
       if (s0.depthTint)
         rowsBox.append(
           this.stageNum({
-            label: 'Distance haze',
+            label: `Haze, row ${i + 1}`,
             name: `depthTint.amounts[${i}]`,
-            tip: 'Fades the fighters on this lane toward the fog colour. Back lanes look paler and farther away. Raise it and you will see them wash out.',
+            tip: 'Fades the fighters on this row toward the sky colour. Back rows look paler and farther away. Raise it and you will see them wash out.',
             min: 0,
             max: 0.15,
             step: 0.01,
@@ -394,7 +418,7 @@ export class Inspector {
         this.text('Name', 'name', undefined, (s) => s.name, (s, v) => {
             s.name = v.trim() || s.name;
           }, 'Rename the stage'),
-        this.readonly('Id', 'id', 'The short name other files use for this stage. Change it with Rename in the stage list.', (s) => s.id),
+        this.readonly('Id', 'id', 'The short name other files use for this stage. Change it with “Change id” in the stage list. The Name above is the only place to change the name.', (s) => s.id),
         this.text('Note for Claude', 'note', 'A message for the next Claude session. Write what you want from this stage, for example “make the sewer gloomier”.', (s) => s.note ?? '', (s, v) => {
             if (v.trim()) s.note = v;
             else delete s.note;
@@ -444,7 +468,7 @@ export class Inspector {
           }),
         ),
       ),
-      this.groupTip('Depth rows', true, 'Rows are lanes that run from the back (the top of the floor) to the front (the bottom). A fighter stands on one lane. Fighters on lower lanes are drawn over those behind them. This is what makes the stage look deep.', rowsBox),
+      this.groupTip('Depth rows', true, 'Rows run from the back (the top of the floor) to the front (the bottom). A fighter stands on one row. Fighters on lower rows are drawn over those behind. This is what makes the stage look deep.', rowsBox),
       this.groupTip(
         'Shadows',
         false,
@@ -476,8 +500,8 @@ export class Inspector {
           'div',
           { class: 'btns' },
           this.button('Lay out evenly', () => this.layOutNow(), 'Spread this group evenly across the rows (RPG Maker calls this Align). One undo step.'),
-          this.button('Copy from n−1', () => this.copyPrevNow(), 'Start this group from the one with one fewer enemy, then add the extra slot'),
-          this.button('Reset preview', () => this.host.resetPreview(), 'Put back the stage’s own demo enemies in this group'),
+          this.button('Copy from one fewer enemy', () => this.copyPrevNow(), 'Start this group from the group with one fewer enemy, then add the extra slot'),
+          this.button('Put back the demo enemies', () => this.host.resetPreview(), 'Show the stage’s own demo enemies in this group again (you swapped some for a preview)'),
         ),
       ),
     );
@@ -498,7 +522,7 @@ export class Inspector {
       );
     if (s0.floor.haze)
       kids.push(
-        this.stageNum({ label: 'Far fade', name: 'floor.haze.amount', tip: 'Fades the far end of the floor into the fog colour, so the floor melts into the distance. Raise it and the floor near the horizon gets hazier.', min: 0, max: 1, step: 0.05, slider: true, read: (s) => s.floor.haze?.amount ?? 0, write: (s, v) => {
+        this.stageNum({ label: 'Far fade', name: 'floor.haze.amount', tip: 'Fades the far end of the floor toward the sky colour, so the floor melts into the distance. Raise it and the floor near the horizon gets hazier.', min: 0, max: 1, step: 0.05, slider: true, read: (s) => s.floor.haze?.amount ?? 0, write: (s, v) => {
             if (s.floor.haze) s.floor.haze.amount = v;
           }, undo: 'Floor far fade' }),
       );
@@ -520,11 +544,11 @@ export class Inspector {
   private copyPrevNow(): void {
     const key = this.session.setKey;
     let why: string | null = null;
-    this.session.edit(`Copy group from n−1 (${setLabel(key)})`, (d) => {
+    this.session.edit(`Copy group from one fewer enemy (${setLabel(key)})`, (d) => {
       why = copyFromPrevious(this.stageIn(d), key);
     });
     if (why) this.host.notify(why, true);
-    else this.host.notify(`Started the ${setLabel(key)} group from the smaller one.`);
+    else this.host.notify(`Started the ${setLabel(key)} group from the group with one fewer enemy.`);
   }
 
   // ---------------------------------------------------------------- HUD: one layout for every battle, a few boxes overridden per stage
@@ -757,29 +781,36 @@ export class Inspector {
    */
   private alignGroup(kind: 'fighter' | 'hud', canSpread: boolean): HTMLElement {
     const hud = kind === 'hud';
-    const btn = (how: AlignHow, label: string, key: string, title: string): HTMLButtonElement => h('button', { type: 'button', class: 'alb', 'data-align': how, title: `${title} (${key})`, 'aria-label': `${label}: ${title}`, onclick: () => this.alignSelection(how) }, label);
+    // The key shown in each tooltip comes from the one key table, so it can never disagree with what the key does.
+    const KEY_ID: Record<AlignHow, string> = { left: 'alignLeft', centre: 'alignCentre', right: 'alignRight', back: 'alignBack', middle: 'alignMiddle', front: 'alignFront', spreadAcross: 'spreadAcross', spreadDepth: 'spreadDepth' };
+    const btn = (how: AlignHow, label: string, title: string): HTMLButtonElement => {
+      const key = shown(KEYS.find((k) => k.id === KEY_ID[how])?.combos[0] ?? '');
+      return h('button', { type: 'button', class: 'alb', 'data-align': how, title: `${title} (${key})`, 'aria-label': `${label}: ${title}`, onclick: () => this.alignSelection(how) }, label);
+    };
     return this.groupTip(
       'Align',
       true,
-      'Line up the selected things with one click. With one thing selected it lines up with the stage. With two or more it lines up with each other. Heroes stay on the left half and enemies on the right half.',
+      hud
+        ? 'Line up with the screen, or with each other. With one box selected it lines up with the screen. With two or more it lines up with each other.'
+        : 'Line up the selected fighters with one click. One fighter lines up with the stage, and stays on its own half: heroes on the left, enemies on the right. Two or more line up with each other.',
       h(
         'div',
         { class: 'alignbar' },
-        h('div', { class: 'seg' }, btn('left', 'Left', 'Alt+A', 'Line up the left edges'), btn('centre', 'Centre', 'Alt+H', 'Line up the centres'), btn('right', 'Right', 'Alt+D', 'Line up the right edges')),
+        h('div', { class: 'seg' }, btn('left', 'Left', 'Line up the left edges'), btn('centre', 'Centre', 'Line up the centres'), btn('right', 'Right', 'Line up the right edges')),
         h(
           'div',
           { class: 'seg' },
-          btn('back', hud ? 'Top' : 'Back', 'Alt+W', hud ? 'Line up the top edges' : 'Move to the back row'),
-          btn('middle', 'Middle', 'Alt+V', hud ? 'Line up the middles' : 'Move to the middle row'),
-          btn('front', hud ? 'Bottom' : 'Front', 'Alt+S', hud ? 'Line up the bottom edges' : 'Move to the front row'),
+          btn('back', hud ? 'Top' : 'Back', hud ? 'Line up the top edges' : 'Move to the back row'),
+          btn('middle', 'Middle', hud ? 'Line up the middles' : 'Move to the middle row'),
+          btn('front', hud ? 'Bottom' : 'Front', hud ? 'Line up the bottom edges' : 'Move to the front row'),
         ),
-        canSpread ? h('div', { class: 'seg' }, btn('spreadAcross', 'Spread across', 'Alt+Shift+H', 'Even gaps from left to right'), btn('spreadDepth', hud ? 'Spread down' : 'Spread rows', 'Alt+Shift+V', hud ? 'Even gaps from top to bottom' : 'Even steps from back to front')) : null,
+        canSpread ? h('div', { class: 'seg' }, btn('spreadAcross', 'Spread across', 'Even gaps from left to right'), btn('spreadDepth', hud ? 'Spread down' : 'Spread rows', hud ? 'Even gaps from top to bottom' : 'Even steps from back to front')) : null,
       ),
     );
   }
 
   /**
-   * Line up the selection (the Align bar and the Alt keys call this). Returns false, after saying why on the status
+   * Line up the selection (the Align bar and the Ctrl+Alt keys call this). Returns false, after saying why on the status
    * line, when nothing alignable is selected. One undo step.
    */
   alignSelection(how: AlignHow): boolean {
@@ -822,16 +853,19 @@ export class Inspector {
       spreadAcross: 'evenly across',
       spreadDepth: 'evenly over the rows',
     };
+    let across: AcrossResult = { packed: 0, packedRows: 0 };
     session.edit(`Align ${who} ${words[how]}`, (d) => {
       const st = this.stageIn(d);
-      if (how === 'left' || how === 'centre' || how === 'right') alignAcross(st, side, session.setKey, idx, how, reach);
+      if (how === 'left' || how === 'centre' || how === 'right') across = alignAcross(st, side, session.setKey, idx, how, reach);
       else if (how === 'back' || how === 'middle' || how === 'front') alignDepth(st, side, session.setKey, idx, how);
       else if (how === 'spreadAcross') distributeAcross(st, side, session.setKey, idx, reach);
       else distributeDepth(st, side, session.setKey, idx);
     });
     // One fighter lines up with its own half of the stage; several line up with each other.
     const acrossOne = !many && (how === 'left' || how === 'centre' || how === 'right');
-    this.host.notify(`Aligned ${who} ${words[how]}${acrossOne ? ` of the ${side === 'party' ? 'left' : 'right'} half of the stage` : ''}.`);
+    // Say what really happened: fighters that share a row cannot share an edge, so they were packed side by side.
+    const packedNote = across.packed ? ` ${across.packed} of them share ${across.packedRows === 1 ? 'a row' : 'rows'}, so ${across.packedRows === 1 ? 'they were' : 'those on one row were'} packed side by side in their old left-to-right order, ${ALIGN_GAP} px apart, so ${across.packedRows === 1 ? 'they do not' : 'none'} overlap.` : '';
+    this.host.notify(`Aligned ${who} ${words[how]}${acrossOne ? ` of the ${side === 'party' ? 'left' : 'right'} half of the stage` : ''}.${packedNote}`);
     return true;
   }
 
@@ -876,7 +910,7 @@ export class Inspector {
       this.group(
         title,
         true,
-        this.select('Row', 'row', 'Which lane this fighter stands on. Back is the top of the floor. Front is the bottom. Fighters on a lower lane are drawn over those behind.', rowOptions, (d) => same(slotsOf(d).map((q) => String(q.row))), (d, v) =>
+        this.select('Row', 'row', 'Which row this fighter stands on. Back is the top of the floor. Front is the bottom. Fighters on a lower row are drawn over those behind.', rowOptions, (d) => same(slotsOf(d).map((q) => String(q.row))), (d, v) =>
             writeAll(d, (q) => {
               q.row = Number(v);
             }), `Move ${title} to another row`),
@@ -884,16 +918,16 @@ export class Inspector {
             writeAll(d, (q) => {
               q.x = v;
             }), undo: `Move ${title} sideways` }),
-        this.num({ label: 'Small up or down', name: 'dy', tip: 'Moves the feet a few pixels up or down from the lane line. It is usually 0.', min: -8, max: 8, read: (d) => same(slotsOf(d).map((q) => q.dy ?? 0)), write: (d, v) =>
+        this.num({ label: 'Small up or down', name: 'dy', tip: 'Moves the feet a few pixels up or down from the row line. It is usually 0.', min: -8, max: 8, read: (d) => same(slotsOf(d).map((q) => q.dy ?? 0)), write: (d, v) =>
             writeAll(d, (q) => {
               if (v === 0) delete q.dy;
               else q.dy = v;
             }), undo: `Nudge ${title}` }),
-        this.readonlyData('Feet at y', undefined, 'Worked out from the lane. It is not stored.', (d) => same(slotsOf(d).map((q) => (this.stageIn(d).rows[q.row]?.y ?? 0) + (q.dy ?? 0)))?.toString() ?? 'mixed'),
+        this.readonlyData('Feet at y', undefined, 'Worked out from the row. It is not stored.', (d) => same(slotsOf(d).map((q) => (this.stageIn(d).rows[q.row]?.y ?? 0) + (q.dy ?? 0)))?.toString() ?? 'mixed'),
         h(
           'div',
           { class: 'field' },
-          this.labelOf('Draw order', 'order', 'Who is drawn on top when two fighters on the same lane overlap. Auto uses the usual rule: the one nearer the middle of the screen is in front. Forward puts this fighter on top. Back puts it behind. It never lifts a fighter over one on a lower lane.'),
+          this.labelOf('Draw order', 'order', 'Who is drawn on top when fighters on one row overlap. Auto puts the one nearer the middle in front. Forward or Back overrides that.'),
           h(
             'div',
             { class: 'seg' },

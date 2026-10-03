@@ -2,12 +2,13 @@
  * The Phaser stage lab's final stage design (spike `spike/phaser-stage`, step P2): the pickers, the design's own
  * acceptance checks run on the REAL sprites, and the HUD drawn where the config says.
  *
- * The design's mockup script printed a list of checks (the lane between the sides, the edges, nothing in the top
- * HUD band...) for every enemy group on both stages. `checkFigures` is that list as a function; here the browser
- * reports the figures' real sizes and it is run on all 18 groups.
+ * The design's mockup script printed a list of checks (the gap between the sides, the edges, nothing in the top
+ * HUD band...) for every enemy group on both stages. `checkFigures` (in `src/stage/rules.ts`, the same module the
+ * Battle Stage Editor runs live as warnings) is that list as a function; here the browser reports the figures' real
+ * sizes and it is run on all 18 groups.
  */
 import { expect, type Page, test } from '@playwright/test';
-import { hideStatus, openLab } from './stagelabkit';
+import { hideStatus, MARKS_FIGURE_BREAKS, openLab } from './stagelabkit';
 
 type Scene = {
   config: { id: string };
@@ -67,9 +68,17 @@ test('without the pickers (?clean) the page is only the stage', async ({ page })
 test('every enemy group on both stages passes the design’s figure checks with the real sprites', async ({ page }) => {
   const errors = await open(page);
   const result = await page.evaluate(async () => {
-    const url = '/src/stage/config.ts';
-    const { checkFigures, checkLayout, SET_KEYS } = await import(/* @vite-ignore */ url);
+    // (The addresses are variables so the type checker does not try to resolve them: the dev server serves them to the page.)
+    const configUrl = '/src/stage/config.ts';
+    const rulesUrl = '/src/stage/rules.ts';
+    const axesUrl = '/src/data/axes.json';
+    const { SET_KEYS } = await import(/* @vite-ignore */ configUrl);
+    const { checkFigures, checkLayout } = await import(/* @vite-ignore */ rulesUrl);
     const s = window.__ss();
+    // Measure the figures as the editor and Battle Test draw them: with Mark's foot-anchor corrections (axes.json, Sable's -5).
+    // (The plain lab page does not load that file; the rules are the same either way, only Sable's edge moves by 5 px.)
+    const { default: axes } = await import(/* @vite-ignore */ axesUrl);
+    (s as unknown as { setAxes: (a: unknown) => void }).setAxes(axes);
     const report: string[] = [];
     for (const stage of ['street', 'sewer']) {
       s.showStage(stage);
@@ -82,15 +91,10 @@ test('every enemy group on both stages passes the design’s figure checks with 
     }
     return report;
   });
-  // Mark's own enemy slots (his edits in the Battle Stage Editor, commit 6364bb5) break these four of the design's figure rules.
-  // They are his taste calls, so they are named here and the test still catches every OTHER problem. If he moves those enemies
-  // (or changes the rules), delete the line.
-  const MARKS_CHOICES = [
-    'street boss: 1 figure(s) reach into the top HUD band (y 45)',
-    'street boss+2: 1 figure(s) reach into the top HUD band (y 45)',
-    'sewer 6: the lane between the sides is 42 px (need 55)',
-    "sewer 6: the nearest enemy's left edge is 244 (need 260 or more)",
-  ];
+  // Mark's own enemy slots (his edits in the Battle Stage Editor, commit 6364bb5) break a few of the design's figure rules.
+  // They are his taste calls, listed in `MARKS_FIGURE_BREAKS` (stagelabkit.ts) and shown as live warnings in the editor,
+  // and this test still catches every OTHER problem. If he moves those enemies (or changes the rules), edit that list.
+  const MARKS_CHOICES = MARKS_FIGURE_BREAKS;
   expect(result.filter((p) => !MARKS_CHOICES.includes(p))).toEqual([]);
   expect(errors).toEqual([]);
 });

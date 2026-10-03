@@ -101,8 +101,9 @@ type StageSaveModule = typeof import('./src/stage/edit/save');
 /**
  * The Battle Stage Editor's save endpoint (dev server only): GET /__stage/stages returns the two data files
  * (src/data/stages.json and src/data/axes.json) as text; POST checks the posted `{ stages, axes }` with the module
- * the game loads them with (src/stage/edit/save.ts, which uses `checkStages`) and, only if both are fine, writes
- * both in the editor's stable format. It answers `{ ok, problems: [] }` (docs/TOOLING-UI.md 2.5).
+ * the game loads them with (src/stage/edit/save.ts: `checkStagesWith`, which lays each stage's HUD overrides over the
+ * global hud.json AS IT IS ON DISK, the way the game's loader does) and, only if both are fine, writes both in the
+ * editor's stable format. It answers `{ ok, problems: [] }` (docs/TOOLING-UI.md 2.5).
  *
  * `?dry=1` checks and formats without writing. `?scratch=<name>` (letters, digits, dashes) reads and writes a
  * private copy in the OS temp folder instead of the repo files, which is how the tests save and reload without
@@ -142,6 +143,7 @@ function stageEdit(): Plugin {
         }
         const stagesPath = dir ? join(dir, 'stages.json') : STAGES_FILE;
         const axesPath = dir ? join(dir, 'axes.json') : AXES_FILE;
+        const hudPath = dir ? join(dir, 'hud.json') : HUD_FILE;
         if (req.method === 'GET') {
           const from = (path: string, real: string) => readFileSync(existsSync(path) ? path : real, 'utf8');
           reply(200, { ok: true, problems: [], stages: from(stagesPath, STAGES_FILE), axes: from(axesPath, AXES_FILE), scratch: !!dir });
@@ -169,7 +171,9 @@ function stageEdit(): Plugin {
             reply(400, { ok: false, problems: ['not valid JSON'] });
             return;
           }
-          const made = prepareSave(data);
+          // Check the stages against the global HUD file as it is on disk right now (the scratch copy if there is one), as the game's loader does.
+          const hudOnDisk = readFileSync(existsSync(hudPath) ? hudPath : HUD_FILE, 'utf8');
+          const made = prepareSave(data, hudOnDisk);
           if (!made.ok) {
             reply(400, { ok: false, problems: made.problems });
             return;

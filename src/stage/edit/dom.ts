@@ -72,18 +72,52 @@ export function tip(text: string): HTMLElement {
   return h('button', { type: 'button', class: 'qm', 'data-tip': text, 'aria-label': `Help: ${text}` }, '?');
 }
 
+/** Set by `installTips`: closes the floating bubble (used when a click opens a panel that the bubble would sit on top of). */
+let closeBubble: () => void = () => {};
+export function hideTips(): void {
+  closeBubble();
+}
+
 /**
  * Show the text of any element that has `data-tip` in one floating bubble (a "?" button, or a toolbar button that
  * wants a longer explanation than the browser's own `title` gives). One bubble for the whole page, placed with
  * `position: fixed`, so a panel that scrolls or clips its contents cannot cut the text off. Call once at start-up.
+ *
+ * Where the bubble opens (so it never covers the label it explains): a tip in a side panel opens BESIDE THE WHOLE
+ * PANEL, over the stage view (left of the right panel, right of the left panel); a tip in the toolbar, or anywhere
+ * when the panels are stacked on a narrow window, opens just below the thing.
  */
 export function installTips(): void {
   const bubble = h('div', { id: 'tipbubble', role: 'tooltip', hidden: true });
   document.body.append(bubble);
   let current: HTMLElement | null = null;
+  /** Until this time (ms), a scroll is probably the one `focus()` caused by bringing the focused "?" into view. */
+  let focusScrollUntil = 0;
   const hide = (): void => {
     current = null;
     bubble.hidden = true;
+  };
+  closeBubble = hide;
+  const place = (el: HTMLElement): void => {
+    const r = el.getBoundingClientRect();
+    const b = bubble.getBoundingClientRect();
+    const panel = el.closest('aside');
+    const pr = panel?.getBoundingClientRect();
+    let x: number;
+    let y: number;
+    if (pr && pr.width < window.innerWidth * 0.6) {
+      // Beside the whole panel, level with the "?" (clear of the label, which is inside the panel).
+      const panelOnRight = pr.left + pr.width / 2 > window.innerWidth / 2;
+      x = panelOnRight ? pr.left - b.width - 8 : pr.right + 8;
+      y = r.top + r.height / 2 - b.height / 2;
+    } else {
+      // Below the element (above it when there is no room underneath).
+      x = r.left;
+      y = r.bottom + 8;
+      if (y + b.height > window.innerHeight - 8) y = r.top - b.height - 8;
+    }
+    bubble.style.left = `${Math.min(Math.max(8, x), window.innerWidth - b.width - 8)}px`;
+    bubble.style.top = `${Math.min(Math.max(8, y), window.innerHeight - b.height - 8)}px`;
   };
   const show = (el: HTMLElement): void => {
     const text = el.dataset.tip;
@@ -91,16 +125,7 @@ export function installTips(): void {
     current = el;
     bubble.textContent = text;
     bubble.hidden = false;
-    const r = el.getBoundingClientRect();
-    const b = bubble.getBoundingClientRect();
-    // Prefer the side with more room: panels on the right open their tips to the left, and the other way round.
-    const left = r.left + r.width / 2 > window.innerWidth / 2 ? r.left - b.width - 8 : r.right + 8;
-    const x = Math.min(Math.max(8, left), window.innerWidth - b.width - 8);
-    // Toolbar items open their tip below; side panel items open it level with the "?".
-    const below = r.top < 90;
-    const y = below ? r.bottom + 8 : r.top + r.height / 2 - b.height / 2;
-    bubble.style.left = `${x}px`;
-    bubble.style.top = `${Math.min(Math.max(8, y), window.innerHeight - b.height - 8)}px`;
+    place(el);
   };
   const owner = (t: EventTarget | null): HTMLElement | null => (t instanceof Element ? (t.closest('[data-tip]') as HTMLElement | null) : null);
   document.addEventListener('pointerover', (e) => {
@@ -113,7 +138,10 @@ export function installTips(): void {
   });
   document.addEventListener('focusin', (e) => {
     const el = owner(e.target);
-    if (el) show(el);
+    if (!el) return;
+    // Focusing scrolls the panel so the "?" is in view. That scroll must not close the bubble that the focus just opened.
+    focusScrollUntil = performance.now() + 300;
+    show(el);
   });
   document.addEventListener('focusout', hide);
   document.addEventListener('keydown', (e) => {
@@ -122,6 +150,13 @@ export function installTips(): void {
   document.addEventListener('pointerdown', (e) => {
     if (!owner(e.target)) hide();
   });
-  // A panel that scrolls under the bubble would leave it behind.
-  document.addEventListener('scroll', hide, true);
+  // A panel that scrolls under the bubble would leave it behind: close it. The scroll that FOCUS caused (a few ms after the bubble opened) only moves it to follow the "?".
+  document.addEventListener(
+    'scroll',
+    () => {
+      if (current && performance.now() < focusScrollUntil) place(current);
+      else hide();
+    },
+    true,
+  );
 }

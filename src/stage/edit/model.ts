@@ -511,12 +511,28 @@ export interface Reach {
   right: number;
 }
 
+/** The least space, in px, kept between two fighters' drawn edges when Align packs them side by side on one row. */
+export const ALIGN_GAP = 2;
+
+/** What `alignAcross` did, so the status line can say what really happened. */
+export interface AcrossResult {
+  /** Fighters that were packed side by side with a neighbour on their row (0 when every one had a row to itself). */
+  packed: number;
+  /** How many rows had two or more fighters that had to be packed. */
+  packedRows: number;
+}
+
 /**
  * Line fighters up sideways (the Align bar's Left, Centre, Right). One fighter lines up with its own half of the
  * stage, because heroes cannot cross the middle line and enemies cannot either; two or more line up with each other.
  * The fighter's drawn edge is what lines up, not its feet, so a wide boss and a thin hero share an edge.
+ *
+ * Two fighters on the SAME row cannot share an edge without standing on each other. So fighters that share a row are
+ * packed side by side in their current left-to-right order, with `ALIGN_GAP` between their drawn edges: against the
+ * left edge (Left), against the right edge (Right), or as one block around the centre (Centre). Fighters alone on
+ * their row line up exactly as before. The returned counts say how many were packed.
  */
-export function alignAcross(s: StageBody, side: Side, setKey: string, indices: readonly number[], how: AlignAcross, reach: Readonly<Record<number, Reach>>): void {
+export function alignAcross(s: StageBody, side: Side, setKey: string, indices: readonly number[], how: AlignAcross, reach: Readonly<Record<number, Reach>>): AcrossResult {
   const list = slotList(s, side, setKey);
   const [lo, hi] = xRange(side);
   const items = indices.flatMap((i) => {
@@ -524,34 +540,59 @@ export function alignAcross(s: StageBody, side: Side, setKey: string, indices: r
     const r = reach[i];
     return q && r ? [{ i, q, r }] : [];
   });
-  if (!items.length) return;
+  const result: AcrossResult = { packed: 0, packedRows: 0 };
+  if (!items.length) return result;
   // The span the edges line up with: the fighters' own bounds, or (for one fighter) its half of the stage.
   const span =
     items.length === 1
       ? { l: side === 'party' ? 0 : SCREEN_W / 2, r: side === 'party' ? SCREEN_W / 2 : SCREEN_W }
       : { l: Math.min(...items.map(({ q, r }) => q.x - r.left)), r: Math.max(...items.map(({ q, r }) => q.x + r.right)) };
-  for (const { q, r } of items) {
-    if (how === 'left') q.x = span.l + r.left;
-    else if (how === 'right') q.x = span.r - r.right;
-    else q.x = (span.l + span.r) / 2 - (r.right - r.left) / 2;
-    q.x = clamp(Math.round(q.x), lo, hi);
+  const byRow = new Map<number, typeof items>();
+  for (const it of items) byRow.set(it.q.row, [...(byRow.get(it.q.row) ?? []), it]);
+  for (const group of byRow.values()) {
+    // Left to right as they stand now (ties: the lower x, then the first selected), so the order never changes.
+    const ordered = [...group].sort((a, b) => a.q.x - a.r.left - (b.q.x - b.r.left) || a.q.x - b.q.x);
+    const widths = ordered.map(({ r }) => r.left + r.right);
+    const total = widths.reduce((sum, w) => sum + w, 0) + ALIGN_GAP * (ordered.length - 1);
+    // Where the block's left drawn edge goes.
+    const start = how === 'left' ? span.l : how === 'right' ? span.r - total : (span.l + span.r) / 2 - total / 2;
+    // Pack left to right. Rounding must never push two fighters back onto each other, so each is at least the gap past the one before.
+    let prevRight = Number.NEGATIVE_INFINITY;
+    let cursor = Math.round(start);
+    const xs = ordered.map(({ r }) => {
+      const leftEdge = Math.max(cursor, prevRight + ALIGN_GAP);
+      const x = Math.round(leftEdge + r.left);
+      prevRight = x + r.right;
+      cursor = prevRight + ALIGN_GAP;
+      return x;
+    });
+    // The block moves as one if it would stick out of the side's half of the screen (the left stays first choice).
+    const over = Math.max(0, (xs[xs.length - 1] ?? 0) - hi);
+    const under = Math.max(0, lo - ((xs[0] ?? 0) - over));
+    ordered.forEach(({ q }, k) => {
+      q.x = (xs[k] ?? q.x) - over + under;
+    });
+    if (ordered.length > 1) {
+      result.packed += ordered.length;
+      result.packedRows += 1;
+    }
   }
   for (const { i } of items) clearOfOthers(list, i, side);
+  return result;
 }
 
-/** The row nearest the middle of the floor band (the Middle of one fighter aligned to the stage). */
+/**
+ * The middle row, by position in the list of rows: row 3 of 5, row 3 of 4, row 2 of 3 (index `floor(rows / 2)`). This is
+ * what the Align bar's Middle means for one fighter. (It is not the row nearest the middle of the floor band: the
+ * rows are not spread evenly over the floor, so that would pick a different row than the one you count.)
+ */
 export function middleRow(s: StageBody): number {
-  const mid = (s.floor.y0 + s.floor.y1) / 2;
-  let best = 0;
-  s.rows.forEach((r, i) => {
-    if (Math.abs(r.y - mid) < Math.abs((s.rows[best]?.y ?? 0) - mid)) best = i;
-  });
-  return best;
+  return Math.floor(s.rows.length / 2);
 }
 
 /**
  * Put fighters on the same depth row (the Align bar's Back, Middle, Front). One fighter goes to the back row, the
- * front row or the row nearest the middle of the floor; two or more go to the back-most, the front-most or the middle
+ * front row or the middle row (`middleRow`); two or more go to the back-most, the front-most or the middle
  * of the rows they already use. Rows are the only places to stand, so this always lands on a valid row.
  */
 export function alignDepth(s: StageBody, side: Side, setKey: string, indices: readonly number[], how: AlignDepth): void {

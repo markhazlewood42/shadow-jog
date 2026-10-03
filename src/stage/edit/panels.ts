@@ -21,11 +21,11 @@ export interface ListActions {
   onPick: (id: string) => void;
   onNew: () => void;
   onDuplicate: () => void;
-  onRename: () => void;
+  onChangeId: () => void;
   onDelete: () => void;
 }
 
-/** The left-hand list of stages, with a search box and New / Duplicate / Rename / Delete (`docs/TOOLING-UI.md` 2.4). */
+/** The left-hand list of stages, with a search box and New / Duplicate / Change id / Delete (`docs/TOOLING-UI.md` 2.4). The stage's name is edited in the inspector, the only place for it. */
 export class StageList {
   private filter = '';
 
@@ -46,7 +46,7 @@ export class StageList {
     });
     buttons.new.addEventListener('click', actions.onNew);
     buttons.dup.addEventListener('click', actions.onDuplicate);
-    buttons.ren.addEventListener('click', actions.onRename);
+    buttons.ren.addEventListener('click', actions.onChangeId);
     buttons.del.addEventListener('click', actions.onDelete);
   }
 
@@ -65,7 +65,9 @@ export class StageList {
 /**
  * The explorer panel, "Who's standing here": the four heroes (click selects the slot they stand in) and every enemy
  * (double-click or drag to preview one in a slot). It fills the height of the left sidebar and scrolls inside itself,
- * the way a design tool's layers panel does.
+ * the way a design tool's layers panel does. Like Figma's layers, Shift+click or Ctrl+click ADDS a row to the selection
+ * (or takes it out if it is already in), so "align to each other" works from the panel as well as from the stage:
+ * heroes select their slots; an enemy that is standing on the stage selects the slot(s) it stands in.
  */
 export class Palette {
   constructor(
@@ -74,11 +76,17 @@ export class Palette {
     private readonly scene: () => StageScene,
     private readonly heroes: HTMLElement,
     private readonly enemies: HTMLElement,
-    private readonly actions: { select: (item: Item) => void; apply: (enemy: string) => void },
+    private readonly actions: { select: (items: Item[], additive: boolean) => void; apply: (enemy: string) => void },
   ) {
     enemies.addEventListener('click', (e) => {
       const li = (e.target as HTMLElement).closest('li');
       if (!li?.dataset.key) return;
+      if (e.shiftKey || e.ctrlKey || e.metaKey) {
+        // Shift/Ctrl+click: the slot(s) this enemy stands in join the selection (or leave it).
+        const slots = this.scene().enemies.flatMap((key, index) => (key === li.dataset.key ? [{ kind: 'fighter', side: 'enemy', index } as Item] : []));
+        if (slots.length) this.actions.select(slots, true);
+        return;
+      }
       this.view.paletteEnemy = li.dataset.key;
       this.renderEnemies();
     });
@@ -94,7 +102,7 @@ export class Palette {
     });
     heroes.addEventListener('click', (e) => {
       const li = (e.target as HTMLElement).closest('li');
-      if (li?.dataset.index) this.actions.select({ kind: 'fighter', side: 'party', index: Number(li.dataset.index) });
+      if (li?.dataset.index) this.actions.select([{ kind: 'fighter', side: 'party', index: Number(li.dataset.index) }], e.shiftKey || e.ctrlKey || e.metaKey);
     });
   }
 
@@ -112,9 +120,11 @@ export class Palette {
 
   private renderEnemies(): void {
     const standing = new Set(this.scene().enemies);
+    // The enemies whose slot is selected on the stage get an orange outline here too.
+    const selected = new Set(this.session.selectedFighters('enemy').flatMap((i) => this.scene().enemies[i] ?? []));
     this.enemies.replaceChildren(
       ...Object.values(ENEMIES).map((e) =>
-        h('li', { 'data-key': e.id, draggable: 'true', class: this.view.paletteEnemy === e.id ? 'on' : '', title: standing.has(e.id) ? 'Standing on the stage now' : '' }, h('span', { class: 'dot', style: { background: e.boss ? '#ffd35a' : '#ff6ad5' } }), h('span', {}, e.name), h('small', {}, standing.has(e.id) ? 'here' : e.boss ? 'boss' : '')),
+        h('li', { 'data-key': e.id, draggable: 'true', class: `${this.view.paletteEnemy === e.id ? 'on' : ''} ${selected.has(e.id) ? 'sel' : ''}`.trim(), title: standing.has(e.id) ? 'Standing on the stage now. Shift+click or Ctrl+click adds its slot to the selection.' : '' }, h('span', { class: 'dot', style: { background: e.boss ? '#ffd35a' : '#ff6ad5' } }), h('span', {}, e.name), h('small', {}, standing.has(e.id) ? 'here' : e.boss ? 'boss' : '')),
       ),
     );
   }

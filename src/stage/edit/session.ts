@@ -14,7 +14,7 @@
  *  - **Dirty** (unsaved changes) is not a flag that can get stuck: it is "the data as text differs from the text
  *    at the last save", so undoing back to the saved state clears it by itself (`docs/TOOLING-UI.md` 2.5).
  */
-import { UndoStack } from '../../tools/undo';
+import { UNDO_LIMIT, UndoStack } from '../../tools/undo';
 import { resolveStage, type StageConfig, type StageEntry } from '../config';
 import { cloneStage, type EditorData, type Side, settleData } from './model';
 import type { HudRegionKey } from '../hudpresets';
@@ -74,9 +74,31 @@ export function serialize(data: EditorData): string {
   return JSON.stringify({ stages: data.stages, axes: data.axes, hud: data.hud });
 }
 
-/** Each part's text: "unsaved" is a part's text differing from its text at the last save. */
+/**
+ * Each part's text: "unsaved" is a part's text differing from its text at the last save. The text is the SETTLED data
+ * (what Save would really write), so an empty "different on this stage" box, which Save drops, is not an unsaved
+ * change: switching the toggle on and not changing anything leaves nothing to save.
+ */
 function partTexts(data: EditorData): Record<Part, string> {
-  return { stages: JSON.stringify(data.stages), axes: JSON.stringify(data.axes), hud: JSON.stringify(data.hud) };
+  const hasEmpty = Object.values(data.stages).some((st) => st.hud !== undefined);
+  let stages = data.stages;
+  if (hasEmpty) {
+    const tidy = cloneStage({ stages: data.stages, axes: data.axes, hud: data.hud });
+    settleData(tidy);
+    stages = tidy.stages;
+  }
+  return { stages: JSON.stringify(stages), axes: JSON.stringify(data.axes), hud: JSON.stringify(data.hud) };
+}
+
+/**
+ * Add a thing to the selection, or take it out if it is already there (Shift+click or Ctrl+click, in the view or in the
+ * Who's standing here panel, like Figma's layers). Only things of one kind can be selected together, and fighters
+ * only from one side, so something that does not fit starts a new selection.
+ */
+export function toggleInSelection(selection: readonly Item[], item: Item): Item[] {
+  const fits = selection.every((c) => c.kind === item.kind && (item.kind !== 'fighter' || (c.kind === 'fighter' && c.side === item.side)));
+  if (!fits || (item.kind !== 'fighter' && item.kind !== 'hud')) return [item];
+  return selection.some((c) => sameItem(c, item)) ? selection.filter((c) => !sameItem(c, item)) : [...selection, item];
 }
 
 export class Session {
@@ -88,6 +110,9 @@ export class Session {
   readonly undoStack = new UndoStack();
   /** Gestures since the last save (undo takes one off, redo puts it back): what Revert says it will throw away. */
   private steps = 0;
+  /** The names of the gestures Undo would take back (last = next) and Redo would bring back, so the status line can say "Undid ...". */
+  private doneLabels: string[] = [];
+  private undoneLabels: string[] = [];
   /** Each file's text at the last save (or load): "unsaved" means a part's text differs from this. */
   private savedParts: Record<Part, string>;
   private savedData: EditorData;
@@ -156,6 +181,16 @@ export class Session {
 
   get canRedo(): boolean {
     return this.undoStack.canRedo;
+  }
+
+  /** The name of the gesture Undo would take back next ("Move Rook"), or '' when there is none. */
+  get nextUndoLabel(): string {
+    return this.doneLabels[this.doneLabels.length - 1] ?? '';
+  }
+
+  /** The name of the gesture Redo would bring back next, or ''. */
+  get nextRedoLabel(): string {
+    return this.undoneLabels[this.undoneLabels.length - 1] ?? '';
   }
 
   /** What the last gesture changed in the current stage's text (null until something changes). */
@@ -252,6 +287,9 @@ export class Session {
       return false;
     }
     this.undoStack.record(before);
+    this.doneLabels.push(label);
+    if (this.doneLabels.length > UNDO_LIMIT) this.doneLabels.shift();
+    this.undoneLabels = [];
     this.steps++;
     this.tidySelection();
     this.lastChange = { label, before: beforeStage, after: this.data.stages[this.stageId] ? this.stageText(this.stage) : '' };
@@ -281,7 +319,9 @@ export class Session {
     const now = serialize(this.data);
     const back = this.undoStack.undo(now);
     if (back === null) return false;
-    this.restore(back, 'undo');
+    const label = this.doneLabels.pop() ?? '';
+    this.undoneLabels.push(label);
+    this.restore(back, 'undo', label);
     this.steps--;
     return true;
   }
@@ -290,19 +330,21 @@ export class Session {
     const now = serialize(this.data);
     const next = this.undoStack.redo(now);
     if (next === null) return false;
-    this.restore(next, 'redo');
+    const label = this.undoneLabels.pop() ?? '';
+    this.doneLabels.push(label);
+    this.restore(next, 'redo', label);
     this.steps++;
     return true;
   }
 
-  private restore(text: string, type: 'undo' | 'redo'): void {
+  private restore(text: string, type: 'undo' | 'redo', label: string): void {
     const beforeStage = this.data.stages[this.stageId] ? this.stageText(this.stage) : '';
     this.data = JSON.parse(text) as EditorData;
     // The stage being viewed may not exist in the restored data (an undone "New stage"): fall back to the first one.
     if (!this.data.stages[this.stageId]) this.stageId = Object.keys(this.data.stages)[0] ?? this.stageId;
     this.tidySelection();
-    this.lastChange = { label: type, before: beforeStage, after: this.stage ? this.stageText(this.stage) : '' };
-    this.emit({ type, label: type });
+    this.lastChange = { label: `${type === 'undo' ? 'Undid' : 'Redid'} ${label}`.trim(), before: beforeStage, after: this.stage ? this.stageText(this.stage) : '' };
+    this.emit({ type, label });
   }
 
   // ---------------------------------------------------------------- saving
@@ -333,6 +375,8 @@ export class Session {
     this.savedData = cloneStage(data);
     this.savedParts = partTexts(this.data);
     this.undoStack.clear();
+    this.doneLabels = [];
+    this.undoneLabels = [];
     this.steps = 0;
     this.lastChange = null;
     this.gestureBefore = null;

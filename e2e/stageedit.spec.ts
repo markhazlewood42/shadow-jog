@@ -263,7 +263,7 @@ test('arrow keys, shift-click and the lock: nudges, multi-select moves and a loc
   expect(await page.evaluate(() => window.__stageedit?.session.selection.length)).toBe(0);
   // Lock the fighters: a click on Kit now selects nothing.
   await page.locator('#heroes li', { hasText: 'Kit' }).click();
-  await page.keyboard.press('Control+l');
+  await page.keyboard.press('l'); // plain L: Ctrl+L is the browser's address bar
   await expect(page.locator('#locks')).toContainText('Locked: fighters');
   // (Kit moved up two rows above, so aim at where she stands now: a fixed offset from her old spot can land on a row line, which is a handle too.)
   const kitNow = await bodyOf(page, 'party', 0);
@@ -479,7 +479,7 @@ test('sliders change the stage while they are dragged, and the whole drag is one
   expect((await stageOf(page)).backdrop.horizonY).toBe(100);
   expect(await pictureKey(page)).toBe(key0);
   // A slider that is not about the ground: the haze of the back row. The fighters' tint follows while the thumb moves.
-  const haze = page.locator('#inspector input[aria-label="Distance haze slider"]').first();
+  const haze = page.locator('#inspector input[aria-label="Haze, row 1 slider"]').first();
   const seen = await dragSlider(page, haze, 0.8, 0.45, () => page.evaluate(() => ({ data: window.__stageedit?.session.stage.depthTint?.amounts[0] ?? -1, scene: window.__stagelab?.scene()?.config.depthTint?.amounts[0] ?? -2 })));
   expect(seen.data).toBeGreaterThan(0);
   expect(seen.data).toBeLessThan(0.12);
@@ -488,7 +488,7 @@ test('sliders change the stage while they are dragged, and the whole drag is one
   expect(errors).toEqual([]);
 });
 
-test('Align: select Rook and line him up in one click; Alt keys do the same; several fighters line up with each other', async ({ page }) => {
+test('Align: select Rook and line him up in one click; the Ctrl+Alt keys do the same; several fighters line up with each other', async ({ page }) => {
   const { errors } = await openEditor(page, scratch);
   await page.locator('#heroes li', { hasText: 'Rook' }).click();
   await expect(page.locator('#inspector .alignbar')).toBeVisible();
@@ -507,24 +507,24 @@ test('Align: select Rook and line him up in one click; Alt keys do the same; sev
   });
   expect(Math.abs((mid ?? 0) - 120)).toBeLessThanOrEqual(1.5);
   expect(centred?.row).toBe(3);
-  // Back and Front snap to the first and last depth row; Alt+W is the same as the Back button.
+  // Back and Front snap to the first and last depth row; Ctrl+Alt+W is the same as the Back button (plain Alt+letter keys belong to the browser).
   await page.locator('.alb[data-align="front"]').click();
   expect((await stageOf(page)).party[1]?.row).toBe(4);
-  await page.keyboard.press('Alt+w');
+  await page.keyboard.press('Control+Alt+w');
   expect((await stageOf(page)).party[1]?.row).toBe(0);
-  await page.keyboard.press('Alt+a');
+  await page.keyboard.press('Control+Alt+a');
   expect((await stageOf(page)).party[1]?.x).toBeLessThan(40);
   await expect(page.locator('#st-msg')).toContainText('left edge');
   // Each press is one undo step.
   expect((await saved(page)).changes).toBe(4);
   // Several: the heroes line up with each other, here all on the back-most row they use.
   await page.keyboard.press('Control+a');
-  await page.keyboard.press('Alt+w');
+  await page.keyboard.press('Control+Alt+w');
   const rows = (await stageOf(page)).party.map((q) => q.row);
   expect(new Set(rows).size).toBe(1);
   // With three or more selected the bar also offers an even spread.
   await expect(page.locator('.alb[data-align="spreadAcross"]')).toBeVisible();
-  await page.keyboard.press('Alt+Shift+h');
+  await page.keyboard.press('Control+Alt+Shift+h');
   await expect(page.locator('#st-msg')).toContainText('evenly across');
   await page.keyboard.press('Control+z');
   await page.keyboard.press('Control+z');
@@ -619,8 +619,11 @@ test('an override that is turned on but never differs is not saved (a stage carr
   await dragGame(page, { x: h0.x + 56, y: h0.y + 21 }, { x: h0.x + 56, y: h0.y + 21 });
   await page.locator('#hud-scope').check();
   expect((await stageOf(page)).hud).toEqual({ commands: {} });
+  // Nothing differs, so nothing is unsaved: the Save button stays off, and Ctrl+S says there is nothing to write (and tidies the empty box away).
+  expect((await saved(page)).dirty).toBe(false);
+  await expect(page.locator('#b-save')).toBeDisabled();
   await page.keyboard.press('Control+s');
-  await expect(page.locator('#st-msg')).toContainText(/Saved to/);
+  await expect(page.locator('#st-msg')).toContainText('Nothing to save');
   expect((await stageOf(page)).hud).toBeUndefined();
   expect((await saved(page)).dirty).toBe(false);
 });
@@ -655,10 +658,10 @@ test('a "?" explains a setting in plain words: it opens on hover and on keyboard
   await openEditor(page, scratch);
   const tip = page.locator('#tipbubble');
   await expect(tip).toBeHidden();
-  const q = page.locator('#inspector .lab', { hasText: 'Distance haze' }).first().locator('.qm');
+  const q = page.locator('#inspector .lab', { hasText: 'Haze, row 1' }).first().locator('.qm');
   await q.hover();
   await expect(tip).toBeVisible();
-  await expect(tip).toContainText('Fades the fighters on this lane toward the fog colour');
+  await expect(tip).toContainText('Fades the fighters on this row toward the sky colour');
   await expect(tip).toContainText('you will see');
   // The bubble stays on the screen.
   const b = await tip.boundingBox();
@@ -693,7 +696,10 @@ test('help: a "?" in the top bar and a link under the stage list say what a stag
   await expect(dlg).toContainText('sewer');
   await expect(dlg).toContainText('troop');
   await expect(dlg).toContainText('one HUD layout for every battle');
-  await expect(dlg).toContainText('Only this editor and Battle Test read stages today');
+  await expect(dlg).toContainText('Only this editor, Battle Test and the stage lab read stages today');
+  await expect(dlg).toContainText('the list of who you fight in one battle');
+  await expect(dlg).toContainText('Haze, shadows and the floor belong to the stage');
+  await expect(dlg).toContainText('Shift+drag');
   await page.keyboard.press('Escape');
   await expect(page.locator('.dlg')).toHaveCount(0);
   await page.locator('#stage-help').click();
@@ -709,6 +715,8 @@ test('the side panels are wide enough that labels do not wrap, the stage keeps w
   const right = await page.locator('#right').boundingBox();
   expect(left?.width ?? 0).toBeGreaterThanOrEqual(268);
   expect(right?.width ?? 0).toBeGreaterThanOrEqual(340);
+  // Whole pixels, so the stage between them starts on a whole pixel too.
+  expect([(left?.width ?? 0) % 1, (right?.width ?? 0) % 1]).toEqual([0, 0]);
   // At 1600 x 900 the stage is still drawn at exactly 2x.
   expect((await canvasRect(page)).w).toBe(960);
   expect(await page.evaluate(() => window.__stagelab?.devicePixelsPerPixel)).toBe(2);
@@ -752,7 +760,7 @@ test('Revert also throws away an unsaved HUD move, and Battle Test fights with t
   expect(await page.evaluate(() => window.__stagelab?.scene()?.config.hud.commands.x)).toBe(h0.x + 30);
   await page.evaluate(() => window.__stageedit?.stopBattle());
   await page.locator('#b-revert').click();
-  await expect(page.locator('.dlg')).toContainText('Throw away 1 change');
+  await expect(page.locator('.dlg')).toContainText('Throw away 1 change to the global HUD (hud.json, used by every battle)');
   await page.locator('.dlg button', { hasText: 'Throw away' }).click();
   await expect(page.locator('#st-msg')).toContainText('Reloaded');
   expect((await globalHud(page)).commands.x).toBe(h0.x);
