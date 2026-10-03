@@ -452,6 +452,8 @@ export interface SfBuild {
   pivots: Partial<Record<SfKey, [number, number]>>;
   /** The rows above the soles the tallest frame reaches (the name plate's clearance is checked against it). */
   topRows: number;
+  /** Where the idle frame (the "ready" layer) sits on the finished canvas, as its top-left corner: the Phaser stage uses it to put the axis under the idle's own feet. */
+  readyAt: { dx: number; dy: number };
 }
 
 /**
@@ -536,5 +538,5 @@ export function buildSfStrike(idle: Raw[], s1: Raw, s2: Raw, crouch: Raw): SfBui
     pivots[k] = [p[0] + half, p[1] + H0 - top];
   }
   const tipX = A.follow.tip[0] + 1 + pf.dx - HALF;
-  return { frames, axis: half, measured: { tipDx: tipX, tipUp: A.follow.soles - A.follow.tip[1], footDx: Math.round(off) }, pivots, topRows: H0 - top };
+  return { frames, axis: half, measured: { tipDx: tipX, tipUp: A.follow.soles - A.follow.tip[1], footDx: Math.round(off) }, pivots, topRows: H0 - top, readyAt: { dx: pi.dx - (HALF - half), dy: pi.dy - top } };
 }

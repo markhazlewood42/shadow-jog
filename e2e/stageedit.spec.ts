@@ -345,7 +345,7 @@ test('Align and Copy from n−1 re-lay a group in one undo step; the stage list 
   expect(await page.evaluate(() => window.__stagelab?.scene()?.config.id)).toBe('rooftop');
 });
 
-test('Play hides the handles, E toggles it, the Keys list matches the table, and the Battle Test button says what comes next', async ({ page }) => {
+test('Play hides the handles, E toggles it, the Keys list matches the table, and the Battle Test button opens its dialog', async ({ page }) => {
   await openEditor(page, scratch);
   await expect(page.locator('#ovsvg')).toBeVisible();
   await page.keyboard.press('e');
@@ -358,7 +358,9 @@ test('Play hides the handles, E toggles it, the Keys list matches the table, and
   await expect(page.locator('.dlg')).not.toContainText('F5');
   await page.keyboard.press('Escape');
   await page.locator('#b-test').click();
-  await expect(page.locator('#st-msg')).toContainText('Battle Test');
+  await expect(page.getByRole('dialog', { name: 'Battle Test' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.dlg')).toHaveCount(0);
 });
 
 test('the stage is drawn crisp: the canvas starts on a whole pixel and shows whole-number zoom, with the handles on top', async ({ page }) => {

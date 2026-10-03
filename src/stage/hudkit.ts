@@ -59,6 +59,8 @@ export interface TextOptions {
   scale?: number;
   /** A one-pixel outline colour around the (scaled) letters. */
   outline?: string;
+  /** The texture-name prefix. The default is the HUD's own, whose textures the HUD removes when it stops using them; floating numbers use their own so that clean-up leaves them alone. */
+  prefix?: string;
 }
 
 export interface TextImage {
@@ -87,7 +89,7 @@ export function textTexture(textures: Phaser.Textures.TextureManager, text: stri
   const h = GLYPH_H * scale;
   const cw = w + pad * 2 + (shadow || outline ? 1 : 0) * scale;
   const ch = h + pad * 2 + (shadow || outline ? 1 : 0) * scale;
-  const key = `${TEXT_PREFIX}${text}|${color}|${shadow || '-'}|${scale}|${outline ?? '-'}`;
+  const key = `${opts.prefix ?? TEXT_PREFIX}${text}|${color}|${shadow || '-'}|${scale}|${outline ?? '-'}`;
   if (!textures.exists(key)) {
     // 1. The letters (and their shadow) at the game's own size.
     const small = surface(measure(text) + 1, GLYPH_H + 1);

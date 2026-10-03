@@ -83,6 +83,10 @@ export interface ActView {
   /** Party hits so far this round (the combo counter) and their total damage. */
   hits: number;
   total: number;
+  /** Live battle only: the stage draws its own floating numbers, so the HUD must not draw this one. */
+  liveNumbers?: boolean;
+  /** Live battle only: how much of the combo window is left (0 to 1). The lab shows a fixed share. */
+  windowLeft?: number;
 }
 
 /** Everything the HUD widgets and the stage's markers need to draw one moment of the fight. */
@@ -101,13 +105,15 @@ export interface HudView {
   /** The skill banner's text: a prompt while a target is picked, the skill's name while it plays. */
   banner: string | null;
   act: ActView | null;
+  /** Live battle only: the ally a support skill is aimed at (an index into `party`); the stage rings that hero in amber. */
+  allyTarget?: number | null;
 }
 
 /**
  * Run `fn` with the story flags the demo party's loadouts name switched on (they decide what Rook's wound costs him
  * and which skills the crew know), and switch back off exactly the ones this call turned on. Safe to nest.
  */
-function withStoryFlags<T>(demo: StageDemo, fn: () => T): T {
+export function withStoryFlags<T>(demo: StageDemo, fn: () => T): T {
   const turnedOn: string[] = [];
   for (const m of demo.party) for (const f of m.flags ?? []) {
       if (flags.has(f)) continue;
@@ -145,20 +151,20 @@ function weakTag(c: Combatant): HudTag | null {
 const STATUS_WORDS: Record<string, string> = { shield: 'SHIELD UP', stun: 'STUNNED', burn: 'BURNING', poison: 'POISONED' };
 
 /** The tags under the target's name: its current states, then its weak spot. */
-function tagsFor(c: Combatant): HudTag[] {
+export function tagsFor(c: Combatant): HudTag[] {
   const tags: HudTag[] = c.status.map((s) => ({ text: STATUS_WORDS[s.id] ?? s.id.toUpperCase().replace(/_/g, ' '), tone: 'amber' as const }));
   const w = weakTag(c);
   if (w) tags.push(w);
   return tags;
 }
 
-function memberView(c: Combatant): HudMemberView {
+export function memberView(c: Combatant): HudMemberView {
   const def = MEMBERS[c.key as MemberId];
   return { id: c.key, name: def.name, color: def.color, hp: c.hp, maxHp: c.base.maxHp, resLabel: def.tpLabel, res: c.tp, resMax: c.base.maxTp };
 }
 
 /** Enemy views, with " A", " B" on repeats of one kind. */
-function foeViews(foes: readonly Combatant[]): HudFoeView[] {
+export function foeViews(foes: readonly Combatant[]): HudFoeView[] {
   const total = new Map<string, number>();
   for (const f of foes) total.set(f.key, (total.get(f.key) ?? 0) + 1);
   const seen = new Map<string, number>();
@@ -171,7 +177,7 @@ function foeViews(foes: readonly Combatant[]): HudFoeView[] {
 }
 
 /** A skill's cost as the command strip prints it: "KI 4", "5 left". */
-function costText(owner: Combatant, abilityId: string): string {
+export function costText(owner: Combatant, abilityId: string): string {
   const ab = ABILITIES[abilityId];
   if (!ab) return '';
   if (ab.kind === 'tech') return `${MEMBERS[owner.key as MemberId].tpLabel} ${ab.cost ?? 0}`;
@@ -200,7 +206,7 @@ function roundOrder(party: Combatant[], foes: Combatant[], seed: number): number
 }
 
 /** The chips of a timeline that starts at `uid`: the rest of this round in order, then the ones that have already acted (next round, in the same order). */
-function rotate(order: number[], uid: number): TurnChipView[] {
+export function rotate(order: number[], uid: number): TurnChipView[] {
   const at = Math.max(0, order.indexOf(uid));
   return [...order.slice(at), ...order.slice(0, at)].map((u) => (u < 10 ? { side: 'party' as const, index: u } : { side: 'enemy' as const, index: u - 10 }));
 }

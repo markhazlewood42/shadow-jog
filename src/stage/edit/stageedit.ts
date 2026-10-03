@@ -32,6 +32,9 @@ import { connectHook, emptyHook } from '../labhook';
 import { STAGE_KNOWN } from '../known';
 import type { Phase } from '../demo';
 import type { Fighter } from '../stagescene';
+import { BattleTest, type BattleTestOptions, stageForTest } from '../battletest';
+import type { Key } from '../battleflow';
+import { battleTestDialog } from './battledialog';
 import { confirmBox, infoBox, promptBox } from './dialog';
 import { byId, h, isTyping } from './dom';
 import { Inspector, setLabel } from './inspector';
@@ -49,7 +52,18 @@ import type { Layer } from './hit';
 declare global {
   interface Window {
     /** The editor's own test hook: the session and view, and a way to flush a pending scene update. */
-    __stageedit?: { session: Session; view: ViewState; flush: () => void; save: () => Promise<boolean>; interact: Interact };
+    __stageedit?: {
+      session: Session;
+      view: ViewState;
+      flush: () => void;
+      save: () => Promise<boolean>;
+      interact: Interact;
+      /** The running Battle Test, or null. */
+      battle: () => BattleTest | null;
+      /** Start a Battle Test with these options without the dialog (tests use it; the dialog's Start does the same). */
+      startBattle: (opts: BattleTestOptions) => BattleTest;
+      stopBattle: () => void;
+    };
   }
 }
 
@@ -133,6 +147,8 @@ async function main(): Promise<void> {
       return copy;
     };
 
+    /** The Battle Test in progress, if any. */
+    let testing: BattleTest | null = null;
     let wantFloor: StageConfig | undefined;
     let scheduled = false;
     let lastAxes = JSON.stringify(initial.axes);
@@ -145,6 +161,8 @@ async function main(): Promise<void> {
     };
     function flush(): void {
       scheduled = false;
+      // A Battle Test owns the scene until it ends; the editor catches up afterwards (`stopTest` syncs).
+      if (testing) return;
       const stage = previewed();
       const axes = JSON.stringify(session.data.axes);
       try {
@@ -182,8 +200,9 @@ async function main(): Promise<void> {
       svg.style.top = `${r.top - c.top}px`;
       svg.style.width = `${r.width}px`;
       svg.style.height = `${r.height}px`;
-      svg.style.display = view.mode === 'edit' && r.width > 0 ? 'block' : 'none';
-      if (view.mode === 'edit' && r.width > 0) svg.innerHTML = overlayMarkup({ stage: session.stage, figures: figures(), selection: session.selection, hover: interact.hover, show: view.show, phase: view.phase, locked: view.locked }, scale);
+      const handles = view.mode === 'edit' && !testing && r.width > 0;
+      svg.style.display = handles ? 'block' : 'none';
+      if (handles) svg.innerHTML = overlayMarkup({ stage: session.stage, figures: figures(), selection: session.selection, hover: interact.hover, show: view.show, phase: view.phase, locked: view.locked }, scale);
       refreshPanels();
     }
 
@@ -336,7 +355,10 @@ async function main(): Promise<void> {
     byId('b-redo').addEventListener('click', () => doRedo());
     byId('b-save').addEventListener('click', () => void save());
     byId('b-revert').addEventListener('click', () => void revert());
-    byId('b-test').addEventListener('click', () => battleTest());
+    byId('b-test').addEventListener('click', () => {
+      if (testing) stopTest();
+      else void battleTest();
+    });
     byId('b-keys').addEventListener('click', () => void showKeys());
     byId('j-copy').addEventListener('click', () => void copyJson());
 
@@ -362,8 +384,68 @@ async function main(): Promise<void> {
       if (!session.redo()) bar.say('Nothing to redo.');
     };
 
-    function battleTest(): void {
-      bar.say('Battle Test is wired in the next step: it will run a real fight on this stage, unsaved edits included.');
+    /** Battle Test (Ctrl+Enter): ask who fights, then run a real fight on the stage as it is in this page, saved or not. */
+    async function battleTest(): Promise<void> {
+      if (testing) return;
+      const stage = previewed();
+      const opts = await battleTestDialog({ stage, setKey: session.setKey, roster: stage.demo.rosters[session.setKey] ?? [], unsaved: session.dirty });
+      if (opts) startTest(opts);
+    }
+
+    function startTest(opts: BattleTestOptions): BattleTest {
+      if (testing) stopTest();
+      interact.cancel();
+      scene.setEditMode(false);
+      scene.applyStage(stageForTest(previewed(), opts));
+      scene.setEnemies(opts.roster, opts.setKey);
+      const bt = new BattleTest(scene, opts);
+      testing = bt;
+      layer.style.pointerEvents = 'none';
+      byId('b-test').classList.add('on');
+      byId('b-test').textContent = 'Testing…';
+      redraw();
+      testStatus('');
+      return bt;
+    }
+
+    function stopTest(): void {
+      if (!testing) return;
+      testing.stop();
+      testing = null;
+      layer.style.pointerEvents = '';
+      byId('b-test').classList.remove('on');
+      byId('b-test').textContent = 'Battle Test';
+      syncScene();
+      bar.say('Back to editing. Selection, zoom and undo history are as you left them.');
+    }
+
+    /** The status line while a test runs: what is going on and which keys do what. */
+    let lastTestLine = '';
+    function testStatus(force: string): void {
+      if (!testing) return;
+      const s = testing.status();
+      const prefix = session.dirty ? 'Testing unsaved changes' : 'Testing the saved stage';
+      const who = s.mode === 'command' || s.mode === 'target' ? `${testing.flow.battle.unit(testing.flow.hero)?.name ?? 'Hero'}’s orders` : s.mode === 'playing' ? 'the round plays' : 'the fight is over';
+      const over = s.outcome === 'win' ? 'Victory' : s.outcome === 'lose' ? 'Defeat' : 'The fight is over';
+      const line = force || (s.mode === 'over' ? `${over}. Press Esc to go back to editing.` : `${prefix} · round ${s.round + (s.mode === 'playing' ? 0 : 1)} · ${who}${s.message ? ` · ${s.message}` : ''} · arrows choose, Enter confirms, Backspace steps back, A auto-play, Esc leaves`);
+      if (line !== lastTestLine) {
+        lastTestLine = line;
+        bar.say(line, s.mode === 'over' ? (s.outcome === 'win' ? 'good' : 'bad') : '');
+      }
+      requestAnimationFrame(() => testStatus(''));
+    }
+
+    /** Keys while a test runs: they go to the fight, never to the editor. Returns true when it handled the key. */
+    function testKey(e: KeyboardEvent): boolean {
+      const bt = testing;
+      if (!bt) return false;
+      const map: Record<string, Key> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Enter: 'ok', ' ': 'ok', z: 'ok', Z: 'ok', Backspace: 'back', x: 'back', X: 'back' };
+      if (e.key === 'Escape') stopTest();
+      else if (e.key === 'a' || e.key === 'A') bt.setAuto(!bt.flow.autoPlay);
+      else if (map[e.key]) bt.press(map[e.key] as Key);
+      else return false;
+      e.preventDefault();
+      return true;
     }
 
     async function copyJson(): Promise<void> {
@@ -596,10 +678,14 @@ async function main(): Promise<void> {
         redraw();
       },
       mode: () => setMode(view.mode === 'edit' ? 'play' : 'edit'),
-      test: battleTest,
+      test: () => void battleTest(),
     };
     document.addEventListener('keydown', (e) => {
       if (document.querySelector('.dlg-back')) return; // a dialog handles its own keys
+      if (testing) {
+        testKey(e);
+        return; // while a fight runs the editor's keys stay out of the way
+      }
       const def = matchKey(e);
       if (!def) return;
       if (isTyping(e.target) && !def.everywhere) return;
@@ -665,7 +751,7 @@ async function main(): Promise<void> {
     new ResizeObserver(redraw).observe(centre);
 
     scene.setEditMode(false);
-    window.__stageedit = { session, view, flush, save, interact };
+    window.__stageedit = { session, view, flush, save, interact, battle: () => testing, startBattle: startTest, stopBattle: stopTest };
     inspector.build();
     flush();
     bar.say(booted.standIns ? 'Mark’s Sprite Fusion sheets are not on this machine: the crew are stand-in blocks.' : 'Click a fighter, the horizon, a row or a HUD box. Drag to move it; Ctrl+S saves; the Keys button lists the shortcuts.');

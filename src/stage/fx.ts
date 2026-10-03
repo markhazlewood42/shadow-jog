@@ -8,7 +8,7 @@
  * that sorts with the attacker (as part of its figure: body, weapon, smear and shadow are one unit).
  * Everything is whole pixels with no anti-aliasing: a disc is "every pixel within r of the centre".
  */
-import { hexRgb, newRaw, type Raw, type RGB, setRgb } from './pixels';
+import { hexRgb, newRaw, type Raw, type RGB, setRgb, th } from './pixels';
 
 export const SLASH_CYAN = '#3fe0f0';
 export const SLASH_AMBER = '#ffcc3d';
@@ -89,4 +89,74 @@ export function drawPath(img: Raw, from: Vec, to: Vec): void {
       img.px.set([c[0], c[1], c[2], Math.round(0.85 * 255)], (y * img.w + x) * 4);
     }
   }
+}
+
+// ------------------------------------------------------------------ hit effects for the live battle (Battle Test)
+
+/** Mirror a picture left to right (a hit that comes from the right-hand side). */
+export function flipRaw(r: Raw): Raw {
+  const out = newRaw(r.w, r.h);
+  for (let y = 0; y < r.h; y++)
+    for (let x = 0; x < r.w; x++) out.px.set(r.px.subarray((y * r.w + x) * 4, (y * r.w + x) * 4 + 4), (y * r.w + (r.w - 1 - x)) * 4);
+  return out;
+}
+
+/**
+ * A solid, dithered disc of radius `r` in `color`: every pixel inside 55% of the radius is on, and between 55% and 100%
+ * a pixel is on when the 4x4 Bayer pattern says so. The stage draws it with ADDITIVE blending (the pixels add their
+ * colour to what is behind), which makes it a glow, and swaps between a few sizes to make it swell and shrink: whole
+ * pixels only, never a smooth fade. The picture is (2r+1) square and its middle pixel is the centre.
+ */
+export function glowRaw(r: number, color: string): Raw {
+  const s = 2 * r + 1;
+  const out = newRaw(s, s);
+  const c = hexRgb(color);
+  for (let y = 0; y < s; y++)
+    for (let x = 0; x < s; x++) {
+      const d = Math.hypot(x - r, y - r) / (r + 0.5);
+      if (d > 1) continue;
+      const edge = d <= 0.55 ? 1 : 1 - (d - 0.55) / 0.45;
+      if (edge >= 1 || edge > th(x, y)) setRgb(out, x, y, c);
+    }
+  return out;
+}
+
+/** A hit star: four rays and four short diagonals around a white core, `r` pixels out. Centre = the middle pixel. */
+export function starRaw(r: number, color: string): Raw {
+  const s = 2 * r + 1;
+  const out = newRaw(s, s);
+  const c = hexRgb(color);
+  for (let i = 1; i <= r; i++) {
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) setRgb(out, r + dx * i, r + dy * i, i <= 2 ? [255, 255, 255] : c);
+    if (i <= Math.ceil(r * 0.6))
+      for (const [dx, dy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]] as const) setRgb(out, r + dx * i, r + dy * i, c);
+  }
+  box(out, r - 1, r - 1, 3, 3, [255, 255, 255]);
+  return out;
+}
+
+/** The size of the slash picture. */
+export const SLASH_W = 96;
+export const SLASH_H = 72;
+
+/**
+ * The sword-cut hit picture grown to `t` (0 to 1) of its length: two crossing strokes in the cut colours, centred in
+ * a 96x72 picture. At `t` 1 the little sparks are added. A hit that comes from the right passes `flip`.
+ */
+export function slashRaw(t: number, flip: boolean): Raw {
+  const out = newRaw(SLASH_W, SLASH_H);
+  const cx = SLASH_W / 2;
+  const cy = SLASH_H / 2;
+  const grow = (x0: number, y0: number, x1: number, y1: number): Vec => ({ x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t });
+  drawCut(out, { x: cx - 32, y: cy - 24 }, grow(cx - 32, cy - 24, cx + 28, cy + 24), 4.0 * Math.max(0.5, t), { x: 6 * t, y: -8 * t });
+  drawCut(out, { x: cx - 22, y: cy - 28 }, grow(cx - 22, cy - 28, cx + 32, cy + 6), 2.4 * Math.max(0.5, t), { x: 4 * t, y: -6 * t });
+  if (t >= 1) drawSparks(out, cx, cy);
+  return flip ? flipRaw(out) : out;
+}
+
+/** The palm-strike hit picture (a ring burst), centred in a 64x56 picture. */
+export function blowRaw(): Raw {
+  const out = newRaw(64, 56);
+  drawPalm(out, 32, 28);
+  return out;
 }

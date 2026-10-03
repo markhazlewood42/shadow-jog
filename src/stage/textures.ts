@@ -163,7 +163,7 @@ export function queueCrewSheets(load: Phaser.Loader.LoaderPlugin, textures: Phas
 }
 
 /** A texture's pixels, read back through a 2D canvas (to find the feet, cut a face or bake a variant). */
-function readTexture(textures: Phaser.Textures.TextureManager, key: string): Raw {
+export function readTexture(textures: Phaser.Textures.TextureManager, key: string): Raw {
   const img = textures.get(key).getSourceImage() as CanvasImageSource & { width: number; height: number };
   const c = document.createElement('canvas');
   c.width = img.width;
@@ -245,7 +245,7 @@ export function registerCrew(textures: Phaser.Textures.TextureManager, anims: Ph
 // ------------------------------------------------------------------ the game's own generated art
 
 /** Mark a texture as pixel art: NEAREST sampling, so scaling it up makes square blocks and never a blur. */
-function crisp(texture: Phaser.Textures.Texture | null): void {
+export function crisp(texture: Phaser.Textures.Texture | null): void {
   texture?.setFilter(Phaser.Textures.FilterMode.NEAREST);
 }
 

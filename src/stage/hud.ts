@@ -95,7 +95,7 @@ export class Hud {
     // While an action plays the banner already names the actor, and the tag would sit on the target's neighbourhood.
     if (h.activeTag?.show === 'always' && view.phase !== 'act') this.activeTag(stage, view, geo);
     if (view.phase === 'target' && view.target !== null && h.enemyInfo.names !== 'never') this.targetLabel(view, geo);
-    if (view.phase === 'act' && view.act) this.damageNumber(view, geo);
+    if (view.phase === 'act' && view.act && !view.act.liveNumbers) this.damageNumber(view, geo);
 
     for (const prefix of [TEXT_PREFIX, WINDOW_PREFIX, CHIP_PREFIX, PREFIX.face]) pruneTextures(this.scene.textures, prefix, this.used);
   }
@@ -103,7 +103,8 @@ export class Hud {
   // ---------------------------------------------------------------- building blocks
 
   private container(name: RegionName, r: HudRegion, x = r.x, y = r.y): Phaser.GameObjects.Container {
-    const c = this.scene.add.container(x, y).setDepth(HUD_DEPTH);
+    // scrollFactor 0: a screen shake moves the stage, never the HUD.
+    const c = this.scene.add.container(x, y).setDepth(HUD_DEPTH).setScrollFactor(0);
     this.boxes.set(name, c);
     return c;
   }
@@ -297,7 +298,7 @@ export class Hud {
     this.text(c, String(act.hits), 6, 4, { color: UI.amber, shadow: false });
     this.text(c, 'HIT', 10 + textWidth(String(act.hits)), 4, { shadow: false });
     this.text(c, String(act.total), r.w - 6, 4, { color: UI.amber, shadow: false, align: 'right' });
-    this.bar(g, 6, 17, r.w - 12, 2, COMBO_WINDOW_LEFT, UI.pink);
+    this.bar(g, 6, 17, r.w - 12, 2, act.windowLeft ?? COMBO_WINDOW_LEFT, UI.pink);
   }
 
   // ---------------------------------------------------------------- labels over the stage

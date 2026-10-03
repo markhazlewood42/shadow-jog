@@ -247,6 +247,7 @@ MZ's Battle Test is a dialog with one tab per party slot ([1] to [4]) for actor,
 | Buttons | **Start** (Ctrl+Enter) and Cancel |
 
 - Start runs a real fight driven by `src/battle` on the stage as it is in the page, saved or not; the status line says "Testing unsaved changes" when that is the case. **F9** opens a small debug panel (set HP, end the fight), and **Esc** or the fight ending returns to the editor with the selection, zoom and undo history intact.
+- **Built (P4-battle, round 1):** the dialog has the party tabs, the Status readout (the game's stat code), the troop (the previewed enemies, read-only), full resources, auto-play, 1x/2x speed and a seed, remembered per browser. In the fight the arrows choose, Enter confirms, Backspace steps back, **A** toggles auto-play, **Esc** leaves. Not built: per-slot equipment pickers, a troop picker, the F9 debug panel, combos, items and run, and the timed-press ring (every action resolves with timing "none"). Moves are `src/data/moves.json` (4.2), played by `src/stage/perform.ts`.
 - The last choices are remembered per browser so the second test is one keypress.
 - Exit criterion this serves: save-to-battle-test in under a minute (`docs/spikes/phaser-stage.md`).
 

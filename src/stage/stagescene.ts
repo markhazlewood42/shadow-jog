@@ -34,11 +34,16 @@
  *    deterministic, and a hit-pause is "stop calling tick" and everything holds together.
  */
 import Phaser from 'phaser';
+import { ABILITIES } from '../data/abilities';
 import { ENEMIES } from '../data/enemies';
 import { MEMBERS } from '../data/party';
 import type { MemberId } from '../game/state';
 import { type AxesFile, axisFor, type FigureBox, depthFor, enemySlots, type PartySlot, partDepth, SCREEN_H, SCREEN_W, setKeyFor, shadowHeight, shadowWidth, slotPoint, snapSlot, type StageConfig, type StageFile, stageOf } from './config';
 import { buildHudView, type HudView, type Phase } from './demo';
+import { queueStrikeArt, registerStills, STRIKE_ART, type StillInfo } from './stills';
+import { loadMoves, type MoveFile } from './moves';
+import movesJson from '../data/moves.json';
+import { cutSheet } from './feet';
 import { drawCut, drawPalm, drawPath, drawSparks, newFxLayer } from './fx';
 import { Hud, type HudFaces, type HudGeo } from './hud';
 import { enemyIdle, idleFrame, type IdleKind } from './idle';
@@ -58,6 +63,8 @@ import {
   ringTexture,
   type SheetMeta,
   addStandInSheets,
+  crisp,
+  readTexture,
   shadowTexture,
   sheetKey,
   stagePictureKey,
@@ -137,6 +144,25 @@ export interface Fighter {
   flash: boolean;
   /** The draw-order number now. */
   depth: number;
+  /** The picture a move put on this fighter (one of Rook's strike stills), or null for its own idle picture. */
+  still: StillInfo | null;
+  /** The move's offset from the feet (facing already applied) and the picture's opacity. */
+  offX: number;
+  offY: number;
+  alpha: number;
+  /** Defeated: a hero stays dimmed, an enemy is gone. */
+  down: boolean;
+  /** The size of the idle picture's cell, for the origin when the idle picture comes back after a still. */
+  cellW: number;
+  cellH: number;
+  /** Which picture and frame the sprite shows now ("texture|frame"), so a restyle only touches Phaser when it changed. */
+  shown: string;
+}
+
+/** What a live battle (`battletest.ts`) lends the scene: a step it takes every tick, and whether the world is frozen (a hitstop). */
+export interface LiveHook {
+  tick(): void;
+  readonly frozen: boolean;
 }
 
 /** The fixed simulation step: 60 ticks a second. */
@@ -166,6 +192,15 @@ export class StageScene extends Phaser.Scene {
   private phase: Phase = 'choose';
   private view!: HudView;
   private acc = 0;
+  /** Ticks of WORLD time: it stops during a hitstop (`frame` keeps counting real ticks). */
+  worldFrame = 0;
+  /** The HUD view of a live battle, or null while the lab's example turn is shown. */
+  liveView: HudView | null = null;
+  live: LiveHook | null = null;
+  /** How many game ticks one real 1/60 s makes: 1 or 2 (the Battle Test's speed option). */
+  speed = 1;
+  private stillTable: Record<string, StillInfo> | null = null;
+  private moveTable: MoveFile | null = null;
 
   constructor() {
     super('stage');
@@ -220,6 +255,10 @@ export class StageScene extends Phaser.Scene {
     this.fx = null;
     this.hud = null;
     this.frame = 0;
+    this.worldFrame = 0;
+    this.liveView = null;
+    this.live = null;
+    this.stillTable = null;
     this.acc = 0;
     this.init0 = data;
     this.axesFile = data.axes ?? {};
@@ -235,7 +274,11 @@ export class StageScene extends Phaser.Scene {
       this.init0.onError(`A file did not load: ${file.url as string} (is the spritefusion-tests link in place?)`);
     });
     // Every crew member we have a description for, so the party can be reordered without loading anything new.
-    if (!this.init0.standIns) queueCrewSheets(this.load, this.textures, this.init0.metas, Object.keys(this.init0.metas));
+    if (!this.init0.standIns) {
+      queueCrewSheets(this.load, this.textures, this.init0.metas, Object.keys(this.init0.metas));
+      // Rook's three strike drawings. Nothing is drawn from them until a Battle Test builds his strike.
+      queueStrikeArt(this.load, this.textures);
+    }
   }
 
   create(): void {
@@ -253,6 +296,7 @@ export class StageScene extends Phaser.Scene {
     if (this.init0.standIns) addStandInSheets(this.textures, this.init0.metas);
     this.crew = registerCrew(this.textures, this.anims, this.init0.metas, Object.keys(this.init0.metas), this.init0.standIns);
 
+    for (const a of Object.values(STRIKE_ART)) if (this.textures.exists(a.key)) crisp(this.textures.get(a.key));
     this.hud = new Hud(this, this.faces());
     this.buildPicture();
     this.guide = this.add.graphics().setDepth(GUIDE_DEPTH).setVisible(this.editMode);
@@ -379,6 +423,7 @@ export class StageScene extends Phaser.Scene {
     const f: Fighter = {
       id, side, name, boss, sprite, shadow, ring, home, bar, slot, baseX: 0, baseY: 0, x: 0, y: 0, bodyDx: 0, axisKey, measured: fig, sortY: 0, idle, uid, baseTex, fig, faceName, shadowW: 0,
       active: false, target: false, flash: false, depth: 0,
+      still: null, offX: 0, offY: 0, alpha: 1, down: false, cellW: sprite.width, cellH: sprite.height, shown: '',
     };
     this.applyAxis(f);
     // Party first in the list, then enemies: keep that order whichever side is rebuilt.
@@ -396,7 +441,15 @@ export class StageScene extends Phaser.Scene {
   private applyAxis(f: Fighter): void {
     const shift = axisFor(this.axesFile, f.axisKey);
     f.fig = { ...f.measured, foot: { x: f.measured.foot.x + shift.x, y: f.measured.foot.y + shift.y } };
-    f.sprite.setOrigin(f.fig.foot.x / f.sprite.width, f.fig.foot.y / f.sprite.height);
+    this.applyOrigin(f);
+  }
+
+  /** The sprite's origin: the feet of its idle picture, or the axis of the still a move put on it (plus this sprite's foot-anchor correction). */
+  private applyOrigin(f: Fighter): void {
+    if (f.still) {
+      const shift = axisFor(this.axesFile, f.axisKey);
+      f.sprite.setOrigin((f.still.axisX + shift.x) / f.still.w, (f.still.axisY + shift.y) / f.still.h);
+    } else f.sprite.setOrigin(f.fig.foot.x / f.cellW, f.fig.foot.y / f.cellH);
   }
 
   /** Use these foot-anchor corrections from now on: every figure is re-anchored and drawn again. */
@@ -530,6 +583,10 @@ export class StageScene extends Phaser.Scene {
    */
   refresh(): void {
     if (!this.hud) return;
+    if (this.liveView) {
+      this.refreshLive();
+      return;
+    }
     this.view = buildHudView(this.stage.demo, this.setKey, this.phase, this.enemyKeys);
     const v = this.view;
     const party = this.fighters.filter((f) => f.side === 'party');
@@ -594,6 +651,82 @@ export class StageScene extends Phaser.Scene {
     pruneTextures(this.textures, PREFIX.ring, new Set(this.fighters.flatMap((f) => [f.ring.texture.key, f.home.texture.key])));
   }
 
+  /**
+   * The live battle's version of `refresh`: the view comes from the fight (`liveView`), and nothing about where the
+   * fighters stand or what they are doing is reset, because the performer owns that tick by tick. This marks who is
+   * acting and who is aimed at, restyles everyone (depth, shadow, haze, flash) and redraws the HUD.
+   */
+  refreshLive(): void {
+    const v = this.liveView;
+    if (!this.hud || !v) return;
+    this.view = v;
+    const party = this.fighters.filter((f) => f.side === 'party');
+    const foes = this.fighters.filter((f) => f.side === 'enemy');
+    for (const f of this.fighters) {
+      f.active = false;
+      f.target = false;
+    }
+    const hero = party[v.active];
+    if (hero) hero.active = true;
+    const aimed = v.target === null ? undefined : foes[v.target];
+    if (aimed) aimed.target = true;
+    const ally = v.allyTarget === null || v.allyTarget === undefined ? undefined : party[v.allyTarget];
+    if (ally) ally.target = true;
+    for (const f of this.fighters) this.restyle(f);
+    this.hud.render(this.stage, v, this.geo());
+    pruneTextures(this.textures, PREFIX.shadow, new Set(this.fighters.map((f) => f.shadow.texture.key)));
+    pruneTextures(this.textures, PREFIX.ring, new Set(this.fighters.flatMap((f) => [f.ring.texture.key, f.home.texture.key])));
+  }
+
+  /** Redraw the HUD and the figures' markers for the current view without rebuilding anything (a health bar moved). */
+  redrawLive(): void {
+    this.refreshLive();
+  }
+
+  /** Re-style one fighter after the performer changed its pose, position or flash. */
+  restyleFighter(f: Fighter): void {
+    this.restyle(f);
+  }
+
+  /** Where a figure is now, for effects and labels placed relative to it. */
+  figureGeo(f: Fighter): HudGeo['party'][number] {
+    return this.geoOf(f);
+  }
+
+  /** The move file (checked once) and Rook's stills (built on first use: the pixel work is not paid by pages that never battle). */
+  battleAssets(): { moves: MoveFile; stills: Record<string, StillInfo> } {
+    if (!this.moveTable) {
+      this.moveTable = loadMoves(movesJson, { abilities: new Set(Object.keys(ABILITIES)), actors: new Set(Object.keys(this.init0.metas)) });
+    }
+    if (!this.stillTable) {
+      const fighter = (id: string): { idle: ReturnType<typeof cutSheet>; foot: CrewInfo['foot'] } => {
+        const meta = this.init0.metas[id];
+        const info = this.crew[id];
+        if (!meta || !info) throw new Error(`${id} is not in this stage lab, so his or her moves cannot be built`);
+        return { idle: cutSheet(readTexture(this.textures, sheetKey(id)), meta.frame_w, meta.frame_count), foot: info.foot };
+      };
+      this.stillTable = registerStills({ textures: this.textures, fighters: { 'sf-rook': fighter('rook'), 'sf-kit': fighter('kit') }, read: (key) => readTexture(this.textures, key), standIns: this.init0.standIns }, this.moveTable.stills);
+    }
+    return { moves: this.moveTable, stills: this.stillTable };
+  }
+
+  /**
+   * Bake the pictures a fight will need before it starts (the white flash of every fighter and of every still), so no hit
+   * has to read pixels back from the graphics card on the very tick it lands.
+   */
+  prebake(): void {
+    for (const f of this.fighters) flashTexture(this.textures, f.baseTex);
+    for (const s of Object.values(this.stillTable ?? {})) flashTexture(this.textures, s.texture);
+  }
+
+  /** Start showing a live battle's view (null goes back to the lab's example turn). */
+  setLive(view: HudView | null, hook: LiveHook | null): void {
+    this.liveView = view;
+    this.live = hook;
+    if (!view) this.refresh();
+    else this.refreshLive();
+  }
+
   /** The effects picture of an action in progress, as part of the attacker's figure (it sorts with it: just over its body). */
   private applyFx(key: string | null, owner: Fighter | undefined): void {
     if (!key || !owner) {
@@ -632,20 +765,28 @@ export class StageScene extends Phaser.Scene {
   private restyle(f: Fighter): void {
     const st = this.stage;
     // The picture: a hit flash, else the depth haze for this row (the acting hero and the target are exempt), else as drawn.
-    let tex = f.baseTex;
-    if (f.flash) tex = flashTexture(this.textures, f.baseTex);
+    // (While a move shows one of its stills, that picture takes the place of the fighter's own, with the same haze and flash.)
+    const base = f.still ? f.still.texture : f.baseTex;
+    let tex = base;
+    if (f.flash) tex = flashTexture(this.textures, base);
+    else if (f.down && f.side === 'party') tex = hazedTexture(this.textures, base, '#1a1d33', 0.55);
     else if (st.depthTint) {
       const amount = st.depthTint.exemptActive && (f.active || f.target) ? 0 : (st.depthTint.amounts[f.slot.row] ?? 0);
-      tex = hazedTexture(this.textures, f.baseTex, st.depthTint.fog, amount);
+      tex = hazedTexture(this.textures, base, st.depthTint.fog, amount);
     }
-    if (f.sprite.texture.key !== tex) {
-      if (f.sheet) f.sprite.setTexture(tex, f.sprite.frame.name);
-      else f.sprite.setTexture(tex);
+    // A hero's idle picture is one cell of a sheet, so say which; a still or an enemy's art is a single picture.
+    const frame = f.still || !f.sheet ? undefined : idleFrame(this.worldFrame, f.sheet.fps, f.sheet.count, f.sheet.phase);
+    const want = `${tex}|${frame ?? ''}`;
+    if (f.shown !== want) {
+      f.sprite.setTexture(tex, frame);
+      f.shown = want;
+      this.applyOrigin(f);
     }
+    f.sprite.setAlpha(f.alpha);
 
     // The draw order: every part of the figure shares one number (plus its own fraction), so the whole figure sorts as one unit.
     f.depth = depthFor(f.sortY, f.x, f.side, f.slot.order ?? 0);
-    f.sprite.setPosition(f.x + f.bodyDx, f.y + 1).setDepth(f.depth);
+    f.sprite.setPosition(f.x + f.bodyDx + f.offX, f.y + 1 + f.offY).setDepth(f.depth);
 
     // The contact shadow: a flat oval on the floor under the feet (it stays at floor height and follows only x and depth).
     const sprW = f.fig.box.x1 + 1 - f.fig.box.x0;
@@ -662,7 +803,17 @@ export class StageScene extends Phaser.Scene {
     else f.ring.setVisible(false);
 
     // The health bar, drawn with its owner: under the shadow, in the sort (a nearer fighter's body covers it).
+    // A fallen enemy takes its shadow, ring and health bar with it as it fades.
+    const gone = f.side === 'enemy' && f.down && f.alpha <= 0;
+    f.shadow.setAlpha(f.alpha);
+    f.ring.setAlpha(f.alpha);
+    if (gone) {
+      f.shadow.setVisible(false);
+      f.ring.setVisible(false);
+    }
     this.drawBar(f);
+    f.bar?.setVisible(!gone);
+    f.bar?.setAlpha(f.alpha);
   }
 
   private drawBar(f: Fighter): void {
@@ -691,7 +842,7 @@ export class StageScene extends Phaser.Scene {
 
   /** Phaser calls this every screen refresh; the accumulator turns that into a steady 60 ticks a second. */
   override update(_time: number, delta: number): void {
-    this.acc += Math.min(delta, 250);
+    this.acc += Math.min(delta, 250) * this.speed;
     let ticks = 0;
     while (this.acc >= STEP_MS && ticks < MAX_CATCH_UP) {
       this.tick();
@@ -713,11 +864,21 @@ export class StageScene extends Phaser.Scene {
    */
   private tick(): void {
     this.frame++;
+    // A hitstop freezes the world: no idle animation moves, and the live battle's own clocks wait too.
+    if (!this.live?.frozen) this.worldFrame++;
+    this.live?.tick();
     for (const f of this.fighters) {
-      if (f.sheet) f.sprite.setFrame(idleFrame(this.frame, f.sheet.fps, f.sheet.count, f.sheet.phase));
-      else {
-        const o = enemyIdle(f.idle, this.frame, f.uid);
-        f.sprite.setPosition(f.x + f.bodyDx + o.x, f.y + 1 + o.y);
+      if (f.down) continue;
+      if (f.sheet) {
+        // A hero's idle loop plays only while no move has put a still on it.
+        if (!f.still) {
+          const frame = idleFrame(this.worldFrame, f.sheet.fps, f.sheet.count, f.sheet.phase);
+          f.sprite.setFrame(frame);
+          f.shown = `${f.sprite.texture.key}|${frame}`;
+        }
+      } else {
+        const o = enemyIdle(f.idle, this.worldFrame, f.uid);
+        f.sprite.setPosition(f.x + f.bodyDx + f.offX + o.x, f.y + 1 + f.offY + o.y);
       }
     }
   }

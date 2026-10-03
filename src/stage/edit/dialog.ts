@@ -8,7 +8,7 @@
 import { h } from './dom';
 
 /** Show a dialog with a title, a body and buttons; resolves with the label of the button pressed (or null for Esc / a click outside). */
-function show(title: string, body: Node[], buttons: string[], primary: string, initialFocus?: () => HTMLElement | null): Promise<string | null> {
+export function showDialog(title: string, body: Node[], buttons: string[], primary: string, initialFocus?: () => HTMLElement | null): Promise<string | null> {
   return new Promise((resolve) => {
     const previous = document.activeElement as HTMLElement | null;
     const done = (value: string | null): void => {
@@ -45,13 +45,13 @@ function show(title: string, body: Node[], buttons: string[], primary: string, i
 
 /** "Throw away 6 changes to street?" Resolves true on the confirming button. */
 export async function confirmBox(title: string, message: string, yes: string, no = 'Cancel'): Promise<boolean> {
-  return (await show(title, [h('p', {}, message)], [no, yes], yes)) === yes;
+  return (await showDialog(title, [h('p', {}, message)], [no, yes], yes)) === yes;
 }
 
 /** Ask for one line of text. Resolves with the text, or null if cancelled. */
 export async function promptBox(title: string, label: string, value: string, ok = 'OK'): Promise<string | null> {
   const input = h('input', { type: 'text', value, spellcheck: 'false', 'aria-label': label });
-  const result = await show(title, [h('label', { class: 'dlg-field' }, h('span', {}, label), input)], ['Cancel', ok], ok, () => {
+  const result = await showDialog(title, [h('label', { class: 'dlg-field' }, h('span', {}, label), input)], ['Cancel', ok], ok, () => {
     queueMicrotask(() => input.select());
     return input;
   });
@@ -60,5 +60,5 @@ export async function promptBox(title: string, label: string, value: string, ok 
 
 /** Show a table or text and one Close button. */
 export async function infoBox(title: string, body: Node): Promise<void> {
-  await show(title, [body], ['Close'], 'Close');
+  await showDialog(title, [body], ['Close'], 'Close');
 }

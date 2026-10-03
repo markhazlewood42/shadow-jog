@@ -21,7 +21,7 @@ export const DEV_TOOLS: { group: string; tools: DevTool[] }[] = [
       { name: 'FX lab (particle effects editor)', path: '/?scene=fxlab', about: 'Tune particle presets and what plays at each battle moment; Save writes src/data/fx.json', print: true },
       { name: 'Animation editor', path: '/rigedit.html', about: 'Pose the crew’s battle arms on their skeletons; ask Claude to fix a pose', print: true },
       { name: 'Art review', path: '/artreview.html', about: 'Every version of the code-drawn art side by side; flag frames, leave notes', print: true },
-      { name: 'Battle Stage Editor (Phaser spike)', path: '/stageedit.html', about: 'Drag the horizon, floor, depth rows, heroes, enemies and HUD boxes on the live battle stage; Save writes src/data/stages.json (and axes.json)', print: true },
+      { name: 'Battle Stage Editor (Phaser spike)', path: '/stageedit.html', about: 'Drag the horizon, floor, depth rows, heroes, enemies and HUD boxes on the live battle stage; Save writes src/data/stages.json (and axes.json); Battle Test (Ctrl+Enter) plays a real fight on the stage as it is in the page, saved or not', print: true },
     ],
   },
   {

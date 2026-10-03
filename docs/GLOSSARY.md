@@ -235,6 +235,7 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | Term | Meaning |
 |---|---|
 | **TP** | The umbrella name for a member's resource: KI (Kit), RAM (Hex), MANA (Sable). Rook has none. |
+| **Battle Test** | (Dev tool, not in the game.) The Battle Stage Editor's button that runs a real fight on the stage as it is in the page, saved or not. Named after RPG Maker's. A **move** there is a frame list in `src/data/moves.json`; a **still** is one picture of a move with its stand-on point (**axis**). |
 | **Techs** | Abilities paid for in TP (Ki Arts, programs, spirit-work). |
 | **Skills** | Abilities with a limited number of uses per rest (all of Rook's, plus a few for everyone). |
 | **Combos** | Two or three members' moves fused when ordered in the same round. Thunder Rift, Target Lock, Ghost Circuit, Pyre Storm, Spirit Walk, Crow's Wing, Lifeline, Blackout, and **Clean Job** (the three-part one). Each has a caller who says a line. Since 2026-09-29 Spirit Walk needs abilities past Chapter 1's levels, so it waits for a later chapter. |

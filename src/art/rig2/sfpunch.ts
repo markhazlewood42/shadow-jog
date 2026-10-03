@@ -542,6 +542,8 @@ export interface PunchBuild {
   measured: typeof PUNCH_MEASURED;
   /** The rows above the soles the tallest frame reaches. */
   topRows: number;
+  /** Where the idle frame (the "ready" layer) sits on the finished canvas, as its top-left corner: the Phaser stage uses it to put the axis under the idle's own feet. */
+  readyAt: { dx: number; dy: number };
 }
 
 /**
@@ -624,5 +626,5 @@ export function buildSfPunch(idle: Raw[], run: Raw, load: Raw, jab: Raw, cross: 
     footDx: Math.round(off),
     toeShort: (tipCol - toeCol) / 2,
   };
-  return { frames, axis: half, measured, topRows: H0 - top };
+  return { frames, axis: half, measured, topRows: H0 - top, readyAt: { dx: pi.dx - (HALF - half), dy: pi.dy - top } };
 }
