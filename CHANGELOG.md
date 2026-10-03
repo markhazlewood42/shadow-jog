@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-10-02
+## [0.1.0] - 2026-10-03
 
 First release: Chapter 1, "Milk Run", playable start to finish in the browser. Known gaps at this point: the dungeon is small and linear, and most ordinary fights end in two rounds; the story never says why the crew rides Mr. Pale's lift; there is no colour-blind palette, text-size option or on-screen touch pad; some Rustyard scrap heaps read as noise; the end-to-end tests teleport and auto-resolve, so there is no save-and-reload mid-chapter test.
 

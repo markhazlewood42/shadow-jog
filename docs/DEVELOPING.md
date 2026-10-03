@@ -384,7 +384,7 @@ The why (and the decisions behind it) is in `docs/PHASE-0.2.md`, "Versioning and
 
 Mark's playtest and go-ahead come first. Pushing a tag and creating a GitHub Release each need his explicit yes.
 
-1. Move the `Unreleased` entries under a new `[X.Y.Z] - date` heading in `CHANGELOG.md` and set `"version"` in `package.json`.
+1. Move the `Unreleased` entries under a new `[X.Y.Z] - date` heading in `CHANGELOG.md` (the date is the day the tag is cut; if the PR merges on a later day, correct it in the follow-up bump PR) and set `"version"` in `package.json`.
 2. Open the PR. Mark merges it.
 3. Tag the merge commit, annotated: `git tag -a vX.Y.Z -m "Shadow Jog X.Y.Z: one-line summary" <merge-sha>`.
 4. Push the tag: `git push origin vX.Y.Z`. A pushed release tag is never moved or deleted.

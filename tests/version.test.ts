@@ -3,9 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { hasGlyph } from '../src/engine/font';
 import { APP_VERSION, BUILD_SHA, VERSION_LABEL } from '../src/version';
 
+// The official Semantic Versioning 2.0.0 pattern (https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string):
+// no leading zeros, dot-separated pre-release parts (like -dev or -rc.1), optional +build metadata.
+const SEMVER =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+
 describe('version stamp', () => {
   it('APP_VERSION is semver, with an optional pre-release suffix like -dev', () => {
-    expect(APP_VERSION).toMatch(/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/);
+    expect(APP_VERSION).toMatch(SEMVER);
+  });
+
+  it('the semver check accepts real versions and rejects malformed ones', () => {
+    for (const ok of ['0.1.0', '0.2.0-dev', '1.0.0-rc.1', '1.2.3+abc1234', '0.2.0-spike.phaser.1']) expect(ok).toMatch(SEMVER);
+    for (const bad of ['01.2.3', '1.2', '1.2.3-..', '1.2.3-01', 'v1.2.3', '1.2.3+']) expect(bad).not.toMatch(SEMVER);
   });
 
   it('VERSION_LABEL starts with v and carries the version and the build', () => {

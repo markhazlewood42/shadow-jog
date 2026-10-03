@@ -453,7 +453,7 @@ Options: (a) yes: 0.1.0 tag plus 0.2.0 phase; (b) call the next step 0.1.1; (c) 
 Options: (a) the camera, keep the back view; (b) the loop, with any camera.
 **Recommendation: (b), the loop.** Let the camera go if the spike passes.
 
-**3. Should the back-view rig work be paused while a 3-day side-view spike runs?** — **decided 2026-10-02: (a), with battle scale (~44–48 px) as the second size** The spike tests field scale (~30 px) and hero scale (~55 px) with equal effort, starting with your profile references. You choose the size from clips afterwards. Kit's and Rook's finished back-view poses stay in v0.1.0 and behind a flag either way.
+**3. Should the back-view rig work be paused while a 3-day side-view spike runs?** — **decided 2026-10-02: (a), with battle scale (~44–48 px) as the second size** The spike tests field scale (~30 px) against battle scale (~44–48 px, the RPG Maker side-view size) with equal effort, starting with your profile references; hero scale (~55 px) stays a fallback. You choose the size from clips afterwards. Kit's and Rook's finished back-view poses stay in v0.1.0 and behind a flag either way.
 Options: (a) pause Hex/Sable tuning and run the spike now; (b) finish the back view first, spike later; (c) don't spike.
 **Recommendation: (a).** The back-view code is deleted from `main` only when the new view ships.
 

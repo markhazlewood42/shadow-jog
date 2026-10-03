@@ -262,7 +262,7 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
 - **State at this handoff:** see the end of this section's commit (`git log -1`); CI runs on every push.
 
 ### What happens next
-**Next, as of 2026-10-03:** (1) Mark tries the Battle Stage Editor and Battle Test and calls GO / NO-GO on the Phaser tooling spike; (2) Mark merges the release-prep PR, then the v0.1.0 tag, pre-release and 0.2.0-dev bump; (3) on GO, rebuild the stage, editor and Battle Test on a real feature branch, then the next tools (troop editor, then the Animation Composer); (4) Sprite Fusion shopping list when credits refresh; (5) PixelLab before ~10-30 (decision 5). The original sequence below is kept for reference; the Phaser spike ran early.
+**Next, as of 2026-10-03:** (1) Mark tries the Battle Stage Editor and Battle Test and calls GO / NO-GO on the Phaser tooling spike; (2) Mark merges the release-prep PR, then the v0.1.0 tag, pre-release and 0.2.0-dev bump; (3) on GO, rebuild the stage, editor and Battle Test on a real feature branch, then the next tools (troop editor, then the Animation Composer); (4) Sprite Fusion shopping list when credits refresh; (5) PixelLab before ~10-30 (decision 5). Both spikes (side-view and Phaser tooling) ran before the release work, ahead of the original sequence below, which is kept for reference.
 
 **The proposed pivot sequence** (from `docs/PHASE-0.2.md`, "How the three fit together"; everything after the v0.1.0 release work depends on open decisions 4–6):
 1. **Now:** the release-prep PR, then tag v0.1.0 (go-ahead), then the bump to 0.2.0-dev. Hex/Sable back-view tuning is paused (decision 3, 2026-10-02). Mark turns off PixelLab auto-renew himself if he picks 5(a) or 5(b).
@@ -281,7 +281,7 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
 - **Ship the alpha** to shadowjog.com with the secure email sign-up, only with Mark's go-ahead.
 - **Chapter 2, "Deniable Assets":** getting Rook back (seeds in `docs/SETTING.md` §10).
 
-**Mark's open decisions in the plan** (`docs/PHASE-0.2.md`, "Decisions for Mark"): 4 Sprite Fusion month and what its output may become; 5 PixelLab end-of-plan use; 6 Phaser spike timing; 8 what happens to the humanoid enemies. Decisions 1, 2, 3 and 7 are settled.
+**Mark's open decision in the plan** (`docs/PHASE-0.2.md`, "Decisions for Mark"): 5, PixelLab end-of-plan use. Settled: 1, 2, 3, 6 (the Phaser tooling spike ran) and 7; 4 is answered in practice (Mark subscribed to Sprite Fusion and the spikes use his frames as the battle sprites); 8 is answered (today's enemies stay until they are re-drawn).
 
 ### Known gaps (from round 13; none are bugs)
 - Battle presentation (7.5): the party are back-of-head sprites that cover enemies; creatures are finer than the party
