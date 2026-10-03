@@ -223,6 +223,16 @@ Round 2 scored overall 7.75 (hud 8, readability 7.5, craft 7.5, consistency 8). 
 Layout numbers that changed: turn order box 43 tall, banner y 46, number floor 66, target tab clear 62. Tests: 571 unit (was 556; `tests/stagehudr3.test.ts` has 14 new, plus two moved assertions) and 70 e2e across the stagelab, stageedit and battletest specs, one new (`battletest.spec.ts`: combo counter equals the numbers shown, none on the target's drawn pixels). `npm run check` exits 0.
 Not done, on purpose: the lab still has no round-wide combo (it shows one action); real PixelLab icon art; a status legend. Not checked: the shipped game (this is the spike branch only).
 
+## HUD score after round 3, and what's left (2026-10-03)
+- Final HUD judging (three judges, same rubric as rounds 1-2): median overall 8.0, with hud 8.5, readability 8, craft 7.5, consistency 8, so the HUD clears the 8/10 bar. History: P2 never scored it (orchestration rubric-parsing bug), a separate pass scored it 7, polish rounds 1-2 reached 7.75, round 3 reached 8.0. This was declared the last HUD round before it ran.
+- The art director's score was about 7.6; the median passed. Their open items, logged rather than iterated:
+- In a multi-hit, the combo counter (e.g. "5 HIT 129") can show one more hit than the numbers still on screen, because the first number has faded; keep every hit's number until the counter settles, or fade the counter with them.
+- Six-foe sets: a duplicate tag can hide behind a nearer punk, the A/B bars can overlap a head, and the six-foe list is crowded (one name cut mid-word, no HP numbers).
+- In some lab stills the Warden's HP read-out doesn't match the damage shown (staged state in the lab, not the live Battle Test; unconfirmed).
+- No fresh screenshots of the other HUD presets after the timeline box grew to 43 px tall and the banner moved to y 46.
+- Foe chips on the timeline are still only about 10 px of face; the Glowrat reads as a grey blob.
+- Several of these are HUD preset and layout choices Mark can now make himself in the Battle Stage Editor.
+
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED
 - Date:
