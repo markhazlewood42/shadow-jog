@@ -290,6 +290,11 @@ Seven correctness bugs from the round-3 judges. Each has a unit test written fir
 7. A single hero aligned Right no longer lands at x 240: `standingRange(side, against)` narrows the range with `heroRightLimit` / `enemyLeftLimit` (new, in `rules.ts`, from `RULE_LIMITS.gap`). `against` is the drawn left edge of the nearest enemy across all enemy groups of the stage (for heroes) or the drawn right edge of the farthest hero (for enemies). With enemies at 260 a hero's right edge stops at 205, and the status line says "heroes stay at x 205 or less, to keep 55 px between the sides". A limit that would leave no room is ignored. The same range is used by Back / Middle / Front.
 Tests: unit `stageeditround4.test.ts` (new); e2e `stageeditround4.spec.ts` (new). `stageedit`, `stageeditpolish2`, `stageeditpolish3`, `stagelab` and `battletest` e2e still pass.
 
+## Editor rounds after Mark's notes: scores and open items (2026-10-03)
+- Judge scores: round 1 (Mark's ten notes) 8.4 and passed; polish round 2: UX 7.5, engineer 8; polish round 3: UX 7, engineer 8. The plateau rule stopped the judged polish rounds after round 3. Round 4 fixed correctness bugs only, and the engineer rated it GOOD (8/10).
+- Mark's decisions in these rounds: one global HUD with per-stage overrides; stage-rule breaks show as live warnings, not fixes or relaxed rules; the zoom stays as it is (1x on narrow windows, with the "Press P" hint).
+- Open, minor (from the round-4 verifier): Back/Middle/Front plans greedily, so with two enemies already on the target row it can move nothing and its status counts those two as "stayed: not enough room" (give first place to fighters already on the row). Left/Centre/Right can still place a packed fighter on a selected fighter that did not fit. On the Turkish-F layout, a non-ASCII letter on the W key can fire Align W. The test "Front for one hero..." accepts both outcomes.
+
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED
 - Date:
