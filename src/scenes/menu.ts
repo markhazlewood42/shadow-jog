@@ -81,6 +81,8 @@ export class MenuScene extends Scene<MenuResult> {
   private toast: { text: string; t: number } | null = null;
   private t = 0;
   private saveSlot: SlotId = 1;
+  /** Whether the slot in the confirm prompt was saved by a newer version. Read once on entering the prompt: slotStatus does storage reads and a full validation, too costly per frame. */
+  private saveSlotNewer = false;
 
   constructor(canSave = true) {
     super();
@@ -281,8 +283,11 @@ export class MenuScene extends Scene<MenuResult> {
         else if (r === 'confirm') {
           this.saveSlot = Number(this.sub.current!.value) as SlotId;
           // A newer-version save always asks first, even when its header can't be read.
-          if (readMeta(this.saveSlot) || slotStatus(this.saveSlot) === 'newer') this.mode = 'saveConfirm';
-          else this.doSave();
+          const newer = slotStatus(this.saveSlot) === 'newer';
+          if (readMeta(this.saveSlot) || newer) {
+            this.saveSlotNewer = newer;
+            this.mode = 'saveConfirm';
+          } else this.doSave();
         }
         break;
       }
@@ -654,7 +659,7 @@ export class MenuScene extends Scene<MenuResult> {
     this.sub.render(ctx, x + 8, 16, w - 14, this.mode === 'save');
     if (this.mode === 'saveConfirm') {
       drawWindow(ctx, x + 40, 70, w - 80, 30, { accent: UI.amber });
-      drawText(ctx, `${slotStatus(this.saveSlot) === 'newer' ? `Slot ${this.saveSlot} is newer. Replace?` : `Overwrite slot ${this.saveSlot}?`}  {y}Confirm{/} = yes · {d}Cancel{/} = no`, x + w / 2, 80, { align: 'center' });
+      drawText(ctx, `${this.saveSlotNewer ? `Slot ${this.saveSlot} is newer. Replace?` : `Overwrite slot ${this.saveSlot}?`}  {y}Confirm{/} = yes · {d}Cancel{/} = no`, x + w / 2, 80, { align: 'center' });
     }
   }
 

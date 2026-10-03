@@ -18,8 +18,8 @@ export class SaveScene extends Scene<SlotId | null> {
   private note = '';
   private t = 0;
 
-  /** Slot headers and loadability, read once (full validation is too costly per frame). */
-  private info: { meta: SaveMeta | null; status: SlotStatus }[] = [];
+  /** Slot headers, loadability and (for newer-version saves) the version that wrote them, read once (full validation and JSON parsing are too costly per frame). */
+  private info: { meta: SaveMeta | null; status: SlotStatus; version: string | null }[] = [];
 
   constructor(private mode: 'save' | 'load') {
     super();
@@ -38,7 +38,10 @@ export class SaveScene extends Scene<SlotId | null> {
   }
 
   private refresh(): void {
-    this.info = this.slots.map((s) => ({ meta: readMeta(s), status: slotStatus(s) }));
+    this.info = this.slots.map((s) => {
+      const status = slotStatus(s);
+      return { meta: readMeta(s), status, version: status === 'newer' ? savedByVersion(s) : null };
+    });
   }
 
   update(): void {
@@ -111,14 +114,13 @@ export class SaveScene extends Scene<SlotId | null> {
       const sel = i === this.idx;
       drawWindow(ctx, x + 8, ry, w - 16, rowH, { plain: !sel, accent: sel ? UI.cyan : undefined });
       if (sel) drawSelect(ctx, x + 10, ry + 2, w - 20, rowH - 4, 'rgba(63,224,240,0.08)');
-      const { meta, status } = this.info[i]!;
+      const { meta, status, version: v } = this.info[i]!;
       drawText(ctx, s === 'auto' ? 'AUTOSAVE' : `SLOT ${s}`, x + 16, ry + 6, { color: s === 'auto' ? UI.amber : UI.cyan });
       if (status === 'empty') {
         drawText(ctx, 'Empty', x + 16, ry + 20, { color: UI.disabled });
         return;
       }
       if (status === 'newer') {
-        const v = savedByVersion(s);
         drawText(ctx, fitText(v ? `Saved by a newer version (v${v})` : 'Saved by a newer version', w - 86), x + 70, ry + 6, { color: UI.amber });
         drawText(ctx, this.mode === 'load' ? 'This version can’t load it' : 'Saving here replaces it', x + 70, ry + 20, { color: UI.dim });
         return;
