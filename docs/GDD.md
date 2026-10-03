@@ -176,5 +176,4 @@ mirrors its defaults).
 
 ## 10. Tech
 
-Vite + TypeScript (strict), zero runtime dependencies, Canvas 2D. Vitest for logic and Playwright for E2E and screenshots.
-Save data lives in localStorage: 3 slots plus an autosave.
+Vite + TypeScript (strict), Canvas 2D, no runtime dependencies today (a build choice, not a requirement: high-quality, free dependencies are fine, and the bundle budget is a size alarm re-set deliberately). Vitest for logic and Playwright for E2E and screenshots. Save data lives in localStorage: 3 slots plus an autosave.
