@@ -37,7 +37,7 @@ import Phaser from 'phaser';
 import { ENEMIES } from '../data/enemies';
 import { MEMBERS } from '../data/party';
 import type { MemberId } from '../game/state';
-import { type FigureBox, depthFor, enemySlots, type PartySlot, partDepth, SCREEN_H, SCREEN_W, setKeyFor, shadowHeight, shadowWidth, slotPoint, snapSlot, type StageConfig, type StageFile, stageOf } from './config';
+import { type AxesFile, axisFor, type FigureBox, depthFor, enemySlots, type PartySlot, partDepth, SCREEN_H, SCREEN_W, setKeyFor, shadowHeight, shadowWidth, slotPoint, snapSlot, type StageConfig, type StageFile, stageOf } from './config';
 import { buildHudView, type HudView, type Phase } from './demo';
 import { drawCut, drawPalm, drawPath, drawSparks, newFxLayer } from './fx';
 import { Hud, type HudFaces, type HudGeo } from './hud';
@@ -78,6 +78,8 @@ export interface StageInit {
   phase?: Phase;
   /** Called with a readable message if something fails; the lab shows it on the page. */
   onError: (message: string) => void;
+  /** Foot-anchor corrections per sprite (`src/data/axes.json`); none when absent. */
+  axes?: AxesFile;
 }
 
 /** Layers other than the fighters themselves (which use `depthFor`, below 300,000). */
@@ -113,6 +115,10 @@ export interface Fighter {
   y: number;
   /** Knockback of the body only (its shadow stays on the floor). */
   bodyDx: number;
+  /** Which sprite this is for the foot-anchor corrections: a crew id, or an enemy's sprite key. */
+  axisKey: string;
+  /** The figure as measured from its pixels, before any foot-anchor correction (`fig` is this with the correction applied). */
+  measured: FigureArt;
   /** The feet row this figure sorts by: its own, or while lunging in contact the target's row plus one. */
   sortY: number;
   idle: IdleKind;
@@ -154,6 +160,7 @@ export class StageScene extends Phaser.Scene {
   private fx: Phaser.GameObjects.Image | null = null;
   private hud: Hud | null = null;
   private crew: Record<string, CrewInfo> = {};
+  private axesFile: AxesFile = {};
   private enemyKeys: string[] = [];
   private setKey = '3';
   private phase: Phase = 'choose';
@@ -194,6 +201,11 @@ export class StageScene extends Phaser.Scene {
     return this.hud;
   }
 
+  /** The foot-anchor corrections in use. */
+  get axes(): AxesFile {
+    return this.axesFile;
+  }
+
   /** The stage picture's texture key. */
   get pictureKey(): string {
     return this.pic.key;
@@ -210,6 +222,7 @@ export class StageScene extends Phaser.Scene {
     this.frame = 0;
     this.acc = 0;
     this.init0 = data;
+    this.axesFile = data.axes ?? {};
     this.stage = stageOf(data.stages, data.stageId);
     this.setKey = data.setKey ?? '3';
     this.phase = data.phase ?? 'choose';
@@ -263,8 +276,8 @@ export class StageScene extends Phaser.Scene {
   // ---------------------------------------------------------------- picture
 
   /** (Re)make the stage picture (wall and painted floor) for the current config. */
-  private buildPicture(): void {
-    this.pic = bakeStage(this.textures, this.stage);
+  private buildPicture(floorFrom?: StageConfig): void {
+    this.pic = bakeStage(this.textures, this.stage, floorFrom);
     if (this.picture) this.picture.setTexture(this.pic.key);
     else this.picture = this.add.image(0, 0, this.pic.key).setOrigin(0, 0).setDepth(BACKDROP_DEPTH);
   }
@@ -316,8 +329,8 @@ export class StageScene extends Phaser.Scene {
       // Start the loops on different frames so the four do not bounce in unison.
       const sheet: SheetPlay = { fps: meta.fps, count: meta.frame_count, phase: (i * 3) % meta.frame_count };
       // Origin = the feet as a fraction of the picture, so the sprite's position is where they stand.
-      const sprite = this.add.sprite(0, 0, sheetKey(id), idleFrame(this.frame, sheet.fps, sheet.count, sheet.phase)).setOrigin(info.foot.x / meta.frame_w, info.foot.y / meta.frame_h);
-      const f = this.makeFighter(id, 'party', MEMBERS[id as MemberId]?.name ?? id, false, sprite, slot, 'still', i, sheetKey(id), info.fig, id);
+      const sprite = this.add.sprite(0, 0, sheetKey(id), idleFrame(this.frame, sheet.fps, sheet.count, sheet.phase));
+      const f = this.makeFighter(id, 'party', MEMBERS[id as MemberId]?.name ?? id, false, sprite, slot, 'still', i, sheetKey(id), info.fig, id, id);
       f.sheet = sheet;
       this.place(f, slot);
     });
@@ -339,9 +352,8 @@ export class StageScene extends Phaser.Scene {
       const copy = copies.get(def.sprite) ?? 0;
       copies.set(def.sprite, copy + 1);
       const tex = addEnemy(this.textures, def.sprite, copy);
-      // Origin = the feet, found from the art's pixels (a creature's feet are not the middle of its canvas).
-      const sprite = this.add.sprite(0, 0, tex.key).setOrigin(tex.fig.foot.x / tex.width, tex.fig.foot.y / tex.height);
-      const f = this.makeFighter(`${key}#${i}`, 'enemy', def.name, slot.size === 'boss' || !!def.boss, sprite, slot, tex.idle, i, tex.key, tex.fig, `${def.sprite}-${copy}`);
+      const sprite = this.add.sprite(0, 0, tex.key);
+      const f = this.makeFighter(`${key}#${i}`, 'enemy', def.name, slot.size === 'boss' || !!def.boss, sprite, slot, tex.idle, i, tex.key, tex.fig, `${def.sprite}-${copy}`, def.sprite);
       this.place(f, slot);
     });
   }
@@ -356,7 +368,7 @@ export class StageScene extends Phaser.Scene {
     }
   }
 
-  private makeFighter(id: string, side: Fighter['side'], name: string, boss: boolean, sprite: Phaser.GameObjects.Sprite, slot: PartySlot, idle: IdleKind, uid: number, baseTex: string, fig: FigureArt, faceName: string): Fighter {
+  private makeFighter(id: string, side: Fighter['side'], name: string, boss: boolean, sprite: Phaser.GameObjects.Sprite, slot: PartySlot, idle: IdleKind, uid: number, baseTex: string, fig: FigureArt, faceName: string, axisKey: string): Fighter {
     const stub = this.stage.shadow;
     const shadow = this.add.image(0, 0, shadowTexture(this.textures, 16, stub)).setVisible(false);
     const ring = this.add.image(0, 0, ringTexture(this.textures, 24, '#3fe0f0')).setVisible(false);
@@ -365,14 +377,55 @@ export class StageScene extends Phaser.Scene {
     // A tag an edit mode can read back from whatever the pointer picks (`setData`/`getData` hang small values on any game object).
     sprite.setData('fighterId', id);
     const f: Fighter = {
-      id, side, name, boss, sprite, shadow, ring, home, bar, slot, baseX: 0, baseY: 0, x: 0, y: 0, bodyDx: 0, sortY: 0, idle, uid, baseTex, fig, faceName, shadowW: 0,
+      id, side, name, boss, sprite, shadow, ring, home, bar, slot, baseX: 0, baseY: 0, x: 0, y: 0, bodyDx: 0, axisKey, measured: fig, sortY: 0, idle, uid, baseTex, fig, faceName, shadowW: 0,
       active: false, target: false, flash: false, depth: 0,
     };
+    this.applyAxis(f);
     // Party first in the list, then enemies: keep that order whichever side is rebuilt.
     if (side === 'party') this.fighters.splice(this.fighters.filter((x) => x.side === 'party').length, 0, f);
     else this.fighters.push(f);
     if (this.editMode) this.grabbable(f, true);
     return f;
+  }
+
+  /**
+   * Set a fighter's feet from its measured ones plus the foot-anchor correction for its sprite (`axes.json`). The
+   * sprite's ORIGIN is the point of the picture that stands at the sprite's position, so shifting the origin by one
+   * pixel moves the whole figure one pixel the other way, which is exactly what a measured foot that was a pixel off needs.
+   */
+  private applyAxis(f: Fighter): void {
+    const shift = axisFor(this.axesFile, f.axisKey);
+    f.fig = { ...f.measured, foot: { x: f.measured.foot.x + shift.x, y: f.measured.foot.y + shift.y } };
+    f.sprite.setOrigin(f.fig.foot.x / f.sprite.width, f.fig.foot.y / f.sprite.height);
+  }
+
+  /** Use these foot-anchor corrections from now on: every figure is re-anchored and drawn again. */
+  setAxes(axes: AxesFile): void {
+    this.axesFile = axes;
+    for (const f of this.fighters) this.applyAxis(f);
+    this.refresh();
+  }
+
+  /**
+   * The fighter under a point of the screen (game pixels), or null. It looks at the drawn pixels, so the empty
+   * corner of a sprite's cell is not a hit, and when two fighters overlap the one drawn on top (nearer) wins.
+   * This is how an editor picks things without making the sprites interactive in Phaser's own input system.
+   */
+  pick(x: number, y: number): Fighter | null {
+    const hits = [...this.fighters].sort((a, b) => b.depth - a.depth);
+    for (const f of hits) {
+      const s = f.sprite;
+      const px = Math.floor(x - s.x + s.originX * s.width);
+      const py = Math.floor(y - s.y + s.originY * s.height);
+      if (px < 0 || py < 0 || px >= s.width || py >= s.height) continue;
+      if (this.textures.getPixelAlpha(px, py, s.texture.key, s.frame.name) > 8) return f;
+    }
+    return null;
+  }
+
+  /** Where one fighter is on the screen now: its feet and the edges of its drawn pixels. */
+  boxOf(f: Fighter): HudGeo['party'][number] {
+    return this.geoOf(f);
   }
 
   /** Make a fighter pickable (or not) by the pointer. The hit test follows the drawn pixels, so clicking the empty corner of a cell misses. */
@@ -394,12 +447,16 @@ export class StageScene extends Phaser.Scene {
    * Re-lay everything out from a changed stage config: the call an editor makes after changing it. Rebuilds
    * only what a change needs: a changed floor or backdrop repaints the picture, a different stage swaps its
    * party and enemy group; otherwise everything just moves.
+   *
+   * The floor keeps puddles clear of every slot, so moving a slot normally repaints the floor and the puddles
+   * jump. An editor dragging a fighter passes the stage as it was when the drag began as `floorFrom`: the floor is
+   * then painted from THAT stage's slots, so it holds still during the drag, and one last call without it repaints.
    */
-  applyStage(stage: StageConfig): void {
+  applyStage(stage: StageConfig, floorFrom?: StageConfig): void {
     const before = this.stage;
     this.stage = stage;
-    const repaint = stagePictureKey(stage) !== this.pic.key;
-    if (repaint) this.buildPicture();
+    const repaint = stagePictureKey(stage, floorFrom) !== this.pic.key;
+    if (repaint) this.buildPicture(floorFrom);
     const newKeys = stage.id !== before.id;
     if (stage.demo.lineup.join() !== before.demo.lineup.join() || newKeys) this.makeParty();
     if (newKeys) this.makeEnemies(stage.demo.rosters[this.setKey] ?? this.enemyKeys, this.setKey);
@@ -587,7 +644,7 @@ export class StageScene extends Phaser.Scene {
     }
 
     // The draw order: every part of the figure shares one number (plus its own fraction), so the whole figure sorts as one unit.
-    f.depth = depthFor(f.sortY, f.x, f.side);
+    f.depth = depthFor(f.sortY, f.x, f.side, f.slot.order ?? 0);
     f.sprite.setPosition(f.x + f.bodyDx, f.y + 1).setDepth(f.depth);
 
     // The contact shadow: a flat oval on the floor under the feet (it stays at floor height and follows only x and depth).

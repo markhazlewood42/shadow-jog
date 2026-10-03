@@ -12,13 +12,12 @@
 import Phaser from 'phaser';
 import { BG_IDS } from '../art/battlebg';
 import { loadRigData } from '../art/rig2/data';
-import { ENEMIES } from '../data/enemies';
-import stagesJson from '../data/stages.json';
-import { loadStages, SCREEN_H, SCREEN_W, stageOf } from './config';
+import { type AxesFile, loadStages, SCREEN_H, SCREEN_W, type StageFile, stageOf } from './config';
 import type { Phase } from './demo';
 import { FrameStats } from './metrics';
 import { StageScene, type StageInit } from './stagescene';
 import { CREW_IDS } from './crew';
+import { STAGE_KNOWN } from './known';
 import { fetchSheetMetas, standInMetas, type SheetMeta } from './textures';
 import { cssZoom, devicePixelsPerGamePixel } from './zoom';
 
@@ -31,6 +30,15 @@ export interface BootOptions {
   setKey?: string;
   /** Which moment of the example turn to start on. */
   phase?: Phase;
+  /**
+   * The stage file to use instead of the shipped one (already checked by `loadStages`). The editor passes the file it
+   * fetched from the dev server, so a saved change shows after a reload. When absent the shipped `stages.json` is
+   * imported here, on demand: a page that supplies its own never has that file in its module graph, so saving it
+   * does not make Vite reload the page.
+   */
+  stages?: StageFile;
+  /** Foot-anchor corrections per sprite (`src/data/axes.json`). */
+  axes?: AxesFile;
   /** The page's query string: `?standins` skips Mark's sheets on purpose, `?renderer=canvas` forces Phaser's 2D renderer. */
   query: URLSearchParams;
   /** Called with a readable message when something fails. */
@@ -119,9 +127,20 @@ function keepZoomWhole(game: Phaser.Game): () => number {
   return () => k;
 }
 
+/** True once a page has given `bootStage` its own stage file (the editor): such a page manages the file itself and must not be reloaded when the file changes. */
+let managesOwnStages = false;
+
+// The editor saves src/data/stages.json while its page is open. Vite would answer a change to a file in the page's
+// module graph with a full page reload (losing the undo history), and it counts the dynamic import below. Accepting
+// the change here stops that; the plain lab page, which does show the shipped file, still reloads.
+import.meta.hot?.accept('../data/stages.json', () => {
+  if (!managesOwnStages) location.reload();
+});
+
 export async function bootStage(opts: BootOptions): Promise<Booted> {
   await loadRigData();
-  const stages = loadStages(stagesJson, BG_IDS, { enemies: Object.keys(ENEMIES), bosses: Object.keys(ENEMIES).filter((k) => ENEMIES[k]?.boss), crew: CREW_IDS });
+  managesOwnStages = !!opts.stages;
+  const stages = opts.stages ?? loadStages((await import('../data/stages.json')).default, BG_IDS, STAGE_KNOWN);
   // A wrong ?stage= should be one readable message naming the stages there are, not a scene that never starts.
   stageOf(stages, opts.stageId);
 
@@ -160,7 +179,7 @@ export async function bootStage(opts: BootOptions): Promise<Booted> {
   });
   const devicePixelsPerPixel = keepZoomWhole(game);
 
-  const init: StageInit = { stages, stageId: opts.stageId, ...(opts.setKey ? { setKey: opts.setKey } : {}), ...(opts.phase ? { phase: opts.phase } : {}), metas, standIns, onError: opts.onError };
+  const init: StageInit = { stages, stageId: opts.stageId, ...(opts.setKey ? { setKey: opts.setKey } : {}), ...(opts.phase ? { phase: opts.phase } : {}), metas, standIns, onError: opts.onError, ...(opts.axes ? { axes: opts.axes } : {}) };
   // `scene.add(key, scene, autoStart, data)`: add it and start it at once, handing it `init`.
   game.scene.add('stage', scene, true, init);
   return { game, scene, init, stats, standIns, devicePixelsPerPixel };

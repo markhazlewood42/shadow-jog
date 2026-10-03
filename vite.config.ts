@@ -1,6 +1,7 @@
 /// <reference types="node" />
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { DEV_TOOLS } from './src/dev/tools';
 import { defineConfig } from 'vitest/config';
@@ -84,6 +85,97 @@ function fxLab(): Plugin {
             reply(200, { ok: true, text });
           } catch (e) {
             reply(500, { ok: false, problems: [`couldn't write fx.json: ${String(e)}`] });
+          }
+        });
+      });
+    },
+  };
+}
+
+const STAGES_FILE = resolve(import.meta.dirname, 'src/data/stages.json');
+const AXES_FILE = resolve(import.meta.dirname, 'src/data/axes.json');
+type StageSaveModule = typeof import('./src/stage/edit/save');
+
+/**
+ * The Battle Stage Editor's save endpoint (dev server only): GET /__stage/stages returns the two data files
+ * (src/data/stages.json and src/data/axes.json) as text; POST checks the posted `{ stages, axes }` with the module
+ * the game loads them with (src/stage/edit/save.ts, which uses `checkStages`) and, only if both are fine, writes
+ * both in the editor's stable format. It answers `{ ok, problems: [] }` (docs/TOOLING-UI.md 2.5).
+ *
+ * `?dry=1` checks and formats without writing. `?scratch=<name>` (letters, digits, dashes) reads and writes a
+ * private copy in the OS temp folder instead of the repo files, which is how the tests save and reload without
+ * touching the real data: a scratch name that has never been saved reads the real files.
+ */
+function stageEdit(): Plugin {
+  const scratchDir = (url: URL): string | null => {
+    const name = url.searchParams.get('scratch');
+    if (!name) return null;
+    if (!/^[a-z0-9-]{1,48}$/.test(name)) throw new Error('a scratch name is letters, digits and dashes');
+    const dir = join(tmpdir(), 'shadowjog-stageedit', name);
+    mkdirSync(dir, { recursive: true });
+    return dir;
+  };
+  return {
+    name: 'shadowjog-stageedit',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__stage/stages', (req, res) => {
+        const reply = (code: number, body: unknown) => {
+          res.statusCode = code;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(body));
+        };
+        let dir: string | null;
+        let url: URL;
+        try {
+          url = new URL(req.url ?? '/', 'http://localhost');
+          dir = scratchDir(url);
+        } catch (e) {
+          reply(400, { ok: false, problems: [String(e instanceof Error ? e.message : e)] });
+          return;
+        }
+        const stagesPath = dir ? join(dir, 'stages.json') : STAGES_FILE;
+        const axesPath = dir ? join(dir, 'axes.json') : AXES_FILE;
+        if (req.method === 'GET') {
+          const from = (path: string, real: string) => readFileSync(existsSync(path) ? path : real, 'utf8');
+          reply(200, { ok: true, problems: [], stages: from(stagesPath, STAGES_FILE), axes: from(axesPath, AXES_FILE), scratch: !!dir });
+          return;
+        }
+        if (req.method !== 'POST') {
+          reply(405, { ok: false, problems: ['GET or POST only'] });
+          return;
+        }
+        if (!sameOrigin(req)) {
+          reply(403, { ok: false, problems: ['writes only from the dev server’s own pages'] });
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: Buffer) => {
+          body += chunk.toString('utf8');
+          if (body.length > 1_000_000) req.destroy();
+        });
+        req.on('end', async () => {
+          const { prepareSave } = (await server.ssrLoadModule('/src/stage/edit/save.ts')) as StageSaveModule;
+          let data: unknown;
+          try {
+            data = JSON.parse(body);
+          } catch {
+            reply(400, { ok: false, problems: ['not valid JSON'] });
+            return;
+          }
+          const made = prepareSave(data);
+          if (!made.ok) {
+            reply(400, { ok: false, problems: made.problems });
+            return;
+          }
+          try {
+            if (!url.searchParams.has('dry')) {
+              writeFileSync(stagesPath, made.stagesText);
+              writeFileSync(axesPath, made.axesText);
+            }
+            reply(200, { ok: true, problems: [], stages: made.stagesText, axes: made.axesText, file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data/stages.json' });
+          } catch (e) {
+            reply(500, { ok: false, problems: [`couldn't write the stage files: ${String(e)}`] });
           }
         });
       });
@@ -260,7 +352,7 @@ function devTools(): Plugin {
 
 export default defineConfig({
   base: './',
-  plugins: [fxLab(), artPass(), rigEdit(), devTools()],
+  plugins: [fxLab(), stageEdit(), artPass(), rigEdit(), devTools()],
   server: { port: 3007, watch: { usePolling: true } },
   // The chunk warning matches the CI budget (scripts/bundle-budget.mjs).
   build: { target: 'es2022', assetsInlineLimit: 0, sourcemap: true, chunkSizeWarningLimit: 480 },

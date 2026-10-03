@@ -156,6 +156,12 @@ export interface PartySlot {
   x: number;
   row: number;
   dy?: number;
+  /**
+   * Draw order override within the slot's row: 1 brings this fighter forward (drawn over a neighbour on the same
+   * row), -1 sends it back, 0 or absent leaves it to the usual rule. It is worth less than one row, so it can
+   * never lift a back-row fighter over a front-row one (`depthFor`). The editor sets it with Ctrl+] and Ctrl+[.
+   */
+  order?: -1 | 0 | 1;
 }
 
 export interface EnemySlot extends PartySlot {
@@ -292,6 +298,8 @@ export interface StageConfig {
   sort: SortRule;
   hud: HudLayout;
   demo: StageDemo;
+  /** A note for Claude: what Mark wants from this stage, kept with the data so a later session can read it. */
+  note?: string;
 }
 
 export type StageFile = Record<string, StageConfig>;
@@ -418,6 +426,7 @@ function checkSlots(p: Problems, path: string, slots: unknown, count: number, ro
     }
     if (s.row < 0 || s.row >= rowCount) p.add(`${path}[${i}]`, `row ${s.row} is not one of the ${rowCount} rows`);
     if (s.dy !== undefined && !isInt(s.dy)) p.add(`${path}[${i}]`, 'dy must be a whole number');
+    if (s.order !== undefined && s.order !== -1 && s.order !== 0 && s.order !== 1) p.add(`${path}[${i}]`, 'order must be -1, 0 or 1');
     // The party stands on the left half of the screen and the enemies on the right.
     if (side === 'party' ? s.x < 0 || s.x >= SCREEN_W / 2 : s.x < SCREEN_W / 2 || s.x > SCREEN_W) p.add(`${path}[${i}]`, `x ${s.x} is on the wrong side of the screen`);
     if (s.size !== undefined && s.size !== 'regular' && s.size !== 'boss') p.add(`${path}[${i}]`, 'size must be "regular" or "boss"');
@@ -517,6 +526,7 @@ export function checkStages(data: unknown, knownBackdrops?: readonly string[], k
       continue;
     }
     if (raw.version !== 1) p.add('', 'version must be 1');
+    if (raw.note !== undefined && typeof raw.note !== 'string') p.add('note', 'must be text');
     if (raw.id !== id) p.add('', `its id ("${String(raw.id)}") must match its key in the file`);
     if (typeof raw.name !== 'string' || !raw.name) p.add('', 'needs a name');
     let horizon: number | null = null;
@@ -728,12 +738,19 @@ export function shadowHeight(stage: StageConfig, width: number): number {
  * The draw-order number for a fighter whose feet are at (x, y): nearer (lower on screen) draws on top. On one
  * row the design says the one further from the screen centre draws first (so the two nearest the middle, which
  * overlap most, end up on top) and a hero before an enemy. Multiplied up so the tie-break never outweighs a
- * row. Every part of a fighter (shadow, ring, body, health bar...) adds its own small `PART` offset to this.
+ * row, and an `order` of 1 or -1 (bring forward / send back) overrides the tie-break for one fighter on its row. Every part of a fighter (shadow, ring, body, health bar...) adds its own small `PART` offset to this.
  */
-export function depthFor(y: number, x: number, side: 'party' | 'enemy' = 'party'): number {
+export function depthFor(y: number, x: number, side: 'party' | 'enemy' = 'party', order: -1 | 0 | 1 = 0): number {
   const closeness = 240 - Math.min(240, Math.abs(x - SCREEN_W / 2));
-  return y * 1000 + closeness * 2 + (side === 'enemy' ? 1 : 0);
+  return y * 1000 + closeness * 2 + (side === 'enemy' ? 1 : 0) + order * ORDER_STEP;
 }
+
+/**
+ * How much a forward or back override (`order`) moves a fighter in the draw order. More than the whole tie-break
+ * range (about 480) so it wins ties on its row, and far less than one row (rows are at least 14 px = 14,000 apart),
+ * so it can never lift a back-row fighter over a front-row one.
+ */
+export const ORDER_STEP = 1000;
 
 /**
  * The feet row a fighter sorts by: its own, or while lunging in contact the target's row plus
@@ -755,4 +772,42 @@ export const PART = {
 /** The depth number of one part of a figure. */
 export function partDepth(figureDepth: number, part: keyof typeof PART): number {
   return figureDepth + PART[part];
+}
+
+// ------------------------------------------------------------------ foot anchors per sprite
+
+/**
+ * A foot-anchor correction for one sprite: how many of the sprite's own pixels to move the point it stands on,
+ * right (x) and down (y), from the point measured from its pixels (`feet.ts`). The Battle Stage Editor's crosshair
+ * edits this; it lives in `src/data/axes.json`, keyed by sprite (a crew id like "rook", or an enemy's sprite key
+ * like "rustfang"), because a measured foot that is one pixel off puts the whole figure one pixel off its row.
+ */
+export interface AxisShift {
+  x: number;
+  y: number;
+}
+
+export type AxesFile = Record<string, AxisShift>;
+
+/** Everything wrong with an axes file, in plain words (empty when it is fine). A shift larger than 16 px is almost certainly a mistake. */
+export function checkAxes(data: unknown): string[] {
+  if (!isObj(data)) return ['axes: must be an object of sprite names'];
+  const out: string[] = [];
+  for (const [name, v] of Object.entries(data)) {
+    if (!isObj(v) || !isInt(v.x) || !isInt(v.y)) out.push(`axes "${name}": needs whole-number x and y`);
+    else if (Math.abs(v.x) > 16 || Math.abs(v.y) > 16) out.push(`axes "${name}": a shift of more than 16 pixels is probably a mistake`);
+  }
+  return out;
+}
+
+/** The axes file, checked (throws a readable error listing every problem). */
+export function loadAxes(data: unknown): AxesFile {
+  const problems = checkAxes(data);
+  if (problems.length) throw new Error(`axes.json is not valid:\n - ${problems.join('\n - ')}`);
+  return data as AxesFile;
+}
+
+/** A sprite's shift, or none. */
+export function axisFor(axes: AxesFile, sprite: string): AxisShift {
+  return axes[sprite] ?? { x: 0, y: 0 };
 }

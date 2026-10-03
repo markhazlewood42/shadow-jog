@@ -324,8 +324,11 @@ function fingerprint(text: string): string {
  * slot (puddles are kept away from the places people stand, so moving a slot repaints them). The picture's
  * texture is named after this, so an unchanged stage finds its picture again and a changed one gets a new one.
  */
-export function stagePictureKey(stage: StageConfig): string {
-  return `stage-${stage.id}-${fingerprint(JSON.stringify([stage.backdrop, stage.floor, stage.rows, stage.party, stage.enemySets]))}`;
+export function stagePictureKey(stage: StageConfig, slotsFrom: StageConfig = stage): string {
+  // Only where each slot is matters to the picture (not its draw order), and `slotsFrom` may be an older stage: see `StageScene.applyStage`.
+  const spots = (list: ReadonlyArray<{ x: number; row: number; dy?: number }>): number[][] => list.map((q) => [q.x, q.row, q.dy ?? 0]);
+  const sets = Object.entries(slotsFrom.enemySets).map(([k, v]) => [k, spots(v)]);
+  return `stage-${stage.id}-${fingerprint(JSON.stringify([stage.backdrop, stage.floor, stage.rows, spots(slotsFrom.party), sets]))}`;
 }
 
 /**
@@ -334,12 +337,12 @@ export function stagePictureKey(stage: StageConfig): string {
  * exists. Only the current picture is kept: a dragged horizon would otherwise leave one per step, and switching
  * stages repaints (a few milliseconds) instead of holding half a megabyte per stage.
  */
-export function bakeStage(textures: Phaser.Textures.TextureManager, stage: StageConfig): StageTextures {
-  const key = stagePictureKey(stage);
+export function bakeStage(textures: Phaser.Textures.TextureManager, stage: StageConfig, slotsFrom: StageConfig = stage): StageTextures {
+  const key = stagePictureKey(stage, slotsFrom);
   const src = backdropSource(stage.backdrop.id);
   if (!textures.exists(key)) {
     const wall = stage.backdrop.mode === 'replace' ? paintWall(stage.backdrop.wallId ?? '', stage.backdrop.horizonY) : reprojectWall(src, stage);
-    addCanvasOnce(textures, key, rawToCanvas(paintFloor(wall, stage)));
+    addCanvasOnce(textures, key, rawToCanvas(paintFloor(wall, slotsFrom === stage ? stage : { ...stage, party: slotsFrom.party, enemySets: slotsFrom.enemySets })));
     pruneTextures(textures, 'stage-', new Set([key]));
   }
   return { key };
