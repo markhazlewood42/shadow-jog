@@ -31,7 +31,8 @@ import type { HudRegion, StageConfig } from './config';
 import { SCREEN_W } from './config';
 import type { HudFoeView, HudMemberView, HudView } from './demo';
 import { COMMAND_ICONS, COMMAND_INFO, iconRaw } from './icons';
-import { type BandPlan, bandPlans, foeLayout, foeName, isShown, targetTab, type PlacedChip, type RegionName, timelineLayout } from './hudlayout';
+import { comboOf } from './combo';
+import { type BandPlan, bandPlans, foeColumns, foeGrid, foeLayout, foeName, isShown, NUMBER_FLOOR, NUMBER_LABEL_H, type NumberRect, numberSpot, targetTab, type PlacedChip, type RegionName, timelineLayout } from './hudlayout';
 import { CHIP_PAD, CHIP_PREFIX, chipTexture, HIT_COLOUR, hitKind, hpColor, iconTexture, NUMBER_LOOK, numberScale, statusIconTexture, TEXT_PREFIX, textAt, textTexture, type TextOptions, textWidth, UI, WINDOW_PREFIX, windowTexture } from './hudkit';
 import { pickStatuses, STATUS_ICON_SIZE } from './hudstatus';
 import { PREFIX, pruneTextures } from './textures';
@@ -229,15 +230,15 @@ export class Hud {
   }
 
   /**
-   * A chip on the timeline (or the NOW chip). A duplicate foe's A/B letter hangs on the chip's top-right corner as a badge
-   * OUTSIDE the face (a dark-outlined letter), so the face stays whole.
+   * A chip on the timeline (or the NOW chip). A duplicate foe's A/B letter is a small tag centred UNDER the chip, in the room the
+   * timeline box keeps for it, so it never touches the face, a neighbouring chip or the round divider.
    */
   private chip(c: Phaser.GameObjects.Container, x: number, y: number, o: { size: number; face: string; rim: string; bg: string; foe: boolean; dim?: number; glow?: string | null; tag?: string; alpha?: number }): void {
     this.used.add(o.face);
     const opts = { size: o.size, faceKey: o.face, rim: o.rim, bg: o.bg, foe: o.foe, dim: o.dim ?? 0, glow: o.glow ?? null };
     const img = this.image(c, chipTexture(this.scene.textures, opts), x - CHIP_PAD, y - CHIP_PAD);
     img.setAlpha(o.alpha ?? 1);
-    if (o.tag) this.text(c, o.tag, x + o.size - 2, y - 3, { color: UI.text, shadow: false, outline: UI.outline, outlineW: 1 }).setAlpha(o.alpha ?? 1);
+    if (o.tag) this.text(c, o.tag, x + Math.floor(o.size / 2), y + o.size + TAG_GAP, { color: UI.text, shadow: false, align: 'center' }).setAlpha(o.alpha ?? 1);
   }
 
   // ---------------------------------------------------------------- regions
@@ -263,10 +264,10 @@ export class Hud {
     this.window(c, t.w, t.h, UI.cyan, t, true);
     const g = this.graphics(c);
     const [now, ...rest] = view.turns;
-    this.text(c, 'NOW', 5, Math.floor(t.h / 2) - 3, { color: UI.amber });
-    if (!now) return;
     const place = timelineLayout(t, rest, now);
     const { line } = place;
+    this.text(c, 'NOW', 5, line.y - 3, { color: UI.amber });
+    if (!now) return;
     this.fill(g, line.x0, line.y, line.x1 - line.x0, 1, UI.frameLit);
     this.fill(g, line.x1 - 1, line.y - 2, 1, 5, UI.frameLit);
     this.fill(g, line.x1, line.y - 1, 1, 3, UI.frameLit);
@@ -325,11 +326,11 @@ export class Hud {
       const down = m.hp <= 0;
       const ratio = m.maxHp > 0 ? m.hp / m.maxHp : 0;
       const low = !down && ratio < LOW_HP;
-      // On the lit row every letter gets a one-pixel dark outline: the coloured names and the red low-health numbers sit on a teal ground and need it.
-      const on = active ? { outline: UI.outline } : {};
+      // The lit row's letters are NOT outlined (outlined glyphs ran together: "KI28"); they keep the plain one-pixel drop shadow, and the row's ground is dark so they hold.
+      const on = active ? { shadow: UI.outline } : {};
       if (active) {
-        // The acting hero's row is lit in the cyan of the ring under their feet: a ground (kept darker than before so the text holds), cyan lines above and below, a bar and an arrow.
-        this.fill(g, 2, ry, r.w - 4, r.rowH - 1, UI.cyan, 0.3);
+        // The acting hero's row is lit in the cyan of the ring under their feet: a DARK teal ground behind the text, cyan lines above and below, a bar and an arrow.
+        this.fill(g, 2, ry, r.w - 4, r.rowH - 1, LIT_ROW_GROUND, 1);
         this.fill(g, 2, ry, r.w - 4, 1, UI.cyan, 0.9);
         this.fill(g, 2, ry + r.rowH - 2, r.w - 4, 1, UI.cyan, 0.9);
         this.fill(g, 2, ry, 2, r.rowH - 1, UI.cyan);
@@ -362,7 +363,7 @@ export class Hud {
       if (m.resMax > 0) {
         // On the lit row the cyan and grey would sink into the cyan ground, so the resource reads white there.
         this.text(c, String(m.res), r.w - 5, ry + 1, { color: active ? '#ffffff' : UI.cyan, shadow: false, align: 'right', ...on });
-        this.text(c, m.resLabel, r.w - 5 - textWidth(String(m.res)) - 3, ry + 1, { color: active ? '#e4f0ff' : UI.dim, shadow: false, align: 'right', ...on });
+        this.text(c, m.resLabel, r.w - 5 - textWidth(String(m.res)) - RES_GAP, ry + 1, { color: active ? '#e4f0ff' : UI.dim, shadow: false, align: 'right', ...on });
       } else this.text(c, '—', r.w - 5, ry + 1, { color: UI.disabled, shadow: false, align: 'right', ...on });
     });
   }
@@ -420,20 +421,16 @@ export class Hud {
   }
 
   /**
-   * The foe list. Every row shares ONE bar column (the same left edge and length on every row, sized to the longest names
-   * and numbers) and the numbers are right-aligned in their own column, so the rows line up whatever the numbers' widths; a
-   * name that cannot fit is clipped, and a status icon or two fits in what room is left after the name.
+   * The foe list. The columns are FIXED by the box's width (`foeColumns`), not worked out from the names and numbers in the fight, so
+   * every row has the same bar, the same length, for a punk, a boss with helpers or a lone rat: a long name is clipped (its A/B
+   * letter kept), never the bar. The health column shows the current number; five or six foes use two short columns (`foeGrid`).
    */
   private foeList(c: Phaser.GameObjects.Container, g: Phaser.GameObjects.Graphics, r: HudRegion, foes: HudFoeView[]): void {
     const lay = foeLayout(foes.length, r.h);
     const colW = lay.mode === 'grid' ? Math.floor((r.w - 8) / 2) : r.w - 8;
     const top = 2 + Math.floor((r.h - 4 - lay.rows * lay.rowH) / 2);
-    // The shared columns of a one-column list.
-    const nameX = 17;
-    const numsW = Math.max(0, ...foes.map((f) => textWidth(`${f.hp}/${f.maxHp}`)));
-    const nameW = Math.max(0, ...foes.map((f) => textWidth(foeName(f.name))));
-    const barW = Math.max(10, Math.min(28, r.w - 6 - numsW - 3 - 3 - nameX - nameW));
-    const barX = r.w - 6 - numsW - 3 - barW;
+    const cols = foeColumns(r.w);
+    const grid = foeGrid(colW);
     foes.forEach((f, i) => {
       const col = lay.mode === 'grid' ? Math.floor(i / lay.rows) : 0;
       const row = lay.mode === 'grid' ? i % lay.rows : i;
@@ -441,20 +438,21 @@ export class Hud {
       const ry = top + row * lay.rowH;
       const ratio = f.maxHp > 0 ? f.hp / f.maxHp : 0;
       const name = foeName(f.name);
-      this.image(c, this.faces.foe(i, 8), x0 + 2, ry + 1);
       if (lay.mode === 'grid') {
-        this.text(c, clip(name, 30), x0 + 13, ry + 1, { color: '#ffd0d0', shadow: false });
-        this.healthBar(c, g, x0 + colW - 30, ry + 3, 24, 3, ratio);
+        this.image(c, this.faces.foe(i, 8), x0 + grid.faceX, ry + 1);
+        this.text(c, clip(name, grid.nameW), x0 + grid.nameX, ry, { color: '#ffd0d0', shadow: false });
+        this.healthBar(c, g, x0 + grid.barX, ry + grid.barDy + 1, grid.barW, 3, ratio);
         return;
       }
-      this.text(c, `${f.hp}/${f.maxHp}`, r.w - 6, ry + 1, { color: this.hpTone(f), shadow: false, align: 'right' });
-      const shown = clip(name, barX - 3 - nameX);
-      this.text(c, shown, nameX, ry + 1, { color: '#ffd0d0', shadow: false });
-      this.healthBar(c, g, barX, ry + 3, barW, 3, ratio);
+      this.image(c, this.faces.foe(i, 8), cols.faceX, ry + 1);
+      this.text(c, String(f.hp), cols.hpRight, ry + 1, { color: this.hpTone(f), shadow: false, align: 'right' });
+      const shown = clip(name, cols.nameW);
+      this.text(c, shown, cols.nameX, ry + 1, { color: '#ffd0d0', shadow: false });
+      this.healthBar(c, g, cols.barX, ry + 3, cols.barW, 3, ratio);
       // Statuses on the foe, as the same icons the party table uses, in whatever room the name leaves before the bar.
-      let ix = nameX + textWidth(shown) + 3;
+      let ix = cols.nameX + textWidth(shown) + 3;
       for (const id of pickStatuses(f.status).shown) {
-        if (ix + STATUS_ICON_SIZE > barX - 2) break;
+        if (ix + STATUS_ICON_SIZE > cols.barX - 2) break;
         this.image(c, statusIconTexture(this.scene.textures, id), ix, ry);
         ix += STATUS_ICON_SIZE + 1;
       }
@@ -497,9 +495,11 @@ export class Hud {
     const c = this.container('combo', r);
     this.window(c, r.w, r.h, UI.pink, r, true);
     const g = this.graphics(c);
-    this.text(c, String(act.hits), 6, 4, { color: UI.amber, shadow: false });
-    this.text(c, 'HIT', 10 + textWidth(String(act.hits)), 4, { shadow: false });
-    this.text(c, String(act.total), r.w - 6, 4, { color: UI.amber, shadow: false, align: 'right' });
+    // Hits and total are worked out from the list of hits whose numbers were shown, never stored separately.
+    const { hits, total } = comboOf(act.hitList);
+    this.text(c, String(hits), 6, 4, { color: UI.amber, shadow: false });
+    this.text(c, 'HIT', 10 + textWidth(String(hits)), 4, { shadow: false });
+    this.text(c, String(total), r.w - 6, 4, { color: UI.amber, shadow: false, align: 'right' });
     this.bar(g, 6, 17, r.w - 12, 2, act.windowLeft ?? COMBO_WINDOW_LEFT, UI.pink);
   }
 
@@ -556,68 +556,92 @@ export class Hud {
   }
 
   /**
-   * A stage cue for low health: under a quarter, a small bar under the hero's feet blinks red (the same blink as the table's),
-   * so a hero in trouble reads without looking down at the band.
+   * A stage cue for low health: under a quarter, a RED ring and bar under the hero's feet blink, so a hero in trouble reads from
+   * across the stage without looking down at the band. The ring is only its front (lower) half, so it never crosses the legs and
+   * the sprite stays whole; the bar under it is wide (30 x 4) with a light outline. Both swap between a bright red and a dark one
+   * on the same blink as the table's.
    */
   private lowHealthMarks(view: HudView, geo: HudGeo): void {
     view.party.forEach((m, i) => {
       const f = geo.party[i];
       const ratio = m.maxHp > 0 ? m.hp / m.maxHp : 0;
       if (!f || m.hp <= 0 || ratio >= LOW_HP) return;
-      const w = 20;
-      const x = f.x - Math.floor(w / 2);
-      const y = f.y + 5;
-      const fw = Math.max(1, Math.round(w * ratio));
-      const base = this.scene.add.graphics().setDepth(MARK_DEPTH);
-      base.fillStyle(hex(UI.outline), 1).fillRect(x - 1, y - 1, w + 2, 5);
-      base.fillStyle(hex(UI.barBack), 1).fillRect(x, y, w, 3);
-      base.fillStyle(hex(UI.redDark), 1).fillRect(x, y, fw, 3);
+      const rx = Math.max(14, Math.min(26, Math.round((f.right - f.left) / 2) + 2));
+      const dark = this.scene.add.graphics().setDepth(MARK_DEPTH);
       const lit = this.scene.add.graphics().setDepth(MARK_DEPTH);
-      lit.fillStyle(hex(UI.red), 1).fillRect(x, y, fw, 3);
-      lit.fillStyle(0xffffff, 0.5).fillRect(x, y, fw, 1);
-      this.marks.push(base, lit);
+      // The ring: the lower half of an ellipse 2 px thick, one pixel column at a time (so every pixel is a game pixel).
+      for (let dx = -rx; dx <= rx; dx++) {
+        const dy = Math.round(LOW_RING_RY * Math.sqrt(Math.max(0, 1 - (dx / rx) ** 2)));
+        // A see-through red pool inside the ring (lit: strong; dark: faint), so the whole patch of floor under the hero blinks.
+        lit.fillStyle(hex('#ff3b3b'), 0.4).fillRect(f.x + dx, f.y + 1, 1, dy);
+        dark.fillStyle(hex(UI.redDark), 0.3).fillRect(f.x + dx, f.y + 1, 1, dy);
+        dark.fillStyle(hex(UI.outline), 1).fillRect(f.x + dx, f.y + dy, 1, 5);
+        dark.fillStyle(hex(UI.redDark), 1).fillRect(f.x + dx, f.y + 1 + dy, 1, 3);
+        lit.fillStyle(hex('#ff3b3b'), 1).fillRect(f.x + dx, f.y + 1 + dy, 1, 3);
+      }
+      // The bar under the ring: how little health is left, in the same two reds.
+      const w = 30;
+      const x = f.x - Math.floor(w / 2);
+      const y = f.y + LOW_RING_RY + 6;
+      const fw = Math.max(1, Math.round(w * ratio));
+      dark.fillStyle(hex(UI.outline), 1).fillRect(x - 1, y - 1, w + 2, 6);
+      dark.fillStyle(hex(UI.barBack), 1).fillRect(x, y, w, 4);
+      dark.fillStyle(hex(UI.redDark), 1).fillRect(x, y, fw, 4);
+      lit.fillStyle(hex(UI.redLit), 1).fillRect(x - 1, y - 1, w + 2, 1).fillRect(x - 1, y + 4, w + 2, 1);
+      lit.fillStyle(hex('#ff3b3b'), 1).fillRect(x, y, fw, 4);
+      lit.fillStyle(0xffffff, 0.6).fillRect(x, y, fw, 1);
+      this.marks.push(dark, lit);
       this.blinkers.push({ on: lit, off: null });
     });
   }
 
   /**
-   * The number that pops from a hit (the lab's still version of the live floating number): tinted by the kind of hit (pale,
-   * amber for a critical, cyan for a weak spot), 3x for an ordinary hit and 4x for a critical or weak one (the glyphs are 5 px
-   * tall at 1x), a two-pixel dark outline and a drop shadow, CRIT or WEAK over it. It sits above the head, to the far side from
-   * the attacker; for a tall target whose head is under the banner it goes on the shoulder line instead. Either way it is above
-   * where a blow lands, so the cut and its sparks stay clear of it.
+   * The numbers that pop from the hits (the lab's still version of the live floating numbers): ONE per hit in the action's list, so
+   * the combo counter's total is the sum of what is drawn. Each is tinted by the kind of hit (orange, amber for a critical, cyan
+   * for a weak spot), 3x for an ordinary hit and 4x for a critical or weak one (the glyphs are 5 px tall at 1x), with a two-pixel
+   * dark outline and a drop shadow, CRIT or WEAK over it. Placed from the target's sprite bounds (`numberSpot`): above the head, or
+   * beside the sprite when the head is too high, so it is never on the white Warden's face and the cut and its sparks stay clear.
    */
   private damageNumber(view: HudView, geo: HudGeo): void {
     const act = view.act;
-    const f = geo.foes[act?.target ?? -1];
-    if (!act || !f) return;
-    const kind = hitKind(act.crit, !!act.weak);
-    const scale = numberScale(kind);
-    const half = Math.ceil(textWidth(String(act.dmg), scale) / 2) + 3;
-    let nx = f.x + 12;
-    let ny = f.top - 8 - 7 * scale;
-    // A tall target: its head is under the banner, so the number stands on the shoulder line instead.
-    if (ny < NUMBER_TOP) ny = f.top + 10;
-    // Keep the whole number on the screen.
-    nx = Math.max(4 + half, Math.min(SCREEN_W - 4 - half, nx));
-    const label = kind === 'crit' ? 'CRIT' : kind === 'weak' ? 'WEAK' : null;
-    if (label) this.marks.push(this.text(null, label, nx, ny - 10, { color: HIT_COLOUR[kind], ...NUMBER_LOOK, outlineW: 1, align: 'center', depth: MARK_DEPTH }));
-    this.marks.push(this.text(null, String(act.dmg), nx, ny, { color: HIT_COLOUR[kind], ...NUMBER_LOOK, align: 'center', scale, depth: MARK_DEPTH }));
+    if (!act) return;
+    const taken: Array<NumberRect & { target: number }> = [];
+    for (const hit of act.hitList) {
+      const f = geo.foes[hit.target];
+      if (!f) continue;
+      const kind = hitKind(hit.crit, hit.weak);
+      const scale = numberScale(kind);
+      const text = String(hit.amount);
+      const label = kind === 'crit' ? 'CRIT' : kind === 'weak' ? 'WEAK' : null;
+      const pad = label ? NUMBER_LABEL_H : 0;
+      const h = 7 * scale + pad;
+      const w = Math.max(textWidth(text, scale), label ? textWidth(label) : 0) + 6;
+      const spot = numberSpot(f, w, h, { floor: NUMBER_FLOOR, screenW: SCREEN_W, farSide: true, taken: taken.filter((r) => r.target === hit.target) });
+      taken.push({ target: hit.target, x: spot.x, y: spot.y, w, h });
+      if (label) this.marks.push(this.text(null, label, spot.x, spot.y, { color: HIT_COLOUR[kind], ...NUMBER_LOOK, outlineW: 1, align: 'center', depth: MARK_DEPTH }));
+      this.marks.push(this.text(null, text, spot.x, spot.y + pad, { color: HIT_COLOUR[kind], ...NUMBER_LOOK, align: 'center', scale, depth: MARK_DEPTH }));
+    }
   }
 }
 
 /** How much of the combo window is left, as a share: a placeholder (the real combo timer is a battle-test matter). */
 export const COMBO_WINDOW_LEFT = 0.6;
+/** The half-height of the red ring under a hero in trouble (the ring is the front half of an ellipse this tall). */
+const LOW_RING_RY = 4;
 /** Under this share of health a bar is red and blinks. */
 export const LOW_HP = 0.25;
 /** The low-health blink: ticks per half-blink. */
 const BLINK_TICKS = 16;
 /** The lowest a label over the stage may sit (just under the turn timeline and the skill banner). */
-const HUD_TOP_CLEAR = 56;
-/** The highest a damage number may sit before it moves to the target's upper body. */
-const NUMBER_TOP = 60;
+const HUD_TOP_CLEAR = 62;
 /** The party table's first row, in the box's own pixels: one clear pixel under the frame's inner line. */
 const ROW_TOP = 4;
+/** Pixels between the bottom of a timeline chip and the top of the letter tag under it (the chip's dark edge and glow ring take the first two). */
+const TAG_GAP = 2;
+/** The ground of the lit (acting) row in the party table: a dark teal that the white and coloured text holds on without any outline. */
+const LIT_ROW_GROUND = '#0a2f3d';
+/** The pixels between a resource's label and its value ("KI" and "28"): a clear space, wider than the font's own letter gap. */
+const RES_GAP = 5;
 
 /** A string cut to fit `max` pixels, with a full stop where it was cut. */
 function clip(text: string, max: number): string {
@@ -626,8 +650,8 @@ function clip(text: string, max: number): string {
   const m = / ([A-F])$/.exec(text);
   const tail = m ? ` ${m[1]}` : '';
   let t = m ? text.slice(0, -2) : text;
-  while (t.length > 1 && textWidth(`${t}.${tail}`) > max) t = t.slice(0, -1);
-  return `${t}.${tail}`;
+  while (t.length > 1 && textWidth(`${t.trimEnd()}.${tail}`) > max) t = t.slice(0, -1);
+  return `${t.trimEnd()}.${tail}`;
 }
 
 const hex = (s: string): number => Number.parseInt(s.slice(1), 16);

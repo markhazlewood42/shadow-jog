@@ -519,6 +519,66 @@ test('a hit on a hero reads as a hit: a fading flash, a red wash that fades, a f
   expect(errors).toEqual([]);
 });
 
+test('the combo counter is the sum of the numbers shown, and no number stands on its target’s drawn pixels', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  // Kit’s Hundred Rain (five blows on random enemies) on the white Warden alone: five numbers on one big target, the case that used to land on its face.
+  await startFight(page, { setKey: 'boss', seed: 8 });
+  const r = await page.evaluate(() => {
+    const scene = window.__stagelab?.scene();
+    const bt = window.__stageedit?.battle();
+    if (!scene || !bt) throw new Error('no battle');
+    bt.press('right');
+    bt.press('down');
+    bt.press('down');
+    bt.press('down');
+    bt.press('ok'); // Kit: Hundred Rain
+    for (let i = 0; i < 3; i++) {
+      bt.press('left');
+      bt.press('ok'); // the others guard
+    }
+    // Step to the moment the last blow lands (the counter is the round’s and clears when the next round opens, so read it then).
+    let list: number[] = [];
+    let quiet = 0;
+    for (let i = 0; i < 4000 && quiet < 60; i++) {
+      scene.step(1);
+      const now = bt.perf.comboList.map((h) => h.amount);
+      if (now.length > list.length) {
+        list = now;
+        quiet = 0;
+      } else if (list.length > 0) quiet++;
+    }
+    const foe = scene.fighters.filter((f) => f.side === 'enemy')[0];
+    if (!foe) throw new Error('no foe');
+    const g = scene.figureGeo(foe);
+    const counted = bt.perf.numberLog.filter((x) => x.hit !== null);
+    return {
+      list,
+      shown: counted.map((x) => Number(x.text)),
+      shownHits: counted.map((x) => x.hit?.amount),
+      spots: counted.map((x) => ({ side: x.side, x: x.x, y: x.y, w: x.w, h: x.h })),
+      geo: { left: g.left, right: g.right, top: g.top, y: g.y },
+      keys: window.__stagelab?.textureKeys() ?? [],
+    };
+  });
+  // Five blows landed, and each one raised exactly one number carrying that blow’s damage.
+  expect(r.list.length).toBeGreaterThanOrEqual(2);
+  expect(r.shown).toEqual(r.list);
+  expect(r.shownHits).toEqual(r.list);
+  // The counter’s total is the sum of the numbers shown (and its hit count their count), and the HUD drew both.
+  const total = r.shown.reduce((a, b) => a + b, 0);
+  expect(r.list.reduce((a, b) => a + b, 0)).toBe(total);
+  expect(r.keys.some((k) => k.startsWith(`txt-${total}|`))).toBe(true);
+  expect(r.keys.some((k) => k.startsWith(`txt-${r.shown.length}|`))).toBe(true);
+  // No number stands on the Warden’s drawn pixels: above its head, or beside it.
+  for (const s of r.spots) {
+    const x0 = s.x - Math.ceil(s.w / 2);
+    const x1 = s.x + Math.ceil(s.w / 2);
+    const onSprite = x1 > r.geo.left && x0 < r.geo.right && s.y + s.h > r.geo.top && s.y < r.geo.y;
+    expect(onSprite, `a ${s.side} number at ${s.x},${s.y}`).toBe(false);
+  }
+  expect(errors).toEqual([]);
+});
+
 test('a hero who is knocked out kneels (made from the hero’s own idle) and stays down, dimmed', async ({ page }) => {
   const { errors } = await openEditor(page, scratch);
   await startFight(page, { setKey: '3', seed: 8, auto: true });

@@ -3,6 +3,8 @@
  * line-up, an acting state with a damage number on the white Warden (the lab's still one and the Battle Test's live one), a
  * low-health state with statuses, and the command strip with a focused icon showing its caption. Round 2 adds a weak-spot hit and a
  * critical hit (tinted, tagged numbers) and the four HUD presets plus a box dragged off the bottom row (the band must collapse cleanly).
+ * Round 3 adds the six-foe line-up and the combo counter after a multi-hit (Kit's Hundred Rain on the Warden), and counts the numbers
+ * the lab and the fight draw against the counter.
  *
  * Skipped unless `HUDPICS_MEDIA` names a folder. `HUDPICS_ROUND` names the files (`hud-r<round>-<name>.png`). The pictures are
  * 960 x 540, the stage at exactly 2x.
@@ -14,7 +16,7 @@ import { dropScratch, flush, openEditor, scratchName } from './stageeditkit';
 import { hideStatus, openLab } from './stagelabkit';
 
 const MEDIA = process.env.HUDPICS_MEDIA;
-const ROUND = process.env.HUDPICS_ROUND ?? '2';
+const ROUND = process.env.HUDPICS_ROUND ?? '3';
 const file = (name: string): string => `${MEDIA}/hud-r${ROUND}-${name}.png`;
 
 let scratch = '';
@@ -29,6 +31,7 @@ test('the lab pictures: street line-up, boss line-up and the acting state', asyn
   const shots: Array<[string, string]> = [
     ['street-lineup-2x', '?clean&stage=street&set=3&phase=choose'],
     ['boss-lineup-2x', '?clean&stage=street&set=boss%2B2&phase=choose'],
+    ['six-lineup-2x', '?clean&stage=street&set=6&phase=choose'],
     ['acting-2x', '?clean&stage=street&set=boss&phase=act'],
     ['sewer-lineup-2x', '?clean&stage=sewer&set=3&phase=target'],
   ];
@@ -63,7 +66,8 @@ test('the number pictures: a weak-spot hit and a critical hit on the white Warde
       // The lab's view is rebuilt from the engine on every refresh; hand the scene a copy with a different featured hit and redraw.
       const v = s.currentView;
       if (!v.act) throw new Error('no act');
-      s.liveView = { ...v, act: { ...v.act, ...p } };
+      // The number and the counter both come from the hit list, so the patched hit replaces the list.
+      s.liveView = { ...v, act: { ...v.act, ...p, hitList: [{ target: v.target ?? 0, amount: p.dmg, crit: p.crit, weak: p.weak }] } };
       s.redrawLive();
       s.step(20);
     }, patch);
@@ -144,6 +148,44 @@ test('the fight pictures: a live impact, low health with statuses, the command s
     for (let i = 0; i < 36; i++) scene.step(1);
   });
   await shot('impact-2x');
+  await page.evaluate(() => window.__stageedit?.stopBattle());
+
+  // 1b. A multi-hit: Kit's Hundred Rain on the Warden alone. Five numbers stack down the side of the big target and the counter says 5 HIT with their sum.
+  await startFight(page, 'boss');
+  await page.evaluate(() => {
+    const bt = window.__stageedit?.battle();
+    if (!bt) throw new Error('no battle');
+    bt.press('right');
+    bt.press('down');
+    bt.press('down');
+    bt.press('down');
+    bt.press('ok'); // Kit: Hundred Rain
+    for (let i = 0; i < 3; i++) {
+      bt.press('left');
+      bt.press('ok'); // the others guard
+    }
+  });
+  const sums = await page.evaluate(() => {
+    const scene = window.__stagelab?.scene();
+    const bt = window.__stageedit?.battle();
+    if (!scene || !bt) throw new Error('no battle');
+    let n = 0;
+    // Step to the moment the last blow's number has just come up, so all of them are still on the stage.
+    let last = 0;
+    while (n++ < 4000) {
+      scene.step(1);
+      const k = bt.perf.comboList.length;
+      if (k > last) {
+        last = k;
+        n = 0;
+      }
+      if (k >= 5 && n > 2) break;
+      if (k > 0 && n > 90) break;
+    }
+    return { counted: bt.perf.numberLog.filter((x) => x.hit !== null).map((x) => Number(x.text)), list: bt.perf.comboList.map((h) => h.amount) };
+  });
+  expect(sums.counted).toEqual(sums.list);
+  await shot('combo-2x');
   await page.evaluate(() => window.__stageedit?.stopBattle());
 
   // 2. Low health and statuses: Kit nearly down (red, blinking), Hex under half (amber) and poisoned, Sable guarding, Rook stunned.

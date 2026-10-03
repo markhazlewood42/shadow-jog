@@ -48,11 +48,11 @@ const box = (x: number, y: number, w: number, h: number, show: HudRegion['show']
 
 /** The design's own layout: the timeline on top, party / menu / enemies in a band along the bottom. */
 const DESIGN: HudPreset['regions'] = {
-  turnOrder: box(120, 2, 240, 35, 'always'),
+  turnOrder: box(120, 2, 240, 43, 'always'),
   commands: box(204, 226, 112, 42, 'input'),
   partyStatus: box(4, 226, 196, 42, 'always'),
   enemyInfo: box(320, 226, 156, 42, 'input'),
-  banner: box(140, 40, 200, 13, 'action'),
+  banner: box(140, 46, 200, 13, 'action'),
   combo: box(404, 2, 72, 25, 'action'),
 };
 
@@ -74,11 +74,11 @@ export const HUD_PRESETS: Record<PresetId, HudPreset> = {
     name: 'Action, menu on the left',
     about: 'The menu moves to the far left of the bottom band, the party table sits in the middle, and the timeline hugs the top left.',
     regions: {
-      turnOrder: box(4, 2, 240, 35, 'always'),
+      turnOrder: box(4, 2, 240, 43, 'always'),
       commands: box(4, 226, 112, 42, 'input'),
       partyStatus: box(120, 226, 196, 42, 'always'),
       enemyInfo: box(320, 226, 156, 42, 'input'),
-      banner: box(4, 40, 200, 13, 'action'),
+      banner: box(4, 46, 200, 13, 'action'),
       combo: box(404, 2, 72, 25, 'action'),
     },
   },
@@ -87,11 +87,11 @@ export const HUD_PRESETS: Record<PresetId, HudPreset> = {
     name: 'Phantasy Star IV panels',
     about: 'A wide party panel along the bottom with the menu floating in the lane between the two sides, like the old panel layout (kept for comparison).',
     regions: {
-      turnOrder: box(120, 2, 240, 35, 'always', 0.9),
+      turnOrder: box(120, 2, 240, 43, 'always', 0.9),
       commands: box(184, 184, 112, 42, 'input', 0.9),
       partyStatus: box(4, 226, 300, 42, 'always', 0.9),
       enemyInfo: box(308, 226, 168, 42, 'input', 0.9),
-      banner: box(140, 40, 200, 13, 'action', 0.9),
+      banner: box(140, 46, 200, 13, 'action', 0.9),
       combo: box(404, 2, 72, 25, 'action', 0.9),
     },
   },

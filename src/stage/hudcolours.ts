@@ -42,9 +42,9 @@ export const SEE_THROUGH_TOP = 0.85;
 
 export const CHIP_PREFIX = 'chip-';
 
-/** What a damage number is tinted by: an ordinary hit is pale, a critical amber, a hit on a weak spot cyan. */
+/** What a damage number is tinted by: an ordinary hit is orange (a fill that stays apart from the white Warden), a critical amber, a hit on a weak spot cyan. */
 export type HitKind = 'normal' | 'crit' | 'weak';
-export const HIT_COLOUR: Readonly<Record<HitKind, string>> = { normal: '#e6ecff', crit: UI.amber, weak: UI.cyan };
+export const HIT_COLOUR: Readonly<Record<HitKind, string>> = { normal: '#ff7a45', crit: UI.amber, weak: UI.cyan };
 
 /** How big a damage number is drawn, as a whole-number magnification of the 5 px glyphs: 3x for an ordinary hit, 4x for a critical or a weak spot. */
 export function numberScale(kind: HitKind): number {

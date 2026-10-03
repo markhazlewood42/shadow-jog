@@ -19,6 +19,7 @@
  */
 import type { Impact, ActionScript } from './battleflow';
 import { applyEvent, type BattleFlow } from './battleflow';
+import type { ShownHit } from './combo';
 import { partDepth } from './config';
 import type { ActView } from './demo';
 import { clearLane, contactY, nearEdge } from './contact';
@@ -27,7 +28,8 @@ import type { LiveFx } from './livefx';
 import type { Fighter, StageScene } from './stagescene';
 import type { StillInfo } from './stills';
 import { ringTexture } from './textures';
-import { HIT_COLOUR, hitKind, numberScale, UI } from './hudkit';
+import { NUMBER_FLOOR, NUMBER_LABEL_H, type NumberSpot, numberSpot } from './hudlayout';
+import { HIT_COLOUR, hitKind, numberScale, textWidth, UI } from './hudkit';
 
 /** A flinch, dodge or fall in progress on one fighter. */
 interface Reaction {
@@ -90,9 +92,6 @@ const GAP = 10;
 /** The ticks a party combo counter stays alive after a hit. */
 const COMBO_WINDOW = 90;
 
-/** The highest a floating number's top may sit (just under the timeline and the banner; the CRIT / WEAK word rides 9 px above it). */
-const NUMBER_FLOOR = 58;
-
 export class Performer {
   /** Ticks of hitstop left (the world is frozen while it is above 0). */
   pause = 0;
@@ -102,19 +101,19 @@ export class Performer {
   /** The hitstop's full length, to fade the flash over its ticks. */
   private pauseTotal = 0;
   private compiled = new Map<string, CompiledMove>();
-  /** Party hits this round and their total: the combo counter. */
-  comboHits = 0;
-  comboTotal = 0;
+  /**
+   * Every hit the party landed this round, one entry each: the SINGLE source of the combo counter and of the numbers it counts. A
+   * damage number and the counter are both made from the same entry in `impact`, and the HUD prints `comboOf` this list.
+   */
+  readonly comboList: ShownHit[] = [];
   private comboLeft = 0;
-  /** Where the last floating number went for each fighter, so a second hit stacks above the first. */
-  private numbers = new Map<string, { at: number; stack: number }>();
   /** Ticks this performer has run: the clock for seeds and number stacking (not the scene's, which also counts the time before a test starts). */
   private clock = 0;
   /** Everything the performer has done, for the log and for tests. */
   readonly log: string[] = [];
   /** Where each blow landed (screen pixels) and where each floating number was put, newest last: what a test asks to prove a blow touched its target and a number stands over the right head. */
   readonly landed: Array<{ target: string; x: number; y: number; clock: number }> = [];
-  readonly numberLog: Array<{ target: string; text: string; x: number; y: number }> = [];
+  readonly numberLog: Array<{ target: string; text: string; x: number; y: number; side: NumberSpot['side']; w: number; h: number; at: number; hit: ShownHit | null }> = [];
 
   constructor(
     private readonly scene: StageScene,
@@ -140,10 +139,8 @@ export class Performer {
 
   /** Forget the round's combo (a new round of orders is about to open). */
   resetRound(): void {
-    this.comboHits = 0;
-    this.comboTotal = 0;
+    this.comboList.length = 0;
     this.comboLeft = 0;
-    this.numbers.clear();
   }
 
   private move(id: string): CompiledMove {
@@ -594,43 +591,40 @@ export class Performer {
       applyEvent(flow.disp, { t: 'down', target: imp.target });
       this.startReaction(t, t.side === 'party' ? this.moves.reactions.downHero : this.moves.reactions.down, true, shake, peak);
     } else this.startReaction(t, this.moves.reactions.hurt, false, shake, peak);
-    // The number is tinted by the kind of hit (pale, amber for a critical, cyan for a weak spot), with the word over it in the same colour.
+    // A hit the party lands on an enemy is ONE entry in the combo list, and the number below is made from that same entry, so the
+    // counter (which only sums the list) can never disagree with the numbers the player sees.
+    let hit: ShownHit | null = null;
+    if (imp.kind === 'damage' && p.actor?.side === 'party' && t.side === 'enemy') {
+      hit = { target: this.scene.fighters.filter((f) => f.side === 'enemy').indexOf(t), amount: imp.amount, crit: imp.crit, weak: imp.weak };
+      this.comboList.push(hit);
+      this.comboLeft = COMBO_WINDOW;
+      p.lastDamage = { dmg: hit.amount, crit: hit.crit };
+    }
+    // The number is tinted by the kind of hit (orange, amber for a critical, cyan for a weak spot), with the word over it in the same colour.
     const kind = hitKind(imp.crit, imp.weak);
     const label = kind === 'crit' ? 'CRIT' : kind === 'weak' ? 'WEAK' : null;
     // A critical or weak hit is a bigger number (4x) than an ordinary one (3x); the glyphs are 5 px tall at 1x.
-    this.number(t, String(imp.amount), imp.kind === 'tick' ? UI.violet : HIT_COLOUR[kind], label, HIT_COLOUR[kind], imp.kind === 'tick' ? 2 : numberScale(kind));
-    if (imp.kind === 'damage' && p.actor?.side === 'party') {
-      this.comboHits++;
-      this.comboTotal += imp.amount;
-      this.comboLeft = COMBO_WINDOW;
-      p.lastDamage = { dmg: imp.amount, crit: imp.crit };
-    }
+    this.number(t, String(hit?.amount ?? imp.amount), imp.kind === 'tick' ? UI.violet : HIT_COLOUR[kind], label, HIT_COLOUR[kind], imp.kind === 'tick' ? 2 : numberScale(kind), hit);
     this.log.push(`${t.name}: ${imp.kind} ${imp.amount}${imp.crit ? ' (crit)' : ''} -> ${imp.hp}${imp.down ? ' (down)' : ''}`);
   }
 
   /**
-   * A floating number for a fighter, stacking above an earlier one that is still showing. A HERO's number floats over the hero's
-   * head (where the player looks to see who was hurt); an ENEMY's rises from the point the blow landed, so a number on a tall boss
-   * is next to the blade and not up by its head or off at its edge.
+   * A floating number for a fighter. It is placed from the target's sprite bounds (`numberSpot`): above the head, a little to the far
+   * side of its middle, and BESIDE the sprite when the head is too high for that, so it never stands on the white Warden's face; the
+   * numbers of this target that are still showing are in the way, so a second hit stacks and a long run starts a second column.
+   * `hit` is the combo entry it shows, if it is one of the party's hits; it is kept in `numberLog` so a test can add the numbers up
+   * against the counter.
    */
-  private number(t: Fighter, text: string, colour: string, label: string | null, labelColour: string, scale: number): void {
+  private number(t: Fighter, text: string, colour: string, label: string | null, labelColour: string, scale: number, hit: ShownHit | null = null): void {
     const g = this.scene.figureGeo(t);
-    const last = this.numbers.get(t.id);
-    const stack = last && this.clock - last.at < 40 ? last.stack + 1 : 0;
-    this.numbers.set(t.id, { at: this.clock, stack });
-    const height = 7 * scale;
-    // A hero's number floats over the hero's head. An enemy's stands above the head too, a little to the far side of its middle
-    // (the blow lands lower, so the cut, the glow and the sparks stay clear of it); a target so tall that its head is under the
-    // timeline and banner gets it on the shoulder line instead. A second hit stacks above the first.
-    const aboveHead = g.top - height - (t.side === 'party' ? 8 : 6);
-    const base = t.side === 'enemy' && aboveHead < NUMBER_FLOOR ? g.top + 10 : aboveHead;
-    let nx = t.side === 'party' ? g.x : g.x + 10;
-    let ny = base - stack * (height + 2);
-    // Never over the timeline and banner at the top, nor off the sides, and never lower than the target's own feet.
-    ny = Math.max(NUMBER_FLOOR, Math.min(g.y - 8, ny));
-    nx = Math.max(16, Math.min(464, nx));
-    this.fx.number(nx, ny, text, colour, label, scale, labelColour);
-    this.numberLog.push({ target: t.id, text, x: nx, y: ny });
+    const pad = label ? NUMBER_LABEL_H : 0;
+    const h = 7 * scale + pad;
+    const w = Math.max(textWidth(text, scale), label ? textWidth(label) : 0) + 6;
+    const taken = this.numberLog.filter((n) => n.target === t.id && this.clock - n.at < 46);
+    // A hero's number floats over the hero's head (where the player looks to see who was hurt); an enemy's stands above its head too.
+    const spot = numberSpot(g, w, h, { floor: NUMBER_FLOOR, screenW: 480, gap: t.side === 'party' ? 8 : 6, farSide: t.side === 'enemy', taken });
+    this.fx.number(spot.x, spot.y + pad, text, colour, label, scale, labelColour);
+    this.numberLog.push({ target: t.id, text, x: spot.x, y: spot.y, side: spot.side, w, h, at: this.clock, hit });
     if (this.numberLog.length > 60) this.numberLog.shift();
   }
 
@@ -639,7 +633,7 @@ export class Performer {
   /** The combo counter as the HUD draws it, or null before the round's first party hit. */
   actView(p: Playing | null): ActView | null {
     // The counter is the PARTY's: it shows through the heroes' actions and goes away while an enemy acts.
-    if (this.comboHits === 0 || (p && this.flow.slotOf(p.script.actor) >= 10)) return null;
+    if (this.comboList.length === 0 || (p && this.flow.slotOf(p.script.actor) >= 10)) return null;
     const target = p?.primary;
     return {
       attacker: p ? this.flow.slotOf(p.script.actor) : 0,
@@ -648,8 +642,7 @@ export class Performer {
       fx: 'cut',
       dmg: p?.lastDamage?.dmg ?? 0,
       crit: !!p?.lastDamage?.crit,
-      hits: this.comboHits,
-      total: this.comboTotal,
+      hitList: [...this.comboList],
       liveNumbers: true,
       windowLeft: Math.max(0.05, Math.round((this.comboLeft / COMBO_WINDOW) * 8) / 8),
     };

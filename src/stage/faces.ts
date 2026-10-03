@@ -106,3 +106,79 @@ export function cutFace(src: Raw, face: Pt, size: number, grain: number): Raw {
     }
   return grain > 1 ? modeDown(cut, grain) : cut;
 }
+
+// ------------------------------------------------------------------ head crops (HUD polish round 3)
+
+/** A rectangle inside a sprite picture (left, top, width, height). */
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Where each enemy's HEAD is, by art key: a crop rectangle measured from the top-left of the art's drawn pixels (its trimmed
+ * bounds), found by eye on a gridded zoom of each sprite. The timeline and the lists cut their little portraits from it, so a
+ * chip shows the whole head (a punk's mohawk to chin, the Warden's dome, the eel's open jaws) and not a few pixels round the eyes.
+ * The rectangle's longer side is how much art one chip covers; an enemy with no entry gets `defaultHead`.
+ */
+export const ENEMY_HEADS: Readonly<Record<string, Rect>> = {
+  punk: { x: 9, y: 2, w: 46, h: 46 },
+  medic: { x: 11, y: 2, w: 38, h: 38 },
+  slinger: { x: 8, y: 6, w: 42, h: 42 },
+  rat: { x: 1, y: 2, w: 30, h: 30 },
+  hound: { x: 0, y: 2, w: 38, h: 38 },
+  ghoul: { x: 9, y: 0, w: 36, h: 36 },
+  warden: { x: 54, y: 23, w: 46, h: 46 },
+  eel: { x: 0, y: 6, w: 44, h: 44 },
+  shade: { x: 0, y: 0, w: 34, h: 34 },
+  lurker: { x: 38, y: 6, w: 66, h: 66 },
+};
+
+/**
+ * A sensible head for an enemy that has no entry in `ENEMY_HEADS`, from the top of its drawn pixels: a square a third of the
+ * figure's height (never wider than the figure), as high as the figure starts, centred on the middle of the drawn pixels in the
+ * top quarter (so a hat or a raised arm off to one side does not drag it off the head). Bounds-relative, like the table.
+ */
+export function defaultHead(src: Raw, box: { x0: number; y0: number; x1: number; y1: number }): Rect {
+  const bw = box.x1 - box.x0;
+  const bh = box.y1 - box.y0;
+  const side = Math.max(8, Math.min(bw, Math.round(bh / 3)));
+  const rows = Math.max(1, Math.round(bh / 4));
+  let sum = 0;
+  let n = 0;
+  for (let y = box.y0; y < box.y0 + rows; y++)
+    for (let x = box.x0; x < box.x1; x++) {
+      if ((src.px[(y * src.w + x) * 4 + 3] ?? 0) <= 128) continue;
+      sum += x;
+      n++;
+    }
+  const cx = n > 0 ? sum / n - box.x0 : bw / 2;
+  return { x: Math.max(0, Math.min(bw - side, Math.round(cx - side / 2))), y: 0, w: side, h: side };
+}
+
+/**
+ * A `size` x `size` portrait of a HEAD: the square window round the middle of `head` (given in the picture's own pixels) that is
+ * a whole number of art pixels per chip pixel (a multiple of the grain, so the shrink never splits an art pixel), as close as
+ * possible to the head's longer side. It is cut at that size and shrunk by exactly that factor with `modeDown`.
+ */
+export function cutHead(src: Raw, head: Rect, size: number, grain: number): Raw {
+  const side = Math.max(head.w, head.h);
+  const factor = Math.max(grain, Math.round(side / size / grain) * grain);
+  const win = size * factor;
+  let left = Math.round(head.x + head.w / 2 - win / 2);
+  let top = Math.round(head.y + head.h / 2 - win / 2);
+  left -= ((left % grain) + grain) % grain;
+  top -= ((top % grain) + grain) % grain;
+  const cut = newRaw(win, win);
+  for (let y = 0; y < win; y++)
+    for (let x = 0; x < win; x++) {
+      const sx = left + x;
+      const sy = top + y;
+      if (sx < 0 || sy < 0 || sx >= src.w || sy >= src.h) continue;
+      const k = (sy * src.w + sx) * 4;
+      cut.px.set(src.px.subarray(k, k + 4), (y * win + x) * 4);
+    }
+  return factor > 1 ? modeDown(cut, factor) : cut;
+}

@@ -45,6 +45,8 @@ export interface TimelineLayout {
   pitch: number;
 }
 
+/** The pixels between the top of the timeline box and the top of the heroes' chips. */
+const TOP_MARGIN = 2;
 /** The most pixels between two chips' left edges (a chip and four). */
 const PITCH_GAP = 4;
 
@@ -58,7 +60,9 @@ const PITCH_GAP = 4;
 export function timelineLayout(t: HudLayout['turnOrder'], rest: readonly TurnChipView[], now?: TurnChipView): TimelineLayout {
   const ns = t.nowChip;
   const s = t.chip;
-  const line = { y: Math.floor(t.h / 2), x0: 24 + ns + 4, x1: t.w - 6 };
+  // The line sits one chip and a pixel under the box's top margin (y 17 for the shipped 14 px chips), whatever the box's height: the
+  // rows under it hold the foes' chips and, under those, the A/B letter tags, so the extra height goes to the bottom.
+  const line = { y: TOP_MARGIN + s + 1, x0: 24 + ns + 4, x1: t.w - 6 };
   const span = line.x1 - line.x0 - 8;
   const pitch = rest.length === 0 ? s + PITCH_GAP : Math.max(1, Math.min(s + PITCH_GAP, Math.floor(span / rest.length)));
   const left = line.x0 + 6;
@@ -75,7 +79,7 @@ export function timelineLayout(t: HudLayout['turnOrder'], rest: readonly TurnChi
       later.push(put(cycle[j] as TurnChipView, x));
     }
   }
-  return { now: { x: 24, y: Math.floor((t.h - ns) / 2), size: ns }, line, chips, later, roundMark: later.length ? roundMark : null, pitch };
+  return { now: { x: 24, y: line.y - Math.floor(ns / 2), size: ns }, line, chips, later, roundMark: later.length ? roundMark : null, pitch };
 }
 
 // ------------------------------------------------------------------ the bottom band
@@ -152,7 +156,7 @@ export interface FoeLayout {
 export function foeLayout(count: number, boxH: number): FoeLayout {
   if (count <= 1) return { mode: 'detail', rowH: boxH, rows: 1 };
   if (count <= 4) return { mode: 'list', rowH: Math.min(11, Math.floor((boxH - 4) / count)), rows: count };
-  return { mode: 'grid', rowH: Math.min(11, Math.floor((boxH - 4) / Math.ceil(count / 2))), rows: Math.ceil(count / 2) };
+  return { mode: 'grid', rowH: Math.min(12, Math.floor((boxH - 4) / Math.ceil(count / 2))), rows: Math.ceil(count / 2) };
 }
 
 /** An enemy's name as the HUD prints it: the data has a few in capitals (WARDEN), which print as Warden so every row reads the same. */
@@ -184,4 +188,104 @@ export function targetTab(f: { x: number; top: number; left: number; right: numb
 /** The size of a foe's health bar on the stage: the stage's own for an ordinary foe, a wide taller one (96 x 4) for a boss, the one bar in the fight that matters most. */
 export function stageBarSize(boss: boolean, spec: { w: number; h: number }): { w: number; h: number } {
   return boss ? { w: Math.max(96, spec.w), h: Math.max(4, spec.h) } : { w: spec.w, h: spec.h };
+}
+
+// ------------------------------------------------------------------ floating damage numbers
+
+/** The highest a floating number's block may start: just under the timeline (it ends at y 45) and the skill banner (y 46 to 58, its shadow to 60), with room for the word over the digits. */
+export const NUMBER_FLOOR = 66;
+/** The height the CRIT or WEAK word takes over its number (5 px of letters, a dark outline and a clear pixel). */
+export const NUMBER_LABEL_H = 10;
+
+/** A number's block on the screen: the middle of it, its top, and its size (the word over the digits is part of it). */
+export interface NumberRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Where a damage number's block stands: above the head, or BESIDE the sprite when the head is too high up for it. */
+export interface NumberSpot {
+  /** The middle of the block. */
+  x: number;
+  /** The top of the block (the CRIT or WEAK word's top when it has one). */
+  y: number;
+  side: 'above' | 'right' | 'left';
+}
+
+/**
+ * Place a damage number's block `w` wide and `h` tall (the word if any, the digits and their outline) for a figure whose drawn pixels
+ * span `left` to `right` and begin at `top`, and whose feet are at `y`. It is worked out from the SPRITE'S OWN BOUNDS so it never lands
+ * on the brightest part of a big target (the white Warden's head and face): ABOVE the head, a little to the far side of its middle,
+ * when there is room under `floor`; otherwise BESIDE the sprite (right of its widest edge when there is room, else left), level with
+ * the head. `taken` is the blocks of this target's numbers that are still showing: the first place that overlaps none of them wins,
+ * so a second hit stacks up above the first or down the side, and a long run (five blows on one big target) starts a second column
+ * further out instead of piling up. Pure, so a test can check it against every figure's bounds.
+ */
+export function numberSpot(f: { x: number; y: number; top: number; left: number; right: number }, w: number, h: number, o: { floor: number; screenW: number; gap?: number; farSide?: boolean; taken?: readonly NumberRect[] }): NumberSpot {
+  const gap = o.gap ?? 6;
+  const half = Math.ceil(w / 2);
+  const maxBottom = f.y - 8;
+  const clampX = (x: number): number => Math.max(half + 4, Math.min(o.screenW - half - 4, x));
+  const tries: NumberSpot[] = [];
+  const aboveTop = f.top - h - gap;
+  if (aboveTop >= o.floor) {
+    const x = clampX(f.x + (o.farSide ? 10 : 0));
+    for (let y = aboveTop; y >= o.floor; y -= h + 2) tries.push({ x, y, side: 'above' });
+  }
+  const rightRoom = o.screenW - 4 - (f.right + 4) >= w;
+  for (const side of rightRoom ? (['right', 'left'] as const) : (['left', 'right'] as const)) {
+    for (let col = 0; col < 3; col++) {
+      const x = side === 'right' ? f.right + 4 + half + col * (w + 4) : f.left - 4 - half - col * (w + 4);
+      if (x - half < 4 || x + half > o.screenW - 4) break;
+      for (let y = Math.max(o.floor, f.top + 2); y + h <= maxBottom; y += h + 2) tries.push({ x, y, side });
+    }
+  }
+  const taken = o.taken ?? [];
+  const free = (t: NumberSpot): boolean => !taken.some((r) => Math.abs(r.x - t.x) < (r.w + w) / 2 + 1 && t.y < r.y + r.h + 1 && t.y + h + 1 > r.y);
+  return tries.find(free) ?? tries[0] ?? { x: clampX(f.x), y: Math.max(o.floor, Math.min(maxBottom - h, f.top)), side: 'above' };
+}
+
+// ------------------------------------------------------------------ the foe list's columns
+
+/** The columns of the foe list, in the enemy box's own pixels. Fixed by the box's width alone, so they hold for every encounter. */
+export interface FoeColumns {
+  /** A row's portrait (8 px square) and where the name starts. */
+  faceX: number;
+  nameX: number;
+  /** The widest a name may be before it is clipped (a duplicate's A/B letter is kept). */
+  nameW: number;
+  /** The health bar: its left edge and length, the same on every row. */
+  barX: number;
+  barW: number;
+  /** Where the right-aligned health number ends, and the room it has (four digits). */
+  hpRight: number;
+  hpW: number;
+}
+
+/** The pixels a four-digit health number takes in the game's font, with a little to spare. */
+export const FOE_HP_W = 19;
+
+/**
+ * The foe list's columns for a list of two to four foes (one column of rows): face, name, one bar column, one health column. They
+ * come from the box's width and nothing else, NOT from the longest name or number in the fight, so the bar is the same length for a
+ * punk, a boss and two helpers, or a lone rat (a lone foe has its own read-out, and five or six foes use `foeGrid`). The health
+ * column shows the CURRENT health only (the bar says how much of the whole it is; the aimed foe's details show both).
+ */
+export function foeColumns(boxW: number): FoeColumns {
+  const hpRight = boxW - 6;
+  const barW = Math.max(24, Math.min(30, Math.floor((boxW - 100) * 0.7)));
+  const barX = hpRight - FOE_HP_W - 4 - barW;
+  const nameX = 17;
+  return { faceX: 4, nameX, nameW: barX - 4 - nameX, barX, barW, hpRight, hpW: FOE_HP_W };
+}
+
+/**
+ * The layout of one of the two halves of a five or six foe grid (each half is `colW` wide): a portrait at the left, and to its right
+ * the name over a bar as wide as the name's room, so a long name keeps most of its letters and the bar is never a stub.
+ */
+export function foeGrid(colW: number): { faceX: number; nameX: number; nameW: number; barX: number; barW: number; barDy: number } {
+  const nameW = colW - 13 - 4;
+  return { faceX: 2, nameX: 13, nameW, barX: 13, barW: nameW, barDy: 7 };
 }

@@ -38,7 +38,7 @@ import { boxOf, type Box } from '../art/rig2/sfgeom';
 import { SCREEN_H, SCREEN_W, type ShadowStyle, type StageConfig } from './config';
 import { sheetFolder } from './crew';
 import { cutSheet, footAnchor, type FootAnchor } from './feet';
-import { cutFace, CREW_FACES, ENEMY_FACES, ENEMY_GRAIN, type Pt } from './faces';
+import { cutFace, cutHead, CREW_FACES, defaultHead, ENEMY_FACES, ENEMY_GRAIN, ENEMY_HEADS, type Pt, type Rect } from './faces';
 import { paintFloor, reprojectWall } from './floor';
 import type { IdleKind } from './idle';
 import { hexRgb, lum, mix, type Raw, type RGB } from './pixels';
@@ -188,6 +188,8 @@ export interface FigureArt {
   foot: FootAnchor;
   /** The face point in `raw`'s own pixels. */
   face: Pt;
+  /** The head's crop rectangle in `raw`'s own pixels (enemies; the HUD's portraits are cut from it). The crew's faces are cut round `face`. */
+  head?: Rect;
   /** Screen pixels per art pixel (1 for the crew, 2 for the shipped enemies). */
   grain: number;
 }
@@ -386,6 +388,10 @@ export function addEnemy(textures: Phaser.Textures.TextureManager, spriteKey: st
     const texture = addCanvasOnce(textures, key, s.canvas);
     const box = boxOf(raw);
     const face = ENEMY_FACES[spriteKey];
+    // The head crop: the table's rectangle (measured from the drawn bounds), else a default from the top of the figure.
+    const table = ENEMY_HEADS[spriteKey];
+    const rel = table ?? defaultHead(raw, box);
+    const head: Rect = { x: box.x0 + rel.x, y: box.y0 + rel.y, w: rel.w, h: rel.h };
     const info: EnemyData = {
       width: art.canvas.width,
       height: art.canvas.height,
@@ -396,6 +402,7 @@ export function addEnemy(textures: Phaser.Textures.TextureManager, spriteKey: st
         box,
         foot: footAnchor([raw]),
         face: face ? { x: box.x0 + face.x, y: box.y0 + face.y } : { x: Math.round((box.x0 + box.x1) / 2), y: box.y0 + Math.round((box.y1 - box.y0) / 6) },
+        head,
         grain: ENEMY_GRAIN,
       },
     };
@@ -476,7 +483,7 @@ export function ringTexture(textures: Phaser.Textures.TextureManager, width: num
 /** A face chip picture `size` x `size` cut from a figure's art. */
 export function faceTexture(textures: Phaser.Textures.TextureManager, name: string, fig: FigureArt, size: number): string {
   const key = `${FACE_PREFIX}${name}-${size}`;
-  if (!textures.exists(key)) addCanvasOnce(textures, key, rawToCanvas(cutFace(fig.raw, fig.face, size, fig.grain)));
+  if (!textures.exists(key)) addCanvasOnce(textures, key, rawToCanvas(fig.head ? cutHead(fig.raw, fig.head, size, fig.grain) : cutFace(fig.raw, fig.face, size, fig.grain)));
   return key;
 }
 

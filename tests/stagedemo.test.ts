@@ -5,6 +5,7 @@ import stagesJson from '../src/data/stages.json';
 import { flags } from '../src/game/state';
 import type { MemberId } from '../src/game/state';
 import { SET_KEYS, type StageFile, setSize, stageOf } from '../src/stage/config';
+import { comboOf } from '../src/stage/combo';
 import { buildHudView, demoParty, type Phase } from '../src/stage/demo';
 import { isShown, type RegionName, timelineLayout } from '../src/stage/hudlayout';
 
@@ -90,8 +91,11 @@ describe('the example fight is made from the game’s real data', () => {
     expect(act.party[act.active]?.id).toBe(demo.act.attacker);
     expect(act.banner).toBe(`Rook: ${act.act?.skillName}`);
     expect(act.act?.dmg ?? 0).toBeGreaterThan(0);
-    expect(act.act?.hits ?? 0).toBeGreaterThanOrEqual(1);
-    expect(act.act?.total ?? 0).toBeGreaterThanOrEqual(act.act?.dmg ?? 1);
+    // The combo counter is made from the list of hits whose numbers are shown: the featured hit is in it, and the counter's total is their sum.
+    const list = act.act?.hitList ?? [];
+    expect(list.length).toBeGreaterThanOrEqual(1);
+    expect(list.some((h) => h.amount === act.act?.dmg)).toBe(true);
+    expect(comboOf(list).total).toBe(list.reduce((n, h) => n + h.amount, 0));
     // The engine really took health off the target.
     const target0 = act.foes[act.target ?? 0];
     expect(target0 ? target0.hp < target0.maxHp : false).toBe(true);

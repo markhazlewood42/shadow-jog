@@ -26,6 +26,7 @@ import { Rng } from '../engine/rng';
 import { createMember, knownAbilities } from '../game/party';
 import { flags } from '../game/state';
 import type { MemberId } from '../game/state';
+import type { ShownHit } from './combo';
 import { setSize, type DemoAct, type StageDemo } from './config';
 import type { IconKind } from './icons';
 
@@ -88,9 +89,11 @@ export interface ActView {
   crit: boolean;
   /** The featured hit struck a weak spot (its number is drawn in cyan). */
   weak?: boolean;
-  /** Party hits so far this round (the combo counter) and their total damage. */
-  hits: number;
-  total: number;
+  /**
+   * The hits the combo counter counts, each one a damage number on the stage. The counter's "N HIT" and its total are worked out
+   * from this list (`comboOf`) and nothing else, so they cannot disagree with the numbers shown.
+   */
+  hitList: ShownHit[];
   /** Live battle only: the stage draws its own floating numbers, so the HUD must not draw this one. */
   liveNumbers?: boolean;
   /** Live battle only: how much of the combo window is left (0 to 1). The lab shows a fixed share. */
@@ -238,22 +241,32 @@ function playAct(demo: StageDemo, roster: string[], seed: number, chain: boolean
   const cmds: Command[] = party.map((c) => (c === attacker ? { actor: c.uid, type: ab.kind === 'tech' ? 'tech' : 'skill', id: ab.id, target: target.uid } : chain ? { actor: c.uid, type: 'attack', target: -1 } : { actor: c.uid, type: 'guard' }));
   const b = new Battle(party, foes, new Rng(seed));
   b.startRound(cmds);
-  let hits = 0;
-  let total = 0;
   for (let step = b.next(); step; step = b.next()) {
     const lead = step.events.find((e): e is Extract<BattleEvent, { t: 'act' }> => e.t === 'act');
     const events = [...step.events, ...b.land('none')];
     const damage = events.filter((e): e is Extract<BattleEvent, { t: 'damage' }> => e.t === 'damage');
-    if (!lead || lead.actor >= 10) continue; // an enemy's turn: not part of the party's combo
+    if (!lead || lead.actor !== attacker.uid) continue; // the lab's still shows ONE action, so its counter counts that action's hits
     const onFoes = damage.filter((d) => d.target >= 10);
-    hits += onFoes.length;
-    total += onFoes.reduce((n, d) => n + d.amount, 0);
-    if (lead.actor === attacker.uid) {
-      const hit = onFoes.find((d) => d.target === target.uid) ?? onFoes[0];
-      return { party, foes, act: { attacker: attacker.uid, target: demo.act.target, skillName: ab.name, fx: demo.act.fx, dmg: hit?.amount ?? 0, crit: !!hit?.crit, weak: !!hit?.weak, hits, total } };
-    }
+    const hitList: ShownHit[] = onFoes.map((d) => ({ target: foes.findIndex((f) => f.uid === d.target), amount: d.amount, crit: !!d.crit, weak: !!d.weak }));
+    const hit = onFoes.find((d) => d.target === target.uid) ?? onFoes[0];
+    return { party, foes, act: { attacker: attacker.uid, target: demo.act.target, skillName: ab.name, fx: demo.act.fx, dmg: hit?.amount ?? 0, crit: !!hit?.crit, weak: !!hit?.weak, hitList } };
   }
   return null;
+}
+
+/**
+ * The featured action, played so that it LANDS: the lab's still shows a hit, so an action that misses with the file's seed (the
+ * engine rolled a miss) is played again with the next seeds, in order, until one deals damage. Deterministic, and the same as
+ * before for every group where the first seed already lands.
+ */
+function playLandingAct(demo: StageDemo, roster: string[]): { party: Combatant[]; foes: Combatant[]; act: ActView } | null {
+  let first: { party: Combatant[]; foes: Combatant[]; act: ActView } | null = null;
+  for (let k = 0; k < 40; k++) {
+    const played = playAct(demo, roster, demo.seed + k, true) ?? playAct(demo, roster, demo.seed + k, false);
+    first ??= played;
+    if (played && played.act.hitList.length > 0) return played;
+  }
+  return first;
 }
 
 /** Whose turn it is in the "target" phase: the second hero in the planned order (the first is the one choosing in "choose"). */
@@ -277,7 +290,7 @@ function buildView(demo: StageDemo, setKey: string, phase: Phase, roster: string
   const firstHero = order.find((u) => u < 10) ?? 0;
 
   if (phase === 'act') {
-    const played = playAct(demo, roster, demo.seed, true) ?? playAct(demo, roster, demo.seed, false);
+    const played = playLandingAct(demo, roster);
     if (!played) throw new Error('The example action could not be played (check demo.act in the stage file)');
     const { act } = played;
     return {
