@@ -27,7 +27,7 @@ import type { LiveFx } from './livefx';
 import type { Fighter, StageScene } from './stagescene';
 import type { StillInfo } from './stills';
 import { ringTexture } from './textures';
-import { HIT_COLOUR, hitKind, UI } from './hudkit';
+import { HIT_COLOUR, hitKind, numberScale, UI } from './hudkit';
 
 /** A flinch, dodge or fall in progress on one fighter. */
 interface Reaction {
@@ -89,6 +89,9 @@ interface Playing {
 const GAP = 10;
 /** The ticks a party combo counter stays alive after a hit. */
 const COMBO_WINDOW = 90;
+
+/** The highest a floating number's top may sit (just under the timeline and the banner; the CRIT / WEAK word rides 9 px above it). */
+const NUMBER_FLOOR = 58;
 
 export class Performer {
   /** Ticks of hitstop left (the world is frozen while it is above 0). */
@@ -574,7 +577,7 @@ export class Performer {
     const flow = this.flow;
     if (imp.kind === 'miss') {
       this.startReaction(t, this.moves.reactions.dodge, false, 0);
-      this.number(t, 'MISS', UI.dim, null, UI.dim, 1, at);
+      this.number(t, 'MISS', UI.dim, null, UI.dim, 1);
       return;
     }
     // The displayed numbers catch up with the blow.
@@ -582,7 +585,7 @@ export class Performer {
     applyEvent(flow.disp, synthetic);
     if (imp.kind === 'heal') {
       this.picture(p, 'heal', at, 'light', depth, t);
-      this.number(t, String(imp.amount), UI.green, imp.crit ? 'GREAT' : null, UI.green, 2, at);
+      this.number(t, String(imp.amount), UI.green, imp.crit ? 'GREAT' : null, UI.green, 3);
       return;
     }
     this.picture(p, imp.kind === 'tick' ? 'spark' : effect, at, weight, depth, t);
@@ -594,8 +597,8 @@ export class Performer {
     // The number is tinted by the kind of hit (pale, amber for a critical, cyan for a weak spot), with the word over it in the same colour.
     const kind = hitKind(imp.crit, imp.weak);
     const label = kind === 'crit' ? 'CRIT' : kind === 'weak' ? 'WEAK' : null;
-    // A critical or weak hit is a bigger number (3x) than an ordinary one (2x).
-    this.number(t, String(imp.amount), imp.kind === 'tick' ? UI.violet : HIT_COLOUR[kind], label, HIT_COLOUR[kind], imp.kind === 'tick' ? 1 : kind === 'normal' ? 2 : 3, at);
+    // A critical or weak hit is a bigger number (4x) than an ordinary one (3x); the glyphs are 5 px tall at 1x.
+    this.number(t, String(imp.amount), imp.kind === 'tick' ? UI.violet : HIT_COLOUR[kind], label, HIT_COLOUR[kind], imp.kind === 'tick' ? 2 : numberScale(kind));
     if (imp.kind === 'damage' && p.actor?.side === 'party') {
       this.comboHits++;
       this.comboTotal += imp.amount;
@@ -610,17 +613,21 @@ export class Performer {
    * head (where the player looks to see who was hurt); an ENEMY's rises from the point the blow landed, so a number on a tall boss
    * is next to the blade and not up by its head or off at its edge.
    */
-  private number(t: Fighter, text: string, colour: string, label: string | null, labelColour: string, scale: number, at: { x: number; y: number }): void {
+  private number(t: Fighter, text: string, colour: string, label: string | null, labelColour: string, scale: number): void {
     const g = this.scene.figureGeo(t);
     const last = this.numbers.get(t.id);
     const stack = last && this.clock - last.at < 40 ? last.stack + 1 : 0;
     this.numbers.set(t.id, { at: this.clock, stack });
     const height = 7 * scale;
-    // An enemy's number rises well clear of the blow (the cut, the glow and the sparks are all within about 15 px of it) and a little to the far side of it, so it never sits on the slash, even on a white target.
-    let nx = t.side === 'party' ? g.x : at.x + 12;
-    let ny = t.side === 'party' ? g.top - height - 8 - stack * 12 : at.y - height - 30 - stack * 12;
+    // A hero's number floats over the hero's head. An enemy's stands above the head too, a little to the far side of its middle
+    // (the blow lands lower, so the cut, the glow and the sparks stay clear of it); a target so tall that its head is under the
+    // timeline and banner gets it on the shoulder line instead. A second hit stacks above the first.
+    const aboveHead = g.top - height - (t.side === 'party' ? 8 : 6);
+    const base = t.side === 'enemy' && aboveHead < NUMBER_FLOOR ? g.top + 10 : aboveHead;
+    let nx = t.side === 'party' ? g.x : g.x + 10;
+    let ny = base - stack * (height + 2);
     // Never over the timeline and banner at the top, nor off the sides, and never lower than the target's own feet.
-    ny = Math.max(50, Math.min(g.y - 8, ny));
+    ny = Math.max(NUMBER_FLOOR, Math.min(g.y - 8, ny));
     nx = Math.max(16, Math.min(464, nx));
     this.fx.number(nx, ny, text, colour, label, scale, labelColour);
     this.numberLog.push({ target: t.id, text, x: nx, y: ny });

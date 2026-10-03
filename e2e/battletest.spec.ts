@@ -571,8 +571,8 @@ test('a hero under a quarter of their health blinks (bar and numbers), shows the
     bt.press('left'); // a key press redraws the HUD from the changed state
   });
   const a = await read();
-  // Kit's bar and her numbers (two things that blink), nobody else.
-  expect(a.blinking).toBe(2);
+  // Kit's bar, her numbers and the bar under her feet on the stage (three things that blink), nobody else.
+  expect(a.blinking).toBe(3);
   const first = a.on;
   await page.evaluate(() => window.__stagelab?.scene()?.step(16));
   const b = await read();

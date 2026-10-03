@@ -47,6 +47,8 @@ import { cutSheet } from './feet';
 import { kneelRaw } from './kneel';
 import { drawCut, drawPalm, drawPath, drawSparks, newFxLayer } from './fx';
 import { Hud, type HudFaces, type HudGeo } from './hud';
+import { stageBarSize } from './hudlayout';
+import { textAt, textTexture, UI } from './hudkit';
 import { enemyIdle, idleFrame, type IdleKind } from './idle';
 import {
   addEnemy,
@@ -118,6 +120,8 @@ export interface Fighter {
   home: Phaser.GameObjects.Image;
   /** The health bar under an enemy's shadow (drawn with the figure in the depth sort); absent for heroes. */
   bar: Phaser.GameObjects.Graphics | null;
+  /** The A/B letter of a duplicate foe, hung left of its health bar so two identical foes can be told apart on the stage (made when the bar is drawn). */
+  barTag?: Phaser.GameObjects.Image | undefined;
   slot: PartySlot;
   /** The slot's feet (home) and where the feet are now (they differ while an attacker lunges). */
   baseX: number;
@@ -414,7 +418,7 @@ export class StageScene extends Phaser.Scene {
     for (let i = this.fighters.length - 1; i >= 0; i--) {
       const f = this.fighters[i];
       if (f?.side !== side) continue;
-      for (const part of [f.sprite, f.shadow, f.ring, f.home, f.bar]) part?.destroy();
+      for (const part of [f.sprite, f.shadow, f.ring, f.home, f.bar, f.barTag]) part?.destroy();
       this.fighters.splice(i, 1);
     }
   }
@@ -907,6 +911,7 @@ export class StageScene extends Phaser.Scene {
     this.drawBar(f);
     f.bar?.setVisible(!gone);
     f.bar?.setAlpha(f.alpha);
+    f.barTag?.setVisible(!gone).setAlpha(f.alpha);
   }
 
   private drawBar(f: Fighter): void {
@@ -915,8 +920,8 @@ export class StageScene extends Phaser.Scene {
     const foe = this.view?.foes[this.fighters.filter((x) => x.side === 'enemy').indexOf(f)];
     f.bar.clear();
     if (!foe) return;
-    const w = f.boss ? 64 : spec.w;
-    const h = f.boss ? 3 : spec.h;
+    // A boss gets a wide, taller bar (96 x 4): the one health bar in the fight that matters most should look it.
+    const { w, h } = stageBarSize(f.boss, spec);
     const shadowH = f.shadowW > 0 ? shadowHeight(this.stage, f.shadowW) : 0;
     const by = 1 + Math.floor(shadowH / 2) + spec.gapBelowShadow;
     const ratio = Math.max(0, Math.min(1, foe.hp / foe.maxHp));
@@ -929,6 +934,16 @@ export class StageScene extends Phaser.Scene {
       f.bar.fillStyle(0xffffff, 0.45).fillRect(-Math.floor(w / 2), by, fw, 1);
     }
     f.bar.setPosition(f.x, f.y).setDepth(partDepth(f.depth, 'bar'));
+    // A duplicate foe's letter (A, B...) beside its bar, so the A on the timeline and in the list can be found on the stage.
+    if (foe.tag) {
+      const t = textTexture(this.textures, foe.tag, { color: UI.text, shadow: false, outline: UI.outline, prefix: 'bartag-' });
+      const at = textAt(t, foe.tag, f.x - Math.floor(w / 2) - 7, f.y + by + Math.floor(h / 2) - 3, 'left');
+      if (!f.barTag) f.barTag = this.add.image(at.x, at.y, t.key).setOrigin(0, 0);
+      f.barTag.setTexture(t.key).setPosition(at.x, at.y).setDepth(partDepth(f.depth, 'bar'));
+    } else if (f.barTag) {
+      f.barTag.destroy();
+      f.barTag = undefined;
+    }
   }
 
   // ---------------------------------------------------------------- time

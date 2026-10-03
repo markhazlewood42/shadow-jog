@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import stagesJson from '../src/data/stages.json';
 import { type StageConfig, loadStages } from '../src/stage/config';
 import { buildHudView, foeViews, memberView, type TurnChipView } from '../src/stage/demo';
-import { bandPlans, foeLayout, timelineLayout } from '../src/stage/hudlayout';
-import { hitKind, HIT_COLOUR, hpColor, UI } from '../src/stage/hudcolours';
+import { bandPlans, foeLayout, foeName, stageBarSize, targetTab, timelineLayout } from '../src/stage/hudlayout';
+import { hitKind, HIT_COLOUR, hpColor, numberScale, UI } from '../src/stage/hudcolours';
+import { iconRaw, COMMAND_ICONS } from '../src/stage/icons';
 import { applyPreset, PRESET_IDS } from '../src/stage/hudpresets';
 import { pickStatuses, STATUS_LOOK, STATUS_MAX } from '../src/stage/hudstatus';
 import { enemyParty } from '../src/battle/setup';
@@ -19,7 +20,7 @@ describe('HUD polish: the unified bottom band', () => {
     expect(plans).toHaveLength(1);
     const [band] = plans;
     expect(band?.members).toEqual(['partyStatus', 'commands', 'enemyInfo']);
-    expect([band?.x, band?.y, band?.w, band?.h]).toEqual([4, 228, 472, 40]);
+    expect([band?.x, band?.y, band?.w, band?.h]).toEqual([4, 226, 472, 42]);
     expect(band?.dividers).toEqual([202, 318]);
   });
 
@@ -141,5 +142,81 @@ describe('HUD polish: states you can read', () => {
     expect(party[0]).toBeDefined();
     const c = { ...enemyParty(['glowrat'])[0], key: 'kit', status: [{ id: 'poison' as const, turns: 2 }] };
     expect(memberView(c as never).status).toEqual(['poison']);
+  });
+});
+
+/** WCAG relative luminance and contrast ratio of two #rrggbb colours. */
+function contrast(a: string, b: string): number {
+  const lum = (hex: string): number => {
+    const c = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * (c[0] ?? 0) + 0.7152 * (c[1] ?? 0) + 0.0722 * (c[2] ?? 0);
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05);
+}
+
+describe('HUD polish round 2', () => {
+  it('secondary text (hints, resource labels, unfocused codes) is at least 7:1 on the panel; text standing by or out of play is at least 4.5:1', () => {
+    expect(contrast(UI.dim, UI.fillBot)).toBeGreaterThanOrEqual(7);
+    expect(contrast(UI.dim, UI.fillTop)).toBeGreaterThanOrEqual(7);
+    expect(contrast(UI.soft, UI.fillBot)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(UI.disabled, UI.fillBot)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('a damage number is 3x for an ordinary hit and 4x for a critical or a weak spot', () => {
+    expect([numberScale('normal'), numberScale('crit'), numberScale('weak')]).toEqual([3, 4, 4]);
+  });
+
+  it('status colours say the kind: buff arrows cyan, debuff arrows red, poison purple; every stat has its own arrow shape, and a debuff is its buff upside down', () => {
+    const ups = ['atk_up', 'def_up', 'res_up', 'agi_up'] as const;
+    for (const id of ups) expect(STATUS_LOOK[id].colour).toBe(UI.cyan);
+    for (const id of ['atk_down', 'def_down', 'agi_down'] as const) expect(STATUS_LOOK[id].colour).toBe('#ff6b6b');
+    expect(new Set(ups.map((id) => STATUS_LOOK[id].rows.join('/'))).size).toBe(4);
+    expect([...STATUS_LOOK.atk_up.rows].reverse()).toEqual([...STATUS_LOOK.atk_down.rows]);
+    expect(STATUS_LOOK.poison.colour).toBe('#c27cff');
+    // No two statuses share both a colour and a shape.
+    const seen = new Set(Object.values(STATUS_LOOK).map((l) => `${l.colour}|${l.rows.join('/')}`));
+    expect(seen.size).toBe(Object.keys(STATUS_LOOK).length);
+  });
+
+  it('a foe in capitals prints as a name, a name already in mixed case is left alone', () => {
+    expect([foeName('WARDEN'), foeName('Sewer Ghoul'), foeName('Rustfang Punk A'), foeName('A')]).toEqual(['Warden', 'Sewer Ghoul', 'Rustfang Punk A', 'A']);
+  });
+
+  it('the foe view carries the engine’s statuses for the list to draw', () => {
+    const c = { ...enemyParty(['glowrat'])[0], status: [{ id: 'poison' as const, turns: 2 }] };
+    expect(foeViews([c as never])[0]?.status).toEqual(['poison']);
+  });
+
+  it('every command icon is drawn with a dark outline round it, and only that outline reaches the edge of its 16 px square', () => {
+    for (const kind of COMMAND_ICONS) {
+      const raw = iconRaw(kind);
+      const px = (x: number, y: number): string => [0, 1, 2, 3].map((k) => raw.px[(y * 16 + x) * 4 + k] ?? 0).join(',');
+      let drawn = 0;
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) if (px(x, y) !== '0,0,0,0') drawn++;
+      expect({ kind, ok: drawn > 80 }).toEqual({ kind, ok: true });
+      for (let i = 0; i < 16; i++) for (const [x, y] of [[i, 0], [i, 15], [0, i], [15, i]] as const) expect({ kind, x, y, edge: ['0,0,0,0', '7,6,13,255'].includes(px(x, y)) }).toEqual({ kind, x, y, edge: true });
+    }
+  });
+
+  it('the aimed-at foe’s name tab sits above its head when there is room, and BESIDE a tall foe instead of over its face', () => {
+    // A short foe low on the screen: the tab is above, centred, clear of the banner.
+    const rat = targetTab({ x: 300, top: 150, left: 280, right: 320 }, 40, 480, 56);
+    expect(rat).toEqual({ x: 280, y: 136, side: 'above' });
+    // The sewer Ghoul stands from y 46: above would be under the banner, so the tab goes to the right of its widest edge, at the clear line.
+    const ghoul = { x: 305, top: 46, left: 275, right: 340 };
+    const tab = targetTab(ghoul, 60, 480, 56);
+    expect(tab.side).toBe('right');
+    expect(tab.x).toBeGreaterThan(ghoul.right);
+    expect(tab.y).toBe(56);
+    // No room on the right (a foe at the screen's edge): the tab goes left of it, and stays on the screen.
+    const edge = targetTab({ x: 440, top: 46, left: 410, right: 475 }, 60, 480, 56);
+    expect(edge.side).toBe('left');
+    expect(edge.x + 60).toBeLessThan(410);
+  });
+
+  it('the Warden’s health bar on the stage is wide and tall, an ordinary foe’s is the stage’s own', () => {
+    expect(stageBarSize(false, { w: 32, h: 2 })).toEqual({ w: 32, h: 2 });
+    expect(stageBarSize(true, { w: 32, h: 2 })).toEqual({ w: 96, h: 4 });
   });
 });

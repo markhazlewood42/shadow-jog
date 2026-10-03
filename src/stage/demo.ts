@@ -67,6 +67,8 @@ export interface HudFoeView {
   maxHp: number;
   boss: boolean;
   tags: HudTag[];
+  /** The statuses on the foe (the engine's own ids), drawn as the same icons the party table uses. */
+  status: StatusId[];
 }
 
 /** One chip of the turn timeline: a hero or an enemy, by index in `party` / `foes`. */
@@ -181,7 +183,7 @@ export function foeViews(foes: readonly Combatant[]): HudFoeView[] {
     seen.set(f.key, n);
     const letter = (total.get(f.key) ?? 0) > 1 ? (DUPLICATE_TAGS[n - 1] ?? '') : '';
     const tag = letter ? ` ${letter}` : '';
-    return { defId: f.key, sprite: ENEMIES[f.key]?.sprite ?? f.key, name: f.name + tag, tag: letter, hp: f.hp, maxHp: f.base.maxHp, boss: !!f.boss, tags: tagsFor(f) };
+    return { defId: f.key, sprite: ENEMIES[f.key]?.sprite ?? f.key, name: f.name + tag, tag: letter, hp: f.hp, maxHp: f.base.maxHp, boss: !!f.boss, tags: tagsFor(f), status: f.status.map((s) => s.id) };
   });
 }
 

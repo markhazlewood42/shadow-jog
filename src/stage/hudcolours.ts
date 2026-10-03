@@ -15,17 +15,23 @@ export const UI = {
   pink: '#ff4fb0',
   amber: '#ffcc3d',
   green: '#62e06a',
-  red: '#ff5a5a',
+  red: '#ff6b6b',
   /** The light red a bar and its numbers blink to when health is under a quarter. */
   redLit: '#ffb4b4',
+  /** The dark red a low-health bar falls back to in the other half of its blink (clearly NOT a healthy-looking full bar). */
+  redDark: '#7a1f30',
   /** The resource bar's fill (KI, RAM, MANA). */
   resource: '#3aa0e8',
   violet: '#b07cff',
-  dim: '#8b8fa8',
+  /** Secondary text (hints, resource labels, unfocused command codes): about 70% white with a lavender cast, readable at a glance. */
+  dim: '#bfc3e4',
+  /** A quieter step still, for text that is standing by (the command codes while an action plays). */
+  soft: '#8f94bd',
   text: '#f4f1ff',
-  disabled: '#5d6080',
+  /** Text that is out of play (a downed hero's name, the dash for no resource), still above 4:1 on the navy. */
+  disabled: '#7a7ea4',
   foe: '#ff6a6a',
-  foeBg: '#2a0f18',
+  foeBg: '#4a1a2a',
   chipBg: '#12101f',
   barBack: '#241f3a',
   tabBg: '#12112a',
@@ -39,6 +45,11 @@ export const CHIP_PREFIX = 'chip-';
 /** What a damage number is tinted by: an ordinary hit is pale, a critical amber, a hit on a weak spot cyan. */
 export type HitKind = 'normal' | 'crit' | 'weak';
 export const HIT_COLOUR: Readonly<Record<HitKind, string>> = { normal: '#e6ecff', crit: UI.amber, weak: UI.cyan };
+
+/** How big a damage number is drawn, as a whole-number magnification of the 5 px glyphs: 3x for an ordinary hit, 4x for a critical or a weak spot. */
+export function numberScale(kind: HitKind): number {
+  return kind === 'normal' ? 3 : 4;
+}
 
 /** A critical wins over a weak spot when a hit is both (the number says CRIT; the cyan is for the weak-only hit). */
 export function hitKind(crit: boolean, weak: boolean): HitKind {

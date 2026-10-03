@@ -154,3 +154,34 @@ export function foeLayout(count: number, boxH: number): FoeLayout {
   if (count <= 4) return { mode: 'list', rowH: Math.min(11, Math.floor((boxH - 4) / count)), rows: count };
   return { mode: 'grid', rowH: Math.min(11, Math.floor((boxH - 4) / Math.ceil(count / 2))), rows: Math.ceil(count / 2) };
 }
+
+/** An enemy's name as the HUD prints it: the data has a few in capitals (WARDEN), which print as Warden so every row reads the same. */
+export function foeName(name: string): string {
+  if (!/[A-Z]{2,}/.test(name) || name !== name.toUpperCase()) return name;
+  return name.toLowerCase().replace(/(^|\s)([a-z])/g, (_m, a: string, b: string) => a + b.toUpperCase());
+}
+
+/** Where the aimed-at enemy's name tab goes: above the sprite, or beside it when there is no room above. */
+export interface TabPlace {
+  x: number;
+  y: number;
+  side: 'above' | 'right' | 'left';
+}
+
+/**
+ * Place the name tab (`w` wide, 9 tall plus its 1 px outline) for a foe whose drawn pixels span `left` to `right` and start at
+ * `top`, on a screen `screenW` wide with the timeline and banner taking everything above `topClear`. ABOVE the head when the
+ * tab and its pointer fit under `topClear`; otherwise BESIDE the sprite (right of its widest edge, else left), at `topClear`, so
+ * it never covers the face. The `x` is the tab's left edge.
+ */
+export function targetTab(f: { x: number; top: number; left: number; right: number }, w: number, screenW: number, topClear: number): TabPlace {
+  const above = f.top - 14;
+  if (above >= topClear) return { x: Math.max(4, Math.min(screenW - 4 - w, f.x - Math.floor(w / 2))), y: above, side: 'above' };
+  if (screenW - 4 - (f.right + 8) >= w) return { x: f.right + 8, y: topClear, side: 'right' };
+  return { x: Math.max(4, f.left - 8 - w), y: topClear, side: 'left' };
+}
+
+/** The size of a foe's health bar on the stage: the stage's own for an ordinary foe, a wide taller one (96 x 4) for a boss, the one bar in the fight that matters most. */
+export function stageBarSize(boss: boolean, spec: { w: number; h: number }): { w: number; h: number } {
+  return boss ? { w: Math.max(96, spec.w), h: Math.max(4, spec.h) } : { w: spec.w, h: spec.h };
+}

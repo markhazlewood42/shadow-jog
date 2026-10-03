@@ -55,7 +55,7 @@
       { "y": 157 },
       { "y": 174 },
       { "y": 191 },
-      { "y": 208 }
+      { "y": 207 }
     ],
     "party": [
       { "x": 46, "row": 4 },
@@ -144,9 +144,9 @@
       },
       "commands": {
         "x": 204,
-        "y": 228,
+        "y": 226,
         "w": 112,
-        "h": 40,
+        "h": 42,
         "show": "input",
         "opacity": 0.8,
         "style": "icons",
@@ -154,9 +154,9 @@
       },
       "partyStatus": {
         "x": 4,
-        "y": 228,
+        "y": 226,
         "w": 196,
-        "h": 40,
+        "h": 42,
         "show": "always",
         "opacity": 0.8,
         "style": "rows",
@@ -165,9 +165,9 @@
       },
       "enemyInfo": {
         "x": 320,
-        "y": 228,
+        "y": 226,
         "w": 156,
-        "h": 40,
+        "h": 42,
         "show": "input",
         "opacity": 0.8,
         "barsOnStage": { "w": 32, "h": 2, "gapBelowShadow": 3 },
@@ -313,7 +313,7 @@
       { "y": 157 },
       { "y": 174 },
       { "y": 191 },
-      { "y": 208 }
+      { "y": 207 }
     ],
     "party": [
       { "x": 46, "row": 4 },
@@ -402,9 +402,9 @@
       },
       "commands": {
         "x": 204,
-        "y": 228,
+        "y": 226,
         "w": 112,
-        "h": 40,
+        "h": 42,
         "show": "input",
         "opacity": 0.8,
         "style": "icons",
@@ -412,9 +412,9 @@
       },
       "partyStatus": {
         "x": 4,
-        "y": 228,
+        "y": 226,
         "w": 196,
-        "h": 40,
+        "h": 42,
         "show": "always",
         "opacity": 0.8,
         "style": "rows",
@@ -423,9 +423,9 @@
       },
       "enemyInfo": {
         "x": 320,
-        "y": 228,
+        "y": 226,
         "w": 156,
-        "h": 40,
+        "h": 42,
         "show": "input",
         "opacity": 0.8,
         "barsOnStage": { "w": 32, "h": 2, "gapBelowShadow": 3 },

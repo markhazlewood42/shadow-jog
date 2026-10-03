@@ -1,7 +1,8 @@
 /**
  * The HUD pictures (spike `spike/phaser-stage`, HUD polish rounds): the street line-up with two duplicate foes, the boss
  * line-up, an acting state with a damage number on the white Warden (the lab's still one and the Battle Test's live one), a
- * low-health state with statuses, and the command strip with a focused icon showing its caption.
+ * low-health state with statuses, and the command strip with a focused icon showing its caption. Round 2 adds a weak-spot hit and a
+ * critical hit (tinted, tagged numbers) and the four HUD presets plus a box dragged off the bottom row (the band must collapse cleanly).
  *
  * Skipped unless `HUDPICS_MEDIA` names a folder. `HUDPICS_ROUND` names the files (`hud-r<round>-<name>.png`). The pictures are
  * 960 x 540, the stage at exactly 2x.
@@ -13,7 +14,7 @@ import { dropScratch, flush, openEditor, scratchName } from './stageeditkit';
 import { hideStatus, openLab } from './stagelabkit';
 
 const MEDIA = process.env.HUDPICS_MEDIA;
-const ROUND = process.env.HUDPICS_ROUND ?? '1';
+const ROUND = process.env.HUDPICS_ROUND ?? '2';
 const file = (name: string): string => `${MEDIA}/hud-r${ROUND}-${name}.png`;
 
 let scratch = '';
@@ -46,6 +47,51 @@ test('the lab pictures: street line-up, boss line-up and the acting state', asyn
     await page.waitForTimeout(200);
     await page.screenshot({ path: file(name) });
   }
+});
+
+test('the number pictures: a weak-spot hit and a critical hit on the white Warden', async ({ page }) => {
+  test.skip(!MEDIA, 'set HUDPICS_MEDIA=<folder> to save the pictures');
+  await page.setViewportSize({ width: 960, height: 540 });
+  const errors = await openLab(page, '?clean&stage=street&set=boss&phase=act');
+  expect(errors).toEqual([]);
+  await hideStatus(page);
+  for (const [name, patch] of [['weak-hit-2x', { weak: true, crit: false, dmg: 112 }], ['crit-hit-2x', { weak: false, crit: true, dmg: 186 }]] as const) {
+    await page.evaluate((p) => {
+      const s = window.__stagelab?.scene();
+      if (!s) throw new Error('no scene');
+      s.speed = 0;
+      // The lab's view is rebuilt from the engine on every refresh; hand the scene a copy with a different featured hit and redraw.
+      const v = s.currentView;
+      if (!v.act) throw new Error('no act');
+      s.liveView = { ...v, act: { ...v.act, ...p } };
+      s.redrawLive();
+      s.step(20);
+    }, patch);
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: file(name) });
+  }
+});
+
+test('the preset pictures: each of the four HUD presets and a box dragged off the bottom row', async ({ page }) => {
+  test.skip(!MEDIA, 'set HUDPICS_MEDIA=<folder> to save the pictures');
+  const { errors } = await openEditor(page, scratch);
+  const canvas = page.locator('#stage canvas');
+  for (const id of ['timeline-bottom3', 'ff-strip', 'action-left', 'ps4-panels']) {
+    await page.locator('#s-preset').selectOption(id);
+    await flush(page);
+    await canvas.screenshot({ path: file(`preset-${id}-2x`) });
+  }
+  // The shipped layout again, then the command strip pulled up off the row: the band closes round the other two.
+  await page.locator('#s-preset').selectOption('timeline-bottom3');
+  await page.evaluate(() => {
+    window.__stageedit?.session.edit('move the commands', (d) => {
+      const s = d.stages.street;
+      if (s) s.hud.commands.y = 176;
+    });
+  });
+  await flush(page);
+  await canvas.screenshot({ path: file('preset-box-off-row-2x') });
+  expect(errors).toEqual([]);
 });
 
 /** Start a fight without the dialog and freeze real time. */

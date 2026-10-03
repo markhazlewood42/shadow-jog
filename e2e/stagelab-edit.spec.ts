@@ -211,13 +211,13 @@ test('the bottom boxes share one frame, and the command strip keeps its slot (di
   const errors = await open(page);
   const frames = (): Promise<Array<[number, number]>> => page.evaluate(() => window.__sc().hudObjects.frames.map((f) => [f.x, f.y] as [number, number]));
   // One band from the party table to the enemy box.
-  expect(await frames()).toEqual([[4, 228]]);
+  expect(await frames()).toEqual([[4, 226]]);
   await page.evaluate(() => window.__sc().setPhase('act'));
   // The command box is gone (the existing rule), but its slot holds a standby strip, so the band has no hole.
   expect(await page.evaluate(() => !!window.__sc().hudObjects.box('commands'))).toBe(false);
-  expect(await frames()).toEqual([[4, 228], [204, 228]]);
+  expect(await frames()).toEqual([[4, 226], [204, 226]]);
   await page.evaluate(() => window.__sc().setPhase('choose'));
-  expect(await frames()).toEqual([[4, 228]]);
+  expect(await frames()).toEqual([[4, 226]]);
   // A box hidden by hand leaves the band and no standby strip appears for it.
   await page.evaluate(() => {
     const s = window.__sc();
@@ -228,10 +228,18 @@ test('the bottom boxes share one frame, and the command strip keeps its slot (di
   expect(errors).toEqual([]);
 });
 
+test('two identical foes carry their A and B on the stage and the lone one carries none', async ({ page }) => {
+  const errors = await open(page, '?clean&stage=street&set=3&phase=choose');
+  const tags = await page.evaluate(() => (window.__sc().fighters as unknown as Array<{ side: string; barTag?: { visible: boolean; texture: { key: string } } }>).filter((f) => f.side === 'enemy').map((f) => (f.barTag?.visible ? f.barTag.texture.key.split('|')[0] : null)));
+  // Punk, Punk, Glowrat: the two punks are A and B (their texture is the letter drawn), the rat has no tag.
+  expect(tags.map((t) => t?.replace('bartag-', '') ?? null).sort()).toEqual([null, 'A', 'B'].sort());
+  expect(errors).toEqual([]);
+});
+
 test('HUD regions and the shadow follow the config: move a box, hide one, change the shadow share', async ({ page }) => {
   const errors = await open(page);
   const where = (name: string): Promise<{ x: number; y: number } | null> => page.evaluate((n) => window.__sc().hudObjects.box(n) ?? null, name);
-  expect(await where('partyStatus')).toMatchObject({ x: 4, y: 228 });
+  expect(await where('partyStatus')).toMatchObject({ x: 4, y: 226 });
   await page.evaluate(() => {
     const s = window.__sc();
     s.applyStage({ ...s.config, hud: { ...s.config.hud, partyStatus: { ...s.config.hud.partyStatus, x: 40, y: 200 }, commands: { ...s.config.hud.commands, show: 'never' } } });

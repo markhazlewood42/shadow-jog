@@ -16,13 +16,13 @@
 import type Phaser from 'phaser';
 import { drawText, GLYPH_H, measure } from '../engine/font';
 import { rawToCanvas, surface, addCanvasOnce } from './textures';
-import { CHIP_PREFIX, HIT_COLOUR, hitKind, hpColor, SEE_THROUGH_TOP, UI } from './hudcolours';
+import { CHIP_PREFIX, HIT_COLOUR, hitKind, hpColor, numberScale, SEE_THROUGH_TOP, UI } from './hudcolours';
 import { STATUS_ICON_SIZE, STATUS_LOOK } from './hudstatus';
 import type { StatusId } from '../battle/types';
 import { hexRgb, mix, type Raw } from './pixels';
 
 // The colours and rules live in `hudcolours.ts` (no Phaser, so unit tests can use them); they are re-exported here for the HUD's other files.
-export { CHIP_PREFIX, HIT_COLOUR, hitKind, hpColor, SEE_THROUGH_TOP, UI };
+export { CHIP_PREFIX, HIT_COLOUR, hitKind, hpColor, numberScale, SEE_THROUGH_TOP, UI };
 export type { HitKind } from './hudcolours';
 
 export const TEXT_PREFIX = 'txt-';
@@ -179,8 +179,8 @@ export interface ChipOptions {
 
 /**
  * A chip: a square with a dark outline, a one-pixel light rim in the owner's colour and a face inside. An enemy's
- * chip is marked three ways so it never reads as a hero's: a second, darker red rim (so the red is twice as thick),
- * a deep red ground and a pink flag in the top-right corner. `dim` darkens it and `glow` rings it.
+ * chip is marked two ways so it never reads as a hero's: a second, darker red rim (so the red is twice as thick) and a
+ * deep red ground; a duplicate's A/B letter is a badge the HUD hangs on the corner OUTSIDE the face. `dim` darkens it and `glow` rings it.
  */
 export function chipTexture(textures: Phaser.Textures.TextureManager, o: ChipOptions): string {
   const { size, faceKey, rim, bg, foe } = o;
@@ -214,15 +214,14 @@ export function chipTexture(textures: Phaser.Textures.TextureManager, o: ChipOpt
   g.beginPath();
   g.rect(CHIP_PAD + inset, CHIP_PAD + inset, inner, inner);
   g.clip();
+  // The faces are cut from sprites drawn dark on a dark panel, so they are lifted a little (a foe's more): at 14 px the chips must tell people apart.
+  g.filter = foe ? 'brightness(1.45) contrast(1.05)' : 'brightness(1.2)';
   g.drawImage(face, CHIP_PAD + inset + Math.floor((inner - face.width) / 2), CHIP_PAD + inset + Math.floor((inner - face.height) / 2));
+  g.filter = 'none';
   g.restore();
   if (dim > 0) {
     g.fillStyle = `rgba(7,6,13,${dim / 100})`;
     g.fillRect(CHIP_PAD, CHIP_PAD, size, size);
-  }
-  if (foe) {
-    g.fillStyle = UI.pink;
-    for (let k = 0; k < 5; k++) g.fillRect(CHIP_PAD + size - (5 - k), CHIP_PAD + k, 5 - k, 1);
   }
   addCanvasOnce(textures, key, s.canvas);
   return key;

@@ -19,33 +19,38 @@ export interface StatusLook {
   rows: readonly string[];
 }
 
-const UP = ['..#..', '.###.', '#.#.#', '..#..', '..#..'];
-const DOWN = ['..#..', '..#..', '#.#.#', '.###.', '..#..'];
+// Colours say what KIND of status it is, the same everywhere: a buff arrow is cyan, a debuff arrow is red, poison is purple, fire
+// is orange, healing is green, shields are blue. The shape says WHICH one: the four stats each have their own arrow.
+const BUFF = UI.cyan;
+const DEBUFF = '#ff6b6b';
+const POISON = '#c27cff';
 
-const ATK = '#ff8a6a';
-const DEF = '#6aa8ff';
-const RES = '#b07cff';
-const AGI = '#62e06a';
+/** The four stats' arrows, pointing up (a buff); a debuff is the same drawing upside down. */
+const ATK_UP = ['..#..', '.###.', '#####', '..#..', '..#..']; // a fat arrow: strength
+const DEF_UP = ['..#..', '.###.', '..#..', '.....', '#####']; // an arrow over a floor: a wall
+const RES_UP = ['..#..', '.###.', '#.#.#', '.#.#.', '..#..']; // an arrow whose tail splits: resistance spreads
+const AGI_UP = ['..#..', '.###.', '..#..', '.###.', '..#..']; // two chevrons stacked: speed
+const flip = (rows: readonly string[]): readonly string[] => [...rows].reverse();
 
 export const STATUS_LOOK: Readonly<Record<StatusId, StatusLook>> = {
   stun: { name: 'Stunned', colour: UI.amber, rows: ['#.#.#', '.###.', '#####', '.###.', '#.#.#'] },
-  hijacked: { name: 'Hijacked', colour: UI.violet, rows: ['#...#', '.#.#.', '..#..', '.#.#.', '#...#'] },
-  jammed: { name: 'Jammed', colour: UI.pink, rows: ['#.#.#', '.#.#.', '#.#.#', '.#.#.', '#.#.#'] },
-  blind: { name: 'Blind', colour: '#b2a9cc', rows: ['.....', '.###.', '#####', '.###.', '.....'] },
-  poison: { name: 'Poisoned', colour: UI.green, rows: ['..#..', '.###.', '#####', '#####', '.###.'] },
+  hijacked: { name: 'Hijacked', colour: UI.pink, rows: ['#...#', '.#.#.', '..#..', '.#.#.', '#...#'] },
+  jammed: { name: 'Jammed', colour: '#e0e4ff', rows: ['#.#.#', '.#.#.', '#.#.#', '.#.#.', '#.#.#'] },
+  blind: { name: 'Blind', colour: '#9aa0c8', rows: ['.....', '.###.', '#####', '.###.', '.....'] },
+  poison: { name: 'Poisoned', colour: POISON, rows: ['..#..', '.###.', '#####', '#####', '.###.'] },
   burn: { name: 'Burning', colour: '#ff8a3d', rows: ['..#..', '.##..', '.###.', '#####', '.###.'] },
-  exposed: { name: 'Exposed', colour: UI.foe, rows: ['.###.', '#...#', '#.#.#', '#...#', '.###.'] },
-  guard: { name: 'Guarding', colour: DEF, rows: ['#####', '#####', '#####', '.###.', '..#..'] },
-  cover: { name: 'Covering', colour: UI.cyan, rows: ['#####', '#...#', '#...#', '.#.#.', '..#..'] },
+  exposed: { name: 'Exposed', colour: DEBUFF, rows: ['.###.', '#...#', '#.#.#', '#...#', '.###.'] },
+  guard: { name: 'Guarding', colour: '#6aa8ff', rows: ['#####', '#####', '#####', '.###.', '..#..'] },
+  cover: { name: 'Covering', colour: '#6aa8ff', rows: ['#####', '#...#', '#...#', '.#.#.', '..#..'] },
   lockon: { name: 'Locked on', colour: UI.amber, rows: ['..#..', '.#.#.', '#####', '.#.#.', '..#..'] },
   regen: { name: 'Regen', colour: UI.green, rows: ['..#..', '..#..', '#####', '..#..', '..#..'] },
-  atk_up: { name: 'Attack up', colour: ATK, rows: UP },
-  def_up: { name: 'Defence up', colour: DEF, rows: UP },
-  res_up: { name: 'Resist up', colour: RES, rows: UP },
-  agi_up: { name: 'Speed up', colour: AGI, rows: UP },
-  atk_down: { name: 'Attack down', colour: ATK, rows: DOWN },
-  def_down: { name: 'Defence down', colour: DEF, rows: DOWN },
-  agi_down: { name: 'Speed down', colour: AGI, rows: DOWN },
+  atk_up: { name: 'Attack up', colour: BUFF, rows: ATK_UP },
+  def_up: { name: 'Defence up', colour: BUFF, rows: DEF_UP },
+  res_up: { name: 'Resist up', colour: BUFF, rows: RES_UP },
+  agi_up: { name: 'Speed up', colour: BUFF, rows: AGI_UP },
+  atk_down: { name: 'Attack down', colour: DEBUFF, rows: flip(ATK_UP) },
+  def_down: { name: 'Defence down', colour: DEBUFF, rows: flip(DEF_UP) },
+  agi_down: { name: 'Speed down', colour: DEBUFF, rows: flip(AGI_UP) },
 };
 
 /** Most urgent first: what stops a hero acting, then damage over time, then guards, then the stat changes. */

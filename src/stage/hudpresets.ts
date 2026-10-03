@@ -49,9 +49,9 @@ const box = (x: number, y: number, w: number, h: number, show: HudRegion['show']
 /** The design's own layout: the timeline on top, party / menu / enemies in a band along the bottom. */
 const DESIGN: HudPreset['regions'] = {
   turnOrder: box(120, 2, 240, 35, 'always'),
-  commands: box(204, 228, 112, 40, 'input'),
-  partyStatus: box(4, 228, 196, 40, 'always'),
-  enemyInfo: box(320, 228, 156, 40, 'input'),
+  commands: box(204, 226, 112, 42, 'input'),
+  partyStatus: box(4, 226, 196, 42, 'always'),
+  enemyInfo: box(320, 226, 156, 42, 'input'),
   banner: box(140, 40, 200, 13, 'action'),
   combo: box(404, 2, 72, 25, 'action'),
 };
@@ -67,7 +67,7 @@ export const HUD_PRESETS: Record<PresetId, HudPreset> = {
     id: 'ff-strip',
     name: 'Final Fantasy strip',
     about: 'Enemies on the left of the bottom band and the party on the right, the way the classic Final Fantasy battle screens read.',
-    regions: { ...DESIGN, partyStatus: box(280, 228, 196, 40, 'always'), commands: box(164, 228, 112, 40, 'input'), enemyInfo: box(4, 228, 156, 40, 'input') },
+    regions: { ...DESIGN, partyStatus: box(280, 226, 196, 42, 'always'), commands: box(164, 226, 112, 42, 'input'), enemyInfo: box(4, 226, 156, 42, 'input') },
   },
   'action-left': {
     id: 'action-left',
@@ -75,9 +75,9 @@ export const HUD_PRESETS: Record<PresetId, HudPreset> = {
     about: 'The menu moves to the far left of the bottom band, the party table sits in the middle, and the timeline hugs the top left.',
     regions: {
       turnOrder: box(4, 2, 240, 35, 'always'),
-      commands: box(4, 228, 112, 40, 'input'),
-      partyStatus: box(120, 228, 196, 40, 'always'),
-      enemyInfo: box(320, 228, 156, 40, 'input'),
+      commands: box(4, 226, 112, 42, 'input'),
+      partyStatus: box(120, 226, 196, 42, 'always'),
+      enemyInfo: box(320, 226, 156, 42, 'input'),
       banner: box(4, 40, 200, 13, 'action'),
       combo: box(404, 2, 72, 25, 'action'),
     },
@@ -88,9 +88,9 @@ export const HUD_PRESETS: Record<PresetId, HudPreset> = {
     about: 'A wide party panel along the bottom with the menu floating in the lane between the two sides, like the old panel layout (kept for comparison).',
     regions: {
       turnOrder: box(120, 2, 240, 35, 'always', 0.9),
-      commands: box(184, 186, 112, 40, 'input', 0.9),
-      partyStatus: box(4, 228, 300, 40, 'always', 0.9),
-      enemyInfo: box(308, 228, 168, 40, 'input', 0.9),
+      commands: box(184, 184, 112, 42, 'input', 0.9),
+      partyStatus: box(4, 226, 300, 42, 'always', 0.9),
+      enemyInfo: box(308, 226, 168, 42, 'input', 0.9),
       banner: box(140, 40, 200, 13, 'action', 0.9),
       combo: box(404, 2, 72, 25, 'action', 0.9),
     },

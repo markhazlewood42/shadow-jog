@@ -191,14 +191,14 @@ test('HUD: switching the preset moves the real HUD boxes; a box moved by hand st
     const b = window.__stagelab?.scene()?.hudObjects?.box('partyStatus');
     return b ? { x: b.x, y: b.y } : null;
   });
-  expect(box0).toEqual({ x: 4, y: 228 });
+  expect(box0).toEqual({ x: 4, y: 226 });
   await page.locator('#s-preset').selectOption('ff-strip');
   await flush(page);
   const box1 = await page.evaluate(() => {
     const b = window.__stagelab?.scene()?.hudObjects?.box('partyStatus');
     return b ? { x: b.x, y: b.y } : null;
   });
-  expect(box1).toEqual({ x: 280, y: 228 });
+  expect(box1).toEqual({ x: 280, y: 226 });
   // Drag the command box by hand 20 px left: an override with a revert arrow.
   await dragGame(page, { x: 240, y: 240 }, { x: 220, y: 240 });
   expect((await stageOf(page)).hud.commands.x).toBe(164 - 20);
@@ -254,7 +254,10 @@ test('arrow keys, shift-click and the lock: nudges, multi-select moves and a loc
   await page.locator('#heroes li', { hasText: 'Kit' }).click();
   await page.keyboard.press('Control+l');
   await expect(page.locator('#locks')).toContainText('Locked: fighters');
-  await page.mouse.click(k.x, k.y - 40);
+  // (Kit moved up two rows above, so aim at where she stands now: a fixed offset from her old spot can land on a row line, which is a handle too.)
+  const kitNow = await bodyOf(page, 'party', 0);
+  const kn = await toScreen(page, kitNow.x, kitNow.y);
+  await page.mouse.click(kn.x, kn.y);
   expect(await page.evaluate(() => window.__stageedit?.session.selection.length)).toBe(0);
   await page.locator('.lockchip').click();
   await expect(page.locator('#locks .lockchip')).toHaveCount(0);
