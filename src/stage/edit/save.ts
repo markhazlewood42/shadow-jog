@@ -6,26 +6,33 @@
  * `stageEdit`) call them with the posted body, and the editor page calls them too, so Save can refuse a bad file
  * before it ever leaves the browser, with exactly the same words the server would use.
  *
- * Three files are involved, saved by two endpoints:
- *  - `src/data/stages.json` (the stages, each with a HUD override only when it differs from the global HUD) and
- *    `src/data/axes.json` (foot-anchor corrections per sprite) are saved together by `prepareSave`, checked as a
- *    pair and written only if both are fine, so a refused save never leaves one changed and the other not;
- *  - `src/data/hud.json` (the ONE HUD layout every battle uses) is saved on its own by `prepareHudSave`, through
- *    its own endpoint, checked with its own loader's check (`checkHudFile`).
+ * Three files are involved, and ONE save writes them together, through one endpoint:
+ *  - `src/data/stages.json` (the stages, each with a HUD override only when it differs from the global HUD),
+ *  - `src/data/axes.json` (foot-anchor corrections per sprite), and
+ *  - `src/data/hud.json` (the ONE HUD layout every battle uses).
+ * `prepareSave` checks all three TOGETHER: the HUD layout with its own loader's check (`checkHudFile`), then each
+ * stage's HUD overrides against the NEW layout (a stage's own box that fitted the old HUD can stop fitting the new
+ * one), then the axes. The files are written only if every check passes, so a refused save never leaves one file
+ * changed and another not. (`vite.config.ts` writes them with temporary files and renames.)
  */
 import { BG_IDS } from '../../art/battlebg';
 import { formatJson } from '../../tools/jsonfmt';
 import { checkAxes, checkHudFile, checkStages, checkStagesWith, type HudLayout } from '../config';
 import { STAGE_KNOWN } from '../known';
 
+/** The three files a save can write. */
+export type SavePart = 'stages' | 'axes' | 'hud';
+
 export interface SaveBody {
   stages: unknown;
   axes: unknown;
-  /** The global HUD layout the stages are resolved against. Optional: the server checks the stage file on its own, the editor page also checks the pair. */
+  /** The NEW global HUD layout (the `layout` part of `hud.json`). The stages are checked against it. Optional only for a caller that saves the stages alone. */
   hud?: unknown;
+  /** Which files to write. The others are still checked but left alone on disk. Default: the stages, the axes and (when `hud` is posted) the HUD. */
+  write?: unknown;
 }
 
-export type Prepared = { ok: true; stagesText: string; axesText: string } | { ok: false; problems: string[] };
+export type Prepared = { ok: true; stagesText: string; axesText: string; hudText?: string; write: SavePart[] } | { ok: false; problems: string[] };
 
 /** Where each file lives, for messages. */
 export const STAGES_FILE = 'src/data/stages.json';
@@ -52,17 +59,24 @@ export function formatHud(layout: unknown): string {
 /**
  * Check a posted body and, when it is fine, say exactly what would be written.
  *
- * The stages are checked AS THE GAME WILL SEE THEM: each stage's HUD overrides are laid over the global HUD and must
- * still fit the screen (`checkStagesWith`, the check the game's loader runs). Which global HUD? When the dev server
- * passes the text of the `hud.json` it has on disk (`currentHudText`), that one: it is the file the game will load
- * next to this stage file, whatever the page believes. (The page saves the HUD first, so the disk copy is the new
- * one.) Without it, the body's own `hud` is used if there is one, and a stage file alone is checked on its own.
+ * The three files are checked AS THE GAME WILL SEE THEM, together:
+ *  1. the posted `hud` (the NEW global layout) with the HUD loader's own check;
+ *  2. every stage, with its HUD overrides laid over that NEW layout, so an override that fitted the old HUD but not
+ *     the new one refuses the whole save (`checkStagesWith`, the check the game's loader runs);
+ *  3. the foot-anchor corrections.
+ * A body without `hud` is a stage-only save: the stages are checked against the `hud.json` text the dev server passes
+ * (`currentHudText`, the file on disk), or on their own when there is none.
  */
 export function prepareSave(body: unknown, currentHudText?: string): Prepared {
   if (typeof body !== 'object' || body === null) return { ok: false, problems: ['the posted body must be an object with stages and axes'] };
-  const { stages, axes, hud: postedHud } = body as Partial<SaveBody>;
+  const { stages, axes, hud: postedHud, write: postedWrite } = body as Partial<SaveBody>;
   let hud: unknown = postedHud;
-  if (currentHudText !== undefined) {
+  let hudText: string | undefined;
+  if (postedHud !== undefined) {
+    const hudProblems = checkHudFile({ version: 1, layout: postedHud });
+    if (hudProblems.length) return { ok: false, problems: hudProblems.map((p) => `the HUD layout (${HUD_FILE}) is not valid: ${p}`) };
+    hudText = formatHud(postedHud);
+  } else if (currentHudText !== undefined) {
     let parsed: unknown;
     try {
       parsed = JSON.parse(currentHudText);
@@ -74,14 +88,19 @@ export function prepareSave(body: unknown, currentHudText?: string): Prepared {
     hud = (parsed as { layout: HudLayout }).layout;
   }
   const stageProblems = hud === undefined ? checkStages(stages, BG_IDS, STAGE_KNOWN) : checkStagesWith(stages, hud as HudLayout, BG_IDS, STAGE_KNOWN);
-  const problems = [...stageProblems, ...checkAxes(axes ?? {})];
+  // A stage's own HUD box that no longer fits is easy to miss from the stage list, so say plainly that the new layout is the cause.
+  const explained = postedHud !== undefined ? stageProblems.map((p) => (/\bhud\./.test(p) ? `the HUD layout in this save does not fit a stage's own HUD box: ${p}` : p)) : stageProblems;
+  const problems = [...explained, ...checkAxes(axes ?? {})];
   if (problems.length) return { ok: false, problems };
-  return { ok: true, stagesText: formatStages(stages), axesText: formatAxes(axes ?? {}) };
+  const all: SavePart[] = ['stages', 'axes', ...(hudText !== undefined ? (['hud'] as const) : [])];
+  if (Array.isArray(postedWrite) && postedWrite.includes('hud') && hudText === undefined) return { ok: false, problems: ['write lists the HUD but no HUD layout was posted'] };
+  const write = Array.isArray(postedWrite) ? all.filter((p) => postedWrite.includes(p)) : all;
+  return { ok: true, stagesText: formatStages(stages), axesText: formatAxes(axes ?? {}), ...(hudText !== undefined ? { hudText } : {}), write };
 }
 
 export type PreparedHud = { ok: true; text: string } | { ok: false; problems: string[] };
 
-/** Check a posted HUD layout (the `layout` part of `hud.json`) with the loader's own check and say what would be written. */
+/** Check a HUD layout (the `layout` part of `hud.json`) with the loader's own check on its own and say what would be written. (A save checks the layout together with the stages: `prepareSave`.) */
 export function prepareHudSave(layout: unknown): PreparedHud {
   const problems = checkHudFile({ version: 1, layout });
   if (problems.length) return { ok: false, problems };

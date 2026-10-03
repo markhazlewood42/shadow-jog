@@ -63,36 +63,42 @@ export class StageList {
 // ------------------------------------------------------------------ who's standing here
 
 /**
- * The explorer panel, "Who's standing here": the four heroes (click selects the slot they stand in) and every enemy
- * (double-click or drag to preview one in a slot). It fills the height of the left sidebar and scrolls inside itself,
- * the way a design tool's layers panel does. Like Figma's layers, Shift+click or Ctrl+click ADDS a row to the selection
- * (or takes it out if it is already in), so "align to each other" works from the panel as well as from the stage:
- * heroes select their slots; an enemy that is standing on the stage selects the slot(s) it stands in.
+ * The explorer panel, "Who's standing here": the four heroes and every enemy. A plain click on a row SELECTS the slot
+ * (or slots) that fighter stands in on the stage, for a hero and for an enemy alike; Shift+click or Ctrl+click ADDS the
+ * row to the selection (or takes it out if it is already in), the way Figma's layers do, so "align to each other"
+ * works from the panel as well as from the stage. An enemy that is not standing on this stage has no slot to select, and
+ * the status line says so.
+ *
+ * Choosing which enemy TYPE stands in a slot is a separate, explicit act so it can never be mixed up with selecting:
+ * the small "+" button on an enemy's row puts that enemy in the selected slot (or in E1 when no enemy slot is
+ * selected), and dragging the row onto a slot on the stage does the same for that slot. It is a preview only.
  */
 export class Palette {
   constructor(
     private readonly session: Session,
-    private readonly view: ViewState,
     private readonly scene: () => StageScene,
     private readonly heroes: HTMLElement,
     private readonly enemies: HTMLElement,
-    private readonly actions: { select: (items: Item[], additive: boolean) => void; apply: (enemy: string) => void },
+    private readonly actions: { select: (items: Item[], additive: boolean) => void; apply: (enemy: string) => void; say: (text: string) => void },
   ) {
     enemies.addEventListener('click', (e) => {
-      const li = (e.target as HTMLElement).closest('li');
+      const target = e.target as HTMLElement;
+      const li = target.closest('li');
       if (!li?.dataset.key) return;
-      if (e.shiftKey || e.ctrlKey || e.metaKey) {
-        // Shift/Ctrl+click: the slot(s) this enemy stands in join the selection (or leave it).
-        const slots = this.scene().enemies.flatMap((key, index) => (key === li.dataset.key ? [{ kind: 'fighter', side: 'enemy', index } as Item] : []));
-        if (slots.length) this.actions.select(slots, true);
+      const name = ENEMIES[li.dataset.key]?.name ?? li.dataset.key;
+      // The "+" button: put this enemy type in the selected slot. It never changes the selection.
+      if (target.closest('.pal-add')) {
+        this.actions.apply(li.dataset.key);
         return;
       }
-      this.view.paletteEnemy = li.dataset.key;
-      this.renderEnemies();
-    });
-    enemies.addEventListener('dblclick', (e) => {
-      const li = (e.target as HTMLElement).closest('li');
-      if (li?.dataset.key) this.actions.apply(li.dataset.key);
+      // A click selects the slot(s) this enemy stands in on the stage; Shift/Ctrl+click adds them (or takes them out).
+      const slots = this.scene().enemies.flatMap((key, index) => (key === li.dataset.key ? [{ kind: 'fighter', side: 'enemy', index } as Item] : []));
+      const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+      if (!slots.length) {
+        this.actions.say(`${name} is not standing on this stage${additive ? ', so there is no slot to add to the selection' : ', so there is no slot to select'}. Press the “+” on its row to put it in the selected slot.`);
+        return;
+      }
+      this.actions.select(slots, additive);
     });
     enemies.addEventListener('dragstart', (e) => {
       const li = (e.target as HTMLElement).closest('li');
@@ -124,7 +130,14 @@ export class Palette {
     const selected = new Set(this.session.selectedFighters('enemy').flatMap((i) => this.scene().enemies[i] ?? []));
     this.enemies.replaceChildren(
       ...Object.values(ENEMIES).map((e) =>
-        h('li', { 'data-key': e.id, draggable: 'true', class: `${this.view.paletteEnemy === e.id ? 'on' : ''} ${selected.has(e.id) ? 'sel' : ''}`.trim(), title: standing.has(e.id) ? 'Standing on the stage now. Shift+click or Ctrl+click adds its slot to the selection.' : '' }, h('span', { class: 'dot', style: { background: e.boss ? '#ffd35a' : '#ff6ad5' } }), h('span', {}, e.name), h('small', {}, standing.has(e.id) ? 'here' : e.boss ? 'boss' : '')),
+        h(
+          'li',
+          { 'data-key': e.id, draggable: 'true', class: selected.has(e.id) ? 'sel' : '', title: standing.has(e.id) ? 'Standing on the stage now. Click selects its slot. Shift+click or Ctrl+click adds its slot to the selection. Drag it onto a slot to preview it there.' : 'Not standing on this stage. Drag it onto a slot, or press + to put it in the selected slot.' },
+          h('span', { class: 'dot', style: { background: e.boss ? '#ffd35a' : '#ff6ad5' } }),
+          h('span', {}, e.name),
+          h('small', {}, standing.has(e.id) ? 'here' : e.boss ? 'boss' : ''),
+          h('button', { type: 'button', class: 'pal-add', title: `Put ${e.name} in the selected enemy slot (E1 if none is selected). A preview only. You can also drag this row onto a slot on the stage.`, 'aria-label': `Put ${e.name} in the selected enemy slot` }, '+'),
+        ),
       ),
     );
   }

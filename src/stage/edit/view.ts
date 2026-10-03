@@ -50,8 +50,6 @@ export class ViewState {
   phase: Phase;
   preview: Record<string, Record<string, string[]>>;
   locked = new Set<Layer>();
-  /** The enemy picked in the palette (applied with a double-click or a drag onto a slot). */
-  paletteEnemy: string | null = null;
 
   constructor() {
     const r = { ...DEFAULTS, ...readStore<Partial<Remembered>>(KEY, {}) };

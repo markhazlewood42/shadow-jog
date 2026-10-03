@@ -115,10 +115,14 @@
       .pal { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
       .pal li { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
       .pal li:hover { background: var(--panel-2); }
-      .pal li.on { border-color: var(--pink); background: var(--panel-2); }
       .pal li.sel { border-color: var(--hand); background: #2a2012; }
       .pal li .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
       .pal li small { color: var(--dim); margin-left: auto; }
+      /* The small "+" on an enemy's row: puts that enemy type in the selected slot. Plain clicks on the row select its slot instead. */
+      .pal li .pal-add { flex: none; width: 22px; height: 22px; padding: 0; line-height: 1; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); color: var(--text); cursor: pointer; }
+      .pal li .pal-add:hover { border-color: var(--pink); color: #fff; }
+      .pal li small:empty { display: none; }
+      .pal li:has(small:empty) .pal-add { margin-left: auto; }
       .hint { color: var(--dim); font-size: 12px; margin: 4px 0 6px; }
       .sub, section.pnl h3.sub { margin: 10px 0 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--dim); }
       #explorer-scroll > .sub:first-child { margin-top: 2px; }
@@ -215,6 +219,7 @@
       #statusbar .warnline { color: #ffcf6a; }
       #statusbar .warnline[hidden] { display: none; }
       #statusbar .num { font-variant-numeric: tabular-nums; }
+      #statusbar #st-zoom .hint { color: #ffcf6a; margin-left: 8px; }
 
       /* ---- dialogs */
       .dlg-back { position: fixed; inset: 0; background: rgba(7, 6, 13, 0.7); display: grid; place-items: center; z-index: 50; }
@@ -333,7 +338,7 @@
           <p class="hint" id="stagehint">A stage is one battleground. Every fight there uses it. <button id="stage-help" type="button" class="link">What is a stage?</button></p>
         </section>
         <section class="pnl" id="explorer">
-          <h2>Who’s standing here <button type="button" class="qm" data-tip="Heroes: click one to select the slot it stands in. Enemies: double-click one, or drag it onto a slot, to preview it there. It is only a preview in this browser. The stage keeps places, not people." aria-label="Help: Who’s standing here">?</button></h2>
+          <h2>Who’s standing here <button type="button" class="qm" data-tip="Heroes: click one to select the slot it stands in. Enemies: click one to select the slot it stands in. To preview a different enemy in a slot, press the + on its row (it goes in the selected slot), or drag its row onto a slot. It is only a preview in this browser. The stage keeps places, not people." aria-label="Help: Who’s standing here">?</button></h2>
           <div id="explorer-scroll">
             <h3 class="sub">Heroes</h3>
             <ul class="pal" id="heroes"></ul>
@@ -359,6 +364,7 @@
       <span class="num" id="st-pos">x – y –</span>
       <span id="st-sel">Nothing selected</span>
       <span id="st-save">Saved</span>
+      <span class="num" id="st-zoom"></span>
       <span class="warnline" id="st-warn" hidden></span>
       <span class="msg" id="st-msg" role="status"></span>
     </footer>

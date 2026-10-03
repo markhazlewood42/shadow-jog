@@ -14,6 +14,7 @@ import { canvasRect, dropScratch, flush, openEditor, scratchName, waitReady } fr
 import { HAVE_SPRITES, MARKS_FIGURE_BREAKS } from './stagelabkit';
 
 const stageOf = (page: Page): Promise<StageEntry> => page.evaluate(() => JSON.parse(JSON.stringify(window.__stageedit?.session.stage)) as StageEntry);
+const changes = (page: Page): Promise<number> => page.evaluate(() => window.__stageedit?.session.changeCount ?? -1);
 const select = (page: Page, items: Array<{ side: 'party' | 'enemy'; index: number }>): Promise<void> =>
   page.evaluate((list) => {
     window.__stageedit?.session.select(list.map((i) => ({ kind: 'fighter' as const, side: i.side, index: i.index })));
@@ -37,7 +38,7 @@ test('Align Middle puts one fighter on the middle row by count: row 3 of 5', asy
   await expect(page.locator('#st-msg')).toContainText('middle row');
   await page.locator('.alb[data-align="front"]').click();
   expect((await stageOf(page)).party[0]?.row).toBe(4);
-  await page.keyboard.press('Control+Alt+v');
+  await page.keyboard.press('m');
   expect((await stageOf(page)).party[0]?.row).toBe(2);
 });
 
@@ -115,22 +116,41 @@ test('Align left, centre and right pack fighters that share a row, in their old 
 
 // ---------------------------------------------------------------- C, G: keys and the Mouse group
 
-test('the Align keys avoid the browser’s: Ctrl+Alt+letter works, a plain Alt+D does nothing, and the Keys list shows no reserved key', async ({ page }) => {
+test('the Align keys are plain letters: D aligns right, but Alt+D, Ctrl+Alt+D (AltGr) and typing in a box do nothing, and the Keys list shows no reserved key', async ({ page }) => {
   await openEditor(page, scratch);
   await page.locator('#heroes li', { hasText: 'Hex' }).click();
   const x0 = (await stageOf(page)).party[2]?.x;
+  // Alt+D is the browser's address bar; Ctrl+Alt+D is AltGr+D on a keyboard that is not US. Neither may align.
   await page.keyboard.press('Alt+d');
-  expect((await stageOf(page)).party[2]?.x).toBe(x0);
   await page.keyboard.press('Control+Alt+d');
+  await page.keyboard.press('Alt+Shift+d');
+  await page.keyboard.press('Shift+d');
+  expect((await stageOf(page)).party[2]?.x).toBe(x0);
+  // While the cursor is in a text box the letters are just letters.
+  await page.locator('#find').click();
+  await page.keyboard.type('dadcwsmxy');
+  await expect(page.locator('#find')).toHaveValue('dadcwsmxy');
+  expect((await stageOf(page)).party[2]?.x).toBe(x0);
+  await page.locator('#find').fill('');
+  await page.locator('#heroes li', { hasText: 'Hex' }).click();
+  await page.keyboard.press('d');
   const x1 = (await stageOf(page)).party[2]?.x ?? 0;
   expect(x1).toBeGreaterThan(x0 ?? 0);
   await expect(page.locator('#st-msg')).toContainText('right edge');
+  // A held-down key is one undo step, not a flood of them.
+  const steps = await changes(page);
+  await page.keyboard.down('a');
+  await page.keyboard.down('a');
+  await page.keyboard.down('a');
+  await page.keyboard.up('a');
+  expect(await changes(page)).toBe(steps + 1);
   // The tooltip of the Right button shows the new key.
-  await expect(page.locator('.alb[data-align="right"]')).toHaveAttribute('title', /Ctrl\+Alt\+D/);
+  await expect(page.locator('.alb[data-align="right"]')).toHaveAttribute('title', /key D\)/);
   await page.locator('#b-keys').click();
   const keys = await page.evaluate(() => [...document.querySelectorAll('.dlg kbd')].map((k) => k.textContent ?? ''));
-  expect(keys).toContain('Ctrl+Alt+D');
+  expect(keys).toContain('D');
   for (const k of keys) expect(RESERVED).not.toContain(k);
+  for (const k of keys) expect(k).not.toMatch(/Ctrl\+Alt|Alt\+Shift/);
   expect(keys).not.toContain('Ctrl+L');
   await page.keyboard.press('Escape');
 });
@@ -255,7 +275,7 @@ test('with something selected a "Stage settings" button is at the top of the ins
 
 // ---------------------------------------------------------------- I: the server checks overrides against the global HUD on disk
 
-test('the stage endpoint checks a stage’s HUD overrides against the global hud.json on disk', async ({ page }) => {
+test('the stage endpoint checks a stage’s HUD overrides against the HUD layout posted with them (round 3: one save), and a stage-only post against the hud.json on disk', async ({ page }) => {
   await openEditor(page, scratch);
   const hud = await page.evaluate(async (name) => (await (await fetch(`/__stage/hud?scratch=${name}`)).json()) as { hud: string }, scratch);
   const file = JSON.parse(hud.hud) as { layout: { commands: { x: number; w: number } } };
@@ -265,31 +285,32 @@ test('the stage endpoint checks a stage’s HUD overrides against the global hud
   const post = (url: string, body: unknown) => page.request.post(url, { data: body, headers: { 'Content-Type': 'application/json' } });
   // With the narrow global box (w 100) the override fits...
   file.layout.commands.w = 100;
-  expect((await post(`/__stage/hud?scratch=${scratch}`, { layout: file.layout })).ok()).toBe(true);
-  expect((await post(`/__stage/stages?scratch=${scratch}&dry=1`, { stages, axes: {} })).ok()).toBe(true);
-  // ...and is refused once the global box has been widened, even though the posted body never mentions the HUD.
+  expect((await post(`/__stage/stages?scratch=${scratch}&dry=1`, { stages, axes: {}, hud: file.layout })).ok()).toBe(true);
+  // ...and the whole save is refused once the box in THIS save is wide, even though the disk still has the narrow one.
   file.layout.commands.w = 300;
-  expect((await post(`/__stage/hud?scratch=${scratch}`, { layout: file.layout })).ok()).toBe(true);
-  const refused = await post(`/__stage/stages?scratch=${scratch}&dry=1`, { stages, axes: {} });
+  const refused = await post(`/__stage/stages?scratch=${scratch}&dry=1`, { stages, axes: {}, hud: file.layout });
   expect(refused.status()).toBe(400);
   const body = (await refused.json()) as { ok: boolean; problems: string[] };
   expect(body.ok).toBe(false);
   expect(body.problems.join(' ')).toMatch(/street/);
+  // The HUD file is no longer written on its own: its endpoint only reads.
+  expect((await post(`/__stage/hud?scratch=${scratch}`, { layout: file.layout })).status()).toBe(405);
 });
 
 // ---------------------------------------------------------------- J: wording and state
 
 test('the Save tooltip names the files that would be written, undo says what it undid, and a new stage clears the status line', async ({ page }) => {
   await openEditor(page, scratch);
-  await expect(page.locator('#b-save')).toHaveAttribute('title', /stages\.json/);
-  await expect(page.locator('#b-save')).toHaveAttribute('title', /hud\.json/);
-  // Move a fighter: stages.json (and axes.json, written with it), not hud.json.
+  // Nothing changed yet, so the tooltip names no file (round 3: it lists only the files that are really dirty).
+  await expect(page.locator('#b-save')).toHaveAttribute('title', /Nothing to save/);
+  // Move a fighter: stages.json only (not axes.json, not hud.json).
   await page.locator('#heroes li', { hasText: 'Kit' }).click();
   await page.keyboard.press('ArrowRight');
   await flush(page);
   const title = (await page.locator('#b-save').getAttribute('title')) ?? '';
   expect(title).toContain('stages.json');
   expect(title).not.toContain('hud.json');
+  expect(title).not.toContain('axes.json');
   // Move a HUD box too: now hud.json is named as well.
   await page.evaluate(() => {
     window.__stageedit?.session.edit('Move the commands', (d) => {

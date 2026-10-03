@@ -785,7 +785,7 @@ export class Inspector {
     const KEY_ID: Record<AlignHow, string> = { left: 'alignLeft', centre: 'alignCentre', right: 'alignRight', back: 'alignBack', middle: 'alignMiddle', front: 'alignFront', spreadAcross: 'spreadAcross', spreadDepth: 'spreadDepth' };
     const btn = (how: AlignHow, label: string, title: string): HTMLButtonElement => {
       const key = shown(KEYS.find((k) => k.id === KEY_ID[how])?.combos[0] ?? '');
-      return h('button', { type: 'button', class: 'alb', 'data-align': how, title: `${title} (${key})`, 'aria-label': `${label}: ${title}`, onclick: () => this.alignSelection(how) }, label);
+      return h('button', { type: 'button', class: 'alb', 'data-align': how, title: `${title} (key ${key})`, 'aria-label': `${label}: ${title}`, onclick: () => this.alignSelection(how) }, label);
     };
     return this.groupTip(
       'Align',
@@ -810,7 +810,7 @@ export class Inspector {
   }
 
   /**
-   * Line up the selection (the Align bar and the Ctrl+Alt keys call this). Returns false, after saying why on the status
+   * Line up the selection (the Align bar and the single-letter Align keys call this). Returns false, after saying why on the status
    * line, when nothing alignable is selected. One undo step.
    */
   alignSelection(how: AlignHow): boolean {
@@ -853,19 +853,32 @@ export class Inspector {
       spreadAcross: 'evenly across',
       spreadDepth: 'evenly over the rows',
     };
-    let across: AcrossResult = { packed: 0, packedRows: 0 };
+    let result: AcrossResult | null = null;
     session.edit(`Align ${who} ${words[how]}`, (d) => {
       const st = this.stageIn(d);
-      if (how === 'left' || how === 'centre' || how === 'right') across = alignAcross(st, side, session.setKey, idx, how, reach);
-      else if (how === 'back' || how === 'middle' || how === 'front') alignDepth(st, side, session.setKey, idx, how);
+      if (how === 'left' || how === 'centre' || how === 'right') result = alignAcross(st, side, session.setKey, idx, how, reach);
+      else if (how === 'back' || how === 'middle' || how === 'front') result = alignDepth(st, side, session.setKey, idx, how, reach);
       else if (how === 'spreadAcross') distributeAcross(st, side, session.setKey, idx, reach);
       else distributeDepth(st, side, session.setKey, idx);
     });
-    // One fighter lines up with its own half of the stage; several line up with each other.
+    // One fighter lines up with its side's standing range; several line up with each other.
     const acrossOne = !many && (how === 'left' || how === 'centre' || how === 'right');
-    // Say what really happened: fighters that share a row cannot share an edge, so they were packed side by side.
-    const packedNote = across.packed ? ` ${across.packed} of them share ${across.packedRows === 1 ? 'a row' : 'rows'}, so ${across.packedRows === 1 ? 'they were' : 'those on one row were'} packed side by side in their old left-to-right order, ${ALIGN_GAP} px apart, so ${across.packedRows === 1 ? 'they do not' : 'none'} overlap.` : '';
-    this.host.notify(`Aligned ${who} ${words[how]}${acrossOne ? ` of the ${side === 'party' ? 'left' : 'right'} half of the stage` : ''}.${packedNote}`);
+    const r = result as AcrossResult | null;
+    const range = r?.range;
+    const half = side === 'party' ? 'the heroes’ half of the stage' : `the enemies’ side of the stage (x ${range?.l ?? 260} to ${range?.r ?? 476})`;
+    // Say what really happened, from the final positions: fighters that share a row cannot share an edge, so they were packed side by side;
+    // a block wider than the room is only partly packed; one that slid off an exact same spot is counted too.
+    const note: string[] = [];
+    if (r && r.short > 0) note.push(`there is not enough room: ${r.fit} of ${r.total} fit, the rest stayed where they were`);
+    if (r?.packed && r.short > 0) note.push(`the ${r.packed} that fit were packed side by side in their old left-to-right order, ${ALIGN_GAP} px apart`);
+    else if (r?.packed) note.push(`${r.packed} of them share ${r.packedRows === 1 ? 'a row' : 'rows'}, so ${r.packedRows === 1 ? 'they were' : 'those on one row were'} packed side by side in their old left-to-right order, ${ALIGN_GAP} px apart, so ${r.packedRows === 1 ? 'they do not' : 'none'} overlap`);
+    if (r && r.slid > 0) note.push(`${r.slid} had to slide a pixel or more to stay off another fighter’s spot`);
+    const bad = !!r && r.short > 0;
+    const head = `Aligned ${who} ${words[how]}${acrossOne ? ` of ${half}` : ''}`;
+    // "Aligned X to the left edge, but there is not enough room: 3 of 4 fit, ..." when something did not fit; otherwise the notes follow as sentences.
+    const sentence = (n: string): string => `${n.charAt(0).toUpperCase()}${n.slice(1)}.`;
+    const text = bad ? `${head}, but ${note[0]}.${note.slice(1).map((n) => ` ${sentence(n)}`).join('')}` : `${head}.${note.map((n) => ` ${sentence(n)}`).join('')}`;
+    this.host.notify(text, bad);
     return true;
   }
 

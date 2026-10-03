@@ -2,11 +2,16 @@
  * The Battle Stage Editor's keyboard shortcuts as ONE table (`docs/TOOLING-UI.md` 2.6). The same table drives the
  * key handler and the list on the "Keys" button, so what the button says is always what the keys do.
  *
- * Rules the table keeps: nothing uses a key the browser owns (the `RESERVED` list: F5, F12, Ctrl+R, Ctrl+L, Ctrl+T,
- * Ctrl+N, Ctrl+W, and the Alt letters that open the address bar and the browser menu: Alt+D, Alt+F, Alt+E); and shortcuts
- * are ignored while the cursor is in a text field (except Ctrl+S, which saves from anywhere), the way the animation
- * editor does. A combo is written like "Ctrl+Shift+Z"; "Ctrl" also means the Command key on a Mac. The Align keys are
- * Ctrl+Alt+letter: browsers leave those alone (Alt+letter alone is the browser's menu on Windows).
+ * Rules the table keeps: nothing uses a key the browser or the operating system owns (the `RESERVED` list: F5, F12,
+ * Ctrl+R, Ctrl+L, Ctrl+T, Ctrl+N, Ctrl+W, the Alt letters that open the address bar and the browser menu, and the
+ * chords Windows uses itself, see `unsafeReason`); and shortcuts are ignored while the cursor is in a text field
+ * (except Ctrl+S, which saves from anywhere), the way the animation editor does. A combo is written like
+ * "Ctrl+Shift+Z"; "Ctrl" also means the Command key on a Mac.
+ *
+ * The Align keys are SINGLE LETTERS with no modifier, the way a design tool does it (they work only while the cursor is
+ * not in a text field). Every modifier chord was a trap: Ctrl+Alt+letter is AltGr+letter on a Windows keyboard that is
+ * not US (it types characters such as @ { [ and the euro sign), Ctrl+Alt+arrows turns the screen over on some Windows
+ * graphics drivers, and Alt+Shift switches the input language. A plain letter is the same key on every layout.
  */
 
 export interface KeyDef {
@@ -46,15 +51,15 @@ export const KEYS: KeyDef[] = [
   { id: 'down8', combos: ['Shift+ArrowDown'], label: 'Nudge down 8 px', group: 'Move' },
   { id: 'forward', combos: ['Ctrl+]'], label: 'Bring the fighter forward (within its row)', group: 'Move' },
   { id: 'back', combos: ['Ctrl+['], label: 'Send the fighter back (within its row)', group: 'Move' },
-  // Align (Figma's letters: A left, H centre, D right, W top, V middle, S bottom) on Ctrl+Alt. Plain Alt+D is the browser's address bar, Alt+F and Alt+E its menu; Ctrl+Alt+letter is left alone.
-  { id: 'alignLeft', combos: ['Ctrl+Alt+A'], label: 'Align left (one thing: to the stage; several: to each other)', group: 'Align' },
-  { id: 'alignCentre', combos: ['Ctrl+Alt+H'], label: 'Align centre', group: 'Align' },
-  { id: 'alignRight', combos: ['Ctrl+Alt+D'], label: 'Align right', group: 'Align' },
-  { id: 'alignBack', combos: ['Ctrl+Alt+W'], label: 'Align to the back row (a HUD box: to the top)', group: 'Align' },
-  { id: 'alignMiddle', combos: ['Ctrl+Alt+V'], label: 'Align to the middle row (a HUD box: the middle)', group: 'Align' },
-  { id: 'alignFront', combos: ['Ctrl+Alt+S'], label: 'Align to the front row (a HUD box: to the bottom)', group: 'Align' },
-  { id: 'spreadAcross', combos: ['Ctrl+Alt+Shift+H'], label: 'Spread 3 or more evenly across', group: 'Align' },
-  { id: 'spreadDepth', combos: ['Ctrl+Alt+Shift+V'], label: 'Spread 3 or more evenly over the rows (a HUD box: down)', group: 'Align' },
+  // Align: one plain letter each, no modifier. A, D, W and S are Figma's letters for left, right, top and bottom (and the keys a game uses to move). C is Centre, M is Middle, X spreads along x (across) and Y along y (over the rows). H is already the HUD overlay, so Figma's H for centre is not used.
+  { id: 'alignLeft', combos: ['A'], label: 'Align left (one thing: to the stage; several: to each other)', group: 'Align' },
+  { id: 'alignCentre', combos: ['C'], label: 'Align centre', group: 'Align' },
+  { id: 'alignRight', combos: ['D'], label: 'Align right', group: 'Align' },
+  { id: 'alignBack', combos: ['W'], label: 'Align to the back row (a HUD box: to the top)', group: 'Align' },
+  { id: 'alignMiddle', combos: ['M'], label: 'Align to the middle row (a HUD box: the middle)', group: 'Align' },
+  { id: 'alignFront', combos: ['S'], label: 'Align to the front row (a HUD box: to the bottom)', group: 'Align' },
+  { id: 'spreadAcross', combos: ['X'], label: 'Spread 3 or more evenly across (along x)', group: 'Align' },
+  { id: 'spreadDepth', combos: ['Y'], label: 'Spread 3 or more evenly over the rows, or down for a HUD box (along y)', group: 'Align' },
   { id: 'grid', combos: ['G'], label: 'Snap to the 8 px grid on / off (hold Ctrl while dragging to flip it for one drag)', group: 'View' },
   { id: 'lock', combos: ['L'], label: 'Lock / unlock the selection’s layer (a locked layer cannot be picked)', group: 'View' },
   { id: 'leftPanel', combos: ['P'], label: 'Show / hide the left panel (more room for the stage on a small screen)', group: 'View' },
@@ -73,8 +78,36 @@ export const MOUSE: MouseDef[] = [
   { gesture: 'Ctrl+drag', label: 'Flip the grid and row snapping for that one drag' },
 ];
 
-/** The browser owns these; no editor key may take them (a test checks the table against this list). */
-export const RESERVED = ['F5', 'F6', 'F11', 'F12', 'Ctrl+R', 'Ctrl+Shift+R', 'Ctrl+L', 'Ctrl+T', 'Ctrl+N', 'Ctrl+W', 'Ctrl+Shift+T', 'Ctrl+Shift+N', 'Ctrl+Shift+W', 'Ctrl+Tab', 'Alt+D', 'Alt+F', 'Alt+E', 'Alt+Left', 'Alt+Right', 'Alt+Home'];
+/**
+ * The browser and the operating system own these; no editor key may take them (a test checks the table against this list).
+ * Three kinds:
+ *  - the browser's own keys (reload, tabs, DevTools, the address bar and the menu on Alt);
+ *  - AltGr chords. On a Windows keyboard that is not US, the right Alt key (AltGr) is reported as Ctrl+Alt together, and
+ *    AltGr+letter or digit TYPES a character (@ { [ ] } \ | the euro sign...). A shortcut on Ctrl+Alt would fire while someone types;
+ *  - Windows shortcuts: Ctrl+Alt+arrows turns the screen over on some graphics drivers, Ctrl+Alt+Delete is the security
+ *    screen, and Alt+Shift (pressed on its own) switches the input language.
+ */
+export const RESERVED = [
+  'F5', 'F6', 'F11', 'F12', 'Ctrl+R', 'Ctrl+Shift+R', 'Ctrl+L', 'Ctrl+T', 'Ctrl+N', 'Ctrl+W', 'Ctrl+Shift+T', 'Ctrl+Shift+N', 'Ctrl+Shift+W', 'Ctrl+Tab', 'Alt+D', 'Alt+F', 'Alt+E', 'Alt+Left', 'Alt+Right', 'Alt+Home',
+  // AltGr on a non-US layout types characters (German: Q is @, E is the euro sign, 7 8 9 0 are { [ ] }; French: 2 3 4 5 6 8 9 0 are ~ # { [ | \ ^ @).
+  'Ctrl+Alt+Q', 'Ctrl+Alt+E', 'Ctrl+Alt+A', 'Ctrl+Alt+D', 'Ctrl+Alt+H', 'Ctrl+Alt+S', 'Ctrl+Alt+V', 'Ctrl+Alt+W', 'Ctrl+Alt+2', 'Ctrl+Alt+3', 'Ctrl+Alt+4', 'Ctrl+Alt+5', 'Ctrl+Alt+6', 'Ctrl+Alt+7', 'Ctrl+Alt+8', 'Ctrl+Alt+9', 'Ctrl+Alt+0',
+  // Screen rotation on some Windows graphics drivers, and the security screen.
+  'Ctrl+Alt+ArrowLeft', 'Ctrl+Alt+ArrowRight', 'Ctrl+Alt+ArrowUp', 'Ctrl+Alt+ArrowDown', 'Ctrl+Alt+Delete',
+  // Alt+Shift switches the input language; a chord that holds both is never safe.
+  'Alt+Shift+A', 'Alt+Shift+D', 'Alt+Shift+Tab',
+];
+
+/**
+ * Why a combo may never be a shortcut, or null when it may. A general version of `RESERVED` that catches a whole class
+ * (every Ctrl+Alt chord, every chord with Alt and Shift together), so a new key cannot slip through by being a letter nobody listed.
+ */
+export function unsafeReason(combo: string): string | null {
+  const mods = new Set(combo.split('+').slice(0, -1));
+  if (mods.has('Ctrl') && mods.has('Alt')) return 'Ctrl+Alt is AltGr on a Windows keyboard that is not US: it types characters, and Ctrl+Alt+arrows turns the screen on some drivers';
+  if (mods.has('Alt') && mods.has('Shift')) return 'Alt+Shift switches the input language on Windows';
+  if (RESERVED.includes(combo)) return 'the browser or the operating system owns it';
+  return null;
+}
 
 /** The combo a key event is, written the way the table writes them ("Ctrl+Shift+Z", "ArrowLeft", "Escape"). */
 export function comboOf(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'altKey'> & { code?: string }): string {

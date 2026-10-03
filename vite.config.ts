@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { DEV_TOOLS } from './src/dev/tools';
+import { writeTogether } from './src/stage/edit/writeset';
 import { defineConfig } from 'vitest/config';
 
 const FX_FILE = resolve(import.meta.dirname, 'src/data/fx.json');
@@ -99,19 +100,23 @@ const HUD_FILE = resolve(import.meta.dirname, 'src/data/hud.json');
 type StageSaveModule = typeof import('./src/stage/edit/save');
 
 /**
- * The Battle Stage Editor's save endpoint (dev server only): GET /__stage/stages returns the two data files
- * (src/data/stages.json and src/data/axes.json) as text; POST checks the posted `{ stages, axes }` with the module
- * the game loads them with (src/stage/edit/save.ts: `checkStagesWith`, which lays each stage's HUD overrides over the
- * global hud.json AS IT IS ON DISK, the way the game's loader does) and, only if both are fine, writes both in the
- * editor's stable format. It answers `{ ok, problems: [] }` (docs/TOOLING-UI.md 2.5).
+ * The Battle Stage Editor's save endpoint (dev server only): GET /__stage/stages returns the two stage files
+ * (src/data/stages.json and src/data/axes.json) as text; POST saves ALL the files of one Save together. The posted body
+ * is `{ stages, axes, hud, write }`: `hud` is the NEW global HUD layout and `write` names the files that changed
+ * ('stages', 'axes', 'hud'; the default is all that were posted). `prepareSave` (src/stage/edit/save.ts) checks the
+ * three TOGETHER with the modules the game loads them with, including every stage's own HUD boxes against the NEW
+ * HUD layout (`checkStagesWith`). Only if every check passes are the files written, and then they are written as a
+ * set (`writeTogether`: a temporary file for each, then a rename each, with the old text put back if one rename fails),
+ * so a refused save changes nothing and a half-written set is never left behind. It answers `{ ok, problems: [], written }`
+ * (docs/TOOLING-UI.md 2.5).
  *
  * `?dry=1` checks and formats without writing. `?scratch=<name>` (letters, digits, dashes) reads and writes a
  * private copy in the OS temp folder instead of the repo files, which is how the tests save and reload without
- * touching the real data: a scratch name that has never been saved reads the real files.
+ * touching the real data: a file of a scratch name that has never been saved reads the real file.
  *
- * The one global HUD layout (src/data/hud.json) has its own endpoint, /__stage/hud, with the same contract: GET
- * returns the file as text, POST checks the posted `{ layout }` with the HUD loader's own check
- * (`prepareHudSave`) and writes it in the editor's stable format. Stage saves and HUD saves never share a request.
+ * The one global HUD layout (src/data/hud.json) is still READ through its own endpoint, /__stage/hud (GET returns the
+ * file as text), but it is never written there: a POST is refused and points to /__stage/stages, so no save can write
+ * the HUD without checking it against the stages.
  */
 function stageEdit(): Plugin {
   const scratchDir = (url: URL): string | null => {
@@ -171,21 +176,20 @@ function stageEdit(): Plugin {
             reply(400, { ok: false, problems: ['not valid JSON'] });
             return;
           }
-          // Check the stages against the global HUD file as it is on disk right now (the scratch copy if there is one), as the game's loader does.
+          // Check everything together: the new HUD layout, the stages against it, the axes. A body without a HUD layout is a stage-only save, checked against the HUD file on disk (the scratch copy if there is one).
           const hudOnDisk = readFileSync(existsSync(hudPath) ? hudPath : HUD_FILE, 'utf8');
           const made = prepareSave(data, hudOnDisk);
           if (!made.ok) {
             reply(400, { ok: false, problems: made.problems });
             return;
           }
+          const texts = { stages: made.stagesText, axes: made.axesText, hud: made.hudText };
+          const paths = { stages: stagesPath, axes: axesPath, hud: hudPath };
           try {
-            if (!url.searchParams.has('dry')) {
-              writeFileSync(stagesPath, made.stagesText);
-              writeFileSync(axesPath, made.axesText);
-            }
-            reply(200, { ok: true, problems: [], stages: made.stagesText, axes: made.axesText, file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data/stages.json' });
+            if (!url.searchParams.has('dry')) writeTogether(made.write.flatMap((part) => (texts[part] === undefined ? [] : [{ path: paths[part], text: texts[part] as string }])));
+            reply(200, { ok: true, problems: [], stages: made.stagesText, axes: made.axesText, ...(made.hudText !== undefined ? { hud: made.hudText } : {}), written: made.write, file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data' });
           } catch (e) {
-            reply(500, { ok: false, problems: [`couldn't write the stage files: ${String(e)}`] });
+            reply(500, { ok: false, problems: [`couldn't write the files, and none was changed: ${String(e)}`] });
           }
         });
       });
@@ -209,40 +213,8 @@ function stageEdit(): Plugin {
           reply(200, { ok: true, problems: [], hud: readFileSync(existsSync(hudPath) ? hudPath : HUD_FILE, 'utf8'), scratch: !!dir });
           return;
         }
-        if (req.method !== 'POST') {
-          reply(405, { ok: false, problems: ['GET or POST only'] });
-          return;
-        }
-        if (!sameOrigin(req)) {
-          reply(403, { ok: false, problems: ['writes only from the dev server’s own pages'] });
-          return;
-        }
-        let body = '';
-        req.on('data', (chunk: Buffer) => {
-          body += chunk.toString('utf8');
-          if (body.length > 1_000_000) req.destroy();
-        });
-        req.on('end', async () => {
-          const { prepareHudSave } = (await server.ssrLoadModule('/src/stage/edit/save.ts')) as StageSaveModule;
-          let data: { layout?: unknown };
-          try {
-            data = JSON.parse(body) as { layout?: unknown };
-          } catch {
-            reply(400, { ok: false, problems: ['not valid JSON'] });
-            return;
-          }
-          const made = prepareHudSave(data.layout);
-          if (!made.ok) {
-            reply(400, { ok: false, problems: made.problems });
-            return;
-          }
-          try {
-            if (!url.searchParams.has('dry')) writeFileSync(hudPath, made.text);
-            reply(200, { ok: true, problems: [], hud: made.text, file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data/hud.json' });
-          } catch (e) {
-            reply(500, { ok: false, problems: [`couldn't write hud.json: ${String(e)}`] });
-          }
-        });
+        // The HUD is never written on its own: it is saved with the stages (POST /__stage/stages), which checks it against them.
+        reply(405, { ok: false, problems: ['GET only. The HUD layout is saved together with the stages: POST to /__stage/stages'] });
       });
     },
   };

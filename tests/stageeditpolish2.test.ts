@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import type { StageEntry } from '../src/stage/config';
 import { ALIGN_GAP, alignAcross, alignDepth, middleRow, type Reach } from '../src/stage/edit/model';
-import { comboOf, KEYS, matchKey, MOUSE, RESERVED, shown } from '../src/stage/edit/keys';
+import { comboOf, KEYS, matchKey, MOUSE, RESERVED, shown, unsafeReason } from '../src/stage/edit/keys';
 import { prepareSave } from '../src/stage/edit/save';
 import { type Item, Session, toggleInSelection } from '../src/stage/edit/session';
 import { formatJson } from '../src/tools/jsonfmt';
@@ -51,7 +51,7 @@ describe('Align left, centre and right pack fighters that share a row', () => {
     const r = alignAcross(s, 'enemy', '3', [0, 1, 2], 'left', reach(3));
     // The group's left drawn edge is 280. In order: slot 1 (300), slot 0 (360), slot 2 (420).
     expect(xsOf(s)).toEqual([342, 300, 384]);
-    expect(r).toEqual({ packed: 3, packedRows: 1 });
+    expect(r).toMatchObject({ packed: 3, packedRows: 1, total: 3, fit: 3, short: 0, slid: 0 });
     const left = xsOf(s).sort((a, b) => a - b);
     expect(overlaps(left)).toBe(false);
     expect(left[1] ?? 0).toBe((left[0] ?? 0) + 20 + 20 + ALIGN_GAP);
@@ -78,27 +78,27 @@ describe('Align left, centre and right pack fighters that share a row', () => {
     const [a, b, c] = xsOf(s);
     expect([b, a]).toEqual([300, 342]); // the two on row 1: packed
     expect(c).toBe(300); // the one alone on row 3: its left edge (280) is the shared edge
-    expect(r).toEqual({ packed: 2, packedRows: 1 });
+    expect(r).toMatchObject({ packed: 2, packedRows: 1, total: 3, fit: 3 });
   });
 
   it('with every fighter alone on a row, nothing is packed and the answer says so', () => {
     const s = street();
     const r = alignAcross(s, 'party', '3', [0, 1], 'left', reach(2));
-    expect(r).toEqual({ packed: 0, packedRows: 0 });
+    expect(r).toMatchObject({ packed: 0, packedRows: 0, total: 2, fit: 2, short: 0 });
   });
 
-  it('a block that would leave its half of the screen moves as one, and keeps its gaps', () => {
+  it('a block that would leave the enemies’ range moves as one, and keeps its gaps', () => {
     const s = street();
     s.enemySets['2'] = [
       { x: 250, row: 2 },
       { x: 260, row: 2 },
     ];
     // Two wide enemies (30 either side of the feet) near the middle line: packing against the right edge (290) would put the first
-    // one on the left half. The pair slides right together until the first stands at the middle line, 240.
+    // one left of x 260, the nearest an enemy may stand. The pair slides right together until the first one's left edge is at 260.
     alignAcross(s, 'enemy', '2', [0, 1], 'right', reach(2, 30, 30));
     const [a, b] = (s.enemySets['2'] ?? []).map((q) => q.x);
-    expect(a).toBe(240);
-    expect(b).toBe(240 + 30 + 30 + ALIGN_GAP);
+    expect(a).toBe(260 + 30);
+    expect(b).toBe(260 + 30 + 30 + 30 + ALIGN_GAP);
   });
 });
 
@@ -108,25 +108,64 @@ describe('the shortcuts avoid the browser’s own keys', () => {
     for (const must of ['Alt+D', 'Alt+F', 'Alt+E', 'Ctrl+L', 'Ctrl+T', 'Ctrl+N', 'Ctrl+W', 'F5', 'Ctrl+R', 'F12']) expect(RESERVED).toContain(must);
   });
 
+  it('the reserved list also holds the AltGr chords and the operating system’s combos, and no shortcut is one of them', () => {
+    // AltGr on a non-US Windows layout arrives as Ctrl+Alt together and types a character: @ { [ ] } and the euro sign.
+    for (const must of ['Ctrl+Alt+Q', 'Ctrl+Alt+E', 'Ctrl+Alt+7', 'Ctrl+Alt+8', 'Ctrl+Alt+9', 'Ctrl+Alt+0']) expect(RESERVED).toContain(must);
+    // Ctrl+Alt+arrows turns the screen over on some Windows graphics drivers.
+    for (const must of ['Ctrl+Alt+ArrowLeft', 'Ctrl+Alt+ArrowRight', 'Ctrl+Alt+ArrowUp', 'Ctrl+Alt+ArrowDown']) expect(RESERVED).toContain(must);
+    // Alt+Shift switches the input language.
+    expect(RESERVED.some((c) => c.startsWith('Alt+Shift+'))).toBe(true);
+    // The general rule catches a whole class, so a new key cannot slip through by being a letter nobody listed.
+    for (const k of KEYS) for (const c of k.combos) expect({ id: k.id, combo: c, why: unsafeReason(c) }).toEqual({ id: k.id, combo: c, why: null });
+    expect(unsafeReason('Ctrl+Alt+Z')).toMatch(/AltGr/);
+    expect(unsafeReason('Ctrl+Alt+ArrowUp')).toMatch(/AltGr|screen/);
+    expect(unsafeReason('Alt+Shift+Q')).toMatch(/language/);
+    expect(unsafeReason('Alt+D')).not.toBeNull();
+    expect(unsafeReason('A')).toBeNull();
+  });
+
   it('no combo is used twice', () => {
     const all = KEYS.flatMap((k) => k.combos);
     expect(new Set(all).size).toBe(all.length);
   });
 
-  it('the Align keys are Ctrl+Alt+letter and a plain Alt+letter does nothing', () => {
+  it('the Align keys are single letters with no modifier; any chord with Alt, Ctrl+Alt (AltGr) or Alt+Shift does nothing', () => {
     const press = (key: string, o: { alt?: boolean; ctrl?: boolean; shift?: boolean } = {}) => matchKey({ key, code: `Key${key.toUpperCase()}`, altKey: !!o.alt, ctrlKey: !!o.ctrl, metaKey: false, shiftKey: !!o.shift });
-    expect(press('d', { alt: true, ctrl: true })?.id).toBe('alignRight');
-    expect(press('a', { alt: true, ctrl: true })?.id).toBe('alignLeft');
-    expect(press('h', { alt: true, ctrl: true, shift: true })?.id).toBe('spreadAcross');
-    expect(press('v', { alt: true, ctrl: true, shift: true })?.id).toBe('spreadDepth');
-    expect(press('d', { alt: true })).toBeNull(); // the address bar belongs to the browser
+    const expected: Record<string, string> = { a: 'alignLeft', c: 'alignCentre', d: 'alignRight', w: 'alignBack', m: 'alignMiddle', s: 'alignFront', x: 'spreadAcross', y: 'spreadDepth' };
+    for (const [key, id] of Object.entries(expected)) {
+      expect(press(key)?.id).toBe(id);
+      expect(press(key.toUpperCase())?.id).toBe(id); // Caps Lock on
+      // The same key with a modifier is not an Align key: AltGr (Ctrl+Alt), Alt alone (the browser's menu), Alt+Shift (the input language), Shift.
+      expect(press(key, { alt: true, ctrl: true })).toBeNull();
+      expect(press(key, { alt: true })).toBeNull();
+      expect(press(key, { alt: true, shift: true })).toBeNull();
+      expect(press(key, { shift: true })).toBeNull();
+    }
+    // The old Ctrl+Alt chords are gone, Ctrl+A / Ctrl+D / Ctrl+S / Ctrl+Y keep their own meaning, and L is still Lock.
+    expect(press('a', { ctrl: true })?.id).toBe('selectAll');
+    expect(press('d', { ctrl: true })?.id).toBe('duplicate');
+    expect(press('s', { ctrl: true })?.id).toBe('save');
+    expect(press('y', { ctrl: true })?.id).toBe('redo');
     expect(press('l', {})?.id).toBe('lock');
     expect(press('l', { ctrl: true })).toBeNull();
+    // Figma's H for centre is the HUD overlay here, so Centre is C.
+    expect(press('h')?.id).toBe('hud');
     expect(comboOf({ key: 'd', code: 'KeyD', altKey: true, ctrlKey: true, metaKey: false, shiftKey: false })).toBe('Ctrl+Alt+D');
   });
 
+  it('on a non-US layout AltGr+letter (Ctrl+Alt, the typed character as the key) never matches a shortcut', () => {
+    // German AltGr+Q types "@", AltGr+E types the euro sign, AltGr+7 types "{": the event has ctrl and alt set and the typed character as its key.
+    const altGr = (key: string, code: string) => matchKey({ key, code, altKey: true, ctrlKey: true, metaKey: false, shiftKey: false });
+    expect(altGr('@', 'KeyQ')).toBeNull();
+    expect(altGr('€', 'KeyE')).toBeNull();
+    expect(altGr('{', 'Digit7')).toBeNull();
+    expect(altGr('ä', 'KeyA')).toBeNull();
+    // A position-mapped letter (Mac Option) does not slip through either.
+    expect(matchKey({ key: 'å', code: 'KeyA', altKey: true, ctrlKey: false, metaKey: false, shiftKey: false })).toBeNull();
+  });
+
   it('the Keys list shows the table’s own key, and has a Mouse group with the three tricks', () => {
-    expect(shown(KEYS.find((k) => k.id === 'alignRight')?.combos[0] ?? '')).toBe('Ctrl+Alt+D');
+    expect(shown(KEYS.find((k) => k.id === 'alignRight')?.combos[0] ?? '')).toBe('D');
     const text = MOUSE.map((m) => `${m.gesture} ${m.label}`).join('\n');
     expect(text).toMatch(/Shift\+click[^\n]*selection/);
     expect(text).toMatch(/Shift\+drag[^\n]*sideways or up and down/);
@@ -209,13 +248,17 @@ describe('the server checks a stage against the global HUD that is on disk', () 
     expect(!refused.ok && refused.problems.join(' ')).toMatch(/street/);
   });
 
-  it('the HUD on disk is what counts, even when the page posts another one', () => {
-    const b = { ...(body() as { stages: Record<string, StageEntry>; axes: unknown }), hud: JSON.parse(hudText()).layout as unknown };
+  it('a body that posts a HUD is checked against THAT HUD, the new one, not the file on disk', () => {
+    const b = { ...(body() as { stages: Record<string, StageEntry>; axes: unknown }), hud: JSON.parse(hudText()).layout as { commands: { w: number } } };
     (b.stages.street as StageEntry).hud = { commands: { x: 300 } };
     const wide = JSON.parse(hudText()) as { layout: { commands: { w: number } } };
     wide.layout.commands.w = 300;
-    expect(prepareSave(b).ok).toBe(true); // checked against the posted HUD only
-    expect(prepareSave(b, JSON.stringify(wide)).ok).toBe(false); // the server passes the file on disk
+    // The disk still has the narrow box, but the save brings a wide one: the wide one counts, and the whole save is refused.
+    expect(prepareSave(b, hudText()).ok).toBe(true);
+    const wideBody = { ...b, hud: wide.layout };
+    expect(prepareSave(wideBody, hudText()).ok).toBe(false);
+    // The reverse: a disk copy that is wide does not refuse a body whose new HUD is narrow.
+    expect(prepareSave(b, JSON.stringify(wide)).ok).toBe(true);
   });
 
   it('an unreadable HUD file is one clear problem, not a crash', () => {

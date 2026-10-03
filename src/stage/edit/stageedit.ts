@@ -29,10 +29,11 @@ import { BG_IDS } from '../../art/battlebg';
 import { ENEMIES } from '../../data/enemies';
 import { formatJson } from '../../tools/jsonfmt';
 import { bootStage } from '../boot';
-import { type AxesFile, type FigureBox, loadAxes, loadEntries, loadHud, resolveStage, resolveStages, SET_KEYS, type StageConfig, type StageEntry, type StageFile } from '../config';
+import { type AxesFile, type FigureBox, loadAxes, loadEntries, loadHud, resolveStage, resolveStages, SCREEN_H, SCREEN_W, SET_KEYS, type StageConfig, type StageEntry, type StageFile } from '../config';
 import { RULE_WHY, type StageWarning, stageWarnings } from '../rules';
 import { connectHook, emptyHook } from '../labhook';
 import { STAGE_KNOWN } from '../known';
+import { devicePixelsPerGamePixel, zoomLine } from '../zoom';
 import type { Phase } from '../demo';
 import type { Fighter } from '../stagescene';
 import { BattleTest, type BattleTestOptions, stageForTest } from '../battletest';
@@ -46,7 +47,7 @@ import { KEYS, matchKey, MOUSE, shown } from './keys';
 import { deleteStage, duplicateStage, hudNow, isOverridden, newStage, nudgeSlots, renameStage, setFloorBottom, setHorizon, setHudBox, setRowY, stepOrder } from './model';
 import { type OverlayFigure, overlayMarkup } from './overlay';
 import { JsonPane, Palette, setButtons, StageList, StatusBar } from './panels';
-import { AXES_FILE, formatHud, HUD_FILE, prepareHudSave, prepareSave, STAGES_FILE } from './save';
+import { AXES_FILE, formatHud, HUD_FILE, prepareSave, STAGES_FILE } from './save';
 import { type EditorData, type Item, type Part, sameItem, Session, toggleInSelection } from './session';
 import { ViewState } from './view';
 import { HUD_REGION_NAMES, HUD_REGIONS } from '../hudpresets';
@@ -78,17 +79,19 @@ const query = new URLSearchParams(location.search);
 const scratch = query.get('scratch');
 /** The save endpoint's address (`?scratch=<name>` makes it use a private copy, for tests). */
 const ENDPOINT = `/__stage/stages${scratch ? `?scratch=${encodeURIComponent(scratch)}` : ''}`;
-/** The global HUD layout has its own endpoint and its own file (`src/data/hud.json`). */
+/** The global HUD layout has its own file (`src/data/hud.json`) and its own endpoint to READ it. It is saved together with the stages, through ENDPOINT. */
 const HUD_ENDPOINT = `/__stage/hud${scratch ? `?scratch=${encodeURIComponent(scratch)}` : ''}`;
-/** What messages call the files written: the real paths, or the private scratch copy tests use. */
+/** The order files are named in: the same on the Save tooltip, in the messages and in the Revert confirm. */
+const PART_ORDER: readonly Part[] = ['stages', 'hud', 'axes'];
+const PART_FILE: Record<Part, string> = { stages: STAGES_FILE, hud: HUD_FILE, axes: AXES_FILE };
+/** What messages call the files written: the real paths of the parts that changed, or the private scratch copy tests use. */
 const fileNames = (parts: readonly Part[]): string => {
   if (scratch) return `scratch copy "${scratch}"`;
-  // A stage save writes the stages and the foot anchors together (two files, one request).
-  const files = [...(parts.includes('hud') ? [HUD_FILE] : []), ...(parts.includes('stages') || parts.includes('axes') ? [STAGES_FILE, AXES_FILE] : [])];
+  const files = PART_ORDER.filter((p) => parts.includes(p)).map((p) => PART_FILE[p]);
   return files.length > 1 ? `${files.slice(0, -1).join(', ')} and ${files[files.length - 1]}` : (files[0] ?? '');
 };
-/** The short file names for a tooltip: "hud.json, stages.json, axes.json". */
-const shortNames = (parts: readonly Part[]): string => [...(parts.includes('hud') ? ['hud.json'] : []), ...(parts.includes('stages') || parts.includes('axes') ? ['stages.json', 'axes.json'] : [])].join(', ');
+/** The short file names for a tooltip, only for the files that changed: "stages.json, axes.json". */
+const shortNames = (parts: readonly Part[]): string => PART_ORDER.filter((p) => parts.includes(p)).map((p) => `${p}.json`).join(', ');
 
 const status = new (class {
   el = byId('st-msg');
@@ -307,6 +310,22 @@ async function main(): Promise<void> {
     document.addEventListener('pointerdown', (e) => {
       if (!warnPop.hidden && !warnPop.contains(e.target as Node) && e.target !== warnChip) toggleWarnPop(false);
     });
+    /**
+     * The zoom readout in the status line. The stage is always drawn at a whole number of screen pixels per game pixel
+     * (`boot.ts`, `zoom.ts`). When it is only 1x because the panels take the room, and hiding the left panel would reach
+     * a bigger whole zoom, the readout says so and names the key.
+     */
+    function showZoom(): void {
+      const el = byId('st-zoom');
+      const { width, height } = booted.game.scale.parentSize;
+      const dpr = window.devicePixelRatio || 1;
+      const k = devicePixelsPerGamePixel(width, height, SCREEN_W, SCREEN_H, dpr);
+      const leftW = view.leftOpen ? byId('left').getBoundingClientRect().width : 0;
+      const wider = devicePixelsPerGamePixel(width + leftW, height, SCREEN_W, SCREEN_H, dpr);
+      const line = zoomLine(k, dpr, wider, view.leftOpen);
+      el.title = line.title;
+      el.replaceChildren(line.text, ...(line.hint ? [h('span', { class: 'hint' }, line.hint)] : []));
+    }
     function redraw(): void {
       const r = canvas.getBoundingClientRect();
       const c = centre.getBoundingClientRect();
@@ -320,6 +339,7 @@ async function main(): Promise<void> {
       svg.style.display = handles ? 'block' : 'none';
       if (handles) svg.innerHTML = overlayMarkup({ stage: session.resolved, figures: figures(), selection: session.selection, hover: interact.hover, hudOverridden: new Set(HUD_REGIONS.filter((r) => isOverridden(session.stage, r))), show: view.show, phase: view.phase, locked: view.locked }, scale);
       showWarnings();
+      showZoom();
       refreshPanels();
     }
 
@@ -344,7 +364,7 @@ async function main(): Promise<void> {
       { onPick: (id) => session.showStage(id), onNew: () => void listNew(), onDuplicate: () => void listDuplicate(), onChangeId: () => void listChangeId(), onDelete: () => void listDelete() },
       { new: byId('s-new'), dup: byId('s-dup'), ren: byId('s-ren'), del: byId('s-del') },
     );
-    const palette = new Palette(session, view, sceneNow, byId('heroes'), byId('enemies'), {
+    const palette = new Palette(session, sceneNow, byId('heroes'), byId('enemies'), {
       // Shift+click or Ctrl+click in the panel adds to the selection (or takes out what is already in it), like Figma's layers.
       select: (items, additive) => {
         if (!additive) return session.select(items);
@@ -354,6 +374,7 @@ async function main(): Promise<void> {
         session.select(next);
       },
       apply: (enemy) => applyPaletteEnemy(enemy),
+      say: (text) => bar.say(text),
     });
     const json = new JsonPane(session, view, byId('jsonpane'), byId('jsontext'), byId('jsontitle'), byId('jsonsub'));
 
@@ -403,7 +424,7 @@ async function main(): Promise<void> {
       const save = byId<HTMLButtonElement>('b-save');
       save.disabled = !session.dirty;
       // The tooltip names the files this Save would write: the ones that changed.
-      save.title = session.dirty ? `Save ${shortNames(session.dirtyParts)} (Ctrl+S)` : 'Nothing to save yet. Save writes the files you changed: stages.json, hud.json (the HUD for every battle) and axes.json (foot anchors) (Ctrl+S)';
+      save.title = session.dirty ? `Save ${shortNames(session.dirtyParts)} (Ctrl+S)` : 'Nothing to save yet. Save writes only the files you changed (Ctrl+S)';
       byId<HTMLButtonElement>('b-revert').disabled = !session.dirty;
       byId<HTMLButtonElement>('b-undo').disabled = !session.canUndo;
       byId<HTMLButtonElement>('b-redo').disabled = !session.canRedo;
@@ -612,48 +633,34 @@ async function main(): Promise<void> {
     }
 
     /**
-     * Save (Ctrl+S): write only the files that changed. The global HUD layout goes to its own endpoint and file
-     * (`hud.json`); the stages and the foot-anchor corrections go together to the other (`stages.json`, `axes.json`).
-     * Everything is checked first, as the game will see it, so a bad file never leaves the page. A failed part stays
-     * unsaved and the message says which file did not go.
+     * Save (Ctrl+S): ONE request writes the files that changed (`stages.json`, `hud.json`, `axes.json`) together.
+     * Everything is checked first, all three together and as the game will see them (each stage's own HUD boxes against the
+     * NEW global HUD), by the same code the dev server runs, so a bad file never leaves the page. If the server refuses
+     * (or cannot be reached), no file was changed: it writes them as a set or not at all.
      */
     async function save(): Promise<boolean> {
       // Tidy first: a stage override keeps only what differs from the all-battles HUD (an empty "different on this stage" box is not saved).
       session.settle();
-      const data = { stages: session.data.stages, axes: session.data.axes };
-      const hud = session.data.hud;
-      const made = prepareSave({ ...data, hud });
-      const madeHud = prepareHudSave(hud);
-      const problems = [...(made.ok ? [] : made.problems), ...(madeHud.ok ? [] : madeHud.problems)];
-      if (problems.length) {
-        bar.say(`Not saved: ${problems[0]}${problems.length > 1 ? ` (and ${problems.length - 1} more)` : ''}`, 'bad');
+      const dirty = session.dirtyParts;
+      const body = { stages: session.data.stages, axes: session.data.axes, hud: session.data.hud, write: dirty };
+      const made = prepareSave(body);
+      if (!made.ok) {
+        bar.say(`Not saved: ${made.problems[0]}${made.problems.length > 1 ? ` (and ${made.problems.length - 1} more)` : ''}. No file was changed.`, 'bad');
         return false;
       }
-      const dirty = session.dirtyParts;
       if (!dirty.length) {
         bar.say('Nothing to save: no file changed. (A “Different on this stage” box with nothing different is not saved.)');
         refreshPanels();
         return true;
       }
-      const written: Part[] = [];
-      if (dirty.includes('hud')) {
-        const why = await post(HUD_ENDPOINT, { layout: hud });
-        if (why) {
-          bar.say(`Not saved: ${why}`, 'bad');
-          return false;
-        }
-        written.push('hud');
+      const why = await post(ENDPOINT, body);
+      if (why) {
+        bar.say(`Not saved: ${why}${why.endsWith('.') ? '' : '.'} No file was changed.`, 'bad');
+        return false;
       }
-      if (dirty.includes('stages') || dirty.includes('axes')) {
-        const why = await post(ENDPOINT, data);
-        if (why) {
-          if (written.length) session.markSaved(written);
-          bar.say(`${written.length ? `The HUD layout was saved (${HUD_FILE}), but the stages were not: ` : 'Not saved: '}${why}`, 'bad');
-          refreshPanels();
-          return false;
-        }
-        written.push('stages', 'axes');
-      }
+      const written: Part[] = dirty;
+      const data = body;
+      const hud = session.data.hud;
       // Load it back through the game's own loaders: the files on disk must be what the editor holds.
       let back: EditorData;
       try {
@@ -808,6 +815,8 @@ async function main(): Promise<void> {
             h('li', {}, b('Shift+drag '), 'locks the move to sideways or up and down.'),
             h('li', {}, b('Ctrl+drag '), 'flips the grid snap for that one drag.'),
           ),
+          h('h3', {}, 'Align with one key'),
+          p('Select a fighter or a HUD box, then press one letter. ', b('A'), ' aligns left, ', b('C'), ' centre and ', b('D'), ' right. ', b('W'), ' goes to the back row (a HUD box: top), ', b('M'), ' to the middle and ', b('S'), ' to the front (a HUD box: bottom). With three or more selected, ', b('X'), ' spreads them evenly across and ', b('Y'), ' evenly over the rows. The letters do nothing while you type in a box. They are plain letters on purpose: a key that needs Ctrl+Alt is AltGr on many keyboards and types a character.'),
           h('h3', {}, 'Warnings'),
           p('The design has rules, such as “keep a clear gap between heroes and enemies”. A fighter that breaks one gets a red outline, and the “Warnings” button in the top bar lists every broken rule. A warning never stops you from saving.'),
           h('h3', {}, 'Where things live'),
@@ -816,7 +825,7 @@ async function main(): Promise<void> {
             {},
             h('li', {}, b('Top bar: '), 'what you look at (enemy count, moment, overlays), Battle Test and Save.'),
             h('li', {}, b('Right panel: '), 'the settings of what you selected. Nothing selected: the settings of the stage and of the HUD.'),
-            h('li', {}, b('Left panel: '), 'the stage list, and the people standing on the stage.'),
+            h('li', {}, b('Left panel: '), 'the stage list, and the people standing on the stage. The “Left panel” button in the top bar, or the ', b('P'), ' key, hides it. The stage then has more room, and on a small screen it can be drawn bigger.'),
             h('li', {}, b('The “?” marks: '), 'rest on one to read what a setting does and what you will see change.'),
           ),
         ),
@@ -948,6 +957,8 @@ async function main(): Promise<void> {
       const fn = run[def.id];
       if (!fn) return;
       e.preventDefault();
+      // A held-down letter repeats; an Align key must be one undo step per press, not a flood of them.
+      if (e.repeat && def.group === 'Align') return;
       fn(e);
     });
 

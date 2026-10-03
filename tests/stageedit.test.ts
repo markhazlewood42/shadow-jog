@@ -411,12 +411,12 @@ describe('the Align bar: fighters line up with their half of the stage, or with 
     expect(valid(s)).toEqual([]);
   });
 
-  it('one enemy lines up with the right half', () => {
+  it('one enemy lines up with the enemies’ side of the stage, inside the design’s limits (x 260 to 476)', () => {
     const s = street();
     alignAcross(s, 'enemy', '3', [0], 'right', { 0: { left: 30, right: 30 } });
-    expect(s.enemySets['3']?.[0]?.x).toBe(450);
+    expect(s.enemySets['3']?.[0]?.x).toBe(446); // its right edge is at 476, the last x rules.ts allows
     alignAcross(s, 'enemy', '3', [0], 'left', { 0: { left: 30, right: 30 } });
-    expect(s.enemySets['3']?.[0]?.x).toBe(270);
+    expect(s.enemySets['3']?.[0]?.x).toBe(290); // its left edge is at 260, the nearest an enemy may stand
   });
 
   it('two or more line up with each other: left edges, right edges or centres', () => {

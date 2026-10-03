@@ -488,7 +488,7 @@ test('sliders change the stage while they are dragged, and the whole drag is one
   expect(errors).toEqual([]);
 });
 
-test('Align: select Rook and line him up in one click; the Ctrl+Alt keys do the same; several fighters line up with each other', async ({ page }) => {
+test('Align: select Rook and line him up in one click; the single-letter keys do the same; several fighters line up with each other', async ({ page }) => {
   const { errors } = await openEditor(page, scratch);
   await page.locator('#heroes li', { hasText: 'Rook' }).click();
   await expect(page.locator('#inspector .alignbar')).toBeVisible();
@@ -507,24 +507,24 @@ test('Align: select Rook and line him up in one click; the Ctrl+Alt keys do the 
   });
   expect(Math.abs((mid ?? 0) - 120)).toBeLessThanOrEqual(1.5);
   expect(centred?.row).toBe(3);
-  // Back and Front snap to the first and last depth row; Ctrl+Alt+W is the same as the Back button (plain Alt+letter keys belong to the browser).
+  // Back and Front snap to the first and last depth row; W is the same as the Back button (a plain letter, so it is the same key on every keyboard layout).
   await page.locator('.alb[data-align="front"]').click();
   expect((await stageOf(page)).party[1]?.row).toBe(4);
-  await page.keyboard.press('Control+Alt+w');
+  await page.keyboard.press('w');
   expect((await stageOf(page)).party[1]?.row).toBe(0);
-  await page.keyboard.press('Control+Alt+a');
+  await page.keyboard.press('a');
   expect((await stageOf(page)).party[1]?.x).toBeLessThan(40);
   await expect(page.locator('#st-msg')).toContainText('left edge');
   // Each press is one undo step.
   expect((await saved(page)).changes).toBe(4);
   // Several: the heroes line up with each other, here all on the back-most row they use.
   await page.keyboard.press('Control+a');
-  await page.keyboard.press('Control+Alt+w');
+  await page.keyboard.press('w');
   const rows = (await stageOf(page)).party.map((q) => q.row);
   expect(new Set(rows).size).toBe(1);
   // With three or more selected the bar also offers an even spread.
   await expect(page.locator('.alb[data-align="spreadAcross"]')).toBeVisible();
-  await page.keyboard.press('Control+Alt+Shift+h');
+  await page.keyboard.press('x');
   await expect(page.locator('#st-msg')).toContainText('evenly across');
   await page.keyboard.press('Control+z');
   await page.keyboard.press('Control+z');
