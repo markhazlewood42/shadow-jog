@@ -157,7 +157,10 @@
       .dlg-field input { width: 100%; }
       .dlg-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
       .dlg-buttons button.primary { background: #3a2a14; border-color: var(--hand); }
-      .bt-note { color: var(--hand); }
+      .bt-note { color: var(--dim); display: flex; gap: 8px; align-items: center; }
+      .bt-badge { border-radius: 10px; padding: 1px 9px; font-size: 12px; font-weight: 600; white-space: nowrap; border: 1px solid var(--line); }
+      .bt-badge.edited { color: var(--hand); border-color: var(--hand); background: #3a2a14; }
+      .bt-badge.saved { color: var(--good); border-color: #2c5a30; background: #12261a; }
       .bt input[type='number'], .bt select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; min-width: 0; height: 26px; }
       .bt input[type='number'] { width: 96px; }
       .bt-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
@@ -175,6 +178,7 @@
       .bt-troop .chip { background: #2a0f18; border: 1px solid #6a2a3a; border-radius: 10px; padding: 1px 9px; font-size: 12px; }
       .bt-options { display: flex; gap: 14px; flex-wrap: wrap; align-items: end; }
       .bt-check { display: flex; gap: 6px; align-items: center; }
+      .bt-partial { color: var(--dim); font-size: 12px; margin-top: 10px; border-left: 2px solid var(--line); padding-left: 8px; }
       .bt-keys { color: var(--dim); font-size: 12px; margin-top: 10px; }
       button.test.on { background: #3a2a14; border-color: var(--hand); color: #fff; }
       .keys-table { border-collapse: collapse; width: 100%; font-size: 13px; }

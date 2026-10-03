@@ -21,7 +21,8 @@ import type { Impact, ActionScript } from './battleflow';
 import { applyEvent, type BattleFlow } from './battleflow';
 import { partDepth } from './config';
 import type { ActView } from './demo';
-import { compileMove, type CompiledMove, type HitEvent, IDLE_STILL, type MoveFile, pickMove, reachVector, sampleMove } from './moves';
+import { clearLane, contactY, nearEdge } from './contact';
+import { compileMove, type CompiledMove, DOWN_STILL, type HitEvent, IDLE_STILL, type MoveFile, pickMove, reachVector, sampleMove } from './moves';
 import type { LiveFx } from './livefx';
 import type { Fighter, StageScene } from './stagescene';
 import type { StillInfo } from './stills';
@@ -39,7 +40,24 @@ interface Reaction {
   fall: boolean;
   /** Pixels of jitter while the world is frozen (the hitstop shake). */
   shake: number;
+  /** The strongest the white flash gets on this fighter (a jab flashes less than a finisher), 0 to 1. */
+  peak: number;
 }
+
+/** A fighter fading in (a summon) or changing form (a boss phase), counted in world ticks. */
+interface Entrance {
+  f: Fighter;
+  k: number;
+  /** `appear` fades a new enemy in; `morph` flashes white, swaps the picture halfway and flashes out. */
+  kind: 'appear' | 'morph';
+  /** For a morph: the enemy it becomes (key of `ENEMIES`) and the uid the engine knows it by. */
+  to?: string;
+  uid?: number;
+}
+
+/** How long an entrance lasts in ticks. */
+const APPEAR_TICKS = 16;
+const MORPH_TICKS = 28;
 
 /** The action being played. */
 interface Playing {
@@ -49,6 +67,10 @@ interface Playing {
   move: CompiledMove | null;
   home: { x: number; y: number };
   reach: { dx: number; dz: number };
+  /** Pixels the attacker steps down the stage to run in front of its side-mates (1.0 of a move's `sw`). */
+  clear: number;
+  /** Whether the summons of the script have been shown yet. */
+  summoned: boolean;
   facing: 1 | -1;
   /** World ticks played so far. */
   k: number;
@@ -73,6 +95,9 @@ export class Performer {
   pause = 0;
   playing: Playing | null = null;
   private reactions: Reaction[] = [];
+  private entrances: Entrance[] = [];
+  /** The hitstop's full length, to fade the flash over its ticks. */
+  private pauseTotal = 0;
   private compiled = new Map<string, CompiledMove>();
   /** Party hits this round and their total: the combo counter. */
   comboHits = 0;
@@ -84,6 +109,9 @@ export class Performer {
   private clock = 0;
   /** Everything the performer has done, for the log and for tests. */
   readonly log: string[] = [];
+  /** Where each blow landed (screen pixels) and where each floating number was put, newest last: what a test asks to prove a blow touched its target and a number stands over the right head. */
+  readonly landed: Array<{ target: string; x: number; y: number; clock: number }> = [];
+  readonly numberLog: Array<{ target: string; text: string; x: number; y: number }> = [];
 
   constructor(
     private readonly scene: StageScene,
@@ -104,7 +132,7 @@ export class Performer {
 
   /** True while an action, a flinch or a fall is still going on. */
   get busy(): boolean {
-    return this.playing !== null || this.reactions.length > 0 || this.pause > 0;
+    return this.playing !== null || this.reactions.length > 0 || this.entrances.length > 0 || this.pause > 0;
   }
 
   /** Forget the round's combo (a new round of orders is about to open). */
@@ -128,8 +156,9 @@ export class Performer {
 
   private fighterOf(uid: number): Fighter | null {
     if (uid < 0) return null;
-    const side = uid < 10 ? 'party' : 'enemy';
-    return this.scene.fighters.filter((f) => f.side === side)[side === 'party' ? uid : uid - 10] ?? null;
+    const slot = this.flow.slotOf(uid);
+    const side = slot < 10 ? 'party' : 'enemy';
+    return this.scene.fighters.filter((f) => f.side === side)[side === 'party' ? slot : slot - 10] ?? null;
   }
 
   // ---------------------------------------------------------------- starting an action
@@ -137,7 +166,21 @@ export class Performer {
   /** The actor's move for this script (the first binding that fits). */
   private pickMove(script: ActionScript, actor: Fighter): string {
     const spread = script.targets.length !== 1 || script.targets[0] === script.actor;
-    return pickMove(this.moves, { actor: this.flow.battle.unit(script.actor)?.key ?? '', side: actor.side, ability: script.abilityId, fx: script.fx, kind: script.kind, spread });
+    const target = this.fighterOf(script.targets[0] ?? -1);
+    const targetHeight = target ? target.fig.box.y1 - target.fig.box.y0 + 1 : undefined;
+    return pickMove(this.moves, { actor: this.flow.battle.unit(script.actor)?.key ?? '', side: actor.side, ability: script.abilityId, fx: script.fx, kind: script.kind, spread, ...(targetHeight !== undefined ? { targetHeight } : {}) });
+  }
+
+  /** Height of a figure's chest above its feet, as a (negative, up) contact height: where a blow with no drawn weapon lands. */
+  private chestDy(t: Fighter): number {
+    return -Math.round((t.fig.box.y1 - t.fig.box.y0 + 1) * 0.45);
+  }
+
+  /** The screen x of `t`'s silhouette on the side facing an attacker with `facing`, at `dy` above its feet. Falls back to the bounding box. */
+  private edgeAt(t: Fighter, dy: number, facing: 1 | -1): number {
+    const rel = nearEdge(t.fig, dy, facing);
+    if (rel !== null) return t.baseX + rel;
+    return facing > 0 ? t.baseX + (t.fig.box.x0 - t.fig.foot.x) : t.baseX + (t.fig.box.x1 + 1 - t.fig.foot.x);
   }
 
   /** Begin playing a script. */
@@ -153,6 +196,8 @@ export class Performer {
       move: null,
       home: { x: actor?.baseX ?? 0, y: actor?.baseY ?? 0 },
       reach: { dx: 0, dz: 0 },
+      clear: 0,
+      summoned: false,
       facing: actor?.side === 'enemy' ? -1 : 1,
       k: 0,
       waveForHit: new Map(),
@@ -168,13 +213,18 @@ export class Performer {
       const move = this.move(this.pickMove(script, actor));
       p.move = move;
       this.log.push(`${actorName} ${script.name} -> ${move.def.id}`);
-      // The lunge's end point: the weapon `pierce` px inside the target's near edge, on the target's row.
+      // The lunge's end point: the weapon `pierce` px inside the target's SILHOUETTE at the height the weapon strikes, on the
+      // target's row. The first hit event says where the weapon is (contact); without one the front of the body at chest height.
       const def = move.def;
       if (def.reach && primary && primary !== actor) {
-        const forward = def.reach.forward === 'body' ? (p.facing > 0 ? actor.fig.box.x1 + 1 - actor.fig.foot.x : actor.fig.foot.x - actor.fig.box.x0) : def.reach.forward;
-        const edge = p.facing > 0 ? primary.baseX + (primary.fig.box.x0 - primary.fig.foot.x) : primary.baseX + (primary.fig.box.x1 + 1 - primary.fig.foot.x);
+        const first = move.hits[0]?.event;
+        const forward = first?.contact ? first.contact.dx : def.reach.forward === 'body' ? (p.facing > 0 ? actor.fig.box.x1 + 1 - actor.fig.foot.x : actor.fig.foot.x - actor.fig.box.x0) : def.reach.forward;
+        const edge = this.edgeAt(primary, first?.contact?.dy ?? this.chestDy(primary), p.facing);
         p.reach = reachVector({ facing: p.facing, home: p.home, targetEdgeX: edge, targetY: primary.baseY, forward, pierce: def.reach.pierce, lane: def.reach.lane ?? 1 });
       }
+      // The swerve (a move's `sw`): the way in front of the side-mates, measured from where they stand.
+      const mates = this.scene.fighters.filter((f) => f.side === actor.side && f !== actor && !f.down).map((f) => f.baseY);
+      p.clear = clearLane(p.home.y, mates);
       // Which wave lands on which hit: with fewer waves than hits the waves take the LAST hits (a combo's earlier blows are
       // only seen, the damage lands on the finisher); with more waves than hits, the extra waves follow the last hit.
       const nw = script.waves.length;
@@ -209,18 +259,28 @@ export class Performer {
     if (this.comboLeft > 0 && !this.playing && !this.frozen) this.comboLeft--;
     if (this.pause > 0) {
       this.pause--;
-      // The target shakes in place while the world holds still.
+      // The target shakes in place while the world holds still, and its flash fades a step every other tick (a freeze of
+      // 7 ticks on a flat white silhouette read as a cut-out; fading it keeps the "whiteout" and still shows the figure).
       for (const r of this.reactions) {
         if (r.shake > 0) {
           r.f.bodyDx = this.pause % 2 === 0 ? r.shake : -r.shake;
           if (this.pause === 0) r.f.bodyDx = 0;
-          this.scene.restyleFighter(r.f);
         }
+        this.freezeLook(r);
+        this.scene.restyleFighter(r.f);
       }
       return;
     }
     this.stepReactions();
+    this.stepEntrances();
     this.stepAction();
+  }
+
+  /** The flash and wash of a reaction while the world is frozen: full strength for two ticks, then 0.75, then 0.5 (of the hit's peak). */
+  private freezeLook(r: Reaction): void {
+    if (r.k > 1 || !r.f.flash) return;
+    const elapsed = Math.max(0, this.pauseTotal - this.pause - 1);
+    r.f.flashAmt = r.peak * (elapsed < 2 ? 1 : elapsed < 4 ? 0.75 : 0.5);
   }
 
   private stepReactions(): void {
@@ -244,6 +304,7 @@ export class Performer {
         r.f.offX = 0;
         r.f.offY = 0;
         r.f.flash = false;
+        r.f.tintAmt = 0;
         r.f.alpha = 1;
         r.f.bodyDx = 0;
         this.scene.restyleFighter(r.f);
@@ -256,13 +317,18 @@ export class Performer {
     r.f.offX = s.offset[0] * r.dir;
     r.f.offY = s.offset[1];
     r.f.flash = s.flash;
+    r.f.flashAmt = Math.max(0.25, s.flashAmt * r.peak);
+    // A hero who is hit gets a red wash; the foes just flash.
+    r.f.tintAmt = r.f.side === 'party' ? s.tint : 0;
     r.f.alpha = s.alpha;
+    // The fall shows the kneel (`$down`); anything else leaves the picture alone (the idle is the default).
+    if (s.still === DOWN_STILL) r.f.still = this.scene.downStill(r.f);
     this.scene.restyleFighter(r.f);
   }
 
-  private startReaction(f: Fighter, id: string, fall: boolean, shake: number): void {
+  private startReaction(f: Fighter, id: string, fall: boolean, shake: number, peak = 1): void {
     this.reactions = this.reactions.filter((r) => r.f !== f);
-    const r: Reaction = { f, move: this.move(id), k: 0, dir: f.side === 'party' ? 1 : -1, fall, shake };
+    const r: Reaction = { f, move: this.move(id), k: 0, dir: f.side === 'party' ? 1 : -1, fall, shake, peak };
     this.reactions.push(r);
     this.applyReaction(r, 0);
     r.k = 1;
@@ -287,9 +353,16 @@ export class Performer {
     }
     if (p.gap > 0) {
       p.gap--;
-      if (p.gap === GAP - 1) this.finishActor(p);
+      if (p.gap === GAP - 1) {
+        this.finishActor(p);
+        // A summon that never reached its release tick still arrives now, and a boss that changes form does it once the blows have landed.
+        this.summon(p);
+        this.startMorphs(p);
+      }
       return;
     }
+    // Hold the end of the action until a changing boss has finished its change.
+    if (this.entrances.length > 0) return;
     this.playing = null;
     for (const e of p.script.after) {
       // A fighter who went down without an impact (a counter, a status) falls now.
@@ -301,6 +374,77 @@ export class Performer {
     }
     this.flow.actionShown();
     this.flow.setPlaying(null);
+  }
+
+  // ---------------------------------------------------------------- summons and boss phases
+
+  /** Show the enemies this action calls in (once): they appear in the slots the stage has for the bigger group, fading in under a violet glow. */
+  private summon(p: Playing): void {
+    if (p.summoned) return;
+    p.summoned = true;
+    for (const uids of p.script.summons) {
+      const keys = uids.map((u) => this.flow.battle.unit(u)?.key ?? '').filter((k) => k !== '');
+      const born = this.scene.addEnemies(keys);
+      born.forEach((f, i) => {
+        f.alpha = 0;
+        this.scene.restyleFighter(f);
+        this.entrances.push({ f, k: 0, kind: 'appear' });
+        this.fx.glow(f.baseX, f.baseY - 14, UI.violet, f.depth + 100, true);
+        this.log.push(`${f.name} joins the fight (${keys[i] ?? '?'})`);
+      });
+      this.flow.reveal(uids);
+    }
+    this.pushView(p);
+  }
+
+  /** Begin the change of form for each boss phase of the script (the Warden's shell breaks and the spirit steps out). */
+  private startMorphs(p: Playing): void {
+    for (const ph of p.script.phases) {
+      const f = this.fighterOf(ph.target);
+      if (!f) continue;
+      this.entrances.push({ f, k: 0, kind: 'morph', to: ph.key, uid: ph.target });
+      this.fx.shake(2, 10);
+    }
+  }
+
+  /** One tick of every fighter fading in or changing form. */
+  private stepEntrances(): void {
+    const done: Entrance[] = [];
+    for (const e of this.entrances) {
+      const f = e.f;
+      if (e.kind === 'appear') {
+        // Opacity in quarter steps (pixel art stays crisp), a white wash that burns off over the first ticks.
+        f.alpha = Math.min(1, Math.ceil((e.k / 10) * 4) / 4);
+        f.flash = e.k < 8;
+        f.flashAmt = Math.max(0.25, 1 - e.k / 8);
+        if (e.k >= APPEAR_TICKS) {
+          f.alpha = 1;
+          f.flash = false;
+          done.push(e);
+        }
+      } else {
+        // First half: the shell whites out, ever brighter; at the middle the picture is swapped; second half: the new form burns in.
+        const half = MORPH_TICKS / 2;
+        f.flash = true;
+        f.flashAmt = e.k < half ? Math.max(0.25, e.k / half) : Math.max(0.25, 1 - (e.k - half) / half);
+        f.bodyDx = e.k % 2 === 0 ? 1 : -1;
+        if (e.k === half && e.to) {
+          this.scene.transformEnemy(f, e.to);
+          if (e.uid !== undefined) this.flow.showForm(e.uid);
+          this.fx.glow(f.baseX, f.baseY - 30, '#ffffff', f.depth + 100, true);
+          this.log.push(`${f.name} changes form`);
+          this.pushView();
+        }
+        if (e.k >= MORPH_TICKS) {
+          f.flash = false;
+          f.bodyDx = 0;
+          done.push(e);
+        }
+      }
+      e.k++;
+      this.scene.restyleFighter(f);
+    }
+    for (const e of done) this.entrances.splice(this.entrances.indexOf(e), 1);
   }
 
   /** Put the actor in the pose and place of tick `k` of its move. */
@@ -315,9 +459,10 @@ export class Performer {
     f.offX = s.offset[0] * p.facing;
     f.offY = s.offset[1];
     f.flash = s.flash;
+    f.flashAmt = Math.max(0.25, s.flashAmt);
     f.alpha = s.alpha;
     f.x = Math.round(p.home.x + p.reach.dx * s.lunge.x);
-    f.y = Math.round(p.home.y + p.reach.dz * s.lunge.z);
+    f.y = Math.round(p.home.y + p.reach.dz * s.lunge.z + p.clear * s.lunge.sw);
     // In contact (a `front` frame) the attacker borrows the target's row plus a pixel (the design's `lungeOverTarget`), so it
     // is drawn over the target. On the way it keeps its OWN row if that is nearer than the one it is crossing to, so a
     // lunge from the front row runs in front of the crewmates it passes and is not hidden behind them.
@@ -351,19 +496,22 @@ export class Performer {
 
   // ---------------------------------------------------------------- landing a hit
 
-  /** The point a blow lands on target `t`: the weapon's tip for a lunge, the target's near edge otherwise. */
+  /**
+   * The point a blow lands on target `t`. For the target of a lunge it is WHERE THE WEAPON IS: the attacker's position plus
+   * the hit event's `contact` (measured on the drawn frame), kept inside the target's drawn height so a fist swung higher
+   * than a rat is a hit on its back. Otherwise (a second target, a spell, an idle-picture lunge) it is the target's near
+   * edge at chest height, found from its pixels.
+   */
   private contactPoint(p: Playing, ev: HitEvent | null, t: Fighter): { x: number; y: number } {
     const actor = p.actor;
-    const height = t.fig.box.y1 - t.fig.box.y0 + 1;
-    const edge = p.facing > 0 ? t.baseX + (t.fig.box.x0 - t.fig.foot.x) : t.baseX + (t.fig.box.x1 + 1 - t.fig.foot.x);
-    let x = edge + p.facing * 3;
     const def = p.move?.def;
     if (actor && def?.reach && t === p.primary) {
-      const forward = def.reach.forward === 'body' ? (p.facing > 0 ? actor.fig.box.x1 + 1 - actor.fig.foot.x : actor.fig.foot.x - actor.fig.box.x0) : def.reach.forward;
-      x = actor.x + p.facing * (ev?.contact?.dx ?? forward);
+      const forward = ev?.contact ? ev.contact.dx : def.reach.forward === 'body' ? (p.facing > 0 ? actor.fig.box.x1 + 1 - actor.fig.foot.x : actor.fig.foot.x - actor.fig.box.x0) : def.reach.forward;
+      const weaponY = ev?.contact ? actor.y + ev.contact.dy : t.baseY + this.chestDy(t);
+      return { x: actor.x + p.facing * forward, y: contactY(weaponY, t.baseY, t.fig.box, t.fig.foot) };
     }
-    const y = ev?.contact?.dy !== undefined && actor ? actor.y + ev.contact.dy : t.baseY - Math.floor(height * 0.5);
-    return { x, y };
+    const dy = this.chestDy(t);
+    return { x: this.edgeAt(t, dy, p.facing) + p.facing * 3, y: t.baseY + dy };
   }
 
   /** The hit event (or a trailing wave) comes up: land its impacts. */
@@ -373,6 +521,9 @@ export class Performer {
     const real = wave?.filter((i) => i.kind !== 'miss') ?? [];
     const weight = ev?.weight ?? 'light';
     const effect = ev?.effect ?? 'spark';
+    // How hard the target whites out: the hit event's own strength, else a light hit is milder than a heavy one.
+    const peak = ev?.flash ?? (weight === 'heavy' ? 1 : 0.6);
+    if (ev && p.script.summons.length > 0) this.summon(p);
 
     if (wave) {
       let first = true;
@@ -380,7 +531,9 @@ export class Performer {
         const t = this.fighterOf(imp.target);
         if (!t) continue;
         const at = first ? this.contactPoint(p, ev, t) : { x: t.baseX, y: t.baseY - Math.floor((t.fig.box.y1 - t.fig.box.y0 + 1) * 0.5) };
-        this.impact(p, imp, t, at, ev, first ? effect : 'spark', weight, depthOf(t));
+        this.landed.push({ target: t.id, x: at.x, y: at.y, clock: this.clock });
+        if (this.landed.length > 60) this.landed.shift();
+        this.impact(p, imp, t, at, ev, first ? effect : 'spark', weight, depthOf(t), peak);
         first = false;
       }
     } else if (p.primary || p.script.targets.length) {
@@ -390,11 +543,16 @@ export class Performer {
       for (const t of targets) {
         const at = this.contactPoint(p, ev, t);
         this.picture(p, effect, at, weight, depthOf(t), t);
-        if (effect !== 'heal' && effect !== 'none' && t !== p.actor && !t.down) this.startReaction(t, this.moves.reactions.hurt, false, ev?.shake ? 1 : 0);
+        if (effect !== 'heal' && effect !== 'none' && t !== p.actor && !t.down) this.startReaction(t, this.moves.reactions.hurt, false, ev?.shake ? 1 : 0, peak);
       }
     }
     if (real.length > 0 || (!wave && ev)) {
-      if (ev?.stop) this.pause = Math.max(this.pause, ev.stop);
+      if (ev?.stop) {
+        this.pause = Math.max(this.pause, ev.stop);
+        this.pauseTotal = this.pause;
+        // The first frozen picture is drawn now, not a tick late.
+        for (const r of this.reactions) this.freezeLook(r);
+      }
       if (ev?.shake) this.fx.shake(ev.shake, 6);
     }
     this.pushView(p);
@@ -406,17 +564,17 @@ export class Performer {
     const colour = effect === 'heal' ? UI.green : effect === 'blow' ? UI.cyan : '#ffffff';
     this.fx.glow(at.x, at.y, colour, depth, heavy);
     if (effect && effect !== 'heal' && effect !== 'none') {
-      this.fx.blow(at.x, at.y, effect, p.facing, depth + 1);
+      this.fx.blow(at.x, at.y, effect, p.facing, depth + 1, heavy);
       this.fx.shards(at.x, at.y, p.facing, heavy, (this.clock * 31 + t.uid * 17 + (t.side === 'enemy' ? 7 : 0)) >>> 0, depth + 2);
     }
   }
 
   /** One impact on one fighter. */
-  private impact(p: Playing, imp: Impact, t: Fighter, at: { x: number; y: number }, ev: HitEvent | null, effect: HitEvent['effect'], weight: 'light' | 'heavy', depth: number): void {
+  private impact(p: Playing, imp: Impact, t: Fighter, at: { x: number; y: number }, ev: HitEvent | null, effect: HitEvent['effect'], weight: 'light' | 'heavy', depth: number, peak: number): void {
     const flow = this.flow;
     if (imp.kind === 'miss') {
       this.startReaction(t, this.moves.reactions.dodge, false, 0);
-      this.number(t, 'MISS', UI.dim, null, 1);
+      this.number(t, 'MISS', UI.dim, null, 1, at);
       return;
     }
     // The displayed numbers catch up with the blow.
@@ -424,17 +582,18 @@ export class Performer {
     applyEvent(flow.disp, synthetic);
     if (imp.kind === 'heal') {
       this.picture(p, 'heal', at, 'light', depth, t);
-      this.number(t, String(imp.amount), UI.green, imp.crit ? 'GREAT' : null, 2);
+      this.number(t, String(imp.amount), UI.green, imp.crit ? 'GREAT' : null, 2, at);
       return;
     }
     this.picture(p, imp.kind === 'tick' ? 'spark' : effect, at, weight, depth, t);
     const shake = imp.kind === 'damage' ? (ev?.shake ?? 0) : 0;
     if (imp.down) {
       applyEvent(flow.disp, { t: 'down', target: imp.target });
-      this.startReaction(t, t.side === 'party' ? this.moves.reactions.downHero : this.moves.reactions.down, true, shake);
-    } else this.startReaction(t, this.moves.reactions.hurt, false, shake);
+      this.startReaction(t, t.side === 'party' ? this.moves.reactions.downHero : this.moves.reactions.down, true, shake, peak);
+    } else this.startReaction(t, this.moves.reactions.hurt, false, shake, peak);
     const label = imp.crit ? 'CRIT' : imp.weak ? 'WEAK' : null;
-    this.number(t, String(imp.amount), imp.crit ? UI.amber : imp.kind === 'tick' ? UI.violet : '#ffffff', label, imp.kind === 'tick' ? 1 : 2);
+    // A critical or weak hit is a bigger number (3x) than an ordinary one (2x).
+    this.number(t, String(imp.amount), imp.crit ? UI.amber : imp.kind === 'tick' ? UI.violet : '#ffffff', label, imp.kind === 'tick' ? 1 : imp.crit || imp.weak ? 3 : 2, at);
     if (imp.kind === 'damage' && p.actor?.side === 'party') {
       this.comboHits++;
       this.comboTotal += imp.amount;
@@ -444,21 +603,25 @@ export class Performer {
     this.log.push(`${t.name}: ${imp.kind} ${imp.amount}${imp.crit ? ' (crit)' : ''} -> ${imp.hp}${imp.down ? ' (down)' : ''}`);
   }
 
-  /** A floating number over a fighter, stacking above an earlier one that is still showing. */
-  private number(t: Fighter, text: string, colour: string, label: string | null, scale: number): void {
+  /**
+   * A floating number for a fighter, stacking above an earlier one that is still showing. A HERO's number floats over the hero's
+   * head (where the player looks to see who was hurt); an ENEMY's rises from the point the blow landed, so a number on a tall boss
+   * is next to the blade and not up by its head or off at its edge.
+   */
+  private number(t: Fighter, text: string, colour: string, label: string | null, scale: number, at: { x: number; y: number }): void {
     const g = this.scene.figureGeo(t);
     const last = this.numbers.get(t.id);
     const stack = last && this.clock - last.at < 40 ? last.stack + 1 : 0;
     this.numbers.set(t.id, { at: this.clock, stack });
-    let nx = g.x;
-    let ny = Math.max(36, g.top - 20 - stack * 10);
-    if (g.top - 20 < 54 && stack === 0) {
-      // A tall target whose head is under the banner: beside its upper body, on the side the blow comes from.
-      nx = g.left - 12;
-      ny = g.top + 16;
-    }
+    const height = 7 * scale;
+    let nx = t.side === 'party' ? g.x : at.x;
+    let ny = t.side === 'party' ? g.top - height - 8 - stack * 12 : at.y - height - 22 - stack * 12;
+    // Never over the timeline and banner at the top, nor off the sides, and never lower than the target's own feet.
+    ny = Math.max(50, Math.min(g.y - 8, ny));
     nx = Math.max(16, Math.min(464, nx));
     this.fx.number(nx, ny, text, colour, label, scale);
+    this.numberLog.push({ target: t.id, text, x: nx, y: ny });
+    if (this.numberLog.length > 60) this.numberLog.shift();
   }
 
   // ---------------------------------------------------------------- telling the HUD
@@ -466,10 +629,10 @@ export class Performer {
   /** The combo counter as the HUD draws it, or null before the round's first party hit. */
   actView(p: Playing | null): ActView | null {
     // The counter is the PARTY's: it shows through the heroes' actions and goes away while an enemy acts.
-    if (this.comboHits === 0 || (p && p.script.actor >= 10)) return null;
+    if (this.comboHits === 0 || (p && this.flow.slotOf(p.script.actor) >= 10)) return null;
     const target = p?.primary;
     return {
-      attacker: p?.script.actor ?? 0,
+      attacker: p ? this.flow.slotOf(p.script.actor) : 0,
       target: target && target.side === 'enemy' ? this.scene.fighters.filter((f) => f.side === 'enemy').indexOf(target) : 0,
       skillName: p?.script.name ?? '',
       fx: 'cut',
@@ -488,7 +651,7 @@ export class Performer {
     this.flow.setPlaying(
       p
         ? {
-            actor: p.script.actor,
+            actor: this.flow.slotOf(p.script.actor),
             targetFoe: target && target.side === 'enemy' ? this.scene.fighters.filter((f) => f.side === 'enemy').indexOf(target) : null,
             banner: p.banner,
             act: this.actView(p),

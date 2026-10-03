@@ -44,6 +44,7 @@ import { queueStrikeArt, registerStills, STRIKE_ART, type StillInfo } from './st
 import { loadMoves, type MoveFile } from './moves';
 import movesJson from '../data/moves.json';
 import { cutSheet } from './feet';
+import { kneelRaw } from './kneel';
 import { drawCut, drawPalm, drawPath, drawSparks, newFxLayer } from './fx';
 import { Hud, type HudFaces, type HudGeo } from './hud';
 import { enemyIdle, idleFrame, type IdleKind } from './idle';
@@ -54,6 +55,7 @@ import {
   faceTexture,
   type FigureArt,
   flashTexture,
+  tintTexture,
   hazedTexture,
   type CrewInfo,
   PREFIX,
@@ -62,8 +64,10 @@ import {
   registerCrew,
   ringTexture,
   type SheetMeta,
+  addCanvasOnce,
   addStandInSheets,
   crisp,
+  rawToCanvas,
   readTexture,
   shadowTexture,
   sheetKey,
@@ -142,6 +146,9 @@ export interface Fighter {
   active: boolean;
   target: boolean;
   flash: boolean;
+  /** How strong the white flash is while `flash` is on (0 to 1; four visible steps), and the red wash over the picture (0 to 1). */
+  flashAmt: number;
+  tintAmt: number;
   /** The draw-order number now. */
   depth: number;
   /** The picture a move put on this fighter (one of Rook's strike stills), or null for its own idle picture. */
@@ -422,7 +429,7 @@ export class StageScene extends Phaser.Scene {
     sprite.setData('fighterId', id);
     const f: Fighter = {
       id, side, name, boss, sprite, shadow, ring, home, bar, slot, baseX: 0, baseY: 0, x: 0, y: 0, bodyDx: 0, axisKey, measured: fig, sortY: 0, idle, uid, baseTex, fig, faceName, shadowW: 0,
-      active: false, target: false, flash: false, depth: 0,
+      active: false, target: false, flash: false, flashAmt: 1, tintAmt: 0, depth: 0,
       still: null, offX: 0, offY: 0, alpha: 1, down: false, cellW: sprite.width, cellH: sprite.height, shown: '',
     };
     this.applyAxis(f);
@@ -693,6 +700,71 @@ export class StageScene extends Phaser.Scene {
     return this.geoOf(f);
   }
 
+  /**
+   * The picture of a fallen hero (`$down` in the move file): the hero's own idle drawing with rows taken out of the legs
+   * (see `kneel.ts`), made once. It stands on the same feet as the idle cell, so the sprite's origin is the idle's.
+   */
+  downStill(f: Fighter): StillInfo {
+    const key = `still-down-${f.id}`;
+    if (!this.textures.exists(key)) {
+      const raw = kneelRaw(f.measured.raw, f.measured.box, f.side === 'party' ? 1 : -1);
+      addCanvasOnce(this.textures, key, rawToCanvas(raw));
+    }
+    return { texture: key, w: f.measured.raw.w, h: f.measured.raw.h, axisX: f.measured.foot.x, axisY: f.measured.foot.y };
+  }
+
+  /**
+   * A summon: more enemies join the fight. They take the slots of the enemy group that is as big as the new total (so the
+   * boss keeps its place and the newcomers stand where the stage's designer put them), and are returned in the order the
+   * engine numbered them. Their health bars and HUD chips follow because the fight's view lists them.
+   */
+  addEnemies(keys: readonly string[]): Fighter[] {
+    const have = this.fighters.filter((f) => f.side === 'enemy');
+    const total = have.length + keys.length;
+    const bossFirst = !!ENEMIES[this.enemyKeys[0] ?? '']?.boss;
+    const wanted = this.stage.enemySets[setKeyFor(total, bossFirst)] ?? this.stage.enemySets[this.setKey] ?? [];
+    const copies = new Map<string, number>();
+    for (const f of have) copies.set(f.axisKey, (copies.get(f.axisKey) ?? 0) + 1);
+    const out: Fighter[] = [];
+    keys.forEach((key, i) => {
+      const def = ENEMIES[key];
+      const slot = wanted[have.length + i] ?? wanted[wanted.length - 1] ?? have[have.length - 1]?.slot;
+      if (!def || !slot) throw new Error(`Cannot summon "${key}": unknown enemy or no slot for it`);
+      const copy = copies.get(def.sprite) ?? 0;
+      copies.set(def.sprite, copy + 1);
+      const tex = addEnemy(this.textures, def.sprite, copy);
+      const sprite = this.add.sprite(0, 0, tex.key);
+      const f = this.makeFighter(`${key}#${have.length + i}`, 'enemy', def.name, !!def.boss, sprite, { ...slot }, tex.idle, have.length + i, tex.key, tex.fig, `${def.sprite}-${copy}`, def.sprite);
+      this.enemyKeys.push(key);
+      this.place(f, f.slot);
+      out.push(f);
+    });
+    return out;
+  }
+
+  /** A boss phase change: this enemy is now another one (the Warden's mech shell breaks and the spirit inside is loose). Same place, new picture, name and bar. */
+  transformEnemy(f: Fighter, key: string): void {
+    const def = ENEMIES[key];
+    if (!def) throw new Error(`Cannot become "${key}": unknown enemy`);
+    const tex = addEnemy(this.textures, def.sprite, 0);
+    f.name = def.name;
+    f.boss = f.boss || !!def.boss;
+    f.baseTex = tex.key;
+    f.measured = tex.fig;
+    f.idle = tex.idle;
+    f.faceName = `${def.sprite}-0`;
+    f.axisKey = def.sprite;
+    f.cellW = tex.width;
+    f.cellH = tex.height;
+    f.shown = '';
+    f.sprite.setData('fighterId', `${key}#${f.uid}`);
+    f.id = `${key}#${f.uid}`;
+    const at = this.fighters.filter((x) => x.side === 'enemy').indexOf(f);
+    if (at >= 0) this.enemyKeys[at] = key;
+    this.applyAxis(f);
+    this.restyle(f);
+  }
+
   /** The move file (checked once) and Rook's stills (built on first use: the pixel work is not paid by pages that never battle). */
   battleAssets(): { moves: MoveFile; stills: Record<string, StillInfo> } {
     if (!this.moveTable) {
@@ -715,8 +787,14 @@ export class StageScene extends Phaser.Scene {
    * has to read pixels back from the graphics card on the very tick it lands.
    */
   prebake(): void {
-    for (const f of this.fighters) flashTexture(this.textures, f.baseTex);
-    for (const s of Object.values(this.stillTable ?? {})) flashTexture(this.textures, s.texture);
+    // Every strength of flash a fade passes through (the red wash a hero gets is baked on first use: it depends on the row's haze).
+    for (const f of this.fighters) {
+      for (const level of [1, 0.75, 0.5, 0.25]) flashTexture(this.textures, f.baseTex, level);
+    }
+    for (const s of Object.values(this.stillTable ?? {})) {
+      for (const level of [1, 0.75, 0.5, 0.25]) flashTexture(this.textures, s.texture, level);
+    }
+    for (const f of this.fighters) if (f.side === 'party') this.downStill(f);
   }
 
   /** Start showing a live battle's view (null goes back to the lab's example turn). */
@@ -725,6 +803,17 @@ export class StageScene extends Phaser.Scene {
     this.live = hook;
     if (!view) this.refresh();
     else this.refreshLive();
+  }
+
+  /**
+   * Leave the live battle: the enemies go back to the group the test started with (a summon added some, a boss phase changed
+   * one), and the lab's own example turn is shown again.
+   */
+  endLive(keys: readonly string[], setKey: string): void {
+    this.live = null;
+    this.liveView = null;
+    this.makeEnemies(keys, setKey);
+    this.refresh();
   }
 
   /** The effects picture of an action in progress, as part of the attacker's figure (it sorts with it: just over its body). */
@@ -768,11 +857,15 @@ export class StageScene extends Phaser.Scene {
     // (While a move shows one of its stills, that picture takes the place of the fighter's own, with the same haze and flash.)
     const base = f.still ? f.still.texture : f.baseTex;
     let tex = base;
-    if (f.flash) tex = flashTexture(this.textures, base);
+    if (f.flash) tex = flashTexture(this.textures, base, f.flashAmt);
     else if (f.down && f.side === 'party') tex = hazedTexture(this.textures, base, '#1a1d33', 0.55);
-    else if (st.depthTint) {
-      const amount = st.depthTint.exemptActive && (f.active || f.target) ? 0 : (st.depthTint.amounts[f.slot.row] ?? 0);
-      tex = hazedTexture(this.textures, base, st.depthTint.fog, amount);
+    else {
+      if (st.depthTint) {
+        const amount = st.depthTint.exemptActive && (f.active || f.target) ? 0 : (st.depthTint.amounts[f.slot.row] ?? 0);
+        tex = hazedTexture(this.textures, base, st.depthTint.fog, amount);
+      }
+      // A red wash over a hero who has just been hit.
+      if (f.tintAmt > 0) tex = tintTexture(this.textures, tex, f.tintAmt);
     }
     // A hero's idle picture is one cell of a sheet, so say which; a still or an enemy's art is a single picture.
     const frame = f.still || !f.sheet ? undefined : idleFrame(this.worldFrame, f.sheet.fps, f.sheet.count, f.sheet.phase);

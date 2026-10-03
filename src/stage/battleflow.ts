@@ -43,6 +43,14 @@ export interface Disp {
   tp: number;
   status: StatusState[];
   down: boolean;
+  /**
+   * Which form the player has seen: an enemy's key, name and top health. A boss phase change (the Warden's shell breaks
+   * and the spirit inside is loose) swaps these in the ENGINE at once, but the stage should keep the old name and bar
+   * until the picture changes too.
+   */
+  key: string;
+  name: string;
+  maxHp: number;
 }
 
 /** One thing that lands on one fighter. */
@@ -74,6 +82,10 @@ export interface ActionScript {
   targets: number[];
   /** Impacts grouped into waves, in order. */
   waves: Impact[][];
+  /** New enemies the action calls in (uids, one list per summon), shown when the performer reaches the cast's release. */
+  summons: number[][];
+  /** Bosses that change form: who, and the key and name of what they become. */
+  phases: Array<{ target: number; key: string; name: string }>;
   /** Events that apply when the action starts (a resource paid) and when it ends (statuses, rewards, messages). */
   before: BattleEvent[];
   after: BattleEvent[];
@@ -84,7 +96,7 @@ export interface ActionScript {
 
 /** Sort one action's events (declared and landed) into a script. */
 export function makeScript(events: readonly BattleEvent[], battle?: Battle): ActionScript {
-  const s: ActionScript = { actor: -1, actors: [], abilityId: '', name: '', fx: '', kind: 'end', targets: [], waves: [], before: [], after: [], messages: [], combo: false };
+  const s: ActionScript = { actor: -1, actors: [], abilityId: '', name: '', fx: '', kind: 'end', targets: [], waves: [], summons: [], phases: [], before: [], after: [], messages: [], combo: false };
   let wave: Impact[] = [];
   const flush = (): void => {
     if (wave.length) s.waves.push(wave);
@@ -143,6 +155,12 @@ export function makeScript(events: readonly BattleEvent[], battle?: Battle): Act
         s.after.push(e);
         break;
       case 'turn':
+        break;
+      case 'summon':
+        s.summons.push([...e.uids]);
+        break;
+      case 'phase':
+        s.phases.push({ target: e.target, key: e.key, name: e.name });
         break;
       default:
         s.after.push(e);
@@ -209,11 +227,19 @@ export interface FlowSetup {
   seed: number;
   /** Start every fighter at full resource (KI, RAM, MANA, skill uses). The party is built at full health either way. */
   fullResources: boolean;
+  /** Test one move: this hero uses this ability on every round (the others guard), so a designer can watch it without playing a whole menu turn. */
+  drill?: Drill | null;
+}
+
+/** "Test one move": the party slot (0 to 3) and the ability (`attack` or a skill id). */
+export interface Drill {
+  slot: number;
+  ability: string;
 }
 
 /** What a performer needs to say to the HUD while an action plays. */
 export interface PlayInfo {
-  /** The acting fighter's uid. */
+  /** The acting fighter, as a stage number (`BattleFlow.slotOf`). */
   actor: number;
   /** The lead target's index among the sides' lists (a foe index for an enemy target, a party index for an ally). */
   targetFoe: number | null;
@@ -268,7 +294,10 @@ export class BattleFlow {
   // ---------------------------------------------------------------- displayed state
 
   private syncAll(): void {
-    for (const u of this.battle.units) this.disp.set(u.uid, { hp: u.hp, tp: u.tp, status: u.status.map((s) => ({ ...s })), down: u.hp <= 0 });
+    for (const u of this.battle.units) {
+      // A summoned enemy the performer has not shown yet is not on screen, and its form stays as it was.
+      this.disp.set(u.uid, { hp: u.hp, tp: u.tp, status: u.status.map((s) => ({ ...s })), down: u.hp <= 0, key: u.key, name: u.name, maxHp: u.base.maxHp });
+    }
   }
 
   /** Make what is shown match the engine (after an action's events have all been shown). */
@@ -279,7 +308,36 @@ export class BattleFlow {
   /** A copy of a combatant showing what the player has seen (the HUD builders read a `Combatant`). */
   seen(c: Combatant): Combatant {
     const d = this.disp.get(c.uid);
-    return d ? { ...c, hp: d.hp, tp: d.tp, status: d.status } : c;
+    return d ? { ...c, key: d.key, name: d.name, base: { ...c.base, maxHp: d.maxHp }, hp: d.hp, tp: d.tp, status: d.status } : c;
+  }
+
+  /** Enemies that exist in the engine but have not been shown yet (called in by a summon), by uid. */
+  readonly hidden = new Set<number>();
+
+  /** The performer has drawn these summoned enemies: they now count in the HUD. */
+  reveal(uids: readonly number[]): void {
+    for (const u of uids) {
+      this.hidden.delete(u);
+      const c = this.battle.unit(u);
+      if (c) this.disp.set(u, { hp: c.hp, tp: c.tp, status: c.status.map((s) => ({ ...s })), down: c.hp <= 0, key: c.key, name: c.name, maxHp: c.base.maxHp });
+    }
+  }
+
+  /** The performer has changed a boss's picture: its name, key and top health on the HUD change with it. */
+  showForm(uid: number): void {
+    const c = this.battle.unit(uid);
+    const d = this.disp.get(uid);
+    if (c && d) {
+      d.key = c.key;
+      d.name = c.name;
+      d.maxHp = c.base.maxHp;
+      d.hp = c.hp;
+    }
+  }
+
+  /** The enemies the HUD lists: the engine's, without the summons still to arrive. */
+  private shownFoes(): Combatant[] {
+    return this.battle.enemies.filter((c) => !this.hidden.has(c.uid));
   }
 
   get party(): readonly Combatant[] {
@@ -428,10 +486,28 @@ export class BattleFlow {
     return this.mode !== 'playing' && this.mode !== 'over' && this.ordersDone;
   }
 
-  /** Orders for every hero who has none: Attack the first living enemy, and on every other round the first skill they can afford. */
+  /** The drill's order for a hero: the chosen ability on its natural target, or an Attack when it cannot be paid for. Everyone else guards. */
+  private drillOrder(hero: Combatant): Command {
+    const drill = this.setup.drill;
+    if (!drill || hero.uid !== drill.slot) return { actor: hero.uid, type: 'guard' };
+    const foe = this.battle.alive('enemy')[0];
+    if (drill.ability === 'attack') return { actor: hero.uid, type: 'attack', target: foe?.uid ?? -1 };
+    const sk = this.skillList(hero.uid).find((x) => x.id === drill.ability);
+    const ab = ABILITIES[drill.ability] as Ability | undefined;
+    if (!sk || !sk.ok || !ab) return { actor: hero.uid, type: 'attack', target: foe?.uid ?? -1 };
+    const cands = this.candidates(ab);
+    const target = ab.target === 'enemy' ? (foe?.uid ?? -1) : cands === null ? -1 : (cands.find((u) => u === hero.uid) ?? cands[0] ?? -1);
+    return { actor: hero.uid, type: ab.kind === 'tech' ? 'tech' : 'skill', id: ab.id, target };
+  }
+
+  /** Orders for every hero who has none: Attack the first living enemy, and on every other round the first skill they can afford (or the drill's move). */
   autoOrders(): void {
     for (const hero of this.aliveHeroes()) {
       if (this.orders.some((o) => o.actor === hero.uid)) continue;
+      if (this.setup.drill) {
+        this.orders.push(this.drillOrder(hero));
+        continue;
+      }
       const foe = this.battle.alive('enemy')[0];
       const sk = this.skillList(hero.uid).find((s) => s.ok && (ABILITIES[s.id] as Ability).target === 'enemy');
       if (sk && this.rounds % 2 === 1 && foe) {
@@ -464,7 +540,10 @@ export class BattleFlow {
       return s.waves.length || s.after.length ? s : null;
     }
     const landed = this.battle.land('none');
-    return makeScript([...step.events, ...landed], this.battle);
+    const script = makeScript([...step.events, ...landed], this.battle);
+    // The engine already has the new fighters; the stage will not show them until the cast's release, so the HUD holds them back.
+    for (const uids of script.summons) for (const u of uids) this.hidden.add(u);
+    return script;
   }
 
   /** Called when an action has been shown completely: the display catches up with the engine, and the fight may be over. */
@@ -490,16 +569,27 @@ export class BattleFlow {
 
   // ---------------------------------------------------------------- the HUD's view
 
-  /** The uids of the order the turn timeline shows (a hero's turn first). */
+  /**
+   * The stage's number for a fighter, which is what the HUD and the performer use: a hero is 0 to 3, an enemy is 10 plus its
+   * place in the engine's list of enemies. The engine's own uids agree for the opening enemies (10, 11, 12) but a SUMMONED
+   * enemy gets uid 100 and up, so "uid minus 10" no longer finds its figure; this does.
+   */
+  slotOf(uid: number): number {
+    if (uid < 10) return uid;
+    const at = this.battle.enemies.findIndex((c) => c.uid === uid);
+    return at >= 0 ? 10 + at : uid;
+  }
+
+  /** The uids of the order the turn timeline shows (a hero's turn first), as stage numbers (see `slotOf`). */
   private timelineOrder(): number[] {
     const flat = (lists: readonly (readonly number[])[]): number[] => {
       const seen = new Set<number>();
       const out: number[] = [];
       for (const actors of lists)
         for (const u of actors) {
-          if (seen.has(u) || this.disp.get(u)?.down) continue;
+          if (seen.has(u) || this.disp.get(u)?.down || this.hidden.has(u)) continue;
           seen.add(u);
-          out.push(u);
+          out.push(this.slotOf(u));
         }
       return out;
     };
@@ -511,7 +601,7 @@ export class BattleFlow {
   /** The HUD's view of this moment. */
   view(): HudView {
     const party = this.battle.party.map((c) => memberView(this.seen(c)));
-    const foes = foeViews(this.battle.enemies.map((c) => this.seen(c)));
+    const foes = foeViews(this.shownFoes().map((c) => this.seen(c)));
     const order = this.timelineOrder();
     const playing = this.mode === 'playing' || this.mode === 'over';
     const lead = playing && this.playing ? this.playing.actor : this.hero;
@@ -542,7 +632,7 @@ export class BattleFlow {
       foes,
       turns,
       active: this.hero,
-      target: aimsAtFoe && aimedUid !== null ? aimedUid - 10 : null,
+      target: aimsAtFoe && aimedUid !== null ? this.slotOf(aimedUid) - 10 : null,
       allyTarget: aim && !aimsAtFoe && aimedUid !== null ? aimedUid : null,
       command: aim ? { label: aim.ab.name, cost: costText(hero as Combatant, aim.ab.id), selected: aim.type === 'attack' ? 'attack' : 'skill' } : this.commandView(),
       banner: aim ? `${name}: pick ${aimsAtFoe ? 'a target' : 'an ally'}` : this.message || null,
@@ -565,6 +655,8 @@ export interface LoadoutStats {
   mnd: number;
   agi: number;
   skills: string[];
+  /** The same skills with their ids (the "Test one move" picker needs them). */
+  moves: Array<{ id: string; name: string }>;
 }
 
 /** Stats for the party member at `index` of `demo.party`, worked out by `memberStats` with the story flags the demo names. */
@@ -589,6 +681,9 @@ export function loadoutStats(demo: StageDemo, index: number): LoadoutStats | nul
       skills: knownAbilities(m)
         .filter((id) => ABILITIES[id]?.kind === 'tech' || ABILITIES[id]?.kind === 'skill')
         .map((id) => ABILITIES[id]?.name ?? id),
+      moves: knownAbilities(m)
+        .filter((id) => ABILITIES[id]?.kind === 'tech' || ABILITIES[id]?.kind === 'skill')
+        .map((id) => ({ id, name: ABILITIES[id]?.name ?? id })),
     };
   });
 }
@@ -601,6 +696,8 @@ export interface BattleTestOptions {
   party: DemoMember[];
   /** The enemies (keys of `ENEMIES`) standing in the stage's slot set for that many (the first a boss for a boss set). */
   roster: string[];
+  /** Test one move on every round instead of giving orders (the fight plays itself). */
+  drill?: Drill | null;
   /** Which slot set: "3", "boss+1"... */
   setKey: string;
   seed: number;

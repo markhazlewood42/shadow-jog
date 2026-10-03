@@ -11,6 +11,7 @@
  */
 import { expect, type Page, test } from '@playwright/test';
 import { dropScratch, flush, openEditor, scratchName } from './stageeditkit';
+import { HAVE_SPRITES } from './stagelabkit';
 
 let scratch = '';
 test.beforeEach(() => {
@@ -21,6 +22,8 @@ test.afterEach(() => dropScratch(scratch));
 /** The orders for one test: Kit, Hex and Sable guard; Rook attacks the first foe. */
 interface Opts {
   setKey: string;
+  /** The enemies, when not the stage's own for that group (they must be as many as the group has slots). */
+  roster?: string[];
   seed: number;
   auto?: boolean;
 }
@@ -31,7 +34,7 @@ async function startFight(page: Page, o: Opts): Promise<void> {
     const e = window.__stageedit;
     if (!e) throw new Error('no editor');
     const st = e.session.stage;
-    e.startBattle({ party: st.demo.party, roster: st.demo.rosters[opts.setKey] ?? [], setKey: opts.setKey, seed: opts.seed, fullResources: true, speed: 1, auto: !!opts.auto });
+    e.startBattle({ party: st.demo.party, roster: opts.roster ?? st.demo.rosters[opts.setKey] ?? [], setKey: opts.setKey, seed: opts.seed, fullResources: true, speed: 1, auto: !!opts.auto });
     const scene = window.__stagelab?.scene();
     if (scene) scene.speed = 0;
   }, o);
@@ -350,93 +353,556 @@ test('the keyboard drives the orders: arrows choose, Enter confirms, Backspace s
 });
 
 // ---------------------------------------------------------------------------------------------------------------
+// Round 2: the blade meets the body, the run goes in front of the crew, a hit reads as a hit on a hero, a fallen hero kneels,
+// summons and boss phases are drawn, the dialog picks the troop, and everything also works with the stand-in art CI draws.
+// ---------------------------------------------------------------------------------------------------------------
+
+/** The conditions a test can step the fight toward (named, so no code is built from strings). */
+type Until = 'hit' | 'hitSettled' | 'heroDown' | 'quiet' | 'summoned' | 'formChanged' | 'twoRounds';
+
+/** Step the fight until the condition holds (or `max` ticks), inside the page; returns how many ticks it took. */
+async function stepUntil(page: Page, until: Until, max = 6000): Promise<number> {
+  return page.evaluate(
+    ([name, limit]) => {
+      const scene = window.__stagelab?.scene();
+      const bt = window.__stageedit?.battle();
+      if (!scene || !bt) throw new Error('no battle');
+      const done = (): boolean => {
+        switch (name) {
+          case 'hit':
+            return bt.perf.landed.length > 0;
+          case 'hitSettled':
+            return bt.perf.pause === 0 && bt.perf.fxCount > 4;
+          case 'heroDown':
+            return scene.fighters.some((f) => f.side === 'party' && f.down);
+          case 'quiet':
+            return !bt.perf.busy;
+          case 'summoned':
+            return bt.perf.log.some((l) => l.includes('joins the fight'));
+          case 'formChanged':
+            return bt.perf.log.some((l) => l.includes('changes form'));
+          case 'twoRounds':
+            return bt.status().round >= 3 || (bt.status().round >= 2 && bt.flow.mode === 'command');
+          default:
+            return true;
+        }
+      };
+      let n = 0;
+      while (!done() && n < limit) {
+        scene.step(1);
+        n++;
+      }
+      return n;
+    },
+    [until, max] as const,
+  );
+}
+
+for (const standIns of [false, true]) {
+  const art = standIns ? 'stand-in art (what CI draws)' : 'Mark’s art';
+
+  test(`the blade meets the body with ${art}: the contact point is inside the target’s silhouette, on the weapon’s tip, not at its bounding box`, async ({ page }) => {
+    test.skip(!standIns && !HAVE_SPRITES, 'Mark’s Sprite Fusion folder is not on this machine (CI): the stand-in run covers this');
+    const { errors } = await openEditor(page, scratch, standIns ? '&standins=1' : '');
+    expect(await page.evaluate(() => window.__stagelab?.standIns)).toBe(standIns);
+    await startFight(page, { setKey: 'boss', seed: 8 });
+    await rookAttacks(page);
+    await stepUntil(page, 'hit');
+    const r = await page.evaluate(() => {
+      const scene = window.__stagelab?.scene();
+      const bt = window.__stageedit?.battle();
+      if (!scene || !bt) throw new Error('no battle');
+      const rook = scene.fighters.filter((f) => f.side === 'party')[1];
+      const foe = scene.fighters.filter((f) => f.side === 'enemy')[0];
+      const hit = bt.perf.landed[0];
+      if (!rook || !foe || !hit) throw new Error('no hit');
+      const raw = foe.fig.raw;
+      const col = Math.round(foe.fig.foot.x + hit.x - foe.baseX);
+      const row = Math.round(foe.fig.foot.y + hit.y - foe.baseY);
+      const alpha = raw.px[(row * raw.w + col) * 4 + 3] ?? 0;
+      const boxEdge = foe.baseX + (foe.fig.box.x0 - foe.fig.foot.x);
+      return { hitX: hit.x, hitY: hit.y, tipX: rook.x + 58, alpha, boxEdge, rookY: rook.y, footY: foe.baseY };
+    });
+    // The spark is on the blade's tip (58 px in front of Rook's feet) and that point is solid body, not air between a boss's pods and legs.
+    expect(Math.abs(r.hitX - r.tipX)).toBeLessThanOrEqual(1);
+    expect(r.alpha).toBeGreaterThan(64);
+    // The Warden's leg is well inside its bounding box (the shoulder pods stick out): the old rule would have stopped Rook at the box.
+    expect(r.hitX).toBeGreaterThan(r.boxEdge + 8);
+    // And the blow is low, at the blade, not at the chest.
+    expect(r.hitY).toBeGreaterThan(r.footY - 14);
+    // Play on: the health went down by the engine's number and nothing was written to the console.
+    await stepUntil(page, 'hitSettled', 200);
+    const hp = await status(page);
+    expect(hp?.foes[0]?.hp).toBeLessThan(hp?.foes[0]?.maxHp ?? 0);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('Rook runs in front of his crew on the way out and the way home, never through them', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  await startFight(page, { setKey: 'boss', seed: 8 });
+  await rookAttacks(page);
+  await untilMove(page, 'rook-strike');
+  const t = await page.evaluate(() => {
+    const scene = window.__stagelab?.scene();
+    if (!scene) throw new Error('no scene');
+    const party = scene.fighters.filter((f) => f.side === 'party');
+    const [kit, rook, hex, sable] = party;
+    if (!kit || !rook || !hex || !sable) throw new Error('no party');
+    const rows: Array<{ x: number; y: number; sort: number; ticks: number }> = [];
+    for (let i = 0; i < 140; i++) {
+      scene.step(1);
+      rows.push({ x: rook.x, y: rook.y, sort: rook.sortY, ticks: i });
+    }
+    return { rows, hexX: hex.baseX, sableX: sable.baseX, hexY: hex.baseY, kitY: kit.baseY, home: { x: rook.baseX, y: rook.baseY } };
+  });
+  // While he is level with Hex and Sable (and not yet at the end of the swerve), he is on the front lane, below their feet, and drawn in front of them.
+  const passing = t.rows.filter((r) => r.x > t.hexX - 10 && r.x < t.sableX + 10 && r.ticks > 4 && r.ticks < 130);
+  expect(passing.length).toBeGreaterThan(3);
+  for (const r of passing.slice(0, passing.length - 3)) {
+    expect(r.y, `at x ${r.x}`).toBeGreaterThanOrEqual(t.hexY + 22);
+    expect(r.sort).toBeGreaterThan(t.hexY);
+  }
+  // He covers both ways: out, and back.
+  const out = t.rows.filter((r) => r.x > t.hexX && r.x < t.sableX && r.ticks < 60).length;
+  const back = t.rows.filter((r) => r.x > t.hexX && r.x < t.sableX && r.ticks >= 60).length;
+  expect(out).toBeGreaterThan(0);
+  expect(back).toBeGreaterThan(0);
+  // He ends exactly at home.
+  expect(t.rows[t.rows.length - 1]).toMatchObject({ x: t.home.x, y: t.home.y });
+  expect(errors).toEqual([]);
+});
+
+test('a hit on a hero reads as a hit: a fading flash, a red wash that fades, a flinch back, and the number over the hero’s head', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  await startFight(page, { setKey: '3', seed: 8, auto: true });
+  const r = await page.evaluate(() => {
+    const scene = window.__stagelab?.scene();
+    const bt = window.__stageedit?.battle();
+    if (!scene || !bt) throw new Error('no battle');
+    const heroes = scene.fighters.filter((f) => f.side === 'party');
+    const foe = scene.fighters.filter((f) => f.side === 'enemy')[0];
+    let hero: (typeof heroes)[number] | undefined;
+    const flash: number[] = [];
+    const tint: number[] = [];
+    let offMax = 0;
+    for (let i = 0; i < 5000; i++) {
+      scene.step(1);
+      hero = hero ?? heroes.find((h) => h.flash && bt.perf.pause > 0);
+      if (hero) {
+        flash.push(hero.flash ? hero.flashAmt : 0);
+        tint.push(hero.tintAmt);
+        offMax = Math.min(offMax, hero.offX);
+        if (!hero.flash && flash.length > 6 && tint[tint.length - 1] === 0) break;
+      }
+    }
+    if (!hero) throw new Error('no hero was hit');
+    const g = scene.figureGeo(hero);
+    const num = bt.perf.numberLog.filter((n) => n.target === hero?.id).pop();
+    return { flash, tint, offMax, num, top: g.top, hx: hero.x, foeTint: foe?.tintAmt ?? -1 };
+  });
+  // The flash starts strong and fades; it is not one flat frame.
+  expect(r.flash[0]).toBeGreaterThan(0.4);
+  expect(Math.min(...r.flash)).toBeLessThan(r.flash[0] ?? 0);
+  for (let i = 1; i < r.flash.length; i++) expect(r.flash[i]).toBeLessThanOrEqual((r.flash[i - 1] ?? 0) + 1e-9);
+  // A red wash is on the hero while the flash is up, and fades to nothing.
+  expect(Math.max(...r.tint)).toBeGreaterThan(0.2);
+  expect(r.tint[r.tint.length - 1]).toBe(0);
+  // Shoved back (to the left, away from the enemies).
+  expect(r.offMax).toBeLessThanOrEqual(-3);
+  // The number floats over the hero's head, not in the gap between heroes.
+  expect(r.num).toBeTruthy();
+  expect(r.num?.y ?? 999).toBeLessThan(r.top);
+  expect(Math.abs((r.num?.x ?? 999) - r.hx)).toBeLessThan(12);
+  // Enemies are never washed red.
+  expect(r.foeTint).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('a hero who is knocked out kneels (made from the hero’s own idle) and stays down, dimmed', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  await startFight(page, { setKey: '3', seed: 8, auto: true });
+  await page.evaluate(() => {
+    const bt = window.__stageedit?.battle();
+    if (!bt) throw new Error('no battle');
+    for (const h of bt.flow.battle.party) h.hp = 1;
+    bt.flow.sync();
+  });
+  await stepUntil(page, 'heroDown', 8000);
+  await stepUntil(page, 'quiet', 600);
+  await page.evaluate((n) => window.__stagelab?.scene()?.step(n), 30);
+  const r = await page.evaluate(() => {
+    const scene = window.__stagelab?.scene();
+    if (!scene) throw new Error('no scene');
+    const h = scene.fighters.find((f) => f.side === 'party' && f.down);
+    if (!h) throw new Error('nobody is down');
+    const standing = h.fig.box.y1 - h.fig.box.y0 + 1;
+    const key = h.still?.texture ?? '';
+    const tex = scene.textures.get(key);
+    return { key, down: h.down, shownKey: h.sprite.texture.key, tint: h.tintAmt, texH: tex?.getSourceImage().height ?? 0, standing };
+  });
+  expect(r.down).toBe(true);
+  expect(r.key).toMatch(/^still-down-/);
+  expect(r.shownKey).toContain(r.key); // dimmed copy of the kneel
+  expect(errors).toEqual([]);
+});
+
+test('a summon draws the new enemies, a boss phase swaps the picture, and the HUD follows each only when the stage does', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  await startFight(page, { setKey: 'boss', seed: 8, auto: true });
+  await page.evaluate(() => {
+    const bt = window.__stageedit?.battle();
+    if (!bt) throw new Error('no battle');
+    const w = bt.flow.battle.enemies[0];
+    if (w) w.hp = Math.floor(w.base.maxHp * 0.6);
+    bt.flow.sync();
+  });
+  // The Warden deploys drones: the HUD lists one foe until they arrive, then three... up to the engine's cap.
+  const before = await page.evaluate(() => window.__stagelab?.scene()?.fighters.filter((f) => f.side === 'enemy').length);
+  expect(before).toBe(1);
+  await stepUntil(page, 'summoned', 8000);
+  const during = await page.evaluate(() => {
+    const scene = window.__stagelab?.scene();
+    const bt = window.__stageedit?.battle();
+    if (!scene || !bt) throw new Error('no battle');
+    const foes = scene.fighters.filter((f) => f.side === 'enemy');
+    return { drawn: foes.length, hud: scene.currentView.foes.length, engine: bt.flow.battle.enemies.length, names: foes.map((f) => f.name), alpha: foes.map((f) => f.alpha) };
+  });
+  expect(during.drawn).toBeGreaterThan(1);
+  expect(during.hud).toBe(during.drawn);
+  expect(during.engine).toBe(during.drawn);
+  expect(during.names).toContain('Hunter Drone');
+  expect(during.alpha[0]).toBe(1); // the Warden stays; the newcomer is fading in
+  expect(Math.min(...during.alpha)).toBeLessThan(1);
+  await stepUntil(page, 'quiet', 600);
+  const settled = await page.evaluate(() => window.__stagelab?.scene()?.fighters.filter((f) => f.side === 'enemy').every((f) => f.alpha === 1 && !f.flash));
+  expect(settled).toBe(true);
+
+  // The shell breaks: the next blow that takes its last health makes the Warden the Unbound Warden, picture and name and bar.
+  const phase = await page.evaluate(() => {
+    const scene = window.__stagelab?.scene();
+    const bt = window.__stageedit?.battle();
+    if (!scene || !bt) throw new Error('no battle');
+    const foe = scene.fighters.filter((f) => f.side === 'enemy')[0];
+    if (!foe) throw new Error('no foe');
+    const w = bt.flow.battle.enemies[0];
+    const texBefore = foe.baseTex;
+    const nameBefore = foe.name;
+    if (w) w.hp = 5;
+    bt.flow.sync();
+    let sawOldNameWhileMorphing = false;
+    for (let i = 0; i < 9000 && !bt.perf.log.some((l) => l.includes('changes form')); i++) {
+      scene.step(1);
+      if (scene.currentView.foes[0]?.name === nameBefore) sawOldNameWhileMorphing = true;
+    }
+    for (let i = 0; i < 80; i++) scene.step(1);
+    return { texBefore, texAfter: foe.baseTex, nameAfter: foe.name, hudName: scene.currentView.foes[0]?.name, sawOldName: sawOldNameWhileMorphing, flash: foe.flash, enemyKeys: [...scene.enemies] };
+  });
+  expect(phase.texAfter).not.toBe(phase.texBefore);
+  expect(phase.nameAfter).toBe('Unbound Warden');
+  expect(phase.hudName).toBe('Unbound Warden');
+  expect(phase.sawOldName).toBe(true);
+  expect(phase.flash).toBe(false);
+  expect(phase.enemyKeys[0]).toBe('warden_spirit');
+  // Leaving the test puts the editor's own group back (a summon added enemies, a phase changed one).
+  await page.evaluate(() => window.__stageedit?.stopBattle());
+  await flush(page);
+  const back = await page.evaluate(() => ({ keys: [...(window.__stagelab?.scene()?.enemies ?? [])], n: window.__stagelab?.scene()?.fighters.filter((f) => f.side === 'enemy').length }));
+  expect(back).toEqual({ keys: ['rustfang_punk', 'glowrat', 'rustfang_punk'], n: 3 });
+  expect(errors).toEqual([]);
+});
+
+test('the dialog picks the troop from the stage’s groups, shows whether the stage is edited, and tests one move on its own', async ({ page }) => {
+  const { errors } = await openEditor(page, scratch);
+  await page.locator('#b-test').click();
+  let dlg = page.getByRole('dialog', { name: 'Battle Test' });
+  await expect(dlg.getByTestId('bt-badge')).toHaveText('Saved');
+  // The troop is a picker over the stage's own groups, and the chips follow it.
+  const sel = dlg.getByTestId('bt-troop-select');
+  expect(await sel.locator('option').count()).toBeGreaterThanOrEqual(9);
+  await sel.selectOption('boss+1');
+  await expect(dlg.getByTestId('bt-troop')).toContainText('WARDEN');
+  await expect(dlg.getByTestId('bt-troop')).toContainText('Rustfang Punk');
+  // Test one move: Rook's Arc Cut, every round, nobody else acts.
+  await dlg.getByTestId('bt-drill').selectOption({ label: 'Rook: Arc Cut' });
+  await dlg.getByRole('button', { name: 'Start' }).click();
+  await expect(dlg).toHaveCount(0);
+  await page.evaluate(() => {
+    const scene = window.__stagelab?.scene();
+    if (scene) scene.speed = 0;
+  });
+  const foes = await page.evaluate(() => window.__stagelab?.scene()?.fighters.filter((f) => f.side === 'enemy').length);
+  expect(foes).toBe(2);
+  await stepUntil(page, 'twoRounds', 8000);
+  const log = await page.evaluate(() => window.__stageedit?.battle()?.perf.log ?? []);
+  expect(log.some((l) => l.startsWith('Rook Arc Cut'))).toBe(true);
+  // None of the heroes' own plain attacks were ordered by anyone but Rook's drill.
+  expect(log.filter((l) => /^(Kit|Hex|Sable) /.test(l) && !l.includes('Guard'))).toEqual([]);
+  await page.keyboard.press('Escape');
+  // The badge says so when the stage has unsaved changes.
+  await page.evaluate(() => {
+    const e = window.__stageedit;
+    if (!e) return;
+    e.session.edit('Note it', (d) => {
+      const s = d.stages[e.session.stageId];
+      if (s) s.note = 'Edited for the test.';
+    });
+    e.flush();
+  });
+  await page.locator('#b-test').click();
+  dlg = page.getByRole('dialog', { name: 'Battle Test' });
+  await expect(dlg.getByTestId('bt-badge')).toHaveText(/Edited/);
+  await dlg.getByRole('button', { name: 'Cancel' }).click();
+  expect(errors).toEqual([]);
+});
+
+for (const standIns of [false, true]) {
+  test(`every picture in moves.json is a real picture on the stage with ${standIns ? 'the stand-in art CI draws' : 'Mark’s art'}`, async ({ page }) => {
+    test.skip(!standIns && !HAVE_SPRITES, 'Mark’s Sprite Fusion folder is not on this machine (CI): the stand-in run covers this');
+    const { errors } = await openEditor(page, scratch, standIns ? '&standins=1' : '');
+    expect(await page.evaluate(() => window.__stagelab?.standIns)).toBe(standIns);
+    await startFight(page, { setKey: '3', seed: 8 });
+    const r = await page.evaluate(() => {
+      const scene = window.__stagelab?.scene();
+      if (!scene) throw new Error('no scene');
+      const { moves, stills } = scene.battleAssets();
+      const empty: string[] = [];
+      const missing: string[] = [];
+      let checked = 0;
+      for (const [id, m] of Object.entries(moves.moves)) {
+        for (const [i, f] of m.frames.entries()) {
+          if (f.still === '$idle' || f.still === '$down') continue;
+          const info = stills[f.still];
+          if (!info) {
+            missing.push(`${id} frame ${i + 1}: ${f.still}`);
+            continue;
+          }
+          checked++;
+          const canvas = scene.textures.get(info.texture).getSourceImage() as HTMLCanvasElement;
+          const ctx = canvas.getContext('2d');
+          const data = ctx?.getImageData(0, 0, canvas.width, canvas.height).data;
+          let solid = 0;
+          if (data) for (let p = 3; p < data.length; p += 4) if ((data[p] ?? 0) > 0) solid++;
+          if (solid < 200) empty.push(`${f.still} has ${solid} pixels`);
+        }
+      }
+      return { checked, empty: [...new Set(empty)], missing };
+    });
+    expect(r.missing).toEqual([]);
+    expect(r.empty).toEqual([]);
+    expect(r.checked).toBeGreaterThan(40);
+    expect(errors).toEqual([]);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // The judges' and Mark's pictures. Skipped unless BATTLETEST_MEDIA names a folder; the frames of the animation go to
-// BATTLETEST_FRAMES (a folder in the OS temp area) for `scripts`-free assembly into an APNG and a GIF afterwards.
+// BATTLETEST_FRAMES (a folder in the OS temp area) for assembly into an APNG and a GIF afterwards. BATTLETEST_ROUND
+// names the files (`p4-battle-r<round>-<name>.png`); BATTLETEST_ONLY runs one group (rook, kit, hero, summon, dialog, standins).
 // ---------------------------------------------------------------------------------------------------------------
 const MEDIA = process.env.BATTLETEST_MEDIA;
 const FRAMES = process.env.BATTLETEST_FRAMES;
+const ROUND = process.env.BATTLETEST_ROUND ?? '2';
+const ONLY = process.env.BATTLETEST_ONLY;
+const want = (group: string): boolean => !ONLY || ONLY.split(',').includes(group);
 
-test('the pictures of round 1 (only when BATTLETEST_MEDIA is set)', async ({ page }) => {
+/** Play until a move of this id has begun (its first tick comes on the next step). */
+async function untilMove(page: Page, id: string): Promise<void> {
+  await page.evaluate((move) => {
+    const scene = window.__stagelab?.scene();
+    const bt = window.__stageedit?.battle();
+    if (!scene || !bt) throw new Error('no battle');
+    let n = 0;
+    while (!bt.perf.log.some((l) => l.includes(move)) && n++ < 4000) scene.step(1);
+  }, id);
+}
+
+test('the pictures of the round (only when BATTLETEST_MEDIA is set)', async ({ page }) => {
   test.skip(!MEDIA, 'set BATTLETEST_MEDIA to a folder to write the pictures');
   const out = MEDIA as string;
   const { errors } = await openEditor(page, scratch);
   const canvas = page.locator('#stage canvas');
   const shot = async (name: string): Promise<void> => {
     await flush(page);
-    await canvas.screenshot({ path: `${out}/p4-battle-r1-${name}.png` });
+    await canvas.screenshot({ path: `${out}/p4-battle-r${ROUND}-${name}.png` });
   };
   const stepN = (n: number): Promise<void> => page.evaluate((k) => window.__stagelab?.scene()?.step(k), n);
 
-  // 1. The dialog, as RPG Maker's: party tabs, status, troop, options.
-  await page.locator('#b-test').click();
-  const dlg = page.getByRole('dialog', { name: 'Battle Test' });
-  await dlg.getByRole('tab').nth(1).click();
-  await flush(page);
-  await page.screenshot({ path: `${out}/p4-battle-r1-dialog.png` });
-  await dlg.getByRole('button', { name: 'Cancel' }).click();
+  // 1. The dialog, as RPG Maker's: party tabs, status, troop picker, "test one move", options.
+  if (want('dialog')) {
+    await page.evaluate(() => {
+      const e = window.__stageedit;
+      if (!e) return;
+      e.session.edit('Note the test', (d) => {
+        const s = d.stages[e.session.stageId];
+        if (s) s.note = 'Trying the boss group with Rook’s Arc Cut.';
+      });
+      e.flush();
+    });
+    await page.locator('#b-test').click();
+    const dlg = page.getByRole('dialog', { name: 'Battle Test' });
+    await dlg.getByRole('tab').nth(1).click();
+    await dlg.getByTestId('bt-troop-select').selectOption('boss+1');
+    await dlg.getByTestId('bt-drill').selectOption({ label: 'Rook: Arc Cut' });
+    await flush(page);
+    await page.screenshot({ path: `${out}/p4-battle-r${ROUND}-dialog.png` });
+    await dlg.getByRole('button', { name: 'Cancel' }).click();
+    await page.evaluate(() => window.__stageedit?.session.undo());
+  }
 
   // 2. Rook's strike on the Warden, with the menus first.
-  await startFight(page, { setKey: 'boss', seed: 8 });
-  await shot('menu-2x');
-  await rookAttacks(page);
-  await page.evaluate(() => {
-    const scene = window.__stagelab?.scene();
-    const bt = window.__stageedit?.battle();
-    if (!scene || !bt) throw new Error('no battle');
-    let n = 0;
-    while (!bt.perf.log.some((l) => l.includes('rook-strike')) && n++ < 3000) scene.step(1);
-  });
-  // The frame sequence of the animation: every 3rd tick (20 pictures a second, exactly 50 ms each) from a few ticks before the dip.
-  const marks: Record<number, string> = { 20: 'windup-2x', 32: 'swing-2x', 36: 'impact-2x', 52: 'follow-2x' };
-  let tick = 0;
-  let idx = 0;
-  if (FRAMES) await shotAt(page, `${FRAMES}/f${String(idx++).padStart(3, '0')}.png`);
-  while (tick < 100) {
-    await stepN(1);
-    tick++;
-    if (marks[tick]) await shot(marks[tick] as string);
-    if (FRAMES && tick % 3 === 0) await shotAt(page, `${FRAMES}/f${String(idx++).padStart(3, '0')}.png`);
+  if (want('rook')) {
+    await startFight(page, { setKey: 'boss', seed: 8 });
+    await shot('menu-2x');
+    await rookAttacks(page);
+    await untilMove(page, 'rook-strike');
+    // The loop's tick n is the move's tick n-1. Every 3rd tick is a picture of the animation (20 a second, 50 ms each).
+    const marks: Record<number, string> = { 4: 'ready-2x', 10: 'dip-2x', 21: 'dash-2x', 30: 'swing-2x', 36: 'impact-2x', 54: 'follow-2x', 62: 'return-2x' };
+    let tick = 0;
+    let idx = 0;
+    if (FRAMES) await shotAt(page, `${FRAMES}/f${String(idx++).padStart(3, '0')}.png`);
+    while (tick < 110) {
+      await stepN(1);
+      tick++;
+      if (marks[tick]) await shot(marks[tick] as string);
+      if (FRAMES && tick % 3 === 0) await shotAt(page, `${FRAMES}/f${String(idx++).padStart(3, '0')}.png`);
+    }
+    await page.evaluate(() => window.__stageedit?.stopBattle());
   }
-  await page.evaluate(() => window.__stageedit?.stopBattle());
 
-  // 3. A hero flinching: the first enemy blow that lands during an auto-played fight.
-  await startFight(page, { setKey: '3', seed: 8, auto: true });
-  const found = await page.evaluate(() => {
-    const scene = window.__stagelab?.scene();
-    const bt = window.__stageedit?.battle();
-    if (!scene || !bt) throw new Error('no battle');
-    const heroes = scene.fighters.filter((f) => f.side === 'party');
-    for (let i = 0; i < 4000; i++) {
-      scene.step(1);
-      if (bt.perf.pause > 0 && heroes.some((h) => h.flash)) return true;
-    }
-    return false;
-  });
-  expect(found).toBe(true);
-  await shot('hurt-2x');
-  await page.evaluate(() => window.__stageedit?.stopBattle());
+  // 3. Heroes hurt: the first enemy blow that lands, then a hero knocked out (the heroes are put on 1 health so the picture does not wait for luck).
+  if (want('hero')) {
+    await startFight(page, { setKey: '3', seed: 8, auto: true });
+    const found = await page.evaluate(() => {
+      const scene = window.__stagelab?.scene();
+      const bt = window.__stageedit?.battle();
+      if (!scene || !bt) throw new Error('no battle');
+      const heroes = scene.fighters.filter((f) => f.side === 'party');
+      for (let i = 0; i < 4000; i++) {
+        scene.step(1);
+        if (bt.perf.pause > 0 && heroes.some((h) => h.flash)) return true;
+      }
+      return false;
+    });
+    expect(found).toBe(true);
+    await shot('hurt-2x');
+    await stepN(10);
+    await shot('hurt-after-2x');
+    await page.evaluate(() => window.__stageedit?.stopBattle());
 
-  // 4. Kit's jab, cross and kick: the kick lands (tick 51 of her move).
+    await startFight(page, { setKey: '3', seed: 8, auto: true });
+    await page.evaluate(() => {
+      const scene = window.__stagelab?.scene();
+      const bt = window.__stageedit?.battle();
+      if (!scene || !bt) throw new Error('no battle');
+      for (const h of bt.flow.battle.party) h.hp = 1;
+      bt.flow.sync();
+      const heroes = scene.fighters.filter((f) => f.side === 'party');
+      for (let i = 0; i < 6000 && !heroes.some((h) => h.down); i++) scene.step(1);
+      for (let i = 0; i < 40; i++) scene.step(1);
+    });
+    await shot('ko-2x');
+    await page.evaluate(() => window.__stageedit?.stopBattle());
+  }
+
+  // 4. Kit's jab, cross and kick on the Warden, and her crouching combo on a Glowrat.
+  if (want('kit')) {
+    await startFight(page, { setKey: 'boss', seed: 8 });
+    await page.evaluate(() => {
+      const bt = window.__stageedit?.battle();
+      if (!bt) throw new Error('no battle');
+      bt.press('ok');
+      bt.press('ok'); // Kit: Attack
+      for (let i = 0; i < 3; i++) {
+        bt.press('left');
+        bt.press('ok'); // the others guard
+      }
+    });
+    await untilMove(page, 'kit-punch');
+    await stepN(24);
+    await shot('kit-jab-2x');
+    await stepN(11);
+    await shot('kit-cross-2x');
+    await stepN(21);
+    await shot('kit-kick-2x');
+    await page.evaluate(() => window.__stageedit?.stopBattle());
+
+    await startFight(page, { setKey: '1', roster: ['glowrat'], seed: 8 });
+    await page.evaluate(() => {
+      const bt = window.__stageedit?.battle();
+      if (!bt) throw new Error('no battle');
+      bt.press('ok');
+      bt.press('ok'); // the Glowrat, the only foe
+      for (let i = 0; i < 3; i++) {
+        bt.press('left');
+        bt.press('ok');
+      }
+    });
+    await untilMove(page, 'kit-punch-low');
+    await stepN(24);
+    await shot('kit-low-jab-2x');
+    await stepN(32);
+    await shot('kit-low-kick-2x');
+    await page.evaluate(() => window.__stageedit?.stopBattle());
+  }
+
+  // 5. A summon and a boss phase change on the Warden.
+  if (want('summon')) {
+    await startFight(page, { setKey: 'boss', seed: 8, auto: true });
+    await page.evaluate(() => {
+      const bt = window.__stageedit?.battle();
+      if (!bt) throw new Error('no battle');
+      // Under 70% health the Warden deploys its drones on its next turn.
+      const w = bt.flow.battle.enemies[0];
+      if (w) w.hp = Math.floor(w.base.maxHp * 0.6);
+      bt.flow.sync();
+    });
+    await page.evaluate(() => {
+      const scene = window.__stagelab?.scene();
+      const bt = window.__stageedit?.battle();
+      if (!scene || !bt) throw new Error('no battle');
+      for (let i = 0; i < 6000 && !bt.perf.log.some((l) => l.includes('joins the fight')); i++) scene.step(1);
+      for (let i = 0; i < 6; i++) scene.step(1);
+    });
+    await shot('summon-arrive-2x');
+    await stepN(24);
+    await shot('summon-2x');
+    // The shell breaks: a blow that takes the last health.
+    await page.evaluate(() => {
+      const scene = window.__stagelab?.scene();
+      const bt = window.__stageedit?.battle();
+      if (!scene || !bt) throw new Error('no battle');
+      const w = bt.flow.battle.enemies[0];
+      if (w) w.hp = 5;
+      bt.flow.sync();
+      for (let i = 0; i < 8000 && !bt.perf.log.some((l) => l.includes('changes form')); i++) scene.step(1);
+    });
+    await shot('phase-2x');
+    await stepN(40);
+    await shot('phase-after-2x');
+    await page.evaluate(() => window.__stageedit?.stopBattle());
+  }
+  expect(errors).toEqual([]);
+});
+
+test('the pictures with the stand-in art that CI draws (only when BATTLETEST_MEDIA is set)', async ({ page }) => {
+  test.skip(!MEDIA || !want('standins'), 'set BATTLETEST_MEDIA to a folder to write the pictures');
+  const out = MEDIA as string;
+  const { errors } = await openEditor(page, scratch, '&standins=1');
+  expect(await page.evaluate(() => window.__stagelab?.standIns)).toBe(true);
+  const shot = async (name: string): Promise<void> => {
+    await flush(page);
+    await page.locator('#stage canvas').screenshot({ path: `${out}/p4-battle-r${ROUND}-standins-${name}.png` });
+  };
   await startFight(page, { setKey: 'boss', seed: 8 });
-  await page.evaluate(() => {
-    const scene = window.__stagelab?.scene();
-    const bt = window.__stageedit?.battle();
-    if (!scene || !bt) throw new Error('no battle');
-    bt.press('ok');
-    bt.press('ok'); // Kit: Attack
-    for (let i = 0; i < 3; i++) {
-      bt.press('left');
-      bt.press('ok'); // the others guard
-    }
-    let n = 0;
-    while (!bt.perf.log.some((l) => l.includes('kit-punch')) && n++ < 3000) scene.step(1);
-    for (let i = 0; i < 24; i++) scene.step(1);
-  });
-  await shot('kit-jab-2x');
-  await stepN(12);
-  await shot('kit-cross-2x');
-  await stepN(24);
-  await shot('kit-kick-2x');
+  await rookAttacks(page);
+  await untilMove(page, 'rook-strike');
+  await page.evaluate((n) => window.__stagelab?.scene()?.step(n), 21);
+  await shot('dash-2x');
+  await page.evaluate((n) => window.__stagelab?.scene()?.step(n), 15);
+  await shot('impact-2x');
+  await page.evaluate((n) => window.__stagelab?.scene()?.step(n), 50);
+  await shot('home-2x');
   expect(errors).toEqual([]);
 });
 

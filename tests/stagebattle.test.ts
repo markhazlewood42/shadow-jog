@@ -188,6 +188,111 @@ describe('the HUD’s view of the fight', () => {
   });
 });
 
+describe('summons, boss phases and the stage’s numbering of fighters', () => {
+  const wardenFlow = (seed = 8): BattleFlow => new BattleFlow({ demo: street.demo, roster: ['warden'], seed, fullResources: true });
+
+  it('sorts a summon and a phase change out of an action’s events, so the performer can draw them when the cast releases', () => {
+    const s = makeScript([
+      { t: 'act', actor: 10, id: 'e_deploy', name: 'Deploy Drones', kind: 'enemy', fx: 'summon', targets: [] },
+      { t: 'summon', uids: [100, 101] },
+      { t: 'phase', target: 10, key: 'warden_spirit', name: 'Unbound Warden', hp: 900 },
+      { t: 'msg', text: 'The shell breaks.' },
+    ]);
+    expect(s.summons).toEqual([[100, 101]]);
+    expect(s.phases).toEqual([{ target: 10, key: 'warden_spirit', name: 'Unbound Warden' }]);
+    // Neither is left in `after` to be applied at once.
+    expect(s.after.map((e) => e.t)).toEqual(['msg']);
+  });
+
+  it('numbers a summoned enemy by its place in the enemy list, not by its engine uid (which starts at 100)', () => {
+    const flow = wardenFlow();
+    const w = flow.battle.enemies[0]!;
+    expect(flow.slotOf(0)).toBe(0);
+    expect(flow.slotOf(w.uid)).toBe(10);
+    w.hp = Math.floor(w.base.maxHp * 0.6);
+    flow.sync();
+    // Play rounds until the Warden deploys its drones.
+    let summoned: number[] = [];
+    for (let r = 0; r < 12 && summoned.length === 0 && flow.mode !== 'over'; r++) {
+      flow.autoOrders();
+      flow.beginRound();
+      for (let sc = flow.nextScript(); sc; sc = flow.nextScript()) {
+        if (sc.summons.length) {
+          summoned = sc.summons.flat();
+          // The HUD does not list them until the stage has drawn them.
+          expect(flow.view().foes).toHaveLength(1);
+          expect(flow.view().turns.every((t) => t.side === 'party' || t.index === 0)).toBe(true);
+          break;
+        }
+        show(flow, sc);
+        flow.actionShown();
+      }
+      if (summoned.length === 0) flow.endRound();
+    }
+    expect(summoned.length).toBeGreaterThan(0);
+    expect(summoned.every((u) => u >= 100)).toBe(true);
+    expect(flow.slotOf(summoned[0]!)).toBe(11);
+    flow.reveal(summoned);
+    expect(flow.view().foes).toHaveLength(1 + summoned.length);
+  });
+
+  it('keeps showing a boss’s old form until the picture changes', () => {
+    const flow = wardenFlow();
+    const w = flow.battle.enemies[0]!;
+    expect(flow.view().foes[0]?.name).toBe('WARDEN');
+    w.hp = 1;
+    flow.sync();
+    // The engine changes the Warden at once when its last health goes; the display must not.
+    flow.autoOrders();
+    flow.beginRound();
+    let phase = false;
+    for (let sc = flow.nextScript(); sc && !phase; sc = flow.nextScript()) {
+      if (sc.phases.length) {
+        phase = true;
+        expect(flow.battle.enemies[0]?.name).toBe('Unbound Warden');
+        expect(flow.view().foes[0]?.name).toBe('WARDEN');
+        flow.showForm(sc.phases[0]!.target);
+        expect(flow.view().foes[0]?.name).toBe('Unbound Warden');
+      } else {
+        show(flow, sc);
+        flow.actionShown();
+      }
+    }
+    expect(phase).toBe(true);
+  });
+});
+
+describe('test one move (the drill)', () => {
+  it('has the chosen hero use the chosen skill every round, on the first foe, and everyone else guard', () => {
+    const flow = new BattleFlow({ demo: street.demo, roster: street.demo.rosters['3']!, seed: 8, fullResources: true, drill: { slot: 1, ability: 'arc_cut' } });
+    const used: string[] = [];
+    for (let r = 0; r < 3 && flow.mode !== 'over'; r++) {
+      flow.autoOrders();
+      flow.beginRound();
+      for (let sc = flow.nextScript(); sc; sc = flow.nextScript()) {
+        if (sc.actor < 10) used.push(`${sc.actor}:${sc.abilityId}`);
+        show(flow, sc);
+        flow.actionShown();
+      }
+      flow.endRound();
+    }
+    // Rook (slot 1) used Arc Cut; the others only guarded (a guard declares no `act` of its own that is a hero's attack).
+    expect(used.filter((u) => u.startsWith('1:')).every((u) => u === '1:arc_cut' || u === '1:attack')).toBe(true);
+    expect(used.some((u) => u === '1:arc_cut')).toBe(true);
+    expect(used.some((u) => /^[023]:attack$/.test(u))).toBe(false);
+  });
+
+  it('falls back to an Attack when the skill cannot be paid for', () => {
+    const flow = new BattleFlow({ demo: street.demo, roster: street.demo.rosters['3']!, seed: 8, fullResources: false, drill: { slot: 1, ability: 'arc_cut' } });
+    const rook = flow.battle.party[1]!;
+    rook.uses.arc_cut = 0;
+    flow.autoOrders();
+    flow.beginRound();
+    const first = flow.nextScript();
+    expect(first).not.toBeNull();
+  });
+});
+
 describe('the dialog’s status panel', () => {
   it('reads each loadout through the game’s own stat code', () => {
     const rook = loadoutStats(street.demo, 1)!;

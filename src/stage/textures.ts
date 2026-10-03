@@ -435,8 +435,21 @@ export function hazedTexture(textures: Phaser.Textures.TextureManager, baseKey: 
 }
 
 /** The texture of `baseKey` as a near-white silhouette that keeps its dark outline: one frame of a hit flash. */
-export function flashTexture(textures: Phaser.Textures.TextureManager, baseKey: string): string {
-  return variantOf(textures, baseKey, `flash-${baseKey}`, (c) => (lum(c) >= 40 ? mix(c, [255, 255, 255], 0.85) : c));
+export function flashTexture(textures: Phaser.Textures.TextureManager, baseKey: string, strength = 1): string {
+  // Four steps are enough to read as a fade (and bound the number of baked copies): 1 (the full flash), 0.75, 0.5, 0.25.
+  const step = Math.max(1, Math.min(4, Math.round(strength * 4)));
+  if (step === 4) return variantOf(textures, baseKey, `flash-${baseKey}`, (c) => (lum(c) >= 40 ? mix(c, [255, 255, 255], 0.85) : c));
+  const amount = 0.85 * (step / 4);
+  return variantOf(textures, baseKey, `flash${step}-${baseKey}`, (c) => (lum(c) >= 40 ? mix(c, [255, 255, 255], amount) : c));
+}
+
+/** The texture of `baseKey` washed with red by `strength` (0 to 1), in steps of a quarter: a hero who has just been hit. */
+export function tintTexture(textures: Phaser.Textures.TextureManager, baseKey: string, strength: number, color = '#ff3b3b'): string {
+  const step = Math.round(Math.max(0, Math.min(1, strength)) * 4);
+  if (step <= 0) return baseKey;
+  const rgb = hexRgb(color);
+  // Even the full wash keeps the shading (it is a 0.5 mix at most), so the figure is red, not a flat red shape.
+  return variantOf(textures, baseKey, `tint${step}-${color.slice(1)}-${baseKey}`, (c) => (lum(c) >= 30 ? mix(c, rgb, 0.5 * (step / 4)) : c));
 }
 
 // ------------------------------------------------------------------ shadows, rings, faces, effects

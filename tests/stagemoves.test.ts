@@ -19,6 +19,7 @@ describe('the shipped move file', () => {
       const end = sampleMove(c, c.length - 1).lunge;
       expect(Math.abs(end.x), m.id).toBeLessThan(1e-9);
       expect(Math.abs(end.z), m.id).toBeLessThan(1e-9);
+      expect(Math.abs(end.sw), m.id).toBeLessThan(1e-9);
     }
   });
 
@@ -50,35 +51,83 @@ describe('Kit’s combo as data', () => {
   });
 });
 
+describe('Kit’s combos in the data (standing and crouching)', () => {
+  const standing = compileMove(file.moves['kit-punch']!);
+  const crouching = compileMove(file.moves['kit-punch-low']!);
+  it('every blow says where the fist is, and the three blows flash harder one after another', () => {
+    expect(standing.hits.map((h) => h.event.contact?.dx)).toEqual([32, 33, 36]);
+    expect(standing.hits.map((h) => h.event.flash)).toEqual([0.45, 0.7, 1]);
+    // Only the finisher whites the target out completely.
+    expect(standing.hits.slice(0, 2).every((h) => (h.event.flash ?? 1) < 1)).toBe(true);
+  });
+  it('the crouching combo has the same hit ticks and length as the standing one, with the fist at knee height', () => {
+    expect(crouching.length).toBe(standing.length);
+    expect(crouching.hits.map((h) => h.tick)).toEqual(standing.hits.map((h) => h.tick));
+    for (const h of crouching.hits) expect(h.event.contact?.dy).toBeGreaterThan(-35);
+    for (const h of standing.hits) expect(h.event.contact?.dy).toBeLessThan(-35);
+  });
+  it('picks the crouching combo for a target under 40 px (a Glowrat is 33, a drone 38) and the standing one for anything taller or of unknown height', () => {
+    const base = { side: 'party' as const, ability: 'attack', fx: 'punch', kind: 'attack', spread: false, actor: 'kit' };
+    expect(pickMove(file, { ...base, targetHeight: 24 })).toBe('kit-punch-low');
+    expect(pickMove(file, { ...base, targetHeight: 38 })).toBe('kit-punch-low');
+    expect(pickMove(file, { ...base, targetHeight: 40 })).toBe('kit-punch');
+    expect(pickMove(file, { ...base, targetHeight: 120 })).toBe('kit-punch');
+    expect(pickMove(file, base)).toBe('kit-punch');
+  });
+});
+
 describe('Rook’s strike as data', () => {
-  it('runs the frames Mark drew in the order the side-view spike timed them', () => {
+  it('runs the frames Mark drew in the order the side-view spike timed them (with the overhead held through the dash)', () => {
     const stills = file.moves['rook-strike']!.frames.map((f) => f.still);
-    expect(stills).toEqual(['$idle', 'rook.dip', 'rook.riseA', 'rook.rise', 'rook.windup', 'rook.smearA', 'rook.mid', 'rook.smearB', 'rook.swingB', 'rook.followFade', 'rook.follow', 'rook.recover', '$idle', '$idle']);
+    expect(stills).toEqual(['$idle', 'rook.dip', 'rook.riseA', 'rook.rise', 'rook.windup', 'rook.windup', 'rook.windup', 'rook.smearA', 'rook.mid', 'rook.smearB', 'rook.swingB', 'rook.followFade', 'rook.follow', 'rook.recover', '$idle', '$idle']);
   });
 
-  it('is 69 ticks long with one hit on tick 33, and its frame data is startup 33, active 1, recovery 35', () => {
-    expect(strike.length).toBe(69);
+  it('is 61 ticks long with one hit on tick 33, and its frame data is startup 33, active 1, recovery 27', () => {
+    expect(strike.length).toBe(61);
     expect(strike.hits.map((h) => h.tick)).toEqual([33]);
     const d = frameData(strike);
-    expect(d).toEqual({ startup: 33, active: 1, recovery: 35, total: 69 + 7, stop: 7 });
+    expect(d).toEqual({ startup: 33, active: 1, recovery: 27, total: 61 + 7, stop: 7 });
   });
 
-  it('is on the swing-B frame when the blade lands, having covered the whole reach', () => {
+  it('holds the crouch for 8 ticks, long enough to read (round 1 had 5)', () => {
+    const dip = file.moves['rook-strike']!.frames.find((f) => f.still === 'rook.dip');
+    expect(dip?.hold).toBeGreaterThanOrEqual(8);
+  });
+
+  it('is on the swing-B frame when the blade lands, having covered the whole reach and closed onto the target’s row', () => {
     const s = sampleMove(strike, 33);
     expect(s.still).toBe('rook.swingB');
     expect(s.lunge.x).toBeCloseTo(1, 9);
     expect(s.lunge.z).toBeCloseTo(1, 9);
+    expect(s.lunge.sw).toBeCloseTo(0, 9);
     expect(s.front).toBe(true);
   });
 
-  it('winds up (dips back a little) before it lunges, then goes out at a steady pace per frame', () => {
+  it('makes the dash with the sword raised: most of the distance is covered BEFORE the first swing frame', () => {
+    const swingStart = strike.starts[file.moves['rook-strike']!.frames.findIndex((f) => f.still === 'rook.smearA')]!;
+    const before = sampleMove(strike, swingStart - 1).lunge.x;
+    expect(before).toBeGreaterThan(0.55);
+    // And the four swing frames cover the rest, so the blade is not swinging through empty air while the body travels.
+    expect(1 - before).toBeLessThan(0.45);
+  });
+
+  it('coils back a little before it goes, then only moves forward until the hit', () => {
     const path = lungePath(strike);
-    // The coil: the fighter is a little behind home before the swing starts.
-    expect(Math.min(...path.slice(0, 23).map((p) => p.x))).toBeLessThan(-0.04);
-    // After the swing starts it only moves forward until the hit.
-    for (let t = 24; t <= 33; t++) expect(path[t]!.x).toBeGreaterThan(path[t - 1]!.x);
-    // And the first swing tick is no more than a quarter of the reach: no teleport.
-    for (let t = 1; t < path.length; t++) expect(Math.abs(path[t]!.x - path[t - 1]!.x)).toBeLessThan(0.16);
+    expect(Math.min(...path.slice(0, 11).map((p) => p.x))).toBeLessThan(-0.02);
+    for (let t = 11; t <= 33; t++) expect(path[t]!.x).toBeGreaterThan(path[t - 1]!.x - 1e-9);
+    for (let t = 1; t < path.length; t++) expect(Math.abs(path[t]!.x - path[t - 1]!.x)).toBeLessThan(0.1);
+  });
+
+  it('swerves out to the front lane during the dash and back onto the target’s row for the blow, then again on the way home', () => {
+    const path = lungePath(strike);
+    const peak = Math.max(...path.slice(0, 34).map((p) => p.sw));
+    expect(peak).toBeCloseTo(1, 9);
+    expect(path[33]!.sw).toBeCloseTo(0, 9);
+    // The way home goes back out to the lane (past the crew) and is home at the end.
+    expect(Math.max(...path.slice(34).map((p) => p.sw))).toBeGreaterThan(0.9);
+    expect(path[path.length - 1]!.sw).toBeCloseTo(0, 9);
+    // The swerve never leaves the lane while Rook is level with his crewmates (the first third of the way out).
+    expect(path[20]!.sw).toBeGreaterThan(0.6);
   });
 
   it('moves the same distance each tick inside a frame (a constant-rate dash)', () => {
@@ -88,15 +137,15 @@ describe('Rook’s strike as data', () => {
     expect(b - a).toBeCloseTo(c - b, 9);
   });
 
-  it('puts the cues on the ticks the data says', () => {
+  it('puts the cues on the ticks the data says, with the blade tip as the contact point', () => {
     expect(eventsAt(strike, 33).hits).toHaveLength(1);
     expect(eventsAt(strike, 32).hits).toHaveLength(0);
-    expect(eventsAt(strike, 33).hits[0]).toMatchObject({ stop: 7, effect: 'cut', weight: 'heavy' });
+    expect(eventsAt(strike, 33).hits[0]).toMatchObject({ stop: 7, effect: 'cut', weight: 'heavy', contact: { dx: 58, dy: -5 } });
   });
 
   it('answers any tick, including past the end', () => {
     expect(frameAt(strike, -5)).toBe(0);
-    expect(frameAt(strike, 999)).toBe(13);
+    expect(frameAt(strike, 999)).toBe(15);
     expect(sampleMove(strike, 999).lunge.x).toBeCloseTo(0, 9);
   });
 });
@@ -168,6 +217,31 @@ describe('checking a move file', () => {
     expect(text).toMatch(/Binding 1: move "ghost"/);
     expect(text).toMatch(/Binding 2: move "hurt" is a reaction/);
     expect(text).toMatch(/last binding must have no conditions/);
+  });
+  it('refuses a swerve that does not come back', () => {
+    const m = clone();
+    m.moves['rook-strike'].frames[15].move.sw = -0.5;
+    expect(checkMoves(m, known).join('\n')).toMatch(/rook-strike.*sw values add up/);
+  });
+  it('refuses a drawn-picture move whose hit has no contact point (the spark would float at the target’s chest)', () => {
+    const m = clone();
+    delete m.moves['rook-strike'].frames[10].events[0].contact;
+    expect(checkMoves(m, known).join('\n')).toMatch(/needs "contact"/);
+  });
+  it('lets an idle-picture lunge go without a contact point', () => {
+    const m = clone();
+    expect(m.moves['melee-hero'].frames[3].events[0].contact).toBeUndefined();
+    expect(checkMoves(m, known)).toEqual([]);
+  });
+  it('refuses a flash outside 0 to 1 and a wash outside 0 to 1', () => {
+    const m = clone();
+    m.moves.hurt.frames[0].flash = 2;
+    m.moves.hurt.frames[1].tint = -1;
+    m.moves['rook-strike'].frames[10].events[0].flash = 3;
+    const text = checkMoves(m, known).join('\n');
+    expect(text).toMatch(/"hurt", frame 1: "flash"/);
+    expect(text).toMatch(/"hurt", frame 2: "tint"/);
+    expect(text).toMatch(/event 1: "flash"/);
   });
   it('knows the idle still without declaring it', () => {
     expect(IDLE_STILL).toBe('$idle');

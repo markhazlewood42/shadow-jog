@@ -78,8 +78,8 @@ export class LiveFx {
     });
   }
 
-  /** The picture of a blow where it lands: a sword cut that draws itself in, a ring burst, or a star. */
-  blow(x: number, y: number, effect: HitEffect, facing: 1 | -1, depth: number): void {
+  /** The picture of a blow where it lands: a sword cut that draws itself in, a ring burst, or a star. A `heavy` star is half as big again as a light one, which was a tiny dot at 2x. */
+  blow(x: number, y: number, effect: HitEffect, facing: 1 | -1, depth: number, heavy = false): void {
     if (effect === 'none' || effect === 'heal') return;
     const cx = Math.round(x);
     const cy = Math.round(y);
@@ -109,8 +109,9 @@ export class LiveFx {
         destroy: () => img.destroy(),
       });
     } else {
-      const radii = [3, 6, 8, 6, 4];
-      const img = this.scene.add.image(cx, cy, this.tex('star-3', () => starRaw(3, UI.amber))).setDepth(depth);
+      const radii = heavy ? [6, 11, 15, 12, 8, 5] : [4, 8, 11, 8, 5];
+      const first = radii[0] ?? 4;
+      const img = this.scene.add.image(cx, cy, this.tex(`star-${first}`, () => starRaw(first, UI.amber))).setDepth(depth);
       this.add({
         step: (age) => {
           const r = radii[Math.floor(age / 1.4)];

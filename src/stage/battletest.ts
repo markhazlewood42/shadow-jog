@@ -66,8 +66,8 @@ export class BattleTest implements LiveHook {
     this.resetFighters();
     const { moves, stills } = scene.battleAssets();
     scene.prebake();
-    this.flow = new BattleFlow({ demo: { ...scene.config.demo, party: options.party }, roster: options.roster, seed: options.seed, fullResources: options.fullResources });
-    this.flow.autoPlay = options.auto;
+    this.flow = new BattleFlow({ demo: { ...scene.config.demo, party: options.party }, roster: options.roster, seed: options.seed, fullResources: options.fullResources, drill: options.drill ?? null });
+    this.flow.autoPlay = options.auto || !!options.drill;
     this.fx = new LiveFx(scene);
     this.perf = new Performer(scene, this.flow, this.fx, moves, stills);
     scene.speed = options.speed;
@@ -87,6 +87,8 @@ export class BattleTest implements LiveHook {
       f.alpha = 1;
       f.down = false;
       f.flash = false;
+      f.flashAmt = 1;
+      f.tintAmt = 0;
       f.bodyDx = 0;
       f.x = f.baseX;
       f.y = f.baseY;
@@ -190,6 +192,6 @@ export class BattleTest implements LiveHook {
     this.fx.destroy();
     this.scene.speed = 1;
     this.resetFighters();
-    this.scene.setLive(null, null);
+    this.scene.endLive(this.options.roster, this.options.setKey);
   }
 }

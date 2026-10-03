@@ -24,6 +24,16 @@
  *    where the weapon meets the target (across the stage for dx, onto the target's depth row for dz). A frame with
  *    `dx: 0.25` advances a quarter of the way over its hold, spread evenly over its ticks. A move that goes out must
  *    come home, so the dx values sum to zero (`checkMoves` makes sure).
+ *  - **Swerve.** A fighter that runs across the stage would run THROUGH the crewmates standing between it and the target
+ *    (the heroes stand in a diagonal, front to back). So a frame may also say `move.sw`: a fraction of the SWERVE, the
+ *    distance that takes the fighter clear in front of the side-mates (the performer measures it from where they stand).
+ *    A lunge goes out along the front lane (`sw` 0 to 1), closes onto the target's row on the swing (`sw` 1 back to 0), and
+ *    runs home the same way. Like dx and dz, the sw values add up to zero.
+ *  - **Contact.** Every `hit` event of a move that shows drawn pictures says where the weapon IS on that tick: `contact`
+ *    {dx, dy}, measured from the attacker's feet (dx forward, dy down; Rook's blade tip in the follow-through is 58 forward
+ *    and 5 above the floor). The lunge is worked out FROM it: the fighter stops where that point is `pierce` pixels inside
+ *    the target's silhouette at that height, found by looking at the target's own pixels (a tall boss's shoulder pod is not
+ *    its leg), and the spark, cut and number appear on that same point.
  *  - **Hitstop.** When a hit lands, everything freezes for a few ticks (the `stop` of the hit event): the one cheap
  *    trick that makes a punch feel heavy. The move's own tick counter simply does not advance while it lasts.
  *
@@ -32,6 +42,9 @@
 
 /** The still that means "the fighter's own idle picture" (a hero's looping sheet, an enemy's art with its sway). */
 export const IDLE_STILL = '$idle';
+
+/** The still that means "this fighter knocked out": the stage cuts a kneeling picture from the fighter's own idle (`kneel.ts`) until real down art exists. */
+export const DOWN_STILL = '$down';
 
 /** The most ticks one frame may hold (10 seconds): a typo like 6000 should be refused, not played. */
 export const HOLD_MAX = 600;
@@ -49,10 +62,13 @@ export interface HitEvent {
   /** How many pixels the screen shakes while the hit settles (0 for none). */
   shake?: number;
   /**
-   * Where the spark appears, measured from the attacker's axis (forward = toward the target, y down). `dx` defaults to the
-   * move's `reach.forward` (the tip of the weapon), `dy` to the middle of the target's body.
+   * Where the weapon is on this tick, measured from the attacker's feet (forward = toward the target, y down). The lunge ends
+   * with this point inside the target and the spark, cut and number appear on it. Required for a move that shows drawn pictures;
+   * a lunge with only the idle picture falls back to the front of the body at chest height.
    */
-  contact?: { dx?: number; dy?: number };
+  contact?: { dx: number; dy: number };
+  /** The peak of the white hit-flash on the target, 0 to 1 (a jab flashes less than a finisher). Default: 0.6 for a light hit, 1 for a heavy one. */
+  flash?: number;
   effect?: HitEffect;
   /** `heavy` hits make a bigger glow and more shards. Default `light`. */
   weight?: 'light' | 'heavy';
@@ -72,12 +88,14 @@ export interface MoveFrame {
   /** x forward (negative = back), y down; whole pixels. */
   offset?: [number, number];
   hold: number;
-  /** Travel during this frame as fractions of the reach (see the file header). */
-  move?: { dx?: number; dz?: number };
+  /** Travel during this frame as fractions of the reach and of the swerve (see the file header). */
+  move?: { dx?: number; dz?: number; sw?: number };
   /** Draw this fighter in front of its target from this frame on (it borrows the target's row, `lungeOverTarget`). */
   front?: boolean;
-  /** Show the white hit-flash picture. */
-  flash?: boolean;
+  /** Show the white hit-flash picture: `true` for full, or a strength from 0 to 1 (it fades over a few frames: 1, 0.5, 0.25). */
+  flash?: boolean | number;
+  /** A wash of red over the picture, 0 to 1 (a hero who is hit; a white silhouette alone looks flat). */
+  tint?: number;
   /** Opacity 0 to 1 (a defeated enemy blinks out). Default 1. */
   alpha?: number;
   events?: MoveEvent[];
@@ -130,6 +148,8 @@ export interface Binding {
   kind?: string[];
   /** Whether the ability aims at more than one target or at nobody in particular. */
   spread?: boolean;
+  /** Only when the (first) target is shorter than this many pixels: Kit's standing blows would pass over a Glowrat's back, so a short target gets her crouching combo. */
+  targetBelow?: number;
   move: string;
 }
 
@@ -156,6 +176,11 @@ export interface MoveKnown {
   actors?: ReadonlySet<string>;
 }
 
+/** True when any frame shows a drawn picture (not just the fighter's idle). */
+function drawnMove(frames: readonly unknown[]): boolean {
+  return frames.some((f) => isObj(f) && typeof f.still === 'string' && f.still !== IDLE_STILL && f.still !== DOWN_STILL);
+}
+
 /**
  * Check a parsed move file and list every problem in plain words, one per line (an empty list means it is fine).
  * Never throws on bad data; `loadMoves` throws with the whole list.
@@ -175,7 +200,7 @@ export function checkMoves(raw: unknown, known: MoveKnown = {}): string[] {
   for (const [id, s] of Object.entries(stills)) {
     if (!isObj(s) || (s.art !== 'sf-rook' && s.art !== 'sf-kit') || typeof s.key !== 'string') out.push(`Still "${id}": needs "art": "sf-rook" or "sf-kit", and a "key".`);
   }
-  const hasStill = (name: string): boolean => name === IDLE_STILL || name in stills;
+  const hasStill = (name: string): boolean => name === IDLE_STILL || name === DOWN_STILL || name in stills;
   for (const [id, m] of Object.entries(moves)) {
     const at = `Move "${id}"`;
     if (!isObj(m)) {
@@ -196,6 +221,7 @@ export function checkMoves(raw: unknown, known: MoveKnown = {}): string[] {
     }
     let sumX = 0;
     let sumZ = 0;
+    let sumS = 0;
     let hits = 0;
     frames.forEach((f, i) => {
       const fa = `${at}, frame ${i + 1}`;
@@ -206,13 +232,17 @@ export function checkMoves(raw: unknown, known: MoveKnown = {}): string[] {
       if (typeof f.still !== 'string' || !hasStill(f.still)) out.push(`${fa}: still "${String(f.still)}" is not in "stills" (use "${IDLE_STILL}" for the fighter's idle).`);
       if (!isInt(f.hold) || f.hold < 1 || f.hold > HOLD_MAX) out.push(`${fa}: "hold" must be a whole number of ticks from 1 to ${HOLD_MAX}.`);
       if (f.offset !== undefined && !(Array.isArray(f.offset) && f.offset.length === 2 && f.offset.every(isInt))) out.push(`${fa}: "offset" must be [x, y] in whole pixels.`);
+      if (f.flash !== undefined && !(typeof f.flash === 'boolean' || (isNum(f.flash) && f.flash >= 0 && f.flash <= 1))) out.push(`${fa}: "flash" must be true, false or a strength from 0 to 1.`);
+      if (f.tint !== undefined && !(isNum(f.tint) && f.tint >= 0 && f.tint <= 1)) out.push(`${fa}: "tint" must be between 0 and 1.`);
       if (f.alpha !== undefined && !(isNum(f.alpha) && f.alpha >= 0 && f.alpha <= 1)) out.push(`${fa}: "alpha" must be between 0 and 1.`);
       if (isObj(f.move)) {
         if (f.move.dx !== undefined && !isNum(f.move.dx)) out.push(`${fa}: move.dx must be a number.`);
         if (f.move.dz !== undefined && !isNum(f.move.dz)) out.push(`${fa}: move.dz must be a number.`);
+        if (f.move.sw !== undefined && !isNum(f.move.sw)) out.push(`${fa}: move.sw must be a number.`);
+        sumS += isNum(f.move.sw) ? f.move.sw : 0;
         sumX += isNum(f.move.dx) ? f.move.dx : 0;
         sumZ += isNum(f.move.dz) ? f.move.dz : 0;
-      } else if (f.move !== undefined) out.push(`${fa}: "move" must be { dx, dz }.`);
+      } else if (f.move !== undefined) out.push(`${fa}: "move" must be { dx, dz, sw }.`);
       const hold = isInt(f.hold) ? f.hold : 1;
       for (const [j, e] of (Array.isArray(f.events) ? (f.events as unknown[]) : []).entries()) {
         const ea = `${fa}, event ${j + 1}`;
@@ -225,13 +255,18 @@ export function checkMoves(raw: unknown, known: MoveKnown = {}): string[] {
           hits++;
           if (e.stop !== undefined && !(isInt(e.stop) && e.stop >= 0 && e.stop <= 30)) out.push(`${ea}: "stop" must be 0 to 30 ticks.`);
           if (e.shake !== undefined && !(isInt(e.shake) && e.shake >= 0 && e.shake <= 6)) out.push(`${ea}: "shake" must be 0 to 6 pixels.`);
+          if (e.flash !== undefined && !(isNum(e.flash) && e.flash >= 0 && e.flash <= 1)) out.push(`${ea}: "flash" must be between 0 and 1.`);
+          if (e.contact !== undefined && !(isObj(e.contact) && isNum(e.contact.dx) && isNum(e.contact.dy))) out.push(`${ea}: "contact" must be { dx, dy } in pixels from the attacker's feet.`);
+          // A move that shows drawn pictures has a real weapon tip; without it the spark would float at the target's chest.
+          if (drawnMove(frames) && e.contact === undefined) out.push(`${ea}: a move that shows drawn pictures needs "contact": { dx, dy } (where the weapon tip is on this frame, from the attacker's feet).`);
         }
       }
     });
     if (Math.abs(sumX) > 1e-6) out.push(`${at}: the dx values add up to ${+sumX.toFixed(4)}, not 0, so the fighter would not come home.`);
     if (Math.abs(sumZ) > 1e-6) out.push(`${at}: the dz values add up to ${+sumZ.toFixed(4)}, not 0.`);
+    if (Math.abs(sumS) > 1e-6) out.push(`${at}: the sw values add up to ${+sumS.toFixed(4)}, not 0, so the fighter would not come back from the swerve.`);
     if (m.kind === 'attack' && hits === 0) out.push(`${at}: an attack needs a "hit" event, or nothing would ever land.`);
-    if ((sumX !== 0 || sumZ !== 0) && !m.reach) out.push(`${at}: it moves, so it needs a "reach".`);
+    if ((sumX !== 0 || sumZ !== 0 || sumS !== 0) && !m.reach) out.push(`${at}: it moves, so it needs a "reach".`);
   }
   const reactions = need(raw.reactions, '"reactions" must be an object naming hurt, dodge, down and downHero.');
   for (const k of ['hurt', 'dodge', 'down', 'downHero']) {
@@ -278,6 +313,8 @@ export interface ActionInfo {
   kind: string;
   /** More than one target, or none in particular. */
   spread: boolean;
+  /** The first target's drawn height in pixels (unknown: leave out; a binding with `targetBelow` then does not match). */
+  targetHeight?: number;
 }
 
 /** The move for an action: the first binding whose conditions all fit. */
@@ -289,6 +326,7 @@ export function pickMove(file: MoveFile, a: ActionInfo): string {
     if (b.fx !== undefined && !b.fx.includes(a.fx)) continue;
     if (b.kind !== undefined && !b.kind.includes(a.kind)) continue;
     if (b.spread !== undefined && b.spread !== a.spread) continue;
+    if (b.targetBelow !== undefined && !(a.targetHeight !== undefined && a.targetHeight < b.targetBelow)) continue;
     return b.move;
   }
   throw new Error('No binding fits this action (the last binding must have no conditions)');
@@ -303,7 +341,7 @@ export interface CompiledMove {
   length: number;
   /** For each frame: the tick it starts on and the fractions of reach travelled before it. */
   starts: number[];
-  before: Array<{ x: number; z: number }>;
+  before: Array<{ x: number; z: number; sw: number }>;
   /** Every hit event with the absolute tick it fires on, in order. */
   hits: Array<{ tick: number; frame: number; event: HitEvent }>;
   glows: Array<{ tick: number; frame: number; event: GlowEvent }>;
@@ -311,15 +349,16 @@ export interface CompiledMove {
 
 export function compileMove(def: MoveDef): CompiledMove {
   const starts: number[] = [];
-  const before: Array<{ x: number; z: number }> = [];
+  const before: Array<{ x: number; z: number; sw: number }> = [];
   const hits: CompiledMove['hits'] = [];
   const glows: CompiledMove['glows'] = [];
   let tick = 0;
   let x = 0;
   let z = 0;
+  let sw = 0;
   def.frames.forEach((f, i) => {
     starts.push(tick);
-    before.push({ x, z });
+    before.push({ x, z, sw });
     for (const e of f.events ?? []) {
       const at = tick + (e.at ?? 0);
       if (e.type === 'hit') hits.push({ tick: at, frame: i, event: e });
@@ -328,6 +367,7 @@ export function compileMove(def: MoveDef): CompiledMove {
     tick += f.hold;
     x += f.move?.dx ?? 0;
     z += f.move?.dz ?? 0;
+    sw += f.move?.sw ?? 0;
   });
   return { def, length: tick, starts, before, hits, glows };
 }
@@ -340,10 +380,19 @@ export interface MoveSample {
   still: string;
   offset: [number, number];
   flash: boolean;
+  /** The strength of the white flash, 0 to 1 (0 when `flash` is false). */
+  flashAmt: number;
+  /** The red wash, 0 to 1. */
+  tint: number;
   front: boolean;
   alpha: number;
-  /** How far along the reach the fighter has travelled, after this tick's step. */
-  lunge: { x: number; z: number };
+  /** How far along the reach (x), the depth rows (z) and the swerve (sw) the fighter has travelled, after this tick's step. */
+  lunge: { x: number; z: number; sw: number };
+}
+
+/** A frame's `flash` as a strength: `true` is 1, a number is itself, anything else 0. */
+export function flashAmount(v: boolean | number | undefined): number {
+  return v === true ? 1 : typeof v === 'number' ? v : 0;
 }
 
 /** The frame index that shows on `tick` (past the end: the last frame). */
@@ -368,10 +417,12 @@ export function sampleMove(c: CompiledMove, tick: number): MoveSample {
     k,
     still: f.still,
     offset: f.offset ?? [0, 0],
-    flash: !!f.flash,
+    flash: flashAmount(f.flash) > 0,
+    flashAmt: flashAmount(f.flash),
+    tint: f.tint ?? 0,
     front: !!f.front,
     alpha: f.alpha ?? 1,
-    lunge: { x: base.x + (f.move?.dx ?? 0) * share, z: base.z + (f.move?.dz ?? 0) * share },
+    lunge: { x: base.x + (f.move?.dx ?? 0) * share, z: base.z + (f.move?.dz ?? 0) * share, sw: base.sw + (f.move?.sw ?? 0) * share },
   };
 }
 
@@ -394,7 +445,7 @@ export function frameData(c: CompiledMove): { startup: number; active: number; r
 }
 
 /** The path of the lunge, one point per tick, as fractions of the reach (what a composer draws as a row of dots). */
-export function lungePath(c: CompiledMove): Array<{ x: number; z: number }> {
+export function lungePath(c: CompiledMove): Array<{ x: number; z: number; sw: number }> {
   return Array.from({ length: c.length }, (_, t) => sampleMove(c, t).lunge);
 }
 
