@@ -9,6 +9,9 @@ import { getPortrait } from '../../art/portraits';
 import type { Combatant, Command, Element } from '../../battle/types';
 import { ABILITIES } from '../../data/abilities';
 import { PARTY_POSE_T, swingBeat } from './motion';
+import { type KataBeat, KATA_MEASURED, KATA_BODY_HALF, KATA_KNOCK, KATA_MEASURED_LOW, KATA_ROOM_GAP, KATA_ROOM_MAX, isContact, kataBeat } from '../../art/rig2/sidekata';
+import { type PunchBeat, PUNCH_MEASURED, punchBeat } from '../../art/rig2/sfpunch';
+import { type SfBeat, SF_FADE, SF_KNOCK, SF_MEASURED, SF_ROOM, SF_SWING, sfBeat } from '../../art/rig2/sfstrike';
 import { ENEMIES, FAMILY_WEAK } from '../../data/enemies';
 import { ITEMS } from '../../data/items';
 import { MEMBERS } from '../../data/party';
@@ -21,8 +24,9 @@ import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
 import { TARGET_INFO_W } from '../../ui/layout';
 import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
-import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, orderStripLayout } from './geom';
+import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
+import { FACE, IDLE_FRAMES_PER_STEP, IDLE_FRAMES_PER_STEP_ACTIVE, SF, SF_BAR_RISE, SF_SETTLE_DIST, SIDE_PANEL_GAP, SIDE_VIEW, WALK_FRAMES_PER_STEP, sideBeat } from './sideview';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
 import { AFTERIMAGES, ELEMENTS, ELEMENT_COLOR, ELEMENT_ICON, ELEMENT_TAG, STATUS_LABEL, elementMark, markElements, statusName } from './tables';
@@ -62,6 +66,42 @@ function putArt(g: Ctx, c: HTMLCanvasElement, x: number, y: number, res: number)
   g.drawImage(c, x, y, c.width / res, c.height / res);
 }
 
+const smoothStep = (u: number): number => {
+  const c = Math.max(0, Math.min(1, u));
+  return c * c * (3 - 2 * c);
+};
+
+/**
+ * A hard colour swap for the hit blink (round 4): every pixel of the sprite except its dark outline and shadows becomes one flat light tint, so the silhouette and its
+ * outline stay crisp (a translucent white laid over the sprite read as a pale ghost). Pixels darker than `OUTLINE_LUM` keep their own colour. Drawn opaque, no blend.
+ */
+const OUTLINE_LUM = 58;
+const flatMemo = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+function flatLight(src: HTMLCanvasElement, tint: readonly [number, number, number]): HTMLCanvasElement {
+  let c = flatMemo.get(src);
+  if (c) return c;
+  c = document.createElement('canvas');
+  c.width = src.width;
+  c.height = src.height;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  if (g) {
+    g.drawImage(src, 0, 0);
+    const im = g.getImageData(0, 0, c.width, c.height);
+    for (let i = 0; i < im.data.length; i += 4) {
+      if ((im.data[i + 3] ?? 0) < 128) continue;
+      im.data[i + 3] = 255;
+      if (0.3 * (im.data[i] ?? 0) + 0.59 * (im.data[i + 1] ?? 0) + 0.11 * (im.data[i + 2] ?? 0) < OUTLINE_LUM) continue;
+      im.data[i] = tint[0];
+      im.data[i + 1] = tint[1];
+      im.data[i + 2] = tint[2];
+    }
+    g.putImageData(im, 0, 0);
+  }
+  flatMemo.set(src, c);
+  return c;
+}
+const HIT_TINT = [244, 236, 255] as const;
+
 export class BattleRenderer {
   constructor(private readonly s: BattleScene) {}
 
@@ -78,6 +118,7 @@ export class BattleRenderer {
     // (a clear world-scale layer). Creatures paint finer than the world; everything else is as was.
     const back = this.s.world.ctx;
     const f = this.s.frame;
+    this.partyCuts.length = 0;
     back.imageSmoothingEnabled = false;
     back.drawImage(this.s.bg.canvas, 0, 0);
     if (this.s.bg.glow) back.drawImage(this.s.bg.glow, 0, 0);
@@ -97,15 +138,26 @@ export class BattleRenderer {
     for (const e of this.s.battle.enemies) if (this.s.d(e.uid).alpha > 0.01) order.push(e);
     order.sort(this.s.byFeet);
     for (const e of order) this.drawEnemy(el, e, f);
+    // Side view: the crew are battle-scale art (one art pixel per screen pixel, like the enemies), so they go on this
+    // screen-resolution layer, still at its 2x transform. On the world-resolution layer below (240x135) a 47 px sprite is
+    // sampled 2:1 and loses three pixels in four, which is what made round 2's crew look noisy.
+    // Whoever is mid-strike is drawn last, so a lunge passes in front of the line, not behind it.
+    if (SIDE_VIEW) {
+      const striking = (p: Combatant) => (this.s.d(p.uid).reachX ?? 0) !== 0 && this.s.d(p.uid).poseT > 0;
+      for (const p of this.s.battle.party) if (!striking(p)) this.drawPartyMember(el, p, f);
+      for (const p of this.s.battle.party) if (striking(p)) this.drawPartyMember(el, p, f);
+    }
     el.setTransform(1, 0, 0, 1, 0, 0);
     // Party (back view)
-    for (const p of this.s.battle.party) this.drawPartyMember(g, p, f);
+    if (!SIDE_VIEW) for (const p of this.s.battle.party) this.drawPartyMember(g, p, f);
     // Foreground framing (rails, cables) over the fighters; FX and numbers stay on top of it.
     if (this.s.bg.fg) g.drawImage(this.s.bg.fg, 0, 0);
     this.s.fx.render(g, (c, ch, x, y, col) => drawText(c, ch, x, y, { color: col, shadow: false }));
     // A timed press: the ring closing on each target.
     const tp = this.s.timing.prompt;
-    if (tp && this.s.timing.isOpen) {
+    // Side view, Rook's kendo strike: the ring is gone from the first frame the blade is on the target, so nothing hides the blow.
+    const bladeOn = SIDE_VIEW && this.s.battle.party.some((m) => this.strikeOf(m.uid)?.contact === true);
+    if (tp && this.s.timing.isOpen && !bladeOn) {
       for (const uid of tp.targets) {
         const p = this.s.pos(uid);
         drawRing(g, p.x, p.y, this.s.game.frame, this.s.timing);
@@ -181,11 +233,21 @@ export class BattleRenderer {
 
   /** The battle's light for the bloom: the backdrop's neon and every effect in flight. */
   private glowWorld: Surface | null = null;
+  /** Sprite Fusion side view: this frame's party sprites (canvas, world position, art pixels per world pixel), cut out of the backdrop's glow. */
+  private readonly partyCuts: { c: HTMLCanvasElement; x: number; y: number; res: number }[] = [];
   private renderGlow(glow: Ctx, shx: number, shy: number): void {
     this.glowWorld ??= surface(BW, BHT);
     const g = this.glowWorld.ctx;
     g.clearRect(0, 0, BW, BHT);
     if (this.s.bg.glow) g.drawImage(this.s.bg.glow, 0, 0);
+    // The backdrop's neon blooms over the whole picture, so a sign behind Rook's head washed his grey hair pink or yellow (the judges' tint). The crew's silhouettes are
+    // cut out of the backdrop's light first; effects in flight (drawn after) still glow over them.
+    if (this.partyCuts.length) {
+      g.globalCompositeOperation = 'destination-out';
+      g.imageSmoothingEnabled = false;
+      for (const k of this.partyCuts) g.drawImage(k.c, k.x, k.y, k.c.width / k.res, k.c.height / k.res);
+      g.globalCompositeOperation = 'source-over';
+    }
     this.s.fx.render(g, NO_GLYPH, true);
     glow.imageSmoothingEnabled = false;
     const push = this.s.push;
@@ -236,8 +298,10 @@ export class BattleRenderer {
     const src = who.attack && k >= 6 && k < 18 ? who.attack : who.hurt && flinch ? who.hurt : who;
     // Humans with their own individual art still get the squad armband (marked()).
     const own = who.individual && !creature;
-    const canvas = own ? marked(dup % 2 ? mirrored(src.canvas) : src.canvas, e.family ?? '', dup) : marked(variant(src.canvas, dup), e.family ?? '', dup);
-    const glow = !src.glow ? undefined : own ? (dup % 2 ? mirrored(src.glow) : src.glow) : variant(src.glow, dup);
+        // Sprite Fusion side view: every copy faces the party (a mirrored second punk would turn its back), so no copy is mirrored; the armband tells them apart.
+    const turn = dup % 2 === 1 && !SF;
+    const canvas = own ? marked(turn ? mirrored(src.canvas) : src.canvas, e.family ?? '', dup) : marked(variant(src.canvas, dup), e.family ?? '', dup);
+    const glow = !src.glow ? undefined : own ? (turn ? mirrored(src.glow) : src.glow) : variant(src.glow, dup);
     // Every canvas below is at the art's resolution: placed at its world size (the 2x transform
     // on the enemy layer turns a creature's art pixels into screen pixels).
     const res = art.res;
@@ -250,6 +314,8 @@ export class BattleRenderer {
       case 'flicker': oy = Math.round(Math.sin(f * 0.06 + e.uid) * 2); break;
     }
     if (dd.shake > 0) ox += dd.shake % 4 < 2 ? 2 : -2;
+    // Side view, Rook's cut: the body is pushed back 4 px from the blade (away from the crew: to the left for the code art, to the right for Sprite Fusion's) for two frames, then eases home.
+    if (SIDE_VIEW && (dd.knock ?? 0) > 0) { const kt = SF ? SF_KNOCK : KATA_KNOCK; ox += FACE * (kt[Math.min(kt.length - 1, kt.length - (dd.knock ?? 0))] ?? 0); }
     oy += Math.round(dd.lunge);
     // Body motion while acting or reeling (battle-world pixels; the party is below).
     let castGlow = 0;
@@ -276,11 +342,16 @@ export class BattleRenderer {
     const dx = x + ox, dy = y + oy;
     // Shadow
     if (art.shadow) {
-      g.fillStyle = 'rgba(0,0,0,0.35)';
+      g.fillStyle = SIDE_VIEW ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.35)';
       const cx = x + art.w / 2;
       const gy = y + art.h - 1;
       g.fillRect(Math.round(cx - art.shadow / 2), gy, art.shadow, 2);
       g.fillRect(Math.round(cx - art.shadow / 2 + 2), gy + 2, art.shadow - 4, 1);
+      // Side view: a boss gets a wider, deeper contact patch, so it stands on the same ground as the crew instead of floating over a strip of it.
+      if (SIDE_VIEW && e.boss) {
+        g.fillRect(Math.round(cx - art.shadow / 2 - 4), gy - 1, art.shadow + 8, 1);
+        g.fillRect(Math.round(cx - art.shadow / 2 + 4), gy + 3, art.shadow - 8, 1);
+      }
     }
     let alpha = dd.alpha;
     if (art.idle === 'flicker') alpha *= 0.82 + 0.18 * Math.sin(f * 0.2 + e.uid);
@@ -309,10 +380,15 @@ export class BattleRenderer {
       g.translate(-fx, -fy);
     }
     // Rim light in a colour the backdrop doesn't use, so no enemy blends into the set.
-    g.globalAlpha = alpha * 0.55;
-    putArt(g, rimOf(canvas, this.s.rim), dx - 1 / res, dy - 1 / res, res);
+    // (Sprite Fusion side view: the sprite carries its own dark outline instead, like the crew's.)
+    if (!SF) {
+      g.globalAlpha = alpha * 0.55;
+      putArt(g, rimOf(canvas, this.s.rim), dx - 1 / res, dy - 1 / res, res);
+    }
     g.globalAlpha = alpha;
     putArt(g, canvas, dx, dy, res);
+    // Sprite Fusion side view (round 3): the enemies are cut out of the backdrop's neon too, so the party and the enemies are lit the same way (round 2 cut only the crew, and a magenta sign read through a punk's body).
+    if (SF && SIDE_VIEW) this.partyCuts.push({ c: canvas, x: dx, y: dy, res });
     if (this.s.bg.tintAmt > 0) {
       // Ambient tint: multiply-ish wash using the background light color.
       g.globalAlpha = alpha * this.s.bg.tintAmt;
@@ -325,10 +401,17 @@ export class BattleRenderer {
       putArt(g, silhouetteCache(canvas, '#e8d8ff'), dx, dy, res);
       g.globalAlpha = alpha;
     }
-    if (dd.flash > 0 && dd.flash % 4 < 2) {
+    if (SF && SIDE_VIEW && dd.flash >= 4) {
+      // Sprite Fusion's hit blink (round 4): a hard colour swap, opaque, outline kept (see `flatLight`), on every other pair of frames through the hitstop so the sprite shows between blinks.
+      if (!this.s.frozen || ((f >> 1) & 1) === 0) {
+        g.globalAlpha = alpha;
+        putArt(g, flatLight(canvas, HIT_TINT), dx, dy, res);
+      }
+    } else if (dd.flash > 0 && dd.flash % 4 < 2) {
       // A blink, not a blank: the sprite's detail stays visible under the white, so a still
       // caught on this frame reads as a hit rather than a white smear.
-      g.globalAlpha = 0.55 * alpha;
+      // Flash 1 is the soft tint of Kit's first two blows (a light wash, so the face and the red mark stay readable); the last blow is the hard swap above.
+      g.globalAlpha = (SF && SIDE_VIEW ? (dd.flash === 1 ? 0.2 : 0.4) : 0.55) * alpha;
       putArt(g, silhouetteCache(canvas, '#ffffff'), dx, dy, res);
     }
     g.globalAlpha = 1;
@@ -362,6 +445,184 @@ export class BattleRenderer {
     }
   }
 
+  /** Side view, Rook's kendo strike: where the pose is (null when he is not mid-strike). */
+  private kataOf(uid: number): KataBeat | null {
+    if (!SIDE_VIEW) return null;
+    const dd = this.s.d(uid);
+    if (!this.s.partyArt.get(uid)?.kata || dd.strikeAt === undefined || dd.poseT <= 0 || dd.poseT > (dd.poseLen ?? 0)) return null;
+    return kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.strikeLow);
+  }
+
+  /** Sprite Fusion art, Rook's strike (rig2/sfstrike.ts): where the pose is (null when he is not mid-strike). */
+  private sfOf(uid: number): SfBeat | null {
+    if (!SIDE_VIEW) return null;
+    const dd = this.s.d(uid);
+    if (!this.s.partyArt.get(uid)?.sfStrike || dd.strikeAt === undefined || dd.poseT <= 0 || dd.poseT > (dd.poseLen ?? 0)) return null;
+    return sfBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt);
+  }
+
+  /** Sprite Fusion art, Kit's punch combo (rig2/sfpunch.ts): where the pose is (null when she is not mid-combo). Her reach decides whether a run comes first, so it is part of the clock. */
+  private punchOf(uid: number): PunchBeat | null {
+    if (!SIDE_VIEW) return null;
+    const dd = this.s.d(uid);
+    if (!this.s.partyArt.get(uid)?.sfPunch || dd.pose !== 'attack' || dd.strikeAt === undefined || dd.poseT <= 0 || dd.poseT > (dd.poseLen ?? 0)) return null;
+    return punchBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.reachX ?? 0, dd.strikeLow === true, dd.punchStop);
+  }
+
+  /** Either strike (the code art's kendo cut, or Sprite Fusion's frames: Rook's strike, Kit's combo): how far along its lunge the body is, and whether the blow is on the target. */
+  private strikeOf(uid: number): { lunge: number; contact: boolean } | null {
+    const kb = this.kataOf(uid);
+    if (kb) return { lunge: kb.lunge, contact: isContact(kb.key) };
+    const sk = this.sfOf(uid);
+    if (sk) return { lunge: sk.lunge, contact: sk.contact };
+    const pk = this.punchOf(uid);
+    return pk ? { lunge: pk.lunge, contact: pk.contact } : null;
+  }
+
+  /**
+   * Side view, Rook's kendo strike: how far (world px, to the right) a crewmate steps aside to make room while he is on the target. His blade is
+   * about 25 px long past his body, so against the nearest enemy he ends up standing where Kit does; she slides back toward his empty place
+   * (up to 12 px) as he arrives, and returns as he goes home. Nobody is dimmed, and no crewmate is stood on.
+   */
+  private makeRoom(q: Combatant): { x: number; y: number } {
+    if (!SIDE_VIEW) return { x: 0, y: 0 };
+    let room = 0;
+    let rx2 = 0, ry2 = 0;
+    for (const p of this.s.battle.party) {
+      if (p.uid === q.uid) continue;
+      const kb = this.strikeOf(p.uid);
+      if (!kb) continue;
+      const dd = this.s.d(p.uid);
+      const sx = this.s.partyPos(p).x;
+      const rx = sx + (dd.reachX ?? 0);
+      const qx = this.s.partyPos(q).x;
+      const u = Math.max(0, Math.min(1, (kb.lunge - 0.5) / 0.45));
+      if (SF) {
+        // Sprite Fusion art (round 3): his blade reaches the target from where a crewmate in front of him stands, so she steps BACK into his empty place (a few pixels past it) on the same
+        // stance, as he runs forward: they pass each other in the dash (he is drawn last, in front), she is clear of his coat when he lands, and she walks back as he goes home. No duck, no pop.
+        // Her progress is his lunge, so the two moves are one move. Whoever is not in his way does not move.
+        const sk = this.sfOf(p.uid);
+        if (!sk || qx <= sx + 4 || qx > rx + 14) continue;
+        const k = smoothStep(sk.room);
+        rx2 = Math.min(rx2, -SF_ROOM.left * k);
+        ry2 = Math.min(ry2, -SF_ROOM.up * smoothStep(sk.room * 2));
+        continue;
+      }
+      if (qx < rx - 4) continue;
+      const need = Math.max(0, Math.min(KATA_ROOM_MAX, rx + KATA_BODY_HALF + KATA_ROOM_GAP - (qx - 8)));
+      room = Math.max(room, need * u * u * (3 - 2 * u));
+    }
+    return SF ? { x: Math.round(rx2 * 2) / 2, y: Math.round(ry2 * 2) / 2 } : { x: Math.round(room * 2) / 2, y: 0 };
+  }
+
+  /** Side view: the screen box (pixels) round a lunging Rook, or null; enemy health bars inside it fade so he does not run under one. */
+  private lungeBox(): [number, number, number, number] | null {
+    for (const p of this.s.battle.party) {
+      const kb = this.strikeOf(p.uid);
+      if (!kb || kb.lunge < 0.05) continue;
+      const dd = this.s.d(p.uid);
+      const cx = (this.s.partyPos(p).x + kb.lunge * (dd.reachX ?? 0)) * 2;
+      const feet = (this.s.partyFeet(p) + kb.lunge * (dd.reachY ?? 0)) * 2;
+      return SF ? [cx - 28, feet - 74, cx + 26, feet + 2] : [cx - 18, feet - 66, cx + 18, feet + 2];
+    }
+    return null;
+  }
+
+  /**
+   * The strike's own effects. No ghosts and no dimming (round 3): the dash leaves a few speed lines behind the body, the blade flares as it
+   * meets the target, and the front foot stamps a puff of dust. Everything is drawn on whole screen pixels (half a world pixel).
+   */
+  private drawKataFx(g: Ctx, p: Combatant, kb: KataBeat, frame: HTMLCanvasElement, x: number, y: number, res: number, walkLeft: number, lungeY: number, cx2: number): void {
+    const dd = this.s.d(p.uid);
+    const px = (v: number): number => Math.round(v * 2) / 2;
+    // Speed lines on the cuts and the overshoot: thin pale streaks behind the body, level with the shoulders and the hips, longer the faster he is.
+    if (kb.dash || kb.key === 'contact0' || kb.key === 'contact0Low') {
+      const feet = this.s.partyFeet(p) + lungeY;
+      const back = this.s.partyPos(p).x + walkLeft + kb.lunge * (dd.reachX ?? 0) + 7;
+      const n = kb.key === 'swing0' ? 0 : kb.key === 'swing1' ? 1 : 2;
+      const lines: [number, number][] = [[27, 14], [19, 22], [11, 12], [34, 9]];
+      g.fillStyle = '#d8e6ff';
+      g.globalAlpha = 0.6;
+      for (const [up, len] of lines) g.fillRect(px(back + (n - 1) * 2), px(feet - up / 2), (len + n * 5) / 2, 0.5);
+      g.globalAlpha = 1;
+    }
+    if (!isContact(kb.key)) return;
+    const m = kb.key === 'contactLow' || kb.key === 'contact0Low' ? KATA_MEASURED_LOW : KATA_MEASURED;
+    const gy2 = Math.round(this.s.partyFeet(p) - 1 + lungeY);
+    const c = kb.key === 'contact0' || kb.key === 'contact0Low' ? 0 : kb.t + 1;
+    // The blade's flare: bright streaks along it for the first frames of the blow, so the steel is seen before the flash.
+    if (c < 4) {
+      const tx = x + frame.width / res / 2 - m.tipReach / res;
+      const ty = y + (frame.height - m.tipUp) / res;
+      g.fillStyle = '#ffffff';
+      g.globalAlpha = 0.95 - c * 0.22;
+      for (const [dy, len] of [[-2.5, 12], [3.5, 9], [-4.5, 6]] as const) g.fillRect(px(tx + 1), px(ty + dy), len - c * 2, 0.5);
+      g.globalAlpha = 1;
+    }
+    // The front foot stamps: a puff of street dust behind the heel in three stages of 2x2 clumps (one flat colour each, the street's own purples), spreading and rising, each 3 frames.
+    if (c < 9) {
+      const hx = Math.round(cx2 + KATA_MEASURED.footDx / res) + 4;
+      const stage = Math.floor(c / 3);
+      const puffs: [number, number][][] = [
+        [[0, -1], [1, -1], [2, -2]],
+        [[1, -2], [3, -2], [2, -4], [5, -1], [-1, -1]],
+        [[3, -4], [6, -3], [2, -6], [7, -1]],
+      ];
+      g.globalAlpha = stage === 2 ? 0.65 : 1;
+      (puffs[stage] ?? []).forEach(([dx, dy], i) => {
+        g.fillStyle = i % 2 ? '#8c83ab' : '#b2a9cc';
+        g.fillRect(hx + dx, gy2 + dy, 1, 1);
+      });
+      g.globalAlpha = 1;
+    }
+  }
+
+  /**
+   * Sprite Fusion's Rook strike: the stamping front foot kicks up a puff of street dust behind the heel as the blade lands (three stages of 2x2 clumps, nine frames from
+   * the first swing frame B). Drawn in battle-world pixels on the enemy layer, like the code art's puff.
+   */
+  private drawSfDust(g: Ctx, p: Combatant, sk: SfBeat, lungeX: number, lungeY: number): void {
+    const c = sk.key === 'swingB' ? sk.t : sk.key === 'followFade' ? SF_SWING + sk.t : sk.key === 'follow' ? SF_SWING + SF_FADE + sk.t : -1;
+    if (c < 0 || c >= 9) return;
+    const hx = Math.round(this.s.partyPos(p).x + lungeX + SF_MEASURED.footDx / 2) - 6;
+    const gy = Math.round(this.s.partyFeet(p) - 1 + lungeY);
+    const stage = Math.floor(c / 3);
+    const puffs: [number, number][][] = [
+      [[0, -1], [-1, -1], [-2, -2]],
+      [[-1, -2], [-3, -2], [-2, -4], [-5, -1], [1, -1]],
+      [[-3, -4], [-6, -3], [-2, -6], [-7, -1]],
+    ];
+    g.globalAlpha = stage === 2 ? 0.65 : 1;
+    (puffs[stage] ?? []).forEach(([dx, dy], i) => {
+      g.fillStyle = i % 2 ? '#8c83ab' : '#b2a9cc';
+      g.fillRect(hx + (dx ?? 0), gy + (dy ?? 0), 1, 1);
+    });
+    g.globalAlpha = 1;
+  }
+
+  /**
+   * Kit's combo: a puff of street dust behind her planted front boot as the first blow lands (the same three-stage clumps as Rook's stamp, nine frames from the first jab frame).
+   * Battle-world pixels on the enemy layer.
+   */
+  private drawPunchDust(g: Ctx, p: Combatant, pk: PunchBeat, lungeX: number, lungeY: number): void {
+    const c = pk.key === 'jabT' ? 0 : pk.key === 'jab' ? 1 + pk.t : pk.key === 'crossT' ? 4 : pk.key === 'cross' ? 5 + pk.t : -1;
+    if (c < 0 || c >= 9) return;
+    const hx = Math.round(this.s.partyPos(p).x + lungeX + PUNCH_MEASURED.footDx / 2) - 6;
+    const gy = Math.round(this.s.partyFeet(p) - 1 + lungeY);
+    const stage = Math.floor(c / 3);
+    const puffs: [number, number][][] = [
+      [[0, -1], [-1, -1], [-2, -2]],
+      [[-1, -2], [-3, -2], [-2, -4], [-5, -1], [1, -1]],
+      [[-3, -4], [-6, -3], [-2, -6], [-7, -1]],
+    ];
+    g.globalAlpha = stage === 2 ? 0.65 : 1;
+    (puffs[stage] ?? []).forEach(([dx, dy], i) => {
+      g.fillStyle = i % 2 ? '#8c83ab' : '#b2a9cc';
+      g.fillRect(hx + (dx ?? 0), gy + (dy ?? 0), 1, 1);
+    });
+    g.globalAlpha = 1;
+  }
+
   private drawPartyMember(g: Ctx, p: Combatant, f: number): void {
     const dd = this.s.d(p.uid);
     const art = this.s.partyArt.get(p.uid)!;
@@ -369,36 +630,114 @@ export class BattleRenderer {
     const active = (this.s.mode === 'command' || this.s.mode === 'list' || this.s.mode === 'target') && this.s.actor?.uid === p.uid;
     const down = dd.hp <= 0 && p.hp <= 0;
     // Melee moves play in beats: drawn in (the brace frame), the snap forward, the settle.
-    const beat = dd.poseT > 0 && (dd.pose === 'attack' || dd.pose === 'thrust') ? swingBeat(PARTY_POSE_T - dd.poseT) : null;
+    const melee = dd.poseT > 0 && (dd.pose === 'attack' || dd.pose === 'thrust');
+    // Side view: the strike plays on its own beats (sideBeat: crouch, wind-up, dash, blow, return); the back view's lift beats don't apply.
+    const sk = SIDE_VIEW && melee ? this.sfOf(p.uid) : null;
+    // Sprite Fusion art, Kit: the punch combo plays on its own timeline (rig2/sfpunch.ts), keyed to the frame of the first blow.
+    const pk = SIDE_VIEW && melee ? this.punchOf(p.uid) : null;
+    const sb = SIDE_VIEW && melee && !sk && !pk && dd.poseT <= PARTY_POSE_T ? sideBeat(PARTY_POSE_T - dd.poseT) : null;
+    const beat = melee && !SIDE_VIEW ? swingBeat(PARTY_POSE_T - dd.poseT) : null;
+    // Side view, Rook: the kendo strike plays on its own timeline (rig2/sidekata.ts), keyed to the frame the move's effect starts on.
+    const kb = SIDE_VIEW && melee && art.kata && dd.strikeAt !== undefined && dd.poseT <= (dd.poseLen ?? 0) ? kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.strikeLow) : null;
     // The frame for each beat: gathered (brace), raised (the pose itself), then swept through
     // (strike) for the cut and the settle. Palm strikes (thrust) keep their own frame throughout.
     const through = beat && dd.pose === 'attack' && (beat.phase === 'cut' || beat.phase === 'settle');
     // Art with a wind-up of its own (Rook's raised sword) shows it for the gather's second half too:
     // the raise beat alone is two frames, too quick to read.
     const wound = art.windup && dd.pose === 'attack' && beat?.phase === 'gather' && PARTY_POSE_T - dd.poseT >= 3;
-    const pose: Pose = dd.poseT > 0 ? (wound ? 'attack' : beat?.phase === 'gather' ? 'brace' : through ? 'strike' : dd.pose) : 'idle';
-    const frame = art.frames[pose];
+    const pose: Pose = sb ? sb.frame : dd.poseT > 0 ? (wound ? 'attack' : beat?.phase === 'gather' ? 'brace' : through ? 'strike' : dd.pose) : 'idle';
+    // Side view: the wait loop plays in place of the rest frame, and the walk while stepping in.
+    const walkLeft = this.s.sideWalk(p.order ?? 0);
+    // Sprite Fusion art: a member who fades in over a short step (no run frame) is drawn at that opacity.
+    const walkAlpha = SF ? this.s.sideWalkAlpha(p.order ?? 0) : 1;
+    const cyc = art.cycle;
+    const idleStep = cyc?.idleStep ?? (active ? IDLE_FRAMES_PER_STEP_ACTIVE : IDLE_FRAMES_PER_STEP);
+    const walking = cyc !== undefined && pose === 'idle' && walkLeft !== 0;
+    // Sprite Fusion art: over the last few pixels of the walk the run eases into the stance (a skid) where the member has a settle frame.
+    const settle = walking && SF && cyc?.settle && Math.abs(walkLeft) < SF_SETTLE_DIST ? cyc.settle[Math.min(cyc.settle.length - 1, Math.floor((1 - Math.abs(walkLeft) / SF_SETTLE_DIST) * cyc.settle.length))] : undefined;
+    const idleFrame = cyc ? cyc.idle[cyc.idleOrder[Math.floor((f + p.uid * 23) / idleStep) % cyc.idleOrder.length] ?? 0] : undefined;
+    // Side view: a crewmate in the way of Rook's strike steps aside (see makeRoom).
+    const roomV = this.makeRoom(p);
+    // A member with no walk frames of its own steps in on the idle loop, so the loop does not jump when it arrives.
+    const frame = pk && art.sfPunch ? (pk.key === 'ready' && idleFrame ? idleFrame : art.sfPunch.frames[pk.key]) : sk && art.sfStrike ? (sk.key === 'ready' && idleFrame ? idleFrame : art.sfStrike.frames[sk.key]) : kb && art.kata ? art.kata[kb.key] : cyc && pose === 'idle' ? (walking && cyc.walk.length > 0 ? (settle ?? cyc.walk[Math.floor((f - this.s.walkStart) / (cyc.walkStep ?? WALK_FRAMES_PER_STEP)) % cyc.walk.length]) : idleFrame) ?? art.frames[pose] : art.frames[pose];
     // Drawn art (the art pass) can be finer than the battle world: `res` art pixels per world pixel.
     const res = art.res ?? 1;
     let ox = 0;
     if (dd.shake > 0) ox = dd.shake % 4 < 2 ? 2 : -2;
-    if (pose === 'hurt') ox += 1;
+    const room = roomV.x;
+    ox += room;
+    // Side view: a hit knocks the body back (away from the enemies: against the way the party faces) and it springs back over the pose.
+    const hurtK = SIDE_VIEW && dd.poseT > 0 && dd.pose === 'hurt' ? 16 - dd.poseT : -1;
+    if (hurtK >= 0) ox -= FACE * Math.max(0, 2.5 * (1 - hurtK / 10));
+    else if (pose === 'hurt') ox -= FACE;
     // Idle breathing: a 1px rise, staggered per member; faster and higher while choosing orders.
-    const breathe = pose === 'idle' ? (Math.floor((f + p.uid * 23) / (active ? 16 : 34)) % 2) * (active ? 2 : 1) : 0;
-    const x = Math.round(pos.x - frame.width / res / 2 + ox);
+    const breathe = pose === 'idle' && !cyc ? (Math.floor((f + p.uid * 23) / (active ? 16 : 34)) % 2) * (active ? 2 : 1) : 0;
+    // Side view: positions land on a native pixel (half a world pixel); otherwise on a world pixel.
+    const snap = SIDE_VIEW ? (v: number) => Math.round(v * 2) / 2 : Math.round;
+    // Side view: how far along its lunge the body is, in world pixels.
+    const lungeK = pk ? pk.lunge : sk ? sk.lunge : kb ? kb.lunge : sb ? sb.lunge : 0;
+    const lungeX = lungeK * (dd.reachX ?? 0) + (pk ? pk.push : 0);
+    const lungeY = lungeK * (dd.reachY ?? 0);
+    const x = snap(pos.x - frame.width / res / 2 + ox + walkLeft + lungeX);
     const lift = beat ? beat.lift : dd.lunge;
-    const y = Math.round(PARTY_BOTTOM - frame.height / res - dd.hop - lift - breathe + (pose === 'hurt' ? 2 : 0));
+    const cx2 = Math.round(pos.x + walkLeft + lungeX);
+    const y = snap(this.s.partyFeet(p) - frame.height / res - dd.hop - lift - breathe + lungeY + roomV.y + (pose === 'hurt' && !SIDE_VIEW ? 2 : 0));
     if (down) {
       g.globalAlpha = 0.5;
       putArt(g, silhouetteCache(art.frames.hurt, '#3a3450'), x, y + 10, res);
       g.globalAlpha = 1;
       return;
     }
-    if (dd.afterimage > 0) {
+    if (walkAlpha < 1) g.globalAlpha = walkAlpha;
+    if (SIDE_VIEW) {
+      // The crew plant on the street with a soft contact shadow, as the enemies do (it stays on the ground through a lunge or a hop).
+      const cx = Math.round(pos.x + walkLeft + lungeX + (hurtK >= 0 ? ox : room));
+      const gy = Math.round(this.s.partyFeet(p) - 1 + lungeY + roomV.y);
+      g.fillStyle = 'rgba(0,0,0,0.4)';
+      g.fillRect(cx - 9, gy, 18, 2);
+      g.fillRect(cx - 7, gy + 2, 14, 1);
+      g.fillRect(cx - 7, gy - 1, 14, 1);
+    }
+    // Sprite Fusion art: a dash (Kit's run, Rook's low lunge) leaves speed ghosts trailing behind it until the skid.
+    if (SF && walking && cyc?.walkGhosts && Math.abs(walkLeft) > SF_SETTLE_DIST + 16) {
+      const tint = MEMBERS[p.key as MemberId].color;
+      for (let i = cyc.walkGhosts; i >= 1; i--) {
+        g.globalAlpha = walkAlpha * (0.12 + 0.06 * (cyc.walkGhosts - i));
+        putArt(g, silhouetteCache(frame, tint), x - FACE * i * 3, y, res);
+      }
+      g.globalAlpha = walkAlpha;
+    }
+    if (sk && art.sfStrike) this.drawSfDust(g, p, sk, lungeX, lungeY);
+    if (pk && art.sfPunch) this.drawPunchDust(g, p, pk, lungeX, lungeY);
+    if (kb && art.kata) this.drawKataFx(g, p, kb, frame, x, y, res, walkLeft, lungeY, cx2);
+    if (!kb && dd.afterimage > 0) {
       // Speed ghosts trailing behind and to either side.
       for (const [gx, gy, a] of AFTERIMAGES) {
         g.globalAlpha = a * (dd.afterimage / 22);
         putArt(g, silhouetteCache(frame, MEMBERS[p.key as MemberId].color), x + gx, y + gy, res);
+      }
+      g.globalAlpha = 1;
+    }
+    if (pk?.dash) {
+      // Kit's run in and her smear frames leave one solid ghost behind the body, tinted her ki gold (the same single-tone ghost as Rook's dash, fainter: her smear is on the arm).
+      g.globalAlpha = pk.key === 'run' ? 0.26 : 0.18;
+      putArt(g, silhouetteCache(frame, '#ffc864'), x - FACE * (pk.key === 'run' ? 2.5 : 1.5), y, res);
+      g.globalAlpha = 1;
+    }
+    if (sk?.dash) {
+      // Sprite Fusion's Rook (round 4): the swipe frames leave one SOLID one-tone ghost 1.5 world px behind the body, tinted the blade's steel (round 3's checkerboard read as speckle noise); it is
+      // drawn before the body, and the swipe itself is the main trail.
+      g.globalAlpha = 0.3;
+      putArt(g, silhouetteCache(frame, '#b4c2da'), x - FACE * 1.5, y, res);
+      g.globalAlpha = 1;
+    }
+    if (!kb && sb && sb.smear > 0) {
+      // Side view: the dash leaves speed ghosts trailing behind it, away from the target.
+      const tint = MEMBERS[p.key as MemberId].color;
+      const n = sb.smear;
+      for (let i = n; i >= 1; i--) {
+        g.globalAlpha = 0.14 + 0.07 * (n - i);
+        putArt(g, silhouetteCache(frame, tint), x - FACE * i * 2.5, y, res);
       }
       g.globalAlpha = 1;
     }
@@ -411,7 +750,29 @@ export class BattleRenderer {
       }
       g.globalAlpha = 1;
     }
+    // Side view: whoever is giving orders gets a one-pixel outline in the active colour, beating on the half second, so the small
+    // sprite reads as the actor without the arrow alone (round 3).
+    if (SIDE_VIEW && active) {
+      const sil = silhouetteCache(frame, ACTIVE);
+      g.globalAlpha = 0.55 + 0.35 * Math.sin(f * 0.15);
+      for (const [dx, dy] of [[-0.5, 0], [0.5, 0], [0, -0.5], [0, 0.5]] as const) putArt(g, sil, x + dx, y + dy, res);
+      g.globalAlpha = 1;
+    }
     putArt(g, frame, x, y, res);
+    // Sprite Fusion side view: the crew's own pixels are cut out of the backdrop's neon before it blooms (see renderGlow), so a sign behind a head does not wash its hair pink.
+    if (SF && SIDE_VIEW) this.partyCuts.push({ c: frame, x, y, res });
+    g.globalAlpha = 1;
+    // Side view: the first frames of a hit show the body's own pixels in white, then a faint red tint (instead of a red wash over the whole sprite).
+    if (SIDE_VIEW && dd.flash > 0 && !down) {
+      if (dd.flash >= 6) {
+        g.globalAlpha = 0.9;
+        putArt(g, silhouetteCache(frame, '#ffffff'), x, y, res);
+      } else if (dd.flash % 4 < 2) {
+        g.globalAlpha = 0.28;
+        putArt(g, silhouetteCache(frame, '#ff5a5a'), x, y, res);
+      }
+      g.globalAlpha = 1;
+    }
     // The cut's lit trail shows only while the cut is happening, not through the settle.
     const glow = pose === 'strike' && beat?.phase === 'settle' ? undefined : art.glow[pose];
     if (glow) {
@@ -422,7 +783,7 @@ export class BattleRenderer {
       g.globalCompositeOperation = 'source-over';
     }
     if (active && this.s.mode !== 'target') this.drawArrow(g, p.uid, f, ACTIVE);
-    if (dd.flash > 0 && dd.flash % 4 < 2) {
+    if (!SIDE_VIEW && dd.flash > 0 && dd.flash % 4 < 2) {
       g.globalAlpha = 0.45;
       putArt(g, silhouetteCache(frame, '#ff5a5a'), x, y, res);
       g.globalAlpha = 1;
@@ -438,25 +799,57 @@ export class BattleRenderer {
       const p = this.s.enemyPos(u);
       x = p.x + p.art.w / 2;
       y = p.y - 4;
+      // Side view: hang the chevron just over the health bar, wherever the prompt window has pushed it (the bar sits 6 screen pixels over the art, never above row 24).
+      // Sprite Fusion art (round 4): the chevron rides 2 to 6 screen px over the bar's plate, and, for a front-row creature whose bar is under its feet, just over its head.
+      if (SIDE_VIEW) y = Math.max(24, (p.y + artTop(p.art)) * 2 - (SF ? (p.front ? -1 : SF_BAR_RISE) : 3)) / 2;
     } else {
       const p = this.s.partyPos(u);
       x = p.x;
-      y = PARTY_BOTTOM - this.s.partyArt.get(uid)!.headH - 3;
+      y = this.s.partyFeet(u) - this.s.partyArt.get(uid)!.headH - 3;
+      // Side view, Rook's kendo strike: the arrow rides the body through the lunge, and clears the raised blade (it would sit on it).
+      const dd = this.s.d(uid);
+      const sk = this.sfOf(uid);
+      const pk = this.punchOf(uid);
+      if (pk) {
+        // Kit's combo: the chevron is gone from the first frame (the body is its own marker once it is on the target).
+        if (pk.key !== 'ready') return;
+        x += pk.lunge * (dd.reachX ?? 0) + pk.push;
+        y += pk.lunge * (dd.reachY ?? 0);
+      } else if (sk) {
+        // Round 4: once the strike has begun the chevron is gone (the raised blade ran through it); the body is its own marker.
+        if (sk.key !== 'ready') return;
+        x += sk.lunge * (dd.reachX ?? 0);
+        y += sk.lunge * (dd.reachY ?? 0);
+      } else if (SIDE_VIEW && this.s.partyArt.get(uid)?.kata && dd.strikeAt !== undefined && dd.poseT > 0 && dd.poseT <= (dd.poseLen ?? 0)) {
+        const kb = kataBeat((dd.poseLen ?? 0) - dd.poseT, dd.strikeAt, dd.strikeLow);
+        x += kb.lunge * (dd.reachX ?? 0);
+        y += kb.lunge * (dd.reachY ?? 0);
+        if (kb.key === 'lift' || kb.key === 'overhead' || kb.dash) y -= 13;
+        // Over the enemy line it would sit on their health bars: the lunging body is its own marker.
+        if (kb.lunge > 0.12) return;
+      }
     }
     // Over an enemy it hangs above the head; over the crew it sits right on the hair, so it never
     // reaches up into the enemy row and reads as a target cursor (round 13).
-    const b = Math.round(Math.sin(f * 0.25) * (u.side === 'enemy' ? 3 : 1.5));
-    const top = u.side === 'enemy' ? y - 9 + b : y - 2 + b;
+    const b = Math.round(Math.sin(f * 0.25) * (u.side === 'enemy' ? (SIDE_VIEW ? 1 : 3) : 1.5));
+    const top = u.side === 'enemy' ? Math.max(SIDE_VIEW ? 1 : -99, y - (SF ? 8 : 9) + b) : y - (SIDE_VIEW ? 5 : 2) + b;
+    // Side view: the target cursor is white (the cyan one vanished against cyan neon signs), with its dark outline.
+    const fill = SIDE_VIEW && color === AIMING ? '#ffffff' : color;
     // A chunky chevron (9 wide, 5 deep) with a dark outline all round, so it holds against any
     // backdrop, and a white glint across its top on the beat.
+    // Sprite Fusion art (round 4): a dark plate behind the chevron, like the health bars', so a white chevron holds over a pale shop sign.
+    if (SF && color === AIMING) {
+      g.fillStyle = 'rgba(10,9,19,0.78)';
+      g.fillRect(x - 6, top - 2, 13, 8);
+    }
     g.fillStyle = '#0a0913';
     for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
       for (let i = 0; i < 5; i++) g.fillRect(x - 4 + i + ox, top + i + oy, 9 - i * 2, 1);
     }
-    g.fillStyle = color;
+    g.fillStyle = fill;
     for (let i = 0; i < 5; i++) g.fillRect(x - 4 + i, top + i, 9 - i * 2, 1);
     if (Math.sin(f * 0.25) > 0.3) {
-      g.fillStyle = '#ffffff';
+      g.fillStyle = fill === '#ffffff' ? '#ffd24a' : '#ffffff';
       g.fillRect(x - 3, top, 7, 1);
     }
   }
@@ -470,23 +863,29 @@ export class BattleRenderer {
       if (e.hp <= 0) continue;
       const dd = this.s.d(e.uid);
       if (dd.dying > 0 || dd.alpha < 0.5) continue;
-      const { x, y, art } = this.s.enemyPos(e);
+      const { x, y, art, front } = this.s.enemyPos(e);
       const cx0 = Math.round((x + art.w / 2) * 2);
-      let row = Math.max(24, (y + artTop(art)) * 2 - 6);
+      // Sprite Fusion side view (round 4): the plate sits fully OVER the art (its bottom 3 screen px above the top of the head), not across the scanner or the mohawk.
+      let row = Math.max(24, (y + artTop(art)) * 2 - (SF ? SF_BAR_RISE : SIDE_VIEW ? 3 : 6));
+      // Sprite Fusion side view: a front-row creature stands over the legs of the row behind it, so its bar goes UNDER its feet (below the contact shadow) instead of across them; its chips and tags still stack over its head.
+      const barRow = front && SF ? (y + art.h) * 2 + 5 : row;
       // HP bar (bosses get a wider one).
       const bw = e.boss ? 72 : 30;
       const ratio = Math.max(0, dd.shownHp / e.base.maxHp);
-      // A solid dark plate and a 3px bar, so it holds up over bright signage.
+      // A solid dark plate and a 3px bar, so it holds up over bright signage. Side view: it fades while Rook's lunge runs through it.
+      const lb = this.lungeBox();
+      if (lb && cx0 + bw / 2 + 2 > lb[0] && cx0 - bw / 2 - 2 < lb[2] && barRow + 5 > lb[1] && barRow - 2 < lb[3]) ctx.globalAlpha = 0.2;
       ctx.fillStyle = '#0a0913';
-      ctx.fillRect(cx0 - bw / 2 - 2, row - 2, bw + 4, 7);
+      ctx.fillRect(cx0 - bw / 2 - 2, barRow - 2, bw + 4, 7);
       ctx.fillStyle = '#2a2838';
-      ctx.fillRect(cx0 - bw / 2, row, bw, 3);
+      ctx.fillRect(cx0 - bw / 2, barRow, bw, 3);
       ctx.fillStyle = hpColor(ratio);
-      ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 3);
+      ctx.fillRect(cx0 - bw / 2, barRow, Math.round(bw * ratio), 3);
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.fillRect(cx0 - bw / 2, row, Math.round(bw * ratio), 1);
-      drawLag(ctx, cx0 - bw / 2, row, bw, 3, ratio, dd.lagHp / e.base.maxHp);
-      row -= 11;
+      ctx.fillRect(cx0 - bw / 2, barRow, Math.round(bw * ratio), 1);
+      drawLag(ctx, cx0 - bw / 2, barRow, bw, 3, ratio, dd.lagHp / e.base.maxHp);
+      ctx.globalAlpha = 1;
+      if (!(front && SF)) row -= 11;
       // While numbers are rising off this enemy, its chips and WEAK tag step aside (the HP bar
       // stays): the two text systems share the rows above its head.
       let floating = false;
@@ -856,7 +1255,7 @@ export class BattleRenderer {
   }
 
   private renderRoundMenu(ctx: Ctx): void {
-    const x = MENU_X, y = PANEL_Y - 60;
+    const x = MENU_X, y = PANEL_Y - 60 - (SIDE_VIEW ? SIDE_PANEL_GAP : 0);
     drawWindow(ctx, x, y, 84, 54, { title: `ROUND ${this.s.battle.round + 1}` });
     this.s.roundMenu.render(ctx, x + 8, y + 8, 72);
     const help: Record<string, string> = {
@@ -875,7 +1274,7 @@ export class BattleRenderer {
     const a = this.s.actor;
     if (!a) return;
     const h = this.s.cmdMenu.items.length * 11 + 12;
-    const x = this.s.menuX(a, CMD_W), y = PANEL_Y - h - 6;
+    const x = this.s.menuX(a, CMD_W), y = PANEL_Y - h - 6 - (SIDE_VIEW ? SIDE_PANEL_GAP : 0);
     drawWindow(ctx, x, y, CMD_W, h, { accent: MEMBERS[a.key as MemberId].color, title: a.name.toUpperCase(), alpha: active ? 1 : 0.85 });
     this.s.cmdMenu.render(ctx, x + 7, y + 7, CMD_W - 8, active);
   }
@@ -891,7 +1290,9 @@ export class BattleRenderer {
     const w = Math.min(210, Math.max(120, widest + 32));
     const h = Math.min(this.s.listMenu.rows, Math.max(1, items.length)) * 11 + 14;
     const cmdTop = PANEL_Y - (this.s.cmdMenu.items.length * 11 + 12) - 6;
-    const x = this.s.menuX(a, w), y = cmdTop - h - 4;
+    // Side view: the enemies are left of the party, so a window stacked above the command menu would cover
+    // them. It sits beside the command menu instead, on the open ground under the enemies.
+    const x = SIDE_VIEW ? MENU_X + CMD_W + 4 : this.s.menuX(a, w), y = SIDE_VIEW ? PANEL_Y - h - 6 - SIDE_PANEL_GAP : cmdTop - h - 4;
     const kind = this.s.listKind === 'item' ? 'Items' : this.s.listKind === 'skill' ? 'Skills' : this.s.cmdMenu.items.find((i) => i.value === 'tech')?.label ?? 'Techs';
     drawWindow(ctx, x, y, w, h, { title: `${a.name} · ${kind}`.toUpperCase(), accent: MEMBERS[a.key as MemberId].color });
     this.s.listMenu.render(ctx, x + 8, y + 8, w - 14, true, 'Nothing to use.');
@@ -940,13 +1341,18 @@ export class BattleRenderer {
     if (!u) return;
     // The box sits on the far side of the screen from its target (clear of the turn-order strip
     // on the right), so it never covers the target or the arrow over it.
-    const w = TARGET_INFO_W, y = 44;
+    const w = TARGET_INFO_W;
     const tx = this.s.pos(u.uid).x * 2;
-    const x = tx < W / 2 ? W - 44 - w : 8;
     const name = this.s.label(u);
-    if (u.side === 'enemy') {
-      const { weak, notes } = this.targetNotes(u);
-      drawWindow(ctx, x, y, w, 19 + (u.analyzed ? 11 : 0) + notes.length * 10, { plain: true, accent: UI.amber });
+    const info = u.side === 'enemy' ? this.targetNotes(u) : null;
+    const boxH = info ? 19 + (u.analyzed ? 11 : 0) + info.notes.length * 10 : 19;
+    // Side view: the enemies fill the top and middle of the screen, so the box takes the open ground
+    // under them (the command windows' place, which are hidden while aiming), whoever is aimed at.
+    const x = SIDE_VIEW ? MENU_X + 4 : tx < W / 2 ? W - 44 - w : 8;
+    const y = SIDE_VIEW ? PANEL_Y - 6 - SIDE_PANEL_GAP - boxH : 44;
+    if (info) {
+      const { weak, notes } = info;
+      drawWindow(ctx, x, y, w, boxH, { plain: true, accent: UI.amber });
       drawText(ctx, name, x + 8, y + 5, { color: '#ffd0d0' });
       const bestiary = state.bestiary[u.key] ?? 0;
       if (weak) drawText(ctx, fitText(weak, w - 24 - measure(name)), x + w - 8, y + 5, { align: 'right', color: UI.amber });

@@ -3,6 +3,9 @@
  * humanoid enemies, with action poses built by editing the rig's letter grid (arms raised,
  * braced) plus hand-drawn weapons in front of or behind the body.
  */
+import type { KataKey } from './rig2/sidekata';
+import type { SfKey } from './rig2/sfstrike';
+import type { PunchKey } from './rig2/sfpunch';
 import { backGrid, paint, type CharLook } from './chars';
 import { rigBattler } from './rig2/battle';
 import { Pix, scale2x } from './pix';
@@ -29,6 +32,20 @@ export interface Battler {
    * head), shown from halfway through a swing's gather, not just its brief raise beat.
    */
   windup?: boolean | undefined;
+  /**
+   * Side-view battle (spike `?battle=side`): looping frames for standing and walking. The idle
+   * loop plays in place of the rest frame (in `idleOrder`), the walk while the member steps in. `idleStep` and `walkStep` (render frames per
+   * frame of the loop) override the side view's defaults: Sprite Fusion's idles run at 8 fps, 7.5 render frames a frame.
+   */
+  cycle?: { idle: HTMLCanvasElement[]; idleOrder: readonly number[]; walk: HTMLCanvasElement[]; idleStep?: number; walkStep?: number; settle?: HTMLCanvasElement[]; walkGhosts?: number } | undefined;
+  /** Side-view battle, Rook only: his kendo strike, one frame per key of `rig2/sidekata.ts`, each on its own (wider) canvas centred on the body. */
+  kata?: Record<KataKey, HTMLCanvasElement> | undefined;
+  /** Side-view battle, Sprite Fusion art, Rook only: his strike built from Mark's frames (`rig2/sfstrike.ts`), one canvas per key, all the same size, the slot's axis at the centre column and the soles on the bottom row. */
+  sfStrike?: { frames: Record<SfKey, HTMLCanvasElement> } | undefined;
+  /** Side-view battle, Sprite Fusion art, Kit only: her punch combo built from Mark's frames (`rig2/sfpunch.ts`), one canvas per key, same size and axis rules as `sfStrike`. */
+  sfPunch?: { frames: Record<PunchKey, HTMLCanvasElement> } | undefined;
+  /** The same frames without the smear arc, for the speed ghosts. */
+  kataPlain?: Record<KataKey, HTMLCanvasElement> | undefined;
 }
 
 type Weapon = 'fists' | 'katana' | 'pistol' | 'staff';

@@ -20,6 +20,17 @@ export const PORTRAIT_TRACED: Record<string, TracedPortrait> = {};
 /** Battle backs' skeletons and key poses (set in the animation editor, /rigedit.html). */
 export const SKELETONS: Record<string, BattleRig> = {};
 
+/** The crew's 8-direction views (public/art/rig/views.json), loaded only for the side-view battle spike (DEV, `?battle=side`). */
+export const VIEWS_TRACED: Record<string, Record<string, Traced>> = {};
+
+/** Load the 8-direction views the side-view battle shrinks to battle scale. */
+export async function loadViews(base = 'art/rig/'): Promise<number> {
+  const res = await fetch(`${base}views.json`, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`views.json: ${res.status}`);
+  Object.assign(VIEWS_TRACED, await res.json());
+  return Object.keys(VIEWS_TRACED).length;
+}
+
 /** Load the traced frames. Resolves with how many characters came in; rejects if none could. */
 export async function loadRigData(base = 'art/rig/'): Promise<number> {
   const get = async (file: string) => {
