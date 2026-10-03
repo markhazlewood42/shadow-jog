@@ -73,7 +73,7 @@ Below 1100 px wide the three columns stack into one, as the animation editor alr
 
 ### 2.3 Selecting and moving things in the view
 
-- **Click** selects; **Shift+click** adds to or removes from the selection; **Ctrl+A** selects everything of the selected kind; **Esc** clears the selection. MZ uses Shift+click for multi-select in its lists ([MZ Database](https://rpgmakerofficial.com/product/MZ_help-en/01_08.html)) and Tiled does the same on the map ([Tiled objects](https://doc.mapeditor.org/en/stable/manual/objects/)).
+- **Click** selects; **Shift+click** adds to or removes from the selection; **Ctrl+A** selects everything of the selected kind; **Esc** clears the selection. MZ uses Shift+click to select several Database entries for copying ([MZ Database](https://rpgmakerofficial.com/product/MZ_help-en/01_08.html)) and Tiled does the same on the map ([Tiled objects](https://doc.mapeditor.org/en/stable/manual/objects/)).
 - **Drag** moves the selection. The inspector updates live, and the drag is one undo step when the mouse is released.
 - **Arrow keys** nudge by 1 game pixel and **Shift+arrow** by 8 (the 1 px nudge matches `rigedit.ts`; the 8 px step is inferred). Things that live on depth rows move one row up or down with the up and down arrows instead.
 - **Snapping** has separate toggles, as in Godot ([Godot 2D](https://docs.godotengine.org/en/stable/tutorials/2d/introduction_to_2d.html)): snap to rows, snap to grid (8 px, **G** toggles), and whole-pixel snap, which is always on because this is pixel art. Holding **Ctrl** while dragging turns snapping the other way for that drag (Tiled uses Ctrl for grid snap, [Tiled objects](https://doc.mapeditor.org/en/stable/manual/objects/)).
@@ -109,10 +109,10 @@ Keys are ignored while focus is in a text field, as in the animation editor toda
 | Duplicate | Ctrl+D | none found | (inferred) common editor convention |
 | Find in list | Ctrl+F | Ctrl+F in Plugin Manager ([MZ aid tools](https://rpgmakerofficial.com/product/MZ_help-en/01_05.html)) | |
 | Previous / next entry | PageUp / PageDown | F4 / F5 in the Database (as summarised from [MZ Database](https://rpgmakerofficial.com/product/MZ_help-en/01_08.html)) | Deliberate difference: F5 reloads the page |
-| Test (Battle Test, Play) | Ctrl+Enter | Playtest is Ctrl+R in MV ([Steam thread](https://steamcommunity.com/app/363890/discussions/0/1728701877504371988)); F12 in older versions ([TutorialTactic list](https://tutorialtactic.com/?p=7510)) | Deliberate difference: Ctrl+R and F5 reload, F12 opens DevTools |
+| Test (Battle Test, Play) | Ctrl+Enter | The official MZ and MV help gives no playtest shortcut ([MZ help](https://rpgmakerofficial.com/product/MZ_help-en/01_04.html)); community pages say Ctrl+R in MV ([Steam thread](https://steamcommunity.com/app/363890/discussions/0/1728701877504371988)) and F12 in older versions ([TutorialTactic list](https://tutorialtactic.com/?p=7510)) (unverified) | Deliberate difference: Ctrl+R and F5 reload, F12 opens DevTools |
 | Debug panel during a test | F9 | F9 opens the Debug screen during playtest ([MZ aid tools](https://rpgmakerofficial.com/product/MZ_help-en/01_05.html)) | Same key, same idea: set battle values while the test runs |
 | Leave the test, back to editing | Esc | Close the battle window ([MZ Troops](https://rpgmakerofficial.com/product/MZ_help-en/01_08_07.html)) | Returns with the selection intact |
-| Edit / play toggle | E | Map / Event mode buttons; F5 and F6 in older versions ([TutorialTactic list](https://tutorialtactic.com/?p=7510)) | |
+| Edit / play toggle | E | Map / Event mode buttons; F5 and F6 in older versions per a community list ([TutorialTactic list](https://tutorialtactic.com/?p=7510)) (unverified) | |
 | Deselect, close a dialog | Esc | | |
 | Nudge | Arrows; Shift+arrows for 8 px | | 1 px arrows match `rigedit.ts` |
 | Grid snap on/off | G | | Hold Ctrl while dragging to flip snapping for that drag |
@@ -120,7 +120,7 @@ Keys are ignored while focus is in a text field, as in the animation editor toda
 | Show HUD regions | H | | Overlay only; never changes data. Other overlays are toolbar toggles |
 | Open the DEV menu | ` (backtick) | | On the game page only (`src/dev/devmenu.ts`) |
 | Turn the character | [ and ] | | Animation editor only (`rigedit.ts`) |
-| Database (when it exists) | F9 is taken by the debug panel, so the Database opens from the DEV menu | F9 opens the Database ([TutorialTactic list](https://tutorialtactic.com/?p=7510)) | (inferred) avoid one key meaning two things |
+| Database (when it exists) | F9 is taken by the debug panel, so the Database opens from the DEV menu | In MZ, F9 opens the Debug Screen during playtest ([MZ help](https://rpgmakerofficial.com/product/MZ_help-en/01_05.html)); the Database opens from the toolbar or Tools > Database ([MZ Database](https://rpgmakerofficial.com/product/MZ_help-en/01_08.html)) | (inferred) avoid one key meaning two things |
 
 Every tool shows its keys on a "Keys" button in the toolbar, and the same table drives both the handler and that list (proposed `src/tools/keys.ts`).
 
@@ -182,7 +182,7 @@ Today's `"backdrop": "street"` keeps working as shorthand for a wall picture tha
 VisuStella offers named battle layouts (default, list, xp, portrait, border) that a troop can switch with a note tag ([VisuStella Battle Core](https://www.yanfly.moe/wiki/Battle_Core_VisuStella_MZ)), and RPG Developer Bakin keeps several screen layouts per scene that events switch between ([Bakin](https://rpgbakin.com/en/about/)). We do the same with direct manipulation:
 
 - A **HUD layout** is a named entry (its own small list, proposed `src/data/hudlayouts.json`) of regions: turn order, commands, party status, target info, and whatever the side-view HUD design adds. Each region has x, y, width, height and an anchor.
-- A stage picks a layout in its inspector. Dragging a region on that stage records a **per-stage override** of just that region; the inspector shows overridden values in white and inherited ones in grey, with a revert arrow to go back to the layout's value. That is Tiled's template model ([Tiled templates](https://doc.mapeditor.org/en/stable/manual/using-templates/)) plus the per-field revert Tiled lacks and Godot has ([Godot inspector](https://docs.godotengine.org/en/stable/tutorials/editor/inspector_dock.html)).
+- A stage picks a layout in its inspector. Dragging a region on that stage records a **per-stage override** of just that region; the inspector shows overridden values in white and inherited ones in grey (our own convention (inferred); Tiled only tracks overrides internally), with a revert arrow to go back to the layout's value. That is Tiled's template model ([Tiled templates](https://doc.mapeditor.org/en/stable/manual/using-templates/)) plus the per-field revert Tiled lacks (it is a planned feature there) and Godot has ([Godot inspector](https://docs.godotengine.org/en/stable/tutorials/editor/inspector_dock.html)).
 - "Save as new layout" turns the current stage's overrides into a new named layout.
 
 ### 3.7 Inspector
@@ -256,12 +256,12 @@ Each tool gets the standard layout from section 2. The table maps it to its RPG 
 
 ### 4.2 Animation Composer (Sprite Fusion frames)
 
-- **Timeline**: rows are layers (body, weapon, effect) and columns are frames, each cell holding a Sprite Fusion frame reference and an offset, as in Aseprite's cels ([Aseprite cels](https://www.aseprite.org/docs/cel/)). Below the frame rows sit fixed lanes for **Sound**, **Flash** and **Events**, the lanes RPG Maker's own 2D Animation Editor settled on after MZ's plain timing lists.
-- **Holds**: each frame has a duration, shown as cell width, exported per frame as Aseprite's JSON does ([Aseprite CLI](https://www.aseprite.org/docs/cli/)).
+- **Timeline**: rows are layers (body, weapon, effect) and columns are frames, each cell holding a Sprite Fusion frame reference and an offset, as in Aseprite's cels ([Aseprite cels](https://www.aseprite.org/docs/cel/)). Below the frame rows sit fixed lanes for **Sound**, **Flash** and **Events**. RPG Maker's official 2D Animation Editor add-on uses a four-track timeline of frames, cells, sound effects and flashes ([2D Animation Editor](https://store.rpgmakerofficial.com/products/2d-animation-editor-mz)), and MZ's own Animations tab lists sound and flash timings around an Effekseer effect ([MZ Animations](https://rpgmakerofficial.com/product/MZ_help-en/01_08_09.html)); the **Events** lane is ours, for hit timing.
+- **Holds**: each frame has a duration, shown as cell width, exported per frame the way Aseprite's sheet JSON carries a duration per frame (inferred from its exports; the [Aseprite CLI](https://www.aseprite.org/docs/cli/) page documents a `{duration}` filename variable).
 - **Tags**: named frame ranges (idle, wind-up, strike, recover) with a direction: forward, reverse or ping-pong ([Aseprite tags](https://www.aseprite.org/docs/tags/)). MZ's sheet convention fits inside this: three frames per motion, looping 1-2-3-2 (ping-pong) or once 1-2-3 (forward) ([MZ sprite sheets](https://rpgmakerofficial.com/product/MZ_help-en/01_11_02.html)).
 - **Anchors and hit points**: per-frame points drawn on the art, like Aseprite slices with pivots ([Aseprite slices](https://www.aseprite.org/docs/slices/)): the foot anchor (see "Anchoring by the planted foot" in `docs/CONCEPTS.md`) and the impact point.
 - **Onion skin**: previous and next frames tinted under the current one, toggled with F3 as in Aseprite ([Aseprite onion skinning](https://www.aseprite.org/docs/onion-skinning/)), so a planted foot can be checked.
-- **Events lane**: markers for `hit`, `sfx`, `shake` and `flash`, each a name plus one value (Unity's one-payload rule, [Unity animation events](https://docs.unity3d.com/Manual/script-AnimationWindowEvent.html)). Godot does not fire call-track events in editor preview ([Godot track types](https://docs.godotengine.org/en/stable/tutorials/animation/animation_track_types.html)); ours previews the visuals (flash, shake, hitstop, sound) but never applies damage, and Battle Test fires them for real.
+- **Events lane**: markers for `hit`, `sfx`, `shake` and `flash`, each a name plus a single parameter (like Unity animation events, which take one parameter: a float, int, string or object, [Unity animation events](https://docs.unity3d.com/Manual/script-AnimationWindowEvent.html)). Godot does not fire call-track events in editor preview ([Godot track types](https://docs.godotengine.org/en/stable/tutorials/animation/animation_track_types.html)); ours previews the visuals (flash, shake, hitstop, sound) but never applies damage, and Battle Test fires them for real.
 - **Bulk tools** from MV's editor: copy cells between frames, shift a range, tween between two frames ([MV Animations](https://rpgmakerofficial.com/product/MV_Help/page/01_08_09.html)).
 - **Test button**: "Play in battle" runs the move in the stage view against a target.
 
@@ -270,14 +270,14 @@ Each tool gets the standard layout from section 2. The table maps it to its RPG 
 - RPG Maker's shell: one tab per kind down the side, the list on the left, the form on the right, copy/paste/clear on right-click, a Note field on every entry ([MZ Database](https://rpgmakerofficial.com/product/MZ_help-en/01_08.html)). Our Note field is the "Note for Claude".
 - Forms are generated from a typed schema per kind (number, text, colour, file, reference, choice), the way Tiled's custom classes pick the editor widget from the type ([Tiled custom properties](https://doc.mapeditor.org/en/stable/manual/custom-properties/)).
 - References (a troop's enemies, an enemy's skills) are pickers with a "go to" arrow that opens the referenced entry in its tab.
-- The inspector extras from Godot: revert arrows, a property search box, and "show only changed" ([Godot inspector](https://docs.godotengine.org/en/stable/tutorials/editor/inspector_dock.html)).
+- The inspector extras from Godot: revert arrows, a property search box, and "Expand Non-Default", which opens only the sections holding changed values ([Godot inspector](https://docs.godotengine.org/en/stable/tutorials/editor/inspector_dock.html)).
 - Test buttons per kind: Battle Test with this enemy, Try this skill (plays it in the stage view), Give this item (opens the game with it in the bag).
 - The data is TypeScript today (`src/data/enemies.ts`, `abilities.ts`, `items.ts`); a database editor needs it moved to JSON first, a separate decision for Mark (inferred).
 
 ### 4.4 Maps
 
 - Tiled stays the map editor; we don't build a tile painter. Its stamps, object layers, typed properties and templates already beat RPG Maker's map editor for our needs ([Tiled tile layers](https://doc.mapeditor.org/en/stable/manual/editing-tile-layers/), [Tiled objects](https://doc.mapeditor.org/en/stable/manual/objects/)).
-- RPG Maker's map ideas map onto Tiled layers: tile layers 1 to 4 become Tiled tile layers, the region (R) tab becomes an object or tile layer of encounter regions, and events become objects with typed properties ([MZ modes and layers](https://rpgmakerofficial.com/product/MZ_help-en/01_07_01.html)).
+- RPG Maker's map ideas map onto Tiled layers: tile layers 1 to 4 become Tiled tile layers, regions (inferred) become an object or tile layer of encounter regions, and events (inferred) become objects with typed properties ([MZ modes and layers](https://rpgmakerofficial.com/product/MZ_help-en/01_07_01.html) confirms the four tile layers and Auto mode).
 - Our part is a small DEV page: pick a map, validate it, and "Try in game" at a chosen spot, plus the encounter list from 4.1.
 
 ### 4.5 Bringing the existing tools into line (later, not now)
