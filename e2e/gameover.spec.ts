@@ -227,6 +227,18 @@ test('Two tabs on one save: both are warned, and only the first keeps autosaving
   expect(await b.evaluate(() => localStorage.getItem('shadowjog.save.auto'))).toBeTruthy();
 });
 
+test('Autosave never overwrites an autosave written by a newer version', async ({ page }) => {
+  await stage(page, 'town'); // (stage clears storage, so the newer save is planted after it)
+  // A save format from the future (SAVE_VERSION is 3 today), as a newer build would have left it.
+  const newer = JSON.stringify({ meta: { appVersion: '0.3.0' }, state: { version: 4 } });
+  await page.evaluate((json) => localStorage.setItem('shadowjog.save.auto', json), newer);
+  // Walking out into the Sprawl is a place change, which autosaves.
+  await sj(page, "sj.tp('world', 13, 22, 'right')");
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => localStorage.getItem('shadowjog.save.auto'))).toBe(newer);
+  expect((await sj<{ text: string } | null>(page, 'sj.notice()'))?.text).toContain('newer version');
+});
+
 test('A browser that can’t start the game says so, instead of a black screen', async ({ page }) => {
   // No 2D canvas (a locked-down or broken browser): the display can't be built at boot.
   await page.addInitScript(() => {

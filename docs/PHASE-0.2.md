@@ -43,7 +43,7 @@
 - A new `meta.appVersion` field records which build wrote each save.
 - An older build that meets a newer save already refuses to load it, which is correct. The slot should say "saved by a newer version" rather than "damaged".
 - A 0.2.x build must load any 0.1.x save. Wipes happen only on purpose, are announced in-game and in the changelog, and never come from a half-working migration.
-- Before a migration overwrites a slot, the old JSON is copied aside (inferred as worthwhile; the repo doesn't do this yet).
+- Before a migration overwrites a slot, the old JSON is copied aside (inferred as worthwhile; the repo doesn't do this yet). Skipped 2026-10-03: `loadSave` migrates in memory only and never writes a slot back, so nothing overwrites old JSON. Revisit if a migration ever writes back.
 - Spike preview builds run on their own origins, so their `localStorage` can't touch your real saves.
 
 ### Not adopting

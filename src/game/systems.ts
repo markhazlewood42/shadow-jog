@@ -23,7 +23,7 @@ import { SaveScene } from '../scenes/saveload';
 import { ShopScene } from '../scenes/shop';
 import { fieldHooks } from './hooks';
 import { addMember, crewLevel, fullRestore, innPrice, knownAbilities, maxUses, memberStats, partyMembers, rest, restoreUses } from './party';
-import { applySave, latestSlot, loadSave, unsavedFrames, writeSave } from './save';
+import { applySave, latestSlot, loadSave, slotStatus, unsavedFrames, writeSave } from './save';
 import type { BattleResult } from './script';
 import { flags, setState, state, type GameState, type MemberId } from './state';
 
@@ -282,13 +282,23 @@ export function installSystems(game: Game, h: SystemHandlers): void {
 const AUTOSAVE_EVERY = 3 * 60 * 60;
 
 /** Autosave policy: a second tab on the same save file stops autosaving (see boot). */
-export const autosavePolicy = { enabled: true, pausedNoticeShown: false };
+export const autosavePolicy = { enabled: true, pausedNoticeShown: false, newerNoticeShown: false };
 
 export function autosave(game: Game): void {
   if (!autosavePolicy.enabled) {
     if (!autosavePolicy.pausedNoticeShown) {
       autosavePolicy.pausedNoticeShown = true;
       notice('Autosave is paused: Shadow Jog is open in another tab. Save from the menu here.', 'warn');
+    }
+    return;
+  }
+  // The autosave slot holds a save written by a NEWER version of the game (the player went back to an older
+  // build, or an old tab is still open). Autosave never asks first, so it must not overwrite that save: stay off
+  // and say so once. Saving by hand from the menu still works, and asks before replacing it.
+  if (slotStatus('auto') === 'newer') {
+    if (!autosavePolicy.newerNoticeShown) {
+      autosavePolicy.newerNoticeShown = true;
+      notice('Autosave is off: the autosave is from a newer version. Save from the menu here.', 'warn');
     }
     return;
   }

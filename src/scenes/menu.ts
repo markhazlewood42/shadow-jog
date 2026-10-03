@@ -654,7 +654,7 @@ export class MenuScene extends Scene<MenuResult> {
     this.sub.render(ctx, x + 8, 16, w - 14, this.mode === 'save');
     if (this.mode === 'saveConfirm') {
       drawWindow(ctx, x + 40, 70, w - 80, 30, { accent: UI.amber });
-      drawText(ctx, `Overwrite slot ${this.saveSlot}?  {y}Confirm{/} = yes · {d}Cancel{/} = no`, x + w / 2, 80, { align: 'center' });
+      drawText(ctx, `${slotStatus(this.saveSlot) === 'newer' ? `Slot ${this.saveSlot} is newer. Replace?` : `Overwrite slot ${this.saveSlot}?`}  {y}Confirm{/} = yes · {d}Cancel{/} = no`, x + w / 2, 80, { align: 'center' });
     }
   }
 
