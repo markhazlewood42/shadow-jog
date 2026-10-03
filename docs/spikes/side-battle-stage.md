@@ -1044,6 +1044,8 @@ The editor is a standalone page (like the FX lab) that loads a stage JSON, shows
 
 ## 7. Open questions for Mark
 
+**Answered or defaulted 2026-10-02.** Questions 1 and 2: Mark chose to keep today's enemies in the spike and re-art them later; new side-facing (three-quarter, facing left) humanoid enemies at the crew's 1 px grain go on the Sprite Fusion shopping list (style reference now works at 64-96 px). Questions 3 to 5 default to the final design (ref 1's column, commands in the bottom band, new back walls for the indoor boxes and reprojection for outdoor stages); they become knobs in the Battle Stage Editor, where Mark can change them himself. Question 6 (the Lurker in the water channel) waits for the sewer fight. Question 7: yes, Mark's mockup will be expressed in this format and judged on the same rubric when it arrives.
+
 1. **Enemy size and pixel grain.** The shipped enemies are 2 px-grain art at 2x, and the punk is 1.4x hero height. Options: (a) keep them as an accepted alpha exception; (b) draw humanoids at their native 1 px size (a punk about 46 px, 0.7x hero, the spike's current in-game default); (c) re-export the humanoid enemies at 1 px grain at about hero height (54-72 px), which is new art. Which one?
 2. **Enemy facing.** The punks, medic, slinger, ghoul and the Warden face the camera, not the heroes. Is front-facing acceptable for alpha (a classic JRPG look), or should humanoid enemies get left-facing three-quarter art?
 3. **Party column direction.** The final uses ref 1's column: lead hero lowest and furthest left, rear rows toward the centre. D3 had the reverse arc (lead lowest and nearest the enemies, like ref 3). Which reads better to you?
