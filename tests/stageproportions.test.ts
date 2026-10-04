@@ -81,15 +81,8 @@ describe('the shipped heroes file', () => {
     expect(Object.keys(file).sort()).toEqual([...CREW_IDS].sort());
   });
 
-  // (Rook against Kit is judged on the baked pictures below, not on these numbers: Rook is drawn taller than Kit, so his smaller number can still make him the taller hero.)
-  it('keeps the dwarf and the orc at the ends in its numbers: Hex smaller than Kit and Rook, Sable larger than both', () => {
-    const f = shippedHeroes();
-    const h = (id: string): number => (f[id] as { height: number }).height;
-    expect(h('hex')).toBeLessThan(h('kit'));
-    expect(h('hex')).toBeLessThan(h('rook'));
-    expect(h('sable')).toBeGreaterThan(h('kit'));
-    expect(h('sable')).toBeGreaterThan(h('rook'));
-  });
+  // The ancestry order (Hex shortest, Sable tallest, Rook at least Kit) is judged on the baked pictures below, not on these
+  // numbers: each sprite is drawn at its own height, so the multipliers alone do not say which hero comes out taller.
 
   it('is written in the stable format, so saving without a change changes nothing', () => {
     const text = readFileSync(new URL('../src/data/heroes.json', import.meta.url), 'utf8');

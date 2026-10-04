@@ -102,7 +102,9 @@ test('moving the horizon repaints the picture: the kerb follows the horizon, the
     expect(await countOf(page, 'stage-')).toBe(1);
     // The kerb row (the street's `edge` colour) sits exactly on the horizon, with the wall above it and floor below.
     const [above, kerb, floor] = await page.evaluate((h) => window.__stagelab?.pixels([[8, h - 1], [8, h], [8, h + 20]]) ?? Promise.reject(new Error('no hook')), horizon);
-    expect(kerb).toBe('#3a3a5c');
+    const edge = await page.evaluate(() => (window.__sc().config.floor as { edge?: string | null }).edge);
+    expect(edge, 'the street stage has a kerb colour').toBeTruthy();
+    expect(kerb).toBe(String(edge).toLowerCase());
     expect(above).not.toBe('#07060d'); // the window clear colour: if it shows through, a gap was left
     expect(floor).not.toBe(above);
   }
