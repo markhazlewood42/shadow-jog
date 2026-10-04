@@ -142,13 +142,15 @@ test('Right for one enemy packs around a neighbour on its row that is not select
 test('a single hero aligned Right stops short of the enemies: the 55 px gap rule still holds, and the status line says so', async ({ page }) => {
   await openEditor(page, scratch);
   const gapWarnings = () => page.evaluate(() => (window.__stageedit?.warnings() ?? []).filter((w) => w.stageId === 'street' && (w.rule === 'gap' || w.rule === 'nearest')).map((w) => `${w.setKey}: ${w.text}`));
-  expect(await gapWarnings()).toEqual([]); // the street has none to begin with
+  // The street has the six that Sable's and Rook's bigger proportions cause (Mark's slots were not moved for them: `MARKS_FIGURE_BREAKS`); aligning Rook must add none.
+  const before = await gapWarnings();
+  expect(before).toEqual(['3', '4', '5', '6', 'boss+1', 'boss+2'].map((k) => `${k}: the gap between the heroes and the enemies is 51 px (need 55)`));
   await page.locator('#heroes li', { hasText: 'Rook' }).click();
   await page.keyboard.press('d');
   await flush(page);
   const text = await msg(page);
   expect(text).toMatch(/55 px between the sides/);
-  expect(await gapWarnings()).toEqual([]);
+  expect(await gapWarnings()).toEqual(before);
   const h = await edges(page, 'party');
   expect(h[1]?.right).toBeLessThan(240);
   expect(h[1]?.right).toBeGreaterThan(150);

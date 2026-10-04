@@ -266,7 +266,16 @@ test('arrow keys, shift-click and the lock: nudges, multi-select moves and a loc
   await page.keyboard.press('l'); // plain L: Ctrl+L is the browser's address bar
   await expect(page.locator('#locks')).toContainText('Locked: fighters');
   // (Kit moved up two rows above, so aim at where she stands now: a fixed offset from her old spot can land on a row line, which is a handle too.)
-  const kitNow = await bodyOf(page, 'party', 0);
+  // (A solid pixel of hers that is not within 3 px of a row line: with her bigger proportions the middle of her body can sit exactly on one.)
+  const kitNow = await page.evaluate(() => {
+    const scene = window.__stagelab?.scene();
+    const f = scene?.fighters.find((x) => x.side === 'party' && x.axisKey === 'kit');
+    if (!scene || !f) throw new Error('no kit');
+    const b = scene.boxOf(f);
+    const rows = scene.config.rows.map((r) => r.y);
+    for (let y = Math.floor(b.top) + 4; y <= f.y; y++) for (let x = Math.floor(b.left); x <= b.right; x++) if (scene.pick(x + 0.5, y + 0.5) === f && rows.every((ry) => Math.abs(ry - (y + 0.5)) > 3)) return { x: x + 0.5, y: y + 0.5 };
+    throw new Error('no clear pixel on kit');
+  });
   const kn = await toScreen(page, kitNow.x, kitNow.y);
   await page.mouse.click(kn.x, kn.y);
   expect(await page.evaluate(() => window.__stageedit?.session.selection.length)).toBe(0);

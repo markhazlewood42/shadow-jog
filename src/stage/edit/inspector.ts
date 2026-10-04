@@ -26,6 +26,7 @@ import type { MemberId } from '../../game/state';
 import { checkStages, type PartySlot, resolveStage, SET_KEYS, setSize, type StageEntry } from '../config';
 import { applyPreset, HUD_PRESETS, HUD_REGION_NAMES, type HudField, type HudRegionKey, hudOverrides, PRESET_IDS, type PresetId, presetValue, revertField, revertRegion } from '../hudpresets';
 import { STAGE_KNOWN } from '../known';
+import { PROPORTION_MAX, PROPORTION_MIN } from '../proportions';
 import type { StageWarning } from '../rules';
 import { type AlignHow, ALIGN_WORDS, alignStatus } from './alignsay';
 import { h, tip } from './dom';
@@ -54,6 +55,7 @@ import {
   setHudBox,
   setHudField,
   setMirror,
+  setProportion,
   setOrder,
   setRowY,
   slotList,
@@ -969,6 +971,7 @@ export class Inspector {
       this.root.append(this.group('Who is standing here', true, h('div', { class: 'field' }, this.labelOf('Enemy', 'preview', 'Which enemy is shown in this slot while you edit. It is only a preview in this browser. The stage keeps places, not people.'), pick)));
     }
     if (side === 'enemy' && items.length === 1) this.root.append(this.facingGroup(idx[0] ?? 0));
+    if (side === 'party' && items.length === 1) this.root.append(this.proportionsGroup(idx[0] ?? 0));
     if (items.length === 1) {
       const i = idx[0] ?? 0;
       this.root.append(this.anchorGroup(side, i));
@@ -1010,6 +1013,45 @@ export class Inspector {
       hint.textContent = entry ? `${entry.note} It applies to every ${f?.name ?? 'enemy'} on every stage.` : '';
     });
     return this.group('Facing', true, row, hint);
+  }
+
+  /**
+   * "Proportions · this hero, all battles": how tall (Height) and how broad (Build) the selected hero stands in EVERY battle.
+   * Like the HUD, this is global: it edits `heroes.json`, not the stage, and no stage can override it. The sliders preview live
+   * (the scene bakes the hero again on every step: whole rows and columns of pixels, never a stretch, see `proportions.ts`),
+   * a drag is one undo step, each has a revert arrow back to the saved number, and Save writes the file with the others.
+   */
+  private proportionsGroup(index: number): HTMLElement {
+    const fighter = () => this.host.scene().fighters.filter((f) => f.side === 'party')[index];
+    const id = (): string => fighter()?.axisKey ?? '';
+    const name = (): string => fighter()?.name ?? id();
+    const read = (key: 'height' | 'build') => (d: EditorData): number | null => d.heroes[id()]?.[key] ?? null;
+    const slider = (key: 'height' | 'build', label: string, help: string): HTMLElement =>
+      this.num({
+        label,
+        name: `heroes.json › ${id()}.${key}`,
+        tip: help,
+        min: PROPORTION_MIN,
+        max: PROPORTION_MAX,
+        step: 0.01,
+        slider: true,
+        read: read(key),
+        write: (d, v) => setProportion(d, id(), key, Math.round(v * 100) / 100),
+        undo: `${label} of ${name()}`,
+      });
+    const now = h('div', { class: 'hint' });
+    this.updaters.push(() => {
+      const size = this.host.scene().heroSize(id());
+      now.textContent = size ? `${name()} is ${size.drawn.h} px tall and ${size.drawn.w} px wide as drawn. In battle: ${size.now.h} px tall, ${size.now.w} px wide. Every battle uses this, on every stage.` : '';
+    });
+    return this.groupTip(
+      'Proportions · this hero, all battles',
+      true,
+      'Adds or removes whole rows and columns of pixels in the body, so the pixel art stays crisp. The head stays the same size.',
+      slider('height', 'Height', 'How tall this hero stands. 1 is the picture as drawn, 0.8 is a fifth shorter, 1.2 a fifth taller. The head and the feet are never changed.'),
+      slider('build', 'Build', 'How broad this hero stands. 1 is as drawn. Higher is broader through the body and shoulders; lower is slimmer. Arms and weapons keep their shape.'),
+      now,
+    );
   }
 
   /** A read-only line whose text comes from the whole data (the stage and the HUD). */

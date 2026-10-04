@@ -31,6 +31,7 @@ import { formatJson } from '../../tools/jsonfmt';
 import { bootStage } from '../boot';
 import { type AxesFile, type FigureBox, loadAxes, loadEntries, loadHud, resolveStage, resolveStages, SCREEN_H, SCREEN_W, SET_KEYS, type StageConfig, type StageEntry, type StageFile } from '../config';
 import { loadFacing } from '../facing';
+import { loadHeroes } from '../proportions';
 import { RULE_WHY, type StageWarning, stageWarnings } from '../rules';
 import { connectHook, emptyHook } from '../labhook';
 import { STAGE_KNOWN } from '../known';
@@ -48,7 +49,7 @@ import { KEYS, matchKey, MOUSE, shown } from './keys';
 import { deleteStage, duplicateStage, hudNow, isOverridden, newStage, nudgeSlots, renameStage, setFloorBottom, setHorizon, setHudBox, setRowY, stepOrder } from './model';
 import { type OverlayFigure, overlayMarkup } from './overlay';
 import { JsonPane, Palette, setButtons, StageList, StatusBar } from './panels';
-import { AXES_FILE, FACING_FILE, formatFacing, formatHud, HUD_FILE, prepareSave, STAGES_FILE } from './save';
+import { AXES_FILE, FACING_FILE, formatFacing, formatHeroes, formatHud, HEROES_FILE, HUD_FILE, prepareSave, STAGES_FILE } from './save';
 import { type EditorData, type Item, type Part, sameItem, Session, toggleInSelection } from './session';
 import { ViewState } from './view';
 import { HUD_REGION_NAMES, HUD_REGIONS } from '../hudpresets';
@@ -83,8 +84,8 @@ const ENDPOINT = `/__stage/stages${scratch ? `?scratch=${encodeURIComponent(scra
 /** The global HUD layout has its own file (`src/data/hud.json`) and its own endpoint to READ it. It is saved together with the stages, through ENDPOINT. */
 const HUD_ENDPOINT = `/__stage/hud${scratch ? `?scratch=${encodeURIComponent(scratch)}` : ''}`;
 /** The order files are named in: the same on the Save tooltip, in the messages and in the Revert confirm. */
-const PART_ORDER: readonly Part[] = ['stages', 'hud', 'axes', 'facing'];
-const PART_FILE: Record<Part, string> = { stages: STAGES_FILE, hud: HUD_FILE, axes: AXES_FILE, facing: FACING_FILE };
+const PART_ORDER: readonly Part[] = ['stages', 'hud', 'axes', 'facing', 'heroes'];
+const PART_FILE: Record<Part, string> = { stages: STAGES_FILE, hud: HUD_FILE, axes: AXES_FILE, facing: FACING_FILE, heroes: HEROES_FILE };
 /** What messages call the files written: the real paths of the parts that changed, or the private scratch copy tests use. */
 const fileNames = (parts: readonly Part[]): string => {
   if (scratch) return `scratch copy "${scratch}"`;
@@ -111,7 +112,7 @@ async function loadFiles(): Promise<EditorData> {
   } catch {
     throw new Error('Could not reach the dev server to read the stage files. Is npm run dev running?');
   }
-  const body = (await res.json()) as { ok: boolean; problems: string[]; stages: string; axes: string; facing: string };
+  const body = (await res.json()) as { ok: boolean; problems: string[]; stages: string; axes: string; facing: string; heroes: string };
   if (!res.ok || !body.ok) throw new Error(`The dev server could not read the stage files: ${body.problems.join('; ')}`);
   const hudBody = (await hudRes.json()) as { ok: boolean; problems: string[]; hud: string };
   if (!hudRes.ok || !hudBody.ok) throw new Error(`The dev server could not read the HUD file: ${hudBody.problems.join('; ')}`);
@@ -119,7 +120,8 @@ async function loadFiles(): Promise<EditorData> {
   const stages = loadEntries(JSON.parse(body.stages), BG_IDS, STAGE_KNOWN);
   const axes = loadAxes(JSON.parse(body.axes));
   const facing = loadFacing(JSON.parse(body.facing));
-  return { stages, axes, hud, facing };
+  const heroes = loadHeroes(JSON.parse(body.heroes));
+  return { stages, axes, hud, facing, heroes };
 }
 
 async function main(): Promise<void> {
@@ -151,6 +153,7 @@ async function main(): Promise<void> {
     stages: resolveStages(initial.stages, initial.hud),
     axes: initial.axes,
     facing: initial.facing,
+    heroes: initial.heroes,
     query,
     onError: fail,
   });
@@ -182,6 +185,7 @@ async function main(): Promise<void> {
     let scheduled = false;
     let lastAxes = JSON.stringify(initial.axes);
     let lastFacing = JSON.stringify(initial.facing);
+    let lastHeroes = JSON.stringify(initial.heroes);
     /** Put the scene in step with the session. Batched to one per animation frame, so a fast drag costs one repaint a frame. */
     const syncScene = (floorFrom?: StageConfig): void => {
       wantFloor = floorFrom;
@@ -205,6 +209,12 @@ async function main(): Promise<void> {
         if (facing !== lastFacing) {
           lastFacing = facing;
           scene.setFacing(session.data.facing);
+        }
+        // How tall and broad each hero stands (the Height and Build sliders): bake the heroes that changed before the stage is laid out again.
+        const heroes = JSON.stringify(session.data.heroes);
+        if (heroes !== lastHeroes) {
+          lastHeroes = heroes;
+          scene.setHeroes(session.data.heroes);
         }
         scene.applyStage(stage, wantFloor);
         const roster = stage.demo.rosters[session.setKey] ?? [];
@@ -652,7 +662,7 @@ async function main(): Promise<void> {
       // Tidy first: a stage override keeps only what differs from the all-battles HUD (an empty "different on this stage" box is not saved).
       session.settle();
       const dirty = session.dirtyParts;
-      const body = { stages: session.data.stages, axes: session.data.axes, hud: session.data.hud, facing: session.data.facing, write: dirty };
+      const body = { stages: session.data.stages, axes: session.data.axes, hud: session.data.hud, facing: session.data.facing, heroes: session.data.heroes, write: dirty };
       // The stages are checked against the HUD that will be on disk afterwards: the new one if the HUD is saved now, else the saved one.
       const made = prepareSave(body, formatHud(session.saved.hud));
       if (!made.ok) {
@@ -685,7 +695,8 @@ async function main(): Promise<void> {
         (!written.includes('stages') || formatJson(back.stages) === formatJson(data.stages)) &&
         (!written.includes('axes') || formatJson(back.axes) === formatJson(stripZero(data.axes))) &&
         (!written.includes('hud') || formatHud(back.hud) === formatHud(hud)) &&
-        (!written.includes('facing') || formatFacing(back.facing) === formatFacing(data.facing));
+        (!written.includes('facing') || formatFacing(back.facing) === formatFacing(data.facing)) &&
+        (!written.includes('heroes') || formatHeroes(back.heroes) === formatHeroes(data.heroes));
       session.markSaved(written);
       const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const where = fileNames(written);
@@ -705,7 +716,7 @@ async function main(): Promise<void> {
       const parts = session.dirtyParts;
       const ids = new Set([...Object.keys(session.data.stages), ...Object.keys(session.saved.stages)]);
       const changed = [...ids].filter((id) => JSON.stringify(session.data.stages[id]) !== JSON.stringify(session.saved.stages[id]));
-      const what = [...(parts.includes('stages') ? [changed.length ? changed.join(' and ') : session.stageId] : []), ...(parts.includes('axes') ? ['the foot anchors'] : []), ...(parts.includes('hud') ? ['the global HUD (hud.json, used by every battle)'] : []), ...(parts.includes('facing') ? ['which enemies are mirrored (enemyfacing.json, used by every battle)'] : [])];
+      const what = [...(parts.includes('stages') ? [changed.length ? changed.join(' and ') : session.stageId] : []), ...(parts.includes('axes') ? ['the foot anchors'] : []), ...(parts.includes('hud') ? ['the global HUD (hud.json, used by every battle)'] : []), ...(parts.includes('facing') ? ['which enemies are mirrored (enemyfacing.json, used by every battle)'] : []), ...(parts.includes('heroes') ? ['the heroes’ proportions (heroes.json, used by every battle)'] : [])];
       const list = what.length > 1 ? `${what.slice(0, -1).join(', ')} and ${what[what.length - 1]}` : (what[0] ?? session.stageId);
       const ok = await confirmBox('Revert', `Throw away ${n} change${n === 1 ? '' : 's'} to ${list}? The saved file${what.length > 1 ? 's are' : ' is'} loaded again.`, 'Throw away');
       if (!ok) return;
@@ -814,7 +825,7 @@ async function main(): Promise<void> {
           h('h3', {}, 'Who fights is not part of a stage'),
           p('Who fights is the encounter: the list of who you fight in one battle. RPG Maker calls it a troop. A troop editor will come later. The “Enemies” buttons in the top bar only choose which enemy count you look at. It is a preview.'),
           h('h3', {}, 'Haze, shadows and the floor belong to the stage'),
-          p('The haze, the shadows and the look of the floor are settings of each stage. They are not global. Only the HUD is the same everywhere.'),
+          p('The haze, the shadows and the look of the floor are settings of each stage. A stage holds only its own layout. Anything about a character or the whole game is global and the same in every battle: the HUD, which enemies are mirrored, and how tall and broad each hero stands.'),
           h('h3', {}, 'The HUD is the same everywhere'),
           p(b('The HUD'), ' is the menu and the numbers drawn over a battle. There is ', b('one HUD layout for every battle'), '. Move a box and it moves on every stage. A stage can have its own copy of a single box when it needs one, for example when a big boss covers a box. Select the box and turn on “Different on this stage”.'),
           h('h3', {}, 'What is live today'),

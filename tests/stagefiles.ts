@@ -5,10 +5,12 @@
  */
 import { BG_IDS } from '../src/art/battlebg';
 import facingJson from '../src/data/enemyfacing.json';
+import heroesJson from '../src/data/heroes.json';
 import hudJson from '../src/data/hud.json';
 import stagesJson from '../src/data/stages.json';
 import { type EntryFile, type HudLayout, loadEntries, loadHud, loadStages, type StageFile } from '../src/stage/config';
 import { type FacingFile, loadFacing } from '../src/stage/facing';
+import { type HeroesFile, loadHeroes } from '../src/stage/proportions';
 import { STAGE_KNOWN } from '../src/stage/known';
 
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -19,6 +21,9 @@ export const shippedHud = (): HudLayout => loadHud(copy(hudJson));
 /** Which enemy sprites the stage mirrors, from `enemyfacing.json`. */
 export const shippedFacing = (): FacingFile => loadFacing(copy(facingJson));
 
+/** How tall and broad each hero stands, from `heroes.json`. */
+export const shippedHeroes = (): HeroesFile => loadHeroes(copy(heroesJson));
+
 /** The stage entries as `stages.json` holds them (a stage carries HUD overrides only when it differs). */
 export const shippedEntries = (): EntryFile => loadEntries(copy(stagesJson), BG_IDS, STAGE_KNOWN);
 
@@ -26,4 +31,4 @@ export const shippedEntries = (): EntryFile => loadEntries(copy(stagesJson), BG_
 export const shippedStages = (): StageFile => loadStages(copy(stagesJson), BG_IDS, STAGE_KNOWN, shippedHud());
 
 /** The raw text of the two files, for tests that check what is written. */
-export { facingJson, hudJson, stagesJson };
+export { facingJson, heroesJson, hudJson, stagesJson };

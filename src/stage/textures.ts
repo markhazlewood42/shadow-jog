@@ -44,6 +44,7 @@ import { paintFloor, reprojectWall } from './floor';
 import type { IdleKind } from './idle';
 import { hexRgb, lum, mix, type Raw, type RGB } from './pixels';
 import { ringRaw, shadowRaw } from './shadow';
+import { bakeSheet, type BakePlan, type HeroesFile, type Proportion, planFor, proportionTag } from './proportions';
 import { paintWall } from './sewerwall';
 
 // ------------------------------------------------------------------ Mark's Sprite Fusion sheets
@@ -197,25 +198,97 @@ export interface FigureArt {
   mirrorOf?: FigureArt;
 }
 
-/** What we remember about a crew sheet on its texture. */
+/** What we remember about a crew sheet as Mark drew it, on its texture: the frames cut out and the foot anchor measured on them (read from the graphics card once). */
 interface SheetData {
-  fig?: FigureArt;
+  drawn?: { frames: Raw[]; foot: FootAnchor };
 }
 
-/** The measurements of a crew member's sheet: where they stand and what they look like. */
+/** The proportions a hero has when nothing says otherwise: the art as drawn. */
+export const AS_DRAWN: Proportion = { height: 1, build: 1 };
+
+/** The texture name of a hero's sheet baked with these proportions (the bracket ends the name, so one name is never the start of another). */
+export const bakedKey = (id: string, p: Proportion): string => `crewb-${id}[${proportionTag(p)}]`;
+
+/** The measurements of a crew member's BAKED sheet (see `proportions.ts`): where they stand and what they look like on the stage. */
 export interface CrewInfo {
+  /** The baked sheet's texture (a numbered cell for each idle frame). */
+  texture: string;
+  /** The size of one cell of the baked sheet. */
+  frameW: number;
+  frameH: number;
+  /** Where the feet are in a baked cell, measured again from the baked frames. */
   foot: FootAnchor;
+  /** Frame 0 of the baked sheet, its bounds and face (the stage rules, the HUD name tabs and the shadow all read these). */
   fig: FigureArt;
+  /** The rows and columns the bake added or dropped, chosen once from frame 0. */
+  plan: BakePlan;
+  /** The sheet as Mark drew it (frames and foot anchor): what the strike and punch pictures are built from, then baked with `plan`. */
+  drawn: { frames: Raw[]; foot: FootAnchor };
+  /** How far the re-measured foot is from where the drawn foot anchor went (0 unless a column landed inside the boots): the stills' axes follow it. */
+  footDelta: { x: number; y: number };
+}
+
+/** What a baked sheet's texture remembers. */
+interface BakedData {
+  info: CrewInfo;
+}
+
+/**
+ * A crew member's idle sheet baked with these proportions: whole rows and columns added to or dropped from every frame
+ * (see `proportions.ts`), laid out as a new sheet texture, with the feet, bounds and face measured again from the baked
+ * frames. Made once per set of numbers (the name carries them); asking again finds it.
+ */
+export function bakeCrew(textures: Phaser.Textures.TextureManager, id: string, meta: SheetMeta, p: Proportion, standIns: boolean): CrewInfo {
+  const key = bakedKey(id, p);
+  if (textures.exists(key)) return (textures.get(key).customData as BakedData).info;
+  const source = textures.get(sheetKey(id));
+  crisp(source);
+  const data = source.customData as SheetData;
+  if (!data.drawn) {
+    const frames = cutSheet(readTexture(textures, sheetKey(id)), meta.frame_w, meta.frame_count);
+    data.drawn = { frames, foot: footAnchor(frames) };
+  }
+  const drawn = data.drawn;
+  const first = drawn.frames[0];
+  if (!first) throw new Error(`The sheet for ${id} has no frames`);
+  const face = standIns ? standInFace(id) : CREW_FACES[id];
+  if (!face) throw new Error(`No face point is known for crew member "${id}"`);
+  // The picks are made once, on frame 0, and laid on every frame.
+  const plan = planFor(first, drawn.foot, p);
+  const sheet = bakeSheet(drawn.frames, drawn.foot, plan);
+  const cell = sheet.frames[0];
+  const baked0 = sheet.baked[0];
+  if (!cell || !baked0) throw new Error(`The baked sheet for ${id} has no frames`);
+  // One sheet picture, the cells side by side, like the one Mark's files come in.
+  const wide: Raw = { w: cell.w * sheet.frames.length, h: cell.h, px: new Uint8ClampedArray(cell.w * sheet.frames.length * cell.h * 4) };
+  sheet.frames.forEach((f, i) => {
+    for (let y = 0; y < f.h; y++) wide.px.set(f.px.subarray(y * f.w * 4, (y + 1) * f.w * 4), (y * wide.w + i * f.w) * 4);
+  });
+  const texture = addCanvasOnce(textures, key, rawToCanvas(wide));
+  for (let i = 0; i < sheet.frames.length; i++) texture.add(i, 0, i * cell.w, 0, cell.w, cell.h);
+  const foot = footAnchor(sheet.frames);
+  const info: CrewInfo = {
+    texture: key,
+    frameW: cell.w,
+    frameH: cell.h,
+    foot,
+    fig: { raw: cell, box: boxOf(cell), foot, face: { x: baked0.mapX(face.x), y: baked0.mapY(face.y) }, grain: 1 },
+    plan,
+    drawn,
+    footDelta: { x: foot.x - sheet.anchor.x, y: foot.y - sheet.anchor.y },
+  };
+  (texture.customData as BakedData).info = info;
+  return info;
 }
 
 /**
  * After the sheets have loaded: make each crew member's looping idle animation (its frame list at the
- * sheet's own fps) and measure them: where their feet are in the cell and the drawn bounds, from the pixels.
+ * sheet's own fps) and bake their sheet with their proportions (`heroes`, from `heroes.json`; a hero with no entry is as drawn).
  *
  * Reading a sheet's pixels back through a 2D canvas is the slow part, so it is done once per sheet and the
  * answer is kept in the texture's `customData`; a scene restart finds it there.
  */
-export function registerCrew(textures: Phaser.Textures.TextureManager, anims: Phaser.Animations.AnimationManager, metas: Record<string, SheetMeta>, ids: readonly string[], standIns: boolean): Record<string, CrewInfo> {
+export function registerCrew(textures: Phaser.Textures.TextureManager, anims: Phaser.Animations.AnimationManager, metas: Record<string, SheetMeta>, ids: readonly string[], standIns: boolean, heroes: HeroesFile = {}): Record<string, CrewInfo> {
   const out: Record<string, CrewInfo> = {};
   for (const id of ids) {
     const m = metas[id];
@@ -231,18 +304,7 @@ export function registerCrew(textures: Phaser.Textures.TextureManager, anims: Ph
         repeat: -1,
       });
     }
-    const texture = textures.get(sheetKey(id));
-    crisp(texture);
-    const data = texture.customData as SheetData;
-    if (!data.fig) {
-      const frames = cutSheet(readTexture(textures, sheetKey(id)), m.frame_w, m.frame_count);
-      const first = frames[0];
-      if (!first) throw new Error(`The sheet for ${id} has no frames`);
-      const face = standIns ? standInFace(id) : CREW_FACES[id];
-      if (!face) throw new Error(`No face point is known for crew member "${id}"`);
-      data.fig = { raw: first, box: boxOf(first), foot: footAnchor(frames), face, grain: 1 };
-    }
-    out[id] = { foot: data.fig.foot, fig: data.fig };
+    out[id] = bakeCrew(textures, id, m, heroes[id] ?? AS_DRAWN, standIns);
   }
   return out;
 }

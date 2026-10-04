@@ -174,7 +174,9 @@ export class JsonPane {
     const hudSaved = formatHud(s.savedHud);
     // Enemies whose mirror setting differs from the last save (the facing file is long, so only these entries are shown).
     const mirrorChanged = Object.keys(s.data.facing).filter((k) => JSON.stringify(s.data.facing[k]) !== JSON.stringify(s.saved.facing[k]));
-    const key = `${now.length}:${[...changed].join(',')}:${JSON.stringify(s.data.axes)}:${JSON.stringify(s.saved.axes)}:${hudNow === hudSaved ? '' : hudNow}:${mirrorChanged.map((k) => `${k}=${s.data.facing[k]?.mirror}`).join(',')}`;
+    // Heroes whose proportions differ from the last save (the heroes file is global, like the HUD and the facing file).
+    const heroChanged = Object.keys(s.data.heroes).filter((k) => JSON.stringify(s.data.heroes[k]) !== JSON.stringify(s.saved.heroes[k]));
+    const key = `${now.length}:${[...changed].join(',')}:${JSON.stringify(s.data.axes)}:${JSON.stringify(s.saved.axes)}:${hudNow === hudSaved ? '' : hudNow}:${mirrorChanged.map((k) => `${k}=${s.data.facing[k]?.mirror}`).join(',')}:${heroChanged.map((k) => `${k}=${JSON.stringify(s.data.heroes[k])}`).join(',')}`;
     if (key === this.lastChanged && now === this.lastText) return;
     this.lastText = now;
     this.lastChanged = key;
@@ -213,8 +215,22 @@ export class JsonPane {
         facingChanged += lit.size;
       }
     }
+    // How tall and broad each hero stands is a global file too: show the heroes that changed, lit.
+    let heroesChanged = 0;
+    if (heroChanged.length) {
+      nodes.push(h('span', { class: 'ln', style: { color: '#9b96ad', marginTop: '8px' } }, '// src/data/heroes.json (how tall and broad each hero stands, for every battle)'));
+      for (const k of heroChanged) {
+        const entry = s.data.heroes[k];
+        if (!entry) continue;
+        const before = s.saved.heroes[k];
+        const lit = new Set(before ? changedLines(formatJson({ [k]: before }), formatJson({ [k]: entry })) : []);
+        const text = formatJson({ [k]: entry }).replace(/\n$/, '');
+        for (const [i, l] of text.split('\n').entries()) nodes.push(h('span', { class: lit.has(i) || !before ? 'ln chg' : 'ln' }, l || ' '));
+        heroesChanged += lit.size;
+      }
+    }
     this.text.replaceChildren(...nodes);
-    const total = changed.size + hudChanged + facingChanged;
+    const total = changed.size + hudChanged + facingChanged + heroesChanged;
     this.sub.textContent = total ? `${total} line${total === 1 ? '' : 's'} changed${s.change?.label ? ` · ${s.change.label}` : ''}` : s.change?.label ? `Last change: ${s.change.label}` : 'Nothing changed yet. Drag something and the lines it changes light up here.';
     const first = this.text.querySelector<HTMLElement>('.ln.chg');
     if (first) {

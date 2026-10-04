@@ -12,7 +12,7 @@ import { Session } from '../src/stage/edit/session';
 import { checkFacing, ENEMY_SPRITES, flipRaw, type FacingFile, figureFor, isMirrored, loadFacing, mirrorFigure } from '../src/stage/facing';
 import type { FigureArt } from '../src/stage/textures';
 import { formatJson } from '../src/tools/jsonfmt';
-import { facingJson, shippedEntries, shippedFacing, shippedHud } from './stagefiles';
+import { facingJson, shippedEntries, shippedFacing, shippedHeroes, shippedHud } from './stagefiles';
 
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
@@ -190,7 +190,7 @@ describe('mirroring a figure about its feet', () => {
 // ------------------------------------------------------------------ the editor's Mirror switch and Save
 
 describe('the Mirror switch in the editor session', () => {
-  const make = (): Session => new Session({ stages: shippedEntries(), axes: {}, hud: shippedHud(), facing: shippedFacing() }, 'street', formatJson);
+  const make = (): Session => new Session({ stages: shippedEntries(), axes: {}, hud: shippedHud(), facing: shippedFacing(), heroes: shippedHeroes() }, 'street', formatJson);
 
   it('is one undo step, marks only the facing file as unsaved, and undo and redo bring it back', () => {
     const se = make();

@@ -16,6 +16,7 @@ import { type AxesFile, loadHud, loadStages, SCREEN_H, SCREEN_W, type StageFile,
 import type { Phase } from './demo';
 import { type FacingFile, loadFacing } from './facing';
 import { FrameStats } from './metrics';
+import { type HeroesFile, loadHeroes } from './proportions';
 import { StageScene, type StageInit } from './stagescene';
 import { CREW_IDS } from './crew';
 import { STAGE_KNOWN } from './known';
@@ -46,6 +47,11 @@ export interface BootOptions {
    * the same reason as `stages`: a page that supplies its own never has the file in its module graph.
    */
   facing?: FacingFile;
+  /**
+   * How tall and how broad each hero stands (`src/data/heroes.json`, already checked by `loadHeroes`). Global: every battle reads it.
+   * Supplied by the editor, else imported here on demand like `facing`.
+   */
+  heroes?: HeroesFile;
   /** The page's query string: `?standins` skips Mark's sheets on purpose, `?renderer=canvas` forces Phaser's 2D renderer. */
   query: URLSearchParams;
   /** Called with a readable message when something fails. */
@@ -140,7 +146,7 @@ let managesOwnStages = false;
 // The editor saves src/data/stages.json and src/data/hud.json while its page is open. Vite would answer a change to a
 // file in the page's module graph with a full page reload (losing the undo history), and it counts the dynamic imports
 // below. Accepting the change here stops that; the plain lab page, which does show the shipped files, still reloads.
-import.meta.hot?.accept(['../data/stages.json', '../data/hud.json', '../data/enemyfacing.json'], () => {
+import.meta.hot?.accept(['../data/stages.json', '../data/hud.json', '../data/enemyfacing.json', '../data/heroes.json'], () => {
   if (!managesOwnStages) location.reload();
 });
 
@@ -149,6 +155,7 @@ export async function bootStage(opts: BootOptions): Promise<Booted> {
   managesOwnStages = !!opts.stages;
   const stages = opts.stages ?? loadStages((await import('../data/stages.json')).default, BG_IDS, STAGE_KNOWN, loadHud((await import('../data/hud.json')).default));
   const facing = opts.facing ?? loadFacing((await import('../data/enemyfacing.json')).default);
+  const heroes = opts.heroes ?? loadHeroes((await import('../data/heroes.json')).default);
   // A wrong ?stage= should be one readable message naming the stages there are, not a scene that never starts.
   stageOf(stages, opts.stageId);
 
@@ -187,7 +194,7 @@ export async function bootStage(opts: BootOptions): Promise<Booted> {
   });
   const devicePixelsPerPixel = keepZoomWhole(game);
 
-  const init: StageInit = { stages, stageId: opts.stageId, ...(opts.setKey ? { setKey: opts.setKey } : {}), ...(opts.phase ? { phase: opts.phase } : {}), metas, standIns, onError: opts.onError, ...(opts.axes ? { axes: opts.axes } : {}), facing };
+  const init: StageInit = { stages, stageId: opts.stageId, ...(opts.setKey ? { setKey: opts.setKey } : {}), ...(opts.phase ? { phase: opts.phase } : {}), metas, standIns, onError: opts.onError, ...(opts.axes ? { axes: opts.axes } : {}), facing, heroes };
   // `scene.add(key, scene, autoStart, data)`: add it and start it at once, handing it `init`.
   game.scene.add('stage', scene, true, init);
   return { game, scene, init, stats, standIns, devicePixelsPerPixel };

@@ -217,11 +217,11 @@ test('Rook’s strike: dip, overhead wind-up, swing, hit on tick 33 with a 7-tic
   const t = await trace(page, 130);
   const stills = [...new Set(t.map((s) => s.still))];
   // The frames Mark drew, in order, with the swing frames between.
-  expect(stills.filter((s) => s !== 'idle').map((s) => s.replace('still-rook-', ''))).toEqual(['dip', 'riseA', 'rise', 'windup', 'smearA', 'mid', 'smearB', 'swingB', 'followFade', 'follow', 'recover']);
+  expect(stills.filter((s) => s !== 'idle').map((s) => s.replace('still-rook-', '').replace(/\[.*\]$/, ''))).toEqual(['dip', 'riseA', 'rise', 'windup', 'smearA', 'mid', 'smearB', 'swingB', 'followFade', 'follow', 'recover']);
   // The blow lands on the swing-B frame: the foe's health bar drops on that tick and not before.
   const hitIndex = t.findIndex((s) => s.foeHp[0] !== (t[0] as Snap).foeHp[0]);
   expect(hitIndex).toBeGreaterThan(20);
-  expect(t[hitIndex]?.still).toBe('still-rook-swingB');
+  expect(t[hitIndex]?.still.replace(/\[.*\]$/, '')).toBe('still-rook-swingB');
   expect(t.slice(0, hitIndex).every((s) => s.foeHp[0] === (t[0] as Snap).foeHp[0])).toBe(true);
   // Hitstop: for the next 7 ticks the real clock runs and the world clock and the move do not.
   const stop = t.slice(hitIndex, hitIndex + 9);
@@ -408,7 +408,7 @@ for (const standIns of [false, true]) {
     await startFight(page, { setKey: 'boss', seed: 8 });
     await rookAttacks(page);
     await stepUntil(page, 'hit');
-    const r = await page.evaluate(() => {
+    const r = await page.evaluate((isStandIns) => {
       const scene = window.__stagelab?.scene();
       const bt = window.__stageedit?.battle();
       if (!scene || !bt) throw new Error('no battle');
@@ -421,8 +421,17 @@ for (const standIns of [false, true]) {
       const row = Math.round(foe.fig.foot.y + hit.y - foe.baseY);
       const alpha = raw.px[(row * raw.w + col) * 4 + 3] ?? 0;
       const boxEdge = foe.baseX + (foe.fig.box.x0 - foe.fig.foot.x);
-      return { hitX: hit.x, hitY: hit.y, tipX: rook.x + 58, alpha, boxEdge, rookY: rook.y, footY: foe.baseY };
-    });
+      // The blade's tip is the rightmost solid pixel of the picture Rook shows (the follow-through). Hero proportions add columns to it, so its
+      // distance from his feet is no longer the 58 px the move file was written with; the contact point is carried through the same columns.
+      const still = rook.still;
+      if (!still) throw new Error('Rook shows no strike picture');
+      let right = -1;
+      for (let x = still.w - 1; x >= 0 && right < 0; x--) for (let y = 0; y < still.h; y++) if (scene.textures.getPixelAlpha(x, y, still.texture) > 0) { right = x; break; }
+      // (The stand-in blade is a code-drawn block, not a 58 px tip, so there the authored 58 is carried through Rook's columns by the plan.)
+      const plan = rook.plan;
+      const carried = 58 + (plan ? plan.colStep * plan.cols.filter((o) => o >= 0 && o < 58).length : 0);
+      return { hitX: hit.x, hitY: hit.y, tipX: rook.x + (isStandIns ? carried : right - still.axisX), alpha, boxEdge, rookY: rook.y, footY: foe.baseY };
+    }, standIns);
     // The spark is on the blade's tip (58 px in front of Rook's feet) and that point is solid body, not air between a boss's pods and legs.
     expect(Math.abs(r.hitX - r.tipX)).toBeLessThanOrEqual(1);
     expect(r.alpha).toBeGreaterThan(64);

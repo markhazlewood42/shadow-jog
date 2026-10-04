@@ -26,6 +26,7 @@ import { dropStrays } from '../art/rig2/sfpunch';
 import { buildKitSet, buildStrikeSet, type StrikeSet } from './strike';
 import type { FootAnchor } from './feet';
 import type { Raw } from './pixels';
+import { bakeFrame, type BakePlan } from './proportions';
 import { addCanvasOnce, rawToCanvas } from './textures';
 import type { StillDef } from './moves';
 
@@ -61,12 +62,24 @@ export function queueStrikeArt(load: Phaser.Loader.LoaderPlugin, textures: Phase
   for (const a of Object.values(STRIKE_ART)) if (!textures.exists(a.key)) load.image(a.key, `${ART_BASE}${a.file}`);
 }
 
-export const stillTexture = (id: string): string => `still-${id.replace('.', '-')}`;
+/**
+ * A still's texture name. `tag` names the hero's proportions it was baked with (the bracket ends the name), so a changed
+ * proportion makes a new picture and the old one can be found by its name and removed.
+ */
+export const stillTexture = (id: string, tag = ''): string => `still-${id.replace('.', '-')}${tag ? `[${tag}]` : ''}`;
 
-/** One fighter's side of what `registerStills` needs: their idle loop frame by frame and the foot anchor measured on it. */
+/**
+ * One fighter's side of what `registerStills` needs: their idle loop AS DRAWN, frame by frame, and the foot anchor
+ * measured on it (the strike and punch pictures are built from the drawn art), and how the hero's proportions
+ * (`proportions.ts`) change the result: the plan to lay on every picture, its name, and how far the re-measured baked
+ * foot is from where the drawn anchor went.
+ */
 export interface FighterIdle {
   idle: Raw[];
   foot: FootAnchor;
+  plan: BakePlan;
+  tag: string;
+  footDelta: { x: number; y: number };
 }
 
 /** What `registerStills` needs from the texture side (kept as plain values and functions so this file does not import the whole pipeline). */
@@ -102,13 +115,17 @@ export function registerStills(src: StillSources, declared: Record<string, Still
     return made;
   };
   for (const [id, def] of Object.entries(declared)) {
-    const key = stillTexture(id);
+    const f = src.fighters[def.art];
+    const key = stillTexture(id, f.tag);
     if (!textures.exists(key)) {
       const b = build(def.art);
       const raw = b.frames[def.key];
       if (!raw) throw new Error(`Still "${id}" asks for "${def.key}", which the ${def.art} art does not have (it has: ${Object.keys(b.frames).join(', ')})`);
-      const texture = addCanvasOnce(textures, key, rawToCanvas(raw));
-      texture.customData = { axisX: b.axisX, axisY: b.axisY, w: raw.w, h: raw.h };
+      // The hero's proportions: the same rows and columns as the idle loop got, laid on this picture about its axis (`guard`: a pose
+      // that is not the idle's skips a pick that would fall in its own head or feet). The axis follows the baked idle's feet.
+      const baked = bakeFrame(raw, { x: b.axisX, y: b.axisY }, f.plan, true);
+      const texture = addCanvasOnce(textures, key, rawToCanvas(baked.raw));
+      texture.customData = { axisX: baked.anchor.x + f.footDelta.x, axisY: baked.anchor.y + f.footDelta.y, w: baked.raw.w, h: baked.raw.h };
     }
     const data = textures.get(key).customData as { axisX: number; axisY: number; w: number; h: number };
     out[id] = { texture: key, w: data.w, h: data.h, axisX: data.axisX, axisY: data.axisY };

@@ -35,6 +35,7 @@ import { HUD_FIELDS, HUD_REGIONS, type HudField, type HudRegionKey, setField } f
 import { enemyLeftLimit, heroRightLimit, RULE_LIMITS } from '../rules';
 import type { AxesFile } from '../config';
 import type { FacingFile } from '../facing';
+import type { HeroesFile } from '../proportions';
 
 export type Side = 'party' | 'enemy';
 
@@ -290,19 +291,27 @@ export function copyFromPrevious(s: StageBody, key: string): string | null {
 
 /**
  * Everything the editor edits and Save writes: the stages file, the foot-anchor corrections, the global HUD layout and
- * which enemies are mirrored (four files, `stages.json`, `axes.json`, `hud.json` and `enemyfacing.json`).
+ * which enemies are mirrored and how tall and broad each hero stands (five files, `stages.json`, `axes.json`, `hud.json`,
+ * `enemyfacing.json` and `heroes.json`). Only `stages` holds anything about one stage's own layout; the rest is global.
  */
 export interface EditorData {
   stages: EntryFile;
   axes: AxesFile;
   hud: HudLayout;
   facing: FacingFile;
+  heroes: HeroesFile;
 }
 
 /** Turn one enemy sprite's mirror on or off in the data (the entry always exists: the loader refuses a file without one). */
 export function setMirror(d: EditorData, sprite: string, on: boolean): void {
   const entry = d.facing[sprite];
   if (entry) entry.mirror = on;
+}
+
+/** Set one number of one hero's proportions in the data (the entry always exists: the loader refuses a file without one). */
+export function setProportion(d: EditorData, hero: string, key: 'height' | 'build', value: number): void {
+  const entry = d.heroes[hero];
+  if (entry) entry[key] = value;
 }
 
 /** A HUD box's position and size. */

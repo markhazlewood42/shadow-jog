@@ -23,6 +23,7 @@ import type { ShownHit } from './combo';
 import { partDepth } from './config';
 import type { ActView } from './demo';
 import { clearLane, contactY, nearEdge } from './contact';
+import { throughColumns, throughRows } from './proportions';
 import { compileMove, type CompiledMove, DOWN_STILL, type HitEvent, IDLE_STILL, type MoveFile, pickMove, reachVector, sampleMove } from './moves';
 import type { LiveFx } from './livefx';
 import type { Fighter, StageScene } from './stagescene';
@@ -171,6 +172,18 @@ export class Performer {
     return pickMove(this.moves, { actor: this.flow.battle.unit(script.actor)?.key ?? '', side: actor.side, ability: script.abilityId, fx: script.fx, kind: script.kind, spread, ...(targetHeight !== undefined ? { targetHeight } : {}) });
   }
 
+  /**
+   * Where the weapon is for an authored `contact`, once the hero's proportions are applied. The move file measured the point on the
+   * picture as Mark drew it (the blade tip 58 px in front of Rook's feet); the picture the stage shows has whole columns and rows added
+   * or dropped (`proportions.ts`), so the point is carried through the same columns and rows and stays on the same part of the weapon.
+   * Enemies, and heroes drawn as they are, keep the number as written.
+   */
+  private fitContact(actor: Fighter, c: { dx: number; dy: number }): { dx: number; dy: number } {
+    const plan = actor.plan;
+    if (!plan) return c;
+    return { dx: throughColumns(plan, c.dx), dy: -throughRows(plan, -c.dy) };
+  }
+
   /** Height of a figure's chest above its feet, as a (negative, up) contact height: where a blow with no drawn weapon lands. */
   private chestDy(t: Fighter): number {
     return -Math.round((t.fig.box.y1 - t.fig.box.y0 + 1) * 0.45);
@@ -218,8 +231,9 @@ export class Performer {
       const def = move.def;
       if (def.reach && primary && primary !== actor) {
         const first = move.hits[0]?.event;
-        const forward = first?.contact ? first.contact.dx : def.reach.forward === 'body' ? (p.facing > 0 ? actor.fig.box.x1 + 1 - actor.fig.foot.x : actor.fig.foot.x - actor.fig.box.x0) : def.reach.forward;
-        const edge = this.edgeAt(primary, first?.contact?.dy ?? this.chestDy(primary), p.facing);
+        const contact = first?.contact ? this.fitContact(actor, first.contact) : null;
+        const forward = contact ? contact.dx : def.reach.forward === 'body' ? (p.facing > 0 ? actor.fig.box.x1 + 1 - actor.fig.foot.x : actor.fig.foot.x - actor.fig.box.x0) : def.reach.forward;
+        const edge = this.edgeAt(primary, contact?.dy ?? this.chestDy(primary), p.facing);
         p.reach = reachVector({ facing: p.facing, home: p.home, targetEdgeX: edge, targetY: primary.baseY, forward, pierce: def.reach.pierce, lane: def.reach.lane ?? 1 });
       }
       // The swerve (a move's `sw`): the way in front of the side-mates, measured from where they stand.
@@ -506,8 +520,9 @@ export class Performer {
     const actor = p.actor;
     const def = p.move?.def;
     if (actor && def?.reach && t === p.primary) {
-      const forward = ev?.contact ? ev.contact.dx : def.reach.forward === 'body' ? (p.facing > 0 ? actor.fig.box.x1 + 1 - actor.fig.foot.x : actor.fig.foot.x - actor.fig.box.x0) : def.reach.forward;
-      const weaponY = ev?.contact ? actor.y + ev.contact.dy : t.baseY + this.chestDy(t);
+      const contact = ev?.contact ? this.fitContact(actor, ev.contact) : null;
+      const forward = contact ? contact.dx : def.reach.forward === 'body' ? (p.facing > 0 ? actor.fig.box.x1 + 1 - actor.fig.foot.x : actor.fig.foot.x - actor.fig.box.x0) : def.reach.forward;
+      const weaponY = contact ? actor.y + contact.dy : t.baseY + this.chestDy(t);
       return { x: actor.x + p.facing * forward, y: contactY(weaponY, t.baseY, t.fig.box, t.fig.foot) };
     }
     const dy = this.chestDy(t);

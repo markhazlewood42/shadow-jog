@@ -98,14 +98,16 @@ const STAGES_FILE = resolve(import.meta.dirname, 'src/data/stages.json');
 const AXES_FILE = resolve(import.meta.dirname, 'src/data/axes.json');
 const HUD_FILE = resolve(import.meta.dirname, 'src/data/hud.json');
 const FACING_FILE = resolve(import.meta.dirname, 'src/data/enemyfacing.json');
+const HEROES_FILE = resolve(import.meta.dirname, 'src/data/heroes.json');
 type StageSaveModule = typeof import('./src/stage/edit/save');
 
 /**
  * The Battle Stage Editor's save endpoint (dev server only): GET /__stage/stages returns the stage files
- * (src/data/stages.json, src/data/axes.json and src/data/enemyfacing.json) as text; POST saves ALL the files of one Save
- * together. The posted body is `{ stages, axes, hud, facing, write }`: `hud` is the NEW global HUD layout, `facing` is the
- * whole enemy facing file (which enemy sprites are mirrored) and `write` names the files that changed
- * ('stages', 'axes', 'hud', 'facing'; the default is all that were posted). `prepareSave` (src/stage/edit/save.ts) checks the
+ * (src/data/stages.json, axes.json, enemyfacing.json and heroes.json) as text; POST saves ALL the files of one Save
+ * together. The posted body is `{ stages, axes, hud, facing, heroes, write }`: `hud` is the NEW global HUD layout, `facing` is the
+ * whole enemy facing file (which enemy sprites are mirrored), `heroes` is the whole hero proportions file (how tall and broad
+ * each hero stands) and `write` names the files that changed
+ * ('stages', 'axes', 'hud', 'facing', 'heroes'; the default is all that were posted). `prepareSave` (src/stage/edit/save.ts) checks the
  * three TOGETHER with the modules the game loads them with, including every stage's own HUD boxes against the NEW
  * HUD layout (`checkStagesWith`) when the HUD is among the files written, else against the `hud.json` on disk. Only if every check passes are the files written, and then they are written as a
  * set (`writeTogether`: a temporary file for each, then a rename each, with the old text put back if one rename fails),
@@ -152,9 +154,10 @@ function stageEdit(): Plugin {
         const axesPath = dir ? join(dir, 'axes.json') : AXES_FILE;
         const hudPath = dir ? join(dir, 'hud.json') : HUD_FILE;
         const facingPath = dir ? join(dir, 'enemyfacing.json') : FACING_FILE;
+        const heroesPath = dir ? join(dir, 'heroes.json') : HEROES_FILE;
         if (req.method === 'GET') {
           const from = (path: string, real: string) => readFileSync(existsSync(path) ? path : real, 'utf8');
-          reply(200, { ok: true, problems: [], stages: from(stagesPath, STAGES_FILE), axes: from(axesPath, AXES_FILE), facing: from(facingPath, FACING_FILE), scratch: !!dir });
+          reply(200, { ok: true, problems: [], stages: from(stagesPath, STAGES_FILE), axes: from(axesPath, AXES_FILE), facing: from(facingPath, FACING_FILE), heroes: from(heroesPath, HEROES_FILE), scratch: !!dir });
           return;
         }
         if (req.method !== 'POST') {
@@ -186,11 +189,11 @@ function stageEdit(): Plugin {
             reply(400, { ok: false, problems: made.problems });
             return;
           }
-          const texts = { stages: made.stagesText, axes: made.axesText, hud: made.hudText, facing: made.facingText };
-          const paths = { stages: stagesPath, axes: axesPath, hud: hudPath, facing: facingPath };
+          const texts = { stages: made.stagesText, axes: made.axesText, hud: made.hudText, facing: made.facingText, heroes: made.heroesText };
+          const paths = { stages: stagesPath, axes: axesPath, hud: hudPath, facing: facingPath, heroes: heroesPath };
           try {
             if (!url.searchParams.has('dry')) writeTogether(made.write.flatMap((part) => (texts[part] === undefined ? [] : [{ path: paths[part], text: texts[part] as string }])));
-            reply(200, { ok: true, problems: [], stages: made.stagesText, axes: made.axesText, ...(made.hudText !== undefined ? { hud: made.hudText } : {}), ...(made.facingText !== undefined ? { facing: made.facingText } : {}), written: made.write, file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data' });
+            reply(200, { ok: true, problems: [], stages: made.stagesText, axes: made.axesText, ...(made.hudText !== undefined ? { hud: made.hudText } : {}), ...(made.facingText !== undefined ? { facing: made.facingText } : {}), ...(made.heroesText !== undefined ? { heroes: made.heroesText } : {}), written: made.write, file: dir ? `scratch copy ${url.searchParams.get('scratch')}` : 'src/data' });
           } catch (e) {
             reply(500, { ok: false, problems: [saveFailureMessage(e)] });
           }

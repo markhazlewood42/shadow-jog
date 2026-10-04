@@ -41,10 +41,9 @@ import type { MemberId } from '../game/state';
 import { type AxesFile, axisFor, type FigureBox, depthFor, enemySlots, type PartySlot, partDepth, SCREEN_H, SCREEN_W, setKeyFor, shadowHeight, shadowWidth, slotPoint, snapSlot, type StageConfig, type StageFile, stageOf } from './config';
 import { buildHudView, type HudView, type Phase } from './demo';
 import { type FacingFile, figureFor, isMirrored } from './facing';
-import { queueStrikeArt, registerStills, STRIKE_ART, type StillInfo } from './stills';
+import { type FighterIdle, queueStrikeArt, registerStills, STRIKE_ART, type StillInfo } from './stills';
 import { loadMoves, type MoveFile } from './moves';
 import movesJson from '../data/moves.json';
-import { cutSheet } from './feet';
 import { kneelRaw } from './kneel';
 import { drawCut, drawPalm, drawPath, drawSparks, newFxLayer } from './fx';
 import { Hud, type HudFaces, type HudGeo } from './hud';
@@ -61,6 +60,8 @@ import {
   flashTexture,
   tintTexture,
   hazedTexture,
+  AS_DRAWN,
+  bakeCrew,
   type CrewInfo,
   PREFIX,
   pruneTextures,
@@ -74,10 +75,11 @@ import {
   rawToCanvas,
   readTexture,
   shadowTexture,
-  sheetKey,
   stagePictureKey,
   type StageTextures,
 } from './textures';
+import { boxOf } from '../art/rig2/sfgeom';
+import { type BakePlan, type HeroesFile, proportionTag } from './proportions';
 
 /** What the lab hands the scene when it starts it. */
 export interface StageInit {
@@ -97,6 +99,8 @@ export interface StageInit {
   axes?: AxesFile;
   /** Which enemy sprites the stage mirrors so they face the heroes (`src/data/enemyfacing.json`); none are mirrored when absent. */
   facing?: FacingFile;
+  /** How tall and how broad each hero stands (`src/data/heroes.json`, global); every hero as drawn when absent. */
+  heroes?: HeroesFile;
 }
 
 /** Layers other than the fighters themselves (which use `depthFor`, below 300,000). */
@@ -154,6 +158,8 @@ export interface Fighter {
   fig: FigureArt;
   /** The face name used for the HUD chips. */
   faceName: string;
+  /** A hero's proportions plan (the rows and columns its pictures were baked with): what a move's authored contact points are carried through. Absent for enemies. */
+  plan?: BakePlan;
   shadowW: number;
   active: boolean;
   target: boolean;
@@ -207,6 +213,7 @@ export class StageScene extends Phaser.Scene {
   private crew: Record<string, CrewInfo> = {};
   private axesFile: AxesFile = {};
   private facingFile: FacingFile = {};
+  private heroesFile: HeroesFile = {};
   private enemyKeys: string[] = [];
   private setKey = '3';
   private phase: Phase = 'choose';
@@ -288,6 +295,7 @@ export class StageScene extends Phaser.Scene {
     this.init0 = data;
     this.axesFile = data.axes ?? {};
     this.facingFile = data.facing ?? {};
+    this.heroesFile = data.heroes ?? {};
     this.stage = stageOf(data.stages, data.stageId);
     this.setKey = data.setKey ?? '3';
     this.phase = data.phase ?? 'choose';
@@ -320,7 +328,7 @@ export class StageScene extends Phaser.Scene {
 
   private build(): void {
     if (this.init0.standIns) addStandInSheets(this.textures, this.init0.metas);
-    this.crew = registerCrew(this.textures, this.anims, this.init0.metas, Object.keys(this.init0.metas), this.init0.standIns);
+    this.crew = registerCrew(this.textures, this.anims, this.init0.metas, Object.keys(this.init0.metas), this.init0.standIns, this.heroesFile);
 
     for (const a of Object.values(STRIKE_ART)) if (this.textures.exists(a.key)) crisp(this.textures.get(a.key));
     this.hud = new Hud(this, this.faces());
@@ -399,9 +407,10 @@ export class StageScene extends Phaser.Scene {
       // Start the loops on different frames so the four do not bounce in unison.
       const sheet: SheetPlay = { fps: meta.fps, count: meta.frame_count, phase: (i * 3) % meta.frame_count };
       // Origin = the feet as a fraction of the picture, so the sprite's position is where they stand.
-      const sprite = this.add.sprite(0, 0, sheetKey(id), idleFrame(this.frame, sheet.fps, sheet.count, sheet.phase));
-      const f = this.makeFighter(id, 'party', MEMBERS[id as MemberId]?.name ?? id, false, sprite, slot, 'still', i, sheetKey(id), info.fig, id, id);
+      const sprite = this.add.sprite(0, 0, info.texture, idleFrame(this.frame, sheet.fps, sheet.count, sheet.phase));
+      const f = this.makeFighter(id, 'party', MEMBERS[id as MemberId]?.name ?? id, false, sprite, slot, 'still', i, info.texture, info.fig, `${id}-${this.tagOf(id)}`, id);
       f.sheet = sheet;
+      f.plan = info.plan;
       this.place(f, slot);
     });
   }
@@ -460,6 +469,69 @@ export class StageScene extends Phaser.Scene {
       this.restyle(f);
     }
     if (changed) this.refresh();
+  }
+
+  /** The name of a hero's current proportions, for texture names. */
+  private tagOf(id: string): string {
+    return proportionTag(this.heroesFile[id] ?? AS_DRAWN);
+  }
+
+  /** How big a hero's figure is in the art as drawn and on the stage now (frame 0's drawn bounds, in pixels), or null for someone who is not in this lab. */
+  heroSize(id: string): { drawn: { w: number; h: number }; now: { w: number; h: number } } | null {
+    const info = this.crew[id];
+    const first = info?.drawn.frames[0];
+    if (!info || !first) return null;
+    const size = (b: { x0: number; x1: number; y0: number; y1: number }): { w: number; h: number } => ({ w: b.x1 - b.x0 + 1, h: b.y1 - b.y0 + 1 });
+    return { drawn: size(boxOf(first)), now: size(info.fig.box) };
+  }
+
+  /** The proportions in use (`src/data/heroes.json`). */
+  get heroes(): HeroesFile {
+    return this.heroesFile;
+  }
+
+  /**
+   * Use these hero proportions from now on: every hero whose numbers changed is baked again (whole rows and columns, see
+   * `proportions.ts`), and the stage follows from the new pictures: feet, shadows, name tabs, face chips and the design's
+   * rule boxes are measured from them. This is how the editor's Height and Build sliders show at once. The pictures made
+   * for the old numbers are removed once nothing shows them, so a slider dragged for a minute leaves nothing behind.
+   * The strike and punch pictures are built again the next time a battle asks for them.
+   */
+  setHeroes(file: HeroesFile): void {
+    this.heroesFile = file;
+    const old: Array<{ id: string; tag: string }> = [];
+    for (const id of Object.keys(this.crew)) {
+      const meta = this.init0.metas[id];
+      const before = this.crew[id];
+      if (!meta || !before) continue;
+      const next = bakeCrew(this.textures, id, meta, file[id] ?? AS_DRAWN, this.init0.standIns);
+      if (next.texture === before.texture) continue;
+      this.crew[id] = next;
+      old.push({ id, tag: this.tagOf(id) });
+      for (const f of this.fighters) {
+        if (f.side !== 'party' || f.axisKey !== id) continue;
+        f.baseTex = next.texture;
+        f.measured = next.fig;
+        f.art = next.fig;
+        f.plan = next.plan;
+        f.cellW = next.frameW;
+        f.cellH = next.frameH;
+        f.faceName = `${id}-${this.tagOf(id)}`;
+        f.still = null;
+        f.shown = '';
+        this.applyAxis(f);
+      }
+    }
+    if (!old.length) return;
+    this.stillTable = null;
+    this.refresh();
+    // Nothing shows the old pictures now: drop them (the sheet, the strike and punch pictures, the kneel, and the haze / flash copies made from them).
+    for (const { id, tag } of old) {
+      for (const key of this.textures.getTextureKeys()) {
+        const mine = key.includes(`crewb-${id}[`) || key.includes(`still-${id}-`) || key.includes(`still-down-${id}`);
+        if (mine && !key.includes(`[${tag}]`)) this.textures.remove(key);
+      }
+    }
   }
 
   /** Destroy one side's fighters (every part) so a replacement does not leave stray objects behind. */
@@ -765,7 +837,8 @@ export class StageScene extends Phaser.Scene {
    * (see `kneel.ts`), made once. It stands on the same feet as the idle cell, so the sprite's origin is the idle's.
    */
   downStill(f: Fighter): StillInfo {
-    const key = `still-down-${f.id}`;
+    // A hero's kneel is cut from the baked idle picture, so its name carries the proportions it was baked with.
+    const key = `still-down-${f.id}${f.plan ? `[${proportionTag({ height: f.plan.height, build: f.plan.build })}]` : ''}`;
     if (!this.textures.exists(key)) {
       const raw = kneelRaw(f.measured.raw, f.measured.box, f.side === 'party' ? 1 : -1);
       addCanvasOnce(this.textures, key, rawToCanvas(raw));
@@ -834,11 +907,12 @@ export class StageScene extends Phaser.Scene {
       this.moveTable = loadMoves(movesJson, { abilities: new Set(Object.keys(ABILITIES)), actors: new Set(Object.keys(this.init0.metas)) });
     }
     if (!this.stillTable) {
-      const fighter = (id: string): { idle: ReturnType<typeof cutSheet>; foot: CrewInfo['foot'] } => {
-        const meta = this.init0.metas[id];
+      // The strike and punch pictures are built from the idle loop AS DRAWN and baked afterwards with the hero's proportions, so they
+      // match the baked idle (the build lays the idle frame into the set, then the bake changes the whole set the same way).
+      const fighter = (id: string): FighterIdle => {
         const info = this.crew[id];
-        if (!meta || !info) throw new Error(`${id} is not in this stage lab, so his or her moves cannot be built`);
-        return { idle: cutSheet(readTexture(this.textures, sheetKey(id)), meta.frame_w, meta.frame_count), foot: info.foot };
+        if (!info) throw new Error(`${id} is not in this stage lab, so their moves cannot be built`);
+        return { idle: info.drawn.frames, foot: info.drawn.foot, plan: info.plan, tag: this.tagOf(id), footDelta: info.footDelta };
       };
       this.stillTable = registerStills({ textures: this.textures, fighters: { 'sf-rook': fighter('rook'), 'sf-kit': fighter('kit') }, read: (key) => readTexture(this.textures, key), standIns: this.init0.standIns }, this.moveTable.stills);
     }
