@@ -8,6 +8,17 @@ import { reconcileParty } from './party';
 import { streams } from '../engine/rng';
 import { SAVE_VERSION, setState, state, type EquipSlot, type GameState, type MemberId } from './state';
 import { APP_VERSION } from '../version';
+import { OBJ } from '../story/chapter1';
+
+/**
+ * Objective texts whose wording changed after saves had stored them. The current objective is saved as plain text
+ * (flags.objective), so a save keeps the old wording until the story sets a new objective; loading swaps an exact
+ * old text for today's. Old text -> today's text.
+ */
+const RENAMED_OBJECTIVES: Record<string, string> = {
+  // Hex uses they/them (Mark's canon, 2026-10-03).
+  'Find Hex. She lives above Chrome+Circuit, by the canal.': OBJ.hex,
+};
 
 export type SlotId = 'auto' | 1 | 2 | 3;
 export const SLOTS: SlotId[] = [1, 2, 3];
@@ -236,6 +247,10 @@ function backfill(s: GameState): void {
     ['sinkline_1', !!s.flags.sinkline_gate], ['annex', !!s.flags.annex_key], ['dock', !!s.flags.betrayal],
   ];
   for (const [id, been] of seen) if (been) s.flags[`visit:${id}`] ??= true;
+  // An objective stored with wording that has since changed (runs for current-format saves too).
+  const objective = s.flags.objective;
+  const renamed = typeof objective === 'string' && Object.hasOwn(RENAMED_OBJECTIVES, objective) ? RENAMED_OBJECTIVES[objective] : undefined;
+  if (renamed !== undefined) s.flags.objective = renamed;
 }
 
 const MEMBER_IDS: MemberId[] = ['kit', 'rook', 'hex', 'sable'];
