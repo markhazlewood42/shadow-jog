@@ -47,3 +47,14 @@ Any paid generation, subscriptions, new dependencies and their size, and anythin
 - Archive tag:
 - Notes: what was learned and what to rebuild.
 ```
+
+## Spikes so far
+
+Spike docs on `main` are copies kept as the record. Their code stays on the spike branches. Paths such as `src/stage/` in those docs point into the spike branches.
+
+| Spike | Outcome | Date | Draft PR | Doc |
+|---|---|---|---|---|
+| Side-on battle view | GO (Mark) | 2026-10-04 | [PR #3](https://github.com/markhazlewood42/shadow-jog/pull/3), branch `spike/side-battle` | [`side-battle.md`](side-battle.md), stage design: [`side-battle-stage.md`](side-battle-stage.md), configs: `stage-configs/` |
+| Phaser tooling (stage, editor, Battle Test) | GO (Mark) for the scope in the doc | 2026-10-04 | [PR #4](https://github.com/markhazlewood42/shadow-jog/pull/4), branch `spike/phaser-stage` | [`phaser-stage.md`](phaser-stage.md), tooling UI guide: [`../TOOLING-UI.md`](../TOOLING-UI.md) |
+
+Neither PR is merged and neither is merged later. Each GO is rebuilt on a real feature branch from the spike code, with a Copilot review. After the rebuild lands, Mark approves the archive tags (`archive/side-battle-<date>`, `archive/phaser-stage-<date>`). Then both PRs are closed. Until then, PR #3 and PR #4 stay open drafts as references. `spike/phaser-stage` already contains all the code of `spike/side-battle`, except its Result commit.

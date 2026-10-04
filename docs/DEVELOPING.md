@@ -100,6 +100,18 @@ time. Run a single spec: `npx playwright test e2e/chaos.spec.ts --reporter=line`
 
 `PW_ALL_ENGINES=1` runs WebKit and Firefox locally too.
 
+### Tests vs design data
+The stage tools come to `main` in the rebuild of the Phaser spike. Follow this rule from the first commit of the rebuild. The paths below are the paths on `spike/phaser-stage`.
+
+Mark edits the design data (`src/data/stages.json`, `heroes.json`, `hud.json`, `axes.json`, `enemyfacing.json`) in the Battle Stage Editor and saves it. **A test never pins a value that a designer edits in a tool**, or it breaks every time he uses the tool. The rule for the stage tools (`src/stage`, `e2e/stage*`, `e2e/battletest*`, `tests/stage*`):
+
+1. **Tests of the tool and of the algorithms use fixture data**, a frozen copy of the five files in `tests/fixtures/stagedata/`. Unit tests load it with `fixtureStages()`, `fixtureHeroes()` and friends from `tests/stagefiles.ts`; editor e2e specs get it for free, because `openEditor` (`e2e/stageeditkit.ts`) seeds the scratch copy (`?scratch=`) from it. A test that edits and saves asserts RELATIVE behaviour: the value changed by the drag, and undo restores the starting value read at the start of the test, never a number copied from Mark's file. Inline numbers are fine too (for example the bake tests feed their own heroes).
+2. **Tests of the shipped data check invariants only**: every file loads with the loader the game uses, all four heroes are present, the hero ancestry order holds in the measured baked heights (Hex shorter than Kit and Rook, Sable the tallest, Rook at least as tall as Kit), the facing file covers every sprite, the files are in the stable format. They live in `tests/stageshipped.test.ts`, in the "shipped" blocks of `stageproportions` and `stagefacing`, and in `e2e/stageshipped.spec.ts`, which opens the editor on his current files (`openEditor(..., { data: 'current' })`). The editor's warnings must equal what `rules.ts` computes for the same stage (`ruleKeys` in the kit), with no fixed list of expected warnings.
+3. **Design-rule warnings are advice and never fail a run.** The rules are tested on fixture stages and figures built to break each one (`tests/stagerules.test.ts`).
+4. When a test needs to see a warning, break a rule on purpose in the scratch copy. Do not rely on a break that Mark's data happens to have.
+
+When a test fails after Mark saved in the editor, the test is wrong, not his data. Fix the test to follow the rule above, never the data. If the algorithms change in a way that needs new fixture values, change the fixture in the same commit.
+
 ---
 
 ## 4. Debug tools (DEV builds only)
