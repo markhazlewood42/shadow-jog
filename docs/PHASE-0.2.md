@@ -1,6 +1,6 @@
 # Shadow Jog 0.2: the pivot phase
 
-> Status 2026-10-04: "The short version" below is the original 2026-10-02 plan. See "Decisions for Mark" for the current state.
+> Status 2026-10-04: "The short version" below is the original 2026-10-02 plan. See "Decisions for Mark" for the current state. Both pivot spikes are GO (Mark, 2026-10-04): the side-on battle view and the Phaser tooling spike. The spike records are in `docs/spikes/`. Neither spike PR merges. The next step is the rebuild on a feature branch (decision 10).
 
 *Plan written 2026-10-02, after PR #1 (Rook's back-view battle rig) merged. Anything marked (inferred) has not been checked against a source or the code.*
 
@@ -447,7 +447,7 @@ If the battle spike is a NO-GO, 0.2.0 is instead Hex and Sable finished from beh
 
 ## Decisions for Mark
 
-**Status on 2026-10-04.** Answered: 1, 2, 3, 4 (in practice), 6, 7, 8 and 11 to 16. **Open: 5 (PixelLab), 9 (GO / NO-GO for the Phaser toolset, due 2026-10-09) and 10 (the fate of PR #3 and the next build steps).**
+**Status on 2026-10-04.** Answered: 1, 2, 3, 4 (in practice), 6, 7, 8, 9, 10 and 11 to 16. Decision 9 (GO for the Phaser toolset) and decision 10 (the side view is the battle view, and the rebuild plan) were decided on 2026-10-04. **Open: 5 (PixelLab, before about 2026-10-30).** Later steps wait on the rebuild: the archive tags for both spikes, then the troop editor and the Animation Composer.
 
 Decided 2026-10-02: 1 (yes, v0.1.0 then 0.2), 2 (the loop, not the camera), 6 (the Phaser spike runs now as a tooling spike), 3 (run the side-view spike now, comparing field scale with the ~44–48 px battle scale, with Hex/Sable back-view tuning paused) and 7 (yes, correct the docs. Mark: "I'm OK with dependencies as long as they're high quality and free"). Decisions 9 to 16 were added on 2026-10-04 to record calls made during the spikes.
 
@@ -483,13 +483,27 @@ Options: (a) correct both docs now; (b) leave them until a dependency actually l
 Options: (a) keep creatures and bosses large, re-art the humanoid regulars to party scale; (b) re-scale all 21; (c) keep everything as-is.
 **Recommendation: (a)**, the Final Fantasy VI approach, which also makes bosses more of a spectacle. Knuckles can stay big on the `brute` sprite. Decide this after the spike's scale check.
 
-**9. Is the Phaser tooling spike a GO or a NO-GO? (added 2026-10-04)** — **OPEN. Due 2026-10-09 (the time box).** The test that decides is Mark's: open `/stageedit.html`, change a stage, save and run a Battle Test in under one minute (steps in the spike doc's "Try it", on branch `spike/phaser-stage`). All the exit criteria that agents can check hold. The CI fix is `8ad78bf` ([PR #4](https://github.com/markhazlewood42/shadow-jog/pull/4), draft, never merged).
-Options: (a) GO for the toolset: build the next tools (the troop editor, then the Animation Composer) on this editor shell, and do not port the shipped game. (b) NO-GO: archive the spike (tag `archive/phaser-stage-YYYY-MM-DD`, close the PR, delete the branch). (c) GO and also plan a port of the shipped game (the agents do not recommend this on this evidence).
-**Recommendation: (a).**
+**9. Is the Phaser tooling spike a GO or a NO-GO? (added 2026-10-04)** — **decided 2026-10-04: GO, "at least for the scope we've already discussed" (Mark, in chat).** Mark did not run the timed "Try it" test in a formal way (open `/stageedit.html`, change a stage, save and run a Battle Test in under one minute). He called GO from the work he saw. The agents had checked every other exit criterion, and the spike doc records the numbers (`docs/spikes/phaser-stage.md`, "Result"). The spike is [PR #4](https://github.com/markhazlewood42/shadow-jog/pull/4) (draft, never merged). Its CI state is in that PR. A CI-only e2e failure (a label that wraps in Linux fonts) is being fixed on the spike branch.
+**The scope of the GO:**
+- The new side-view battle stage is built natively in Phaser 4, with its in-game edit mode (the Battle Stage Editor) and the Battle Test.
+- Phaser is the base for the next "Shadow Jog Engine" tools: the troop editor first, then the Animation Composer. Maps come later.
+- The editor runs inside the same scene that the battle uses. So the production side-view battle scene is a Phaser scene.
+- A port of the rest of the game (field, town, menus) is **not** part of this GO. It stays a decision for 0.3 or later.
+Options were: (a) GO for the toolset, no port of the shipped game. (b) NO-GO and archive. (c) GO and also plan a port (the agents did not recommend this).
+**Mark's choice (2026-10-04): (a), for the scope above.** Phaser adds about 350 kB gzipped. The shipped bundle is 233.4 kB against a 236 kB alarm, so the rebuild must re-set the budget on purpose. The dependency policy allows this (decision 7).
 
-**10. What happens to the side-view spike ([PR #3](https://github.com/markhazlewood42/shadow-jog/pull/3)), and what are the next build steps of phase 0.2? (added 2026-10-04)** — **The pivot is decided 2026-10-04: GO. The side-on view is the game's battle view.** Mark called it from the work he saw, not from the formal clip comparison. The size is his Sprite Fusion crew at about 64 px, larger than both sizes the spike tested (this also answers the size part of decision 3). The spike doc's "Result" section records the call (commit `12a00e4` on `spike/side-battle`). **Still open: the next build steps, after decision 9.** PR #3 is a draft with merge conflicts with `main`. It is left alone on purpose. The 3/4 arena stage and side-view HUD it chose were rebuilt in the Phaser spike.
-Options: (a) record the result, tag `archive/side-battle-YYYY-MM-DD`, close the PR and delete the branch. (b) keep it open as a reference until the Phaser decision (9) is made. (c) rebase it.
-**Mark's choice (2026-10-04): (b) until decision 9, then (a).** Decide the next build steps (the production battle view behind `?battle=side`, the poses, the humanoid enemies) after decision 9.
+**10. What happens to the side-view spike ([PR #3](https://github.com/markhazlewood42/shadow-jog/pull/3)), and what are the next build steps of phase 0.2? (added 2026-10-04)** — **decided 2026-10-04: the side view is a GO, and the next build steps are the rebuild below.** The side-on view is the game's battle view. Mark called it from the work he saw, not from the formal clip comparison. The size is his Sprite Fusion crew at about 64 px, larger than both sizes the spike tested (this also answers the size part of decision 3). The spike doc's "Result" section records the call (commit `12a00e4` on `spike/side-battle`, and `docs/spikes/side-battle.md` on `main`). The 3/4 arena stage and side-view HUD it chose were rebuilt in the Phaser spike.
+**Neither spike PR merges.** On 2026-10-04 Mark confirmed: "we don't need more GO/NO GO branches. I was mistaken about merging." PR #3 and PR #4 stay open drafts as references. The spike process applies: a GO is rebuilt on a real feature branch from the spike code, with a Copilot review, and Mark merges that branch. `spike/phaser-stage` already contains all the code of `spike/side-battle`, except its Result commit.
+**The next build steps, in order:**
+1. **The rebuild.** A feature branch, started from the spike code on `spike/phaser-stage`. It brings the side-view battle stage, the Battle Stage Editor and the Battle Test in Phaser to `main`, with a `CHANGELOG.md` entry and a Copilot review. The bundle budget is re-set on purpose in the same branch. A query flag such as `?battle=side` can keep the old view the default until the new view is good enough (`docs/spikes/README.md`). The tooling UI guide (`docs/TOOLING-UI.md`) and the "Tests vs design data" rule (`docs/DEVELOPING.md`) apply from the first commit.
+2. **Archive the spikes.** After the rebuild lands, Mark approves the tags `archive/side-battle-<date>` and `archive/phaser-stage-<date>`. Then both PRs are closed and both branches are deleted.
+3. **The troop editor,** on the same editor shell.
+4. **The Animation Composer.**
+5. **Poses for all four heroes,** from Mark's Sprite Fusion frames.
+6. **Humanoid enemies** at the crew's pixel density (the Sprite Fusion shopping list).
+Maps come later. Porting the field, town and menus is not planned.
+Options were: (a) record the result, tag `archive/side-battle-YYYY-MM-DD`, close the PR and delete the branch. (b) keep it open as a reference until the Phaser decision (9) is made. (c) rebase it.
+**Mark's choice (2026-10-04): (b) until the rebuild lands, then (a).** Mark first chose "until decision 9". Decision 9 is now made, and he confirmed that no spike PR merges. So the archive waits for the rebuild.
 
 **11. Where does the battle HUD live? (added 2026-10-04)** — **decided 2026-10-03: global.** One layout in `src/data/hud.json`. A stage may override single boxes. It is not a copy of the HUD on each stage. The "scope rule" (decision 15) follows from this.
 
