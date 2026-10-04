@@ -35,6 +35,44 @@ export function opaqueTop(c: HTMLCanvasElement): number {
   return top;
 }
 
+export const spanCache = new WeakMap<HTMLCanvasElement, [number, number]>();
+/** The first and one past the last opaque column of a sprite canvas, in art pixels (measured once per canvas). */
+export function opaqueSpan(c: HTMLCanvasElement): [number, number] {
+  let span = spanCache.get(c);
+  if (!span) {
+    let x0 = c.width, x1 = 0;
+    const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3]! > 0) {
+      if (x < x0) x0 = x;
+      if (x + 1 > x1) x1 = x + 1;
+    }
+    span = x1 > x0 ? [x0, x1] : [0, c.width];
+    spanCache.set(c, span);
+  }
+  return span;
+}
+
+const bodyCache = new WeakMap<HTMLCanvasElement, [number, number]>();
+/**
+ * The columns of a sprite's BODY, in art pixels: the first and one past the last column holding at least 40 percent of the busiest column's opaque pixels. A club, a tail
+ * or an outstretched arm is thin, so it is left out; Rook's blade point aims at where the body begins, not at the end of its club (measured once per canvas).
+ */
+export function bodySpan(c: HTMLCanvasElement): [number, number] {
+  let span = bodyCache.get(c);
+  if (!span) {
+    const d = c.getContext('2d')?.getImageData(0, 0, c.width, c.height).data;
+    const count = new Array<number>(c.width).fill(0);
+    if (d) for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if ((d[(y * c.width + x) * 4 + 3] ?? 0) > 0) count[x] = (count[x] ?? 0) + 1;
+    const max = Math.max(1, ...count);
+    let x0 = 0, x1 = c.width;
+    while (x0 < c.width && (count[x0] ?? 0) < max * 0.4) x0++;
+    while (x1 > x0 && (count[x1 - 1] ?? 0) < max * 0.4) x1--;
+    span = x1 > x0 ? [x0, x1] : [0, c.width];
+    bodyCache.set(c, span);
+  }
+  return span;
+}
+
 export const flipCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 /** Horizontally mirrored copy (cached): every other duplicate enemy faces the other way. */
 /** How long an enemy's action pose runs, in frames. */

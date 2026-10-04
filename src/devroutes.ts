@@ -45,6 +45,10 @@ export function runDevScene(game: Game, scene: string, params: URLSearchParams, 
       void run();
       break;
     }
+    case 'sidelab':
+      // The side-view arm lab (spike/side-battle): ?scene=sidelab&scale=field|battle.
+      void import('./dev/sidelab').then(({ SideLabScene }) => game.run(new SideLabScene(params.get('scale') ?? 'field', Number(params.get('zoom') ?? 0))));
+      break;
     case 'mapview':
       void game.run(new MapViewScene(params.get('map') ?? 'lantern_row'));
       break;

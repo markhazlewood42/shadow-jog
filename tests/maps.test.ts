@@ -110,9 +110,9 @@ describe('font coverage', () => {
     const walk = (d: string) => {
       for (const f of readdirSync(d)) {
         const p = join(d, f);
-        // src/dev holds dev-only tools (the FX lab) whose panel text is HTML in the browser's font.
+        // src/dev holds dev-only tools (the FX lab) whose panel text is HTML in the browser's font; so does src/stage/edit (the Battle Stage Editor's panels).
         if (statSync(p).isDirectory()) {
-          if (f !== 'dev') walk(p);
+          if (f !== 'dev' && f !== 'edit') walk(p);
         } else if (f.endsWith('.ts') && !skip.has(f)) files.push(p);
       }
     };

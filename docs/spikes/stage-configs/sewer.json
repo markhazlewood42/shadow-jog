@@ -1,0 +1,351 @@
+{
+  "version": 1,
+  "id": "sewer",
+  "name": "Sewer",
+  "backdrop": {
+    "id": "sewer",
+    "mode": "replace",
+    "horizonY": 100,
+    "shiftY": 0,
+    "wallId": "sewer-sidewall",
+    "layers": [],
+    "foreground": null,
+    "ambient": "drips"
+  },
+  "floor": {
+    "y0": 100,
+    "y1": 270,
+    "style": "grid",
+    "colors": [
+      "#4a5456",
+      "#40494c"
+    ],
+    "edge": "#6b8080",
+    "bandStart": 3,
+    "bandGrowth": 1.2,
+    "seam": {
+      "color": "#6e8284",
+      "far": 0.3,
+      "near": 0.65
+    },
+    "grid": {
+      "spacing": 72,
+      "vanishY": -400,
+      "color": "#2c3638",
+      "alpha": 0.35,
+      "nearAlpha": 0.8,
+      "stagger": true
+    },
+    "texture": {
+      "id": "concrete-flecks",
+      "shrink": 0.5
+    },
+    "laneSeams": {
+      "color": "#5c6b6e",
+      "alpha": 0.3
+    },
+    "stripes": [
+      {
+        "y": 122,
+        "h": 2,
+        "color": "#1e2628",
+        "alpha": 0.85,
+        "dash": [
+          10,
+          3
+        ]
+      }
+    ],
+    "reflections": {
+      "colors": [
+        "#61ab93",
+        "#ffcc76"
+      ],
+      "count": 5
+    },
+    "neonSpill": {
+      "reach": 14,
+      "strength": 0.6,
+      "streaks": 0.0
+    },
+    "haze": {
+      "color": "#2a4a44",
+      "amount": 0.4,
+      "reach": 40
+    },
+    "tint": null,
+    "seed": 11
+  },
+  "rows": [
+    {
+      "y": 140
+    },
+    {
+      "y": 157
+    },
+    {
+      "y": 174
+    },
+    {
+      "y": 191
+    },
+    {
+      "y": 208
+    }
+  ],
+  "party": [
+    {
+      "x": 46,
+      "row": 4
+    },
+    {
+      "x": 88,
+      "row": 3
+    },
+    {
+      "x": 130,
+      "row": 2
+    },
+    {
+      "x": 172,
+      "row": 1
+    }
+  ],
+  "enemySets": {
+    "1": [
+      {
+        "x": 356,
+        "row": 2
+      }
+    ],
+    "2": [
+      {
+        "x": 318,
+        "row": 1
+      },
+      {
+        "x": 404,
+        "row": 3
+      }
+    ],
+    "3": [
+      {
+        "x": 300,
+        "row": 0
+      },
+      {
+        "x": 396,
+        "row": 2
+      },
+      {
+        "x": 330,
+        "row": 4
+      }
+    ],
+    "4": [
+      {
+        "x": 300,
+        "row": 0
+      },
+      {
+        "x": 396,
+        "row": 1
+      },
+      {
+        "x": 322,
+        "row": 3
+      },
+      {
+        "x": 420,
+        "row": 4
+      }
+    ],
+    "5": [
+      {
+        "x": 298,
+        "row": 0
+      },
+      {
+        "x": 394,
+        "row": 0
+      },
+      {
+        "x": 346,
+        "row": 2
+      },
+      {
+        "x": 308,
+        "row": 4
+      },
+      {
+        "x": 406,
+        "row": 4
+      }
+    ],
+    "6": [
+      {
+        "x": 298,
+        "row": 0
+      },
+      {
+        "x": 394,
+        "row": 0
+      },
+      {
+        "x": 346,
+        "row": 2
+      },
+      {
+        "x": 428,
+        "row": 2
+      },
+      {
+        "x": 308,
+        "row": 4
+      },
+      {
+        "x": 406,
+        "row": 4
+      }
+    ],
+    "boss": [
+      {
+        "x": 380,
+        "row": 3,
+        "size": "boss"
+      }
+    ],
+    "boss+1": [
+      {
+        "x": 380,
+        "row": 3,
+        "size": "boss"
+      },
+      {
+        "x": 294,
+        "row": 1
+      }
+    ],
+    "boss+2": [
+      {
+        "x": 380,
+        "row": 3,
+        "size": "boss"
+      },
+      {
+        "x": 296,
+        "row": 0
+      },
+      {
+        "x": 290,
+        "row": 4
+      }
+    ]
+  },
+  "shadow": {
+    "kind": "oval",
+    "widthScale": 0.6,
+    "minW": 16,
+    "maxW": 40,
+    "bossWidthScale": 0.5,
+    "bossMaxW": 80,
+    "aspect": 4,
+    "color": "#000000",
+    "alpha": 0.65,
+    "edgeAlpha": 0.3,
+    "activeRing": {
+      "color": "#3fe0f0",
+      "extraW": 6
+    }
+  },
+  "depthTint": {
+    "fog": "#2a4a44",
+    "amounts": [
+      0.12,
+      0.09,
+      0.06,
+      0.03,
+      0.0
+    ],
+    "exemptActive": true
+  },
+  "sort": {
+    "by": "feetY",
+    "tie": "outerFirst",
+    "lungeOverTarget": 1
+  },
+  "hud": {
+    "preset": "timeline-bottom3",
+    "turnOrder": {
+      "x": 120,
+      "y": 2,
+      "w": 240,
+      "h": 25,
+      "show": "always",
+      "opacity": 0.8,
+      "style": "timeline",
+      "chip": 12,
+      "nowChip": 20
+    },
+    "commands": {
+      "x": 184,
+      "y": 228,
+      "w": 112,
+      "h": 40,
+      "show": "input",
+      "opacity": 0.8,
+      "style": "icons",
+      "icon": 18
+    },
+    "partyStatus": {
+      "x": 4,
+      "y": 228,
+      "w": 176,
+      "h": 40,
+      "show": "always",
+      "opacity": 0.8,
+      "style": "rows",
+      "rowH": 9,
+      "face": 8
+    },
+    "enemyInfo": {
+      "x": 300,
+      "y": 228,
+      "w": 176,
+      "h": 40,
+      "show": "input",
+      "opacity": 0.8,
+      "barsOnStage": {
+        "w": 32,
+        "h": 2,
+        "gapBelowShadow": 3
+      },
+      "names": "target"
+    },
+    "banner": {
+      "x": 140,
+      "y": 30,
+      "w": 200,
+      "h": 13,
+      "show": "action",
+      "opacity": 0.8
+    },
+    "combo": {
+      "x": 404,
+      "y": 2,
+      "w": 72,
+      "h": 25,
+      "show": "action",
+      "opacity": 0.8
+    },
+    "activeTag": {
+      "show": "always",
+      "gapAboveHead": 3
+    },
+    "limits": {
+      "maxScreenShare": 0.2,
+      "maxBottomBand": 44,
+      "minClearAboveBottom": 12
+    }
+  }
+}

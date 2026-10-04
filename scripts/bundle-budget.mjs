@@ -21,9 +21,15 @@ import { gzipSync } from 'node:zlib';
  * Re-set to 236 kB the night of 2026-09-30 (Mark): rig v2 (characters, enemies and portraits drawn
  * and animated in code from traced frames, their data loaded as JSON) and the battle skeleton
  * filled the 224; measured 224.9 kB, with room for the rest of the rig and the effects pass.
+ * Re-set to 244 kB on 2026-10-02 on the SPIKE branches only (spike/side-battle under
+ * spike/phaser-stage; never merged): the side-view spike's DEV-flagged code still ships in the
+ * bundle and measured 239.8 kB, and CI stopped at this gate before reaching the E2E tests the
+ * Phaser spike needs. Phaser itself is not in the shipped bundle (the stage lab is DEV-only).
+ * Mark's policy (2026-10-02): the budget is an alarm to re-set deliberately, not a ceiling. main
+ * keeps 236 kB.
  */
 const CHUNK_MAX = 480 * 1000;
-const GZIP_TOTAL_MAX = 236 * 1000;
+const GZIP_TOTAL_MAX = 244 * 1000;
 
 const dir = 'dist/assets';
 const js = readdirSync(dir).filter((f) => f.endsWith('.js'));

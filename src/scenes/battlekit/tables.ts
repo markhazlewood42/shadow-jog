@@ -96,7 +96,7 @@ export function summarize(names: string[]): string[] {
 
 /** An enemy move's body motion, from its effect: melee strikes, gunfire, or casting. */
 export function enemyMotion(fx: string): Pose {
-  if (['slash', 'claw', 'whip', 'punch', 'bite', 'crush', 'coil', 'palm'].includes(fx)) return 'attack';
+  if (['slash', 'men', 'claw', 'whip', 'punch', 'bite', 'crush', 'coil', 'palm'].includes(fx)) return 'attack';
   if (['gunfire', 'shot', 'beam', 'bolt', 'zap', 'lightning', 'target_lock'].includes(fx)) return 'aim';
   return 'cast';
 }
@@ -115,7 +115,7 @@ export const COMBO_STING: Record<string, string> = {
 };
 
 export function fxSound(fx: string): string {
-  if (['slash', 'claw', 'whip', 'arc_cut', 'moonfall', 'flash_step', 'clean_job'].includes(fx)) return 'slash';
+  if (['slash', 'men', 'men_r', 'claw', 'whip', 'arc_cut', 'moonfall', 'flash_step', 'clean_job'].includes(fx)) return 'slash';
   if (['gunfire', 'shot', 'target_lock', 'blackout'].includes(fx)) return 'gun';
   if (['lightning', 'zap', 'thunder_rift', 'pyre_storm'].includes(fx)) return 'zap';
   if (['fire', 'fire_all', 'explosion'].includes(fx)) return 'fire';
