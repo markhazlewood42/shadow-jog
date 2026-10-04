@@ -1,5 +1,7 @@
 # Shadow Jog 0.2: the pivot phase
 
+> Status 2026-10-04: "The short version" below is the original 2026-10-02 plan. See "Decisions for Mark" for the current state.
+
 *Plan written 2026-10-02, after PR #1 (Rook's back-view battle rig) merged. Anything marked (inferred) has not been checked against a source or the code.*
 
 ## The short version
@@ -20,7 +22,7 @@
 
 | Piece | Rule |
 |---|---|
-| Source of truth | The `"version"` field in `package.json` (`0.2.0-dev` on `main` since 2026-10-03; v0.1.0 was the first release; shown on the title screen). Tags, changelog and in-game label all come from it. |
+| Source of truth | The `"version"` field in `package.json` (shown on the title screen, `0.2.0-dev` on `main` since 2026-10-03, after the first release v0.1.0). Tags, changelog and in-game label all come from it. |
 | Release tags | Annotated tags such as `v0.1.0`, which record author, date and message. A pushed release tag is never moved or deleted. |
 | GitHub Releases | One per tag, with the "pre-release" box ticked for the whole 0.x line. Generate the notes, then edit them by hand. |
 | Changelog | `CHANGELOG.md` in Keep a Changelog 1.1.0 format: an `Unreleased` section on top, ISO dates, and the headings Added / Changed / Deprecated / Removed / Fixed / Security. The agent drafts the entry inside each feature PR, so you read it in the diff. |
@@ -287,7 +289,7 @@ That pose line assumes posing is 3–4× faster per pose than Kit and Rook were 
 
 ### What it is
 
-**Update 2026-10-02 (from the developer, relayed by Mark).** Hugo Duprez announced a new version of the pixel-art model: much better size adherence, better overall quality, better background removal, and style reference at 16, 24, 32, 48, 64, 80, 96, 112 and 128 px (API only for now). He recommends driving it through the API from Claude Code or Codex. Verified the same day against the [API docs](https://www.spritefusion.com/docs/pixel-art-generator/api/generate-and-transform-images): style reference lists those nine sizes; generate and direction-set still take 16, 32 or 64; edit and animate keep the input sprite's size. For Shadow Jog that means a 48 px battle-scale crew member can be edited into a pose, animated, or used as a style reference for new 48 px characters and enemies, all at the size the side-view spike is testing. Mark wants to explore the API when this pivot comes up. That changes the spike's set-up below: generation would run from a build-time script (like `scripts/pixellab/`), with an API key Mark creates and keeps in the git-ignored `.env.local`; the key never goes into the game bundle or the repo. Decision 4 (whether to buy the month) is still open.
+**Update 2026-10-02 (from the developer, relayed by Mark).** Hugo Duprez announced a new version of the pixel-art model: much better size adherence, better overall quality, better background removal, and style reference at 16, 24, 32, 48, 64, 80, 96, 112 and 128 px (API only for now). He recommends driving it through the API from Claude Code or Codex. Verified the same day against the [API docs](https://www.spritefusion.com/docs/pixel-art-generator/api/generate-and-transform-images): style reference lists those nine sizes; generate and direction-set still take 16, 32 or 64; edit and animate keep the input sprite's size. For Shadow Jog that means a 48 px battle-scale crew member can be edited into a pose, animated, or used as a style reference for new 48 px characters and enemies, all at the size the side-view spike is testing. Mark wants to explore the API when this pivot comes up. That changes the spike's set-up below: generation would run from a build-time script (like `scripts/pixellab/`), with an API key Mark creates and keeps in the git-ignored `.env.local`; the key never goes into the game bundle or the repo. Decision 4 (whether to buy the month) was answered in practice: Mark subscribed and uses Sprite Fusion.
 
 **Mark's own results, 2026-10-02.** Mark has an account and is generating Shadow Jog sprites himself (kept locally in the git-ignored `spritefusion-tests/`, not committed). What he found:
 - **Animate works well for simple loops.** Idle and walk animations come out consistent (Kit's 8-frame battle idle and overworld walk; Rook's battle-stance and relaxed idles).
@@ -447,7 +449,7 @@ If the battle spike is a NO-GO, 0.2.0 is instead Hex and Sable finished from beh
 
 **Status on 2026-10-04.** Answered: 1, 2, 3, 4 (in practice), 6, 7, 8 and 11 to 16. **Open: 5 (PixelLab), 9 (GO / NO-GO for the Phaser toolset, due 2026-10-09) and 10 (the fate of PR #3 and the next build steps).**
 
-Decided 2026-10-02: 1 (yes, v0.1.0 then 0.2), 2 (the loop, not the camera), 6 (the Phaser spike runs now as a tooling spike), 3 (run the side-view spike now, comparing field scale with the ~44–48 px battle scale; Hex/Sable back-view tuning paused) and 7 (yes, correct the docs; Mark: "I'm OK with dependencies as long as they're high quality and free"). Decisions 9 to 16 were added on 2026-10-04 to record calls made during the spikes.
+Decided 2026-10-02: 1 (yes, v0.1.0 then 0.2), 2 (the loop, not the camera), 6 (the Phaser spike runs now as a tooling spike), 3 (run the side-view spike now, comparing field scale with the ~44–48 px battle scale, with Hex/Sable back-view tuning paused) and 7 (yes, correct the docs. Mark: "I'm OK with dependencies as long as they're high quality and free"). Decisions 9 to 16 were added on 2026-10-04 to record calls made during the spikes.
 
 **1. Should today's game be frozen as v0.1.0, with the new phase numbered 0.2?** — **decided 2026-10-02: (a)** The new work changes features, not bugs, so it belongs in 0.2. Freezing means a small PR with a changelog and an in-game version label, then an annotated tag `v0.1.0`, then a GitHub pre-release, then `main` moving to `0.2.0-dev`.
 Options: (a) yes: 0.1.0 tag plus 0.2.0 phase; (b) call the next step 0.1.1; (c) no tags yet.
@@ -461,7 +463,7 @@ Options: (a) the camera, keep the back view; (b) the loop, with any camera.
 Options: (a) pause Hex/Sable tuning and run the spike now; (b) finish the back view first, spike later; (c) don't spike.
 **Recommendation: (a).** The back-view code is deleted from `main` only when the new view ships.
 
-**4. Should you buy one month of Sprite Fusion and run the spike this week, and what may its output become?** — **answered in practice 2026-10-02: Mark subscribed and uses it (the first half of the question is yes). The second half is still his call: the spikes use his Sprite Fusion frames as the battle sprites, and the comparison sheets inform whether they replace code-drawn characters in battle. On 2026-10-04 he paused because his lowest credit tier ran low. The next credits go to the shopping list: missing reactions, Hex and Sable moves, side-facing enemies.** About 30 actions on one plan; the $9 Starter price is secondary-sourced. Judging is against our code-drawn art only. Using AI frames as in-game animation would reverse the 09-30 "code over AI" decision.
+**4. Should you buy one month of Sprite Fusion and run the spike this week, and what may its output become?** — **answered in practice 2026-10-02: Mark subscribed and uses it (the first half of the question is yes). The second half is still his call: the spikes use his Sprite Fusion frames as the battle sprites, and the comparison sheets inform whether they replace code-drawn characters in battle. On 2026-10-02 he paused because his lowest credit tier ran low. The next credits go to the shopping list: missing reactions, Hex and Sable moves, side-facing enemies.** About 30 actions on one plan; the $9 Starter price is secondary-sourced. Judging is against our code-drawn art only. Using AI frames as in-game animation would reverse the 09-30 "code over AI" decision.
 Options: (a) run it, with outputs limited to base drawings and references unless you later decide otherwise; (b) run it and allow in-game animation frames automatically if it passes; (c) skip it.
 **Recommendation: (a).** A pass puts in-game frames on the table for you to decide, not before.
 
@@ -481,12 +483,12 @@ Options: (a) correct both docs now; (b) leave them until a dependency actually l
 Options: (a) keep creatures and bosses large, re-art the humanoid regulars to party scale; (b) re-scale all 21; (c) keep everything as-is.
 **Recommendation: (a)**, the Final Fantasy VI approach, which also makes bosses more of a spectacle. Knuckles can stay big on the `brute` sprite. Decide this after the spike's scale check.
 
-**9. Is the Phaser tooling spike a GO or a NO-GO? (added 2026-10-04)** — **OPEN. Due 2026-10-09 (the time box).** The deciding test is Mark's: open `/stageedit.html`, change a stage, save and run a Battle Test in under one minute (steps in the spike doc's "Try it", on branch `spike/phaser-stage`). All the exit criteria that agents can check hold. The latest commit is `8ad78bf` ([PR #4](https://github.com/markhazlewood42/shadow-jog/pull/4), draft, never merged).
-Options: (a) GO for the toolset: build the next tools (the troop editor, then the Animation Composer) on this editor shell, and do not port the shipped game; (b) NO-GO: archive the spike (tag `archive/phaser-stage-YYYY-MM-DD`, close the PR, delete the branch); (c) GO and also plan a port of the shipped game (the agents do not recommend this on this evidence).
+**9. Is the Phaser tooling spike a GO or a NO-GO? (added 2026-10-04)** — **OPEN. Due 2026-10-09 (the time box).** The test that decides is Mark's: open `/stageedit.html`, change a stage, save and run a Battle Test in under one minute (steps in the spike doc's "Try it", on branch `spike/phaser-stage`). All the exit criteria that agents can check hold. The branch tip is `4290feb` (CI fix `8ad78bf`) ([PR #4](https://github.com/markhazlewood42/shadow-jog/pull/4), draft, never merged).
+Options: (a) GO for the toolset: build the next tools (the troop editor, then the Animation Composer) on this editor shell, and do not port the shipped game. (b) NO-GO: archive the spike (tag `archive/phaser-stage-YYYY-MM-DD`, close the PR, delete the branch). (c) GO and also plan a port of the shipped game (the agents do not recommend this on this evidence).
 **Recommendation: (a).**
 
 **10. What happens to the side-view spike ([PR #3](https://github.com/markhazlewood42/shadow-jog/pull/3)), and what are the next build steps of phase 0.2? (added 2026-10-04)** — **OPEN.** PR #3 is a draft with merge conflicts with `main`. It is left alone on purpose. Its "Result" section is blank. The 3/4 arena stage and side-view HUD it chose were rebuilt in the Phaser spike.
-Options: (a) record the result, tag `archive/side-battle-YYYY-MM-DD`, close the PR and delete the branch; (b) keep it open as a reference until the Phaser decision (9) is made; (c) rebase it.
+Options: (a) record the result, tag `archive/side-battle-YYYY-MM-DD`, close the PR and delete the branch. (b) keep it open as a reference until the Phaser decision (9) is made. (c) rebase it.
 **Recommendation: (b) until decision 9, then (a).** Decide the next build steps (the production battle view behind `?battle=side`, the poses, the humanoid enemies) after decision 9.
 
 **11. Where does the battle HUD live? (added 2026-10-04)** — **decided 2026-10-03: global.** One layout in `src/data/hud.json`. A stage may override single boxes. It is not a copy of the HUD on each stage. The "scope rule" (decision 15) follows from this.
@@ -495,14 +497,14 @@ Options: (a) record the result, tag `archive/side-battle-YYYY-MM-DD`, close the 
 
 **13. Which way do enemies face, and how do the spacing rules measure them? (added 2026-10-04)** — **decided 2026-10-03: enemies face the heroes, and the rules measure the full drawn outline, weapons included.** `src/data/enemyfacing.json` mirrors the punk, ghoul, maint, shade and sentinel. The enemy slots were nudged to obey the rules. Warnings went from 20 to 2 (the Warden boss groups).
 
-**14. How do the heroes get their body proportions? (added 2026-10-04)** — **decided 2026-10-03: a global setting per hero, "method B".** `src/data/heroes.json` holds a height and a build for each hero. Whole rows and columns are added or removed inside the body, baked when the textures are built. The head and the feet stay. Kit and Rook are human, Hex is a dwarf (shorter, stouter), Sable is an orc (taller, at least as broad as the humans). Mark's values from his own editor pass (commit `a5a3f73`, 2026-10-03): Kit 1.11 and 1.00, Rook 1.07 and 1.08, Hex 0.85 and 1.00, Sable 1.34 and 1.18 (height and build). Rook's sprite is drawn taller (68 px against 63 px for Kit), so he still comes out taller than Kit.
+**14. How do the heroes get their body proportions? (added 2026-10-04)** — **decided 2026-10-03: a global setting per hero, "method B".** `src/data/heroes.json` holds a height and a build for each hero. Whole rows and columns are added or removed inside the body, baked when the textures are built. The head and the feet stay. Kit and Rook are human, Hex is a dwarf (shorter, stouter), Sable is an orc (taller, at least as broad as the humans). (Mark said "ogre". The canon word in `docs/GLOSSARY.md` is orc.) Mark's values from his own editor pass (commit `a5a3f73`, 2026-10-03): Kit 1.11 and 1.00, Rook 1.07 and 1.08, Hex 0.85 and 1.00, Sable 1.34 and 1.18 (height and build). Rook's sprite is drawn taller (68 px against 63 px for Kit), so he still comes out taller than Kit.
 
 **15. What may a stage hold? (added 2026-10-04)** — **decided 2026-10-03 (the scope rule): a stage holds only its own layout** (backdrop, floor, rows, and hero and enemy positions). A setting that belongs to a character or to the whole game is a global file, edited under an "all battles" label: `hud.json` (a stage can override it), `enemyfacing.json` and `heroes.json` (no stage override).
 
 **16. Pronouns, and how versions and releases are handled (added 2026-10-04)** — **decided 2026-10-03 and 2026-10-04.**
-- **Pronoun canon** (Mark, 2026-10-03; [PR #6](https://github.com/markhazlewood42/shadow-jog/pull/6) merged 2026-10-04): Kit she/her, Rook he/him, Hex they/them, Sable he/him. Kit and Rook are human, Hex is a dwarf, Sable is an orc. `docs/GLOSSARY.md` records it. An old save gets Hex's new objective wording when it loads.
+- **Pronoun canon** (Mark, 2026-10-03; [PR #6](https://github.com/markhazlewood42/shadow-jog/pull/6) merged 2026-10-04): Kit she/her, Rook he/him, Hex they/them, Sable he/him. Kit and Rook are human, Hex is a dwarf, Sable is an orc (Mark said "ogre". The canon word in `docs/GLOSSARY.md` is orc.) `docs/GLOSSARY.md` records it. An old save gets Hex's new objective wording when it loads.
 - **Versioning:** saves record `meta.appVersion`, and a slot saved by a newer version says so ([PR #5](https://github.com/markhazlewood42/shadow-jog/pull/5), merged 2026-10-03). `main` is `0.2.0-dev`.
-- **Process:** `main` is protected by a ruleset (a pull request and a passing `check` job; no deletion; no force-push). Mark is new to GitHub release management and asked to be taught as we go. `docs/DEVELOPING.md` section 9 holds the how-to.
+- **Process:** `main` is protected by a ruleset. It requires a pull request and a passing `check` job. It blocks deletion and force-push. Mark is new to GitHub release management and asked to be taught as we go. `docs/DEVELOPING.md` section 9 holds the how-to.
 
 ## New concepts for CONCEPTS.md
 
