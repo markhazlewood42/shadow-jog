@@ -391,6 +391,11 @@ What Mark must do for GO / NO-GO:
   - **The rebuild path:** PR #4 is not merged. A GO is rebuilt on a real feature branch, started from the spike code, with a Copilot review. Mark merges that branch. The next tools follow on the same base. The plan is in decision 10 of `docs/PHASE-0.2.md`.
   - **Bundle budget:** Phaser adds about 350 kB gzipped. The shipped build on `main` is 233.4 kB against a 236 kB alarm. The rebuild must re-set the budget on purpose. The dependency policy allows this (`docs/PHASE-0.2.md`, decision 7).
   - **The spike's CI state** is in PR #4.
+  - **Rebuild notes from the last CI fixes (2026-10-04):**
+    - CI fix `9179d98`: on Linux, the inspector label "Backdrop picture?" overflowed its column by 2 px. Linux has no Segoe UI, and its substitute font is about 14% wider. The test now measures each label against the real room beside it, and a self-check proves that the test still catches an overflow.
+    - Apply the product fix in the rebuild: in `stageedit.html`, change the `.field` label column from `minmax(118px, 1.15fr)` to `minmax(118px, 1.35fr)`. This gives about 9 px more room. The fix was not applied on the spike branch, because Mark's dev server served that page.
+    - Do not use Playwright serial mode in the rebuild's specs. In serial mode, one failure skips every later test in the file, so the label test never ran on CI until the Align test was fixed. `9179d98` removed serial mode from four `stageedit*` specs. `e2e/shots.spec.ts`, `e2e/stagefacing.spec.ts` and `e2e/stageproportions.spec.ts` still use it.
+    - Run the stage specs with `STAGELAB_NO_SPRITES=1` before you push. CI has no `spritefusion-tests/`, so it uses the stand-in sprites.
   - **Archive:** after the rebuild lands, Mark approves the tag `archive/phaser-stage-<date>`. Then PR #4 is closed and the branch is deleted. PR #3 (`spike/side-battle`) is archived at the same time.
 
 ### Try it (Mark's hands-on test)
