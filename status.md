@@ -3,7 +3,7 @@ type: status
 title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-10-02
+updated: 2026-10-04
 tags: [status]
 ---
 
@@ -17,7 +17,7 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 - **CI:** GitHub Actions, on pushes to `main` and on pull requests.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for Copilot review, and Mark merges.
 
-## Where we left off (2026-10-02)
+## Where we left off (2026-10-04)
 
 ### The whole process so far
 1. **Build (2026-09-27 → 28).** From the original prompt (`docs/original-prompt.md`) to a content-complete chapter:
@@ -51,13 +51,57 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
    stray examine twinkles removed; Dutch's hat centred; clothes rails in Kowloon Threads; a taller APTS block; shop tags
    name only crew you've met. Verified with unit tests, the affected E2E specs and hand checks of each screen (no
    scored round: Mark didn't ask for one).
+7. **Phase 0.2, the pivot phase (2026-10-02 → 04).** Release `v0.1.0` and the bump to `0.2.0-dev` are done. The pronoun canon is set. A side-view battle spike is PR #3. A Phaser tooling spike with a Battle Stage Editor and Battle Test is PR #4. Details are in "Right now" and `docs/PHASE-0.2.md`.
 
-### Right now
+### Right now (2026-10-04)
+
+**Next up for Mark** (in this order):
+1. **Merge two status PRs.** [shadow-jog PR #7](https://github.com/markhazlewood42/shadow-jog/pull/7) (the `check` job must pass first) and [home-base PR #13](https://github.com/markhazlewood42/home-base/pull/13) (it updates the Shadow Jog row in `AGENTS.md`). After you merge PR #7, delete the branch `status-2026-10-04`.
+2. **Do the hands-on test of the Phaser tooling spike and call GO or NO-GO by 2026-10-09.** The steps are in the spike doc's "Try it". The test that decides: open `/stageedit.html`, change a stage, save and run a Battle Test in under one minute. Agents recommend GO for the toolset, not for a port of the shipped game. Run `gh pr checks 4` before you call GO. Write the outcome in the "Result" section of `docs/spikes/phaser-stage.md` on `spike/phaser-stage`, and mark decision 9 in `docs/PHASE-0.2.md`. `main` is protected, so make this edit in a small PR.
+3. **Decide the fate of the side-view spike ([PR #3](https://github.com/markhazlewood42/shadow-jog/pull/3)) and the next build steps of phase 0.2.** PR #3 stays a draft and has merge conflicts with `main`. This is on purpose. The stage work moved on in the Phaser spike.
+4. **Spend the next Sprite Fusion credits on the shopping list** when you are ready (see "Sprite Fusion" below). Also explore the Sprite Fusion API (new model, nine style-reference sizes, a build-time script, the key in the git-ignored `.env.local`). Details are in `docs/PHASE-0.2.md`, Pivot 3.
+5. Your edit to `docs/mark-playthrough-notes.md` is still uncommitted in the main checkout. It now holds one open request: improve the scrap hounds, which look janky. Commit the file or keep it local, as you wish.
+6. Optional: delete the remote branches `release-prep-0.1.0` (merged) and `copilot/main` (made by Copilot) on GitHub.
+7. PixelLab ends around 2026-10-30. Decision 5 in `docs/PHASE-0.2.md` is still open.
+8. Older backlog is in What happens next > Still open from before the pivots. It waits until the items above are done.
+
+**State on 2026-10-04**
+- **Versions and releases.**
+  - `v0.1.0` is an annotated tag and a GitHub pre-release, made on 2026-10-03 on merge commit `81bc0f8` ([release page](https://github.com/markhazlewood42/shadow-jog/releases/tag/v0.1.0)). The release-prep PR was [PR #2](https://github.com/markhazlewood42/shadow-jog/pull/2).
+  - `main` is `0.2.0-dev`. [PR #5](https://github.com/markhazlewood42/shadow-jog/pull/5) merged on 2026-10-03. Saves now record `meta.appVersion`. A slot saved by a newer version shows "Saved by a newer version", not "damaged".
+  - A GitHub ruleset, "Main branch protection", is active on `main`. It requires a pull request and a passing `check` job. It blocks deletion and force-push. It requires no approving review.
+  - Mark is new to GitHub release management and asked to be taught as we go. `docs/DEVELOPING.md` section 9 holds the how-to.
+- **Pronoun canon.** [PR #6](https://github.com/markhazlewood42/shadow-jog/pull/6) merged on 2026-10-04 (UTC), and Mark deleted its remote branch. Kit is she/her, Rook is he/him, Hex is they/them, Sable is he/him. Kit and Rook are human, Hex is a dwarf, Sable is an orc (Mark said "ogre". The canon word in `docs/GLOSSARY.md` is orc.) An old save gets Hex's new objective wording when it loads (commit `0fb06a7`, from the Copilot review). `docs/GLOSSARY.md` records the canon.
+- **Side-view spike** ([PR #3](https://github.com/markhazlewood42/shadow-jog/pull/3), draft, never merge, branch `spike/side-battle`, tip `2ea4c37`, doc `docs/spikes/side-battle.md` on that branch). A design tournament picked a 3/4 "arena" stage with a side-view HUD (`docs/spikes/side-battle-stage.md`). The PS4 portrait row is gone. Heroes stand on the left and face right. Enemies stand on the right. Battle sprites are Mark's Sprite Fusion crew (about 64 px). The "Result" section of the doc is still blank because the call is Mark's.
+- **Phaser tooling spike** ([PR #4](https://github.com/markhazlewood42/shadow-jog/pull/4), draft, never merge, branch `spike/phaser-stage`, CI fix `8ad78bf`, doc `docs/spikes/phaser-stage.md` on that branch). The time box ends 2026-10-09.
+  - **What exists.** Phaser 4.2.1 and the DEV-only pages `/stagelab.html` and `/stageedit.html`. The shipped game has no Phaser in it. Scores: arena stage 8.0, Battle Stage Editor 8.3, Battle Test with Rook's strike 8.25, HUD 8.0. CPU p95 is about 1 ms per frame.
+  - **Mark's hands-on test.** He tested the editor and left 9 notes (`mark-tooling-notes.md`, git-excluded). All 9 are done, plus polish and bug-fix rounds.
+  - **Mark's decisions.** The battle HUD is global (`src/data/hud.json`), and a stage can override single boxes. A stage-rule break is a live warning in the editor (a "Warnings (n)" chip and red outlines). It never blocks a save. The laptop zoom stays as it is.
+  - **Scope rule (Mark).** A stage holds only its own layout: backdrop, floor, rows, and hero and enemy positions. A setting that belongs to a character or to the whole game is a global file, edited under an "all battles" label. The global files are `hud.json` (a stage can override it), `enemyfacing.json` and `heroes.json` (no stage override).
+  - **Enemy facing.** `enemyfacing.json` mirrors the punk, ghoul, maint, shade and sentinel, so every enemy faces the heroes. The spacing rules measure the full drawn outline, weapons included. Enemy slots were nudged to obey them. Warnings went from 20 to 2. The 2 left are on the Warden boss groups and are informational.
+  - **Hero proportions.** `heroes.json` holds a height and a build for each hero ("method B"). The bake adds or removes whole rows and columns inside the body. The head (top 28%) and the feet (bottom 6%) stay. Columns change only in the middle 20% to 80% of the width. The editor inspector has "Proportions · this hero, all battles".
+  - **Mark's own editor pass** (commit `a5a3f73`). Height and build: Kit 1.11 and 1.00, Rook 1.07 and 1.08, Hex 0.85 and 1.00, Sable 1.34 and 1.18. He moved enemy slots for the wider heroes. Rook's sprite is drawn taller (68 px against 63 px for Kit), so Rook still comes out taller than Kit.
+  - **Tests versus design data** (commits `3d06e7c` and `37a4273`). Tool tests use frozen fixtures in `tests/fixtures/stagedata/`. Tests of the shipped files check only these invariants. The files load. There are four heroes. Ancestry order holds on the baked heights. The editor warnings equal `rules.ts`. The fixed list `MARKS_FIGURE_BREAKS` is gone. Each of the 11 stage rules has a deliberate-break fixture test. The rule is in `docs/DEVELOPING.md` ("Tests vs design data") and `docs/TOOLING-UI.md` section 5 item 19, both on the spike branch. `npm run check` passes with 779 tests. The stage and Battle Test e2e specs pass 135 and skip 5 (they need an env var).
+  - **CI on PR #4.** One e2e failed on GitHub: `e2e/stageedit.spec.ts:500` "Align: select Rook ...". It expected that the four heroes do not fit on the back row. On CI, Mark's sprite folder is absent, so stand-in sprites are used, and all four fit. It was a test bug, not a game bug. Commit `8ad78bf` fixes it. The test now measures the room and the hero widths and accepts both outcomes. It passed locally with Mark's art and with stand-ins (`STAGELAB_NO_SPRITES=1`). The CI run on `8ad78bf` was still running when this was written. Check it with `gh pr checks 4`.
+  - **Research done.** The OpenBOR and MUGEN gap research (depth and frame-by-frame ideas) is recorded in `docs/TOOLING-UI.md` on the spike branch.
+  - **Open spike items.** Minor align issues. The 2 top-HUD warnings on the Warden boss groups. The "Result" section of the spike doc stays blank until Mark calls GO or NO-GO.
+- **Sprite Fusion.** Mark uses it. His sprites live in the git-excluded `spritefusion-tests/` and are never committed. He paused because his lowest credit tier ran low. Simple idles and walks work well from animate. Complex moves work better as a static pose plus frame-by-frame edits. 8-direction sets are unusable. The next credits go to the shopping list: missing reactions, Hex and Sable moves, and side-facing enemies.
+- **Working environment for the next session.**
+  - The main checkout is on the branch `status-2026-10-04` at the end of this session. After you merge PR #7, run `git switch main` and `git pull` there. Your uncommitted notes edit stays in the working tree through the switch.
+  - `spritefusion-tests` in the Phaser checkout is a link to the folder in the main checkout. Do not delete it.
+  - There are two checkouts only. `projects/shadow-jog` is the main checkout. It holds Mark's uncommitted edit to `docs/mark-playthrough-notes.md`. `projects/shadow-jog-phaser` is on `spike/phaser-stage`. It is the one accepted extra checkout (Mark's rule). Do not make worktrees or other folders.
+  - Never stage these Mark files: `docs/mark-playthrough-notes.md`, `mark-tooling-notes.md`, `spritefusion-tests/`, `pixellab-tests/`, `rook-battle-idle.webp`. Stage by explicit path. Do not use `git add -A` or `git add .`.
+  - Never change the values in `src/data/*.json` on the spike branch. That is Mark's design data.
+  - Mark starts his own dev servers when he tests (port 3007, from the Phaser checkout). Ask before a job that reloads his editor page. Never kill his server. Never touch ports 3002 to 3006.
+  - Both checkouts use port 3007 for `npm run dev`. Only one server can run there. Ask Mark before you start another.
+  - The process rules are in memory. Work done "on your own" iterates with fresh judge agents to a minimum rubric score of 8 out of 10. Dependencies are fine if they are high quality and free. Tooling UI follows RPG Maker where it overlaps, plus the scope rule above.
+
+### Earlier "Right now" notes (history, as of 2026-10-03 and before)
 - **Phase 0.2 (the pivot phase) opened 2026-10-02.** Mark is exploring three pivots: a side-on or 3/4 battle view at smaller scale, a Phaser port, and Sprite Fusion as the AI art generator. The plan, verdicts and open decisions are in `docs/PHASE-0.2.md`.
   - **Decided so far:** freeze today's game as v0.1.0 and number the new phase 0.2 (new work is features, so it's a minor bump, not 0.1.1); dependencies are fine if they're high quality and free (Mark: "dependency free" was never his requirement); the Phantasy Star IV feel is the loop (combos, panels, cut-ins, pacing), not the over-the-shoulder camera, which can go if the side-view spike passes. Mark also expects side-on to make everything easier overall, since the pixel-art community has far more side-view references and assets, and he wants battle sprites a little more detailed than field sprites for personality and ambience.
-  - **Release path:** the release-prep PR (#2) was merged; `v0.1.0` was tagged and released on 2026-10-03 as a GitHub pre-release ([release page](https://github.com/markhazlewood42/shadow-jog/releases/tag/v0.1.0)) on merge commit `81bc0f8`. The branch `bump-0.2.0-dev` bumps `main` to `0.2.0-dev`, makes saves record the game version (`meta.appVersion`) and shows a slot saved by a newer version as "Saved by a newer version" instead of "damaged"; it is [PR #5](https://github.com/markhazlewood42/shadow-jog/pull/5), open for Mark to merge. Tags and releases are listed in `CHANGELOG.md`.
+  - **Release path:** the release-prep PR (#2) was merged; `v0.1.0` was tagged and released on 2026-10-03 as a GitHub pre-release ([release page](https://github.com/markhazlewood42/shadow-jog/releases/tag/v0.1.0)) on merge commit `81bc0f8`. The branch `bump-0.2.0-dev` bumps `main` to `0.2.0-dev`, makes saves record the game version (`meta.appVersion`) and shows a slot saved by a newer version as "Saved by a newer version" instead of "damaged"; it is [PR #5](https://github.com/markhazlewood42/shadow-jog/pull/5), merged 2026-10-03. Tags and releases are listed in `CHANGELOG.md`.
   - **Dependency policy:** the old "zero runtime dependencies" wording was an AI choice, not Mark's rule.
-- **Where the spikes stand (2026-10-03).** Two draft PRs, never merged; details in each spike doc.
+- **Where the spikes stood (2026-10-03; superseded by "State on 2026-10-04" above).** Two draft PRs, never merged; details in each spike doc.
   - **Side-view spike** ([PR #3](https://github.com/markhazlewood42/shadow-jog/pull/3), `docs/spikes/side-battle.md`): the code-drawn route plateaued at about 6.5-7/10, so the battle moved to Mark's own Sprite Fusion crew (~64 px, facing right; idle loops for all four, Kit's punch frames, Rook's strike frames). After Mark's stage feedback (characters must sit at different depths; the PS4 portrait row had to go), a design tournament picked a 3/4 "arena" stage with a side-view HUD (`docs/spikes/side-battle-stage.md`, stage data in `docs/spikes/stage-configs/`). Heroes left facing right, enemies right; today's enemies stay until they are re-drawn (Sprite Fusion shopping list).
   - **Phaser tooling spike** ([PR #4](https://github.com/markhazlewood42/shadow-jog/pull/4), `docs/spikes/phaser-stage.md`, checked out at `projects/shadow-jog-phaser`): Mark chose to run it now and make it a tooling spike after asking whether a bespoke "Shadow Jog Engine" toolset would be easier on Phaser. Built in Phaser 4.2.1, DEV-only: the arena stage (8.0/10), a **Battle Stage Editor** following `docs/TOOLING-UI.md` (RPG Maker patterns; depth and frame-by-frame ideas from OpenBOR and MUGEN) at 8.3/10, and **Battle Test** with Rook's strike from Mark's frames (8.25/10); HUD polished to 8.0. CPU per frame p95 about 1 ms; the shipped game is unchanged and has no Phaser in it. Agents recommend GO for the toolset (not a port of the shipped game); the deciding test is Mark's: open `/stageedit.html`, change a stage, save and run a Battle Test in under a minute (steps in the spike doc's "Try it").
   - **Sprite Fusion:** in use by Mark (decision 4 effectively answered); his sprites live in the git-excluded `spritefusion-tests/` and are never committed. Simple idles and walks work well from animate; complex moves work better as a static pose plus edit, frame by frame; 8-direction sets are unusable. Next credits go to the shopping list (missing reactions, Hex and Sable moves, side-facing enemies).
@@ -262,7 +306,7 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
 - **State at this handoff:** see the end of this section's commit (`git log -1`); CI runs on every push.
 
 ### What happens next
-**Next, as of 2026-10-03:** (1) Mark tries the Battle Stage Editor and Battle Test and calls GO / NO-GO on the Phaser tooling spike; (2) the release step is done (v0.1.0 tagged and released 2026-10-03), so only the 0.2.0-dev bump, [PR #5](https://github.com/markhazlewood42/shadow-jog/pull/5), is left for Mark to merge; (3) on GO, rebuild the stage, editor and Battle Test on a real feature branch, then the next tools (troop editor, then the Animation Composer); (4) Sprite Fusion shopping list when credits refresh; (5) PixelLab before ~10-30 (decision 5). Both spikes (side-view and Phaser tooling) ran before the release work, ahead of the original sequence below, which is kept for reference.
+**Next, as of 2026-10-04:** the ordered "Next up for Mark" list is at the top of "Right now". In short: (1) merge the two status PRs. (2) Mark tries the Battle Stage Editor and Battle Test and calls GO / NO-GO on the Phaser tooling spike by 2026-10-09. (3) Mark decides the fate of PR #3 and the next phase 0.2 build steps. The release step and the 0.2.0-dev bump are done (v0.1.0 on 2026-10-03, [PR #5](https://github.com/markhazlewood42/shadow-jog/pull/5) merged 2026-10-03). After that, on GO, rebuild the stage, editor and Battle Test on a real feature branch, then the next tools (troop editor, then the Animation Composer). (4) Sprite Fusion shopping list when credits refresh. (5) PixelLab before ~10-30 (decision 5). Both spikes (side-view and Phaser tooling) started before the release work, ahead of the original sequence below, which is kept for reference.
 
 **The proposed pivot sequence** (from `docs/PHASE-0.2.md`, "How the three fit together"; everything after the v0.1.0 release work depends on open decisions 4–6):
 1. **Now:** the release-prep PR, then tag v0.1.0 (go-ahead), then the bump to 0.2.0-dev. Hex/Sable back-view tuning is paused (decision 3, 2026-10-02). Mark turns off PixelLab auto-renew himself if he picks 5(a) or 5(b).
@@ -281,7 +325,7 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
 - **Ship the alpha** to shadowjog.com with the secure email sign-up, only with Mark's go-ahead.
 - **Chapter 2, "Deniable Assets":** getting Rook back (seeds in `docs/SETTING.md` §10).
 
-**Mark's open decision in the plan** (`docs/PHASE-0.2.md`, "Decisions for Mark"): 5, PixelLab end-of-plan use. Settled: 1, 2, 3, 6 (the Phaser tooling spike ran) and 7; 4 is answered in practice (Mark subscribed to Sprite Fusion and the spikes use his frames as the battle sprites); 8 is answered (today's enemies stay until they are re-drawn).
+**Mark's open decisions in the plan** (`docs/PHASE-0.2.md`, "Decisions for Mark"), as of 2026-10-04: 5 (PixelLab end-of-plan use), 9 (GO / NO-GO for the Phaser toolset, due 2026-10-09) and 10 (the fate of PR #3 and the next build steps). Settled: 1, 2, 3, 6 (the Phaser tooling spike ran) and 7. Decision 4 is answered in practice (Mark uses Sprite Fusion and the spikes use his frames as the battle sprites). Decision 8 is answered (today's enemies stay until they are re-drawn). Decisions 11 to 16 record Mark's calls made during the spike.
 
 ### Known gaps (from round 13; none are bugs)
 - Battle presentation (7.5): the party are back-of-head sprites that cover enemies; creatures are finer than the party
@@ -311,6 +355,8 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
 | `docs/mark-playthrough-notes.md` | Mark's latest playthrough notes (now playthrough 2's 14; the first 25 are in git history) |
 | `docs/quality/playthrough-1.md` | Playthrough 1: what changed for each note, the judgment calls, what round 13 found and fixed |
 | `docs/quality/playthrough-2.md` | Playthrough 2: what changed for each note and the judgment calls |
+| `docs/PHASE-0.2.md` | The phase 0.2 plan: versioning, the three pivots, the decisions for Mark and their answers |
+| `docs/spikes/` | Spike template and README. Each spike doc (`side-battle.md`, `phaser-stage.md`) lives on its own `spike/*` branch |
 | `docs/original-prompt.md` | The prompt that started it |
 
 ## Architecture (summary; full version in docs/ARCHITECTURE.md)
