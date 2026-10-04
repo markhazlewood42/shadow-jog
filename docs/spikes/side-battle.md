@@ -896,9 +896,14 @@ About 25 minutes of wall clock, 4 fix passes, no per-pixel repair of Mark's fram
 6. A softer-outline pass or Sprite Fusion versions for the rustfang punks and the Glowrat, if you want them to match Kit's crispness.
 
 ## Result (filled in at the end)
-- Outcome: GO / NO-GO / ABANDONED
-- Date:
-- Numbers:
-- Draft PR:
-- Archive tag:
+- Outcome: **GO.** Mark called it on 2026-10-04: the side-on battle view is the game's battle view from now on.
+- Date: 2026-10-04 (three days before the time box closed on 2026-10-07).
+- Numbers: the code-drawn route plateaued at about 6.5 to 7 out of 10. With Mark's Sprite Fusion art (old rubric): line-up about 7.0, Rook's strike about 7.1 to 7.4, Kit's punch about 7.0 to 7.8. The stage design tournament then picked the 3/4 "arena" stage with a side-view HUD (`docs/spikes/side-battle-stage.md`). The Phaser spike rebuilt that stage and scored it 8.0.
+- Draft PR: [PR #3](https://github.com/markhazlewood42/shadow-jog/pull/3). It stays open as a reference until the Phaser GO/NO-GO (decision 9 in `docs/PHASE-0.2.md`, due 2026-10-09).
+- Archive tag: not yet. After decision 9, tag `archive/side-battle-<date>`, close PR #3 and delete the branch. If the Phaser spike is a NO-GO, this branch is instead the start of the side view in the current engine.
 - Notes: what was learned and what to rebuild.
+  - Mark made the call from the work he saw, not from the formal clip comparison of step 8. His reasons: side-on makes everything easier, because the pixel-art community has far more side-view references and assets. Heroes stand on the left and enemies on the right. The PS4 portrait row is gone.
+  - Size: Mark's Sprite Fusion crew at about 64 px tall. This is larger than both sizes the spike tested (field scale ~30 px, battle scale ~44 to 48 px). Battle sprites may carry more detail than field sprites, for personality and ambience.
+  - Poses: they come from Mark's Sprite Fusion frames, not from the code-drawn rig. Simple idles and walks work from animate. Complex moves work better as a static pose plus frame-by-frame edits.
+  - Enemies: today's enemies stay. In the Phaser spike, five sprites are mirrored so every enemy faces the heroes. New side-facing humanoid enemies are on the Sprite Fusion shopping list.
+  - To rebuild for real: the production battle view (behind `?battle=side` in this spike), the poses for all four heroes, and the humanoid enemies. The engine for that work is decision 9.
