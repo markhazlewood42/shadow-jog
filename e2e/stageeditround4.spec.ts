@@ -30,7 +30,8 @@ const overlap = (list: Array<{ left: number; right: number }>): boolean => {
   return s.some((e, i) => i > 0 && e.left < (s[i - 1]?.right ?? 0) + 1);
 };
 
-test.describe.configure({ mode: 'serial' });
+// The tests here are independent (each has a private scratch copy), so one failure must not skip the tests after it. Serial mode did that on CI and hid a failing test.
+test.describe.configure({ mode: 'default' });
 
 let scratch = '';
 test.beforeEach(() => {

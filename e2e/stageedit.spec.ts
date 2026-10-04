@@ -29,7 +29,32 @@ const status = (page: Page): Promise<string> => page.locator('#st-msg').innerTex
 /** The wall-and-floor picture's name: it changes whenever the horizon or floor is repainted. */
 const pictureKey = (page: Page): Promise<string> => page.evaluate(() => window.__stagelab?.scene()?.pictureKey ?? '');
 
-test.describe.configure({ mode: 'serial' });
+/**
+ * Inspector labels that do not fit: a label (its text and its "?" button, as drawn) that wraps, or that ends past the left edge of the control
+ * beside it. The room a label really has is its grid cell plus the gap up to that control, not the cell alone: the cell is a share of the panel's
+ * width and a font a little wider than the one the editor was designed in (Linux has no Segoe UI, so it draws the widest label about 2 px past its
+ * cell) pushes the label into the gap without hurting anyone. Wider than the gap, and the label touches the control. A label on a row of its own has
+ * no control beside it, so its own cell is its room.
+ */
+async function crampedLabels(page: Page): Promise<Array<{ label: string; pastRoomBy: number }>> {
+  return page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('#inspector .lab .l')].flatMap((l) => {
+      const lab = l.closest('.lab') as HTMLElement;
+      const drawn = document.createRange();
+      drawn.selectNodeContents(l);
+      const text = drawn.getBoundingClientRect();
+      const cell = lab.getBoundingClientRect();
+      const beside = lab.nextElementSibling?.getBoundingClientRect();
+      const roomEnd = beside && beside.left > cell.left + 1 && beside.top < cell.bottom ? beside.left : cell.right;
+      // A second line makes the label taller than one and a half lines.
+      const wraps = l.getBoundingClientRect().height > 1.5 * (Number.parseFloat(getComputedStyle(l).lineHeight) || 1.5 * Number.parseFloat(getComputedStyle(l).fontSize));
+      return wraps || text.right > roomEnd + 0.5 ? [{ label: l.textContent ?? '', pastRoomBy: Math.round((text.right - roomEnd) * 10) / 10 }] : [];
+    }),
+  );
+}
+
+// The tests here are independent (each has a private scratch copy), so one failure must not skip the tests after it. Serial mode did that on CI and hid a failing test.
+test.describe.configure({ mode: 'default' });
 
 let scratch = '';
 test.beforeEach(() => {
@@ -760,9 +785,15 @@ test('the side panels are wide enough that labels do not wrap, the stage keeps w
   expect((await canvasRect(page)).w).toBe(960);
   expect(await page.evaluate(() => window.__stagelab?.devicePixelsPerPixel)).toBe(2);
   expect(await page.evaluate(() => window.__stagelab?.crisp())).toBe(true);
-  // No label in the inspector wraps onto a second line.
-  const wrapped = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('#inspector .lab .l')].filter((e) => e.getClientRects().length > 1 || e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
-  expect(wrapped).toEqual([]);
+  // No label in the inspector wraps onto a second line, and none runs into the control beside it.
+  const cramped = await crampedLabels(page);
+  expect(cramped).toEqual([]);
+  // The check bites: with every letter 10% of the font size wider apart (the same on every OS and font), the longest label does run into its control.
+  await page.addStyleTag({ content: '#inspector .lab { letter-spacing: 0.1em; }' });
+  await flush(page);
+  expect((await crampedLabels(page)).map((c) => c.label)).toContain('Backdrop picture?');
+  await page.evaluate(() => document.head.lastElementChild?.remove());
+  await flush(page);
   // The explorer takes the rest of the left panel's height and scrolls inside itself.
   const geo = await page.evaluate(() => {
     const l = document.querySelector('#left')?.getBoundingClientRect();

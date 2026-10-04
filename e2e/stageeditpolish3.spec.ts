@@ -25,7 +25,8 @@ const onDisk = (page: Page, name: string): Promise<{ stages: string; hud: string
     return { stages: st.stages, axes: st.axes, hud: hud.hud };
   }, name);
 
-test.describe.configure({ mode: 'serial' });
+// The tests here are independent (each has a private scratch copy), so one failure must not skip the tests after it. Serial mode did that on CI and hid a failing test.
+test.describe.configure({ mode: 'default' });
 
 let scratch = '';
 test.beforeEach(() => {
