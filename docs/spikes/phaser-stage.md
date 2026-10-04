@@ -319,6 +319,57 @@ Mark: the heroes should read as what they are. Kit and Rook are human (Rook slig
 - Tests: `tests/stageproportions.test.ts` (loader, picking, identity at 1.0, exact sizes, head and feet untouched, no resampling, the same picks on every frame, real sheets, saving), `e2e/stageproportions.spec.ts`.
 - Pictures (git-ignored, `media/spike-phaser/`): `prop-r1-lineup-2x`, `prop-r1-sheet-<hero>` (every idle frame and the strike and punch pictures at 4x, feet on a red line), `prop-r1-editor-hex`, `prop-r1-warnings`.
 
+## Mark's own editor pass (2026-10-03, commit a5a3f73)
+Mark used the Battle Stage Editor himself and saved his own design data.
+- `src/data/heroes.json` changed. Kit went from height 1.05 to 1.11 (build stays 1). Hex went from height 0.8 to 0.85 (build 1). Sable went from 1.27 / 1.15 to 1.34 / 1.18 (height / build). Rook stays at 1.07 / 1.08. The numbers now are: Kit 1.11 / 1.00, Rook 1.07 / 1.08, Hex 0.85 / 1.00, Sable 1.34 / 1.18.
+- `src/data/stages.json` changed (26 slot lines). Mark moved enemy slots to the right for the wider heroes, in the street and sewer sets that have a punk or a ghoul. One other slot moved left (x 172 to 167, row 1). He did this with the editor, so the tools worked as designed for this change.
+- Rook is drawn taller than Kit in the art (68 px against 63 px). So Rook still comes out taller than Kit, even with Kit at 1.11. The ancestry order test checks the baked heights, not the multipliers (see the next section).
+- These two files are Mark's design data. Agents do not change the values in them.
+
+## Tests no longer pin Mark's design data (2026-10-03/04, commits 3d06e7c and 37a4273)
+Mark's save in a5a3f73 broke tests that held old values. The cause was the tests, not his data. The new rule is in `docs/DEVELOPING.md` ("Tests vs design data") and in `docs/TOOLING-UI.md` section 5, item 19.
+- Tool and algorithm tests use frozen fixtures in `tests/fixtures/stagedata/` (the five files `stages.json`, `axes.json`, `hud.json`, `enemyfacing.json` and `heroes.json`). The editor e2e specs seed their scratch copy from the fixtures.
+- Tests of the shipped files check only invariants. The files load with the game's loaders, all four heroes exist, the hero ancestry order holds on the BAKED heights (Hex shorter than Kit and Rook, Sable the tallest, Rook at least as tall as Kit), and the facing file covers every sprite. The editor warnings must equal what `rules.ts` computes for the same stage. The tests are in `tests/stageshipped.test.ts` and `e2e/stageshipped.spec.ts`.
+- `MARKS_FIGURE_BREAKS` (the fixed list of expected warnings) is gone. A design-rule warning never fails a run. Each of the 11 stage rules has a deliberate-break fixture test in `tests/stagerules.test.ts`.
+- 37a4273 fixed two weak points that the verifier found in 3d06e7c. The order check no longer compares the multipliers alone, because each sprite is drawn at its own height. The kerb colour test reads `street.floor.edge` from the stage and does not pin a colour.
+
+## CI fix: the Align test with stand-in art (2026-10-04, commit 8ad78bf)
+- CI on PR #4 failed on one e2e test only: `e2e/stageedit.spec.ts:500` ("Align: select Rook ..."). It expected that the four heroes do not all fit on the back row.
+- Cause: a test bug. On CI, Mark's `spritefusion-tests/` folder is absent, so the page draws stand-in heroes. With Mark's art the four heroes need 240 px and the room is 207 px, so one stays. With the stand-ins they need 82 px, so all four fit. `src/` was not the problem and did not change.
+- Fix: the test now measures each hero's drawn width and the room in the page (the nearest enemy edge on all enemy groups, minus `RULE_LIMITS.gap`, capped at 240). If all four fit, it expects rows `[0,0,0,0]` and no "stayed" message. If not, at least one hero must stay in place and the status must say "stayed: not enough room". The branch is recorded as a Playwright annotation.
+- Reproduce the CI condition locally with `STAGELAB_NO_SPRITES=1`. The "not enough room" branch runs only with Mark's art. The unit tests for `alignDepth` shortage may cover the same case, but this was not checked.
+- Results, `npx playwright test e2e/stage*.spec.ts e2e/battletest*.spec.ts --project=chromium`: with Mark's art 135 passed and 5 skipped. With stand-ins 132 passed and 8 skipped. `npm run check`: 779 unit tests passed in 52 files. I did not wait for the GitHub CI result for 8ad78bf. Check the PR #4 checks first.
+- The stand-in run had two flakes, each in a different test (`stageeditpolish3` at 125% scale and a `stagelab-edit` HUD test). Both are pages that were not ready in 30 s. Each passed when run again alone.
+
+## State at the end of the 2026-10-04 session
+Result, for Mark: the spike is built and tested. It waits for your GO / NO-GO call. Agents recommend GO for the toolset and not a port of the shipped game. **The time box ends 2026-10-09.** The "Result" section below is empty on purpose.
+
+What is built (all DEV-only, none of it is in the shipped game):
+- `/stagelab.html`: the side-view battle stage in Phaser 4.2.1 (street and sewer, 3/4 floor, depth rows, HUD).
+- `/stageedit.html`: the Battle Stage Editor. It has handles, undo and redo, Align, live design-rule warnings (the "Warnings (n)" chip), HUD presets with per-stage overrides, a JSON pane and one atomic Save for all changed files.
+- Battle Test (Ctrl+Enter): a real fight on the stage as it is on screen, saved or not. It has Rook's strike and Kit's combo from Mark's Sprite Fusion frames.
+- Global files, edited under an "all battles" label: `hud.json` (a stage may override single boxes), `enemyfacing.json` (21 enemy sprites, 5 mirrored) and `heroes.json` (height and build per hero, no stage override). The rule is in `docs/TOOLING-UI.md` section 3.0.
+
+Scores (judge medians, agents): arena stage 8.0, Battle Stage Editor 8.3, Battle Test with Rook's strike 8.25, HUD 8.0. CPU work per frame p95 is about 1 ms. All of Mark's hands-on notes are done, plus the polish and bug-fix rounds.
+
+Mark's decisions so far:
+- The battle HUD is global (`hud.json`), with per-stage overrides.
+- Stage-rule breaks are live warnings. They never block a save.
+- The laptop zoom stays as it is.
+- A stage holds only its own layout. Settings for a character or for the whole game are global files.
+- The spacing rules measure the full drawn outline. Enemies move to obey them.
+
+Open items:
+- Minor Align issues, from the round-4 verifier (listed in "Editor rounds after Mark's notes" above): Back / Middle / Front plans greedily, Left / Centre / Right can place a packed fighter on a selected one that did not fit, and a non-ASCII letter on the W key can fire Align W on the Turkish-F layout.
+- Two Warnings remain: the Warden's lines in the top HUD band, on the street boss and street boss+2 groups. They are informational. Mark can move the HUD box or the Warden if he wants them gone.
+- The "Rebuild or finish" list in the Result notes is still open (moves for Hex, Sable and the enemies, the timed-press ring, Combo, Item and Run in the Battle Test, and more).
+- Check that GitHub CI on PR #4 is green after 8ad78bf.
+
+What Mark must do for GO / NO-GO:
+1. Do the test in "Try it" at the end of this file. The deciding question: can you open `/stageedit.html`, change a stage, save and run a Battle Test in under a minute?
+2. Write the outcome in the "Result" section (GO, NO-GO, ABANDONED, or MORE WORK) by 2026-10-09.
+3. PR #4 stays a draft and is never merged. PR #3 (the side-view spike) is a separate decision and has merge conflicts with `main`.
+
 ## Result (filled in at the end)
 - Outcome: GO / NO-GO / ABANDONED
 - Date:
@@ -334,10 +385,11 @@ Needs the `spritefusion-tests/` link in this checkout (without it the crew are c
 cd C:/Users/markh/home-base/projects/shadow-jog-phaser
 npm run dev
 ```
-- Dev server: http://localhost:3007 (the DEV tab lists "Battle Stage Editor (Phaser spike)"; ports 3002-3006 belong to other projects).
-- The editor: http://localhost:3007/stageedit.html in a window about 1600x900 or larger (the stage then lands at exactly 2x). Click Rook and drag him to another row, drag the Horizon line up, switch the HUD preset (the inspector's HUD layout group, with nothing selected), then Ctrl+S to save and reload the page to see it kept. Ctrl+Z undoes, the Keys button lists every key.
+- Dev server: http://localhost:3007. If a dev server already runs there from this checkout, skip `npm run dev`. The DEV tab lists "Battle Stage Editor (Phaser spike)". Ports 3002-3006 belong to other projects.
+- The editor: http://localhost:3007/stageedit.html in a window about 1600x900 or larger (the stage then lands at exactly 2x). Click Rook and drag him to another row, drag the Horizon line up, switch the HUD preset (the inspector's HUD layout group, with nothing selected), then Ctrl+S to save and reload the page to see it kept. Ctrl+Z undoes, the Keys button lists every key, and the "?" button explains what each setting changes. Select a hero to see "Proportions · this hero, all battles". Select several fighters and press a plain letter to Align them (A, C, D left, centre, right. W, M, S back, middle, front). The "Warnings (n)" chip shows the design-rule breaks. They never block a save.
 - The Battle Test: Ctrl+Enter (or the Battle Test button), pick the party and the troop, Start. Then arrows choose, Enter confirms, Backspace steps back, A turns auto-play on, Esc returns to the editor with everything as it was. Rook's Attack and Kit's Attack play from your Sprite Fusion frames. The fight runs on the stage as it is on screen, saved or not.
 - The stage lab (no editor): http://localhost:3007/stagelab.html?stage=sewer&set=boss&phase=act, with `H` hiding the pickers.
 - Time yourself on the exit criterion: open the editor, move something, press Ctrl+Enter, start the fight. Under a minute?
+- To see what CI sees (stand-in heroes, no `spritefusion-tests/`), run the stage tests with `STAGELAB_NO_SPRITES=1`. `npm run check` runs the unit tests (779 on 2026-10-04).
 - To check the shipped game is untouched: `npm run build && npm run preview` (http://localhost:3008), then `grep -l -i phaser dist/assets/*.js` should print nothing.
 - To re-measure: `npx playwright test e2e/battletest.spec.ts -g timing` (add `PW_NOGPU=1` for software rendering) and `node scripts/stagelab-size.mjs "$TEMP/size" stageedit.html`.
