@@ -21,9 +21,9 @@ import type { HudRegionKey } from '../hudpresets';
 
 export type { EditorData };
 
-/** The files Save writes, as parts of the data: the stages, the foot-anchor corrections and the global HUD layout. */
-export type Part = 'stages' | 'axes' | 'hud';
-const PARTS: readonly Part[] = ['stages', 'axes', 'hud'];
+/** The files Save writes, as parts of the data: the stages, the foot-anchor corrections, the global HUD layout and which enemies are mirrored. */
+export type Part = 'stages' | 'axes' | 'hud' | 'facing';
+const PARTS: readonly Part[] = ['stages', 'axes', 'hud', 'facing'];
 
 /** One selectable thing. Fighters and HUD boxes can be selected several at a time; the handles one at a time. */
 export type Item =
@@ -71,7 +71,7 @@ export interface LastChange {
 
 /** The snapshot text of the data (what undo keeps). */
 export function serialize(data: EditorData): string {
-  return JSON.stringify({ stages: data.stages, axes: data.axes, hud: data.hud });
+  return JSON.stringify({ stages: data.stages, axes: data.axes, hud: data.hud, facing: data.facing });
 }
 
 /**
@@ -83,11 +83,11 @@ function partTexts(data: EditorData): Record<Part, string> {
   const hasEmpty = Object.values(data.stages).some((st) => st.hud !== undefined);
   let stages = data.stages;
   if (hasEmpty) {
-    const tidy = cloneStage({ stages: data.stages, axes: data.axes, hud: data.hud });
+    const tidy = cloneStage({ stages: data.stages, axes: data.axes, hud: data.hud, facing: data.facing });
     settleData(tidy);
     stages = tidy.stages;
   }
-  return { stages: JSON.stringify(stages), axes: JSON.stringify(data.axes), hud: JSON.stringify(data.hud) };
+  return { stages: JSON.stringify(stages), axes: JSON.stringify(data.axes), hud: JSON.stringify(data.hud), facing: JSON.stringify(data.facing) };
 }
 
 /**

@@ -10,7 +10,7 @@ import { comboOf, KEYS, matchKey, MOUSE, RESERVED, shown, unsafeReason } from '.
 import { prepareSave } from '../src/stage/edit/save';
 import { type Item, Session, toggleInSelection } from '../src/stage/edit/session';
 import { formatJson } from '../src/tools/jsonfmt';
-import { hudJson, shippedEntries, shippedHud, stagesJson } from './stagefiles';
+import { hudJson, shippedEntries, shippedFacing, shippedHud, stagesJson } from './stagefiles';
 
 const street = (): StageEntry => shippedEntries().street as StageEntry;
 const reach = (n: number, left = 20, right = 20): Record<number, Reach> => Object.fromEntries(Array.from({ length: n }, (_, i) => [i, { left, right }]));
@@ -174,7 +174,7 @@ describe('the shortcuts avoid the browser’s own keys', () => {
 });
 
 describe('undo and redo say what they did', () => {
-  const make = (): Session => new Session({ stages: shippedEntries(), axes: {}, hud: shippedHud() }, 'street', formatJson);
+  const make = (): Session => new Session({ stages: shippedEntries(), axes: {}, hud: shippedHud(), facing: shippedFacing() }, 'street', formatJson);
 
   it('the next undo and redo names are the gestures’ names, in order', () => {
     const se = make();
@@ -198,7 +198,7 @@ describe('undo and redo say what they did', () => {
       (d.stages.street as StageEntry).party[0] = { x: 21, row: 2 };
     });
     expect(se.nextRedoLabel).toBe('');
-    se.load({ stages: shippedEntries(), axes: {}, hud: shippedHud() });
+    se.load({ stages: shippedEntries(), axes: {}, hud: shippedHud(), facing: shippedFacing() });
     expect(se.nextUndoLabel).toBe('');
   });
 });

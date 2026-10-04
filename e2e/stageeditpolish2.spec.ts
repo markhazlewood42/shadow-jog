@@ -531,7 +531,7 @@ test('Mark’s current figure-rule breaks show as warnings: the chip counts them
   // The bubble that explained the chip does not sit on top of the list.
   await expect(page.locator('#tipbubble')).toBeHidden();
   // Click one: that stage, that enemy count, the fighters to blame selected.
-  await pop.locator('.wi[data-rule="nearest"]').click();
+  await pop.locator('.wi[data-rule="nearest"][data-key^="sewer 6:"]').click();
   await expect(pop).toBeHidden();
   expect(await page.evaluate(() => [window.__stageedit?.session.stageId, window.__stageedit?.session.setKey])).toEqual(['sewer', '6']);
   const picked = await page.evaluate(() => window.__stageedit?.session.selection ?? []);
@@ -553,23 +553,24 @@ test('a placement that breaks a rule gets a red outline and a warning, and undoi
   expect(base).toBeGreaterThanOrEqual(0);
   const outlines = (): Promise<number> => page.locator('#ovsvg rect[stroke="#ff3b3b"]').count();
   const before = await outlines();
-  // Put the first enemy at the middle line: its left edge is far left of the 260 the design needs.
+  // Push the last enemy to the right edge of the screen: it reaches past the 4 px margin the design keeps. (The street's
+  // "nearest enemy" and gap rules are already broken for 3 enemies by Mark's slots with the mirrored art, so they cannot show a NEW warning.)
   await page.evaluate(() => {
-    window.__stageedit?.session.edit('Move E1 to the middle', (d) => {
+    window.__stageedit?.session.edit('Move E3 to the edge', (d) => {
       const s = d.stages.street as StageEntry;
-      s.enemySets['3'] = (s.enemySets['3'] ?? []).map((q, i) => (i === 0 ? { ...q, x: 244 } : q));
+      s.enemySets['3'] = (s.enemySets['3'] ?? []).map((q, i) => (i === 2 ? { ...q, x: 470 } : q));
     });
   });
   await flush(page);
-  const w = await page.evaluate(() => window.__stageedit?.warnings().filter((x) => x.setKey === '3' && x.culprits.some((c) => c.side === 'enemy' && c.index === 0)) ?? []);
-  expect(w.map((x) => x.rule)).toEqual(expect.arrayContaining(['nearest']));
+  const w = await page.evaluate(() => window.__stageedit?.warnings().filter((x) => x.setKey === '3' && x.culprits.some((c) => c.side === 'enemy' && c.index === 2)) ?? []);
+  expect(w.map((x) => x.rule)).toEqual(expect.arrayContaining(['edge']));
   expect(await outlines()).toBeGreaterThan(before);
   await expect(page.locator('#b-warn')).toHaveText(new RegExp(`Warnings \\((?!${base}\\))\\d+\\)`));
   await expect(page.locator('#st-warn')).toBeVisible();
   await expect(page.locator('#st-warn')).toContainText('Design rule');
-  await expect(page.locator('#st-warn')).toHaveAttribute('title', /nearest enemy/);
+  await expect(page.locator('#st-warn')).toHaveAttribute('title', /an enemy reaches x/);
   // The inspector says it too when the fighter is selected.
-  await select(page, [{ side: 'enemy', index: 0 }]);
+  await select(page, [{ side: 'enemy', index: 2 }]);
   await expect(page.locator('#inspector .checks .warn').first()).toContainText('3 enemies');
   // A warning does not stop a save.
   await page.keyboard.press('Control+s');

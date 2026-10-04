@@ -18,10 +18,10 @@ import {
 import { formatHud, prepareHudSave, prepareSave } from '../src/stage/edit/save';
 import { applyPreset, HUD_PRESETS, HUD_REGIONS, hudOverrides, overriddenRegions, PRESET_IDS, revertField, revertRegion } from '../src/stage/hudpresets';
 import { STAGE_KNOWN } from '../src/stage/known';
-import { hudJson, shippedEntries, shippedHud, shippedStages } from './stagefiles';
+import { hudJson, shippedEntries, shippedFacing, shippedHud, shippedStages } from './stagefiles';
 
 /** The global layout and the stage entries as one piece of editor data. */
-const data = (): EditorData => ({ stages: shippedEntries(), axes: {}, hud: shippedHud() });
+const data = (): EditorData => ({ stages: shippedEntries(), axes: {}, hud: shippedHud(), facing: shippedFacing() });
 
 describe('the global HUD file (hud.json)', () => {
   it('is valid, is the action-left preset, and every stage uses it as it is (no stage carries a HUD override)', () => {

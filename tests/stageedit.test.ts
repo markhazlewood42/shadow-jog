@@ -36,7 +36,7 @@ import { type EditorData, Session } from '../src/stage/edit/session';
 import { applyPreset } from '../src/stage/hudpresets';
 import { STAGE_KNOWN } from '../src/stage/known';
 import { formatJson } from '../src/tools/jsonfmt';
-import { shippedEntries, shippedHud, shippedStages, stagesJson } from './stagefiles';
+import { shippedEntries, shippedFacing, shippedHud, shippedStages, stagesJson } from './stagefiles';
 
 const file = (): EntryFile => shippedEntries();
 const street = (f = file()): StageEntry => f.street as StageEntry;
@@ -272,7 +272,7 @@ describe('the keyboard table', () => {
 });
 
 describe('the editing session: gestures, undo and the unsaved state', () => {
-  const make = (): Session => new Session({ stages: file(), axes: {}, hud: shippedHud() }, 'street', formatJson);
+  const make = (): Session => new Session({ stages: file(), axes: {}, hud: shippedHud(), facing: shippedFacing() }, 'street', formatJson);
   const horizon = (_se: Session, y: number) => (d: EditorData) => {
     setHorizon(d.stages.street as StageEntry, y);
   };
@@ -348,7 +348,7 @@ describe('the editing session: gestures, undo and the unsaved state', () => {
   it('Revert/load replaces everything and clears the history', () => {
     const se = make();
     se.edit('a', horizon(se, 96));
-    se.load({ stages: file(), axes: {}, hud: shippedHud() });
+    se.load({ stages: file(), axes: {}, hud: shippedHud(), facing: shippedFacing() });
     expect(se.dirty).toBe(false);
     expect(se.canUndo).toBe(false);
     expect(se.stage.backdrop.horizonY).toBe(100);
@@ -369,7 +369,7 @@ describe('what Save writes', () => {
   it('refuses a bad file with plain-words problems and writes nothing; accepts a good one in the stable format', () => {
     const bad = file();
     (street(bad).rows[1] as { y: number }).y = 400;
-    const refused = prepareSave({ stages: bad, axes: {}, hud: shippedHud() });
+    const refused = prepareSave({ stages: bad, axes: {}, hud: shippedHud(), facing: shippedFacing() });
     expect(refused.ok).toBe(false);
     if (!refused.ok) expect(refused.problems.join('\n')).toMatch(/outside the floor|grow/);
     expect(prepareSave({ stages: file(), axes: { rook: { x: 99, y: 0 } } })).toMatchObject({ ok: false });
@@ -490,7 +490,7 @@ describe('the Align bar: fighters line up with their half of the stage, or with 
   });
 
   it('one undo step per Align, and the stage still passes the checker', () => {
-    const se = new Session({ stages: file(), axes: {}, hud: shippedHud() }, 'street', formatJson);
+    const se = new Session({ stages: file(), axes: {}, hud: shippedHud(), facing: shippedFacing() }, 'street', formatJson);
     const start = JSON.stringify(se.data);
     se.edit('Align Rook to the back row', (d) => alignDepth(d.stages.street as StageEntry, 'party', '3', [1], 'back'));
     expect(se.undoStack.depth).toBe(1);
@@ -501,7 +501,7 @@ describe('the Align bar: fighters line up with their half of the stage, or with 
 });
 
 describe('the session knows which of the three files changed', () => {
-  const make = (): Session => new Session({ stages: file(), axes: {}, hud: shippedHud() }, 'street', formatJson);
+  const make = (): Session => new Session({ stages: file(), axes: {}, hud: shippedHud(), facing: shippedFacing() }, 'street', formatJson);
 
   it('a HUD move makes only hud.json unsaved; saving it leaves other changes unsaved; undo and redo cover the HUD too', () => {
     const se = make();

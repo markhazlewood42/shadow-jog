@@ -34,6 +34,8 @@ export interface StageLabHook {
   snapshot: () => Promise<{ colours: number; topShare: number; width: number; height: number }>;
   /** The colours (as #rrggbb) of these game pixels in the next drawn frame. */
   pixels: (points: ReadonlyArray<readonly [number, number]>) => Promise<string[]>;
+  /** The colours of a rectangle of game pixels in the next drawn frame, row by row, as RGBA numbers (4 per pixel). */
+  region: (x: number, y: number, w: number, h: number) => Promise<number[]>;
   scene: () => StageScene | null;
   /** Restart the scene (as an edit mode's "reload" would); resolves once the new run has drawn a frame. */
   restart: () => Promise<void>;
@@ -63,6 +65,7 @@ export function emptyHook(): StageLabHook {
     textureKeys: () => [],
     snapshot: () => Promise.reject(new Error('not started')),
     pixels: () => Promise.reject(new Error('not started')),
+    region: () => Promise.reject(new Error('not started')),
     scene: () => null,
     restart: () => Promise.reject(new Error('not started')),
     game: null,
@@ -131,6 +134,12 @@ export function connectHook(hook: StageLabHook, booted: Booted, onReady: () => v
       const i = (y * width + x) * 4;
       return `#${hex(px[i])}${hex(px[i + 1])}${hex(px[i + 2])}`;
     });
+  };
+  hook.region = async (x, y, w, h) => {
+    const { width, px } = await nextFrame();
+    const out: number[] = [];
+    for (let row = y; row < y + h; row++) for (let col = x; col < x + w; col++) for (let c = 0; c < 4; c++) out.push(px[(row * width + col) * 4 + c] ?? 0);
+    return out;
   };
   hook.restart = () =>
     new Promise((resolve) => {

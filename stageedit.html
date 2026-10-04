@@ -152,6 +152,11 @@
       .field > .lab code { font-size: 10.5px; overflow-wrap: anywhere; }
       .field.scope { grid-template-columns: minmax(0, 1fr) auto; }
       .field.scope input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--hand); margin: 0 4px; }
+      /* The enemy's "Mirror (face the heroes)" switch: label, check box, revert arrow */
+      .field.mirror { grid-template-columns: minmax(0, 1fr) auto 18px; }
+      .field.mirror input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--hand); margin: 0 4px; }
+      .field.mirror > .rev { grid-column: 3; }
+      .field.mirror.moved > .lab { color: #fff; }
       /* "Stage settings": the way back from a selection to the settings of the stage itself, at the top of the panel where it cannot be missed */
       .stagebar { display: flex; align-items: center; gap: 10px; padding: 6px 0 8px; border-bottom: 1px solid var(--line); }
       .stagebar .hint { margin: 0; }

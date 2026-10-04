@@ -40,6 +40,7 @@ import { MEMBERS } from '../data/party';
 import type { MemberId } from '../game/state';
 import { type AxesFile, axisFor, type FigureBox, depthFor, enemySlots, type PartySlot, partDepth, SCREEN_H, SCREEN_W, setKeyFor, shadowHeight, shadowWidth, slotPoint, snapSlot, type StageConfig, type StageFile, stageOf } from './config';
 import { buildHudView, type HudView, type Phase } from './demo';
+import { type FacingFile, figureFor, isMirrored } from './facing';
 import { queueStrikeArt, registerStills, STRIKE_ART, type StillInfo } from './stills';
 import { loadMoves, type MoveFile } from './moves';
 import movesJson from '../data/moves.json';
@@ -53,6 +54,7 @@ import { enemyIdle, idleFrame, type IdleKind } from './idle';
 import {
   addEnemy,
   bakeStage,
+  type EnemyTexture,
   effectsTexture,
   faceTexture,
   type FigureArt,
@@ -93,6 +95,8 @@ export interface StageInit {
   onError: (message: string) => void;
   /** Foot-anchor corrections per sprite (`src/data/axes.json`); none when absent. */
   axes?: AxesFile;
+  /** Which enemy sprites the stage mirrors so they face the heroes (`src/data/enemyfacing.json`); none are mirrored when absent. */
+  facing?: FacingFile;
 }
 
 /** Layers other than the fighters themselves (which use `depthFor`, below 300,000). */
@@ -132,8 +136,12 @@ export interface Fighter {
   bodyDx: number;
   /** Which sprite this is for the foot-anchor corrections: a crew id, or an enemy's sprite key. */
   axisKey: string;
-  /** The figure as measured from its pixels, before any foot-anchor correction (`fig` is this with the correction applied). */
+  /** The figure as measured from its pixels, before any foot-anchor correction (`fig` is this with the correction applied). A mirrored enemy's is the measurement of the picture AS DRAWN, that is, reversed (`mirrorFigure`). */
   measured: FigureArt;
+  /** The figure exactly as its art was drawn, never mirrored (what `measured` is made from). */
+  art: FigureArt;
+  /** Whether the picture is drawn mirrored (`sprite.flipX`): an enemy whose art faces right is flipped to face the heroes. Always false for a hero. */
+  mirror: boolean;
   /** The feet row this figure sorts by: its own, or while lunging in contact the target's row plus one. */
   sortY: number;
   idle: IdleKind;
@@ -198,6 +206,7 @@ export class StageScene extends Phaser.Scene {
   private hud: Hud | null = null;
   private crew: Record<string, CrewInfo> = {};
   private axesFile: AxesFile = {};
+  private facingFile: FacingFile = {};
   private enemyKeys: string[] = [];
   private setKey = '3';
   private phase: Phase = 'choose';
@@ -252,6 +261,11 @@ export class StageScene extends Phaser.Scene {
     return this.axesFile;
   }
 
+  /** Which enemy sprites are mirrored (`src/data/enemyfacing.json`). */
+  get facing(): FacingFile {
+    return this.facingFile;
+  }
+
   /** The stage picture's texture key. */
   get pictureKey(): string {
     return this.pic.key;
@@ -273,6 +287,7 @@ export class StageScene extends Phaser.Scene {
     this.acc = 0;
     this.init0 = data;
     this.axesFile = data.axes ?? {};
+    this.facingFile = data.facing ?? {};
     this.stage = stageOf(data.stages, data.stageId);
     this.setKey = data.setKey ?? '3';
     this.phase = data.phase ?? 'choose';
@@ -406,11 +421,45 @@ export class StageScene extends Phaser.Scene {
       // A second punk is a different individual, not the same sprite twice.
       const copy = copies.get(def.sprite) ?? 0;
       copies.set(def.sprite, copy + 1);
-      const tex = addEnemy(this.textures, def.sprite, copy);
-      const sprite = this.add.sprite(0, 0, tex.key);
-      const f = this.makeFighter(`${key}#${i}`, 'enemy', def.name, slot.size === 'boss' || !!def.boss, sprite, slot, tex.idle, i, tex.key, tex.fig, `${def.sprite}-${copy}`, def.sprite);
+      const art = this.enemyArt(def.sprite, copy);
+      const sprite = this.add.sprite(0, 0, art.tex.key);
+      const f = this.makeFighter(`${key}#${i}`, 'enemy', def.name, slot.size === 'boss' || !!def.boss, sprite, slot, art.tex.idle, i, art.tex.key, art.fig, art.faceName, def.sprite);
       this.place(f, slot);
     });
+  }
+
+  /**
+   * An enemy sprite's picture and measurements as the stage draws it. The facing file (`enemyfacing.json`) says whether this
+   * sprite is mirrored to face the heroes: then the figure is the MIRROR IMAGE of the measured art (feet, edges, face and
+   * pixels reversed about the feet, `mirrorFigure`), so every reader of `fig` sees the picture that is on the screen. The
+   * picture itself is not copied: the sprite is flipped (`setFlipX`). `faceName` names the HUD face chip; a mirrored chip
+   * is a different picture from the unmirrored one, so it has its own name.
+   */
+  private enemyArt(sprite: string, copy: number): { tex: EnemyTexture; mirror: boolean; fig: FigureArt; faceName: string } {
+    const tex = addEnemy(this.textures, sprite, copy);
+    const mirror = isMirrored(this.facingFile, sprite);
+    return { tex, mirror, fig: figureFor(tex.fig, mirror), faceName: `${sprite}-${copy}${mirror ? '-m' : ''}` };
+  }
+
+  /**
+   * Use this facing file from now on: every enemy whose mirror setting changed is flipped (or flipped back) about its feet,
+   * its measurements and face chip follow, and the stage is drawn again. This is how the editor's "Mirror" switch shows at once.
+   */
+  setFacing(file: FacingFile): void {
+    this.facingFile = file;
+    let changed = false;
+    for (const f of this.fighters) {
+      if (f.side !== 'enemy') continue;
+      const mirror = isMirrored(file, f.axisKey);
+      if (mirror === f.mirror) continue;
+      changed = true;
+      f.mirror = mirror;
+      f.measured = figureFor(f.art, mirror);
+      f.faceName = f.faceName.replace(/-m$/, '') + (mirror ? '-m' : '');
+      this.applyAxis(f);
+      this.restyle(f);
+    }
+    if (changed) this.refresh();
   }
 
   /** Destroy one side's fighters (every part) so a replacement does not leave stray objects behind. */
@@ -432,7 +481,7 @@ export class StageScene extends Phaser.Scene {
     // A tag an edit mode can read back from whatever the pointer picks (`setData`/`getData` hang small values on any game object).
     sprite.setData('fighterId', id);
     const f: Fighter = {
-      id, side, name, boss, sprite, shadow, ring, home, bar, slot, baseX: 0, baseY: 0, x: 0, y: 0, bodyDx: 0, axisKey, measured: fig, sortY: 0, idle, uid, baseTex, fig, faceName, shadowW: 0,
+      id, side, name, boss, sprite, shadow, ring, home, bar, slot, baseX: 0, baseY: 0, x: 0, y: 0, bodyDx: 0, axisKey, measured: fig, art: fig.mirrorOf ?? fig, mirror: !!fig.mirrorOf, sortY: 0, idle, uid, baseTex, fig, faceName, shadowW: 0,
       active: false, target: false, flash: false, flashAmt: 1, tintAmt: 0, depth: 0,
       still: null, offX: 0, offY: 0, alpha: 1, down: false, cellW: sprite.width, cellH: sprite.height, shown: '',
     };
@@ -482,7 +531,8 @@ export class StageScene extends Phaser.Scene {
       const px = Math.floor(x - s.x + s.originX * s.width);
       const py = Math.floor(y - s.y + s.originY * s.height);
       if (px < 0 || py < 0 || px >= s.width || py >= s.height) continue;
-      if (this.textures.getPixelAlpha(px, py, s.texture.key, s.frame.name) > 8) return f;
+      // A mirrored picture is drawn reversed, so the pixel under the pointer is the one on the other side of the picture.
+      if (this.textures.getPixelAlpha(s.flipX ? s.width - 1 - px : px, py, s.texture.key, s.frame.name) > 8) return f;
     }
     return null;
   }
@@ -494,7 +544,13 @@ export class StageScene extends Phaser.Scene {
 
   /** Make a fighter pickable (or not) by the pointer. The hit test follows the drawn pixels, so clicking the empty corner of a cell misses. */
   private grabbable(f: Fighter, on: boolean): void {
-    if (on) f.sprite.setInteractive({ pixelPerfect: true, alphaTolerance: 1, draggable: true, useHandCursor: true });
+    // Phaser's own pixel-perfect test ignores a flip, so the test is ours: the same alpha lookup, reversed for a mirrored picture.
+    const hit = (_area: unknown, x: number, y: number, obj: Phaser.GameObjects.GameObject): boolean => {
+      const s = obj as Phaser.GameObjects.Sprite;
+      const px = Math.floor(s.flipX ? s.width - x : x);
+      return (this.textures.getPixelAlpha(px, Math.floor(y), s.texture.key, s.frame.name) ?? 0) >= 1;
+    };
+    if (on) f.sprite.setInteractive({ hitArea: {}, hitAreaCallback: hit, draggable: true, useHandCursor: true });
     else f.sprite.disableInteractive();
   }
 
@@ -736,9 +792,9 @@ export class StageScene extends Phaser.Scene {
       if (!def || !slot) throw new Error(`Cannot summon "${key}": unknown enemy or no slot for it`);
       const copy = copies.get(def.sprite) ?? 0;
       copies.set(def.sprite, copy + 1);
-      const tex = addEnemy(this.textures, def.sprite, copy);
-      const sprite = this.add.sprite(0, 0, tex.key);
-      const f = this.makeFighter(`${key}#${have.length + i}`, 'enemy', def.name, !!def.boss, sprite, { ...slot }, tex.idle, have.length + i, tex.key, tex.fig, `${def.sprite}-${copy}`, def.sprite);
+      const art = this.enemyArt(def.sprite, copy);
+      const sprite = this.add.sprite(0, 0, art.tex.key);
+      const f = this.makeFighter(`${key}#${have.length + i}`, 'enemy', def.name, !!def.boss, sprite, { ...slot }, art.tex.idle, have.length + i, art.tex.key, art.fig, art.faceName, def.sprite);
       this.enemyKeys.push(key);
       this.place(f, f.slot);
       out.push(f);
@@ -750,13 +806,16 @@ export class StageScene extends Phaser.Scene {
   transformEnemy(f: Fighter, key: string): void {
     const def = ENEMIES[key];
     if (!def) throw new Error(`Cannot become "${key}": unknown enemy`);
-    const tex = addEnemy(this.textures, def.sprite, 0);
+    const art = this.enemyArt(def.sprite, 0);
+    const tex = art.tex;
     f.name = def.name;
     f.boss = f.boss || !!def.boss;
     f.baseTex = tex.key;
-    f.measured = tex.fig;
+    f.measured = art.fig;
+    f.art = tex.fig;
+    f.mirror = art.mirror;
     f.idle = tex.idle;
-    f.faceName = `${def.sprite}-0`;
+    f.faceName = art.faceName;
     f.axisKey = def.sprite;
     f.cellW = tex.width;
     f.cellH = tex.height;
@@ -878,7 +937,7 @@ export class StageScene extends Phaser.Scene {
       // The same numbering `makeEnemies` uses: a second punk is the second copy of the sprite.
       const copy = copies.get(def.sprite) ?? 0;
       copies.set(def.sprite, copy + 1);
-      const art = addEnemy(this.textures, def.sprite, copy).fig;
+      const art = this.enemyArt(def.sprite, copy).fig;
       const shift = axisFor(this.axesFile, def.sprite);
       out.push(box({ ...art, foot: { x: art.foot.x + shift.x, y: art.foot.y + shift.y } }, slot.size === 'boss' || !!def.boss, 'enemy', slot));
     });
@@ -913,7 +972,7 @@ export class StageScene extends Phaser.Scene {
       f.shown = want;
       this.applyOrigin(f);
     }
-    f.sprite.setAlpha(f.alpha);
+    f.sprite.setAlpha(f.alpha).setFlipX(f.mirror);
 
     // The draw order: every part of the figure shares one number (plus its own fraction), so the whole figure sorts as one unit.
     f.depth = depthFor(f.sortY, f.x, f.side, f.slot.order ?? 0);

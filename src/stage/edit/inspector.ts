@@ -53,6 +53,7 @@ import {
   setHorizon,
   setHudBox,
   setHudField,
+  setMirror,
   setOrder,
   setRowY,
   slotList,
@@ -967,10 +968,48 @@ export class Inspector {
       pick.addEventListener('change', () => this.host.previewEnemy(i, pick.value));
       this.root.append(this.group('Who is standing here', true, h('div', { class: 'field' }, this.labelOf('Enemy', 'preview', 'Which enemy is shown in this slot while you edit. It is only a preview in this browser. The stage keeps places, not people.'), pick)));
     }
+    if (side === 'enemy' && items.length === 1) this.root.append(this.facingGroup(idx[0] ?? 0));
     if (items.length === 1) {
       const i = idx[0] ?? 0;
       this.root.append(this.anchorGroup(side, i));
     }
+  }
+
+  /**
+   * "Mirror (face the heroes)": flips the picture of the enemy standing in this slot left-to-right so it looks at the heroes.
+   * It edits the enemy's SPRITE (`enemyfacing.json`), so every appearance of that enemy changes with it, here and on every
+   * stage. One undo step, a revert arrow back to the saved value, and Save writes the file with the others.
+   */
+  private facingGroup(index: number): HTMLElement {
+    const session = this.session;
+    const fighter = () => this.host.scene().fighters.filter((f) => f.side === 'enemy')[index];
+    const key = (): string => fighter()?.axisKey ?? '';
+    const box = h('input', { type: 'checkbox', id: 'enemy-mirror', 'aria-label': 'Mirror (face the heroes)' });
+    const revert = h('button', { type: 'button', class: 'rev', 'aria-label': 'Revert Mirror', onclick: () => {
+      const saved = session.saved.facing[key()]?.mirror;
+      if (saved !== undefined) session.edit(`Revert Mirror of ${fighter()?.name ?? key()}`, (d) => setMirror(d, key(), saved));
+    } }, '↶');
+    const hint = h('div', { class: 'hint' });
+    box.addEventListener('change', () => {
+      const f = fighter();
+      const on = box.checked;
+      session.edit(`${on ? 'Mirror' : 'Unmirror'} ${f?.name ?? key()}`, (d) => setMirror(d, key(), on));
+      this.host.notify(`${f?.name ?? 'The enemy'} ${on ? 'is now mirrored' : 'is no longer mirrored'}. This changes every place it stands. Save to keep it.`);
+    });
+    const row = h('div', { class: 'field scope mirror' }, h('label', { class: 'lab', for: 'enemy-mirror' }, h('span', { class: 'l' }, 'Mirror (face the heroes)', tip("Flips this enemy's picture left-to-right so it looks at the heroes. Mirroring also flips details like logos or which hand holds a weapon.")), h('code', {}, 'enemyfacing.json')), box, revert);
+    this.updaters.push(() => {
+      const k = key();
+      const entry = session.data.facing[k];
+      const saved = session.saved.facing[k]?.mirror;
+      box.checked = entry?.mirror === true;
+      const differs = saved !== undefined && saved !== box.checked;
+      revert.hidden = !differs;
+      revert.title = saved === undefined ? '' : `Back to the saved value (${saved ? 'mirrored' : 'not mirrored'})`;
+      row.classList.toggle('moved', differs);
+      const f = fighter();
+      hint.textContent = entry ? `${entry.note} It applies to every ${f?.name ?? 'enemy'} on every stage.` : '';
+    });
+    return this.group('Facing', true, row, hint);
   }
 
   /** A read-only line whose text comes from the whole data (the stage and the HUD). */

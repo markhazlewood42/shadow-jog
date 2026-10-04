@@ -31,7 +31,7 @@ export interface MouseDef {
 }
 
 export const KEYS: KeyDef[] = [
-  { id: 'save', combos: ['Ctrl+S'], label: 'Save the files that changed (stages.json, hud.json, axes.json)', group: 'File', everywhere: true },
+  { id: 'save', combos: ['Ctrl+S'], label: 'Save the files that changed (stages.json, hud.json, axes.json, enemyfacing.json)', group: 'File', everywhere: true },
   { id: 'undo', combos: ['Ctrl+Z'], label: 'Undo (100 steps)', group: 'Edit' },
   { id: 'redo', combos: ['Ctrl+Y', 'Ctrl+Shift+Z'], label: 'Redo', group: 'Edit' },
   { id: 'duplicate', combos: ['Ctrl+D'], label: 'Duplicate the stage', group: 'File' },

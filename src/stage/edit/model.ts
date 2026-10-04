@@ -34,6 +34,7 @@ import {
 import { HUD_FIELDS, HUD_REGIONS, type HudField, type HudRegionKey, setField } from '../hudpresets';
 import { enemyLeftLimit, heroRightLimit, RULE_LIMITS } from '../rules';
 import type { AxesFile } from '../config';
+import type { FacingFile } from '../facing';
 
 export type Side = 'party' | 'enemy';
 
@@ -288,13 +289,20 @@ export function copyFromPrevious(s: StageBody, key: string): string | null {
 // ------------------------------------------------------------------ HUD boxes: the global layout and a stage's overrides
 
 /**
- * Everything the editor edits and Save writes: the stages file, the foot-anchor corrections and the global HUD layout
- * (three files, `stages.json`, `axes.json` and `hud.json`).
+ * Everything the editor edits and Save writes: the stages file, the foot-anchor corrections, the global HUD layout and
+ * which enemies are mirrored (four files, `stages.json`, `axes.json`, `hud.json` and `enemyfacing.json`).
  */
 export interface EditorData {
   stages: EntryFile;
   axes: AxesFile;
   hud: HudLayout;
+  facing: FacingFile;
+}
+
+/** Turn one enemy sprite's mirror on or off in the data (the entry always exists: the loader refuses a file without one). */
+export function setMirror(d: EditorData, sprite: string, on: boolean): void {
+  const entry = d.facing[sprite];
+  if (entry) entry.mirror = on;
 }
 
 /** A HUD box's position and size. */

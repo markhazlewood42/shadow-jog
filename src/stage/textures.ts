@@ -38,6 +38,7 @@ import { boxOf, type Box } from '../art/rig2/sfgeom';
 import { SCREEN_H, SCREEN_W, type ShadowStyle, type StageConfig } from './config';
 import { sheetFolder } from './crew';
 import { cutSheet, footAnchor, type FootAnchor } from './feet';
+import { flipRaw } from './facing';
 import { cutFace, cutHead, CREW_FACES, defaultHead, ENEMY_FACES, ENEMY_GRAIN, ENEMY_HEADS, type Pt, type Rect } from './faces';
 import { paintFloor, reprojectWall } from './floor';
 import type { IdleKind } from './idle';
@@ -192,6 +193,8 @@ export interface FigureArt {
   head?: Rect;
   /** Screen pixels per art pixel (1 for the crew, 2 for the shipped enemies). */
   grain: number;
+  /** Set on a figure that is the MIRROR IMAGE of another (`mirrorFigure` in `facing.ts`): the figure it was made from. */
+  mirrorOf?: FigureArt;
 }
 
 /** What we remember about a crew sheet on its texture. */
@@ -483,7 +486,12 @@ export function ringTexture(textures: Phaser.Textures.TextureManager, width: num
 /** A face chip picture `size` x `size` cut from a figure's art. */
 export function faceTexture(textures: Phaser.Textures.TextureManager, name: string, fig: FigureArt, size: number): string {
   const key = `${FACE_PREFIX}${name}-${size}`;
-  if (!textures.exists(key)) addCanvasOnce(textures, key, rawToCanvas(fig.head ? cutHead(fig.raw, fig.head, size, fig.grain) : cutFace(fig.raw, fig.face, size, fig.grain)));
+  if (!textures.exists(key)) {
+    // A mirrored figure's chip is the ORIGINAL's chip reversed (cut first, so the art's 2x2 blocks are not split by the flip, then flipped).
+    const src = fig.mirrorOf ?? fig;
+    const cut = src.head ? cutHead(src.raw, src.head, size, src.grain) : cutFace(src.raw, src.face, size, src.grain);
+    addCanvasOnce(textures, key, rawToCanvas(fig.mirrorOf ? flipRaw(cut) : cut));
+  }
   return key;
 }
 

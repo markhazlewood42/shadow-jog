@@ -44,13 +44,34 @@ export async function openLab(page: Page, query = ''): Promise<string[]> {
 
 /**
  * The design's figure rules that Mark's own enemy slots break today (his edits in the Battle Stage Editor, commit
- * 6364bb5; measured with his foot-anchor corrections from `axes.json`, as the editor and Battle Test draw them), as "<stage> <enemy count>: <rule text>" (the text comes from `src/stage/rules.ts`). They are his taste calls,
- * so the stage lab's rule test accepts them and the editor's test expects them to show as warnings. When he moves those
- * enemies (or changes a rule), edit this list; both specs follow.
+ * 6364bb5; measured with his foot-anchor corrections from `axes.json` AND with the enemies mirrored as `enemyfacing.json`
+ * says, as the editor and Battle Test draw them), as "<stage> <enemy count>: <rule text>" (the text comes from `src/stage/rules.ts`).
+ * They are his taste calls, so the stage lab's rule test accepts them and the editor's test expects them to show as warnings.
+ * When he moves those enemies, flips an enemy, or changes a rule, edit this list; both specs follow.
+ *
+ * Mirroring (2026-10-03) added the "gap" and "nearest" lines: a mirrored punk or sentinel now has its club or rifle toward the
+ * heroes, so the nearest enemy's drawn left edge is 6 to 12 px further left than the slots Mark placed for the unmirrored art.
+ * Before the mirror this list held only the first line of street boss, street boss+2 and the two sewer 6 lines (gap 37, edge 244).
  */
 export const MARKS_FIGURE_BREAKS = [
   'street boss: 1 fighter reaches into the top HUD band (above y 45)',
   'street boss+2: 1 fighter reaches into the top HUD band (above y 45)',
-  'sewer 6: the gap between the heroes and the enemies is 37 px (need 55)',
-  "sewer 6: the nearest enemy's left edge is 244 (need 260 or more)",
+  'street 3: the gap between the heroes and the enemies is 46 px (need 55)',
+  "street 3: the nearest enemy's left edge is 253 (need 260 or more)",
+  'street 4: the gap between the heroes and the enemies is 46 px (need 55)',
+  "street 4: the nearest enemy's left edge is 253 (need 260 or more)",
+  'street 5: the gap between the heroes and the enemies is 44 px (need 55)',
+  "street 5: the nearest enemy's left edge is 251 (need 260 or more)",
+  'street 6: the gap between the heroes and the enemies is 44 px (need 55)',
+  "street 6: the nearest enemy's left edge is 251 (need 260 or more)",
+  'street boss+1: the gap between the heroes and the enemies is 44 px (need 55)',
+  "street boss+1: the nearest enemy's left edge is 251 (need 260 or more)",
+  'street boss+2: the gap between the heroes and the enemies is 38 px (need 55)',
+  "street boss+2: the nearest enemy's left edge is 245 (need 260 or more)",
+  'sewer 3: the gap between the heroes and the enemies is 53 px (need 55)',
+  'sewer 4: the gap between the heroes and the enemies is 53 px (need 55)',
+  'sewer 5: the gap between the heroes and the enemies is 51 px (need 55)',
+  "sewer 5: the nearest enemy's left edge is 258 (need 260 or more)",
+  'sewer 6: the gap between the heroes and the enemies is 25 px (need 55)',
+  "sewer 6: the nearest enemy's left edge is 232 (need 260 or more)",
 ];

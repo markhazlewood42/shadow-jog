@@ -30,6 +30,7 @@ import { ENEMIES } from '../../data/enemies';
 import { formatJson } from '../../tools/jsonfmt';
 import { bootStage } from '../boot';
 import { type AxesFile, type FigureBox, loadAxes, loadEntries, loadHud, resolveStage, resolveStages, SCREEN_H, SCREEN_W, SET_KEYS, type StageConfig, type StageEntry, type StageFile } from '../config';
+import { loadFacing } from '../facing';
 import { RULE_WHY, type StageWarning, stageWarnings } from '../rules';
 import { connectHook, emptyHook } from '../labhook';
 import { STAGE_KNOWN } from '../known';
@@ -47,7 +48,7 @@ import { KEYS, matchKey, MOUSE, shown } from './keys';
 import { deleteStage, duplicateStage, hudNow, isOverridden, newStage, nudgeSlots, renameStage, setFloorBottom, setHorizon, setHudBox, setRowY, stepOrder } from './model';
 import { type OverlayFigure, overlayMarkup } from './overlay';
 import { JsonPane, Palette, setButtons, StageList, StatusBar } from './panels';
-import { AXES_FILE, formatHud, HUD_FILE, prepareSave, STAGES_FILE } from './save';
+import { AXES_FILE, FACING_FILE, formatFacing, formatHud, HUD_FILE, prepareSave, STAGES_FILE } from './save';
 import { type EditorData, type Item, type Part, sameItem, Session, toggleInSelection } from './session';
 import { ViewState } from './view';
 import { HUD_REGION_NAMES, HUD_REGIONS } from '../hudpresets';
@@ -82,8 +83,8 @@ const ENDPOINT = `/__stage/stages${scratch ? `?scratch=${encodeURIComponent(scra
 /** The global HUD layout has its own file (`src/data/hud.json`) and its own endpoint to READ it. It is saved together with the stages, through ENDPOINT. */
 const HUD_ENDPOINT = `/__stage/hud${scratch ? `?scratch=${encodeURIComponent(scratch)}` : ''}`;
 /** The order files are named in: the same on the Save tooltip, in the messages and in the Revert confirm. */
-const PART_ORDER: readonly Part[] = ['stages', 'hud', 'axes'];
-const PART_FILE: Record<Part, string> = { stages: STAGES_FILE, hud: HUD_FILE, axes: AXES_FILE };
+const PART_ORDER: readonly Part[] = ['stages', 'hud', 'axes', 'facing'];
+const PART_FILE: Record<Part, string> = { stages: STAGES_FILE, hud: HUD_FILE, axes: AXES_FILE, facing: FACING_FILE };
 /** What messages call the files written: the real paths of the parts that changed, or the private scratch copy tests use. */
 const fileNames = (parts: readonly Part[]): string => {
   if (scratch) return `scratch copy "${scratch}"`;
@@ -91,7 +92,7 @@ const fileNames = (parts: readonly Part[]): string => {
   return files.length > 1 ? `${files.slice(0, -1).join(', ')} and ${files[files.length - 1]}` : (files[0] ?? '');
 };
 /** The short file names for a tooltip, only for the files that changed: "stages.json, axes.json". */
-const shortNames = (parts: readonly Part[]): string => PART_ORDER.filter((p) => parts.includes(p)).map((p) => `${p}.json`).join(', ');
+const shortNames = (parts: readonly Part[]): string => PART_ORDER.filter((p) => parts.includes(p)).map((p) => (PART_FILE[p].split('/').pop() ?? '')).join(', ');
 
 const status = new (class {
   el = byId('st-msg');
@@ -110,14 +111,15 @@ async function loadFiles(): Promise<EditorData> {
   } catch {
     throw new Error('Could not reach the dev server to read the stage files. Is npm run dev running?');
   }
-  const body = (await res.json()) as { ok: boolean; problems: string[]; stages: string; axes: string };
+  const body = (await res.json()) as { ok: boolean; problems: string[]; stages: string; axes: string; facing: string };
   if (!res.ok || !body.ok) throw new Error(`The dev server could not read the stage files: ${body.problems.join('; ')}`);
   const hudBody = (await hudRes.json()) as { ok: boolean; problems: string[]; hud: string };
   if (!hudRes.ok || !hudBody.ok) throw new Error(`The dev server could not read the HUD file: ${hudBody.problems.join('; ')}`);
   const hud = loadHud(JSON.parse(hudBody.hud));
   const stages = loadEntries(JSON.parse(body.stages), BG_IDS, STAGE_KNOWN);
   const axes = loadAxes(JSON.parse(body.axes));
-  return { stages, axes, hud };
+  const facing = loadFacing(JSON.parse(body.facing));
+  return { stages, axes, hud, facing };
 }
 
 async function main(): Promise<void> {
@@ -148,6 +150,7 @@ async function main(): Promise<void> {
     phase: view.phase,
     stages: resolveStages(initial.stages, initial.hud),
     axes: initial.axes,
+    facing: initial.facing,
     query,
     onError: fail,
   });
@@ -178,6 +181,7 @@ async function main(): Promise<void> {
     let wantFloor: StageConfig | undefined;
     let scheduled = false;
     let lastAxes = JSON.stringify(initial.axes);
+    let lastFacing = JSON.stringify(initial.facing);
     /** Put the scene in step with the session. Batched to one per animation frame, so a fast drag costs one repaint a frame. */
     const syncScene = (floorFrom?: StageConfig): void => {
       wantFloor = floorFrom;
@@ -195,6 +199,12 @@ async function main(): Promise<void> {
         if (axes !== lastAxes) {
           lastAxes = axes;
           scene.setAxes(session.data.axes);
+        }
+        // Which enemies are mirrored (the Mirror switch): flip the ones that changed before the stage is laid out again.
+        const facing = JSON.stringify(session.data.facing);
+        if (facing !== lastFacing) {
+          lastFacing = facing;
+          scene.setFacing(session.data.facing);
         }
         scene.applyStage(stage, wantFloor);
         const roster = stage.demo.rosters[session.setKey] ?? [];
@@ -642,7 +652,7 @@ async function main(): Promise<void> {
       // Tidy first: a stage override keeps only what differs from the all-battles HUD (an empty "different on this stage" box is not saved).
       session.settle();
       const dirty = session.dirtyParts;
-      const body = { stages: session.data.stages, axes: session.data.axes, hud: session.data.hud, write: dirty };
+      const body = { stages: session.data.stages, axes: session.data.axes, hud: session.data.hud, facing: session.data.facing, write: dirty };
       // The stages are checked against the HUD that will be on disk afterwards: the new one if the HUD is saved now, else the saved one.
       const made = prepareSave(body, formatHud(session.saved.hud));
       if (!made.ok) {
@@ -674,7 +684,8 @@ async function main(): Promise<void> {
       const same =
         (!written.includes('stages') || formatJson(back.stages) === formatJson(data.stages)) &&
         (!written.includes('axes') || formatJson(back.axes) === formatJson(stripZero(data.axes))) &&
-        (!written.includes('hud') || formatHud(back.hud) === formatHud(hud));
+        (!written.includes('hud') || formatHud(back.hud) === formatHud(hud)) &&
+        (!written.includes('facing') || formatFacing(back.facing) === formatFacing(data.facing));
       session.markSaved(written);
       const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const where = fileNames(written);
@@ -694,14 +705,14 @@ async function main(): Promise<void> {
       const parts = session.dirtyParts;
       const ids = new Set([...Object.keys(session.data.stages), ...Object.keys(session.saved.stages)]);
       const changed = [...ids].filter((id) => JSON.stringify(session.data.stages[id]) !== JSON.stringify(session.saved.stages[id]));
-      const what = [...(parts.includes('stages') ? [changed.length ? changed.join(' and ') : session.stageId] : []), ...(parts.includes('axes') ? ['the foot anchors'] : []), ...(parts.includes('hud') ? ['the global HUD (hud.json, used by every battle)'] : [])];
+      const what = [...(parts.includes('stages') ? [changed.length ? changed.join(' and ') : session.stageId] : []), ...(parts.includes('axes') ? ['the foot anchors'] : []), ...(parts.includes('hud') ? ['the global HUD (hud.json, used by every battle)'] : []), ...(parts.includes('facing') ? ['which enemies are mirrored (enemyfacing.json, used by every battle)'] : [])];
       const list = what.length > 1 ? `${what.slice(0, -1).join(', ')} and ${what[what.length - 1]}` : (what[0] ?? session.stageId);
       const ok = await confirmBox('Revert', `Throw away ${n} change${n === 1 ? '' : 's'} to ${list}? The saved file${what.length > 1 ? 's are' : ' is'} loaded again.`, 'Throw away');
       if (!ok) return;
       try {
         session.load(await loadFiles());
         syncScene();
-        bar.say(`Reloaded ${fileNames(['stages', 'hud'])}; unsaved changes are gone.`);
+        bar.say(`Reloaded ${fileNames(PART_ORDER)}; unsaved changes are gone.`);
       } catch (e) {
         bar.say(`Could not reload: ${e instanceof Error ? e.message : String(e)}`, 'bad');
       }

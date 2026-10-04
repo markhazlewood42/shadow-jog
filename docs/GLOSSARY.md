@@ -255,6 +255,7 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | **Command codes** | The three-letter names under the command icons (ATK, SKL, CMB, ITM, GRD) so no icon is a mystery; the lit icon also gets its full name and cost (or a one-line hint) on the strip's caption line. |
 | **Hit counter** | The small box at the top right while an action plays: how many hits the crew has landed this round, and their total damage. |
 | **Stage** (battleground) | (Dev tool word.) One place where fights happen, such as the street or the sewer: backdrop, horizon and floor, depth rows, and where the heroes and each enemy count stand. Lives in `src/data/stages.json`; a map names it per area with `bg`. It does not say WHO fights (that is the encounter, an RPG Maker "troop"). |
+| **Mirror** (enemy facing) | (Dev tool word.) Flipping an enemy's picture left-to-right so it looks at the heroes, who stand on the left. Which enemy sprites are mirrored is `src/data/enemyfacing.json`; the Battle Stage Editor's "Mirror (face the heroes)" switch edits it for every appearance of that enemy. |
 | **Global HUD** | The one battle HUD layout every fight uses (`src/data/hud.json`). A stage may override single boxes; it then keeps only the fields that differ. The Battle Stage Editor calls this switch "Different on this stage". |
 | **Depth haze** | In the side-view battle, fighters on the back rows are blended a little toward the stage's fog colour, so distance reads without shrinking anyone. |
 

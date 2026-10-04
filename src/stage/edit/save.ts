@@ -6,11 +6,12 @@
  * `stageEdit`) call them with the posted body, and the editor page calls them too, so Save can refuse a bad file
  * before it ever leaves the browser, with exactly the same words the server would use.
  *
- * Three files are involved, and ONE save writes them together, through one endpoint:
+ * Four files are involved, and ONE save writes them together, through one endpoint:
  *  - `src/data/stages.json` (the stages, each with a HUD override only when it differs from the global HUD),
  *  - `src/data/axes.json` (foot-anchor corrections per sprite), and
- *  - `src/data/hud.json` (the ONE HUD layout every battle uses).
- * `prepareSave` checks all three TOGETHER: the HUD layout with its own loader's check (`checkHudFile`), then each
+ *  - `src/data/hud.json` (the ONE HUD layout every battle uses), and
+ *  - `src/data/enemyfacing.json` (which enemy sprites the stage mirrors so they face the heroes).
+ * `prepareSave` checks them all TOGETHER: the HUD layout with its own loader's check (`checkHudFile`), then each
  * stage's HUD overrides against the NEW layout (a stage's own box that fitted the old HUD can stop fitting the new
  * one), then the axes. The files are written only if every check passes, so a refused save never leaves one file
  * changed and another not. (`vite.config.ts` writes them with temporary files and renames.)
@@ -18,26 +19,30 @@
 import { BG_IDS } from '../../art/battlebg';
 import { formatJson } from '../../tools/jsonfmt';
 import { checkAxes, checkHudFile, checkStages, checkStagesWith, type HudLayout } from '../config';
+import { checkFacing } from '../facing';
 import { STAGE_KNOWN } from '../known';
 
 /** The three files a save can write. */
-export type SavePart = 'stages' | 'axes' | 'hud';
+export type SavePart = 'stages' | 'axes' | 'hud' | 'facing';
 
 export interface SaveBody {
   stages: unknown;
   axes: unknown;
   /** The NEW global HUD layout (the `layout` part of `hud.json`). The stages are checked against it only when the HUD is among the files to write; otherwise against the file on disk. Optional for a caller that saves the stages alone. */
   hud?: unknown;
-  /** Which files to write. The others are left alone on disk (the axes are still checked; the HUD is not used at all when it is not written). Default: the stages, the axes and (when `hud` is posted) the HUD. */
+  /** Which enemy sprites are mirrored (the whole `enemyfacing.json`). Optional for a caller that does not touch it; it is checked, and written, only when posted. */
+  facing?: unknown;
+  /** Which files to write. The others are left alone on disk (the axes are still checked; the HUD is not used at all when it is not written). Default: the stages, the axes, and (when posted) the HUD and the facing file. */
   write?: unknown;
 }
 
-export type Prepared = { ok: true; stagesText: string; axesText: string; hudText?: string; write: SavePart[] } | { ok: false; problems: string[] };
+export type Prepared = { ok: true; stagesText: string; axesText: string; hudText?: string; facingText?: string; write: SavePart[] } | { ok: false; problems: string[] };
 
 /** Where each file lives, for messages. */
 export const STAGES_FILE = 'src/data/stages.json';
 export const AXES_FILE = 'src/data/axes.json';
 export const HUD_FILE = 'src/data/hud.json';
+export const FACING_FILE = 'src/data/enemyfacing.json';
 
 /** The stages file as it is written: stable, diff-friendly JSON. */
 export function formatStages(stages: unknown): string {
@@ -49,6 +54,11 @@ export function formatAxes(axes: unknown): string {
   if (typeof axes !== 'object' || axes === null || Array.isArray(axes)) return formatJson({});
   const kept = Object.fromEntries(Object.entries(axes).filter(([, v]) => !(typeof v === 'object' && v !== null && (v as { x?: number }).x === 0 && (v as { y?: number }).y === 0)));
   return formatJson(kept);
+}
+
+/** The facing file as it is written: stable, diff-friendly JSON. */
+export function formatFacing(facing: unknown): string {
+  return formatJson(facing);
 }
 
 /** The HUD file as it is written: a version and the layout. */
@@ -73,8 +83,9 @@ export function formatHud(layout: unknown): string {
  */
 export function prepareSave(body: unknown, currentHudText?: string): Prepared {
   if (typeof body !== 'object' || body === null) return { ok: false, problems: ['the posted body must be an object with stages and axes'] };
-  const { stages, axes, hud: postedHud, write: postedWrite } = body as Partial<SaveBody>;
+  const { stages, axes, hud: postedHud, facing: postedFacing, write: postedWrite } = body as Partial<SaveBody>;
   if (Array.isArray(postedWrite) && postedWrite.includes('hud') && postedHud === undefined) return { ok: false, problems: ['write lists the HUD but no HUD layout was posted'] };
+  if (Array.isArray(postedWrite) && postedWrite.includes('facing') && postedFacing === undefined) return { ok: false, problems: ['write lists the enemy facing file but none was posted'] };
   // Is the HUD one of the files this save writes? By default every file that was posted is.
   const writesHud = postedHud !== undefined && (Array.isArray(postedWrite) ? postedWrite.includes('hud') : true);
   let hud: unknown;
@@ -98,11 +109,13 @@ export function prepareSave(body: unknown, currentHudText?: string): Prepared {
   const stageProblems = hud === undefined ? checkStages(stages, BG_IDS, STAGE_KNOWN) : checkStagesWith(stages, hud as HudLayout, BG_IDS, STAGE_KNOWN);
   // A stage's own HUD box that no longer fits is easy to miss from the stage list, so say plainly that the new layout is the cause.
   const explained = writesHud ? stageProblems.map((p) => (/\bhud\./.test(p) ? `the HUD layout in this save does not fit a stage's own HUD box: ${p}` : p)) : stageProblems;
-  const problems = [...explained, ...checkAxes(axes ?? {})];
+  // The facing file is checked with the game's own loader check whenever it is posted (a bad file is refused whether or not it is written).
+  const facingProblems = postedFacing === undefined ? [] : checkFacing(postedFacing).map((p) => `${FACING_FILE}: ${p}`);
+  const problems = [...explained, ...checkAxes(axes ?? {}), ...facingProblems];
   if (problems.length) return { ok: false, problems };
-  const all: SavePart[] = ['stages', 'axes', ...(hudText !== undefined ? (['hud'] as const) : [])];
+  const all: SavePart[] = ['stages', 'axes', ...(hudText !== undefined ? (['hud'] as const) : []), ...(postedFacing !== undefined ? (['facing'] as const) : [])];
   const write = Array.isArray(postedWrite) ? all.filter((p) => postedWrite.includes(p)) : all;
-  return { ok: true, stagesText: formatStages(stages), axesText: formatAxes(axes ?? {}), ...(hudText !== undefined ? { hudText } : {}), write };
+  return { ok: true, stagesText: formatStages(stages), axesText: formatAxes(axes ?? {}), ...(hudText !== undefined ? { hudText } : {}), ...(postedFacing !== undefined ? { facingText: formatFacing(postedFacing) } : {}), write };
 }
 
 export type PreparedHud = { ok: true; text: string } | { ok: false; problems: string[] };
