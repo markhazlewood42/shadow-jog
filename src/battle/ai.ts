@@ -57,7 +57,7 @@ function weightedPick(b: Battle, moves: EnemyMove[]): EnemyMove | null {
  * size (predators smell blood). Not guaranteed: the lowest counts half again as much as each of
  * the others, about 43% of blows in a crew of three and a third in a crew of four; at full health
  * it's an even spread. Hurt is measured against each member's own max HP. By raw HP the smallest
- * pool (Hex's) always looked weakest, so she drew over half of all blows even when unhurt (Mark's
+ * pool (Hex's) always looked weakest, so they drew over half of all blows even when unhurt (Mark's
  * playthrough: "targeting Hex almost exclusively"; then "more likely to target the lowest percent
  * character, but not guaranteed").
  */

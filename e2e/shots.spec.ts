@@ -582,7 +582,7 @@ test('48 the target box: weakness symbols, on the far side from the target', asy
   await shot(page, '48-battle-target-box');
 });
 
-test('49 Hex’s deck over her card while a program runs', async ({ page }) => {
+test('49 Hex’s deck over their card while a program runs', async ({ page }) => {
   await open(page, 'sinkline');
   await sj(page, "sj.battle('sinkline', 'sewer')");
   await page.waitForTimeout(3200);

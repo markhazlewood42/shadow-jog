@@ -18,7 +18,7 @@ import type { ScriptApi, ScriptFn } from '../game/script';
 
 export const OBJ = {
   dutch: 'Meet Dutch at the Drowned Saint (north side of the street).',
-  hex: 'Find Hex. She lives above Chrome+Circuit, by the canal.',
+  hex: 'Find Hex. They live above Chrome+Circuit, by the canal.',
   mags: 'Get the coprocessor from Old Mags in the Rustyard, east of Lantern Row.',
   knuckles: 'Take the coprocessor back from Knuckles’ hideout, north end of the Rustyard.',
   bringChip: 'Bring the coprocessor to Hex in Lantern Row.',
@@ -83,7 +83,7 @@ export const firstFight: ScriptFn = async (s) => {
 // ------------------------------------------------------------------ the job
 export const meetDutch: ScriptFn = async (s) => {
   if (s.flag('met_dutch')) {
-    await s.say('dutch', s.flag('sable_joined') ? 'Whoever that is with you, darlin’, I never saw them. I never saw any of you.' : 'The meter’s running on Mr. Pale’s patience. Go find your jockey.');
+    await s.say('dutch', s.flag('sable_joined') ? 'Whoever that is with you, darlin’, I never saw him. I never saw any of you.' : 'The meter’s running on Mr. Pale’s patience. Go find your jockey.');
     return;
   }
   await s.say('dutch', 'There they are. My favorite disaster and his apprentice. Sit, sit. Mind the stain, it’s load-bearing.', { face: 'happy' });
@@ -97,7 +97,7 @@ export const meetDutch: ScriptFn = async (s) => {
   await s.say('pale', 'Because “anybody” asks more questions. Also, the annex doors are still corporate-locked. You will need a deck jockey.', { face: 'smirk' });
   await s.say('dutch', 'Which you haven’t got, since your last one moved to Neo-Lagos and stopped taking my calls.');
   await s.say('rook', '…Hex.');
-  await s.say('dutch', 'Hex! Hex owes me money. Two birds, one run. Tell her if she does this, her tab goes in the canal.', { face: 'happy' });
+  await s.say('dutch', 'Hex! Hex owes me money. Two birds, one run. Tell them if they do this, their tab goes in the canal.', { face: 'happy' });
   await s.give('pale_chip', 1);
   await s.say('pale', 'Expenses. I will not be asking for receipts.');
   await s.cred(250);
@@ -128,7 +128,7 @@ export const meetHex: ScriptFn = async (s) => {
     await s.say('hex', 'No. You do it. My hands are shaking. Pins to pins, then the clips. I’ll talk you through it.', { face: 'sad' });
     await s.deck('seat');
     s.unlock('stingray_seated');
-    await s.narrate('Hex’s deck runs a new program: {y}Overload{/}, a surge that fries machines. Her deck’s under {c}Deck{/} in the menu now.');
+    await s.narrate('Hex’s deck runs a new program: {y}Overload{/}, a surge that fries machines. Their deck’s under {c}Deck{/} in the menu now.');
     await s.say('hex', 'Okay. While she’s warm.', { face: 'smirk' });
     await s.say('hex', 'Rook. Sit. Your reflex wiring’s been double-firing since you walked in. I can hear it clicking. Chrome shouldn’t click.');
     await s.say('rook', 'It’s fine.');
@@ -229,7 +229,7 @@ export const magsReward: ScriptFn = async (s) => {
       await s.say('kit', 'Keep it. The little ones need it more than our rent does.');
       await s.say('mags', 'Hmph. Then here’s what it buys you: anything on my lot, a fifth off. For as long as I’m breathing.', { face: 'happy' });
     }
-    await s.say('mags', 'And tell Hex she still owes me for the last one.');
+    await s.say('mags', 'And tell Hex they still owe me for the last one.');
     s.objective(OBJ.bringChip);
     return;
   }
@@ -524,7 +524,7 @@ export const cryopod: ScriptFn = async (s) => {
   await s.fadeOut(30, '#07060d');
   s.refreshMap(); // the pod, shattered and empty
   await s.wait(20);
-  await s.narrate('Hex puts her jacket round Sable’s shoulders. Rook watches the door. Nobody says anything about three thousand cred.');
+  await s.narrate('Hex puts their jacket round Sable’s shoulders. Rook watches the door. Nobody says anything about three thousand cred.');
   await s.narrate('Kit falls in beside Rook. She doesn’t ask about the other tank, and he doesn’t offer. Their shoulders touch, once, on the way to the door.');
   await s.fadeIn(30);
   await s.join('sable');
@@ -534,7 +534,7 @@ export const cryopod: ScriptFn = async (s) => {
   await s.say('sable', 'The crow doesn’t care how old it is. Hold still.');
   s.flash('#ffffff', 10);
   s.sfx('spirit');
-  await s.narrate('Sable lays two fingers against Rook’s side. Something black-feathered and warm passes through the room. When they step back, the stitches are just a scar.');
+  await s.narrate('Sable lays two fingers against Rook’s side. Something black-feathered and warm passes through the room. When he steps back, the stitches are just a scar.');
   const mended = s.unlock('rook_mended');
   s.sfx('levelup');
   await s.narrate(`Rook’s wound is closed: full strength, every charge back, and {y}${mended.join('{/} and {y}')}{/} too.`);

@@ -212,7 +212,7 @@ export interface BattleRig {
   hide?: { box: Box; keep: Pt[] };
   /** The colour of the light the poses throw. */
   light: string;
-  /** Which pose a ranged aim uses (Hex aims her pistol). */
+  /** Which pose a ranged aim uses (Hex aims their pistol). */
   aim?: 'strike' | 'raise';
   poses: Partial<Record<KeyPose, ArmPose>>;
   /** Mark's notes on a pose, for Claude to work through. */

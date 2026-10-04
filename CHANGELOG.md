@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 - The version is now 0.2.0-dev: phase 0.2 development has started.
+- Hex now uses they/them, and Sable uses he/him (Mark's canon, 2026-10-03).
 
 ### Added
 - Saves record the game version that wrote them.

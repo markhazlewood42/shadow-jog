@@ -29,9 +29,9 @@ export const LOOKS = {
     top: '#6a3fa0', inner: '#2a2438', accent: '#ffcc3d',
     pants: '#3a3350', boots: '#2a2030',
     accessories: ['goggles'], goggles: '#3b3448', visor: '#3fe0f0',
-    // Talks with her whole face.
+    // Talks with their whole face.
     mouth: 'grin', brows: 'thick',
-    // Her deck rides on her back, its whip antenna up over her head.
+    // Their deck rides on their back, its whip antenna up over their head.
     carry: 'antenna',
   },
   sable: {
@@ -41,7 +41,7 @@ export const LOOKS = {
     pants: '#4a3a30', boots: '#2a2020', accessories: ['tusks'],
     // Half-lidded, far away; gold eyes, and the tusks do the talking.
     eyeShape: 'narrow', eyes: '#c9a040', mouth: 'none',
-    // The staff she walks with, taller than she is, feathers under its head.
+    // The staff he walks with, taller than he is, feathers under its head.
     carry: 'staff',
   },
   pale: {

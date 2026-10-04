@@ -191,7 +191,7 @@ export const MIGRATIONS: Record<number, (s: GameState) => void> = {
   // curve, Rook is a level-10 veteran, and some abilities come from story flags. A save keeps the
   // XP it earned: levels are worked out again on the new curve (never below a member's starting
   // level, so Rook is his 10), and the beats the crew has passed set their flags (Hex's Stingray
-  // and Rook's re-tune once she has joined; Rook's mending once Sable has).
+  // and Rook's re-tune once they have joined; Rook's mending once Sable has).
   2: (s) => {
     s.flags ??= {};
     if (s.flags.hex_joined) {

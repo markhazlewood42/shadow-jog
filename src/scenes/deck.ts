@@ -1,10 +1,10 @@
 /**
  * Hex's deck, close up. Three ways in:
  * - 'dead': when Hex first shows it off, coprocessor slot empty, screen crying. Look, then go.
- * - 'seat': bringing her the Stingray. Hands-on: line the chip's pins up with the socket (a press
+ * - 'seat': bringing them the Stingray. Hands-on: line the chip's pins up with the socket (a press
  *   as they meet), snap the two retention clips, then watch it boot. The boot unlocks Overload
  *   (the script sets the flag after: `s.unlock('stingray_seated')`).
- * - 'view': from the menu once it's running: the deck, what's in each slot, and her programs.
+ * - 'view': from the menu once it's running: the deck, what's in each slot, and their programs.
  *   The empty expansion slots are where later chapters' parts go.
  *
  * Added after Mark's first playthrough (2026-09-29): "When Hex is talking about or using their
@@ -303,7 +303,7 @@ export class DeckScene extends Scene<void> {
     return el ? `{#${ELEMENT_COLOR[el].slice(1)}}${ELEMENT_ICON[el]}{/} ${ab.name}` : ab.name;
   }
 
-  /** Hex's line, at the foot of the screen with her face. */
+  /** Hex's line, at the foot of the screen with their face. */
   private renderLine(ctx: Ctx): void {
     const y = H - 62, x = 8, w = W - 16;
     drawWindow(ctx, x, y, w, 54, { accent: '#c3a0ff', footer: this.phase === 'look' || this.phase === 'done' ? keyLegend(this.game.input, 'back') : undefined });

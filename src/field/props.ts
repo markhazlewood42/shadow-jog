@@ -1117,7 +1117,7 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
           k.fillStyle = '#5a8ab0';
           for (let i = 0; i < 5; i++) k.fillRect(6 + i * 5, 26 + (i % 2), 3, 1); // shards on the sill
         });
-        // The feed lines she was on, torn loose and hanging, one still spitting at its end.
+        // The feed lines he was on, torn loose and hanging, one still spitting at its end.
         c.fillStyle = '#2a2d38';
         for (const [lx, len] of [[W / 2 - 4, 13], [W / 2 + 3, 17], [W / 2 - 1, 9]] as const) c.fillRect(lx, 6, 1, len);
         both(c, e, (k) => {
@@ -1146,7 +1146,7 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
         c.fillStyle = '#6a4a20'; c.fillRect(W / 2 - 2, 36, 4, 1);
         return;
       }
-      // The sleeper, framed and outlined so she reads against the lit glass: bone-white hair,
+      // The sleeper, framed and outlined so he reads against the lit glass: bone-white hair,
       // green skin, closed eyes, tusks, the red coat, arms folded.
       const cx = W / 2;
       both(c, e, (k) => {
@@ -1162,7 +1162,7 @@ export const PROPS: Partial<Record<PropKind, PropPainter>> = {
         k.fillStyle = '#d9b36c'; k.fillRect(cx - 4, 23, 8, 2);
         k.fillStyle = '#8a9a6a'; k.fillRect(cx - 4, 24, 2, 1); k.fillRect(cx + 2, 24, 2, 1);
       });
-      // Frost over the glass, in front of her.
+      // Frost over the glass, in front of him.
       both(c, e, (k) => {
         k.fillStyle = '#e6f6ff'; k.globalAlpha = 0.45;
         k.fillRect(4, 6, W - 8, 1); k.fillRect(4, 7, 3, 2); k.fillRect(W - 7, 7, 3, 3); k.fillRect(5, 30, 4, 3); k.fillRect(W - 9, 31, 5, 2);
