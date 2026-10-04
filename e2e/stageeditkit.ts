@@ -2,8 +2,14 @@
  * Shared by the Battle Stage Editor's specs (`e2e/stageedit*.spec.ts`): open the editor on a private scratch copy of
  * the stage files (`?scratch=<name>`, so no test ever touches `src/data/stages.json`), turn game pixels into screen
  * positions, and read the editor's state through its test hook.
+ *
+ * WHAT THE SCRATCH COPY HOLDS. Mark edits the real files (`src/data/*.json`) in the editor, so a test must not start from
+ * them: a number he moved would break any test that expects the old one. `openEditor` therefore SEEDS the scratch copy from the
+ * frozen fixture (`tests/fixtures/stagedata/`) before the page loads, and the page reads it back from there. A test that wants
+ * Mark's current files (to check an invariant of his data, never a value) passes `{ data: 'current' }`: a scratch copy that was
+ * never seeded or saved reads the real files. Rule: `docs/DEVELOPING.md`, "Tests vs design data".
  */
-import { rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
@@ -14,9 +20,27 @@ export function scratchName(tag: string): string {
   return `e2e-${tag}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
+/** The folder the dev server keeps a scratch copy in (it must match `scratchDir` in `vite.config.ts`). */
+const scratchFolder = (name: string): string => join(tmpdir(), 'shadowjog-stageedit', name);
+
 /** Remove a scratch copy from the OS temp folder. */
 export function dropScratch(name: string): void {
-  rmSync(join(tmpdir(), 'shadowjog-stageedit', name), { recursive: true, force: true });
+  rmSync(scratchFolder(name), { recursive: true, force: true });
+}
+
+/** The frozen copy of the five stage files that the editor specs start from. */
+export const FIXTURE_FOLDER = join(process.cwd(), 'tests', 'fixtures', 'stagedata');
+const FIXTURE_FILES = ['stages.json', 'axes.json', 'hud.json', 'enemyfacing.json', 'heroes.json'] as const;
+
+/**
+ * Put the fixture files in a scratch copy, unless it already holds files (a test that saves and reloads must find what it
+ * saved). Every call after the first for one name does nothing.
+ */
+export function seedScratch(name: string): void {
+  const dir = scratchFolder(name);
+  if (existsSync(join(dir, 'stages.json'))) return;
+  mkdirSync(dir, { recursive: true });
+  for (const f of FIXTURE_FILES) copyFileSync(join(FIXTURE_FOLDER, f), join(dir, f));
 }
 
 export interface Opened {
@@ -27,8 +51,12 @@ export interface Opened {
 /** The editor window size the specs use: the stage lands at exactly 2x (960x540) between the panels. */
 export const EDITOR_VIEWPORT = { width: 1600, height: 900 };
 
-/** Open the editor on a scratch copy; resolves when the scene has drawn. Console and page errors are collected in `errors`. */
-export async function openEditor(page: Page, scratch: string, query = ''): Promise<Opened> {
+/**
+ * Open the editor on a scratch copy; resolves when the scene has drawn. Console and page errors are collected in `errors`.
+ * The copy starts from the fixture (`data: 'fixture'`, the default) or from Mark's current files (`data: 'current'`, for invariant checks only).
+ */
+export async function openEditor(page: Page, scratch: string, query = '', opts: { data?: 'fixture' | 'current' } = {}): Promise<Opened> {
+  if ((opts.data ?? 'fixture') === 'fixture') seedScratch(scratch);
   const errors: string[] = [];
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
@@ -111,4 +139,31 @@ export async function dragGame(page: Page, from: { x: number; y: number }, to: {
   await page.mouse.move(b.x, b.y, { steps });
   await page.mouse.up();
   await flush(page);
+}
+
+/**
+ * Every design-rule warning on every stage, worked out in the page straight from `src/stage/rules.ts` (the same inputs the editor
+ * measures: the stages as the editor holds them, the previewed rosters, the scene's real sprite sizes), as the keys the Warnings
+ * list uses, `"<stage>[ <enemy count>]: <sentence>"`, sorted. A test compares the editor's chip and list with this, so it never
+ * needs a fixed list of expected warnings. A warning is advice: it is never a reason for a test to fail.
+ */
+export async function ruleKeys(page: Page): Promise<string[]> {
+  return page.evaluate(async () => {
+    // (The addresses are variables so the type checker does not try to resolve them: the dev server serves them to the page.)
+    const rulesUrl = '/src/stage/rules.ts';
+    const configUrl = '/src/stage/config.ts';
+    const { stageWarnings } = await import(/* @vite-ignore */ rulesUrl);
+    const { SET_KEYS, resolveStage } = await import(/* @vite-ignore */ configUrl);
+    const editor = window.__stageedit;
+    const scene = window.__stagelab?.scene();
+    if (!editor || !scene) throw new Error('no editor');
+    const keys: string[] = [];
+    for (const entry of Object.values(editor.session.data.stages)) {
+      const cfg = resolveStage(entry, editor.session.data.hud);
+      const boxes: Record<string, unknown> = {};
+      for (const key of SET_KEYS as string[]) if (cfg.enemySets[key]) boxes[key] = scene.figureBoxesFor(cfg, key, editor.view.roster(cfg, key));
+      for (const w of stageWarnings(cfg, boxes) as Array<{ stageId: string; setKey: string | null; text: string }>) keys.push(`${w.stageId}${w.setKey ? ` ${w.setKey}` : ''}: ${w.text}`);
+    }
+    return keys.sort();
+  });
 }

@@ -394,6 +394,7 @@ Don't rewrite these for the guide's sake; apply the relevant part whenever one i
 16. The top bar holds view choices and the inspector holds properties; no control is in both (3.2).
 17. Every setting whose meaning or visual effect is not obvious has a "?" that says, in plain words, what it is and what changes on screen (3.7), and the tool has a short in-tool help for its core ideas (3.0).
 18. Shift locks a drag to one direction, sliders update the view while dragged, and the selection can be aligned in one click (2.3, 3.7).
+19. Its tests never pin a value a designer edits in the tool: tool and algorithm tests run on the frozen fixture (`tests/fixtures/stagedata/`), tests of the shipped data check invariants only, and a design-rule warning never fails a run (`docs/DEVELOPING.md`, "Tests vs design data").
 
 ---
 

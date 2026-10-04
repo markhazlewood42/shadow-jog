@@ -4,7 +4,7 @@ import { ENEMIES } from '../src/data/enemies';
 import { measure } from '../src/engine/font';
 import { comboOf, type ShownHit } from '../src/stage/combo';
 import { type StageConfig, SCREEN_W } from '../src/stage/config';
-import { shippedStages } from './stagefiles';
+import { fixtureStages } from './stagefiles';
 import { buildHudView, type TurnChipView } from '../src/stage/demo';
 import { cutHead, defaultHead, ENEMY_FACES, ENEMY_HEADS } from '../src/stage/faces';
 import { HIT_COLOUR, UI } from '../src/stage/hudcolours';
@@ -12,7 +12,7 @@ import { FOE_HP_W, foeColumns, foeGrid, NUMBER_FLOOR, type NumberRect, numberSpo
 import { applyPreset, PRESET_IDS } from '../src/stage/hudpresets';
 import { newRaw } from '../src/stage/pixels';
 
-const stages = shippedStages();
+const stages = fixtureStages();
 const street = (): StageConfig => JSON.parse(JSON.stringify(stages.street)) as StageConfig;
 
 const hit = (target: number, amount: number, crit = false, weak = false): ShownHit => ({ target, amount, crit, weak });

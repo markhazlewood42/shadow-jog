@@ -36,13 +36,13 @@ import { type EditorData, Session } from '../src/stage/edit/session';
 import { applyPreset } from '../src/stage/hudpresets';
 import { STAGE_KNOWN } from '../src/stage/known';
 import { formatJson } from '../src/tools/jsonfmt';
-import { shippedEntries, shippedFacing, shippedHeroes, shippedHud, shippedStages, stagesJson } from './stagefiles';
+import { fixtureEntries, fixtureFacing, fixtureHeroes, fixtureHud, fixtureStages, shippedHud, shippedStagesJson } from './stagefiles';
 
-const file = (): EntryFile => shippedEntries();
+const file = (): EntryFile => fixtureEntries();
 const street = (f = file()): StageEntry => f.street as StageEntry;
 /** The street as a battle sees it (the global HUD filled in), for the tests of what the pointer can pick. */
 const resolvedStreet = (): StageConfig => {
-  const s = shippedStages().street as StageConfig;
+  const s = fixtureStages().street as StageConfig;
   // The design's own HUD layout, so these picking tests do not depend on where Mark has put the boxes in hud.json.
   applyPreset(s.hud, 'timeline-bottom3', true);
   return s;
@@ -272,7 +272,7 @@ describe('the keyboard table', () => {
 });
 
 describe('the editing session: gestures, undo and the unsaved state', () => {
-  const make = (): Session => new Session({ stages: file(), axes: {}, hud: shippedHud(), facing: shippedFacing(), heroes: shippedHeroes() }, 'street', formatJson);
+  const make = (): Session => new Session({ stages: file(), axes: {}, hud: fixtureHud(), facing: fixtureFacing(), heroes: fixtureHeroes() }, 'street', formatJson);
   const horizon = (_se: Session, y: number) => (d: EditorData) => {
     setHorizon(d.stages.street as StageEntry, y);
   };
@@ -348,7 +348,7 @@ describe('the editing session: gestures, undo and the unsaved state', () => {
   it('Revert/load replaces everything and clears the history', () => {
     const se = make();
     se.edit('a', horizon(se, 96));
-    se.load({ stages: file(), axes: {}, hud: shippedHud(), facing: shippedFacing(), heroes: shippedHeroes() });
+    se.load({ stages: file(), axes: {}, hud: fixtureHud(), facing: fixtureFacing(), heroes: fixtureHeroes() });
     expect(se.dirty).toBe(false);
     expect(se.canUndo).toBe(false);
     expect(se.stage.backdrop.horizonY).toBe(100);
@@ -369,7 +369,7 @@ describe('what Save writes', () => {
   it('refuses a bad file with plain-words problems and writes nothing; accepts a good one in the stable format', () => {
     const bad = file();
     (street(bad).rows[1] as { y: number }).y = 400;
-    const refused = prepareSave({ stages: bad, axes: {}, hud: shippedHud(), facing: shippedFacing() });
+    const refused = prepareSave({ stages: bad, axes: {}, hud: fixtureHud(), facing: fixtureFacing() });
     expect(refused.ok).toBe(false);
     if (!refused.ok) expect(refused.problems.join('\n')).toMatch(/outside the floor|grow/);
     expect(prepareSave({ stages: file(), axes: { rook: { x: 99, y: 0 } } })).toMatchObject({ ok: false });
@@ -384,10 +384,10 @@ describe('what Save writes', () => {
     expect(checkAxes({ rook: { x: 1.5, y: 0 } })).toHaveLength(1);
   });
 
-  it('the shipped data files are already in the stable format, so saving without a change changes nothing', async () => {
+  it('the shipped data files are already in the stable format, so saving without a change changes nothing (the format, not the values)', async () => {
     const { readFileSync } = await import('node:fs');
     const onDisk = readFileSync(new URL('../src/data/stages.json', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-    expect(onDisk).toBe(formatStages(stagesJson));
+    expect(onDisk).toBe(formatStages(shippedStagesJson));
     const hudOnDisk = readFileSync(new URL('../src/data/hud.json', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
     expect(hudOnDisk).toBe(formatHud(shippedHud()));
     const axes = readFileSync(new URL('../src/data/axes.json', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -490,7 +490,7 @@ describe('the Align bar: fighters line up with their half of the stage, or with 
   });
 
   it('one undo step per Align, and the stage still passes the checker', () => {
-    const se = new Session({ stages: file(), axes: {}, hud: shippedHud(), facing: shippedFacing(), heroes: shippedHeroes() }, 'street', formatJson);
+    const se = new Session({ stages: file(), axes: {}, hud: fixtureHud(), facing: fixtureFacing(), heroes: fixtureHeroes() }, 'street', formatJson);
     const start = JSON.stringify(se.data);
     se.edit('Align Rook to the back row', (d) => alignDepth(d.stages.street as StageEntry, 'party', '3', [1], 'back'));
     expect(se.undoStack.depth).toBe(1);
@@ -501,7 +501,7 @@ describe('the Align bar: fighters line up with their half of the stage, or with 
 });
 
 describe('the session knows which of the three files changed', () => {
-  const make = (): Session => new Session({ stages: file(), axes: {}, hud: shippedHud(), facing: shippedFacing(), heroes: shippedHeroes() }, 'street', formatJson);
+  const make = (): Session => new Session({ stages: file(), axes: {}, hud: fixtureHud(), facing: fixtureFacing(), heroes: fixtureHeroes() }, 'street', formatJson);
 
   it('a HUD move makes only hud.json unsaved; saving it leaves other changes unsaved; undo and redo cover the HUD too', () => {
     const se = make();

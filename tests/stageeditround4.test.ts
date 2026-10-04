@@ -21,9 +21,9 @@ import { ALIGN_GAP, alignAcross, alignDepth, type Reach, standingRange } from '.
 import { formatHud, prepareSave } from '../src/stage/edit/save';
 import { saveFailureMessage, writeTogether } from '../src/stage/edit/writeset';
 import { enemyLeftLimit, heroRightLimit, RULE_LIMITS } from '../src/stage/rules';
-import { hudJson, shippedEntries, stagesJson } from './stagefiles';
+import { fixtureHudJson, fixtureEntries, fixtureStagesJson } from './stagefiles';
 
-const street = (): StageEntry => shippedEntries().street as StageEntry;
+const street = (): StageEntry => fixtureEntries().street as StageEntry;
 /** The same reach for fighters 0 .. n-1. */
 const reach = (n: number, left = 20, right = 20): Record<number, Reach> => Object.fromEntries(Array.from({ length: n }, (_, i) => [i, { left, right }]));
 /** True when two fighters of one row come closer than ALIGN_GAP (drawn edges). */
@@ -227,11 +227,11 @@ describe('4. the Align keys work on a layout that does not type Latin letters', 
 
 describe('5. a save checks the stages against the HUD that will be on disk afterwards', () => {
   const body = (): { stages: Record<string, StageEntry>; axes: Record<string, never>; hud: { commands: { w: number; x: number } } } => ({
-    stages: JSON.parse(JSON.stringify(stagesJson)),
+    stages: JSON.parse(JSON.stringify(fixtureStagesJson)),
     axes: {},
-    hud: (JSON.parse(JSON.stringify(hudJson)) as { layout: { commands: { w: number; x: number } } }).layout,
+    hud: (JSON.parse(JSON.stringify(fixtureHudJson)) as { layout: { commands: { w: number; x: number } } }).layout,
   });
-  const diskText = (): string => formatHud((JSON.parse(JSON.stringify(hudJson)) as { layout: unknown }).layout);
+  const diskText = (): string => formatHud((JSON.parse(JSON.stringify(fixtureHudJson)) as { layout: unknown }).layout);
 
   it('the HUD is NOT written: a posted HUD that would break a stage is ignored, and the save is checked against the file on disk', () => {
     const b = body();
@@ -245,10 +245,10 @@ describe('5. a save checks the stages against the HUD that will be on disk after
 
   it('the HUD is NOT written: a stage that fits only the posted HUD is refused, because the file on disk is what the game will load', () => {
     const b = body();
-    // Disk HUD: the shipped one. A stage box that is fine for a 300 wide commands box but not for the shipped width does not exist here, so use the reverse:
+    // Disk HUD: the fixture one. A stage box that is fine for a 300 wide commands box but not for the fixture width does not exist here, so use the reverse:
     // the posted HUD is fine, and the disk HUD (a wide one) breaks the stage's own box at x 300.
     (b.stages.street as StageEntry).hud = { commands: { x: 300 } };
-    const wide = JSON.parse(JSON.stringify(hudJson)) as { layout: { commands: { w: number } } };
+    const wide = JSON.parse(JSON.stringify(fixtureHudJson)) as { layout: { commands: { w: number } } };
     wide.layout.commands.w = 300;
     const r = prepareSave({ ...b, write: ['stages'] }, formatHud(wide.layout));
     expect(r.ok).toBe(false);
@@ -267,7 +267,7 @@ describe('5. a save checks the stages against the HUD that will be on disk after
   it('the HUD IS written, and it is the one that fits: a disk HUD that would break the stage does not matter', () => {
     const b = body();
     (b.stages.street as StageEntry).hud = { commands: { x: 300 } };
-    const wide = JSON.parse(JSON.stringify(hudJson)) as { layout: { commands: { w: number } } };
+    const wide = JSON.parse(JSON.stringify(fixtureHudJson)) as { layout: { commands: { w: number } } };
     wide.layout.commands.w = 300;
     const r = prepareSave({ ...b, write: ['stages', 'hud'] }, formatHud(wide.layout));
     expect(r.ok).toBe(true);

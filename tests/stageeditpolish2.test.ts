@@ -10,9 +10,9 @@ import { comboOf, KEYS, matchKey, MOUSE, RESERVED, shown, unsafeReason } from '.
 import { prepareSave } from '../src/stage/edit/save';
 import { type Item, Session, toggleInSelection } from '../src/stage/edit/session';
 import { formatJson } from '../src/tools/jsonfmt';
-import { hudJson, shippedEntries, shippedFacing, shippedHeroes, shippedHud, stagesJson } from './stagefiles';
+import { fixtureHudJson, fixtureEntries, fixtureFacing, fixtureHeroes, fixtureHud, fixtureStagesJson } from './stagefiles';
 
-const street = (): StageEntry => shippedEntries().street as StageEntry;
+const street = (): StageEntry => fixtureEntries().street as StageEntry;
 const reach = (n: number, left = 20, right = 20): Record<number, Reach> => Object.fromEntries(Array.from({ length: n }, (_, i) => [i, { left, right }]));
 const overlaps = (xs: number[], left = 20, right = 20): boolean => xs.some((x, i) => i > 0 && x - left < (xs[i - 1] ?? 0) + right + ALIGN_GAP);
 
@@ -174,7 +174,7 @@ describe('the shortcuts avoid the browser’s own keys', () => {
 });
 
 describe('undo and redo say what they did', () => {
-  const make = (): Session => new Session({ stages: shippedEntries(), axes: {}, hud: shippedHud(), facing: shippedFacing(), heroes: shippedHeroes() }, 'street', formatJson);
+  const make = (): Session => new Session({ stages: fixtureEntries(), axes: {}, hud: fixtureHud(), facing: fixtureFacing(), heroes: fixtureHeroes() }, 'street', formatJson);
 
   it('the next undo and redo names are the gestures’ names, in order', () => {
     const se = make();
@@ -198,7 +198,7 @@ describe('undo and redo say what they did', () => {
       (d.stages.street as StageEntry).party[0] = { x: 21, row: 2 };
     });
     expect(se.nextRedoLabel).toBe('');
-    se.load({ stages: shippedEntries(), axes: {}, hud: shippedHud(), facing: shippedFacing(), heroes: shippedHeroes() });
+    se.load({ stages: fixtureEntries(), axes: {}, hud: fixtureHud(), facing: fixtureFacing(), heroes: fixtureHeroes() });
     expect(se.nextUndoLabel).toBe('');
   });
 });
@@ -225,8 +225,8 @@ describe('Shift+click and Ctrl+click add to and remove from the selection', () =
 });
 
 describe('the server checks a stage against the global HUD that is on disk', () => {
-  const body = (): { stages: unknown; axes: unknown } => ({ stages: JSON.parse(JSON.stringify(stagesJson)), axes: {} });
-  const hudText = (): string => JSON.stringify(hudJson);
+  const body = (): { stages: unknown; axes: unknown } => ({ stages: JSON.parse(JSON.stringify(fixtureStagesJson)), axes: {} });
+  const hudText = (): string => JSON.stringify(fixtureHudJson);
 
   it('a stage without overrides is fine, with or without the HUD text', () => {
     expect(prepareSave(body()).ok).toBe(true);

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import * as config from '../src/stage/config';
 import type { FigureBox, StageConfig } from '../src/stage/config';
 import { checkFigures, checkLayout, figureBreaks, layoutBreaks, RULE_LIMITS, RULE_WHY, stageWarnings } from '../src/stage/rules';
-import { shippedStages } from './stagefiles';
+import { fixtureStages, shippedStages } from './stagefiles';
 
-const street = (): StageConfig => shippedStages().street as StageConfig;
+const street = (): StageConfig => fixtureStages().street as StageConfig;
 const hero = (left: number, right: number, top = 130): FigureBox => ({ x: (left + right) / 2, y: 191, left, right, top, boss: false, side: 'party' });
 const foe = (left: number, right: number, top = 100): FigureBox => ({ x: (left + right) / 2, y: 174, left, right, top, boss: false, side: 'enemy' });
 
@@ -80,5 +80,64 @@ describe('figure rules name who breaks them', () => {
     expect(w.filter((x) => x.setKey === '2').map((x) => x.rule)).toEqual(expect.arrayContaining(['gap', 'nearest']));
     expect(w.filter((x) => x.setKey === '3')).toEqual([]);
     expect(w.every((x) => x.stageId === 'street')).toBe(true);
+  });
+});
+
+// Rule 3 of "Tests vs design data" (docs/DEVELOPING.md): the rules are tested on stages and figures built to break each one,
+// never on whatever Mark's stage happens to break today. His own data only has to agree with the computation (see the
+// editor's end-to-end spec), because a warning is advice and never fails a run.
+describe('every rule is covered by a fixture that deliberately breaks it', () => {
+  const rulesOf = (s: StageConfig): string[] => layoutBreaks(s).map((b) => b.rule);
+
+  it('the fixture street breaks no layout rule, so each case below is the only change that did it', () => {
+    expect(rulesOf(street())).toEqual([]);
+  });
+
+  const layoutCases: Array<[string, (s: StageConfig) => void]> = [
+    ['horizon', (s) => { s.backdrop.horizonY = 60; }],
+    ['kerb', (s) => { s.backdrop.mode = 'reproject'; s.backdrop.shiftY = 1; }],
+    ['rowGaps', (s) => { s.rows = s.rows.map((r, i) => ({ ...r, y: r.y + i * 20 })); }],
+    ['hudShare', (s) => { s.hud.turnOrder.h = 200; }],
+    ['bottomBand', (s) => { s.hud.partyStatus.y = 150; }],
+    ['frontShadow', (s) => { s.hud.partyStatus.y = Math.max(...s.rows.map((r) => r.y)) + 3; }],
+    ['floorShare', (s) => { s.floor.y0 = s.hud.partyStatus.y - 10; }],
+  ];
+  for (const [rule, mutate] of layoutCases) {
+    it(`${rule}: a stage built to break it is reported, with its sentence`, () => {
+      const s = street();
+      mutate(s);
+      expect(rulesOf(s)).toContain(rule);
+      const b = layoutBreaks(s).find((x) => x.rule === rule);
+      expect(b?.text.length).toBeGreaterThan(10);
+      expect(b?.culprits).toEqual([]);
+    });
+  }
+
+  const figureCases: Array<[string, FigureBox[]]> = [
+    ['gap', [hero(100, 200), foe(240, 320)]],
+    ['nearest', [hero(50, 100), foe(250, 300)]],
+    ['edge', [hero(50, 100), foe(300, 480)]],
+    ['topBand', [hero(50, 100, 0), foe(300, 350)]],
+  ];
+  for (const [rule, boxes] of figureCases) {
+    it(`${rule}: figures built to break it are reported, and who breaks it`, () => {
+      const b = figureBreaks(street(), boxes).find((x) => x.rule === rule);
+      expect(b, rule).toBeDefined();
+      expect(b?.culprits.length).toBeGreaterThan(0);
+    });
+  }
+
+  it('together the cases cover every rule the module has', () => {
+    const covered = [...layoutCases.map(([r]) => r), ...figureCases.map(([r]) => r)].sort();
+    expect(covered).toEqual(Object.keys(RULE_WHY).sort());
+  });
+});
+
+describe('the stage-wide warnings of Mark’s shipped stages agree with the rules module (no list of expected warnings)', () => {
+  it('every shipped stage can be checked, and the sentences are the structured breaks, text for text', () => {
+    for (const s of Object.values(shippedStages())) {
+      expect(checkLayout(s)).toEqual(layoutBreaks(s).map((b) => b.text));
+      expect(stageWarnings(s, {}).map((w) => w.text)).toEqual(checkLayout(s));
+    }
   });
 });

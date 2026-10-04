@@ -2,7 +2,7 @@
  * Enemies face the heroes (spike `spike/phaser-stage`): the stage mirrors the enemy sprites that `src/data/enemyfacing.json`
  * lists, the Battle Stage Editor has a "Mirror (face the heroes)" switch for it, and Save writes the file with the others.
  *
- * Every editor test works on a private scratch copy of the data (`?scratch=<name>`), so Mark's real files are never written.
+ * Every editor test works on a private scratch copy of the data (`?scratch=<name>`), seeded from the frozen fixture, so Mark's real files are never written and his edits never break a test.
  * `FACING_MEDIA=<folder>` also writes the pictures (the line-ups and the editor with the switch) for the person reading the spike.
  */
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -14,6 +14,8 @@ import { openLab } from './stagelabkit';
 
 const FACING = JSON.parse(readFileSync(join(process.cwd(), 'src/data/enemyfacing.json'), 'utf8')) as Record<string, { mirror: boolean; facing: string }>;
 const MEDIA = process.env.FACING_MEDIA;
+/** The stages Mark's stages.json holds (he may add one: the list is read, not written here). */
+const STAGE_IDS = Object.keys(JSON.parse(readFileSync(join(process.cwd(), 'src/data/stages.json'), 'utf8')) as Record<string, unknown>);
 
 test.describe.configure({ mode: 'serial' });
 
@@ -42,7 +44,7 @@ test('the street stage draws every enemy flipped exactly as the facing data says
 test('every enemy of every group on both stages is flipped as the data says (a new group, a boss phase change and a summon too)', async ({ page }) => {
   const errors = await openLab(page, '?clean');
   const sets = ['1', '2', '3', '4', '5', '6', 'boss', 'boss+1', 'boss+2'];
-  for (const stage of ['street', 'sewer']) {
+  for (const stage of STAGE_IDS) {
     for (const set of sets) {
       await page.evaluate(([st, s]) => {
         const scene = window.__stagelab?.scene();
@@ -138,7 +140,8 @@ test('the editor shows the Mirror switch on a selected enemy; it is one undo ste
     await page.mouse.click(at.x, at.y);
     await flush(page);
     const key = await page.evaluate(() => window.__stagelab?.scene()?.fighters.filter((f) => f.side === 'enemy')[0]?.axisKey ?? '');
-    const was = FACING[key]?.mirror === true;
+    // The switch starts at whatever the scratch copy (the fixture) holds: read it, never assume it.
+    const was = (await page.evaluate((k) => window.__stageedit?.session.data.facing[k]?.mirror, key)) === true;
     const row = page.locator('#inspector .field.mirror');
     await expect(row).toContainText('Mirror (face the heroes)');
     await expect(page.locator('#enemy-mirror')).toBeVisible();

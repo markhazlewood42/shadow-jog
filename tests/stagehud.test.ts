@@ -18,29 +18,29 @@ import {
 import { formatHud, prepareHudSave, prepareSave } from '../src/stage/edit/save';
 import { applyPreset, HUD_PRESETS, HUD_REGIONS, hudOverrides, overriddenRegions, PRESET_IDS, revertField, revertRegion } from '../src/stage/hudpresets';
 import { STAGE_KNOWN } from '../src/stage/known';
-import { hudJson, shippedEntries, shippedFacing, shippedHeroes, shippedHud, shippedStages } from './stagefiles';
+import { fixtureHudJson, fixtureEntries, fixtureFacing, fixtureHeroes, fixtureHud, fixtureStages } from './stagefiles';
 
 /** The global layout and the stage entries as one piece of editor data. */
-const data = (): EditorData => ({ stages: shippedEntries(), axes: {}, hud: shippedHud(), facing: shippedFacing(), heroes: shippedHeroes() });
+const data = (): EditorData => ({ stages: fixtureEntries(), axes: {}, hud: fixtureHud(), facing: fixtureFacing(), heroes: fixtureHeroes() });
 
 describe('the global HUD file (hud.json)', () => {
   it('is valid, is the action-left preset, and every stage uses it as it is (no stage carries a HUD override)', () => {
-    expect(checkHudFile(hudJson)).toEqual([]);
-    expect(shippedHud().preset).toBe('action-left');
-    // Mark's region positions (commit 6364bb5) are the action-left preset's own, so nothing is moved by hand.
-    expect(hudOverrides(shippedHud())).toEqual([]);
-    for (const s of Object.values(shippedEntries())) expect(s.hud).toBeUndefined();
+    expect(checkHudFile(fixtureHudJson)).toEqual([]);
+    expect(fixtureHud().preset).toBe('action-left');
+    // The fixture’s region positions are the action-left preset’s own, so nothing is moved by hand.
+    expect(hudOverrides(fixtureHud())).toEqual([]);
+    for (const s of Object.values(fixtureEntries())) expect(s.hud).toBeUndefined();
   });
 
-  it('keeps Mark’s positions on both stages', () => {
-    for (const s of Object.values(shippedStages())) {
+  it('keeps the fixture’s positions on both stages', () => {
+    for (const s of Object.values(fixtureStages())) {
       expect([s.hud.turnOrder.x, s.hud.turnOrder.y, s.hud.commands.x, s.hud.commands.y, s.hud.partyStatus.x, s.hud.enemyInfo.x, s.hud.banner.x, s.hud.combo.x]).toEqual([4, 2, 4, 226, 120, 320, 4, 404]);
     }
   });
 
   it('is refused in plain words when a box is off the screen, a show rule does not exist, or the version is wrong', () => {
     const bad = (mutate: (l: HudLayout) => void, version = 1): string[] => {
-      const layout = shippedHud();
+      const layout = fixtureHud();
       mutate(layout);
       return checkHudFile({ version, layout });
     };
@@ -52,13 +52,13 @@ describe('the global HUD file (hud.json)', () => {
   });
 
   it('is written as { version, layout } in the stable format, and the endpoint’s check refuses what the loader refuses', () => {
-    const made = prepareHudSave(shippedHud());
+    const made = prepareHudSave(fixtureHud());
     expect(made.ok).toBe(true);
     if (made.ok) {
-      expect(JSON.parse(made.text)).toEqual({ version: 1, layout: shippedHud() });
-      expect(made.text).toBe(formatHud(shippedHud()));
+      expect(JSON.parse(made.text)).toEqual({ version: 1, layout: fixtureHud() });
+      expect(made.text).toBe(formatHud(fixtureHud()));
     }
-    const broken = shippedHud();
+    const broken = fixtureHud();
     broken.combo.w = 900;
     expect(prepareHudSave(broken)).toMatchObject({ ok: false });
     expect(prepareHudSave(undefined)).toMatchObject({ ok: false });
@@ -67,8 +67,8 @@ describe('the global HUD file (hud.json)', () => {
 
 describe('a stage’s HUD overrides and the merge', () => {
   it('a stage with no override resolves to the global layout; one with an override changes only that box and field', () => {
-    const entries = shippedEntries();
-    const hud = shippedHud();
+    const entries = fixtureEntries();
+    const hud = fixtureHud();
     expect(resolveStage(entries.street as never, hud).hud).toEqual(hud);
     const e = entries.street;
     if (!e) throw new Error('no street');
@@ -83,11 +83,11 @@ describe('a stage’s HUD overrides and the merge', () => {
   });
 
   it('the loader checks the overrides: unknown boxes and fields, values out of range, and a merged box that leaves the screen', () => {
-    const f = shippedEntries() as unknown as Record<string, Record<string, unknown>>;
+    const f = fixtureEntries() as unknown as Record<string, Record<string, unknown>>;
     const run = (hud: unknown): string[] => {
       const copy = JSON.parse(JSON.stringify(f)) as Record<string, Record<string, unknown>>;
       (copy.street as Record<string, unknown>).hud = hud;
-      return checkStagesWith(copy, shippedHud(), BG_IDS, STAGE_KNOWN);
+      return checkStagesWith(copy, fixtureHud(), BG_IDS, STAGE_KNOWN);
     };
     expect(run({ commands: { x: 60 } })).toEqual([]);
     expect(run({ commands: {} })).toEqual([]);
@@ -102,23 +102,23 @@ describe('a stage’s HUD overrides and the merge', () => {
   });
 
   it('loadStages resolves every stage against the global HUD; a layout that cannot be used throws one readable error', () => {
-    const stages = loadStages(JSON.parse(JSON.stringify(shippedEntries())), BG_IDS, STAGE_KNOWN, shippedHud());
+    const stages = loadStages(JSON.parse(JSON.stringify(fixtureEntries())), BG_IDS, STAGE_KNOWN, fixtureHud());
     expect(Object.keys(stages)).toEqual(['street', 'sewer']);
     expect(stages.street?.hud.preset).toBe('action-left');
-    const entries = shippedEntries();
+    const entries = fixtureEntries();
     if (entries.sewer) entries.sewer.hud = { turnOrder: { w: 900 } };
-    expect(() => loadStages(entries, BG_IDS, STAGE_KNOWN, shippedHud())).toThrow(/stages.json is not valid/);
+    expect(() => loadStages(entries, BG_IDS, STAGE_KNOWN, fixtureHud())).toThrow(/stages.json is not valid/);
     // checkStages on its own judges the file’s shape; it does not need the global layout.
-    expect(checkStages(shippedEntries(), BG_IDS, STAGE_KNOWN)).toEqual([]);
+    expect(checkStages(fixtureEntries(), BG_IDS, STAGE_KNOWN)).toEqual([]);
   });
 
   it('the design’s layout rules pass for the resolved stages, with and without an override', () => {
-    for (const s of Object.values(shippedStages())) expect(checkLayout(s)).toEqual([]);
-    const entries = shippedEntries();
+    for (const s of Object.values(fixtureStages())) expect(checkLayout(s)).toEqual([]);
+    const entries = fixtureEntries();
     const e = entries.street;
     if (!e) throw new Error('no street');
     e.hud = { turnOrder: { w: 480, h: 60 } };
-    expect(checkLayout(resolveStages(entries, shippedHud()).street as never).join('\n')).toContain('always-on HUD');
+    expect(checkLayout(resolveStages(entries, fixtureHud()).street as never).join('\n')).toContain('always-on HUD');
   });
 });
 
@@ -203,11 +203,11 @@ describe('editing the HUD: where an edit lands', () => {
 describe('HUD presets (on the global layout)', () => {
   it('every preset places every box inside the screen and keeps to the design’s layout rules', () => {
     for (const id of PRESET_IDS) {
-      const hud = shippedHud();
+      const hud = fixtureHud();
       applyPreset(hud, id, true);
       expect(hud.preset).toBe(id);
       expect({ id, problems: checkHudFile({ version: 1, layout: hud }) }).toEqual({ id, problems: [] });
-      const entries = shippedEntries();
+      const entries = fixtureEntries();
       expect({ id, warnings: checkLayout(resolveStages(entries, hud).street as never) }).toEqual({ id, warnings: [] });
     }
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shippedStages } from './stagefiles';
+import { fixtureStages } from './stagefiles';
 import { SCREEN_H, SCREEN_W, type StageConfig, type StageFile, stageOf } from '../src/stage/config';
 import { CREW_FACES, cutFace, ENEMY_FACES, modeDown } from '../src/stage/faces';
 import { floorBands, paintFloor, puddleSpots, reprojectWall } from '../src/stage/floor';
@@ -8,7 +8,7 @@ import { getRgb, hexRgb, mix, newRaw, type Raw, seeded, setRgb, th } from '../sr
 import { paintWall, WALL_IDS } from '../src/stage/sewerwall';
 import { ringRaw, ringSize, shadowRaw, shadowSize } from '../src/stage/shadow';
 
-const file: StageFile = shippedStages();
+const file: StageFile = fixtureStages();
 const clone = (id: string): StageConfig => JSON.parse(JSON.stringify(stageOf(file, id))) as StageConfig;
 const alphaAt = (r: Raw, x: number, y: number): number => r.px[(y * r.w + x) * 4 + 3] ?? 0;
 const same = (a: Raw, b: Raw): boolean => a.w === b.w && a.h === b.h && a.px.every((v, i) => v === b.px[i]);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StageConfig } from '../src/stage/config';
-import { shippedStages } from './stagefiles';
+import { fixtureStages } from './stagefiles';
 import { buildHudView, foeViews, memberView, type TurnChipView } from '../src/stage/demo';
 import { bandPlans, foeLayout, foeName, stageBarSize, targetTab, timelineLayout } from '../src/stage/hudlayout';
 import { hitKind, HIT_COLOUR, hpColor, numberScale, UI } from '../src/stage/hudcolours';
@@ -11,10 +11,10 @@ import { enemyParty } from '../src/battle/setup';
 
 /**
  * The street with the DESIGN's HUD layout (the 'timeline-bottom3' preset). These tests check the design's geometry (which box sits
- * where, how the bottom band is framed), so they do not follow Mark's own layout choice in hud.json (round 1 of his notes: action-left).
+ * where, how the bottom band is framed), so they do not follow Mark's own layout choice in hud.json (they run on the frozen fixture).
  */
 const street = (): StageConfig => {
-  const s = shippedStages().street as StageConfig;
+  const s = fixtureStages().street as StageConfig;
   applyPreset(s.hud, 'timeline-bottom3', true);
   return s;
 };
@@ -23,7 +23,7 @@ const street = (): StageConfig => {
 const order = (n: number): TurnChipView[] => Array.from({ length: n }, (_, i) => (i % 2 === 0 ? { side: 'party' as const, index: i % 4 } : { side: 'enemy' as const, index: i % 3 }));
 
 describe('HUD polish: the unified bottom band', () => {
-  it('the shipped boxes are framed as one window from the party table to the enemy box, with a divider in each gap', () => {
+  it('the fixture boxes are framed as one window from the party table to the enemy box, with a divider in each gap', () => {
     const plans = bandPlans(street().hud);
     expect(plans).toHaveLength(1);
     const [band] = plans;

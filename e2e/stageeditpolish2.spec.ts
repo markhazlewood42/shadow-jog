@@ -10,8 +10,7 @@
 import { expect, type Page, test } from '@playwright/test';
 import type { StageEntry } from '../src/stage/config';
 import { RESERVED } from '../src/stage/edit/keys';
-import { canvasRect, dropScratch, flush, openEditor, scratchName, waitReady } from './stageeditkit';
-import { HAVE_SPRITES, MARKS_FIGURE_BREAKS } from './stagelabkit';
+import { canvasRect, dropScratch, flush, openEditor, ruleKeys, scratchName, waitReady } from './stageeditkit';
 
 const stageOf = (page: Page): Promise<StageEntry> => page.evaluate(() => JSON.parse(JSON.stringify(window.__stageedit?.session.stage)) as StageEntry);
 const changes = (page: Page): Promise<number> => page.evaluate(() => window.__stageedit?.session.changeCount ?? -1);
@@ -510,11 +509,22 @@ test('a browser that blocks storage still gets the editor, with the left panel o
 
 // ---------------------------------------------------------------- P: the design's rules as live warnings
 
-test('Mark’s current figure-rule breaks show as warnings: the chip counts them, lists each with its enemy count, and a click goes there', async ({ page }) => {
-  test.skip(!HAVE_SPRITES, 'The counts depend on the real sprite sizes (Mark’s Sprite Fusion folder is not on this machine)');
-  await openEditor(page, scratch, '&stage=street&set=3');
+test('figure-rule breaks show as warnings: the chip counts them, lists each with its enemy count, and a click goes there', async ({ page }) => {
+  await openEditor(page, scratch, '&stage=street&set=6');
+  // Break a rule on purpose (the first enemy at the middle line: its left edge is far left of the 260 the design needs), so there is
+  // always something to list whatever the data holds. What the chip and the list must show is what the rule module says for the
+  // same stage, worked out in the page: no fixed list of expected warnings.
+  await page.evaluate(() => {
+    window.__stageedit?.session.edit('Move E1 to the middle', (d) => {
+      const s = d.stages.street as StageEntry;
+      s.enemySets['3'] = (s.enemySets['3'] ?? []).map((q, i) => (i === 0 ? { ...q, x: 244 } : q));
+    });
+  });
+  await flush(page);
+  const expected = await ruleKeys(page);
+  expect(expected.some((k) => k.startsWith('street 3: the nearest enemy'))).toBe(true);
   const chip = page.locator('#b-warn');
-  await expect(chip).toHaveText(`Warnings (${MARKS_FIGURE_BREAKS.length})`);
+  await expect(chip).toHaveText(`Warnings (${expected.length})`);
   await expect(chip).toHaveClass(/has/);
   // The chip has a tooltip.
   await chip.hover();
@@ -524,16 +534,15 @@ test('Mark’s current figure-rule breaks show as warnings: the chip counts them
   await expect(pop).toBeVisible();
   // Each broken rule is listed in plain words with the stage and enemy count it applies to.
   const keys = await pop.locator('.wi').evaluateAll((els) => els.map((e) => e.getAttribute('data-key') ?? ''));
-  expect(keys.sort()).toEqual([...MARKS_FIGURE_BREAKS].sort());
-  await expect(pop).toContainText('Boss alone');
-  await expect(pop).toContainText('Boss + 2');
-  await expect(pop).toContainText('reaches into the top HUD band');
+  expect(keys.sort()).toEqual(expected);
+  await expect(pop).toContainText('3 enemies');
+  await expect(pop).toContainText('the nearest enemy');
   // The bubble that explained the chip does not sit on top of the list.
   await expect(page.locator('#tipbubble')).toBeHidden();
-  // Click one: that stage, that enemy count, the fighters to blame selected.
-  await pop.locator('.wi[data-rule="topBand"][data-key^="street boss+2:"]').click();
+  // Click one: that stage, that enemy count (we are on 6, the break is on 3), the fighters to blame selected.
+  await pop.locator('.wi[data-rule="nearest"][data-key^="street 3:"]').click();
   await expect(pop).toBeHidden();
-  expect(await page.evaluate(() => [window.__stageedit?.session.stageId, window.__stageedit?.session.setKey])).toEqual(['street', 'boss+2']);
+  expect(await page.evaluate(() => [window.__stageedit?.session.stageId, window.__stageedit?.session.setKey])).toEqual(['street', '3']);
   const picked = await page.evaluate(() => window.__stageedit?.session.selection ?? []);
   expect(picked.length).toBeGreaterThan(0);
   await expect(page.locator('#st-warn')).toBeVisible();

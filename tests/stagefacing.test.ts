@@ -12,20 +12,20 @@ import { Session } from '../src/stage/edit/session';
 import { checkFacing, ENEMY_SPRITES, flipRaw, type FacingFile, figureFor, isMirrored, loadFacing, mirrorFigure } from '../src/stage/facing';
 import type { FigureArt } from '../src/stage/textures';
 import { formatJson } from '../src/tools/jsonfmt';
-import { facingJson, shippedEntries, shippedFacing, shippedHeroes, shippedHud } from './stagefiles';
+import { fixtureEntries, fixtureFacing, fixtureFacingJson, fixtureHeroes, fixtureHud, shippedFacing, shippedFacingJson } from './stagefiles';
 
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
+// Mark's file, as it is now: invariants only (it loads, it covers every sprite). Whether a sprite is mirrored is his call.
 describe('the shipped enemy facing file', () => {
   it('passes the loader', () => {
-    expect(checkFacing(copy(facingJson))).toEqual([]);
-    expect(() => loadFacing(copy(facingJson))).not.toThrow();
+    expect(checkFacing(copy(shippedFacingJson))).toEqual([]);
+    expect(() => loadFacing(copy(shippedFacingJson))).not.toThrow();
   });
 
   it('has an entry for every sprite key any enemy uses', () => {
     const file = shippedFacing();
     for (const e of Object.values(ENEMIES)) expect(file[e.sprite], `${e.id} uses the sprite "${e.sprite}"`).toBeDefined();
-    expect(ENEMY_SPRITES.length).toBe(21);
   });
 
   it('has no entry for a sprite nothing uses, and every sprite is one the art generator can draw', () => {
@@ -37,13 +37,21 @@ describe('the shipped enemy facing file', () => {
     const text = readFileSync(new URL('../src/data/enemyfacing.json', import.meta.url), 'utf8');
     expect(formatFacing(JSON.parse(text))).toBe(text);
   });
+});
+
+describe('the fixture enemy facing file', () => {
+  it('passes the loader and covers every sprite', () => {
+    expect(checkFacing(copy(fixtureFacingJson))).toEqual([]);
+    expect(Object.keys(fixtureFacing()).sort()).toEqual([...ENEMY_SPRITES].sort());
+    expect(ENEMY_SPRITES.length).toBe(21);
+  });
 
   it('says in a sentence why each sprite is or is not mirrored', () => {
-    for (const [key, e] of Object.entries(shippedFacing())) expect(e.note.length, key).toBeGreaterThan(20);
+    for (const [key, e] of Object.entries(fixtureFacing())) expect(e.note.length, key).toBeGreaterThan(20);
   });
 
   it('mirrors a sprite exactly when its entry says so', () => {
-    const file = shippedFacing();
+    const file = fixtureFacing();
     for (const [key, e] of Object.entries(file)) expect(isMirrored(file, key), key).toBe(e.mirror);
     expect(isMirrored(file, 'no-such-sprite')).toBe(false);
   });
@@ -190,7 +198,7 @@ describe('mirroring a figure about its feet', () => {
 // ------------------------------------------------------------------ the editor's Mirror switch and Save
 
 describe('the Mirror switch in the editor session', () => {
-  const make = (): Session => new Session({ stages: shippedEntries(), axes: {}, hud: shippedHud(), facing: shippedFacing(), heroes: shippedHeroes() }, 'street', formatJson);
+  const make = (): Session => new Session({ stages: fixtureEntries(), axes: {}, hud: fixtureHud(), facing: fixtureFacing(), heroes: fixtureHeroes() }, 'street', formatJson);
 
   it('is one undo step, marks only the facing file as unsaved, and undo and redo bring it back', () => {
     const se = make();
@@ -222,19 +230,19 @@ describe('the Mirror switch in the editor session', () => {
     const se = make();
     const others = Object.keys(se.data.facing).filter((k) => k !== 'rat');
     se.edit('Mirror Glowrat', (d) => setMirror(d, 'rat', !se.data.facing.rat?.mirror));
-    for (const k of others) expect(se.data.facing[k]).toEqual(shippedFacing()[k]);
+    for (const k of others) expect(se.data.facing[k]).toEqual(fixtureFacing()[k]);
   });
 });
 
 describe('saving the facing file with the others', () => {
-  const body = (): { stages: unknown; axes: unknown; hud: unknown; facing: unknown } => ({ stages: copy(shippedEntries()), axes: {}, hud: copy(shippedHud()), facing: shippedFacing() });
+  const body = (): { stages: unknown; axes: unknown; hud: unknown; facing: unknown } => ({ stages: copy(fixtureEntries()), axes: {}, hud: copy(fixtureHud()), facing: fixtureFacing() });
 
   it('writes it together with the stages, when it is posted', () => {
     const made = prepareSave(body());
     expect(made).toMatchObject({ ok: true });
     if (made.ok) {
       expect(made.write).toEqual(['stages', 'axes', 'hud', 'facing']);
-      expect(made.facingText).toBe(formatFacing(shippedFacing()));
+      expect(made.facingText).toBe(formatFacing(fixtureFacing()));
     }
   });
 
@@ -254,7 +262,7 @@ describe('saving the facing file with the others', () => {
   });
 
   it('refuses a bad facing file, naming the file, and writes nothing', () => {
-    const bad = shippedFacing() as Record<string, unknown>;
+    const bad = fixtureFacing() as Record<string, unknown>;
     delete bad.rat;
     const made = prepareSave({ ...body(), facing: bad });
     expect(made.ok).toBe(false);

@@ -33,7 +33,7 @@ import {
 } from '../src/stage/proportions';
 import { formatJson } from '../src/tools/jsonfmt';
 import { readPng } from './png';
-import { heroesJson, shippedEntries, shippedFacing, shippedHeroes, shippedHud } from './stagefiles';
+import { fixtureEntries, fixtureFacing, fixtureHeroes, fixtureHud, shippedHeroes, shippedHeroesJson } from './stagefiles';
 
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
@@ -70,20 +70,25 @@ const sizeOf = (r: Raw): { w: number; h: number } => {
 };
 const rowOf = (r: Raw, y: number): string => Array.from(r.px.subarray(y * r.w * 4, (y + 1) * r.w * 4)).join(',');
 
-describe('the heroes file', () => {
+// Mark's heroes.json, as it is now. He edits the numbers in the Battle Stage Editor, so this block checks INVARIANTS only: the
+// file loads, every hero is in it, and the heroes keep their ancestry order. It never pins a number. The tool and the bake
+// are tested on the frozen fixture file (tests/fixtures/stagedata/heroes.json) in the blocks below.
+describe('the shipped heroes file', () => {
   it('passes the loader and has every hero', () => {
-    expect(checkHeroes(copy(heroesJson))).toEqual([]);
+    expect(checkHeroes(copy(shippedHeroesJson))).toEqual([]);
     const file = shippedHeroes();
     for (const id of CREW_IDS) expect(file[id], id).toBeDefined();
     expect(Object.keys(file).sort()).toEqual([...CREW_IDS].sort());
   });
 
-  it("holds the numbers Mark approved (Hex shorter, Sable taller and broader, Rook a little more than Kit)", () => {
+  // (Rook against Kit is judged on the baked pictures below, not on these numbers: Rook is drawn taller than Kit, so his smaller number can still make him the taller hero.)
+  it('keeps the dwarf and the orc at the ends in its numbers: Hex smaller than Kit and Rook, Sable larger than both', () => {
     const f = shippedHeroes();
-    expect(f.kit).toEqual({ height: 1.05, build: 1 });
-    expect(f.rook).toEqual({ height: 1.07, build: 1.08 });
-    expect(f.hex).toEqual({ height: 0.8, build: 1 });
-    expect(f.sable).toEqual({ height: 1.27, build: 1.15 });
+    const h = (id: string): number => (f[id] as { height: number }).height;
+    expect(h('hex')).toBeLessThan(h('kit'));
+    expect(h('hex')).toBeLessThan(h('rook'));
+    expect(h('sable')).toBeGreaterThan(h('kit'));
+    expect(h('sable')).toBeGreaterThan(h('rook'));
   });
 
   it('is written in the stable format, so saving without a change changes nothing', () => {
@@ -91,9 +96,22 @@ describe('the heroes file', () => {
     expect(formatHeroes(JSON.parse(text))).toBe(text);
     expect(text.includes('\r')).toBe(false);
   });
+});
+
+describe('the fixture heroes file', () => {
+  it('passes the loader and has every hero', () => {
+    const file = fixtureHeroes();
+    expect(checkHeroes(copy(file))).toEqual([]);
+    expect(Object.keys(file).sort()).toEqual([...CREW_IDS].sort());
+  });
+
+  it('is written in the stable format, so a save of it with no change changes nothing', () => {
+    const text = readFileSync(new URL('./fixtures/stagedata/heroes.json', import.meta.url), 'utf8');
+    expect(formatHeroes(JSON.parse(text))).toBe(text);
+  });
 
   it('refuses a missing hero, an unknown one, a number out of range and a stray field', () => {
-    const good = shippedHeroes();
+    const good = fixtureHeroes();
     const { sable: _gone, ...fewer } = good;
     expect(checkHeroes(fewer)).toEqual(['hero proportions: no entry for "sable" (every hero needs one)']);
     expect(checkHeroes({ ...good, ghost: { height: 1, build: 1 } })).toEqual(['hero proportions "ghost": this is not a hero']);
@@ -107,7 +125,7 @@ describe('the heroes file', () => {
   });
 
   it('allows the ends of the range', () => {
-    expect(checkHeroes({ ...shippedHeroes(), hex: { height: PROPORTION_MIN, build: PROPORTION_MAX } })).toEqual([]);
+    expect(checkHeroes({ ...fixtureHeroes(), hex: { height: PROPORTION_MIN, build: PROPORTION_MAX } })).toEqual([]);
   });
 });
 
@@ -291,7 +309,7 @@ maybe("Mark's idle sheets", () => {
     it(`${id}: frame 1 comes out the size the prototype made, and every frame of the loop takes the same picks`, () => {
       const { frames } = sheetOf(id);
       const anchor = footAnchor(frames);
-      const p = shippedHeroes()[id] ?? { height: 1, build: 1 };
+      const p = fixtureHeroes()[id] ?? { height: 1, build: 1 };
       const first = frames[0] as Raw;
       const plan = planFor(first, anchor, p);
       const sheet = bakeSheet(frames, anchor, plan);
@@ -332,10 +350,44 @@ maybe("Mark's idle sheets", () => {
   }
 });
 
+// Mark's heroes.json as it is now, baked onto his real sheets. Invariants only: the bake keeps its promise for whatever numbers he
+// chose, and the heroes keep their ancestry order in the baked pictures (measured, not read from the file).
+maybe("the shipped heroes baked onto Mark's idle sheets", () => {
+  const bakedSizes = (): Record<string, { w: number; h: number }> => {
+    const out: Record<string, { w: number; h: number }> = {};
+    for (const id of CREW_IDS) {
+      const { frames } = sheetOf(id);
+      const anchor = footAnchor(frames);
+      const p = shippedHeroes()[id] ?? { height: 1, build: 1 };
+      const first = frames[0] as Raw;
+      const drawn = sizeOf(first);
+      const baked = sizeOf(bakeSheet(frames, anchor, planFor(first, anchor, p)).frames[0] as Raw);
+      // The promise of the bake, for any numbers: the figure comes out exactly the target size.
+      expect(baked, `${id} baked size`).toEqual(targetSize(drawn.w, drawn.h, p));
+      out[id] = baked;
+    }
+    return out;
+  };
+
+  it('every hero comes out exactly the size the bake promises', () => {
+    bakedSizes();
+  });
+
+  it('keeps the ancestry order in the baked heights: Hex shorter than Kit and Rook, Sable the tallest, Rook at least as tall as Kit', () => {
+    const h = bakedSizes();
+    const tall = (id: string): number => (h[id] as { h: number }).h;
+    expect(tall('hex')).toBeLessThan(tall('kit'));
+    expect(tall('hex')).toBeLessThan(tall('rook'));
+    expect(tall('sable')).toBeGreaterThan(tall('kit'));
+    expect(tall('sable')).toBeGreaterThan(tall('rook'));
+    expect(tall('rook')).toBeGreaterThanOrEqual(tall('kit'));
+  });
+});
+
 // ------------------------------------------------------------------ saving
 
 describe('saving the heroes file from the editor', () => {
-  const make = (): Session => new Session({ stages: shippedEntries(), axes: {}, hud: shippedHud(), facing: shippedFacing(), heroes: shippedHeroes() }, 'street', formatJson);
+  const make = (): Session => new Session({ stages: fixtureEntries(), axes: {}, hud: fixtureHud(), facing: fixtureFacing(), heroes: fixtureHeroes() }, 'street', formatJson);
 
   it('a Height change marks heroes.json as the only unsaved file, undoes, redoes and reverts', () => {
     const se = make();

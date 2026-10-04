@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shippedStages } from './stagefiles';
+import { fixtureStages } from './stagefiles';
 import { ENEMIES } from '../src/data/enemies';
 import { baseStatsAt, MEMBERS } from '../src/data/party';
 import { flags } from '../src/game/state';
@@ -9,7 +9,7 @@ import { comboOf } from '../src/stage/combo';
 import { buildHudView, demoParty, type Phase } from '../src/stage/demo';
 import { isShown, type RegionName, timelineLayout } from '../src/stage/hudlayout';
 
-const file: StageFile = shippedStages();
+const file: StageFile = fixtureStages();
 const PHASES: Phase[] = ['choose', 'target', 'act'];
 const REGIONS: RegionName[] = ['turnOrder', 'commands', 'partyStatus', 'enemyInfo', 'banner', 'combo'];
 

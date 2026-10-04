@@ -41,22 +41,3 @@ export async function openLab(page: Page, query = ''): Promise<string[]> {
   return errors;
 }
 
-
-/**
- * The design's figure rules that Mark's own enemy slots break today (measured with his foot-anchor corrections from
- * `axes.json` AND with the enemies mirrored as `enemyfacing.json` says, as the editor and Battle Test draw them), as
- * "<stage> <enemy count>: <rule text>" (the text comes from `src/stage/rules.ts`). They are his taste calls, so the stage
- * lab's rule test accepts them and the editor's test expects them to show as warnings. When he moves those enemies, flips
- * an enemy, or changes a rule, edit this list; both specs follow.
- *
- * The two boss-in-the-top-band lines were all that was left until the hero proportions (below). Mirroring (2026-10-03) had added a "gap" and a "nearest" line to eleven
- * enemy counts; Mark decided the spacing rules keep measuring the full outline (weapons count), so the enemy slots that broke
- * them were moved right (see `docs/spikes/phaser-stage.md`, "Enemy slots nudged for mirrored weapons") and those lines are gone.
- */
-export const MARKS_FIGURE_BREAKS = [
-  'street boss: 1 fighter reaches into the top HUD band (above y 45)',
-  'street boss+2: 1 fighter reaches into the top HUD band (above y 45)',
-  // Hero proportions (2026-10-03): Sable is now 63 px wide (was 55) and Rook 85 (was 79), so the heroes' nearest drawn edge is 4 px closer to the enemies.
-  // No slot was moved (they are Mark's); these ten are the design's advice and he decides.
-  ...['street 3', 'street 4', 'street 5', 'street 6', 'street boss+1', 'street boss+2', 'sewer 3', 'sewer 4', 'sewer 5', 'sewer 6'].map((k) => `${k}: the gap between the heroes and the enemies is 51 px (need 55)`),
-];

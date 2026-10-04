@@ -13,9 +13,9 @@ import { prepareSave } from '../src/stage/edit/save';
 import { writeTogether } from '../src/stage/edit/writeset';
 import { RULE_LIMITS } from '../src/stage/rules';
 import { devicePixelsPerGamePixel, zoomLine } from '../src/stage/zoom';
-import { hudJson, shippedEntries, stagesJson } from './stagefiles';
+import { fixtureHudJson, fixtureEntries, fixtureStagesJson } from './stagefiles';
 
-const street = (): StageEntry => shippedEntries().street as StageEntry;
+const street = (): StageEntry => fixtureEntries().street as StageEntry;
 const reach = (n: number, left = 20, right = 20): Record<number, Reach> => Object.fromEntries(Array.from({ length: n }, (_, i) => [i, { left, right }]));
 
 describe('Align keeps every fighter inside the design’s limits', () => {
@@ -203,9 +203,9 @@ describe('the zoom is always a whole number of screen pixels per game pixel', ()
 
 describe('one save checks the HUD, the stages and the axes together', () => {
   const body = (): { stages: Record<string, StageEntry>; axes: Record<string, { x: number; y: number }>; hud: { commands: { w: number; x: number } } } => ({
-    stages: JSON.parse(JSON.stringify(stagesJson)),
+    stages: JSON.parse(JSON.stringify(fixtureStagesJson)),
     axes: {},
-    hud: (JSON.parse(JSON.stringify(hudJson)) as { layout: { commands: { w: number; x: number } } }).layout,
+    hud: (JSON.parse(JSON.stringify(fixtureHudJson)) as { layout: { commands: { w: number; x: number } } }).layout,
   });
 
   it('a new HUD that does not fit a stage’s own HUD box refuses the whole save, with a plain message', () => {

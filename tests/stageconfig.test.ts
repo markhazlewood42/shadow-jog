@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BG_IDS } from '../src/art/battlebg';
 import { ENEMIES } from '../src/data/enemies';
-import stagesJson from '../src/data/stages.json';
-import { shippedHud, shippedStages } from './stagefiles';
+import fixtureStagesJson from './fixtures/stagedata/stages.json';
+import { fixtureHud, fixtureStages } from './stagefiles';
 import {
   checkStages,
   checkStagesWith,
@@ -30,8 +30,8 @@ import { CREW_IDS } from '../src/stage/crew';
 import { checkFigures, checkLayout } from '../src/stage/rules';
 
 const known = { enemies: Object.keys(ENEMIES), bosses: Object.keys(ENEMIES).filter((k) => ENEMIES[k]?.boss), crew: CREW_IDS };
-/** A fresh copy of the shipped file to break one thing at a time. */
-const copy = (): EntryFile => JSON.parse(JSON.stringify(stagesJson)) as EntryFile;
+/** A fresh copy of the fixture file to break one thing at a time. */
+const copy = (): EntryFile => JSON.parse(JSON.stringify(fixtureStagesJson)) as EntryFile;
 const street = (f: EntryFile): StageEntry => f.street as StageEntry;
 const problems = (mutate: (s: StageEntry) => void): string[] => {
   const f = copy();
@@ -45,18 +45,18 @@ const withHud = (hud: NonNullable<StageEntry['hud']>): EntryFile => {
 };
 const has = (list: string[], text: string) => expect(list).toEqual(expect.arrayContaining([expect.stringContaining(text)]));
 
-describe('the shipped stage file (the final design: street and sewer)', () => {
+describe('the fixture stage file (a frozen copy of the design: street and sewer)', () => {
   it('is valid, with real backdrops, enemy keys and crew ids', () => {
-    expect(checkStages(stagesJson, BG_IDS, known)).toEqual([]);
-    expect(Object.keys(loadStages(stagesJson, BG_IDS, known, shippedHud()))).toEqual(['street', 'sewer']);
+    expect(checkStages(fixtureStagesJson, BG_IDS, known)).toEqual([]);
+    expect(Object.keys(loadStages(fixtureStagesJson, BG_IDS, known, fixtureHud()))).toEqual(['street', 'sewer']);
   });
 
   it('follows the design’s layout rules: horizon 92 to 112, rows 14 to 24 apart, a light always-on HUD, room above the bottom band', () => {
-    for (const [id, s] of Object.entries(shippedStages())) expect({ id, problems: checkLayout(s) }).toEqual({ id, problems: [] });
+    for (const [id, s] of Object.entries(fixtureStages())) expect({ id, problems: checkLayout(s) }).toEqual({ id, problems: [] });
   });
 
   it('has an enemy slot set for every group size and a roster that fills each', () => {
-    for (const s of Object.values(shippedStages())) {
+    for (const s of Object.values(fixtureStages())) {
       for (const key of SET_KEYS) {
         expect(enemySlots(s, key)).toHaveLength(setSize(key));
         expect(s.demo.rosters[key]).toHaveLength(setSize(key));
@@ -67,7 +67,7 @@ describe('the shipped stage file (the final design: street and sewer)', () => {
   });
 
   it('puts the party in ref 1’s column: the lead lowest and furthest left, each next one higher and nearer the middle', () => {
-    for (const s of Object.values(shippedStages())) {
+    for (const s of Object.values(fixtureStages())) {
       const pts = s.party.map((p) => slotPoint(s, p));
       for (let i = 1; i < pts.length; i++) {
         expect(pts[i]?.y).toBeLessThan(pts[i - 1]?.y ?? 0);
@@ -77,7 +77,7 @@ describe('the shipped stage file (the final design: street and sewer)', () => {
   });
 
   it('the street keeps its skyline (reprojected) and the sewer gets its own wall (replaced)', () => {
-    const f = shippedStages();
+    const f = fixtureStages();
     expect(stageOf(f, 'street').backdrop.mode).toBe('reproject');
     expect(stageOf(f, 'sewer').backdrop.mode).toBe('replace');
     expect(stageOf(f, 'sewer').backdrop.wallId).toBe('sewer-sidewall');
@@ -179,11 +179,11 @@ describe('the design’s figure checks (they need the sprites’ sizes, which th
   const foe = (left: number, right: number, top: number): FigureBox => ({ x: 356, y: 174, left, right, top, boss: false, side: 'enemy' });
 
   it('passes a roomy layout', () => {
-    expect(checkFigures(shippedStages().street as StageConfig, [...heroes, foe(320, 400, 100)])).toEqual([]);
+    expect(checkFigures(fixtureStages().street as StageConfig, [...heroes, foe(320, 400, 100)])).toEqual([]);
   });
 
   it('flags a narrow lane, an enemy too far left, one off the right edge and a sprite in the top band', () => {
-    const s = shippedStages().street as StageConfig;
+    const s = fixtureStages().street as StageConfig;
     has(checkFigures(s, [...heroes, foe(240, 300, 100)]), 'gap between the heroes and the enemies');
     has(checkFigures(s, [...heroes, foe(250, 300, 100)]), 'left edge');
     has(checkFigures(s, [...heroes, foe(300, 480, 100)]), 'reaches x 480');
@@ -229,7 +229,7 @@ describe('rejects a bad file, in plain words', () => {
   });
 
   it('a stage’s HUD override that is off the screen, or with a show rule that does not exist (the global HUD file has its own checks in stagehud.test.ts)', () => {
-    has(checkStagesWith(withHud({ partyStatus: { x: 400 } }), shippedHud(), BG_IDS, known), 'past the right edge');
+    has(checkStagesWith(withHud({ partyStatus: { x: 400 } }), fixtureHud(), BG_IDS, known), 'past the right edge');
     has(problems((s) => { s.hud = { banner: { show: 'sometimes' as never } }; }), 'hud.banner.show');
   });
 
@@ -243,7 +243,7 @@ describe('rejects a bad file, in plain words', () => {
 
   it('the layout rules catch what the file format allows: a horizon too high, rows too close, a HUD too big', () => {
     const bad = (mutate: (s: StageConfig) => void): string[] => {
-      const s = shippedStages().street as StageConfig;
+      const s = fixtureStages().street as StageConfig;
       mutate(s);
       return checkLayout(s);
     };
@@ -257,10 +257,10 @@ describe('rejects a bad file, in plain words', () => {
     const f = copy();
     street(f).backdrop.horizonY = -5;
     street(f).party.pop();
-    expect(() => loadStages(f, undefined, {}, shippedHud())).toThrow(/horizonY[\s\S]*exactly 4/);
+    expect(() => loadStages(f, undefined, {}, fixtureHud())).toThrow(/horizonY[\s\S]*exactly 4/);
     expect(checkStages(null)).toHaveLength(1);
     expect(checkStages({})).toHaveLength(1);
     expect(checkStages({ street: 5 })).toEqual(['stage "street": not an object']);
-    expect(() => stageOf(shippedStages(), 'moon')).toThrow(/No stage "moon"/);
+    expect(() => stageOf(fixtureStages(), 'moon')).toThrow(/No stage "moon"/);
   });
 });

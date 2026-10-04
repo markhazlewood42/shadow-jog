@@ -2,7 +2,10 @@
  * Hero proportions (spike `spike/phaser-stage`): how tall and how broad each hero stands in battle, from the global
  * `src/data/heroes.json`, and the editor's Height and Build sliders.
  *
- * Every editor test works on a private scratch copy of the data (`?scratch=<name>`), so Mark's real files are never written.
+ * Every editor test works on a private scratch copy of the data (`?scratch=<name>`), so Mark's real files are never written. The
+ * copy starts from the frozen fixture (`tests/fixtures/stagedata/`), so a test never depends on the numbers Mark has set; the
+ * tests that look at his current file (the lab) check only what must hold for any numbers (rule: docs/DEVELOPING.md,
+ * "Tests vs design data").
  * `PROP_MEDIA=<folder>` also writes the pictures for the person reading the spike.
  */
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -11,7 +14,10 @@ import { expect, type Page, test } from '@playwright/test';
 import { bodyOf, dropScratch, flush, openEditor, scratchName, toScreen, waitReady } from './stageeditkit';
 import { HAVE_SPRITES, openLab } from './stagelabkit';
 
+/** Mark's current heroes.json (the lab reads it). Only the lab test uses it, and only to check that the picture follows the file. */
 const HEROES = JSON.parse(readFileSync(join(process.cwd(), 'src/data/heroes.json'), 'utf8')) as Record<string, { height: number; build: number }>;
+/** The hero numbers the editor holds right now (its scratch copy), read from the page. */
+const heroesInEditor = (page: Page): Promise<Record<string, { height: number; build: number }>> => page.evaluate(() => JSON.parse(JSON.stringify(window.__stageedit?.session.data.heroes ?? {})));
 const MEDIA = process.env.PROP_MEDIA;
 const IDS = ['kit', 'rook', 'hex', 'sable'] as const;
 /** The index of each hero in the party (the order of the stage's lineup). */
@@ -48,12 +54,12 @@ test('the line-up shows each hero at the height and width heroes.json asks for, 
     expect(g.boxW).toBe(g.now.w);
   }
   if (HAVE_SPRITES) {
-    // Hex is the shortest, Sable the tallest, Rook a little taller and broader than Kit, Sable at least as broad as the humans.
+    // The ancestry order, measured on the baked pictures (not on the numbers): Hex shorter than Kit and Rook, Sable the tallest, Rook at least as tall as Kit.
     expect(got.hex?.now.h).toBeLessThan(got.kit?.now.h ?? 0);
+    expect(got.hex?.now.h).toBeLessThan(got.rook?.now.h ?? 0);
+    expect(got.sable?.now.h).toBeGreaterThan(got.kit?.now.h ?? 0);
     expect(got.sable?.now.h).toBeGreaterThan(got.rook?.now.h ?? 0);
-    expect(got.rook?.now.h).toBeGreaterThan(got.kit?.now.h ?? 0);
-    expect(got.rook?.now.w).toBeGreaterThan(got.kit?.now.w ?? 0);
-    expect(got.sable?.now.w).toBeGreaterThanOrEqual(got.kit?.now.w ?? 0);
+    expect(got.rook?.now.h).toBeGreaterThanOrEqual(got.kit?.now.h ?? 0);
   }
   // The heroes stand on their feet: the foot anchor is the row under the lowest sole of the baked picture.
   const feet = await page.evaluate(() => window.__stagelab?.scene()?.fighters.filter((f) => f.side === 'party').map((f) => f.fig.foot.y - 1 === f.fig.box.y1));
@@ -66,7 +72,8 @@ test('the heroes are the same size in the lab and in the editor (one global file
   try {
     await openLab(page, '?stage=street&set=3&clean');
     const lab = await sizes(page);
-    await openEditor(page, scratch);
+    // The lab reads Mark's current file, so the editor's copy must start from it too (not from the fixture).
+    await openEditor(page, scratch, '', { data: 'current' });
     const editor = await sizes(page);
     for (const id of IDS) expect(editor[id]?.now, id).toEqual(lab[id]?.now);
   } finally {
@@ -103,6 +110,9 @@ test('a hero selected shows the global Proportions group; Height previews live, 
   const scratch = scratchName('prop-ed');
   try {
     const { errors } = await openEditor(page, scratch);
+    // The numbers the scratch copy starts with (the fixture's): every later check is relative to these.
+    const start = await heroesInEditor(page);
+    const hex0 = (start.hex as { height: number }).height;
     // Nothing selected: no group (it belongs to a hero).
     await expect(page.locator('#inspector summary', { hasText: 'Proportions' })).toHaveCount(0);
     await selectHero(page, 'hex');
@@ -117,7 +127,7 @@ test('a hero selected shows the global Proportions group; Height previews live, 
     await expect(group).toContainText('Every battle uses this, on every stage.');
     await expect(group.locator('input[type=range]')).toHaveCount(2);
     const height = group.locator('input.num[aria-label="Height"]');
-    await expect(height).toHaveValue('0.8');
+    await expect(height).toHaveValue(String(hex0));
     await expect(group.locator('.rev').first()).toBeHidden();
     await expect(page.locator('#st-save')).toHaveText('Saved');
 
@@ -136,7 +146,7 @@ test('a hero selected shows the global Proportions group; Height previews live, 
     await expect(group.locator('.rev').first()).toBeVisible();
     await expect(page.locator('#b-save')).toHaveAttribute('title', /Save heroes\.json/);
     // The other heroes did not change, and a figure's anchor, box and shadow are the new picture's.
-    expect((await sizes(page)).kit?.now.h).toBe(Math.round((await sizes(page)).kit!.drawn.h * HEROES.kit!.height));
+    expect((await sizes(page)).kit?.now.h).toBe(Math.round((await sizes(page)).kit!.drawn.h * (start.kit as { height: number }).height));
 
     // Nothing piles up: dragging the slider a lot leaves one baked sheet per hero.
     await dragSlider(page, 'Height', [0.7, 0.75, 0.8, 0.9, 1.2, 1.3, 1.25], true);
@@ -149,7 +159,7 @@ test('a hero selected shows the global Proportions group; Height previews live, 
     await page.keyboard.press('Control+z');
     await flush(page);
     expect(await hexNow()).toBe(was);
-    expect(await page.evaluate(() => window.__stageedit?.session.data.heroes.hex?.height)).toBe(0.8);
+    expect(await page.evaluate(() => window.__stageedit?.session.data.heroes.hex?.height)).toBe(hex0);
     await expect(page.locator('#st-save')).toHaveText('Saved');
     await page.keyboard.press('Control+y');
     await flush(page);
@@ -223,6 +233,7 @@ test.describe('Battle Test with scaled frames', () => {
     const scratch = scratchName('prop-bt');
     try {
       const { errors } = await openEditor(page, scratch);
+      const rookNumbers = (await heroesInEditor(page)).rook as { height: number; build: number };
       await page.evaluate(() => {
         const e = window.__stageedit;
         if (!e) throw new Error('no editor');
@@ -260,9 +271,9 @@ test.describe('Battle Test with scaled frames', () => {
         return { stills: [...stills], hp0, hp1: bt.status().foes.map((f) => f.hp), plan: rook.plan ? { h: rook.plan.height, b: rook.plan.build } : null };
       });
       // Every picture of the strike is a baked one (the name carries Rook's numbers), and he does hit.
-      expect(result.plan).toEqual({ h: HEROES.rook?.height, b: HEROES.rook?.build });
+      expect(result.plan).toEqual({ h: rookNumbers.height, b: rookNumbers.build });
       expect(result.stills.length).toBeGreaterThan(5);
-      for (const s of result.stills) expect(s, s).toContain(`[${HEROES.rook?.height}x${HEROES.rook?.build}]`);
+      for (const s of result.stills) expect(s, s).toContain(`[${rookNumbers.height}x${rookNumbers.build}]`);
       expect(result.hp1.some((hp, i) => hp < (result.hp0[i] ?? 0))).toBe(true);
       expect(errors).toEqual([]);
     } finally {

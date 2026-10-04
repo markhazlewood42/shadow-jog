@@ -7,8 +7,10 @@
  * Battle Stage Editor runs live as warnings) is that list as a function; here the browser reports the figures' real
  * sizes and it is run on all 18 groups.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, type Page, test } from '@playwright/test';
-import { hideStatus, MARKS_FIGURE_BREAKS, openLab } from './stagelabkit';
+import { hideStatus, openLab } from './stagelabkit';
 
 type Scene = {
   config: { id: string };
@@ -26,6 +28,9 @@ declare global {
     __ss: () => Scene;
   }
 }
+
+/** The stages the shipped file holds (Mark may add one: nothing here hard-codes the list). */
+const STAGE_IDS = Object.keys(JSON.parse(readFileSync(join(process.cwd(), 'src/data/stages.json'), 'utf8')) as Record<string, unknown>);
 
 async function open(page: Page, query = ''): Promise<string[]> {
   await page.addInitScript(() => {
@@ -65,9 +70,9 @@ test('without the pickers (?clean) the page is only the stage', async ({ page })
   expect(errors).toEqual([]);
 });
 
-test('every enemy group on both stages passes the design’s figure checks with the real sprites', async ({ page }) => {
+test('every enemy group on both stages can be checked against the design’s figure rules with the real sprites (advice: a break is reported, never a failure)', async ({ page }) => {
   const errors = await open(page);
-  const result = await page.evaluate(async () => {
+  const result = await page.evaluate(async (stageIds) => {
     // (The addresses are variables so the type checker does not try to resolve them: the dev server serves them to the page.)
     const configUrl = '/src/stage/config.ts';
     const rulesUrl = '/src/stage/rules.ts';
@@ -75,27 +80,32 @@ test('every enemy group on both stages passes the design’s figure checks with 
     const { SET_KEYS } = await import(/* @vite-ignore */ configUrl);
     const { checkFigures, checkLayout } = await import(/* @vite-ignore */ rulesUrl);
     const s = window.__ss();
-    // Measure the figures as the editor and Battle Test draw them: with Mark's foot-anchor corrections (axes.json, Sable's -5).
-    // (The plain lab page does not load that file; the rules are the same either way, only Sable's edge moves by 5 px.)
+    // Measure the figures as the editor and Battle Test draw them: with Mark's foot-anchor corrections (axes.json).
     const { default: axes } = await import(/* @vite-ignore */ axesUrl);
     (s as unknown as { setAxes: (a: unknown) => void }).setAxes(axes);
     const report: string[] = [];
-    for (const stage of ['street', 'sewer']) {
+    let checked = 0;
+    for (const stage of stageIds) {
       s.showStage(stage);
       const cfg = (s as unknown as { config: unknown }).config;
       for (const p of checkLayout(cfg)) report.push(`${stage}: ${p}`);
       for (const key of SET_KEYS as string[]) {
         s.setEnemySet(key);
-        for (const p of checkFigures(cfg, s.figureBoxes())) report.push(`${stage} ${key}: ${p}`);
+        const boxes = s.figureBoxes() as Array<{ left: number; right: number }>;
+        // Every figure was measured: a box with no size would make the rules say nothing instead of the truth.
+        for (const b of boxes) if (!(b.right > b.left)) report.push(`${stage} ${key}: a figure has no width`);
+        checked += boxes.length;
+        for (const p of checkFigures(cfg, boxes)) report.push(`${stage} ${key}: ${p}`);
       }
     }
-    return report;
-  });
-  // Mark's own enemy slots (his edits in the Battle Stage Editor, commit 6364bb5) break a few of the design's figure rules.
-  // They are his taste calls, listed in `MARKS_FIGURE_BREAKS` (stagelabkit.ts) and shown as live warnings in the editor,
-  // and this test still catches every OTHER problem. If he moves those enemies (or changes the rules), edit that list.
-  const MARKS_CHOICES = MARKS_FIGURE_BREAKS;
-  expect(result.filter((p) => !MARKS_CHOICES.includes(p))).toEqual([]);
+    return { report, checked };
+  }, STAGE_IDS);
+  // Mark's stages break whichever of the design's rules he chooses to break. That is his call and the rules are advice (the editor
+  // lists them as warnings), so this test does not name them: it only checks that every enemy group was measured and the rules ran.
+  // What the breaks are, if any, goes into the report for the person reading the run.
+  expect(result.checked).toBeGreaterThan(0);
+  expect(result.report.filter((p) => p.endsWith('a figure has no width'))).toEqual([]);
+  if (result.report.length) test.info().annotations.push({ type: 'design-rule advice', description: result.report.join(String.fromCharCode(10)) });
   expect(errors).toEqual([]);
 });
 
@@ -133,7 +143,7 @@ test('the party table shows real numbers, and the moment changes what the HUD sa
 
 test('a wrong stage in the address is one readable message naming the stages there are, shown in red on the page', async ({ page }) => {
   await open(page, '?stage=moon');
-  expect(await page.evaluate(() => window.__stagelab?.error)).toBe('No stage "moon" (there is: street, sewer)');
+  expect(await page.evaluate(() => window.__stagelab?.error)).toBe(`No stage "moon" (there is: ${STAGE_IDS.join(', ')})`);
   await expect(page.locator('#status')).toHaveText(/No stage "moon"/);
   await expect(page.locator('#status')).toHaveClass(/bad/);
 });
