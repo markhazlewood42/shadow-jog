@@ -150,7 +150,7 @@ const all = await page.evaluate(async ({ jobs, MAXES }) => {
     // A thin dark line (a staff, an antenna, a whip) touches the outside everywhere too, but there
     // is nothing behind it: an outline has body next to it (diagonals count, for stair steps). Dark
     // edge pixels with no body anywhere around them stay, when there are at least 3 of them joined up
-    // (Mark, 2026-10-01: half of Sable's staff had gone in her down view).
+    // (Mark, 2026-10-01: half of Sable's staff had gone in his down view).
     const near8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
     const lone = new Set([...outline].filter((k) => {
       const [x, y] = k.split(',').map(Number);

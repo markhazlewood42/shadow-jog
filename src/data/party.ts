@@ -64,7 +64,7 @@ export const MEMBERS: Record<MemberId, MemberDef> = {
   },
   sable: {
     id: 'sable', name: 'Sable', role: 'Shaman', color: '#efe6cf', tpLabel: 'MANA',
-    bio: '24. Orc. Crow-sworn. Doesn’t remember how long they were in the tank.',
+    bio: '24. Orc. Crow-sworn. Doesn’t remember how long he was in the tank.',
     base: { hp: 40, tp: 16, str: 8, mnd: 14, agi: 8, def: 6 },
     growth: { hp: 7.6, tp: 3.6, str: 1.3, mnd: 2.6, agi: 1.2, def: 1.1 },
     startLevel: 5, crit: 3,

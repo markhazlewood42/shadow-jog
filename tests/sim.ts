@@ -93,7 +93,7 @@ export function policy(b: Battle, useCombos: boolean, bag: Bag = { medkit: 0 }, 
   };
 
   // Emergency medkit: one per round, for anyone below 30% HP, used by the healthiest member —
-  // unless Sable can cover it (she has TP, isn't the one in danger, and only one ally is).
+  // unless Sable can cover it (he has TP, isn't the one in danger, and only one ally is).
   const criticals = party.filter((p) => frac(p) < 0.3).sort((x, y) => x.hp - y.hp);
   const critical = criticals[0];
   const sableCovers = !!sable && sable.tp >= 3 && critical !== sable && criticals.length < 2;

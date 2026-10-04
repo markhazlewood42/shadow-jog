@@ -161,7 +161,7 @@ export const world: MapDef = {
         if (s.flag('warden')) await s.say('K-M Checkpoint', 'All units, Annex 7 is dark. Repeat, Annex 7 is— …Step back, citizen. Please. Today of all days.');
         else if (s.flag('lurker')) await s.say('K-M Checkpoint', 'Something tripped every sensor in the Sinkline an hour ago. Probably rats. Very large rats. …Why am I telling you this? Step back.');
         else if (s.flag('annex_key')) await s.say('K-M Checkpoint', 'Tonight’s registration drive is running late in the Lower Wards. If a van stops for you, get in. It is easier for everyone if you get in.');
-        else if (s.flag('hex_joined')) await s.say('K-M Checkpoint', 'Registered guests only. Your jockey friend is not a registered guest. We have her face on file. We have several of her faces on file.');
+        else if (s.flag('hex_joined')) await s.say('K-M Checkpoint', 'Registered guests only. Your jockey friend is not a registered guest. We have their face on file. We have several of their faces on file.');
         else {
           await s.say('K-M Checkpoint', 'Arcology access is restricted to Kessler-Mori personnel and registered guests.');
           await s.say('K-M Checkpoint', 'You are neither. Please step back from the checkpoint.');
@@ -191,7 +191,7 @@ export const world: MapDef = {
       // Pirate radio: she has already heard about whatever the crew just did.
       talk: async (s) => {
         if (s.flag('lurker')) await s.say('Static Mary', 'Breaking news on Radio Static: something the size of a train died under Junction 4. The rats are throwing a parade. Was that you? That was you.');
-        else if (s.flag('hex_joined')) await s.say('Static Mary', 'Hex! You tell Hex she still owes me a jingle. Thirty seconds. Something catchy about not paying people.');
+        else if (s.flag('hex_joined')) await s.say('Static Mary', 'Hex! You tell Hex they still owe me a jingle. Thirty seconds. Something catchy about not paying people.');
         else if (s.flag('met_dutch')) await s.say('Static Mary', 'K-M trucks have been going down the Sinkline at night. No lights, no plates. That’s tonight’s top story, and nobody’s listening.');
         else await s.say('Static Mary', 'You’re listening to Radio Static, the only station in Saltreach nobody paid for. Including me.');
         if (!s.flag('met_mary')) {

@@ -715,7 +715,7 @@ export class BattleRenderer {
   private orderRects: { source: readonly number[][] | null; side: 'left' | 'right'; rects: { x: number; y: number; w: number; h: number }[] } = { source: null, side: 'right', rects: [] };
 
 
-  /** Hex's deck, up over her card while a program runs: slides up, scrolls code, slides away. */
+  /** Hex's deck, up over their card while a program runs: slides up, scrolls code, slides away. */
   private renderDeckCutin(ctx: Ctx): void {
     const t = this.s.deckT;
     const i = this.s.battle.party.findIndex((p) => p.key === 'hex');

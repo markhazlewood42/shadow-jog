@@ -3,7 +3,7 @@ type: reference
 title: Shadow Jog — Setting Bible
 project: shadow-jog
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-03
 tags: [setting, lore, history, worldbuilding]
 ---
 
@@ -215,7 +215,7 @@ as good with machines, which Hex finds tiresome and accurate.
 - **Binding** [canon: wards, binding circles]: caging a spirit with corporate glyphs. Canal shamans consider it the
   worst thing a person can do.
 - **Cost:** extraction doesn't kill quickly. Subjects lose memory, then time, then themselves. Sable "doesn't
-  remember how long they were in the tank" [canon]; S-5 and S-6's pods "went dark" [canon].
+  remember how long he was in the tank" [canon]; S-5 and S-6's pods "went dark" [canon].
 
 ---
 
@@ -284,6 +284,8 @@ Static Mary's pirate station [canon]. [new:] It moves every week; the mast on he
 ## 9. Key figures
 
 ### The crew
+*Pronouns (Mark, 2026-10-03):* Kit she/her, Rook he/him, Hex they/them, Sable he/him. Hex was she/her and Sable was they/them before this date.
+
 - **Kit** [canon: 19, ki brawler, Lantern Row born, Rook raised, magic "started last month"].
   [new:] Her mother was **Mara Oduya**, Low Tide's point runner, a ki brawler whose signature was the Flash Step
   [canon: the Old Runner's "she'd blur in fast"]. Mara vanished on a run in 2064. Kit doesn't know what the run
@@ -293,12 +295,12 @@ Static Mary's pirate station [canon]. [new:] It moves every week; the mast on he
   she disappeared. He never told Kit that it was a K-M job.
 - **Hex** [canon: 34, dwarf, deck jockey, genius, insomniac, debts].
   [new:] Born **Hester Xu** ("Hex" since the playground), human; recast at six. Came up through the arcology's own coding academy on a
-  scholarship, and walked out at 19 when she saw what she was building. That's why K-M has "several of her faces on
+  scholarship, and walked out at 19 when they saw what they were building. That's why K-M has "several of their faces on
   file" [canon].
 - **Sable** [canon: 24, orc shaman, crow-sworn, asset S-7, spark yield 94%].
-  [new:] Raised on a canal boat by a family of shamans; the crow was their grandmother's totem before it chose Sable.
-  Registered at 18 under pressure from Civic Security, "awarded" a scholarship, and put in the tank in 2074. Their
-  family has been hanging a lantern for them at the Drowned Saint for five years.
+  [new:] Raised on a canal boat by a family of shamans; the crow was his grandmother's totem before it chose Sable.
+  Registered at 18 under pressure from Civic Security, "awarded" a scholarship, and put in the tank in 2074. His
+  family has been hanging a lantern for him at the Drowned Saint for five years.
 
 ### Lantern Row
 - **Dutch** [canon: fixer, the Drowned Saint, knew the Glass Wolves took the job first].

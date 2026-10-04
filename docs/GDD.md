@@ -43,13 +43,13 @@ the glossary as a whole at the end of the alpha.
 1. **Cold open (comic panels).** Rain over the city. Rook and Kit on a rooftop. "One last easy job, then we eat."
 2. **Lantern Row.** Fixer **Dutch** at the *Drowned Saint* bar introduces **Mr. Pale** (a Johnson). The job: retrieve a
    "data core" from a derelict Kessler-Mori research annex under the flooded Sinkline. Doors are corp-locked → need a deck jockey.
-3. **Hex.** Dwarf deck jockey, holed up in her den, deck fried. She'll come if the crew fetch a replacement
+3. **Hex.** Dwarf deck jockey, holed up in their den, deck fried. They'll come if the crew fetch a replacement
    coprocessor from **Old Mags** in Rustyard.
 4. **Rustyard.** Scav camp under siege from a Rustfang gang pack. Clear them → Mags hands over the part. Hex joins.
 5. **The Sinkline B1.** Flooded platforms, maintenance catwalks, a dead rival crew (foreshadowing). Hex hacks the
    floodgate; mid-boss **The Lurker** (Woken eel) guards the junction.
 6. **K-M Annex B2.** Sterile labs. Terminals with lore. The "data core" is a cryopod: **Sable**, an orc shaman being
-   drained of their magic. Kit's latent power flares in resonance. Sable joins. Alarm.
+   drained of his magic. Kit's latent power flares in resonance. Sable joins. Alarm.
 7. **Boss: WARDEN.** Security mech with a bound spirit for a core; phase 2 when the spirit tears loose.
 8. **Betrayal.** Mr. Pale waits at Loading Dock 7 with a K-M strike team. It was never a job — it was a retrieval of
    stolen property (Sable is "Asset S-7"), and the crew are now loose ends. Rook's flashbang buys eleven seconds; he
@@ -63,7 +63,7 @@ the glossary as a whole at the end of the alpha.
 
 | | Kit | Rook | Hex | Sable |
 |---|---|---|---|---|
-| Pronouns | she/her | he/him | she/her | they/them |
+| Pronouns | she/her | he/him | they/them | he/him |
 | Folk / age | Human, 19 | Human, 41 | Dwarf, 34 | Orc, 24 |
 | Role | Ki brawler (magic-fuelled martial artist) | Street samurai (heavily chromed, no magic) | Deck jockey (programs vs machines, debuffs) | Shaman (healing, spirits, fire) |
 | Resource | TP (Ki) | Skills only (TP 0) | TP (RAM) | TP (Mana) |
@@ -119,7 +119,7 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 * Levels 1–30 (`MAX_LEVEL`). **Chapter 1 ends around level 6** without grinding (retuned 2026-09-29 after Mark's first playthrough; it was 8–9), treating the chapter as about a tenth of the full game. Levels are rarer, so each carries more growth, and **a level-up is a full recovery** (HP, TP, charges). It plays as a moment: a fanfare, each stat counting up
   in turn, then the restore and anything learned.
 * **New abilities are rare.** In Chapter 1 only three come from levels (Kit: Iron Palm at 3, Hundred Rain at 5; Hex: Scramble at 4). The rest come from the story: seating the Stingray gives Hex **Overload**; Rook gets his locked skills back in two beats. The capstones (Moonfall, Dragon Coil, Rekindle, Wildfire) and Spirit Walk's parts wait for later chapters; 8 of the 9 combos are reachable in Chapter 1.
-* **Rook is a veteran (level 10) who starts the chapter wounded:** less HP, ATK and AGI, a charge short on every skill, four skills locked. Hex re-tunes his chrome when the Stingray boots (half the penalty lifts; Suppression and Incendiary Round come back); Sable closes the wound when she joins (whole again; Guardian and Stim Rush). Joiners and prices follow the crew's level, not his.
+* **Rook is a veteran (level 10) who starts the chapter wounded:** less HP, ATK and AGI, a charge short on every skill, four skills locked. Hex re-tunes his chrome when the Stingray boots (half the penalty lifts; Suppression and Incendiary Round come back); Sable closes the wound when he joins (whole again; Guardian and Stim Rush). Joiners and prices follow the crew's level, not his.
 * Equipment slots: Weapon, Body, Head, Mod (cyberware/fetish accessory). Class restrictions apply.
 * XP goes in full to every conscious member. Downed members get none.
 

@@ -7,7 +7,7 @@ export const BW = 240, BHT = 135;
 export const PANEL_Y = 214;
 /** Party feet sit well below the panel top (107): an over-the-shoulder view of heads, shoulders and raised arms. */
 export const PARTY_BOTTOM = 127;
-/** Effect frames Hex's deck stays up over her card when she runs a program. */
+/** Effect frames Hex's deck stays up over their card when they run a program. */
 export const DECK_CUT_LIFE = 56;
 /** Battle menus hug the screen edge; CMD_W fits "Programs"/"Spirits" plus the cursor. */
 export const MENU_X = 4, CMD_W = 84;

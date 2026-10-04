@@ -408,6 +408,21 @@ describe('saves record the build that wrote them', () => {
     expect(savedByVersion(1)).toBeNull();
   });
 
+  it('a save that stored the old wording of an objective loads with today\'s wording (Hex: they/them)', async () => {
+    const { OBJ } = await import('../src/story/chapter1');
+    const old = 'Find Hex. She lives above Chrome+Circuit, by the canal.';
+    expect(OBJ.hex).not.toBe(old);
+    writeSave(1, 100);
+    const raw = JSON.parse(ls().getItem('shadowjog.save.1')!);
+    raw.state.flags.objective = old; // a current-format save made after meeting Dutch, before meeting Hex
+    ls().setItem('shadowjog.save.1', JSON.stringify(raw));
+    expect(loadSave(1)?.flags.objective).toBe(OBJ.hex);
+    // Any other objective text is left alone.
+    raw.state.flags.objective = 'Find a way across the flooded junction.';
+    ls().setItem('shadowjog.save.1', JSON.stringify(raw));
+    expect(loadSave(1)?.flags.objective).toBe('Find a way across the flooded junction.');
+  });
+
   it('the appVersion is additive: no SAVE_VERSION bump and no migration were needed for it', () => {
     expect(stateMod.SAVE_VERSION).toBe(3);
     expect(Object.keys(MIGRATIONS).map(Number).sort()).toEqual([1, 2]);

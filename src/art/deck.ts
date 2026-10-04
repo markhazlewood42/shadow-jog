@@ -1,6 +1,6 @@
 /**
  * Hex's cyberdeck, drawn in code like everything else: a rugged slab with a hinged screen, a
- * keyboard she's re-legended by hand, a whip antenna, sticker-bombed plating and, on the right, the
+ * keyboard they've re-legended by hand, a whip antenna, sticker-bombed plating and, on the right, the
  * coprocessor bay the Stingray sits in. The static body is painted once and cached; the screen,
  * the LEDs and the chip are drawn over it each frame by the scenes that show it (deck.ts, and the
  * battle cut-in).

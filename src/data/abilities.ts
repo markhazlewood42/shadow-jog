@@ -334,7 +334,7 @@ export const LEARNSETS: Record<string, Learn[]> = {
     { level: 8, id: 'firewall' },
     { level: 12, id: 'hijack' },
   ],
-  // Sable joins last, at 5, with four (heal, fire, rain, ward); she learns nothing more in Chapter 1.
+  // Sable joins last, at 5, with four (heal, fire, rain, ward); he learns nothing more in Chapter 1.
   sable: [
     { level: 1, id: 'mend' },
     { level: 1, id: 'firebrand' },

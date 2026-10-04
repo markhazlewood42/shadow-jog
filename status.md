@@ -91,7 +91,7 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
   not in git) records the game as it stands with everything made in code, before any AI-generated art. Shot by
   `node scripts/trailer.mjs`; re-shoot after the art changes for the "after".
 - **Mark's review of the code-drawn art (2026-10-01): every asset marked Best.** His three notes are done (new
-  versions on the review page): Sable's staff was half gone in her down view (the tracer took a thin dark staff for
+  versions on the review page): Sable's staff was half gone in his down view (the tracer took a thin dark staff for
   outline; it now keeps thin dark lines with nothing behind them, which also restored Hex's antenna and a few
   enemy details); the hooded scav townsperson (pool 6) has a human face instead of the gas mask he read as an ewok
   (`FACE_FIXES` in `scripts/art/trace.mjs`); Rook's portrait is traced from round 2's first redo, made from the
@@ -164,7 +164,7 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
   iteration is rendered onto /artreview.html (`scripts/art/review-rig.mjs`) as a new version beside the old sprite
   and the PixelLab pick.
   **Rig v2 progress (2026-09-30, while Mark was away):** the crew's battle backs (Kit from her stance; Rook draws
-  and swings a code-drawn katana, the hilt leaving his back; Hex aims a code-drawn pistol; Sable lifts and swings her
+  and swings a code-drawn katana, the hilt leaving his back; Hex aims a code-drawn pistol; Sable lifts and swings his
   staff), with drawn light per pose; every NPC and townsperson on the rig (traced from their PixelLab standing
   frames, including the four he turned down for walk glitches, since the rig's walk replaces PixelLab's); passers-by
   take the 8 townsfolk looks in turn. The traced data loads from `public/art/rig/*.json` at startup (it pushed the

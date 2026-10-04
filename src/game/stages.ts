@@ -22,7 +22,7 @@ function crew(members: Partial<Record<MemberId, Kit>>): void {
   }
 }
 
-const FLAGS_BEFORE_HEX = { intro: true, first_fight: true, met_dutch: true, 'visit:lantern_row': true, 'visit:world': true, objective: 'Find Hex. She lives above Chrome+Circuit, by the canal.' };
+const FLAGS_BEFORE_HEX = { intro: true, first_fight: true, met_dutch: true, 'visit:lantern_row': true, 'visit:world': true, objective: 'Find Hex. They live above Chrome+Circuit, by the canal.' };
 const FLAGS_SINKLINE = {
   ...FLAGS_BEFORE_HEX, met_hex: true, rustyard_gate: true, knuckles: true, coprocessor_given: true, hex_joined: true, sinkline_gate: true, 'visit:rustyard': true, 'visit:sinkline_1': true,
   // The Stingray is seated (Hex's Overload) and Rook's chrome re-tuned (two skills back).
