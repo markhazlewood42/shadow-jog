@@ -237,6 +237,7 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | Term | Meaning |
 |---|---|
 | **TP** | The umbrella name for a member's resource: KI (Kit), RAM (Hex), MANA (Sable). Rook has none. |
+| **Battle Test** | (Dev tool, not in the game.) The Battle Stage Editor's button that runs a real fight on the stage as it is in the page, saved or not. Named after RPG Maker's. A **move** there is a frame list in `src/data/moves.json`; a **still** is one picture of a move with its stand-on point (**axis**). |
 | **Techs** | Abilities paid for in TP (Ki Arts, programs, spirit-work). |
 | **Skills** | Abilities with a limited number of uses per rest (all of Rook's, plus a few for everyone). |
 | **Combos** | Two or three members' moves fused when ordered in the same round. Thunder Rift, Target Lock, Ghost Circuit, Pyre Storm, Spirit Walk, Crow's Wing, Lifeline, Blackout, and **Clean Job** (the three-part one). Each has a caller who says a line. Since 2026-09-29 Spirit Walk needs abilities past Chapter 1's levels, so it waits for a later chapter. |
@@ -250,6 +251,16 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | **Two of a kind** | Enemies of the same kind in one fight are lettered (Glowrat A, Glowrat B), in their names, the turn strip and, on machines, a stencil. |
 | **Families** | Human, Machine, Beast, Spirit, Ghoul (each with its own weaknesses). |
 | **Bestiary**, **Places**, **Combo log** | The menu's records. |
+| **NOW chip** | On the side-view battle's turn timeline, the portrait at the left that shows whose turn it is; the next turns follow along the line (heroes above it, enemies below, with a red rim and a pink corner flag). The one acting **next** has an amber glow; after a round tick the line previews the following round in dim chips. |
+| **Hero colour** | Each hero's one colour (Kit coral, Rook sand, Hex lilac, Sable cream; `color` in `src/data/party.ts`). The side-view HUD uses it for the name in the party table, the rim of the hero's turn chip and the name tab over the acting hero. Cyan is not a hero colour: it always means "the one acting now" (the ring, the table row, the tab's stripe). |
+| **Bottom band** | In the side-view battle, the party table, the command strip and the enemy box sit along the bottom as one window with a divider between them. During an action the command strip stays in its slot, dimmed. |
+| **Command codes** | The three-letter names under the command icons (ATK, SKL, CMB, ITM, GRD) so no icon is a mystery; the lit icon also gets its full name and cost (or a one-line hint) on the strip's caption line. |
+| **Hit counter** | The small box at the top right while an action plays: how many hits the crew has landed this round, and their total damage. |
+| **Stage** (battleground) | (Dev tool word.) One place where fights happen, such as the street or the sewer: backdrop, horizon and floor, depth rows, and where the heroes and each enemy count stand. Lives in `src/data/stages.json`; a map names it per area with `bg`. It does not say WHO fights (that is the encounter, an RPG Maker "troop"). |
+| **Mirror** (enemy facing) | (Dev tool word.) Flipping an enemy's picture left-to-right so it looks at the heroes, who stand on the left. Which enemy sprites are mirrored is `src/data/enemyfacing.json`; the Battle Stage Editor's "Mirror (face the heroes)" switch edits it for every appearance of that enemy. |
+| **Hero proportions** (Height, Build) | (Dev tool word.) How tall and how broad each hero stands in battle, as a multiple of the drawn picture: Kit and Rook are human, Hex is a dwarf (shorter, stouter), Sable is an orc (taller, broad). Two numbers per hero in `src/data/heroes.json`, the same in every battle; the Battle Stage Editor's "Proportions" group edits them. Made by adding or removing whole rows and columns of pixels, never by stretching (`docs/CONCEPTS.md`). |
+| **Global HUD** | The one battle HUD layout every fight uses (`src/data/hud.json`). A stage may override single boxes; it then keeps only the fields that differ. The Battle Stage Editor calls this switch "Different on this stage". |
+| **Depth haze** | In the side-view battle, fighters on the back rows are blended a little toward the stage's fog colour, so distance reads without shrinking anyone. |
 
 ---
 
