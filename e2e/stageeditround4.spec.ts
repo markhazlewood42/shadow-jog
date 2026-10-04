@@ -141,16 +141,14 @@ test('Right for one enemy packs around a neighbour on its row that is not select
 
 test('a single hero aligned Right stops short of the enemies: the 55 px gap rule still holds, and the status line says so', async ({ page }) => {
   await openEditor(page, scratch);
-  // The gap warnings the street already has before anything is aligned (Mark's enemy slots with the mirrored art; see MARKS_FIGURE_BREAKS).
   const gapWarnings = () => page.evaluate(() => (window.__stageedit?.warnings() ?? []).filter((w) => w.stageId === 'street' && (w.rule === 'gap' || w.rule === 'nearest')).map((w) => `${w.setKey}: ${w.text}`));
-  const before = await gapWarnings();
+  expect(await gapWarnings()).toEqual([]); // the street has none to begin with
   await page.locator('#heroes li', { hasText: 'Rook' }).click();
   await page.keyboard.press('d');
   await flush(page);
   const text = await msg(page);
   expect(text).toMatch(/55 px between the sides/);
-  // Aligning the hero to the right adds no gap warning of its own: every one there now was there before.
-  expect((await gapWarnings()).filter((w) => !before.includes(w))).toEqual([]);
+  expect(await gapWarnings()).toEqual([]);
   const h = await edges(page, 'party');
   expect(h[1]?.right).toBeLessThan(240);
   expect(h[1]?.right).toBeGreaterThan(150);

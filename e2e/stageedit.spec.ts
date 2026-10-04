@@ -426,19 +426,19 @@ test('Shift while dragging locks a fighter to sideways or up and down (whichever
   const { errors } = await openEditor(page, scratch);
   const punk = await bodyOf(page, 'enemy', 0);
   const before = (await stageOf(page)).enemySets['3']?.[0];
-  expect(before).toEqual({ x: 300, row: 0 });
+  expect(before).toEqual({ x: 309, row: 0 });
   // A diagonal drag with Shift held: 30 left, 20 down. Sideways wins, so the row (and the small nudge) stay exactly as they were.
   await page.keyboard.down('Shift');
   await dragGame(page, { x: punk.x, y: punk.y }, { x: punk.x - 30, y: punk.y + 20 });
   await page.keyboard.up('Shift');
   const sideways = (await stageOf(page)).enemySets['3']?.[0];
-  expect(sideways).toEqual({ x: 270, row: 0 });
+  expect(sideways).toEqual({ x: 279, row: 0 });
   expect((await saved(page)).changes).toBe(1);
   // The same diagonal without Shift moves both ways (the row follows the pointer down).
   const again = await bodyOf(page, 'enemy', 0);
   await dragGame(page, { x: again.x, y: again.y }, { x: again.x + 12, y: again.y + 40 });
   const free = (await stageOf(page)).enemySets['3']?.[0];
-  expect(free?.x).toBe(282);
+  expect(free?.x).toBe(291);
   expect(free?.row).toBeGreaterThan(0);
   // Shift with a mostly vertical drag keeps x exactly where it was.
   const third = await bodyOf(page, 'enemy', 0);
@@ -447,7 +447,7 @@ test('Shift while dragging locks a fighter to sideways or up and down (whichever
   await dragGame(page, { x: third.x, y: third.y }, { x: third.x + 6, y: third.y - 34 });
   await page.keyboard.up('Shift');
   const up = (await stageOf(page)).enemySets['3']?.[0];
-  expect(up?.x).toBe(282);
+  expect(up?.x).toBe(291);
   expect(up?.row).toBeLessThan(rowBefore);
   expect(errors).toEqual([]);
 });
