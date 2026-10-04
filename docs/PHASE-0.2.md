@@ -483,7 +483,7 @@ Options: (a) correct both docs now; (b) leave them until a dependency actually l
 Options: (a) keep creatures and bosses large, re-art the humanoid regulars to party scale; (b) re-scale all 21; (c) keep everything as-is.
 **Recommendation: (a)**, the Final Fantasy VI approach, which also makes bosses more of a spectacle. Knuckles can stay big on the `brute` sprite. Decide this after the spike's scale check.
 
-**9. Is the Phaser tooling spike a GO or a NO-GO? (added 2026-10-04)** — **OPEN. Due 2026-10-09 (the time box).** The test that decides is Mark's: open `/stageedit.html`, change a stage, save and run a Battle Test in under one minute (steps in the spike doc's "Try it", on branch `spike/phaser-stage`). All the exit criteria that agents can check hold. The branch tip is `4290feb` (CI fix `8ad78bf`) ([PR #4](https://github.com/markhazlewood42/shadow-jog/pull/4), draft, never merged).
+**9. Is the Phaser tooling spike a GO or a NO-GO? (added 2026-10-04)** — **OPEN. Due 2026-10-09 (the time box).** The test that decides is Mark's: open `/stageedit.html`, change a stage, save and run a Battle Test in under one minute (steps in the spike doc's "Try it", on branch `spike/phaser-stage`). All the exit criteria that agents can check hold. The CI fix is `8ad78bf` ([PR #4](https://github.com/markhazlewood42/shadow-jog/pull/4), draft, never merged).
 Options: (a) GO for the toolset: build the next tools (the troop editor, then the Animation Composer) on this editor shell, and do not port the shipped game. (b) NO-GO: archive the spike (tag `archive/phaser-stage-YYYY-MM-DD`, close the PR, delete the branch). (c) GO and also plan a port of the shipped game (the agents do not recommend this on this evidence).
 **Recommendation: (a).**
 
