@@ -9,6 +9,7 @@
  */
 import { expect, type Page, test } from '@playwright/test';
 import type { HudLayout, StageConfig, StageEntry } from '../src/stage/config';
+import { RULE_LIMITS } from '../src/stage/rules';
 import { bodyOf, canvasRect, dragGame, dropScratch, flush, openEditor, scratchName, toScreen, waitReady } from './stageeditkit';
 
 /** The session's current stage as the file holds it (its HUD is only this stage's overrides), as plain data. */
@@ -526,14 +527,40 @@ test('Align: select Rook and line him up in one click; the single-letter keys do
   await expect(page.locator('#st-msg')).toContainText('left edge');
   // Each press is one undo step.
   expect((await saved(page)).changes).toBe(4);
-  // Several: the heroes line up with each other on the back-most row they use. The four of them are 226 px wide with their gaps, more than the 205 px the heroes have
-  // once the 55 px gap to the enemies is kept (round 4), so the one that does not fit stays where it was and the status line says so.
+  // Several: the heroes line up with each other on the back-most row they use, as a block of drawn pictures kept `gap` px from the nearest enemy.
+  // Whether all four fit depends on how wide the art is (Mark's Sprite Fusion crew are wider than the stand-in figures CI draws), so the test measures the
+  // heroes and the room first and asserts the branch that the numbers call for: everyone lands on the back row, or the ones that do not fit stay put and say so.
+  const before = (await stageOf(page)).party.map((q) => ({ ...q }));
+  const room = await page.evaluate((gap) => {
+    const sc = window.__stagelab?.scene();
+    const ed = window.__stageedit;
+    if (!sc || !ed) return null;
+    const heroes = sc.fighters.filter((f) => f.side === 'party');
+    const widths = heroes.map((f) => {
+      const b = sc.boxOf(f);
+      return Math.max(0, f.x - b.left) + Math.max(0, b.right - f.x);
+    });
+    // The nearest enemy's drawn left edge over every enemy group of the stage (a hero must stay `gap` px left of it).
+    const lefts = Object.keys(sc.config.enemySets).flatMap((key) => sc.figureBoxesFor(sc.config, key, ed.view.roster(ed.session.stage, key)).filter((b) => b.side === 'enemy').map((b) => b.left));
+    return { need: widths.reduce((n, w) => n + w, 0) + 2 * (heroes.length - 1), have: Math.min(240, Math.min(...lefts) - gap) };
+  }, RULE_LIMITS.gap);
+  expect(room).not.toBeNull();
+  const allFit = (room?.need ?? 0) <= (room?.have ?? 0);
+  test.info().annotations.push({ type: 'align-branch', description: `${allFit ? 'all four fit' : 'not enough room'} (need ${room?.need} px, have ${room?.have} px)` });
   await page.keyboard.press('Control+a');
   await page.keyboard.press('w');
-  const rows = (await stageOf(page)).party.map((q) => q.row);
-  expect(new Set(rows).size).toBe(2);
-  expect(rows.filter((r) => r === 0).length).toBe(3);
-  await expect(page.locator('#st-msg')).toContainText('stayed: not enough room');
+  const after = (await stageOf(page)).party;
+  if (allFit) {
+    expect(after.map((q) => q.row)).toEqual([0, 0, 0, 0]);
+    await expect(page.locator('#st-msg')).not.toContainText('stayed: not enough room');
+  } else {
+    // The ones that do not fit stay EXACTLY where they were (so they keep a row below the back one, or the back-row spot they held), the rest are on the back row.
+    const kept = after.flatMap((q, i) => (q.row !== 0 ? [i] : []));
+    expect(kept.length).toBeGreaterThanOrEqual(1);
+    expect(kept.length).toBeLessThan(after.length);
+    for (const i of kept) expect(after[i]).toEqual(before[i]);
+    await expect(page.locator('#st-msg')).toContainText('stayed: not enough room');
+  }
   // With three or more selected the bar also offers an even spread.
   await expect(page.locator('.alb[data-align="spreadAcross"]')).toBeVisible();
   await page.keyboard.press('x');
