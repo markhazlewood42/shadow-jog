@@ -1,0 +1,6 @@
+{
+  "kit": { "height": 1.05, "build": 1 },
+  "rook": { "height": 1.07, "build": 1.08 },
+  "hex": { "height": 0.8, "build": 1 },
+  "sable": { "height": 1.27, "build": 1.15 }
+}

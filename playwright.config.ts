@@ -22,9 +22,16 @@ export default defineConfig({
       },
     },
     // Safari's and Firefox's engines on CI (or PW_ALL_ENGINES=1 locally), for the flows most
-    // likely to differ between engines: storage, the unload prompt, keyboard, audio unlock.
+    // likely to differ between engines: storage, the unload prompt, keyboard, audio unlock, and
+    // WebGL2 itself: e2e/sje3d-browsers.spec.ts runs the engine's 3D path (Pixi first, Three later,
+    // on one shared context) in each engine, on the CI runner's software WebGL2.
     ...(process.env.CI || process.env.PW_ALL_ENGINES
-      ? (['webkit', 'firefox'] as const).map((b) => ({ name: b, use: { browserName: b }, testMatch: /(prod|gameover)\.spec\.ts/ }))
+      ? (['webkit', 'firefox'] as const).map((b) => ({
+          name: b,
+          // PW_FIREFOX_PATH: a local Firefox build to use when the one this Playwright wants is not installed (a build of an earlier Playwright works).
+          use: { browserName: b, ...(b === 'firefox' && process.env.PW_FIREFOX_PATH ? { launchOptions: { executablePath: process.env.PW_FIREFOX_PATH } } : {}) },
+          testMatch: /(prod|gameover|sje3d-browsers)\.spec\.ts/,
+        }))
       : []),
   ],
   webServer: [

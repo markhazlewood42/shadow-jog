@@ -1,0 +1,145 @@
+{
+  "generatedBy": "scripts/sjestage-refs.mjs",
+  "w": 480,
+  "h": 270,
+  "slice": {
+    "stageId": "street",
+    "setKey": "1",
+    "lineup": [
+      "kit"
+    ],
+    "enemies": [
+      "rustfang_punk"
+    ],
+    "active": 0,
+    "target": 0,
+    "seed": 7,
+    "ticks": [
+      0,
+      41,
+      173
+    ],
+    "haze": {
+      "lineup": [
+        "kit",
+        "hex",
+        "rook",
+        "sable"
+      ],
+      "setKey": "3",
+      "enemies": [
+        "rustfang_punk",
+        "glowrat",
+        "rustfang_punk"
+      ],
+      "ticks": [
+        41
+      ]
+    }
+  },
+  "inputs": {
+    "src/data/stages.json": "b91d2c096ce75c8e54ca1624a73b84e1d9d6d85850fc7d9fe05bf88f8c3bff4e",
+    "src/data/hud.json": "dde7f1424750f06e6d2449aed6c8f4d0ce4972f443b1e1c4d9da9c1111cef1bb",
+    "src/data/heroes.json": "1e7edcb4404770e278e41d422aa62a0d4bcdaba45586b659311d883853eb1163",
+    "src/data/enemyfacing.json": "cc66055501bc413352ff1f060a4e4ed78fbb8a22b14afd487ecf7079368813cf",
+    "src/data/enemies.ts": "900191e469c85cc389f390e0528599902f48d79344824d896a2045b0fdf20141",
+    "src/data/axes.json": "b1c1fff485a4a574c5a78d346a9f377a0870a498c4e305e4de8620e4c652d10c",
+    "public/art/rig/battle.json": "2588f43c0f925e4b0569c730e0476b150ff5ba2d60641e79c999df5a13692aea",
+    "public/art/rig/enemies.json": "31200e7819f0975b18fad11c18d69b9f5498265b8dcf6d80284b962273e0644a",
+    "public/art/rig/field.json": "71b4ab199b41f0af529e9eab79b83cae758c9ad283cb7427d75a9498f6da19f3",
+    "public/art/rig/portraits.json": "9778a9fbea008944a6782a680d7b2c84a52c0b02e7961521ea5cd84bd3f9f992",
+    "public/art/rig/skeleton.json": "3c923ff806bfd591fd3a2db92185a21c9359a9f6d7f31c40447cfbcd1c29ec00"
+  },
+  "phaserCommit": "9179d980491abe27b2a081c71dafa4e89c88b8f6",
+  "kind": "soft",
+  "modes": {
+    "standins": {
+      "renderer": "WEBGL",
+      "figures": [
+        {
+          "id": "kit",
+          "side": "party",
+          "depth": 207092,
+          "x": 46,
+          "y": 207
+        },
+        {
+          "id": "rustfang_punk#0",
+          "side": "enemy",
+          "depth": 157239,
+          "x": 361,
+          "y": 157
+        }
+      ],
+      "hazeFigures": [
+        {
+          "id": "kit",
+          "side": "party",
+          "depth": 207092,
+          "x": 46,
+          "y": 207
+        },
+        {
+          "id": "hex",
+          "side": "party",
+          "depth": 191176,
+          "x": 88,
+          "y": 191
+        },
+        {
+          "id": "rook",
+          "side": "party",
+          "depth": 174260,
+          "x": 130,
+          "y": 174
+        },
+        {
+          "id": "sable",
+          "side": "party",
+          "depth": 157334,
+          "x": 167,
+          "y": 157
+        },
+        {
+          "id": "rustfang_punk#0",
+          "side": "enemy",
+          "depth": 140329,
+          "x": 316,
+          "y": 140
+        },
+        {
+          "id": "glowrat#1",
+          "side": "enemy",
+          "depth": 174169,
+          "x": 396,
+          "y": 174
+        },
+        {
+          "id": "rustfang_punk#2",
+          "side": "enemy",
+          "depth": 207285,
+          "x": 338,
+          "y": 207
+        }
+      ]
+    }
+  },
+  "files": {
+    "standins-soft-t0.rgba": {
+      "bytes": 518400,
+      "sha256": "decdbbe7b6c550df8851a1c4ef324fdc8d5baa4de31041688956baad5a1b7757"
+    },
+    "standins-soft-t41.rgba": {
+      "bytes": 518400,
+      "sha256": "e967b33a5a8bd04d6de95455bc59d0eba15dcba07a94b475304286b04957654f"
+    },
+    "standins-soft-t173.rgba": {
+      "bytes": 518400,
+      "sha256": "6c3eea6cc7fd0ac841f75dac2a76843ce1b0ec833fc359db28637fe755a8cee9"
+    },
+    "standins-soft-haze-t41.rgba": {
+      "bytes": 518400,
+      "sha256": "f20aac4c320ee43eba9064ab84d9f1d9bb70b3615b673999680e7c131765db8c"
+    }
+  }
+}

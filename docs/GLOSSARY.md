@@ -349,6 +349,7 @@ yet.
 | **Fathom Systems** | The makers of the Stingray (the fin logo). |
 | **Low Tide** | Rook's old crew: Rook, Mara Oduya, Juniper (jockey), Sal (driver). |
 | **Invented names** | Kit's mother Mara Oduya; Rook as Emil Rourke; Hex as Hester Xu; Dutch as Dirk Vandermeer; Mags as Margarethe Brannock; Knuckles as Duc Tran; Glass Wolves leader Ines Calder; K-M CEO Helena Mori; Vessel's director Dr. Anselm Vey-Hart; the Warden's spirit, Ada. |
+| **ICE**, **TRACE**, **NODE**, **persona** | Placeholder words on the HUD and in the code of the engine spike's TEST hack (a 3D hacking scene: code names `hack`, `HackScene`, `Scene3D`; decision E25). They are not canon and not in the game. Mark names the mode later, and this row becomes one entry. Dev lab only (`/sjelab.html`). |
 
 ---
 

@@ -14,12 +14,13 @@ import type { Ctx } from './canvas';
 import { reportError } from './errors';
 import { postfx } from './postfx';
 import type { Input } from './input';
+import { H, W } from '../sje/core/size';
 
 /** Consecutive faulting ticks before the game gives up on the current flow. */
 export const FAULT_LIMIT = 30;
 
-export const W = 480;
-export const H = 270;
+// The picture size has one source, src/sje/core/size.ts; everything that imports W and H from here still works.
+export { H, W };
 export const FPS = 60;
 
 export abstract class Scene<R = unknown> {

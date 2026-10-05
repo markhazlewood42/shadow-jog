@@ -1,0 +1,107 @@
+{
+  "medic": {
+    "mirror": false,
+    "facing": "front",
+    "note": "Looks at the camera. The raised syringe is on the left of the picture, already toward the heroes. The bag hangs on the right hip."
+  },
+  "punk": {
+    "mirror": true,
+    "facing": "front",
+    "note": "Looks at the camera. The club is held out to the right of the picture, so it is mirrored to swing toward the heroes. The red logo on the vest is reversed."
+  },
+  "slinger": {
+    "mirror": false,
+    "facing": "front",
+    "note": "Looks at the camera. The lit bottle is held up on the left of the picture, already toward the heroes."
+  },
+  "rat": {
+    "mirror": false,
+    "facing": "left",
+    "note": "Side view: head and nose on the left, tail on the right."
+  },
+  "hound": {
+    "mirror": false,
+    "facing": "left",
+    "note": "Side view: head on the left, tail on the right."
+  },
+  "drone": {
+    "mirror": false,
+    "facing": "front",
+    "note": "Hovers and looks at the camera. Rotors and eye are even on both sides."
+  },
+  "wisp": {
+    "mirror": false,
+    "facing": "front",
+    "note": "Looks at the camera. The face is centred and the tendrils are even on both sides."
+  },
+  "brute": {
+    "mirror": false,
+    "facing": "front",
+    "note": "Looks at the camera. A big fist on each side, so it reads the same both ways."
+  },
+  "ghoul": {
+    "mirror": true,
+    "facing": "right",
+    "note": "Hunched and turned to the right: the head sits right of the shoulders and the right claw reaches out. Mirrored so it reaches toward the heroes."
+  },
+  "crab": {
+    "mirror": false,
+    "facing": "front",
+    "note": "Seen from the front: a claw up on each side and the legs even on both sides."
+  },
+  "maint": {
+    "mirror": true,
+    "facing": "right",
+    "note": "A tracked robot whose claw arm reaches out to the right of the picture, so it is mirrored to reach toward the heroes. The hazard stripes are reversed."
+  },
+  "shade": {
+    "mirror": true,
+    "facing": "front",
+    "note": "Looks at the camera. It holds a briefcase in its one visible hand, on the right of the picture, so it is mirrored to put the case toward the heroes."
+  },
+  "eel": {
+    "mirror": false,
+    "facing": "left",
+    "note": "Side view: open jaws on the left, tail on the right."
+  },
+  "lurker": {
+    "mirror": false,
+    "facing": "left",
+    "note": "Side view: head and open mouth on the left, coils on the right."
+  },
+  "sentinel": {
+    "mirror": true,
+    "facing": "front",
+    "note": "Looks at the camera, but the rifle points to the right of the picture, so it is mirrored to aim at the heroes. The K on the vest is reversed."
+  },
+  "turret": {
+    "mirror": false,
+    "facing": "left",
+    "note": "The twin gun barrels and the red eye point left."
+  },
+  "arcanist": {
+    "mirror": false,
+    "facing": "left",
+    "note": "Turned a little to the left. The glowing orb is held up on the left of the picture, already toward the heroes."
+  },
+  "hunter": {
+    "mirror": false,
+    "facing": "left",
+    "note": "Side view of a missile: the pointed nose and red eye are on the left, the engine on the right."
+  },
+  "bound": {
+    "mirror": false,
+    "facing": "front",
+    "note": "Looks at the camera. Arms up on both sides and a centred face."
+  },
+  "warden": {
+    "mirror": false,
+    "facing": "front",
+    "note": "Looks at the camera, but the shoulder cannon points left (toward the heroes), so it stays as it is."
+  },
+  "warden_spirit": {
+    "mirror": false,
+    "facing": "front",
+    "note": "Looks at the camera. Arms up on both sides and a centred face."
+  }
+}

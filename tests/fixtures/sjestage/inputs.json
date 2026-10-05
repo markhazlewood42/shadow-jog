@@ -1,0 +1,16 @@
+{
+  "why": "Every data file the stage slice reads. The reference frames are only valid for these exact bytes (text compared with line ends as LF). scripts/sjestage-refs.mjs records their SHA-256 in manifest-<kind>.json and e2e/sjestage.spec.ts fails FIRST, before any pixel diff, when one has changed. src/data/enemies.ts is here because the stage reads each enemy's sprite key and boss flag from it. src/data/party.ts is read too, but only for the hero NAMES (no pixel), and its bio text differs between this repo and the Phaser checkout, so it is left out on purpose (tests/sjestage-parity.test.ts names it).",
+  "files": [
+    "src/data/stages.json",
+    "src/data/hud.json",
+    "src/data/heroes.json",
+    "src/data/enemyfacing.json",
+    "src/data/enemies.ts",
+    "src/data/axes.json",
+    "public/art/rig/battle.json",
+    "public/art/rig/enemies.json",
+    "public/art/rig/field.json",
+    "public/art/rig/portraits.json",
+    "public/art/rig/skeleton.json"
+  ]
+}

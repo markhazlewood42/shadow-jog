@@ -8,7 +8,9 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 45 on the spike branch: the e2e list grew with the engine specs, and one run (2026-10-05) took 28m40s
+    # of the old 30. A slow browser install alone once took 22 minutes.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,7 +24,7 @@ jobs:
       - name: Bundle budget (largest chunk and total gzip)
         run: npm run budget
       - run: npx playwright install --with-deps chromium webkit firefox
-      - name: E2E (full chapter, the real-speed playtest, game over / save, frame budget, shipped build, zone walk and shop, input chaos; WebKit and Firefox for game over and the shipped build)
-        run: npx playwright test e2e/playthrough.spec.ts e2e/playtest.spec.ts e2e/gameover.spec.ts e2e/perf.spec.ts e2e/prod.spec.ts e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts
+      - name: E2E (full chapter, the real-speed playtest, game over / save, frame budget, shipped build, zone walk and shop, input chaos, the new engine's lab page, the battle stage slice on it (parity with the Phaser spike's frames) and its 3D path (the hacking scene, effects and masks on the 3D view); WebKit and Firefox for game over, the shipped build and the 3D path on software WebGL2)
+        run: npx playwright test e2e/playthrough.spec.ts e2e/playtest.spec.ts e2e/gameover.spec.ts e2e/perf.spec.ts e2e/prod.spec.ts e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts e2e/sjelab.spec.ts e2e/sjestage.spec.ts e2e/sjemock.spec.ts e2e/sje3d.spec.ts e2e/sje-parta.spec.ts e2e/sje3d-browsers.spec.ts
         env:
           CI: '1'

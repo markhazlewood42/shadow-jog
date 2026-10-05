@@ -1,6 +1,7 @@
 /** Runtime map: parses a MapDef and bakes its layers once. */
 import { pixelSurface, surface, type Ctx } from '../engine/canvas';
 import { mix, rgba } from '../engine/color';
+import { H, W } from '../engine/game';
 import { hash2 } from '../engine/rng';
 import type { AnimFx, BakeCtx, BakedLight, SortedSprite } from './bake';
 import { paintBuilding } from './buildings';
@@ -334,7 +335,7 @@ export class FieldMap {
         for (const k of tiles) {
           const tx = k % w, ty = (k / w) | 0;
           const sx = tx * TS - ox, sy = ty * TS - oy;
-          if (sx < -16 || sy < -16 || sx > 480 || sy > 270) continue;
+          if (sx < -16 || sy < -16 || sx > W || sy > H) continue;
           for (let i = 0; i < 2; i++) {
             const phase = (frame * 0.05 + hash2(tx, ty, i) * 6.28) % 6.28;
             const a = Math.max(0, Math.sin(phase));
