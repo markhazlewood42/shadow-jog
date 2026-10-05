@@ -29,7 +29,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Browser, expect, type Page, test } from '@playwright/test';
 import { MAX_TICKS_PER_FRAME } from '../src/sje/core/fixedloop';
-import { bytesOf, isSoftware, openLab, percentile, startHack, step, withLab } from './sjelabkit';
+import { bytesOf, isSoftware, openLab, percentile, SIZE, startHack, step, withLab, zoomFor } from './sjelabkit';
 
 const SHOTS = process.env.SJE_SHOTS;
 function save(name: string, dataUrl: string): void {
@@ -59,15 +59,15 @@ test.describe('3D scene: the picture', () => {
       const info = await page.evaluate(() => window.__SJE__?.info());
       console.log(`SJE3D renderer: ${info?.renderer}`);
       const frame = await page.evaluate(() => window.__SJE__?.frame());
-      expect(frame).toMatchObject({ mode: 'shared-context', width: 480, height: 270, minFilter: 'nearest', magFilter: 'nearest', contextLost: false });
+      expect(frame).toMatchObject({ mode: 'shared-context', width: SIZE.w, height: SIZE.h, minFilter: 'nearest', magFilter: 'nearest', contextLost: false });
       // Several frames, then the error flags.
       for (let i = 0; i < 20; i++) await step(page, 1);
       expect(await page.evaluate(() => window.__SJE__?.glErrors()), 'GL error flags').toEqual([]);
 
       const raw = await page.evaluate(() => window.__SJE__?.framePixels());
-      expect([raw?.w, raw?.h]).toEqual([480, 270]);
+      expect([raw?.w, raw?.h]).toEqual([SIZE.w, SIZE.h]);
       const px = bytesOf(raw?.base64 ?? '');
-      expect(px.length).toBe(480 * 270 * 4);
+      expect(px.length).toBe(SIZE.w * SIZE.h * 4);
       // Non-blank: many colours, and a good part of the picture is not the void.
       const colours = new Set<number>();
       let notVoid = 0;
@@ -78,11 +78,11 @@ test.describe('3D scene: the picture', () => {
         if (px[i + 3] === 255) opaque++;
       }
       const sim = await page.evaluate(() => window.__SJE__?.sim());
-      console.log(`SJE3D picture: ${colours.size} colours, ${((notVoid / (480 * 270)) * 100).toFixed(1)}% not void, sim ${JSON.stringify(sim)}`);
+      console.log(`SJE3D picture: ${colours.size} colours, ${((notVoid / (SIZE.w * SIZE.h)) * 100).toFixed(1)}% not void, sim ${JSON.stringify(sim)}`);
       expect(colours.size).toBeGreaterThan(300);
-      expect(notVoid / (480 * 270)).toBeGreaterThan(0.1);
+      expect(notVoid / (SIZE.w * SIZE.h)).toBeGreaterThan(0.1);
       // The 3D target is opaque everywhere (the scene has a background colour), so nothing shows through it by accident.
-      expect(opaque).toBe(480 * 270);
+      expect(opaque).toBe(SIZE.w * SIZE.h);
       if (SHOTS) {
         testInfo.annotations.push({ type: 'shots', description: SHOTS });
         save('hack-t120.png', (await page.evaluate(() => window.__SJE__?.png('sje', 2))) ?? '');
@@ -326,16 +326,17 @@ test.describe('3D scene: the 2D HUD over it (V1, V5)', () => {
     await withLab(browser, async ({ page }) => {
       await startHack(page, { ticks: 900 });
       // The NODE panel is a fixed rectangle: its pixels are the same at two ticks, while the 3D under the rest of the screen is not.
-      const hashes = await page.evaluate(() => {
+      // (The panel is anchored to the right edge: its x is the picture width minus 84, which is 396 at 480x270.)
+      const hashes = await page.evaluate((panelX) => {
         const h = window.__SJE__;
         if (!h) throw new Error('no hook');
-        const panelHash = () => h.regionHash(396, 6, 78, 18);
+        const panelHash = () => h.regionHash(panelX, 6, 78, 18);
         h.step(30);
         const a = panelHash();
         const whole1 = h.hash();
         h.step(200);
         return { panelSame: a === panelHash(), screenSame: whole1 === h.hash() };
-      });
+      }, SIZE.w - 84);
       expect(hashes.panelSame).toBe(true);
       expect(hashes.screenSame).toBe(false);
     });
@@ -343,7 +344,8 @@ test.describe('3D scene: the 2D HUD over it (V1, V5)', () => {
 });
 
 test.describe('3D scene: crisp pixels with the 2D HUD over the 3D', () => {
-  for (const { dpr, viewport, k } of RATIOS) {
+  for (const { dpr, viewport, k: tableK } of RATIOS) {
+    const k = zoomFor(tableK, viewport, dpr);
     test(`every ${k}x${k} block is one flat colour at device pixel ratio ${dpr}, in the canvas and in a screenshot of the page`, async ({ browser }) => {
       await withLab(
         browser,
@@ -359,14 +361,14 @@ test.describe('3D scene: crisp pixels with the 2D HUD over the 3D', () => {
               h.step(t - (h.sim()?.tick ?? 0));
               return h.canvasBlocks();
             }, tick);
-            expect([blocks.canvasW, blocks.canvasH]).toEqual([480 * k, 270 * k]);
-            expect(blocks.blocks).toBe(480 * 270);
+            expect([blocks.canvasW, blocks.canvasH]).toEqual([SIZE.w * k, SIZE.h * k]);
+            expect(blocks.blocks).toBe(SIZE.w * SIZE.h);
             expect(blocks.bad, `uneven ${k}x${k} blocks of the canvas at tick ${tick}, dpr ${dpr}: ${JSON.stringify(blocks.samples)}`).toBe(0);
           }
           // And what the compositor shows: a screenshot of the page, the picture's own rectangle.
           const pic = await page.evaluate(() => window.__SJE__?.picture());
           const shot = await page.screenshot();
-          const region = { x: pic?.x ?? 0, y: pic?.y ?? 0, w: 480 * k, h: 270 * k };
+          const region = { x: pic?.x ?? 0, y: pic?.y ?? 0, w: SIZE.w * k, h: SIZE.h * k };
           const url = `data:image/png;base64,${shot.toString('base64')}`;
           const blocks = await page.evaluate(([u, kk, r]) => window.__SJE__?.imageBlocks(u as string, kk as number, r as typeof region), [url, k, region]);
           expect(blocks?.bad, `uneven blocks in the screenshot at dpr ${dpr}: ${JSON.stringify(blocks?.samples)}`).toBe(0);

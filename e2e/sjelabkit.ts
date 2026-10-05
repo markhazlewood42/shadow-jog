@@ -7,6 +7,28 @@
  */
 import { type Browser, expect, type Page } from '@playwright/test';
 
+/**
+ * The picture size under test. Default 480x270. `SJE_SIZE=640x360` runs the same specs on the 640x360 picture (step S1a): every page is opened
+ * with `?size=640x360` (the DEV switch in `src/sje/core/size.ts`) and every size or zoom that a spec checks comes from here, not from a typed number.
+ * Only `640x360` is accepted; anything else means 480x270, as the page itself does.
+ */
+export const SIZE: { w: number; h: number; is640: boolean; query: string } = process.env.SJE_SIZE === '640x360' ? { w: 640, h: 360, is640: true, query: 'size=640x360' } : { w: 480, h: 270, is640: false, query: '' };
+
+/** `query` with the size switch added when the run is at 640x360. */
+export function withSize(query: string): string {
+  return SIZE.query ? `${query}&${SIZE.query}` : query;
+}
+
+/**
+ * The integer zoom the presenter picks for a window, by its own rule (`src/sje/render/presenter.ts`): the largest whole k with k x W and k x H inside the window in
+ * device pixels. A spec at 480x270 passes the zoom it has always written (`tableK`) and gets it back: that value is a hard-coded check. At 640x360 the table
+ * does not apply (a different picture fits a window a different number of times), so the zoom is computed.
+ */
+export function zoomFor(tableK: number, viewport: { width: number; height: number }, dpr: number): number {
+  if (!SIZE.is640) return tableK;
+  return Math.max(1, Math.floor(Math.min((viewport.width * dpr) / SIZE.w, (viewport.height * dpr) / SIZE.h) + 1e-9));
+}
+
 export interface LabPage {
   page: Page;
   /** Console messages that are errors or warnings, and uncaught page errors. Tests assert this is empty. */
@@ -47,7 +69,7 @@ export async function openLab(browser: Browser, opts: OpenOptions = {}): Promise
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
   page.on('request', (r) => requests.push(r.url()));
   const boot = async (): Promise<string | undefined> => {
-    await page.goto(`/sjelab.html?${opts.query ?? 'manual'}`);
+    await page.goto(`/sjelab.html?${withSize(opts.query ?? 'manual')}`);
     await page.waitForFunction(() => window.__SJE__ !== undefined || (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__ !== undefined, null, { timeout: 90_000 });
     return page.evaluate(() => (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__);
   };

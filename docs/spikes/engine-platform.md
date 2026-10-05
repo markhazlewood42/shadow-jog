@@ -29,6 +29,7 @@ Decision 17 and the design gate: the design must be tested before the build (M0 
 
 **Amendments (dated; the criteria above stay as written):**
 - **2026-10-05, criterion 2 (clarified by the main session):** this machine's display refreshes at about 56.6 Hz, so a bare page already takes about 17.7 ms per frame and the 16.7 ms line cannot be met by any page. "60 fps" is measured as no dropped frames: the frame interval p95 is within 5% of a bare requestAnimationFrame page on the same display, AND the frame cost (CPU work plus the GPU wait) p95 is at or under 8 ms. Details are in the B2 round 4 section.
+- **2026-10-05, target size (Mark):** from 2026-10-05 the target picture size is **640x360**, not 480x270. Mark chose it after the B3 mock (see the Decision note in the B3 section). Every criterion below that depends on the picture size (2 speed, 4 fallback, 5 leaks, 6 effects, 7 parity as far as it can be measured, 8 crispness) was re-measured at 640x360 in step S1a, next to the 480x270 numbers: [S1a, Phase 0 at 640x360](#s1a-phase-0-at-640x360-2026-10-05). The criteria text above still says 480x270 where it was written that way. Criterion 11's "picks 480x270 or 640x360" is done: 640x360.
 - **2026-10-05, criterion 11 (Mark):** the 3D scene is a minimal technical test scene. Its look and gameplay are NOT reviewed in Phase 0. They come later, in their own iteration. Mark still reviews the stage slice and picks 480x270 or 640x360 from the mock.
 
 **NO-GO (or a design change before GO) if any of these hold:**
@@ -358,6 +359,8 @@ The pass line (at most 2/255 in any channel, at most 3% of the pixels differ at 
 ### B3, the resolution mock (builder round 1, 2026-10-05)
 Exit criterion 11 (Mark picks 480x270 or 640x360 from the mock), design decision E12. This is the builder's own evidence: fresh verifiers have not scored it. Run on Edge 154 on the RTX 4070 (GPU), on Edge with `PW_NOGPU=1` (SwiftShader and the software canvas), and with `STAGELAB_NO_SPRITES=1` (the stand-in crew, what CI sees). Nothing was pushed.
 
+**Decision (Mark, 2026-10-05).** After this mock he first kept 480x270. The same day he changed his mind from the comparison screenshots ("I'm honestly really liking the higher resolution better... Let's pivot. Better now than later") and **chose 640x360**. The existing pixel art keeps its size. The shipped game moves to 640x360 next, on its own branch. Step S1a (below) re-measured every size-dependent exit criterion at 640x360.
+
 **What was built.**
 - **The DEV size switch** in the shared size module `src/sje/core/size.ts`: `?size=640x360` in a DEV build makes `W` x `H` 640x360. It is read once when the module first loads, so one page shows one size, and only that exact value counts (`800x600`, `640X360` and no value give 480x270). It is one constant, `import.meta.env.DEV && typeof location !== 'undefined' && ...`, and `W` and `H` are two plain choices of it. Vite makes `import.meta.env.DEV` the value `false` in a production build, so the minifier folds the two lines back to `480` and `270`. A first try that read the pair from an array was NOT byte-identical (the bundle gained a variable for one of the two numbers): the two-choice form is what keeps `W` and `H` plain numbers in the bundle. The old engine, the engine's presenter, the 3D target (`frame3d`), the camera and the labs all import `W` and `H` from this module, so they follow it. One more place changed: `src/field/fieldmap.ts` culled the water ripples at a fixed 480 x 270; it now uses `W` and `H` (same shipped bytes). `src/sje-lab/stagehook.ts` got `inkBox(figureId)` (the inked rows of a figure's picture, for the table).
 - **The captures** (`e2e/sjemockkit.ts`): the field (Lantern Row, Kit leading and Rook trailing, in the shipped game on the OLD engine), a dialog line (Dutch, the shipped dialog window, the same field), the battle slice at its tick 41 on the new engine (`/sjestage.html`, **Mark's art**: his sprite folder is on this machine; CI uses the stand-ins) and the minimal 3D test scene at tick 120 (`/sjelab.html`, hack seed 7, with its HUD).
@@ -448,11 +451,152 @@ This step makes the named fixes that the score-7 criteria of B0 to B3 require. I
 - **Runs.** `npm run check` exit 0 (788 tests in 50 files). `npm run build` exit 0. `node scripts/prod-bytes.mjs HEAD`: IDENTICAL, 117 files. CI list: 202 tests in 15 files. Edge GPU, the five specs (`sjestage`, `sje3d`, `sjelab`, `sjemock`, `sje-parta`, chromium project): 121 passed, 6 skipped, 0 failed. `PW_NOGPU=1`: 120 passed, 7 skipped, 0 failed. `sjestage` and `sjemock` with `STAGELAB_NO_SPRITES=1` (only the committed references, what CI sees): 37 passed and 5 skipped on the GPU. `sjestage` with `PW_NOGPU=1` and `STAGELAB_NO_SPRITES=1`: 32 passed and 4 skipped.
 - **Open risk, named: the Linux run of the strict gate.** The `soft` references and the renderer mask were made on Windows SwiftShader. The strict gate has never run on the CI Linux runner. If Linux differs by one step anywhere outside the glow, the first CI run of this branch fails `sjestage`. The builder did not push (a rule of this step), so the risk stays open. Next step: push the branch, read the `sjestage` result, and if it fails make the `soft` references on the runner (`--no-gpu`) and commit them. The Result section must keep this risk visible until a push shows the answer.
 
-## Result (filled in at the end)
-- Outcome:
-- Date:
-- Numbers:
-- Rubric scores per part (median per criterion, rounds used):
-- Draft PR:
-- Archive tag:
-- Notes: what was learned, and the design doc changes.
+### S1a, Phase 0 at 640x360 (2026-10-05)
+Mark chose 640x360 on 2026-10-05 (the Decision note in the B3 section). This step measures every exit criterion that depends on the picture size again at 640x360, with the same specs and scripts as at 480x270, and puts both sets of numbers side by side. It is the builder's own evidence: fresh verifiers have not scored it. Run on Edge 154 on the RTX 4070 (GPU; the display refreshes at about 56.6 Hz, so a bare page takes 18.3 ms per frame) and on Edge with `PW_NOGPU=1` (SwiftShader and the software canvas). Nothing was pushed. Nothing under `src/` changed (test code, one script and docs only), so the shipped bundle is the same bytes.
+
+**What changed.**
+- **A size parameter for the specs.** `SJE_SIZE=640x360` makes every lab page open with `?size=640x360` (the DEV switch of B3) and makes every size, zoom and block count that a spec checks come from `SIZE` and `zoomFor` in `e2e/sjelabkit.ts`, not from a typed 480 or 270. Without it nothing changes: the 480x270 tests keep their typed zoom table (4, 4, 4, 4, 4, 7 and the four awkward windows) and check the same values as before. At 640x360 the zoom is worked out by the presenter's own rule (the largest whole k that fits), and the test checks that the page agrees. Specs changed: `sjelab`, `sjestage`, `sje3d`, `sje-parta`, `sje3d-browsers` (and `sjestagekit.ts`).
+- **One test number was wrong at 640x360 and is fixed.** `sje3d.spec.ts` "the panel does not move while the 3D underneath does" hashed the NODE panel at x 396. The HUD anchors that panel to the right edge (`HUD_FIXED.node.x = W - 6 - 78`), so at 640x360 it sits at x 556. The spec now uses `SIZE.w - 84` (396 at 480x270). The HUD itself needed no change.
+- **One window had no force at 640x360 and is changed.** `sje-parta.spec.ts` checks the effects at device pixel ratio 1 in a 960x540 window. That is zoom 2 at 480x270 and zoom 1 at 640x360, and at zoom 1 every 1x1 block is flat by definition. At 640x360 the spec uses 1280x720 (zoom 2).
+- **Two new CI checks, both cheap.** (1) `e2e/sjelab.spec.ts`, 6 tests "crisp pixels at 640x360 (CI check, step S1a)": the GL canvas of the lab at 640x360 at the six ratios 1 to 2.25, two ticks each, zero uneven blocks. It always runs at 640x360, whatever `SJE_SIZE` is. (2) `e2e/sjestage.spec.ts`, 1 test "at 640x360 the top left 480x270 is the 480x270 slice, pixel for pixel, and the rest is the void colour" (criterion 7, below). The CI list went from 202 to 209 tests (`CI=1 npx playwright test <the 15 specs of ci.yml> --list`, no load error). The seven tests take 3.7 s of test time on this machine with `PW_NOGPU=1` (7.9 s with the browser start). Even at 4 times slower on the runner that is under 1 minute, so the CI time rises by about 1 minute at most, far below the 3 minute limit.
+- **`scripts/sjesize-shots.mjs`** saves the two pictures below (`node scripts/sjesize-shots.mjs <folder> [640x360|480x270]`, dev server on 3007).
+- `docs/DEVELOPING.md` says how to run the specs at 640x360, and which groups of `sjelab` and `sjestage` can run there.
+
+**How to reproduce (Edge GPU; put `PW_NOGPU=1` in front for SwiftShader).**
+```
+# 640x360
+SJE_SIZE=640x360 npx playwright test e2e/sje3d.spec.ts e2e/sje-parta.spec.ts e2e/sje3d-browsers.spec.ts --project=chromium
+SJE_SIZE=640x360 npx playwright test e2e/sjelab.spec.ts e2e/sjestage.spec.ts --project=chromium -g "crisp|other whole zooms|speed|leaking|boot|stability|context"
+# the speed lines alone (criterion 2), the 3D scene and the stage slice
+SJE_SIZE=640x360 npx playwright test e2e/sje3d.spec.ts e2e/sjestage.spec.ts --project=chromium -g "keeps the display|costs far less"
+# 480x270 (unchanged)
+npx playwright test e2e/sjelab.spec.ts e2e/sjestage.spec.ts e2e/sjemock.spec.ts e2e/sje3d.spec.ts e2e/sje-parta.spec.ts e2e/sje3d-browsers.spec.ts --project=chromium
+```
+The numbers print as `SJE3D SPEED ...`, `SJESTAGE SPEED ...`, `SJE3D context loss ...`, `SJE3D leaks ...`, `SJE PARTA effects ...` and `SJESTAGE at 640x360 ...` lines.
+
+**Numbers, side by side.** Three full GPU runs of the speed tests at each size (the first run of each is inside the full spec run, the other two are the speed tests alone, interleaved 640, 480, 640, 480), then the SwiftShader numbers. All other rows are from the full spec runs.
+
+Criterion 2, the 3D scene with bloom and the HUD, on the GPU (RTX 4070, Edge 154). The pass line is: frame interval p95 within 5% of a bare page, AND frame cost with the GPU wait p95 at or under 8 ms.
+
+| Measure | 480x270 run 1 / 2 / 3 | 640x360 run 1 / 2 / 3 |
+|---|---|---|
+| Bare rAF page p95 (ms) | 18.30 / 18.30 / 18.30 | 18.30 / 18.30 / 18.20 |
+| 3D scene frame interval p95 (ms) | 18.20 / 18.20 / 18.20 | 18.20 / 18.20 / 18.20 |
+| Ratio (line: at most 1.05) | 0.995 / 0.995 / 0.995 | 0.995 / 0.995 / 1.000 |
+| JavaScript work p95 (a CPU number, ms) | 1.40 / 1.20 / 1.20 | 1.10 / 1.40 / 1.30 |
+| **Frame cost with the GPU wait**, mean / p95 / max (ms; line: p95 at most 8) | 2.33 / 3.20 / 5.50, 2.21 / 2.90 / 4.10, 2.31 / 3.30 / 4.60 | 2.08 / 3.20 / 4.40, 2.24 / 3.50 / 5.50, 2.34 / 3.40 / 5.00 |
+| GPU timer query, mean / p95 (ms; reported, not a gate) | 2.18 / 16.39, 2.05 / 16.19, 2.21 / 16.46 | 2.62 / 5.64, 1.50 / 3.58, 2.35 / 16.22 |
+| Negative control (600 extra 3D frames a frame): interval p95 / cost p95 (ms) | 124.80 / 127.10 | 140.60 / 136.00 |
+
+A fourth run of each size, in the final full spec run, agrees: 480x270 ratio 0.995 and cost p95 3.20 ms, 640x360 ratio 0.995 and cost p95 3.20 ms. Both rules fail the negative control at both sizes. The GPU timer's top 5% sits at one display frame (about 16 ms) in most runs at both sizes, and at 5.6 and 3.6 ms in two of the 640x360 runs. This is the timing artefact of round 3 (a query that spans an idle gap), which is why it is reported and is not a gate.
+
+Criterion 2, the stage slice (the street, Kit, the punk, HUD off, stand-in crew), on the GPU.
+
+| Measure | 480x270 run 1 / 2 / 3 | 640x360 run 1 / 2 / 3 |
+|---|---|---|
+| Frame interval p95 (ms) | 18.20 / 18.20 / 18.20 | 18.20 / 18.20 / 18.20 |
+| JavaScript work p95 (tick + draw submit, ms) | 0.40 / 0.40 / 0.30 | 0.40 / 0.40 / 0.30 |
+| **Frame cost with the GPU wait** p50 / p95 / max (ms; line: p95 at most 8) | 1.40 / 2.30 / 3.40, 1.30 / 2.50 / 3.20, 1.30 / 2.40 / 3.50 | 1.30 / 2.40 / 2.70, 1.40 / 2.30 / 3.50, 1.40 / 2.50 / 3.10 |
+| Negative control (1500 extra draws a frame), cost p95 (ms; must be over 8) | 24.00 / 22.30 / 22.30 | 22.30 / 22.20 / 23.10 |
+
+Criterion 2 on SwiftShader (Edge `PW_NOGPU=1`). This machine's software canvas is about 2 times faster than the CI runner's, so the CI numbers are higher. The gate on software is only "interval p95 under 80 ms". Two runs of each size (the first run of the step, and the final full run):
+
+| Measure | 480x270 | 640x360 |
+|---|---|---|
+| Bare page p95 / 3D scene interval p95 (ms) | 16.70 / 16.70 (ratio 1.000), 16.70 / 16.70 | 16.70 / 16.80 (ratio 1.006), 16.70 / 16.80 |
+| 3D scene frame cost, mean / p95 / max (ms) | 11.61 / 14.80 / 16.80, 11.08 / 13.50 / 18.60 | 12.67 / 14.70 / 15.90, 12.81 / 14.90 / 16.70 |
+| Stage slice frame cost, p50 / p95 / max (ms) | 4.50 / 9.50 / 12.90, 4.50 / 9.10 / 11.20 | 3.10 / 7.90 / 10.80, 3.10 / 7.40 / 10.60 |
+
+Other criteria (the same test at both sizes; GPU unless it says software):
+
+| Criterion | 480x270 | 640x360 |
+|---|---|---|
+| 8, blocks counted per check | 129,600 | 230,400 |
+| 8, zoom at dpr 1 / 1.25 / 1.5 / 1.75 / 2 / 2.25 in the standard windows | 4 / 4 / 4 / 4 / 4 / 7 | 3 / 3 / 3 / 3 / 3 / 5 |
+| 8, lab scene, GL canvas over a camera pan (5 ticks) and a page screenshot, 10 windows (the 6 above and 4 awkward ones) | 0 uneven blocks | 0 uneven blocks (the awkward window dpr 1.1 at 1000x560 is zoom 1 at 640x360, so it proves nothing there; the other 9 have zoom 3 to 5) |
+| 8, 3D scene with the HUD, canvas and screenshot, 6 ratios x 3 ticks | 0 uneven | 0 uneven |
+| 8, stage slice, canvas and screenshot, 6 ratios x 4 ticks | 0 uneven | 0 uneven |
+| 8, effect cases (criterion 6) at dpr 1 and 1.5, 16 cases, uneven blocks while the effect is on | 0 of 129,600 (zoom 2 and 4) | 0 of 230,400 (zoom 2 and 3) |
+| 8, the same on SwiftShader (lab, 3D scene, stage slice, effect cases) | 0 uneven | 0 uneven |
+| 4, shared-context loss: `lost` event after / hack resolved `aborted / context-lost` after (ms) | 5 / 1,017 (software 7 / 1,023) | 6 / 1,019 (software 7 / 1,020) |
+| 4, canvas copy, private context lost: resolved after (ms) | 1,028 (software 1,025) | 1,023 (software 1,025) |
+| 4, WebGL2 off: `unsupported / no-webgl2` after (ms), chunk not requested | 0 | 0 |
+| 5, GL counts after 10 enter-and-leave cycles (texture / buffer / framebuffer / program / VAO), both frame modes | 17 / 4 / 4 / 1 / 2, unchanged | 17 / 4 / 4 / 1 / 2, unchanged |
+| 5, JS heap after GC, shared context / canvas copy | +2.40% / +2.33% (software +2.42 / +2.34) | +2.40% / +2.33% (software +2.42 / +2.34) |
+| 5, a deliberate leak of 6 textures shows as | 23 textures | 23 textures |
+| 6, 8 effect cases x dpr 1 and 1.5: max difference / over tolerance / GL errors / picture restored | colour matrix 1, glsl 0, Graphics mask 0, sprite mask 1 / 0 / 0 / yes | the same (1, 0, 0, 1; software: sprite mask 0) / 0 / 0 / yes |
+| 6, sprite mask on a sorted container at 6 positions | 0 pixels off | 0 pixels off |
+| 3D target against the back buffer, shared context and canvas copy | 0 of 129,600 differ | 0 of 230,400 differ |
+| 3D scene picture (tick 140, same seed, same simulation: trace 28, hits 2, ICE 4) | 6,703 colours, 44.4% not void | 8,903 colours, 19.1% not void (thin lines cover a smaller share of more pixels) |
+| 3D HUD against Canvas 2D (NODE panel, caption strip), 3 ticks | 0 pixels differ | 0 pixels differ |
+| 7, stage slice at tick 41 | passes the parity gate against the Phaser references (B1 and the cleanup) | the top left 480x270 equals the 480x270 picture: 0 of 129,600 differ. The other 100,800 pixels: 0 are not the void colour [7,6,13] |
+| Tests run, Edge GPU | 130 passed, 6 skipped (6 specs) | `sje3d`, `sje-parta`, `sje3d-browsers`: 47 passed. `sjelab` and `sjestage` groups: 39 passed, 7 skipped |
+| Tests run, SwiftShader | 129 passed, 7 skipped | 46 passed, 1 skipped (the negative control, GPU only). Groups: 39 passed, 7 skipped |
+
+**Answers by criterion.**
+- **2 Speed.** Met at 640x360 on the GPU. The interval ratio is 0.995 to 1.000 (line 1.05). The frame cost with the GPU wait is p95 3.2 to 3.5 ms for the 3D scene and 2.3 to 2.5 ms for the stage slice (line 8 ms), the same as at 480x270 within the run-to-run spread (3.2, 2.9 and 3.3 ms at 480x270). Both negative controls fail the line at both sizes, so the test can still fail. The cost did not grow with the picture: the 3D frame has 1.78 times more pixels, and the mean cost is 2.1 to 2.3 ms at both sizes. At this scene size the cost is set by the work done for each frame and not by the pixel count. This is one GPU and one display, and a weaker GPU may show a size effect. SwiftShader: no size effect beyond the noise of the machine (the 3D scene's mean cost is 11 to 12.8 ms at both sizes, the stage slice's p95 7.4 to 9.5 ms at both).
+- **4 Fallback.** The size cannot change the timing: the watchdog is a timer (`CONTEXT_GRACE_MS`, 1 s), and the "no WebGL2" answer is made before any picture exists. It was measured anyway. The numbers are the same within 5 ms (1,019 against 1,017 ms), well inside the 2 s limit, and the story continued. The picture after a restore is the picture without a loss (the hashes match) at 640x360, in both frame modes.
+- **5 Leaks.** Met. The counts are flat and the heap growth is the same at both sizes (+2.40%, line 5%). The JS heap does not count GPU memory, so the proof for the larger 640x360 targets is the flat GL counts: the same textures, framebuffers and buffers exist after 10 cycles. The deliberate leak still shows as +6.
+- **6 Effects.** Met. All 8 cases (a built-in filter, a custom GLSL filter, a `Graphics` mask and a sprite mask, each on the `View3D` and on a sorted container) have 0 GL errors and match their CPU references within the tolerance at dpr 1 and 1.5, with the same differences as at 480x270. The compared boxes are the same 50,000 and 10,000 pixels, because the cases are laid out in 480x270 coordinates. The filter and the mask on the `View3D` act on the whole 640x360 picture, so the larger picture is covered. A larger picture cannot change the value of a pixel that a filter makes, so a match at both sizes is what to expect, and it is what was measured.
+- **7 Stage parity.** Cannot be measured against the Phaser references at 640x360. They are 480x270 pictures made by the Phaser spike's page, that spike has no 640x360 stage, and the stage is laid out with numbers for 480x270 (`SCREEN_W`, `SCREEN_H`, the 240x135 backdrop baked at 2x). To make 640x360 references, the stage must first be laid out for 640x360, which is the work of the shipped game's move. What CAN be measured, and is: at 640x360 the slice fills the top left 480x270 pixel for pixel as it does at 480x270 (0 of 129,600 differ), and the rest is the void colour (0 of 100,800 differ). The 480x270 picture is the one that passed the parity gate, so the area laid out for 480x270 keeps its parity at 640x360. The new test is a CI check (stand-in crew, GPU and software). It does not say that the stage looks right at 640x360: the stage fills 56% of the picture, and Mark has seen that in the B3 mock.
+- **8 Crispness.** Met at 640x360: zero uneven blocks at every ratio and window, in every scene (lab, 3D scene with HUD, stage slice, effect cases), on the GPU and on SwiftShader. The zoom on 1080p is exactly 3 (against 4), and the integer presenter still picks a whole zoom at every ratio. One awkward window (dpr 1.1, 1000x560) is zoom 1 at 640x360, where the check cannot fail, so it counts as not covered.
+
+**What was not measured at 640x360, and why.**
+- **CI hardware.** Nothing was pushed, so there is no CI number at 640x360 (Linux runner, bundled Chromium, WebKit, Firefox). The local SwiftShader numbers are about 2 times faster than CI's. The two new CI checks run on the next push.
+- **Other browsers.** At 640x360 only Edge (Chromium) ran. `sje3d-browsers` (2 tests) passed there. Firefox 153 on Windows was not run at 640x360, and WebKit has no local build.
+- **Other displays.** The speed numbers are for this one RTX 4070 and a display of about 56.6 Hz. The Steam Deck window (1280x800) is covered by the B3 table (exact zoom 2, a 1280x720 picture), not by speed numbers.
+- **Mark's art.** Parity against the Phaser frames with his sprites is local only, at 480x270, and was not repeated.
+- **The 640x360 layout of the stage, the 3D caption bar and the badges.** Not built. This is the shipped game's move (the B3 list of numbers that are written for 480x270). The 3D scene is a minimal technical test scene, so its look is not judged (Mark's rule of 2026-10-05).
+- **Effects on a scene laid out for 640x360.** The effect cases use the lab's content, laid out for 480x270.
+
+**Pictures** (folder `C:/Users/markh/AppData/Local/Temp/claude/C--Users-markh-home-base/0677e8ad-1b06-4d4b-8518-6aae23059ea6/scratchpad/visual/s1a/`). Each is a screenshot at zoom 2, so the 640x360 picture is 1280x720 with no bars (`node scripts/sjesize-shots.mjs <folder> 640x360`).
+- `hack-3d-hud-640x360.png`: the minimal 3D test scene at tick 120, seed 7, with its HUD: the ICE and TRACE panel top left, the NODE 07 panel top right, the caption bar. The caption bar still sits where it was placed for 270 rows (17 pixels above the bottom of a 270 picture), so it floats at 253 of 360. That is the known layout number of B3.
+- `lab-2d-640x360.png`: the lab's 2D scene (sprites, panels, text, lines) at tick 333. The scene is laid out for 480x270, so it fills the top 270 rows and the bottom 90 are the void colour.
+- The same two at 480x270 (`hack-3d-hud-480x270.png`, `lab-2d-480x270.png`) for comparison.
+
+**Pass lines.**
+- **P1.** `npm run check` exit 0 (biome 0, tsc 0, 788 unit tests in 50 files). `npm run build` exit 0. `node scripts/prod-bytes.mjs HEAD`: `IDENTICAL: every file has the same SHA-256 (117 files)`, main chunk `index-CAQWdYUf.js`. The CI spec list loads with no error: 209 tests in 15 files. CI time: the seven new tests add about 1 minute at most.
+- **P2.** Every size-dependent criterion (2, 4, 5, 6, 8, and 7 as far as it can be measured) has a 640x360 number or a stated reason in the tables and answers above. The commands above let a verifier re-run any of them.
+- **P3.** Mark's decision and the amendment are recorded with dates (the Decision note in B3, the amendment under the exit criteria). The Result section is filled in and does not declare GO.
+- **P4.** The 480x270 specs pass unchanged: Edge GPU 130 passed and 6 skipped (the two picture-saving tests and the four Mark's-art parity tests, as before), `PW_NOGPU=1` 129 passed and 7 skipped (the same, and the GPU-only negative control).
+
+**Drift and findings from this step** (continues the numbered list).
+41. **A test that types a layout number breaks when the size changes, and that is useful.** The NODE panel at x 396 was one: the HUD follows `W`, the test did not. When the size changes again, search the specs for typed layout numbers. The B3 list of layout that is written for 480x270 (stage config, 240x135 backdrop, the `HUD_FIXED` caption bar, the `main.ts` badges, `postfx`) is still the work of the game's move.
+42. **A window of 960x540 is zoom 1 at 640x360.** A test that opens a lab in the default window and counts uneven blocks must use a window of at least 1280x720. The block check cannot fail at zoom 1.
+43. **The zoom at 640x360 is 3 on 1080p and 5 at ratio 2.25. On 1440p it is exactly 4, and on 4K exactly 6.** The picture is 25% smaller on the same screen than at 480x270 (B3 item 3).
+
+## Result (draft, 2026-10-05; the outcome is Mark's decision)
+- **Outcome:** Recommended: GO, with the design changes listed in the design update. Mark decides. This draft does not declare GO.
+- **Date:** 2026-10-05 (the box closes on 2026-10-18 at the latest).
+- **Numbers, by exit criterion** (every size-dependent number is at 480x270 and 640x360 side by side in the S1a section; the target size is 640x360 from 2026-10-05):
+
+| # | Criterion | Result |
+|---|---|---|
+| 1 | Bundle | Met (B2 round 4 and cleanup). Lazy 3D chunk 576.8 kB raw, 145.1 kB gzip (budget 160). Lab boot 165.5 kB gzip (budget 180). Shipped game 233.9 kB gzip (budget 236), byte-identical to `main` at every step (`node scripts/prod-bytes.mjs HEAD`, 117 files). |
+| 2 | Speed | Met at both sizes, on this RTX 4070 and display only. Frame interval p95 within 0.995 to 1.000 of a bare page; frame cost with the GPU wait p95 3.2 to 3.5 ms (3D scene with bloom) and 2.3 to 2.5 ms (stage slice) at 640x360, the same at 480x270 (line 8 ms). The negative controls fail the line. |
+| 3 | CI | Met on software WebGL. CI is green on e1f2246, 2eeaf57, f22dc09 (after one re-run, because the browser install took 22 minutes) and d61d7d9 (the strict parity gate on Linux). The spike's CI takes about 29 minutes; the job limit on the spike is 45. The 640x360 checks of S1a (209 tests in the list) have not run on CI yet. |
+| 4 | Fallback | Met. A lost context resolves `aborted / context-lost` about 1,020 ms after the loss (limit 2,000), WebGL2 off resolves `unsupported / no-webgl2` in 0 ms, and the story continues. The same at 640x360. |
+| 5 | Leaks | Met. 10 enter-and-leave cycles: GL counts flat (17 textures, 4 buffers, 4 framebuffers, 1 program, 2 VAOs), JS heap after GC +2.4% (limit 5%), at both sizes. |
+| 6 | Effects on the shared context | Met. 8 cases (built-in filter, custom GLSL filter, `Graphics` mask, sprite mask, each on the `View3D` and on a sorted container): 0 GL errors, within the CPU tolerance, the sprite mask on a sorted container 0 pixels off at 6 positions. The same at 640x360. |
+| 7 | Stage parity | Met at 480x270 (B1 and the cleanup: the exit gate of 2/255 and 3%, plus the strict gate). At 640x360 it cannot be measured against the Phaser references (they are 480x270): the slice fills the top left 480x270 pixel for pixel and the rest is void. |
+| 8 | Crispness | Met at both sizes: 0 uneven blocks at every ratio (1, 1.25, 1.5, 1.75, 2, 2.25) in every scene, on the GPU and on SwiftShader. |
+| 9 | Part A answers | Answered, see the Part A table in the B2 section. Chromium on CI passes on software WebGL. WebKit on the Linux runner passes. Firefox on the Linux runner has no WebGL2, so the E5 path (the 2D alternative) runs there. Firefox 153 on Windows passes the 2-test browser spec and the Part A scripts. |
+| 10 | Independent verification | See the rubric below. B2 needed a 4th round (Mark approved the extra round). B0, B1 and B3 passed in 1 round, and the cleanup in 3. |
+| 11 | Mark's look review | Open. Mark picked the size: **640x360**. The 3D look is not reviewed in Phase 0 (amendment of 2026-10-05). Mark's look review of the stage slice is **pending Mark**: this doc records no approval. |
+
+- **Rubric scores per part** (median per criterion; rounds used):
+  - **B0**, 1 round, average 8.19: B1=8 B2=7 B3=8 B4=8 B5=8 B6=8 B7=8 B8=8, V1=8 V2=9 V3=9 V4=8.5 V5=9.
+  - **B2 and Part A**, 4 rounds. Rounds 1 to 3 failed (averages 7.73, 7.85, 7.85; lows B1=7 and V4=7). Round 4 (the extra round Mark approved) passed with average 8.04: B1=7.5 B2=8 B3=8 B4=7.5 B5=8 B6=8 B7=8 B8=8.5, V1=8 V2=8.5 V3=8 V4=7.5 V5=9.
+  - **B1**, 1 round, average 8.0: B1=8 B2=8 B3=7 B4=8 B5=8 B6=8 B7=8 B8=8, V1=8.5 V2=9 V3=7 V4=8.5 (V5 not applicable).
+  - **B3**, 1 round, average 8.38: B1=8 B2=8 B3=8 B4=9 B5=9 B6=9 B7=8 B8=8, V1=9 V2=8 V3=9 V4=8 V5=8.
+  - **Phase 0 cleanup**, 3 rounds: 7.92 (failed), 8.00 (a pass line failed), 8.08 (pass): B1 to B8=8, V1=8 V2=9 V3=8 V4=7 V5=9.
+  - **S1a**: this step, not scored yet.
+- **Draft PR:** #11 (`spike/engine-platform`, never merged).
+- **Archive tag:** after Mark's go-ahead.
+- **Notes: what was learned.**
+  - **The drift list** (items 1 to 43 above, each also tagged `@deviation` in the code where it is code) is the input of the design update. The items that change the text of the design docs include: the `roundPixels` change (item 25, for Mark's approval), `GameObject.destroy` and effects (31), the 3D chunk's use of the old font and `Rng` until M8 (32), the strict E19 policy with `via: 'dropped'` (33), and the two reference sets, GPU and software (35).
+  - **The `roundPixels` finding (cleanup C7).** The wrapper's snap to pixel already makes every position a whole number, so Pixi's `roundPixels: true` does nothing at scale 1, 2 and -1. It does change an odd-sized picture under a fractional scale (6 columns and 5 rows for an 11x9 picture at 1.5x), and under a 1.09x parent. A tie (an edge exactly half way) depends on the renderer and is never safe. With the option on, the sprite mask on a sorted container lost 16 to 35 pixels on SwiftShader. The engine now has it OFF, and the real-renderer A/B test in `sje-parta.spec.ts` is the authority.
+  - **The haze harness bug (cleanup C3).** The depth haze frame was 766 pixels off at first. The cause was in the reference harness and not in the engine: the Phaser stage lab does not load `axes.json`, the engine page does, and one hero has an entry. The lesson: a reference script must feed the Phaser page everything the engine page reads, and the pin list covers data files and not the way each page loads them.
+  - **Other lessons.** A speed test must prove which scene it measures (the speed tests of B2 rounds 1 to 3 could measure the 2D lab after a short hack failed). A timing gate needs a negative control. A GPU timer query is not stable on this machine, and a read-back after the draw is. A test that types a layout number breaks when the size changes (S1a, item 41).
+  - **Risks that stay open:** the S1a checks have not run on the CI runner. Mark's look review of the stage slice is open. The 640x360 layout of the stage, the 3D caption bar, the badges and `postfx` is not built (the game's move). A hidden 3D scene still draws its frame and the 1 s watchdog grace gives up on a context that returns after 1 s (M7).
+  - **Design doc changes:** the design update PR carries them (`docs/engine/`). This spike did not edit `docs/engine/`.

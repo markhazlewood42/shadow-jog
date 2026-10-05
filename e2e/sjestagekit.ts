@@ -13,7 +13,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { deflateSync, gunzipSync } from 'node:zlib';
 import { type Browser, expect, type Page } from '@playwright/test';
+import { SIZE, withSize } from './sjelabkit';
 import { changedInputs, H, pinMessage, rendererMask, W } from './sjestageparity';
+
+// The picture size under test (480x270, or 640x360 with SJE_SIZE=640x360) is `SIZE` from sjelabkit.ts. `W` and `H` below are NOT it: they are the size of the
+// PHASER references, always 480x270, so the parity checks only run at 480x270.
+export { SIZE };
 
 export const ROOT = resolve(import.meta.dirname, '..');
 // The pure parts (the comparison numbers, the strict gate, the pins) are in sjestageparity.ts, so a unit test can use them. Re-exported here for the spec.
@@ -58,7 +63,7 @@ export async function openStage(browser: Browser, opts: OpenOptions = {}): Promi
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
   if (opts.hideArt) await page.route('**/spritefusion-tests/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>app</title>' }));
   const boot = async (): Promise<string | undefined> => {
-    await page.goto(`/sjestage.html?${opts.query ?? 'manual'}`);
+    await page.goto(`/sjestage.html?${withSize(opts.query ?? 'manual')}`);
     await page.waitForFunction(() => window.__SJESTAGE__ !== undefined || (window as unknown as { __SJESTAGE_ERROR__?: string }).__SJESTAGE_ERROR__ !== undefined, null, { timeout: 90_000 });
     return page.evaluate(() => (window as unknown as { __SJESTAGE_ERROR__?: string }).__SJESTAGE_ERROR__);
   };

@@ -17,7 +17,7 @@
  * context-loss checks are in e2e/sje3d.spec.ts, which is Chromium only.
  */
 import { type Browser, expect, test } from '@playwright/test';
-import { bytesOf, startHack, step, withLab } from './sjelabkit';
+import { bytesOf, SIZE, startHack, step, withLab, withSize } from './sjelabkit';
 
 /**
  * A request for the lazy 3D chunk or for Three itself. (The lab loads the door, the result types and the HUD up front on
@@ -59,7 +59,7 @@ async function expectE5WithoutWebGL2(browser: Browser, browserName: string, test
     const page = await context.newPage();
     const requests: string[] = [];
     page.on('request', (r) => requests.push(r.url()));
-    await page.goto('/sjelab.html?manual');
+    await page.goto(`/sjelab.html?${withSize('manual')}`);
     await page.waitForFunction(() => (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__ !== undefined, null, { timeout: 90_000 });
     const message = await page.evaluate(() => (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__);
     expect(message, 'the clear message').toMatch(/This browser cannot run WebGL 2/);
@@ -104,7 +104,7 @@ test('Pixi first, Three later: the 3D scene draws on the shared context with no 
     expect(requests.some((u) => THREE_CHUNK.test(u)), 'the 3D chunk was requested by the first hack').toBe(true);
     const frame = await page.evaluate(() => window.__SJE__?.frame());
     console.log(`SJE BROWSERS ${browserName}: frame ${JSON.stringify(frame)}`);
-    expect(frame).toMatchObject({ mode: 'shared-context', width: 480, height: 270, minFilter: 'nearest', magFilter: 'nearest' });
+    expect(frame).toMatchObject({ mode: 'shared-context', width: SIZE.w, height: SIZE.h, minFilter: 'nearest', magFilter: 'nearest' });
     expect(await page.evaluate(() => window.__SJE__?.glErrors()), 'GL error flags').toEqual([]);
 
     // 3. The picture: not blank, and the back buffer IS the 3D target where nothing is drawn over it.
@@ -170,7 +170,7 @@ test('both frame modes draw the same picture in this browser (shared context aga
         }
         hashes[mode] = run;
         const px = bytesOf((await page.evaluate(() => window.__SJE__?.pixels()))?.base64 ?? '');
-        expect(px.length).toBe(480 * 270 * 4);
+        expect(px.length).toBe(SIZE.w * SIZE.h * 4);
       },
       { query: `manual&frame=${mode}`, allow: allowFor(browserName) },
     );

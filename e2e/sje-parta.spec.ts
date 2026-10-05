@@ -16,7 +16,7 @@
  *          PW_NOGPU=1 npx playwright test e2e/sje-parta.spec.ts    (software GL, like CI)
  */
 import { expect, test } from '@playwright/test';
-import { isSoftware, startHack, step, withLab } from './sjelabkit';
+import { isSoftware, SIZE, startHack, step, withLab, zoomFor } from './sjelabkit';
 
 type Effect = 'colorMatrix' | 'glsl' | 'graphicsMask' | 'spriteMask';
 const EFFECTS: Effect[] = ['colorMatrix', 'glsl', 'graphicsMask', 'spriteMask'];
@@ -24,12 +24,14 @@ const TARGETS = ['view3d', 'sorted'] as const;
 
 /** The windows for (ii): ratio 1 (zoom 2) and ratio 1.5 (zoom 4, the ratio the spike asks about). */
 const WINDOWS = [
-  { dpr: 1, viewport: { width: 960, height: 540 }, k: 2 },
+  // At 640x360 (SJE_SIZE) a 960x540 window gives zoom 1, where every 1x1 block is flat by definition and the block check proves nothing: use 1280x720 (zoom 2).
+  { dpr: 1, viewport: SIZE.is640 ? { width: 1280, height: 720 } : { width: 960, height: 540 }, k: 2 },
   { dpr: 1.5, viewport: { width: 1300, height: 730 }, k: 4 },
 ];
 
 test.describe('Part A (i) and (ii): effects and masks on the 3D view and on a sorted container', () => {
-  for (const { dpr, viewport, k } of WINDOWS) {
+  for (const { dpr, viewport, k: tableK } of WINDOWS) {
+    const k = zoomFor(tableK, viewport, dpr);
     test(`all eight cases at device pixel ratio ${dpr}: CPU match, 0 GL errors, the picture comes back, and the ${k}x${k} blocks stay flat`, async ({ browser }) => {
       await withLab(
         browser,

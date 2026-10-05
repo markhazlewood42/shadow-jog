@@ -28,6 +28,7 @@ import { join } from 'node:path';
 import { expect, type Page, test } from '@playwright/test';
 import { depthFor, enemySlots, loadStages, loadHud, slotPoint, type StageConfig } from '../src/battlestage/config';
 import { enemyIdle, idleFrame } from '../src/battlestage/idle';
+import { zoomFor } from './sjelabkit';
 import {
   assertInputsPinned,
   committedFrames,
@@ -53,6 +54,7 @@ import {
   type SpriteMode,
   savePicture,
   strictCompare,
+  SIZE,
   strictMask,
   W,
   withStage,
@@ -108,8 +110,8 @@ test.describe('stage lab: boot', () => {
         expect(problems, 'console errors and warnings during boot').toEqual([]);
         const info = await page.evaluate(() => window.__SJESTAGE__?.info());
         console.log(`SJESTAGE renderer: ${info?.renderer} | ${info?.version} | k=${info?.k} dpr=${info?.dpr} | sprites ${info?.sprites} | Mark's art here: ${info?.haveArt}`);
-        expect(info?.w).toBe(480);
-        expect(info?.h).toBe(270);
+        expect(info?.w).toBe(SIZE.w);
+        expect(info?.h).toBe(SIZE.h);
         // The page uses Mark's art when it is there, and the stand-ins on a machine without it (CI), unless it was told otherwise.
         expect(info?.haveArt).toBe(ART_HERE);
         expect(info?.sprites).toBe(ART_HERE ? 'art' : 'standins');
@@ -478,8 +480,66 @@ test.describe('stage lab: determinism', () => {
   });
 });
 
+test.describe('stage lab: the picture size (step S1a, exit criterion 7 at 640x360)', () => {
+  test.skip(SIZE.is640, 'compares a 480x270 page with a 640x360 page, so it runs at the default size only');
+  // The Phaser references are 480x270, so the parity gate above cannot judge a 640x360 picture. What CAN be said: the slice is laid out for 480x270
+  // (`SCREEN_W`, `SCREEN_H` in src/battlestage/config.ts), so at 640x360 it must fill the top left 480x270 exactly as it does at 480x270 (and that picture is
+  // the one the gate judged), and the 160 columns and 90 rows around it must be one colour: the void. A difference here means the slice reads the picture size
+  // somewhere it should not, or that the engine draws the same scene differently at another size.
+  test('at 640x360 the top left 480x270 is the 480x270 slice, pixel for pixel, and the rest is the void colour', async ({ browser }) => {
+    const read = async (query: string): Promise<{ px: Buffer; w: number; h: number }> => {
+      let out: { px: Buffer; w: number; h: number } | undefined;
+      await withStage(
+        browser,
+        async ({ page }) => {
+          const got = await page.evaluate(async () => {
+            const h = window.__SJESTAGE__;
+            if (!h) throw new Error('no hook');
+            await h.show({ tick: 41, sprites: 'standins' });
+            return h.pixels();
+          });
+          out = { px: rgba(got.base64), w: got.w, h: got.h };
+        },
+        { query },
+      );
+      if (!out) throw new Error('no pixels');
+      return out;
+    };
+    // `size=` is added by hand, so this works whatever SJE_SIZE is (the withSize of the kit adds it only for a whole run at 640x360).
+    const small = await read('manual&standins');
+    const big = await read('manual&standins&size=640x360');
+    expect([small.w, small.h, big.w, big.h]).toEqual([480, 270, 640, 360]);
+    // The control: the picture compared is a real one (a blank page would match a blank page).
+    const colours = new Set<number>();
+    for (let i = 0; i < small.px.length; i += 4) colours.add(small.px.readUInt32LE(i));
+    expect(colours.size, 'colours in the 480x270 slice').toBeGreaterThan(100);
+    let differing = 0;
+    for (let y = 0; y < 270; y++) {
+      for (let x = 0; x < 480; x++) {
+        const a = (y * 480 + x) * 4;
+        const b = (y * 640 + x) * 4;
+        if (small.px.compare(big.px, b, b + 4, a, a + 4) !== 0) differing++;
+      }
+    }
+    // The rest: every pixel outside the 480x270 corner has the colour of the void (the pixel at the far corner).
+    const corner = big.px.subarray((359 * 640 + 639) * 4, (359 * 640 + 639) * 4 + 4);
+    let notVoid = 0;
+    for (let y = 0; y < 360; y++) {
+      for (let x = 0; x < 640; x++) {
+        if (x < 480 && y < 270) continue;
+        const b = (y * 640 + x) * 4;
+        if (big.px.compare(corner, 0, 4, b, b + 4) !== 0) notVoid++;
+      }
+    }
+    console.log(`SJESTAGE at 640x360: ${differing} of ${480 * 270} pixels of the top left 480x270 differ from the 480x270 slice; ${notVoid} of ${640 * 360 - 480 * 270} pixels outside it are not the void colour ${JSON.stringify([...corner])}`);
+    expect(differing, 'pixels of the 480x270 area that differ from the 480x270 page').toBe(0);
+    expect(notVoid, 'pixels outside the 480x270 area that are not the void colour').toBe(0);
+  });
+});
+
 test.describe('stage lab: crisp pixels at every zoom and device pixel ratio (the slice, zoom 4 or more)', () => {
-  for (const { dpr, viewport, k } of ZOOM4) {
+  for (const { dpr, viewport, k: tableK } of ZOOM4) {
+    const k = zoomFor(tableK, viewport, dpr);
     test(`every ${k}x${k} block is one flat colour at device pixel ratio ${dpr}, window ${viewport.width}x${viewport.height} (the GL canvas, and a screenshot of the page)`, async ({ browser }) => {
       await withStage(
         browser,
@@ -490,9 +550,9 @@ test.describe('stage lab: crisp pixels at every zoom and device pixel ratio (the
           for (const tick of [0, 41, 173, 300]) {
             await page.evaluate((t) => window.__SJESTAGE__?.show({ tick: t, sprites: 'standins' }), tick);
             const blocks = await page.evaluate(() => window.__SJESTAGE__?.canvasBlocks());
-            expect(blocks?.canvasW).toBe(480 * k);
-            expect(blocks?.canvasH).toBe(270 * k);
-            expect(blocks?.blocks).toBe(480 * 270);
+            expect(blocks?.canvasW).toBe(SIZE.w * k);
+            expect(blocks?.canvasH).toBe(SIZE.h * k);
+            expect(blocks?.blocks).toBe(SIZE.w * SIZE.h);
             expect(blocks?.bad, `non-uniform ${k}x${k} blocks at tick ${tick}, dpr ${dpr}: ${JSON.stringify(blocks?.samples)}`).toBe(0);
           }
           // What the compositor shows: a screenshot of the page, with the picture's place in it.
@@ -501,9 +561,9 @@ test.describe('stage lab: crisp pixels at every zoom and device pixel ratio (the
           expect(Number.isInteger(pic?.x) && Number.isInteger(pic?.y)).toBe(true);
           const shot = await page.screenshot();
           const url = `data:image/png;base64,${shot.toString('base64')}`;
-          const region = { x: pic?.x ?? 0, y: pic?.y ?? 0, w: 480 * k, h: 270 * k };
+          const region = { x: pic?.x ?? 0, y: pic?.y ?? 0, w: SIZE.w * k, h: SIZE.h * k };
           const blocks = await page.evaluate(([u, kk, r]) => window.__SJESTAGE__?.imageBlocks(u as string, kk as number, r as typeof region), [url, k, region]);
-          expect(blocks?.blocks).toBe(480 * 270);
+          expect(blocks?.blocks).toBe(SIZE.w * SIZE.h);
           expect(blocks?.bad, `non-uniform ${k}x${k} blocks in the screenshot at dpr ${dpr}: ${JSON.stringify(blocks?.samples)}`).toBe(0);
         },
         { dpr, viewport },

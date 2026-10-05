@@ -110,6 +110,8 @@ time. Run a single spec: `npx playwright test e2e/chaos.spec.ts --reporter=line`
 
 `PW_ALL_ENGINES=1` runs WebKit and Firefox locally too.
 
+`SJE_SIZE=640x360` runs the new engine's specs (`sjelab`, `sjestage`, `sje3d`, `sje-parta`, `sje3d-browsers`) on the 640x360 picture (step S1a of the spike). Every lab page is opened with `?size=640x360`, and every size and zoom a spec checks comes from `SIZE` and `zoomFor` in `e2e/sjelabkit.ts`. Without it the specs run at 480x270 as before. At 640x360 run `sje3d`, `sje-parta` and `sje3d-browsers` whole, and from `sjelab` and `sjestage` only the size-independent groups: `-g "crisp|other whole zooms|speed|leaking|boot|stability|context"`. The rest of those two specs compares the 480x270 pictures with the Phaser references and with Canvas 2D, so it can only run at 480x270. `node scripts/sjesize-shots.mjs <folder> [640x360|480x270]` saves one picture of the lab's 2D scene and one of the 3D scene with its HUD (dev server on 3007).
+
 ### Tests vs design data
 The stage tools come to `main` when the battle stage is built on the new engine (decision 17 in `docs/PHASE-0.2.md`). Follow this rule from the first commit of that build. The paths below are the paths on `spike/phaser-stage`.
 

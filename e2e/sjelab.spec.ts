@@ -21,7 +21,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Browser, expect, type Page, test } from '@playwright/test';
 import { MAX_ELAPSED_MS } from '../src/sje/core/fixedloop';
-import { isSoftware } from './sjelabkit';
+import { isSoftware, SIZE, withSize, zoomFor } from './sjelabkit';
 
 /**
  * One viewport per device pixel ratio, each chosen so the window is a whole number of device pixels
@@ -52,7 +52,7 @@ interface Lab {
 }
 
 /** Open the lab with the clock in the test's hands (`?manual`). */
-async function openLab(browser: Browser, dpr = 1, viewport = { width: 960, height: 540 }): Promise<Lab> {
+async function openLab(browser: Browser, dpr = 1, viewport = { width: 960, height: 540 }, query = withSize('manual')): Promise<Lab> {
   const context = await browser.newContext({ viewport, deviceScaleFactor: dpr });
   const page = await context.newPage();
   const problems: string[] = [];
@@ -79,7 +79,7 @@ async function openLab(browser: Browser, dpr = 1, viewport = { width: 960, heigh
       });
   });
   const boot = async (): Promise<string | undefined> => {
-    await page.goto('/sjelab.html?manual');
+    await page.goto(`/sjelab.html?${query}`);
     await page.waitForFunction(() => window.__SJE__ !== undefined || (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__ !== undefined, null, { timeout: 90_000 });
     return page.evaluate(() => (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__);
   };
@@ -95,8 +95,8 @@ async function openLab(browser: Browser, dpr = 1, viewport = { width: 960, heigh
 }
 
 /** Run `fn` against a fresh lab and always close it. */
-async function withLab(browser: Browser, fn: (lab: Lab) => Promise<void>, dpr?: number, viewport?: { width: number; height: number }): Promise<void> {
-  const lab = await openLab(browser, dpr, viewport);
+async function withLab(browser: Browser, fn: (lab: Lab) => Promise<void>, dpr?: number, viewport?: { width: number; height: number }, query?: string): Promise<void> {
+  const lab = await openLab(browser, dpr, viewport, query);
   try {
     await fn(lab);
     expect(lab.problems, 'console errors and warnings').toEqual([]);
@@ -120,14 +120,14 @@ test.describe('engine lab: boot', () => {
       const info = await page.evaluate(() => window.__SJE__?.info());
       console.log(`SJE renderer: ${info?.renderer} | ${info?.version} | k=${info?.k} dpr=${info?.dpr}`);
       expect(info?.version).toContain('WebGL 2');
-      expect([info?.w, info?.h]).toEqual([480, 270]);
+      expect([info?.w, info?.h]).toEqual([SIZE.w, SIZE.h]);
       // The lab scene stepped one tick and drew: something other than the void colour is on screen.
       const pixel = await page.evaluate(() => window.__SJE__?.pixel(10, 4));
       expect(pixel).not.toEqual([7, 6, 13, 255]);
-      // The raw back buffer is readable: 480x270 RGBA, opaque everywhere (the engine clears to an opaque colour).
+      // The raw back buffer is readable: the picture size (480x270, 640x360 with SJE_SIZE) RGBA, opaque everywhere (the engine clears to an opaque colour).
       const raw = await page.evaluate(() => window.__SJE__?.pixels());
       const bytes = Buffer.from(raw?.base64 ?? '', 'base64');
-      expect([raw?.w, raw?.h, bytes.length]).toEqual([480, 270, 480 * 270 * 4]);
+      expect([raw?.w, raw?.h, bytes.length]).toEqual([SIZE.w, SIZE.h, SIZE.w * SIZE.h * 4]);
       let transparent = 0;
       for (let i = 3; i < bytes.length; i += 4) if (bytes[i] !== 255) transparent++;
       expect(transparent).toBe(0);
@@ -191,7 +191,8 @@ test.describe('engine lab: what gets loaded', () => {
 });
 
 test.describe('engine lab: crisp pixels at every zoom and device pixel ratio', () => {
-  for (const { dpr, viewport, k } of [...ZOOM4, ...AWKWARD]) {
+  for (const { dpr, viewport, k: tableK } of [...ZOOM4, ...AWKWARD]) {
+    const k = zoomFor(tableK, viewport, dpr);
     test(`every ${k}x${k} block is one flat colour at device pixel ratio ${dpr}, window ${viewport.width}x${viewport.height} (the GL canvas, over a camera pan)`, async ({ browser }) => {
       await withLab(
         browser,
@@ -205,9 +206,9 @@ test.describe('engine lab: crisp pixels at every zoom and device pixel ratio', (
               h.step(t - h.tick());
               return h.canvasBlocks();
             }, tick);
-            expect(blocks.canvasW).toBe(480 * k);
-            expect(blocks.canvasH).toBe(270 * k);
-            expect(blocks.blocks).toBe(480 * 270);
+            expect(blocks.canvasW).toBe(SIZE.w * k);
+            expect(blocks.canvasH).toBe(SIZE.h * k);
+            expect(blocks.blocks).toBe(SIZE.w * SIZE.h);
             expect(blocks.bad, `non-uniform ${k}x${k} blocks at tick ${tick}, dpr ${dpr}: ${JSON.stringify(blocks.samples)}`).toBe(0);
           }
         },
@@ -236,9 +237,9 @@ test.describe('engine lab: crisp pixels at every zoom and device pixel ratio', (
           expect(Number.isInteger(pic?.x) && Number.isInteger(pic?.y)).toBe(true);
           const shot = await page.screenshot();
           const url = `data:image/png;base64,${shot.toString('base64')}`;
-          const region = { x: pic?.x ?? 0, y: pic?.y ?? 0, w: 480 * k, h: 270 * k };
+          const region = { x: pic?.x ?? 0, y: pic?.y ?? 0, w: SIZE.w * k, h: SIZE.h * k };
           const blocks = await page.evaluate(([u, kk, r]) => window.__SJE__?.imageBlocks(u as string, kk as number, r as typeof region), [url, k, region]);
-          expect(blocks?.blocks).toBe(480 * 270);
+          expect(blocks?.blocks).toBe(SIZE.w * SIZE.h);
           expect(blocks?.bad, `non-uniform ${k}x${k} blocks in the screenshot at dpr ${dpr}: ${JSON.stringify(blocks?.samples)}`).toBe(0);
           // The bars around the picture are the void colour (so the picture's edge is where the engine says it is).
           const probe = (x: number, y: number) => page.evaluate(async ([u, px, py]) => {
@@ -263,9 +264,9 @@ test.describe('engine lab: crisp pixels at every zoom and device pixel ratio', (
 
   test('other whole zooms are exact too (1, 2, 3 at dpr 1)', async ({ browser }) => {
     for (const [w, h, k] of [
-      [480, 270, 1],
-      [960, 540, 2],
-      [1440, 810, 3],
+      [SIZE.w, SIZE.h, 1],
+      [SIZE.w * 2, SIZE.h * 2, 2],
+      [SIZE.w * 3, SIZE.h * 3, 3],
     ] as const) {
       await withLab(
         browser,
@@ -282,6 +283,40 @@ test.describe('engine lab: crisp pixels at every zoom and device pixel ratio', (
       );
     }
   });
+});
+
+/**
+ * The CI check for the target size Mark chose on 2026-10-05 (step S1a): the same crispness line at 640x360, always, whatever `SJE_SIZE` is.
+ * Cheap on purpose: the GL canvas only (the screenshot half is in the loop above, and in the full 640x360 run of this spec), two ticks, the six
+ * ratios. The zoom is worked out by the presenter's own rule, and the test checks the page agrees with it.
+ */
+test.describe('engine lab: crisp pixels at 640x360 (CI check, step S1a)', () => {
+  test.skip(SIZE.is640, 'the whole spec already runs at 640x360 with SJE_SIZE=640x360');
+  for (const { dpr, viewport } of ZOOM4) {
+    const k = Math.max(1, Math.floor(Math.min((viewport.width * dpr) / 640, (viewport.height * dpr) / 360) + 1e-9));
+    test(`every ${k}x${k} block of the 640x360 picture is one flat colour at device pixel ratio ${dpr}, window ${viewport.width}x${viewport.height}`, async ({ browser }) => {
+      await withLab(
+        browser,
+        async ({ page }) => {
+          const info = await page.evaluate(() => window.__SJE__?.info());
+          expect([info?.w, info?.h, info?.k]).toEqual([640, 360, k]);
+          for (const tick of [150, 477]) {
+            const blocks = await page.evaluate((t) => {
+              const h = window.__SJE__;
+              if (!h) throw new Error('no hook');
+              h.step(t - h.tick());
+              return h.canvasBlocks();
+            }, tick);
+            expect([blocks.canvasW, blocks.canvasH, blocks.blocks]).toEqual([640 * k, 360 * k, 640 * 360]);
+            expect(blocks.bad, `non-uniform ${k}x${k} blocks at tick ${tick}, dpr ${dpr}: ${JSON.stringify(blocks.samples)}`).toBe(0);
+          }
+        },
+        dpr,
+        viewport,
+        'manual&size=640x360',
+      );
+    });
+  }
 });
 
 test.describe('engine lab: determinism', () => {
