@@ -4,9 +4,10 @@
  * punk), the HUD off, ported from the Phaser spike through the translation table (docs/engine/migration.md section 6).
  *
  * What it checks, and where the rule comes from:
- *  - parity: the engine's frame against the frames of the Phaser spike's own page at three ticks, for the stand-in crew (what CI has) and,
+ *  - the INPUTS are pinned (cleanup C2): the SHA-256 of every data file the slice reads is in the manifest, and a changed file fails first with the command that makes the references again;
+ *  - parity: the engine's frame against the frames of the Phaser spike's own page at three ticks, and a depth-haze frame (cleanup C3), for the stand-in crew (what CI has) and,
  *    on Mark's machine, for his sprites. The pass line: no pixel differs by more than 2/255 in any channel, and at most 3% of the pixels
- *    differ at all. The numbers are printed and attached to the test report. A diff picture is saved when `SJESTAGE_SHOTS=<folder>` is set;
+ *    differ at all, and a STRICT regression gate (cleanup C1): exact outside the renderer-dependent glow pixels, with negative controls in the real scene. The numbers are printed and attached to the test report. A diff picture is saved when `SJESTAGE_SHOTS=<folder>` is set;
  *  - the design: depth order (a nearer figure draws over a farther one, the parts of a figure sort inside it), the feet where the stage
  *    config puts them, the origin on the feet, the mirrored enemy, the hero's idle frame chosen from the tick;
  *  - crispness: at zoom 4 every 4x4 block of the canvas is one flat colour, at device pixel ratios 1, 1.25, 1.5, 1.75, 2 and 2.25;
@@ -28,23 +29,31 @@ import { expect, type Page, test } from '@playwright/test';
 import { depthFor, enemySlots, loadStages, loadHud, slotPoint, type StageConfig } from '../src/battlestage/config';
 import { enemyIdle, idleFrame } from '../src/battlestage/idle';
 import {
+  assertInputsPinned,
+  committedFrames,
   compareFrames,
   describeParity,
+  describeStrict,
   encodePng,
   FIXTURES,
+  type FrameKind,
   H,
   HAVE_ART,
+  inputFiles,
   isSoftware,
   openStage,
   PARITY_MAX_CHANNEL,
   PARITY_MAX_PERCENT,
   readCommitted,
   readReference,
+  referenceName,
   rendererKind,
   readSlice,
   ROOT,
   type SpriteMode,
   savePicture,
+  strictCompare,
+  strictMask,
   W,
   withStage,
 } from './sjestagekit';
@@ -79,13 +88,13 @@ function shippedStage(seed?: number): StageConfig {
 const rgba = (base64: string): Buffer => Buffer.from(base64, 'base64');
 
 /** Show the slice at a tick in a mode and read the back buffer. */
-async function frameAt(page: Page, tick: number, sprites: SpriteMode, seed = SLICE.seed): Promise<Buffer> {
-  const got = await page.evaluate(async ([t, s, sd]) => {
+async function frameAt(page: Page, tick: number, sprites: SpriteMode, seed = SLICE.seed, frame: FrameKind = 'slice'): Promise<Buffer> {
+  const got = await page.evaluate(async ([t, s, sd, fr]) => {
     const h = window.__SJESTAGE__;
     if (!h) throw new Error('no hook');
-    await h.show({ tick: t as number, sprites: s as 'standins' | 'art', seed: sd as number });
+    await h.show({ tick: t as number, sprites: s as 'standins' | 'art', seed: sd as number, frame: fr as 'slice' | 'haze' });
     return h.pixels();
-  }, [tick, sprites, seed] as const);
+  }, [tick, sprites, seed, frame] as const);
   expect(got.w * got.h * 4).toBe(W * H * 4);
   return rgba(got.base64);
 }
@@ -151,43 +160,66 @@ test.describe('stage lab: boot', () => {
   });
 });
 
+/** The frames of the parity set: the slice at its three ticks, and the haze frame (C3). */
+const PARITY_FRAMES: Array<{ frame: FrameKind; ticks: readonly number[] }> = [
+  { frame: 'slice', ticks: SLICE.ticks },
+  { frame: 'haze', ticks: SLICE.haze.ticks },
+];
+
 test.describe('stage lab: parity with the Phaser spike (exit criterion 7)', () => {
+  // C2: this runs FIRST. When Mark has edited a design file (or a rig file) since the references were made, every pixel test below would fail with numbers
+  // that say nothing. This one says what changed and how to make the references again. (Each pixel test calls the same check before it compares anything.)
+  for (const kind of ['gpu', 'soft'] as const) {
+    test(`the inputs of the references are pinned (${kind} set): every data file the slice reads is the one the references were made with`, () => {
+      assertInputsPinned(kind);
+    });
+  }
+
   const modes: SpriteMode[] = ['standins', 'art'];
-  for (const mode of modes) {
-    for (const tick of SLICE.ticks) {
-      test(`${mode}, tick ${tick}: no pixel differs by more than ${PARITY_MAX_CHANNEL}/255, and at most ${PARITY_MAX_PERCENT}% of the pixels differ`, async ({ browser }, testInfo) => {
-        test.skip(mode === 'art' && !ART_HERE, "Mark's sprite folder is not here, so his art cannot be shown (the stand-in numbers are the CI line)");
-        await withStage(browser, async ({ page }) => {
-          const kind = await rendererKind(page);
-          const ref = readReference(mode, kind, tick);
-          test.skip(ref === null, `no ${kind} reference frame for ${mode} tick ${tick}: run node scripts/sjestage-refs.mjs --out <folder>${kind === 'soft' ? ' --no-gpu' : ''} and set SJESTAGE_REFS=<folder>`);
-          if (!ref) return;
-          const engine = await frameAt(page, tick, mode);
-          const parity = compareFrames(engine, ref);
-          const line = describeParity(`PARITY ${mode} ${kind} t${tick}`, parity);
-          console.log(line);
-          testInfo.annotations.push({ type: 'parity', description: line });
-          savePicture(`sjestage-${mode}-${kind}-t${tick}-engine.png`, encodePng(engine, W, H, 2));
-          savePicture(`sjestage-${mode}-${kind}-t${tick}-ref.png`, encodePng(ref, W, H, 2));
-          savePicture(`sjestage-${mode}-${kind}-t${tick}-diff.png`, encodePng(parity.diff, W, H, 2));
-          expect(parity.maxDiff, `largest channel difference (samples ${JSON.stringify(parity.samples)})`).toBeLessThanOrEqual(PARITY_MAX_CHANNEL);
-          expect(parity.pct, 'percent of pixels that differ at all').toBeLessThanOrEqual(PARITY_MAX_PERCENT);
+  for (const { frame, ticks } of PARITY_FRAMES) {
+    for (const mode of modes) {
+      for (const tick of ticks) {
+        test(`${mode}, ${frame} frame, tick ${tick}: no pixel differs by more than ${PARITY_MAX_CHANNEL}/255 and at most ${PARITY_MAX_PERCENT}% differ (exit criterion), and the STRICT regression gate: exact outside the renderer-dependent pixels`, async ({ browser }, testInfo) => {
+          test.skip(mode === 'art' && !ART_HERE, "Mark's sprite folder is not here, so his art cannot be shown (the stand-in numbers are the CI line)");
+          await withStage(browser, async ({ page }) => {
+            const kind = await rendererKind(page);
+            // C2: before any pixel is compared.
+            assertInputsPinned(kind);
+            const ref = readReference(mode, kind, tick, frame);
+            test.skip(ref === null, `no ${kind} reference frame for ${mode} ${frame} tick ${tick}: run node scripts/sjestage-refs.mjs --out <folder>${kind === 'soft' ? ' --no-gpu' : ''} and set SJESTAGE_REFS=<folder>`);
+            if (!ref) return;
+            const engine = await frameAt(page, tick, mode, SLICE.seed, frame);
+            const parity = compareFrames(engine, ref);
+            const strict = strictCompare(engine, ref, strictMask());
+            const line = `${describeParity(`PARITY ${mode} ${frame} ${kind} t${tick}`, parity)} | ${describeStrict('STRICT', strict)}`;
+            console.log(line);
+            testInfo.annotations.push({ type: 'parity', description: line });
+            const stem = `sjestage-${mode}-${kind}${frame === 'haze' ? '-haze' : ''}-t${tick}`;
+            savePicture(`${stem}-engine.png`, encodePng(engine, W, H, 2));
+            savePicture(`${stem}-ref.png`, encodePng(ref, W, H, 2));
+            savePicture(`${stem}-diff.png`, encodePng(parity.diff, W, H, 2));
+            expect(parity.maxDiff, `largest channel difference (samples ${JSON.stringify(parity.samples)})`).toBeLessThanOrEqual(PARITY_MAX_CHANNEL);
+            expect(parity.pct, 'percent of pixels that differ at all').toBeLessThanOrEqual(PARITY_MAX_PERCENT);
+            // C1: the regression gate. The measured parity is exactly 0, so anything else is a change somebody has to look at.
+            expect(strict.ok, `strict gate: ${describeStrict('', strict)} samples ${JSON.stringify(strict.samples)}`).toBe(true);
+          });
         });
-      });
+      }
     }
   }
 
-  test('the committed references are what the capture script says they are: made for THIS slice, three stand-in frames for each renderer kind, opaque, not blank, and the hashes in the manifest match', async () => {
+  test('the committed references are what the capture script says they are: made for THIS slice, four stand-in frames for each renderer kind (three ticks and the haze frame), opaque, not blank, and the hashes in the manifest match', async () => {
     for (const kind of ['gpu', 'soft'] as const) {
-      const manifest = JSON.parse(readFileSync(join(FIXTURES, `manifest-${kind}.json`), 'utf8')) as { slice: unknown; kind: string; files: Record<string, { bytes: number; sha256: string }> };
+      const manifest = JSON.parse(readFileSync(join(FIXTURES, `manifest-${kind}.json`), 'utf8')) as { slice: unknown; kind: string; inputs: Record<string, string>; files: Record<string, { bytes: number; sha256: string }> };
       expect(manifest.slice, `manifest-${kind}.json was made for src/battlestage/slice.json as it is now (run scripts/sjestage-refs.mjs again if the slice changed)`).toEqual(SLICE);
       expect(manifest.kind).toBe(kind);
-      for (const tick of SLICE.ticks) {
-        const ref = readCommitted(kind, tick);
-        expect(ref, `the committed ${kind} stand-in reference for tick ${tick} (tests/fixtures/sjestage)`).not.toBeNull();
+      expect(Object.keys(manifest.inputs).sort(), 'the manifest pins every input file in inputs.json').toEqual([...inputFiles()].sort());
+      for (const { frame, tick } of committedFrames()) {
+        const ref = readCommitted(kind, tick, frame);
+        expect(ref, `the committed ${kind} stand-in reference for ${frame} tick ${tick} (tests/fixtures/sjestage)`).not.toBeNull();
         if (!ref) continue;
         expect(ref.length).toBe(W * H * 4);
-        expect(createHash('sha256').update(ref).digest('hex'), `sha256 of ${kind} tick ${tick}`).toBe(manifest.files[`standins-${kind}-t${tick}.rgba`]?.sha256);
+        expect(createHash('sha256').update(ref).digest('hex'), `sha256 of ${kind} ${frame} tick ${tick}`).toBe(manifest.files[referenceName('standins', kind, tick, frame)]?.sha256);
         // A plain loop and ONE expect: 130,000 calls of expect() take minutes.
         const colours = new Set<number>();
         let transparent = 0;
@@ -195,20 +227,20 @@ test.describe('stage lab: parity with the Phaser spike (exit criterion 7)', () =
           if (ref[i + 3] !== 255) transparent++;
           colours.add(ref.readUInt32LE(i));
         }
-        expect(transparent, `non-opaque pixels in the ${kind} reference for tick ${tick}`).toBe(0);
+        expect(transparent, `non-opaque pixels in the ${kind} reference for ${frame} tick ${tick}`).toBe(0);
         expect(colours.size).toBeGreaterThan(100);
       }
     }
   });
 
   test('the GPU and the software references differ from each other by 1/255 at most, on a few percent of the pixels: that is why there are two sets (the game’s own glow layer is painted by canvas code that is renderer dependent)', async () => {
-    for (const tick of SLICE.ticks) {
-      const gpu = readCommitted('gpu', tick);
-      const soft = readCommitted('soft', tick);
+    for (const { frame, tick } of committedFrames()) {
+      const gpu = readCommitted('gpu', tick, frame);
+      const soft = readCommitted('soft', tick, frame);
       expect(gpu && soft).toBeTruthy();
       if (!gpu || !soft) continue;
       const p = compareFrames(gpu, soft);
-      console.log(describeParity(`GPU against SOFTWARE reference, tick ${tick}`, p));
+      console.log(describeParity(`GPU against SOFTWARE reference, ${frame} tick ${tick}`, p));
       expect(p.maxDiff).toBeLessThanOrEqual(1);
       expect(p.differing, 'the two kinds really do differ (otherwise one set would do)').toBeGreaterThan(0);
       // Where they differ is the street's glow layer (the shop windows and signs in the wall): 1,732 translucent pixels at 240x135, four pixels each at 480x270.
@@ -216,7 +248,23 @@ test.describe('stage lab: parity with the Phaser spike (exit criterion 7)', () =
     }
   });
 
-  test('NEGATIVE CONTROL: the harness fails a frame that is wrong (a figure moved one pixel, a colour off by 3)', async ({ browser }) => {
+  test('the renderer mask of the strict gate is only the glow layer: a few percent of the picture, so the gate is exact nearly everywhere (it allows 1/255 inside the mask and nothing else)', async () => {
+    const mask = strictMask();
+    let count = 0;
+    let lowest = 0;
+    for (let p = 0; p < mask.length; p++)
+      if (mask[p]) {
+        count++;
+        lowest = Math.max(lowest, Math.floor(p / W));
+      }
+    const horizon = shippedStage().backdrop.horizonY;
+    // (The glow layer is the wall's neon plus its reflection in the floor just under the kerb, so the mask reaches a little below the horizon row.)
+    console.log(`SJESTAGE strict mask: ${count} px (${((count / mask.length) * 100).toFixed(2)}%), the lowest row is ${lowest}, the horizon is row ${horizon}`);
+    expect(count).toBeGreaterThan(0);
+    expect(count / mask.length, 'the mask is a few percent of the picture at most').toBeLessThan(0.05);
+  });
+
+  test('NEGATIVE CONTROL (loose gate): the harness fails a frame that is wrong (a picture shifted one pixel, a colour off by 3)', async ({ browser }) => {
     await withStage(browser, async ({ page }) => {
       const ref = readReference('standins', await rendererKind(page), SLICE.ticks[1] ?? 0);
       expect(ref).not.toBeNull();
@@ -234,6 +282,41 @@ test.describe('stage lab: parity with the Phaser spike (exit criterion 7)', () =
       expect(off.maxDiff, 'a colour off by 3 is caught').toBeGreaterThan(PARITY_MAX_CHANNEL);
       // The measure itself: a picture compared with itself has no difference.
       expect(compareFrames(engine, Buffer.from(engine)).differing).toBe(0);
+    });
+  });
+
+  test('NEGATIVE CONTROL (strict gate, C1): moving the SHADOW, the RING or the BODY of a figure by one pixel in the real scene fails the strict gate, and the unmoved scene passes it', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      const kind = await rendererKind(page);
+      const tick = SLICE.ticks[1] ?? 0;
+      const ref = readReference('standins', kind, tick);
+      expect(ref).not.toBeNull();
+      if (!ref) return;
+      const mask = strictMask();
+      // Control for the control: the same scene, not moved, passes.
+      const clean = strictCompare(await frameAt(page, tick, 'standins'), ref, mask);
+      expect(clean.ok, describeStrict('unmoved', clean)).toBe(true);
+      const kitId = SLICE.lineup[0] ?? 'kit';
+      const punkId = `${SLICE.enemies[0] ?? 'rustfang_punk'}#0`;
+      const cases: Array<[string, string, 'shadow' | 'ring' | 'body', number, number]> = [
+        ['the hero shadow one pixel right', kitId, 'shadow', 1, 0],
+        ['the hero shadow one pixel down', kitId, 'shadow', 0, 1],
+        ['the hero ring one pixel left', kitId, 'ring', -1, 0],
+        ['the hero body one pixel right', kitId, 'body', 1, 0],
+        ['the punk body one pixel up', punkId, 'body', 0, -1],
+        ['the punk shadow one pixel left', punkId, 'shadow', -1, 0],
+      ];
+      for (const [label, id, part, dx, dy] of cases) {
+        await page.evaluate(([i, p, x, y]) => window.__SJESTAGE__?.nudge(i as string, p as 'shadow' | 'ring' | 'body', x as number, y as number), [id, part, dx, dy] as const);
+        const wrong = rgba((await page.evaluate(() => window.__SJESTAGE__?.pixels()))?.base64 ?? '');
+        const strict = strictCompare(wrong, ref, mask);
+        const loose = compareFrames(wrong, ref);
+        console.log(`SJESTAGE NEGATIVE CONTROL ${label}: ${describeStrict('strict', strict)} | ${describeParity('loose', loose)}`);
+        expect(strict.ok, `${label} must fail the strict gate`).toBe(false);
+        expect(strict.outside, `${label}: pixels outside the mask that moved`).toBeGreaterThan(0);
+        // Put the scene right again for the next case.
+        await page.evaluate((t) => window.__SJESTAGE__?.show({ tick: t, sprites: 'standins' }), tick);
+      }
     });
   });
 });
@@ -270,6 +353,29 @@ test.describe('stage lab: the stage is the design', () => {
       expect(kit.ring.visible && punk.ring.visible).toBe(true);
       expect(kit.shadow.visible && punk.shadow.visible).toBe(true);
       expect([kit.body.y, punk.body.y]).toEqual([1, 1]);
+    });
+  });
+
+  test('the haze frame (C3): every figure on a hazed row shows a hazed picture named after its row, the nearest row shows the plain one, and no ring exempts anybody', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      await page.evaluate((t) => window.__SJESTAGE__?.show({ tick: t, sprites: 'standins', frame: 'haze' }), SLICE.haze.ticks[0] ?? 0);
+      const stage = shippedStage();
+      const tint = stage.depthTint;
+      if (!tint) throw new Error('the street has no depth haze');
+      const figures = (await page.evaluate(() => window.__SJESTAGE__?.figures())) ?? [];
+      expect(figures.map((f) => f.id)).toEqual([...SLICE.haze.lineup, ...SLICE.haze.enemies.map((e, i) => `${e}#${i}`)]);
+      const rows = [...stage.party.slice(0, SLICE.haze.lineup.length).map((s) => s.row), ...enemySlots(stage, SLICE.haze.setKey).map((s) => s.row)];
+      let hazed = 0;
+      figures.forEach((f, i) => {
+        const amount = tint.amounts[rows[i] ?? 0] ?? 0;
+        expect(f.ring.visible, `${f.id} has no ring in this frame`).toBe(false);
+        if (amount > 0) {
+          hazed++;
+          expect(f.body.texture, `${f.id} on row ${rows[i]} is hazed by ${amount}`).toMatch(new RegExp(`^haze-.*-${Math.round(amount * 100)}$`));
+        } else expect(f.body.texture, `${f.id} on row ${rows[i]} has no haze`).not.toMatch(/^haze-/);
+      });
+      // Four heroes and three enemies: the nearest row (haze 0) has Kit and the last punk, the other five are hazed.
+      expect(hazed, 'figures with a haze').toBeGreaterThanOrEqual(5);
     });
   });
 

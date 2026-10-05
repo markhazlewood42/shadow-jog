@@ -33,6 +33,7 @@ import {
   glyphInk,
   openGame,
   pngSize,
+  readDialogGlyphs,
   type ScreenId,
   SCREENS,
   type SideNote,
@@ -52,9 +53,6 @@ const EXPECT_K: Record<DisplayId, Record<SizeId, number>> = {
   '1080p': { '480x270': 4, '640x360': 3 },
   deck: { '480x270': 2, '640x360': 2 },
 };
-
-/** Cap height of the dialog's text must reach this many device pixels (a 7-pixel capital at k=2 is 14). */
-const MIN_CAP_DEVICE_PX = 14;
 
 const captures = new Map<Key, Capture>();
 const extras = new Map<string, Capture>();
@@ -121,7 +119,13 @@ test.describe('the resolution mock', () => {
     expect(captures.get(key('3d', '1080p', '480x270'))?.facts).toMatchObject({ w: 480, h: 270, frame3d: { width: 480, height: 270 } });
   });
 
-  test('the shipped build has no size switch: no "640x360" in any bundle file, and ?size= is ignored', async ({ page, request }) => {
+  test('the shipped build has no size switch: no "640x360" in any script the page can run (the .js files), and ?size= is ignored', async ({ page, request }) => {
+    // WHAT THIS CHECKS (cleanup item C13). It reads every .js file the shipped page can EXECUTE: the entry script named in index.html and every lazy chunk the
+    // entry names, to any depth. Those are the files whose code runs, so they are where a switch would work. It does NOT read the .map files. The build writes
+    // source maps (vite.config.ts `build.sourcemap: true`), and a map's `sourcesContent` holds the ORIGINAL source of every module, so the DEV size switch's
+    // source text (src/sje/core/size.ts, with its "640x360") is in dist/assets/*.js.map. A browser never executes a .map file (it only fetches one when
+    // developer tools are open), so it is no switch in the shipped game. The repo is public, so the source is not a secret either. The check below counts the
+    // maps and says how many hold the text, so the exclusion is a line in the log and not a silent gap.
     // The preview server (Playwright's config builds the game fresh and serves it on 3008).
     const html = await (await request.get(`${PROD}/`)).text();
     const scripts = [...html.matchAll(/(?:src|href)="(\.\/assets\/[^"]+\.js)"/g)].map((m) => m[1] as string);
@@ -139,6 +143,16 @@ test.describe('the resolution mock', () => {
       for (const m of text.matchAll(/["'](?:\.\/)?([\w-]+\.js)["']/g)) queue.push(`assets/${m[1]}`);
     }
     expect(seen.size, 'chunks followed (the entry and its lazy chunks)').toBeGreaterThanOrEqual(5);
+    // The source maps that go with them, not part of the check (see the note at the top of this test): how many exist, and how many hold the DEV switch's source text.
+    let maps = 0;
+    let mapsWithSwitch = 0;
+    for (const rel of seen) {
+      const res = await request.get(`${PROD}/${rel}.map`);
+      if (!res.ok() || !/json/i.test(res.headers()['content-type'] ?? '')) continue;
+      maps++;
+      if ((await res.text()).includes('640x360')) mapsWithSwitch++;
+    }
+    console.log(`SJEMOCK shipped build: ${seen.size} scripts scanned (no switch in any); ${maps} source maps NOT scanned, ${mapsWithSwitch} of them hold the DEV switch's source text in sourcesContent (maps are never executed)`);
     // The page does not obey the query. A 960x540 window shows 480x270 at 2x (a 960x540 canvas); at 640x360 it would be 1280x720 (Fit mode, k=2).
     await page.setViewportSize({ width: 960, height: 540 });
     await page.goto(`${PROD}/?size=640x360`);
@@ -228,7 +242,7 @@ test.describe('the resolution mock', () => {
     let glyphs: Awaited<ReturnType<typeof glyphInk>>;
     let character: Awaited<ReturnType<typeof fieldCharacterInk>>;
     try {
-      glyphs = await glyphInk(o.page, ['H', 'x', 'p']);
+      glyphs = await glyphInk(o.page, ['H', 'x', 'p', 'T', 'e']);
       await o.page.evaluate(async () => {
         const w = window as unknown as { __SJ__: { stage(n: string): Promise<void>; game: { tick(): void } } };
         void w.__SJ__.stage('start');
@@ -241,8 +255,14 @@ test.describe('the resolution mock', () => {
     const cap = glyphs.H?.h ?? 0;
     const xh = glyphs.x?.h ?? 0;
     expect(cap, 'a capital letter of the game font is 7 pixels tall').toBe(7);
-    expect(xh, 'the x-height of the game font').toBeGreaterThan(0);
-    expect(xh).toBeLessThan(cap);
+    expect(xh, 'the x-height of the game font is 5 pixels').toBe(5);
+    // The two glyphs the read-back below looks at, from the same table: the capital T of "There" and its e.
+    expect(glyphs.T?.h, 'the capital T').toBe(cap);
+    expect(glyphs.e?.h, 'the lowercase e').toBe(xh);
+
+    // CONTROL for the read-back below: a picture with no dialog in it (the field) has no letters to find, and the read says so. It does not return made-up heights.
+    const noDialog = captures.get(key('field', '1080p', '480x270')) as Capture;
+    await expect(readDialogGlyphs(browser, noDialog.png, noDialog.region, 4)).rejects.toThrow(/no text-coloured pixel/);
 
     const rows: Array<Record<string, unknown>> = [];
     for (const d of DISPLAYS) {
@@ -271,7 +291,24 @@ test.describe('the resolution mock', () => {
           sprites: battle.sprites,
         };
         rows.push(row);
-        expect(row.dialogCapPx, `${d.id} ${z.id}: capital letters, device pixels`).toBeGreaterThanOrEqual(MIN_CAP_DEVICE_PX);
+        // C14: a REAL read-back. The capital T and the e of the first word of the dialog line are found in the captured picture itself (the pixels of the
+        // text colour, split into letters) and their heights, in device pixels, must be 7 x k and 5 x k. A picture drawn at the wrong scale, or letters that
+        // were resampled (blurred, so no pixel is the text colour), or a dialog that is not there, fail it.
+        const shot = captures.get(key('dialog', d.id, z.id));
+        expect(shot, `the dialog capture ${d.id} ${z.id}`).toBeTruthy();
+        const read = await readDialogGlyphs(browser, (shot as Capture).png, (shot as Capture).region, k);
+        const capT = read.letters[0];
+        const smallE = read.letters[2];
+        console.log(`SJEMOCK glyph read-back ${d.id} ${z.id} (k=${k}): the first line has ${read.line.rows} rows of ink, T ${capT?.rows} x ${capT?.cols}, e ${smallE?.rows} x ${smallE?.cols}`);
+        expect(read.letters.length, `${d.id} ${z.id}: the five letters of "There" were found`).toBe(5);
+        expect(capT?.rows, `${d.id} ${z.id}: the capital T is 7 x ${k} device pixels tall`).toBe(7 * k);
+        expect(smallE?.rows, `${d.id} ${z.id}: the e is 5 x ${k} device pixels tall`).toBe(5 * k);
+        // Its width is the glyph's width times k too (the table's own number, drawn by the game's font on a scratch canvas).
+        expect(capT?.cols, `${d.id} ${z.id}: the capital T is ${glyphs.T?.w} x ${k} device pixels wide`).toBe((glyphs.T?.w ?? 0) * k);
+        expect(smallE?.cols, `${d.id} ${z.id}: the e is ${glyphs.e?.w} x ${k} device pixels wide`).toBe((glyphs.e?.w ?? 0) * k);
+        // And the number the table below reports is the one that was read, not a sum made from the scale.
+        (row as { dialogCapPx: number }).dialogCapPx = capT?.rows ?? 0;
+        (row as { dialogXHeightPx: number }).dialogXHeightPx = smallE?.rows ?? 0;
         expect(row.fieldCharacterPx, `${d.id} ${z.id}: the field character`).toBeGreaterThan(0);
         expect(row.battleHeroPx, `${d.id} ${z.id}: the battle hero`).toBeGreaterThan(0);
         expect(row.punkPx, `${d.id} ${z.id}: the punk`).toBeGreaterThan(0);

@@ -24,8 +24,6 @@ export { ImageObject } from './display/imageobject';
 export { Sprite } from './display/sprite';
 export { type Raw, type SjFrame, type SjTexture, TextureManager } from './display/texturemanager';
 export { View3D } from './display/view3d';
-// A lab tool for Part A (Pixi RenderLayer with filters). Not part of the engine's API: game code does not use it.
-export { RenderLayerProbe } from './display/renderlayerprobe';
 
 // Level 1: only what game code may know about the renderer: the plain-data type a test reads pixels with,
 // and the WebGL2 probe (a story asks it before it loads the 3D chunk). Game code never touches the renderer.

@@ -500,3 +500,99 @@ export function pngSize(png: Buffer): { w: number; h: number } {
   expect(png.subarray(1, 4).toString('latin1')).toBe('PNG');
   return { w: png.readUInt32BE(16), h: png.readUInt32BE(20) };
 }
+
+/** What `readDialogGlyphs` found in a picture of the dialog window. All in DEVICE pixels, inked rows only (the game's text colour, not the shadow). */
+export interface DialogGlyphs {
+  /** The rows of ink of the first line of text, as a band: its top row and bottom row in the picture, and how many rows that is. */
+  line: { top: number; bottom: number; rows: number };
+  /** The letters of the first word, left to right, found as groups of columns with a blank column between them: each one's ink rows and columns. */
+  letters: Array<{ x0: number; x1: number; y0: number; y1: number; rows: number; cols: number }>;
+}
+
+/**
+ * C14: READ BACK a known glyph from the captured picture. The dialog line starts with "There" (`DIALOG_LINE`). The game draws text in one flat colour
+ * (`#f4f1ff`, `TEXT` in src/engine/font.ts) with a one pixel shadow of another colour, so the pixels of exactly that colour are the letters. In the
+ * lower part of the picture and to the right of the portrait (where the text starts) this finds the first line of text, then splits it into letters at
+ * the blank columns between them. The first letter is the capital T, the third is a lowercase e: their heights in device pixels are what the player
+ * sees, to compare with the glyph table (7 rows and 5 rows) times the scale.
+ */
+export async function readDialogGlyphs(browser: Browser, png: Buffer, region: Region, k: number): Promise<DialogGlyphs> {
+  const page = await browser.newPage();
+  try {
+    return await page.evaluate(
+      async ({ b64, region, k }) => {
+        const blob = await (await fetch(`data:image/png;base64,${b64}`)).blob();
+        const bmp = await createImageBitmap(blob, { colorSpaceConversion: 'none' });
+        const c = document.createElement('canvas');
+        c.width = bmp.width;
+        c.height = bmp.height;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        if (!ctx) throw new Error('no 2D context');
+        ctx.drawImage(bmp, 0, 0);
+        const rw = Math.round(region.w);
+        const rh = Math.round(region.h);
+        const img = ctx.getImageData(Math.round(region.x), Math.round(region.y), rw, rh).data;
+        const isText = (x: number, y: number): boolean => {
+          const i = (y * rw + x) * 4;
+          return img[i] === 0xf4 && img[i + 1] === 0xf1 && img[i + 2] === 0xff;
+        };
+        // The text lives in the lower part of the picture (the box is 62 game pixels tall and 6 above the bottom) and right of the portrait (8 + 8 + 56 = 72).
+        // (Game pixels times k: the picture is whatever size the display gives it.)
+        const xFrom = 72 * k;
+        const yFrom = rh - 70 * k;
+        const rowInk = (y: number): boolean => {
+          for (let x = xFrom; x < rw; x++) if (isText(x, y)) return true;
+          return false;
+        };
+        let top = -1;
+        for (let y = yFrom; y < rh; y++)
+          if (rowInk(y)) {
+            top = y;
+            break;
+          }
+        if (top < 0) throw new Error('no text-coloured pixel in the dialog area');
+        // The first line is the run of rows with ink from the top, plus the rows of a glyph with a gap in it: a line is 9 game pixels tall (GLYPH_H), so take 9 x k rows.
+        const bottomLimit = Math.min(rh - 1, top + 9 * k - 1);
+        let bottom = top;
+        for (let y = top; y <= bottomLimit; y++) if (rowInk(y)) bottom = y;
+        // Columns with ink in that band, grouped: a gap of a whole game pixel (k device pixels) or more ends a letter.
+        const colInk = (x: number): boolean => {
+          for (let y = top; y <= bottom; y++) if (isText(x, y)) return true;
+          return false;
+        };
+        const groups: Array<{ x0: number; x1: number }> = [];
+        let x = xFrom;
+        while (x < rw && groups.length < 5) {
+          while (x < rw && !colInk(x)) x++;
+          if (x >= rw) break;
+          const x0 = x;
+          let blank = 0;
+          let last = x;
+          while (x < rw && blank < k) {
+            if (colInk(x)) {
+              blank = 0;
+              last = x;
+            } else blank++;
+            x++;
+          }
+          groups.push({ x0, x1: last });
+        }
+        const letters = groups.map((g) => {
+          let y0 = 1e9;
+          let y1 = -1;
+          for (let yy = top; yy <= bottom; yy++)
+            for (let xx = g.x0; xx <= g.x1; xx++)
+              if (isText(xx, yy)) {
+                y0 = Math.min(y0, yy);
+                y1 = Math.max(y1, yy);
+              }
+          return { x0: g.x0, x1: g.x1, y0, y1, rows: y1 - y0 + 1, cols: g.x1 - g.x0 + 1 };
+        });
+        return { line: { top, bottom, rows: bottom - top + 1 }, letters };
+      },
+      { b64: png.toString('base64'), region, k },
+    );
+  } finally {
+    await page.close();
+  }
+}

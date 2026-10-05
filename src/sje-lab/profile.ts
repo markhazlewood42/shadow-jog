@@ -87,11 +87,15 @@ export function profileLoop(
       const t = performance.now();
       const query = timer ? gl.createQuery() : null;
       if (timer && query) gl.beginQuery(timer.TIME_ELAPSED_EXT, query);
-      for (let i = 0; i < (options.extraRenders ?? 0); i++) drawExtraFrame?.();
-      draw(alpha);
-      if (timer && query) {
-        gl.endQuery(timer.TIME_ELAPSED_EXT);
-        pending.push({ query });
+      try {
+        for (let i = 0; i < (options.extraRenders ?? 0); i++) drawExtraFrame?.();
+        draw(alpha);
+      } finally {
+        // End the query even when a draw throws: an open TIME_ELAPSED query makes the next `beginQuery` an error (INVALID_OPERATION) and no later frame is measured.
+        if (timer && query) {
+          gl.endQuery(timer.TIME_ELAPSED_EXT);
+          pending.push({ query });
+        }
       }
       const submitted = performance.now();
       result.work.push(acc + (submitted - t));

@@ -7,7 +7,9 @@
  * Everything that compares pixels runs INSIDE the page, so a test does not have to ship half a
  * megabyte of pixels through Playwright for every check.
  */
-import { H, type Pixels, RenderLayerProbe, Scene, W } from '../sje';
+import { H, type Pixels, Scene, W } from '../sje';
+// A lab tool for Part A (Pixi RenderLayer with filters), not part of the engine's API: the lab imports it by path (cleanup item C9).
+import { RenderLayerProbe } from '../sje/display/renderlayerprobe';
 import type { HackScene } from '../hack3d';
 import { loadChunk } from '../hack3d/door';
 import { describeResult, type HackDef, type HackResult } from '../hack3d/result';
@@ -20,7 +22,7 @@ import { captionFor, HUD_FIXED } from '../hack3d/hud';
 import { drawText, measure } from '../engine/font';
 import { drawReference, referenceScroll } from './reference';
 import { type CanaryResult, type EffectCaseOptions, type EffectCaseResult, type EffectName, type EffectTarget, type PartAEnv, runCanary, runEffectCase } from './parta';
-import { type MirrorRow, type RenderLayerResult, runMirrorMatrix, runRenderLayerCase } from './partaextra';
+import { type MirrorRow, type RenderLayerResult, runMirrorMatrix, runRenderLayerCase, runSnapAb, type SnapAbRow } from './partaextra';
 import { type ProfileOptions, type ProfileResult, profileLoop } from './profile';
 import type { StoryLogEntry } from './story';
 
@@ -174,6 +176,8 @@ export interface SjeHook {
   flickerWatch(frames: number): Promise<Array<{ top: string; dominant: number; tick: number }>>;
   /** Drop every scene without resolving it (`game.abandon()`). A hack that is dropped still resolves (aborted / user). */
   abandon(): void;
+  /** Replace the whole stack with one empty scene (`game.reset()`: what loading a save or going back to the title does). A hack that is dropped this way still resolves (aborted / user). */
+  reset(): void;
   /**
    * The HUD's fixed parts (the NODE panel and the bottom caption strip) against Canvas 2D drawing the same
    * panels and text, over the running 3D picture. 0 differing means the 2D HUD is exact. Needs a running hack with its HUD.
@@ -185,6 +189,8 @@ export interface SjeHook {
   renderLayerCase(): RenderLayerResult;
   /** (iv) roundPixels with a negative scale: widths x origins x ways to mirror, against Canvas 2D. */
   mirrorMatrix(): MirrorRow[];
+  /** (vi) roundPixels A/B (cleanup C7): the same nodes drawn with Pixi roundPixels off (as shipped) and on, and how many pixels differ. */
+  snapAb(): SnapAbRow[];
   /** The stale clear-colour canary. Needs a running hack. `fixOn: false` is the negative control. */
   canary(fixOn: boolean, transparentBackBuffer?: boolean): CanaryResult;
   /**
@@ -526,6 +532,13 @@ export function installHook(lab: Lab): SjeHook {
       (await loadChunk()).frame3dTestSeams.hideTextureHandle = on;
     },
     abandon: () => game.abandon(),
+    reset: () => {
+      // The scene the stack is reset to: nothing to see, nothing to tick. (Named so a test can tell it from a scene that should be gone.)
+      class ResetTarget extends Scene<void> {
+        fixedUpdate(): void {}
+      }
+      void game.reset(new ResetTarget());
+    },
     flickerWatch(frames) {
       return new Promise((resolve) => {
         const out: Array<{ top: string; dominant: number; tick: number }> = [];
@@ -626,6 +639,7 @@ export function installHook(lab: Lab): SjeHook {
     effectCase: (effect, target, options) => runEffectCase(partAEnv(), effect, target, options),
     renderLayerCase: () => runRenderLayerCase(partAEnv(), (parent) => new RenderLayerProbe(parent)),
     mirrorMatrix: () => runMirrorMatrix(partAEnv()),
+    snapAb: () => runSnapAb(partAEnv()),
     canary: (fixOn, transparentBackBuffer = false) =>
       runCanary(
         partAEnv(),

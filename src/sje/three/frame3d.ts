@@ -100,7 +100,16 @@ function glTextureOf(host: ThreeHost, target: WebGLRenderTarget): WebGLTexture |
  * that moves the internal field would cause). The `auto` fall back to the canvas copy is otherwise unreachable with the pinned Three,
  * so a test needs a way to take it. The lab's `hideTextureHandle` hook sets this. Nothing in the game reads or writes it.
  */
-export const frame3dTestSeams = { hideTextureHandle: false };
+export const frame3dTestSeams = {
+  hideTextureHandle: false,
+  /** Forget that the fall-back note was given, so the next fall back logs it again (a test of the note itself needs this). */
+  forgetFallbackNote(): void {
+    fallbackNoted = false;
+  },
+};
+
+/** The `auto` fall-back to the canvas copy is logged ONCE per page (cleanup item C11): a hack entered many times must not write the same line each time. */
+let fallbackNoted = false;
 
 /**
  * Run `build`. If it throws, run `free` first and then throw the same error again. A constructor that
@@ -352,7 +361,7 @@ class CanvasCopyFrame extends FrameBase {
 
 /**
  * Make a `Frame3D`. `preference` `auto` tries the shared context first; if Three's texture handle is
- * missing (an internal field that a Three upgrade could move) it logs once and uses the canvas copy.
+ * missing (an internal field that a Three upgrade could move) it logs once per page and uses the canvas copy.
  */
 export function createFrame3D(gl: GlRenderer, scene: DisplayHost, setup: Frame3DSetup, preference: Frame3DPreference = 'auto'): Frame3D {
   if (preference !== 'canvas-copy') {
@@ -364,7 +373,10 @@ export function createFrame3D(gl: GlRenderer, scene: DisplayHost, setup: Frame3D
     if (tex) return buildOrFree(freePipeline, () => new SharedContextFrame(gl, host, pipeline, tex, scene));
     freePipeline();
     if (preference === 'shared-context') throw new Error('Frame3D: Three has no GL texture handle for its render target (the shared-context mode needs it)');
-    console.warn('[sje] Frame3D: the shared-context texture handle is missing, using the canvas copy');
+    if (!fallbackNoted) {
+      fallbackNoted = true;
+      console.warn('[sje] Frame3D: the shared-context texture handle is missing, using the canvas copy');
+    }
   }
   const host = ThreeHost.privateCopy(gl);
   const pipeline = new TargetPipeline(host, setup);

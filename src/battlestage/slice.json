@@ -6,5 +6,11 @@
   "active": 0,
   "target": 0,
   "seed": 7,
-  "ticks": [0, 41, 173]
+  "ticks": [0, 41, 173],
+  "haze": {
+    "lineup": ["kit", "hex", "rook", "sable"],
+    "setKey": "3",
+    "enemies": ["rustfang_punk", "glowrat", "rustfang_punk"],
+    "ticks": [41]
+  }
 }

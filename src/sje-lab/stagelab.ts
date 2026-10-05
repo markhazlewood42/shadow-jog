@@ -8,7 +8,7 @@
  */
 import { assert, Game, GlRenderer, H, must, W } from '../sje';
 import { BattleStageScene, chooseSprites, haveMarksSheets, loadStageAssets, loadStageData, type SpriteChoice, type StageData } from '../battlestage';
-import { SLICE, sliceInit } from '../battlestage/slice';
+import { type FrameKind, SLICE, sliceInit } from '../battlestage/slice';
 import { installGlCounter } from './glcounter';
 import { installStageHook } from './stagehook';
 
@@ -19,6 +19,8 @@ export interface ShowOptions {
   seed?: number;
   /** 'standins' draws the crew as code-drawn blocks, 'art' uses Mark's sheets (when his folder is there). Default: what the page started with. */
   sprites?: 'standins' | 'art';
+  /** 'slice' (default) or 'haze': the second frame of the parity set, four heroes and three enemies on hazed rows with no ring (cleanup item C3). */
+  frame?: FrameKind;
 }
 
 export interface StageLab {
@@ -31,7 +33,7 @@ export interface StageLab {
   haveArt: boolean;
   scene(): BattleStageScene | null;
   /** The seed and the sprites the current scene was made with, and the ticks it has run. */
-  current(): { seed: number; sprites: 'standins' | 'art'; tick: number };
+  current(): { seed: number; sprites: 'standins' | 'art'; frame: FrameKind; tick: number };
   /** Close the current scene, make a new one for these options and bring it to its tick (one frame is drawn). */
   show(opts?: ShowOptions): Promise<void>;
 }
@@ -51,15 +53,20 @@ export async function startStageLab(): Promise<StageLab> {
   let choice = await chooseSprites(params.has('standins') || !haveArt);
   await loadStageAssets(game.textures, choice);
 
-  const status = document.getElementById('status');
-  // The tests screenshot the canvas: nothing may sit on top of it.
-  if (status && params.has('manual')) status.style.display = 'none';
+  // The status line sits over the bottom-left of the window, so over the canvas. Under a test driver (`navigator.webdriver`) and with `?manual` it is removed and
+  // the text goes to the page title (cleanup item C10, as in lab.ts).
+  const statusEl = document.getElementById('status');
+  const hideStatus = params.has('manual') || navigator.webdriver;
+  if (hideStatus) statusEl?.remove();
+  const status = hideStatus ? null : statusEl;
   // The size the browser says the canvas box has in DEVICE pixels, when it can say (real Chrome and Firefox).
   let observed: { w: number; h: number } | undefined;
   const fitCanvas = (): void => {
     const k = renderer.fitToWindow(window.innerWidth, window.innerHeight, window.devicePixelRatio || 1, observed);
     game.draw();
-    if (status) status.textContent = `${W}x${H}  x${k}  dpr ${window.devicePixelRatio}  ${choice.standIns ? 'stand-ins' : "Mark's art"}`;
+    const line = `${W}x${H}  x${k}  dpr ${window.devicePixelRatio}  ${choice.standIns ? 'stand-ins' : "Mark's art"}`;
+    document.title = `Stage lab: ${line}`;
+    if (status) status.textContent = line;
   };
   window.addEventListener('resize', fitCanvas);
   try {
@@ -76,7 +83,7 @@ export async function startStageLab(): Promise<StageLab> {
   }
 
   let scene: BattleStageScene | null = null;
-  let made = { seed: SLICE.seed, sprites: (choice.standIns ? 'standins' : 'art') as 'standins' | 'art' };
+  let made = { seed: SLICE.seed, sprites: (choice.standIns ? 'standins' : 'art') as 'standins' | 'art', frame: 'slice' as FrameKind };
   const lab: StageLab = {
     game,
     renderer,
@@ -96,9 +103,10 @@ export async function startStageLab(): Promise<StageLab> {
         choice = await chooseSprites(kind === 'standins');
         await loadStageAssets(game.textures, choice);
       }
-      scene = new BattleStageScene(sliceInit(data, choice, seed));
+      const frame = opts.frame ?? 'slice';
+      scene = new BattleStageScene(sliceInit(data, choice, seed, frame));
       void game.run(scene);
-      made = { seed, sprites: kind };
+      made = { seed, sprites: kind, frame };
       // Run the ticks with no real time passing, then draw one frame: the same tick count is always the same picture.
       game.step(opts.tick ?? 0);
       fitCanvas();

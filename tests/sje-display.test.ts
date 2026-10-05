@@ -598,3 +598,206 @@ describe('Camera', () => {
     }
   });
 });
+
+// ------------------------------------------------------------------ C7: when would roundPixels have changed a game pixel?
+//
+// The renderer has `roundPixels: false` (drift item 25, awaiting Mark's approval). Pixi's `roundPixels: true` would round every vertex of every
+// picture to a whole screen pixel in the vertex shader: `floor(position + 0.5)`, the half going up (node_modules/pixi.js .../roundPixelsBit.mjs).
+// The tests above show that every node the ENGINE snaps sits on a whole world pixel. That proves "no change" only when the final corners are whole,
+// which depends on the scale. So here the question is asked case by case, with the answer worked out from the corners Pixi computes:
+//
+//   - the picture's world box (Pixi's `getBounds`) gives the four vertices (nothing here is rotated, so the box is the quad);
+//   - for each axis, the pixels the GPU fills are those whose CENTRE is inside the quad ([a0, a1): the left edge counts, the right does not),
+//     and with NEAREST sampling each filled pixel shows texel floor(u * size), u = (centre - a0) / (a1 - a0), mirrored for a flipped picture;
+//   - do that once with the vertices as they are (roundPixels OFF, what ships) and once with each vertex rounded (roundPixels ON), and compare.
+//
+// "Changes a game pixel" means a pixel that is filled in one and not the other, or that shows another texel. One column or row is enough. The model
+// has no GPU in it: it is the rule of the rasteriser, and the check of the same table on a real renderer is e2e/sje-parta.spec.ts (vi): the same nodes drawn with Pixi roundPixels off and on, on a GPU and on SwiftShader. It agrees with every row below except the tie rule (the tie cases are marked MODEL ONLY and are never pass or fail asserts): the model says an edge exactly half way always changes, and a real renderer computes the edge in floating point first, so a tie can fall either way (a 2x parent with the edge at 24.5 drew the same pixels both ways, the edge at 32.5 moved the picture). A tie is never safe. The mirror case with a negative scale is e2e/sje-parta.spec.ts (iv).
+// Ties on the y axis depend on how the render target is turned over, so no case here puts a vertex exactly half way on y: every tie case is on x.
+
+/** Pixel -> texel for one axis of a picture whose quad runs from `a0` to `a1` and which has `size` texels there. */
+function axisMap(a0: number, a1: number, size: number, flip: boolean, rounded: boolean): Map<number, number> {
+  const e0 = rounded ? Math.floor(a0 + 0.5) : a0;
+  const e1 = rounded ? Math.floor(a1 + 0.5) : a1;
+  const map = new Map<number, number>();
+  if (e1 <= e0) return map;
+  for (let c = Math.ceil(e0 - 0.5); c + 0.5 < e1; c++) {
+    const u = (c + 0.5 - e0) / (e1 - e0);
+    map.set(c, Math.min(size - 1, Math.floor((flip ? 1 - u : u) * size)));
+  }
+  return map;
+}
+
+/** How many pixels of the axis differ between the two ways of drawing (filled in one only, or another texel). */
+function axisDiff(a0: number, a1: number, size: number, flip: boolean): number {
+  const off = axisMap(a0, a1, size, flip, false);
+  const on = axisMap(a0, a1, size, flip, true);
+  let n = 0;
+  for (const [c, t] of off) if (on.get(c) !== t) n++;
+  for (const c of on.keys()) if (!off.has(c)) n++;
+  return n;
+}
+
+/** The answer for one picture: the world box Pixi computes, whether every vertex is whole, and how many columns and rows roundPixels would change. */
+function verdict(o: { node: unknown }, texW: number, texH: number, flip = false) {
+  const b = (o.node as PixiNode & { getBounds(): { x: number; y: number; width: number; height: number } }).getBounds();
+  const x0 = b.x;
+  const x1 = b.x + b.width;
+  const y0 = b.y;
+  const y1 = b.y + b.height;
+  const whole = [x0, x1, y0, y1].every((v) => Number.isInteger(v));
+  const cols = axisDiff(x0, x1, texW, flip);
+  const rows = axisDiff(y0, y1, texH, false);
+  return { x0, x1, y0, y1, whole, cols, rows, changes: cols + rows > 0 };
+}
+
+describe('C7: does roundPixels false change any game pixel against roundPixels true? Case by case, from the vertices', () => {
+  const report: string[] = [];
+  afterEach(() => {
+    if (report.length) console.log(`C7 ${report.join(' | ')}`);
+    report.length = 0;
+  });
+
+  function sheet() {
+    const h = host();
+    h.textures.addCanvas('c7-even', fakeCanvas(16, 16));
+    h.textures.addCanvas('c7-odd', fakeCanvas(11, 9));
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    return h;
+  }
+
+  /** Fractions and ties, negatives too, from a fixed seed. */
+  function* spots(): Generator<number> {
+    let s = 12345;
+    for (;;) {
+      s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+      yield (s % 400) - 100 + (([0, 0.25, 0.5, 0.75, 0.1, 0.9, -0.5, 0.3] as const)[(s >>> 12) % 8] ?? 0);
+    }
+  }
+
+  it('SCALE 1, 2 and -1 (the cases the engine always uses): NO game pixel changes, for even and odd pictures at any logical position, because every vertex is whole', () => {
+    const h = sheet();
+    const next = spots();
+    const take = () => next.next().value as number;
+    let checked = 0;
+    for (const [scaleX, scaleY] of [
+      [1, 1],
+      [2, 2],
+      [-1, 1],
+    ] as const) {
+      for (const key of ['c7-even', 'c7-odd'] as const) {
+        const [w, hh] = key === 'c7-even' ? [16, 16] : [11, 9];
+        for (let i = 0; i < 40; i++) {
+          const o = new ImageObject(h, take(), take(), key).setScale(scaleX, scaleY);
+          const v = verdict(o, w, hh, scaleX < 0);
+          expect(v.whole, `${key} at scale ${scaleX},${scaleY}: box ${v.x0},${v.y0} to ${v.x1},${v.y1}`).toBe(true);
+          expect(v.changes, `${key} at scale ${scaleX},${scaleY}`).toBe(false);
+          checked++;
+        }
+      }
+    }
+    report.push(`scale 1/2/-1: ${checked} pictures, every vertex whole, 0 pixels change`);
+  });
+
+  it('a FRACTIONAL SCALE (setScale(1.5)): an even picture whose scaled size is whole (16 x 1.5 = 24) is still safe, but an odd one (11 x 9 -> 16.5 x 13.5) DOES change pixels', () => {
+    const h = sheet();
+    let wholeCase = 0;
+    for (const x of [100, 101, 137]) {
+      const even = new ImageObject(h, x, 50, 'c7-even').setScale(1.5);
+      const v = verdict(even, 16, 16);
+      expect(v.whole, `even at ${x}: ${v.x0}..${v.x1}`).toBe(true);
+      expect(v.changes).toBe(false);
+      wholeCase++;
+    }
+    // The odd picture: its width is 16.5 and its height 13.5, so one edge of each is half way between two pixels whatever the position is.
+    const rows: string[] = [];
+    for (const x of [100, 101, 137]) {
+      const odd = new ImageObject(h, x, 50, 'c7-odd').setScale(1.5);
+      const v = verdict(odd, 11, 9);
+      expect(v.whole, `odd at ${x}`).toBe(false);
+      expect(v.changes, `odd at ${x}: roundPixels would change ${v.cols} columns and ${v.rows} rows of its box ${v.x0},${v.y0} to ${v.x1},${v.y1}`).toBe(true);
+      rows.push(`${v.cols} cols + ${v.rows} rows`);
+    }
+    report.push(`scale 1.5: even 16px (24 wide) 0 change in ${wholeCase} cases; odd 11x9 (16.5 x 13.5) CHANGES (${rows.join(', ')})`);
+  });
+
+  it('a node with PIXEL SNAP OFF: no change at a quarter pixel (the same pixels are filled either way). At exactly half a pixel the edge is a TIE: the model says it changes, but a tie is renderer-dependent (MODEL ONLY, not a pass or fail)', () => {
+    const h = sheet();
+    const at = (x: number) => verdict(new ImageObject(h, x, 50, 'c7-even').setPixelSnap(false), 16, 16);
+    // Under half a pixel off: the rasteriser fills the same pixels as the rounded quad does.
+    for (const x of [40.25, 40.75, 99.1, 99.9, 40.4999]) {
+      const v = at(x);
+      expect(v.whole, `x ${x}`).toBe(false);
+      expect(v.changes, `x ${x}: ${v.cols} columns`).toBe(false);
+    }
+    // Exactly half: the picture's left edge sits on a pixel centre. This is a TIE. The exact-arithmetic model below says "the rasteriser fills
+    // that pixel (the left edge counts) and roundPixels moves the edge up", but a real renderer computes the edge in floating point first, so it
+    // can fall either way (round 2 saw a real GPU draw the same pixels both ways at an edge of 24.5). So this test does NOT assert "changes":
+    // it asserts only that the edge really is a tie (so the case stays a tie if the numbers move), and the answer for a tie is "depends on
+    // the renderer, never safe". The authority for ties is the A/B on a real renderer in e2e/sje-parta.spec.ts (vi).
+    const tie = at(40.5);
+    expect(Math.abs(tie.x0 % 1), 'the left edge is exactly half way between two pixels').toBe(0.5);
+    expect(tie.rows, 'the y position was whole').toBe(0);
+    report.push(`snap off: x 40.25/40.75/99.1/99.9 no change; x 40.5 is a TIE (model only: the model says ${tie.cols} columns change, a real renderer can fall either way, so a tie is never safe)`);
+  });
+
+  it('NESTED, a 1.09x push on the whole world (the battle camera): a picture of whole size and position is NOT on whole vertices, and roundPixels WOULD change its pixels', () => {
+    const h = sheet();
+    const world = new Container(h);
+    world.setScale(1.09);
+    const a = new ImageObject(h, 100, 100, 'c7-even');
+    const b = new ImageObject(h, 237, 61, 'c7-even');
+    world.add([a, b]);
+    const va = verdict(a, 16, 16);
+    const vb = verdict(b, 16, 16);
+    expect(va.whole).toBe(false);
+    expect(va.changes, `a: ${va.cols} columns and ${va.rows} rows`).toBe(true);
+    expect(vb.changes, `b: ${vb.cols} columns and ${vb.rows} rows`).toBe(true);
+    // The engine's own rounding does not help here: the child is snapped in ITS parent's space, then the parent scales it.
+    report.push(`1.09x world: 16px pictures are 17.44 wide; roundPixels would change ${va.cols + va.rows} and ${vb.cols + vb.rows} pixel columns and rows (the picture is not on one grid either way: the texel sizes are uneven at 1.09x)`);
+  });
+
+  it('NESTED, a 2x parent (what setGrain(2) will be): whole and snapped children stay on whole vertices, so NO change; a snap-off child at x.3 is off the grid but still draws the same pixels; at x.25 it is a half-pixel TIE in world space (MODEL ONLY, renderer-dependent)', () => {
+    const h = sheet();
+    const grain = new Container(h);
+    grain.setScale(2);
+    // The last value: false = the pixels are the same, 'tie' = an edge exactly half way in world space (model only: renderer-dependent, never safe).
+    const items: Array<[string, ImageObject, false | 'tie']> = [
+      ['whole', new ImageObject(h, 30, 20, 'c7-even'), false],
+      // The logical position is fractional, the engine snaps it in the parent's space, so the world position is whole (2 x whole).
+      ['snapped .4', new ImageObject(h, 41.4, 20.4, 'c7-even'), false],
+      ['snapped .75', new ImageObject(h, 52.75, 20.75, 'c7-even'), false],
+      // An odd picture: the wrapper makes its origin a whole pixel, so its corners are whole in the parent's space and even in the world.
+      ['odd', new ImageObject(h, 70, 20, 'c7-odd'), false],
+      // Snap off at 0.3: 2 x 0.3 = 0.6 of a world pixel. Not a tie, so model and renderer agree: the same pixels are filled either way.
+      ['snap off .3', new ImageObject(h, 130.3, 20, 'c7-even').setPixelSnap(false), false],
+      // Snap off at a quarter pixel: 2 x 0.25 = half a world pixel. A tie on x: the model says "changes", a renderer may not.
+      ['snap off .25', new ImageObject(h, 90.25, 20, 'c7-even').setPixelSnap(false), 'tie'],
+      // Snap off at half a pixel: 2 x 0.5 = a whole world pixel again.
+      ['snap off .5', new ImageObject(h, 110.5, 20, 'c7-even').setPixelSnap(false), false],
+    ];
+    grain.add(items.map(([, o]) => o));
+    const out: string[] = [];
+    for (const [name, o, expected] of items) {
+      const [w, hh] = name === 'odd' ? [11, 9] : [16, 16];
+      const v = verdict(o, w, hh);
+      if (expected === 'tie') {
+        // MODEL ONLY. Assert that it is a tie, not what the renderer does with it.
+        expect(Math.abs(v.x0 % 1), `${name}: the left edge is exactly half way`).toBe(0.5);
+        out.push(`${name} TIE (model says ${v.cols}c change, renderer-dependent, never safe)`);
+        continue;
+      }
+      expect(v.changes, `${name}: ${v.cols} columns and ${v.rows} rows, box ${v.x0},${v.y0} to ${v.x1},${v.y1}`).toBe(false);
+      if (!name.startsWith('snap off')) expect(v.whole, name).toBe(true);
+      out.push(`${name} no change`);
+    }
+    report.push(`2x parent: ${out.join(', ')}`);
+  });
+
+  it('CONTROL: the check can fail (a 1.5x picture of odd size shows a change, so "no change" above is not the model saying no to everything)', () => {
+    const h = sheet();
+    expect(verdict(new ImageObject(h, 100, 50, 'c7-odd').setScale(1.5), 11, 9).changes).toBe(true);
+    // And the model agrees with itself on the easy case: equal maps for a whole quad.
+    expect([...axisMap(10, 26, 16, false, false)]).toEqual([...axisMap(10, 26, 16, false, true)]);
+  });
+});

@@ -166,9 +166,11 @@ describe('FilterList (go.filters, flat)', () => {
     const c = new Container(host());
     const m = new Graphics(host());
     c.filters.addMask(m);
-    expect((m._maskUsers?.size ?? 0)).toBe(1);
+    expect(m._maskUsers?.size, 'the mask knows its one user').toBe(1);
     c.destroy();
-    expect((m._maskUsers?.size ?? 0)).toBe(0);
+    // The set must STILL be there and be empty. (`?? 0` here once passed when the set was deleted, or was never made, which proves nothing.)
+    expect(m._maskUsers, 'the mask keeps its (now empty) set of users').not.toBeNull();
+    expect(m._maskUsers?.size).toBe(0);
     m.destroy();
   });
 

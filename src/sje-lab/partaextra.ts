@@ -8,7 +8,7 @@
  *
  * Same method as parta.ts: build it with the engine's own API, draw, compare with a CPU reference.
  */
-import { colorMatrixEffect, type Container, type Effect, type GameObject, H, Scene, W } from '../sje';
+import { colorMatrixEffect, type Container, type Effect, type GameObject, H, type Pixels, Scene, W } from '../sje';
 import { applyEffectCpu, MATRIX, type PartAEnv, type Rect, STATION_BG } from './parta';
 
 // =====================================================================================================
@@ -223,5 +223,160 @@ export function runMirrorMatrix(env: PartAEnv): MirrorRow[] {
   } finally {
     for (const w of widths) env.textures.remove(`lab-mirror-${w}`);
     env.close(scene);
+  }
+}
+
+// =====================================================================================================
+// (vi) roundPixels A/B (cleanup item C7): does the renderer's `roundPixels: false` change a game pixel?
+// =====================================================================================================
+//
+// tests/sje-display.test.ts answers the same question from the vertices (a model of the rasteriser, no GPU). This is the check with a real GPU: build the
+// same thing with the engine's own nodes twice and draw it twice, once as the engine ships (Pixi `roundPixels` off) and once with every Pixi sprite of the
+// nodes set to `roundPixels = true` (the setting the design asked for). Compare the two pictures pixel by pixel.
+//
+// Two details keep the check honest. (1) The pictures are read from the engine's back buffer, the render target the game draws into. Pixi's own
+// `extract.pixels(stage)` draws the stage again into another target and gave 0 differing pixels for cases that do differ. (2) Each pass builds FRESH
+// nodes, because Pixi reads the flag when it builds the batch for a sprite, so changing it after the first draw may not take effect.
+
+export type SnapCaseName =
+  | 'scale 1, snapped'
+  | 'scale 2, snapped'
+  | 'scale -1, snapped'
+  | 'scale 1.5, even 16x16'
+  | 'scale 1.5, odd 11x9'
+  | 'snap off, x 40.25'
+  | 'snap off, x 40.5'
+  | '1.09x parent'
+  | '2x parent, snapped'
+  | '2x parent, snap off, x 24.25'
+  | 'control: no flag in either pass';
+
+export interface SnapAbRow {
+  name: SnapCaseName;
+  /** Pixels that differ between the roundPixels OFF picture and the roundPixels ON picture (the whole back buffer). */
+  differing: number;
+  /** Pixels of the OFF picture that are not the background: the size of the thing that was drawn (so "0 differing" is not an empty picture). */
+  drawn: number;
+  glErrors: number[];
+}
+
+/** The part of a Pixi node this check touches. No import of Pixi: the lab never imports it (tests/sje-imports.test.ts). */
+interface PixiLike {
+  roundPixels?: boolean;
+  children?: PixiLike[];
+}
+
+/** Set `roundPixels` on every Pixi picture under this object. A plain container has no such flag, so it is skipped. */
+function setRoundPixelsOn(o: GameObject): void {
+  const walk = (n: PixiLike): void => {
+    if ('roundPixels' in n) n.roundPixels = true;
+    for (const c of n.children ?? []) walk(c);
+  };
+  walk((o as unknown as { node: PixiLike }).node);
+}
+
+/** A picture where every pixel has its own colour, so a shift of one pixel, or a texel shown twice, changes the result. */
+function noiseCanvas(w: number, h: number): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  if (!ctx) throw new Error('no 2D context');
+  const d = ctx.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) {
+    d.data[i * 4] = 40 + ((i * 37) % 200);
+    d.data[i * 4 + 1] = 40 + ((i * 91 + 13) % 200);
+    d.data[i * 4 + 2] = 40 + ((i * 53 + 7) % 200);
+    d.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(d, 0, 0);
+  return c;
+}
+
+/** Run the cases. The engine's back buffer is read with `env.backBuffer()` after `env.draw()`. */
+export function runSnapAb(env: PartAEnv): SnapAbRow[] {
+  const rows: SnapAbRow[] = [];
+  const keyEven = 'lab-snap-even';
+  const keyOdd = 'lab-snap-odd';
+  env.textures.addCanvasReplacing(keyEven, noiseCanvas(16, 16));
+  env.textures.addCanvasReplacing(keyOdd, noiseCanvas(11, 9));
+
+  /** Build the case in a fresh scene and give back the back buffer. `round` turns the flag on for every picture the case made. */
+  const pass = (build: (scene: FlatScene) => GameObject[], round: boolean): Pixels => {
+    const scene = new FlatScene();
+    env.run(scene);
+    try {
+      const made = build(scene);
+      if (round) for (const o of made) setRoundPixelsOn(o);
+      env.draw();
+      const px = env.backBuffer();
+      // Copy: the back buffer may be reused by the next draw.
+      return { w: px.w, h: px.h, data: new Uint8Array(px.data) };
+    } finally {
+      env.close(scene);
+    }
+  };
+
+  const oddAt15 = (s: FlatScene): GameObject[] => [s.add.image(41, 20, keyOdd).setScale(1.5)];
+  const cases: Array<[SnapCaseName, (scene: FlatScene) => GameObject[]]> = [
+    ['scale 1, snapped', (s) => [s.add.image(41.4, 20.4, keyEven).setScale(1)]],
+    ['scale 2, snapped', (s) => [s.add.image(41.4, 20.4, keyEven).setScale(2)]],
+    ['scale -1, snapped', (s) => [s.add.image(41.4, 20.4, keyEven).setScale(-1, 1)]],
+    ['scale 1.5, even 16x16', (s) => [s.add.image(41, 20, keyEven).setScale(1.5)]],
+    ['scale 1.5, odd 11x9', oddAt15],
+    ['snap off, x 40.25', (s) => [s.add.image(40.25, 20, keyEven).setPixelSnap(false)]],
+    ['snap off, x 40.5', (s) => [s.add.image(40.5, 20, keyEven).setPixelSnap(false)]],
+    [
+      '1.09x parent',
+      (s) => {
+        const p = s.add.container(0, 0).setScale(1.09);
+        p.add(s.add.image(20, 20, keyEven));
+        return [p];
+      },
+    ],
+    [
+      '2x parent, snapped',
+      (s) => {
+        const p = s.add.container(0, 0).setScale(2);
+        p.add(s.add.image(41.4, 20.4, keyEven));
+        return [p];
+      },
+    ],
+    [
+      '2x parent, snap off, x 24.25',
+      (s) => {
+        const p = s.add.container(0, 0).setScale(2);
+        p.add(s.add.image(24.25, 20, keyEven).setPixelSnap(false));
+        return [p];
+      },
+    ],
+  ];
+
+  const count = (a: Pixels, b: Pixels): { differing: number; drawn: number } => {
+    let differing = 0;
+    let drawn = 0;
+    // The background is the colour of pixel (0, 0): the lab's flat scene fills the picture with one colour and no case draws there.
+    const [r, g, bl] = [a.data[0], a.data[1], a.data[2]];
+    for (let i = 0; i < a.data.length; i += 4) {
+      if (a.data[i] !== b.data[i] || a.data[i + 1] !== b.data[i + 1] || a.data[i + 2] !== b.data[i + 2]) differing++;
+      if (a.data[i] !== r || a.data[i + 1] !== g || a.data[i + 2] !== bl) drawn++;
+    }
+    return { differing, drawn };
+  };
+
+  try {
+    for (const [name, build] of cases) {
+      env.glErrors();
+      const off = pass(build, false);
+      const on = pass(build, true);
+      rows.push({ name, ...count(off, on), glErrors: env.glErrors() });
+    }
+    // The control: the same case twice with the flag OFF both times. If this is not 0, the check is noise and every row above means nothing.
+    env.glErrors();
+    rows.push({ name: 'control: no flag in either pass', ...count(pass(oddAt15, false), pass(oddAt15, false)), glErrors: env.glErrors() });
+    return rows;
+  } finally {
+    env.textures.remove(keyEven);
+    env.textures.remove(keyOdd);
   }
 }

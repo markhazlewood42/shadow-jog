@@ -112,15 +112,23 @@ export async function startLab(): Promise<Lab> {
     game.textures.addCanvas(t.key, t.canvas);
     if (t.frames) game.textures.addFrames(t.key, t.frames);
   }
-  const status = document.getElementById('status');
-  // The tests screenshot the canvas: nothing may sit on top of it.
-  if (status && params.has('manual')) status.style.display = 'none';
+  // The status line is a DOM element fixed over the bottom-left of the window, which is the bottom-left of the canvas when the picture fills the window. A screenshot
+  // of the real loop would show it as part of the picture (cleanup item C10). So under a test driver (`navigator.webdriver`) and with `?manual` the element is
+  // REMOVED, and the same text goes to the page title instead, which no screenshot shows. A person who opens the page sees the line as before.
+  const statusEl = document.getElementById('status');
+  const hideStatus = params.has('manual') || navigator.webdriver;
+  if (hideStatus) statusEl?.remove();
+  const status = hideStatus ? null : statusEl;
+  const say = (text: string): void => {
+    document.title = `Engine lab: ${text}`;
+    if (status) status.textContent = text;
+  };
   // The size the browser says the canvas box has in DEVICE pixels, when it can say (real Chrome and Firefox).
   let observed: { w: number; h: number } | undefined;
   const fitCanvas = (): void => {
     const k = renderer.fitToWindow(window.innerWidth, window.innerHeight, window.devicePixelRatio || 1, observed);
     game.draw();
-    if (status) status.textContent = `${W}x${H}  x${k}  dpr ${window.devicePixelRatio}  tick ${game.tick}`;
+    say(`${W}x${H}  x${k}  dpr ${window.devicePixelRatio}  tick ${game.tick}`);
   };
   const scene = new LabScene(content);
   void game.run(scene);
@@ -142,7 +150,7 @@ export async function startLab(): Promise<Lab> {
   if (!params.has('manual')) {
     game.start();
     game.events.on('postrender', () => {
-      if (status) status.textContent = `${W}x${H}  x${renderer.presenter.k}  dpr ${window.devicePixelRatio}  tick ${game.tick}`;
+      say(`${W}x${H}  x${renderer.presenter.k}  dpr ${window.devicePixelRatio}  tick ${game.tick}`);
     });
   }
   const frameParam = params.get('frame');

@@ -35,10 +35,13 @@ export class PixiRenderer {
       height: H,
       resolution: 1,
       antialias: false,
-      // OFF on purpose (round 4, drift item 25). Pixi's `roundPixels` rounds vertex positions in the shader. The engine already
-      // rounds every object's position itself (`snap` in gameobject.ts), so that second rounding changes nothing on a GPU, and on
-      // SwiftShader (software GL) it lost a strip of pixels where a sprite mask crosses overlapping swatches. A bare Pixi app shows the
-      // same loss with it on and none with it off. tests/sje-display.test.ts checks every snapped node sits on a whole world pixel.
+      // @deviation from scene-graph.md section 7, point 4, which keeps `roundPixels: true` as "a second guard" (drift item 25, AWAITING MARK'S APPROVAL
+      // in the design update). OFF on purpose (round 4). Pixi's `roundPixels` rounds vertex positions in the shader. The engine already rounds
+      // every object's position itself (`snap` in gameobject.ts), so when every final vertex is on a whole pixel (scale 1, 2 or -1) the second rounding changes nothing.
+      // On SwiftShader (software GL) it lost a strip of pixels where a sprite mask crosses
+      // overlapping swatches. A bare Pixi app shows the same loss with it on and none with it off. tests/sje-display.test.ts checks every snapped node sits
+      // on a whole world pixel, and (cleanup item C7) says for each other case whether it would change a pixel: a fractional scale of an odd-sized picture,
+      // a node with snap off at a half pixel, and a non-integer parent scale (the 1.09x battle push) DO change pixels with it on or off, and the design update should say which one it wants there.
       roundPixels: false,
       clearBeforeRender: false,
       skipExtensionImports: true,

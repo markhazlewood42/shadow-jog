@@ -45,6 +45,11 @@ export interface StageHook {
   drawOrder(): string[];
   /** The names of the children of a figure in the order they draw (shadow, ring, body). */
   partOrder(figureId: string): string[];
+  /**
+   * A NEGATIVE CONTROL for the strict parity gate (C1): move one part of a figure (its `shadow`, `ring` or `body`) by whole pixels inside its group and draw one
+   * frame. The scene is wrong from then on, so a test must `show` again after it. Nothing in the game calls this.
+   */
+  nudge(figureId: string, part: 'shadow' | 'ring' | 'body', dx: number, dy: number): void;
   /** Make `n` fresh scenes of the same slice, one after the other, closing each (the leak check). */
   reenter(n: number): Promise<void>;
   glCounts(): GlCounts;
@@ -167,9 +172,18 @@ export function installStageHook(lab: StageLab): StageHook {
       const group = sceneOf().figureGroup(figureId);
       return group.drawOrder().map((o) => o.getData<string>('part') ?? o.name);
     },
+    nudge(figureId, part, dx, dy) {
+      const found = sceneOf()
+        .figureGroup(figureId)
+        .drawOrder()
+        .find((o) => o.getData<string>('part') === part);
+      if (!found) throw new Error(`figure "${figureId}" has no part "${part}"`);
+      found.setPosition(found.x + dx, found.y + dy);
+      game.draw();
+    },
     async reenter(n) {
       const cur = lab.current();
-      for (let i = 0; i < n; i++) await lab.show({ seed: cur.seed, sprites: cur.sprites, tick: 2 });
+      for (let i = 0; i < n; i++) await lab.show({ seed: cur.seed, sprites: cur.sprites, frame: cur.frame, tick: 2 });
     },
     glCounts: () => readGlCounts(),
     leakOnPurpose(n) {

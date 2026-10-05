@@ -4,7 +4,9 @@
 // ../shadow-jog-phaser) on port 3007, opens ITS stage lab (/stagelab.html), turns the lab into the B1 slice through the lab's own scene methods
 // (one stage, one hero, one enemy, HUD off, the seed and the ticks of src/battlestage/slice.json), stops the lab's real-time clock so the
 // scene only moves when told to, and saves 480x270 raw RGBA frames (4 bytes a pixel, top row first, straight from the Phaser canvas), one file per
-// sprite mode, renderer kind and tick: <mode>-<kind>-t<tick>.rgba, plus manifest-<kind>.json. Then it stops the server it started.
+// sprite mode, renderer kind and tick: <mode>-<kind>-t<tick>.rgba (the slice) and <mode>-<kind>-haze-t<tick>.rgba (the HAZE frame, cleanup item C3: four heroes and
+// three enemies on hazed rows, no ring), plus manifest-<kind>.json. The manifest records the SHA-256 of every data file the slice reads (cleanup item C2,
+// the list is tests/fixtures/sjestage/inputs.json) and the script refuses to run when the Phaser checkout has a different copy of one. Then it stops the server it started.
 //
 // Why a renderer KIND (gpu or soft): the street's neon glow layer is painted by the game's canvas 2D code, and Chrome's GPU canvas and its software canvas
 // differ by 1/255 in the glow's translucent pixels (1,732 pixels of the 240x135 layer, 3.6% of the 480x270 picture). Both pages show the same difference, so the
@@ -55,6 +57,27 @@ if (modes.includes('art') && !haveArt) {
 }
 const W = 480;
 const H = 270;
+
+// The data files the slice reads (C2). Hashed as text with LF line ends, the way e2e/sjestageparity.ts does it.
+const inputFiles = JSON.parse(readFileSync(join(root, 'tests', 'fixtures', 'sjestage', 'inputs.json'), 'utf8')).files;
+const hashText = (file) => createHash('sha256').update(readFileSync(file, 'utf8').replaceAll('\r\n', '\n'), 'utf8').digest('hex');
+const inputs = {};
+for (const f of inputFiles) {
+  const here = hashText(join(root, f));
+  const there = hashText(join(phaserDir, f));
+  // The Phaser page reads ITS copy. If the two copies differ, the frames would be made from other data than this engine shows.
+  if (here !== there) {
+    console.error(`${f} is not the same in this repo and in the Phaser checkout (${here.slice(0, 12)} and ${there.slice(0, 12)}): the references would not be for the data the engine shows.`);
+    process.exit(2);
+  }
+  inputs[f] = here;
+}
+const axes = JSON.parse(readFileSync(join(root, 'src', 'data', 'axes.json'), 'utf8'));
+const frameSpecs = [
+  { frame: 'slice', spec: { ...slice, axes } },
+  // The haze frame: no ring (active and target are undefined), another lineup and group. The seed is the slice's.
+  { frame: 'haze', spec: { axes, seed: slice.seed, lineup: slice.haze.lineup, setKey: slice.haze.setKey, enemies: slice.haze.enemies, ticks: slice.haze.ticks } },
+];
 const kind = flag('no-gpu') ? 'soft' : 'gpu';
 
 /** Does anything answer on the port? */
@@ -106,6 +129,10 @@ async function captureInPage(page, sliceSpec) {
     if (!scene || !game) throw new Error('no Phaser scene');
     // The scene only moves when told to: take away the per-refresh clock (its own accumulator would add ticks).
     scene.update = () => {};
+    // The foot-anchor corrections (axes.json). The Phaser lab does not load them by itself (only the stage editor passes them in) and the engine's page does,
+    // so without this the frame would put Sable five pixels off. `setAxes` is the scene's own public method for them. (Found by the haze frame, cleanup
+    // item C3: the first slice has only Kit, who has no entry.)
+    scene.setAxes(JSON.parse(JSON.stringify(s.axes)));
     // The slice, through the scene's public methods. The stage file as the lab loaded it, with the slice's lineup and seed.
     const cfg = JSON.parse(JSON.stringify(scene.config));
     cfg.demo.lineup = s.lineup.slice();
@@ -171,7 +198,7 @@ async function captureInPage(page, sliceSpec) {
   }, sliceSpec);
 }
 
-const manifest = { generatedBy: 'scripts/sjestage-refs.mjs', date: new Date().toISOString(), w: W, h: H, slice, phaserCommit: '', kind, modes: {}, files: {} };
+const manifest = { generatedBy: 'scripts/sjestage-refs.mjs', date: new Date().toISOString(), w: W, h: H, slice, inputs, phaserCommit: '', kind, modes: {}, files: {} };
 try {
   manifest.phaserCommit = execFileSync('git', ['-C', phaserDir, 'rev-parse', 'HEAD']).toString().trim();
   // Wait for the server (the first answer can take a while: Vite is scanning dependencies).
@@ -182,33 +209,38 @@ try {
   const browser = await chromium.launch({ channel: process.env.CI ? undefined : 'msedge', args: flag('no-gpu') ? ['--disable-gpu', '--disable-accelerated-2d-canvas'] : [] });
   try {
     for (const mode of modes) {
-      const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
-      const problems = [];
-      page.on('console', (m) => {
-        if (m.type() === 'error') problems.push(m.text());
-      });
-      page.on('pageerror', (e) => problems.push(e.message));
-      // ?clean: no pickers over the corner. ?standins: skip Mark's sheets on purpose.
-      await page.goto(`${BASE}/stagelab.html?clean${mode === 'standins' ? '&standins' : ''}`);
-      await page.waitForFunction(() => window.__stagelab?.ready === true || !!window.__stagelab?.error, undefined, { timeout: 60_000 });
-      const got = await captureInPage(page, slice);
-      if (got.standIns !== (mode === 'standins')) throw new Error(`asked for ${mode} but the Phaser lab says standIns=${got.standIns}`);
-      if (problems.length) throw new Error(`the Phaser page logged errors: ${problems.join(' | ')}`);
-      manifest.modes[mode] = { renderer: got.renderer, figures: got.facts };
-      for (const f of got.frames) {
-        const raw = Buffer.from(f.base64, 'base64');
-        if (f.w !== W || f.h !== H || raw.length !== W * H * 4) throw new Error(`the Phaser canvas is ${f.w}x${f.h}, expected ${W}x${H}`);
-        const name = `${mode}-${kind}-t${f.tick}.rgba`;
-        writeFileSync(join(out, name), raw);
-        manifest.files[name] = { bytes: raw.length, sha256: createHash('sha256').update(raw).digest('hex') };
-        if (flag('fixtures') && mode === 'standins') {
-          const dir = join(root, 'tests', 'fixtures', 'sjestage');
-          mkdirSync(dir, { recursive: true });
-          writeFileSync(join(dir, `${name}.gz`), gzipSync(raw, { level: 9 }));
+      manifest.modes[mode] = { renderer: '', figures: [], hazeFigures: [] };
+      for (const { frame, spec } of frameSpecs) {
+        // A fresh page for every frame: the lab is rebuilt from its own files each time, so one frame cannot leave anything behind for the next.
+        const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
+        const problems = [];
+        page.on('console', (m) => {
+          if (m.type() === 'error') problems.push(m.text());
+        });
+        page.on('pageerror', (e) => problems.push(e.message));
+        // ?clean: no pickers over the corner. ?standins: skip Mark's sheets on purpose.
+        await page.goto(`${BASE}/stagelab.html?clean${mode === 'standins' ? '&standins' : ''}`);
+        await page.waitForFunction(() => window.__stagelab?.ready === true || !!window.__stagelab?.error, undefined, { timeout: 60_000 });
+        const got = await captureInPage(page, spec);
+        if (got.standIns !== (mode === 'standins')) throw new Error(`asked for ${mode} but the Phaser lab says standIns=${got.standIns}`);
+        if (problems.length) throw new Error(`the Phaser page logged errors: ${problems.join(' | ')}`);
+        manifest.modes[mode].renderer = got.renderer;
+        manifest.modes[mode][frame === 'haze' ? 'hazeFigures' : 'figures'] = got.facts;
+        for (const f of got.frames) {
+          const raw = Buffer.from(f.base64, 'base64');
+          if (f.w !== W || f.h !== H || raw.length !== W * H * 4) throw new Error(`the Phaser canvas is ${f.w}x${f.h}, expected ${W}x${H}`);
+          const name = `${mode}-${kind}${frame === 'haze' ? '-haze' : ''}-t${f.tick}.rgba`;
+          writeFileSync(join(out, name), raw);
+          manifest.files[name] = { bytes: raw.length, sha256: createHash('sha256').update(raw).digest('hex') };
+          if (flag('fixtures') && mode === 'standins') {
+            const dir = join(root, 'tests', 'fixtures', 'sjestage');
+            mkdirSync(dir, { recursive: true });
+            writeFileSync(join(dir, `${name}.gz`), gzipSync(raw, { level: 9 }));
+          }
+          console.log(`${name}  ${raw.length} bytes  sha256 ${manifest.files[name].sha256.slice(0, 12)}`);
         }
-        console.log(`${name}  ${raw.length} bytes  sha256 ${manifest.files[name].sha256.slice(0, 12)}`);
+        await page.close();
       }
-      await page.close();
     }
   } finally {
     await browser.close();

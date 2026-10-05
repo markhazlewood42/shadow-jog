@@ -192,8 +192,19 @@ describe('who may import the engine', () => {
     const outside = all.filter((e) => toEngine(e) && !e.file.startsWith('src/sje/') && !e.file.startsWith('tests/') && !e.file.startsWith('e2e/'));
     const threeFacade = (e: Edge) => (e.target === 'src/sje/three' || e.target === 'src/sje/three/index') && /^src\/(hack3d|sje-lab)\//.test(e.file);
     const notFacade = outside.filter((e) => e.target !== 'src/sje' && e.target !== 'src/sje/index' && !threeFacade(e));
-    // The ONE old-engine change allowed by M0: game.ts takes W and H from the size module.
-    expect(notFacade.map((e) => `${e.file} -> ${e.target}`)).toEqual(['src/engine/game.ts -> src/sje/core/size']);
+    // Two named exceptions. (1) The ONE old-engine change allowed by M0: game.ts takes W and H from the size module. (2) The lab's one-off probe for Part A,
+    // `RenderLayerProbe`, which is not part of the engine's API (cleanup item C9): the lab imports it by its path and the facade does not export it.
+    expect(notFacade.map((e) => `${e.file} -> ${e.target}`)).toEqual(['src/engine/game.ts -> src/sje/core/size', 'src/sje-lab/hook.ts -> src/sje/display/renderlayerprobe']);
+  });
+
+  it('the facade does not export RenderLayerProbe (cleanup item C9: it is a one-off lab probe, the lab imports it by path)', () => {
+    // A text scan of the facade file with its comments removed. Any re-export puts the name or the path of the probe in the file.
+    const facade = readFileSync(join(ROOT, 'src/sje/index.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '');
+    expect(facade).not.toMatch(/RenderLayerProbe|renderlayerprobe/i);
+    // And the scan is alive: the file it reads does have export lines.
+    expect(facade).toMatch(/export \{/);
   });
 
   it('in the shipped game, only src/engine/game.ts touches the engine (the lab pages are dev-only, and src/hack3d and src/battlestage are the not-yet-shipped 3D mode and battle stage)', () => {
@@ -237,6 +248,9 @@ describe('GlHandoff is the one hand-off point for raw GL state', () => {
   // so `const g = ...; g.readPixels(...)` slipped through. These names exist on GL contexts and nowhere else in this code base (a 2D canvas
   // context has `getImageData`, which is fine). `getExtension` and `getParameter` only ask questions, so they are fine anywhere.
   // (`.readPixels()` with NO arguments is the engine's own Frame3D method, which goes through GlHandoff. Raw GL `readPixels` always has arguments.)
+  // A NAMED CARVE-OUT (cleanup item C11): the GPU timer queries in src/sje-lab/profile.ts (`createQuery`, `beginQuery`, `endQuery`, `getQueryParameter`) are raw GL on
+  // purpose. They are a measuring tool of the lab, they read and change no state of the picture, and none of their names is in the list below, so the scan does not
+  // flag them. A new GL call that changes picture state still has to go through GlHandoff.
   const RAW_GL = /[.]readPixels[(][^)]|[.](?:bindFramebuffer|clearColor|pixelStorei|getError|bindTexture|viewport|useProgram|bindVertexArray|blendFunc|colorMask|scissor|readBuffer|bindBuffer|bindRenderbuffer|framebufferTexture2D|texImage2D|texSubImage2D)[(]|(?:^|[^A-Za-z0-9_])(?:gl|ctx)[.](?:enable|disable)[(]/;
 
   it('only src/sje/render/glhandoff.ts calls them (not Pixi glue, not Three glue, not the lab hook)', () => {

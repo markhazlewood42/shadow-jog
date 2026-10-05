@@ -311,6 +311,9 @@ describe('SharedContextFrame: a context restore re-wraps Three’s new texture o
 });
 
 describe("createFrame3D 'auto': Three's texture handle is missing (E3: fall back to the canvas copy, warn once)", () => {
+  // The note is given once per page, so each test starts as a new page.
+  beforeEach(async () => (await import('../src/sje/three/frame3d')).frame3dTestSeams.forgetFallbackNote());
+
   /** Run `body` while the mocked Three renderer reports no GL texture for any target: what a Three upgrade that moves the field would do. */
   async function withoutHandle<T>(gl: never, body: () => T): Promise<T> {
     const { ThreeHost } = await import('../src/sje/three/threehost');
@@ -336,6 +339,22 @@ describe("createFrame3D 'auto': Three's texture handle is missing (E3: fall back
     // The fallback frame is a real, usable frame with its own parts, and frees them.
     frame.dispose();
     expect(freed).toEqual({ targets: 2, blooms: 2, bloomsMade: 2 });
+  });
+
+  it('the fall-back is noted ONCE per page: a second and a third hack entry fall back without another warning (C11), and a new page notes it again', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const gl = fakeGl();
+    for (let entry = 0; entry < 3; entry++) {
+      const frame = await withoutHandle(gl, () => createFrame3D(gl, fakeScene(), SETUP(), 'auto'));
+      expect(frame.mode, `entry ${entry}`).toBe('canvas-copy');
+      frame.dispose();
+    }
+    expect(warn, 'three entries, one warning').toHaveBeenCalledTimes(1);
+    // Control: forgetting the note (a new page) makes the next fall back log again, so the count above is the flag and not a broken spy.
+    (await import('../src/sje/three/frame3d')).frame3dTestSeams.forgetFallbackNote();
+    const again = await withoutHandle(gl, () => createFrame3D(gl, fakeScene(), SETUP(), 'auto'));
+    again.dispose();
+    expect(warn).toHaveBeenCalledTimes(2);
   });
 
   it('auto with a handle present: the shared context is used and nothing warns (control)', () => {

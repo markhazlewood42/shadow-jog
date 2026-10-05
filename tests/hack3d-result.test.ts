@@ -5,7 +5,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type DoorEnv, hackDoor, hackWithPolicy } from '../src/hack3d/door';
 import { DEFAULT_POLICY, decideHack, describeResult, type HackDef, type HackPolicy, type HackResult } from '../src/hack3d/result';
-import type { Game } from '../src/sje';
+import { type Game, Scene } from '../src/sje';
+import { headlessGame } from './sjekit';
+
+/** A scene that does nothing: what a reset puts on the stack. */
+class Idle extends Scene<void> {
+  fixedUpdate(): void {}
+}
 
 const DEF: HackDef = { id: 'h', seed: 1, ticks: 60, iceCount: 2, traceLimit: 100, hitCost: 10 };
 const SUCCESS: HackResult = { status: 'success' };
@@ -193,5 +199,56 @@ describe('hackDoor: one try, always an answer (E11)', () => {
       }),
     });
     expect(await hackDoor(game(), DEF, undefined, e)).toEqual({ status: 'aborted', reason: 'error' });
+  });
+});
+
+describe('the real door joined to the real policy loop, on a real game (C6, E19)', () => {
+  // `hackDoor` and `hackWithPolicy` are the real functions and the game is the real `Game` (its scene stack and its drop counter). Only the 3D chunk is a
+  // stand-in, because the real one needs Three and WebGL2: the real mid-hack drop (game.abandon() while a HackScene runs) is e2e/sje3d.spec.ts.
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  const DROPPED: HackResult = { status: 'aborted', reason: 'user' };
+  const policies: Array<[string, HackPolicy | undefined]> = [
+    ['the default policy (retry once, then count it as won)', undefined],
+    ['aborted: succeed, unsupported: alternative', { aborted: 'succeed', unsupported: 'alternative' }],
+    ['aborted: fail', { aborted: 'fail', unsupported: 'fail' }],
+  ];
+
+  for (const way of ['abandon', 'reset'] as const) {
+    for (const [name, policy] of policies) {
+      it(`game.${way}() while the chunk loads, ${name}: dropped, one try, no scene started, no retry, no 2D alternative`, async () => {
+        const { game } = headlessGame();
+        const startHack = vi.fn(async () => SUCCESS);
+        const load = vi.fn(async () => {
+          // The player drops the story while the chunk is on its way.
+          if (way === 'abandon') game.abandon();
+          else void game.reset(new Idle());
+          return { startHack };
+        });
+        const env: DoorEnv = { probe: () => true, load };
+        const alternative = vi.fn(async () => 'success' as const);
+        const out = await hackWithPolicy({ ...DEF, ...(policy ? { policy } : {}) }, (d) => hackDoor(game, d, undefined, env), alternative);
+        expect(out).toEqual({ outcome: 'fail', via: 'dropped', results: [DROPPED] });
+        expect(load, 'the chunk was asked for once: no retry').toHaveBeenCalledTimes(1);
+        expect(startHack, 'no hack scene was started').not.toHaveBeenCalled();
+        expect(alternative, 'the 2D alternative did not play').not.toHaveBeenCalled();
+        expect(game.dropCount).toBe(1);
+        // The stack is what the drop left: nothing after an abandon, only the reset scene after a reset.
+        expect(game.scene.scenes.map((s) => s.constructor.name)).toEqual(way === 'abandon' ? [] : ['Idle']);
+      });
+    }
+  }
+
+  it('a game that was NOT dropped plays on: the same joined pieces give the hack’s own result', async () => {
+    const { game } = headlessGame();
+    const startHack = vi.fn(async () => SUCCESS);
+    const env: DoorEnv = { probe: () => true, load: async () => ({ startHack }) };
+    const out = await hackWithPolicy(DEF, (d) => hackDoor(game, d, undefined, env), vi.fn(async () => 'fail' as const));
+    expect(out).toEqual({ outcome: 'success', via: 'played', results: [SUCCESS] });
+    expect(startHack).toHaveBeenCalledTimes(1);
+    expect(game.dropCount).toBe(0);
   });
 });

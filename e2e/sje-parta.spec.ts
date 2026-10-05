@@ -176,3 +176,34 @@ test.describe('Part A (iv): roundPixels with a negative scale (the mirror rule)'
     });
   });
 });
+
+// (vi) Cleanup item C7: the renderer ships with Pixi `roundPixels: false` (drift item 25). Does that change any game pixel against `roundPixels: true`?
+// tests/sje-display.test.ts answers from the vertices (a model). This is the same table on a real GPU and on software GL: the engine's own nodes drawn
+// twice, once with Pixi roundPixels off and once on, read from the engine's back buffer (src/sje-lab/partaextra.ts `runSnapAb`).
+// The test asserts "changes" and "no change", NOT an exact count: the number of pixels at 1.09x was 25 on a GPU and 49 on SwiftShader (the rasteriser's
+// rounding of edge cases differs), but both change.
+// The two tie cases (an edge exactly half way between two pixels) are a special case. The model says a tie always changes, because it uses exact arithmetic. A GPU computes the
+// edge through floating point first, so a tie can fall either way: a 2x parent with the edge at 24.5 (picture x 20.25) drew the SAME pixels with the flag on and off here,
+// and with the edge at 32.5 (x 24.25) it moved the whole picture one pixel. So a tie is never safe, in either direction. The test pins the two ties that were measured
+// on a GPU and on SwiftShader and says so. It does not claim that every tie changes.
+test.describe('Part A (vi): does roundPixels false change a game pixel? (cleanup C7, A/B on a real renderer)', () => {
+  const NO_CHANGE = ['scale 1, snapped', 'scale 2, snapped', 'scale -1, snapped', 'scale 1.5, even 16x16', 'snap off, x 40.25', '2x parent, snapped', 'control: no flag in either pass'];
+  const CHANGES = ['scale 1.5, odd 11x9', 'snap off, x 40.5', '1.09x parent', '2x parent, snap off, x 24.25'];
+
+  test('the cases the engine uses draw the same pixels either way, and the cases the model names (odd size at 1.5x, a half pixel with snap off, the 1.09x push, a quarter pixel in a 2x parent) differ', async ({ browser }) => {
+    await withLab(browser, async ({ page }) => {
+      const rows = await page.evaluate(() => window.__SJE__?.snapAb());
+      if (!rows) throw new Error('no result');
+      const info = await page.evaluate(() => window.__SJE__?.info());
+      console.log(`SJE PARTA snap A/B on ${info?.renderer}:\n${rows.map((r) => `${r.name.padEnd(32)} differing ${String(r.differing).padStart(4)} | drawn ${r.drawn}`).join('\n')}`);
+      expect(rows.map((r) => r.name).sort()).toEqual([...NO_CHANGE, ...CHANGES].sort());
+      for (const r of rows) {
+        expect(r.glErrors, `${r.name}: GL error flags`).toEqual([]);
+        // Every case drew something, so "0 differing" is not two empty pictures. (The odd 1.5x picture is the smallest: 16 x 13 = 208 pixels.)
+        expect(r.drawn, `${r.name}: nothing was drawn`).toBeGreaterThan(150);
+        if (NO_CHANGE.includes(r.name)) expect(r.differing, `${r.name}: roundPixels changed pixels, the model says it does not`).toBe(0);
+        else expect(r.differing, `${r.name}: roundPixels changed nothing, the model says it does`).toBeGreaterThan(0);
+      }
+    });
+  });
+});

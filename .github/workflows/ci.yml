@@ -8,7 +8,9 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 45 on the spike branch: the e2e list grew with the engine specs, and one run (2026-10-05) took 28m40s
+    # of the old 30. A slow browser install alone once took 22 minutes.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

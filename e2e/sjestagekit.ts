@@ -13,10 +13,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { deflateSync, gunzipSync } from 'node:zlib';
 import { type Browser, expect, type Page } from '@playwright/test';
+import { changedInputs, H, pinMessage, rendererMask, W } from './sjestageparity';
 
 export const ROOT = resolve(import.meta.dirname, '..');
-export const W = 480;
-export const H = 270;
+// The pure parts (the comparison numbers, the strict gate, the pins) are in sjestageparity.ts, so a unit test can use them. Re-exported here for the spec.
+export { compareFrames, describeParity, describeStrict, H, PARITY_MAX_CHANNEL, PARITY_MAX_PERCENT, type Parity, rendererMask, type StrictResult, strictCompare, W } from './sjestageparity';
 
 export interface StagePage {
   page: Page;
@@ -99,6 +100,14 @@ export type SpriteMode = 'standins' | 'art';
 /** `gpu`: a hardware browser. `soft`: software GL and software canvas (SwiftShader), what CI runs. */
 export type RendererKind = 'gpu' | 'soft';
 
+/** The second frame of the parity set (C3): the depth haze with no ring exemption. */
+export interface HazeSpec {
+  lineup: string[];
+  setKey: string;
+  enemies: string[];
+  ticks: number[];
+}
+
 export interface SliceFile {
   stageId: string;
   setKey: string;
@@ -108,7 +117,11 @@ export interface SliceFile {
   target: number;
   seed: number;
   ticks: number[];
+  haze: HazeSpec;
 }
+
+/** Which frame of the parity set: 'slice' (Kit and the punk with both rings, exit criterion 7) or 'haze' (four heroes and three enemies on hazed rows, no rings). */
+export type FrameKind = 'slice' | 'haze';
 
 /** The slice's numbers, from the one file the engine and the capture script both read. */
 export function readSlice(): SliceFile {
@@ -117,9 +130,14 @@ export function readSlice(): SliceFile {
 
 export const FIXTURES = join(ROOT, 'tests', 'fixtures', 'sjestage');
 
+/** The file name of a reference frame (the haze frame has "haze" in it). */
+export function referenceName(mode: SpriteMode, kind: RendererKind, tick: number, frame: FrameKind = 'slice'): string {
+  return `${mode}-${kind}${frame === 'haze' ? '-haze' : ''}-t${tick}.rgba`;
+}
+
 /** The reference frame for a mode, a renderer kind and a tick, or null when there is none to read here. Stand-ins: the local folder if it has one, else the committed file. Art: the local folder only. */
-export function readReference(mode: SpriteMode, kind: RendererKind, tick: number): Buffer | null {
-  const name = `${mode}-${kind}-t${tick}.rgba`;
+export function readReference(mode: SpriteMode, kind: RendererKind, tick: number, frame: FrameKind = 'slice'): Buffer | null {
+  const name = referenceName(mode, kind, tick, frame);
   let raw: Buffer | null = null;
   const local = process.env.SJESTAGE_REFS;
   if (local && existsSync(join(local, name))) raw = readFileSync(join(local, name));
@@ -129,72 +147,62 @@ export function readReference(mode: SpriteMode, kind: RendererKind, tick: number
 }
 
 /** The committed stand-in reference for a tick (never the local folder): what CI compares with. Null when the file is missing. */
-export function readCommitted(kind: RendererKind, tick: number): Buffer | null {
-  const file = join(FIXTURES, `standins-${kind}-t${tick}.rgba.gz`);
+export function readCommitted(kind: RendererKind, tick: number, frame: FrameKind = 'slice'): Buffer | null {
+  const file = join(FIXTURES, `${referenceName('standins', kind, tick, frame)}.gz`);
   return existsSync(file) ? gunzipSync(readFileSync(file)) : null;
+}
+
+/** Every committed stand-in frame as a [frame, tick] pair: the slice's ticks, then the haze frame's. */
+export function committedFrames(): Array<{ frame: FrameKind; tick: number }> {
+  const slice = readSlice();
+  return [...slice.ticks.map((tick) => ({ frame: 'slice' as const, tick })), ...slice.haze.ticks.map((tick) => ({ frame: 'haze' as const, tick }))];
+}
+
+/**
+ * The pixels whose colour depends on the kind of renderer (C1), from the committed GPU and software stand-in references of every frame. The strict gate
+ * allows 1/255 only there. Made once and kept.
+ */
+let maskCache: Uint8Array | undefined;
+export function strictMask(): Uint8Array {
+  if (!maskCache) {
+    const pairs: Array<{ gpu: Buffer; soft: Buffer }> = [];
+    for (const { frame, tick } of committedFrames()) {
+      const gpu = readCommitted('gpu', tick, frame);
+      const soft = readCommitted('soft', tick, frame);
+      if (gpu && soft) pairs.push({ gpu, soft });
+    }
+    maskCache = rendererMask(pairs);
+  }
+  return maskCache;
+}
+
+// ------------------------------------------------------------------ pinned inputs (C2)
+
+/** The data files the slice reads (tests/fixtures/sjestage/inputs.json): the references are only valid for these exact bytes. */
+export function inputFiles(): string[] {
+  return (JSON.parse(readFileSync(join(FIXTURES, 'inputs.json'), 'utf8')) as { files: string[] }).files;
+}
+
+/**
+ * Check that every input file is the one the references were made with. Throws ONE message that says so and names the command that makes the references
+ * again, so a design edit never shows up as a pile of pixel numbers. Call it before any pixel is compared. The manifest checked is the committed
+ * one for this renderer kind, and also the one in `SJESTAGE_REFS` when frames are read from there.
+ */
+export function assertInputsPinned(kind: RendererKind): void {
+  const files = inputFiles();
+  const sources = [join(FIXTURES, `manifest-${kind}.json`)];
+  const local = process.env.SJESTAGE_REFS;
+  if (local && existsSync(join(local, `manifest-${kind}.json`))) sources.push(join(local, `manifest-${kind}.json`));
+  for (const source of sources) {
+    const manifest = JSON.parse(readFileSync(source, 'utf8')) as { inputs?: Record<string, string> };
+    const problems = changedInputs(ROOT, files, manifest.inputs);
+    if (problems.length) throw new Error(`${pinMessage(problems)}
+  (manifest: ${source})`);
+  }
 }
 
 /** Does Mark's sprite folder exist here? (The lab uses it when it does.) */
 export const HAVE_ART = existsSync(join(ROOT, 'spritefusion-tests', 'extracted', 'kit-battle-idle', 'metadata.json'));
-
-// ------------------------------------------------------------------ comparing
-
-export interface Parity {
-  /** The largest difference in any one of R, G, B (0 to 255). */
-  maxDiff: number;
-  /** Pixels where any of R, G or B differs at all, and as a percentage of the picture. */
-  differing: number;
-  pct: number;
-  /** Pixels that differ by more than 1, 2 and 3 in some channel. */
-  over1: number;
-  over2: number;
-  over3: number;
-  /** The share of the picture that differs by MORE than the allowed 2/255. */
-  failing: number;
-  /** Up to 8 worst pixels. */
-  samples: Array<{ x: number; y: number; engine: number[]; ref: number[] }>;
-  /** A picture of where they differ: the reference dimmed, every differing pixel hot pink (alpha 255). */
-  diff: Buffer;
-}
-
-/** Compare two RGBA pictures of the same size (alpha is not compared: both are opaque). */
-export function compareFrames(engine: Buffer, ref: Buffer): Parity {
-  if (engine.length !== ref.length) throw new Error(`the pictures differ in size: ${engine.length} and ${ref.length} bytes`);
-  const n = engine.length / 4;
-  const diff = Buffer.alloc(engine.length);
-  const out: Parity = { maxDiff: 0, differing: 0, pct: 0, over1: 0, over2: 0, over3: 0, failing: 0, samples: [], diff };
-  const worst: Array<{ d: number; i: number }> = [];
-  for (let p = 0; p < n; p++) {
-    const i = p * 4;
-    const d = Math.max(Math.abs((engine[i] ?? 0) - (ref[i] ?? 0)), Math.abs((engine[i + 1] ?? 0) - (ref[i + 1] ?? 0)), Math.abs((engine[i + 2] ?? 0) - (ref[i + 2] ?? 0)));
-    if (d > 0) {
-      diff.set([255, 0, 96, 255], i);
-      out.differing++;
-      out.maxDiff = Math.max(out.maxDiff, d);
-      if (d > 1) out.over1++;
-      if (d > 2) out.over2++;
-      if (d > 3) out.over3++;
-      if (worst.length < 8 || d > (worst[worst.length - 1]?.d ?? 0)) {
-        worst.push({ d, i });
-        worst.sort((a, b) => b.d - a.d);
-        if (worst.length > 8) worst.pop();
-      }
-    } else diff.set([(ref[i] ?? 0) >> 2, (ref[i + 1] ?? 0) >> 2, (ref[i + 2] ?? 0) >> 2, 255], i);
-  }
-  out.pct = (out.differing / n) * 100;
-  out.failing = (out.over2 / n) * 100;
-  out.samples = worst.map(({ i }) => ({ x: (i / 4) % W, y: Math.floor(i / 4 / W), engine: [...engine.subarray(i, i + 4)], ref: [...ref.subarray(i, i + 4)] }));
-  return out;
-}
-
-/** The pass line of exit criterion 7: no pixel differs by more than 2/255 in any channel, and at most 3% of the pixels differ at all. */
-export const PARITY_MAX_CHANNEL = 2;
-export const PARITY_MAX_PERCENT = 3;
-
-/** A one-line report of one comparison (the numbers the spike doc records). */
-export function describeParity(label: string, p: Parity): string {
-  return `${label}: max channel diff ${p.maxDiff}/255, ${p.differing} px differ (${p.pct.toFixed(3)}%), over 1: ${p.over1}, over 2: ${p.over2}, over 3: ${p.over3}`;
-}
 
 // ------------------------------------------------------------------ a PNG writer (diff pictures)
 
