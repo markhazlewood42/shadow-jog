@@ -55,6 +55,32 @@ A single failure that a named design change fixes is not a NO-GO. The change goe
 - No paid generation. No deploys. CI minutes for the draft PR.
 - Mark's Sprite Fusion sheets are read from his git-ignored folder when present. CI uses the stand-ins.
 
+## Progress log
+
+### B0, the kernel (builder round 1, 2026-10-04)
+Built in `src/sje/` (levels 0 to 4) with the lab page `/sjelab.html` (`src/sje-lab/`, dev only) and `e2e/sjelab.spec.ts`. Unit tests: `tests/sje-*.test.ts`. Not yet verified by fresh verifiers: this is the builder's own evidence.
+
+What was measured (Edge on the RTX 4070 and Edge with `PW_NOGPU=1`, which is SwiftShader):
+- **Crispness.** Zero non-uniform 4x4 blocks at zoom 4 at device pixel ratio 1, 1.25 and 1.5, in the GL canvas over a camera pan AND in a page screenshot (what the compositor shows). Zooms 1, 2 and 3 are exact too.
+- **Determinism.** The same tick count gives the same hash on two page loads, and 1 x 333, 333 x 1 and 3 x 111 ticks give the same picture.
+- **Parity (Pixi against a Canvas 2D drawing of the same content).** Maximum channel difference 1/255, on 0.9 to 2.64% of pixels (all translucent: premultiplied alpha rounds differently). Everything opaque is exact: snapped and fractional sprite positions, flips, rectangles, 1 px lines, the game font, enemies, a 900-tick pan checked every 6 ticks.
+- **No second Pixi loop.** 0 `requestAnimationFrame` callbacks run after boot. With `Ticker.system.stop()` removed the same check sees 43 (negative control, run by hand).
+- **Leaks.** 10 enter-and-leave cycles leave the GL object counts unchanged (13 textures, 4 buffers, 1 framebuffer, 1 program, 2 vertex arrays). A deliberate leak of 6 textures shows as +6.
+- **Context loss.** After a forced loss and restore the frame is redrawn identical, with no console error.
+- **Speed.** JavaScript per call: tick under 0.01 ms, draw 0.02 ms mean (it only submits). Frame interval at 960x540 of the real loop: p50 17.8 ms and p95 18.1 ms on the GPU, 16.7 and 16.8 on SwiftShader.
+- **Bundle.** The shipped bundle is byte-identical (`index-DiTO5aVj.js` 418,298 bytes, total 233.9 kB gzip, the same file hashes as before). `node scripts/sjelab-size.mjs`: Pixi plus the engine alone is **119.2 kB gzip** (one chunk, 412 kB raw); the whole lab page that a browser loads is 1.1 kB shell plus **149.6 kB gzip** (the lab chunk: engine, Pixi, the game's art code, the lab scene). A 11.2 kB gzip `browserAll` chunk is built but never requested (`skipExtensionImports`, checked by a test).
+
+### Findings that change the design docs (to fold into the design update at the end of the spike)
+1. **Pixi `pixelLine` is not exact.** It leaves out the first pixel of a horizontal or vertical line and puts diagonals one pixel off against Canvas 2D. `Graphics.lineBetween` draws Bresenham runs of 1 px rectangles instead (scene-graph.md sections 2 and 10 say `stroke({ pixelLine: true })`).
+2. **The canvas must start on a whole device pixel.** A flex-centred canvas at device pixel ratio 1.25 left one row of 4x4 blocks uneven; at 1.5 it shifted the whole picture by a device pixel. `alignedOffset` places it at a multiple of q CSS pixels for a ratio p/q. Add it to the `Display` text (frame-and-rendering.md 6.6).
+3. **`WEBGL_lose_context` must be fetched at boot.** After a loss `getExtension` returns null, so a restore through it silently does nothing.
+4. **Deviations from the sketches in interfaces.md, tagged in the code.** `GameObject.scene` is typed `DisplayHost` (level 2 cannot import `Scene`). `originX`, `flipX` and their setters live on `ImageObject`, not on `GameObject`. `Graphics.lineStyle` takes only width 1. `Camera.setScroll(x)` defaults `y` to `x` like Phaser. The Phaser scene operations (`launch`, `pause`...), `Loader`, input, `time`, `tweens`, fades and camera effects are not built (they are absent from the types, so using one is a compile error).
+5. **Origin warning waits one microtask**, so `add.image(...).setOrigin(0, 0)` does not warn about the default 0.5 it replaces a moment later.
+6. **Chrome logs a "GPU stall due to ReadPixels" warning** when a page reads pixels back. Only the test hook does. `e2e/sjelab.spec.ts` allows exactly that message and checks boot with nothing allowed.
+7. **Local dev servers on this machine skip Pixi's pre-bundling**, because Vite's dependency scan also reads the research HTML files in the git-ignored `media/` folder and fails on two missing packages. Pixi is then served as separate modules. Tests still pass. CI has no `media/` folder.
+8. `@types/three` is needed at M1b (three 0.186 ships no types). Not installed: nothing imports three yet.
+9. The old engine's only change is `W` and `H` in `src/engine/game.ts` (now re-exported from `src/sje/core/size.ts`). `FPS` stays there too, until M1 (`size.ts` also holds it).
+
 ## Result (filled in at the end)
 - Outcome:
 - Date:

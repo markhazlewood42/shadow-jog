@@ -97,6 +97,7 @@ time. Run a single spec: `npx playwright test e2e/chaos.spec.ts --reporter=line`
 | `perf.spec.ts` | Frame budget in the plaza and a battle; input latency. `PW_NOGPU=1` reproduces CI's software canvas |
 | `shots.spec.ts` | The screenshot set for `docs/screenshots/` |
 | `audio-evidence.spec.ts` | Renders every song and effect offline and measures them |
+| `sjelab.spec.ts` | The new engine (`src/sje`, step B0 of the engine-platform spike) on its lab page `/sjelab.html`: crisp blocks at zoom 4 and dpr 1, 1.25, 1.5, determinism, parity with Canvas 2D, snap to pixel, camera pan, leaks, context loss. `SJE_SHOTS=<folder>` saves pictures. `node scripts/sjelab-size.mjs` measures its bundle |
 
 `PW_ALL_ENGINES=1` runs WebKit and Firefox locally too.
 

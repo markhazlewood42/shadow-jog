@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Engine lab</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2307060d'/%3E%3Crect x='3' y='3' width='10' height='10' fill='none' stroke='%233fe0f0' stroke-width='1.6'/%3E%3C/svg%3E" />
+    <!-- Dev-only page (npm run dev, then /sjelab.html): the Shadow Jog Engine (src/sje) running a
+         sandbox scene made of the game's own art. Not part of the build (vite builds index.html only).
+         Add ?manual to leave the clock to the tests (window.__SJE__.step). Code: src/sje-lab/. -->
+    <style>
+      html, body { height: 100%; margin: 0; overflow: hidden; background: #07060d; }
+      #stage { position: fixed; inset: 0; }
+      /* The engine sizes and places the canvas itself, in whole device pixels (width, height, left, top, image-rendering). */
+      #status { position: fixed; left: 8px; bottom: 6px; color: #6a6f89; font: 11px/1.3 ui-monospace, Consolas, monospace; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="status">starting...</div>
+    <script type="module" src="/src/sje-lab/main.ts"></script>
+  </body>
+</html>
