@@ -538,6 +538,7 @@ Options were: (a) record the result, tag `archive/side-battle-YYYY-MM-DD`, close
 **What changes:**
 - The rebuild steps in decision 10 wait for the design. The side-view battle view, the stage design, the editor's behaviour (`docs/TOOLING-UI.md`) and Mark's design data stay. The Phaser spike code is the reference for the port.
 - PR #3 and PR #4 still never merge. Ask Mark before the `archive/*` tags.
+- **Design approved (Mark, 2026-10-04): all recommendations** ([PR #10](https://github.com/markhazlewood42/shadow-jog/pull/10), `docs/engine/`). Every build step goes through the verification loop in `docs/engine/verification.md`, and Mark gets visual updates whenever a test renders something.
 - Next: write the architecture design doc on its own branch. It includes the shared W/H module. Then run a platform spike. It has three parts: the battle stage on the new engine, a 3D hacking scene that a story script starts, and the 480x270 against 640x360 mock. It also tests Pixi filters and masks on the shared context.
 
 ## New concepts for CONCEPTS.md

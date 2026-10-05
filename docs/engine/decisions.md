@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — Decisions"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-04
-status: draft for Mark's approval
+status: approved 2026-10-04 (all recommendations)
 tags: [engine, design]
 ---
 
@@ -19,6 +19,8 @@ This file lists every open decision for you. Each one has the question, 2 to 4 o
 **How to answer.** Reply with the decision number and the option letter. "E2 A" means "use option A for decision 2". If you agree with every recommendation, say "all recommendations". The design doc set changes if you pick a non-recommended option for E1, E2, or E3.
 
 ## Summary
+
+**Answered 2026-10-04: Mark approved the design with all recommendations.** The "Your answer" column below now records his answer. The look decisions (E8, E20) and the resolution follow-up (E12) still get his review at the milestones they name.
 
 "Mark" in the "Who decides" column means this is your call. "Agent (FYI)" means the agents can decide, and you can still change it. The "Your answer" column holds the recommendation. Edit it, then reply.
 

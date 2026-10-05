@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — Frame and rendering"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-04
-status: draft for Mark's approval
+status: approved 2026-10-04 (all recommendations)
 tags: [engine, design]
 ---
 

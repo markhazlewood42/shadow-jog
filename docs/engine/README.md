@@ -4,13 +4,15 @@ title: "Shadow Jog Engine — Overview"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-04
-status: draft for Mark's approval
+status: approved 2026-10-04 (all recommendations)
 tags: [engine, design]
 ---
 
 # Shadow Jog Engine — Overview
 
-This is the 10-minute version. It tells you what the engine is, what its parts are, and where each part comes from. No engine code exists yet. Nothing is built until you approve this design (decision 17 in `docs/PHASE-0.2.md`).
+This is the 10-minute version. It tells you what the engine is, what its parts are, and where each part comes from.
+
+**Approved by Mark on 2026-10-04, with all recommendations.** The look decisions (E8, E20) and the resolution follow-up (E12) still come to Mark at their milestones. Next is the Phase 0 platform spike ([migration.md](migration.md) section 3). Every build step goes through the verification loop in [verification.md](verification.md).
 
 > **Decisions for Mark.** The full list of 25 is in [decisions.md](decisions.md). These seven matter most.
 >
@@ -67,7 +69,8 @@ Four more words mean different things in different engines. This table says whic
 5. [conventions.md](conventions.md): which engine each name comes from.
 6. [tooling-and-testing.md](tooling-and-testing.md): dev tools, tests, CI, agent docs.
 7. [migration.md](migration.md): the path from today's engine and from the Phaser spike.
-8. [decisions.md](decisions.md): every open decision.
+8. [decisions.md](decisions.md): every decision and its answer.
+9. [verification.md](verification.md): the independent verification loops, the rubrics and the visual updates.
 
 Source material: `docs/research/2026-10-04-engine-and-3d.md`, decision 17 in `docs/PHASE-0.2.md`, today's engine in `src/engine/` (about 2,900 lines), the Phaser reference on branch `spike/phaser-stage` (folder `src/stage`), and editor behaviour in `docs/TOOLING-UI.md`.
 

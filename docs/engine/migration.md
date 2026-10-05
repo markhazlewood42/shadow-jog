@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — Migration"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-04
-status: draft for Mark's approval
+status: approved 2026-10-04 (all recommendations)
 tags: [engine, design]
 ---
 
@@ -28,6 +28,8 @@ This file gives the path from today's engine and from the Phaser spike to the ne
 6. **Build a class only when a ported scene needs it.** The Phaser spike called about 15 display methods. We do not rebuild all of Phaser.
 7. **Hybrid by scene.** A scene moves to retained mode only when it needs a camera, a filter, a mask, or a transition. UI scenes may stay on a canvas shell for good (section 4).
 8. **Your data is read byte for byte.** `src/data/*.json` never changes in a migration step.
+9. **Every step goes through an independent verification loop** ([verification.md](verification.md)): three fresh verifier agents score a rubric written before the code. A step passes only with every pass line met, every criterion median at 7 or higher and an average of 8 or higher. The cap is 3 rounds, then the work comes to you.
+10. **Visual updates.** Each time a test renders something, you get the screenshots right away ([verification.md](verification.md) section 4).
 
 ---
 

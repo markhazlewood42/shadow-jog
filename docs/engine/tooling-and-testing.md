@@ -4,11 +4,13 @@ title: "Shadow Jog Engine — Tooling and testing"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-04
-status: draft for Mark's approval
+status: approved 2026-10-04 (all recommendations)
 tags: [engine, design]
 ---
 
 # Shadow Jog Engine — Tooling and testing
+
+> The verification loops and rubrics that sit on top of these tests are in [verification.md](verification.md).
 
 Agents build this engine and you review it. So the engine must be easy to inspect, easy to test without a GPU, and easy to check in CI. This file covers dev tools, editors, tests, CI, the bundle alarm, and the docs that teach agents the engine.
 
