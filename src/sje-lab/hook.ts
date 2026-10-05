@@ -20,6 +20,7 @@ import { drawText, measure } from '../engine/font';
 import { drawReference, referenceScroll } from './reference';
 import { type CanaryResult, type EffectCaseOptions, type EffectCaseResult, type EffectName, type EffectTarget, type PartAEnv, runCanary, runEffectCase } from './parta';
 import { type MirrorRow, type RenderLayerResult, runMirrorMatrix, runRenderLayerCase } from './partaextra';
+import { type ProfileOptions, type ProfileResult, profileLoop } from './profile';
 import type { StoryLogEntry } from './story';
 
 export interface PixelDiff {
@@ -156,6 +157,11 @@ export interface SjeHook {
   sim(): { tick: number; trace: number; hits: number; status: string; ice: number } | null;
   /** TEST ONLY: switch the end-of-Three clean up of GlHandoff on or off (the canary's negative control). */
   handoffFix(on: boolean): void;
+  /**
+   * TEST ONLY: make the next 3D frames act as if Three's texture handle were missing, so `?frame=auto` takes its fall back to the
+   * canvas copy (E3). Loads the 3D chunk if it is not loaded yet.
+   */
+  hideTextureHandle(on: boolean): Promise<void>;
   /** Every GL error flag set right now (clears them). */
   glErrors(): number[];
   /** Run `n` ticks and draws, each draw ended by `gl.finish()`, so the time includes the GPU's own work. */
@@ -176,7 +182,7 @@ export interface SjeHook {
    * draw it reads the back buffer and records the scene on top and how much of the picture is ONE colour. A blank or
    * half-drawn frame (flicker on entering or leaving a scene) would be almost all one colour.
    */
-  flickerWatch(frames: number): Promise<Array<{ top: string; dominant: number }>>;
+  flickerWatch(frames: number): Promise<Array<{ top: string; dominant: number; tick: number }>>;
   /** Drop every scene without resolving it (`game.abandon()`). A hack that is dropped still resolves (aborted / user). */
   abandon(): void;
   /**
@@ -192,8 +198,11 @@ export interface SjeHook {
   mirrorMatrix(): MirrorRow[];
   /** The stale clear-colour canary. Needs a running hack. `fixOn: false` is the negative control. */
   canary(fixOn: boolean, transparentBackBuffer?: boolean): CanaryResult;
-  /** Free-run the real loop for `frames` animation frames: the frame intervals, and the JavaScript time of the engine's work in each. */
-  profileLoop(frames: number): Promise<{ intervals: number[]; work: number[] }>;
+  /**
+   * Free-run the real loop for `frames` animation frames: the frame intervals, the JavaScript time of the engine's work in each,
+   * and (by option) the cost including the wait for the GPU, and the GPU's own timer. See src/sje-lab/profile.ts.
+   */
+  profileLoop(frames: number, options?: ProfileOptions): Promise<ProfileResult>;
 }
 
 declare global {
@@ -567,10 +576,13 @@ export function installHook(lab: Lab): SjeHook {
       return t ? { tick: t.sim.tick, trace: t.sim.tracePercent, hits: t.sim.hits, status: t.sim.status, ice: t.sim.ice.length } : null;
     },
     handoffFix: (on) => renderer.handoff.setClearColourFix(on),
+    async hideTextureHandle(on) {
+      (await loadChunk()).frame3dTestSeams.hideTextureHandle = on;
+    },
     abandon: () => game.abandon(),
     flickerWatch(frames) {
       return new Promise((resolve) => {
-        const out: Array<{ top: string; dominant: number }> = [];
+        const out: Array<{ top: string; dominant: number; tick: number }> = [];
         const onFrame = (): void => {
           const p = backBuffer();
           const counts = new Map<number, number>();
@@ -581,7 +593,7 @@ export function installHook(lab: Lab): SjeHook {
             if (n > best) best = n;
           }
           const names = game.scene.scenes;
-          out.push({ top: names[names.length - 1]?.constructor.name ?? '', dominant: best / (p.w * p.h) });
+          out.push({ top: names[names.length - 1]?.constructor.name ?? '', dominant: best / (p.w * p.h), tick: game.tick });
           if (out.length >= frames) {
             game.events.off('postrender', onFrame);
             resolve(out);
@@ -688,40 +700,15 @@ export function installHook(lab: Lab): SjeHook {
       }
       return { ms: stats(ms) };
     },
-    profileLoop(frames) {
-      return new Promise((resolve) => {
-        const intervals: number[] = [];
-        const work: number[] = [];
-        // Wrap the two engine entry points the loop calls. A frame's work is the sum of its ticks and its draw.
-        let acc = 0;
-        const tick = game.advanceTick.bind(game);
-        const draw = game.draw.bind(game);
-        game.advanceTick = () => {
-          const t = performance.now();
-          tick();
-          acc += performance.now() - t;
-        };
-        game.draw = (alpha?: number) => {
-          const t = performance.now();
-          draw(alpha);
-          acc += performance.now() - t;
-          work.push(acc);
-          acc = 0;
-        };
-        let last = performance.now();
-        const frame = (now: number): void => {
-          intervals.push(now - last);
-          last = now;
-          if (intervals.length < frames) requestAnimationFrame(frame);
-          else {
-            game.advanceTick = tick;
-            game.draw = draw;
-            resolve({ intervals, work });
-          }
-        };
-        requestAnimationFrame(frame);
-      });
-    },
+    profileLoop: (frames, options) =>
+      profileLoop(
+        game,
+        gl,
+        () => frameOf()?.render(),
+        () => void renderer.handoff.readDefaultFramebuffer(0, 0, 1, 1),
+        frames,
+        options,
+      ),
   };
   return hook;
 }

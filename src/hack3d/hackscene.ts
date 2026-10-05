@@ -101,11 +101,16 @@ export class HackScene extends Scene3D<HackResult> {
   }
 
   protected override dispose3D(): void {
-    this.hud?.destroy();
+    const hud = this.hud;
     this.hud = null;
-    // Dropped with no result (abandon or reset): tell whoever waits, so the story never hangs (decision E11).
-    // A scene that never finished starting is NOT abandoned: its `game.run` promise rejects, and that is an error.
-    if (!this.finished && this.started) this.onAbandoned?.();
+    try {
+      hud?.destroy();
+    } finally {
+      // Dropped with no result (abandon or reset): tell whoever waits, so the story never hangs (decision E11).
+      // This is in a `finally` ON PURPOSE: if the HUD cannot free a texture and throws, the story must still get its answer.
+      // A scene that never finished starting is NOT abandoned: its `game.run` promise rejects, and that is an error.
+      if (!this.finished && this.started) this.onAbandoned?.();
+    }
   }
 }
 

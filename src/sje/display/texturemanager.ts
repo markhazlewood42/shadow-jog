@@ -177,7 +177,10 @@ export class TextureManager {
     const ctx = must(canvas.getContext('2d'), 'a 2D canvas context');
     ctx.imageSmoothingEnabled = false;
     this.addCanvas(key, canvas);
-    return { canvas, ctx, refresh: () => this.refresh(key) };
+    const entry = this.entryOf(key);
+    // Bound to THIS entry, not to the key: a key can be removed and added again, and a `refresh` kept from the old texture
+    // must never upload to the new one. Once the texture is gone it does nothing.
+    return { canvas, ctx, refresh: () => (entry.destroyed ? undefined : entry.refresh()) };
   }
 
   /** The canvas of `key` changed: upload it again. Without this the old picture stays on the GPU. */

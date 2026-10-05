@@ -41,7 +41,7 @@ async function measure(label, input) {
       .filter(([id]) => id.includes('node_modules/pixi.js') || id.includes('node_modules\\pixi.js'))
       .reduce((n, [, m]) => n + m.renderedLength, 0);
     const threeBytes = Object.entries(o.modules ?? {})
-      .filter(([id]) => id.includes('node_modules/three') || id.includes('node_modules\three'))
+      .filter(([id]) => id.includes('node_modules/three') || id.includes('node_modules\\three'))
       .reduce((n, [, m]) => n + m.renderedLength, 0);
     const note = (pixiBytes ? `   contains Pixi (${(pixiBytes / 1000).toFixed(0)} kB of its own source, minified)` : '') + (threeBytes ? `   contains Three (${(threeBytes / 1000).toFixed(0)} kB): the LAZY 3D chunk` : '');
     console.log(`  ${o.fileName.padEnd(34)} ${(code.length / 1000).toFixed(1).padStart(8)} kB   gzip ${(gz / 1000).toFixed(1).padStart(7)} kB${note}`);

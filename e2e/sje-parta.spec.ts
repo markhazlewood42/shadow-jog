@@ -120,7 +120,7 @@ test.describe('Part A (i), where the mask cuts through the object: positions of 
     });
   });
 
-  test('on a sorted container: exact on a GPU; on software GL (SwiftShader) one strip of at most 40 pixels can be lost where the mask cuts through the swatches (cause: roundPixels, the same loss as bare Pixi, see the comment; 40 is one swatch edge; CI confirms it)', async ({ browser }) => {
+  test('on a sorted container a sprite mask is exact wherever it sits: 0 wrong pixels, on a GPU and on software GL (roundPixels is off)', async ({ browser }) => {
     await withLab(browser, async ({ page }) => {
       const software = await isSoftware(page);
       const rows: string[] = [];
@@ -130,27 +130,11 @@ test.describe('Part A (i), where the mask cuts through the object: positions of 
         rows.push(`mask at ${JSON.stringify(maskAt)}: ${r.over} pixels off, box ${JSON.stringify(r.overBox)}, max difference ${r.maxDiff}, GL errors ${r.glErrors.length}`);
         expect(r.glErrors).toEqual([]);
         expect(r.restored).toBe(true);
-        if (!software) expect(r.over, `GPU, mask at ${JSON.stringify(maskAt)}`).toBe(0);
-        else {
-          // The measured defect: the last row or column of a swatch (a strip one pixel thick), never more than 40 pixels.
-          // CAUSE (round 2): the engine's Pixi renderer runs with `roundPixels: true`. A bare Pixi app (no engine) with that one option
-          // reproduces the strip on SwiftShader and is exact without it. WARP (Edge with --use-angle=d3d11-warp, a second software
-          // rasteriser), the RTX 4070 and Firefox are exact with it on. With `roundPixels: false` this whole file and sjelab.spec.ts and
-          // sje3d.spec.ts pass on the GPU and on SwiftShader, and the strip is 0. So the cause is the `roundPixels` vertex path on
-          // SwiftShader, hit when the container is drawn into the mask pass's own render target. (The exact float step inside the shader is not isolated.)
-          // The engine already snaps every object to whole pixels, and the design keeps the renderer option "as a second guard"
-          // (scene-graph.md section 7, point 4): turning it off is a design change for Mark. See drift item 25 in docs/spikes/engine-platform.md.
-          // THE ENGINE LOSES THE SAME PIXELS AS BARE PIXI (round 3). The bare repro seemed to lose fewer (11 against 35 at (205,109)) only because
-          // it counted background-coloured pixels: the 35 are the red swatch's last row (x 205 to 239), and in x 216 to 239 the GREEN swatch
-          // below shows through instead of red, which is not background coloured. Counted the same way as here (any pixel that is not the
-          // CPU picture), bare Pixi loses 16, 35 and 16 at the three positions, exactly the engine's numbers. So nothing in the engine adds to it.
-          // WHY 40: a lost strip is one row or column of ONE swatch, and a swatch is 40 pixels wide, so 40 is the largest a single strip can be
-          // (the thin-box check below keeps it to one strip). It is a geometric limit, not a number tuned to a run. The count on CI's Linux
-          // SwiftShader may still differ (it is a different build of the rasteriser): a count above 40 or a thick box there is a finding.
-          // The measured counts so far: 16, 35, 16 (local Edge SwiftShader and the bundled headless shell 1234).
-          expect(r.over, `software GL, mask at ${JSON.stringify(maskAt)}`).toBeLessThanOrEqual(40);
-          if (r.overBox) expect(r.overBox.x1 === r.overBox.x0 || r.overBox.y1 === r.overBox.y0, `a strip one pixel thick: ${JSON.stringify(r.overBox)}`).toBe(true);
-        }
+        // HISTORY. Rounds 2 and 3 measured a strip of 16, 35 and 16 wrong pixels at three of these positions on SwiftShader (software GL),
+        // and bounded it at 40. The cause was the renderer option `roundPixels: true`: bare Pixi with it on loses the same pixels, and with it
+        // off loses none. Round 4 turned it off (drift item 25 in docs/spikes/engine-platform.md): the engine already snaps every object to
+        // a whole pixel itself, and tests/sje-display.test.ts checks that. So the bound is back to 0, with no software exception.
+        expect(r.over, `${software ? 'software GL' : 'GPU'}, mask at ${JSON.stringify(maskAt)}: ${JSON.stringify(r.samples)}`).toBe(0);
       }
       console.log(`SJE PARTA sprite mask on a sorted container (${software ? 'software GL' : 'GPU'}):\n${rows.join('\n')}`);
     });

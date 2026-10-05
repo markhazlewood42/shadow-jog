@@ -35,7 +35,11 @@ export class PixiRenderer {
       height: H,
       resolution: 1,
       antialias: false,
-      roundPixels: true,
+      // OFF on purpose (round 4, drift item 25). Pixi's `roundPixels` rounds vertex positions in the shader. The engine already
+      // rounds every object's position itself (`snap` in gameobject.ts), so that second rounding changes nothing on a GPU, and on
+      // SwiftShader (software GL) it lost a strip of pixels where a sprite mask crosses overlapping swatches. A bare Pixi app shows the
+      // same loss with it on and none with it off. tests/sje-display.test.ts checks every snapped node sits on a whole world pixel.
+      roundPixels: false,
       clearBeforeRender: false,
       skipExtensionImports: true,
       // Pixi unloads textures idle for 60 s. A scene that returns after a long pause would hitch.

@@ -278,6 +278,30 @@ describe('the watchdog: a lost context cannot leave a story waiting', () => {
     expect(game.scene.scenes).toEqual([s]);
   });
 
+  it('a private context that comes back (no engine event) stops the timer, so a second loss gets its FULL grace period', () => {
+    vi.useFakeTimers();
+    const { game } = headlessGame();
+    const s = new TestScene3D();
+    void game.run(s);
+    const frame = s.fake;
+    if (!frame) throw new Error('no frame');
+    // Loss 1 at t = 0: the per-frame check starts the timer (due at 1000 ms).
+    frame.contextLost = true;
+    game.step(1);
+    vi.advanceTimersByTime(300);
+    // The private context is back at t = 300. The engine sends no event for it: the next draw notices.
+    frame.contextLost = false;
+    game.step(1);
+    vi.advanceTimersByTime(300);
+    // Loss 2 at t = 600: its own timer is due at 1600 ms. The first timer (1000 ms) must be gone.
+    frame.contextLost = true;
+    game.step(1);
+    vi.advanceTimersByTime(500); // t = 1100
+    expect(game.scene.scenes, 'the old timer must not cut the second loss short').toEqual([s]);
+    vi.advanceTimersByTime(500); // t = 1600
+    expect(game.scene.scenes).toEqual([]);
+  });
+
   it('a lost context while drawing starts the watchdog even if the event was missed, and nothing draws meanwhile', () => {
     vi.useFakeTimers();
     const { game, gl } = headlessGame();

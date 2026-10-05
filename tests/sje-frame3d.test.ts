@@ -73,7 +73,8 @@ vi.mock('../src/sje/three/threehost', () => {
   return { ThreeHost: { shared: () => host, privateCopy: () => host }, hostsCreated: { shared: 0, private: 0 } };
 });
 
-import { buildOrFree, createFrame3D, runAll } from '../src/sje/three/frame3d';
+import { runAll } from '../src/sje/core/runall';
+import { buildOrFree, createFrame3D } from '../src/sje/three/frame3d';
 
 /** A game stand-in with the three things `frame3d.ts` touches. */
 function fakeGl(): never {
@@ -306,5 +307,64 @@ describe('SharedContextFrame: a context restore re-wraps Three’s new texture o
     frame.rewrap();
     expect(drawn).toBe(0);
     expect(frame.describe().rewraps).toBe(0);
+  });
+});
+
+describe("createFrame3D 'auto': Three's texture handle is missing (E3: fall back to the canvas copy, warn once)", () => {
+  /** Run `body` while the mocked Three renderer reports no GL texture for any target: what a Three upgrade that moves the field would do. */
+  async function withoutHandle<T>(gl: never, body: () => T): Promise<T> {
+    const { ThreeHost } = await import('../src/sje/three/threehost');
+    const props = ThreeHost.shared(gl).renderer.properties as unknown as { get: () => unknown };
+    const saved = props.get;
+    props.get = () => ({});
+    try {
+      return body();
+    } finally {
+      props.get = saved;
+    }
+  }
+
+  it('auto: the frame is a canvas copy, there is exactly one console warning, and the discarded shared pipeline was freed once', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const gl = fakeGl();
+    const frame = await withoutHandle(gl, () => createFrame3D(gl, fakeScene(), SETUP(), 'auto'));
+    expect(frame.mode).toBe('canvas-copy');
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toMatch(/texture handle is missing/);
+    // The shared pipeline (a target and a bloom pass) was built, found useless and freed: once. The canvas copy built its own.
+    expect(freed).toEqual({ targets: 1, blooms: 1, bloomsMade: 2 });
+    // The fallback frame is a real, usable frame with its own parts, and frees them.
+    frame.dispose();
+    expect(freed).toEqual({ targets: 2, blooms: 2, bloomsMade: 2 });
+  });
+
+  it('auto with a handle present: the shared context is used and nothing warns (control)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const frame = createFrame3D(fakeGl(), fakeScene(), SETUP(), 'auto');
+    expect(frame.mode).toBe('shared-context');
+    expect(warn).not.toHaveBeenCalled();
+    frame.dispose();
+  });
+
+  it("'shared-context' does not fall back: it throws, and frees the pipeline it built", async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const gl = fakeGl();
+    await withoutHandle(gl, () => expect(() => createFrame3D(gl, fakeScene(), SETUP(), 'shared-context')).toThrow(/no GL texture handle/));
+    expect(freed).toEqual({ targets: 1, blooms: 1, bloomsMade: 1 });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('the test seam hides the handle in the same way (the e2e uses it)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { frame3dTestSeams } = await import('../src/sje/three/frame3d');
+    frame3dTestSeams.hideTextureHandle = true;
+    try {
+      const frame = createFrame3D(fakeGl(), fakeScene(), SETUP(), 'auto');
+      expect(frame.mode).toBe('canvas-copy');
+      expect(warn).toHaveBeenCalledTimes(1);
+      frame.dispose();
+    } finally {
+      frame3dTestSeams.hideTextureHandle = false;
+    }
   });
 });

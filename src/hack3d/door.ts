@@ -4,7 +4,8 @@
  *
  * This file is NOT in the lazy chunk. The shipped game loads it up front, and it never imports Three:
  * it reaches the 3D chunk through one dynamic `import('./index')`. So the story can ask "can this
- * browser do it?" and read the answer without downloading Three.
+ * browser do it?" and read the answer without downloading Three. (It does import the engine facade, so
+ * it pulls Pixi along: fine from step M6 on, because the shipped game loads Pixi from M6, before M7 makes the first hack.)
  *
  * Two functions:
  *   `hackDoor`        one try. Always resolves a `HackResult` (decision E11).
@@ -70,10 +71,11 @@ export async function hackDoor(game: Game, def: HackDef, options?: HackOptions, 
 
 /** What the story learns when the whole hack, policy included, is over. */
 export interface HackOutcome {
-  /** Did the story count this as a win? */
+  /** Did the story count this as a win? (`via: 'dropped'` is always 'fail', and the story should stop.) */
   outcome: 'success' | 'fail';
-  /** `played`: the player's own result. `policy`: the author's policy decided. `alternative`: the 2D version decided. */
-  via: 'played' | 'policy' | 'alternative';
+  /** `played`: the player's own result. `policy`: the author's policy decided. `alternative`: the 2D version decided.
+   * `dropped`: the player dropped the story (E19): no retry, nothing started, and the story must end. */
+  via: 'played' | 'policy' | 'alternative' | 'dropped';
   /** Every raw result, in order (the first try, then the retry if there was one). */
   results: HackResult[];
 }
@@ -95,6 +97,7 @@ export async function hackWithPolicy(def: HackDef, tryHack: (def: HackDef) => Pr
       retries++;
       continue;
     }
+    if (decision.next === 'dropped') return { outcome: 'fail', via: 'dropped', results };
     if (decision.next === 'alternative') return { outcome: await playAlternative(), via: 'alternative', results };
     return { outcome: decision.outcome, via: decision.via, results };
   }

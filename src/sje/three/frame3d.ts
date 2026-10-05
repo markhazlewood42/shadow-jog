@@ -14,6 +14,10 @@
  * 3D pixel is one game pixel on the same grid as every 2D object; bloom runs INSIDE the target, at
  * game resolution, so after the integer upscale every 3D pixel is an exact block.
  *
+ * @deviation from frame-and-rendering.md section 7: bloom runs INSIDE the 480x270 target (a Three `UnrealBloomPass`), not as a Pixi filter on
+ * the `View3D`. The design's default needs `pixi-filters`, which is not installed, and a pass at game resolution keeps every glow pixel on the
+ * game grid. Not compared against the Pixi filter. Drift item 13 in docs/spikes/engine-platform.md.
+ *
  * Which mode: `auto` uses the shared context, and switches to the canvas copy (with one console
  * warning) if Three's texture handle cannot be found. `Three.properties.get(rt.texture).__webglTexture`
  * is an INTERNAL Three field, so Three is pinned exactly (0.186.1) and a canary test reads it.
@@ -23,7 +27,8 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { H, W } from '../core/size';
 import type { DisplayHost } from '../display/gameobject';
 import { View3D } from '../display/view3d';
-import type { Pixels } from '../render/backbuffer';
+import { runAll } from '../core/runall';
+import { flipRows, type Pixels } from '../render/backbuffer';
 import { CanvasFrameTexture, ExternalFrameTexture } from '../render/frametexture';
 import type { GlRenderer } from '../runtime/glrenderer';
 import { hostsCreated, ThreeHost } from './threehost';
@@ -91,6 +96,13 @@ function glTextureOf(host: ThreeHost, target: WebGLRenderTarget): WebGLTexture |
 }
 
 /**
+ * TEST ONLY. Set `hideTextureHandle` to make `createFrame3D` act as if Three's texture handle were missing (what a Three upgrade
+ * that moves the internal field would cause). The `auto` fall back to the canvas copy is otherwise unreachable with the pinned Three,
+ * so a test needs a way to take it. The lab's `hideTextureHandle` hook sets this. Nothing in the game reads or writes it.
+ */
+export const frame3dTestSeams = { hideTextureHandle: false };
+
+/**
  * Run `build`. If it throws, run `free` first and then throw the same error again. A constructor that
  * throws gives its caller nothing to dispose, so whatever was made BEFORE the throw (here: the render
  * target and the bloom pass's 11 render targets) must be freed by the one who made it.
@@ -108,24 +120,6 @@ export function buildOrFree<T>(free: () => void, build: () => T): T {
     }
     throw e;
   }
-}
-
-/**
- * Run every step, even when an earlier one throws, and then throw the FIRST error. A dispose is a row
- * of independent frees (the Pixi side, then the Three side): one that fails must not skip the rest,
- * or the GPU objects behind it (the render target, the bloom pass's 11 targets) leak for good, because
- * a frame is flagged as disposed and cannot be disposed again. Exported for the unit test.
- */
-export function runAll(steps: ReadonlyArray<() => void>): void {
-  const errors: unknown[] = [];
-  for (const step of steps) {
-    try {
-      step();
-    } catch (e) {
-      errors.push(e);
-    }
-  }
-  if (errors.length) throw errors[0];
 }
 
 /**
@@ -212,11 +206,7 @@ abstract class FrameBase implements Frame3D {
   readPixels(): Pixels {
     const bottomUp = new Uint8Array(W * H * 4);
     this.gl.handoff.withThree(this.host.renderer, () => this.host.renderer.readRenderTargetPixels(this.pipeline.target, 0, 0, W, H, bottomUp));
-    // GL rows run bottom to top. Flip them so row 0 is the top, like every image.
-    const data = new Uint8Array(W * H * 4);
-    const row = W * 4;
-    for (let y = 0; y < H; y++) data.set(bottomUp.subarray((H - 1 - y) * row, (H - y) * row), y * row);
-    return { w: W, h: H, data };
+    return { w: W, h: H, data: flipRows(bottomUp, W, H) };
   }
 
   describe(): ReturnType<Frame3D['describe']> {
@@ -356,10 +346,7 @@ class CanvasCopyFrame extends FrameBase {
   override readPixels(): Pixels {
     const bottomUp = new Uint8Array(W * H * 4);
     this.host.renderer.readRenderTargetPixels(this.pipeline.target, 0, 0, W, H, bottomUp);
-    const data = new Uint8Array(W * H * 4);
-    const row = W * 4;
-    for (let y = 0; y < H; y++) data.set(bottomUp.subarray((H - 1 - y) * row, (H - y) * row), y * row);
-    return { w: W, h: H, data };
+    return { w: W, h: H, data: flipRows(bottomUp, W, H) };
   }
 }
 
@@ -372,7 +359,7 @@ export function createFrame3D(gl: GlRenderer, scene: DisplayHost, setup: Frame3D
     const host = ThreeHost.shared(gl);
     const pipeline = gl.handoff.withThree(host.renderer, () => new TargetPipeline(host, setup));
     const freePipeline = (): void => gl.handoff.withThree(host.renderer, () => pipeline.dispose());
-    const tex = glTextureOf(host, pipeline.target);
+    const tex = frame3dTestSeams.hideTextureHandle ? null : glTextureOf(host, pipeline.target);
     // If the frame cannot be built, the pipeline (the target and the bloom pass) is freed here, not leaked.
     if (tex) return buildOrFree(freePipeline, () => new SharedContextFrame(gl, host, pipeline, tex, scene));
     freePipeline();

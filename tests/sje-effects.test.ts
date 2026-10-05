@@ -166,9 +166,9 @@ describe('FilterList (go.filters, flat)', () => {
     const c = new Container(host());
     const m = new Graphics(host());
     c.filters.addMask(m);
-    expect(m._maskUsers.size).toBe(1);
+    expect((m._maskUsers?.size ?? 0)).toBe(1);
     c.destroy();
-    expect(m._maskUsers.size).toBe(0);
+    expect((m._maskUsers?.size ?? 0)).toBe(0);
     m.destroy();
   });
 

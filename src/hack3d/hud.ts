@@ -10,6 +10,7 @@
  * Text is drawn into small canvases with the game's own font code (`src/engine/font.ts`) and shown
  * as images. A line is redrawn only when its text changes (the upload to the GPU costs a little).
  */
+// The game's OLD font code. Step M8 deletes `src/engine`: before that, the font (and `Rng`, in sim/hacksim.ts) move into `src/sje`. Drift item 32.
 import { drawText, measure } from '../engine/font';
 import { type AnyScene, type Container, type Graphics, type ImageObject, W } from '../sje';
 import type { HackSim } from './sim/hacksim';
@@ -158,8 +159,21 @@ export class HackHud {
     }
   }
 
-  /** Free the HUD's textures. (The display objects are freed with the scene.) */
+  /**
+   * Free the HUD's textures. (The display objects are freed with the scene.) One texture that cannot be freed does not
+   * stop the others: every key gets its turn, and the first error is thrown at the end.
+   */
   destroy(): void {
-    for (const key of this.keys) this.scene.textures.remove(key);
+    let first: unknown;
+    let failed = false;
+    for (const key of this.keys) {
+      try {
+        this.scene.textures.remove(key);
+      } catch (e) {
+        if (!failed) first = e;
+        failed = true;
+      }
+    }
+    if (failed) throw first;
   }
 }

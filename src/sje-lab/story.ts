@@ -127,6 +127,12 @@ export class LabStory {
       },
     );
     this.note(`outcome: ${outcome.outcome} via ${outcome.via}`);
+    // E19: the player dropped the story. Say nothing more on a stack that now belongs to something else.
+    if (outcome.via === 'dropped') {
+      this.note('story-dropped');
+      this.outcome = outcome;
+      return outcome;
+    }
     await this.say(`KIT: Hack ${outcome.outcome === 'success' ? 'done' : 'failed'}. Moving on.`, holdTicks);
     this.note('story-end');
     this.outcome = outcome;

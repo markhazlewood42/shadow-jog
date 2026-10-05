@@ -7,6 +7,6 @@
  * only through one dynamic `import()` (the way `s.hack` loads `src/hack3d`).
  */
 export { disposeObject3D } from './dispose';
-export { type BloomSettings, createFrame3D, type Frame3D, type Frame3DMode, type Frame3DPreference, type Frame3DSetup } from './frame3d';
+export { type BloomSettings, createFrame3D, frame3dTestSeams, type Frame3D, type Frame3DMode, type Frame3DPreference, type Frame3DSetup } from './frame3d';
 export { CONTEXT_GRACE_MS, Scene3D, type Scene3DAbort, type Scene3DOptions } from './scene3d';
 export { hostsCreated, ThreeHost, type ThreeHostKind } from './threehost';

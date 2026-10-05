@@ -7,7 +7,8 @@
  * With a whole-number `k` and nearest sampling, each game pixel becomes an exact k-by-k block.
  * A fractional scale (2.5) gives uneven pixels, so `k` is always a whole number.
  *
- * THE CANVAS IS THE WHOLE WINDOW, IN DEVICE PIXELS (B2 change, spike finding 10). Its backing store
+ * @deviation from frame-and-rendering.md 6.6 (drift item 10 in docs/spikes/engine-platform.md): THE CANVAS IS THE WHOLE WINDOW, IN DEVICE PIXELS
+ * (B2 change, spike finding 10). Its backing store
  * is exactly as many pixels as the window has on the screen, so the browser shows it 1:1 and never
  * resamples it. The 480x270 picture sits inside it, at a WHOLE device pixel offset, scaled by `k`;
  * the rest is the void colour (letterbox bars). B0 sized the canvas to the picture (W*k by H*k) and
@@ -18,7 +19,7 @@
  */
 import { Container, Sprite } from 'pixi.js';
 import { H, W } from '../core/size';
-import type { BackBuffer, Pixels } from './backbuffer';
+import { type BackBuffer, flipRows, type Pixels } from './backbuffer';
 import type { GlHandoff } from './glhandoff';
 import type { PixiRenderer } from './pixirenderer';
 
@@ -139,10 +140,6 @@ export class Presenter {
     const h = Math.min(this._layout.h, this.canvasH - y);
     // GL counts rows from the BOTTOM of the canvas; `y` counts from the top.
     const bottomUp = this.handoff.readDefaultFramebuffer(x, this.canvasH - (y + h), w, h);
-    // GL rows run bottom to top. Flip them so row 0 is the top, like every image.
-    const data = new Uint8Array(w * h * 4);
-    const row = w * 4;
-    for (let r = 0; r < h; r++) data.set(bottomUp.subarray((h - 1 - r) * row, (h - r) * row), r * row);
-    return { w, h, data };
+    return { w, h, data: flipRows(bottomUp, w, h) };
   }
 }

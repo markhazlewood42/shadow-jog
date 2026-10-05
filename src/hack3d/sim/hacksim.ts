@@ -17,6 +17,7 @@
  * Coordinates are Three's: x to the right, y up, and the persona runs toward -z. The persona stays
  * at z = 0 and the WORLD moves toward it, so no value in here ever grows large.
  */
+// The game's OLD seeded generator. Step M8 deletes `src/engine`: before that, `Rng` (and the font, in hud.ts) move into `src/sje`. Drift item 32.
 import { Rng } from '../../engine/rng';
 
 /** The shapes of ICE the look draws. The simulation only names them. */

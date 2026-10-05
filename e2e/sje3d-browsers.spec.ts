@@ -8,10 +8,15 @@
  * when the first hack runs does the lazy chunk create the Three renderer on the SAME context. If that
  * order breaks anything (a GL error, a console warning, a wrong pixel, Pixi's state corrupted), it shows here.
  *
+ * WHERE WEBGL2 IS MISSING (headless Firefox on the Linux CI runner has none; WebKit and Chromium there do), the spec does not
+ * fail: that is a browser fact, not an engine bug. It asserts the E5 behaviour instead (decision E5): the lab says so in plain
+ * words, and a hack asked for through the door resolves `unsupported / no-webgl2` at once, without requesting the 3D chunk.
+ * The full checks below run in every browser that HAS WebGL2.
+ *
  * It uses nothing that only Chromium has (no DevTools protocol, no heap numbers). The leak, speed and
  * context-loss checks are in e2e/sje3d.spec.ts, which is Chromium only.
  */
-import { expect, test } from '@playwright/test';
+import { type Browser, expect, test } from '@playwright/test';
 import { bytesOf, startHack, step, withLab } from './sjelabkit';
 
 /**
@@ -29,7 +34,60 @@ const allowFor = (browserName: string): RegExp[] => (browserName === 'firefox' ?
 
 const THREE_CHUNK = /hack3d\/(index|hackscene|look|sim)|sje\/three\/|\/three(\.js|\.module|\/build)/;
 
+/** Can this browser make a WebGL2 context at all? (Asked on a blank page, before the engine is involved.) */
+async function browserHasWebGL2(browser: Browser): Promise<boolean> {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    return await page.evaluate(() => document.createElement('canvas').getContext('webgl2') !== null);
+  } finally {
+    await context.close();
+  }
+}
+
+/**
+ * E5 where WebGL2 is missing: the lab page says so clearly (it cannot start without WebGL2, like the game), and a hack asked for
+ * through the door resolves `unsupported / no-webgl2` at once, and never requests the 3D chunk. The door is the real one
+ * (`src/hack3d/door.ts`, which the shipped game uses too), loaded by its dev-server URL: it probes WebGL2 before it touches the game,
+ * so no game is needed to ask it.
+ */
+async function expectE5WithoutWebGL2(browser: Browser, browserName: string, testInfo: { annotations: Array<{ type: string; description?: string }> }): Promise<void> {
+  testInfo.annotations.push({ type: 'webgl2', description: `${browserName}: not available in this browser, so the E5 behaviour is asserted instead` });
+  console.log(`SJE BROWSERS ${browserName}: no WebGL2 in this browser. Asserting E5 (the clear message, hack resolves unsupported).`);
+  const context = await browser.newContext({ viewport: { width: 960, height: 540 } });
+  try {
+    const page = await context.newPage();
+    const requests: string[] = [];
+    page.on('request', (r) => requests.push(r.url()));
+    await page.goto('/sjelab.html?manual');
+    await page.waitForFunction(() => (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__ !== undefined, null, { timeout: 90_000 });
+    const message = await page.evaluate(() => (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__);
+    expect(message, 'the clear message').toMatch(/This browser cannot run WebGL 2/);
+    expect(await page.locator('#status').textContent(), 'the message is on the page').toMatch(/failed to start: This browser cannot run WebGL 2/);
+
+    const before = requests.length;
+    const result = await page.evaluate(async () => {
+      // A string import, so the spec's own transpiler leaves it alone.
+      const load = new Function('url', 'return import(url)') as (url: string) => Promise<typeof import('../src/hack3d/door')>;
+      const door = await load('/src/hack3d/door.ts');
+      const t0 = performance.now();
+      const answer = await door.hackDoor({} as never, { id: 'no-gl2', seed: 1, ticks: 60, iceCount: 2, traceLimit: 100, hitCost: 10 });
+      return { answer, ms: performance.now() - t0 };
+    });
+    console.log(`SJE BROWSERS ${browserName}: no WebGL2, the door answered ${JSON.stringify(result)}`);
+    expect(result.answer).toEqual({ status: 'unsupported', reason: 'no-webgl2' });
+    expect(result.ms, 'unsupported comes at once').toBeLessThan(500);
+    expect(requests.slice(before).filter((u) => THREE_CHUNK.test(u)), 'the 3D chunk is never requested').toEqual([]);
+  } finally {
+    await context.close();
+  }
+}
+
 test('Pixi first, Three later: the 3D scene draws on the shared context with no GL error, no console warning, exact pixels, and Pixi stays right', async ({ browser, browserName }, testInfo) => {
+  if (!(await browserHasWebGL2(browser))) {
+    await expectE5WithoutWebGL2(browser, browserName, testInfo);
+    return;
+  }
   await withLab(browser, async ({ page, requests }) => {
     const info = await page.evaluate(() => window.__SJE__?.info());
     console.log(`SJE BROWSERS ${browserName}: ${info?.renderer} | ${info?.version}`);
@@ -87,7 +145,11 @@ test('Pixi first, Three later: the 3D scene draws on the shared context with no 
   }, { allow: allowFor(browserName) });
 });
 
-test('both frame modes draw the same picture in this browser (shared context against canvas copy)', async ({ browser, browserName }) => {
+test('both frame modes draw the same picture in this browser (shared context against canvas copy)', async ({ browser, browserName }, testInfo) => {
+  if (!(await browserHasWebGL2(browser))) {
+    await expectE5WithoutWebGL2(browser, browserName, testInfo);
+    return;
+  }
   const hashes: Record<string, string[]> = {};
   for (const mode of ['shared-context', 'canvas-copy']) {
     await withLab(

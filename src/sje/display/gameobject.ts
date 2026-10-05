@@ -49,8 +49,8 @@ export abstract class GameObject {
   private _scaleY = 1;
   private _snap = true;
   private _destroyed = false;
-  /** @internal The effect lists that use this object as their MASK. Destroying this object clears the mask in each. */
-  readonly _maskUsers = new Set<FilterList>();
+  /** @internal The effect lists that use this object as their MASK. Destroying this object clears the mask in each. Made on first use. */
+  _maskUsers: Set<FilterList> | null = null;
 
   protected constructor(scene: DisplayHost, pixi: PixiContainer) {
     this.scene = scene;
@@ -183,6 +183,10 @@ export abstract class GameObject {
   // ---- lifetime --------------------------------------------------------------------------------
 
   /**
+   * @deviation from frame-and-rendering.md section 10, which says `GameObject.destroy` destroys the object's own filters. It does NOT: an
+   * `Effect` is made by the code that uses it and may be on many objects at once, so the code that made it owns it and destroys it (the
+   * same rule as for textures and masks). Drift item 31 in docs/spikes/engine-platform.md.
+   *
    * Remove this object from its parent and free its Pixi node. Safe to call twice. A Container
    * overrides this to destroy its children first. This does NOT destroy shared textures: the code
    * that made them owns them (docs/engine/frame-and-rendering.md section 10).
@@ -194,7 +198,7 @@ export abstract class GameObject {
     this._parent?.remove(this);
     // A destroyed node must not stay as somebody's mask (Pixi would draw with a dead node), and this
     // object's own mask must forget it. Both before the node is freed.
-    for (const list of [...this._maskUsers]) list.clearMask();
+    if (this._maskUsers) for (const list of [...this._maskUsers]) list.clearMask();
     this._filters?.clearMask();
     this.destroyNode();
   }

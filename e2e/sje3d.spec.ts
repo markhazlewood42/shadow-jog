@@ -17,8 +17,9 @@
  *    collection within 5% (P4).
  *  - the hand-off canary: a filtered container with a transparent gap over a non-black Three
  *    background; the negative control shows the check can fail.
- *  - speed (P6): on the GPU, the frame interval is within 5% of a bare page and the engine's work is
- *    under 8 ms.
+ *  - speed (P6): on the GPU, the frame interval is within 5% of a bare page and a frame costs at most 8 ms with the
+ *    GPU wait included (a read-back, and the GPU's own timer where offered). A negative control (a scene far too heavy)
+ *    must fail the same rules.
  *
  * Run it:  npx playwright test e2e/sje3d.spec.ts --reporter=line
  *          PW_NOGPU=1 npx playwright test e2e/sje3d.spec.ts   (software GL, like CI)
@@ -26,7 +27,8 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { type Browser, expect, type Page, test } from '@playwright/test';
+import { MAX_TICKS_PER_FRAME } from '../src/sje/core/fixedloop';
 import { bytesOf, isSoftware, openLab, percentile, startHack, step, withLab } from './sjelabkit';
 
 const SHOTS = process.env.SJE_SHOTS;
@@ -142,6 +144,52 @@ test.describe('3D scene: the picture', () => {
     expect(new Set(hashes['manual&frame=shared-context']).size, 'the picture changes with the tick').toBe(4);
   });
 
+  test("frame=auto with Three's texture handle missing: the frame is a canvas copy, exactly ONE console warning, and the picture still renders (E3)", async ({ browser }) => {
+    // The reference: what an explicit canvas-copy frame draws at these ticks.
+    const reference: string[] = [];
+    await withLab(
+      browser,
+      async ({ page }) => {
+        await startHack(page, { ticks: 900 });
+        for (const t of [1, 60, 200]) {
+          reference.push(await page.evaluate((n) => window.__SJE__?.step(n - (window.__SJE__?.sim()?.tick ?? 0)) ?? '', t));
+        }
+      },
+      { query: 'manual&frame=canvas-copy' },
+    );
+
+    const lab = await openLab(browser, { query: 'manual&frame=auto', allow: [/texture handle is missing/] });
+    try {
+      const { page } = lab;
+      // `allow` keeps the expected warning out of `lab.problems`, so count it with a listener of our own.
+      const fallbackWarnings: Array<{ type: string; text: string }> = [];
+      page.on('console', (m) => {
+        if (/texture handle is missing/.test(m.text())) fallbackWarnings.push({ type: m.type(), text: m.text() });
+      });
+      // Hide the handle BEFORE the hack starts: `auto` then finds none and must fall back by itself.
+      await page.evaluate(() => window.__SJE__?.hideTextureHandle(true));
+      await startHack(page, { ticks: 900 });
+      expect((await page.evaluate(() => window.__SJE__?.frame()))?.mode, 'auto fell back to the canvas copy').toBe('canvas-copy');
+      const got: string[] = [];
+      for (const t of [1, 60, 200]) got.push(await page.evaluate((n) => window.__SJE__?.step(n - (window.__SJE__?.sim()?.tick ?? 0)) ?? '', t));
+      // It still renders, and renders the same picture as the explicit canvas copy.
+      expect(got, 'the same pictures as an explicit canvas-copy frame').toEqual(reference);
+      expect(new Set(got).size, 'the picture changes with the tick').toBe(3);
+      const raw = await page.evaluate(() => window.__SJE__?.framePixels());
+      const colours = new Set<number>();
+      const px = bytesOf(raw?.base64 ?? '');
+      for (let i = 0; i < px.length; i += 4) colours.add(((px[i] ?? 0) << 16) | ((px[i + 1] ?? 0) << 8) | (px[i + 2] ?? 0));
+      expect(colours.size, 'a non-blank picture').toBeGreaterThan(300);
+      expect(await page.evaluate(() => window.__SJE__?.glErrors())).toEqual([]);
+      // Exactly one warning, and nothing else (the fall back is a note, not an error).
+      expect(fallbackWarnings, 'one console warning').toHaveLength(1);
+      expect(fallbackWarnings[0]?.type).toBe('warning');
+      expect(lab.problems, 'no other console warning or error').toEqual([]);
+    } finally {
+      await lab.close();
+    }
+  });
+
   test('determinism: the same tick count gives the same picture on two loads, however the ticks are split', async ({ browser }) => {
     const results: string[] = [];
     for (const split of [[300], Array(300).fill(1), [100, 100, 100]] as number[][]) {
@@ -213,7 +261,13 @@ test.describe('3D scene: no flicker on entering or leaving, and none during (V4)
         const inHack = frames.filter((f) => f.top === 'HackScene');
         console.log(`SJE3D flicker watch: ${frames.length} frames, scenes on top in order ${tops.join(' > ')}, ${inHack.length} frames in the 3D scene; the largest single-colour share of any frame was ${(worst * 100).toFixed(1)}%, the smallest in the 3D scene ${(Math.min(...inHack.map((f) => f.dominant)) * 100).toFixed(1)}%`);
         expect(tops).toEqual(['LabScene', 'HackScene', 'LabScene']);
-        expect(inHack.length).toBeGreaterThan(60);
+        // How much of the hack was WATCHED is counted in ticks, not frames. A machine that draws slowly (CI's software GL) gets fewer frames
+        // in the same time, and the loop then runs up to 5 ticks in a frame. So a 100 tick hack always gives at least 20 frames, and the
+        // frames must span nearly all of its ticks. (A fast GPU gives about 100 frames.) The no-flicker check below is the same on every machine.
+        const ticksSeen = inHack.length ? (inHack[inHack.length - 1]?.tick ?? 0) - (inHack[0]?.tick ?? 0) : 0;
+        console.log(`SJE3D flicker watch: the 3D scene was on top for ${ticksSeen} ticks`);
+        expect(inHack.length, 'frames in the 3D scene').toBeGreaterThanOrEqual(100 / MAX_TICKS_PER_FRAME - 2);
+        expect(ticksSeen, 'ticks covered by the frames in the 3D scene').toBeGreaterThanOrEqual(90);
         // A blank, cleared or half-drawn frame is almost one colour (over 90%). The measured worst is 41 to 43% (the lab's own background), so 0.6 leaves room and still catches a half-cleared frame.
         expect(worst, 'a frame that is mostly one colour (flicker)').toBeLessThan(0.6);
       },
@@ -658,6 +712,9 @@ test.describe('fallback: context loss, no WebGL2, a chunk that will not load (P3
   test('WebGL2 switched off: the hack resolves "unsupported" at once, without loading the 3D chunk, and the story plays its 2D alternative', async ({ browser }) => {
     await withLab(browser, async ({ page, requests }) => {
       // The engine is up (WebGL2 worked at boot). NOW the browser stops giving WebGL2 contexts, as a blocked GPU does.
+      // ORDER MATTERS: `probeWebGL2` keeps a `true` answer for the life of the page (src/sje/render/glcontext.ts). Nothing has called it on this
+      // page yet (the lab boot does not), so the first hack's probe sees the override below. A warm-up hack or story before this point would
+      // have cached `true`, and this test would then fail for that reason, not for a defect. (`resetProbeWebGL2` forgets the answer, for unit tests.)
       await page.evaluate(() => {
         const original = HTMLCanvasElement.prototype.getContext;
         // biome-ignore lint/suspicious/noExplicitAny: a stand-in for the browser's overloaded method.
@@ -793,66 +850,163 @@ test.describe('the GlHandoff canary (frame-and-rendering.md 7.3)', () => {
   });
 });
 
-test.describe('speed (P6): 60 fps means no dropped frames against the display, on the GPU', () => {
-  test('the 3D scene with bloom keeps the display\'s own frame interval (p95 within 5% of a bare page) and the engine work is under 8 ms', async ({ browser }) => {
-    test.setTimeout(240_000);
-    // 1. A bare requestAnimationFrame page, in this browser, on this display: what a frame costs when nothing is running.
-    const bareContext = await browser.newContext({ viewport: { width: 960, height: 540 } });
-    const bare = await bareContext.newPage();
-    await bare.goto('about:blank');
-    const frames = 600;
-    const measureBare = (): Promise<number[]> =>
-      bare.evaluate(
-        (n) =>
-          new Promise<number[]>((resolve) => {
-            const out: number[] = [];
-            let last = performance.now();
-            const tick = (now: number) => {
-              out.push(now - last);
-              last = now;
-              if (out.length < n) requestAnimationFrame(tick);
-              else resolve(out.slice(30));
-            };
-            requestAnimationFrame(tick);
-          }),
-        frames,
-      );
-    await measureBare(); // warm up the page
-    const bareIntervals = await measureBare();
-    await bareContext.close();
+/**
+ * THE SPEED LINE (P6), clarified by the main session on 2026-10-04 and made testable in round 4.
+ * "60 fps" means NO DROPPED FRAMES against the display's own refresh rate (this machine's display runs at about 56.6 Hz, so even a bare
+ * page takes 17.7 ms a frame). Two rules, both measured on a real GPU:
+ *   1. INTERVAL: the 3D scene's frame interval p95 is within 5% of a bare requestAnimationFrame page on the same display.
+ *   2. COST: what a frame costs, p95, is at most 8 ms. The cost INCLUDES the wait for the GPU (see src/sje-lab/profile.ts). The first
+ *      version timed JavaScript only, which on a GPU is just the time to submit commands, so it could not fail for a slow GPU.
+ * Rule 1 alone cannot fail on a display locked to its refresh rate (the scene's interval cannot go below the bare page's), so rule 2 is
+ * what gives HEADROOM: a cost of 8 ms in a 17.7 ms frame leaves room for the game's own work. The NEGATIVE CONTROL below runs the same
+ * rules on a scene made much too heavy, and they must fail.
+ */
+const SPEED_LINE = { intervalRatio: 1.05, costMs: 8 };
 
-    // 2. The lab on the real loop, the 3D scene running with bloom, the HUD on.
+/** Which rules of the speed line a run breaks. Empty means it meets the line. Pure, so the control can prove the rules have teeth. */
+function speedLineMisses(m: { bareP95: number; sceneP95: number; costP95: number }): string[] {
+  const misses: string[] = [];
+  if (m.sceneP95 > m.bareP95 * SPEED_LINE.intervalRatio) misses.push(`interval p95 ${m.sceneP95.toFixed(2)} ms is over ${(m.bareP95 * SPEED_LINE.intervalRatio).toFixed(2)} ms (bare page p95 ${m.bareP95.toFixed(2)} ms plus 5%)`);
+  if (m.costP95 > SPEED_LINE.costMs) misses.push(`cost p95 ${m.costP95.toFixed(2)} ms is over ${SPEED_LINE.costMs} ms`);
+  return misses;
+}
+
+const mean = (xs: number[]): number => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+
+test.describe('speed (P6): 60 fps means no dropped frames against the display, on the GPU', () => {
+  test('the rules of the speed line have teeth (pure check, no browser)', () => {
+    expect(speedLineMisses({ bareP95: 17.7, sceneP95: 17.7, costP95: 2 })).toEqual([]);
+    expect(speedLineMisses({ bareP95: 17.7, sceneP95: 17.7, costP95: 8 })).toEqual([]);
+    expect(speedLineMisses({ bareP95: 17.7, sceneP95: 17.7, costP95: 8.5 })).toHaveLength(1);
+    expect(speedLineMisses({ bareP95: 17.7, sceneP95: 18.7, costP95: 2 })).toHaveLength(1);
+    expect(speedLineMisses({ bareP95: 17.7, sceneP95: 35, costP95: 30 })).toHaveLength(2);
+  });
+
+  /** A bare requestAnimationFrame page on this display: what a frame interval is when nothing runs. */
+  async function bareIntervals(browser: Browser, frames: number): Promise<number[]> {
+    const context = await browser.newContext({ viewport: { width: 960, height: 540 } });
+    try {
+      const page = await context.newPage();
+      await page.goto('about:blank');
+      const measure = (): Promise<number[]> =>
+        page.evaluate(
+          (n) =>
+            new Promise<number[]>((resolve) => {
+              const out: number[] = [];
+              let last = performance.now();
+              const tick = (now: number) => {
+                out.push(now - last);
+                last = now;
+                if (out.length < n) requestAnimationFrame(tick);
+                else resolve(out.slice(30));
+              };
+              requestAnimationFrame(tick);
+            }),
+          frames,
+        );
+      await measure(); // warm up the page
+      return await measure();
+    } finally {
+      await context.close();
+    }
+  }
+
+  /** The lab on the real loop with the 3D scene running (bloom on, the HUD on, 5 pieces of ICE), warmed up. */
+  async function runningScene(browser: Browser) {
     const lab = await openLab(browser, { query: 'frame=auto' });
+    const { page } = lab;
+    await page.evaluate(() => {
+      const h = window.__SJE__;
+      if (!h) throw new Error('no hook');
+      h.hackHud(true);
+      // A limit above 100 never fails (traceLimit, result.ts): the scene must stay up for the whole measurement. (Rounds 2 and 3 used the
+      // default limit, and the hack could FAIL part way through, leaving the plain 2D lab on screen for the rest of the run.)
+      h.hackStart({ ticks: 1_000_000, iceCount: 5, traceLimit: 101 });
+    });
+    await page.waitForFunction(() => window.__SJE__?.scenes().includes('HackScene') === true, null, { timeout: 60_000 });
+    await page.evaluate(() => window.__SJE__?.profileLoop(120)); // warm up: shaders, the first bloom frames
+    return lab;
+  }
+
+  /** The 3D scene must be the thing that was measured: it is still on the stack, and its hack has not ended. */
+  async function expectSceneStillUp(page: Page, when: string): Promise<void> {
+    expect(await page.evaluate(() => window.__SJE__?.scenes()), `the 3D scene was still on screen ${when}`).toContain('HackScene');
+    expect(await page.evaluate(() => window.__SJE__?.hackResult()), `the hack has not ended ${when}`).toBeNull();
+  }
+
+  test("the 3D scene with bloom keeps the display's own frame interval (p95 within 5% of a bare page), and a frame costs at most 8 ms, GPU wait included", async ({ browser }, testInfo) => {
+    test.setTimeout(300_000);
+    const frames = 600;
+    const bare = await bareIntervals(browser, frames);
+    const lab = await runningScene(browser);
     try {
       const { page } = lab;
-      await page.evaluate(() => {
-        const h = window.__SJE__;
-        if (!h) throw new Error('no hook');
-        h.hackHud(true);
-        h.hackStart({ ticks: 1_000_000, iceCount: 5 });
-      });
-      await page.waitForFunction(() => window.__SJE__?.scenes().includes('HackScene') === true, null, { timeout: 60_000 });
       const soft = await isSoftware(page);
-      await page.evaluate(() => window.__SJE__?.profileLoop(120)); // warm up: shaders, the first bloom frames
-      const run = await page.evaluate((n) => window.__SJE__?.profileLoop(n), frames);
-      const intervals = (run?.intervals ?? []).slice(30);
-      const work = (run?.work ?? []).slice(30);
-      const bareP95 = percentile(bareIntervals, 0.95);
-      const sceneP95 = percentile(intervals, 0.95);
-      const workP95 = percentile(work, 0.95);
+      // Run 1: the real loop as it is. Intervals, and the JavaScript time of the engine's work.
+      const plain = await page.evaluate((n) => window.__SJE__?.profileLoop(n), frames);
+      await expectSceneStillUp(page, 'after the interval run');
+      // Run 2: the same, with a one pixel read-back after each draw, so the frame's cost includes the GPU. (It stalls the loop, so
+      // it is a run of its own and its intervals are not used.)
+      const synced = await page.evaluate((n) => window.__SJE__?.profileLoop(n, { sync: true }), 300);
+      await expectSceneStillUp(page, 'after the cost run');
+      // Run 3: the GPU's own clock, if this browser exposes the timer extension.
+      const timed = await page.evaluate((n) => window.__SJE__?.profileLoop(n, { gpuTimer: true }), 300);
+      await expectSceneStillUp(page, 'after the GPU timer run');
+      const intervals = (plain?.intervals ?? []).slice(30);
+      const work = (plain?.work ?? []).slice(30);
+      const cost = (synced?.cost ?? []).slice(30);
+      const gpu = (timed?.gpu ?? []).slice(10);
+      const measured = { bareP95: percentile(bare, 0.95), sceneP95: percentile(intervals, 0.95), costP95: percentile(cost, 0.95) };
       const info = await page.evaluate(() => window.__SJE__?.info());
-      console.log(
-        `SJE3D SPEED on ${info?.renderer}: bare rAF page p50 ${percentile(bareIntervals, 0.5).toFixed(2)} p95 ${bareP95.toFixed(2)} ms | 3D scene frame interval p50 ${percentile(intervals, 0.5).toFixed(2)} p95 ${sceneP95.toFixed(2)} max ${Math.max(...intervals).toFixed(1)} ms (ratio ${(sceneP95 / bareP95).toFixed(3)}) | engine work (tick + draw submit + Three render) mean ${(work.reduce((a, b) => a + b, 0) / work.length).toFixed(2)} p95 ${workP95.toFixed(2)} max ${Math.max(...work).toFixed(2)} ms`,
-      );
+      const line =
+        `SJE3D SPEED on ${info?.renderer}: bare rAF page p50 ${percentile(bare, 0.5).toFixed(2)} p95 ${measured.bareP95.toFixed(2)} ms | 3D scene frame interval p50 ${percentile(intervals, 0.5).toFixed(2)} p95 ${measured.sceneP95.toFixed(2)} max ${Math.max(...intervals).toFixed(1)} ms (ratio ${(measured.sceneP95 / measured.bareP95).toFixed(3)}) | ` +
+        `JavaScript work (a CPU number) mean ${mean(work).toFixed(2)} p95 ${percentile(work, 0.95).toFixed(2)} max ${Math.max(...work).toFixed(2)} ms | ` +
+        `FRAME COST with the GPU wait: mean ${mean(cost).toFixed(2)} p50 ${percentile(cost, 0.5).toFixed(2)} p95 ${measured.costP95.toFixed(2)} max ${Math.max(...cost).toFixed(2)} ms | ` +
+        (timed?.gpuTimerAvailable ? `GPU timer query (${gpu.length} samples): mean ${mean(gpu).toFixed(2)} p95 ${percentile(gpu, 0.95).toFixed(2)} max ${Math.max(...gpu).toFixed(2)} ms` : 'GPU timer query: not offered by this browser');
+      console.log(line);
+      testInfo.annotations.push({ type: 'speed', description: line });
+      expect(cost.length, 'frame cost samples').toBeGreaterThan(200);
       if (!soft) {
-        // The pass line, on a real GPU: no dropped frames against the display's own refresh, and the engine's own work under 8 ms.
-        expect(sceneP95, `3D scene frame interval p95 (${sceneP95.toFixed(2)} ms) against a bare page (${bareP95.toFixed(2)} ms)`).toBeLessThanOrEqual(bareP95 * 1.05);
-        expect(workP95, 'engine work p95').toBeLessThanOrEqual(8);
+        // The pass line, on a real GPU.
+        const misses = speedLineMisses(measured);
+        expect(misses, `the speed line: ${misses.join('; ')}`).toEqual([]);
+        expect(percentile(work, 0.95), 'JavaScript work p95').toBeLessThanOrEqual(SPEED_LINE.costMs);
+        // When the browser has the GPU's own clock, the GPU's share must fit too (it is part of the cost above, so it is a tighter look at the same limit).
+        if (timed?.gpuTimerAvailable && gpu.length > 100) expect(percentile(gpu, 0.95), 'GPU timer p95').toBeLessThanOrEqual(SPEED_LINE.costMs);
       } else {
-        // Software GL (CI, PW_NOGPU): the numbers are recorded, the gate is loose. A stuck loop fails; noise does not.
-        expect(sceneP95).toBeLessThan(80);
+        // Software GL (CI, PW_NOGPU): the CPU draws every pixel, so timing thresholds belong on a GPU. The numbers are recorded and
+        // the gate only catches a stuck loop: a frame interval p95 of 80 ms or more (about 12 frames a second).
+        expect(measured.sceneP95).toBeLessThan(80);
       }
       expect(lab.problems.filter((p) => !/GPU stall/.test(p))).toEqual([]);
+    } finally {
+      await lab.close();
+    }
+  });
+
+  test('NEGATIVE CONTROL: a scene made far too heavy (the 3D frame drawn 600 extra times a frame) FAILS both rules of the speed line', async ({ browser }, testInfo) => {
+    test.setTimeout(300_000);
+    const frames = 300;
+    const bare = await bareIntervals(browser, frames);
+    const lab = await runningScene(browser);
+    try {
+      const { page } = lab;
+      test.skip(await isSoftware(page), 'the speed line is only judged on a GPU; on software GL everything is slow already');
+      const EXTRA = 600;
+      const plain = await page.evaluate(([n, extra]) => window.__SJE__?.profileLoop(n as number, { extraRenders: extra as number }), [frames, EXTRA] as const);
+      await expectSceneStillUp(page, 'after the heavy interval run');
+      const synced = await page.evaluate(([n, extra]) => window.__SJE__?.profileLoop(n as number, { sync: true, extraRenders: extra as number }), [150, EXTRA] as const);
+      await expectSceneStillUp(page, 'after the heavy cost run');
+      const intervals = (plain?.intervals ?? []).slice(30);
+      const cost = (synced?.cost ?? []).slice(20);
+      const measured = { bareP95: percentile(bare, 0.95), sceneP95: percentile(intervals, 0.95), costP95: percentile(cost, 0.95) };
+      const misses = speedLineMisses(measured);
+      const line = `SJE3D SPEED NEGATIVE CONTROL (${EXTRA} extra 3D frames per frame): interval p95 ${measured.sceneP95.toFixed(2)} ms against a bare page's ${measured.bareP95.toFixed(2)} ms, frame cost p95 ${measured.costP95.toFixed(2)} ms -> broken rules: ${JSON.stringify(misses)}`;
+      console.log(line);
+      testInfo.annotations.push({ type: 'speed-negative-control', description: line });
+      // The same rules, on a scene that is too heavy, must report BOTH misses. If this passed with an empty list, the speed test could not fail.
+      expect(misses, 'the interval rule fails on the heavy scene').toEqual(expect.arrayContaining([expect.stringContaining('interval')]));
+      expect(misses, 'the cost rule fails on the heavy scene').toEqual(expect.arrayContaining([expect.stringContaining('cost')]));
     } finally {
       await lab.close();
     }

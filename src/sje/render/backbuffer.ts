@@ -17,6 +17,14 @@ export interface Pixels {
   data: Uint8Array;
 }
 
+/** GL hands pixels back bottom row first. Flip the rows so row 0 is the top, like every image. */
+export function flipRows(bottomUp: Uint8Array, w: number, h: number): Uint8Array {
+  const data = new Uint8Array(w * h * 4);
+  const row = w * 4;
+  for (let y = 0; y < h; y++) data.set(bottomUp.subarray((h - 1 - y) * row, (h - y) * row), y * row);
+  return data;
+}
+
 export class BackBuffer {
   /** What the back buffer is cleared to each frame. The void colour, except in the hand-off canary (see `setClearColor`). */
   private clearColor: [number, number, number, number] = VOID;

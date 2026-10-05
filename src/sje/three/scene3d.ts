@@ -38,6 +38,7 @@ import { Scene } from '../runtime/scene';
 import { disposeObject3D, releaseGpuData } from './dispose';
 import { type BloomSettings, createFrame3D, type Frame3D, type Frame3DPreference, type Frame3DSetup } from './frame3d';
 import { must } from '../core/assert';
+import { runAll } from '../core/runall';
 
 /**
  * How long a lost context may take to come back before the scene gives up.
@@ -177,7 +178,12 @@ export abstract class Scene3D<R> extends Scene<R> {
       this.contextWasLost();
       return;
     }
-    this.lossSeen = false;
+    // The context is back (the engine's event, or a PRIVATE context in the canvas-copy mode, which sends no engine event). A loss
+    // seen before ends here: stop its timer, or a second loss soon after would be cut short by the first one's timer.
+    if (this.lossSeen) {
+      this.lossSeen = false;
+      this.stopWatchdog();
+    }
     try {
       this.sync3D();
       this._frame.render();
@@ -231,21 +237,12 @@ export abstract class Scene3D<R> extends Scene<R> {
       this.game.events.off('contextlost', this.onLost);
       this.game.events.off('contextrestored', this.onRestored);
     }
-    const steps: Array<() => void> = [
-      () => this.dispose3D?.(),
-      () => this._frame?.dispose(),
-      () => disposeObject3D(this.threeScene),
-    ];
-    const errors: unknown[] = [];
-    for (const step of steps) {
-      try {
-        step();
-      } catch (e) {
-        errors.push(e);
-      }
+    // Every step has its turn even when an earlier one throws (`runAll`), then the first failure is reported.
+    // The frame stays readable for the subclass's `dispose3D`, which runs first.
+    try {
+      runAll([() => this.dispose3D?.(), () => this._frame?.dispose(), () => disposeObject3D(this.threeScene)]);
+    } finally {
+      this._frame = null;
     }
-    this._frame = null;
-    // Report the first failure after every step has had its turn.
-    if (errors.length) throw errors[0];
   }
 }

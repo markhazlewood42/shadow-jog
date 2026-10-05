@@ -20,6 +20,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Browser, expect, type Page, test } from '@playwright/test';
+import { MAX_ELAPSED_MS } from '../src/sje/core/fixedloop';
 
 /**
  * One viewport per device pixel ratio, each chosen so the window is a whole number of device pixels
@@ -555,15 +556,27 @@ test.describe('engine lab: speed', () => {
         }),
     );
     const ticks = await page.evaluate(() => window.__SJE__?.tick() ?? 0);
+    const renderer = (await page.evaluate(() => window.__SJE__?.info().renderer)) ?? '';
     await context.close();
     const sorted = [...intervals].sort((a, b) => a - b);
     const p50 = sorted[Math.floor(sorted.length * 0.5)] ?? 0;
     const p95 = sorted[Math.floor(sorted.length * 0.95)] ?? 0;
     console.log(`SJE frame interval at 960x540 (ms): p50 ${p50.toFixed(2)} p95 ${p95.toFixed(2)} max ${sorted[sorted.length - 1]?.toFixed(1)}; the loop ran ${ticks} ticks`);
     expect(ticks, 'the real loop is ticking').toBeGreaterThan(100);
-    // Loose on purpose (CI is software GL and shared): a stuck loop or a frame time of a stutter fails, noise does not.
-    expect(p50).toBeLessThan(25);
-    expect(p95).toBeLessThan(60);
+    if (/swiftshader|llvmpipe|software/i.test(renderer)) {
+      // SOFTWARE GL (CI's Linux runner, or PW_NOGPU=1 here): the CPU draws every pixel, so a frame takes tens of ms and a shared
+      // runner makes it worse. Timing thresholds are measured on a real GPU (Mark's machine); on software GL we only prove that
+      // the real loop is alive and keeps a SANE interval. The bound is the loop's own clamp (MAX_ELAPSED_MS, 250 ms): a typical
+      // frame (p50) above it would run the game in slow motion, and a worst frame of 2 s or more means the loop is stuck.
+      console.log('SJE software GL: only the sane-interval bound applies (p50 under 250 ms, no frame over 2 s)');
+      expect(p50, 'a typical frame on software GL').toBeLessThan(MAX_ELAPSED_MS);
+      expect(sorted[sorted.length - 1] ?? 0, 'the worst frame on software GL').toBeLessThan(2000);
+    } else {
+      // A real GPU. The display refreshes at 60 Hz or a little less, so a typical frame is about 17 ms. Loose on purpose: a
+      // stuck loop or a stutter fails, noise does not. (The strict "within 5% of a bare page" line is in e2e/sje3d.spec.ts.)
+      expect(p50).toBeLessThan(25);
+      expect(p95).toBeLessThan(60);
+    }
     expect(problems.filter((p) => !/GPU stall/.test(p))).toEqual([]);
   });
 });

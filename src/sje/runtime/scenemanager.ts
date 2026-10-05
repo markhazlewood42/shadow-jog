@@ -214,7 +214,6 @@ export class SceneManager {
     this.screen.layout(slots);
   }
 
-  /** Mark every scene closed and free it, newest first, reporting (not throwing) any failure. */
   /**
    * How many times the whole stack has been dropped (`abandon` and `reset`). Code that waits for
    * something slow (the 3D chunk loads) reads it before and after, to learn that the stack it meant
@@ -225,6 +224,7 @@ export class SceneManager {
   }
   private drops = 0;
 
+  /** Mark every scene closed and free it, newest first, reporting (not throwing) any failure. */
   private clear(): void {
     this.drops++;
     for (const s of [...this.stack].reverse()) {

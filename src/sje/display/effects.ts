@@ -151,7 +151,9 @@ export class FilterList {
     assert(!maskObject.destroyed, `FilterList.addMask: the mask object "${maskObject.name}" is already destroyed`);
     this.mask = maskObject;
     // The mask object tells this list when it is destroyed, so the list never keeps a dead mask.
-    maskObject._maskUsers.add(this);
+    const users = maskObject._maskUsers ?? new Set<FilterList>();
+    maskObject._maskUsers = users;
+    users.add(this);
     // `channel: 'alpha'` is what makes a sprite mask mean "its ALPHA decides". Pixi's default reads the RED
     // channel of the premultiplied texel times its alpha: for a white mask that is alpha squared, so a half
     // transparent pixel shows a QUARTER of the object (spike lab, Part A: 1536 pixels off by up to 33/255).
@@ -162,7 +164,7 @@ export class FilterList {
   /** Remove the mask (the mask object itself is not destroyed). Does nothing when there is none. */
   clearMask(): this {
     if (!this.mask) return this;
-    this.mask._maskUsers.delete(this);
+    this.mask._maskUsers?.delete(this);
     this.mask = null;
     // `setMask({ mask: null })` does nothing in Pixi 8.22 (it only acts on a truthy mask). Setting `mask` does the removal.
     this.owner._pixi.mask = null;

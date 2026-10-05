@@ -49,6 +49,7 @@ export interface HackPolicy {
   /**
    * `aborted`: `retry-then-succeed` runs the hack once more and, if that ends early too, counts it as
    * won (the story needs the player past this door). `succeed` and `fail` skip the retry.
+   * Only a lost context (reason `context-lost`) is ever retried. An abort the player caused (`user`) starts nothing at all.
    */
   aborted: 'retry-then-succeed' | 'succeed' | 'fail';
   /** `unsupported`: `alternative` plays an authored 2D version instead; `succeed` and `fail` skip it. */
@@ -64,6 +65,11 @@ export type HackDecision =
   | { next: 'done'; outcome: 'success' | 'fail'; via: 'played' | 'policy' }
   /** Run the hack again (only ever once). */
   | { next: 'retry' }
+  /**
+   * The player dropped the story (`game.abandon()` or `game.reset()`: a loaded save, the title screen). Start nothing and
+   * say nothing more: the story that asked for this hack is over, and the stack now belongs to something else.
+   */
+  | { next: 'dropped' }
   /** Play the authored 2D alternative. It decides success or failure itself. */
   | { next: 'alternative' };
 
@@ -77,7 +83,11 @@ export function decideHack(result: HackResult, policy: HackPolicy, retriesUsed: 
     case 'fail':
       return { next: 'done', outcome: result.status, via: 'played' };
     case 'aborted':
-      if (policy.aborted === 'retry-then-succeed' && retriesUsed < 1) return { next: 'retry' };
+      // E19: only a LOST CONTEXT is worth a retry. The player dropping the story is not a failure of the hack,
+      // and a retry would start a scene on top of whatever the player moved to. A scene that threw (`error`) would
+      // most likely throw again, so it does not retry either.
+      if (result.reason === 'user') return { next: 'dropped' };
+      if (policy.aborted === 'retry-then-succeed' && retriesUsed < 1 && result.reason === 'context-lost') return { next: 'retry' };
       return { next: 'done', outcome: policy.aborted === 'fail' ? 'fail' : 'success', via: 'policy' };
     case 'unsupported':
       if (policy.unsupported === 'alternative') return { next: 'alternative' };

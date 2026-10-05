@@ -207,8 +207,11 @@ describe('who may import the engine', () => {
 });
 
 describe('GlHandoff is the one hand-off point for raw GL state', () => {
-  // A call that changes (or reads back) GL state. `gl.getExtension` and `getParameter` only ask questions, so they are fine anywhere.
-  const RAW_GL = /\b(?:gl|ctx)\.(?:readPixels|bindFramebuffer|clearColor|pixelStorei|getError|bindTexture|viewport|useProgram|bindVertexArray|enable|disable|blendFunc|colorMask|scissor)\(/;
+  // A call that changes (or reads back) GL state, on ANY receiver (`gl.`, `ctx.`, `g.`, `this.context.`...). Round 3 matched only `gl.` and `ctx.`,
+  // so `const g = ...; g.readPixels(...)` slipped through. These names exist on GL contexts and nowhere else in this code base (a 2D canvas
+  // context has `getImageData`, which is fine). `getExtension` and `getParameter` only ask questions, so they are fine anywhere.
+  // (`.readPixels()` with NO arguments is the engine's own Frame3D method, which goes through GlHandoff. Raw GL `readPixels` always has arguments.)
+  const RAW_GL = /[.]readPixels[(][^)]|[.](?:bindFramebuffer|clearColor|pixelStorei|getError|bindTexture|viewport|useProgram|bindVertexArray|blendFunc|colorMask|scissor|readBuffer|bindBuffer|bindRenderbuffer|framebufferTexture2D|texImage2D|texSubImage2D)[(]|(?:^|[^A-Za-z0-9_])(?:gl|ctx)[.](?:enable|disable)[(]/;
 
   it('only src/sje/render/glhandoff.ts calls them (not Pixi glue, not Three glue, not the lab hook)', () => {
     const bad: string[] = [];
@@ -227,5 +230,10 @@ describe('GlHandoff is the one hand-off point for raw GL state', () => {
 
   it('the scan is alive: glhandoff.ts itself does contain such calls', () => {
     expect(readFileSync(join(ROOT, 'src/sje/render/glhandoff.ts'), 'utf8')).toMatch(RAW_GL);
+  });
+
+  it('the scan sees a read on ANY receiver (the round 3 gap), and leaves 2D canvas calls alone', () => {
+    for (const bad of ['g.readPixels(0, 0, 1, 1)', 'const px = this.context.readPixels(0, 0, 1, 1, f, t, buf)', 'x.bindFramebuffer(a, b)', 'ctx.enable(gl.BLEND)']) expect(bad).toMatch(RAW_GL);
+    for (const fine of ['ctx.getImageData(0, 0, 4, 4)', 'ctx.fillRect(0, 0, 1, 1)', 'gl.getExtension("X")', 'filters.enable(true)', 'this.renderer.readRenderTargetPixels(t, 0, 0, 1, 1, b)']) expect(fine).not.toMatch(RAW_GL);
   });
 });

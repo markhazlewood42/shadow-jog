@@ -34,9 +34,18 @@ describe('decideHack: the author’s policy applied to one result (E19)', () => 
     expect(decideHack(LOST, policy({ aborted: 'fail' }), 0)).toEqual({ next: 'done', outcome: 'fail', via: 'policy' });
   });
 
-  it('every abort reason is treated alike (context lost, the player quit, an error)', () => {
-    for (const reason of ['context-lost', 'user', 'error'] as const) {
-      expect(decideHack({ status: 'aborted', reason }, policy({ aborted: 'retry-then-succeed' }), 0)).toEqual({ next: 'retry' });
+  it('E19: only a lost context retries. A player abort is dropped, and an error goes to the policy without a retry', () => {
+    const p = policy({ aborted: 'retry-then-succeed' });
+    expect(decideHack({ status: 'aborted', reason: 'context-lost' }, p, 0)).toEqual({ next: 'retry' });
+    expect(decideHack({ status: 'aborted', reason: 'user' }, p, 0)).toEqual({ next: 'dropped' });
+    expect(decideHack({ status: 'aborted', reason: 'error' }, p, 0)).toEqual({ next: 'done', outcome: 'success', via: 'policy' });
+  });
+
+  it('a player abort is dropped under EVERY policy and at every retry count', () => {
+    for (const aborted of ['retry-then-succeed', 'succeed', 'fail'] as const) {
+      for (const retries of [0, 1]) {
+        expect(decideHack({ status: 'aborted', reason: 'user' }, policy({ aborted }), retries)).toEqual({ next: 'dropped' });
+      }
     }
   });
 
@@ -76,6 +85,24 @@ describe('hackWithPolicy: the story’s loop around the door', () => {
     const out = await hackWithPolicy(DEF, tryHack, alt());
     expect(out).toEqual({ outcome: 'success', via: 'policy', results: [LOST, LOST] });
     expect(tryHack).toHaveBeenCalledTimes(2);
+  });
+
+  it('E19: a hack dropped by the player (aborted / user) never retries and never plays the alternative', async () => {
+    const USER: HackResult = { status: 'aborted', reason: 'user' };
+    const tryHack = vi.fn(async () => USER);
+    const alternative = alt();
+    const out = await hackWithPolicy(DEF, tryHack, alternative);
+    expect(out).toEqual({ outcome: 'fail', via: 'dropped', results: [USER] });
+    expect(tryHack).toHaveBeenCalledTimes(1);
+    expect(alternative).not.toHaveBeenCalled();
+  });
+
+  it('a context loss on the retry is not retried again, and an error never retries', async () => {
+    const ERR: HackResult = { status: 'aborted', reason: 'error' };
+    const tryHack = vi.fn(async () => ERR);
+    const out = await hackWithPolicy(DEF, tryHack, alt());
+    expect(out).toEqual({ outcome: 'success', via: 'policy', results: [ERR] });
+    expect(tryHack).toHaveBeenCalledTimes(1);
   });
 
   it('unsupported: plays the authored 2D alternative, and its answer stands', async () => {

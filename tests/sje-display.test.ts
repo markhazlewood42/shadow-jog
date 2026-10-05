@@ -68,6 +68,71 @@ describe('snap to pixel', () => {
   });
 });
 
+describe('snap to pixel is the ONLY rounding: with roundPixels OFF at the renderer, every snapped node sits on a whole world pixel', () => {
+  /** Where a node ends up on screen: its world position, and for a picture, the corner of its box. Pixi works these out. */
+  const worldOf = (o: { node: unknown }) => {
+    const n = o.node as PixiNode & { getGlobalPosition(): { x: number; y: number }; getBounds(): { x: number; y: number; width: number; height: number } };
+    return { origin: n.getGlobalPosition(), box: n.getBounds() };
+  };
+
+  const FRACTIONS = [0, 0.25, 0.5, 0.5, 0.75, 0.1, 0.9, -0.5];
+
+  /** A tiny seeded generator, so the test is the same every run. Gives numbers with fractions, ties (.5) and negatives. */
+  function* positions(seed: number): Generator<number> {
+    let s = seed;
+    for (;;) {
+      s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+      const whole = (s % 600) - 200;
+      yield whole + (FRACTIONS[(s >>> 12) % 8] ?? 0);
+    }
+  }
+
+  it('a deep tree of containers, images, flipped images, odd sizes and graphics, under a camera with a fractional scroll', () => {
+    const h = host();
+    h.textures.addCanvas('even', fakeCanvas(16, 16));
+    // A size and a key no other test uses: the engine warns about a rounded origin once per message, and the origin test counts that warning.
+    h.textures.addCanvas('odd-snap', fakeCanvas(13, 7));
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const next = positions(7);
+    const take = () => next.next().value as number;
+
+    const world = new Container(h);
+    const camera = new Camera(world);
+    camera.setScroll(take(), take()); // a fractional scroll is rounded by the camera
+    const nodes: Array<{ node: unknown; what: string }> = [{ node: world, what: 'world' }];
+    for (let branch = 0; branch < 12; branch++) {
+      const outer = new Container(h, take(), take());
+      const inner = new Container(h, take(), take());
+      world.add(outer);
+      outer.add(inner);
+      const even = new ImageObject(h, take(), take(), 'even').setScale(branch % 3 === 0 ? 2 : 1);
+      const flipped = new ImageObject(h, take(), take(), 'even').setOrigin(0.25, 0.5).setFlipX(true);
+      const odd = new ImageObject(h, take(), take(), 'odd-snap'); // origin 0.5 of an odd size: the wrapper rounds it to a whole pixel
+      const mirrored = new ImageObject(h, take(), take(), 'even').setScale(-1, 1);
+      const g = new Graphics(h, take(), take());
+      g.fillStyle(0xff0000).fillRect(take(), take(), 12.4, 7.6);
+      inner.add([even, flipped, odd, mirrored, g]);
+      nodes.push({ node: outer, what: 'outer' }, { node: inner, what: 'inner' }, { node: even, what: 'even' }, { node: flipped, what: 'flipped' }, { node: odd, what: 'odd' }, { node: mirrored, what: 'mirrored' }, { node: g, what: 'graphics' });
+    }
+    expect(nodes.length).toBeGreaterThan(80);
+    for (const { node, what } of nodes) {
+      const w = worldOf(node as { node: unknown });
+      expect(Number.isInteger(w.origin.x) && Number.isInteger(w.origin.y), `${what}: world position ${w.origin.x}, ${w.origin.y}`).toBe(true);
+      // The box of a picture or a drawing: its corner is on a whole pixel too, so nothing is sampled between pixels.
+      if (what !== 'world' && what !== 'outer' && what !== 'inner') {
+        expect(Number.isInteger(w.box.x) && Number.isInteger(w.box.y), `${what}: box corner ${w.box.x}, ${w.box.y}`).toBe(true);
+      }
+    }
+  });
+
+  it('control: an object that opted out (setPixelSnap(false)) is NOT whole, so the check above can fail', () => {
+    const c = new Container(host());
+    c.setPixelSnap(false).setPosition(10.5, 3.25);
+    const w = worldOf(c);
+    expect(Number.isInteger(w.origin.x)).toBe(false);
+  });
+});
+
 describe('origin, flip and frames of an ImageObject', () => {
   function withSheet() {
     const h = host();
@@ -397,6 +462,29 @@ describe('TextureManager', () => {
     expect(update).not.toHaveBeenCalled();
     t.refresh('a');
     expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it('the refresh() that createCanvas hands out is bound to ITS texture: after remove it does nothing, and after a re-add it never touches the new one', () => {
+    // Node has no document: a canvas maker with the one method createCanvas calls.
+    vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ({}) }) });
+    try {
+      const t = new TextureManager();
+      const first = t.createCanvas('line', 4, 4);
+      const firstUpdate = vi.spyOn(t.entryOf('line').base.source, 'update');
+      first.refresh();
+      expect(firstUpdate).toHaveBeenCalledTimes(1);
+
+      t.remove('line');
+      expect(() => first.refresh()).not.toThrow(); // gone: a no-op, not a "texture not found" error
+      expect(firstUpdate).toHaveBeenCalledTimes(1);
+
+      t.createCanvas('line', 4, 4); // the same key again
+      const secondUpdate = vi.spyOn(t.entryOf('line').base.source, 'update');
+      first.refresh(); // the OLD refresh must not reach the new texture
+      expect(secondUpdate).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('remove() destroys the frame textures first and the shared source ONCE', () => {

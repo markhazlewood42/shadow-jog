@@ -9,6 +9,7 @@ import type { Game } from '../sje';
 import { HackScene, type HackOptions } from './hackscene';
 import type { HackDef, HackResult } from './result';
 
+export { frame3dTestSeams } from '../sje/three';
 export { ColourProbeScene } from './colorprobe';
 export { HackScene, type HackOptions, makeHackDef } from './hackscene';
 export { HackSim } from './sim/hacksim';
