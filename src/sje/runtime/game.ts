@@ -105,6 +105,16 @@ export class Game implements DisplayHost {
     this.loop.speed = v;
   }
 
+  /** True while the WebGL context is lost (nothing can be drawn). */
+  get contextLost(): boolean {
+    return this.renderer.contextLost === true;
+  }
+
+  /** How many times the scene stack was dropped (`abandon` or `reset`). See `SceneManager.dropCount`. */
+  get dropCount(): number {
+    return this.scene.dropCount;
+  }
+
   get top(): AnyScene | undefined {
     return this.scene.top;
   }

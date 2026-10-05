@@ -15,6 +15,8 @@ export interface Headless {
   game: Game;
   /** How many times the renderer was asked to draw. */
   renders: { count: number };
+  /** Set `lost` to make the fake renderer report a lost WebGL context (`Game.contextLost`). */
+  gl: { lost: boolean };
   /** Run one browser frame of `ms` real milliseconds through the real FixedLoop. */
   frame(ms: number): void;
 }
@@ -22,7 +24,11 @@ export interface Headless {
 /** A game whose renderer draws nothing and whose clock the test drives by hand. */
 export function headlessGame(onRender?: () => void): Headless {
   const renders = { count: 0 };
+  const gl = { lost: false };
   const renderer: FrameRenderer = {
+    get contextLost() {
+      return gl.lost;
+    },
     render: () => {
       renders.count++;
       onRender?.();
@@ -47,6 +53,7 @@ export function headlessGame(onRender?: () => void): Headless {
   return {
     game,
     renders,
+    gl,
     frame(ms: number) {
       now += ms;
       const cb = callback;

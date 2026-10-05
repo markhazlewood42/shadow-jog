@@ -11,6 +11,8 @@ import { assert, type Container, Game, GlRenderer, type Graphics, H, type ImageO
 import { buildLabContent, type GroupNode, type ImageLeaf, type LabContent, type LabNode, type LineLeaf, type RectLeaf, WORLD_W } from './content';
 import { installGlCounter, type GlCounts, readGlCounts } from './glcounter';
 import { installHook } from './hook';
+import { LabStory } from './story';
+import type { Frame3DPreference } from '../sje/three';
 
 /** The sandbox scene: builds the lab's content, pans the camera slowly, and cycles the animated sprites. */
 export class LabScene extends Scene<void> {
@@ -84,6 +86,10 @@ export class LabScene extends Scene<void> {
 
 export interface Lab {
   game: Game;
+  /** The story script stand-in (a 2D line, a hack, a 2D line). */
+  story: LabStory;
+  /** Which Frame3D the hacks use: `auto`, `shared-context` or `canvas-copy` (the `?frame=` parameter). */
+  frameMode: Frame3DPreference;
   renderer: GlRenderer;
   content: LabContent;
   scene: LabScene;
@@ -109,8 +115,10 @@ export async function startLab(): Promise<Lab> {
   const status = document.getElementById('status');
   // The tests screenshot the canvas: nothing may sit on top of it.
   if (status && params.has('manual')) status.style.display = 'none';
+  // The size the browser says the canvas box has in DEVICE pixels, when it can say (real Chrome and Firefox).
+  let observed: { w: number; h: number } | undefined;
   const fitCanvas = (): void => {
-    const k = renderer.fitToWindow(window.innerWidth, window.innerHeight, window.devicePixelRatio || 1);
+    const k = renderer.fitToWindow(window.innerWidth, window.innerHeight, window.devicePixelRatio || 1, observed);
     game.draw();
     if (status) status.textContent = `${W}x${H}  x${k}  dpr ${window.devicePixelRatio}  tick ${game.tick}`;
   };
@@ -118,6 +126,18 @@ export async function startLab(): Promise<Lab> {
   void game.run(scene);
   fitCanvas();
   window.addEventListener('resize', fitCanvas);
+  try {
+    const watcher = new ResizeObserver((entries) => {
+      const size = entries[0]?.devicePixelContentBoxSize?.[0];
+      if (size && (observed?.w !== size.inlineSize || observed?.h !== size.blockSize)) {
+        observed = { w: size.inlineSize, h: size.blockSize };
+        fitCanvas();
+      }
+    });
+    watcher.observe(renderer.glc.canvas, { box: 'device-pixel-content-box' });
+  } catch {
+    // A browser without 'device-pixel-content-box' (Safari): the arithmetic in deviceSize() is used.
+  }
   // `?manual` leaves the clock to the tests (`__SJE__.step`). Otherwise the real 60 Hz loop runs.
   if (!params.has('manual')) {
     game.start();
@@ -125,8 +145,12 @@ export async function startLab(): Promise<Lab> {
       if (status) status.textContent = `${W}x${H}  x${renderer.presenter.k}  dpr ${window.devicePixelRatio}  tick ${game.tick}`;
     });
   }
+  const frameParam = params.get('frame');
+  const frameMode: Frame3DPreference = frameParam === 'shared-context' || frameParam === 'canvas-copy' ? frameParam : 'auto';
   const lab: Lab = {
     game,
+    story: new LabStory(game, frameMode),
+    frameMode,
     renderer,
     content,
     scene,

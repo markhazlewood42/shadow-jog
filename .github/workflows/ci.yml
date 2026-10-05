@@ -22,7 +22,7 @@ jobs:
       - name: Bundle budget (largest chunk and total gzip)
         run: npm run budget
       - run: npx playwright install --with-deps chromium webkit firefox
-      - name: E2E (full chapter, the real-speed playtest, game over / save, frame budget, shipped build, zone walk and shop, input chaos, the new engine's lab page; WebKit and Firefox for game over and the shipped build)
-        run: npx playwright test e2e/playthrough.spec.ts e2e/playtest.spec.ts e2e/gameover.spec.ts e2e/perf.spec.ts e2e/prod.spec.ts e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts e2e/sjelab.spec.ts
+      - name: E2E (full chapter, the real-speed playtest, game over / save, frame budget, shipped build, zone walk and shop, input chaos, the new engine's lab page and its 3D path (the hacking scene, effects and masks on the 3D view); WebKit and Firefox for game over, the shipped build and the 3D path on software WebGL2)
+        run: npx playwright test e2e/playthrough.spec.ts e2e/playtest.spec.ts e2e/gameover.spec.ts e2e/perf.spec.ts e2e/prod.spec.ts e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts e2e/sjelab.spec.ts e2e/sje3d.spec.ts e2e/sje-parta.spec.ts e2e/sje3d-browsers.spec.ts
         env:
           CI: '1'

@@ -7,7 +7,10 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2307060d'/%3E%3Crect x='3' y='3' width='10' height='10' fill='none' stroke='%233fe0f0' stroke-width='1.6'/%3E%3C/svg%3E" />
     <!-- Dev-only page (npm run dev, then /sjelab.html): the Shadow Jog Engine (src/sje) running a
          sandbox scene made of the game's own art. Not part of the build (vite builds index.html only).
-         Add ?manual to leave the clock to the tests (window.__SJE__.step). Code: src/sje-lab/. -->
+         Add ?manual to leave the clock to the tests (window.__SJE__.step). Code: src/sje-lab/.
+         The 3D test hack (step B2): in the console, window.__SJE__.hackStart() runs it (the 3D chunk loads on the first call);
+         ?frame=canvas-copy (or shared-context) picks how the 3D picture reaches Pixi; window.__SJE__.storyStart() runs a
+         story script (a 2D line, the hack, a 2D line). -->
     <style>
       html, body { height: 100%; margin: 0; overflow: hidden; background: #07060d; }
       #stage { position: fixed; inset: 0; }

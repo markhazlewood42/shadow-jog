@@ -18,6 +18,9 @@ export interface Pixels {
 }
 
 export class BackBuffer {
+  /** What the back buffer is cleared to each frame. The void colour, except in the hand-off canary (see `setClearColor`). */
+  private clearColor: [number, number, number, number] = VOID;
+
   /** @internal The render target. Allowed under src/sje/render and src/sje/display only. */
   readonly texture: RenderTexture;
 
@@ -27,7 +30,17 @@ export class BackBuffer {
 
   /** Draw `root` (the screen root) into the back buffer, clearing it first. */
   render(root: Container): void {
-    this.pixi.renderer.render({ container: root, target: this.texture, clear: true, clearColor: VOID });
+    this.pixi.renderer.render({ container: root, target: this.texture, clear: true, clearColor: this.clearColor });
+  }
+
+  /**
+   * TEST ONLY. Clear to another colour. The hand-off canary (e2e/sje3d.spec.ts) sets TRANSPARENT black,
+   * (0,0,0,0): that is the one clear colour that equals what Pixi believes the GL clear colour is right
+   * after `GlHandoff.beginPixi()`, so Pixi then skips its own `gl.clearColor` call and clears with whatever
+   * Three left behind. The normal void colour is not (0,0,0,0), so it hides the bug. `null` goes back to the void.
+   */
+  setClearColor(rgba: [number, number, number, number] | null): void {
+    this.clearColor = rgba ?? VOID;
   }
 
   /** Read the back buffer back to the CPU (slow: tests and dev tools only). */

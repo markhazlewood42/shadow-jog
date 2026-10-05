@@ -8,6 +8,8 @@
 // The shipped game's own sizes are `npm run budget`. The lab page is not a build input of
 // `vite build` (only index.html is), so it never reaches `dist/`. This script is how its size is known.
 // See docs/spikes/engine-platform.md (exit criterion 1: the growth of every chunk is measured).
+// Since step B2 the lab page also has the lazy 3D chunk (Three.js + src/sje/three + src/hack3d), loaded on the first
+// hack only. It is listed with the others, marked "contains Three". `npm run budget` gates its size (scripts/bundle-budget.mjs).
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -38,7 +40,10 @@ async function measure(label, input) {
     const pixiBytes = Object.entries(o.modules ?? {})
       .filter(([id]) => id.includes('node_modules/pixi.js') || id.includes('node_modules\\pixi.js'))
       .reduce((n, [, m]) => n + m.renderedLength, 0);
-    const note = pixiBytes ? `   contains Pixi (${(pixiBytes / 1000).toFixed(0)} kB of its own source, minified)` : '';
+    const threeBytes = Object.entries(o.modules ?? {})
+      .filter(([id]) => id.includes('node_modules/three') || id.includes('node_modules\three'))
+      .reduce((n, [, m]) => n + m.renderedLength, 0);
+    const note = (pixiBytes ? `   contains Pixi (${(pixiBytes / 1000).toFixed(0)} kB of its own source, minified)` : '') + (threeBytes ? `   contains Three (${(threeBytes / 1000).toFixed(0)} kB): the LAZY 3D chunk` : '');
     console.log(`  ${o.fileName.padEnd(34)} ${(code.length / 1000).toFixed(1).padStart(8)} kB   gzip ${(gz / 1000).toFixed(1).padStart(7)} kB${note}`);
   }
   console.log(`  ${'total'.padEnd(34)} ${(totalRaw / 1000).toFixed(1).padStart(8)} kB   gzip ${(total / 1000).toFixed(1).padStart(7)} kB`);

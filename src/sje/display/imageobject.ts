@@ -47,11 +47,13 @@ export class ImageObject extends GameObject {
   private checkQueued = false;
 
   constructor(scene: DisplayHost, x: number, y: number, key: string, frame?: string | number) {
-    const tex = scene.textures.get(key);
+    const tex = scene.textures.entryOf(key);
     const sprite = new PixiSprite(tex.pixiTexture(frame));
     super(scene, sprite);
     this.sprite = sprite;
     this.tex = tex;
+    // Count this object as a user, so `TextureManager.remove` keeps the GPU data until it is gone.
+    tex.retain();
     this.frameName = frame;
     this.name = frame === undefined ? key : `${key}/${frame}`;
     this.setPosition(x, y);
@@ -76,9 +78,15 @@ export class ImageObject extends GameObject {
   /** Show another texture, or another frame of it. */
   setTexture(key: string, frame?: string | number): this {
     this.assertAlive('ImageObject.setTexture');
-    const tex = this.scene.textures.get(key);
-    this.sprite.texture = tex.pixiTexture(frame);
+    const tex = this.scene.textures.entryOf(key);
+    const picture = tex.pixiTexture(frame);
+    // Order: take the new one, show it, THEN let go of the old one. The old texture must not be released
+    // while the sprite still shows it (a release can free it), and a throw half way leaves a consistent object.
+    const previous = this.tex;
+    if (tex !== previous) tex.retain();
+    this.sprite.texture = picture;
     this.tex = tex;
+    if (tex !== previous) previous.release();
     this.frameName = frame;
     this.name = frame === undefined ? key : `${key}/${frame}`;
     this.writeAnchor();
@@ -107,6 +115,18 @@ export class ImageObject extends GameObject {
   }
   get flipX(): boolean {
     return this._flipX;
+  }
+
+  /**
+   * Free the node FIRST, then let go of the texture (the use count). The last release can free the
+   * GPU data of a texture whose key was removed, and the sprite must not be alive to see that.
+   */
+  protected override destroyNode(): void {
+    try {
+      super.destroyNode();
+    } finally {
+      this.tex.release();
+    }
   }
 
   protected override writeScale(): void {

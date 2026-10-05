@@ -16,15 +16,21 @@ export { FPS, grain, H, TICK_MS, W } from './core/size';
 // Level 2: the display list.
 export { Camera, type CameraBounds, CameraManager } from './display/camera';
 export { Container } from './display/container';
+export { colorMatrixEffect, createEffect, type Effect, type EffectSpec, FilterList, type UniformType } from './display/effects';
 export { DEPTH, depthFor, PART } from './display/depth';
 export { type DisplayHost, GameObject } from './display/gameobject';
 export { Graphics } from './display/graphics';
 export { ImageObject } from './display/imageobject';
 export { Sprite } from './display/sprite';
 export { type Raw, type SjFrame, type SjTexture, TextureManager } from './display/texturemanager';
+export { View3D } from './display/view3d';
+// A lab tool for Part A (Pixi RenderLayer with filters). Not part of the engine's API: game code does not use it.
+export { RenderLayerProbe } from './display/renderlayerprobe';
 
-// Level 1: only the plain-data type that a test reads pixels with. Game code never touches the renderer.
+// Level 1: only what game code may know about the renderer: the plain-data type a test reads pixels with,
+// and the WebGL2 probe (a story asks it before it loads the 3D chunk). Game code never touches the renderer.
 export type { Pixels } from './render/backbuffer';
+export { probeWebGL2 } from './render/glcontext';
 
 // Level 3: the runtime.
 export { Game, type GameConfig, type GameEvents, type GameParts } from './runtime/game';

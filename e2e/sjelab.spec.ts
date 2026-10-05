@@ -21,11 +21,25 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Browser, expect, type Page, test } from '@playwright/test';
 
-/** One viewport per device pixel ratio, each chosen so the integer zoom is exactly 4. */
+/**
+ * One viewport per device pixel ratio, each chosen so the window is a whole number of device pixels
+ * (viewport x ratio has no fraction) and the integer zoom is `k`. Ratios 1.75, 2 and 2.25 were added
+ * in step B2: at 2.25 and zoom 7, B0's picture-sized canvas drew 2651 uneven blocks (spike finding 10).
+ */
 const ZOOM4 = [
-  { dpr: 1, viewport: { width: 1920, height: 1080 } },
-  { dpr: 1.25, viewport: { width: 1600, height: 900 } },
-  { dpr: 1.5, viewport: { width: 1300, height: 730 } },
+  { dpr: 1, viewport: { width: 1920, height: 1080 }, k: 4 },
+  { dpr: 1.25, viewport: { width: 1600, height: 900 }, k: 4 },
+  { dpr: 1.5, viewport: { width: 1300, height: 730 }, k: 4 },
+  { dpr: 1.75, viewport: { width: 1100, height: 620 }, k: 4 },
+  { dpr: 2, viewport: { width: 960, height: 540 }, k: 4 },
+  { dpr: 2.25, viewport: { width: 1600, height: 900 }, k: 7 },
+];
+/** Extra windows where the ratio does not divide the picture: the cases B0's sizing got wrong. */
+const AWKWARD = [
+  { dpr: 1.1, viewport: { width: 1000, height: 560 }, k: 2 },
+  { dpr: 1.75, viewport: { width: 1400, height: 790 }, k: 5 },
+  { dpr: 2.25, viewport: { width: 1200, height: 680 }, k: 5 },
+  { dpr: 2.5, viewport: { width: 900, height: 520 }, k: 4 },
 ];
 
 interface Lab {
@@ -46,6 +60,8 @@ async function openLab(browser: Browser, dpr = 1, viewport = { width: 960, heigh
     // test hook does that (to compare pictures); the engine itself never reads the GPU back. The boot
     // test below checks the page BEFORE any readback, with nothing allowed.
     if (/GPU stall due to ReadPixels/.test(m.text())) return;
+    // Vite's hot-reload socket can fail to connect while the dev server is busy. Tooling noise, not the engine.
+    if (/WebSocket connection to 'ws:\/\/localhost:\d+\/\?token=/.test(m.text())) return;
     problems.push(`${m.type()}: ${m.text()}`);
   });
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
@@ -60,9 +76,18 @@ async function openLab(browser: Browser, dpr = 1, viewport = { width: 960, heigh
         cb(t);
       });
   });
-  await page.goto('/sjelab.html?manual');
-  await page.waitForFunction(() => window.__SJE__ !== undefined || (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__ !== undefined, null, { timeout: 90_000 });
-  const failed = await page.evaluate(() => (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__);
+  const boot = async (): Promise<string | undefined> => {
+    await page.goto('/sjelab.html?manual');
+    await page.waitForFunction(() => window.__SJE__ !== undefined || (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__ !== undefined, null, { timeout: 90_000 });
+    return page.evaluate(() => (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__);
+  };
+  let failed = await boot();
+  // The dev server (Vite) now and then fails ONE module request while it is busy re-transforming files. That is the
+  // server, not the engine: try once more. Any other start-up error is real and stops the test.
+  if (failed && /Failed to fetch dynamically imported module/.test(failed)) {
+    problems.length = 0;
+    failed = await boot();
+  }
   if (failed) throw new Error(`the lab failed to start: ${failed}`);
   return { page, problems, close: () => context.close() };
 }
@@ -163,14 +188,14 @@ test.describe('engine lab: what gets loaded', () => {
   });
 });
 
-test.describe('engine lab: crisp pixels at zoom 4', () => {
-  for (const { dpr, viewport } of ZOOM4) {
-    test(`every 4x4 block is one flat colour at device pixel ratio ${dpr} (the GL canvas, over a camera pan)`, async ({ browser }) => {
+test.describe('engine lab: crisp pixels at every zoom and device pixel ratio', () => {
+  for (const { dpr, viewport, k } of [...ZOOM4, ...AWKWARD]) {
+    test(`every ${k}x${k} block is one flat colour at device pixel ratio ${dpr}, window ${viewport.width}x${viewport.height} (the GL canvas, over a camera pan)`, async ({ browser }) => {
       await withLab(
         browser,
         async ({ page }) => {
           const info = await page.evaluate(() => window.__SJE__?.info());
-          expect(info?.k, 'integer zoom').toBe(4);
+          expect(info?.k, 'integer zoom').toBe(k);
           for (const tick of [0, 150, 477, 900, 1180]) {
             const blocks = await page.evaluate((t) => {
               const h = window.__SJE__;
@@ -178,10 +203,10 @@ test.describe('engine lab: crisp pixels at zoom 4', () => {
               h.step(t - h.tick());
               return h.canvasBlocks();
             }, tick);
-            expect(blocks.canvasW).toBe(1920);
-            expect(blocks.canvasH).toBe(1080);
+            expect(blocks.canvasW).toBe(480 * k);
+            expect(blocks.canvasH).toBe(270 * k);
             expect(blocks.blocks).toBe(480 * 270);
-            expect(blocks.bad, `non-uniform 4x4 blocks at tick ${tick}, dpr ${dpr}: ${JSON.stringify(blocks.samples)}`).toBe(0);
+            expect(blocks.bad, `non-uniform ${k}x${k} blocks at tick ${tick}, dpr ${dpr}: ${JSON.stringify(blocks.samples)}`).toBe(0);
           }
         },
         dpr,
@@ -189,28 +214,44 @@ test.describe('engine lab: crisp pixels at zoom 4', () => {
       );
     });
 
-    test(`and in a screenshot of the page at device pixel ratio ${dpr} (what the compositor shows)`, async ({ browser }) => {
+    test(`and in a screenshot of the page at device pixel ratio ${dpr}, window ${viewport.width}x${viewport.height} (what the compositor shows)`, async ({ browser }) => {
       await withLab(
         browser,
         async ({ page }) => {
           await page.evaluate(() => window.__SJE__?.step(333));
-          // The whole page, in device pixels, with the canvas found at its place in it.
-          const shot = await page.screenshot();
+          // The canvas is the whole window in device pixels. The picture sits inside it, on a whole device pixel.
+          const pic = await page.evaluate(() => window.__SJE__?.picture());
+          expect(pic?.k).toBe(k);
           const where = await page.evaluate(() => {
             const c = document.querySelector('canvas');
             const r = c?.getBoundingClientRect();
-            return { left: r?.left ?? 0, top: r?.top ?? 0 };
+            return { left: r?.left ?? -1, top: r?.top ?? -1, width: r?.width ?? 0, height: r?.height ?? 0, backingW: c?.width ?? 0, backingH: c?.height ?? 0, innerW: window.innerWidth, innerH: window.innerHeight };
           });
-          const region = { x: Math.round(where.left * dpr), y: Math.round(where.top * dpr), w: 1920, h: 1080 };
-          // The engine put the canvas on a whole device pixel (not a fraction): that is what keeps the blocks even.
-          expect(where.left * dpr).toBeCloseTo(region.x, 6);
-          expect(where.top * dpr).toBeCloseTo(region.y, 6);
-          const blocks = await page.evaluate(([url, k, r]) => window.__SJE__?.imageBlocks(url as string, k as number, r as typeof region), [`data:image/png;base64,${shot.toString('base64')}`, 4, region]);
+          // The canvas fills the window exactly, and its backing store is the window's size in device pixels: nothing for the browser to resample.
+          expect([where.left, where.top, where.width, where.height]).toEqual([0, 0, where.innerW, where.innerH]);
+          expect([where.backingW, where.backingH]).toEqual([Math.round(where.innerW * dpr), Math.round(where.innerH * dpr)]);
+          expect([pic?.canvasW, pic?.canvasH]).toEqual([where.backingW, where.backingH]);
+          expect(Number.isInteger(pic?.x) && Number.isInteger(pic?.y)).toBe(true);
+          const shot = await page.screenshot();
+          const url = `data:image/png;base64,${shot.toString('base64')}`;
+          const region = { x: pic?.x ?? 0, y: pic?.y ?? 0, w: 480 * k, h: 270 * k };
+          const blocks = await page.evaluate(([u, kk, r]) => window.__SJE__?.imageBlocks(u as string, kk as number, r as typeof region), [url, k, region]);
           expect(blocks?.blocks).toBe(480 * 270);
-          expect(blocks?.bad, `non-uniform 4x4 blocks in the screenshot at dpr ${dpr}: ${JSON.stringify(blocks?.samples)}`).toBe(0);
-          // Looking outside the canvas finds the page background, so the offset above is right (a wrong one would show picture edges).
-          const edge = await page.evaluate(([url, r]) => window.__SJE__?.imageBlocks(url as string, 1, { x: (r as typeof region).x - 1, y: (r as typeof region).y, w: 1, h: 1 }), [`data:image/png;base64,${shot.toString('base64')}`, region]);
-          expect(edge?.blocks).toBe(1);
+          expect(blocks?.bad, `non-uniform ${k}x${k} blocks in the screenshot at dpr ${dpr}: ${JSON.stringify(blocks?.samples)}`).toBe(0);
+          // The bars around the picture are the void colour (so the picture's edge is where the engine says it is).
+          const probe = (x: number, y: number) => page.evaluate(async ([u, px, py]) => {
+            const bmp = await createImageBitmap(await (await fetch(u as string)).blob());
+            const c = document.createElement('canvas');
+            c.width = bmp.width;
+            c.height = bmp.height;
+            const ctx = c.getContext('2d', { willReadFrequently: true });
+            ctx?.drawImage(bmp, 0, 0);
+            return Array.from(ctx?.getImageData(px as number, py as number, 1, 1).data ?? []);
+          }, [url, x, y]);
+          if (region.x > 0) expect(await probe(region.x - 1, region.y + 5)).toEqual([7, 6, 13, 255]);
+          if (region.y > 0) expect(await probe(region.x + 5, region.y - 1)).toEqual([7, 6, 13, 255]);
+          // (Only when the picture does not touch the right edge: a pixel past the screenshot has no colour at all.)
+          if (region.x + region.w < (pic?.canvasW ?? 0)) expect(await probe(region.x + region.w, region.y + 5)).toEqual([7, 6, 13, 255]);
         },
         dpr,
         viewport,

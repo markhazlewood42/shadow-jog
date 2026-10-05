@@ -15,6 +15,17 @@
  *
  * Pixi's own texture GC is off (see PixiRenderer), so nothing frees a texture but `remove`/`prune`.
  *
+ * Removing a texture that an object still shows (decision of the B2 round, carry-over d). Two ways
+ * were possible: refuse the removal with a warning, or keep the pictures alive until the last object
+ * that shows them is gone. This class keeps them alive. A scene normally removes its textures in a
+ * `shutdown` listener, which runs BEFORE the scene's own display list is destroyed, so refusing
+ * would fail every time. So: `remove` frees the KEY at once (`exists` is false, the key can be
+ * added again) and destroys the GPU data when the use count reaches zero, which is right away when
+ * nothing shows it. `ImageObject` counts itself in and out (`retain` and `release`).
+ *
+ * The public type of what this class hands out is `SjTexture` (interfaces.md section 6). The class
+ * with the Pixi parts, `TextureEntry`, is for src/sje/display only, through `entryOf`.
+ *
  * Built later (on demand, M3): `addCanvasOnce`, `variantOf`, `setStandIn`, `getPixelAlpha`.
  */
 import { CanvasSource, Rectangle, Texture } from 'pixi.js';
@@ -56,6 +67,10 @@ export class TextureEntry implements SjTexture {
   data: Record<string, unknown> = {};
   readonly cpu?: Raw;
   destroyed = false;
+  /** @internal How many display objects show this texture right now. */
+  private users = 0;
+  /** @internal True after `remove`: the key is gone, the GPU data waits for the last user. */
+  private retired = false;
 
   /** @internal */
   readonly canvas: HTMLCanvasElement;
@@ -89,6 +104,28 @@ export class TextureEntry implements SjTexture {
     this.base.source.update();
   }
 
+  /** @internal A display object starts showing this texture. */
+  retain(): void {
+    this.users++;
+  }
+
+  /** @internal A display object stops showing it (destroyed, or switched to another texture). */
+  release(): void {
+    this.users = Math.max(0, this.users - 1);
+    if (this.retired && this.users === 0) this.destroy();
+  }
+
+  /** @internal `remove`: destroy now if nothing shows it, otherwise when the last user lets go. */
+  retire(): void {
+    this.retired = true;
+    if (this.users === 0) this.destroy();
+  }
+
+  /** How many display objects show this texture (tests). */
+  get useCount(): number {
+    return this.users;
+  }
+
   /** @internal Free the frames, then the source, once. */
   destroy(): void {
     if (this.destroyed) return;
@@ -106,7 +143,13 @@ export class TextureManager {
     return this.entries.has(key);
   }
 
-  get(key: string): TextureEntry {
+  /** The texture under a key, as the public type (no Pixi in it). Throws if there is none. */
+  get(key: string): SjTexture {
+    return this.entryOf(key);
+  }
+
+  /** @internal The entry with its Pixi parts. For src/sje/display only (`ImageObject`, `Sprite`). */
+  entryOf(key: string): TextureEntry {
     return must(this.entries.get(key), `texture "${key}"`);
   }
 
@@ -118,7 +161,7 @@ export class TextureManager {
    * Store a canvas as a texture. The canvas stays the owner of the pixels: draw on it, then call
    * `refresh()`. Throws if the key is taken (a silent replace would leak the old texture).
    */
-  addCanvas(key: string, canvas: HTMLCanvasElement, opts?: { cpu?: Raw }): TextureEntry {
+  addCanvas(key: string, canvas: HTMLCanvasElement, opts?: { cpu?: Raw }): SjTexture {
     assert(!this.entries.has(key), `TextureManager.addCanvas: key "${key}" already exists`);
     assert(canvas.width > 0 && canvas.height > 0, `TextureManager.addCanvas: canvas "${key}" has no size`);
     const entry = new TextureEntry(key, canvas, opts?.cpu);
@@ -133,8 +176,13 @@ export class TextureManager {
     canvas.height = h;
     const ctx = must(canvas.getContext('2d'), 'a 2D canvas context');
     ctx.imageSmoothingEnabled = false;
-    const entry = this.addCanvas(key, canvas);
-    return { canvas, ctx, refresh: () => entry.refresh() };
+    this.addCanvas(key, canvas);
+    return { canvas, ctx, refresh: () => this.refresh(key) };
+  }
+
+  /** The canvas of `key` changed: upload it again. Without this the old picture stays on the GPU. */
+  refresh(key: string): void {
+    this.entryOf(key).refresh();
   }
 
   /**
@@ -142,7 +190,7 @@ export class TextureManager {
    * in pixels. A second call adds more frames (a repeated name is an error).
    */
   addFrames(key: string, frames: Record<string | number, [x: number, y: number, w: number, h: number]>): void {
-    const entry = this.get(key);
+    const entry = this.entryOf(key);
     for (const [name, [x, y, w, h]] of Object.entries(frames)) {
       assert(!entry.frames.has(name), `TextureManager.addFrames: "${key}" already has frame "${name}"`);
       assert(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= entry.width && y + h <= entry.height, `TextureManager.addFrames: frame "${name}" is outside "${key}" (${entry.width}x${entry.height})`);
@@ -151,12 +199,16 @@ export class TextureManager {
     }
   }
 
-  /** Destroy a texture and forget its key. Destroy the objects that show it first. Returns false if there was no such key. */
+  /**
+   * Forget a key and free its texture. If display objects still show it, the GPU data stays until
+   * the last one is destroyed (see the note at the top of this file); the key is free at once.
+   * Returns false if there was no such key.
+   */
   remove(key: string): boolean {
     const entry = this.entries.get(key);
     if (!entry) return false;
     this.entries.delete(key);
-    entry.destroy();
+    entry.retire();
     return true;
   }
 

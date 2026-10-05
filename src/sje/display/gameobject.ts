@@ -13,6 +13,7 @@
 import type { Container as PixiContainer } from 'pixi.js';
 import { assert } from '../core/assert';
 import type { Container } from './container';
+import { FilterList } from './effects';
 import type { TextureManager } from './texturemanager';
 
 /**
@@ -48,6 +49,8 @@ export abstract class GameObject {
   private _scaleY = 1;
   private _snap = true;
   private _destroyed = false;
+  /** @internal The effect lists that use this object as their MASK. Destroying this object clears the mask in each. */
+  readonly _maskUsers = new Set<FilterList>();
 
   protected constructor(scene: DisplayHost, pixi: PixiContainer) {
     this.scene = scene;
@@ -153,6 +156,18 @@ export abstract class GameObject {
     return this;
   }
 
+  // ---- filters and masks -------------------------------------------------------------------------
+
+  private _filters: FilterList | null = null;
+  /**
+   * Effects and the mask of this object (docs/engine/interfaces.md section 5). Phaser 4: `go.filters`.
+   * Made on first use, so an object that never has one pays nothing.
+   */
+  get filters(): FilterList {
+    if (!this._filters) this._filters = new FilterList(this);
+    return this._filters;
+  }
+
   // ---- data bag --------------------------------------------------------------------------------
 
   private bag: Record<string, unknown> | undefined;
@@ -177,6 +192,10 @@ export abstract class GameObject {
     this._destroyed = true;
     this.active = false;
     this._parent?.remove(this);
+    // A destroyed node must not stay as somebody's mask (Pixi would draw with a dead node), and this
+    // object's own mask must forget it. Both before the node is freed.
+    for (const list of [...this._maskUsers]) list.clearMask();
+    this._filters?.clearMask();
     this.destroyNode();
   }
 

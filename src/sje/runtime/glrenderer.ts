@@ -10,17 +10,18 @@
  * A test can give `Game` a different `FrameRenderer` (one that draws nothing), so the scene stack
  * and the loop are testable in Node with no browser and no GPU.
  */
-import { H, W } from '../core/size';
 import type { Screen } from '../display/screen';
 import { BackBuffer, type Pixels } from '../render/backbuffer';
 import { createGlContext, type GlContext } from '../render/glcontext';
 import { GlHandoff } from '../render/glhandoff';
 import { PixiRenderer } from '../render/pixirenderer';
-import { alignedOffset, integerScale, Presenter } from '../render/presenter';
+import { deviceSize, type PictureLayout, Presenter } from '../render/presenter';
 
 /** Whatever draws the screen root. `Game` calls it once per frame. */
 export interface FrameRenderer {
   render(screen: Screen): void;
+  /** True while the renderer cannot draw (a lost WebGL context). A renderer that can never lose its context leaves this out. */
+  readonly contextLost?: boolean;
 }
 
 export class GlRenderer implements FrameRenderer {
@@ -38,8 +39,13 @@ export class GlRenderer implements FrameRenderer {
     if (!glc) throw new Error('This browser cannot run WebGL 2, which the game needs. Try a current Chrome, Edge, Firefox or Safari.');
     const pixi = await PixiRenderer.create(glc);
     const backBuffer = new BackBuffer(pixi);
-    const presenter = new Presenter(pixi, backBuffer);
-    return new GlRenderer(glc, pixi, backBuffer, presenter, new GlHandoff(glc.gl, pixi));
+    const handoff = new GlHandoff(glc.gl, pixi);
+    const presenter = new Presenter(pixi, backBuffer, handoff);
+    return new GlRenderer(glc, pixi, backBuffer, presenter, handoff);
+  }
+
+  get contextLost(): boolean {
+    return this.glc.lost;
   }
 
   render(screen: Screen): void {
@@ -53,30 +59,37 @@ export class GlRenderer implements FrameRenderer {
   }
 
   /**
-   * Choose the whole-number scale for a window of `viewW` x `viewH` CSS pixels at `dpr`, resize the
-   * canvas to W*k x H*k DEVICE pixels, size its CSS box to the same device pixels, and centre it on
-   * a whole device pixel. Returns k. Stand-in for `Display` (M1). Draw a frame afterwards: resizing
-   * clears the canvas.
+   * Size the canvas to the WHOLE WINDOW in device pixels, and put the 480x270 picture in it at the
+   * largest whole-number scale that fits, on a whole device pixel. Returns `k`. Draw a frame
+   * afterwards: resizing clears the canvas. Stand-in for `Display` (M1).
    *
-   * Why the centring is done here and not by CSS: at a device pixel ratio like 1.5, a canvas centred
-   * by flexbox can start half a device pixel in. The browser then resamples it, and some game pixels
-   * come out one device pixel wider than others (measured by e2e/sjelab.spec.ts). The canvas's
-   * parent must be positioned (fixed, absolute or relative) and fill the view.
+   * Why the whole window (spike finding 10): the browser shows a canvas 1:1 only when the canvas
+   * backing store has exactly as many pixels as the box it fills. A window is always a whole number
+   * of device pixels, so a canvas that fills it is exact at EVERY device pixel ratio. A canvas the
+   * size of the picture (W*k, shown at W*k/dpr CSS pixels) is not: at ratio 2.25 and zoom 7 that is
+   * 1493.33... CSS pixels, which layout cannot hold, and the browser drew 2651 uneven blocks.
+   *
+   * The canvas's parent must be positioned (fixed, absolute or relative) and fill the window.
+   * `observed` is the size the browser reports for the canvas box in device pixels
+   * (`devicePixelContentBoxSize`), when it has one: see `deviceSize`.
    */
-  fitToWindow(viewW: number, viewH: number, dpr: number): number {
-    const k = integerScale(viewW, viewH, dpr);
-    this.presenter.setScale(k);
+  fitToWindow(viewW: number, viewH: number, dpr: number, observed?: { w: number; h: number }): number {
+    const device = deviceSize(viewW, viewH, dpr, observed);
+    const layout = this.presenter.setCanvasSize(device.w, device.h);
     const style = this.glc.canvas.style;
-    style.width = `${(W * k) / dpr}px`;
-    style.height = `${(H * k) / dpr}px`;
     style.position = 'absolute';
-    // Offsets are whole numbers of device pixels (see alignedOffset). A window smaller than the picture pins it to the corner.
-    style.left = `${alignedOffset(viewW - (W * k) / dpr, dpr)}px`;
-    style.top = `${alignedOffset(viewH - (H * k) / dpr, dpr)}px`;
-    // Pixi sets no image-rendering. With a whole-number k there is no resampling, but a browser
-    // that zooms the page must still not smooth the blocks.
+    style.left = '0px';
+    style.top = '0px';
+    style.width = '100%';
+    style.height = '100%';
+    // The canvas is 1:1 with the screen, so no resampling happens. If a browser zoom still scales it, it must not smooth the blocks.
     style.imageRendering = 'pixelated';
-    return k;
+    return layout.k;
+  }
+
+  /** Where the picture is in the canvas, in device pixels. */
+  get picture(): PictureLayout {
+    return this.presenter.layout;
   }
 
   /** Dev and tests only. Production never destroys the renderer: it would lose a context Three shares. */
@@ -88,6 +101,8 @@ export class GlRenderer implements FrameRenderer {
 
   /** Read the back buffer to the CPU. Dev and tests only. */
   readBackBuffer(): Pixels {
+    // Anything may have used the context since Pixi last drew (Three, a raw read): Pixi forgets its cached state first.
+    this.handoff.beginPixi();
     return this.backBuffer.pixels();
   }
 }

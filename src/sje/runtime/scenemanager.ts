@@ -57,6 +57,8 @@ export class SceneManager {
   private readonly visible: boolean[] = [];
   private lastVisible: boolean[] = [];
   private lastBase = -1;
+  // Scenes that a `push` paused and that have not been resumed yet.
+  private paused = new WeakSet<AnyScene>();
 
   constructor(
     private readonly game: Game,
@@ -82,22 +84,35 @@ export class SceneManager {
    * is removed again and the returned promise REJECTS with the error (the stack stays clean).
    */
   push<R>(scene: Scene<R>, data?: unknown): Promise<R> {
+    // A scene object is single use. Running one again would reuse a destroyed display list (closed)
+    // or put one scene on the stack twice (live). Say so at once, with a clear message.
+    const refusal = this.reuseProblem(scene);
+    if (refusal) return Promise.reject(new Error(refusal));
     return new Promise<R>((resolve) => {
       const world = new Container(scene, 0, 0, `${scene.key} world`);
       const ui = new Container(scene, 0, 0, `${scene.key} ui`);
       scene._attach(this.game, world, ui, resolve);
       const below = this.top;
       this.stack.push(scene);
-      this.guard(below, () => below?.events.emit('pause'));
+      if (below) {
+        // Remember WHO was paused, so `resume` goes to exactly that scene and to no other.
+        this.paused.add(below);
+        this.guard(below, () => below.events.emit('pause'));
+      }
       this.refreshLayout();
       const sys = scene.sys;
       try {
         sys.status = 'start';
+        // Any step may close the scene (`close()` inside `init`, say). A closed scene has been torn
+        // down already, so the steps after it must not run.
         scene.init?.(data);
+        if (scene.closed) return;
         scene.preload?.();
+        if (scene.closed) return;
         // There is no loader yet, so nothing is ever waiting: `create` runs straight away.
         sys.status = 'creating';
         scene.create?.(data);
+        if (scene.closed) return;
         scene.events.emit('create');
       } catch (e) {
         this.discard(scene);
@@ -110,22 +125,25 @@ export class SceneManager {
 
   /**
    * Pop a scene, free it, wake the one below. Called by `Scene.close`. The order is: stack change,
-   * `shutdown` event and freeing, layout, `resume` event on the new top. The caller resolves the
-   * promise after this returns.
+   * `shutdown` event and freeing, layout, `resume` event on the scene that was paused. The caller
+   * resolves the promise after this returns.
    */
   remove(scene: AnyScene): void {
     const i = this.stack.indexOf(scene);
     if (i < 0) return;
     this.stack.splice(i, 1);
+    this.paused.delete(scene);
     // A scene's cleanup throwing must not leave the stack half changed: report it and carry on.
     this.guard(scene, () => scene._teardown());
     this.refreshLayout();
-    const top = this.top;
-    if (top) this.guard(top, () => top.events.emit('resume'));
+    this.resumeTop();
   }
 
   /** Replace the whole stack with one scene. Pending promises of the old scenes stay pending. */
   reset<R>(scene: Scene<R>, data?: unknown): Promise<R> {
+    // Check BEFORE clearing: a refused scene must not cost the player the screen they were on.
+    const refusal = this.reuseProblem(scene);
+    if (refusal) return Promise.reject(new Error(refusal));
     this.clear();
     return this.push(scene, data);
   }
@@ -169,6 +187,9 @@ export class SceneManager {
       const s = this.stack[i];
       if (!s || s.closed) continue;
       this.guard(s, () => s.events.emit('prerender'));
+      // A prerender handler may have closed its own scene (a 3D scene that lost its context does).
+      // Its display list is destroyed by now, so there is no camera to apply.
+      if (s.closed) continue;
       s.cameras.apply();
     }
     this.refreshLayout();
@@ -194,21 +215,53 @@ export class SceneManager {
   }
 
   /** Mark every scene closed and free it, newest first, reporting (not throwing) any failure. */
+  /**
+   * How many times the whole stack has been dropped (`abandon` and `reset`). Code that waits for
+   * something slow (the 3D chunk loads) reads it before and after, to learn that the stack it meant
+   * to put a scene on is gone.
+   */
+  get dropCount(): number {
+    return this.drops;
+  }
+  private drops = 0;
+
   private clear(): void {
+    this.drops++;
     for (const s of [...this.stack].reverse()) {
       s.closed = true;
       this.guard(s, () => s._teardown());
     }
     this.stack.length = 0;
+    // Nothing is left to resume.
+    this.paused = new WeakSet();
   }
 
-  /** A scene whose lifecycle threw: take it off the stack and free it. */
+  /** A scene whose lifecycle threw: take it off the stack, free it, and give the scene below its `resume` back. */
   private discard(scene: AnyScene): void {
     scene.closed = true;
     const i = this.stack.indexOf(scene);
     if (i >= 0) this.stack.splice(i, 1);
+    this.paused.delete(scene);
     this.guard(scene, () => scene._teardown());
     this.refreshLayout();
+    this.resumeTop();
+  }
+
+  /**
+   * Send `resume` to the top scene, but ONLY if a `push` paused it. When a scene in the middle of
+   * the stack closes, the top scene was never paused, so it must not hear `resume`.
+   */
+  private resumeTop(): void {
+    const top = this.top;
+    if (!top || !this.paused.delete(top)) return;
+    this.guard(top, () => top.events.emit('resume'));
+  }
+
+  /** Why this scene object cannot run now, or null when it can. */
+  private reuseProblem(scene: AnyScene): string | null {
+    if (scene.closed) return `Scene ${scene.key} has already closed. A scene object runs once: make a new one for each run.`;
+    if (this.stack.includes(scene) || scene.attached) return `Scene ${scene.key} is already running. A scene object runs once: make a new one for each run.`;
+    return null;
   }
 
   /** Run `fn`; a throw goes to the game's fault reporter instead of out of the loop. */

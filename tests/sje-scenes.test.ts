@@ -182,6 +182,21 @@ describe('abandon and reset', () => {
     expect(s.sys.status).toBe('destroyed');
   });
 
+  it('dropCount goes up on abandon() and on reset(), not on a plain run() and not on a refused reset()', async () => {
+    const { game } = headlessGame();
+    expect(game.dropCount).toBe(0);
+    const s = new TestScene([], 's');
+    void game.run(s);
+    expect(game.dropCount).toBe(0);
+    game.abandon();
+    expect(game.dropCount).toBe(1);
+    void game.reset(new TestScene([], 'r'));
+    expect(game.dropCount).toBe(2);
+    // A scene that already closed is refused BEFORE the stack is cleared: nothing was dropped.
+    await expect(game.reset(s)).rejects.toThrow();
+    expect(game.dropCount).toBe(2);
+  });
+
   it('abandon() survives a scene whose cleanup throws', () => {
     const { game } = headlessGame();
     const a = new TestScene([], 'a');

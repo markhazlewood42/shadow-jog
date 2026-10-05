@@ -362,8 +362,10 @@ describe('TextureManager', () => {
     const t = new TextureManager();
     const canvas = fakeCanvas(8, 8);
     // Pixi's Texture.from(canvas) would hand back ONE cached texture for the same canvas object.
-    const a = t.addCanvas('a', canvas);
-    const b = t.addCanvas('b', canvas);
+    t.addCanvas('a', canvas);
+    t.addCanvas('b', canvas);
+    const a = t.entryOf('a');
+    const b = t.entryOf('b');
     expect(a.base).not.toBe(b.base);
     expect(a.base.source).not.toBe(b.base.source);
     expect(a.base.source.scaleMode).toBe('nearest');
@@ -371,7 +373,8 @@ describe('TextureManager', () => {
 
   it('frames share one source; unknown or out-of-range frames are errors', () => {
     const t = new TextureManager();
-    const e = t.addCanvas('s', fakeCanvas(32, 16));
+    t.addCanvas('s', fakeCanvas(32, 16));
+    const e = t.entryOf('s');
     t.addFrames('s', { a: [0, 0, 16, 16], 7: [16, 0, 16, 16] });
     expect(e.frames.get('a')).toMatchObject({ x: 0, y: 0, w: 16, h: 16 });
     expect(e.pixiTexture('a').source).toBe(e.base.source);
@@ -389,16 +392,17 @@ describe('TextureManager', () => {
 
   it('refresh() uploads the canvas again (source.update), and not before', () => {
     const t = new TextureManager();
-    const e = t.addCanvas('a', fakeCanvas(4, 4));
-    const update = vi.spyOn(e.base.source, 'update');
+    t.addCanvas('a', fakeCanvas(4, 4));
+    const update = vi.spyOn(t.entryOf('a').base.source, 'update');
     expect(update).not.toHaveBeenCalled();
-    e.refresh();
+    t.refresh('a');
     expect(update).toHaveBeenCalledTimes(1);
   });
 
   it('remove() destroys the frame textures first and the shared source ONCE', () => {
     const t = new TextureManager();
-    const e = t.addCanvas('s', fakeCanvas(32, 16));
+    t.addCanvas('s', fakeCanvas(32, 16));
+    const e = t.entryOf('s');
     t.addFrames('s', { a: [0, 0, 16, 16], b: [16, 0, 16, 16] });
     const order: string[] = [];
     const cellDestroy = (name: string) => {

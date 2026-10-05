@@ -85,6 +85,11 @@ export abstract class Scene<R = unknown> implements DisplayHost {
   /** @internal True once `close` ran (or the scene was torn down another way). */
   closed = false;
 
+  /** @internal True once a `SceneManager` has attached this scene (it is running or was). */
+  get attached(): boolean {
+    return this._game !== null;
+  }
+
   // ---- what a subclass writes ------------------------------------------------------------------
 
   init?(data: unknown): void;
