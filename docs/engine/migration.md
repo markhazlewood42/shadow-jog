@@ -37,23 +37,9 @@ This file gives the path from today's engine and from the Phaser spike to the ne
 
 "M" means a build milestone. "E" means an open decision ([decisions.md](decisions.md)). "T" means a test tier ([tooling-and-testing.md](tooling-and-testing.md)).
 
-```mermaid
-flowchart LR
-  G["Design gate: you approve"] --> P0["Phase 0: platform spike"]
-  P0 --> A["Mark approves the final doc"]
-  A --> M0["M0 Prepare"]
-  M0 --> M1["M1 Shell"]
-  M1 --> M1b["M1b 3D proof"]
-  M1 --> M2["M2 Effects"]
-  M2 --> M3["M3 Battle stage"]
-  M3 --> M4["M4 UI scenes, optional"]
-  M3 --> M5["M5 Field"]
-  M4 --> M6["M6 Flip default"]
-  M5 --> M6
-  M1b --> M7["M7 3D mode"]
-  M6 --> M7
-  M7 --> M8["M8 Remove legacy"]
-```
+![The order of the engine migration, read from top to bottom in three zones. Before code: the design gate where you approve, the Phase 0 platform spike, and Mark approving the final doc. Build: M0 Prepare, then M1 Shell. M1 splits into M2 Effects and M1b 3D proof, which run in parallel. M2 leads to M3 Battle stage. M3 splits into M5 Field and the optional M4 UI scenes, and both join at M6 Flip default, the moment the new engine becomes the default. Finish: M7 3D mode, which needs both M1b and M6, then M8 Remove legacy.](diagrams/engine-migration-milestones.png)
+
+*Editable source: [diagrams/engine-migration-milestones.html](diagrams/engine-migration-milestones.html)*
 
 | Milestone | One-line scope | Effort (estimate) | Confidence |
 |---|---|---|---|

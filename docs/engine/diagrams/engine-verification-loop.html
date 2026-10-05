@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Engine verification loop</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d0c1f;   /* Shadow Jog panel bottom */
+      --color-ink:     #f4f1ff;
+      --color-muted:   #bfc3e4;
+      --color-accent:  #ffcc3d;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 960px; width: 100%; }
+    /* The SVG holds its readable width (min-width equals the viewBox width).
+       This wrapper lets a narrow screen scroll the diagram, not the page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Flowchart &middot; Shadow Jog engine</p>
+    <h1>Engine verification loop</h1>
+
+    <div class="diagram-container">
+    <!-- Type ramp is a deliberate exception to the standard ramp. This figure shows at about 880px wide
+         in a doc (scale 0.92), so names are 16, descriptions 13 and all mono text 12. That keeps every
+         label near 11px or more on screen. The canvas is 960 wide and taller than the 600 preset because
+         nine nodes and two long decision labels do not fit 960x600 at this type size. -->
+    <svg viewBox="0 0 960 744" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-verification-loop-title engine-verification-loop-desc">
+      <title id="engine-verification-loop-title">Engine verification loop</title>
+      <desc id="engine-verification-loop-desc">Flowchart of the engine verification loop: a builder checks its own work, three fresh verifier agents score a rubric, a failed score sends findings back to the builder for up to three rounds, then the work stops and goes to Mark, and a pass leads to a visual update and a pull request.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
+      </defs>
+
+      <rect width="100%" height="100%" fill="#0d0c1f"/>
+
+      <!-- Header: the two rules the loop exists to enforce -->
+      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-style="italic" font-family="'Instrument Serif', serif">The builder never grades its own work.</text>
+      <text x="920" y="60" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">THREE ROUNDS IS THE CAP. NOBODY LOWERS A PASS LINE.</text>
+      <text x="40" y="84" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">THE THREE VERIFIERS ARE FRESH AGENTS WITH DIFFERENT INSTRUCTIONS.</text>
+
+      <!-- Arrows (drawn before the boxes) -->
+      <path d="M 204 192 V 228" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 204 308 V 344" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 204 424 V 460" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="214" y="434" width="30" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="229" y="446" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">YES</text>
+      <path d="M 92 384 H 44 Q 36 384 36 376 V 276 Q 36 268 44 268 H 68" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="46" y="322" width="24" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="58" y="334" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">NO</text>
+      <path d="M 340 500 H 380" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 550 432 V 302" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="560" y="359" width="104" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="612" y="371" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">NO, ROUND 1-3</text>
+      <path d="M 454 268 H 340" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 720 500 H 768" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="729" y="476" width="30" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="744" y="488" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">YES</text>
+      <path d="M 550 568 V 612" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="560" y="582" width="96" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="608" y="594" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">NO, AFTER R3</text>
+      <path d="M 844 544 V 584" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+      <!-- Nodes -->
+      <rect x="68" y="108" width="272" height="84" rx="20" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="204" y="134.0" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Write the exit criteria</text>
+      <text x="204" y="154.0" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">and pick the rubric</text>
+      <text x="204" y="177.0" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">(before any code)</text>
+      <rect x="68" y="228" width="272" height="80" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="204" y="254.0" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Builder agent</text>
+      <text x="204" y="277.0" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">Build, then run lint, types,</text>
+      <text x="204" y="293.0" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">unit tests and e2e</text>
+      <polygon points="204 344, 316 384, 204 424, 92 384" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="204" y="389.5" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Own checks pass?</text>
+      <rect x="68" y="460" width="272" height="80" rx="6" fill="#1c1a3a"/>
+      <rect x="68" y="460" width="272" height="80" rx="6" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1.2"/>
+      <text x="204" y="486.0" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Three fresh verifier agents</text>
+      <text x="204" y="509.0" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">Score the rubric,</text>
+      <text x="204" y="525.0" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">each with one lens</text>
+      <polygon points="550 432, 720 500, 550 568, 380 500" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="550" y="486.0" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">All pass lines pass,</text>
+      <text x="550" y="509.0" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">every criterion median at least 7,</text>
+      <text x="550" y="525.0" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">average at least 8?</text>
+      <rect x="454" y="234" width="192" height="68" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="550.0" y="263.0" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Findings go back</text>
+      <text x="550.0" y="283.0" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">to the builder</text>
+      <rect x="768" y="456" width="152" height="88" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="844.0" y="484.0" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Visual update</text>
+      <text x="844.0" y="504.0" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">to Mark</text>
+      <text x="844.0" y="527.0" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">(screenshots)</text>
+      <rect x="740" y="584" width="180" height="96" rx="20" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="830.0" y="610.0" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">PR</text>
+      <text x="830.0" y="633.0" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">CI green, Copilot</text>
+      <text x="830.0" y="649.0" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">review. Mark merges</text>
+      <text x="830.0" y="665.0" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">(milestones only)</text>
+      <rect x="434" y="612" width="232" height="64" rx="20" fill="#0d0c1f" stroke="rgba(244,241,255,0.45)" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="550.0" y="638.0" fill="#bfc3e4" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Stop.</text>
+      <text x="550.0" y="661.0" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">Report to Mark with the evidence</text>
+
+      <!-- Legend -->
+      <line x1="40" y1="704" x2="920" y2="704" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <polygon points="52 716, 64 726, 52 736, 40 726" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="76" y="730" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">DECISION</text>
+      <rect x="192" y="716" width="24" height="20" rx="4" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1.2"/>
+      <text x="226" y="730" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">FRESH AGENTS, NOT THE BUILDER</text>
+      <rect x="500" y="716" width="24" height="20" rx="8" fill="#0d0c1f" stroke="rgba(244,241,255,0.45)" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="534" y="730" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">STOP: THE ONLY EXIT THAT IS NOT A PASS</text>
+    </svg>
+    </div>
+  </div>
+</body>
+</html>

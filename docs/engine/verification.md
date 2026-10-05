@@ -18,19 +18,9 @@ The rule is simple. The agent that writes the code never grades it. Fresh agents
 
 ## 1. The loop
 
-```mermaid
-flowchart TD
-  A["Write the exit criteria and pick the rubric (before any code)"] --> B["Builder agent: build, then run lint, types, unit tests and e2e"]
-  B --> C{"Own checks pass?"}
-  C -- no --> B
-  C -- yes --> D["Three fresh verifier agents score the rubric, each with one lens"]
-  D --> E{"All pass lines pass, every criterion median at least 7, average at least 8?"}
-  E -- no, round 1 to 3 --> F["Findings go back to the builder"]
-  F --> B
-  E -- no, after round 3 --> G["Stop. Report to Mark with the evidence"]
-  E -- yes --> H["Visual update to Mark (screenshots)"]
-  H --> I["PR: CI green, Copilot review. Mark merges (milestones only)"]
-```
+![The engine verification loop. The exit criteria and rubric are written first. The builder agent builds and runs lint, types, unit tests and e2e. If its own checks fail, it fixes and runs them again. If they pass, three fresh verifier agents score the rubric. If all pass lines pass, every criterion median is at least 7 and the average is at least 8, the work goes to a visual update with screenshots for Mark, then a pull request with green CI and a Copilot review, and Mark merges milestones only. If the score fails in rounds 1 to 3, the findings go back to the builder. If it fails after round 3, the loop stops and reports to Mark with the evidence. That stop is the only exit that is not a pass. The builder never grades its own work, three rounds is the cap, and nobody lowers a pass line.](diagrams/engine-verification-loop.png)
+
+*Editable source: [diagrams/engine-verification-loop.html](diagrams/engine-verification-loop.html)*
 
 1. **Before the code.** The spike doc or the milestone section names the exit criteria (hard pass lines) and the rubric. Criteria written after the result do not count.
 2. **The builder checks its own work** (lint, types, unit tests, e2e) and fixes it until those pass. This is necessary, but it is not verification.

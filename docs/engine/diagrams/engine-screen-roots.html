@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screen roots</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d0c1f;   /* Shadow Jog panel bottom */
+      --color-ink:     #f4f1ff;
+      --color-muted:   #bfc3e4;
+      --color-accent:  #ffcc3d;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 960px; width: 100%; }
+    /* The SVG holds its readable width (min-width equals the viewBox width).
+       This wrapper lets a narrow screen scroll the diagram, not the page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Nested &middot; Shadow Jog engine</p>
+    <h1>The screen root and its three shared roots</h1>
+
+    <div class="diagram-container">
+    <!-- Type ramp matches the engine-layers pilot. This figure shows at about 880px wide in a doc (scale 0.92),
+         so names are 16, descriptions 13 and all mono text 12. -->
+    <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-screen-roots-title engine-screen-roots-desc">
+      <title id="engine-screen-roots-title">The screen root and its three shared roots</title>
+      <desc id="engine-screen-roots-desc">The Pixi screen root holds three shared roots, drawn back to front: worldRoot, uiRoot and overlayRoot. Each scene owns a world and a ui container, and the engine parents them under worldRoot and uiRoot. Screen filters run on worldRoot only.</desc>
+
+      <rect width="100%" height="100%" fill="#0d0c1f"/>
+
+      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-style="italic" font-family="'Instrument Serif', serif">Each scene owns world + ui. The engine parents them here.</text>
+      <text x="40" y="84" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">THE THREE ROOTS DRAW BACK TO FRONT. EACH ROOT HOLDS ITS SCENES IN STACK ORDER, BOTTOM SCENE FIRST.</text>
+
+      <!-- Outer screen box -->
+      <rect x="40" y="100" width="880" height="444" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <text x="56" y="122" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.14em">SCREEN (PIXI ROOT)</text>
+      <text x="904" y="122" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">ALSO CALLED THE SCREEN ROOT</text>
+
+      <!-- worldRoot, the focal root -->
+      <rect x="64" y="140" width="832" height="124" rx="6" fill="#1c1a3a"/>
+      <rect x="64" y="140" width="832" height="124" rx="6" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1"/>
+      <text x="84" y="168" fill="#ffcc3d" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">BACK</text>
+      <text x="140" y="168" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">worldRoot</text>
+      <text x="876" y="168" fill="#ffcc3d" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">SCREEN FILTERS RUN HERE</text>
+      <rect x="84" y="188" width="384" height="56" rx="6" fill="#0d0c1f" stroke="#7a80c4" stroke-width="1"/>
+      <text x="100" y="212" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">FieldScene.world</text>
+      <text x="100" y="231" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace">cameras.main of FieldScene moves it</text>
+      <rect x="492" y="188" width="384" height="56" rx="6" fill="#0d0c1f" stroke="#7a80c4" stroke-width="1"/>
+      <text x="508" y="221" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">World of any other visible scene</text>
+
+      <text x="480" y="284" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">CAMERA FLASH AND FADE DRAW HERE. THEY WASH THE WORLD ONLY.</text>
+
+      <!-- uiRoot -->
+      <rect x="64" y="296" width="832" height="124" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="84" y="324" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">MID</text>
+      <text x="140" y="324" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">uiRoot</text>
+      <text x="876" y="324" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">NO SCREEN FILTERS, NO SHAKE</text>
+      <rect x="84" y="344" width="384" height="56" rx="6" fill="#0d0c1f" stroke="#7a80c4" stroke-width="1"/>
+      <text x="100" y="368" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">FieldScene.ui</text>
+      <text x="100" y="387" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">bottom of the stack</text>
+      <rect x="492" y="344" width="384" height="56" rx="6" fill="#0d0c1f" stroke="#7a80c4" stroke-width="1"/>
+      <text x="508" y="368" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">DialogScene.ui</text>
+      <text x="508" y="387" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">top of the stack</text>
+
+      <!-- overlayRoot -->
+      <rect x="64" y="444" width="832" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="84" y="472" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">FRONT</text>
+      <text x="140" y="472" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">overlayRoot</text>
+      <text x="876" y="472" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">NO FILTERS</text>
+      <text x="140" y="498" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">game fade, game flash, notice, legacy overlays. Drawn above everything.</text>
+
+      <!-- Legend -->
+      <line x1="40" y1="560" x2="920" y2="560" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <rect x="40" y="572" width="28" height="16" rx="3" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="80" y="585" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">SHARED ROOT, ONE PER SCREEN</text>
+      <rect x="360" y="572" width="28" height="16" rx="3" fill="#0d0c1f" stroke="#7a80c4" stroke-width="1"/>
+      <text x="400" y="585" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">CONTAINER OWNED BY ONE SCENE</text>
+    </svg>
+    </div>
+  </div>
+</body>
+</html>
