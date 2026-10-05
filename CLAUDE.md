@@ -7,6 +7,8 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 ## Start here, in this order
 1. **`status.md`**: where the project stands and what happens next. Read it first, every session.
 2. `docs/PHASE-0.2.md`: the current phase plan (versioning, the three pivot spikes, open decisions for Mark).
+   The engine decision of 2026-10-04 (own engine on PixiJS v8 and Three.js for a 3D hacking mode. The Phaser rebuild
+   is superseded) and its research: `docs/research/2026-10-04-engine-and-3d.md`.
 3. `docs/ARCHITECTURE.md`: how the code fits together.
 4. `docs/DEVELOPING.md`: commands, tests, debug tools, conventions, traps, recipes, and the version/release/spike workflow.
 5. `docs/GDD.md`: the game's design. `docs/GLOSSARY.md`: every name and term. `docs/SETTING.md`: the world.
@@ -22,6 +24,7 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
   pushed as you go; when the feature is done, open a PR so it can get an independent code review (Copilot), and
   Mark merges. Don't commit to `main` directly.
 - **Dependencies (Mark, 2026-10-02):** "dependency free" was never a requirement. High-quality, free dependencies are fine. The bundle budget (`scripts/bundle-budget.mjs`) is a size alarm to re-set deliberately with the player download in mind, not a ceiling.
+- **Engine design gate (Mark, 2026-10-04):** write no engine code before Mark approves an architecture design doc. The doc must be easy to read and cover the architecture, the key interfaces, the core primitives (what the scene graph is made of, the render pipeline) and the tooling. Copy established conventions (Phaser first for 2D, then Unity or Godot, Three.js for 3D) and say which convention each concept follows. Spikes test the approved design. The build starts after Mark approves the final doc.
 - **Versions and spikes:** `package.json` `"version"` is the source of truth and is shown in the game. Release tags are annotated `v*` tags, cut only after Mark's playtest and go-ahead (`snapshot/*` are dated checkpoints, `archive/*` are abandoned spikes). `CHANGELOG.md` (Keep a Changelog) gets an entry in every feature PR. Spikes live on `spike/<topic>` draft PRs that are never merged, each with a `docs/spikes/<topic>.md` whose exit criteria are committed before any spike code. Tags, GitHub Releases and deploys need Mark's explicit go-ahead. How-to: `docs/DEVELOPING.md` section 9.
 - Before committing: `git fetch` and `git rev-list --left-right --count HEAD...origin/main`. Commit each meaningful
   piece of work and **push right away** (the branch); check CI with `gh run list -L 3`. **No `Co-Authored-By` lines.**

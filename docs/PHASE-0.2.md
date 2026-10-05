@@ -1,6 +1,8 @@
 # Shadow Jog 0.2: the pivot phase
 
-> Status 2026-10-04: "The short version" below is the original 2026-10-02 plan. See "Decisions for Mark" for the current state. Both pivot spikes are GO (Mark, 2026-10-04): the side-on battle view and the Phaser tooling spike. The spike records are in `docs/spikes/`. Neither spike PR merges. The next step is the rebuild on a feature branch (decision 10).
+> Status 2026-10-04 (evening): **decision 17 supersedes the Phaser rebuild.** Shadow Jog gets its own engine, with PixiJS v8 as the 2D renderer and Three.js for a low-poly 3D hacking mode. No engine code is written before Mark approves an architecture design doc. The research is in `docs/research/2026-10-04-engine-and-3d.md`.
+>
+> Status 2026-10-04: "The short version" below is the original 2026-10-02 plan. See "Decisions for Mark" for the current state. Both pivot spikes are GO (Mark, 2026-10-04): the side-on battle view and the Phaser tooling spike. The spike records are in `docs/spikes/`. Neither spike PR merges. The next step is the architecture design doc for Mark's approval (decision 17). The rebuild in decision 10 waits for it.
 
 *Plan written 2026-10-02, after PR #1 (Rook's back-view battle rig) merged. Anything marked (inferred) has not been checked against a source or the code.*
 
@@ -447,7 +449,9 @@ If the battle spike is a NO-GO, 0.2.0 is instead Hex and Sable finished from beh
 
 ## Decisions for Mark
 
-**Status on 2026-10-04.** Answered: 1, 2, 3, 4 (in practice), 6, 7, 8, 9, 10 and 11 to 16. Decision 9 (GO for the Phaser toolset) and decision 10 (the side view is the battle view, and the rebuild plan) were decided on 2026-10-04. **Open: 5 (PixelLab, before about 2026-10-30).** Later steps wait on the rebuild: the archive tags for both spikes, then the troop editor and the Animation Composer.
+**Status on 2026-10-04 (evening).** Decision 17 (below) replaces the Phaser rebuild in decisions 9 and 10 with our own engine on PixiJS v8 plus Three.js, behind a design gate. The side-view decision (10) still stands.
+
+**Status on 2026-10-04.** Answered: 1, 2, 3, 4 (in practice), 6, 7, 8, 9, 10 and 11 to 16. Decision 9 (GO for the Phaser toolset) and decision 10 (the side view is the battle view, and the rebuild plan) were decided on 2026-10-04. **Open: 5 (PixelLab, before about 2026-10-30).** Later steps wait on the design gate and the new engine (decision 17): the archive tags for both spikes, then the troop editor and the Animation Composer.
 
 Decided 2026-10-02: 1 (yes, v0.1.0 then 0.2), 2 (the loop, not the camera), 6 (the Phaser spike runs now as a tooling spike), 3 (run the side-view spike now, comparing field scale with the ~44–48 px battle scale, with Hex/Sable back-view tuning paused) and 7 (yes, correct the docs. Mark: "I'm OK with dependencies as long as they're high quality and free"). Decisions 9 to 16 were added on 2026-10-04 to record calls made during the spikes.
 
@@ -492,7 +496,7 @@ Options: (a) keep creatures and bosses large, re-art the humanoid regulars to pa
 Options were: (a) GO for the toolset, no port of the shipped game. (b) NO-GO and archive. (c) GO and also plan a port (the agents did not recommend this).
 **Mark's choice (2026-10-04): (a), for the scope above.** Phaser adds about 350 kB gzipped. The shipped bundle is 233.4 kB against a 236 kB alarm, so the rebuild must re-set the budget on purpose. The dependency policy allows this (decision 7).
 
-**10. What happens to the side-view spike ([PR #3](https://github.com/markhazlewood42/shadow-jog/pull/3)), and what are the next build steps of phase 0.2? (added 2026-10-04)** — **decided 2026-10-04: the side view is a GO, and the next build steps are the rebuild below.** The side-on view is the game's battle view. Mark called it from the work he saw, not from the formal clip comparison. The size is his Sprite Fusion crew at about 64 px, larger than both sizes the spike tested (this also answers the size part of decision 3). The spike doc's "Result" section records the call (commit `12a00e4` on `spike/side-battle`, and `docs/spikes/side-battle.md` on `main`). The 3/4 arena stage and side-view HUD it chose were rebuilt in the Phaser spike.
+**10. What happens to the side-view spike ([PR #3](https://github.com/markhazlewood42/shadow-jog/pull/3)), and what are the next build steps of phase 0.2? (added 2026-10-04)** — **decided 2026-10-04: the side view is a GO, and the next build steps are the rebuild below.** (Later on 2026-10-04, decision 17 superseded the Phaser rebuild steps. The side-view GO still stands.) The side-on view is the game's battle view. Mark called it from the work he saw, not from the formal clip comparison. The size is his Sprite Fusion crew at about 64 px, larger than both sizes the spike tested (this also answers the size part of decision 3). The spike doc's "Result" section records the call (commit `12a00e4` on `spike/side-battle`, and `docs/spikes/side-battle.md` on `main`). The 3/4 arena stage and side-view HUD it chose were rebuilt in the Phaser spike.
 **Neither spike PR merges.** On 2026-10-04 Mark confirmed: "we don't need more GO/NO GO branches. I was mistaken about merging." PR #3 and PR #4 stay open drafts as references. The spike process applies: a GO is rebuilt on a real feature branch from the spike code, with a Copilot review, and Mark merges that branch. `spike/phaser-stage` already contains all the code of `spike/side-battle`, except its Result commit.
 **The next build steps, in order:**
 1. **The rebuild.** A feature branch, started from the spike code on `spike/phaser-stage`. It brings the side-view battle stage, the Battle Stage Editor and the Battle Test in Phaser to `main`, with a `CHANGELOG.md` entry and a Copilot review. The bundle budget is re-set on purpose in the same branch. A query flag such as `?battle=side` can keep the old view the default until the new view is good enough (`docs/spikes/README.md`). The tooling UI guide (`docs/TOOLING-UI.md`) and the "Tests vs design data" rule (`docs/DEVELOPING.md`) apply from the first commit.
@@ -519,6 +523,22 @@ Options were: (a) record the result, tag `archive/side-battle-YYYY-MM-DD`, close
 - **Pronoun canon** (Mark decided on 2026-10-03. [PR #6](https://github.com/markhazlewood42/shadow-jog/pull/6) merged on 2026-10-04 (UTC)): Kit she/her, Rook he/him, Hex they/them, Sable he/him. Kit and Rook are human, Hex is a dwarf, Sable is an orc (Mark said "ogre". The canon word in `docs/GLOSSARY.md` is orc.) `docs/GLOSSARY.md` records it. An old save gets Hex's new objective wording when it loads.
 - **Versioning:** saves record `meta.appVersion`, and a slot saved by a newer version says so ([PR #5](https://github.com/markhazlewood42/shadow-jog/pull/5), merged 2026-10-03). `main` is `0.2.0-dev`.
 - **Process:** `main` is protected by a ruleset. It requires a pull request and a passing `check` job. It blocks deletion and force-push. Mark is new to GitHub release management and asked to be taught as we go. `docs/DEVELOPING.md` section 9 holds the how-to.
+
+**17. Which engine carries the game, now that a 3D mode is planned? (added 2026-10-04, evening)** — **decided 2026-10-04: our own engine, with PixiJS v8 as the 2D renderer and Three.js for the 3D mode. This supersedes the Phaser rebuild of decisions 9 and 10.**
+**Why it came up.** Mark wants a hacking sub-game in true real-time 3D. It is low-poly and fast, with a different vibe. The Matrix mode of Shadowrun on the Sega Genesis inspired it. It must fit seamlessly into the 2D game. Phaser 4 has no 3D, and Phaser Studio says it will almost certainly not get any. Mark asked whether to replatform to Unity before the Phaser rebuild started.
+**What three research rounds found** (full record, with the limits of the evidence: `docs/research/2026-10-04-engine-and-3d.md`):
+- A 3D mode is feasible on the web stack. Three.js as a lazy chunk is about 145-177 kB gzip, and it runs well even on software WebGL.
+- Unity and Godot are full rewrites with multi-MB web builds. Their agent tooling is in beta or tied to an editor. Not chosen.
+- No mature, free web engine among those tested supplies the whole game layer for both crisp 2D and 3D. Every benchmarked engine drew pixel-exact 480x270 output (some after one non-default fix).
+- A Canvas 2D display list (not Pixi) ran the unchanged Phaser spike stage within 1/255. Pixi and Phaser can each share one WebGL2 context with Three.js, shown for simple art only. Pixi filters, masks and parity with the stage are not tested yet.
+- No judge picked Pixi. Two judges picked "grow our Canvas 2D engine + Three.js" and one picked Phaser + Three.js.
+- Resolution: keep 480x270 for now, make W and H one shared module, and compare 640x360 in a mock.
+**Mark's choice (2026-10-04): our own engine on PixiJS v8 now.** He did not choose our own Canvas 2D renderer, because per-object GPU effects matter: special effects are "the real differentiator". He did not choose Phaser + Three.js either. It brings a second scene system, and Phaser has had no release since 2026-07-09. Pixi adds about 155 kB to the first download unless it loads lazily, so the bundle alarm must be re-set on purpose.
+**The design gate (Mark):** no engine code before Mark approves an architecture design doc. It must be easy to read and cover the architecture, the key interfaces, the core primitives and the tooling. It copies established conventions (Phaser first for 2D, then Unity or Godot, Three.js for 3D) and says which one each concept follows.
+**What changes:**
+- The rebuild steps in decision 10 wait for the design. The side-view battle view, the stage design, the editor's behaviour (`docs/TOOLING-UI.md`) and Mark's design data stay. The Phaser spike code is the reference for the port.
+- PR #3 and PR #4 still never merge. Ask Mark before the `archive/*` tags.
+- Next: write the architecture design doc on its own branch. It includes the shared W/H module. Then run a platform spike. It has three parts: the battle stage on the new engine, a 3D hacking scene that a story script starts, and the 480x270 against 640x360 mock. It also tests Pixi filters and masks on the shared context.
 
 ## New concepts for CONCEPTS.md
 

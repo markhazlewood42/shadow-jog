@@ -101,7 +101,7 @@ time. Run a single spec: `npx playwright test e2e/chaos.spec.ts --reporter=line`
 `PW_ALL_ENGINES=1` runs WebKit and Firefox locally too.
 
 ### Tests vs design data
-The stage tools come to `main` in the rebuild of the Phaser spike. Follow this rule from the first commit of the rebuild. The paths below are the paths on `spike/phaser-stage`.
+The stage tools come to `main` when the battle stage is built on the new engine (decision 17 in `docs/PHASE-0.2.md`). Follow this rule from the first commit of that build. The paths below are the paths on `spike/phaser-stage`.
 
 Mark edits the design data (`src/data/stages.json`, `heroes.json`, `hud.json`, `axes.json`, `enemyfacing.json`) in the Battle Stage Editor and saves it. **A test never pins a value that a designer edits in a tool**, or it breaks every time he uses the tool. The rule for the stage tools (`src/stage`, `e2e/stage*`, `e2e/battletest*`, `tests/stage*`):
 

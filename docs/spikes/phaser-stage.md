@@ -1,5 +1,7 @@
 # Spike: Phaser tooling spike (the side-view battle stage and its editor)
 
+> Superseded later on 2026-10-04: Shadow Jog gets its own engine on PixiJS v8 plus Three.js (`docs/PHASE-0.2.md`, decision 17). This spike stays the reference for the battle stage, the editor and the Battle Test, but they will not be rebuilt in Phaser.
+
 > Copied to main on 2026-10-04 as the record. The spike code stays on branch `spike/phaser-stage` (draft PR #4, never merged).
 
 > Note 2026-10-04: the call is made (GO), so read the Result at the end. Statements about CI and "green" in this document date from before the GO. They do not describe the current CI state of PR #4. That state is in the PR.
