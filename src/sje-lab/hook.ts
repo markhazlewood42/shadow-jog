@@ -12,6 +12,7 @@ import type { HackScene } from '../hack3d';
 import { loadChunk } from '../hack3d/door';
 import { describeResult, type HackDef, type HackResult } from '../hack3d/result';
 import type { Frame3D } from '../sje/three';
+import { type BlockStats, countBlocks, fingerprint, words } from './pixeltools';
 import type { LabContent } from './content';
 import type { GlCounts } from './glcounter';
 import type { Lab } from './lab';
@@ -45,18 +46,6 @@ export interface Timing {
   p50: number;
   p95: number;
   max: number;
-}
-
-export interface BlockStats {
-  /** The zoom the canvas is at (whole device pixels per game pixel). */
-  k: number;
-  /** The canvas size in device pixels. */
-  canvasW: number;
-  canvasH: number;
-  /** How many k-by-k blocks there are, and how many are NOT one flat colour. */
-  blocks: number;
-  bad: number;
-  samples: Array<{ x: number; y: number }>;
 }
 
 /** A hack's definition with every field optional: the hook fills in the rest. */
@@ -210,49 +199,6 @@ declare global {
     __SJE__?: SjeHook;
   }
 }
-
-/** A 53-bit string hash (cyrb53) over 32-bit words. Not secure: just a fast fingerprint of a frame. */
-function fingerprint(words: Uint32Array): string {
-  let h1 = 0xdeadbeef;
-  let h2 = 0x41c6ce57;
-  for (let i = 0; i < words.length; i++) {
-    const w = words[i] ?? 0;
-    h1 = Math.imul(h1 ^ w, 2654435761);
-    h2 = Math.imul(h2 ^ w, 1597334677);
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, '0');
-}
-
-/** Count the k-by-k blocks of an image that are not one flat colour. */
-function countBlocks(px: Pixels, k: number): BlockStats {
-  const all = new Uint32Array(px.data.buffer, px.data.byteOffset, px.w * px.h);
-  const stats: BlockStats = { k, canvasW: px.w, canvasH: px.h, blocks: 0, bad: 0, samples: [] };
-  for (let by = 0; by < Math.floor(px.h / k); by++) {
-    for (let bx = 0; bx < Math.floor(px.w / k); bx++) {
-      stats.blocks++;
-      const first = all[by * k * px.w + bx * k];
-      let flat = true;
-      for (let dy = 0; dy < k && flat; dy++) {
-        const row = (by * k + dy) * px.w + bx * k;
-        for (let dx = 0; dx < k; dx++) {
-          if (all[row + dx] !== first) {
-            flat = false;
-            break;
-          }
-        }
-      }
-      if (!flat) {
-        stats.bad++;
-        if (stats.samples.length < 8) stats.samples.push({ x: bx, y: by });
-      }
-    }
-  }
-  return stats;
-}
-
-const words = (p: Pixels): Uint32Array => new Uint32Array(p.data.buffer, p.data.byteOffset, p.w * p.h);
 
 export function installHook(lab: Lab): SjeHook {
   const { game, renderer } = lab;

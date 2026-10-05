@@ -12,8 +12,10 @@
 //      own budget, so its growth is a number that is checked, not remembered.
 //   3. THE ENGINE CHUNKS of the lab page (Pixi + src/sje + the lab): reported, with a budget on the total a
 //      browser downloads to boot the lab (what the first load of the new engine will cost).
+//   4. THE BATTLE STAGE LAB PAGE (sjestage.html, step B1): the engine plus the stage code and its data. Not shipped. Its boot download
+//      has a budget, and no Three.js may be in it (the stage does not use 3D).
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { buildLabChunks } from './labchunks.mjs';
 
@@ -48,6 +50,11 @@ const LAZY_3D_GZIP_MAX = 160 * 1000;
  * not the 3D chunk. Measured 164.1 kB in step B2 (it was 150.7 kB in B0, before filters, masks and the 3D view). Cap at about +10%.
  */
 const LAB_BOOT_GZIP_MAX = 180 * 1000;
+/**
+ * What the battle stage lab page downloads to boot (step B1): the engine, Pixi, the game's art code that the stage uses, the stage and its data.
+ * Measured 170.1 kB (the engine alone is 124.7). Cap at about +10%.
+ */
+const STAGE_LAB_BOOT_GZIP_MAX = 190 * 1000;
 
 /** Strings that exist only in the engine libraries. Found in dist/, they mean the engine reached the shipped game. */
 const ENGINE_MARKERS = [
@@ -113,6 +120,25 @@ if (bootGz > LAB_BOOT_GZIP_MAX) {
 const leaked = lab.filter((c) => c.cls !== 'lazy-3d' && c.threeBytes > 0);
 if (leaked.length) {
   console.error(`  Three.js leaked outside the lazy 3D chunk: ${leaked.map((c) => c.fileName).join(', ')}`);
+  fail = true;
+}
+
+// Class 4: the battle stage lab page.
+console.log('4. the battle stage lab page (not shipped): what it downloads to boot');
+const stage = await buildLabChunks(join(resolve(import.meta.dirname, '..'), 'sjestage.html'));
+const stageBoot = stage.filter((c) => !/browserAll|webworkerAll/.test(c.fileName));
+for (const c of stage) {
+  const skipped = /browserAll|webworkerAll/.test(c.fileName) ? '  (built, never requested: skipExtensionImports)' : '';
+  console.log(`  ${c.cls.padEnd(8)} ${c.fileName.padEnd(30)} ${(c.raw / 1000).toFixed(1).padStart(7)} kB  gzip ${(c.gzip / 1000).toFixed(1).padStart(6)} kB${skipped}`);
+}
+const stageGz = stageBoot.reduce((n, c) => n + c.gzip, 0);
+console.log(`  stage lab boot: ${(stageGz / 1000).toFixed(1)} kB gzip (budget ${STAGE_LAB_BOOT_GZIP_MAX / 1000} kB)`);
+if (stageGz > STAGE_LAB_BOOT_GZIP_MAX) {
+  console.error('  the stage lab boot download is over its budget');
+  fail = true;
+}
+if (stage.some((c) => c.threeBytes > 0)) {
+  console.error('  Three.js is in the stage lab page: the stage does not use 3D');
   fail = true;
 }
 

@@ -14,6 +14,8 @@
  *  6. Raw GL state calls (bindFramebuffer, readPixels, clearColor, pixelStorei, getError...) appear
  *     only in src/sje/render/glhandoff.ts: GlHandoff is the one hand-off point (B2, carry-over f).
  *  5. The new engine never imports the old one.
+ *  7. Phaser is imported nowhere (the battle stage was ported off it in step B1), and the battle stage (src/battlestage) is dev-only: nothing the
+ *     shipped game loads imports it, and it is not reachable from index.html.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
@@ -194,15 +196,39 @@ describe('who may import the engine', () => {
     expect(notFacade.map((e) => `${e.file} -> ${e.target}`)).toEqual(['src/engine/game.ts -> src/sje/core/size']);
   });
 
-  it('in the shipped game, only src/engine/game.ts touches the engine (the lab page is dev-only, and src/hack3d is the not-yet-shipped 3D mode)', () => {
-    const shippedUsers = all.filter((e) => toEngine(e) && e.file.startsWith('src/') && !e.file.startsWith('src/sje/') && !e.file.startsWith('src/sje-lab/') && !e.file.startsWith('src/hack3d/'));
+  it('in the shipped game, only src/engine/game.ts touches the engine (the lab pages are dev-only, and src/hack3d and src/battlestage are the not-yet-shipped 3D mode and battle stage)', () => {
+    const shippedUsers = all.filter((e) => toEngine(e) && e.file.startsWith('src/') && !e.file.startsWith('src/sje/') && !e.file.startsWith('src/sje-lab/') && !e.file.startsWith('src/hack3d/') && !e.file.startsWith('src/battlestage/'));
     expect([...new Set(shippedUsers.map((e) => e.file))]).toEqual(['src/engine/game.ts']);
   });
 
   it('nothing in the lab or the shipped game is reachable from index.html (the lab page is not a build input)', () => {
     const config = readFileSync(join(ROOT, 'vite.config.ts'), 'utf8');
-    expect(config).not.toMatch(/sjelab/);
-    expect(readFileSync(join(ROOT, 'index.html'), 'utf8')).not.toMatch(/sjelab|sje-lab/);
+    expect(config).not.toMatch(/sjelab|sjestage/);
+    expect(readFileSync(join(ROOT, 'index.html'), 'utf8')).not.toMatch(/sjelab|sje-lab|sjestage|battlestage/);
+  });
+
+  it('nothing the shipped game loads imports the battle stage (src/battlestage is used by its lab page and the tests only)', () => {
+    const bad = all.filter((e) => e.target?.startsWith('src/battlestage') && !/^(src\/(battlestage|sje-lab)|tests|e2e|scripts)\//.test(e.file));
+    expect(bad.map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+    // And the scan is alive: the lab page does import it.
+    expect(all.some((e) => e.target?.startsWith('src/battlestage') && e.file.startsWith('src/sje-lab/'))).toBe(true);
+  });
+});
+
+describe('Phaser is gone', () => {
+  it('no file in src, tests, e2e or scripts imports phaser, and it is not a dependency (the battle stage was ported off it, step B1)', () => {
+    expect(all.filter((e) => e.spec === 'phaser' || e.spec.startsWith('phaser/')).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+    expect(Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).filter((n) => /phaser/i.test(n))).toEqual([]);
+  });
+
+  it('the stage code that was ported (src/battlestage) imports the engine only through its facade, and Pixi never', () => {
+    const stage = edges(['src/battlestage']);
+    expect(stage.length).toBeGreaterThan(20);
+    const toSje = stage.filter((e) => e.target?.startsWith('src/sje'));
+    expect(toSje.length).toBeGreaterThan(0);
+    expect(toSje.filter((e) => e.target !== 'src/sje' && e.target !== 'src/sje/index').map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+    expect(stage.filter((e) => isPixi(e.spec) || isThree(e.spec)).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
   });
 });
 

@@ -1,0 +1,551 @@
+/**
+ * The battle stage slice on the Shadow Jog Engine (/sjestage.html), checked in a real browser. Step B1 of the engine-platform spike
+ * (docs/spikes/engine-platform.md, exit criterion 7; docs/engine/verification.md): ONE stage (street), ONE hero (Kit) and ONE enemy (the
+ * punk), the HUD off, ported from the Phaser spike through the translation table (docs/engine/migration.md section 6).
+ *
+ * What it checks, and where the rule comes from:
+ *  - parity: the engine's frame against the frames of the Phaser spike's own page at three ticks, for the stand-in crew (what CI has) and,
+ *    on Mark's machine, for his sprites. The pass line: no pixel differs by more than 2/255 in any channel, and at most 3% of the pixels
+ *    differ at all. The numbers are printed and attached to the test report. A diff picture is saved when `SJESTAGE_SHOTS=<folder>` is set;
+ *  - the design: depth order (a nearer figure draws over a farther one, the parts of a figure sort inside it), the feet where the stage
+ *    config puts them, the origin on the feet, the mirrored enemy, the hero's idle frame chosen from the tick;
+ *  - crispness: at zoom 4 every 4x4 block of the canvas is one flat colour, at device pixel ratios 1, 1.25, 1.5, 1.75, 2 and 2.25;
+ *  - determinism: the same tick, the same seed and the same sprite mode give the same pixel hash on two page loads, and however the ticks
+ *    are split; a different seed gives a different floor;
+ *  - stability: the picture changes at exactly the ticks where the idle animation says it should, so nothing flickers;
+ *  - leaks: textures and GL objects are flat over restarts of the scene; context loss and restore; and the frame cost.
+ *
+ * Run it:  npx playwright test e2e/sjestage.spec.ts --reporter=line
+ *          PW_NOGPU=1 npx playwright test e2e/sjestage.spec.ts   (software GL, like CI)
+ *          SJESTAGE_SHOTS=<folder> saves the engine, reference and diff pictures.
+ *          SJESTAGE_REFS=<folder> adds the frames of Mark's art (made by `node scripts/sjestage-refs.mjs --out <folder>`).
+ *          STAGELAB_NO_SPRITES=1 pretends Mark's folder is missing (what CI sees): the page uses the stand-ins.
+ */
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { expect, type Page, test } from '@playwright/test';
+import { depthFor, enemySlots, loadStages, loadHud, slotPoint, type StageConfig } from '../src/battlestage/config';
+import { enemyIdle, idleFrame } from '../src/battlestage/idle';
+import {
+  compareFrames,
+  describeParity,
+  encodePng,
+  FIXTURES,
+  H,
+  HAVE_ART,
+  isSoftware,
+  openStage,
+  PARITY_MAX_CHANNEL,
+  PARITY_MAX_PERCENT,
+  readCommitted,
+  readReference,
+  rendererKind,
+  readSlice,
+  ROOT,
+  type SpriteMode,
+  savePicture,
+  W,
+  withStage,
+} from './sjestagekit';
+import { STAGE_KNOWN } from '../src/battlestage/known';
+
+const SLICE = readSlice();
+
+/** `STAGELAB_NO_SPRITES=1` pretends Mark's folder is missing, the way a CI checkout has it. The page is then opened with ?standins, which is what it would choose by itself. */
+const PRETEND_NO_ART = !!process.env.STAGELAB_NO_SPRITES;
+const ART_HERE = HAVE_ART && !PRETEND_NO_ART;
+
+/** One viewport per device pixel ratio, each chosen so the window is a whole number of device pixels and the integer zoom is `k` (as in e2e/sjelab.spec.ts). */
+const ZOOM4 = [
+  { dpr: 1, viewport: { width: 1920, height: 1080 }, k: 4 },
+  { dpr: 1.25, viewport: { width: 1600, height: 900 }, k: 4 },
+  { dpr: 1.5, viewport: { width: 1300, height: 730 }, k: 4 },
+  { dpr: 1.75, viewport: { width: 1100, height: 620 }, k: 4 },
+  { dpr: 2, viewport: { width: 960, height: 540 }, k: 4 },
+  { dpr: 2.25, viewport: { width: 1600, height: 900 }, k: 7 },
+];
+
+/** The stage as the game reads it (the same loader the page uses), for checks that compare the display list with the config. */
+function shippedStage(seed?: number): StageConfig {
+  const json = (name: string): unknown => JSON.parse(readFileSync(join(ROOT, 'src', 'data', name), 'utf8'));
+  // (No list of backdrop ids here: it lives in the art code, which needs a browser. The page checks the ids when it loads the file.)
+  const file = loadStages(json('stages.json'), undefined, STAGE_KNOWN, loadHud(json('hud.json')));
+  const stage = file[SLICE.stageId];
+  if (!stage) throw new Error(`no stage ${SLICE.stageId}`);
+  return seed === undefined ? stage : { ...stage, floor: { ...stage.floor, seed } };
+}
+
+const rgba = (base64: string): Buffer => Buffer.from(base64, 'base64');
+
+/** Show the slice at a tick in a mode and read the back buffer. */
+async function frameAt(page: Page, tick: number, sprites: SpriteMode, seed = SLICE.seed): Promise<Buffer> {
+  const got = await page.evaluate(async ([t, s, sd]) => {
+    const h = window.__SJESTAGE__;
+    if (!h) throw new Error('no hook');
+    await h.show({ tick: t as number, sprites: s as 'standins' | 'art', seed: sd as number });
+    return h.pixels();
+  }, [tick, sprites, seed] as const);
+  expect(got.w * got.h * 4).toBe(W * H * 4);
+  return rgba(got.base64);
+}
+
+test.describe('stage lab: boot', () => {
+  test('boots on WebGL2 with zero console errors and warnings, and says which renderer drew it and which crew pictures it uses', async ({ browser }) => {
+    await withStage(
+      browser,
+      async ({ page, problems }) => {
+        // Nothing has read a pixel yet: no console error, no warning, none allowed.
+        expect(problems, 'console errors and warnings during boot').toEqual([]);
+        const info = await page.evaluate(() => window.__SJESTAGE__?.info());
+        console.log(`SJESTAGE renderer: ${info?.renderer} | ${info?.version} | k=${info?.k} dpr=${info?.dpr} | sprites ${info?.sprites} | Mark's art here: ${info?.haveArt}`);
+        expect(info?.w).toBe(480);
+        expect(info?.h).toBe(270);
+        // The page uses Mark's art when it is there, and the stand-ins on a machine without it (CI), unless it was told otherwise.
+        expect(info?.haveArt).toBe(ART_HERE);
+        expect(info?.sprites).toBe(ART_HERE ? 'art' : 'standins');
+        // One scene, with two figures: Kit and the punk.
+        const figures = await page.evaluate(() => window.__SJESTAGE__?.figures());
+        expect(figures?.map((f) => f.id)).toEqual([...SLICE.lineup, ...SLICE.enemies.map((e, i) => `${e}#${i}`)]);
+      },
+      // STAGELAB_NO_SPRITES=1 shows the page what CI shows it: no sprite folder at all, and no ?standins to tell it so.
+      { query: 'manual', hideArt: PRETEND_NO_ART },
+    );
+  });
+
+  test('without Mark’s sprite folder (every request for it answered with the app’s own page, as Vite does) the page finds that out by itself, uses the stand-ins and logs nothing', async ({ browser }) => {
+    const lab = await openStage(browser, { query: 'manual', hideArt: true });
+    try {
+      expect(lab.problems, 'console errors and warnings').toEqual([]);
+      const info = await lab.page.evaluate(() => window.__SJESTAGE__?.info());
+      expect(info?.haveArt).toBe(false);
+      expect(info?.sprites).toBe('standins');
+      // Asking for his art there is a readable error, not a blank picture.
+      const message = await lab.page.evaluate(() => window.__SJESTAGE__?.show({ sprites: 'art' }).then(() => 'no error', (e: Error) => e.message));
+      expect(message).toContain('not on this machine');
+      // The picture is the one the ?standins page draws.
+      const hidden = await lab.page.evaluate(() => window.__SJESTAGE__?.show({ tick: 41, sprites: 'standins' }));
+      await withStage(
+        browser,
+        async ({ page }) => {
+          expect(await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 41, sprites: 'standins' }))).toBe(hidden);
+        },
+        { query: 'manual&standins' },
+      );
+    } finally {
+      await lab.close();
+    }
+  });
+
+  test('the picture is not blank, and nothing is drawn over the canvas', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      const px = rgba((await page.evaluate(() => window.__SJESTAGE__?.pixels()))?.base64 ?? '');
+      const colours = new Set<number>();
+      for (let i = 0; i < px.length; i += 4) colours.add(px.readUInt32LE(i));
+      // A backdrop with fighters has hundreds of colours; one flat colour or a handful means a blank or failed draw.
+      expect(colours.size).toBeGreaterThan(100);
+      let transparent = 0;
+      for (let i = 3; i < px.length; i += 4) if (px[i] !== 255) transparent++;
+      expect(transparent, 'every pixel of the back buffer is opaque').toBe(0);
+    });
+  });
+});
+
+test.describe('stage lab: parity with the Phaser spike (exit criterion 7)', () => {
+  const modes: SpriteMode[] = ['standins', 'art'];
+  for (const mode of modes) {
+    for (const tick of SLICE.ticks) {
+      test(`${mode}, tick ${tick}: no pixel differs by more than ${PARITY_MAX_CHANNEL}/255, and at most ${PARITY_MAX_PERCENT}% of the pixels differ`, async ({ browser }, testInfo) => {
+        test.skip(mode === 'art' && !ART_HERE, "Mark's sprite folder is not here, so his art cannot be shown (the stand-in numbers are the CI line)");
+        await withStage(browser, async ({ page }) => {
+          const kind = await rendererKind(page);
+          const ref = readReference(mode, kind, tick);
+          test.skip(ref === null, `no ${kind} reference frame for ${mode} tick ${tick}: run node scripts/sjestage-refs.mjs --out <folder>${kind === 'soft' ? ' --no-gpu' : ''} and set SJESTAGE_REFS=<folder>`);
+          if (!ref) return;
+          const engine = await frameAt(page, tick, mode);
+          const parity = compareFrames(engine, ref);
+          const line = describeParity(`PARITY ${mode} ${kind} t${tick}`, parity);
+          console.log(line);
+          testInfo.annotations.push({ type: 'parity', description: line });
+          savePicture(`sjestage-${mode}-${kind}-t${tick}-engine.png`, encodePng(engine, W, H, 2));
+          savePicture(`sjestage-${mode}-${kind}-t${tick}-ref.png`, encodePng(ref, W, H, 2));
+          savePicture(`sjestage-${mode}-${kind}-t${tick}-diff.png`, encodePng(parity.diff, W, H, 2));
+          expect(parity.maxDiff, `largest channel difference (samples ${JSON.stringify(parity.samples)})`).toBeLessThanOrEqual(PARITY_MAX_CHANNEL);
+          expect(parity.pct, 'percent of pixels that differ at all').toBeLessThanOrEqual(PARITY_MAX_PERCENT);
+        });
+      });
+    }
+  }
+
+  test('the committed references are what the capture script says they are: made for THIS slice, three stand-in frames for each renderer kind, opaque, not blank, and the hashes in the manifest match', async () => {
+    for (const kind of ['gpu', 'soft'] as const) {
+      const manifest = JSON.parse(readFileSync(join(FIXTURES, `manifest-${kind}.json`), 'utf8')) as { slice: unknown; kind: string; files: Record<string, { bytes: number; sha256: string }> };
+      expect(manifest.slice, `manifest-${kind}.json was made for src/battlestage/slice.json as it is now (run scripts/sjestage-refs.mjs again if the slice changed)`).toEqual(SLICE);
+      expect(manifest.kind).toBe(kind);
+      for (const tick of SLICE.ticks) {
+        const ref = readCommitted(kind, tick);
+        expect(ref, `the committed ${kind} stand-in reference for tick ${tick} (tests/fixtures/sjestage)`).not.toBeNull();
+        if (!ref) continue;
+        expect(ref.length).toBe(W * H * 4);
+        expect(createHash('sha256').update(ref).digest('hex'), `sha256 of ${kind} tick ${tick}`).toBe(manifest.files[`standins-${kind}-t${tick}.rgba`]?.sha256);
+        // A plain loop and ONE expect: 130,000 calls of expect() take minutes.
+        const colours = new Set<number>();
+        let transparent = 0;
+        for (let i = 0; i < ref.length; i += 4) {
+          if (ref[i + 3] !== 255) transparent++;
+          colours.add(ref.readUInt32LE(i));
+        }
+        expect(transparent, `non-opaque pixels in the ${kind} reference for tick ${tick}`).toBe(0);
+        expect(colours.size).toBeGreaterThan(100);
+      }
+    }
+  });
+
+  test('the GPU and the software references differ from each other by 1/255 at most, on a few percent of the pixels: that is why there are two sets (the game’s own glow layer is painted by canvas code that is renderer dependent)', async () => {
+    for (const tick of SLICE.ticks) {
+      const gpu = readCommitted('gpu', tick);
+      const soft = readCommitted('soft', tick);
+      expect(gpu && soft).toBeTruthy();
+      if (!gpu || !soft) continue;
+      const p = compareFrames(gpu, soft);
+      console.log(describeParity(`GPU against SOFTWARE reference, tick ${tick}`, p));
+      expect(p.maxDiff).toBeLessThanOrEqual(1);
+      expect(p.differing, 'the two kinds really do differ (otherwise one set would do)').toBeGreaterThan(0);
+      // Where they differ is the street's glow layer (the shop windows and signs in the wall): 1,732 translucent pixels at 240x135, four pixels each at 480x270.
+      expect(p.pct).toBeLessThan(5);
+    }
+  });
+
+  test('NEGATIVE CONTROL: the harness fails a frame that is wrong (a figure moved one pixel, a colour off by 3)', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      const ref = readReference('standins', await rendererKind(page), SLICE.ticks[1] ?? 0);
+      expect(ref).not.toBeNull();
+      if (!ref) return;
+      const engine = await frameAt(page, SLICE.ticks[1] ?? 0, 'standins');
+      // The real frame passes (the tests above). Shift the whole picture one pixel to the right: a nearly identical picture that is wrong.
+      const shifted = Buffer.from(engine);
+      for (let y = 0; y < H; y++) engine.copy(shifted, (y * W + 1) * 4, y * W * 4, (y * W + W - 1) * 4);
+      const moved = compareFrames(shifted, ref);
+      expect(moved.maxDiff > PARITY_MAX_CHANNEL || moved.pct > PARITY_MAX_PERCENT, `a picture shifted by one pixel is caught: ${describeParity('shifted', moved)}`).toBe(true);
+      // A tint of 3/255 on every pixel is caught by the channel rule alone.
+      const tinted = Buffer.from(engine);
+      for (let i = 0; i < tinted.length; i += 4) tinted[i] = Math.min(255, (tinted[i] ?? 0) + 3);
+      const off = compareFrames(tinted, ref);
+      expect(off.maxDiff, 'a colour off by 3 is caught').toBeGreaterThan(PARITY_MAX_CHANNEL);
+      // The measure itself: a picture compared with itself has no difference.
+      expect(compareFrames(engine, Buffer.from(engine)).differing).toBe(0);
+    });
+  });
+});
+
+test.describe('stage lab: the stage is the design', () => {
+  test('figures stand where the stage config puts them, and draw in the order of their feet (a nearer figure over a farther one)', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 0, sprites: 'standins' }));
+      const stage = shippedStage();
+      const figures = (await page.evaluate(() => window.__SJESTAGE__?.figures())) ?? [];
+      expect(figures).toHaveLength(2);
+      const kit = figures[0];
+      const punk = figures[1];
+      if (!kit || !punk) throw new Error('two figures');
+      // The feet: the config's slot, through the same function the stage uses (so a design edit in the editor does not break this test).
+      const heroSlot = stage.party[0];
+      const foeSlot = enemySlots(stage, SLICE.setKey)[0];
+      if (!heroSlot || !foeSlot) throw new Error('slots');
+      const heroFeet = slotPoint(stage, heroSlot);
+      const foeFeet = slotPoint(stage, foeSlot);
+      expect([kit.x, kit.y]).toEqual([heroFeet.x, heroFeet.y]);
+      expect([punk.x, punk.y]).toEqual([foeFeet.x, foeFeet.y]);
+      // The depth: the one number depthFor gives for the feet (rows apart by at least 14 px = 14,000, so a lower row always wins).
+      expect(kit.depth).toBe(depthFor(heroFeet.y, heroFeet.x, 'party', heroSlot.order ?? 0));
+      expect(punk.depth).toBe(depthFor(foeFeet.y, foeFeet.x, 'enemy', foeSlot.order ?? 0));
+      // The draw order of the stage: the backdrop first, then the figures from the farthest feet to the nearest.
+      const order = await page.evaluate(() => window.__SJESTAGE__?.drawOrder());
+      const farFirst = [kit, punk].sort((a, b) => a.depth - b.depth).map((f) => `figure ${f.id}`);
+      expect(order?.[0]).toMatch(/^crew|stage-street/);
+      expect(order?.slice(1)).toEqual(farFirst);
+      // The parts of a figure sort inside it: shadow, then ring, then the body.
+      for (const f of [kit, punk]) expect(await page.evaluate((id) => window.__SJESTAGE__?.partOrder(id), f.id)).toEqual(['shadow', 'ring', 'body']);
+      // The ring: cyan under the acting hero, amber under the target, both shown in the slice. The body sits one pixel below the feet row, the shadow too.
+      expect(kit.ring.visible && punk.ring.visible).toBe(true);
+      expect(kit.shadow.visible && punk.shadow.visible).toBe(true);
+      expect([kit.body.y, punk.body.y]).toEqual([1, 1]);
+    });
+  });
+
+  test('the origin of a body is its feet; the punk is mirrored to face the hero, Kit is not; the hero shows the idle frame of the tick', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      for (const tick of [0, 1, 7, 8, 41, 173, 480]) {
+        await page.evaluate((t) => window.__SJESTAGE__?.show({ tick: t, sprites: 'standins' }), tick);
+        const [kit, punk] = (await page.evaluate(() => window.__SJESTAGE__?.figures())) ?? [];
+        if (!kit || !punk) throw new Error('two figures');
+        // Stand-in sheets: 8 frames at 8 fps, the first hero starts at phase 0 (the spike's rule: phase = (index * 3) mod count).
+        expect(kit.body.frame, `Kit's idle frame at tick ${tick}`).toBe(idleFrame(tick, 8, 8, 0));
+        expect(kit.body.flipX).toBe(false);
+        expect(punk.body.flipX, 'the punk art faces right, so it is flipped to face the hero (enemyfacing.json)').toBe(true);
+        // The enemy's body moves with the tick: its idle motion is a function of the tick and its number (enemyIdle). Before the first tick it stands at its feet. The shadow stays on the floor.
+        expect(punk.body.texture).toMatch(/^(haze-)?enemy-punk-0/);
+        const sway = tick === 0 ? { x: 0, y: 0 } : enemyIdle(punk.idle as Parameters<typeof enemyIdle>[0], tick, 0);
+        expect([punk.body.x, punk.body.y - 1], `the punk's idle (${punk.idle}) at tick ${tick}`).toEqual([sway.x, sway.y]);
+        // Origins are the feet as a fraction of the picture, so they are whole pixels (the engine would have warned otherwise: no console problems).
+        expect(kit.body.originX).toBeGreaterThan(0);
+        expect(kit.body.originY).toBeGreaterThan(0.5);
+      }
+    });
+  });
+
+  test('a restart makes the same stage again, and the idle loop wraps (the frame at tick 60 is the frame at tick 0 plus 8)', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      const frames: Array<string | number | undefined> = [];
+      for (const tick of [0, 60]) {
+        await page.evaluate((t) => window.__SJESTAGE__?.show({ tick: t, sprites: 'standins' }), tick);
+        frames.push(((await page.evaluate(() => window.__SJESTAGE__?.figures())) ?? [])[0]?.body.frame);
+      }
+      // 8 frames at 8 fps is 8 frames a second: 60 ticks make a whole loop of 8, so tick 60 shows frame 0 again.
+      expect(frames).toEqual([0, 0]);
+    });
+  });
+});
+
+test.describe('stage lab: determinism', () => {
+  test('the same tick, seed and sprite mode give the same pixel hash on two page loads, and however the ticks are split', async ({ browser }) => {
+    const runs: string[][] = [];
+    for (let load = 0; load < 2; load++) {
+      await withStage(browser, async ({ page }) => {
+        const run: string[] = [];
+        for (const t of [0, 1, 20, 41, 60, 95, 173, 600]) run.push((await page.evaluate((tick) => window.__SJESTAGE__?.show({ tick, sprites: 'standins' }), t)) ?? '');
+        runs.push(run);
+      });
+    }
+    expect(runs[0]).toEqual(runs[1]);
+    // Different ticks make different pictures (so the equality above is not two blank frames), except where the idle loop wraps.
+    expect(new Set(runs[0]).size, 'distinct pictures over the ticks').toBeGreaterThanOrEqual(4);
+    // And the same tick reached in different ways: 1 x 173, and 173 x 1, and 3 pieces.
+    await withStage(browser, async ({ page }) => {
+      const whole = await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 173, sprites: 'standins' }));
+      await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 0, sprites: 'standins' }));
+      const ones = await page.evaluate(() => {
+        let h = '';
+        for (let i = 0; i < 173; i++) h = window.__SJESTAGE__?.step(1) ?? '';
+        return h;
+      });
+      await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 0, sprites: 'standins' }));
+      const pieces = await page.evaluate(() => {
+        window.__SJESTAGE__?.step(100);
+        window.__SJESTAGE__?.step(60);
+        return window.__SJESTAGE__?.step(13);
+      });
+      expect(ones).toBe(whole);
+      expect(pieces).toBe(whole);
+    });
+  });
+
+  test('the seed decides the floor (the same seed, the same picture; another seed, another floor) and the tick does not change it', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      const hash = (seed: number) => page.evaluate((s) => window.__SJESTAGE__?.show({ tick: 0, sprites: 'standins', seed: s }), seed);
+      const a = await hash(7);
+      const b = await hash(7);
+      const c = await hash(8);
+      expect(b).toBe(a);
+      expect(c).not.toBe(a);
+      // Another floor seed moves only the floor decorations, not the figures: the pictures share their upper part (the wall).
+      const wallA = rgba((await page.evaluate(async () => { await window.__SJESTAGE__?.show({ tick: 0, sprites: 'standins', seed: 7 }); return window.__SJESTAGE__?.pixels(); }))?.base64 ?? '');
+      const wallC = rgba((await page.evaluate(async () => { await window.__SJESTAGE__?.show({ tick: 0, sprites: 'standins', seed: 8 }); return window.__SJESTAGE__?.pixels(); }))?.base64 ?? '');
+      const horizon = shippedStage().backdrop.horizonY;
+      const above = (px: Buffer): Buffer => px.subarray(0, (horizon - 4) * W * 4);
+      expect(above(wallC).equals(above(wallA)), 'the wall above the horizon does not depend on the floor seed').toBe(true);
+    });
+  });
+
+  test('the picture does not depend on the window: the back buffer hash is the same at every device pixel ratio and zoom', async ({ browser }) => {
+    const hashes: string[] = [];
+    for (const { dpr, viewport } of ZOOM4.filter((_, i) => i === 0 || i === 2 || i === 5)) {
+      await withStage(
+        browser,
+        async ({ page }) => {
+          hashes.push((await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 41, sprites: 'standins' }))) ?? '');
+        },
+        { dpr, viewport },
+      );
+    }
+    expect(new Set(hashes).size).toBe(1);
+  });
+});
+
+test.describe('stage lab: crisp pixels at every zoom and device pixel ratio (the slice, zoom 4 or more)', () => {
+  for (const { dpr, viewport, k } of ZOOM4) {
+    test(`every ${k}x${k} block is one flat colour at device pixel ratio ${dpr}, window ${viewport.width}x${viewport.height} (the GL canvas, and a screenshot of the page)`, async ({ browser }) => {
+      await withStage(
+        browser,
+        async ({ page }) => {
+          const info = await page.evaluate(() => window.__SJESTAGE__?.info());
+          expect(info?.k, 'integer zoom').toBe(k);
+          // The idle loop moves the hero's frame and the punk's body: check several ticks, not one still picture.
+          for (const tick of [0, 41, 173, 300]) {
+            await page.evaluate((t) => window.__SJESTAGE__?.show({ tick: t, sprites: 'standins' }), tick);
+            const blocks = await page.evaluate(() => window.__SJESTAGE__?.canvasBlocks());
+            expect(blocks?.canvasW).toBe(480 * k);
+            expect(blocks?.canvasH).toBe(270 * k);
+            expect(blocks?.blocks).toBe(480 * 270);
+            expect(blocks?.bad, `non-uniform ${k}x${k} blocks at tick ${tick}, dpr ${dpr}: ${JSON.stringify(blocks?.samples)}`).toBe(0);
+          }
+          // What the compositor shows: a screenshot of the page, with the picture's place in it.
+          const pic = await page.evaluate(() => window.__SJESTAGE__?.picture());
+          expect(pic?.k).toBe(k);
+          expect(Number.isInteger(pic?.x) && Number.isInteger(pic?.y)).toBe(true);
+          const shot = await page.screenshot();
+          const url = `data:image/png;base64,${shot.toString('base64')}`;
+          const region = { x: pic?.x ?? 0, y: pic?.y ?? 0, w: 480 * k, h: 270 * k };
+          const blocks = await page.evaluate(([u, kk, r]) => window.__SJESTAGE__?.imageBlocks(u as string, kk as number, r as typeof region), [url, k, region]);
+          expect(blocks?.blocks).toBe(480 * 270);
+          expect(blocks?.bad, `non-uniform ${k}x${k} blocks in the screenshot at dpr ${dpr}: ${JSON.stringify(blocks?.samples)}`).toBe(0);
+        },
+        { dpr, viewport },
+      );
+    });
+  }
+});
+
+test.describe('stage lab: stability (V4)', () => {
+  test('the picture changes at exactly the ticks where the idle animation moves something, so nothing flickers', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 0, sprites: 'standins' }));
+      const TICKS = 240;
+      const hashes = await page.evaluate((n) => {
+        const h = window.__SJESTAGE__;
+        if (!h) throw new Error('no hook');
+        const out: string[] = [h.hash()];
+        for (let i = 0; i < n; i++) out.push(h.step(1));
+        return out;
+      }, TICKS);
+      // What the idle animation says: Kit's frame is a function of the tick, and so is the punk's offset. Two rules, both exact:
+      //  1. the picture NEVER changes at a tick where neither of them moved (nothing moves by itself);
+      //  2. it ALWAYS changes where the punk moved (its offset is whole pixels, so a move is a different picture).
+      // (Kit's own frame changes are not required to show: the stand-in sheet repeats pictures, frames 0 and 1 are the same block.)
+      const [foe0] = ((await page.evaluate(() => window.__SJESTAGE__?.figures())) ?? []).slice(1);
+      const punkIdle = (foe0?.idle ?? 'still') as Parameters<typeof enemyIdle>[0];
+      let moved = 0;
+      let flickers = 0;
+      for (let t = 1; t <= TICKS; t++) {
+        const heroChanged = idleFrame(t, 8, 8, 0) !== idleFrame(t - 1, 8, 8, 0);
+        const a = enemyIdle(punkIdle, t, 0);
+        const b = enemyIdle(punkIdle, t - 1, 0);
+        const foeChanged = a.x !== b.x || a.y !== b.y;
+        const changed = hashes[t] !== hashes[t - 1];
+        if (!heroChanged && !foeChanged) expect(changed, `the picture changed at tick ${t}, where nothing moves`).toBe(false);
+        if (foeChanged) expect(changed, `the punk moved at tick ${t} but the picture did not change`).toBe(true);
+        if (changed) moved++;
+        // A flicker is a picture that goes away and comes straight back (A, B, A) when the idle loop did not move there and back.
+        if (t >= 2 && hashes[t] === hashes[t - 2] && hashes[t] !== hashes[t - 1]) flickers++;
+      }
+      expect(moved, 'the idle animation moves the picture').toBeGreaterThanOrEqual(10);
+      // The hero's loop is 8 frames of 7.5 ticks and the punk sways slowly: neither goes A, B, A in two ticks.
+      expect(flickers, 'pictures that flash away for one tick and come back').toBe(0);
+    });
+  });
+});
+
+test.describe('stage lab: scenes come and go without leaking', () => {
+  test('texture keys and GL objects are flat over 10 restarts of the scene (after a warm-up), and a deliberate leak would show', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      // Warm up: the first restarts make the cached pictures (stage, haze, shadow, ring), later ones find them again.
+      await page.evaluate(() => window.__SJESTAGE__?.reenter(4));
+      const before = await page.evaluate(() => ({ gl: window.__SJESTAGE__?.glCounts(), keys: window.__SJESTAGE__?.textureKeys().sort() }));
+      await page.evaluate(() => window.__SJESTAGE__?.reenter(10));
+      const after = await page.evaluate(() => ({ gl: window.__SJESTAGE__?.glCounts(), keys: window.__SJESTAGE__?.textureKeys().sort() }));
+      console.log(`SJESTAGE GL counts: before ${JSON.stringify(before.gl)} after 10 restarts ${JSON.stringify(after.gl)}`);
+      expect(after.keys, 'the texture list is unchanged').toEqual(before.keys);
+      expect(after.gl, 'GL object counts are unchanged').toEqual(before.gl);
+      // The negative control: a deliberate leak of 6 textures MUST show up in the same counts.
+      await page.evaluate(() => window.__SJESTAGE__?.leakOnPurpose(6));
+      const leaked = await page.evaluate(() => window.__SJESTAGE__?.glCounts());
+      console.log(`SJESTAGE GL counts after a deliberate leak of 6 textures ${JSON.stringify(leaked)}`);
+      expect(leaked?.texture, 'the control leak shows in the GL texture count').toBeGreaterThanOrEqual((after.gl?.texture ?? 0) + 6);
+    });
+  });
+
+  test('changing the seed and the sprite mode repeatedly leaves one stage picture and one set of crew pictures', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      for (const seed of [7, 8, 9, 7, 8]) await page.evaluate((s) => window.__SJESTAGE__?.show({ tick: 3, seed: s, sprites: 'standins' }), seed);
+      const keys = (await page.evaluate(() => window.__SJESTAGE__?.textureKeys())) ?? [];
+      expect(keys.filter((k) => k.startsWith('stage-')), 'only the current stage picture is kept').toHaveLength(1);
+      // The shadow and ring pictures are made on demand from numbers: one of each size the figures use now, no more.
+      expect(keys.filter((k) => k.startsWith('shadow-')).length).toBeLessThanOrEqual(2);
+      expect(keys.filter((k) => k.startsWith('ring-')).length).toBeLessThanOrEqual(2);
+    });
+  });
+
+  test('a lost WebGL context comes back with the same picture (the textures are canvases, uploaded again)', async ({ browser }) => {
+    await withStage(
+      browser,
+      async ({ page }) => {
+        const before = await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 41, sprites: 'standins' }));
+        await page.evaluate(() => window.__SJESTAGE__?.loseContext());
+        expect(await page.evaluate(() => window.__SJESTAGE__?.contextLost())).toBe(true);
+        await page.evaluate(() => window.__SJESTAGE__?.restoreContext());
+        expect(await page.evaluate(() => window.__SJESTAGE__?.contextLost())).toBe(false);
+        await page.evaluate(() => window.__SJESTAGE__?.render());
+        expect(await page.evaluate(() => window.__SJESTAGE__?.hash())).toBe(before);
+        // And the scene keeps running after it.
+        const after = await page.evaluate(() => window.__SJESTAGE__?.step(1));
+        expect(after).toBeTruthy();
+      },
+    );
+  });
+});
+
+/** The percentile of a list (0 to 1). */
+function percentile(xs: number[], q: number): number {
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.floor(q * s.length))] ?? 0;
+}
+
+const FRAME_COST_MS = 8;
+
+test.describe('stage lab: speed', () => {
+  test('a frame of the slice costs far less than the budget (GPU wait included); the control (the same frame drawn 1500 extra times) fails the same line', async ({ browser }, testInfo) => {
+    test.setTimeout(240_000);
+    const lab = await openStage(browser, { query: 'standins' });
+    try {
+      const { page } = lab;
+      const soft = await isSoftware(page);
+      await page.evaluate(() => window.__SJESTAGE__?.profileLoop(90)); // warm up
+      const plain = await page.evaluate(() => window.__SJESTAGE__?.profileLoop(300));
+      const synced = await page.evaluate(() => window.__SJESTAGE__?.profileLoop(200, { sync: true }));
+      const work = (plain?.work ?? []).slice(20);
+      const cost = (synced?.cost ?? []).slice(20);
+      const intervals = (plain?.intervals ?? []).slice(20);
+      const timing = await page.evaluate(() => window.__SJESTAGE__?.timing(300));
+      const info = await page.evaluate(() => window.__SJESTAGE__?.info());
+      const line =
+        `SJESTAGE SPEED on ${info?.renderer}: frame interval p50 ${percentile(intervals, 0.5).toFixed(2)} p95 ${percentile(intervals, 0.95).toFixed(2)} ms | ` +
+        `JavaScript work (tick + draw submit) p50 ${percentile(work, 0.5).toFixed(2)} p95 ${percentile(work, 0.95).toFixed(2)} max ${Math.max(...work).toFixed(2)} ms | ` +
+        `FRAME COST with the GPU wait: p50 ${percentile(cost, 0.5).toFixed(2)} p95 ${percentile(cost, 0.95).toFixed(2)} max ${Math.max(...cost).toFixed(2)} ms | ` +
+        `one tick mean ${timing?.tick.mean.toFixed(4)} ms, one draw submit mean ${timing?.draw.mean.toFixed(3)} ms`;
+      console.log(line);
+      testInfo.annotations.push({ type: 'speed', description: line });
+      expect(cost.length).toBeGreaterThan(100);
+      // One tick of the stage is two small changes: it must be negligible next to a frame.
+      expect(timing?.tick.mean ?? 99).toBeLessThan(0.5);
+      if (!soft) {
+        // The pass line, on a real GPU: a frame costs at most 8 ms (the B2 rule) and the JavaScript work at most 8 ms.
+        expect(percentile(cost, 0.95), 'frame cost p95').toBeLessThanOrEqual(FRAME_COST_MS);
+        expect(percentile(work, 0.95), 'JavaScript work p95').toBeLessThanOrEqual(FRAME_COST_MS);
+      } else {
+        // Software GL (CI, PW_NOGPU): the CPU draws every pixel, so timing thresholds belong on a GPU. The gate only catches a stuck loop.
+        expect(percentile(intervals, 0.95)).toBeLessThan(80);
+      }
+      // The negative control: the same rule, on a frame made 1500 draws heavier, must fail (only meaningful on a GPU).
+      if (!soft) {
+        const heavy = await page.evaluate(() => window.__SJESTAGE__?.profileLoop(100, { sync: true, extraRenders: 1500 }));
+        const heavyCost = (heavy?.cost ?? []).slice(10);
+        console.log(`SJESTAGE SPEED NEGATIVE CONTROL: frame cost p95 ${percentile(heavyCost, 0.95).toFixed(2)} ms with 1500 extra draws a frame (the line is ${FRAME_COST_MS} ms)`);
+        expect(percentile(heavyCost, 0.95), 'the cost rule fails on a heavy frame').toBeGreaterThan(FRAME_COST_MS);
+      }
+      expect(lab.problems.filter((p) => !/GPU stall/.test(p))).toEqual([]);
+    } finally {
+      await lab.close();
+    }
+  });
+});
+

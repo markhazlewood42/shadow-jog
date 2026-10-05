@@ -3,6 +3,7 @@
 //
 // It builds two things into a temporary folder (never `dist/`) and prints every chunk, raw and gzip:
 //   1. the lab page, sjelab.html: the engine, Pixi, the game's own art code and the lab scene;
+//      and the battle stage lab page, sjestage.html (step B1): the same, plus the stage code in src/battlestage and its data;
 //   2. the engine alone: a tiny entry that imports only `src/sje/index.ts` (the facade), so the
 //      number is "Pixi plus the engine", without the art code.
 // The shipped game's own sizes are `npm run budget`. The lab page is not a build input of
@@ -51,6 +52,7 @@ async function measure(label, input) {
 
 try {
   await measure('lab-page', { sjelab: join(root, 'sjelab.html') });
+  await measure('stage-lab-page', { sjestage: join(root, 'sjestage.html') });
   // The engine alone: every export is used, so nothing the facade offers is dropped as dead code.
   const entry = join(work, 'engine-entry.js');
   writeFileSync(entry, `import * as sje from ${JSON.stringify(join(root, 'src/sje/index.ts').split('\\').join('/'))};\nwindow.__sje = sje;\n`);

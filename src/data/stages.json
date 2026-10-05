@@ -1,0 +1,393 @@
+{
+  "street": {
+    "version": 1,
+    "id": "street",
+    "name": "Street",
+    "backdrop": {
+      "id": "street",
+      "mode": "reproject",
+      "horizonY": 100,
+      "shiftY": -32,
+      "skyFade": { "height": 14, "color": "#0b0920", "amount": 0.9 },
+      "layers": [],
+      "foreground": null,
+      "ambient": null
+    },
+    "floor": {
+      "y0": 100,
+      "y1": 270,
+      "style": "grid",
+      "colors": ["#30304e", "#23233b"],
+      "edge": "#3a3a5c",
+      "bandStart": 3,
+      "bandGrowth": 1.2,
+      "seam": { "color": "#8080bc", "far": 0.3, "near": 0.7 },
+      "grid": {
+        "spacing": 64,
+        "vanishY": -400,
+        "color": "#50508a",
+        "alpha": 0.35,
+        "nearAlpha": 0.85,
+        "stagger": true
+      },
+      "texture": { "id": "asphalt-flecks", "shrink": 0.5 },
+      "laneSeams": { "color": "#6c6ca8", "alpha": 0.3 },
+      "stripes": [
+        {
+          "y": 124,
+          "h": 2,
+          "color": "#8a7430",
+          "alpha": 0.75,
+          "dash": [12, 10]
+        }
+      ],
+      "reflections": {
+        "colors": ["#3fe0f0", "#ff4fb0", "#ffcc3d"],
+        "count": 6
+      },
+      "neonSpill": { "reach": 26, "strength": 0.9, "streaks": 0.5 },
+      "haze": { "color": "#34305a", "amount": 0.45, "reach": 44 },
+      "tint": null,
+      "seed": 7
+    },
+    "rows": [
+      { "y": 140 },
+      { "y": 157 },
+      { "y": 174 },
+      { "y": 191 },
+      { "y": 207 }
+    ],
+    "party": [
+      { "x": 46, "row": 4 },
+      { "x": 88, "row": 3 },
+      { "x": 130, "row": 2 },
+      { "x": 167, "row": 1 }
+    ],
+    "enemySets": {
+      "1": [
+        { "x": 361, "row": 1 }
+      ],
+      "2": [
+        { "x": 318, "row": 1 },
+        { "x": 404, "row": 3 }
+      ],
+      "3": [
+        { "x": 316, "row": 0 },
+        { "x": 396, "row": 2 },
+        { "x": 338, "row": 4 }
+      ],
+      "4": [
+        { "x": 315, "row": 0 },
+        { "x": 396, "row": 1 },
+        { "x": 333, "row": 3 },
+        { "x": 420, "row": 4 }
+      ],
+      "5": [
+        { "x": 315, "row": 0 },
+        { "x": 403, "row": 0 },
+        { "x": 350, "row": 2 },
+        { "x": 308, "row": 4 },
+        { "x": 415, "row": 4 }
+      ],
+      "6": [
+        { "x": 319, "row": 0 },
+        { "x": 406, "row": 0 },
+        { "x": 360, "row": 2 },
+        { "x": 440, "row": 2 },
+        { "x": 320, "row": 4 },
+        { "x": 418, "row": 4 }
+      ],
+      "boss": [
+        { "x": 359, "row": 3, "size": "boss" }
+      ],
+      "boss+1": [
+        { "x": 400, "row": 3, "size": "boss" },
+        { "x": 318, "row": 1 }
+      ],
+      "boss+2": [
+        { "x": 401, "row": 3, "size": "boss" },
+        { "x": 313, "row": 0 },
+        { "x": 323, "row": 4 }
+      ]
+    },
+    "shadow": {
+      "kind": "oval",
+      "widthScale": 0.6,
+      "minW": 16,
+      "maxW": 40,
+      "bossWidthScale": 0.5,
+      "bossMaxW": 80,
+      "aspect": 4,
+      "color": "#000000",
+      "alpha": 0.65,
+      "edgeAlpha": 0.3,
+      "activeRing": { "color": "#3fe0f0", "extraW": 6 }
+    },
+    "depthTint": {
+      "fog": "#34305a",
+      "amounts": [0.12, 0.09, 0.06, 0.03, 0],
+      "exemptActive": true
+    },
+    "sort": { "by": "feetY", "tie": "outerFirst", "lungeOverTarget": 1 },
+    "demo": {
+      "lineup": ["kit", "rook", "hex", "sable"],
+      "party": [
+        {
+          "id": "kit",
+          "level": 5,
+          "equip": {
+            "weapon": "mono_claws",
+            "body": "ballistic_vest",
+            "mod": "grounding_coil"
+          }
+        },
+        {
+          "id": "rook",
+          "level": 10,
+          "equip": { "weapon": "vibro_katana", "head": "helmet" },
+          "flags": ["stingray_seated", "rook_tuned", "rook_mended"]
+        },
+        {
+          "id": "hex",
+          "level": 5,
+          "equip": { "weapon": "heavy_pistol", "mod": "neural_buffer" }
+        },
+        {
+          "id": "sable",
+          "level": 5,
+          "equip": { "weapon": "focus_rod", "mod": "ghost_lens" }
+        }
+      ],
+      "rosters": {
+        "1": ["rustfang_punk"],
+        "2": ["rustfang_punk", "scrap_hound"],
+        "3": ["rustfang_punk", "glowrat", "rustfang_punk"],
+        "4": [
+          "rustfang_punk",
+          "rustfang_slinger",
+          "rustfang_medic",
+          "rustfang_punk"
+        ],
+        "5": [
+          "rustfang_punk",
+          "rustfang_punk",
+          "rustfang_slinger",
+          "rustfang_medic",
+          "rustfang_punk"
+        ],
+        "6": [
+          "rustfang_punk",
+          "rustfang_punk",
+          "rustfang_slinger",
+          "rustfang_punk",
+          "rustfang_punk",
+          "rustfang_punk"
+        ],
+        "boss": ["warden"],
+        "boss+1": ["warden", "rustfang_punk"],
+        "boss+2": ["warden", "rustfang_punk", "rustfang_punk"]
+      },
+      "seed": 8,
+      "act": {
+        "attacker": "rook",
+        "skill": "arc_cut",
+        "target": 0,
+        "fx": "cut",
+        "reach": 10
+      }
+    }
+  },
+  "sewer": {
+    "version": 1,
+    "id": "sewer",
+    "name": "Sewer",
+    "backdrop": {
+      "id": "sewer",
+      "mode": "replace",
+      "horizonY": 100,
+      "shiftY": 0,
+      "wallId": "sewer-sidewall",
+      "layers": [],
+      "foreground": null,
+      "ambient": "drips"
+    },
+    "floor": {
+      "y0": 100,
+      "y1": 270,
+      "style": "grid",
+      "colors": ["#4a5456", "#40494c"],
+      "edge": "#6b8080",
+      "bandStart": 3,
+      "bandGrowth": 1.2,
+      "seam": { "color": "#6e8284", "far": 0.3, "near": 0.65 },
+      "grid": {
+        "spacing": 72,
+        "vanishY": -400,
+        "color": "#2c3638",
+        "alpha": 0.35,
+        "nearAlpha": 0.8,
+        "stagger": true
+      },
+      "texture": { "id": "concrete-flecks", "shrink": 0.5 },
+      "laneSeams": { "color": "#5c6b6e", "alpha": 0.3 },
+      "stripes": [
+        {
+          "y": 122,
+          "h": 2,
+          "color": "#1e2628",
+          "alpha": 0.85,
+          "dash": [10, 3]
+        }
+      ],
+      "reflections": {
+        "colors": ["#61ab93", "#ffcc76"],
+        "count": 5
+      },
+      "neonSpill": { "reach": 14, "strength": 0.6, "streaks": 0 },
+      "haze": { "color": "#2a4a44", "amount": 0.4, "reach": 40 },
+      "tint": null,
+      "seed": 11
+    },
+    "rows": [
+      { "y": 140 },
+      { "y": 157 },
+      { "y": 174 },
+      { "y": 192 },
+      { "y": 207 }
+    ],
+    "party": [
+      { "x": 46, "row": 4 },
+      { "x": 88, "row": 3 },
+      { "x": 130, "row": 2 },
+      { "x": 172, "row": 1 }
+    ],
+    "enemySets": {
+      "1": [
+        { "x": 356, "row": 2 }
+      ],
+      "2": [
+        { "x": 318, "row": 1 },
+        { "x": 404, "row": 3 }
+      ],
+      "3": [
+        { "x": 309, "row": 0 },
+        { "x": 396, "row": 2 },
+        { "x": 330, "row": 4 }
+      ],
+      "4": [
+        { "x": 307, "row": 0 },
+        { "x": 396, "row": 1 },
+        { "x": 322, "row": 3 },
+        { "x": 420, "row": 4 }
+      ],
+      "5": [
+        { "x": 309, "row": 0 },
+        { "x": 394, "row": 0 },
+        { "x": 346, "row": 2 },
+        { "x": 308, "row": 4 },
+        { "x": 406, "row": 4 }
+      ],
+      "6": [
+        { "x": 327, "row": 0 },
+        { "x": 394, "row": 0 },
+        { "x": 346, "row": 2 },
+        { "x": 428, "row": 2 },
+        { "x": 312, "row": 4 },
+        { "x": 406, "row": 4 }
+      ],
+      "boss": [
+        { "x": 380, "row": 3, "size": "boss" }
+      ],
+      "boss+1": [
+        { "x": 380, "row": 3, "size": "boss" },
+        { "x": 294, "row": 0 }
+      ],
+      "boss+2": [
+        { "x": 380, "row": 3, "size": "boss" },
+        { "x": 296, "row": 0 },
+        { "x": 290, "row": 4 }
+      ]
+    },
+    "shadow": {
+      "kind": "oval",
+      "widthScale": 0.6,
+      "minW": 16,
+      "maxW": 40,
+      "bossWidthScale": 0.5,
+      "bossMaxW": 80,
+      "aspect": 4,
+      "color": "#000000",
+      "alpha": 0.65,
+      "edgeAlpha": 0.3,
+      "activeRing": { "color": "#3fe0f0", "extraW": 6 }
+    },
+    "depthTint": {
+      "fog": "#2a4a44",
+      "amounts": [0.12, 0.09, 0.06, 0.03, 0],
+      "exemptActive": true
+    },
+    "sort": { "by": "feetY", "tie": "outerFirst", "lungeOverTarget": 1 },
+    "demo": {
+      "lineup": ["kit", "rook", "hex", "sable"],
+      "party": [
+        {
+          "id": "kit",
+          "level": 5,
+          "equip": {
+            "weapon": "mono_claws",
+            "body": "ballistic_vest",
+            "mod": "grounding_coil"
+          }
+        },
+        {
+          "id": "rook",
+          "level": 10,
+          "equip": { "weapon": "vibro_katana", "head": "helmet" },
+          "flags": ["stingray_seated", "rook_tuned", "rook_mended"]
+        },
+        {
+          "id": "hex",
+          "level": 5,
+          "equip": { "weapon": "heavy_pistol", "mod": "neural_buffer" }
+        },
+        {
+          "id": "sable",
+          "level": 5,
+          "equip": { "weapon": "focus_rod", "mod": "ghost_lens" }
+        }
+      ],
+      "rosters": {
+        "1": ["sewer_ghoul"],
+        "2": ["sewer_ghoul", "sewer_ghoul"],
+        "3": ["sewer_ghoul", "gutter_eel", "glowrat"],
+        "4": ["sewer_ghoul", "drowned_shade", "gutter_eel", "glowrat"],
+        "5": [
+          "sewer_ghoul",
+          "drowned_shade",
+          "gutter_eel",
+          "glowrat",
+          "sewer_ghoul"
+        ],
+        "6": [
+          "sewer_ghoul",
+          "drowned_shade",
+          "gutter_eel",
+          "glowrat",
+          "sewer_ghoul",
+          "glowrat"
+        ],
+        "boss": ["lurker"],
+        "boss+1": ["lurker", "glowrat"],
+        "boss+2": ["lurker", "glowrat", "glowrat"]
+      },
+      "seed": 1,
+      "act": {
+        "attacker": "kit",
+        "skill": "iron_palm",
+        "target": 0,
+        "fx": "palm",
+        "reach": 2
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "stageId": "street",
+  "setKey": "1",
+  "lineup": ["kit"],
+  "enemies": ["rustfang_punk"],
+  "active": 0,
+  "target": 0,
+  "seed": 7,
+  "ticks": [0, 41, 173]
+}

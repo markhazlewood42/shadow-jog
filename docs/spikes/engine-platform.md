@@ -27,6 +27,10 @@ Decision 17 and the design gate: the design must be tested before the build (M0 
 10. **Independent verification.** Each part passed the loop in `docs/engine/verification.md`: three fresh verifiers, every hard pass line met, every rubric criterion median at 7 or higher, average at 8 or higher, at most 3 rounds.
 11. **Mark's look review.** Mark approves the look of the stage slice and of the 3D scene, and picks 480x270 or 640x360 from the mock (at least two review rounds, no maximum). He gets screenshots each time a test renders something.
 
+**Amendments (dated; the criteria above stay as written):**
+- **2026-10-05, criterion 2 (clarified by the main session):** this machine's display refreshes at about 56.6 Hz, so a bare page already takes about 17.7 ms per frame and the 16.7 ms line cannot be met by any page. "60 fps" is measured as no dropped frames: the frame interval p95 is within 5% of a bare requestAnimationFrame page on the same display, AND the frame cost (CPU work plus the GPU wait) p95 is at or under 8 ms. Details are in the B2 round 4 section.
+- **2026-10-05, criterion 11 (Mark):** the 3D scene is a minimal technical test scene. Its look and gameplay are NOT reviewed in Phase 0. They come later, in their own iteration. Mark still reviews the stage slice and picks 480x270 or 640x360 from the mock.
+
 **NO-GO (or a design change before GO) if any of these hold:**
 - The shared-context path fails items 4, 5 or 6, and the canvas-copy fallback (design decision E3) also fails them.
 - The stage slice cannot reach the parity of item 7 after 3 verification rounds.
@@ -280,6 +284,76 @@ The one extra round that Mark approved on 2026-10-05. It fixes only the items be
 - WebKit locally (no build here). The CI run 37264317312 passed it before this round.
 - The GPU timer margin (6.7 ms against 8 ms) comes from one machine and one GPU. A different GPU may land elsewhere; that is what the line is for.
 - The look and the scene-hidden draw skip are unchanged and open (Mark's review, and M2).
+
+### B1, the battle stage slice (builder round 1, 2026-10-05)
+Exit criterion 7. This is the builder's own evidence: fresh verifiers have not scored it. Run on Edge 154 on the RTX 4070 (GPU), on Edge with `PW_NOGPU=1` (SwiftShader and the software canvas) and, for the parity spec, on the bundled headless shell 1234 (the browser CI runs). No push was made, so the Linux runner is still unanswered.
+
+**What was built.** One stage (street), one hero (Kit) and one enemy (the punk), HUD off, on the new engine. The numbers of the slice are in one file, `src/battlestage/slice.json` (stage, set, lineup, enemy, floor seed, the three ticks 0, 41 and 173), read by the engine and by the reference script. The slice shows the stage's own markers: the cyan ring under the acting hero and the amber ring under the target. "HUD off" means no windows, no name tab and no health bars. The page is `/sjestage.html` (DEV only; `?manual`, `?standins`, `?seed=`, `?tick=`).
+
+| Spike file (`spike/phaser-stage`, `src/stage/`) | Now | How |
+|---|---|---|
+| `config`, `hudpresets`, `feet`, `floor`, `shadow`, `rules`, `proportions`, `facing`, `crew`, `known`, `pixels`, `faces`, `sewerwall`, `idle`, and `src/art/rig2/sfgeom.ts` | `src/battlestage/` (sfgeom stays in `src/art/rig2/`) | **Byte for byte.** `node scripts/stage-data-parity.mjs` compares the git hash of each with the blob on the spike branch: 15 of 15 the same |
+| `textures.ts` (591 lines) | `textures.ts` (552) | Translated: the texture calls only. `addCanvasOnce`, `variantOf` and `readTexture` are game-side helpers. The sheets load by `fetch` and `addFrames` |
+| `stagescene.ts` (1,162 lines) | `stagescene.ts` (about 250) and `figure.ts` (about 260) | The render path of the slice. A `Figure` is a `Container` with `shadow`, `ring` and `body` inside it. The move animations, stills, flash, edit mode, HUD and live-battle hooks are not ported (M3) |
+| `boot.ts` | `boot.ts` | The Phaser game, the scale and the zoom are gone (`Game.create` and `fitToWindow` do them). What is left: the rig data, the design files, the sprite choice and the asset load |
+| `lab.ts`, `labhook.ts` | `src/sje-lab/stagelab.ts`, `stagehook.ts`, `stagemain.ts`, `sjestage.html` | The page and its hook `window.__SJESTAGE__` (set the tick, the seed and the sprite mode; read the back buffer) |
+| `src/data/stages.json`, `heroes.json`, `hud.json`, `enemyfacing.json`, `axes.json` | same paths | **Byte for byte** (P4): 5 of 5 have the same git hash and SHA-256 as the blobs on `spike/phaser-stage` |
+| `tests/stage*.test.ts`, `tests/stagefiles.ts`, `tests/fixtures/stagedata/` | `tests/stageconfig`, `stagerules`, `stagepaint`, `stagefeet`, `stageidle`, `stageshipped` `.test.ts`, `stagefiles.ts`, the fixtures | Ported with the folder name changed. Dropped from two of them: the hit effects (`fx.ts`) and the Phaser lab's `FrameStats`. Not ported: the editor and Battle Test tests |
+
+Not ported (the HUD is off): `hud*.ts`, `demo.ts` (the HUD view), the face chips, the effects picture, `moves`, `stills`, `strike`, `kneel`, `perform`, `battleflow`, `battletest`, `edit/`, `zoom.ts` and `metrics.ts` (the engine has its own display fit and `profile.ts`).
+
+**How the parity harness works.** `scripts/sjestage-refs.mjs` starts the Phaser checkout's dev server (default `../shadow-jog-phaser`, only read), opens its stage lab and turns it into the slice through the lab's own scene methods. It calls `applyStage` with the slice's lineup and seed and every HUD region set to `show: "never"`, then `setEnemies`, then sets the two rings on the figures. It stops the lab's clock (`scene.update` is replaced, so the scene moves only when `step(n)` is called) and saves the three 480x270 frames as raw RGBA from the Phaser canvas. `e2e/sjestage.spec.ts` shows the same slice at the same ticks on the engine, reads the back buffer and compares pixel by pixel in Node. It prints the numbers and attaches them to the test report. How to make the references again: `docs/DEVELOPING.md`, section 8.
+
+**Parity numbers (P3).** Each page is compared with the Phaser page of its own kind of renderer (see item 35). 12 frames, every difference 0:
+
+| Sprites | Renderer | Ticks | Max channel difference | Pixels that differ |
+|---|---|---|---|---|
+| Stand-ins | GPU (Edge, RTX 4070) | 0, 41, 173 | 0/255 | 0 of 129,600 (0.000%) on all three |
+| Stand-ins | software (Edge `--disable-gpu`, and the headless shell 1234) | 0, 41, 173 | 0/255 | 0 (0.000%) on all three, in both browsers |
+| Mark's art | GPU | 0, 41, 173 | 0/255 | 0 (0.000%) on all three |
+| Mark's art | software | 0, 41, 173 | 0/255 | 0 (0.000%) on all three |
+
+The pass line (at most 2/255 in any channel, at most 3% of the pixels differ at all) holds with every number at 0. A negative control in the spec shows the harness can fail: a picture shifted by one pixel and a colour off by 3/255 are both caught. **Across kinds of renderer** the two pages differ: the engine on the software renderer against the GPU references is 1/255 off on 4,692, 4,724 and 4,724 pixels (3.620%, 3.645% and 3.645%). That is over the 3% line, so one set of references would fail on one of the two kinds. The cause is item 35.
+
+**Other results.**
+- **Crispness.** Zero uneven blocks at zoom 4 (zoom 7 at ratio 2.25), in the GL canvas at 4 ticks each and in a page screenshot, at device pixel ratios 1, 1.25, 1.5, 1.75, 2 and 2.25. On the GPU and on SwiftShader.
+- **Determinism (P5).** The same tick, seed and sprite mode give the same hash on two page loads (8 ticks each) and for 1 x 173, 173 x 1 and 100 + 60 + 13 ticks. The back buffer hash is the same at ratios 1, 1.5 and 2.25. The references are the same bytes every time the script runs (SHA-256 checked on three runs). A seed of 8 gives another floor and the same wall above the horizon.
+- **Stability (V4).** Over 240 ticks the picture never changes at a tick where neither Kit's frame nor the punk's offset moved, and always changes where the punk moved. No picture flashes away for one tick and comes back.
+- **Leaks.** 10 restarts of the scene after a warm-up leave the texture list and the GL counts unchanged (9 textures, 4 buffers, 1 framebuffer, 1 program, 2 vertex arrays), on the GPU and on SwiftShader. A deliberate leak of 6 textures shows as 15. Only the current stage picture stays after 5 seed changes. A lost context comes back with the same hash.
+- **Speed** (over several full runs on the GPU and on software; the numbers move a little from run to run). GPU: a frame costs p50 0.8 to 1.4 ms and p95 1.1 to 2.1 ms with the GPU wait (the line is 8 ms). JavaScript work p95 0.2 to 0.3 ms, one tick 0.0003 to 0.0017 ms, one draw submit 0.006 to 0.009 ms. The negative control (1,500 extra draws a frame) reaches 15.5 to 29.2 ms and fails the line. Frame interval p95 16.8 to 18.1 ms (the display's own rate, a bare page is the same). Software (SwiftShader): frame cost p95 6.9 to 9.6 ms, recorded and gated only against a stuck loop (the B2 rule).
+- **Bundle (P1, exit criterion 1).** The shipped game is byte for byte the same: `dist/` built outside the repo from this tree and from HEAD (4208b60) has 122 files (with maps) with the same SHA-256 for every file, `index-CAQWdYUf.js` among them. `npm run budget`: shipped 233.9 kB gzip (budget 236), unchanged. The battle stage lab page boots with 170.3 kB gzip (the engine alone is 124.7). `scripts/bundle-budget.mjs` has a new class 4 for it, with a budget of 190 kB, and checks that no Three is in it. `browserAll` (11.2 kB) is built and never requested.
+- **Checks (P1).** `npm run check` exit 0: biome 0, tsc 0, **704 unit tests in 46 files** (B2 round 4: 585). `npm run build` exit 0.
+- **E2E (P2).** `sjelab`, `sjestage` (29 tests), `sje3d`, `sje-parta` and `sje3d-browsers` (the chromium project): 110 tests. Edge GPU: 109 passed, 1 skipped (the picture-saving test). Edge `PW_NOGPU=1`: 108 passed, 2 skipped (that one and the speed negative control, which only a GPU can run). `sjestage` alone on the headless shell 1234 with `STAGELAB_NO_SPRITES=1` (what CI sees: no sprite folder, the page finds that out by itself): 26 passed, 3 skipped (the three Mark's-art frames). A full run takes about 3.3 minutes.
+- **Imports (P4).** No `phaser` import and no dependency on it anywhere (`tests/sje-imports.test.ts`, new cases). Pixi is imported only under `src/sje/render` and `src/sje/display`, as before. `src/battlestage` imports the engine through the facade only, never Pixi or Three, and nothing the shipped game loads imports it.
+
+**Translation table (migration.md section 6): gaps and corrections found.**
+1. The first row says `from '@/sje'`. This repo has no `@/` alias. The import is `from '../sje'`, the facade.
+2. `load.spritesheet`, `loaderror` and the stand-ins: the loader is not built (M1). B1 fetches the PNG, draws it on a canvas, adds the canvas and its cells with `addFrames`, and loads before `game.run` (`create` is never async, so the spike's `preload` has no place). A missing sheet is one readable error and the stand-ins take over.
+3. `textures.addCanvas`, `get`, `exists`, `remove` and `getTextureKeys` worked as written, and so did `customData` to `data`. `texture.add(name, 0, x, y, w, h)` is `textures.addFrames(key, { name: [x, y, w, h] })`. `getFrameNames()` is the `frames` map. There is no `getSourceImage()`: the game keeps the canvas in the data bag to read pixels back (`readTexture`).
+4. `addCanvasOnce`, `variantOf` and the pixel read-back are not on the `TextureManager` (its header promises the first two for M3). They stay game-side in `battlestage/textures.ts`. Proposal for M3: move `addCanvasOnce` and `variantOf` into the engine and add `readPixels(key)`.
+5. `StageScene.update(_t, delta)` with its own accumulator, `STEP_MS` and `MAX_CATCH_UP`: deleted, as the table says. It becomes `fixedUpdate(tick)` plus a scene-own tick counter (the game tick does not restart with the scene).
+6. A scene object runs once: `game.run` refuses a closed one. The spike's `scene.restart(init)` is a new `BattleStageScene(init)`. The table has no row for it.
+7. `setOrigin`, `setDepth`, `setFlipX`, `setTexture(key, frame)`, `setData` and `getData`: same names and the same semantics. The mirror is exact: the punk, flipped about the middle of its picture with the anchor rule, has 0 pixels of difference. So the `roundPixels: false` decision of B2 round 4 is safe for the slice.
+8. `ImageObject.setTexture` renames the object after the texture, so a part cannot be found by `name`. The roles `shadow`, `ring` and `body` are kept with `setData('part', ...)`.
+9. `container.setSortingGroup(true)` (scene-graph.md section 4) is not needed. Every container already sorts its own children by `depth`, so a plain `Container` with parts of small local depths is a sorting group. Not built, not missed.
+10. Phaser's `anims.create` (the sheet's frame list and fps "on record") has no engine form and no user: the stage never played it. Dropped.
+11. The Phaser `depthFor(y, x, side, order)` in `config.ts` (copied unchanged) and the engine's `depthFor(y, closeness, side, order)` are two functions with one result, and `PART` exists twice. `tests/battlestage-figure.test.ts` pins that they agree. M3 can make `config.ts` use the engine's.
+12. Odd-sized centred pictures: the engine rounds `origin * size` to a whole pixel (half goes up), Phaser rounds the vertex (the picture lands half a pixel to the right). No picture in the slice is odd: `shadowSize` and `ringSize` make both sides even, and the feet origins are whole pixels. A future odd picture at origin 0.5 would probably sit one pixel left of the spike's (worked out from the two rules, not measured: nothing in the slice has an odd size).
+13. Section 6 says "Pixi alpha handling in translucent HUD panels may differ". The translucent parts of the slice (the contact shadows, the rings, the enemy's glow pixels, the hero's soft edges) are 0 pixels off. Translucent HUD windows are not in the slice and stay untested.
+
+**Design drift found in B1** (continues the list above).
+35. **Two sets of references, `gpu` and `soft`.** The street's neon glow layer (`battleBg('street').glow`, 1,732 translucent pixels at 240x135) is painted by the game's canvas 2D code. Chrome's GPU canvas and its software canvas paint it 1/255 apart (a different canvas hash from the same background canvas). The 2x blow-up makes 4,692 to 4,724 pixels of the 480x270 picture (3.6%). The Phaser page and the engine page show the same difference, and the engine and Pixi are not the cause (the stage picture has 0 translucent texels). So each page is compared with the Phaser page of its own kind, and the spec chooses by the renderer name. Risk: the committed `soft` references come from Windows. Linux software Skia should paint the same, but only a CI run can say. If it does not, make the `soft` set again on the runner, or run `scripts/sjestage-refs.mjs` in the CI job against a checkout of `spike/phaser-stage`.
+36. **Mixed grains (V3).** The 240x135 world layer is baked at 2x into the 480x270 stage picture on a canvas, exactly as the spike does. The engine sees one 480x270 picture, so `container.setGrain(2)` (scene-graph.md section 7) was not needed for the slice and is untested. M3 decides whether to keep the bake or use `setGrain`.
+37. **Game code reaches into the old engine's art code.** `src/battlestage` imports `src/art/*` (backdrops, enemies, the rig data), `src/data/*` and, for names, `MEMBERS`. That is allowed (the rule is about `src/sje`), and the stage still draws with the game's own generators. M8 deletes `src/engine`, so `src/art` must stop importing it first (`surface`, `mix`, `Rng`).
+38. **A second `Raw`.** The stage's `Raw` is `{ w, h, px }`, the engine's is `{ w, h, data }`. The slice uses its own (the texture's data bag holds the canvas). M3 should pick one when `readPixels` and `getPixelAlpha` arrive.
+39. **`window.__SJESTAGE__` is a hook on its own page**, not an addition to `__SJ__` (the table says "`labhook.ts` to `__SJ__` additions"). `__SJ__` is the shipped game's hook, and the slice is not in the game yet.
+40. **The Phaser lab has no "HUD off" switch.** The reference script uses the stage data's own terms (`show: "never"` for every region and the name tab, no `barsOnStage`). If a later Phaser change makes a HUD region ignore `never`, the references would grow a HUD and the parity test would say so at once.
+
+**What I could not finish or check, B1 round 1.**
+- The Linux runner (item 35), and WebKit and Firefox: the slice spec is Chromium only.
+- Mark's look review of the slice. The figures, the floor and the rings are the spike's, to the pixel, so the look is the spike's look. A review of the engine's own choices (the dark colour around the picture, the window fit) waits for him.
+- Mark's art on CI: not possible. The art parity is reported locally only, as the task says.
+- The HUD, the move animations and the edit mode. They are M3.
 
 ## Result (filled in at the end)
 - Outcome:

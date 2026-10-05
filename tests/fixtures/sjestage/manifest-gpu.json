@@ -1,0 +1,60 @@
+{
+  "generatedBy": "scripts/sjestage-refs.mjs",
+  "w": 480,
+  "h": 270,
+  "slice": {
+    "stageId": "street",
+    "setKey": "1",
+    "lineup": [
+      "kit"
+    ],
+    "enemies": [
+      "rustfang_punk"
+    ],
+    "active": 0,
+    "target": 0,
+    "seed": 7,
+    "ticks": [
+      0,
+      41,
+      173
+    ]
+  },
+  "phaserCommit": "9179d980491abe27b2a081c71dafa4e89c88b8f6",
+  "kind": "gpu",
+  "modes": {
+    "standins": {
+      "renderer": "WEBGL",
+      "figures": [
+        {
+          "id": "kit",
+          "side": "party",
+          "depth": 207092,
+          "x": 46,
+          "y": 207
+        },
+        {
+          "id": "rustfang_punk#0",
+          "side": "enemy",
+          "depth": 157239,
+          "x": 361,
+          "y": 157
+        }
+      ]
+    }
+  },
+  "files": {
+    "standins-gpu-t0.rgba": {
+      "bytes": 518400,
+      "sha256": "d66e00566cc9fdf593d9798c9154a67ac4cbefca79c3babab7219ec77e44963a"
+    },
+    "standins-gpu-t41.rgba": {
+      "bytes": 518400,
+      "sha256": "1ddb8d187cc25fd730001a365203c9b79e3ce46e0ce130409fca875198aa1b3b"
+    },
+    "standins-gpu-t173.rgba": {
+      "bytes": 518400,
+      "sha256": "91c0a2800a0c124a778f79f80dbddf9d17b76cc7240b1112dd0e4ed6815362f6"
+    }
+  }
+}
