@@ -392,6 +392,8 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
 
 ## Future Plans
 
+- **Idea backlog.** `docs/IDEAS.md` (from 2026-10-05) holds Mark's ideas for later, in his own words, with what exists today: visual editors for everything (a standing rule for the engine now), hacking gameplay, a cyberware system, three crafting systems, and where magic comes from. Nothing there is decided or canon.
+
 - **GPU effects layer** (Mark interested, 2026-09-29): keep the Canvas 2D game and renderer; send the finished frame
   through a small hand-written WebGL pass (bloom, shockwave, heat haze, colour grading) and draw big effects with GPU
   particles, with a Canvas 2D fallback. Mark has particle-system experience and could design emitters. **First
