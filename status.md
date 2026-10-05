@@ -3,7 +3,7 @@ type: status
 title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-10-04
+updated: 2026-10-05
 tags: [status]
 ---
 
@@ -17,7 +17,7 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 - **CI:** GitHub Actions, on pushes to `main` and on pull requests.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for Copilot review, and Mark merges.
 
-## Where we left off (2026-10-04)
+## Where we left off (2026-10-05)
 
 ### The whole process so far
 1. **Build (2026-09-27 → 28).** From the original prompt (`docs/original-prompt.md`) to a content-complete chapter:
@@ -54,7 +54,36 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 7. **Phase 0.2, the pivot phase (2026-10-02 → 04).** Release `v0.1.0` and the bump to `0.2.0-dev` are done. The pronoun canon is set. A side-view battle spike is PR #3 (GO, Mark, 2026-10-04: the side-on view is the game's battle view). A Phaser tooling spike with a Battle Stage Editor and Battle Test is PR #4 (GO, Mark, 2026-10-04, for the tooling scope, not a port of the game). Neither PR merges. Details are in "Right now" and `docs/PHASE-0.2.md`.
 8. **Engine decision (2026-10-04, evening).** Mark wants a low-poly, real-time 3D hacking mode inside the 2D game (inspired by the Shadowrun Genesis Matrix). After three research rounds (3D feasibility, engine choice, resolution), he chose **our own engine on PixiJS v8 plus Three.js for 3D**. This supersedes the Phaser rebuild. No Unity or Godot replatform. No engine code before he approves an architecture design doc. Record: `docs/research/2026-10-04-engine-and-3d.md` and decision 17 in `docs/PHASE-0.2.md`.
 
-### Right now (2026-10-04)
+9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
+
+### Right now (2026-10-05)
+
+**Phase 0 is done and waits for Mark's final approval.** Branch `spike/engine-platform` (draft PR #11). Record: `docs/spikes/engine-platform.md` (the S1a section has the 640x360 numbers, and the Result is drafted). CI is green through d61d7d9. The last push, 913aead (S1a), went up at the end of the session.
+
+**The size is 640x360 (Mark, 2026-10-05).** He first kept 480x270 after the mock, then chose 640x360 the same day from the screenshots. Impact on the code:
+- No architecture change. Both engines read the size from one constant.
+- About 43 of 131 source files in the shipped game change: 20 scene files with hand-placed layouts, 7 files in `src/engine`, and a few others. Tests, scripts and docs change too.
+- The larger content items: 8 battle backdrops (drawn in code at 240x135, they become 320x180), 16 maps and rooms smaller than the new view (a camera rule centres and fills them, with no map data change), the dialog width (a cap keeps today's line breaks), and the old battle (re-lay it now, or box it in a 480x270 frame until M3 replaces it).
+- Migration principle 4 bends: the move changes 7 files in `src/engine` before M0. Mark approved the move "now".
+
+**Working files for the next session** are git-ignored, on Mark's machine only: `media/handoff-2026-10-05/README.md` explains the design-update draft, the inventory of all 398 size-dependent sites, the scoping plan (use its order, not its estimates) and the comparison pictures.
+
+**Mark's rules from 2026-10-05** (also in home-base `CLAUDE.md` and memory): effort means architectural fit and files touched, never agent-days; all work goes through independent verification agents, sized to risk; at a phase break, the work continues in a fresh session. His idea backlog is `docs/IDEAS.md`. Entry 1 is a standing rule: no decision may make future visual editors harder.
+
+**Next for agents** (in this order):
+1. Fix Copilot's 4 review findings on PR #12 (the diagrams): the battle-round diagram misses the event paths of `startRound()` and `endRound()` and the end of battle on win, lose or fled; the scene lifecycle misses `stop()` from a paused or sleeping scene; the verification loop must retry after rounds 1 and 2 and stop after round 3. Regenerate each image and its alt text, then Mark merges #12.
+2. Finish the engine design update from the draft (the handoff README lists what is left: 640x360 everywhere, the editor rule as a principle, the open review fixes, four stale diagrams). Then a PR from `main` for Mark's final approval.
+3. Move the shipped game to 640x360 on branch `resolution-640x360` from `main`, from the inventory, with picture reviews for Mark.
+4. After Mark's final approval of the design: the spike archive tag (with his go-ahead), then milestone M0.
+
+**Next up for Mark** (updated 2026-10-05):
+1. Merge this status PR, and PR #12 (diagrams) after its Copilot fixes. PR #10 (engine design) and PR #13 (idea backlog) are merged.
+2. Approve the final design when the design update PR comes. It carries the spike result and the 640x360 numbers.
+3. Answer the look questions as the 640x360 pictures come: the old battle (boxed until M3, or re-laid now), maps smaller than the screen, the dialog width, the title art, and 3 shockwave values in your `fx.json`.
+4. Say "push" for home-base: 5 local commits (the diagram-design skill, the new token and session rules, and the AGENTS.md row).
+5. The older items below (Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4) still stand.
+
+### Right now (2026-10-04, history)
 
 **Engine decision (Mark, 2026-10-04, evening. This supersedes the Phaser rebuild below.)** Shadow Jog gets its own engine, with PixiJS v8 as the 2D renderer and Three.js for a low-poly 3D hacking mode that fits seamlessly into the 2D game. Unity and Godot were researched and not chosen. No judge picked Pixi. It is Mark's call for per-object GPU effects, and the platform spike must test Pixi filters, masks and parity with the Phaser stage. **Design gate:** Mark must approve an architecture design doc before any engine code. The doc covers the architecture, the key interfaces, the core primitives and the tooling. It copies conventions from Phaser first, then Unity or Godot, and from Three.js for 3D. The resolution stays 480x270 for now. W and H become one shared module, and a 640x360 mock comes in the platform spike. The side-view battle view, the stage design, the editor's behaviour (`docs/TOOLING-UI.md`) and Mark's design data all stay. The Phaser spike code is the reference for the port. Full record: `docs/research/2026-10-04-engine-and-3d.md` (the raw results and bench code are in the git-ignored `media/research-2026-10-04/` on Mark's machine).
 
