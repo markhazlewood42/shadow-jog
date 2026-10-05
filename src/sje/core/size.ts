@@ -22,12 +22,16 @@
 
 /**
  * True when a DEV build was opened with `?size=640x360`. Only that one value counts; anything else asked for in the address is ignored.
- * `location` is missing in Node (the unit tests), where the shipped size is right. In a production build `import.meta.env.DEV` is the
- * plain value `false`, so this whole line is the constant `false` and the minifier folds the two choices below to 480 and 270.
- * (It is written as two plain choices, not a pair read from an array, so the minifier can fold it: an array would stop `W` and `H`
- * from being plain numbers in the bundle, and the shipped bundle would change.)
+ * `location` is missing in Node (the unit tests and Playwright's own test files), where the shipped size is right.
+ * The `import.meta.env &&` check is there on purpose: Playwright loads some engine files in Node without Vite, where
+ * `import.meta.env` does not exist, so reading `import.meta.env.DEV` straight away crashed every spec at load time (on CI,
+ * 2026-10-05). Do not move the `location` check to the front instead: that also stops the crash, but it changes the shipped
+ * bundle (`node scripts/prod-bytes.mjs` caught it). In a production build `import.meta.env` is a plain object and
+ * `import.meta.env.DEV` is the plain value `false`, so this whole line is the constant `false` and the minifier folds the two
+ * choices below to 480 and 270. (It is written as two plain choices, not a pair read from an array, so the minifier can fold it:
+ * an array would stop `W` and `H` from being plain numbers in the bundle, and the shipped bundle would change.)
  */
-const DEV_640X360 = import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).get('size') === '640x360';
+const DEV_640X360 = import.meta.env && import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).get('size') === '640x360';
 
 export const W: number = DEV_640X360 ? 640 : 480;
 export const H: number = DEV_640X360 ? 360 : 270;
