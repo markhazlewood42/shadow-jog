@@ -54,6 +54,11 @@ export interface StageHook {
   translucency(key: string): { w: number; h: number; translucent: number; box: { x0: number; y0: number; x1: number; y1: number } | null };
   /** The names of the textures the game holds (a restart must not grow this list). */
   textureKeys(): string[];
+  /**
+   * The inked part of a figure's body picture (step B3: how tall the figure is, in game pixels): the frame it shows now, the box of
+   * its non-transparent texels inside that frame, and the box's height and width. The picture is drawn at scale 1, so these are screen game pixels.
+   */
+  inkBox(figureId: string): { texture: string; frame: string | number | null; cellW: number; cellH: number; ink: { x0: number; y0: number; x1: number; y1: number }; inkW: number; inkH: number };
   /** Time `n` ticks and `n` draws, in ms of JavaScript, one after the other. (A draw only SUBMITS work to the GPU.) */
   timing(n: number): { tick: Timing; draw: Timing };
   /** The real loop's frame cost over `frames` animation frames (see `profile.ts`). */
@@ -193,6 +198,35 @@ export function installStageHook(lab: StageLab): StageHook {
       scene.close();
     },
     textureKeys: () => game.textures.getTextureKeys(),
+    inkBox(figureId) {
+      const fig = sceneOf().figures.find((f) => f.id === figureId);
+      if (!fig) throw new Error(`no figure "${figureId}"`);
+      const body = fig.describe().body;
+      const tex = game.textures.get(body.texture);
+      const canvas = tex.data.canvas;
+      if (!(canvas instanceof HTMLCanvasElement)) throw new Error(`texture "${body.texture}" has no canvas`);
+      // A texture with named frames shows one cell of its canvas; one without shows the whole canvas.
+      // (Frame names are text: `addFrames` makes its keys with Object.entries, so a numeric frame is looked up as text.)
+      const cell = body.frame === undefined ? undefined : (tex.frames.get(body.frame) ?? tex.frames.get(String(body.frame)));
+      const cx = cell?.x ?? 0;
+      const cy = cell?.y ?? 0;
+      const cw = cell?.w ?? canvas.width;
+      const ch = cell?.h ?? canvas.height;
+      const c = canvas.getContext('2d', { willReadFrequently: true });
+      if (!c) throw new Error('no 2D context');
+      const img = c.getImageData(cx, cy, cw, ch).data;
+      const ink = { x0: cw, y0: ch, x1: -1, y1: -1 };
+      for (let y = 0; y < ch; y++) {
+        for (let x = 0; x < cw; x++) {
+          if ((img[(y * cw + x) * 4 + 3] ?? 0) === 0) continue;
+          ink.x0 = Math.min(ink.x0, x);
+          ink.y0 = Math.min(ink.y0, y);
+          ink.x1 = Math.max(ink.x1, x);
+          ink.y1 = Math.max(ink.y1, y);
+        }
+      }
+      return { texture: body.texture, frame: body.frame ?? null, cellW: cw, cellH: ch, ink, inkW: ink.x1 - ink.x0 + 1, inkH: ink.y1 - ink.y0 + 1 };
+    },
     translucency(key) {
       const canvas = game.textures.get(key).data.canvas;
       if (!(canvas instanceof HTMLCanvasElement)) throw new Error(`texture "${key}" has no canvas`);
