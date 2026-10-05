@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Engine frame loop</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d0c1f;   /* Shadow Jog panel bottom */
+      --color-ink:     #f4f1ff;
+      --color-muted:   #bfc3e4;
+      --color-accent:  #ffcc3d;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 960px; width: 100%; }
+    /* The SVG holds its readable width (min-width equals the viewBox width).
+       This wrapper lets a narrow screen scroll the diagram, not the page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Flowchart &middot; Shadow Jog engine</p>
+    <h1>Engine frame loop</h1>
+
+    <div class="diagram-container">
+    <!-- Type ramp is the pilot ramp (a deliberate exception to the standard doc-inline ramp). This figure
+         shows at about 880px wide in a README (scale 0.92): names 16, descriptions 13, mono text 12. -->
+    <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-frame-title engine-frame-desc">
+      <title id="engine-frame-title">Engine frame loop</title>
+      <desc id="engine-frame-desc">One requestAnimationFrame callback adds clamped time to an accumulator, runs up to five game ticks that write state, then runs a draw phase that only reads state, then ends so story promises continue.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#0d0c1f"/>
+      <!-- Header: callout and the limit that the picture cannot show -->
+      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-style="italic" font-family="'Instrument Serif', serif">Tick writes state. Draw only reads it.</text>
+      <text x="40" y="84" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">AT MOST 5 TICKS PER CALLBACK. AFTER THE 5TH, THE BACKLOG IS DROPPED.</text>
+      <!-- Zone: draw phase (outline only) -->
+      <rect x="40" y="368" width="620" height="156" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <text x="644" y="392" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.1em">DRAW PHASE &#183; READS STATE ONLY</text>
+      <!-- Arrows (drawn before the boxes) -->
+      <path d="M 156 164 V 196" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 272 248 H 320" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <!-- C to D: yes -->
+      <path d="M 624 248 H 672" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="630" y="222" width="36" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="648" y="234" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">YES</text>
+      <!-- D back to C: next tick, dashed return -->
+      <path d="M 796 188 V 156 Q 796 148 788 148 H 480 Q 472 148 472 156 V 180" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <rect x="594" y="122" width="80" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="634" y="134" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">NEXT TICK</text>
+      <!-- C to E: no -->
+      <path d="M 472 316 V 336 Q 472 344 464 344 H 194 Q 186 344 186 352 V 404" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="316" y="318" width="28" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="330" y="330" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">NO</text>
+      <path d="M 316 456 H 356" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 644 456 H 704" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <!-- A: entry -->
+      <rect x="40" y="112" width="232" height="52" rx="20" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="56" y="134" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Frame callback</text>
+      <text x="56" y="152" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">requestAnimationFrame</text>
+      <!-- B: accumulator -->
+      <rect x="40" y="196" width="232" height="104" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="56" y="226" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Add elapsed time</text>
+      <text x="56" y="248" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">to the accumulator.</text>
+      <text x="56" y="266" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Maximum 250 ms. This stops a</text>
+      <text x="56" y="284" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">burst after a hidden tab.</text>
+      <!-- C: decision -->
+      <polygon points="472,180 624,248 472,316 320,248" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="472" y="235" fill="#f4f1ff" font-size="15" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">At least 16.67 ms in</text>
+      <text x="472" y="253" fill="#f4f1ff" font-size="15" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">the accumulator and</text>
+      <text x="472" y="271" fill="#f4f1ff" font-size="15" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">fewer than 5 ticks run?</text>
+      <!-- D: tick (focal) -->
+      <rect x="672" y="188" width="248" height="120" rx="6" fill="#1c1a3a"/>
+      <rect x="672" y="188" width="248" height="120" rx="6" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1"/>
+      <text x="688" y="212" fill="#ffcc3d" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">TICK &#183; WRITES STATE</text>
+      <text x="688" y="236" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">One tick</text>
+      <text x="688" y="258" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">input, game events, game clock,</text>
+      <text x="688" y="276" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">fixedUpdate on scenes, top first,</text>
+      <text x="688" y="294" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">camera effects, destroy queue</text>
+      <!-- E, F: draw phase -->
+      <rect x="56" y="404" width="260" height="104" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="72" y="434" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Prepare nodes</text>
+      <text x="72" y="456" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">prerender events, state copy</text>
+      <text x="72" y="474" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">into nodes, FxSystem,</text>
+      <text x="72" y="492" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">camera transforms</text>
+      <rect x="356" y="404" width="288" height="104" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="372" y="434" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Render</text>
+      <text x="372" y="456" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">3D pass if active, then Pixi into</text>
+      <text x="372" y="474" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">the back buffer, then present at</text>
+      <text x="372" y="492" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">integer scale</text>
+      <!-- G: end -->
+      <rect x="704" y="412" width="216" height="88" rx="20" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="720" y="440" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">After the callback</text>
+      <text x="720" y="462" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Story promises continue</text>
+      <text x="720" y="480" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">as microtasks</text>
+      <!-- Legend -->
+      <line x1="40" y1="548" x2="920" y2="548" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <line x1="40" y1="572" x2="72" y2="572" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <text x="82" y="576" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">FLOW</text>
+      <line x1="160" y1="572" x2="192" y2="572" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <text x="202" y="576" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">LOOP BACK</text>
+      <rect x="330" y="565" width="24" height="14" rx="2" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1"/>
+      <text x="364" y="576" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">WRITES STATE</text>
+    </svg>
+    </div>
+  </div>
+</body>
+</html>

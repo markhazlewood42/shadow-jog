@@ -262,6 +262,10 @@ The API (`game/script.ts`): `say`, `narrate`, `ask` (returns the chosen index), 
   when the hit lands.
 - `setup.ts` builds combatants from party state and enemy data; `types.ts` holds the types.
 
+![One battle round. Inside battle/engine.ts, which is pure and deterministic, the player's orders go to startRound(cmds), which rolls initiative and plans the queue. A decision asks whether more actions remain. If yes, next() declares the action and may return a timing prompt, an optional timed press grades the action, and land(timing) resolves it, then the flow returns to the decision. If no, endRound() ticks statuses and decides the outcome, and the next round starts from the orders. next() and land() send events, shown as dashed lines, to BattleScene.playEvent in battlekit/playback.ts, which draws them. A note says resolveRound(cmds, grader?) runs steps 2 to 7 in one call for tests and sims.](diagrams/battle-round.png)
+
+*Editable source: [diagrams/battle-round.html](diagrams/battle-round.html)*
+
 ### The scene (`scenes/battle.ts` + `battlekit/`)
 BattleScene holds battle state and flow (intro, the round menu, per-member command menus, targeting, executing a
 round, victory, defeat, fleeing). Its parts:

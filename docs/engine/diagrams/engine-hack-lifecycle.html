@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hack scene lifecycle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d0c1f;   /* Shadow Jog panel bottom */
+      --color-ink:     #f4f1ff;
+      --color-muted:   #bfc3e4;
+      --color-accent:  #ffcc3d;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 960px; width: 100%; }
+    /* The SVG holds its readable width (min-width equals the viewBox width).
+       This wrapper lets a narrow screen scroll the diagram, not the page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Sequence &middot; Shadow Jog engine</p>
+    <h1>Hack scene lifecycle</h1>
+
+    <div class="diagram-container">
+    <!-- Type ramp matches the engine-layers pilot: names 16, descriptions 13, mono text 12.
+         A README shows this figure at about 880px wide (scale 0.92), so the smallest text stays near 11px. -->
+    <svg viewBox="0 0 960 1100" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-hack-lifecycle-title engine-hack-lifecycle-desc">
+      <title id="engine-hack-lifecycle-title">Hack scene lifecycle</title>
+      <desc id="engine-hack-lifecycle-desc">Sequence of one s.hack call across four lifelines: the story script awaits fieldHooks.hack, which lazily imports the 3D chunk and runs a HackScene on the Game. The scene loops over fixed ticks and per-frame renders, which repeat together, then closes with a result. A finally block always disposes the render target, scene, ExternalSource and passes, and a HackResult always returns to the script.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ffcc3d"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#0d0c1f"/>
+
+      <!-- Header -->
+      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-family="'Instrument Serif', serif" font-style="italic">Teardown always runs. s.hack always returns a value.</text>
+      <text x="40" y="84" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">ONE s.hack CALL, AWAIT TO RESULT</text>
+
+      <!-- Lifelines -->
+      <line x1="120" y1="164" x2="120" y2="968" stroke="rgba(122,128,196,0.6)" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="340" y1="164" x2="340" y2="968" stroke="rgba(122,128,196,0.6)" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="600" y1="164" x2="600" y2="968" stroke="rgba(122,128,196,0.6)" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="840" y1="164" x2="840" y2="968" stroke="rgba(122,128,196,0.6)" stroke-width="1" stroke-dasharray="3,3"/>
+
+      <!-- Fragment frames (label masks inside them use the blended wash #161528) -->
+      <rect x="576" y="484" width="288" height="92" rx="4" fill="rgba(244,241,255,0.04)" stroke="rgba(122,128,196,0.5)" stroke-width="1"/>
+      <rect x="576" y="484" width="56" height="20" rx="2" fill="#161528" stroke="rgba(122,128,196,0.5)" stroke-width="1"/>
+      <text x="604" y="498" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">LOOP</text>
+      <text x="644" y="498" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">[each tick]</text>
+      <rect x="576" y="604" width="288" height="152" rx="4" fill="rgba(244,241,255,0.04)" stroke="rgba(122,128,196,0.5)" stroke-width="1"/>
+      <rect x="576" y="604" width="56" height="20" rx="2" fill="#161528" stroke="rgba(122,128,196,0.5)" stroke-width="1"/>
+      <text x="604" y="618" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">LOOP</text>
+      <text x="644" y="618" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">[each frame]</text>
+
+      <!-- Messages (drawn before the boxes) -->
+      <path d="M 120 276 H 340" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 340 312 H 360 Q 368 312 368 320 V 332 Q 368 340 360 340 H 340" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 340 400 H 600" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 600 456 H 840" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 600 556 H 840" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 600 676 H 840" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 840 704 H 820 Q 812 704 812 712 V 724 Q 812 732 820 732 H 840" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 840 812 H 600" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 600 868 H 340" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <path d="M 340 892 H 360 Q 368 892 368 900 V 912 Q 368 920 360 920 H 340" fill="none" stroke="#ffcc3d" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <path d="M 340 944 H 120" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+
+      <!-- Labels: caps label and sublabel stacked above their arrow, on an opaque mask 8px clear of the stroke -->
+      <text x="720" y="594" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">REPEAT TOGETHER</text>
+      <rect x="158" y="232" width="144" height="36" rx="2" fill="#0d0c1f"/>
+      <text x="230" y="245" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">AWAIT HACK</text>
+      <text x="230" y="263" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">await s.hack(def)</text>
+      <text x="380" y="321" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.06em">IMPORT 3D</text>
+      <text x="468" y="321" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">first entry only</text>
+      <text x="380" y="339" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">await import("hack3d")</text>
+      <rect x="356" y="356" width="228" height="36" rx="2" fill="#0d0c1f"/>
+      <text x="470" y="369" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">RUN SCENE</text>
+      <text x="470" y="387" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">game.run(new HackScene(def))</text>
+      <rect x="610" y="412" width="220" height="36" rx="2" fill="#0d0c1f"/>
+      <text x="720" y="425" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">INIT + CREATE</text>
+      <text x="720" y="443" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">init, create3D, show View3D</text>
+      <rect x="662" y="512" width="116" height="36" rx="2" fill="#161528"/>
+      <text x="720" y="525" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">FIXEDUPDATE</text>
+      <text x="720" y="543" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">pure sim step</text>
+      <rect x="606" y="632" width="228" height="36" rx="2" fill="#161528"/>
+      <text x="720" y="645" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">PRERENDER</text>
+      <text x="720" y="663" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">copy sim state into Object3D</text>
+      <text x="804" y="702" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.06em">RENDER TO RT</text>
+      <text x="804" y="720" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">GlHandoff: Three</text>
+      <text x="804" y="738" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">renders into rt</text>
+      <rect x="662" y="768" width="116" height="36" rx="2" fill="#0d0c1f"/>
+      <text x="720" y="781" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">CLOSE SCENE</text>
+      <text x="720" y="799" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">close(result)</text>
+      <rect x="394" y="824" width="152" height="36" rx="2" fill="#0d0c1f"/>
+      <text x="470" y="837" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">SCENE ENDED</text>
+      <text x="470" y="855" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">closed with result</text>
+      <text x="380" y="901" fill="#ffcc3d" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.06em">DISPOSE</text>
+      <text x="380" y="919" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">finally: dispose rt, scene,</text>
+      <text x="380" y="937" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">ExternalSource, passes</text>
+      <rect x="120" y="900" width="220" height="36" rx="2" fill="#0d0c1f"/>
+      <text x="230" y="913" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">RESULT</text>
+      <text x="230" y="931" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">HackResult (always a value)</text>
+
+      <!-- Participants and note -->
+      <rect x="40" y="108" width="160" height="56" rx="6" fill="#0d0c1f"/>
+      <rect x="40" y="108" width="160" height="56" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="120" y="142" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Story script</text>
+      <rect x="260" y="108" width="160" height="56" rx="6" fill="#0d0c1f"/>
+      <rect x="260" y="108" width="160" height="56" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="340" y="142" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">fieldHooks.hack</text>
+      <rect x="520" y="108" width="160" height="56" rx="6" fill="#0d0c1f"/>
+      <rect x="520" y="108" width="160" height="56" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="600" y="142" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Game</text>
+      <rect x="760" y="108" width="160" height="56" rx="6" fill="#0d0c1f"/>
+      <rect x="760" y="108" width="160" height="56" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="840" y="132" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">HackScene</text>
+      <text x="840" y="152" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">lazy chunk</text>
+      <rect x="96" y="188" width="768" height="28" rx="4" fill="#0d0c1f"/>
+      <rect x="96" y="188" width="768" height="28" rx="4" fill="rgba(244,241,255,0.05)" stroke="rgba(122,128,196,0.5)" stroke-width="1"/>
+      <text x="480" y="207" fill="#f4f1ff" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">Ticks and frames interleave</text>
+
+      <!-- Legend and aside -->
+      <line x1="40" y1="992" x2="920" y2="992" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <line x1="40" y1="1016" x2="72" y2="1016" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <text x="82" y="1020" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">CALL</text>
+      <line x1="160" y1="1016" x2="192" y2="1016" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <text x="202" y="1020" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">RETURN</text>
+      <line x1="300" y1="1016" x2="332" y2="1016" stroke="#ffcc3d" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <text x="342" y="1020" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">TEARDOWN: FINALLY ALWAYS RUNS</text>
+      <text x="40" y="1060" fill="#bfc3e4" font-size="16" font-family="'Instrument Serif', serif" font-style="italic">s.hack always returns success, fail, aborted or unsupported.</text>
+      <text x="40" y="1084" fill="#bfc3e4" font-size="16" font-family="'Instrument Serif', serif" font-style="italic">A watchdog ends the scene if the GL context does not return within 2 seconds.</text>
+    </svg>
+    </div>
+  </div>
+</body>
+</html>

@@ -47,16 +47,9 @@ Game
 
 ### The screen root (shared by all scenes)
 
-```
-screen (Pixi root)
- ├─ worldRoot     screen filters run here
- │   ├─ FieldScene.world       cameras.main of FieldScene moves it
- │   └─ (world of any other visible scene)
- ├─ uiRoot        no screen filters, no shake
- │   ├─ FieldScene.ui
- │   └─ DialogScene.ui
- └─ overlayRoot   game fade, game flash, notice
-```
+![The screen root. The Pixi screen root holds three shared roots, drawn back to front. worldRoot is first and holds the world of each visible scene, such as FieldScene.world, which cameras.main moves. Screen filters run here only. Camera flash and fade draw above the world and below the ui. uiRoot is second and holds FieldScene.ui and DialogScene.ui, with no screen filters and no shake. overlayRoot is last and holds game fade, game flash, notice, and legacy overlays, with no filters. Each scene owns a world and a ui container, and the engine parents them under these roots in stack order.](diagrams/engine-screen-roots.png)
+
+*Editable source: [diagrams/engine-screen-roots.html](diagrams/engine-screen-roots.html)*
 
 Each scene owns a `world` and a `ui` container. The engine parents them under the shared roots in stack order. Section 6 has the rules.
 

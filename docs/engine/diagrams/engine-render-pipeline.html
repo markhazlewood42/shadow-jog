@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Engine render pipeline</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d0c1f;   /* Shadow Jog panel bottom */
+      --color-ink:     #f4f1ff;
+      --color-muted:   #bfc3e4;
+      --color-accent:  #ffcc3d;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 960px; width: 100%; }
+    /* The SVG holds its readable width (min-width equals the viewBox width).
+       This wrapper lets a narrow screen scroll the diagram, not the page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Flowchart &middot; Shadow Jog engine</p>
+    <h1>Engine render pipeline</h1>
+
+    <div class="diagram-container">
+    <!-- Type ramp matches the engine-layers pilot: names 16, descriptions 13, mono text 12.
+         A README shows this figure at about 880px wide (scale 0.92), so the smallest text stays near 11px. -->
+    <svg viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-render-pipeline-title engine-render-pipeline-desc">
+      <title id="engine-render-pipeline-title">Engine render pipeline</title>
+      <desc id="engine-render-pipeline-desc">One frame of the engine render pipeline in eight steps: state copy, per-frame updates, a check for an active 3D session, an optional Three render, a GL state reset, Pixi drawing the screen root into the 480x270 back buffer, an integer-scaled present into the canvas, and postrender.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#0d0c1f"/>
+
+      <!-- Header -->
+      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-style="italic" font-family="'Instrument Serif', serif">Filters run inside 480x270. Only the present scales.</text>
+      <text x="40" y="84" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">STEPS RUN IN NUMBER ORDER. THE SECOND ROW RUNS RIGHT TO LEFT.</text>
+
+      <!-- Arrows (drawn before the nodes) -->
+      <path d="M 224 198 H 272" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 456 198 H 504" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 688 198 H 736" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 866 268 V 360" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 596 268 V 300 Q 596 308 604 308 H 782 Q 790 308 790 316 V 360" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 736 430 H 688" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 504 430 H 456" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 272 430 H 224" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="692" y="172" width="40" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="712" y="184" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">YES</text>
+      <rect x="674" y="284" width="40" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="694" y="296" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">NO</text>
+
+      <!-- Nodes -->
+      <rect x="40" y="128" width="184" height="140" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="54" y="154" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">1</text>
+      <text x="74" y="154" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">prerender</text>
+      <text x="54" y="176" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">state copy into</text>
+      <text x="54" y="194" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Pixi nodes</text>
+      <rect x="272" y="128" width="184" height="140" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="286" y="154" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">2</text>
+      <text x="306" y="154" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Update</text>
+      <text x="286" y="176" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">FxSystem.update</text>
+      <text x="286" y="194" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">camera transforms</text>
+      <text x="286" y="212" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">CanvasImage.refresh</text>
+      <polygon points="596,128 688,198 596,268 504,198" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="596" y="166" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.1em">3</text>
+      <text x="596" y="196" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">3D session</text>
+      <text x="596" y="216" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">active?</text>
+      <rect x="736" y="128" width="184" height="140" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="750" y="154" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">4</text>
+      <text x="770" y="154" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Three renders</text>
+      <text x="750" y="176" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">into a 480x270 nearest</text>
+      <text x="750" y="194" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">render target</text>
+      <text x="750" y="212" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">GlHandoff.beginThree</text>
+      <text x="750" y="230" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">GlHandoff.endThree</text>
+      <rect x="736" y="360" width="184" height="140" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="750" y="386" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">5</text>
+      <text x="770" y="386" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Reset GL state</text>
+      <text x="750" y="408" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">GlHandoff.beginPixi</text>
+      <text x="750" y="426" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">pixi.resetState</text>
+      <rect x="504" y="360" width="184" height="140" rx="6" fill="#1c1a3a"/>
+      <rect x="504" y="360" width="184" height="140" rx="6" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1"/>
+      <text x="518" y="386" fill="#ffcc3d" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">6</text>
+      <text x="538" y="386" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Pixi draws</text>
+      <text x="518" y="408" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">the screen root into</text>
+      <text x="518" y="426" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">the back buffer</text>
+      <rect x="518" y="440" width="156" height="48" rx="2" fill="none" stroke="#ffcc3d" stroke-width="1"/>
+      <text x="528" y="462" fill="#ffcc3d" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.02em">480x270</text>
+      <text x="528" y="480" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">RES 1, NEAREST</text>
+      <rect x="272" y="360" width="184" height="140" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="286" y="386" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">7</text>
+      <text x="306" y="386" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Present</text>
+      <text x="286" y="408" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">one nearest sprite</text>
+      <text x="286" y="426" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">scaled by integer k</text>
+      <text x="286" y="444" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">into the canvas</text>
+      <rect x="286" y="458" width="96" height="28" rx="2" fill="none" stroke="#7a80c4" stroke-width="1"/>
+      <text x="334" y="476" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">SCALE k&#215;</text>
+      <rect x="40" y="360" width="184" height="140" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="54" y="386" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">8</text>
+      <text x="74" y="386" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">postrender</text>
+      <text x="54" y="408" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">perf record</text>
+    </svg>
+    </div>
+  </div>
+</body>
+</html>

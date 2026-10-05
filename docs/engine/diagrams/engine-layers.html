@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Engine code levels</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d0c1f;   /* Shadow Jog panel bottom */
+      --color-ink:     #f4f1ff;
+      --color-muted:   #bfc3e4;
+      --color-accent:  #ffcc3d;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 960px; width: 100%; }
+    /* The SVG holds its readable width (min-width equals the viewBox width).
+       This wrapper lets a narrow screen scroll the diagram, not the page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Layer stack &middot; Shadow Jog engine</p>
+    <h1>Engine code levels</h1>
+
+    <div class="diagram-container">
+    <!-- Type ramp is a deliberate exception to the standard doc-inline ramp. This figure shows at about
+         880px wide in a README (scale 0.92), so names are 16, descriptions 13 and all mono text 12.
+         That keeps every label near 11px on screen. -->
+    <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-layers-title engine-layers-desc">
+      <title id="engine-layers-title">Engine code levels</title>
+      <desc id="engine-layers-desc">Seven stacked levels of the engine, from game content at L6 down to core at L0, with the rule that imports point down only, plus pure logic and the legacy engine outside the levels.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
+        <marker id="arrow-soft" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#8f94bd"/></marker>
+      </defs>
+
+      <rect width="100%" height="100%" fill="#0d0c1f"/>
+
+      <!-- Header: the rule, how it is enforced, how to read the arrows -->
+      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-style="italic" font-family="'Instrument Serif', serif">Dependencies point down only.</text>
+      <text x="920" y="60" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">ENFORCED BY A BIOME RULE AND A VITEST IMPORT SCAN</text>
+      <text x="40" y="84" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">EACH BAND LISTS THE LEVELS IT MAY IMPORT. ARROWS SHOW THE OTHER IMPORTS.</text>
+
+      <!-- Zones (outline only, so label masks match the page) -->
+      <rect x="40" y="100" width="572" height="444" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <rect x="740" y="268" width="180" height="276" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <text x="56" y="122" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.14em">NUMBERED LEVELS</text>
+      <text x="596" y="122" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">L0-L4 LIVE IN SRC/SJE/ (SHADOW JOG ENGINE)</text>
+      <text x="756" y="288" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.14em">NOT A LEVEL</text>
+
+      <!-- Arrows (drawn before the boxes) -->
+      <!-- L6 to pure logic: long edge, soft stroke so amber stays the only strong accent -->
+      <path d="M 600 162 H 888 Q 896 162 896 170 V 456" fill="none" stroke="#8f94bd" stroke-width="1.2" marker-end="url(#arrow-soft)"/>
+      <!-- pure logic to L0 -->
+      <path d="M 756 496 H 600" fill="none" stroke="#8f94bd" stroke-width="1.2" marker-end="url(#arrow-soft)"/>
+      <!-- L6 to L5, dynamic import, short arrow in the gap -->
+      <path d="M 520 188 V 216" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <rect x="392" y="192" width="120" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="452" y="204" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">DYNAMIC IMPORT</text>
+      <!-- L5 to L1, skips L4 to L2, loop on the left -->
+      <path d="M 196 242 H 180 Q 172 242 172 250 V 442 Q 172 450 180 450 H 196" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="52" y="338" width="112" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="108" y="350" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">SKIPS L4 TO L2</text>
+      <!-- L3 to legacy engine, dashed -->
+      <path d="M 600 346 H 756" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <rect x="622" y="322" width="112" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="678" y="334" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">LEGACY ADAPTER</text>
+      <rect x="622" y="354" width="112" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="678" y="366" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">MIGRATION ONLY</text>
+
+      <!-- Level stack -->
+<rect x="196" y="136" width="404" height="52" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+<text x="210" y="160" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">L6</text>
+      <text x="242" y="160" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Game content</text>
+      <text x="242" y="179" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">scenes, scripts, painters</text>
+      <text x="586" y="160" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">MAY IMPORT: L4, L5 (DYNAMIC)</text>
+<rect x="196" y="216" width="404" height="312" rx="6" fill="#1c1a3a"/>
+<line x1="196" y1="320" x2="600" y2="320" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+<line x1="196" y1="372" x2="600" y2="372" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+<line x1="196" y1="424" x2="600" y2="424" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+<line x1="196" y1="476" x2="600" y2="476" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+<rect x="196" y="216" width="404" height="312" rx="6" fill="none" stroke="#7a80c4" stroke-width="1"/>
+<text x="210" y="240" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">L5</text>
+      <text x="242" y="240" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Lazy 3D chunk</text>
+      <text x="242" y="259" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">the only user of three</text>
+      <text x="586" y="240" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">MAY IMPORT: L4, L1</text>
+<rect x="196" y="268" width="404" height="52" fill="#1c1a3a"/>
+      <rect x="196" y="268" width="404" height="52" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1"/>
+      <text x="210" y="292" fill="#ffcc3d" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">L4</text>
+      <text x="242" y="292" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Facade</text>
+      <text x="242" y="311" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">the only import for game code</text>
+      <text x="586" y="292" fill="#ffcc3d" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">MAY IMPORT: L3</text>
+<text x="210" y="344" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">L3</text>
+      <text x="242" y="344" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Runtime</text>
+      <text x="242" y="363" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Game, scenes, loader, input</text>
+      <text x="586" y="344" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">MAY IMPORT: L2, L1, L0</text>
+<text x="210" y="396" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">L2</text>
+      <text x="242" y="396" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Display</text>
+      <text x="242" y="415" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">GameObjects, Camera, Effects</text>
+      <text x="586" y="396" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">MAY IMPORT: L1, L0</text>
+<text x="210" y="448" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">L1</text>
+      <text x="242" y="448" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Render</text>
+      <text x="242" y="467" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Pixi and raw GL</text>
+      <text x="586" y="448" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">MAY IMPORT: L0</text>
+<text x="210" y="500" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">L0</text>
+      <text x="242" y="500" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Core</text>
+      <text x="242" y="519" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">size, FixedLoop, EventEmitter, Rng. No Pixi, no DOM.</text>
+      <text x="586" y="500" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">MAY IMPORT: NOTHING</text>
+
+      <!-- Side zone nodes -->
+      <rect x="756" y="300" width="128" height="92" rx="6" fill="#1c1a3a" stroke="rgba(244,241,255,0.45)" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="820" y="324" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Legacy engine</text>
+      <text x="820" y="344" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle">src/engine/</text>
+      <text x="820" y="362" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">via LegacyScene.</text>
+      <text x="820" y="380" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">Deleted at M8.</text>
+      <rect x="756" y="456" width="152" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="832" y="480" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Pure logic</text>
+      <text x="832" y="500" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">src/battle, hack sim,</text>
+      <text x="832" y="518" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">game state</text>
+
+      <!-- Legend -->
+      <line x1="40" y1="560" x2="920" y2="560" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <line x1="40" y1="580" x2="72" y2="580" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <text x="82" y="584" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">STATIC IMPORT</text>
+      <line x1="220" y1="580" x2="252" y2="580" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <text x="262" y="584" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">SPECIAL IMPORT</text>
+    </svg>
+    </div>
+  </div>
+</body>
+</html>

@@ -78,32 +78,9 @@ Source material: `docs/research/2026-10-04-engine-and-3d.md`, decision 17 in `do
 
 Dependencies point down only. A Biome rule and a Vitest import scan enforce this. `sje` means Shadow Jog Engine. The new code lives in `src/sje/`. The old `src/engine/` stays until M8, so the shipped game still works.
 
-```mermaid
-flowchart TD
-  L6["L6 Game content: scenes, scripts, painters"]
-  L5["L5 Lazy 3D chunk: the only user of three"]
-  L4["L4 Facade: the only import for game code"]
-  L3["L3 Runtime: Game, scenes, loader, input"]
-  L2["L2 Display: GameObjects, Camera, Effects"]
-  L1["L1 Render: Pixi and raw GL"]
-  L0["L0 Core: size, FixedLoop, EventEmitter, Rng"]
-  PURE["Pure logic: src/battle, hack sim, game state"]
-  LEG["Legacy engine: src/engine. Deleted at M8"]
-  L6 --> L4
-  L6 -. "dynamic import()" .-> L5
-  L5 --> L4
-  L5 --> L1
-  L4 --> L3
-  L3 --> L2
-  L3 --> L1
-  L2 --> L1
-  L2 --> L0
-  L1 --> L0
-  L3 --> L0
-  L6 --> PURE
-  PURE --> L0
-  L3 -. "LegacyScene adapter, migration only" .-> LEG
-```
+![Engine code levels. Seven stacked levels, L6 game content at the top down to L0 core at the bottom. Dependencies point down only. Each level lists the levels it may import. L4, the facade, is the only import for game code. L6 reaches the lazy 3D chunk at L5 by a dynamic import, and L5 also imports L1 directly. Outside the levels, pure logic is imported by L6 and imports only L0. The legacy engine is reached from L3 through the LegacyScene adapter during migration and is deleted at M8.](diagrams/engine-layers.png)
+
+*Editable source: [diagrams/engine-layers.html](diagrams/engine-layers.html)*
 
 | Level | Folder | Holds | May import |
 |---|---|---|---|
@@ -147,38 +124,18 @@ Full tables with Unity, Godot, and Three.js names are in [conventions.md](conven
 
 ## 6. The frame in one diagram
 
-<!-- keep in sync with frame-and-rendering.md section 1 -->
 
-```mermaid
-flowchart TD
-  A["requestAnimationFrame callback"] --> B["Add elapsed time to the accumulator (maximum 250 ms)"]
-  B --> C{"At least 16.67 ms in the accumulator and fewer than 5 ticks run?"}
-  C -- yes --> D["One tick: input, game events, game clock, fixedUpdate on scenes top first, camera effects, destroy queue"]
-  D --> C
-  C -- no --> E["Draw phase: prerender events, state copy into nodes, FxSystem, camera transforms"]
-  E --> F["Draw: 3D pass if active, then Pixi into the back buffer, then present at integer scale"]
-  F --> G["After the callback: story promises continue as microtasks"]
-```
+![Engine frame loop. One requestAnimationFrame callback adds elapsed time to an accumulator, clamped to 250 ms. A decision then checks whether the accumulator holds at least 16.67 ms and fewer than 5 ticks have run. If yes, one tick runs (input, game events, game clock, fixedUpdate on scenes top first, camera effects, destroy queue) and the loop returns to the check. The tick writes game state. If no, the draw phase runs: prerender events, state copy into nodes, FxSystem and camera transforms, then the 3D pass if active, Pixi into the back buffer, and present at integer scale. The draw phase only reads state. After the callback, story promises continue as microtasks. The 5th tick drops the backlog.](diagrams/engine-frame.png)
+
+*Editable source: [diagrams/engine-frame.html](diagrams/engine-frame.html)*
 
 The tick changes game state. The draw phase only reads it. Details are in [frame-and-rendering.md](frame-and-rendering.md).
 
 ## 7. The render pipeline in one diagram
 
-```mermaid
-flowchart LR
-  A["State copy into Pixi nodes"] --> B{"3D session active?"}
-  B -- yes --> C["GlHandoff: Three renders into a 480x270 nearest render target"]
-  C --> D["GlHandoff: reset GL state"]
-  B -- no --> D
-  D --> E["Pixi draws the screen root into the 480x270 back buffer"]
-  E --> F["Present: one nearest sprite scaled by integer k into the canvas"]
-  subgraph screen["The screen root, which Pixi draws"]
-    S1["worldRoot: scene world containers, screen filters"]
-    S2["uiRoot: scene ui containers, no screen filters"]
-    S3["overlayRoot: game fade, game flash, notice"]
-  end
-  E -.-> screen
-```
+![The engine render pipeline for one frame, in eight numbered steps. Step 1, prerender copies state into Pixi nodes. Step 2 runs FxSystem.update, camera transforms and CanvasImage.refresh. Step 3 asks whether a 3D session is active. If yes, step 4 lets Three render into a 480x270 nearest render target through GlHandoff.beginThree and endThree. If no, the flow skips step 4. Step 5 resets GL state with GlHandoff.beginPixi and pixi.resetState. Step 6 has Pixi draw the screen root into the 480x270 back buffer at resolution 1 with nearest scaling, so all filters run inside it. Step 7, the present, draws one nearest sprite scaled by integer k into the canvas. Step 8 is postrender and the perf record.](diagrams/engine-render-pipeline.png)
+
+*Editable source: [diagrams/engine-render-pipeline.html](diagrams/engine-render-pipeline.html)*
 
 All filters run at game resolution (480x270). This keeps every game pixel an exact block after the integer upscale. The price is a chunkier blur and glow. This is a look decision for you (E8).
 

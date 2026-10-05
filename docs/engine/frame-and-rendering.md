@@ -38,18 +38,10 @@ The engine owns the only loop that runs game code. It uses one `requestAnimation
 3. The `pixi.js/events` module also registers on `Ticker.system`. It loads in dev and editor builds only. Those builds run Pixi's callbacks, so the rAF-interval gate and `__SJ__.step` must ignore them.
 4. Do not import `pixi.js/accessibility`. Its Tab handler would clash with the game's menu key.
 
-<!-- keep in sync with README.md section 6 -->
 
-```mermaid
-flowchart TD
-  A["requestAnimationFrame callback"] --> B["Add elapsed time to the accumulator (maximum 250 ms)"]
-  B --> C{"At least 16.67 ms in the accumulator and fewer than 5 ticks run?"}
-  C -- yes --> D["Run one tick, see section 2"]
-  D --> C
-  C -- no --> E["Draw phase, see section 3"]
-  E --> F["Draw: 3D pass if active, Pixi into the back buffer, present"]
-  F --> G["Callback ends. Story promises continue as microtasks"]
-```
+![Engine frame loop. One requestAnimationFrame callback adds elapsed time to an accumulator, clamped to 250 ms. A decision then checks whether the accumulator holds at least 16.67 ms and fewer than 5 ticks have run. If yes, one tick runs (input, game events, game clock, fixedUpdate on scenes top first, camera effects, destroy queue) and the loop returns to the check. The tick writes game state. If no, the draw phase runs: prerender events, state copy into nodes, FxSystem and camera transforms, then the 3D pass if active, Pixi into the back buffer, and present at integer scale. The draw phase only reads state. After the callback, story promises continue as microtasks. The 5th tick drops the backlog.](diagrams/engine-frame.png)
+
+*Editable source: [diagrams/engine-frame.html](diagrams/engine-frame.html)*
 
 ---
 
@@ -79,6 +71,10 @@ Scene operations (`launch`, `pause`, `stop`, and the rest) are queued and applie
 ### Scene lifecycle
 
 Phaser's lifecycle is `init(data)`, `preload()`, `create(data)`, `update`. Ours keeps the first three. Phaser's `preload` is asynchronous. The story contract needs `game.run` to push the scene at once. This is the rule that joins them:
+
+![Scene lifecycle state machine with nine states. A scene starts at init and moves to start when game.run pushes it, synchronously. From start it goes straight to creating if there are no loads, or through loading and back to creating when the load is done. Creating leads to running, the only state where fixedUpdate runs. A running scene can be paused when covered and resume when uncovered, or sleep and wake. Close moves it to shutdown, and shutdown moves to destroyed when objects are freed. The game.run promise resolves on close(result). It does not depend on when create ran.](diagrams/engine-scene-lifecycle.png)
+
+*Editable source: [diagrams/engine-scene-lifecycle.html](diagrams/engine-scene-lifecycle.html)*
 
 1. `game.run(scene)` pushes the scene on the stack **synchronously**. It calls `init(data)` and `preload()` at once. It also runs `input.consume()`, as today.
 2. If `preload()` adds nothing to the loader, or all keys are in the cache, `create(data)` runs at once in the same call.
@@ -220,29 +216,18 @@ The engine creates the canvas and the WebGL2 context. Then it creates the Pixi r
 
 ### 6.2 The back buffer and the present
 
-```
-screen (Container)    the Pixi root. We call it the "screen root".
-  worldRoot           the `world` container of every visible scene, bottom scene first. Screen filters sit here
-  uiRoot              the `ui` container of every visible scene. No screen filters, no shake
-  overlayRoot         game fade, game flash, notice, legacy overlays. No filters
-```
+![The screen root. The Pixi screen root holds three shared roots, drawn back to front. worldRoot is first and holds the world of each visible scene, such as FieldScene.world, which cameras.main moves. Screen filters run here only. Camera flash and fade draw above the world and below the ui. uiRoot is second and holds FieldScene.ui and DialogScene.ui, with no screen filters and no shake. overlayRoot is last and holds game fade, game flash, notice, and legacy overlays, with no filters. Each scene owns a world and a ui container, and the engine parents them under these roots in stack order.](diagrams/engine-screen-roots.png)
+
+*Editable source: [diagrams/engine-screen-roots.html](diagrams/engine-screen-roots.html)*
 
 Each scene owns two containers: `scene.world` and `scene.ui`. The engine parents them under `worldRoot` and `uiRoot` in stack order. `cameras.main` moves only that scene's `world`. The screen filters run on the shared `worldRoot`, so they act on all visible world lists together. Camera `flash` and `fade` draw a rectangle above the scene's `world` and below its `ui`. So a camera flash washes the world only, as today. `game.flash` and `game.fadeTo` draw in `overlayRoot` and cover everything.
 
 1. Pixi draws the screen root into a **480x270 `RenderTexture`** at resolution 1, with nearest scaling. This is the back buffer. All filters run inside it.
 2. The presenter draws the back buffer as one nearest-sampled sprite, scaled by the integer `k`, into the canvas.
 
-```mermaid
-flowchart LR
-  A["prerender: state copy"] --> B["FxSystem.update, camera transforms, CanvasImage.refresh"]
-  B --> C{"3D active?"}
-  C -- yes --> D["GlHandoff.beginThree, Three render into rt, GlHandoff.endThree"]
-  C -- no --> E
-  D --> E["GlHandoff.beginPixi: pixi.resetState"]
-  E --> F["Pixi: screen root into BackBuffer 480x270"]
-  F --> G["Pixi: present sprite, nearest, scale k, into canvas"]
-  G --> H["postrender, perf record"]
-```
+![The engine render pipeline for one frame, in eight numbered steps. Step 1, prerender copies state into Pixi nodes. Step 2 runs FxSystem.update, camera transforms and CanvasImage.refresh. Step 3 asks whether a 3D session is active. If yes, step 4 lets Three render into a 480x270 nearest render target through GlHandoff.beginThree and endThree. If no, the flow skips step 4. Step 5 resets GL state with GlHandoff.beginPixi and pixi.resetState. Step 6 has Pixi draw the screen root into the 480x270 back buffer at resolution 1 with nearest scaling, so all filters run inside it. Step 7, the present, draws one nearest sprite scaled by integer k into the canvas. Step 8 is postrender and the perf record.](diagrams/engine-render-pipeline.png)
+
+*Editable source: [diagrams/engine-render-pipeline.html](diagrams/engine-render-pipeline.html)*
 
 ### 6.3 Why filters run at game resolution
 
@@ -366,29 +351,9 @@ The speed gap between the shared context and the canvas copy did not reproduce i
 
 ### 7.2 Lifecycle
 
-```mermaid
-sequenceDiagram
-  participant S as Story script
-  participant H as fieldHooks.hack
-  participant G as Game
-  participant T as HackScene (lazy chunk)
-  Note over S,T: Ticks and frames interleave
-  S->>H: await s.hack(def)
-  H->>H: await import("hack3d") (first entry only)
-  H->>G: game.run(new HackScene(def))
-  G->>T: init, create3D, show View3D
-  loop each tick
-    G->>T: fixedUpdate: pure sim step
-  end
-  loop each frame
-    G->>T: prerender: copy sim state into Object3D
-    T->>T: GlHandoff: Three renders into rt
-  end
-  T->>G: close(result)
-  G-->>H: scene closed with result
-  H->>H: finally: dispose rt, scene, ExternalSource, passes
-  H-->>S: HackResult (always a value)
-```
+![Hack scene lifecycle as a sequence diagram with four lifelines: Story script, fieldHooks.hack, Game and HackScene (lazy chunk). A note says ticks and frames interleave. The script awaits s.hack. fieldHooks.hack imports the hack3d chunk on first entry, then runs a new HackScene on the Game. The Game inits the scene, then two loops repeat together: a fixedUpdate sim step each tick, and each frame a prerender plus a GlHandoff render into the render target. The scene closes with a result and the Game reports the scene ended. fieldHooks.hack then runs a finally block that disposes the render target, scene, ExternalSource and passes, and returns a HackResult to the script. s.hack always returns success, fail, aborted or unsupported. A watchdog ends the scene if the GL context does not return within 2 seconds.](diagrams/engine-hack-lifecycle.png)
+
+*Editable source: [diagrams/engine-hack-lifecycle.html](diagrams/engine-hack-lifecycle.html)*
 
 **Rules for the whole lifecycle** (all lab-tested on SwiftShader unless noted):
 

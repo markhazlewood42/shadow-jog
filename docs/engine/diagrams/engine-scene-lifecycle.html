@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scene lifecycle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #0d0c1f;   /* Shadow Jog panel bottom */
+      --color-ink:     #f4f1ff;
+      --color-muted:   #bfc3e4;
+      --color-accent:  #ffcc3d;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 960px; width: 100%; }
+    /* The SVG holds its readable width (min-width equals the viewBox width).
+       This wrapper lets a narrow screen scroll the diagram, not the page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+    svg { width: 100%; min-width: 960px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">State machine &middot; Shadow Jog engine</p>
+    <h1>Scene lifecycle</h1>
+
+    <div class="diagram-container">
+    <!-- Type ramp is a deliberate exception to the standard doc-inline ramp (same as engine-layers). This figure shows at
+         about 880px wide in a README (scale 0.92), so names are 16, descriptions 13, callouts 18 and mono text 12. -->
+    <svg viewBox="0 0 960 696" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-scene-lifecycle-title engine-scene-lifecycle-desc">
+      <title id="engine-scene-lifecycle-title">Scene lifecycle</title>
+      <desc id="engine-scene-lifecycle-desc">Nine scene states and the moves between them. A scene starts at init and start, then reaches creating directly or through loading. Only the running state runs fixedUpdate. A running scene can be paused or sleeping and return, or move to shutdown and then destroyed. The game.run promise resolves on close(result). It does not depend on when create ran.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
+      </defs>
+
+      <rect width="100%" height="100%" fill="#0d0c1f"/>
+
+      <!-- Header -->
+      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-style="italic" font-family="'Instrument Serif', serif">Only a running scene gets fixedUpdate.</text>
+
+      <!-- Arrows (drawn before the boxes) -->
+      <path d="M 248 212 H 376" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="272" y="220" width="80" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="312" y="232" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">GAME.RUN</text>
+      <path d="M 480 248 V 312" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="488" y="272" width="80" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="528" y="284" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">NO LOADS</text>
+      <path d="M 584 212 H 712" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="604" y="188" width="88" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="648" y="200" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">HAS LOADS</text>
+      <path d="M 816 248 V 340 Q 816 348 808 348 H 584" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="656" y="322" width="88" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="700" y="334" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">LOAD DONE</text>
+      <path d="M 480 384 V 448" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="488" y="408" width="72" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="524" y="420" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">CREATED</text>
+      <path d="M 376 472 H 248" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="276" y="448" width="72" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="312" y="460" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">COVERED</text>
+      <path d="M 248 496 H 376" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="268" y="504" width="88" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="312" y="516" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">UNCOVERED</text>
+      <path d="M 584 472 H 712" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="620" y="448" width="56" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="648" y="460" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">SLEEP</text>
+      <path d="M 712 496 H 584" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="624" y="504" width="48" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="648" y="516" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">WAKE</text>
+      <path d="M 480 520 V 584" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="488" y="544" width="56" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="516" y="556" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">CLOSE</text>
+      <path d="M 584 620 H 712" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="620" y="596" width="56" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="648" y="608" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">FREED</text>
+
+      <!-- Callouts -->
+      <path d="M 312 132 V 202" fill="none" stroke="rgba(244,241,255,0.40)" stroke-width="1" stroke-dasharray="4,3"/>
+      <circle cx="312" cy="202" r="2" fill="#f4f1ff"/>
+      <text x="312" y="100" fill="#f4f1ff" font-size="18" font-style="italic" font-family="'Instrument Serif', serif" text-anchor="middle">game.run pushes the</text>
+      <text x="312" y="120" fill="#f4f1ff" font-size="18" font-style="italic" font-family="'Instrument Serif', serif" text-anchor="middle">scene synchronously</text>
+      <path d="M 220 574 H 468" fill="none" stroke="rgba(244,241,255,0.40)" stroke-width="1" stroke-dasharray="4,3"/>
+      <circle cx="470" cy="574" r="2" fill="#f4f1ff"/>
+      <text x="40" y="560" fill="#f4f1ff" font-size="18" font-style="italic" font-family="'Instrument Serif', serif">The game.run promise resolves</text>
+      <text x="40" y="582" fill="#f4f1ff" font-size="18" font-style="italic" font-family="'Instrument Serif', serif">on close(result). It does not</text>
+      <text x="40" y="604" fill="#f4f1ff" font-size="18" font-style="italic" font-family="'Instrument Serif', serif">depend on when create ran.</text>
+
+      <!-- States -->
+      <rect x="40" y="176" width="208" height="72" rx="6" fill="#1c1a3a"/>
+      <rect x="40" y="176" width="208" height="72" rx="6" fill="none" stroke="#7a80c4" stroke-width="1"/>
+      <text x="54" y="204" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">init</text>
+      <text x="54" y="224" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace">init(data)</text>
+      <rect x="376" y="176" width="208" height="72" rx="6" fill="#1c1a3a"/>
+      <rect x="376" y="176" width="208" height="72" rx="6" fill="none" stroke="#7a80c4" stroke-width="1"/>
+      <text x="390" y="204" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">start</text>
+      <text x="390" y="224" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace">preload()</text>
+      <rect x="712" y="176" width="208" height="72" rx="6" fill="#1c1a3a"/>
+      <rect x="712" y="176" width="208" height="72" rx="6" fill="none" stroke="#7a80c4" stroke-width="1"/>
+      <text x="726" y="204" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">loading</text>
+      <text x="726" y="224" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">The loader is busy.</text>
+      <rect x="376" y="312" width="208" height="72" rx="6" fill="#1c1a3a"/>
+      <rect x="376" y="312" width="208" height="72" rx="6" fill="none" stroke="#7a80c4" stroke-width="1"/>
+      <text x="390" y="340" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">creating</text>
+      <text x="390" y="360" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace">create(data)</text>
+      <rect x="376" y="448" width="208" height="72" rx="6" fill="#1c1a3a"/>
+      <rect x="376" y="448" width="208" height="72" rx="6" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1.2"/>
+      <text x="390" y="476" fill="#ffcc3d" font-size="16" font-weight="600" font-family="'Geist', sans-serif">running</text>
+      <text x="390" y="496" fill="#ffcc3d" font-size="12" font-family="'Geist Mono', monospace">fixedUpdate runs</text>
+      <rect x="40" y="448" width="208" height="72" rx="6" fill="#1c1a3a"/>
+      <rect x="40" y="448" width="208" height="72" rx="6" fill="none" stroke="#7a80c4" stroke-width="1"/>
+      <text x="54" y="476" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">paused</text>
+      <text x="54" y="496" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Below the top. No scene</text>
+      <text x="54" y="512" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">above passes updates.</text>
+      <rect x="712" y="448" width="208" height="72" rx="6" fill="#1c1a3a"/>
+      <rect x="712" y="448" width="208" height="72" rx="6" fill="none" stroke="#7a80c4" stroke-width="1"/>
+      <text x="726" y="476" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">sleeping</text>
+      <text x="726" y="496" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Not updated, not drawn.</text>
+      <rect x="376" y="584" width="208" height="72" rx="6" fill="#1c1a3a"/>
+      <rect x="376" y="584" width="208" height="72" rx="6" fill="none" stroke="#7a80c4" stroke-width="1"/>
+      <text x="390" y="612" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">shutdown</text>
+      <text x="390" y="632" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Timers and tweens stop.</text>
+      <rect x="712" y="584" width="208" height="72" rx="6" fill="#1c1a3a"/>
+      <rect x="712" y="584" width="208" height="72" rx="6" fill="none" stroke="#7a80c4" stroke-width="1"/>
+      <text x="726" y="612" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">destroyed</text>
+      <text x="726" y="632" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">All objects are freed.</text>
+    </svg>
+    </div>
+  </div>
+</body>
+</html>
