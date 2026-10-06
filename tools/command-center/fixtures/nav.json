@@ -3,7 +3,7 @@
     {
       "id": "start",
       "title": "Start here",
-      "items": ["README.md", "docs/first.md", "docs/second.md"]
+      "items": ["README.md", "status.md", "docs/first.md", "docs/second.md"]
     },
     {
       "id": "guides",
