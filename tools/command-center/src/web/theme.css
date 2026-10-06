@@ -1,6 +1,7 @@
 /*
- * The page's stylesheet: Tailwind, the HeroUI styles, the fonts, and the theme that ties them to
- * the tokens. Nothing here writes a colour value: every colour is a token from tokens.css.
+ * The page's stylesheet: Tailwind, the HeroUI styles, the fonts, the theme that ties them to the
+ * tokens, and (at the end) the look of a doc's text. Nothing here writes a colour value: every
+ * colour is a token from tokens.css.
  *
  * The order of the imports matters: Tailwind first, then HeroUI (which needs it).
  */
@@ -101,4 +102,206 @@
   --surface-shadow: 0 0 0 0 transparent inset;
   --overlay-shadow: 0 0 0 0 transparent inset;
   --field-shadow: 0 0 0 0 transparent inset;
+}
+
+/*
+ * The focus ring of a link or a button that is not a HeroUI component (those have their own, which
+ * the theme above colours with --focus). The lavender frame colour, so the ring is seen on navy.
+ */
+@utility cc-focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--cc-rule-solid);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * The text of a doc. The server turns each doc into html (src/server/docs/render.ts), and the doc
+ * page puts it in an element with the class doc-html. Tailwind's base styles take the look off
+ * every html element (no list marks, no heading sizes), so the look of a doc is given back here,
+ * from the tokens alone. These are rules for html that this page does not write itself, which is why
+ * they are not utility classes on the elements.
+ */
+@layer components {
+  .doc-html {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    /* A long word or address must not push the doc wider than its column. */
+    overflow-wrap: anywhere;
+  }
+
+  .doc-html :is(h1, h2, h3, h4, h5, h6) {
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    /* A link to a heading must not leave the heading under the sticky header of the page. */
+    scroll-margin-top: 5rem;
+  }
+  .doc-html h1 {
+    font-size: 1.875rem;
+    line-height: 1.2;
+    margin-top: 0;
+  }
+  .doc-html h2 {
+    font-size: 1.375rem;
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--cc-rule);
+  }
+  /* A rule in the doc already sets a section apart: the heading right after it needs no line of its own. */
+  .doc-html hr + h2 {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+  .doc-html h3 {
+    font-size: 1.125rem;
+    margin-top: 2rem;
+  }
+  .doc-html h4 {
+    font-size: 1rem;
+    margin-top: 1.5rem;
+  }
+  .doc-html :is(h5, h6) {
+    font-size: 0.9375rem;
+    margin-top: 1.25rem;
+    color: var(--cc-muted);
+  }
+  /* Whatever follows a heading sits close to it. */
+  .doc-html :is(h1, h2, h3, h4, h5, h6) + :is(p, ul, ol, pre, table, blockquote) {
+    margin-top: 0.75rem;
+  }
+
+  .doc-html :is(p, ul, ol, pre, table, blockquote, figure) {
+    margin-top: 1rem;
+  }
+  .doc-html :is(ul, ol) {
+    padding-left: 1.5rem;
+  }
+  .doc-html ul {
+    list-style: disc;
+  }
+  .doc-html ol {
+    list-style: decimal;
+  }
+  .doc-html li {
+    margin-top: 0.25rem;
+  }
+  .doc-html li > :is(ul, ol, p, pre, table) {
+    margin-top: 0.25rem;
+  }
+  .doc-html li::marker {
+    color: var(--cc-soft);
+  }
+
+  .doc-html hr {
+    margin: 2rem 0;
+    border: 0;
+    border-top: 1px solid var(--cc-rule);
+  }
+
+  .doc-html blockquote {
+    padding-left: 1rem;
+    border-left: 3px solid var(--cc-rule-solid);
+    color: var(--cc-muted);
+  }
+
+  .doc-html code {
+    font-family: var(--cc-font-mono);
+    font-size: 0.875em;
+    padding: 0.1em 0.35em;
+    border: 1px solid var(--cc-rule);
+    border-radius: 0.25rem;
+    background: var(--cc-paper);
+  }
+  .doc-html pre {
+    padding: 0.875rem 1rem;
+    overflow-x: auto;
+    border: 1px solid var(--cc-rule);
+    border-radius: 0.5rem;
+    background: var(--cc-paper);
+    line-height: 1.55;
+  }
+  .doc-html pre code {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 0.8125rem;
+  }
+
+  /* A wide table scrolls inside the doc and does not stretch the page. */
+  .doc-html table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .doc-html :is(th, td) {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--cc-rule);
+    text-align: left;
+    vertical-align: top;
+  }
+  .doc-html th {
+    background: var(--cc-paper);
+    font-weight: 600;
+  }
+
+  /* Links in the text are the one place for cyan. */
+  .doc-html a {
+    color: var(--cc-link);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+  }
+  .doc-html a:hover {
+    text-decoration-thickness: 2px;
+  }
+  .doc-html :is(a, img[data-zoom]):focus-visible {
+    outline: 2px solid var(--cc-rule-solid);
+    outline-offset: 2px;
+    border-radius: 0.125rem;
+  }
+
+  /* A picture fits the column. A diagram that can be zoomed is a button, and says so with its cursor. */
+  .doc-html img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--cc-rule);
+    border-radius: 0.5rem;
+    background: var(--cc-paper);
+  }
+  .doc-html img[data-zoom] {
+    display: block;
+    cursor: zoom-in;
+  }
+
+  /*
+   * A link that goes nowhere. The server writes it as a span with this class and the reason in its title.
+   * It is not a link, so it is not cyan. It must be seen without relying on colour: a dashed line under
+   * the words, and a small label after them. The label is generated, so it is not copied with the text.
+   */
+  .doc-html .broken-link {
+    color: var(--cc-muted);
+    text-decoration: underline dashed;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    cursor: help;
+  }
+  .doc-html .broken-link::after {
+    content: 'broken link';
+    /* An inline box of its own, so that the line under the words does not run under the label. */
+    display: inline-block;
+    margin-left: 0.4em;
+    padding: 0 0.35em;
+    border: 1px solid var(--cc-rule-solid);
+    border-radius: 0.25rem;
+    color: var(--cc-soft);
+    font-family: var(--cc-font-mono);
+    font-size: 0.7em;
+    line-height: 1.5;
+    text-decoration: none;
+    vertical-align: 0.1em;
+  }
 }

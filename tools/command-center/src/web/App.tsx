@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Link, Route, Routes } from 'react-router';
 import { APP_NAME, type Health, type ModuleName } from '../shared/types';
 import { type ConnectionState, loadHealthPanel, subscribeEvents } from './api';
+import { DocsRoutes } from './docs/DocsRoutes';
 import { PanelFrame, formatTime } from './PanelFrame';
 import { useLoadedPanel } from './usePanel';
 
@@ -58,19 +60,38 @@ function LiveStatus() {
   );
 }
 
-/** The shell: the header, the server panel, and the live status. The pages of the later tasks go in here. */
-export function App() {
+/** The start page for now: the header, the server panel, and the live status. The Now page of a later task replaces it. */
+function Shell() {
   const server = useLoadedPanel(loadHealthPanel, NO_MODULES);
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-6 py-10">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight">{APP_NAME}</h1>
         <p className="mt-2 text-cc-muted">The status, the docs and the open decisions of Shadow Jog will be here. The server is running.</p>
+        <p className="mt-3 text-sm">
+          <Link to="/docs" className="text-cc-link underline underline-offset-2">
+            Read the docs
+          </Link>
+        </p>
       </header>
       <PanelFrame title="Server" result={server} focal>
         {(info) => <ServerInfo info={info} />}
       </PanelFrame>
       <LiveStatus />
     </div>
+  );
+}
+
+/**
+ * The pages of the app, by address. /docs and everything under it is the docs site. Every other
+ * address shows the start page, so a page that a later task adds is one more <Route> above the last.
+ * The router itself (BrowserRouter) is in main.tsx, so a test can put this under a router of its own.
+ */
+export function App() {
+  return (
+    <Routes>
+      <Route path="/docs/*" element={<DocsRoutes />} />
+      <Route path="*" element={<Shell />} />
+    </Routes>
   );
 }
