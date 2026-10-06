@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — Conventions"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-05
-status: approved 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, waiting for Mark's final approval
+status: approved 2026-10-05 (final). First approval 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, accepted with all recommendations
 tags: [engine, design]
 ---
 
@@ -138,7 +138,7 @@ In code comments the tags are `// ours`, `// deviation`, and `// on demand`.
 
 ## 3. Deviations from Phaser
 
-Every behavioural deviation in one list. E22 asks you to accept it. There are nineteen. Items 17 to 19 are new in the Phase 0 update.
+Every behavioural deviation in one list. You accepted it in E22. There are nineteen. Items 17 to 19 are new in the Phase 0 update, and you accepted them on 2026-10-05.
 
 1. `fixedUpdate(tick)` at a fixed 60 Hz replaces `update(time, delta)`. `update` is a compile error.
 2. `game.run` waits. Phaser's `ScenePlugin.run` does not.

@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — Verification loops and rubrics"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-05
-status: approved 2026-10-04. Phase 0 update on 2026-10-05 (the 640x360 numbers in B5 and V3), waiting for Mark's final approval
+status: approved 2026-10-05 (final). First approval 2026-10-04. Phase 0 update on 2026-10-05 (the 640x360 numbers in B5 and V3), accepted with all recommendations
 tags: [engine, design, verification]
 ---
 

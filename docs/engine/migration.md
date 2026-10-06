@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — Migration"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-05
-status: approved 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, waiting for Mark's final approval
+status: approved 2026-10-05 (final). First approval 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, accepted with all recommendations
 tags: [engine, design]
 ---
 
@@ -20,7 +20,7 @@ This file gives the path from today's engine and from the Phaser spike to the ne
 
 ## 1. Principles
 
-1. **No engine code before you approve the design.** This is your gate (decision 17).
+1. **No engine code before you approve the design.** This is your gate (decision 17). You approved the final design on 2026-10-05, so the gate is lifted. M0 may start after the 640x360 move merges.
 2. **Spikes test the approved design.** The platform spike (Phase 0) follows `docs/DEVELOPING.md` section 9: a `spike/<topic>` draft PR that is never merged, with `docs/spikes/<topic>.md` and exit criteria committed before the spike code.
 3. **The shipped game still works at every step.** The new engine starts behind a flag: `?engine=sje` in dev, a hidden setting in production. CI stays green on both engines until the default flips.
 4. **The old engine is not touched** until M8, except for the `W` and `H` import move in M0 and the size fixes of the 640x360 move. The move changes 7 files in `src/engine` before M0. The edits are the size value in `game.ts`, the shake scale, the centre defaults in `postfx.ts`, one exported function in `display.ts`, and comments in `presenter.ts` and `particles.ts`. You approved the move on 2026-10-05 ("Let's pivot. Better now than later."). This is the only bend of this principle.
@@ -44,7 +44,7 @@ This file gives the path from today's engine and from the Phaser spike to the ne
 
 | Milestone | One-line scope | Touches |
 |---|---|---|
-| **Phase 0** Platform spike | A spike branch that closed the unknowns (section 3). Done. It waits for your final approval. | `src/sje/`, `src/sje-lab/`, `src/hack3d/`, `src/battlestage/`, `e2e/`, `tests/`, `docs/spikes/` |
+| **Phase 0** Platform spike | A spike branch that closed the unknowns (section 3). Done. You gave your final approval on 2026-10-05. | `src/sje/`, `src/sje-lab/`, `src/hack3d/`, `src/battlestage/`, `e2e/`, `tests/`, `docs/spikes/` |
 | **Pre-M0** 640x360 move | Move the shipped game from 480x270 to 640x360 on its own branch. It merges before M0 and bends principle 4. Exit check: the shipped game plays at 640x360 and CI is green. | 7 files in `src/engine` (the principle 4 list), about 49 more source files outside it, `src/data/fx.json` (3 shockwave values, with your yes), tests and specs |
 | **M0** Prepare | Size module, bundle gate, canary suite, agent docs | `src/sje/core/size.ts`, `scripts/bundle-budget.mjs`, `.claude/skills/engine/`. One re-export in `src/engine/game.ts` |
 | **M1** Shell | Loop, renderer, scene stack, `LegacyScene` adapter | New code in `src/sje/` (core, render, display, runtime, the facade). The old code gets the flag in `src/main.ts` |
@@ -157,7 +157,7 @@ The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game
 - Build `ThreeHost`, `Frame3D` (shared context and fallback), the real `Scene3D` on the real loop, `s.hack()`, `HackResult`, the story loop and its `via: 'dropped'` result, the lifecycle and leak tests, and the transition from 2D to 3D and back. The scene that runs is the minimal technical test scene of Phase 0 (`HackScene` and its sim).
 - Skip the 3D draw of a scene that is hidden under an opaque scene. In Phase 0 a hidden scene still draws its 3D frame. A naive skip shows a stale frame for one frame when the scene becomes visible again, because the scene manager works out visibility after `prerender`.
 - Decide the context grace of the watchdog. Phase 0 used 1 second, not 2, so a context that returns between 1 and 2 seconds is given up on ([frame-and-rendering.md](frame-and-rendering.md) section 7.4). Tune it against a real context loss in the real game.
-- **Why these two are here and not in M1b:** M7 builds the real `Scene3D` on the real loop with the real hack game. The skip needs the visibility that the scene manager computes on that loop, and the grace needs a real context loss in that game to tune.
+- **Why these two are here and not in M1b:** M7 builds the real `Scene3D` on the real loop with the real hack game. The skip needs the visibility that the scene manager computes on that loop, and the grace needs a real context loss in that game to tune. You accepted this placement on 2026-10-05.
 - The real hacking scene is not part of M7 and not part of this design. Its design, gameplay and look are a separate iteration (Mark, 2026-10-05, `docs/IDEAS.md` entry 2). The Phase 0 scene is a minimal technical test scene. Its look and gameplay were not reviewed.
 - **The game still works:** only story scripts that call `s.hack` are new.
 - **Exit check:** the 10-cycle leak test, the context-loss test, and the canary tests pass. After the flip, `unsupported` shows only when the 3D chunk fails to load.
@@ -171,7 +171,7 @@ The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game
 
 ### Content moves to data files (the editor rule)
 
-An editor can only open and save data. Much of the game's content is TypeScript today. This table says which milestone moves which content. Each move keeps the values the same, and you approve the file format first (principle 8 and principle 11). The editors themselves come later, step by step.
+An editor can only open and save data. Much of the game's content is TypeScript today. This table says which milestone moves which content. You accepted the M3, M4 and M5 placements on 2026-10-05. Each move keeps the values the same, and you approve the file format first (principle 8 and principle 11). The editors themselves come later, step by step.
 
 | Content today | Becomes | Milestone | Why there |
 |---|---|---|---|
@@ -226,7 +226,7 @@ Phase 0 is the spike from `docs/research/2026-10-04-engine-and-3d.md` ("Open ite
 | 7 | The battle stage on Pixi matches the Phaser spike within the agreed tolerance. | Phase 0 Part B. Full parity in M3. |
 | 8 | You approve the look. Plan at least two review rounds, with no maximum. | Phase 0 (the stage slice and the size), M2, M5. The look of the real hacking scene is its own iteration. |
 
-Phase 0 ends with an update to this design doc and your approval of the final version. The evidence is in `docs/spikes/engine-platform.md`. This text is that update.
+Phase 0 ends with an update to this design doc and your approval of the final version. You approved the final version on 2026-10-05, with all recommendations. The evidence is in `docs/spikes/engine-platform.md`. This text is that update.
 
 **Part A answers (2026-10-05).** Browser, renderer and script for each answer are in the spike doc.
 

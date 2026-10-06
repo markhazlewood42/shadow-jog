@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — Decisions"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-05
-status: approved 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, waiting for Mark's final approval
+status: approved 2026-10-05 (final). First approval 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, accepted with all recommendations
 tags: [engine, design]
 ---
 
@@ -20,9 +20,9 @@ This file lists every open decision for you. Each one has the question, 2 to 4 o
 
 ## Summary
 
-**Answered 2026-10-04: Mark approved the design with all recommendations.** The "Your answer" column below now records his answer. The look decisions (E8, E20) still get his review at the milestones they name. Mark settled the resolution follow-up (E12) on 2026-10-05: he chose 640x360.
+**Answered 2026-10-04: Mark approved the design with all recommendations.** The "Your answer" column below now records his answer. The look decisions (E8, E20) still get his review at the milestones they name. Mark settled the resolution follow-up (E12) on 2026-10-05: he chose 640x360. Mark accepted the Phase 0 update on 2026-10-05, with all nine recommendations. They are the seven real choices (C1 to C7), the content-to-data placement, and the move of the hidden-scene 3D draw skip and the context grace to M7. The design is final.
 
-"Mark" in the "Who decides" column means this is your call. "Agent (FYI)" means the agents can decide, and you can still change it. The "Your answer" column holds the recommendation. Edit it, then reply.
+"Mark" in the "Who decides" column means this is your call. "Agent (FYI)" means the agents can decide, and you can still change it. The "Your answer" column records the answer.
 
 | # | Decision | Recommendation | Needed before | Who decides | Your answer |
 |---|---|---|---|---|---|
@@ -56,7 +56,7 @@ This file lists every open decision for you. Each one has the question, 2 to 4 o
 
 ## Phase 0 update: record-only rows
 
-These changes alter the first design. None of them needs a choice from you. Each one is your own decision, a measured result, or a rule that follows from one. The seven real choices (C1 to C7) are in the [README](README.md) of this folder. The last column names the text that holds the change.
+These changes alter the first design. None of them needs a choice from you. Each one is your own decision, a measured result, or a rule that follows from one. The seven real choices (C1 to C7) are in the [README](README.md) of this folder. You accepted all seven on 2026-10-05. The last column names the text that holds the change.
 
 | Change | Why it needs no choice | Where |
 |---|---|---|
@@ -81,7 +81,7 @@ These changes alter the first design. None of them needs a choice from you. Each
 | `probeWebGL2` keeps one probe context. `WEBGL_lose_context` is fetched at boot. | Measured. Firefox logged a lost context for every probe that was thrown away. After a loss, `getExtension` returns null. | [frame-and-rendering.md](frame-and-rendering.md) sections 6.1 and 6.8 |
 | `traceLimit` is the tick that TRACE reaches. | It clarifies a first draft. | [interfaces.md](interfaces.md) section 12 |
 | `Rng` moves at M1 and `font.ts` at M3. `src/art` stops importing `src/engine` during M3 to M5. A scan checks it before M8. | M8 deletes `src/engine`, so these imports must go first. | [migration.md](migration.md) sections 2 and 5 |
-| The hidden-scene 3D draw skip and the context grace are M7 work. Moved from M1b to M7 (spike cleanup C12). | They need the real loop and a real context loss. This reverses the first draft, which put them in M1b. | [migration.md](migration.md) section 2 (M7) |
+| The hidden-scene 3D draw skip and the context grace are M7 work. Moved from M1b to M7 (spike cleanup C12). You accepted the move on 2026-10-05. | They need the real loop and a real context loss. This reverses the first draft, which put them in M1b. | [migration.md](migration.md) section 2 (M7) |
 | The `actors` depth band runs to 899,999. `ui/layout.ts` is required. The CI viewport is 1280x720. The canvas upload line is proposed at about 3 MB. | They follow from the size. A figure on the bottom row needs 361,641 at 360 rows. A 960x540 window is scale 1.5. Two canvases are 1.84 MB. | [scene-graph.md](scene-graph.md) sections 4 and 12, [tooling-and-testing.md](tooling-and-testing.md) sections 4 and 7 |
 
 ---
@@ -92,7 +92,7 @@ These changes alter the first design. None of them needs a choice from you. Each
 
 This table checks each approved decision against the rule. "Holds" means the decision keeps game content editable by a tool. A condition says what must stay true.
 
-**Result.** No approved decision needs a different choice. E23 gets an earlier trigger to revisit. Five decisions get a condition (E3, E12, E14, E19, E20). Content that is TypeScript today (maps, enemies, items, abilities, shops, dialogue) moves to data files in the milestones ([migration.md](migration.md) section 2).
+**Result.** No approved decision needs a different choice. E23 gets an earlier trigger to revisit. Five decisions get a condition (E3, E12, E14, E19, E20). Content that is TypeScript today (maps, enemies, items, abilities, shops, dialogue) moves to data files in the milestones ([migration.md](migration.md) section 2). You accepted the placement on 2026-10-05: enemies at M3, shops and dialogue at M4, maps at M5.
 
 | # | Result | Why |
 |---|---|---|
@@ -191,7 +191,7 @@ This table checks each approved decision against the rule. "Holds" means the dec
 
 **Recommendation.** A, with B as the coded fallback.
 
-**Phase 0 result (2026-10-05).** Option A works in the real engine. Chromium on the CI runner passes on software WebGL (the first CI run had 2 timing failures, they were fixed in round 4, and CI is green on `f22dc09` and `d61d7d9`). WebKit on the Linux CI runner passes. Firefox 153 on Windows passes the 2-test browser spec and the Part A scripts. It did not run the other specs. Firefox on the Linux CI runner has no WebGL2, so the no-WebGL2 path runs there (E5). The canvas copy draws the same pictures as the shared context, tick for tick. The fallback keeps one private Three renderer for the page and never calls `forceContextLoss()` on exit, so the "every exit" cost in option B does not apply (spike drift 27). A new renderer for each entry leaked 5 textures and 3 framebuffers. The shared context needs one more hand-off rule than the three above. After a context restore, `prepareForThree` runs between the restore handler of Pixi and the restore handler of Three ([frame-and-rendering.md](frame-and-rendering.md) section 7.2).
+**Phase 0 result (2026-10-05).** Option A works in the real engine. Chromium on the CI runner passes on software WebGL (the first CI run had 2 timing failures, they were fixed in round 4, and CI is green on `f22dc09` and `d61d7d9`). WebKit on the Linux CI runner passes. Firefox 153 on Windows passes the 2-test browser spec and the Part A scripts. It did not run the other specs. Firefox on the Linux CI runner has no WebGL2, so the no-WebGL2 path runs there (E5). The canvas copy draws the same pictures as the shared context, tick for tick. The fallback keeps one private Three renderer for the page and never calls `forceContextLoss()` on exit, so the "every exit" cost in option B does not apply (spike drift 27). A new renderer for each entry leaked 5 textures and 3 framebuffers. The shared context needs one more hand-off rule than the three above. After a context restore, `prepareForThree` runs between the restore handler of Pixi and the restore handler of Three ([frame-and-rendering.md](frame-and-rendering.md) section 7.2). You accepted the fallback and the fourth hand-off rule on 2026-10-05 (real choice C2).
 
 **Affects.** `GlContext`, `GlHandoff`, `Frame3D`, M1b, M7, the canary tests. Phase 0 tested A in Chromium on CI, WebKit on CI and Firefox 153 on Windows (see the result above). Chromium 153 on the CI runner is the open point.
 
@@ -395,7 +395,7 @@ The move needs a new layout in the places that hold fixed numbers for 480 and 27
 
 **Recommendation.** C.
 
-**Phase 0 note (2026-10-05).** Phase 0 built only the `integer` rule. The `fit` mode is not built and has no tested design with the whole-window canvas ([frame-and-rendering.md](frame-and-rendering.md) section 6.6). Decide at M1 whether `fit` stays. Consider option A (retire `fit`), because the integer presenter never resamples.
+**Phase 0 note (2026-10-05).** Phase 0 built only the `integer` rule. The `fit` mode is not built and has no tested design with the whole-window canvas ([frame-and-rendering.md](frame-and-rendering.md) section 6.6). Decide at M1 whether `fit` stays. Consider option A (retire `fit`), because the integer presenter never resamples. You accepted this plan on 2026-10-05 (real choice C6).
 
 **Affects.** `Display`, the options scene, the saved setting `settings.scale`.
 
@@ -470,7 +470,7 @@ The move needs a new layout in the places that hold fixed numbers for 480 and 27
 - **B. One total, raised.**
 - **C. No cap. Report only.**
 
-**Trade-offs.** A watches what a player downloads first. First estimates, to reset at M1: `boot` at or below today's 144.8 kB, `first play` about 330 to 430 kB (low confidence), `lazy-3d` 240 kB. These are estimates, not measurements. The shipped total of 233.9 kB changes with the 640x360 move of the shipped game, so set the alarm from the measured value after the move. Phase 0 then measured the lazy 3D chunk at 145.1 kB gzip and Pixi plus the engine kernel at 124.7 kB gzip ([tooling-and-testing.md](tooling-and-testing.md) section 10). The numbers are your call. A named chunk group would break the rule, so the gate checks it. The old largest-chunk cap (480 kB raw) goes away with the old total. Set a cap for each class, or drop the cap on purpose.
+**Trade-offs.** A watches what a player downloads first. First estimates, to reset at M1: `boot` at or below today's 144.8 kB, `first play` about 330 to 430 kB (low confidence), `lazy-3d` 240 kB. These are estimates, not measurements. The shipped total of 233.9 kB changes with the 640x360 move of the shipped game, so set the alarm from the measured value after the move. Phase 0 then measured the lazy 3D chunk at 145.1 kB gzip and Pixi plus the engine kernel at 124.7 kB gzip ([tooling-and-testing.md](tooling-and-testing.md) section 10). The numbers are your call. You accepted the `lazy-3d` cap of 160 kB on 2026-10-05 (real choice C5). It replaces the first estimate of 240 kB. Confirm it at M1 and M6. A named chunk group would break the rule, so the gate checks it. The old largest-chunk cap (480 kB raw) goes away with the old total. Set a cap for each class, or drop the cap on purpose.
 
 **Recommendation.** A.
 
@@ -510,7 +510,7 @@ The move needs a new layout in the places that hold fixed numbers for 480 and 27
 
 **Recommendation.** A.
 
-**Phase 0 refinement (2026-10-05).** Only `context-lost` retries. `aborted` with reason `user` means the player dropped the story (`game.abandon()` or `game.reset()`). It never retries, starts no scene, and never plays the 2D alternative. The outcome is `fail` with `via: 'dropped'`, and the story must end. `aborted` with reason `error` goes to the policy at once, with no retry. `HackOutcome.via` has four values: `played`, `policy`, `alternative` and `dropped`.
+**Phase 0 refinement (2026-10-05).** Only `context-lost` retries. `aborted` with reason `user` means the player dropped the story (`game.abandon()` or `game.reset()`). It never retries, starts no scene, and never plays the 2D alternative. The outcome is `fail` with `via: 'dropped'`, and the story must end. `aborted` with reason `error` goes to the policy at once, with no retry. `HackOutcome.via` has four values: `played`, `policy`, `alternative` and `dropped`. You accepted this on 2026-10-05 (real choice C3).
 
 **Affects.** `ScriptApi.hack`, the `HackResult` contract, M7.
 
@@ -574,7 +574,7 @@ The move needs a new layout in the places that hold fixed numbers for 480 and 27
 
 **Recommendation.** A. Every deviation is in the glossary and in JSDoc.
 
-**Phase 0 update (2026-10-05).** Three deviations are new: `ImageObject.setTexture` renames the object, a scene never restarts (a scene object runs once), and an object has one mask. They are items 17 to 19 in [conventions.md](conventions.md) section 3. They are real choice C7 in the [README](README.md).
+**Phase 0 update (2026-10-05).** Three deviations are new: `ImageObject.setTexture` renames the object, a scene never restarts (a scene object runs once), and an object has one mask. They are items 17 to 19 in [conventions.md](conventions.md) section 3. They are real choice C7 in the [README](README.md). You accepted them on 2026-10-05.
 
 **Affects.** Agent accuracy, the docs.
 
