@@ -298,7 +298,7 @@ Also log bytes actually transferred in a Playwright run of `prod.spec.ts`. The a
 
 ## 11. CI
 
-Today's CI runs lint, typecheck, unit tests, the bundle budget, and 9 e2e specs on Chromium (playthrough, playtest, gameover, perf, prod, economy, chaos, gpufx, fxlab). It runs Firefox and WebKit on `prod` and `gameover` only. The plan:
+Today's CI (`.github/workflows/ci.yml`) runs three jobs at the same time. `check` runs lint, typecheck, unit tests, and the bundle budget. `e2e` runs 8 specs on Chromium (playthrough, gameover, perf, prod, economy, chaos, gpufx, fxlab). `e2e-engines` runs `prod` and `gameover` on WebKit and Firefox. The real-speed playtest runs in `playtest.yml`, on a push to `main` and from the Run workflow button on the Actions tab. The plan:
 
 - Keep all of it during the migration, on the legacy path and on `?engine=sje`.
 - Add the lab specs, the canary suite, and the manifest gate.
