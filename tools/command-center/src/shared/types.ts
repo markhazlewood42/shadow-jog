@@ -129,3 +129,49 @@ export type DocNotFound = {
   lastGood: null;
   suggestions: DocRef[];
 };
+
+// ---- engine review ----
+// The shapes of the engine module (src/server/engine) and of the reading order of the engine docs.
+
+/**
+ * Where a decision is written. `engine`: the table of docs/engine/decisions.md (E1 to E25).
+ * `phase-0.2`: the numbered lines of docs/PHASE-0.2.md (D1 to D17: the docs call them "decision 1"
+ * and so on). `engine-update`: the quoted table of the Phase 0 update in docs/engine/README.md (C1 to C7).
+ */
+export type DecisionSource = 'engine' | 'phase-0.2' | 'engine-update';
+
+/** `open`: it waits for Mark. `changed`: its text is not what it was at the approval commit. `approved`: answered, and unchanged since. */
+export type DecisionStatus = 'approved' | 'open' | 'changed';
+
+/** One decision of the engine docs, with its status. */
+export type Decision = {
+  /** A name that no other decision has: `E12`, `D5` or `C1`. It is also what the first column shows. */
+  id: string;
+  number: string;
+  source: DecisionSource;
+  question: string;
+  /** What the doc recommends (the "Recommendation" cell of a table row), or, for a PHASE-0.2 line, the bold words after the dash ("decided 2026-10-02: (a)"). Plain text. */
+  answer: string;
+  /** The milestone that the decision is needed before ("Phase 0", "M2"), when the doc says. */
+  milestone: string | null;
+  /** Who decides: "Mark", or "Agent (FYI)". */
+  who: string;
+  /** What Mark answered, in the "Your answer" cell of a table row ("A"), when there is a cell and it is not empty. */
+  option: string | null;
+  status: DecisionStatus;
+  /** How a `changed` decision differs from the approval commit: its text is `edited`, or it is `added` (it was not there). Null for any other status. */
+  change: 'edited' | 'added' | null;
+  /** The address of the doc that holds the decision (`engine/decisions`). */
+  docSlug: string;
+  /** The id of the heading to open the doc at, or null when the page has none for this decision. */
+  anchor: string | null;
+};
+
+/** The doc before and the doc after a doc in the reading order of the engine docs. Null where there is none. */
+export type ReadingOrder = { prev: DocRef | null; next: DocRef | null };
+
+/** What `GET /api/docs/<slug>` holds (inside a Panel): the doc, and what the route adds to it. */
+export type DocPageData = DocPage & {
+  /** Where the doc sits in the reading order of the engine docs, or null when it is not in that order. */
+  readingOrder: ReadingOrder | null;
+};
