@@ -83,13 +83,27 @@ Balance targets live in `balance.test.ts` (`stages` array: win rate, rounds, HP 
 `economy.test.ts`** and read the printed tables: most tuning is done by adjusting numbers until those pass.
 
 ### E2E (`e2e/`, Playwright)
-Locally it runs **Edge**; CI runs Chromium, plus WebKit and Firefox for `prod` and `gameover`. One worker, one at a
-time. Run a single spec: `npx playwright test e2e/chaos.spec.ts --reporter=line`; one test: `-g "name"`.
+Locally it runs **Edge**. One worker, one at a time. Run a single spec: `npx playwright test e2e/chaos.spec.ts
+--reporter=line`; one test: `-g "name"`.
+
+CI (`.github/workflows/ci.yml`) runs three jobs at the same time, so a pull request waits for the slowest one:
+
+| Job | What |
+|---|---|
+| `check` | Lint, typecheck, unit tests, the bundle budget. The `main` ruleset requires this check, so keep the job name |
+| `e2e` | Every spec except `playtest`, `shots` and `audio-evidence` (those two regenerate files), on Chromium |
+| `e2e-engines` | `gameover` and `prod` on WebKit and Firefox |
+
+The playtest has its own workflow, `.github/workflows/playtest.yml`. It runs on every push to `main` and from the
+Actions tab (**Run workflow**, on any branch), not on pull requests. A change that touches only `docs/`,
+`tools/command-center/` or `.md` files skips the work: the jobs still start and report success, because a required
+check that never reports blocks the merge. A new push to a pull request cancels that pull request's earlier CI run. A
+run on `main` is never canceled once it starts.
 
 | Spec | What |
 |---|---|
 | `playthrough.spec.ts` | The whole chapter through the real scripts (dialogs and fights auto-resolved) |
-| `playtest.spec.ts` | A hands-off real-speed playtest; writes a frame every 2.5 s to `playtest/latest/` |
+| `playtest.spec.ts` | A hands-off real-speed playtest; writes a frame every 2.5 s to `playtest/latest/`. CI runs it in `playtest.yml` |
 | `gameover.spec.ts` | Game over flows, saves, storage failure, render/update faults, tabs, boot failure |
 | `chaos.spec.ts` | Mashing keys through doors, menus mid-warp, reload mid-dialogue, keys through a battle |
 | `prod.spec.ts` | The **shipped build** (builds fresh, serves on 3008): new game, save, reload, continue |
@@ -173,7 +187,10 @@ including why it ended at round 12. If a future milestone brings it back:
 
 1. Regenerate evidence: `bash scripts/evidence.sh` (writes `docs/quality/evidence/*`, `docs/screenshots/*`).
 2. After a green CI run, refresh `docs/quality/evidence/ci-engines.txt` from `gh run view <id> --log` (keep the
-   lines with ✓, ✘, passed, failed; put the run id and commit at the top).
+   lines with ✓, ✘, passed, failed; put the run id and commit at the top). The log holds three jobs: the unit tests
+   come from `check`, the Chromium specs from `e2e`, and the WebKit and Firefox lines from `e2e-engines`
+   (`gh run view <id>` lists the job ids, and `--job <job id>` shows one job). The playtest is not in this run: it
+   logs in the latest run of `playtest.yml` (`gh run list --workflow playtest.yml`).
 3. Generate the prompts: `python scripts/verifier-prompts.py <round>` (writes `reviewer-prompts/`).
 4. Launch one fresh subagent per area (model `sonnet`, read-only) with: "Your instructions are in <file>. Read it
    and follow it exactly."
