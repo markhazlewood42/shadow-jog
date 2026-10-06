@@ -262,3 +262,114 @@ export type PullRequest = {
 
 /** What `GET /api/github` holds (inside a Panel): the open pull requests, and the ones merged in the last 7 days. */
 export type GithubInfo = { open: PullRequest[]; merged: PullRequest[] };
+
+// ---- Claude sessions ----
+// The shapes of the sessions module (src/server/sessions). The Now page and the Agents page read them.
+// They come from Claude Code's own session files, which a Claude Code update can change, so the module
+// reads only the end of each file and says "unknown" where it cannot tell. The only transcript text in
+// them is the title of a session, the lines of a "Your move" box and the description of an agent. A page
+// must show every string as text.
+
+/** The words of a session's state. `unknown`: the file could not be read as a Claude Code session file. */
+export type SessionState = 'working' | 'waiting' | 'idle' | 'unknown';
+
+/**
+ * A "Your move" box: the checklist that ends a reply of a session when Mark has something to do
+ * ("### 👉 Your move"). Only the last one of a session is kept, and only one from a reply that was
+ * written inside the project (see `extractYourMove`).
+ */
+export type YourMoveBox = {
+  /** The status light that starts the reply (🟢 green, 🟡 yellow, 🔴 red), or null when the reply does not start with one. */
+  light: 'green' | 'yellow' | 'red' | null;
+  /** The lines of the checklist, as the reply wrote them (markdown marks stay). Empty when `nothing` is true. */
+  items: string[];
+  /** The box says that there is nothing for Mark ("### 👉 Your move: nothing"). */
+  nothing: boolean;
+  /** When the reply was written, as an ISO time. */
+  at: string;
+  /** A prompt of Mark's came after the box. A message from a background task or from another session does not count as one. */
+  answered: boolean;
+};
+
+/** One agent of a session. A workflow's agents have a `workflowId`. */
+export type AgentInfo = {
+  /** The id of the agent: the file name `agent-<id>.jsonl` without the frame. */
+  id: string;
+  sessionId: string;
+  /** What the agent was asked to do, in a few words (from its `.meta.json`), or "" when the file is missing. This is transcript text: show it as text. */
+  description: string;
+  /** The kind of agent (`general-purpose`, `Explore`, `workflow-subagent`, ...), or "". */
+  agentType: string;
+  /** The model that was asked for, or "" when the agent runs on the default. */
+  model: string;
+  /**
+   * `running`: it has not ended and its file was written in the last `workingSeconds`.
+   * `done`: it ended (it handed its result back or ended its turn), or its workflow has its result.
+   * `stopped`: it has not ended and nothing has been written for `workingSeconds`.
+   */
+  state: 'running' | 'done' | 'stopped';
+  /** The time of the first line of the agent's file, or the time the file was made when that line is too long to read. */
+  startedAt: string;
+  /** When it ended (the time of its last line), or null while it runs. */
+  endedAt: string | null;
+  /** The workflow that started it, or null for an agent that the session started itself. */
+  workflowId: string | null;
+};
+
+/** One run of a workflow (a `journal.jsonl`). A journal has no times and no total, so progress is agents done of agents started. */
+export type WorkflowInfo = {
+  /** The id of the run (`wf_...`): the name of its folder. */
+  id: string;
+  /** The name of the workflow script, or the id when the script file is not found. */
+  name: string;
+  sessionId: string;
+  /**
+   * `done`: every agent that started has a result. `running`: not done, and an agent file was written in the last `workingSeconds`.
+   * `stopped`: not done, and nothing is being written. `unknown`: the journal has no row that this tool knows.
+   */
+  state: 'running' | 'done' | 'stopped' | 'unknown';
+  /** The phases in the order the journal first names them, each with its agents started and done. */
+  phases: { name: string; started: number; done: number }[];
+  /** All the agents that started, and all that have a result. */
+  started: number;
+  done: number;
+  /** When the journal file was made (a journal has no times of its own), or null when the file system does not say. */
+  startedAt: string | null;
+  /** The last write to the journal or to one of the agent files of the run. */
+  lastEventAt: string;
+};
+
+/** One Claude Code session about Shadow Jog. */
+export type SessionInfo = {
+  /** The session id: the file name without `.jsonl`. */
+  id: string;
+  /** The title that Mark gave it (`/rename`), the name of its agent, or its slug; else "Session" and the first 8 characters of the id. This is transcript text: show it as text. */
+  title: string;
+  /** The name of the folder under `~/.claude/projects` that holds the session file. */
+  folder: string;
+  /** `folder`: the folder is all Shadow Jog's (it is in `claude.folders`). `cwd`: the folder mixes projects, and the session is here because its working folder is inside a root. */
+  matchedBy: 'folder' | 'cwd';
+  /** The working folder of its newest line that has one, or null when no line in the part that was read has one. */
+  cwd: string | null;
+  /** The git branch of that line, or "" when no line in the part that was read names one. */
+  branch: string;
+  /** The time of the first line of the file, or the time the file was made when that line is too long to read. */
+  startedAt: string;
+  /** The last write to the session file, or to one of the agent files of the session when that is later. */
+  lastActivityAt: string;
+  state: SessionState;
+  /** The pull requests of this repository that the session opened or linked. */
+  prs: { number: number; url: string }[];
+  /** The last "Your move" box that the session wrote inside the project, or null when it wrote none. */
+  yourMove: YourMoveBox | null;
+  agents: AgentInfo[];
+  workflows: WorkflowInfo[];
+};
+
+/**
+ * What `GET /api/sessions` holds (inside a Panel): the sessions of the last `recentSeconds` that are about
+ * Shadow Jog, the newest first. `scanned` is how many session files of that time were looked at, and
+ * `skipped` is how many of them are not in the list (outside the roots, or not readable). The sessions that
+ * were left out never appear in the answer, not even by their id.
+ */
+export type SessionsInfo = { sessions: SessionInfo[]; scanned: number; skipped: number };
