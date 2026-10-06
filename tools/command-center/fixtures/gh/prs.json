@@ -1,0 +1,290 @@
+[
+  {
+    "author": {
+      "id": "U_fixture-owner",
+      "is_bot": false,
+      "login": "fixture-owner",
+      "name": "Fixture Owner"
+    },
+    "headRefName": "feature/widget-ready",
+    "isDraft": false,
+    "latestReviews": [
+      {
+        "id": "PRR_fixture-reviewer_APPROVED",
+        "author": {
+          "login": "fixture-reviewer"
+        },
+        "authorAssociation": "NONE",
+        "body": "REVIEW-BODY-MARKER: this text must never reach the output.",
+        "submittedAt": "2026-10-05T09:30:00Z",
+        "includesCreatedEdit": false,
+        "reactionGroups": [],
+        "state": "APPROVED",
+        "commit": {
+          "oid": "0123456789abcdef0123456789abcdef01234567"
+        }
+      }
+    ],
+    "mergedAt": null,
+    "number": 101,
+    "reviewDecision": "APPROVED",
+    "state": "OPEN",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-05T09:20:00Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/1001/job/2001",
+        "name": "check",
+        "startedAt": "2026-10-05T09:10:00Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      }
+    ],
+    "title": "Fixture: the widget is ready to merge",
+    "updatedAt": "2026-10-05T09:30:00Z",
+    "url": "https://github.com/fixture-owner/fixture-repo/pull/101"
+  },
+  {
+    "author": {
+      "id": "U_fixture-owner",
+      "is_bot": false,
+      "login": "fixture-owner",
+      "name": "Fixture Owner"
+    },
+    "headRefName": "feature/gadget",
+    "isDraft": false,
+    "latestReviews": [],
+    "mergedAt": null,
+    "number": 102,
+    "reviewDecision": "",
+    "state": "OPEN",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-05T09:20:00Z",
+        "conclusion": "FAILURE",
+        "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/1002/job/2002",
+        "name": "check",
+        "startedAt": "2026-10-05T09:10:00Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-05T09:20:00Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/1003/job/2003",
+        "name": "lint",
+        "startedAt": "2026-10-05T09:10:00Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      }
+    ],
+    "title": "Fixture: the gadget breaks a test",
+    "updatedAt": "2026-10-06T08:00:00Z",
+    "url": "https://github.com/fixture-owner/fixture-repo/pull/102"
+  },
+  {
+    "author": {
+      "id": "U_fixture-owner",
+      "is_bot": false,
+      "login": "fixture-owner",
+      "name": "Fixture Owner"
+    },
+    "headRefName": "spike/fixture-draft",
+    "isDraft": true,
+    "latestReviews": [],
+    "mergedAt": null,
+    "number": 103,
+    "reviewDecision": "",
+    "state": "OPEN",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-05T09:20:00Z",
+        "conclusion": "FAILURE",
+        "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/1004/job/2004",
+        "name": "check",
+        "startedAt": "2026-10-05T09:10:00Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      }
+    ],
+    "title": "Fixture: a draft that is not ready",
+    "updatedAt": "2026-10-04T12:00:00Z",
+    "url": "https://github.com/fixture-owner/fixture-repo/pull/103"
+  },
+  {
+    "author": {
+      "id": "U_fixture-bot",
+      "is_bot": false,
+      "login": "fixture-bot",
+      "name": ""
+    },
+    "headRefName": "feature/slow-checks",
+    "isDraft": false,
+    "latestReviews": [],
+    "mergedAt": null,
+    "number": 104,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "state": "OPEN",
+    "statusCheckRollup": [
+      {
+        "__typename": "StatusContext",
+        "context": "ci/legacy",
+        "state": "SUCCESS",
+        "targetUrl": "https://ci.fixture.example/builds/5",
+        "startedAt": "2026-10-05T09:10:00Z"
+      },
+      {
+        "__typename": "StatusContext",
+        "context": "ci/deploy-preview",
+        "state": "PENDING",
+        "targetUrl": "https://ci.fixture.example/builds/6",
+        "startedAt": "2026-10-05T09:10:00Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/1007/job/2007",
+        "name": "check",
+        "startedAt": "2026-10-05T09:10:00Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "CI"
+      }
+    ],
+    "title": "Fixture: checks are still running",
+    "updatedAt": "2026-10-06T10:00:00Z",
+    "url": "https://github.com/fixture-owner/fixture-repo/pull/104"
+  },
+  {
+    "author": {
+      "id": "U_fixture-owner",
+      "is_bot": false,
+      "login": "fixture-owner",
+      "name": "Fixture Owner"
+    },
+    "headRefName": "feature/no-checks",
+    "isDraft": false,
+    "latestReviews": [],
+    "mergedAt": null,
+    "number": 105,
+    "reviewDecision": "",
+    "state": "OPEN",
+    "statusCheckRollup": [],
+    "title": "Fixture: no checks yet",
+    "updatedAt": "2026-10-03T12:00:00Z",
+    "url": "https://github.com/fixture-owner/fixture-repo/pull/105"
+  },
+  {
+    "author": {
+      "id": "U_fixture-owner",
+      "is_bot": false,
+      "login": "fixture-owner",
+      "name": "Fixture Owner"
+    },
+    "headRefName": "feature/merged-recently",
+    "isDraft": false,
+    "latestReviews": [],
+    "mergedAt": "2026-10-05T20:00:00Z",
+    "number": 106,
+    "reviewDecision": "",
+    "state": "MERGED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-05T09:20:00Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/1008/job/2008",
+        "name": "check",
+        "startedAt": "2026-10-05T09:10:00Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      }
+    ],
+    "title": "Fixture: merged yesterday",
+    "updatedAt": "2026-10-05T20:00:05Z",
+    "url": "https://github.com/fixture-owner/fixture-repo/pull/106"
+  },
+  {
+    "author": {
+      "id": "U_fixture-owner",
+      "is_bot": false,
+      "login": "fixture-owner",
+      "name": "Fixture Owner"
+    },
+    "headRefName": "feature/merged-this-week",
+    "isDraft": false,
+    "latestReviews": [],
+    "mergedAt": "2026-10-02T12:00:00Z",
+    "number": 107,
+    "reviewDecision": "",
+    "state": "MERGED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-05T09:20:00Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/1009/job/2009",
+        "name": "check",
+        "startedAt": "2026-10-05T09:10:00Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      }
+    ],
+    "title": "Fixture: merged earlier this week",
+    "updatedAt": "2026-10-02T12:00:04Z",
+    "url": "https://github.com/fixture-owner/fixture-repo/pull/107"
+  },
+  {
+    "author": {
+      "id": "U_fixture-owner",
+      "is_bot": false,
+      "login": "fixture-owner",
+      "name": "Fixture Owner"
+    },
+    "headRefName": "feature/merged-long-ago",
+    "isDraft": false,
+    "latestReviews": [],
+    "mergedAt": "2026-09-28T12:00:00Z",
+    "number": 108,
+    "reviewDecision": "",
+    "state": "MERGED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-05T09:20:00Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/fixture-owner/fixture-repo/actions/runs/1010/job/2010",
+        "name": "check",
+        "startedAt": "2026-10-05T09:10:00Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      }
+    ],
+    "title": "Fixture: merged last week",
+    "updatedAt": "2026-09-28T12:00:03Z",
+    "url": "https://github.com/fixture-owner/fixture-repo/pull/108"
+  },
+  {
+    "author": {
+      "id": "U_fixture-owner",
+      "is_bot": false,
+      "login": "fixture-owner",
+      "name": "Fixture Owner"
+    },
+    "headRefName": "feature/abandoned",
+    "isDraft": false,
+    "latestReviews": [],
+    "mergedAt": null,
+    "number": 109,
+    "reviewDecision": "",
+    "state": "CLOSED",
+    "statusCheckRollup": [],
+    "title": "Fixture: closed without a merge",
+    "updatedAt": "2026-10-05T11:00:00Z",
+    "url": "https://github.com/fixture-owner/fixture-repo/pull/109"
+  }
+]
