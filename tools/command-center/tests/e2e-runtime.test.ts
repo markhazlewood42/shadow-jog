@@ -2,9 +2,11 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { E2E_PORT, createE2eRuntime } from '../e2e/server';
+import { E2E_PORT, FIXTURE_NAV_FILE, createE2eRuntime } from '../e2e/server';
 import { readGhCalls, setGhMode } from '../e2e/fake-gh';
 import { isInside } from '../src/server/config';
+import { createDocIndex } from '../src/server/docs/index';
+import { createHub } from '../src/server/hub';
 import { REPO_DIR } from './helpers';
 
 // e2e/server.ts is the server the Playwright tests run against. Its wiring (a fixture config, a
@@ -55,6 +57,28 @@ describe('createE2eRuntime', () => {
       await expect(rt.runner('gh', ['pr', 'merge', '1'])).rejects.toThrow(/refused/i);
       await expect(rt.runner('git', ['push'])).rejects.toThrow(/refused/i);
     } finally {
+      rt.close();
+    }
+  });
+
+  it('puts the sample docs of fixtures/repo into the fixture repo, and fixtures/nav.json sorts them into sections', async () => {
+    const rt = createE2eRuntime(join(parent, 'docs'));
+    const index = createDocIndex({ config: rt.config, runner: rt.runner, hub: createHub() }, { watch: false, navFile: FIXTURE_NAV_FILE });
+    try {
+      // The repo is the folder "repo" of the work folder, which is where the Playwright tests look for it.
+      expect(rt.repo.dir).toBe(join(rt.workDir, 'repo'));
+      expect(existsSync(join(rt.repo.dir, 'docs', 'guides', 'setup.md'))).toBe(true);
+      // The seed is in the two commits of makeTempRepo, so there are still two.
+      expect((await rt.runner('git', ['log', '--format=%s'])).stdout.trim().split(/\r?\n/)).toEqual(['Add the second doc', 'Add the first doc']);
+
+      await index.ready();
+      expect(index.nav().map((section) => section.title)).toEqual(['Start here', 'Guides', 'Diagrams and links', 'Live edits']);
+      expect(index.get('guides/setup')?.title).toBe('Setup guide');
+      // Only the sample doc with broken links has a problem (four of them, on purpose).
+      expect(index.problems().length).toBe(4);
+      expect(index.problems().every((problem) => problem.startsWith('docs/broken-link.md:'))).toBe(true);
+    } finally {
+      await index.close();
       rt.close();
     }
   });

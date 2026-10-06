@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -23,8 +23,13 @@ export type TempRepo = {
  *
  * The commit dates are fixed (2026-01-01 and 2026-01-02), so a test can rely on them. The author
  * is a made-up one, so this works on a machine with no git identity set.
+ *
+ * `options.seed` is a folder whose files are copied into the repo before the first commit, so the
+ * end-to-end server can serve a whole set of sample docs (fixtures/repo) and still have the same two
+ * commits. A doc of the seed that has no `updated` date in its frontmatter then gets the date of the
+ * first commit, 2026-01-01.
  */
-export function makeTempRepo(options: { dir?: string } = {}): TempRepo {
+export function makeTempRepo(options: { dir?: string; seed?: string } = {}): TempRepo {
   const dir = options.dir ?? mkdtempSync(join(tmpdir(), 'cc-fixture-repo-'));
   mkdirSync(dir, { recursive: true });
 
@@ -49,6 +54,7 @@ export function makeTempRepo(options: { dir?: string } = {}): TempRepo {
 
   git(['init', '--quiet', '--initial-branch=main']);
 
+  if (options.seed !== undefined) cpSync(options.seed, dir, { recursive: true });
   write('README.md', '# Fixture repo\n\nA repo for tests.\n');
   write('docs/first.md', '# First doc\n\nThe first version.\n');
   git(['add', '--all']);

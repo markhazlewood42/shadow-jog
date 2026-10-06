@@ -1,0 +1,31 @@
+{
+  "sections": [
+    {
+      "id": "start",
+      "title": "Start here",
+      "items": ["README.md", "docs/first.md", "docs/second.md"]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "items": [
+        "docs/guides/setup.md",
+        "docs/reference/glossary.md",
+        "docs/no-frontmatter.md",
+        "docs/tables.md",
+        "docs/crlf.md",
+        "docs/duplicate-headings.md"
+      ]
+    },
+    {
+      "id": "diagrams-and-links",
+      "title": "Diagrams and links",
+      "items": ["docs/diagram.md", "docs/broken-link.md", "docs/hostile.md"]
+    },
+    {
+      "id": "live-edit",
+      "title": "Live edits",
+      "items": ["docs/live-edit/"]
+    }
+  ]
+}

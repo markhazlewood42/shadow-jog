@@ -2,7 +2,7 @@ import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { type TempRepo, makeTempRepo } from '../fixtures/make-temp-repo';
 import { compose } from '../src/server/compose';
-import type { Config } from '../src/server/config';
+import { type Config, PACKAGE_DIR } from '../src/server/config';
 import { PortBusyError, startServer } from '../src/server/main';
 import { type Runner, createRunner, execProcess } from '../src/server/runner';
 import { E2E_DIR, createFakeGh } from './fake-gh';
@@ -14,11 +14,19 @@ import { E2E_DIR, createFakeGh } from './fake-gh';
 /** The port of the end-to-end server. playwright.config.ts names the same port. */
 export const E2E_PORT = 3010;
 
+/**
+ * The sample docs that the fixture repo starts with (fixtures/repo), and the nav.json that sorts them
+ * into sections. The tool's own nav.json names the real docs of the Shadow Jog repo, which the fixture
+ * repo does not have.
+ */
+export const FIXTURE_DOCS_DIR = join(PACKAGE_DIR, 'fixtures', 'repo');
+export const FIXTURE_NAV_FILE = join(PACKAGE_DIR, 'fixtures', 'nav.json');
+
 export type E2eRuntime = {
   config: Config;
   /** The real runner (its allow-list holds), with git run for real in the fixture repo and gh answered by the fake. */
   runner: Runner;
-  /** The fixture git repo, with two commits. */
+  /** The fixture git repo: the two commits of makeTempRepo, with the sample docs of fixtures/repo in both. It is the folder "repo" in the work folder. */
   repo: TempRepo;
   /** The folder that holds the fixture repo and the fake gh's two files. A test finds the fake's files here. */
   workDir: string;
@@ -35,7 +43,7 @@ export function createE2eRuntime(workDir: string = E2E_DIR): E2eRuntime {
   rmSync(workDir, { recursive: true, force: true });
   mkdirSync(workDir, { recursive: true });
 
-  const repo = makeTempRepo({ dir: join(workDir, 'repo') });
+  const repo = makeTempRepo({ dir: join(workDir, 'repo'), seed: FIXTURE_DOCS_DIR });
   const config: Config = {
     port: E2E_PORT,
     repoRoot: repo.dir,
@@ -66,7 +74,7 @@ export function createE2eRuntime(workDir: string = E2E_DIR): E2eRuntime {
 
 async function main(): Promise<void> {
   const runtime = createE2eRuntime();
-  const composed = compose({ config: runtime.config, runner: runtime.runner });
+  const composed = compose({ config: runtime.config, runner: runtime.runner, navFile: FIXTURE_NAV_FILE });
   await startServer(composed.app, E2E_PORT);
   await composed.start();
 
