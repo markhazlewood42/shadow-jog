@@ -71,17 +71,16 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 **Mark's rules from 2026-10-05** (also in home-base `CLAUDE.md` and memory): effort means architectural fit and files touched, never agent-days; all work goes through independent verification agents, sized to risk; at a phase break, the work continues in a fresh session. His idea backlog is `docs/IDEAS.md`. Entry 1 is a standing rule: no decision may make future visual editors harder.
 
 **Next for agents** (in this order):
-1. Fix Copilot's 4 review findings on PR #12 (the diagrams): the battle-round diagram misses the event paths of `startRound()` and `endRound()` and the end of battle on win, lose or fled; the scene lifecycle misses `stop()` from a paused or sleeping scene; the verification loop must retry after rounds 1 and 2 and stop after round 3. Regenerate each image and its alt text, then Mark merges #12.
-2. Finish the engine design update from the draft (the handoff README lists what is left: 640x360 everywhere, the editor rule as a principle, the open review fixes, four stale diagrams). Then a PR from `main` for Mark's final approval.
+1. Done (2026-10-05): Copilot's 4 findings on PR #12 are fixed on PR #15 (branch `diagram-review-fixes`). Mark merged #12 before the fixes, so they went to a new PR. Each Copilot thread on #12 links to #15 and is resolved. If Copilot reviews #15, fix its findings on the same branch.
+2. Finish the engine design update from the draft (the handoff README lists what is left: 640x360 everywhere, the editor rule as a principle, the open review fixes, four stale diagrams). Start its branch from `main` after PR #15 merges, because the update also changes `engine-scene-lifecycle` and `frame-and-rendering.md`. Then a PR for Mark's final approval.
 3. Move the shipped game to 640x360 on branch `resolution-640x360` from `main`, from the inventory, with picture reviews for Mark.
 4. After Mark's final approval of the design: the spike archive tag (with his go-ahead), then milestone M0.
 
 **Next up for Mark** (updated 2026-10-05):
-1. Merge this status PR, and PR #12 (diagrams) after its Copilot fixes. PR #10 (engine design) and PR #13 (idea backlog) are merged.
+1. Request Copilot's review on PR #15 (the 4 diagram fixes), then merge it. PRs #10, #12, #13 and #14 are merged.
 2. Approve the final design when the design update PR comes. It carries the spike result and the 640x360 numbers.
 3. Answer the look questions as the 640x360 pictures come: the old battle (boxed until M3, or re-laid now), maps smaller than the screen, the dialog width, the title art, and 3 shockwave values in your `fx.json`.
-4. Say "push" for home-base: 5 local commits (the diagram-design skill, the new token and session rules, and the AGENTS.md row).
-5. The older items below (Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4) still stand.
+4. The older items below (Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4) still stand.
 
 ### Right now (2026-10-04, history)
 
