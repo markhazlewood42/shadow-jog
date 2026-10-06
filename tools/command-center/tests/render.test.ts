@@ -328,6 +328,68 @@ describe('renderDoc: images', () => {
       '<a href="https://example.com/a.png" target="_blank" rel="noopener noreferrer">an outside picture</a>',
     );
   });
+
+  // The next three tests guard the one place that writes html by hand: an image that becomes a link
+  // or a marker is made as text in `tidyImage`, not by markdown-it, so nothing else escapes what
+  // goes into it. Each test fails if its own escape is taken out (and only then).
+
+  it('the alt text of an image that becomes a link or a marker is escaped, so it cannot add a tag', () => {
+    const doc = render(
+      '![<img src=x onerror=alert(1)>](https://example.com/a.png) ![<b>x</b>](missing.png) ![" onmouseover="x](https://example.com/b.png)',
+    );
+    // The only tags are the two links, the marker and the paragraph: nothing that the alt text wrote.
+    expect(tagNames(doc.html)).toEqual(['a', 'p', 'span']);
+    expect(doc.html).toContain('&lt;img src=x onerror=alert(1)&gt;</a>');
+    expect(doc.html).toContain('&lt;b&gt;x&lt;/b&gt;</span>');
+    expect(doc.html).toContain('&quot; onmouseover=&quot;x</a>');
+
+    // A picture inside a link shows its alt text bare, and it is escaped on that path too.
+    const inLink = render('[![<i>y</i>](https://example.com/c.png)](https://example.com/page)');
+    expect(tagNames(inLink.html)).toEqual(['a', 'p']);
+    expect(inLink.html).toContain('&lt;i&gt;y&lt;/i&gt;</a>');
+
+    // With no alt text the label is the address as written, and that is escaped as well.
+    const bare = render('![](missing.png?a=1&b=2)');
+    expect(bare.html).toContain('>missing.png?a=1&amp;b=2</span>');
+  });
+
+  it('the address of an image that becomes a link is escaped, so it cannot add an attribute or a tag', () => {
+    // A resolver is trusted to answer well, and `isPrintable` checks the address again, but a quote or
+    // an angle bracket is a legal part of one. This escape is what keeps it inside the href.
+    const addresses = [
+      'https://x.example/" onmouseover="alert(1)',
+      'https://x.example/"><img src=x onerror=alert(1)>',
+      'https://x.example/?a=1&b=<2>',
+    ];
+    for (const kind of ['external', 'github'] as const) {
+      for (const url of addresses) {
+        const hostile: RenderContext = { docId: 'docs/x.md', resolve: () => ({ kind, url }) };
+        // The picture is made by hand. The link is made by markdown-it: the same rule holds for both.
+        for (const source of ['![pic](y)', '[pic](y)']) {
+          const html = renderDoc(source, hostile).html;
+          expect(Object.keys(attributesOf(html, 'a')), `${kind} ${source} ${url}`).toEqual(['href', 'target', 'rel']);
+          expect(tagNames(html), `${kind} ${source} ${url}`).toEqual(['a', 'p']);
+        }
+      }
+    }
+    const quoted: RenderContext = { docId: 'docs/x.md', resolve: () => ({ kind: 'external', url: 'https://x.example/" onmouseover="alert(1)' }) };
+    expect(attributesOf(renderDoc('![pic](y)', quoted).html, 'a').href).toBe('https://x.example/&quot; onmouseover=&quot;alert(1)');
+  });
+
+  it('the reason in the marker of an image is escaped, so it cannot add an attribute or a tag', () => {
+    const reasons = ['x" onmouseover="alert(1)', 'x"><img src=x onerror=alert(1)>', '<script>alert(1)</script>', 'a & b'];
+    for (const reason of reasons) {
+      const hostile: RenderContext = { docId: 'docs/x.md', resolve: () => ({ kind: 'broken', reason }) };
+      for (const source of ['![pic](y)', '[pic](y)']) {
+        const html = renderDoc(source, hostile).html;
+        // The marker has its class and its title and nothing else, and nothing the reason wrote is a tag.
+        expect(Object.keys(attributesOf(html, 'span')), `${source} ${reason}`).toEqual(['class', 'title']);
+        expect(tagNames(html), `${source} ${reason}`).toEqual(['p', 'span']);
+      }
+    }
+    const quoted: RenderContext = { docId: 'docs/x.md', resolve: () => ({ kind: 'broken', reason: 'x" onmouseover="alert(1)' }) };
+    expect(attributesOf(renderDoc('![pic](y)', quoted).html, 'span').title).toBe('x&quot; onmouseover=&quot;alert(1)');
+  });
 });
 
 describe('renderDoc: plain prose', () => {
