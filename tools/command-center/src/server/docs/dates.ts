@@ -54,7 +54,7 @@ export async function lastChangedDates(runner: Runner, cwd: string): Promise<Map
  * `YYYY-MM-DD`, alone or followed by a time (`2026-10-05T10:20:00Z`): the time is dropped, because
  * the page shows days. A value such as `2026-02-31` or `soon` is not a day.
  */
-export function frontmatterDay(value: unknown): string | null {
+function frontmatterDay(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const match = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T ])/.exec(value.trim());
   if (match === null) return null;
@@ -66,7 +66,7 @@ export function frontmatterDay(value: unknown): string | null {
 }
 
 /** The day a file was last written, by the clock of this machine. */
-export function fileDay(mtimeMs: number): string {
+function fileDay(mtimeMs: number): string {
   const date = new Date(mtimeMs);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
