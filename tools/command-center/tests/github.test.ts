@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeGh, readGhCalls, resetGh, setGhMode } from '../e2e/fake-gh';
-import { GH_PR_FIELDS, parseGhPrs } from '../src/server/github/github';
+import { GH_PR_FIELDS, MARK_LOGIN, parseGhPrs } from '../src/server/github/github';
 import { classifyGhError } from '../src/server/github/errors';
 import { createGithubSource } from '../src/server/github/module';
 import { createHub } from '../src/server/hub';
@@ -42,7 +42,7 @@ function entry(over: Record<string, unknown> = {}): Record<string, unknown> {
     isDraft: false,
     headRefName: 'b',
     url: 'https://github.com/o/r/pull/7',
-    author: { login: 'someone' },
+    author: { login: MARK_LOGIN }, // Mark's own, so that a test of one rule is not decided by the author rule
     updatedAt: '2026-10-05T00:00:00Z',
     mergedAt: null,
     reviewDecision: '',
@@ -103,7 +103,7 @@ describe('parseGhPrs', () => {
       state: 'OPEN',
       isDraft: false,
       branch: 'feature/widget-ready',
-      author: 'fixture-owner',
+      author: MARK_LOGIN,
       updatedAt: '2026-10-05T09:30:00Z',
       mergedAt: null,
       reviewDecision: 'APPROVED',
@@ -165,6 +165,57 @@ describe('parseGhPrs', () => {
     for (const pr of parsed.merged) expect(pr.attention, `#${pr.number}`).toBeNull();
     const mergedFailing = parseOne({ state: 'MERGED', mergedAt: '2026-10-06T00:00:00Z', statusCheckRollup: [checkRun('FAILURE')] }).merged[0];
     expect(mergedFailing).toMatchObject({ checksSummary: 'fail', attention: null });
+  });
+
+  it('changes requested with passing checks is fix', () => {
+    // GitHub's word for "a reviewer asked for changes". It beats passing checks: the pull request is not ready to merge.
+    const passing = [checkRun('SUCCESS')];
+    expect(parseOne({ reviewDecision: 'CHANGES_REQUESTED', statusCheckRollup: passing }).open[0]).toMatchObject({
+      checksSummary: 'pass',
+      reviewDecision: 'CHANGES_REQUESTED',
+      attention: 'fix',
+    });
+    // Whatever the checks say (none, still running, failed), the changes have still to be made.
+    for (const rollup of [[], [checkRun('', 'IN_PROGRESS')], [checkRun('FAILURE')]]) {
+      expect(parseOne({ reviewDecision: 'CHANGES_REQUESTED', statusCheckRollup: rollup }).open[0]?.attention).toBe('fix');
+    }
+    // The other decisions leave a pull request with passing checks ready to merge.
+    for (const reviewDecision of ['APPROVED', 'REVIEW_REQUIRED', '']) {
+      expect(parseOne({ reviewDecision, statusCheckRollup: passing }).open[0]?.attention, `decision "${reviewDecision}"`).toBe('merge');
+    }
+    // A draft, and a pull request that is not open, never need Mark, with changes requested too.
+    expect(parseOne({ isDraft: true, reviewDecision: 'CHANGES_REQUESTED', statusCheckRollup: passing }).open[0]?.attention).toBeNull();
+    const merged = parseOne({ state: 'MERGED', mergedAt: '2026-10-06T00:00:00Z', reviewDecision: 'CHANGES_REQUESTED' }).merged[0];
+    expect(merged?.attention).toBeNull();
+  });
+
+  it('another author with passing checks is null', () => {
+    const passing = [checkRun('SUCCESS')];
+    // The same pull request: by Mark it is ready to merge, by someone else it waits for nothing. It still shows in the list.
+    expect(parseOne({ author: { login: MARK_LOGIN }, statusCheckRollup: passing }).open[0]?.attention).toBe('merge');
+    const other = parseOne({ author: { login: 'someone-else' }, statusCheckRollup: passing });
+    expect(other.open).toHaveLength(1);
+    expect(other.open[0]).toMatchObject({ author: 'someone-else', checksSummary: 'pass', attention: null });
+
+    // A pull request with no author, an agent's app account and logins that only look like Mark's are not Mark.
+    for (const author of [null, { login: '' }, { login: 'app/copilot-swe-agent' }, { login: `${MARK_LOGIN}2` }, { login: `x${MARK_LOGIN}` }]) {
+      expect(parseOne({ author, statusCheckRollup: passing }).open[0]?.attention, JSON.stringify(author)).toBeNull();
+    }
+    // GitHub logins are not case sensitive: the same account in other letters is Mark.
+    expect(parseOne({ author: { login: MARK_LOGIN.toUpperCase() }, statusCheckRollup: passing }).open[0]?.attention).toBe('merge');
+
+    // The fixture has one pull request of another account, and its checks are still running: it is in the list, and null.
+    expect(openPr(104)).toMatchObject({ author: 'fixture-bot', attention: null });
+  });
+
+  it('another author with failing checks is null', () => {
+    const failing = [checkRun('FAILURE')];
+    // Mark's pull request with a failing check needs a fix; another account's does not land in Mark's Your move at all.
+    expect(parseOne({ author: { login: MARK_LOGIN }, statusCheckRollup: failing }).open[0]?.attention).toBe('fix');
+    expect(parseOne({ author: { login: 'someone-else' }, statusCheckRollup: failing }).open[0]).toMatchObject({ checksSummary: 'fail', attention: null });
+    // Not as "fix" for changes requested either: the author rule comes before both.
+    expect(parseOne({ author: { login: 'someone-else' }, reviewDecision: 'CHANGES_REQUESTED', statusCheckRollup: failing }).open[0]?.attention).toBeNull();
+    expect(parseOne({ author: { login: 'someone-else' }, reviewDecision: 'CHANGES_REQUESTED', statusCheckRollup: [checkRun('SUCCESS')] }).open[0]?.attention).toBeNull();
   });
 
   it('merged keeps the last week only', () => {

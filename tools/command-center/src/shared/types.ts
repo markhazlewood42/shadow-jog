@@ -252,7 +252,11 @@ export type PullRequest = {
   checks: PullRequestCheck[];
   /** All the checks in one word: `fail` when one failed, else `pending` when one is not done, else `pass`; `none` when nothing counts (there are no checks, or all were skipped). */
   checksSummary: 'pass' | 'fail' | 'pending' | 'none';
-  /** What waits for Mark: `merge` (open, not a draft, every check passes) or `fix` (open, not a draft, a check failed). Null for all other pull requests. */
+  /**
+   * What waits for Mark. `fix`: an open pull request of Mark's (not a draft) whose check failed, or that a reviewer asked changes of.
+   * `merge`: one whose checks all pass and that nobody asked changes of. Null for every other pull request, always for one of another
+   * account (the repo is public, and the agents work through Mark's login): it shows in the list and never in "Your move".
+   */
   attention: 'merge' | 'fix' | null;
 };
 

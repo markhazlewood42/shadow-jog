@@ -1,10 +1,10 @@
 [
   {
     "author": {
-      "id": "U_fixture-owner",
+      "id": "U_markhazlewood42",
       "is_bot": false,
-      "login": "fixture-owner",
-      "name": "Fixture Owner"
+      "login": "markhazlewood42",
+      "name": ""
     },
     "headRefName": "feature/widget-ready",
     "isDraft": false,
@@ -47,10 +47,10 @@
   },
   {
     "author": {
-      "id": "U_fixture-owner",
+      "id": "U_markhazlewood42",
       "is_bot": false,
-      "login": "fixture-owner",
-      "name": "Fixture Owner"
+      "login": "markhazlewood42",
+      "name": ""
     },
     "headRefName": "feature/gadget",
     "isDraft": false,
@@ -87,10 +87,10 @@
   },
   {
     "author": {
-      "id": "U_fixture-owner",
+      "id": "U_markhazlewood42",
       "is_bot": false,
-      "login": "fixture-owner",
-      "name": "Fixture Owner"
+      "login": "markhazlewood42",
+      "name": ""
     },
     "headRefName": "spike/fixture-draft",
     "isDraft": true,
@@ -161,10 +161,10 @@
   },
   {
     "author": {
-      "id": "U_fixture-owner",
+      "id": "U_markhazlewood42",
       "is_bot": false,
-      "login": "fixture-owner",
-      "name": "Fixture Owner"
+      "login": "markhazlewood42",
+      "name": ""
     },
     "headRefName": "feature/no-checks",
     "isDraft": false,
@@ -180,10 +180,10 @@
   },
   {
     "author": {
-      "id": "U_fixture-owner",
+      "id": "U_markhazlewood42",
       "is_bot": false,
-      "login": "fixture-owner",
-      "name": "Fixture Owner"
+      "login": "markhazlewood42",
+      "name": ""
     },
     "headRefName": "feature/merged-recently",
     "isDraft": false,
@@ -210,10 +210,10 @@
   },
   {
     "author": {
-      "id": "U_fixture-owner",
+      "id": "U_markhazlewood42",
       "is_bot": false,
-      "login": "fixture-owner",
-      "name": "Fixture Owner"
+      "login": "markhazlewood42",
+      "name": ""
     },
     "headRefName": "feature/merged-this-week",
     "isDraft": false,
@@ -240,10 +240,10 @@
   },
   {
     "author": {
-      "id": "U_fixture-owner",
+      "id": "U_markhazlewood42",
       "is_bot": false,
-      "login": "fixture-owner",
-      "name": "Fixture Owner"
+      "login": "markhazlewood42",
+      "name": ""
     },
     "headRefName": "feature/merged-long-ago",
     "isDraft": false,
@@ -270,10 +270,10 @@
   },
   {
     "author": {
-      "id": "U_fixture-owner",
+      "id": "U_markhazlewood42",
       "is_bot": false,
-      "login": "fixture-owner",
-      "name": "Fixture Owner"
+      "login": "markhazlewood42",
+      "name": ""
     },
     "headRefName": "feature/abandoned",
     "isDraft": false,

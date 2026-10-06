@@ -16,6 +16,13 @@ export const PR_LIMIT = 100;
 /** A merged pull request stays in the list for this long after the merge: 7 days, as the design says. */
 const MERGED_KEPT_MS = 7 * 24 * 60 * 60 * 1000;
 
+/**
+ * Mark's GitHub account: the one account whose pull requests can wait for him (see `attentionOf`), and,
+ * for the decision inbox, the only one whose comments and labels count (the "Trust" rule). GitHub
+ * logins are not case sensitive, so a login is compared in lower case.
+ */
+export const MARK_LOGIN = 'markhazlewood42';
+
 type Json = Record<string, unknown>;
 
 const isRecord = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -90,11 +97,23 @@ function summarize(checks: readonly PullRequestCheck[]): PullRequest['checksSumm
   return checks.some((check) => check.status === 'pass') ? 'pass' : 'none';
 }
 
-/** What waits for Mark: an open pull request that is not a draft, and whose checks all pass (merge it) or one of which failed (it needs a fix). */
-function attentionOf(state: PullRequest['state'], isDraft: boolean, summary: PullRequest['checksSummary']): PullRequest['attention'] {
-  if (state !== 'OPEN' || isDraft) return null;
-  if (summary === 'fail') return 'fix';
-  return summary === 'pass' ? 'merge' : null;
+/**
+ * What waits for Mark, in this order:
+ *
+ * 1. A pull request that is not open, or is a draft, waits for nothing.
+ * 2. Neither does a pull request of another account. The repo is public, so anyone can open a pull
+ *    request, and a stranger's must never reach Mark's "Your move" as "merge" or "fix" (it still shows in
+ *    the list of pull requests). The agents work through Mark's login, so their pull requests are Mark's.
+ * 3. `fix`: a check failed, or a reviewer asked for changes (whatever the checks say: it is not ready).
+ * 4. `merge`: every check passes (and, by 3, nobody asked for changes).
+ * 5. Anything else (checks still running, no checks, only skipped ones) waits for nothing yet.
+ */
+function attentionOf(pr: Pick<PullRequest, 'state' | 'isDraft' | 'author' | 'reviewDecision' | 'checksSummary'>): PullRequest['attention'] {
+  if (pr.state !== 'OPEN' || pr.isDraft) return null;
+  // The repo is public, so this may be a stranger's pull request. The agents work through Mark's login, so theirs are Mark's.
+  if (pr.author.toLowerCase() !== MARK_LOGIN) return null;
+  if (pr.checksSummary === 'fail' || pr.reviewDecision === 'CHANGES_REQUESTED') return 'fix';
+  return pr.checksSummary === 'pass' ? 'merge' : null;
 }
 
 // ---- pull requests ----
@@ -119,6 +138,8 @@ function toPullRequest(raw: unknown, position: number): PullRequest {
   const checks = listOf(raw.statusCheckRollup).map(toCheck);
   const checksSummary = summarize(checks);
   const isDraft = raw.isDraft === true;
+  const author = (isRecord(raw.author) ? text(raw.author.login) : '') || 'unknown';
+  const reviewDecision = text(raw.reviewDecision) || null; // gh prints "" when nobody has decided
   // gh prints a merge time of year 1 (or nothing) for a pull request that was not merged.
   const mergedAt = typeof raw.mergedAt === 'string' && millisOf(raw.mergedAt) > 0 ? raw.mergedAt : null;
   return {
@@ -128,14 +149,14 @@ function toPullRequest(raw: unknown, position: number): PullRequest {
     state,
     isDraft,
     branch: text(raw.headRefName),
-    author: (isRecord(raw.author) ? text(raw.author.login) : '') || 'unknown',
+    author,
     updatedAt: text(raw.updatedAt),
     mergedAt,
-    reviewDecision: text(raw.reviewDecision) || null, // gh prints "" when nobody has decided
+    reviewDecision,
     reviews: listOf(raw.latestReviews).map(toReview).filter((review): review is PullRequestReview => review !== null),
     checks,
     checksSummary,
-    attention: attentionOf(state, isDraft, checksSummary),
+    attention: attentionOf({ state, isDraft, author, reviewDecision, checksSummary }),
   };
 }
 
