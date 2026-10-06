@@ -174,7 +174,7 @@ Pixi has no camera. The engine builds one (Phaser's `Camera` API on a transform)
 | `flash` | `flash(duration, r, g, b, ...)` | `flash(ms, color?)` | ours |
 | `shake` | `shake(duration, intensity, ...)` with intensity as a fraction of the view | `shake(ms, magnitudePx)` in pixels | ours |
 
-Today's `game.shake(frames, mag)` and `game.flash()` stay as aliases. They act on every running scene's main camera. They honour `shakeScale` and `flashScale`.
+Today's `game.shake(frames, mag)` and `game.flash()` stay as aliases. They act on every running scene's main camera. They honor `shakeScale` and `flashScale`.
 
 ---
 
@@ -232,7 +232,7 @@ Whole-pixel positions are a hard constraint. We call the rule **snap to pixel** 
 ### Origin and flip
 
 - **Origin is 0.5 by default (Phaser).** Pixi's default anchor is (0,0). A port without a fix moves every sprite by half its size. The wrapper always sets `anchor = origin` on every leaf.
-- **Flip follows Phaser.** Phaser flips about the middle of the texture. The wrapper sets `scale.x = -abs(scaleX)` and `anchor.x = 1 - originX`. This reproduces Phaser's picture, so the spike's `mirrorFigure` maths (`foot.x = w - foot.x`) stays valid.
+- **Flip follows Phaser.** Phaser flips about the middle of the texture. The wrapper sets `scale.x = -abs(scaleX)` and `anchor.x = 1 - originX`. This reproduces Phaser's picture, so the spike's `mirrorFigure` math (`foot.x = w - foot.x`) stays valid.
 - **Tested in Phase 0:** this flip rule with a negative scale. 60 combinations give 0 pixels of difference from Canvas 2D. They cover widths 8, 9, 15 and 16, origins 0, 0.5 and 1, an own negative scale, `flipX`, a mirrored parent, and both axes. This holds when the origin lands on a whole pixel, which the engine forces. The punk of the stage slice, flipped with the anchor rule, also has 0 differing pixels. The results hold with `roundPixels` off.
 
 ---
@@ -267,7 +267,7 @@ Pixi events need `eventMode`, bounds, and an import that starts its own ticker. 
 | Origin | `setOrigin(x, y)` | `sprite.anchor.set(x, y)` | Always set. Pixi default is (0,0). |
 | Frame | `setTexture(key, frame)` | `sprite.texture = cellTexture` | One cached `Texture` per cell. One source. |
 | Depth | `setDepth(n)` | `zIndex` | Pixi sets `sortableChildren` on the parent. |
-| Flip | `setFlipX(b)` | `scale.x`, `anchor.x` | Phaser maths, see section 7. |
+| Flip | `setFlipX(b)` | `scale.x`, `anchor.x` | Phaser math, see section 7. |
 | Blend | `setBlendMode(ADD)` | `blendMode = 'add'` | Only fixed-function modes. |
 | Container | `add.container()` | `new Container()` | `destroy({ children: true })` removes the tree. |
 | Graphics fill | `fillStyle(c,a).fillRect()` | `g.rect(x,y,w,h).fill({ color: c, alpha: a })` | Rects and 1 px lines only in v1. The two-argument form `fill(color, alpha)` is deprecated in 8.22 and warns. |
@@ -290,7 +290,7 @@ Three Pixi facts that cause silent bugs:
 
 ## 11. Lights
 
-`scene.lights` `(ours: the name is Phaser's, the behaviour is not)` holds an ambient color and point lights. It draws additive radial sprites into a camera-sized `RenderTexture`. It shows the result as one sprite with `blendMode = 'multiply'` above the world.
+`scene.lights` `(ours: the name is Phaser's, the behavior is not)` holds an ambient color and point lights. It draws additive radial sprites into a camera-sized `RenderTexture`. It shows the result as one sprite with `blendMode = 'multiply'` above the world.
 
 Today's field lighting uses per-sprite scratch canvases (`copy`, `multiply`, `destination-in`). These have no one-to-one Pixi form. The first version uses the global light map plus a second, weaker multiply for sprites (today's 0.32 boost). The look is an approximation. **You must approve it in the M5 review (E20).**
 

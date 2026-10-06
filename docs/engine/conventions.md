@@ -20,9 +20,9 @@ You asked: "Are we following established conventions?" This file answers it. It 
 
 | Tag | Meaning |
 |---|---|
-| No tag | The name and the behaviour come from Phaser 4. |
-| `(ours)` | No engine has this name or behaviour, or we changed it on purpose. |
-| `(deviation)` | The name is Phaser's. The behaviour is not. |
+| No tag | The name and the behavior come from Phaser 4. |
+| `(ours)` | No engine has this name or behavior, or we changed it on purpose. |
+| `(deviation)` | The name is Phaser's. The behavior is not. |
 | `on demand` | We build it only when a ported scene needs it. |
 
 In code comments the tags are `// ours`, `// deviation`, and `// on demand`.
@@ -60,7 +60,7 @@ In code comments the tags are `// ours`, `// deviation`, and `// on demand`.
 | Pool | `Group` | `ObjectPool` | — | — | **`Group`**, plus `Pool<T>` `(ours)` | `Group` is Phaser's. `Pool` is Unity's idea for hot objects. Both on demand. |
 | Image, sprite | `Image`, `Sprite` | `SpriteRenderer` | `Sprite2D` | `Sprite` | **`ImageObject`, `Sprite`** | Phaser. `Image` and `Text` shadow DOM globals, so they get a suffix (E7). |
 | Origin | `setOrigin` (0.5 default) | `pivot` | `centered`, `offset` | — | **`setOrigin`, 0.5 default** | Phaser. The spike's data uses it. Pixi's anchor is (0,0). |
-| Flip | `setFlipX` (about the texture middle) | `flipX` | `flip_h` | `scale.x = -1` | **`setFlipX`, Phaser maths** | The spike's `mirrorFigure` depends on it. |
+| Flip | `setFlipX` (about the texture middle) | `flipX` | `flip_h` | `scale.x = -1` | **`setFlipX`, Phaser math** | The spike's `mirrorFigure` depends on it. |
 | Text | `Text`, `BitmapText` | `TextMeshPro` | `Label` | — | **`TextObject`** over the game's own font | Same look as today. No extra bytes. |
 | Hit area | `Zone`, `setInteractive` | `Collider2D` as a trigger | `Area2D`, `Control` | `Raycaster` | **`Zone`** | Phaser. Dev and editor builds only. |
 | Canvas texture | `CanvasTexture`, `textures.addCanvas` | `RenderTexture` | `ImageTexture` | `CanvasTexture` | **`CanvasImage`, `textures.addCanvas`** | Phaser. All generated art is canvas-based. |
@@ -76,7 +76,7 @@ In code comments the tags are `// ours`, `// deviation`, and `// on demand`.
 | Camera effects | `fade`, `flash`, `shake`, `pan`, `zoomTo` | Cinemachine impulse | — (no built-in shake) | — | **Same names, our arguments** `(deviation)` | See scene-graph.md section 5. |
 | HUD not moved by the camera | `setScrollFactor(0)` | Screen Space overlay | `CanvasLayer` | — | **`scene.add.layer({ ui: true })`** (primary), `setScrollFactor(0)` on top-level objects, and `scene.ui` | Phaser name. Only 0 and 1 are allowed. |
 | Whole-pixel positions | `roundPixels`, `pixelArt` | Pixel Perfect Camera snapping | `snap_2d_transforms_to_pixel` | — | **"snap to pixel", `setPixelSnap`** | One name, one rule. Godot's name. |
-| Integer scale | `ScaleManager`, `pixelArt` | Pixel Perfect Camera | integer stretch mode | — | **`Display`** | Phaser class name, Unity behaviour. |
+| Integer scale | `ScaleManager`, `pixelArt` | Pixel Perfect Camera | integer stretch mode | — | **`Display`** | Phaser class name, Unity behavior. |
 
 ### Effects and rendering
 
@@ -86,7 +86,7 @@ In code comments the tags are `// ours`, `// deviation`, and `// on demand`.
 | Mask | `Mask` filter: `filters.internal.addMask(...)` (4.0) | `SpriteMask` | `clip_children` | stencil | **`filters.addMask`**, flat `(deviation)` | Phaser 4 idea. One mask for each object (deviation 19). |
 | Whole-scene effect | camera `filters` | URP Volume | `WorldEnvironment` | `EffectComposer` | **`FxSystem`** `(ours)` | Keeps today's `postfx` names and `fx.json`. |
 | Effect presets as data | — | Volume Profile | `Environment` resource | — | **`fx.json`**. Optional future name: `Look` | Unity idea, only if you ask. |
-| Lights | `Lights` plugin | 2D Lights | `Light2D` | `Light` | **`scene.lights`** `(deviation)` | Phaser name. Behaviour is a multiply light map. |
+| Lights | `Lights` plugin | 2D Lights | `Light2D` | `Light` | **`scene.lights`** `(deviation)` | Phaser name. Behavior is a multiply light map. |
 | Render to texture | `RenderTexture` | `RenderTexture` | `SubViewport` | `WebGLRenderTarget` | **`RenderImage`**. The Three side keeps its name. | Phaser name on the 2D side. |
 
 ### Services
@@ -103,7 +103,7 @@ In code comments the tags are `// ours`, `// deviation`, and `// on demand`.
 | Loader | `Loader`, `CacheManager`, `TextureManager` | Addressables | `ResourceLoader` | `LoadingManager` | **`scene.load`, `cache`, `textures`**, and `bundle()` `(ours)` | Phaser, with Unity's named bundles for the lazy 3D chunk. |
 | Audio | `SoundManager` | `AudioMixer` | `AudioServer` buses | `Audio`, `AudioListener` | **`game.audio`** over the existing synth | The synth stays. Named buses later, from Godot. |
 | Reusable object tree | — | Prefab | `PackedScene` | — | **Not provided** | No current scene needs it. If we add it, call it "prefab". |
-| Behaviour | scene code, subclasses | `MonoBehaviour` components | node scripts | `Object3D` subclasses | **Scene code and small subclasses** | E1. |
+| Behavior | scene code, subclasses | `MonoBehaviour` components | node scripts | `Object3D` subclasses | **Scene code and small subclasses** | E1. |
 
 ### 3D mode
 
@@ -138,7 +138,7 @@ In code comments the tags are `// ours`, `// deviation`, and `// on demand`.
 
 ## 3. Deviations from Phaser
 
-Every behavioural deviation in one list. You accepted it in E22. There are nineteen. Items 17 to 19 are new in the Phase 0 update, and you accepted them on 2026-10-05.
+Every behavioral deviation in one list. You accepted it in E22. There are nineteen. Items 17 to 19 are new in the Phase 0 update, and you accepted them on 2026-10-05.
 
 1. `fixedUpdate(tick)` at a fixed 60 Hz replaces `update(time, delta)`. `update` is a compile error.
 2. `game.run` waits. Phaser's `ScenePlugin.run` does not.

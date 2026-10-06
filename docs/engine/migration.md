@@ -23,7 +23,7 @@ This file gives the path from today's engine and from the Phaser spike to the ne
 1. **No engine code before you approve the design.** This is your gate (decision 17). You approved the final design on 2026-10-05, so the gate is lifted. M0 may start after the 640x360 move merges.
 2. **Spikes test the approved design.** The platform spike (Phase 0) follows `docs/DEVELOPING.md` section 9: a `spike/<topic>` draft PR that is never merged, with `docs/spikes/<topic>.md` and exit criteria committed before the spike code.
 3. **The shipped game still works at every step.** The new engine starts behind a flag: `?engine=sje` in dev, a hidden setting in production. CI stays green on both engines until the default flips.
-4. **The old engine is not touched** until M8, except for the `W` and `H` import move in M0 and the size fixes of the 640x360 move. The move changes 7 files in `src/engine` before M0. The edits are the size value in `game.ts`, the shake scale, the centre defaults in `postfx.ts`, one exported function in `display.ts`, and comments in `presenter.ts` and `particles.ts`. You approved the move on 2026-10-05 ("Let's pivot. Better now than later."). This is the only bend of this principle.
+4. **The old engine is not touched** until M8, except for the `W` and `H` import move in M0 and the size fixes of the 640x360 move. The move changes 7 files in `src/engine` before M0. The edits are the size value in `game.ts`, the shake scale, the center defaults in `postfx.ts`, one exported function in `display.ts`, and comments in `presenter.ts` and `particles.ts`. You approved the move on 2026-10-05 ("Let's pivot. Better now than later."). This is the only bend of this principle.
 5. **One branch and one PR per milestone** (repo rule). Each PR adds a `CHANGELOG.md` entry. Names are readable: `engine-m1-shell`.
 6. **Build a class only when a ported scene needs it.** The Phaser spike called about 15 display methods. We do not rebuild all of Phaser.
 7. **Hybrid by scene.** A scene moves to retained mode only when it needs a camera, a filter, a mask, or a transition. UI scenes may stay on a canvas shell for good (section 4).
@@ -63,7 +63,7 @@ The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game
 
 ### M0 Prepare
 
-- Create `src/sje/core/size.ts` with `W = 640` and `H = 360`. The 640x360 move of the shipped game may already have replaced the uses of 480, 270, 240, and 135 that mean screen width, height, or centre. Replace what is left. Add the literal scan that keeps it done ([tooling-and-testing.md](tooling-and-testing.md) section 3).
+- Create `src/sje/core/size.ts` with `W = 640` and `H = 360`. The 640x360 move of the shipped game may already have replaced the uses of 480, 270, 240, and 135 that mean screen width, height, or center. Replace what is left. Add the literal scan that keeps it done ([tooling-and-testing.md](tooling-and-testing.md) section 3).
 - Move the 34 `W` and `H` imports. Phase 0 already made `src/engine/game.ts` re-export `W` and `H` from `size.ts`, so the old engine and the new engine cannot disagree. The shipped bundle stayed byte for byte the same. `FPS` stays in `game.ts` until M1 (`size.ts` holds it too).
 - Add a gate on the time between frames and a harness that counts GL objects. Both go into the perf spec.
 - Rewrite `bundle-budget.mjs` to read the Vite manifest and sort chunks into classes.
@@ -106,7 +106,7 @@ The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game
 ### M2 Effects
 
 - Build `FxSystem` with the `postfx` facade: the composite filter port (bloom, 4 shockwaves, color split, 4 hazes, 2 glitches, dim, flash, vignette), `ParticleContainer`, the glow layer, the fx levels, `fxLevel`, and shader warm-up.
-- `moments.ts`, `fxdata.ts`, and `fx.json` do not change, because `FxSystem` keeps today's method signatures. `FxSystem` keeps the centre defaults of `postfx` at `W / 2` and `H / 2` (the 640x360 move sets them).
+- `moments.ts`, `fxdata.ts`, and `fx.json` do not change, because `FxSystem` keeps today's method signatures. `FxSystem` keeps the center defaults of `postfx` at `W / 2` and `H / 2` (the 640x360 move sets them).
 - **The game still works:** the legacy `postfx` facade routes to `FxSystem` under the flag.
 - **Exit check:** `playMoment` hits look the same as the old presenter in a side-by-side that you review. Effect specs run at `full` on SwiftShader.
 
@@ -139,7 +139,7 @@ The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game
 
 - Build the field map as 4 baked `ImageObject` layers (largest 960x672).
 - Move the maps (`src/data/maps/*.ts`) from TypeScript to data files. The field reads them through the loader. A level editor can then open them (principle 11). You approve the file format first.
-- Maps and rooms that are smaller than the 640x360 view: a camera rule centres and fills them. No map data changes without your yes for each map.
+- Maps and rooms that are smaller than the 640x360 view: a camera rule centers and fills them. No map data changes without your yes for each map.
 - Build actors with `ySort`, the camera with pan easing and bounds, `Lights`, per-frame prop animations and water shimmer as `CanvasImage` painters, and weather. The lights of a map are part of the map data file (E20 condition, [decisions.md](decisions.md) editor rule check).
 - **The game still works:** the field stays on the legacy shell until this milestone lands.
 - **Exit check:** walking, warps, scripts, emote, and followers play. The playthrough spec is green. **You approve the lighting.**
@@ -260,7 +260,7 @@ Not tested: Safari on macOS, and a real GPU context reset.
 | 4 Fallback | Context lost: `aborted / context-lost` after 1,017 ms (software 1,023). WebGL2 off: `unsupported / no-webgl2` in 0 ms | 1,019 ms (software 1,020). 0 ms. The picture after a restore is the picture without a loss |
 | 5 Leaks | 17 textures, 4 buffers, 4 framebuffers, 1 program, 2 VAOs, flat after 10 cycles. Heap +2.40% | The same |
 | 6 Effects | 8 cases, 0 GL errors, within the tolerance | The same |
-| 7 Stage parity | Passes the gate against the Phaser references | Cannot be measured: the Phaser spike draws 480x270. The top left 480x270 equals the 480x270 picture (0 of 129,600 differ). The rest is the void colour (0 of 100,800 differ) |
+| 7 Stage parity | Passes the gate against the Phaser references | Cannot be measured: the Phaser spike draws 480x270. The top left 480x270 equals the 480x270 picture (0 of 129,600 differ). The rest is the void color (0 of 100,800 differ) |
 | 8 Crispness | 0 uneven of 129,600 blocks for each check | 0 uneven of 230,400 for each check, at ratios 1 to 2.25, in every scene, on a GPU and on SwiftShader |
 | 3D target against the back buffer | 0 of 129,600 differ | 0 of 230,400 differ |
 
@@ -354,7 +354,7 @@ The spike is a thin layer over Phaser. Only 9 of its 57 files in `src/stage` imp
 
 ### Changes that are not mechanical
 
-1. **Mirror.** Phaser flips about the texture middle. Pixi flips about the anchor. The wrapper uses `anchor.x = 1 - originX` and `scale.x = -abs(scaleX)`. The spike's `mirrorFigure` maths stays. Phase 0 tested the rule: the mirror is exact (60 combinations, and the punk of the stage slice). `roundPixels` is off.
+1. **Mirror.** Phaser flips about the texture middle. Pixi flips about the anchor. The wrapper uses `anchor.x = 1 - originX` and `scale.x = -abs(scaleX)`. The spike's `mirrorFigure` math stays. Phase 0 tested the rule: the mirror is exact (60 combinations, and the punk of the stage slice). `roundPixels` is off.
 2. **Figures.** Today `perform.ts` and `battletest.ts` reach into `f.home`. The port adds a `Figure` class so only that class touches nodes.
 3. **Parity.** The parity bench ran the unchanged stage on a Canvas 2D display list, not on Pixi. Pixi alpha handling in translucent HUD panels may differ. Phase 0 measured Pixi parity on the stage slice. The translucent parts of the slice (the contact shadows, the rings, the glow pixels of the enemy, the soft edges of the hero) are 0 pixels off. Translucent HUD windows are not in the slice and stay untested. Each page matches the Phaser page of its own kind of renderer, GPU or software. Across the two kinds, the pages differ by 1/255 on about 3.6% of the pixels. The cause is the neon glow layer of the street. The game paints it with Canvas 2D, and Chrome's GPU canvas and its software canvas paint it 1/255 apart. So M3 keeps two sets of references, `gpu` and `soft`, and the spec picks one by the renderer name. The committed `soft` set comes from Windows. The strict gate ran on the Linux runner, and CI is green on `d61d7d9`. Make the `soft` set again on the runner only if a later run fails.
 4. **Texture identity.** The spike compares `${texture.key}|${frame}` strings and prunes by key prefix. The `TextureManager` keeps stable string keys and per-key frame tables, including copied frames in `variantOf`.
@@ -383,7 +383,7 @@ Its checkout stays as a visual reference until M3 parity is accepted. Then you d
 
 - **The field (M5).** The lighting model has no one-to-one form on Pixi. About 10 prop animations, water, and weather draw per frame.
 - **Effects parity (M2).** A single composite filter is not built. Its look and cost can drift from `fx.json`.
-- **CI behaviour.** Every spec now runs on software WebGL. Run time and flakiness can rise. Chromium 153 differs from the lab's 151.
+- **CI behavior.** Every spec now runs on software WebGL. Run time and flakiness can rise. Chromium 153 differs from the lab's 151.
 - **Pixi and Three upgrades.** Pixi releases a minor every 2 to 6 weeks. The fixes use internals. Pin and bump on purpose, with the canary suite.
 - **Retained-mode surprises.** The typewriter text, the per-frame canvas uploads, and nested scaled containers in the battle are not benchmarked.
 - **Firefox and WebKit.** The shared-context path passes in WebKit on the Linux CI runner and in the 2-test browser spec in Firefox 153 on Windows. Headless Firefox on the Linux CI runner has no WebGL2. Safari on macOS is not tested.
