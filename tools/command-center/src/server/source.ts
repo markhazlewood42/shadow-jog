@@ -16,6 +16,13 @@ export class PanelError extends Error {
   }
 }
 
+/**
+ * How often a source that asks an outside program (git, gh) looks again when nothing tells it that
+ * something changed: every 60 seconds, as the design says for GitHub. A source of files can add a
+ * faster trigger of its own (the status module also loads again when its docs change).
+ */
+export const POLL_EVERY_MS = 60_000;
+
 /** One source of data, ready to be served as a Panel. */
 export type PanelSource<T> = {
   /**

@@ -175,3 +175,85 @@ export type DocPageData = DocPage & {
   /** Where the doc sits in the reading order of the engine docs, or null when it is not in that order. */
   readingOrder: ReadingOrder | null;
 };
+
+// ---- project status, git and GitHub ----
+// The shapes of the status, git and GitHub modules (src/server/status, git and github). The Now page
+// reads them. All text in them comes from files, from git or from GitHub, so a page must show it as
+// text. The one exception is a field that is called `html`: the server made it, and it is safe to
+// put into the page as it is.
+
+/** What `GET /api/status` holds (inside a Panel): the current section of status.md, and the milestones of the engine migration. */
+export type StatusInfo = {
+  /** The `updated` date of the frontmatter of status.md, as written there, or null when there is none. */
+  updated: string | null;
+  /** The current "Right now" section: its heading as plain text, and its body as html. */
+  rightNow: { heading: string; html: string };
+  /** The items of the first "Next up for Mark" list in that section, in order. `text` is plain words and `html` is the item as html. */
+  nextUpForMark: { text: string; html: string }[];
+  /** The milestones of the table in docs/engine/migration.md. The table has no state column, so there are names and scope only. */
+  milestones: { id: string; name: string; scope: string }[];
+};
+
+/** A local branch. `date` is when its newest commit was made (an ISO time). */
+export type GitBranch = {
+  name: string;
+  date: string;
+  /** The branch it follows, as `origin/main`, or null when it follows none. */
+  upstream: string | null;
+  /** How it differs from `upstream`, in git's words: `ahead 2`, `behind 1`, `ahead 2, behind 1` or `gone` (the upstream no longer exists). Null when it is level, or when there is no upstream. */
+  track: string | null;
+  /** The folder where the branch is checked out, when it is checked out in a working folder (this one, or another one made with `git worktree`). */
+  worktree: string | null;
+};
+
+/** A commit. `date` is when it was made (an ISO time), `sha` is the full id. */
+export type GitCommit = { sha: string; date: string; author: string; subject: string };
+
+/** What `GET /api/git` holds (inside a Panel). */
+export type GitInfo = {
+  /** The branch that is checked out here, or null for a detached HEAD, and for a repo with no commit yet. */
+  current: string | null;
+  /** How many commits the current branch has that its upstream lacks (and how many it lacks: `behind`). Null when there is no current branch, no upstream or the upstream is gone. As far as the last `git fetch`. */
+  ahead: number | null;
+  behind: number | null;
+  /** The local branches, the newest first. */
+  branches: GitBranch[];
+  /** The newest commits of the checked-out HEAD, the newest first. */
+  commits: GitCommit[];
+};
+
+/** One check of a pull request (a GitHub Actions job, or a status that another service reports). */
+export type PullRequestCheck = {
+  name: string;
+  /** `pass`, `fail`, `pending` (not finished), or `skipped` (it did not run, or it has no verdict). */
+  status: 'pass' | 'fail' | 'pending' | 'skipped';
+  /** Where to read it (an http or https address), or null. */
+  url: string | null;
+};
+
+/** The latest review of one reviewer. The words of the review are not kept. */
+export type PullRequestReview = { by: string; state: string; at: string };
+
+export type PullRequest = {
+  number: number;
+  title: string;
+  url: string;
+  state: 'OPEN' | 'MERGED' | 'CLOSED';
+  isDraft: boolean;
+  /** The branch the pull request comes from. */
+  branch: string;
+  author: string;
+  updatedAt: string;
+  mergedAt: string | null;
+  /** GitHub's word for the review state (`APPROVED`, `CHANGES_REQUESTED` or `REVIEW_REQUIRED`), or null when there is none. */
+  reviewDecision: string | null;
+  reviews: PullRequestReview[];
+  checks: PullRequestCheck[];
+  /** All the checks in one word: `fail` when one failed, else `pending` when one is not done, else `pass`; `none` when nothing counts (there are no checks, or all were skipped). */
+  checksSummary: 'pass' | 'fail' | 'pending' | 'none';
+  /** What waits for Mark: `merge` (open, not a draft, every check passes) or `fix` (open, not a draft, a check failed). Null for all other pull requests. */
+  attention: 'merge' | 'fix' | null;
+};
+
+/** What `GET /api/github` holds (inside a Panel): the open pull requests, and the ones merged in the last 7 days. */
+export type GithubInfo = { open: PullRequest[]; merged: PullRequest[] };
