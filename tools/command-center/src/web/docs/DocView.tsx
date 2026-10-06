@@ -6,6 +6,7 @@ import { DiagramZoom, type ZoomTarget } from './DiagramZoom';
 import { FrontmatterHeader } from './FrontmatterHeader';
 import { type Banner, hasHeadingLevel1, placeBanners } from './html';
 import { Outline } from './Outline';
+import { decodeOrKeep } from './paths';
 import { useDocumentTitle } from './useDocumentTitle';
 
 /** Something to show in front of the heading with the id `anchor` (for example "a decision is open on this section"). */
@@ -23,14 +24,6 @@ export type DocViewProps = {
 };
 
 const NO_BANNERS: readonly DocBanner[] = [];
-
-function decodeOrKeep(text: string): string {
-  try {
-    return decodeURIComponent(text);
-  } catch {
-    return text;
-  }
-}
 
 /**
  * The element of the doc that has this id. The search stays inside the doc on purpose: a heading
@@ -100,13 +93,16 @@ export function DocView({ doc, footer, banners = NO_BANNERS }: DocViewProps) {
 
   // A picture that can be zoomed is a button for the keyboard and for a screen reader: it can be
   // reached with Tab and opened with Enter. The html comes from the server, so this is done here.
+  // It must run again whenever the pieces of html change, not only when the doc's html does: a
+  // banner that arrives later moves the cut points, React sets the new html into the pieces, and the
+  // pictures in it are new elements that have none of these attributes yet.
   useLayoutEffect(() => {
     for (const image of bodyRef.current?.querySelectorAll<HTMLImageElement>('img[data-zoom]') ?? []) {
       image.tabIndex = 0;
       image.setAttribute('role', 'button');
       image.setAttribute('aria-haspopup', 'dialog');
     }
-  }, [doc.html]);
+  }, [parts]);
 
   // Scroll to the heading that the address names, or to the top. This runs when the address changes:
   // a new doc, a new hash, or the same hash clicked again (every navigation has its own `location.key`).

@@ -14,12 +14,15 @@ export function docApiPath(slug: string): string {
   return `/api${docPath(slug)}`;
 }
 
-/** Decodes `%C3%BC` to `ü`. A piece that is not valid percent-encoding (`100%`) stays as it was written. */
-function decodeOrKeep(piece: string): string {
+/**
+ * Decodes `%C3%BC` to `ü`. Text that is not valid percent-encoding (`100%`) stays as it was written.
+ * It is the one decoder of the docs pages: a heading id, a hash and a slug all come out of an address.
+ */
+export function decodeOrKeep(text: string): string {
   try {
-    return decodeURIComponent(piece);
+    return decodeURIComponent(text);
   } catch {
-    return piece;
+    return text;
   }
 }
 

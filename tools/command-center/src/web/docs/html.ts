@@ -1,3 +1,5 @@
+import { decodeOrKeep } from './paths';
+
 // Helpers for the html of a doc, which the server renders (src/server/docs/render.ts). The page
 // puts that html into itself as it is. The one thing it does with it is to put a banner in front
 // of a heading, and for that it must cut the html there.
@@ -44,15 +46,6 @@ function headingBlocks(html: string): Map<string, number> {
     if (!VOID_TAGS.has(name)) depth += 1;
   }
   return blocks;
-}
-
-/** Decodes `%C3%BC` to `ü`. Text that is not valid percent-encoding stays as it was. */
-function decodeOrKeep(text: string): string {
-  try {
-    return decodeURIComponent(text);
-  } catch {
-    return text;
-  }
 }
 
 /**

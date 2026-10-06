@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { docApiPath, docPath, slugFromPath } from '../src/web/docs/paths';
+import { decodeOrKeep, docApiPath, docPath, slugFromPath } from '../src/web/docs/paths';
 
 // The page and the server both name a doc by its slug (`engine/decisions`). These helpers turn a slug
 // into the address of its page and the address of its data, and back.
@@ -55,5 +55,15 @@ describe('slugFromPath', () => {
     for (const slug of ['README', 'engine/decisions', 'a b/ü?#', 'PHASE-0.2', 'deep/er/still']) {
       expect(slugFromPath(docPath(slug))).toBe(slug);
     }
+  });
+});
+
+describe('decodeOrKeep', () => {
+  it('decodes percent-encoding, and keeps text that is not valid percent-encoding as it was written', () => {
+    expect(decodeOrKeep('%C3%BCber-uns')).toBe('über-uns');
+    expect(decodeOrKeep('a%20b')).toBe('a b');
+    expect(decodeOrKeep('plain')).toBe('plain');
+    expect(decodeOrKeep('100%')).toBe('100%');
+    expect(decodeOrKeep('%E0%A4%A')).toBe('%E0%A4%A');
   });
 });
