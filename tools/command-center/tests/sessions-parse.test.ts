@@ -349,6 +349,7 @@ describe('extractYourMove', () => {
     // The heading may be of another level, or without the pointing hand, in any case.
     expect(items('Done.\n\n---\n## Your move\n- [ ] one')).toEqual(['one']);
     expect(items('Done.\n\n#### 👉 YOUR MOVE\n- [ ] one')).toEqual(['one']);
+    expect(items('Done.\n\n### 👉️ Your move\n- [ ] one')).toEqual(['one']); // the hand as an emoji, with its variation selector
     // Other bullets are items too. A box that is already ticked is not a move.
     expect(items('### 👉 Your move\n* [ ] star\n+ plus\n1. numbered\n- [x] done already\n- [ ] last')).toEqual(['star', 'plus', 'numbered', 'last']);
     // A wrapped item is one item. Blank lines between items do not end the box. Text, a rule or a heading after the list does.

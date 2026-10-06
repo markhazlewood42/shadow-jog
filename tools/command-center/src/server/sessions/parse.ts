@@ -290,8 +290,8 @@ export function lastDecisiveTime(lines: readonly unknown[]): string | null {
 
 // ---- the "Your move" box ----
 
-/** `### 👉 Your move`, at any heading level, with or without the pointing hand. What follows the words is in group 1. */
-const BOX_HEADING = /^\s{0,3}#{1,6}\s*(?:👉\s*)?your move\b(.*)$/iu;
+/** `### 👉 Your move`, at any heading level, with or without the pointing hand (which may carry an emoji variation selector, U+FE0F). What follows the words is in group 1. */
+const BOX_HEADING = /^\s{0,3}#{1,6}\s*(?:👉️?\s*)?your move\b(.*)$/iu;
 
 /** What follows the words of a box that has nothing for Mark: `: nothing`, optionally with words after it. */
 const SAYS_NOTHING = /^[\s:\-–—(]*nothing\b/i;
