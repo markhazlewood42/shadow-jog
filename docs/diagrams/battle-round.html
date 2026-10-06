@@ -62,121 +62,141 @@
 
     <div class="diagram-container">
     <!-- Type ramp matches the engine-layers pilot: names 16, descriptions 13, mono text 12.
-         A README shows this figure at about 880px wide (scale 0.92), so the smallest text stays near 11px. -->
-    <svg viewBox="0 0 960 836" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="battle-round-title battle-round-desc">
+         A README shows this figure at about 880px wide (scale 0.92), so the smallest text stays near 11px.
+         Three bands: the scene runs the round (top), the engine plans and resolves (middle), battlekit draws (bottom).
+         The outcome branch is in the scene (BattleScene.executeRound reads battle.outcome). The engine only sets it.
+         Budget: 10 nodes, 14 arrows: over the 9/12 limit on purpose; zoned; inside the balanced dial. -->
+    <svg viewBox="0 0 960 1040" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="battle-round-title battle-round-desc">
       <title id="battle-round-title">Battle round</title>
-      <desc id="battle-round-desc">One battle round: orders go to startRound, then a loop runs while actions remain, each action declared by next, optionally timed, and resolved by land, with events sent to the scene. When the queue is empty, endRound decides the outcome and the next round starts.</desc>
+      <desc id="battle-round-desc">One battle round, run by BattleScene. Orders go to startRound, then a loop runs while actions remain: next declares each action, an optional timed press grades it, and land resolves it. startRound, next, land and endRound all send events to playEvent in battlekit/playback.ts, which draws them. When the queue is empty, endRound ticks statuses and checks the outcome. The scene then reads battle.outcome: with no outcome the next round starts from new orders, and a win, a loss or an escape ends the battle.</desc>
       <defs>
         <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
       </defs>
       <rect width="100%" height="100%" fill="#0d0c1f"/>
 
       <!-- Header -->
-      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-style="italic" font-family="'Instrument Serif', serif">The engine plans and resolves. The scene only draws.</text>
-      <text x="40" y="84" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">EACH ACTION LOOPS UNTIL THE QUEUE IS EMPTY. THEN THE ROUND ENDS.</text>
+      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-style="italic" font-family="'Instrument Serif', serif">The engine plans and resolves. The scene runs the loop and draws.</text>
+      <text x="40" y="84" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">EACH ACTION LOOPS UNTIL THE QUEUE IS EMPTY. THEN THE ROUND ENDS AND THE SCENE CHECKS THE OUTCOME.</text>
 
       <!-- Zones (outline only, so label masks match the page) -->
-      <rect x="40" y="100" width="880" height="508" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
-      <rect x="40" y="640" width="880" height="132" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
-      <text x="56" y="122" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.14em">BATTLE/ENGINE.TS (PURE)</text>
-      <text x="904" y="122" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">DETERMINISTIC. NO DOM. UNIT-TESTED.</text>
-      <text x="56" y="662" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.14em">SCENES/BATTLEKIT (DRAWS)</text>
+      <rect x="40" y="100" width="880" height="180" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <rect x="40" y="304" width="880" height="508" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <rect x="40" y="844" width="880" height="132" rx="6" fill="none" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <text x="56" y="122" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.14em">SCENES/BATTLE.TS (RUNS THE ROUND)</text>
+      <text x="904" y="122" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">THE ENGINE SETS BATTLE.OUTCOME. THE SCENE ACTS ON IT.</text>
+      <text x="56" y="326" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.14em">BATTLE/ENGINE.TS (PURE)</text>
+      <text x="904" y="326" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">PURE ENGINE. THE PRESS IS PLAYER INPUT.</text>
+      <text x="56" y="866" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.14em">SCENES/BATTLEKIT (DRAWS)</text>
 
       <!-- Annotation leader (drawn first, sits behind everything) -->
-      <path d="M 232 482 Q 262 450 292 412" fill="none" stroke="rgba(244,241,255,0.45)" stroke-width="1" stroke-dasharray="4,3"/>
-      <circle cx="292" cy="412" r="2" fill="#f4f1ff"/>
+      <path d="M 232 420 Q 262 450 292 500" fill="none" stroke="rgba(244,241,255,0.45)" stroke-width="1" stroke-dasharray="4,3"/>
+      <circle cx="292" cy="500" r="2" fill="#f4f1ff"/>
 
       <!-- Arrows (drawn before the nodes) -->
-      <path d="M 236 354 H 276" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <path d="M 460 354 H 500" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <path d="M 684 354 H 808 Q 816 354 816 362 V 476" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <path d="M 724 534 H 684" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <path d="M 500 534 H 460" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <path d="M 368 476 V 456 Q 368 448 376 448 H 584 Q 592 448 592 440 V 416" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <path d="M 592 292 V 236" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <path d="M 500 188 H 460" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <path d="M 276 188 H 152 Q 144 188 144 196 V 296" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <path d="M 816 592 V 676" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
-      <path d="M 368 592 V 676" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
-      <rect x="726" y="328" width="40" height="16" rx="2" fill="#0d0c1f"/>
-      <text x="746" y="340" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">YES</text>
-      <rect x="432" y="422" width="96" height="16" rx="2" fill="#0d0c1f"/>
-      <text x="480" y="434" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">NEXT ACTION</text>
-      <rect x="602" y="256" width="32" height="16" rx="2" fill="#0d0c1f"/>
-      <text x="618" y="268" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">NO</text>
-      <rect x="170" y="162" width="88" height="16" rx="2" fill="#0d0c1f"/>
-      <text x="214" y="174" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">NEXT ROUND</text>
-      <rect x="826" y="616" width="58" height="16" rx="2" fill="#0d0c1f"/>
-      <text x="855" y="628" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">EVENTS</text>
-      <rect x="378" y="616" width="58" height="16" rx="2" fill="#0d0c1f"/>
-      <text x="407" y="628" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">EVENTS</text>
+      <path d="M 368 260 V 500" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 460 558 H 500" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 684 558 H 808 Q 816 558 816 566 V 680" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 724 738 H 684" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 500 738 H 460" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 368 680 V 660 Q 368 652 376 652 H 584 Q 592 652 592 644 V 620" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 592 496 V 440" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 592 344 V 264" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 500 202 H 460" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 684 202 H 724" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 276 558 H 264 Q 256 558 256 566 V 820 Q 256 828 264 828 H 328 Q 336 828 336 836 V 880" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <path d="M 684 392 H 696 Q 704 392 704 400 V 550 a 8,8 0 0,1 0,16 V 730 a 8,8 0 0,1 0,16 V 880" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <path d="M 368 796 V 880" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <path d="M 816 796 V 880" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <rect x="464" y="176" width="32" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="480" y="188" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">NO</text>
+      <rect x="688" y="176" width="32" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="704" y="188" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">YES</text>
+      <rect x="726" y="532" width="40" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="746" y="544" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">YES</text>
+      <rect x="432" y="626" width="96" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="480" y="638" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">NEXT ACTION</text>
+      <rect x="602" y="460" width="32" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="618" y="472" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">NO</text>
+      <rect x="190" y="820" width="58" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="219" y="832" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">EVENTS</text>
+      <rect x="714" y="820" width="58" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="743" y="832" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">EVENTS</text>
+      <rect x="378" y="820" width="58" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="407" y="832" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">EVENTS</text>
+      <rect x="826" y="820" width="58" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="855" y="832" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">EVENTS</text>
 
-      <!-- Nodes -->
-      <rect x="52" y="296" width="184" height="116" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
-      <text x="66" y="322" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">1</text>
-      <text x="86" y="322" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Orders</text>
-      <text x="66" y="344" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Commands for everyone:</text>
-      <text x="66" y="362" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">attack, tech, skill,</text>
-      <text x="66" y="380" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">item, guard, run</text>
-      <rect x="276" y="296" width="184" height="116" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
-      <text x="290" y="322" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">2</text>
-      <text x="310" y="322" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">startRound(cmds)</text>
-      <text x="290" y="344" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Rolls initiative.</text>
-      <text x="290" y="362" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Agility order. Combos,</text>
-      <text x="290" y="380" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">first strikes and Guard</text>
-      <text x="290" y="398" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">adjust the queue.</text>
-      <polygon points="592,292 684,354 592,416 500,354" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
-      <text x="592" y="334" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.1em">3</text>
-      <text x="592" y="356" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">More actions</text>
-      <text x="592" y="376" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">in the queue?</text>
-      <rect x="724" y="476" width="184" height="116" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
-      <text x="738" y="502" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">4</text>
-      <text x="758" y="502" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">next()</text>
-      <text x="738" y="524" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Declares the action:</text>
-      <text x="738" y="542" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">who, what, at whom.</text>
-      <text x="738" y="560" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Returns events and an</text>
-      <text x="738" y="578" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">optional timing prompt.</text>
-      <rect x="500" y="476" width="184" height="116" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
-      <text x="514" y="502" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">5</text>
-      <text x="534" y="502" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Timed press</text>
-      <text x="514" y="524" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Only if prompted.</text>
-      <text x="514" y="542" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Grade: perfect, good,</text>
-      <text x="514" y="560" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">none or whiff. Scales</text>
-      <text x="514" y="578" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">damage or healing.</text>
-      <rect x="276" y="476" width="184" height="116" rx="6" fill="#1c1a3a"/>
-      <rect x="276" y="476" width="184" height="116" rx="6" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1"/>
-      <text x="290" y="502" fill="#ffcc3d" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">6</text>
-      <text x="310" y="502" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">land(timing)</text>
-      <text x="290" y="524" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Resolves the action</text>
-      <text x="290" y="542" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">using the grade.</text>
-      <rect x="500" y="140" width="184" height="96" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
-      <text x="514" y="166" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">7</text>
-      <text x="534" y="166" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">endRound()</text>
-      <text x="514" y="188" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Ticks statuses and</text>
-      <text x="514" y="206" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">decides the outcome.</text>
-      <rect x="276" y="140" width="184" height="96" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
-      <text x="290" y="166" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">8</text>
-      <text x="310" y="166" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Outcome</text>
-      <text x="290" y="188" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">The fight goes on,</text>
-      <text x="290" y="206" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">or it ends.</text>
-      <rect x="320" y="676" width="544" height="80" rx="6" fill="#0d0c1f" stroke="#8f94bd" stroke-width="1"/>
-      <text x="336" y="702" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">BattleScene</text>
-      <text x="336" y="724" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Turns engine events into animation and sound.</text>
-      <text x="336" y="742" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">playEvent(view, event)</text>
-      <text x="848" y="742" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">battlekit/playback.ts</text>
-      <text x="52" y="504" fill="#f4f1ff" font-size="16" font-style="italic" font-family="'Instrument Serif', serif">resolveRound(cmds, grader?)</text>
-      <text x="52" y="524" fill="#f4f1ff" font-size="16" font-style="italic" font-family="'Instrument Serif', serif">runs steps 2 to 7 in one</text>
-      <text x="52" y="544" fill="#f4f1ff" font-size="16" font-style="italic" font-family="'Instrument Serif', serif">call. Tests and sims</text>
-      <text x="52" y="564" fill="#f4f1ff" font-size="16" font-style="italic" font-family="'Instrument Serif', serif">use it.</text>
+      <!-- Nodes: the scene band (1, 8, 9), the engine band (2 to 7), the draw node -->
+      <rect x="276" y="144" width="184" height="116" rx="6" fill="#0d0c1f" stroke="#8f94bd" stroke-width="1"/>
+      <text x="290" y="170" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">1</text>
+      <text x="310" y="170" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Orders</text>
+      <text x="290" y="192" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Commands for everyone:</text>
+      <text x="290" y="210" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">attack, tech, skill,</text>
+      <text x="290" y="228" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">item, guard, run</text>
+      <polygon points="592,140 684,202 592,264 500,202" fill="#0d0c1f" stroke="#8f94bd" stroke-width="1"/>
+      <text x="592" y="182" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.1em">8</text>
+      <text x="592" y="204" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">battle.outcome</text>
+      <text x="592" y="224" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">set?</text>
+      <rect x="724" y="152" width="184" height="100" rx="20" fill="#0d0c1f" stroke="#8f94bd" stroke-width="1"/>
+      <text x="738" y="178" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">9</text>
+      <text x="758" y="178" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Battle ends</text>
+      <text x="738" y="200" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">BattleScene runs</text>
+      <text x="738" y="218" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">victory(), defeat()</text>
+      <text x="738" y="236" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">or fled().</text>
+      <rect x="500" y="344" width="184" height="96" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="514" y="370" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">7</text>
+      <text x="534" y="370" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">endRound()</text>
+      <text x="514" y="392" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Ticks statuses and</text>
+      <text x="514" y="410" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">checks the outcome.</text>
+      <rect x="276" y="500" width="184" height="116" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="290" y="526" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">2</text>
+      <text x="310" y="526" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">startRound(cmds)</text>
+      <text x="290" y="548" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Rolls initiative.</text>
+      <text x="290" y="566" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Agility order. Combos,</text>
+      <text x="290" y="584" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">first strikes and Guard</text>
+      <text x="290" y="602" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">adjust the queue.</text>
+      <polygon points="592,496 684,558 592,620 500,558" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="592" y="538" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.1em">3</text>
+      <text x="592" y="560" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">More actions</text>
+      <text x="592" y="580" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">in the queue?</text>
+      <rect x="724" y="680" width="184" height="116" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="738" y="706" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">4</text>
+      <text x="758" y="706" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">next()</text>
+      <text x="738" y="728" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Declares the action:</text>
+      <text x="738" y="746" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">who, what, at whom.</text>
+      <text x="738" y="764" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Returns events and an</text>
+      <text x="738" y="782" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">optional timing prompt.</text>
+      <rect x="500" y="680" width="184" height="116" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
+      <text x="514" y="706" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">5</text>
+      <text x="534" y="706" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Timed press</text>
+      <text x="514" y="728" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Only if prompted.</text>
+      <text x="514" y="746" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Grade: perfect, good,</text>
+      <text x="514" y="764" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">none or whiff. Scales</text>
+      <text x="514" y="782" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">damage or healing.</text>
+      <rect x="276" y="680" width="184" height="116" rx="6" fill="#1c1a3a"/>
+      <rect x="276" y="680" width="184" height="116" rx="6" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1"/>
+      <text x="290" y="706" fill="#ffcc3d" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">6</text>
+      <text x="310" y="706" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">land(timing)</text>
+      <text x="290" y="728" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Resolves the action</text>
+      <text x="290" y="746" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">using the grade.</text>
+      <rect x="320" y="880" width="544" height="80" rx="6" fill="#0d0c1f" stroke="#8f94bd" stroke-width="1"/>
+      <text x="336" y="906" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Playback</text>
+      <text x="336" y="928" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">Turns engine events into animation and sound.</text>
+      <text x="336" y="946" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">playEvent(view, event)</text>
+      <text x="848" y="946" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.02em">battlekit/playback.ts</text>
+      <text x="52" y="364" fill="#f4f1ff" font-size="16" font-style="italic" font-family="'Instrument Serif', serif">resolveRound(cmds, grader?)</text>
+      <text x="52" y="384" fill="#f4f1ff" font-size="16" font-style="italic" font-family="'Instrument Serif', serif">runs steps 2 to 7 in one</text>
+      <text x="52" y="404" fill="#f4f1ff" font-size="16" font-style="italic" font-family="'Instrument Serif', serif">call. Tests and sims</text>
+      <text x="52" y="424" fill="#f4f1ff" font-size="16" font-style="italic" font-family="'Instrument Serif', serif">use it.</text>
 
       <!-- Legend -->
-      <line x1="40" y1="796" x2="920" y2="796" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
-      <line x1="40" y1="816" x2="72" y2="816" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <text x="82" y="820" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">CALL ORDER</text>
-      <line x1="220" y1="816" x2="252" y2="816" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
-      <text x="262" y="820" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">EVENTS TO THE SCENE</text>
-      <rect x="500" y="808" width="16" height="16" rx="2" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1"/>
-      <text x="526" y="820" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">RESOLVES THE ACTION</text>
+      <line x1="40" y1="1000" x2="920" y2="1000" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <line x1="40" y1="1020" x2="72" y2="1020" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <text x="82" y="1024" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">CALL ORDER</text>
+      <line x1="220" y1="1020" x2="252" y2="1020" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <text x="262" y="1024" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">EVENTS TO PLAYBACK</text>
+      <rect x="500" y="1012" width="16" height="16" rx="2" fill="rgba(255,204,61,0.10)" stroke="#ffcc3d" stroke-width="1"/>
+      <text x="526" y="1024" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">RESOLVES THE ACTION</text>
     </svg>
     </div>
   </div>

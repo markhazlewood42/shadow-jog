@@ -72,7 +72,7 @@ Scene operations (`launch`, `pause`, `stop`, and the rest) are queued and applie
 
 Phaser's lifecycle is `init(data)`, `preload()`, `create(data)`, `update`. Ours keeps the first three. Phaser's `preload` is asynchronous. The story contract needs `game.run` to push the scene at once. This is the rule that joins them:
 
-![Scene lifecycle state machine with nine states. A scene starts at init and moves to start when game.run pushes it, synchronously. From start it goes straight to creating if there are no loads, or through loading and back to creating when the load is done. Creating leads to running, the only state where fixedUpdate runs. A running scene can be paused when covered and resume when uncovered, or sleep and wake. Close moves it to shutdown, and shutdown moves to destroyed when objects are freed. The game.run promise resolves on close(result). It does not depend on when create ran.](diagrams/engine-scene-lifecycle.png)
+![Scene lifecycle state machine with nine states. A scene starts at init and moves to start when game.run pushes it, synchronously. From start it goes straight to creating if there are no loads, or through loading and back to creating when the load is done. Creating leads to running, the only state where fixedUpdate runs. A running scene can be paused when covered and resume when uncovered, or sleep and wake. Close or stop() moves a running scene to shutdown, and stop() also moves a paused scene or a sleeping scene to shutdown. Shutdown moves to destroyed when objects are freed. The game.run promise resolves on close(result). It does not depend on when create ran.](diagrams/engine-scene-lifecycle.png)
 
 *Editable source: [diagrams/engine-scene-lifecycle.html](diagrams/engine-scene-lifecycle.html)*
 
