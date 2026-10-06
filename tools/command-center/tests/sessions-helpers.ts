@@ -38,11 +38,14 @@ export type Base = {
   /** The working folder. `null` leaves the field out, as a line that has none. */
   cwd?: string | null;
   branch?: string;
+  /** How the session was started (`claude-desktop`, `cli`, `sdk-py` ...). Left out of the line when it is not given, as in the older files. */
+  entrypoint?: string;
 };
 
 function base(type: string, o: Base): Line {
   const line: Line = { type, timestamp: o.time ?? at(0), sessionId: 'fixture-session', gitBranch: o.branch ?? 'fixture-branch' };
   if (o.cwd !== null) line.cwd = o.cwd ?? INSIDE;
+  if (o.entrypoint !== undefined) line.entrypoint = o.entrypoint;
   return line;
 }
 

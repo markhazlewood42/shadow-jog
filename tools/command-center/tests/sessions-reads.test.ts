@@ -82,6 +82,7 @@ beforeEach(forgetWhatWasSpiedOn);
 const MEGABYTE = 1024 * 1024;
 const S1 = '11111111-1111-4111-8111-111111111111';
 const S3 = '33333333-3333-4333-8333-333333333333';
+const S12 = 'c3c3c3c3-c3c3-4c3c-8c3c-c3c3c3c3c3c3';
 const RUN1 = 'wf_00000001-aaa';
 
 /** The paths of the files that were opened, once each. */
@@ -192,8 +193,8 @@ describe('a window that grows', () => {
 });
 
 describe('a file that did not change is not read again', () => {
-  /** How many files the first look opens: 10 session files (every recent file of the two folders is read, to find its cwd), 5 agent files and their 5 metas and the journal of the run in S1, S3's custom-title.json, and the agent, its meta and the journal in S6. */
-  const FILES_OF_THE_FIRST_LOOK = 10 + 5 + 5 + 1 + 1 + 3;
+  /** How many files the first look opens: 11 session files (every recent file of the two folders is read, to find its cwd), 5 agent files and their 5 metas and the journal of the run in S1, S3's custom-title.json, and the agent, its meta and the journal in S6. The agent of S12, an SDK run that is hidden, is not read. */
+  const FILES_OF_THE_FIRST_LOOK = 11 + 5 + 5 + 1 + 1 + 3;
 
   it('an unchanged file is not read again', async () => {
     const projects = copyClaudeFixtures(join(parent, 'unchanged'));
@@ -206,6 +207,9 @@ describe('a file that did not change is not read again', () => {
     expect(first).toContain(join(projects, WHOLE_FOLDER, `${S1}.jsonl`));
     expect(first).toContain(join(projects, WHOLE_FOLDER, S1, 'subagents', 'workflows', RUN1, 'journal.jsonl'));
     expect(first).toContain(join(projects, WHOLE_FOLDER, S3, 'custom-title.json'));
+    // S12 is an automated run of the SDK and is hidden: its own file was read (that is how its entrypoint is known), and its agent was not looked at.
+    expect(first).toContain(join(projects, WHOLE_FOLDER, `${S12}.jsonl`));
+    expect(first.filter((path) => path.includes(S12) && path !== join(projects, WHOLE_FOLDER, `${S12}.jsonl`))).toEqual([]);
 
     // A second look finds every file the same as before, and opens none. It still lists the folders and looks at the files: that is how it knows.
     forgetWhatWasSpiedOn();
@@ -263,7 +267,7 @@ describe('a file that did not change is not read again', () => {
     nowMs = NOW + 8 * 24 * 3600 * 1000;
     forgetWhatWasSpiedOn();
     const later = await source.get(true);
-    expect(later.ok && later.data).toEqual({ sessions: [], scanned: 0, skipped: 0 });
+    expect(later.ok && later.data).toEqual({ sessions: [], scanned: 0, skipped: 0, hiddenSdk: 0 });
     expect(spy.opens).toEqual([]);
     // Back in the week, the files are read again: the cache did not keep them.
     nowMs = NOW;
@@ -298,13 +302,13 @@ describe('a file that cannot be read', () => {
     spy.failures.set(sessionPath(projects, WHOLE_FOLDER, S3), 'EBUSY');
     const info = await loadOnce(projects);
     expect(info.sessions.map((session) => session.id.slice(0, 8))).toEqual(['11111111', '44444444', '55555555', '66666666', 'a1a1a1a1', 'b2b2b2b2']);
-    expect(info).toMatchObject({ scanned: 10, skipped: 4 }); // S2, S7 and S8 are outside the project, and S3 could not be read
+    expect(info).toMatchObject({ scanned: 11, skipped: 4, hiddenSdk: 1 }); // S2, S7 and S8 are outside the project, S3 could not be read, and S12 is an SDK run
   });
 
   it('when no session file can be read the panel is an error that names the error code and no path', async () => {
     const projects = copyClaudeFixtures(join(parent, 'locked-all'));
     for (const folder of [WHOLE_FOLDER, MIXED_FOLDER]) {
-      for (const id of [S1, S2, S3, '44444444-4444-4444-8444-444444444444', '55555555-5555-4555-8555-555555555555', '66666666-6666-4666-8666-666666666666', '77777777-7777-4777-8777-777777777777', '88888888-8888-4888-8888-888888888888', 'a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1', 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2']) {
+      for (const id of [S1, S2, S3, '44444444-4444-4444-8444-444444444444', '55555555-5555-4555-8555-555555555555', '66666666-6666-4666-8666-666666666666', '77777777-7777-4777-8777-777777777777', '88888888-8888-4888-8888-888888888888', 'a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1', 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2', 'c3c3c3c3-c3c3-4c3c-8c3c-c3c3c3c3c3c3']) {
         spy.failures.set(sessionPath(projects, folder, id), 'EBUSY');
       }
     }

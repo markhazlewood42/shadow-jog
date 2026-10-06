@@ -21,13 +21,15 @@ const ID = (n: number) => `e2e00000-0000-4000-8000-${String(n).padStart(12, '0')
 
 type Line = Record<string, unknown>;
 const time = (secondsAgo: number) => new Date(Date.now() - secondsAgo * 1000).toISOString();
-const user = (text: string, cwd: string | null, secondsAgo = 30): Line => ({ type: 'user', timestamp: time(secondsAgo), ...(cwd === null ? {} : { cwd }), gitBranch: 'fixture-branch', sessionId: 'e2e', message: { role: 'user', content: text } });
-const reply = (text: string, cwd: string | null, secondsAgo = 20): Line => ({
+const started = (entrypoint: string | undefined): Line => (entrypoint === undefined ? {} : { entrypoint }); // how the session was started, as the lines of Claude Code 2.1 say
+const user = (text: string, cwd: string | null, secondsAgo = 30, entrypoint?: string): Line => ({ type: 'user', timestamp: time(secondsAgo), ...(cwd === null ? {} : { cwd }), gitBranch: 'fixture-branch', sessionId: 'e2e', ...started(entrypoint), message: { role: 'user', content: text } });
+const reply = (text: string, cwd: string | null, secondsAgo = 20, entrypoint?: string): Line => ({
   type: 'assistant',
   timestamp: time(secondsAgo),
   ...(cwd === null ? {} : { cwd }),
   gitBranch: 'fixture-branch',
   sessionId: 'e2e',
+  ...started(entrypoint),
   message: { role: 'assistant', stop_reason: 'end_turn', content: [{ type: 'text', text }] },
 });
 const toolResult = (cwd: string, secondsAgo = 5): Line => ({
@@ -104,7 +106,7 @@ test.describe('the sessions route', () => {
 
     rmSync(file);
     const gone = await readSessions(request);
-    expect(gone.ok && gone.data).toEqual({ sessions: [], scanned: 0, skipped: 0 });
+    expect(gone.ok && gone.data).toEqual({ sessions: [], scanned: 0, skipped: 0, hiddenSdk: 0 });
   });
 
   test('files in a format that is not known make an error panel, which names no text of the files and goes away with them', async ({ request }) => {
@@ -119,7 +121,25 @@ test.describe('the sessions route', () => {
 
     rmSync(join(WHOLE, `${ID(1)}.jsonl`));
     const mended = await readSessions(request);
-    expect(mended.ok && mended.data).toEqual({ sessions: [], scanned: 0, skipped: 0 });
+    expect(mended.ok && mended.data).toEqual({ sessions: [], scanned: 0, skipped: 0, hiddenSdk: 0 });
+  });
+
+  test('an automated run of the SDK is left out and counted, and a session of Claude Desktop and one with no entrypoint are listed (ruling R18)', async ({ request }) => {
+    const run = (text: string, entrypoint?: string) => [user(text, REPO, 30, entrypoint), reply('Done.', REPO, 20, entrypoint)];
+    writeLines(join(WHOLE, `${ID(6)}.jsonl`), run('LEAK-e2e-sdk-run', 'sdk-py'));
+    writeLines(join(WHOLE, `${ID(7)}.jsonl`), run('E2E title of a desktop session', 'claude-desktop'));
+    writeLines(join(WHOLE, `${ID(8)}.jsonl`), run('E2E title of a session with no entrypoint'));
+
+    const panel = await readSessions(request);
+    expect(panel.ok).toBe(true);
+    if (!panel.ok) return;
+    expect(panel.data.sessions.map((session) => [session.id, session.entrypoint]).sort()).toEqual([
+      [ID(7), 'claude-desktop'],
+      [ID(8), null],
+    ]);
+    // The run is counted and nothing else of it is in the answer: not its id, and not its first prompt, which would have been its title.
+    expect(panel.data).toMatchObject({ scanned: 3, skipped: 0, hiddenSdk: 1 });
+    expect(JSON.stringify(panel)).not.toMatch(/LEAK-e2e|e2e00000-0000-4000-8000-000000000006/);
   });
 
   test('only GET is answered, and a request takes no path or id', async ({ request }) => {

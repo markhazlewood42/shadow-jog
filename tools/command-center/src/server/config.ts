@@ -31,6 +31,13 @@ export type Config = {
     folders: string[];
     /** Session folders that mix projects: a session counts only when its working folder is inside a root. Matched by exact name. */
     cwdMatchFolders: string[];
+    /**
+     * Whether the sessions that a script started are listed. A session whose entrypoint starts with "sdk" (`sdk-py`, `sdk-ts`, `sdk-cli`: what
+     * `claude -p` and the Agent SDK write) is an automated run, not a conversation of Mark's, and a machine can have hundreds of them. They are
+     * left out of the sessions list unless this is true, and the count of the ones left out is `hiddenSdk`. A session with no entrypoint is always listed.
+     * The default is false (the setting may be left out of the file).
+     */
+    includeSdk: boolean;
     /** A session file older than this many seconds is left out. */
     recentSeconds: number;
     /** A session that was written to within this many seconds, and is not waiting for Mark, counts as working. */
@@ -77,7 +84,7 @@ export function isInside(root: string, path: string): boolean {
 // ---- loadConfig ----
 
 const TOP_LEVEL_KEYS = ['port', 'repoRoot', 'roots', 'githubRepo', 'approvalRef', 'gameUrl', 'links', 'claude'] as const;
-const CLAUDE_KEYS = ['projectsRoot', 'folders', 'cwdMatchFolders', 'recentSeconds', 'workingSeconds', 'waitingSeconds'] as const;
+const CLAUDE_KEYS = ['projectsRoot', 'folders', 'cwdMatchFolders', 'includeSdk', 'recentSeconds', 'workingSeconds', 'waitingSeconds'] as const;
 
 type Json = Record<string, unknown>;
 
@@ -125,6 +132,13 @@ export function loadConfig(file: string): Config {
       fail(where ? `${where}.${key}` : key, `must be a whole number from ${min} to ${max}`);
     }
     return value as number;
+  };
+  /** A true-or-false setting that may be left out: `fallback` when it is not in the file, a stop when it is not `true` or `false` (text "true" and 1 are not). */
+  const flag = (obj: Json, key: string, where: string, fallback: boolean): boolean => {
+    if (!(key in obj)) return fallback;
+    const value = obj[key];
+    if (typeof value !== 'boolean') fail(where ? `${where}.${key}` : key, 'must be true or false');
+    return value as boolean;
   };
   const list = (obj: Json, key: string, where: string, minLength: number): unknown[] => {
     const value = need(obj, key, where);
@@ -187,6 +201,7 @@ export function loadConfig(file: string): Config {
       projectsRoot: toAbsolute(text(claude, 'projectsRoot', 'claude')),
       folders: folderNames(claude, 'folders'),
       cwdMatchFolders: folderNames(claude, 'cwdMatchFolders'),
+      includeSdk: flag(claude, 'includeSdk', 'claude', false),
       recentSeconds: whole(claude, 'recentSeconds', 'claude', 1, 31_536_000),
       workingSeconds: whole(claude, 'workingSeconds', 'claude', 1, 31_536_000),
       waitingSeconds: whole(claude, 'waitingSeconds', 'claude', 1, 31_536_000),

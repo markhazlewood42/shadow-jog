@@ -77,6 +77,22 @@ describe('loadConfig', () => {
     expect(claude.waitingSeconds).toBeGreaterThan(claude.workingSeconds);
   });
 
+  it('lists no SDK runs by default: the config file says includeSdk is false, and a file without the key means false (ruling R18)', () => {
+    expect(JSON.parse(readFileSync(REAL_CONFIG, 'utf8')).claude.includeSdk).toBe(false); // the file says so itself
+    expect(loadConfig(REAL_CONFIG).claude.includeSdk).toBe(false);
+    const json = realConfigJson();
+    delete json.claude.includeSdk;
+    expect(loadConfig(writeConfig(json, 'no-include-sdk.json')).claude.includeSdk).toBe(false);
+  });
+
+  it('reads includeSdk true and false as they are written', () => {
+    for (const value of [true, false]) {
+      const json = realConfigJson();
+      json.claude.includeSdk = value;
+      expect(loadConfig(writeConfig(json, `include-sdk-${value}.json`)).claude.includeSdk).toBe(value);
+    }
+  });
+
   it('the config file holds no absolute path (the repo is public)', () => {
     const text = readFileSync(REAL_CONFIG, 'utf8');
     // A Windows drive path such as C:\ or C:/ (a lone letter, so the "p:/" in "http://" is not one), or a Unix home path.
@@ -112,6 +128,10 @@ describe('loadConfig', () => {
     ['a session folder name that is ..', (c) => (c.claude.cwdMatchFolders = ['..']), /cwdMatchFolders/],
     ['zero workingSeconds', (c) => (c.claude.workingSeconds = 0), /workingSeconds/],
     ['negative recentSeconds', (c) => (c.claude.recentSeconds = -5), /recentSeconds/],
+    ['includeSdk given as text', (c) => (c.claude.includeSdk = 'true'), /includeSdk/],
+    ['includeSdk given as a number', (c) => (c.claude.includeSdk = 1), /includeSdk/],
+    ['includeSdk set to null', (c) => (c.claude.includeSdk = null), /includeSdk/],
+    ['includeSdk with the wrong case of its name', (c) => (c.claude.includeSDK = true), /includeSDK/],
   ];
 
   it.each(BROKEN)('rejects %s and names the setting', (_label, breakIt, message) => {

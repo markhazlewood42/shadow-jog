@@ -30,7 +30,7 @@ describe('GET /api/sessions', () => {
     expect(panel.ok).toBe(true);
     if (!panel.ok) return;
     expect(panel.data.sessions.map((session) => session.id.slice(0, 8))).toEqual(['11111111', '33333333', '44444444', '55555555', '66666666', 'a1a1a1a1', 'b2b2b2b2']);
-    expect(panel.data).toMatchObject({ scanned: 10, skipped: 3 });
+    expect(panel.data).toMatchObject({ scanned: 11, skipped: 3, hiddenSdk: 1 });
     expect(Number.isNaN(Date.parse(panel.updatedAt))).toBe(false);
   });
 
@@ -83,7 +83,7 @@ describe('the server', () => {
     expect(panel.ok).toBe(true);
     if (!panel.ok) return;
     expect(panel.data.sessions.map((session) => session.id.slice(0, 8))).toEqual(['11111111', '33333333', '44444444', '55555555', '66666666', 'a1a1a1a1', 'b2b2b2b2']);
-    expect(panel.data).toMatchObject({ scanned: 10, skipped: 3 });
+    expect(panel.data).toMatchObject({ scanned: 11, skipped: 3, hiddenSdk: 1 });
     await composed.stop();
   });
 

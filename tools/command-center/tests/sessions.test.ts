@@ -6,7 +6,7 @@ import { createHub } from '../src/server/hub';
 import type { Config } from '../src/server/config';
 import { SESSIONS_POLL_MS, createLimiter, createSessionsSource } from '../src/server/sessions/sessions';
 import type { ChangeEvent, SessionInfo, SessionsInfo } from '../src/shared/types';
-import { CLAUDE_FIXTURES, INSIDE, MIXED_FOLDER, NOW, WHOLE_FOLDER, agentName, assistantText, assistantToolUse, at, attachment, box, copyClaudeFixtures, customTitle, jsonl, lastPrompt, sessionsConfig, setAge, toolResult, userPrompt, writeAged } from './sessions-helpers';
+import { CLAUDE_FIXTURES, INSIDE, MIXED_FOLDER, NOW, OUTSIDE, WHOLE_FOLDER, agentName, assistantText, assistantToolUse, at, attachment, box, copyClaudeFixtures, customTitle, jsonl, lastPrompt, sessionsConfig, setAge, toolResult, userPrompt, writeAged } from './sessions-helpers';
 
 // The sessions module over the synthetic Claude folders of fixtures/claude/projects (see
 // tests/sessions-helpers.ts). The fixtures are copied for each test and their times of last write are set
@@ -27,6 +27,7 @@ const S8 = '88888888-8888-4888-8888-888888888888'; // in the mixed folder, no li
 const S9 = '99999999-9999-4999-8999-999999999999'; // in a folder that only shares a name prefix
 const S10 = 'a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1'; // no title of its own: the first line of its first prompt is its title
 const S11 = 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2'; // no title of its own, and its first prompt was queued
+const S12 = 'c3c3c3c3-c3c3-4c3c-8c3c-c3c3c3c3c3c3'; // a script started it through the SDK for Python: hidden by default and counted
 const RUN1 = 'wf_00000001-aaa';
 const RUN2 = 'wf_00000002-bbb';
 
@@ -83,10 +84,14 @@ describe('which sessions are listed', () => {
       [S10, WHOLE_FOLDER, 'folder'],
       [S11, WHOLE_FOLDER, 'folder'],
     ]);
-    // Ten files of the two named folders were looked at. Three are left out: S2 (its newest cwd is outside, though it began inside),
-    // S7 (it works elsewhere) and S8 (a mixed folder, and nothing says where it works). The folder that only shares a name prefix was not read.
-    expect(info.scanned).toBe(10);
+    // Eleven files of the two named folders were looked at. Three are left out as not Shadow Jog's: S2 (its newest cwd is outside, though it began
+    // inside), S7 (it works elsewhere) and S8 (a mixed folder, and nothing says where it works). One is Shadow Jog's and is left out as an automated
+    // run of the SDK (S12, ruling R18). The folder that only shares a name prefix was not read.
+    expect(info.scanned).toBe(11);
     expect(info.skipped).toBe(3);
+    expect(info.hiddenSdk).toBe(1);
+    expect(info.scanned).toBe(info.sessions.length + info.hiddenSdk + info.skipped); // every file looked at is listed, hidden or skipped
+    expect(info.sessions.map((session) => session.id)).not.toContain(S12);
     expect(info.sessions.map((session) => session.id)).not.toContain(S2);
   });
 
@@ -119,9 +124,9 @@ describe('which sessions are listed', () => {
     const week = 604_800;
     const { info } = await load({ ages: { [`${WHOLE_FOLDER}/${S3}.jsonl`]: week + 1, [`${WHOLE_FOLDER}/${S4}.jsonl`]: week - 1 } });
     expect(info.sessions.map((session) => session.id)).toEqual([S1, S5, S6, S10, S11, S4]); // S4 was written the longest ago
-    expect(info.scanned).toBe(9);
+    expect(info.scanned).toBe(10);
     const short = await load({ claude: { recentSeconds: 30 } });
-    expect(short.info).toEqual({ sessions: [], scanned: 0, skipped: 0 });
+    expect(short.info).toEqual({ sessions: [], scanned: 0, skipped: 0, hiddenSdk: 0 });
   });
 
   it('the newest comes first, by the last write for the session', async () => {
@@ -138,7 +143,7 @@ describe('which sessions are listed', () => {
 
   it('a missing Claude folder is a machine with no sessions, not an error', async () => {
     const { info } = await load({ projects: join(parent, 'no-claude-here') });
-    expect(info).toEqual({ sessions: [], scanned: 0, skipped: 0 });
+    expect(info).toEqual({ sessions: [], scanned: 0, skipped: 0, hiddenSdk: 0 });
   });
 });
 
@@ -153,6 +158,7 @@ describe('what a session says', () => {
       matchedBy: 'folder',
       cwd: INSIDE, // the newest line that has one: a reply and a system and an attachment line after it, all in this folder
       branch: 'fixture-branch',
+      entrypoint: 'claude-desktop', // how it was started, from its newest line that says so
       startedAt: '2026-10-06T10:00:00.000Z', // the first line is a queue-operation, and that is long in real files; its time is read
       lastActivityAt: at(-60),
       state: 'waiting', // its last reply ended its turn, a minute ago
@@ -165,8 +171,8 @@ describe('what a session says', () => {
     const { info } = await load();
     const keys = (value: object | null | undefined) => Object.keys(value ?? {}).sort();
     const session = find(info, S1);
-    expect(keys(info)).toEqual(['scanned', 'sessions', 'skipped']);
-    expect(keys(session)).toEqual(['agents', 'branch', 'cwd', 'folder', 'id', 'lastActivityAt', 'matchedBy', 'prs', 'startedAt', 'state', 'title', 'workflows', 'yourMove']);
+    expect(keys(info)).toEqual(['hiddenSdk', 'scanned', 'sessions', 'skipped']);
+    expect(keys(session)).toEqual(['agents', 'branch', 'cwd', 'entrypoint', 'folder', 'id', 'lastActivityAt', 'matchedBy', 'prs', 'startedAt', 'state', 'title', 'workflows', 'yourMove']);
     expect(keys(session.yourMove)).toEqual(['answered', 'at', 'items', 'light', 'nothing']);
     expect(keys(session.prs[0])).toEqual(['number', 'url']);
     expect(keys(session.agents[0])).toEqual(['agentType', 'description', 'endedAt', 'id', 'model', 'sessionId', 'startedAt', 'state', 'workflowId']);
@@ -258,7 +264,7 @@ describe('what a session says', () => {
 
   it('a session with no cwd in a whole folder is kept with cwd null, and one in a format that is not known has state unknown', async () => {
     const { info } = await load();
-    expect(find(info, S4)).toMatchObject({ cwd: null, branch: '', state: 'unknown', prs: [], agents: [], workflows: [] });
+    expect(find(info, S4)).toMatchObject({ cwd: null, branch: '', entrypoint: null, state: 'unknown', prs: [], agents: [], workflows: [] });
     // S5 has a line of an unknown type with a cwd. The folder of the newest line that has one is the folder of the session, whatever type that line has.
     expect(find(info, S5)).toMatchObject({ cwd: '/fixture/repo', state: 'unknown' });
   });
@@ -270,6 +276,7 @@ describe('what a session says', () => {
       folder: MIXED_FOLDER,
       matchedBy: 'cwd',
       cwd: '/fixture/repo',
+      entrypoint: 'cli',
       state: 'waiting',
       prs: [{ number: 12, url: 'https://github.com/octo-owner/octo-repo/pull/12' }],
       yourMove: { light: 'yellow', items: ['ALLOWED-item-of-the-home-base-session'], answered: false },
@@ -416,6 +423,121 @@ describe('agents and workflows', () => {
     expect(find((await load({ projects })).info, S1).workflows[0]).toMatchObject({ state: 'unknown', phases: [], started: 0, done: 0 });
     rmSync(join(run, 'journal.jsonl'));
     expect(find((await load({ projects })).info, S1).workflows[0]).toMatchObject({ state: 'unknown', phases: [], started: 0, done: 0, startedAt: null });
+  });
+});
+
+describe('sessions that a script started through an SDK (ruling R18)', () => {
+  const id = (n: number) => `eeeeeeee-1800-4000-8000-${String(n).padStart(12, '0')}`;
+
+  /**
+   * One session file for each kind of start. Whole folder: 1 sdk-py, 2 sdk-cli, 3 sdk-ts, 4 SDK-PY (written in capitals), 5 claude-desktop, 6 cli,
+   * 7 no entrypoint (the older files have none), 8 xsdk-py (does not start with sdk), 12 sdk-py working outside the roots, 13 sdk-py with no cwd.
+   * Mixed folder: 9 sdk-py working inside the roots, 10 sdk-py working outside them, 11 sdk-py with no cwd. The first prompt of each is LEAK-run-<n>.
+   */
+  function writeRuns(): string {
+    const projects = join(parent, `sdk-runs-${copies++}`);
+    const run = (folder: string, n: number, entrypoint: string | undefined, cwd: string | null = INSIDE) => {
+      const o = { cwd, ...(entrypoint === undefined ? {} : { entrypoint }) };
+      writeAged(join(projects, folder, `${id(n)}.jsonl`), jsonl([userPrompt(`LEAK-run-${n}`, o), assistantText('Done.', o)]));
+    };
+    run(WHOLE_FOLDER, 1, 'sdk-py');
+    run(WHOLE_FOLDER, 2, 'sdk-cli');
+    run(WHOLE_FOLDER, 3, 'sdk-ts');
+    run(WHOLE_FOLDER, 4, 'SDK-PY');
+    run(WHOLE_FOLDER, 5, 'claude-desktop');
+    run(WHOLE_FOLDER, 6, 'cli');
+    run(WHOLE_FOLDER, 7, undefined);
+    run(WHOLE_FOLDER, 8, 'xsdk-py');
+    run(MIXED_FOLDER, 9, 'sdk-py');
+    run(MIXED_FOLDER, 10, 'sdk-py', OUTSIDE);
+    run(MIXED_FOLDER, 11, 'sdk-py', null);
+    run(WHOLE_FOLDER, 12, 'sdk-py', OUTSIDE);
+    run(WHOLE_FOLDER, 13, 'sdk-py', null);
+    return projects;
+  }
+
+  it('an sdk-py session is hidden and counted, and claude-desktop, cli and a missing entrypoint are listed', async () => {
+    const { info } = await load({ projects: writeRuns() });
+    // Listed: the sessions that Mark works in, and a name that only has "sdk" inside it.
+    expect(info.sessions.map((session) => [session.id, session.entrypoint]).sort()).toEqual([
+      [id(5), 'claude-desktop'],
+      [id(6), 'cli'],
+      [id(7), null],
+      [id(8), 'xsdk-py'],
+    ]);
+    // Hidden and counted: sdk-py, sdk-cli (what `claude -p` writes), sdk-ts and a name in capitals, also one with no cwd in a whole folder (which is kept) and one in a
+    // mixed folder whose cwd is inside a root (which is kept there).
+    expect(info.hiddenSdk).toBe(6);
+    // Not Shadow Jog's, so skipped and not counted as hidden: an SDK run that works outside the roots, and one in a mixed folder that says nothing about where it works.
+    expect(info.skipped).toBe(3);
+    expect(info.scanned).toBe(13);
+    expect(info.scanned).toBe(info.sessions.length + info.hiddenSdk + info.skipped);
+    // Nothing of a hidden session is in the answer: not its id, and not its first prompt, which would be its title.
+    const text = JSON.stringify(info);
+    for (const n of [1, 2, 3, 4, 9, 10, 11, 12, 13]) {
+      expect(text).not.toContain(id(n));
+      expect(text).not.toContain(`LEAK-run-${n}`);
+    }
+  });
+
+  it('with includeSdk true every SDK session is listed too, with its entrypoint, and none is counted as hidden', async () => {
+    const { info } = await load({ projects: writeRuns(), claude: { includeSdk: true } });
+    expect(info.hiddenSdk).toBe(0);
+    expect(info.skipped).toBe(3); // the three that are not Shadow Jog's stay out
+    expect(info.sessions).toHaveLength(10);
+    expect(info.scanned).toBe(info.sessions.length + info.hiddenSdk + info.skipped);
+    expect(info.sessions.map((session) => [session.id, session.entrypoint]).sort()).toEqual([
+      [id(1), 'sdk-py'],
+      [id(2), 'sdk-cli'],
+      [id(3), 'sdk-ts'],
+      [id(4), 'SDK-PY'],
+      [id(5), 'claude-desktop'],
+      [id(6), 'cli'],
+      [id(7), null],
+      [id(8), 'xsdk-py'],
+      [id(9), 'sdk-py'],
+      [id(13), 'sdk-py'],
+    ]);
+    expect(find(info, id(1)).title).toBe('LEAK-run-1'); // its first prompt is its title, as for any session that has none of its own
+  });
+
+  it('the entrypoint of the newest line decides: a session that a script took over is hidden, and one that began in a script and went on in the desktop is listed', async () => {
+    const projects = join(parent, `sdk-order-${copies++}`);
+    const whole = join(projects, WHOLE_FOLDER);
+    writeAged(join(whole, `${id(20)}.jsonl`), jsonl([userPrompt('a', { entrypoint: 'claude-desktop' }), assistantText('b', { entrypoint: 'sdk-py' }), lastPrompt()]));
+    writeAged(join(whole, `${id(21)}.jsonl`), jsonl([userPrompt('a', { entrypoint: 'sdk-py' }), assistantText('b', { entrypoint: 'claude-desktop' }), lastPrompt()]));
+    const { info } = await load({ projects });
+    expect(info.sessions.map((session) => [session.id, session.entrypoint])).toEqual([[id(21), 'claude-desktop']]);
+    expect(info.hiddenSdk).toBe(1);
+  });
+
+  it('a hidden session costs nothing but the read of its own file: its agents and workflows are not looked at', async () => {
+    // S12 of the fixtures is an SDK run with an agent. Hidden, it is in no list, and its agent is nowhere in the answer.
+    const { info } = await load();
+    expect(info.sessions.some((session) => session.id === S12)).toBe(false);
+    const text = JSON.stringify(info);
+    for (const needle of [S12, 'c3c3c3c3', 's0000001', 'LEAK-title-of-an-sdk-run', 'LEAK-description-of-an-agent-of-an-sdk-run', '/pull/55']) expect(text, needle).not.toContain(needle);
+    // Listed on request, it has its entrypoint, its title, its pull request and its agent.
+    const listed = await load({ claude: { includeSdk: true } });
+    expect(find(listed.info, S12)).toMatchObject({
+      entrypoint: 'sdk-py',
+      title: 'LEAK-title-of-an-sdk-run',
+      prs: [{ number: 55, url: 'https://github.com/octo-owner/octo-repo/pull/55' }],
+    });
+    expect(find(listed.info, S12).agents.map((agent) => agent.id)).toEqual(['s0000001']);
+    expect(listed.info.hiddenSdk).toBe(0);
+    expect(listed.info.sessions.map((session) => session.id)).toContain(S12);
+  });
+
+  it('a session with no entrypoint is listed whatever the setting, and the fixtures of Claude Desktop and the terminal are listed', async () => {
+    for (const includeSdk of [false, true]) {
+      const { info } = await load({ claude: { includeSdk } });
+      expect(find(info, S1).entrypoint).toBe('claude-desktop');
+      expect(find(info, S6).entrypoint).toBe('cli');
+      expect(find(info, S3).entrypoint).toBeNull(); // no line says how it was started
+      expect(find(info, S4).entrypoint).toBeNull();
+      expect(find(info, S5).entrypoint).toBeNull();
+    }
   });
 });
 
@@ -695,13 +817,13 @@ describe('the source', () => {
   it('an answer is a Panel: the data, and the time it was made', async () => {
     const { source } = await load();
     const panel = await source.get();
-    expect(panel).toMatchObject({ ok: true, data: { scanned: 10, skipped: 3 } });
+    expect(panel).toMatchObject({ ok: true, data: { scanned: 11, skipped: 3, hiddenSdk: 1 } });
     expect(Number.isNaN(Date.parse(panel.updatedAt ?? ''))).toBe(false);
   });
 
-  it('the fixtures are what the tests say they are: ten files in the two named folders, and one more in a folder that is not named', () => {
+  it('the fixtures are what the tests say they are: eleven files in the two named folders, and one more in a folder that is not named', () => {
     const count = (folder: string) => readdirSync(join(CLAUDE_FIXTURES, folder)).filter((name) => name.endsWith('.jsonl')).length;
-    expect([count(WHOLE_FOLDER), count(MIXED_FOLDER), count('fixture-shadow-jog-old')]).toEqual([7, 3, 1]);
+    expect([count(WHOLE_FOLDER), count(MIXED_FOLDER), count('fixture-shadow-jog-old')]).toEqual([8, 3, 1]);
     expect(statSync(join(CLAUDE_FIXTURES, 'fixture-shadow-jog-old', `${S9}.jsonl`)).isFile()).toBe(true);
   });
 });

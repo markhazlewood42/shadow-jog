@@ -60,6 +60,7 @@ export function createE2eRuntime(workDir: string = E2E_DIR): E2eRuntime {
       projectsRoot: join(workDir, 'claude-projects'),
       folders: ['fixture-shadow-jog'],
       cwdMatchFolders: ['fixture-home-base'],
+      includeSdk: false,
       recentSeconds: 604800,
       workingSeconds: 300,
       waitingSeconds: 14400,

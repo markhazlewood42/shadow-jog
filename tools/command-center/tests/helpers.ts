@@ -34,6 +34,7 @@ export function makeTestConfig(overrides: Partial<Config> = {}): Config {
       projectsRoot: join(base, 'claude-projects'),
       folders: ['folder-a'],
       cwdMatchFolders: ['folder-b'],
+      includeSdk: false,
       recentSeconds: 604800,
       workingSeconds: 300,
       waitingSeconds: 14400,

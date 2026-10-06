@@ -11,9 +11,11 @@ import {
   hasConversationCwd,
   hasCwd,
   isDecisive,
+  isSdkEntrypoint,
   lastDecisiveTime,
   newestBranch,
   newestCwd,
+  newestEntrypoint,
   promptOf,
   readActivity,
   readJournal,
@@ -524,5 +526,27 @@ describe('the first prompt as a title', () => {
     expect(promptOf(blocks({ type: 'image', source: {} }))).toBeNull();
     expect(promptOf(blocks())).toBeNull();
     for (const line of [assistantText('A reply'), attachment('x'), systemLine(), lastPrompt('x'), customTitle('x'), 42, 'text', null, [1], {}]) expect(promptOf(line)).toBeNull();
+  });
+});
+
+describe('the entrypoint of a session', () => {
+  it('newestEntrypoint: how the session was started, from the newest line that says so', () => {
+    expect(newestEntrypoint([userPrompt('a', { entrypoint: 'cli' }), assistantText('b', { entrypoint: 'sdk-py' }), lastPrompt()])).toBe('sdk-py');
+    expect(newestEntrypoint([userPrompt('a', { entrypoint: 'claude-desktop' })])).toBe('claude-desktop');
+    // Notes at the end of a file have none, so the newest line that has one decides.
+    expect(newestEntrypoint([assistantText('b', { entrypoint: 'claude-desktop' }), attachment('x', { entrypoint: 'cli' }), lastPrompt(), modeLine()])).toBe('cli');
+    // A line with no entrypoint (the older files have none), or an empty or not-text one, says nothing: the older line is looked at.
+    expect(newestEntrypoint([userPrompt('a', { entrypoint: 'claude-desktop' }), assistantText('b'), { type: 'user', entrypoint: '' }, { type: 'user', entrypoint: 7 }, { type: 'user', entrypoint: null }])).toBe('claude-desktop');
+    expect(newestEntrypoint([userPrompt('a'), assistantText('b'), lastPrompt()])).toBeNull();
+    expect(newestEntrypoint([])).toBeNull();
+    // The words are trimmed and cut: a field of a file cannot make an answer of any size.
+    expect(newestEntrypoint([userPrompt('a', { entrypoint: '  sdk-ts  ' })])).toBe('sdk-ts');
+    expect(newestEntrypoint([userPrompt('a', { entrypoint: 'x'.repeat(500) })])).toHaveLength(40);
+  });
+
+  it('isSdkEntrypoint: sdk-py, sdk-ts and sdk-cli are runs of a script, and so is any name that starts with sdk, in any case; claude-desktop, cli and no entrypoint are not', () => {
+    for (const name of ['sdk-py', 'sdk-ts', 'sdk-cli', 'sdk', 'SDK-PY', 'Sdk-Ts', 'sdk-something-new']) expect(isSdkEntrypoint(name), name).toBe(true);
+    for (const name of ['claude-desktop', 'cli', 'vscode', 'remote', 'the-sdk', 'xsdk-py', '', ' sdk-py']) expect(isSdkEntrypoint(name), JSON.stringify(name)).toBe(false);
+    expect(isSdkEntrypoint(null)).toBe(false);
   });
 });

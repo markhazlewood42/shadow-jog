@@ -355,6 +355,12 @@ export type SessionInfo = {
   matchedBy: 'folder' | 'cwd';
   /** The working folder of its newest line that has one, or null when no line in the part that was read has one. */
   cwd: string | null;
+  /**
+   * How the session was started, from the newest line that says so (`claude-desktop`, `cli`, `sdk-py`, ...; at most 40 characters), or null when
+   * no line in the part that was read says so (the older files have none). A session that a script started (`sdk-py`, `sdk-ts`, `sdk-cli`: the
+   * entrypoint starts with "sdk") is listed only when the config says `claude.includeSdk` is true, so with the default setting this is never one.
+   */
+  entrypoint: string | null;
   /** The git branch of that line, or "" when no line in the part that was read names one. */
   branch: string;
   /** The time of the first line of the file, or the time the file was made when that line is too long to read. */
@@ -372,8 +378,11 @@ export type SessionInfo = {
 
 /**
  * What `GET /api/sessions` holds (inside a Panel): the sessions of the last `recentSeconds` that are about
- * Shadow Jog, the newest first. `scanned` is how many session files of that time were looked at, and
- * `skipped` is how many of them are not in the list (outside the roots, or not readable). The sessions that
- * were left out never appear in the answer, not even by their id.
+ * Shadow Jog, the newest first. `scanned` is how many session files of that time were looked at.
+ * `skipped` is how many of them are not Shadow Jog's (outside the roots) or not readable.
+ * `hiddenSdk` is how many Shadow Jog sessions were left out because a script started them (the entrypoint starts with "sdk": `sdk-py`, `sdk-ts`,
+ * `sdk-cli`), so a page can say "N automated SDK runs hidden". It is 0 when the config says `claude.includeSdk` is true: then they are listed.
+ * Every file is counted once: `scanned` = `sessions.length` + `hiddenSdk` + `skipped`. The sessions that were left out never appear in the answer,
+ * not even by their id.
  */
-export type SessionsInfo = { sessions: SessionInfo[]; scanned: number; skipped: number };
+export type SessionsInfo = { sessions: SessionInfo[]; scanned: number; skipped: number; hiddenSdk: number };

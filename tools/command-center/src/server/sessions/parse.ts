@@ -118,6 +118,34 @@ export function newestBranch(lines: readonly unknown[]): string | null {
   return null;
 }
 
+// ---- how a session was started ----
+// Every line of the conversation says how its session was started: `claude-desktop`, `cli`, and for a run of a script `sdk-py`, `sdk-ts` or
+// `sdk-cli` (what `claude -p` and the Agent SDK write). The older files have none. One real week held hundreds of automated runs of the SDK
+// beside a few sessions of Mark's, so a run of a script is left out of the list unless the config asks for it (ruling R18).
+
+const MAX_ENTRYPOINT_CHARS = 40;
+
+/**
+ * How the session was started: the `entrypoint` of the newest line that has one as non-empty text, trimmed and cut. A line with none (the older
+ * files, and the notes at the end of a file), or with an empty or not-text one, says nothing, so an older line is looked at. Null when no line
+ * in the part that was read says how.
+ */
+export function newestEntrypoint(lines: readonly unknown[]): string | null {
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i];
+    if (isLine(line) && typeof line.entrypoint === 'string' && line.entrypoint.trim() !== '') return clipText(line.entrypoint.trim(), MAX_ENTRYPOINT_CHARS);
+  }
+  return null;
+}
+
+/**
+ * Whether a script started the session: its entrypoint starts with "sdk", in any case (`sdk-py`, `sdk-ts`, `sdk-cli`). A session whose
+ * entrypoint is not known (null) is not one: a file that does not say how it started is kept.
+ */
+export function isSdkEntrypoint(entrypoint: string | null): boolean {
+  return entrypoint !== null && entrypoint.toLowerCase().startsWith('sdk');
+}
+
 /** The newest text of one kind, trimmed and cut; null when there is none, or when the newest one is empty (the title was cleared). */
 function newestText(lines: readonly unknown[], pick: (line: Line) => unknown, max: number): string | null {
   for (let i = lines.length - 1; i >= 0; i -= 1) {

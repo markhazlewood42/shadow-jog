@@ -15,9 +15,11 @@ import {
   extractYourMove,
   hasConversationCwd,
   isDecisive,
+  isSdkEntrypoint,
   lastDecisiveTime,
   newestBranch,
   newestCwd,
+  newestEntrypoint,
   readActivity,
   readJournal,
   readTitles,
@@ -35,7 +37,9 @@ import { TAIL_MAX_BYTES, readFirstTimestamp, readHead, readSmallJson, readTail }
 // - reads a file again only when its size or its time of last write changed;
 // - lets only a few small things of a conversation into the answer: the title of a session (the first line of its
 //   first prompt, when it has no title of its own), the lines of a "Your move" box and the description of an agent.
-//   Every other word stays in the file.
+//   Every other word stays in the file;
+// - leaves out the sessions that a script started (the entrypoint starts with "sdk": `sdk-py`, `sdk-ts`, `sdk-cli`) unless the config says
+//   `claude.includeSdk`, and counts them in `hiddenSdk` (ruling R18). A machine can hold hundreds of them for a few sessions of Mark's.
 
 /** How often the module looks again: the sessions are the one source that changes all the time. A look reads no file that did not change. */
 export const SESSIONS_POLL_MS = 10_000;
@@ -106,6 +110,8 @@ export function createLimiter(max: number) {
 /** What the end and the start of a session file say. Nothing in it depends on the clock. */
 type SessionFacts = {
   cwd: string | null;
+  /** How the session was started, from its newest line that says so (`claude-desktop`, `sdk-py`, ...), or null when none does. */
+  entrypoint: string | null;
   branch: string;
   titles: ReturnType<typeof readTitles>;
   firstTime: string | null;
@@ -177,6 +183,7 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
       const [{ lines }, head] = await Promise.all([readTail(file.path, { until: hasConversationCwd }), readHead(file.path)]);
       return {
         cwd: newestCwd(lines),
+        entrypoint: newestEntrypoint(lines),
         branch: newestBranch(lines) ?? '',
         titles: readTitles(lines),
         firstTime: head.timestamp,
@@ -300,6 +307,7 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
       folder: file.folder,
       matchedBy: file.matchedBy,
       cwd: facts.cwd,
+      entrypoint: facts.entrypoint,
       branch: facts.branch,
       startedAt: facts.firstTime ?? isoOf(createdMs(file)),
       lastActivityAt: isoOf(lastWriteMs),
@@ -341,10 +349,15 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
         );
       }
 
-      const kept = readable.filter((entry) => keepSession(entry.file.matchedBy, entry.facts.cwd, config.roots));
-      const sessions = await Promise.all(kept.map((entry) => buildSession(entry.file, entry.facts, nowMs)));
+      // The sessions about Shadow Jog. Of those, a session that a script started is left out and counted, unless the config lists them (ruling R18).
+      // It is left out before its agents and workflows are read, so a hidden run costs the read of its own file and nothing more. A file that is not
+      // Shadow Jog's is `skipped` whatever started it, so every file is in exactly one of the three counts: scanned = sessions + hiddenSdk + skipped.
+      const matching = readable.filter((entry) => keepSession(entry.file.matchedBy, entry.facts.cwd, config.roots));
+      const shown = config.claude.includeSdk ? matching : matching.filter((entry) => !isSdkEntrypoint(entry.facts.entrypoint));
+      const hiddenSdk = matching.length - shown.length;
+      const sessions = await Promise.all(shown.map((entry) => buildSession(entry.file, entry.facts, nowMs)));
       sessions.sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt) || a.id.localeCompare(b.id));
-      return { sessions, scanned: files.length, skipped: files.length - sessions.length };
+      return { sessions, scanned: files.length, skipped: files.length - matching.length, hiddenSdk };
     } catch (error) {
       if (error instanceof PanelError) throw error;
       // The message of a file system error holds the path of a file. The page gets the code, and the server console the rest.
