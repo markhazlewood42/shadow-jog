@@ -18,7 +18,7 @@ const DOCS_MODULES: readonly ModuleName[] = ['docs'];
 const DOC_MODULES: readonly ModuleName[] = ['docs', 'decisions'];
 
 /**
- * The top bar of every docs page: the name of the tool (a link to the start page), the two parts of
+ * The top bar of every docs page: the name of the tool (a link to the start page), the parts of
  * the site, and the search. It stays at the top while a long doc scrolls.
  */
 function DocsHeader() {
@@ -34,6 +34,9 @@ function DocsHeader() {
           </Link>
           <Link to="/docs" aria-current="page" className="text-cc-ink cc-focus-ring">
             Docs
+          </Link>
+          <Link to="/agents" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
+            Agents
           </Link>
         </nav>
         {/* On a narrow window the search takes a row of its own, instead of shrinking to nothing. */}

@@ -1,4 +1,5 @@
 import { Bot, MessageSquare, Workflow } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { ProgressBar } from './ProgressBar';
 import { formatDuration } from './time';
 
@@ -21,13 +22,15 @@ export type RunRowProps = {
   detail?: string;
   /** The agents and workflows of a session are drawn under the session and a little to the right of it. */
   nested?: boolean;
+  /** Anything that belongs to the row and goes under its bar. The Agents page puts the phases of a workflow there. The Running panel has none. */
+  children?: ReactNode;
 };
 
 /**
- * One row of the Running panel: what it is, its state, a bar, and how long it has run. The bar and the words say the same thing two ways, so a person who
+ * One row of the Running panel (and of the Agents page, which lists the same things in full): what it is, its state, a bar, and how long it has run. The bar and the words say the same thing two ways, so a person who
  * cannot see the bar (or has turned its motion off) still reads the state, and one who skims sees the bar.
  */
-export function RunRow({ kind, name, state, progress, runMs, detail, nested = false }: RunRowProps) {
+export function RunRow({ kind, name, state, progress, runMs, detail, nested = false, children }: RunRowProps) {
   const Icon = ICONS[kind];
   return (
     <li className={`flex flex-col gap-1.5 py-2.5 ${nested ? 'pl-6' : ''}`}>
@@ -43,6 +46,7 @@ export function RunRow({ kind, name, state, progress, runMs, detail, nested = fa
       <div className="pl-6">
         <ProgressBar value={progress} label={`${state}: ${name}`} />
       </div>
+      {children !== undefined && <div className="pl-6">{children}</div>}
     </li>
   );
 }

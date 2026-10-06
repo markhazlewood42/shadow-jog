@@ -14,7 +14,7 @@ import { DecisionCard, Notice, OptionList, SectionLabel } from './DecisionCard';
  */
 const DECISION_MODULES: readonly ModuleName[] = ['decisions', 'docs'];
 
-/** The top bar: the name of the tool and the two parts of the site. The decision page is none of them, so none is marked as the current page. */
+/** The top bar: the name of the tool and the parts of the site. The decision page is none of them, so none is marked as the current page. */
 function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-cc-rule-solid bg-cc-paper">
@@ -28,6 +28,9 @@ function Header() {
           </Link>
           <Link to="/docs" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
             Docs
+          </Link>
+          <Link to="/agents" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
+            Agents
           </Link>
         </nav>
       </div>

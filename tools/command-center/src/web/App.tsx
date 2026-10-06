@@ -2,6 +2,7 @@ import { Button } from '@heroui/react';
 import { LoaderCircle, RefreshCw, TriangleAlert } from 'lucide-react';
 import { Component, type ReactNode, Suspense, lazy } from 'react';
 import { Route, Routes } from 'react-router';
+import { AgentsPage } from './agents/AgentsPage';
 import { DecisionRoute } from './decisions/DecisionPage';
 import { DocsRoutes } from './docs/DocsRoutes';
 
@@ -53,8 +54,9 @@ class NowErrorBoundary extends Component<{ children: ReactNode }, { error: Error
 }
 
 /**
- * The pages of the app, by address. /docs and everything under it is the docs site, and /decisions/<n> is the page of one
- * decision. Every other address shows the Now page, so a page that a later task adds is one more <Route> above the last.
+ * The pages of the app, by address. /docs and everything under it is the docs site, /decisions/<n> is the page of one
+ * decision, and /agents is the list of the sessions with their agents. Every other address shows the Now page, so a page
+ * that a later task adds is one more <Route> above the last.
  * The router itself (BrowserRouter) is in main.tsx, so a test can put this under a router of its own.
  */
 export function App() {
@@ -62,6 +64,7 @@ export function App() {
     <Routes>
       <Route path="/docs/*" element={<DocsRoutes />} />
       <Route path="/decisions/:number" element={<DecisionRoute />} />
+      <Route path="/agents" element={<AgentsPage />} />
       <Route
         path="*"
         element={

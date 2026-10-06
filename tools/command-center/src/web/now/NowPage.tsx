@@ -99,6 +99,9 @@ function NowContent() {
             <Link to="/docs" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
               Docs
             </Link>
+            <Link to="/agents" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
+              Agents
+            </Link>
           </nav>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
