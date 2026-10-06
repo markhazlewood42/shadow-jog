@@ -471,3 +471,31 @@ export type AnswerStep = 'comment' | 'label' | 'close';
 
 /** The body of a failed `POST /api/decisions/<n>/answer`. `step` names the write that failed, when the failure came from a write (the steps before it are done). */
 export type AnswerErrorBody = ApiErrorBody & { step?: AnswerStep };
+
+// ---- the Now page ----
+// The shape of the one route that the Now page owns (`GET /api/now/your-move`, src/server/now). The other panels of the page read the
+// shapes above (sessions, GitHub, status and git). The words in an item come from files, from GitHub and from session files, so a page
+// must show them as text.
+
+/** Where an item of "Your move" comes from. The page names the source in the notice for a source that could not be read. */
+export type YourMoveSource = 'decision-issue' | 'session' | 'pr' | 'doc-decision' | 'status';
+
+/**
+ * One thing that waits for Mark. `text` is plain words. `href` is where its source is: an address of this site (it starts with `/`), an
+ * address on GitHub (https), or null when the source has no page (a session has none yet). `light` is the status light that the reply of a
+ * session started with, and null for every other item: only a reply has one. `at` is the time of the item, as an ISO time, or null.
+ */
+export type YourMoveItem = {
+  source: YourMoveSource;
+  text: string;
+  href: string | null;
+  light: 'green' | 'yellow' | 'red' | null;
+  at: string | null;
+};
+
+/**
+ * What `GET /api/now/your-move` holds (inside a Panel): the list, and the sources that could not be read. A source that failed
+ * is named in `missing` with its own message, so the list is known to be incomplete (the items it still has from that source are
+ * the last ones that were read). The panel itself never fails because a source did.
+ */
+export type YourMoveInfo = { items: YourMoveItem[]; missing: { source: YourMoveSource; message: string }[] };

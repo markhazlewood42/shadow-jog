@@ -15,6 +15,7 @@ import { registerDocsRoutes } from './routes/docs';
 import { registerEngineRoutes } from './routes/engine';
 import { registerGitRoutes } from './routes/git';
 import { registerGithubRoutes } from './routes/github';
+import { registerNowRoutes } from './routes/now';
 import { registerSessionsRoutes } from './routes/sessions';
 import { registerStatusRoutes } from './routes/status';
 import type { Runner } from './runner';
@@ -116,6 +117,9 @@ export function compose(deps: ComposeDeps): Composed {
   const sessions = createSessionsSource({ config, hub, ...(deps.now === undefined ? {} : { now: deps.now }) });
   registerSessionsRoutes(app, sessions, panelRoutes);
   modules.push(sessions);
+
+  // The Now page: its list "Your move" is made from five of the sources above, under /api/now/your-move. It has no module of its own to start or stop.
+  registerNowRoutes(app, { decisions, sessions, status, github, engine });
 
   return {
     app,
