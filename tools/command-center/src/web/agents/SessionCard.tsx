@@ -18,7 +18,7 @@ import { Age, formatDuration } from '../now/time';
 export const CLAUDE_PROJECTS = '~/.claude/projects';
 
 /** A session shows this many of its agents until Mark asks for all of them. The real sessions have up to 55, and a card that long would push the other sessions off the screen. */
-export const AGENTS_SHOWN = 5;
+const AGENTS_SHOWN = 5;
 
 /** How long the Copy button says "Copied" before it goes back to "Copy". */
 const COPIED_SHOWN_MS = 2000;
