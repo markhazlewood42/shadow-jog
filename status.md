@@ -19,7 +19,7 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 ## Where we left off (2026-10-05)
 
-> **In progress (2026-10-06): the Command Center build** on branch `command-center`. Tasks 1 to 8 of 12 are done, verified and pushed. Next: Task 9 (the decision pages), Task 10 (the Now page), Task 11 (the Agents page), then Task 12 (the finish and the PR). The build ledger is the git-ignored `.superpowers/sdd/plan/progress.md`.
+> **In progress (2026-10-06): the Command Center build** on branch `command-center`. Tasks 1 to 9 of 12 are done, verified and pushed. Next: Task 10 (the Now page), Task 11 (the Agents page), then Task 12 (the finish and the PR). Tasks 10 and 11 get one verifier each, and only Critical and Important findings get a fix round (Mark, 2026-10-06). The build ledger is the git-ignored `.superpowers/sdd/plan/progress.md`. Side work on 2026-10-06: PR #18 (American spelling in `docs/engine/`) is merged, and PR #19 (`ci-faster`: three CI jobs at once, docs-only changes skip their steps, the playtest runs after a merge) is open.
 
 ### The whole process so far
 1. **Build (2026-09-27 → 28).** From the original prompt (`docs/original-prompt.md`) to a content-complete chapter:
@@ -86,7 +86,8 @@ Branch `spike/engine-platform` (draft PR #11). Record: `docs/spikes/engine-platf
 **Mark's rules from 2026-10-05** (also in home-base `CLAUDE.md` and memory): effort means architectural fit and files touched, never agent-days; all work goes through independent verification agents, sized to risk; at a phase break, the work continues in a fresh session. His idea backlog is `docs/IDEAS.md`. Entry 1 is a standing rule: no decision may make future visual editors harder.
 
 **Next for agents** (in this order):
-1. Build the command center on branch `command-center`. Follow `docs/command-center/plan.md`. Use a fresh session.
+1. Finish the command center on branch `command-center`: Tasks 10 to 12 of `docs/command-center/plan.md`. Use a fresh session.
+1a. PR #19 (`ci-faster`): before Mark merges it, ask him whether `e2e` and `e2e-engines` become required checks (the ruleset requires only `check`). After the merge, confirm that `playtest.yml` ran on `main` and passed, then add a live check: a docs-only PR's CI jobs skip their steps, and a docs-only merge to `main` starts no run.
 2. Move the shipped game to 640x360 on branch `resolution-640x360` from `main`, from the inventory, with picture reviews for Mark.
 3. The spike archive tag (with Mark's go-ahead), then milestone M0.
 
