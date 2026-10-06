@@ -328,26 +328,37 @@ describe('the doc routes', () => {
   });
 });
 
+/** What `GET /api/docs` says about the real repo: the real config, the real runner, the real nav.json, and no watcher. */
+async function realListing(): Promise<DocsListing> {
+  const config = loadConfig(DEFAULT_CONFIG_FILE);
+  const index = createDocIndex({ config, runner: createRunner(config), hub: createHub() }, { watch: false });
+  const { app } = makeApp({ config });
+  registerDocsRoutes(app, index);
+
+  const res = await getFrom(app, '/api/docs', config);
+  expect(res.status).toBe(200);
+  const panel = (await res.json()) as Panel<DocsListing>;
+  expect(panel.ok).toBe(true);
+  if (!panel.ok) throw new Error('GET /api/docs on the real repo gave a failed panel');
+  return panel.data;
+}
+
+/** The markdown files under docs/ and at the root, as git finds them (tracked, or untracked and not ignored): not found by the server under test. */
+function realDocIds(): string[] {
+  return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: REPO_DIR, encoding: 'utf8' })
+    .split('\0')
+    .filter((path) => /^docs\/.+\.md$/i.test(path) || /^[^/]+\.md$/i.test(path));
+}
+
+/** The slug of every doc item in the nav, sections and Other together. */
+const slugsInNav = (nav: DocsListing['nav']): string[] => nav.flatMap((section) => section.items.flatMap((item) => (item.kind === 'doc' ? [item.slug] : [])));
+
 describe('done when', () => {
   it('GET /api/docs on the real repo lists every real doc, and problems holds only the known broken links', async () => {
-    const config = loadConfig(DEFAULT_CONFIG_FILE);
-    const hub = createHub();
-    // The real config, the real runner, the real nav.json, and no watcher.
-    const index = createDocIndex({ config, runner: createRunner(config), hub }, { watch: false });
-    const { app } = makeApp({ config });
-    registerDocsRoutes(app, index);
+    const { docs, nav, problems } = await realListing();
 
-    const res = await getFrom(app, '/api/docs', config);
-    expect(res.status).toBe(200);
-    const panel = (await res.json()) as Panel<DocsListing>;
-    expect(panel.ok).toBe(true);
-    if (!panel.ok) return;
-    const { docs, nav, problems } = panel.data;
-
-    // Every real doc: the markdown files under docs/ and at the root, found by git (tracked and not ignored), not by this server.
-    const listed = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: REPO_DIR, encoding: 'utf8' })
-      .split('\0')
-      .filter((path) => /^docs\/.+\.md$/i.test(path) || /^[^/]+\.md$/i.test(path));
+    // Every real doc, as git finds them (and not as this server does).
+    const listed = realDocIds();
     expect(listed.length).toBeGreaterThan(40);
     expect(docs.map((doc) => doc.id).sort()).toEqual(listed.slice().sort());
 
@@ -360,20 +371,31 @@ describe('done when', () => {
       expect(known.some((name) => problem.includes(`"${name}"`)), problem).toBe(true);
     }
 
-    // Ruling R4: nav.json names every doc, so Other is empty, and each doc is in the nav once.
-    expect(nav.some((section) => section.id === 'other')).toBe(false);
-    const inNav = nav.flatMap((section) => section.items.flatMap((item) => (item.kind === 'doc' ? [item.slug] : [])));
+    // Every doc is in the nav exactly once: in a section, or in Other (the section for a doc that nav.json does not name, so that no doc is lost).
+    const inNav = slugsInNav(nav);
     expect(inNav.slice().sort()).toEqual(docs.map((doc) => doc.slug).sort());
     expect(new Set(inNav).size).toBe(inNav.length);
-    // The engine docs are in the engine section, with the README first (its reading order puts "This file" first).
-    const engine = must(nav.find((section) => section.id === 'engine'), 'the engine section');
-    const engineSlugs = engine.items.flatMap((item) => (item.kind === 'doc' ? [item.slug] : []));
-    expect(engineSlugs[0]).toBe('engine/README');
-    expect(engineSlugs.slice().sort()).toEqual(docs.filter((doc) => doc.id.startsWith('docs/engine/')).map((doc) => doc.slug).sort());
 
     // Some docs have a frontmatter, with its type and date, and some have none: they show an empty type and the date from git.
     expect(docs.some((doc) => doc.type !== '' && doc.updatedFrom === 'frontmatter')).toBe(true);
     expect(docs.some((doc) => doc.type === '' && doc.status === '' && doc.updatedFrom === 'git' && doc.title.length > 0)).toBe(true);
+  });
+
+  // Ruling R15. "Other is empty" is a check of nav.json, not of the server, and it fails as soon as a doc is added and nav.json is not
+  // updated. Design criterion 4 says that nothing needs manual upkeep: a doc that nav.json does not name lands in Other, so none is lost.
+  // So this check does not run in the default suite. The "Done when" checks of Tasks 4 and 12 set the flag:
+  //   CC_REAL_NAV=1 npm --prefix tools/command-center run check
+  it.skipIf(process.env.CC_REAL_NAV !== '1')('with CC_REAL_NAV=1: nav.json names every real doc, so Other is empty (ruling R4), and the engine docs follow the engine README', async () => {
+    const { docs, nav } = await realListing();
+
+    expect(nav.some((section) => section.id === 'other')).toBe(false);
+    expect(slugsInNav(nav).slice().sort()).toEqual(docs.map((doc) => doc.slug).sort());
+
+    // The engine docs are in the engine section, with the README first (its reading order puts "This file" first).
+    const engine = must(nav.find((section) => section.id === 'engine'), 'the engine section');
+    const engineSlugs = slugsInNav([engine]);
+    expect(engineSlugs[0]).toBe('engine/README');
+    expect(engineSlugs.slice().sort()).toEqual(docs.filter((doc) => doc.id.startsWith('docs/engine/')).map((doc) => doc.slug).sort());
   });
 
   it('an edit in a temp copy reaches an event-stream client within 5 s', async () => {
