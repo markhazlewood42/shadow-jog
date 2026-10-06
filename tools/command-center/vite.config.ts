@@ -14,5 +14,8 @@ export default defineConfig({
     target: 'es2022',
     // Never turn a font or an image into a data: URL. The server's content policy asks for files.
     assetsInlineLimit: 0,
+    // Writes dist/.vite/manifest.json: which chunk holds which source file, and what each chunk imports. A test reads it to prove that the glass of the Now page
+    // (PlasmaUI) is in a chunk of its own that no other page loads. The server serves only dist/index.html and dist/assets/, so the manifest is not served.
+    manifest: true,
   },
 });

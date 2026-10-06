@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Health, Panel } from '../src/shared/types';
 import { ApiError, getJson, getPanel, loadHealthPanel, mergeLastGood, postJson } from '../src/web/api';
-import { PanelFrame } from '../src/web/PanelFrame';
+import { PanelContent, PanelFrame } from '../src/web/PanelFrame';
 import { type PanelResult, createCoalescingRunner } from '../src/web/usePanel';
 
 // The page app is tested here only where it holds logic that does not need a browser. How it
@@ -186,6 +186,42 @@ describe('createCoalescingRunner', () => {
     runner.trigger();
     await vi.waitFor(() => expect(runs).toBe(2));
     logged.mockRestore();
+  });
+});
+
+describe('PanelContent', () => {
+  const reload = () => undefined;
+  const aside = createElement('span', { className: 'the-aside' }, 'ASIDE');
+  const render = (result: PanelResult<number>, withAside = true) =>
+    renderToStaticMarkup(createElement(PanelContent<number>, { title: 'Numbers', result, ...(withAside ? { aside } : {}), children: (n: number) => createElement('p', null, `the number is ${n}`) }));
+
+  it('draws no frame of its own: a header and a body, for whatever frame the panel sits in', () => {
+    const html = render({ state: 'ready', panel: { ok: true, data: 7, updatedAt: T0 }, reload });
+    expect(html).not.toContain('<section');
+    expect(html).toContain('<h2');
+    expect(html).toContain('the number is 7');
+    expect(html).toContain(`dateTime="${T0}"`);
+  });
+
+  it('draws its aside next to the title in every state: loading, good and failed', () => {
+    const states: PanelResult<number>[] = [
+      { state: 'loading', panel: null, reload },
+      { state: 'ready', panel: { ok: true, data: 7, updatedAt: T0 }, reload },
+      { state: 'error', panel: { ok: false, error: { code: 'gh-offline', message: 'GitHub: offline' }, updatedAt: null, lastGood: null }, reload },
+    ];
+    for (const result of states) {
+      const html = render(result);
+      expect(html, result.state).toContain('ASIDE');
+      // It is in the header, with the title, and not in the body.
+      expect(html.indexOf('ASIDE'), result.state).toBeGreaterThan(html.indexOf('Numbers'));
+      expect(html.indexOf('ASIDE'), result.state).toBeLessThan(html.indexOf('</header>'));
+    }
+  });
+
+  it('has the markup that the header always had when there is no aside', () => {
+    const html = render({ state: 'ready', panel: { ok: true, data: 7, updatedAt: T0 }, reload }, false);
+    expect(html).toContain('<h2 class="text-base font-semibold">Numbers</h2>');
+    expect(html).not.toContain('the-aside');
   });
 });
 

@@ -16,23 +16,22 @@ function Time({ iso }: { iso: string }) {
   return <time dateTime={iso}>{formatTime(iso)}</time>;
 }
 
-type PanelFrameProps<T> = {
+type PanelContentProps<T> = {
   title: string;
   /** What usePanel returned for this panel. */
   result: PanelResult<T>;
-  /** Marks the panel as one of the one or two things on the page that matter most (amber border). */
-  focal?: boolean;
+  /** Something shown next to the title (for example a count). It is drawn in every state of the panel, also while it loads and when it failed. */
+  aside?: ReactNode;
   /** Draws the data. It is called with the new data, or with the last good data under an error. */
   children: (data: T) => ReactNode;
 };
 
 /**
- * The frame every data panel sits in. It owns the three things every panel must show and never
- * hide: that it is loading, that it failed (with the reason, a Retry button and the last good
- * data when there is some), and when it was last updated. A panel that fails shows its own error
- * and leaves the rest of the page alone.
+ * The inside of a panel: its header (the title, and when it was last updated) and its body. It owns the three things every panel must show and never
+ * hide: that it is loading, that it failed (with the reason, a Retry button and the last good data when there is some), and when it was last updated.
+ * It draws no frame of its own, so a panel can put it in the frame that suits it: the box of PanelFrame, or a glass surface (see now/GlassPanel).
  */
-export function PanelFrame<T>({ title, result, focal = false, children }: PanelFrameProps<T>) {
+export function PanelContent<T>({ title, result, aside, children }: PanelContentProps<T>) {
   const { state, panel, reload } = result;
 
   let status: ReactNode = null;
@@ -85,14 +84,42 @@ export function PanelFrame<T>({ title, result, focal = false, children }: PanelF
     );
   }
 
-  // The frame of a panel is the lavender one of the Look (rule-solid). The hairline (rule) is for the lines inside it.
   return (
-    <section aria-label={title} className={`rounded-lg border ${focal ? 'border-cc-accent cc-focal' : 'border-cc-rule-solid bg-cc-paper-2'}`}>
+    <>
       <header className="flex items-baseline justify-between gap-4 border-b border-cc-rule px-4 py-3">
-        <h2 className="text-base font-semibold">{title}</h2>
+        {aside === undefined ? (
+          <h2 className="text-base font-semibold">{title}</h2>
+        ) : (
+          <div className="flex min-w-0 items-center gap-3">
+            <h2 className="text-base font-semibold">{title}</h2>
+            {aside}
+          </div>
+        )}
         <p className="font-mono text-xs text-cc-muted">{status}</p>
       </header>
       <div className="px-4 py-4">{body}</div>
+    </>
+  );
+}
+
+type PanelFrameProps<T> = {
+  title: string;
+  /** What usePanel returned for this panel. */
+  result: PanelResult<T>;
+  /** Marks the panel as one of the one or two things on the page that matter most (amber border). */
+  focal?: boolean;
+  /** Draws the data. It is called with the new data, or with the last good data under an error. */
+  children: (data: T) => ReactNode;
+};
+
+/** The frame every data panel sits in, when it is a plain box: the content of the panel (PanelContent) in a section that has its name. */
+export function PanelFrame<T>({ title, result, focal = false, children }: PanelFrameProps<T>) {
+  // The frame of a panel is the lavender one of the Look (rule-solid). The hairline (rule) is for the lines inside it.
+  return (
+    <section aria-label={title} className={`rounded-lg border ${focal ? 'border-cc-accent cc-focal' : 'border-cc-rule-solid bg-cc-paper-2'}`}>
+      <PanelContent title={title} result={result}>
+        {children}
+      </PanelContent>
     </section>
   );
 }

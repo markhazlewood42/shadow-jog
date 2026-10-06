@@ -1,91 +1,26 @@
-import { useEffect, useState } from 'react';
-import { Link, Route, Routes } from 'react-router';
-import { APP_NAME, type Health, type ModuleName } from '../shared/types';
-import { type ConnectionState, loadHealthPanel, subscribeEvents } from './api';
+import { LoaderCircle } from 'lucide-react';
+import { Suspense, lazy } from 'react';
+import { Route, Routes } from 'react-router';
 import { DecisionRoute } from './decisions/DecisionPage';
 import { DocsRoutes } from './docs/DocsRoutes';
-import { PanelFrame, formatTime } from './PanelFrame';
-import { useLoadedPanel } from './usePanel';
 
-/** The health panel never reloads on a "changed" event: nothing in it changes while the server runs. */
-const NO_MODULES: readonly ModuleName[] = [];
+// The Now page is loaded when it is first asked for, and not with the rest of the app. It is the one page that draws glass (PlasmaUI, which brings a WebGL
+// renderer), so a chunk of its own keeps that code out of the docs pages and the decision pages: they never download it. (A test scans the build for this.)
+const NowPage = lazy(() => import('./now/NowPage').then((module) => ({ default: module.NowPage })));
 
-/** What the server says about itself: its version, when it started, and the links the config names. */
-function ServerInfo({ info }: { info: Health }) {
+/** What the page shows for the moment that the file of the Now page is on its way. It is local, so this is short. */
+function NowLoading() {
   return (
-    <div className="flex flex-col gap-4">
-      <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-1 text-sm">
-        <dt className="text-cc-muted">Version</dt>
-        <dd className="font-mono">{info.version}</dd>
-        <dt className="text-cc-muted">Started</dt>
-        <dd className="font-mono">
-          <time dateTime={info.startedAt}>{formatTime(info.startedAt)}</time>
-        </dd>
-      </dl>
-      <nav aria-label="Links">
-        <ul className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-          {info.links.map((link) => (
-            <li key={link.url}>
-              <a href={link.url} target="_blank" rel="noreferrer" className="text-cc-link underline underline-offset-2">
-                {link.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    </div>
-  );
-}
-
-const CONNECTION_TEXT: Record<ConnectionState, string> = {
-  connecting: 'connecting…',
-  live: 'on',
-  offline: 'off, trying to reconnect',
-};
-
-/** Whether the page is hearing the server's change events. Without them the panels would go stale, so it is never hidden. */
-function LiveStatus() {
-  const [state, setState] = useState<ConnectionState>('connecting');
-  useEffect(
-    () =>
-      subscribeEvents((event) => {
-        if (event.type === 'connection') setState(event.state);
-      }),
-    [],
-  );
-  return (
-    <p role="status" className="flex items-center gap-2 text-sm text-cc-muted">
-      <span aria-hidden className={`size-2 rounded-full ${state === 'live' ? 'bg-cc-ink' : 'bg-cc-accent'}`} />
-      Live updates: {CONNECTION_TEXT[state]}
+    <p role="status" className="flex items-center gap-2 px-6 py-10 text-cc-muted">
+      <LoaderCircle aria-hidden className="size-4 motion-safe:animate-spin" />
+      Loading…
     </p>
-  );
-}
-
-/** The start page for now: the header, the server panel, and the live status. The Now page of a later task replaces it. */
-function Shell() {
-  const server = useLoadedPanel(loadHealthPanel, NO_MODULES);
-  return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-6 py-10">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight">{APP_NAME}</h1>
-        <p className="mt-2 text-cc-muted">The status, the docs and the open decisions of Shadow Jog will be here. The server is running.</p>
-        <p className="mt-3 text-sm">
-          <Link to="/docs" className="text-cc-link underline underline-offset-2">
-            Read the docs
-          </Link>
-        </p>
-      </header>
-      <PanelFrame title="Server" result={server} focal>
-        {(info) => <ServerInfo info={info} />}
-      </PanelFrame>
-      <LiveStatus />
-    </div>
   );
 }
 
 /**
  * The pages of the app, by address. /docs and everything under it is the docs site, and /decisions/<n> is the page of one
- * decision. Every other address shows the start page, so a page that a later task adds is one more <Route> above the last.
+ * decision. Every other address shows the Now page, so a page that a later task adds is one more <Route> above the last.
  * The router itself (BrowserRouter) is in main.tsx, so a test can put this under a router of its own.
  */
 export function App() {
@@ -93,7 +28,14 @@ export function App() {
     <Routes>
       <Route path="/docs/*" element={<DocsRoutes />} />
       <Route path="/decisions/:number" element={<DecisionRoute />} />
-      <Route path="*" element={<Shell />} />
+      <Route
+        path="*"
+        element={
+          <Suspense fallback={<NowLoading />}>
+            <NowPage />
+          </Suspense>
+        }
+      />
     </Routes>
   );
 }
