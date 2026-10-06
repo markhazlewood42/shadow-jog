@@ -1,0 +1,3 @@
+# crlf.md must keep its Windows line endings: the CRLF tests read it byte for byte.
+# The repo-wide rule (text=auto eol=lf) would turn it into LF, so git must not touch it.
+crlf.md -text
