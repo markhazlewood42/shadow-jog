@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import type { Server } from 'node:http';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { getRequestListener } from '@hono/node-server';
 import type { Hono } from 'hono';
 import open from 'open';
@@ -36,12 +36,23 @@ export function startServer(app: Hono, port: number): Promise<Server> {
   });
 }
 
-/** Reads the command line: `--config <file>` and `--dev`. */
+/** Reads the command line: `--config <file>` and `--dev`. Anything else is an error, so a typo is not ignored. */
 function readArgs(argv: string[]): { configFile: string; dev: boolean } {
-  const at = argv.indexOf('--config');
-  const value = at >= 0 ? argv[at + 1] : undefined;
-  if (at >= 0 && (value === undefined || value.startsWith('--'))) throw new ConfigError('--config needs the path of a config file after it.');
-  return { configFile: value ?? DEFAULT_CONFIG_FILE, dev: argv.includes('--dev') };
+  let configFile = DEFAULT_CONFIG_FILE;
+  let dev = false;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i] as string;
+    if (arg === '--dev') {
+      dev = true;
+    } else if (arg === '--config') {
+      const value = argv[++i];
+      if (value === undefined || value.startsWith('--')) throw new ConfigError('--config needs the path of a config file after it.');
+      configFile = resolve(value);
+    } else {
+      throw new ConfigError(`Unknown option ${arg}. The options are --config <file> and --dev.`);
+    }
+  }
+  return { configFile, dev };
 }
 
 /** Keeps the built page up to date while Vite watches the page's source (for `npm run dev`). */

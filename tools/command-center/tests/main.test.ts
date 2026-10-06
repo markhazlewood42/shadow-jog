@@ -91,6 +91,19 @@ describe('main', () => {
     }
   });
 
+  it('prints one line and exits 1 for an option it does not know, or a --config with no file', async () => {
+    for (const args of [['--confg', 'x.json'], ['--config'], ['--dev', '--help']]) {
+      const child = spawn(process.execPath, ['--import', 'tsx', 'src/server/main.ts', ...args], { cwd: PACKAGE_DIR, env: { ...process.env, CC_NO_OPEN: '1' }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+      let stderr = '';
+      child.stderr.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+      const code = await new Promise<number | null>((done) => child.once('close', done));
+      expect(code, args.join(' ')).toBe(1);
+      expect(stderr.split(/\r?\n/).filter((line) => line.trim() !== ''), args.join(' ')).toHaveLength(1);
+    }
+  });
+
   it('prints one line and exits 1 for a config it cannot read', async () => {
     const bad = join(scratch, 'bad-config.json');
     writeFileSync(bad, '{ "port": "not a number" }');
