@@ -239,8 +239,9 @@ The API (`game/script.ts`): `say`, `narrate`, `ask` (returns the chosen index), 
 - A round: the player enters **commands** for everyone (`attack`, `tech`, `skill`, `item`, `guard`, `run`);
   `startRound(cmds)` rolls initiative and plans the queue (agility order; combos, first strikes and Guard adjust
   it); then, per action, **`next()` declares** it (who, what, at whom; returns events and an optional **timing
-  prompt**) and **`land(timing)` resolves** it; `endRound()` ticks statuses and decides the outcome.
+  prompt**) and **`land(timing)` resolves** it; `endRound()` ticks statuses and checks the outcome.
   `resolveRound(cmds, grader?)` runs that loop in one call (tests and sims).
+  The engine only sets `battle.outcome` (`win`, `lose`, `fled` or none). `BattleScene.executeRound` reads it after `endRound()`: no outcome starts the next round, and any outcome ends the battle (`victory()`, `defeat()` or `fled()`).
 - **Combos** (`data/abilities.ts` `COMBOS`): two or three members' specific abilities in the same round fuse into one
   stronger action (`Battle.findCombos`, largest first). Each has a caller and a line.
 - **Timed presses**: an action offers a `TimingPrompt` (`strike` for the crew's hits, `brace` for hits on the crew,
@@ -262,7 +263,7 @@ The API (`game/script.ts`): `say`, `narrate`, `ask` (returns the chosen index), 
   when the hit lands.
 - `setup.ts` builds combatants from party state and enemy data; `types.ts` holds the types.
 
-![One battle round. Inside battle/engine.ts, which is pure and deterministic, the player's orders go to startRound(cmds), which rolls initiative and plans the queue. A decision asks whether more actions remain. If yes, next() declares the action and may return a timing prompt, an optional timed press grades the action, and land(timing) resolves it, then the flow returns to the decision. If no, endRound() ticks statuses and decides the outcome, and the next round starts from the orders. next() and land() send events, shown as dashed lines, to BattleScene.playEvent in battlekit/playback.ts, which draws them. A note says resolveRound(cmds, grader?) runs steps 2 to 7 in one call for tests and sims.](diagrams/battle-round.png)
+![One battle round, in three bands. In the top band, the scene (scenes/battle.ts) runs the round: the player's orders go down to startRound(cmds) in the middle band, battle/engine.ts, whose code is pure. startRound rolls initiative and plans the queue. A decision asks whether more actions remain. If yes, next() declares the action and may return a timing prompt, an optional timed press, which is player input, grades the action, and land(timing) resolves it, then the flow returns to the decision. If no, endRound() ticks statuses and checks the outcome, and the flow goes up to a second decision in the scene: is battle.outcome set? If no, the next round starts from the orders. If yes, the battle ends, and BattleScene runs victory(), defeat() or fled(). startRound(), next(), land() and endRound() send events, shown as dashed lines, to playEvent in battlekit/playback.ts (the Playback node, in the bottom band), which draws them. A note says resolveRound(cmds, grader?) runs steps 2 to 7 in one call for tests and sims.](diagrams/battle-round.png)
 
 *Editable source: [diagrams/battle-round.html](diagrams/battle-round.html)*
 
