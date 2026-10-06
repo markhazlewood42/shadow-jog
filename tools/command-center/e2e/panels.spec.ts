@@ -56,7 +56,7 @@ test.describe('the status, git and GitHub routes', () => {
     expect(before.data.rightNow.heading).toBe('Right now (2026-01-02)');
     expect(before.data.nextUpForMark.map((item) => item.text)).toEqual([
       'Review the widget pictures: the round one, the square one, and the long one, which wraps onto a second line with an indent.',
-      'Pick the gadget colour. The choices are in the setup guide, and this item wraps onto a second line with no indent.',
+      'Pick the gadget color. The choices are in the setup guide, and this item wraps onto a second line with no indent.',
       'A short last item.',
     ]);
     expect(before.data.updated).toBe('2026-01-02');

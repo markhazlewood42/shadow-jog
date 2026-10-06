@@ -29,7 +29,7 @@ it works, and the [setup guide](docs/guides/setup.md) says how to run it.
 **Next up for Mark** (updated 2026-01-02):
 1. Review the widget pictures: the round one, the square one, and the long one,
    which wraps onto a second line with an indent.
-2. Pick the gadget colour. The choices are in the [setup guide](docs/guides/setup.md),
+2. Pick the gadget color. The choices are in the [setup guide](docs/guides/setup.md),
 and this item wraps onto a second line with no indent.
 3. A short last item.
 

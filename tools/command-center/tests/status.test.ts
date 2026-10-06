@@ -79,7 +79,7 @@ ${NEXT_UP('1. A second list in the same section, which is not read.')}`,
     expect(fixture.rightNow.heading).toBe('Right now (2026-01-02)');
     expect(fixture.nextUpForMark.map((item) => item.text)).toEqual([
       'Review the widget pictures: the round one, the square one, and the long one, which wraps onto a second line with an indent.',
-      'Pick the gadget colour. The choices are in the setup guide, and this item wraps onto a second line with no indent.',
+      'Pick the gadget color. The choices are in the setup guide, and this item wraps onto a second line with no indent.',
       'A short last item.',
     ]);
     expect(JSON.stringify(fixture)).not.toContain('This item is old');

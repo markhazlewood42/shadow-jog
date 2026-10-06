@@ -4,6 +4,7 @@ import type { Hono } from 'hono';
 import type { DocDecision, DocNotFound, DocPageData, DocRef, DecisionsInfo, DocsListing, NavItem, NavSection, Panel, ReadingOrder, SearchHit } from '../../shared/types';
 import { bannersOf } from '../decisions/module';
 import type { DocIndex } from '../docs/index';
+import { OTHER_SECTION_ID } from '../docs/nav';
 import { isMissing } from '../fs-errors';
 import { apiError } from '../guard';
 import type { PanelSource } from '../source';
@@ -44,9 +45,6 @@ async function bannersFor(source: PanelSource<DecisionsInfo>, docId: string, wai
     clearTimeout(timer);
   }
 }
-
-/** The id that the index gives the section of docs that nav.json does not name. It lists docs in no order of their own. */
-const OTHER_SECTION_ID = 'other';
 
 const refOf = (item: Extract<NavItem, { kind: 'doc' }> | undefined): DocRef | null => (item === undefined ? null : { slug: item.slug, title: item.title });
 

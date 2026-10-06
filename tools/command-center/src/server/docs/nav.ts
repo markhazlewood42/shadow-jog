@@ -27,8 +27,8 @@ export type NavSectionDef = { id: string; title: string; items: NavItemDef[] };
 /** What nav.json says, with everything that is wrong with it. A mistake leaves out its section or item and nothing more. */
 export type NavDefinition = { sections: NavSectionDef[]; problems: string[] };
 
-/** The id of the section that the index adds for the docs that no section names. */
-const OTHER_SECTION_ID = 'other';
+/** The id of the section that the index adds for the docs that no section names. It lists docs in no order of their own. */
+export const OTHER_SECTION_ID = 'other';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

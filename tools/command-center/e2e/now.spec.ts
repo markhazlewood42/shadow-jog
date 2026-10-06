@@ -396,7 +396,7 @@ test.describe('the data of the panels', () => {
     await expect(notice).toContainText('Pull request:');
     await expect(notice).toContainText('Decision:');
     await expect(notice).toContainText('gh is not signed in to GitHub');
-    await expect(panel(page, 'Your move').getByRole('listitem').filter({ hasText: 'Pick the gadget colour' })).toHaveCount(1); // the status items are still there
+    await expect(panel(page, 'Your move').getByRole('listitem').filter({ hasText: 'Pick the gadget color' })).toHaveCount(1); // the status items are still there
     await expect(panel(page, 'Status')).toContainText('Right now (2026-01-02)');
 
     // gh works again: Retry brings the panel back, and the notice goes with it.
