@@ -58,7 +58,20 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 ### Right now (2026-10-05)
 
-**Phase 0 is done and waits for Mark's final approval.** Branch `spike/engine-platform` (draft PR #11). Record: `docs/spikes/engine-platform.md` (the S1a section has the 640x360 numbers, and the Result is drafted). CI is green through d61d7d9. The last push, 913aead (S1a), went up at the end of the session.
+**Phase 0 is done. Mark approved the final engine design on 2026-10-05, with all 9 recommendations.** PRs #15 and #16 are merged (#16 is the design update, merge 959ddf4). The design gate is lifted: M0 may start after the 640x360 move of the shipped game. The 9 recommendations:
+- C1: `roundPixels` is off.
+- C2: The E3 fallback keeps one private Three renderer, with a fourth hand-off rule.
+- C3: The E19 policy is strict.
+- C4: The watchdog waits 1 second.
+- C5: The E17 `lazy-3d` cap is 160 kB. M1 and M6 confirm it.
+- C6: M1 decides the E13 `fit` mode. The mode may retire.
+- C7: E22 grows to 19 deviations.
+- The content-to-data placement: enemies at M3, shops and dialogue at M4, maps at M5.
+- The hidden-scene 3D draw skip and the context grace go in M7.
+
+Branch `spike/engine-platform` (draft PR #11). Record: `docs/spikes/engine-platform.md` (the S1a section has the 640x360 numbers, and the Result is drafted). CI is green through d61d7d9. The last push, 913aead (S1a), went up at the end of the session.
+
+**The command center (Mark, 2026-10-05).** Mark approved the command center design and the implementation plan. Both are on branch `command-center`: `docs/command-center/design.md` and `docs/command-center/plan.md`.
 
 **The size is 640x360 (Mark, 2026-10-05).** He first kept 480x270 after the mock, then chose 640x360 the same day from the screenshots. Impact on the code:
 - No architecture change. Both engines read the size from one constant.
@@ -71,16 +84,13 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 **Mark's rules from 2026-10-05** (also in home-base `CLAUDE.md` and memory): effort means architectural fit and files touched, never agent-days; all work goes through independent verification agents, sized to risk; at a phase break, the work continues in a fresh session. His idea backlog is `docs/IDEAS.md`. Entry 1 is a standing rule: no decision may make future visual editors harder.
 
 **Next for agents** (in this order):
-1. Done (2026-10-05): Copilot's 4 findings on PR #12 are fixed on PR #15 (branch `diagram-review-fixes`). Mark merged #12 before the fixes, so they went to a new PR. Each Copilot thread on #12 links to #15 and is resolved. If Copilot reviews #15, fix its findings on the same branch.
-2. Finish the engine design update from the draft (the handoff README lists what is left: 640x360 everywhere, the editor rule as a principle, the open review fixes, four stale diagrams). Start its branch from `main` after PR #15 merges, because the update also changes `engine-scene-lifecycle` and `frame-and-rendering.md`. Then a PR for Mark's final approval.
-3. Move the shipped game to 640x360 on branch `resolution-640x360` from `main`, from the inventory, with picture reviews for Mark.
-4. After Mark's final approval of the design: the spike archive tag (with his go-ahead), then milestone M0.
+1. Build the command center on branch `command-center`. Follow `docs/command-center/plan.md`. Use a fresh session.
+2. Move the shipped game to 640x360 on branch `resolution-640x360` from `main`, from the inventory, with picture reviews for Mark.
+3. The spike archive tag (with Mark's go-ahead), then milestone M0.
 
 **Next up for Mark** (updated 2026-10-05):
-1. Request Copilot's review on PR #15 (the 4 diagram fixes), then merge it. PRs #10, #12, #13 and #14 are merged.
-2. Approve the final design when the design update PR comes. It carries the spike result and the 640x360 numbers.
-3. Answer the look questions as the 640x360 pictures come: the old battle (boxed until M3, or re-laid now), maps smaller than the screen, the dialog width, the title art, and 3 shockwave values in your `fx.json`.
-4. The older items below (Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4) still stand.
+1. Answer the look questions as the 640x360 pictures come: the old battle (boxed until M3, or re-laid now), maps smaller than the screen, the dialog width, the title art, and 3 shockwave values in your `fx.json`.
+2. The older items below (Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4) still stand.
 
 ### Right now (2026-10-04, history)
 
