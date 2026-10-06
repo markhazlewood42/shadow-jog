@@ -1,12 +1,12 @@
 import { open } from 'node:fs/promises';
 import type { FileHandle } from 'node:fs/promises';
 import { isMissing } from '../fs-errors';
-import { isLine, timeOf } from './parse';
+import { isLine, promptOf, queuedPromptTitle, timeOf } from './parse';
 
 // The bounded file reader of the sessions module. Claude Code keeps every session as one text file
 // with a JSON object on each line, and a long session is hundreds of megabytes. The newest lines are
-// at the end, so the module reads a window at the end of the file (and a little at the start, for
-// the time the session began), and never the whole file. Every read of a session file goes through
+// at the end, so the module reads a window at the end of the file (and 16 KB at the start, for the
+// time the session began and its first prompt), and never the whole file. Every read of a session file goes through
 // this file, so "how much does it read" has one answer, and the tests can watch it.
 //
 // The module only ever opens a file to read it (the flag is always 'r').
@@ -17,7 +17,7 @@ export const TAIL_START_BYTES = 64 * 1024;
 /** The window never grows past this: 4 MB. A 300 MB file costs at most this much, and a line that is longer is never read. */
 export const TAIL_MAX_BYTES = 4 * 1024 * 1024;
 
-/** How much of the start of a file is read to find the time of its first line: 16 KB. */
+/** How much of the start of a file is read, to find the time of its first line and its first prompt: 16 KB. */
 export const HEAD_MAX_BYTES = 16 * 1024;
 
 const NEWLINE = 0x0a;
@@ -133,19 +133,64 @@ export async function readTail(file: string, options: TailOptions = {}): Promise
   }
 }
 
-/** The text of a time field in a piece of the first line that was cut. */
+/** The text of a time field in the piece of a line that the head window cut. */
 const CUT_LINE_TIME = /"timestamp"\s*:\s*"([^"\\]+)"/;
 
 /**
- * The time of the first line of a file that has one, from the first 16 KB. It is the time that the
- * session (or agent) began. Null when the first 16 KB hold none.
- *
- * Many session files begin with one very long line: a `queue-operation` that holds the whole first
- * prompt, which can be larger than 16 KB. That line cannot be read as JSON from a window that cuts
- * it, but it names its time before the long text, so the time is read from the piece that is there.
- * A long first line that names its time after the text (an agent's prompt does) gives null.
+ * The start of a queued prompt in the piece of a line that the head window cut: a `queue-operation` line that is an
+ * `enqueue`, and its `content` (the prompt) up to where the piece ends. The keys are in the order that Claude Code
+ * writes them (`type`, `operation`, `timestamp`, `sessionId`, `content`), so a line in another order gives no prompt.
+ * Group 1 is the text of the content as the file has it, with its JSON escapes.
  */
-export async function readFirstTimestamp(file: string): Promise<string | null> {
+const CUT_QUEUED_PROMPT = /^\{\s*"type"\s*:\s*"queue-operation"\s*,\s*"operation"\s*:\s*"enqueue"\s*,.*?"content"\s*:\s*"((?:[^"\\]|\\.)*)/s;
+
+/**
+ * The text that the start of a JSON string holds: its escapes read, and an escape that the cut left half (a lone
+ * backslash, or `\u` with fewer than four digits) dropped. Null when the text is not valid JSON string text.
+ */
+function decodeCutString(raw: string): string | null {
+  let end = raw.length;
+  for (let i = 0; i < raw.length; ) {
+    if (raw[i] !== '\\') {
+      i += 1;
+      continue;
+    }
+    const length = raw[i + 1] === 'u' ? 6 : 2;
+    if (i + length > raw.length) {
+      end = i;
+      break;
+    }
+    i += length;
+  }
+  try {
+    return JSON.parse(`"${raw.slice(0, end)}"`) as string;
+  } catch {
+    return null;
+  }
+}
+
+/** The title of a queued prompt in the piece of a line that the head window cut, or null. */
+function cutLinePrompt(cut: string): string | null {
+  const raw = CUT_QUEUED_PROMPT.exec(cut)?.[1];
+  const text = raw === undefined ? null : decodeCutString(raw);
+  return text === null ? null : queuedPromptTitle(text);
+}
+
+/** What the start of a file says: when it began, and the first line of the first prompt of Mark (the title of a session that has none). */
+export type HeadFacts = { timestamp: string | null; prompt: string | null };
+
+/**
+ * Reads the first 16 KB of a file once, and gives the time of its first line that has one and the title that its first
+ * prompt gives (see `promptOf`: a prompt of Mark's in a `user` line, or queued as most real files begin). Null for each that
+ * the 16 KB do not hold.
+ *
+ * Many session files begin with one very long line: a `queue-operation` that holds the whole first prompt, which can be
+ * larger than 16 KB. That line cannot be read as JSON from a window that cuts it, but it names its time and begins its
+ * prompt before the long text, so both are read from the piece that is there. This holds for the piece of any line that the
+ * window cuts, which is always the last. A long line of another kind (an agent's prompt is a `user` line) names its time after
+ * its text, and says who wrote it after its text too, so it gives neither.
+ */
+export async function readHead(file: string): Promise<HeadFacts> {
   const handle = await open(file, 'r');
   let head: Buffer;
   try {
@@ -159,17 +204,30 @@ export async function readFirstTimestamp(file: string): Promise<string | null> {
   const segments = head.toString('utf8').split('\n');
   const last = segments.pop() ?? '';
   const lines = wholeFile && last !== '' ? [...segments, last] : segments;
-  for (const line of lines) {
-    const time = timeOf(parseLine(line));
-    if (time !== null) return time;
-  }
+  // The piece of a line that the window cut: it is what is after the last newline, unless the file ended inside the window.
+  const cut = wholeFile ? '' : last;
 
-  // The window is one line that is cut: the first line of the file is longer than it.
-  if (!wholeFile && segments.length === 0 && last.trimStart().startsWith('{')) {
-    const text = CUT_LINE_TIME.exec(last)?.[1];
-    if (text !== undefined && !Number.isNaN(Date.parse(text))) return text;
+  let timestamp: string | null = null;
+  let prompt: string | null = null;
+  for (const text of lines) {
+    const line = parseLine(text);
+    timestamp ??= timeOf(line);
+    prompt ??= promptOf(line);
+    if (timestamp !== null && prompt !== null) break;
   }
-  return null;
+  if (cut.trimStart().startsWith('{')) {
+    if (timestamp === null) {
+      const text = CUT_LINE_TIME.exec(cut)?.[1];
+      if (text !== undefined && !Number.isNaN(Date.parse(text))) timestamp = text;
+    }
+    prompt ??= cutLinePrompt(cut);
+  }
+  return { timestamp, prompt };
+}
+
+/** The time of the first line of a file that has one, from the first 16 KB (see `readHead`). Null when the first 16 KB hold none. */
+export async function readFirstTimestamp(file: string): Promise<string | null> {
+  return (await readHead(file)).timestamp;
 }
 
 /**

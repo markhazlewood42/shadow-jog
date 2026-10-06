@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { HEAD_MAX_BYTES, TAIL_MAX_BYTES, TAIL_START_BYTES, readFirstTimestamp, readSmallJson, readTail } from '../src/server/sessions/tail';
+import { HEAD_MAX_BYTES, TAIL_MAX_BYTES, TAIL_START_BYTES, readFirstTimestamp, readHead, readSmallJson, readTail } from '../src/server/sessions/tail';
 import { jsonl, lineOfSize, numberedLines } from './sessions-helpers';
 
 // The bounded reader of the sessions module. A session file can be 300 MB, so the module never reads
@@ -190,5 +190,105 @@ describe('readSmallJson', () => {
     expect(await readSmallJson(file('[1,2]'))).toBeNull();
     expect(await readSmallJson(file('"text"'))).toBeNull();
     expect(await readSmallJson(file(JSON.stringify({ pad: 'x'.repeat(200) })), 100)).toBeNull();
+  });
+});
+
+describe('readHead', () => {
+  const TIME = '2026-10-05T09:00:00.000Z';
+  const queued = (content: string, operation = 'enqueue', time = TIME) => JSON.stringify({ type: 'queue-operation', operation, timestamp: time, sessionId: 's', content });
+  const user = (content: unknown, extra: Record<string, unknown> = {}, time = TIME) => JSON.stringify({ type: 'user', timestamp: time, message: { role: 'user', content }, ...extra });
+  const head = (...lines: string[]) => `${lines.join('\n')}\n`;
+
+  it('gives the time of the first line that has one and the first line of the first prompt, from one read of the first 16 KB', async () => {
+    const first = file(head(JSON.stringify({ type: 'custom-title', customTitle: 'x' }), user('Make the widget round\nand blue', {}, '2026-10-05T10:00:00.000Z'), user('A later prompt')));
+    expect(await readHead(first)).toEqual({ timestamp: '2026-10-05T10:00:00.000Z', prompt: 'Make the widget round' });
+    // The time of readFirstTimestamp is the time of readHead.
+    expect(await readFirstTimestamp(first)).toBe('2026-10-05T10:00:00.000Z');
+    // A file with no prompt and no time gives both as null, and an empty file too.
+    expect(await readHead(file(head(JSON.stringify({ type: 'mode' }))))).toEqual({ timestamp: null, prompt: null });
+    expect(await readHead(file(''))).toEqual({ timestamp: null, prompt: null });
+  });
+
+  it('the first prompt is the first one of Mark: injected lines, tool results, task notifications, messages of other sessions and interrupts before it are skipped', async () => {
+    const path = file(
+      head(
+        user('injected text', { isMeta: true }),
+        JSON.stringify({ type: 'user', timestamp: TIME, message: { role: 'user', content: [{ type: 'tool_result', content: 'output' }] }, toolUseResult: {} }),
+        user('a task finished', { origin: { kind: 'task-notification' } }),
+        user('from another session', { origin: { kind: 'peer' } }),
+        user('[Request interrupted by user]'),
+        user('   '), // no words
+        user([{ type: 'image', source: {} }]), // a picture and no words
+        user('The first real prompt\nwith a second line'),
+        user('The second real prompt'),
+      ),
+    );
+    expect((await readHead(path)).prompt).toBe('The first real prompt');
+  });
+
+  it('a prompt that was queued is a prompt, and so is the first one in the file, whichever line holds it; a queued task notification is not one', async () => {
+    // Most real files begin with the prompt that started the session, queued, and its user line comes after it.
+    expect((await readHead(file(head(queued('The queued prompt\nsecond line'), queued('', 'dequeue'), user('The user line of the same prompt'))))).prompt).toBe('The queued prompt');
+    // The user line is first here.
+    expect((await readHead(file(head(user('The user line first'), queued('A queued prompt after it'))))).prompt).toBe('The user line first');
+    // A notification that a background task finished was queued; it is not Mark's prompt.
+    expect((await readHead(file(head(queued('<task-notification>a task finished</task-notification>'), queued('The real prompt'))))).prompt).toBe('The real prompt');
+    expect((await readHead(file(head(queued('<task-notification>only this</task-notification>'))))).prompt).toBeNull();
+  });
+
+  it('a queued prompt on a line that the 16 KB window cuts still gives its first line, and the time of that line', async () => {
+    // As in most real files: one first line that is longer than the window, because it holds the whole first prompt.
+    const long = (first: string) => queued(`${first}\nthe second line ${'x'.repeat(100 * 1024)}`);
+    const path = file(`${long('The first line of a long prompt')}\n${user('A user line far behind it')}\n`);
+    expect(await readHead(path)).toEqual({ timestamp: TIME, prompt: 'The first line of a long prompt' });
+
+    // The escapes of JSON in that first line are read: a quote, a backslash, a tab, a letter with an accent and a picture.
+    const escaped = file(`${long('Say "hi" to C:\\temp\tthen é and 🟢 now')}\n`);
+    expect((await readHead(escaped)).prompt).toBe('Say "hi" to C:\\temp then é and 🟢 now'); // the tab is white space, so it is one space
+
+    // The window cuts the first line itself (a prompt that is one long line): the title is its first 80 characters.
+    const oneLine = file(`${queued('One long line '.repeat(5000))}\n`);
+    expect((await readHead(oneLine)).prompt).toBe(`${'One long line '.repeat(6).slice(0, 79)}…`);
+  });
+
+  it('a window that ends inside an escape of the cut line does not lose the first line: the half escape at the cut is dropped', async () => {
+    const prefix = `{"type":"queue-operation","operation":"enqueue","timestamp":"${TIME}","sessionId":"s","content":"`;
+    const first = 'The title of the prompt';
+    // The escape \u001b has 6 characters. The window ends after 1, 2, 3, 4 or 5 of them.
+    for (let kept = 1; kept <= 5; kept += 1) {
+      const pad = HEAD_MAX_BYTES - kept - prefix.length - first.length - 2; // 2 for the \n after the first line
+      const line = `${prefix}${first}\\n${'x'.repeat(pad)}\\u001b${'y'.repeat(2000)}"}`;
+      expect(line.slice(HEAD_MAX_BYTES - kept, HEAD_MAX_BYTES - kept + 6)).toBe('\\u001b'); // the escape starts `kept` characters before the end of the window
+      expect((await readHead(file(`${line}\n`))).prompt, `kept ${kept}`).toBe(first);
+    }
+    // A lone backslash at the cut (the start of an escaped quote) too.
+    const pad = HEAD_MAX_BYTES - 1 - prefix.length - first.length - 2;
+    expect((await readHead(file(`${prefix}${first}\\n${'x'.repeat(pad)}\\"${'y'.repeat(2000)}"}\n`))).prompt).toBe(first);
+  });
+
+  it('a cut line that is not a queued prompt gives no prompt: a user line, a dequeue, a notification, a line that is not JSON', async () => {
+    const big = 'x'.repeat(100 * 1024);
+    expect((await readHead(file(`${user(`A user line that is cut ${big}`)}\n`))).prompt).toBeNull(); // the markers that say who wrote it come after the text
+    expect((await readHead(file(`${queued(`words ${big}`, 'dequeue')}\n`))).prompt).toBeNull();
+    expect((await readHead(file(`${queued(`<task-notification>${big}</task-notification>`)}\n`))).prompt).toBeNull();
+    expect((await readHead(file(`{"type":"queue-operation","operation":"enqueue" this is not json ${big}\n`))).prompt).toBeNull();
+    expect((await readHead(file(`not json at all ${big}\n`))).prompt).toBeNull();
+  });
+
+  it('only the first 16 KB are looked at: a prompt behind them is not found', async () => {
+    const filler = `${Array.from({ length: 20 }, () => lineOfSize(1024, { type: 'mode' })).join('\n')}\n`; // 20 KB of notes
+    expect((await readHead(file(`${filler}${user('A prompt behind 20 KB of notes')}\n`))).prompt).toBeNull();
+    const near = `${Array.from({ length: 5 }, () => lineOfSize(1024, { type: 'mode' })).join('\n')}\n`;
+    expect((await readHead(file(`${near}${user('A prompt behind 5 KB of notes')}\n`))).prompt).toBe('A prompt behind 5 KB of notes');
+  });
+
+  it('the time comes from the piece of a line that the window cut, also when that line is not the first', async () => {
+    const cutLine = queued(`words ${'x'.repeat(100 * 1024)}`, 'enqueue', '2026-10-05T08:30:00.000Z');
+    // A first line that is whole and has no time, then a long line that names its time before its words.
+    const path = file(`${JSON.stringify({ type: 'custom-title', customTitle: 'x' })}\n${cutLine}\n`);
+    expect((await readHead(path)).timestamp).toBe('2026-10-05T08:30:00.000Z');
+    // A whole line with a time is used before the piece of a cut one.
+    const both = file(`${user('hello', {}, '2026-10-05T07:00:00.000Z')}\n${cutLine}\n`);
+    expect((await readHead(both)).timestamp).toBe('2026-10-05T07:00:00.000Z');
   });
 });

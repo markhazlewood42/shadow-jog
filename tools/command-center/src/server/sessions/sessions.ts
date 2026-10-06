@@ -23,7 +23,7 @@ import {
   readTitles,
   workflowStateOf,
 } from './parse';
-import { TAIL_MAX_BYTES, readFirstTimestamp, readSmallJson, readTail } from './tail';
+import { TAIL_MAX_BYTES, readFirstTimestamp, readHead, readSmallJson, readTail } from './tail';
 
 // The sessions module: the Claude Code sessions about Shadow Jog, with their agents and workflows.
 //
@@ -33,8 +33,9 @@ import { TAIL_MAX_BYTES, readFirstTimestamp, readSmallJson, readTail } from './t
 // - reads only the folders that the config names, one by one (discover.ts);
 // - reads the end of a file, and the first 16 KB for the time it began (tail.ts), never the whole file;
 // - reads a file again only when its size or its time of last write changed;
-// - lets only a few small things of a conversation into the answer: the title of a session, the lines
-//   of a "Your move" box and the description of an agent. Every other word stays in the file.
+// - lets only a few small things of a conversation into the answer: the title of a session (the first line of its
+//   first prompt, when it has no title of its own), the lines of a "Your move" box and the description of an agent.
+//   Every other word stays in the file.
 
 /** How often the module looks again: the sessions are the one source that changes all the time. A look reads no file that did not change. */
 export const SESSIONS_POLL_MS = 10_000;
@@ -108,6 +109,8 @@ type SessionFacts = {
   branch: string;
   titles: ReturnType<typeof readTitles>;
   firstTime: string | null;
+  /** The first line of the first prompt of Mark, cut to 80 characters: the title of a session that has none of its own. */
+  firstPrompt: string | null;
   prs: SessionInfo['prs'];
   yourMove: YourMoveBox | null;
   activity: Activity;
@@ -170,13 +173,14 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
   async function readSession(file: SessionFile): Promise<SessionFacts> {
     return memoRead(file, async () => {
       // The window grows until a line of the conversation that has a working folder is in it: the end of an idle session is notes
-      // that have none, and attachments after the last reply can be big.
-      const [{ lines }, firstTime] = await Promise.all([readTail(file.path, { until: hasConversationCwd }), readFirstTimestamp(file.path)]);
+      // that have none, and attachments after the last reply can be big. The first 16 KB give when the session began and its first prompt.
+      const [{ lines }, head] = await Promise.all([readTail(file.path, { until: hasConversationCwd }), readHead(file.path)]);
       return {
         cwd: newestCwd(lines),
         branch: newestBranch(lines) ?? '',
         titles: readTitles(lines),
-        firstTime,
+        firstTime: head.timestamp,
+        firstPrompt: head.prompt,
         prs: extractPrs(lines, config.githubRepo),
         yourMove: extractYourMove(lines, config.roots),
         activity: readActivity(lines),
@@ -287,7 +291,8 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
     // The session is as recent as the newest write for it. A session that waits for a workflow writes nothing itself.
     const writes = [file, ...tree.agents, ...tree.workflows.flatMap(stampsOfRun)];
     const lastWriteMs = Math.max(...writes.map((stamp) => stamp.mtimeMs));
-    const title = facts.titles.custom ?? (await readTitleFile(file)) ?? facts.titles.agent ?? facts.titles.slug ?? `Session ${file.id.slice(0, 8)}`;
+    // The name that Mark gave it, else the name of its agent, else the first line of its first prompt, else the slug that Claude Code made up, else its id (ruling R17).
+    const title = facts.titles.custom ?? (await readTitleFile(file)) ?? facts.titles.agent ?? facts.firstPrompt ?? facts.titles.slug ?? `Session ${file.id.slice(0, 8)}`;
 
     return {
       id: file.id,

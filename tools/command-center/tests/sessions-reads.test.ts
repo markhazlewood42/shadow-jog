@@ -192,8 +192,8 @@ describe('a window that grows', () => {
 });
 
 describe('a file that did not change is not read again', () => {
-  /** How many files the first look opens: 8 session files (every recent file of the two folders is read, to find its cwd), 5 agent files and their 5 metas and the journal of the run in S1, S3's custom-title.json, and the agent, its meta and the journal in S6. */
-  const FILES_OF_THE_FIRST_LOOK = 8 + 5 + 5 + 1 + 1 + 3;
+  /** How many files the first look opens: 10 session files (every recent file of the two folders is read, to find its cwd), 5 agent files and their 5 metas and the journal of the run in S1, S3's custom-title.json, and the agent, its meta and the journal in S6. */
+  const FILES_OF_THE_FIRST_LOOK = 10 + 5 + 5 + 1 + 1 + 3;
 
   it('an unchanged file is not read again', async () => {
     const projects = copyClaudeFixtures(join(parent, 'unchanged'));
@@ -297,14 +297,14 @@ describe('a file that cannot be read', () => {
     const projects = copyClaudeFixtures(join(parent, 'locked-session'));
     spy.failures.set(sessionPath(projects, WHOLE_FOLDER, S3), 'EBUSY');
     const info = await loadOnce(projects);
-    expect(info.sessions.map((session) => session.id.slice(0, 8))).toEqual(['11111111', '44444444', '55555555', '66666666']);
-    expect(info).toMatchObject({ scanned: 8, skipped: 4 }); // S2, S7 and S8 are outside the project, and S3 could not be read
+    expect(info.sessions.map((session) => session.id.slice(0, 8))).toEqual(['11111111', '44444444', '55555555', '66666666', 'a1a1a1a1', 'b2b2b2b2']);
+    expect(info).toMatchObject({ scanned: 10, skipped: 4 }); // S2, S7 and S8 are outside the project, and S3 could not be read
   });
 
   it('when no session file can be read the panel is an error that names the error code and no path', async () => {
     const projects = copyClaudeFixtures(join(parent, 'locked-all'));
     for (const folder of [WHOLE_FOLDER, MIXED_FOLDER]) {
-      for (const id of [S1, S2, S3, '44444444-4444-4444-8444-444444444444', '55555555-5555-4555-8555-555555555555', '66666666-6666-4666-8666-666666666666', '77777777-7777-4777-8777-777777777777', '88888888-8888-4888-8888-888888888888']) {
+      for (const id of [S1, S2, S3, '44444444-4444-4444-8444-444444444444', '55555555-5555-4555-8555-555555555555', '66666666-6666-4666-8666-666666666666', '77777777-7777-4777-8777-777777777777', '88888888-8888-4888-8888-888888888888', 'a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1', 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2']) {
         spy.failures.set(sessionPath(projects, folder, id), 'EBUSY');
       }
     }
@@ -339,8 +339,9 @@ describe('a file that cannot be read', () => {
       // The run has a journal that could not be read: it says nothing, and the run is unknown (its agents are still listed).
       expect(s1?.workflows[0]).toMatchObject({ id: RUN1, state: 'unknown', started: 0, done: 0, phases: [] });
       expect(s1?.agents.filter((agent) => agent.workflowId === RUN1)).toHaveLength(3);
-      // The title file could not be read: the session has no title from it.
-      expect(first.data.sessions.find((session) => session.id === S3)?.title).toBe('Session 33333333');
+      // The title file could not be read: the session has no title from it, so it falls to the first line of its first prompt. (The first prompt of
+      // this fixture is a LEAK marker because in every other test the title of the json file wins over it.)
+      expect(first.data.sessions.find((session) => session.id === S3)?.title).toBe('LEAK-box-session-prompt');
 
       // The console said so, once for each file, and not again at the next look.
       expect(complaints).toHaveBeenCalledTimes(4);

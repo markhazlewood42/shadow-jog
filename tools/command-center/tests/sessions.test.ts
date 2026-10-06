@@ -6,7 +6,7 @@ import { createHub } from '../src/server/hub';
 import type { Config } from '../src/server/config';
 import { SESSIONS_POLL_MS, createLimiter, createSessionsSource } from '../src/server/sessions/sessions';
 import type { ChangeEvent, SessionInfo, SessionsInfo } from '../src/shared/types';
-import { CLAUDE_FIXTURES, INSIDE, MIXED_FOLDER, NOW, WHOLE_FOLDER, assistantText, assistantToolUse, at, attachment, box, copyClaudeFixtures, jsonl, lastPrompt, sessionsConfig, setAge, toolResult, userPrompt, writeAged } from './sessions-helpers';
+import { CLAUDE_FIXTURES, INSIDE, MIXED_FOLDER, NOW, WHOLE_FOLDER, agentName, assistantText, assistantToolUse, at, attachment, box, copyClaudeFixtures, customTitle, jsonl, lastPrompt, sessionsConfig, setAge, toolResult, userPrompt, writeAged } from './sessions-helpers';
 
 // The sessions module over the synthetic Claude folders of fixtures/claude/projects (see
 // tests/sessions-helpers.ts). The fixtures are copied for each test and their times of last write are set
@@ -25,6 +25,8 @@ const S6 = '66666666-6666-4666-8666-666666666666'; // in the mixed folder, and i
 const S7 = '77777777-7777-4777-8777-777777777777'; // in the mixed folder, and it works elsewhere
 const S8 = '88888888-8888-4888-8888-888888888888'; // in the mixed folder, no line has a cwd
 const S9 = '99999999-9999-4999-8999-999999999999'; // in a folder that only shares a name prefix
+const S10 = 'a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1'; // no title of its own: the first line of its first prompt is its title
+const S11 = 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2'; // no title of its own, and its first prompt was queued
 const RUN1 = 'wf_00000001-aaa';
 const RUN2 = 'wf_00000002-bbb';
 
@@ -78,10 +80,12 @@ describe('which sessions are listed', () => {
       [S4, WHOLE_FOLDER, 'folder'],
       [S5, WHOLE_FOLDER, 'folder'],
       [S6, MIXED_FOLDER, 'cwd'],
+      [S10, WHOLE_FOLDER, 'folder'],
+      [S11, WHOLE_FOLDER, 'folder'],
     ]);
-    // Eight files of the two named folders were looked at. Three are left out: S2 (its newest cwd is outside, though it began inside),
+    // Ten files of the two named folders were looked at. Three are left out: S2 (its newest cwd is outside, though it began inside),
     // S7 (it works elsewhere) and S8 (a mixed folder, and nothing says where it works). The folder that only shares a name prefix was not read.
-    expect(info.scanned).toBe(8);
+    expect(info.scanned).toBe(10);
     expect(info.skipped).toBe(3);
     expect(info.sessions.map((session) => session.id)).not.toContain(S2);
   });
@@ -114,8 +118,8 @@ describe('which sessions are listed', () => {
   it('a session whose file is older than the week is left out, and the week is the config setting', async () => {
     const week = 604_800;
     const { info } = await load({ ages: { [`${WHOLE_FOLDER}/${S3}.jsonl`]: week + 1, [`${WHOLE_FOLDER}/${S4}.jsonl`]: week - 1 } });
-    expect(info.sessions.map((session) => session.id)).toEqual([S1, S5, S6, S4]); // S4 was written the longest ago
-    expect(info.scanned).toBe(7);
+    expect(info.sessions.map((session) => session.id)).toEqual([S1, S5, S6, S10, S11, S4]); // S4 was written the longest ago
+    expect(info.scanned).toBe(9);
     const short = await load({ claude: { recentSeconds: 30 } });
     expect(short.info).toEqual({ sessions: [], scanned: 0, skipped: 0 });
   });
@@ -125,8 +129,8 @@ describe('which sessions are listed', () => {
       ages: { [`${WHOLE_FOLDER}/${S1}.jsonl`]: 3000, [`${WHOLE_FOLDER}/${S3}.jsonl`]: 20, [`${WHOLE_FOLDER}/${S4}.jsonl`]: 7000, [`${MIXED_FOLDER}/${S6}.jsonl`]: 500 },
     });
     // S1 has agents that were written a minute ago, and the session is as recent as them.
-    // S3 was written 20 s ago. S1, S5 and S6 have something that was written 60 s ago (an agent file, for S1 and S6), and come by id. S4 is the oldest.
-    expect(info.sessions.map((session) => session.id)).toEqual([S3, S1, S5, S6, S4]);
+    // S3 was written 20 s ago. S1, S5, S6, S10 and S11 have something that was written 60 s ago (an agent file, for S1 and S6), and come by id. S4 is the oldest.
+    expect(info.sessions.map((session) => session.id)).toEqual([S3, S1, S5, S6, S10, S11, S4]);
     expect(find(info, S1).lastActivityAt).toBe(at(-60)); // not 3000 seconds ago: its agent files are newer
     expect(find(info, S3).lastActivityAt).toBe(at(-20));
     expect(find(info, S4).lastActivityAt).toBe(at(-7000));
@@ -172,24 +176,74 @@ describe('what a session says', () => {
     for (const each of info.sessions) expect(keys(each)).toEqual(keys(session));
   });
 
-  it('the title is the custom title of the file, else the custom-title.json next to it, else the agent name, else the slug, else the id', async () => {
+  it('the title is the custom title of the file, else the custom-title.json next to it, else the agent name, else the first line of the first prompt, else the slug, else the id', async () => {
     const { info } = await load();
-    expect(find(info, S1).title).toBe('ALLOWED-title-from-the-line');
+    expect(find(info, S1).title).toBe('ALLOWED-title-from-the-line'); // a custom title line beats its agent name and everything below
     expect(find(info, S3).title).toBe('ALLOWED-title-from-the-json-file'); // no title line: custom-title.json
     expect(find(info, S4).title).toBe('ALLOWED-title-of-the-session-with-no-cwd');
-    expect(find(info, S5).title).toBe('Session 55555555'); // nothing names it
+    // No title of its own, so the first line of the first prompt of Mark, with the white space collapsed. The injected line, the notification of a
+    // task and the message of another session that come before it are not prompts, and the second line and the later prompts are never in the answer.
+    expect(find(info, S10).title).toBe('ALLOWED-title-from-the-first-prompt with spaces');
+    // Its first prompt was queued, behind a queued notification of a task, and wrapped in a tag of a scheduler: the title is the first line of the words.
+    expect(find(info, S11).title).toBe('ALLOWED-title-from-the-queued-prompt');
+    expect(find(info, S5).title).toBe('Session 55555555'); // nothing names it, and it has no prompt
+  });
 
-    // The agent name and the slug come next. A title line beats a custom-title.json, which beats the agent name.
+  it('each step of the order beats the one below it: custom title, custom-title.json, agent name, first prompt, slug, id', async () => {
     const projects = freshProjects();
     const whole = join(projects, WHOLE_FOLDER);
-    writeAged(join(whole, 'aaaaaaaa-0000-4000-8000-000000000001.jsonl'), jsonl([userPrompt('x'), assistantText('y'), { type: 'agent-name', agentName: 'Only an agent name' }]));
-    writeAged(join(whole, 'aaaaaaaa-0000-4000-8000-000000000002.jsonl'), jsonl([{ ...userPrompt('x'), slug: 'a-made-up-slug' }, assistantText('y')]));
-    writeAged(join(whole, 'aaaaaaaa-0000-4000-8000-000000000003.jsonl'), jsonl([userPrompt('x'), assistantText('y'), { type: 'agent-name', agentName: 'Loses to the json' }]));
-    writeAged(join(whole, 'aaaaaaaa-0000-4000-8000-000000000003', 'custom-title.json'), '{"customTitle":"Wins over the agent name"}');
-    const named = await load({ projects });
-    expect(find(named.info, 'aaaaaaaa-0000-4000-8000-000000000001').title).toBe('Only an agent name');
-    expect(find(named.info, 'aaaaaaaa-0000-4000-8000-000000000002').title).toBe('a-made-up-slug');
-    expect(find(named.info, 'aaaaaaaa-0000-4000-8000-000000000003').title).toBe('Wins over the agent name');
+    const slugged = (line: Record<string, unknown>) => ({ ...line, slug: 'a-made-up-slug' });
+    const prompt = () => slugged(userPrompt('The first prompt of the session\nand its second line'));
+    const id = (n: number) => `dddddddd-1010-4000-8000-${String(n).padStart(12, '0')}`;
+    // Six sessions. Each has everything below its own step, and nothing above it.
+    writeAged(join(whole, `${id(1)}.jsonl`), jsonl([prompt(), assistantText('y'), agentName('The agent name'), customTitle('The custom title')]));
+    writeAged(join(whole, `${id(2)}.jsonl`), jsonl([prompt(), assistantText('y'), agentName('The agent name')]));
+    writeAged(join(whole, id(2), 'custom-title.json'), '{"customTitle":"The title in the json file"}');
+    writeAged(join(whole, `${id(3)}.jsonl`), jsonl([prompt(), assistantText('y'), agentName('The agent name')]));
+    writeAged(join(whole, `${id(4)}.jsonl`), jsonl([prompt(), assistantText('y')]));
+    writeAged(join(whole, `${id(5)}.jsonl`), jsonl([slugged(assistantText('A reply with no prompt before it'))])); // no prompt of Mark's, but a slug
+    writeAged(join(whole, `${id(6)}.jsonl`), jsonl([assistantText('A reply with no prompt before it and no slug')]));
+    const { info } = await load({ projects });
+    expect([1, 2, 3, 4, 5, 6].map((n) => find(info, id(n)).title)).toEqual([
+      'The custom title',
+      'The title in the json file',
+      'The agent name',
+      'The first prompt of the session',
+      'a-made-up-slug',
+      'Session dddddddd',
+    ]);
+  });
+
+  it('the title is the first prompt and stays so: a prompt that Mark types later, and a longer prompt, change nothing', async () => {
+    const projects = freshProjects();
+    const file = join(projects, WHOLE_FOLDER, 'dddddddd-1020-4000-8000-000000000001.jsonl');
+    writeAged(file, jsonl([userPrompt('   Make   the  widgets round  '), assistantText('Done.')]));
+    expect(find((await load({ projects })).info, 'dddddddd-1020-4000-8000-000000000001').title).toBe('Make the widgets round');
+    appendFileSync(file, jsonl([userPrompt('LEAK-a-later-prompt-of-mark'), assistantText('Done again.')]));
+    setAge(file, 30);
+    const later = await load({ projects });
+    expect(find(later.info, 'dddddddd-1020-4000-8000-000000000001').title).toBe('Make the widgets round');
+    expect(JSON.stringify(later.info)).not.toContain('LEAK-a-later-prompt-of-mark');
+  });
+
+  it('a title that is a prompt is at most 80 characters, cut with an ellipsis', async () => {
+    const projects = freshProjects();
+    writeAged(join(projects, WHOLE_FOLDER, 'dddddddd-1030-4000-8000-000000000001.jsonl'), jsonl([userPrompt(`${'A very long first line '.repeat(30)}\nsecond line`), assistantText('Done.')]));
+    const { title } = find((await load({ projects })).info, 'dddddddd-1030-4000-8000-000000000001');
+    expect([...title]).toHaveLength(80);
+    expect(title.startsWith('A very long first line A very long first line')).toBe(true);
+    expect(title.endsWith('…')).toBe(true);
+  });
+
+  it('a first prompt that was queued on a line longer than the 16 KB head still gives the title, the time the session began, and the state', async () => {
+    // As in most real files: the first line holds the whole first prompt, queued, and is far longer than the head.
+    const projects = freshProjects();
+    const id = 'dddddddd-1040-4000-8000-000000000001';
+    const first = JSON.stringify({ type: 'queue-operation', operation: 'enqueue', timestamp: '2026-10-06T09:30:00.000Z', sessionId: id, content: `The prompt that began it\n${'LEAK-the-rest-of-it '.repeat(5000)}` });
+    writeAged(join(projects, WHOLE_FOLDER, `${id}.jsonl`), `${first}\n${jsonl([userPrompt('LEAK-the-same-prompt-as-a-user-line', { time: '2026-10-06T09:30:01.000Z' }), assistantText('Done.', { time: '2026-10-06T09:40:00.000Z' })])}`);
+    const loaded = await load({ projects });
+    expect(find(loaded.info, id)).toMatchObject({ title: 'The prompt that began it', startedAt: '2026-10-06T09:30:00.000Z', state: 'waiting' });
+    expect(JSON.stringify(loaded.info)).not.toContain('LEAK-');
   });
 
   it('a box written while cwd was outside a root is not the box of the session: the last box inside is', async () => {
@@ -378,12 +432,32 @@ describe('what may leave the files', () => {
     // The scan can fail: the same check finds a marker when one is there.
     expect(leaks.filter((marker) => `${text} LEAK-first-user-prompt`.includes(marker))).toEqual(['LEAK-first-user-prompt']);
 
+    // Ruling R17: the first line of the first prompt may be a title, and nothing else of any prompt may. The fixtures of the two sessions that get
+    // such a title (S10 and S11) hold, besides that line: the second line of the prompt, a later prompt, the user line that follows a queued prompt,
+    // and the lines before the first prompt that are not a prompt of Mark's (an injected line, a notification, a message of another session).
+    const aboutPrompts = [
+      'LEAK-second-line-of-the-first-prompt',
+      'LEAK-later-prompt',
+      'LEAK-reply-to-the-later-prompt',
+      'LEAK-second-line-of-the-queued-prompt',
+      'LEAK-user-line-after-the-queued-prompt',
+      'LEAK-queued-notification-text',
+      'LEAK-injected-text-before-the-first-prompt',
+      'LEAK-notification-text-before-the-first-prompt',
+      'LEAK-peer-text-before-the-first-prompt',
+    ];
+    expect(aboutPrompts.filter((marker) => !leaks.includes(marker))).toEqual([]); // each is in the fixtures, so the scan above covers it
+    expect(aboutPrompts.filter((marker) => text.includes(marker))).toEqual([]);
+    expect(text).toContain('ALLOWED-title-from-the-first-prompt with spaces'); // and the title of S10 is in the answer
+
     // What may be in it is: the titles of the sessions that were listed, the lines of their boxes, and the descriptions of their agents.
     const allowedHere = [
       'ALLOWED-title-from-the-line',
       'ALLOWED-title-from-the-json-file',
       'ALLOWED-title-of-the-session-with-no-cwd',
       'ALLOWED-title-of-the-home-base-session',
+      'ALLOWED-title-from-the-first-prompt', // a title may be the first line of the first prompt (ruling R17)
+      'ALLOWED-title-from-the-queued-prompt',
       'ALLOWED-item-review-the-diff',
       'ALLOWED-item-tell-me-to-commit',
       'ALLOWED-item-the-box-written-inside',
@@ -513,7 +587,7 @@ describe('a file that is not what it should be', () => {
     expect(broken.error.code).toBe('sessions-unknown-format');
     expect(broken.error.message).toContain('unknown file format');
     expect(broken.error.message).not.toContain('LEAK-new-format');
-    expect(broken.lastGood?.data.sessions.length).toBe(5); // the page still has the last list to show under the error
+    expect(broken.lastGood?.data.sessions.length).toBe(7); // the page still has the last list to show under the error
   });
 
   it('a folder that cannot be read is an error that names the folder and no path', async () => {
@@ -621,13 +695,13 @@ describe('the source', () => {
   it('an answer is a Panel: the data, and the time it was made', async () => {
     const { source } = await load();
     const panel = await source.get();
-    expect(panel).toMatchObject({ ok: true, data: { scanned: 8, skipped: 3 } });
+    expect(panel).toMatchObject({ ok: true, data: { scanned: 10, skipped: 3 } });
     expect(Number.isNaN(Date.parse(panel.updatedAt ?? ''))).toBe(false);
   });
 
-  it('the fixtures are what the tests say they are: eight files in the two named folders, and a ninth in a folder that is not named', () => {
+  it('the fixtures are what the tests say they are: ten files in the two named folders, and one more in a folder that is not named', () => {
     const count = (folder: string) => readdirSync(join(CLAUDE_FIXTURES, folder)).filter((name) => name.endsWith('.jsonl')).length;
-    expect([count(WHOLE_FOLDER), count(MIXED_FOLDER), count('fixture-shadow-jog-old')]).toEqual([5, 3, 1]);
+    expect([count(WHOLE_FOLDER), count(MIXED_FOLDER), count('fixture-shadow-jog-old')]).toEqual([7, 3, 1]);
     expect(statSync(join(CLAUDE_FIXTURES, 'fixture-shadow-jog-old', `${S9}.jsonl`)).isFile()).toBe(true);
   });
 });

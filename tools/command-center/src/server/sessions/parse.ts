@@ -143,6 +143,63 @@ export function readTitles(lines: readonly unknown[]): { custom: string | null; 
   };
 }
 
+// ---- the first prompt, as a title ----
+// Most sessions have no title of their own (a title is only stored when Mark renames a session), so a session
+// that has none is titled by the first line of the first prompt that Mark gave it (ruling R17). It is the one
+// piece of the conversation that goes into an answer besides the box and the description of an agent. Only
+// that first line goes, cut to 80 characters: the rest of the prompt, and every later prompt, stay in the file.
+
+const MAX_PROMPT_TITLE_CHARS = 80;
+
+/** One tag around a whole line: `<name ...>words</name>`. Group 2 is the words. */
+const WRAPPED_LINE = /^<([A-Za-z][\w:-]*)(?:\s[^<>]*)?>(.*)<\/\1>$/;
+
+/** A line that is only a tag: `<name ...>`, `</name>` or `<name/>`. */
+const TAG_ONLY = /^<\/?[A-Za-z][\w:-]*(?:\s[^<>]*)?\/?>$/;
+
+/** The text of a message that a background task queued when it finished. It is not a prompt of Mark's. */
+const QUEUED_NOTIFICATION = /^\s*<task-notification/;
+
+/**
+ * The title that a text of a prompt gives: its first line that has words, with the white space collapsed and at
+ * most 80 characters (cut with an ellipsis). A line that is only markup is left out (a scheduler wraps its prompt
+ * in a tag of its own, and a pasted block starts with one), and one tag around a whole line gives its words
+ * (`<command-message>dream</command-message>` is "dream"). Any other text with a `<` in it is text.
+ * Null when the text has no words.
+ */
+export function titleFromPrompt(text: string): string | null {
+  for (const raw of text.split(/\r?\n/)) {
+    let line = raw.trim();
+    const wrapped = WRAPPED_LINE.exec(line);
+    if (wrapped !== null) line = (wrapped[2] ?? '').trim();
+    if (line === '' || TAG_ONLY.test(line)) continue;
+    return clipText(line.replace(/\s+/g, ' '), MAX_PROMPT_TITLE_CHARS);
+  }
+  return null;
+}
+
+/**
+ * The title that the content of a queued message gives, when it is a prompt. Most real session files begin with the
+ * prompt that started the session, queued (`queue-operation`, `enqueue`), and its `user` line comes after it, so this
+ * is where the first prompt is. A queued notification of a background task is not a prompt.
+ */
+export function queuedPromptTitle(content: string): string | null {
+  return QUEUED_NOTIFICATION.test(content) ? null : titleFromPrompt(content);
+}
+
+/**
+ * The title that one line gives as a prompt of Mark's, or null: the words of a `user` line that is a prompt of his (see
+ * `isHumanPrompt`: not an injected line, a tool result, a notification, a message of another session or an interrupt), or the
+ * content of a queued prompt. Only text counts: a prompt that is a picture gives none.
+ */
+export function promptOf(line: unknown): string | null {
+  if (!isLine(line)) return null;
+  if (line.type === 'queue-operation') {
+    return line.operation === 'enqueue' && typeof line.content === 'string' ? queuedPromptTitle(line.content) : null;
+  }
+  return isHumanPrompt(line) ? titleFromPrompt(textsOf(line).join('\n')) : null;
+}
+
 /** An address that a page may link to: http or https. Anything else (a `javascript:` address) is not. */
 function webAddress(value: unknown): string | null {
   if (typeof value !== 'string') return null;

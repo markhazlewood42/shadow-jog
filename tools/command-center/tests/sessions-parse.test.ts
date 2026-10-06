@@ -14,9 +14,11 @@ import {
   lastDecisiveTime,
   newestBranch,
   newestCwd,
+  promptOf,
   readActivity,
   readJournal,
   readTitles,
+  titleFromPrompt,
   workflowStateOf,
 } from '../src/server/sessions/parse';
 import {
@@ -452,5 +454,75 @@ describe('the journal of a workflow, and the states of agents and workflows', ()
     expect(lastDecisiveTime(lines)).toBe(at(-40));
     expect(lastDecisiveTime([lastPrompt(), attachment('x')])).toBeNull();
     expect(lastDecisiveTime([{ type: 'assistant', timestamp: 'not a time' }])).toBeNull();
+  });
+});
+
+describe('the first prompt as a title', () => {
+  it('titleFromPrompt: the first line of the text, with the white space collapsed and no blank line before it', () => {
+    expect(titleFromPrompt('Fix the   widget \t colours\nand then the second line')).toBe('Fix the widget colours');
+    expect(titleFromPrompt('\n\n   First real line  \nSecond')).toBe('First real line');
+    expect(titleFromPrompt('A line that ends in CRLF\r\nThe second line')).toBe('A line that ends in CRLF');
+    // Markdown stays as it was written: the page shows it as text.
+    expect(titleFromPrompt('# A heading with `code`')).toBe('# A heading with `code`');
+    expect(titleFromPrompt('')).toBeNull();
+    expect(titleFromPrompt('  \n \t \n')).toBeNull();
+  });
+
+  it('titleFromPrompt: at most 80 characters, cut with an ellipsis, counted in characters and not in code units', () => {
+    const title = titleFromPrompt('word '.repeat(60)) as string;
+    expect([...title]).toHaveLength(80);
+    expect(title.endsWith('…')).toBe(true);
+    expect(title.startsWith('word word word')).toBe(true);
+    // 80 characters stay whole, 81 are cut to 79 and the ellipsis.
+    expect(titleFromPrompt('x'.repeat(80))).toBe('x'.repeat(80));
+    expect(titleFromPrompt('x'.repeat(81))).toBe(`${'x'.repeat(79)}…`);
+    // A picture is one character, though it is two code units: the cut never lands inside one.
+    expect(titleFromPrompt('🟢'.repeat(100))).toBe(`${'🟢'.repeat(79)}…`);
+  });
+
+  it('titleFromPrompt: a line that is only markup is left out, and the words of a line that one tag wraps are used', () => {
+    // A scheduler wraps its prompt in a tag of its own: the first line is the tag, the second is the words.
+    expect(titleFromPrompt('<scheduled-task name="weekly" file="weekly.md">\nRun the weekly check\n</scheduled-task>')).toBe('Run the weekly check');
+    expect(titleFromPrompt('<pasted_content>\nthe first line of what was pasted')).toBe('the first line of what was pasted');
+    // A slash command is written as one line with its name in a tag.
+    expect(titleFromPrompt('<command-message>dream</command-message>\n<command-name>/dream</command-name>')).toBe('dream');
+    // Text that has a < or a > in it is not markup: only a whole line that is a tag, or one tag around a line, is.
+    expect(titleFromPrompt('Fix the Map<string, number> typing')).toBe('Fix the Map<string, number> typing');
+    expect(titleFromPrompt('when a < b and c > d, stop')).toBe('when a < b and c > d, stop');
+    expect(titleFromPrompt('<only-a-tag>')).toBeNull();
+    expect(titleFromPrompt('<a>\n</a>\n   \n')).toBeNull();
+  });
+
+  it('promptOf: a user line of Mark gives its first line, and an injected line, a tool result, a task notification, a message of another session and an interrupt give none', () => {
+    expect(promptOf(userPrompt('Make the title\nand more'))).toBe('Make the title');
+    expect(promptOf(userPrompt('Typed by Mark', {}, { origin: { kind: 'human' } }))).toBe('Typed by Mark'); // a newer file says so; an older one has no origin
+    expect(promptOf(userPrompt('injected', {}, { isMeta: true }))).toBeNull();
+    expect(promptOf(toolResult('output'))).toBeNull();
+    expect(promptOf(taskNotification('a task finished'))).toBeNull();
+    expect(promptOf(userPrompt('from a peer', {}, { origin: { kind: 'peer' } }))).toBeNull();
+    expect(promptOf(userPrompt('[Request interrupted by user]'))).toBeNull();
+    expect(promptOf({ ...toolResult('x'), toolEndsTurn: true })).toBeNull();
+  });
+
+  it('promptOf: a prompt that was queued gives its first line, and a queued notification of a task does not', () => {
+    const queued = (content: unknown, operation = 'enqueue') => ({ type: 'queue-operation', operation, timestamp: at(0), sessionId: 's', content });
+    expect(promptOf(queued('The queued prompt\nand its second line'))).toBe('The queued prompt');
+    expect(promptOf(queued('<task-notification>LEAK a task finished</task-notification>'))).toBeNull();
+    expect(promptOf(queued('  <task-notification>indented</task-notification>'))).toBeNull();
+    expect(promptOf(queued('<scheduled-task name="x">\nThe words of the task\n</scheduled-task>'))).toBe('The words of the task');
+    // Only an enqueue holds a prompt: a dequeue and a remove hold none, and a queued value that is not text is none.
+    expect(promptOf(queued('The prompt', 'dequeue'))).toBeNull();
+    expect(promptOf(queued('The prompt', 'remove'))).toBeNull();
+    expect(promptOf(queued(42))).toBeNull();
+    expect(promptOf(queued(undefined))).toBeNull();
+  });
+
+  it('promptOf: only text counts: the text blocks of a prompt, none for a prompt that is a picture, and none for any other line', () => {
+    const blocks = (...content: unknown[]) => ({ ...userPrompt(''), message: { role: 'user', content } });
+    expect(promptOf(blocks({ type: 'image', source: {} }, { type: 'text', text: 'Look at this\nplease' }))).toBe('Look at this');
+    expect(promptOf(blocks({ type: 'text', text: '  ' }, { type: 'text', text: 'The second block' }))).toBe('The second block');
+    expect(promptOf(blocks({ type: 'image', source: {} }))).toBeNull();
+    expect(promptOf(blocks())).toBeNull();
+    for (const line of [assistantText('A reply'), attachment('x'), systemLine(), lastPrompt('x'), customTitle('x'), 42, 'text', null, [1], {}]) expect(promptOf(line)).toBeNull();
   });
 });

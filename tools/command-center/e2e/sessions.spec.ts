@@ -53,11 +53,12 @@ test.describe('the sessions route', () => {
 
   test('lists a session that works in the repo, with its agent, and no session that works elsewhere', async ({ request }) => {
     const box = '🟡 Two files changed.\n\n---\n### 👉 Your move\n- [ ] Review the diff\n- [ ] Tell me to commit';
-    writeLines(join(WHOLE, `${ID(1)}.jsonl`), [user('LEAK-e2e-prompt', REPO), reply(box, REPO)]);
+    // Neither session has a title of its own, so each is titled by the first line of its first prompt (and nothing else of its prompts).
+    writeLines(join(WHOLE, `${ID(1)}.jsonl`), [user('E2E title of the first session\nLEAK-e2e-second-line', REPO), reply(box, REPO)]);
     writeLines(join(WHOLE, ID(1), 'subagents', 'agent-e2e0001.jsonl'), [user('LEAK-e2e-agent-prompt', REPO, 25), reply('LEAK-e2e-agent-reply', REPO, 15)]);
     writeFileSync(join(WHOLE, ID(1), 'subagents', 'agent-e2e0001.meta.json'), JSON.stringify({ agentType: 'general-purpose', description: 'Explore the fixture', model: 'sonnet' }));
     // The mixed folder keeps a session by its working folder alone.
-    writeLines(join(MIXED, `${ID(2)}.jsonl`), [user('LEAK-e2e-home', REPO), reply('Done.', REPO)]); // inside the root: kept
+    writeLines(join(MIXED, `${ID(2)}.jsonl`), [user('E2E title of the home-base session', REPO), reply('Done.', REPO), user('LEAK-e2e-later-prompt', REPO), reply('Done.', REPO)]); // inside the root: kept
     writeLines(join(MIXED, `${ID(3)}.jsonl`), [user('LEAK-e2e-elsewhere', ELSEWHERE), reply('Done.', ELSEWHERE)]); // outside: not Shadow Jog's
     writeLines(join(MIXED, `${ID(4)}.jsonl`), [{ type: 'last-prompt', lastPrompt: 'LEAK-e2e-no-cwd' }, { type: 'mode', mode: 'normal' }]); // no cwd: proves nothing
     // A folder that only shares the start of a name is never read.
@@ -74,6 +75,8 @@ test.describe('the sessions route', () => {
 
     const session = panel.data.sessions.find((candidate) => candidate.id === ID(1));
     expect(session?.cwd).toBe(REPO);
+    expect(session?.title).toBe('E2E title of the first session');
+    expect(panel.data.sessions.find((candidate) => candidate.id === ID(2))?.title).toBe('E2E title of the home-base session');
     expect(session?.yourMove).toMatchObject({ light: 'yellow', items: ['Review the diff', 'Tell me to commit'], nothing: false, answered: false });
     expect(session?.agents).toEqual([expect.objectContaining({ id: 'e2e0001', sessionId: ID(1), description: 'Explore the fixture', agentType: 'general-purpose', model: 'sonnet', state: 'done', workflowId: null })]);
 

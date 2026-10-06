@@ -29,8 +29,8 @@ describe('GET /api/sessions', () => {
     const panel = (await res.json()) as Panel<SessionsInfo>;
     expect(panel.ok).toBe(true);
     if (!panel.ok) return;
-    expect(panel.data.sessions.map((session) => session.id.slice(0, 8))).toEqual(['11111111', '33333333', '44444444', '55555555', '66666666']);
-    expect(panel.data).toMatchObject({ scanned: 8, skipped: 3 });
+    expect(panel.data.sessions.map((session) => session.id.slice(0, 8))).toEqual(['11111111', '33333333', '44444444', '55555555', '66666666', 'a1a1a1a1', 'b2b2b2b2']);
+    expect(panel.data).toMatchObject({ scanned: 10, skipped: 3 });
     expect(Number.isNaN(Date.parse(panel.updatedAt))).toBe(false);
   });
 
@@ -82,8 +82,8 @@ describe('the server', () => {
     const panel = (await res.json()) as Panel<SessionsInfo>;
     expect(panel.ok).toBe(true);
     if (!panel.ok) return;
-    expect(panel.data.sessions.map((session) => session.id.slice(0, 8))).toEqual(['11111111', '33333333', '44444444', '55555555', '66666666']);
-    expect(panel.data).toMatchObject({ scanned: 8, skipped: 3 });
+    expect(panel.data.sessions.map((session) => session.id.slice(0, 8))).toEqual(['11111111', '33333333', '44444444', '55555555', '66666666', 'a1a1a1a1', 'b2b2b2b2']);
+    expect(panel.data).toMatchObject({ scanned: 10, skipped: 3 });
     await composed.stop();
   });
 

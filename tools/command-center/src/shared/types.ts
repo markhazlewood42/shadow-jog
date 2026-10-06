@@ -343,7 +343,11 @@ export type WorkflowInfo = {
 export type SessionInfo = {
   /** The session id: the file name without `.jsonl`. */
   id: string;
-  /** The title that Mark gave it (`/rename`), the name of its agent, or its slug; else "Session" and the first 8 characters of the id. This is transcript text: show it as text. */
+  /**
+   * The title that Mark gave it (`/rename`), else the name of its agent, else the first line of its first prompt (white space collapsed, at
+   * most 80 characters, cut with an ellipsis), else its slug, else "Session" and the first 8 characters of the id. Most sessions have no title
+   * of their own, so most are titled by their first prompt. This is transcript text: show it as text.
+   */
   title: string;
   /** The name of the folder under `~/.claude/projects` that holds the session file. */
   folder: string;
