@@ -82,7 +82,7 @@ export function isDecisive(line: unknown): line is Line {
 
 // ---- the facts that lines carry ----
 
-/** A line that has a working folder. Used by the reader to know when its window is big enough. */
+/** A line that has a working folder, of any type. (In the files of Claude Code 2.1 only `user`, `assistant`, `attachment` and `system` lines have one.) */
 export function hasCwd(line: unknown): line is Line & { cwd: string } {
   return isLine(line) && typeof line.cwd === 'string' && line.cwd !== '';
 }

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { createHub } from '../src/server/hub';
 import type { Config } from '../src/server/config';
-import { SESSIONS_POLL_MS, createSessionsSource } from '../src/server/sessions/sessions';
+import { SESSIONS_POLL_MS, createLimiter, createSessionsSource } from '../src/server/sessions/sessions';
 import type { ChangeEvent, SessionInfo, SessionsInfo } from '../src/shared/types';
 import { CLAUDE_FIXTURES, INSIDE, MIXED_FOLDER, NOW, WHOLE_FOLDER, assistantText, assistantToolUse, at, attachment, box, copyClaudeFixtures, jsonl, lastPrompt, sessionsConfig, setAge, toolResult, userPrompt, writeAged } from './sessions-helpers';
 
@@ -511,6 +511,38 @@ describe('a file that is not what it should be', () => {
     expect(panel.error.code).toBe('sessions-unreadable');
     expect(panel.error.message).toContain('bad');
     expect(panel.error.message).not.toContain(projects);
+  });
+});
+
+describe('the limiter of reads', () => {
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  it('runs at most `max` jobs at once, also when jobs come in while others run, and a job that fails gives its place back', async () => {
+    const limit = createLimiter(3);
+    let running = 0;
+    let most = 0;
+    const job = async (ms: number) => {
+      running += 1;
+      most = Math.max(most, running);
+      await sleep(ms);
+      running -= 1;
+      return ms;
+    };
+
+    // Ten jobs at once, and twelve more that arrive while those run.
+    const first = Array.from({ length: 10 }, (_, i) => limit(() => job(4 + i)));
+    await sleep(6);
+    const later = Array.from({ length: 12 }, (_, i) => limit(() => job(3 + (i % 4))));
+    await sleep(3);
+    later.push(limit(() => job(2)));
+    expect(await Promise.all([...first, ...later])).toHaveLength(23);
+    expect(most).toBe(3); // three ran side by side, and never four
+
+    // A job that throws is an error for its caller, and its place is free again.
+    await expect(limit(async () => Promise.reject(new Error('this job fails')))).rejects.toThrow('this job fails');
+    most = 0;
+    await Promise.all(Array.from({ length: 6 }, () => limit(() => job(3))));
+    expect(most).toBe(3);
   });
 });
 

@@ -8,7 +8,7 @@ import { registerSessionsRoutes } from '../src/server/routes/sessions';
 import { createSessionsSource } from '../src/server/sessions/sessions';
 import type { Panel, SessionsInfo } from '../src/shared/types';
 import { NOW, copyClaudeFixtures, sessionsConfig, writeAged } from './sessions-helpers';
-import { PACKAGE_DIR, getFrom, makeApp, noopRunner } from './helpers';
+import { PACKAGE_DIR, SseReader, getFrom, makeApp, noopRunner } from './helpers';
 
 // GET /api/sessions: the Panel of the sessions source, over the synthetic Claude folders of the fixtures.
 // The sessions source takes its clock as a parameter, so a test sets it to the moment the fixtures were made for.
@@ -85,5 +85,25 @@ describe('the server', () => {
     expect(panel.data.sessions.map((session) => session.id.slice(0, 8))).toEqual(['11111111', '33333333', '44444444', '55555555', '66666666']);
     expect(panel.data).toMatchObject({ scanned: 8, skipped: 3 });
     await composed.stop();
+  });
+
+  it('compose starts the sessions module with the others: its first look reaches the open pages as a change event', async () => {
+    const config = sessionsConfig(copyClaudeFixtures(join(parent, 'started')));
+    const composed = compose({ config, runner: noopRunner, webRoot: join(PACKAGE_DIR, 'src', 'web'), now: () => NOW });
+    const stream = new SseReader((await getFrom(composed.app, '/api/events', config)).body);
+    try {
+      expect((await stream.next()).event).toBe('hello');
+      await composed.start();
+      // The other modules publish too (the docs, the status ...). Read until the sessions' own event comes.
+      const modules: string[] = [];
+      for (let frames = 0; frames < 50 && !modules.includes('sessions'); frames += 1) {
+        const frame = await stream.next(5000);
+        if (frame.event === 'changed') modules.push((JSON.parse(frame.data) as { module: string }).module);
+      }
+      expect(modules).toContain('sessions');
+    } finally {
+      await stream.cancel();
+      await composed.stop();
+    }
   });
 });

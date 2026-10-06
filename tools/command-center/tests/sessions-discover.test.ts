@@ -96,7 +96,7 @@ describe('listSessionFiles', () => {
     session(MIXED_FOLDER, 'd-mixed.jsonl');
     // What lives next to the session files, and is not one of them.
     writeAged(join(projects, WHOLE_FOLDER, 'e-notes.txt'), 'x');
-    writeAged(join(projects, WHOLE_FOLDER, 'e-copy.jsonl.bak'), '{"type":"user"}\n');
+    writeAged(join(projects, WHOLE_FOLDER, 'a-recent.jsonl.bak'), '{"type":"user"}\n'); // a backup of a session file is not a second session
     writeAged(join(projects, WHOLE_FOLDER, 'f-title.json'), '{}');
     writeAged(join(projects, WHOLE_FOLDER, 'a-recent', 'subagents', 'agent-x.jsonl'), '{"type":"user"}\n');
     mkdirSync(join(projects, WHOLE_FOLDER, 'g-folder.jsonl'), { recursive: true }); // a folder that is named like a file
@@ -212,6 +212,9 @@ describe('findScriptName', () => {
     script(`${WHOLE_FOLDER}-old`, 'session-3', 'hidden-wf_3333-ccc.js'); // a folder that is not named
     script(WHOLE_FOLDER, 'session-1', 'xwf_4444-ddd.js');
     script(WHOLE_FOLDER, 'session-1', 'other-wf_5555-eee.js');
+    // Files that hold an id and are not the script of it: the id is not at the end of the name.
+    script(WHOLE_FOLDER, 'session-1', 'a-script-wf_7777-ggg.js.bak');
+    script(WHOLE_FOLDER, 'session-1', 'another-wf_8888-hhh-extra.js');
   });
 
   it('the name of a workflow is the script file name without the id, found in the folder of the launch cwd', async () => {
@@ -230,6 +233,9 @@ describe('findScriptName', () => {
     // An id that is the end of another id is not that id: only "-<id>.js" is the script of <id>.
     expect(await findScriptName(config, 'session-1', 'wf_4444-ddd')).toBeNull();
     expect(await findScriptName(config, 'session-1', 'wf_5555-eee')).toBe('other');
+    // A file that has the id in the middle of its name, or that ends in something else, is not the script either.
+    expect(await findScriptName(config, 'session-1', 'wf_7777-ggg')).toBeNull();
+    expect(await findScriptName(config, 'session-1', 'wf_8888-hhh')).toBeNull();
   });
 
   it('a script file that has no name before the id gives no name', async () => {

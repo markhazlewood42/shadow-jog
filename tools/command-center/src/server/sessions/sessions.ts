@@ -83,8 +83,8 @@ function createFileCache() {
   };
 }
 
-/** Runs the work at once while fewer than `max` are running, and queues it otherwise. A finished piece of work hands its place to the next one in line. */
-function createLimiter(max: number) {
+/** Runs the work at once while fewer than `max` are running, and queues it otherwise. A finished piece of work hands its place to the next one in line. (Exported for its test.) */
+export function createLimiter(max: number) {
   let running = 0;
   const waiting: (() => void)[] = [];
   return async function limit<T>(work: () => Promise<T>): Promise<T> {

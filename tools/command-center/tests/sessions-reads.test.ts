@@ -4,8 +4,8 @@ import { dirname, join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHub } from '../src/server/hub';
 import { createSessionsSource } from '../src/server/sessions/sessions';
-import { readTail } from '../src/server/sessions/tail';
-import { INSIDE, MIXED_FOLDER, NOW, WHOLE_FOLDER, assistantText, at, copyClaudeFixtures, customTitle, jsonl, lastPrompt, lineOfSize, numberedLines, sessionsConfig, setAge, userPrompt } from './sessions-helpers';
+import { readFirstTimestamp, readTail } from '../src/server/sessions/tail';
+import { INSIDE, MIXED_FOLDER, NOW, WHOLE_FOLDER, assistantText, at, copyClaudeFixtures, customTitle, jsonl, lastPrompt, lineOfSize, numberedLines, sessionsConfig, setAge, userPrompt, writeAged } from './sessions-helpers';
 
 // What the sessions module reads from disk. The module opens a file only through `open` of
 // node:fs/promises (the no-write scan checks that its flag is always 'r'), so a wrapper around `open`
@@ -20,6 +20,11 @@ const spy = vi.hoisted(() => ({
   looked: [] as string[],
   /** Paths that cannot be opened: the error code that opening them gives (a locked file is EBUSY). */
   failures: new Map<string, string>(),
+  /** When set, a read gives at most this many bytes, as a file system may give fewer than were asked for. */
+  chunk: null as number | null,
+  /** How many files are open now, and the most at one time. */
+  live: 0,
+  maxLive: 0,
 }));
 
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -34,9 +39,18 @@ vi.mock('node:fs/promises', async (importOriginal) => {
       spy.opens.push(entry);
       const read = handle.read.bind(handle) as unknown as (...readArgs: unknown[]) => Promise<{ bytesRead: number }>;
       (handle as unknown as { read: unknown }).read = async (...readArgs: unknown[]) => {
+        // read(buffer, offset, length, position): a short read is a read that was asked for less.
+        if (spy.chunk !== null) readArgs[2] = Math.min(Number(readArgs[2]), spy.chunk);
         const result = await read(...readArgs);
         entry.bytes += result.bytesRead;
         return result;
+      };
+      const close = handle.close.bind(handle);
+      spy.live += 1;
+      spy.maxLive = Math.max(spy.maxLive, spy.live);
+      (handle as unknown as { close: unknown }).close = async () => {
+        spy.live -= 1;
+        return close();
       };
       return handle;
     },
@@ -59,6 +73,9 @@ const forgetWhatWasSpiedOn = () => {
   spy.listed.length = 0;
   spy.looked.length = 0;
   spy.failures.clear();
+  spy.chunk = null;
+  spy.live = 0;
+  spy.maxLive = 0;
 };
 beforeEach(forgetWhatWasSpiedOn);
 
@@ -128,6 +145,36 @@ describe('how much is read', () => {
     expect(result.lines).toHaveLength(3);
     expect(result.bytesRead).toBe(64 * 1024);
     expect(spy.opens).toEqual([{ path: hugeFile, bytes: 64 * 1024 }]); // what the reader counted is what the file system was asked for
+  });
+});
+
+describe('how files are read', () => {
+  it('a read that gives less than was asked for is asked again until the window is full', async () => {
+    const file = join(parent, 'short-reads.jsonl');
+    writeFileSync(file, `{"type":"user","timestamp":"2026-10-06T09:00:00.000Z"}\n${numberedLines(2000)}`);
+    const whole = await readTail(file, { until: () => false });
+    const firstTime = await readFirstTimestamp(file);
+    expect(whole.lines).toHaveLength(2001);
+
+    spy.chunk = 1000; // every read gives 1000 bytes at most
+    expect(await readTail(file, { until: () => false })).toEqual(whole);
+    expect(await readFirstTimestamp(file)).toBe(firstTime);
+    expect(firstTime).toBe('2026-10-06T09:00:00.000Z');
+    expect(spy.opens.length).toBeGreaterThan(2); // and it was read, not served from a cache
+  });
+
+  it('at most 16 files are read at one time, whatever the number of sessions', async () => {
+    const projects = join(parent, 'many');
+    for (let n = 0; n < 80; n += 1) {
+      writeAged(join(projects, WHOLE_FOLDER, `ffffffff-0000-4000-8000-${String(n).padStart(12, '0')}.jsonl`), jsonl([userPrompt('go'), assistantText('Done.')]));
+    }
+    forgetWhatWasSpiedOn();
+    const info = await loadOnce(projects);
+    expect(info.sessions).toHaveLength(80);
+    // A session is read at its end and at its start together, so 16 sessions at once are at most 32 open files.
+    expect(spy.maxLive).toBeLessThanOrEqual(32);
+    expect(spy.maxLive).toBeGreaterThan(8); // they do go side by side
+    expect(spy.live).toBe(0); // and every file was closed
   });
 });
 

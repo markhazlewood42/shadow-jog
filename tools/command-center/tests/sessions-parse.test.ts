@@ -149,6 +149,12 @@ describe('classifySession', () => {
     const lines = [assistantToolUse('Bash', {})];
     expect(classifySession(lines, NOW - 10_000, NOW, { workingSeconds: 5, waitingSeconds: 10 }).state).toBe('idle');
     expect(classifySession(lines, NOW - 10_000, NOW, { workingSeconds: 60, waitingSeconds: 10 }).state).toBe('working');
+    // The reason of an idle session says the limit in words, in the singular where it is one.
+    const reasonAt = (limits: { workingSeconds: number; waitingSeconds: number }) => classifySession(lines, 0, NOW, limits).reason;
+    expect(reasonAt({ workingSeconds: 60, waitingSeconds: 10 })).toBe('no write for more than 1 minute');
+    expect(reasonAt({ workingSeconds: 3600, waitingSeconds: 10 })).toBe('no write for more than 1 hour');
+    expect(reasonAt({ workingSeconds: 90, waitingSeconds: 10 })).toBe('no write for more than 90 seconds');
+    expect(reasonAt({ workingSeconds: 7200, waitingSeconds: 10 })).toBe('no write for more than 2 hours');
   });
 
   it('readActivity says what the end of the lines is, without the age', () => {

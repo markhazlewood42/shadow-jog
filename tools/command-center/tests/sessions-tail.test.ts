@@ -92,6 +92,11 @@ describe('readTail', () => {
     expect(result.lines).toEqual([{ n: 1008 }, { n: 1009 }]);
     expect(result.bytesRead).toBe(30);
     expect(result.complete).toBe(false);
+
+    // The cut piece of a line is dropped even when it would be JSON by itself. A line that is a number is cut to a shorter number:
+    // the last 15 bytes of "1111111111", "2222222222" and "3333333333" (a line each) begin with the end of the second line, "222".
+    const numbers = await readTail(file('1111111111\n2222222222\n3333333333\n'), { startBytes: 15, until: () => false, maxBytes: 15 });
+    expect(numbers.lines).toEqual([3333333333]);
   });
 
   it('grows until a line satisfies `until`, and stops at the first window that has one', async () => {
