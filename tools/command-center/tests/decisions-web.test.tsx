@@ -211,7 +211,7 @@ describe('the decision page', () => {
     expect(text()).toContain('The cache change in PR 12');
     expect(text()).toContain('2026-10-05');
     for (const option of OPTIONS) expect(text()).toContain(option.text);
-    // The recommended option says so in a word (an icon and a word, not a colour alone), and only that one.
+    // The recommended option says so in a word (an icon and a word, not a color alone), and only that one.
     expect(text().match(/Recommended/g)).toHaveLength(1);
     expect(container.querySelector('a[href="https://github.com/fixture-owner/fixture-repo/issues/41"]')?.getAttribute('target')).toBe('_blank');
     // The panel says when it was last updated.

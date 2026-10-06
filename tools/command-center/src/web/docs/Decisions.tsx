@@ -40,7 +40,7 @@ const NOTHING: Record<Filter, string> = {
   approved: 'No decision is approved.',
 };
 
-/** The status of a decision as a chip. Each status has an icon and a word, so none of them is told only by its colour. Amber is for the open ones: they are the ones that wait for Mark. */
+/** The status of a decision as a chip. Each status has an icon and a word, so none of them is told only by its color. Amber is for the open ones: they are the ones that wait for Mark. */
 function StatusChip({ decision }: { decision: Decision }) {
   if (decision.status === 'open') {
     return (

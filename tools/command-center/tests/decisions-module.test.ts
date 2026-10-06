@@ -202,7 +202,7 @@ describe('the decisions source', () => {
     const noise = (count: number) => Array.from({ length: count }, (_all, i) => ({ author: { login: 'fixture-stranger' }, body: `Noise ${i + 1}`, createdAt: '2026-10-05T09:00:00Z' }));
     const answerAt = { author: { login: FAKE_VIEWER }, body: 'Decision: B. Found after the noise.', createdAt: '2026-10-05T15:12:09Z' };
     const flooded = SEED.issues.map((issue) => {
-      if (issue.number === 44) return { ...issue, comments: [...noise(104), answerAt] }; // answered: closed, labelled by Mark
+      if (issue.number === 44) return { ...issue, comments: [...noise(104), answerAt] }; // answered: closed, labeled by Mark
       if (issue.number === 41) return { ...issue, comments: [...noise(120), { ...answerAt, body: 'Decision: C. Half an answer, after the noise.' }] }; // open, with the comment and nothing else
       return issue;
     });
@@ -290,7 +290,7 @@ describe('the decisions source', () => {
     expect(failed.lastGood?.data).toEqual(good.data);
   });
 
-  it('events that gh printed as an error body are an error, never read as "nobody labelled it"', async () => {
+  it('events that gh printed as an error body are an error, never read as "nobody labeled it"', async () => {
     const rig = rigOf();
     setRigMode(rig, { mode: 'ok', replies: { 'api events': { stdout: '{"message":"Not Found"}' } } });
     const failed = await rig.decisions.get();

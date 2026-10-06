@@ -1,15 +1,15 @@
 /*
- * The colour and font tokens of the command center, and the only file in src/web that may
- * write a colour value (a test scans every other file for one).
+ * The color and font tokens of the command center, and the only file in src/web that may
+ * write a color value (a test scans every other file for one).
  *
- * The colours are copied from the Dark column of the "Semantic roles" table in the Shadow Jog
+ * The colors are copied from the Dark column of the "Semantic roles" table in the Shadow Jog
  * diagram profile (docs/diagrams/profile/shadow-jog.md), so the command center looks like the
- * rest of the game's tooling. Each one is a colour of the game's own UI. The contrast ratios
- * are in docs/diagrams/profile/NOTES.md: every text colour is at least 4.5 to 1 on both papers.
+ * rest of the game's tooling. Each one is a color of the game's own UI. The contrast ratios
+ * are in docs/diagrams/profile/NOTES.md: every text color is at least 4.5 to 1 on both papers.
  * A test checks this file against the profile and computes the ratios, so a change of the
  * profile has to land here too.
  *
- * Other files use the roles, never the values: theme.css makes them Tailwind colours (bg-cc-paper,
+ * Other files use the roles, never the values: theme.css makes them Tailwind colors (bg-cc-paper,
  * text-cc-ink, border-cc-rule, ...) and sets the HeroUI theme from them, and the glass panels of
  * the Now page will read them for their mood.
  */
@@ -20,7 +20,7 @@
   --cc-paper-2: #1c1a3a;
   /* Primary text. */
   --cc-ink: #f4f1ff;
-  /* Text on an amber fill (a button, a marker): the dark outline colour of the game's windows. */
+  /* Text on an amber fill (a button, a marker): the dark outline color of the game's windows. */
   --cc-ink-strong: #07060d;
   /* Secondary text. */
   --cc-muted: #bfc3e4;

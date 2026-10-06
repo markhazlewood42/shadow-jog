@@ -335,7 +335,7 @@ describe('parseDecisionIssue: who may write', () => {
     expect(parsed(raw(base), [labeled(MARK_LOGIN, '2026-10-05T12:00:01Z'), labeled('fixture-collaborator', '2026-10-05T13:00:00Z')]).state).toBe('closed');
     // Another account put it on first, and Mark later: the newest one is Mark's.
     expect(parsed(raw(base), [labeled('fixture-collaborator', '2026-10-05T11:00:00Z'), labeled(MARK_LOGIN, '2026-10-05T12:00:01Z')]).state).toBe('answered');
-    // The events say Mark labelled it, and the issue does not have the label now: no.
+    // The events say Mark labeled it, and the issue does not have the label now: no.
     expect(parsed(raw({ ...base, labels: [{ name: 'decision' }] }), [labeled(MARK_LOGIN)]).state).toBe('closed');
     // No events at all prove nothing, and an event for another label is not the label decided.
     expect(parsed(raw(base), []).state).toBe('closed');
@@ -382,7 +382,7 @@ describe('parseDecisionIssue: the answer and the state', () => {
     expect(parsed(raw({ comments: [comment(MARK_LOGIN, 'Decision: B. Because.')] }), [])).toMatchObject({ state: 'open', answer: { option: 'B', note: 'Because.', complete: false } });
     // The comment and the label, and the issue is still open.
     expect(parsed(raw({ labels: [{ name: 'decided' }], comments: [comment(MARK_LOGIN, 'Decision: B.')] }), [labeled(MARK_LOGIN)])).toMatchObject({ state: 'open', answer: { option: 'B', complete: false } });
-    // Closed and labelled, but nothing says what he chose.
+    // Closed and labeled, but nothing says what he chose.
     expect(parsed(raw({ ...READY, comments: [] }), [labeled(MARK_LOGIN)])).toMatchObject({ state: 'closed', answer: null });
     // Closed, with the comment, and the label is missing.
     expect(parsed(raw({ ...READY, labels: [{ name: 'decision' }] }), [])).toMatchObject({ state: 'closed', answer: { complete: false } });

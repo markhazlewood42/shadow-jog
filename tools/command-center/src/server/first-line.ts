@@ -1,6 +1,6 @@
 /**
  * The first line of what a program printed that has text on it, ready to put into a message that a
- * person reads: control characters (a colour code, a bell) become spaces, and a long line is cut.
+ * person reads: control characters (a color code, a bell) become spaces, and a long line is cut.
  * Empty when the program printed nothing. Used for the error messages about git and gh.
  */
 export function firstLine(text: string, maxChars = 200): string {

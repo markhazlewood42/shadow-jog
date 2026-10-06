@@ -10,7 +10,7 @@ export type SampleRow = { id: string; decision: string; recommendation: string; 
 
 /** The rows of the sample summary table, in an order that is not numeric (as in the real table, where Mark's decisions come first). */
 export const SAMPLE_ROWS: readonly SampleRow[] = [
-  { id: 'E1', decision: 'How behaviour is written', recommendation: 'Phaser style: scene code', needed: 'Phase 0', who: 'Mark', answer: 'A' },
+  { id: 'E1', decision: 'How behavior is written', recommendation: 'Phaser style: scene code', needed: 'Phase 0', who: 'Mark', answer: 'A' },
   { id: 'E2', decision: 'Name of the hook', recommendation: '`fixedUpdate(tick)`', needed: 'M1', who: 'Mark', answer: '' },
   { id: 'E4', decision: 'Text object', recommendation: 'Own text object', needed: 'M3', who: 'Mark', answer: 'OPEN' },
   { id: 'E9', decision: 'Wrapper style', recommendation: 'Composition', needed: 'Phase 0', who: 'Agent (FYI)', answer: 'C' },

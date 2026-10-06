@@ -17,7 +17,7 @@ import { PanelError } from '../source';
 //   2. An answer is a comment of Mark's that starts with `Decision:`. A comment of another account (a look-alike
 //      login such as `markhazlewood-42` included) is ignored, also when it is newer and says that it replaces his.
 //   3. An issue is answered only when it is closed, has the label `decided`, and the event that put that label on
-//      names Mark. Closing it and labelling it are not enough on their own.
+//      names Mark. Closing it and labeling it are not enough on their own.
 //   4. Every word of the issue is text. The parser returns plain strings and builds no html. The page shows them as
 //      text, so a script tag in an issue shows as the characters `<script>`.
 //
@@ -95,7 +95,7 @@ function labelNamesOf(raw: Json): string[] {
 
 /**
  * Whether the newest event that put the label `decided` on the issue names Mark. The newest one, because the label
- * that is on the issue now is the one that the last such event put there: if Mark labelled it and another account
+ * that is on the issue now is the one that the last such event put there: if Mark labeled it and another account
  * took the label off and put it on again, the label is that account's. An event with no actor (a deleted account)
  * is nobody's.
  */
@@ -115,7 +115,7 @@ function decidedLabelIsMarks(events: unknown): boolean {
  * The events of `gh api repos/<repo>/issues/<n>/events --paginate --slurp`: a list of pages, each a list of events.
  * This puts them into one list (a plain list of events, with no pages, is taken as it is). It throws a PanelError
  * for anything else, for example the `{"message":"Not Found"}` that the API answers for an issue that is not there:
- * with no events the parser would say that nothing was labelled, and that must not look like an answer.
+ * with no events the parser would say that nothing was labeled, and that must not look like an answer.
  */
 export function flattenEventPages(value: unknown): unknown[] {
   if (!Array.isArray(value)) throw new PanelError('gh-bad-output', 'gh printed the events of an issue in a form that this page cannot read: it is not a list of events.');

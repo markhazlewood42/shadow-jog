@@ -62,7 +62,7 @@ function readingOrderOf(nav: readonly NavSection[], slug: string): ReadingOrder 
   const at = docs.findIndex((item) => item.slug === slug);
   if (at === -1) return null;
   const order = { prev: refOf(docs[at - 1]), next: refOf(docs[at + 1]) };
-  // A section of one doc has no neighbour to go to.
+  // A section of one doc has no neighbor to go to.
   return order.prev === null && order.next === null ? null : order;
 }
 

@@ -71,7 +71,7 @@ describe('the engine decision table', () => {
       '',
       '| who  DECIDES | Your answer | Notes | # | Needed before | Decision | recommendation |',
       '|---|---|---|---|---|---|---|',
-      '| Mark | A | a note | E1 | M1 | How behaviour is written | Phaser style |',
+      '| Mark | A | a note | E1 | M1 | How behavior is written | Phaser style |',
       '| Agent (FYI) |  | a note | E2 | Phase 0 | Name of the hook | `fixedUpdate(tick)` |',
       '',
     ].join('\n');
@@ -82,7 +82,7 @@ describe('the engine decision table', () => {
         id: 'E1',
         number: 'E1',
         source: 'engine',
-        question: 'How behaviour is written',
+        question: 'How behavior is written',
         answer: 'Phaser style',
         milestone: 'M1',
         who: 'Mark',
@@ -112,7 +112,7 @@ describe('the engine decision table', () => {
     // One row for each id of the summary table, in numeric order (the table lists Mark's decisions first).
     expect(rows.map((row) => row.id)).toEqual(['E1', 'E2', 'E3', 'E4', 'E9', 'E10']);
     // The words come from the summary table: the editor rule table would say "Holds" (its "Result" column).
-    expect(rows[0]?.question).toBe('How behaviour is written');
+    expect(rows[0]?.question).toBe('How behavior is written');
     expect(rows.map((row) => row.question)).not.toContain('Holds');
     // The "record-only rows" table has a "Where" column that names E3, and it is not a decision table either.
     expect(rows.filter((row) => row.id === 'E3')).toHaveLength(1);
@@ -125,7 +125,7 @@ describe('the engine decision table', () => {
   it('keeps the text of a row and its section, and nothing of the next section', () => {
     const rows = parseEngineDecisions(decisionsMd({ bodies: { E1: 'The words of E1.', E2: 'The words of E2.' } }));
     const [e1, e2] = rows;
-    expect(e1?.text).toContain('| E1 | How behaviour is written |');
+    expect(e1?.text).toContain('| E1 | How behavior is written |');
     expect(e1?.text).toContain('## E1. What is the answer of E1?');
     expect(e1?.text).toContain('The words of E1.');
     expect(e1?.text).not.toContain('The words of E2.');

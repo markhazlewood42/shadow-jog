@@ -291,7 +291,7 @@ function storeEvents(store: GhIssueStore, args: string[]): RunResult {
   return { code: 0, stdout: JSON.stringify(args.includes('--slurp') ? [issue.events] : issue.events), stderr: '' };
 }
 
-/** The label with this name as it is on the issues of the store (its colour and words), or a plain one. */
+/** The label with this name as it is on the issues of the store (its color and words), or a plain one. */
 function labelNamed(store: GhIssueStore, name: string): FakeIssue['labels'][number] {
   return store.issues.flatMap((issue) => issue.labels).find((label) => label.name.toLowerCase() === name.toLowerCase()) ?? { name, color: 'ededed' };
 }

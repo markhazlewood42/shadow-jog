@@ -269,12 +269,12 @@ describe('extractPrs', () => {
 describe('extractYourMove', () => {
   it('your move: the last box wins, a "nothing" box gives no items, a human prompt after it marks it answered, a task-notification does not', () => {
     const first = assistantText(box(['Review the diff', 'Tell me to commit']), { time: at(-300) });
-    const second = assistantText(box(['Pick the colour']), { time: at(-200) });
+    const second = assistantText(box(['Pick the color']), { time: at(-200) });
 
     // The last box wins. Both were written inside the project.
     expect(extractYourMove([first, userPrompt('ok', { time: at(-250) }), second], ROOTS)).toEqual({
       light: 'yellow',
-      items: ['Pick the colour'],
+      items: ['Pick the color'],
       nothing: false,
       at: at(-200),
       answered: false,
@@ -461,7 +461,7 @@ describe('the journal of a workflow, and the states of agents and workflows', ()
 
 describe('the first prompt as a title', () => {
   it('titleFromPrompt: the first line of the text, with the white space collapsed and no blank line before it', () => {
-    expect(titleFromPrompt('Fix the   widget \t colours\nand then the second line')).toBe('Fix the widget colours');
+    expect(titleFromPrompt('Fix the   widget \t colors\nand then the second line')).toBe('Fix the widget colors');
     expect(titleFromPrompt('\n\n   First real line  \nSecond')).toBe('First real line');
     expect(titleFromPrompt('A line that ends in CRLF\r\nThe second line')).toBe('A line that ends in CRLF');
     // Markdown stays as it was written: the page shows it as text.

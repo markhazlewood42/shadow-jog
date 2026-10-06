@@ -79,6 +79,7 @@ test.describe('the engine review', () => {
     await expect(decisionRows(page)).toHaveCount(49);
 
     // A row opens its doc at the heading of the decision, and the doc scrolls there.
+    // The heading and its anchor are those of the frozen copy in fixtures/repo (it keeps the spelling that main had at 959ddf4), not those of main's docs/engine/decisions.md.
     const anchorOf = (id: string) => decisions.find((decision) => decision.id === id)?.anchor;
     expect(anchorOf('E1')).toBe('e1-how-is-behaviour-written');
     await rowOf(page, 'E1').getByRole('link', { name: 'How behaviour is written' }).click();

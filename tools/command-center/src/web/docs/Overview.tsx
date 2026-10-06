@@ -10,7 +10,7 @@ import { useDocumentTitle } from './useDocumentTitle';
 /** How many pages a card lists before "Show all". The nav lists the main page of a section first, so the first ones are the key pages. */
 const KEY_PAGES = 5;
 
-// Cyan, as every link. A list of links needs no line under each one: the colour and the place say that they are links.
+// Cyan, as every link. A list of links needs no line under each one: the color and the place say that they are links.
 const LINK_CLASS = 'text-cc-link underline-offset-2 hover:underline cc-focus-ring';
 
 function PageRow({ item }: { item: NavItem }) {

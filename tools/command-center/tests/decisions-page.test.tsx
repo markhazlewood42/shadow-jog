@@ -19,7 +19,7 @@ function decision(over: Partial<Decision> = {}): Decision {
     id: 'E1',
     number: 'E1',
     source: 'engine',
-    question: 'How behaviour is written',
+    question: 'How behavior is written',
     answer: 'Phaser style',
     milestone: 'Phase 0',
     who: 'Mark',
@@ -27,7 +27,7 @@ function decision(over: Partial<Decision> = {}): Decision {
     status: 'approved',
     change: null,
     docSlug: 'engine/decisions',
-    anchor: 'e1-how-behaviour-is-written',
+    anchor: 'e1-how-behavior-is-written',
     ...over,
   };
 }
@@ -126,7 +126,7 @@ describe('the decision list', () => {
 
   it('links each question to its doc at the heading, and to the top of the doc when there is no heading', () => {
     const markup = render(<DecisionList decisions={SAMPLE} />);
-    expect(markup).toContain('href="/docs/engine/decisions#e1-how-behaviour-is-written"');
+    expect(markup).toContain('href="/docs/engine/decisions#e1-how-behavior-is-written"');
     expect(markup).toContain('href="/docs/engine/decisions#e2-name"');
     expect(markup).toContain('href="/docs/PHASE-0.2#decisions-for-mark"');
     // No anchor: the address of the doc alone (the same link as the group's own, with no hash).

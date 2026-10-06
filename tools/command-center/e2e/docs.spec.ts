@@ -230,7 +230,7 @@ test.describe('the docs site', () => {
     }
     await expect(markers.first()).toHaveAttribute('title', /does not exist/);
 
-    // The marker is not only a colour: a dashed line under the words and a label after them.
+    // The marker is not only a color: a dashed line under the words and a label after them.
     const style = await markers.first().evaluate((el) => ({
       line: getComputedStyle(el).textDecorationLine,
       kind: getComputedStyle(el).textDecorationStyle,

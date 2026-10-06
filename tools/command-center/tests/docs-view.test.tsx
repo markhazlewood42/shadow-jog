@@ -13,7 +13,7 @@ import { SectionTree } from '../src/web/docs/SectionTree';
 import type { PanelResult } from '../src/web/usePanel';
 
 // The pieces of the docs site that can be checked without a browser: what they write for a given
-// doc or listing. A server-side render runs no effect, so the click, scroll and zoom behaviour is
+// doc or listing. A server-side render runs no effect, so the click, scroll and zoom behavior is
 // the job of e2e/docs.spec.ts. What these tests pin down is the content, the order of the content
 // (a banner in front of its heading, the footer last) and the empty and error states.
 

@@ -1,7 +1,7 @@
 /*
  * The page's stylesheet: Tailwind, the HeroUI styles, the fonts, the theme that ties them to the
- * tokens, and (at the end) the look of a doc's text. Nothing here writes a colour value: every
- * colour is a token from tokens.css.
+ * tokens, and (at the end) the look of a doc's text. Nothing here writes a color value: every
+ * color is a token from tokens.css.
  *
  * The order of the imports matters: Tailwind first, then HeroUI (which needs it).
  */
@@ -21,7 +21,7 @@
 }
 
 /*
- * The token colours as Tailwind colours: bg-cc-paper-2, text-cc-ink, border-cc-rule, and so on.
+ * The token colors as Tailwind colors: bg-cc-paper-2, text-cc-ink, border-cc-rule, and so on.
  * `inline` makes a utility use the token directly, so a token that changes shows at once.
  */
 @theme inline {
@@ -40,9 +40,9 @@
 
 /*
  * The fill of a focal box (one with an amber border, set where it is used): the second navy with
- * the amber tint laid over it, which is the colour the profile describes for such a box. The
- * tint is see-through, so it needs a navy under it. A background colour and, on top of it, a flat
- * one-colour gradient give the two layers.
+ * the amber tint laid over it, which is the color the profile describes for such a box. The
+ * tint is see-through, so it needs a navy under it. A background color and, on top of it, a flat
+ * one-color gradient give the two layers.
  */
 @utility cc-focal {
   background-color: var(--cc-paper-2);
@@ -50,12 +50,12 @@
 }
 
 /*
- * The HeroUI theme. HeroUI v3 reads its colours from the variables below (it comes with a light
+ * The HeroUI theme. HeroUI v3 reads its colors from the variables below (it comes with a light
  * and a dark set). Setting them here, after its own styles, makes the whole library follow the
- * tokens. The hover and soft colours HeroUI derives from these follow as well.
+ * tokens. The hover and soft colors HeroUI derives from these follow as well.
  *
  * The profile has no red and no green, and the look allows amber for the few things that matter,
- * so the status colours (success, warning, danger) reuse amber and ink instead of adding hues.
+ * so the status colors (success, warning, danger) reuse amber and ink instead of adding hues.
  * The shadows are off: the look has no glow and no shadow.
  */
 :root {
@@ -76,7 +76,7 @@
   --segment-foreground: var(--cc-ink);
 
   --muted: var(--cc-muted);
-  /* The neutral fill of a secondary button or a chip: the hairline colour, a little lighter than the panel it sits on. */
+  /* The neutral fill of a secondary button or a chip: the hairline color, a little lighter than the panel it sits on. */
   --default: var(--cc-rule);
   --default-foreground: var(--cc-ink);
 
@@ -106,7 +106,7 @@
 
 /*
  * A selected toggle button (the filter of the decisions page) is lavender and not amber. HeroUI draws
- * the selected state from the accent colour, and amber is for the one or two things on a page that
+ * the selected state from the accent color, and amber is for the one or two things on a page that
  * matter most. The text on the lavender is the dark one: ink-strong on rule-solid is above 4.5 to 1.
  */
 .toggle-button {
@@ -144,7 +144,7 @@
 
 /*
  * The focus ring of a link or a button that is not a HeroUI component (those have their own, which
- * the theme above colours with --focus). The lavender frame colour, so the ring is seen on navy.
+ * the theme above colors with --focus). The lavender frame color, so the ring is seen on navy.
  */
 @utility cc-focus-ring {
   &:focus-visible {
@@ -317,7 +317,7 @@
 
   /*
    * A link that goes nowhere. The server writes it as a span with this class and the reason in its title.
-   * It is not a link, so it is not cyan. It must be seen without relying on colour: a dashed line under
+   * It is not a link, so it is not cyan. It must be seen without relying on color: a dashed line under
    * the words, and a small label after them. The label is generated, so it is not copied with the text.
    */
   .doc-html .broken-link {
@@ -345,10 +345,10 @@
 }
 
 /*
- * The radio buttons of the answer form. The ring of an unselected one is a line of the lavender frame colour: HeroUI draws a field from a shadow and not
+ * The radio buttons of the answer form. The ring of an unselected one is a line of the lavender frame color: HeroUI draws a field from a shadow and not
  * a border (its border width is 0), and the shadows are off here, so without a line a radio button is as navy as the card around it and cannot be seen. A selected one is lavender and not amber, for the same reason as the selected
  * toggle button: amber is for the one or two things on a page that matter most, and on the page of a decision those are the state of the decision and
- * the Send button. HeroUI draws a selected radio from the accent colour (selected, and selected while pressed, each in two spellings), so the same
+ * the Send button. HeroUI draws a selected radio from the accent color (selected, and selected while pressed, each in two spellings), so the same
  * four selectors are set here. The dot in it stays the dark ink of the theme, which is above 4.5 to 1 on the lavender.
  */
 .radio__control {

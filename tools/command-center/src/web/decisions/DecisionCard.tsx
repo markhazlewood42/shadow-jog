@@ -32,7 +32,7 @@ export function Notice({ children }: { children: ReactNode }) {
   );
 }
 
-/** The state of the decision in a word and an icon, so that it is never told by colour alone. */
+/** The state of the decision in a word and an icon, so that it is never told by color alone. */
 function StateChip({ issue }: { issue: DecisionIssue }) {
   if (issue.state === 'answered') {
     return (

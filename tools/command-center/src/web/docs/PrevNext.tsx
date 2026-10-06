@@ -3,8 +3,8 @@ import { Link } from 'react-router';
 import type { DocRef, ReadingOrder } from '../../shared/types';
 import { docPath } from './paths';
 
-/** One of the two buttons: a link to the neighbour doc, with the direction and the title of the doc. */
-function Neighbour({ doc, direction }: { doc: DocRef; direction: 'prev' | 'next' }) {
+/** One of the two buttons: a link to the neighbor doc, with the direction and the title of the doc. */
+function Neighbor({ doc, direction }: { doc: DocRef; direction: 'prev' | 'next' }) {
   const previous = direction === 'prev';
   const Arrow = previous ? ArrowLeft : ArrowRight;
   return (
@@ -29,13 +29,13 @@ function Neighbour({ doc, direction }: { doc: DocRef; direction: 'prev' | 'next'
 /**
  * The Previous and Next buttons at the end of an engine doc: the docs on each side of it in the
  * reading order. The first doc has no Previous and the last no Next. The server sends a reading
- * order only for a doc that has a neighbour, so at least one of the two is there.
+ * order only for a doc that has a neighbor, so at least one of the two is there.
  */
 export function PrevNext({ order }: { order: ReadingOrder }) {
   return (
     <nav aria-label="Reading order" className="flex flex-wrap gap-3">
-      {order.prev !== null && <Neighbour doc={order.prev} direction="prev" />}
-      {order.next !== null && <Neighbour doc={order.next} direction="next" />}
+      {order.prev !== null && <Neighbor doc={order.prev} direction="prev" />}
+      {order.next !== null && <Neighbor doc={order.next} direction="next" />}
     </nav>
   );
 }

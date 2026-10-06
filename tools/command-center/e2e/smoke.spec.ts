@@ -29,12 +29,12 @@ test.describe('the shell', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
 
     // Navy page (paper) and white text (ink), from the tokens.
-    const colours = await page.evaluate(() => ({
+    const colors = await page.evaluate(() => ({
       background: getComputedStyle(document.body).backgroundColor,
       text: getComputedStyle(document.body).color,
     }));
-    expect(colours.background).toBe('rgb(13, 12, 31)');
-    expect(colours.text).toBe('rgb(244, 241, 255)');
+    expect(colors.background).toBe('rgb(13, 12, 31)');
+    expect(colors.text).toBe('rgb(244, 241, 255)');
 
     // Geist: the heading is set in it and its files were loaded. So is Geist Mono, which the version is set in.
     await page.evaluate(() => document.fonts.ready);

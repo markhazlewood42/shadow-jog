@@ -68,7 +68,7 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 
 ### 4.1 PlasmaUI on the Now page
 
-- **What it is:** [PlasmaUI](https://github.com/CruxGarden/plasma-ui) (`@cruxgarden/plasma-ui`) draws "liquid glass" panels for React in WebGL: refraction, frost, rim light and glow. Version 0.7.0, MIT licence, started in September 2026 and active. It is before version 1.0, so its API can change.
+- **What it is:** [PlasmaUI](https://github.com/CruxGarden/plasma-ui) (`@cruxgarden/plasma-ui`) draws "liquid glass" panels for React in WebGL: refraction, frost, rim light and glow. Version 0.7.0, MIT license, started in September 2026 and active. It is before version 1.0, so its API can change.
 - **What it is not:** a widget kit. It has no cards, tables, progress bars or charts. It is the panel that holds them. The content inside each panel uses our own small components (Tailwind and Lucide, HeroUI where it fits).
 - **Where:** only the Now page loads it, because its canvas covers the whole window. The docs pages do not load it.
 - **Look:** a custom mood from the shared tokens (section 4.2), with the glow turned down to match the profile's "no glow". Its built-in "ember" mood is the fallback.
@@ -78,8 +78,8 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 ### 4.2 Look
 
 - **Rule (Mark, 2026-10-05):** the command center matches Shadow Jog's other tooling, as the diagrams do. Keep things feeling similar.
-- **Source:** the `shadow-jog` diagram profile (`docs/diagrams/profile/shadow-jog.md`, with the colour mapping and contrast ratios in `docs/diagrams/profile/NOTES.md`).
-- **In short:** a dark skin from the game's own UI colours: navy panels, a lavender frame, white text, amber for the one or two focal items on a screen, cyan for links, and no glow. The fonts are Geist and Geist Mono, as in the diagrams.
+- **Source:** the `shadow-jog` diagram profile (`docs/diagrams/profile/shadow-jog.md`, with the color mapping and contrast ratios in `docs/diagrams/profile/NOTES.md`).
+- **In short:** a dark skin from the game's own UI colors: navy panels, a lavender frame, white text, amber for the one or two focal items on a screen, cyan for links, and no glow. The fonts are Geist and Geist Mono, as in the diagrams.
 - **One token set:** CSS variables copied from the profile feed both the HeroUI theme on the docs pages and the PlasmaUI mood on the Now page. A change to the profile then needs a change to one token file.
 - **Contrast:** the ratios in `NOTES.md` are the floor for all text.
 
