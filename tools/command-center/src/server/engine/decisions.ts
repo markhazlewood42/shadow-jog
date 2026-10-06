@@ -221,12 +221,18 @@ function sectionTextOf(lines: readonly string[], headings: readonly HeadingLine[
   return lines.slice(section.startLine, next?.startLine ?? lines.length).join('\n');
 }
 
+/** Throws for a table row that has an id cell and a question but an id that is not E<digits> or C<digits>. A row with an empty id or an empty question is not a decision row. */
+function rejectBadId(id: string, question: string, path: string): void {
+  if (id === '' || question === '') return;
+  throw new PanelError('engine-decision-unreadable', `A row of the decision table in ${path} has the id "${id}", which is not like E1 or C1, so its decision cannot be listed.`);
+}
+
 /**
  * The E decisions of docs/engine/decisions.md: one for each row of the summary table, with the words
  * of its row and of its `## E<n>.` section as `text`. `headings` are the headings of the doc's page
  * (when the caller has them), so that a decision can say which heading to open the doc at.
  *
- * Throws a PanelError (`decisions-table-missing` or `decisions-column-missing`) that names what is
+ * Throws a PanelError (`decisions-table-missing`, `decisions-column-missing` or `engine-decision-unreadable`) that names what is
  * wrong, so the page shows an error that says what to fix.
  */
 export function parseEngineDecisions(markdown: string, headings: readonly DocHeading[] = []): RawDecision[] {
@@ -253,8 +259,12 @@ export function parseEngineDecisions(markdown: string, headings: readonly DocHea
   const rows: RawDecision[] = [];
   for (const row of table.rows) {
     const id = cellAt(row, at['#']);
-    // Only a row that is an E decision. (A later table row such as a total is not one.)
-    if (!/^E\d+$/.test(id)) continue;
+    // Only a row that is an E decision. A row with no id and no question is empty and is skipped. A row with a question and an id that is not E<digits> is a mistyped
+    // id: it is an error, because a row that vanishes is a decision that Mark is not asked about.
+    if (!/^E\d+$/.test(id)) {
+      rejectBadId(id, cellAt(row, at.Decision), path);
+      continue;
+    }
 
     const rowText = lines.slice(row.startLine, row.endLine).join('\n');
     const sectionText = sectionTextOf(lines, sectionHeadings, id);
@@ -307,7 +317,10 @@ export function parseUpdateChoices(markdown: string, headings: readonly DocHeadi
   const rows: RawDecision[] = [];
   for (const row of table.rows) {
     const id = cellAt(row, at['#']);
-    if (!/^C\d+$/.test(id)) continue;
+    if (!/^C\d+$/.test(id)) {
+      rejectBadId(id, cellAt(row, at['Real choice']), path);
+      continue;
+    }
     rows.push({
       id,
       number: id,

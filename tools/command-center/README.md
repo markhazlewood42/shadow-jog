@@ -125,7 +125,7 @@ The two labels `decision` and `decided` must exist in the GitHub repo. Creating 
 | "GitHub cannot be reached" | The network is down. The panel shows the last good data and its time. Press Retry. |
 | The answer form says the label "decided" does not exist | Your answer is already posted as a comment. Create the label in GitHub (Issues, Labels), then press Retry. |
 | The Agents page is empty | Check that `claude.folders` names the exact folder under `~/.claude/projects`, and that sessions are newer than `claude.recentSeconds`. A count of hidden automated runs means `claude.includeSdk` is `false`. |
-| `/docs/decisions` shows an error that names a column | Someone edited the decision table in `docs/engine/decisions.md`. The parser finds columns by header name, so restore the named column. |
+| `/docs/decisions` shows an error that names a column | Someone edited the decision table in `docs/engine/decisions.md`. The parser finds columns by header name, so restore the named column. An error that names an id (such as `E 5`) or a verdict (such as `deferred`) means a table row or a PHASE-0.2 decision line is mistyped: fix the line. The page never drops a decision silently. |
 | A doc is missing from its section, or "Other" is not empty | Add it to `nav.json` (see above). The Docs overview lists broken links and nav mistakes. |
 | The Now page shows plain panels first, then glass | PlasmaUI compiles its shaders on the page's main thread, and plain panels paint first. In a headless run under software GL the block lasts about 5.5 seconds. On a real GPU it is shorter. Turn off "Glass panels" to skip it. |
 | A page looks stale | The page reloads a panel when its module reports a change. If a source is quiet, press Retry on the panel, or reload the tab. |

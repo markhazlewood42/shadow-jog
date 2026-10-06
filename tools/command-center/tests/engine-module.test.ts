@@ -95,6 +95,16 @@ describe('the engine module', () => {
     expect(statesOf(decisionsOf(await rig.engine.get(true)))).toEqual(AT_APPROVAL);
   });
 
+  it('a PHASE-0.2 decision with an unknown verdict gives an error panel that names it, and not a list with one decision fewer', async () => {
+    const rig = await rigWith();
+    rig.edit('phase', phaseMd([...SAMPLE_PHASE_LINES, '', '**6. A new decision?** — **deferred**']));
+    const panel = await rig.engine.get();
+    expect(panel.ok).toBe(false);
+    if (panel.ok) return;
+    expect(panel.error.code).toBe('engine-decision-unreadable');
+    expect(panel.error.message).toContain('"deferred"');
+  });
+
   it('a doc that is missing from the repo gives an error panel that names it, and a good load after it keeps the data of the last one', async () => {
     const rig = await rigWith();
     expect(decisionsOf(await rig.engine.get())).toHaveLength(12);

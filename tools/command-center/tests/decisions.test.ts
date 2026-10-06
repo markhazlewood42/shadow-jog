@@ -173,6 +173,29 @@ describe('the engine decision table', () => {
     expect(none.code).toBe('decisions-table-missing');
     expect(none.message).toContain('Who decides');
   });
+
+  it('a table row with a bad id is an error that names the id, and not a row that vanishes', () => {
+    for (const bad of ['E 2', 'e2', 'E-2', 'E2.', 'F2', 'Two']) {
+      const md = decisionsMd().replace('| E2 | Name of the hook |', `| ${bad} | Name of the hook |`);
+      const error = failureOf(() => parseEngineDecisions(md));
+      expect(error.code, bad).toBe('engine-decision-unreadable');
+      expect(error.message).toContain(`"${bad}"`);
+      expect(error.message).toContain('docs/engine/decisions.md');
+    }
+  });
+
+  it('a table row with no id and no question is skipped, not an error', () => {
+    const md = decisionsMd().replace('| E2 | Name of the hook | `fixedUpdate(tick)` | M1 | Mark |  |', '|  |  |  |  |  |  |');
+    expect(md).not.toBe(decisionsMd());
+    expect(parseEngineDecisions(md).map((row) => row.id)).not.toContain('E2');
+  });
+
+  it('a row of the real choices table with a bad id is an error that names the id', () => {
+    const error = failureOf(() => parseUpdateChoices(readmeMd().replace('| C2 |', '| C 2 |')));
+    expect(error.code).toBe('engine-decision-unreadable');
+    expect(error.message).toContain('"C 2"');
+    expect(error.message).toContain('docs/engine/README.md');
+  });
 });
 
 describe('the Phase 0 update choices (C1 to C7)', () => {

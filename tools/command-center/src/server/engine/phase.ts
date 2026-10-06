@@ -1,5 +1,6 @@
 import type { DocHeading } from '../../shared/types';
 import { splitFrontmatter } from '../docs/frontmatter';
+import { PanelError } from '../source';
 import { ENGINE_DOCS, type RawDecision, anchorOfHeading, inlineText, sortByNumber } from './decisions';
 
 // The decisions of docs/PHASE-0.2.md. They are not a table: each one is a line in the form
@@ -7,16 +8,23 @@ import { ENGINE_DOCS, type RawDecision, anchorOfHeading, inlineText, sortByNumbe
 //   **5. What should happen to PixelLab?** — **OPEN (2026-10-04).** More words.
 //
 // with the options and the recommendation on the lines under it. The bold words after the dash
-// start with the verdict: "decided", "answered" or "OPEN". A decision is its line and the lines
-// under it, up to the next decision or the next heading.
+// start with the verdict: "decided", "answered" or "OPEN". A line of this form with another verdict
+// is an error (see ANY_VERDICT_LINE). A decision is its line and the lines under it, up to the next
+// decision or the next heading.
 
 /**
  * A decision line: the number and the question in bold, a dash, and bold words that start with a
- * verdict. Anything else (a status note with bold words in it, a bold list item, a line with another
- * verdict) is not a decision. The dash is the em dash of the doc, and an en dash or a hyphen is
+ * verdict. Anything else (a status note with bold words in it, a bold list item) is not a decision. (A line of this
+ * shape with another verdict is an error: see ANY_VERDICT_LINE.) The dash is the em dash of the doc, and an en dash or a hyphen is
  * accepted too, because a text editor may change one into another.
  */
 const DECISION_LINE = /^\*\*(\d+)\.\s+(.+?)\*\*\s+[—–-]+\s+\*\*((?:decided|answered|open)\b.*?)\*\*/i;
+
+/**
+ * The shape of a decision line with any verdict word. A line of this shape that `DECISION_LINE` does not accept has a verdict that this page does not know
+ * ("deferred", "blocked", a typo), and it is an error. It is not skipped: a decision that vanishes from the list is a decision that Mark is not asked about.
+ */
+const ANY_VERDICT_LINE = /^\*\*(\d+)\.\s+.+?\*\*\s+[—–-]+\s+\*\*([^\s*]+)/;
 
 /** A heading line (ATX style: one to six `#` and a space). */
 const HEADING_LINE = /^ {0,3}#{1,6}\s+(.*?)(?:\s+#+)?\s*$/;
@@ -63,6 +71,14 @@ export function parsePhaseDecisions(markdown: string, headings: readonly DocHead
     const decision = DECISION_LINE.exec(line);
     if (decision !== null) {
       found.push({ number: decision[1] ?? '', question: inlineText(decision[2] ?? ''), answer: inlineText(decision[3] ?? ''), startLine: i, headingAbove });
+      return;
+    }
+    const unknown = ANY_VERDICT_LINE.exec(line);
+    if (unknown !== null) {
+      throw new PanelError(
+        'engine-decision-unreadable',
+        `${ENGINE_DOCS.phase.path} decision ${unknown[1]} has a verdict that this page does not know: "${unknown[2]}". The bold words after the dash must start with decided, answered or OPEN.`,
+      );
     }
   });
 

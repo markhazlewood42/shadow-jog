@@ -4,12 +4,24 @@ import { describe, expect, it } from 'vitest';
 import { classifyDecisions } from '../src/server/engine/decisions';
 import { parsePhaseDecisions } from '../src/server/engine/phase';
 import type { DocHeading } from '../src/shared/types';
+import { PanelError } from '../src/server/source';
 import { PACKAGE_DIR } from './helpers';
 import { SAMPLE_PHASE_LINES, phaseMd } from './engine-helpers';
 
 // The decisions of docs/PHASE-0.2.md: not a table but lines in the form
 // `**N. Question** — **decided|answered|OPEN ...** more words`. A decision is its line and the
 // lines under it, up to the next decision or the next heading.
+
+/** The error that a parser throws, or a failure of the test when it does not throw. */
+function failureOf(run: () => unknown): PanelError {
+  try {
+    run();
+  } catch (error) {
+    if (error instanceof PanelError) return error;
+    throw error;
+  }
+  throw new Error('expected a PanelError, but nothing was thrown');
+}
 
 describe('the PHASE-0.2 decision lines', () => {
   it('PHASE-0.2 lines give decided, answered and OPEN', () => {
@@ -77,7 +89,7 @@ describe('the PHASE-0.2 decision lines', () => {
     expect(d5?.text).not.toContain('Nothing here.');
   });
 
-  it('only a line in the form of a decision is one: a status note, a line in a code block and an unknown verdict are not', () => {
+  it('only a line in the form of a decision is one: a status note and a line in a code block are not', () => {
     const md = phaseMd([
       '**3. A real one?** — **decided 2026-10-02: (b)**',
       '',
@@ -85,13 +97,30 @@ describe('the PHASE-0.2 decision lines', () => {
       '**4. A line in a code block?** — **decided never**',
       '```',
       '',
-      '**6. A verdict that is not one?** — **maybe tomorrow**',
-      '',
       'A line with no dash: **7. Not a decision** and more.',
     ]);
     expect(parsePhaseDecisions(md).map((row) => row.id)).toEqual(['D3']);
     // The code block belongs to the text of the decision above it (it is under it), and does not end it.
     expect(parsePhaseDecisions(md)[0]?.text).toContain('```');
+  });
+
+  it('a decision line with a verdict that the page does not know is an error that names it, and not a row that vanishes', () => {
+    for (const [line, verdict] of [
+      ['**18. Is it blocked?** — **blocked on the spike**', 'blocked'],
+      ['**18. Is it deferred?** — **Deferred (2026-10-06).** Later.', 'Deferred'],
+      ['**18. Is it deferred?** - **maybe tomorrow**', 'maybe'],
+    ] as const) {
+      const error = failureOf(() => parsePhaseDecisions(phaseMd([...SAMPLE_PHASE_LINES, '', line])));
+      expect(error.code, line).toBe('engine-decision-unreadable');
+      expect(error.message).toContain('decision 18');
+      expect(error.message).toContain(`"${verdict}"`);
+      expect(error.message).toContain('docs/PHASE-0.2.md');
+    }
+  });
+
+  it('a decision line with a verdict inside a code block is not an error', () => {
+    const md = phaseMd([...SAMPLE_PHASE_LINES, '', '```', '**18. A line in a code block?** — **blocked**', '```']);
+    expect(parsePhaseDecisions(md).map((row) => row.id)).toEqual(parsePhaseDecisions(phaseMd()).map((row) => row.id));
   });
 
   it('puts the decisions in numeric order and finds the anchor of the heading above them', () => {
