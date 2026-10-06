@@ -1,16 +1,13 @@
 import { Button, Label, Radio, RadioGroup, TextArea, TextField } from '@heroui/react';
 import { LoaderCircle, Send, TriangleAlert } from 'lucide-react';
 import { type FormEvent, useCallback, useState } from 'react';
-import type { AnswerStep, DecisionIssue } from '../../shared/types';
+import { type AnswerStep, type DecisionIssue, MAX_NOTE_CHARS } from '../../shared/types';
 import { ApiError, postJson } from '../api';
 import { OptionBadge, RecommendedChip } from './DecisionCard';
 
 // How Mark answers a decision: he picks an option, adds a note if he wants, and sends it. The server then posts a
 // comment on the GitHub issue, swaps its label and closes it (three calls, one after the other, and any of them can fail).
 // When one fails the form shows the error and keeps his choice and his note, and a retry carries on where the answer stopped.
-
-/** The longest note that the server takes. The same number as the server's, so the text box stops where the server would refuse. */
-const MAX_NOTE_CHARS = 2000;
 
 /** Why an answer did not go through. `step` is the write that failed (the ones before it are done), or null when nothing was written (a refusal, a lost connection). */
 export type AnswerFailure = { step: AnswerStep | null; code: string; message: string };
@@ -82,7 +79,8 @@ const STEP_TEXT: Record<AnswerStep, string> = {
 function FailureBox({ failure }: { failure: AnswerFailure }) {
   return (
     <div role="alert" className="flex items-start gap-3 rounded-md border border-cc-rule-solid bg-cc-paper px-4 py-3">
-      <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-cc-accent" />
+      {/* The icon is ink, not amber: a page may have one or two amber items (the Look), and here they are the state chip and the Retry button. */}
+      <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-cc-ink" />
       <div className="min-w-0 flex-1 text-sm">
         <p className="font-medium">{failure.step === null ? 'Your answer was not sent.' : STEP_TEXT[failure.step]}</p>
         <p className="mt-1 break-words">{failure.message}</p>

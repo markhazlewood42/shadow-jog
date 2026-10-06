@@ -3,7 +3,7 @@ import { act } from 'react';
 import { type Root, createRoot } from 'react-dom/client';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DecisionDetail, DocDecision, DocPage, Panel } from '../src/shared/types';
+import { type DecisionDetail, type DocDecision, type DocPage, MAX_NOTE_CHARS, type Panel } from '../src/shared/types';
 import { DecisionRoute } from '../src/web/decisions/DecisionPage';
 import { DecisionBanner } from '../src/web/decisions/DecisionBanner';
 import { DocView } from '../src/web/docs/DocView';
@@ -44,7 +44,8 @@ function detail(over: Partial<DecisionDetail> = {}): DecisionDetail {
   };
 }
 const good = (data: DecisionDetail): Panel<DecisionDetail> => ({ ok: true, data, updatedAt: '2026-10-06T12:00:00Z' });
-const answered = (): DecisionDetail => detail({ state: 'answered', answer: { option: 'C', note: 'Because it keeps the cache.', at: '2026-10-06T11:00:00Z', complete: true } });
+const answered = (over: Partial<DecisionDetail> = {}): DecisionDetail =>
+  detail({ state: 'answered', answer: { option: 'C', note: 'Because it keeps the cache.', at: '2026-10-06T11:00:00Z', complete: true }, ...over });
 
 // ---- a stub server ----
 
@@ -259,6 +260,78 @@ describe('the decision page', () => {
     expect((globalThis as { __pwned?: boolean }).__pwned).toBeUndefined();
   });
 
+  // The test above shows the places that every state shows. These show the places that only some states show, one test for each: the options of a decision that is answered or closed,
+  // the note of an answer, the doc of a linked section, the words that the server gives for a failed answer, and the sentence about what is wrong with the body of an issue. Each of these
+  // places must put the words in as text. A place that switched to html would show an element that the text made, and one of these tests would fail.
+  const SCRIPT = '<script>window.__pwned = true</script>';
+  const IMG = '<img src=x onerror="window.__pwned = true">';
+
+  /** The words are on the page as they are, and made no element outside the docs' own html: no script, picture, bold, italic or underline, no handler, and nothing ran. */
+  function expectOnlyText(words: string[]): void {
+    for (const word of words) expect(text(), word).toContain(word);
+    for (const tag of ['script', 'img', 'b', 'i', 'u']) {
+      expect([...container.querySelectorAll(tag)].filter((element) => !element.closest('.doc-html')), tag).toHaveLength(0);
+    }
+    expect(container.querySelectorAll('[onload], [onerror]')).toHaveLength(0);
+    expect((globalThis as { __pwned?: boolean }).__pwned).toBeUndefined();
+  }
+
+  it('issue text is plain text in the options of an answered decision', async () => {
+    // OptionList: the list of a decision that has no form.
+    server.detail = {
+      status: 200,
+      body: good(
+        answered({
+          options: [
+            { id: 'A', text: `Show <i>this</i> as it is ${SCRIPT}` },
+            { id: 'B', text: `Strip it ${IMG}` },
+          ],
+        }),
+      ),
+    };
+    await show();
+    expect(container.querySelector('form')).toBeNull();
+    expectOnlyText([`Show <i>this</i> as it is ${SCRIPT}`, `Strip it ${IMG}`]);
+  });
+
+  it('issue text is plain text in the note of an answer', async () => {
+    // DecisionCard: the answer of an answered decision, with the note that Mark's comment has.
+    server.detail = { status: 200, body: good(detail({ state: 'answered', answer: { option: 'C', note: `Because <b>bold</b> ${IMG} and ${SCRIPT}`, at: '2026-10-06T11:00:00Z', complete: true } })) };
+    await show();
+    expectOnlyText([`Because <b>bold</b> ${IMG} and ${SCRIPT}`]);
+  });
+
+  it('issue text is plain text in the doc and the heading of a linked section', async () => {
+    // LinkedSection: the bar with the doc and the heading id that the issue names, the label of the section, and the notice for a heading that is not there.
+    const docId = 'docs/<b>bold</b>/<i>x</i>.md';
+    const anchor = `<u>head</u>${IMG}`;
+    server.detail = {
+      status: 200,
+      body: good(detail({ docs: [{ docId, slug: 'bold/x', anchor, heading: null }], sections: [{ docId, anchor, heading: null, html: null }] })),
+    };
+    await show();
+    expectOnlyText([docId, `#${anchor}`]);
+    // The label of the section is the same words, as an attribute (not read as html either).
+    expect(container.querySelector('section[aria-label]:not([aria-label="Decision"])')?.getAttribute('aria-label')).toBe(`${docId}#${anchor}`);
+  });
+
+  it('issue text is plain text in the error of a failed answer', async () => {
+    // FailureBox: the message that the server gives. It holds the words of gh, which can hold anything that an issue or a label name holds.
+    server.answers = [{ status: 502, body: { ok: false, step: 'label', error: { code: 'gh-failed', message: `gh said ${SCRIPT} and <b>stop</b> ${IMG}` } } }];
+    await show();
+    await choose('A');
+    await press(sendButton());
+    expect(alert()).not.toBeNull();
+    expectOnlyText([`gh said ${SCRIPT} and <b>stop</b> ${IMG}`]);
+  });
+
+  it('issue text is plain text in the sentence about a problem with the body', async () => {
+    // Notice: the problem that the server found. The server's own words, and it must not become html either, whatever words come into it.
+    server.detail = { status: 200, body: good(detail({ question: '', options: [], recommended: null, problem: `The body has <b>marks</b> ${SCRIPT}` })) };
+    await show();
+    expectOnlyText([`The body has <b>marks</b> ${SCRIPT}`]);
+  });
+
   it('a missing anchor shows a notice, not an error', async () => {
     server.detail = {
       status: 200,
@@ -317,7 +390,7 @@ describe('the answer form', () => {
   it('has a radio button for each option, a note box and a Send button that waits for a choice', async () => {
     await show();
     expect(container.querySelectorAll('input[type="radio"]')).toHaveLength(3);
-    expect(noteBox()?.getAttribute('maxlength')).toBe('2000');
+    expect(noteBox()?.getAttribute('maxlength')).toBe(String(MAX_NOTE_CHARS)); // the number of the server, from the shared types: the box stops where the server would refuse
     expect(sendButton()?.textContent).toContain('Send answer');
     expect(sendButton()?.disabled).toBe(true); // nothing is chosen
     await choose('B');
@@ -366,6 +439,9 @@ describe('the answer form', () => {
     expect(alert()?.textContent).toContain('failed to change the labels: HTTP 502: Bad Gateway');
     expect(alert()?.textContent).toContain('gh-failed');
     expect(alert()?.textContent).toContain('does not post the comment a second time');
+    // The icon of the error is ink: with the state chip and the Retry button, an amber icon would be a third amber item, and the Look allows one or two on a page.
+    expect(alert()?.querySelector('svg')?.getAttribute('class')).toContain('text-cc-ink');
+    expect(alert()?.outerHTML).not.toContain('cc-accent');
     // The form still has the choice and the note, and offers a retry.
     expect(radio('B')?.checked).toBe(true);
     expect(noteBox()?.value).toBe('Because the temp folder is cleaned for us.');
@@ -555,6 +631,40 @@ describe('the banner on a doc page', () => {
     const order = [...container.querySelectorAll('.doc-html > *')].map((part) => (part.tagName.toLowerCase() === 'aside' ? 'banner' : part.querySelector('h2#storage') ? 'storage' : part.querySelector('h2#installing') ? 'installing' : 'other'));
     expect(order).toEqual(['installing', 'banner', 'storage']);
     expect(container.querySelectorAll('aside[aria-label^="Open decision"]')).toHaveLength(1);
+    // A page with one banner has it in amber: it is the first one.
+    expect(banner?.className).toContain('border-cc-accent');
+  });
+
+  it('draws the first banner of the page in amber and the others in the lavender frame, so that the page keeps to the amber items of the Look', () => {
+    // The list of the decisions is not in the order of the page. The order of the page is 47 (no such heading: above the doc), 43 and 41 (Installing), then 41 (Storage).
+    const decisions: DocDecision[] = [
+      { number: 41, title: 'Decision: A?', anchor: 'storage' },
+      { number: 43, title: 'Decision: B?', anchor: 'installing' },
+      { number: 41, title: 'Decision: A?', anchor: 'installing' },
+      { number: 47, title: 'Decision: C?', anchor: 'no-such-heading' },
+    ];
+    renderDoc({ ...DOC, decisions });
+    const banners = [...container.querySelectorAll('aside[aria-label^="Open decision"]')];
+    expect(banners.map((banner) => banner.getAttribute('aria-label'))).toEqual(['Open decision 47', 'Open decision 43', 'Open decision 41', 'Open decision 41']);
+    const [first, ...others] = banners;
+    expect(first?.className).toContain('border-cc-accent');
+    expect(first?.className).toContain('cc-focal');
+    expect(first?.querySelector('svg')?.getAttribute('class')).toContain('text-cc-accent');
+    expect(others).toHaveLength(3);
+    for (const banner of others) {
+      expect(banner.className).toContain('border-cc-rule-solid');
+      expect(banner.className).not.toContain('cc-focal');
+      expect(banner.querySelector('svg')?.getAttribute('class')).toContain('text-cc-ink');
+      expect(banner.outerHTML).not.toContain('cc-accent'); // no amber in the frame, the icon or the text
+    }
+
+    // The amber one is the first of the page as it is now: when the decisions change, the next banner takes it.
+    renderDoc({ ...DOC, decisions: decisions.slice(0, 2) });
+    const later = [...container.querySelectorAll('aside[aria-label^="Open decision"]')];
+    expect(later.map((banner) => [banner.getAttribute('aria-label'), banner.className.includes('border-cc-accent')])).toEqual([
+      ['Open decision 43', true],
+      ['Open decision 41', false],
+    ]);
   });
 
   it('shows a banner for a heading that the doc does not have above the whole doc, so that it never disappears', () => {
@@ -583,15 +693,22 @@ describe('the banner on a doc page', () => {
     expect(container.querySelector('[role="note"]')).toBeNull();
   });
 
-  it('DecisionBanner on its own: the number of the decision is in the link and the label', () => {
-    act(() => {
-      root.render(
-        <MemoryRouter>
-          <DecisionBanner decision={{ number: 12, title: 'Decision: Use the new folder?', anchor: 'x' }} />
-        </MemoryRouter>,
-      );
-    });
+  it('DecisionBanner on its own: the number of the decision is in the link and the label, and only the lead banner is amber', () => {
+    const show = (lead: boolean) =>
+      act(() => {
+        root.render(
+          <MemoryRouter>
+            <DecisionBanner decision={{ number: 12, title: 'Decision: Use the new folder?', anchor: 'x' }} lead={lead} />
+          </MemoryRouter>,
+        );
+      });
+    show(true);
     expect(container.querySelector('a')?.getAttribute('href')).toBe('/decisions/12');
     expect(container.querySelector('aside')?.getAttribute('aria-label')).toBe('Open decision 12');
+    expect(container.querySelector('aside')?.outerHTML).toContain('cc-accent');
+    show(false);
+    expect(container.querySelector('a')?.getAttribute('href')).toBe('/decisions/12');
+    expect(container.querySelector('aside')?.getAttribute('aria-label')).toBe('Open decision 12');
+    expect(container.querySelector('aside')?.outerHTML).not.toContain('cc-accent');
   });
 });

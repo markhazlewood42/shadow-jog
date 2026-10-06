@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { type APIRequestContext, type Page, expect, test } from '@playwright/test';
+import { type APIRequestContext, type Locator, type Page, expect, test } from '@playwright/test';
 import type { DecisionDetail, DecisionsInfo, DocPageData, Panel } from '../src/shared/types';
 import { E2E_DIR, FAKE_VIEWER, type GhIssueStore, readGhCalls, readGhIssues, resetGh, setGhIssues, setGhMode } from './fake-gh';
 
@@ -78,6 +78,107 @@ async function readDecisions(request: APIRequestContext): Promise<DecisionsInfo>
   const panel = (await (await request.get('/api/decisions')).json()) as Panel<DecisionsInfo>;
   if (!panel.ok) throw new Error(`/api/decisions answered an error: ${panel.error.message}`);
   return panel.data;
+}
+
+// ---- the Look, measured in the browser ----
+// The Look (docs/diagrams/profile/NOTES.md) gives amber to the one or two things on a page that matter most, and keeps every text at 4.5 to 1 or more. These
+// helpers read the computed styles of the page, so a test can say it in numbers.
+
+/** The colors of the tokens as the browser writes them (`rgb(...)`), so that a test can compare them with a computed style. A probe element resolves each token. */
+async function tokenColors(page: Page): Promise<{ accent: string; ink: string; ruleSolid: string; soft: string }> {
+  return page.evaluate(() => {
+    const probe = document.createElement('i');
+    document.body.append(probe);
+    const read = (token: string): string => {
+      probe.style.color = `var(${token})`;
+      return getComputedStyle(probe).color;
+    };
+    const colors = { accent: read('--cc-accent'), ink: read('--cc-ink'), ruleSolid: read('--cc-rule-solid'), soft: read('--cc-soft') };
+    probe.remove();
+    return colors;
+  });
+}
+
+/**
+ * The amber items of the page, each as a short name. An element is amber when it draws the accent color: as its fill, border, outline, stroke (an icon), or as the color
+ * of text of its own (the ::before and ::after of an element count for the element). An amber element inside another is part of that item, so a banner with an amber
+ * frame and an amber icon is one item. The whole page counts, not only the part in view.
+ */
+async function amberItems(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const probe = document.createElement('i');
+    probe.style.color = 'var(--cc-accent)';
+    document.body.append(probe);
+    const amber = getComputedStyle(probe).color;
+    probe.remove();
+
+    const drawsAmber = (element: Element, pseudo: string | null): boolean => {
+      const style = getComputedStyle(element, pseudo);
+      if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
+      if (pseudo === null && element.getClientRects().length === 0) return false;
+      if (pseudo !== null && (style.content === 'none' || style.content === 'normal')) return false;
+      if (style.backgroundColor === amber) return true;
+      for (const side of ['top', 'right', 'bottom', 'left']) {
+        if (Number.parseFloat(style.getPropertyValue(`border-${side}-width`)) > 0 && style.getPropertyValue(`border-${side}-style`) !== 'none' && style.getPropertyValue(`border-${side}-color`) === amber) return true;
+      }
+      if (Number.parseFloat(style.outlineWidth) > 0 && style.outlineStyle !== 'none' && style.outlineColor === amber) return true;
+      if (pseudo !== null) return style.color === amber;
+      if (element instanceof SVGSVGElement) return style.stroke === amber || style.fill === amber;
+      const hasText = [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() !== '');
+      return hasText && style.color === amber;
+    };
+
+    const amberElements = [...document.body.querySelectorAll('*')].filter((element) => [null, '::before', '::after'].some((pseudo) => drawsAmber(element, pseudo)));
+    const items = amberElements.filter((element) => !amberElements.some((other) => other !== element && other.contains(element)));
+    return items.map((element) => `${element.tagName.toLowerCase()}[${element.getAttribute('aria-label') ?? ''}] "${(element.textContent ?? '').trim().slice(0, 24)}"`);
+  });
+}
+
+/** The page keeps to two amber items, and says which they are when it does not. */
+async function expectAtMostTwoAmberItems(page: Page): Promise<void> {
+  const items = await amberItems(page);
+  expect(items.length, `amber items: ${items.join(' | ')}`).toBeLessThanOrEqual(2);
+}
+
+/**
+ * The contrast of the text of an element: the color of its text against the color that it stands on, as the pixels show them. An element that is faded (`opacity`)
+ * is drawn as a group and then blended into the page, so its text and its own fill both move toward the page color: that fade is part of the number.
+ */
+function contrastOf(target: Locator): Promise<{ ratio: number; text: string; fill: string }> {
+  return target.evaluate((element) => {
+    type Rgba = { r: number; g: number; b: number; a: number };
+    const parse = (value: string): Rgba => {
+      const parts = (/\(([^)]+)\)/.exec(value)?.[1] ?? '0,0,0,0').split(/[ ,/]+/).filter(Boolean).map(Number);
+      return { r: parts[0] ?? 0, g: parts[1] ?? 0, b: parts[2] ?? 0, a: parts[3] ?? 1 };
+    };
+    const over = (top: Rgba, bottom: Rgba): Rgba => {
+      const a = top.a + bottom.a * (1 - top.a);
+      const mix = (t: number, b: number) => (a === 0 ? 0 : (t * top.a + b * bottom.a * (1 - top.a)) / a);
+      return { r: mix(top.r, bottom.r), g: mix(top.g, bottom.g), b: mix(top.b, bottom.b), a };
+    };
+    const luminance = ({ r, g, b }: Rgba): number => {
+      const channel = (value: number) => {
+        const s = value / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    };
+
+    // What is behind the element: the backgrounds of its ancestors, from the page down.
+    let behind: Rgba = { r: 0, g: 0, b: 0, a: 1 };
+    let fade = 1;
+    for (let node: Element | null = element; node !== null; node = node.parentElement) fade *= Number(getComputedStyle(node).opacity);
+    const ancestors: Element[] = [];
+    for (let node = element.parentElement; node !== null; node = node.parentElement) ancestors.unshift(node);
+    for (const node of ancestors) behind = over(parse(getComputedStyle(node).backgroundColor), behind);
+
+    const style = getComputedStyle(element);
+    const text = over({ ...parse(style.color), a: fade }, behind);
+    const own = parse(style.backgroundColor);
+    const fill = over({ ...own, a: own.a * fade }, behind);
+    const [high, low] = [luminance(text), luminance(fill)].sort((x, y) => y - x);
+    return { ratio: ((high ?? 0) + 0.05) / ((low ?? 0) + 0.05), text: style.color, fill: style.backgroundColor };
+  });
 }
 
 test.describe('the page of a decision', () => {
@@ -235,6 +336,9 @@ test.describe('answering a decision', () => {
     await expect(alert).toContainText('Your answer is posted on GitHub as a comment, but the labels of the issue were not changed.');
     await expect(alert).toContainText('failed to change the labels: HTTP 502: Bad Gateway');
     await expect(alert).toContainText('gh-failed');
+    // The Look: a page has one or two amber items. The icon of the error is ink, so the amber ones are the state chip and the Retry button.
+    await expect(alert.locator('svg').first()).toHaveCSS('color', (await tokenColors(page)).ink);
+    await expectAtMostTwoAmberItems(page);
     await expect(form(page).getByRole('radio', { name: /Move it to the temp folder/ })).toBeChecked();
     await expect(form(page).getByLabel('Note (optional)')).toHaveValue('The temp folder is cleaned for us.');
     await expect(form(page).getByRole('button', { name: 'Retry' })).toBeEnabled();
@@ -283,6 +387,9 @@ test.describe('answering a decision', () => {
     const alert = page.getByRole('alert');
     await expect(alert).toContainText('gh is not signed in to GitHub');
     await expect(alert).toContainText('gh-not-signed-in');
+    // The icon of the panel's alert is ink, so with the state chip and the Send answer button (a choice is made) the page has two amber items, not three.
+    await expect(alert.locator('svg').first()).toHaveCSS('color', (await tokenColors(page)).ink);
+    await expectAtMostTwoAmberItems(page);
     await expect(decisionOf(page)).toContainText(/Last updated \d\d:\d\d:\d\d/);
     // The decision is still there (the last good data), and so are the choice and the note.
     await expect(decisionOf(page)).toContainText('Where should Burrow keep its cache folder?');
@@ -365,6 +472,70 @@ test.describe('the banner on a doc', () => {
       [43, 'installing'],
       [47, 'installing'],
     ]);
+  });
+});
+
+test.describe('the Look: amber and contrast', () => {
+  test('E2E: a doc with many banners keeps to two amber items: the first banner is amber, and the others have the lavender frame and an ink icon', async ({ page }) => {
+    await page.goto('/docs/guides/setup');
+    const banners = page.locator('.doc-html aside[aria-label^="Open decision"]');
+    await expect(banners).toHaveCount(5); // decision 41 links three headings, and 43 and 47 one each
+    const colors = await tokenColors(page);
+    const seen = await banners.evaluateAll((elements) =>
+      elements.map((element) => {
+        const icon = element.querySelector('svg');
+        return { label: element.getAttribute('aria-label'), frame: getComputedStyle(element).borderTopColor, icon: icon === null ? '' : getComputedStyle(icon).color };
+      }),
+    );
+    // The first banner of the page is the amber one (here the one for the heading that the doc lacks, which goes to the top).
+    expect(seen[0]).toEqual({ label: 'Open decision 41', frame: colors.accent, icon: colors.accent });
+    for (const banner of seen.slice(1)) expect(banner, banner.label ?? '').toMatchObject({ frame: colors.ruleSolid, icon: colors.ink });
+    // The page has the amber banner and the amber current item of the section tree, and nothing else.
+    await expectAtMostTwoAmberItems(page);
+    expect((await amberItems(page)).some((item) => item.startsWith('aside[Open decision 41]'))).toBe(true);
+  });
+
+  test('E2E: the page of an open decision has one amber item while nothing is chosen (the Open chip), and two when an option is chosen (the chip and Send answer)', async ({ page }) => {
+    await page.goto('/decisions/41');
+    const send = form(page).getByRole('button', { name: 'Send answer' });
+    await expect(send).toBeDisabled();
+    await expect(decisionOf(page).getByText('Open', { exact: true })).toBeVisible();
+    const before = await amberItems(page);
+    expect(before, before.join(' | ')).toHaveLength(1);
+    expect(before.some((item) => item.includes('Send answer'))).toBe(false);
+
+    await optionOf(page, /Move it to a new `cache` folder/).click();
+    await expect(send).toBeEnabled();
+    await expect(send).toHaveCSS('background-color', (await tokenColors(page)).accent); // the fill has finished its change
+    const after = await amberItems(page);
+    expect(after, after.join(' | ')).toHaveLength(2);
+    expect(after.some((item) => item.includes('Send answer'))).toBe(true);
+  });
+
+  test('E2E: the disabled Send answer button keeps the 4.5 to 1 floor of the profile, with its fade counted, and it is not amber', async ({ page }) => {
+    await page.goto('/decisions/41');
+    const send = form(page).getByRole('button', { name: 'Send answer' });
+    await expect(send).toBeDisabled();
+    await expect(send).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)'); // no fill: the amber one is for a button that can be pressed
+    const colors = await tokenColors(page);
+    const off = await contrastOf(send);
+    expect(off.text).toBe(colors.soft);
+    expect(off.fill).not.toBe(colors.accent);
+    expect(off.ratio).toBeGreaterThanOrEqual(4.5);
+
+    // The fill and the label change together, at once: a fade of the fill alone shows the dark label on the empty fill for a frame or two (1.2 to 1) when the button turns on.
+    // A person who asks for less motion has no transition at all.
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await expect(send).toHaveCSS('transition-property', 'transform, box-shadow');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect(send).toHaveCSS('transition-property', 'none');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+
+    // Pressable: the amber fill with the dark label, far above the floor.
+    await optionOf(page, /Move it to a new `cache` folder/).click();
+    await expect(send).toBeEnabled();
+    await expect(send).toHaveCSS('background-color', colors.accent);
+    expect((await contrastOf(send)).ratio).toBeGreaterThanOrEqual(4.5);
   });
 });
 

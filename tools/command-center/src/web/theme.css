@@ -117,6 +117,32 @@
 }
 
 /*
+ * A disabled primary button. HeroUI fades a disabled button with `opacity: 0.5`, which takes the dark label on the amber fill down to 4.1 to 1, below the
+ * 4.5 to 1 that every text role keeps (docs/diagrams/profile/NOTES.md). Nothing can be done with a disabled button, so it is also not one of the one or two
+ * things that matter on the page: it gives up the amber fill and is drawn as a lavender line with the `soft` label at full opacity (5.67 to 1 on the panel
+ * navy, the lowest ratio of the set). The line is an outline that sits inside the box, so the button keeps its size when it turns on or off.
+ */
+.button--primary:disabled,
+.button--primary[aria-disabled='true'] {
+  --button-bg: transparent;
+  --button-fg: var(--cc-soft);
+  outline: 1px solid var(--cc-rule-solid);
+  outline-offset: -1px;
+  opacity: 1;
+}
+
+/*
+ * The fill and the label of a primary button change together, at once. HeroUI fades the fill over 100 ms and changes the label at once, so when the button turns on,
+ * the dark label stands on the navy of the empty fill for a frame or two (1.2 to 1) before the amber comes in. Only the press and the shadow keep their transition.
+ * A person who asks for less motion has no transition at all, as HeroUI has it, so this rule is left out for them.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .button--primary {
+    transition-property: transform, box-shadow;
+  }
+}
+
+/*
  * The focus ring of a link or a button that is not a HeroUI component (those have their own, which
  * the theme above colours with --focus). The lavender frame colour, so the ring is seen on navy.
  */

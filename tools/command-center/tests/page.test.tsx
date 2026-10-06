@@ -219,6 +219,13 @@ describe('PanelFrame', () => {
     expect(html).not.toContain('the number is');
   });
 
+  it('draws the icon of the error in ink, not amber, so that a page with several failing panels keeps to the one or two amber items of the Look', () => {
+    const html = render({ state: 'error', panel: { ok: false, error: { code: 'gh-not-signed-in', message: 'GitHub: gh is not signed in' }, updatedAt: null, lastGood: null }, reload });
+    const icon = /<div role="alert"[^>]*>\s*<svg[^>]*>/.exec(html)?.[0] ?? '';
+    expect(icon).toContain('text-cc-ink');
+    expect(icon).not.toContain('cc-accent');
+  });
+
   it('shows the error above the last good data, with the time of that data', () => {
     const html = render({ state: 'error', panel: { ok: false, error: { code: 'network', message: 'Cannot reach the server.' }, updatedAt: T0, lastGood: { data: 3, updatedAt: T0 } }, reload });
     expect(html).toContain('Cannot reach the server.');

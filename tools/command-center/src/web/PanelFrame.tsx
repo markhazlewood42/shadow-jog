@@ -62,7 +62,8 @@ export function PanelFrame<T>({ title, result, focal = false, children }: PanelF
     body = (
       <>
         <div role="alert" className="flex flex-wrap items-start gap-3">
-          <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-cc-accent" />
+          {/* Ink, not amber: a page may have one or two amber items (the Look), and a page can hold several panels that fail at once. */}
+          <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-cc-ink" />
           <div className="min-w-0 flex-1">
             <p className="font-medium">{panel.error.message}</p>
             <p className="mt-0.5 font-mono text-xs text-cc-muted">{panel.error.code}</p>

@@ -33,6 +33,12 @@ export type DocViewProps = {
 const NO_BANNERS: readonly DocBanner[] = [];
 
 /**
+ * A banner as the page places it: a node, or a function that makes the node once it knows whether the banner is the first decision banner of the page (`lead`).
+ * Only the lead one is amber (see DecisionBanner), and which banner comes first is known only after the banners are placed in the html.
+ */
+type PlacedBanner = Banner<ReactNode | ((lead: boolean) => ReactNode)>;
+
+/**
  * The element of the doc that has this id. The search stays inside the doc on purpose: a heading
  * gets its id from its words, so a heading "Root" is `#root`, and the page has an element with that
  * id too. `document.getElementById` would find the page's, and a link to the heading would scroll
@@ -96,9 +102,14 @@ export function DocView({ doc, footer, banners = NO_BANNERS }: DocViewProps) {
 
   // The banners of the open decisions that link to this doc come first, then the ones that the caller gave. The list is made again only when the decisions change,
   // so the html is cut again only then (a new list would put the html into the page again, and a person who is reading would lose nothing but the work).
-  const decisionBanners = useMemo<DocBanner[]>(() => (doc.decisions ?? []).map((decision) => ({ anchor: decision.anchor, node: <DecisionBanner decision={decision} /> })), [doc.decisions]);
-  const allBanners = useMemo(() => (banners.length === 0 ? decisionBanners : [...decisionBanners, ...banners]), [decisionBanners, banners]);
+  const decisionBanners = useMemo<PlacedBanner[]>(
+    () => (doc.decisions ?? []).map((decision) => ({ anchor: decision.anchor, node: (lead: boolean) => <DecisionBanner decision={decision} lead={lead} /> })),
+    [doc.decisions],
+  );
+  const allBanners = useMemo<readonly PlacedBanner[]>(() => (banners.length === 0 ? decisionBanners : [...decisionBanners, ...banners]), [decisionBanners, banners]);
   const parts = useMemo(() => placeBanners(doc.html, allBanners), [doc.html, allBanners]);
+  // The first decision banner in the order of the page is the amber one, wherever it came from in the list of the decisions.
+  const leadPart = parts.findIndex((part) => part.kind === 'banner' && typeof part.banner.node === 'function');
   // A doc with no heading of its own still needs a title on the page.
   const needsTitle = !hasHeadingLevel1(doc.html);
 
@@ -179,7 +190,7 @@ export function DocView({ doc, footer, banners = NO_BANNERS }: DocViewProps) {
               // and every tag of the doc's own text is escaped there, so it is not sanitized again here.
               <div key={`html:${i}`} dangerouslySetInnerHTML={{ __html: part.html }} />
             ) : (
-              <Fragment key={`banner:${i}`}>{part.banner.node}</Fragment>
+              <Fragment key={`banner:${i}`}>{typeof part.banner.node === 'function' ? part.banner.node(i === leadPart) : part.banner.node}</Fragment>
             ),
           )}
         </div>
