@@ -392,6 +392,8 @@ describe('parseDecisionIssue: the answer and the state', () => {
     expect(answerOf('Decision: C - with a dash')).toMatchObject({ option: 'C', note: 'with a dash' });
     expect(answerOf('Decision: C. A note\nof two lines.\n\nAnd a paragraph.')).toMatchObject({ option: 'C', note: 'A note\nof two lines.\n\nAnd a paragraph.' });
     expect(answerOf('Decision: 12. A number.')).toMatchObject({ option: '12' });
+    // A comment that was typed on the web has Windows line ends: the note is the same note with plain ones, so that a retry finds that it is already posted.
+    expect(answerOf('Decision: C. Line one.\r\nLine two.')).toMatchObject({ option: 'C', note: 'Line one.\nLine two.' });
     // Not an answer: another case, other words first, a blank first, no option.
     for (const body of ['decision: C', 'DECISION: C', 'I decided: C', ' Decision: C', '\nDecision: C', 'Decision: ', 'Decision:', 'Decision: .', 'Recorded in https://example.com/pr/1', 'Decision: C is the one']) {
       const found = parsed(raw({ comments: [comment(MARK_LOGIN, body)] })).answer;

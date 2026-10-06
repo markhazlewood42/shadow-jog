@@ -88,17 +88,10 @@ function LinkedSection({ detail, index }: { detail: DecisionDetail; index: numbe
   return (
     <section aria-label={where} className="rounded-lg border border-cc-rule-solid bg-cc-paper-2">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-cc-rule px-4 py-3">
-        <p className="min-w-0 text-sm break-words">
-          <span className="font-mono text-cc-muted">{section.docId}</span>
-          {section.heading !== null && (
-            <>
-              {' '}
-              <span aria-hidden className="text-cc-soft">
-                ›
-              </span>{' '}
-              <span className="font-medium">{section.heading}</span>
-            </>
-          )}
+        {/* The doc and the heading id that the issue names. The heading itself is the first line of the section below (or the notice says that it is missing). */}
+        <p className="min-w-0 font-mono text-sm break-words">
+          <span className="text-cc-muted">{section.docId}</span>
+          {section.anchor !== '' && <span className="text-cc-soft">#{section.anchor}</span>}
         </p>
         <Link to={docPath(link.slug, section.anchor)} className="inline-flex items-center gap-1 text-sm text-cc-link underline underline-offset-2 cc-focus-ring">
           Open in the docs
@@ -113,13 +106,8 @@ function LinkedSection({ detail, index }: { detail: DecisionDetail; index: numbe
           // The html is the doc index's own rendering of the doc (src/server/docs/render.ts): every tag of the doc's text is escaped there,
           // so a doc cannot run script, and it is put into the page as it is, as on the doc pages. The rules of a doc's text (doc-html) apply.
           // The first heading of the section sits at the top of the box, so it loses the space and the rule above it that it has between sections of a doc.
-          // biome-ignore lint/a11y/useKeyWithClickEvents: the handler only routes clicks on links, which are focusable and keyboard-operable themselves.
-          <div
-            className="doc-html [&>:first-child]:mt-0 [&>h2:first-child]:border-t-0 [&>h2:first-child]:pt-0"
-            onClick={onClick}
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: see the comment above.
-            dangerouslySetInnerHTML={{ __html: section.html }}
-          />
+          // The click handler only routes clicks on links, which can be reached and used with the keyboard by themselves.
+          <div className="doc-html [&>:first-child]:mt-0 [&>h2:first-child]:border-t-0 [&>h2:first-child]:pt-0" onClick={onClick} dangerouslySetInnerHTML={{ __html: section.html }} />
         )}
       </div>
     </section>

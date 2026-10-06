@@ -319,11 +319,15 @@
 }
 
 /*
- * The selected radio of the answer form is lavender and not amber, for the same reason as the selected toggle button: amber is for the one or
- * two things on a page that matter most, and on the page of a decision those are the state of the decision and the Send button. HeroUI draws
- * a selected radio from the accent colour (selected, and selected while pressed, each in two spellings), so the same four selectors are set here.
- * The dot in it stays the dark ink of the theme, which is above 4.5 to 1 on the lavender.
+ * The radio buttons of the answer form. The ring of an unselected one is a line of the lavender frame colour: HeroUI draws a field from a shadow and not
+ * a border (its border width is 0), and the shadows are off here, so without a line a radio button is as navy as the card around it and cannot be seen. A selected one is lavender and not amber, for the same reason as the selected
+ * toggle button: amber is for the one or two things on a page that matter most, and on the page of a decision those are the state of the decision and
+ * the Send button. HeroUI draws a selected radio from the accent colour (selected, and selected while pressed, each in two spellings), so the same
+ * four selectors are set here. The dot in it stays the dark ink of the theme, which is above 4.5 to 1 on the lavender.
  */
+.radio__control {
+  border: 1px solid var(--cc-rule-solid);
+}
 .radio[data-selected] .radio__control,
 .radio:has(input:checked) .radio__control,
 .radio[data-selected]:has([data-slot='radio-content'][data-pressed='true']) .radio__control,

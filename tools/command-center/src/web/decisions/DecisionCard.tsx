@@ -18,7 +18,7 @@ export function titleOf(title: string): string {
 }
 
 /** The day of a time as `YYYY-MM-DD`, as the docs show their dates (a time zone must not move it, and a test must not depend on the locale). A text that is not a time is shown as it is. */
-export function dayOf(iso: string): string {
+function dayOf(iso: string): string {
   return /^\d{4}-\d\d-\d\d/.test(iso) ? iso.slice(0, 10) : iso;
 }
 
@@ -33,7 +33,7 @@ export function Notice({ children }: { children: ReactNode }) {
 }
 
 /** The state of the decision in a word and an icon, so that it is never told by colour alone. */
-export function StateChip({ issue }: { issue: DecisionIssue }) {
+function StateChip({ issue }: { issue: DecisionIssue }) {
   if (issue.state === 'answered') {
     return (
       <Chip variant="tertiary" size="sm" className="gap-1 text-cc-muted">
@@ -60,9 +60,9 @@ export function StateChip({ issue }: { issue: DecisionIssue }) {
 }
 
 /** The label of a section of the page: small, in capitals, and a heading for a screen reader. */
-export function SectionLabel({ children, id }: { children: ReactNode; id?: string }) {
+export function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <h2 id={id} className="text-xs font-medium tracking-wide text-cc-soft uppercase">
+    <h2 className="text-xs font-medium tracking-wide text-cc-soft uppercase">
       {children}
     </h2>
   );
@@ -142,6 +142,14 @@ export function DecisionCard({ issue }: { issue: DecisionIssue }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
           <span className="font-mono text-cc-muted">Decision #{issue.number}</span>
           <StateChip issue={issue} />
+          {issue.createdAt !== '' && (
+            <span className="text-cc-soft">
+              opened{' '}
+              <time dateTime={issue.createdAt} className="font-mono">
+                {dayOf(issue.createdAt)}
+              </time>
+            </span>
+          )}
           {issue.url !== '' && (
             <a href={issue.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-cc-link underline underline-offset-2 sm:ml-auto cc-focus-ring">
               Open the issue on GitHub
@@ -190,17 +198,12 @@ export function DecisionCard({ issue }: { issue: DecisionIssue }) {
         </section>
       )}
 
-      <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-        {issue.raisedBy !== null && <Fact label="Raised by">{issue.raisedBy}</Fact>}
-        {issue.waitsOn !== null && <Fact label="Waits on this">{issue.waitsOn}</Fact>}
-        {issue.createdAt !== '' && (
-          <Fact label="Opened">
-            <time dateTime={issue.createdAt} className="font-mono">
-              {dayOf(issue.createdAt)}
-            </time>
-          </Fact>
-        )}
-      </dl>
+      {(issue.raisedBy !== null || issue.waitsOn !== null) && (
+        <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+          {issue.raisedBy !== null && <Fact label="Raised by">{issue.raisedBy}</Fact>}
+          {issue.waitsOn !== null && <Fact label="Waits on this">{issue.waitsOn}</Fact>}
+        </dl>
+      )}
     </article>
   );
 }

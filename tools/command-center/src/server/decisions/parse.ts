@@ -63,7 +63,8 @@ export function answerComment(option: string, note: string | null): string {
 function readAnswerComment(body: string): { option: string; note: string | null } | null {
   const match = ANSWER_COMMENT.exec(body);
   if (match === null) return null;
-  const note = (match[2] ?? '').trim();
+  // A comment that was typed on the web has Windows line ends (CR LF), and a retry sends a note with plain ones (LF). The retry compares the two, so they are made alike here.
+  const note = (match[2] ?? '').replace(/\r\n/g, '\n').trim();
   return { option: match[1] as string, note: note === '' ? null : note };
 }
 

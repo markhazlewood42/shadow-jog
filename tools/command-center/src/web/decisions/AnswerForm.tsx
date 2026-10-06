@@ -3,7 +3,7 @@ import { LoaderCircle, Send, TriangleAlert } from 'lucide-react';
 import { type FormEvent, useCallback, useState } from 'react';
 import type { AnswerStep, DecisionIssue } from '../../shared/types';
 import { ApiError, postJson } from '../api';
-import { OptionBadge, RecommendedChip, SectionLabel } from './DecisionCard';
+import { OptionBadge, RecommendedChip } from './DecisionCard';
 
 // How Mark answers a decision: he picks an option, adds a note if he wants, and sends it. The server then posts a
 // comment on the GitHub issue, swaps its label and closes it (three calls, one after the other, and any of them can fail).
@@ -118,10 +118,9 @@ export function AnswerForm({ issue, draft }: { issue: DecisionIssue; draft: Answ
 
   return (
     <form onSubmit={submit} aria-label="Answer this decision" className="flex flex-col gap-5">
-      <RadioGroup name="option" value={choice} onChange={draft.setChoice} isDisabled={sending} className="gap-3">
-        <Label>
-          <SectionLabel>Your answer</SectionLabel>
-        </Label>
+      {/* HeroUI puts a margin above each radio of a vertical group; the gap of the group is enough here. */}
+      <RadioGroup name="option" value={choice} onChange={draft.setChoice} isDisabled={sending} className="gap-2 [&_[data-slot='radio']]:mt-0">
+        <Label className="mb-1 text-xs font-medium tracking-wide text-cc-soft uppercase">Your answer</Label>
         {issue.options.map((option) => (
           <Radio key={option.id} value={option.id} className="rounded-md border border-cc-rule bg-cc-paper px-4 py-3 data-[selected=true]:border-cc-rule-solid">
             <Radio.Content className="items-start">
@@ -138,7 +137,7 @@ export function AnswerForm({ issue, draft }: { issue: DecisionIssue; draft: Answ
 
       <TextField value={note} onChange={draft.setNote} isDisabled={sending}>
         <Label>Note (optional)</Label>
-        <TextArea rows={3} maxLength={MAX_NOTE_CHARS} placeholder="Why, or what to do next. It is posted with your answer." />
+        <TextArea rows={3} maxLength={MAX_NOTE_CHARS} placeholder="Why, or what to do next. It is posted with your answer." className="border border-cc-rule-solid" />
       </TextField>
 
       {draft.failure !== null && <FailureBox failure={draft.failure} />}
