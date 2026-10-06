@@ -118,6 +118,7 @@ The two labels `decision` and `decided` must exist in the GitHub repo. Creating 
 
 | What you see | Why, and what to do |
 |---|---|
+| `git clone` ends with "Filename too long" and an empty checkout | Windows stops at 260 characters, and the longest tracked path of the tool is 162 characters. Clone into a short folder (such as `C:\code\shadow-jog`), or run `git config --global core.longpaths true` first. |
 | "Port 3009 is already in use" | Another program holds the port. Stop that program, or start with another config (see above). The command center never stops it for you. |
 | 403 `forbidden-host` | You reached the server by another name, such as a LAN address. Use `http://localhost:3009` or `http://127.0.0.1:3009`. |
 | A panel says "gh is not installed" or "not signed in" | Install the GitHub CLI and run `gh auth login`, then press Retry on the panel. |
