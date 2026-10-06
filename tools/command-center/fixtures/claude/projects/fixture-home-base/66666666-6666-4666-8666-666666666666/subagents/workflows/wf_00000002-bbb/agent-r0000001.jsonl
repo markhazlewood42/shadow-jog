@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2026-10-06T05:40:00.000Z","cwd":"/fixture/repo","gitBranch":"fixture-branch","sessionId":"66666666-6666-4666-8666-666666666666","message":{"role":"user","content":"LEAK-review-agent-prompt"}}
+{"type":"user","timestamp":"2026-10-06T05:45:00.000Z","cwd":"/fixture/repo","gitBranch":"fixture-branch","sessionId":"66666666-6666-4666-8666-666666666666","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_handback","content":"Result handed back."}]},"toolUseResult":{"ok":true},"toolEndsTurn":true}

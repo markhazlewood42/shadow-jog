@@ -1,0 +1,3 @@
+{"kind":"greeting","data":"LEAK-unknown-format-one"}
+{"kind":"reply","data":"LEAK-unknown-format-two"}
+{"type":"from-the-future","cwd":"/fixture/repo","text":"LEAK-unknown-format-three"}
