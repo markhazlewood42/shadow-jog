@@ -3,8 +3,8 @@ type: design
 title: "Shadow Jog Engine — Interfaces"
 project: shadow-jog
 created: 2026-10-04
-updated: 2026-10-04
-status: approved 2026-10-04 (all recommendations)
+updated: 2026-10-05
+status: approved 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, waiting for Mark's final approval
 tags: [engine, design]
 ---
 
@@ -22,7 +22,7 @@ This file shows the key public TypeScript interfaces. Each block has a short exp
 
 ```ts
 export interface Rect { x: number; y: number; w: number; h: number; }
-export interface Raw { w: number; h: number; data: Uint8ClampedArray; }        // CPU pixels, from the spike's textures.ts
+export interface Raw { w: number; h: number; data: Uint8ClampedArray; }        // CPU pixels. The Phase 0 stage code has its own `Raw` with `px` for `data`. M3 keeps one
 export interface ShockOpts { strength?: number; reach?: number; life?: number; width?: number; }   // today's postfx.shock options
 export interface HazeOpts { radius?: number; strength?: number; life?: number; }
 export interface GlitchOpts { w?: number; h?: number; strength?: number; life?: number; }
@@ -38,7 +38,7 @@ export interface DisplayList { readonly list: readonly GameObject[]; }
 
 ```ts
 // src/sje/core/size.ts
-export const W = 480, H = 270, FPS = 60;
+export const W = 640, H = 360, FPS = 60;               // Mark chose 640x360 on 2026-10-05. Phase 0 had a DEV-only query switch for the mock (a test tool, not part of the design)
 export const TICK_MS = 1000 / FPS;
 export const grain = (n: 1 | 2 | 4) => ({ w: W / n, h: H / n });   // ours
 
@@ -68,6 +68,8 @@ export declare class Game {
   readonly input: InputManager;
   readonly fx: FxSystem;                              // ours
   readonly audio: AudioBridge;                        // ours
+  readonly contextLost: boolean;                      // ours. True while the GL context is lost
+  readonly dropCount: number;                         // ours. How many times abandon() or reset() dropped the stack. A story reads it before and after a slow await
   tick: number;                                       // today's `frame`
   speed: number;
   /** Phaser's ScenePlugin.run does not wait. This does. */   // deviation
@@ -122,7 +124,7 @@ export abstract class Scene<R = unknown> {
   /** Fixed 60 Hz tick. Change game state here. */      // deviation: Phaser's update is variable
   abstract fixedUpdate(tick: number): void;
   update?: never;                                      // compile error on purpose
-  close(result: R): void;                              // pops this scene, resumes the one below, resolves game.run
+  close(result: R): void;                              // pops this scene, resumes the one below if a push paused it, resolves game.run
 }
 
 export interface Systems {
@@ -152,18 +154,15 @@ Every setter returns `this`. A `GameObject` owns one private Pixi node. Leaf cla
 export type SjBlend = 'normal' | 'add' | 'multiply' | 'screen' | 'min' | 'max';   // ours. Safe over 3D pixels
 
 export abstract class GameObject {
-  readonly scene: Scene; name: string; active: boolean;
+  readonly scene: DisplayHost; name: string; active: boolean;   // DisplayHost is the small shape of a scene that level 2 needs. Level 2 cannot import Scene (level 3)
   x: number; y: number; depth: number; alpha: number; visible: boolean;
-  originX: number; originY: number;                    // default 0.5. Written to the Pixi anchor
-  flipX: boolean;                                      // flips about the texture middle
   scrollFactorX: 0 | 1; scrollFactorY: 0 | 1;          // deviation. Phaser allows any number. 0 moves a top-level object into scene.ui
   readonly filters: FilterList;                        // deviation. Flat. Phaser 4 has filters.internal and filters.external, after enableFilters()
   setPosition(x: number, y?: number): this;
   setDepth(d: number): this; setAlpha(a: number): this; setVisible(v: boolean): this;
-  setOrigin(x: number, y?: number): this; setFlipX(f: boolean): this;
   setScrollFactor(x: 0 | 1, y?: 0 | 1): this;
   setBlendMode(m: SjBlend): this;
-  setPixelSnap(on: boolean): this;                     // ours. Default on. View3D turns it off
+  setPixelSnap(on: boolean): this;                     // ours. Default on. View3D keeps it on (the 3D target is on the 2D pixel grid)
   setData(key: string, v: unknown): this; getData<T>(key: string): T | undefined;
   destroy(): void;
   /** @internal The only escape hatch to Pixi. Allowed under src/sje only. */
@@ -174,13 +173,16 @@ export declare class Container extends GameObject {
   readonly list: readonly GameObject[];
   add(child: GameObject | GameObject[]): this;
   remove(child: GameObject, destroy?: boolean): this;
-  setGrain(n: 1 | 2 | 4): this;                        // ours. Container with scale n in the coarse grid
-  setSortingGroup(on: boolean): this;                  // Unity Sorting Group
+  setGrain(n: 1 | 2 | 4): this;                        // ours. Container with scale n in the coarse grid. Not built in Phase 0. Grain 2 is 320x180. M3 decides
+  setSortingGroup(on: boolean): this;                  // Unity Sorting Group. Not built: every Container sorts its children by depth
   ySort: boolean;                                      // Godot y-sort
 }
 export declare class ImageObject extends GameObject {
   texture: SjTexture;
-  setTexture(key: string, frame?: string | number): this;
+  originX: number; originY: number;                    // default 0.5. Written to the Pixi anchor. Only an object with a texture has them
+  flipX: boolean;                                      // flips about the texture middle
+  setOrigin(x: number, y?: number): this; setFlipX(f: boolean): this;
+  setTexture(key: string, frame?: string | number): this;   // renames the object after the texture. Keep a part role with setData
 }
 export declare class Sprite extends ImageObject {     // deviation. Phaser's Sprite is a sibling of Image
   setFrame(f: string | number): this;
@@ -189,6 +191,8 @@ export declare class Sprite extends ImageObject {     // deviation. Phaser's Spr
 export declare class Graphics extends GameObject {
   fillStyle(color: number, alpha?: number): this;
   fillRect(x: number, y: number, w: number, h: number): this;
+  lineStyle(width: 1, color: number, alpha?: number): this;       // deviation. Width 1 only
+  lineBetween(x0: number, y0: number, x1: number, y1: number): this;   // a 1 px line, drawn as rectangles (Bresenham)
   clear(): this;
 }
 export interface TextStyle { color?: string; shadow?: boolean; outline?: string; align?: 'left' | 'center' | 'right'; max?: number; scale?: number; }
@@ -285,7 +289,8 @@ export declare function createEffect(spec: EffectSpec): Effect;   // ours. Wraps
 
 export declare class FilterList {                      // deviation. Flat. Phaser 4 has { internal, external } and enableFilters()
   add(e: Effect): this; remove(e: Effect): this; clear(): this;
-  addMask(maskObject: GameObject, invert?: boolean): this;       // Phaser 4 Mask filter, flat form
+  addMask(maskObject: GameObject, invert?: boolean): this;       // Phaser 4 Mask filter, flat form. One mask for each object. A sprite mask reads alpha
+  clearMask(): this;                                              // ours
   /** Phaser's internal list. Accepted, but runs as external. Logs once in dev. */
   readonly internal: FilterList;                                  // deviation
   readonly external: FilterList;
@@ -340,13 +345,14 @@ export declare class TextureManager {
   get(key: string): SjTexture;
   getTextureKeys(): string[];
   addCanvas(key: string, canvas: HTMLCanvasElement, opts?: { cpu?: Raw }): SjTexture;   // nearest, skipCache
-  addCanvasOnce(key: string, build: () => HTMLCanvasElement | Raw): SjTexture;          // ours. The spike's entry point
+  addCanvasOnce(key: string, build: () => HTMLCanvasElement | Raw): SjTexture;          // ours. The spike's entry point. M3. Game-side in Phase 0
   addFrames(key: string, frames: Record<string | number, [x: number, y: number, w: number, h: number]>): void;
   createCanvas(key: string, w: number, h: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; refresh(): void };
-  variantOf(key: string, newKey: string, paint: (src: HTMLCanvasElement) => HTMLCanvasElement): SjTexture;   // ours. Copies frames
-  remove(key: string): boolean;                        // destroy(true) once per source
+  variantOf(key: string, newKey: string, paint: (src: HTMLCanvasElement) => HTMLCanvasElement): SjTexture;   // ours. Copies frames. M3. Game-side in Phase 0
+  readPixels(key: string, frame?: string | number): Raw;                                    // proposal for M3. The Phase 0 stage reads pixels back through a game-side helper
+  remove(key: string): boolean;                        // the key is free at once. The GPU data stays until the last object that shows it is destroyed
   prune(prefix: string, inUse: ReadonlySet<string>): number;      // ours
-  getPixelAlpha(x: number, y: number, key: string, frame?: string | number): number;
+  getPixelAlpha(x: number, y: number, key: string, frame?: string | number): number;   // M3
   setStandIn(pattern: RegExp, paint: (key: string) => HTMLCanvasElement): void;   // ours
 }
 ```
@@ -498,7 +504,7 @@ export declare class Timeline { play(): this; stop(): this; }
 
 ## 12. The 3D mode: View3D, Frame3D, Scene3D, HackResult
 
-`Frame3D` hides how the 3D picture reaches Pixi: through the shared context, or through a canvas copy. `View3D` is the sprite that shows it. `Scene3D` is a `Scene` that owns a Three scene for one session. Inside `create3D`, Three names stay unchanged, so the Three docs apply.
+`Frame3D` hides how the 3D picture reaches Pixi: through the shared context, or through a canvas copy. `View3D` is the sprite that shows it. `Scene3D` is a `Scene` that owns a Three scene for one session. Inside `create3D`, Three names stay unchanged, so the Three docs apply. Phase 0 built these. The sketch below is the built shape.
 
 ```ts
 export interface Frame3D {                             // ours
@@ -506,10 +512,14 @@ export interface Frame3D {                             // ours
   render(): void;                                      // one frame: GlHandoff + three.render
   rewrap(): void;                                      // after a resize or a context restore
   readonly mode: 'shared-context' | 'canvas-copy';
+  readonly contextLost: boolean;                       // ours. True while the GL context is lost. render() then does nothing
+  releaseGpuData(): void;                              // ours. Once per loss: Three forgets its GPU objects, so a later dispose deletes no dead handle
+  readPixels(): { w: number; h: number; data: Uint8Array };   // dev and tests. Slow. The 3D picture before Pixi touches it
+  describe(): object;                                  // dev and tests. Facts about the target: size, nearest filters, rewraps, Three renderers made
   dispose(): void;
 }
-export declare class View3D extends ImageObject {       // ours. A Sprite over an ExternalSource
-  readonly frame: Frame3D;
+export declare class View3D extends GameObject {          // ours. A Sprite over a frame texture. Not an ImageObject: it has no texture key. Level 2
+  readonly width: number; readonly height: number;     // the 3D picture size in game pixels. The Frame3D frees the texture
 }
 
 export type HackResult =
@@ -521,13 +531,16 @@ export type HackResult =
 export interface ThreeHost {                           // ours. In the lazy chunk. One per game
   /** Created once, with `{ canvas, context: gl }`. Never call setSize, setViewport, or setPixelRatio on it. */
   readonly renderer: import('three').WebGLRenderer;
+  readonly kind: 'shared' | 'private';                 // ours. One shared host for the page. A private host (its own canvas) exists only for the canvas-copy fallback. Both are kept
 }
 
 export declare abstract class Scene3D<R> extends Scene<R> {      // lazy chunk
   protected frame: Frame3D;
-  abstract create3D(three: typeof import('three')): void;       // build the Object3D graph, camera, lights
+  abstract create3D(): void;                                    // build the Object3D graph, camera, lights. No argument: passing the Three namespace makes the bundler keep all of Three. Import the names you use
   abstract update3D(tick: number): void;                        // fixed tick: pure sim in
   abstract sync3D(): void;                                      // prerender: sim state out into Object3D
+  abstract abortResult(reason: 'context-lost' | 'user' | 'error'): R;   // the result when the scene ends early
+  endEarly(reason?: 'context-lost' | 'user' | 'error'): void;   // closes the scene with abortResult(reason)
 }
 
 // Scene3D implements fixedUpdate as update3D(tick). It calls sync3D() from the scene's prerender event.
@@ -538,7 +551,18 @@ export declare abstract class Scene3D<R> extends Scene<R> {      // lazy chunk
 // It uses the same door as shop() and battle(): a late-bound entry in fieldHooks.
 ```
 
-The hack simulation (node maze, ICE movement, camera rig) is pure and DOM-free in `src/hack3d/sim`. It runs in Vitest like `src/battle`.
+The hack simulation of the Phase 0 test scene (a node maze, ICE movement, a camera rig) is pure and DOM-free in `src/hack3d/sim`. It runs in Vitest like `src/battle`. The real hacking scene is a later iteration and is not designed here (`docs/IDEAS.md` entry 2).
+
+**The door and the story loop.** Phase 0 built them in `src/hack3d/door.ts`. The shipped game loads this file up front. It reaches the 3D chunk through one `import()`.
+
+- `hackDoor` makes one try. It always resolves a `HackResult`. It answers `unsupported` before it loads the chunk, and it gives `aborted / user` when the story was dropped while the chunk loaded.
+- `hackWithPolicy` is the story loop. It applies the author's policy (E19) and resolves a `HackOutcome`. The `via` field is `played`, `policy`, `alternative` or `dropped`. A story author handles `dropped` by ending the story.
+
+```ts
+export interface HackOutcome { outcome: 'success' | 'fail'; via: 'played' | 'policy' | 'alternative' | 'dropped'; results: HackResult[]; }   // ours
+```
+
+**The first-draft `HackDef` of the test scene.** `traceLimit` fails the hack on the tick that TRACE reaches it. TRACE stops at 100, so a limit above 100 never fails. With the default limit of 100, a hack can fail, and the story author must handle that.
 
 ---
 
@@ -548,19 +572,25 @@ The hack simulation (node maze, ICE movement, camera rig) is pure and DOM-free i
 
 ```ts
 export interface Display {                             // Phaser ScaleManager name. Unity Pixel Perfect Camera behaviour
-  readonly k: number; readonly cssZoom: number; mode: 'integer' | 'fit';
+  readonly k: number; mode: 'integer' | 'fit';
+  readonly layout: { k: number; x: number; y: number; w: number; h: number };   // ours. Device pixels: where the picture sits in the whole-window canvas
   toGame(clientX: number, clientY: number): { x: number; y: number };
   on(ev: 'resize', fn: () => void): void;
 }
 export interface GlContext {                           // ours
   readonly gl: WebGL2RenderingContext; readonly canvas: HTMLCanvasElement; readonly lost: boolean;
   on(ev: 'lost' | 'restored', fn: () => void): void;
+  off(ev: 'lost' | 'restored', fn: () => void): void;  // ours
 }
-export declare function probeWebGL2(): boolean;          // calls getContext, not typeof
+export declare function probeWebGL2(): boolean;          // calls getContext, not typeof. Makes one probe context and keeps it
 export interface GlHandoff {                           // ours
   beginThree(three: unknown): void;                    // three.resetState()
   endThree(three: unknown): void;                      // three.resetState(); gl.clearColor(0,0,0,0)
   beginPixi(): void;                                   // pixi.resetState()
+  prepareForThree(): void;                             // unsets the two pixel-store flags. Runs before Three is made and after every context restore
+  withThree<T>(three: unknown, draw: () => T): T;      // beginThree, draw, endThree
+  readDefaultFramebuffer(x: number, yFromBottom: number, w: number, h: number): Uint8Array;   // the one raw read-back
+  drainErrors(): number[];                             // dev and tests: the GL errors, cleared
 }
 
 /** Story code and scenes type against this. The legacy Game and the new Game both implement it. */
@@ -572,7 +602,7 @@ export interface GameApi {
 }
 ```
 
-`LegacyScene` has today's shape: `enter`, `exit`, `resume`, `update()`, `render(ctx)`, `opaque`, `curtain`, `passUpdate`, `close(result)`. It owns a 480x270 `CanvasImage` and calls `render(ctx)` into it each frame. See [migration.md](migration.md).
+`LegacyScene` has today's shape: `enter`, `exit`, `resume`, `update()`, `render(ctx)`, `opaque`, `curtain`, `passUpdate`, `close(result)`. It owns a 640x360 `CanvasImage` (921,600 bytes) and calls `render(ctx)` into it each frame. See [migration.md](migration.md).
 
 ---
 

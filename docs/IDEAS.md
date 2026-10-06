@@ -24,6 +24,7 @@ One entry is different: entry 1 is a standing rule for the engine work now, not 
 Mark: "I WILL want visual UI editors for this game + engine at some point. I'm thinking pretty ambitiously - level editor, encounter editor, game system config UI, conversation editor, etc. etc. We'll build these up incrementally but don't make any decisions that would make that more difficult in the future."
 
 Today:
+- Now a design principle: `docs/engine/README.md` section 1. The check of every decision is in `docs/engine/decisions.md`, section "Editor rule check".
 - Every engine decision must keep game content editable by a visual tool. The engine design update records this as a design principle.
 - `docs/TOOLING-UI.md` section 3 specifies the Battle Stage Editor, which the Phaser spike built. Section 4 lists the next tools: the troop and encounter editor, the Animation Composer, the database (enemies, skills, items) and maps. A conversation editor and a game system config UI are not on that list yet.
 - Much of the content is TypeScript code, not data: the maps (`src/data/maps/*.ts`), enemies, items, abilities, shops and dialogue. An editor can only open and save data, so this content must move to data files over time. The stage data (`stages.json`, `hud.json`) is already data.

@@ -3,8 +3,8 @@ type: design
 title: "Shadow Jog Engine — Frame and rendering"
 project: shadow-jog
 created: 2026-10-04
-updated: 2026-10-04
-status: approved 2026-10-04 (all recommendations)
+updated: 2026-10-05
+status: approved 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, waiting for Mark's final approval
 tags: [engine, design]
 ---
 
@@ -33,7 +33,7 @@ The engine owns the only loop that runs game code. It uses one `requestAnimation
 
 **Pixi starts a second loop by itself.** In Pixi 8.22 the renderer has a `SchedulerSystem`. Its `init()` calls `Ticker.system.add(...)`, and `Ticker.system` has `autoStart = true`. So `renderer.init()` always starts a second `requestAnimationFrame` loop, even without `pixi.js/events`. The same loop runs Pixi's GC schedule. A test against the installed package confirmed this (a `SchedulerSystem.init()` call with `requestAnimationFrame` stubbed).
 
-1. Call `Ticker.system.stop()` right after `renderer.init()`. This also halts Pixi's GC schedule. The engine unloads textures itself (section 6.1, item 6), so this is intended. This step is **not tested** in a running engine. A canary test must check that no Pixi `requestAnimationFrame` callback runs after boot.
+1. Call `Ticker.system.stop()` right after `renderer.init()`. This also halts Pixi's GC schedule. The engine unloads textures itself (section 6.1, item 6), so this is intended. Phase 0 tested this step in the running engine: 0 Pixi `requestAnimationFrame` callbacks run after boot. With the `Ticker.system.stop()` call removed, the same check sees 43. A canary test keeps this check.
 2. Set `Ticker.shared.autoStart = false` and stop it. Pixi's `AnimatedSprite`, `GifSprite`, and `VideoSource` start a wall-clock loop on it. The engine does not use them.
 3. The `pixi.js/events` module also registers on `Ticker.system`. It loads in dev and editor builds only. Those builds run Pixi's callbacks, so the rAF-interval gate and `__SJ__.step` must ignore them.
 4. Do not import `pixi.js/accessibility`. Its Tab handler would clash with the game's menu key.
@@ -72,7 +72,7 @@ Scene operations (`launch`, `pause`, `stop`, and the rest) are queued and applie
 
 Phaser's lifecycle is `init(data)`, `preload()`, `create(data)`, `update`. Ours keeps the first three. Phaser's `preload` is asynchronous. The story contract needs `game.run` to push the scene at once. This is the rule that joins them:
 
-![Scene lifecycle state machine with nine states. A scene starts at init and moves to start when game.run pushes it, synchronously. From start it goes straight to creating if there are no loads, or through loading and back to creating when the load is done. Creating leads to running, the only state where fixedUpdate runs. A running scene can be paused when covered and resume when uncovered, or sleep and wake. Close or stop() moves a running scene to shutdown, and stop() also moves a paused scene or a sleeping scene to shutdown. Shutdown moves to destroyed when objects are freed. The game.run promise resolves on close(result). It does not depend on when create ran.](diagrams/engine-scene-lifecycle.png)
+![Scene lifecycle state machine with nine states. A scene starts at init and moves to start when game.run pushes it, synchronously. From start it goes straight to creating if there are no loads, or through loading and back to creating when the load is done. Creating leads to running, the only state where fixedUpdate runs. A running scene can be paused when covered and resume when uncovered, or sleep and wake. Close or stop() moves a running scene to shutdown, and stop() also moves a paused scene or a sleeping scene to shutdown. A throw in init, preload or create also moves the scene to shutdown, on a dashed edge that leaves from creating and is labelled THROWS IN INIT, PRELOAD, CREATE. Shutdown moves to destroyed when objects are freed. The game.run promise resolves on close(result). It does not depend on when create ran.](diagrams/engine-scene-lifecycle.png)
 
 *Editable source: [diagrams/engine-scene-lifecycle.html](diagrams/engine-scene-lifecycle.html)*
 
@@ -81,6 +81,7 @@ Phaser's lifecycle is `init(data)`, `preload()`, `create(data)`, `update`. Ours 
 3. Otherwise the scene status is `loading`. `fixedUpdate` does not run. `create(data)` runs when the loader completes. A load error uses the stand-in path and a notice. It does not reject.
 4. The promise from `game.run` resolves on `close(result)`. It does not depend on when `create` ran.
 5. A lazy chunk loads **before** the scene is built. Example: `s.hack(def)` does `await import(...)`, then `game.run(new HackScene(def))`.
+6. A scene object runs once. `game.run` and `game.reset` refuse a scene object that is closed or live. A scene closed in `init` runs neither `preload` nor `create`. A scene that throws in `init`, `preload` or `create` is discarded, and the scene below it gets `resume` only if a `push` paused it, as for any close. When a scene closes, `resume` goes to the scene that is now on top only if a `push` paused that scene.
 
 Shutdown and destroy are events, not methods, as in Phaser: `sys.events.emit('shutdown')`.
 
@@ -156,7 +157,7 @@ All timed work belongs to a scene: clock events, tweens, timelines, and event co
 
 A pending `game.run()` promise resolves only through `close(result)`. If the scene ends any other way (`abandon`, `reset`, fault recovery), the promise stays pending forever, as today. The story flow stops dead. This is intended: it is what `abandon()` means.
 
-The 3D mode is the exception. `s.hack(def)` always resolves, with `aborted` when needed (section 7). E11 records the two cancel rules for your review.
+The 3D mode is the exception. `s.hack(def)` always resolves, with `aborted` when needed (section 7). This includes a hack that `game.abandon()` or `game.reset()` drops: it resolves `aborted` with reason `user`. E11 records the two cancel rules for your review.
 
 ### Audio timing
 
@@ -169,17 +170,17 @@ The WebAudio sequencer stays on `setInterval(25 ms)` plus `AudioContext` time. I
 One module, `src/sje/core/size.ts`, owns the logical resolution.
 
 ```ts
-export const W = 480, H = 270, FPS = 60;
+export const W = 640, H = 360, FPS = 60;
 export const TICK_MS = 1000 / FPS;
 export const grain = (n: 1 | 2 | 4) => ({ w: W / n, h: H / n });
 ```
 
 - Every renderer, `Display`, the presenter, the editors, and every mixed-grain layer import it. No other code may use a number that means the screen width, height, or centre.
-- A plain text search for `480`, `270`, `240`, and `135` is too noisy. A grep on 2026-10-04 found 22 hits outside `src/engine`, `src/dev`, and `main.ts`. Many do not mean resolution. Examples: `price: 480` in `src/data/items.ts`, colour values such as `rgba(63,224,240,0.08)`, and column positions of 240 in `ui/menu.ts` that equal W/2 by accident.
-- So the Vitest scan looks only for uses that mean screen width, height, or centre. It ignores strings and data files. It has a per-file allow-list, and each entry has a reason. Battle grain maths (240x135 in `battle/fx.ts`) uses `grain()`.
-- M0 replaces only the cases that mean screen width, height, or centre. It does not touch layout numbers that equal W/2 by accident. The `postfx.ts` centre defaults (`x = 240`, `y = 135`) change at M2, when `FxSystem` takes over.
-- 34 files import `W` and `H` from `engine/game.ts` today. M0 moves the imports. This is the only change to the shipped path before the flag flips.
-- To test 640x360, change `size.ts` only. The layout cost of that change is in E12.
+- A plain text search for the screen numbers is too noisy. A grep on 2026-10-04 for 480, 270, 240, and 135 found 22 hits outside `src/engine`, `src/dev`, and `main.ts`. Many do not mean resolution. Examples: `price: 480` in `src/data/items.ts`, colour values such as `rgba(63,224,240,0.08)`, and column positions of 240 in `ui/menu.ts` that equal W/2 by accident. At 640x360 the numbers that mean the screen are 640, 360, 320 and 180.
+- So the Vitest scan looks only for uses that mean screen width, height, or centre. It ignores strings and data files. It has a per-file allow-list, and each entry has a reason. It looks for the old numbers (480, 270, 240, 135) to catch leftovers, and for the new numbers (640, 360, 320, 180) to catch new hard-coded ones. Battle grain maths (the 320x180 layer in `battle/fx.ts`) uses `grain()`.
+- The 640x360 move replaces the cases that mean screen width, height, or centre. It does not touch layout numbers that equal W/2 by accident. The `postfx.ts` centre defaults (`x = 240`, `y = 135`) become `W / 2` and `H / 2` (320 and 180) in that move. M0 adds the scan that keeps this true. `FxSystem` keeps the values at M2.
+- 34 files import `W` and `H` from `engine/game.ts` today. M0 moves the imports. The 640x360 move changes the shipped game before M0 (principle 4 in [migration.md](migration.md)). After that move, the move of the imports is the only change to the shipped path until the flag flips.
+- Phase 0 added a DEV-only switch to `size.ts` for the resolution mock: the page query `?size=640x360`. Mark chose 640x360, so the plain numbers are now 640 and 360. The switch is a test tool and not part of the design. `size.ts` read the query once, when it loaded. A production build folded it to the plain numbers, and the shipped bundle stayed byte for byte the same. Keep the switch only if a test needs a second size. The layout cost of the move is in E12.
 
 ---
 
@@ -189,7 +190,7 @@ export const grain = (n: 1 | 2 | 4) => ({ w: W / n, h: H / n });
 
 The engine creates the canvas and the WebGL2 context. Then it creates the Pixi renderer once. It never destroys the renderer.
 
-1. **Probe.** `canvas.getContext('webgl2', { stencil: true, antialias: false, alpha: false, depth: false, powerPreference: 'high-performance' })`. Do not test `typeof WebGL2RenderingContext`: it stays defined when 3D APIs are off. Do not use Pixi's `isWebGLSupported()`: it probes WebGL 1. If the context is null, `Game.create` rejects. The visible "failed to start" text shows, so the existing e2e test with a stubbed `getContext` still passes.
+1. **Probe.** `canvas.getContext('webgl2', { stencil: true, antialias: false, alpha: false, depth: false, powerPreference: 'high-performance' })`. Do not test `typeof WebGL2RenderingContext`: it stays defined when 3D APIs are off. Do not use Pixi's `isWebGLSupported()`: it probes WebGL 1. If the context is null, `Game.create` rejects. The visible "failed to start" text shows, so the existing e2e test with a stubbed `getContext` still passes. Make one probe context and keep it. Firefox logs "WebGL context was lost" for every probe context that is thrown away. A `false` answer is not kept.
 2. **Create the renderer directly:**
 
    ```ts
@@ -197,7 +198,7 @@ The engine creates the canvas and the WebGL2 context. Then it creates the Pixi r
    await renderer.init({
      context, canvas,                      // pass BOTH
      width: W, height: H, resolution: 1,
-     antialias: false, roundPixels: true,
+     antialias: false, roundPixels: false,
      clearBeforeRender: false,
      skipExtensionImports: true,
    });
@@ -205,8 +206,9 @@ The engine creates the canvas and the WebGL2 context. Then it creates the Pixi r
    ```
 
    - Pass both `context` and `canvas`. Without `canvas`, Pixi attaches its context-loss listeners to an unrelated canvas and never recovers. Lab: 10 of 10 checks pass with `canvas`, 2 of 10 without.
+   - Keep `roundPixels` off. Snap to pixel (the wrapper) puts every position on a whole pixel. So Pixi's own rounding changes no pixel at scale 1, 2 and -1, nor for snapped children of a 2x parent (proof: `tests/sje-display.test.ts`, and the real-renderer check in `e2e/sje-parta.spec.ts`). It does change pixels for a 1.5x odd-sized picture, for a snap-off node at a half pixel, for a snap-off child at a quarter pixel, and for the 1.09x battle push (see [scene-graph.md](scene-graph.md) section 7). With the option on, a sprite mask lost 16 to 35 pixels on SwiftShader where it crosses overlapping objects. A bare Pixi app shows the same loss. On a GPU the option changed nothing in that case.
    - Never use `Application` or `autoDetectRenderer`. A string preference silently falls back to Pixi's Canvas renderer, which skips every filter. `WebGLRenderer.init` has no `preference` option, so the snippet does not set one.
-   - **Size.** `width: W, height: H` sizes the canvas 480x270 at init. On every `Display` resize, call `renderer.resize(W*k, H*k, 1)`. The canvas backing store is then W*k by H*k. The back buffer stays a fixed 480x270 `RenderTexture` (section 6.2). Only the present sprite uses scale `k`.
+   - **Size.** `width: W, height: H` sizes the canvas 640x360 at init. On every `Display` resize, call `renderer.resize(deviceW, deviceH, 1)`, where these are the window size in device pixels (section 6.6). The canvas backing store is then the whole window. The back buffer stays a fixed 640x360 `RenderTexture` (section 6.2). Only the present sprite uses scale `k`, and it sits at a whole device pixel offset.
    - Keep `stencil: true` on the context as a cheap guard for masks drawn straight to the canvas. In 8.22, masks and filters inside a render texture get their own stencil buffer on demand, so this design does not need the context attribute. Context attributes cannot change later.
 3. **Import extensions explicitly** from one file, `src/sje/render/extensions.ts`. `skipExtensionImports: true` skips the `browserAll` set (accessibility, dom, events, spritesheet, rendering/init, filters/init). Add back only what the engine uses: `import 'pixi.js/filters'` and `import 'pixi.js/graphics'`, plus `'pixi.js/mesh'`, `'pixi.js/particle-container'`, `'pixi.js/sprite-nine-slice'`, and `'pixi.js/sprite-tiling'` only when a scene uses them. The sprite pipe is in the core, so there is no sprite import. A canary test boots with `skipExtensionImports` and renders a sprite, a `Graphics`, a mask, and a filter. It proves the list is complete.
 4. **Run `init` inside an async function**, never as a top-level `await`. A top-level `await` hung a Vite production build in the lab with no error.
@@ -222,28 +224,31 @@ The engine creates the canvas and the WebGL2 context. Then it creates the Pixi r
 
 Each scene owns two containers: `scene.world` and `scene.ui`. The engine parents them under `worldRoot` and `uiRoot` in stack order. `cameras.main` moves only that scene's `world`. The screen filters run on the shared `worldRoot`, so they act on all visible world lists together. Camera `flash` and `fade` draw a rectangle above the scene's `world` and below its `ui`. So a camera flash washes the world only, as today. `game.flash` and `game.fadeTo` draw in `overlayRoot` and cover everything.
 
-1. Pixi draws the screen root into a **480x270 `RenderTexture`** at resolution 1, with nearest scaling. This is the back buffer. All filters run inside it.
+1. Pixi draws the screen root into a **640x360 `RenderTexture`** at resolution 1, with nearest scaling. This is the back buffer. All filters run inside it.
 2. The presenter draws the back buffer as one nearest-sampled sprite, scaled by the integer `k`, into the canvas.
 
-![The engine render pipeline for one frame, in eight numbered steps. Step 1, prerender copies state into Pixi nodes. Step 2 runs FxSystem.update, camera transforms and CanvasImage.refresh. Step 3 asks whether a 3D session is active. If yes, step 4 lets Three render into a 480x270 nearest render target through GlHandoff.beginThree and endThree. If no, the flow skips step 4. Step 5 resets GL state with GlHandoff.beginPixi and pixi.resetState. Step 6 has Pixi draw the screen root into the 480x270 back buffer at resolution 1 with nearest scaling, so all filters run inside it. Step 7, the present, draws one nearest sprite scaled by integer k into the canvas. Step 8 is postrender and the perf record.](diagrams/engine-render-pipeline.png)
+![The engine render pipeline for one frame, in eight numbered steps. Step 1, prerender copies state into Pixi nodes. Step 2 runs FxSystem.update, camera transforms and CanvasImage.refresh. Step 3 asks whether a 3D session is active. If yes, step 4 lets Three render into a 640x360 nearest render target, with a bloom pass in place, through GlHandoff.beginThree and endThree. If no, the flow skips step 4. Step 5 resets GL state with GlHandoff.beginPixi and pixi.resetState. Step 6 has Pixi draw the screen root into the 640x360 back buffer at resolution 1 with nearest scaling, so all filters run inside it. Step 7, the present, draws one nearest sprite at integer scale k, on a whole device pixel, into a whole-window canvas with void-colour bars. Step 8 is postrender and the perf record.](diagrams/engine-render-pipeline.png)
 
 *Editable source: [diagrams/engine-render-pipeline.html](diagrams/engine-render-pipeline.html)*
 
 ### 6.3 Why filters run at game resolution
 
-| Filter resolution | Mixed k-by-k blocks (of 129,600) |
+| Filter resolution | Mixed k-by-k blocks (lab at 480x270, of 129,600) |
 |---|---|
-| Game resolution (inside the 480x270 render texture) | 0 |
+| Game resolution (inside the render texture) | 0 |
 | Renderer resolution `k` (device resolution) | 125,959 with a blur, 114,646 with blur, color matrix, and shockwave |
 
-Lab, SwiftShader, device pixel ratio 1 and 1.25. A "mixed" block is one whose pixels are not all the same color. Without filters, both modes gave 0.
+Lab at 480x270, SwiftShader, device pixel ratio 1 and 1.25. At 640x360 Phase 0 counted 230,400 blocks for each check and found no mixed block with the effect cases on (device pixel ratio 1 and 1.5). A "mixed" block is one whose pixels are not all the same color. Without filters, both modes gave 0.
 
-The price is a chunkier blur and glow. It also costs about 2 ms more per frame on SwiftShader. Test case: blur, color matrix, and shockwave at 960x540. Result: about 12.6 ms against 10.2 ms. This is one machine, so it is an estimate. The look is your decision (E8). A per-effect `hiRes` option for bloom only is possible later.
+The price is a chunkier blur and glow. At 640x360 a game pixel is 25% smaller on a 1080p screen than at 480x270, so the blur and glow look finer than they did in the first design. It also costs about 2 ms more per frame on SwiftShader. Test case (lab at 480x270): blur, color matrix, and shockwave at 960x540. Result: about 12.6 ms against 10.2 ms. This is one machine, so it is an estimate. The look is your decision (E8). A per-effect `hiRes` option for bloom only is possible later.
 
 ### 6.4 Filters and masks
 
 - Any `GameObject` and any `Camera` has `filters`. In Phaser 4, `go.filters` is `{ internal, external }`, and it is `null` until you call `go.enableFilters()`. The call is `go.filters.internal.addMask(mask, invert)` or `go.filters.external.add(filter)`. Our `FilterList` is **flat** and needs no `enableFilters()`: `go.filters.add(effect)` and `go.filters.addMask(maskObject)`. This is a `(deviation)` from Phaser 4 (see [conventions.md](conventions.md) section 3). Pixi backs both.
 - Mask cost order: color mask, then stencil mask (`Graphics`), then alpha mask (`Sprite`). An alpha mask uses the filter pipeline.
+- One mask for each object, because Pixi keeps one mask for each node. `addMask` throws if the object has one. To stack masks, nest the object in a container and mask the container. `clearMask` sets `node.mask = null`, because `setMask({ mask: null })` does nothing in Pixi 8.22.
+- A sprite (alpha) mask must read the alpha channel. `addMask` passes `channel: 'alpha'`.
+- Phase 0 result: four effects each work on the `View3D` and on a container with sorted children. They are a built-in filter, a custom GLSL filter, a `Graphics` mask and a sprite mask. The 8 cases give 0 GL errors. The pixels match a CPU reference (at most 1/255 on the 3D view, exact elsewhere). With each effect on, the canvas has zero uneven blocks at device pixel ratio 1 and 1.5. This holds at 480x270 (0 of 129,600) and at 640x360 (0 of 230,400).
 - Phaser's `filters.internal` list is accepted. It runs as `external`, because Pixi has one filter stage. The engine logs one dev warning.
 - **Custom filters** need both shaders:
 
@@ -251,7 +256,7 @@ The price is a chunkier blur and glow. It also costs about 2 ms more per frame o
   Filter.from({ gl: { vertex: defaultFilterVert, fragment }, resources: { ... } });
   ```
 
-  A fragment-only call throws in Pixi 8.22, although the bundled docs say it works. Declare `uniform highp vec4 uInputSize` in the fragment, or the shader fails and floods the console with warnings. Do not write WebGPU programs.
+  A fragment-only call throws in Pixi 8.22, although the bundled docs say it works. Declare `uniform highp vec4 uInputSize` in the fragment, or the shader fails and floods the console with warnings. Do not write WebGPU programs. An effect with no uniforms must not pass an empty uniform group: Pixi 8.22 crashes at the first draw ("Cannot read properties of undefined"). `createEffect` leaves the group out when there are no uniforms.
 - The first use of a filter compiles shaders (about 90 ms in the lab). `FxSystem.warm()` draws each effect once off screen during the title or load screen.
 - **Blend modes over 3D** are limited to `normal`, `add`, `multiply`, `screen`, `min`, `max` (type `SjBlend`). Advanced blend modes (`overlay` and similar) are filter-based. They need `useBackBuffer`, and in the lab they could not see Three's pixels.
 
@@ -290,16 +295,17 @@ Pass order today: blur the glow layer, composite the scene, draw the UI layer, d
 
 Today's `gpuFx` setting becomes `fxLevel` (`auto`, `full`, `lite`, `none`). `backfill()` in `src/game/settings.ts` maps an old `gpuFx: true` to `auto` and `gpuFx: false` to `none`. A settings test covers it (section 11). The `#fx` overlay canvas goes away. CI runs `lite` by default. Some effect specs force `full` on SwiftShader. SwiftShader ran every effect correctly in the lab. Only the old presenter refused it.
 
-Cost on SwiftShader follows canvas pixels. A full stack costs about 12 to 13 ms per frame at 960x540 and about 20 ms at 1920x1080 (one machine, medium confidence). The CI viewport stays at 960x540 or less. Budget each fx level per pass.
+Cost on SwiftShader follows canvas pixels. In the lab (a 480x270 game, one machine, medium confidence) a full stack cost about 12 to 13 ms per frame at 960x540 and about 20 ms at 1920x1080. At 640x360 a 960x540 window is a scale of 1.5, not a whole number. So the CI viewport is 1280x720 (scale 2). That canvas has 1.78 times more pixels than 960x540. The full effect stack is not measured at 1280x720. Phase 0 measured the 3D scene and the stage slice on SwiftShader at 640x360 ([tooling-and-testing.md](tooling-and-testing.md) section 7). Measure each fx level again at M1. Budget each fx level per pass.
 
 ### 6.6 Display and device pixels
 
 `Display` has two modes. Their maths differ, and each comes from a different code base.
 
-**`integer` mode** uses the spike's maths (`src/stage/zoom.ts` and `centreOnDevicePixels` in the spike's `boot.ts`). It works in device pixels:
+**`integer` mode** uses the spike's maths for `k` (`src/stage/zoom.ts`). It works in device pixels. It does not use the spike's `centreOnDevicePixels`, because the canvas is now the whole window (see below):
 
 - `k = max(1, floor(fit * dpr))`, where `fit = min(viewW/W, viewH/H)`.
-- Canvas backing size: `W*k` by `H*k`. CSS size: that divided by `dpr`.
+- Canvas backing size: the whole window in device pixels. The CSS size is 100% of the window, so the browser shows the canvas 1:1 and never resamples it. The picture (`W*k` by `H*k`) sits inside it, centred on a whole device pixel. The rest is the void colour (letterbox bars). `devicePixelContentBoxSize` gives the exact size when the browser has it and it agrees with `round(viewW*dpr)` to 1 pixel. Playwright's emulated ratios report the CSS size there, so the arithmetic is used.
+- Why not a canvas of `W*k` by `H*k` with a CSS size of that divided by `dpr`? The browser lays out in units of 1/64 CSS pixel. The picture is uneven when that size is not a multiple of 1/64. The first Phase 0 kernel (480x270) drew 2,651 uneven blocks at ratio 2.25 and zoom 7. It drew 7,587 at ratio 1.75 and zoom 5, and 480 at ratio 1.1 and zoom 2 (Edge on the RTX 4070). A canvas the size of the window has none of this (spike drift 10).
 - `image-rendering: pixelated`. Pixi sets none, so the engine sets it.
 - It always snaps.
 
@@ -311,13 +317,27 @@ Cost on SwiftShader follows canvas pixels. A full stack costs about 12 to 13 ms 
 
 `Display` sets `image-rendering` for each mode. E13 asks which mode is the default. This design recommends `integer`. If you pick `integer` only, the `fit` mode retires. Today's default `settings.scale: 'fit'` then migrates to `integer` in `backfill()`.
 
-- Lab: integer upscales x3 and x4 are exact. x2.5 is not. Device pixel ratios 1 and 1.25 were tested. 1.5 and 1.75 are not tested for filters. The centring trick has a known limit at dpr 1.75 and 2.25.
+The lab (480x270): integer upscales x3 and x4 are exact. x2.5 is not. Device pixel ratios 1 and 1.25 were tested. Phase 0 tested the real engine at ratios 1, 1.25, 1.5, 1.75, 2 and 2.25. It also tested four awkward windows: 1.1 at zoom 2, 1.75 at zoom 5, 2.25 at zoom 5, and 2.5 at zoom 4. The result is zero uneven blocks, in the canvas and in a page screenshot, with the 2D scenes, the 3D scene and the filters on. The old centring trick had a limit at ratios 1.75 and 2.25. The whole-window canvas has none. At 640x360 the same checks give zero uneven blocks at every ratio and window, in every scene (230,400 blocks for each check, on the GPU and on SwiftShader). One awkward window (ratio 1.1, 1000x560) is zoom 1 at 640x360, where a block check cannot fail, so it counts as not covered. A window of 960x540 is also zoom 1 at 640x360. A test of the block check needs a window of at least 1280x720.
+
+**The scale `k` at 640x360.** The rule is the one above. `k` is lower than at 480x270, so the picture is 25% smaller on a 1080p screen.
+
+| Screen | Window in device pixels | `k` at 640x360 | `k` at 480x270 | Picture at 640x360 |
+|---|---|---|---|---|
+| 720p | 1280x720 | 2 | 2 | 1280x720, no bars |
+| Steam Deck window | 1280x800 | 2 | 2 | 1280x720, bars of 40 pixels above and below |
+| 1080p | 1920x1080 | 3 | 4 | 1920x1080, no bars |
+| 1440p | 2560x1440 | 4 | 5 | 2560x1440, no bars |
+| 4K | 3840x2160 | 6 | 8 | 3840x2160, no bars |
+
+The 720p row follows from the rule. The other rows come from the Phase 0 mock and its arithmetic. The mock measured 1080p and the Deck window. At 480x270 on the Deck window the picture is 960x540, with bars of 160 and 130 pixels.
+
+- `fit` mode is not built and not tested in Phase 0. The presenter is integer only. M1 decides how `fit` works with a whole-window canvas (E13).
 - `display.toGame(clientX, clientY)` maps pointer positions to game pixels.
 
 ### 6.7 Textures
 
 - Generated art stays canvas-based. `TextureManager.addCanvas` makes a `CanvasSource` directly. It avoids Pixi's global `Cache`.
-- A changed canvas calls `texture.source.update()`. This is a `texSubImage2D` upload. A same-size update does not reallocate. A 480x270 frame came out pixel-exact in the lab.
+- A changed canvas calls `texture.source.update()`. This is a `texSubImage2D` upload. A same-size update does not reallocate. A 480x270 frame came out pixel-exact in the lab. One 640x360 `CanvasImage` is 921,600 bytes (518,400 bytes at 480x270).
 - `texture.destroy(true)` once per source. Canvas sources are not garbage-collected by Pixi, so the manager owns them.
 - Prefix pruning (`crew-`, `enemy-`, `stage-<id>-<fingerprint>`, `tint-`, `shadow-`, `txt-`, `win-`, `num-`) matches how the spike manages memory.
 - Module-level `Map` caches in the old art code (no eviction) move into the `TextureManager` as each scene ports.
@@ -329,6 +349,7 @@ Cost on SwiftShader follows canvas pixels. A full stack costs about 12 to 13 ms 
 - On restore, Pixi re-uploads canvas and image textures from CPU data. GPU-only content (`RenderTexture`, glow, light map) comes back blank. A registry of baked textures re-bakes them on `contextrestored`.
 - Lab: a redrawn scene recovers with an identical frame. A baked `RenderTexture` does not, until it is re-baked.
 - Loss was simulated with `WEBGL_lose_context`. A real GPU reset is not tested.
+- Fetch the `WEBGL_lose_context` extension at boot. After a loss, `getExtension` returns null, so a restore through it would do nothing.
 
 ### 6.9 No WebGL2
 
@@ -344,36 +365,39 @@ E5 recommends a clear message after the migration ends. During the migration the
 |---|---|---|
 | Pixi guide | Three draws into the default framebuffer. Pixi draws on top. | Rejected. Pixi filters cannot touch the 3D pixels. A root filter left 717,792 of 717,792 3D pixels unchanged. |
 | **Shared context** | One context. Three renders into a nearest `WebGLRenderTarget`. Pixi shows it through `ExternalSource`. | **Chosen.** Exact in the lab on SwiftShader. Also reported exact on an RTX 4070 and in Firefox. Filters, masks, and blend modes work on the 3D frame. |
-| Canvas copy | Three on its own offscreen canvas. Pixi shows it through `CanvasSource`. | **Fallback.** Also exact. Costs a second context. Needs `forceContextLoss()` on every exit, or Chrome evicts Pixi's context after 15 entries. |
+| Canvas copy | Three on its own offscreen canvas. Pixi shows it through `CanvasSource`. | **Fallback.** Also exact. Costs a second context. The engine makes one private Three renderer and keeps it for the page, so no `forceContextLoss()` call is made on exit (spike drift 27). 15 entries made one renderer. One extra GL context stays alive after the first fallback entry. |
 | Stacked canvas | A second canvas over the first. | Not benchmarked. It cannot apply Pixi effects to the 3D frame. |
 
 The speed gap between the shared context and the canvas copy did not reproduce in a re-run (0.1 to 0.35 ms on SwiftShader). Speed does not decide it. The shared context wins on filters, masks, and one context.
 
+**Phase 0 result.** In the real engine the shared context and the canvas copy draw identical pictures tick for tick (equal hashes, in Edge and in the 2-test browser spec in Firefox 153). Where nothing is drawn over the 3D, the back buffer equals the 3D target: 0 of 129,600 pixels differ at 480x270 and 0 of 230,400 at 640x360, in both modes.
+
 ### 7.2 Lifecycle
 
-![Hack scene lifecycle as a sequence diagram with four lifelines: Story script, fieldHooks.hack, Game and HackScene (lazy chunk). A note says ticks and frames interleave. The script awaits s.hack. fieldHooks.hack imports the hack3d chunk on first entry, then runs a new HackScene on the Game. The Game inits the scene, then two loops repeat together: a fixedUpdate sim step each tick, and each frame a prerender plus a GlHandoff render into the render target. The scene closes with a result and the Game reports the scene ended. fieldHooks.hack then runs a finally block that disposes the render target, scene, ExternalSource and passes, and returns a HackResult to the script. s.hack always returns success, fail, aborted or unsupported. A watchdog ends the scene if the GL context does not return within 2 seconds.](diagrams/engine-hack-lifecycle.png)
+![Hack scene lifecycle as a sequence diagram with four lifelines: Story script, fieldHooks.hack, Game and HackScene (lazy chunk). A note says ticks and frames interleave. The script awaits s.hack. fieldHooks.hack imports the hack3d chunk on first entry, then runs a new HackScene on the Game. The Game inits the scene, then two loops repeat together: a fixedUpdate sim step each tick, and each frame a prerender plus a GlHandoff render into the render target. The scene closes with a result and the Game reports the scene ended. fieldHooks.hack then runs a finally block that disposes the render target, scene, ExternalSource and bloom pass, and returns a HackResult to the script. s.hack always returns success, fail, aborted or unsupported. A watchdog ends the scene if the GL context does not return within 1 second. A note gives the story policy: aborted with context-lost retries once and then auto-succeeds, and aborted with user means the story was dropped, so there is no retry, no scene starts and the story ends.](diagrams/engine-hack-lifecycle.png)
 
 *Editable source: [diagrams/engine-hack-lifecycle.html](diagrams/engine-hack-lifecycle.html)*
 
 **Rules for the whole lifecycle** (all lab-tested on SwiftShader unless noted):
 
 1. **Create each renderer once.** The engine creates the context and Pixi at boot. `ThreeHost` creates the Three renderer on first entry and keeps it. Per entry, create only a render target, a Three scene, loaded glTF, and an `ExternalSource`. A new Three renderer per entry leaked 5 textures and 3 framebuffers each time.
-   - **Pass both `canvas` and `context` to Three:** `new THREE.WebGLRenderer({ canvas, context: gl })`. With only `context`, Three r186 still creates a throwaway canvas and puts its `webglcontextlost` and `webglcontextrestored` listeners on it. Then Three never sees a loss or a restore, and it does not re-initialise its caches after a restore. Source-read in r186 (`WebGLRenderer.js`), not run in the lab.
+   - **Pass both `canvas` and `context` to Three:** `new THREE.WebGLRenderer({ canvas, context: gl })`. With only `context`, Three r186 still creates a throwaway canvas and puts its `webglcontextlost` and `webglcontextrestored` listeners on it. Then Three never sees a loss or a restore, and it does not re-initialise its caches after a restore. Source-read in r186 (`WebGLRenderer.js`), not run in the lab. Phase 0 ran it in the real engine: after a loss and a restore the frame is redrawn identical, with no GL error.
+   - The canvas-copy path follows the same rule. It makes one private Three renderer for the page and keeps it.
    - **Never call `three.setSize`, `setViewport`, or `setPixelRatio`** on the shared renderer. They resize the shared canvas. Render only to render targets.
    - A canary test: after `WEBGL_lose_context`, `three.render()` must do nothing, and Three must recover on restore.
 2. **Never destroy the Pixi renderer.** `renderer.destroy()` calls `loseContext()` and kills Three's context. A patch (`extensions.loseContext = null`) keeps it alive but leaves a pending GL error. The engine has `destroyForTests()` for dev only.
-3. **Order of creation.** Pixi first, Three later (lazy). Before you create Three, set `UNPACK_FLIP_Y_WEBGL` and `UNPACK_PREMULTIPLY_ALPHA_WEBGL` to false. Otherwise Three logs two warnings.
+3. **Order of creation.** Pixi first, Three later (lazy). Before you create Three, set `UNPACK_FLIP_Y_WEBGL` and `UNPACK_PREMULTIPLY_ALPHA_WEBGL` to false. Otherwise Three logs two warnings. Do the same after a context restore. Pixi leaves both flags set when it re-uploads textures. `ThreeHost` adds a canvas listener just before it creates Three, so `GlHandoff.prepareForThree` runs after the restore handler of Pixi and before the restore handler of Three. Without it, Three logs two INVALID_OPERATION warnings and leaves a GL error flag. Phase 0 tested the order on the real GPU and in Firefox 153. Pixi draws the 2D scene. The first hack loads the chunk and makes Three on Pixi's context. The 2D scene still matches its CPU reference after Three came and went.
 4. **Render target.** `new WebGLRenderTarget(W, H, { minFilter: NearestFilter, magFilter: NearestFilter, depthBuffer: true })`. Pixi's `scaleMode` does not reach an `ExternalSource`, so nearest must be set on the Three texture. If a composer is used, both ping-pong targets are nearest and both are wrapped.
-5. **Texture handle.** `renderer.initRenderTarget(rt)`, then `renderer.properties.get(rt.texture).__webglTexture`. This field is internal to Three. Pin Three exactly and keep a canary test. If the handle is `undefined`, `Frame3D` switches to the canvas-copy path and logs it. `ExternalSource` is public in Pixi but marked `@advanced` (since 8.16).
+5. **Texture handle.** `renderer.initRenderTarget(rt)`, then `renderer.properties.get(rt.texture).__webglTexture`. This field is internal to Three. Pin Three exactly and keep a canary test. If the handle is `undefined`, `Frame3D` switches to the canvas-copy path and logs it. Phase 0 tested the switch with a test seam that hides the handle: `auto` runs a canvas-copy frame, logs one warning, and draws the same pictures. `ExternalSource` is public in Pixi but marked `@advanced` (since 8.16).
 6. **Y flip.** The sprite uses `scale.y = -1` and `y = H`.
-7. **Rewrap.** Any size change of the render target, and any context restore, makes Three create a new GL texture. Call `initRenderTarget` again, then `externalSource.updateGPUTexture(tex, w, h)`. A stale wrapper gave 125,088 wrong pixels in the lab. This covers the 640x360 test too.
+7. **Rewrap.** Any size change of the render target, and any context restore, makes Three create a new GL texture. Call `initRenderTarget` again, then `externalSource.updateGPUTexture(tex, w, h)`. A stale wrapper gave 125,088 wrong pixels in the lab. This also covers a change of the picture size (the 640x360 mock).
 8. **Teardown, always in `finally`.**
    - Dispose geometries, materials, textures, and render targets.
-   - Dispose **every composer pass**. `EffectComposer.dispose()` does not do it. It leaks 11 textures and 11 framebuffers per entry.
+   - If a composer is used, dispose **every composer pass**. `EffectComposer.dispose()` does not do it. It leaks 11 textures and 11 framebuffers per entry. The Phase 0 bloom uses no composer (section 7.5).
    - Call `externalSource.destroy()`.
    - Call `destroy({ children: true, context: true })` on the scene's own display tree, so `Graphics` GPU data is freed.
    - Unload the 3D asset bundle.
-9. **Leak line.** Enter and exit 10 times. Counts of textures, buffers, programs, VAOs, and framebuffers must return to the baseline. The lab held them flat for 30 cycles on the RTX 4070 and 10 cycles on SwiftShader and Firefox.
+9. **Leak line.** Enter and exit 10 times. Counts of textures, buffers, programs, VAOs, and framebuffers must return to the baseline. The lab held them flat for 30 cycles on the RTX 4070 and 10 cycles on SwiftShader and Firefox. Phase 0 held them flat in the real engine, in both frame modes, after 4 warm-up entries. The JS heap after garbage collection grew 2.4% over the 10 cycles (the limit is 5%). A deliberate leak of 6 textures shows as +6.
 
 ### 7.3 The per-frame hand-off (`GlHandoff`)
 
@@ -398,6 +422,7 @@ Rules:
 
 - A plain smoke test hides this bug. The canary test uses a back buffer, a filtered container with a transparent gap, and a non-black Three background.
 - Do not use the `_clearColorCache` patch.
+- Phase 0 found that the bug shows only when the back buffer clears to transparent black, the one colour that equals Pixi's cached value after `resetState()`. The engine clears the back buffer to the void colour, so in the shipped configuration the bug does not show, even with the fix off. The fix stays, because it is cheap and a future transparent clear would hit it. The canary clears to transparent black and has a negative control (see the canary rows in [tooling-and-testing.md](tooling-and-testing.md) section 8).
 - Only `GlHandoff` may touch GL state.
 - Re-test on every Pixi bump.
 
@@ -411,23 +436,25 @@ type HackResult =
   | { status: 'unsupported'; reason: 'no-webgl2' | 'chunk-failed' };
 ```
 
-- **Probe first.** After M6, if the game started, WebGL2 exists. Then `unsupported` is rare: a chunk load failure. Until M6 flips the default, the legacy Canvas 2D path can run on a machine without WebGL2. On that path `s.hack` returns `unsupported` with reason `no-webgl2`. The exit checks of M1b and M7 cover both cases.
-- **Watchdog.** The scene checks `gl.isContextLost()` each frame and listens to `webglcontextlost`. Lab: the event fires about 2 ms after a loss. If the context does not return within 2 seconds, the promise resolves `aborted` with `context-lost`. This is the pass line from the research doc.
-- **If the context returns,** the engine rewraps the texture. The session may continue.
-- **Story policy** (E19): `unsupported` goes to an authored 2D alternative. `aborted` retries once, then auto-succeeds. The story author decides per hack.
+- **Probe first.** After M6, if the game started, WebGL2 exists. Then `unsupported` is rare: a chunk load failure. Until M6 flips the default, the legacy Canvas 2D path can run on a machine without WebGL2. On that path `s.hack` returns `unsupported` with reason `no-webgl2`. The exit checks of M1b and M7 cover both cases. Phase 0 result: with WebGL2 off, the door answered `unsupported / no-webgl2` in 0 ms and never requested the 3D chunk. A chunk that will not load gives `unsupported / chunk-failed`.
+- **Watchdog.** The scene checks `gl.isContextLost()` each frame and listens to `webglcontextlost`. Lab: the event fires about 2 ms after a loss. If the context does not return within 1 second, the promise resolves `aborted` with `context-lost`. The pass line from the research doc is that the hack resolves within 2 seconds of the loss. The timer is only part of that time. The other second is margin. Phase 0 measured 1,015 to 1,034 ms from the loss to the result, on the real GPU, on SwiftShader and on the canvas-copy path (spike drift 24).
+- **If the context returns** inside that second, the engine rewraps the texture. The session may continue. The picture at tick 100 is identical to a run with no loss. A context that returns after the second is given up on. M7 tunes this grace against a real loss in the real hack game (see M7 in [migration.md](migration.md)).
+- **Story policy** (E19): `unsupported` goes to an authored 2D alternative. `aborted` with reason `context-lost` retries once, then auto-succeeds. `aborted` with reason `user` means the player dropped the story (`game.abandon()` or `game.reset()`). It never retries and starts no scene. The outcome is `fail` with `via: 'dropped'`, and the story must end. `aborted` with reason `error` goes to the policy at once, with no retry, because a scene that threw would most likely throw again. The story author decides per hack.
 
 ### 7.5 Look rules for the 3D frame
 
-- **Color.** Set `ColorManagement.enabled = false` before any Three color or material work. Render to the target with no `OutputPass`. Otherwise `#ff2080` comes out as `#ff0437`. This is a global static of Three. Lighting then runs in gamma space. Keep assets to flat or vertex colors. sRGB glTF textures with this setting are not tested.
+- **Color.** Set `ColorManagement.enabled = false` before any Three color or material work. Render to the target with no `OutputPass`. Otherwise `#ff2080` comes out as `#ff0437`. This is a global static of Three. Lighting then runs in gamma space. Keep assets to flat or vertex colors. sRGB glTF textures with this setting are not tested. Phase 0 confirmed the colours in the real engine, in both frame modes. A Three background of `#ff2080` and a material of `#2080ff` reach the 3D picture and the screen as written.
 - **Pixel look.** Low-poly flat shading (`flatShading` or baked flat normals). Build grid lines in segments of 10 units or less. SwiftShader lost about 21% of long-line pixels near the camera.
-- **Bloom** lives in the Pixi filter pass by default (`AdvancedBloomFilter` on the `View3D`: 5.7 ms against 7.8 ms for `UnrealBloomPass` on SwiftShader, one machine). You must review the look.
+- **Bloom** runs inside the 640x360 target, in place, with Three's `UnrealBloomPass` (spike drift 13). There is no `EffectComposer`, because it needs a clone target and leaks passes. The earlier default was `AdvancedBloomFilter` on the `View3D` (5.7 ms against 7.8 ms for `UnrealBloomPass` on SwiftShader, one machine). It needs `pixi-filters`, which is not installed, so Phase 0 did not compare the two. A pass at game resolution keeps every glow pixel on the game grid. Mark reviews the look in the iteration of the real hacking scene. He does not review the look of the Phase 0 test scene (exit criterion 11 of the spike, which is pass line 8 in [migration.md](migration.md) section 3).
 - **Time.** Three's `Clock` is deprecated since r183. Pass a constant dt to any `AnimationMixer`.
-- **First-entry hitch.** The first frame compiles shaders: 96 ms on the RTX 4070 and 167 ms on SwiftShader. Each later entry costs 12 to 54 ms. Hide it behind the transition. No test calls `renderer.compile` during the wipe.
+- **First-entry hitch.** The first frame compiles shaders: 96 ms on the RTX 4070 and 167 ms on SwiftShader. Each later entry costs 12 to 54 ms. Phase 0 measured the real engine on the RTX 4070. The first scene took 79 ms to build (it includes loading the chunk) and 68 ms to the first finished frame. Later entries took 5 ms and 14 to 17 ms. On SwiftShader the first frame took 134 ms and later ones about 105 ms. Three deletes its programs when a scene ends, so every entry compiles the shaders again (spike drift 20). Hide it behind the transition. No test calls `renderer.compile` during the wipe.
 - **Not used.** WebGPU (Three's `WebGLRenderer` shares only a WebGL context). pmndrs `postprocessing` (capped below Three 0.187, not benchmarked).
 
 ### 7.6 Not tested yet
 
-Safari and WebKit. A Linux CI runner. Chromium 153. A sprite (alpha) mask and a custom GLSL filter on the `View3D`. Real Blender glTF files. A real GPU context reset. Heavy 3D scenes at 60 fps with bloom on your desktop. These are in the Phase 0 lab and in M1b ([migration.md](migration.md)).
+Phase 0 answered these: a sprite (alpha) mask and a custom GLSL filter on the `View3D`, the Linux CI runner, WebKit on that runner, and Firefox 153 on Windows (the 2-test spec and the Part A scripts only. Firefox on the Linux runner has no WebGL2). The test scene with bloom holds the speed line on the test machine (the line is in [tooling-and-testing.md](tooling-and-testing.md) section 7). The answers are in [migration.md](migration.md) section 3.
+
+Still not tested: Safari on macOS. A real GPU context reset. Real Blender glTF files. Heavy 3D scenes (the Phase 0 scene is a minimal test scene). The look of the 3D scene is the real hacking scene's own iteration and is outside this design. The rest stay in M1b and M7 ([migration.md](migration.md)).
 
 ---
 
@@ -441,6 +468,7 @@ The rule: the same inputs give the same state hash, whatever the frame rate.
 - **Standing test (T0).** Run the same recorded inputs at 60, 144, and 30 Hz, and with long hitches. Compare state hashes. It applies to the battle driver and to the hack sim. The lab did this for a plain-data sim and the hashes matched.
 - **Test hook.** `__SJ__.step(n)` (dev only) runs `n` ticks with a fixed `dt`, draws one frame, and returns a frame hash. Playwright's `page.clock` is not used for goldens: it produced 62 callbacks at 16 ms steps for one second, which does not match the 16.667 ms accumulator.
 - **Frame hashes on SwiftShader** were identical across 3 page loads in the lab. See the golden policy in [tooling-and-testing.md](tooling-and-testing.md).
+- Phase 0 checked this in the real engine. The same tick count gives the same hash on two page loads. 1 x 333, 333 x 1 and 3 x 111 ticks give the same picture. The hack sim gives the same state for 2,000 ticks with the same seed.
 
 ---
 
@@ -455,7 +483,7 @@ Items marked "proposed" are design choices. No test covers them yet.
 | A shader does not compile | Pixi logs a warning. The `Effect` wrapper checks (proposed) | The effect is skipped (proposed) | One dev warning (proposed) |
 | The Pixi chunk does not load at boot | The `import()` rejects | A message with a Retry button (proposed) | A console error |
 | A texture upload fails or the GPU runs out of memory | A GL error or a context loss | See section 6.8 | Not tested |
-| The context is lost | `webglcontextlost` | A redraw on restore. A 3D session ends `aborted` after 2 seconds | The `contextlost` event |
+| The context is lost | `webglcontextlost` | A redraw on restore. A 3D session ends `aborted` after 1 second | The `contextlost` event |
 | A story script rejects | The `unhandledrejection` handler in `main.ts` | The "Something glitched" notice. Not for `Cancelled` | A log line |
 
 ---
@@ -465,8 +493,9 @@ Items marked "proposed" are design choices. No test covers them yet.
 Pixi's texture GC is off (section 6.1). So the engine must free every texture itself. These rules say who owns what. They are proposed. No test covers them yet.
 
 - **Texture keys have a scope.** A key is scene-scoped or game-scoped. A scene-scoped key dies at scene shutdown, unless the scene promotes it. A game-scoped key belongs to a bundle. `unloadBundle` removes it.
+- **`TextureManager.remove(key)` frees the key at once.** The GPU data stays until the last object that shows the texture is destroyed (use counts in `ImageObject`). A scene may remove its textures in a `shutdown` listener, which runs before its display list is destroyed.
 - **One place calls `prune`.** The scene shutdown handler calls `textures.prune(prefix, inUse)`. The set `inUse` comes from the `usedKeys()` method of every scene that is still alive.
-- **`GameObject.destroy()` destroys the object's own filters.** It does not destroy shared masks or shared textures. The code that made them owns them.
+- **`GameObject.destroy()` does not destroy filters, shared masks, or shared textures.** An `Effect` is made by the code that uses it. It can be on many objects. The code that made it owns it and destroys it (spike drift 31). The same holds for masks and textures. A destroyed mask clears the mask of the object that it masked.
 - **Baked GPU targets** (`RenderImage`, the glow layer, the light map) belong to the scene that made them. The context-restore registry lists them. Shutdown removes them.
 - **Text and tint textures** (`txt-`, `tint-`) are scene-scoped. A cache for them has a size cap (estimate: 256 entries, to measure).
 - **A VRAM watch.** `__SJ__.glCounts()` also reports texture count and estimated texture bytes. A warning shows at 128 MB (estimate, low confidence).

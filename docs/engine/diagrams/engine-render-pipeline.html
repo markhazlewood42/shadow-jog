@@ -65,14 +65,14 @@
          A README shows this figure at about 880px wide (scale 0.92), so the smallest text stays near 11px. -->
     <svg viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-render-pipeline-title engine-render-pipeline-desc">
       <title id="engine-render-pipeline-title">Engine render pipeline</title>
-      <desc id="engine-render-pipeline-desc">One frame of the engine render pipeline in eight steps: state copy, per-frame updates, a check for an active 3D session, an optional Three render, a GL state reset, Pixi drawing the screen root into the 480x270 back buffer, an integer-scaled present into the canvas, and postrender.</desc>
+      <desc id="engine-render-pipeline-desc">One frame of the engine render pipeline in eight steps: state copy, per-frame updates, a check for an active 3D session, an optional Three render with bloom in place, a GL state reset, Pixi drawing the screen root into the 640x360 back buffer, an integer-scaled present into a whole-window canvas, and postrender.</desc>
       <defs>
         <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
       </defs>
       <rect width="100%" height="100%" fill="#0d0c1f"/>
 
       <!-- Header -->
-      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-style="italic" font-family="'Instrument Serif', serif">Filters run inside 480x270. Only the present scales.</text>
+      <text x="40" y="60" fill="#f4f1ff" font-size="24" font-style="italic" font-family="'Instrument Serif', serif">Filters run inside 640x360. Only the present scales.</text>
       <text x="40" y="84" fill="#8f94bd" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">STEPS RUN IN NUMBER ORDER. THE SECOND ROW RUNS RIGHT TO LEFT.</text>
 
       <!-- Arrows (drawn before the nodes) -->
@@ -108,10 +108,11 @@
       <rect x="736" y="128" width="184" height="140" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
       <text x="750" y="154" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">4</text>
       <text x="770" y="154" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Three renders</text>
-      <text x="750" y="176" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">into a 480x270 nearest</text>
+      <text x="750" y="176" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">into a 640x360 nearest</text>
       <text x="750" y="194" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">render target</text>
-      <text x="750" y="212" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">GlHandoff.beginThree</text>
-      <text x="750" y="230" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">GlHandoff.endThree</text>
+      <text x="750" y="212" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">bloom pass in place</text>
+      <text x="750" y="232" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">GlHandoff.beginThree</text>
+      <text x="750" y="250" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">GlHandoff.endThree</text>
       <rect x="736" y="360" width="184" height="140" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
       <text x="750" y="386" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">5</text>
       <text x="770" y="386" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Reset GL state</text>
@@ -124,16 +125,17 @@
       <text x="518" y="408" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">the screen root into</text>
       <text x="518" y="426" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">the back buffer</text>
       <rect x="518" y="440" width="156" height="48" rx="2" fill="none" stroke="#ffcc3d" stroke-width="1"/>
-      <text x="528" y="462" fill="#ffcc3d" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.02em">480x270</text>
+      <text x="528" y="462" fill="#ffcc3d" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.02em">640x360</text>
       <text x="528" y="480" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">RES 1, NEAREST</text>
       <rect x="272" y="360" width="184" height="140" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
       <text x="286" y="386" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">7</text>
       <text x="306" y="386" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">Present</text>
-      <text x="286" y="408" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">one nearest sprite</text>
-      <text x="286" y="426" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">scaled by integer k</text>
-      <text x="286" y="444" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">into the canvas</text>
-      <rect x="286" y="458" width="96" height="28" rx="2" fill="none" stroke="#7a80c4" stroke-width="1"/>
-      <text x="334" y="476" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">SCALE k&#215;</text>
+      <text x="286" y="406" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">one nearest sprite,</text>
+      <text x="286" y="423" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">integer scale k, on a</text>
+      <text x="286" y="440" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">whole device pixel</text>
+      <rect x="286" y="452" width="160" height="40" rx="2" fill="none" stroke="#7a80c4" stroke-width="1"/>
+      <text x="296" y="468" fill="#f4f1ff" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">WHOLE-WINDOW CANVAS</text>
+      <text x="296" y="484" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">VOID-COLOUR BARS</text>
       <rect x="40" y="360" width="184" height="140" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1"/>
       <text x="54" y="386" fill="#bfc3e4" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.1em">8</text>
       <text x="74" y="386" fill="#f4f1ff" font-size="16" font-weight="600" font-family="'Geist', sans-serif">postrender</text>
