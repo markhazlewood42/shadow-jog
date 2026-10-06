@@ -69,7 +69,7 @@ All settings are in `command-center.config.json`. A path in the file is relative
 | `repoRoot` | The Shadow Jog repo: where `git` runs and where the docs are read |
 | `roots` | The folders the server may read or run commands in: the repo and the `shadow-jog-phaser` checkout |
 | `githubRepo` | `owner/name` of the repo that `gh` talks to. Every `gh` call is pinned to it. |
-| `approvalRef` | The commit at which Mark approved the engine design. A decision is "changed" when its text differs from its text at this commit. |
+| `approvalRef` | The commit at which Mark approved the engine design. A decision is "changed" when its text differs from its text at this commit. After Mark merges a PR that edits `docs/engine/` (a spelling pass, for example), move `approvalRef` to that merge commit. Else the Decisions page flags those docs as changed. |
 | `gameUrl` | The address of the game's dev server |
 | `links` | The links of the Links panel: `{ "label": "...", "url": "..." }` |
 | `claude.projectsRoot` | Where Claude Code keeps its session files (`~/.claude/projects`) |

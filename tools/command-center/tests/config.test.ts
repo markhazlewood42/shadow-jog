@@ -64,7 +64,7 @@ describe('loadConfig', () => {
   });
 
   it('writes the approval ref of PR #17 into the config (ruling R5)', () => {
-    expect(loadConfig(REAL_CONFIG).approvalRef).toBe('b14887acf5a813ba2b51271355c2223e78f3e393');
+    expect(loadConfig(REAL_CONFIG).approvalRef).toBe('467fffd6a93a331114958045f4ba645068e9aac6');
   });
 
   it('resolves projectsRoot to ~/.claude/projects at run time and keeps the session folders by exact name', () => {

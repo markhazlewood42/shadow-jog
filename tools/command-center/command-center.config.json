@@ -3,7 +3,7 @@
   "repoRoot": "../..",
   "roots": ["../..", "../../../shadow-jog-phaser"],
   "githubRepo": "markhazlewood42/shadow-jog",
-  "approvalRef": "b14887acf5a813ba2b51271355c2223e78f3e393",
+  "approvalRef": "467fffd6a93a331114958045f4ba645068e9aac6",
   "gameUrl": "http://localhost:3007",
   "links": [
     { "label": "Game", "url": "http://localhost:3007" },
