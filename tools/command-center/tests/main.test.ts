@@ -74,9 +74,10 @@ describe('main', () => {
     const port = await freePort();
     const { child, exited, output } = startMain(configWithPort(port));
     try {
-      // Wait until the process says it is listening, then ask it.
+      // Wait until the process says it is listening and that it skips the tab, then ask it. The two
+      // lines are two writes, and a read can catch the first alone, so both are waited for.
       const deadline = Date.now() + 15_000;
-      while (!output().stdout.includes(`http://localhost:${port}`) && Date.now() < deadline) {
+      while (!(output().stdout.includes(`http://localhost:${port}`) && output().stdout.includes('CC_NO_OPEN=1')) && Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 100));
       }
       expect(output().stdout).toContain(`http://localhost:${port}`);
