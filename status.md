@@ -19,7 +19,7 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 ## Where we left off (2026-10-05)
 
-> **In progress (2026-10-06): the Command Center build** on branch `command-center`. Tasks 1 to 9 of 12 are done, verified and pushed. Next: Task 10 (the Now page), Task 11 (the Agents page), then Task 12 (the finish and the PR). Tasks 10 and 11 get one verifier each, and only Critical and Important findings get a fix round (Mark, 2026-10-06). The build ledger is the git-ignored `.superpowers/sdd/plan/progress.md`. Side work on 2026-10-06: PR #18 (American spelling in `docs/engine/`) is merged, and PR #19 (`ci-faster`: three CI jobs at once, docs-only changes skip their steps, the playtest runs after a merge) is merged. A PR's CI now takes about 7 minutes instead of about 19.
+> **In progress (2026-10-06): the Command Center build** on branch `command-center`. Tasks 1 to 11 of 12 are done, verified and pushed: Task 10 (the Now page) and Task 11 (the Agents page) on 2026-10-06, and `main` is merged in. Next: Task 12 (the finish, with one live decision round trip that needs Mark), the final review, one fix wave, then the PR. The build ledger is the git-ignored `.superpowers/sdd/plan/progress.md`. Side work on 2026-10-06: PR #18 (American spelling in `docs/engine/`) is merged, and PR #19 (`ci-faster`: three CI jobs at once, docs-only changes skip their steps, the playtest runs after a merge) is merged. A PR's CI now takes about 7 minutes instead of about 19.
 
 ### The whole process so far
 1. **Build (2026-09-27 → 28).** From the original prompt (`docs/original-prompt.md`) to a content-complete chapter:
@@ -86,8 +86,8 @@ Branch `spike/engine-platform` (draft PR #11). Record: `docs/spikes/engine-platf
 **Mark's rules from 2026-10-05** (also in home-base `CLAUDE.md` and memory): effort means architectural fit and files touched, never agent-days; all work goes through independent verification agents, sized to risk; at a phase break, the work continues in a fresh session. His idea backlog is `docs/IDEAS.md`. Entry 1 is a standing rule: no decision may make future visual editors harder.
 
 **Next for agents** (in this order):
-1. Finish the command center on branch `command-center`: Tasks 10 to 12 of `docs/command-center/plan.md`. Use a fresh session.
-1a. Live checks for the faster CI (PR #19, merged 2026-10-06): (1) the first `playtest.yml` run on `main` (run 37518417311) passed: `gh run view 37518417311 --repo markhazlewood42/shadow-jog`. (2) On the next docs-only PR, `check`, `e2e` and `e2e-engines` report success in seconds with their steps skipped, and its merge to `main` starts no CI run (`gh run list --repo markhazlewood42/shadow-jog --branch main -L 3`).
+1. Finish the command center on branch `command-center`: Task 12 of `docs/command-center/plan.md`, then the final review, one fix wave and the PR. Use a fresh session. Task 12 needs Mark live.
+1a. Live checks for the faster CI (PR #19, merged 2026-10-06): (1) Done 2026-10-06: the first `playtest.yml` run on `main` (run 37518417311) passed in 7 min 40 s. (2) On the next docs-only PR, `check`, `e2e` and `e2e-engines` report success in seconds with their steps skipped, and its merge to `main` starts no CI run (`gh run list --repo markhazlewood42/shadow-jog --branch main -L 3`).
 2. Move the shipped game to 640x360 on branch `resolution-640x360` from `main`, from the inventory, with picture reviews for Mark.
 3. The spike archive tag (with Mark's go-ahead), then milestone M0.
 
