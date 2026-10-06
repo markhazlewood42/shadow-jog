@@ -4,14 +4,19 @@ import type { ChangeEvent, Health, Panel } from '../shared/types';
 // write. Nothing here throws for a server that is down or an answer that is odd, when it can
 // say so as data instead: a panel must show its own error, not crash the page.
 
-/** A request that failed. `code` is a short word to test for; `message` is a sentence for a person. */
+/**
+ * A request that failed. `code` is a short word to test for; `message` is a sentence for a person. `body` is the JSON that the
+ * server sent with the error, when it sent some (an answer to a decision that stopped half way says in it which step failed), or null.
+ */
 export class ApiError extends Error {
   readonly code: string;
+  readonly body: unknown;
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, body: unknown = null) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
+    this.body = body;
   }
 }
 
@@ -36,7 +41,7 @@ function isErrorInfo(value: unknown): value is { code: string; message: string }
 
 /** The error of a failed answer: the server's own when it sent one (`{ ok: false, error }`), else the HTTP status. */
 function errorFor(res: Response, body: unknown): ApiError {
-  if (isRecord(body) && isErrorInfo(body.error)) return new ApiError(body.error.code, body.error.message);
+  if (isRecord(body) && isErrorInfo(body.error)) return new ApiError(body.error.code, body.error.message, body);
   return new ApiError(`http-${res.status}`, `The server answered ${res.status}${res.statusText ? ` ${res.statusText}` : ''}.`);
 }
 

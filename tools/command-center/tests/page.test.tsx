@@ -121,6 +121,16 @@ describe('getJson and postJson', () => {
     vi.stubGlobal('document', { querySelector: () => null });
     await expect(postJson('/api/x', {})).rejects.toMatchObject({ code: 'no-token' });
   });
+
+  it('an ApiError keeps the body that the server sent, so a page can read more than the code and the message', async () => {
+    vi.stubGlobal('document', { querySelector: () => ({ getAttribute: () => 'page-token-123' }) });
+    const sent = { ok: false, step: 'label', error: { code: 'gh-failed', message: 'gh failed' } };
+    stubFetch(() => json(sent, 502));
+    await expect(postJson('/api/x', {})).rejects.toMatchObject({ code: 'gh-failed', body: sent });
+    // An answer that is not an error body of ours has no body to keep.
+    stubFetch(() => new Response('Bad Gateway', { status: 502 }));
+    await expect(postJson('/api/x', {})).rejects.toMatchObject({ code: 'http-502', body: null });
+  });
 });
 
 describe('loadHealthPanel', () => {

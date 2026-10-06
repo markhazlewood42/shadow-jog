@@ -1,6 +1,8 @@
 import { Fragment, type KeyboardEvent, type MouseEvent, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import type { DocPage } from '../../shared/types';
+import type { DocDecision, DocPage } from '../../shared/types';
+import { DecisionBanner } from '../decisions/DecisionBanner';
+import { Notice } from '../decisions/DecisionCard';
 import { Backlinks } from './Backlinks';
 import { DiagramZoom, type ZoomTarget } from './DiagramZoom';
 import { FrontmatterHeader } from './FrontmatterHeader';
@@ -13,7 +15,12 @@ import { useDocumentTitle } from './useDocumentTitle';
 export type DocBanner = Banner<ReactNode>;
 
 export type DocViewProps = {
-  doc: DocPage;
+  /**
+   * The doc. A doc that comes from `GET /api/docs/<slug>` also says which open decisions link to its headings (`decisions`), and the page shows each
+   * as a banner in front of its heading. `null` means that the decisions could not be read, and the page says that the banners are missing.
+   * A doc with no `decisions` field has none.
+   */
+  doc: DocPage & { decisions?: readonly DocDecision[] | null };
   /** Shown at the end of the doc, under its text, in a box with a rule above it. The Previous and Next buttons of the engine docs are given here. Nothing is drawn for a footer that is empty (`undefined`, `null`, `false`, `0` or an empty text), so no empty box shows. */
   footer?: ReactNode;
   /**
@@ -87,7 +94,11 @@ export function DocView({ doc, footer, banners = NO_BANNERS }: DocViewProps) {
 
   useDocumentTitle(doc.title);
 
-  const parts = useMemo(() => placeBanners(doc.html, banners), [doc.html, banners]);
+  // The banners of the open decisions that link to this doc come first, then the ones that the caller gave. The list is made again only when the decisions change,
+  // so the html is cut again only then (a new list would put the html into the page again, and a person who is reading would lose nothing but the work).
+  const decisionBanners = useMemo<DocBanner[]>(() => (doc.decisions ?? []).map((decision) => ({ anchor: decision.anchor, node: <DecisionBanner decision={decision} /> })), [doc.decisions]);
+  const allBanners = useMemo(() => (banners.length === 0 ? decisionBanners : [...decisionBanners, ...banners]), [decisionBanners, banners]);
+  const parts = useMemo(() => placeBanners(doc.html, allBanners), [doc.html, allBanners]);
   // A doc with no heading of its own still needs a title on the page.
   const needsTitle = !hasHeadingLevel1(doc.html);
 
@@ -154,6 +165,11 @@ export function DocView({ doc, footer, banners = NO_BANNERS }: DocViewProps) {
     <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_15rem]">
       <article className="min-w-0">
         <FrontmatterHeader doc={doc} />
+        {doc.decisions === null && (
+          <div className="mt-3">
+            <Notice>Decision banners are not shown on this page: the open decisions could not be read from GitHub just now (it may be offline, or gh may not be signed in). The doc itself is not affected.</Notice>
+          </div>
+        )}
         {/* The handlers sit on the container and read where the event came from: the html is one string, with no React element in it to hang a handler on. */}
         <div ref={bodyRef} className="doc-html mt-6" onClick={onBodyClick} onKeyDown={onBodyKeyDown}>
           {needsTitle && <h1>{doc.title}</h1>}

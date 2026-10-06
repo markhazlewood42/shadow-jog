@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Route, Routes } from 'react-router';
 import { APP_NAME, type Health, type ModuleName } from '../shared/types';
 import { type ConnectionState, loadHealthPanel, subscribeEvents } from './api';
+import { DecisionRoute } from './decisions/DecisionPage';
 import { DocsRoutes } from './docs/DocsRoutes';
 import { PanelFrame, formatTime } from './PanelFrame';
 import { useLoadedPanel } from './usePanel';
@@ -83,14 +84,15 @@ function Shell() {
 }
 
 /**
- * The pages of the app, by address. /docs and everything under it is the docs site. Every other
- * address shows the start page, so a page that a later task adds is one more <Route> above the last.
+ * The pages of the app, by address. /docs and everything under it is the docs site, and /decisions/<n> is the page of one
+ * decision. Every other address shows the start page, so a page that a later task adds is one more <Route> above the last.
  * The router itself (BrowserRouter) is in main.tsx, so a test can put this under a router of its own.
  */
 export function App() {
   return (
     <Routes>
       <Route path="/docs/*" element={<DocsRoutes />} />
+      <Route path="/decisions/:number" element={<DecisionRoute />} />
       <Route path="*" element={<Shell />} />
     </Routes>
   );

@@ -14,6 +14,9 @@ import { SectionTree } from './SectionTree';
 /** The docs pages reload when the docs module says something changed (a doc was edited, added, moved or removed). */
 const DOCS_MODULES: readonly ModuleName[] = ['docs'];
 
+/** A doc also reloads when the decisions change, because the banners above its headings are the open decisions: an answer must take its banner away. */
+const DOC_MODULES: readonly ModuleName[] = ['docs', 'decisions'];
+
 /**
  * The top bar of every docs page: the name of the tool (a link to the start page), the two parts of
  * the site, and the search. It stays at the top while a long doc scrolls.
@@ -51,7 +54,7 @@ function DocsHeader() {
  * is given only when there is something to put in it: an empty footer would still draw its ruled box.
  */
 function DocRoute({ slug }: { slug: string }) {
-  const result = usePanel<DocPageData>(docApiPath(slug), DOCS_MODULES);
+  const result = usePanel<DocPageData>(docApiPath(slug), DOC_MODULES);
   const suggestions = missingDocOf(result.panel);
   if (suggestions !== null) return <Gone slug={slug} suggestions={suggestions} />;
   return (

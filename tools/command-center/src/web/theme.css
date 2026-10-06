@@ -317,3 +317,16 @@
     vertical-align: 0.1em;
   }
 }
+
+/*
+ * The selected radio of the answer form is lavender and not amber, for the same reason as the selected toggle button: amber is for the one or
+ * two things on a page that matter most, and on the page of a decision those are the state of the decision and the Send button. HeroUI draws
+ * a selected radio from the accent colour (selected, and selected while pressed, each in two spellings), so the same four selectors are set here.
+ * The dot in it stays the dark ink of the theme, which is above 4.5 to 1 on the lavender.
+ */
+.radio[data-selected] .radio__control,
+.radio:has(input:checked) .radio__control,
+.radio[data-selected]:has([data-slot='radio-content'][data-pressed='true']) .radio__control,
+.radio:has(input:checked):has([data-slot='radio-content'][data-pressed='true']) .radio__control {
+  background-color: var(--cc-rule-solid);
+}
