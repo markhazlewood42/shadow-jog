@@ -14,12 +14,12 @@ Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. C
 K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 **GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog) (public).
-- **CI:** GitHub Actions, on pushes to `main` and on pull requests.
+- **CI:** GitHub Actions, on pushes to `main` and on pull requests: three jobs at the same time (`check`, `e2e`, `e2e-engines`), all three required on `main` by the ruleset "Main branch protection" (2026-10-06). A docs-only change skips their steps. The real-speed playtest runs in `playtest.yml` after a merge and from the Actions button.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for Copilot review, and Mark merges.
 
 ## Where we left off (2026-10-05)
 
-> **In progress (2026-10-06): the Command Center build** on branch `command-center`. Tasks 1 to 9 of 12 are done, verified and pushed. Next: Task 10 (the Now page), Task 11 (the Agents page), then Task 12 (the finish and the PR). Tasks 10 and 11 get one verifier each, and only Critical and Important findings get a fix round (Mark, 2026-10-06). The build ledger is the git-ignored `.superpowers/sdd/plan/progress.md`. Side work on 2026-10-06: PR #18 (American spelling in `docs/engine/`) is merged, and PR #19 (`ci-faster`: three CI jobs at once, docs-only changes skip their steps, the playtest runs after a merge) is open.
+> **In progress (2026-10-06): the Command Center build** on branch `command-center`. Tasks 1 to 9 of 12 are done, verified and pushed. Next: Task 10 (the Now page), Task 11 (the Agents page), then Task 12 (the finish and the PR). Tasks 10 and 11 get one verifier each, and only Critical and Important findings get a fix round (Mark, 2026-10-06). The build ledger is the git-ignored `.superpowers/sdd/plan/progress.md`. Side work on 2026-10-06: PR #18 (American spelling in `docs/engine/`) is merged, and PR #19 (`ci-faster`: three CI jobs at once, docs-only changes skip their steps, the playtest runs after a merge) is merged. A PR's CI now takes about 7 minutes instead of about 19.
 
 ### The whole process so far
 1. **Build (2026-09-27 → 28).** From the original prompt (`docs/original-prompt.md`) to a content-complete chapter:
@@ -87,7 +87,7 @@ Branch `spike/engine-platform` (draft PR #11). Record: `docs/spikes/engine-platf
 
 **Next for agents** (in this order):
 1. Finish the command center on branch `command-center`: Tasks 10 to 12 of `docs/command-center/plan.md`. Use a fresh session.
-1a. PR #19 (`ci-faster`): before Mark merges it, ask him whether `e2e` and `e2e-engines` become required checks (the ruleset requires only `check`). After the merge, confirm that `playtest.yml` ran on `main` and passed, then add a live check: a docs-only PR's CI jobs skip their steps, and a docs-only merge to `main` starts no run.
+1a. Live checks for the faster CI (PR #19, merged 2026-10-06): (1) the first `playtest.yml` run on `main` (run 37518417311) passed: `gh run view 37518417311 --repo markhazlewood42/shadow-jog`. (2) On the next docs-only PR, `check`, `e2e` and `e2e-engines` report success in seconds with their steps skipped, and its merge to `main` starts no CI run (`gh run list --repo markhazlewood42/shadow-jog --branch main -L 3`).
 2. Move the shipped game to 640x360 on branch `resolution-640x360` from `main`, from the inventory, with picture reviews for Mark.
 3. The spike archive tag (with Mark's go-ahead), then milestone M0.
 
