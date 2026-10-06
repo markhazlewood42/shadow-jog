@@ -4,9 +4,11 @@ import type { Hono } from 'hono';
 import { createApp } from './app';
 import { type Config, PACKAGE_DIR } from './config';
 import { createDocIndex } from './docs/index';
+import { createEngineModule } from './engine/module';
 import { makeToken } from './guard';
 import { createHub } from './hub';
 import { registerDocsRoutes } from './routes/docs';
+import { registerEngineRoutes } from './routes/engine';
 import type { Runner } from './runner';
 
 /**
@@ -59,6 +61,12 @@ export function compose(deps: ComposeDeps): Composed {
   const docs = createDocIndex({ config, runner, hub }, deps.navFile === undefined ? {} : { navFile: deps.navFile });
   registerDocsRoutes(app, docs);
   modules.push({ start: () => docs.ready(), stop: () => docs.close() });
+
+  // The engine review: every decision of the engine docs with its status, under /api/engine. It reads
+  // the headings of three docs from the doc index, and loads again when the index says that one of them changed.
+  const engine = createEngineModule({ config, runner, docs, hub });
+  registerEngineRoutes(app, engine);
+  modules.push(engine);
 
   return {
     app,

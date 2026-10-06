@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { rmSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { DocNotFound, DocPage, DocsListing, Panel, SearchHit } from '../src/shared/types';
+import type { DocNotFound, DocPage, DocPageData, DocsListing, Panel, SearchHit } from '../src/shared/types';
 import { compose } from '../src/server/compose';
 import { DEFAULT_CONFIG_FILE, loadConfig } from '../src/server/config';
 import { createDocIndex } from '../src/server/docs/index';
@@ -325,6 +325,72 @@ describe('the doc routes', () => {
     // Nothing called ready() yet: the route starts the scan and waits for it.
     const res = await getFrom(app, '/api/docs/status', config);
     expect(res.status).toBe(200);
+  });
+});
+
+describe('the reading order of the engine docs', () => {
+  /** An engine README whose "Reading order" list names three docs, and one more doc of the folder that the list leaves out. */
+  const files = {
+    'docs/engine/README.md':
+      '# Engine overview\n\n## 3. Reading order\n\n1. This file.\n2. [scene-graph.md](scene-graph.md): the tree.\n3. [interfaces.md](interfaces.md): the types.\n4. [decisions.md](decisions.md): every decision.\n',
+    'docs/engine/scene-graph.md': '# Scene graph\n',
+    'docs/engine/interfaces.md': '# Interfaces\n',
+    'docs/engine/decisions.md': '# Decisions\n',
+    'docs/engine/conventions.md': '# Conventions\n',
+    'docs/other.md': '# Another doc\n',
+    'docs/stray.md': '# A doc that nav.json does not name\n',
+  };
+  const nav = {
+    sections: [
+      { id: 'engine', title: 'Engine design', items: [{ readingOrder: 'docs/engine/README.md' }, 'docs/engine/'] },
+      { id: 'misc', title: 'Misc', items: ['docs/other.md'] },
+    ],
+  };
+
+  /** What `GET /api/docs/<slug>` says about where the doc sits in the reading order. */
+  async function orderOf(app: Parameters<typeof getFrom>[0], config: Parameters<typeof getFrom>[2], slug: string) {
+    const res = await getFrom(app, `/api/docs/${slug}`, config);
+    expect(res.status, slug).toBe(200);
+    const panel = (await res.json()) as Panel<DocPageData>;
+    if (!panel.ok) throw new Error(`${slug} gave a failed panel`);
+    return panel.data.readingOrder;
+  }
+
+  it('Previous and Next follow the reading order: the first has no Previous, the last no Next', async () => {
+    const repo = repoWith(files);
+    repo.writeNav(nav);
+    const { index } = makeIndex(repo);
+    const { app, config } = makeDocsApp(repo, index);
+
+    // The README's own list first ("This file" is the README), then the doc of the folder that the list does not name.
+    const ref = (slug: string, title: string) => ({ slug, title });
+    expect(await orderOf(app, config, 'engine/README')).toEqual({ prev: null, next: ref('engine/scene-graph', 'Scene graph') });
+    expect(await orderOf(app, config, 'engine/scene-graph')).toEqual({ prev: ref('engine/README', 'Engine overview'), next: ref('engine/interfaces', 'Interfaces') });
+    expect(await orderOf(app, config, 'engine/interfaces')).toEqual({ prev: ref('engine/scene-graph', 'Scene graph'), next: ref('engine/decisions', 'Decisions') });
+    expect(await orderOf(app, config, 'engine/decisions')).toEqual({ prev: ref('engine/interfaces', 'Interfaces'), next: ref('engine/conventions', 'Conventions') });
+    expect(await orderOf(app, config, 'engine/conventions')).toEqual({ prev: ref('engine/decisions', 'Decisions'), next: null });
+
+    // A doc of another section, and a doc that no section names (it is in Other), are in no reading order.
+    expect(await orderOf(app, config, 'other')).toBeNull();
+    expect(await orderOf(app, config, 'stray')).toBeNull();
+  });
+
+  it('is null for every doc when the engine README is not in a section (nav.json does not name it)', async () => {
+    const repo = repoWith(files); // the nav of makeDocsRepo has no section: every doc is in Other
+    const { index } = makeIndex(repo);
+    const { app, config } = makeDocsApp(repo, index);
+    for (const slug of ['engine/README', 'engine/scene-graph', 'engine/conventions', 'other']) expect(await orderOf(app, config, slug), slug).toBeNull();
+  });
+
+  it('is null when the section holds the README and nothing else, and for a repo that has no engine docs', async () => {
+    const alone = repoWith({ 'docs/engine/README.md': files['docs/engine/README.md'], 'docs/other.md': files['docs/other.md'] });
+    alone.writeNav({ sections: [{ id: 'engine', title: 'Engine design', items: [{ readingOrder: 'docs/engine/README.md' }] }] });
+    const aloneApp = makeDocsApp(alone, makeIndex(alone).index);
+    expect(await orderOf(aloneApp.app, aloneApp.config, 'engine/README')).toBeNull();
+
+    const none = repoWith({ 'docs/a.md': '# A\n', 'status.md': '# Status\n' });
+    const noneApp = makeDocsApp(none, makeIndex(none).index);
+    expect(await orderOf(noneApp.app, noneApp.config, 'a')).toBeNull();
   });
 });
 
