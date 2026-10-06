@@ -5,22 +5,31 @@ import { createApp } from './app';
 import { type Config, PACKAGE_DIR } from './config';
 import { createDocIndex } from './docs/index';
 import { createEngineModule } from './engine/module';
+import { createGitSource } from './git/module';
+import { createGithubSource } from './github/module';
 import { makeToken } from './guard';
 import { createHub } from './hub';
 import { registerDocsRoutes } from './routes/docs';
 import { registerEngineRoutes } from './routes/engine';
+import { registerGitRoutes } from './routes/git';
+import { registerGithubRoutes } from './routes/github';
+import { registerStatusRoutes } from './routes/status';
 import type { Runner } from './runner';
+import { createStatusSource } from './status/module';
 
 /**
- * What compose needs. `webRoot` and `navFile` are for tests and the end-to-end server: `webRoot`
- * points at a folder that stands in for the built page, and `navFile` at a nav.json other than the
- * tool's own (the docs of a fixture repo are not the docs of the Shadow Jog repo).
+ * What compose needs. `webRoot`, `navFile` and `refreshGapMs` are for tests and the end-to-end
+ * server: `webRoot` points at a folder that stands in for the built page, `navFile` at a nav.json
+ * other than the tool's own (the docs of a fixture repo are not the docs of the Shadow Jog repo), and
+ * `refreshGapMs` sets the least time between two forced refreshes of a panel (10 s unless this says
+ * another: the end-to-end server sets 0, so a test can change what the fake gh says and see it at once).
  */
 export type ComposeDeps = {
   config: Config;
   runner: Runner;
   webRoot?: string;
   navFile?: string;
+  refreshGapMs?: number;
 };
 
 export type Composed = {
@@ -67,6 +76,26 @@ export function compose(deps: ComposeDeps): Composed {
   const engine = createEngineModule({ config, runner, docs, hub });
   registerEngineRoutes(app, engine);
   modules.push(engine);
+
+  // The three panels that look at the project's state, each under its own path. They share the rule
+  // for a forced refresh (`?refresh=1`, at most one in 10 s: see routes/panel.ts).
+  const panelRoutes = deps.refreshGapMs === undefined ? {} : { minGapMs: deps.refreshGapMs };
+
+  // The project status: the current "Right now" section and "Next up for Mark" list of status.md, and the
+  // milestones of the engine migration plan, under /api/status. The doc index renders the markdown.
+  const status = createStatusSource({ config, docs, hub });
+  registerStatusRoutes(app, status, panelRoutes);
+  modules.push(status);
+
+  // git: the checked-out branch and how far it is from its upstream, the branches and the newest commits, under /api/git.
+  const git = createGitSource({ runner, hub });
+  registerGitRoutes(app, git, panelRoutes);
+  modules.push(git);
+
+  // GitHub: the open pull requests and the ones merged in the last week, read with `gh`, under /api/github.
+  const github = createGithubSource({ runner, hub });
+  registerGithubRoutes(app, github, panelRoutes);
+  modules.push(github);
 
   return {
     app,

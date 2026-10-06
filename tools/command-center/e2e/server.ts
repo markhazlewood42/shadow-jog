@@ -74,7 +74,8 @@ export function createE2eRuntime(workDir: string = E2E_DIR): E2eRuntime {
 
 async function main(): Promise<void> {
   const runtime = createE2eRuntime();
-  const composed = compose({ config: runtime.config, runner: runtime.runner, navFile: FIXTURE_NAV_FILE });
+  // refreshGapMs 0: a forced refresh of a panel is never held back, so a test that changes what the fake gh says sees it at once.
+  const composed = compose({ config: runtime.config, runner: runtime.runner, navFile: FIXTURE_NAV_FILE, refreshGapMs: 0 });
   await startServer(composed.app, E2E_PORT);
   await composed.start();
 
