@@ -431,6 +431,27 @@ describe('POST /api/decisions/<n>/answer: one answer at a time, and the list at 
     expect(issue).toMatchObject({ state: 'open', answer: { option: 'C', complete: false } });
   });
 
+  it('keeps a decision in the list when its answer stopped at the close: the issue has the label decided now, and is still open', async () => {
+    // The label swap worked and the close did not. The issue is open and has "decided" (not "decision"), so it is in the list of neither "open decision"
+    // issues nor "closed" ones. The module reads the issues with the label decided in every state, so the page of the decision does not turn into "not found" under Mark's form.
+    const rig = rigOf();
+    await rig.decisions.get(true);
+    setRigMode(rig, { mode: 'write-fails', step: 'close' });
+    expect((await rig.post(41, { option: 'C', note: 'Because.' })).status).toBe(502);
+    expect(labelsOf(rig, 41)).toEqual(['decided']);
+    const panel = (await rig.decisions.get()) as Panel<DecisionsInfo>;
+    expect(panel.ok && panel.data.open.find((issue) => issue.number === 41)).toMatchObject({ state: 'open', answer: { option: 'C', note: 'Because.', complete: false } });
+    // The page of the decision is still there, and the retry finishes the answer.
+    const page = await rig.get('/api/decisions/41');
+    expect(page.status).toBe(200);
+    expect(await page.json()).toMatchObject({ ok: true, data: { number: 41, state: 'open' } });
+    setRigMode(rig, { mode: 'ok' });
+    expect((await rig.post(41, { option: 'C', note: 'Because.' })).status).toBe(200);
+    expect(rig.writes()).toEqual(['issue comment', 'issue edit', 'issue close', 'issue close']);
+    const done = (await rig.decisions.get()) as Panel<DecisionsInfo>;
+    expect(done.ok && done.data.recent.find((issue) => issue.number === 41)).toMatchObject({ state: 'answered', answer: { complete: true } });
+  });
+
   it('does not refresh the source after an answer that was refused, because nothing was written', async () => {
     const rig = rigOf();
     await rig.decisions.get(true);
