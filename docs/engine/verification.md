@@ -74,7 +74,7 @@ Scores run from 1 to 10. Anchors: **10** exemplary; **8** solid, with minor note
 | V4 | Stability | No flicker on transitions. Shimmer in motion stays inside the agreed metric. |
 | V5 | Legibility | Text and HUD read clearly at 1x and at the common zooms. |
 
-The look itself (colour, mood, "this is the vibe") is not in the rubric. It is your call in your review.
+The look itself (color, mood, "this is the vibe") is not in the rubric. It is your call in your review.
 
 ### 3.3 Spike report rubric (Phase 0)
 
