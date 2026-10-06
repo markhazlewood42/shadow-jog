@@ -403,7 +403,7 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
 - **E2E** (`e2e/`, Playwright, Edge locally, Chromium/WebKit/Firefox in CI): the full chapter through the real
   scripts, a real-speed playtest capture, game over and saves, tabs, boot failure, chaos input, the shipped build,
   frame budgets, audio evidence, and the screenshot set.
-- **CI** (`.github/workflows/ci.yml`): lint, typecheck, unit tests, bundle budget, E2E.
+- **CI** (`.github/workflows/ci.yml`): three jobs at the same time: `check` (lint, typecheck, unit tests, bundle budget), `e2e` (the specs on Chromium) and `e2e-engines` (`prod` and `gameover` on WebKit and Firefox). The real-speed playtest runs in `.github/workflows/playtest.yml`, on a push to `main` and from the Actions button.
 
 ---
 

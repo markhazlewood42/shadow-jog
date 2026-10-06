@@ -14,7 +14,7 @@ This file shows the key public TypeScript interfaces. Each block has a short exp
 
 > **Read first:** [Three things that look like Phaser and are not](README.md#2-three-things-that-look-like-phaser-and-are-not). Tag meanings are in the "Tags" table at the top of [conventions.md](conventions.md).
 
-**Tags in comments.** `// ours` means no engine has this, or we changed it. `// deviation` means the name is Phaser's and the behaviour is not. `// on demand` means we build it only when a ported scene needs it. No tag means Phaser 4.
+**Tags in comments.** `// ours` means no engine has this, or we changed it. `// deviation` means the name is Phaser's and the behavior is not. `// on demand` means we build it only when a ported scene needs it. No tag means Phaser 4.
 
 **Strict types.** Phaser members that we do not implement are absent from the types, so a call to them is a compile error. The list is in [conventions.md](conventions.md).
 
@@ -301,7 +301,7 @@ export declare class FxSystem {                       // ours. Keeps the postfx 
   readonly level: FxLevel;
   readonly active: boolean;                            // today's `postfx.active`. playMoment checks it
   shock(x: number, y: number, opts?: ShockOpts): void;
-  aberrate(amount: number, x?: number, y?: number): void;         // x and y default to the screen centre
+  aberrate(amount: number, x?: number, y?: number): void;         // x and y default to the screen center
   haze(x: number, y: number, opts?: HazeOpts): void;
   glitch(x: number, y: number, opts?: GlitchOpts): void;
   dim(amount: number, life?: number): void;
@@ -427,7 +427,7 @@ Custom keys persist in `settings` (`src/game/settings.ts`). Gamepad and touch us
 
 The WebAudio synth does not change. `game.audio` is a thin typed wrapper over `src/audio`. Scenes may import it from one place. Pixi sound is not used. Named buses (Godot `AudioServer`, Unity mixer snapshots) are a later option.
 
-Lifecycle rules. The first one is today's behaviour. The others are proposed. Check them at M1.
+Lifecycle rules. The first one is today's behavior. The others are proposed. Check them at M1.
 
 - **Unlock.** `unlock()` in `src/audio/engine.ts` runs inside the player's first key press (browser autoplay policy). The new `Input` keeps that call.
 - **Hidden tab.** The sequencer uses `setInterval`, which browsers slow down in a hidden tab. Proposed: suspend the `AudioContext` when the tab hides, if the test at M1 shows that sound plays on.
@@ -571,7 +571,7 @@ export interface HackOutcome { outcome: 'success' | 'fail'; via: 'played' | 'pol
 `Display` chooses the integer scale in device pixels. `GlContext` owns the one WebGL2 context. `GlHandoff` is the only module that moves between Three, Pixi, and raw GL. `GameApi` is the seam that lets story code run on the legacy engine and the new one during the migration.
 
 ```ts
-export interface Display {                             // Phaser ScaleManager name. Unity Pixel Perfect Camera behaviour
+export interface Display {                             // Phaser ScaleManager name. Unity Pixel Perfect Camera behavior
   readonly k: number; mode: 'integer' | 'fit';
   readonly layout: { k: number; x: number; y: number; w: number; h: number };   // ours. Device pixels: where the picture sits in the whole-window canvas
   toGame(clientX: number, clientY: number): { x: number; y: number };

@@ -1,0 +1,53 @@
+# The real-speed playtest: it plays Chapter 1 at normal speed, with real dialogs and a few real Auto
+# rounds in each battle, and fails on any page error or console error. The spec's own limit is 30
+# minutes, so it does not run on pull requests, where it would hold up every merge. It runs after a
+# change lands on main, and by hand from the Actions tab ("Run workflow", on any branch). There is
+# no schedule.
+#
+# The job is named `playtest`, never `check`. The ruleset on main requires a status check named
+# `check`, and that check must come from ci.yml only.
+name: Playtest
+
+on:
+  push:
+    branches: [main]
+    # The same list as in ci.yml, for the same reason: no build step or test reads these paths, so a
+    # push that changes only them cannot change the result of a playtest.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'tools/command-center/**'
+  workflow_dispatch:
+
+# The job only reads the code, so the token gets no more than that.
+permissions:
+  contents: read
+
+# The same rule as in ci.yml: only a pull_request run is canceled by a newer one. This workflow has
+# no pull_request trigger today, so no run is canceled here. A run that has started finishes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  playtest:
+    runs-on: ubuntu-latest
+    # The spec's own limit is 30 minutes (test.setTimeout in e2e/playtest.spec.ts). The rest is the
+    # setup: install, the browser download, and the production build that the preview server runs
+    # before the first test.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Only Chromium, the one browser this spec uses. There is no browser cache: Playwright advises
+      # against it (see the same step in ci.yml).
+      - run: npx playwright install --with-deps chromium
+      # CI must be set so that playwright.config.ts uses the bundled Chromium and not Edge.
+      - name: Playtest of Chapter 1 at real speed
+        run: npx playwright test --project=chromium e2e/playtest.spec.ts
+        env:
+          CI: '1'

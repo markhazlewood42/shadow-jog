@@ -72,7 +72,7 @@ Scene operations (`launch`, `pause`, `stop`, and the rest) are queued and applie
 
 Phaser's lifecycle is `init(data)`, `preload()`, `create(data)`, `update`. Ours keeps the first three. Phaser's `preload` is asynchronous. The story contract needs `game.run` to push the scene at once. This is the rule that joins them:
 
-![Scene lifecycle state machine with nine states. A scene starts at init and moves to start when game.run pushes it, synchronously. From start it goes straight to creating if there are no loads, or through loading and back to creating when the load is done. Creating leads to running, the only state where fixedUpdate runs. A running scene can be paused when covered and resume when uncovered, or sleep and wake. Close or stop() moves a running scene to shutdown, and stop() also moves a paused scene or a sleeping scene to shutdown. A throw in init, preload or create also moves the scene to shutdown, on a dashed edge that leaves from creating and is labelled THROWS IN INIT, PRELOAD, CREATE. Shutdown moves to destroyed when objects are freed. The game.run promise resolves on close(result). It does not depend on when create ran.](diagrams/engine-scene-lifecycle.png)
+![Scene lifecycle state machine with nine states. A scene starts at init and moves to start when game.run pushes it, synchronously. From start it goes straight to creating if there are no loads, or through loading and back to creating when the load is done. Creating leads to running, the only state where fixedUpdate runs. A running scene can be paused when covered and resume when uncovered, or sleep and wake. Close or stop() moves a running scene to shutdown, and stop() also moves a paused scene or a sleeping scene to shutdown. A throw in init, preload or create also moves the scene to shutdown, on a dashed edge that leaves from creating and is labeled THROWS IN INIT, PRELOAD, CREATE. Shutdown moves to destroyed when objects are freed. The game.run promise resolves on close(result). It does not depend on when create ran.](diagrams/engine-scene-lifecycle.png)
 
 *Editable source: [diagrams/engine-scene-lifecycle.html](diagrams/engine-scene-lifecycle.html)*
 
@@ -115,7 +115,7 @@ The draw phase reads simulation state. It never changes it. It has no effect on 
 
 `prerender` is the only place where code may write to Pixi nodes. A Vitest test and a lint rule forbid state writes in `prerender` handlers (E2).
 
-**Microtasks.** Promise continuations (story `await s.say(...)`) run after the whole callback. They do not run between ticks. This is today's behaviour. It follows from JavaScript rules and the shape of the loop. A test covers it in the M1 gate.
+**Microtasks.** Promise continuations (story `await s.say(...)`) run after the whole callback. They do not run between ticks. This is today's behavior. It follows from JavaScript rules and the shape of the loop. A test covers it in the M1 gate.
 
 ---
 
@@ -140,7 +140,7 @@ The draw phase reads simulation state. It never changes it. It has no effect on 
 | `scene.tweens.chain`, `addCounter` | Phaser | on demand |
 | `scene.add.timeline([{ at, run }, ...])` | Phaser `Timeline` | on demand |
 
-Easing names are Phaser's (`Sine.easeInOut`, `Cubic.easeOut`). The inline easing maths in `field.ts` and `battlekit/banner.ts` moves to tweens when those scenes port, not before.
+Easing names are Phaser's (`Sine.easeInOut`, `Cubic.easeOut`). The inline easing math in `field.ts` and `battlekit/banner.ts` moves to tweens when those scenes port, not before.
 
 The spike used no tweens, no timelines, and no Phaser timers. So none of them blocks M1 to M3.
 
@@ -150,7 +150,7 @@ All timed work belongs to a scene: clock events, tweens, timelines, and event co
 
 - Clock events and tweens stop. Their callbacks do not run.
 - Event connections made with the scene (or an object of the scene) as `context` end.
-- Engine-owned awaits reject with `Cancelled`. These are `scene.time.wait(ms)` `(ours)` and `tween.finished` `(ours)`. `src/main.ts` already has an `unhandledrejection` handler that calls `reportError`. A second listener would not stop it. So the engine extends that handler (or its replacement). The handler returns early when `e.reason instanceof Cancelled`, and it calls `e.preventDefault()`. A test must show that a cancelled `scene.time.wait` shows no notice. Code that cares writes `.catch(ignoreCancel)`.
+- Engine-owned awaits reject with `Cancelled`. These are `scene.time.wait(ms)` `(ours)` and `tween.finished` `(ours)`. `src/main.ts` already has an `unhandledrejection` handler that calls `reportError`. A second listener would not stop it. So the engine extends that handler (or its replacement). The handler returns early when `e.reason instanceof Cancelled`, and it calls `e.preventDefault()`. A test must show that a canceled `scene.time.wait` shows no notice. Code that cares writes `.catch(ignoreCancel)`.
 - `scene.signal` is an `AbortSignal` that aborts at shutdown. Use it for `fetch` and for your own awaits.
 
 ### Awaiting a scene
@@ -175,10 +175,10 @@ export const TICK_MS = 1000 / FPS;
 export const grain = (n: 1 | 2 | 4) => ({ w: W / n, h: H / n });
 ```
 
-- Every renderer, `Display`, the presenter, the editors, and every mixed-grain layer import it. No other code may use a number that means the screen width, height, or centre.
-- A plain text search for the screen numbers is too noisy. A grep on 2026-10-04 for 480, 270, 240, and 135 found 22 hits outside `src/engine`, `src/dev`, and `main.ts`. Many do not mean resolution. Examples: `price: 480` in `src/data/items.ts`, colour values such as `rgba(63,224,240,0.08)`, and column positions of 240 in `ui/menu.ts` that equal W/2 by accident. At 640x360 the numbers that mean the screen are 640, 360, 320 and 180.
-- So the Vitest scan looks only for uses that mean screen width, height, or centre. It ignores strings and data files. It has a per-file allow-list, and each entry has a reason. It looks for the old numbers (480, 270, 240, 135) to catch leftovers, and for the new numbers (640, 360, 320, 180) to catch new hard-coded ones. Battle grain maths (the 320x180 layer in `battle/fx.ts`) uses `grain()`.
-- The 640x360 move replaces the cases that mean screen width, height, or centre. It does not touch layout numbers that equal W/2 by accident. The `postfx.ts` centre defaults (`x = 240`, `y = 135`) become `W / 2` and `H / 2` (320 and 180) in that move. M0 adds the scan that keeps this true. `FxSystem` keeps the values at M2.
+- Every renderer, `Display`, the presenter, the editors, and every mixed-grain layer import it. No other code may use a number that means the screen width, height, or center.
+- A plain text search for the screen numbers is too noisy. A grep on 2026-10-04 for 480, 270, 240, and 135 found 22 hits outside `src/engine`, `src/dev`, and `main.ts`. Many do not mean resolution. Examples: `price: 480` in `src/data/items.ts`, color values such as `rgba(63,224,240,0.08)`, and column positions of 240 in `ui/menu.ts` that equal W/2 by accident. At 640x360 the numbers that mean the screen are 640, 360, 320 and 180.
+- So the Vitest scan looks only for uses that mean screen width, height, or center. It ignores strings and data files. It has a per-file allow-list, and each entry has a reason. It looks for the old numbers (480, 270, 240, 135) to catch leftovers, and for the new numbers (640, 360, 320, 180) to catch new hard-coded ones. Battle grain math (the 320x180 layer in `battle/fx.ts`) uses `grain()`.
+- The 640x360 move replaces the cases that mean screen width, height, or center. It does not touch layout numbers that equal W/2 by accident. The `postfx.ts` center defaults (`x = 240`, `y = 135`) become `W / 2` and `H / 2` (320 and 180) in that move. M0 adds the scan that keeps this true. `FxSystem` keeps the values at M2.
 - 34 files import `W` and `H` from `engine/game.ts` today. M0 moves the imports. The 640x360 move changes the shipped game before M0 (principle 4 in [migration.md](migration.md)). After that move, the move of the imports is the only change to the shipped path until the flag flips.
 - Phase 0 added a DEV-only switch to `size.ts` for the resolution mock: the page query `?size=640x360`. Mark chose 640x360, so the plain numbers are now 640 and 360. The switch is a test tool and not part of the design. `size.ts` read the query once, when it loaded. A production build folded it to the plain numbers, and the shipped bundle stayed byte for byte the same. Keep the switch only if a test needs a second size. The layout cost of the move is in E12.
 
@@ -227,7 +227,7 @@ Each scene owns two containers: `scene.world` and `scene.ui`. The engine parents
 1. Pixi draws the screen root into a **640x360 `RenderTexture`** at resolution 1, with nearest scaling. This is the back buffer. All filters run inside it.
 2. The presenter draws the back buffer as one nearest-sampled sprite, scaled by the integer `k`, into the canvas.
 
-![The engine render pipeline for one frame, in eight numbered steps. Step 1, prerender copies state into Pixi nodes. Step 2 runs FxSystem.update, camera transforms and CanvasImage.refresh. Step 3 asks whether a 3D session is active. If yes, step 4 lets Three render into a 640x360 nearest render target, with a bloom pass in place, through GlHandoff.beginThree and endThree. If no, the flow skips step 4. Step 5 resets GL state with GlHandoff.beginPixi and pixi.resetState. Step 6 has Pixi draw the screen root into the 640x360 back buffer at resolution 1 with nearest scaling, so all filters run inside it. Step 7, the present, draws one nearest sprite at integer scale k, on a whole device pixel, into a whole-window canvas with void-colour bars. Step 8 is postrender and the perf record.](diagrams/engine-render-pipeline.png)
+![The engine render pipeline for one frame, in eight numbered steps. Step 1, prerender copies state into Pixi nodes. Step 2 runs FxSystem.update, camera transforms and CanvasImage.refresh. Step 3 asks whether a 3D session is active. If yes, step 4 lets Three render into a 640x360 nearest render target, with a bloom pass in place, through GlHandoff.beginThree and endThree. If no, the flow skips step 4. Step 5 resets GL state with GlHandoff.beginPixi and pixi.resetState. Step 6 has Pixi draw the screen root into the 640x360 back buffer at resolution 1 with nearest scaling, so all filters run inside it. Step 7, the present, draws one nearest sprite at integer scale k, on a whole device pixel, into a whole-window canvas with void-color bars. Step 8 is postrender and the perf record.](diagrams/engine-render-pipeline.png)
 
 *Editable source: [diagrams/engine-render-pipeline.html](diagrams/engine-render-pipeline.html)*
 
@@ -299,17 +299,17 @@ Cost on SwiftShader follows canvas pixels. In the lab (a 480x270 game, one machi
 
 ### 6.6 Display and device pixels
 
-`Display` has two modes. Their maths differ, and each comes from a different code base.
+`Display` has two modes. Their math differs, and each comes from a different code base.
 
-**`integer` mode** uses the spike's maths for `k` (`src/stage/zoom.ts`). It works in device pixels. It does not use the spike's `centreOnDevicePixels`, because the canvas is now the whole window (see below):
+**`integer` mode** uses the spike's math for `k` (`src/stage/zoom.ts`). It works in device pixels. It does not use the spike's `centreOnDevicePixels`, because the canvas is now the whole window (see below):
 
 - `k = max(1, floor(fit * dpr))`, where `fit = min(viewW/W, viewH/H)`.
-- Canvas backing size: the whole window in device pixels. The CSS size is 100% of the window, so the browser shows the canvas 1:1 and never resamples it. The picture (`W*k` by `H*k`) sits inside it, centred on a whole device pixel. The rest is the void colour (letterbox bars). `devicePixelContentBoxSize` gives the exact size when the browser has it and it agrees with `round(viewW*dpr)` to 1 pixel. Playwright's emulated ratios report the CSS size there, so the arithmetic is used.
+- Canvas backing size: the whole window in device pixels. The CSS size is 100% of the window, so the browser shows the canvas 1:1 and never resamples it. The picture (`W*k` by `H*k`) sits inside it, centered on a whole device pixel. The rest is the void color (letterbox bars). `devicePixelContentBoxSize` gives the exact size when the browser has it and it agrees with `round(viewW*dpr)` to 1 pixel. Playwright's emulated ratios report the CSS size there, so the arithmetic is used.
 - Why not a canvas of `W*k` by `H*k` with a CSS size of that divided by `dpr`? The browser lays out in units of 1/64 CSS pixel. The picture is uneven when that size is not a multiple of 1/64. The first Phase 0 kernel (480x270) drew 2,651 uneven blocks at ratio 2.25 and zoom 7. It drew 7,587 at ratio 1.75 and zoom 5, and 480 at ratio 1.1 and zoom 2 (Edge on the RTX 4070). A canvas the size of the window has none of this (spike drift 10).
 - `image-rendering: pixelated`. Pixi sets none, so the engine sets it.
 - It always snaps.
 
-**`fit` mode** uses today's maths (`src/engine/display.ts`):
+**`fit` mode** uses today's math (`src/engine/display.ts`):
 
 - `k = max(1, ceil(cssScale * dpr))`. The CSS size is `floor(W*cssScale)`.
 - It snaps to a whole multiple only if that multiple fills at least 90% of the window.
@@ -317,7 +317,7 @@ Cost on SwiftShader follows canvas pixels. In the lab (a 480x270 game, one machi
 
 `Display` sets `image-rendering` for each mode. E13 asks which mode is the default. This design recommends `integer`. If you pick `integer` only, the `fit` mode retires. Today's default `settings.scale: 'fit'` then migrates to `integer` in `backfill()`.
 
-The lab (480x270): integer upscales x3 and x4 are exact. x2.5 is not. Device pixel ratios 1 and 1.25 were tested. Phase 0 tested the real engine at ratios 1, 1.25, 1.5, 1.75, 2 and 2.25. It also tested four awkward windows: 1.1 at zoom 2, 1.75 at zoom 5, 2.25 at zoom 5, and 2.5 at zoom 4. The result is zero uneven blocks, in the canvas and in a page screenshot, with the 2D scenes, the 3D scene and the filters on. The old centring trick had a limit at ratios 1.75 and 2.25. The whole-window canvas has none. At 640x360 the same checks give zero uneven blocks at every ratio and window, in every scene (230,400 blocks for each check, on the GPU and on SwiftShader). One awkward window (ratio 1.1, 1000x560) is zoom 1 at 640x360, where a block check cannot fail, so it counts as not covered. A window of 960x540 is also zoom 1 at 640x360. A test of the block check needs a window of at least 1280x720.
+The lab (480x270): integer upscales x3 and x4 are exact. x2.5 is not. Device pixel ratios 1 and 1.25 were tested. Phase 0 tested the real engine at ratios 1, 1.25, 1.5, 1.75, 2 and 2.25. It also tested four awkward windows: 1.1 at zoom 2, 1.75 at zoom 5, 2.25 at zoom 5, and 2.5 at zoom 4. The result is zero uneven blocks, in the canvas and in a page screenshot, with the 2D scenes, the 3D scene and the filters on. The old centering trick had a limit at ratios 1.75 and 2.25. The whole-window canvas has none. At 640x360 the same checks give zero uneven blocks at every ratio and window, in every scene (230,400 blocks for each check, on the GPU and on SwiftShader). One awkward window (ratio 1.1, 1000x560) is zoom 1 at 640x360, where a block check cannot fail, so it counts as not covered. A window of 960x540 is also zoom 1 at 640x360. A test of the block check needs a window of at least 1280x720.
 
 **The scale `k` at 640x360.** The rule is the one above. `k` is lower than at 480x270, so the picture is 25% smaller on a 1080p screen.
 
@@ -381,7 +381,7 @@ The speed gap between the shared context and the canvas copy did not reproduce i
 **Rules for the whole lifecycle** (all lab-tested on SwiftShader unless noted):
 
 1. **Create each renderer once.** The engine creates the context and Pixi at boot. `ThreeHost` creates the Three renderer on first entry and keeps it. Per entry, create only a render target, a Three scene, loaded glTF, and an `ExternalSource`. A new Three renderer per entry leaked 5 textures and 3 framebuffers each time.
-   - **Pass both `canvas` and `context` to Three:** `new THREE.WebGLRenderer({ canvas, context: gl })`. With only `context`, Three r186 still creates a throwaway canvas and puts its `webglcontextlost` and `webglcontextrestored` listeners on it. Then Three never sees a loss or a restore, and it does not re-initialise its caches after a restore. Source-read in r186 (`WebGLRenderer.js`), not run in the lab. Phase 0 ran it in the real engine: after a loss and a restore the frame is redrawn identical, with no GL error.
+   - **Pass both `canvas` and `context` to Three:** `new THREE.WebGLRenderer({ canvas, context: gl })`. With only `context`, Three r186 still creates a throwaway canvas and puts its `webglcontextlost` and `webglcontextrestored` listeners on it. Then Three never sees a loss or a restore, and it does not re-initialize its caches after a restore. Source-read in r186 (`WebGLRenderer.js`), not run in the lab. Phase 0 ran it in the real engine: after a loss and a restore the frame is redrawn identical, with no GL error.
    - The canvas-copy path follows the same rule. It makes one private Three renderer for the page and keeps it.
    - **Never call `three.setSize`, `setViewport`, or `setPixelRatio`** on the shared renderer. They resize the shared canvas. Render only to render targets.
    - A canary test: after `WEBGL_lose_context`, `three.render()` must do nothing, and Three must recover on restore.
@@ -422,7 +422,7 @@ Rules:
 
 - A plain smoke test hides this bug. The canary test uses a back buffer, a filtered container with a transparent gap, and a non-black Three background.
 - Do not use the `_clearColorCache` patch.
-- Phase 0 found that the bug shows only when the back buffer clears to transparent black, the one colour that equals Pixi's cached value after `resetState()`. The engine clears the back buffer to the void colour, so in the shipped configuration the bug does not show, even with the fix off. The fix stays, because it is cheap and a future transparent clear would hit it. The canary clears to transparent black and has a negative control (see the canary rows in [tooling-and-testing.md](tooling-and-testing.md) section 8).
+- Phase 0 found that the bug shows only when the back buffer clears to transparent black, the one color that equals Pixi's cached value after `resetState()`. The engine clears the back buffer to the void color, so in the shipped configuration the bug does not show, even with the fix off. The fix stays, because it is cheap and a future transparent clear would hit it. The canary clears to transparent black and has a negative control (see the canary rows in [tooling-and-testing.md](tooling-and-testing.md) section 8).
 - Only `GlHandoff` may touch GL state.
 - Re-test on every Pixi bump.
 
@@ -443,7 +443,7 @@ type HackResult =
 
 ### 7.5 Look rules for the 3D frame
 
-- **Color.** Set `ColorManagement.enabled = false` before any Three color or material work. Render to the target with no `OutputPass`. Otherwise `#ff2080` comes out as `#ff0437`. This is a global static of Three. Lighting then runs in gamma space. Keep assets to flat or vertex colors. sRGB glTF textures with this setting are not tested. Phase 0 confirmed the colours in the real engine, in both frame modes. A Three background of `#ff2080` and a material of `#2080ff` reach the 3D picture and the screen as written.
+- **Color.** Set `ColorManagement.enabled = false` before any Three color or material work. Render to the target with no `OutputPass`. Otherwise `#ff2080` comes out as `#ff0437`. This is a global static of Three. Lighting then runs in gamma space. Keep assets to flat or vertex colors. sRGB glTF textures with this setting are not tested. Phase 0 confirmed the colors in the real engine, in both frame modes. A Three background of `#ff2080` and a material of `#2080ff` reach the 3D picture and the screen as written.
 - **Pixel look.** Low-poly flat shading (`flatShading` or baked flat normals). Build grid lines in segments of 10 units or less. SwiftShader lost about 21% of long-line pixels near the camera.
 - **Bloom** runs inside the 640x360 target, in place, with Three's `UnrealBloomPass` (spike drift 13). There is no `EffectComposer`, because it needs a clone target and leaks passes. The earlier default was `AdvancedBloomFilter` on the `View3D` (5.7 ms against 7.8 ms for `UnrealBloomPass` on SwiftShader, one machine). It needs `pixi-filters`, which is not installed, so Phase 0 did not compare the two. A pass at game resolution keeps every glow pixel on the game grid. Mark reviews the look in the iteration of the real hacking scene. He does not review the look of the Phase 0 test scene (exit criterion 11 of the spike, which is pass line 8 in [migration.md](migration.md) section 3).
 - **Time.** Three's `Clock` is deprecated since r183. Pass a constant dt to any `AnimationMixer`.

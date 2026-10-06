@@ -64,7 +64,7 @@ interface StageView {                       // ours
 - The scene touchpoints with the engine are `game.canvas`, `game.scale.toGame`, and the `resize` event. These replace Phaser's `scale.parentSize`, `scale.refresh`, and `Phaser.Scale.Events.RESIZE`.
 - Edits are batched to one scene update per animation frame. This stays.
 - The editor's save endpoint and hot-reload handling (`boot.ts` `import.meta.hot`, the `stageEdit` vite plugin) are engine-independent. Do not forget them in the port.
-- Behaviour of the editor stays as in `docs/TOOLING-UI.md`.
+- Behavior of the editor stays as in `docs/TOOLING-UI.md`.
 
 **Pointer input for editors** uses Pixi federated events (`eventMode: 'static'`, `pixi.js/events`) in dev builds only. Two facts the editor must respect: global coordinates are fractional, so round them. Hit tests use bounds or `hitArea` and have no alpha test, so use `scene.pick` for figures.
 
@@ -92,11 +92,11 @@ Standing T0 tests:
 | Test | What it checks |
 |---|---|
 | Import scan | Imports follow the level rules (section 9). |
-| Literal scan | No number that means the screen width, height, or centre outside `size.ts`. The scan looks for the old numbers (480, 270, 240, 135) and the new numbers (640, 360, 320, 180). A per-file allow-list holds a reason for each exception ([frame-and-rendering.md](frame-and-rendering.md) section 5). |
+| Literal scan | No number that means the screen width, height, or center outside `size.ts`. The scan looks for the old numbers (480, 270, 240, 135) and the new numbers (640, 360, 320, 180). A per-file allow-list holds a reason for each exception ([frame-and-rendering.md](frame-and-rendering.md) section 5). |
 | Game stack | Ports the fault, abandon, curtain, exit-throw, and two render-fault cases of `tests/game.test.ts` to the new `Game`. It also adds new tests for close order and microtask timing. The old tests use a Proxy `ctx` and a fake input. |
 | Determinism | The same recorded inputs at 60, 144, and 30 Hz and with hitches give the same state hash. For the battle driver and the hack sim. |
 | Scene lifetime | After shutdown, the scene's clock events, tweens, and event links are gone. Engine awaits reject with `Cancelled`. |
-| Wrapper rules | Origin sets anchor. Flip uses Phaser maths. Positions are rounded. Leaves refuse children. |
+| Wrapper rules | Origin sets anchor. Flip uses Phaser math. Positions are rounded. Leaves refuse children. |
 | 1,000-object bench | Wrapper overhead for 1,000 `GameObject`s. Run once at M1, not every commit. |
 
 ---
@@ -122,7 +122,7 @@ T1 runs on Chromium, viewport **1280x720**. That is scale 2 at 640x360. A window
 | 3D enter and exit | Ten cycles. Counts return to baseline. |
 | Canary suite | Section 8. |
 
-**T2: Firefox and WebKit on the Linux runner.** Today they run only `prod.spec.ts` and `gameover.spec.ts`. Phase 0 recorded the answer on the `ubuntu-latest` runner. WebKit gives WebGL 2 and passes the Pixi-first, Three-later spec in both frame modes. Headless Firefox has no WebGL 2 there ("This browser cannot run WebGL 2"). So the spec asserts the E5 behaviour in Firefox on the runner. The clear message shows, `hackDoor` gives `unsupported / no-webgl2` in under 500 ms, and no 3D chunk is requested. Firefox 153 on Windows ran only the 2-test browser spec (`sje3d-browsers`) and a hand run of the Part A scripts. It passed them. It did not run the other specs, and it was not run at 640x360. Order of work: a probe spec that logs `getContext('webgl2')` and the unmasked renderer string, then an informational (non-blocking) pixel-block spec, then a gate. The shared-context path is proven in WebKit on the runner, and the `unsupported` result is proven in Firefox on the runner.
+**T2: Firefox and WebKit on the Linux runner.** Today they run only `prod.spec.ts` and `gameover.spec.ts`. Phase 0 recorded the answer on the `ubuntu-latest` runner. WebKit gives WebGL 2 and passes the Pixi-first, Three-later spec in both frame modes. Headless Firefox has no WebGL 2 there ("This browser cannot run WebGL 2"). So the spec asserts the E5 behavior in Firefox on the runner. The clear message shows, `hackDoor` gives `unsupported / no-webgl2` in under 500 ms, and no 3D chunk is requested. Firefox 153 on Windows ran only the 2-test browser spec (`sje3d-browsers`) and a hand run of the Part A scripts. It passed them. It did not run the other specs, and it was not run at 640x360. Order of work: a probe spec that logs `getContext('webgl2')` and the unmasked renderer string, then an informational (non-blocking) pixel-block spec, then a gate. The shared-context path is proven in WebKit on the runner, and the `unsupported` result is proven in Firefox on the runner.
 
 **T3: local, on your desktop.** The 60 fps check with bloom on the RTX 4070, in Edge. Goldens are never regenerated from the local GPU.
 
@@ -145,7 +145,7 @@ T1 runs on Chromium, viewport **1280x720**. That is scale 2 at 640x360. A window
 - **The first CI run regenerates the goldens and re-checks the 3/255 tolerance** before it becomes a gate. The lab used Chromium 151. CI will run Chromium 153.
 - Frame hashes were identical across 3 page loads on SwiftShader in the lab.
 
-**Parity with the Phaser stage.** The earlier parity result (1/255 on 0.98 to 2.26% of pixels) was for a Canvas 2D display list, not for Pixi. Phase 0 measured Pixi parity on the stage slice: 0 pixels differ at 3 frames, against the Phaser page of the same kind of renderer. Across the two kinds, the pages differ by 1/255 on about 3.6% of the pixels. The street's neon glow layer is the cause: Canvas 2D paints it 1/255 apart on the GPU canvas and on the software canvas. So the references come in two sets, `gpu` and `soft`, and the spec picks one by the renderer name. The strict gate ran on the Linux runner, and CI is green on `d61d7d9`. Make the `soft` set again on the runner only if a later run fails. At 640x360 parity with the Phaser spike cannot be measured, because that spike draws 480x270 and has no 640x360 stage. Phase 0 shows that the top left 480x270 of the 640x360 slice equals the 480x270 picture (0 of 129,600 pixels differ) and that the rest is the void colour (0 of 100,800 differ). That keeps the parity of the area laid out for 480x270. It does not show that a stage laid out for 640x360 looks right. M3 measures the full stage and lays it out for 640x360. How parity is measured after the new layout is an open point for M3. Pass line: a tolerance that you agree, and an identical Battle Test status trace (seed 7).
+**Parity with the Phaser stage.** The earlier parity result (1/255 on 0.98 to 2.26% of pixels) was for a Canvas 2D display list, not for Pixi. Phase 0 measured Pixi parity on the stage slice: 0 pixels differ at 3 frames, against the Phaser page of the same kind of renderer. Across the two kinds, the pages differ by 1/255 on about 3.6% of the pixels. The street's neon glow layer is the cause: Canvas 2D paints it 1/255 apart on the GPU canvas and on the software canvas. So the references come in two sets, `gpu` and `soft`, and the spec picks one by the renderer name. The strict gate ran on the Linux runner, and CI is green on `d61d7d9`. Make the `soft` set again on the runner only if a later run fails. At 640x360 parity with the Phaser spike cannot be measured, because that spike draws 480x270 and has no 640x360 stage. Phase 0 shows that the top left 480x270 of the 640x360 slice equals the 480x270 picture (0 of 129,600 pixels differ) and that the rest is the void color (0 of 100,800 differ). That keeps the parity of the area laid out for 480x270. It does not show that a stage laid out for 640x360 looks right. M3 measures the full stage and lays it out for 640x360. How parity is measured after the new layout is an open point for M3. Pass line: a tolerance that you agree, and an identical Battle Test status trace (seed 7).
 
 ---
 
@@ -231,7 +231,7 @@ The cost did not grow with the picture. The 3D frame has 1.78 times more pixels,
 | Color exactness | `#ff2080` in Three does not come out as `#ff2080`. |
 | Frame rewrap | A resize or restore leaves the 3D sprite stale. |
 
-**The stale clear colour canary needs a transparent clear.** In the shipped configuration the back buffer clears to the void colour, which is not (0,0,0,0). Pixi then sets the GL clear colour itself, and the bug does not show, even with the fix off. It shows only when the back buffer clears to transparent black. The canary clears to transparent black (test seams `GlHandoff.setClearColourFix` and `BackBuffer.setClearColor`). It has a negative control: with the fix off, all 2,800 gap pixels show Three's leftover black. With the fix on, 0 pixels are wrong.
+**The stale clear color canary needs a transparent clear.** In the shipped configuration the back buffer clears to the void color, which is not (0,0,0,0). Pixi then sets the GL clear color itself, and the bug does not show, even with the fix off. It shows only when the back buffer clears to transparent black. The canary clears to transparent black (test seams `GlHandoff.setClearColourFix` and `BackBuffer.setClearColor`). It has a negative control: with the fix off, all 2,800 gap pixels show Three's leftover black. With the fix on, 0 pixels are wrong.
 
 **A context-loss test must wait one macrotask before it restores.** The browser calls every `webglcontextlost` listener in turn, and a promise continuation runs between them. A restore before the last listener ran is refused ("context restoration not allowed").
 
@@ -298,7 +298,7 @@ Also log bytes actually transferred in a Playwright run of `prod.spec.ts`. The a
 
 ## 11. CI
 
-Today's CI runs lint, typecheck, unit tests, the bundle budget, and 9 e2e specs on Chromium (playthrough, playtest, gameover, perf, prod, economy, chaos, gpufx, fxlab). It runs Firefox and WebKit on `prod` and `gameover` only. The plan:
+Today's CI (`.github/workflows/ci.yml`) runs three jobs at the same time. `check` runs lint, typecheck, unit tests, and the bundle budget. `e2e` runs 8 specs on Chromium (playthrough, gameover, perf, prod, economy, chaos, gpufx, fxlab). `e2e-engines` runs `prod` and `gameover` on WebKit and Firefox. The real-speed playtest runs in `playtest.yml`, on a push to `main` and from the Run workflow button on the Actions tab. The plan:
 
 - Keep all of it during the migration, on the legacy path and on `?engine=sje`.
 - Add the lab specs, the canary suite, and the manifest gate.
