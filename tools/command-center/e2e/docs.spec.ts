@@ -44,7 +44,7 @@ test.describe('the docs site', () => {
   test('the overview shows a card for each section with last-changed dates', async ({ page, request }) => {
     const problems = watchConsole(page);
     const { nav } = await readListing(request);
-    expect(nav.map((section) => section.title)).toEqual(['Start here', 'Guides', 'Diagrams and links', 'Live edits']);
+    expect(nav.map((section) => section.title)).toEqual(['Start here', 'Guides', 'Diagrams and links', 'Live edits', 'Engine design', 'Decisions', 'Project records']);
 
     await page.goto('/docs');
     await expect(page).toHaveTitle(/^Docs/);

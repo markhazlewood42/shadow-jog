@@ -72,11 +72,23 @@ describe('createE2eRuntime', () => {
       expect((await rt.runner('git', ['log', '--format=%s'])).stdout.trim().split(/\r?\n/)).toEqual(['Add the second doc', 'Add the first doc']);
 
       await index.ready();
-      expect(index.nav().map((section) => section.title)).toEqual(['Start here', 'Guides', 'Diagrams and links', 'Live edits']);
+      expect(index.nav().map((section) => section.title)).toEqual([
+        'Start here',
+        'Guides',
+        'Diagrams and links',
+        'Live edits',
+        'Engine design',
+        'Decisions',
+        'Project records',
+      ]);
       expect(index.get('guides/setup')?.title).toBe('Setup guide');
-      // Only the sample doc with broken links has a problem (four of them, on purpose).
-      expect(index.problems().length).toBe(4);
-      expect(index.problems().every((problem) => problem.startsWith('docs/broken-link.md:'))).toBe(true);
+      // The sample doc with broken links has four problems, on purpose. The frozen engine docs (fixtures/repo/docs/engine, copies from
+      // the Shadow Jog repo) link to sibling docs and pictures that the fixture does not carry, so they have problems too, and no other doc has one.
+      const problems = index.problems();
+      expect(problems.filter((problem) => problem.startsWith('docs/broken-link.md:'))).toHaveLength(4);
+      expect(problems.filter((problem) => !problem.startsWith('docs/broken-link.md:')).every((problem) => problem.startsWith('docs/engine/'))).toBe(true);
+      // The engine docs are in the fixture's engine section, in the README's order (the docs that the fixture lacks are left out).
+      expect(index.nav().find((section) => section.id === 'engine')?.items.map((item) => (item.kind === 'doc' ? item.slug : item.path))).toEqual(['engine/README', 'engine/decisions']);
     } finally {
       await index.close();
       rt.close();

@@ -26,6 +26,21 @@
       "id": "live-edit",
       "title": "Live edits",
       "items": ["docs/live-edit/"]
+    },
+    {
+      "id": "engine",
+      "title": "Engine design",
+      "items": [{ "readingOrder": "docs/engine/README.md" }, "docs/engine/"]
+    },
+    {
+      "id": "decisions",
+      "title": "Decisions",
+      "items": [{ "page": "/docs/decisions", "title": "All decisions" }]
+    },
+    {
+      "id": "records",
+      "title": "Project records",
+      "items": ["docs/PHASE-0.2.md"]
     }
   ]
 }
