@@ -14,7 +14,7 @@ export type DocBanner = Banner<ReactNode>;
 
 export type DocViewProps = {
   doc: DocPage;
-  /** Shown at the end of the doc, under its text. A later page puts the Previous and Next buttons here. */
+  /** Shown at the end of the doc, under its text, in a box with a rule above it. The Previous and Next buttons of the engine docs are given here. Nothing is drawn for a footer that is empty (`undefined`, `null`, `false`, `0` or an empty text), so no empty box shows. */
   footer?: ReactNode;
   /**
    * Each banner is shown in front of the heading of the doc that has the id `anchor`. A banner whose
@@ -167,7 +167,7 @@ export function DocView({ doc, footer, banners = NO_BANNERS }: DocViewProps) {
             ),
           )}
         </div>
-        {footer !== undefined && footer !== null && <div className="mt-10 border-t border-cc-rule pt-6">{footer}</div>}
+        {footer ? <div className="mt-10 border-t border-cc-rule pt-6">{footer}</div> : null}
       </article>
       <aside aria-label="About this doc" className="flex flex-col gap-8 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:self-start xl:overflow-y-auto">
         <Outline slug={doc.slug} headings={doc.headings} />

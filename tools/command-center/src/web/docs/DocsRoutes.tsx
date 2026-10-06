@@ -1,11 +1,13 @@
 import { Link, Route, Routes, useLocation } from 'react-router';
-import type { DocPage, DocsListing, ModuleName } from '../../shared/types';
+import type { DocPageData, DocsListing, ModuleName } from '../../shared/types';
 import { PanelFrame } from '../PanelFrame';
 import { usePanel } from '../usePanel';
+import { Decisions } from './Decisions';
 import { DocView } from './DocView';
 import { Gone, missingDocOf } from './Gone';
 import { Overview } from './Overview';
 import { docApiPath, slugFromPath } from './paths';
+import { PrevNext } from './PrevNext';
 import { SearchBox } from './SearchBox';
 import { SectionTree } from './SectionTree';
 
@@ -44,14 +46,17 @@ function DocsHeader() {
  * The page of one doc, by the address. It loads the doc as a panel (so it has the loading, error and
  * updated-at states of every panel) and keeps it current: the server says when a doc changes. An
  * address that no doc has is not an error of the panel but a page of its own (Gone).
+ *
+ * A doc in the reading order of the engine docs ends with the Previous and Next buttons. The footer
+ * is given only when there is something to put in it: an empty footer would still draw its ruled box.
  */
 function DocRoute({ slug }: { slug: string }) {
-  const result = usePanel<DocPage>(docApiPath(slug), DOCS_MODULES);
+  const result = usePanel<DocPageData>(docApiPath(slug), DOCS_MODULES);
   const suggestions = missingDocOf(result.panel);
   if (suggestions !== null) return <Gone slug={slug} suggestions={suggestions} />;
   return (
     <PanelFrame title="Document" result={result}>
-      {(doc) => <DocView doc={doc} />}
+      {(doc) => <DocView doc={doc} footer={doc.readingOrder ? <PrevNext order={doc.readingOrder} /> : undefined} />}
     </PanelFrame>
   );
 }
@@ -81,6 +86,7 @@ export function DocsRoutes() {
           {/* Another page of the docs site is one more <Route> here, above the one for a doc. */}
           <Routes>
             <Route index element={<Overview listing={listing} />} />
+            <Route path="decisions" element={<Decisions />} />
             {/* A key makes each doc start fresh: its own panel, with no trace of the doc before it. */}
             <Route path="*" element={slug === null ? <Overview listing={listing} /> : <DocRoute key={slug} slug={slug} />} />
           </Routes>

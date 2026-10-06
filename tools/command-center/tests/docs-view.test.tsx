@@ -60,6 +60,13 @@ describe('DocView', () => {
     expect(render(<DocView doc={makeDoc()} />)).not.toContain('FOOTER-MARK');
   });
 
+  it('draws no ruled box for a footer that is empty: undefined, null, false, 0 and an empty text', () => {
+    const box = 'mt-10 border-t border-cc-rule pt-6';
+    for (const footer of [undefined, null, false, 0, '']) expect(render(<DocView doc={makeDoc()} footer={footer} />), String(footer)).not.toContain(box);
+    // A real footer gets the box.
+    expect(render(<DocView doc={makeDoc()} footer={<p>FOOTER-MARK</p>} />)).toContain(box);
+  });
+
   it('puts each banner in front of the heading with its id, and keeps the heading and its text after it', () => {
     const markup = render(
       <DocView

@@ -105,6 +105,18 @@
 }
 
 /*
+ * A selected toggle button (the filter of the decisions page) is lavender and not amber. HeroUI draws
+ * the selected state from the accent colour, and amber is for the one or two things on a page that
+ * matter most. The text on the lavender is the dark one: ink-strong on rule-solid is above 4.5 to 1.
+ */
+.toggle-button {
+  --toggle-button-bg-selected: var(--cc-rule-solid);
+  --toggle-button-bg-selected-hover: var(--cc-rule-solid);
+  --toggle-button-bg-selected-pressed: var(--cc-rule-solid);
+  --toggle-button-fg-selected: var(--cc-ink-strong);
+}
+
+/*
  * The focus ring of a link or a button that is not a HeroUI component (those have their own, which
  * the theme above colours with --focus). The lavender frame colour, so the ring is seen on navy.
  */
