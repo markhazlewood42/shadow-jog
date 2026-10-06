@@ -3,8 +3,8 @@ type: design
 title: "Shadow Jog Engine — Tooling and testing"
 project: shadow-jog
 created: 2026-10-04
-updated: 2026-10-04
-status: approved 2026-10-04 (all recommendations)
+updated: 2026-10-05
+status: approved 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, waiting for Mark's final approval
 tags: [engine, design]
 ---
 
@@ -92,7 +92,7 @@ Standing T0 tests:
 | Test | What it checks |
 |---|---|
 | Import scan | Imports follow the level rules (section 9). |
-| Literal scan | No number that means the screen width, height, or centre (480, 270, 240, 135) outside `size.ts`. A per-file allow-list holds a reason for each exception ([frame-and-rendering.md](frame-and-rendering.md) section 5). |
+| Literal scan | No number that means the screen width, height, or centre outside `size.ts`. The scan looks for the old numbers (480, 270, 240, 135) and the new numbers (640, 360, 320, 180). A per-file allow-list holds a reason for each exception ([frame-and-rendering.md](frame-and-rendering.md) section 5). |
 | Game stack | Ports the fault, abandon, curtain, exit-throw, and two render-fault cases of `tests/game.test.ts` to the new `Game`. It also adds new tests for close order and microtask timing. The old tests use a Proxy `ctx` and a fake input. |
 | Determinism | The same recorded inputs at 60, 144, and 30 Hz and with hitches give the same state hash. For the battle driver and the hack sim. |
 | Scene lifetime | After shutdown, the scene's clock events, tweens, and event links are gone. Engine awaits reject with `Cancelled`. |
@@ -107,11 +107,11 @@ Playwright's Chromium launcher adds `--enable-unsafe-swiftshader` on every OS. H
 
 **Today the GL presenter has zero CI coverage.** `GlPresenter.create` refuses any renderer whose name matches `/swiftshader|llvmpipe|.../`. Both GL tests in `e2e/gpufx.spec.ts` skip on CI. With Pixi, every spec runs on software GL, so effects need the fx levels (see [frame-and-rendering.md](frame-and-rendering.md) section 6.5). `?fx=full` forces them on SwiftShader.
 
-T1 runs on Chromium, viewport **960x540**. Specs on the lab page:
+T1 runs on Chromium, viewport **1280x720**. That is scale 2 at 640x360. A window of 960x540 is scale 1.5 at 640x360, so it rounds down to 1, and a block check at scale 1 cannot fail. Specs on the lab page:
 
 | Spec | Gate |
 |---|---|
-| Boot | Zero console errors **and warnings**. Pixi logs real defects as warnings, and today's watchers collect only `error`. |
+| Boot | Zero console errors **and warnings**. Pixi logs real defects as warnings, and today's watchers collect only `error`. Two exceptions are allowed by name. Chrome logs "GPU stall due to ReadPixels" when a page reads pixels back, and only the test hook does that. Firefox 153 logs two WebGL notes at boot from Pixi's built-in textures (alpha-premult and y-flip for non-DOM uploads, and lazy initialization), in Firefox only. |
 | Pixel blocks | k-by-k blocks are uniform at device pixel ratio 1, 1.25, and 1.5. Reuse the spike's `stagelab-dpr.spec.ts`. |
 | Goldens | Section 5. |
 | Frame interval | Section 7. |
@@ -122,7 +122,7 @@ T1 runs on Chromium, viewport **960x540**. Specs on the lab page:
 | 3D enter and exit | Ten cycles. Counts return to baseline. |
 | Canary suite | Section 8. |
 
-**T2: Firefox and WebKit on the Linux runner.** Today they run only `prod.spec.ts` and `gameover.spec.ts`. Nothing records whether they give WebGL 2 on the GitHub runner, or what Pixi renders there. Order of work: a probe spec that logs `getContext('webgl2')` and the unmasked renderer string, then an informational (non-blocking) pixel-block spec, then a gate. The shared-context path is unproven there. If it fails there, the canvas-copy path or the `unsupported` result must be proven there before the design is locked.
+**T2: Firefox and WebKit on the Linux runner.** Today they run only `prod.spec.ts` and `gameover.spec.ts`. Phase 0 recorded the answer on the `ubuntu-latest` runner. WebKit gives WebGL 2 and passes the Pixi-first, Three-later spec in both frame modes. Headless Firefox has no WebGL 2 there ("This browser cannot run WebGL 2"). So the spec asserts the E5 behaviour in Firefox on the runner. The clear message shows, `hackDoor` gives `unsupported / no-webgl2` in under 500 ms, and no 3D chunk is requested. Firefox 153 on Windows ran only the 2-test browser spec (`sje3d-browsers`) and a hand run of the Part A scripts. It passed them. It did not run the other specs, and it was not run at 640x360. Order of work: a probe spec that logs `getContext('webgl2')` and the unmasked renderer string, then an informational (non-blocking) pixel-block spec, then a gate. The shared-context path is proven in WebKit on the runner, and the `unsupported` result is proven in Firefox on the runner.
 
 **T3: local, on your desktop.** The 60 fps check with bloom on the RTX 4070, in Edge. Goldens are never regenerated from the local GPU.
 
@@ -130,7 +130,7 @@ T1 runs on Chromium, viewport **960x540**. Specs on the lab page:
 
 ## 5. Pixel-exact checks and goldens
 
-**Pixel blocks.** With nearest sampling and an integer upscale, every game pixel is a uniform k-by-k block. The test counts non-uniform blocks. Lab result: 0 of 129,600 at x3 and x4, with filters inside the 480x270 render texture. The test needs an allow-list for `Texture.WHITE` and `Texture.EMPTY`, which stay linear.
+**Pixel blocks.** With nearest sampling and an integer upscale, every game pixel is a uniform k-by-k block. The test counts non-uniform blocks. Lab result at 480x270: 0 of 129,600 at x3 and x4, with filters inside the render texture. At 640x360 each check counts 230,400 blocks. Phase 0 found 0 uneven blocks at ratios 1, 1.25, 1.5, 1.75, 2 and 2.25 in the lab scene, the 3D scene with the HUD, the stage slice and the effect cases, on a GPU and on SwiftShader. The test needs an allow-list for `Texture.WHITE` and `Texture.EMPTY`, which stay linear.
 
 **Golden policy.**
 
@@ -145,7 +145,7 @@ T1 runs on Chromium, viewport **960x540**. Specs on the lab page:
 - **The first CI run regenerates the goldens and re-checks the 3/255 tolerance** before it becomes a gate. The lab used Chromium 151. CI will run Chromium 153.
 - Frame hashes were identical across 3 page loads on SwiftShader in the lab.
 
-**Parity with the Phaser stage.** The earlier parity result (1/255 on 0.98 to 2.26% of pixels) was for a Canvas 2D display list, not for Pixi. Pixi parity is not measured. M3 measures it. Pass line: a tolerance that you agree, and an identical Battle Test status trace (seed 7).
+**Parity with the Phaser stage.** The earlier parity result (1/255 on 0.98 to 2.26% of pixels) was for a Canvas 2D display list, not for Pixi. Phase 0 measured Pixi parity on the stage slice: 0 pixels differ at 3 frames, against the Phaser page of the same kind of renderer. Across the two kinds, the pages differ by 1/255 on about 3.6% of the pixels. The street's neon glow layer is the cause: Canvas 2D paints it 1/255 apart on the GPU canvas and on the software canvas. So the references come in two sets, `gpu` and `soft`, and the spec picks one by the renderer name. The strict gate ran on the Linux runner, and CI is green on `d61d7d9`. Make the `soft` set again on the runner only if a later run fails. At 640x360 parity with the Phaser spike cannot be measured, because that spike draws 480x270 and has no 640x360 stage. Phase 0 shows that the top left 480x270 of the 640x360 slice equals the 480x270 picture (0 of 129,600 pixels differ) and that the rest is the void colour (0 of 100,800 differ). That keeps the parity of the area laid out for 480x270. It does not show that a stage laid out for 640x360 looks right. M3 measures the full stage and lays it out for 640x360. How parity is measured after the new layout is an open point for M3. Pass line: a tolerance that you agree, and an identical Battle Test status trace (seed 7).
 
 ---
 
@@ -164,11 +164,18 @@ The JS timer cannot see GPU cost. In the lab, `renderer.render()` took 0.1 to 0.
 | Gate | What | Notes |
 |---|---|---|
 | Sim ms | Keep today's gate: mean under 2 ms, p95 under 4 ms. | Strict. |
-| Frame interval | rAF interval p50 and p95. | New. Lab: 16.7 ms at 960x540, p95 33.4 ms at 1920x1080 with the full stack. |
+| Frame interval | rAF interval p50 and p95. | New. Lab (480x270 game): 16.7 ms at 960x540, p95 33.4 ms at 1920x1080 with the full stack. |
 | Draw calls | Count draws and framebuffer binds with a patch of `WebGL2RenderingContext.prototype`. | New. Hardware independent. Lab: 301 sprites cost 1 draw. Blur, color matrix, and shockwave cost 12 draws and 13 binds. |
 | 3D hand-off | One frame of the shared-context path stays inside its budget. | New. |
 
-SwiftShader cost follows canvas pixels. The full effect stack costs about 12 to 13 ms at 960x540 (one machine, medium confidence). Keep the CI viewport at 960x540 or less. Budget each fx level per pass. The first real CI run is the actual measurement.
+SwiftShader cost follows canvas pixels. In the lab (a 480x270 game, one machine, medium confidence) the full effect stack cost about 12 to 13 ms at 960x540. The CI viewport is now 1280x720, which has 1.78 times more pixels. The full stack is not measured there. Measure each fx level again at M1. Budget each fx level per pass. The first real CI run is the actual measurement.
+
+**The speed line (Phase 0 amendment, 2026-10-05).** The test machine's display refreshes at about 56.6 Hz, so a bare page already takes 17.7 ms per frame there. Phase 0 did not measure Mark's own display separately. No page can reach the 16.7 ms line on it. "60 fps" means no dropped frames against the display's own rate. The gate has two rules that both must hold on a real GPU.
+
+1. The frame interval p95 of the scene is within 5% of a bare `requestAnimationFrame` page in the same browser on the same display.
+2. The frame cost p95 is at or under 8 ms. The cost is the CPU work plus the GPU wait: tick, draw, and a one-pixel `readPixels`. The read-back cannot return before every earlier command has run. Where the browser offers `EXT_disjoint_timer_query_webgl2`, the GPU timer p95 is also at or under 8 ms.
+
+The interval rule alone cannot catch a load whose GPU work still fits in one display frame. A negative control proves that each rule can fail. With 200 extra 3D draws, the interval p95 stays at 18.2 ms and only the cost rule fails. With 600 extra 3D draws, both rules fail (the interval p95 is 54.1 ms against a limit of 19.0 ms). On software GL the CI gate only catches a stuck loop (p95 under 80 ms for the 3D scene). A shared software renderer cannot meet strict timing and says nothing about the engine. Timing thresholds belong on a real GPU.
 
 **Performance budget.** Every number below is proposed. It is an estimate with low confidence. M1 measures each one and then sets the real gate.
 
@@ -182,9 +189,24 @@ SwiftShader cost follows canvas pixels. The full effect stack costs about 12 to 
 | First 3D entry | 200 ms, hidden behind the transition | Lab: 96 ms on an RTX 4070, 167 ms on SwiftShader |
 | Draw calls per frame | 60 | Estimate. Lab: 301 sprites cost 1 draw |
 | Framebuffer binds per frame | 30 | Estimate. Lab: blur, color matrix, and shockwave cost 13 binds |
-| Canvas upload per frame | 2 MB | One 480x270 `CanvasImage` is 518 KB. The legacy shell has two |
+| Canvas upload per frame | 2 MB. Proposed: about 3 MB | One 640x360 `CanvasImage` is 921,600 bytes (518,400 bytes at 480x270). The legacy shell has two, which is 1.84 MB, or 92% of the 2 MB line. A third canvas breaks it. Measure at M1 with the 1,000-object bench, then set the line |
 | Objects per scene | 1,000, with wrapper overhead under 1 ms per frame | The 1,000-object bench at M1 |
 | Texture memory | Warn at 128 MB | Estimate. See [frame-and-rendering.md](frame-and-rendering.md) section 10 |
+
+**Phase 0 measurements at 480x270, earlier run** (Edge 154, RTX 4070, one machine and one GPU). The 3D scene with bloom and the HUD has a frame cost with the GPU wait of mean 1.8 ms and p95 2.4 to 2.7 ms. The GPU timer reads mean 3.5 ms and p95 6.7 ms, about 16% under the 8 ms line. The stage slice has a frame cost of p50 0.8 to 1.4 ms and p95 1.1 to 2.1 ms. The JavaScript work is a CPU number (it only submits): about 1.1 ms for the 3D scene and 0.2 to 0.3 ms for the stage slice. The first 3D entry takes 79 ms to build the scene (it includes loading the chunk) and 68 ms to the first finished frame. Later entries take 5 ms and 14 to 17 ms.
+
+**Phase 0 measurements at 640x360** (spike doc, step S1a). Same machine, same specs, three runs of each size. The display refreshes at about 56.6 Hz, so a bare page has a p95 of 18.2 to 18.3 ms.
+
+| Measure | 480x270 | 640x360 |
+|---|---|---|
+| 3D scene with bloom and HUD: frame interval p95 against a bare page (line: at most 1.05) | 0.995 | 0.995 to 1.000 |
+| 3D scene: frame cost with the GPU wait, p95 (line: at most 8 ms) | 2.9 to 3.3 ms | 3.2 to 3.5 ms |
+| Stage slice: frame cost with the GPU wait, p95 (line: at most 8 ms) | 2.3 to 2.5 ms | 2.3 to 2.5 ms |
+| Negative controls (extra draws): cost p95, must fail the line | 22 to 127 ms | 22 to 136 ms |
+| SwiftShader, 3D scene: frame cost mean / p95 | 11.1 to 11.6 / 13.5 to 14.8 ms | 12.7 to 12.8 / 14.7 to 14.9 ms |
+| SwiftShader, stage slice: frame cost p95 | 9.1 to 9.5 ms | 7.4 to 7.9 ms |
+
+The cost did not grow with the picture. The 3D frame has 1.78 times more pixels, and its mean cost is 2.1 to 2.3 ms at both sizes. At this scene size the cost follows the work for each frame and not the pixel count. This is one GPU and one display. A weaker GPU may show a size effect. The GPU timer query is reported and is not a gate, because its top 5% sometimes sits at one display frame (16 ms) when a query spans an idle gap. Both negative controls fail the line at both sizes.
 
 ---
 
@@ -200,7 +222,7 @@ SwiftShader cost follows canvas pixels. The full effect stack costs about 12 to 
 | Canvas on init | Context restore does not recover (Pixi `init` without `canvas`). |
 | `destroy` kills the context | Anything calls `renderer.destroy()` outside the dev teardown test. |
 | `ExternalSource` scale | A Three render target with linear filtering produces blended 2x2 blocks. |
-| Stencil mask | A `Graphics` mask inside the 480x270 back buffer draws outside the mask. |
+| Stencil mask | A `Graphics` mask inside the 640x360 back buffer draws outside the mask. |
 | Three canvas and context | After `WEBGL_lose_context`, `three.render()` does something. Or Three does not recover on restore (Three created without `canvas`). |
 | No second Pixi loop | A Pixi `requestAnimationFrame` callback runs after boot (`Ticker.system` not stopped). |
 | Extension list | A boot with `skipExtensionImports` cannot render a sprite, a `Graphics`, a mask, or a filter. |
@@ -209,6 +231,10 @@ SwiftShader cost follows canvas pixels. The full effect stack costs about 12 to 
 | Color exactness | `#ff2080` in Three does not come out as `#ff2080`. |
 | Frame rewrap | A resize or restore leaves the 3D sprite stale. |
 
+**The stale clear colour canary needs a transparent clear.** In the shipped configuration the back buffer clears to the void colour, which is not (0,0,0,0). Pixi then sets the GL clear colour itself, and the bug does not show, even with the fix off. It shows only when the back buffer clears to transparent black. The canary clears to transparent black (test seams `GlHandoff.setClearColourFix` and `BackBuffer.setClearColor`). It has a negative control: with the fix off, all 2,800 gap pixels show Three's leftover black. With the fix on, 0 pixels are wrong.
+
+**A context-loss test must wait one macrotask before it restores.** The browser calls every `webglcontextlost` listener in turn, and a promise continuation runs between them. A restore before the last listener ran is refused ("context restoration not allowed").
+
 ---
 
 ## 9. Lint and import-level rules
@@ -216,9 +242,10 @@ SwiftShader cost follows canvas pixels. The full effect stack costs about 12 to 
 Code is grouped in levels 0 to 6 (see [README.md](README.md) section 4). Biome `noRestrictedImports` and the T0 import scan enforce these:
 
 1. `pixi.js` may be imported only under `src/sje/render` and `src/sje/display` (the `display` folder includes the `textures` and `fx` parts). Game code never imports it.
-2. `three` may be imported only under `src/sje/three` and `src/hack3d`. Both load through one `import()`.
+2. `three` may be imported only under `src/sje/three` and `src/hack3d`. Both load through one `import()`. The files `src/hack3d/door.ts` and `src/hack3d/result.ts` load up front. `result.ts` imports nothing from the chunk. `door.ts` reaches the chunk only through the one `import()`.
 3. `src/battle`, `src/hack3d/sim`, and `src/game/state.ts` import neither a renderer nor the DOM.
-4. A lower level never imports a higher level.
+4. A lower level never imports a higher level. `src/sje/three` imports only levels 0 to 3 and `three`. Nothing at levels 0 to 4 imports it.
+5. Raw GL state calls (`bindFramebuffer`, `readPixels`, `clearColor`, `pixelStorei` and similar) appear only in `src/sje/render/glhandoff.ts`.
 
 Inherited rules: strict TypeScript (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`). `noNonNullAssertion` stays an error in `src/sje/**`: use `must(value, what)` from `engine/assert.ts`. No per-frame allocation in hot paths: use pooled lists and preallocated uniforms. Gameplay randomness only from seeded `Rng`. Comments explain why.
 
@@ -226,7 +253,7 @@ Inherited rules: strict TypeScript (`noUncheckedIndexedAccess`, `exactOptionalPr
 
 ## 10. The bundle alarm
 
-Today `scripts/bundle-budget.mjs` has two gates. The first sums every `dist/assets/*.js` against 236 kB gzip. The game measures 233.9 kB (boot chunk 144.8, battle 44.6, tables 39.3, deck 3.2 and 2.0). That leaves about 2 kB. The second gate caps the largest single chunk at 480 kB raw (`CHUNK_MAX`). The CI step is named "largest chunk and total gzip". Pixi and Three change this. The alarm is an alarm, not a hard limit.
+Today `scripts/bundle-budget.mjs` has two gates. The first sums every `dist/assets/*.js` against 236 kB gzip. The game measures 233.9 kB (boot chunk 144.8, battle 44.6, tables 39.3, deck 3.2 and 2.0). That leaves about 2 kB. The 640x360 move of the shipped game adds code, so these numbers change. The size after the move is not known yet. Set the alarm from the measured value, and write the cause of the change. The second gate caps the largest single chunk at 480 kB raw (`CHUNK_MAX`). The CI step is named "largest chunk and total gzip". Pixi and Three change this. The alarm is an alarm, not a hard limit.
 
 **The largest-chunk rule.** A lazy Pixi chunk is 131 to 205 kB gzip, so it is probably over 480 kB raw. The boot chunk is about 418 kB raw today (estimate: measure again at M0). The manifest gate below replaces **both** old rules. Set a largest-chunk cap for each class, or drop the rule on purpose (E17).
 
@@ -256,7 +283,9 @@ The caps are your call (E17). The old 236 kB total cannot hold. Starting caps (e
 
 - `boot`: at most 144.8 kB (today's value).
 - `first play`: set after M1. The estimate is 330 to 430 kB (low confidence).
-- `lazy-3d`: 240 kB.
+- `lazy-3d`: 240 kB. Phase 0 measured 145.1 kB. The spike's budget script uses 160 kB.
+
+**Phase 0 measured (gzip).** Pixi plus the engine kernel is 124.7 kB. The page of the stage lab boots with 170.7 kB, and the page of the 3D lab boots with 165.5 kB. The lazy 3D chunk (Three with named imports, a `UnrealBloomPass`, and the hack scene) is 145.1 kB (576.8 kB raw). The shipped game is byte for byte the same as before: 233.9 kB. The script `scripts/bundle-budget.mjs` now has four classes: the shipped game, the lazy 3D chunk, the lab boot, and the stage lab page. It also checks that no Three or Pixi marker string is in the shipped `dist/`.
 
 **Two Vite traps found in the lab:**
 
@@ -275,6 +304,8 @@ Today's CI runs lint, typecheck, unit tests, the bundle budget, and 9 e2e specs 
 - Add the lab specs, the canary suite, and the manifest gate.
 - Re-baseline the perf gates and the 120 s test timeout after the first CI run. Every spec now runs on software GL, so run time and flakiness can change.
 - Add the T2 probe.
+- Phase 0 CI results: CI is green on `f22dc09` (after one re-run, because the browser install took 22 minutes) and on `d61d7d9`, which ran the strict parity gate on the Linux runner. The spike CI takes about 29 minutes. The job limit on the spike is 45. The first CI run (`4208b60`, run 37264317312) had 2 Chromium timing failures. They were fixed in round 4. The 640x360 checks of step S1a (7 new tests, 209 in the list) have not run on CI yet. They add about 1 minute at most.
+- Gate timing on a real GPU only. On software GL (SwiftShader, llvmpipe) the lab specs assert that the loop ticks and keeps a sane interval. The p50 is under 250 ms (the loop's own clamp), and no frame takes 2 seconds or more.
 
 **What changes in the existing e2e suite.**
 
@@ -322,6 +353,12 @@ The Pixi package ships 26 skill folders, but two examples are wrong in 8.22. Tre
 - No top-level `await` on `init`.
 - Never call `renderer.destroy()` on a shared context.
 - Fragment shaders need `uniform highp vec4 uInputSize`.
+- An empty uniform group in a custom filter crashes the first draw in 8.22 ("Cannot read properties of undefined"). Leave the group out when there are no uniforms.
+- `setMask({ mask: null })` does nothing in 8.22. Set `node.mask = null`.
+- A sprite mask reads red times alpha by default. Pass `channel: 'alpha'` for a mask that follows alpha.
+- `stroke({ pixelLine: true })` is not exact. It leaves out the first pixel of a horizontal or vertical line and puts diagonals one pixel off. Draw 1 px lines as rectangles.
+- `roundPixels: true` lost 16 to 35 pixels under a sprite mask on SwiftShader. Keep it off and snap in the wrapper. With snap to pixel on, the option changes no pixel at scale 1, 2 and -1. It does change pixels for a 1.5x odd-sized picture, a snap-off node at a half pixel, and the 1.09x push. See [scene-graph.md](scene-graph.md) section 7.
+- `RenderLayer` ignores filters. A filter on an ancestor, or on the layer itself, does not reach a child that is attached to the layer.
 - `three.resetState()` after Three renders, before Pixi draws.
 - Create Three with both `canvas` and `context`: `new WebGLRenderer({ canvas, context: gl })`. Never call `setSize`, `setViewport`, or `setPixelRatio` on the shared renderer. Render only to render targets.
 - `ColorManagement.enabled = false` and no `OutputPass` for exact colors in the 3D target.

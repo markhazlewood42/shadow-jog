@@ -63,9 +63,9 @@
     <div class="diagram-container">
     <!-- Type ramp matches the engine-layers pilot: names 16, descriptions 13, mono text 12.
          A README shows this figure at about 880px wide (scale 0.92), so the smallest text stays near 11px. -->
-    <svg viewBox="0 0 960 1100" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-hack-lifecycle-title engine-hack-lifecycle-desc">
+    <svg viewBox="0 0 960 1204" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-hack-lifecycle-title engine-hack-lifecycle-desc">
       <title id="engine-hack-lifecycle-title">Hack scene lifecycle</title>
-      <desc id="engine-hack-lifecycle-desc">Sequence of one s.hack call across four lifelines: the story script awaits fieldHooks.hack, which lazily imports the 3D chunk and runs a HackScene on the Game. The scene loops over fixed ticks and per-frame renders, which repeat together, then closes with a result. A finally block always disposes the render target, scene, ExternalSource and passes, and a HackResult always returns to the script.</desc>
+      <desc id="engine-hack-lifecycle-desc">Sequence of one s.hack call across four lifelines: the story script awaits fieldHooks.hack, which lazily imports the 3D chunk and runs a HackScene on the Game. The scene loops over fixed ticks and per-frame renders, which repeat together, then closes with a result. A finally block always disposes the render target, scene, ExternalSource and bloom pass, and a HackResult always returns to the script. A note gives the story policy for aborted results: a lost context retries once, a dropped story ends.</desc>
       <defs>
         <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
         <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ffcc3d"/></marker>
@@ -136,7 +136,7 @@
       <text x="470" y="855" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">closed with result</text>
       <text x="380" y="901" fill="#ffcc3d" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.06em">DISPOSE</text>
       <text x="380" y="919" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">finally: dispose rt, scene,</text>
-      <text x="380" y="937" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">ExternalSource, passes</text>
+      <text x="380" y="937" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">ExternalSource, bloom pass</text>
       <rect x="120" y="900" width="220" height="36" rx="2" fill="#0d0c1f"/>
       <text x="230" y="913" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">RESULT</text>
       <text x="230" y="931" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">HackResult (always a value)</text>
@@ -159,16 +159,22 @@
       <rect x="96" y="188" width="768" height="28" rx="4" fill="rgba(244,241,255,0.05)" stroke="rgba(122,128,196,0.5)" stroke-width="1"/>
       <text x="480" y="207" fill="#f4f1ff" font-size="13" font-family="'Geist', sans-serif" text-anchor="middle">Ticks and frames interleave</text>
 
+      <rect x="96" y="980" width="768" height="76" rx="4" fill="#0d0c1f"/>
+      <rect x="96" y="980" width="768" height="76" rx="4" fill="rgba(244,241,255,0.05)" stroke="rgba(122,128,196,0.5)" stroke-width="1"/>
+      <text x="112" y="1001" fill="#f4f1ff" font-size="12" font-weight="600" font-family="'Geist Mono', monospace" letter-spacing="0.06em">STORY POLICY (E19)</text>
+      <text x="112" y="1021" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">aborted / context-lost: retry once, then auto-success.</text>
+      <text x="112" y="1039" fill="#bfc3e4" font-size="13" font-family="'Geist', sans-serif">aborted / user: the story was dropped. No retry, no scene starts, the story ends.</text>
+
       <!-- Legend and aside -->
-      <line x1="40" y1="992" x2="920" y2="992" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
-      <line x1="40" y1="1016" x2="72" y2="1016" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
-      <text x="82" y="1020" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">CALL</text>
-      <line x1="160" y1="1016" x2="192" y2="1016" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
-      <text x="202" y="1020" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">RETURN</text>
-      <line x1="300" y1="1016" x2="332" y2="1016" stroke="#ffcc3d" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
-      <text x="342" y="1020" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">TEARDOWN: FINALLY ALWAYS RUNS</text>
-      <text x="40" y="1060" fill="#bfc3e4" font-size="16" font-family="'Instrument Serif', serif" font-style="italic">s.hack always returns success, fail, aborted or unsupported.</text>
-      <text x="40" y="1084" fill="#bfc3e4" font-size="16" font-family="'Instrument Serif', serif" font-style="italic">A watchdog ends the scene if the GL context does not return within 2 seconds.</text>
+      <line x1="40" y1="1076" x2="920" y2="1076" stroke="rgba(122,128,196,0.28)" stroke-width="1"/>
+      <line x1="40" y1="1100" x2="72" y2="1100" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <text x="82" y="1104" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">CALL</text>
+      <line x1="160" y1="1100" x2="192" y2="1100" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <text x="202" y="1104" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">RETURN</text>
+      <line x1="300" y1="1100" x2="332" y2="1100" stroke="#ffcc3d" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <text x="342" y="1104" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em">TEARDOWN: FINALLY ALWAYS RUNS</text>
+      <text x="40" y="1144" fill="#bfc3e4" font-size="16" font-family="'Instrument Serif', serif" font-style="italic">s.hack always returns success, fail, aborted or unsupported.</text>
+      <text x="40" y="1168" fill="#bfc3e4" font-size="16" font-family="'Instrument Serif', serif" font-style="italic">A watchdog ends the scene if the GL context does not return within 1 second.</text>
     </svg>
     </div>
   </div>

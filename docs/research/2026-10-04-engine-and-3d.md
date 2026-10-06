@@ -3,11 +3,13 @@ type: project-doc
 title: Shadow Jog — Engine and 3D mode research (2026-10-04)
 project: shadow-jog
 created: 2026-10-04
-updated: 2026-10-04
+updated: 2026-10-05
 tags: [research, engine, 3d, resolution, decision]
 ---
 
 # Engine and 3D mode research (2026-10-04)
+
+**Update (2026-10-05):** Mark chose 640x360 as the game size after the Phase 0 mock (decision E12 in `docs/engine/decisions.md`). The resolution text below is the record of what was known on 2026-10-04.
 
 **Decision (Mark, 2026-10-04):** Shadow Jog gets **its own engine, with PixiJS v8 as the 2D renderer and Three.js for a low-poly 3D hacking mode.** There is no Unity or Godot replatform. The planned Phaser rebuild is superseded. **No engine code is written before Mark approves an architecture design doc** (see "The design gate" below).
 
@@ -109,7 +111,7 @@ Mark chose Pixi over the judges' picks. His reasons:
 
 What he accepts, and what is still unproven:
 - **First download.** Pixi adds about 155 kB to the first download, unless the engine loads it lazily behind a shell. The budget alarm is 236 kB in total, the shipped game measures 233.9 kB (about 2 kB of headroom), and the spike's base commit already read 239.8 kB. The alarm must be re-set on purpose. It is an alarm, not a hard limit.
-- **Pixi traps.** The teardown trap on a shared context, and a bitmap-text quirk: text draws 1 px low unless `fontSize` equals `lineHeight`.
+- **Pixi traps.** The teardown trap on a shared context, and a bitmap-text quirk: text draws 1 px low unless `fontSize` equals `lineHeight`. Phase 0 (2026-10-05) added more traps: an empty uniform group in a custom filter crashes the first draw in Pixi 8.22 (leave the group out), a sprite mask reads red times alpha unless `channel: 'alpha'` is set, `setMask({ mask: null })` does nothing (set `node.mask = null`), `stroke({ pixelLine: true })` is not exact, and `RenderLayer` ignores filters. The full list is in `docs/engine/tooling-and-testing.md` section 12.
 - **Untested.** Pixi filters and masks on the shared context, and Pixi parity with the Phaser stage. The platform spike must test both.
 
 ---

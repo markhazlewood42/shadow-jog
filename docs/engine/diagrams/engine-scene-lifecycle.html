@@ -63,11 +63,11 @@
     <div class="diagram-container">
     <!-- Type ramp is a deliberate exception to the standard doc-inline ramp (same as engine-layers). This figure shows at
          about 880px wide in a README (scale 0.92), so names are 16, descriptions 13, callouts 18 and mono text 12.
-         Budget: 9 states, 13 transitions: over the 12-transition limit on purpose (stop() from paused and sleeping);
+         Budget: 9 states, 14 transitions: over the 12-transition limit on purpose (stop() from paused and sleeping, and a throw in init, preload or create);
          inside the balanced dial. -->
-    <svg viewBox="0 0 960 736" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-scene-lifecycle-title engine-scene-lifecycle-desc">
+    <svg viewBox="0 0 960 756" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="engine-scene-lifecycle-title engine-scene-lifecycle-desc">
       <title id="engine-scene-lifecycle-title">Scene lifecycle</title>
-      <desc id="engine-scene-lifecycle-desc">Nine scene states and the moves between them. A scene starts at init and start, then reaches creating directly or through loading. Only the running state runs fixedUpdate. A running scene can be paused or sleeping and return. Close or stop() moves a running scene to shutdown, and stop() also moves a paused or sleeping scene to shutdown. Shutdown then moves to destroyed. The game.run promise resolves on close(result). It does not depend on when create ran.</desc>
+      <desc id="engine-scene-lifecycle-desc">Nine scene states and the moves between them. A scene starts at init and start, then reaches creating directly or through loading. Only the running state runs fixedUpdate. A running scene can be paused or sleeping and return. Close or stop() moves a running scene to shutdown, and stop() also moves a paused or sleeping scene to shutdown. A throw in init, preload or create sends the scene to shutdown, along a dashed edge that leaves from creating. Shutdown then moves to destroyed. The game.run promise resolves on close(result). It does not depend on when create ran.</desc>
       <defs>
         <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
       </defs>
@@ -117,6 +117,10 @@
       <path d="M 584 660 H 712" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
       <rect x="620" y="636" width="56" height="16" rx="2" fill="#0d0c1f"/>
       <text x="648" y="648" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">FREED</text>
+
+      <path d="M 376 360 H 32 Q 24 360 24 368 V 708 Q 24 716 32 716 H 472 Q 480 716 480 708 V 696" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+      <rect x="120" y="708" width="256" height="16" rx="2" fill="#0d0c1f"/>
+      <text x="248" y="720" fill="#bfc3e4" font-size="12" font-family="'Geist Mono', monospace" letter-spacing="0.02em" text-anchor="middle">THROWS IN INIT, PRELOAD, CREATE</text>
 
       <!-- Callouts -->
       <path d="M 312 132 V 202" fill="none" stroke="rgba(244,241,255,0.40)" stroke-width="1" stroke-dasharray="4,3"/>
