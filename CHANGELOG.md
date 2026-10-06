@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 - The version is now 0.2.0-dev: phase 0.2 development has started.
 - Hex now uses they/them, and Sable uses he/him (Mark's canon, 2026-10-03).
-- CI runs its checks as three jobs at the same time and skips a change that touches only docs, notes or `tools/command-center/`. The real-speed playtest runs on pushes to `main` and from the Actions tab, not on every pull request.
+- CI runs its checks as three jobs at the same time and skips a change that touches only docs, notes or `tools/command-center/`. The real-speed playtest runs on pushes to `main` and from the Actions tab, not on pull requests.
 
 ### Added
 - Saves record the game version that wrote them.

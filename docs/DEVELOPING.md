@@ -94,11 +94,11 @@ CI (`.github/workflows/ci.yml`) runs three jobs at the same time, so a pull requ
 | `e2e` | Every spec except `playtest`, `shots` and `audio-evidence` (those two regenerate files), on Chromium |
 | `e2e-engines` | `gameover` and `prod` on WebKit and Firefox |
 
-The playtest has its own workflow, `.github/workflows/playtest.yml`. It runs on every push to `main` and from the
-Actions tab (**Run workflow**, on any branch), not on pull requests. A change that touches only `docs/`,
-`tools/command-center/` or `.md` files skips the work: the jobs still start and report success, because a required
-check that never reports blocks the merge. A new push to a pull request cancels that pull request's earlier CI run. A
-run on `main` is never canceled once it starts.
+The playtest has its own workflow, `.github/workflows/playtest.yml`. It runs on a push to `main` (not one that touches
+only `docs/`, `tools/command-center/` or `.md` files) and from the Actions tab (**Run workflow**, on any branch), not
+on pull requests. A change that touches only those paths skips the work. On a pull request, the jobs still start and
+report success, because a required check that never reports blocks the merge. A new push to a pull request cancels
+that pull request's earlier CI run. A run on `main` is never canceled once it starts.
 
 | Spec | What |
 |---|---|

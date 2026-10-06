@@ -62,9 +62,10 @@ jobs:
       # that way.
       #
       # It fails closed. `skip` is `true` only when git lists changed files and every one of them
-      # is on the list below. If git fails, lists nothing, or HEAD is not a merge commit, or if the
-      # step itself breaks (`continue-on-error`), `skip` stays unset and the job runs in full. That
-      # is why the later steps test `!= 'true'` and not `== 'false'`.
+      # is on the list below. If git fails, lists nothing, or HEAD is not a merge commit, the step
+      # writes `skip=false`. If the step itself breaks (`continue-on-error`) or does not run (on a
+      # push), `skip` is unset. In both cases the job runs in full. That is why the later steps
+      # test `!= 'true'` and not `== 'false'`: an unset `skip` must run everything too.
       #
       # On a pull_request event the checked-out HEAD is a merge commit, and its first parent is the
       # tip of the base branch. So `git diff HEAD^1 HEAD` is exactly what the pull request changes.
