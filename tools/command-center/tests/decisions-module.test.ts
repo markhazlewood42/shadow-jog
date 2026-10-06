@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { setGhIssues } from '../e2e/fake-gh';
 import type { Exec } from '../src/server/runner';
 import { DECISION_FIELDS } from '../src/server/decisions/parse';
 import { bannersOf } from '../src/server/decisions/module';
 import type { DecisionDetail, DecisionIssue, DecisionsInfo, DocDecision, DocPageData, Panel } from '../src/shared/types';
+import { FAKE_VIEWER, setGhIssues } from '../e2e/fake-gh';
 import { SEED, SETUP_DOC, type DecisionsRig, type RigOptions, makeDecisionsRig, setRigMode } from './decisions-rig';
 
 // The decisions module (the source of the panel that lists the decisions), the routes that serve it
@@ -101,6 +101,35 @@ describe('the decisions source', () => {
     // A doc that is not in the repo at all has no heading either.
     const other = rigOf({ docs: {} });
     expect(issueOf((await infoOf(other)).open, 41).docs.map((link) => link.heading)).toEqual([null, null, null]);
+  });
+
+  it('reads all the comments of an issue that the list cut short: a flood of comments from a stranger cannot hide the answer of Mark', async () => {
+    // `gh issue list` prints the first 100 comments of an issue. A stranger can write 100 comments before Mark answers, and his answer is then the 101st: the list never shows it.
+    // The module asks for the whole issue when the list is full, so the answer is found. (The fake gh cuts the list at 100, as the real one does.)
+    const noise = (count: number) => Array.from({ length: count }, (_all, i) => ({ author: { login: 'fixture-stranger' }, body: `Noise ${i + 1}`, createdAt: '2026-10-05T09:00:00Z' }));
+    const answerAt = { author: { login: FAKE_VIEWER }, body: 'Decision: B. Found after the noise.', createdAt: '2026-10-05T15:12:09Z' };
+    const flooded = SEED.issues.map((issue) => {
+      if (issue.number === 44) return { ...issue, comments: [...noise(104), answerAt] }; // answered: closed, labelled by Mark
+      if (issue.number === 41) return { ...issue, comments: [...noise(120), { ...answerAt, body: 'Decision: C. Half an answer, after the noise.' }] }; // open, with the comment and nothing else
+      return issue;
+    });
+    const rig = rigOf({ store: { ...SEED, issues: flooded } });
+    const info = await infoOf(rig);
+    expect(issueOf(info.recent, 44)).toMatchObject({ state: 'answered', answer: { option: 'B', note: 'Found after the noise.', complete: true } });
+    expect(issueOf(info.open, 41)).toMatchObject({ state: 'open', answer: { option: 'C', complete: false } });
+    // It asked for the whole issue for the two that were full, and for no other.
+    const viewed = rig.calls().filter((call) => call.args[1] === 'view').map((call) => call.args.slice(2).join(' '));
+    expect(viewed.sort()).toEqual([`--repo ${rig.config.githubRepo} 41 --json comments`, `--repo ${rig.config.githubRepo} 44 --json comments`]);
+  });
+
+  it('does not read the whole issue for a stranger whose issue is full of comments: that costs nothing', async () => {
+    // Anyone can open an issue with the label of the template and a hundred comments. It is left out after the list, with no call for it.
+    const noisy = SEED.issues.map((issue) =>
+      issue.number === 42 ? { ...issue, comments: Array.from({ length: 150 }, (_all, i) => ({ author: { login: 'fixture-stranger' }, body: `Noise ${i + 1}`, createdAt: '2026-10-05T09:00:00Z' })) } : issue,
+    );
+    const rig = rigOf({ store: { ...SEED, issues: noisy } });
+    expect(numbers((await infoOf(rig)).open)).toEqual([41, 43, 46, 47]);
+    expect(rig.calls().filter((call) => call.args[1] === 'view')).toEqual([]);
   });
 
   it('keeps the address of the issue, and makes one from the repository when gh gave none that can be used', async () => {

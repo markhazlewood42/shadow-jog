@@ -18,6 +18,7 @@ import { type AnswerProgress, DECISION_FIELDS, LABEL_DECIDED, LABEL_DECISION, fl
 //     `decided`, and must stay on the page (with its answer marked as not complete) so that its Retry button keeps working.
 //   - `gh api repos/<repo>/issues/<n>/events`, for the closed issues that were answered in the last week: the events say
 //     who put the label `decided` on, and an issue counts as answered only when Mark's account did.
+//   - `gh issue view <n> --json comments`, only for a decision whose list of comments is full (see withAllComments).
 
 /** How many issues of each list gh is asked for (newest first). A repository of one person has a handful of decisions; this is room to grow. */
 const LIST_LIMIT = 100;
@@ -77,6 +78,23 @@ async function readList(runner: Runner, label: string, state: 'open' | 'all'): P
   return parsed.map((entry, index) => checkedIssue(entry, index + 1));
 }
 
+/**
+ * `gh issue list --json comments` prints the first 100 comments of each issue and no more (checked on a real issue with 149 comments), but
+ * `gh issue view` pages through all of them. The answer of Mark is the newest comment of a decision, so on an issue with more than 100
+ * comments the list never shows it. Anyone can write comments on this public repo, so a stranger could do that on purpose, and the answer would not
+ * show on the page. An issue whose list is full is therefore read again with `gh issue view`, which has all its comments. (An issue with fewer is complete as it is.)
+ */
+const LIST_COMMENT_LIMIT = 100;
+
+async function withAllComments(runner: Runner, raw: Json): Promise<Json> {
+  if (!Array.isArray(raw.comments) || raw.comments.length < LIST_COMMENT_LIMIT) return raw;
+  const result = await runner('gh', ['issue', 'view', String(raw.number), '--json', 'comments']);
+  if (result.code !== 0) throw ghFailure(result);
+  const viewed = parseJson(result.stdout, `the comments of issue ${String(raw.number)}`);
+  if (!isRecord(viewed) || !Array.isArray(viewed.comments)) throw unreadable(`the comments of issue ${String(raw.number)} are not a list`);
+  return { ...raw, comments: viewed.comments };
+}
+
 /** The events of an issue, all pages, as one list. Only options that the runner allows for gh api: --paginate and --slurp. */
 async function readEvents(config: Config, runner: Runner, number: number): Promise<unknown[]> {
   const result = await runner('gh', ['api', `repos/${config.githubRepo}/issues/${number}/events`, '--paginate', '--slurp']);
@@ -123,9 +141,12 @@ export function createDecisionsSource(deps: DecisionsModuleDeps): PanelSource<De
 
       const clock = now();
       const info: DecisionsInfo = { open: [], recent: [] };
-      for (const raw of raws.values()) {
-        let issue = parseDecisionIssue(raw, []);
-        if (issue === null) continue; // not Mark's, or not a decision: left out
+      for (const listed of raws.values()) {
+        let issue = parseDecisionIssue(listed, []);
+        if (issue === null) continue; // not Mark's, or not a decision: left out, with no more calls for it (a stranger's issue costs nothing)
+        // The list may have cut the comments short (see withAllComments), and the answer is the newest comment: look at the whole issue then.
+        const raw = await withAllComments(runner, listed);
+        if (raw !== listed) issue = parseDecisionIssue(raw, []) ?? issue;
         // Only a closed issue that has an answer from the last week can turn out to be answered, and only the events can say so (who put the label decided on).
         if (issue.state === 'closed' && issue.answer !== null && isRecent(issue.answer.at, clock)) {
           issue = parseDecisionIssue(raw, await readEvents(config, runner, issue.number)) ?? issue;

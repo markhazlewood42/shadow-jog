@@ -63,6 +63,22 @@ describe('the issue store of the fake gh: reads', () => {
     expect(JSON.stringify(full)).not.toContain('"events"');
   });
 
+  it('lists the first 100 comments of an issue and no more, as gh does, and views all of them', async () => {
+    // Real gh: `gh issue list --json comments` stops at the first 100 comments of each issue (checked on a public issue with 149), and `gh issue view` pages through all.
+    const flooded = SEED.issues.map((issue) =>
+      issue.number === 41 ? { ...issue, comments: Array.from({ length: 130 }, (_all, i) => ({ author: { login: 'fixture-stranger' }, body: `Comment ${i + 1}`, createdAt: '2026-10-05T10:00:00Z' })) } : issue,
+    );
+    setGhIssues({ ...SEED, issues: flooded }, dir);
+    const listed = (await json('issue', 'list', '--repo', REPO, '--label', 'decision', '--json', 'number,comments')) as { number: number; comments: { body: string }[] }[];
+    const first = listed.find((issue) => issue.number === 41);
+    expect(first?.comments).toHaveLength(100);
+    expect(first?.comments.at(-1)?.body).toBe('Comment 100');
+    expect(listed.find((issue) => issue.number === 43)?.comments).toHaveLength(1); // an issue with fewer is whole
+    const viewed = (await json('issue', 'view', '--repo', REPO, '41', '--json', 'comments')) as { comments: { body: string }[] };
+    expect(viewed.comments).toHaveLength(130);
+    expect(viewed.comments.at(-1)?.body).toBe('Comment 130');
+  });
+
   it('views one issue by its number, and says what gh says for a number that no issue has', async () => {
     const issue = (await json('issue', 'view', '--repo', REPO, '44', '--json', 'number,state,labels')) as { number: number; state: string; labels: { name: string }[] };
     expect(issue.number).toBe(44);

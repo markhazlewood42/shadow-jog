@@ -251,9 +251,16 @@ const notFound = (number: string | undefined): RunResult => ({
 /** The time as GitHub writes it: whole seconds, in UTC. */
 const timeNow = (): string => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
-/** An issue as `gh ... --json <fields>` prints it: only the fields that were asked for (all of them when none was), and never the events. */
-function printedIssue(issue: FakeIssue, fields: string[]): Json {
-  const { events: _events, ...all } = issue;
+/** `gh issue list --json comments` prints the first 100 comments of each issue and no more (checked on a real issue with 149). `gh issue view` prints them all. */
+const LIST_COMMENT_LIMIT = 100;
+
+/**
+ * An issue as `gh ... --json <fields>` prints it: only the fields that were asked for (all of them when none was), and never the events.
+ * `commentLimit` cuts the comments to the first so many, as gh does for a list.
+ */
+function printedIssue(issue: FakeIssue, fields: string[], commentLimit = Number.POSITIVE_INFINITY): Json {
+  const { events: _events, ...everything } = issue;
+  const all = { ...everything, comments: everything.comments.slice(0, commentLimit) };
   if (fields.length === 0) return all;
   return Object.fromEntries(fields.flatMap((field) => (field in all ? [[field, (all as Json)[field]]] : [])));
 }
@@ -267,7 +274,7 @@ function storeList(store: GhIssueStore, args: string[]): RunResult {
     .filter((issue) => (state === 'all' || issue.state.toLowerCase() === state) && wanted.every((label) => issue.labels.some((have) => have.name.toLowerCase() === label)))
     .sort((a, b) => b.number - a.number)
     .slice(0, limit);
-  return { code: 0, stdout: JSON.stringify(found.map((issue) => printedIssue(issue, fields))), stderr: '' };
+  return { code: 0, stdout: JSON.stringify(found.map((issue) => printedIssue(issue, fields, LIST_COMMENT_LIMIT))), stderr: '' };
 }
 
 /** `gh api repos/<repo>/issues/<n>/events`: the events of an issue. With --paginate --slurp gh prints a list of pages, and the fake has one page. */
