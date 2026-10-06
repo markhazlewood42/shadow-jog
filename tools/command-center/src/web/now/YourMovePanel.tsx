@@ -31,8 +31,8 @@ const SOURCE_ICONS: Record<YourMoveSource, LucideIcon> = {
 };
 
 /**
- * The status light of a session's reply, as a word and a shape. The Look has no red, yellow or green (amber is for the one or two focal items, and every
- * list item cannot be one), so the light is told by its word and by the shape of its icon, as a traffic sign is, and never by a color.
+ * The status light of a session's reply, as a word and a shape. The Look has no red, yellow or green: amber is for the one or two focal items of a page, and a list can
+ * have any number of lights. So a light is told by its word and by the shape of its icon, as a traffic sign is, and never by a color.
  */
 const LIGHTS = {
   red: { label: 'Red', Icon: TriangleAlert },

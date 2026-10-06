@@ -257,6 +257,26 @@ test.describe('the panels', () => {
   });
 });
 
+test.describe('a page that cannot be shown', () => {
+  test('a Now page file that fails to load shows an error with Reload, and Reload brings the page back', async ({ page }) => {
+    // The file of the Now page is a chunk of its own with a hash in its name. When the server is restarted with a new build, an old tab asks for a name that is gone.
+    await page.route('**/assets/NowPage-*.js', (route) => route.abort());
+    await page.goto('/');
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText('The Now page could not be shown.');
+    await expect(alert).toContainText('Reload to get the new one.');
+    // The page is not left blank: the error says what is wrong. (The page that failed to load is not there, so it has no title.)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(0);
+
+    // The file is there again, and Reload loads the page.
+    await page.unroute('**/assets/NowPage-*.js');
+    await alert.getByRole('button', { name: 'Reload' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
+    await allLoaded(page);
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+});
+
 test.describe('the arrangement', () => {
   // A tall window, so that all the panels are in view and no scroll is needed to drag one.
   test.use({ viewport: { width: 1280, height: 1500 } });
