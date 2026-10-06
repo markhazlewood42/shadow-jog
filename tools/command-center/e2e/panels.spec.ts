@@ -12,6 +12,8 @@ import { E2E_DIR, clearGhCalls, readGhCalls, resetGh, setGhMode } from './fake-g
 
 const REPO = join(E2E_DIR, 'repo');
 const MIGRATION_DOC = join(REPO, 'docs', 'engine', 'migration.md');
+/** The made-up migration doc that the fixture repo starts with: a test puts it back when it has changed or removed it, because the status panel of the Now page needs its table. */
+const MIGRATION_ORIGINAL = readFileSync(join(import.meta.dirname, '..', 'fixtures', 'repo', 'docs', 'engine', 'migration.md'), 'utf8');
 const PRS_JSON = readFileSync(join(import.meta.dirname, '..', 'fixtures', 'gh', 'prs.json'), 'utf8');
 
 /** The moment that the dates of fixtures/gh/prs.json are counted from (its merged dates make sense next to it). */
@@ -36,28 +38,53 @@ test.describe('the status, git and GitHub routes', () => {
   });
   test.afterEach(() => {
     resetGh();
-    rmSync(MIGRATION_DOC, { force: true });
+    writeFileSync(MIGRATION_DOC, MIGRATION_ORIGINAL);
   });
 
-  test('the status route answers the Right now section and the Next up for Mark list of status.md, and the milestones once migration.md has its table', async ({ request }) => {
-    // The fixture repo has a status.md and no docs/engine/migration.md. The panel says so, and still carries the status.
+  test('the status route answers the Right now section and the Next up for Mark list of status.md and the milestones of the migration doc, and says what is wrong when the doc has no table or is gone', async ({ request }) => {
+    // The fixture repo has a status.md and a made-up docs/engine/migration.md. The panel is good, with the milestones of the first table of the doc that
+    // has a "One-line scope" column in the order of the table (the second table of the doc has no such column, and is skipped).
     const before = await readPanel<StatusInfo>(request, '/api/status');
-    expect(before.ok).toBe(false);
-    if (before.ok) return;
-    expect(before.error.code).toBe('milestones-doc-missing');
-    expect(before.error.message).toContain('docs/engine/migration.md');
-    expect(before.lastGood?.data.rightNow.heading).toBe('Right now (2026-01-02)');
-    expect(before.lastGood?.data.nextUpForMark.map((item) => item.text)).toEqual([
+    expect(before.ok).toBe(true);
+    if (!before.ok) return;
+    expect(before.data.milestones).toEqual([
+      { id: 'Phase 0', name: 'Platform spike', scope: 'A spike that tests the design. Done.' },
+      { id: 'M0', name: 'Kernel', scope: 'The loop and the first scene.' },
+      { id: 'M1b', name: '3D proof (parallel with M2)', scope: 'A cube on a canvas.' },
+      { id: 'M2', name: 'Stage', scope: 'A battle stage.' },
+    ]);
+    expect(before.data.rightNow.heading).toBe('Right now (2026-01-02)');
+    expect(before.data.nextUpForMark.map((item) => item.text)).toEqual([
       'Review the widget pictures: the round one, the square one, and the long one, which wraps onto a second line with an indent.',
       'Pick the gadget colour. The choices are in the setup guide, and this item wraps onto a second line with no indent.',
       'A short last item.',
     ]);
-    expect(before.lastGood?.data.updated).toBe('2026-01-02');
+    expect(before.data.updated).toBe('2026-01-02');
     // Links in the section are the links of the docs site, and the history section is not in it.
-    expect(before.lastGood?.data.rightNow.html).toContain('href="/docs/guides/setup"');
-    expect(before.lastGood?.data.rightNow.html).not.toContain('This item is old');
+    expect(before.data.rightNow.html).toContain('href="/docs/guides/setup"');
+    expect(before.data.rightNow.html).not.toContain('This item is old');
 
-    // The doc is added. A failed panel is asked again by the next request, so the panel is good at once, with the milestones in the order of the table.
+    // The doc goes away. The panel was good, so no request asks again: the module has to hear of the removal from the doc index (a change event of the
+    // docs). The panel then says that the doc is missing, and still carries the status, which has nothing to do with the milestones.
+    rmSync(MIGRATION_DOC);
+    await expect
+      .poll(async () => {
+        const panel = await readPanel<StatusInfo>(request, '/api/status');
+        return panel.ok ? 'ok' : panel.error.code;
+      }, { timeout: 15_000 })
+      .toBe('milestones-doc-missing');
+    const missing = await readPanel<StatusInfo>(request, '/api/status');
+    expect(missing.ok).toBe(false);
+    if (missing.ok) return;
+    expect(missing.error.message).toContain('docs/engine/migration.md');
+    expect(missing.lastGood?.data.rightNow.heading).toBe('Right now (2026-01-02)');
+    expect(missing.lastGood?.data.nextUpForMark).toHaveLength(3);
+    expect(missing.lastGood?.data.milestones).toEqual([]);
+
+    // The doc is added again, with a table of two milestones. A failed panel is asked again by the next request, so the panel is good at once, with the
+    // milestones in the order of the table. The file watcher polls the disk once a second, and chokidar ignores a second change to a folder within a second of the
+    // first one, so the next change waits two seconds after the docs site has the file: then it is a change that the watcher sees.
+    await new Promise((done) => setTimeout(done, 2_000));
     writeFileSync(
       MIGRATION_DOC,
       [
@@ -81,22 +108,6 @@ test.describe('the status, git and GitHub routes', () => {
         { id: 'Phase 0', name: 'Platform spike', scope: 'A spike. Done.' },
         { id: 'M1b', name: '3D proof (parallel with M2)', scope: 'A cube.' },
       ]);
-    // Wait until the docs site has the file too. The file watcher polls the disk once a second, so a change that is made and undone
-    // between two polls is never seen, and chokidar ignores a second change to a folder within a second of the first one. A removal
-    // right after the add can therefore be missed (the 60 s timer of the module would still put it right). Two seconds after the
-    // docs site has the file, the removal below is a change that the watcher sees.
-    await expect.poll(async () => (await request.get('/api/docs/engine/migration')).status(), { timeout: 15_000 }).toBe(200);
-    await new Promise((done) => setTimeout(done, 2_000));
-
-    // The doc goes away again. The panel was good, so no request asks again: the module has to hear of the removal from the doc
-    // index (a change event of the docs), and the panel is back to the problem, as the fixture started.
-    rmSync(MIGRATION_DOC);
-    await expect
-      .poll(async () => {
-        const panel = await readPanel<StatusInfo>(request, '/api/status');
-        return panel.ok ? 'ok' : panel.error.code;
-      }, { timeout: 15_000 })
-      .toBe('milestones-doc-missing');
   });
 
   test('the git route answers the branch, no upstream, and the two commits of the fixture repo', async ({ request }) => {

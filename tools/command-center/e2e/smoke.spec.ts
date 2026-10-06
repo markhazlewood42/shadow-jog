@@ -7,6 +7,12 @@ import { expect, test } from '@playwright/test';
 const ORIGIN = 'http://127.0.0.1:3010';
 
 test.describe('the shell', () => {
+  // These tests are about the page around the panels (its fonts, its requests, its error states), not about the glass. With the glass off, the page does not wait for a
+  // GPU to compile shaders, and a run of this file alone does not depend on how fast the GPU of the machine is. (e2e/now.spec.ts tests the glass.)
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('cc.now.glass', 'off'));
+  });
+
   test('shows the navy page with Geist text under the title "Shadow Jog Command Center", and asks for nothing from another host', async ({ page }) => {
     const requested: string[] = [];
     const problems: string[] = [];
@@ -46,16 +52,15 @@ test.describe('the shell', () => {
     expect(problems).toEqual([]);
   });
 
-  test('shows the server health and says that live updates are on', async ({ page, request }) => {
+  test('shows the links of the server config in the Links panel and says that live updates are on', async ({ page, request }) => {
     await page.goto('/');
 
-    const server = page.getByRole('region', { name: 'Server' });
-    await expect(server).toContainText('Version');
-    await expect(server.getByText(/^\d+\.\d+\.\d+/)).toBeVisible(); // the version from package.json
-    await expect(server).toContainText(/Updated \d\d:\d\d:\d\d/);
-    // The links come from the fixture config.
-    await expect(server.getByRole('link', { name: 'Game' })).toHaveAttribute('href', 'http://localhost:3007');
-    await expect(server.getByRole('link', { name: 'GitHub repo' })).toHaveAttribute('href', 'https://github.com/fixture-owner/fixture-repo');
+    // The Links panel reads /api/health: the game address and the links of the config. The fixture config lists the game too, and it is shown once.
+    const links = page.getByRole('region', { name: 'Links', exact: true });
+    await expect(links).toContainText(/Updated \d\d:\d\d:\d\d/);
+    await expect(links.getByRole('link', { name: 'Game' })).toHaveAttribute('href', 'http://localhost:3007');
+    await expect(links.getByRole('link', { name: 'GitHub repo' })).toHaveAttribute('href', 'https://github.com/fixture-owner/fixture-repo');
+    await expect(links.getByRole('link')).toHaveCount(2);
 
     // The event stream hello arrived.
     await expect(page.getByText('Live updates: on')).toBeVisible();
@@ -81,10 +86,11 @@ test.describe('the shell', () => {
     await page.route('**/api/health', (route) => route.abort());
     await page.goto('/');
 
+    // Only the Links panel reads /api/health, so it is the only panel with an error: the others load from their own routes.
     const alert = page.getByRole('alert');
     await expect(alert).toContainText('Cannot reach the command center server');
     await expect(alert).toContainText('network');
-    await expect(page.getByRole('region', { name: 'Server' })).toContainText('Not updated yet');
+    await expect(page.getByRole('region', { name: 'Links', exact: true })).toContainText('Not updated yet');
     // One broken source never blanks the page.
     await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
     await expect(page.getByText('Live updates: on')).toBeVisible();
@@ -93,7 +99,7 @@ test.describe('the shell', () => {
     await page.unroute('**/api/health');
     await page.getByRole('button', { name: 'Retry' }).click();
     await expect(alert).toBeHidden();
-    await expect(page.getByRole('region', { name: 'Server' })).toContainText(/Updated \d\d:\d\d:\d\d/);
+    await expect(page.getByRole('region', { name: 'Links', exact: true })).toContainText(/Updated \d\d:\d\d:\d\d/);
   });
 
   test('refuses a request that names another host, as DNS rebinding would', async ({ request }) => {

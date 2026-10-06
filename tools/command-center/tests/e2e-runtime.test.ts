@@ -87,8 +87,9 @@ describe('createE2eRuntime', () => {
       const problems = index.problems();
       expect(problems.filter((problem) => problem.startsWith('docs/broken-link.md:'))).toHaveLength(4);
       expect(problems.filter((problem) => !problem.startsWith('docs/broken-link.md:')).every((problem) => problem.startsWith('docs/engine/'))).toBe(true);
-      // The engine docs are in the fixture's engine section, in the README's order (the docs that the fixture lacks are left out).
-      expect(index.nav().find((section) => section.id === 'engine')?.items.map((item) => (item.kind === 'doc' ? item.slug : item.path))).toEqual(['engine/README', 'engine/decisions']);
+      // The engine docs are in the fixture's engine section, in the README's order (the docs that the fixture lacks are left out). The migration doc is a made-up
+      // stand-in (it holds the table of milestones that the status panel of the Now page reads), and the README's reading order puts it between the README and the decisions.
+      expect(index.nav().find((section) => section.id === 'engine')?.items.map((item) => (item.kind === 'doc' ? item.slug : item.path))).toEqual(['engine/README', 'engine/migration', 'engine/decisions']);
     } finally {
       await index.close();
       rt.close();

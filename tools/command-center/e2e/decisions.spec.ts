@@ -1,8 +1,9 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { type APIRequestContext, type Locator, type Page, expect, test } from '@playwright/test';
+import { type APIRequestContext, type Page, expect, test } from '@playwright/test';
 import type { DecisionDetail, DecisionsInfo, DocPageData, Panel } from '../src/shared/types';
 import { E2E_DIR, FAKE_VIEWER, type GhIssueStore, readGhCalls, readGhIssues, resetGh, setGhIssues, setGhMode } from './fake-gh';
+import { amberItems, contrastOf, expectAtMostTwoAmberItems, tokenColors } from './look';
 
 // The decision inbox in a browser: the page of a decision, the form that answers it, the banner on a doc, and the guards of the one write
 // route. The server is the real one (e2e/server.ts), with a fixture repo of sample docs and a fake gh that remembers its issues
@@ -78,107 +79,6 @@ async function readDecisions(request: APIRequestContext): Promise<DecisionsInfo>
   const panel = (await (await request.get('/api/decisions')).json()) as Panel<DecisionsInfo>;
   if (!panel.ok) throw new Error(`/api/decisions answered an error: ${panel.error.message}`);
   return panel.data;
-}
-
-// ---- the Look, measured in the browser ----
-// The Look (docs/diagrams/profile/NOTES.md) gives amber to the one or two things on a page that matter most, and keeps every text at 4.5 to 1 or more. These
-// helpers read the computed styles of the page, so a test can say it in numbers.
-
-/** The colors of the tokens as the browser writes them (`rgb(...)`), so that a test can compare them with a computed style. A probe element resolves each token. */
-async function tokenColors(page: Page): Promise<{ accent: string; ink: string; ruleSolid: string; soft: string }> {
-  return page.evaluate(() => {
-    const probe = document.createElement('i');
-    document.body.append(probe);
-    const read = (token: string): string => {
-      probe.style.color = `var(${token})`;
-      return getComputedStyle(probe).color;
-    };
-    const colors = { accent: read('--cc-accent'), ink: read('--cc-ink'), ruleSolid: read('--cc-rule-solid'), soft: read('--cc-soft') };
-    probe.remove();
-    return colors;
-  });
-}
-
-/**
- * The amber items of the page, each as a short name. An element is amber when it draws the accent color: as its fill, border, outline, stroke (an icon), or as the color
- * of text of its own (the ::before and ::after of an element count for the element). An amber element inside another is part of that item, so a banner with an amber
- * frame and an amber icon is one item. The whole page counts, not only the part in view.
- */
-async function amberItems(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
-    const probe = document.createElement('i');
-    probe.style.color = 'var(--cc-accent)';
-    document.body.append(probe);
-    const amber = getComputedStyle(probe).color;
-    probe.remove();
-
-    const drawsAmber = (element: Element, pseudo: string | null): boolean => {
-      const style = getComputedStyle(element, pseudo);
-      if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
-      if (pseudo === null && element.getClientRects().length === 0) return false;
-      if (pseudo !== null && (style.content === 'none' || style.content === 'normal')) return false;
-      if (style.backgroundColor === amber) return true;
-      for (const side of ['top', 'right', 'bottom', 'left']) {
-        if (Number.parseFloat(style.getPropertyValue(`border-${side}-width`)) > 0 && style.getPropertyValue(`border-${side}-style`) !== 'none' && style.getPropertyValue(`border-${side}-color`) === amber) return true;
-      }
-      if (Number.parseFloat(style.outlineWidth) > 0 && style.outlineStyle !== 'none' && style.outlineColor === amber) return true;
-      if (pseudo !== null) return style.color === amber;
-      if (element instanceof SVGSVGElement) return style.stroke === amber || style.fill === amber;
-      const hasText = [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() !== '');
-      return hasText && style.color === amber;
-    };
-
-    const amberElements = [...document.body.querySelectorAll('*')].filter((element) => [null, '::before', '::after'].some((pseudo) => drawsAmber(element, pseudo)));
-    const items = amberElements.filter((element) => !amberElements.some((other) => other !== element && other.contains(element)));
-    return items.map((element) => `${element.tagName.toLowerCase()}[${element.getAttribute('aria-label') ?? ''}] "${(element.textContent ?? '').trim().slice(0, 24)}"`);
-  });
-}
-
-/** The page keeps to two amber items, and says which they are when it does not. */
-async function expectAtMostTwoAmberItems(page: Page): Promise<void> {
-  const items = await amberItems(page);
-  expect(items.length, `amber items: ${items.join(' | ')}`).toBeLessThanOrEqual(2);
-}
-
-/**
- * The contrast of the text of an element: the color of its text against the color that it stands on, as the pixels show them. An element that is faded (`opacity`)
- * is drawn as a group and then blended into the page, so its text and its own fill both move toward the page color: that fade is part of the number.
- */
-function contrastOf(target: Locator): Promise<{ ratio: number; text: string; fill: string }> {
-  return target.evaluate((element) => {
-    type Rgba = { r: number; g: number; b: number; a: number };
-    const parse = (value: string): Rgba => {
-      const parts = (/\(([^)]+)\)/.exec(value)?.[1] ?? '0,0,0,0').split(/[ ,/]+/).filter(Boolean).map(Number);
-      return { r: parts[0] ?? 0, g: parts[1] ?? 0, b: parts[2] ?? 0, a: parts[3] ?? 1 };
-    };
-    const over = (top: Rgba, bottom: Rgba): Rgba => {
-      const a = top.a + bottom.a * (1 - top.a);
-      const mix = (t: number, b: number) => (a === 0 ? 0 : (t * top.a + b * bottom.a * (1 - top.a)) / a);
-      return { r: mix(top.r, bottom.r), g: mix(top.g, bottom.g), b: mix(top.b, bottom.b), a };
-    };
-    const luminance = ({ r, g, b }: Rgba): number => {
-      const channel = (value: number) => {
-        const s = value / 255;
-        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-      };
-      return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-    };
-
-    // What is behind the element: the backgrounds of its ancestors, from the page down.
-    let behind: Rgba = { r: 0, g: 0, b: 0, a: 1 };
-    let fade = 1;
-    for (let node: Element | null = element; node !== null; node = node.parentElement) fade *= Number(getComputedStyle(node).opacity);
-    const ancestors: Element[] = [];
-    for (let node = element.parentElement; node !== null; node = node.parentElement) ancestors.unshift(node);
-    for (const node of ancestors) behind = over(parse(getComputedStyle(node).backgroundColor), behind);
-
-    const style = getComputedStyle(element);
-    const text = over({ ...parse(style.color), a: fade }, behind);
-    const own = parse(style.backgroundColor);
-    const fill = over({ ...own, a: own.a * fade }, behind);
-    const [high, low] = [luminance(text), luminance(fill)].sort((x, y) => y - x);
-    return { ratio: ((high ?? 0) + 0.05) / ((low ?? 0) + 0.05), text: style.color, fill: style.backgroundColor };
-  });
 }
 
 test.describe('the page of a decision', () => {

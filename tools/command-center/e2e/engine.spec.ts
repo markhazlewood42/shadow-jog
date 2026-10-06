@@ -185,12 +185,13 @@ test.describe('the engine review', () => {
 
   test('an engine doc ends with Previous and Next: the first has no Previous and the last no Next', async ({ page }) => {
     const problems = watchConsole(page);
-    // The fixture has two engine docs that the README's reading order names: the README itself, and the decisions.
+    // The fixture has three engine docs that the README's reading order names: the README itself, the migration plan (a made-up stand-in that holds the
+    // milestones of the status panel) and the decisions. The README's order puts the migration plan between the other two.
     await page.goto('/docs/engine/README');
     await expect(documentOf(page).getByRole('heading', { level: 1 }).first()).toBeVisible();
     const buttons = page.getByRole('navigation', { name: 'Reading order' });
-    await expect(buttons.getByRole('link', { name: /^Next/ })).toHaveAttribute('href', '/docs/engine/decisions');
-    await expect(buttons.getByRole('link', { name: /^Next/ })).toContainText('Shadow Jog Engine — Decisions');
+    await expect(buttons.getByRole('link', { name: /^Next/ })).toHaveAttribute('href', '/docs/engine/migration');
+    await expect(buttons.getByRole('link', { name: /^Next/ })).toContainText('Shadow Jog Engine — Migration (fixture)');
     await expect(buttons.getByRole('link', { name: /^Previous/ })).toHaveCount(0);
 
     // The buttons are at the end of the doc, under its text.
@@ -199,15 +200,24 @@ test.describe('the engine review', () => {
     expect(end).toBeGreaterThan(lastHeading);
 
     await buttons.getByRole('link', { name: /^Next/ }).click();
+    await expect(page).toHaveURL(/\/docs\/engine\/migration$/);
+    await expect(documentOf(page).getByRole('heading', { level: 1 }).first()).toContainText('Migration');
+    expect(await page.evaluate(() => window.scrollY)).toBe(0); // a new doc opens at its top
+    // The middle doc has both buttons.
+    const middle = page.getByRole('navigation', { name: 'Reading order' });
+    await expect(middle.getByRole('link', { name: /^Previous/ })).toHaveAttribute('href', '/docs/engine/README');
+    await expect(middle.getByRole('link', { name: /^Next/ })).toHaveAttribute('href', '/docs/engine/decisions');
+
+    await middle.getByRole('link', { name: /^Next/ }).click();
     await expect(page).toHaveURL(/\/docs\/engine\/decisions$/);
     await expect(documentOf(page).getByRole('heading', { level: 1 }).first()).toContainText('Decisions');
-    expect(await page.evaluate(() => window.scrollY)).toBe(0); // a new doc opens at its top
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
     const last = page.getByRole('navigation', { name: 'Reading order' });
-    await expect(last.getByRole('link', { name: /^Previous/ })).toHaveAttribute('href', '/docs/engine/README');
+    await expect(last.getByRole('link', { name: /^Previous/ })).toHaveAttribute('href', '/docs/engine/migration');
     await expect(last.getByRole('link', { name: /^Next/ })).toHaveCount(0);
 
     await last.getByRole('link', { name: /^Previous/ }).click();
-    await expect(page).toHaveURL(/\/docs\/engine\/README$/);
+    await expect(page).toHaveURL(/\/docs\/engine\/migration$/);
 
     // A doc that is not in the reading order has no such buttons.
     await page.goto('/docs/guides/setup');
