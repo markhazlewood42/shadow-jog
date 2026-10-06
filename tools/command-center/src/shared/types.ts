@@ -285,7 +285,7 @@ export type YourMoveBox = {
   items: string[];
   /** The box says that there is nothing for Mark ("### 👉 Your move: nothing"). */
   nothing: boolean;
-  /** When the reply was written, as an ISO time. */
+  /** When the reply was written, as an ISO time ("" when its line has no time, which the files of Claude Code 2.1 do not have). */
   at: string;
   /** A prompt of Mark's came after the box. A message from a background task or from another session does not count as one. */
   answered: boolean;
