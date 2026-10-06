@@ -284,6 +284,26 @@ describe('GET /api/decisions/<n>', () => {
     expect(none.map((section) => [section.heading, section.html])).toEqual([[null, null], [null, null], [null, null]]);
   });
 
+  it('a link that names a path outside the docs reads no file: a path that goes up is dropped, and a path that the index does not have gives an empty section', async () => {
+    // No route takes a path: the doc and the heading of a link are looked up in the doc index, which is a map of the docs that it scanned. Nothing is read from the disk for a link.
+    const hostile = SEED.issues.map((issue) =>
+      issue.number === 43
+        ? {
+            ...issue,
+            body: `${issue.body.split('## Docs')[0]}## Docs\n\n- ../../outside.md#x\n- /etc/passwd#root\n- C:\\Windows\\win.ini#x\n- docs/../../../hosts#y\n- docs/guides/setup.md#installing\n\n## Raised by\n\nSession.\n`,
+          }
+        : issue,
+    );
+    const rig = rigOf({ store: { ...SEED, issues: hostile } });
+    const detail = dataOf((await detailOf(rig, 43)).panel);
+    // The links that go up out of the repo, and the one with a drive, are not links to a doc of the repo. "/etc/passwd" is read as the repo path "etc/passwd" (a link may start with a slash, as on GitHub), which no doc has.
+    expect(detail.docs.map((link) => `${link.docId}#${link.anchor}`)).toEqual(['etc/passwd#root', 'docs/guides/setup.md#installing']);
+    expect(detail.sections.map((section) => [section.docId, section.heading, section.html === null])).toEqual([
+      ['etc/passwd', null, true],
+      ['docs/guides/setup.md', 'Installing', false],
+    ]);
+  });
+
   it('the page shows the current text of the linked section', async () => {
     // The sections are built from the doc index at each request, not kept in the list: an edit of the doc shows at the next read.
     const rig = rigOf();
