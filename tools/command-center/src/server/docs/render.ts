@@ -210,11 +210,15 @@ function printTarget(resolved: ResolvedLink, href: string): Target {
 
 /**
  * An address that is safe to put in an `href` or `src`: a path on this site (one slash, not two:
- * `//host` would go to another site), or an http, https or mailto address. No spaces or control
- * characters. A resolver is trusted to answer well, and this is the second look in case it does not.
+ * `//host` would go to another site), or an http, https or mailto address. A resolver is trusted to
+ * answer well, and this is the second look in case it does not.
  */
 function isPrintable(url: string): boolean {
-  return /^\/(?![/\\])[^\s\u0000-\u001f]*$/.test(url) || /^(https?:\/\/|mailto:)[^\s\u0000-\u001f]+$/i.test(url);
+  // A browser drops tabs and line breaks from an address before it reads it, so `/<tab>/host`
+  // would turn into `//host`. No control character is allowed anywhere. (A plain space is fine:
+  // the browser encodes it, and it cannot change where the address goes.)
+  if (/[\u0000-\u001f\u007f]/.test(url)) return false;
+  return /^\/(?![/\\])/.test(url) || /^(https?:\/\/|mailto:)\S/i.test(url);
 }
 
 /** Turns a link that does not work into a span that says so. The words inside it stay as they were. */

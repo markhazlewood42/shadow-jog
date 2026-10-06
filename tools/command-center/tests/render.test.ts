@@ -250,7 +250,21 @@ describe('renderDoc: links', () => {
     expect(doc.links.map((link) => link.resolved.kind)).toEqual(['broken', 'broken']);
 
     // A resolver of another make that answers with an address that could run script: the renderer checks it again.
-    const unsafe = ['javascript:alert(1)', ' javascript:alert(1)', 'JAVASCRIPT:alert(1)', 'java\tscript:alert(1)', 'data:text/html,x', 'file:///etc/passwd', '//evil.example/x', 'x-custom:thing', ''];
+    const unsafe = [
+      'javascript:alert(1)',
+      ' javascript:alert(1)',
+      'JAVASCRIPT:alert(1)',
+      'java\tscript:alert(1)',
+      'data:text/html,x',
+      'file:///etc/passwd',
+      '//evil.example/x',
+      '/\\evil.example/x', // a browser reads the backslash as a slash
+      '/\t/evil.example/x', // a browser drops the tab, and what is left is //evil.example/x
+      '/\n/evil.example/x',
+      'https://example.com/\u0000',
+      'x-custom:thing',
+      '',
+    ];
     for (const url of unsafe) {
       for (const kind of ['external', 'github', 'asset'] as const) {
         const hostile: RenderContext = { docId: 'docs/x.md', resolve: () => ({ kind, url }) };
@@ -259,6 +273,12 @@ describe('renderDoc: links', () => {
         expect(rendered.html).not.toMatch(/href=|src=/i);
       }
     }
+    // A plain space in an address of this site is fine: the browser encodes it.
+    const spaced: RenderContext = { docId: 'docs/x.md', resolve: () => ({ kind: 'asset', url: '/files/ab12cd34/my diagram.png' }) };
+    const withSpace = renderDoc('[a link](x) and ![a picture](y)', spaced);
+    expect(withSpace.html).toContain('<a href="/files/ab12cd34/my diagram.png" target="_blank" rel="noopener noreferrer">a link</a>');
+    expect(attributesOf(withSpace.html, 'img').src).toBe('/files/ab12cd34/my diagram.png');
+
     // A resolver that calls a link in-page when it does not start with # gets a marker, not a link.
     const anchor: RenderContext = { docId: 'docs/x.md', resolve: () => ({ kind: 'anchor' }) };
     expect(tagNames(renderDoc('[a](javascript:alert(1))', anchor).html)).toEqual(['p', 'span']);
