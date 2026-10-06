@@ -3,8 +3,8 @@ type: design
 title: "Shadow Jog Engine — Conventions"
 project: shadow-jog
 created: 2026-10-04
-updated: 2026-10-04
-status: approved 2026-10-04 (all recommendations)
+updated: 2026-10-05
+status: approved 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, waiting for Mark's final approval
 tags: [engine, design]
 ---
 
@@ -71,7 +71,7 @@ In code comments the tags are `// ours`, `// deviation`, and `// on demand`.
 |---|---|---|---|---|---|---|
 | Draw order | `depth` | Sorting Layer, Order in Layer | `z_index` | `renderOrder` | **`depth`** | Phaser. The spike uses one number per object. |
 | Named order ranges | — | Sorting Layers | `CanvasLayer` index | — | **Bands in `depth.ts`** `(ours)` | Replaces magic numbers. |
-| Sort a figure as one | — | Sorting Group | `y_sort_enabled` + children | — | **`setSortingGroup`, `ySort`** | Unity and Godot ideas, as Container helpers. |
+| Sort a figure as one | — | Sorting Group | `y_sort_enabled` + children | — | **`setSortingGroup`, `ySort`** | Unity and Godot ideas, as Container helpers. `setSortingGroup` is not built in Phase 0 (every Container already sorts by depth). |
 | Camera | `Camera` | Camera, Cinemachine | `Camera2D` | `Camera` (an `Object3D`) | **`Camera`** | Phaser API. Pixi has none. |
 | Camera effects | `fade`, `flash`, `shake`, `pan`, `zoomTo` | Cinemachine impulse | — (no built-in shake) | — | **Same names, our arguments** `(deviation)` | See scene-graph.md section 5. |
 | HUD not moved by the camera | `setScrollFactor(0)` | Screen Space overlay | `CanvasLayer` | — | **`scene.add.layer({ ui: true })`** (primary), `setScrollFactor(0)` on top-level objects, and `scene.ui` | Phaser name. Only 0 and 1 are allowed. |
@@ -83,7 +83,7 @@ In code comments the tags are `// ours`, `// deviation`, and `// on demand`.
 | Concept | Phaser | Unity | Godot | Three.js | Shadow Jog | Why |
 |---|---|---|---|---|---|---|
 | Per-object effect | `filters.internal` and `filters.external`, after `enableFilters()` (4.0) | material, shader | `material` | `ShaderMaterial` | **`filters`**, a flat list `(deviation)` | Phaser 4 and Pixi use the same word. Our list is flat and needs no `enableFilters()`. |
-| Mask | `Mask` filter: `filters.internal.addMask(...)` (4.0) | `SpriteMask` | `clip_children` | stencil | **`filters.addMask`**, flat `(deviation)` | Phaser 4 idea. |
+| Mask | `Mask` filter: `filters.internal.addMask(...)` (4.0) | `SpriteMask` | `clip_children` | stencil | **`filters.addMask`**, flat `(deviation)` | Phaser 4 idea. One mask for each object (deviation 19). |
 | Whole-scene effect | camera `filters` | URP Volume | `WorldEnvironment` | `EffectComposer` | **`FxSystem`** `(ours)` | Keeps today's `postfx` names and `fx.json`. |
 | Effect presets as data | — | Volume Profile | `Environment` resource | — | **`fx.json`**. Optional future name: `Look` | Unity idea, only if you ask. |
 | Lights | `Lights` plugin | 2D Lights | `Light2D` | `Light` | **`scene.lights`** `(deviation)` | Phaser name. Behaviour is a multiply light map. |
@@ -138,7 +138,7 @@ In code comments the tags are `// ours`, `// deviation`, and `// on demand`.
 
 ## 3. Deviations from Phaser
 
-Every behavioural deviation in one list. E22 asks you to accept it. There are sixteen.
+Every behavioural deviation in one list. E22 asks you to accept it. There are nineteen. Items 17 to 19 are new in the Phase 0 update.
 
 1. `fixedUpdate(tick)` at a fixed 60 Hz replaces `update(time, delta)`. `update` is a compile error.
 2. `game.run` waits. Phaser's `ScenePlugin.run` does not.
@@ -156,10 +156,13 @@ Every behavioural deviation in one list. E22 asks you to accept it. There are si
 14. Pointer input and `setInteractive` exist only in dev and editor builds.
 15. `Graphics` is a subset: rects and lines only in v1.
 16. `Sprite extends ImageObject`. In Phaser, `Sprite` and `Image` are siblings.
+17. `ImageObject.setTexture` renames the object after the texture. Phaser's `setTexture` does not change the name. So a part cannot be found by `name`. Keep the part role with `setData('part', ...)`.
+18. A scene object runs once, and there is no scene restart. `game.run` and `game.reset` refuse a scene object that is closed or live. Phaser has `scene.restart(init)`. Here you make a new scene object: `game.run(new BattleStageScene(init))`.
+19. An object has one mask. `addMask` throws if the object already has one. Phaser 4 adds each mask as a filter in a list, so one object can hold several. To stack masks, nest the object in a container and mask the container. A sprite mask reads alpha (`channel: 'alpha'`).
 
 **Additions from other engines or from us.** These are new names, not deviations. They are tagged `(ours)` or with their source.
 
-- `container.ySort` (Godot y-sort) and `container.setSortingGroup` (Unity Sorting Group).
+- `container.ySort` (Godot y-sort) and `container.setSortingGroup` (Unity Sorting Group). `setSortingGroup` is not built in Phase 0, because every Container already sorts its children by depth.
 - `container.setGrain` for mixed-grain layers `(ours)`.
 - Depth bands in `depth.ts` (Unity Sorting Layers).
 - `setPixelSnap` and "snap to pixel" (Godot `snap_2d_transforms_to_pixel`).

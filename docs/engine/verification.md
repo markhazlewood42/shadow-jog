@@ -3,8 +3,8 @@ type: design
 title: "Shadow Jog Engine — Verification loops and rubrics"
 project: shadow-jog
 created: 2026-10-04
-updated: 2026-10-04
-status: approved 2026-10-04
+updated: 2026-10-05
+status: approved 2026-10-04. Phase 0 update on 2026-10-05 (the 640x360 numbers in B5 and V3), waiting for Mark's final approval
 tags: [engine, design, verification]
 ---
 
@@ -59,7 +59,7 @@ Scores run from 1 to 10. Anchors: **10** exemplary; **8** solid, with minor note
 | B2 | Correctness | Logic, edge cases and error paths are right. Context loss, dispose and re-entry are handled where they apply. |
 | B3 | Tests | The new risks have tests. The tests are deterministic and run in CI on software WebGL. |
 | B4 | Design conformance | Follows [scene-graph.md](scene-graph.md), [frame-and-rendering.md](frame-and-rendering.md), [conventions.md](conventions.md) and the levels in [README.md](README.md). Every deviation is tagged. |
-| B5 | Pixel fidelity | Snap to pixel, nearest filtering, integer scale. Zero non-uniform 4x4 blocks at zoom 4, or within the agreed tolerance. |
+| B5 | Pixel fidelity | Snap to pixel, nearest filtering, integer scale. Zero non-uniform k-by-k blocks at every tested zoom (k is 3 on a 1080p screen at 640x360), or within the agreed tolerance. |
 | B6 | Performance | Inside the frame budget. Bundle classes measured. No GPU object or memory growth over 10 enter-and-exit cycles. |
 | B7 | Code clarity | Small units. Comments a newcomer to the engine can follow. Game code does not touch Pixi. |
 | B8 | Docs and records | `CHANGELOG.md` entry (milestones). `docs/CONCEPTS.md` and `docs/GLOSSARY.md` rules followed. The design docs updated where the code differs. |
@@ -70,7 +70,7 @@ Scores run from 1 to 10. Anchors: **10** exemplary; **8** solid, with minor note
 |---|---|---|
 | V1 | Exactness | Every game pixel is an exact block at every tested integer zoom and device pixel ratio. |
 | V2 | Parity | The frame matches its reference (today's game, or the Phaser spike) within the agreed tolerance, with the differences listed. |
-| V3 | One pixel grid | 2D, HUD and 3D share one grain. No mixed pixel sizes that the design does not name. |
+| V3 | One pixel grid | 2D, HUD and 3D share one grain. No mixed pixel sizes that the design does not name. The named grains are 320x180 (grain 2) and 160x90 (grain 4). |
 | V4 | Stability | No flicker on transitions. Shimmer in motion stays inside the agreed metric. |
 | V5 | Legibility | Text and HUD read clearly at 1x and at the common zooms. |
 

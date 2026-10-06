@@ -3,8 +3,8 @@ type: design
 title: "Shadow Jog Engine — Scene graph"
 project: shadow-jog
 created: 2026-10-04
-updated: 2026-10-04
-status: approved 2026-10-04 (all recommendations)
+updated: 2026-10-05
+status: approved 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, waiting for Mark's final approval
 tags: [engine, design]
 ---
 
@@ -93,12 +93,12 @@ Each class is a `GameObject`. A `GameObject` owns exactly one Pixi node (composi
 | Class | Follows | Pixi v8 backing | Notes |
 |---|---|---|---|
 | `GameObject` | Phaser (base class, components as mixins) | none | Abstract. Holds `node`, `scene`, `name`, `data`, `active`. |
-| `ImageObject` | Phaser `Image` | `Sprite` | One texture or one frame. No animation. The name avoids the DOM global `Image`. |
+| `ImageObject` | Phaser `Image` | `Sprite` | One texture or one frame. No animation. The name avoids the DOM global `Image`. `originX`, `originY`, `flipX` and their setters live here, not on `GameObject`. A container or a graphics object has no texture to flip. |
 | `Sprite` | Phaser | `Sprite` | Adds `setFrame`. `play` is on demand (E23). Animation is driven by the fixed tick, never by Pixi `AnimatedSprite`. |
 | `Container` | Phaser | `Container` | Nestable. May be masked or filtered. Children list is `list`. |
 | `scene.add.layer()` | Phaser 4 `Layer` | `Container` kept at identity | Not a class. A factory name only. See the note below. |
 | `Group` | Phaser | none | A pool and a set of references. Not displayed. Built on demand. |
-| `Graphics` | Phaser | `Graphics` | Phaser `fillStyle(c,a).fillRect(...)` maps to Pixi `rect(...).fill({ color: c, alpha: a })`. The wrapper always uses the object form. 1 px lines use `stroke({ pixelLine: true })`. |
+| `Graphics` | Phaser | `Graphics` | Phaser `fillStyle(c,a).fillRect(...)` maps to Pixi `rect(...).fill({ color: c, alpha: a })`. The wrapper always uses the object form. 1 px lines are runs of 1 px rectangles (Bresenham). Pixi `pixelLine` is not exact: it leaves out the first pixel of a horizontal or vertical line and puts a diagonal one pixel off. `lineStyle` takes only width 1. |
 | `TextObject` | Phaser `Text` | `Sprite` over a cached canvas texture | Draws with the game's own font (`src/engine/font.ts`). Same look as today. The name avoids the DOM global `Text`. |
 | `BitmapText` | Phaser | Pixi `BitmapText` | Built on demand. Needs `pixi.js/text-bitmap` (plus 50 to 66 kB gzip). See E14. |
 | `NineSlice` | Phaser | `NineSliceSprite` | Built on demand. For window frames. |
@@ -106,9 +106,9 @@ Each class is a `GameObject`. A `GameObject` owns exactly one Pixi node (composi
 | `Zone` | Phaser | invisible hit `Container` | Hit area for editors. Can use a CPU pixel-alpha mask. |
 | `CanvasImage` | Phaser `CanvasTexture` + `Image` (ours as a class) | `Sprite` over a `CanvasSource` | Owns a canvas and `refresh()`. Used by the `LegacyScene` shell and by per-frame painters. |
 | `RenderImage` | Phaser `RenderTexture` | `RenderTexture` + `Sprite` | GPU only. A registry re-bakes it after a context loss. |
-| `View3D` | Three.js names inside, ours outside | `Sprite` over an `ExternalSource` | Shows the Three render target. See section 8. |
+| `View3D` | Three.js names inside, ours outside | `Sprite` over an `ExternalSource` | Shows the Three render target. See section 8. It is a `GameObject`, not an `ImageObject`, because it has no texture key. It lives at level 2. |
 
-**About `Layer`.** Phaser 4 `Layer` is a display list with no transform. We have no `Layer` class. `scene.add.layer()` returns a plain `Container` kept at identity. We do not use Pixi `RenderLayer`. Pixi docs say that children attached to a `RenderLayer` skip the filters of their ancestors. We did not test this, so `RenderLayer` is an internal option only.
+**About `Layer`.** Phaser 4 `Layer` is a display list with no transform. We have no `Layer` class. `scene.add.layer()` returns a plain `Container` kept at identity. We do not use Pixi `RenderLayer`. Pixi docs say that children attached to a `RenderLayer` skip the filters of their ancestors. Phase 0 tested this on Pixi 8.22 (real GPU and Firefox). A filter on an ancestor does not reach a child that is attached to a layer. A filter on the layer itself does not reach its attached child either. So do not use `RenderLayer` with filters. It stays an internal option only.
 
 **Rule: leaves have no children.** `ImageObject`, `Sprite`, `Graphics`, `TextObject`, and `View3D` refuse `add`. Pixi only logs a warning today and plans a hard error. We obey the rule from day one.
 
@@ -133,21 +133,21 @@ Each class is a `GameObject`. A `GameObject` owns exactly one Pixi node (composi
 Three helpers add the ideas of other engines:
 
 - **`container.ySort = true`** (Godot y-sort). The engine writes `depth = y` for the children at update time.
-- **`container.setSortingGroup(true)`** (Unity Sorting Group). All parts of one figure sort together. The spike's PART fractions work inside it.
+- **`container.setSortingGroup(true)`** (Unity Sorting Group). All parts of one figure sort together. The spike's PART fractions work inside it. Phase 0 did not build it and did not miss it. Every container already sorts its own children by `depth`, so a plain `Container` with parts of small local depths is a sorting group.
 - **Named bands** (Unity Sorting Layers and Order in Layer). One file, `depth.ts`, names the ranges. The values come from the spike where they exist.
 
 | Band | Starting depth | Content | Source of the value |
 |---|---|---|---|
 | `backdrop` | -1 | Sky, wall, floor art | Spike `BACKDROP` |
 | `floor` | set at M3 | Floor decals under the actors | none yet |
-| `actors` | 0 to 299,999 | Figures. `depthFor(y, closeness, side, order)` | Spike `config.ts` |
+| `actors` | 0 to 899,999 | Figures. `depthFor(y, closeness, side, order)` | Spike `config.ts`. The upper end is wider than the first design (299,999) |
 | `guide` | 900,000 | Editor guides | Spike |
 | `marks` | 1,000,000 | Active tag, target label, damage numbers | Spike `MARK` |
 | `fx` | set at M2 | Effect sprites and particles | none yet |
 | `hud` | 2,000,000 | HUD windows, in `uiRoot` | Spike `HUD` |
 | `overlay` | not a depth | Fade, flash, notice, in `overlayRoot` | ours |
 
-The spike formula stays: `depth = y*1000 + closeness*2 + side + order*1000`. The part offsets stay: shadow -0.5, ring -0.4, body 0, smear 0.1, bar 0.25.
+The spike formula stays: `depth = y*1000 + closeness*2 + side + order*1000`. At 360 rows a figure on the bottom row needs up to 361,641, which is over the first limit of 299,999. So the `actors` band runs to 899,999, just under `guide` at 900,000. The unit test of the band (`tests/sje-display.test.ts`) moves with it. The part offsets stay: shadow -0.5, ring -0.4, body 0, smear 0.1, bar 0.25.
 
 **Deviation from Unity.** Unity sorts across the hierarchy. We sort siblings inside a container. Reason: a filter or mask on a `Container` must apply to its children.
 
@@ -209,18 +209,31 @@ The M1 gate adds a Vitest case for the curtain rule. It ports "draws only the to
 Whole-pixel positions are a hard constraint. We call the rule **snap to pixel** (Godot `snap_2d_transforms_to_pixel`). It has one name in `GameObject` and in `Camera`.
 
 1. **Round at the wrapper.** `x` and `y` keep the logical value. The wrapper writes `Math.round` to the Pixi node. Exact `.5` positions are unreliable on the GPU. An 8x8 sprite at 40.5 drew 72 pixels in the lab.
-2. **The origin offset is a whole number of pixels.** The wrapper checks that `origin * texture size` is a whole number. If it is not, the wrapper rounds the origin and logs one warning in dev. The spike's feet data already gives whole numbers.
+2. **The origin offset is a whole number of pixels.** The wrapper checks that `origin * texture size` is a whole number. If it is not, the wrapper rounds the origin and logs one warning in dev. The spike's feet data already gives whole numbers. For an odd-sized picture at origin 0.5, the engine rounds `origin * size` half up, and Phaser rounds the vertex instead. Such a picture would probably sit one pixel left of the spike's. This comes from the two rules and was not measured, because no picture in the Phase 0 slice has an odd size.
 3. **Camera scroll is rounded.**
-4. **Renderer `roundPixels: true`** stays on as a second guard.
-5. **Opt out per object.** `setPixelSnap(false)` allows smooth motion. `View3D` uses it.
+4. **Renderer `roundPixels` is off.** Snap to pixel puts every position on a whole pixel first. So Pixi's own rounding changes no pixel in these cases (proof: `tests/sje-display.test.ts` for the arithmetic, and `e2e/sje-parta.spec.ts`, which draws the real renderer twice, with the option off and on):
+   - Scale 1, 2 and -1 (240 pictures of even and odd size, at any logical position).
+   - A 1.5x scale of a picture with a whole scaled size (a 16 pixel picture).
+   - The children of a 2x parent: whole children, children at a fractional logical position, odd-sized pictures, and a snap-off child at x.3.
+
+   It does change pixels in these cases. Neither setting puts the picture on one pixel grid there:
+   - A 1.5x scale of an odd-sized picture (an 11x9 picture changed 29 pixels).
+   - A snap-off node at a half pixel (at x 40.5 the picture moves one pixel, 272 pixels).
+   - A snap-off child of a 2x parent at a quarter pixel (544 pixels at x 24.25).
+   - The 1.09x push of the whole world, which is the battle camera (99 pixels on a GPU, 128 on SwiftShader). The texel sizes are uneven at 1.09x with either setting.
+
+   An edge exactly half way is a tie. A tie depends on the renderer, so it is never safe in either direction. A GPU computes the edge in floating point first, so the exact-arithmetic model and the real renderer can disagree. The renderer check is the authority. Do not rely on a tie.
+
+   Pixi's own rounding changed nothing on a GPU in the sprite mask case. On SwiftShader it lost a strip of pixels where a sprite mask crosses overlapping objects. A bare Pixi app shows the same loss. M3 decides what the battle push may do.
+5. **Opt out per object.** `setPixelSnap(false)` allows smooth motion. `View3D` does not use it. The 3D target sits on the same pixel grid as every 2D object, and a fractional position would smear it.
 6. **Nearest filtering.** The engine sets `TextureStyle.defaultOptions.scaleMode = 'nearest'` before any texture exists. Pixi's default is `linear`. The built-in `Texture.WHITE` and `Texture.EMPTY` stay linear. The crispness test has an allow-list for them.
-7. **Mixed grains.** The battle mixes 240x135 layers shown at 2x with 480x270 layers. `container.setGrain(2)` `(ours)` makes a container with scale 2, positioned in the coarse grid. Nearest filtering and integer positions keep it crisp. Nested scaled containers in the battle push camera (up to 1.09x) are not tested. M3 tests them.
+7. **Mixed grains.** The battle mixes layers shown at 2x with full-size layers. At 640x360 grain 2 is 320x180 and grain 4 is 160x90. At 480x270 grain 2 was 240x135. A mixed-grain layer is authored at 320x180 or 160x90. Nobody scales a 240x135 layer by 2.667 to fit. `container.setGrain(2)` `(ours)` makes a container with scale 2, positioned in the coarse grid. Nearest filtering and integer positions keep it crisp. Phase 0 did not build `setGrain` and did not use it. It baked the world layer at 2x into the stage picture on a canvas, as the Phaser spike does. M3 decides between the bake and `setGrain`. Phase 0 tested what a 2x parent does to the pixels of its children (point 4): whole children, children at a fractional logical position and odd-sized pictures stay whole. The battle push camera (up to 1.09x) is a nested scaled container too. It changes pixels with either rounding setting (point 4).
 
 ### Origin and flip
 
 - **Origin is 0.5 by default (Phaser).** Pixi's default anchor is (0,0). A port without a fix moves every sprite by half its size. The wrapper always sets `anchor = origin` on every leaf.
 - **Flip follows Phaser.** Phaser flips about the middle of the texture. The wrapper sets `scale.x = -abs(scaleX)` and `anchor.x = 1 - originX`. This reproduces Phaser's picture, so the spike's `mirrorFigure` maths (`foot.x = w - foot.x`) stays valid.
-- **Not tested:** this flip rule with `roundPixels` and a negative scale. M1 adds a Playwright test.
+- **Tested in Phase 0:** this flip rule with a negative scale. 60 combinations give 0 pixels of difference from Canvas 2D. They cover widths 8, 9, 15 and 16, origins 0, 0.5 and 1, an own negative scale, `flipX`, a mirrored parent, and both axes. This holds when the origin lands on a whole pixel, which the engine forces. The punk of the stage slice, flipped with the anchor rule, also has 0 differing pixels. The results hold with `roundPixels` off.
 
 ---
 
@@ -231,7 +244,7 @@ Whole-pixel positions are a hard constraint. We call the rule **snap to pixel** 
 - It can sit in any scene's list, not only in a `Scene3D`. Example: a field overlay, or a dialog over a hack.
 - A filter, mask, blend mode, or tween works on it. An iris wipe is a `Graphics` mask on the `View3D`.
 - Allowed blend modes over 3D pixels: `normal`, `add`, `multiply`, `screen`, `min`, `max`. Advanced modes such as `overlay` cannot see Three's pixels. The type `SjBlend` blocks them.
-- A sprite (alpha) mask and a custom GLSL filter on the `View3D` are not tested yet. A `Graphics` mask and built-in filters are tested in the lab.
+- Phase 0 tested a built-in filter, a custom GLSL filter, a `Graphics` mask and a sprite (alpha) mask on the `View3D`. All four are exact within 1/255. See [frame-and-rendering.md](frame-and-rendering.md) section 6.4.
 
 ---
 
@@ -257,11 +270,11 @@ Pixi events need `eventMode`, bounds, and an import that starts its own ticker. 
 | Flip | `setFlipX(b)` | `scale.x`, `anchor.x` | Phaser maths, see section 7. |
 | Blend | `setBlendMode(ADD)` | `blendMode = 'add'` | Only fixed-function modes. |
 | Container | `add.container()` | `new Container()` | `destroy({ children: true })` removes the tree. |
-| Graphics fill | `fillStyle(c,a).fillRect()` | `g.rect(x,y,w,h).fill({ color: c, alpha: a })` | Rects and lines only in v1. The two-argument form `fill(color, alpha)` is deprecated in 8.22 and warns. |
+| Graphics fill | `fillStyle(c,a).fillRect()` | `g.rect(x,y,w,h).fill({ color: c, alpha: a })` | Rects and 1 px lines only in v1. The two-argument form `fill(color, alpha)` is deprecated in 8.22 and warns. |
 | Nearest filter | `texture.setFilter(NEAREST)` | `source.scaleMode = 'nearest'` | Set as the global default. |
 | Scroll factor | `setScrollFactor(0)` | the scene's `ui` container | Only 0 and 1. Top-level children only. |
 | Camera | `cameras.main.setScroll` | position of `scene.world` | Rounded. |
-| Mask | `go.filters.internal.addMask(obj)` (needs `enableFilters()`) | `container.mask` | Our flat `go.filters.addMask(obj)`. Graphics masks use the stencil buffer. |
+| Mask | `go.filters.internal.addMask(obj)` (needs `enableFilters()`) | `container.mask` | Our flat `go.filters.addMask(obj)`. Graphics masks use the stencil buffer. One mask for each object. A sprite mask reads alpha. |
 | Filters | `go.filters.internal.add(filter)` or `.external.add(filter)` (needs `enableFilters()`) | `container.filters` | Our flat `go.filters.add(effect)`. Custom filters pass a vertex and a fragment. |
 | Texture bag | `texture.customData` | none | `TextureManager` keeps a `data` bag per key. |
 | Pixel alpha | `getPixelAlpha(x, y, key)` | none | CPU pixels in the `data` bag. |
@@ -289,8 +302,8 @@ A future `Look` (Unity URP Volume Profile idea) is an optional name for the data
 
 The engine has no layout system. This is on purpose.
 
-- UI objects use absolute positions in `size.ts` coordinates (480x270).
-- Named anchors (`W/2`, margins, safe edges) live in one file (proposed: `ui/layout.ts`). A resolution change then touches one place. E12 gives the cost of a change to 640x360: 7 to 11 agent-days of re-layout (estimate).
+- UI objects use absolute positions in `size.ts` coordinates (640x360). UI layouts are authored for 640x360. They are not scaled from 480x270.
+- Named anchors (`W/2`, margins, safe edges) live in one file, `ui/layout.ts`. It is required now, not proposed. The HUD and every new layout take their anchors from `W` and `H`. A later change of size then touches one place. The Phase 0 mock shows why. The 3D HUD anchors its NODE panel to the right edge (`W - 6 - 78`), so it followed the size with no change. The caption bar was placed by numbers for 270 rows, so at 640x360 it floats at row 253 of 360.
 - Windows are baked textures (today's `drawWindow`). A `NineSlice` is built on demand.
 - `ListMenu` and the cursor are helper classes made of `Container`s. They are not engine primitives. They arrive with M4, on demand.
 - A HUD lives in `scene.ui`, or in `scene.add.layer({ ui: true })`. It does not move with the camera.
