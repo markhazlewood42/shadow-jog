@@ -92,7 +92,8 @@ type Json = Record<string, unknown>;
  * Reads and checks a config file. The paths in the file are relative to the file itself (so the
  * file holds no machine-specific path and the repo can be public); the Config that comes back has
  * absolute ones. A setting that is wrong, missing or unknown stops the start with a message that
- * names it, because a typo in a safety setting such as `githubRepo` must not be ignored.
+ * names it, because a typo in a safety setting such as `githubRepo` must not be ignored. The one
+ * setting that may be left out is `claude.includeSdk` (it means false).
  */
 export function loadConfig(file: string): Config {
   const configFile = resolve(file);
