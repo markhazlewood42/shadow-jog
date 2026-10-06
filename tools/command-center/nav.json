@@ -43,7 +43,7 @@
     {
       "id": "command-center",
       "title": "Command center",
-      "items": ["docs/command-center/"]
+      "items": ["docs/command-center/", "tools/command-center/README.md"]
     }
   ]
 }

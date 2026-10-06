@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - CI runs its checks as three jobs at the same time and skips a change that touches only docs, notes or `tools/command-center/`. The real-speed playtest runs on pushes to `main` and from the Actions tab, not on pull requests.
 
 ### Added
+- The Command Center (`npm run cc`, http://localhost:3009): a local website with what is going on now, every doc in one place, the sessions and agents, and the design decisions that wait on Mark, who answers them on a page that posts to a GitHub issue. It lives in `tools/command-center/` and does not touch the game.
 - Saves record the game version that wrote them.
 - A slot saved by a newer version says so ("Saved by a newer version") instead of "damaged", and asks before it is replaced.
 

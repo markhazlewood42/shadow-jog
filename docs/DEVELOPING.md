@@ -3,7 +3,7 @@ type: reference
 title: Shadow Jog — Developing
 project: shadow-jog
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-06
 tags: [development, testing, tooling, recipes]
 ---
 
@@ -33,12 +33,13 @@ npm install
 | `npm run lint` | Biome lint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run budget` | Build, then the bundle budget |
+| `npm run cc` | The Command Center on **http://localhost:3009** (installs its packages, builds its page, opens a tab; section 10) |
 | `npm run e2e` | Every Playwright spec (long: prefer running the ones you need, below) |
 | `npm run shots` | Regenerate `docs/screenshots/` |
 | `bash scripts/evidence.sh` | Regenerate all quality evidence (~25 min; see section 6) |
 
-**Ports:** 3007 (dev) and 3008 (preview) belong to this project. The home-base workspace reserves 3002–3006 for
-other projects: never kill those.
+**Ports:** 3007 (dev), 3008 (preview), 3009 (the Command Center) and 3010 (its Playwright server) belong to this
+project. The home-base workspace reserves 3002–3006 for other projects: never kill those.
 
 ---
 
@@ -431,3 +432,15 @@ To abandon one: fill in the Result section of its doc (ABANDONED, date, reason, 
 ### Save policy
 
 `SAVE_VERSION` (`src/game/state.ts`) is independent of the app version. Bump it only when a field is renamed or reshaped, and add a `MIGRATIONS[oldVersion]` step plus a unit test against a fixture save from the previous version (see "A new save field" in section 8). Purely additive fields need no bump: `backfill()` fills them in. A newer 0.x build must load any older 0.x save. Wipes happen only on purpose, announced in-game and in the changelog, never from a half-working migration.
+
+---
+
+## 10. The Command Center
+
+`tools/command-center/` is a local website for the project: what is going on now, every doc in one place, and the design decisions that wait on Mark. It is a separate package with its own `package.json`, lock file and `node_modules`. It imports nothing from `src/`, and the game does not depend on it. Full guide: `tools/command-center/README.md` (install, config keys, how to add a nav section, how decisions work, trouble signs). Design: `docs/command-center/design.md`.
+
+- **Start:** `npm run cc` from the repo root. It installs the tool's packages, builds the page, starts the server on **3009** and opens a tab. Set `CC_NO_OPEN=1` to skip the tab (every test and automated run does).
+- **Check it:** `npm --prefix tools/command-center run check` (typecheck and Vitest) and `npm --prefix tools/command-center run e2e` (Playwright, on its own server at **3010**). The root `npm run check` does not run them, and CI skips a change that touches only `tools/command-center/`: run both before you push a change there.
+- **Read-only, with one write.** The server reads the repo, `git`, `gh` and the Claude session files. Its one write is Mark's answer to a decision issue, through `gh`. `tests/no-fs-write.test.ts` fails if the server's source can write a file.
+- **A new doc** shows in the command center on its own. If it belongs in a section, add it to `tools/command-center/nav.json`: a doc that no section names lands under "Other".
+- **Raise a decision** only when it blocks work, changes an approved design, or touches more than one session or branch. The rule and the commands are in `CLAUDE.md` ("Decisions for Mark").

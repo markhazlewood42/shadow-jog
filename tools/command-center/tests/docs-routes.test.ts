@@ -409,11 +409,14 @@ async function realListing(): Promise<DocsListing> {
   return panel.data;
 }
 
-/** The markdown files under docs/ and at the root, as git finds them (tracked, or untracked and not ignored): not found by the server under test. */
+/**
+ * The markdown files under docs/ and at the root, as git finds them (tracked, or untracked and not ignored): not found by the server under test.
+ * The README of this tool is the one doc outside both places: nav.json names it (ruling R4), so the index holds it.
+ */
 function realDocIds(): string[] {
   return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: REPO_DIR, encoding: 'utf8' })
     .split('\0')
-    .filter((path) => /^docs\/.+\.md$/i.test(path) || /^[^/]+\.md$/i.test(path));
+    .filter((path) => /^docs\/.+\.md$/i.test(path) || /^[^/]+\.md$/i.test(path) || path === 'tools/command-center/README.md');
 }
 
 /** The slug of every doc item in the nav, sections and Other together. */
