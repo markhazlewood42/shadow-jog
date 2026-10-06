@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MIN_FORCED_REFRESH_GAP_MS, registerPanelRoute } from '../src/server/routes/panel';
+import { MIN_FORCED_REFRESH_GAP_MS, createRefreshGate, registerPanelRoute } from '../src/server/routes/panel';
 import type { PanelSource } from '../src/server/source';
 import type { Panel } from '../src/shared/types';
 import { getFrom, makeApp } from './helpers';
@@ -110,5 +110,42 @@ describe('registerPanelRoute', () => {
     registerPanelRoute(app, '/api/stub', source);
     const res = await app.request('/api/stub', { method: 'POST', headers: { host: 'localhost:3009' } });
     expect(res.status).toBe(405);
+  });
+
+  it('routes that share a gate share the rule: one forced load in the gap for all of them', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: 1_000_000 });
+    const gate = createRefreshGate(10_000);
+    const { source, loads } = stubSource();
+    const { app } = makeApp();
+    registerPanelRoute(app, '/api/one', source, { gate });
+    registerPanelRoute(app, '/api/two', source, { gate });
+    await getFrom(app, '/api/one'); // the first load
+    await getFrom(app, '/api/one?refresh=1');
+    expect(loads()).toBe(2);
+    await getFrom(app, '/api/two?refresh=1'); // another route, the same gate: too soon
+    expect(loads()).toBe(2);
+    vi.setSystemTime(1_000_000 + 10_000);
+    await getFrom(app, '/api/two?refresh=1');
+    expect(loads()).toBe(3);
+  });
+
+  it('createRefreshGate lets one call through in each gap, and every call with a gap of 0', () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: 5_000 });
+    const gate = createRefreshGate(1000);
+    expect([gate(), gate()]).toEqual([true, false]);
+    vi.setSystemTime(5_999);
+    expect(gate()).toBe(false);
+    vi.setSystemTime(6_000);
+    expect(gate()).toBe(true);
+    const open = createRefreshGate(0);
+    expect([open(), open(), open()]).toEqual([true, true, true]);
+    // With no gap given the gap is the 10 s of the panels.
+    const standard = createRefreshGate();
+    vi.setSystemTime(6_000 + 1);
+    expect([standard(), standard()]).toEqual([true, false]);
+    vi.setSystemTime(6_001 + MIN_FORCED_REFRESH_GAP_MS - 1);
+    expect(standard()).toBe(false);
+    vi.setSystemTime(6_001 + MIN_FORCED_REFRESH_GAP_MS);
+    expect(standard()).toBe(true);
   });
 });

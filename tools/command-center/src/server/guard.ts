@@ -46,7 +46,8 @@ const ANSWER_PATH = /^\/api\/decisions\/\d+\/answer$/;
 /**
  * Answers 405 to every method except GET, with one exception: POST to the decision answer path.
  * The server is read-only, so a request that would change something is refused before any route
- * sees it. (That route is added when the decision inbox is built.)
+ * sees it. The `Allow` header of the refusal names the method that the path does take: POST for the
+ * answer path, and GET for every other.
  */
 export function createMethodGate(): MiddlewareHandler {
   return async (c, next) => {
@@ -55,7 +56,7 @@ export function createMethodGate(): MiddlewareHandler {
       await next();
       return;
     }
-    return c.json(apiError('method-not-allowed', 'This server only reads. The one write is the answer to a decision.'), 405, { Allow: 'GET' });
+    return c.json(apiError('method-not-allowed', 'This server only reads. The one write is the answer to a decision.'), 405, { Allow: ANSWER_PATH.test(path) ? 'POST' : 'GET' });
   };
 }
 

@@ -128,8 +128,8 @@ function repoLink(link: string, fromDocId: string, known: KnownTargets, githubBl
   return { kind: 'github', url: withAnchor(blob, anchor) };
 }
 
-/** Decodes `%C3%A9` to `é`. An anchor that is not valid percent-encoding (`100%`) stays as it was written. */
-function decodeOrKeep(text: string): string {
+/** Decodes `%C3%A9` to `é`. An anchor that is not valid percent-encoding (`100%`) stays as it was written. The decisions module reads the anchors of an issue with it too. */
+export function decodeOrKeep(text: string): string {
   try {
     return decodeURIComponent(text);
   } catch {

@@ -3,12 +3,14 @@ import { join } from 'node:path';
 import type { Hono } from 'hono';
 import { createApp } from './app';
 import { type Config, PACKAGE_DIR } from './config';
+import { createDecisionsSource } from './decisions/module';
 import { createDocIndex } from './docs/index';
 import { createEngineModule } from './engine/module';
 import { createGitSource } from './git/module';
 import { createGithubSource } from './github/module';
 import { makeToken } from './guard';
 import { createHub } from './hub';
+import { registerDecisionsRoutes } from './routes/decisions';
 import { registerDocsRoutes } from './routes/docs';
 import { registerEngineRoutes } from './routes/engine';
 import { registerGitRoutes } from './routes/git';
@@ -72,7 +74,10 @@ export function compose(deps: ComposeDeps): Composed {
   // The docs: every doc of the repo, read once, kept up to date by a file watcher, and served
   // under /api/docs, /api/search and /files. Its first scan is part of start().
   const docs = createDocIndex({ config, runner, hub }, deps.navFile === undefined ? {} : { navFile: deps.navFile });
-  registerDocsRoutes(app, docs);
+  // The decisions: the decision issues of the repository, read with gh. The docs routes ask it which open decisions link to a doc (for the
+  // banners), so it is made before they are registered; its own routes (below) need the token, and are registered with the other panels.
+  const decisions = createDecisionsSource({ config, runner, docs, hub });
+  registerDocsRoutes(app, docs, decisions);
   modules.push({ start: () => docs.ready(), stop: () => docs.close() });
 
   // The engine review: every decision of the engine docs with its status, under /api/engine. It reads
@@ -84,6 +89,11 @@ export function compose(deps: ComposeDeps): Composed {
   // The three panels that look at the project's state, each under its own path. They share the rule
   // for a forced refresh (`?refresh=1`, at most one in 10 s: see routes/panel.ts).
   const panelRoutes = deps.refreshGapMs === undefined ? {} : { minGapMs: deps.refreshGapMs };
+
+  // The decision inbox: the open decisions and the recent answers under /api/decisions, one decision with its doc sections, and the one
+  // write route of the server: Mark's answer, which accepts only a request that carries this run's token (see routes/decisions.ts).
+  registerDecisionsRoutes(app, { config, runner, docs, decisions, token, ...panelRoutes });
+  modules.push(decisions);
 
   // The project status: the current "Right now" section and "Next up for Mark" list of status.md, and the
   // milestones of the engine migration plan, under /api/status. The doc index renders the markdown.

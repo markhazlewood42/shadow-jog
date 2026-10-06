@@ -1,10 +1,12 @@
 import { lstat, readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import type { Hono } from 'hono';
-import type { DocNotFound, DocPageData, DocRef, DocsListing, NavItem, NavSection, Panel, ReadingOrder, SearchHit } from '../../shared/types';
+import type { DocDecision, DocNotFound, DocPageData, DocRef, DecisionsInfo, DocsListing, NavItem, NavSection, Panel, ReadingOrder, SearchHit } from '../../shared/types';
+import { bannersOf } from '../decisions/module';
 import type { DocIndex } from '../docs/index';
 import { isMissing } from '../fs-errors';
 import { apiError } from '../guard';
+import type { PanelSource } from '../source';
 
 // The routes of the docs module. Every one is a GET, and none takes a path: a doc is asked for by
 // its slug, a file by the id that the index made for it, and both are looked up in the index, so
@@ -20,6 +22,28 @@ function panelOf<T>(data: T): Panel<T> {
 
 /** The doc whose "Reading order" list the engine docs follow: the README of docs/engine. */
 const READING_ORDER_DOC = 'engine/README';
+
+/** How long a doc page waits for the decisions (their banners) before it goes on without them. A doc must not hang because gh does not answer. */
+const DECISIONS_WAIT_MS = 2000;
+
+/**
+ * The banners of a doc: the open decisions that link to a heading of it. Null when they cannot be said: the decisions source has no list (gh
+ * failed and never worked) or does not answer within `waitMs`. A source that failed but has an earlier good list gives the banners of that list.
+ */
+async function bannersFor(source: PanelSource<DecisionsInfo>, docId: string, waitMs: number): Promise<DocDecision[] | null> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<null>((done) => {
+    timer = setTimeout(() => done(null), waitMs);
+  });
+  try {
+    const panel = await Promise.race([source.get(), timeout]);
+    if (panel === null) return null;
+    const info = panel.ok ? panel.data : panel.lastGood?.data;
+    return info === undefined ? null : bannersOf(info, docId);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /** The id that the index gives the section of docs that nav.json does not name. It lists docs in no order of their own. */
 const OTHER_SECTION_ID = 'other';
@@ -57,8 +81,13 @@ function readingOrderOf(nav: readonly NavSection[], slug: string): ReadingOrder 
  *
  * Each route waits for the index's first scan, so a page that asks while the server is starting
  * gets the answer a moment later and not an empty one.
+ *
+ * `decisions` is the source of the decisions module. With it, a doc also says which open decisions link to a heading of it (`decisions`
+ * in the data of `GET /api/docs/<slug>`, for the banners). A doc page waits at most `decisionsWaitMs` for it. Without it, `decisions` is null.
  */
-export function registerDocsRoutes(app: Hono, docs: DocIndex): void {
+export function registerDocsRoutes(app: Hono, docs: DocIndex, decisions?: PanelSource<DecisionsInfo>, options: { decisionsWaitMs?: number } = {}): void {
+  const decisionsWaitMs = options.decisionsWaitMs ?? DECISIONS_WAIT_MS;
+
   app.get('/api/docs', async (c) => {
     await docs.ready();
     const listing: DocsListing = { docs: docs.list(), nav: docs.nav(), problems: docs.problems() };
@@ -81,7 +110,11 @@ export function registerDocsRoutes(app: Hono, docs: DocIndex): void {
       };
       return c.json(missing, 404);
     }
-    const data: DocPageData = { ...page, readingOrder: readingOrderOf(docs.nav(), slug) };
+    const data: DocPageData = {
+      ...page,
+      readingOrder: readingOrderOf(docs.nav(), slug),
+      decisions: decisions === undefined ? null : await bannersFor(decisions, page.id, decisionsWaitMs),
+    };
     return c.json(panelOf(data));
   });
 

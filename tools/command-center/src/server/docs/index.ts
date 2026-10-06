@@ -93,8 +93,8 @@ const sha1 = (text: string): string => createHash('sha1').update(text).digest('h
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-/** The slug of a doc: its repo path without `.md` and without a leading `docs/`. */
-const slugOf = (id: string): string => id.replace(/\.md$/i, '').replace(/^docs\//, '');
+/** The slug of a doc: its repo path without `.md` and without a leading `docs/`. The decisions module uses it to name the doc that an issue links to. */
+export const slugOf = (id: string): string => id.replace(/\.md$/i, '').replace(/^docs\//, '');
 
 /** A path (a repo path, or an absolute path inside the repo) as a repo path with forward slashes, or null when it is outside the repo. */
 function repoPathOf(root: string, path: string): string | null {

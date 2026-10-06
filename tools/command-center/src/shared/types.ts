@@ -174,6 +174,12 @@ export type ReadingOrder = { prev: DocRef | null; next: DocRef | null };
 export type DocPageData = DocPage & {
   /** Where the doc sits in the reading order of the engine docs, or null when it is not in that order. */
   readingOrder: ReadingOrder | null;
+  /**
+   * The open decisions that link to a heading of this doc, one entry for each link (a decision that links two
+   * headings of the doc has two). The page shows a banner above each linked heading. Empty when none does, and
+   * null when the decisions could not be read from GitHub (so the page can say that the banners are missing).
+   */
+  decisions: DocDecision[] | null;
 };
 
 // ---- project status, git and GitHub ----
@@ -386,3 +392,76 @@ export type SessionInfo = {
  * not even by their id.
  */
 export type SessionsInfo = { sessions: SessionInfo[]; scanned: number; skipped: number; hiddenSdk: number };
+
+// ---- decisions (the decision inbox) ----
+// The shapes of the decisions module (src/server/decisions). A decision is a GitHub issue of the
+// repo with the label `decision`, and only an issue, a comment and a label by Mark's account count
+// (the repo is public, so anyone can write there). Everything in them that comes from the issue
+// (the title, the question, the options, the notes) is text that anyone could have typed in a
+// place that Mark's account wrote: a page must show it as plain text, never as html. The one
+// exception is a field called `html`: the doc index made it, and it is safe to put into the page.
+
+/** One option that Mark can pick: the id he picks (`A`) and the text of what it is and what it changes. */
+export type DecisionOption = { id: string; text: string };
+
+/**
+ * A link from a decision to a section of a doc. The issue writes it as `path#heading`.
+ * `docId` is the path in the repo (the id that the doc index uses), `slug` is the doc's address on the
+ * site, `anchor` is the id that the page gives the heading (the issue's words, put through the same
+ * slugger as the docs, so `5.5 Decisions` and `55-decisions` both give `55-decisions`), and `heading` is the
+ * words of that heading in the doc, or null when the doc has no such heading (then the page shows a notice).
+ */
+export type DecisionDocLink = { docId: string; slug: string; anchor: string; heading: string | null };
+
+/**
+ * What Mark answered, from the newest `Decision:` comment that his account wrote. `complete` says that the two
+ * other parts of an answer are there too: the issue is closed, and the label `decided` is on it and Mark's
+ * account put it there. An answer that is not complete is one that stopped half way (a retry finishes it).
+ */
+export type DecisionAnswer = { option: string; note: string | null; at: string; complete: boolean };
+
+/**
+ * One decision issue. `state` is `open` (it waits for Mark, also when an answer stopped half way), `answered`
+ * (a closed issue, a trusted `Decision:` comment, and a `decided` label that Mark's account set) or `closed`
+ * (closed, and not a complete answer: someone closed it, or the label came from another account).
+ *
+ * `problem` says why the page cannot show the issue as a decision (the body is not the template, or it is the
+ * template with nothing filled in), or is null. The issue is still listed then, with an empty question and no
+ * options when the body gave none, because an agent may write its own body.
+ */
+export type DecisionIssue = {
+  number: number;
+  title: string;
+  /** The issue on GitHub (an http or https address), for the "open on GitHub" link. */
+  url: string;
+  state: 'open' | 'answered' | 'closed';
+  question: string;
+  context: string | null;
+  options: DecisionOption[];
+  /** The id of the recommended option, or null when the issue names none (or names one that is not listed). */
+  recommended: string | null;
+  docs: DecisionDocLink[];
+  raisedBy: string | null;
+  waitsOn: string | null;
+  createdAt: string;
+  answer: DecisionAnswer | null;
+  problem: string | null;
+};
+
+/** One linked section of a decision page: the heading and the html of its section as the docs have it now, or nulls when the heading is not in the doc. */
+export type DecisionSection = { docId: string; anchor: string; heading: string | null; html: string | null };
+
+/** What `GET /api/decisions/<n>` holds (inside a Panel): the decision, and the linked sections as they are in the docs now. `sections` is in the order of `docs`. */
+export type DecisionDetail = DecisionIssue & { sections: DecisionSection[] };
+
+/** What `GET /api/decisions` holds (inside a Panel): the decisions that wait for Mark, and the ones he answered in the last week. */
+export type DecisionsInfo = { open: DecisionIssue[]; recent: DecisionIssue[] };
+
+/** One banner of a doc page: an open decision that links to the heading with the id `anchor` of that doc. */
+export type DocDecision = { number: number; title: string; anchor: string };
+
+/** The three writes of an answer, in the order the server makes them. */
+export type AnswerStep = 'comment' | 'label' | 'close';
+
+/** The body of a failed `POST /api/decisions/<n>/answer`. `step` names the write that failed, when the failure came from a write (the steps before it are done). */
+export type AnswerErrorBody = ApiErrorBody & { step?: AnswerStep };

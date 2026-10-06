@@ -12,9 +12,28 @@ import type { PanelSource } from '../source';
  */
 export const MIN_FORCED_REFRESH_GAP_MS = 10_000;
 
+/** Says whether a forced load may start now. When it says yes, the time is taken, so the next request has to wait. */
+export type RefreshGate = () => boolean;
+
+/** A gate that lets one forced load through in each `minGapMs`. */
+export function createRefreshGate(minGapMs: number = MIN_FORCED_REFRESH_GAP_MS): RefreshGate {
+  let lastForcedAt = Number.NEGATIVE_INFINITY;
+  return () => {
+    const now = Date.now();
+    if (now - lastForcedAt < minGapMs) return false;
+    lastForcedAt = now;
+    return true;
+  };
+}
+
 export type PanelRouteOptions = {
   /** The least time between two forced loads, in milliseconds. 10 000 when this is not set. The end-to-end server sets 0, so a test can change what the fake gh says and see it at once. */
   minGapMs?: number;
+  /**
+   * The gate to use instead of a new one made from `minGapMs`. A module that serves more than one route from one source (the decisions
+   * module has the list and the page of one decision) gives all its routes the same gate, so the rule "one forced load in 10 seconds" holds for the source and not for each route.
+   */
+  gate?: RefreshGate;
 };
 
 /**
@@ -33,16 +52,7 @@ export type PanelRouteOptions = {
  * Anything else is answered from what the source has, so a page that is opened costs no `gh` call.
  */
 export function registerPanelRoute<T>(app: Hono, path: string, source: PanelSource<T>, options: PanelRouteOptions = {}): void {
-  const minGapMs = options.minGapMs ?? MIN_FORCED_REFRESH_GAP_MS;
-  let lastForcedAt = Number.NEGATIVE_INFINITY;
-
-  /** Whether a forced load may start now. When it may, the time is taken, so the next request has to wait. */
-  function mayForce(): boolean {
-    const now = Date.now();
-    if (now - lastForcedAt < minGapMs) return false;
-    lastForcedAt = now;
-    return true;
-  }
+  const mayForce = options.gate ?? createRefreshGate(options.minGapMs);
 
   app.get(path, async (c) => {
     let panel = await source.get(false);

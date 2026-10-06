@@ -23,6 +23,15 @@ const MERGED_KEPT_MS = 7 * 24 * 60 * 60 * 1000;
  */
 export const MARK_LOGIN = 'markhazlewood42';
 
+/**
+ * Whether a login is Mark's account. GitHub logins are not case sensitive, and they hold only ASCII letters, digits and
+ * hyphens. A login with any other character is not one at all (some letters change into ASCII ones in lower case: the
+ * Kelvin sign becomes a plain k), and a look-alike such as `markhazlewood-42` is another account.
+ */
+export function isMarkLogin(login: unknown): boolean {
+  return typeof login === 'string' && /^[A-Za-z0-9-]+$/.test(login) && login.toLowerCase() === MARK_LOGIN;
+}
+
 type Json = Record<string, unknown>;
 
 const isRecord = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -35,7 +44,7 @@ function millisOf(iso: string): number {
 }
 
 /** The address, when it is an http or https address, else null. A `javascript:` or `data:` address in a link would run code in the page. */
-function httpUrl(value: unknown): string | null {
+export function httpUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const address = value.trim();
   try {
@@ -111,7 +120,7 @@ function summarize(checks: readonly PullRequestCheck[]): PullRequest['checksSumm
 function attentionOf(pr: Pick<PullRequest, 'state' | 'isDraft' | 'author' | 'reviewDecision' | 'checksSummary'>): PullRequest['attention'] {
   if (pr.state !== 'OPEN' || pr.isDraft) return null;
   // The repo is public, so this may be a stranger's pull request. The agents work through Mark's login, so theirs are Mark's.
-  if (pr.author.toLowerCase() !== MARK_LOGIN) return null;
+  if (!isMarkLogin(pr.author)) return null;
   if (pr.checksSummary === 'fail' || pr.reviewDecision === 'CHANGES_REQUESTED') return 'fix';
   return pr.checksSummary === 'pass' ? 'merge' : null;
 }
