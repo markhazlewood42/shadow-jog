@@ -213,8 +213,9 @@ export type GitCommit = { sha: string; date: string; author: string; subject: st
 export type GitInfo = {
   /** The branch that is checked out here, or null for a detached HEAD, and for a repo with no commit yet. */
   current: string | null;
-  /** How many commits the current branch has that its upstream lacks (and how many it lacks: `behind`). Null when there is no current branch, no upstream or the upstream is gone. As far as the last `git fetch`. */
+  /** How many commits the current branch has that its upstream lacks. Null when there is no current branch, no upstream, or the upstream is gone. Counted as of the last `git fetch`. */
   ahead: number | null;
+  /** How many commits the upstream has that the current branch lacks. Null in the same cases as `ahead`. */
   behind: number | null;
   /** The local branches, the newest first. */
   branches: GitBranch[];
