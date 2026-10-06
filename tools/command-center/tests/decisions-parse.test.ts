@@ -394,12 +394,11 @@ describe('parseDecisionIssue: the answer and the state', () => {
     expect(answerOf('Decision: 12. A number.')).toMatchObject({ option: '12' });
     // A comment that was typed on the web has Windows line ends: the note is the same note with plain ones, so that a retry finds that it is already posted.
     expect(answerOf('Decision: C. Line one.\r\nLine two.')).toMatchObject({ option: 'C', note: 'Line one.\nLine two.' });
-    // Not an answer: another case, other words first, a blank first, no option.
-    for (const body of ['decision: C', 'DECISION: C', 'I decided: C', ' Decision: C', '\nDecision: C', 'Decision: ', 'Decision:', 'Decision: .', 'Recorded in https://example.com/pr/1', 'Decision: C is the one']) {
-      const found = parsed(raw({ comments: [comment(MARK_LOGIN, body)] })).answer;
-      // "Decision: C is the one" starts with an option and some words: it is an answer for C with those words as the note ("is the one").
-      if (body === 'Decision: C is the one') expect(found, body).toMatchObject({ option: 'C' });
-      else expect(found, JSON.stringify(body)).toBeNull();
+    // An option and then words with no mark between them is an answer, and the words are the note.
+    expect(answerOf('Decision: C is the one')).toMatchObject({ option: 'C', note: 'is the one' });
+    // Not an answer: another case, other words first, a blank first, no option, and a comment that only mentions a decision.
+    for (const body of ['decision: C', 'DECISION: C', 'I decided: C', ' Decision: C', '\nDecision: C', 'Decision: ', 'Decision:', 'Decision: .', 'Recorded in https://example.com/pr/1']) {
+      expect(answerOf(body), JSON.stringify(body)).toBeNull();
     }
   });
 
