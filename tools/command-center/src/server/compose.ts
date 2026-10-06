@@ -13,8 +13,10 @@ import { registerDocsRoutes } from './routes/docs';
 import { registerEngineRoutes } from './routes/engine';
 import { registerGitRoutes } from './routes/git';
 import { registerGithubRoutes } from './routes/github';
+import { registerSessionsRoutes } from './routes/sessions';
 import { registerStatusRoutes } from './routes/status';
 import type { Runner } from './runner';
+import { createSessionsSource } from './sessions/sessions';
 import { createStatusSource } from './status/module';
 
 /**
@@ -22,7 +24,8 @@ import { createStatusSource } from './status/module';
  * server: `webRoot` points at a folder that stands in for the built page, `navFile` at a nav.json
  * other than the tool's own (the docs of a fixture repo are not the docs of the Shadow Jog repo), and
  * `refreshGapMs` sets the least time between two forced refreshes of a panel (10 s unless this says
- * another: the end-to-end server sets 0, so a test can change what the fake gh says and see it at once).
+ * another: the end-to-end server sets 0, so a test can change what the fake gh says and see it at once),
+ * and `now` is the clock of the sessions module (a test sets it to the moment its session files were made for).
  */
 export type ComposeDeps = {
   config: Config;
@@ -30,6 +33,7 @@ export type ComposeDeps = {
   webRoot?: string;
   navFile?: string;
   refreshGapMs?: number;
+  now?: () => number;
 };
 
 export type Composed = {
@@ -96,6 +100,12 @@ export function compose(deps: ComposeDeps): Composed {
   const github = createGithubSource({ runner, hub });
   registerGithubRoutes(app, github, panelRoutes);
   modules.push(github);
+
+  // The Claude sessions about Shadow Jog, with their agents and workflows, read from the session files of the folders that
+  // the config names (and only those), under /api/sessions. It looks every 10 s, and reads a file again only when it changed.
+  const sessions = createSessionsSource({ config, hub, ...(deps.now === undefined ? {} : { now: deps.now }) });
+  registerSessionsRoutes(app, sessions, panelRoutes);
+  modules.push(sessions);
 
   return {
     app,
