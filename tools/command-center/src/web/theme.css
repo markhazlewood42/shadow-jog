@@ -1,0 +1,104 @@
+/*
+ * The page's stylesheet: Tailwind, the HeroUI styles, the fonts, and the theme that ties them to
+ * the tokens. Nothing here writes a colour value: every colour is a token from tokens.css.
+ *
+ * The order of the imports matters: Tailwind first, then HeroUI (which needs it).
+ */
+@import 'tailwindcss';
+@import '@heroui/styles';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+@import './tokens.css';
+
+/*
+ * Fonts. Tailwind's base styles put --font-sans on the whole page, so no rule here sets a
+ * font-family on the body.
+ */
+@theme {
+  --font-sans: var(--cc-font-sans);
+  --font-mono: var(--cc-font-mono);
+}
+
+/*
+ * The token colours as Tailwind colours: bg-cc-paper-2, text-cc-ink, border-cc-rule, and so on.
+ * `inline` makes a utility use the token directly, so a token that changes shows at once.
+ */
+@theme inline {
+  --color-cc-paper: var(--cc-paper);
+  --color-cc-paper-2: var(--cc-paper-2);
+  --color-cc-ink: var(--cc-ink);
+  --color-cc-ink-strong: var(--cc-ink-strong);
+  --color-cc-muted: var(--cc-muted);
+  --color-cc-soft: var(--cc-soft);
+  --color-cc-rule: var(--cc-rule);
+  --color-cc-rule-solid: var(--cc-rule-solid);
+  --color-cc-accent: var(--cc-accent);
+  --color-cc-accent-tint: var(--cc-accent-tint);
+  --color-cc-link: var(--cc-link);
+}
+
+/*
+ * The fill of a focal box (one with an amber border, set where it is used): the second navy with
+ * the amber tint laid over it, which is the colour the profile describes for such a box. The
+ * tint is see-through, so it needs a navy under it. A background colour and, on top of it, a flat
+ * one-colour gradient give the two layers.
+ */
+@utility cc-focal {
+  background-color: var(--cc-paper-2);
+  background-image: linear-gradient(var(--cc-accent-tint), var(--cc-accent-tint));
+}
+
+/*
+ * The HeroUI theme. HeroUI v3 reads its colours from the variables below (it comes with a light
+ * and a dark set). Setting them here, after its own styles, makes the whole library follow the
+ * tokens. The hover and soft colours HeroUI derives from these follow as well.
+ *
+ * The profile has no red and no green, and the look allows amber for the few things that matter,
+ * so the status colours (success, warning, danger) reuse amber and ink instead of adding hues.
+ * The shadows are off: the look has no glow and no shadow.
+ */
+:root {
+  color-scheme: dark;
+
+  --background: var(--cc-paper);
+  --foreground: var(--cc-ink);
+
+  --surface: var(--cc-paper-2);
+  --surface-foreground: var(--cc-ink);
+  --surface-secondary: var(--cc-paper);
+  --surface-secondary-foreground: var(--cc-ink);
+  --surface-tertiary: var(--cc-paper);
+  --surface-tertiary-foreground: var(--cc-ink);
+  --overlay: var(--cc-paper-2);
+  --overlay-foreground: var(--cc-ink);
+  --segment: var(--cc-paper-2);
+  --segment-foreground: var(--cc-ink);
+
+  --muted: var(--cc-muted);
+  /* The neutral fill of a secondary button or a chip: the hairline colour, a little lighter than the panel it sits on. */
+  --default: var(--cc-rule);
+  --default-foreground: var(--cc-ink);
+
+  --field-background: var(--cc-paper);
+  --field-foreground: var(--cc-ink);
+  --field-placeholder: var(--cc-soft);
+
+  --accent: var(--cc-accent);
+  --accent-foreground: var(--cc-ink-strong);
+  --success: var(--cc-ink);
+  --success-foreground: var(--cc-ink-strong);
+  --warning: var(--cc-accent);
+  --warning-foreground: var(--cc-ink-strong);
+  --danger: var(--cc-accent);
+  --danger-foreground: var(--cc-ink-strong);
+
+  --border: var(--cc-rule);
+  --separator: var(--cc-rule);
+  --focus: var(--cc-rule-solid);
+  --link: var(--cc-link);
+  --backdrop: color-mix(in oklab, var(--cc-ink-strong) 70%, transparent);
+
+  --surface-shadow: 0 0 0 0 transparent inset;
+  --overlay-shadow: 0 0 0 0 transparent inset;
+  --field-shadow: 0 0 0 0 transparent inset;
+}

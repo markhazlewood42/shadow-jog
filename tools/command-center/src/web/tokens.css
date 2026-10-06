@@ -1,0 +1,43 @@
+/*
+ * The colour and font tokens of the command center, and the only file in src/web that may
+ * write a colour value (a test scans every other file for one).
+ *
+ * The colours are copied from the Dark column of the "Semantic roles" table in the Shadow Jog
+ * diagram profile (docs/diagrams/profile/shadow-jog.md), so the command center looks like the
+ * rest of the game's tooling. Each one is a colour of the game's own UI. The contrast ratios
+ * are in docs/diagrams/profile/NOTES.md: every text colour is at least 4.5 to 1 on both papers.
+ * A test checks this file against the profile and computes the ratios, so a change of the
+ * profile has to land here too.
+ *
+ * Other files use the roles, never the values: theme.css makes them Tailwind colours (bg-cc-paper,
+ * text-cc-ink, border-cc-rule, ...) and sets the HeroUI theme from them, and the glass panels of
+ * the Now page will read them for their mood.
+ */
+:root {
+  /* Page background, and the fill at the bottom of a panel. */
+  --cc-paper: #0d0c1f;
+  /* Panel fill: a second, lighter navy. */
+  --cc-paper-2: #1c1a3a;
+  /* Primary text. */
+  --cc-ink: #f4f1ff;
+  /* Text on an amber fill (a button, a marker): the dark outline colour of the game's windows. */
+  --cc-ink-strong: #07060d;
+  /* Secondary text. */
+  --cc-muted: #bfc3e4;
+  /* Small labels and hints. The lowest text contrast of the set, still above 4.5 to 1. */
+  --cc-soft: #8f94bd;
+  /* Hairline borders. */
+  --cc-rule: rgba(122, 128, 196, 0.28);
+  /* The lavender frame: stronger borders and the focus ring. */
+  --cc-rule-solid: #7a80c4;
+  /* The one or two things on a page that matter most. Never decoration. */
+  --cc-accent: #ffcc3d;
+  /* The fill of a box with an amber border. */
+  --cc-accent-tint: rgba(255, 204, 61, 0.1);
+  /* Links, and nothing else. */
+  --cc-link: #3fe0f0;
+
+  /* Geist and Geist Mono. The files come with the page (the @fontsource packages), so the page asks no font host. */
+  --cc-font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --cc-font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
