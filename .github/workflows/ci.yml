@@ -1,28 +1,235 @@
+# CI for pull requests and for pushes to main.
+#
+# Three jobs run at the same time. None waits for another, so a pull request waits for the slowest
+# job, not for all of them added together.
+#
+#   check        lint, typecheck, unit tests and the bundle budget. The ruleset on main requires
+#                this check by name. So the job id must stay `check`, it must not get a different
+#                `name:`, and it must always start and report (see "Check which files changed"
+#                below).
+#   e2e          the Playwright specs, on Chromium
+#   e2e-engines  the game over and shipped-build specs, on WebKit and Firefox
+#
+# A change that touches only docs/, *.md files or tools/command-center/ needs none of this, so the
+# work is skipped (see `paths-ignore` below and the step "Check which files changed").
+#
+# The real-speed playtest is not here. Its own limit is 30 minutes, so it has its own workflow,
+# playtest.yml, which runs after a change lands on main.
 name: CI
 
 on:
   push:
     branches: [main]
+    # A push to main that changes only these paths does not start the workflow. That is safe on a
+    # push, because no check is required there. Keep this list the same as the `case` list in the
+    # "Check which files changed" step of each job below, and as the list in playtest.yml. If a
+    # build step or a test ever starts to read one of these paths, take it off every one of them.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'tools/command-center/**'
+  # No paths-ignore on pull_request, on purpose. A workflow that a path filter skips never reports,
+  # so its required checks stay "Pending" and the pull request cannot merge. Here the jobs always
+  # start, and each one skips its own steps when the change needs no checks.
   pull_request:
+
+# The jobs only read the code, so the token gets no more than that.
+permissions:
+  contents: read
+
+# One run at a time for each pull request or branch. A new push to a pull request cancels the run
+# that it makes useless. A run on main is never canceled once it starts: the next push waits.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Generous on purpose: this job is quick. The limit only stops a hung job (GitHub's default is
+    # 6 hours).
+    timeout-minutes: 10
     steps:
+      # Two commits are enough. On a pull request the checked-out commit is a merge commit, and its
+      # two parents are the base branch and the pull request (the next step compares them).
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      # A pull request that changes only docs, notes (*.md) or tools/command-center needs no lint,
+      # build or browser run. This step finds that out. Every later step of the job then runs only
+      # `if: steps.scope.outputs.skip != 'true'`. The job itself is never skipped as a whole: a
+      # skipped job reports success without checking anything, and a required check must not pass
+      # that way.
+      #
+      # It fails closed. `skip` is `true` only when git lists changed files and every one of them
+      # is on the list below. If git fails, lists nothing, or HEAD is not a merge commit, or if the
+      # step itself breaks (`continue-on-error`), `skip` stays unset and the job runs in full. That
+      # is why the later steps test `!= 'true'` and not `== 'false'`.
+      #
+      # On a pull_request event the checked-out HEAD is a merge commit, and its first parent is the
+      # tip of the base branch. So `git diff HEAD^1 HEAD` is exactly what the pull request changes.
+      # --no-renames lists a moved file as a delete plus an add. Without it, a file moved from src/
+      # into docs/ would show only its new name and pass for a docs change.
+      #
+      # Every job has its own copy of this step, on purpose. One shared detection job could fail or
+      # be skipped, and a required check must never depend on that. Keep the three copies
+      # identical. The step does not run on a push: there the paths-ignore list above does this
+      # work, and HEAD^1 would not show the whole push.
+      - name: Check which files changed
+        id: scope
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          skip=false
+          if git rev-parse --verify --quiet 'HEAD^2' > /dev/null \
+              && files=$(git diff --no-renames --name-only 'HEAD^1' HEAD) \
+              && [ -n "$files" ]; then
+            printf 'Changed files:\n%s\n' "$files"
+            skip=true
+            while IFS= read -r file; do
+              case "$file" in
+                docs/* | tools/command-center/* | *.md) ;;
+                *) skip=false; echo "Needs the full checks: $file"; break ;;
+              esac
+            done <<< "$files"
+          else
+            echo 'No usable list of changed files, so everything runs.'
+          fi
+          if [ "$skip" = true ]; then
+            echo "Only docs, notes and tools changed, so the $GITHUB_JOB job skipped its checks." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
+        if: steps.scope.outputs.skip != 'true'
         with:
           node-version: 24
           cache: npm
       - run: npm ci
+        if: steps.scope.outputs.skip != 'true'
       - run: npm run lint
+        if: steps.scope.outputs.skip != 'true'
       - run: npm run typecheck
+        if: steps.scope.outputs.skip != 'true'
       - run: npm test
+        if: steps.scope.outputs.skip != 'true'
       - name: Bundle budget (largest chunk and total gzip)
+        if: steps.scope.outputs.skip != 'true'
         run: npm run budget
-      - run: npx playwright install --with-deps chromium webkit firefox
-      - name: E2E (full chapter, the real-speed playtest, game over / save, frame budget, shipped build, zone walk and shop, input chaos; WebKit and Firefox for game over and the shipped build)
-        run: npx playwright test e2e/playthrough.spec.ts e2e/playtest.spec.ts e2e/gameover.spec.ts e2e/perf.spec.ts e2e/prod.spec.ts e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts
+
+  e2e:
+    runs-on: ubuntu-latest
+    # The usual run time is under 10 minutes. The rest is room for a slow runner or download.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      # The same step as in `check`. Read the comment there.
+      - name: Check which files changed
+        id: scope
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          skip=false
+          if git rev-parse --verify --quiet 'HEAD^2' > /dev/null \
+              && files=$(git diff --no-renames --name-only 'HEAD^1' HEAD) \
+              && [ -n "$files" ]; then
+            printf 'Changed files:\n%s\n' "$files"
+            skip=true
+            while IFS= read -r file; do
+              case "$file" in
+                docs/* | tools/command-center/* | *.md) ;;
+                *) skip=false; echo "Needs the full checks: $file"; break ;;
+              esac
+            done <<< "$files"
+          else
+            echo 'No usable list of changed files, so everything runs.'
+          fi
+          if [ "$skip" = true ]; then
+            echo "Only docs, notes and tools changed, so the $GITHUB_JOB job skipped its checks." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        if: steps.scope.outputs.skip != 'true'
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+        if: steps.scope.outputs.skip != 'true'
+      # Only the browser that this job uses. The browsers are not cached: Playwright advises against
+      # it, because restoring a cache takes about as long as the download, and the system packages
+      # that --with-deps installs cannot be cached at all.
+      - run: npx playwright install --with-deps chromium
+        if: steps.scope.outputs.skip != 'true'
+      # The specs are listed by name and not run as "all of them": shots.spec.ts and
+      # audio-evidence.spec.ts rewrite files under docs/, they are not tests. So a new spec must
+      # be added to this list. playtest.spec.ts runs in playtest.yml.
+      #
+      # CI must be set. playwright.config.ts then uses the bundled Chromium (not Edge) and adds the
+      # WebKit and Firefox projects, and perf.spec.ts uses its software-canvas budget. GitHub sets
+      # CI already. It is set here too, so the need is visible.
+      - name: E2E on Chromium (every spec except the playtest)
+        if: steps.scope.outputs.skip != 'true'
+        run: >-
+          npx playwright test --project=chromium
+          e2e/playthrough.spec.ts e2e/gameover.spec.ts e2e/perf.spec.ts e2e/prod.spec.ts
+          e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts
+        env:
+          CI: '1'
+
+  e2e-engines:
+    runs-on: ubuntu-latest
+    # The usual run time is under 10 minutes (see `e2e`).
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      # The same step as in `check`. Read the comment there.
+      - name: Check which files changed
+        id: scope
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          skip=false
+          if git rev-parse --verify --quiet 'HEAD^2' > /dev/null \
+              && files=$(git diff --no-renames --name-only 'HEAD^1' HEAD) \
+              && [ -n "$files" ]; then
+            printf 'Changed files:\n%s\n' "$files"
+            skip=true
+            while IFS= read -r file; do
+              case "$file" in
+                docs/* | tools/command-center/* | *.md) ;;
+                *) skip=false; echo "Needs the full checks: $file"; break ;;
+              esac
+            done <<< "$files"
+          else
+            echo 'No usable list of changed files, so everything runs.'
+          fi
+          if [ "$skip" = true ]; then
+            echo "Only docs, notes and tools changed, so the $GITHUB_JOB job skipped its checks." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        if: steps.scope.outputs.skip != 'true'
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+        if: steps.scope.outputs.skip != 'true'
+      # Only WebKit and Firefox, and no browser cache (see the same step in `e2e`).
+      - run: npx playwright install --with-deps webkit firefox
+        if: steps.scope.outputs.skip != 'true'
+      # These two engines run only the flows that most likely differ between engines: storage, the
+      # unload prompt, keyboard and audio unlock (see playwright.config.ts). CI must be set for the
+      # config to add the two projects.
+      - name: E2E on WebKit and Firefox (game over and saves, shipped build)
+        if: steps.scope.outputs.skip != 'true'
+        run: >-
+          npx playwright test --project=webkit --project=firefox
+          e2e/gameover.spec.ts e2e/prod.spec.ts
         env:
           CI: '1'
