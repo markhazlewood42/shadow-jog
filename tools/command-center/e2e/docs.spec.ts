@@ -371,6 +371,43 @@ test.describe('the docs site', () => {
     expect(problems).toEqual([]);
   });
 
+  test('Enter in the search box acts on the text at once, also before the answer is in', async ({ page }) => {
+    // The server answers a search after 700 ms, so that Enter comes while the answer is on its way.
+    await page.route('**/api/search**', async (route) => {
+      await new Promise((done) => setTimeout(done, 700));
+      await route.continue();
+    });
+    const box = page.getByRole('combobox', { name: 'Search docs' });
+
+    // Enter right after typing: the typing pause is not over, so nothing was asked yet. One Enter is enough.
+    await page.goto('/docs');
+    await box.fill('wombat');
+    await box.press('Enter');
+    await expect(page).toHaveURL(/\/docs\/guides\/setup$/);
+    await expect(documentOf(page).getByRole('heading', { level: 1, name: 'Setup guide' })).toBeVisible();
+
+    // Enter after the pause, while the slow answer is on its way.
+    await page.goto('/docs');
+    const asked = page.waitForRequest('**/api/search**');
+    await box.fill('quokka');
+    await asked;
+    await box.press('Enter');
+    await expect(page).toHaveURL(/\/docs\/reference\/glossary$/);
+
+    // Text that is typed on after Enter is another search: the first one must not open its hit.
+    await page.goto('/docs');
+    await box.fill('wombat');
+    await box.press('Enter');
+    await box.fill('zzzzzz');
+    await expect(page.getByText(/No docs match/)).toBeVisible();
+    await expect(page).toHaveURL(/\/docs$/);
+
+    // Enter on a text that has no hit opens nothing, and the list says so.
+    await box.press('Enter');
+    await expect(page.getByText(/No docs match/)).toBeVisible();
+    await expect(page).toHaveURL(/\/docs$/);
+  });
+
   test('a fixture edit updates the open page within 5 s', async ({ page }) => {
     const original = readFileSync(MOVING_DOC, 'utf8');
     try {

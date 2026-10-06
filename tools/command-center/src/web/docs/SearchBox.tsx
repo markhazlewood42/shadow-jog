@@ -1,6 +1,6 @@
 import { SearchField } from '@heroui/react';
 import { Search, X } from 'lucide-react';
-import { type FocusEvent, type KeyboardEvent, type MouseEvent, useCallback, useEffect, useId, useState } from 'react';
+import { type FocusEvent, type KeyboardEvent, type MouseEvent, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { ModuleName, Panel, SearchHit } from '../../shared/types';
 import { getPanel } from '../api';
@@ -14,12 +14,15 @@ const SEARCH_MODULES: readonly ModuleName[] = ['docs'];
 /** How long the typing must pause before the server is asked. A search for every key would be a request for every letter. */
 const PAUSE_MS = 200;
 
+/** The address that answers a search. */
+const searchUrl = (query: string) => `/api/search?q=${encodeURIComponent(query)}`;
+
 /** The hits for a query, as a panel (it has the same loading, error and updated-at states as every panel). */
 function useSearch(query: string): PanelResult<SearchHit[]> {
   const load = useCallback(async (): Promise<Panel<SearchHit[]>> => {
     // Nothing typed is a search with no hits: the server needs no asking.
     if (query === '') return { ok: true, data: [], updatedAt: new Date().toISOString() };
-    return getPanel<SearchHit[]>(`/api/search?q=${encodeURIComponent(query)}`);
+    return getPanel<SearchHit[]>(searchUrl(query));
   }, [query]);
   return useLoadedPanel(load, SEARCH_MODULES);
 }
@@ -77,7 +80,8 @@ function HitList({ hits, query, listId, active, onActive, onOpen }: HitListProps
 /**
  * The search box in the header of every docs page. It looks at the titles, the headings and the
  * text of every doc (the server does the searching). The results open under the box as you type;
- * the arrow keys choose one and Enter opens it. Esc empties the box and closes the list.
+ * the arrow keys choose one and Enter opens it: the chosen one, or the best one when Enter comes
+ * before the answer does (one Enter is always enough). Esc empties the box and closes the list.
  *
  * It follows the combobox pattern of ARIA: the focus stays in the input, and `aria-activedescendant`
  * says which result is chosen.
@@ -92,6 +96,16 @@ export function SearchBox() {
   const [active, setActive] = useState(0);
   const result = useSearch(query);
   const hits = hitsOf(result);
+  // Makes an Enter that still waits for its answer out of date: more typing, a hit that was opened
+  // by another way, or the box going away. Each of them counts one up, and an Enter opens its hit
+  // only when the count is still the one it started with.
+  const ticket = useRef(0);
+  useEffect(
+    () => () => {
+      ticket.current += 1;
+    },
+    [],
+  );
 
   useEffect(() => {
     const wanted = text.trim();
@@ -108,16 +122,38 @@ export function SearchBox() {
   const showResults = open && query !== '';
   const chosen = showResults ? hits[active] : undefined;
 
-  function openActive() {
-    if (text.trim() !== query) {
-      // Enter before the pause is over: search now. The hits come, and Enter opens one.
-      setQuery(text.trim());
-      setOpen(true);
+  /** Closes the list. Whatever Enter was still waiting for is dropped. */
+  function closeList() {
+    ticket.current += 1;
+    setOpen(false);
+  }
+
+  function openHit(hit: SearchHit) {
+    closeList();
+    navigate(docPath(hit.slug));
+  }
+
+  async function openActive() {
+    const wanted = text.trim();
+    if (wanted === '') return;
+
+    if (wanted === query && result.panel !== null) {
+      // The hits of this text are on show: Enter opens the chosen one.
+      if (chosen !== undefined) openHit(chosen);
       return;
     }
-    if (chosen === undefined) return;
-    setOpen(false);
-    navigate(docPath(chosen.slug));
+
+    // The hits of this text are not in yet: the typing pause is not over, or the server is still
+    // answering. One Enter must be enough, so ask now (the list shows the same search) and open the
+    // best hit as soon as it comes.
+    ticket.current += 1;
+    const mine = ticket.current;
+    setQuery(wanted);
+    setOpen(true);
+    const answer = await getPanel<SearchHit[]>(searchUrl(wanted));
+    const best = answer.ok ? answer.data[0] : undefined;
+    // Nothing is opened when the text was changed meanwhile, or when nothing matched (the list says so).
+    if (mine === ticket.current && best !== undefined) openHit(best);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -148,10 +184,11 @@ export function SearchBox() {
         aria-label="Search docs"
         value={text}
         onChange={(value) => {
+          ticket.current += 1;
           setText(value);
           setOpen(true);
         }}
-        onSubmit={openActive}
+        onSubmit={() => void openActive()}
         fullWidth
         variant="secondary"
       >
@@ -184,7 +221,7 @@ export function SearchBox() {
           onMouseDown={(event: MouseEvent) => event.preventDefault()}
         >
           <PanelFrame title="Search results" result={result}>
-            {(found) => <HitList hits={found} query={query} listId={listId} active={active} onActive={setActive} onOpen={() => setOpen(false)} />}
+            {(found) => <HitList hits={found} query={query} listId={listId} active={active} onActive={setActive} onOpen={closeList} />}
           </PanelFrame>
         </div>
       )}
