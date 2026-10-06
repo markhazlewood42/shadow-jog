@@ -367,11 +367,163 @@ describe('renderDoc: raw HTML', () => {
     expect(doc.html).toContain('<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>');
     expect(doc.html).toContain('&lt;b onclick=&quot;x()&quot;&gt;bold&lt;/b&gt;');
     expect(doc.html).toContain('&lt;img src=x onerror=alert(1)&gt;');
-    expect(doc.html).toContain('&lt;!-- a comment --&gt;');
+    // The one piece of raw HTML that is not shown at all is a comment (see "HTML comments" below).
+    expect(doc.html).not.toContain('a comment');
     expect(doc.html).toContain('<pre><code class="language-html">&lt;script&gt;inside a fence&lt;/script&gt;\n</code></pre>');
     expect(doc.html).not.toMatch(/<(script|iframe|style|details|div|b|img)\b/i);
     // An escaped tag is still text, so it can be searched.
     expect(doc.text).toContain('<script>alert(1)</script>');
+  });
+});
+
+describe('renderDoc: HTML comments', () => {
+  // A comment is a note for the author. GitHub does not show it, so this site does not either. It
+  // is dropped from the html and from the search text, and nothing else about raw HTML changes.
+
+  it('a multi-line comment at the top of a doc is gone from html and text', () => {
+    const doc = render('<!-- diagram-design-profile\nname: Sample\nslug: sample\n\n# not a heading\n- not a list item\n-->\n# Real title\n\nBody text.\n');
+    // The whole comment goes: its blank line, its # line and its list line are not read as markdown.
+    expect(doc.html).toBe('<h1 id="real-title">Real title</h1>\n<p>Body text.</p>\n');
+    expect(doc.text).toBe('Real title\nBody text.');
+    expect(doc.title).toBe('Real title');
+    expect(doc.headings).toEqual([]);
+    // The same comment after the frontmatter, indented up to three spaces, and ending with trailing spaces.
+    const framed = render('---\ntitle: Framed\n---\n   <!-- note\n   more note\n   -->  \n\nText.\n');
+    expect(framed.html).toBe('<p>Text.</p>\n');
+    expect(framed.text).toBe('Text.');
+  });
+
+  it('an inline comment in a paragraph is gone', () => {
+    const doc = render(
+      'Before <!-- hidden --> after.\n\n## Part <!-- note --> two\n\nSpans lines: start <!-- begins here\nand ends here --> end.\n\n[a <!-- x --> link](https://example.com) and a | table:\n\n| a <!-- x --> | b |\n|---|---|\n| c | d <!-- y --> |\n',
+    );
+    expect(doc.html).toContain('<p>Before  after.</p>');
+    expect(doc.html).toContain('<h2 id="part--two">Part  two</h2>');
+    expect(doc.html).toContain('<p>Spans lines: start  end.</p>');
+    expect(doc.html).toContain('>a  link</a>');
+    expect(doc.html).toContain('<th>a </th>');
+    expect(doc.html).toContain('<td>d </td>');
+    expect(doc.html).not.toMatch(/hidden|note|begins here|ends here|&lt;!--|<!--/);
+    expect(doc.text).not.toMatch(/hidden|note|begins here|ends here|<!--/);
+    expect(doc.text).toContain('Before  after.');
+    expect(doc.headings).toEqual([{ level: 2, text: 'Part  two', id: 'part--two' }]);
+  });
+
+  it('a comment inside a fenced block stays', () => {
+    const doc = render(
+      '```html\n<!-- an example comment -->\n<p>hi</p>\n```\n\nA code span: `<!-- in a span -->` and more.\n\n    <!-- indented code -->\n\n~~~\n<!-- a tilde fence\n-->\n~~~\n',
+    );
+    expect(doc.html).toContain('<pre><code class="language-html">&lt;!-- an example comment --&gt;\n&lt;p&gt;hi&lt;/p&gt;\n</code></pre>');
+    expect(doc.html).toContain('<code>&lt;!-- in a span --&gt;</code>');
+    expect(doc.html).toContain('<pre><code>&lt;!-- indented code --&gt;\n</code></pre>');
+    expect(doc.html).toContain('<pre><code>&lt;!-- a tilde fence\n--&gt;\n</code></pre>');
+    // It stays in the search text too, as the code it is.
+    for (const code of ['<!-- an example comment -->', '<!-- in a span -->', '<!-- indented code -->', '<!-- a tilde fence']) {
+      expect(doc.text, code).toContain(code);
+    }
+    // A comment that starts before a code span owns what follows: the span is inside the comment.
+    expect(render('A <!-- hides `code --> still here` after.').html).toBe('<p>A  still here` after.</p>\n');
+  });
+
+  it('<script> next to a comment is still escaped', () => {
+    const doc = render(
+      '<!-- note --><script>alert(1)</script>\n\n<script>alert(2)</script><!-- note -->\n\nText <!-- note --> <img src=x onerror=alert(3)> end.\n\n<!-- <script>alert(4)</script> -->\n\n<script>alert(5)<!-- note --></script>\n',
+    );
+    expect(tagNames(doc.html)).toEqual(['p']);
+    expect(doc.html).toContain('<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>');
+    expect(doc.html).toContain('<p>&lt;script&gt;alert(2)&lt;/script&gt;</p>');
+    expect(doc.html).toContain('&lt;img src=x onerror=alert(3)&gt;');
+    expect(doc.html).toContain('<p>&lt;script&gt;alert(5)&lt;/script&gt;</p>');
+    // alert(4) was inside a comment, so it is gone with it, as text and as html.
+    expect(doc.html).not.toContain('alert(4)');
+    expect(doc.html).not.toContain('note');
+    expect(doc.text).not.toContain('alert(4)');
+  });
+
+  it('a comment on its own line drops without changing the blocks around it', () => {
+    const doc = render(
+      'Paragraph one.\n<!-- a note on its own line -->\nParagraph two.\n\n- item <!-- c -->\n- <!-- whole item -->\n- last\n\n> quoted <!-- c --> text\n> <!-- quoted comment\n> goes on -->\n> more\n\n1. step\n   <!-- multi\n   line -->\n   continues\n',
+    );
+    // The comment line ends the paragraph before it, as an HTML block would: two paragraphs, not one.
+    expect(doc.html).toContain('<p>Paragraph one.</p>\n<p>Paragraph two.</p>');
+    expect(doc.html.match(/<li>/g)).toHaveLength(4);
+    expect(doc.html).toContain('<li>item </li>');
+    expect(doc.html).toMatch(/<li>\s*<\/li>/); // the item that was only a comment is empty
+    expect(doc.html).toContain('<li>last</li>');
+    expect(doc.html).toContain('<p>quoted  text</p>');
+    expect(doc.html).toContain('<p>more</p>');
+    // The paragraphs of a tight list item print side by side, so a break stays where the comment was
+    // and the words do not run together ("stepcontinues").
+    expect(doc.html).toContain('<li>step\ncontinues</li>');
+    expect(doc.html).not.toMatch(/note|whole|goes on|multi|&lt;!--/);
+    expect(doc.text).not.toMatch(/note|whole|goes on|multi|<!--/);
+    expect(doc.text.split('\n')).toEqual(expect.arrayContaining(['Paragraph one.', 'Paragraph two.', 'last', 'more', 'continues']));
+    // The same in a bullet list, and with a comment at the very end of an item.
+    const bullets = render('- item\n  <!-- multi\n  line -->\n  continues\n- tail\n  <!-- last note -->\n');
+    expect(bullets.html).toBe('<ul>\n<li>item\ncontinues</li>\n<li>tail\n</li>\n</ul>\n');
+    // A blank line inside a comment does not end the comment, in a list item as at the top of a doc.
+    const blank = render('- item\n  <!-- start\n\n  end -->\n  tail\n');
+    expect(blank.html).not.toMatch(/start|end/);
+    expect(blank.text).toBe('item\ntail');
+    // Indented four spaces after a quote, a comment line is not a block of its own but a line of the quote's paragraph (the comment inside it is dropped).
+    expect(render('> quote\n    <!-- c -->\n').html).toBe('<blockquote>\n<p>quote\n</p>\n</blockquote>\n');
+    // A comment line that is not indented enough to belong to the item still ends it, and is dropped.
+    const outdented = render('- one\n- two\n<!-- outdented\n\n# not a heading\n-->\nafter\n');
+    expect(outdented.html).toBe('<ul>\n<li>one</li>\n<li>two</li>\n</ul>\n<p>after</p>\n');
+  });
+
+  it('text after a comment is kept, and comments side by side leave nothing', () => {
+    expect(render('<!-- a --><!-- b -->\n').html).toBe('');
+    expect(render('<!-- a --> <!-- b -->   \n').html).toBe('');
+    expect(render('<!-- c --> text after one\n').html).toBe('<p>text after one</p>\n');
+    expect(render('<!-- d --> <!-- e --> text after two\n').html).toBe('<p>text after two</p>\n');
+    expect(render('<!--\nmulti\n--> tail of a long one\n').html).toBe('<p>tail of a long one</p>\n');
+    // The text after the comment is read as markdown, and a later comment in it is dropped too.
+    expect(render('<!-- c --> *emphasis* and <!-- d --> more\n').html).toBe('<p><em>emphasis</em> and  more</p>\n');
+    // A doc of nothing but comments has no html and no text, and its title is the file name.
+    const empty = render('<!-- only a comment -->\n', 'docs/just-notes.md');
+    expect(empty).toMatchObject({ html: '', text: '', title: 'just-notes', headings: [] });
+  });
+
+  it('a comment that never closes stays as visible text and swallows nothing', () => {
+    const doc = render('<!-- never closed\n\n# Heading\n\nText <!-- also never closed\n');
+    expect(doc.html).toBe('<p>&lt;!-- never closed</p>\n<h1 id="heading">Heading</h1>\n<p>Text &lt;!-- also never closed</p>\n');
+    expect(doc.title).toBe('Heading');
+    // A list item cannot own the closing line of a later item: both items keep their text.
+    expect(render('- <!-- opens here\n- closes here -->\n').html).toBe('<ul>\n<li>&lt;!-- opens here</li>\n<li>closes here --&gt;</li>\n</ul>\n');
+  });
+
+  it('an escaped or entity-encoded comment is text, the first --> ends a comment, and the shortest forms are comments', () => {
+    const doc = render('One \\<!-- escaped --> two &lt;!-- entity --&gt; three <!--> four <!---> five <!-- a -- b --> six.\n');
+    expect(doc.html).toBe('<p>One &lt;!-- escaped --&gt; two &lt;!-- entity --&gt; three  four  five  six.</p>\n');
+    // Only the first --> closes a comment, as a block and inside a paragraph.
+    expect(render('<!-- a --> b --> c\n').html).toBe('<p>b --&gt; c</p>\n');
+    expect(render('x <!-- a --> b --> c\n').html).toBe('<p>x  b --&gt; c</p>\n');
+    // The same holds for the shortest comments at the start of a line.
+    expect(render('<!-->\ntext\n').html).toBe('<p>text</p>\n');
+    expect(render('<!--->\ntext\n').html).toBe('<p>text</p>\n');
+  });
+
+  it('thousands of comments that never close are read in a moment', () => {
+    // Each unclosed <!-- would search the rest of the text for a --> again, so the time would grow with the square of the size.
+    for (const src of ['<!--'.repeat(50_000), 'word <!-- '.repeat(20_000), '<!--\n'.repeat(20_000), '> <!--\n'.repeat(5_000)]) {
+      const started = performance.now();
+      const doc = render(src);
+      expect(performance.now() - started, JSON.stringify(src.slice(0, 12))).toBeLessThan(2000);
+      expect(doc.html).toContain('&lt;!--'); // and they are still visible text
+    }
+  });
+
+  it('a comment does not hide the links, images and headings of the text around it', () => {
+    const doc = render(
+      '# Title <!-- c -->\n\n<!-- [hidden](missing.md) ![hidden](missing.png) -->\n[shown](missing.md) <!-- c --> ![alt <!-- x --> words](missing.png)\n',
+      'docs/page.md',
+    );
+    // Only the two links that sit outside a comment are in `links`, and the comment is not in the alt text.
+    expect(doc.links.map((link) => link.href)).toEqual(['missing.md', 'missing.png']);
+    expect(doc.html).toContain('>alt  words</span>');
+    expect(doc.title).toBe('Title');
+    expect(doc.html).toContain('<h1 id="title">Title </h1>');
   });
 });
 
@@ -467,6 +619,21 @@ describe('renderDoc: odd sources', () => {
       '&#xFFFFFFFF;',
       '[a]: ',
       '[a]: <>\n\n[a]',
+      '<!--',
+      '<!-->',
+      '<!--->',
+      '-->',
+      '<!--\n',
+      '<!--\n-->',
+      '<!-- x -->',
+      '> <!--\n> x\n> -->',
+      '- <!--\n  x\n  -->',
+      '- <!--\n- -->',
+      '[<!--](x)-->',
+      '`<!--`-->',
+      '<!--[if IE]><p>x</p><![endif]-->',
+      '<!-- a --><!-- b -->'.repeat(1000),
+      `<!--\n${'x\n'.repeat(1000)}-->`,
       `${'['.repeat(5000)}x`,
       `${'> '.repeat(500)}x`,
       `${'- '.repeat(500)}x`,

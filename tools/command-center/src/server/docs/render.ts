@@ -1,6 +1,6 @@
 import { posix } from 'node:path';
 import GithubSlugger from 'github-slugger';
-import MarkdownIt, { type Env, type Token } from 'markdown-it';
+import MarkdownIt, { type Env, type StateBlock, type StateInline, type Token } from 'markdown-it';
 import { splitFrontmatter } from './frontmatter';
 import { type ResolvedLink, docUrl } from './links';
 
@@ -12,7 +12,8 @@ import { type ResolvedLink, docUrl } from './links';
 //
 // The page puts this html straight into itself, and the page holds the token that lets Mark answer
 // decisions. So doc text must never be able to run script. Three rules keep that true:
-//   1. Raw HTML in a doc is escaped, never passed on (`html: false` below).
+//   1. Raw HTML in a doc is escaped, never passed on (`html: false` below). The one thing dropped
+//      instead of escaped is an HTML comment (see `dropCommentBlock`): it prints nothing at all.
 //   2. A link or an image gets its address from a `ResolvedLink`, not from the doc text, and the
 //      address is printed only after `isPrintable` has checked it again. (The one address that
 //      comes from the doc text is an in-page `#anchor`, and it is printed only if it starts with #.)
@@ -40,7 +41,7 @@ export type RenderedDoc = {
   headings: { level: 2 | 3 | 4; text: string; id: string }[];
   /** Every link and image of the doc in the order they appear, each with what it points at. */
   links: { href: string; resolved: ResolvedLink }[];
-  /** The words of the doc for search: headings, prose and code, one piece to a line. */
+  /** The words of the doc for search: headings, prose and code, one piece to a line. An HTML comment is not part of it. */
   text: string;
 };
 
@@ -59,6 +60,108 @@ const md = new MarkdownIt({
 // want the opposite: make the link anyway, so `resolveHref` can answer "broken" and the page can
 // show a marker where the link was. No address reaches the html except through `printTarget`.
 md.validateLink = () => true;
+
+// HTML comments (`<!-- ... -->`, on one line or many) are notes for the author. GitHub does not
+// show them, so this site does not either. With raw HTML off, markdown-it would read a comment as
+// plain text: it would show on the page, a blank line inside it would cut it into paragraphs, and a
+// `#` line inside it would become a heading. These two rules drop a comment before that happens.
+// They drop comments and nothing else: all other raw HTML stays escaped text. They sit next to
+// markdown-it's own HTML rules, so the parser has already decided what is code by the time they
+// run: a comment in a code span, a fenced block or an indented block is code, and stays.
+md.block.ruler.before('html_block', 'html_comment', dropCommentBlock, { alt: ['paragraph', 'reference', 'blockquote'] });
+md.inline.ruler.before('html_inline', 'html_comment', dropCommentInline);
+
+// A dropped block comment leaves an empty "gap" token where it was, and it prints nothing, with one
+// exception. The paragraphs of a tight list item are hidden, so two of them print side by side, and
+// without a line break between them the words around the comment would run together: the item
+// "- item", then a comment line, then "continues", would print as "itemcontinues".
+md.renderer.rules.html_comment = (tokens, idx) => (tokens[idx - 1]?.hidden ? '\n' : '');
+
+/**
+ * A comment that starts a line (up to three spaces in) runs to the line that holds its `-->`, as
+ * CommonMark ends an HTML comment block. Those lines are dropped whole. What follows the `-->` on
+ * the last line is kept, as a paragraph of its own.
+ */
+function dropCommentBlock(state: StateBlock, startLine: number, endLine: number, silent: boolean): boolean {
+  // Four spaces of indent make an indented code block, and a comment in code is code.
+  if ((state.sCount[startLine] ?? 0) - state.blkIndent >= 4) return false;
+  const start = (state.bMarks[startLine] ?? 0) + (state.tShift[startLine] ?? 0);
+  if (!state.src.startsWith('<!--', start)) return false;
+  if (findClose(state, start + 2) === -1) return false; // no `-->` anywhere after it, so it cannot close
+  // A dry run, asked by a paragraph: "does a comment start here?" Yes, and it ends the paragraph. The
+  // answer must not depend on the list item or quote the paragraph is in: a comment line that is
+  // not indented enough to belong to the item still ends the item's paragraph, as an HTML block does.
+  if (silent) return true;
+
+  // Find the line that closes the comment. On the first line the search starts at the dashes of
+  // the opening, because `<!-->` is a whole comment.
+  let closeLine = -1;
+  let after = 0;
+  for (let line = startLine; line < endLine; line++) {
+    // A list item or a quote that ends before the comment closes cannot own a later line.
+    if (line > startLine && !state.isEmpty(line) && (state.sCount[line] ?? 0) < state.blkIndent) break;
+    const from = line === startLine ? start + 2 : (state.bMarks[line] ?? 0) + (state.tShift[line] ?? 0);
+    const close = state.src.slice(from, state.eMarks[line] ?? from).indexOf('-->');
+    if (close !== -1) {
+      closeLine = line;
+      after = from + close + 3;
+      break;
+    }
+  }
+  // A comment that never closes stays visible as text. (In CommonMark it would swallow the rest of the doc.)
+  if (closeLine === -1) return false;
+
+  state.line = closeLine + 1;
+  const gap = state.push('html_comment', '', 0);
+  gap.map = [startLine, closeLine + 1];
+  // More comments may follow on the closing line. Drop those too, and keep whatever is left.
+  let rest = state.src.slice(after, state.eMarks[closeLine] ?? after);
+  for (;;) {
+    rest = rest.trimStart();
+    const close = rest.startsWith('<!--') ? rest.indexOf('-->', 2) : -1;
+    if (close === -1) break;
+    rest = rest.slice(close + 3);
+  }
+  rest = rest.trim();
+  if (rest !== '') {
+    const open = state.push('paragraph_open', 'p', 1);
+    open.map = [closeLine, closeLine + 1];
+    const inline = state.push('inline', '', 0);
+    inline.content = rest; // markdown-it reads it as inline markdown later, so it is escaped like any other text
+    inline.map = [closeLine, closeLine + 1];
+    inline.children = [];
+    state.push('paragraph_close', 'p', -1);
+  }
+  return true;
+}
+
+/** A comment inside a paragraph, a heading, a table cell or a link label, even one that runs over several lines. */
+function dropCommentInline(state: StateInline): boolean {
+  const start = state.pos;
+  if (!state.src.startsWith('<!--', start)) return false;
+  const close = findClose(state, start + 2);
+  // The comment must close inside the text being read (a link label is read up to its `]` only).
+  if (close === -1 || close + 3 > state.posMax) return false;
+  state.pos = close + 3;
+  return true;
+}
+
+/** The last search for a closing `-->` in each text that is being read. See `findClose`. */
+const closeSearches = new WeakMap<StateBlock | StateInline, { from: number; at: number }>();
+
+/**
+ * Where the first `-->` at or after `from` is, or -1. The answer is remembered, because a comment
+ * that never closes would otherwise search the rest of the text again for every later `<!--`, and a
+ * text with thousands of them would take the square of its size in time.
+ */
+function findClose(state: StateBlock | StateInline, from: number): number {
+  const last = closeSearches.get(state);
+  // A search that began at or before `from` already knows: it found no `-->` at all, or one that is still ahead.
+  if (last !== undefined && last.from <= from && (last.at === -1 || last.at >= from)) return last.at;
+  const at = state.src.indexOf('-->', from);
+  closeSearches.set(state, { from, at });
+  return at;
+}
 
 /** The class of the span that stands where a link or image does not work. The page styles it. */
 const BROKEN_CLASS = 'broken-link';
