@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — Interfaces"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-05
-status: approved 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, waiting for Mark's final approval
+status: approved 2026-10-05 (final). First approval 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, accepted with all recommendations
 tags: [engine, design]
 ---
 

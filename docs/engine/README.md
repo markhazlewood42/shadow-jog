@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — Overview"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-05
-status: approved 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, waiting for Mark's final approval
+status: approved 2026-10-05 (final). First approval 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, accepted with all recommendations
 tags: [engine, design]
 ---
 
@@ -12,7 +12,7 @@ tags: [engine, design]
 
 This is the 10-minute version. It tells you what the engine is, what its parts are, and where each part comes from.
 
-**You approved the design on 2026-10-04, with all recommendations.** The look decisions (E8, E20) still come to you at their milestones. You settled the resolution follow-up (E12) on 2026-10-05. You first kept 480x270 after the mock. The same day you chose 640x360 from the comparison pictures. The Phase 0 platform spike ([migration.md](migration.md) section 3) tested the design. The next step is your final approval of this update, then M0. Every build step goes through the verification loop in [verification.md](verification.md).
+**You approved the design on 2026-10-04, with all recommendations.** The look decisions (E8, E20) still come to you at their milestones. You settled the resolution follow-up (E12) on 2026-10-05. You first kept 480x270 after the mock. The same day you chose 640x360 from the comparison pictures. The Phase 0 platform spike ([migration.md](migration.md) section 3) tested the design. You gave your final approval of this update on 2026-10-05, with all recommendations. The design is final, and the design gate is lifted. M0 may start after the 640x360 move of the shipped game. Every build step goes through the verification loop in [verification.md](verification.md).
 
 ## What the Phase 0 spike changed (2026-10-05)
 
@@ -34,17 +34,17 @@ The evidence is in `docs/spikes/engine-platform.md` on the branch `spike/engine-
 - CI is green on `f22dc09` and `d61d7d9`. See [migration.md](migration.md) section 3.
 - Some work moved between milestones. See [migration.md](migration.md) sections 2, 5 and 6.
 
-> **What you approve now.** E1 to E25 were approved on 2026-10-04 with all recommendations (see [decisions.md](decisions.md)). The Phase 0 update asks for seven real choices, C1 to C7. Each has a recommendation. Reply with the number, for example "C1 accept", or "all recommendations". The record-only rows are in [decisions.md](decisions.md), section "Phase 0 update: record-only rows". The editor rule check is in the section after it. The record-only rows are in [decisions.md](decisions.md), section "Phase 0 update: record-only rows". The editor rule check is in the section after it.
+> **What you approved on 2026-10-05.** E1 to E25 were approved on 2026-10-04 with all recommendations (see [decisions.md](decisions.md)). On 2026-10-05 you accepted all nine recommendations of the Phase 0 update. Seven are the real choices, C1 to C7, in the table below. One is the placement of content moves: enemies at M3, shops and dialogue at M4, and maps at M5. One is the move of the hidden-scene 3D draw skip and the context grace to M7. The record-only rows are in [decisions.md](decisions.md), section "Phase 0 update: record-only rows". The editor rule check is in the section after it.
 >
-> | # | Real choice | Recommendation |
-> |---|---|---|
-> | C1 | `roundPixels` off. Snap to pixel does the rounding. It is not exact for a fractional scale of an odd-sized picture, for a snap-off node at a half pixel, or for the 1.09x battle push. | Accept. M3 decides what the battle push may do. |
-> | C2 | E3: the fallback keeps one private Three renderer for the page, with no `forceContextLoss()` on exit. A restore needs a fourth hand-off rule: `prepareForThree` runs between the restore handlers of Pixi and Three. | Accept. A new renderer for each entry leaked 5 textures and 3 framebuffers. |
-> | C3 | E19: only `context-lost` retries. A dropped story ends. It starts no scene and never retries. | Accept. A retry after a drop would start a scene on top of whatever the player moved to. |
-> | C4 | The watchdog waits 1 second, not 2. The pass line (the hack resolves within 2 seconds of the loss) holds: 1,015 to 1,034 ms. | Keep 1 second. |
-> | C5 | E17: the `lazy-3d` cap. Phase 0 measured 145.1 kB gzip. The spike budget is 160 kB. | Set the cap at 160 kB. Confirm at M1 and M6. |
-> | C6 | E13: `fit` mode is not built and has no tested design with the whole-window canvas. | Decide at M1. Consider retiring `fit`, because the integer presenter never resamples. |
-> | C7 | E22: three new Phaser deviations (the list grows from 16 to 19): `setTexture` renames the object, a scene never restarts, and an object has one mask. | Accept. See [conventions.md](conventions.md) section 3. |
+> | # | Real choice | Recommendation | Your answer |
+> |---|---|---|---|
+> | C1 | `roundPixels` off. Snap to pixel does the rounding. It is not exact for a fractional scale of an odd-sized picture, for a snap-off node at a half pixel, or for the 1.09x battle push. | Accept. M3 decides what the battle push may do. | Accepted 2026-10-05 |
+> | C2 | E3: the fallback keeps one private Three renderer for the page, with no `forceContextLoss()` on exit. A restore needs a fourth hand-off rule: `prepareForThree` runs between the restore handlers of Pixi and Three. | Accept. A new renderer for each entry leaked 5 textures and 3 framebuffers. | Accepted 2026-10-05 |
+> | C3 | E19: only `context-lost` retries. A dropped story ends. It starts no scene and never retries. | Accept. A retry after a drop would start a scene on top of whatever the player moved to. | Accepted 2026-10-05 |
+> | C4 | The watchdog waits 1 second, not 2. The pass line (the hack resolves within 2 seconds of the loss) holds: 1,015 to 1,034 ms. | Keep 1 second. | Accepted 2026-10-05 |
+> | C5 | E17: the `lazy-3d` cap. Phase 0 measured 145.1 kB gzip. The spike budget is 160 kB. | Set the cap at 160 kB. Confirm at M1 and M6. | Accepted 2026-10-05 |
+> | C6 | E13: `fit` mode is not built and has no tested design with the whole-window canvas. | Decide at M1. Consider retiring `fit`, because the integer presenter never resamples. | Accepted 2026-10-05 |
+> | C7 | E22: three new Phaser deviations (the list grows from 16 to 19): `setTexture` renames the object, a scene never restarts, and an object has one mask. | Accept. See [conventions.md](conventions.md) section 3. | Accepted 2026-10-05 |
 >
 > **IDs.** E = open engine decision. M = build milestone. T = test tier. Level 0 to 6 = code level.
 

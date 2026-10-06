@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — Tooling and testing"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-05
-status: approved 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, waiting for Mark's final approval
+status: approved 2026-10-05 (final). First approval 2026-10-04 (all recommendations). Phase 0 update on 2026-10-05, accepted with all recommendations
 tags: [engine, design]
 ---
 
@@ -283,7 +283,7 @@ The caps are your call (E17). The old 236 kB total cannot hold. Starting caps (e
 
 - `boot`: at most 144.8 kB (today's value).
 - `first play`: set after M1. The estimate is 330 to 430 kB (low confidence).
-- `lazy-3d`: 240 kB. Phase 0 measured 145.1 kB. The spike's budget script uses 160 kB.
+- `lazy-3d`: 160 kB. You accepted this cap on 2026-10-05 (real choice C5). Confirm it at M1 and M6. The first estimate was 240 kB. Phase 0 measured 145.1 kB. The spike's budget script uses 160 kB.
 
 **Phase 0 measured (gzip).** Pixi plus the engine kernel is 124.7 kB. The page of the stage lab boots with 170.7 kB, and the page of the 3D lab boots with 165.5 kB. The lazy 3D chunk (Three with named imports, a `UnrealBloomPass`, and the hack scene) is 145.1 kB (576.8 kB raw). The shipped game is byte for byte the same as before: 233.9 kB. The script `scripts/bundle-budget.mjs` now has four classes: the shipped game, the lazy 3D chunk, the lab boot, and the stage lab page. It also checks that no Three or Pixi marker string is in the shipped `dist/`.
 
