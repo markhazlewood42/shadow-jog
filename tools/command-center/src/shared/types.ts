@@ -393,6 +393,19 @@ export type SessionInfo = {
  */
 export type SessionsInfo = { sessions: SessionInfo[]; scanned: number; skipped: number; hiddenSdk: number };
 
+/**
+ * The id of a session's card on the Agents page. An address that ends in `#<this id>` leads to the card. The server writes such an address into the "Your move" list
+ * (src/server/now/yourMove.ts), and the page finds the card by it (src/web/agents), so the two share this one function and cannot drift apart.
+ */
+export function sessionAnchor(sessionId: string): string {
+  return `session-${sessionId}`;
+}
+
+/** The address of a session's card on the Agents page. It is an address of this site (it starts with "/"), so a link to it moves inside the app. */
+export function sessionHref(sessionId: string): string {
+  return `/agents#${sessionAnchor(sessionId)}`;
+}
+
 // ---- decisions (the decision inbox) ----
 // The shapes of the decisions module (src/server/decisions). A decision is a GitHub issue of the
 // repo with the label `decision`, and only an issue, a comment and a label by Mark's account count
@@ -482,7 +495,7 @@ export type YourMoveSource = 'decision-issue' | 'session' | 'pr' | 'doc-decision
 
 /**
  * One thing that waits for Mark. `text` is plain words. `href` is where its source is: an address of this site (it starts with `/`), an
- * address on GitHub (https), or null when the source has no page (a session has none yet). `light` is the status light that the reply of a
+ * address on GitHub (https), or null when the source has no page to link to. A session's items link to its card on the Agents page. `light` is the status light that the reply of a
  * session started with, and null for every other item: only a reply has one. `at` is the time of the item, as an ISO time, or null.
  */
 export type YourMoveItem = {

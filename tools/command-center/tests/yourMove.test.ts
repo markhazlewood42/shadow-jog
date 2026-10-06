@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type YourMoveSources, buildYourMove } from '../src/server/now/yourMove';
-import type { Decision, DecisionIssue, DecisionsInfo, GithubInfo, Panel, PullRequest, SessionInfo, SessionsInfo, StatusInfo, YourMoveBox } from '../src/shared/types';
+import { type Decision, type DecisionIssue, type DecisionsInfo, type GithubInfo, type Panel, type PullRequest, type SessionInfo, type SessionsInfo, type StatusInfo, type YourMoveBox, sessionAnchor, sessionHref } from '../src/shared/types';
 
 // buildYourMove is a plain function from five panels to the list "Your move" of the Now page, so these tests feed it made-up panels:
 // no server, no gh and no session file. Every name, title and line below is synthetic.
@@ -149,10 +149,10 @@ describe('buildYourMove', () => {
       // 1. The open decision issues, oldest question first (the order of the source). The answered one (`recent`) waits for nothing.
       { source: 'decision-issue', text: 'Decision #41: Question 41?', href: '/decisions/41', light: null, at: '2026-10-05T08:00:00Z' },
       { source: 'decision-issue', text: 'Decision #43: Where should the cache go?', href: '/decisions/43', light: null, at: '2026-10-05T08:00:00Z' },
-      // 2. One item for each line of the box of a live session. The answered box, the idle session and the session with no box give none.
-      { source: 'session', text: 'Answer the question (session: Title of s-working)', href: null, light: 'red', at: '2026-10-06T09:30:00.000Z' },
-      { source: 'session', text: 'Tell me to commit (session: Title of s-working)', href: null, light: 'red', at: '2026-10-06T09:30:00.000Z' },
-      { source: 'session', text: 'Look at the picture (session: Title of s-waiting)', href: null, light: null, at: null },
+      // 2. One item for each line of the box of a live session, each linked to the card of its session on the Agents page. The answered box, the idle session and the session with no box give none.
+      { source: 'session', text: 'Answer the question (session: Title of s-working)', href: '/agents#session-s-working', light: 'red', at: '2026-10-06T09:30:00.000Z' },
+      { source: 'session', text: 'Tell me to commit (session: Title of s-working)', href: '/agents#session-s-working', light: 'red', at: '2026-10-06T09:30:00.000Z' },
+      { source: 'session', text: 'Look at the picture (session: Title of s-waiting)', href: '/agents#session-s-waiting', light: null, at: null },
       // 3. The pull requests with attention, in the order of the source. A pull request that is only running its checks, and one of another account, are not in it.
       { source: 'pr', text: 'PR #101 is ready to merge: Title of PR 101', href: 'https://github.com/fixture-owner/fixture-repo/pull/101', light: null, at: '2026-10-06T09:00:00Z' },
       { source: 'pr', text: 'PR #102 needs a fix: Title of PR 102', href: 'https://github.com/fixture-owner/fixture-repo/pull/102', light: null, at: '2026-10-06T09:00:00Z' },
@@ -181,6 +181,31 @@ describe('buildYourMove', () => {
     );
     expect(result.items.map((entry) => entry.text)).toEqual(['Review the diff (session: Title of s-real)']);
     expect(result.missing).toEqual([]);
+  });
+
+  it('a session item links to the place of its session on the Agents page: /agents#session-<id>', () => {
+    const result = buildYourMove(
+      sources({
+        sessions: good(
+          sessionsInfo([
+            // Two lines of one box link to the same card, and two sessions link to two cards. The id is the file name of the session (letters, digits, "_" and "-").
+            session('e2e00000-0000-4000-8000-000000000002', { yourMove: box({ items: ['First line', 'Second line'] }) }),
+            session('another_session-7', { yourMove: box({ items: ['Third line'] }) }),
+          ]),
+        ),
+      }),
+    );
+    expect(result.items.map((entry) => [entry.text.split(' (')[0], entry.href])).toEqual([
+      ['First line', '/agents#session-e2e00000-0000-4000-8000-000000000002'],
+      ['Second line', '/agents#session-e2e00000-0000-4000-8000-000000000002'],
+      ['Third line', '/agents#session-another_session-7'],
+    ]);
+    // The link is an address of this site (it starts with "/"), so the Now page opens it inside the app and not in a new tab.
+    for (const entry of result.items) expect(entry.href?.startsWith('/agents#')).toBe(true);
+    // The page finds the card by the same words: the server and the page share one function for them (src/shared/types.ts), so the two cannot drift apart.
+    expect(sessionHref('abc-1')).toBe('/agents#session-abc-1');
+    expect(sessionHref('abc-1')).toBe(`/agents#${sessionAnchor('abc-1')}`);
+    expect(sessionAnchor('abc-1')).toBe('session-abc-1');
   });
 
   it('a failed source goes to missing, never throws', () => {

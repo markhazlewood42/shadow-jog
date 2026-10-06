@@ -1,4 +1,4 @@
-import type { Decision, DecisionIssue, DecisionsInfo, GithubInfo, Panel, PullRequest, SessionInfo, SessionsInfo, StatusInfo, YourMoveInfo, YourMoveItem, YourMoveSource } from '../../shared/types';
+import { type Decision, type DecisionIssue, type DecisionsInfo, type GithubInfo, type Panel, type PullRequest, type SessionInfo, type SessionsInfo, type StatusInfo, type YourMoveInfo, type YourMoveItem, type YourMoveSource, sessionHref } from '../../shared/types';
 import { docUrl } from '../docs/links';
 import { slugOf } from '../docs/index';
 import { inlineText } from '../engine/decisions';
@@ -64,14 +64,15 @@ function decisionIssueItem(issue: DecisionIssue): YourMoveItem {
 /**
  * The lines of the "Your move" box of a session, when Mark has something to do there: the session is not idle (an idle one has been quiet for hours, and its box
  * is old news), the box does not say "nothing", and no prompt of his came after it. The words of a line may carry markdown (`code`, **bold**), and the list is plain text.
- * The session's title is part of the text, because a line such as "Review the diff" means nothing without the session that wrote it, and a session has no page to link to yet.
+ * The session's title is part of the text, because a line such as "Review the diff" means nothing without the session that wrote it. Each line links to the card of its
+ * session on the Agents page (design 5.1: each item links to its source), where Mark sees the state of the session and the path of its file.
  */
 function sessionItems(session: SessionInfo): YourMoveItem[] {
   const box = session.yourMove;
   if (session.state === 'idle' || box === null || box.nothing || box.answered) return [];
   return box.items.flatMap((line) => {
     const words = inlineText(line);
-    return words === '' ? [] : [item('session', `${words} (session: ${session.title})`, null, { light: box.light, at: orNull(box.at) })];
+    return words === '' ? [] : [item('session', `${words} (session: ${session.title})`, sessionHref(session.id), { light: box.light, at: orNull(box.at) })];
   });
 }
 
