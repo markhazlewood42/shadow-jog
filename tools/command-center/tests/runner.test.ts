@@ -43,6 +43,13 @@ describe('the runner', () => {
       // The right --repo from the caller is accepted, and it appears once.
       ['gh pr list with the pinned --repo', 'gh', ['pr', 'list', '--repo', REPO], ['pr', 'list', '--repo', REPO]],
       ['gh issue view with --repo=', 'gh', ['issue', 'view', '7', `--repo=${REPO}`], ['issue', 'view', '--repo', REPO, '7']],
+      ['gh issue view with -R', 'gh', ['issue', 'view', '7', '-R', REPO], ['issue', 'view', '--repo', REPO, '7']],
+      ['gh issue view with -R and the repo attached', 'gh', ['issue', 'view', '7', `-R${REPO}`], ['issue', 'view', '--repo', REPO, '7']],
+      ['gh issue view with -R=', 'gh', ['issue', 'view', '7', `-R=${REPO}`], ['issue', 'view', '--repo', REPO, '7']],
+      // Short flags that hold no R and no w are still fine, one by one.
+      ['gh pr list with short flags', 'gh', ['pr', 'list', '-L', '30', '-s', 'all', '-d', '-l', 'bug'], ['pr', 'list', '--repo', REPO, '-L', '30', '-s', 'all', '-d', '-l', 'bug']],
+      ['gh issue view with -c', 'gh', ['issue', 'view', '7', '-c'], ['issue', 'view', '--repo', REPO, '7', '-c']],
+      ['gh pr list with a search that starts with a dash, written with --search=', 'gh', ['pr', 'list', '--search=-label:wip'], ['pr', 'list', '--repo', REPO, '--search=-label:wip']],
       // gh auth status and gh api have no --repo flag, so they get none.
       ['gh auth status', 'gh', ['auth', 'status'], ['auth', 'status']],
       ['gh api events', 'gh', ['api', events], ['api', events]],
@@ -124,6 +131,26 @@ describe('the runner', () => {
       ['gh pr list with a positional', 'gh', ['pr', 'list', '12']],
       ['gh pr view --web', 'gh', ['pr', 'view', '12', '--web']],
       ['gh issue list -w', 'gh', ['issue', 'list', '-w']],
+      // gh (pflag) reads several short flags in one argument: -cR other/repo is -c and -R other/repo,
+      // and -wR is -w and -R. Any one-dash group that holds R or w is refused, even with the right repo.
+      ['gh issue view -cR other', 'gh', ['issue', 'view', '7', '-cR', 'other/repo']],
+      ['gh pr list -wR other', 'gh', ['pr', 'list', '-wR', 'other/repo']],
+      ['gh pr list -dR other', 'gh', ['pr', 'list', '-dR', 'other/repo']],
+      ['gh issue view -cRother/repo', 'gh', ['issue', 'view', '7', '-cRother/repo']],
+      ['gh issue view -cR=other/repo', 'gh', ['issue', 'view', '7', '-cR=other/repo']],
+      ['gh issue view -cR with the right repo', 'gh', ['issue', 'view', '7', '-cR', REPO]],
+      ['gh issue view -cw', 'gh', ['issue', 'view', '7', '-cw']],
+      ['gh pr list -dw', 'gh', ['pr', 'list', '-dw']],
+      ['gh pr list -wd', 'gh', ['pr', 'list', '-wd']],
+      // -R= takes the text after the = as the repo, so it counts like -R.
+      ['gh pr list -R=other', 'gh', ['pr', 'list', '-R=someone/else']],
+      ['gh pr list -R with no value', 'gh', ['pr', 'list', '-R']],
+      ['gh pr list the right --repo and then another -R', 'gh', ['pr', 'list', '--repo', REPO, '-R', 'someone/else']],
+      // A flag that is only on or off also takes =true, so every spelling of --web is refused.
+      ['gh issue view --web=true', 'gh', ['issue', 'view', '7', '--web=true']],
+      ['gh pr list --web=false', 'gh', ['pr', 'list', '--web=false']],
+      // A known cost of the rule: a value with one dash and a w or R in it is refused too (write it as --search=-label:wip).
+      ['gh pr list with a value like -label:wip', 'gh', ['pr', 'list', '--search', '-label:wip']],
       // gh api: one exact read path, and no flag that sends data or changes the method.
       ['gh api other repo', 'gh', ['api', 'repos/someone/else/issues/7/events']],
       ['gh api another endpoint', 'gh', ['api', `repos/${REPO}/issues/7/comments`]],

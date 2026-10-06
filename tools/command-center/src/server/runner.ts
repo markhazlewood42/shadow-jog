@@ -68,11 +68,22 @@ function checkGit(args: string[]): Checked {
 }
 
 /**
- * Takes the --repo option out of the arguments. gh pr and gh issue are pinned to the configured
- * repository, so the runner adds that option itself, and a caller may pass it only with the same
- * value. gh accepts --repo X, --repo=X, -R X and -RX, so all four are read.
+ * Reads the options of a gh pr or gh issue read and gives them back without any --repo (the
+ * runner adds its own). It refuses anything that could point the call at another repository or
+ * open a browser. gh reads its options with pflag, which has more spellings than the obvious ones:
+ *
+ * - The repo can be given as `--repo X`, `--repo=X`, `-R X`, `-RX` and `-R=X`. Each is accepted
+ *   only when X is the configured repository.
+ * - Several short flags can share one dash, and the last one may take the next argument:
+ *   `-cR other/repo` means `-c` and `-R other/repo` (tried with `gh issue view 7 -cR <host>/o/r`:
+ *   gh went to that host). The runner does not know which letters take a value, so it refuses
+ *   every argument with one dash that holds an R or a w anywhere, apart from the -R forms above.
+ *   That also stops a value that starts with a dash and has such a letter (a search for
+ *   `-label:wip`). Write that as `--search=-label:wip`, which has two dashes.
+ * - A flag that is only on or off also takes a value (`--web=true`), so any argument that
+ *   starts with --web is refused, not only the exact word.
  */
-function takeRepo(repo: string, args: readonly string[]): { rest: string[] } | { refused: string } {
+function readOptions(repo: string, args: readonly string[]): { rest: string[] } | { refused: string } {
   const rest: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const arg = args[i] as string;
@@ -82,9 +93,14 @@ function takeRepo(repo: string, args: readonly string[]): { rest: string[] } | {
       if (value === undefined) return { refused: `${arg} needs a value` };
     } else if (arg.startsWith('--repo=')) {
       value = arg.slice('--repo='.length);
-    } else if (arg.startsWith('-R') && arg.length > 2) {
-      value = arg.slice(2);
+    } else if (arg.startsWith('-R')) {
+      // -RX and -R=X (a lone -R was read above).
+      value = arg.slice(2).replace(/^=/, '');
     } else {
+      if (arg.startsWith('--web')) return { refused: `${arg} would open a browser` };
+      if (/^-[^-]/.test(arg) && /[Rw]/.test(arg)) {
+        return { refused: `${arg} is a group of short flags that holds R (repository) or w (web), so it could change the repository or open a browser` };
+      }
       rest.push(arg);
       continue;
     }
@@ -95,17 +111,16 @@ function takeRepo(repo: string, args: readonly string[]): { rest: string[] } | {
 
 /** gh pr list, pr view, issue list and issue view: reads, pinned to the repository. `rest` is what follows the first two words. */
 function checkGhRead(repo: string, group: 'pr' | 'issue', verb: 'list' | 'view', rest: string[]): Checked {
-  const taken = takeRepo(repo, rest);
-  if ('refused' in taken) return refuse(taken.refused);
-  const [first] = taken.rest;
+  const options = readOptions(repo, rest);
+  if ('refused' in options) return refuse(options.refused);
+  const [first] = options.rest;
   if (verb === 'view') {
     // Only a plain number: a URL or a branch name in this place could point at another repository.
     if (!isNumber(first)) return refuse(`gh ${group} view takes a plain number first`);
   } else if (first !== undefined && !first.startsWith('-')) {
     return refuse(`gh ${group} list takes no argument that is not an option`);
   }
-  if (taken.rest.some((arg) => arg === '--web' || arg === '-w')) return refuse('--web would open a browser');
-  return accept([group, verb, '--repo', repo, ...taken.rest]);
+  return accept([group, verb, '--repo', repo, ...options.rest]);
 }
 
 /** Options of gh api that only change how a read is made, and the options among them that take a value. */
