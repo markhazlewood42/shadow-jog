@@ -1,7 +1,7 @@
 import { Button } from '@heroui/react';
 import { LoaderCircle, RefreshCw, TriangleAlert } from 'lucide-react';
 import { Component, type ReactNode, Suspense, lazy } from 'react';
-import { Route, Routes } from 'react-router';
+import { Route, Routes, useLocation } from 'react-router';
 import { AgentsPage } from './agents/AgentsPage';
 import { DecisionRoute } from './decisions/DecisionPage';
 import { DocsRoutes } from './docs/DocsRoutes';
@@ -21,15 +21,20 @@ function NowLoading() {
 }
 
 /**
- * Catches an error of the Now page, so that a page that cannot be drawn shows what is wrong and is not left blank. The error that matters most is the file of the page
- * failing to load: the server may have been restarted with a new build while this tab was open, and the file name that the old page asks for (it has a hash in it) is gone.
- * React offers no hook for this: an error boundary has to be a class.
+ * Catches a render error of any page, so that a page that cannot be drawn shows what is wrong and is not left blank (React unmounts the whole tree on an error that nothing catches).
+ * The error that matters most is the file of a lazy page failing to load: the server may have been restarted with a new build while this tab was open, and the file name that the
+ * old page asks for (it has a hash in it) is gone. React offers no hook for this: an error boundary has to be a class.
+ * `resetKey` is the address of the page. When it changes (Mark goes to another page), the error is cleared, so one broken page does not block the others.
  */
-class NowErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+export class PageErrorBoundary extends Component<{ children: ReactNode; resetKey: string }, { error: Error | null }> {
   override state: { error: Error | null } = { error: null };
 
   static getDerivedStateFromError(error: unknown): { error: Error } {
     return { error: error instanceof Error ? error : new Error(String(error)) };
+  }
+
+  override componentDidUpdate(previous: { resetKey: string }): void {
+    if (this.state.error !== null && previous.resetKey !== this.props.resetKey) this.setState({ error: null });
   }
 
   override render(): ReactNode {
@@ -40,7 +45,7 @@ class NowErrorBoundary extends Component<{ children: ReactNode }, { error: Error
         {/* Ink, not amber: the Look keeps amber for the one or two focal items of a page. */}
         <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-cc-ink" />
         <div className="min-w-0 flex-1">
-          <p className="font-medium">The Now page could not be shown.</p>
+          <p className="font-medium">This page could not be shown.</p>
           <p className="mt-1 text-sm break-words text-cc-muted">{error.message}</p>
           <p className="mt-1 text-sm text-cc-muted">If the server was restarted while this page was open, the file of the page has a new name. Reload to get the new one.</p>
         </div>
@@ -60,21 +65,22 @@ class NowErrorBoundary extends Component<{ children: ReactNode }, { error: Error
  * The router itself (BrowserRouter) is in main.tsx, so a test can put this under a router of its own.
  */
 export function App() {
+  const { pathname } = useLocation();
   return (
-    <Routes>
-      <Route path="/docs/*" element={<DocsRoutes />} />
-      <Route path="/decisions/:number" element={<DecisionRoute />} />
-      <Route path="/agents" element={<AgentsPage />} />
-      <Route
-        path="*"
-        element={
-          <NowErrorBoundary>
+    <PageErrorBoundary resetKey={pathname}>
+      <Routes>
+        <Route path="/docs/*" element={<DocsRoutes />} />
+        <Route path="/decisions/:number" element={<DecisionRoute />} />
+        <Route path="/agents" element={<AgentsPage />} />
+        <Route
+          path="*"
+          element={
             <Suspense fallback={<NowLoading />}>
               <NowPage />
             </Suspense>
-          </NowErrorBoundary>
-        }
-      />
-    </Routes>
+          }
+        />
+      </Routes>
+    </PageErrorBoundary>
   );
 }

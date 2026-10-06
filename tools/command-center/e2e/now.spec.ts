@@ -263,7 +263,7 @@ test.describe('a page that cannot be shown', () => {
     await page.route('**/assets/NowPage-*.js', (route) => route.abort());
     await page.goto('/');
     const alert = page.getByRole('alert');
-    await expect(alert).toContainText('The Now page could not be shown.');
+    await expect(alert).toContainText('This page could not be shown.');
     await expect(alert).toContainText('Reload to get the new one.');
     // The page is not left blank: the error says what is wrong. (The page that failed to load is not there, so it has no title.)
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(0);
