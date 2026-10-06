@@ -19,6 +19,8 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 ## Where we left off (2026-10-05)
 
+> **In progress (2026-10-06): the Command Center build** on branch `command-center`. Tasks 1 to 8 of 12 are done, verified and pushed. Next: Task 9 (the decision pages), Task 10 (the Now page), Task 11 (the Agents page), then Task 12 (the finish and the PR). The build ledger is the git-ignored `.superpowers/sdd/plan/progress.md`.
+
 ### The whole process so far
 1. **Build (2026-09-27 → 28).** From the original prompt (`docs/original-prompt.md`) to a content-complete chapter:
    town, world map, outpost, two-floor dungeon, four party members, 21 enemies and three bosses, nine combos, an
