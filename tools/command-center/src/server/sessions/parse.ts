@@ -45,7 +45,7 @@ export function clipText(text: string, max: number): string {
  * and mostly again at its end. A type that is not here is skipped and counted, so a new Claude Code that
  * adds one changes nothing; a file that holds none of these is in a format that this cannot read.
  */
-export const KNOWN_LINE_TYPES: ReadonlySet<string> = new Set([
+const KNOWN_LINE_TYPES: ReadonlySet<string> = new Set([
   'user',
   'assistant',
   'attachment',
@@ -259,8 +259,8 @@ function inWords(seconds: number): string {
  */
 export function applyAge(activity: Activity, mtimeMs: number, nowMs: number, limits: StateLimits = DEFAULT_STATE_LIMITS): { state: SessionState; reason: string } {
   if (activity.kind === 'unknown') return { state: 'unknown', reason: activity.reason };
-  // A file time that is a little ahead of the clock (two clocks that differ) is a file that was just written.
-  const ageSeconds = Math.max(0, nowMs - mtimeMs) / 1000;
+  // A file time that is a little ahead of the clock (two clocks that differ) gives a negative age, which is below any limit: a file that was just written.
+  const ageSeconds = (nowMs - mtimeMs) / 1000;
   const waiting = activity.kind === 'turn-ended';
   const limit = waiting ? limits.waitingSeconds : limits.workingSeconds;
   if (ageSeconds > limit) return { state: 'idle', reason: `no write for more than ${inWords(limit)}` };
@@ -368,7 +368,7 @@ function replyText(line: Line): string | null {
  * session (`peer`), a line that the tool injected (`isMeta`) and Mark's interrupt (Esc) are not. A line with
  * no origin is a prompt: the files of older Claude Code versions have none.
  */
-export function isHumanPrompt(line: unknown): boolean {
+function isHumanPrompt(line: unknown): boolean {
   if (!isLine(line) || line.type !== 'user' || line.isMeta === true || line.toolEndsTurn === true || messageOf(line) === null) return false;
   const origin = isLine(line.origin) ? line.origin.kind : undefined;
   if (origin !== undefined && origin !== 'human') return false;

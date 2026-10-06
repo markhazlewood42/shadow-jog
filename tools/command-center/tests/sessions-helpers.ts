@@ -113,6 +113,17 @@ export function jsonl(lines: readonly unknown[]): string {
   return `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`;
 }
 
+/** One line of JSON (no newline) that is exactly `bytes` long: `extra` fields, and a "pad" field of x to fill up. */
+export function lineOfSize(bytes: number, extra: Record<string, unknown> = {}): string {
+  const empty = JSON.stringify({ ...extra, pad: '' });
+  return JSON.stringify({ ...extra, pad: 'x'.repeat(bytes - Buffer.byteLength(empty)) });
+}
+
+/** `count` lines of 100 bytes each, numbered by `n` from `from`, with a newline after each (101 bytes for a line). */
+export function numberedLines(count: number, from = 0): string {
+  return Array.from({ length: count }, (_, i) => `${lineOfSize(100, { n: from + i })}\n`).join('');
+}
+
 // ---- files ----
 
 /** Writes a file (and the folders above it), and sets its time of last write to `ageSeconds` before NOW. */

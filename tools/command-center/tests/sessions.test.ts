@@ -1,10 +1,10 @@
 import { appendFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { createHub } from '../src/server/hub';
 import type { Config } from '../src/server/config';
-import { createSessionsSource } from '../src/server/sessions/sessions';
+import { SESSIONS_POLL_MS, createSessionsSource } from '../src/server/sessions/sessions';
 import type { ChangeEvent, SessionInfo, SessionsInfo } from '../src/shared/types';
 import { CLAUDE_FIXTURES, INSIDE, MIXED_FOLDER, NOW, WHOLE_FOLDER, assistantText, assistantToolUse, at, attachment, box, copyClaudeFixtures, jsonl, lastPrompt, sessionsConfig, setAge, toolResult, userPrompt, writeAged } from './sessions-helpers';
 
@@ -528,6 +528,47 @@ describe('the source', () => {
     await source.get(true);
     expect(events).toHaveLength(2);
     expect(events[1]).toMatchObject({ module: 'sessions' });
+  });
+
+  it('start() looks at once and then every 10 seconds, and stop() ends it', async () => {
+    // Only the timers of the interval are faked: the files are read for real, and the test waits for them with real timers.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      expect(SESSIONS_POLL_MS).toBe(10_000);
+      const projects = freshProjects();
+      const hub = createHub();
+      const events: ChangeEvent[] = [];
+      hub.subscribe((event) => events.push(event));
+      const source = createSessionsSource({ config: sessionsConfig(projects), hub, now: () => NOW });
+      const until = async (done: () => boolean) => {
+        for (let waited = 0; !done(); waited += 10) {
+          if (waited > 3000) throw new Error('waited three seconds for the source');
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+      };
+      const change = (age: number) => {
+        const file = join(projects, WHOLE_FOLDER, `${S3}.jsonl`);
+        appendFileSync(file, jsonl([toolResult('x', { cwd: INSIDE })]));
+        setAge(file, age);
+      };
+
+      source.start();
+      await until(() => events.length === 1); // the first look, at once
+      change(30);
+      vi.advanceTimersByTime(SESSIONS_POLL_MS - 1);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(events).toHaveLength(1); // not yet
+      vi.advanceTimersByTime(1);
+      await until(() => events.length === 2); // 10 s after the start: it looked again and found the change
+
+      source.stop();
+      change(20);
+      vi.advanceTimersByTime(3 * SESSIONS_POLL_MS);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(events).toHaveLength(2); // stopped: no more looks
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('an answer is a Panel: the data, and the time it was made', async () => {

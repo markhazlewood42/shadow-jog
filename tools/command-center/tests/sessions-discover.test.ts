@@ -96,6 +96,7 @@ describe('listSessionFiles', () => {
     session(MIXED_FOLDER, 'd-mixed.jsonl');
     // What lives next to the session files, and is not one of them.
     writeAged(join(projects, WHOLE_FOLDER, 'e-notes.txt'), 'x');
+    writeAged(join(projects, WHOLE_FOLDER, 'e-copy.jsonl.bak'), '{"type":"user"}\n');
     writeAged(join(projects, WHOLE_FOLDER, 'f-title.json'), '{}');
     writeAged(join(projects, WHOLE_FOLDER, 'a-recent', 'subagents', 'agent-x.jsonl'), '{"type":"user"}\n');
     mkdirSync(join(projects, WHOLE_FOLDER, 'g-folder.jsonl'), { recursive: true }); // a folder that is named like a file
@@ -133,6 +134,13 @@ describe('listSessionFiles', () => {
   it('a week is the config setting: a shorter one leaves out the older files', async () => {
     const files = await listSessionFiles(sessionsConfig(projects, { recentSeconds: 3600 }), NOW);
     expect(files.map((file) => file.id)).toEqual(['a-recent', 'd-mixed']);
+  });
+
+  it('a file that is exactly as old as the week is still in it, and one a second older is not', async () => {
+    const dir = join(parent, 'boundary');
+    writeAged(join(dir, WHOLE_FOLDER, 'a-exactly.jsonl'), '{"type":"user"}\n', 604_800);
+    writeAged(join(dir, WHOLE_FOLDER, 'b-just-over.jsonl'), '{"type":"user"}\n', 604_801);
+    expect((await listSessionFiles(sessionsConfig(dir), NOW)).map((file) => file.id)).toEqual(['a-exactly']);
   });
 
   it('a folder that is missing, or that is a file, is no error: there are no sessions in it', async () => {

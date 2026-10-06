@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { HEAD_MAX_BYTES, TAIL_MAX_BYTES, TAIL_START_BYTES, readFirstTimestamp, readSmallJson, readTail } from '../src/server/sessions/tail';
-import { jsonl } from './sessions-helpers';
+import { jsonl, lineOfSize, numberedLines } from './sessions-helpers';
 
 // The bounded reader of the sessions module. A session file can be 300 MB, so the module never reads
 // a file whole: it reads a window at the end (and 16 KB at the start), and these tests check where
@@ -18,17 +18,6 @@ function file(content: string | Buffer): string {
   const path = join(dir, `file-${counter++}.jsonl`);
   writeFileSync(path, content);
   return path;
-}
-
-/** One line of JSON (no newline) that is exactly `bytes` long: `extra` fields, and a "pad" field of x to fill up. */
-function lineOfSize(bytes: number, extra: Record<string, unknown> = {}): string {
-  const empty = JSON.stringify({ ...extra, pad: '' });
-  return JSON.stringify({ ...extra, pad: 'x'.repeat(bytes - Buffer.byteLength(empty)) });
-}
-
-/** `count` lines of about 100 bytes each, numbered by `n` from `from`, with a newline after each. */
-function numberedLines(count: number, from = 0): string {
-  return Array.from({ length: count }, (_, i) => `${lineOfSize(100, { n: from + i })}\n`).join('');
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);

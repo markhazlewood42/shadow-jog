@@ -1,11 +1,11 @@
-import { appendFileSync, closeSync, ftruncateSync, mkdirSync, mkdtempSync, openSync, rmSync, statSync, writeSync } from 'node:fs';
+import { appendFileSync, closeSync, ftruncateSync, mkdirSync, mkdtempSync, openSync, rmSync, statSync, utimesSync, writeFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHub } from '../src/server/hub';
 import { createSessionsSource } from '../src/server/sessions/sessions';
 import { readTail } from '../src/server/sessions/tail';
-import { INSIDE, MIXED_FOLDER, NOW, WHOLE_FOLDER, assistantText, at, copyClaudeFixtures, customTitle, jsonl, lastPrompt, sessionsConfig, setAge, userPrompt } from './sessions-helpers';
+import { INSIDE, MIXED_FOLDER, NOW, WHOLE_FOLDER, assistantText, at, copyClaudeFixtures, customTitle, jsonl, lastPrompt, lineOfSize, numberedLines, sessionsConfig, setAge, userPrompt } from './sessions-helpers';
 
 // What the sessions module reads from disk. The module opens a file only through `open` of
 // node:fs/promises (the no-write scan checks that its flag is always 'r'), so a wrapper around `open`
@@ -131,6 +131,19 @@ describe('how much is read', () => {
   });
 });
 
+describe('a window that grows', () => {
+  it('reads each byte once: what the file system was asked for is what readTail counts', async () => {
+    // 1.2 MB of small lines and a last line of 300 KB: the window doubles from 64 KB to 512 KB before the line fits.
+    const file = join(parent, 'grows.jsonl');
+    writeFileSync(file, `${numberedLines(12_000)}${lineOfSize(300 * 1024, { big: true })}\n`);
+    const result = await readTail(file);
+    expect(result.lines.at(-1)).toMatchObject({ big: true });
+    expect(result.bytesRead).toBe(512 * 1024);
+    // Four passes (64, 128, 256 and 512 KB windows) asked the file system for 512 KB in all, and not for the 960 KB that four whole windows would be.
+    expect(spy.opens).toEqual([{ path: file, bytes: 512 * 1024 }]);
+  });
+});
+
 describe('a file that did not change is not read again', () => {
   /** How many files the first look opens: 8 session files (every recent file of the two folders is read, to find its cwd), 5 agent files and their 5 metas and the journal of the run in S1, S3's custom-title.json, and the agent, its meta and the journal in S6. */
   const FILES_OF_THE_FIRST_LOOK = 8 + 5 + 5 + 1 + 1 + 3;
@@ -179,6 +192,14 @@ describe('a file that did not change is not read again', () => {
     forgetWhatWasSpiedOn();
     await source.get(true);
     expect(openedPaths()).toEqual([journal]);
+
+    // A file that grows but keeps its time of last write (a file system with a coarse clock does this) is read again too: the size is part of what is compared.
+    const sameTime = statSync(agentFile).mtime;
+    appendFileSync(agentFile, jsonl([assistantText('a second line', { cwd: INSIDE })]));
+    utimesSync(agentFile, sameTime, sameTime);
+    forgetWhatWasSpiedOn();
+    await source.get(true);
+    expect(openedPaths()).toEqual([agentFile]);
 
     // And the next look finds everything the same again.
     forgetWhatWasSpiedOn();
