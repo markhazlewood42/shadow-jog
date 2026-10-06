@@ -8,6 +8,7 @@ import {
   countLineTypes,
   extractPrs,
   extractYourMove,
+  hasConversationCwd,
   hasCwd,
   isDecisive,
   lastDecisiveTime,
@@ -178,6 +179,17 @@ describe('the working folder and the other facts of a line', () => {
     expect(hasCwd(userPrompt('x', { cwd: null }))).toBe(false);
     expect(hasCwd({ cwd: '' })).toBe(false);
     expect(hasCwd('cwd')).toBe(false);
+  });
+
+  it('hasConversationCwd: a user or assistant line that has a cwd, and not an attachment or a system line that has one', () => {
+    expect(hasConversationCwd(userPrompt('x'))).toBe(true);
+    expect(hasConversationCwd(assistantText('x'))).toBe(true);
+    expect(hasConversationCwd(userPrompt('x', { cwd: null }))).toBe(false); // a reply with no cwd
+    expect(hasConversationCwd(userPrompt('x', {}, { isMeta: true }))).toBe(false); // an injected line is not the conversation
+    expect(hasConversationCwd(attachment('x'))).toBe(false);
+    expect(hasConversationCwd(systemLine())).toBe(false);
+    expect(hasConversationCwd({ type: 'from-the-future', cwd: '/x' })).toBe(false);
+    expect(hasConversationCwd(42)).toBe(false);
   });
 
   it('the branch is the one of the newest line that names one, and an empty name is a name (the folder is not in a git repo)', () => {

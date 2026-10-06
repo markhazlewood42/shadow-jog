@@ -88,6 +88,16 @@ export function hasCwd(line: unknown): line is Line & { cwd: string } {
 }
 
 /**
+ * A line of the conversation that has a working folder. The module reads back from the end of a session file until
+ * one is in its window. A line that has a working folder is not enough: a few big attachments after the last reply (in
+ * real files, listings of skills) can fill the first window, and every one of them has a working folder. The window
+ * would then hold no reply, and the session would have no state and no "Your move" box.
+ */
+export function hasConversationCwd(line: unknown): boolean {
+  return isDecisive(line) && hasCwd(line);
+}
+
+/**
  * The working folder of the newest line that has one. An idle session ends in lines that have none
  * (`last-prompt`, `cost-state`, `mode`), so the newest line is not the one to ask.
  */

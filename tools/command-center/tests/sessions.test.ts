@@ -6,7 +6,7 @@ import { createHub } from '../src/server/hub';
 import type { Config } from '../src/server/config';
 import { createSessionsSource } from '../src/server/sessions/sessions';
 import type { ChangeEvent, SessionInfo, SessionsInfo } from '../src/shared/types';
-import { INSIDE, MIXED_FOLDER, NOW, WHOLE_FOLDER, assistantText, assistantToolUse, at, copyClaudeFixtures, jsonl, setAge, sessionsConfig, toolResult, userPrompt, writeAged, CLAUDE_FIXTURES } from './sessions-helpers';
+import { CLAUDE_FIXTURES, INSIDE, MIXED_FOLDER, NOW, WHOLE_FOLDER, assistantText, assistantToolUse, at, attachment, box, copyClaudeFixtures, jsonl, lastPrompt, sessionsConfig, setAge, toolResult, userPrompt, writeAged } from './sessions-helpers';
 
 // The sessions module over the synthetic Claude folders of fixtures/claude/projects (see
 // tests/sessions-helpers.ts). The fixtures are copied for each test and their times of last write are set
@@ -433,6 +433,20 @@ describe('a file that is not what it should be', () => {
     writeAged(join(projects, MIXED_FOLDER, `${id}.jsonl`), jsonl([userPrompt('go', { cwd: '/fixture/home-base' }), assistantText('Done.', { cwd: '/fixture/repo/tools' }), ...notes]));
     const session = find((await load({ projects })).info, id);
     expect(session).toMatchObject({ cwd: '/fixture/repo/tools', matchedBy: 'cwd', state: 'waiting' });
+  });
+
+  it('big attachments after the last reply do not hide it: the module reads further back until it finds a line of the conversation', async () => {
+    // Seen in real files: a few large attachments (listings of skills, for example) after the last reply fill the first 64 KB, and all of
+    // them have a cwd. A window that stopped at the first cwd would hold no reply, and the session would have no state and no box.
+    const projects = freshProjects();
+    const id = 'cccccccc-0000-4000-8000-000000000006';
+    const bigAttachment = (n: number) => attachment(`LEAK-attachment-${n} ${'x'.repeat(30 * 1024)}`, { cwd: INSIDE, time: at(-40 + n) });
+    writeAged(
+      join(projects, WHOLE_FOLDER, `${id}.jsonl`),
+      jsonl([userPrompt('go'), assistantText(box(['ALLOWED-item-behind-the-attachments']), { time: at(-50) }), bigAttachment(1), bigAttachment(2), bigAttachment(3), lastPrompt()]),
+    );
+    const session = find((await load({ projects })).info, id);
+    expect(session).toMatchObject({ state: 'waiting', cwd: INSIDE, yourMove: { items: ['ALLOWED-item-behind-the-attachments'], answered: false } });
   });
 
   it('a line that is far bigger than the window is never read, and the lines after it are', async () => {

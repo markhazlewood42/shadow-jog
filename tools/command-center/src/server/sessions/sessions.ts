@@ -13,7 +13,7 @@ import {
   countLineTypes,
   extractPrs,
   extractYourMove,
-  hasCwd,
+  hasConversationCwd,
   isDecisive,
   lastDecisiveTime,
   newestBranch,
@@ -169,8 +169,9 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
 
   async function readSession(file: SessionFile): Promise<SessionFacts> {
     return memoRead(file, async () => {
-      // The window grows until a line that has a working folder is in it: the end of an idle session is notes that have none.
-      const [{ lines }, firstTime] = await Promise.all([readTail(file.path, { until: hasCwd }), readFirstTimestamp(file.path)]);
+      // The window grows until a line of the conversation that has a working folder is in it: the end of an idle session is notes
+      // that have none, and attachments after the last reply can be big.
+      const [{ lines }, firstTime] = await Promise.all([readTail(file.path, { until: hasConversationCwd }), readFirstTimestamp(file.path)]);
       return {
         cwd: newestCwd(lines),
         branch: newestBranch(lines) ?? '',
