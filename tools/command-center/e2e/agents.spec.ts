@@ -32,7 +32,6 @@ function clock() {
   const base = Date.now();
   return { at: (secondsAgo: number) => new Date(base - secondsAgo * 1000).toISOString(), ms: (secondsAgo: number) => base - secondsAgo * 1000 };
 }
-type Clock = ReturnType<typeof clock>;
 
 const line = (type: 'user' | 'assistant', timestamp: string, cwd: string, message: Line, extra: Line = {}): Line => ({ type, timestamp, cwd, gitBranch: 'fixture-branch', sessionId: 'e2e', entrypoint: 'claude-desktop', message, ...extra });
 const prompt = (text: string, timestamp: string, cwd = REPO) => line('user', timestamp, cwd, { role: 'user', content: text });
@@ -75,7 +74,7 @@ function writeWorkflow(sessionDir: string, run: string, name: string, phases: { 
 }
 
 /**
- * Seven sessions of the last week, from four folders and times, and one of eight days ago. Newest first (by the time of the last write):
+ * Seven sessions of the last week, from the two folders of the config, each last written at its own time, and one of eight days ago. Newest first (by the time of the last write):
  *   1 working (now): a pull request, a running, a finished and a stopped agent, a workflow at work (2 of 3 agents done in two phases) and a workflow that is done
  *   2 waiting for Mark (10 min ago), with a yellow "Your move" box
  *   3 waiting, in the home-base folder (15 min ago): listed because its working folder is inside the root
@@ -85,7 +84,7 @@ function writeWorkflow(sessionDir: string, run: string, name: string, phases: { 
  *   7 idle (6 days ago): it ran 10 min
  * Session 8 was last written 8 days ago and is not listed.
  */
-function writeWeek(): Clock {
+function writeWeek(): void {
   const c = clock();
 
   const first = join(WHOLE, `${ID(1)}.jsonl`);
@@ -126,8 +125,6 @@ function writeWeek(): Clock {
   const eighth = join(WHOLE, `${ID(8)}.jsonl`);
   writeLines(eighth, [prompt('A session older than a week', c.at(8 * DAY_SECONDS + 600)), reply('Done.', c.at(8 * DAY_SECONDS))]);
   touch(eighth, c.ms(8 * DAY_SECONDS));
-
-  return c;
 }
 
 /** The titles of `writeWeek`, newest first. A session with no prompt is titled "Session" and the first 8 characters of its id. */
@@ -280,6 +277,43 @@ test.describe('the list', () => {
     await expect(fewer).toHaveAttribute('aria-expanded', 'true');
     await fewer.click();
     await expect(rows).toHaveCount(5);
+  });
+
+  test('a session that starts while the page is open shows without a reload, on top', async ({ page, request }) => {
+    const c = clock();
+    writeLines(join(WHOLE, `${ID(1)}.jsonl`), [prompt('The session that was there first', c.at(7200)), reply('Done.', c.at(7000))]);
+    touch(join(WHOLE, `${ID(1)}.jsonl`), c.ms(7000));
+    await refreshSessions(request);
+    await openAgents(page);
+    await expect(sessionsPanel(page).getByRole('article')).toHaveCount(1);
+
+    // A new session begins. The server looks at the files (every 10 seconds, and here at once), says that the sessions changed, and the page loads them again by itself.
+    writeLines(join(WHOLE, `${ID(2)}.jsonl`), [prompt('The session that began later', c.at(60)), toolResult(c.at(5))]);
+    await refreshSessions(request);
+    await expect(sessionsPanel(page).getByRole('article').getByRole('heading', { level: 3 })).toHaveText(['The session that began later', 'The session that was there first']);
+    await expect(sessionsPanel(page)).toContainText(/Updated \d\d:\d\d:\d\d/);
+  });
+
+  test('the words of a session file show as text, never as markup', async ({ page, request }) => {
+    // A title, an agent's description, a branch and the name of a phase all come from files that a session wrote, so any of them can hold anything. None may become an element.
+    const c = clock();
+    const file = join(WHOLE, `${ID(1)}.jsonl`);
+    writeLines(file, [{ ...prompt('<b>Bold</b> and <i>italic</i> title', c.at(600)), gitBranch: 'feature/<u>branch</u>' }, { ...toolResult(c.at(4)), gitBranch: 'feature/<u>branch</u>' }]);
+    const session = join(WHOLE, ID(1));
+    writeAgent(session, 'markup01', '<img src=x onerror="window.__pwned = 1"> described', [prompt('made up', c.at(300)), toolResult(c.at(5))]);
+    writeWorkflow(session, 'wf_00000001-aaa', 'fixture-build', [{ name: '<s>Phase</s> one', started: 1, done: 0 }], ['phase01']);
+    await refreshSessions(request);
+    await openAgents(page);
+
+    const card = cardOf(page, '<b>Bold</b> and <i>italic</i> title');
+    await expect(card).toBeVisible();
+    await expect(card.getByText('feature/<u>branch</u>', { exact: true })).toBeVisible();
+    await expect(rowOf(card, '<img src=x onerror="window.__pwned = 1"> described')).toBeVisible();
+    await rowOf(card, 'fixture-build').getByRole('button', { name: /^Phases/ }).click();
+    await expect(card.getByText('<s>Phase</s> one', { exact: true })).toBeVisible();
+    // No element came out of any of them, and nothing ran.
+    await expect(page.locator('main').locator('b, i, u, s, img, script')).toHaveCount(0);
+    expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBeUndefined();
   });
 
   test('the top bar of the Now page and of the docs links to the Agents page', async ({ page }) => {
@@ -501,7 +535,7 @@ test.describe('the link from Your move', () => {
   test('a link to a session that is not in the list says so, and marks nothing', async ({ page, request }) => {
     writeWeek();
     await refreshSessions(request);
-    // The session of eight days ago has a file, and the page does not list it. (So does a session that was never there.)
+    // The session of eight days ago has a file, and the page does not list it (the same would hold for a session that was never there).
     await openAgents(page, `/agents#session-${ID(8)}`);
 
     const note = sessionsPanel(page).getByRole('note', { name: 'Session not found' });
