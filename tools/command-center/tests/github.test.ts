@@ -198,7 +198,8 @@ describe('parseGhPrs', () => {
     expect(other.open[0]).toMatchObject({ author: 'someone-else', checksSummary: 'pass', attention: null });
 
     // A pull request with no author, an agent's app account and logins that only look like Mark's are not Mark.
-    for (const author of [null, { login: '' }, { login: 'app/copilot-swe-agent' }, { login: `${MARK_LOGIN}2` }, { login: `x${MARK_LOGIN}` }]) {
+    // (The last one has the KELVIN SIGN, U+212A, in the place of the k. It lowercases to the real login, and only the ASCII rule of isMarkLogin refuses it.)
+    for (const author of [null, { login: '' }, { login: 'app/copilot-swe-agent' }, { login: `${MARK_LOGIN}2` }, { login: `x${MARK_LOGIN}` }, { login: 'marKhazlewood42' }]) {
       expect(parseOne({ author, statusCheckRollup: passing }).open[0]?.attention, JSON.stringify(author)).toBeNull();
     }
     // GitHub logins are not case sensitive: the same account in other letters is Mark.

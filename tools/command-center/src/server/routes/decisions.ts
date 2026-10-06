@@ -1,8 +1,8 @@
 import type { Context, Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
-import type { AnswerErrorBody, DecisionDetail, DecisionIssue, DecisionsInfo, Panel } from '../../shared/types';
+import { type AnswerErrorBody, type DecisionDetail, type DecisionIssue, type DecisionsInfo, MAX_NOTE_CHARS, type Panel } from '../../shared/types';
 import type { Config } from '../config';
-import { MAX_NOTE_CHARS, answerDecision, checkAnswer } from '../decisions/answer';
+import { answerDecision, checkAnswer } from '../decisions/answer';
 import { readDecision } from '../decisions/module';
 import type { DocIndex } from '../docs/index';
 import { apiError, createWriteGuard } from '../guard';

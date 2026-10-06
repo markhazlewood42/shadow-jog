@@ -1,7 +1,12 @@
+import { randomUUID } from 'node:crypto';
+import { rmSync, writeFileSync } from 'node:fs';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Exec } from '../src/server/runner';
 import { DECISION_FIELDS } from '../src/server/decisions/parse';
 import { bannersOf } from '../src/server/decisions/module';
+import { MARK_LOGIN } from '../src/server/github/github';
 import type { DecisionDetail, DecisionIssue, DecisionsInfo, DocDecision, DocPageData, Panel } from '../src/shared/types';
 import { FAKE_VIEWER, setGhIssues } from '../e2e/fake-gh';
 import { SEED, SETUP_DOC, type DecisionsRig, type RigOptions, makeDecisionsRig, setRigMode } from './decisions-rig';
@@ -23,6 +28,48 @@ function rigOf(options: RigOptions = {}): DecisionsRig {
 }
 
 const DAY = 24 * 60 * 60 * 1000;
+
+// ---- a spy on the file system ----
+
+const nodeRequire = createRequire(import.meta.url);
+
+/** The functions of node:fs and node:fs/promises that take a path and look at it: a read, a listing, a look at the file, an open. (The no-write scan shows that the server has no function that writes.) */
+const FS_LOOKERS = ['readFile', 'readFileSync', 'open', 'openSync', 'opendir', 'opendirSync', 'readdir', 'readdirSync', 'stat', 'statSync', 'lstat', 'lstatSync', 'access', 'accessSync', 'exists', 'existsSync', 'realpath', 'realpathSync', 'readlink', 'readlinkSync', 'createReadStream', 'glob', 'globSync'];
+
+/**
+ * Records the path of every call that looks at the file system, from now until `stop()`. It wraps the functions of the two modules in place and has the ES module
+ * wrappers follow (`syncBuiltinESMExports`), so the server code that imported them by name calls the wrappers. A test of an answer cannot see a read whose result is
+ * thrown away (an `exists` check, a read that is not shown), and this can.
+ */
+function watchFileLooks(): { paths: string[]; stop(): void } {
+  const paths: string[] = [];
+  const undo: (() => void)[] = [];
+  for (const moduleName of ['node:fs', 'node:fs/promises']) {
+    const owner = nodeRequire(moduleName) as Record<string, unknown>;
+    for (const name of FS_LOOKERS) {
+      const original = owner[name];
+      if (typeof original !== 'function') continue;
+      owner[name] = function (this: unknown, ...args: unknown[]) {
+        paths.push(String(args[0]));
+        return (original as (...all: unknown[]) => unknown).apply(this, args);
+      };
+      undo.push(() => {
+        owner[name] = original;
+      });
+    }
+  }
+  syncBuiltinESMExports();
+  return {
+    paths,
+    stop() {
+      for (const restore of undo.splice(0)) restore();
+      syncBuiltinESMExports();
+    },
+  };
+}
+
+/** A path as one text for a comparison: forward slashes, lower case. */
+const flat = (path: string): string => path.replace(/\\/g, '/').toLowerCase();
 
 function dataOf<T>(panel: Panel<T>): T {
   if (!panel.ok) throw new Error(`the panel failed: ${panel.error.code}: ${panel.error.message}`);
@@ -46,12 +93,58 @@ describe('the decisions source', () => {
     await rig.decisions.get();
     const repo = rig.config.githubRepo;
     const lists = rig.calls().filter((call) => call.args[1] === 'list').map((call) => call.args);
+    // Both lists are of the issues of Mark's account (`--author`): the template gives its label to an issue of any author, and a list holds 100 issues, so the
+    // issues of strangers must not use the places of his (see the flood test below).
     expect(lists).toEqual([
-      ['issue', 'list', '--repo', repo, '--label', 'decision', '--state', 'open', '--limit', '100', '--json', DECISION_FIELDS],
-      ['issue', 'list', '--repo', repo, '--label', 'decided', '--state', 'all', '--limit', '100', '--json', DECISION_FIELDS],
+      ['issue', 'list', '--repo', repo, '--label', 'decision', '--author', MARK_LOGIN, '--state', 'open', '--limit', '100', '--json', DECISION_FIELDS],
+      ['issue', 'list', '--repo', repo, '--label', 'decided', '--author', MARK_LOGIN, '--state', 'all', '--limit', '100', '--json', DECISION_FIELDS],
     ]);
     // Every call that it made is a read.
     expect(rig.writes()).toEqual([]);
+  });
+
+  it('a flood of issues from strangers cannot push the decisions of Mark out of the list', async () => {
+    // GitHub gives the label of the template to an issue of any author, and `gh issue list` holds 100 issues. A stranger who opens 150 issues from the template, all newer than
+    // the decision of Mark, would fill the list, and Mark's decision would be missing with no error: no page, no banner, and a panel that says it is fine.
+    const stranger = SEED.issues.find((issue) => issue.number === 42);
+    if (stranger === undefined) throw new Error('no issue 42');
+    const flood = Array.from({ length: 150 }, (_all, i) => ({
+      ...stranger,
+      number: 100 + i,
+      title: `Decision: Flood ${i + 1}`,
+      url: `https://github.com/fixture-owner/fixture-repo/issues/${100 + i}`,
+      createdAt: '2026-10-05T20:00:00Z',
+      comments: [],
+      events: [],
+    }));
+    const rig = rigOf({ store: { ...SEED, issues: [...SEED.issues, ...flood] } });
+    const info = await infoOf(rig);
+    expect(numbers(info.open)).toEqual([41, 43, 46, 47]);
+    expect(numbers(info.recent)).toEqual([44]);
+    // The page of the decision, and the banner on its doc, are still there.
+    expect((await detailOf(rig, 41)).status).toBe(200);
+    const doc = dataOf((await (await rig.get('/api/docs/guides/setup')).json()) as Panel<DocPageData>);
+    expect(doc.decisions?.some((banner) => banner.number === 41)).toBe(true);
+  });
+
+  it('does not list a pull request of Mark\'s that carries the label: gh issue view opens pull requests too, and the parser refuses them', async () => {
+    // (gh issue list does not list pull requests, so this is the second line of defense: the fake lists it as a real list never would.)
+    const template = SEED.issues.find((issue) => issue.number === 41);
+    if (template === undefined) throw new Error('no issue 41');
+    const pull = { ...template, number: 60, title: 'A pull request with the label', url: 'https://github.com/fixture-owner/fixture-repo/pull/60' };
+    const rig = rigOf({ store: { ...SEED, issues: [...SEED.issues, pull] } });
+    expect(numbers((await infoOf(rig)).open)).toEqual([41, 43, 46, 47]);
+    expect((await detailOf(rig, 60)).status).toBe(404);
+  });
+
+  it('still leaves out an issue of another author that gh gave, because the filter of gh is not the only check', async () => {
+    // The author is checked by the parser as well: if gh, or the fake, returned a stranger's issue in the list, it would not be a decision.
+    const rig = rigOf();
+    const stranger = SEED.issues.find((issue) => issue.number === 42);
+    if (stranger === undefined) throw new Error('no issue 42');
+    const { events: _events, ...printed } = stranger;
+    setRigMode(rig, { mode: 'ok', replies: { 'issue list': { stdout: JSON.stringify([printed]) } } });
+    expect(await infoOf(rig)).toEqual({ open: [], recent: [] });
   });
 
   it('lists the open decisions of Mark and the ones that he answered in the last week, and nothing else', async () => {
@@ -313,24 +406,80 @@ describe('GET /api/decisions/<n>', () => {
     expect(none.map((section) => [section.heading, section.html])).toEqual([[null, null], [null, null], [null, null]]);
   });
 
-  it('a link that names a path outside the docs reads no file: a path that goes up is dropped, and a path that the index does not have gives an empty section', async () => {
-    // No route takes a path: the doc and the heading of a link are looked up in the doc index, which is a map of the docs that it scanned. Nothing is read from the disk for a link.
+  it('a link that names a path outside the docs reads no file: the page looks in the doc index only, and a spy on the file system sees no read', async () => {
+    // No route takes a path: the doc and the heading of a link are looked up in the doc index, which is a map of the docs that it scanned. Each link below names a file that is on the disk
+    // and is not a doc, or a file outside the repo, and each of those files holds a marker. Two things show that nothing is read: the marker is in no answer, and the spy sees no look at the disk.
+    const MARKER = 'CANARY-NOT-A-DOC';
+    const outsideName = `cc-canary-outside-${randomUUID()}.md`;
+    const links = [
+      `../${outsideName}#x`, // up out of the repo: dropped (the file is in the folder above the repo)
+      '/etc/passwd#root', // read as the repo path "etc/passwd" (a link may start with a slash, as on GitHub)
+      'secret.txt#x',
+      '.env.local#x',
+      'private/notes.md#x', // markdown, in a folder that is not docs/
+      'node_modules/pkg/README.md#x',
+      'C:\\Windows\\win.ini#x', // a drive: dropped
+      'docs/../../../hosts#y', // up out of the repo: dropped
+      'docs/guides/setup.md#installing', // a real doc: it is in the index
+    ];
     const hostile = SEED.issues.map((issue) =>
       issue.number === 43
-        ? {
-            ...issue,
-            body: `${issue.body.split('## Docs')[0]}## Docs\n\n- ../../outside.md#x\n- /etc/passwd#root\n- C:\\Windows\\win.ini#x\n- docs/../../../hosts#y\n- docs/guides/setup.md#installing\n\n## Raised by\n\nSession.\n`,
-          }
+        ? { ...issue, body: `${issue.body.split('## Docs')[0]}## Docs\n\n${links.map((link) => `- ${link}`).join('\n')}\n\n## Raised by\n\nSession.\n` }
         : issue,
     );
     const rig = rigOf({ store: { ...SEED, issues: hostile } });
-    const detail = dataOf((await detailOf(rig, 43)).panel);
-    // The links that go up out of the repo, and the one with a drive, are not links to a doc of the repo. "/etc/passwd" is read as the repo path "etc/passwd" (a link may start with a slash, as on GitHub), which no doc has.
-    expect(detail.docs.map((link) => `${link.docId}#${link.anchor}`)).toEqual(['etc/passwd#root', 'docs/guides/setup.md#installing']);
-    expect(detail.sections.map((section) => [section.docId, section.heading, section.html === null])).toEqual([
-      ['etc/passwd', null, true],
-      ['docs/guides/setup.md', 'Installing', false],
-    ]);
+    const outsideFile = join(dirname(rig.repo.dir), outsideName);
+    try {
+      writeFileSync(outsideFile, `# Outside\n\n## x\n\n${MARKER} outside\n`);
+      for (const path of ['etc/passwd', 'secret.txt', '.env.local']) rig.repo.write(path, `${MARKER} ${path}`);
+      for (const path of ['private/notes.md', 'node_modules/pkg/README.md']) rig.repo.write(path, `# Notes\n\n## x\n\n${MARKER} ${path}\n`);
+      await rig.index.ready(); // the scan reads the docs once, before the spy starts
+
+      const watch = watchFileLooks();
+      let looked: string[];
+      let control: string[];
+      let detail: DecisionDetail;
+      let doc: DocPageData;
+      try {
+        await rig.decisions.get(true);
+        detail = dataOf((await detailOf(rig, 43)).panel);
+        doc = dataOf((await (await rig.get('/api/docs/guides/setup')).json()) as Panel<DocPageData>);
+        looked = [...watch.paths];
+        await rig.index.refresh(); // the control: this is a read, and the spy must see it
+        control = watch.paths.slice(looked.length);
+      } finally {
+        watch.stop();
+      }
+
+      // The links that go up out of the repo, and the one with a drive, are not links to a doc of the repo. The others stay inside it, and a file that no doc has gives an empty section.
+      expect(detail.docs.map((link) => `${link.docId}#${link.anchor}`)).toEqual([
+        'etc/passwd#root',
+        'secret.txt#x',
+        '.env.local#x',
+        'private/notes.md#x',
+        'node_modules/pkg/README.md#x',
+        'docs/guides/setup.md#installing',
+      ]);
+      expect(detail.sections.map((section) => [section.docId, section.heading, section.html === null])).toEqual([
+        ['etc/passwd', null, true],
+        ['secret.txt', null, true],
+        ['.env.local', null, true],
+        ['private/notes.md', null, true],
+        ['node_modules/pkg/README.md', null, true],
+        ['docs/guides/setup.md', 'Installing', false],
+      ]);
+      // The marker of a file is in no answer: not on the page of the decision, and not on the doc page with its banners.
+      expect(JSON.stringify([detail, doc])).not.toContain(MARKER);
+
+      // The spy saw no look at the repo folder, and none at a file that a link names (a read whose result is not shown would not be in an answer).
+      const named = /(?:^|\/)(?:passwd|win\.ini|hosts|secret\.txt|\.env\.local|notes\.md|readme\.md)$|cc-canary-outside-/;
+      const inRepo = (path: string): boolean => flat(path).startsWith(flat(rig.repo.dir));
+      expect(looked.filter((path) => inRepo(path) || named.test(flat(path)))).toEqual([]);
+      // The control: the spy does see the index read the repo folder, so the empty list above is not a spy that sees nothing.
+      expect(control.filter(inRepo).length).toBeGreaterThan(0);
+    } finally {
+      rmSync(outsideFile, { force: true });
+    }
   });
 
   it('the page shows the current text of the linked section', async () => {

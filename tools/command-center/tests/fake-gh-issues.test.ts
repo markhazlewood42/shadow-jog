@@ -54,6 +54,20 @@ describe('the issue store of the fake gh: reads', () => {
     expect(await numbers('--label', 'decision', '--label', 'decided', '--state', 'all', '--json', 'number')).toEqual([]);
   });
 
+  it('lists only the issues of the author that --author names, with no regard to case, and the limit counts after that', async () => {
+    // The labels of a stranger's issue and Mark's are the same; the author is what tells them apart. (The search of GitHub, which gh uses for a label, also takes the author.)
+    expect(await numbers('--label', 'decision', '--author', 'markhazlewood42', '--json', 'number')).toEqual([47, 46, 43, 41]);
+    expect(await numbers('--label', 'decision', '--author', 'MarkHazlewood42', '--json', 'number')).toEqual([47, 46, 43, 41]);
+    expect(await numbers('--label', 'decision', '--author', 'fixture-stranger', '--json', 'number')).toEqual([42]);
+    expect(await numbers('--label', 'decision', '--author', 'nobody', '--json', 'number')).toEqual([]);
+    expect(await numbers('--author', 'markhazlewood42', '--state', 'all', '--json', 'number')).toEqual([47, 46, 45, 44, 43, 41, 40]); // all of Mark's, 42 is not
+    // The limit is applied to the issues of that author, not to all the issues: two of Mark's, though a newer issue of a stranger is in the way.
+    const flooded = { ...SEED, issues: [...SEED.issues, ...Array.from({ length: 5 }, (_all, i) => ({ ...(SEED.issues[2] as (typeof SEED.issues)[number]), number: 200 + i }))] };
+    setGhIssues(flooded, dir);
+    expect(await numbers('--label', 'decision', '--limit', '2', '--json', 'number')).toEqual([204, 203]);
+    expect(await numbers('--label', 'decision', '--author', 'markhazlewood42', '--limit', '2', '--json', 'number')).toEqual([47, 46]);
+  });
+
   it('prints the fields that --json asks for and no others, and never the events', async () => {
     const [issue] = (await json('issue', 'list', '--repo', REPO, '--label', 'decision', '--json', 'number,title,state')) as Listed[];
     expect(Object.keys(issue ?? {}).sort()).toEqual(['number', 'state', 'title']);

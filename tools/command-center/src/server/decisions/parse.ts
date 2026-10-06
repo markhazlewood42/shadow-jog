@@ -153,8 +153,20 @@ const squash = (words: string): string => words.replace(/\s+/g, ' ').trim().toLo
 /** The text, or null when it is empty or only the words of the template. */
 const filled = (words: string, placeholder: string): string | null => (words === '' || squash(words) === placeholder ? null : words);
 
-const HEADING_LINE = /^ {0,3}##(?!#)[ \t]+(.+?)[ \t]*#*[ \t]*$/;
+/**
+ * A heading of the template: two hash marks, a space or a tab, and the words. The pattern takes the rest of the line as it is, and `headingWords` takes the closing
+ * marks off it. A pattern that asked for the closing marks itself (a lazy group, then an optional run of spaces and hash marks) took cubic time for a line of many spaces
+ * and a letter: 3,000 spaces took 2.7 seconds, so a body of 65 KB could stop the server for hours. This one reads each character once.
+ */
+const HEADING_LINE = /^ {0,3}##(?!#)[ \t]+([^\n]*)$/;
 const FENCE_LINE = /^ {0,3}(?:```|~~~)/;
+
+/** The words of a heading without the closing hash marks of markdown (`## Options ##`) and the spaces and tabs around them. A loop from the end, so the time is linear. */
+function headingWords(rest: string): string {
+  let end = rest.length;
+  while (end > 0 && (rest[end - 1] === ' ' || rest[end - 1] === '\t' || rest[end - 1] === '#')) end -= 1;
+  return rest.slice(0, end);
+}
 
 /** The lines under each `##` heading that the template has. A heading inside a fenced code block is code, not a heading. */
 function sectionsOf(body: string): Partial<Record<SectionName, string[]>> {
@@ -165,7 +177,7 @@ function sectionsOf(body: string): Partial<Record<SectionName, string[]>> {
     if (FENCE_LINE.test(line)) inFence = !inFence;
     const heading = inFence ? null : HEADING_LINE.exec(line);
     if (heading !== null) {
-      const name = SECTION_OF_HEADING[(heading[1] ?? '').replace(/:$/, '').trim().toLowerCase()];
+      const name = SECTION_OF_HEADING[headingWords(heading[1] ?? '').replace(/:$/, '').trim().toLowerCase()];
       // A heading that the template does not have ends the section before it, and its own lines are nobody's.
       current = name ?? null;
       if (name !== undefined) sections[name] ??= [];
@@ -296,6 +308,20 @@ function readBody(rawBody: unknown): Body {
 
 // ---- the issue ----
 
+/**
+ * Whether the address of a thing on GitHub is the address of a pull request: `https://github.com/<owner>/<repo>/pull/<n>`. The kind is the third part of the path, so a
+ * repository that is called "pull", or an owner who is, does not make an issue look like a pull request. An address that is missing or is not one tells nothing.
+ */
+function isPullRequest(url: unknown): boolean {
+  if (typeof url !== 'string') return false;
+  try {
+    const [, , kind] = new URL(url).pathname.split('/').filter((part) => part !== '');
+    return kind === 'pull';
+  } catch {
+    return false;
+  }
+}
+
 /** What has been done of an answer, from what GitHub holds now. A retry starts at the first part that is not done (see answer.ts). */
 export type AnswerProgress = {
   /** The newest `Decision:` comment of Mark's, or null. */
@@ -317,6 +343,8 @@ export function readDecisionIssue(rawIssue: unknown, events: unknown): { issue: 
   if (!isRecord(rawIssue)) return null;
   const { number } = rawIssue;
   if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) return null;
+  // `gh issue view <n>` opens a pull request as well as an issue. A pull request of Mark's that carried the label would otherwise be a decision, and the answer route would comment on it, relabel it and close it.
+  if (isPullRequest(rawIssue.url)) return null;
   if (!isRecord(rawIssue.author) || !isMarkLogin(rawIssue.author.login)) return null;
   const labels = labelNamesOf(rawIssue);
   const hasDecided = labels.includes(LABEL_DECIDED);

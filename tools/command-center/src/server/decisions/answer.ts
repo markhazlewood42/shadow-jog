@@ -14,9 +14,6 @@ import { LABEL_DECIDED, LABEL_DECISION, answerComment } from './parse';
 // failure names the step that failed, and a retry starts at the first step that is not done (see `nextStep`), so that it never
 // posts the same comment twice.
 
-/** The longest note that an answer takes, in characters. A comment can be long, but a note is a few words, and the limit keeps one call small. */
-export const MAX_NOTE_CHARS = 2000;
-
 /** The three steps, in the order they are made. */
 const STEPS: readonly AnswerStep[] = ['comment', 'label', 'close'];
 

@@ -2,6 +2,7 @@ import type { DecisionIssue, DecisionsInfo, DocDecision } from '../../shared/typ
 import type { Config } from '../config';
 import type { DocIndex } from '../docs/index';
 import { classifyGhError } from '../github/errors';
+import { MARK_LOGIN } from '../github/github';
 import type { Hub } from '../hub';
 import type { RunResult, Runner } from '../runner';
 import { POLL_EVERY_MS, PanelError, type PanelSource, createPanelSource } from '../source';
@@ -12,13 +13,17 @@ import { type AnswerProgress, DECISION_FIELDS, LABEL_DECIDED, LABEL_DECISION, fl
 // answer) is in answer.ts, and it goes through the same runner, which has an exact list of the calls it allows.
 //
 // What it reads, and why:
-//   - `gh issue list --label decision --state open`: the decisions that wait.
-//   - `gh issue list --label decided --state all`: the decisions that were answered. An answer swaps the label `decision`
+//   - `gh issue list --label decision --author <Mark> --state open`: the decisions that wait.
+//   - `gh issue list --label decided --author <Mark> --state all`: the decisions that were answered. An answer swaps the label `decision`
 //     for `decided` and then closes the issue, so a decision whose answer stopped after the label swap is open and has
 //     `decided`, and must stay on the page (with its answer marked as not complete) so that its Retry button keeps working.
 //   - `gh api repos/<repo>/issues/<n>/events`, for the closed issues that were answered in the last week: the events say
 //     who put the label `decided` on, and an issue counts as answered only when Mark's account did.
 //   - `gh issue view <n> --json comments`, only for a decision whose list of comments is full (see withAllComments).
+//
+// Both lists ask for the issues of Mark's account only (`--author`). The issue template gives its label to an issue of any author, and a list holds the newest 100
+// issues, so a stranger who opened 100 issues from the template would push Mark's decisions out of the list, and no page, banner or error would say so. With the author
+// in the question, the issues of strangers never use a place of his. The parser checks the author again (see parse.ts), so the filter is not the only check.
 
 /** How many issues of each list gh is asked for (newest first). A repository of one person has a handful of decisions; this is room to grow. */
 const LIST_LIMIT = 100;
@@ -71,7 +76,7 @@ function checkedIssue(entry: unknown, position: number): Json {
 }
 
 async function readList(runner: Runner, label: string, state: 'open' | 'all'): Promise<Json[]> {
-  const result = await runner('gh', ['issue', 'list', '--label', label, '--state', state, '--limit', String(LIST_LIMIT), '--json', DECISION_FIELDS]);
+  const result = await runner('gh', ['issue', 'list', '--label', label, '--author', MARK_LOGIN, '--state', state, '--limit', String(LIST_LIMIT), '--json', DECISION_FIELDS]);
   if (result.code !== 0) throw ghFailure(result);
   const parsed = parseJson(result.stdout, 'the list of issues');
   if (!Array.isArray(parsed)) throw unreadable('the list of issues is not a list');

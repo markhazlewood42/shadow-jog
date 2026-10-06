@@ -460,6 +460,12 @@ export type DecisionsInfo = { open: DecisionIssue[]; recent: DecisionIssue[] };
 /** One banner of a doc page: an open decision that links to the heading with the id `anchor` of that doc. */
 export type DocDecision = { number: number; title: string; anchor: string };
 
+/**
+ * The longest note that an answer takes, in characters. A comment can be long, but a note is a few words, and the limit keeps one call small. The server refuses a longer
+ * note, and the text box of the form stops at the same number, so the two are one number kept in one place.
+ */
+export const MAX_NOTE_CHARS = 2000;
+
 /** The three writes of an answer, in the order the server makes them. */
 export type AnswerStep = 'comment' | 'label' | 'close';
 

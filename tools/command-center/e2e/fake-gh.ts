@@ -267,10 +267,13 @@ function printedIssue(issue: FakeIssue, fields: string[], commentLimit = Number.
 
 function storeList(store: GhIssueStore, args: string[]): RunResult {
   const wanted = valuesOf(args, '--label').map((label) => label.toLowerCase());
+  // `--author` keeps the issues of one account (the search of GitHub does not tell logins apart by case). It comes before the limit, as in GitHub's own search.
+  const author = valuesOf(args, '--author')[0]?.toLowerCase();
   const state = (valuesOf(args, '--state')[0] ?? 'open').toLowerCase();
   const limit = Number(valuesOf(args, '--limit')[0] ?? 30);
   const fields = (valuesOf(args, '--json')[0] ?? '').split(',').filter((field) => field !== '');
   const found = store.issues
+    .filter((issue) => author === undefined || issue.author.login.toLowerCase() === author)
     .filter((issue) => (state === 'all' || issue.state.toLowerCase() === state) && wanted.every((label) => issue.labels.some((have) => have.name.toLowerCase() === label)))
     .sort((a, b) => b.number - a.number)
     .slice(0, limit);

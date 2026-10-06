@@ -4,12 +4,12 @@ import { join } from 'node:path';
 import type { Hono } from 'hono';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FAKE_VIEWER, createFakeGh, readGhCalls, resetGh, setGhIssues, setGhMode } from '../e2e/fake-gh';
-import { MAX_NOTE_CHARS, answerDecision, checkAnswer } from '../src/server/decisions/answer';
+import { answerDecision, checkAnswer } from '../src/server/decisions/answer';
 import { readDecision } from '../src/server/decisions/module';
 import { parseDecisionIssue } from '../src/server/decisions/parse';
 import { compose } from '../src/server/compose';
 import { type Exec, createRunner } from '../src/server/runner';
-import type { DecisionsInfo, Panel } from '../src/shared/types';
+import { type DecisionsInfo, MAX_NOTE_CHARS, type Panel } from '../src/shared/types';
 import { type DecisionsRig, SEED, SETUP_DOC, makeDecisionsRig, setRigMode } from './decisions-rig';
 import { PACKAGE_DIR, makeTestConfig } from './helpers';
 import { makeDocsRepo } from './doc-index-helpers';
@@ -105,6 +105,23 @@ describe('POST /api/decisions/<n>/answer: what it refuses', () => {
     expect(rig.writes()).toEqual(['issue comment', 'issue edit', 'issue close']); // all three from the one answer to issue 43
   });
 
+  it('a pull request of Mark\'s that carries the label gets 404: gh issue view opens pull requests, and the route must not comment on one, relabel it or close it', async () => {
+    const template = SEED.issues.find((issue) => issue.number === 41);
+    if (template === undefined) throw new Error('no issue 41');
+    const pull = { ...template, number: 60, title: 'A pull request with the label', url: 'https://github.com/fixture-owner/fixture-repo/pull/60' };
+    const rig = rigOf({ store: { ...SEED, issues: [...SEED.issues, pull] } });
+    const res = await rig.post(60, { option: 'A', note: 'Merge it.' });
+    expect(res.status).toBe(404);
+    expect(await bodyOf(res)).toMatchObject({ ok: false, error: { code: 'decision-not-found' } });
+    expect(rig.writes()).toEqual([]);
+    expect(commentsOf(rig, 60)).toHaveLength(0);
+    expect(rig.issues().issues.find((issue) => issue.number === 60)).toMatchObject({ state: 'OPEN' });
+    // The same number as an issue (not a pull request) is answered as usual.
+    const issue = { ...pull, url: 'https://github.com/fixture-owner/fixture-repo/issues/60' };
+    const other = rigOf({ store: { ...SEED, issues: [...SEED.issues, issue] } });
+    expect((await other.post(60, { option: 'A' })).status).toBe(200);
+  });
+
   it('an issue with no options (a body outside the template) gets 422: there is nothing to pick', async () => {
     const rig = rigOf();
     const res = await rig.post(46, { option: 'A' });
@@ -182,6 +199,14 @@ describe('POST /api/decisions/<n>/answer: the three writes', () => {
     expect(labelsOf(rig, 41)).toEqual(['decided']);
     expect(commentsOf(rig, 41).at(-1)).toMatchObject({ author: { login: FAKE_VIEWER }, body: 'Decision: C. Because it keeps the cache over a restart.' });
     expect(parseDecisionIssue(issue, events)).toMatchObject({ state: 'answered', answer: { option: 'C', note: 'Because it keeps the cache over a restart.', complete: true } });
+  });
+
+  it('sends a note of the longest length and refuses one character more, with the one number that the form uses too', async () => {
+    const rig = rigOf();
+    expect((await rig.post(41, { option: 'A', note: 'x'.repeat(MAX_NOTE_CHARS + 1) })).status).toBe(422);
+    expect(rig.writes()).toEqual([]);
+    expect((await rig.post(41, { option: 'A', note: 'x'.repeat(MAX_NOTE_CHARS) })).status).toBe(200);
+    expect(commentsOf(rig, 41).at(-1)?.body).toBe(`Decision: A. ${'x'.repeat(MAX_NOTE_CHARS)}`);
   });
 
   it('writes no dot and no note when there is no note, and trims a note', async () => {

@@ -271,6 +271,13 @@ describe('parseDecisionIssue: the links to docs', () => {
   });
 });
 
+/**
+ * A real look-alike of Mark's login: the KELVIN SIGN (U+212A) in the place of the k. JavaScript's toLowerCase() turns the sign into a plain k, so a check that
+ * only compares lower-case letters takes it for Mark. (A string with the sign at the start, in the place of the m, does not test this: it lowercases to a word
+ * that is no login of his, with the check or without it.) The first expectation that uses this string proves that it is the real thing.
+ */
+const KELVIN_LOOKALIKE = 'mar\u212Ahazlewood42';
+
 describe('parseDecisionIssue: who may write', () => {
   it('an issue by another author is ignored', () => {
     // The label alone proves nothing: GitHub puts the label of the template on a stranger's issue as well.
@@ -278,7 +285,8 @@ describe('parseDecisionIssue: who may write', () => {
     expect((issue.labels as { name: string }[]).map((label) => label.name)).toEqual(['decision']);
     expect(parseDecisionIssue(issue, events)).toBeNull();
 
-    for (const author of [{ login: 'markhazlewood-42' }, { login: 'markhazlewood42x' }, { login: 'xmarkhazlewood42' }, { login: '' }, { login: 'Mark Hazlewood' }, { login: 'markhazlewood42 ' }, { login: '\u212Aarkhazlewood42' }, {}, null, 'markhazlewood42', undefined]) {
+    expect(KELVIN_LOOKALIKE.toLowerCase()).toBe(MARK_LOGIN); // it lowercases to the real login: only the ASCII check of isMarkLogin refuses it
+    for (const author of [{ login: 'markhazlewood-42' }, { login: 'markhazlewood42x' }, { login: 'xmarkhazlewood42' }, { login: '' }, { login: 'Mark Hazlewood' }, { login: 'markhazlewood42 ' }, { login: KELVIN_LOOKALIKE }, {}, null, 'markhazlewood42', undefined]) {
       expect(parseDecisionIssue(raw({ author }), []), JSON.stringify(author)).toBeNull();
     }
     // GitHub logins are not case sensitive: the same account in other letters is Mark.
@@ -286,9 +294,10 @@ describe('parseDecisionIssue: who may write', () => {
   });
 
   it('keeps the login of Mark in one place: isMarkLogin of the GitHub module', () => {
+    expect(KELVIN_LOOKALIKE.toLowerCase()).toBe(MARK_LOGIN);
     expect(isMarkLogin(MARK_LOGIN)).toBe(true);
     expect(isMarkLogin('MarkHazlewood42')).toBe(true);
-    for (const login of ['markhazlewood-42', 'markhazlewood', '', ' markhazlewood42', 'markhazlewood42\n', '\u212Aarkhazlewood42', null, undefined, 42, {}]) {
+    for (const login of ['markhazlewood-42', 'markhazlewood', '', ' markhazlewood42', 'markhazlewood42\n', KELVIN_LOOKALIKE, null, undefined, 42, {}]) {
       expect(isMarkLogin(login), JSON.stringify(login)).toBe(false);
     }
   });
@@ -536,5 +545,91 @@ describe('parseDecisionIssue: output that gh could print in another shape', () =
     // Closed.
     expect(progress(raw({ state: 'CLOSED' }))).toMatchObject({ closed: true });
     expect(readDecisionIssue(raw({ author: { login: 'x' } }), [])).toBeNull();
+  });
+
+  it('a pull request is not a decision: gh issue view also opens pull requests, and the address says which one it is', () => {
+    // `gh issue view <n>` opens a pull request as well as an issue, so the answer route would otherwise comment on, relabel and close a pull request of Mark's that carried the label.
+    const pull = 'https://github.com/o/r/pull/7';
+    expect(parseDecisionIssue(raw({ url: pull }), [])).toBeNull();
+    expect(readDecisionIssue(raw({ url: pull }), [])).toBeNull();
+    // Nothing makes it a decision: not the state of a merged pull request, not the label decided, not a comment of Mark's that looks like an answer.
+    expect(parseDecisionIssue(raw({ url: pull, state: 'MERGED', labels: [{ name: 'decided' }], comments: [comment(MARK_LOGIN, 'Decision: A.')] }), [labeled(MARK_LOGIN)])).toBeNull();
+    expect(parseDecisionIssue(raw({ url: `${pull}#issuecomment-1` }), [])).toBeNull();
+    expect(parseDecisionIssue(raw({ url: `${pull}/files` }), [])).toBeNull();
+    // An issue is one. So is an address that is not there or is not an address (the page makes its own link then), and an address in which the words "pull" and a number are
+    // the owner or the name of the repository and not the kind of the thing.
+    for (const url of ['https://github.com/o/r/issues/7', '', undefined, 42, 'not an address', 'https://github.com/o/pull/issues/7', 'https://github.com/pull/123/issues/7']) {
+      expect(parseDecisionIssue(raw({ url }), []), String(url)).not.toBeNull();
+    }
+  });
+});
+
+describe('parseDecisionIssue: hostile input', () => {
+  /** How long the parser takes to read a body of an issue of Mark's, in milliseconds. */
+  function millisFor(body: string): number {
+    const started = performance.now();
+    parseDecisionIssue(raw({ body }), []);
+    return performance.now() - started;
+  }
+
+  // The body of an issue is what a person or an agent wrote through Mark's login, and the parser reads it again every 60 seconds, so no body may make it slow. GitHub keeps up to
+  // 65,536 characters. The first heading pattern had cubic run time: a line with 3,000 spaces and then a letter took 2.7 seconds, 4,000 took 6.4 seconds, and 20,000 would have blocked the server for minutes.
+  const LONG = 20_000;
+
+  it('a heading line with 20,000 spaces and then a letter parses in under 100 ms, and the issue still reads', () => {
+    for (const gap of [' ', '\t', ' \t', '#', ' #', '# ']) {
+      expect(millisFor(`## Docs${gap.repeat(LONG / gap.length)}x\n`), JSON.stringify(gap)).toBeLessThan(100);
+      expect(millisFor(`##${gap.repeat(LONG / gap.length)}x\n`), `no word, ${JSON.stringify(gap)}`).toBeLessThan(100);
+    }
+    // The line is a heading that the template does not have: it ends the section before it, and the sections after it are found.
+    const decision = withBody(`## Docs${' '.repeat(LONG)}x\n\n## Question\n\nWhich?\n\n## Options\n\n- A: One.\n`);
+    expect(decision).toMatchObject({ question: 'Which?', options: [{ id: 'A', text: 'One.' }], problem: null });
+  });
+
+  it('a heading with the closing marks of markdown, with spaces and tabs around them, is still the heading', () => {
+    const decision = withBody('## Question ##\n\nWhich?\n\n##\tOptions\t##  \n\n- A: One.\n\n## Recommendation:\n\nA: yes.\n');
+    expect(decision).toMatchObject({ question: 'Which?', options: [{ id: 'A', text: 'One.' }], recommended: 'A' });
+  });
+
+  it('hostile lines of every shape that the parser reads, in every place that it reads, stay fast', () => {
+    const SIZE = 60_000;
+    const shapes: Record<string, string> = {
+      'spaces and a letter': `${' '.repeat(SIZE)}x`,
+      'tabs and a letter': `${'\t'.repeat(SIZE)}x`,
+      'hash marks': '#'.repeat(SIZE),
+      'hash and space, again and again': '# '.repeat(SIZE / 2),
+      'open brackets': '['.repeat(SIZE),
+      'a link that never ends': `[a](${'x'.repeat(SIZE)}`,
+      'a link with spaces': `[a](${' '.repeat(SIZE)}x`,
+      'backticks': '`'.repeat(SIZE),
+      'backtick and letter, again and again': '`a'.repeat(SIZE / 2),
+      'stars': '*'.repeat(SIZE),
+      'dash and space, again and again': '- '.repeat(SIZE / 2),
+      'digits': '1'.repeat(SIZE),
+      'angle brackets': '<'.repeat(SIZE),
+      'open parentheses': '('.repeat(SIZE),
+      'colons': ':'.repeat(SIZE),
+      'an option mark, then spaces and a letter': `A:${' '.repeat(SIZE)}x`,
+      'carriage returns': '\r'.repeat(SIZE),
+    };
+    const places: Record<string, (line: string) => string> = {
+      'a heading': (line) => `## ${line}\n`,
+      'a heading with no space after the marks': (line) => `##${line}\n`,
+      'a doc link': (line) => `## Docs\n\n- ${line}\n`,
+      'a line of the docs that is no list item': (line) => `## Docs\n\n${line}\n`,
+      'an option': (line) => `## Question\n\nQ?\n\n## Options\n\n- A: ${line}\n- B: Two.\n`,
+      'a line of the options that is no option': (line) => `## Question\n\nQ?\n\n## Options\n\n${line}\n- A: One.\n`,
+      'a recommendation': (line) => `## Question\n\nQ?\n\n## Options\n\n- A: One.\n\n## Recommendation\n\n${line}\n`,
+      'the question': (line) => `## Question\n\n${line}\n\n## Options\n\n- A: One.\n`,
+      'text outside any section': (line) => `${line}\n`,
+    };
+    const slow: string[] = [];
+    for (const [place, make] of Object.entries(places)) {
+      for (const [shape, line] of Object.entries(shapes)) {
+        const ms = millisFor(make(line));
+        if (ms >= 100) slow.push(`${Math.round(ms)} ms: ${shape}, in ${place}`);
+      }
+    }
+    expect(slow).toEqual([]);
   });
 });
