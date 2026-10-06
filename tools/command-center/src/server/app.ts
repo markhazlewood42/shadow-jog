@@ -6,6 +6,7 @@ import { streamSSE } from 'hono/streaming';
 import { getMimeType } from 'hono/utils/mime';
 import { APP_NAME, type Health } from '../shared/types';
 import type { Config } from './config';
+import { isMissing } from './fs-errors';
 import { apiError, createHostGuard, createMethodGate } from './guard';
 import type { Hub } from './hub';
 
@@ -34,12 +35,6 @@ const TOKEN_TAG = /<meta\s+name="cc-token"[^>]*>/;
 const SERVER_PATHS = ['/api', '/assets', '/files'];
 const isServerPath = (path: string) => SERVER_PATHS.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 
-/** A folder or file that is not there is a plain "not found", not a server error. */
-function isMissing(error: unknown): boolean {
-  const code = (error as NodeJS.ErrnoException | undefined)?.code;
-  return code === 'ENOENT' || code === 'ENOTDIR' || code === 'EISDIR';
-}
-
 /** The page, with this run's token in it. Null when the page is not built. */
 async function readPage(webRoot: string, token: string): Promise<string | null> {
   let html: string;
@@ -66,24 +61,38 @@ export function createApp(deps: AppDeps): Hono {
   // 1. Security headers on every answer, the refusals below included. The page holds this run's
   //    write token, so no script that the page did not ship may run in it: the policy lets scripts
   //    load from this server only, and allows no inline script, no plugin and no <base> tag.
-  app.use(
-    secureHeaders({
-      contentSecurityPolicy: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"], // React and the UI library set inline style attributes
-        imgSrc: ["'self'", 'data:'],
-        fontSrc: ["'self'"],
-        connectSrc: ["'self'"],
-        objectSrc: ["'none'"],
-        baseUri: ["'none'"],
-        formAction: ["'none'"],
-        frameAncestors: ["'self'"],
-      },
-      // The server speaks plain http on localhost, so a note to always use https would only confuse.
-      strictTransportSecurity: false,
-    }),
-  );
+  const pageHeaders = secureHeaders({
+    contentSecurityPolicy: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"], // React and the UI library set inline style attributes
+      imgSrc: ["'self'", 'data:'],
+      fontSrc: ["'self'"],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'none'"],
+      frameAncestors: ["'self'"],
+    },
+    // The server speaks plain http on localhost, so a note to always use https would only confuse.
+    strictTransportSecurity: false,
+  });
+  // The files of the repo that the site serves under /files (pictures, and the HTML and SVG sources of
+  // diagrams) get a stricter policy, because one of them can be opened as a page of this site. An HTML or
+  // SVG file can hold a script, and a script on this origin could read the token out of the main page.
+  // `sandbox` (with nothing allowed back) turns scripts off and gives the file a made-up origin of its
+  // own; `default-src 'none'` stops it from loading anything but its own styles and pictures.
+  const fileHeaders = secureHeaders({
+    contentSecurityPolicy: {
+      sandbox: [],
+      defaultSrc: ["'none'"],
+      styleSrc: ["'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:'],
+      fontSrc: ["'self'", 'data:'],
+    },
+    strictTransportSecurity: false,
+  });
+  app.use((c, next) => (c.req.path === '/files' || c.req.path.startsWith('/files/') ? fileHeaders(c, next) : pageHeaders(c, next)));
 
   // 2. Who may ask, and with what method.
   app.use(createHostGuard(config.port));

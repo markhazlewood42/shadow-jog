@@ -333,14 +333,18 @@ function turnIntoMarker(token: Token, reason: string): void {
   ];
 }
 
+/** The files that a browser shows in an <img>. The site also serves the HTML source of a diagram, which it does not. */
+const PICTURE_URL = /\.(png|jpe?g|gif|webp|svg)(#.*)?$/i;
+
 /**
  * An image becomes one of three things. A picture the site serves stays an image, and gets
- * `data-zoom` so the page can open it large. A picture that lives elsewhere (another site, or a
- * repo file the site does not serve) becomes a link to it, because the page may only load images
- * from itself. Anything else becomes a marker.
+ * `data-zoom` so the page can open it large. A file that is not a picture (another site, a repo
+ * file the site does not serve, or the HTML source of a diagram that the site does serve) becomes
+ * a link to it, because the page may only load images from itself and an HTML file cannot be
+ * shown in an <img>. Anything else becomes a marker.
  */
 function tidyImage(token: Token, href: string, resolved: ResolvedLink, insideLink: boolean): void {
-  if (resolved.kind === 'asset' && isPrintable(resolved.url)) {
+  if (resolved.kind === 'asset' && isPrintable(resolved.url) && PICTURE_URL.test(resolved.url)) {
     token.attrSet('src', resolved.url);
     // The address of the large picture. It is the same file today, and the zoom view reads it from here.
     token.attrSet('data-zoom', resolved.url);
@@ -349,7 +353,7 @@ function tidyImage(token: Token, href: string, resolved: ResolvedLink, insideLin
 
   const alt = plainText(token.children ?? []).trim();
   const label = md.utils.escapeHtml(alt === '' ? href : alt);
-  const elsewhere = (resolved.kind === 'external' || resolved.kind === 'github') && isPrintable(resolved.url);
+  const elsewhere = (resolved.kind === 'external' || resolved.kind === 'github' || resolved.kind === 'asset') && isPrintable(resolved.url);
   let html: string;
   if (elsewhere && insideLink) {
     // The link around the image already leads somewhere, and a link inside a link is not valid html.

@@ -305,6 +305,28 @@ describe('renderDoc: images', () => {
     expect(sample.html).toContain(`<a href="${assetUrl('docs/diagrams/flow.html')}" target="_blank" rel="noopener noreferrer">diagrams/flow.html</a>`);
   });
 
+  it('a served file that is not a picture (the html source of a diagram) is a link to it when written as an image, never an img', () => {
+    const withSvg: KnownTargets = { ...known, assets: new Map([...known.assets, ['docs/diagrams/shape.svg', '/files/cccc3333/shape.svg']]) };
+    const doc = render(
+      '![the source](diagrams/flow.html) ![the source at a part](diagrams/flow.html#part) ![the picture](diagrams/flow.png#x) ![a vector](diagrams/shape.svg)',
+      'docs/diagram.md',
+      withSvg,
+    );
+    // The picture and the vector are images (the page may show an svg in an img: no script runs there). The html is not.
+    expect(doc.html.match(/<img /g)).toHaveLength(2);
+    expect(doc.html).toContain('<img src="/files/aaaa1111/flow.png#x" alt="the picture" data-zoom="/files/aaaa1111/flow.png#x">');
+    expect(doc.html).toContain('<img src="/files/cccc3333/shape.svg" alt="a vector" data-zoom="/files/cccc3333/shape.svg">');
+    expect(doc.html).toContain('<a href="/files/bbbb2222/flow.html" target="_blank" rel="noopener noreferrer">the source</a>');
+    expect(doc.html).toContain('<a href="/files/bbbb2222/flow.html#part" target="_blank" rel="noopener noreferrer">the source at a part</a>');
+    expect(doc.html).not.toContain('data-zoom="/files/bbbb2222');
+    // The links list still says what each one resolved to.
+    expect(doc.links.map((link) => link.resolved.kind)).toEqual(['asset', 'asset', 'asset', 'asset']);
+
+    // Inside a link, the image is only its words, as for any other image that is a link.
+    const inside = render('[![the source](diagrams/flow.html)](other.md)', 'docs/diagram.md', known);
+    expect(inside.html).toBe('<p><a href="/docs/other">the source</a></p>\n');
+  });
+
   it('an image the site cannot serve becomes a link out or a marker, never a picture the page cannot load', () => {
     const doc = render(
       '![an outside picture](https://example.com/a.png) ![a repo picture](../src/art.png) ![a missing picture](missing.png) ![a doc](other.md) ![](missing.png)',
