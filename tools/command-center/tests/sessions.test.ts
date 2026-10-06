@@ -157,6 +157,21 @@ describe('what a session says', () => {
     });
   });
 
+  it('the answer has exactly the fields of the interfaces, so the Now page and the Agents page can rely on them', async () => {
+    const { info } = await load();
+    const keys = (value: object | null | undefined) => Object.keys(value ?? {}).sort();
+    const session = find(info, S1);
+    expect(keys(info)).toEqual(['scanned', 'sessions', 'skipped']);
+    expect(keys(session)).toEqual(['agents', 'branch', 'cwd', 'folder', 'id', 'lastActivityAt', 'matchedBy', 'prs', 'startedAt', 'state', 'title', 'workflows', 'yourMove']);
+    expect(keys(session.yourMove)).toEqual(['answered', 'at', 'items', 'light', 'nothing']);
+    expect(keys(session.prs[0])).toEqual(['number', 'url']);
+    expect(keys(session.agents[0])).toEqual(['agentType', 'description', 'endedAt', 'id', 'model', 'sessionId', 'startedAt', 'state', 'workflowId']);
+    expect(keys(session.workflows[0])).toEqual(['id', 'lastEventAt', 'name', 'phases', 'sessionId', 'startedAt', 'started', 'state', 'done'].sort());
+    expect(keys(session.workflows[0]?.phases[0])).toEqual(['done', 'name', 'started']);
+    // Every session of the answer has them, also those with no box, no agents and no state.
+    for (const each of info.sessions) expect(keys(each)).toEqual(keys(session));
+  });
+
   it('the title is the custom title of the file, else the custom-title.json next to it, else the agent name, else the slug, else the id', async () => {
     const { info } = await load();
     expect(find(info, S1).title).toBe('ALLOWED-title-from-the-line');
