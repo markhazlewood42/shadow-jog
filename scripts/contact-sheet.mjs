@@ -129,14 +129,33 @@ for (const [pi, group] of pages.entries()) {
         img.onerror = () => rej(new Error('image failed to load'));
         img.src = src;
       });
-      /** Bring a shot back to its game pixels: a 2x shot sampled 2:1 is exact for nearest-neighbor art. */
+      /**
+       * Bring a shot back to its game pixels: a 2x shot sampled 2:1 is exact for nearest-neighbor
+       * art. Returns null for a picture that is not a whole multiple of the game frame (a sprite
+       * sheet, a map overview), which is then drawn to fit instead.
+       */
       const toGame = (img, size) => {
+        const k = img.width / size.w;
+        if (!Number.isInteger(k) || k < 1 || img.height !== size.h * k) return null;
         const c = document.createElement('canvas');
         c.width = size.w; c.height = size.h;
         const g = c.getContext('2d');
         g.imageSmoothingEnabled = false;
         g.drawImage(img, 0, 0, size.w, size.h);
         return c;
+      };
+      /** Draw one shot at the view's zoom, or to fit when it is not a screen. Returns whether it was a screen. */
+      const drawShot = (ctx, img, size, zoom, x, y) => {
+        const g = toGame(img, size);
+        if (g) {
+          ctx.drawImage(g, x, y, size.w * zoom, size.h * zoom);
+          return true;
+        }
+        const s = Math.min((size.w * zoom) / img.width, (size.h * zoom) / img.height, 1);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(img, x, y, Math.round(img.width * s), Math.round(img.height * s));
+        ctx.imageSmoothingEnabled = false;
+        return false;
       };
       const GAP = 16;
       const cellW = baseSize.w * zoomBase + GAP + resultSize.w * zoomResult;
@@ -161,13 +180,14 @@ for (const [pi, group] of pages.entries()) {
         const col = i % cols, row = Math.floor(i / cols);
         const x0 = GAP + col * (cellW + GAP), y0 = HEADER + row * (cellH + GAP);
         const [b, r] = await Promise.all([load(it.base), load(it.result)]);
+        const y = y0 + LABEL;
+        const rx = x0 + baseSize.w * zoomBase + GAP;
+        const bScreen = b ? drawShot(ctx, b, baseSize, zoomBase, x0, y) : true;
+        const rScreen = r ? drawShot(ctx, r, resultSize, zoomResult, rx, y) : true;
         ctx.fillStyle = '#ffffff';
         ctx.font = `bold ${font}px sans-serif`;
-        ctx.fillText(`${it.name}${b ? '' : '  (no baseline)'}${r ? '' : '  (no result)'}`, x0, y0 + 2, cellW);
-        const y = y0 + LABEL;
-        if (b) ctx.drawImage(toGame(b, baseSize), x0, y, baseSize.w * zoomBase, baseSize.h * zoomBase);
-        const rx = x0 + baseSize.w * zoomBase + GAP;
-        if (r) ctx.drawImage(toGame(r, resultSize), rx, y, resultSize.w * zoomResult, resultSize.h * zoomResult);
+        const notes = [b ? '' : '(no baseline)', r ? '' : '(no result)', bScreen && rScreen ? '' : '(not a screen: shown to fit)'].filter(Boolean).join('  ');
+        ctx.fillText(`${it.name}${notes ? `  ${notes}` : ''}`, x0, y0 + 2, cellW);
         // A thin outline shows each picture's frame, so an empty void is still visible as a frame.
         ctx.strokeStyle = '#8888aa';
         ctx.lineWidth = 1;
