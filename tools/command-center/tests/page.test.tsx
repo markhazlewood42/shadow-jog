@@ -134,7 +134,7 @@ describe('getJson and postJson', () => {
 });
 
 describe('loadHealthPanel', () => {
-  const health: Health = { ok: true, name: 'Shadow Jog Command Center', version: '0.1.0', startedAt: T0, gameUrl: 'http://localhost:3007', links: [] };
+  const health: Health = { ok: true, name: 'Shadow Jog Command Center', version: '0.1.0', startedAt: T0, gameUrl: 'http://localhost:3007', githubRepo: 'fixture-owner/fixture-repo', links: [] };
 
   it('wraps the bare /api/health reply as a panel, stamped with the time it arrived', async () => {
     stubFetch(() => json(health));

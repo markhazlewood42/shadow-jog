@@ -16,6 +16,14 @@ function Time({ iso }: { iso: string }) {
   return <time dateTime={iso}>{formatTime(iso)}</time>;
 }
 
+/**
+ * The inset of a panel, on the left and on the right, for the header and the body alike. The header holds the time of the last update at its right end,
+ * and at the 16 pixels that it had, it sat too close to the rounded corner (Mark, on the live tool). It is more than twice the radius of the corner (8 pixels). The
+ * body has the same inset, so that the text of the title and the text under it stay on one line. It is padding and not a margin, so that every panel gets it
+ * through this file, whatever frame it sits in.
+ */
+const INSET = 'px-5';
+
 type PanelContentProps<T> = {
   title: string;
   /** What usePanel returned for this panel. */
@@ -86,7 +94,7 @@ export function PanelContent<T>({ title, result, aside, children }: PanelContent
 
   return (
     <>
-      <header className="flex items-baseline justify-between gap-4 border-b border-cc-rule px-4 py-3">
+      <header className={`flex items-baseline justify-between gap-4 border-b border-cc-rule py-3 ${INSET}`}>
         {aside === undefined ? (
           <h2 className="text-base font-semibold">{title}</h2>
         ) : (
@@ -97,7 +105,7 @@ export function PanelContent<T>({ title, result, aside, children }: PanelContent
         )}
         <p className="font-mono text-xs text-cc-muted">{status}</p>
       </header>
-      <div className="px-4 py-4">{body}</div>
+      <div className={`py-4 ${INSET}`}>{body}</div>
     </>
   );
 }

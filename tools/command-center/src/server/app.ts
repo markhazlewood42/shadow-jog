@@ -107,7 +107,7 @@ export function createApp(deps: AppDeps): Hono {
   // ---- routes ----
 
   app.get('/api/health', (c) => {
-    const health: Health = { ok: true, name: APP_NAME, version, startedAt, gameUrl: config.gameUrl, links: config.links };
+    const health: Health = { ok: true, name: APP_NAME, version, startedAt, gameUrl: config.gameUrl, githubRepo: config.githubRepo, links: config.links };
     return c.json(health);
   });
 

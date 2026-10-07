@@ -105,9 +105,10 @@ describe('the address rules', () => {
 });
 
 describe('the API', () => {
-  it('health returns name, version, gameUrl and links from the config', async () => {
+  it('health returns name, version, gameUrl, githubRepo and links from the config', async () => {
     const config = makeTestConfig({
       gameUrl: 'http://localhost:4001',
+      githubRepo: 'owner/name',
       links: [
         { label: 'One', url: 'http://localhost:4001/one' },
         { label: 'Two', url: 'https://example.test/two' },
@@ -123,6 +124,7 @@ describe('the API', () => {
       version: '1.2.3',
       startedAt: '2026-01-02T03:04:05.000Z',
       gameUrl: 'http://localhost:4001',
+      githubRepo: 'owner/name',
       links: [
         { label: 'One', url: 'http://localhost:4001/one' },
         { label: 'Two', url: 'https://example.test/two' },

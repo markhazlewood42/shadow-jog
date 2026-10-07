@@ -82,7 +82,7 @@ async function readDecisions(request: APIRequestContext): Promise<DecisionsInfo>
 }
 
 test.describe('the page of a decision', () => {
-  test('shows the question, the options with the recommendation, and the linked doc sections inline', async ({ page }) => {
+  test('shows the question, the options with the recommendation, and the links to the linked docs', async ({ page }) => {
     const problems = watchConsole(page);
     await page.goto('/decisions/41');
     await expect(page).toHaveTitle('Decision #41 · Shadow Jog Command Center');
@@ -104,21 +104,45 @@ test.describe('the page of a decision', () => {
     await expect(optionOf(page, /Move it to a new `cache` folder/)).toBeVisible();
     await expect(form(page).getByRole('radiogroup')).toContainText('Recommended');
 
-    // The linked sections are in the page, as the doc has them: the heading and the text under it, with the doc they come from. The last
-    // link names a heading that the doc does not have: that is a notice, and not an error.
-    const storage = decision.getByRole('region', { name: 'docs/guides/setup.md#storage' });
-    await expect(storage.getByRole('heading', { level: 2, name: 'Storage' })).toBeVisible();
-    await expect(storage).toContainText('Burrow keeps its data in one folder, and the folder has three parts.');
-    await expect(storage).not.toContainText('Upgrading'); // the next section of the doc is not part of this one
-    await expect(decision.getByRole('region', { name: 'docs/guides/setup.md#first-run' })).toContainText('The first run builds the index.');
-    const missing = decision.getByRole('region', { name: 'docs/guides/setup.md#no-such-heading' });
-    await expect(missing.getByRole('note')).toContainText('This section was not found in the docs: docs/guides/setup.md#no-such-heading');
+    // The linked docs are links, and the text of the docs is not copied into the page (see the S3 test). The last link names a heading that the
+    // doc does not have: that is a notice, and not an error.
+    const links = decision.getByRole('list', { name: 'Linked docs' });
+    await expect(links.getByRole('link', { name: 'Setup guide \u203a Storage' })).toHaveAttribute('href', '/docs/guides/setup#storage');
+    await expect(links.getByRole('link', { name: 'Setup guide \u203a First run' })).toHaveAttribute('href', '/docs/guides/setup#first-run');
+    await expect(links.getByRole('note')).toContainText('This section was not found in the docs: docs/guides/setup.md#no-such-heading');
     await expect(decision.getByRole('alert')).toHaveCount(0);
 
     // A link in the page opens the doc at the heading, inside the site.
-    await storage.getByRole('link', { name: 'Open in the docs' }).click();
+    await links.getByRole('link', { name: 'Setup guide \u203a Storage' }).click();
     await expect(page).toHaveURL('/docs/guides/setup#storage');
     expect(problems).toEqual([]);
+  });
+
+  test('S3 decision page lists doc links and no section text', async ({ page }) => {
+    await page.goto('/decisions/41');
+    const decision = decisionOf(page);
+    const links = decision.getByRole('list', { name: 'Linked docs' });
+
+    // One line for each linked doc of the issue, in its order: three lines, the last one a notice.
+    await expect(links.getByRole('listitem')).toHaveCount(3);
+    const storage = links.getByRole('link', { name: 'Setup guide \u203a Storage' });
+    await expect(storage).toHaveAttribute('href', '/docs/guides/setup#storage');
+    await expect(links.getByRole('link', { name: 'Setup guide \u203a First run' })).toHaveAttribute('href', '/docs/guides/setup#first-run');
+    // A heading that the doc does not have: one line of notice with the link to the doc.
+    const missing = links.getByRole('note');
+    await expect(missing).toContainText('This section was not found in the docs: docs/guides/setup.md#no-such-heading');
+    await expect(missing.getByRole('link')).toHaveAttribute('href', '/docs/guides/setup');
+    await expect(decision.getByRole('alert')).toHaveCount(0);
+
+    // The text of the sections is not on the page, and no section of a doc is drawn in it.
+    await expect(decision).not.toContainText('Burrow keeps its data in one folder, and the folder has three parts.');
+    await expect(decision).not.toContainText('The first run builds the index.');
+    await expect(page.locator('main .doc-html')).toHaveCount(0);
+
+    // The link leads into the doc page, at the heading.
+    await storage.click();
+    await expect(page).toHaveURL('/docs/guides/setup#storage');
+    await expect(page.getByRole('heading', { level: 2, name: 'Storage' })).toBeVisible();
   });
 
   test('issue text with markup shows as text and runs nothing', async ({ page }) => {
@@ -175,15 +199,15 @@ test.describe('the page of a decision', () => {
     await expect(form(page)).toBeVisible();
   });
 
-  test('the page shows the current text of the linked section after the doc changes', async ({ page }) => {
+  test('the links follow the doc after it changes: a heading that is renamed turns its link into a notice', async ({ page }) => {
     await page.goto('/decisions/41');
-    const storage = decisionOf(page).getByRole('region', { name: 'docs/guides/setup.md#storage' });
-    await expect(storage).toContainText('The index holds the notes about your files.');
+    const links = decisionOf(page).getByRole('list', { name: 'Linked docs' });
+    await expect(links.getByRole('link', { name: 'Setup guide \u203a Storage' })).toBeVisible();
 
-    // The doc is edited on disk. The server watches the files, and tells the open page, which reads the section again.
-    writeFileSync(SETUP_DOC, SETUP_ORIGINAL.replace('The index holds the notes about your files.', 'The index now holds the notes about your files and a map of them.'));
-    await expect(storage).toContainText('The index now holds the notes about your files and a map of them.', { timeout: 15_000 });
-    await expect(storage).not.toContainText('The index holds the notes about your files.');
+    // The doc is edited on disk. The server watches the files, and tells the open page, which reads the decision again.
+    writeFileSync(SETUP_DOC, SETUP_ORIGINAL.replace(/^## Storage(?=\r?$)/m, '## Disk layout'));
+    await expect(links.getByRole('note').filter({ hasText: 'docs/guides/setup.md#storage' })).toBeVisible({ timeout: 15_000 });
+    await expect(links.getByRole('link', { name: 'Setup guide \u203a Storage' })).toHaveCount(0);
   });
 });
 
