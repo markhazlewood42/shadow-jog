@@ -6,7 +6,6 @@
 import type { Dir } from '../../art/chars';
 import { sfx } from '../../audio/sfx';
 import { music } from '../../audio/music';
-import { W, H } from '../../engine/game';
 import { Actor, dirTo } from '../../field/actor';
 import { TS } from '../../field/tiles';
 import type { NpcDef } from '../../field/types';
@@ -16,6 +15,7 @@ import { LOOKS } from '../../data/looks';
 import { fieldHooks } from '../../game/hooks';
 import { DialogScene } from '../dialog';
 import type { FieldScene } from '../field';
+import { cameraOrigin } from './camera';
 
 export function scriptApi(f: FieldScene): ScriptApi {
   return {
@@ -127,11 +127,12 @@ export function scriptApi(f: FieldScene): ScriptApi {
     },
     pan: (x, y, frames = 40) =>
       new Promise<void>((res) => {
-        const mw = f.map.w * TS, mh = f.map.h * TS;
-        const tx = Math.max(0, Math.min(mw - W, Math.round(x * TS + 8 - W / 2)));
-        const ty = Math.max(0, Math.min(mh - H, Math.round(y * TS + 8 - H / 2)));
-        f.camOverride = { x: x * TS + 8, y: y * TS + 8 };
-        f.panTarget = { x: tx, y: ty, frames, t: 0, sx: f.camX, sy: f.camY, res };
+        // The same camera rule as the scene's own camera (fieldkit/camera.ts), so the pan lands
+        // exactly where the camera will rest afterwards, on a map of any size.
+        const focus = { x: x * TS + 8, y: y * TS + 8 };
+        const t = cameraOrigin(focus.x, focus.y, f.map.w * TS, f.map.h * TS);
+        f.camOverride = focus;
+        f.panTarget = { x: t.x, y: t.y, frames, t: 0, sx: f.camX, sy: f.camY, res };
       }),
     panBack: (frames = 30) =>
       new Promise<void>((res) => {

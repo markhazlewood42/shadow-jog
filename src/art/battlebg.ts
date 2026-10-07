@@ -1,13 +1,18 @@
 /**
- * Battle backgrounds at the 240×135 battle resolution (displayed 2×). Each has a static bake
- * and an optional per-frame animation layer (rain, flicker, water, embers).
+ * Battle backgrounds at the battle world's resolution (BW×BH, half the screen, displayed at 2×).
+ * Each has a static bake and an optional per-frame animation layer (rain, flicker, water, embers).
  */
 import { surface, type Ctx } from '../engine/canvas';
 import { mix, rgb, shade } from '../engine/color';
 import { hash2, Rng } from '../engine/rng';
+import { BHT, BW } from '../scenes/battlekit/geom';
 
-export const BW = 240;
-export const BH = 135;
+/**
+ * The backdrop size is the battle world's (src/scenes/battlekit/geom.ts), re-exported under the
+ * names the makers below use, so the world and its backdrops can never disagree on their size.
+ */
+export { BW };
+export const BH = BHT;
 export const HORIZON = 62;
 
 const BAYER = [

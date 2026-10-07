@@ -24,6 +24,7 @@ import { FIELD_OBJ_W } from '../ui/layout';
 import { fieldHooks } from '../game/hooks';
 import { reportError } from '../engine/errors';
 import { scriptApi } from './fieldkit/api';
+import { cameraOrigin } from './fieldkit/camera';
 import { blit, byBaseY, drawEmote, drawShell, inView, type DrawEntry } from './fieldkit/draw';
 import { Dust } from './fieldkit/dust';
 
@@ -562,15 +563,11 @@ export class FieldScene extends Scene<void> {
   }
 
   // ------------------------------------------------------------------ camera
+  /** The camera rule lives in fieldkit/camera.ts, shared with the scripted pan(). */
   targetCam(): { x: number; y: number } {
-    const mw = this.map.w * TS, mh = this.map.h * TS;
     const fx = this.camOverride?.x ?? this.leader.px;
     const fy = this.camOverride?.y ?? this.leader.py - 8;
-    let x = Math.round(fx - W / 2);
-    let y = Math.round(fy - H / 2);
-    x = mw <= W ? Math.round((mw - W) / 2) : Math.max(0, Math.min(mw - W, x));
-    y = mh <= H ? Math.round((mh - H) / 2) : Math.max(0, Math.min(mh - H, y));
-    return { x, y };
+    return cameraOrigin(fx, fy, this.map.w * TS, this.map.h * TS);
   }
 
   snapCamera(): void {

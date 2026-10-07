@@ -21,7 +21,7 @@ import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
 import { TARGET_INFO_W } from '../../ui/layout';
 import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
-import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, orderStripLayout } from './geom';
+import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, WORLD_SCALE, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
@@ -148,7 +148,7 @@ export class BattleRenderer {
       const sw = BW / z, sh = BHT / z;
       const sx = Math.max(0, Math.min(BW - sw, push.x - sw / 2)), sy = Math.max(0, Math.min(BHT - sh, push.y - sh / 2));
       ctx.drawImage(this.s.world.canvas, sx, sy, sw, sh, shx, shy, W, H);
-      ctx.drawImage(this.s.enemyLayer.canvas, sx * 2, sy * 2, sw * 2, sh * 2, shx, shy, W, H);
+      ctx.drawImage(this.s.enemyLayer.canvas, sx * WORLD_SCALE, sy * WORLD_SCALE, sw * WORLD_SCALE, sh * WORLD_SCALE, shx, shy, W, H);
       ctx.drawImage(this.s.front.canvas, sx, sy, sw, sh, shx, shy, W, H);
     } else {
       ctx.drawImage(this.s.world.canvas, shx, shy, W, H);
@@ -206,7 +206,7 @@ export class BattleRenderer {
   private renderImpact(ctx: Ctx, shx: number, shy: number): void {
     const u = this.s.impactOn!;
     const { x, y, art } = this.s.enemyPos(u);
-    const cx = (x + art.w / 2) * 2 + shx, cy = (y + art.h / 2) * 2 + shy;
+    const cx = (x + art.w / 2) * WORLD_SCALE + shx, cy = (y + art.h / 2) * WORLD_SCALE + shy;
     ctx.fillStyle = 'rgba(8,4,16,0.86)';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = this.s.impactColor;
@@ -215,7 +215,7 @@ export class BattleRenderer {
       const r0 = 34 + (i % 3) * 10, r1 = 260;
       for (let r = r0; r < r1; r += 3) ctx.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.62), i % 2 ? 1 : 2, 1);
     }
-    ctx.drawImage(silhouetteCache(art.canvas, '#ffffff'), x * 2 + shx, y * 2 + shy, art.w * 2, art.h * 2);
+    ctx.drawImage(silhouetteCache(art.canvas, '#ffffff'), x * WORLD_SCALE + shx, y * WORLD_SCALE + shy, art.w * WORLD_SCALE, art.h * WORLD_SCALE);
   }
 
   /** The frame the fight broke out of, shattering (built on the first intro frame). */
@@ -471,8 +471,8 @@ export class BattleRenderer {
       const dd = this.s.d(e.uid);
       if (dd.dying > 0 || dd.alpha < 0.5) continue;
       const { x, y, art } = this.s.enemyPos(e);
-      const cx0 = Math.round((x + art.w / 2) * 2);
-      let row = Math.max(24, (y + artTop(art)) * 2 - 6);
+      const cx0 = Math.round((x + art.w / 2) * WORLD_SCALE);
+      let row = Math.max(24, (y + artTop(art)) * WORLD_SCALE - 6);
       // HP bar (bosses get a wider one).
       const bw = e.boss ? 72 : 30;
       const ratio = Math.max(0, dd.shownHp / e.base.maxHp);
@@ -941,7 +941,7 @@ export class BattleRenderer {
     // The box sits on the far side of the screen from its target (clear of the turn-order strip
     // on the right), so it never covers the target or the arrow over it.
     const w = TARGET_INFO_W, y = 44;
-    const tx = this.s.pos(u.uid).x * 2;
+    const tx = this.s.pos(u.uid).x * WORLD_SCALE;
     const x = tx < W / 2 ? W - 44 - w : 8;
     const name = this.s.label(u);
     if (u.side === 'enemy') {

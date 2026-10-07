@@ -28,7 +28,7 @@ import { H, Scene, W } from '../engine/game';
 import { playMoment } from '../engine/moments';
 import type { ParticleShape } from '../engine/particles';
 import { postfx } from '../engine/postfx';
-import { PANEL_Y } from '../scenes/battlekit/geom';
+import { BHT, BW, PANEL_Y } from '../scenes/battlekit/geom';
 
 const PANEL_W = 400;
 
@@ -131,9 +131,9 @@ export class FxLabScene extends Scene<void> {
   private tab: 'presets' | 'moments' | 'spells' = 'presets';
   private spellId = 'fire';
   /** The battle's own effect layer, for the Spells tab (battle-world coordinates). */
-  private fxl = new FxLayer();
-  private fxWorld = surface(240, 135);
-  private fxGlow = surface(240, 135);
+  private fxl = new FxLayer(BW, BHT);
+  private fxWorld = surface(BW, BHT);
+  private fxGlow = surface(BW, BHT);
   private pendingSpell: { at: number; id: string; targets: Pt[] } | null = null;
   private flashLeft = 0;
   private flashColor = '#ffffff';
@@ -141,7 +141,7 @@ export class FxLabScene extends Scene<void> {
   private momentId = Object.keys(GAME_MOMENTS)[0] ?? '';
   private bgId = 'sewer';
   private bg: BattleBg = battleBg('sewer');
-  private world = surface(240, 135);
+  private world = surface(BW, BHT);
   private enemyKey = 'sewer_ghoul';
   private art: EnemyArt | null = null;
   /** Where things fire: the enemy's middle to start with; a click moves it. */
@@ -246,7 +246,7 @@ export class FxLabScene extends Scene<void> {
     }
     // The battle's effect shapes, over the enemy, and into the bloom.
     const fg = this.fxWorld.ctx;
-    fg.clearRect(0, 0, 240, 135);
+    fg.clearRect(0, 0, BW, BHT);
     this.fxl.render(fg, (c, ch, gx, gy, col) => drawText(c, ch, gx, gy, { color: col, shadow: false }));
     ctx.drawImage(this.fxWorld.canvas, 0, 0, W, H);
     if (this.flashLeft > 0) {
@@ -264,7 +264,7 @@ export class FxLabScene extends Scene<void> {
     }
     if (glow && this.fxl.busy) {
       const gg = this.fxGlow.ctx;
-      gg.clearRect(0, 0, 240, 135);
+      gg.clearRect(0, 0, BW, BHT);
       this.fxl.render(gg, () => undefined, true);
       glow.imageSmoothingEnabled = false;
       glow.drawImage(this.fxGlow.canvas, 0, 0, W, H);
@@ -715,7 +715,7 @@ export class FxLabScene extends Scene<void> {
       l.shock ??= {};
       const s = l.shock;
       num('Push (px)', () => s.strength ?? 3, (v) => (s.strength = v), 0, 20, 0.1);
-      num('Reach (px)', () => s.reach ?? 90, (v) => (s.reach = v), 0, 480, 1);
+      num('Reach (px)', () => s.reach ?? 90, (v) => (s.reach = v), 0, W, 1);
       num('Life (frames)', () => s.life ?? 26, (v) => (s.life = v), 1, 120, 1);
       num('Ring width (px)', () => s.width ?? 10, (v) => (s.width = v), 1, 60, 0.5);
     } else if (kind === 'aberrate') {
@@ -723,14 +723,14 @@ export class FxLabScene extends Scene<void> {
     } else if (kind === 'haze') {
       l.haze ??= {};
       const s = l.haze;
-      num('Radius (px)', () => s.radius ?? 40, (v) => (s.radius = v), 4, 240, 1);
+      num('Radius (px)', () => s.radius ?? 40, (v) => (s.radius = v), 4, W / 2, 1);
       num('Waver (px)', () => s.strength ?? 1.5, (v) => (s.strength = v), 0, 8, 0.1);
       num('Life (frames)', () => s.life ?? 60, (v) => (s.life = v), 1, 240, 1);
     } else if (kind === 'glitch') {
       l.glitch ??= {};
       const s = l.glitch;
-      num('Width (px)', () => s.w ?? 90, (v) => (s.w = v), 4, 480, 1);
-      num('Height (px)', () => s.h ?? 60, (v) => (s.h = v), 4, 270, 1);
+      num('Width (px)', () => s.w ?? 90, (v) => (s.w = v), 4, W, 1);
+      num('Height (px)', () => s.h ?? 60, (v) => (s.h = v), 4, H, 1);
       num('Slide (px)', () => s.strength ?? 6, (v) => (s.strength = v), 0, 30, 0.5);
       num('Life (frames)', () => s.life ?? 24, (v) => (s.life = v), 1, 120, 1);
     } else if (kind === 'dim') {

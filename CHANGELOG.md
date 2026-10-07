@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Changed
+- The move to 640x360, step 1 (no pixel changes yet): the battle world's size derives from the screen (`BW = W / WORLD_SCALE`, `BHT = H / WORLD_SCALE`, one `WORLD_SCALE` in `battlekit/geom.ts` that the backdrops, the title skyline, the renderer and the FX lab share); the "Autosaved" badge, the news bar, the error bar, the water animation culls, the aberration center and the FX lab's slider limits read `W` and `H`; a scripted camera pan centers a map smaller than the view, as the field camera does.
 - The version is now 0.2.0-dev: phase 0.2 development has started.
 - Hex now uses they/them, and Sable uses he/him (Mark's canon, 2026-10-03).
 - CI runs its checks as three jobs at the same time and skips a change that touches only docs, notes or `tools/command-center/`. The real-speed playtest runs on pushes to `main` and from the Actions tab, not on pull requests.

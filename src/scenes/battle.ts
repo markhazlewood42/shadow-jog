@@ -93,7 +93,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   bg: BattleBg;
   /** Rim-light colour for enemies against this backdrop. */
   rim: string;
-  fx = new FxLayer();
+  fx = new FxLayer(BW, BHT);
   mode: Mode = 'intro';
   private disp = new Map<number, Disp>();
   /** The same display states as a list, for the per-tick sweep (a Map iterator allocates). */

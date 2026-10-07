@@ -8,6 +8,7 @@ import { silhouette, surface, type Ctx, type Surface } from '../engine/canvas';
 import { mix, rgb } from '../engine/color';
 import { drawText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
+import { BHT as BH, BW } from './battlekit/geom';
 import { VERSION_LABEL } from '../version';
 import { flashScale } from '../game/settings';
 import { hash2, Rng } from '../engine/rng';
@@ -19,7 +20,8 @@ import { SaveScene } from './saveload';
 
 export type TitleChoice = { kind: 'new' } | { kind: 'load'; slot: SlotId };
 
-const BW = 240, BH = 135;
+// The title world shares the battle world's grain (BW×BH, half the screen, drawn at 2x), imported
+// above, so the skyline keeps the same chunky pixel as the fights whatever the screen size is.
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
 function sky(): HTMLCanvasElement {
