@@ -173,7 +173,7 @@ export function registerDecisionsRoutes(app: Hono, deps: DecisionsRoutesDeps): v
         const checked = checkAnswer(read, request.option, request.note);
         if (!checked.ok) return c.json(apiError(checked.code, checked.message), checked.status);
 
-        const result = await answerDecision({ config, runner, number, option: request.option, note: request.note, from: checked.from });
+        const result = await answerDecision({ config, runner, number, option: request.option, note: request.note, from: checked.from, ...(checked.clearDecided === true ? { clearDecided: true } : {}) });
         // A write was tried, so GitHub may have changed, also when a step failed: the earlier steps are on the issue. Look again now, so
         // that every page sees the answer (or the half answer) at once and does not wait for the next load a minute away.
         await decisions.get(true);

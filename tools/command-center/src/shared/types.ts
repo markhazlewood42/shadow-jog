@@ -33,13 +33,15 @@ export type ChangeEvent = {
   ids?: string[];
 };
 
-/** The reply of `GET /api/health`. The Links panel reads the game address and the links from it. */
+/** The reply of `GET /api/health`. The Links panel reads the game address and the links from it, and the Pull requests panel reads the repo name (for its link to the merged ones). */
 export type Health = {
   ok: true;
   name: string;
   version: string;
   startedAt: string;
   gameUrl: string;
+  /** The repo on GitHub, as `owner/name` (the config checks that it has this shape, so it is safe in an address). */
+  githubRepo: string;
   links: { label: string; url: string }[];
 };
 

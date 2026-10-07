@@ -161,6 +161,19 @@ describe('the issue store of the fake gh: the three writes', () => {
     expect(await numbers('--label', 'decided', '--state', 'all', '--json', 'number')).toContain(41);
   });
 
+  it('adding a label that is already on the issue leaves no event, as on GitHub, and taking it off first makes a new one', async () => {
+    expect((await edit(41)).code).toBe(0);
+    const eventCount = issue(41).events.length;
+    // decided is on now. Adding it again changes nothing and leaves no labeled event.
+    expect((await gh('issue', 'edit', '--repo', REPO, '41', '--add-label', 'decided')).code).toBe(0);
+    expect(issue(41).events).toHaveLength(eventCount);
+    // Taking it off and putting it on again leaves an unlabeled event and a new labeled one.
+    expect((await gh('issue', 'edit', '--repo', REPO, '41', '--remove-label', 'decided')).code).toBe(0);
+    expect((await gh('issue', 'edit', '--repo', REPO, '41', '--add-label', 'decided')).code).toBe(0);
+    const added = issue(41).events.slice(eventCount) as { event: string; label: { name: string } }[];
+    expect(added.map((event) => [event.event, event.label.name])).toEqual([['unlabeled', 'decided'], ['labeled', 'decided']]);
+  });
+
   it('a close closes the issue and leaves a closed event, and closing a closed issue changes nothing', async () => {
     expect((await close(41)).code).toBe(0);
     expect(issue(41).state).toBe('CLOSED');

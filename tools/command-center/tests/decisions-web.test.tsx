@@ -3,7 +3,7 @@ import { act } from 'react';
 import { type Root, createRoot } from 'react-dom/client';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type DecisionDetail, type DocDecision, type DocPage, MAX_NOTE_CHARS, type Panel } from '../src/shared/types';
+import { type DecisionDetail, type DocDecision, type DocPage, type DocsListing, MAX_NOTE_CHARS, type Panel } from '../src/shared/types';
 import { DecisionRoute } from '../src/web/decisions/DecisionPage';
 import { DecisionBanner } from '../src/web/decisions/DecisionBanner';
 import { DocView } from '../src/web/docs/DocView';
@@ -43,6 +43,12 @@ function detail(over: Partial<DecisionDetail> = {}): DecisionDetail {
     ...over,
   };
 }
+/** The doc index, as far as the page reads it: the title of the one doc that the made-up decision links to. */
+const DOCS: DocsListing = {
+  docs: [{ id: 'docs/guides/setup.md', slug: 'guides/setup', title: 'Setup guide', type: 'guide', status: 'approved', updated: '2026-01-10', updatedFrom: 'frontmatter' }],
+  nav: [],
+  problems: [],
+};
 const good = (data: DecisionDetail): Panel<DecisionDetail> => ({ ok: true, data, updatedAt: '2026-10-06T12:00:00Z' });
 const answered = (over: Partial<DecisionDetail> = {}): DecisionDetail =>
   detail({ state: 'answered', answer: { option: 'C', note: 'Because it keeps the cache.', at: '2026-10-06T11:00:00Z', complete: true }, ...over });
@@ -55,6 +61,8 @@ const json = ({ status, body }: Reply) => new Response(JSON.stringify(body), { s
 type Server = {
   /** What `GET /api/decisions/41` answers now. */
   detail: Reply;
+  /** What `GET /api/docs` answers now: the titles of the docs, which the links of the linked sections show. */
+  docs: Reply;
   /** What each `POST /api/decisions/41/answer` answers: the first call gets the first reply, and the last one repeats. */
   answers: Reply[];
   gets: number;
@@ -69,6 +77,7 @@ let release: (() => void) | null = null;
 function installServer(): void {
   server = {
     detail: { status: 200, body: good(detail()) },
+    docs: { status: 200, body: { ok: true, updatedAt: '2026-10-06T12:00:00Z', data: DOCS } },
     answers: [{ status: 200, body: { ok: true } }],
     gets: 0,
     posts: [],
@@ -90,6 +99,7 @@ function installServer(): void {
         }
         return json(reply);
       }
+      if (String(url) === '/api/docs') return json(server.docs);
       if (String(url).startsWith('/api/decisions/')) {
         server.gets += 1;
         return json(server.detail);
@@ -219,14 +229,51 @@ describe('the decision page', () => {
     expect(document.title).toBe('Decision #41 · Shadow Jog Command Center');
   });
 
-  it('shows the linked sections inline, with the doc and the heading they come from and a link to them in the docs', async () => {
+  it('S3 decision page lists doc links and no section text', async () => {
+    server.detail = {
+      status: 200,
+      body: good(
+        detail({
+          docs: [
+            { docId: 'docs/guides/setup.md', slug: 'guides/setup', anchor: 'storage', heading: 'Storage' },
+            { docId: 'docs/other/unlisted.md', slug: 'other/unlisted', anchor: 'intro', heading: 'Intro' },
+            { docId: 'docs/guides/setup.md', slug: 'guides/setup', anchor: 'no-such-heading', heading: null },
+          ],
+          sections: [
+            { docId: 'docs/guides/setup.md', anchor: 'storage', heading: 'Storage', html: '<h2 id="storage">Storage</h2><p>Burrow keeps its data in one folder.</p>' },
+            { docId: 'docs/other/unlisted.md', anchor: 'intro', heading: 'Intro', html: '<h2 id="intro">Intro</h2><p>The text of another section.</p>' },
+            { docId: 'docs/guides/setup.md', anchor: 'no-such-heading', heading: null, html: null },
+          ],
+        }),
+      ),
+    };
     await show();
-    const section = container.querySelector('section[aria-label="docs/guides/setup.md#storage"]');
-    expect(section).not.toBeNull();
-    expect(section?.textContent).toContain('docs/guides/setup.md');
-    expect(section?.querySelector('.doc-html h2#storage')?.textContent).toBe('Storage');
-    expect(section?.textContent).toContain('Burrow keeps its data in one folder.');
-    expect(section?.querySelector('a[href="/docs/guides/setup#storage"]')?.textContent).toBe('Open in the docs');
+    // One link for each linked doc, in the order of the issue: the title of the doc and the words of the heading, into the doc page at the anchor.
+    const links = container.querySelectorAll('ul[aria-label="Linked docs"] a');
+    expect(links).toHaveLength(3); // two sections, and the link to the doc in the notice of the third
+    expect(links[0]?.textContent).toBe('Setup guide \u203a Storage');
+    expect(links[0]?.getAttribute('href')).toBe('/docs/guides/setup#storage');
+    // A doc whose title is not known shows its id.
+    expect(links[1]?.textContent).toBe('docs/other/unlisted.md \u203a Intro');
+    expect(links[1]?.getAttribute('href')).toBe('/docs/other/unlisted#intro');
+    // The text of the sections is not on the page, and no html of a doc is put into it.
+    expect(text()).not.toContain('Burrow keeps its data in one folder.');
+    expect(text()).not.toContain('The text of another section.');
+    expect(container.querySelector('.doc-html')).toBeNull();
+    // A heading that the doc does not have is one line of notice, with the link to the doc. It is not an error.
+    const notice = container.querySelector('ul[aria-label="Linked docs"] [role="note"]');
+    expect(notice?.textContent).toContain('This section was not found in the docs: docs/guides/setup.md#no-such-heading');
+    expect(notice?.querySelector('a[href="/docs/guides/setup"]')).not.toBeNull();
+    expect(alert()).toBeNull();
+    expect(text()).not.toContain('Retry');
+  });
+
+  it('S3 shows the doc id for every link when the doc index cannot be read', async () => {
+    // The titles are a nicety: a failed listing must not hide the links or the page. The id of the doc stands in for the title.
+    server.docs = { status: 500, body: { ok: false, error: { code: 'docs-failed', message: 'The docs could not be read.' }, updatedAt: null, lastGood: null } };
+    await show();
+    expect(container.querySelector('ul[aria-label="Linked docs"] a')?.textContent).toBe('docs/guides/setup.md \u203a Storage');
+    expect(alert()).toBeNull();
   });
 
   it('issue text is plain text (a script tag shows as text)', async () => {
@@ -302,7 +349,7 @@ describe('the decision page', () => {
   });
 
   it('issue text is plain text in the doc and the heading of a linked section', async () => {
-    // LinkedSection: the bar with the doc and the heading id that the issue names, the label of the section, and the notice for a heading that is not there.
+    // The linked docs: the doc and the heading id that the issue names, in the notice for a heading that is not there.
     const docId = 'docs/<b>bold</b>/<i>x</i>.md';
     const anchor = `<u>head</u>${IMG}`;
     server.detail = {
@@ -311,8 +358,6 @@ describe('the decision page', () => {
     };
     await show();
     expectOnlyText([docId, `#${anchor}`]);
-    // The label of the section is the same words, as an attribute (not read as html either).
-    expect(container.querySelector('section[aria-label]:not([aria-label="Decision"])')?.getAttribute('aria-label')).toBe(`${docId}#${anchor}`);
   });
 
   it('issue text is plain text in the error of a failed answer', async () => {
@@ -349,14 +394,15 @@ describe('the decision page', () => {
       ),
     };
     await show();
-    const missing = container.querySelector('section[aria-label="docs/guides/setup.md#no-such-heading"]');
-    expect(missing?.querySelector('[role="note"]')?.textContent).toContain('This section was not found in the docs: docs/guides/setup.md#no-such-heading');
-    // A notice and not an error: nothing is announced as an alert, the panel has no error state, and the other section is shown as usual.
+    const items = container.querySelectorAll('ul[aria-label="Linked docs"] > li');
+    expect(items).toHaveLength(2);
+    expect(items[1]?.querySelector('[role="note"]')?.textContent).toContain('This section was not found in the docs: docs/guides/setup.md#no-such-heading');
+    // A notice and not an error: nothing is announced as an alert, the panel has no error state, and the other link is shown as usual.
     expect(alert()).toBeNull();
     expect(text()).not.toContain('Retry');
-    expect(container.querySelector('section[aria-label="docs/guides/setup.md#storage"]')?.textContent).toContain('Burrow keeps its data in one folder.');
+    expect(items[0]?.textContent).toBe('Setup guide \u203a Storage');
     // The link to the doc stays, so that Mark can look for the heading.
-    expect(missing?.querySelector('a[href="/docs/guides/setup#no-such-heading"]')).not.toBeNull();
+    expect(items[1]?.querySelector('a[href="/docs/guides/setup"]')).not.toBeNull();
   });
 
   it('says that no decision has the number, with no retry, for a number that the server does not have', async () => {

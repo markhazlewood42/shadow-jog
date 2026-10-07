@@ -10,6 +10,11 @@ import { LABEL_DECIDED, LABEL_DECISION, answerComment } from './parse';
 // runner (src/server/runner.ts) has an exact list of read commands and exactly these three write shapes, and it pins every
 // call to the configured repository, so even a bug in this file cannot write anything else, or write to another repository.
 //
+// The label step has a second call in one case. The route reads a decision as trusted only when Mark's account put the label `decided`
+// on it (its newest `labeled` event). If `decided` is already on the issue and another account put it there, `--add-label` would do
+// nothing (GitHub makes no event when the label is already on), and the answer could never become trusted. So in that case the label
+// step first takes `decided` off and then puts it on, and the new `labeled` event is Mark's.
+//
 // The three steps are not one operation: each is a call to GitHub, and one can fail after the one before it worked. So a
 // failure names the step that failed, and a retry starts at the first step that is not done (see `nextStep`), so that it never
 // posts the same comment twice.
@@ -30,6 +35,8 @@ export type AnswerRequest = {
   note?: string | null;
   /** The first step to make: the steps before it are already done. The comment when this is not given. */
   from?: AnswerStep;
+  /** True when `decided` is on the issue and another account put it there (see `checkAnswer`): the label step takes it off first, so that putting it on makes an event of Mark's. */
+  clearDecided?: boolean;
 };
 
 /** gh's words when a label that a command names is not in the repository: `'decided' not found`. Another way to say it is accepted when it names one of our two labels. */
@@ -52,26 +59,31 @@ function explain(step: AnswerStep, result: RunResult, config: Config): { code: s
 
 /**
  * Makes the steps of an answer, from `from` on, and stops at the first that fails. The comment is `Decision: <option>. <note>`,
- * the label swap takes `decision` off and puts `decided` on, and the close closes the issue. The route that calls this has read the
+ * the label swap takes `decision` off and puts `decided` on (after taking `decided` off when another account put it there), and the close closes the issue. The route that calls this has read the
  * issue and checked it (that it is Mark's decision, that it is open, and that it has this option), because only it knows what GitHub holds.
  */
 export async function answerDecision(request: AnswerRequest): Promise<AnswerResult> {
   const { config, runner, option } = request;
   const number = String(request.number);
-  const calls: Record<AnswerStep, string[]> = {
-    comment: ['issue', 'comment', number, '--body', answerComment(option, request.note ?? null)],
-    label: ['issue', 'edit', number, '--add-label', LABEL_DECIDED, '--remove-label', LABEL_DECISION],
-    close: ['issue', 'close', number],
+  const calls: Record<AnswerStep, string[][]> = {
+    comment: [['issue', 'comment', number, '--body', answerComment(option, request.note ?? null)]],
+    label: [
+      ...(request.clearDecided === true ? [['issue', 'edit', number, '--remove-label', LABEL_DECIDED]] : []),
+      ['issue', 'edit', number, '--add-label', LABEL_DECIDED, '--remove-label', LABEL_DECISION],
+    ],
+    close: [['issue', 'close', number]],
   };
   for (const step of STEPS.slice(STEPS.indexOf(request.from ?? 'comment'))) {
-    const result = await runner('gh', calls[step]);
-    if (result.code !== 0) return { ok: false, step, error: explain(step, result, config) };
+    for (const args of calls[step]) {
+      const result = await runner('gh', args);
+      if (result.code !== 0) return { ok: false, step, error: explain(step, result, config) };
+    }
   }
   return { ok: true };
 }
 
 /** What `checkAnswer` says when the answer may go on: from which step. */
-export type Accepted = { ok: true; from: AnswerStep };
+export type Accepted = { ok: true; from: AnswerStep; clearDecided?: true };
 /** What it says when it may not: an HTTP status, a short code for a program to test, and a sentence for Mark. */
 export type Rejection = { ok: false; status: 404 | 409 | 422; code: string; message: string };
 
@@ -115,5 +127,6 @@ export function checkAnswer(found: DecisionRead | null, option: string, note: st
       listed === '' ? `Decision #${issue.number} has no options that this page can read, so there is nothing to pick. Open it on GitHub.` : `"${option}" is not one of the options of decision #${issue.number}: ${listed}.`,
     );
   }
-  return { ok: true, from: nextStep(found, option, note) };
+  // `decided` is on the issue but not by Mark's account: take it off before the label step puts it on (see the top of this file).
+  return { ok: true, from: nextStep(found, option, note), ...(found.staleDecided ? { clearDecided: true as const } : {}) };
 }
