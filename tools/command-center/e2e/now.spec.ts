@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { type APIRequestContext, type Locator, type Page, expect, test } from '@playwright/test';
+import { type APIRequestContext, type Locator, type Page, chromium, expect, test } from '@playwright/test';
 import { E2E_DIR, type GhIssueStore, resetGh, setGhIssues, setGhMode } from './fake-gh';
 import { amberItems, expectAtMostTwoAmberItems, tokenColors, worstTextContrast } from './look';
 
@@ -209,6 +209,54 @@ test.describe('the panels', () => {
     await expect(canvas).toHaveCount(0);
     expect(await distinctColors(page, { x: 0, y: 150, width: 20, height: 400 })).toBe(1);
     expect(problems).toEqual([]);
+  });
+
+  test('glass canvas spans the window width, scrollbar included', async () => {
+    // PlasmaUI 0.7.0 draws on a region of the window size (innerWidth x innerHeight), and its canvas is `width: 100%`, which is the page width without the scrollbar. When the
+    // two differ, every drawn frame is squeezed toward the left, and the frames stop matching the panels. The canvas must be as wide as the window, scrollbar included.
+    // Playwright hides the scrollbars of a headless browser, and then the two widths are the same and the test would say nothing, so this test starts a browser of its own
+    // that keeps them. A fresh browser compiles the shaders again, so it has a longer limit.
+    test.setTimeout(120_000);
+    const browser = await chromium.launch({ ...(process.env.CI ? {} : { channel: 'msedge' }), ignoreDefaultArgs: ['--hide-scrollbars'] });
+    try {
+      // A short window: the fixture page is taller than it, so the window has a scrollbar.
+      const page = await browser.newPage({ viewport: { width: 1280, height: 500 } });
+      await page.goto(`${ORIGIN}/`);
+      expect(await hasWebGL2(page), 'this browser has no WebGL2: the glass cannot be tested in it').toBe(true);
+      await allLoaded(page);
+      const canvas = page.locator('canvas[aria-hidden="true"]');
+      await expect(canvas).toHaveCount(1, { timeout: 100_000 });
+      const widths = await page.evaluate(() => ({ window: window.innerWidth, page: document.documentElement.clientWidth }));
+      expect(widths.page, 'the window has a scrollbar: the page is narrower than the window').toBeLessThan(widths.window);
+
+      const measure = () =>
+        canvas.evaluate((element) => {
+          const target = element as HTMLCanvasElement;
+          const rect = target.getBoundingClientRect();
+          return { width: rect.width, height: rect.height, backingWidth: target.width, backingHeight: target.height, innerWidth: window.innerWidth, innerHeight: window.innerHeight };
+        });
+      const size = await measure();
+      expect(size.width, 'the canvas is as wide as the window').toBe(size.innerWidth);
+      expect(size.height, 'the canvas is as tall as the window').toBe(size.innerHeight);
+      // The renderer sizes the backing store on its own frame, so the scale of the two axes is read until it settles.
+      await expect
+        .poll(async () => {
+          const now = await measure();
+          return Math.abs(now.backingWidth / now.width - now.backingHeight / now.height);
+        })
+        .toBeLessThan(0.005);
+
+      // The time in the header of each glass panel is clear of the right edge of its panel by the inset.
+      for (const name of PANELS) {
+        const gap = await panel(page, name).evaluate((frame) => {
+          const time = frame.querySelector(':scope > header')?.lastElementChild;
+          return time === null || time === undefined ? Number.NaN : frame.getBoundingClientRect().right - time.getBoundingClientRect().right;
+        });
+        expect(gap, `${name}: the time is clear of the right edge`).toBeGreaterThanOrEqual(MIN_HEADER_INSET);
+      }
+    } finally {
+      await browser.close();
+    }
   });
 
   test('no WebGL2 gives plain panels and a notice', async ({ page }) => {
