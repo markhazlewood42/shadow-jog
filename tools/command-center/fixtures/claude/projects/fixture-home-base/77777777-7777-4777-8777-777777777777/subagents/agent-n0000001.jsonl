@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2026-10-06T04:05:00.000Z","cwd":"/fixture/home-base","gitBranch":"fixture-branch","sessionId":"77777777-7777-4777-8777-777777777777","message":{"role":"user","content":"LEAK-other-agent-prompt"}}
+{"type":"assistant","timestamp":"2026-10-06T04:06:00.000Z","cwd":"/fixture/home-base","gitBranch":"fixture-branch","sessionId":"77777777-7777-4777-8777-777777777777","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"LEAK-other-agent-final"}]}}

@@ -1,0 +1,4 @@
+{"type":"queue-operation","operation":"enqueue","timestamp":"2026-10-06T07:00:00.000Z","sessionId":"44444444-4444-4444-8444-444444444444","content":"LEAK-queued-prompt-four"}
+{"type":"custom-title","customTitle":"ALLOWED-title-of-the-session-with-no-cwd","sessionId":"44444444-4444-4444-8444-444444444444"}
+{"type":"last-prompt","lastPrompt":"LEAK-last-prompt-four","sessionId":"44444444-4444-4444-8444-444444444444"}
+{"type":"mode","mode":"normal","sessionId":"44444444-4444-4444-8444-444444444444"}

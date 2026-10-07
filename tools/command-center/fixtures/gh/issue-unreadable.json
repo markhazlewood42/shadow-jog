@@ -1,0 +1,46 @@
+{
+  "number": 46,
+  "title": "Decision: The shop list",
+  "url": "https://github.com/fixture-owner/fixture-repo/issues/46",
+  "state": "OPEN",
+  "labels": [
+    {
+      "id": "LA_fixture_decision",
+      "name": "decision",
+      "description": "A major design decision that waits on Mark",
+      "color": "FFCC3D"
+    }
+  ],
+  "author": {
+    "id": "U_markhazlewood42",
+    "is_bot": false,
+    "login": "markhazlewood42",
+    "name": ""
+  },
+  "body": "I need an answer on the shop list.\n\nPlease pick: sort by name, or sort by price. I did not use the decision template, because this text came from the own body file of an agent.\n",
+  "comments": [],
+  "createdAt": "2026-10-05T14:00:00Z",
+  "updatedAt": "2026-10-05T14:00:00Z",
+  "events": [
+    {
+      "id": 9000000016,
+      "node_id": "LE_fixture_9000000016",
+      "url": "https://api.github.com/repos/fixture-owner/fixture-repo/issues/events/9000000016",
+      "actor": {
+        "login": "markhazlewood42",
+        "id": 1001,
+        "type": "User",
+        "site_admin": false
+      },
+      "event": "labeled",
+      "commit_id": null,
+      "commit_url": null,
+      "created_at": "2026-10-05T14:00:00Z",
+      "label": {
+        "name": "decision",
+        "color": "FFCC3D"
+      },
+      "performed_via_github_app": null
+    }
+  ]
+}

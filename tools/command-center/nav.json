@@ -1,0 +1,49 @@
+{
+  "sections": [
+    {
+      "id": "start",
+      "title": "Start here",
+      "items": ["status.md", "README.md", "CLAUDE.md"]
+    },
+    {
+      "id": "game-design",
+      "title": "Game design",
+      "items": ["docs/GDD.md", "docs/SETTING.md", "docs/GLOSSARY.md", "docs/CONCEPTS.md", "docs/IDEAS.md"]
+    },
+    {
+      "id": "engine",
+      "title": "Engine design",
+      "items": [{ "readingOrder": "docs/engine/README.md" }, "docs/engine/"]
+    },
+    {
+      "id": "decisions",
+      "title": "Decisions",
+      "items": [{ "page": "/docs/decisions", "title": "All decisions" }]
+    },
+    {
+      "id": "architecture",
+      "title": "Architecture and development",
+      "items": ["docs/ARCHITECTURE.md", "docs/DEVELOPING.md", "docs/TOOLING-UI.md", "docs/PIXELLAB-LESSONS.md", "docs/diagrams/"]
+    },
+    {
+      "id": "spikes-research",
+      "title": "Spikes and research",
+      "items": ["docs/spikes/", "docs/research/"]
+    },
+    {
+      "id": "quality",
+      "title": "Quality",
+      "items": ["docs/quality/", "docs/mark-playthrough-notes.md"]
+    },
+    {
+      "id": "records",
+      "title": "Project records",
+      "items": ["CHANGELOG.md", "docs/PHASE-0.2.md", "docs/original-prompt.md"]
+    },
+    {
+      "id": "command-center",
+      "title": "Command center",
+      "items": ["docs/command-center/", "tools/command-center/README.md"]
+    }
+  ]
+}

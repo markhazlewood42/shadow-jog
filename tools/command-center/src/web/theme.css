@@ -1,0 +1,362 @@
+/*
+ * The page's stylesheet: Tailwind, the HeroUI styles, the fonts, the theme that ties them to the
+ * tokens, and (at the end) the look of a doc's text. Nothing here writes a color value: every
+ * color is a token from tokens.css.
+ *
+ * The order of the imports matters: Tailwind first, then HeroUI (which needs it).
+ */
+@import 'tailwindcss';
+@import '@heroui/styles';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+@import './tokens.css';
+
+/*
+ * Fonts. Tailwind's base styles put --font-sans on the whole page, so no rule here sets a
+ * font-family on the body.
+ */
+@theme {
+  --font-sans: var(--cc-font-sans);
+  --font-mono: var(--cc-font-mono);
+}
+
+/*
+ * The token colors as Tailwind colors: bg-cc-paper-2, text-cc-ink, border-cc-rule, and so on.
+ * `inline` makes a utility use the token directly, so a token that changes shows at once.
+ */
+@theme inline {
+  --color-cc-paper: var(--cc-paper);
+  --color-cc-paper-2: var(--cc-paper-2);
+  --color-cc-ink: var(--cc-ink);
+  --color-cc-ink-strong: var(--cc-ink-strong);
+  --color-cc-muted: var(--cc-muted);
+  --color-cc-soft: var(--cc-soft);
+  --color-cc-rule: var(--cc-rule);
+  --color-cc-rule-solid: var(--cc-rule-solid);
+  --color-cc-accent: var(--cc-accent);
+  --color-cc-accent-tint: var(--cc-accent-tint);
+  --color-cc-link: var(--cc-link);
+}
+
+/*
+ * The fill of a focal box (one with an amber border, set where it is used): the second navy with
+ * the amber tint laid over it, which is the color the profile describes for such a box. The
+ * tint is see-through, so it needs a navy under it. A background color and, on top of it, a flat
+ * one-color gradient give the two layers.
+ */
+@utility cc-focal {
+  background-color: var(--cc-paper-2);
+  background-image: linear-gradient(var(--cc-accent-tint), var(--cc-accent-tint));
+}
+
+/*
+ * The HeroUI theme. HeroUI v3 reads its colors from the variables below (it comes with a light
+ * and a dark set). Setting them here, after its own styles, makes the whole library follow the
+ * tokens. The hover and soft colors HeroUI derives from these follow as well.
+ *
+ * The profile has no red and no green, and the look allows amber for the few things that matter,
+ * so the status colors (success, warning, danger) reuse amber and ink instead of adding hues.
+ * The shadows are off: the look has no glow and no shadow.
+ */
+:root {
+  color-scheme: dark;
+
+  --background: var(--cc-paper);
+  --foreground: var(--cc-ink);
+
+  --surface: var(--cc-paper-2);
+  --surface-foreground: var(--cc-ink);
+  --surface-secondary: var(--cc-paper);
+  --surface-secondary-foreground: var(--cc-ink);
+  --surface-tertiary: var(--cc-paper);
+  --surface-tertiary-foreground: var(--cc-ink);
+  --overlay: var(--cc-paper-2);
+  --overlay-foreground: var(--cc-ink);
+  --segment: var(--cc-paper-2);
+  --segment-foreground: var(--cc-ink);
+
+  --muted: var(--cc-muted);
+  /* The neutral fill of a secondary button or a chip: the hairline color, a little lighter than the panel it sits on. */
+  --default: var(--cc-rule);
+  --default-foreground: var(--cc-ink);
+
+  --field-background: var(--cc-paper);
+  --field-foreground: var(--cc-ink);
+  --field-placeholder: var(--cc-soft);
+
+  --accent: var(--cc-accent);
+  --accent-foreground: var(--cc-ink-strong);
+  --success: var(--cc-ink);
+  --success-foreground: var(--cc-ink-strong);
+  --warning: var(--cc-accent);
+  --warning-foreground: var(--cc-ink-strong);
+  --danger: var(--cc-accent);
+  --danger-foreground: var(--cc-ink-strong);
+
+  --border: var(--cc-rule);
+  --separator: var(--cc-rule);
+  --focus: var(--cc-rule-solid);
+  --link: var(--cc-link);
+  --backdrop: color-mix(in oklab, var(--cc-ink-strong) 70%, transparent);
+
+  --surface-shadow: 0 0 0 0 transparent inset;
+  --overlay-shadow: 0 0 0 0 transparent inset;
+  --field-shadow: 0 0 0 0 transparent inset;
+}
+
+/*
+ * A selected toggle button (the filter of the decisions page) is lavender and not amber. HeroUI draws
+ * the selected state from the accent color, and amber is for the one or two things on a page that
+ * matter most. The text on the lavender is the dark one: ink-strong on rule-solid is above 4.5 to 1.
+ */
+.toggle-button {
+  --toggle-button-bg-selected: var(--cc-rule-solid);
+  --toggle-button-bg-selected-hover: var(--cc-rule-solid);
+  --toggle-button-bg-selected-pressed: var(--cc-rule-solid);
+  --toggle-button-fg-selected: var(--cc-ink-strong);
+}
+
+/*
+ * A disabled primary button. HeroUI fades a disabled button with `opacity: 0.5`, which takes the dark label on the amber fill down to 4.1 to 1, below the
+ * 4.5 to 1 that every text role keeps (docs/diagrams/profile/NOTES.md). Nothing can be done with a disabled button, so it is also not one of the one or two
+ * things that matter on the page: it gives up the amber fill and is drawn as a lavender line with the `soft` label at full opacity (5.67 to 1 on the panel
+ * navy, the lowest ratio of the set). The line is an outline that sits inside the box, so the button keeps its size when it turns on or off.
+ */
+.button--primary:disabled,
+.button--primary[aria-disabled='true'] {
+  --button-bg: transparent;
+  --button-fg: var(--cc-soft);
+  outline: 1px solid var(--cc-rule-solid);
+  outline-offset: -1px;
+  opacity: 1;
+}
+
+/*
+ * The fill and the label of a primary button change together, at once. HeroUI fades the fill over 100 ms and changes the label at once, so when the button turns on,
+ * the dark label stands on the navy of the empty fill for a frame or two (1.2 to 1) before the amber comes in. Only the press and the shadow keep their transition.
+ * A person who asks for less motion has no transition at all, as HeroUI has it, so this rule is left out for them.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .button--primary {
+    transition-property: transform, box-shadow;
+  }
+}
+
+/*
+ * The focus ring of a link or a button that is not a HeroUI component (those have their own, which
+ * the theme above colors with --focus). The lavender frame color, so the ring is seen on navy.
+ */
+@utility cc-focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--cc-rule-solid);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * The text of a doc. The server turns each doc into html (src/server/docs/render.ts), and the doc
+ * page puts it in an element with the class doc-html. Tailwind's base styles take the look off
+ * every html element (no list marks, no heading sizes), so the look of a doc is given back here,
+ * from the tokens alone. These are rules for html that this page does not write itself, which is why
+ * they are not utility classes on the elements.
+ */
+@layer components {
+  .doc-html {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    /* A long word or address must not push the doc wider than its column. */
+    overflow-wrap: anywhere;
+  }
+
+  .doc-html :is(h1, h2, h3, h4, h5, h6) {
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    /* A link to a heading must not leave the heading under the sticky header of the page. */
+    scroll-margin-top: 5rem;
+  }
+  .doc-html h1 {
+    font-size: 1.875rem;
+    line-height: 1.2;
+    margin-top: 0;
+  }
+  .doc-html h2 {
+    font-size: 1.375rem;
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--cc-rule);
+  }
+  /* A rule in the doc already sets a section apart: the heading right after it needs no line of its own. */
+  .doc-html hr + h2 {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+  .doc-html h3 {
+    font-size: 1.125rem;
+    margin-top: 2rem;
+  }
+  .doc-html h4 {
+    font-size: 1rem;
+    margin-top: 1.5rem;
+  }
+  .doc-html :is(h5, h6) {
+    font-size: 0.9375rem;
+    margin-top: 1.25rem;
+    color: var(--cc-muted);
+  }
+  /* Whatever follows a heading sits close to it. */
+  .doc-html :is(h1, h2, h3, h4, h5, h6) + :is(p, ul, ol, pre, table, blockquote) {
+    margin-top: 0.75rem;
+  }
+
+  .doc-html :is(p, ul, ol, pre, table, blockquote, figure) {
+    margin-top: 1rem;
+  }
+  .doc-html :is(ul, ol) {
+    padding-left: 1.5rem;
+  }
+  .doc-html ul {
+    list-style: disc;
+  }
+  .doc-html ol {
+    list-style: decimal;
+  }
+  .doc-html li {
+    margin-top: 0.25rem;
+  }
+  .doc-html li > :is(ul, ol, p, pre, table) {
+    margin-top: 0.25rem;
+  }
+  .doc-html li::marker {
+    color: var(--cc-soft);
+  }
+
+  .doc-html hr {
+    margin: 2rem 0;
+    border: 0;
+    border-top: 1px solid var(--cc-rule);
+  }
+
+  .doc-html blockquote {
+    padding-left: 1rem;
+    border-left: 3px solid var(--cc-rule-solid);
+    color: var(--cc-muted);
+  }
+
+  .doc-html code {
+    font-family: var(--cc-font-mono);
+    font-size: 0.875em;
+    padding: 0.1em 0.35em;
+    border: 1px solid var(--cc-rule);
+    border-radius: 0.25rem;
+    background: var(--cc-paper);
+  }
+  .doc-html pre {
+    padding: 0.875rem 1rem;
+    overflow-x: auto;
+    border: 1px solid var(--cc-rule);
+    border-radius: 0.5rem;
+    background: var(--cc-paper);
+    line-height: 1.55;
+  }
+  .doc-html pre code {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 0.8125rem;
+  }
+
+  /* A wide table scrolls inside the doc and does not stretch the page. */
+  .doc-html table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .doc-html :is(th, td) {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--cc-rule);
+    text-align: left;
+    vertical-align: top;
+  }
+  .doc-html th {
+    background: var(--cc-paper);
+    font-weight: 600;
+  }
+
+  /* Links in the text are the one place for cyan. */
+  .doc-html a {
+    color: var(--cc-link);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+  }
+  .doc-html a:hover {
+    text-decoration-thickness: 2px;
+  }
+  .doc-html :is(a, img[data-zoom]):focus-visible {
+    outline: 2px solid var(--cc-rule-solid);
+    outline-offset: 2px;
+    border-radius: 0.125rem;
+  }
+
+  /* A picture fits the column. A diagram that can be zoomed is a button, and says so with its cursor. */
+  .doc-html img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--cc-rule);
+    border-radius: 0.5rem;
+    background: var(--cc-paper);
+  }
+  .doc-html img[data-zoom] {
+    display: block;
+    cursor: zoom-in;
+  }
+
+  /*
+   * A link that goes nowhere. The server writes it as a span with this class and the reason in its title.
+   * It is not a link, so it is not cyan. It must be seen without relying on color: a dashed line under
+   * the words, and a small label after them. The label is generated, so it is not copied with the text.
+   */
+  .doc-html .broken-link {
+    color: var(--cc-muted);
+    text-decoration: underline dashed;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    cursor: help;
+  }
+  .doc-html .broken-link::after {
+    content: 'broken link';
+    /* An inline box of its own, so that the line under the words does not run under the label. */
+    display: inline-block;
+    margin-left: 0.4em;
+    padding: 0 0.35em;
+    border: 1px solid var(--cc-rule-solid);
+    border-radius: 0.25rem;
+    color: var(--cc-soft);
+    font-family: var(--cc-font-mono);
+    font-size: 0.7em;
+    line-height: 1.5;
+    text-decoration: none;
+    vertical-align: 0.1em;
+  }
+}
+
+/*
+ * The radio buttons of the answer form. The ring of an unselected one is a line of the lavender frame color: HeroUI draws a field from a shadow and not
+ * a border (its border width is 0), and the shadows are off here, so without a line a radio button is as navy as the card around it and cannot be seen. A selected one is lavender and not amber, for the same reason as the selected
+ * toggle button: amber is for the one or two things on a page that matter most, and on the page of a decision those are the state of the decision and
+ * the Send button. HeroUI draws a selected radio from the accent color (selected, and selected while pressed, each in two spellings), so the same
+ * four selectors are set here. The dot in it stays the dark ink of the theme, which is above 4.5 to 1 on the lavender.
+ */
+.radio__control {
+  border: 1px solid var(--cc-rule-solid);
+}
+.radio[data-selected] .radio__control,
+.radio:has(input:checked) .radio__control,
+.radio[data-selected]:has([data-slot='radio-content'][data-pressed='true']) .radio__control,
+.radio:has(input:checked):has([data-slot='radio-content'][data-pressed='true']) .radio__control {
+  background-color: var(--cc-rule-solid);
+}

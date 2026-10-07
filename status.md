@@ -3,7 +3,7 @@ type: status
 title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-10-05
+updated: 2026-10-06
 tags: [status]
 ---
 
@@ -14,10 +14,12 @@ Browser JRPG: a cyberpunk-fantasy setting with the Phantasy Star IV game loop. C
 K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 **GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog) (public).
-- **CI:** GitHub Actions, on pushes to `main` and on pull requests.
+- **CI:** GitHub Actions, on pushes to `main` and on pull requests: three jobs at the same time (`check`, `e2e`, `e2e-engines`), all three required on `main` by the ruleset "Main branch protection" (2026-10-06). A docs-only change skips their steps. The real-speed playtest runs in `playtest.yml` after a merge and from the Actions button.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for Copilot review, and Mark merges.
 
 ## Where we left off (2026-10-05)
+
+> **In progress (2026-10-06): the Command Center build** on branch `command-center`. Tasks 1 to 11 of 12 are done, verified and pushed, and `main` is merged in. Task 12 (the README, the doc edits and the full test run) is built and goes to its verifiers. Next: the live decision round trip (it needs Mark), the final review, one fix wave, then the PR. The build ledger is the git-ignored `.superpowers/sdd/plan/progress.md`. Side work on 2026-10-06: PR #18 (American spelling in `docs/engine/`) is merged, and PR #19 (`ci-faster`: three CI jobs at once, docs-only changes skip their steps, the playtest runs after a merge) is merged. A PR's CI now takes about 7 minutes instead of about 19.
 
 ### The whole process so far
 1. **Build (2026-09-27 → 28).** From the original prompt (`docs/original-prompt.md`) to a content-complete chapter:
@@ -71,7 +73,7 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 Branch `spike/engine-platform` (draft PR #11). Record: `docs/spikes/engine-platform.md` (the S1a section has the 640x360 numbers, and the Result is drafted). CI is green through d61d7d9. The last push, 913aead (S1a), went up at the end of the session.
 
-**The command center (Mark, 2026-10-05).** Mark approved the command center design and the implementation plan. Both are on branch `command-center`: `docs/command-center/design.md` and `docs/command-center/plan.md`.
+**The command center (Mark, 2026-10-05).** Mark approved the command center design and the implementation plan. Both are on branch `command-center`: `docs/command-center/design.md` and `docs/command-center/plan.md`. **The Command Center exists (2026-10-06).** It is a local website in `tools/command-center/`: the Now page, the docs site, the engine decision table, the Agents page and the decision pages. Start it with `npm run cc` from the repo root (http://localhost:3009; the guide is `tools/command-center/README.md`). The PR is next, after the live decision round trip.
 
 **The size is 640x360 (Mark, 2026-10-05).** He first kept 480x270 after the mock, then chose 640x360 the same day from the screenshots. Impact on the code:
 - No architecture change. Both engines read the size from one constant.
@@ -84,13 +86,15 @@ Branch `spike/engine-platform` (draft PR #11). Record: `docs/spikes/engine-platf
 **Mark's rules from 2026-10-05** (also in home-base `CLAUDE.md` and memory): effort means architectural fit and files touched, never agent-days; all work goes through independent verification agents, sized to risk; at a phase break, the work continues in a fresh session. His idea backlog is `docs/IDEAS.md`. Entry 1 is a standing rule: no decision may make future visual editors harder.
 
 **Next for agents** (in this order):
-1. Build the command center on branch `command-center`. Follow `docs/command-center/plan.md`. Use a fresh session.
+1. Finish the command center on branch `command-center`: the live decision round trip (needs Mark), the final review, one fix wave and the PR. Task 12 of `docs/command-center/plan.md` (README and docs) is built. Use a fresh session.
+1a. Live checks for the faster CI (PR #19, merged 2026-10-06): (1) Done 2026-10-06: the first `playtest.yml` run on `main` (run 37518417311) passed in 7 min 40 s. (2) On the next docs-only PR, `check`, `e2e` and `e2e-engines` report success in seconds with their steps skipped, and its merge to `main` starts no CI run (`gh run list --repo markhazlewood42/shadow-jog --branch main -L 3`).
 2. Move the shipped game to 640x360 on branch `resolution-640x360` from `main`, from the inventory, with picture reviews for Mark.
 3. The spike archive tag (with Mark's go-ahead), then milestone M0.
 
-**Next up for Mark** (updated 2026-10-05):
-1. Answer the look questions as the 640x360 pictures come: the old battle (boxed until M3, or re-laid now), maps smaller than the screen, the dialog width, the title art, and 3 shockwave values in your `fx.json`.
-2. The older items below (Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4) still stand.
+**Next up for Mark** (updated 2026-10-06):
+1. Start the Command Center with `npm run cc` and look at it. Answer the decision that the live round trip raises on its page. Then the PR for branch `command-center` is next.
+2. Answer the look questions as the 640x360 pictures come: the old battle (boxed until M3, or re-laid now), maps smaller than the screen, the dialog width, the title art, and 3 shockwave values in your `fx.json`.
+3. The older items below (Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4) still stand.
 
 ### Right now (2026-10-04, history)
 

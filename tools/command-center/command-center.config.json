@@ -1,0 +1,24 @@
+{
+  "port": 3009,
+  "repoRoot": "../..",
+  "roots": ["../..", "../../../shadow-jog-phaser"],
+  "githubRepo": "markhazlewood42/shadow-jog",
+  "approvalRef": "467fffd6a93a331114958045f4ba645068e9aac6",
+  "gameUrl": "http://localhost:3007",
+  "links": [
+    { "label": "Game", "url": "http://localhost:3007" },
+    { "label": "FX lab", "url": "http://localhost:3007/?scene=fxlab" },
+    { "label": "Animation editor", "url": "http://localhost:3007/rigedit.html" },
+    { "label": "Art review", "url": "http://localhost:3007/artreview.html" },
+    { "label": "GitHub repo", "url": "https://github.com/markhazlewood42/shadow-jog" }
+  ],
+  "claude": {
+    "projectsRoot": "~/.claude/projects",
+    "folders": ["C--Users-markh-home-base-projects-shadow-jog", "C--Users-markh-home-base-projects-shadow-jog-phaser"],
+    "cwdMatchFolders": ["C--Users-markh-home-base"],
+    "includeSdk": false,
+    "recentSeconds": 604800,
+    "workingSeconds": 300,
+    "waitingSeconds": 14400
+  }
+}
