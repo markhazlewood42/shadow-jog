@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 - The move to 640x360, step 1 (no pixel changes yet): the battle world's size derives from the screen (`BW = W / WORLD_SCALE`, `BHT = H / WORLD_SCALE`, one `WORLD_SCALE` in `battlekit/geom.ts` that the backdrops, the title skyline, the renderer and the FX lab share); the "Autosaved" badge, the news bar, the error bar, the water animation culls, the aberration center and the FX lab's slider limits read `W` and `H`; a scripted camera pan centers a map smaller than the view, as the field camera does.
+- The screenshot set (`npm run shots`) is deterministic: the spec runs the game on Playwright's paused clock with a fixed date, pinned encounter tables and a seeded `Math.random`, so three runs of one build give the same bytes and the same-pixels check of the move is a plain zero. `SJ_BUILD_SHA=<label>` pins the build label the title draws, for a compare across two commits. The run takes about 2 minutes instead of 4.7.
 - The version is now 0.2.0-dev: phase 0.2 development has started.
 - Hex now uses they/them, and Sable uses he/him (Mark's canon, 2026-10-03).
 - CI runs its checks as three jobs at the same time and skips a change that touches only docs, notes or `tools/command-center/`. The real-speed playtest runs on pushes to `main` and from the Actions tab, not on pull requests.

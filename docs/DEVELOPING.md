@@ -35,7 +35,7 @@ npm install
 | `npm run budget` | Build, then the bundle budget |
 | `npm run cc` | The Command Center on **http://localhost:3009** (installs its packages, builds its page, opens a tab; section 10) |
 | `npm run e2e` | Every Playwright spec (long: prefer running the ones you need, below) |
-| `npm run shots` | Regenerate `docs/screenshots/` |
+| `npm run shots` | Regenerate `docs/screenshots/` (deterministic: one build gives the same bytes every run; section 4) |
 | `bash scripts/evidence.sh` | Regenerate all quality evidence (~25 min; see section 6) |
 
 **Ports:** 3007 (dev), 3008 (preview), 3009 (the Command Center) and 3010 (its Playwright server) belong to this
@@ -110,7 +110,7 @@ that pull request's earlier CI run. A run on `main` is never canceled once it st
 | `prod.spec.ts` | The **shipped build** (builds fresh, serves on 3008): new game, save, reload, continue |
 | `economy.spec.ts` | Zone walks and a shop in the real game |
 | `perf.spec.ts` | Frame budget in the plaza and a battle; input latency. `PW_NOGPU=1` reproduces CI's software canvas |
-| `shots.spec.ts` | The screenshot set for `docs/screenshots/` |
+| `shots.spec.ts` | The screenshot set for `docs/screenshots/`. Deterministic: the game runs on Playwright's paused clock, with a fixed `Date.now()` (so a fixed RNG seed), pinned fights and a seeded `Math.random`; the header comment explains. For a compare across two commits set `SJ_BUILD_SHA=<label>` for both runs: the title draws the build's commit |
 | `audio-evidence.spec.ts` | Renders every song and effect offline and measures them |
 
 `PW_ALL_ENGINES=1` runs WebKit and Firefox locally too.
@@ -215,7 +215,8 @@ including why it ended at round 12. If a future milestone brings it back:
 - **The bundle budget** is close to its cap by design (it catches unplanned growth). If a planned feature needs
   more, re-set it in `scripts/bundle-budget.mjs` with the reason in the comment.
 - **Screenshots are staged**, not played: `e2e/shots.spec.ts` sets flags and positions directly. When a feature
-  changes a scene, update or add its shot.
+  changes a scene, update or add its shot. The spec never waits on real time: every wait is a step of the page's
+  fake clock (`advance(page, ms)`), so a `page.waitForTimeout` in it would break the same-bytes guarantee.
 - **Importing a module by URL in a test page** (`import('/src/…')`) can hand back a *second copy* of it on a
   long-running dev server: a module edited since the server started is served to the app with a `?t=` query. Go
   through `window.__SJ__` (which holds the app's own copies) for anything with state (`settings`, `postfx`).
@@ -395,8 +396,10 @@ it renames or reshapes data, bump `SAVE_VERSION` and add a `MIGRATIONS[oldVersio
 fixture.
 
 ### A new screenshot
-A `test()` in `e2e/shots.spec.ts` using `open(page, stage)`, `sj(page, …)` and `shot(page, name)`; if reviewers
-should see it, add it to an area's list in `scripts/verifier-prompts.py`.
+A `test()` in `e2e/shots.spec.ts` using `open(page, stage)`, `sj(page, …)`, `advance(page, ms)` for every wait
+(never `page.waitForTimeout`), `battle(page, enc, bg)` for a fight (it pins the random tables) and `shot(page, name)`;
+if reviewers should see it, add it to an area's list in `scripts/verifier-prompts.py`. Run the spec twice and compare
+the new PNG's bytes: a shot that differs between two runs of one build is a bug in the shot.
 
 ---
 
