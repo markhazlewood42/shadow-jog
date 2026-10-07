@@ -161,12 +161,14 @@ function checkGhComment(repo: string, args: string[]): Checked {
 }
 
 function checkGhEdit(repo: string, args: string[]): Checked {
-  // gh issue edit <number> with the label swap decision -> decided, and nothing else
+  // gh issue edit <number> with the label swap decision -> decided, or with --remove-label decided alone (the answer takes a
+  // `decided` that another account put on off first, so that its own --add-label makes a new event), and nothing else
   const [, , number, ...flags] = args;
   const add = ['--add-label', 'decided'];
   const remove = ['--remove-label', 'decision'];
-  if (!isNumber(number) || !(sameList(flags, [...add, ...remove]) || sameList(flags, [...remove, ...add]))) {
-    return refuse('an edit is exactly: issue edit <number> --add-label decided --remove-label decision');
+  const clear = ['--remove-label', 'decided'];
+  if (!isNumber(number) || !(sameList(flags, [...add, ...remove]) || sameList(flags, [...remove, ...add]) || sameList(flags, clear))) {
+    return refuse('an edit is exactly: issue edit <number> --add-label decided --remove-label decision, or issue edit <number> --remove-label decided');
   }
   return accept(['issue', 'edit', '--repo', repo, number, ...flags]);
 }

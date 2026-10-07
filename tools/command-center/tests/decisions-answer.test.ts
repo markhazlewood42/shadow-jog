@@ -276,6 +276,54 @@ describe('POST /api/decisions/<n>/answer: the three writes', () => {
     expect(parseDecisionIssue(issue, events)?.answer).toMatchObject({ option: 'B', note: 'Second thought.', complete: true });
   });
 
+  it('an issue that already has the label decided from another account gets a new labeled event by Mark from the answer, and reads back as answered', async () => {
+    // Issue 41 with the label decided on it, put there by another account, and the label decision still on. GitHub makes no event for a
+    // label that is already on, so a bare --add-label would leave the label as that account's, and the answer could never be trusted.
+    const template = SEED.issues.find((issue) => issue.number === 41);
+    const forged = SEED.issues.find((issue) => issue.number === 45);
+    if (template === undefined || forged === undefined) throw new Error('no issue 41 or 45');
+    const decidedLabel = forged.labels.find((label) => label.name === 'decided');
+    const forgedEvent = forged.events.find((event) => (event as { event?: string; label?: { name?: string } }).event === 'labeled' && (event as { label?: { name?: string } }).label?.name === 'decided');
+    if (decidedLabel === undefined || forgedEvent === undefined) throw new Error('issue 45 has no decided label');
+    const stale = { ...template, number: 61, labels: [...template.labels, decidedLabel], events: [...template.events, forgedEvent] };
+    const rig = rigOf({ store: { ...SEED, issues: [...SEED.issues, stale] } });
+
+    // Before the answer: open, and not answered (the label is not Mark's).
+    const before = storedIssue(rig, 61);
+    expect(parseDecisionIssue(before.issue, before.events)).toMatchObject({ state: 'open' });
+
+    const res = await rig.post(61, { option: 'B', note: 'Because.' });
+    expect(res.status).toBe(200);
+    expect(await bodyOf(res)).toEqual({ ok: true });
+
+    // The comment, then decided off, then decided on with decision off, then the close.
+    const repo = rig.config.githubRepo;
+    const writes = rig.calls().map((call) => call.args).filter((args) => ['comment', 'edit', 'close'].includes(args[1] ?? ''));
+    expect(writes).toEqual([
+      ['issue', 'comment', '--repo', repo, '61', '--body', 'Decision: B. Because.'],
+      ['issue', 'edit', '--repo', repo, '61', '--remove-label', 'decided'],
+      ['issue', 'edit', '--repo', repo, '61', '--add-label', 'decided', '--remove-label', 'decision'],
+      ['issue', 'close', '--repo', repo, '61'],
+    ]);
+    expect(labelsOf(rig, 61)).toEqual(['decided']);
+
+    // The newest labeled event of decided is Mark's, and the issue reads back as answered.
+    const { issue, events } = storedIssue(rig, 61);
+    const decidedEvents = (events as { event: string; actor: { login: string }; label?: { name: string } }[]).filter((event) => event.label?.name === 'decided');
+    expect(decidedEvents.map((event) => [event.event, event.actor.login])).toEqual([['labeled', 'fixture-collaborator'], ['unlabeled', FAKE_VIEWER], ['labeled', FAKE_VIEWER]]);
+    expect(parseDecisionIssue(issue, events)).toMatchObject({ state: 'answered', answer: { option: 'B', note: 'Because.', complete: true } });
+  });
+
+  it('the label decided that is already by Mark is not taken off: the answer makes one label call', async () => {
+    // The close failed on an earlier try: decided is Mark's, decision is off, the issue is open. The retry runs the close only.
+    const rig = rigOf();
+    setRigMode(rig, { mode: 'write-fails', step: 'close' });
+    expect((await rig.post(41, { option: 'A' })).status).toBe(502);
+    setRigMode(rig, { mode: 'ok' });
+    expect((await rig.post(41, { option: 'A' })).status).toBe(200);
+    expect(rig.writes()).toEqual(['issue comment', 'issue edit', 'issue close', 'issue close']);
+  });
+
   it('a missing label decided gives an error that names it', async () => {
     // The repository has the label decision and no label decided. gh says "'decided' not found" and changes nothing.
     const rig = rigOf({ store: { ...SEED, labels: ['decision'] } });
@@ -541,6 +589,7 @@ describe('answerDecision and checkAnswer', () => {
         raisedBy: null, waitsOn: null, createdAt: '', answer: null, problem: null,
       },
       progress: { comment: null, labelsSwapped: false, closed: state !== 'open' },
+      staleDecided: false,
     });
     expect(checkAnswer(null, 'A', null)).toMatchObject({ ok: false, status: 404, code: 'decision-not-found' });
     expect(checkAnswer(issue('answered'), 'A', null)).toMatchObject({ ok: false, status: 409, code: 'already-answered' });
@@ -558,6 +607,21 @@ describe('answerDecision and checkAnswer', () => {
     expect(checkAnswer(written({ option: 'A', note: null }, false), 'A', null)).toEqual({ ok: true, from: 'label' });
     // The label is swapped but there is no comment: it starts at the comment.
     expect(checkAnswer(written(null, true), 'A', null)).toEqual({ ok: true, from: 'comment' });
+    // The label decided is on the issue and another account put it on: the label step must take it off first.
+    expect(checkAnswer({ ...written({ option: 'A', note: null }, false), staleDecided: true }, 'A', null)).toEqual({ ok: true, from: 'label', clearDecided: true });
+  });
+
+  it('answerDecision: with clearDecided the label step takes decided off first and then swaps, and the steps before it are not run', async () => {
+    const dir = rigDir();
+    const { config, runner } = runnerOver(dir);
+    expect(await answerDecision({ config, runner, number: 41, option: 'A', clearDecided: true })).toEqual({ ok: true });
+    const writes = readGhCalls(dir).map((call) => call.args.slice(0, 2).join(' ') + ' ' + call.args.filter((arg) => arg.startsWith('--') && arg !== '--repo').join(' '));
+    expect(writes).toEqual([
+      'issue comment --body',
+      'issue edit --remove-label',
+      'issue edit --add-label --remove-label',
+      'issue close ',
+    ]);
   });
 });
 

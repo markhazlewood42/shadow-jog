@@ -58,6 +58,7 @@ describe('the runner', () => {
       ['gh issue comment', 'gh', ['issue', 'comment', '7', '--body', 'Decision: A. Looks fine.'], ['issue', 'comment', '--repo', REPO, '7', '--body', 'Decision: A. Looks fine.']],
       ['gh issue edit (labels in one order)', 'gh', ['issue', 'edit', '7', '--add-label', 'decided', '--remove-label', 'decision'], ['issue', 'edit', '--repo', REPO, '7', '--add-label', 'decided', '--remove-label', 'decision']],
       ['gh issue edit (labels in the other order)', 'gh', ['issue', 'edit', '7', '--remove-label', 'decision', '--add-label', 'decided'], ['issue', 'edit', '--repo', REPO, '7', '--remove-label', 'decision', '--add-label', 'decided']],
+      ['gh issue edit (decided taken off alone, before the answer puts it on again)', 'gh', ['issue', 'edit', '7', '--remove-label', 'decided'], ['issue', 'edit', '--repo', REPO, '7', '--remove-label', 'decided']],
       ['gh issue close', 'gh', ['issue', 'close', '7'], ['issue', 'close', '--repo', REPO, '7']],
     ];
 
@@ -175,6 +176,9 @@ describe('the runner', () => {
       ['gh issue edit adding decided only', 'gh', ['issue', 'edit', '7', '--add-label', 'decided']],
       ['gh issue edit with the labels swapped around', 'gh', ['issue', 'edit', '7', '--add-label', 'decision', '--remove-label', 'decided']],
       ['gh issue edit with an extra label', 'gh', ['issue', 'edit', '7', '--add-label', 'decided', '--remove-label', 'decision', '--add-label', 'extra']],
+      ['gh issue edit removing decision only', 'gh', ['issue', 'edit', '7', '--remove-label', 'decision']],
+      ['gh issue edit removing decided and another label', 'gh', ['issue', 'edit', '7', '--remove-label', 'decided', '--remove-label', 'bug']],
+      ['gh issue edit removing decided with a title', 'gh', ['issue', 'edit', '7', '--remove-label', 'decided', '--title', 'x']],
       ['gh issue edit with a body', 'gh', ['issue', 'edit', '7', '--body', 'x']],
       ['gh issue edit with a title and the labels', 'gh', ['issue', 'edit', '7', '--add-label', 'decided', '--remove-label', 'decision', '--title', 'x']],
       ['gh issue edit with no number', 'gh', ['issue', 'edit', '--add-label', 'decided', '--remove-label', 'decision']],

@@ -339,7 +339,7 @@ export type AnswerProgress = {
  * `events` is the list of events of the issue (see flattenEventPages). Without them an issue is never answered,
  * because nothing then shows who put the label `decided` on it.
  */
-export function readDecisionIssue(rawIssue: unknown, events: unknown): { issue: DecisionIssue; progress: AnswerProgress } | null {
+export function readDecisionIssue(rawIssue: unknown, events: unknown): { issue: DecisionIssue; progress: AnswerProgress; staleDecided: boolean } | null {
   if (!isRecord(rawIssue)) return null;
   const { number } = rawIssue;
   if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) return null;
@@ -371,6 +371,7 @@ export function readDecisionIssue(rawIssue: unknown, events: unknown): { issue: 
       labelsSwapped: decidedByMark && !labels.includes(LABEL_DECISION),
       closed,
     },
+    staleDecided: hasDecided && !decidedByMark,
   };
 }
 
