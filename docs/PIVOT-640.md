@@ -242,7 +242,18 @@ Each step's verification table goes here: the median per criterion, the rounds u
 | GPU, 480x270 | 3.60 / 5.30 | 1.20 / 1.70 | 0.06 / 0.20, 0.08 / 0.20 | 0.57 / 0.80 | 14.5, 16.5 ms |
 | Software, 480x270 | 3.09 / 3.50 | 1.36 / 1.70 | 0.06 / 0.20, 0.05 / 0.10 | 0.73 / 0.80 | 11.0, 16.9 ms |
 
-The raw outputs are `media/pivot-640/perf/baseline-gpu.txt` and `baseline-nogpu.txt`. The probe numbers at 640x360 follow below.
+The raw outputs are `media/pivot-640/perf/baseline-gpu.txt` and `baseline-nogpu.txt`.
+
+**Probe (the bare flip to 640x360 with a 1280x720 viewport, nothing else changed; same machine, same day).** All gates passed. The software field mean rose from 3.09 to 4.24 ms (1.37 times, against the 1.78 times the plan predicted from the pixel count); the software gate of 8 ms keeps a margin of 47%. The GPU numbers fell slightly, which says the "GPU" run measures CPU-side command issue, not raster time: the software canvas is the number to watch (D15).
+
+| Run | Field mean / p95 | Battle mean / p95 | Sim (field, battle) mean / p95 | Title mean / p95 |
+|---|---|---|---|---|
+| GPU, 640x360 probe | 2.73 / 3.40 | 0.99 / 1.50 | 0.06 / 0.10, 0.06 / 0.10 | 0.55 / 0.80 |
+| Software, 640x360 probe | 4.24 / 4.60 | 1.47 / 1.70 | 0.05 / 0.10, 0.05 / 0.10 | 0.79 / 0.90 |
+
+The raw outputs are `media/pivot-640/perf/probe-gpu.txt` and `probe-nogpu.txt`. The probe shots are `media/pivot-640/probe/shots/` (72), the contact sheets `media/pivot-640/probe/sheet-gamepx-01..09.png` (game-pixel view, 8 pairs a page) and `sheet-1080p-01..72.png` (4x against 3x, one pair a page). The PL3 smoke check over the probe set (`check-shots.txt`): 59 shots checked, 3 failed (`02-intro-panels`, `23-ending-panels`, `23b-ending-finale`: the comic pages stay inside the old frame, 2.8 to 2.9% drawn outside it), 13 skipped as void-allowed; `35-options` (6.0%) and `36-controls` (5.1%) pass only because the dim layer covers the outer area.
+
+**Probe pictures, by eye (61 screens; the 7 map overviews and 4 sprite sheets aside).** 32 screens show a clear defect: the 18 battle shots (the 240x135 world stretched 2.667x under a 2x enemy layer, so fighters misregister and the party is cut at the bottom edge; rows 48, 56), the title (the skyline stretched 2.667x; rows 34 to 36), the 3 comic pages (inside the old frame; row 40), the Rustyard (48 px dark bars; row 21), the two field shots with the "Autosaved" badge floating mid-frame (row 10), game over (the street line at y=244; row 39), the ending results and the next-chapter card (top-heavy; rows 37, 38), and the 4 deck scenes (the deck near the top, a gap above the dialog; row 43). 13 screens look sparse or stretched wide and wait for D8: the two dialogs (row 26), the menu cards (row 100), the two status pages (row 30), equip (row 29), the four shop shots (row 33), the two bestiary pages (row 31) and Places (row 107). 16 screens look right as they are: the 13 field shots without a badge, the two modals, and the place map. Every defect maps to an inventory row; the pictures add no new row.
 
 **Verification table.** Written by the main session after the three verifiers score Step 1.
 
