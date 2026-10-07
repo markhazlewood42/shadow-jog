@@ -11,7 +11,33 @@
  * `findTokens(source, tokens)` lists each whole-token hit of the given tokens with its line number
  * and the original line. A token is a number ("480": matches `480` but not `1480`, `480.5`, `0.480`
  * or `x480`) or an expression such as "W-16" (matches `W - 16` with any spacing).
+ *
+ * `listScanFiles(repoRoot)` is the one definition of which files the scans read.
  */
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+/**
+ * The files the screen-literal scans read: every `.ts` file under `src/` (data files included, so a
+ * price such as the nodachi's 480 sits on the allow list with its reason), plus the two files of
+ * inventory rows 14 and 213 whose 480 means kilobytes. Paths are relative to `repoRoot`, with
+ * forward slashes, sorted. The `.d.ts` files are skipped (they hold no code).
+ * @param {string} repoRoot
+ * @returns {string[]}
+ */
+export function listScanFiles(repoRoot) {
+  const out = [];
+  const walk = (dir) => {
+    for (const e of readdirSync(join(repoRoot, dir), { withFileTypes: true })) {
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) walk(rel);
+      else if (e.isFile() && e.name.endsWith('.ts') && !e.name.endsWith('.d.ts')) out.push(rel);
+    }
+  };
+  walk('src');
+  for (const extra of ['vite.config.ts', 'scripts/bundle-budget.mjs']) if (existsSync(join(repoRoot, extra))) out.push(extra);
+  return out.sort();
+}
 
 /**
  * Replace comments and string contents with spaces, keeping newlines and all other code.

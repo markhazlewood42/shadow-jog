@@ -7,5 +7,7 @@ export interface TokenHit {
   /** The original source line, trimmed. */
   text: string;
 }
+/** The files the scans read, relative to the repo root, with forward slashes, sorted. */
+export function listScanFiles(repoRoot: string): string[];
 export function stripNoise(source: string): string;
 export function findTokens(source: string, tokens: readonly string[]): TokenHit[];

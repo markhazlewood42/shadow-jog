@@ -231,7 +231,7 @@ Each step's verification table goes here: the median per criterion, the rounds u
 
 ### Step 1: WP0 and WP1 (2026-10-07)
 
-**Scan.** File set: every `.ts` file under `src/` (including `src/data`, so a price such as the nodachi's 480 sits on the allow list with its reason), plus `vite.config.ts` and `scripts/bundle-budget.mjs` (the kB limits of inventory rows 14 and 213). Comments and string literals are stripped before the match, so a color channel or a comment never hits. Pending list counts: before WP1, after WP1, see the step report.
+**Scan.** File set: every `.ts` file under `src/` (including `src/data`, so a price such as the nodachi's 480 sits on the allow list with its reason), plus `vite.config.ts` and `scripts/bundle-budget.mjs` (the kB limits of inventory rows 14 and 213). Comments and string literals are stripped before the match, so a color channel or a comment never hits. First run (WP0, before WP1): 129 hits in 132 files, 86 allowed (25 allow entries), 43 pending in 29 entries (25 entries for WP1, 3 for WP4 in `menu.ts`, 1 for WP5 in `panels.ts`), 0 unlisted. The negative control (a temp file with `export const w = 480;`) failed the test with the file named, and the test passed again after the file was deleted. The advisory derived scan listed 57 hits in 16 files.
 
 **Baseline.** Two runs of `npm run shots` at 480x270 with the 960x540 viewport. Mask list: see the step report.
 

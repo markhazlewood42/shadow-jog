@@ -1,0 +1,306 @@
+{
+  "_comment": "Screen-size literals that a work package of the 640x360 move still has to replace (docs/PIVOT-640.md, PL1). One entry per distinct line; 'wp' names the owner. The list shrinks at each package and is empty at WP7. Regenerate with SCREEN_LITERALS_WRITE_PENDING=1 npx vitest run tests/screen-literals.test.ts (it keeps known 'wp' values).",
+  "entries": [
+    {
+      "file": "src/art/battlebg.ts",
+      "token": 240,
+      "match": "export const BW = 240;",
+      "lines": [
+        9
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/art/battlebg.ts",
+      "token": 135,
+      "match": "export const BH = 135;",
+      "lines": [
+        10
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/battle/fx.ts",
+      "token": 135,
+      "match": "const y = 135 - k * 70;",
+      "lines": [
+        972
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/battle/fx.ts",
+      "token": 240,
+      "match": "for (let x = 0; x < 240; x += 2) ctx.fillRect(x, Math.round(y + Math.sin(x * 0.1 + k * 10) * 4), 2, 10);",
+      "lines": [
+        973
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/battle/fx.ts",
+      "token": 240,
+      "match": "ctx.fillRect(0, Math.round(t.y), Math.round(240 * k), 2);",
+      "lines": [
+        1011,
+        1101
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/dev/fxlab.ts",
+      "token": [
+        240,
+        135
+      ],
+      "match": "private fxWorld = surface(240, 135);",
+      "lines": [
+        135
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/dev/fxlab.ts",
+      "token": [
+        240,
+        135
+      ],
+      "match": "private fxGlow = surface(240, 135);",
+      "lines": [
+        136
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/dev/fxlab.ts",
+      "token": [
+        240,
+        135
+      ],
+      "match": "private world = surface(240, 135);",
+      "lines": [
+        144
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/dev/fxlab.ts",
+      "token": [
+        240,
+        135
+      ],
+      "match": "fg.clearRect(0, 0, 240, 135);",
+      "lines": [
+        249
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/dev/fxlab.ts",
+      "token": [
+        240,
+        135
+      ],
+      "match": "gg.clearRect(0, 0, 240, 135);",
+      "lines": [
+        267
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/dev/fxlab.ts",
+      "token": 480,
+      "match": "num('Reach (px)', () => s.reach ?? 90, (v) => (s.reach = v), 0, 480, 1);",
+      "lines": [
+        718
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/dev/fxlab.ts",
+      "token": 240,
+      "match": "num('Radius (px)', () => s.radius ?? 40, (v) => (s.radius = v), 4, 240, 1);",
+      "lines": [
+        726
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/dev/fxlab.ts",
+      "token": 480,
+      "match": "num('Width (px)', () => s.w ?? 90, (v) => (s.w = v), 4, 480, 1);",
+      "lines": [
+        732
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/dev/fxlab.ts",
+      "token": 270,
+      "match": "num('Height (px)', () => s.h ?? 60, (v) => (s.h = v), 4, 270, 1);",
+      "lines": [
+        733
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/engine/postfx.ts",
+      "token": 240,
+      "match": "aberrationX = 240;",
+      "lines": [
+        83
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/engine/postfx.ts",
+      "token": 135,
+      "match": "aberrationY = 135;",
+      "lines": [
+        84
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/engine/postfx.ts",
+      "token": [
+        240,
+        135
+      ],
+      "match": "aberrate(amount: number, x = 240, y = 135): void {",
+      "lines": [
+        129
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/field/fieldmap.ts",
+      "token": [
+        480,
+        270
+      ],
+      "match": "if (sx < -16 || sy < -16 || sx > 480 || sy > 270) continue;",
+      "lines": [
+        337
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/main.ts",
+      "token": [
+        480,
+        270
+      ],
+      "match": "ctx.fillRect(480 - 70, 270 - 14, 66, 11);",
+      "lines": [
+        76
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/main.ts",
+      "token": [
+        480,
+        270
+      ],
+      "match": "drawText(ctx, `{c}♦{/} ${n.text}`, 480 - 66, 270 - 13, { color: '#b8bcd0' });",
+      "lines": [
+        77
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/main.ts",
+      "token": [
+        240,
+        270
+      ],
+      "match": "ctx.fillRect(240 - w / 2, 270 - 16, w, 12);",
+      "lines": [
+        84
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/main.ts",
+      "token": [
+        240,
+        270
+      ],
+      "match": "drawText(ctx, `{y}★{/} ${fitText(n.text, w - 20)}`, 240 - w / 2 + 5, 270 - 15, { color: '#e8e4ff' });",
+      "lines": [
+        85
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/main.ts",
+      "token": 480,
+      "match": "ctx.fillRect(0, 0, 480, 3 + lines.length * 10);",
+      "lines": [
+        95
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/scenes/battlekit/geom.ts",
+      "token": [
+        240,
+        135
+      ],
+      "match": "export const BW = 240, BHT = 135;",
+      "lines": [
+        5
+      ],
+      "wp": "WP1"
+    },
+    {
+      "file": "src/scenes/menu.ts",
+      "token": 240,
+      "match": "drawText(ctx, 'ABILITIES', 240, 124, { color: UI.cyan });",
+      "lines": [
+        704
+      ],
+      "wp": "WP4"
+    },
+    {
+      "file": "src/scenes/menu.ts",
+      "token": 240,
+      "match": "drawText(ctx, fitText(`${ab.kind === 'tech' ? '•' : '★'} ${ab.name}`, 104), 240 + col * 110, 137 + (i % 9) * 11, { color: ab.kind === 'tech' ? '#d0f4ff' : '#ffe8b0' });",
+      "lines": [
+        709
+      ],
+      "wp": "WP4"
+    },
+    {
+      "file": "src/scenes/menu.ts",
+      "token": 240,
+      "match": "drawText(ctx, fitText(`× ${ABILITIES[id]!.name}`, 104), 240 + (i < 9 ? 0 : 110), 137 + (i % 9) * 11, { color: UI.disabled });",
+      "lines": [
+        716
+      ],
+      "wp": "WP4"
+    },
+    {
+      "file": "src/scenes/panels.ts",
+      "token": 240,
+      "match": "{ x: 240, y: 146, w: 232, h: 116, bg: 'spire', caption: 'The corporations just found new things to own.', from: 'right' },",
+      "lines": [
+        47
+      ],
+      "wp": "WP5"
+    },
+    {
+      "file": "src/scenes/title.ts",
+      "token": [
+        240,
+        135
+      ],
+      "match": "const BW = 240, BH = 135;",
+      "lines": [
+        22
+      ],
+      "wp": "WP1"
+    }
+  ]
+}
