@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The Command Center (`npm run cc`, http://localhost:3009): a local website with what is going on now, every doc in one place, the sessions and agents, and the design decisions that wait on Mark, who answers them on a page that posts to a GitHub issue. It lives in `tools/command-center/` and does not touch the game.
 - Saves record the game version that wrote them.
 - A slot saved by a newer version says so ("Saved by a newer version") instead of "damaged", and asks before it is replaced.
+- The move to 640x360 begins (`docs/PIVOT-640.md`: criteria, rubric and record). Three screenshot tools with no new dependency: `scripts/contact-sheet.mjs` (before-and-after pages), `scripts/pixel-diff.mjs` (the same-pixels check) and `scripts/check-shots.mjs` (the smoke check of the area outside the old frame).
 
 ## [0.1.0] - 2026-10-03
 
