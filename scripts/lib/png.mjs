@@ -9,9 +9,57 @@
  * (none, left, up, average, Paeth). Decoding is: inflate, undo the filter row by row, then expand
  * each pixel to four RGBA bytes.
  */
-import { inflateSync } from 'node:zlib';
+import { deflateSync, inflateSync } from 'node:zlib';
 
 const SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
+
+/**
+ * Encode RGBA bytes as a PNG file (8-bit RGBA, no filter, one IDAT). The tools use it for diff
+ * pictures, where size does not matter; a real image encoder would pick row filters to compress
+ * better.
+ * @param {number} width
+ * @param {number} height
+ * @param {Uint8Array} rgba 4 bytes per pixel, row by row
+ * @returns {Buffer}
+ */
+export function encodePng(width, height, rgba) {
+  if (rgba.length !== width * height * 4) throw new Error('encodePng: the pixel buffer does not match the size');
+  // Every row starts with the filter byte 0 (none).
+  const raw = Buffer.alloc((width * 4 + 1) * height);
+  for (let y = 0; y < height; y++) {
+    raw[y * (width * 4 + 1)] = 0;
+    raw.set(rgba.subarray(y * width * 4, (y + 1) * width * 4), y * (width * 4 + 1) + 1);
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 6; // color type: RGBA
+  ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0; // compression, filter, interlace
+  return Buffer.concat([Buffer.from(SIGNATURE), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+
+/** One PNG chunk: length, type, data, CRC-32 of type and data. */
+function chunk(type, data) {
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(data.length, 0);
+  const typeAndData = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(typeAndData), 0);
+  return Buffer.concat([len, typeAndData, crc]);
+}
+
+/** CRC-32 as PNG uses it (the same polynomial as zip and gzip). */
+const CRC_TABLE = new Uint32Array(256).map((_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
 /** Bytes per pixel for each PNG color type at 8 bits per sample. */
 const CHANNELS = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 };
 
