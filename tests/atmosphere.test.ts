@@ -66,7 +66,25 @@ describe('rain', () => {
     }
     expect(w.pool.length).toBe(n);
     expect(most).toBeGreaterThan(0);
-    expect(most).toBeLessThanOrEqual(60);
+    const { MAX_SPLASHES } = await import('../src/field/weather');
+    expect(MAX_SPLASHES).toBe(107);
+    expect(most).toBeLessThanOrEqual(MAX_SPLASHES);
+  });
+
+  it('scales the counts by the screen’s area, so the weather keeps its density per pixel', async () => {
+    const { AREA_SCALE, DRIPS, DUST_MOTES, RAIN_DROPS, MAX_SPLASHES, Weather } = await import('../src/field/weather');
+    const { H, W } = await import('../src/engine/game');
+    // The old counts were tuned on 129,600 pixels (the 480x270 field).
+    const ratio = (W * H) / 129_600;
+    expect(AREA_SCALE).toBeCloseTo(ratio, 10);
+    expect([RAIN_DROPS, DUST_MOTES, DRIPS, MAX_SPLASHES]).toEqual([Math.round(190 * ratio), Math.round(50 * ratio), Math.round(14 * ratio), Math.round(60 * ratio)]);
+    // At 640x360 (area 1.78 times the old): the numbers the inventory predicted.
+    expect([RAIN_DROPS, DUST_MOTES, DRIPS, MAX_SPLASHES]).toEqual([338, 89, 25, 107]);
+    for (const [kind, n] of [['rain', RAIN_DROPS], ['dust', DUST_MOTES], ['drip', DRIPS]] as const) {
+      const w = new Weather();
+      w.set(kind, 1);
+      expect(w.pool.length, kind).toBe(n);
+    }
   });
 
   it('camera motion carries the near layer further than the far one (parallax)', async () => {
