@@ -352,14 +352,14 @@
       "note": "A boss goes down.",
       "layers": [
         { "emit": "dissolve", "scale": 2.5 },
-        { "shock": { "strength": 7, "reach": 240, "life": 44, "width": 18 } },
+        { "shock": { "strength": 7, "reach": 320, "life": 44, "width": 18 } },
         { "flare": 1.4 }
       ]
     },
     "phase": {
       "note": "A boss changes form (the Warden’s spirit tearing free).",
       "layers": [
-        { "shock": { "strength": 8, "reach": 260, "life": 48, "width": 20 } },
+        { "shock": { "strength": 8, "reach": 347, "life": 48, "width": 20 } },
         { "aberrate": 4 },
         { "emit": "motes", "scale": 3 },
         { "flare": 1.5 }
@@ -368,7 +368,7 @@
     "intro": {
       "note": "The battle transition: the glass breaks (at the middle of the screen).",
       "layers": [
-        { "shock": { "strength": 6, "reach": 320, "life": 40, "width": 24 } },
+        { "shock": { "strength": 6, "reach": 427, "life": 40, "width": 24 } },
         { "aberrate": 3 }
       ]
     },
