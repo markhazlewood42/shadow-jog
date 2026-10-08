@@ -28,6 +28,8 @@ export const DEV_TOOLS: { group: string; tools: DevTool[] }[] = [
     tools: [
       { name: 'Battle', path: '/?debug&scene=battle', about: 'A street fight on loop, full party at level 6', print: true },
       { name: 'Boss battle', path: '/?debug&scene=battle&enemies=lurker&boss', about: 'The Lurker, on loop' },
+      { name: 'Small map, edge fill (D7 b1)', path: '/?debug&scene=field&map=dock&x=10&y=7&surround=b1', about: 'Loading Dock 7 with its edge tiles repeated outward. A review switch, dev only: add &surround=a|b1|b2 to any small map' },
+      { name: 'Small map, themed surround (D7 b2)', path: '/?debug&scene=field&map=dock&x=10&y=7&surround=b2', about: 'Loading Dock 7 on a quay over water. The Rustyard and the nine interiors have their own themes (review switch, dev only)' },
       { name: 'A point in the story', path: '/?debug&scene=stage', about: 'Straight to a chapter preset: the party, levels and gear for that point', pick: 'stage' },
       { name: 'Debug mode', path: '/?debug', about: 'The normal game, with test hooks on window.__SJ__ (see the console)' },
     ],

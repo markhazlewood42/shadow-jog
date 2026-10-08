@@ -25,7 +25,8 @@ import { fieldHooks } from '../game/hooks';
 import { reportError } from '../engine/errors';
 import { scriptApi } from './fieldkit/api';
 import { cameraOrigin } from './fieldkit/camera';
-import { blit, byBaseY, drawEmote, drawShell, inView, type DrawEntry } from './fieldkit/draw';
+import { blit, byBaseY, drawEmote, inView, type DrawEntry } from './fieldkit/draw';
+import { drawSurround, type SurroundView } from './fieldkit/surround';
 import { Dust } from './fieldkit/dust';
 
 const WALK = 12;
@@ -77,6 +78,8 @@ export class FieldScene extends Scene<void> {
   /** This frame's glow layer (GPU effects on), or null. */
   private glow: Ctx | null = null;
   private weather = new Weather();
+  /** What `drawSurround` is told each frame (one object, updated in place: no per-frame allocation). */
+  private surroundView: SurroundView | undefined;
   busy = 0;
   /**
    * What Confirm would reach from where the leader stands (an NPC, a closed chest, something to
@@ -602,9 +605,22 @@ export class FieldScene extends Scene<void> {
     // Shake moves the camera (the world); the banner and objective are drawn in screen space.
     const cx = this.camX - this.game.shakeX, cy = this.camY - this.game.shakeY;
     const f = this.frame;
-    ctx.fillStyle = this.def.voidColor ?? '#07060d';
-    ctx.fillRect(0, 0, W, H);
-    if (this.def.kind === 'interior') drawShell(ctx, this.map.w * TS, this.map.h * TS, cx, cy);
+    // Whatever shows around a map smaller than the screen: the void, a brick shell, or a surround (fieldkit/surround.ts).
+    let sv = this.surroundView;
+    if (!sv) {
+      sv = { id: '', kind: 'town', ground: this.map.ground, mw: 0, mh: 0, cx: 0, cy: 0, frame: 0 };
+      this.surroundView = sv;
+    }
+    sv.id = this.def.id;
+    sv.kind = this.def.kind;
+    sv.voidColor = this.def.voidColor;
+    sv.ground = this.map.ground;
+    sv.mw = this.map.w * TS;
+    sv.mh = this.map.h * TS;
+    sv.cx = cx;
+    sv.cy = cy;
+    sv.frame = f;
+    drawSurround(ctx, sv);
     this.lighting.build(this.map.lights, cx, cy, f);
     blit(ctx, this.map.ground, cx, cy);
     for (const a of this.map.anims) if (a.lit && inView(a, cx, cy)) a.draw(ctx, f, cx, cy);

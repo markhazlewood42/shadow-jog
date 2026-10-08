@@ -6,6 +6,9 @@
 import { describe, expect, it } from 'vitest';
 import { getMap, mapIds } from '../src/data/maps';
 import { measure } from '../src/engine/font';
+import { H, W } from '../src/engine/game';
+import { TS } from '../src/field/tiles';
+import { SURROUND, surroundFor } from '../src/scenes/fieldkit/surround';
 import { arrivals, distances, grid } from './mapgraph';
 
 const NEAR = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const;
@@ -187,4 +190,61 @@ describe('secrets are reachable', () => {
       expect(stuck).toEqual([]);
     });
   }
+});
+
+describe('maps smaller than the view (D7, docs/PIVOT-640.md)', () => {
+  // At 640x360 the camera shows 1.78 times the old area, so a map below the screen in either
+  // direction is centered in a void, a brick shell or a surround (src/scenes/fieldkit/surround.ts).
+  // This list is pinned, so a size change is deliberate: a map that grows past the screen leaves
+  // the list and the surround table together, and a new small map must get a surround entry.
+  // Sizes are in pixels (width, height).
+  const SMALL: Record<string, [number, number]> = {
+    rustyard: [544, 448],
+    dock: [320, 224],
+    rook_flat: [224, 160],
+    bar: [352, 224],
+    clinic: [224, 160],
+    armory: [224, 160],
+    threads: [224, 160],
+    kwikmart: [224, 160],
+    hotel: [256, 160],
+    noodles: [224, 160],
+    hex_den: [224, 176],
+  };
+  const sizeOf = (id: string): [number, number] => {
+    const g = grid(id);
+    return [g.w * TS, g.h * TS];
+  };
+  const smaller = (): string[] => mapIds().filter((id) => { const [w, h] = sizeOf(id); return w < W || h < H; });
+
+  it('the maps below the view are exactly the pinned list, at their pinned sizes', () => {
+    expect(smaller().sort()).toEqual(Object.keys(SMALL).sort());
+    for (const [id, size] of Object.entries(SMALL)) expect(sizeOf(id), id).toEqual(size);
+  });
+
+  it('every one of them has a surround entry, and the table holds no other map', () => {
+    expect(Object.keys(SURROUND).sort()).toEqual(smaller().sort());
+    for (const id of smaller()) {
+      const e = SURROUND[id];
+      expect(['a', 'b1', 'b2'], `${id} option`).toContain(e?.option);
+      expect(['brick', 'yard', 'dock'], `${id} theme`).toContain(e?.theme);
+    }
+  });
+
+  it('a theme fits its place: interiors are brick, the Rustyard a yard, the Dock a dock', () => {
+    for (const id of smaller()) {
+      const want = getMap(id).kind === 'interior' ? 'brick' : id === 'rustyard' ? 'yard' : 'dock';
+      expect(SURROUND[id]?.theme, id).toBe(want);
+    }
+  });
+
+  it('the game ships option a (today’s look) for every small map until Mark answers D7', () => {
+    // Change this line, and the table, when D7 is answered at Review 3.
+    for (const id of smaller()) expect(SURROUND[id]?.option, id).toBe('a');
+  });
+
+  it('a map with no entry (a big map) has no surround, and the review switch never applies to it', () => {
+    expect(surroundFor('lantern_row')).toBeNull();
+    expect(surroundFor('world')).toBeNull();
+  });
 });
