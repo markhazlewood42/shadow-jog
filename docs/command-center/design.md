@@ -14,7 +14,7 @@ A small website that runs on Mark's machine. It is the home base for all Shadow 
 
 **Status:** version 1 is built ([PR #21](https://github.com/markhazlewood42/shadow-jog/pull/21) and [PR #22](https://github.com/markhazlewood42/shadow-jog/pull/22) on `main`). Mark approved it on 2026-10-05 and added the decision inbox (section 5.5) and the look (section 4.2) the same day. Its plan is [plan.md](plan.md).
 
-**Revision 2 is approved and not built yet.** It answers Mark's live feedback of 2026-10-07. Mark approved this spec and its plan on 2026-10-07. It changes four things:
+**Revision 2 is built on branch `command-center-feedback`.** It answers Mark's live feedback of 2026-10-07. Mark approved this spec and its plan on 2026-10-07. It changes four things:
 1. All page text becomes labels and links (section 5.8).
 2. The Status panel becomes a summary with links (section 5.6).
 3. Every doc page gets Copy and Download (section 5.7).
