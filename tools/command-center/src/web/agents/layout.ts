@@ -46,7 +46,7 @@ export const SIZES = {
   maxChildren: 12,
   /** The height of the label "+N more". */
   moreHeight: 20,
-  /** The label with the count of a message line: its height, the room around its text, and the width of one character of the small mono text. */
+  /** The label with the count of a message line: its height, the room around its text, and the width of one character of its 12 px mono text (7.2 px, kept to whole pixels). */
   badge: { h: 14, pad: 8, char: 7 },
   /** A message line is level, this far above the bottom edge of its box (so it is under the spawn line, which is at the middle). */
   messageInset: 8,

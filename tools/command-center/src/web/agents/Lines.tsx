@@ -88,7 +88,7 @@ export function CountBadges({ lines, flashing }: Pick<LinesProps, 'lines' | 'fla
             aria-hidden="true"
             data-count={line.ownerId}
             {...(leaving ? { 'data-leaving': 'true' } : {})}
-            className={`pointer-events-none absolute top-0 left-0 flex items-center justify-center rounded-[3px] border border-cc-rule-solid bg-cc-paper-2 font-mono text-[11px] leading-none text-cc-muted data-leaving:opacity-0 motion-safe:transition-[transform,opacity] motion-safe:duration-200 motion-safe:ease-out ${flashing.has(line.ownerId) ? 'motion-safe:animate-cc-flash' : ''}`}
+            className={`pointer-events-none absolute top-0 left-0 flex items-center justify-center rounded-[3px] border border-cc-rule-solid bg-cc-paper-2 font-mono text-xs leading-none text-cc-muted data-leaving:opacity-0 motion-safe:transition-[transform,opacity] motion-safe:duration-200 motion-safe:ease-out ${flashing.has(line.ownerId) ? 'motion-safe:animate-cc-flash' : ''}`}
             style={{ width: w, height: h, transform: `translate(${x}px, ${y}px)` }}
           >
             {text}
