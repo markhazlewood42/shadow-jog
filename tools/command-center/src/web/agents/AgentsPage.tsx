@@ -86,7 +86,7 @@ function EmptyState({ info }: { info: SessionsInfo }) {
   );
 }
 
-/** The note that says how many automated runs the list leaves out, with the setting that lists them. It is the same note as the Running panel has (ruling R18), and the page never hides a count silently. */
+/** The note that says how many automated runs the list leaves out, with the setting that lists them (ruling R18). The page never hides a count silently. */
 function HiddenSdkNote({ count }: { count: number }) {
   const one = count === 1;
   return (

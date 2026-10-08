@@ -1,125 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { AgentInfo, CiMain, GitInfo, Health, Panel, SessionInfo, SessionsInfo, StatusInfo, WorkflowInfo } from '../src/shared/types';
-import { FINISHED_KEPT_MS, runningRows } from '../src/web/now/RunningPanel';
+import type { CiMain, GitInfo, Health, Panel, StatusInfo } from '../src/shared/types';
 import { type SourceResults, besideOf, branchHref, combineSources, commitHref, nextUpLabel, squareStates, standingOf, updatedLabel } from '../src/web/now/StatusPanel';
 import type { PanelResult } from '../src/web/usePanel';
 
-// The logic that decides what the Running panel lists, and how the Status panel puts the results of its four sources together and what its rows say. All of it is plain
-// functions of data, so these tests need no browser. (How the panels look and behave is the job of e2e/now.spec.ts.)
-
-const NOW = Date.parse('2026-10-06T12:00:00.000Z');
-const ago = (ms: number) => new Date(NOW - ms).toISOString();
-const MIN = 60_000;
-
-function agent(id: string, extra: Partial<AgentInfo> = {}): AgentInfo {
-  return { id, sessionId: 's1', description: `Description of ${id}`, agentType: 'general-purpose', model: '', state: 'running', startedAt: ago(5 * MIN), endedAt: null, workflowId: null, ...extra };
-}
-
-function workflow(id: string, extra: Partial<WorkflowInfo> = {}): WorkflowInfo {
-  return {
-    id,
-    name: `Workflow ${id}`,
-    sessionId: 's1',
-    state: 'running',
-    phases: [
-      { name: 'Research', started: 2, done: 2 },
-      { name: 'Build', started: 1, done: 0 },
-    ],
-    started: 3,
-    done: 2,
-    startedAt: ago(8 * MIN),
-    lastEventAt: ago(MIN),
-    ...extra,
-  };
-}
-
-function session(id: string, extra: Partial<SessionInfo> = {}): SessionInfo {
-  return {
-    id,
-    title: `Title of ${id}`,
-    folder: 'fixture-shadow-jog',
-    matchedBy: 'folder',
-    cwd: '/fixture/repo',
-    entrypoint: 'claude-desktop',
-    branch: 'fixture-branch',
-    startedAt: ago(30 * MIN),
-    lastActivityAt: ago(MIN),
-    state: 'working',
-    prs: [],
-    yourMove: null,
-    agents: [],
-    workflows: [],
-    ...extra,
-  };
-}
-
-const info = (sessions: SessionInfo[]): SessionsInfo => ({ sessions, scanned: sessions.length, skipped: 0, hiddenSdk: 0 });
-
-describe('runningRows', () => {
-  it('lists each live session with its running agents and workflows, then what finished a few minutes ago, and nothing else', () => {
-    const rows = runningRows(
-      info([
-        session('s1', {
-          agents: [
-            agent('a-running'),
-            agent('a-done-now', { state: 'done', endedAt: ago(3 * MIN) }),
-            agent('a-done-old', { state: 'done', endedAt: ago(FINISHED_KEPT_MS + MIN) }), // finished too long ago
-            agent('a-stopped', { state: 'stopped' }), // stuck: it neither runs nor finished
-            agent('a-of-a-workflow', { workflowId: 'wf_1' }), // the workflow's row stands for it
-          ],
-          workflows: [workflow('wf_running'), workflow('wf_done', { state: 'done', lastEventAt: ago(2 * MIN) }), workflow('wf_old', { state: 'done', lastEventAt: ago(FINISHED_KEPT_MS + MIN) }), workflow('wf_stopped', { state: 'stopped' })],
-        }),
-      ]),
-      NOW,
-    );
-    // The session first. Under it what still runs (agents, then workflows), then what just ended.
-    expect(rows.map((row) => [row.kind, row.name, row.state, row.nested === true])).toEqual([
-      ['session', 'Title of s1', 'working', false],
-      ['agent', 'Description of a-running', 'running', true],
-      ['workflow', 'Workflow wf_running', 'running', true],
-      ['agent', 'Description of a-done-now', 'done', true],
-      ['workflow', 'Workflow wf_done', 'done', true],
-    ]);
-  });
-
-  it('gives a running agent a bar with no value and a finished one a full bar, and a workflow the agents done of the agents started', () => {
-    const rows = runningRows(info([session('s1', { agents: [agent('a-run'), agent('a-end', { state: 'done', endedAt: ago(MIN) })], workflows: [workflow('wf_run'), workflow('wf_end', { state: 'done', lastEventAt: ago(MIN) }), workflow('wf_new', { started: 0, done: 0, phases: [] })] })]), NOW);
-    const bar = (name: string) => rows.find((row) => row.name === name)?.progress;
-    expect(bar('Description of a-run')).toBeNull(); // null: a bar that moves, because agents report no percent done
-    expect(bar('Description of a-end')).toBe(1);
-    expect(bar('Workflow wf_run')).toBeCloseTo(2 / 3);
-    expect(bar('Workflow wf_end')).toBe(1);
-    expect(bar('Workflow wf_new')).toBeNull(); // nothing started yet, so nothing to measure
-    // The phases say where the workflow is, in the order the journal names them.
-    expect(rows.find((row) => row.name === 'Workflow wf_run')?.detail).toBe('2 of 3 agents done. Phases: Research 2/2, Build 0/1');
-    expect(rows.find((row) => row.name === 'Workflow wf_new')?.detail).toBe('0 of 0 agents done');
-  });
-
-  it('shows a session that waits for Mark with an empty bar, and leaves out a session that is idle or that cannot be read', () => {
-    const rows = runningRows(info([session('s-working'), session('s-waiting', { state: 'waiting' }), session('s-idle', { state: 'idle' }), session('s-unknown', { state: 'unknown' })]), NOW);
-    expect(rows.map((row) => [row.name, row.state, row.progress])).toEqual([
-      ['Title of s-working', 'working', null],
-      ['Title of s-waiting', 'waiting for you', 0],
-    ]);
-    // How long the session has run is how long ago it started.
-    expect(rows[0]?.runMs).toBe(30 * MIN);
-  });
-
-  it('names an agent by what it was asked, else by its kind, else by its id, and times it from its start to its end (or to now while it runs)', () => {
-    const rows = runningRows(
-      info([session('s1', { agents: [agent('a1', { description: '' }), agent('a2', { description: '', agentType: '' }), agent('a3', { state: 'done', startedAt: ago(10 * MIN), endedAt: ago(4 * MIN) })] })]),
-      NOW,
-    );
-    expect(rows.map((row) => row.name)).toEqual(['Title of s1', 'general-purpose', 'Agent a2', 'Description of a3']);
-    expect(rows[1]?.runMs).toBe(5 * MIN); // running: from its start to now
-    const finished = rows.find((row) => row.name === 'Description of a3');
-    expect(finished?.runMs).toBe(6 * MIN); // finished: from its start to its end
-  });
-
-  it('has no rows for no sessions', () => {
-    expect(runningRows(info([]), NOW)).toEqual([]);
-  });
-});
+// How the Status panel puts the results of its four sources together and what its rows say. All of it is plain functions of data, so these tests need no browser.
+// (How the panels look and behave is the job of e2e/now.spec.ts. The list of the Running panel is tested in running-panel.test.tsx.)
 
 // ---- the Status panel: four sources in one panel, and what the rows say ----
 
@@ -181,11 +66,11 @@ describe('combineSources', () => {
   });
 
   it('is failed only when no source is good: it names every failure once, and has no last good data', () => {
-    const down = failed<never>('network', 'Cannot reach the command center server. Is it still running?');
+    const down = failed<never>('network', 'Cannot reach the command center server. Check that it runs.');
     const combined = combineSources({ status: result(down), git: result(down), ci: result(down), health: result(down) });
     expect(combined.state).toBe('error');
     // The same code and message from four sources are said once.
-    expect(combined.panel).toEqual({ ok: false, error: { code: 'network', message: 'Cannot reach the command center server. Is it still running?' }, updatedAt: null, lastGood: null });
+    expect(combined.panel).toEqual({ ok: false, error: { code: 'network', message: 'Cannot reach the command center server. Check that it runs.' }, updatedAt: null, lastGood: null });
 
     // Different failures are all named. The time is the newest time that a failed source still knows (a source that loaded before).
     const mixed = combineSources({
@@ -196,7 +81,7 @@ describe('combineSources', () => {
     });
     expect(mixed.panel).toEqual({
       ok: false,
-      error: { code: 'status-missing, git-failed, gh-offline, network', message: 'status.md was not found. git could not run. GitHub cannot be reached. Cannot reach the command center server. Is it still running?' },
+      error: { code: 'status-missing, git-failed, gh-offline, network', message: 'status.md was not found. git could not run. GitHub cannot be reached. Cannot reach the command center server. Check that it runs.' },
       updatedAt: T2,
       lastGood: null,
     });

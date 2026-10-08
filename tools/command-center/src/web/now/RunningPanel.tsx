@@ -1,136 +1,85 @@
-import type { AgentInfo, ModuleName, SessionInfo, SessionsInfo, WorkflowInfo } from '../../shared/types';
+import { MessageSquare } from 'lucide-react';
+import { Link } from 'react-router';
+import type { AgentsLive, LiveSession, ModuleName } from '../../shared/types';
 import { PanelContent } from '../PanelFrame';
 import { usePanel } from '../usePanel';
 import { GlassPanel, type PanelPlacement } from './GlassPanel';
-import { RunRow, type RunRowProps } from './RunRow';
-import { useNow } from './time';
+import { formatDuration, useNow } from './time';
 
-// "Running": what is going on right now, one row for each live session, agent and workflow (design 5.1). The full list, with every session of the last
-// week and links to its files, is the Agents page.
+// "Running": the Claude sessions that are alive now (design 5.1, revision 2). One row for each: its title, a state word and how long it has run. The whole row is a link to the
+// Agents page, which draws the agents and the workflows of each session: this panel shows none of them. It reads the live agents (GET /api/agents). That module starts from the
+// process list of Claude Code, so a session is on the list while its process runs, and it leaves the list when the process ends.
 
-/** The panel loads again when the sessions module says that something changed (it looks at the session files every 10 seconds). */
-const SESSIONS_MODULES: readonly ModuleName[] = ['sessions'];
+/** The panel loads again when the agents module says that something changed (it looks at the process list every 3 seconds). */
+const AGENTS_MODULES: readonly ModuleName[] = ['agents'];
 
-/** An agent or workflow that finished stays on the list for this long, with a full bar, so that Mark sees that it ended. After that it is old news (the Agents page has it). */
-export const FINISHED_KEPT_MS = 10 * 60 * 1000;
-
-/** A row, with the key that React needs to tell it from the others. */
-export type RunningRow = RunRowProps & { key: string };
-
-const timeOf = (iso: string | null): number | null => {
-  const ms = iso === null ? Number.NaN : Date.parse(iso);
-  return Number.isNaN(ms) ? null : ms;
-};
-
-/** How long something ran: from its start to its end, or to now while it has no end. Null when the start is not known. */
-function lengthOf(startedAt: string | null, endedAt: string | null, nowMs: number): number | null {
-  const start = timeOf(startedAt);
-  if (start === null) return null;
-  return (timeOf(endedAt) ?? nowMs) - start;
-}
-
-/** Whether something that ended at `endedAt` ended recently enough to be on the list. A time that is not known is not recent. */
-function endedRecently(endedAt: string | null, nowMs: number): boolean {
-  const end = timeOf(endedAt);
-  return end !== null && nowMs - end <= FINISHED_KEPT_MS;
-}
-
-function sessionRow(session: SessionInfo, nowMs: number): RunningRow {
-  const working = session.state === 'working';
-  return {
-    key: `session:${session.id}`,
-    kind: 'session',
-    name: session.title,
-    state: working ? 'working' : 'waiting for you',
-    // A session that works moves; one that waits for Mark has nothing in progress, and its bar stands empty.
-    progress: working ? null : 0,
-    runMs: lengthOf(session.startedAt, null, nowMs),
-  };
-}
-
-function agentRow(agent: AgentInfo, nowMs: number): RunningRow {
-  const running = agent.state === 'running';
-  return {
-    key: `agent:${agent.sessionId}:${agent.id}`,
-    kind: 'agent',
-    name: agent.description || agent.agentType || `Agent ${agent.id}`,
-    state: running ? 'running' : 'done',
-    // Agents report no percent done: a running one has a bar that moves, and a finished one a full bar.
-    progress: running ? null : 1,
-    runMs: lengthOf(agent.startedAt, agent.endedAt, nowMs),
-    nested: true,
-  };
-}
-
-function workflowRow(workflow: WorkflowInfo, nowMs: number): RunningRow {
-  const running = workflow.state === 'running';
-  const phases = workflow.phases.map((phase) => `${phase.name || 'phase'} ${phase.done}/${phase.started}`).join(', ');
-  return {
-    key: `workflow:${workflow.sessionId}:${workflow.id}`,
-    kind: 'workflow',
-    name: workflow.name,
-    state: running ? 'running' : 'done',
-    // A workflow has real progress: the agents that are done of the agents that started. Before any started, there is nothing to measure.
-    progress: running ? (workflow.started > 0 ? workflow.done / workflow.started : null) : 1,
-    runMs: lengthOf(workflow.startedAt, running ? null : workflow.lastEventAt, nowMs),
-    detail: `${workflow.done} of ${workflow.started} agents done${phases === '' ? '' : `. Phases: ${phases}`}`,
-    nested: true,
-  };
+/** How long a session has run, in milliseconds: from the start of its process to now. Null when the start is not known, so the row shows no time and never a guess. */
+function runMsOf(session: LiveSession, nowMs: number): number | null {
+  const start = session.startedAt === null ? Number.NaN : Date.parse(session.startedAt);
+  return Number.isNaN(start) ? null : nowMs - start;
 }
 
 /**
- * The rows of the panel, in order: each live session (working, or waiting for Mark) with, under it, its agents and workflows that are running or that
- * finished a few minutes ago. A session that is idle, or that this page cannot read, is not live and has no row. An agent that a workflow started is not
- * a row of its own (a workflow has hundreds of them): the row of the workflow stands for them, with its progress. An agent or workflow that stopped without
- * ending (nothing was written for a while) has no row either: it is not running, and it did not finish.
+ * One session. The whole row is one link, so the target is as big as the row. The title is the underlined part, as in the other lists of this page, and the state and the
+ * time are small text beside it. The state is a word, so it never depends on a color. The spaces between the pieces are for a screen reader and for a copy of the row:
+ * the layout of the boxes ignores them.
  */
-export function runningRows(info: SessionsInfo, nowMs: number): RunningRow[] {
-  return info.sessions
-    .filter((session) => session.state === 'working' || session.state === 'waiting')
-    .flatMap((session) => {
-      const agents = session.agents.filter((agent) => agent.workflowId === null && (agent.state === 'running' || (agent.state === 'done' && endedRecently(agent.endedAt, nowMs))));
-      const workflows = session.workflows.filter((workflow) => workflow.state === 'running' || (workflow.state === 'done' && endedRecently(workflow.lastEventAt, nowMs)));
-      // What still runs comes before what just ended.
-      const stillRunning = (state: string) => (state === 'running' ? 0 : 1);
-      const nested = [
-        ...agents.map((agent) => ({ order: stillRunning(agent.state), row: agentRow(agent, nowMs) })),
-        ...workflows.map((workflow) => ({ order: stillRunning(workflow.state), row: workflowRow(workflow, nowMs) })),
-      ]
-        .sort((a, b) => a.order - b.order)
-        .map((entry) => entry.row);
-      return [sessionRow(session, nowMs), ...nested];
-    });
+function SessionRow({ session, nowMs }: { session: LiveSession; nowMs: number }) {
+  const runMs = runMsOf(session, nowMs);
+  return (
+    <li>
+      <Link to="/agents" className="flex items-start gap-2 py-2.5 cc-focus-ring">
+        <MessageSquare aria-hidden className="mt-0.5 size-4 shrink-0 text-cc-muted" />{' '}
+        {/* The title comes from a session file: it is shown as text. */}
+        <span className="min-w-0 flex-1 text-sm font-medium break-words text-cc-link underline underline-offset-2">{session.title}</span>{' '}
+        <span className="shrink-0 text-right text-xs text-cc-muted">
+          {session.state}
+          {runMs !== null && (
+            <>
+              {' '}
+              <span className="ml-1 font-mono text-cc-soft">{formatDuration(runMs)}</span>
+            </>
+          )}
+        </span>
+      </Link>
+    </li>
+  );
 }
 
-function RunningList({ info, now }: { info: SessionsInfo; now: number }) {
-  const rows = runningRows(info, now);
+/**
+ * The list of the panel: a row for each session in the order that the API gives (the oldest first, so a row does not jump when a session changes), or the label of the empty
+ * state. Under it come two labels when they apply: how many runs of a script are left out, and that the file ages decided because the process list cannot be read. It is a
+ * function of its two inputs, so a test can draw it with no server.
+ */
+export function RunningList({ live, now }: { live: AgentsLive; now: number }) {
   return (
     <div className="flex flex-col gap-3">
-      {rows.length === 0 ? (
-        <p className="text-cc-muted">Nothing is running right now. A session, an agent or a workflow that works shows up here.</p>
+      {live.sessions.length === 0 ? (
+        <p className="text-cc-muted">No active session</p>
       ) : (
-        <ul aria-label="Running now" className="divide-y divide-cc-rule">
-          {rows.map(({ key, ...row }) => (
-            <RunRow key={key} {...row} />
+        <ul aria-label="Active sessions" className="divide-y divide-cc-rule">
+          {live.sessions.map((session) => (
+            <SessionRow key={session.id} session={session} nowMs={now} />
           ))}
         </ul>
       )}
-      {info.hiddenSdk > 0 && (
+      {live.hiddenScripts > 0 && (
         <p className="text-xs text-cc-soft">
-          {info.hiddenSdk} automated SDK {info.hiddenSdk === 1 ? 'run is' : 'runs are'} hidden: a script started {info.hiddenSdk === 1 ? 'it' : 'them'}, not Mark.
+          {live.hiddenScripts} script {live.hiddenScripts === 1 ? 'run' : 'runs'} hidden
         </p>
       )}
+      {live.source === 'file-age' && <p className="text-xs text-cc-soft">Process list unavailable</p>}
     </div>
   );
 }
 
 export function RunningPanel(placement: PanelPlacement) {
-  const result = usePanel<SessionsInfo>('/api/sessions', SESSIONS_MODULES);
+  const result = usePanel<AgentsLive>('/api/agents', AGENTS_MODULES);
   const now = useNow();
   return (
     <GlassPanel id="running" title="Running" {...placement}>
       <PanelContent title="Running" result={result}>
-        {(info) => <RunningList info={info} now={now} />}
+        {(live) => <RunningList live={live} now={now} />}
       </PanelContent>
     </GlassPanel>
   );

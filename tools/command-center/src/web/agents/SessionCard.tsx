@@ -7,7 +7,7 @@ import { RunRow, type RunRowProps } from '../now/RunRow';
 import { Age, formatDuration } from '../now/time';
 
 // One session of the Agents page: a card with the title and the state of the session, how long it ran, where its files are, and under them its agents and workflows,
-// drawn with the same rows as the Running panel of the Now page. Every word that comes from a session file (the title, the branch, what an agent was asked to do, the
+// each one a row (RunRow). Every word that comes from a session file (the title, the branch, what an agent was asked to do, the
 // name of a phase) is shown as text. Nothing here is html.
 
 /**
@@ -120,8 +120,8 @@ export function sessionRunMs(session: SessionInfo, nowMs: number): number | null
 
 /**
  * The row of an agent: what it was asked to do, its state, a bar, and how long it ran. Claude Code writes no percent for an agent, so its bar says only the three things
- * that are known: it runs (a bar that moves), it is done (a full bar), or it stopped without an end (an empty bar). The Running panel does not list a stopped agent, and this
- * page does, because it is the full list.
+ * that are known: it runs (a bar that moves), it is done (a full bar), or it stopped without an end (an empty bar). This page lists a stopped agent too, because it is the
+ * full list.
  */
 export function agentRow(agent: AgentInfo, nowMs: number): RunRowProps {
   return {
@@ -224,7 +224,7 @@ export function SessionCard({ session, now, linked }: SessionCardProps) {
   const titleId = useId();
   const [showAll, setShowAll] = useState(false);
 
-  // The agents that a workflow started are not rows: a workflow has up to hundreds of them, and its own row (with its phases) stands for them, as on the Running panel.
+  // The agents that a workflow started are not rows: a workflow has up to hundreds of them, and its own row (with its phases) stands for them.
   const workflows = runningFirst(session.workflows);
   const agents = runningFirst(session.agents.filter((agent) => agent.workflowId === null));
   const shownAgents = showAll ? agents : agents.slice(0, AGENTS_SHOWN);

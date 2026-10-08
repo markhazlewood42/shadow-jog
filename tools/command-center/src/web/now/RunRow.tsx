@@ -1,18 +1,18 @@
-import { Bot, MessageSquare, Workflow } from 'lucide-react';
+import { Bot, Workflow } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { ProgressBar } from './ProgressBar';
 import { formatDuration } from './time';
 
-/** The three kinds of thing that the Running panel lists, each with its own icon. */
-export type RunKind = 'session' | 'agent' | 'workflow';
+/** The two kinds of thing that a session card of the Agents page lists as rows, each with its own icon. */
+export type RunKind = 'agent' | 'workflow';
 
-const ICONS = { session: MessageSquare, agent: Bot, workflow: Workflow } as const;
+const ICONS = { agent: Bot, workflow: Workflow } as const;
 
 export type RunRowProps = {
   kind: RunKind;
-  /** The name of the thing: the title of a session, what an agent was asked to do, the name of a workflow. This is transcript text: it is shown as text. */
+  /** The name of the thing: what an agent was asked to do, or the name of a workflow. This is transcript text: it is shown as text. */
   name: string;
-  /** The state in words ("working", "waiting for you", "running", "done"). It is written out, so the state never depends on a color or a bar. */
+  /** The state in words ("running", "done"). It is written out, so the state never depends on a color or a bar. */
   state: string;
   /** How far along the thing is, from 0 to 1, or null while it runs and nothing says how far (see ProgressBar). */
   progress: number | null;
@@ -22,12 +22,12 @@ export type RunRowProps = {
   detail?: string;
   /** The agents and workflows of a session are drawn under the session and a little to the right of it. */
   nested?: boolean;
-  /** Anything that belongs to the row and goes under its bar. The Agents page puts the phases of a workflow there. The Running panel has none. */
+  /** Anything that belongs to the row and goes under its bar. The Agents page puts the phases of a workflow there. */
   children?: ReactNode;
 };
 
 /**
- * One row of the Running panel (and of the Agents page, which lists the same things in full): what it is, its state, a bar, and how long it has run. The bar and the words say the same thing two ways, so a person who
+ * One row of a session card on the Agents page: an agent or a workflow, its state, a bar, and how long it has run. The bar and the words say the same thing two ways, so a person who
  * cannot see the bar (or has turned its motion off) still reads the state, and one who skims sees the bar.
  */
 export function RunRow({ kind, name, state, progress, runMs, detail, nested = false, children }: RunRowProps) {

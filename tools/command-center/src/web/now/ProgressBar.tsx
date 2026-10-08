@@ -1,7 +1,7 @@
 import { ProgressBar as HeroProgressBar } from '@heroui/react';
 
 /**
- * A bar for the Running panel. `value` is how far along the thing is, from 0 to 1, or null when nothing says how far: Claude Code writes no percent for an
+ * A bar for a row of the Agents page. `value` is how far along the thing is, from 0 to 1, or null when nothing says how far: Claude Code writes no percent for an
  * agent, so a running agent has a bar that moves (an indeterminate one, which has no value for a screen reader either) and a finished one has a full bar.
  * A workflow does have progress, in the agents that are done of the agents that started, and gets a bar with that value.
  *
