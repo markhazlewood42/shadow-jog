@@ -18,6 +18,10 @@ jobs:
     #   github.event.pull_request.user.login == 'new-developer' ||
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
 
+    # Skip drafts. Skip pull requests from forks too: GitHub withholds secrets from them, so
+    # the review cannot sign in there.
+    if: ${{ !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository }}
+
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -35,22 +39,22 @@ jobs:
         id: claude-review
         uses: anthropics/claude-code-action@v1
         env:
-          # In a headless run the plugin starts its review subagents in the background, and the
-          # run ends with "The review agent is still running" before they finish. This setting
-          # runs them in the foreground, so the review waits for each result.
+          # A headless run ends when the main session ends. This setting runs any subagent in the
+          # foreground, so the run waits for it (anthropics/claude-code-action issues 1499 and 1646).
           CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1'
-          # Run every review subagent on Sonnet. The plugin asks for Opus in two of its agents.
-          # A model that Claude passes beats a plain default, so the FORCE flag is needed.
+          # Run any subagent on Sonnet. The FORCE flag makes this win over a model that Claude passes.
           CLAUDE_CODE_SUBAGENT_MODEL: sonnet
           CLAUDE_CODE_SUBAGENT_MODEL_FORCE: '1'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          # The gh commands are the ones the code-review plugin lists in its own allowed-tools.
-          # A run without them cannot read the pull request, so it can report "No issues found"
-          # without a review.
+          # The built-in /code-review command (docs: code.claude.com/docs/en/code-review). It replaces
+          # the code-review plugin. On Claude Code 2.1.285 and later with Sonnet 5.5, the plugin skips
+          # its review agents and still posts "No issues found" (anthropics/claude-code issue 100401).
+          # The built-in command reviews the diff itself and reports its findings. "high" is its effort
+          # level. --comment posts the findings on the pull request as inline comments.
+          prompt: '/code-review high --comment ${{ github.event.pull_request.number }}'
+          # The review reads the pull request with these gh commands. A run without them cannot
+          # read the diff.
           # --permission-mode auto is the mode that Anthropic's own review workflow uses
           # (anthropics/claude-code-action, .github/workflows/claude-review.yml). A classifier
           # approves a command outside this list, such as a grep or a cd, when it is safe.
