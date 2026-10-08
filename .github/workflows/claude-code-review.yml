@@ -46,11 +46,13 @@ jobs:
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
-      # The action hides Claude's output, so a failed call says only "is_error:true".
-      # Print the final result text (for example "Failed to authenticate. API Error: 401 ...")
-      # so the log names the cause. stop-commands keeps that text from running workflow commands.
-      - name: Show why the Claude review failed
-        if: failure()
+      # The action hides Claude's output, so the log shows only counts (turns, cost, "is_error").
+      # Print the final result text of every run: the cause of a failed call (for example
+      # "Failed to authenticate. API Error: 401 ..."), or the reason a review stopped early.
+      # The review posts the same kind of text on the pull request. stop-commands keeps the text
+      # from running workflow commands.
+      - name: Show the Claude review result
+        if: always()
         env:
           EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
         run: |
