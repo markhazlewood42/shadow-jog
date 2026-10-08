@@ -63,7 +63,7 @@ function blocksOf(line: Record<string, unknown>): Record<string, unknown>[] {
 /**
  * Reads the lines of the end of a parent's file. It looks at three things and keeps no text of any of them:
  * - an `Agent` call (a `tool_use` block of an assistant line named `Agent`): its id;
- * - a `SendMessage` call: the parent wrote to the agent that `input.to` names. A call counts once, whatever its id: a line that is written twice is one call;
+ * - a `SendMessage` call: the parent wrote to the agent that `input.to` names. A call counts once, by the id of the call: a line that is written twice is one call;
  * - a message from an agent: a `user` line whose `origin` is `peer`, from the agent. When the agent hands back its final report, the line says
  *   `handback: true`, and that line is the end of the agent, not a message.
  *
