@@ -105,8 +105,8 @@ function docDecision(id: string, extra: Partial<Decision> = {}): Decision {
 
 const statusInfo = (texts: string[]): StatusInfo => ({
   updated: '2026-10-06',
-  rightNow: { heading: 'Right now (2026-10-06)', html: '<p>Fixture.</p>' },
   nextUpForMark: texts.map((text) => ({ text, html: `<p>${text}</p>` })),
+  milestone: { current: null, problem: null },
   milestones: [],
 });
 

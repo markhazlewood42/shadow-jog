@@ -51,7 +51,7 @@ describe('parseGhRun', () => {
     }
     expect(run('in_progress', 'failure').state).toBe('running');
 
-    // Anything else has no verdict: a run that was cancelled or skipped, a conclusion that GitHub adds later, a status that this does not know, a finished run with no
+    // Anything else has no verdict: a run that was canceled or skipped, a conclusion that GitHub adds later, a status that this does not know, a finished run with no
     // conclusion. It is "none", with no time and no address, and it is never taken for a pass.
     for (const [status, conclusion] of [
       ['completed', 'cancelled'],

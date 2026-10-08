@@ -61,7 +61,7 @@ const noDocDecisions: Panel<Decision[]> = { ok: true, updatedAt: T0, data: [] };
 const goodStatus: Panel<StatusInfo> = {
   ok: true,
   updatedAt: T0,
-  data: { updated: null, rightNow: { heading: 'Right now', html: '' }, nextUpForMark: [{ text: 'Pick the color.', html: '<p>Pick the color.</p>' }], milestones: [] },
+  data: { updated: null, nextUpForMark: [{ text: 'Pick the color.', html: '<p>Pick the color.</p>' }], milestone: { current: null, problem: null }, milestones: [] },
 };
 
 function routeWith(overrides: { decisions?: Panel<DecisionsInfo>; github?: Panel<GithubInfo> } = {}) {

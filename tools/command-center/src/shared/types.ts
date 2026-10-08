@@ -190,16 +190,33 @@ export type DocPageData = DocPage & {
 // text. The one exception is a field that is called `html`: the server made it, and it is safe to
 // put into the page as it is.
 
-/** What `GET /api/status` holds (inside a Panel): the current section of status.md, and the milestones of the engine migration. */
+/**
+ * The addresses of the two docs that the Status panel links to: status.md and docs/engine/migration.md (see `slugOf` in the doc index for how a path becomes one).
+ * The status module reads the same two files (STATUS_DOC_PATH and MIGRATION_DOC_PATH), and a test checks that these slugs are the ones of those paths.
+ */
+export const STATUS_DOC_SLUG = 'status';
+export const MIGRATION_DOC_SLUG = 'engine/migration';
+
+/**
+ * What `GET /api/status` holds (inside a Panel): what the Status panel of the Now page reads from status.md (its date and the number of items that wait for Mark),
+ * the `milestone` key of its frontmatter, and the milestones of the engine migration. It holds no text of status.md besides the items of the "Next up for Mark" list.
+ */
 export type StatusInfo = {
   /** The `updated` date of the frontmatter of status.md, as written there, or null when there is none. */
   updated: string | null;
-  /** The current "Right now" section: its heading as plain text, and its body as html. */
-  rightNow: { heading: string; html: string };
-  /** The items of the first "Next up for Mark" list in that section, in order. `text` is plain words and `html` is the item as html. */
+  /** The items of the first "Next up for Mark" list in the current "Right now" section, in order. `text` is plain words and `html` is the item as html. */
   nextUpForMark: { text: string; html: string }[];
-  /** The milestones of the table in docs/engine/migration.md. The table has no state column, so there are names and scope only. */
-  milestones: { id: string; name: string; scope: string }[];
+  /**
+   * The `milestone` key of the frontmatter of status.md, checked against the ids of `milestones`. `current` is the id it names, and null for the value `none`
+   * (no milestone has started) and when there is a problem. `problem` is `missing` when the key is not there (or has no value), `unknown` when its value is not
+   * `none` and not an id of the table (ids are case sensitive), and null when the key is good. The page never guesses a milestone from a bad key.
+   */
+  milestone: { current: string | null; problem: 'missing' | 'unknown' | null };
+  /**
+   * The milestones of the table in docs/engine/migration.md, in the order of the table. The table has no state column, so there are names and scope only.
+   * `anchor` is the id of the heading of the milestone in the page of that doc (the ids that the docs site gives its headings), or null when the doc has no heading for it.
+   */
+  milestones: { id: string; name: string; scope: string; anchor: string | null }[];
 };
 
 /** A local branch. `date` is when its newest commit was made (an ISO time). */
@@ -274,7 +291,7 @@ export type GithubInfo = { open: PullRequest[]; merged: PullRequest[] };
 /**
  * What `GET /api/ci` holds (inside a Panel): the newest run of the workflows on the branch `main`, as the Status panel shows it.
  * `passing`: it finished and passed. `failing`: it finished and failed, ran out of time, did not start, or waits for an approval. `running`: it is queued or
- * still runs. `none`: there is no run, or the newest one has no verdict (it was cancelled or skipped); then there is no time and no address either.
+ * still runs. `none`: there is no run, or the newest one has no verdict (it was canceled or skipped); then there is no time and no address either.
  */
 export type CiMain = {
   state: 'passing' | 'failing' | 'running' | 'none';

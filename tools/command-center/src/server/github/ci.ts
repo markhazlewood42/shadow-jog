@@ -22,7 +22,7 @@ const wordOf = (value: unknown): string => (typeof value === 'string' ? value.to
 
 /**
  * What a run says. A run that has not finished is `running`, whatever its conclusion field says (it has none yet). A finished one passed (`success`) or failed
- * (see FAILED_CONCLUSIONS). Anything else has no verdict and is `none`: a run that was cancelled or skipped (a newer push cancels the run before it), one with
+ * (see FAILED_CONCLUSIONS). Anything else has no verdict and is `none`: a run that was canceled or skipped (a newer push cancels the run before it), one with
  * a status that GitHub adds later, and a finished run with no conclusion. A new word must never be taken for a pass.
  */
 function stateOf(status: string, conclusion: string): CiMain['state'] {
