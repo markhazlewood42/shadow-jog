@@ -62,12 +62,9 @@ Mark decides the look. Agents check exactness, coverage and stability. A decisio
 
 | D | Question | Asked at | Recommendation |
 |---|---|---|---|
-| D2 | How much of the old battle and the old field? a: re-lay both, repaint the 8 backdrops at 320x180. b: box the battle in a centered 480x270 frame until M3. c: box the battle and the field until M3 and M5. | Review 1, from the WP2a mock | a, with backdrops painted at 320x180 and shown at 2x |
-| D5 | Where do the extra 160x90 pixels go in battle? 1: bottom-anchor the party, panel and ground; the extra rows become sky. 2: add floor below and spread the formation. 3: keep the rows and center everything. | Review 1 (the other 7 backdrops at Review 6) | 1 for the old battle |
 | D7 | Maps smaller than the screen (Rustyard 544x448, Loading Dock 7 320x224, nine interiors). a: accept the void. b: an edge-fill or themed surround (code only). c: enlarge the map (his written yes per map). | Review 3 (one interior, the Dock and the Rustyard at Review 1) | Rustyard b, Dock b, interiors a |
 | D8 | UI widths. Dialog: full width, or a box capped at 464 px and centered. Menu panes: stretch, or cap list rows near 360 px. Shop: widen the list or cap the detail pane. | Review 4 | Cap the dialog at 464 px (every line wraps as today). Cap list widths near 360 px. Widen the shop list to about 240 px. |
 | D9 | Title and comic art: the new skyline composition, the logo at 4x or 5x, the 17 panel rects, portraits at 2x or 3x. | Review 5 | Keep 4x and 2x. He confirms the compositions. |
-| D11 | `fx.json` shockwave reach (his data): scale the 3 screen-wide values by 1.33 (`intro` 320 to 427, `phase` 260 to 347, `down.boss` 240 to 320), or keep them. | Review 1 | Scale. He approves it in the FX lab. No other `fx.json` value changes. |
 | D17 | Content that now shows at 640x360 (pop-ins, cropped sets, exposed edges). Per item: a: limit the camera (code). b: fade or letterbox (code). c: move the content (story or map data, his written yes). | Review 3 | He picks per item. The silent default is code only: a at a camera edge, b for a cutscene beat. |
 
 **Defaults unless Mark objects.**
@@ -551,7 +548,45 @@ The battle got cheaper on both canvases (the GPU mean 1.42 to 1.24, p95 2.80 to 
 
 **Round 2: checks.** `npm run check` exit 0 (29 files, 375 tests); `npm run build` exit 0; `npm run budget` exit 0, 235.3 kB gzip of 236 (round 1: 235.1); `tests/balance.test.ts` and `tests/economy.test.ts` pass; the scan passes (90 hits, 25 allow entries, 4 pending, none new); `git diff origin/main...HEAD --stat -- public/ src/story` is empty; `src/data` shows only the three D11 lines of `fx.json`; `src/engine` has the same 5 files. Perf was not measured again: round 2 changed names, two ground and label rows and no per-frame work (the gates held with margin in round 1).
 
-**Round 2: pre-existing, not fixed here.** For WP6: N2, the per-enemy special case `e.key === 'lurker'` in `battle.ts` (`enemyBox`; it was in `battle.ts` before WP2b; a lift field on the enemy record fits better); the end panels (VICTORY and LEVEL UP at `y = 44`, `battle.ts` about lines 842 and 974, rows 59 and 127) do not derive from the HUD frame yet. For WP8: N8, the `src/data/hud.json` and `stages.json` mentions in `docs/GLOSSARY.md` ("Global HUD", "Stage") and `docs/IDEAS.md` entry 1, which name files that do not exist on this branch; the plan-era "480x270" in `docs/CONCEPTS.md` (the 3D mode line) and the engine docs; the open-decisions table still lists D2 and D5, which Mark answered at Review 1. For WP7: `docs/screenshots` holds two stale committed files (`24c-ending-results-driven-test-run.png`, `progress-01-lantern-row-street.png`) that no run rewrites.
+**Round 2: pre-existing, not fixed here.** For WP6: N2, the per-enemy special case `e.key === 'lurker'` in `battle.ts` (`enemyBox`; it was in `battle.ts` before WP2b; a lift field on the enemy record fits better); the end panels (VICTORY and LEVEL UP at `y = 44`, `battle.ts` about lines 842 and 974, rows 59 and 127) do not derive from the HUD frame yet. For WP8: N8, the `src/data/hud.json` and `stages.json` mentions in `docs/GLOSSARY.md` ("Global HUD", "Stage") and `docs/IDEAS.md` entry 1, which name files that do not exist on this branch; the plan-era "480x270" in `docs/CONCEPTS.md` (the 3D mode line) and the engine docs. (The open-decisions table listed D2, D5 and D11 after Review 1; the main session removed those rows with the verification table below.) For WP7: `docs/screenshots` holds two stale committed files (`24c-ending-results-driven-test-run.png`, `progress-01-lantern-row-street.png`) that no run rewrites.
 
-**Verification table.** (pending: the main session writes it after the three verifiers score WP2b.)
+**Verification table.** Two rounds of 3, 2026-10-08. Each round had three fresh verifiers: A correctness and tests (Haiku), B design conformance (Haiku), C visual and runtime (Sonnet). Full reports (git-ignored): `media/verification/wp2b/verifier-correctness.md`, `verifier-design.md`, `verifier-visual.md` (round 1) and `round2-verifier-correctness.md`, `round2-verifier-design.md`, `round2-verifier-visual.md` (round 2). Some verifiers returned their report as a message; the main session saved it unchanged. **Round 1 (at 5f6dee3): fail** on one criterion, R9 (median 6.5: A 7, B 6; false comments and records). Every pass line held, and the average of the medians was 8.08 (medians: R1 7.5, R2 7.5, R3 8, R4 8, R5 8, R6 8.5, R7 7, R8 9, R9 6.5, V1 9, V3 8, V4 9, V5 9). **Round 2 (at 82ce53d): pass.** The WP2b exit lines PL4 (battle layers) and PL5 hold, every median is 7 or more, and the average of the medians is 8.23.
+
+| Criterion | A | B | C | Median | Note |
+|---|---|---|---|---|---|
+| R1 Coverage | 8 | 8 | n/a | 8 | All 17 rows match the diff. Rows 54, 131, 132 (check) and 134 moved from WP6. |
+| R2 Layout correctness | 8 | n/a | 8 | 8 | The edge HUD is clean in the 18 battle shots and on all 8 backdrops with 1 and with 4 enemies. |
+| R3 Pixel fidelity | 8 | 8 | 9 | 8 | World and front 320x180 at 2x, the enemy layer at `WORLD_SCALE`; 0 odd edges in the backdrop and party rows. |
+| R4 Content exposure | n/a | n/a | 8 | 8 | No void on any backdrop. The bosses reach 4 to 6 world px into the head row (the boss allowance, a recorded deviation). |
+| R5 Readability and balance | n/a | n/a | 8 | 8 | Battle panes only. |
+| R6 Performance | 8 | n/a | 8 | 8 | The battle is cheaper than at WP2: GPU 1.17 / 2.40 ms, software 1.53 / 1.90 ms. CI software field 5.25 / 5.80 ms (gate 8 / 11). |
+| R7 Test quality | 8 | 7 | 9 | 8 | A re-ran 8 controls and each fails. Two capture runs: 74 of 74 byte-identical. The test header overclaims: named fix. |
+| R8 Behavior kept | 9 | 8 | 9 | 9 | 75 of 75 e2e tests on the GPU. Balance and economy pass. `src/battle` is untouched. |
+| R9 Code clarity and records | 8 | 6 | n/a | 7 | One place for each number, one `HUD_FRAME`. Three false comments and loose records remain: named fixes. |
+| V1 Exactness | n/a | n/a | 9 | 9 | 0 uneven blocks at k=3 and k=2. |
+| V3 One pixel grid | 9 | 8 | 9 | 9 | The `BW * WORLD_SCALE` pin. The three layers explain the k=3 shot; a 2 px shift or a 1.5x or 2.667x scale raises the difference from 36,789 to 46,679 to 63,897 px. |
+| V4 Stability | n/a | n/a | 8 | 8 | Two runs byte-identical. The battle intro frames are complete. |
+| V5 Legibility | n/a | n/a | 9 | 9 | Cap height 21 device px at k=3 and 14 at k=2. |
+
+n/a at WP2b: V2 (WP2b changes battle pixels by design; PL5 holds).
+
+| Pass line | Result | Evidence |
+|---|---|---|
+| PL4 (battle layers) | pass | `tests/battle-geom.test.ts` (25) and `tests/layout.test.ts` (11) pass. C: the layers are 320x180, 640x360 and 320x180, and their composite explains the k=3 shot except the HUD, the HP bars and the glow. |
+| PL5 | pass | `public/` and `src/story` diffs empty. `src/data` holds only the three D11 lines. |
+| PL1, PL6, PL7, PL8, PL9 | pass | Scan: 4 pending, 0 unlisted. `gpufx` 5 of 5. Perf above. `npm run check` (375 tests), build and budget (235.3 kB gzip of 236) exit 0. No expected-fail marker. |
+| PL11 | pass | Mark saw the composition pictures and answered D6 before the next package. |
+| PL13 | pass | CI 7m55s at 5f6dee3 (round 1). 14m0s at 82ce53d (round 2): `e2e-engines` took 13m53s (5m55s in round 1); the cause is not checked, and the run is under 25 minutes. Every job green, `claude-review` included (fixed on `main` by PR #25). |
+
+**Named fixes, made in the first commit of the next package (WP3).**
+
+- R9 comments and records (B): `src/scenes/battlekit/geom.ts:201` and `src/art/battlebg.ts:24` state the boss exception; `geom.ts:32-33` says that `PROMPT_CLEAR` and `FLOATER_TOP` follow the top band; `battlebg.ts:848-851` says that only the cables are shares of `BW`; `docs/CONCEPTS.md:253` says the 2026-10-04 research kept 480x270; "22 to 28" gets its unit, world px (`geom.ts:216`, `tests/battle-geom.test.ts:195`, this file twice); the header of `tests/battle-geom.test.ts:4-6`; `:134` names three story boss fights and the Warden's phase form; `tests/layout.test.ts:154` (list menus reach 210 px); `tests/camera.test.ts:35`; "recolors" in `docs/ARCHITECTURE.md:278`; name or explain `geom.ts:61` (`+ 13`) and `:196` (`BHT - 8`); one command-menu height for `render.ts:883` and `:899`.
+- `ENEMY_CLEARANCE` and `BOSS_OVERLAP_MAX`: `placeEnemies` uses them, or they move into the test file (B finding 5).
+- `battle.ts:1060`: `ENEMIES[e.key]!` becomes `must(...)` (WP2b wrote that line). This file's package table: the row 132 wording.
+- A test caps an enemy row at four (the summon cap, `src/battle/engine.ts:768`).
+- `FLOATER_TOP` gets a test, and a second damage number must not rise into a three-line top text window (it reaches 2 px inside today).
+- A three-member party with a list window open (`render.ts:897` lets a list reach 210 px from x 4; the left hero stands at about 201): a picture, then fix the anchor or the `battle.ts:1153` comment.
+- `scripts/contact-sheet.mjs`: `--base` defaults to the real picture size, not 480x270, and the caption says "the right picture is larger" only when it is.
+
+**Process note for WP3 on.** In round 2 a temporary `geom.ts` control edit by verifier A reloaded verifier C's dev page during a capture; C found it and discarded that run. From WP3 on, verifiers A and B make no edit under `src/` while C runs: their negative controls use test copies or `vi.mock`.
 
