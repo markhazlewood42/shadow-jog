@@ -7,8 +7,8 @@ export type CopyTextParts = {
   title: string;
   /** The path of the doc file in the repo, with forward slashes (`docs/engine/decisions.md`). */
   id: string;
-  /** The GitHub repo as `owner/name`. The server sends it in /api/health. */
-  githubRepo: string;
+  /** The GitHub repo as `owner/name`. The server sends it in /api/health. Null when that answer is not there: line 2 is then the path alone. */
+  githubRepo: string | null;
   /** The text of the doc file, as the source route sent it. It goes after the header without a change. */
   source: string;
 };
@@ -26,7 +26,8 @@ function githubUrlOf(githubRepo: string, id: string): string {
 export function buildCopyText({ title, id, githubRepo, source }: CopyTextParts): string {
   // A title is one line. White space in it is folded to single spaces, so the header is always exactly two lines.
   const line1 = title.replace(/\s+/g, ' ').trim();
-  return `${line1}\n${id} ${githubUrlOf(githubRepo, id)}\n\n${source}`;
+  const line2 = githubRepo === null ? id : `${id} ${githubUrlOf(githubRepo, id)}`;
+  return `${line1}\n${line2}\n\n${source}`;
 }
 
 /** The name of the downloaded file: the file name of the doc (`decisions.md` for `docs/engine/decisions.md`). */

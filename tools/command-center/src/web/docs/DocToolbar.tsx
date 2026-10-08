@@ -15,6 +15,9 @@ import { docSourcePath } from './paths';
 /** How long the main button shows the result of an action before it goes back to "Copy for LLM". */
 const RESULT_MS = 2000;
 
+/** How long a Blob URL lives after a download starts, in milliseconds. */
+const REVOKE_MS = 10_000;
+
 /** What the main button shows. `idle` is the button as it rests. The other three last for 2 seconds. */
 type Shown = 'idle' | 'copied' | 'copy-failed' | 'download-failed';
 
@@ -35,7 +38,7 @@ async function fetchSource(slug: string): Promise<string> {
 }
 
 /** Saves `text` as a file that has this name. The browser has no "save this text" call, so the page makes a link to a Blob and clicks it. */
-function saveAsFile(text: string, name: string): void {
+export function saveAsFile(text: string, name: string): void {
   const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown' }));
   const link = document.createElement('a');
   link.href = url;
@@ -43,8 +46,24 @@ function saveAsFile(text: string, name: string): void {
   document.body.append(link);
   link.click();
   link.remove();
-  // The browser has the Blob by now. The URL would keep it in memory until the page closes.
-  URL.revokeObjectURL(url);
+  // Firefox and Safari start the download after click() returns, so the URL must live a little longer.
+  // The delay is long enough for the download to start. After it, the URL would only keep the Blob in memory until the page closes.
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_MS);
+}
+
+/**
+ * Puts the doc on the clipboard for an LLM. Throws when the doc text cannot be fetched or the clipboard says no.
+ * The repo name for the address in the header comes from the health answer, as for the other links of the site. The copy does not need it:
+ * when that answer fails, the header has the path of the file and no address.
+ */
+export async function copyForLlm(doc: Pick<DocPage, 'id' | 'slug' | 'title'>): Promise<void> {
+  const health = getJson<Health>('/api/health').then(
+    (answer) => answer.githubRepo,
+    () => null,
+  );
+  const [source, githubRepo] = await Promise.all([fetchSource(doc.slug), health]);
+  // The clipboard belongs to the browser. It says no by rejecting the call, or by having no `navigator.clipboard`, which throws here too.
+  await navigator.clipboard.writeText(buildCopyText({ title: doc.title, id: doc.id, githubRepo, source }));
 }
 
 /**
@@ -73,10 +92,7 @@ export function DocToolbar({ doc }: { doc: Pick<DocPage, 'id' | 'slug' | 'title'
 
   async function copy(): Promise<void> {
     try {
-      // The repo name for the address in the header comes from the health answer, as for the other links of the site.
-      const [source, health] = await Promise.all([fetchSource(doc.slug), getJson<Health>('/api/health')]);
-      // The clipboard belongs to the browser. It says no by rejecting the call, or by having no `navigator.clipboard`, which throws here too.
-      await navigator.clipboard.writeText(buildCopyText({ title: doc.title, id: doc.id, githubRepo: health.githubRepo, source }));
+      await copyForLlm(doc);
       show('copied');
     } catch {
       show('copy-failed');
