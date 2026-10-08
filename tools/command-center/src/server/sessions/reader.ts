@@ -100,13 +100,13 @@ export type SessionFacts = {
   lines: { read: number; known: number };
 };
 
-export type AgentFacts = { firstTime: string | null; ended: boolean; lastTime: string | null };
+type AgentFacts = { firstTime: string | null; ended: boolean; lastTime: string | null };
 
 /**
  * What the `.meta.json` of an agent says. `toolUseId` is the id of the `Agent` call that started the agent: the agents module uses it to find the
  * parent. The sessions module does not show it, so it picks the other three fields and the answer of `GET /api/sessions` has no new key.
  */
-export type AgentMeta = { description: string; agentType: string; model: string; toolUseId: string };
+type AgentMeta = { description: string; agentType: string; model: string; toolUseId: string };
 
 /** A time in milliseconds as an ISO text. A file system keeps more than a millisecond, so this rounds to the nearest one. */
 export const isoOf = (ms: number): string => new Date(Math.round(ms)).toISOString();
@@ -136,8 +136,18 @@ export function createSessionReader(config: Config, source: string) {
   /** The files that could not be read, as `path` and error code, so that the console says it once and not at every look. */
   const reported = new Set<string>();
 
-  /** A read that is kept while the file is the same, and that waits its turn among the other reads. */
-  const memoRead = <T>(stamp: FileStamp, read: () => Promise<T>) => cache.memo(stamp.path, stamp, () => limit(read));
+  /**
+   * A read that is kept while the file is the same, and that waits its turn among the other reads. The answer is kept under the path of the file. A caller
+   * that reads one file for two different things gives each its own `key`, or one would be handed the answer of the other.
+   */
+  const memoRead = <T>(stamp: FileStamp, read: () => Promise<T>, key: string = stamp.path) => cache.memo(key, stamp, () => limit(read));
+
+  /** Says something on the server's console once: the same `key` is not said again at the next look. */
+  function reportOnce(key: string, message: string): void {
+    if (reported.has(key)) return;
+    reported.add(key);
+    console.error(message);
+  }
 
   /**
    * Runs a read of a file that only adds detail (an agent, a journal, a title). When it fails, the module goes on
@@ -148,11 +158,7 @@ export function createSessionReader(config: Config, source: string) {
     try {
       return await read();
     } catch (error) {
-      const key = `${path} ${codeOf(error)}`;
-      if (!reported.has(key)) {
-        reported.add(key);
-        console.error(`The ${source} source could not read ${path} (${codeOf(error)}), and goes on without it.`);
-      }
+      reportOnce(`${path} ${codeOf(error)}`, `The ${source} source could not read ${path} (${codeOf(error)}), and goes on without it.`);
       return fallback;
     }
   }
@@ -244,6 +250,7 @@ export function createSessionReader(config: Config, source: string) {
   return {
     optional,
     memoRead,
+    reportOnce,
     readSession,
     titleOf,
     readAgent,
@@ -258,5 +265,3 @@ export function createSessionReader(config: Config, source: string) {
     },
   };
 }
-
-export type SessionReader = ReturnType<typeof createSessionReader>;

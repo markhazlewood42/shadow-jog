@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Hono } from 'hono';
+import { createAgentsSource } from './agents/module';
+import type { IsAlive } from './agents/process-list';
 import { createApp } from './app';
 import { type Config, PACKAGE_DIR } from './config';
 import { createDecisionsSource } from './decisions/module';
@@ -10,6 +12,7 @@ import { createGitSource } from './git/module';
 import { createGithubSource } from './github/module';
 import { makeToken } from './guard';
 import { createHub } from './hub';
+import { registerAgentsRoutes } from './routes/agents';
 import { registerDecisionsRoutes } from './routes/decisions';
 import { registerDocsRoutes } from './routes/docs';
 import { registerEngineRoutes } from './routes/engine';
@@ -28,7 +31,8 @@ import { createStatusSource } from './status/module';
  * other than the tool's own (the docs of a fixture repo are not the docs of the Shadow Jog repo), and
  * `refreshGapMs` sets the least time between two forced refreshes of a panel (10 s unless this says
  * another: the end-to-end server sets 0, so a test can change what the fake gh says and see it at once),
- * and `now` is the clock of the sessions module (a test sets it to the moment its session files were made for).
+ * `now` is the clock of the sessions and agents modules (a test sets it to the moment its session files were made for),
+ * and `isAlive` is the process check of the agents module (a test says which processes run, so it needs no real one).
  */
 export type ComposeDeps = {
   config: Config;
@@ -37,6 +41,7 @@ export type ComposeDeps = {
   navFile?: string;
   refreshGapMs?: number;
   now?: () => number;
+  isAlive?: IsAlive;
 };
 
 export type Composed = {
@@ -117,6 +122,12 @@ export function compose(deps: ComposeDeps): Composed {
   const sessions = createSessionsSource({ config, hub, ...(deps.now === undefined ? {} : { now: deps.now }) });
   registerSessionsRoutes(app, sessions, panelRoutes);
   modules.push(sessions);
+
+  // The live agents: the Claude sessions that run now, with their agents and workflows as a tree, under /api/agents. It starts from the process
+  // list of Claude Code and reads only the files of those sessions, so it can look every 3 s (config `agents.pollMs`).
+  const agents = createAgentsSource({ config, hub, ...(deps.now === undefined ? {} : { now: deps.now }), ...(deps.isAlive === undefined ? {} : { isAlive: deps.isAlive }) });
+  registerAgentsRoutes(app, agents, panelRoutes);
+  modules.push(agents);
 
   // The Now page: its list "Your move" is made from five of the sources above, under /api/now/your-move. It has no module of its own to start or stop.
   registerNowRoutes(app, { decisions, sessions, status, github, engine });

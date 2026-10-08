@@ -1,0 +1,6 @@
+{"type":"launched"}
+{"type":"started","key":"Plan/1","agentId":"w1","label":"LEAK-journal-label-one","phase":"Plan"}
+{"type":"started","key":"Plan/2","agentId":"w2","label":"LEAK-journal-label-two","phase":"Plan"}
+{"type":"started","key":"Build/1","agentId":"w3","label":"LEAK-journal-label-three","phase":"Build"}
+{"type":"result","key":"Plan/1","agentId":"w1","result":"LEAK-journal-result-one"}
+{"type":"result","key":"Plan/2","agentId":"w2","result":{"text":"LEAK-journal-result-two"}}
