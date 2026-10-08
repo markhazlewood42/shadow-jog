@@ -58,6 +58,10 @@ const PROCESS_FILE = /^\d+\.json$/;
 /** The characters of a session file name (the same ones as discover.ts allows), so an id from a file cannot reach another folder. */
 const SESSION_ID = /^[\w-]{1,128}$/;
 
+/** How long to wait before the second read of a file that looked torn. Claude rewrites a process file in place, and a read in the middle sees half of it. */
+const RETRY_PAUSE_MS = 50;
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
 type Shaped = { pid: number; entry: ProcessEntry };
 
 /** The four keys of a process file when they have the expected shape, else null. Everything else in the file is left where it is. */
@@ -80,7 +84,7 @@ const earlier = (a: number | null, b: number | null): number | null => (a === nu
  * processes can run one session (a session that was resumed while the first one still runs): they give one entry, which is busy when
  * either is busy and began when the first one did. The entries come in the order of the pids.
  */
-export async function readProcessList(folder: string, isAlive: IsAlive = processIsAlive): Promise<ProcessList> {
+export async function readProcessList(folder: string, isAlive: IsAlive = processIsAlive, pause: (ms: number) => Promise<void> = sleep): Promise<ProcessList> {
   let names: string[];
   try {
     // Only regular files: a folder, or a link, with the name of a process file is not one.
@@ -95,13 +99,17 @@ export async function readProcessList(folder: string, isAlive: IsAlive = process
   for (const name of names) {
     // `readSmallJson` gives null for a file that is empty, too big (64 KB: a process file has a few hundred bytes), not JSON or not an object. It throws
     // for a file that cannot be opened (locked, or no rights). Both mean "skip it"; the files are read one by one, so a big folder cannot open them all at once.
-    let json: Record<string, unknown> | null = null;
+    // A file that gives null or a wrong shape may be torn (Claude rewrites it while we read), so it is read once more after a short pause, and the second reading decides.
+    let found: Shaped | null = null;
     try {
-      json = await readSmallJson(join(folder, name));
+      for (let attempt = 0; attempt < 2 && found === null; attempt += 1) {
+        if (attempt === 1) await pause(RETRY_PAUSE_MS);
+        const json = await readSmallJson(join(folder, name));
+        found = json === null ? null : shapeOf(json);
+      }
     } catch {
       continue;
     }
-    const found = json === null ? null : shapeOf(json);
     if (found === null) continue;
     shaped += 1;
 

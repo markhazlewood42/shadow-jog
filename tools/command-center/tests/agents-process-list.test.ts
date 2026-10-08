@@ -44,6 +44,31 @@ const S2 = 'bbbbbbbb-0000-4000-8000-000000000002';
 const S3 = 'cccccccc-0000-4000-8000-000000000003';
 
 describe('the process list', () => {
+  it('C1: a process file that is torn once is read again and counted', async () => {
+    const folder = freshFolder();
+    write(folder, '7710021.json', '{"pid": 7710021, "sessionId": "'); // half written, as Claude rewrites it
+    // The pause between the two reads is injected: it is where Claude finishes the write.
+    const pause = vi.fn(async () => write(folder, '7710021.json', processFile(7710021, S1, 'busy')));
+
+    const list = await readProcessList(folder, () => true, pause);
+
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy' }] });
+  });
+
+  it('C1: a process file that stays broken is skipped after one retry', async () => {
+    const folder = freshFolder();
+    write(folder, '7710022.json', ''); // empty, and it stays empty
+    write(folder, '7710023.json', processFile(7710023, S2, 'idle'));
+    const pause = vi.fn(async () => {});
+
+    const list = await readProcessList(folder, () => true, pause);
+
+    // One retry for the broken file, none for the good one. The good one is kept and the broken one is skipped.
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle' }] });
+  });
+
   it('process list reads valid files and drops a dead pid', async () => {
     const folder = freshFolder();
     write(folder, '7710011.json', processFile(7710011, S1, 'busy', 1_790_000_000_000));
