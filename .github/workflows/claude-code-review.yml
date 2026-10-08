@@ -25,7 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      # write: the step "Post the review on the pull request" posts the findings with the job's token.
+      pull-requests: write
       issues: read
       id-token: write
 
@@ -50,15 +51,17 @@ jobs:
           # The built-in /code-review command (docs: code.claude.com/docs/en/code-review). It replaces
           # the code-review plugin. On Claude Code 2.1.285 and later with Sonnet 5.5, the plugin skips
           # its review agents and still posts "No issues found" (anthropics/claude-code issue 100401).
-          # The built-in command reviews the diff itself and reports its findings. "high" is its effort
-          # level. --comment posts the findings on the pull request as inline comments.
-          prompt: '/code-review high --comment ${{ github.event.pull_request.number }}'
+          # The built-in command reviews the diff itself and reports its findings. "medium" is its effort
+          # level. There is no --comment: that flag can silently print the findings instead of posting
+          # them (anthropics/claude-code issue 88190), and here it posted nothing. The step "Post the
+          # review on the pull request" posts them from the run's execution file.
+          prompt: '/code-review medium ${{ github.event.pull_request.number }}'
           # The review reads the pull request with these gh commands. A run without them cannot
-          # read the diff.
+          # read the diff. No tool here posts a comment: the posting step does that.
           # --permission-mode auto is the mode that Anthropic's own review workflow uses
           # (anthropics/claude-code-action, .github/workflows/claude-review.yml). A classifier
           # approves a command outside this list, such as a grep or a cd, when it is safe.
-          claude_args: '--permission-mode auto --model sonnet --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"'
+          claude_args: '--permission-mode auto --model sonnet --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
@@ -78,6 +81,19 @@ jobs:
           echo "::stop-commands::$stop"
           jq -r '[.[] | select(.type == "result")] | last // {} | (.result // .errors // "no result message") | tostring | .[0:1000]' "$file" || echo "Could not read $file"
           echo "::$stop::"
+
+      # Post the findings on the pull request, as one review with an inline comment on each line.
+      # If GitHub refuses a line, the script posts one comment with the full list instead. It never
+      # fails the job. The script is .github/scripts/post-review.mjs.
+      - name: Post the review on the pull request
+        if: always()
+        env:
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/post-review.mjs
 
       # The action logs only a count of denied tool calls. List them (tool name and the first
       # 150 characters of the input) and add a warning, so a "No issues found" from a run that
