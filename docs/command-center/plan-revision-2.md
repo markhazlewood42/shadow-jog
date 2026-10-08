@@ -4,7 +4,7 @@ title: "Shadow Jog Command Center — Revision 2 plan"
 project: shadow-jog
 created: 2026-10-07
 updated: 2026-10-07
-status: draft for Mark's review
+status: approved by Mark 2026-10-07
 tags: [tooling, command-center, plan]
 ---
 
