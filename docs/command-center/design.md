@@ -68,6 +68,7 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 | Diagram build | Our own SVG lines and smooth motion. The server checks every 3 seconds. No new dependency. |
 | Status panel | Five rows with links, and a milestone strip with one square for each row of the milestone table. |
 | Doc buttons | A split button as on the markedup-consulting site: "Copy for LLM", with "Download as markdown" in its menu. The copied text has a 2-line source header. |
+| Unknown line (Mark, 2026-10-08) | The Agents page ignores an unknown line in a session file. There is no unknown box. |
 
 ---
 
@@ -284,7 +285,7 @@ The process list is an internal file of Claude Code, and its format is not promi
 - Every panel loads on its own and shows its own error state. It never fails silently. Examples: "GitHub: gh is not signed in", "Sessions: unknown file format".
 - One broken source never blanks the page.
 - Every panel shows when it last updated.
-- (Revision 2) The Agents page: an unreadable process list gives the label "Process list unavailable" and the file-age fallback. An unknown line in a session file gives a box with the state "unknown". It never crashes the page.
+- (Revision 2) The Agents page: an unreadable process list gives the label "Process list unavailable" and the file-age fallback. The page ignores an unknown line in a session file and never throws.
 - (Revision 2) A Status row whose source failed shows an error label and Retry. The other rows stay.
 - (Revision 2) Copy and Download show "Copy failed" or "Download failed" on the button. They never fail silently.
 
