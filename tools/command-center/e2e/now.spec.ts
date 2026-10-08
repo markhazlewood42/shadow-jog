@@ -497,7 +497,7 @@ test.describe('the data of the panels', () => {
     await expect(notice).toContainText('Decision:');
     await expect(notice).toContainText('gh is not signed in to GitHub');
     await expect(panel(page, 'Your move').getByRole('listitem').filter({ hasText: 'Pick the gadget color' })).toHaveCount(1); // the status items are still there
-    await expect(panel(page, 'Status')).toContainText('Right now (2026-01-02)');
+    await expect(panel(page, 'Status').getByRole('link', { name: '3 for you' })).toBeVisible();
 
     // gh works again: Retry brings the panel back, and the notice goes with it.
     setGhMode({ mode: 'ok', replies: { 'pr list': { stdout: fixtureFromNow('prs.json') } } });
@@ -543,8 +543,9 @@ test.describe('the data of the panels', () => {
     await page.route('**/api/now/your-move', (route) => route.fulfill({ json: empty({ items: [], missing: [] }) }));
     await page.route('**/api/sessions', (route) => route.fulfill({ json: empty({ sessions: [], scanned: 0, skipped: 0, hiddenSdk: 0 }) }));
     await page.route('**/api/github', (route) => route.fulfill({ json: empty({ open: [], merged: [] }) }));
-    await page.route('**/api/status', (route) => route.fulfill({ json: empty({ updated: null, rightNow: { heading: 'Right now', html: '' }, nextUpForMark: [], milestones: [] }) }));
+    await page.route('**/api/status', (route) => route.fulfill({ json: empty({ updated: null, nextUpForMark: [], milestone: { current: null, problem: null }, milestones: [] }) }));
     await page.route('**/api/git', (route) => route.fulfill({ json: empty({ current: null, ahead: null, behind: null, branches: [], commits: [] }) }));
+    await page.route('**/api/ci', (route) => route.fulfill({ json: empty({ state: 'none', createdAt: null, url: null }) }));
     await page.route('**/api/health', (route) => route.fulfill({ json: { ok: true, name: 'Shadow Jog Command Center', version: '0.0.0', startedAt: new Date().toISOString(), gameUrl: 'http://localhost:3007', githubRepo: 'fixture-owner/fixture-repo', links: [] } }));
     await page.goto('/');
     await allLoaded(page);
@@ -555,9 +556,9 @@ test.describe('the data of the panels', () => {
     await expect(panel(page, 'Pull requests')).toContainText('No open pull requests.');
     // The link to the merged ones is there when nothing is open too: it is not about the list.
     await expect(panel(page, 'Pull requests').getByRole('link', { name: 'Merged pull requests' })).toHaveAttribute('href', 'https://github.com/fixture-owner/fixture-repo/pulls?q=is%3Apr+is%3Amerged');
-    await expect(panel(page, 'Status')).toContainText('This section of status.md has no text.');
-    await expect(panel(page, 'Status')).toContainText('No milestones are listed.');
-    await expect(panel(page, 'Status')).toContainText('No branch is checked out');
+    // The Status panel has a label for each empty value, and the strip has no squares.
+    for (const label of ['No branch', 'no run', 'Nothing for you', 'No date', 'No commits', 'Not started']) await expect(panel(page, 'Status')).toContainText(label);
+    await expect(panel(page, 'Status').getByRole('listitem')).toHaveCount(0);
     await expect(panel(page, 'Links')).toContainText('No other links are set.');
     // The game is still a link: it is the one thing that the panel always has.
     await expect(panel(page, 'Links').getByRole('link', { name: 'Game' })).toHaveAttribute('href', 'http://localhost:3007');
@@ -576,57 +577,6 @@ test.describe('the data of the panels', () => {
       const moment = Date.parse((await updated.getAttribute('datetime')) ?? '');
       expect(Number.isNaN(moment), name).toBe(false);
       expect(moment, name).toBeLessThanOrEqual(Date.now() + 5_000);
-    }
-  });
-
-  test('the status panel shows the branch, ahead and behind, and 5 commits', async ({ page, request }) => {
-    // The fixture repo has two commits and no upstream. A bare repo plays the remote: the fixture's two commits are pushed to it, one more is made there
-    // (so the branch is behind by one, once git has fetched it), and three are made here (so it is ahead by three). Five commits are then the newest five.
-    const remote = join(E2E_DIR, 'now-remote.git');
-    const other = join(E2E_DIR, 'now-other');
-    const identity = { GIT_AUTHOR_NAME: 'Fixture Author', GIT_AUTHOR_EMAIL: 'author@fixture.example', GIT_COMMITTER_NAME: 'Fixture Author', GIT_COMMITTER_EMAIL: 'author@fixture.example' };
-    const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', ...args], { cwd, encoding: 'utf8', env: { ...process.env, ...identity } }).trim();
-    const original = git(REPO, 'rev-parse', 'HEAD');
-    try {
-      rmSync(remote, { recursive: true, force: true });
-      rmSync(other, { recursive: true, force: true });
-      mkdirSync(remote, { recursive: true });
-      git(remote, 'init', '--bare', '--quiet', '--initial-branch=main');
-      git(REPO, 'remote', 'add', 'now-e2e', remote);
-      git(REPO, 'push', '--quiet', '-u', 'now-e2e', 'main');
-      git(E2E_DIR, 'clone', '--quiet', remote, other);
-      git(other, 'commit', '--allow-empty', '--quiet', '-m', 'Only on the remote');
-      git(other, 'push', '--quiet', 'origin', 'main');
-      git(REPO, 'fetch', '--quiet', 'now-e2e');
-      for (const n of [1, 2, 3]) git(REPO, 'commit', '--allow-empty', '--quiet', '-m', `Local change ${n}`);
-      await request.get('/api/git?refresh=1');
-
-      await page.goto('/');
-      await allLoaded(page);
-      const status = panel(page, 'Status');
-      const branch = status.getByRole('region', { name: 'Branch' });
-      await expect(branch).toContainText('main');
-      await expect(branch).toContainText('ahead 3');
-      await expect(branch).toContainText('behind 1');
-      await expect(branch).toContainText('of now-e2e/main');
-      const commits = status.getByRole('region', { name: 'Recent commits' }).getByRole('listitem');
-      await expect(commits).toHaveCount(5);
-      await expect(commits.nth(0)).toContainText('Local change 3');
-      await expect(commits.nth(2)).toContainText('Local change 1');
-      await expect(commits.nth(3)).toContainText('Add the second doc');
-      await expect(commits.nth(4)).toContainText('Add the first doc');
-      await expect(commits.nth(0)).toContainText('Fixture Author');
-      await expect(commits.nth(0).locator('time')).toHaveAttribute('datetime', /^\d{4}-\d\d-\d\dT/);
-    } finally {
-      git(REPO, 'reset', '--hard', '--quiet', original);
-      try {
-        git(REPO, 'remote', 'remove', 'now-e2e');
-      } catch {
-        // The test failed before it made the remote.
-      }
-      rmSync(remote, { recursive: true, force: true });
-      rmSync(other, { recursive: true, force: true });
-      await request.get('/api/git?refresh=1');
     }
   });
 
@@ -657,6 +607,382 @@ test.describe('the data of the panels', () => {
     // The automated run is counted, and nothing of it is on the page.
     await expect(running).toContainText('1 automated SDK run is hidden');
     await expect(page.getByText('made up sdk run')).toHaveCount(0);
+  });
+});
+
+// ---- the status panel: five rows with links, and the milestone strip ----
+
+test.describe('the status panel', () => {
+  const STATUS_MD = join(REPO, 'status.md');
+  const REPO_ADDRESS = 'https://github.com/fixture-owner/fixture-repo';
+  const RUN_URL = `${REPO_ADDRESS}/actions/runs/4242`;
+
+  /** The squares of the fixture's migration doc, in the order of its table: the words of each, and where it links (Phase 0 has no heading in the doc, so it links to the doc). */
+  const SQUARES = [
+    { name: 'Phase 0 Platform spike', href: '/docs/engine/migration' },
+    { name: 'M0 Kernel', href: '/docs/engine/migration#m0-kernel' },
+    { name: 'M1b 3D proof (parallel with M2)', href: '/docs/engine/migration#m1b-3d-proof' },
+    { name: 'M2 Stage', href: '/docs/engine/migration#m2-stage' },
+  ];
+
+  /** The row of the panel with this label (its `dt`), or, for the strip, nothing: the strip is not a row. */
+  const rowOf = (page: Page, label: string) =>
+    panel(page, 'Status')
+      .locator('dl > div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label.replace(/[.]/g, '\\.')}$`) }) });
+  const stripOf = (page: Page) => panel(page, 'Status').getByRole('list', { name: 'Milestones' });
+  const squaresOf = (page: Page) => stripOf(page).getByRole('listitem').getByRole('link');
+
+  /** What \`gh run list\` prints for one run of main, made 2 hours ago (and a little more, so that the age is "2 h" for a long time). */
+  const run = (status: string, conclusion: string) => JSON.stringify([{ status, conclusion, url: RUN_URL, createdAt: new Date(Date.now() - 2 * 3_600_000 - 30_000).toISOString() }]);
+
+  /** Makes the fake gh answer the CI look with this text, and makes the server look at once (an open page then hears of it). */
+  async function setRun(request: APIRequestContext, stdout: string): Promise<void> {
+    setGhMode({ mode: 'ok', replies: { 'run list': { stdout } } });
+    expect((await request.get('/api/ci?refresh=1')).status()).toBe(200);
+  }
+
+  /**
+   * Runs \`body\` while the fixture repo has a remote called origin (a bare repo) that is one commit ahead of the fixture's two (so the branch is behind by one, once git
+   * has fetched it), and while the branch has three commits of its own (so it is ahead by three). The repo is put back as it was. \`body\` gets the id of the newest commit.
+   */
+  async function withOrigin(request: APIRequestContext, body: (head: string) => Promise<void>): Promise<void> {
+    const remote = join(E2E_DIR, 'now-remote.git');
+    const other = join(E2E_DIR, 'now-other');
+    const identity = { GIT_AUTHOR_NAME: 'Fixture Author', GIT_AUTHOR_EMAIL: 'author@fixture.example', GIT_COMMITTER_NAME: 'Fixture Author', GIT_COMMITTER_EMAIL: 'author@fixture.example' };
+    const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', ...args], { cwd, encoding: 'utf8', env: { ...process.env, ...identity } }).trim();
+    const original = git(REPO, 'rev-parse', 'HEAD');
+    try {
+      rmSync(remote, { recursive: true, force: true });
+      rmSync(other, { recursive: true, force: true });
+      mkdirSync(remote, { recursive: true });
+      git(remote, 'init', '--bare', '--quiet', '--initial-branch=main');
+      git(REPO, 'remote', 'add', 'origin', remote);
+      git(REPO, 'push', '--quiet', '-u', 'origin', 'main');
+      git(E2E_DIR, 'clone', '--quiet', remote, other);
+      git(other, 'commit', '--allow-empty', '--quiet', '-m', 'Only on the remote');
+      git(other, 'push', '--quiet', 'origin', 'main');
+      git(REPO, 'fetch', '--quiet', 'origin');
+      for (const n of [1, 2, 3]) git(REPO, 'commit', '--allow-empty', '--quiet', '-m', `Local change ${n}`);
+      expect((await request.get('/api/git?refresh=1')).status()).toBe(200);
+      await body(git(REPO, 'rev-parse', 'HEAD'));
+    } finally {
+      git(REPO, 'reset', '--hard', '--quiet', original);
+      try {
+        git(REPO, 'remote', 'remove', 'origin');
+      } catch {
+        // The test failed before it made the remote.
+      }
+      rmSync(remote, { recursive: true, force: true });
+      rmSync(other, { recursive: true, force: true });
+      await request.get('/api/git?refresh=1');
+    }
+  }
+
+  test.afterEach(async ({ request }) => {
+    resetGh();
+    await request.get('/api/ci?refresh=1');
+  });
+
+  test('status panel shows five rows with links', async ({ page, request }) => {
+    await setRun(request, run('completed', 'success'));
+    await withOrigin(request, async (head) => {
+      const problems = watchConsole(page);
+      await page.goto('/');
+      await allLoaded(page);
+      const status = panel(page, 'Status');
+
+      // Five rows, in this order, each a label (a dt) and a value (a dd). The milestone strip is not a row.
+      await expect(status.locator('dl > div')).toHaveCount(5);
+      await expect(status.locator('dl dt')).toHaveText(['Branch', 'CI on main', 'Next up', 'status.md', 'Last commit']);
+      await expect(status.locator('dl dd')).toHaveCount(5);
+
+      // Branch: the name is a link to the branch on GitHub (in a new tab, as the other links that leave the site), and the standing is muted text after it.
+      const branch = rowOf(page, 'Branch');
+      const branchLink = branch.getByRole('link', { name: 'main', exact: true });
+      await expect(branchLink).toHaveAttribute('href', `${REPO_ADDRESS}/tree/main`);
+      await expect(branchLink).toHaveAttribute('target', '_blank');
+      await expect(branchLink).toHaveAttribute('rel', /noreferrer/);
+      await expect(branch.getByRole('link')).toHaveCount(1);
+      await expect(branch).toContainText('ahead 3, behind 1');
+
+      // CI on main: the word and the age are the link to the run.
+      const ciLink = rowOf(page, 'CI on main').getByRole('link');
+      await expect(ciLink).toHaveText('passing 2 h ago');
+      await expect(ciLink).toHaveAttribute('href', RUN_URL);
+      await expect(ciLink).toHaveAttribute('target', '_blank');
+      await expect(ciLink.locator('time')).toHaveAttribute('datetime', /^\d{4}-\d\d-\d\dT/);
+
+      // Next up: how many items wait for Mark (the fixture's status.md has three), as a link to the status doc page, which stays on this site.
+      const nextUp = rowOf(page, 'Next up').getByRole('link');
+      await expect(nextUp).toHaveText('3 for you');
+      await expect(nextUp).toHaveAttribute('href', '/docs/status');
+      await expect(nextUp).not.toHaveAttribute('target', '_blank');
+
+      // status.md: the date of its last update (month and day, and the year only when it is not this year), as a link to the same page.
+      const updated = rowOf(page, 'status.md').getByRole('link');
+      await expect(updated).toHaveText(new Date().getFullYear() === 2026 ? 'updated Jan 2' : 'updated Jan 2, 2026');
+      await expect(updated).toHaveAttribute('href', '/docs/status');
+
+      // Last commit: its age, as a link to the commit on GitHub. The newest commit was made a moment ago.
+      const commit = rowOf(page, 'Last commit').getByRole('link');
+      await expect(commit).toHaveText(/^(just now|\d+ min ago)$/);
+      await expect(commit).toHaveAttribute('href', `${REPO_ADDRESS}/commit/${head}`);
+      await expect(commit).toHaveAttribute('target', '_blank');
+      expect(problems).toEqual([]);
+
+      // The strip under the rows: the label, and one square for each milestone of the table, none of them current while the key says "none".
+      await expect(status.getByText('Milestone', { exact: true })).toBeVisible();
+      await expect(squaresOf(page)).toHaveCount(SQUARES.length);
+      await expect(status.getByText('Not started')).toBeVisible();
+
+      // CI in its other states: running and failing are links to the run, and "no run" (an empty list, or a run with no verdict) has no link and no age.
+      for (const [stdout, word, linked] of [
+        [run('in_progress', ''), 'running', true],
+        [run('completed', 'failure'), 'failing', true],
+        [run('completed', 'cancelled'), 'no run', false],
+        ['[]', 'no run', false],
+      ] as const) {
+        await setRun(request, stdout);
+        const ci = rowOf(page, 'CI on main');
+        await expect(ci).toContainText(word);
+        await expect(ci.getByRole('link')).toHaveCount(linked ? 1 : 0);
+        await expect(ci.locator('time')).toHaveCount(linked ? 1 : 0);
+      }
+
+      // A link of the panel that stays on the site opens the page without loading a new one.
+      await nextUp.click();
+      await expect(page).toHaveURL(/\/docs\/status$/);
+      await expect(page.getByRole('heading', { level: 1 }).first()).toContainText('Fixture Project');
+    });
+  });
+
+  test('status panel marks the current milestone and links each square', async ({ page, request }) => {
+    // The key of status.md says M0: the file is edited, and the server hears of it through the file watcher, so the open page changes by itself.
+    const original = readFileSync(STATUS_MD, 'utf8');
+    expect(original).toContain('milestone: none');
+    try {
+      await page.addInitScript((key) => localStorage.setItem(key, 'off'), GLASS_KEY); // plain panels: the colors are those of the styles, with no glass behind them
+      await page.goto('/');
+      await allLoaded(page);
+      await expect(squaresOf(page)).toHaveCount(SQUARES.length);
+      for (const square of await squaresOf(page).all()) await expect(square).toHaveAttribute('data-state', 'later'); // "none": every square is outlined
+
+      writeFileSync(STATUS_MD, original.replace('milestone: none', 'milestone: M0'));
+      await expect.poll(async () => ((await (await request.get('/api/status')).json()) as { data?: { milestone?: { current: string | null } } }).data?.milestone?.current, { timeout: 15_000 }).toBe('M0');
+
+      const status = panel(page, 'Status');
+      const squares = squaresOf(page);
+      // Before the current milestone a square is filled, the current one is marked, and after it a square is outlined. Each links to its heading in the doc page.
+      await expect(squares.nth(1)).toHaveAttribute('data-state', 'current');
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('data-state')))).toEqual(['done', 'current', 'later', 'later']);
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('aria-label')))).toEqual(SQUARES.map((square) => square.name));
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('href')))).toEqual(SQUARES.map((square) => square.href));
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('aria-current')))).toEqual([null, 'step', null, null]);
+
+      // The look of the three states: filled with the muted color, amber, and a lavender outline with no fill.
+      const colors = await tokenColors(page);
+      const paint = (index: number) => squares.nth(index).evaluate((link) => ({ fill: getComputedStyle(link).backgroundColor, line: getComputedStyle(link).borderTopColor }));
+      expect(await paint(0)).toEqual({ fill: colors.muted, line: colors.muted });
+      expect(await paint(1)).toEqual({ fill: colors.accent, line: colors.accent });
+      expect(await paint(2)).toEqual({ fill: 'rgba(0, 0, 0, 0)', line: colors.ruleSolid });
+      expect(await paint(3)).toEqual({ fill: 'rgba(0, 0, 0, 0)', line: colors.ruleSolid });
+
+      // Next to the strip stands the current milestone, as a link to its heading.
+      const current = status.locator('a', { hasText: 'M0 Kernel' });
+      await expect(current).toHaveCount(1);
+      await expect(current).toHaveAttribute('href', '/docs/engine/migration#m0-kernel');
+      await expect(status.getByText('Not started')).toHaveCount(0);
+
+      // The current square is the one amber item of the panel, and the page keeps to its two: with the glass off and with it on.
+      for (const mode of ['plain', 'glass'] as const) {
+        if (mode === 'glass') {
+          await glassSwitch(page).click();
+          await expect(glassSwitch(page)).toHaveAttribute('aria-pressed', 'true');
+        }
+        const amber = await amberItems(page);
+        expect(amber.filter((item) => item.startsWith('a[M0 Kernel]')), mode).toHaveLength(1);
+        expect(amber.filter((item) => /^a\[(Phase 0|M1b|M2)/.test(item)), mode).toEqual([]);
+        await expectAtMostTwoAmberItems(page);
+      }
+
+      // A square is a link of the router: it opens the doc page at the heading of its milestone, without loading a new page.
+      await squares.nth(2).click();
+      await expect(page).toHaveURL(/\/docs\/engine\/migration#m1b-3d-proof$/);
+      await expect(page.getByRole('heading', { level: 3, name: 'M1b 3D proof' })).toBeInViewport();
+    } finally {
+      writeFileSync(STATUS_MD, original);
+      await expect.poll(async () => ((await (await request.get('/api/status')).json()) as { data?: { milestone?: { current: string | null; problem: string | null } } }).data?.milestone, { timeout: 15_000 }).toEqual({ current: null, problem: null });
+    }
+  });
+
+  test('a milestone key that is missing or names no milestone shows an error label and no filled or current square', async ({ page }) => {
+    const info = (milestone: { current: string | null; problem: 'missing' | 'unknown' | null }) => ({
+      ok: true,
+      updatedAt: new Date().toISOString(),
+      data: { updated: '2026-01-02', nextUpForMark: [], milestone, milestones: SQUARES.map((square, index) => ({ id: square.name.split(' ')[0], name: '', scope: '', anchor: index === 0 ? null : `anchor-${index}` })) },
+    });
+    for (const [milestone, label] of [
+      [{ current: null, problem: 'missing' }, 'Milestone key missing'],
+      [{ current: null, problem: 'unknown' }, 'Unknown milestone'],
+      // A key that the server called good, but that names a milestone the list does not have (the page never guesses either).
+      [{ current: 'M9', problem: null }, 'Unknown milestone'],
+    ] as const) {
+      await page.unroute('**/api/status');
+      await page.route('**/api/status', (route) => route.fulfill({ json: info(milestone) }));
+      await page.goto('/');
+      const status = panel(page, 'Status');
+      await expect(status.getByText(label, { exact: true })).toBeVisible();
+      await expect(status.getByText('Not started')).toHaveCount(0);
+      // The rows stay, and every square is outlined.
+      await expect(status.locator('dl > div')).toHaveCount(5);
+      await expect(squaresOf(page)).toHaveCount(SQUARES.length);
+      expect(await squaresOf(page).evaluateAll((links) => links.map((link) => link.getAttribute('data-state')))).toEqual(['later', 'later', 'later', 'later']);
+      await expect(stripOf(page).locator('[aria-current]')).toHaveCount(0);
+      await expect(stripOf(page).getByRole('link').first()).toHaveAttribute('href', '/docs/engine/migration');
+    }
+  });
+
+  test('status panel shows an error row when a source fails and keeps the other rows', async ({ page, request }) => {
+    await setRun(request, run('completed', 'success'));
+    const failedPanel = (code: string, lastGood: unknown = null) => ({ ok: false, error: { code, message: `The ${code} source could not be read.` }, updatedAt: null, lastGood });
+
+    // Each source on its own: the rows that need it show an error label, the code of the failure and a Retry button, and every other row shows its value.
+    const cases = [
+      { source: 'status', route: '**/api/status', code: 'status-missing', reply: () => ({ json: failedPanel('status-missing') }), failing: ['Next up', 'status.md'], stripFails: true, staying: ['Branch', 'CI on main', 'Last commit'] },
+      { source: 'git', route: '**/api/git', code: 'git-failed', reply: () => ({ json: failedPanel('git-failed') }), failing: ['Branch', 'Last commit'], stripFails: false, staying: ['CI on main', 'Next up', 'status.md'] },
+      // The CI source has an older run (the panel carries it as lastGood): the row still says "Unavailable" and does not show the run that may be out of date.
+      {
+        source: 'ci',
+        route: '**/api/ci',
+        code: 'gh-not-signed-in',
+        reply: () => ({ json: failedPanel('gh-not-signed-in', { data: { state: 'passing', createdAt: new Date().toISOString(), url: RUN_URL }, updatedAt: new Date().toISOString() }) }),
+        failing: ['CI on main'],
+        stripFails: false,
+        staying: ['Branch', 'Next up', 'status.md', 'Last commit'],
+      },
+      // The health reply has the name of the repo on GitHub, which the links of the branch and of the last commit are made from.
+      { source: 'health', route: '**/api/health', code: 'internal-error', reply: () => ({ status: 500, json: { ok: false, error: { code: 'internal-error', message: 'The server hit a problem.' } } }), failing: ['Branch', 'Last commit'], stripFails: false, staying: ['CI on main', 'Next up', 'status.md'] },
+    ];
+    // What each row says when its sources are good (the fixture repo has no upstream, and its last commit is old).
+    const VALUES: Record<string, RegExp> = {
+      Branch: /^main\s*no upstream$/,
+      'CI on main': /^passing 2 h ago$/,
+      'Next up': /^3 for you$/,
+      'status.md': /^updated Jan 2/,
+      'Last commit': /\d+ d ago$/,
+    };
+
+    await page.addInitScript((key) => localStorage.setItem(key, 'off'), GLASS_KEY);
+    for (const item of cases) {
+      await page.route(item.route, (route) => route.fulfill(item.reply()));
+      await page.goto('/');
+      const status = panel(page, 'Status');
+      await expect(status.locator('dl > div')).toHaveCount(5);
+
+      for (const label of item.failing) {
+        const failing = rowOf(page, label);
+        await expect(failing, `${item.source}: ${label}`).toContainText('Unavailable');
+        await expect(failing, `${item.source}: ${label}`).toContainText(item.code);
+        await expect(failing.getByRole('button', { name: 'Retry' })).toBeVisible();
+        await expect(failing.getByRole('link')).toHaveCount(0);
+        await expect(failing, `${item.source}: ${label} shows no value`).not.toHaveText(VALUES[label] as RegExp);
+      }
+      for (const label of item.staying) {
+        const staying = rowOf(page, label);
+        await expect(staying, `${item.source}: ${label}`).not.toContainText('Unavailable');
+        await expect(staying.locator('dd'), `${item.source}: ${label}`).toHaveText(VALUES[label] as RegExp);
+        await expect(staying.getByRole('button', { name: 'Retry' })).toHaveCount(0);
+      }
+      // The strip is the status source's too: it says "Unavailable" when that source failed, and keeps its squares otherwise.
+      if (item.stripFails) {
+        await expect(status.getByText('Unavailable')).toHaveCount(item.failing.length + 1);
+        await expect(stripOf(page)).toHaveCount(0);
+      } else {
+        await expect(status.getByText('Unavailable')).toHaveCount(item.failing.length);
+        await expect(squaresOf(page)).toHaveCount(SQUARES.length);
+      }
+      // The panel is not an alert and not blank: it still has its rows and its time, and nothing else on the page shows an error of this source.
+      await expect(status.getByRole('alert')).toHaveCount(0);
+      await expect(status.locator('header time')).toHaveText(/^\d\d:\d\d:\d\d$/);
+
+      // Retry asks the failed source again: the source works now, and the rows come back with their values.
+      await page.unroute(item.route);
+      await rowOf(page, item.failing[0] as string).getByRole('button', { name: 'Retry' }).click();
+      await expect(status.getByText('Unavailable')).toHaveCount(0);
+      for (const label of [...item.failing, ...item.staying]) await expect(rowOf(page, label).locator('dd'), `${item.source}: ${label} after Retry`).toHaveText(VALUES[label] as RegExp);
+    }
+  });
+
+  test('with no source good, the status panel shows the error of its sources and a Retry button', async ({ page }) => {
+    // The server is not there at all: every request fails, and no row could say anything. The panel shows the error of its sources once, and a Retry button.
+    for (const path of ['**/api/status', '**/api/git', '**/api/ci', '**/api/health']) await page.route(path, (route) => route.abort());
+    await page.addInitScript((key) => localStorage.setItem(key, 'off'), GLASS_KEY);
+    await page.goto('/');
+    const status = panel(page, 'Status');
+    const alert = status.getByRole('alert');
+    await expect(alert).toContainText('Cannot reach the command center server');
+    await expect(alert).toContainText('network');
+    await expect(status.locator('dl')).toHaveCount(0);
+    await expect(status.locator('header')).toContainText('Not updated yet');
+
+    // The server answers again: Retry loads the four sources, and the rows are there.
+    for (const path of ['**/api/status', '**/api/git', '**/api/ci', '**/api/health']) await page.unroute(path);
+    await alert.getByRole('button', { name: 'Retry' }).click();
+    await expect(status.locator('dl > div')).toHaveCount(5);
+    await expect(status.getByRole('alert')).toHaveCount(0);
+  });
+
+  test('status panel has no right-now text, no milestone list and no commit list', async ({ page }) => {
+    await page.goto('/');
+    await allLoaded(page);
+    const status = panel(page, 'Status');
+    await expect(status.locator('dl > div')).toHaveCount(5);
+
+    // The text of status.md is not on the panel, and neither are the milestone names and scope, and the subjects of the commits. (The Your move panel may show the
+    // Next up items: this is the Status panel only.)
+    for (const text of [
+      'Right now',
+      'The widget is done',
+      'Review the widget pictures',
+      'Pick the gadget color',
+      'A short last item',
+      'Platform spike',
+      'A spike that tests the design',
+      'The loop and the first scene',
+      'Add the second doc',
+      'Add the first doc',
+      'Fixture Author',
+      'Recent commits',
+      'Milestones',
+    ]) {
+      await expect(status.getByText(text), text).toHaveCount(0);
+    }
+    // There is no region of its own for any of these parts, and the only heading is the title of the panel.
+    for (const name of ['Right now', 'Milestones', 'Recent commits', 'Branch']) await expect(status.getByRole('region', { name })).toHaveCount(0);
+    await expect(status.getByRole('heading')).toHaveText(['Status']);
+    // The only lists are the five rows (a description list) and the strip: the strip holds squares with no words in them, and nothing lists the commits or the milestones as text.
+    await expect(status.locator('ul, ol')).toHaveCount(1);
+    await expect(status.locator('ol')).toHaveAttribute('aria-label', 'Milestones');
+    await expect(status.locator('dl')).toHaveCount(1);
+    for (const square of await squaresOf(page).all()) await expect(square).toHaveText('');
+    await expect(status.getByRole('listitem')).toHaveCount(SQUARES.length);
+
+    // Every piece of text on the panel is a label, a number, a date or a link: none has a sentence's end, and none is longer than the longest name of a milestone.
+    const pieces = await status.evaluate((root) => {
+      const found: string[] = [];
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+        const text = (node.textContent ?? '').replace(/\s+/g, ' ').trim();
+        if (text !== '') found.push(text);
+      }
+      return found;
+    });
+    expect(pieces.length).toBeGreaterThan(10);
+    for (const piece of pieces) {
+      expect(piece.split(' ').length, piece).toBeLessThanOrEqual(6);
+      expect(piece, piece).not.toMatch(/[.!?:;]$/);
+    }
   });
 });
 
