@@ -17,6 +17,7 @@ on:
       - 'docs/**'
       - '**/*.md'
       - 'tools/command-center/**'
+      - '.github/workflows/claude-code-review.yml'
   workflow_dispatch:
 
 # The job only reads the code, so the token gets no more than that.
