@@ -151,7 +151,7 @@ The page reads from top to bottom, in order of importance:
 - The server reads four keys of a file: `sessionId`, `pid`, `startedAt` and `status` (`busy` or `idle`). It checks that the pid is alive. No other key leaves the server.
 - Only sessions about Shadow Jog count. The rule of version 1 applies: the session folder or the working directory is inside an allow-listed root. Automated runs (SDK) stay hidden, and a label gives their count.
 - The state word follows `status`. `busy` is "working". `idle` is "waiting".
-- An agent runs until it has an end record. If it has none and its file did not change for 5 minutes, it still counts as running while its session is `busy`, because a long tool call writes nothing. While the session is `idle`, it counts as stopped and leaves the diagram.
+- An agent runs until it has an end record. If it has none and its file did not change for 5 minutes, it still counts as running while its session is `busy`, because a long tool call writes nothing. After 30 minutes without a change (`agents.staleSeconds`), it counts as stopped even then, because an agent that Mark stops writes no end record. While the session is `idle`, it counts as stopped and leaves the diagram.
 - A finished agent stays for 5 minutes, dimmed, and then leaves. A closed session leaves at once.
 - If the process list cannot be read, the page uses the file ages of version 1 and shows the label "Process list unavailable". In this fallback, the version 1 state decides: "working" counts as `busy` and "waiting" counts as `idle`.
 - With no active session, the page shows one label: "No active session".
@@ -308,6 +308,7 @@ The process list is an internal file of Claude Code, and its format is not promi
 4. **(Revision 2) Finished agents** stay for 5 minutes, dimmed (`agents.lingerSeconds`).
 5. **(Revision 2) The process list folder** is `~/.claude/sessions` (`claude.sessionsRoot`).
 6. **(Revision 2) A box shows at most 12 children,** and then "+N more".
+7. **(Revision 2) A silent agent** counts as stopped after 30 minutes, even in a busy session (`agents.staleSeconds`).
 
 ---
 

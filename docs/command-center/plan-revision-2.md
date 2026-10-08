@@ -23,7 +23,7 @@ The constraints of [plan.md](plan.md) still hold. Revision 2 changes these:
 - Every subagent runs on the smallest model that fits its task: Sonnet for builders and verifiers, Haiku for read-only work. Never Fable or Opus (Mark, 2026-10-07).
 - All new text follows section 5.8 and uses American spelling.
 - No new runtime dependency.
-- The server stays read-only, except for the one answer route. New reads: `~/.claude/sessions/<pid>.json`, one `gh run list` command, and the doc source route. New config keys: `claude.sessionsRoot`, `agents.pollMs` and `agents.lingerSeconds`.
+- The server stays read-only, except for the one answer route. New reads: `~/.claude/sessions/<pid>.json`, one `gh run list` command, and the doc source route. New config keys: `claude.sessionsRoot`, `agents.pollMs`, `agents.lingerSeconds` and `agents.staleSeconds`.
 - Builders commit. The controller pushes after a task passes. No `Co-Authored-By` lines. Nobody stages Mark's paths (`docs/mark-playthrough-notes.md` and `docs/references/`).
 - Every test run sets `CC_NO_OPEN=1`. The E2E server uses port 3010. Mark's own server may use port 3009: leave it. Never touch ports 3007 and 3008, or `../shadow-jog-engine`.
 - Screenshots go to the scratchpad and to Mark at once. They are deleted after the runner judged them.
