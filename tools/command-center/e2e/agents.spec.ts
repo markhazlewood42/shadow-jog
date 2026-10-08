@@ -476,7 +476,7 @@ test.describe('what the page says when there is nothing to list, or it cannot re
     await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible();
     // The panel says when it last had good data (the server loaded the folders before this test, and had none to list then), and shows that data under the error.
     await expect(panel).toContainText(/Last updated \d\d:\d\d:\d\d/);
-    await expect(panel).toContainText('Showing the last good data');
+    await expect(panel).toContainText('Last good data');
     // The error is the panel's own: the rest of the page is there, and the text of the files is not.
     await expect(page.getByRole('heading', { level: 1, name: 'Agents' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
@@ -493,7 +493,7 @@ test.describe('what the page says when there is nothing to list, or it cannot re
     await refreshSessions(request);
     await expect(cardOf(page, 'A session in the known format')).toBeVisible();
     await expect(panel.getByRole('alert')).toHaveCount(0);
-    await expect(panel).not.toContainText('Showing the last good data');
+    await expect(panel).not.toContainText('Last good data');
     // A failed panel is an answer with status 200 (see routes/panel.ts), so the error is the page's own and the console has nothing to say.
     expect(problems).toEqual([]);
   });

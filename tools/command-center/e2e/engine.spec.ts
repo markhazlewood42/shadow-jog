@@ -172,7 +172,7 @@ test.describe('the engine review', () => {
       await expect(alert).toContainText('docs/engine/decisions.md');
       await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible();
       // The list of before is still there under the error, and the panel says so.
-      await expect(panel).toContainText('Showing the last good data');
+      await expect(panel).toContainText('Last good data');
       await expect(decisionRows(page)).toHaveCount(49);
 
       // The column comes back: the error goes by itself.

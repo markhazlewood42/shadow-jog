@@ -1,7 +1,8 @@
-import { execFileSync } from 'node:child_process';
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { type APIRequestContext, type Locator, type Page, chromium, expect, test } from '@playwright/test';
+import type { AgentsLive, Panel } from '../src/shared/types';
 import { E2E_DIR, type GhIssueStore, resetGh, setGhIssues, setGhMode } from './fake-gh';
 import { amberItems, expectAtMostTwoAmberItems, tokenColors, worstTextContrast } from './look';
 
@@ -13,6 +14,7 @@ const PANELS = ['Your move', 'Running', 'Pull requests', 'Status', 'Links'] as c
 
 const REPO = join(E2E_DIR, 'repo');
 const PROJECTS = join(E2E_DIR, 'claude-projects'); // `claude.projectsRoot` of the end-to-end config
+const PROCESSES = join(E2E_DIR, 'claude-sessions'); // `claude.sessionsRoot` of the end-to-end config: the process list of the fixture world
 const WHOLE = join(PROJECTS, 'fixture-shadow-jog'); // `claude.folders`
 const DIST = join(import.meta.dirname, '..', 'dist');
 const ORIGIN = 'http://127.0.0.1:3010'; // the end-to-end server (playwright.config.ts names the same address)
@@ -140,9 +142,43 @@ async function refreshSessions(request: APIRequestContext): Promise<void> {
   expect((await request.get('/api/sessions?refresh=1')).status()).toBe(200);
 }
 
+// ---- the process list of the fixture world: where the Running panel starts ----
+// A process file names a pid, and the server checks that the pid runs. A test cannot start Claude, so it starts a program that only waits and writes a process
+// file for the pid of that program. The program ends by itself after a minute, in case a test dies before it can stop it. A session whose program was stopped leaves the
+// list at once. The fixture world has no process folder until a test makes one: until then the server decides by the file ages (the fallback), and from then on by the process list.
+
+/** The programs that the tests started, so that the end of every test can stop them. */
+const waiting: ChildProcess[] = [];
+
+/** Starts a program that only waits, and gives its pid and the way to stop it. The pid stands for a Claude process that runs. */
+function startLiveProcess(): { pid: number; stop: () => void } {
+  const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60_000)'], { stdio: 'ignore' });
+  waiting.push(child);
+  if (child.pid === undefined) throw new Error('A program for a live pid could not be started.');
+  return { pid: child.pid, stop: () => void child.kill() };
+}
+
+/** Writes the process file of a session: its pid, and busy or idle, and a start `ranSeconds` ago. (The server reads the session id, the start and the status; the rest stays here.) */
+function writeProcess(pid: number, sessionId: string, status: 'busy' | 'idle', ranSeconds: number): void {
+  mkdirSync(PROCESSES, { recursive: true });
+  writeFileSync(join(PROCESSES, `${pid}.json`), JSON.stringify({ pid, sessionId, cwd: REPO, startedAt: Date.now() - ranSeconds * 1000, status }));
+}
+
+/** Asks the agents module to look now, and gives what it found. The Running panel shows the same data. */
+async function refreshAgents(request: APIRequestContext): Promise<AgentsLive> {
+  const res = await request.get('/api/agents?refresh=1');
+  expect(res.status()).toBe(200);
+  const panel = (await res.json()) as Panel<AgentsLive>;
+  if (!panel.ok) throw new Error(`The agents panel failed: ${panel.error.message}`);
+  return panel.data;
+}
+
 test.afterEach(async ({ request }) => {
+  for (const child of waiting.splice(0)) child.kill();
   rmSync(PROJECTS, { recursive: true, force: true });
+  rmSync(PROCESSES, { recursive: true, force: true });
   await request.get('/api/sessions?refresh=1');
+  await request.get('/api/agents?refresh=1');
 });
 
 // The first time that a browser starts the glass, its GPU compiles the shaders of PlasmaUI. A browser with no GPU (a software renderer, as headless browsers often are)
@@ -271,7 +307,8 @@ test.describe('the panels', () => {
     await page.goto('/');
     await allLoaded(page);
 
-    await expect(page.getByText('The glass panels need WebGL2, and this browser does not have it. The panels are plain.')).toBeVisible();
+    await expect(page.getByText('No WebGL2: plain panels', { exact: true })).toBeVisible();
+    await expect(page.getByText('The glass panels need WebGL2')).toHaveCount(0);
     // There is nothing to switch, so there is no switch, and no canvas, and the five panels are the plain ones.
     await expect(glassSwitch(page)).toHaveCount(0);
     await expect(page.locator('canvas')).toHaveCount(0);
@@ -363,8 +400,10 @@ test.describe('a page that cannot be shown', () => {
     await page.route('**/assets/NowPage-*.js', (route) => route.abort());
     await page.goto('/');
     const alert = page.getByRole('alert');
-    await expect(alert).toContainText('This page could not be shown.');
-    await expect(alert).toContainText('Reload to get the new one.');
+    // One short line that says to reload, and then the message of the error (which is data).
+    await expect(alert.getByText('Reload the page. If the server restarts, the page files can change.', { exact: true })).toBeVisible();
+    await expect(alert).not.toContainText('could not be shown');
+    await expect(alert).not.toContainText('Reload to get the new one.');
     // The page is not left blank: the error says what is wrong. (The page that failed to load is not there, so it has no title.)
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(0);
 
@@ -486,13 +525,15 @@ test.describe('the data of the panels', () => {
     await expect(panel(page, 'Pull requests').getByRole('alert')).toContainText('gh is not signed in to GitHub');
     await expect(panel(page, 'Pull requests').getByRole('alert')).toContainText('gh-not-signed-in');
     await expect(panel(page, 'Pull requests').getByRole('button', { name: 'Retry' })).toBeVisible();
-    // The pull requests that it knew stay under the error, with the time of that data.
-    await expect(panel(page, 'Pull requests')).toContainText('Showing the last good data');
+    // The pull requests that it knew stay under the error, with the time of that data, as a label.
+    await expect(panel(page, 'Pull requests')).toContainText(/Last good data: \d\d:\d\d:\d\d/);
+    await expect(panel(page, 'Pull requests')).not.toContainText('Showing the last good data');
     await expect(panel(page, 'Pull requests')).toContainText('Fixture: the widget is ready to merge');
     // Every other panel goes on: no error, and its own data. Your move says which of its sources it could not read, as a notice and not as an error.
     for (const name of ['Your move', 'Running', 'Status', 'Links'] as const) await expect(panel(page, name).getByRole('alert')).toHaveCount(0);
-    const notice = panel(page, 'Your move').getByRole('note', { name: 'Sources that could not be read' });
-    await expect(notice).toContainText('The list may be incomplete');
+    const notice = panel(page, 'Your move').getByRole('note', { name: 'Incomplete list' });
+    await expect(notice.getByText('Incomplete list', { exact: true })).toBeVisible();
+    await expect(notice).not.toContainText('may be incomplete');
     await expect(notice).toContainText('Pull request:');
     await expect(notice).toContainText('Decision:');
     await expect(notice).toContainText('gh is not signed in to GitHub');
@@ -537,11 +578,11 @@ test.describe('the data of the panels', () => {
     await expectAtMostTwoAmberItems(page);
   });
 
-  test('each panel has an empty state', async ({ page }) => {
+  test('now page empty states are labels', async ({ page }) => {
     // The server's answers are replaced by empty ones, so every panel has nothing to show.
     const empty = <T,>(data: T) => ({ ok: true, data, updatedAt: new Date().toISOString() });
     await page.route('**/api/now/your-move', (route) => route.fulfill({ json: empty({ items: [], missing: [] }) }));
-    await page.route('**/api/sessions', (route) => route.fulfill({ json: empty({ sessions: [], scanned: 0, skipped: 0, hiddenSdk: 0 }) }));
+    await page.route('**/api/agents', (route) => route.fulfill({ json: empty({ sessions: [], hiddenScripts: 0, source: 'process-list' }) }));
     await page.route('**/api/github', (route) => route.fulfill({ json: empty({ open: [], merged: [] }) }));
     await page.route('**/api/status', (route) => route.fulfill({ json: empty({ updated: null, nextUpForMark: [], milestone: { current: null, problem: null }, milestones: [] }) }));
     await page.route('**/api/git', (route) => route.fulfill({ json: empty({ current: null, ahead: null, behind: null, branches: [], commits: [] }) }));
@@ -550,21 +591,32 @@ test.describe('the data of the panels', () => {
     await page.goto('/');
     await allLoaded(page);
 
-    await expect(panel(page, 'Your move')).toContainText('Nothing waits for you right now.');
+    // Each empty state is a label of a few words, and not a sentence (design 5.8).
+    await expect(panel(page, 'Your move').getByText('Nothing for you', { exact: true })).toBeVisible();
     await expect(panel(page, 'Your move').getByRole('list')).toHaveCount(0);
-    await expect(panel(page, 'Running')).toContainText('Nothing is running right now.');
-    await expect(panel(page, 'Pull requests')).toContainText('No open pull requests.');
+    await expect(panel(page, 'Running').getByText('No active session', { exact: true })).toBeVisible();
+    await expect(panel(page, 'Running').getByRole('list')).toHaveCount(0);
+    await expect(panel(page, 'Running')).not.toContainText('Process list unavailable');
+    await expect(panel(page, 'Pull requests').getByText('No open PRs', { exact: true })).toBeVisible();
     // The link to the merged ones is there when nothing is open too: it is not about the list.
     await expect(panel(page, 'Pull requests').getByRole('link', { name: 'Merged pull requests' })).toHaveAttribute('href', 'https://github.com/fixture-owner/fixture-repo/pulls?q=is%3Apr+is%3Amerged');
     // The Status panel has a label for each empty value, and the strip has no squares.
     for (const label of ['No branch', 'no run', 'Nothing for you', 'No date', 'No commits', 'Not started']) await expect(panel(page, 'Status')).toContainText(label);
     await expect(panel(page, 'Status').getByRole('listitem')).toHaveCount(0);
-    await expect(panel(page, 'Links')).toContainText('No other links are set.');
-    // The game is still a link: it is the one thing that the panel always has.
+    // The Links panel always has the game, as a link. The label under it says that the config has no more.
+    await expect(panel(page, 'Links').getByText('No other links', { exact: true })).toBeVisible();
     await expect(panel(page, 'Links').getByRole('link', { name: 'Game' })).toHaveAttribute('href', 'http://localhost:3007');
     // An empty list has no amber count: nothing waits, so nothing is marked as the one thing that matters, and the page has no amber item at all.
-    await expect(page.getByText('Live updates: on')).toBeVisible();
+    await expect(page.getByText('Live: on', { exact: true })).toBeVisible();
     expect(await amberItems(page)).toEqual([]);
+
+    // Nothing else on the page is a sentence either: each line of its text is a label, a number, a date or a link, of six words at most, with no full stop at the end.
+    const lines = (await page.locator('main').innerText()).split('\n').map((line) => line.trim()).filter((line) => line !== '');
+    expect(lines.length).toBeGreaterThan(20);
+    for (const line of lines) {
+      expect(line.split(/\s+/).length, line).toBeLessThanOrEqual(6);
+      expect(line, line).not.toMatch(/[.!?;]$/);
+    }
   });
 
   test('each panel shows its last update time', async ({ page }) => {
@@ -580,33 +632,123 @@ test.describe('the data of the panels', () => {
     }
   });
 
-  test('a running agent bar has no value and a finished one is full', async ({ page, request }) => {
+  test('links panel shows labels without addresses', async ({ page }) => {
+    await page.goto('/');
+    await allLoaded(page);
+    const links = panel(page, 'Links');
+
+    // The fixture config has two links: the game and the repo. Each is its label and the icon of a link that leaves the site, and nothing more.
+    const items = links.getByRole('list', { name: 'Links' }).getByRole('listitem');
+    await expect(items).toHaveCount(2);
+    await expect(items.nth(0)).toHaveText('Game');
+    await expect(items.nth(1)).toHaveText('GitHub repo');
+    for (const item of await items.all()) {
+      await expect(item.getByRole('link')).toHaveCount(1);
+      await expect(item.locator('svg')).toHaveCount(1);
+      await expect(item.locator('svg')).toHaveAttribute('aria-hidden', 'true');
+    }
+
+    // The address belongs to the link, and is not written out anywhere on the panel.
+    await expect(links.getByRole('link', { name: 'Game' })).toHaveAttribute('href', 'http://localhost:3007');
+    await expect(links.getByRole('link', { name: 'GitHub repo' })).toHaveAttribute('href', 'https://github.com/fixture-owner/fixture-repo');
+    expect(await links.innerText()).not.toMatch(/https?:|localhost|github\.com|3007/);
+
+    // The label for "no more links" is for a config with one link only, and the panel has no sentence of help.
+    await expect(links).not.toContainText('No other links');
+    await expect(links).not.toContainText('command-center.config.json');
+  });
+});
+
+// ---- the Running panel: the sessions that are alive now, from the process list ----
+
+test.describe('the Running panel', () => {
+  test('running panel lists active sessions and links to the agents page', async ({ page, request }) => {
+    // The first session has a running agent, a finished agent and a workflow at work. None of them is a row: the Agents page draws them.
     writeSessions();
-    // A session that a script started is left out and counted: the panel says how many it hides.
+    // A session that a script started is left out and counted: the panel says how many it hides, and none of its words are on the page.
     writeLines(join(WHOLE, `${ID(9)}.jsonl`), [{ ...prompt('made up sdk run', 30), entrypoint: 'sdk-py' }, { ...reply('Done.', 20), entrypoint: 'sdk-py' }]);
-    await refreshSessions(request);
+    // Three Claude processes run: the first works, the second waits for Mark, and the third is the script.
+    writeProcess(startLiveProcess().pid, ID(1), 'busy', 40 * 60 + 15);
+    writeProcess(startLiveProcess().pid, ID(2), 'idle', 12 * 60 + 15);
+    writeProcess(startLiveProcess().pid, ID(9), 'busy', 90);
+    const found = await refreshAgents(request);
+    expect(found.source).toBe('process-list');
+    expect(found.sessions.map((session) => session.id)).toEqual([ID(1), ID(2)]);
+    expect(found.hiddenScripts).toBe(1);
+
+    const requested: string[] = [];
+    page.on('request', (message) => requested.push(new URL(message.url()).pathname));
     await page.goto('/');
     const running = panel(page, 'Running');
-    await expect(running).toContainText('Build the Now page of the command center');
+    const rows = running.getByRole('list', { name: 'Active sessions' }).getByRole('listitem');
 
-    // A running agent reports no percent done: its bar has no value (it moves). A finished one is full. They are told apart by their names.
-    const runningAgent = running.getByRole('progressbar', { name: /Explore the fixture engine docs/ });
-    await expect(runningAgent).toBeVisible();
-    await expect(runningAgent).not.toHaveAttribute('aria-valuenow');
-    await expect(running.getByRole('listitem').filter({ hasText: 'Explore the fixture engine docs' })).toContainText('running');
-    const finishedAgent = running.getByRole('progressbar', { name: /Check the milestone table/ });
-    await expect(finishedAgent).toHaveAttribute('aria-valuenow', '100');
-    await expect(running.getByRole('listitem').filter({ hasText: 'Check the milestone table' })).toContainText('done');
-    // A workflow has real progress: 2 agents done of the 3 that started, and the phases say where.
-    const workflow = running.getByRole('progressbar', { name: /fixture-build/ });
-    await expect(workflow).toHaveAttribute('aria-valuenow', '67');
-    await expect(running.getByRole('listitem').filter({ hasText: 'fixture-build' })).toContainText('2 of 3 agents done. Phases: Research 2/2, Build 0/1');
-    // The sessions: one works (a bar that moves), and the two that wait for Mark have empty bars.
-    await expect(running.getByRole('progressbar', { name: /working: Build the Now page/ })).not.toHaveAttribute('aria-valuenow');
-    await expect(running.getByRole('progressbar', { name: /waiting for you: Review the engine docs/ })).toHaveAttribute('aria-valuenow', '0');
-    // The automated run is counted, and nothing of it is on the page.
-    await expect(running).toContainText('1 automated SDK run is hidden');
+    // One row for each session, in the order of the API (the oldest first): the title, the state word and the time since the start.
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toHaveText('Build the Now page of the command center working 40 min');
+    await expect(rows.nth(1)).toHaveText('Review the engine docs for the fixture waiting 12 min');
+    // The whole row is the link: it is one link, it leads to the Agents page, and its words are the words of the row.
+    for (const row of await rows.all()) {
+      await expect(row.getByRole('link')).toHaveCount(1);
+      await expect(row.getByRole('link')).toHaveAttribute('href', '/agents');
+      await expect(row.getByRole('link')).not.toHaveAttribute('target');
+    }
+    await expect(rows.nth(1).getByRole('link')).toHaveText('Review the engine docs for the fixture waiting 12 min');
+
+    // No row for an agent or a workflow, and no bar. The run of the script is counted, and none of its words are on the page. The process list is good, so no fallback label.
+    for (const text of ['Explore the fixture engine docs', 'Check the milestone table', 'fixture-build']) await expect(running).not.toContainText(text);
+    await expect(running.getByRole('progressbar')).toHaveCount(0);
+    await expect(running.getByText('1 script run hidden', { exact: true })).toBeVisible();
+    await expect(running).not.toContainText('Process list unavailable');
     await expect(page.getByText('made up sdk run')).toHaveCount(0);
+
+    // The panel reads the live agents, and no longer the list of the sessions.
+    expect(requested).toContain('/api/agents');
+    expect(requested).not.toContain('/api/sessions');
+
+    // A row opens the Agents page inside the site: no new page is loaded.
+    await page.evaluate(() => {
+      (window as unknown as Record<string, unknown>).__ccStillHere = true;
+    });
+    await rows.nth(1).getByRole('link').click();
+    await expect(page).toHaveURL('/agents');
+    await expect(page.getByRole('heading', { level: 1, name: 'Agents' })).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__ccStillHere)).toBe(true);
+  });
+
+  test('running panel shows the empty state and the fallback label', async ({ page, request }) => {
+    // The fixture world has no process folder and no session file. The server decides by the file ages, finds nothing, and says so.
+    expect(await refreshAgents(request)).toEqual({ sessions: [], hiddenScripts: 0, source: 'file-age' });
+    await page.goto('/');
+    const running = panel(page, 'Running');
+    await expect(running.getByText('No active session', { exact: true })).toBeVisible();
+    await expect(running.getByText('Process list unavailable', { exact: true })).toBeVisible();
+    await expect(running.getByRole('list')).toHaveCount(0);
+    await expect(running.getByRole('alert')).toHaveCount(0);
+
+    // The process folder appears, with no process in it. The label goes by itself, when the server looks again and tells the open page. The empty state stays.
+    mkdirSync(PROCESSES, { recursive: true });
+    await expect(running.getByText('Process list unavailable')).toHaveCount(0, { timeout: 10_000 });
+    await expect(running.getByText('No active session', { exact: true })).toBeVisible();
+  });
+
+  test('running panel adds a row when a session starts and drops it when the session ends', async ({ page, request }) => {
+    mkdirSync(PROCESSES, { recursive: true });
+    await refreshAgents(request);
+    await page.goto('/');
+    const running = panel(page, 'Running');
+    await expect(running.getByText('No active session', { exact: true })).toBeVisible();
+
+    // A session starts: its file, and the file of its process. The server looks every 3 seconds and tells the open page, which loads the panel again: the test asks for nothing.
+    writeSessions();
+    const live = startLiveProcess();
+    writeProcess(live.pid, ID(1), 'busy', 20);
+    await expect(running.getByText('Build the Now page of the command center')).toBeVisible({ timeout: 8_000 });
+    await expect(running.getByText('No active session')).toHaveCount(0);
+
+    // Its process ends. The row goes, and the empty state comes back.
+    live.stop();
+    await expect(running.getByText('No active session', { exact: true })).toBeVisible({ timeout: 8_000 });
+    await expect(running.getByRole('listitem')).toHaveCount(0);
   });
 });
 
@@ -1006,7 +1148,7 @@ test.describe('the Look', () => {
 
     await page.goto('/');
     await allLoaded(page);
-    await expect(page.getByText('Live updates: on')).toBeVisible();
+    await expect(page.getByText('Live: on', { exact: true })).toBeVisible();
     const items = panel(page, 'Your move').getByRole('list', { name: 'What waits for Mark' }).getByRole('listitem');
     for (const light of ['Red light', 'Yellow light', 'Green light']) await expect(items.filter({ hasText: light }).first()).toBeVisible();
     expect(await items.count()).toBeGreaterThan(15);
@@ -1021,7 +1163,9 @@ test.describe('the Look', () => {
       // The one amber item is the count of Your move.
       const amber = await amberItems(page);
       expect(amber, mode).toHaveLength(1);
-      expect(amber[0], mode).toContain('items wait for you');
+      // The words after the number are for a screen reader: "N items for you".
+      expect(amber[0], mode).toMatch(/\d+ items for you/);
+      expect(amber[0], mode).not.toContain('wait');
       // The lights are not amber: their words and icons are the soft text color.
       const light = items.filter({ hasText: 'Red light' }).first().getByText('Red light');
       expect(await light.evaluate((element) => getComputedStyle(element).color), mode).toBe(colors.soft);
