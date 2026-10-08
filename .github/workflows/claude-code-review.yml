@@ -43,3 +43,18 @@ jobs:
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
+      # The action hides Claude's output, so a failed call says only "is_error:true".
+      # Print the final result text (for example "Failed to authenticate. API Error: 401 ...")
+      # so the log names the cause. stop-commands keeps that text from running workflow commands.
+      - name: Show why the Claude review failed
+        if: failure()
+        env:
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
+        run: |
+          file="${EXECUTION_FILE:-$RUNNER_TEMP/claude-execution-output.json}"
+          if [ ! -f "$file" ]; then echo "No Claude execution file found."; exit 0; fi
+          stop="$(openssl rand -hex 16)"
+          echo "::stop-commands::$stop"
+          jq -r '[.[] | select(.type == "result")] | last // {} | (.result // .errors // "no result message") | tostring | .[0:1000]' "$file" || echo "Could not read $file"
+          echo "::$stop::"
+
