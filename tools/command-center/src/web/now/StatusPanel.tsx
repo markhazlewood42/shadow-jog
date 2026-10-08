@@ -385,6 +385,7 @@ function MilestoneStrip({ status }: { status: Source<StatusInfo> }) {
                 <Link
                   to={milestoneHref(milestone)}
                   aria-label={milestoneName(milestone)}
+                  title={milestoneName(milestone)}
                   aria-current={state === 'current' ? 'step' : undefined}
                   data-state={state}
                   className={`block size-4 rounded-xs border hover:border-cc-ink cc-focus-ring ${SQUARE_CLASS[state]}`}

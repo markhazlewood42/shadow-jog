@@ -625,7 +625,7 @@ test.describe('the status panel', () => {
     { name: 'M2 Stage', href: '/docs/engine/migration#m2-stage' },
   ];
 
-  /** The row of the panel with this label (its `dt`), or, for the strip, nothing: the strip is not a row. */
+  /** The row of the panel with this label (its `dt`). The strip under the rows is not a row, and has no `dt`. */
   const rowOf = (page: Page, label: string) =>
     panel(page, 'Status')
       .locator('dl > div')
@@ -633,7 +633,7 @@ test.describe('the status panel', () => {
   const stripOf = (page: Page) => panel(page, 'Status').getByRole('list', { name: 'Milestones' });
   const squaresOf = (page: Page) => stripOf(page).getByRole('listitem').getByRole('link');
 
-  /** What \`gh run list\` prints for one run of main, made 2 hours ago (and a little more, so that the age is "2 h" for a long time). */
+  /** What `gh run list` prints for one run of main, made 2 hours ago (and a little more, so that the age is "2 h" for a long time). */
   const run = (status: string, conclusion: string) => JSON.stringify([{ status, conclusion, url: RUN_URL, createdAt: new Date(Date.now() - 2 * 3_600_000 - 30_000).toISOString() }]);
 
   /** Makes the fake gh answer the CI look with this text, and makes the server look at once (an open page then hears of it). */
@@ -643,8 +643,8 @@ test.describe('the status panel', () => {
   }
 
   /**
-   * Runs \`body\` while the fixture repo has a remote called origin (a bare repo) that is one commit ahead of the fixture's two (so the branch is behind by one, once git
-   * has fetched it), and while the branch has three commits of its own (so it is ahead by three). The repo is put back as it was. \`body\` gets the id of the newest commit.
+   * Runs `body` while the fixture repo has a remote called origin (a bare repo) that is one commit ahead of the fixture's two (so the branch is behind by one, once git
+   * has fetched it), and while the branch has three commits of its own (so it is ahead by three). The repo is put back as it was. `body` gets the id of the newest commit.
    */
   async function withOrigin(request: APIRequestContext, body: (head: string) => Promise<void>): Promise<void> {
     const remote = join(E2E_DIR, 'now-remote.git');
@@ -777,6 +777,8 @@ test.describe('the status panel', () => {
       await expect(squares.nth(1)).toHaveAttribute('data-state', 'current');
       expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('data-state')))).toEqual(['done', 'current', 'later', 'later']);
       expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('aria-label')))).toEqual(SQUARES.map((square) => square.name));
+      // A square has no words, so its name is also its tooltip: a mouse finds out which milestone it is by resting on it.
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('title')))).toEqual(SQUARES.map((square) => square.name));
       expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('href')))).toEqual(SQUARES.map((square) => square.href));
       expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('aria-current')))).toEqual([null, 'step', null, null]);
 
