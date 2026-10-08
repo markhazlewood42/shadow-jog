@@ -50,7 +50,7 @@ The packages land on `resolution-640x360` in this order. Each one ends with the 
 - **Drift check before each package.** `git fetch`, then `git rev-list --left-right --count HEAD...origin/main`. If `main` moved, merge `origin/main` into the branch (a merge, not a rebase), then run the scan test and the unit tests before the package starts.
 - **Main keeps moving.** New layout work on `main` uses `W` and `H`. The scan test fails a new literal.
 - **Content rule.** The walk in WP3, the title world in WP5 and the backdrops in WP2b and WP6 show things that were off screen or that get a new composition. Agents list them with pictures and options. They change no story or map data without Mark's written yes per item (D7 c, D17 c). A default applies only if he is silent after the pictures, and only a code-only default: limit the camera, or fade or letterbox the scene (D17).
-- **Reviews do not block independent packages.** The agent starts the next package while Mark reviews the last one, except at a hard stop and except for a decision that needs his yes.
+- **Reviews do not block independent packages.** The agent starts the next package while Mark reviews the last one, except at a hard stop and except for a decision that needs his yes. **Hard stops** (from the plan, section 2.6; restored 2026-10-07 after the Step 1 design verifier found the list missing): D2 and D5 at Review 1, and Mark's play of the final build before the pull request leaves draft. A hard stop never takes a default. A review decision with a code-only default applies that default after 3 calendar days of silence; a decision that needs his yes never takes a default.
 
 ---
 
@@ -272,11 +272,44 @@ The raw outputs are `media/pivot-640/perf/probe-gpu.txt` and `probe-nogpu.txt`. 
 
 **Probe pictures, by eye (61 screens; the 7 map overviews and 4 sprite sheets aside).** 32 screens show a clear defect: the 18 battle shots (the 240x135 world stretched 2.667x under a 2x enemy layer, so fighters misregister and the party is cut at the bottom edge; rows 48, 56), the title (the skyline stretched 2.667x; rows 34 to 36), the 3 comic pages (inside the old frame; row 40), the Rustyard (48 px dark bars; row 21), the two field shots with the "Autosaved" badge floating mid-frame (row 10), game over (the street line at y=244; row 39), the ending results and the next-chapter card (top-heavy; rows 37, 38), and the 4 deck scenes (the deck near the top, a gap above the dialog; row 43). 13 screens look sparse or stretched wide and wait for D8: the two dialogs (row 26), the menu cards (row 100), the two status pages (row 30), equip (row 29), the four shop shots (row 33), the two bestiary pages (row 31) and Places (row 107). 16 screens look right as they are: the 13 field shots without a badge, the two modals, and the place map. Every defect maps to an inventory row; the pictures add no new row.
 
-**Verification table.** Written by the main session after the three verifiers score Step 1.
+**Verification table.** Written by the main session after the three verifiers score Step 1. Round 1 of 3, 2026-10-07, at commit 1e6d7e5. Three fresh verifiers: A correctness and tests, B design conformance and code quality, C visual and runtime. Full reports: `media/verification/step1/verifier-correctness.md`, `verifier-design.md`, `verifier-visual.md` (git-ignored). **Result: pass.** Every pass line holds, every median is 7 or more, and the average of the medians is 8.31.
 
-| Criterion | Median | Note |
+| Criterion | A | B | C | Median | Note |
+|---|---|---|---|---|---|
+| R1 Coverage | 8 | 7 | n/a | 7.5 | Pending list 43 to 4, each with an owner. `render.ts:88` still sets a bare `2` (inventory row 52): named fix F1. |
+| R3 Pixel fidelity | 9 | 8 | 9 | 9 | PL2 reproduced by A (saved runs) and C (a fresh capture): 72 of 72 same, 0 pixels. |
+| R6 Performance | 7 | n/a | 8 | 7.5 | Inside every gate at 480x270 (C re-measured). GPU field mean about 10% under its gate. Bundle headroom 1.9 kB. |
+| R7 Test quality | 8 | 7 | 8 | 8 | Negative controls fire (scan, pixel diff, smoke check). Gaps: the `pan()` wiring has no test, `stripNoise` has no test, pixel-diff on two empty folders exits 0. |
+| R8 Behavior kept | 9 | 9 | 8 | 9 | No data, save or `src/game` change. The aberration start values are ignored by the shader. |
+| R9 Code clarity and records | 8 | 7 | n/a | 7.5 | Each size name defined once. Named fixes F2, F3, F5 (records) and the `art` to `scenes` import (F4). |
+| V2 Parity | 10 | n/a | 10 | 10 | PL2 plus three controls; art and data diffs empty. |
+| V4 Stability | 8 | 8 | 9 | 8 | Byte-identical over six runs and two commits, on one machine and one Edge build. `SJ_BUILD_SHA` changes only the label box. |
+
+n/a for Step 1 (the game still draws at 480x270): R2, R4, R5, V1, V3, V5.
+
+| Pass line | Result | Evidence |
 |---|---|---|
-| (pending) | | |
+| PL1 | pass | Scan 5 of 5; 90 hits, 25 allow entries, 4 pending, 0 unlisted; the negative control fails the test with the file named (A). |
+| PL2 | pass | A: saved runs, 72 same, 0 pixels, exit 0, and a 1-pixel control is seen. C: a fresh `SJ_BUILD_SHA=pivot640 npm run shots`, sha256 of all 72 files equal to `baseline-det/run1..3`. |
+| PL5, PL6 | pass | `public/`, `src/data`, `src/story` diffs empty (A, B, C). |
+| PL8 | pass | C at 480x270: GPU field 2.71 / 4.30 ms, software field 3.19 / 4.30 ms, sim at most 0.07 / 0.20 ms. |
+| PL9 | pass | `npm run check` exit 0 (26 files, 320 tests), build 0, budget 0 (234.1 kB gzip of 236). CI run 37717221925: `check`, `e2e`, `e2e-engines` pass, no step skipped. The `claude-review` check (the Claude Code Review workflow from `main`, run 37717221926) failed in 24 s before any model ran (`is_error: true`, `modelUsage: {}`): a workflow problem on `main`, outside this branch. It must be green by WP7. |
+| Principle 4 | pass | `src/engine` edits: `postfx.ts`, `particles.ts`, `gl/presenter.ts`, all on the list. No `src/sje`. No `!` added in `src/engine` or `src/battle`. |
+| PL11 | as reported | The Review 0 sheets reached Mark on 2026-10-06. |
+
+**Named fixes, made in the first WP2 commit** (the score 7 means "acceptable with named fixes that the step makes"):
+
+- F1: `src/scenes/battlekit/render.ts:88` uses `WORLD_SCALE`, not a bare `2` (pixel-neutral).
+- F2: `docs/DEVELOPING.md` documents the three screenshot tools, the scan test and its two lists (`SCREEN_LITERALS_WRITE_PENDING`), `scripts/derived-literals.mjs` and `tests/camera.test.ts`; the wrong "section 4" cross-reference is fixed.
+- F3: the golden-image entry of `docs/CONCEPTS.md` says the mask list is empty since 1b.
+- F4: `src/art/battlebg.ts` stops importing `scenes/`: the world-size names move to a leaf module below `art` and `scenes`, or `docs/ARCHITECTURE.md` gets a dated exception line until M0.
+- F5: American spelling in the rewritten `postfx.ts` comments.
+- A2: `e2e/shots.spec.ts` waits in real time until the battle (and the deck) scene is on top before the first clock step (a latent race that held in all runs).
+- A3: a test pins the `pan()` wiring, so a revert to the old inline clamp fails.
+- C3 and C4: `scripts/contact-sheet.mjs` captions come from the real sizes; `scripts/pixel-diff.mjs` names a diff folder only when it wrote one.
+- The grep of PL9 for `PIVOT-640 expected-fail` covers `src/`, `tests/`, `e2e/` and `scripts/` (this file names the marker, so a repo-wide grep would match itself).
+
+Not fixed here, with the owner: the scan does not cover `tests/`, `e2e/` and `scripts/` (inventory row 234; WP7 decides with the reconciliation table). C finding 5: shots that show off-screen content in the probe (for example the LABS room in `27`, `37`, `37b`) go on the PL12 content list at WP3. From Review 1 on, the left side of every pair is `baseline-det/run1`, so battle pairs show the same line-up.
 
 ### Deviations from the plan in Step 1
 
