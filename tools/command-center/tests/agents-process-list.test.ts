@@ -8,6 +8,22 @@ import { processIsAlive, readProcessList } from '../src/server/agents/process-li
 // nothing else, and it never throws for what it finds there. The pid check is injected, so no test needs a real process. Everything below is
 // made up: the ids are made up, and so are the sentinel values that stand for the keys that must never leave the server.
 
+// `readSmallJson` is wrapped so that a test can make its next reads throw, as a locked file does. By default it is the real reader.
+const throwNext = vi.hoisted(() => ({ count: 0 }));
+vi.mock('../src/server/sessions/tail', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../src/server/sessions/tail')>();
+  return {
+    ...real,
+    readSmallJson: async (...args: Parameters<typeof real.readSmallJson>) => {
+      if (throwNext.count > 0) {
+        throwNext.count -= 1;
+        throw new Error('EBUSY: resource busy or locked');
+      }
+      return real.readSmallJson(...args);
+    },
+  };
+});
+
 const parent = mkdtempSync(join(tmpdir(), 'cc-process-list-'));
 afterAll(() => rmSync(parent, { recursive: true, force: true }));
 
@@ -65,6 +81,44 @@ describe('the process list', () => {
     const list = await readProcessList(folder, () => true, pause);
 
     // One retry for the broken file, none for the good one. The good one is kept and the broken one is skipped.
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle' }] });
+  });
+
+  it('C1: a process file with valid JSON and the wrong shape is skipped without a retry', async () => {
+    const folder = freshFolder();
+    write(folder, '7710024.json', '{"hello": "world"}'); // valid JSON, no process keys: a stale file, not a torn one
+    write(folder, '7710025.json', processFile(7710025, S2, 'idle'));
+    const pause = vi.fn(async () => {});
+
+    const list = await readProcessList(folder, () => true, pause);
+
+    expect(pause).not.toHaveBeenCalled();
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle' }] });
+  });
+
+  it('C1: a process file that throws on the first read is read again and counted', async () => {
+    const folder = freshFolder();
+    write(folder, '7710027.json', processFile(7710027, S1, 'busy'));
+    // A lock (Windows) makes the open throw. Only the first read of this file throws; the real reader answers the second.
+    throwNext.count = 1;
+    const pause = vi.fn(async () => {});
+
+    const list = await readProcessList(folder, () => true, pause);
+
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy' }] });
+  });
+
+  it('C1: a process file that throws on both reads is skipped', async () => {
+    const folder = freshFolder();
+    write(folder, '7710028.json', processFile(7710028, S1, 'busy'));
+    write(folder, '7710029.json', processFile(7710029, S2, 'idle'));
+    throwNext.count = 2;
+    const pause = vi.fn(async () => {});
+
+    const list = await readProcessList(folder, () => true, pause);
+
     expect(pause).toHaveBeenCalledTimes(1);
     expect(list).toEqual({ ok: true, entries: [{ sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle' }] });
   });

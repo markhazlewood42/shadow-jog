@@ -99,16 +99,22 @@ export async function readProcessList(folder: string, isAlive: IsAlive = process
   for (const name of names) {
     // `readSmallJson` gives null for a file that is empty, too big (64 KB: a process file has a few hundred bytes), not JSON or not an object. It throws
     // for a file that cannot be opened (locked, or no rights). Both mean "skip it"; the files are read one by one, so a big folder cannot open them all at once.
-    // A file that gives null or a wrong shape may be torn (Claude rewrites it while we read), so it is read once more after a short pause, and the second reading decides.
+    // A torn file (Claude rewrites it while we read) gives null or a throw, never a valid object of the wrong shape. So only null and a throw
+    // are read once more, after a short pause. A valid object with the wrong shape is a stale file: it is skipped at once, with no wait.
+    // The try/catch is around each single read, so a throw on the first read still gets its retry. A good first read never waits.
     let found: Shaped | null = null;
-    try {
-      for (let attempt = 0; attempt < 2 && found === null; attempt += 1) {
-        if (attempt === 1) await pause(RETRY_PAUSE_MS);
-        const json = await readSmallJson(join(folder, name));
-        found = json === null ? null : shapeOf(json);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (attempt === 1) await pause(RETRY_PAUSE_MS);
+      let json: Record<string, unknown> | null;
+      try {
+        json = await readSmallJson(join(folder, name));
+      } catch {
+        continue; // counts as a torn attempt
       }
-    } catch {
-      continue;
+      if (json !== null) {
+        found = shapeOf(json);
+        break; // an object is final, good or not
+      }
     }
     if (found === null) continue;
     shaped += 1;

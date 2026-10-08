@@ -164,6 +164,8 @@ describe('the Now page labels and the Running panel error', () => {
     act(() => root.unmount());
     container.remove();
     vi.unstubAllGlobals();
+    // Two tests set this module variable; the next test starts from the default.
+    connectionState = 'connecting';
   });
 
   const show = (node: React.ReactNode) =>
@@ -205,9 +207,15 @@ describe('the Now page labels and the Running panel error', () => {
       }),
     );
     show(<RunningPanel defaultOffset={{ x: 0, y: 0 }} />);
-    await act(async () => {
-      await new Promise((done) => setTimeout(done, 20));
-    });
+    // Wait for the fetch and the re-render to finish, not for a fixed time.
+    // Each poll flushes React inside a short act, because React holds its renders until the act ends.
+    await vi.waitFor(
+      async () => {
+        await act(async () => {});
+        expect(container.querySelector('section[aria-label="Running"] [role="alert"]')).not.toBeNull();
+      },
+      { timeout: 2000 },
+    );
 
     const alert = container.querySelector('section[aria-label="Running"] [role="alert"]');
     expect(alert?.textContent).toContain('The agents source could not be read.');
@@ -218,9 +226,14 @@ describe('the Now page labels and the Running panel error', () => {
 
     await act(async () => {
       retry?.click();
-      await new Promise((done) => setTimeout(done, 20));
     });
+    await vi.waitFor(
+      async () => {
+        await act(async () => {});
+        expect(container.textContent).toContain('Title of s1');
+      },
+      { timeout: 2000 },
+    );
     expect(container.querySelector('[role="alert"]')).toBeNull();
-    expect(container.textContent).toContain('Title of s1');
   });
 });
