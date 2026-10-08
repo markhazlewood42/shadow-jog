@@ -39,6 +39,10 @@ jobs:
           # run ends with "The review agent is still running" before they finish. This setting
           # runs them in the foreground, so the review waits for each result.
           CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1'
+          # Run every review subagent on Sonnet. The plugin asks for Opus in two of its agents.
+          # A model that Claude passes beats a plain default, so the FORCE flag is needed.
+          CLAUDE_CODE_SUBAGENT_MODEL: sonnet
+          CLAUDE_CODE_SUBAGENT_MODEL_FORCE: '1'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
@@ -50,7 +54,7 @@ jobs:
           # --permission-mode auto is the mode that Anthropic's own review workflow uses
           # (anthropics/claude-code-action, .github/workflows/claude-review.yml). A classifier
           # approves a command outside this list, such as a grep or a cd, when it is safe.
-          claude_args: '--permission-mode auto --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"'
+          claude_args: '--permission-mode auto --model sonnet --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
