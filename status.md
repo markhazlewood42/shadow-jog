@@ -3,7 +3,7 @@ type: status
 title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-10-06
+updated: 2026-10-07
 tags: [status]
 ---
 
@@ -85,15 +85,17 @@ Branch `spike/engine-platform` (draft PR #11). Record: `docs/spikes/engine-platf
 
 **Mark's rules from 2026-10-05** (also in home-base `CLAUDE.md` and memory): effort means architectural fit and files touched, never agent-days; all work goes through independent verification agents, sized to risk; at a phase break, the work continues in a fresh session. His idea backlog is `docs/IDEAS.md`. Entry 1 is a standing rule: no decision may make future visual editors harder.
 
+**The 640x360 move (2026-10-06 to 07): Step 1 built, verification pending.** Branch `resolution-640x360` in the worktree `projects/shadow-jog-engine` (an approved exception to the no-worktree rule while another session owns the main checkout). Draft [PR #23](https://github.com/markhazlewood42/shadow-jog/pull/23), CI monitor on, `main` merged in (0a86654). Done: WP0 (the criteria file `docs/PIVOT-640.md`, three screenshot tools, the screen-literal scan with its allow and pending lists, the 480x270 baseline, the perf baseline, the flip-probe record; the Review 0 sheets went to Mark on 2026-10-06, nothing to decide there), WP1 (one size source, same pixels; the game still draws at 480x270), Step 1b (deterministic screenshot capture: 72 of 72 shots byte-identical across runs, PL2 measured at 0 differing pixels). Not done: the verification round for Step 1 (three fresh verifiers; two launches were cut short by the weekly limit and by the session end, nothing was judged). Handoff with the saved verifier prompts: the git-ignored `projects/shadow-jog-engine/media/handoff-2026-10-07/README.md`. Builder reports: `media/verification/step1/` there.
+
 **Next for agents** (in this order):
 1. Command Center follow-up (Mark's live feedback, 2026-10-07), on a new branch from `main` after PR #22 merges, in a fresh session: (a) every page far less wordy: concise, action-oriented, link to docs instead of copying or summarizing them, all page text in ASD-STE100; (b) the Now Status panel becomes a summary with links and maybe small diagrams; (c) "copy for LLM" and "download markdown" on every leaf doc page, as on the markedup-consulting website; (d) the Agents page shows ACTIVE sessions only, as a dynamic diagram of agents and subagents with communication lines, smaller boxes and shorter status text. Done in PR #21 already: open PRs only with one merged link, a wider panel header inset, decision pages link to doc sections instead of copying them.
 1a. Live checks for the faster CI (PR #19, merged 2026-10-06): (1) Done 2026-10-06: the first `playtest.yml` run on `main` (run 37518417311) passed in 7 min 40 s. (2) On the next docs-only PR, `check`, `e2e` and `e2e-engines` report success in seconds with their steps skipped, and its merge to `main` starts no CI run (`gh run list --repo markhazlewood42/shadow-jog --branch main -L 3`).
-2. Move the shipped game to 640x360 on branch `resolution-640x360` from `main`, from the inventory, with picture reviews for Mark.
+2. The 640x360 move on branch `resolution-640x360` (PR #23, worktree `projects/shadow-jog-engine`): run the Step 1 verification round with the three saved prompts in `projects/shadow-jog-engine/media/handoff-2026-10-07/`, fix rounds if needed (cap 3), record the table in `docs/PIVOT-640.md` and in the PR; then WP2 and WP2a (the flip, the 2x viewport, the battle mock) with Review 1 for Mark (D2, D5, D11); then WP2b to WP8 in the order of `docs/PIVOT-640.md`, each with its review.
 3. The spike archive tag (with Mark's go-ahead), then milestone M0.
 
 **Next up for Mark** (updated 2026-10-06):
 1. Merge [PR #22](https://github.com/markhazlewood42/shadow-jog/pull/22) (the Copilot fixes, your three small items, the status) when its three checks pass. Then the follow-up PR for your live feedback starts in a fresh session.
-2. Answer the look questions as the 640x360 pictures come: the old battle (boxed until M3, or re-laid now), maps smaller than the screen, the dialog width, the title art, and 3 shockwave values in your `fx.json`.
+2. Answer the look questions as the 640x360 pictures come. Review 1 is next: the old battle (boxed until M3, or re-laid now), where the extra battle rows go, and the 3 shockwave values in your `fx.json`. Later reviews: maps smaller than the screen, the dialog width, the title and comic art. The Review 0 sheets (the bare flip, nothing to decide) reached you on 2026-10-06.
 3. The older items below (Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4) still stand.
 
 ### Right now (2026-10-04, history)
