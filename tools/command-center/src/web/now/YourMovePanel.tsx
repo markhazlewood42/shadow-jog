@@ -133,7 +133,7 @@ function YourMoveList({ info, now }: { info: YourMoveInfo; now: number }) {
 }
 
 /** The amber chip with the number of items. It is the one focal item of the page (the Look), and the words after the number ("items for you") are for a screen reader. */
-function CountChip({ count }: { count: number }) {
+export function CountChip({ count }: { count: number }) {
   return (
     <Chip color="accent" variant="primary" size="sm">
       <Chip.Label>
