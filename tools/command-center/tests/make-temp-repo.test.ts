@@ -36,7 +36,8 @@ describe('makeTempRepo', () => {
 
     // Nothing is left uncommitted, and the commit dates are fixed, so a test can rely on them.
     expect(git(repo, 'status', '--porcelain')).toBe('');
-    expect(git(repo, 'log', '--format=%cI')).toBe('2026-01-02T00:00:00+00:00\n2026-01-01T00:00:00+00:00');
+    // Newer versions of git write a UTC time as `Z` and older ones as `+00:00`: both mean the same time.
+    expect(git(repo, 'log', '--format=%cI').replaceAll('+00:00', 'Z')).toBe('2026-01-02T00:00:00Z\n2026-01-01T00:00:00Z');
   });
 
   it('can be made in a folder the caller picks, and remove() deletes it', () => {
