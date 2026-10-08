@@ -61,7 +61,7 @@ describe('the pop-in table', () => {
 });
 
 describe('a camera limit (P4)', () => {
-  /** Where the plain camera would put the focus, and where the camera with the table's limit does: a hero's tile centre, the camera looking `LEADER_FOCUS_LIFT` above their feet (`FieldScene.targetCam`). */
+  /** Where the plain camera would put the focus, and where the camera with the table's limit does: a hero's tile center, the camera looking `LEADER_FOCUS_LIFT` above their feet (`FieldScene.targetCam`). */
   const focusOf = (tx: number, ty: number) => ({ fx: tx * TS + TS / 2, fy: ty * TS + TS / 2 - LEADER_FOCUS_LIFT });
 
   it('P4: the camera stops at the table’s south limit, 40 px past the yard’s south edge', () => {

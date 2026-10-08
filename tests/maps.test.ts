@@ -9,7 +9,8 @@ import { measure } from '../src/engine/font';
 import { H, W } from '../src/engine/game';
 import { TS } from '../src/field/tiles';
 import { SURROUND, surroundFor, voidShows, type SurroundEntry, type SurroundTheme, type SurroundView } from '../src/scenes/fieldkit/surround';
-import { THEMES, pictureKey } from '../src/scenes/fieldkit/surround-art';
+import { rgb } from '../src/engine/color';
+import { THEMES, YARD, pictureKey } from '../src/scenes/fieldkit/surround-art';
 import { arrivals, distances, grid } from './mapgraph';
 
 const NEAR = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const;
@@ -316,5 +317,36 @@ describe('the void fill under a map that fills the screen (D15, docs/PIVOT-640.m
     expect(voidShows(0, 1, W, H)).toBe(true);
     // A map narrower than the view (the Rustyard): the margin is there at rest.
     expect(voidShows(-48, 0, W - 96, H + 88)).toBe(true);
+  });
+});
+
+describe('the Rustyard surround reads as yard, not as a void (WP3 round 3)', () => {
+  // The surround is drawn before the field's light multiplies the screen, so what the player sees is
+  // each channel times the map's ambient. The strip below the yard measured about 4 of 255 in round 2
+  // (luma, in the shot at the entrance) and read as black: Mark asked for it to be lifted to about the
+  // yard's own shadowed ground (about 28 to 31). It measures about 25 now. The floor of 18 leaves room
+  // to tune the art and still fails when the gravel goes back to a void color (the old gravel was 4).
+  const ambient = rgb(getMap('rustyard').ambient);
+  /** The brightness of a surround color on screen: its channels times the ambient, as Rec. 709 luma. */
+  const lit = (hex: string): number => {
+    const [r, g, b] = rgb(hex).map((c, i) => (c * ambient[i]!) / 255) as [number, number, number];
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const FLOOR = 18;
+
+  it('the gravel is lit well above the void', () => {
+    expect(lit(YARD.gravelGround)).toBeGreaterThanOrEqual(FLOOR);
+    for (const speck of YARD.gravelSpecks) expect(lit(speck)).toBeGreaterThanOrEqual(FLOOR);
+  });
+
+  it('the fence reads at the same level: its ribs on average, and no part (a post, a heap) near the void', () => {
+    const ribs = YARD.fenceRibs.reduce((sum, c) => sum + lit(c), 0) / YARD.fenceRibs.length;
+    expect(ribs).toBeGreaterThanOrEqual(FLOOR);
+    // The posts and the heaps are the darkest accents of the surround, so they get half the floor.
+    for (const c of [...YARD.fenceRibs, YARD.postBody, YARD.heapBody]) expect(lit(c)).toBeGreaterThanOrEqual(FLOOR / 2);
+  });
+
+  it('the fade does not black out the strip (its far alpha stays under a half)', () => {
+    expect(YARD.fadeFar).toBeLessThanOrEqual(0.5);
   });
 });

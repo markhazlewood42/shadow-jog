@@ -9,6 +9,64 @@ import { TS } from '../../field/tiles';
 import type { SurroundEntry, SurroundTheme, SurroundView } from './surround';
 import { voidShade } from './void';
 
+// ------------------------------------------------------------------ the looks
+
+/**
+ * The b1 edge fill's dark fade: the alpha of the void color where the fade starts (at the map's edge)
+ * and where it ends (150 px away). Interiors only: the picture beside a room fades to near black.
+ */
+const EDGE_FILL = { fadeNear: 0.35, fadeFar: 0.94 };
+
+/**
+ * The Rustyard's theme record: every color and alpha of its painter, named. The surround is drawn
+ * before the field's light multiplies the screen, so the night ambient (about 0.38, 0.35, 0.52 of
+ * each channel) darkens it like the yard's own ground. The colors are picked so that, after that
+ * multiply, the gravel and the fence read about as dark as the yard's own shadowed ground (round 3,
+ * Mark: the strip below the yard read as black, a void). The fade is light for the same reason: it
+ * only takes the far edge of the picture toward the void, and does not black out the near strip.
+ */
+export const YARD = {
+  /** The gravel tile: its ground and two speck colors. */
+  gravelGround: '#664b3a',
+  gravelSpecks: ['#765a47', '#8a6a54'],
+  /** The fence's three rib colors (lit, mid, shadowed), its dark outer edge, and the seams between panels. */
+  fenceRibs: ['#8e6046', '#6e4a38', '#54392a'],
+  fenceEdge: '#2d1f17',
+  seamShadow: '#2a1c15',
+  seamLight: '#9a6a4a',
+  /** The rust streak under some seams. */
+  rustStreak: '#8c4a26',
+  /** A fence post: its body and its lit top. */
+  postBody: '#2e211a',
+  postTop: '#9a6a4a',
+  /** A scrap heap beyond the fence: its body, its rusty rim light and its inner crack. */
+  heapBody: '#3a2b21',
+  heapRim: '#7d4e30',
+  heapCrack: '#4e382b',
+  /** The fade: the void's alpha at the yard's edge and 150 px away. */
+  fadeNear: 0,
+  fadeFar: 0.4,
+};
+
+/** The Dock's theme record: every color and alpha of its painter and of its moving water. */
+const DOCK = {
+  waterTop: '#0a1a2b',
+  waterMid: '#0c2236',
+  waterBottom: '#07121e',
+  glint: 'rgba(90,150,190,0.14)',
+  lipShadow: 'rgba(0,0,0,0.5)',
+  lipBody: '#16120b',
+  hazard: '#b08d2a',
+  lipTop: '#2c3646',
+  lipLit: '#4c5b72',
+  bollardShadow: '#05070b',
+  bollardBody: '#2a3342',
+  bollardLit: '#5a6a84',
+  ripple: 'rgba(120,175,215,0.3)',
+  fadeNear: 0.0,
+  fadeFar: 0.62,
+};
+
 // ------------------------------------------------------------------ the themes
 
 /** What one b2 theme draws. */
@@ -128,7 +186,7 @@ function paintEdgeFill(g: Ctx, v: SurroundView): void {
     for (let y = y0 - TS; y > -TS; y -= TS) g.drawImage(v.ground, v.mw - TS, 0, TS, TS, x, y, TS, TS);
     for (let y = y0 + v.mh; y < PH; y += TS) g.drawImage(v.ground, v.mw - TS, v.mh - TS, TS, TS, x, y, TS, TS);
   }
-  fadeOut(g, x0, y0, v.mw, v.mh, 0.35, 0.94);
+  fadeOut(g, x0, y0, v.mw, v.mh, EDGE_FILL.fadeNear, EDGE_FILL.fadeFar);
 }
 
 /** How far from the map's edge the fade takes to reach its far strength, in pixels. */
@@ -188,10 +246,10 @@ function hash(n: number): number {
 function paintYard(g: Ctx, v: SurroundView): void {
   const x0 = -v.cx, y0 = -v.cy;
   const gravel = tilePattern(g, 'yard-gravel', 32, 32, (c) => {
-    c.fillStyle = '#0e0a0b';
+    c.fillStyle = YARD.gravelGround;
     c.fillRect(0, 0, 32, 32);
     for (let i = 0; i < 26; i++) {
-      c.fillStyle = hash(i) > 0.5 ? '#1c1411' : '#271a13';
+      c.fillStyle = hash(i) > 0.5 ? YARD.gravelSpecks[0]! : YARD.gravelSpecks[1]!;
       c.fillRect(Math.floor(hash(i + 50) * 30), Math.floor(hash(i + 90) * 30), 1 + Math.floor(hash(i + 7) * 3), 1 + Math.floor(hash(i + 3) * 2));
     }
   });
@@ -216,39 +274,39 @@ function paintYard(g: Ctx, v: SurroundView): void {
       if (room < w) continue;
       const off = Math.floor(hash(k * 2 + side + 5) * (room - w + 1));
       const x = side === 0 ? x0 - FENCE - 2 - w - off : x0 + v.mw + FENCE + 2 + off;
-      g.fillStyle = '#080607';
+      g.fillStyle = YARD.heapBody;
       g.fillRect(x, sy - h, w, h);
-      g.fillStyle = '#3d2417';
+      g.fillStyle = YARD.heapRim;
       g.fillRect(x, sy - h, w, 1);
-      g.fillStyle = '#1a100c';
+      g.fillStyle = YARD.heapCrack;
       g.fillRect(x + 2, sy - h + 3, Math.max(1, w - 5), 1);
     }
   }
   // The fence: panels of corrugated metal, one rib every 3 px, a seam every 48 px of the yard.
   const panel = (x: number, outer: boolean): void => {
     for (let i = 0; i < FENCE; i++) {
-      g.fillStyle = i % 3 === 0 ? '#573a2a' : i % 3 === 1 ? '#3f2a1f' : '#2f1f17';
+      g.fillStyle = YARD.fenceRibs[i % 3]!;
       g.fillRect(x + i, 0, 1, PH);
     }
-    g.fillStyle = '#17100c';
+    g.fillStyle = YARD.fenceEdge;
     g.fillRect(outer ? x : x + FENCE - 1, 0, 1, PH);
     for (let k = Math.floor(v.cy / 48) - 1; k * 48 - v.cy < PH; k++) {
       const sy = k * 48 - v.cy;
-      g.fillStyle = '#150e0b';
+      g.fillStyle = YARD.seamShadow;
       g.fillRect(x, sy, FENCE, 2);
-      g.fillStyle = '#6a4630';
+      g.fillStyle = YARD.seamLight;
       g.fillRect(x, sy + 2, FENCE, 1);
       // A rust streak under some seams.
       if (hash(k + 31) > 0.5) {
-        g.fillStyle = '#7a3b1c';
+        g.fillStyle = YARD.rustStreak;
         g.fillRect(x + 3 + Math.floor(hash(k) * 8), sy + 3, 1, 8 + Math.floor(hash(k + 4) * 14));
       }
     }
     for (let k = Math.floor(v.cy / 96) - 1; k * 96 - v.cy < PH; k++) {
       const sy = k * 96 - v.cy;
-      g.fillStyle = '#100a0a';
+      g.fillStyle = YARD.postBody;
       g.fillRect(x + (outer ? -1 : FENCE - 2), sy - 3, 3, 8);
-      g.fillStyle = '#6a4630';
+      g.fillStyle = YARD.postTop;
       g.fillRect(x + (outer ? -1 : FENCE - 2), sy - 3, 3, 1);
     }
   };
@@ -256,7 +314,7 @@ function paintYard(g: Ctx, v: SurroundView): void {
     panel(x0 - FENCE, false);
     panel(x0 + v.mw, true);
   }
-  fadeOut(g, x0, y0, v.mw, v.mh, 0.05, 0.8);
+  fadeOut(g, x0, y0, v.mw, v.mh, YARD.fadeNear, YARD.fadeFar);
 }
 
 /**
@@ -268,23 +326,23 @@ function paintDock(g: Ctx, v: SurroundView): void {
   const x0 = -v.cx, y0 = -v.cy;
   // The water's colors run down the screen (the picture's middle), so the pad only extends them.
   const water = g.createLinearGradient(0, SHAKE_PAD, 0, SHAKE_PAD + H);
-  water.addColorStop(0, '#0a1a2b');
-  water.addColorStop(0.5, '#0c2236');
-  water.addColorStop(1, '#07121e');
+  water.addColorStop(0, DOCK.waterTop);
+  water.addColorStop(0.5, DOCK.waterMid);
+  water.addColorStop(1, DOCK.waterBottom);
   g.fillStyle = water;
   g.fillRect(0, 0, PW, PH);
   // A still glint across the water, here and there (scattered over the screen, in the picture's coordinates).
-  g.fillStyle = 'rgba(90,150,190,0.14)';
+  g.fillStyle = DOCK.glint;
   for (let k = 0; k < 90; k++) g.fillRect(SHAKE_PAD + Math.floor(hash(k) * W), SHAKE_PAD + Math.floor(hash(k + 200) * H), 8 + Math.floor(hash(k + 400) * 22), 1);
   // The lip: a 5 px concrete edge with a lit top, a 4 px hazard stripe outside it, and a shadow on the water.
   const LIP = 5, STRIPE = 4;
   const rx = x0 - LIP - STRIPE, ry = y0 - LIP - STRIPE, rw = v.mw + 2 * (LIP + STRIPE), rh = v.mh + 2 * (LIP + STRIPE);
-  g.fillStyle = 'rgba(0,0,0,0.5)';
+  g.fillStyle = DOCK.lipShadow;
   g.fillRect(rx - 3, ry - 3, rw + 6, rh + 6);
-  g.fillStyle = '#16120b';
+  g.fillStyle = DOCK.lipBody;
   g.fillRect(rx, ry, rw, rh);
   // Hazard blocks along the four sides, 6 px of amber then 6 px of dark.
-  g.fillStyle = '#b08d2a';
+  g.fillStyle = DOCK.hazard;
   for (let x = rx; x < rx + rw; x += 12) {
     g.fillRect(x, ry, Math.min(6, rx + rw - x), STRIPE);
     g.fillRect(x + 3, ry + rh - STRIPE, Math.min(6, rx + rw - x - 3), STRIPE);
@@ -293,18 +351,18 @@ function paintDock(g: Ctx, v: SurroundView): void {
     g.fillRect(rx, y, STRIPE, Math.min(6, ry + rh - y));
     g.fillRect(rx + rw - STRIPE, y + 3, STRIPE, Math.min(6, ry + rh - y - 3));
   }
-  g.fillStyle = '#2c3646';
+  g.fillStyle = DOCK.lipTop;
   g.fillRect(rx + STRIPE, ry + STRIPE, rw - 2 * STRIPE, rh - 2 * STRIPE);
-  g.fillStyle = '#4c5b72';
+  g.fillStyle = DOCK.lipLit;
   g.fillRect(rx + STRIPE, ry + STRIPE, rw - 2 * STRIPE, 1);
   // The apron itself is drawn by the map over this block.
   // Bollards on the lip: the four corners and every 64 px along the long sides.
   const bollard = (x: number, y: number): void => {
-    g.fillStyle = '#05070b';
+    g.fillStyle = DOCK.bollardShadow;
     g.fillRect(x - 4, y - 3, 8, 8);
-    g.fillStyle = '#2a3342';
+    g.fillStyle = DOCK.bollardBody;
     g.fillRect(x - 3, y - 4, 6, 6);
-    g.fillStyle = '#5a6a84';
+    g.fillStyle = DOCK.bollardLit;
     g.fillRect(x - 3, y - 4, 6, 1);
     g.fillRect(x - 3, y - 4, 1, 4);
   };
@@ -316,13 +374,13 @@ function paintDock(g: Ctx, v: SurroundView): void {
     bollard(rx + 1, y0 + k);
     bollard(rx + rw - 1, y0 + k);
   }
-  fadeOut(g, x0 - LIP - STRIPE, y0 - LIP - STRIPE, v.mw + 2 * (LIP + STRIPE), v.mh + 2 * (LIP + STRIPE), 0.0, 0.62);
+  fadeOut(g, x0 - LIP - STRIPE, y0 - LIP - STRIPE, v.mw + 2 * (LIP + STRIPE), v.mh + 2 * (LIP + STRIPE), DOCK.fadeNear, DOCK.fadeFar);
 }
 
 /** The dock's moving water: pale ripple dashes that drift sideways, only where the water shows. */
 function rippleWater(ctx: Ctx, v: SurroundView): void {
   const x0 = -v.cx, y0 = -v.cy;
-  ctx.fillStyle = 'rgba(120,175,215,0.3)';
+  ctx.fillStyle = DOCK.ripple;
   const margin = 14;
   for (let k = 0; k < 56; k++) {
     const y = Math.floor(hash(k + 900) * H);

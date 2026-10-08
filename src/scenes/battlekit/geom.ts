@@ -264,6 +264,15 @@ export const FLOATER_POP = 8, FLOATER_BOUNCE = 3, FLOATER_ROW = 12;
  */
 export const FLOATER_POP_FRAMES = 8, FLOATER_BOUNCE_FRAMES = 12, FLOATER_TICK_SINK = 8;
 /**
+ * The rest of a floater's timing (tuned by eye in the 480x270 battle, kept at the same values). All
+ * in frames except the rates. A floater holds still from the end of its pop until frame
+ * `FLOATER_HOLD_FRAMES`, then drifts up `FLOATER_DRIFT` rows a frame; it starts to fade at frame
+ * `FLOATER_FADE_START` and is gone `FLOATER_FADE_FRAMES` later. The hit's bounce is a sine wave that
+ * turns `FLOATER_BOUNCE_RATE` radians a frame (about six frames from one end of a hump to the other);
+ * a damage-over-time tick sinks `FLOATER_SINK_RATE` rows a frame, down to `FLOATER_TICK_SINK`.
+ */
+export const FLOATER_HOLD_FRAMES = 24, FLOATER_DRIFT = 0.15, FLOATER_FADE_START = 38, FLOATER_FADE_FRAMES = 12, FLOATER_BOUNCE_RATE = 0.52, FLOATER_SINK_RATE = 0.25;
+/**
  * Damage numbers never rise into the top text band. This is the lowest row a floater may START at
  * (world pixels): after its pop and its bounce its top is still on the first row under the band,
  * `PROMPT_CLEAR`. Derived from the band, so it follows the HUD frame.

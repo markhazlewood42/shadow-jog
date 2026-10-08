@@ -130,7 +130,7 @@ export function scriptApi(f: FieldScene): ScriptApi {
       new Promise<void>((res) => {
         // The same camera rule as the scene's own camera (fieldkit/camera.ts), so the pan lands
         // exactly where the camera will rest afterwards, on a map of any size.
-        const focus = { x: x * TS + 8, y: y * TS + 8 };
+        const focus = { x: x * TS + TS / 2, y: y * TS + TS / 2 };
         const t = cameraOrigin(focus.x, focus.y, f.map.w * TS, f.map.h * TS, f.cameraBox);
         f.camOverride = focus;
         // A pan is the beat that reveals things: it lifts an event curtain (fieldkit/popins.ts),

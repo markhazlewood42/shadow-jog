@@ -20,6 +20,7 @@
  * into the map data once Mark gives his written yes.
  */
 import type { Ctx } from '../../engine/canvas';
+import { TS } from '../../field/tiles';
 import { voidShade } from './void';
 
 /** Limits on where the camera's origin (the view's top-left corner, in map pixels) may go. A side left out keeps the default (the map's own edge). */
@@ -57,6 +58,15 @@ export interface PopinEntry {
 const CURTAIN_STRENGTH = 0.94;
 /** The width of the soft edge outside a curtain's box, in pixels. */
 const CURTAIN_FEATHER = 24;
+/**
+ * How far down the Annex the curtains over the east side reach: 17 tiles from the map's top (the
+ * map is 34 rows). The cryo wing fills rows 3 to 11 and its south wall is row 12, so this covers the
+ * wing and the wall under it with room to spare; below it, at these columns, the map is all wall and
+ * holds nothing to hide (checked against `annex.ts`). It is the height of the old 480x270 view
+ * rounded up to whole tiles (270 px is 16.9 tiles), which is where the number came from; it is not
+ * the 360 px view's height, because the curtain only has to cover content, not the screen.
+ */
+const ANNEX_EAST_CURTAIN_H = 17 * TS;
 
 export const POPINS: Readonly<Record<string, PopinEntry>> = {
   // P1, picked b (Review 3). The Annex's first screen already shows the cryo wing, where Sable's pod
@@ -65,16 +75,18 @@ export const POPINS: Readonly<Record<string, PopinEntry>> = {
   P1: {
     map: 'annex',
     what: 'The cryo wing and its pods show on the first screen of the Annex, long before the story walks there.',
-    fix: { kind: 'curtain', curtain: { mode: 'near', box: { x: 496, y: 0, w: 208, h: 272 }, focus: { x: 576, y: 88 }, radius: 208, fade: 96 } },
+    fix: { kind: 'curtain', curtain: { mode: 'near', box: { x: 496, y: 0, w: 208, h: ANNEX_EAST_CURTAIN_H }, focus: { x: 576, y: 88 }, radius: 208, fade: 96 } },
   },
   // P2, picked b. Relays B and C stand within 640 px of the lattice, so cycling them shows the beams
-  // change. Option a cannot be built: keeping the lattice (x 480) out of the view at relay B (x 248)
-  // needs the camera at x -192 or less, and a limit that holds it there (a maxX) would also strand
-  // the leader everywhere east of x 440; a minX only holds the camera's left side.
+  // change. Option a cannot be built as a static box: the lattice starts at x 480 (annex.ts), so keeping
+  // it out of the view at relay B (x 248) needs the camera origin at x -160 or less. The camera rule
+  // (camera.ts) floors the origin at 0 unless `minX` names a lower value, so `maxX` alone does nothing:
+  // it takes `minX` and `maxX` both at -160 or below. That pins the camera for the whole Annex, and the
+  // leader (at screen x = map x + 160) leaves the right edge east of about x 472.
   P2: {
     map: 'annex',
     what: 'From relay B or C the lattice is on screen, so the cycle shows what the relay feeds (Hex says he cannot see it).',
-    fix: { kind: 'curtain', curtain: { mode: 'event', events: ['relay_b', 'relay_c'], box: { x: 448, y: 0, w: 256, h: 272 }, fade: 12 } },
+    fix: { kind: 'curtain', curtain: { mode: 'event', events: ['relay_b', 'relay_c'], box: { x: 448, y: 0, w: 256, h: ANNEX_EAST_CURTAIN_H }, fade: 12 } },
   },
   // P3, picked b. The lattice shutdown pans the camera 64 px, because the lattice is already in view.
   // Option a would need the lattice out of view before the pan: the same impossibility as P2.
