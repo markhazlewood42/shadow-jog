@@ -59,9 +59,9 @@ jobs:
           fetch-depth: 2
       # A pull request that changes only docs, notes (*.md), tools/command-center or the Claude review
       # workflow file needs no lint, build or browser run. This step finds that out. Every later
-      # step of the job then runs only `if: steps.scope.outputs.skip != 'true'`. The job itself is never skipped as a whole: a
-      # skipped job reports success without checking anything, and a required check must not pass
-      # that way.
+      # step of the job then runs only `if: steps.scope.outputs.skip != 'true'`. The job itself is
+      # never skipped as a whole: a skipped job reports success without checking anything, and a
+      # required check must not pass that way.
       #
       # It fails closed. `skip` is `true` only when git lists changed files and every one of them
       # is on the list below. If git fails, lists nothing, or HEAD is not a merge commit, the step
