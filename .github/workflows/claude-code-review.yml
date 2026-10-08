@@ -39,7 +39,10 @@ jobs:
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          # The gh commands are the ones the code-review plugin lists in its own allowed-tools.
+          # A run without them cannot read the pull request, so it can report "No issues found"
+          # without a review.
+          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
@@ -58,3 +61,23 @@ jobs:
           jq -r '[.[] | select(.type == "result")] | last // {} | (.result // .errors // "no result message") | tostring | .[0:1000]' "$file" || echo "Could not read $file"
           echo "::$stop::"
 
+      # The action logs only a count of denied tool calls. List them (tool name and the first
+      # 150 characters of the input) and add a warning, so a "No issues found" from a run that
+      # could not read the pull request is easy to spot. stop-commands keeps the text from
+      # running workflow commands.
+      - name: List denied tool calls
+        if: always()
+        env:
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
+        run: |
+          file="${EXECUTION_FILE:-$RUNNER_TEMP/claude-execution-output.json}"
+          if [ ! -f "$file" ]; then echo "No Claude execution file found."; exit 0; fi
+          count="$(jq '[.[] | select(.type == "result")] | last // {} | (.permission_denials // []) | length' "$file" 2>/dev/null || echo 0)"
+          echo "Denied tool calls: $count"
+          if [ "$count" -gt 0 ]; then
+            echo "::warning title=Claude review had denied tool calls::$count tool calls were denied, so the review may be incomplete. The step log lists them."
+            stop="$(openssl rand -hex 16)"
+            echo "::stop-commands::$stop"
+            jq -r '[.[] | select(.type == "result")] | last // {} | (.permission_denials // []) | .[] | "denied: \(.tool_name) \((.tool_input | tostring)[0:150])"' "$file" || echo "Could not read $file"
+            echo "::$stop::"
+          fi
