@@ -1,11 +1,8 @@
 import { AlertCircle, Check, Copy } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useResultFlash } from '../useResultFlash';
 
 // The small Copy button of a box on the Agents page (design 5.4, revision 2). A web page cannot open a file: address, so a box does not link to its file: the button copies the
 // path of the file to the clipboard, and the person pastes it where it is needed. The icon says what happened, for 2 seconds, and then the button is ready again.
-
-/** How long the button shows the result of a copy before it goes back to the copy icon. */
-const RESULT_MS = 2000;
 
 type CopyState = 'idle' | 'copied' | 'failed';
 
@@ -17,16 +14,8 @@ const ICONS = { idle: Copy, copied: Check, failed: AlertCircle } as const;
  * start, so that a screen reader says it: a region that is added together with its words is often not read.
  */
 export function CopyButton({ path }: { path: string }) {
-  const [state, setState] = useState<CopyState>('idle');
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // A timer must not outlive its button: when a box leaves the page, its timer is stopped.
-  useEffect(
-    () => () => {
-      if (timer.current !== null) clearTimeout(timer.current);
-    },
-    [],
-  );
+  // The result shows for 2 seconds and then the button rests again. A second copy starts the 2 seconds again, and the timer stops when the box leaves the page.
+  const [state, show] = useResultFlash<CopyState>('idle');
 
   async function copy(): Promise<void> {
     let result: CopyState;
@@ -38,10 +27,7 @@ export function CopyButton({ path }: { path: string }) {
     } catch {
       result = 'failed';
     }
-    setState(result);
-    // A second copy starts the 2 seconds again.
-    if (timer.current !== null) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setState('idle'), RESULT_MS);
+    show(result);
   }
 
   const Icon = ICONS[state];

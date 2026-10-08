@@ -1,8 +1,8 @@
 import { Button, ButtonGroup, Dropdown, Label } from '@heroui/react';
 import { AlertCircle, Check, ChevronDown, Copy, Download } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
 import type { DocPage, Health } from '../../shared/types';
 import { getJson } from '../api';
+import { useResultFlash } from '../useResultFlash';
 import { buildCopyText, downloadName } from './copyText';
 import { docSourcePath } from './paths';
 
@@ -11,9 +11,6 @@ import { docSourcePath } from './paths';
 //
 // The text of the doc is not in the page data. It is fetched from the source route when a button is pressed,
 // so a page that nobody copies never pays for it.
-
-/** How long the main button shows the result of an action before it goes back to "Copy for LLM". */
-const RESULT_MS = 2000;
 
 /** How long a Blob URL lives after a download starts, in milliseconds. */
 const REVOKE_MS = 10_000;
@@ -72,23 +69,8 @@ export async function copyForLlm(doc: Pick<DocPage, 'id' | 'slug' | 'title'>): P
  * page from the start, so a screen reader says them (a region that is added together with its words is often not read).
  */
 export function DocToolbar({ doc }: { doc: Pick<DocPage, 'id' | 'slug' | 'title'> }) {
-  const [shown, setShown] = useState<Shown>('idle');
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // A timer must not outlive its toolbar: when the page goes to another doc, its timer is stopped.
-  useEffect(
-    () => () => {
-      if (timer.current !== null) clearTimeout(timer.current);
-    },
-    [],
-  );
-
-  /** Shows a result for 2 seconds. A second result starts the 2 seconds again. */
-  function show(result: Shown): void {
-    setShown(result);
-    if (timer.current !== null) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setShown('idle'), RESULT_MS);
-  }
+  // A result shows for 2 seconds and then the button goes back to "Copy for LLM". A second result starts the 2 seconds again, and the timer stops when the page goes to another doc.
+  const [shown, show] = useResultFlash<Shown>('idle');
 
   async function copy(): Promise<void> {
     try {
