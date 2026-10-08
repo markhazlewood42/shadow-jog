@@ -149,17 +149,20 @@ export function commitHref(repo: string, sha: string): string | null {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
 /**
- * The row "status.md": `updated Oct 7` for the date of its frontmatter (`2026-10-07`), with the year (`updated Oct 7, 2025`) only when it is not the year of `now`.
- * The date is read from its text and not through a time zone, so it never moves a day. A date in another shape is shown as it was written, and none is `No date`.
+ * The row "status.md": `updated Oct 7` for the date of its frontmatter (`2026-10-07`), with the year (`updated Oct 7, 2025`) only when it is not the (UTC) year of `now`.
+ * The date is read from its text and not through a time zone, so it never moves a day. A date in another shape, or one that does not exist (`2026-02-31`), is shown as it was written, and none is `No date`.
  */
 export function updatedLabel(updated: string | null, now: Date): string {
   if (updated === null) return 'No date';
   const match = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T ])/.exec(updated);
   if (match === null) return `updated ${updated}`;
   const [, year, monthNumber, day] = match.map(Number);
+  // Only a real calendar date counts. Build the date in UTC and read its parts back: 31 February becomes 3 March, so the parts differ and the text is shown as it was written.
+  const built = new Date(Date.UTC(year ?? 0, (monthNumber ?? 0) - 1, day ?? 0));
+  const real = built.getUTCFullYear() === year && built.getUTCMonth() === (monthNumber ?? 0) - 1 && built.getUTCDate() === day;
   const month = MONTHS[(monthNumber ?? 0) - 1];
-  if (month === undefined || day === undefined || day < 1 || day > 31) return `updated ${updated}`;
-  return `updated ${month} ${day}${year === now.getFullYear() ? '' : `, ${year}`}`;
+  if (!real || month === undefined) return `updated ${updated}`;
+  return `updated ${month} ${day}${year === now.getUTCFullYear() ? '' : `, ${year}`}`;
 }
 
 /** The words of the row "Next up": the number of items that wait for Mark, or `Nothing for you`. */

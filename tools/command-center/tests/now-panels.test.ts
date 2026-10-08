@@ -218,6 +218,27 @@ describe('updatedLabel', () => {
     expect(updatedLabel('2026-10-07T23:30:00Z', now)).toBe('updated Oct 7');
   });
 
+  it('G9: updatedLabel shows the raw text for 2026-02-31', () => {
+    expect(updatedLabel('2026-02-31', now)).toBe('updated 2026-02-31');
+    expect(updatedLabel('2026-04-31', now)).toBe('updated 2026-04-31');
+    // 2026 is not a leap year, and 2028 is.
+    expect(updatedLabel('2026-02-29', now)).toBe('updated 2026-02-29');
+  });
+
+  it('G9: updatedLabel shows the raw text for 2026-13-45', () => {
+    expect(updatedLabel('2026-13-45', now)).toBe('updated 2026-13-45');
+    expect(updatedLabel('2026-00-10', now)).toBe('updated 2026-00-10');
+  });
+
+  it('G9: updatedLabel still formats a real date', () => {
+    expect(updatedLabel('2028-02-29', now)).toBe('updated Feb 29, 2028');
+    expect(updatedLabel('2026-10-07', now)).toBe('updated Oct 7');
+    // The year of `now` is the UTC year: a clock just before midnight on 31 December in a zone behind UTC is already the next year in UTC.
+    expect(updatedLabel('2027-01-01', new Date('2026-12-31T23:30:00Z'))).toBe('updated Jan 1, 2027');
+    expect(updatedLabel('2026-12-31', new Date('2026-12-31T23:30:00Z'))).toBe('updated Dec 31');
+    expect(updatedLabel('2027-01-01', new Date('2027-01-01T00:30:00Z'))).toBe('updated Jan 1');
+  });
+
   it('shows a date in another shape as it was written, and no date as No date', () => {
     expect(updatedLabel('yesterday', now)).toBe('updated yesterday');
     expect(updatedLabel('2026-13-01', now)).toBe('updated 2026-13-01');
