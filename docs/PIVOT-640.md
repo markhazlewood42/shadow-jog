@@ -402,4 +402,39 @@ I propose all three at x 4/3. The ring has to cross the same share of the screen
 - **The expected-failure list is empty**, so there is no marker to demonstrate.
 - **An observation, not a WP2 finding.** In a dev page, `sj.tp('dock', 10, 7, 'down')` called from the town (or from Rook's flat) crashes the browser tab, in real time and at 480x270 too (checked with a temporary 480x270 build). The dock's `onEnter` cutscene (`betrayal`, `src/data/maps/annex.ts`) is the probable cause; setting `sj.state.flags.chapter_end = true` first skips it. The dev route `?scene=field&map=dock` and the story path work. Not investigated further; the small-map picture was taken with that flag set.
 
-**Verification table.** (pending)
+**Verification table.** Round 1 of 3, 2026-10-08, at commit cf0a8a2. Three fresh verifiers: A correctness and tests (Haiku), B design conformance (Haiku), C visual and runtime (Sonnet; Mark asked on 2026-10-07 for the smallest model that does each job). Full reports: `media/verification/wp2/verifier-correctness.md`, `verifier-design.md`, `verifier-visual.md` (git-ignored). **Result: pass.** The WP2 exit lines PL7, PL8 and PL13 hold, every median is 7 or more, and the average of the medians is 8.27.
+
+| Criterion | A | B | C | Median | Note |
+|---|---|---|---|---|---|
+| R1 Coverage | 7 | 8 | n/a | 7.5 | 14 rows spot-checked, each with a commit or a reason. Row 224 (flash) needs its note: named fix. |
+| R3 Pixel fidelity | 8 | 9 | 9 | 9 | Exact blocks at 7 window sizes (C); one scale in every battle layer. |
+| R6 Performance | 8 | n/a | 7 | 7.5 | Inside every gate locally. CI software field mean 6.89 and 7.28 ms against the gate of 8 (9 to 14% headroom): named fix. |
+| R7 Test quality | 8 | 8 | 8 | 8 | Controls fire: the 90% rule at 80% fails 4 tests, a 1.5% too large canvas gives 190,535 uneven blocks, the old clamp fails the `pan()` test. |
+| R8 Behavior kept | 9 | 9 | 9 | 9 | All 11 e2e specs pass on the GPU; balance and economy pass; no save stores a screen value. |
+| R9 Code clarity and records | 8 | 7 | n/a | 7.5 | One place per name; `art/worldsize.ts` is a leaf (F4). Doc errors and a copied helper: named fixes. |
+| V1 Exactness | n/a | n/a | 9 | 9 | 0 uneven blocks at k=2, 3, 4 and 6, on the backing store and the browser picture. |
+| V2 Parity | 7 | n/a | 8 | 7.5 | The fix commit is pixel-neutral (see "PL2 reference" below). |
+| V3 One pixel grid | 7 | 8 | 9 | 8 | Edge histograms peak at x mod 4 = 0 in the backdrop and the party (C). No test pins `BW * WORLD_SCALE = W`: named fix. |
+| V4 Stability | n/a | n/a | 9 | 9 | Two fresh 640x360 runs: 72 of 72 byte-identical, equal to the builder's set. |
+| V5 Legibility | n/a | n/a | 9 | 9 | Cap height 21 device px at k=3 and 14 at k=2 (the bar is 14). |
+
+n/a at WP2: R2, R4, R5 (WP2 added no layout defect: every wrong-looking screen equals the bare-flip probe or is better).
+
+| Pass line | Result | Evidence |
+|---|---|---|
+| PL7 | pass | C: 0 uneven blocks at 1280x720, 1280x800, 1366x768, 1440x900, 1920x1080, 2560x1440, 3840x2160. A: 22 unit tests of the snap table; the 80% control fails 4. |
+| PL8 | pass | C, GPU: field 2.63 / 3.40 ms, battle 1.11 / 2.40. Software: field 4.19 / 5.10, battle 2.32 / 3.90. No gate moved. |
+| PL13 | pass | CI 7m55s (29a289d) and 6m51s (cf0a8a2), three jobs green, no step skipped. |
+| PL1, PL5, PL6, PL9 | pass | Scan 4 pending, 0 unlisted, the `640` control fails it; `public/`, `src/data`, `src/story` diffs empty; `npm run check` 0 (349 tests), build 0, budget 0 (234.1 kB gzip); no expected-fail marker. The `claude-review` check stays red (the workflow on `main`). |
+
+**PL2 reference from WP2 on.** The A2 fix (`warm()` preloads the battle and deck chunks in `e2e/shots.spec.ts`) changed when the deck scene is pushed: frame 1 always, where the old spec gave frame 1 or 2 depending on the server cache. Shots `39`, `40` and `41` therefore differ from `baseline-det/run1` by 14,297 px (rain and light phase); the other 69 are byte-identical. Verifier C's 2x2 control on 08e8d29: the old source with the old spec reproduces `baseline-det/run1` byte for byte, and the old source with the new spec reproduces `baseline-v2` byte for byte. So the move comes from the spec alone, and the fix commit is pixel-neutral (0 px against `baseline-v2`). **`media/pivot-640/wp2/baseline-v2/` is the 480x270 reference from here on.** The race is closed, so the old timing is not kept.
+
+**Named fixes, made in the first commit of the next package** (WP2b, or WP3 if D2 is not a):
+
+- R6: record the CI software numbers in the WP2 perf table. D15: no gate fails, so no gate moves now. WP3 (PL8 plaza) re-checks the CI field mean first; if it reaches the gate of 8 ms, apply D15 (optimize, then re-set inside 12.5 / 14.5 ms with a note).
+- V3: a unit test pins `BW * WORLD_SCALE === W` and `BHT * WORLD_SCALE === H`.
+- R1: the row 224 note (the flash is an alpha wash, `src/engine/game.ts:381-386`, so it needs no scale).
+- R9: `docs/CONCEPTS.md:311` says "one pixel narrow", the Record says 5 px: make them agree. `docs/engine/migration.md:26` says 7 `src/engine` files, the branch changes 5. `tests/camera.test.ts:25` comment names the wrong sizes. `shotNames` moves to `scripts/lib/` (copied in `check-shots.mjs`, `contact-sheet.mjs`, `pixel-diff.mjs`). `docs/GLOSSARY.md`: add `cssScaleFor`, `SHAKE_PIXEL_GAIN` and `art/worldsize.ts`, or record that the glossary holds no code names.
+- `e2e/gpufx.spec.ts:49-50` takes its point from `W` and `H` (not 240, 120), and `e2e/fxlab.spec.ts:12` uses an exact-multiple viewport (not 1440x810).
+
+**For Mark at Review 1, from the verifiers.** D10: the shake keeps its on-screen size only roughly, because offsets round to whole game pixels (strength 5 moves the picture 4 game pixels, was 3). Glow and haze are 25% finer relative to the screen; he may ask for the bloom radius times 4/3. D11: the proposal scales the shockwave reach, not the ring width, so the intro ring is 25% thinner on screen. WP7 owns a GPU-on presenter test (C finding 3).
