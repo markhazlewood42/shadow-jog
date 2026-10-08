@@ -51,11 +51,11 @@ jobs:
           # The built-in /code-review command (docs: code.claude.com/docs/en/code-review). It replaces
           # the code-review plugin. On Claude Code 2.1.285 and later with Sonnet 5.5, the plugin skips
           # its review agents and still posts "No issues found" (anthropics/claude-code issue 100401).
-          # The built-in command reviews the diff itself and reports its findings. "high" is its effort
+          # The built-in command reviews the diff itself and reports its findings. "medium" is its effort
           # level. There is no --comment: that flag can silently print the findings instead of posting
           # them (anthropics/claude-code issue 88190), and here it posted nothing. The step "Post the
           # review on the pull request" posts them from the run's execution file.
-          prompt: '/code-review high ${{ github.event.pull_request.number }}'
+          prompt: '/code-review medium ${{ github.event.pull_request.number }}'
           # The review reads the pull request with these gh commands. A run without them cannot
           # read the diff. No tool here posts a comment: the posting step does that.
           # --permission-mode auto is the mode that Anthropic's own review workflow uses
