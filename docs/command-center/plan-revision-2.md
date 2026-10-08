@@ -77,6 +77,13 @@ The constraints of [plan.md](plan.md) still hold. Revision 2 changes these:
 - [ ] **Done when:** the suites pass. The text follows section 5.8.
 - [ ] **Review point:** screenshots of a decision page: open, answered, and an error.
 
+### Task 19b: Server text (added after the Task 16 reviews)
+- **Why:** the reviewers found sentences that the server makes and a page shows (panel error messages, the Your move item for an unreadable decision, 21 to 28 words each). Section 5.8 covers them.
+- **Files:** the strings in `src/server/` that reach a page, with the tests that pin them. A guard test checks every message for length and contractions.
+- [ ] **Tests:** `server messages are one short line each`. The old pinned strings change with the text.
+- [ ] **Done when:** the suites pass. The report lists every changed message with its word count before and after, and none is above 20.
+- [ ] **Review point:** screenshots of three error states.
+
 ### Task 20: Engine table text and finish
 - **Files:** modify `src/web/docs/Decisions.tsx`, `tools/command-center/README.md` (the new routes and config keys), `CHANGELOG.md`, `status.md` and the status line of `docs/command-center/design.md`.
 - [ ] **Tests:** the engine E2E spec follows the new text. All `CC_REAL_*` checks pass again.
