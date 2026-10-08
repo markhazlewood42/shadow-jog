@@ -99,6 +99,22 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
 /** The slug of a doc: its repo path without `.md` and without a leading `docs/`. The decisions module uses it to name the doc that an issue links to. */
 export const slugOf = (id: string): string => id.replace(/\.md$/i, '').replace(/^docs\//, '');
 
+/**
+ * What the docs module does when the file watcher reports an error: it logs the error, adds the sentence for it to `problems`, and scans again, so that the site shows
+ * the problem. The same error twice does this once. The sentence clips the error text to a few words, so two different errors can make the same sentence: the check for
+ * "the same error" compares the full message, kept apart in a Set of its own.
+ */
+export function watcherErrorHandler(problems: Set<string>, scanAgain: () => void): (error: Error) => void {
+  const seen = new Set<string>();
+  return (error) => {
+    console.error('The docs file watcher reported a problem:', error);
+    if (seen.has(error.message)) return;
+    seen.add(error.message);
+    problems.add(say('watcherFailed', { error: error.message }));
+    scanAgain();
+  };
+}
+
 /** A path (a repo path, or an absolute path inside the repo) as a repo path with forward slashes, or null when it is outside the repo. */
 function repoPathOf(root: string, path: string): string | null {
   const absolute = isAbsolute(path) ? path : join(root, path);
@@ -659,14 +675,7 @@ export function createDocIndex(deps: DocIndexDeps, options: DocIndexOptions = {}
           isDocFile,
           isAssetFile,
           onChange: (paths) => void refresh(paths),
-          onError: (error) => {
-            console.error('The docs file watcher reported a problem:', error);
-            const line = say('watcherFailed', { error: error.message });
-            if (!watcherProblems.has(line)) {
-              watcherProblems.add(line);
-              void refresh();
-            }
-          },
+          onError: watcherErrorHandler(watcherProblems, () => void refresh()),
         });
         await watcher.ready;
       } catch (error) {
