@@ -77,6 +77,8 @@ Run one file with `npx vitest run tests/battle.test.ts`. Output of the simulatio
 | `maps.test.ts` | Every map's content reachable; **no mid-story dead ends** at any of 25 story stages; relay logic; typographic apostrophes; glyph coverage; every prop has a painter; no overlapping signs |
 | `layout.test.ts`, `glyphs.test.ts` | Every data-driven string fits its box; every character has a glyph |
 | `camera.test.ts` | The field camera rule (`scenes/fieldkit/camera.ts`): a map smaller than the view is centered, a larger one is clamped. Also pins that the scripted `pan()` uses that rule (a stand-in scene, no canvas) |
+| `display.test.ts` | The scale rule of the display (`cssScaleFor`): the window table, 90% line, both scale modes, device pixel ratios (D14) |
+| `shake.test.ts` | Screen shake keeps its on-screen size: strengths are scaled by 4/3 (`SHAKE_PIXEL_GAIN`), offsets stay whole pixels (D10) |
 | `screen-literals.test.ts` | The screen-size scan (below): no bare `480`, `270`, `640`, `360` (and their half and off-by-one neighbors) in code, except on a listed line |
 | `playback.test.ts`, `orders.test.ts`, `timing.test.ts`, `motion.test.ts` | Battle presentation logic without a canvas |
 | `input.test.ts`, `ui-list.test.ts`, `actor.test.ts`, `atmosphere.test.ts`, `music.test.ts`, `content.test.ts` | Input, list menus, actors, weather and lighting, song bars and harmony, content references |
@@ -111,6 +113,7 @@ that pull request's earlier CI run. A run on `main` is never canceled once it st
 | `chaos.spec.ts` | Mashing keys through doors, menus mid-warp, reload mid-dialogue, keys through a battle |
 | `prod.spec.ts` | The **shipped build** (builds fresh, serves on 3008): new game, save, reload, continue |
 | `economy.spec.ts` | Zone walks and a shop in the real game |
+| `gpufx.spec.ts` | The GPU effects layer (comes up, survives a battle, switches off and on, falls back to 2D) and the pixel-perfect block test: every game pixel an exact block at k=3 (1920x1080) and k=2 (1280x800) |
 | `perf.spec.ts` | Frame budget in the plaza and a battle; input latency. `PW_NOGPU=1` reproduces CI's software canvas |
 | `shots.spec.ts` | The screenshot set for `docs/screenshots/`. Deterministic: the game runs on Playwright's paused clock, with a fixed `Date.now()` (so a fixed RNG seed), pinned fights and a seeded `Math.random`; the header comment explains. For a compare across two commits set `SJ_BUILD_SHA=<label>` for both runs: the title draws the build's commit |
 | `audio-evidence.spec.ts` | Renders every song and effect offline and measures them |

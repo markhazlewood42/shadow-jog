@@ -3,8 +3,8 @@ type: design
 title: "Shadow Jog — The move to 640x360: criteria, rubric and record"
 project: shadow-jog
 created: 2026-10-06
-updated: 2026-10-06
-status: criteria committed 2026-10-06, before any code of the move. Step 1 (WP0, WP1, 1b) recorded 2026-10-06. Mark approved the move on 2026-10-05 ("Let's pivot. Better now than later.")
+updated: 2026-10-07
+status: criteria committed 2026-10-06, before any code of the move. Step 1 (WP0, WP1, 1b) recorded 2026-10-06 and verified 2026-10-07. WP2 built and recorded 2026-10-07 (verification pending). Mark approved the move on 2026-10-05 ("Let's pivot. Better now than later.")
 tags: [engine, design, verification, pivot-640]
 ---
 
@@ -222,7 +222,7 @@ This move cannot measure these. Each gap has a reason and the nearest evidence.
 
 **The rule.** A test that the flip turns red, and that a later package fixes, carries an expected-failure marker: `it.fails(...)` in vitest and `test.fail()` in Playwright. The test body is not edited, skipped or deleted. Both runners invert the result, so a test that passes by mistake turns red ("Expect test to fail" in vitest, "Expected to fail, but passed" in Playwright). Vitest has no `describe.fails`, so each test takes its own marker. A comment on the marker names the owner package and says `PIVOT-640 expected-fail: <owner package>`. When the owner package fixes the layout, the test passes, the marker turns CI red, and the owner removes the marker. This list only shrinks. A grep for `PIVOT-640 expected-fail` over `src/`, `tests/`, `e2e/` and `scripts/` finds nothing at WP7 (PL9).
 
-**Entries.** None. WP1 changes no pixel, so no test turns red in Step 1. WP2 writes the first entries, if the flip turns any test red.
+**Entries.** None. WP1 changed no pixel, so no test turned red in Step 1. WP2 (2026-10-07) ran the flip against every test and found none red: `npm run check` is green at 640x360 (28 files, 349 tests), and all 75 tests of the 11 e2e specs pass on the GPU (`npx playwright test`, 18.5 minutes). The unit tests and the e2e checks read `W` and `H`, so the flip alone breaks none of them. The tests that will turn red are ones that a later package writes (the layout recorder at WP4, the battle geometry test at WP6), and a package that needs a marker adds it to this list in the same commit. Count at WP2: **0 markers**.
 
 ---
 
@@ -327,3 +327,79 @@ Not fixed here, with the owner: the scan does not cover `tests/`, `e2e/` and `sc
 - **Perf gates (Step 1 question 2).** Both PL8 gates apply as written, GPU and software. No change.
 - **`25-ending-next` and `34-game-over` (question 3).** They stay on the void-allowed list. WP5 re-centers them, and the visual verifier checks them by eye (the expectation list).
 - **WP2b (question 4).** It stays its own package.
+
+### WP2: the flip, the 2x viewport, the engine floor (2026-10-07)
+
+**Commits (branch `resolution-640x360`).** `3fde408` the Step 1 named fixes (made first, at 480x270); `29a289d` the flip, the viewport, the snap rule, the shake gain and their tests; the next commit holds this record, the CHANGELOG and the new CONCEPTS entries.
+
+**What changed.**
+
+- The flip: `W = 640`, `H = 360` (`src/engine/game.ts`, still the one source). The battle world is 320x180 at 2x through `WORLD_SCALE`. Nothing else in `src/` changed for the flip: no layout is re-laid yet, so many screens look wrong (see the pictures below), as the plan says.
+- The viewport is 1280x720, an exact 2x, in `playwright.config.ts`, `scripts/shot.mjs` and `scripts/pixellab/render-maps.mjs` (rows 75, 215, 216; the render script now shoots `#screen`, and `artreview.html` shows its pictures 1280 px wide). Row 79 (`scripts/trailer.mjs`): its 1920x1080 viewport stays, because it is exactly 3x of 640x360 (it was 4x); the header comment says so. `e2e/fxlab.spec.ts` keeps its own 1440x810 viewport and passes.
+- The snap rule (D14): `cssScaleFor` in `src/engine/display.ts` is the Fill-mode rule as a pure function (`Display.resize` calls it). The 90% rule is unchanged. `tests/display.test.ts` pins the window table below.
+- PL7 block test: `e2e/gpufx.spec.ts` (two tests) turns the GPU layer off, sets Pixel-perfect mode, and reads the `#screen` canvas: every game pixel is a k-by-k block of one color, the canvas size is the game size times k, and the browser shows the canvas at its own size. k=3 at 1920x1080 and k=2 at 1280x800: 0 uneven blocks each.
+- The shake (D10): `Game.shake` multiplies the authored strength by `SHAKE_PIXEL_GAIN` (4/3). The strength stays unrounded, and `shakeOffset` already rounds each frame's offset to whole game pixels, so a scene still moves by whole pixels (an authored 1 to 5 becomes a frame-0 kick of 1, 3, 4, 5, 7). The player's Screen shake setting multiplies after the gain. Glow and haze are unchanged. `tests/shake.test.ts` pins the values.
+- `tests/screen-literals.allow.json`: the two `game.ts` entries now list the tokens 640 and 360 only.
+
+**Negative controls (R7).** (1) The snap table: changing the 90% line to 80% fails 4 tests of `tests/display.test.ts` (the 1536x864, 1600x900 and 1440x900 rows and the line test); restored, 22 of 22 pass. (2) The block test: drawing the back buffer 5 pixels too narrow in `Display.present` gives 107,870 uneven blocks at k=3 and 83,062 at k=2, and both tests fail; restored, both pass. (3) The `pan()` test: putting the old inline clamp back in `fieldkit/api.ts` fails "aims a map smaller than the view at its centered origin" (expected x -120, got 0). (4) The shake test: a gain of 1 fails 3 of 5 tests.
+
+**Snap table** (the rule at 640x360, device pixel ratio 1; "fit" is the largest scale that shows the whole frame; the 90% test is the whole multiple divided by fit).
+
+| Window | fit | Fill | Pixel-perfect |
+|---|---|---|---|
+| 1280x720 | 2.000 | 2x | 2x |
+| 1280x800 (the Steam Deck window) | 2.000 | 2x | 2x |
+| 1366x768 | 2.133 | 2x (94%) | 2x |
+| 1440x900 | 2.250 | 2.25x (89%, resampled) | 2x |
+| 1536x864 | 2.400 | 2.4x (83%, resampled) | 2x |
+| 1600x900 | 2.500 | 2.5x (80%, resampled) | 2x |
+| 1920x947 (a maximized browser) | 2.631 | 2.631x (76%, resampled) | 2x |
+| 1920x1080 | 3.000 | 3x | 3x |
+| 2560x1440 | 4.000 | 4x | 4x |
+| 3840x2160 | 6.000 | 6x | 6x |
+
+The common sizes are exact in both modes. Four awkward windows (1440x900 up to a maximized 1920x947) are resampled slightly in Fill mode, as inventory row 223 predicted. D14 is Mark's call (keep 90%, lower the line, or default to Pixel-perfect); this step changes no rule.
+
+**Perf (PL8, D15).** `npx playwright test e2e/perf.spec.ts --reporter=line`, Mark's desktop, headless Edge, 2026-10-07. Means and p95 in ms per frame. The raw outputs are `media/pivot-640/perf/wp2-gpu.txt` and `wp2-nogpu.txt`. The first run at the bare flip, before the other WP2 commits, is `wp2-flip-gpu.txt` and `wp2-flip-nogpu.txt`, and agrees.
+
+| Run | Field mean / p95 | Battle mean / p95 | Sim (field, battle) mean / p95 | Title mean / p95 | Gate (mean / p95) |
+|---|---|---|---|---|---|
+| GPU, 480x270 baseline | 3.60 / 5.30 | 1.20 / 1.70 | 0.06 / 0.20, 0.08 / 0.20 | 0.57 / 0.80 | 4 / 6 |
+| GPU, 640x360 probe | 2.73 / 3.40 | 0.99 / 1.50 | 0.06 / 0.10, 0.06 / 0.10 | 0.55 / 0.80 | 4 / 6 |
+| **GPU, 640x360, WP2** | **2.84 / 4.00** | **1.42 / 2.80** | 0.04 / 0.10, 0.07 / 0.10 | 0.81 / 1.70 | 4 / 6 |
+| Software, 480x270 baseline | 3.09 / 3.50 | 1.36 / 1.70 | 0.06 / 0.20, 0.05 / 0.10 | 0.73 / 0.80 | 8 / 11 |
+| Software, 640x360 probe | 4.24 / 4.60 | 1.47 / 1.70 | 0.05 / 0.10, 0.05 / 0.10 | 0.79 / 0.90 | 8 / 11 |
+| **Software, 640x360, WP2** | **4.10 / 4.80** | **1.95 / 3.20** | 0.04 / 0.10, 0.05 / 0.10 | 0.94 / 1.20 | 8 / 11 |
+
+Every gate passes as it is, with margin: GPU field 2.84 of 4 (29%) and p95 4.00 of 6; software field 4.10 of 8 (49%) and p95 4.80 of 11. The software field mean rose 1.33 times from 480x270 (the plan predicted 1.78 times); the PL8 ceilings (12.5 and 14.5 ms) are far away. **D15: no gate changed and no optimization was made**, because none was needed. The simulation gates are untouched (at most 0.07 ms mean). The slow-frame guard (row 333: 90 frames above 40 ms turn the GPU effects off) is far from tripping: the slowest frame in any run was 7.6 ms on the GPU and 5.9 ms on the software canvas. Caveats: the battle measured here still has its old 480x270 layout inside a 640x360 frame (WP2b and WP6 re-lay it), so its cost can change; the numbers come from one machine; the GPU run measures command issue, not raster time (the probe note says the same). The CI run on the draft pull request gives the software numbers on the CI runner. PL13 (CI wall time) is the main session's to record.
+
+**Expected-failure list.** 0 markers (see the section above). `npm run check`: lint 0, types 0, 28 files and 349 tests pass. All 11 e2e specs on the GPU, 75 tests, pass. The software canvas (`PW_NOGPU=1`) ran `perf.spec` only; CI runs the rest on software.
+
+**Scan (PL1).** `tests/screen-literals.test.ts` passes: 90 hits in 134 files, 86 allowed (25 allow entries), 4 pending in 4 entries (3 in `menu.ts` for WP4, 1 in `panels.ts` for WP5), 0 unlisted. The file count rose by one (`src/art/worldsize.ts`, which has no hit). WP2 adds no screen-size literal.
+
+**Effects sheet (D10, rows 4 and 5).** `media/pivot-640/wp2/effects-sheet-01.png`: the same battle (two Rustfang punks on the street backdrop) at 480x270 (left) and 640x360 (right), the same zoom per game pixel, GPU effects on, two moments each: bloom with heat haze and embers, and glitch with a shockwave and a color split. The same calls in game pixels made both sides. Judged by eye: the GPU presenter draws bloom, haze, glitch, the shockwave ring and the color split correctly at 640x360; no tear, no wrong-scale layer, no black edge. The glow and the haze are 25% finer relative to the screen, because they are sized in game pixels (D10 default: unchanged). Mark may ask for the bloom radius to scale by 4/3.
+
+**D11 proposal (not applied; `src/data/fx.json` is unchanged).** The three screen-wide shockwave reaches, each authored for a 480-wide screen:
+
+| Moment | Field | Now | Proposed (x 4/3) |
+|---|---|---|---|
+| `intro` | `intro.layers[0].shock.reach` | 320 | **427** |
+| `phase` | `phase.layers[0].shock.reach` | 260 | **347** |
+| `down.boss` | `down.boss.layers[1].shock.reach` | 240 | **320** |
+
+I propose all three at x 4/3. The ring has to cross the same share of the screen as before: 320 reached 116% of the center-to-corner distance at 480x270 (275 px), and 427 reaches the same 116% at 640x360 (367 px). A reach of exactly 367 (the row 141 note) would touch the corners only at the end of the ring's life, when it has faded, so the corners would barely show it. The ring's speed in screen pixels also stays the same, because `reach` over `life` scales with the pixel. `phase` and `down.boss` start at the Warden's position, not the center, and keep their share of the screen width (54% and 50%). No other `fx.json` value changes (`width` and `strength` are the ring's thickness and push in game pixels, tied to the look). Mark approves the three values in the FX lab; the edit is his data (PL6 exception a).
+
+**Pictures** (git-ignored, `media/pivot-640/wp2/`): `effects-sheet-01.png`; `sheet-gamepx-01..09.png` (the 72 shots at 640x360 beside `baseline-det/run1`, game-pixel view; the caption says the baseline comes from 960x540 and the result from 1280x720); `small-maps/rooks-flat.png`, `loading-dock-7.png`, `rustyard.png` (the field view at 640x360: the flat is 224x160 px and the Dock 320x224, centered in a brick shell or a dark void; the Rustyard, 544x448, has 48 px bars at the sides). The 72 new shots are in `shots/`, the smoke check in `check-shots.txt`: **59 shots checked, 3 failed** (`02-intro-panels`, `23-ending-panels`, `23b-ending-finale`: the comic pages are drawn inside the old frame, 2.8 to 2.9% outside it, the same three as the probe), 13 skipped as void-allowed. PL3 is not an exit line of WP2; the count is recorded only.
+
+**Step 1 named fixes (made in `3fde408`).** F1 `render.ts` uses `WORLD_SCALE` for the enemy layer. F2 `docs/DEVELOPING.md` documents the scan, its two lists, the three tools, `derived-literals.mjs` and `camera.test.ts`, and the cross-reference is fixed. F3 the golden-image entry of `docs/CONCEPTS.md`. F4 the leaf module, not an exception line: `WORLD_SCALE`, `BW` and `BHT` are defined once in `src/art/worldsize.ts`, which imports only `W` and `H`; `scenes/battlekit/geom.ts` re-exports them (the other files import from `geom` unchanged), and `art/battlebg.ts` imports the leaf, so `art` imports nothing from `scenes` any more; the unused `BW` and `BH` exports of `battlebg.ts` are gone. F5 American spelling in the two rewritten `postfx.ts` comments. A2 `e2e/shots.spec.ts` (see the deviation below). A3 `tests/camera.test.ts` pins `pan()` (the control above). C3 the contact-sheet captions come from the PNG sizes (the sheets above say 960x540 and 1280x720 by reading the files). C4 `pixel-diff.mjs` names a diff folder only when it wrote a picture, and it also exits 2 when the two folders share no shot (design verifier finding F6). The PL9 pass-line text and the expected-failure rule now say the grep covers `src/`, `tests/`, `e2e/` and `scripts/`.
+
+**Deviations from the plan, with reasons.**
+
+- **A2 moves three baseline shots, so PL2 holds for 69 of 72 shots against `baseline-det/run1`, and for all 72 against a re-captured baseline.** The brief asked for a real-time wait "until the battle and the deck scenes are on top". A fight cannot be on top before a clock step: the push waits 18 game frames after the flash, and frames need steps. What happens in real time is the download of the lazy chunk, so `warm()` fetches the chunk (a `modulepreload` link: it downloads the module and its imports but does not run them) before the first step. A probe (one page, `sj.run(deck)`, one frame step at a time) showed the race is real: with no warm-up the deck scene is pushed on frame 2 when the dev server has to compile the chunk and on frame 1 when it is cached; with `warm()` it is always frame 1. The three deck shots (`39-deck-dead`, `40-deck-seat-align`, `41-deck-seat-booted`) therefore show the deck one or two frames earlier than the old baseline did, and the rain and light flicker behind it land on other frames: 14,297 differing pixels in all (0.91 to 0.93% of each shot; the diff pictures are rain streaks and light halos). The 69 other shots, the battle shots included (the battle chunk is already loaded at boot), match `baseline-det/run1` byte for byte. To show that the Step 1 fixes themselves are pixel-neutral, the three deck shots were captured three times at the pre-fix source with the new spec (byte-identical runs, `media/pivot-640/wp2/deck-oldsrc/`), and `media/pivot-640/wp2/baseline-v2/` is `run1` with those three files replaced. `node scripts/pixel-diff.mjs media/pivot-640/wp2/baseline-v2 media/pivot-640/wp2/fixes-det`: **72 shots, 72 same, 0 differing pixels, exit 0** (`fixes-det-pixel-diff.txt`). Against the unchanged `run1`: 69 same, 3 differ, 14,297 pixels (`fixes-det-vs-run1.txt`). If Mark wants the old deck timing back, remove the `warm(page, 'deck')` line; the three shots then match `run1` again, but the capture depends on how fast the dev server answers.
+- **Shake: the strength is scaled, not rounded.** The brief says "rounded to whole game pixels". Rounding the strength first would leave a strength of 1 at 1 (no gain) and push 2 to 3 (+50%). The strength stays exact (x 4/3), and the existing `Math.round` in `shakeOffset` makes each frame's offset whole, so scenes still move by whole game pixels.
+- **The block test lives in `e2e/gpufx.spec.ts`**, not in a 12th spec file, so the count of 11 e2e specs holds. It runs with the GPU layer off, because with it on the visible picture is the WebGL canvas, not `#screen`.
+- **No performance work and no gate change** (D15's own branch: every gate passes).
+- **The expected-failure list is empty**, so there is no marker to demonstrate.
+- **An observation, not a WP2 finding.** In a dev page, `sj.tp('dock', 10, 7, 'down')` called from the town (or from Rook's flat) crashes the browser tab, in real time and at 480x270 too (checked with a temporary 480x270 build). The dock's `onEnter` cutscene (`betrayal`, `src/data/maps/annex.ts`) is the probable cause; setting `sj.state.flags.chapter_end = true` first skips it. The dev route `?scene=field&map=dock` and the story path work. Not investigated further; the small-map picture was taken with that flag set.
+
+**Verification table.** (pending)
