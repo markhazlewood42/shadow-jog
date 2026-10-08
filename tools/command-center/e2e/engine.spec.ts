@@ -37,6 +37,21 @@ const rowOf = (page: Page, number: string) => table(page).getByRole('row').filte
 const statusFilter = (page: Page) => page.getByRole('radiogroup', { name: 'Filter by status' });
 const documentOf = (page: Page) => page.getByRole('region', { name: 'Document' });
 
+/**
+ * The words that the page itself says, one entry for each line on screen, and its hidden text (ARIA labels and tooltips). The table cells that hold the text of the
+ * decisions (question, answer, milestone, who decides) are data and not ours to shorten, so the page hides them first. The status cell is ours, and stays.
+ */
+async function pageWords(page: Page): Promise<string[]> {
+  const { lines, hidden } = await page.evaluate(() => {
+    for (const cell of document.querySelectorAll<HTMLElement>('tbody td:nth-child(-n+5)')) cell.style.display = 'none';
+    const attributes = [...document.querySelectorAll('[aria-label], [title], [placeholder]')].flatMap((element) =>
+      ['aria-label', 'title', 'placeholder'].flatMap((name) => element.getAttribute(name) ?? []),
+    );
+    return { lines: document.body.innerText.split('\n'), hidden: attributes };
+  });
+  return [...lines, ...hidden].map((line) => line.trim()).filter((line) => line !== '');
+}
+
 test.describe('the engine review', () => {
   test('the list filters by status and a row opens its doc at the anchor', async ({ page, request }) => {
     const problems = watchConsole(page);
@@ -66,9 +81,9 @@ test.describe('the engine review', () => {
     await expect(rowOf(page, 'D5')).toBeVisible();
     await expect(rowOf(page, 'C1')).toBeVisible();
 
-    // Changed: none yet, and the list says so instead of showing an empty table.
+    // Changed: none yet, and the list says so in a label instead of showing an empty table.
     await statusFilter(page).getByRole('radio', { name: /^Changed 0/ }).click();
-    await expect(page.getByText('No decision has changed since the approval.')).toBeVisible();
+    await expect(page.getByText('No changed decisions', { exact: true })).toBeVisible();
     await expect(table(page)).toHaveCount(0);
 
     // Approved: the other 41, all three groups.
@@ -106,6 +121,46 @@ test.describe('the engine review', () => {
     await table(page).getByRole('link', { name: 'docs/engine/decisions.md' }).click();
     await expect(page).toHaveURL(/\/docs\/engine\/decisions$/);
     expect(problems).toEqual([]);
+  });
+
+  test('engine table shows labels instead of the long intro and the empty-state sentences', async ({ page }) => {
+    await page.goto('/docs/decisions');
+    await expect(decisionRows(page)).toHaveCount(49);
+
+    // The heading stands alone: the long intro that explained the three statuses is gone, and the panel comes next.
+    await expect(page.getByRole('heading', { level: 1, name: 'Decisions' })).toBeVisible();
+    for (const old of ['Every decision of the engine design', 'it waits for Mark', 'the approval commit', 'unchanged since']) await expect(page.getByText(old)).toHaveCount(0);
+
+    // A group says how many decisions it holds as a label, and its doc is a link: no "from" between them.
+    const group = table(page).getByRole('rowheader', { name: /^Engine design/ });
+    await expect(group).toContainText(/^Engine design\s*\d+ decisions · docs\/engine\/decisions\.md$/);
+    await expect(group.getByRole('link', { name: 'docs/engine/decisions.md' })).toHaveAttribute('href', '/docs/engine/decisions');
+    await expect(page.getByText(/\d+ decisions? from/)).toHaveCount(0);
+
+    // A filter that leaves nothing says it in a label (the fixture docs have no changed decision), and no empty table stands under it.
+    await statusFilter(page).getByRole('radio', { name: /^Changed 0/ }).click();
+    await expect(page.getByText('No changed decisions', { exact: true })).toBeVisible();
+    await expect(page.getByText('No decision has changed since the approval.')).toHaveCount(0);
+    await expect(table(page)).toHaveCount(0);
+  });
+
+  test('engine table shows no sentence over 20 words', async ({ page }) => {
+    await page.goto('/docs/decisions');
+    await expect(decisionRows(page)).toHaveCount(49);
+
+    // Every filter: the full table, the open ones, the empty "Changed" and the approved ones.
+    const seen: string[] = [];
+    for (const name of [/^All/, /^Open/, /^Changed/, /^Approved/]) {
+      await statusFilter(page).getByRole('radio', { name }).click();
+      seen.push(...(await pageWords(page)));
+    }
+
+    // The scan saw the real page, and not one sentence is long or holds a contraction (design 5.8).
+    for (const known of ['Decisions', 'No changed decisions', 'Engine design', 'Filter by status']) expect(seen.some((line) => line.includes(known)), known).toBe(true);
+    for (const sentence of seen.flatMap((line) => line.split(/(?<=[.!?])\s+/))) {
+      expect(sentence.split(/\s+/).length, sentence).toBeLessThanOrEqual(20);
+      expect(sentence, sentence).not.toMatch(/\w'(t|s|re|ve|ll|d|m)\b/i);
+    }
   });
 
   test('the filter works with the keyboard: the arrow keys move between the buttons and Space chooses one', async ({ page }) => {
@@ -149,7 +204,7 @@ test.describe('the engine review', () => {
 
       // Put the text back: nothing is changed again.
       writeFileSync(DECISIONS_DOC, original);
-      await expect(page.getByText('No decision has changed since the approval.')).toBeVisible({ timeout: 8000 });
+      await expect(page.getByText('No changed decisions', { exact: true })).toBeVisible({ timeout: 8000 });
       await expect(statusFilter(page).getByRole('radio', { name: /^Changed 0/ })).toBeVisible();
       expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__ccStillHere)).toBe(true);
       expect(problems).toEqual([]);
