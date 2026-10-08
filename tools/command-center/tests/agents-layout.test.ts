@@ -103,6 +103,21 @@ describe('the layout of a cluster', () => {
     expect(layout.height).toBe(bottom(d));
   });
 
+  it('O2: +N more counts hidden children only', () => {
+    // A parent with 13 children where the last one has 5 agents says "+1 more".
+    const grandchildren = Array.from({ length: 5 }, (_, i) => liveNode(`g${i + 1}`, { parentId: 'k13' }));
+    const layout = layoutSession(liveSession('s1', { nodes: [...kids(13), ...grandchildren] }));
+    expect(layout.more.map((label) => [label.parentId, label.count, label.text])).toEqual([['s1', 1, '+1 more']]);
+  });
+
+  it('O2: +N more ignores the grandchildren of a hidden child', () => {
+    // Two hidden children: k13 has 3 agents and k14 has none. The label counts the 2 children, and the 3 agents of k13 do not change it.
+    const grandchildren = Array.from({ length: 3 }, (_, i) => liveNode(`g${i + 1}`, { parentId: 'k13' }));
+    const layout = layoutSession(liveSession('s1', { nodes: [...kids(14), ...grandchildren] }));
+    expect(layout.more.map((label) => label.text)).toEqual(['+2 more']);
+    expect(layout.boxes.some((box) => box.id.startsWith('g'))).toBe(false);
+  });
+
   it('layout shows 12 children and counts the rest', () => {
     // 12 children are all shown, and there is no label.
     const twelve = layoutSession(liveSession('s1', { nodes: kids(12) }));
@@ -125,10 +140,10 @@ describe('the layout of a cluster', () => {
     // The count is how many are left: 20 children give "+8 more".
     expect(layoutSession(liveSession('s1', { nodes: kids(20) })).more.map((label) => [label.count, label.text])).toEqual([[8, '+8 more']]);
 
-    // A child that is left out takes its own children with it, and they are counted: k13 and the agent that k13 started are 2 boxes.
+    // A child that is left out takes its own children with it, and the label does not count them: k13 is 1 child, so the label says "+1 more".
     const withKids = layoutSession(liveSession('s1', { nodes: [...kids(13), liveNode('g1', { parentId: 'k13' })] }));
     expect(withKids.boxes.some((box) => box.id === 'g1')).toBe(false);
-    expect(withKids.more.map((label) => label.text)).toEqual(['+2 more']);
+    expect(withKids.more.map((label) => label.text)).toEqual(['+1 more']);
 
     // The limit holds for every parent, not only the session: an agent with 14 children shows 12 of them, and the label is in its column.
     const nested = layoutSession(liveSession('s1', { nodes: [liveNode('p'), ...kids(14, 'p', 'n'), liveNode('after')] }));

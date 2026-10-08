@@ -163,7 +163,7 @@ The page reads from top to bottom, in order of importance:
 - An agent box has its task label (the `description` in its `.meta.json`), its model as a family name (for example "fable"), and its run time, or "done". A Copy button copies the path of its file.
 - A workflow is one box with its name and a progress chip: the phase, and the agents done of the agents started. Its agents have no boxes.
 - A box is small: one title line and one detail line. A long label is cut, and the full text sits in its tooltip.
-- A parent shows at most 12 children and then a label "+N more".
+- A parent shows at most 12 children and then a label "+N more". N counts the children of that parent that are hidden. The agents under a hidden child do not add to it: 13 children, where the last one has 5 agents, say "+1 more".
 
 **Lines**
 - A solid line with an arrow runs from a parent to each agent or workflow that it started. An agent can start agents, so the tree can have more than two levels.

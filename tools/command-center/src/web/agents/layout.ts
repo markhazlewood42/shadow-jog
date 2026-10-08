@@ -80,7 +80,7 @@ export type LayoutLine = {
   count?: { text: string; x: number; y: number; w: number; h: number };
 };
 
-/** The label "+N more" under the last child that is shown, for a parent with more children than the limit. `count` is how many boxes are left out, the grandchildren included. */
+/** The label "+N more" under the last child that is shown, for a parent with more children than the limit. `count` is how many children of that parent are left out. The children of a child that is left out are not counted: they are not children of this parent. */
 export type LayoutMore = { parentId: string; count: number; text: string; x: number; y: number; w: number; h: number };
 
 export type ClusterLayout = { width: number; height: number; boxes: LayoutBox[]; lines: LayoutLine[]; more: LayoutMore[] };
@@ -153,7 +153,7 @@ function countText(messages: LiveNode['messages']): string {
  *
  * The rows are laid out from the top. A child gets the next free row, and the children of that child follow it at once, one level to the right, before the next child:
  * the order of the data is kept among brothers, and a nested agent stands under its parent. A box never moves because another box changed state or got a message: only a
- * box that comes or goes moves the boxes after it. A parent shows at most `SIZES.maxChildren` children, and the label "+N more" counts the rest.
+ * box that comes or goes moves the boxes after it. A parent shows at most `SIZES.maxChildren` children, and the label "+N more" counts the children that are left out (not their children).
  */
 export function layoutSession(session: LiveSession): ClusterLayout {
   const children = childrenOf(session);
@@ -164,9 +164,6 @@ export function layoutSession(session: LiveSession): ClusterLayout {
 
   /** The top of the next free row. */
   let nextRow = root.h + SIZES.sessionGap;
-
-  /** The number of boxes in the part of the tree under these nodes, the nodes themselves included. */
-  const sizeOf = (nodes: readonly LiveNode[]): number => nodes.reduce((sum, node) => sum + 1 + sizeOf(children.get(node.id) ?? []), 0);
 
   const line = (kind: LineKind, ownerId: string, points: Point[], count?: LayoutLine['count']): LayoutLine => ({
     id: `${kind}:${ownerId}`,
@@ -213,7 +210,8 @@ export function layoutSession(session: LiveSession): ClusterLayout {
     // The trunk runs from the bottom of the parent to the middle of its last child that is shown: the arms of the other children branch off it on the way.
     lines.splice(trunkAt, 0, line('trunk', parent.id, [{ x: trunkX, y: parent.y + parent.h }, { x: trunkX, y: lastMiddle }]));
 
-    const hidden = sizeOf(all.slice(SIZES.maxChildren));
+    // Only the children of this parent are counted. A child that is left out takes its own children with it, and they do not add to the number.
+    const hidden = Math.max(0, all.length - SIZES.maxChildren);
     if (hidden > 0) {
       const text = `+${hidden} more`;
       more.push({ parentId: parent.id, count: hidden, text, x, y: nextRow, w: SIZES.badge.char * text.length, h: SIZES.moreHeight });
