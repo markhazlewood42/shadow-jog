@@ -15,7 +15,9 @@ import { Age, useNow } from './time';
 //
 // The panel reads four sources, each on its own: the status module (the date, the count of the Next up list, the milestone key and the milestones), the git module
 // (the branch and its last commit), the CI source (the newest run on main) and the health reply (the name of the repo on GitHub, for the links). A row whose source
-// failed shows "Unavailable" and a Retry button for that source, and the other rows go on, so one broken source never blanks the panel.
+// failed shows "Unavailable" and a Retry button for that source, and the other rows go on, so one broken source never blanks the panel. (One source has a part that can fail
+// alone: when only the milestone list of the migration doc cannot be read, the status module still sends the complete data of status.md, and Next up and status.md show it.
+// Only the strip says "Unavailable" then. See statusRowData.)
 
 const STATUS_MODULES: readonly ModuleName[] = ['status'];
 const GIT_MODULES: readonly ModuleName[] = ['git'];
@@ -45,8 +47,11 @@ const latest = (times: string[]): string => times.reduce((a, b) => (Date.parse(a
  * - It is loading until all four have answered, so that rows do not appear one by one.
  * - When at least one is good, the panel is good, and the failed sources show as rows (see Unavailable). Its time is the oldest time of the good ones: the data on
  *   offer is as old as its oldest part.
- * - When none is good, nothing can be shown, and the panel is failed in the way of every panel: the error names what each source said (a message that two sources
- *   share is said once), and Retry asks all four again. A panel with five rows of "Unavailable" would say less.
+ * - A status source that failed only in its milestone list counts as good here, because two rows can still be drawn from its data (see statusRowData). Its time is the
+ *   time of that data.
+ * - When none is good, nothing can be shown, and the panel is failed in the way of every panel: the error shows the message of the first failed source and the codes of
+ *   all of them (a code that two sources share is said once), and Retry asks all four again. The messages of four sources, put together, could pass the 20 words of a
+ *   sentence of the page, so the other three are named by their codes only. A panel with five rows of "Unavailable" would say less.
  */
 export function combineSources(results: SourceResults): PanelResult<StatusSources> {
   const reload = () => {
@@ -64,6 +69,7 @@ export function combineSources(results: SourceResults): PanelResult<StatusSource
   const panels: Panel<unknown>[] = [status.panel, git.panel, ci.panel, health.panel];
 
   const goodTimes = panels.flatMap((panel) => (panel.ok ? [panel.updatedAt] : []));
+  if (!status.panel.ok && status.panel.lastGood !== null && statusRowData(sources.status) !== null) goodTimes.push(status.panel.lastGood.updatedAt);
   if (goodTimes.length > 0) return { state: 'ready', panel: { ok: true, data: sources, updatedAt: earliest(goodTimes) }, reload };
 
   const failures = panels.flatMap((panel) => (panel.ok ? [] : [panel.error]));
@@ -72,7 +78,7 @@ export function combineSources(results: SourceResults): PanelResult<StatusSource
     state: 'error',
     panel: {
       ok: false,
-      error: { code: [...new Set(failures.map((failure) => failure.code))].join(', '), message: [...new Set(failures.map((failure) => failure.message))].join(' ') },
+      error: { code: [...new Set(failures.map((failure) => failure.code))].join(', '), message: failures[0]?.message ?? '' },
       updatedAt: knownTimes.length === 0 ? null : latest(knownTimes),
       lastGood: null,
     },
@@ -86,6 +92,24 @@ type Failed = { code: string; reload: () => void };
 /** The sources, of those that a row needs, that failed. Empty when the row can be drawn. */
 function failedOf(...sources: Source<unknown>[]): Failed[] {
   return sources.flatMap((source) => (source.panel.ok ? [] : [{ code: source.panel.error.code, reload: source.reload }]));
+}
+
+/** The start of the code that the status module gives to a failure of the milestone list only (`milestones-doc-missing`, `milestones-table-missing`). */
+const MILESTONE_FAILURE_PREFIX = 'milestones-';
+
+/**
+ * The data of status.md that the rows "Next up" and "status.md" can draw, or null when they cannot.
+ *
+ * - A good panel gives its data.
+ * - A panel that failed with a code that starts with `milestones-` gives the data that rides along (`lastGood`). The status module reads status.md and the migration doc
+ *   apart: when only the milestone list cannot be read, it sends the error of the list, and the complete data of status.md that it read in that same load (src/server/status/module.ts,
+ *   `publicPanel`). That data is not old, and the rows do not depend on the milestones, so they stay (design 5.6 and 7: the other rows stay). Only the strip has no data.
+ * - Any other failure gives null, also when `lastGood` holds data: that data comes from an older load and may be out of date.
+ */
+export function statusRowData(status: Source<StatusInfo>): StatusInfo | null {
+  const { panel } = status;
+  if (panel.ok) return panel.data;
+  return panel.error.code.startsWith(MILESTONE_FAILURE_PREFIX) ? (panel.lastGood?.data ?? null) : null;
 }
 
 // ---- what the rows say ----
@@ -289,7 +313,8 @@ function CiRow({ ci, now }: { ci: Source<CiMain>; now: number }) {
 }
 
 function NextUpRow({ status }: { status: Source<StatusInfo> }) {
-  if (!status.panel.ok) {
+  const data = statusRowData(status);
+  if (data === null) {
     return (
       <Row label="Next up">
         <Unavailable failed={failedOf(status)} what="Next up" />
@@ -298,13 +323,14 @@ function NextUpRow({ status }: { status: Source<StatusInfo> }) {
   }
   return (
     <Row label="Next up">
-      <ValueLink href={docPath(STATUS_DOC_SLUG)}>{nextUpLabel(status.panel.data.nextUpForMark.length)}</ValueLink>
+      <ValueLink href={docPath(STATUS_DOC_SLUG)}>{nextUpLabel(data.nextUpForMark.length)}</ValueLink>
     </Row>
   );
 }
 
 function UpdatedRow({ status, now }: { status: Source<StatusInfo>; now: number }) {
-  if (!status.panel.ok) {
+  const data = statusRowData(status);
+  if (data === null) {
     return (
       <Row label="status.md">
         <Unavailable failed={failedOf(status)} what="status.md" />
@@ -313,7 +339,7 @@ function UpdatedRow({ status, now }: { status: Source<StatusInfo>; now: number }
   }
   return (
     <Row label="status.md">
-      <ValueLink href={docPath(STATUS_DOC_SLUG)}>{updatedLabel(status.panel.data.updated, new Date(now))}</ValueLink>
+      <ValueLink href={docPath(STATUS_DOC_SLUG)}>{updatedLabel(data.updated, new Date(now))}</ValueLink>
     </Row>
   );
 }
@@ -349,7 +375,8 @@ const SQUARE_CLASS: Record<SquareState, string> = {
 /**
  * The strip of the milestones: the label, one small square for each row of the table in the migration doc (each a link to the heading of its milestone), and,
  * beside the squares, the current milestone as a link, `Not started`, or an error label. A key that is missing or names no milestone leaves every square outlined:
- * the strip never guesses which milestone was meant.
+ * the strip never guesses which milestone was meant. When the status source failed in any way, also when only the milestone list failed, there is no list to draw, and the
+ * strip says Unavailable (the one place where it does, in the second case).
  */
 function MilestoneStrip({ status }: { status: Source<StatusInfo> }) {
   let body: ReactNode;
@@ -406,7 +433,7 @@ function MilestoneStrip({ status }: { status: Source<StatusInfo> }) {
   );
 }
 
-function StatusSummary({ sources, now }: { sources: StatusSources; now: number }) {
+export function StatusSummary({ sources, now }: { sources: StatusSources; now: number }) {
   const { status, git, ci, health } = sources;
   return (
     <div className="flex flex-col">

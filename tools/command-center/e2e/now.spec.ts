@@ -2,7 +2,7 @@ import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { type APIRequestContext, type Locator, type Page, chromium, expect, test } from '@playwright/test';
-import type { AgentsLive, Panel } from '../src/shared/types';
+import type { AgentsLive, Panel, StatusInfo } from '../src/shared/types';
 import { E2E_DIR, type GhIssueStore, resetGh, setGhIssues, setGhMode } from './fake-gh';
 import { amberItems, expectAtMostTwoAmberItems, tokenColors, worstTextContrast } from './look';
 
@@ -987,6 +987,63 @@ test.describe('the status panel', () => {
     }
   });
 
+  test('status panel keeps Next up and status.md when the milestone table of the migration doc is broken, and only the strip says Unavailable', async ({ page, request }) => {
+    // The real server and the real fixture repo: the column "One-line scope" of the milestone table is renamed, as an edit of the engine docs can do. The status module still reads
+    // status.md in the same load, and sends it as the data under the error of the table.
+    const MIGRATION_MD = join(REPO, 'docs', 'engine', 'migration.md');
+    const original = readFileSync(MIGRATION_MD, 'utf8');
+    const header = '| Milestone | One-line scope | Touches |';
+    expect(original).toContain(header);
+    const readStatus = async () => (await (await request.get('/api/status')).json()) as Panel<StatusInfo>;
+    try {
+      writeFileSync(MIGRATION_MD, original.replace(header, '| Milestone | Scope | Touches |'));
+      await expect
+        .poll(async () => {
+          const reply = await readStatus();
+          return reply.ok ? 'ok' : reply.error.code;
+        }, { timeout: 15_000 })
+        .toBe('milestones-table-missing');
+
+      // What the server sends: the error of the table, and the complete data of status.md under it (three items and the date). The rows are drawn from that data.
+      const broken = await readStatus();
+      if (broken.ok || broken.lastGood === null) throw new Error('The status panel should have failed with data under the error.');
+      expect(broken.lastGood.data.nextUpForMark).toHaveLength(3);
+      expect(broken.lastGood.data.updated).toBe('2026-01-02');
+      expect(broken.lastGood.data.milestones).toEqual([]);
+
+      await page.addInitScript((key) => localStorage.setItem(key, 'off'), GLASS_KEY);
+      await page.goto('/');
+      await allLoaded(page);
+      const status = panel(page, 'Status');
+
+      // Five rows, and four of them show a value. Next up and status.md show the data of status.md, as links to its page.
+      await expect(status.locator('dl > div')).toHaveCount(5);
+      await expect(rowOf(page, 'Next up').getByRole('link')).toHaveText('3 for you');
+      await expect(rowOf(page, 'Next up').getByRole('link')).toHaveAttribute('href', '/docs/status');
+      await expect(rowOf(page, 'status.md').getByRole('link')).toHaveText(new Date().getFullYear() === 2026 ? 'updated Jan 2' : 'updated Jan 2, 2026');
+      for (const label of ['Branch', 'CI on main', 'Next up', 'status.md', 'Last commit']) {
+        await expect(rowOf(page, label), label).not.toContainText('Unavailable');
+        await expect(rowOf(page, label).getByRole('button', { name: 'Retry' }), label).toHaveCount(0);
+      }
+
+      // The strip is the one place that says Unavailable, with the code of the table and a Retry button. It has no squares.
+      await expect(status.getByText('Unavailable')).toHaveCount(1);
+      await expect(status.getByText('milestones-table-missing', { exact: true })).toBeVisible();
+      await expect(status.getByRole('button', { name: 'Retry Milestone' })).toBeVisible();
+      await expect(stripOf(page)).toHaveCount(0);
+      // The panel is not an alert and not blank: it has its rows and its time.
+      await expect(status.getByRole('alert')).toHaveCount(0);
+      await expect(status.locator('header time')).toHaveText(/^\d\d:\d\d:\d\d$/);
+    } finally {
+      writeFileSync(MIGRATION_MD, original);
+      await expect.poll(async () => (await readStatus()).ok, { timeout: 15_000 }).toBe(true);
+    }
+
+    // The table is mended: the open page hears of it and the strip has its squares again, with no reload.
+    await expect(squaresOf(page)).toHaveCount(SQUARES.length);
+    await expect(panel(page, 'Status').getByText('Unavailable')).toHaveCount(0);
+  });
+
   test('status panel shows an error row when a source fails and keeps the other rows', async ({ page, request }) => {
     await setRun(request, run('completed', 'success'));
     const failedPanel = (code: string, lastGood: unknown = null) => ({ ok: false, error: { code, message: `The ${code} source could not be read.` }, updatedAt: null, lastGood });
@@ -1175,7 +1232,7 @@ test.describe('the Look', () => {
   test('the text on the glass keeps the 4.5 to 1 floor of the Look, wherever it stands on the page, at both sizes', async ({ page, request }) => {
     // The glass is drawn by the GPU behind the page, and shows through the panels, so the contrast of a text on it can only be read from the picture: the test
     // hides the text, takes a picture of what is behind it, and finds the text with the least contrast. The page has every kind of text: titles, links, the small
-    // `soft` labels (the lowest ratio of the set), the lights of the sessions, the bars, the chips, and the html of the status.
+    // `soft` labels (the lowest ratio of the set), the lights of the items of Your move, the chips of the pull requests, and the rows and the milestone strip of the Status.
     await seedGithub(request);
     writeSessions();
     await refreshSessions(request);

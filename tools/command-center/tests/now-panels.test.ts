@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CiMain, GitInfo, Health, Panel, StatusInfo } from '../src/shared/types';
-import { type SourceResults, besideOf, branchHref, combineSources, commitHref, nextUpLabel, squareStates, standingOf, updatedLabel } from '../src/web/now/StatusPanel';
+import { type SourceResults, besideOf, branchHref, combineSources, commitHref, nextUpLabel, squareStates, standingOf, statusRowData, updatedLabel } from '../src/web/now/StatusPanel';
 import type { PanelResult } from '../src/web/usePanel';
 
 // How the Status panel puts the results of its four sources together and what its rows say. All of it is plain functions of data, so these tests need no browser.
@@ -65,14 +65,15 @@ describe('combineSources', () => {
     expect(data?.status.panel.ok).toBe(true);
   });
 
-  it('is failed only when no source is good: it names every failure once, and has no last good data', () => {
+  it('is failed only when no source is good: it shows the first message and the code of every failure once, and has no last good data', () => {
     const down = failed<never>('network', 'Cannot reach the command center server. Check that it runs.');
     const combined = combineSources({ status: result(down), git: result(down), ci: result(down), health: result(down) });
     expect(combined.state).toBe('error');
     // The same code and message from four sources are said once.
     expect(combined.panel).toEqual({ ok: false, error: { code: 'network', message: 'Cannot reach the command center server. Check that it runs.' }, updatedAt: null, lastGood: null });
 
-    // Different failures are all named. The time is the newest time that a failed source still knows (a source that loaded before).
+    // Different failures: the error shows the message of the first and the codes of all, so that the text stays one message (the messages of four sources, joined, could
+    // pass 20 words). The time is the newest time that a failed source still knows (a source that loaded before).
     const mixed = combineSources({
       status: result(failed('status-missing', 'status.md was not found.', { data: statusInfo, updatedAt: T0 })),
       git: result(failed('git-failed', 'git could not run.', { data: gitInfo, updatedAt: T2 })),
@@ -81,10 +82,38 @@ describe('combineSources', () => {
     });
     expect(mixed.panel).toEqual({
       ok: false,
-      error: { code: 'status-missing, git-failed, gh-offline, network', message: 'status.md was not found. git could not run. gh cannot reach GitHub. Check the internet connection. Cannot reach the command center server. Check that it runs.' },
+      error: { code: 'status-missing, git-failed, gh-offline, network', message: 'status.md was not found.' },
       updatedAt: T2,
       lastGood: null,
     });
+  });
+
+  it('keeps the message of a failed panel within 20 words when four sources fail with four different messages', () => {
+    // The case of the review: each message is within the rule on its own, and the four together are 26 words.
+    const combined = combineSources({
+      status: result(failed<never>('status-missing', 'The file status.md was not found in the repo. Check that the file exists.')),
+      git: result(failed<never>('git-failed', 'git could not run. Check that git is installed.')),
+      ci: result(failed<never>('gh-offline', 'gh cannot reach GitHub. Check the internet connection.')),
+      health: result(failed<never>('network', 'Cannot reach the command center server. Check that it runs.')),
+    });
+    const error = combined.panel && !combined.panel.ok ? combined.panel.error : null;
+    expect(error?.message).toBe('The file status.md was not found in the repo. Check that the file exists.');
+    expect(error?.message.split(/\s+/).length).toBeLessThanOrEqual(20);
+    // The other three are named by their codes.
+    expect(error?.code).toBe('status-missing, git-failed, gh-offline, network');
+  });
+
+  it('stays good when the other sources failed but the status source failed only in its milestone list: its rows can still be drawn', () => {
+    const down = failed<never>('network', 'Cannot reach the command center server. Check that it runs.');
+    const milestones = failed('milestones-table-missing', 'The milestone list cannot be read.', { data: statusInfo, updatedAt: T1 });
+    const combined = combineSources({ status: result(milestones), git: result(down), ci: result(down), health: result(down) });
+    expect(combined.state).toBe('ready');
+    // The status data is the one source with data to show: the time of the panel is its time.
+    expect(combined.panel).toMatchObject({ ok: true, updatedAt: T1 });
+
+    // A failure of status that is not about the milestones has no data to show, so with the rest down the panel is failed as before.
+    const other = combineSources({ status: result(failed('status-missing', 'status.md was not found.', { data: statusInfo, updatedAt: T1 })), git: result(down), ci: result(down), health: result(down) });
+    expect(other.state).toBe('error');
   });
 
   it('asks all four sources again when it is asked to reload', () => {
@@ -97,6 +126,29 @@ describe('combineSources', () => {
       health: result(good(healthInfo, T0), ask('health')),
     }).reload();
     expect(asked.sort()).toEqual(['ci', 'git', 'health', 'status']);
+  });
+});
+
+describe('statusRowData', () => {
+  const info: StatusInfo = { ...statusInfo, nextUpForMark: [{ text: 'One', html: '<p>One</p>' }] };
+  const read = (panel: Panel<StatusInfo>) => statusRowData({ panel, reload });
+
+  it('is the data of a good panel', () => {
+    expect(read(good(info, T0))).toBe(info);
+  });
+
+  it('is the data that rides along with a failure of the milestone list, which is the complete data of status.md', () => {
+    // The shape that src/server/status/module.ts sends when only the milestone table is the problem: the table's error, and the status as lastGood with no milestones.
+    for (const code of ['milestones-table-missing', 'milestones-doc-missing']) {
+      expect(read(failed(code, 'The milestone list cannot be read.', { data: info, updatedAt: T0 }))).toBe(info);
+    }
+  });
+
+  it('is null for any other failure, also when old data rides along, and for a milestone failure with no data', () => {
+    expect(read(failed('status-missing', 'status.md was not found.', { data: info, updatedAt: T0 }))).toBeNull();
+    expect(read(failed('status-section-missing', 'status.md has no current section.', { data: info, updatedAt: T0 }))).toBeNull();
+    expect(read(failed('network', 'Cannot reach the command center server. Check that it runs.', { data: info, updatedAt: T0 }))).toBeNull();
+    expect(read(failed('milestones-table-missing', 'The milestone list cannot be read.'))).toBeNull();
   });
 });
 
