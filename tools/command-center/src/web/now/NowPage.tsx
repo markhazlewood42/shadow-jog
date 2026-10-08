@@ -16,10 +16,11 @@ import { type PanelId, loadLayout, saveLayout } from './layout';
 // The Now page (/): what is going on now and what needs Mark, in five panels. The panels are glass (PlasmaUI) that Mark can drag, or plain boxes when the
 // glass is off or the browser cannot draw it. This is the one page that loads PlasmaUI: the router loads this file when the page is first asked for (see App.tsx).
 
+/** The state of the event stream as one word, for the label "Live: <word>" (design 5.8: a label, not a sentence). */
 const CONNECTION_TEXT: Record<ConnectionState, string> = {
-  connecting: 'connecting…',
+  connecting: 'connecting',
   live: 'on',
-  offline: 'off, trying to reconnect',
+  offline: 'off',
 };
 
 /** Whether the page is hearing the server's change events. Without them the panels would go stale, so it is never hidden. */
@@ -35,14 +36,14 @@ function LiveStatus() {
   return (
     <p role="status" className="flex items-center gap-2 text-sm text-cc-muted">
       <span aria-hidden className={`size-2 rounded-full ${state === 'live' ? 'bg-cc-ink' : 'bg-cc-accent'}`} />
-      Live updates: {CONNECTION_TEXT[state]}
+      Live: {CONNECTION_TEXT[state]}
     </p>
   );
 }
 
 /**
  * The switch of the glass, and the button that puts the panels back where the page lays them out. Where the browser cannot draw the glass (no WebGL2) there is nothing to
- * switch, so the page says why its panels are plain. The switch is a toggle button, not a HeroUI Switch: a selected toggle button is drawn lavender (theme.css),
+ * switch, so the page says why its panels are plain, in a label. The switch is a toggle button, not a HeroUI Switch: a selected toggle button is drawn lavender (theme.css),
  * and a selected Switch would be amber, which the Look keeps for the one or two focal items of a page. The reset button is always there: a saved arrangement is kept
  * also while the glass is off (the panels keep their places), so a person must always have a way to clear it.
  */
@@ -56,9 +57,7 @@ function GlassControls({ onReset }: { onReset: () => void }) {
           Glass panels
         </ToggleButton>
       ) : (
-        <p role="note" className="text-sm text-cc-muted">
-          The glass panels need WebGL2, and this browser does not have it. The panels are plain.
-        </p>
+        <p role="note" className="text-sm text-cc-muted">No WebGL2: plain panels</p>
       )}
       <Button size="sm" variant="tertiary" onPress={onReset}>
         <RotateCcw aria-hidden className="size-3.5" />

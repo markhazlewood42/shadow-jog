@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Health, Panel } from '../src/shared/types';
 import { ApiError, getJson, getPanel, loadHealthPanel, mergeLastGood, postJson } from '../src/web/api';
-import { PanelContent, PanelFrame } from '../src/web/PanelFrame';
+import { PanelContent, PanelFrame, formatTime } from '../src/web/PanelFrame';
 import { type PanelResult, createCoalescingRunner } from '../src/web/usePanel';
 
 // The page app is tested here only where it holds logic that does not need a browser. How it
@@ -267,8 +267,29 @@ describe('PanelFrame', () => {
     expect(html).toContain('Cannot reach the server.');
     expect(html).toContain('Retry');
     expect(html).toContain('the number is 3');
-    expect(html).toContain('last good');
+    expect(html).toContain('Last good data');
     expect(html).toContain(`dateTime="${T0}"`);
+    // The error comes first, then the label, then the data that the label is about.
+    expect(html.indexOf('Cannot reach the server.')).toBeLessThan(html.indexOf('Last good data'));
+    expect(html.indexOf('Last good data')).toBeLessThan(html.indexOf('the number is 3'));
+  });
+
+  it('panel frame shows the last good data as a label', () => {
+    const html = render({ state: 'error', panel: { ok: false, error: { code: 'network', message: 'Cannot reach the server.' }, updatedAt: T0, lastGood: { data: 3, updatedAt: T0 } }, reload });
+    // The label is a name, a colon and the time of the data, in one paragraph. The time is a <time> element, as in the header.
+    const label = />(Last good data: <time dateTime="[^"]+">[^<]+<\/time>)<\/p>/.exec(html)?.[1];
+    expect(label).toBe(`Last good data: <time dateTime="${T0}">${formatTime(T0)}</time>`);
+    // It is not a sentence any more: the words and the full stop of the old line are gone.
+    expect(html).not.toContain('Showing the last good data');
+    expect(html).not.toContain('Showing');
+    expect(label?.replace(/<[^>]+>/g, '')).toMatch(/^Last good data: \d\d:\d\d:\d\d$/);
+    // A panel with no last good data has no such label.
+    const bare = render({ state: 'error', panel: { ok: false, error: { code: 'network', message: 'Cannot reach the server.' }, updatedAt: null, lastGood: null }, reload });
+    expect(bare).not.toContain('Last good data');
+    // The other words of the frame are labels that stay: they are the ones in the header and the buttons.
+    expect(html).toContain('Last updated');
+    expect(bare).toContain('Not updated yet');
+    expect(html).toContain('Retry');
   });
 
   it('marks a focal panel with the accent border, and only that one', () => {
