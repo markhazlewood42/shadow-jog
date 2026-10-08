@@ -382,7 +382,7 @@ function storeReply(dir: string, args: string[]): RunResult | null {
 }
 
 /**
- * What `gh run list --branch main --limit 1 --json status,conclusion,url,createdAt` prints in the fake world when a test has set no reply: the one newest run of main,
+ * What `gh run list --workflow ci.yml --branch main --limit 1 --json status,conclusion,url,createdAt` prints in the fake world when a test has set no reply: the one newest run of main,
  * finished and passed, at a fixed time. Its address is in the repository that the runner pinned with `--repo`. A test that wants another run, or none, sets the reply "run list".
  */
 function cannedRun(args: string[]): string {

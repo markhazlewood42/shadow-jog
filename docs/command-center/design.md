@@ -210,7 +210,7 @@ The panel is a summary. Each row is a label, a value and a link. It does not cop
 | Row | Value | Link |
 |---|---|---|
 | Branch | the branch name, and how many commits it is ahead or behind | the branch on GitHub |
-| CI on main | passing, failing or running, and its age | the run on GitHub |
+| CI on main | passing, failing or running, and its age | the newest run of the `ci.yml` workflow on GitHub |
 | Next up | the number of items for Mark | the status doc page |
 | status.md | the date of its last update | the status doc page |
 | Last commit | its age | the commit on GitHub |
@@ -225,7 +225,7 @@ Data:
 - `/api/status` gives the update date, the count of Next up items, the milestone key and the milestone list.
 - `/api/git` gives the branch, its standing and the last commit.
 - `/api/health` gives the repository address for the links.
-- CI on main is new. The GitHub module reads `gh run list --branch main --limit 1` with the PRs, every 60 seconds. This adds one exact command to the allow-list of the `gh` runner.
+- CI on main is new. The GitHub module reads `gh run list --workflow ci.yml --branch main --limit 1` with the PRs, every 60 seconds. This adds one exact command to the allow-list of the `gh` runner.
 - A row whose source failed shows an error label and a Retry button. The other rows stay.
 
 ### 5.7 Copy and Download (revision 2)

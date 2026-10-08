@@ -35,7 +35,7 @@ describe('the fake gh', () => {
   });
 
   it('answers `gh run list` with one run of main that passed, in the repository the runner pinned, and a test can replace it', async () => {
-    const asked = ['run', 'list', '--repo', REPO, '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
+    const asked = ['run', 'list', '--repo', REPO, '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
     const canned = await gh(...asked);
     expect(canned.code).toBe(0);
     expect(JSON.parse(canned.stdout)).toEqual([{ status: 'completed', conclusion: 'success', url: `https://github.com/${REPO}/actions/runs/9001`, createdAt: '2026-10-06T10:00:00Z' }]);

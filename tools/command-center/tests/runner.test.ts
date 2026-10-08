@@ -212,8 +212,8 @@ describe('the runner', () => {
 
   it('runner allows the exact ci command and pins the repo', async () => {
     // The one `gh run list` of the CI source: the newest run on main, with four fields. The runner adds --repo itself, right after the verb.
-    const exact = ['run', 'list', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
-    const pinned = ['run', 'list', '--repo', REPO, '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
+    const exact = ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
+    const pinned = ['run', 'list', '--repo', REPO, '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
 
     const allowed: [string, string[]][] = [
       ['the exact command', exact],
@@ -234,21 +234,24 @@ describe('the runner', () => {
     }
 
     // A near miss is refused before any process starts: another branch, another count, other fields, an extra or a missing flag, another order, and every other `gh run`.
-    const words = exact.slice(2); // --branch main --limit 1 --json <fields>
+    const words = exact.slice(2); // --workflow ci.yml --branch main --limit 1 --json <fields>
     const refused: [string, string[]][] = [
-      ['another branch', ['run', 'list', '--branch', 'develop', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
-      ['the branch in its short form', ['run', 'list', '-b', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
-      ['no branch', ['run', 'list', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
-      ['a branch with a longer name', ['run', 'list', '--branch', 'main2', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
-      ['another limit', ['run', 'list', '--branch', 'main', '--limit', '2', '--json', 'status,conclusion,url,createdAt']],
-      ['a long limit', ['run', 'list', '--branch', 'main', '--limit', '1000', '--json', 'status,conclusion,url,createdAt']],
-      ['the limit in its short form', ['run', 'list', '--branch', 'main', '-L', '1', '--json', 'status,conclusion,url,createdAt']],
-      ['more fields', ['run', 'list', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt,displayTitle']],
-      ['fewer fields', ['run', 'list', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion']],
-      ['the fields in another order', ['run', 'list', '--branch', 'main', '--limit', '1', '--json', 'url,status,conclusion,createdAt']],
-      ['no --json', ['run', 'list', '--branch', 'main', '--limit', '1']],
-      ['the flags in another order', ['run', 'list', '--limit', '1', '--branch', 'main', '--json', 'status,conclusion,url,createdAt']],
-      ['an extra flag: --workflow', [...exact, '--workflow', 'ci.yml']],
+      ['another branch', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'develop', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['the branch in its short form', ['run', 'list', '--workflow', 'ci.yml', '-b', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['no branch', ['run', 'list', '--workflow', 'ci.yml', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['a branch with a longer name', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main2', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['another limit', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '2', '--json', 'status,conclusion,url,createdAt']],
+      ['a long limit', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1000', '--json', 'status,conclusion,url,createdAt']],
+      ['the limit in its short form', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '-L', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['more fields', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt,displayTitle']],
+      ['fewer fields', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion']],
+      ['the fields in another order', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'url,status,conclusion,createdAt']],
+      ['no --json', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1']],
+      ['the flags in another order', ['run', 'list', '--workflow', 'ci.yml', '--limit', '1', '--branch', 'main', '--json', 'status,conclusion,url,createdAt']],
+      ['a second --workflow', [...exact, '--workflow', 'playtest.yml']],
+      ['another workflow', ['run', 'list', '--workflow', 'playtest.yml', ...exact.slice(4)]],
+      ['the workflow in its short form', ['run', 'list', '-w', 'ci.yml', ...exact.slice(4)]],
+      ['a workflow file with a longer name', ['run', 'list', '--workflow', 'ci.yml.bak', ...exact.slice(4)]],
       ['an extra flag: --user', [...exact, '--user', 'someone']],
       ['an extra flag: --status', [...exact, '--status', 'failure']],
       ['an extra flag: --event', [...exact, '--event', 'push']],
@@ -285,8 +288,15 @@ describe('the runner', () => {
     expect(seen).toEqual([]);
 
     // The refusal names the call and what is exact, and does not echo the arguments.
-    const error = await runner('gh', ['run', 'list', '--branch', 'develop', '--limit', '1', '--json', 'status,conclusion,url,createdAt']).catch((e: unknown) => e);
-    expect((error as Error).message).toMatch(/^gh run list refused: a run list is exactly: run list --branch main --limit 1 --json status,conclusion,url,createdAt/);
+    const error = await runner('gh', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'develop', '--limit', '1', '--json', 'status,conclusion,url,createdAt']).catch((e: unknown) => e);
+    expect((error as Error).message).toMatch(/^gh run list refused: a run list is exactly: run list --workflow ci.yml --branch main --limit 1 --json status,conclusion,url,createdAt/);
+  });
+
+  it('G7: the runner rejects the old run list without --workflow ci.yml', async () => {
+    const old = ['run', 'list', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
+    const { runner, seen } = recordingRunner();
+    await expect(runner('gh', old)).rejects.toBeInstanceOf(RunnerRefusal);
+    expect(seen).toEqual([]);
   });
 
   it('a refusal says what was refused and why, without echoing a comment body', async () => {

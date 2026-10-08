@@ -119,7 +119,7 @@ export function compose(deps: ComposeDeps): Composed {
   registerGithubRoutes(app, github, panelRoutes);
   modules.push(github);
 
-  // CI on main: the newest run of the workflows on the branch main, read with `gh run list` every 60 s like the pull requests, under /api/ci. It is a source of its own
+  // CI on main: the newest run of the workflow ci.yml on the branch main, read with `gh run list` every 60 s like the pull requests, under /api/ci. It is a source of its own
   // so that one failing call does not hide the other (the Status row for CI shows its own error).
   const ci = createCiSource({ runner, hub });
   registerCiRoutes(app, ci, panelRoutes);

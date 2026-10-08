@@ -7,7 +7,7 @@ import { parseGhRun } from '../src/server/github/ci';
 import { createCiSource } from '../src/server/github/ci-module';
 import { createHub } from '../src/server/hub';
 import { registerCiRoutes } from '../src/server/routes/ci';
-import { type Exec, createRunner } from '../src/server/runner';
+import { type Exec, GH_RUN_LIST, createRunner } from '../src/server/runner';
 import { PanelError } from '../src/server/source';
 import type { CiMain, Panel } from '../src/shared/types';
 import { getFrom, makeApp, makeTestConfig } from './helpers';
@@ -129,7 +129,16 @@ describe('the ci source', () => {
     // What the fake gh was asked: the runner added the repository, and the call is one read.
     const calls = readGhCalls(dir);
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.args).toEqual(['run', 'list', '--repo', config.githubRepo, '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt']);
+    expect(calls[0]?.args).toEqual(['run', 'list', '--repo', config.githubRepo, '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt']);
+  });
+
+  it('G7: CI on main asks only for the ci.yml workflow', async () => {
+    // The exact argument list that the source passes to the runner. A run of another workflow (the playtest) must never be the answer.
+    expect(GH_RUN_LIST).toEqual(['--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt']);
+    setGhMode({ mode: 'ok', replies: { 'run list': { stdout: printed('completed', 'success') } } }, dir);
+    await sourceOverFake().get();
+    const args = readGhCalls(dir)[0]?.args ?? [];
+    expect(args.slice(args.indexOf('--workflow'), args.indexOf('--workflow') + 2)).toEqual(['--workflow', 'ci.yml']);
   });
 
   it('the fake gh answers with one run that passed when a test sets no reply', async () => {

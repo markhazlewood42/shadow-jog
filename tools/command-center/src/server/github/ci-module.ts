@@ -5,7 +5,7 @@ import { POLL_EVERY_MS, PanelError, type PanelSource, createPanelSource } from '
 import { parseGhRun } from './ci';
 import { classifyGhError } from './errors';
 
-// The CI source: the newest run of the workflows on the branch `main`, for the row "CI on main" of the Status panel. It makes one `gh run list` call, which only reads. The
+// The CI source: the newest run of the workflow `ci.yml` on the branch `main`, for the row "CI on main" of the Status panel. It makes one `gh run list` call, which only reads. The
 // runner adds `--repo` and allows this one exact command (GH_RUN_LIST) and no other `gh run` call, so there is no way to rerun, cancel or delete a run through it.
 
 export type CiModuleDeps = {

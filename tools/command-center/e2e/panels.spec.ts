@@ -201,7 +201,7 @@ test.describe('the status, git and GitHub routes', () => {
     const calls = readGhCalls().filter((call) => call.args[0] === 'run');
     expect(calls.length).toBeGreaterThanOrEqual(8);
     for (const call of calls) {
-      expect(call.args).toEqual(['run', 'list', '--repo', 'fixture-owner/fixture-repo', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt']);
+      expect(call.args).toEqual(['run', 'list', '--repo', 'fixture-owner/fixture-repo', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt']);
     }
   });
 

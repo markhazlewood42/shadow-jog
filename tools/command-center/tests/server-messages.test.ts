@@ -45,7 +45,7 @@ const SAMPLE: Record<string, string> = {
   doing: 'read the branches',
   file: 'gh',
   first: 'Start here',
-  flags: '--branch main --limit 1 --json status,conclusion,url,createdAt',
+  flags: '--workflow ci.yml --branch main --limit 1 --json status,conclusion,url,createdAt',
   folder: 'projects',
   group: 'issue',
   href: '../docs/gone.md',

@@ -3,7 +3,7 @@ import { say } from '../messages';
 import { PanelError } from '../source';
 import { httpUrl, isRecord } from './github';
 
-// The parser of the CI source: it reads what `gh run list --branch main --limit 1 --json status,conclusion,url,createdAt` prints (see GH_RUN_LIST in the runner) and
+// The parser of the CI source: it reads what `gh run list --workflow ci.yml --branch main --limit 1 --json status,conclusion,url,createdAt` prints (see GH_RUN_LIST in the runner) and
 // makes the one word and the one time that the Status row "CI on main" shows. The repo is public, so the only thing in the run that becomes a link is an address that
 // starts with http or https (httpUrl), and the run's other words are never copied.
 

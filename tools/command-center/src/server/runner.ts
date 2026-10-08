@@ -125,11 +125,11 @@ function checkGhRead(repo: string, group: 'pr' | 'issue', verb: 'list' | 'view',
 }
 
 /**
- * The one `gh run list` that the server may run: the newest run on the branch `main`, with the four fields that the "CI on main" row needs (the CI source reads
+ * The one `gh run list` that the server may run: the newest run of the workflow `ci.yml` on the branch `main` (a run of another workflow, such as the playtest, is never the answer), with the four fields that the "CI on main" row needs (the CI source reads
  * them: see github/ci.ts). Every word and its place are fixed, as for a write, so that no other run, branch, workflow or field can be asked for. The runner adds
  * `--repo` after the verb; the caller does not need to.
  */
-export const GH_RUN_LIST: readonly string[] = ['--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
+export const GH_RUN_LIST: readonly string[] = ['--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
 
 /** gh run list: a read that is exactly GH_RUN_LIST, pinned to the repository. `rest` is what follows the first two words. */
 function checkGhRunList(repo: string, rest: string[]): Checked {

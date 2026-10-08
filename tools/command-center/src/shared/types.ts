@@ -289,7 +289,7 @@ export type PullRequest = {
 export type GithubInfo = { open: PullRequest[]; merged: PullRequest[] };
 
 /**
- * What `GET /api/ci` holds (inside a Panel): the newest run of the workflows on the branch `main`, as the Status panel shows it.
+ * What `GET /api/ci` holds (inside a Panel): the newest run of the workflow `ci.yml` on the branch `main`, as the Status panel shows it.
  * `passing`: it finished and passed. `failing`: it finished and failed, ran out of time, did not start, or waits for an approval. `running`: it is queued or
  * still runs. `none`: there is no run, or the newest one has no verdict (it was canceled or skipped); then there is no time and no address either.
  */
