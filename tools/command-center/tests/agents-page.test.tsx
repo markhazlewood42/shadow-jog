@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentsLive, Panel } from '../src/shared/types';
 import type { ServerEvent } from '../src/web/api';
-import { MIN, NOW, SEC, ago, live, liveNode, liveSession } from './agents-diagram-helpers';
+import { MIN, NOW, SEC, ago, live, liveNode, liveSession, liveWorkflow } from './agents-diagram-helpers';
 
 // The Agents page as a whole (heading, panel, diagram), over a made-up connection: `getPanel` answers what a test says, and the event stream is a function that the test
 // calls. The page reads GET /api/agents and reloads on an event of the module "agents". The run times move on a clock of their own, which a fake clock drives here.
@@ -130,6 +130,28 @@ describe('the Agents page', () => {
     await act(async () => (alert?.querySelector('button') as HTMLButtonElement).click());
     expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(container.textContent).not.toContain('Last good data');
+  });
+
+  it('each Copy button copies the file of its own box, and a box with no file has no button', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    api.getPanel.mockResolvedValue(
+      ok(
+        live([
+          liveSession('s1', {
+            filePath: '/fixture/session-one.jsonl',
+            nodes: [liveNode('a1', { filePath: '/fixture/agent-one.jsonl' }), liveWorkflow('w1', { filePath: '/fixture/journal-one.jsonl' }), liveWorkflow('w2', { filePath: null })],
+          }),
+        ]),
+      ),
+    );
+    await openPage();
+
+    const buttons = [...container.querySelectorAll<HTMLButtonElement>('button[aria-label="Copy path"]')];
+    expect(buttons).toHaveLength(3);
+    for (const button of buttons) await act(async () => button.click());
+    expect(writeText.mock.calls.map(([text]) => text)).toEqual(['/fixture/session-one.jsonl', '/fixture/agent-one.jsonl', '/fixture/journal-one.jsonl']);
+    Reflect.deleteProperty(navigator, 'clipboard');
   });
 
   it('shows the labels and the empty state from the data', async () => {

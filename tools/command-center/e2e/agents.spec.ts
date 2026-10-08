@@ -80,6 +80,43 @@ async function settled(page: Page): Promise<void> {
   await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))));
 }
 
+/**
+ * What the page did while a test looked away. A recorder in the page looks at every change of the page (and every 20 ms) and notes whether a box was marked as leaving and which
+ * CSS animations and transitions ran, by name: `animation:cc-box-in` is a box that faded in, `animation:cc-flash` a line that flashed, `transition:transform` a box that slid,
+ * `transition:opacity` a box or line that faded out, `transition:d` a line that moved with its box. It also notes which counts flashed (by the id of their box). A test asks what
+ * happened since the last `reset`.
+ */
+async function recordMotion(page: Page) {
+  await page.addInitScript(() => {
+    const seen = { leaving: false, names: new Set<string>(), flashed: new Set<string>() };
+    (window as unknown as { __motion: typeof seen }).__motion = seen;
+    const look = () => {
+      if (document.querySelector('[data-leaving="true"]')) seen.leaving = true;
+      for (const count of document.querySelectorAll('[data-count][class*="animate-cc-flash"]')) seen.flashed.add(count.getAttribute('data-count') ?? '');
+      for (const animation of document.getAnimations()) {
+        if (animation instanceof CSSAnimation) seen.names.add(`animation:${animation.animationName}`);
+        else if (animation instanceof CSSTransition) seen.names.add(`transition:${animation.transitionProperty}`);
+      }
+    };
+    new MutationObserver(look).observe(document, { subtree: true, childList: true, attributes: true });
+    setInterval(look, 20);
+  });
+  return {
+    seen: () =>
+      page.evaluate(() => {
+        const motion = (window as unknown as { __motion: { leaving: boolean; names: Set<string>; flashed: Set<string> } }).__motion;
+        return { leaving: motion.leaving, names: [...motion.names].sort(), flashed: [...motion.flashed].sort() };
+      }),
+    reset: () =>
+      page.evaluate(() => {
+        const motion = (window as unknown as { __motion: { leaving: boolean; names: Set<string>; flashed: Set<string> } }).__motion;
+        motion.leaving = false;
+        motion.names.clear();
+        motion.flashed.clear();
+      }),
+  };
+}
+
 type Rect = { left: number; top: number; right: number; bottom: number };
 
 /**
@@ -455,6 +492,7 @@ test.describe('the diagram', () => {
     writeSession(ID(1), [prompt('The first session', c.at(600)), toolResult(c.at(4))]);
     writeProcess(1, ID(1), 'busy', 600);
     await refreshAgents(request);
+    const motion = await recordMotion(page);
     await openAgents(page);
     await expect(sessionBoxes(page)).toHaveCount(1);
 
@@ -471,6 +509,10 @@ test.describe('the diagram', () => {
     await expect(sessionBoxes(page).locator('[data-part="title"]')).toHaveText(['The second session']);
     await expect(page.locator('[data-leaving]')).toHaveCount(0, { timeout: 2000 });
     await expect(panel(page).locator('[data-cluster]')).toHaveCount(1);
+    // The cluster stayed for its 200 ms, marked as leaving, and faded out before it left the page.
+    const left = await motion.seen();
+    expect(left.leaving, 'the cluster faded out').toBe(true);
+    expect(left.names).toContain('transition:opacity');
   });
 });
 
@@ -593,7 +635,10 @@ test.describe('the text list', () => {
 // ---- the geometry ----
 
 test.describe('the geometry', () => {
-  /** A busy world: the three sessions of `writeWorld`, and a fourth with 13 agents (the last is left out), messages on some, and an agent that another agent started. */
+  /**
+   * A busy world: the three sessions of `writeWorld`; a fourth with 13 agents (the last is left out), 123 messages to one of them, and an agent that another agent started; and a
+   * fifth, the one that began first, with a chain of five agents that each started the next, which is wider than a column (496 pixels).
+   */
   function writeBusyWorld(): void {
     writeWorld();
     const c = clock();
@@ -608,86 +653,88 @@ test.describe('the geometry', () => {
     }
     writeAgent(ID(5), 'inner001', { description: 'The inner agent', model: 'claude-haiku-4-5', toolUseId: 'toolu_inner', lines: [prompt('made up', c.at(900)), toolResult(c.at(7))] });
     writeProcess(5, ID(5), 'busy', 2000);
+
+    // The chain: the session started the first agent, the first started the second, and so on.
+    writeSession(ID(6), [prompt('A session with a deep chain of agents', c.at(3200)), agentCall('toolu_deep1', c.at(3000)), toolResult(c.at(4))]);
+    for (let i = 1; i <= 5; i += 1) {
+      const next = i < 5 ? [agentCall(`toolu_deep${i + 1}`, c.at(2900 - i * 100))] : [];
+      writeAgent(ID(6), `deep000${i}`, { description: `Deep agent ${i}`, model: 'claude-sonnet-5-5', toolUseId: `toolu_deep${i}`, lines: [prompt('made up', c.at(3000 - i * 100)), ...next, toolResult(c.at(6))] });
+    }
+    writeProcess(6, ID(6), 'busy', 3000);
   }
+
+  /** The part of a box that Mark can see: a cluster is a scroll box, and what is outside it is clipped. A box that is clipped away has no visible part. */
+  const visible = (rect: Rect, cluster: Rect): Rect | null => {
+    const clipped = { left: Math.max(rect.left, cluster.left), top: Math.max(rect.top, cluster.top), right: Math.min(rect.right, cluster.right), bottom: Math.min(rect.bottom, cluster.bottom) };
+    return clipped.right > clipped.left && clipped.bottom > clipped.top ? clipped : null;
+  };
 
   test('agents page keeps its boxes apart and its lines out of boxes', async ({ page, request }) => {
     writeBusyWorld();
     await refreshAgents(request);
     await openAgents(page);
-    await expect(panel(page).locator('[data-cluster]')).toHaveCount(4);
+    await expect(panel(page).locator('[data-cluster]')).toHaveCount(5);
 
     for (const size of [{ width: 1280, height: 720 }, { width: 800, height: 720 }, { width: 560, height: 720 }]) {
       await page.setViewportSize(size);
       await settled(page);
       const clusters = await measure(page);
-      const boxes = clusters.flatMap((cluster) => cluster.boxes.map((box) => ({ ...box, cluster: cluster.id })));
-      expect(boxes.length, 'the boxes are there').toBeGreaterThan(20);
+      const boxes = clusters.flatMap((cluster) => cluster.boxes.map((box) => ({ ...box, cluster: cluster.id, visible: visible(box.rect, cluster.rect) })));
+      expect(boxes.length, 'the boxes are there').toBeGreaterThan(25);
+      const deep = clusters.find((cluster) => cluster.id === ID(6));
+      expect(deep?.boxes, 'the chain is drawn').toHaveLength(6);
 
-      // No two boxes overlap, also across two clusters. The label "+N more" overlaps no box.
+      // No two boxes overlap, also across two clusters: a box that sticks out of its cluster is clipped by it, so only what can be seen counts. No label "+N more" overlaps a box.
       for (const [i, one] of boxes.entries()) {
-        for (const other of boxes.slice(i + 1)) expect(overlap(one.rect, other.rect), `${size.width}px: ${one.title} and ${other.title} overlap`).toBe(false);
+        for (const other of boxes.slice(i + 1)) {
+          if (one.visible === null || other.visible === null) continue;
+          expect(overlap(one.visible, other.visible), `${size.width}px: ${one.title} and ${other.title} overlap`).toBe(false);
+        }
       }
       for (const cluster of clusters) {
-        for (const label of cluster.more) for (const box of boxes) expect(overlap(label, box.rect), `${size.width}px: a label "+N more" overlaps ${box.title}`).toBe(false);
+        for (const label of cluster.more) for (const box of cluster.boxes) expect(overlap(label, box.rect), `${size.width}px: a label "+N more" overlaps ${box.title}`).toBe(false);
       }
 
-      // No segment of a line enters a box, and no count (the label on a dashed line) overlaps a box.
+      // No segment of a line enters a box of its cluster, and no count (the label on a dashed line) overlaps a box.
       let segments = 0;
       for (const cluster of clusters) {
         for (const line of cluster.lines) {
           for (let i = 1; i < line.points.length; i += 1) {
             segments += 1;
-            for (const box of boxes) expect(crosses(line.points[i - 1] as { x: number; y: number }, line.points[i] as { x: number; y: number }, box.rect), `${size.width}px: the ${line.kind} line of ${line.owner} crosses ${box.title}`).toBe(false);
+            for (const box of cluster.boxes) expect(crosses(line.points[i - 1] as { x: number; y: number }, line.points[i] as { x: number; y: number }, box.rect), `${size.width}px: the ${line.kind} line of ${line.owner} crosses ${box.title}`).toBe(false);
           }
         }
-        for (const count of cluster.counts) for (const box of boxes) expect(overlap(count.rect, box.rect), `${size.width}px: the count of ${count.owner} overlaps ${box.title}`).toBe(false);
+        for (const count of cluster.counts) for (const box of cluster.boxes) expect(overlap(count.rect, box.rect), `${size.width}px: the count of ${count.owner} overlaps ${box.title}`).toBe(false);
       }
-      expect(segments, 'the lines are there').toBeGreaterThan(20);
+      expect(segments, 'the lines are there').toBeGreaterThan(25);
 
-      // Every box and line of a cluster is inside the cluster (its scroll box), so a cluster never runs under the next one.
+      // The page never needs a horizontal scroll bar, whatever the width of a cluster: a cluster that is wider than its column scrolls inside itself.
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `${size.width}px: the page has no horizontal scroll`).toBe(true);
+      // The first box of every cluster is at the top left of it, and no box is above its cluster or left of it.
       for (const cluster of clusters) {
         for (const box of cluster.boxes) {
           expect(box.rect.left, `${box.title} inside its cluster`).toBeGreaterThanOrEqual(cluster.rect.left - 0.5);
+          expect(box.rect.top).toBeGreaterThanOrEqual(cluster.rect.top - 0.5);
           expect(box.rect.bottom).toBeLessThanOrEqual(cluster.rect.bottom + 0.5);
         }
       }
     }
+
+    // The chain is 496 pixels wide, wider than a column of 352: every column is as wide as the chain, so in a wide window nothing of it is cut off (two columns, and not three).
+    // A window that is narrower than the chain scrolls that cluster inside itself, and never the page.
+    const chain = (width: number) => page.setViewportSize({ width, height: 720 }).then(() => settled(page)).then(() => clusterOf(page, ID(6)).evaluate((cluster) => ({ scrolls: cluster.scrollWidth > cluster.clientWidth, overflow: getComputedStyle(cluster).overflowX, width: cluster.clientWidth })));
+    const wide = await chain(1280);
+    expect(wide.scrolls).toBe(false);
+    expect(wide.width).toBeGreaterThanOrEqual(496);
+    expect(await chain(560)).toMatchObject({ scrolls: true, overflow: 'auto' });
+    const firsts = (await sessionBoxes(page).all()).map(async (box) => (await box.boundingBox())?.x);
+    expect(new Set(await Promise.all(firsts)).size, 'one column at 560 px').toBe(1);
   });
 });
 
 // ---- motion ----
 
 test.describe('motion', () => {
-  /**
-   * What the page did while a test looked away. A recorder in the page looks at every change of the page (and every 20 ms) and notes whether a box was marked as leaving and which
-   * CSS animations and transitions ran, by name: `animation:cc-box-in` is a box that faded in, `animation:cc-flash` a line that flashed, `transition:transform` a box that slid,
-   * `transition:opacity` a box or line that faded out, `transition:d` a line that moved with its box. A test asks what happened since the last `reset`.
-   */
-  async function recordMotion(page: Page) {
-    await page.addInitScript(() => {
-      const seen = { leaving: false, names: new Set<string>() };
-      (window as unknown as { __motion: typeof seen }).__motion = seen;
-      const look = () => {
-        if (document.querySelector('[data-leaving="true"]')) seen.leaving = true;
-        for (const animation of document.getAnimations()) {
-          if (animation instanceof CSSAnimation) seen.names.add(`animation:${animation.animationName}`);
-          else if (animation instanceof CSSTransition) seen.names.add(`transition:${animation.transitionProperty}`);
-        }
-      };
-      new MutationObserver(look).observe(document, { subtree: true, childList: true, attributes: true });
-      setInterval(look, 20);
-    });
-    return {
-      seen: () => page.evaluate(() => ({ leaving: (window as unknown as { __motion: { leaving: boolean } }).__motion.leaving, names: [...(window as unknown as { __motion: { names: Set<string> } }).__motion.names].sort() })),
-      reset: () =>
-        page.evaluate(() => {
-          const motion = (window as unknown as { __motion: { leaving: boolean; names: Set<string> } }).__motion;
-          motion.leaving = false;
-          motion.names.clear();
-        }),
-    };
-  }
-
   test('agents page respects reduced motion', async ({ page, request }) => {
     test.setTimeout(90_000);
     const c = clock();
@@ -735,6 +782,7 @@ test.describe('motion', () => {
     await expect(clusterOf(page, ID(1)).locator('[data-count="stay0001"]')).toHaveText('1');
     await expect.poll(async () => (await motion.seen()).names, { timeout: 3000 }).toContain('animation:cc-flash');
     await expect(clusterOf(page, ID(1)).locator('[class*="animate-cc-flash"]')).toHaveCount(0, { timeout: 3000 });
+    expect((await motion.seen()).flashed).toEqual(['stay0001', 'talk0001']);
 
     // A new agent comes: it fades in.
     await motion.reset();
@@ -771,7 +819,7 @@ test.describe('motion', () => {
     await refreshAgents(request);
     await expect(boxOf(page, 'A new agent')).toHaveCount(0);
     await page.waitForTimeout(400);
-    expect(await motion.seen()).toEqual({ leaving: false, names: [] });
+    expect(await motion.seen()).toEqual({ leaving: false, names: [], flashed: [] });
   });
 });
 

@@ -261,6 +261,14 @@ describe('the Agents diagram', () => {
     expect(labels(draw(live([], { source: 'file-age', hiddenScripts: 2 })))).toEqual(['2 script runs hidden', 'Process list unavailable', 'No active session']);
   });
 
+  it('sizes the columns of the grid by the widest cluster, at 352 pixels at the least', () => {
+    const columns = (host: HTMLElement) => host.querySelector('[data-cluster]')?.parentElement?.getAttribute('style');
+    expect(columns(draw(live([liveSession('s1', { nodes: kids(3) })])))).toContain('grid-template-columns:repeat(auto-fill, minmax(min(352px, 100%), 1fr))');
+    // A chain of five agents that each started the next is 5 levels of 56 pixels and a box of 216, which is 496 pixels: every column is as wide as it.
+    const chain = [liveNode('c1', { parentId: 's2' }), liveNode('c2', { parentId: 'c1' }), liveNode('c3', { parentId: 'c2' }), liveNode('c4', { parentId: 'c3' }), liveNode('c5', { parentId: 'c4' })];
+    expect(columns(draw(live([liveSession('s1'), liveSession('s2', { nodes: chain })])))).toContain('minmax(min(496px, 100%), 1fr)');
+  });
+
   it('the run times follow the clock they are given', () => {
     const data = live([liveSession('s1', { startedAt: ago(12 * MIN + 50 * SEC), nodes: [liveNode('a', { startedAt: ago(40 * SEC) })] })]);
     expect(detailOf(boxOf(draw(data, NOW), 'Title of s1'))).toBe('working · 12 min');
