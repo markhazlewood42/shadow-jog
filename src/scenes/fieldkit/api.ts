@@ -16,7 +16,7 @@ import { fieldHooks } from '../../game/hooks';
 import { DialogScene } from '../dialog';
 import type { FieldScene } from '../field';
 import { cameraOrigin } from './camera';
-import { holdFor } from './popins';
+import { popins } from './review';
 
 export function scriptApi(f: FieldScene): ScriptApi {
   return {
@@ -136,7 +136,7 @@ export function scriptApi(f: FieldScene): ScriptApi {
         // A pan is the beat that reveals things: it lifts an event curtain (fieldkit/popins.ts, option b),
         // and the pop-in table may ask it to hold on its target before the script goes on.
         f.curtainEvent = null;
-        const hold = holdFor(f.def.id, x, y);
+        const hold = popins?.holdFor(f.def.id, x, y) ?? 0;
         const done = hold > 0 ? () => void f.game.wait(hold).then(res) : res;
         f.panTarget = { x: t.x, y: t.y, frames, t: 0, sx: f.camX, sy: f.camY, res: done };
       }),

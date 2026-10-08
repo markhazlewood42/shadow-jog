@@ -17,6 +17,7 @@
  * moves into the map data once Mark gives his written yes. The dev review switch `?popin=P1:b,P2:a`
  * (or `?popin=all:b`) forces options for the pictures; a production build ignores it.
  */
+import type { Ctx } from '../../engine/canvas';
 import { reviewSwitch } from './devswitch';
 
 export type PopinOption = 'none' | 'a' | 'b';
@@ -140,6 +141,39 @@ export function holdFor(map: string, tx: number, ty: number, options: PopinOptio
   let frames = 0;
   for (const e of activeOn(map, 'b', options)) if (e.b?.hold && e.b.hold.pan[0] === tx && e.b.hold.pan[1] === ty) frames = Math.max(frames, e.b.hold.frames);
   return frames;
+}
+
+/**
+ * Draw the curtains of a map over the finished picture: a dark box over a part of the map that the
+ * wider view would show too early. A `near` curtain follows the leader's distance, an `event`
+ * curtain eases shut over its `fade` frames while its event runs (`ease` keeps each curtain's
+ * progress between frames and is updated in place). The edges are feathered.
+ */
+export function drawCurtains(ctx: Ctx, curtains: readonly Curtain[], ease: number[], cx: number, cy: number, leader: { x: number; y: number }, runningEvent: string | null): void {
+  for (const [i, c] of curtains.entries()) {
+    const target = curtainClosed(c, leader, runningEvent);
+    const prev = ease[i] ?? 0;
+    const eased = c.mode === 'event' ? prev + Math.max(-1 / c.fade, Math.min(1 / c.fade, target - prev)) : target;
+    ease[i] = eased;
+    const a = 0.94 * eased;
+    if (a < 0.01) continue;
+    const x = c.box.x - cx, y = c.box.y - cy, w = c.box.w, h = c.box.h;
+    const FEATHER = 24;
+    ctx.fillStyle = `rgba(7,6,13,${a.toFixed(3)})`;
+    ctx.fillRect(x, y, w, h);
+    // Feathered edges: a gradient from the curtain's strength to nothing, outside each side.
+    const strip = (sx: number, sy: number, sw: number, sh: number, gx: number, gy: number, gx2: number, gy2: number): void => {
+      const g = ctx.createLinearGradient(gx, gy, gx2, gy2);
+      g.addColorStop(0, `rgba(7,6,13,${a.toFixed(3)})`);
+      g.addColorStop(1, 'rgba(7,6,13,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(sx, sy, sw, sh);
+    };
+    strip(x - FEATHER, y, FEATHER, h, x, 0, x - FEATHER, 0);
+    strip(x + w, y, FEATHER, h, x + w, 0, x + w + FEATHER, 0);
+    strip(x, y - FEATHER, w, FEATHER, 0, y, 0, y - FEATHER);
+    strip(x, y + h, w, FEATHER, 0, y + h, 0, y + h + FEATHER);
+  }
 }
 
 /**

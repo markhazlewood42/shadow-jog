@@ -25,7 +25,8 @@ import { fieldHooks } from '../game/hooks';
 import { reportError } from '../engine/errors';
 import { scriptApi } from './fieldkit/api';
 import { cameraOrigin } from './fieldkit/camera';
-import { cameraBoxFor, curtainClosed, curtainsFor, type CameraBox, type Curtain } from './fieldkit/popins';
+import type { CameraBox, Curtain } from './fieldkit/popins';
+import { popins } from './fieldkit/review';
 import { blit, byBaseY, drawEmote, inView, type DrawEntry } from './fieldkit/draw';
 import { drawSurround, type SurroundView } from './fieldkit/surround';
 import { Dust } from './fieldkit/dust';
@@ -130,8 +131,8 @@ export class FieldScene extends Scene<void> {
     if (this.def.town) state.lastTown = { map: mapId, x, y };
     if (this.def.entrance) state.lastEntrance = { ...this.def.entrance };
     this.lighting.ambient = this.def.ambient;
-    this.cameraBox = cameraBoxFor(mapId);
-    this.curtains = curtainsFor(mapId);
+    this.cameraBox = popins?.cameraBoxFor(mapId) ?? null;
+    this.curtains = popins?.curtainsFor(mapId) ?? [];
     this.curtainEase = this.curtains.map(() => 0);
     this.weather.set(this.def.weather ?? 'none');
     this.buildParty(x, y, dir);
@@ -717,45 +718,12 @@ export class FieldScene extends Scene<void> {
     this.lighting.bloom(ctx, this.map.lights, cx, cy, f, this.def.kind === 'interior' ? 0.08 : 0.14);
     this.dust.render(ctx, cx, cy);
     this.weather.render(ctx);
-    if (this.curtains.length) this.renderCurtains(ctx, cx, cy);
+    if (this.curtains.length) popins?.drawCurtains(ctx, this.curtains, this.curtainEase, cx, cy, { x: this.leader.px, y: this.leader.py }, this.curtainEvent);
     for (const a of actors) if (a.emote) drawEmote(ctx, a, cx, cy);
     if (this.cue) this.drawCue(ctx, this.cue.x - cx, this.cue.y - cy, f);
     this.renderBanner(ctx);
     this.renderObjective(ctx);
     fieldHooks.renderOverlay?.(this, ctx);
-  }
-
-  /**
-   * The pop-in table's curtains (option b): a dark box over a part of the map that the wider view
-   * would show too early. A `near` curtain follows the leader's distance, an `event` curtain
-   * eases shut over its `fade` frames while its event runs. The edges are feathered.
-   */
-  private renderCurtains(ctx: Ctx, cx: number, cy: number): void {
-    const lead = { x: this.leader.px, y: this.leader.py };
-    for (const [i, c] of this.curtains.entries()) {
-      const target = curtainClosed(c, lead, this.curtainEvent);
-      const prev = this.curtainEase[i] ?? 0;
-      const eased = c.mode === 'event' ? prev + Math.max(-1 / c.fade, Math.min(1 / c.fade, target - prev)) : target;
-      this.curtainEase[i] = eased;
-      const a = 0.94 * eased;
-      if (a < 0.01) continue;
-      const x = c.box.x - cx, y = c.box.y - cy, w = c.box.w, h = c.box.h;
-      const FEATHER = 24;
-      ctx.fillStyle = `rgba(7,6,13,${a.toFixed(3)})`;
-      ctx.fillRect(x, y, w, h);
-      // Feathered edges: a gradient from the curtain's strength to nothing, outside each side.
-      const strip = (sx: number, sy: number, sw: number, sh: number, gx: number, gy: number, gx2: number, gy2: number): void => {
-        const g = ctx.createLinearGradient(gx, gy, gx2, gy2);
-        g.addColorStop(0, `rgba(7,6,13,${a.toFixed(3)})`);
-        g.addColorStop(1, 'rgba(7,6,13,0)');
-        ctx.fillStyle = g;
-        ctx.fillRect(sx, sy, sw, sh);
-      };
-      strip(x - FEATHER, y, FEATHER, h, x, 0, x - FEATHER, 0);
-      strip(x + w, y, FEATHER, h, x + w, 0, x + w + FEATHER, 0);
-      strip(x, y - FEATHER, w, FEATHER, 0, y, 0, y - FEATHER);
-      strip(x, y + h, w, FEATHER, 0, y + h, 0, y + h + FEATHER);
-    }
   }
 
   /**
