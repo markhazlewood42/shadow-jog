@@ -7,6 +7,7 @@ import type { DocIndex } from '../docs/index';
 import { OTHER_SECTION_ID } from '../docs/nav';
 import { isMissing } from '../fs-errors';
 import { apiError } from '../guard';
+import { say } from '../messages';
 import type { PanelSource } from '../source';
 
 // The routes of the docs module. Every one is a GET, and none takes a path: a doc is asked for by
@@ -54,7 +55,7 @@ function docNotFound(docs: DocIndex, slug: string): DocNotFound {
   const shown = slug.length > MAX_ECHO_CHARS ? `${slug.slice(0, MAX_ECHO_CHARS)}...` : slug;
   return {
     ok: false,
-    error: { code: 'doc-not-found', message: `No doc has the address "${shown}". It may have been moved or deleted.` },
+    error: { code: 'doc-not-found', message: say('docNotFound', { address: shown }) },
     updatedAt: null,
     lastGood: null,
     suggestions: docs.suggest(slug),
@@ -150,15 +151,15 @@ export function registerDocsRoutes(app: Hono, docs: DocIndex, decisions?: PanelS
     // The id picks the file. The name after it is only there so that a browser shows a sensible name
     // in its tab and when it saves the file, so it must be the file's own name: any other name (a
     // path, `..`, another file) is not the address of a file.
-    if (asset === null || basename(asset.file) !== c.req.param('name')) return c.json(apiError('not-found', 'No such file.'), 404);
+    if (asset === null || basename(asset.file) !== c.req.param('name')) return c.json(apiError('not-found', say('noSuchFile')), 404);
     try {
       // The index found a plain file here at its last scan. A link or a folder that has taken its place since is not served.
-      if (!(await lstat(asset.file)).isFile()) return c.json(apiError('not-found', 'No such file.'), 404);
+      if (!(await lstat(asset.file)).isFile()) return c.json(apiError('not-found', say('noSuchFile')), 404);
       const bytes = await readFile(asset.file);
       // The file can change under the same address, so the browser must ask again each time it needs it.
       return c.body(new Uint8Array(bytes), 200, { 'Content-Type': asset.type, 'Cache-Control': 'no-cache' });
     } catch (error) {
-      if (isMissing(error)) return c.json(apiError('not-found', 'No such file.'), 404);
+      if (isMissing(error)) return c.json(apiError('not-found', say('noSuchFile')), 404);
       throw error;
     }
   });

@@ -60,7 +60,7 @@ describe('splitFrontmatter', () => {
     const result = splitFrontmatter(src);
     expect(result.data).toEqual({});
     expect(result.body).toBe(src);
-    expect(result.error).toMatch(/never closed/);
+    expect(result.error).toMatch(/does not end with a --- line/);
   });
 
   it('bad YAML: the doc renders and frontmatterError is set', () => {

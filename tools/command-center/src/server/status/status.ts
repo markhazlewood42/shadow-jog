@@ -2,6 +2,7 @@ import MarkdownIt, { type Token } from 'markdown-it';
 import type { DocHeading, StatusInfo } from '../../shared/types';
 import { splitFrontmatter } from '../docs/frontmatter';
 import { inlineText } from '../engine/decisions';
+import { say } from '../messages';
 import { PanelError } from '../source';
 
 // The two docs that the status module reads: status.md (its date, its `milestone` key, and the "Next up
@@ -140,7 +141,7 @@ export function parseStatus(source: string, render: (markdown: string) => string
   const headings = readHeadings(tokens);
   const current = headings.find((heading) => RIGHT_NOW.test(heading.text) && !HISTORY.test(heading.text));
   if (current === undefined) {
-    throw new PanelError('status-section-missing', `${STATUS_DOC_PATH} has no "Right now" section (a heading that starts with "Right now" and does not say "history"), so the project status cannot be shown.`);
+    throw new PanelError('status-section-missing', say('statusNoSection', { path: STATUS_DOC_PATH }));
   }
   const after = headings.find((heading) => heading.index > current.index && heading.level <= current.level);
 
@@ -262,7 +263,7 @@ export function parseMilestones(source: string, headings: readonly DocHeading[])
   const { body } = splitFrontmatter(source);
   const table = readTables(md.parse(body, {})).find((candidate) => candidate.headers.includes(MILESTONE_COLUMN) && candidate.headers.includes(SCOPE_COLUMN));
   if (table === undefined) {
-    throw new PanelError('milestones-table-missing', `${MIGRATION_DOC_PATH} has no table with a "Milestone" column and a "One-line scope" column, so the milestone list cannot be shown.`);
+    throw new PanelError('milestones-table-missing', say('milestonesNoTable', { path: MIGRATION_DOC_PATH }));
   }
   const milestoneAt = table.headers.indexOf(MILESTONE_COLUMN);
   const scopeAt = table.headers.indexOf(SCOPE_COLUMN);

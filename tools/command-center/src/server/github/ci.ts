@@ -1,4 +1,5 @@
 import type { CiMain } from '../../shared/types';
+import { say } from '../messages';
 import { PanelError } from '../source';
 import { httpUrl, isRecord } from './github';
 
@@ -15,7 +16,8 @@ const UNFINISHED_STATUSES: ReadonlySet<string> = new Set(['queued', 'in_progress
 /** There is nothing to say about the run: no time and no address, so that the label "no run" never has a link or an age beside it. */
 const NO_RUN: CiMain = { state: 'none', createdAt: null, url: null };
 
-const unreadable = (what: string) => new PanelError('gh-bad-output', `gh printed a list of runs that this page cannot read: ${what}.`);
+/** The failure for gh output that is not a list of runs. `detail` is one of the `ghDetail...` messages. */
+const unreadable = (detail: string) => new PanelError('gh-bad-output', say('ghBadOutput', { subject: 'runs', ghDetail: detail }));
 
 /** A word of gh's output in lower case (gh prints these in lower case; the case is not trusted), or '' when it is not text. */
 const wordOf = (value: unknown): string => (typeof value === 'string' ? value.toLowerCase() : '');
@@ -41,12 +43,12 @@ export function parseGhRun(json: string): CiMain {
   try {
     parsed = JSON.parse(json);
   } catch {
-    throw unreadable('the output is not JSON');
+    throw unreadable(say('ghDetailOutputNotJson'));
   }
-  if (!Array.isArray(parsed)) throw unreadable('the output is not a list');
+  if (!Array.isArray(parsed)) throw unreadable(say('ghDetailOutputNotList'));
   const [run] = parsed;
   if (run === undefined) return NO_RUN;
-  if (!isRecord(run)) throw unreadable('the first entry is not a run');
+  if (!isRecord(run)) throw unreadable(say('ghDetailFirstEntryNotRun'));
 
   const state = stateOf(wordOf(run.status), wordOf(run.conclusion));
   if (state === 'none') return NO_RUN;

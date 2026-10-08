@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import type { Context, MiddlewareHandler } from 'hono';
 import type { ApiErrorBody } from '../shared/types';
+import { say } from './messages';
 
 // The guards of the server: who may talk to it, and which requests may write. Together with the
 // rule that the server listens on 127.0.0.1 only, they keep another web page in Mark's browser
@@ -34,7 +35,7 @@ export function createHostGuard(port: number): MiddlewareHandler {
   return async (c, next) => {
     const host = c.req.header('host')?.toLowerCase();
     if (host === undefined || !own.has(host)) {
-      return c.json(apiError('forbidden-host', 'This server only answers to localhost and 127.0.0.1 on its own port.'), 403);
+      return c.json(apiError('forbidden-host', say('hostNotAllowed')), 403);
     }
     await next();
   };
@@ -56,7 +57,7 @@ export function createMethodGate(): MiddlewareHandler {
       await next();
       return;
     }
-    return c.json(apiError('method-not-allowed', 'This server only reads. The one write is the answer to a decision.'), 405, { Allow: ANSWER_PATH.test(path) ? 'POST' : 'GET' });
+    return c.json(apiError('method-not-allowed', say('readOnlyServer')), 405, { Allow: ANSWER_PATH.test(path) ? 'POST' : 'GET' });
   };
 }
 
@@ -98,17 +99,17 @@ export function createWriteGuard(token: string): MiddlewareHandler {
     const sent = Buffer.from(c.req.header('x-cc-token') ?? '');
     // timingSafeEqual needs two buffers of the same length, so a different length is refused first.
     if (sent.length !== expected.length || !timingSafeEqual(sent, expected)) {
-      return deny(c, 403, 'bad-token', 'A write needs the token of this run. Reload the page and try again.');
+      return deny(c, 403, 'bad-token', say('writeNeedsToken'));
     }
 
     const site = c.req.header('sec-fetch-site');
     const origin = c.req.header('origin');
     if ((site !== undefined && site !== 'same-origin') || (origin !== undefined && !sameOrigin(origin, c.req.header('host')))) {
-      return deny(c, 403, 'cross-site', 'A write must come from this site.');
+      return deny(c, 403, 'cross-site', say('writeCrossSite'));
     }
 
     if (mediaType(c.req.header('content-type')) !== 'application/json') {
-      return deny(c, 415, 'unsupported-media-type', 'A write must be JSON (Content-Type: application/json).');
+      return deny(c, 415, 'unsupported-media-type', say('writeNeedsJson'));
     }
 
     await next();

@@ -1,4 +1,5 @@
 import { firstLine } from '../first-line';
+import { say } from '../messages';
 
 // What went wrong with a gh call, named. The runner hands back a program's exit code and what it
 // printed on stderr; a person needs to know which of the usual causes it is, and what to do. Any
@@ -33,13 +34,13 @@ const MISSING = /command not found|is not recognized as an internal or external 
  */
 export function classifyGhError(code: number, stderr: string): GhError {
   if (code === 127 || MISSING.test(stderr)) {
-    return { code: 'gh-missing', message: 'The gh command is not installed (or it is not on the PATH), so GitHub cannot be read. Install the GitHub CLI from https://cli.github.com and run "gh auth login", then press Retry.' };
+    return { code: 'gh-missing', message: say('ghMissing') };
   }
-  if (code === 124) return { code: 'gh-timeout', message: 'gh did not answer in time. GitHub may be slow. Press Retry.' };
+  if (code === 124) return { code: 'gh-timeout', message: say('ghTimeout') };
   if (code === 4 || NOT_SIGNED_IN.test(stderr)) {
-    return { code: 'gh-not-signed-in', message: 'gh is not signed in to GitHub. Run "gh auth login" in a terminal, then press Retry.' };
+    return { code: 'gh-not-signed-in', message: say('ghNotSignedIn') };
   }
-  if (OFFLINE.test(stderr)) return { code: 'gh-offline', message: 'GitHub cannot be reached. Check the internet connection, then press Retry.' };
+  if (OFFLINE.test(stderr)) return { code: 'gh-offline', message: say('ghOffline') };
   const said = firstLine(stderr);
-  return { code: 'gh-failed', message: said === '' ? `gh failed with exit code ${code}.` : `gh failed: ${said}` };
+  return { code: 'gh-failed', message: said === '' ? say('ghFailedCode', { code }) : say('ghFailedSaid', { said }) };
 }

@@ -337,7 +337,7 @@ describe('renderDoc: images', () => {
     expect(doc.html).toContain('<a href="https://example.com/a.png" target="_blank" rel="noopener noreferrer">an outside picture</a>');
     expect(doc.html).toContain('<a href="https://github.com/fixture-owner/fixture-repo/blob/main/src/art.png" target="_blank" rel="noopener noreferrer">a repo picture</a>');
     expect(doc.html).toContain('<span class="broken-link" title="the file does not exist in the repo">a missing picture</span>');
-    expect(doc.html).toContain('<span class="broken-link" title="an image must be a picture file, not a doc or an anchor">a doc</span>');
+    expect(doc.html).toContain('<span class="broken-link" title="the image must be a picture file">a doc</span>');
     // With no alt text, the marker shows the address as written.
     expect(doc.html).toContain('title="the file does not exist in the repo">missing.png</span>');
 

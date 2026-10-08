@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import type { AgentsLive, LiveNode, LiveSession } from '../../shared/types';
 import type { Config } from '../config';
 import type { Hub } from '../hub';
+import { say } from '../messages';
 import { PanelError, type PanelSource, createPanelSource } from '../source';
 import { type AgentFile, type FileStamp, type SessionFile, type SessionTree, type WorkflowFolder, keepSession, listSessionFiles, listSessionTree, sessionSources, stampOf } from '../sessions/discover';
 import { applyAge, isSdkEntrypoint, readJournal, workflowStateOf } from '../sessions/parse';
@@ -257,7 +258,7 @@ export function createAgentsSource(deps: AgentsModuleDeps): PanelSource<AgentsLi
     } catch (error) {
       // The message of a file system error holds the path of a file. The page gets the code, and the server console the rest.
       console.error('The agents source could not read the live sessions:', error);
-      throw new PanelError('agents-failed', error instanceof PanelError ? error.message : `The live sessions could not be read (${codeOf(error)}).`);
+      throw new PanelError('agents-failed', error instanceof PanelError ? error.message : say('agentsFailed', { code: codeOf(error) }));
     } finally {
       reader.endLoad();
     }

@@ -4,6 +4,7 @@ import type { DocIndex } from '../docs/index';
 import { classifyGhError } from '../github/errors';
 import { MARK_LOGIN } from '../github/github';
 import type { Hub } from '../hub';
+import { say } from '../messages';
 import type { RunResult, Runner } from '../runner';
 import { POLL_EVERY_MS, PanelError, type PanelSource, createPanelSource } from '../source';
 import { type AnswerProgress, DECISION_FIELDS, LABEL_DECIDED, LABEL_DECISION, flattenEventPages, parseDecisionIssue, readDecisionIssue } from './parse';
@@ -45,7 +46,8 @@ export type DecisionsModuleDeps = {
 type Json = Record<string, unknown>;
 const isRecord = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const unreadable = (what: string) => new PanelError('gh-bad-output', `gh printed something about the decision issues that this page cannot read: ${what}.`);
+/** The failure for gh output about the decision issues that has the wrong shape. `detail` is one of the `ghDetail...` messages. */
+const unreadable = (detail: string) => new PanelError('gh-bad-output', say('ghBadOutput', { subject: 'decision issues', ghDetail: detail }));
 
 /** The error of a gh call that failed, named as the GitHub module names it (not signed in, offline, ...). */
 function ghFailure(result: RunResult): PanelError {
@@ -53,11 +55,12 @@ function ghFailure(result: RunResult): PanelError {
   return new PanelError(code, message);
 }
 
-function parseJson(stdout: string, what: string): unknown {
+/** `notJson` is the `ghDetail...` message to show when the text is not JSON (it names what was read). */
+function parseJson(stdout: string, notJson: string): unknown {
   try {
     return JSON.parse(stdout);
   } catch {
-    throw unreadable(`${what} is not JSON`);
+    throw unreadable(notJson);
   }
 }
 
@@ -67,19 +70,19 @@ function parseJson(stdout: string, what: string): unknown {
  * out for that reason could be a decision that waits for Mark. So that is an error, and the panel says so.
  */
 function checkedIssue(entry: unknown, position: number): Json {
-  if (!isRecord(entry)) throw unreadable(`entry ${position} is not an issue`);
-  if (typeof entry.number !== 'number' || !Number.isInteger(entry.number) || entry.number < 1) throw unreadable(`entry ${position} has no issue number`);
+  if (!isRecord(entry)) throw unreadable(say('ghDetailEntryNotIssue', { position }));
+  if (typeof entry.number !== 'number' || !Number.isInteger(entry.number) || entry.number < 1) throw unreadable(say('ghDetailEntryNoIssueNumber', { position }));
   // An issue of an account that was deleted has an author that is null or empty: that is a stranger's issue, and it is left out. A missing field is another thing.
-  if (entry.author === undefined) throw unreadable(`issue ${entry.number} has no author field`);
-  if (!Array.isArray(entry.labels)) throw unreadable(`issue ${entry.number} has no list of labels`);
+  if (entry.author === undefined) throw unreadable(say('ghDetailIssueNoAuthor', { number: entry.number }));
+  if (!Array.isArray(entry.labels)) throw unreadable(say('ghDetailIssueNoLabels', { number: entry.number }));
   return entry;
 }
 
 async function readList(runner: Runner, label: string, state: 'open' | 'all'): Promise<Json[]> {
   const result = await runner('gh', ['issue', 'list', '--label', label, '--author', MARK_LOGIN, '--state', state, '--limit', String(LIST_LIMIT), '--json', DECISION_FIELDS]);
   if (result.code !== 0) throw ghFailure(result);
-  const parsed = parseJson(result.stdout, 'the list of issues');
-  if (!Array.isArray(parsed)) throw unreadable('the list of issues is not a list');
+  const parsed = parseJson(result.stdout, say('ghDetailListNotJson'));
+  if (!Array.isArray(parsed)) throw unreadable(say('ghDetailListNotList'));
   return parsed.map((entry, index) => checkedIssue(entry, index + 1));
 }
 
@@ -95,8 +98,8 @@ async function withAllComments(runner: Runner, raw: Json): Promise<Json> {
   if (!Array.isArray(raw.comments) || raw.comments.length < LIST_COMMENT_LIMIT) return raw;
   const result = await runner('gh', ['issue', 'view', String(raw.number), '--json', 'comments']);
   if (result.code !== 0) throw ghFailure(result);
-  const viewed = parseJson(result.stdout, `the comments of issue ${String(raw.number)}`);
-  if (!isRecord(viewed) || !Array.isArray(viewed.comments)) throw unreadable(`the comments of issue ${String(raw.number)} are not a list`);
+  const viewed = parseJson(result.stdout, say('ghDetailCommentsNotJson', { number: String(raw.number) }));
+  if (!isRecord(viewed) || !Array.isArray(viewed.comments)) throw unreadable(say('ghDetailCommentsNotList', { number: String(raw.number) }));
   return { ...raw, comments: viewed.comments };
 }
 
@@ -104,7 +107,7 @@ async function withAllComments(runner: Runner, raw: Json): Promise<Json> {
 async function readEvents(config: Config, runner: Runner, number: number): Promise<unknown[]> {
   const result = await runner('gh', ['api', `repos/${config.githubRepo}/issues/${number}/events`, '--paginate', '--slurp']);
   if (result.code !== 0) throw ghFailure(result);
-  return flattenEventPages(parseJson(result.stdout, `the events of issue ${number}`));
+  return flattenEventPages(parseJson(result.stdout, say('ghDetailEventsNotJson', { number })));
 }
 
 /** Whether a time is not more than 7 days before `now`. A time in the future (a clock that is a little off) counts as recent. A text that is not a time does not. */

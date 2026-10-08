@@ -5,6 +5,7 @@ import type { Config } from '../config';
 import type { DocIndex } from '../docs/index';
 import { isMissing } from '../fs-errors';
 import type { Hub } from '../hub';
+import { say } from '../messages';
 import { POLL_EVERY_MS, PanelError, type PanelSource, createPanelSource } from '../source';
 import { MIGRATION_DOC_PATH, STATUS_DOC_PATH, parseMilestoneKey, parseMilestones, parseStatus } from './status';
 
@@ -29,12 +30,12 @@ export type StatusModuleDeps = {
  */
 type Loaded = { info: StatusInfo; milestonesProblem: { code: string; message: string } | null };
 
-/** The text of a doc, or a PanelError that names the doc and says that it is missing. */
-async function readDoc(root: string, path: string, code: string, consequence: string): Promise<string> {
+/** The text of a doc, or a PanelError that names the doc and says that it is missing (`missing` is the message to use). */
+async function readDoc(root: string, path: string, code: string, missing: 'statusDocMissing' | 'milestonesDocMissing'): Promise<string> {
   try {
     return await readFile(join(root, path), 'utf8');
   } catch (error) {
-    if (isMissing(error)) throw new PanelError(code, `${path} was not found in the repo, so ${consequence}.`);
+    if (isMissing(error)) throw new PanelError(code, say(missing, { path }));
     throw error;
   }
 }
@@ -67,13 +68,13 @@ export function createStatusSource(deps: StatusModuleDeps): PanelSource<StatusIn
     async load() {
       // The links in the html are checked against the doc index's scan, so wait for the first one.
       await docs.ready();
-      const statusMd = await readDoc(config.repoRoot, STATUS_DOC_PATH, 'status-missing', 'the project status cannot be shown');
+      const statusMd = await readDoc(config.repoRoot, STATUS_DOC_PATH, 'status-missing', 'statusDocMissing');
       const status = parseStatus(statusMd, (markdown) => docs.renderFragment(STATUS_DOC_PATH, markdown));
 
       let milestones: StatusInfo['milestones'] = [];
       let milestonesProblem: Loaded['milestonesProblem'] = null;
       try {
-        const migrationMd = await readDoc(config.repoRoot, MIGRATION_DOC_PATH, 'milestones-doc-missing', 'the milestone list cannot be shown');
+        const migrationMd = await readDoc(config.repoRoot, MIGRATION_DOC_PATH, 'milestones-doc-missing', 'milestonesDocMissing');
         // The anchors are the ids that the docs site gave the headings of the page, so the module asks the doc index for that page's outline and keeps no rule of its own.
         milestones = parseMilestones(migrationMd, docs.get(MIGRATION_DOC_SLUG)?.headings ?? []);
       } catch (error) {

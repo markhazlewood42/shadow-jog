@@ -4,6 +4,7 @@ import type { DecisionAnswer, DecisionDocLink, DecisionIssue, DecisionOption } f
 import { decodeOrKeep } from '../docs/links';
 import { httpUrl, isMarkLogin } from '../github/github';
 import { slugOf } from '../docs/index';
+import { say } from '../messages';
 import { PanelError } from '../source';
 
 // The parser of the decisions module: it reads what gh printed for an issue (`gh issue view` or `gh issue list`
@@ -118,7 +119,7 @@ function decidedLabelIsMarks(events: unknown): boolean {
  * with no events the parser would say that nothing was labeled, and that must not look like an answer.
  */
 export function flattenEventPages(value: unknown): unknown[] {
-  if (!Array.isArray(value)) throw new PanelError('gh-bad-output', 'gh printed the events of an issue in a form that this page cannot read: it is not a list of events.');
+  if (!Array.isArray(value)) throw new PanelError('gh-bad-output', say('ghBadOutput', { subject: 'issue events', ghDetail: say('ghDetailEventsNotList') }));
   return value.flatMap((entry) => (Array.isArray(entry) ? entry : [entry]));
 }
 
@@ -276,11 +277,7 @@ function readBody(rawBody: unknown): Body {
 
   // None of the two sections that make a decision: this is not the template (an agent may write its own body file).
   if (sections.question === undefined && sections.options === undefined) {
-    return {
-      ...emptyBody,
-      problem:
-        'The body of this issue does not follow the decision template (it has no Question and Options sections), so this page cannot show its question or its options. Open the issue on GitHub to read it.',
-    };
+    return { ...emptyBody, problem: say('problemNotTemplate') };
   }
 
   const questionText = joined(sections.question);
@@ -289,10 +286,10 @@ function readBody(rawBody: unknown): Body {
   const { options, repeated } = optionsOf(sections.options);
 
   let problem: string | null = null;
-  if (unedited) problem = 'The body of this issue is still the unedited decision template: nothing in it says what the question is or what the options are. Open the issue on GitHub to fill it in.';
-  else if (question === '') problem = 'The body of this issue has no question (its Question section is empty), so this page cannot say what is asked. Open the issue on GitHub to read it.';
-  else if (options.length === 0) problem = 'The body of this issue lists no options, so there is nothing to pick on this page. Open the issue on GitHub to read it.';
-  else if (repeated !== null) problem = `The body of this issue lists the option ${repeated} twice. This page shows the first one.`;
+  if (unedited) problem = say('problemBlankTemplate');
+  else if (question === '') problem = say('problemNoQuestion');
+  else if (options.length === 0) problem = say('problemNoOptions');
+  else if (repeated !== null) problem = say('problemRepeatedOption', { option: repeated });
 
   return {
     question,

@@ -265,9 +265,7 @@ describe('the engine module', () => {
     // The error says what is wrong, and where to fix it.
     expect(panel.error.code).toBe('approval-check-failed');
     expect(panel.error.message).toContain('approvalRef "no-such-ref"');
-    expect(panel.error.message).toContain('not a commit');
-    expect(panel.error.message).toContain('"Changed since approved" is off');
-    expect(panel.error.message).toContain('command-center.config.json');
+    expect(panel.error.message).toBe('approvalRef "no-such-ref" is not a commit of this repo. Set it in command-center.config.json.');
 
     // The decisions still come with it (the page shows the error above them), and none carries a change flag.
     const shown = must(panel.lastGood, 'the decisions that come with the error').data;
@@ -287,7 +285,7 @@ describe('the engine module', () => {
     const first = await failing.engine.get();
     expect(first.ok).toBe(false);
     if (first.ok) return;
-    expect(first.error.message).toContain(`git could not read ${ENGINE_PATHS.decisions} at ${failing.approvalRef}`);
+    expect(first.error.message).toContain(`git cannot read ${ENGINE_PATHS.decisions} at ${failing.approvalRef}`);
     expect(first.error.message).toContain('unable to read the object');
     expect(first.error.message).not.toContain('more'); // the first line of git's words
     expect(must(first.lastGood, 'the decisions beside the error').data.filter((decision) => decision.change !== null)).toEqual([]);
@@ -298,8 +296,8 @@ describe('the engine module', () => {
     const second = await old.engine.get();
     expect(second.ok).toBe(false);
     if (second.ok) return;
-    expect(second.error.message).toContain(`${ENGINE_PATHS.decisions} at ${old.approvalRef} could not be read as a list of decisions`);
-    expect(second.error.message).toContain('"Who decides"');
+    // One short line. The code of the parser's error says which mistake it was.
+    expect(second.error.message).toBe(`The copy of ${ENGINE_PATHS.decisions} at ${old.approvalRef} is not a list of decisions (decisions-column-missing).`);
     expect(statesOf(must(second.lastGood, 'the decisions beside the error').data)).toEqual(AT_APPROVAL);
   });
 });

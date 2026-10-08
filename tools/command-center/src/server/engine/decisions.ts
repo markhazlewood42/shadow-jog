@@ -1,6 +1,7 @@
 import MarkdownIt, { type Token } from 'markdown-it';
 import type { Decision, DecisionStatus, DocHeading } from '../../shared/types';
 import { splitFrontmatter } from '../docs/frontmatter';
+import { say } from '../messages';
 import { PanelError } from '../source';
 
 // The decisions of the engine docs, read out of their markdown. Two of the three places that hold
@@ -224,7 +225,7 @@ function sectionTextOf(lines: readonly string[], headings: readonly HeadingLine[
 /** Throws for a table row that has an id cell and a question but an id that is not E<digits> or C<digits>. A row with an empty id or an empty question is not a decision row. */
 function rejectBadId(id: string, question: string, path: string): void {
   if (id === '' || question === '') return;
-  throw new PanelError('engine-decision-unreadable', `A row of the decision table in ${path} has the id "${id}", which is not like E1 or C1, so its decision cannot be listed.`);
+  throw new PanelError('engine-decision-unreadable', say('engineBadId', { path, id }));
 }
 
 /**
@@ -243,14 +244,11 @@ export function parseEngineDecisions(markdown: string, headings: readonly DocHea
 
   const table = pickSummaryTable(readTables(tokens));
   if (table === null) {
-    throw new PanelError(
-      'decisions-table-missing',
-      `${path} has no decision table. The table needs the columns ${ENGINE_COLUMNS.map((name) => `"${name}"`).join(', ')}.`,
-    );
+    throw new PanelError('decisions-table-missing', say('engineNoTable', { path, columns: quotedList(ENGINE_COLUMNS) }));
   }
   const { at, missing } = findColumns(table, ENGINE_COLUMNS);
   if (missing.length > 0) {
-    throw new PanelError('decisions-column-missing', `The decision table in ${path} is missing the ${missing.length === 1 ? 'column' : 'columns'} ${quotedList(missing)}.`);
+    throw new PanelError('decisions-column-missing', say('engineMissingColumns', { path, names: quotedList(missing) }));
   }
 
   const sectionHeadings = readHeadings(tokens);
@@ -309,7 +307,7 @@ export function parseUpdateChoices(markdown: string, headings: readonly DocHeadi
 
   const { at, missing } = findColumns(table, UPDATE_COLUMNS);
   if (missing.length > 0) {
-    throw new PanelError('decisions-column-missing', `The table of real choices in ${path} is missing the ${missing.length === 1 ? 'column' : 'columns'} ${quotedList(missing)}.`);
+    throw new PanelError('decisions-column-missing', say('engineMissingChoiceColumns', { path, names: quotedList(missing) }));
   }
   const answerAt = table.headers.findIndex((header) => normalized(header) === normalized('Your answer'));
   const anchor = anchorOfHeading(headings, table.headingAbove);
@@ -347,7 +345,7 @@ export function parseUpdateChoices(markdown: string, headings: readonly DocHeadi
 export function readmeWaitsForMark(markdown: string): boolean {
   const { data, error } = splitFrontmatter(markdown);
   if (error !== null) {
-    throw new PanelError('readme-frontmatter-unreadable', `${ENGINE_DOCS.readme.path} has a frontmatter that cannot be read, so its status is not known. ${error}`);
+    throw new PanelError('readme-frontmatter-unreadable', say('engineReadmeUnreadable', { path: ENGINE_DOCS.readme.path, frontmatterError: error }));
   }
   return typeof data.status === 'string' && /waiting for mark/i.test(data.status);
 }

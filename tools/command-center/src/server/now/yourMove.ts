@@ -2,6 +2,7 @@ import { type Decision, type DecisionIssue, type DecisionsInfo, type GithubInfo,
 import { docUrl } from '../docs/links';
 import { slugOf } from '../docs/index';
 import { inlineText } from '../engine/decisions';
+import { say } from '../messages';
 import { STATUS_DOC_PATH } from '../status/status';
 
 // "Your move": every open action for Mark, in one list. The Now page shows it at the top. It is built from the panels of five
@@ -57,7 +58,7 @@ function questionOf(title: string): string {
 function decisionIssueItem(issue: DecisionIssue): YourMoveItem {
   const at = orNull(issue.createdAt);
   // An issue that does not follow the template cannot be answered on its page. The item says so and links to the issue itself, where Mark can read it and fix it.
-  if (issue.problem !== null) return item('decision-issue', `Decision #${issue.number} is unreadable: ${issue.problem}`, orNull(issue.url), { at });
+  if (issue.problem !== null) return item('decision-issue', say('yourMoveUnreadable', { number: issue.number, problem: issue.problem }), orNull(issue.url), { at });
   return item('decision-issue', `Decision #${issue.number}: ${questionOf(issue.title)}`, `/decisions/${issue.number}`, { at });
 }
 
@@ -77,8 +78,8 @@ function sessionItems(session: SessionInfo): YourMoveItem[] {
 }
 
 function pullRequestItem(pr: PullRequest): YourMoveItem {
-  const what = pr.attention === 'merge' ? 'is ready to merge' : 'needs a fix';
-  return item('pr', `PR #${pr.number} ${what}: ${pr.title}`, orNull(pr.url), { at: orNull(pr.updatedAt) });
+  const text = say(pr.attention === 'merge' ? 'yourMovePrMerge' : 'yourMovePrFix', { number: pr.number, title: pr.title });
+  return item('pr', text, orNull(pr.url), { at: orNull(pr.updatedAt) });
 }
 
 /** A decision of the engine docs that waits for Mark. It links to the doc at the heading of the decision. */

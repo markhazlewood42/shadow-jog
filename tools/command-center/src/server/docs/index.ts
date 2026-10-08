@@ -8,6 +8,7 @@ import type { DocHeading, DocPage, DocRef, DocSummary, NavSection, SearchHit } f
 import { type Config, PACKAGE_DIR, isInside } from '../config';
 import { isMissing } from '../fs-errors';
 import type { Hub } from '../hub';
+import { say } from '../messages';
 import type { Runner } from '../runner';
 import { lastChangedDates, resolveUpdated } from './dates';
 import { type KnownTargets, resolveHref } from './links';
@@ -127,7 +128,7 @@ async function walk(root: string, dir: string, found: Found, problems: string[])
   try {
     entries = await readdir(dir, { withFileTypes: true });
   } catch (error) {
-    if (!isMissing(error)) problems.push(`${repoPathOf(root, dir) ?? dir}: the folder could not be read (${messageOf(error)}).`);
+    if (!isMissing(error)) problems.push(say('docsFolderUnreadable', { path: repoPathOf(root, dir) ?? dir, error: messageOf(error) }));
     return;
   }
   for (const entry of entries) {
@@ -154,7 +155,7 @@ async function findFiles(root: string, named: readonly string[], problems: strin
       if (entry.isFile() && isDocFile(entry.name) && !entry.name.startsWith('.')) found.docs.set(entry.name, join(root, entry.name));
     }
   } catch (error) {
-    problems.push(`The repo folder could not be read (${messageOf(error)}).`);
+    problems.push(say('docsRepoUnreadable', { error: messageOf(error) }));
   }
   await walk(root, join(root, 'docs'), found, problems);
 
@@ -186,7 +187,7 @@ async function readSource(id: string, file: string, before: Source | undefined, 
   }
   if (!info.isFile()) return null;
   if (info.size > MAX_DOC_BYTES) {
-    problems.push(`${id} is larger than ${MAX_DOC_BYTES / 1024 / 1024} MB, so it is not on the site.`);
+    problems.push(say('docTooLarge', { id, size: MAX_DOC_BYTES / 1024 / 1024 }));
     return null;
   }
   // The text of a file that was not named as changed, and whose size and time are as before, is the text we have.
@@ -466,7 +467,7 @@ function renderEntries(
       for (const { href, resolved } of rendered.links) {
         if (resolved.kind === 'broken' && !brokenLinks.includes(href)) {
           brokenLinks.push(href);
-          problems.push(`${source.id}: broken link "${href}" (${resolved.reason}).`);
+          problems.push(say('docBrokenLink', { id: source.id, href, linkReason: resolved.reason }));
         } else if (resolved.kind === 'doc' && resolved.slug !== slug) {
           linksTo.add(resolved.slug);
         }
@@ -477,7 +478,7 @@ function renderEntries(
       const page: DocPage = { ...summary, html: rendered.html, headings, backlinks: [], brokenLinks, frontmatterError: rendered.frontmatterError };
       entries.push({ summary, page, source, spans: headingSpans(rendered.html), linksTo });
     } catch (error) {
-      problems.push(`${source.id} could not be rendered (${messageOf(error)}), so it is not on the site.`);
+      problems.push(say('docRenderFailed', { id: source.id, error: messageOf(error) }));
     }
   }
   return entries;
@@ -535,11 +536,7 @@ export function createDocIndex(deps: DocIndexDeps, options: DocIndexOptions = {}
     try {
       text = await readFile(navFile, 'utf8');
     } catch (error) {
-      problems.push(
-        isMissing(error)
-          ? `${navName} was not found (looked for ${navFile}), so every doc is listed under Other.`
-          : `${navName} could not be read (${messageOf(error)}), so every doc is listed under Other.`,
-      );
+      problems.push(isMissing(error) ? say('navMissing', { name: navName }) : say('navUnreadable', { name: navName, error: messageOf(error) }));
       return { sections: [], problems: [] };
     }
     return parseNavFile(text, navName);
@@ -563,7 +560,7 @@ export function createDocIndex(deps: DocIndexDeps, options: DocIndexOptions = {}
       const slug = slugOf(source.id);
       const owner = claimed.get(slug);
       if (owner === undefined) claimed.set(slug, source);
-      else problems.push(`${owner.id} and ${source.id} both have the address "${slug}". ${source.id} is not on the site.`);
+      else problems.push(say('docNameClash', { owner: owner.id, id: source.id, slug }));
     }
     const onSite = [...claimed].map(([slug, source]) => ({ slug, source }));
 
@@ -572,7 +569,7 @@ export function createDocIndex(deps: DocIndexDeps, options: DocIndexOptions = {}
     try {
       gitDays = await lastChangedDates(runner, root);
     } catch (error) {
-      problems.push(`The dates from git are not available (${messageOf(error)}). The time of each file is used instead.`);
+      problems.push(say('docsGitDates', { error: messageOf(error) }));
     }
 
     // The files that the site serves, and everything that a link can point at.
@@ -625,7 +622,7 @@ export function createDocIndex(deps: DocIndexDeps, options: DocIndexOptions = {}
       scanned = true;
     } catch (error) {
       console.error('The docs could not be scanned:', error);
-      const line = `The docs could not be read again (${messageOf(error)}). What the site shows may be out of date.`;
+      const line = say('docsRescanFailed', { error: messageOf(error) });
       snapshot = { ...snapshot, problems: [...snapshot.problems.filter((problem) => problem !== line), line] };
       scanned = true;
     }
@@ -664,7 +661,7 @@ export function createDocIndex(deps: DocIndexDeps, options: DocIndexOptions = {}
           onChange: (paths) => void refresh(paths),
           onError: (error) => {
             console.error('The docs file watcher reported a problem:', error);
-            const line = `The file watcher reported a problem (${error.message}). Edits may not show up.`;
+            const line = say('watcherFailed', { error: error.message });
             if (!watcherProblems.has(line)) {
               watcherProblems.add(line);
               void refresh();
@@ -673,7 +670,7 @@ export function createDocIndex(deps: DocIndexDeps, options: DocIndexOptions = {}
         });
         await watcher.ready;
       } catch (error) {
-        watcherProblems.add(`The file watcher could not start (${messageOf(error)}). Edits will not show up until the server is restarted.`);
+        watcherProblems.add(say('watcherNoStart', { error: messageOf(error) }));
       }
     }
     await refresh();

@@ -301,7 +301,7 @@ describe('the runner', () => {
     const early = await runner('git', ['-c', 'core.pager=evil', 'log']).catch((e: unknown) => e);
     expect((early as Error).message).toMatch(/^git refused: -c before the command/);
     const output = await runner('git', ['log', '--output=out.txt']).catch((e: unknown) => e);
-    expect((output as Error).message).toMatch(/^git log refused: --output would write a file/);
+    expect((output as Error).message).toMatch(/^git log refused: --output writes a file/);
   });
 
   it('runs in the repo root unless a cwd inside a root is given, and passes the timeout on', async () => {
@@ -359,7 +359,7 @@ describe('execProcess', () => {
   it('says so when the working folder is missing, not that the program is missing', async () => {
     const result = await execProcess(process.execPath, ['-e', '0'], { cwd: join(tmpdir(), 'cc-no-such-folder-xyz'), timeoutMs: 5000 });
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('working folder does not exist');
+    expect(result.stderr).toContain('folder to run in does not exist');
   });
 
   it('stops a process that runs too long and reports code 124', async () => {

@@ -1,6 +1,7 @@
 import { posix } from 'node:path';
 import GithubSlugger from 'github-slugger';
 import MarkdownIt, { type Env, type StateBlock, type StateInline, type Token } from 'markdown-it';
+import { say } from '../messages';
 import { splitFrontmatter } from './frontmatter';
 import { type ResolvedLink, docUrl } from './links';
 
@@ -167,7 +168,7 @@ function findClose(state: StateBlock | StateInline, from: number): number {
 const BROKEN_CLASS = 'broken-link';
 
 /** Why an address that a resolver handed back is not printed. */
-const UNSAFE_REASON = 'the link has an address that is not safe to open';
+const UNSAFE_REASON = say('linkReasonUnsafe');
 
 export function renderDoc(src: string, ctx: RenderContext): RenderedDoc {
   const { data, body, error } = splitFrontmatter(src);
@@ -365,7 +366,7 @@ function tidyImage(token: Token, href: string, resolved: ResolvedLink, insideLin
       resolved.kind === 'broken'
         ? resolved.reason
         : resolved.kind === 'doc' || resolved.kind === 'anchor'
-          ? 'an image must be a picture file, not a doc or an anchor'
+          ? say('linkReasonImageNotPicture')
           : UNSAFE_REASON;
     html = `<span class="${BROKEN_CLASS}" title="${md.utils.escapeHtml(reason)}">${label}</span>`;
   }
@@ -387,6 +388,6 @@ function resolveSafely(ctx: RenderContext, href: string): ResolvedLink {
   try {
     return ctx.resolve(href);
   } catch {
-    return { kind: 'broken', reason: 'the link could not be checked' };
+    return { kind: 'broken', reason: say('linkReasonUnchecked') };
   }
 }

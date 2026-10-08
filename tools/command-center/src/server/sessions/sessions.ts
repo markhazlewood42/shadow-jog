@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import type { AgentInfo, SessionInfo, SessionsInfo, WorkflowInfo } from '../../shared/types';
 import type { Config } from '../config';
 import type { Hub } from '../hub';
+import { say } from '../messages';
 import { PanelError, type PanelSource, createPanelSource } from '../source';
 import { type AgentFile, type FileStamp, type SessionFile, type WorkflowFolder, keepSession, listSessionFiles, listSessionTree } from './discover';
 import { type Journal, agentStateOf, applyAge, isSdkEntrypoint, readJournal, workflowStateOf } from './parse';
@@ -145,16 +146,13 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
       const readable = read.flatMap((entry) => (entry.facts === null ? [] : [{ file: entry.file, facts: entry.facts }]));
       const failed = read.find((entry) => entry.failure !== null);
       if (failed !== undefined && readable.length === 0) {
-        throw new PanelError('sessions-unreadable', `None of the ${files.length} recent session files could be read (${failed.failure}).`);
+        throw new PanelError('sessions-unreadable', say('sessionsNoneReadable', { count: files.length, code: failed.failure ?? 'unknown' }));
       }
 
       // Files that hold lines, and none of a type that this knows: Claude Code may have changed its file format. (An empty file says nothing.)
       const withLines = readable.filter((entry) => entry.facts.lines.read > 0);
       if (withLines.length > 0 && withLines.every((entry) => entry.facts.lines.known === 0)) {
-        throw new PanelError(
-          'sessions-unknown-format',
-          `The session files have an unknown file format: none of the ${withLines.length} recent files holds a line that this page knows. Claude Code may have changed how it writes them.`,
-        );
+        throw new PanelError('sessions-unknown-format', say('sessionsUnknownFormat', { count: withLines.length }));
       }
 
       // The sessions about Shadow Jog. Of those, a session that a script started is left out and counted, unless the config lists them (ruling R18).
@@ -170,7 +168,7 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
       if (error instanceof PanelError) throw error;
       // The message of a file system error holds the path of a file. The page gets the code, and the server console the rest.
       console.error('The sessions source could not read the session files:', error);
-      throw new PanelError('sessions-failed', `The session files could not be read (${codeOf(error)}).`);
+      throw new PanelError('sessions-failed', say('sessionsFailed', { code: codeOf(error) }));
     } finally {
       reader.endLoad();
     }

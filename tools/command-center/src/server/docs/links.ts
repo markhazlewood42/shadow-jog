@@ -1,4 +1,5 @@
 import { posix } from 'node:path';
+import { say } from '../messages';
 
 // A link in a doc is text the author typed: a path to another doc, an anchor, a web address, or
 // something hostile. `resolveHref` decides what it points at. It is a pure function (it reads no
@@ -55,7 +56,7 @@ export function resolveHref(href: string, fromDocId: string, known: KnownTargets
   // around it, before it reads the address. Do the same, so `java<tab>script:` is seen for what it is.
   const link = href.replace(/[\t\n\r]/g, '').replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, '');
 
-  if (link === '') return broken('the link is empty');
+  if (link === '') return broken(say('linkReasonEmpty'));
   if (link.startsWith('#')) return { kind: 'anchor' };
   // A link that starts with // means "the same scheme as this page". A doc has no page of its own
   // to borrow a scheme from, and the address it means is one on the open web, so read it as https.
@@ -66,7 +67,7 @@ export function resolveHref(href: string, fromDocId: string, known: KnownTargets
   // Every other scheme is refused: `javascript:` and `data:` would run code on this page, `file:`
   // cannot be opened from a web page, and the rest have no use in a doc. (A Windows path such as
   // `C:\notes` also looks like a scheme, and is no use in a doc either.)
-  if (scheme !== undefined) return broken(`the link scheme "${scheme}" is not allowed`);
+  if (scheme !== undefined) return broken(say('linkReasonScheme', { scheme }));
 
   return repoLink(link, fromDocId, known, githubBlobBase);
 }
@@ -86,7 +87,7 @@ function webAddress(address: string): ResolvedLink {
   try {
     return { kind: 'external', url: new URL(address).href };
   } catch {
-    return broken('the link is not a valid web address');
+    return broken(say('linkReasonNotWeb'));
   }
 }
 
@@ -97,7 +98,7 @@ function repoLink(link: string, fromDocId: string, known: KnownTargets, githubBl
   const anchor = hashAt === -1 ? '' : decodeOrKeep(link.slice(hashAt + 1));
   // GitHub links often end in `?plain=1`. The query says nothing about which file it is.
   const rawPath = beforeHash.split('?')[0] ?? '';
-  if (rawPath === '') return broken('the link has no path');
+  if (rawPath === '') return broken(say('linkReasonNoPath'));
 
   let path: string;
   try {
@@ -105,17 +106,17 @@ function repoLink(link: string, fromDocId: string, known: KnownTargets, githubBl
     // then look for `..`, or `%2e%2e` would climb out of the repo unseen.
     path = decodeURIComponent(rawPath);
   } catch {
-    return broken('the link has a malformed percent-escape');
+    return broken(say('linkReasonEscape'));
   }
-  if (NOT_IN_A_FILE_NAME.test(path)) return broken('the link has characters that a file name cannot hold');
+  if (NOT_IN_A_FILE_NAME.test(path)) return broken(say('linkReasonBadChars'));
 
   // A leading / means the repo root, as on GitHub. Anything else starts from the doc's own folder.
   // `normalize` and `join` fold away `.` and `..`, and keep a leading `..` that climbs out.
   const joined = path.startsWith('/') ? posix.normalize(path.replace(/^\/+/, '')) : posix.join(posix.dirname(fromDocId), path);
-  if (joined === '..' || joined.startsWith('../')) return broken('the link points outside the repo');
+  if (joined === '..' || joined.startsWith('../')) return broken(say('linkReasonOutside'));
   const repoPath = joined.replace(/\/+$/, ''); // a link to a folder may end in a slash
   // The repo root has no page on this site, and no blob address on GitHub: nothing to link to.
-  if (repoPath === '.') return broken('the link points at the repo root, not at a file');
+  if (repoPath === '.') return broken(say('linkReasonRoot'));
 
   const slug = known.docs.get(repoPath);
   if (slug !== undefined) return anchor === '' ? { kind: 'doc', slug } : { kind: 'doc', slug, anchor };
@@ -123,7 +124,7 @@ function repoLink(link: string, fromDocId: string, known: KnownTargets, githubBl
   const assetUrl = known.assets.get(repoPath);
   if (assetUrl !== undefined) return { kind: 'asset', url: withAnchor(assetUrl, anchor) };
 
-  if (!known.exists(repoPath)) return broken('the file does not exist in the repo');
+  if (!known.exists(repoPath)) return broken(say('linkReasonNoFile'));
   const blob = `${githubBlobBase.replace(/\/+$/, '')}/${repoPath.split('/').map(encodeURIComponent).join('/')}`;
   return { kind: 'github', url: withAnchor(blob, anchor) };
 }

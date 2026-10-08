@@ -1,4 +1,5 @@
 import type { GitBranch, GitCommit, GitInfo } from '../../shared/types';
+import { say } from '../messages';
 import { PanelError } from '../source';
 
 // The parsers of the git module. They read the text that two git commands print, in a format that
@@ -27,8 +28,9 @@ export const BRANCH_FORMAT = '%(HEAD)%09%(refname:lstrip=2)%09%(committerdate:un
  */
 export const COMMIT_FORMAT = '%H%x1f%ct%x1f%an%x1f%s';
 
+/** The line is echoed up to 40 characters, so that the message stays one short line. */
 const badOutput = (command: string, line: string) =>
-  new PanelError('git-bad-output', `${command} printed a line that this page cannot read: "${line.length > 80 ? `${line.slice(0, 80)}...` : line}". A new version of git may have changed its output.`);
+  new PanelError('git-bad-output', say('gitBadLine', { command, line: line.length > 40 ? `${line.slice(0, 40)}...` : line }));
 
 /** A time in seconds since 1970 as an ISO time, or null when it is not a number. */
 function isoOf(seconds: string): string | null {

@@ -168,7 +168,7 @@ test.describe('the engine review', () => {
       writeFileSync(DECISIONS_DOC, original.replace('| Who decides |', '| Decider |'));
       const panel = page.getByRole('region', { name: 'Decisions' });
       const alert = panel.getByRole('alert');
-      await expect(alert).toContainText('is missing the column "Who decides"', { timeout: 8000 });
+      await expect(alert).toContainText('lacks these columns: "Who decides"', { timeout: 8000 });
       await expect(alert).toContainText('docs/engine/decisions.md');
       await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible();
       // The list of before is still there under the error, and the panel says so.
