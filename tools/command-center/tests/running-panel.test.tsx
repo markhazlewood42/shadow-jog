@@ -2,7 +2,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import type { AgentsLive, LiveNode, LiveSession } from '../src/shared/types';
+import { type AgentsLive, type LiveNode, type LiveSession, sessionAnchor } from '../src/shared/types';
 import { RunningList } from '../src/web/now/RunningPanel';
 
 // The list of the Running panel: the Claude sessions that are alive now (design 5.1, revision 2), from `GET /api/agents`. The list is a plain function of that
@@ -65,10 +65,10 @@ describe('the Running panel', () => {
     // The whole row is a link to the Agents page, and it is an address of this site, so the router follows it without loading a new page.
     const rows = [...host.querySelectorAll('ul > li')];
     expect(rows).toHaveLength(3);
-    for (const row of rows) {
+    for (const [index, row] of rows.entries()) {
       const link = row.firstElementChild;
       expect(link?.tagName).toBe('A');
-      expect(link?.getAttribute('href')).toBe('/agents');
+      expect(link?.getAttribute('href')).toBe(`/agents#session-s${index + 1}`);
       expect(link?.hasAttribute('target')).toBe(false);
       // Nothing of the row stands outside the link.
       expect(link?.textContent).toBe(row.textContent);
@@ -121,6 +121,11 @@ describe('the Running panel', () => {
   it('leaves out the run time of a session whose start is not known, and keeps the row', () => {
     const host = draw(live([liveSession('s1', { startedAt: null }), liveSession('s2', { startedAt: 'not a time' })]));
     expect(rowTexts(host)).toEqual(['Title of s1 working', 'Title of s2 working']);
-    for (const link of host.querySelectorAll('li > a')) expect(link.getAttribute('href')).toBe('/agents');
+    expect([...host.querySelectorAll('li > a')].map((link) => link.getAttribute('href'))).toEqual(['/agents#session-s1', '/agents#session-s2']);
+  });
+
+  it('G6: a Running row links to its session on the Agents page', () => {
+    const host = draw(live([liveSession('s1'), liveSession('abc-123')]));
+    expect([...host.querySelectorAll('li > a')].map((link) => link.getAttribute('href'))).toEqual([`/agents#${sessionAnchor('s1')}`, `/agents#${sessionAnchor('abc-123')}`]);
   });
 });

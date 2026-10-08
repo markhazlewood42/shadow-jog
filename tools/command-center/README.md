@@ -55,7 +55,7 @@ Four checks run against the real repo or the real machine and not against fixtur
 
 | Address | What |
 |---|---|
-| `/` | Now: five panels. Your move (what waits for Mark), Running (the active Claude sessions only: each row links to `/agents`), Pull requests (with their checks), Status (five rows and a milestone strip, see below) and Links. The panels are glass (PlasmaUI) that you can drag. The "Glass panels" switch turns the glass off, which also saves the GPU while the game runs. |
+| `/` | Now: five panels. Your move (what waits for Mark), Running (the active Claude sessions only: each row links to its session at `/agents#session-<id>`), Pull requests (with their checks), Status (five rows and a milestone strip, see below) and Links. The panels are glass (PlasmaUI) that you can drag. The "Glass panels" switch turns the glass off, which also saves the GPU while the game runs. |
 | `/docs` | Every doc, in the sections of `nav.json`, with search, an outline, backlinks and a banner on a section that an open decision concerns. A doc page has the Copy and Download split button (see below). |
 | `/docs/decisions` | Every engine and Phase 0.2 decision in one table, with its status: approved, open for Mark, or changed since approval |
 | `/decisions/<n>` | One decision issue, with its options, the form that answers it, and a link for each linked doc section (the page does not copy the section text) |

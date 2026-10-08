@@ -1,6 +1,6 @@
 import { MessageSquare } from 'lucide-react';
 import { Link } from 'react-router';
-import type { AgentsLive, LiveSession, ModuleName } from '../../shared/types';
+import { type AgentsLive, type LiveSession, type ModuleName, sessionHref } from '../../shared/types';
 import { LiveNotes } from '../agents/LiveNotes';
 import { PanelContent } from '../PanelFrame';
 import { usePanel } from '../usePanel';
@@ -8,7 +8,7 @@ import { GlassPanel, type PanelPlacement } from './GlassPanel';
 import { formatDuration, msSince, useNow } from './time';
 
 // "Running": the Claude sessions that are alive now (design 5.1, revision 2). One row for each: its title, a state word and how long it has run. The whole row is a link to the
-// Agents page, which draws the agents and the workflows of each session: this panel shows none of them. It reads the live agents (GET /api/agents). That module starts from the
+// cluster of its session on the Agents page (`/agents#session-<id>`), which draws the agents and the workflows of each session: this panel shows none of them. It reads the live agents (GET /api/agents). That module starts from the
 // process list of Claude Code, so a session is on the list while its process runs, and it leaves the list when the process ends.
 
 /** The panel loads again when the agents module says that something changed (it looks at the process list every 3 seconds). */
@@ -24,7 +24,7 @@ function SessionRow({ session, nowMs }: { session: LiveSession; nowMs: number })
   const runMs = msSince(session.startedAt, nowMs);
   return (
     <li>
-      <Link to="/agents" className="flex items-start gap-2 py-2.5 cc-focus-ring">
+      <Link to={sessionHref(session.id)} className="flex items-start gap-2 py-2.5 cc-focus-ring">
         <MessageSquare aria-hidden className="mt-0.5 size-4 shrink-0 text-cc-muted" />{' '}
         {/* The title comes from a session file: it is shown as text. */}
         <span className="min-w-0 flex-1 text-sm font-medium break-words text-cc-link underline underline-offset-2">{session.title}</span>{' '}

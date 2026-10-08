@@ -687,9 +687,9 @@ test.describe('the Running panel', () => {
     await expect(rows.nth(0)).toHaveText('Build the Now page of the command center working 40 min');
     await expect(rows.nth(1)).toHaveText('Review the engine docs for the fixture waiting 12 min');
     // The whole row is the link: it is one link, it leads to the Agents page, and its words are the words of the row.
-    for (const row of await rows.all()) {
+    for (const [index, row] of (await rows.all()).entries()) {
       await expect(row.getByRole('link')).toHaveCount(1);
-      await expect(row.getByRole('link')).toHaveAttribute('href', '/agents');
+      await expect(row.getByRole('link')).toHaveAttribute('href', `/agents#session-${ID(index + 1)}`);
       await expect(row.getByRole('link')).not.toHaveAttribute('target');
     }
     await expect(rows.nth(1).getByRole('link')).toHaveText('Review the engine docs for the fixture waiting 12 min');
@@ -710,9 +710,27 @@ test.describe('the Running panel', () => {
       (window as unknown as Record<string, unknown>).__ccStillHere = true;
     });
     await rows.nth(1).getByRole('link').click();
-    await expect(page).toHaveURL('/agents');
+    await expect(page).toHaveURL(`/agents#session-${ID(2)}`);
     await expect(page.getByRole('heading', { level: 1, name: 'Agents' })).toBeVisible();
     expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__ccStillHere)).toBe(true);
+  });
+
+  test('G6: a Running row opens the Agents page at its session', async ({ page, request }) => {
+    await page.addInitScript(() => localStorage.setItem('cc.now.glass', 'off'));
+    // A short, narrow window: one column, so the second cluster is below the fold and the page has to scroll to it.
+    await page.setViewportSize({ width: 800, height: 420 });
+    writeSessions();
+    writeProcess(startLiveProcess().pid, ID(1), 'busy', 40 * 60 + 15);
+    writeProcess(startLiveProcess().pid, ID(2), 'idle', 12 * 60 + 15);
+    await refreshAgents(request);
+    await page.goto('/');
+    await panel(page, 'Running').getByRole('list', { name: 'Active sessions' }).getByRole('listitem').nth(1).getByRole('link').click();
+    await expect(page).toHaveURL(`/agents#session-${ID(2)}`);
+    // The page scrolled to the cluster of the session once its data was there.
+    const cluster = page.locator(`[id="session-${ID(2)}"]`);
+    await expect(cluster).toBeVisible();
+    await expect(cluster).toBeInViewport();
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
   });
 
   test('running panel shows the empty state and the fallback label', async ({ page, request }) => {

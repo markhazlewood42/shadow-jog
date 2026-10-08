@@ -64,7 +64,7 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 | Agents box | A session shows its title, a state word and its run time. An agent shows its task label, its model and its time. A workflow is one box with a progress chip. A Copy button replaces the file path text. |
 | Agents lines | A solid line shows who started an agent. A dashed line with a count shows messages while the agent runs. A final report shows as the state "done". No message text. |
 | Active | A session is active while its Claude process runs, working or waiting for Mark. The recent-sessions list leaves the page. |
-| Running panel | Sessions only. Each row links to the Agents page. |
+| Running panel | Sessions only. Each row links to its session on the Agents page. |
 | Diagram build | Our own SVG lines and smooth motion. The server checks every 3 seconds. No new dependency. |
 | Status panel | Five rows with links, and a milestone strip with one square for each row of the milestone table. |
 | Doc buttons | A split button as on the markedup-consulting site: "Copy for LLM", with "Download as markdown" in its menu. The copied text has a 2-line source header. |
@@ -119,7 +119,7 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 The page reads from top to bottom, in order of importance:
 
 1. **Your move.** Every open action for Mark in one list. The open decision issues come first (section 5.5). Then the last "Your move" box of each active session, the "Next up for Mark" list in `status.md`, and the PRs that wait for his review or merge. Each item links to its source.
-2. **Running.** (Revision 2.) One row for each active session, in order of start: its title, a state word, how long it has run, and a link to the Agents page. Agents and workflows show only in the diagram. A label tells how many automated runs are hidden.
+2. **Running.** (Revision 2.) One row for each active session, in order of start: its title, a state word, how long it has run, and a link to its session on the Agents page (`/agents#session-<id>`). Agents and workflows show only in the diagram. A label tells how many automated runs are hidden.
 3. **Pull requests.** The open PRs, with review state and checks, and one link to the merged PRs (as built in PR #22).
 4. **Status.** (Revision 2.) A summary of five rows with links, and a milestone strip (section 5.6).
 5. **Links.** One link for each tool: the game and its DEV tools, and the GitHub repo. A link is a label and an icon. The address is not written out.
@@ -296,7 +296,7 @@ The process list is an internal file of Claude Code, and its format is not promi
 - **End-to-end tests** (Playwright) on the fixtures: the Now page (with the glass on and off), the docs navigation, search, outline, backlinks, the decision list, a decision banner, the answer flow with a stub for `gh` (a success, and a failure that keeps the choice), and one error state.
 - **Verification:** a builder agent and 2 independent verifier agents for each feature, with screenshots for Mark at each visual step.
 - **Revision 2 unit tests:** the process list reader and the pid check (the pid check is injected), the active set and its fallback, the parent link and the message counts on synthetic fixtures, the box and line layout functions, the milestone key, the CI run parser, the doc source route, and the copy text builder. Fixtures are synthetic. They never hold real session text.
-- **Revision 2 end-to-end tests:** the Agents page with fixture sessions (live, closed, a dimmed finished agent, a workflow chip, the empty state, the fallback label), a new agent that appears within 5 seconds through the live event, Copy and Download on a doc page (the test grants the clipboard permission), the Status rows and the strip, and the Running rows that link to `/agents`. Tests that pin old page text change with the text pass.
+- **Revision 2 end-to-end tests:** the Agents page with fixture sessions (live, closed, a dimmed finished agent, a workflow chip, the empty state, the fallback label), a new agent that appears within 5 seconds through the live event, Copy and Download on a doc page (the test grants the clipboard permission), the Status rows and the strip, and the Running rows that link to `/agents#session-<id>`. Tests that pin old page text change with the text pass.
 - **Revision 2 verification:** each task has a builder and 2 fresh verifiers (a runner and a reader), all on the smallest model that fits the task (Sonnet for builders and verifiers). A task passes when every criterion scores 7 or more and the average is 8 or more. A task has up to 3 fix rounds, for Critical and Important findings only. Mark gets screenshots as soon as a builder makes them.
 
 ---
