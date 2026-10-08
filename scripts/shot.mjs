@@ -5,7 +5,8 @@ import { chromium } from '@playwright/test';
 
 const [query = '', out = 'shot.png', waitMs = '800', ...keys] = process.argv.slice(2);
 const browser = await chromium.launch({ channel: 'msedge' });
-const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
+// 1280x720 is exactly 2x the game's 640x360: every game pixel is a clean 2x2 block.
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });

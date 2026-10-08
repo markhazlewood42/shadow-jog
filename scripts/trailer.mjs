@@ -6,6 +6,7 @@
 // window.__SJ__, the same ones the screenshot suite uses), walks the crew with real key presses,
 // stages each fight's orders so the good moves happen on camera, and holds one song per section.
 // The browser records the game's own picture and sound (src/dev/trailer.ts) at 1920x1080, 60 fps.
+// At the game's 640x360 that is exactly 3x (it was 4x at 480x270), so the recording stays pixel-exact.
 // Re-run it after changing the art to get the same trailer with the new look.
 import { mkdirSync, statSync } from 'node:fs';
 import { chromium } from '@playwright/test';

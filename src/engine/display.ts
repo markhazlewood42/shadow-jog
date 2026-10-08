@@ -1,12 +1,13 @@
 /**
- * Presents the 480×270 back buffer on the page.
+ * Presents the back buffer (W×H, engine/game.ts) on the page.
  * Strategy: nearest-neighbour upscale to the next integer multiple, then let the browser
  * smoothly downsample to the exact fit size. Every source pixel stays the same size
  * (no uneven columns you'd get from fractional nearest-neighbour).
  *
  * Fill mode snaps to a whole multiple whenever one fills at least 90% of the window, so the
- * common sizes (1080p, 1440p, 4K and most maximised browser windows) are pixel-exact by
- * default; only an awkward window size gets the (slight) resampling. Pixel-perfect always snaps.
+ * common sizes (720p and the Deck's 1280x800 window at 2x, 1080p at 3x, 1440p at 4x, 4K at 6x) are
+ * pixel-exact by default; an awkward window size gets the (slight) resampling. Pixel-perfect
+ * always snaps. `cssScaleFor` is that rule as a pure function, so a unit test can pin its table.
  *
  * With GPU effects on (engine/postfx.ts), a WebGL presenter draws the frames instead, into its own
  * canvas laid exactly over the 2D one, at the same size; the 2D canvas keeps focus and input.
@@ -18,6 +19,25 @@ import { GlPresenter } from './gl/presenter';
 import { postfx } from './postfx';
 
 export type ScaleMode = 'fit' | 'integer';
+
+/**
+ * How many CSS pixels one game pixel takes, for a stage of vw by vh CSS pixels on a screen with
+ * `dpr` device pixels per CSS pixel. The rule, in two steps:
+ *
+ * 1. `fit` is the largest scale that still shows the whole frame. `whole` is the largest scale at
+ *    or below it that is a whole number of DEVICE pixels per game pixel (at a dpr of 1, a whole
+ *    number: 2, 3, 4).
+ * 2. Pixel-perfect mode ('integer') always uses `whole`. Fill mode ('fit') uses `whole` only when
+ *    it fills at least 90% of `fit`, so a window that is a little off a whole multiple still gets
+ *    exact pixels, and one far off (1536x864, a 2.4 fit) is resampled slightly instead of showing
+ *    thick black bars. A stage smaller than the frame (a fit under 1) is never snapped.
+ */
+export function cssScaleFor(vw: number, vh: number, dpr: number, mode: ScaleMode): number {
+  const fit = Math.min(vw / W, vh / H);
+  const whole = Math.floor(fit * dpr) / dpr;
+  if (fit >= 1 && (mode === 'integer' || whole >= fit * 0.9)) return whole;
+  return fit;
+}
 
 export class Display {
   readonly back: HTMLCanvasElement;
@@ -95,10 +115,7 @@ export class Display {
     const stage = this.screen.parentElement;
     const vw = stage?.clientWidth || window.innerWidth;
     const vh = stage?.clientHeight || window.innerHeight;
-    const fit = Math.min(vw / W, vh / H);
-    const whole = Math.floor(fit * dpr) / dpr;
-    let cssScale = fit;
-    if (fit >= 1 && (this.mode === 'integer' || whole >= fit * 0.9)) cssScale = whole;
+    const cssScale = cssScaleFor(vw, vh, dpr, this.mode);
     const cssW = Math.floor(W * cssScale);
     const cssH = Math.floor(H * cssScale);
     this.k = Math.max(1, Math.ceil(cssScale * dpr));

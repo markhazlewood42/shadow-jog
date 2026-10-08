@@ -9,7 +9,8 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: 'http://localhost:3007',
-    viewport: { width: 960, height: 540 },
+    // 1280x720 is exactly 2x the game's 640x360, so every screenshot shows whole-pixel blocks.
+    viewport: { width: 1280, height: 720 },
   },
   projects: [
     // Edge locally (Windows); the bundled Chromium on CI.

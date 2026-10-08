@@ -18,9 +18,20 @@ import type { Input } from './input';
 /** Consecutive faulting ticks before the game gives up on the current flow. */
 export const FAULT_LIMIT = 30;
 
-export const W = 480;
-export const H = 270;
+/**
+ * The screen size in game pixels: the one place it is written (docs/PIVOT-640.md, PL1). Every
+ * other size (the battle world, layouts, caps) derives from `W` and `H`.
+ */
+export const W = 640;
+export const H = 360;
 export const FPS = 60;
+/**
+ * Shake strengths are authored in game pixels (callers pass 1 to 5), and they were tuned when the
+ * screen was 480 pixels wide. A game pixel is now 3/4 as wide on the player's screen, so every
+ * strength is multiplied by 4/3 to keep the same size on screen (D10 of docs/PIVOT-640.md). Glow
+ * and haze are tied to the art, not the screen, so they are not scaled.
+ */
+export const SHAKE_PIXEL_GAIN = 4 / 3;
 
 export abstract class Scene<R = unknown> {
   game!: Game;
@@ -224,10 +235,15 @@ export class Game {
    * Screen shake. `dir` is the way the blow travelled (see engine/shake.ts): the frame kicks that
    * way and springs back; without one it's a rumble. A stronger shake takes over from a running
    * one (and its direction); a weaker one only extends it.
+   *
+   * `mag` is the strength the caller authored, in the old pixel size; it is scaled by
+   * `SHAKE_PIXEL_GAIN` here, the one place that sets the amplitude. The offset a scene applies is
+   * still a whole number of game pixels (`shakeOffset` rounds each frame).
    */
   shake(frames = 12, mag = 3, dir?: { x: number; y: number }): void {
-    if (this.shakeFrames <= 0 || mag >= this.shakeMag) {
-      this.shakeMag = mag;
+    const scaled = mag * SHAKE_PIXEL_GAIN;
+    if (this.shakeFrames <= 0 || scaled >= this.shakeMag) {
+      this.shakeMag = scaled;
       this.shakeT = 0;
       this.shakeLen = frames;
       this.shakeDir = dir ?? null;

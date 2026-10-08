@@ -103,3 +103,64 @@ test('without WebGL 2 (or with only a software renderer) the game plays on the 2
   expect(png.length).toBeGreaterThan(20_000);
   expect(errors).toEqual([]);
 });
+
+/**
+ * Pixel-perfect scaling (PL7 of docs/PIVOT-640.md): on the 2D canvas, in Pixel-perfect mode, every
+ * game pixel is an exact k-by-k block of screen pixels, k a whole number: 3 on a 1080p screen and 2
+ * in the Steam Deck's 1280x800 window. "Uneven" means a block whose k*k pixels are not all one
+ * color, which is what a fractional scale or a resample leaves at the seams. The GPU layer is off,
+ * so the visible picture is the 2D canvas itself; the page is busy (rain, a lit street) so a flat
+ * picture cannot pass by being uniform.
+ */
+for (const [name, vw, vh, k] of [
+  ['1920x1080 (1080p)', 1920, 1080, 3],
+  ['1280x800 (the Steam Deck window)', 1280, 800, 2],
+] as const) {
+  test(`Pixel-perfect mode draws every game pixel as an exact ${k}x${k} block at ${name}`, async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.setViewportSize({ width: vw, height: vh });
+    await page.goto('/?debug');
+    await page.waitForTimeout(700);
+    await sj(page, 'sj.gpu(false)');
+    await sj(page, "(sj.display.mode = 'integer', sj.display.resize(), true)");
+    await sj(page, "sj.stage('town')");
+    await page.waitForTimeout(1500);
+    const r = await page.evaluate(() => {
+      const sj = (window as unknown as { __SJ__: { display: { back: HTMLCanvasElement } } }).__SJ__;
+      const c = document.getElementById('screen') as HTMLCanvasElement;
+      const gw = sj.display.back.width, gh = sj.display.back.height;
+      const k = c.width / gw;
+      const rect = c.getBoundingClientRect();
+      const px = (c.getContext('2d') as CanvasRenderingContext2D).getImageData(0, 0, c.width, c.height).data;
+      const colors = new Set<number>();
+      let uneven = 0;
+      for (let gy = 0; gy < gh; gy++) {
+        for (let gx = 0; gx < gw; gx++) {
+          const o = (gy * k * c.width + gx * k) * 4;
+          const want = (px[o] ?? 0) | ((px[o + 1] ?? 0) << 8) | ((px[o + 2] ?? 0) << 16) | ((px[o + 3] ?? 0) << 24);
+          colors.add(want);
+          let same = true;
+          for (let dy = 0; dy < k && same; dy++) {
+            for (let dx = 0; dx < k; dx++) {
+              const p = ((gy * k + dy) * c.width + gx * k + dx) * 4;
+              if (px[p] !== px[o] || px[p + 1] !== px[o + 1] || px[p + 2] !== px[o + 2] || px[p + 3] !== px[o + 3]) {
+                same = false;
+                break;
+              }
+            }
+          }
+          if (!same) uneven++;
+        }
+      }
+      return { gw, gh, k, backing: [c.width, c.height], shown: [rect.width, rect.height], uneven, colors: colors.size };
+    });
+    // The back buffer is scaled by exactly k, and the canvas is shown at its own size (the browser
+    // resamples nothing).
+    expect(r.k).toBe(k);
+    expect(r.backing).toEqual([r.gw * k, r.gh * k]);
+    expect(r.shown).toEqual(r.backing);
+    expect(r.colors).toBeGreaterThan(30);
+    expect(r.uneven).toBe(0);
+    expect(errors).toEqual([]);
+  });
+}
