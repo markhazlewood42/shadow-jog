@@ -68,7 +68,7 @@ function checkGit(args: string[]): Checked {
 }
 
 /**
- * Reads the options of a gh pr or gh issue read and gives them back without any --repo (the
+ * Reads the options of a gh pr, gh issue or gh run read and gives them back without any --repo (the
  * runner adds its own). It refuses anything that could point the call at another repository or
  * open a browser. gh reads its options with pflag, which has more spellings than the obvious ones:
  *
@@ -121,6 +121,21 @@ function checkGhRead(repo: string, group: 'pr' | 'issue', verb: 'list' | 'view',
     return refuse(`gh ${group} list takes no argument that is not an option`);
   }
   return accept([group, verb, '--repo', repo, ...options.rest]);
+}
+
+/**
+ * The one `gh run list` that the server may run: the newest run on the branch `main`, with the four fields that the "CI on main" row needs (the CI source reads
+ * them: see github/ci.ts). Every word and its place are fixed, as for a write, so that no other run, branch, workflow or field can be asked for. The runner adds
+ * `--repo` after the verb; the caller does not need to.
+ */
+export const GH_RUN_LIST: readonly string[] = ['--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
+
+/** gh run list: a read that is exactly GH_RUN_LIST, pinned to the repository. `rest` is what follows the first two words. */
+function checkGhRunList(repo: string, rest: string[]): Checked {
+  const options = readOptions(repo, rest);
+  if ('refused' in options) return refuse(options.refused);
+  if (!sameList(options.rest, GH_RUN_LIST)) return refuse(`a run list is exactly: run list ${GH_RUN_LIST.join(' ')}`);
+  return accept(['run', 'list', '--repo', repo, ...options.rest]);
 }
 
 /** Options of gh api that only change how a read is made, and the options among them that take a value. */
@@ -189,6 +204,7 @@ function checkGh(config: Config, args: string[]): Checked {
   }
   if (group === 'api') return checkGhApi(repo, args);
   if ((group === 'pr' || group === 'issue') && (verb === 'list' || verb === 'view')) return checkGhRead(repo, group, verb, args.slice(2));
+  if (group === 'run' && verb === 'list') return checkGhRunList(repo, args.slice(2));
   if (group === 'issue' && verb === 'comment') return checkGhComment(repo, args);
   if (group === 'issue' && verb === 'edit') return checkGhEdit(repo, args);
   if (group === 'issue' && verb === 'close') return checkGhClose(repo, args);
@@ -219,7 +235,7 @@ function describeCall(cmd: string, args: unknown): string {
  * The runner for this config.
  *
  * It refuses (by throwing a RunnerRefusal) any call that is not on the list, or whose working
- * folder is outside `config.roots`. For gh pr and gh issue it adds `--repo <githubRepo>` itself.
+ * folder is outside `config.roots`. For gh pr, gh issue and gh run list it adds `--repo <githubRepo>` itself.
  * A program that starts and fails is not a refusal: it comes back as a result with its exit code.
  * Two cases get a code of their own, so a caller can tell them from a failure of the command:
  * 127 means the program is not installed, and 124 means it did not finish within `timeoutMs`.

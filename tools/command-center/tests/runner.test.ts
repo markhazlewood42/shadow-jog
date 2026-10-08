@@ -210,6 +210,85 @@ describe('the runner', () => {
     expect(seen).toEqual([]);
   });
 
+  it('runner allows the exact ci command and pins the repo', async () => {
+    // The one `gh run list` of the CI source: the newest run on main, with four fields. The runner adds --repo itself, right after the verb.
+    const exact = ['run', 'list', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
+    const pinned = ['run', 'list', '--repo', REPO, '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
+
+    const allowed: [string, string[]][] = [
+      ['the exact command', exact],
+      // The right --repo from the caller is accepted in every spelling that gh reads, and it appears once, in the place the runner puts it.
+      ['with the pinned --repo', ['run', 'list', '--repo', REPO, ...exact.slice(2)]],
+      ['with --repo=', ['run', 'list', `--repo=${REPO}`, ...exact.slice(2)]],
+      ['with -R', ['run', 'list', '-R', REPO, ...exact.slice(2)]],
+      ['with -R and the repo attached', ['run', 'list', `-R${REPO}`, ...exact.slice(2)]],
+      ['with -R=', ['run', 'list', `-R=${REPO}`, ...exact.slice(2)]],
+      ['with the pinned --repo at the end', [...exact, '--repo', REPO]],
+    ];
+    for (const [label, args] of allowed) {
+      const { runner, seen } = recordingRunner();
+      expect(await runner('gh', args), label).toEqual({ code: 0, stdout: 'out', stderr: '' });
+      expect(seen, label).toHaveLength(1);
+      expect(seen[0]?.cmd, label).toBe('gh');
+      expect(seen[0]?.args, label).toEqual(pinned);
+    }
+
+    // A near miss is refused before any process starts: another branch, another count, other fields, an extra or a missing flag, another order, and every other `gh run`.
+    const words = exact.slice(2); // --branch main --limit 1 --json <fields>
+    const refused: [string, string[]][] = [
+      ['another branch', ['run', 'list', '--branch', 'develop', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['the branch in its short form', ['run', 'list', '-b', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['no branch', ['run', 'list', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['a branch with a longer name', ['run', 'list', '--branch', 'main2', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['another limit', ['run', 'list', '--branch', 'main', '--limit', '2', '--json', 'status,conclusion,url,createdAt']],
+      ['a long limit', ['run', 'list', '--branch', 'main', '--limit', '1000', '--json', 'status,conclusion,url,createdAt']],
+      ['the limit in its short form', ['run', 'list', '--branch', 'main', '-L', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['more fields', ['run', 'list', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt,displayTitle']],
+      ['fewer fields', ['run', 'list', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion']],
+      ['the fields in another order', ['run', 'list', '--branch', 'main', '--limit', '1', '--json', 'url,status,conclusion,createdAt']],
+      ['no --json', ['run', 'list', '--branch', 'main', '--limit', '1']],
+      ['the flags in another order', ['run', 'list', '--limit', '1', '--branch', 'main', '--json', 'status,conclusion,url,createdAt']],
+      ['an extra flag: --workflow', [...exact, '--workflow', 'ci.yml']],
+      ['an extra flag: --user', [...exact, '--user', 'someone']],
+      ['an extra flag: --status', [...exact, '--status', 'failure']],
+      ['an extra flag: --event', [...exact, '--event', 'push']],
+      ['an extra flag: --jq', [...exact, '--jq', '.[0]']],
+      ['an extra flag: --all', [...exact, '--all']],
+      ['an extra argument', [...exact, 'extra']],
+      ['an argument before the flags', ['run', 'list', 'extra', ...words]],
+      ['nothing after the verb', ['run', 'list']],
+      // --repo must be the pinned repo, in every spelling, and a group of short flags that holds R or w is refused.
+      ['another --repo', ['run', 'list', '--repo', 'someone/else', ...words]],
+      ['another -R', ['run', 'list', '-R', 'someone/else', ...words]],
+      ['another -Rrepo', ['run', 'list', '-Rsomeone/else', ...words]],
+      ['another --repo=', ['run', 'list', '--repo=someone/else', ...words]],
+      ['the right --repo and then another one', ['run', 'list', '--repo', REPO, ...words, '-R', 'someone/else']],
+      ['--repo with no value', ['run', 'list', ...words, '--repo']],
+      ['a group of short flags with R', ['run', 'list', ...words, '-cR', 'other/repo']],
+      ['--web', ['run', 'list', ...words, '--web']],
+      ['-w', ['run', 'list', ...words, '-w']],
+      // The other `gh run` commands change or leak runs: none is on the list.
+      ['gh run view', ['run', 'view', '77']],
+      ['gh run view with the log', ['run', 'view', '77', '--log']],
+      ['gh run watch', ['run', 'watch', '77']],
+      ['gh run rerun', ['run', 'rerun', '77']],
+      ['gh run cancel', ['run', 'cancel', '77']],
+      ['gh run delete', ['run', 'delete', '77']],
+      ['gh run download', ['run', 'download', '77']],
+      ['gh run with no verb', ['run']],
+      ['gh workflow list', ['workflow', 'list']],
+    ];
+    const { runner, seen } = recordingRunner();
+    for (const [label, args] of refused) {
+      await expect(runner('gh', args), label).rejects.toBeInstanceOf(RunnerRefusal);
+    }
+    expect(seen).toEqual([]);
+
+    // The refusal names the call and what is exact, and does not echo the arguments.
+    const error = await runner('gh', ['run', 'list', '--branch', 'develop', '--limit', '1', '--json', 'status,conclusion,url,createdAt']).catch((e: unknown) => e);
+    expect((error as Error).message).toMatch(/^gh run list refused: a run list is exactly: run list --branch main --limit 1 --json status,conclusion,url,createdAt/);
+  });
+
   it('a refusal says what was refused and why, without echoing a comment body', async () => {
     const { runner } = recordingRunner();
     const secretBody = 'a body that must not be echoed into an error message';

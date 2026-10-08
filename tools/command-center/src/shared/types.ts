@@ -6,7 +6,7 @@
 export const APP_NAME = 'Shadow Jog Command Center';
 
 /** The sources of data. The server has one module for each. */
-export type ModuleName = 'docs' | 'engine' | 'status' | 'git' | 'github' | 'sessions' | 'decisions' | 'agents';
+export type ModuleName = 'docs' | 'engine' | 'status' | 'git' | 'github' | 'ci' | 'sessions' | 'decisions' | 'agents';
 
 /**
  * What a data endpoint answers: either the data, or the reason there is none.
@@ -270,6 +270,19 @@ export type PullRequest = {
 
 /** What `GET /api/github` holds (inside a Panel): the open pull requests, and the ones merged in the last 7 days. */
 export type GithubInfo = { open: PullRequest[]; merged: PullRequest[] };
+
+/**
+ * What `GET /api/ci` holds (inside a Panel): the newest run of the workflows on the branch `main`, as the Status panel shows it.
+ * `passing`: it finished and passed. `failing`: it finished and failed, ran out of time, did not start, or waits for an approval. `running`: it is queued or
+ * still runs. `none`: there is no run, or the newest one has no verdict (it was cancelled or skipped); then there is no time and no address either.
+ */
+export type CiMain = {
+  state: 'passing' | 'failing' | 'running' | 'none';
+  /** When the run was made (an ISO time), or null when `state` is `none` or GitHub gave no usable time. */
+  createdAt: string | null;
+  /** Where to read the run on GitHub (an http or https address), or null when `state` is `none` or the address is not usable. */
+  url: string | null;
+};
 
 // ---- Claude sessions ----
 // The shapes of the sessions module (src/server/sessions). The Now page and the Agents page read them.

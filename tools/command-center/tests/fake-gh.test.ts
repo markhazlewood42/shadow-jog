@@ -34,6 +34,21 @@ describe('the fake gh', () => {
     expect(Number.isNaN(Date.parse(calls[0]?.at ?? ''))).toBe(false);
   });
 
+  it('answers `gh run list` with one run of main that passed, in the repository the runner pinned, and a test can replace it', async () => {
+    const asked = ['run', 'list', '--repo', REPO, '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
+    const canned = await gh(...asked);
+    expect(canned.code).toBe(0);
+    expect(JSON.parse(canned.stdout)).toEqual([{ status: 'completed', conclusion: 'success', url: `https://github.com/${REPO}/actions/runs/9001`, createdAt: '2026-10-06T10:00:00Z' }]);
+    // Without a --repo in the call, the fixture repository stands in.
+    expect(JSON.parse((await gh('run', 'list')).stdout)[0].url).toBe('https://github.com/fixture-owner/fixture-repo/actions/runs/9001');
+
+    // A reply that a test sets wins, also an empty list (a branch that never ran a workflow) and a failure.
+    setGhMode({ mode: 'ok', replies: { 'run list': { stdout: '[]' } } }, dir);
+    expect(await gh(...asked)).toEqual({ code: 0, stdout: '[]', stderr: '' });
+    setGhMode({ mode: 'signed-out' }, dir);
+    expect((await gh(...asked)).code).toBe(4);
+  });
+
   it('answers with the replies a test sets, the most specific key first', async () => {
     setGhMode({
       mode: 'ok',

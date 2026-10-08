@@ -9,10 +9,12 @@ import { createDecisionsSource } from './decisions/module';
 import { createDocIndex } from './docs/index';
 import { createEngineModule } from './engine/module';
 import { createGitSource } from './git/module';
+import { createCiSource } from './github/ci-module';
 import { createGithubSource } from './github/module';
 import { makeToken } from './guard';
 import { createHub } from './hub';
 import { registerAgentsRoutes } from './routes/agents';
+import { registerCiRoutes } from './routes/ci';
 import { registerDecisionsRoutes } from './routes/decisions';
 import { registerDocsRoutes } from './routes/docs';
 import { registerEngineRoutes } from './routes/engine';
@@ -92,7 +94,7 @@ export function compose(deps: ComposeDeps): Composed {
   registerEngineRoutes(app, engine);
   modules.push(engine);
 
-  // The three panels that look at the project's state, each under its own path. They share the rule
+  // The panels that look at the project's state (status, git, GitHub and CI), each under its own path. They share the rule
   // for a forced refresh (`?refresh=1`, at most one in 10 s: see routes/panel.ts).
   const panelRoutes = deps.refreshGapMs === undefined ? {} : { minGapMs: deps.refreshGapMs };
 
@@ -116,6 +118,12 @@ export function compose(deps: ComposeDeps): Composed {
   const github = createGithubSource({ runner, hub });
   registerGithubRoutes(app, github, panelRoutes);
   modules.push(github);
+
+  // CI on main: the newest run of the workflows on the branch main, read with `gh run list` every 60 s like the pull requests, under /api/ci. It is a source of its own
+  // so that one failing call does not hide the other (the Status row for CI shows its own error).
+  const ci = createCiSource({ runner, hub });
+  registerCiRoutes(app, ci, panelRoutes);
+  modules.push(ci);
 
   // The Claude sessions about Shadow Jog, with their agents and workflows, read from the session files of the folders that
   // the config names (and only those), under /api/sessions. It looks every 10 s, and reads a file again only when it changed.

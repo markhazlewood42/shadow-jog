@@ -34,7 +34,7 @@ export function isMarkLogin(login: unknown): boolean {
 
 type Json = Record<string, unknown>;
 
-const isRecord = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
+export const isRecord = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
 
 /** An ISO time as milliseconds, or 0 when it is not one (so a sort never meets NaN). */
