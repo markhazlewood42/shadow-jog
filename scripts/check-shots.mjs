@@ -14,9 +14,10 @@
  *
  * Exit code 1 when a checked shot fails or has an unexpected size, else 0.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { decodePng } from './lib/png.mjs';
+import { shotNames } from './lib/shot-names.mjs';
 
 const HELP = `check-shots: the PL3 smoke check of docs/PIVOT-640.md.
 
@@ -71,20 +72,6 @@ function isClear(r, g, b) {
     if (Math.abs(r - cr) <= tolerance && Math.abs(g - cg) <= tolerance && Math.abs(b - cb) <= tolerance) return true;
   }
   return false;
-}
-
-/** Every PNG under `dir`, as names relative to it, with forward slashes and no extension. */
-function shotNames(root) {
-  const out = [];
-  const walk = (d) => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      const p = join(d, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (e.isFile() && e.name.toLowerCase().endsWith('.png')) out.push(relative(root, p).split(sep).join('/').replace(/\.png$/i, ''));
-    }
-  };
-  walk(root);
-  return out.sort();
 }
 
 /**

@@ -62,7 +62,7 @@ These changes alter the first design. None of them needs a choice from you. Each
 |---|---|---|
 | The game size is 640x360 (E12). | Your decision of 2026-10-05. | E12, [frame-and-rendering.md](frame-and-rendering.md) sections 5 and 6.6 |
 | The 3D scene is a minimal technical test scene (exit criterion 11). | Your decision of 2026-10-05. | "Phase 0 records" below |
-| Migration principle 4 bends. The 640x360 move changes 7 files in `src/engine` before M0. | You approved the move ("Let's pivot. Better now than later."). | [migration.md](migration.md) section 1 |
+| Migration principle 4 bends. The 640x360 move changes 5 files in `src/engine` before M0. | You approved the move ("Let's pivot. Better now than later."). | [migration.md](migration.md) section 1 |
 | The editor rule is a design principle. | Your rule of 2026-10-05. | [README](README.md) section 1, the check below |
 | The canvas is the whole window in device pixels. | Measured. The old canvas gave 2,651 uneven blocks at ratio 2.25 and the new one gave 0. | [frame-and-rendering.md](frame-and-rendering.md) sections 6.1 and 6.6 |
 | The speed line is a frame interval within 5% of a bare page and a frame cost of at most 8 ms. | The main session amended the pass line. The test display runs at about 56.6 Hz. | [tooling-and-testing.md](tooling-and-testing.md) section 7 |
@@ -373,7 +373,7 @@ The mock showed a field screen, a dialog line, the battle stage slice and the 3D
 
 Phase 0 then measured every size-dependent exit criterion again at 640x360 (spike doc, step S1a). All hold. The numbers are in [migration.md](migration.md) section 3 and [tooling-and-testing.md](tooling-and-testing.md) section 7. One thing cannot be measured: stage parity with the Phaser spike, because that spike draws 480x270.
 
-The move needs a new layout in the places that hold fixed numbers for 480 and 270. They are the battle stage (its config, the backdrop that is 240x135 and becomes 320x180, and the stage data), the 3D caption bar, the badges in `src/main.ts`, `postfx`, and the FX lab. The list comes from a search for the numbers, and it is not complete. The shipped game moves on its own branch before M0. The move changes 7 files in `src/engine`, so migration principle 4 bends ([migration.md](migration.md) section 1). The move has its own look questions for you (the old battle, maps smaller than the screen, the dialog width, the title art, and 3 shockwave values in `src/data/fx.json`). They come with the pictures. This file does not ask them.
+The move needs a new layout in the places that hold fixed numbers for 480 and 270. They are the battle stage (its config, the backdrop that is 240x135 and becomes 320x180, and the stage data), the 3D caption bar, the badges in `src/main.ts`, `postfx`, and the FX lab. The list comes from a search for the numbers, and it is not complete. The shipped game moves on its own branch before M0. The move changes 5 files in `src/engine`, so migration principle 4 bends ([migration.md](migration.md) section 1). The move has its own look questions for you (the old battle, maps smaller than the screen, the dialog width, the title art, and 3 shockwave values in `src/data/fx.json`). They come with the pictures. This file does not ask them.
 
 **Affects.** `size.ts`, every hand-laid-out UI, battle-stage data.
 

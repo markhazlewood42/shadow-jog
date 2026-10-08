@@ -23,8 +23,9 @@
  * headless browser page (Playwright's Chromium, or Edge locally), so no image package is needed.
  */
 import { chromium } from '@playwright/test';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, sep } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { shotNames } from './lib/shot-names.mjs';
 
 const HELP = `contact-sheet: pages that pair each baseline shot with its 640x360 shot.
 
@@ -76,20 +77,6 @@ const cols = opt.cols ?? (is1080 ? 1 : 2);
 if (![zoomBase, zoomResult].every((z) => Number.isInteger(z) && z >= 1)) {
   console.error(`the zoom per game pixel must be a whole number (base ${zoomBase}, result ${zoomResult})`);
   process.exit(2);
-}
-
-/** Every PNG under `dir`, as names relative to it, with forward slashes and no extension. */
-function shotNames(root) {
-  const out = [];
-  const walk = (d) => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      const p = join(d, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (e.isFile() && e.name.toLowerCase().endsWith('.png')) out.push(relative(root, p).split(sep).join('/').replace(/\.png$/i, ''));
-    }
-  };
-  walk(root);
-  return out.sort();
 }
 
 const baseNames = shotNames(baseDir), resultNames = new Set(shotNames(resultDir));

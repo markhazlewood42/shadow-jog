@@ -29,9 +29,10 @@
  * masked shot differs on a stable pixel (with --stable-from). Else 0.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, sep } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { decodePng, encodePng } from './lib/png.mjs';
+import { shotNames } from './lib/shot-names.mjs';
 
 const HELP = `pixel-diff: compare two screenshot sets pixel by pixel (PL2 of docs/PIVOT-640.md).
 
@@ -81,20 +82,6 @@ function readMask(file) {
   const list = Array.isArray(json) ? json : json.shots;
   if (!Array.isArray(list)) throw new Error(`${file}: expected an array or an object with "shots"`);
   return new Set(list);
-}
-
-/** Every PNG under `dir`, as names relative to it, with forward slashes and no extension. */
-function shotNames(dir) {
-  const out = [];
-  const walk = (d) => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      const p = join(d, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (e.isFile() && e.name.toLowerCase().endsWith('.png')) out.push(relative(dir, p).split(sep).join('/').replace(/\.png$/i, ''));
-    }
-  };
-  walk(dir);
-  return out.sort();
 }
 
 const sha1 = (buf) => createHash('sha1').update(buf).digest('hex');

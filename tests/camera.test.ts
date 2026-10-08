@@ -22,8 +22,9 @@ describe('cameraOrigin', () => {
   });
 
   it('centers one axis and clamps the other on a map narrower than the view but taller', () => {
-    // A courtyard like the Rustyard (544 by 448 px): narrower than the view by 96 px, taller by
-    // 178 px at 480x270. Written relative to W and H, so it holds at any screen size.
+    // A courtyard like the Rustyard (544 by 448 px, which at 640x360 is narrower than the view by
+    // 96 px and taller by 88 px): here narrower by 96 px and taller by 178 px, a stand-in that is
+    // clearly taller. Written relative to W and H, so it holds at any screen size.
     const mw = W - 96, mh = H + 178;
     expect(cameraOrigin(0, 0, mw, mh)).toEqual({ x: -48, y: 0 });
     expect(cameraOrigin(mw, mh, mw, mh)).toEqual({ x: -48, y: mh - H });
