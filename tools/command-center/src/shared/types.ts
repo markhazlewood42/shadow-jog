@@ -419,7 +419,8 @@ export type SessionInfo = {
  * Shadow Jog, the newest first. `scanned` is how many session files of that time were looked at.
  * `skipped` is how many of them are not Shadow Jog's (outside the roots) or not readable.
  * `hiddenSdk` is how many Shadow Jog sessions were left out because a script started them (the entrypoint starts with "sdk": `sdk-py`, `sdk-ts`,
- * `sdk-cli`), so a page can say "N automated SDK runs hidden". It is 0 when the config says `claude.includeSdk` is true: then they are listed.
+ * `sdk-cli`). No page shows this number: the Agents page and the Running panel show `AgentsLive.hiddenScripts`, the same count for the live sessions only
+ * (the Your move list is made from this answer, and the live view from the process list). It is 0 when the config says `claude.includeSdk` is true: then they are listed.
  * Every file is counted once: `scanned` = `sessions.length` + `hiddenSdk` + `skipped`. The sessions that were left out never appear in the answer,
  * not even by their id.
  */
@@ -589,7 +590,7 @@ export type YourMoveSource = 'decision-issue' | 'session' | 'pr' | 'doc-decision
 
 /**
  * One thing that waits for Mark. `text` is plain words. `href` is where its source is: an address of this site (it starts with `/`), an
- * address on GitHub (https), or null when the source has no page to link to. A session's items link to its card on the Agents page. `light` is the status light that the reply of a
+ * address on GitHub (https), or null when the source has no page to link to. A session's items link to its place on the Agents page (`/agents#session-<id>`). `light` is the status light that the reply of a
  * session started with, and null for every other item: only a reply has one. `at` is the time of the item, as an ISO time, or null.
  */
 export type YourMoveItem = {

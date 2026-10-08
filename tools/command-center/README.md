@@ -109,7 +109,7 @@ The page fetches the text from `GET /api/docs/<slug>/source` when you press the 
 | Route | What |
 |---|---|
 | `GET /api/agents` | The live Claude sessions with their agents and workflows, as a panel. It starts from the process list (the folder `claude.sessionsRoot`) and reads only the files of live sessions. The server reads four keys of a process file: the session id, the pid, the start time and `busy` or `idle`. It uses the pid to check that the process runs, and the pid does not leave the server. The module looks every `agents.pollMs`. |
-| `GET /api/ci` | The newest CI run on `main` (`passing`, `failing`, `running` or `none`, with its time and address), as a panel. The server runs one exact command, `gh run list --branch main --limit 1`, every 60 seconds. |
+| `GET /api/ci` | The newest CI run on `main` (`passing`, `failing`, `running` or `none`, with its time and address), as a panel. The server runs one exact command, `gh run list --repo <githubRepo> --branch main --limit 1 --json status,conclusion,url,createdAt`, every 60 seconds. |
 | `GET /api/docs/<slug>/source` | The file text of one indexed doc as `text/markdown; charset=utf-8`, with `X-Content-Type-Options: nosniff`. It takes the slug of a doc, never a path. An unknown slug answers 404. |
 
 The two panel routes accept `?refresh=1`, which makes the server read again, at most once in 10 seconds. `GET /api/sessions` (the sessions of the last 7 days) stays. The server makes the Your move panel from it, and no page lists it.
@@ -193,4 +193,4 @@ The two labels `decision` and `decided` must exist in the GitHub repo. Creating 
 
 ## Tests
 
-Vitest holds the units (`tests/`) and Playwright holds the browser tests (`e2e/`). Both use synthetic fixtures (`fixtures/`): a throwaway git repo, made-up Claude session files and a fake `gh`. No test reads your real sessions or writes to GitHub, and none opens a browser tab. Never leave a server running: stop what you start, by its process id.
+Vitest holds the units (`tests/`) and Playwright holds the browser tests (`e2e/`). Both use synthetic fixtures (`fixtures/`): a throwaway git repo, made-up Claude session files and a fake `gh`. No default test reads your real sessions or writes to GitHub, and none opens a browser tab. Never leave a server running: stop what you start, by its process id.

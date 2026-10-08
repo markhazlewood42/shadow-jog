@@ -103,8 +103,8 @@ export function compose(deps: ComposeDeps): Composed {
   registerDecisionsRoutes(app, { config, runner, docs, decisions, token, ...panelRoutes });
   modules.push(decisions);
 
-  // The project status: the current "Right now" section and "Next up for Mark" list of status.md, and the
-  // milestones of the engine migration plan, under /api/status. The doc index renders the markdown.
+  // The project status: the date of status.md, its "Next up for Mark" list (read from the current "Right now" section), its `milestone` key, and the
+  // milestones of the engine migration plan, under /api/status. The doc index renders the markdown of the list.
   const status = createStatusSource({ config, docs, hub });
   registerStatusRoutes(app, status, panelRoutes);
   modules.push(status);
