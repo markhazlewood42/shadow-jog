@@ -6,6 +6,7 @@ import { surface, type Ctx, type Surface } from '../engine/canvas';
 import { rgb } from '../engine/color';
 import { H, W } from '../engine/game';
 import type { BakedLight } from './bake';
+import { clipToScreen, type Rect } from './overrects';
 
 const LIGHT_RES = 64;
 const lightSprites = new Map<string, HTMLCanvasElement>();
@@ -123,9 +124,30 @@ export class Lighting {
     return sc;
   }
 
-  /** Light a full-screen layer (e.g. the overhead layer) in place via the scratch buffer. */
-  drawLitLayer(ctx: Ctx, layer: HTMLCanvasElement, srcX: number, srcY: number): void {
+  /**
+   * Light a map-sized layer (the overhead layer) in place via the scratch buffer. Only the `parts` of
+   * the layer that hold anything are lit and drawn (`field/overrects.ts`): the rest is clear, and a
+   * clear pixel lights to a clear pixel, so the picture is the same as lighting the whole window.
+   * The operations are unbounded ('copy' and 'destination-in' touch every pixel of the canvas), so
+   * the scratch is clipped to the parts, which bounds them. On a software canvas the full window cost
+   * about 0.7 ms of the plaza's frame, nearly all of it on clear pixels.
+   */
+  drawLitLayer(ctx: Ctx, layer: HTMLCanvasElement, srcX: number, srcY: number, parts: Rect[]): void {
     const s = this.scratch.ctx;
+    const r = this.part;
+    s.save();
+    s.beginPath();
+    let any = false;
+    for (const part of parts) {
+      if (!clipToScreen(part, srcX, srcY, W, H, r)) continue;
+      s.rect(r.x - srcX, r.y - srcY, r.w, r.h);
+      any = true;
+    }
+    if (!any) {
+      s.restore();
+      return;
+    }
+    s.clip();
     s.globalCompositeOperation = 'copy';
     s.drawImage(layer, srcX, srcY, W, H, 0, 0, W, H);
     if (this.enabled) {
@@ -134,9 +156,14 @@ export class Lighting {
       s.globalCompositeOperation = 'destination-in';
       s.drawImage(layer, srcX, srcY, W, H, 0, 0, W, H);
     }
-    s.globalCompositeOperation = 'source-over';
-    ctx.drawImage(this.scratch.canvas, 0, 0);
+    s.restore();
+    for (const part of parts) {
+      if (clipToScreen(part, srcX, srcY, W, H, r)) ctx.drawImage(this.scratch.canvas, r.x - srcX, r.y - srcY, r.w, r.h, r.x - srcX, r.y - srcY, r.w, r.h);
+    }
   }
+
+  /** The rectangle `drawLitLayer` is working on, kept so that a frame allocates none. */
+  private part: Rect = { x: 0, y: 0, w: 0, h: 0 };
 
   /** Additive haze around bright lights (neon bloom). */
   bloom(ctx: Ctx, lights: BakedLight[], camX: number, camY: number, frame: number, strength = 0.16): void {

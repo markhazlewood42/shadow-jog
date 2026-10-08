@@ -4,6 +4,7 @@ import { drawText, measure } from '../../engine/font';
 import { W, H } from '../../engine/game';
 import type { Actor } from '../../field/actor';
 import type { SortedSprite } from '../../field/bake';
+import { clipToScreen, type Rect } from '../../field/overrects';
 import type { Chest } from '../field';
 import { UI } from '../../ui/draw';
 
@@ -27,6 +28,16 @@ export function blit(ctx: Ctx, layer: HTMLCanvasElement, cx: number, cy: number)
   const h = Math.min(layer.height - sy, H - dy);
   if (w <= 0 || h <= 0) return;
   ctx.drawImage(layer, sx, sy, w, h, dx, dy, w, h);
+}
+
+/**
+ * Draw only the `parts` of a map-sized layer that hold anything (`field/overrects.ts`): the same picture
+ * as `blit`, without copying the clear parts. `scratch` is a rectangle the caller keeps, so no frame allocates.
+ */
+export function blitParts(ctx: Ctx, layer: HTMLCanvasElement, cx: number, cy: number, parts: Rect[], scratch: Rect): void {
+  for (const part of parts) {
+    if (clipToScreen(part, cx, cy, W, H, scratch)) ctx.drawImage(layer, scratch.x, scratch.y, scratch.w, scratch.h, scratch.x - cx, scratch.y - cy, scratch.w, scratch.h);
+  }
 }
 
 export function drawEmote(ctx: Ctx, a: Actor, cx: number, cy: number): void {

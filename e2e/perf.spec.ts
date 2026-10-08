@@ -17,6 +17,26 @@ async function measure(page: Page, ms: number): Promise<Stats & { sim: Stats }> 
   return { ...(await sj<Stats>(page, 'sj.perf.stats()')), sim: await sj<Stats>(page, 'sj.perf.simStats()') };
 }
 
+// Timing on a shared machine: noise only ever adds time. A CI runner has neighbors, and one
+// stretch of a run can be twice as slow as the next (round 2 of WP3 saw the same plaza read 8.79 ms
+// in one CI attempt and 5.82 ms in the rerun of the same commit). So a scene is timed in SAMPLES
+// separate windows, after the warm-up the caller does, and the gate reads the window with the lowest
+// mean (its mean and its p95). The best of several windows is the usual way to time code on a
+// shared machine. It cannot hide a real slowdown: a real slowdown adds time to every window, so
+// the best one rises with it (the negative control of WP3 round 3 shows it: a 5 ms busy wait in
+// every frame fails the gate). It can only drop a window that a neighbor spoiled.
+const SAMPLES = 3;
+/** The shortest window that still holds enough frames for a mean and a p95 (about 2.5 s at 60 fps). */
+const MIN_FRAMES = 120;
+
+/** Time a scene in SAMPLES windows of `ms` each. Returns the window with the lowest mean, and all of them. */
+async function measureBest(page: Page, ms: number): Promise<{ best: Stats & { sim: Stats }; all: (Stats & { sim: Stats })[] }> {
+  const all: (Stats & { sim: Stats })[] = [];
+  for (let i = 0; i < SAMPLES; i++) all.push(await measure(page, ms));
+  const best = all.reduce((a, b) => (b.mean < a.mean ? b : a));
+  return { best, all };
+}
+
 // Two gates, so a regression fails on any machine, GPU or not:
 //  1. Simulation (the ticks: pure JS, no canvas) must fit a strict budget everywhere.
 //  2. Whole frames: strict with a GPU canvas (local); on a software canvas (GPU-less CI runners,
@@ -26,9 +46,9 @@ async function measure(page: Page, ms: number): Promise<Stats & { sim: Stats }> 
 const SIM_MEAN_MS = 2;
 const SIM_P95_MS = 4;
 const SOFTWARE = !!(process.env.CI || process.env.PW_NOGPU);
-// CI's software canvas measures the plaza at ~5.6 ms mean / 6.5 ms p95, battle ~2.3 / 3.0. The gate
-// sits well above that but well inside the 16.7 ms frame, so a regression fails the run before
-// it drops frames, not after.
+// CI's software canvas measures the plaza at 4.7 to 8.8 ms mean (one window; the spread is the
+// runner's noise, see measureBest), battle 1.6 to 3.0. The gate sits above the quiet readings but well inside
+// the 16.7 ms frame, so a regression fails the run before it drops frames, not after.
 const MEAN_MS = SOFTWARE ? 8 : 4;
 const P95_MS = SOFTWARE ? 11 : 6;
 
@@ -53,9 +73,10 @@ test('field (Lantern Row plaza, rain, crowds) stays inside the frame budget', as
   await page.waitForTimeout(800);
   await sj(page, "sj.stage('town')");
   await page.waitForTimeout(1500);
-  const s = await measure(page, 4000);
+  const { best: s, all } = await measureBest(page, 3000);
   console.log('field', JSON.stringify(s));
-  expect(s.frames).toBeGreaterThan(120);
+  console.log('field windows (mean, p95)', JSON.stringify(all.map((w) => [+w.mean.toFixed(2), +w.p95.toFixed(1)])));
+  expect(s.frames).toBeGreaterThan(MIN_FRAMES);
   gate(s);
 });
 
@@ -68,9 +89,13 @@ test('a live battle stays inside the frame budget', async ({ page }) => {
   await sj(page, 'Object.assign(sj.debug, { playtest: true })');
   await sj(page, "sj.battle('annex', 'lab')");
   await page.waitForTimeout(1200);
-  const s = await measure(page, 6000);
+  const topAtStart = await sj<string>(page, 'sj.top()');
+  const { best: s, all } = await measureBest(page, 3000);
   console.log('battle', JSON.stringify(s));
-  expect(s.frames).toBeGreaterThan(180);
+  console.log('battle windows (mean, p95)', JSON.stringify(all.map((w) => [+w.mean.toFixed(2), +w.p95.toFixed(1)])));
+  // The fight must still be on screen after the last window, or the later windows timed the field.
+  expect(await sj<string>(page, 'sj.top()')).toBe(topAtStart);
+  expect(s.frames).toBeGreaterThan(MIN_FRAMES);
   gate(s);
 });
 

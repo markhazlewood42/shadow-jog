@@ -5,6 +5,7 @@ import { H, W } from '../engine/game';
 import { hash2 } from '../engine/rng';
 import type { AnimFx, BakeCtx, BakedLight, SortedSprite } from './bake';
 import { paintBuilding } from './buildings';
+import { occupiedRects, type Rect } from './overrects';
 import { paintProp } from './props';
 import { isWater, overlayTerrain, paintTerrain, SOLID_TERRAIN, TS, WALL_TERRAIN } from './tiles';
 import type { MapDef, TerrainId } from './types';
@@ -48,6 +49,8 @@ export class FieldMap {
   over!: HTMLCanvasElement;
   overEmit!: HTMLCanvasElement;
   hasOver = false;
+  /** The parts of the overhead layers that hold anything (`field/overrects.ts`); the scene lights and draws only these. */
+  overRects: Rect[] = [];
   lights: BakedLight[] = [];
   sprites: SortedSprite[] = [];
   anims: AnimFx[] = [];
@@ -150,6 +153,18 @@ export class FieldMap {
     this.emit = emit.canvas;
     this.over = over.canvas;
     this.overEmit = overEmit.canvas;
+    if (this.hasOver) {
+      // Read both overhead layers once, to learn which parts of them are clear (the layers do not change
+      // after the bake). The pixels are read from a copy on a canvas made for reading: the layers
+      // themselves stay where the GPU draws them.
+      const reader = pixelSurface(pw, ph);
+      const read = (c: HTMLCanvasElement) => {
+        reader.ctx.clearRect(0, 0, pw, ph);
+        reader.ctx.drawImage(c, 0, 0);
+        return reader.ctx.getImageData(0, 0, pw, ph).data;
+      };
+      this.overRects = occupiedRects([read(this.over), read(this.overEmit)], pw, ph);
+    }
   }
 
   private bakeString(b: BakeCtx, s: NonNullable<MapDef['strings']>[number]): void {

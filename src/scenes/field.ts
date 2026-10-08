@@ -11,6 +11,7 @@ import { Actor, DIRS, opposite } from '../field/actor';
 import type { SortedSprite } from '../field/bake';
 import { FieldMap } from '../field/fieldmap';
 import { Lighting } from '../field/lighting';
+import type { Rect } from '../field/overrects';
 import { TS } from '../field/tiles';
 import type { ChestDef, EventDef, MapDef, WarpDef } from '../field/types';
 import { Weather } from '../field/weather';
@@ -26,7 +27,7 @@ import { reportError } from '../engine/errors';
 import { scriptApi } from './fieldkit/api';
 import { cameraOrigin, LEADER_FOCUS_LIFT } from './fieldkit/camera';
 import { cameraBoxFor, curtainsFor, drawCurtains, type CameraBox, type Curtain } from './fieldkit/popins';
-import { blit, byBaseY, drawEmote, inView, type DrawEntry } from './fieldkit/draw';
+import { blit, blitParts, byBaseY, drawEmote, inView, type DrawEntry } from './fieldkit/draw';
 import { drawSurround, type SurroundView } from './fieldkit/surround';
 import { Dust } from './fieldkit/dust';
 
@@ -88,6 +89,8 @@ export class FieldScene extends Scene<void> {
   private weather = new Weather();
   /** What `drawSurround` is told each frame (one object, updated in place: no per-frame allocation). */
   private surroundView: SurroundView | undefined;
+  /** The rectangle `blitParts` works on for the overhead layer, kept so a frame allocates none. */
+  private overPart: Rect = { x: 0, y: 0, w: 0, h: 0 };
   busy = 0;
   /**
    * What Confirm would reach from where the leader stands (an NPC, a closed chest, something to
@@ -712,8 +715,8 @@ export class FieldScene extends Scene<void> {
     }
 
     if (this.map.hasOver) {
-      this.lighting.drawLitLayer(ctx, this.map.over, cx, cy);
-      blit(ctx, this.map.overEmit, cx, cy);
+      this.lighting.drawLitLayer(ctx, this.map.over, cx, cy, this.map.overRects);
+      blitParts(ctx, this.map.overEmit, cx, cy, this.map.overRects, this.overPart);
     }
     this.lighting.bloom(ctx, this.map.lights, cx, cy, f, this.def.kind === 'interior' ? 0.08 : 0.14);
     this.dust.render(ctx, cx, cy);
