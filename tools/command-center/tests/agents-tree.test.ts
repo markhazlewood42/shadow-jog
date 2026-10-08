@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type FileScan, MESSAGE_WINDOW_BYTES, type NodeCandidate, buildNodes, liveStateOf, modelFamily, scanLines } from '../src/server/agents/tree';
+import { type FileScan, MESSAGE_WINDOW_BYTES, type NodeCandidate, buildNodes, liveStateOf, modelFamily, newestWrite, scanLines } from '../src/server/agents/tree';
 
 // The tree builder: pure functions that turn what was read from the files of one session into the boxes under its session box. They read no file.
 // The lines below are made up, in the shape of Claude Code's session files.
@@ -253,5 +253,14 @@ describe('buildNodes', () => {
   it('the nodes come in order of start, a node with no start goes last, and a tie is broken by the id', () => {
     const nodes = buildNodes(SESSION, [candidate('late', T(9)), candidate('none-b', null), candidate('early', T(1)), candidate('none-a', null), candidate('tie-b', T(5)), candidate('tie-a', T(5))], new Map());
     expect(nodes.map((node) => node.id)).toEqual(['early', 'tie-a', 'tie-b', 'late', 'none-a', 'none-b']);
+  });
+});
+
+describe('newestWrite', () => {
+  it('F8: a session with 200000 file stamps does not throw', () => {
+    // Math.max(...list) puts every item into the arguments of one call, and a list this long throws a RangeError.
+    const stamps = Array.from({ length: 200_000 }, (_, i) => ({ mtimeMs: i }));
+    expect(newestWrite(stamps)).toBe(199_999);
+    expect(newestWrite([])).toBe(0);
   });
 });

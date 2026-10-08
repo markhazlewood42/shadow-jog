@@ -9,7 +9,7 @@ import { applyAge, isSdkEntrypoint, readJournal, workflowStateOf } from '../sess
 import { type SessionFacts, codeOf, createSessionReader, createdMs, isoOf } from '../sessions/reader';
 import { readTail } from '../sessions/tail';
 import { type IsAlive, type ProcessEntry, processIsAlive, readProcessList } from './process-list';
-import { type FileScan, MESSAGE_WINDOW_BYTES, type NodeCandidate, buildNodes, inOrderOfStart, liveStateOf, modelFamily, scanLines } from './tree';
+import { type FileScan, MESSAGE_WINDOW_BYTES, type NodeCandidate, buildNodes, inOrderOfStart, liveStateOf, modelFamily, newestWrite, scanLines } from './tree';
 
 // The agents module: the Claude sessions about Shadow Jog that are alive now, with their agents and workflows, as a tree. It is the data of the Agents
 // page and of the Running panel of the Now page.
@@ -149,7 +149,7 @@ export function createAgentsSource(deps: AgentsModuleDeps): PanelSource<AgentsLi
   async function workflowCandidate(sessionId: string, run: WorkflowFolder, busy: boolean, nowMs: number): Promise<NodeCandidate | null> {
     const journal = run.journal === null ? readJournal([]) : await reader.readJournalFile(run.journal);
     const stamps = [...(run.journal === null ? [] : [run.journal]), ...run.agents];
-    const lastWriteMs = Math.max(0, ...stamps.map((stamp) => stamp.mtimeMs));
+    const lastWriteMs = newestWrite(stamps);
     // A journal has no times: a run that is done ended with the last write to its files. (Whether the run is fresh decides nothing here: `workflowStateOf` says "done" or not.)
     const ended = workflowStateOf(journal, lastWriteMs >= nowMs - workingMs) === 'done';
     const state = liveStateOf({ ended, endedAtMs: lastWriteMs, lastWriteMs, busy, nowMs, lingerMs, workingMs, staleMs });
@@ -217,7 +217,7 @@ export function createAgentsSource(deps: AgentsModuleDeps): PanelSource<AgentsLi
       // would be live are counted as hidden, so the count means the same in both modes.
       tree = await listTree();
       const writes = [file, ...tree.agents, ...tree.workflows.flatMap((run) => [...(run.journal === null ? [] : [run.journal]), ...run.agents])];
-      const { state } = applyAge(facts.activity, Math.max(...writes.map((stamp) => stamp.mtimeMs)), nowMs, config.claude);
+      const { state } = applyAge(facts.activity, newestWrite(writes), nowMs, config.claude);
       if (state !== 'working' && state !== 'waiting') return { kind: 'idle' };
       if (script) return { kind: 'hidden' };
       busy = state === 'working';
