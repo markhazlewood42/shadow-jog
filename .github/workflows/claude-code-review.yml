@@ -18,6 +18,10 @@ jobs:
     #   github.event.pull_request.user.login == 'new-developer' ||
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
 
+    # Skip drafts. Skip pull requests from forks too: GitHub withholds secrets from them, so
+    # the review cannot sign in there.
+    if: ${{ !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository }}
+
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,23 +38,37 @@ jobs:
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
+        env:
+          # A headless run ends when the main session ends. This setting runs any subagent in the
+          # foreground, so the run waits for it (anthropics/claude-code-action issues 1499 and 1646).
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1'
+          # Run any subagent on Sonnet. The FORCE flag makes this win over a model that Claude passes.
+          CLAUDE_CODE_SUBAGENT_MODEL: sonnet
+          CLAUDE_CODE_SUBAGENT_MODEL_FORCE: '1'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          # The gh commands are the ones the code-review plugin lists in its own allowed-tools.
-          # A run without them cannot read the pull request, so it can report "No issues found"
-          # without a review.
-          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"'
+          # The built-in /code-review command (docs: code.claude.com/docs/en/code-review). It replaces
+          # the code-review plugin. On Claude Code 2.1.285 and later with Sonnet 5.5, the plugin skips
+          # its review agents and still posts "No issues found" (anthropics/claude-code issue 100401).
+          # The built-in command reviews the diff itself and reports its findings. "high" is its effort
+          # level. --comment posts the findings on the pull request as inline comments.
+          prompt: '/code-review high --comment ${{ github.event.pull_request.number }}'
+          # The review reads the pull request with these gh commands. A run without them cannot
+          # read the diff.
+          # --permission-mode auto is the mode that Anthropic's own review workflow uses
+          # (anthropics/claude-code-action, .github/workflows/claude-review.yml). A classifier
+          # approves a command outside this list, such as a grep or a cd, when it is safe.
+          claude_args: '--permission-mode auto --model sonnet --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
-      # The action hides Claude's output, so a failed call says only "is_error:true".
-      # Print the final result text (for example "Failed to authenticate. API Error: 401 ...")
-      # so the log names the cause. stop-commands keeps that text from running workflow commands.
-      - name: Show why the Claude review failed
-        if: failure()
+      # The action hides Claude's output, so the log shows only counts (turns, cost, "is_error").
+      # Print the final result text of every run: the cause of a failed call (for example
+      # "Failed to authenticate. API Error: 401 ..."), or the reason a review stopped early.
+      # The review posts the same kind of text on the pull request. stop-commands keeps the text
+      # from running workflow commands.
+      - name: Show the Claude review result
+        if: always()
         env:
           EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
         run: |

@@ -10,8 +10,9 @@
 #   e2e          the Playwright specs, on Chromium
 #   e2e-engines  the game over and shipped-build specs, on WebKit and Firefox
 #
-# A change that touches only docs/, *.md files or tools/command-center/ needs none of this, so the
-# work is skipped (see `paths-ignore` below and the step "Check which files changed").
+# A change that touches only docs/, *.md files, tools/command-center/ or the Claude review workflow
+# (.github/workflows/claude-code-review.yml) needs none of this, so the work is skipped (see
+# `paths-ignore` below and the step "Check which files changed").
 #
 # The real-speed playtest is not here. Its own limit is 30 minutes, so it has its own workflow,
 # playtest.yml, which runs after a change lands on main.
@@ -28,6 +29,7 @@ on:
       - 'docs/**'
       - '**/*.md'
       - 'tools/command-center/**'
+      - '.github/workflows/claude-code-review.yml'
   # No paths-ignore on pull_request, on purpose. A workflow that a path filter skips never reports,
   # so its required checks stay "Pending" and the pull request cannot merge. Here the jobs always
   # start, and each one skips its own steps when the change needs no checks.
@@ -55,11 +57,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      # A pull request that changes only docs, notes (*.md) or tools/command-center needs no lint,
-      # build or browser run. This step finds that out. Every later step of the job then runs only
-      # `if: steps.scope.outputs.skip != 'true'`. The job itself is never skipped as a whole: a
-      # skipped job reports success without checking anything, and a required check must not pass
-      # that way.
+      # A pull request that changes only docs, notes (*.md), tools/command-center or the Claude review
+      # workflow file needs no lint, build or browser run. This step finds that out. Every later
+      # step of the job then runs only `if: steps.scope.outputs.skip != 'true'`. The job itself is
+      # never skipped as a whole: a skipped job reports success without checking anything, and a
+      # required check must not pass that way.
       #
       # It fails closed. `skip` is `true` only when git lists changed files and every one of them
       # is on the list below. If git fails, lists nothing, or HEAD is not a merge commit, the step
@@ -89,7 +91,7 @@ jobs:
             skip=true
             while IFS= read -r file; do
               case "$file" in
-                docs/* | tools/command-center/* | *.md) ;;
+                docs/* | tools/command-center/* | .github/workflows/claude-code-review.yml | *.md) ;;
                 *) skip=false; echo "Needs the full checks: $file"; break ;;
               esac
             done <<< "$files"
@@ -97,7 +99,7 @@ jobs:
             echo 'No usable list of changed files, so everything runs.'
           fi
           if [ "$skip" = true ]; then
-            echo "Only docs, notes and tools changed, so the $GITHUB_JOB job skipped its checks." \
+            echo "Only docs, notes, tools and the Claude review workflow changed, so the $GITHUB_JOB job skipped its checks." \
               | tee -a "$GITHUB_STEP_SUMMARY"
           fi
           echo "skip=$skip" >> "$GITHUB_OUTPUT"
@@ -140,7 +142,7 @@ jobs:
             skip=true
             while IFS= read -r file; do
               case "$file" in
-                docs/* | tools/command-center/* | *.md) ;;
+                docs/* | tools/command-center/* | .github/workflows/claude-code-review.yml | *.md) ;;
                 *) skip=false; echo "Needs the full checks: $file"; break ;;
               esac
             done <<< "$files"
@@ -148,7 +150,7 @@ jobs:
             echo 'No usable list of changed files, so everything runs.'
           fi
           if [ "$skip" = true ]; then
-            echo "Only docs, notes and tools changed, so the $GITHUB_JOB job skipped its checks." \
+            echo "Only docs, notes, tools and the Claude review workflow changed, so the $GITHUB_JOB job skipped its checks." \
               | tee -a "$GITHUB_STEP_SUMMARY"
           fi
           echo "skip=$skip" >> "$GITHUB_OUTPUT"
@@ -202,7 +204,7 @@ jobs:
             skip=true
             while IFS= read -r file; do
               case "$file" in
-                docs/* | tools/command-center/* | *.md) ;;
+                docs/* | tools/command-center/* | .github/workflows/claude-code-review.yml | *.md) ;;
                 *) skip=false; echo "Needs the full checks: $file"; break ;;
               esac
             done <<< "$files"
@@ -210,7 +212,7 @@ jobs:
             echo 'No usable list of changed files, so everything runs.'
           fi
           if [ "$skip" = true ]; then
-            echo "Only docs, notes and tools changed, so the $GITHUB_JOB job skipped its checks." \
+            echo "Only docs, notes, tools and the Claude review workflow changed, so the $GITHUB_JOB job skipped its checks." \
               | tee -a "$GITHUB_STEP_SUMMARY"
           fi
           echo "skip=$skip" >> "$GITHUB_OUTPUT"
