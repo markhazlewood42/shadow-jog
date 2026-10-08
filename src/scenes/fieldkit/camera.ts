@@ -9,14 +9,21 @@
  * there). The rule is pure, so a unit test can check it without a canvas.
  */
 import { H, W } from '../../engine/game';
+import type { CameraBox } from './popins';
 
-/** Where the view's top-left corner goes for a focus point (fx, fy) on a map of mw by mh pixels. */
-export function cameraOrigin(fx: number, fy: number, mw: number, mh: number): { x: number; y: number } {
-  return { x: axisOrigin(fx, mw, W), y: axisOrigin(fy, mh, H) };
+/**
+ * Where the view's top-left corner goes for a focus point (fx, fy) on a map of mw by mh pixels.
+ * `box` is a camera limit from the pop-in table (`fieldkit/popins.ts`, option a): a side it names
+ * replaces the map's own edge as the end of the camera's range, so it can stop the camera short
+ * of the edge or let it go past. Null (nothing is limited) in the shipped game.
+ */
+export function cameraOrigin(fx: number, fy: number, mw: number, mh: number, box: CameraBox | null = null): { x: number; y: number } {
+  return { x: axisOrigin(fx, mw, W, box?.minX, box?.maxX), y: axisOrigin(fy, mh, H, box?.minY, box?.maxY) };
 }
 
-/** One axis: center a map that is smaller than the view, else keep the view inside the map. */
-function axisOrigin(focus: number, mapSize: number, viewSize: number): number {
+/** One axis: center a map that is smaller than the view, else keep the view inside the map (or inside the limits). */
+function axisOrigin(focus: number, mapSize: number, viewSize: number, minLimit?: number, maxLimit?: number): number {
   if (mapSize <= viewSize) return Math.round((mapSize - viewSize) / 2);
-  return Math.max(0, Math.min(mapSize - viewSize, Math.round(focus - viewSize / 2)));
+  const lo = minLimit ?? 0, hi = maxLimit ?? mapSize - viewSize;
+  return Math.max(lo, Math.min(hi, Math.round(focus - viewSize / 2)));
 }

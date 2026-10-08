@@ -8,6 +8,7 @@ import { H, W } from '../src/engine/game';
 import type { FieldScene } from '../src/scenes/field';
 import { scriptApi } from '../src/scenes/fieldkit/api';
 import { cameraOrigin } from '../src/scenes/fieldkit/camera';
+import type { CameraBox } from '../src/scenes/fieldkit/popins';
 
 describe('cameraOrigin', () => {
   it('centers a map smaller than the view in both axes, whatever the focus point', () => {
@@ -57,12 +58,20 @@ describe('cameraOrigin', () => {
 describe('scripted pan() uses the camera rule', () => {
   const TS = 16;
   function fakeScene(mapTilesW: number, mapTilesH: number) {
-    const panTarget: { current: { x: number; y: number; frames: number } | null } = { current: null };
+    const panTarget: { current: { x: number; y: number; frames: number; res?: () => void } | null } = { current: null };
+    const waits: number[] = [];
     const f = {
       map: { w: mapTilesW, h: mapTilesH },
+      def: { id: 'a_test_map' },
       camX: 7,
       camY: 9,
       camOverride: null as { x: number; y: number } | null,
+      // The pop-in table's camera limit and event curtain (fieldkit/popins.ts), as the scene holds them.
+      cameraBox: null as CameraBox | null,
+      curtainEvent: 'relay_b' as string | null,
+      // The scene's frame wait, recorded: a pan that must hold asks for it.
+      game: { wait: (n: number) => { waits.push(n); return Promise.resolve(); } },
+      waits,
       get panTarget() { return panTarget.current; },
       set panTarget(v) { panTarget.current = v; },
     };
@@ -85,5 +94,44 @@ describe('scripted pan() uses the camera rule', () => {
     expect(f.panTarget).toMatchObject({ x: 0, y: 0, frames: 40 });
     void scriptApi(scene).pan(59, 49);
     expect(f.panTarget).toMatchObject({ x: 60 * TS - W, y: 50 * TS - H });
+  });
+
+  it('uses the scene’s camera limit, so a pan lands where the limited camera rests', () => {
+    const { f, scene } = fakeScene(60, 50);
+    f.cameraBox = { maxX: 100 };
+    void scriptApi(scene).pan(59, 0);
+    expect(f.panTarget).toMatchObject({ x: 100 });
+  });
+
+  it('lifts an event curtain (a pan is the reveal beat), and does not hold on a pan the table does not name', () => {
+    const { f, scene } = fakeScene(60, 50);
+    expect(f.curtainEvent).toBe('relay_b');
+    void scriptApi(scene).pan(10, 10);
+    expect(f.curtainEvent).toBeNull();
+    f.panTarget?.res?.();
+    expect(f.waits).toEqual([]);
+  });
+});
+
+describe('cameraOrigin with a camera limit (option a of the pop-in table)', () => {
+  const mw = W + 400, mh = H + 300;
+  it('is the plain rule when no side is limited', () => {
+    expect(cameraOrigin(10, 10, mw, mh, {})).toEqual(cameraOrigin(10, 10, mw, mh));
+    expect(cameraOrigin(mw, mh, mw, mh, null)).toEqual({ x: mw - W, y: mh - H });
+  });
+
+  it('stops the camera short of the map edge when a limit is tighter', () => {
+    expect(cameraOrigin(mw, mh, mw, mh, { maxX: 50, maxY: 20 })).toEqual({ x: 50, y: 20 });
+    expect(cameraOrigin(0, 0, mw, mh, { minX: 30, minY: 40 })).toEqual({ x: 30, y: 40 });
+  });
+
+  it('lets the camera go past the map edge when a limit is looser, on that side only', () => {
+    const o = cameraOrigin(mw, mh, mw, mh, { maxY: mh - H + 40 });
+    expect(o.x).toBe(mw - W);
+    expect(o.y).toBe(mh - H + 40);
+  });
+
+  it('does not move a map smaller than the view: it stays centered', () => {
+    expect(cameraOrigin(0, 0, W - 96, H - 40, { minX: 10, maxX: 20 })).toEqual(cameraOrigin(0, 0, W - 96, H - 40));
   });
 });
