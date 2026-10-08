@@ -46,7 +46,7 @@ export function Cluster({ session, nowMs, leaving }: ClusterProps) {
     <div
       id={sessionAnchor(session.id)}
       data-cluster={session.id}
-      {...(leaving ? { 'data-leaving': 'true' } : {})}
+      {...(leaving ? { 'data-leaving': 'true', inert: true } : {})}
       className="min-w-0 scroll-mt-20 overflow-x-auto overflow-y-hidden data-leaving:pointer-events-none data-leaving:opacity-0 motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-out"
     >
       <div className="relative" style={{ width: layout.width, height: layout.height }}>

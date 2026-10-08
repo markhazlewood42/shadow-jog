@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import type { AgentsLive } from '../src/shared/types';
 import { agentDetail, messagesText, runTimeText, sessionDetail, workflowChip } from '../src/web/agents/boxText';
+import { type BoxEntry, BoxView } from '../src/web/agents/BoxView';
 import { Diagram } from '../src/web/agents/Diagram';
 import { MIN, NOW, SEC, ago, kids, live, liveNode, liveSession, liveWorkflow } from './agents-diagram-helpers';
 
@@ -169,6 +170,15 @@ describe('the Agents diagram', () => {
     const two = boxOf(host, 'no-phase');
     expect(detailOf(two)).toBe('1 of 4');
     expect(two.querySelector('button')).toBeNull();
+  });
+
+  it('a box that is leaving is marked, and inert: its Copy button is not in the tab order while it fades', () => {
+    const entry: BoxEntry = { box: { id: 'a', kind: 'agent', depth: 1, x: 56, y: 70, w: 216, h: 44 }, data: liveNode('a') };
+    const drawn = (leaving: boolean) => new DOMParser().parseFromString(renderToStaticMarkup(<BoxView entry={entry} nowMs={NOW} leaving={leaving} />), 'text/html').body.querySelector('[role="group"]');
+    expect(drawn(false)?.hasAttribute('data-leaving')).toBe(false);
+    expect(drawn(false)?.hasAttribute('inert')).toBe(false);
+    expect(drawn(true)?.getAttribute('data-leaving')).toBe('true');
+    expect(drawn(true)?.hasAttribute('inert')).toBe(true);
   });
 
   it('every box with a file has a Copy button named Copy path', () => {

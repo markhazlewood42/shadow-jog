@@ -83,7 +83,8 @@ export function BoxView({ entry, nowMs, leaving }: BoxViewProps) {
       aria-labelledby={titleId}
       data-box={box.kind}
       data-state={data.state}
-      {...(leaving ? { 'data-leaving': 'true' } : {})}
+      // A box that is leaving is only drawn while it fades: `inert` takes its Copy button out of the tab order and out of the page for a screen reader.
+      {...(leaving ? { 'data-leaving': 'true', inert: true } : {})}
       className="absolute top-0 left-0 data-leaving:pointer-events-none data-leaving:opacity-0 motion-safe:transition-[transform,opacity] motion-safe:duration-200 motion-safe:ease-out"
       style={{ width: box.w, height: box.h, transform: `translate(${box.x}px, ${box.y}px)` }}
     >
