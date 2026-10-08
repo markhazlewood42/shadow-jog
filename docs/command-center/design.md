@@ -3,7 +3,7 @@ type: design
 title: "Shadow Jog Command Center — Design"
 project: shadow-jog
 created: 2026-10-05
-updated: 2026-10-07
+updated: 2026-10-08
 status: approved by Mark 2026-10-05 (decision inbox and look added the same day). Revision 2 (live feedback of 2026-10-07) approved by Mark 2026-10-07.
 tags: [tooling, command-center, design]
 ---
@@ -14,7 +14,7 @@ A small website that runs on Mark's machine. It is the home base for all Shadow 
 
 **Status:** version 1 is built ([PR #21](https://github.com/markhazlewood42/shadow-jog/pull/21) and [PR #22](https://github.com/markhazlewood42/shadow-jog/pull/22) on `main`). Mark approved it on 2026-10-05 and added the decision inbox (section 5.5) and the look (section 4.2) the same day. Its plan is [plan.md](plan.md).
 
-**Revision 2 is built on branch `command-center-feedback`.** It answers Mark's live feedback of 2026-10-07. Mark approved this spec and its plan on 2026-10-07. It changes four things:
+**Revision 2 is built on branch `command-center-feedback` ([PR #26](https://github.com/markhazlewood42/shadow-jog/pull/26)).** It answers Mark's live feedback of 2026-10-07. Mark approved this spec and its plan on 2026-10-07. It changes four things:
 1. All page text becomes labels and links (section 5.8).
 2. The Status panel becomes a summary with links (section 5.6).
 3. Every doc page gets Copy and Download (section 5.7).
@@ -155,6 +155,7 @@ The page reads from top to bottom, in order of importance:
 - A finished agent stays for 5 minutes, dimmed, and then leaves. A closed session leaves at once.
 - If the process list cannot be read, the page uses the file ages of version 1 and shows the label "Process list unavailable". In this fallback, the version 1 state decides: "working" counts as `busy` and "waiting" counts as `idle`.
 - With no active session, the page shows one label: "No active session".
+- A link from Your move to a session that is not in the diagram (for example a session that closed a moment ago) still opens the page. The page shows the label "Session not active" (ruling R42).
 
 **Boxes**
 - A session box has its title (as in version 1: the custom title, else the agent name, else the start of the first prompt), a state word and its run time. A Copy button copies the path of its session file.

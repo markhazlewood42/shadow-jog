@@ -3,7 +3,7 @@ type: status
 title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-10-07
+updated: 2026-10-08
 milestone: Pre-M0
 tags: [status]
 ---
@@ -92,8 +92,8 @@ Branch `spike/engine-platform` (draft PR #11). Record: `docs/spikes/engine-platf
 2. Move the shipped game to 640x360 on branch `resolution-640x360` from `main`, from the inventory, with picture reviews for Mark.
 3. The spike archive tag (with Mark's go-ahead), then milestone M0.
 
-**Next up for Mark** (updated 2026-10-07):
-1. Review the Command Center revision 2 PR when it opens. Revision 2 is built on branch `command-center-feedback` (Tasks 14 to 20), and the PR follows ([plan-revision-2.md](docs/command-center/plan-revision-2.md)).
+**Next up for Mark** (updated 2026-10-08):
+1. Review the Command Center revision 2 in [PR #26](https://github.com/markhazlewood42/shadow-jog/pull/26) (branch `command-center-feedback`, Tasks 14 to 20; [plan-revision-2.md](docs/command-center/plan-revision-2.md)). It waits for the Copilot review, then your merge.
 2. Answer the look questions as the 640x360 pictures come: the old battle (boxed until M3, or re-laid now), maps smaller than the screen, the dialog width, the title art, and 3 shockwave values in your `fx.json`.
 3. The older items below (Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4) still stand.
 
