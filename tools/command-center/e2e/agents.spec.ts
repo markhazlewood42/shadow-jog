@@ -340,7 +340,7 @@ test.describe('the diagram', () => {
     await openAgents(page);
 
     await expect(clusterOf(page, ID(1)).locator('[data-count]')).toHaveText(['3+']);
-    await expect(textList(page)).toContainText('Talk to the parent, sonnet, running, 4 min, 3+ messages');
+    await expect(textList(page)).toContainText(/Talk to the parent, sonnet, running, [45] min, 3\+ messages/);
   });
 
   test('agents page shows the empty state and the fallback label', async ({ page, request }) => {

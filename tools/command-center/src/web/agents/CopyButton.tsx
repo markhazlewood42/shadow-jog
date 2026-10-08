@@ -55,9 +55,11 @@ export function CopyButton({ path }: { path: string }) {
       <button
         type="button"
         aria-label="Copy path"
+        title="Copy path"
         data-copy={state}
         onClick={() => void copy()}
-        className="flex size-6 shrink-0 items-center justify-center rounded-md text-cc-muted hover:bg-cc-rule hover:text-cc-ink cc-focus-ring"
+        // The focus ring is inside the button: a ring outside it would be cut by the frame of the box, which clips its content.
+        className="flex size-6 shrink-0 items-center justify-center rounded-md text-cc-muted hover:bg-cc-rule hover:text-cc-ink focus-visible:[outline-offset:-2px] focus-visible:[outline:2px_solid_var(--cc-rule-solid)]"
       >
         <Icon aria-hidden className={`size-3.5 ${state === 'idle' ? '' : 'text-cc-ink'}`} />
       </button>

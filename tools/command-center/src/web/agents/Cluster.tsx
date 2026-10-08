@@ -40,8 +40,9 @@ export function Cluster({ session, nowMs, leaving }: ClusterProps) {
   const flashing = useFlash(counts);
 
   return (
-    // The cluster is a scroll box of its own for a tree that is wider than its column (a deep one), so that it never runs under the cluster next to it. The anchor id is the one
-    // that "Your move" links to (sessionHref), and `scroll-mt-20` leaves room for the bar at the top of the page, which stays in view.
+    // The cluster is a scroll box of its own, for a window that is narrower than a deep tree (the grid makes its columns as wide as the widest tree when the window has room), so
+    // that a tree never runs under the cluster next to it or makes the page scroll. The anchor id is the one that "Your move" links to (sessionHref), and `scroll-mt-20` leaves
+    // room for the bar at the top of the page, which stays in view.
     <div
       id={sessionAnchor(session.id)}
       data-cluster={session.id}

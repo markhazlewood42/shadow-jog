@@ -7,8 +7,8 @@ import { LiveNotes } from './LiveNotes';
 import { useLeaving } from './motion';
 import { TextList } from './TextList';
 
-// The live diagram of the Agents page (design 5.4, revision 2): the labels above it, one cluster for each live session, and the text list under it. It is a plain function of
-// the live data and of the clock, so a test draws it with no server.
+// The live diagram of the Agents page (design 5.4, revision 2): the labels above it, one cluster for each live session, and the text list under it. It takes the live data and
+// the clock as props and asks no server, so a test draws it with the data that it makes up.
 
 /**
  * The narrowest column of the grid, in pixels: three columns side by side in a wide window (1280 px) and one column at 800 px. A cluster that is wider than this (a chain of

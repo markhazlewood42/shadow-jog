@@ -15,7 +15,7 @@ export const EXIT_MS = 200;
 export const FLASH_MS = 1000;
 
 /** Whether the person asked the system for less motion. Asked at the moment it matters, so a change of the setting counts at once. */
-export function prefersReducedMotion(): boolean {
+function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 

@@ -10,7 +10,7 @@ import type { LayoutBox } from './layout';
 // a workflow, the name of a phase) is shown as text. Nothing here is html.
 
 /** What a box shows: the session, or one of its nodes. */
-export type BoxData = LiveSession | LiveNode;
+type BoxData = LiveSession | LiveNode;
 
 /** A box to draw: where it goes (from the layout), and what it shows. The page keeps the entry of a box that left, so that it can draw the box once more while it fades out. */
 export type BoxEntry = { box: LayoutBox; data: BoxData };
