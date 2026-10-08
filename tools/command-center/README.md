@@ -49,7 +49,7 @@ Other commands, from the repo root (add `--prefix tools/command-center` as shown
 | `npm --prefix tools/command-center run e2e` | The Playwright tests, against the fixture server on 3010 (Microsoft Edge locally, bundled Chromium on CI) |
 | `CC_NO_OPEN=1 npm run cc` | Start without opening a browser tab. Every test and automated run sets `CC_NO_OPEN=1`. |
 
-Three checks run against the real repo and not against fixtures, so they run only on demand: `CC_REAL_NAV=1` (every real doc sits in a nav section, so "Other" is empty), `CC_REAL_ENGINE=1` (the engine decisions read as expected), and `CC_REAL_URL=<address>` (a Playwright check against a running server).
+Four checks run against the real repo or the real machine and not against fixtures, so they run only on demand: `CC_REAL_NAV=1` (every real doc sits in a nav section, so "Other" is empty; the source route sends the exact bytes of every doc; `status.md` has a valid `milestone:` key), `CC_REAL_ENGINE=1` (the engine decisions read as expected), `CC_REAL_AGENTS=1` (the real process list in `claude.sessionsRoot` has the shape that the agents module expects), and `CC_REAL_URL=<address>` (a Playwright check against a running server).
 
 ## The pages
 
@@ -58,7 +58,7 @@ Three checks run against the real repo and not against fixtures, so they run onl
 | `/` | Now: five panels. Your move (what waits for Mark), Running (the active Claude sessions only: each row links to `/agents`), Pull requests (with their checks), Status (five rows and a milestone strip, see below) and Links. The panels are glass (PlasmaUI) that you can drag. The "Glass panels" switch turns the glass off, which also saves the GPU while the game runs. |
 | `/docs` | Every doc, in the sections of `nav.json`, with search, an outline, backlinks and a banner on a section that an open decision concerns. A doc page has the Copy and Download split button (see below). |
 | `/docs/decisions` | Every engine and Phase 0.2 decision in one table, with its status: approved, open for Mark, or changed since approval |
-| `/decisions/<n>` | One decision issue, with the linked doc sections inline and the form that answers it |
+| `/decisions/<n>` | One decision issue, with its options, the form that answers it, and a link for each linked doc section (the page does not copy the section text) |
 | `/agents` | A live diagram of the Claude Code sessions that run now, checked every 3 seconds. Each session is a cluster: its box on top, and a small box for each agent below it. A workflow is one box with a progress chip (the phase, and the agents done of the agents started). A solid line with an arrow runs from a parent to what it started. A dashed line with a count shows the messages between a parent and an agent. A parent shows at most 12 children, then "+N more". A box has a Copy button for the path of its file. No message text appears. |
 
 ## The Status panel and the `milestone:` key
@@ -131,7 +131,7 @@ All settings are in `command-center.config.json`. A path in the file is relative
 | `claude.sessionsRoot` | Optional, default `~/.claude/sessions`. Where Claude Code lists its running processes: one `<pid>.json` file for each. The Agents page and the Running panel treat a session as active while its process runs. |
 | `claude.folders` | Session folders (by exact name) that belong to Shadow Jog: every session in them counts |
 | `claude.cwdMatchFolders` | Session folders (by exact name) that mix projects, such as the home-base folder. A session counts only when the working folder of its newest line is inside a root. |
-| `claude.includeSdk` | Optional, default `false`. A session whose entrypoint starts with `sdk` was started by a script (`claude -p`, the Agent SDK). Those are hidden and counted in `hiddenSdk`, which the Agents page shows. Set `true` to list them. |
+| `claude.includeSdk` | Optional, default `false`. A session whose entrypoint starts with `sdk` was started by a script (`claude -p`, the Agent SDK). Those are hidden. The Agents page and the Running panel show their count as the label "N script runs hidden" (`hiddenScripts` in `GET /api/agents`), and `GET /api/sessions` counts them in `hiddenSdk`. Set `true` to list them. |
 | `claude.recentSeconds` | A session file older than this is left out (604800 is 7 days) |
 | `claude.workingSeconds` | A session written to within this time, and not waiting for Mark, is "working" |
 | `claude.waitingSeconds` | A session whose last reply ended its turn is "waiting for Mark" for this long, then "idle" |
