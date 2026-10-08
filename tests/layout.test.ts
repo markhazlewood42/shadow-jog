@@ -121,10 +121,10 @@ describe('battle turn-order strip', () => {
 
   // The strip, the top line and the menus all derive from the HUD frame, so each rule is checked
   // for the game's frame (the whole screen, D6 option 1) and for an inset one (the 480x270 block
-  // the HUD used to fit in): a frame that is not the screen must carry every piece with it.
+  // the HUD used to fit in, off center): a frame that is not the screen must carry every piece with it.
   const frames = async () => {
     const { HUD, hudLayout } = await import('../src/scenes/battlekit/geom');
-    const inset = { x: W / 8, y: H / 8, w: (W * 3) / 4, h: (H * 3) / 4 };
+    const inset = { x: W / 16, y: H / 8, w: (W * 3) / 4, h: (H * 3) / 4 };
     return [{ frame: 'the whole screen', hud: HUD, all: true }, { frame: 'an inset frame', hud: hudLayout(inset), all: false }];
   };
 

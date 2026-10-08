@@ -23,10 +23,11 @@ const inside = (a: Rect, b: Rect): boolean => a.x >= b.x && a.y >= b.y && a.x + 
 const overlap = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 /**
- * An inset frame (480x270 on a 640x360 screen: the block the HUD used to fit in). The game does not
- * use it; the tests do, to show that every anchor follows whatever frame `hudLayout` is given.
+ * An inset frame: 480x270 on a 640x360 screen (the block the HUD used to fit in), pushed off center
+ * to the left so that "centered in the frame" and "centered on the screen" are different things.
+ * The game does not use it; the tests do, to show that every anchor follows the frame it is given.
  */
-const INSET: Rect = { x: W / 8, y: H / 8, w: (W * 3) / 4, h: (H * 3) / 4 };
+const INSET: Rect = { x: W / 16, y: H / 8, w: (W * 3) / 4, h: (H * 3) / 4 };
 /** The layouts the HUD rules run on: the game's own, and the inset one. */
 const FRAMES = [{ frame: 'the game frame', hud: HUD }, { frame: 'an inset frame', hud: hudLayout(INSET) }];
 
