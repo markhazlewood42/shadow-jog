@@ -426,14 +426,15 @@ export type SessionInfo = {
 export type SessionsInfo = { sessions: SessionInfo[]; scanned: number; skipped: number; hiddenSdk: number };
 
 /**
- * The id of a session's card on the Agents page. An address that ends in `#<this id>` leads to the card. The server writes such an address into the "Your move" list
- * (src/server/now/yourMove.ts), and the page finds the card by it (src/web/agents), so the two share this one function and cannot drift apart.
+ * The id of a session's cluster on the Agents page (the session box and the agents under it). An address that ends in `#<this id>` leads to the cluster of a session that is live.
+ * The server writes such an address into the "Your move" list (src/server/now/yourMove.ts), and the page finds the cluster by it (src/web/agents), so the two share this one function
+ * and cannot drift apart.
  */
 export function sessionAnchor(sessionId: string): string {
   return `session-${sessionId}`;
 }
 
-/** The address of a session's card on the Agents page. It is an address of this site (it starts with "/"), so a link to it moves inside the app. */
+/** The address of a session's cluster on the Agents page. It is an address of this site (it starts with "/"), so a link to it moves inside the app. */
 export function sessionHref(sessionId: string): string {
   return `/agents#${sessionAnchor(sessionId)}`;
 }

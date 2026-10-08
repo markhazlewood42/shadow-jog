@@ -1,10 +1,11 @@
 import { MessageSquare } from 'lucide-react';
 import { Link } from 'react-router';
 import type { AgentsLive, LiveSession, ModuleName } from '../../shared/types';
+import { LiveNotes } from '../agents/LiveNotes';
 import { PanelContent } from '../PanelFrame';
 import { usePanel } from '../usePanel';
 import { GlassPanel, type PanelPlacement } from './GlassPanel';
-import { formatDuration, useNow } from './time';
+import { formatDuration, msSince, useNow } from './time';
 
 // "Running": the Claude sessions that are alive now (design 5.1, revision 2). One row for each: its title, a state word and how long it has run. The whole row is a link to the
 // Agents page, which draws the agents and the workflows of each session: this panel shows none of them. It reads the live agents (GET /api/agents). That module starts from the
@@ -13,19 +14,14 @@ import { formatDuration, useNow } from './time';
 /** The panel loads again when the agents module says that something changed (it looks at the process list every 3 seconds). */
 const AGENTS_MODULES: readonly ModuleName[] = ['agents'];
 
-/** How long a session has run, in milliseconds: from the start of its process to now. Null when the start is not known, so the row shows no time and never a guess. */
-function runMsOf(session: LiveSession, nowMs: number): number | null {
-  const start = session.startedAt === null ? Number.NaN : Date.parse(session.startedAt);
-  return Number.isNaN(start) ? null : nowMs - start;
-}
-
 /**
  * One session. The whole row is one link, so the target is as big as the row. The title is the underlined part, as in the other lists of this page, and the state and the
  * time are small text beside it. The state is a word, so it never depends on a color. The spaces between the pieces are for a screen reader and for a copy of the row:
  * the layout of the boxes ignores them.
  */
 function SessionRow({ session, nowMs }: { session: LiveSession; nowMs: number }) {
-  const runMs = runMsOf(session, nowMs);
+  // From the start of its process to now. Null when the start is not known, so the row shows no time and never a guess.
+  const runMs = msSince(session.startedAt, nowMs);
   return (
     <li>
       <Link to="/agents" className="flex items-start gap-2 py-2.5 cc-focus-ring">
@@ -63,12 +59,7 @@ export function RunningList({ live, now }: { live: AgentsLive; now: number }) {
           ))}
         </ul>
       )}
-      {live.hiddenScripts > 0 && (
-        <p className="text-xs text-cc-soft">
-          {live.hiddenScripts} script {live.hiddenScripts === 1 ? 'run' : 'runs'} hidden
-        </p>
-      )}
-      {live.source === 'file-age' && <p className="text-xs text-cc-soft">Process list unavailable</p>}
+      <LiveNotes live={live} />
     </div>
   );
 }
