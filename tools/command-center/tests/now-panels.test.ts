@@ -44,17 +44,28 @@ describe('combineSources', () => {
     expect(combineSources({ status: result(null), git: result(null), ci: result(null), health: result(null) }).state).toBe('loading');
   });
 
-  it('is good when every source is good, with the oldest of the four times (the data is as old as its oldest part)', () => {
+  it('is good when every source is good, with the newest time of the sources that reload', () => {
     const combined = combineSources(results());
     expect(combined.state).toBe('ready');
-    expect(combined.panel).toMatchObject({ ok: true, updatedAt: T0 });
+    expect(combined.panel).toMatchObject({ ok: true, updatedAt: T2 });
     // The data is the four panels, each with the function that asks it again.
     const data = combined.panel?.ok ? combined.panel.data : null;
     expect(data?.status.panel).toEqual(good(statusInfo, T1));
     expect(data?.ci.panel).toEqual(good(ciInfo, T0));
   });
 
-  it('stays good when some sources failed: the failed ones are rows, and the time is the oldest of the good ones', () => {
+  it('F1: the Updated time ignores the static health source', () => {
+    // Health loads once, so its time is the time the page opened. The others reload: the panel time follows the newest of them.
+    const old = '2026-10-06T09:00:00.000Z';
+    const combined = combineSources(results({ health: result(good(healthInfo, old)), status: result(good(statusInfo, T1)), git: result(good(gitInfo, T0)), ci: result(good(ciInfo, T2)) }));
+    expect(combined.panel).toMatchObject({ ok: true, updatedAt: T2 });
+    // Health is the only good source: its time is the fallback.
+    const down = failed<never>('network', 'Cannot reach the command center server. Check that it runs.');
+    const alone = combineSources({ status: result(down), git: result(down), ci: result(down), health: result(good(healthInfo, old)) });
+    expect(alone.panel).toMatchObject({ ok: true, updatedAt: old });
+  });
+
+  it('stays good when some sources failed: the failed ones are rows, and the time is the newest of the good reloading ones', () => {
     // A failed source does not change the time: its last good data is not shown, so it is not part of what is on offer.
     const combined = combineSources(results({ ci: result(failed('gh-not-signed-in', 'gh is not signed in.', { data: ciInfo, updatedAt: '2026-10-06T08:00:00.000Z' })), git: result(failed('git-failed', 'git could not run.')) }));
     expect(combined.state).toBe('ready');

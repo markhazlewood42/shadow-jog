@@ -36,8 +36,6 @@ export type StatusSources = { status: Source<StatusInfo>; git: Source<GitInfo>; 
 /** What `usePanel` gave for each of the four sources. */
 export type SourceResults = { status: PanelResult<StatusInfo>; git: PanelResult<GitInfo>; ci: PanelResult<CiMain>; health: PanelResult<Health> };
 
-/** The earliest of some ISO times, for a list that is not empty. */
-const earliest = (times: string[]): string => times.reduce((a, b) => (Date.parse(a) <= Date.parse(b) ? a : b));
 /** The latest of some ISO times, for a list that is not empty. */
 const latest = (times: string[]): string => times.reduce((a, b) => (Date.parse(a) >= Date.parse(b) ? a : b));
 
@@ -45,8 +43,9 @@ const latest = (times: string[]): string => times.reduce((a, b) => (Date.parse(a
  * Puts the results of the four sources into the result of one panel.
  *
  * - It is loading until all four have answered, so that rows do not appear one by one.
- * - When at least one is good, the panel is good, and the failed sources show as rows (see Unavailable). Its time is the oldest time of the good ones: the data on
- *   offer is as old as its oldest part.
+ * - When at least one is good, the panel is good, and the failed sources show as rows (see Unavailable). Its time is the newest time of the good sources that reload
+ *   (status, git and CI). The health source loads once, so its time stays at the moment the page opened and would hold the time back. It sets the time only when it
+ *   is the one good source.
  * - A status source that failed only in its milestone list counts as good here, because two rows can still be drawn from its data (see statusRowData). Its time is the
  *   time of that data.
  * - When none is good, nothing can be shown, and the panel is failed in the way of every panel: the error shows the message of the first failed source and the codes of
@@ -68,9 +67,11 @@ export function combineSources(results: SourceResults): PanelResult<StatusSource
   };
   const panels: Panel<unknown>[] = [status.panel, git.panel, ci.panel, health.panel];
 
-  const goodTimes = panels.flatMap((panel) => (panel.ok ? [panel.updatedAt] : []));
-  if (!status.panel.ok && status.panel.lastGood !== null && statusRowData(sources.status) !== null) goodTimes.push(status.panel.lastGood.updatedAt);
-  if (goodTimes.length > 0) return { state: 'ready', panel: { ok: true, data: sources, updatedAt: earliest(goodTimes) }, reload };
+  const reloadingTimes = [status.panel, git.panel, ci.panel].flatMap((panel) => (panel.ok ? [panel.updatedAt] : []));
+  if (!status.panel.ok && status.panel.lastGood !== null && statusRowData(sources.status) !== null) reloadingTimes.push(status.panel.lastGood.updatedAt);
+  // Health sets the time only when no other source is good.
+  const goodTimes = reloadingTimes.length > 0 ? reloadingTimes : health.panel.ok ? [health.panel.updatedAt] : [];
+  if (goodTimes.length > 0) return { state: 'ready', panel: { ok: true, data: sources, updatedAt: latest(goodTimes) }, reload };
 
   const failures = panels.flatMap((panel) => (panel.ok ? [] : [panel.error]));
   const knownTimes = panels.flatMap((panel) => (panel.ok || panel.updatedAt === null ? [] : [panel.updatedAt]));
