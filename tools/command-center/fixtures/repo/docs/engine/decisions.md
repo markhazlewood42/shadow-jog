@@ -26,7 +26,7 @@ This file lists every open decision for you. Each one has the question, 2 to 4 o
 
 | # | Decision | Recommendation | Needed before | Who decides | Your answer |
 |---|---|---|---|---|---|
-| E1 | How behaviour is written | Phaser style: scene code and small subclasses | Phase 0 | Mark | A |
+| E1 | How behavior is written | Phaser style: scene code and small subclasses | Phase 0 | Mark | A |
 | E2 | Name of the 60 Hz hook | `fixedUpdate(tick)` | Phase 0 | Mark | A |
 | E3 | How the 3D frame reaches Pixi | Shared context, canvas copy as fallback | Phase 0 | Mark | A |
 | E4 | Home of the screen effects | One `CompositeFilter`, plus per-object effects | M2 | Mark | A |
@@ -96,7 +96,7 @@ This table checks each approved decision against the rule. "Holds" means the dec
 
 | # | Result | Why |
 |---|---|---|
-| E1 | Holds | Behaviour is code. Content stays data that code reads. A scene reads its content from a data file and does not hold it in its body. The stage already does this with `stages.json` and `hud.json`. |
+| E1 | Holds | Behavior is code. Content stays data that code reads. A scene reads its content from a data file and does not hold it in its body. The stage already does this with `stages.json` and `hud.json`. |
 | E2 | Holds | The 60 Hz hook has no effect on content. |
 | E3 | Holds, with a condition | The 3D path has no effect on editors. Condition: a hack definition is plain data, with no functions, so a later tool can save it. |
 | E4 | Holds | The effect values are data (`fx.json`). `FxSystem` keeps the names and signatures, so the FX lab and `fx.json` stay the editable form. |
@@ -125,9 +125,9 @@ This table checks each approved decision against the rule. "Holds" means the dec
 
 ---
 
-## E1. How is behaviour written?
+## E1. How is behavior written?
 
-**Question.** Scenes and objects need behaviour. Which model do we use?
+**Question.** Scenes and objects need behavior. Which model do we use?
 
 **Options.**
 
@@ -137,7 +137,7 @@ This table checks each approved decision against the rule. "Holds" means the dec
 
 **Trade-offs.**
 
-- **A.** It is the smallest concept set. You know Phaser's vocabulary, the approved spike ports with import changes, and agents have the strongest prior for it. It has costs too. Shared behaviour (hit flash, shake, bobbing) is reused by subclass or helper function, not by per-object composition. Subclasses such as `Figure` can grow large. It keeps two trees in sync (the `GameObject` tree and the Pixi tree), and `View3D` adds the Three side.
+- **A.** It is the smallest concept set. You know Phaser's vocabulary, the approved spike ports with import changes, and agents have the strongest prior for it. It has costs too. Shared behavior (hit flash, shake, bobbing) is reused by subclass or helper function, not by per-object composition. Subclasses such as `Figure` can grow large. It keeps two trees in sync (the `GameObject` tree and the Pixi tree), and `View3D` adds the Three side.
 - **B.** It adds concepts that no current scene needs: Components, prefab registries.
 - **C.** It adds a UI framework that no current scene needs. It breaks the spike's names, so every spike file is a rewrite.
 - **ECS.** It adds nothing. `src/battle` already plays the "data plus systems" role. The display side has dozens to a few hundred objects.
@@ -341,11 +341,11 @@ This table checks each approved decision against the rule. "Holds" means the dec
 
 **Options.**
 
-- **A. Scene-owned awaits reject with `Cancelled`.** (`scene.time.wait`, `tween.finished`.) `game.run` keeps today's behaviour: pending forever on `abandon`. `s.hack` always resolves.
+- **A. Scene-owned awaits reject with `Cancelled`.** (`scene.time.wait`, `tween.finished`.) `game.run` keeps today's behavior: pending forever on `abandon`. `s.hack` always resolves.
 - **B. Nothing ever settles.** A silent stop everywhere.
 - **C. Everything rejects**, and `game.run` too.
 
-**Trade-offs.** A keeps today's story behaviour (`abandon` stops the flow dead) and gives scene code a clean way to stop. It means two cancel rules. The existing `unhandledrejection` handler in `src/main.ts` ignores `Cancelled`. B leaves dangling promises. C changes story scripts.
+**Trade-offs.** A keeps today's story behavior (`abandon` stops the flow dead) and gives scene code a clean way to stop. It means two cancel rules. The existing `unhandledrejection` handler in `src/main.ts` ignores `Cancelled`. B leaves dangling promises. C changes story scripts.
 
 **Recommendation.** A.
 

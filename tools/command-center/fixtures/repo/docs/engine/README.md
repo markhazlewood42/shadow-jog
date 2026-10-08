@@ -98,7 +98,7 @@ Four more words mean different things in different engines. This table says whic
 8. [decisions.md](decisions.md): every decision and its answer.
 9. [verification.md](verification.md): the independent verification loops, the rubrics and the visual updates.
 
-Source material: `docs/research/2026-10-04-engine-and-3d.md`, decision 17 in `docs/PHASE-0.2.md`, today's engine in `src/engine/` (about 2,900 lines), the Phaser reference on branch `spike/phaser-stage` (folder `src/stage`), and editor behaviour in `docs/TOOLING-UI.md`.
+Source material: `docs/research/2026-10-04-engine-and-3d.md`, decision 17 in `docs/PHASE-0.2.md`, today's engine in `src/engine/` (about 2,900 lines), the Phaser reference on branch `spike/phaser-stage` (folder `src/stage`), and editor behavior in `docs/TOOLING-UI.md`.
 
 ## 4. Code levels
 
@@ -159,7 +159,7 @@ The tick changes game state. The draw phase only reads it. Details are in [frame
 
 ## 7. The render pipeline in one diagram
 
-![The engine render pipeline for one frame, in eight numbered steps. Step 1, prerender copies state into Pixi nodes. Step 2 runs FxSystem.update, camera transforms and CanvasImage.refresh. Step 3 asks whether a 3D session is active. If yes, step 4 lets Three render into a 640x360 nearest render target, with a bloom pass in place, through GlHandoff.beginThree and endThree. If no, the flow skips step 4. Step 5 resets GL state with GlHandoff.beginPixi and pixi.resetState. Step 6 has Pixi draw the screen root into the 640x360 back buffer at resolution 1 with nearest scaling, so all filters run inside it. Step 7, the present, draws one nearest sprite at integer scale k, on a whole device pixel, into a whole-window canvas with void-colour bars. Step 8 is postrender and the perf record.](diagrams/engine-render-pipeline.png)
+![The engine render pipeline for one frame, in eight numbered steps. Step 1, prerender copies state into Pixi nodes. Step 2 runs FxSystem.update, camera transforms and CanvasImage.refresh. Step 3 asks whether a 3D session is active. If yes, step 4 lets Three render into a 640x360 nearest render target, with a bloom pass in place, through GlHandoff.beginThree and endThree. If no, the flow skips step 4. Step 5 resets GL state with GlHandoff.beginPixi and pixi.resetState. Step 6 has Pixi draw the screen root into the 640x360 back buffer at resolution 1 with nearest scaling, so all filters run inside it. Step 7, the present, draws one nearest sprite at integer scale k, on a whole device pixel, into a whole-window canvas with void-color bars. Step 8 is postrender and the perf record.](diagrams/engine-render-pipeline.png)
 
 *Editable source: [diagrams/engine-render-pipeline.html](diagrams/engine-render-pipeline.html)*
 

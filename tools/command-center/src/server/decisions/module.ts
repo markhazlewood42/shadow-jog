@@ -186,7 +186,12 @@ export function bannersOf(info: DecisionsInfo, docId: string): DocDecision[] {
 }
 
 /** A decision as GitHub holds it now, with how far its answer has got. */
-export type DecisionRead = { issue: DecisionIssue; progress: AnswerProgress };
+export type DecisionRead = {
+  issue: DecisionIssue;
+  progress: AnswerProgress;
+  /** The label `decided` is on the issue and Mark's account did not put it on: an answer must take it off first, to make an event of Mark's. */
+  staleDecided: boolean;
+};
 
 /** gh's words for an issue that is not there. (The words are those of gh 2.88, read from a real call.) */
 const NO_SUCH_ISSUE = /could not resolve to an issue or pull request/i;

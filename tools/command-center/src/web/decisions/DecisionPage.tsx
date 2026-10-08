@@ -1,6 +1,5 @@
-import type { MouseEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
-import { APP_NAME, type DecisionDetail, type ModuleName, type Panel } from '../../shared/types';
+import { Link, useParams } from 'react-router';
+import { APP_NAME, type DecisionDetail, type DecisionDocLink, type DocsListing, type ModuleName, type Panel } from '../../shared/types';
 import { PanelFrame } from '../PanelFrame';
 import { docPath } from '../docs/paths';
 import { useDocumentTitle } from '../docs/useDocumentTitle';
@@ -9,10 +8,13 @@ import { AnswerForm, useAnswerDraft } from './AnswerForm';
 import { DecisionCard, Notice, OptionList, SectionLabel } from './DecisionCard';
 
 /**
- * The page of a decision reloads when the decisions change (an answer, a new decision) and when the docs change: the linked
- * sections are the text of the docs as they are now, so an edit of a doc must show here without a reload by hand.
+ * The page of a decision reloads when the decisions change (an answer, a new decision) and when the docs change: whether a linked
+ * heading is in its doc is read from the docs as they are now, so an edit of a doc must show here without a reload by hand.
  */
 const DECISION_MODULES: readonly ModuleName[] = ['decisions', 'docs'];
+
+/** The doc listing changes when a doc is added, renamed or retitled. */
+const DOC_MODULES: readonly ModuleName[] = ['docs'];
 
 /** The top bar: the name of the tool and the parts of the site. The decision page is none of them, so none is marked as the current page. */
 function Header() {
@@ -68,85 +70,69 @@ function NotFound({ number, message }: { number: number | null; message: string 
   );
 }
 
-/** One linked section of a doc, with the doc and the heading it comes from and a link to it in the docs. A heading that the doc does not have is a notice, not an error. */
-function LinkedSection({ detail, index }: { detail: DecisionDetail; index: number }) {
-  const navigate = useNavigate();
-  const section = detail.sections[index];
-  const link = detail.docs[index];
-  if (section === undefined || link === undefined) return null;
-  const where = `${section.docId}${section.anchor === '' ? '' : `#${section.anchor}`}`;
+/** The titles of the docs by slug, from the doc listing. The decision page reads it only to name the links, so a listing that cannot be read gives an empty map: the id of the doc names the link then. */
+function useDocTitles(): ReadonlyMap<string, string> {
+  const listing = usePanel<DocsListing>('/api/docs', DOC_MODULES);
+  return new Map(listing.panel?.ok ? listing.panel.data.docs.map((doc) => [doc.slug, doc.title]) : []);
+}
 
-  // A link to another doc inside the section moves inside the app, as it does on the doc pages. Other links are the browser's own (a heading link scrolls here, an outside link opens).
-  function onClick(event: MouseEvent<HTMLDivElement>) {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const target = event.target instanceof Element ? event.target.closest('a[href]') : null;
-    if (!(target instanceof HTMLAnchorElement) || target.target === '_blank' || target.hasAttribute('download')) return;
-    const href = target.getAttribute('href') ?? '';
-    if (href === '/docs' || href.startsWith('/docs/')) {
-      event.preventDefault();
-      navigate(href);
-    }
-  }
-
-  return (
-    <section aria-label={where} className="rounded-lg border border-cc-rule-solid bg-cc-paper-2">
-      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-cc-rule px-4 py-3">
-        {/* The doc and the heading id that the issue names. The heading itself is the first line of the section below (or the notice says that it is missing). */}
-        <p className="min-w-0 font-mono text-sm break-words">
-          <span className="text-cc-muted">{section.docId}</span>
-          {section.anchor !== '' && <span className="text-cc-soft">#{section.anchor}</span>}
-        </p>
-        <Link to={docPath(link.slug, section.anchor)} className="inline-flex items-center gap-1 text-sm text-cc-link underline underline-offset-2 cc-focus-ring">
-          Open in the docs
+/**
+ * One line for a doc that the issue links to: the title of the doc and the heading, as a link to that heading in the docs. A heading that the doc does
+ * not have is a notice, not an error, with a link to the doc so that Mark can look for it. The text of the section is not copied here: the doc page has it.
+ */
+function LinkedDoc({ link, heading, title }: { link: DecisionDocLink; heading: string | null; title: string | undefined }) {
+  if (heading === null) {
+    const where = `${link.docId}${link.anchor === '' ? '' : `#${link.anchor}`}`;
+    return (
+      <Notice>
+        This section was not found in the docs: {where}.{' '}
+        <Link to={docPath(link.slug)} className="text-cc-link underline underline-offset-2 cc-focus-ring">
+          Open the doc
         </Link>
-      </header>
-      <div className="px-4 py-4">
-        {section.html === null ? (
-          <Notice>
-            This section was not found in the docs: {where}. The doc or its heading may have been renamed, moved or deleted. The link in the issue names a heading that the doc does not have now.
-          </Notice>
-        ) : (
-          // The html is the doc index's own rendering of the doc (src/server/docs/render.ts): every tag of the doc's text is escaped there,
-          // so a doc cannot run script, and it is put into the page as it is, as on the doc pages. The rules of a doc's text (doc-html) apply.
-          // The first heading of the section sits at the top of the box, so it loses the space and the rule above it that it has between sections of a doc.
-          // The click handler only routes clicks on links, which can be reached and used with the keyboard by themselves.
-          <div className="doc-html [&>:first-child]:mt-0 [&>h2:first-child]:border-t-0 [&>h2:first-child]:pt-0" onClick={onClick} dangerouslySetInnerHTML={{ __html: section.html }} />
-        )}
-      </div>
-    </section>
+      </Notice>
+    );
+  }
+  return (
+    <Link to={docPath(link.slug, link.anchor)} className="text-sm text-cc-link underline underline-offset-2 break-words cc-focus-ring">
+      {title ?? link.docId} › {heading}
+    </Link>
   );
 }
 
-/** The sections that the issue links to, as the docs have them now, one under the other. */
-function LinkedSections({ detail }: { detail: DecisionDetail }) {
-  if (detail.sections.length === 0) return null;
+/** The docs that the issue links to, one line for each, under the Docs label. */
+function LinkedDocs({ detail }: { detail: DecisionDetail }) {
+  const titles = useDocTitles();
+  if (detail.docs.length === 0) return null;
   return (
     <section className="flex flex-col gap-3">
-      <SectionLabel>Linked doc sections</SectionLabel>
-      <div className="flex flex-col gap-4">
-        {detail.sections.map((section, index) => (
-          <LinkedSection key={`${section.docId}#${section.anchor}`} detail={detail} index={index} />
+      <SectionLabel>Docs</SectionLabel>
+      <ul aria-label="Linked docs" className="flex flex-col gap-2">
+        {detail.docs.map((link, index) => (
+          <li key={`${link.docId}#${link.anchor}`}>
+            {/* The heading comes from `sections`, which the server reads from the doc index at each request. The heading in `docs` is as old as the last load of the list (up to a minute). */}
+            <LinkedDoc link={link} heading={detail.sections[index]?.heading ?? null} title={titles.get(link.slug)} />
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }
 
-/** A decision in full: what the issue says, the form (or the options, when it cannot be answered), and the linked doc sections under it. */
+/** A decision in full: what the issue says, the form (or the options, when it cannot be answered), and the links to the docs under it. */
 function DecisionView({ detail, draft }: { detail: DecisionDetail; draft: ReturnType<typeof useAnswerDraft> }) {
   const answerable = detail.state === 'open' && detail.options.length > 0;
   return (
     <div className="flex flex-col gap-8">
       <DecisionCard issue={detail} />
       {answerable ? <AnswerForm issue={detail} draft={draft} /> : <OptionList issue={detail} />}
-      <LinkedSections detail={detail} />
+      <LinkedDocs detail={detail} />
     </div>
   );
 }
 
 /**
- * The page of one decision (`/decisions/<n>`): the question, the options with the recommendation, a form to answer, and under them the doc
- * sections that the issue links to, shown in full so that Mark need not leave the page to read what he decides on. It loads the decision as a
+ * The page of one decision (`/decisions/<n>`): the question, the options with the recommendation, a form to answer, and under them the docs
+ * that the issue links to, as links into the doc page (the text of a doc is not copied here). It loads the decision as a
  * panel, so it has the loading, error and updated-at states of every panel, and it follows the server's events.
  *
  * What Mark has typed in the form lives here and not in the form (see useAnswerDraft): the panel draws its data in another place of the tree

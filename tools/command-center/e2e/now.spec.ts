@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { type APIRequestContext, type Locator, type Page, expect, test } from '@playwright/test';
+import { type APIRequestContext, type Locator, type Page, chromium, expect, test } from '@playwright/test';
 import { E2E_DIR, type GhIssueStore, resetGh, setGhIssues, setGhMode } from './fake-gh';
 import { amberItems, expectAtMostTwoAmberItems, tokenColors, worstTextContrast } from './look';
 
@@ -24,6 +24,7 @@ const LAYOUT_KEY = 'cc.now.layout';
 
 const panel = (page: Page, name: (typeof PANELS)[number]) => page.getByRole('region', { name, exact: true });
 const glassSwitch = (page: Page) => page.getByRole('button', { name: 'Glass panels' });
+const decisionOf = (page: Page) => page.getByRole('region', { name: 'Decision', exact: true });
 
 /** A page must not log an error or a warning to the console: a blocked script or style shows up there, and so does a PlasmaUI that cannot start. */
 function watchConsole(page: Page): string[] {
@@ -210,6 +211,54 @@ test.describe('the panels', () => {
     expect(problems).toEqual([]);
   });
 
+  test('glass canvas spans the window width, scrollbar included', async () => {
+    // PlasmaUI 0.7.0 draws on a region of the window size (innerWidth x innerHeight), and its canvas is `width: 100%`, which is the page width without the scrollbar. When the
+    // two differ, every drawn frame is squeezed toward the left, and the frames stop matching the panels. The canvas must be as wide as the window, scrollbar included.
+    // Playwright hides the scrollbars of a headless browser, and then the two widths are the same and the test would say nothing, so this test starts a browser of its own
+    // that keeps them. A fresh browser compiles the shaders again, so it has a longer limit.
+    test.setTimeout(120_000);
+    const browser = await chromium.launch({ ...(process.env.CI ? {} : { channel: 'msedge' }), ignoreDefaultArgs: ['--hide-scrollbars'] });
+    try {
+      // A short window: the fixture page is taller than it, so the window has a scrollbar.
+      const page = await browser.newPage({ viewport: { width: 1280, height: 500 } });
+      await page.goto(`${ORIGIN}/`);
+      expect(await hasWebGL2(page), 'this browser has no WebGL2: the glass cannot be tested in it').toBe(true);
+      await allLoaded(page);
+      const canvas = page.locator('canvas[aria-hidden="true"]');
+      await expect(canvas).toHaveCount(1, { timeout: 100_000 });
+      const widths = await page.evaluate(() => ({ window: window.innerWidth, page: document.documentElement.clientWidth }));
+      expect(widths.page, 'the window has a scrollbar: the page is narrower than the window').toBeLessThan(widths.window);
+
+      const measure = () =>
+        canvas.evaluate((element) => {
+          const target = element as HTMLCanvasElement;
+          const rect = target.getBoundingClientRect();
+          return { width: rect.width, height: rect.height, backingWidth: target.width, backingHeight: target.height, innerWidth: window.innerWidth, innerHeight: window.innerHeight };
+        });
+      const size = await measure();
+      expect(size.width, 'the canvas is as wide as the window').toBe(size.innerWidth);
+      expect(size.height, 'the canvas is as tall as the window').toBe(size.innerHeight);
+      // The renderer sizes the backing store on its own frame, so the scale of the two axes is read until it settles.
+      await expect
+        .poll(async () => {
+          const now = await measure();
+          return Math.abs(now.backingWidth / now.width - now.backingHeight / now.height);
+        })
+        .toBeLessThan(0.005);
+
+      // The time in the header of each glass panel is clear of the right edge of its panel by the inset.
+      for (const name of PANELS) {
+        const gap = await panel(page, name).evaluate((frame) => {
+          const time = frame.querySelector(':scope > header')?.lastElementChild;
+          return time === null || time === undefined ? Number.NaN : frame.getBoundingClientRect().right - time.getBoundingClientRect().right;
+        });
+        expect(gap, `${name}: the time is clear of the right edge`).toBeGreaterThanOrEqual(MIN_HEADER_INSET);
+      }
+    } finally {
+      await browser.close();
+    }
+  });
+
   test('no WebGL2 gives plain panels and a notice', async ({ page }) => {
     // A browser with no WebGL2 says no to the context that the glass needs.
     await page.addInitScript(() => {
@@ -254,6 +303,57 @@ test.describe('the panels', () => {
     await allLoaded(page);
     await expect(glassSwitch(page)).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('canvas')).toHaveCount(1);
+  });
+});
+
+/** The inset that Mark asked for after he used the tool: the time in a panel header must clear the rounded corner by a clear margin (in pixels, on both sides). */
+const MIN_HEADER_INSET = 20;
+
+/** What the header of a panel measures: its two insets, the corner radius of the frame, and how far the end of its last child is from the frame's right edge. */
+const headerOf = (target: Locator) =>
+  target.evaluate((frame) => {
+    const header = frame.querySelector(':scope > header');
+    if (header === null) throw new Error('This panel has no header.');
+    const style = getComputedStyle(header);
+    const last = header.lastElementChild?.getBoundingClientRect();
+    return {
+      left: Number.parseFloat(style.paddingLeft),
+      right: Number.parseFloat(style.paddingRight),
+      radius: Number.parseFloat(getComputedStyle(frame).borderTopRightRadius),
+      gap: last === undefined ? Number.NaN : frame.getBoundingClientRect().right - last.right,
+    };
+  });
+
+test.describe('the header of a panel', () => {
+  test('S1 panel header has equal insets', async ({ page, request }) => {
+    await page.goto('/');
+    await allLoaded(page);
+    // Glass on and off: the two modes draw the same frame, and the header is inside it in both.
+    for (const mode of ['glass', 'plain']) {
+      if (mode === 'plain') {
+        await glassSwitch(page).click();
+        await expect(page.locator('canvas')).toHaveCount(0);
+      }
+      for (const name of PANELS) {
+        const header = await headerOf(panel(page, name));
+        expect(header.right, `${name} (${mode}): right inset equals left inset`).toBe(header.left);
+        expect(header.right, `${name} (${mode}): the inset is at least the corner radius`).toBeGreaterThanOrEqual(header.radius);
+        expect(header.right, `${name} (${mode}): the inset is the one that Mark asked for`).toBeGreaterThanOrEqual(MIN_HEADER_INSET);
+        // The end of the "updated" time clears the corner by the inset (a pixel of border is the one thing that the box adds).
+        expect(header.gap, `${name} (${mode}): the time is clear of the right edge`).toBeGreaterThanOrEqual(header.right - 0.5);
+      }
+    }
+
+    // The frame of the other pages is the same component, so it has the same header.
+    await seedGithub(request);
+    try {
+      await page.goto('/decisions/41');
+      const decision = await headerOf(decisionOf(page));
+      expect(decision.right).toBe(decision.left);
+      expect(decision.right).toBeGreaterThanOrEqual(Math.max(decision.radius, MIN_HEADER_INSET));
+    } finally {
+      await resetGithub(request);
+    }
   });
 });
 
@@ -407,6 +507,36 @@ test.describe('the data of the panels', () => {
     await expect(notice).toHaveCount(0);
   });
 
+  test('S2 pull requests panel shows open PRs and one merged link', async ({ page, request }) => {
+    await seedGithub(request);
+    await page.goto('/');
+    await allLoaded(page);
+    const prs = panel(page, 'Pull requests');
+
+    // The five open pull requests of the fixture are rows.
+    await expect(prs).toContainText('Open (5)');
+    for (const title of ['the widget is ready to merge', 'the gadget breaks a test', 'a draft that is not ready', 'checks are still running', 'no checks yet']) {
+      await expect(prs.getByRole('link', { name: new RegExp(title) })).toBeVisible();
+    }
+
+    // The merged ones (and the closed one) are not listed: no group, no row, no count. The server still sends them (see the panels spec).
+    await expect(prs).not.toContainText('Merged in the last 7 days');
+    for (const title of ['merged yesterday', 'merged earlier this week', 'merged last week', 'closed without a merge']) await expect(prs).not.toContainText(title);
+    await expect(prs.getByRole('listitem')).toHaveCount(5);
+
+    // One link for them, to the filtered view of the repository, in a new tab like the other links that leave the site.
+    const merged = prs.getByRole('link', { name: 'Merged pull requests' });
+    await expect(merged).toHaveCount(1);
+    await expect(merged).toHaveAttribute('href', 'https://github.com/fixture-owner/fixture-repo/pulls?q=is%3Apr+is%3Amerged');
+    await expect(merged).toHaveAttribute('target', '_blank');
+    await expect(merged).toHaveAttribute('rel', /noreferrer/);
+    // It sits under the last open row.
+    const rows = await prs.getByRole('listitem').last().boundingBox();
+    const link = await merged.boundingBox();
+    expect(link?.y).toBeGreaterThan((rows?.y ?? Number.POSITIVE_INFINITY) + (rows?.height ?? 0) - 1);
+    await expectAtMostTwoAmberItems(page);
+  });
+
   test('each panel has an empty state', async ({ page }) => {
     // The server's answers are replaced by empty ones, so every panel has nothing to show.
     const empty = <T,>(data: T) => ({ ok: true, data, updatedAt: new Date().toISOString() });
@@ -415,7 +545,7 @@ test.describe('the data of the panels', () => {
     await page.route('**/api/github', (route) => route.fulfill({ json: empty({ open: [], merged: [] }) }));
     await page.route('**/api/status', (route) => route.fulfill({ json: empty({ updated: null, rightNow: { heading: 'Right now', html: '' }, nextUpForMark: [], milestones: [] }) }));
     await page.route('**/api/git', (route) => route.fulfill({ json: empty({ current: null, ahead: null, behind: null, branches: [], commits: [] }) }));
-    await page.route('**/api/health', (route) => route.fulfill({ json: { ok: true, name: 'Shadow Jog Command Center', version: '0.0.0', startedAt: new Date().toISOString(), gameUrl: 'http://localhost:3007', links: [] } }));
+    await page.route('**/api/health', (route) => route.fulfill({ json: { ok: true, name: 'Shadow Jog Command Center', version: '0.0.0', startedAt: new Date().toISOString(), gameUrl: 'http://localhost:3007', githubRepo: 'fixture-owner/fixture-repo', links: [] } }));
     await page.goto('/');
     await allLoaded(page);
 
@@ -423,7 +553,8 @@ test.describe('the data of the panels', () => {
     await expect(panel(page, 'Your move').getByRole('list')).toHaveCount(0);
     await expect(panel(page, 'Running')).toContainText('Nothing is running right now.');
     await expect(panel(page, 'Pull requests')).toContainText('No open pull requests.');
-    await expect(panel(page, 'Pull requests')).toContainText('No pull request was merged in the last 7 days.');
+    // The link to the merged ones is there when nothing is open too: it is not about the list.
+    await expect(panel(page, 'Pull requests').getByRole('link', { name: 'Merged pull requests' })).toHaveAttribute('href', 'https://github.com/fixture-owner/fixture-repo/pulls?q=is%3Apr+is%3Amerged');
     await expect(panel(page, 'Status')).toContainText('This section of status.md has no text.');
     await expect(panel(page, 'Status')).toContainText('No milestones are listed.');
     await expect(panel(page, 'Status')).toContainText('No branch is checked out');

@@ -1,4 +1,4 @@
-import { PlasmaProvider, usePlasmaRuntime } from '@cruxgarden/plasma-ui';
+import { PlasmaCanvas, PlasmaProvider, usePlasmaRuntime } from '@cruxgarden/plasma-ui';
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { moodFromTokens, readPageToken } from './moodFromTokens';
 import { supportsWebGL2 } from './webgl';
@@ -149,8 +149,15 @@ export function GlassProvider({ children }: { children: ReactNode }) {
         highlight={0}
         pointerDrop={false}
         blend={16}
-        canvas={glass && painted}
+        canvas={false}
       >
+        {/*
+          The canvas is drawn here, and not by the provider, for its size. PlasmaUI 0.7.0 draws on a region of the window size (`innerWidth` by `innerHeight`), but its own
+          canvas is `width: 100%` and `height: 100%`, which is the width of the page without the vertical scrollbar (15 to 17 pixels narrower). The browser then squeezes
+          the picture toward the left, and the frames of the panels stop matching the panels (the "Updated" time touches the right rim). `100vw` and `100vh` include the
+          scrollbar, so the canvas is as wide as the region that PlasmaUI draws. (e2e/now.spec.ts: "glass canvas spans the window width, scrollbar included".)
+        */}
+        {glass && painted && <PlasmaCanvas style={{ width: '100vw', height: '100vh' }} />}
         {glass && painted && <RendererWatch onFailed={markFailed} />}
         {children}
       </PlasmaProvider>
