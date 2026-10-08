@@ -157,7 +157,7 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
 - `?scene=stage&stage=ID`: straight to a chapter preset (`start`, `town`, `sinkline`, `annex`, `finale`:
   `game/stages.ts`), with its party, levels, gear and flags.
 - `?scene=field&map=ID&x=&y=`: straight into a map.
-- `?scene=battle&enc=ID&bg=ID[&boss]`: a battle on loop. Add `&hud=2` (dev builds only; it is read once, when the page loads) to put the battle HUD in a centered 480x270 block, D6 option 2 of `docs/PIVOT-640.md`; the default is option 1, the HUD at the screen edges.
+- `?scene=battle&enc=ID&bg=ID[&boss]`: a battle on loop.
 - `?scene=mapview&map=ID`: the whole map rendered.
 - `?scene=chars[&zoom=4][&npcs][&battlers]`, `?scene=bestiary[&page=1]`, `?scene=portraits`, `?scene=font`:
   asset sheets.

@@ -26,36 +26,13 @@ export { BHT, BW, WORLD_SCALE };
 export interface Rect { x: number; y: number; w: number; h: number }
 
 /**
- * The share of the screen that HUD option 2 keeps its HUD in: three quarters each way, which is
- * 480x270 on a 640x360 screen, the size of the screen before the move (so the old HUD layout
- * fits it exactly).
+ * The HUD frame: the one rectangle that every HUD anchor in `hudLayout` derives from. Mark chose
+ * (D6, Review 2, 2026-10-08) to let the HUD hug the screen edges, so the frame is the whole
+ * screen. A future HUD editor changes this one rectangle (or hands `hudLayout` another one) and
+ * every menu, card, strip, banner and cut-in follows; the tests do that with an inset frame. The
+ * world rows below (the party's feet, the enemy row) are not part of the HUD and do not follow it.
  */
-const HUD_BLOCK = 3 / 4;
-
-/**
- * The HUD frame for one of the two options Mark chooses between (D6). Option 1: the HUD hugs the
- * screen edges (the frame is the whole screen). Option 2: the HUD stays in a centered block
- * (`HUD_BLOCK` of the screen each way). Everything else is derived from the frame, so choosing an
- * option changes one rectangle and no code path.
- */
-export function hudFrameFor(option: 1 | 2): Rect {
-  if (option === 1) return { x: 0, y: 0, w: W, h: H };
-  const w = W * HUD_BLOCK, h = H * HUD_BLOCK;
-  return { x: (W - w) / 2, y: (H - h) / 2, w, h };
-}
-
-/**
- * Which option the running game uses. 1 always, except in a dev build, where `?hud=2` on the page's
- * address picks option 2 for the review pictures (read once, when this module loads). A shipped
- * build never reads the address: `import.meta.env.DEV` is false there, so the check is gone.
- */
-function hudOption(): 1 | 2 {
-  if (!import.meta.env.DEV || typeof location === 'undefined') return 1;
-  return new URLSearchParams(location.search).get('hud') === '2' ? 2 : 1;
-}
-
-/** The HUD frame in use: the one rectangle every HUD anchor below derives from. */
-export const HUD_FRAME: Rect = hudFrameFor(hudOption());
+export const HUD_FRAME: Rect = { x: 0, y: 0, w: W, h: H };
 
 /** A status card (one party member's panel) and the gap between neighbors, in screen pixels. */
 export const CARD_W = 116, CARD_H = 52, CARD_GAP = 3;
@@ -63,8 +40,18 @@ export const CARD_W = 116, CARD_H = 52, CARD_GAP = 3;
 export const CARD_RAISE = 5;
 /** The cards' top edge sits this far above the frame's bottom edge. */
 const PANEL_INSET = 56;
-/** One face in the turn-order strip, and the gap between entries. */
-export const ORDER_FACE = 13, ORDER_GAP = 4;
+/**
+ * The turn-order strip: one face is `ORDER_FACE` wide (the picture is `ORDER_THUMB`, one pixel less,
+ * so neighbors do not touch), an entry is `ORDER_ENTRY_H` tall, and entries are `ORDER_GAP` apart.
+ */
+export const ORDER_FACE = 13, ORDER_THUMB = ORDER_FACE - 1, ORDER_ENTRY_H = 14;
+const ORDER_GAP = 4;
+/**
+ * The "TURN" label's top is this far above the strip's first entry. Its letters (eight rows with
+ * their shadow) must end above the frame that the entry acting now wears, which reaches 3 px
+ * above the entry, so it is 12 and not 10 (at 10 the two overlapped by 2 px).
+ */
+export const ORDER_LABEL_ABOVE = 12;
 /**
  * The strip's column is as wide as its widest entry (a combo shows one face per partner, and the
  * widest combo has three) plus what the entry acting now adds (it steps 5 px toward the field and
@@ -73,7 +60,7 @@ export const ORDER_FACE = 13, ORDER_GAP = 4;
 export const STRIP_MAX_FACES = 3;
 export const ORDER_COLUMN_W = STRIP_MAX_FACES * ORDER_FACE + 1 + 13;
 /** Character cut-ins (a combo's partners, sliding in at the sides): card sizes, in screen pixels. */
-export const CUTIN_W = 132, CUTIN_W_LINE = 184, CUTIN_H = 58;
+const CUTIN_W = 132, CUTIN_W_LINE = 184, CUTIN_H = 58;
 /** A cut-in's top is this far above the cards' top, and the next row is this far above that. */
 const CUTIN_ABOVE_PANEL = 82, CUTIN_ROW = 62;
 /** Space between a cut-in and the frame's edge, or the turn strip's column. */
@@ -98,14 +85,18 @@ const STATUS_FROM_TOP = 24, TARGET_FROM_TOP = 44;
 const TARGET_FROM_SIDE = 8, TARGET_STRIP_GAP = 4;
 /** The top line can wrap to three lines (6 to 45): nothing else drawn at the top may enter this band. */
 const TOP_BAND = 46;
-/** The strip's column starts this far below the frame's top: under the top band and its "TURN" label. */
+/** The strip's column starts this far below the frame's top: under the top band and its "TURN" label (`ORDER_LABEL_ABOVE`). */
 const ORDER_FROM_TOP = 58;
 /** The menus and the strip sit this far in from the frame's sides. */
 const MENU_INSET = 4, ORDER_INSET = 6;
 /** The command window: width, enough for "Programs"/"Spirits" plus the cursor. */
 export const CMD_W = 84;
+/** The round menu (Fight / Repeat / Auto / Run) is as wide as the command window and this tall. */
+export const ROUND_MENU_H = 54;
+/** Every menu window ends this far above the cards' top edge; the next one stacks above it. */
+export const MENU_ABOVE_PANEL = 6;
 
-/** Every HUD anchor, derived from one frame. Pure: the tests build it for either option. */
+/** Every HUD anchor, derived from one frame. Pure: the tests build it for the game frame and for an inset one. */
 export interface HudLayout {
   readonly frame: Rect;
   /** Top of the party panel (the status cards). */
@@ -186,7 +177,7 @@ export const HUD = hudLayout(HUD_FRAME);
 export const PANEL_Y = HUD.panelY;
 /** Battle menus hug the frame's edge. */
 export const MENU_X = HUD.menuX;
-export const TOP_BAND_BOTTOM = HUD.topBandBottom;
+const TOP_BAND_BOTTOM = HUD.topBandBottom;
 export const ORDER_TOP = HUD.orderTop, ORDER_RIGHT = HUD.orderRight, ORDER_LEFT = HUD.orderLeft, ORDER_BOTTOM = HUD.orderBottom;
 /** Effect frames Hex's deck stays up over their card when they run a program. */
 export const DECK_CUT_LIFE = 56;
@@ -195,9 +186,12 @@ export const DECK_CUT_LIFE = 56;
 
 /**
  * Party feet sit well below the panel top: an over-the-shoulder view, where the status cards cover
- * the crew's legs and only heads, shoulders and raised arms show. The feet are one constant below
- * the panel's top edge in screen pixels (`PARTY_BOTTOM * WORLD_SCALE - PANEL_Y` is 40), the same
- * relation the 480x270 layout had. The world keeps this floor in both HUD options.
+ * the crew's legs and only heads, shoulders and raised arms show. The feet are 40 screen pixels
+ * below the panel's top edge (`PARTY_BOTTOM * WORLD_SCALE - PANEL_Y`), the same relation the
+ * 480x270 layout had (127 * 2 against 214); tests/battle-geom.test.ts pins it. It holds because
+ * the HUD frame is the whole screen: `PARTY_BOTTOM` hangs from the world's bottom edge and
+ * `PANEL_Y` from the frame's. A frame that was not the whole screen would need `PARTY_BOTTOM` to
+ * follow it.
  */
 export const PARTY_BOTTOM = BHT - 8;
 /** From a party member's feet up to the middle of their body: where rings, arrows and effects aim. */
@@ -217,20 +211,35 @@ export function partyX(i: number, n: number, hud: HudLayout = HUD): number {
 
 /**
  * Regular enemies stand further back on the floor than the background's ground line, so the
- * party's heads sit below their feet; bosses stay forward and loom. The Lurker (it wades) stands a
+ * party's heads sit below their feet: their feet stay at least `ENEMY_CLEARANCE` world pixels
+ * above the tallest head (tests/battle-geom.test.ts checks it on every backdrop). Bosses stay
+ * forward and loom over the party, as they did at 480x270 (their feet then reached 22 to 28
+ * pixels into the head row); a boss may stand up to `BOSS_OVERLAP_MAX` world pixels into it, which
+ * is a few rows now (the test checks the story's boss fights). The Lurker (it wades) stands a
  * little further back, and every second enemy in a row a step further than its neighbor.
  */
-export const ENEMY_LIFT = 14, BOSS_LIFT = 4, LURKER_LIFT = 4, ENEMY_STAGGER = 4;
+const ENEMY_LIFT = 14, BOSS_LIFT = 4, LURKER_LIFT = 4, ENEMY_STAGGER = 4;
+/** The room between a regular enemy's feet and the tallest party member's head, in world pixels. */
+export const ENEMY_CLEARANCE = 2;
+/** How far a boss's feet may reach below the top of the party's heads, in world pixels. */
+export const BOSS_OVERLAP_MAX = 6;
 /** Space between neighbors in the enemy row: the formation spreads across the wider floor. */
 export const ENEMY_GAP = 20;
 /**
- * The world row just under the top prompt strip (a window at the frame's top, screen y 6 to 23):
- * an enemy whose first opaque row would sit above it is placed lower, so a tall boss's head is
- * never hidden behind "Give each crew member orders" (the Warden's visor was).
+ * The world row just under the top text band (the top line can wrap to three lines, so the band
+ * is the largest the text window grows to): an enemy whose first opaque row would sit above it is
+ * placed lower, so a tall boss's head is never hidden behind "Give each crew member orders" or a
+ * pinned tell (the Warden's visor was). Derived from the band, not from the one-line prompt.
  */
-export const PROMPT_CLEAR = Math.round(HUD_FRAME.y / WORLD_SCALE) + 14;
+export const PROMPT_CLEAR = Math.ceil(TOP_BAND_BOTTOM / WORLD_SCALE);
+/**
+ * How far down an enemy the middle of its body is (a share of its height): where a target arrow,
+ * a ring or a number aims. `FIELD_MID` is the same share of the world, for a unit that is not on
+ * the field.
+ */
+export const ENEMY_MID_AT = 0.45;
 /** Where a unit that is not on the field aims: over the enemy row's middle. */
-export const FIELD_MID = Math.round(BHT * 0.45);
+export const FIELD_MID = Math.round(BHT * ENEMY_MID_AT);
 /** Damage numbers never rise above the top band: the lowest y a floater may start at (world pixels). */
 export const FLOATER_TOP = Math.round(TOP_BAND_BOTTOM / WORLD_SCALE) - 1;
 
@@ -266,7 +275,7 @@ export function orderStripLayout(faces: readonly number[], side: 'left' | 'right
   const out: { x: number; y: number; w: number; h: number }[] = [];
   let y = hud.orderTop;
   for (const n of faces) {
-    const w = n * ORDER_FACE + 1, h = 14;
+    const w = n * ORDER_FACE + 1, h = ORDER_ENTRY_H;
     if (y + h > hud.orderBottom) break;
     out.push({ x: side === 'right' ? hud.orderRight - w : hud.orderLeft, y, w, h });
     y += h + ORDER_GAP;

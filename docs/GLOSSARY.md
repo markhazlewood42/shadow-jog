@@ -3,7 +3,7 @@ type: reference
 title: Shadow Jog — Glossary of Terms and Concepts
 project: shadow-jog
 created: 2026-09-29
-updated: 2026-10-03
+updated: 2026-10-08
 tags: [glossary, setting, lore, review]
 ---
 
@@ -259,6 +259,7 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | **Stage** (battleground) | (Dev tool word.) One place where fights happen, such as the street or the sewer: backdrop, horizon and floor, depth rows, and where the heroes and each enemy count stand. Lives in `src/data/stages.json`; a map names it per area with `bg`. It does not say WHO fights (that is the encounter, an RPG Maker "troop"). |
 | **Mirror** (enemy facing) | (Dev tool word.) Flipping an enemy's picture left-to-right so it looks at the heroes, who stand on the left. Which enemy sprites are mirrored is `src/data/enemyfacing.json`; the Battle Stage Editor's "Mirror (face the heroes)" switch edits it for every appearance of that enemy. |
 | **Hero proportions** (Height, Build) | (Dev tool word.) How tall and how broad each hero stands in battle, as a multiple of the drawn picture: Kit and Rook are human, Hex is a dwarf (shorter, stouter), Sable is an orc (taller, broad). Two numbers per hero in `src/data/heroes.json`, the same in every battle; the Battle Stage Editor's "Proportions" group edits them. Made by adding or removing whole rows and columns of pixels, never by stretching (`docs/CONCEPTS.md`). |
+| **HUD frame** | (Dev word.) The one rectangle that every battle HUD piece is placed from: the menus, the status cards, the turn strip, the top text band, the target box, the cut-ins and the banners. It is the whole screen, so the HUD hugs the screen edges (Mark's choice at Review 2, D6 of `docs/PIVOT-640.md`). `HUD_FRAME` and `hudLayout` in `src/scenes/battlekit/geom.ts`. |
 | **Global HUD** | The one battle HUD layout every fight uses (`src/data/hud.json`). A stage may override single boxes; it then keeps only the fields that differ. The Battle Stage Editor calls this switch "Different on this stage". |
 | **Depth haze** | In the side-view battle, fighters on the back rows are blended a little toward the stage's fog colour, so distance reads without shrinking anyone. |
 

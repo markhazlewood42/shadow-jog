@@ -25,9 +25,11 @@ export const HORIZON = 84;
  * (tests/battle-geom.test.ts). The lines are the old ones (32 to 42 rows below the old horizon),
  * 6 rows further down for the floors with regular enemies: a lone enemy then stands close to the
  * party instead of far back on the deeper floor (WP2b, problem 9 of the mock). The junction and the
- * core hold only bosses, which loom, so they keep the old offsets.
+ * core hold only bosses, which loom, so they keep the old offsets, except that the junction's is 2
+ * rows less than the old one: with the old offset a regular enemy's feet would reach the top of the
+ * tallest hero's head (no clearance), and the test holds every floor to `ENEMY_CLEARANCE`.
  */
-const GROUND_BELOW_HORIZON = { street: 38, barrens: 38, rustyard: 38, park: 38, sewer: 40, junction: 42, lab: 38, core: 36 } as const;
+const GROUND_BELOW_HORIZON = { street: 38, barrens: 38, rustyard: 38, park: 38, sewer: 40, junction: 40, lab: 38, core: 36 } as const;
 
 /**
  * How much bigger the backdrop is than the 240x135 one that the particle counts below were tuned
@@ -843,34 +845,64 @@ function railing(c: Ctx, x0: number, x1: number, y: number, rim: string): void {
 }
 
 /**
- * How far each street cable reaches in from its side, as a share of the backdrop's width (the two
- * cables mirror each other), and how tall the corner railings stand (rows up from the bottom edge).
+ * Where each framing puts its pieces (the editor rule: every anchor named once, in one small record
+ * per framing). The backdrop is `BW` by `BH`, and a piece hangs from the edge it frames: a share of
+ * the width (`BW`) for something that reaches in from a side, rows up from the bottom edge (`BH`)
+ * for something that stands on the floor, so the framing follows the world's size.
  */
-const STREET_CABLE_REACH = 7 / 24, STREET_RAIL_H = 31;
+const STREET_FRAME = {
+  /** Each cable reaches this far in from its side (the two mirror each other). */
+  cableReach: Math.round(BW * (7 / 24)),
+  /** The corner railings: width in from the side, and height up from the bottom edge. */
+  railW: 34, railH: 31,
+};
+const JUNCTION_FRAME = {
+  /** Ceiling pipes: width in from each side, and thickness. */
+  pipeLeftW: 58, pipeLeftH: 6, pipeRightW: 70, pipeRightH: 5,
+  /** Where the drips fall, as x (the first two from the left edge, the others from the right). */
+  dripX: [18, 44, BW - 50, BW - 22],
+  /** The catwalk railings in the near corners: width in from the side, height up from the bottom edge. */
+  railW: 28, railH: 27,
+};
+const LAB_FRAME = {
+  /** The conduit pipe across the top left: its width in from the left edge, and its top row. */
+  pipeW: 84, pipeY: 2,
+  /** The drop line off the pipe's end (x, first row, length); its warning lamp hangs under it. */
+  dropX: 80, dropTop: 7, dropLen: 10,
+  /** The consoles in the near corners: width in from the side, height up from the bottom edge. */
+  consoleW: 30, consoleH: 23,
+};
+const CORE_FRAME = {
+  /** Cable bundles, as shares of the width that each reaches in from its side: two on the left (high, low), one on the right. */
+  cableLeftHigh: 3 / 16, cableLeftLow: 23 / 160, cableRight: 1 / 5,
+  /** The field pylon at the near right: its right edge in from the side, its width, and its height up from the bottom edge. */
+  pylonFromRight: 8, pylonW: 10, pylonH: 65,
+};
 
 const FRAMING: Record<string, () => HTMLCanvasElement> = {
   street: () => {
     const s = surface(BW, BH), c = s.ctx;
-    const reach = Math.round(BW * STREET_CABLE_REACH);
-    cable(c, -4, 6, reach, 14, 9, '#ffc27a');
-    cable(c, BW - reach, 12, BW + 4, 4, 8, '#ffc27a');
-    railing(c, 0, 34, BH - STREET_RAIL_H, '#ffc27a');
-    railing(c, BW - 34, BW, BH - STREET_RAIL_H, '#ffc27a');
+    const f = STREET_FRAME;
+    cable(c, -4, 6, f.cableReach, 14, 9, '#ffc27a');
+    cable(c, BW - f.cableReach, 12, BW + 4, 4, 8, '#ffc27a');
+    railing(c, 0, f.railW, BH - f.railH, '#ffc27a');
+    railing(c, BW - f.railW, BW, BH - f.railH, '#ffc27a');
     return s.canvas;
   },
   junction: () => {
     const s = surface(BW, BH), c = s.ctx;
+    const f = JUNCTION_FRAME;
     // Pipes along the ceiling, dripping; a catwalk rail in the near corners.
     c.fillStyle = FG_DARK;
-    c.fillRect(0, 0, 58, 6);
-    c.fillRect(BW - 70, 0, 70, 5);
+    c.fillRect(0, 0, f.pipeLeftW, f.pipeLeftH);
+    c.fillRect(BW - f.pipeRightW, 0, f.pipeRightW, f.pipeRightH);
     c.fillStyle = '#ffcf7a';
-    c.fillRect(0, 5, 58, 1);
-    c.fillRect(BW - 70, 4, 70, 1);
+    c.fillRect(0, f.pipeLeftH - 1, f.pipeLeftW, 1);
+    c.fillRect(BW - f.pipeRightW, f.pipeRightH - 1, f.pipeRightW, 1);
     c.fillStyle = '#6a9ab0';
-    for (const x of [18, 44, BW - 50, BW - 22]) c.fillRect(x, 7, 1, 2);
-    railing(c, 0, 28, BH - 27, '#ffcf7a');
-    railing(c, BW - 28, BW, BH - 27, '#ffcf7a');
+    for (const x of f.dripX) c.fillRect(x, f.pipeLeftH + 1, 1, 2);
+    railing(c, 0, f.railW, BH - f.railH, '#ffcf7a');
+    railing(c, BW - f.railW, BW, BH - f.railH, '#ffcf7a');
     return s.canvas;
   },
   lab: () => {
@@ -891,15 +923,16 @@ const FRAMING: Record<string, () => HTMLCanvasElement> = {
         c.fillRect(x, y - 1, 3, 1);
       }
     };
-    pipe(0, 84, 2);
+    const f = LAB_FRAME;
+    pipe(0, f.pipeW, f.pipeY);
     // A drop line off the pipe's end, with a warning lamp.
     c.fillStyle = FG_DARK;
-    c.fillRect(80, 7, 1, 10);
+    c.fillRect(f.dropX, f.dropTop, 1, f.dropLen);
     c.fillStyle = '#ff3a4a';
-    c.fillRect(79, 17, 3, 2);
-    // The console tops stand 23 rows up from the bottom edge.
-    const top = BH - 23;
-    for (const [x, w] of [[0, 30], [BW - 30, 30]] as const) {
+    c.fillRect(f.dropX - 1, f.dropTop + f.dropLen, 3, 2);
+    // The console tops stand `consoleH` rows up from the bottom edge.
+    const top = BH - f.consoleH;
+    for (const [x, w] of [[0, f.consoleW], [BW - f.consoleW, f.consoleW]] as const) {
       c.fillStyle = FG_DARK;
       c.fillRect(x, top, w, BH - top);
       c.fillStyle = '#3a2830';
@@ -914,16 +947,18 @@ const FRAMING: Record<string, () => HTMLCanvasElement> = {
     const s = surface(BW, BH), c = s.ctx;
     // The Warden's containment: heavy cable bundles hanging from the top corners, a field pylon
     // standing at the near right.
-    cable(c, -6, 2, 60, 4, 16, '#8ae8ff');
-    cable(c, -6, 8, 46, 10, 12, '#8ae8ff');
-    cable(c, BW + 6, 3, BW - 64, 5, 15, '#8ae8ff');
-    // The pylon's top stands 65 rows up from the bottom edge.
-    const pylon = BH - 65;
+    const f = CORE_FRAME;
+    const reach = (share: number): number => Math.round(BW * share);
+    cable(c, -6, 2, reach(f.cableLeftHigh), 4, 16, '#8ae8ff');
+    cable(c, -6, 8, reach(f.cableLeftLow), 10, 12, '#8ae8ff');
+    cable(c, BW + 6, 3, BW - reach(f.cableRight), 5, 15, '#8ae8ff');
+    // The pylon's top stands `pylonH` rows up from the bottom edge; its cap is wider than its post.
+    const pylon = BH - f.pylonH, post = BW - f.pylonFromRight - f.pylonW;
     c.fillStyle = FG_DARK;
-    c.fillRect(BW - 18, pylon, 10, BH - pylon);
-    c.fillRect(BW - 22, pylon, 18, 4);
+    c.fillRect(post, pylon, f.pylonW, BH - pylon);
+    c.fillRect(post - 4, pylon, f.pylonW + 8, 4);
     c.fillStyle = '#8ae8ff';
-    for (let y = pylon + 8; y < BH; y += 6) c.fillRect(BW - 17, y, 8, 1);
+    for (let y = pylon + 8; y < BH; y += 6) c.fillRect(post + 1, y, f.pylonW - 2, 1);
     return s.canvas;
   },
 };

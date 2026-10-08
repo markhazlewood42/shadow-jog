@@ -13,6 +13,7 @@ import { ENEMIES } from '../data/enemies';
 import { ITEMS } from '../data/items';
 import { LOOKS } from '../data/looks';
 import { MEMBERS } from '../data/party';
+import { must } from '../engine/assert';
 import { surface, type Ctx, type Surface } from '../engine/canvas';
 import { shade } from '../engine/color';
 import { drawText, fitText, measure } from '../engine/font';
@@ -29,7 +30,7 @@ import { battleDriver } from './battlekit/driver';
 import { TimingWindow, timingWord } from './battlekit/timing';
 import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
-import { BHT, BW, DECK_CUT_LIFE, FIELD_MID, FLOATER_TOP, HUD, MENU_X, PANEL_Y, PARTY_BOTTOM, PARTY_MID, partyX, placeEnemies, type EnemyBox } from './battlekit/geom';
+import { BHT, BW, DECK_CUT_LIFE, ENEMY_MID_AT, FIELD_MID, FLOATER_TOP, HUD, MENU_X, PANEL_Y, PARTY_BOTTOM, PARTY_MID, partyX, placeEnemies, type EnemyBox } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
 import { postfx } from '../engine/postfx';
 import { playMoment } from '../engine/moments';
@@ -1057,9 +1058,13 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const next = new Map<number, { x: number; y: number; art: EnemyArt }>();
       const living = this.battle.enemies.filter((e) => !this.dead.has(e.uid)).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
       const arts = living.map((e) => enemyArt(ENEMIES[e.key]!.sprite));
-      // The row rule is battlekit/geom.ts placeEnemies (pure, so the tests check it).
-      const spots = placeEnemies(living.map((e, i) => this.enemyBox(e, arts[i]!)), this.bg.ground);
-      for (const [i, e] of living.entries()) next.set(e.uid, { x: spots[i]!.x, y: spots[i]!.y, art: arts[i]! });
+      // The row rule is battlekit/geom.ts placeEnemies (pure, so the tests check it): one spot per
+      // enemy, in the same order, so spot `i` belongs to enemy `i`.
+      const spots = placeEnemies(living.map((e, i) => this.enemyBox(e, must(arts[i], 'enemy art'))), this.bg.ground);
+      for (const [i, e] of living.entries()) {
+        const spot = must(spots[i], 'enemy spot'), art = must(arts[i], 'enemy art');
+        next.set(e.uid, { x: spot.x, y: spot.y, art });
+      }
       // The fallen keep their last spot while they dissolve.
       for (const e of this.battle.enemies) if (!next.has(e.uid) && prev.has(e.uid)) next.set(e.uid, prev.get(e.uid)!);
       this.layout = next;
@@ -1067,8 +1072,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     let p = this.layout.get(u.uid);
     if (!p) {
       const art = enemyArt(ENEMIES[u.key]!.sprite);
-      const [spot] = placeEnemies([this.enemyBox(u, art)], this.bg.ground);
-      p = { x: spot!.x, y: spot!.y, art };
+      const spot = must(placeEnemies([this.enemyBox(u, art)], this.bg.ground)[0], 'enemy spot');
+      p = { x: spot.x, y: spot.y, art };
       this.layout.set(u.uid, p);
     }
     return p;
@@ -1081,7 +1086,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   private enemyCenter(u: Combatant): Pt {
     const p = this.enemyPos(u);
-    return { x: p.x + p.art.w / 2, y: p.y + p.art.h * 0.45 };
+    return { x: p.x + p.art.w / 2, y: p.y + p.art.h * ENEMY_MID_AT };
   }
 
   partyPos(u: Combatant): Pt {

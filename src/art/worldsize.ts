@@ -16,5 +16,5 @@ import { H, W } from '../engine/game';
  * silently.
  */
 export const WORLD_SCALE = 2;
-/** The battle world's size in world pixels: the screen divided by `WORLD_SCALE` (240x135 on a 480x270 screen). */
+/** The battle world's size in world pixels: the screen divided by `WORLD_SCALE` (320x180 on a 640x360 screen). */
 export const BW = W / WORLD_SCALE, BHT = H / WORLD_SCALE;

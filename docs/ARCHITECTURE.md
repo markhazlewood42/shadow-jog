@@ -12,7 +12,7 @@ tags: [architecture, code, reference]
 How the code is organised and how the pieces talk to each other. For *what* the game is, read `docs/GDD.md`; for
 day-to-day work (commands, tests, conventions, recipes), read `docs/DEVELOPING.md`.
 
-**In one paragraph:** a browser game with **no runtime dependencies today** (a build choice, not a requirement: high-quality, free dependencies are fine, Mark 2026-10-02). Vite + TypeScript (strict), Canvas 2D at **480×270**, scaled to the window. The art is **generated in code** (sprites from letter grids and shape routines, tiles from procedural painters), with **drawn art** from the PixelLab pass loaded over it at startup where Mark picked it (§7, "Drawn art"); music comes from a small score format played by a WebAudio synthesizer. A **scene stack** runs at a fixed 60 Hz. The **field** (towns, dungeons, world map) runs **story scripts**, async functions that `await` dialogue, battles and camera moves. **Battles** are a pure, deterministic engine that the battle scene replays as animation. The game state is one plain object, saved to `localStorage`.
+**In one paragraph:** a browser game with **no runtime dependencies today** (a build choice, not a requirement: high-quality, free dependencies are fine, Mark 2026-10-02). Vite + TypeScript (strict), Canvas 2D at **640×360**, scaled to the window. The art is **generated in code** (sprites from letter grids and shape routines, tiles from procedural painters), with **drawn art** from the PixelLab pass loaded over it at startup where Mark picked it (§7, "Drawn art"); music comes from a small score format played by a WebAudio synthesizer. A **scene stack** runs at a fixed 60 Hz. The **field** (towns, dungeons, world map) runs **story scripts**, async functions that `await` dialogue, battles and camera moves. **Battles** are a pure, deterministic engine that the battle scene replays as animation. The game state is one plain object, saved to `localStorage`.
 
 ---
 
@@ -84,7 +84,7 @@ colour. Every character the game uses must exist in the font (`tests/glyphs.test
 
 ### Other engine pieces
 `canvas.ts` (`surface(w, h)`: an offscreen canvas and its context, pixel-art configured), `display.ts` (integer or
-fill scaling of the 480×270 back buffer), `color.ts` (`rgb`, `mix`, `shade`: `shade(c, -x)` darkens *and* shifts
+fill scaling of the 640×360 back buffer), `color.ts` (`rgb`, `mix`, `shade`: `shade(c, -x)` darkens *and* shifts
 hue; use `mix(c, dark, t)` for a true darkening), `rng.ts` (seeded mulberry32 `Rng`, `hash2` noise, named
 `streams` for encounters and battles so saves are reproducible), `errors.ts` (`notice(text, tone)`,
 `reportError`), `assert.ts` (`must(value, what)`: the only sanctioned non-null assertion in `engine/` and
@@ -277,7 +277,7 @@ round, victory, defeat, fleeing). Its parts:
 - `timing.ts` (the ring and its judgement), `orders.ts` (building menus and orders, combo hints), `motion.ts` (the
   swing's beats), `sprites.ts` (enemy frame caches, recolours, dissolve), `geom.ts` (layout constants: the world rows, and the HUD frame that every HUD anchor derives from, `hudLayout`),
   `tables.ts` (poses, sounds and stings per effect), `intro.ts` (the glass-shatter transition), `driver.ts` (test hook).
-- Three layers under a full-resolution UI: the backdrop world (240×135, scaled 2×), the **enemies** on a
+- Three layers under a full-resolution UI: the backdrop world (320×180, `BW` by `BHT`, scaled 2×), the **enemies** on a
   screen-resolution layer (drawn through a 2× transform, so creatures' finer art lands 1:1; `EnemyArt.res`, `w`, `h`),
   and a clear world-scale layer for the party, effects, rings, arrows and numbers.
 - **Pace:** every move's animation (effects, poses, cut-ins, numbers) runs on one clock, `FxLayer.rate` =

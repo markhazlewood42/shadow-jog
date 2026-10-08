@@ -1,7 +1,9 @@
 /**
  * Battle geometry (PL4 and V3 of docs/PIVOT-640.md): the size relations the battle layers depend
- * on, the HUD frame and everything anchored to it, and the two fighter rows. Every HUD test runs
- * for both HUD options (D6): option 1 hugs the screen edges, option 2 is a centered block.
+ * on, the HUD frame and everything anchored to it, and the two fighter rows. The game's HUD frame
+ * is the whole screen (D6 option 1, Mark's choice at Review 2). Every rule that derives from the
+ * frame also runs on an inset frame, so the derivation itself stays tested: a frame that is not
+ * the screen must carry every piece with it.
  *
  * Sizes that only the real art knows (how tall a hero stands, how wide an enemy is) come from
  * tests/fixtures/battle-sprites.json, which scripts/measure-battle-sprites.mjs writes from the game.
@@ -11,8 +13,8 @@ import { COMBOS } from '../src/data/abilities';
 import { ENEMIES } from '../src/data/enemies';
 import { H, W } from '../src/engine/game';
 import {
-  BHT, BW, CARD_GAP, CARD_H, CARD_RAISE, CARD_W, ENEMY_GAP, HUD, HUD_FRAME, ORDER_COLUMN_W, ORDER_FACE, PANEL_Y, PARTY_BOTTOM, PARTY_HEIGHT, PROMPT_CLEAR, STRIP_MAX_FACES, WORLD_SCALE,
-  hudFrameFor, hudLayout, orderStripLayout, partyX, placeEnemies, type EnemyBox, type Rect,
+  BHT, BOSS_OVERLAP_MAX, BW, CARD_GAP, CARD_H, CARD_RAISE, CARD_W, ENEMY_CLEARANCE, ENEMY_GAP, HUD, HUD_FRAME, ORDER_COLUMN_W, ORDER_FACE, ORDER_LABEL_ABOVE, PANEL_Y, PARTY_BOTTOM, PARTY_HEIGHT, PROMPT_CLEAR, STRIP_MAX_FACES, WORLD_SCALE,
+  hudLayout, orderStripLayout, partyX, placeEnemies, type EnemyBox, type Rect,
 } from '../src/scenes/battlekit/geom';
 import sprites from './fixtures/battle-sprites.json';
 
@@ -20,8 +22,13 @@ import sprites from './fixtures/battle-sprites.json';
 const inside = (a: Rect, b: Rect): boolean => a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h;
 const overlap = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
-/** Both HUD options, as the layouts the renderer would use. */
-const OPTIONS = ([1, 2] as const).map((o) => ({ option: o, hud: hudLayout(hudFrameFor(o)) }));
+/**
+ * An inset frame (480x270 on a 640x360 screen: the block the HUD used to fit in). The game does not
+ * use it; the tests do, to show that every anchor follows whatever frame `hudLayout` is given.
+ */
+const INSET: Rect = { x: W / 8, y: H / 8, w: (W * 3) / 4, h: (H * 3) / 4 };
+/** The layouts the HUD rules run on: the game's own, and the inset one. */
+const FRAMES = [{ frame: 'the game frame', hud: HUD }, { frame: 'an inset frame', hud: hudLayout(INSET) }];
 
 describe('the battle world is an exact multiple of the screen', () => {
   it('BW * WORLD_SCALE is the screen width and BHT * WORLD_SCALE is the screen height', () => {
@@ -39,32 +46,26 @@ describe('the battle world is an exact multiple of the screen', () => {
 });
 
 describe('the HUD frame', () => {
-  it('option 1 is the whole screen, and it is the option the game ships with', () => {
-    expect(hudFrameFor(1)).toEqual({ x: 0, y: 0, w: W, h: H });
-    // No `?hud=2` in a unit test: the game's own frame is option 1.
-    expect(HUD_FRAME).toEqual(hudFrameFor(1));
+  it('the game’s frame is the whole screen (D6 option 1: the HUD hugs the screen edges)', () => {
+    expect(HUD_FRAME).toEqual({ x: 0, y: 0, w: W, h: H });
     expect(HUD.frame).toBe(HUD_FRAME);
   });
 
-  it('option 2 is a centered block of three quarters of the screen (480x270 at 640x360)', () => {
-    expect(hudFrameFor(2)).toEqual({ x: W / 8, y: H / 8, w: (W * 3) / 4, h: (H * 3) / 4 });
-  });
-
-  it('the party panel is 56 above the frame bottom: PANEL_Y is H - 56 in option 1, and follows the frame in option 2', () => {
+  it('the party panel is 56 above the frame bottom: PANEL_Y is H - 56, and the panel follows any frame', () => {
     expect(PANEL_Y).toBe(H - 56);
-    expect(hudLayout(hudFrameFor(1)).panelY).toBe(H - 56);
-    const f2 = hudFrameFor(2);
-    expect(hudLayout(f2).panelY).toBe(f2.y + f2.h - 56);
-    expect(hudLayout(f2).panelY).toBeGreaterThan(f2.y);
+    expect(HUD.panelY).toBe(H - 56);
+    const inset = hudLayout(INSET);
+    expect(inset.panelY).toBe(INSET.y + INSET.h - 56);
+    expect(inset.panelY).toBeGreaterThan(INSET.y);
   });
 
-  for (const { option, hud } of OPTIONS) {
-    it(`option ${option}: every anchor lies inside the frame, the menus above the cards`, () => {
+  for (const { frame, hud } of FRAMES) {
+    it(`${frame}: every anchor lies inside the frame, the menus above the cards`, () => {
       const f = hud.frame;
       expect(hud.menuX).toBeGreaterThanOrEqual(f.x);
       expect(hud.topY).toBeGreaterThanOrEqual(f.y);
       expect(hud.topBandBottom).toBeGreaterThan(hud.topY);
-      expect(hud.orderTop).toBeGreaterThanOrEqual(hud.topBandBottom + 10);
+      expect(hud.orderTop - ORDER_LABEL_ABOVE).toBeGreaterThanOrEqual(hud.topBandBottom);
       expect(hud.orderBottom).toBeLessThan(hud.panelY);
       expect(hud.orderLeft).toBeGreaterThanOrEqual(f.x);
       expect(hud.orderRight).toBeLessThanOrEqual(f.x + f.w);
@@ -73,7 +74,7 @@ describe('the HUD frame', () => {
       expect(hud.targetY).toBeGreaterThanOrEqual(hud.topBandBottom - 4);
     });
 
-    it(`option ${option}: 1 to 4 status cards are centered in the frame, inside it and apart`, () => {
+    it(`${frame}: 1 to 4 status cards are centered in the frame, inside it and apart`, () => {
       for (let n = 1; n <= 4; n++) {
         const cards: Rect[] = [];
         for (let i = 0; i < n; i++) cards.push({ x: hud.cardX(i, n), y: hud.panelY - CARD_RAISE, w: CARD_W, h: CARD_H + CARD_RAISE });
@@ -90,15 +91,15 @@ describe('the HUD frame', () => {
 });
 
 describe('the party row', () => {
-  it('each hero stands over their own status card, for 1 to 4 members, in both HUD options', () => {
+  it('each hero stands over their own status card, for 1 to 4 members, in either frame', () => {
     // Heroes stand on whole world pixels, so the middle of a hero is within one world pixel's
     // half (WORLD_SCALE / 2 screen pixels) of the middle of their card.
     const TOLERANCE = WORLD_SCALE / 2;
-    for (const { option, hud } of OPTIONS) {
+    for (const { frame, hud } of FRAMES) {
       for (let n = 1; n <= 4; n++) {
         for (let i = 0; i < n; i++) {
           const hero = partyX(i, n, hud) * WORLD_SCALE, card = hud.cardX(i, n) + CARD_W / 2;
-          expect(Math.abs(hero - card), `option ${option}, hero ${i} of ${n}`).toBeLessThanOrEqual(TOLERANCE);
+          expect(Math.abs(hero - card), `${frame}, hero ${i} of ${n}`).toBeLessThanOrEqual(TOLERANCE);
         }
       }
     }
@@ -106,14 +107,13 @@ describe('the party row', () => {
 
   it('the cards cover the crew from the waist down, and the heads stay clear of the cards (over the shoulder)', () => {
     // The feet sit 40 screen pixels below the panel's top edge, the relation the 480x270 layout had
-    // (127 * 2 against 214), so the cards hide the legs and the upper body shows.
+    // (127 * 2 against 214), so the cards hide the legs and the upper body shows. This is a
+    // relation between the world and the game's frame; the world does not follow an inset frame.
     expect(PARTY_BOTTOM * WORLD_SCALE - PANEL_Y).toBe(40);
-    for (const { option, hud } of OPTIONS) {
-      const headTop = (PARTY_BOTTOM - PARTY_HEIGHT) * WORLD_SCALE;
-      expect(headTop, `option ${option}: heads above the cards`).toBeLessThan(hud.panelY - CARD_RAISE);
-    }
-    // In option 1 a good part of each hero shows above the cards.
-    expect(PANEL_Y - (PARTY_BOTTOM - PARTY_HEIGHT) * WORLD_SCALE).toBeGreaterThanOrEqual(60);
+    const headTop = (PARTY_BOTTOM - PARTY_HEIGHT) * WORLD_SCALE;
+    expect(headTop, 'heads above the cards').toBeLessThan(HUD.panelY - CARD_RAISE);
+    // A good part of each hero shows above the cards.
+    expect(PANEL_Y - headTop).toBeGreaterThanOrEqual(60);
   });
 
   it('PARTY_HEIGHT covers the tallest idle hero in the measured art, and is not far above it', () => {
@@ -125,8 +125,12 @@ describe('the party row', () => {
 
 describe('the enemy row', () => {
   const regular = Object.entries(sprites.enemies).filter(([, e]) => !e.boss);
+  const bosses = Object.entries(sprites.enemies).filter(([, e]) => e.boss);
   const boxOf = (e: { w: number; h: number; top: number; boss: boolean }, lurker = false): EnemyBox => ({ w: e.w, h: e.h, top: e.top, boss: e.boss, lurker });
   const headTop = PARTY_BOTTOM - PARTY_HEIGHT;
+
+  /** The boss fights of the story, each on the backdrop the story gives it (src/story/chapter1.ts, `s.battle(..., { boss: true, bg })`). */
+  const BOSS_FIGHTS: [string, string][] = [['knuckles', 'rustyard'], ['lurker', 'junction'], ['warden', 'core'], ['warden_spirit', 'core']];
 
   /** The grounds of every backdrop (the backdrops are drawn into a fake canvas: no browser here). */
   let grounds: [string, number][] = [];
@@ -162,13 +166,15 @@ describe('the enemy row', () => {
     }
   });
 
-  it('a regular enemy’s feet stay above the party’s heads, for 1 to 4 enemies, on every backdrop', () => {
+  it('a regular enemy’s feet stay ENEMY_CLEARANCE above the party’s heads, for 1 to 4 enemies, on every backdrop', () => {
+    // A named minimum, and not zero: with no clearance an enemy's feet would touch a hero's head.
+    expect(ENEMY_CLEARANCE).toBeGreaterThanOrEqual(1);
     for (const [id, ground] of grounds) {
       for (const [key, e] of regular) {
         for (let n = 1; n <= 4; n++) {
           const row = Array.from({ length: n }, () => boxOf(e, key === 'lurker'));
           const spots = placeEnemies(row, ground);
-          for (const [i, s] of spots.entries()) expect(s.y + e.h, `${id}, ${n} x ${key}, enemy ${i}`).toBeLessThanOrEqual(headTop);
+          for (const [i, s] of spots.entries()) expect(s.y + e.h + ENEMY_CLEARANCE, `${id}, ${n} x ${key}, enemy ${i}`).toBeLessThanOrEqual(headTop);
         }
       }
     }
@@ -176,12 +182,46 @@ describe('the enemy row', () => {
 
   it('a boss stands on the floor too, and never lower than the party’s feet', () => {
     for (const [id, ground] of grounds) {
-      for (const [key, e] of Object.entries(sprites.enemies).filter(([, b]) => b.boss)) {
+      for (const [key, e] of bosses) {
         const [spot] = placeEnemies([boxOf(e, key === 'lurker')], ground);
         expect(spot!.y + e.h, `${id}, ${key}`).toBeLessThanOrEqual(PARTY_BOTTOM);
         expect(spot!.y + e.h, `${id}, ${key}`).toBeGreaterThan(HORIZON);
       }
     }
+  });
+
+  it('a boss is the one exception to the clearance: in the story’s boss fights it looms a few rows into the party’s head row, up to BOSS_OVERLAP_MAX', () => {
+    // Bosses loomed over the party at 480x270 (their feet reached 22 to 28 px into the head row);
+    // here that is reduced to a few rows, and named. Anything deeper fails.
+    expect(BOSS_OVERLAP_MAX).toBeGreaterThan(0);
+    for (const [key, bg] of BOSS_FIGHTS) {
+      const e = sprites.enemies[key as keyof typeof sprites.enemies];
+      const ground = grounds.find(([id]) => id === bg)?.[1];
+      expect(ground, `${bg} is a backdrop`).toBeDefined();
+      const [spot] = placeEnemies([boxOf(e, key === 'lurker')], ground!);
+      expect(spot!.y + e.h, `${key} on ${bg}`).toBeLessThanOrEqual(headTop + BOSS_OVERLAP_MAX);
+    }
+  });
+
+  it('no enemy’s first opaque row enters the top text band, and the unbound Warden (the tallest) clears it without help', () => {
+    const band = HUD.topBandBottom;
+    // The clamp is derived from the band, not from the one-line prompt.
+    expect(PROMPT_CLEAR * WORLD_SCALE).toBeGreaterThanOrEqual(band);
+    for (const [id, ground] of grounds) {
+      for (const [key, e] of Object.entries(sprites.enemies)) {
+        for (let n = 1; n <= (e.boss ? 1 : 4); n++) {
+          const spots = placeEnemies(Array.from({ length: n }, () => boxOf(e, key === 'lurker')), ground);
+          for (const [i, s] of spots.entries()) expect((s.y + e.top) * WORLD_SCALE, `${id}, ${n} x ${key}, enemy ${i}`).toBeGreaterThanOrEqual(band);
+        }
+      }
+    }
+    // The Unbound Warden is the tallest enemy in the game, and it is summoned in the Warden fight
+    // (the core backdrop). Without the clamp (a prompt clear of 0) it already stands below the band.
+    const tallest = Object.entries(sprites.enemies).sort(([, a], [, b]) => b.h - a.h)[0]!;
+    expect(tallest[0]).toBe('warden_spirit');
+    const core = grounds.find(([id]) => id === 'core')![1];
+    const [natural] = placeEnemies([boxOf(tallest[1])], core, 0);
+    expect((natural!.y + tallest[1].top) * WORLD_SCALE, 'the Warden’s first opaque row, unclamped').toBeGreaterThanOrEqual(band);
   });
 
   it('the row is centered, ENEMY_GAP apart, inside the world, and no first opaque row sits under the prompt', () => {
@@ -196,9 +236,11 @@ describe('the enemy row', () => {
         for (const s of spots) expect(s.y + e.top, `${key} under the prompt`).toBeGreaterThanOrEqual(PROMPT_CLEAR);
       }
     }
-    // A tall boss on a high ground line is pushed down until its head clears the prompt.
+    // A tall boss on a high ground line is pushed down until its head clears the top band.
     const tall = { w: 80, h: 90, top: 3, boss: true, lurker: false };
-    expect(placeEnemies([tall], 60)[0]!.y + tall.top).toBeGreaterThanOrEqual(PROMPT_CLEAR);
+    const pushed = placeEnemies([tall], 60)[0]!;
+    expect(pushed.y + tall.top).toBeGreaterThanOrEqual(PROMPT_CLEAR);
+    expect((pushed.y + tall.top) * WORLD_SCALE).toBeGreaterThanOrEqual(HUD.topBandBottom);
   });
 
   it('the backdrops are the world’s size: BW by BHT, with their glow and foreground layers', async () => {
@@ -231,10 +273,10 @@ describe('cut-ins and banners', () => {
     expect(ORDER_COLUMN_W).toBeGreaterThanOrEqual(partners * ORDER_FACE + 1);
   });
 
-  for (const { option, hud } of OPTIONS) {
-    it(`option ${option}: every character cut-in rests inside the frame, above the cards, clear of the turn strip`, () => {
+  for (const { frame, hud } of FRAMES) {
+    it(`${frame}: every character cut-in rests inside the frame, above the cards, clear of the turn strip`, () => {
       // The strip's whole column, "TURN" label included (a combo is a face wide per partner, the entry acting now steps out).
-      const column: Rect = { x: hud.orderRight - ORDER_COLUMN_W, y: hud.orderTop - 10, w: ORDER_COLUMN_W, h: hud.orderBottom - (hud.orderTop - 10) };
+      const column: Rect = { x: hud.orderRight - ORDER_COLUMN_W, y: hud.orderTop - ORDER_LABEL_ABOVE, w: ORDER_COLUMN_W, h: hud.orderBottom - (hud.orderTop - ORDER_LABEL_ABOVE) };
       const strip = [...orderStripLayout([partners, 1, 1, 1, 1, 1, 1, 1, 1], 'right', hud), ...orderStripLayout(Array<number>(9).fill(1), 'right', hud)];
       expect(cutins(hud).length).toBeGreaterThanOrEqual(2);
       for (const { name, rect } of cutins(hud)) {
@@ -245,7 +287,7 @@ describe('cut-ins and banners', () => {
       }
     });
 
-    it(`option ${option}: the action banner and the VICTORY band lie inside the frame, the banner above the cards`, () => {
+    it(`${frame}: the action banner and the VICTORY band lie inside the frame, the banner above the cards`, () => {
       expect(inside(hud.actionBannerRect(), hud.frame)).toBe(true);
       expect(hud.actionBannerRect().y + hud.actionBannerRect().h).toBeLessThanOrEqual(hud.panelY - CARD_RAISE);
       expect(inside(hud.victoryBandRect(), hud.frame)).toBe(true);

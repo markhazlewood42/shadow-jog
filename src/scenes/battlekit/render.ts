@@ -21,7 +21,7 @@ import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
 import { TARGET_INFO_W } from '../../ui/layout';
 import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
-import { BANNER_H, BHT, BW, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, HUD, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, WORLD_SCALE, orderStripLayout } from './geom';
+import { BANNER_H, BHT, BW, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, HUD, MENU_ABOVE_PANEL, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LABEL_ABOVE, ORDER_LEFT, ORDER_RIGHT, ORDER_THUMB, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, ROUND_MENU_H, WORLD_SCALE, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
@@ -659,7 +659,7 @@ export class BattleRenderer {
     }
     const rects = this.orderRects.rects;
     const edgeX = side === 'right' ? ORDER_RIGHT : ORDER_LEFT;
-    drawText(ctx, 'TURN', edgeX, ORDER_TOP - 10, { color: UI.dim, align: side });
+    drawText(ctx, 'TURN', edgeX, ORDER_TOP - ORDER_LABEL_ABOVE, { color: UI.dim, align: side });
     const acting = this.s.mode === 'round' || playing ? undefined : this.s.actor?.uid;
     const aimed = this.s.mode === 'target' ? this.s.targetList[this.s.targetIdx] : undefined;
     const pulse = 0.6 + 0.4 * Math.sin(this.s.frame * 0.18);
@@ -693,7 +693,7 @@ export class BattleRenderer {
         if (!u) continue;
         const eart = u.side === 'party' ? null : enemyArt(ENEMIES[u.key]!.sprite);
         const img = eart ? enemyThumb(eart.canvas, eart.res) : getPortrait(u.key, 'neutral');
-        if (img) ctx.drawImage(img, r.x + 1 + i * ORDER_FACE, r.y + 1, 12, 12);
+        if (img) ctx.drawImage(img, r.x + 1 + i * ORDER_FACE, r.y + 1, ORDER_THUMB, ORDER_THUMB);
         // Two of a kind: which one, by the letter in its name (Glowrat A, Glowrat B).
         if (u.side === 'enemy' && this.s.twins(u)) {
           const lx = r.x + i * ORDER_FACE + 8, ly = r.y + 6;
@@ -862,9 +862,9 @@ export class BattleRenderer {
   }
 
   private renderRoundMenu(ctx: Ctx): void {
-    const x = MENU_X, y = PANEL_Y - 60;
-    drawWindow(ctx, x, y, 84, 54, { title: `ROUND ${this.s.battle.round + 1}` });
-    this.s.roundMenu.render(ctx, x + 8, y + 8, 72);
+    const x = MENU_X, y = PANEL_Y - ROUND_MENU_H - MENU_ABOVE_PANEL;
+    drawWindow(ctx, x, y, CMD_W, ROUND_MENU_H, { title: `ROUND ${this.s.battle.round + 1}` });
+    this.s.roundMenu.render(ctx, x + 8, y + 8, CMD_W - 12);
     const help: Record<string, string> = {
       fight: 'Give each crew member orders.',
       repeat: this.s.telegraphed()
@@ -881,7 +881,7 @@ export class BattleRenderer {
     const a = this.s.actor;
     if (!a) return;
     const h = this.s.cmdMenu.items.length * 11 + 12;
-    const x = this.s.menuX(a, CMD_W), y = PANEL_Y - h - 6;
+    const x = this.s.menuX(a, CMD_W), y = PANEL_Y - h - MENU_ABOVE_PANEL;
     drawWindow(ctx, x, y, CMD_W, h, { accent: MEMBERS[a.key as MemberId].color, title: a.name.toUpperCase(), alpha: active ? 1 : 0.85 });
     this.s.cmdMenu.render(ctx, x + 7, y + 7, CMD_W - 8, active);
   }
@@ -896,7 +896,7 @@ export class BattleRenderer {
     // Cursor and margins (the list draws labels 9px in, and the window has 8px either side).
     const w = Math.min(210, Math.max(120, widest + 32));
     const h = Math.min(this.s.listMenu.rows, Math.max(1, items.length)) * 11 + 14;
-    const cmdTop = PANEL_Y - (this.s.cmdMenu.items.length * 11 + 12) - 6;
+    const cmdTop = PANEL_Y - (this.s.cmdMenu.items.length * 11 + 12) - MENU_ABOVE_PANEL;
     const x = this.s.menuX(a, w), y = cmdTop - h - 4;
     const kind = this.s.listKind === 'item' ? 'Items' : this.s.listKind === 'skill' ? 'Skills' : this.s.cmdMenu.items.find((i) => i.value === 'tech')?.label ?? 'Techs';
     drawWindow(ctx, x, y, w, h, { title: `${a.name} · ${kind}`.toUpperCase(), accent: MEMBERS[a.key as MemberId].color });
