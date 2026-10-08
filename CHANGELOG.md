@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Command Center follow-ups (Mark, 2026-10-08): the CI row reads only the `ci.yml` workflow, the "+N more" label on the Agents page counts the hidden children of that parent only, and each Running row opens the Agents page at its session.
 
 ### Added
+- The `Command Center` workflow (`.github/workflows/command-center.yml`) runs the Command Center typecheck, Vitest and Playwright tests on a pull request or a push to `main` that changes `tools/command-center/` or `docs/command-center/`.
 - The Command Center (`npm run cc`, http://localhost:3009): a local website with what is going on now, every doc in one place, the sessions and agents, and the design decisions that wait on Mark, who answers them on a page that posts to a GitHub issue. It lives in `tools/command-center/` and does not touch the game.
 - Command Center revision 2: a Copy for LLM and Download as markdown split button on every doc page, a live Agents diagram of the active sessions with their agents, workflows and message counts, a CI-on-main row and a milestone strip on the Status panel (the `milestone:` key in `status.md`), the routes `GET /api/agents`, `GET /api/ci` and `GET /api/docs/<slug>/source`, and the config keys `claude.sessionsRoot`, `agents.pollMs`, `agents.lingerSeconds` and `agents.staleSeconds`.
 - Saves record the game version that wrote them.

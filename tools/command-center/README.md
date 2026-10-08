@@ -49,6 +49,8 @@ Other commands, from the repo root (add `--prefix tools/command-center` as shown
 | `npm --prefix tools/command-center run e2e` | The Playwright tests, against the fixture server on 3010 (Microsoft Edge locally, bundled Chromium on CI) |
 | `CC_NO_OPEN=1 npm run cc` | Start without opening a browser tab. Every test and automated run sets `CC_NO_OPEN=1`. |
 
+CI runs `check` and `e2e` in its own workflow, `.github/workflows/command-center.yml` (job `command-center`), on a pull request or a push to `main` that changes this folder or `docs/command-center/`. `ci.yml` still skips this folder. Run both here before you push, because CI is slower.
+
 Four checks run against the real repo or the real machine and not against fixtures, so they run only on demand: `CC_REAL_NAV=1` (every real doc sits in a nav section, so "Other" is empty; the source route sends the exact bytes of every doc; `status.md` has a valid `milestone:` key), `CC_REAL_ENGINE=1` (the engine decisions read as expected), `CC_REAL_AGENTS=1` (the real process list in `claude.sessionsRoot` has the shape that the agents module expects), and `CC_REAL_URL=<address>` (a Playwright check against a running server).
 
 ## The pages
