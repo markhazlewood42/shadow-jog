@@ -669,7 +669,7 @@ describe('the banner on a doc page', () => {
     renderDoc({ ...DOC, decisions: [DECISION] });
     const banner = container.querySelector('aside[aria-label="Open decision 41"]');
     expect(banner).not.toBeNull();
-    expect(banner?.textContent).toContain('A decision waits for Mark on this section');
+    expect(banner?.textContent).toContain('Open decision');
     expect(banner?.textContent).toContain('Where should the cache live?');
     expect(banner?.textContent).not.toContain('Decision: Where'); // the prefix of the template is left off
     expect(banner?.querySelector('a[href="/decisions/41"]')?.textContent).toContain('Decision #41');
@@ -733,7 +733,7 @@ describe('the banner on a doc page', () => {
     expect(container.querySelector('[role="note"]')).toBeNull();
     renderDoc({ ...DOC, decisions: null });
     expect(banners()).toHaveLength(0);
-    expect(container.querySelector('[role="note"]')?.textContent).toContain('Decision banners are not shown on this page');
+    expect(container.querySelector('[role="note"]')?.textContent).toContain('Decision banners are unavailable');
     // A doc that comes with no `decisions` field at all (the other users of DocView) is drawn as before.
     renderDoc({ ...DOC });
     expect(container.querySelector('[role="note"]')).toBeNull();

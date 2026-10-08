@@ -339,7 +339,7 @@ test.describe('the banner on a doc', () => {
     // Decision 41 links to "Storage": its banner is right above that heading. No heading comes between them.
     const storage = docRegion.locator('h2#storage');
     const banner = bannerOf(page, 41).first();
-    await expect(banner).toContainText('A decision waits for Mark on this section');
+    await expect(banner).toContainText('Open decision');
     await expect(banner).toContainText('Where should Burrow keep its cache?');
     const placement = await page.evaluate(() => {
       const heading = document.querySelector('.doc-html h2#storage');

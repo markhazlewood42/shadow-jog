@@ -64,7 +64,7 @@ function Problems({ problems }: { problems: readonly string[] }) {
   return (
     <details className="rounded-md border border-cc-rule bg-cc-paper px-3 py-2 text-sm">
       <summary className="cursor-pointer text-cc-muted cc-focus-ring">
-        {problems.length} {problems.length === 1 ? 'problem' : 'problems'} found in the docs
+        {problems.length} doc {problems.length === 1 ? 'problem' : 'problems'}
       </summary>
       <ul className="mt-2 flex flex-col gap-1 font-mono text-xs break-words text-cc-muted">
         {problems.map((problem, i) => (
@@ -77,11 +77,11 @@ function Problems({ problems }: { problems: readonly string[] }) {
 }
 
 function Cards({ listing }: { listing: DocsListing }) {
-  if (listing.nav.length === 0) return <p className="text-cc-muted">No docs yet. Add a markdown file under docs/ and it shows here.</p>;
+  if (listing.nav.length === 0) return <p className="text-cc-muted">No docs</p>;
   return (
     <div className="flex flex-col gap-5">
       <p className="text-sm text-cc-muted">
-        {listing.docs.length} {listing.docs.length === 1 ? 'doc' : 'docs'} in {listing.nav.length} {listing.nav.length === 1 ? 'section' : 'sections'}.
+        {listing.docs.length} {listing.docs.length === 1 ? 'doc' : 'docs'} · {listing.nav.length} {listing.nav.length === 1 ? 'section' : 'sections'}
       </p>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {listing.nav.map((section) => (
@@ -94,20 +94,15 @@ function Cards({ listing }: { listing: DocsListing }) {
 }
 
 /**
- * The page at /docs: what the docs cover, and one card for each section of the nav with its key
- * pages and the day each one last changed. The title and the introduction are static, so they show
- * even when the docs cannot be loaded; the cards sit in a panel that has its own error state.
+ * The page at /docs: one card for each section of the nav with its key pages and the day each one
+ * last changed. The title is static, so it shows even when the docs cannot be loaded; the cards sit
+ * in a panel that has its own error state. The page says nothing else about the docs (design 5.8).
  */
 export function Overview({ listing }: { listing: PanelResult<DocsListing> }) {
   useDocumentTitle('Docs');
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Docs</h1>
-        <p className="mt-2 max-w-prose text-cc-muted">
-          The design, the engine, the decisions and the quality records of Shadow Jog, in one place. Pick a section below, or search.
-        </p>
-      </div>
+      <h1 className="text-3xl font-semibold tracking-tight">Docs</h1>
       <PanelFrame title="Overview" result={listing}>
         {(data) => <Cards listing={data} />}
       </PanelFrame>

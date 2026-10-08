@@ -45,11 +45,7 @@ type HitListProps = {
 
 function HitList({ hits, query, listId, active, onActive, onOpen }: HitListProps) {
   if (hits.length === 0) {
-    return (
-      <p className="text-sm text-cc-muted">
-        No docs match “{query}”. Every word must be in the doc, and a word matches from its start.
-      </p>
-    );
+    return <p className="text-sm text-cc-muted">{`No docs match "${query}"`}</p>;
   }
   return (
     <div role="listbox" id={listId} aria-label="Search results" className="-mx-2 flex flex-col">
@@ -198,7 +194,7 @@ export function SearchBox() {
             <Search aria-hidden />
           </SearchField.SearchIcon>
           <SearchField.Input
-            placeholder="Search the docs"
+            placeholder="Search docs"
             role="combobox"
             aria-expanded={showResults}
             aria-controls={listId}
