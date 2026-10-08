@@ -16,13 +16,8 @@ export const MESSAGE_WINDOW_BYTES = 1024 * 1024;
 
 // ---- the files of a session ----
 
-/**
- * The newest modification time of some files, or 0 for none. A loop, not `Math.max(...list)`: that puts every item into the arguments of one call, and a session with
- * tens of thousands of files makes it throw a RangeError.
- */
-export function newestWrite(stamps: readonly { mtimeMs: number }[]): number {
-  return stamps.reduce((newest, stamp) => (stamp.mtimeMs > newest ? stamp.mtimeMs : newest), 0);
-}
+// `newestWrite` lives in the sessions module (discover.ts), which both modules use; it is re-exported here for the callers of this file.
+export { newestWrite } from '../sessions/discover';
 
 // ---- the model ----
 

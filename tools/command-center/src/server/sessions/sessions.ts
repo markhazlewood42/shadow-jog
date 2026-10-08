@@ -4,7 +4,7 @@ import type { Config } from '../config';
 import type { Hub } from '../hub';
 import { say } from '../messages';
 import { PanelError, type PanelSource, createPanelSource } from '../source';
-import { type AgentFile, type FileStamp, type SessionFile, type WorkflowFolder, keepSession, listSessionFiles, listSessionTree } from './discover';
+import { type AgentFile, type FileStamp, type SessionFile, type WorkflowFolder, keepSession, newestWrite, listSessionFiles, listSessionTree } from './discover';
 import { type Journal, agentStateOf, applyAge, isSdkEntrypoint, readJournal, workflowStateOf } from './parse';
 import { type SessionFacts, codeOf, createSessionReader, createdMs, isoOf } from './reader';
 
@@ -84,7 +84,7 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
       done: journal.done,
       // The journal has no times of its own. The time that its file was made is when the run was launched.
       startedAt: run.journal === null || run.journal.birthtimeMs <= 0 ? null : isoOf(run.journal.birthtimeMs),
-      lastEventAt: isoOf(Math.max(0, ...stamps.map((stamp) => stamp.mtimeMs))),
+      lastEventAt: isoOf(newestWrite(stamps)),
     };
   }
 
@@ -102,13 +102,15 @@ export function createSessionsSource(deps: SessionsModuleDeps): PanelSource<Sess
     const workflows: WorkflowInfo[] = [];
     for (const run of tree.workflows) {
       const journal = run.journal === null ? readJournal([]) : await reader.readJournalFile(run.journal);
-      agents.push(...(await Promise.all(run.agents.map((agent) => agentInfo(file, agent, nowMs, new Set(journal.doneIds))))));
+      // One set for the whole run. A loop adds the agents: `push(...list)` throws a RangeError for a run with a very long list.
+      const resulted = new Set(journal.doneIds);
+      for (const info of await Promise.all(run.agents.map((agent) => agentInfo(file, agent, nowMs, resulted)))) agents.push(info);
       workflows.push(await workflowInfo(file, run, journal, nowMs));
     }
 
     // The session is as recent as the newest write for it. A session that waits for a workflow writes nothing itself.
     const writes = [file, ...tree.agents, ...tree.workflows.flatMap(stampsOfRun)];
-    const lastWriteMs = Math.max(...writes.map((stamp) => stamp.mtimeMs));
+    const lastWriteMs = newestWrite(writes);
 
     return {
       id: file.id,
