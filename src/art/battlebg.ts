@@ -21,13 +21,15 @@ export const HORIZON = 84;
 /**
  * How far below the horizon each backdrop's enemies stand (its `ground` line, in world rows): a
  * look choice per floor, named once. Every ground line follows `HORIZON`, so in every backdrop the
- * enemies stand on the floor, below the horizon and with their feet above the party's heads
- * (tests/battle-geom.test.ts). The lines are the old ones (32 to 42 rows below the old horizon),
- * 6 rows further down for the floors with regular enemies: a lone enemy then stands close to the
- * party instead of far back on the deeper floor (WP2b, problem 9 of the mock). The junction and the
- * core hold only bosses, which loom, so they keep the old offsets, except that the junction's is 2
- * rows less than the old one: with the old offset a regular enemy's feet would reach the top of the
- * tallest hero's head (no clearance), and the test holds every floor to `ENEMY_CLEARANCE`.
+ * enemies stand on the floor, below the horizon and, for regular enemies, with their feet above
+ * the party's heads (tests/battle-geom.test.ts; a boss is the exception: it looms and may reach a
+ * few rows into the head row, and the test allows 6). The lines are the old ones (32 to 42 rows
+ * below the old horizon), 6 rows further down for the floors with regular enemies: a lone enemy
+ * then stands close to the party instead of far back on the deeper floor (WP2b, problem 9 of the
+ * mock). The junction and the core hold only bosses, which loom, so they keep the old offsets,
+ * except that the junction's is 2 rows less than the old one: with the old offset a regular
+ * enemy's feet would reach the top of the tallest hero's head (no clearance), and the test holds
+ * every floor to 2 rows of it.
  */
 const GROUND_BELOW_HORIZON = { street: 38, barrens: 38, rustyard: 38, park: 38, sewer: 40, junction: 40, lab: 38, core: 36 } as const;
 
@@ -846,9 +848,10 @@ function railing(c: Ctx, x0: number, x1: number, y: number, rim: string): void {
 
 /**
  * Where each framing puts its pieces (the editor rule: every anchor named once, in one small record
- * per framing). The backdrop is `BW` by `BH`, and a piece hangs from the edge it frames: a share of
- * the width (`BW`) for something that reaches in from a side, rows up from the bottom edge (`BH`)
- * for something that stands on the floor, so the framing follows the world's size.
+ * per framing). The backdrop is `BW` by `BH`, and a piece hangs from the edge it frames: widths in
+ * from a side and heights up from the bottom edge (`BH`) are counts of world pixels, tuned at
+ * 320x180. Only the cables (the street's `cableReach`, the core's cable shares) are shares of `BW`,
+ * so only they grow or shrink with the world's width.
  */
 const STREET_FRAME = {
   /** Each cable reaches this far in from its side (the two mirror each other). */

@@ -1,22 +1,36 @@
 /**
  * Battle geometry (PL4 and V3 of docs/PIVOT-640.md): the size relations the battle layers depend
  * on, the HUD frame and everything anchored to it, and the two fighter rows. The game's HUD frame
- * is the whole screen (D6 option 1, Mark's choice at Review 2). Every rule that derives from the
- * frame also runs on an inset frame, so the derivation itself stays tested: a frame that is not
- * the screen must carry every piece with it.
+ * is the whole screen (D6 option 1, Mark's choice at Review 2). The rules for what hangs from the
+ * frame (the panel, the cards, the cut-ins, the banners) also run on an inset frame, so the
+ * derivation itself stays tested: a frame that is not the screen must carry every piece with it.
+ * The rules for the two fighter rows (the party's feet, the enemy row, the damage numbers) run on
+ * the game's own layout only, because the world rows do not follow the frame.
  *
  * Sizes that only the real art knows (how tall a hero stands, how wide an enemy is) come from
  * tests/fixtures/battle-sprites.json, which scripts/measure-battle-sprites.mjs writes from the game.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
-import { COMBOS } from '../src/data/abilities';
-import { ENEMIES } from '../src/data/enemies';
+import { ABILITIES, COMBOS } from '../src/data/abilities';
+import { ENCOUNTERS, ENEMIES } from '../src/data/enemies';
+import { ITEMS } from '../src/data/items';
+import { MEMBERS } from '../src/data/party';
+import { measure } from '../src/engine/font';
 import { H, W } from '../src/engine/game';
 import {
-  BHT, BOSS_OVERLAP_MAX, BW, CARD_GAP, CARD_H, CARD_RAISE, CARD_W, ENEMY_CLEARANCE, ENEMY_GAP, HUD, HUD_FRAME, ORDER_COLUMN_W, ORDER_FACE, ORDER_LABEL_ABOVE, PANEL_Y, PARTY_BOTTOM, PARTY_HEIGHT, PROMPT_CLEAR, STRIP_MAX_FACES, WORLD_SCALE,
-  hudLayout, orderStripLayout, partyX, placeEnemies, type EnemyBox, type Rect,
+  BHT, BW, CARD_GAP, CARD_H, CARD_RAISE, CARD_W, ENEMY_GAP, FLOATER_BOUNCE, FLOATER_POP, FLOATER_ROW, FLOATER_TOP, HUD, HUD_FRAME, MENU_X, ORDER_COLUMN_W, ORDER_FACE, ORDER_LABEL_ABOVE, PANEL_Y, PARTY_BOTTOM, PARTY_HEIGHT, PROMPT_CLEAR, STRIP_MAX_FACES, WORLD_SCALE,
+  floaterStart, hudLayout, listWindowW, orderStripLayout, partyX, placeEnemies, type EnemyBox, type Rect,
 } from '../src/scenes/battlekit/geom';
 import sprites from './fixtures/battle-sprites.json';
+
+/**
+ * The two tolerances of the enemy-row rule, in world pixels. They are the test's, not the game's:
+ * `placeEnemies` places by each backdrop's ground line, and the test holds every ground line to
+ * these. A regular enemy's feet stay `ENEMY_CLEARANCE` above the tallest party member's head; a
+ * boss (it looms, as at 480x270) may reach `BOSS_OVERLAP_MAX` into the head row, and no deeper.
+ */
+const ENEMY_CLEARANCE = 2;
+const BOSS_OVERLAP_MAX = 6;
 
 /** True when rectangle `a` lies inside rectangle `b`. */
 const inside = (a: Rect, b: Rect): boolean => a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h;
@@ -130,7 +144,11 @@ describe('the enemy row', () => {
   const boxOf = (e: { w: number; h: number; top: number; boss: boolean }, lurker = false): EnemyBox => ({ w: e.w, h: e.h, top: e.top, boss: e.boss, lurker });
   const headTop = PARTY_BOTTOM - PARTY_HEIGHT;
 
-  /** The boss fights of the story, each on the backdrop the story gives it (src/story/chapter1.ts, `s.battle(..., { boss: true, bg })`). */
+  /**
+   * The boss fights of the story, each on the backdrop the story gives it (src/story/chapter1.ts,
+   * `s.battle(..., { boss: true, bg })`): Knuckles, the Lurker and the Warden, plus the Warden's
+   * phase form (the Unbound Warden), which stands on the same core backdrop.
+   */
   const BOSS_FIGHTS: [string, string][] = [['knuckles', 'rustyard'], ['lurker', 'junction'], ['warden', 'core'], ['warden_spirit', 'core']];
 
   /** The grounds of every backdrop (the backdrops are drawn into a fake canvas: no browser here). */
@@ -192,7 +210,7 @@ describe('the enemy row', () => {
   });
 
   it('a boss is the one exception to the clearance: in the story’s boss fights it looms a few rows into the party’s head row, up to BOSS_OVERLAP_MAX', () => {
-    // Bosses loomed over the party at 480x270 (their feet reached 22 to 28 px into the head row);
+    // Bosses loomed over the party at 480x270 (their feet reached 22 to 28 world px into the head row);
     // here that is reduced to a few rows, and named. Anything deeper fails.
     expect(BOSS_OVERLAP_MAX).toBeGreaterThan(0);
     for (const [key, bg] of BOSS_FIGHTS) {
@@ -244,6 +262,25 @@ describe('the enemy row', () => {
     expect((pushed.y + tall.top) * WORLD_SCALE).toBeGreaterThanOrEqual(HUD.topBandBottom);
   });
 
+  it('no fight puts more than four enemies on the field: the row tests above go to four, so this holds them to the data', () => {
+    const MOST = 4;
+    // Every fight starts from a group: a random encounter or a fixed fight.
+    for (const [id, groups] of Object.entries(ENCOUNTERS)) {
+      for (const g of groups) expect(g.e.length, `${id}: ${g.e.join(', ')}`).toBeLessThanOrEqual(MOST);
+    }
+    // A summon fills the field up to `max + 1` living enemies and no further (`room` in
+    // src/battle/engine.ts), so a summon adds nothing to a field that is already at the cap.
+    let summons = 0;
+    for (const ab of Object.values(ABILITIES)) {
+      for (const eff of ab.effects) {
+        if (eff.type !== 'summon') continue;
+        summons++;
+        expect(eff.max + 1, `${ab.id} summon cap`).toBeLessThanOrEqual(MOST);
+      }
+    }
+    expect(summons, 'the data has a summon, so the loop checked something').toBeGreaterThan(0);
+  });
+
   it('the backdrops are the world’s size: BW by BHT, with their glow and foreground layers', async () => {
     const { battleBg, BG_IDS } = await import('../src/art/battlebg');
     for (const id of BG_IDS) {
@@ -255,6 +292,67 @@ describe('the enemy row', () => {
     // The street is the one WP2b re-lays: it is made, at the world's size.
     expect(battleBg('street').canvas.width).toBe(BW);
     expect(battleBg('street').canvas.height).toBe(BHT);
+  });
+});
+
+describe('damage numbers (floaters)', () => {
+  /** The highest row a number's top reaches: where it starts, less its pop and the most a hit bounces. */
+  const highest = (anchorY: number, stacked: number): number => floaterStart(anchorY, stacked) - FLOATER_POP - FLOATER_BOUNCE;
+
+  it('FLOATER_TOP is the first row under the top text band once a number has popped and bounced', () => {
+    // The top line can wrap to three lines, so the band is the largest the window grows to;
+    // PROMPT_CLEAR is the first world row under it (a whole row, rounded up).
+    expect(PROMPT_CLEAR * WORLD_SCALE).toBeGreaterThanOrEqual(HUD.topBandBottom);
+    expect(FLOATER_TOP - FLOATER_POP - FLOATER_BOUNCE).toBe(PROMPT_CLEAR);
+  });
+
+  it('no number reaches into the band, whatever the target’s height and however many are stacked on it (the second one included)', () => {
+    for (let anchor = -10; anchor <= BHT; anchor++) {
+      for (let stacked = 0; stacked <= 5; stacked++) {
+        expect(highest(anchor, stacked) * WORLD_SCALE, `anchor ${anchor}, ${stacked} stacked`).toBeGreaterThanOrEqual(HUD.topBandBottom);
+      }
+    }
+  });
+
+  it('over a low target the numbers stack upward a row apart; over a tall one they stack downward from FLOATER_TOP', () => {
+    const low = BHT - 40;
+    expect(floaterStart(low, 0)).toBe(low - FLOATER_POP);
+    expect(floaterStart(low, 1)).toBe(floaterStart(low, 0) - FLOATER_ROW);
+    // At the top the clamp wins: the first number sits at FLOATER_TOP and the next ones go down, not up.
+    expect(floaterStart(0, 0)).toBe(FLOATER_TOP);
+    expect(floaterStart(0, 1)).toBe(FLOATER_TOP + FLOATER_ROW);
+    expect(floaterStart(0, 2)).toBe(FLOATER_TOP + 2 * FLOATER_ROW);
+  });
+});
+
+describe('the list window', () => {
+  // A hero stands about 43 game pixels wide: in the WP3 picture of a three-member party, Kit spans
+  // x 180 to 224 around the card center 202. The windows must end before the left hero's edge.
+  const HERO_HALF_W = 22;
+  const leftHeroEdge = (members: number): number => partyX(0, members) * WORLD_SCALE - HERO_HALF_W;
+
+  /** The widest row of every list the data can build in battle (src/scenes/battlekit/render.ts, renderList), in screen pixels. */
+  const widestRow = (): number => {
+    const icon = measure('') + 3; // every row carries an icon or a blank of the same width
+    let widest = measure('Nothing to use.');
+    const tpLabels = Object.values(MEMBERS).map((m) => m.tpLabel);
+    for (const ab of Object.values(ABILITIES)) {
+      if (ab.kind === 'tech') for (const tp of tpLabels) widest = Math.max(widest, measure(ab.name) + icon + measure(`${ab.cost ?? 99} ${tp}`) + 12);
+      if (ab.kind === 'skill') widest = Math.max(widest, measure(ab.name) + icon + measure(`${ab.uses ?? 9}/${ab.uses ?? 9}`) + 12);
+    }
+    for (const it of Object.values(ITEMS)) if (it.battle) widest = Math.max(widest, measure(it.name) + icon + measure('×99') + 12);
+    return widest;
+  };
+
+  it('the window is between LIST_MIN_W and LIST_MAX_W wide, and follows its widest row', () => {
+    expect(listWindowW(0)).toBe(120);
+    expect(listWindowW(100)).toBe(132);
+    expect(listWindowW(999)).toBe(210);
+  });
+
+  it('with the chapter’s three members, the widest list the data builds ends left of the left hero', () => {
+    const right = MENU_X + listWindowW(widestRow());
+    expect(right, 'the list window’s right edge').toBeLessThan(leftHeroEdge(3));
   });
 });
 

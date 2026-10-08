@@ -139,7 +139,7 @@ describe('battle turn-order strip', () => {
   });
 
   it('stays clear of the top line, the target box, the party panel and the menus, in both frames', async () => {
-    const { ORDER_LABEL_ABOVE, orderStripLayout } = await import('../src/scenes/battlekit/geom');
+    const { LIST_MAX_W, ORDER_LABEL_ABOVE, orderStripLayout } = await import('../src/scenes/battlekit/geom');
     // The widest crowd: a three-member combo (three faces) and eight single actions.
     const faces = [3, 1, 1, 1, 1, 1, 1, 1, 1];
     for (const { frame, hud, all } of await frames()) {
@@ -150,8 +150,9 @@ describe('battle turn-order strip', () => {
       const boxBesideStrip = box(true), boxAtLeftEdge = box(false);
       expect(hud.orderTop - ORDER_LABEL_ABOVE, `${frame}`).toBeGreaterThanOrEqual(hud.topBandBottom);
       for (const side of ['left', 'right'] as const) {
-        // The acting member's menus open on the other side: a list up to 190 wide above the command window.
-        const menus = side === 'right' ? { x: hud.menuX, y: hud.topBandBottom, w: 190, h: hud.panelY - hud.topBandBottom } : { x: f.x + f.w - 4 - 190, y: hud.topBandBottom, w: 190, h: hud.panelY - hud.topBandBottom };
+        // The acting member's menus open on the other side: a list window, at its widest (LIST_MAX_W,
+        // 210), stacked above the command window.
+        const menus = side === 'right' ? { x: hud.menuX, y: hud.topBandBottom, w: LIST_MAX_W, h: hud.panelY - hud.topBandBottom } : { x: f.x + f.w - 4 - LIST_MAX_W, y: hud.topBandBottom, w: LIST_MAX_W, h: hud.panelY - hud.topBandBottom };
         const rects = orderStripLayout(faces, side, hud);
         // The whole screen shows the whole crowd. The inset block is the old 480x270 one, which showed eight entries.
         expect(rects.length, `${frame}, ${side}`).toBeGreaterThanOrEqual(all ? faces.length : 8);

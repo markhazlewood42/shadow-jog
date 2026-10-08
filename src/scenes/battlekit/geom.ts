@@ -31,6 +31,8 @@ export interface Rect { x: number; y: number; w: number; h: number }
  * screen. A future HUD editor changes this one rectangle (or hands `hudLayout` another one) and
  * every menu, card, strip, banner and cut-in follows; the tests do that with an inset frame. The
  * world rows below (the party's feet, the enemy row) are not part of the HUD and do not follow it.
+ * Two numbers guard the top text band and so do follow it: `PROMPT_CLEAR` (how far up an enemy may
+ * stand) and `FLOATER_TOP` (how far up a damage number may start) both derive from the band.
  */
 export const HUD_FRAME: Rect = { x: 0, y: 0, w: W, h: H };
 
@@ -54,11 +56,12 @@ const ORDER_GAP = 4;
 export const ORDER_LABEL_ABOVE = 12;
 /**
  * The strip's column is as wide as its widest entry (a combo shows one face per partner, and the
- * widest combo has three) plus what the entry acting now adds (it steps 5 px toward the field and
- * an 8 px pointer sticks out beside it).
+ * widest combo has three) plus what the entry acting now adds: it steps `ORDER_STEP_OUT` toward the
+ * field (the renderer moves it by this) and a pointer reaches `ORDER_POINTER_REACH` out beside it.
  */
 export const STRIP_MAX_FACES = 3;
-export const ORDER_COLUMN_W = STRIP_MAX_FACES * ORDER_FACE + 1 + 13;
+export const ORDER_STEP_OUT = 5, ORDER_POINTER_REACH = 8;
+export const ORDER_COLUMN_W = STRIP_MAX_FACES * ORDER_FACE + 1 + ORDER_STEP_OUT + ORDER_POINTER_REACH;
 /** Character cut-ins (a combo's partners, sliding in at the sides): card sizes, in screen pixels. */
 const CUTIN_W = 132, CUTIN_W_LINE = 184, CUTIN_H = 58;
 /** A cut-in's top is this far above the cards' top, and the next row is this far above that. */
@@ -93,6 +96,14 @@ const MENU_INSET = 4, ORDER_INSET = 6;
 export const CMD_W = 84;
 /** The round menu (Fight / Repeat / Auto / Run) is as wide as the command window and this tall. */
 export const ROUND_MENU_H = 54;
+/**
+ * The list window (items, skills, techs) stacks above the command window. Its width follows its
+ * widest row, plus `LIST_PAD_W` for the cursor and the margins, and stays between the two limits.
+ */
+export const LIST_MIN_W = 120, LIST_MAX_W = 210, LIST_PAD_W = 32;
+export function listWindowW(widestRow: number): number {
+  return Math.min(LIST_MAX_W, Math.max(LIST_MIN_W, widestRow + LIST_PAD_W));
+}
 /** Every menu window ends this far above the cards' top edge; the next one stacks above it. */
 export const MENU_ABOVE_PANEL = 6;
 
@@ -184,6 +195,8 @@ export const DECK_CUT_LIFE = 56;
 
 // ------------------------------------------------------------------ the party row (world pixels)
 
+/** The party's feet stand this many world pixels above the world's bottom edge (a look choice, kept from the 480x270 layout). */
+const PARTY_FEET_ABOVE_EDGE = 8;
 /**
  * Party feet sit well below the panel top: an over-the-shoulder view, where the status cards cover
  * the crew's legs and only heads, shoulders and raised arms show. The feet are 40 screen pixels
@@ -193,12 +206,13 @@ export const DECK_CUT_LIFE = 56;
  * `PANEL_Y` from the frame's. A frame that was not the whole screen would need `PARTY_BOTTOM` to
  * follow it.
  */
-export const PARTY_BOTTOM = BHT - 8;
+export const PARTY_BOTTOM = BHT - PARTY_FEET_ABOVE_EDGE;
 /** From a party member's feet up to the middle of their body: where rings, arrows and effects aim. */
 export const PARTY_MID = 34;
 /**
  * The tallest a party member stands above `PARTY_BOTTOM` (idle, in world pixels), measured from
- * the rig battlers (tests/fixtures/battle-sprites.json). The enemy row stays above this.
+ * the rig battlers (tests/fixtures/battle-sprites.json). A regular enemy's feet stay above this; a
+ * boss may reach a few rows into it (see "the enemy row" below).
  */
 export const PARTY_HEIGHT = 60;
 
@@ -211,18 +225,14 @@ export function partyX(i: number, n: number, hud: HudLayout = HUD): number {
 
 /**
  * Regular enemies stand further back on the floor than the background's ground line, so the
- * party's heads sit below their feet: their feet stay at least `ENEMY_CLEARANCE` world pixels
- * above the tallest head (tests/battle-geom.test.ts checks it on every backdrop). Bosses stay
- * forward and loom over the party, as they did at 480x270 (their feet then reached 22 to 28
- * pixels into the head row); a boss may stand up to `BOSS_OVERLAP_MAX` world pixels into it, which
- * is a few rows now (the test checks the story's boss fights). The Lurker (it wades) stands a
- * little further back, and every second enemy in a row a step further than its neighbor.
+ * party's heads sit below their feet: their feet stay a few world pixels above the tallest head
+ * (tests/battle-geom.test.ts holds every backdrop to 2 of them). Bosses stay forward and loom over
+ * the party, as they did at 480x270 (their feet then reached 22 to 28 world pixels into the head
+ * row); a boss's feet may reach a few rows into it now (the test allows 6 and checks the story's
+ * boss fights). The Lurker (it wades) stands a little further back, and every second enemy in a
+ * row a step further than its neighbor.
  */
 const ENEMY_LIFT = 14, BOSS_LIFT = 4, LURKER_LIFT = 4, ENEMY_STAGGER = 4;
-/** The room between a regular enemy's feet and the tallest party member's head, in world pixels. */
-export const ENEMY_CLEARANCE = 2;
-/** How far a boss's feet may reach below the top of the party's heads, in world pixels. */
-export const BOSS_OVERLAP_MAX = 6;
 /** Space between neighbors in the enemy row: the formation spreads across the wider floor. */
 export const ENEMY_GAP = 20;
 /**
@@ -240,8 +250,27 @@ export const PROMPT_CLEAR = Math.ceil(TOP_BAND_BOTTOM / WORLD_SCALE);
 export const ENEMY_MID_AT = 0.45;
 /** Where a unit that is not on the field aims: over the enemy row's middle. */
 export const FIELD_MID = Math.round(BHT * ENEMY_MID_AT);
-/** Damage numbers never rise above the top band: the lowest y a floater may start at (world pixels). */
-export const FLOATER_TOP = Math.round(TOP_BAND_BOTTOM / WORLD_SCALE) - 1;
+/**
+ * A floater (a damage number, a status word) starts at some row, pops up `FLOATER_POP` rows, and a
+ * hit then bounces up to `FLOATER_BOUNCE` more (render.ts, "Floaters"). The next floater for the
+ * same target starts `FLOATER_ROW` higher: 7 px glyphs, their shadow, and air.
+ */
+export const FLOATER_POP = 8, FLOATER_BOUNCE = 3, FLOATER_ROW = 12;
+/**
+ * Damage numbers never rise into the top text band. This is the lowest row a floater may START at
+ * (world pixels): after its pop and its bounce its top is still on the first row under the band,
+ * `PROMPT_CLEAR`. Derived from the band, so it follows the HUD frame.
+ */
+export const FLOATER_TOP = PROMPT_CLEAR + FLOATER_POP + FLOATER_BOUNCE;
+
+/**
+ * The row where floater number `stacked` (0 for the first one showing over a target) starts, for a
+ * target whose head is at `anchorY`. Over a tall enemy the stack grows downward from `FLOATER_TOP`
+ * instead of upward, so the clamp cannot pile rows on each other. Pure, so the tests check it.
+ */
+export function floaterStart(anchorY: number, stacked: number): number {
+  return Math.max(FLOATER_TOP + stacked * FLOATER_ROW, anchorY - FLOATER_POP - stacked * FLOATER_ROW);
+}
 
 /** What the enemy row needs to know of one enemy's art, in world pixels (`top`: its first opaque row). */
 export interface EnemyBox { w: number; h: number; top: number; boss: boolean; lurker: boolean }

@@ -32,7 +32,10 @@ describe('cameraOrigin', () => {
   });
 
   it('keeps the view inside a map larger than the view', () => {
-    const mw = W + 416, mh = H + 370; // Lantern Row at 480x270
+    // A stand-in larger than the view in both axes: 416 px wider and 370 px taller than the view.
+    // (Lantern Row, 896x640, was exactly this much larger than the old 480x270 view; at 640x360
+    // it is 256 wider and 280 taller, so the numbers are written relative to W and H instead.)
+    const mw = W + 416, mh = H + 370;
     expect(cameraOrigin(0, 0, mw, mh)).toEqual({ x: 0, y: 0 });
     expect(cameraOrigin(mw, mh, mw, mh)).toEqual({ x: mw - W, y: mh - H });
     const fx = mw / 2 + 3, fy = mh / 2 - 7;

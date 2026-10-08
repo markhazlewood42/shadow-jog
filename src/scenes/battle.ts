@@ -30,7 +30,7 @@ import { battleDriver } from './battlekit/driver';
 import { TimingWindow, timingWord } from './battlekit/timing';
 import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
-import { BHT, BW, DECK_CUT_LIFE, ENEMY_MID_AT, FIELD_MID, FLOATER_TOP, HUD, MENU_X, PANEL_Y, PARTY_BOTTOM, PARTY_MID, partyX, placeEnemies, type EnemyBox } from './battlekit/geom';
+import { BHT, BW, DECK_CUT_LIFE, ENEMY_MID_AT, FIELD_MID, floaterStart, HUD, MENU_X, PANEL_Y, PARTY_BOTTOM, PARTY_MID, partyX, placeEnemies, type EnemyBox } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
 import { postfx } from '../engine/postfx';
 import { playMoment } from '../engine/moments';
@@ -682,7 +682,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const u = this.battle.unit(uid);
     if (u?.side !== 'enemy') return this.pos(uid);
     const { x, y, art } = this.enemyPos(u);
-    return { x: x + art.w / 2, y: Math.max(FLOATER_TOP, y + artTop(art) + 4) };
+    return { x: x + art.w / 2, y: y + artTop(art) + 4 };
   }
 
   /** The scene as playback sees it (battlekit/playback.ts): a narrow view, built once. */
@@ -778,9 +778,9 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const p = this.floatPos(uid);
     let stacked = 0;
     for (const f of this.floaters) if (f.uid === uid && f.t < 26) stacked++;
-    // 12px a row: 7px glyphs, their shadow, and air (the hit's bounce reaches 3px). Near the top
-    // of the frame the stack grows downward instead, so the clamp can't pile rows on each other.
-    this.floaters.push({ text, x: p.x, y: Math.max(FLOATER_TOP + stacked * 12, p.y - 8 - stacked * 12), t: 0, color, style, uid });
+    // One row per floater already showing; near the top of the frame the stack grows downward
+    // instead (floaterStart in battlekit/geom.ts, which keeps every number out of the top text band).
+    this.floaters.push({ text, x: p.x, y: floaterStart(p.y, stacked), t: 0, color, style, uid });
   }
 
   private say(text: string): void {
@@ -1057,7 +1057,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const prev = this.layout;
       const next = new Map<number, { x: number; y: number; art: EnemyArt }>();
       const living = this.battle.enemies.filter((e) => !this.dead.has(e.uid)).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
-      const arts = living.map((e) => enemyArt(ENEMIES[e.key]!.sprite));
+      const arts = living.map((e) => enemyArt(must(ENEMIES[e.key], 'enemy data').sprite));
       // The row rule is battlekit/geom.ts placeEnemies (pure, so the tests check it): one spot per
       // enemy, in the same order, so spot `i` belongs to enemy `i`.
       const spots = placeEnemies(living.map((e, i) => this.enemyBox(e, must(arts[i], 'enemy art'))), this.bg.ground);
@@ -1150,7 +1150,11 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   /**
    * Command and ability windows sit in the bottom-left corner, whoever is acting (the turn-order
    * strip keeps the right edge): the same place every time, so the eye never has to hunt for them
-   * (Mark's playthrough, 2026-09-29). The heroes stand over their status cards, which are centered, so no one is covered.
+   * (Mark's playthrough, 2026-09-29). The heroes stand over their status cards, which are centered.
+   * With the chapter's three members the left hero's edge is at about x 180, and the widest list
+   * the data builds ends at about x 146, so no one is covered (tests/battle-geom.test.ts, "the list
+   * window"). A list can be 210 wide (`LIST_MAX_W`), and with four members the left hero's edge is
+   * at about x 120, so a four-member party's longest list would overlap that hero's side.
    */
   menuX(_a: Combatant, _w: number): number {
     return MENU_X;

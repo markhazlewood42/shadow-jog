@@ -13,7 +13,8 @@
  *   --view 1080p    the baseline at 4x and the result at 3x: both fill a 1920x1080 screen, as on a
  *                   1080p monitor, so the art reads 25% smaller on the right.
  * Options:
- *   --base 480x270    the baseline's game size      --result 640x360   the result's game size
+ *   --base WxH        the baseline's game size (default: read from the baseline's PNG files, see below)
+ *   --result 640x360  the result's game size
  *   --per-page N      pairs on one page (gamepx 8, 1080p 1)   --cols N   pair columns (gamepx 2, 1080p 1)
  *   --only a,b,c      only these shot names (no .png)
  *
@@ -30,13 +31,13 @@ import { shotNames } from './lib/shot-names.mjs';
 const HELP = `contact-sheet: pages that pair each baseline shot with its 640x360 shot.
 
   node scripts/contact-sheet.mjs <baselineDir> <resultDir> <outPrefix> [--view gamepx|1080p] [--zoom N]
-                                 [--per-page N] [--cols N] [--only a,b,c] [--base 480x270] [--result 640x360]
+                                 [--per-page N] [--cols N] [--only a,b,c] [--base WxH] [--result 640x360]
 
 Writes <outPrefix>-01.png, -02.png, ... Default view: gamepx (same zoom per game pixel, zoom 1).`;
 
 const args = process.argv.slice(2);
 const positional = [];
-const opt = { view: 'gamepx', zoom: null, perPage: null, cols: null, only: null, base: '480x270', result: '640x360', help: false };
+const opt = { view: 'gamepx', zoom: null, perPage: null, cols: null, only: null, base: null, result: '640x360', help: false };
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '--view') opt.view = args[++i];
@@ -66,8 +67,42 @@ function parseSize(s, what) {
   if (!m) throw new Error(`${what}: expected WxH, got "${s}"`);
   return { w: Number(m[1]), h: Number(m[2]) };
 }
-const baseSize = parseSize(opt.base, '--base');
 const resultSize = parseSize(opt.result, '--result');
+const baseNames = shotNames(baseDir), resultNames = new Set(shotNames(resultDir));
+
+/** Width and height of a PNG file, read from its IHDR chunk (the 8-byte signature, then width at byte 16 and height at 20). */
+function pngSize(file) {
+  const head = readFileSync(file).subarray(0, 24);
+  return { w: head.readUInt32BE(16), h: head.readUInt32BE(20) };
+}
+
+/**
+ * The baseline's game size when --base is not given. It is never assumed: the folder's own pictures
+ * say. The candidates are the result's game size and the two sizes this move compares (480x270 and
+ * 640x360); the one that most of the pictures are a whole multiple of wins, and a tie goes to the
+ * earlier candidate (the result's size first, so two folders of one build compare as equals). A
+ * folder that fits none of them needs an explicit --base.
+ */
+function detectBaseSize(dir, names) {
+  const candidates = [resultSize, { w: 480, h: 270 }, { w: 640, h: 360 }].filter((c, i, all) => all.findIndex((o) => o.w === c.w && o.h === c.h) === i);
+  let best = null;
+  for (const c of candidates) {
+    let fits = 0;
+    for (const n of names) {
+      const f = join(dir, `${n}.png`);
+      if (!existsSync(f)) continue;
+      const { w, h } = pngSize(f), k = w / c.w;
+      if (Number.isInteger(k) && k >= 1 && h === c.h * k) fits++;
+    }
+    if (fits > 0 && (!best || fits > best.fits)) best = { size: c, fits };
+  }
+  if (!best) {
+    console.error('cannot tell the baseline game size from its pictures: pass --base WxH');
+    process.exit(2);
+  }
+  return best.size;
+}
+const baseSize = opt.base ? parseSize(opt.base, '--base') : detectBaseSize(baseDir, baseNames);
 const is1080 = opt.view === '1080p';
 // Zoom per game pixel for each side. The 1080p view puts both on a 1920-wide screen.
 const zoomBase = is1080 ? 1920 / baseSize.w : (opt.zoom ?? 1);
@@ -79,7 +114,6 @@ if (![zoomBase, zoomResult].every((z) => Number.isInteger(z) && z >= 1)) {
   process.exit(2);
 }
 
-const baseNames = shotNames(baseDir), resultNames = new Set(shotNames(resultDir));
 let names = [...new Set([...baseNames, ...resultNames])].sort();
 if (opt.only) names = names.filter((n) => opt.only.has(n));
 if (names.length === 0) {
@@ -115,7 +149,7 @@ const baseView = viewportOf(baseDir, baseNames, baseSize), resultView = viewport
 const shrink = Math.round((1 - zoomResult / zoomBase) * 100);
 const header = is1080
   ? `Left: the baseline, ${baseSize.w}x${baseSize.h} at ${zoomBase}x. Right: the result, ${resultSize.w}x${resultSize.h} at ${zoomResult}x. Both fill a ${baseSize.w * zoomBase}x${baseSize.h * zoomBase} screen, as on a 1080p monitor${shrink > 0 ? `, so the art reads ${shrink}% smaller on the right` : shrink < 0 ? `, so the art reads ${-shrink}% larger on the right` : ''}.`
-  : `Left: the baseline, ${baseSize.w}x${baseSize.h}. Right: the result, ${resultSize.w}x${resultSize.h}. Same zoom per game pixel (${zoomBase}x), so the right picture is larger, as the game is. Baseline shots come from a ${baseView} viewport, results from ${resultView}.`;
+  : `Left: the baseline, ${baseSize.w}x${baseSize.h}. Right: the result, ${resultSize.w}x${resultSize.h}. Same zoom per game pixel (${zoomBase}x)${resultSize.w * zoomResult > baseSize.w * zoomBase ? ', so the right picture is larger, as the game is' : resultSize.w * zoomResult < baseSize.w * zoomBase ? ', so the right picture is smaller, as the game is' : ', and both pictures are the same size'}. Baseline shots come from a ${baseView} viewport, results from ${resultView}.`;
 
 mkdirSync(dirname(outPrefix) || '.', { recursive: true });
 for (const [pi, group] of pages.entries()) {
