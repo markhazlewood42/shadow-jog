@@ -66,7 +66,7 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 | Active | A session is active while its Claude process runs, working or waiting for Mark. The recent-sessions list leaves the page. |
 | Running panel | Sessions only. Each row links to the Agents page. |
 | Diagram build | Our own SVG lines and smooth motion. The server checks every 3 seconds. No new dependency. |
-| Status panel | Five rows with links, and a milestone strip from M0 to M8. |
+| Status panel | Five rows with links, and a milestone strip with one square for each row of the milestone table. |
 | Doc buttons | A split button as on the markedup-consulting site: "Copy for LLM", with "Download as markdown" in its menu. The copied text has a 2-line source header. |
 
 ---
@@ -214,10 +214,10 @@ The panel is a summary. Each row is a label, a value and a link. It does not cop
 | status.md | the date of its last update | the status doc page |
 | Last commit | its age | the commit on GitHub |
 
-Under the rows, a strip shows the milestones of `docs/engine/migration.md`, M0 to M8, as small squares.
+Under the rows, a strip shows the milestones of `docs/engine/migration.md` as small squares, one for each row of its milestone table (today Phase 0, Pre-M0 and M0 to M8).
 - A square before the current milestone is filled. The current one has the accent color. Later squares are outlined.
 - Each square links to its heading in the doc.
-- The current milestone is a new key in the frontmatter of `status.md`: `milestone: M3`. The value `none` means that no milestone has started. Agents update the key at a phase break.
+- The current milestone is a new key in the frontmatter of `status.md`: `milestone: M3`. The value is the id of a table row (today `Pre-M0`), or `none` when no milestone has started. Agents update the key at a phase break.
 - A value that names no milestone shows an error label on the strip. The page never guesses.
 
 Data:

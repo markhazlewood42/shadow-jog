@@ -48,7 +48,7 @@ The constraints of [plan.md](plan.md) still hold. Revision 2 changes these:
 - [ ] **Review point:** the JSON of a real call with the titles blanked. No screenshot.
 
 ### Task 15: Status summary (Now page)
-- **Files:** rewrite `src/web/now/StatusPanel.tsx`. Modify `src/server/status/` (the milestone key and the Next up count), the GitHub module (CI on main), the runner allow-list, `src/shared/types.ts` and `status.md` (frontmatter key `milestone: none`).
+- **Files:** rewrite `src/web/now/StatusPanel.tsx`. Modify `src/server/status/` (the milestone key and the Next up count), the GitHub module (CI on main), the runner allow-list, `src/shared/types.ts` and `status.md` (the frontmatter key `milestone`).
 - [ ] **Tests (write first):** the milestone key (valid, `none`, unknown id), the CI run parser, the runner allow-list, the rows and the strip (E2E), the links of the strip squares, a failed source shows an error row while the others stay, the "Right now" text is gone.
 - [ ] **Done when:** the unit and E2E suites pass. The panel shows five rows and the strip on the real repo.
 - [ ] **Review point:** screenshots of the Now page, glass on and off.
@@ -92,6 +92,6 @@ The constraints of [plan.md](plan.md) still hold. Revision 2 changes these:
 
 ## Open points for Mark
 
-- **status.md key.** Task 15 adds `milestone: none` to the frontmatter of `status.md`. Agents set it to `M0` when M0 starts.
+- **status.md key.** Task 15 adds the key `milestone` to the frontmatter of `status.md` (value `Pre-M0` today). Agents move it when the milestone changes.
 - **Decision table.** `/docs/decisions` has no Copy and Download, because it draws three docs.
 - **No screenshot before Task 15.** Task 14 has no page.
