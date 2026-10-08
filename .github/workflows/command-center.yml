@@ -14,12 +14,16 @@ on:
     paths:
       - 'tools/command-center/**'
       - 'docs/command-center/**'
+      # tests/decisions-parse.test.ts reads the real issue template, so a change to it must run the tests.
+      - '.github/ISSUE_TEMPLATE/decision.md'
       - '.github/workflows/command-center.yml'
   push:
     branches: [main]
     paths:
       - 'tools/command-center/**'
       - 'docs/command-center/**'
+      # tests/decisions-parse.test.ts reads the real issue template, so a change to it must run the tests.
+      - '.github/ISSUE_TEMPLATE/decision.md'
       - '.github/workflows/command-center.yml'
   workflow_dispatch:
 
