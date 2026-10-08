@@ -136,8 +136,15 @@ export function childrenOf(session: LiveSession): Map<string, LiveNode[]> {
   return children;
 }
 
-/** The text of a count: `2`, or `2+` when the count may be short because the part of the file that was read was cut. */
+/** The most that a badge shows. A longer text would be wider than the space between a trunk and a box (see `messageLine`). */
+const BADGE_MAX = 99;
+
+/**
+ * The text of a count: `2`, or `2+` when the count may be short because the part of the file that was read was cut. A count over 99 shows as `99+`, so that the badge
+ * fits in the arm. Only the badge is cut: the text list says the true number (boxText.ts).
+ */
 function countText(messages: LiveNode['messages']): string {
+  if (messages.count > BADGE_MAX) return `${BADGE_MAX}+`;
   return `${messages.count}${messages.approximate ? '+' : ''}`;
 }
 

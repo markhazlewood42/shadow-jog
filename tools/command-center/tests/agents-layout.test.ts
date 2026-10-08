@@ -234,7 +234,28 @@ describe('the layout of a cluster', () => {
     // The label is wide enough for its text: a longer text gets a wider label, and the segment still has room around it.
     const widthOf = (count: number, approximate: boolean) => linesOf(layoutSession(liveSession('s1', { nodes: [liveNode('a', { messages: { count, approximate } })] })), 'messages')[0]?.count?.w as number;
     expect(widthOf(3, true)).toBeGreaterThan(widthOf(3, false));
-    expect(widthOf(120, true)).toBeGreaterThan(widthOf(12, true));
+    expect(widthOf(12, true)).toBeGreaterThan(widthOf(3, true));
+  });
+
+  it('F5: a message count of 100 or more shows as 99+', () => {
+    const textOf = (count: number, approximate: boolean) => linesOf(layoutSession(liveSession('s1', { nodes: [liveNode('a', { messages: { count, approximate } })] })), 'messages')[0]?.count?.text;
+    expect(textOf(99, false)).toBe('99');
+    expect(textOf(100, false)).toBe('99+');
+    expect(textOf(12345, false)).toBe('99+');
+    expect(textOf(99, true)).toBe('99+');
+    expect(textOf(150, true)).toBe('99+');
+    expect(textOf(7, true)).toBe('7+');
+  });
+
+  it('F5: a message badge is never wider than the gap between the trunk and the box', () => {
+    // The gap is the arm less the two ends of the message line.
+    const gap = SIZES.arm - SIZES.messageStart - SIZES.messageEnd;
+    for (const count of [1, 99, 100, 1000, 12345]) {
+      for (const approximate of [false, true]) {
+        const w = linesOf(layoutSession(liveSession('s1', { nodes: [liveNode('a', { messages: { count, approximate } })] })), 'messages')[0]?.count?.w as number;
+        expect(w, `${count} ${approximate}`).toBeLessThanOrEqual(gap);
+      }
+    }
   });
 
   it('layout keeps every line and every label out of every box', () => {
