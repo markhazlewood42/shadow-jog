@@ -21,6 +21,9 @@ function panelOf<T>(data: T): Panel<T> {
   return { ok: true, data, updatedAt: new Date().toISOString() };
 }
 
+/** The end of an address that asks for the text of a doc: `engine/decisions/source` is the text of the doc `engine/decisions`. */
+const SOURCE_SUFFIX = '/source';
+
 /** The doc whose "Reading order" list the engine docs follow: the README of docs/engine. */
 const READING_ORDER_DOC = 'engine/README';
 
@@ -44,6 +47,18 @@ async function bannersFor(source: PanelSource<DecisionsInfo>, docId: string, wai
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** The 404 answer for an address that no doc has: a failed Panel that also names the docs with the same file name. */
+function docNotFound(docs: DocIndex, slug: string): DocNotFound {
+  const shown = slug.length > MAX_ECHO_CHARS ? `${slug.slice(0, MAX_ECHO_CHARS)}...` : slug;
+  return {
+    ok: false,
+    error: { code: 'doc-not-found', message: `No doc has the address "${shown}". It may have been moved or deleted.` },
+    updatedAt: null,
+    lastGood: null,
+    suggestions: docs.suggest(slug),
+  };
 }
 
 const refOf = (item: Extract<NavItem, { kind: 'doc' }> | undefined): DocRef | null => (item === undefined ? null : { slug: item.slug, title: item.title });
@@ -70,6 +85,10 @@ function readingOrderOf(nav: readonly NavSection[], slug: string): ReadingOrder 
  * Adds the docs routes to `app`:
  *
  * - `GET /api/docs`: a Panel of `{ docs, nav, problems }`.
+ * - `GET /api/docs/<slug>/source`: the text of the file of the doc, as it is (the frontmatter included), as
+ *   `text/markdown`. The Copy and Download buttons of a doc page ask for it when they are pressed, so the
+ *   page data does not carry it. It takes the slug of an indexed doc and never a path. A doc whose own slug
+ *   ends in `/source` keeps its address: `GET /api/docs/<slug>` is tried first, and the text is the fallback.
  * - `GET /api/docs/<slug>`: a Panel of the doc, with its place in the reading order of the engine docs
  *   (`readingOrder`, or null). An address that no doc has gives status 404 and a
  *   failed Panel (code `doc-not-found`) that also carries `suggestions`: the docs that have the
@@ -98,15 +117,19 @@ export function registerDocsRoutes(app: Hono, docs: DocIndex, decisions?: PanelS
     const slug = c.req.path.slice('/api/docs/'.length);
     const page = docs.get(slug);
     if (page === null) {
-      const shown = slug.length > MAX_ECHO_CHARS ? `${slug.slice(0, MAX_ECHO_CHARS)}...` : slug;
-      const missing: DocNotFound = {
-        ok: false,
-        error: { code: 'doc-not-found', message: `No doc has the address "${shown}". It may have been moved or deleted.` },
-        updatedAt: null,
-        lastGood: null,
-        suggestions: docs.suggest(slug),
-      };
-      return c.json(missing, 404);
+      // Not a doc page. `<slug>/source` may still be the text of a doc. A doc page is looked up first, so a doc whose own slug
+      // ends in "/source" is its page and not the text of another doc (its own text is at `<slug>/source/source`).
+      if (slug.endsWith(SOURCE_SUFFIX)) {
+        const asked = slug.slice(0, -SOURCE_SUFFIX.length);
+        const text = docs.source(asked);
+        if (text !== null) {
+          // nosniff and no-store are also set for every answer by app.ts. They are said here too, so this route does not depend on that.
+          return c.body(text, 200, { 'Content-Type': 'text/markdown; charset=utf-8', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' });
+        }
+        // The address of the doc that was asked for, without the word "source", is what a person can act on.
+        return c.json(docNotFound(docs, asked), 404);
+      }
+      return c.json(docNotFound(docs, slug), 404);
     }
     const data: DocPageData = {
       ...page,

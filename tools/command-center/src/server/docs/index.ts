@@ -42,6 +42,8 @@ export type DocIndex = {
   list(): DocSummary[];
   /** The doc with this slug (`engine/decisions`), or null. */
   get(slug: string): DocPage | null;
+  /** The text of the file of the doc with this slug, exactly as it was read (the frontmatter included), or null. */
+  source(slug: string): string | null;
   /** The sections of the navigation. */
   nav(): NavSection[];
   /** What is wrong with the docs, one line each. */
@@ -697,6 +699,7 @@ export function createDocIndex(deps: DocIndexDeps, options: DocIndexOptions = {}
 
     list: () => snapshot.summaries,
     get: (slug) => snapshot.bySlug.get(slug)?.page ?? null,
+    source: (slug) => snapshot.bySlug.get(slug)?.source.text ?? null,
     nav: () => snapshot.nav,
     problems: () => snapshot.problems,
     asset: (id) => snapshot.assets.get(id) ?? null,
