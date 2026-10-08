@@ -38,6 +38,9 @@ jobs:
     runs-on: ubuntu-latest
     # The limit only stops a hung job (GitHub's default is 6 hours).
     timeout-minutes: 20
+    # No test may open a browser tab on the runner: the Vitest tests start the server too.
+    env:
+      CC_NO_OPEN: '1'
     defaults:
       run:
         working-directory: tools/command-center
@@ -57,6 +60,13 @@ jobs:
       # The config starts its own server on port 3010. CI is set by GitHub, so the config uses the
       # bundled Chromium and not Edge.
       - name: E2E on Chromium
-        run: npm run e2e
-        env:
-          CC_NO_OPEN: '1'
+        run: npm run e2e -- --trace retain-on-failure
+      # A spec that fails only here leaves its trace and its error notes as a download of the run.
+      - name: Keep the E2E results of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: command-center-e2e-results
+          path: tools/command-center/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
