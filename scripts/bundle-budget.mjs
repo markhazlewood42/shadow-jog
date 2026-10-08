@@ -27,9 +27,15 @@ import { gzipSync } from 'node:zlib';
  * for the nine interiors, a themed surround for the Rustyard and the Dock) and the pop-in table with
  * its curtains and hold (his D17 picks). Round 1 of WP3 kept that code in the dev build only, at
  * 235.9 kB, because nothing chose it yet; it ships now.
+ * Raised to 239.5 kB on 2026-10-08 (D20, WP3 round 3), by the measured delta only: the total measured
+ * 239.343 kB (239,343 bytes) against 238.413 at the 238.5 alarm, a delta of 0.930 kB, rounded up to the next
+ * 0.1 kB (1.0). The causes: `field/overrects.ts` and the field code that lights only the occupied
+ * parts of an overhead layer (a performance fix, D15), and the Rustyard's and the Dock's colors and
+ * alphas written as named theme records (`YARD`, `DOCK`, `EDGE_FILL` in `fieldkit/surround-art.ts`)
+ * instead of inline literals.
  */
 const CHUNK_MAX = 480 * 1000;
-const GZIP_TOTAL_MAX = 238.5 * 1000;
+const GZIP_TOTAL_MAX = 239.5 * 1000;
 
 const dir = 'dist/assets';
 const js = readdirSync(dir).filter((f) => f.endsWith('.js'));

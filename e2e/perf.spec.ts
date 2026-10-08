@@ -46,11 +46,17 @@ async function measureBest(page: Page, ms: number): Promise<{ best: Stats & { si
 const SIM_MEAN_MS = 2;
 const SIM_P95_MS = 4;
 const SOFTWARE = !!(process.env.CI || process.env.PW_NOGPU);
-// CI's software canvas measures the plaza at 4.7 to 8.8 ms mean (one window; the spread is the
-// runner's noise, see measureBest), battle 1.6 to 3.0. The gate sits above the quiet readings but well inside
-// the 16.7 ms frame, so a regression fails the run before it drops frames, not after.
-const MEAN_MS = SOFTWARE ? 8 : 4;
-const P95_MS = SOFTWARE ? 11 : 6;
+// CI's software canvas measures the plaza at 4.3 to 8.8 ms mean in one window (round 3 of WP3's
+// readings, 640x360). The spread is the runner: the title scene, which no change of ours touches,
+// reads 0.97 to 1.66 ms across the same runs, and the plaza costs about 4.5 to 5.5 times the title,
+// so a slow runner reads the plaza near 7.5 and a bad stretch near 9. Round 3 lowered the cost
+// (the overhead pass lights only what holds something) and gates on the best of 3 windows, but the
+// worst runner still reads within a few percent of 8, so the software gate is 10 / 12 ms: inside the
+// PL8 ceiling (12.5 / 14.5) and well inside the 16.7 ms frame, so a regression fails the run before
+// it drops frames, not after. The GPU gate is unchanged (4 / 6 ms): locally it holds with margin.
+// Battle on software reads 1.6 to 3.0 ms and shares the gate.
+const MEAN_MS = SOFTWARE ? 10 : 4;
+const P95_MS = SOFTWARE ? 12 : 6;
 
 // The title's cost, logged for context in the evidence (the machine's floor), not gated.
 test.beforeAll(async ({ browser }) => {

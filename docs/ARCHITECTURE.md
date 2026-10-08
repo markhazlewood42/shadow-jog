@@ -182,7 +182,7 @@ A `MapDef` is authored data:
 ### Building a map (`fieldmap.ts`, `tiles.ts`, `buildings.ts`, `props.ts`, `bake.ts`)
 `FieldMap` parses the def and **bakes** it once into layers: ground (tile painters from `tiles.ts`, one per
 `TerrainId`, 16×16 px), structures, sprites (props and buildings as depth-sorted sprites with an emissive layer), an
-overhead layer, animated props (`anims`), and lights. The field scene caches built maps (`MAP_CACHE_MAX` 8 in `scenes/field.ts`); `refreshMap()`
+overhead layer (with `overRects`, the rectangles of it that hold anything, so the scene lights and draws only those: `field/overrects.ts`), animated props (`anims`), and lights. The field scene caches built maps (`MAP_CACHE_MAX` 8 in `scenes/field.ts`); `refreshMap()`
 rebuilds after a flag change. `SOLID_TERRAIN` decides walkability; props block their footprint unless `pass: true`.
 After the tiles, a **relief** pass shades the ground at the foot and right of raised terrain (walls, city blocks);
 dungeons also bake a faint unlit edge where floor meets wall or void (`bakeStructureEdges`).
