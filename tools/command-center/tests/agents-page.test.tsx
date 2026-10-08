@@ -45,11 +45,11 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/** Opens the page and lets the first load finish. */
-async function openPage(): Promise<void> {
+/** Opens the page (at an address, for a link from another page) and lets the first load finish. */
+async function openPage(at = '/agents'): Promise<void> {
   await act(async () => {
     root.render(
-      <MemoryRouter initialEntries={['/agents']}>
+      <MemoryRouter initialEntries={[at]}>
         <AgentsPage />
       </MemoryRouter>,
     );
@@ -130,6 +130,50 @@ describe('the Agents page', () => {
     await act(async () => (alert?.querySelector('button') as HTMLButtonElement).click());
     expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(container.textContent).not.toContain('Last good data');
+  });
+
+  it('says "Session not active" for a link to a session that is not in the diagram, once the data has loaded', async () => {
+    const closedLink = '/agents#session-closed-long-ago';
+    // While the first load runs there is no diagram, so the page cannot say that the session is missing: no label yet.
+    api.getPanel.mockReturnValueOnce(new Promise(() => undefined));
+    await openPage(closedLink);
+    expect(container.textContent).toContain('Loading');
+    expect(container.textContent).not.toContain('Session not active');
+    act(() => root.unmount());
+
+    // The first good load: the label shows, with the diagram of the sessions that are live.
+    root = createRoot(container);
+    api.getPanel.mockResolvedValueOnce(ok(live([liveSession('s1', { title: 'Build the page' })])));
+    await openPage(closedLink);
+    expect(container.textContent).toContain('Session not active');
+    expect(container.querySelectorAll('[data-cluster]')).toHaveLength(1);
+    act(() => root.unmount());
+
+    // A link to a session that is live has no label.
+    root = createRoot(container);
+    api.getPanel.mockResolvedValueOnce(ok(live([liveSession('s1', { title: 'Build the page' })])));
+    await openPage('/agents#session-s1');
+    expect(container.textContent).not.toContain('Session not active');
+  });
+
+  it('shows no "Session not active" label under an error, and shows it again when a retry brings good data', async () => {
+    const closedLink = '/agents#session-closed-long-ago';
+    api.getPanel.mockResolvedValueOnce(ok(live([liveSession('s1', { title: 'A session that was drawn' })])));
+    await openPage(closedLink);
+    expect(container.textContent).toContain('Session not active');
+
+    // The next load fails: the diagram of the last good load stays under the error, but the page cannot say what is active now, so the label goes.
+    api.getPanel.mockResolvedValueOnce({ ok: false, error: { code: 'agents-failed', message: 'The server cannot read the live sessions (EACCES).' }, updatedAt: null, lastGood: null });
+    await send({ type: 'hello' });
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(container.querySelector('[data-part="title"]')?.textContent).toBe('A session that was drawn');
+    expect(container.textContent).not.toContain('Session not active');
+
+    // Retry brings good data, and the label is back.
+    api.getPanel.mockResolvedValueOnce(ok(live([liveSession('s1', { title: 'A session that was drawn' })])));
+    await act(async () => (container.querySelector('[role="alert"] button') as HTMLButtonElement).click());
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.textContent).toContain('Session not active');
   });
 
   it('each Copy button copies the file of its own box, and a box with no file has no button', async () => {

@@ -44,6 +44,8 @@ export function AgentsPage() {
   useDocumentTitle('Agents');
   const result = usePanel<AgentsLive>('/api/agents', AGENTS_MODULES);
   const now = useNow(TICK_MS);
+  // Under an error the panel draws the last good data too. That data may be old, so the diagram says nothing about a linked session then (see Diagram).
+  const current = result.state === 'ready';
 
   return (
     <div className="min-h-screen">
@@ -51,7 +53,7 @@ export function AgentsPage() {
       <main className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 py-6 sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight">Agents</h1>
         <PanelFrame title="Agents" result={result}>
-          {(live) => <Diagram live={live} nowMs={now} />}
+          {(live) => <Diagram live={live} nowMs={now} current={current} />}
         </PanelFrame>
       </main>
     </div>

@@ -11,11 +11,14 @@ import { MIN, NOW, SEC, ago, kids, live, liveNode, liveSession, liveWorkflow } f
 // The Agents diagram, drawn once into a document and asked with selectors (no server and no browser). The diagram is a plain function of the live data and of the clock, so
 // these tests fix both. How it looks, moves and reacts in a real browser is the job of e2e/agents.spec.ts.
 
-/** The diagram drawn into a document, so that a test can ask the document and not match text. A link needs a router around it, as it has in the app. */
-function draw(data: AgentsLive, nowMs: number = NOW): HTMLElement {
+/**
+ * The diagram drawn into a document, so that a test can ask the document and not match text. A link needs a router around it, as it has in the app.
+ * `at` is the address of the page (for example `/agents#session-s1`), and `current` is the flag of the diagram that says whether the data is the newest good answer.
+ */
+function draw(data: AgentsLive, nowMs: number = NOW, { at = '/agents', current = true }: { at?: string; current?: boolean } = {}): HTMLElement {
   const markup = renderToStaticMarkup(
-    <MemoryRouter>
-      <Diagram live={data} nowMs={nowMs} />
+    <MemoryRouter initialEntries={[at]}>
+      <Diagram live={data} nowMs={nowMs} current={current} />
     </MemoryRouter>,
   );
   return new DOMParser().parseFromString(markup, 'text/html').body;
@@ -285,6 +288,36 @@ describe('the Agents diagram', () => {
     expect(detailOf(boxOf(draw(data, NOW + 15 * SEC), 'Title of s1'))).toBe('working · 13 min');
     expect(detailOf(boxOf(draw(data, NOW), 'Label of a'))).toBe('sonnet · 40 s');
     expect(detailOf(boxOf(draw(data, NOW + 30 * SEC), 'Label of a'))).toBe('sonnet · 1 min');
+  });
+});
+
+describe('the label for a link to a session that is not active', () => {
+  const data = live([liveSession('s1', { title: 'Build the page' })]);
+  const label = (host: HTMLElement) => [...host.querySelectorAll('p')].filter((paragraph) => textOf(paragraph) === 'Session not active');
+
+  it('says "Session not active" when the address names a session that is not in the diagram', () => {
+    const host = draw(data, NOW, { at: '/agents#session-closed-long-ago' });
+    expect(label(host)).toHaveLength(1);
+    // The diagram of the other sessions stays, and the label is a short label and not a sentence.
+    expect(clusters(host).map((cluster) => cluster.getAttribute('data-cluster'))).toEqual(['s1']);
+    expect(textOf(label(host)[0]).split(' ').length).toBeLessThanOrEqual(3);
+    // It shows beside the empty label too: a page with no session at all is where a closed session is most likely to lead.
+    const empty = draw(live([]), NOW, { at: '/agents#session-closed-long-ago' });
+    expect(label(empty)).toHaveLength(1);
+    expect(textOf(empty)).toContain('No active session');
+  });
+
+  it('shows no such label for a live session, for no fragment, or for a fragment that is not a link to a session', () => {
+    expect(label(draw(data, NOW, { at: '/agents#session-s1' }))).toHaveLength(0);
+    expect(label(draw(data, NOW, { at: '/agents' }))).toHaveLength(0);
+    expect(label(draw(data, NOW, { at: '/agents#something-else' }))).toHaveLength(0);
+    // The id must match whole: a live id that only starts the same is another session.
+    expect(label(draw(data, NOW, { at: '/agents#session-s' }))).toHaveLength(1);
+  });
+
+  it('shows no label while the data is the last good data under an error', () => {
+    expect(label(draw(data, NOW, { at: '/agents#session-closed-long-ago', current: false }))).toHaveLength(0);
+    expect(label(draw(data, NOW, { at: '/agents#session-closed-long-ago', current: true }))).toHaveLength(1);
   });
 });
 

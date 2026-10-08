@@ -15,6 +15,7 @@ import {
   filler,
   journalFile,
   prompt,
+  reply,
   resetWorld,
   sendMessage,
   sessionFile,
@@ -24,6 +25,7 @@ import {
   writeProcess,
   writeSession,
   writeWorld,
+  yourMoveBox,
 } from './agents-world';
 import { amberItems, contrastOf, expectAtMostTwoAmberItems, tokenColors } from './look';
 
@@ -858,6 +860,8 @@ test.describe('links and errors', () => {
     await expect(boxOf(page, TITLES[1])).toBeVisible();
     await expect(boxOf(page, TITLES[1])).toBeInViewport();
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    // The session is live, so the page has nothing to say about the link.
+    await expect(panel(page).getByText('Session not active', { exact: true })).toHaveCount(0);
     // The page does not pull itself back when the data loads again: Mark can scroll away.
     await page.evaluate(() => window.scrollTo(0, 0));
     writeAgent(ID(3), 'late0001', { description: 'A late agent', model: 'claude-sonnet-5-5', lines: [prompt('made up', new Date().toISOString()), toolResult(new Date().toISOString())], folder: MIXED });
@@ -866,10 +870,36 @@ test.describe('links and errors', () => {
     await page.waitForTimeout(600);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
-    // A link to a session that is not live goes nowhere, and the page says nothing about it.
+    // A link to a session that is not live goes nowhere, and the page says so with one label. The diagram of the live sessions is there as before.
     await openAgents(page, `/agents#session-${ID(99)}`);
+    await expect(panel(page).getByText('Session not active', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     await expect(sessionBoxes(page)).toHaveCount(3);
+  });
+
+  test('a Your move item of a session that has closed opens the Agents page with the label Session not active', async ({ page, request }) => {
+    await page.addInitScript(() => localStorage.setItem('cc.now.glass', 'off'));
+    writeWorld();
+    // A session that Mark closed 15 minutes ago, with a box that waits for him. The sessions module still lists it (it waits, and the file is recent), and the process list does not.
+    const c = clock();
+    writeSession(ID(5), [prompt('A session that has closed', c.at(1200)), reply(yourMoveBox('🟡', ['Answer the closed session']), c.at(600))]);
+    writeProcess(5, ID(5), 'idle', 20 * 60, false);
+    await refreshAgents(request);
+    expect((await request.get('/api/sessions?refresh=1')).status()).toBe(200);
+    await page.goto('/');
+
+    const item = page.getByRole('region', { name: 'Your move', exact: true }).getByRole('listitem').filter({ hasText: 'Answer the closed session' });
+    const link = item.getByRole('link', { name: /Answer the closed session/ });
+    await expect(link).toHaveAttribute('href', `/agents#session-${ID(5)}`);
+    await link.click();
+
+    // The Agents page has no cluster for it. It does not stay silent: one label says why.
+    await expect(page).toHaveURL(`/agents#session-${ID(5)}`);
+    await expect(panel(page)).toContainText(/Updated \d\d:\d\d:\d\d/);
+    await expect(panel(page).getByText('Session not active', { exact: true })).toBeVisible();
+    await expect(clusterOf(page, ID(5))).toHaveCount(0);
+    await expect(sessionBoxes(page)).toHaveCount(3);
+    await expectAtMostTwoAmberItems(page);
   });
 
   test('an unreadable agents list keeps its last good diagram under the error, and a retry brings the new one', async ({ page, request }) => {

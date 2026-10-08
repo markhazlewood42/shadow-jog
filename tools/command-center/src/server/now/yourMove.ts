@@ -65,8 +65,10 @@ function decisionIssueItem(issue: DecisionIssue): YourMoveItem {
 /**
  * The lines of the "Your move" box of a session, when Mark has something to do there: the session is not idle (an idle one has been quiet for hours, and its box
  * is old news), the box does not say "nothing", and no prompt of his came after it. The words of a line may carry markdown (`code`, **bold**), and the list is plain text.
- * The session's title is part of the text, because a line such as "Review the diff" means nothing without the session that wrote it. Each line links to the card of its
- * session on the Agents page (design 5.1: each item links to its source), where Mark sees the state of the session and the path of its file.
+ * The session's title is part of the text, because a line such as "Review the diff" means nothing without the session that wrote it. Each line links to the place of its
+ * session on the Agents page (design 5.1: each item links to its source): `/agents#session-<id>`. That page draws only a session whose Claude process runs, and this
+ * list keeps the items of a session for as long as the sessions module counts it as not idle (hours after its last reply, also when the process has ended). A link can
+ * lead to a session that is not live then, and the item keeps it: the Agents page shows the label "Session not active" (web/agents/Diagram.tsx).
  */
 function sessionItems(session: SessionInfo): YourMoveItem[] {
   const box = session.yourMove;
