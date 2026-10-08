@@ -27,6 +27,12 @@ export type Config = {
   claude: {
     /** The folder where Claude Code keeps its session files (~/.claude/projects). */
     projectsRoot: string;
+    /**
+     * The folder where Claude Code lists its running processes (~/.claude/sessions): one `<pid>.json` for each. The agents module reads it every few
+     * seconds, and only four keys of a file (the session id, the process id, the start time and busy or idle). The default is `~/.claude/sessions`
+     * (the setting may be left out of the file).
+     */
+    sessionsRoot: string;
     /** Session folders (inside projectsRoot) whose sessions all belong to this project. Matched by exact name. */
     folders: string[];
     /** Session folders that mix projects: a session counts only when its working folder is inside a root. Matched by exact name. */
@@ -44,6 +50,13 @@ export type Config = {
     workingSeconds: number;
     /** A session whose last reply ended its turn counts as waiting for Mark for this many seconds, then as idle. */
     waitingSeconds: number;
+  };
+  /** The settings of the agents module: the live view of the sessions and agents that run now. The whole object, and each setting in it, may be left out of the file. */
+  agents: {
+    /** How often the module looks again, in milliseconds. 3000 by default. */
+    pollMs: number;
+    /** How long an agent that finished stays in the view, in seconds. 300 by default. 0 lets it leave at once. */
+    lingerSeconds: number;
   };
 };
 
@@ -83,8 +96,14 @@ export function isInside(root: string, path: string): boolean {
 
 // ---- loadConfig ----
 
-const TOP_LEVEL_KEYS = ['port', 'repoRoot', 'roots', 'githubRepo', 'approvalRef', 'gameUrl', 'links', 'claude'] as const;
-const CLAUDE_KEYS = ['projectsRoot', 'folders', 'cwdMatchFolders', 'includeSdk', 'recentSeconds', 'workingSeconds', 'waitingSeconds'] as const;
+const TOP_LEVEL_KEYS = ['port', 'repoRoot', 'roots', 'githubRepo', 'approvalRef', 'gameUrl', 'links', 'claude', 'agents'] as const;
+const CLAUDE_KEYS = ['projectsRoot', 'sessionsRoot', 'folders', 'cwdMatchFolders', 'includeSdk', 'recentSeconds', 'workingSeconds', 'waitingSeconds'] as const;
+const AGENTS_KEYS = ['pollMs', 'lingerSeconds'] as const;
+
+/** Where Claude Code lists its running processes, unless the config says another. */
+const DEFAULT_SESSIONS_ROOT = '~/.claude/sessions';
+const DEFAULT_POLL_MS = 3000;
+const DEFAULT_LINGER_SECONDS = 300;
 
 type Json = Record<string, unknown>;
 
@@ -92,8 +111,10 @@ type Json = Record<string, unknown>;
  * Reads and checks a config file. The paths in the file are relative to the file itself (so the
  * file holds no machine-specific path and the repo can be public); the Config that comes back has
  * absolute ones. A setting that is wrong, missing or unknown stops the start with a message that
- * names it, because a typo in a safety setting such as `githubRepo` must not be ignored. The one
- * setting that may be left out is `claude.includeSdk` (it means false).
+ * names it, because a typo in a safety setting such as `githubRepo` must not be ignored. The settings
+ * that may be left out are `claude.includeSdk` (it means false) and the three of the agents module:
+ * `claude.sessionsRoot`, `agents.pollMs` and `agents.lingerSeconds` (they mean their defaults, so a config
+ * file from before the agents module keeps working). A key that is there is checked like any other.
  */
 export function loadConfig(file: string): Config {
   const configFile = resolve(file);
@@ -141,6 +162,8 @@ export function loadConfig(file: string): Config {
     if (typeof value !== 'boolean') fail(where ? `${where}.${key}` : key, 'must be true or false');
     return value as boolean;
   };
+  /** A whole-number setting that may be left out: `fallback` when it is not in the file, and the same checks as `whole` when it is. */
+  const wholeOr = (obj: Json, key: string, where: string, min: number, max: number, fallback: number): number => (key in obj ? whole(obj, key, where, min, max) : fallback);
   const list = (obj: Json, key: string, where: string, minLength: number): unknown[] => {
     const value = need(obj, key, where);
     if (!Array.isArray(value) || value.length < minLength) {
@@ -177,6 +200,7 @@ export function loadConfig(file: string): Config {
 
   const top = object(parsed, '', TOP_LEVEL_KEYS);
   const claude = object(need(top, 'claude', ''), 'claude', CLAUDE_KEYS);
+  const agents = 'agents' in top ? object(top.agents, 'agents', AGENTS_KEYS) : {};
 
   const githubRepo = text(top, 'githubRepo', '');
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(githubRepo)) fail('githubRepo', 'must look like owner/name');
@@ -200,12 +224,18 @@ export function loadConfig(file: string): Config {
     }),
     claude: {
       projectsRoot: toAbsolute(text(claude, 'projectsRoot', 'claude')),
+      sessionsRoot: toAbsolute('sessionsRoot' in claude ? text(claude, 'sessionsRoot', 'claude') : DEFAULT_SESSIONS_ROOT),
       folders: folderNames(claude, 'folders'),
       cwdMatchFolders: folderNames(claude, 'cwdMatchFolders'),
       includeSdk: flag(claude, 'includeSdk', 'claude', false),
       recentSeconds: whole(claude, 'recentSeconds', 'claude', 1, 31_536_000),
       workingSeconds: whole(claude, 'workingSeconds', 'claude', 1, 31_536_000),
       waitingSeconds: whole(claude, 'waitingSeconds', 'claude', 1, 31_536_000),
+    },
+    agents: {
+      // From 0.1 s to an hour: faster than that would read the process list in a loop, and slower would not be a live view.
+      pollMs: wholeOr(agents, 'pollMs', 'agents', 100, 3_600_000, DEFAULT_POLL_MS),
+      lingerSeconds: wholeOr(agents, 'lingerSeconds', 'agents', 0, 31_536_000, DEFAULT_LINGER_SECONDS),
     },
   };
 }

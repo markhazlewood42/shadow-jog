@@ -6,7 +6,7 @@
 export const APP_NAME = 'Shadow Jog Command Center';
 
 /** The sources of data. The server has one module for each. */
-export type ModuleName = 'docs' | 'engine' | 'status' | 'git' | 'github' | 'sessions' | 'decisions';
+export type ModuleName = 'docs' | 'engine' | 'status' | 'git' | 'github' | 'sessions' | 'decisions' | 'agents';
 
 /**
  * What a data endpoint answers: either the data, or the reason there is none.
@@ -407,6 +407,67 @@ export function sessionAnchor(sessionId: string): string {
 export function sessionHref(sessionId: string): string {
   return `/agents#${sessionAnchor(sessionId)}`;
 }
+
+// ---- live agents (revision 2) ----
+// The shapes of the agents module (src/server/agents): what is alive now, as a tree of sessions and agents. A session is alive while its
+// Claude process runs, so the module starts from the process list of Claude Code (one small file for each process) and reads only the
+// files of those sessions. Only the session id, the start time and busy or idle leave the process file: the process id and every other key stay on
+// the server. The words in a node (a title, a label) come from session files, so a page must show them as text.
+
+/** A box in the tree under a session: an agent, or a workflow run. */
+export type LiveNode = {
+  /** The id of an agent (the file name `agent-<id>.jsonl` without the frame), or of a workflow run (`wf_...`: its folder name). */
+  id: string;
+  /**
+   * What started it, and so what its solid line comes from: the id of its session, of another agent, or of a workflow. The id always names
+   * the session of this node or another node in the same list, so a page can draw the line. An agent that no call was found for hangs on its session.
+   */
+  parentId: string;
+  kind: 'agent' | 'workflow';
+  /** What the agent was asked to do (the `description` in its `.meta.json`, at most 300 characters), or the name of the workflow. This is transcript text: show it as text. */
+  label: string;
+  /** The model as a family name (`fable`, `sonnet`), or null when the agent does not say (and for a workflow). Any value that is not a Claude model id stays as given, cut to 12 characters. */
+  model: string | null;
+  /** `running`: it has no end record, and it was written in the last `claude.workingSeconds` or its session is busy. `done`: it ended, and it stays for `agents.lingerSeconds`. */
+  state: 'running' | 'done';
+  /** The time of the first line of the agent's file (an ISO time), or the time the file was made. Null for a workflow whose journal does not say. */
+  startedAt: string | null;
+  /** When it ended (the time of its last line, an ISO time), or null while it runs. */
+  endedAt: string | null;
+  /** The file of the agent, or the journal of the workflow (null when the workflow has none), for a Copy button. It is a path on this machine. */
+  filePath: string | null;
+  /**
+   * The messages that passed between the parent and the agent while it ran, in either direction: the `SendMessage` calls of the parent to the agent, and the
+   * messages of the agent to the parent. The final report is not one of them. `approximate`: the file of the parent is larger than the part that was read, so the
+   * count may be short (a page shows "3+"). A workflow has none: 0, and not approximate. No message text leaves the server.
+   */
+  messages: { count: number; approximate: boolean };
+  /** A workflow only: the newest phase, the agents that have a result, and the agents that started. A journal has no total. */
+  progress?: { phase: string | null; done: number; started: number };
+};
+
+/** One session that is alive now. */
+export type LiveSession = {
+  /** The session id: the file name without `.jsonl`. */
+  id: string;
+  /** The title, by the same rule as `SessionInfo.title`. This is transcript text: show it as text. */
+  title: string;
+  /** `working`: the process is busy. `waiting`: it is idle, and waits for Mark. */
+  state: 'working' | 'waiting';
+  /** When the process started (an ISO time), or null when the process file does not say. */
+  startedAt: string | null;
+  /** The session file, for a Copy button. It is a path on this machine. */
+  filePath: string;
+  /** The agents and workflows of the session that are alive, or finished less than `agents.lingerSeconds` ago. In order of start. */
+  nodes: LiveNode[];
+};
+
+/**
+ * What `GET /api/agents` holds (inside a Panel): the live sessions in order of start, the oldest first. `hiddenScripts` is how many live sessions about
+ * Shadow Jog were left out because a script started them (the entrypoint starts with "sdk"). `source` says where the list came from: `process-list`
+ * (the folder where Claude Code lists its processes), or `file-age` (that folder cannot be read, so the file ages of the sessions module decide, and a page says so).
+ */
+export type AgentsLive = { sessions: LiveSession[]; hiddenScripts: number; source: 'process-list' | 'file-age' };
 
 // ---- decisions (the decision inbox) ----
 // The shapes of the decisions module (src/server/decisions). A decision is a GitHub issue of the

@@ -32,6 +32,7 @@ export function makeTestConfig(overrides: Partial<Config> = {}): Config {
     links: [{ label: 'Game', url: 'http://localhost:3007' }],
     claude: {
       projectsRoot: join(base, 'claude-projects'),
+      sessionsRoot: join(base, 'claude-sessions'),
       folders: ['folder-a'],
       cwdMatchFolders: ['folder-b'],
       includeSdk: false,
@@ -39,6 +40,7 @@ export function makeTestConfig(overrides: Partial<Config> = {}): Config {
       workingSeconds: 300,
       waitingSeconds: 14400,
     },
+    agents: { pollMs: 3000, lingerSeconds: 300 },
     ...overrides,
   };
 }

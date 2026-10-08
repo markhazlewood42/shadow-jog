@@ -58,6 +58,9 @@ export function createE2eRuntime(workDir: string = E2E_DIR): E2eRuntime {
     ],
     claude: {
       projectsRoot: join(workDir, 'claude-projects'),
+      // The process list of the fixture world. The folder is not made until a test writes a process file, so the agents module starts in its file-age fallback.
+      // Never the real folder (~/.claude/sessions): a test run must not read the processes of the machine it runs on.
+      sessionsRoot: join(workDir, 'claude-sessions'),
       folders: ['fixture-shadow-jog'],
       cwdMatchFolders: ['fixture-home-base'],
       includeSdk: false,
@@ -65,6 +68,7 @@ export function createE2eRuntime(workDir: string = E2E_DIR): E2eRuntime {
       workingSeconds: 300,
       waitingSeconds: 14400,
     },
+    agents: { pollMs: 3000, lingerSeconds: 300 },
   };
 
   const fakeGh = createFakeGh(workDir);

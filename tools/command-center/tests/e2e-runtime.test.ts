@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { E2E_PORT, FIXTURE_NAV_FILE, createE2eRuntime } from '../e2e/server';
@@ -31,6 +31,10 @@ describe('createE2eRuntime', () => {
       // The fixture names no real repo and no real session folder.
       expect(rt.config.githubRepo).toBe('fixture-owner/fixture-repo');
       expect(isInside(rt.workDir, rt.config.claude.projectsRoot)).toBe(true);
+      // The process list is a folder of the fixture world too, and never the real ~/.claude/sessions: a test run must not read the processes of its own machine.
+      expect(isInside(rt.workDir, rt.config.claude.sessionsRoot)).toBe(true);
+      expect(isInside(join(homedir(), '.claude'), rt.config.claude.sessionsRoot)).toBe(false);
+      expect(rt.config.agents).toEqual({ pollMs: 3000, lingerSeconds: 300 });
       expect(rt.config.links.length).toBeGreaterThan(0);
     } finally {
       rt.close();
