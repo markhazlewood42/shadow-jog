@@ -198,7 +198,7 @@ dungeons also bake a faint unlit edge where floor meets wall or void (`bakeStruc
 Owns the map, party train (followers walk the leader's trail), NPCs, chests, camera (follow, pan, clamp), the draw
 list (depth-sorted each frame from pooled entries), banners, the objective line, and **script execution**
 (`runScript(fn)`, with `busy` counting running scripts). `fieldkit/api.ts` builds the `ScriptApi` for a field;
-`fieldkit/draw.ts` has the shell drawn round small interiors, blits and emotes; `fieldkit/dust.ts` the dash dust.
+`fieldkit/draw.ts` has the draw-list entries, layer blits and emotes; `fieldkit/dust.ts` the dash dust; `fieldkit/surround.ts` (with the painters in `surround-art.ts`) fills the margin of the eleven maps smaller than the screen, from one table keyed by map id (indoor maps an edge fill, outdoor maps a themed surround); `fieldkit/popins.ts` holds the pop-in table (a camera limit, a curtain or a hold per item) for content that the wide view would show too early.
 
 ---
 

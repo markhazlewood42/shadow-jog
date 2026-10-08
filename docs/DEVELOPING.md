@@ -74,13 +74,14 @@ Run one file with `npx vitest run tests/battle.test.ts`. Output of the simulatio
 | `pacing.test.ts` | Steps between encounters, fights per area |
 | `save.test.ts` | Round-trips, tampering, damaged slots, migrations, the real v1 fixture |
 | `game.test.ts` | Scene stack: fault isolation and recovery, curtain compositing, notices |
-| `maps.test.ts` | Every map's content reachable; **no mid-story dead ends** at any of 25 story stages; relay logic; typographic apostrophes; glyph coverage; every prop has a painter; no overlapping signs |
+| `maps.test.ts` | Every map's content reachable; **no mid-story dead ends** at any of 25 story stages; relay logic; typographic apostrophes; glyph coverage; every prop has a painter; no overlapping signs; the maps smaller than the view pinned with their sizes, each with its surround by Mark's rule (indoor b1, outdoor b2), the closed theme type, the picture key and the void-fill rule |
 | `layout.test.ts`, `glyphs.test.ts` | Every data-driven string fits its box; every character has a glyph |
-| `camera.test.ts` | The field camera rule (`scenes/fieldkit/camera.ts`): a map smaller than the view is centered, a larger one is clamped. Also pins that the scripted `pan()` uses that rule (a stand-in scene, no canvas) |
+| `camera.test.ts` | The field camera rule (`scenes/fieldkit/camera.ts`): a map smaller than the view is centered, a larger one is clamped. Also pins that the scripted `pan()` uses that rule, takes the pop-in table's camera limit, lifts an event curtain and holds where the table says (a stand-in scene, no canvas) |
 | `display.test.ts` | The scale rule of the display (`cssScaleFor`): the window table, 90% line, both scale modes, device pixel ratios (D14) |
 | `shake.test.ts` | Screen shake keeps its on-screen size: strengths are scaled by 4/3 (`SHAKE_PIXEL_GAIN`), offsets stay whole pixels (D10) |
 | `screen-literals.test.ts` | The screen-size scan (below): no bare `480`, `270`, `640`, `360` (and their half and off-by-one neighbors) in code, except on a listed line |
 | `playback.test.ts`, `orders.test.ts`, `timing.test.ts`, `motion.test.ts` | Battle presentation logic without a canvas |
+| `popins.test.ts` | The pop-in table (`scenes/fieldkit/popins.ts`, D17): Mark's picks, P4's south limit and the crew out of the entrance view, the leader on screen under a limit, the curtain math, the lookups |
 | `input.test.ts`, `ui-list.test.ts`, `actor.test.ts`, `atmosphere.test.ts`, `music.test.ts`, `content.test.ts` | Input, list menus, actors, weather and lighting, song bars and harmony, content references |
 
 Balance targets live in `balance.test.ts` (`stages` array: win rate, rounds, HP lost per stage) and
