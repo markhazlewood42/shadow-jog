@@ -118,36 +118,57 @@ describe('battle turn-order strip', () => {
   const overlap = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) =>
     a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
+  // Both HUD options (D6): the strip, the top line and the menus all derive from the HUD frame.
+  const options = async () => {
+    const { hudFrameFor, hudLayout } = await import('../src/scenes/battlekit/geom');
+    return ([1, 2] as const).map((option) => ({ option, hud: hudLayout(hudFrameFor(option)) }));
+  };
+
   it('the top line never grows past its band: every description is at most two lines, every combo hint one', async () => {
-    const { TOP_BAND_BOTTOM } = await import('../src/scenes/battlekit/geom');
-    const { W } = await import('../src/engine/game');
-    const maxW = W - 44;
-    for (const ab of Object.values(ABILITIES)) expect(wrap(ab.desc, maxW).length, ab.id).toBeLessThanOrEqual(2);
-    for (const it of Object.values(ITEMS)) expect(wrap(it.desc, maxW).length, it.id).toBeLessThanOrEqual(2);
-    // Three lines at most (two of description, one of hint): the window ends by the band's edge.
-    expect(6 + 6 + 3 * 11).toBeLessThanOrEqual(TOP_BAND_BOTTOM);
+    for (const { option, hud } of await options()) {
+      const maxW = hud.frame.w - 44;
+      for (const ab of Object.values(ABILITIES)) expect(wrap(ab.desc, maxW).length, `option ${option}: ${ab.id}`).toBeLessThanOrEqual(2);
+      for (const it of Object.values(ITEMS)) expect(wrap(it.desc, maxW).length, `option ${option}: ${it.id}`).toBeLessThanOrEqual(2);
+      // Three lines at most (two of description, one of hint): the window ends by the band's edge.
+      expect(hud.topY + 6 + 3 * 11, `option ${option}`).toBeLessThanOrEqual(hud.topBandBottom);
+    }
   });
 
-  it('stays clear of the top line, the target box, the party panel and the menus, on either side', async () => {
-    const { orderStripLayout, TOP_BAND_BOTTOM, ORDER_TOP, PANEL_Y, MENU_X } = await import('../src/scenes/battlekit/geom');
-    const { W } = await import('../src/engine/game');
-    // The target box as renderTargetInfo draws it at its tallest (analyzed, three notes).
-    const target = { x: (W - TARGET_INFO_W) / 2, y: 44, w: TARGET_INFO_W, h: 19 + 11 + 3 * 10 };
+  it('stays clear of the top line, the target box, the party panel and the menus, in both HUD options', async () => {
+    const { orderStripLayout } = await import('../src/scenes/battlekit/geom');
     // The widest crowd: a combo (two faces) and eight single actions.
     const faces = [2, 1, 1, 1, 1, 1, 1, 1, 1];
-    expect(ORDER_TOP - 10).toBeGreaterThanOrEqual(TOP_BAND_BOTTOM);
-    for (const side of ['left', 'right'] as const) {
-      // The acting member's menus open on the other side: a list up to 190 wide above the command window.
-      const menus = side === 'right' ? { x: MENU_X, y: TOP_BAND_BOTTOM, w: 190, h: PANEL_Y - TOP_BAND_BOTTOM } : { x: W - MENU_X - 190, y: TOP_BAND_BOTTOM, w: 190, h: PANEL_Y - TOP_BAND_BOTTOM };
-      const rects = orderStripLayout(faces, side);
-      expect(rects.length).toBeGreaterThanOrEqual(7);
-      for (const r of rects) {
-        expect(r.y).toBeGreaterThanOrEqual(TOP_BAND_BOTTOM);
-        expect(r.y + r.h).toBeLessThanOrEqual(PANEL_Y - 2);
-        expect(r.x >= 0 && r.x + r.w <= W).toBe(true);
-        expect(overlap(r, target), `${side} strip vs target box`).toBe(false);
-        expect(overlap(r, menus), `${side} strip vs menus`).toBe(false);
+    for (const { option, hud } of await options()) {
+      const f = hud.frame;
+      // The target box as renderTargetInfo draws it at its tallest (analyzed, three notes), on either side.
+      const boxes = [true, false].map((onLeft) => ({ x: hud.targetBoxX(onLeft, TARGET_INFO_W), y: hud.targetY, w: TARGET_INFO_W, h: 19 + 11 + 3 * 10 }));
+      expect(hud.orderTop - 10, `option ${option}`).toBeGreaterThanOrEqual(hud.topBandBottom);
+      for (const side of ['left', 'right'] as const) {
+        // The acting member's menus open on the other side: a list up to 190 wide above the command window.
+        const menus = side === 'right' ? { x: hud.menuX, y: hud.topBandBottom, w: 190, h: hud.panelY - hud.topBandBottom } : { x: f.x + f.w - 4 - 190, y: hud.topBandBottom, w: 190, h: hud.panelY - hud.topBandBottom };
+        const rects = orderStripLayout(faces, side, hud);
+        // Option 1 shows the whole crowd. Option 2 is the old 480x270 block, which showed eight entries.
+        expect(rects.length, `option ${option}, ${side}`).toBeGreaterThanOrEqual(option === 1 ? faces.length : 8);
+        for (const r of rects) {
+          expect(r.y, `option ${option}, ${side}`).toBeGreaterThanOrEqual(hud.topBandBottom);
+          expect(r.y + r.h, `option ${option}, ${side}`).toBeLessThanOrEqual(hud.panelY - 2);
+          expect(r.x >= f.x && r.x + r.w <= f.x + f.w, `option ${option}, ${side} inside the frame`).toBe(true);
+          // The strip stands on the right in the game; a left strip is checked against the far box only.
+          for (const box of side === 'right' ? boxes : boxes.slice(0, 1)) expect(overlap(r, box), `option ${option}, ${side} strip vs target box`).toBe(false);
+          expect(overlap(r, menus), `option ${option}, ${side} strip vs menus`).toBe(false);
+        }
       }
+    }
+  });
+
+  it('a crowd that does not fit drops its last entries (the strip shows "+N"), and keeps the ones it shows above the panel', async () => {
+    const { orderStripLayout } = await import('../src/scenes/battlekit/geom');
+    for (const { option, hud } of await options()) {
+      const faces = Array<number>(40).fill(1);
+      const rects = orderStripLayout(faces, 'right', hud);
+      expect(rects.length, `option ${option}`).toBeGreaterThan(0);
+      expect(rects.length, `option ${option}`).toBeLessThan(faces.length);
+      expect(rects[rects.length - 1]!.y + 14, `option ${option}`).toBeLessThanOrEqual(hud.orderBottom);
     }
   });
 });

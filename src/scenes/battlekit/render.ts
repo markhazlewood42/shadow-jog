@@ -21,7 +21,7 @@ import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
 import { TARGET_INFO_W } from '../../ui/layout';
 import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
-import { BHT, BW, CMD_W, DECK_CUT_LIFE, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, WORLD_SCALE, orderStripLayout } from './geom';
+import { BANNER_H, BHT, BW, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, HUD, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LEFT, ORDER_RIGHT, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, WORLD_SCALE, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
@@ -472,7 +472,7 @@ export class BattleRenderer {
       if (dd.dying > 0 || dd.alpha < 0.5) continue;
       const { x, y, art } = this.s.enemyPos(e);
       const cx0 = Math.round((x + art.w / 2) * WORLD_SCALE);
-      let row = Math.max(24, (y + artTop(art)) * WORLD_SCALE - 6);
+      let row = Math.max(HUD.statusTop, (y + artTop(art)) * WORLD_SCALE - 6);
       // HP bar (bosses get a wider one).
       const bw = e.boss ? 72 : 30;
       const ratio = Math.max(0, dd.shownHp / e.base.maxHp);
@@ -546,22 +546,23 @@ export class BattleRenderer {
 
   /** Top of the top-line strip: under a pinned tell when there is one. */
   private topY(): number {
-    return this.s.tell ? 26 : 6;
+    return this.s.tell ? HUD.topYUnderTell : HUD.topY;
   }
 
   /** A pinned enemy tell: an amber box across the top, with a warning mark, flashing as it arrives. */
   private renderTell(ctx: Ctx): void {
     const t = this.s.tell;
     if (!t) return;
-    const text = fitText(t.text, W - 56);
+    const fr = HUD.frame, y = HUD.topY;
+    const text = fitText(t.text, fr.w - 56);
     const tw = measure(text) + 34;
-    const x = Math.round((W - tw) / 2);
+    const x = Math.round(fr.x + (fr.w - tw) / 2);
     const flash = t.t < 24 && (t.t >> 2) % 2 === 0;
-    drawWindow(ctx, x, 6, tw, 17, { plain: true, accent: flash ? '#ffffff' : TELL_COLOR });
+    drawWindow(ctx, x, y, tw, 17, { plain: true, accent: flash ? '#ffffff' : TELL_COLOR });
     ctx.fillStyle = TELL_COLOR;
-    ctx.fillRect(x + 8, 9, 9, 11);
-    drawText(ctx, '!', x + 11, 10, { color: '#1a1020', shadow: false });
-    drawText(ctx, text, x + 22, 10, { color: '#ffe2a8' });
+    ctx.fillRect(x + 8, y + 3, 9, 11);
+    drawText(ctx, '!', x + 11, y + 4, { color: '#1a1020', shadow: false });
+    drawText(ctx, text, x + 22, y + 4, { color: '#ffe2a8' });
   }
 
   private renderUi(ctx: Ctx): void {
@@ -569,36 +570,38 @@ export class BattleRenderer {
     this.renderPanel(ctx);
     this.renderTell(ctx);
     const top = this.topY();
+    const fr = HUD.frame, cx = fr.x + fr.w / 2;
     // Top line: action banner or message
     if (this.s.banner) {
       const b = this.s.banner;
       const a = b.t < 6 ? b.t / 6 : b.t > (b.big ? 60 : 50) ? Math.max(0, 1 - (b.t - (b.big ? 60 : 50)) / 10) : 1;
       ctx.globalAlpha = a;
       if (b.big) {
-        const y = 92;
-        bigBandGrad ??= bandGradient(ctx, 0, W, 0.15, 0.9);
+        // The big banner: a band across the HUD frame, with a rule 40 px in from each side.
+        const y = HUD.actionBannerY;
+        bigBandGrad ??= bandGradient(ctx, fr.x, fr.w, 0.15, 0.9);
         ctx.fillStyle = bigBandGrad;
-        ctx.fillRect(0, y, W, 32);
+        ctx.fillRect(fr.x, y, fr.w, BANNER_H);
         ctx.fillStyle = b.color;
-        ctx.fillRect(40, y, W - 80, 1);
-        ctx.fillRect(40, y + 31, W - 80, 1);
-        drawBig(ctx, b.text, W / 2, y + 4, b.color);
-        if (b.sub) drawText(ctx, b.sub, W / 2, y + 22, { align: 'center', color: '#ffffff' });
+        ctx.fillRect(fr.x + 40, y, fr.w - 80, 1);
+        ctx.fillRect(fr.x + 40, y + BANNER_H - 1, fr.w - 80, 1);
+        drawBig(ctx, b.text, cx, y + 4, b.color);
+        if (b.sub) drawText(ctx, b.sub, cx, y + 22, { align: 'center', color: '#ffffff' });
       } else {
         const tw = measure(b.text) + 24;
-        drawWindow(ctx, (W - tw) / 2, top, tw, 17, { plain: true, accent: b.color });
-        drawText(ctx, b.text, W / 2, top + 4, { align: 'center', color: b.color });
+        drawWindow(ctx, cx - tw / 2, top, tw, 17, { plain: true, accent: b.color });
+        drawText(ctx, b.text, cx, top + 4, { align: 'center', color: b.color });
       }
       ctx.globalAlpha = 1;
     } else if (this.s.message) {
-      const tw = Math.min(W - 20, measure(this.s.message.text) + 24);
-      drawWindow(ctx, (W - tw) / 2, top, tw, 17, { plain: true });
-      drawText(ctx, this.s.message.text, W / 2, top + 4, { align: 'center' });
+      const tw = Math.min(fr.w - 20, measure(this.s.message.text) + 24);
+      drawWindow(ctx, cx - tw / 2, top, tw, 17, { plain: true });
+      drawText(ctx, this.s.message.text, cx, top + 4, { align: 'center' });
     }
     if (this.s.message && this.s.banner && !this.s.banner.big) {
-      const tw = Math.min(W - 20, measure(this.s.message.text) + 24);
-      drawWindow(ctx, (W - tw) / 2, top + 20, tw, 17, { plain: true });
-      drawText(ctx, this.s.message.text, W / 2, top + 24, { align: 'center' });
+      const tw = Math.min(fr.w - 20, measure(this.s.message.text) + 24);
+      drawWindow(ctx, cx - tw / 2, top + 20, tw, 17, { plain: true });
+      drawText(ctx, this.s.message.text, cx, top + 24, { align: 'center' });
     }
     switch (this.s.mode) {
       case 'round':
@@ -722,7 +725,7 @@ export class BattleRenderer {
     if (t < 0 || i < 0) return;
     const inK = Math.min(1, t / 8), outK = Math.max(0, (t - (DECK_CUT_LIFE - 8)) / 8);
     const k = (1 - (1 - inK) ** 3) * (1 - outK);
-    const x = this.s.boxX(i) + 116 - 80, y = Math.round(PANEL_Y - 4 - k * 44);
+    const x = this.s.boxX(i) + CARD_W - 80, y = Math.round(PANEL_Y - 4 - k * 44);
     ctx.fillStyle = 'rgba(10,9,19,0.9)';
     ctx.fillRect(x - 4, y - 4, 80, 48);
     ctx.fillStyle = '#c3a0ff';
@@ -740,8 +743,10 @@ export class BattleRenderer {
       // Slide in fast, hold, slide back out.
       const inK = Math.min(1, c.t / 8), outK = Math.max(0, (c.t - (c.life - 10)) / 10);
       const k = (1 - (1 - inK) ** 3) * (1 - outK);
-      const w = c.line ? 184 : 132, h = 58, y = 132 - (c.row ?? 0) * 62;
-      const x = c.fromLeft ? Math.round(-w + k * (w + 12)) : Math.round(W - k * (w + 12));
+      // It rests where the HUD layout says (above the cards, clear of the turn strip) and slides in from the screen's edge.
+      const rest = HUD.cutinRect(c.fromLeft, c.row ?? 0, !!c.line);
+      const { w, h, y } = rest;
+      const x = c.fromLeft ? Math.round(-w + k * (rest.x + w)) : Math.round(W - k * (W - rest.x));
       ctx.fillStyle = 'rgba(10,9,19,0.92)';
       ctx.fillRect(x, y, w, h);
       ctx.fillStyle = m.color;
@@ -768,17 +773,17 @@ export class BattleRenderer {
       const active = (this.s.mode === 'command' || this.s.mode === 'list' || this.s.mode === 'target') && this.s.actor?.uid === p.uid;
       const targeted = this.s.mode === 'target' && this.s.targetList[this.s.targetIdx] === p.uid;
       const x = this.s.boxX(i) + (dd.shake > 0 ? (dd.shake % 4 < 2 ? 1 : -1) : 0);
-      const y = PANEL_Y - (active ? 5 : 0);
-      drawWindow(ctx, x, y, 116, 52, { accent: active || targeted ? m.color : '#3a3f6e', plain: !(active || targeted), alpha: 0.94 });
+      const y = PANEL_Y - (active ? CARD_RAISE : 0);
+      drawWindow(ctx, x, y, CARD_W, CARD_H, { accent: active || targeted ? m.color : '#3a3f6e', plain: !(active || targeted), alpha: 0.94 });
       if (active || targeted) {
         // The card of whoever is giving orders (or being aimed at): a two-pixel frame outside the
         // window in the acting colour, breathing, so it reads from across the room.
         ctx.globalAlpha = 0.6 + 0.4 * Math.sin(this.s.frame * 0.18);
         ctx.fillStyle = targeted ? AIMING : ACTIVE;
-        ctx.fillRect(x - 2, y - 2, 120, 2);
-        ctx.fillRect(x - 2, y + 52, 120, 2);
-        ctx.fillRect(x - 2, y, 2, 52);
-        ctx.fillRect(x + 116, y, 2, 52);
+        ctx.fillRect(x - 2, y - 2, CARD_W + 4, 2);
+        ctx.fillRect(x - 2, y + CARD_H, CARD_W + 4, 2);
+        ctx.fillRect(x - 2, y, 2, CARD_H);
+        ctx.fillRect(x + CARD_W, y, 2, CARD_H);
         ctx.globalAlpha = 1;
       }
       const down = dd.hp <= 0;
@@ -840,18 +845,19 @@ export class BattleRenderer {
   private topLine(ctx: Ctx, text: string, color: string = UI.dim, second?: { text: string; color: string }): void {
     // Text wider than the screen wraps onto a second line instead of running off the window.
     const key = `${text}|${second?.text ?? ''}|${color}`;
+    const fr = HUD.frame;
     if (key !== this.topKey) {
-      const maxW = W - 44;
+      const maxW = fr.w - 44;
       const lines = wrap(text, maxW).map((l) => ({ l, c: color }));
       const extra = second ? wrap(second.text, maxW).map((l) => ({ l, c: second.color })) : [];
       this.topKey = key;
       this.topLines = [...lines, ...extra];
-      this.topW = Math.min(W - 20, Math.max(...this.topLines.map((a) => measure(a.l))) + 24);
+      this.topW = Math.min(fr.w - 20, Math.max(...this.topLines.map((a) => measure(a.l))) + 24);
     }
-    const all = this.topLines, tw = this.topW, y = this.topY();
-    drawWindow(ctx, (W - tw) / 2, y, tw, 6 + all.length * 11, { plain: true, accent: second ? second.color : UI.cyan });
+    const all = this.topLines, tw = this.topW, y = this.topY(), cx = fr.x + fr.w / 2;
+    drawWindow(ctx, cx - tw / 2, y, tw, 6 + all.length * 11, { plain: true, accent: second ? second.color : UI.cyan });
     all.forEach((a, i) => {
-      drawText(ctx, a.l, W / 2, y + 4 + i * 11, { align: 'center', color: a.c });
+      drawText(ctx, a.l, cx, y + 4 + i * 11, { align: 'center', color: a.c });
     });
   }
 
@@ -940,9 +946,9 @@ export class BattleRenderer {
     if (!u) return;
     // The box sits on the far side of the screen from its target (clear of the turn-order strip
     // on the right), so it never covers the target or the arrow over it.
-    const w = TARGET_INFO_W, y = 44;
+    const w = TARGET_INFO_W, y = HUD.targetY, fr = HUD.frame;
     const tx = this.s.pos(u.uid).x * WORLD_SCALE;
-    const x = tx < W / 2 ? W - 44 - w : 8;
+    const x = HUD.targetBoxX(tx < fr.x + fr.w / 2, w);
     const name = this.s.label(u);
     if (u.side === 'enemy') {
       const { weak, notes } = this.targetNotes(u);

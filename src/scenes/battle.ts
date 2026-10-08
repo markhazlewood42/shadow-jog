@@ -29,7 +29,7 @@ import { battleDriver } from './battlekit/driver';
 import { TimingWindow, timingWord } from './battlekit/timing';
 import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
-import { BHT, BW, DECK_CUT_LIFE, MENU_X, PANEL_Y, PARTY_BOTTOM } from './battlekit/geom';
+import { BHT, BW, DECK_CUT_LIFE, FIELD_MID, FLOATER_TOP, HUD, MENU_X, PANEL_Y, PARTY_BOTTOM, PARTY_MID, partyX, placeEnemies, type EnemyBox } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
 import { postfx } from '../engine/postfx';
 import { playMoment } from '../engine/moments';
@@ -52,11 +52,6 @@ export interface BattleSetup {
 type Mode = 'intro' | 'round' | 'command' | 'list' | 'target' | 'play' | 'end';
 
 /**
- * Regular enemies stand further back on the floor than the background's ground line, so the
- * party's heads (top ≈ y 81) sit below their feet; bosses stay forward and loom.
- */
-const ENEMY_LIFT = 14, BOSS_LIFT = 4;
-/**
  * The battle's pace, set after Mark's first playthrough (2026-09-29: moves "go by pretty quickly
  * and I can't appreciate them"). Every move's animation (poses, effects, cut-ins, damage numbers)
  * runs on one clock at FX_PACE effect frames per real frame at Normal battle speed, so it all
@@ -73,16 +68,6 @@ const WINDUPS = ['breath', 'charging', 'spin', 'surge'] as const;
 function tellMin(text: string): number {
   return 120 + 2 * text.length;
 }
-/**
- * The top prompt / banner strip (UI y 6-23, world y 0-12): a sprite whose first opaque row would
- * sit under it is placed lower, so a tall boss's head is never hidden behind "Give each crew
- * member orders" (the Warden's visor was).
- */
-const PROMPT_CLEAR = 14;
-function clearOfPrompt(y: number, art: EnemyArt): number {
-  return Math.max(y, PROMPT_CLEAR - artTop(art));
-}
-
 export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   battle: Battle;
   world: Surface;
@@ -687,7 +672,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   pos(uid: number): Pt {
     const u = this.battle.unit(uid);
-    if (!u) return { x: BW / 2, y: 60 };
+    if (!u) return { x: BW / 2, y: FIELD_MID };
     return u.side === 'enemy' ? this.enemyCenter(u) : this.partyPos(u);
   }
 
@@ -696,7 +681,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     const u = this.battle.unit(uid);
     if (u?.side !== 'enemy') return this.pos(uid);
     const { x, y, art } = this.enemyPos(u);
-    return { x: x + art.w / 2, y: Math.max(22, y + artTop(art) + 4) };
+    return { x: x + art.w / 2, y: Math.max(FLOATER_TOP, y + artTop(art) + 4) };
   }
 
   /** The scene as playback sees it (battlekit/playback.ts): a narrow view, built once. */
@@ -794,7 +779,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     for (const f of this.floaters) if (f.uid === uid && f.t < 26) stacked++;
     // 12px a row: 7px glyphs, their shadow, and air (the hit's bounce reaches 3px). Near the top
     // of the frame the stack grows downward instead, so the clamp can't pile rows on each other.
-    this.floaters.push({ text, x: p.x, y: Math.max(22 + stacked * 12, p.y - 8 - stacked * 12), t: 0, color, style, uid });
+    this.floaters.push({ text, x: p.x, y: Math.max(FLOATER_TOP + stacked * 12, p.y - 8 - stacked * 12), t: 0, color, style, uid });
   }
 
   private say(text: string): void {
@@ -1071,16 +1056,10 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const prev = this.layout;
       const next = new Map<number, { x: number; y: number; art: EnemyArt }>();
       const living = this.battle.enemies.filter((e) => !this.dead.has(e.uid)).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
-      const gap = 6;
-      const total = living.reduce((n, e) => n + enemyArt(ENEMIES[e.key]!.sprite).w, 0) + gap * Math.max(0, living.length - 1);
-      let x = Math.round((BW - total) / 2);
-      living.forEach((e, i) => {
-        const art = enemyArt(ENEMIES[e.key]!.sprite);
-        const ground = this.bg.ground - (e.boss ? BOSS_LIFT : ENEMY_LIFT) - (e.key === 'lurker' ? 4 : 0);
-        const back = e.boss ? 0 : (i % 2) * 4;
-        next.set(e.uid, { x, y: clearOfPrompt(ground - art.h - back, art), art });
-        x += art.w + gap;
-      });
+      const arts = living.map((e) => enemyArt(ENEMIES[e.key]!.sprite));
+      // The row rule is battlekit/geom.ts placeEnemies (pure, so the tests check it).
+      const spots = placeEnemies(living.map((e, i) => this.enemyBox(e, arts[i]!)), this.bg.ground);
+      for (const [i, e] of living.entries()) next.set(e.uid, { x: spots[i]!.x, y: spots[i]!.y, art: arts[i]! });
       // The fallen keep their last spot while they dissolve.
       for (const e of this.battle.enemies) if (!next.has(e.uid) && prev.has(e.uid)) next.set(e.uid, prev.get(e.uid)!);
       this.layout = next;
@@ -1088,10 +1067,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     let p = this.layout.get(u.uid);
     if (!p) {
       const art = enemyArt(ENEMIES[u.key]!.sprite);
-      p = { x: Math.round((BW - art.w) / 2), y: clearOfPrompt(this.bg.ground - (u.boss ? BOSS_LIFT : ENEMY_LIFT) - art.h, art), art };
+      const [spot] = placeEnemies([this.enemyBox(u, art)], this.bg.ground);
+      p = { x: spot!.x, y: spot!.y, art };
       this.layout.set(u.uid, p);
     }
     return p;
+  }
+
+  /** What the enemy row's rule needs of one enemy: its art's size and top row, and whether it is a boss or the Lurker. */
+  private enemyBox(e: Combatant, art: EnemyArt): EnemyBox {
+    return { w: art.w, h: art.h, top: artTop(art), boss: !!e.boss, lurker: e.key === 'lurker' };
   }
 
   private enemyCenter(u: Combatant): Pt {
@@ -1102,7 +1087,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   partyPos(u: Combatant): Pt {
     const n = this.battle.party.length;
     const i = u.order ?? 0;
-    return { x: Math.round(BW / 2 + (i - (n - 1) / 2) * 44), y: PARTY_BOTTOM - 34 };
+    // Each hero stands over the middle of their own status card (partyX), whatever the party size.
+    return { x: partyX(i, n), y: PARTY_BOTTOM - PARTY_MID };
   }
 
   // ------------------------------------------------------------------ state the renderer reads
@@ -1148,10 +1134,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   /** Left edge of party member i's status card. */
   boxX(i: number): number {
-    const n = this.battle.party.length;
-    const w = 116;
-    const total = n * w + (n - 1) * 3;
-    return Math.round((W - total) / 2) + i * (w + 3);
+    return HUD.cardX(i, this.battle.party.length);
   }
 
   /** Something is winding up a big move: the round deserves fresh orders, not muscle memory. */

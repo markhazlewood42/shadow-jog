@@ -27,6 +27,7 @@ export const DEV_TOOLS: { group: string; tools: DevTool[] }[] = [
     group: 'Jump into the game',
     tools: [
       { name: 'Battle', path: '/?debug&scene=battle', about: 'A street fight on loop, full party at level 6', print: true },
+      { name: 'Battle, HUD option 2', path: '/?debug&scene=battle&hud=2', about: 'The same fight with the HUD in a centered 480x270 block (D6 option 2; a review switch, dev only)' },
       { name: 'Boss battle', path: '/?debug&scene=battle&enemies=lurker&boss', about: 'The Lurker, on loop' },
       { name: 'A point in the story', path: '/?debug&scene=stage', about: 'Straight to a chapter preset: the party, levels and gear for that point', pick: 'stage' },
       { name: 'Debug mode', path: '/?debug', about: 'The normal game, with test hooks on window.__SJ__ (see the console)' },

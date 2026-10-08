@@ -9,7 +9,42 @@ import { hash2, Rng } from '../engine/rng';
 // the names the makers below use, so the world and its backdrops can never disagree on their size.
 import { BHT as BH, BW } from './worldsize';
 
-export const HORIZON = 62;
+/**
+ * The floor's far edge, in world rows: the line where the sky and the skyline end and the floor
+ * begins, a little under half the world's height. A look choice, named once (D5 option 2 of
+ * docs/PIVOT-640.md). The 320x180 world has 45 more rows than the old 240x135 one: about half
+ * of them (22) went above the horizon (more sky) and the rest below it (more floor, for the
+ * fighters to stand on and the formation to spread over).
+ */
+export const HORIZON = 84;
+
+/**
+ * How far below the horizon each backdrop's enemies stand (its `ground` line, in world rows): a
+ * look choice per floor, named once. Every ground line follows `HORIZON`, so in every backdrop the
+ * enemies stand on the floor, below the horizon and with their feet above the party's heads
+ * (tests/battle-geom.test.ts). The lines are the old ones (32 to 42 rows below the old horizon),
+ * 6 rows further down for the floors with regular enemies: a lone enemy then stands close to the
+ * party instead of far back on the deeper floor (WP2b, problem 9 of the mock). The junction and the
+ * core hold only bosses, which loom, so they keep the old offsets.
+ */
+const GROUND_BELOW_HORIZON = { street: 38, barrens: 38, rustyard: 38, park: 38, sewer: 40, junction: 42, lab: 38, core: 36 } as const;
+
+/**
+ * How much bigger the backdrop is than the 240x135 one that the particle counts below were tuned
+ * on (32,400 world pixels). The rain and the drifting motes scale by it, so the weather keeps its
+ * density per pixel (the 320x180 backdrop has 1.78 times the area).
+ */
+const AREA_SCALE = (BW * BH) / 32_400;
+const byArea = (n: number): number => Math.round(n * AREA_SCALE);
+/** The rain's drop count: 70 on the smaller backdrop, scaled by area (124 at 320x180). */
+const RAIN_DROPS = byArea(70);
+
+/**
+ * Rooftop signs lit by neon stay above this row. Lower ones stay dark: a lit bar where the enemies'
+ * heads and HP bars are would merge with the readouts. The band moves with the enemy row, so the
+ * line is the old 44 rows plus the rows the horizon moved down.
+ */
+const HEAD_BAND_TOP = HORIZON - 18;
 
 const BAYER = [
   [0, 8, 2, 10],
@@ -84,7 +119,7 @@ function skyline(c: Ctx, g: Ctx, rng: Rng, base: number, minH: number, maxH: num
       const col = rng.pick(['#ff4fb0', '#3fe0f0', '#ffcc3d']);
       // Signs low enough to sit in the band where enemies' heads and HP bars are stay dark: a lit
       // bar there merges with the readouts.
-      const lit = by < 44;
+      const lit = by < HEAD_BAND_TOP;
       for (const k of lit ? [c, g] : [c]) {
         k.fillStyle = lit ? col : '#1c1a28';
         k.fillRect(bx, by, bw, 6);
@@ -262,7 +297,7 @@ function reflections(g: Ctx, top: number, rng: Rng, colors: string[], n: number)
   g.globalAlpha = 1;
 }
 
-function rain(ctx: Ctx, frame: number, n = 70, color = '#aab8ff', alpha = 0.35): void {
+function rain(ctx: Ctx, frame: number, n = RAIN_DROPS, color = '#aab8ff', alpha = 0.35): void {
   ctx.fillStyle = color;
   ctx.globalAlpha = alpha;
   for (let i = 0; i < n; i++) {
@@ -294,7 +329,7 @@ const MAKERS: Record<string, Maker> = {
     // Curbs
     c.fillStyle = '#2a2a40';
     c.fillRect(0, HORIZON + 4, BW, 1);
-    return { canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#3a3a7a', tintAmt: 0.25, anim: (ctx, f) => rain(ctx, f) };
+    return { canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.street, tint: '#3a3a7a', tintAmt: 0.25, anim: (ctx, f) => rain(ctx, f) };
   },
   barrens: () => {
     const s = surface(BW, BH), gl = surface(BW, BH);
@@ -330,12 +365,14 @@ const MAKERS: Record<string, Maker> = {
       c.fillRect(rng.int(0, BW), yy, sz + rng.int(0, 2), sz);
     }
     void g;
+    // The drifting embers: as many per pixel as the smaller backdrop had.
+    const embers = byArea(40);
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#a0603a', tintAmt: 0.15,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.barrens, tint: '#a0603a', tintAmt: 0.15,
       anim: (ctx, f) => {
         ctx.fillStyle = '#e8c8a0';
         ctx.globalAlpha = 0.35;
-        for (let i = 0; i < 40; i++) ctx.fillRect(Math.round((hash2(i, 5) * BW + f * (0.4 + hash2(i, 6))) % BW), Math.round(hash2(i, 7) * BH + Math.sin(f * 0.02 + i) * 3), 1, 1);
+        for (let i = 0; i < embers; i++) ctx.fillRect(Math.round((hash2(i, 5) * BW + f * (0.4 + hash2(i, 6))) % BW), Math.round(hash2(i, 7) * BH + Math.sin(f * 0.02 + i) * 3), 1, 1);
         ctx.globalAlpha = 1;
       },
     };
@@ -378,7 +415,7 @@ const MAKERS: Record<string, Maker> = {
       c.fillRect(rng.int(0, BW), yy, sz + rng.int(0, 3), sz);
     }
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#8a4a3a', tintAmt: 0.18,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.rustyard, tint: '#8a4a3a', tintAmt: 0.18,
       anim: (ctx, f) => {
         for (let i = 0; i < 14; i++) {
           const t = (f * 0.6 + i * 23) % 60;
@@ -433,7 +470,7 @@ const MAKERS: Record<string, Maker> = {
       if (col !== '#2a5a3a') { g.fillStyle = col; g.fillRect(x, y, 1, 1); }
     }
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#2a6a5a', tintAmt: 0.2,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.park, tint: '#2a6a5a', tintAmt: 0.2,
       anim: (ctx, f) => {
         for (let i = 0; i < 18; i++) {
           const x = (hash2(i, 1) * BW + Math.sin(f * 0.01 + i) * 10) % BW;
@@ -564,7 +601,7 @@ const MAKERS: Record<string, Maker> = {
     }
     reflections(g, 76, new Rng(5), ['#ffd07a', '#78e6be'], 8);
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 96, tint: '#2a5a5a', tintAmt: 0.18,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.sewer, tint: '#2a5a5a', tintAmt: 0.18,
       anim: (ctx, f) => {
         // Drips from the ceiling into the channel.
         for (let i = 0; i < 6; i++) {
@@ -609,7 +646,7 @@ const MAKERS: Record<string, Maker> = {
     // Deep water
     ditherV(c, 0, 76, BW, BH - 76, ['#0c2a26', '#0a2220', '#06181a']);
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 104, tint: '#2a6a5a', tintAmt: 0.25,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.junction, tint: '#2a6a5a', tintAmt: 0.25,
       anim: (ctx, f) => {
         ctx.fillStyle = '#5aa89a';
         for (let i = 0; i < 40; i++) {
@@ -661,7 +698,7 @@ const MAKERS: Record<string, Maker> = {
     }
     floor(c, HORIZON + 4, '#9aa6b6', '#a6b2c2', '#7a8698');
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#8ac8e8', tintAmt: 0.1,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.lab, tint: '#8ac8e8', tintAmt: 0.1,
       anim: (ctx, f) => {
         for (let i = 0; i < 3; i++) {
           const x = 46 + i * 60;
@@ -744,7 +781,7 @@ const MAKERS: Record<string, Maker> = {
     // Hazard stripes
     for (let x = 0; x < BW; x++) { c.fillStyle = Math.floor(x / 4) % 2 ? '#d8b02a' : '#1a1820'; c.fillRect(x, HORIZON + 4, 1, 2); }
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 98, tint: '#6a2a4a', tintAmt: 0.2,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.core, tint: '#6a2a4a', tintAmt: 0.2,
       anim: (ctx, f) => {
         // Alarm: a lighter red pulse, and two beacon beams sweeping the ceiling.
         const a = 0.06 + 0.05 * Math.sin(f * 0.1);
@@ -805,13 +842,20 @@ function railing(c: Ctx, x0: number, x1: number, y: number, rim: string): void {
   for (let x = x0 + 2; x < x1; x += 12) c.fillRect(x, y, 1, BH - y);
 }
 
+/**
+ * How far each street cable reaches in from its side, as a share of the backdrop's width (the two
+ * cables mirror each other), and how tall the corner railings stand (rows up from the bottom edge).
+ */
+const STREET_CABLE_REACH = 7 / 24, STREET_RAIL_H = 31;
+
 const FRAMING: Record<string, () => HTMLCanvasElement> = {
   street: () => {
     const s = surface(BW, BH), c = s.ctx;
-    cable(c, -4, 6, 70, 14, 9, '#ffc27a');
-    cable(c, 170, 12, BW + 4, 4, 8, '#ffc27a');
-    railing(c, 0, 34, 104, '#ffc27a');
-    railing(c, BW - 34, BW, 104, '#ffc27a');
+    const reach = Math.round(BW * STREET_CABLE_REACH);
+    cable(c, -4, 6, reach, 14, 9, '#ffc27a');
+    cable(c, BW - reach, 12, BW + 4, 4, 8, '#ffc27a');
+    railing(c, 0, 34, BH - STREET_RAIL_H, '#ffc27a');
+    railing(c, BW - 34, BW, BH - STREET_RAIL_H, '#ffc27a');
     return s.canvas;
   },
   junction: () => {
@@ -825,8 +869,8 @@ const FRAMING: Record<string, () => HTMLCanvasElement> = {
     c.fillRect(BW - 70, 4, 70, 1);
     c.fillStyle = '#6a9ab0';
     for (const x of [18, 44, BW - 50, BW - 22]) c.fillRect(x, 7, 1, 2);
-    railing(c, 0, 28, 108, '#ffcf7a');
-    railing(c, BW - 28, BW, 108, '#ffcf7a');
+    railing(c, 0, 28, BH - 27, '#ffcf7a');
+    railing(c, BW - 28, BW, BH - 27, '#ffcf7a');
     return s.canvas;
   },
   lab: () => {
@@ -853,14 +897,16 @@ const FRAMING: Record<string, () => HTMLCanvasElement> = {
     c.fillRect(80, 7, 1, 10);
     c.fillStyle = '#ff3a4a';
     c.fillRect(79, 17, 3, 2);
+    // The console tops stand 23 rows up from the bottom edge.
+    const top = BH - 23;
     for (const [x, w] of [[0, 30], [BW - 30, 30]] as const) {
       c.fillStyle = FG_DARK;
-      c.fillRect(x, 112, w, BH - 112);
+      c.fillRect(x, top, w, BH - top);
       c.fillStyle = '#3a2830';
-      c.fillRect(x, 112, w, 1);
+      c.fillRect(x, top, w, 1);
       c.fillStyle = '#ff6a7a';
-      c.fillRect(x + 4, 116, 3, 1);
-      c.fillRect(x + 10, 116, 5, 1);
+      c.fillRect(x + 4, top + 4, 3, 1);
+      c.fillRect(x + 10, top + 4, 5, 1);
     }
     return s.canvas;
   },
@@ -871,11 +917,13 @@ const FRAMING: Record<string, () => HTMLCanvasElement> = {
     cable(c, -6, 2, 60, 4, 16, '#8ae8ff');
     cable(c, -6, 8, 46, 10, 12, '#8ae8ff');
     cable(c, BW + 6, 3, BW - 64, 5, 15, '#8ae8ff');
+    // The pylon's top stands 65 rows up from the bottom edge.
+    const pylon = BH - 65;
     c.fillStyle = FG_DARK;
-    c.fillRect(BW - 18, 70, 10, BH - 70);
-    c.fillRect(BW - 22, 70, 18, 4);
+    c.fillRect(BW - 18, pylon, 10, BH - pylon);
+    c.fillRect(BW - 22, pylon, 18, 4);
     c.fillStyle = '#8ae8ff';
-    for (let y = 78; y < BH; y += 6) c.fillRect(BW - 17, y, 8, 1);
+    for (let y = pylon + 8; y < BH; y += 6) c.fillRect(BW - 17, y, 8, 1);
     return s.canvas;
   },
 };
