@@ -21,7 +21,7 @@ import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
 import { TARGET_INFO_W } from '../../ui/layout';
 import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
-import { BANNER_H, BHT, BW, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, FLOATER_BOUNCE, FLOATER_POP, HUD, listWindowW, MENU_ABOVE_PANEL, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LABEL_ABOVE, ORDER_LEFT, ORDER_RIGHT, ORDER_STEP_OUT, ORDER_THUMB, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, ROUND_MENU_H, WORLD_SCALE, orderStripLayout } from './geom';
+import { BANNER_H, BHT, BW, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, FLOATER_BOUNCE, FLOATER_BOUNCE_FRAMES, FLOATER_POP, FLOATER_POP_FRAMES, FLOATER_TICK_SINK, HUD, listWindowW, MENU_ABOVE_PANEL, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LABEL_ABOVE, ORDER_LEFT, ORDER_RIGHT, ORDER_STEP_OUT, ORDER_THUMB, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, ROUND_MENU_H, WORLD_SCALE, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
@@ -126,9 +126,10 @@ export class BattleRenderer {
       // Hits and labels pop up, hold and drift together (so a WEAK!/CRITICAL keeps its row over
       // its number the whole time); only the hit bounces. DoT ticks sink.
       const hit = fl.style === 'hit';
-      const pop = FLOATER_POP * (1 - (1 - Math.min(1, fl.t / FLOATER_POP)) ** 3);
-      const rise = fl.style === 'tick' ? -Math.min(8, fl.t * 0.25) : pop + Math.max(0, fl.t - 24) * 0.15;
-      const bounce = hit && fl.t >= 8 && fl.t < 20 ? Math.abs(Math.sin((fl.t - 8) * 0.52)) * FLOATER_BOUNCE * (1 - (fl.t - 8) / 12) : 0;
+      const pop = FLOATER_POP * (1 - (1 - Math.min(1, fl.t / FLOATER_POP_FRAMES)) ** 3);
+      const rise = fl.style === 'tick' ? -Math.min(FLOATER_TICK_SINK, fl.t * 0.25) : pop + Math.max(0, fl.t - 24) * 0.15;
+      const bounceT = fl.t - FLOATER_POP_FRAMES;
+      const bounce = hit && bounceT >= 0 && bounceT < FLOATER_BOUNCE_FRAMES ? Math.abs(Math.sin(bounceT * 0.52)) * FLOATER_BOUNCE * (1 - bounceT / FLOATER_BOUNCE_FRAMES) : 0;
       g.globalAlpha = fl.t > 38 ? Math.max(0, 1 - (fl.t - 38) / 12) : 1;
       drawText(g, fl.text, Math.round(fl.x), Math.round(fl.y - rise - bounce), { color: fl.color, align: 'center', shadow: '#0a0913' });
       g.globalAlpha = 1;

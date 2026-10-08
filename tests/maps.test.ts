@@ -8,7 +8,8 @@ import { getMap, mapIds } from '../src/data/maps';
 import { measure } from '../src/engine/font';
 import { H, W } from '../src/engine/game';
 import { TS } from '../src/field/tiles';
-import { SURROUND, surroundFor } from '../src/scenes/fieldkit/surround';
+import { SURROUND, surroundFor, type SurroundEntry, type SurroundTheme, type SurroundView } from '../src/scenes/fieldkit/surround';
+import { THEMES, pictureKey } from '../src/scenes/fieldkit/surround-art';
 import { arrivals, distances, grid } from './mapgraph';
 
 const NEAR = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const;
@@ -194,7 +195,7 @@ describe('secrets are reachable', () => {
 
 describe('maps smaller than the view (D7, docs/PIVOT-640.md)', () => {
   // At 640x360 the camera shows 1.78 times the old area, so a map below the screen in either
-  // direction is centered in a void, a brick shell or a surround (src/scenes/fieldkit/surround.ts).
+  // direction is centered, and something must fill the margin (src/scenes/fieldkit/surround.ts).
   // This list is pinned, so a size change is deliberate: a map that grows past the screen leaves
   // the list and the surround table together, and a new small map must get a surround entry.
   // Sizes are in pixels (width, height).
@@ -217,6 +218,13 @@ describe('maps smaller than the view (D7, docs/PIVOT-640.md)', () => {
   };
   const smaller = (): string[] => mapIds().filter((id) => { const [w, h] = sizeOf(id); return w < W || h < H; });
 
+  // Mark's rule (Review 3, 2026-10-08, "indoor areas blank fill (b1), outdoor areas themed (b2)"),
+  // by the kind of map. A kind that is not here has no rule yet, and the test below fails for it
+  // until someone chooses on purpose; there is no default.
+  const RULE: Readonly<Record<string, 'b1' | 'b2'>> = { interior: 'b1', town: 'b2' };
+  // The theme of each outdoor map's b2 surround, pinned the same way: a new outdoor map must pick one.
+  const THEME_OF: Readonly<Record<string, SurroundTheme>> = { rustyard: 'yard', dock: 'dock' };
+
   it('the maps below the view are exactly the pinned list, at their pinned sizes', () => {
     expect(smaller().sort()).toEqual(Object.keys(SMALL).sort());
     for (const [id, size] of Object.entries(SMALL)) expect(sizeOf(id), id).toEqual(size);
@@ -224,27 +232,71 @@ describe('maps smaller than the view (D7, docs/PIVOT-640.md)', () => {
 
   it('every one of them has a surround entry, and the table holds no other map', () => {
     expect(Object.keys(SURROUND).sort()).toEqual(smaller().sort());
+    for (const id of smaller()) expect(['b1', 'b2'], `${id} option`).toContain(SURROUND[id]?.option);
+  });
+
+  it('follows Mark’s rule: an indoor map gets the edge fill (b1), an outdoor map a themed surround (b2)', () => {
+    for (const id of smaller()) {
+      const kind = getMap(id).kind;
+      const want = RULE[kind];
+      expect(want, `${id} is a ${kind} map and Mark’s rule covers only ${Object.keys(RULE).join(' and ')}: ask him which surround it gets, then add the kind to RULE`).toBeDefined();
+      expect(SURROUND[id]?.option, `${id} (${kind})`).toBe(want);
+    }
+  });
+
+  it('a themed (b2) map names the theme that fits its place, and an edge-fill (b1) map names none', () => {
     for (const id of smaller()) {
       const e = SURROUND[id];
-      expect(['a', 'b1', 'b2'], `${id} option`).toContain(e?.option);
-      expect(['brick', 'yard', 'dock'], `${id} theme`).toContain(e?.theme);
+      if (e?.option === 'b2') {
+        expect(THEME_OF[id], `${id} is a b2 map: pin its theme in THEME_OF`).toBeDefined();
+        expect(e.theme, id).toBe(THEME_OF[id]);
+      } else {
+        expect(e && 'theme' in e, `${id}: b1 has no theme`).toBe(false);
+      }
     }
   });
 
-  it('a theme fits its place: interiors are brick, the Rustyard a yard, the Dock a dock', () => {
-    for (const id of smaller()) {
-      const want = getMap(id).kind === 'interior' ? 'brick' : id === 'rustyard' ? 'yard' : 'dock';
-      expect(SURROUND[id]?.theme, id).toBe(want);
-    }
+  it('every theme has its painter, and only the dock’s water moves', () => {
+    expect(Object.keys(THEMES).sort()).toEqual(['dock', 'yard']);
+    expect(typeof THEMES.dock.animate).toBe('function');
+    expect(THEMES.yard.animate).toBeUndefined();
+    // The compiler enforces a closed set of themes: a theme that does not exist is a type error,
+    // so it can never fall back to another theme's art (`npm run check` runs tsc over the tests).
+    // @ts-expect-error 'brick' is not a SurroundTheme
+    const unknown: SurroundEntry = { option: 'b2', theme: 'brick' };
+    // @ts-expect-error 'brick' has no entry in THEMES
+    const painter = THEMES.brick;
+    expect(unknown.option).toBe('b2');
+    expect(painter).toBeUndefined();
   });
 
-  it('the game ships option a (today’s look) for every small map until Mark answers D7', () => {
-    // Change this line, and the table, when D7 is answered at Review 3.
-    for (const id of smaller()) expect(SURROUND[id]?.option, id).toBe('a');
-  });
-
-  it('a map with no entry (a big map) has no surround, and the review switch never applies to it', () => {
+  it('a map with no entry (a big map) has no surround', () => {
     expect(surroundFor('lantern_row')).toBeNull();
     expect(surroundFor('world')).toBeNull();
+  });
+
+  describe('the painted picture is kept while only the shake changes', () => {
+    const view = (over: Partial<SurroundView> = {}): SurroundView => ({
+      id: 'dock', ground: {} as HTMLCanvasElement, mw: 320, mh: 224, cx: -160, cy: -68, camX: -160, camY: -68, frame: 0, ...over,
+    });
+    const entry: SurroundEntry = { option: 'b2', theme: 'dock' };
+    const key = (v: SurroundView, e: SurroundEntry = entry) => pictureKey(v, e, '#000');
+
+    it('the shake (the drawn camera moving while the camera at rest stays) does not change the key', () => {
+      expect(key(view({ cx: -157, cy: -70 }))).toBe(key(view()));
+      expect(key(view({ cx: -166, cy: -61, frame: 400 }))).toBe(key(view()));
+    });
+
+    it('a different map, theme, option, size, void color or resting camera does', () => {
+      const base = key(view());
+      expect(key(view({ id: 'rustyard' }))).not.toBe(base);
+      expect(key(view(), { option: 'b2', theme: 'yard' })).not.toBe(base);
+      expect(key(view(), { option: 'b1' })).not.toBe(base);
+      expect(key(view({ mw: 352 }))).not.toBe(base);
+      expect(pictureKey(view(), entry, '#fff')).not.toBe(base);
+      // The Rustyard scrolls, so its picture follows the camera at rest.
+      expect(key(view({ camY: -60 }))).not.toBe(base);
+      expect(key(view({ camX: -150 }))).not.toBe(base);
+    });
   });
 });

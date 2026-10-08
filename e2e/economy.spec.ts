@@ -159,7 +159,10 @@ test('gear bought in a shop can be put on there and then', async ({ page }) => {
  * camera put at the four corners of its clamp, which are the extremes of what the wider view can
  * show. At each corner the camera must rest exactly on the clamp (the view inside the map, so no
  * void and no unpainted strip beyond the map's own edge), a map narrower than the view must be
- * centered, and no pop-in option may be in force (nothing ships until Mark picks at Review 3).
+ * centered, and the only camera limit and curtains in force are the ones the pop-in table ships
+ * (Mark's Review 3 picks: P4's camera limit on the Rustyard, P1 and P2's curtains on the Annex).
+ * Where a limit lets the view go past the map's edge (the Rustyard's south edge), the surround of
+ * that map shows there, so the view is not inside the map on that side.
  *
  * Pictures: set `SJ_CORNER_SHOTS=<folder>` to save one shot of each corner (the review set goes to
  * media/pivot-640/wp3/corners/). Unset, as in CI, the walk writes nothing.
@@ -188,19 +191,22 @@ test('the camera at the four corners of every scrolling map rests on the clamp a
     if (map !== (await sj<string>(page, 'sj.field().def.id'))) await sj(page, `sj.tp('${map}', ${stage === 'town' && map === 'rustyard' ? '15, 22' : '10, 10'}, 'down')`);
     await page.waitForTimeout(1200);
     const [mw, mh] = await sj<[number, number]>(page, '[sj.field().map.w * 16, sj.field().map.h * 16]');
-    expect(await sj(page, 'sj.field().cameraBox'), `${map}: no camera limit ships`).toBeNull();
-    expect(await sj<number>(page, 'sj.field().curtains.length'), `${map}: no curtain ships`).toBe(0);
+    // The pop-in table's picks: P4 limits the Rustyard's camera (maxY 128), P1 and P2 are curtains on the Annex.
+    const box = await sj<{ minX?: number; maxX?: number; minY?: number; maxY?: number } | null>(page, 'sj.field().cameraBox');
+    expect(box, `${map}: the camera limit`).toEqual(map === 'rustyard' ? { maxY: 128 } : null);
+    expect(await sj<number>(page, 'sj.field().curtains.length'), `${map}: the curtains`).toBe(map === 'annex' ? 2 : 0);
     const corners: [string, number, number][] = [['tl', 0, 0], ['tr', mw, 0], ['bl', 0, mh], ['br', mw, mh]];
     for (const [name, fx, fy] of corners) {
       await sj(page, `(sj.field().camOverride = { x: ${fx}, y: ${fy} }, sj.field().snapCamera(), true)`);
       await page.waitForTimeout(250);
       const cam = await sj<{ x: number; y: number }>(page, '({ x: sj.field().camX, y: sj.field().camY })');
       // A map narrower (shorter) than the view is centered; a wider (taller) one rests on its far edge.
-      const wantX = mw <= W ? Math.round((mw - W) / 2) : fx === 0 ? 0 : mw - W;
-      const wantY = mh <= H ? Math.round((mh - H) / 2) : fy === 0 ? 0 : mh - H;
+      // A camera limit replaces the map's own edge on its side (the Rustyard's maxY lets the view go 40 px past the south edge).
+      const wantX = mw <= W ? Math.round((mw - W) / 2) : fx === 0 ? (box?.minX ?? 0) : (box?.maxX ?? mw - W);
+      const wantY = mh <= H ? Math.round((mh - H) / 2) : fy === 0 ? (box?.minY ?? 0) : (box?.maxY ?? mh - H);
       expect(cam, `${map} ${name}`).toEqual({ x: wantX, y: wantY });
-      if (mw > W) expect(cam.x >= 0 && cam.x + W <= mw, `${map} ${name}: the view is inside the map across`).toBe(true);
-      if (mh > H) expect(cam.y >= 0 && cam.y + H <= mh, `${map} ${name}: the view is inside the map down`).toBe(true);
+      if (mw > W && !box) expect(cam.x >= 0 && cam.x + W <= mw, `${map} ${name}: the view is inside the map across`).toBe(true);
+      if (mh > H && !box) expect(cam.y >= 0 && cam.y + H <= mh, `${map} ${name}: the view is inside the map down`).toBe(true);
       if (shots) await page.locator('#screen').screenshot({ path: `${shots}/${map}-${name}.png` });
     }
     await sj(page, '(sj.field().camOverride = null, true)');

@@ -4,108 +4,95 @@
  * At 640x360 the camera shows 1.78 times the old area, so eleven maps no longer fill the screen:
  * the Rustyard is 96 px narrower than the view, Loading Dock 7 is 320 px narrower and 136 px
  * shorter, and the nine interiors are 224 to 352 px wide. The camera centers such a map
- * (`fieldkit/camera.ts`), and the strip around it is "the surround". There are three options:
+ * (`fieldkit/camera.ts`), and the strip around it is "the surround". Mark's rule (Review 3,
+ * 2026-10-08, "indoor areas blank fill (b1), outdoor areas themed (b2)"):
  *
- * - **a**, accept the void: the map color (and, for an interior, the dark brick shell of
- *   `drawShell`). This is how the game looked before the move, and it ships until Mark answers D7.
- * - **b1**, an edge fill: the map's own outermost row of tiles is repeated outward, and a dark
- *   fade takes it to black, so the place seems to go on past its edge.
- * - **b2**, a themed surround: something drawn in code that fits the place. Which one is the
- *   map's `theme` in the table below: a brick building frame for the interiors, a corrugated
- *   fence and scrap ground for the Rustyard, a quay edge over black water for the Dock.
+ * - **b1**, an edge fill, for an indoor map: the map's own outermost row of tiles is repeated
+ *   outward, and a dark fade takes it to black, so the room seems to go on past its edge.
+ * - **b2**, a themed surround, for an outdoor map: something drawn in code that fits the place.
+ *   Which one is the entry's `theme`: a corrugated fence and scrap ground for the Rustyard, a quay
+ *   edge over black water for the Dock.
  *
- * Option c (make the map bigger) is a change to map data, so it is not built here.
+ * A map with no entry here is not smaller than the view: it fills the screen, and the field draws
+ * the plain void behind it (the base case below). Option c (make the map bigger) is a change to
+ * map data, so it is not built.
+ *
+ * **When you add a small map, add its row.** Choose b1 if it is indoors and b2 (with a theme from
+ * `surround-art.ts`) if it is outdoors. A map that is neither (a cave, a dungeon, the world map) has
+ * no rule yet: `tests/maps.test.ts` fails for it until the rule is chosen on purpose, so the choice
+ * is never made by default.
  *
  * **The table is the one place a map's choice lives** (the editor rule of docs/IDEAS.md, entry 1:
  * no decision may make a future visual editor harder). `SURROUND` is keyed by map id and holds
  * plain values. It sits in code for now because PL6 forbids data edits in this package; it moves
- * into the map data (`MapDef`) once Mark gives his written yes. The drawing code below never
- * names a map.
+ * into the map data (`MapDef`) once Mark gives his written yes. The drawing code never names a map.
  */
 import type { Ctx } from '../../engine/canvas';
 import { H, W } from '../../engine/game';
-import { reviewSwitch } from './devswitch';
-import { drawShell } from './draw';
-import * as surroundArt from './surround-art';
+import { drawSurroundArt } from './surround-art';
+import { VOID } from './void';
 
-export type SurroundOption = 'a' | 'b1' | 'b2';
-export type SurroundTheme = 'brick' | 'yard' | 'dock';
+/** The themes of option b2. Each has its painter in `surround-art.ts` (a missing one is a type error). */
+export type SurroundTheme = 'yard' | 'dock';
 
-export interface SurroundEntry {
-  /** What ships for this map: a (the void), b1 (an edge fill) or b2 (the themed surround). */
-  option: SurroundOption;
-  /** What option b2 draws for this map. */
-  theme: SurroundTheme;
-}
+/** A map's surround: b1 (an edge fill, indoors) or b2 with a theme (outdoors). */
+export type SurroundEntry = { option: 'b1' } | { option: 'b2'; theme: SurroundTheme };
 
 /**
- * Every map smaller than the view, and what its surround is. All `a` until Mark answers D7
- * (recommended: the Rustyard b, the Dock b, the interiors a). `tests/maps.test.ts` pins this key
+ * Every map smaller than the view, and what its surround is. `tests/maps.test.ts` pins this key
  * list against the real map sizes, so a map that changes size must change this table with it.
  */
 export const SURROUND: Readonly<Record<string, SurroundEntry>> = {
-  rustyard: { option: 'a', theme: 'yard' },
-  dock: { option: 'a', theme: 'dock' },
-  rook_flat: { option: 'a', theme: 'brick' },
-  bar: { option: 'a', theme: 'brick' },
-  clinic: { option: 'a', theme: 'brick' },
-  armory: { option: 'a', theme: 'brick' },
-  threads: { option: 'a', theme: 'brick' },
-  kwikmart: { option: 'a', theme: 'brick' },
-  hotel: { option: 'a', theme: 'brick' },
-  noodles: { option: 'a', theme: 'brick' },
-  hex_den: { option: 'a', theme: 'brick' },
+  rustyard: { option: 'b2', theme: 'yard' },
+  dock: { option: 'b2', theme: 'dock' },
+  rook_flat: { option: 'b1' },
+  bar: { option: 'b1' },
+  clinic: { option: 'b1' },
+  armory: { option: 'b1' },
+  threads: { option: 'b1' },
+  kwikmart: { option: 'b1' },
+  hotel: { option: 'b1' },
+  noodles: { option: 'b1' },
+  hex_den: { option: 'b1' },
 };
 
-/** The map color the void shows (a map's own `voidColor` wins). */
-const VOID = '#07060d';
-
-/** The entry for a map, with the dev review switch (`?surround=a|b1|b2`) applied. Null for a map that is not in the table. */
+/** The entry for a map, or null for a map that is not in the table. */
 export function surroundFor(id: string): SurroundEntry | null {
-  const entry = SURROUND[id];
-  if (!entry) return null;
-  const forced = reviewSwitch('surround');
-  return forced === 'a' || forced === 'b1' || forced === 'b2' ? { ...entry, option: forced } : entry;
+  return SURROUND[id] ?? null;
 }
 
 /** What the surround needs to know about the map and the camera. */
 export interface SurroundView {
   id: string;
-  kind: 'town' | 'interior' | 'dungeon' | 'world';
   voidColor?: string | undefined;
   /** The map's baked ground layer (map-sized): the edge fill repeats its outer tiles. */
   ground: HTMLCanvasElement;
   /** The map's size in pixels. */
   mw: number;
   mh: number;
-  /** The camera's origin (negative when the map is centered), shake included. */
+  /** The camera's origin where the map is drawn this frame (negative when the map is centered), shake included. */
   cx: number;
   cy: number;
+  /** The camera's origin without the shake. The painted surround depends on this, not on the shake. */
+  camX: number;
+  camY: number;
   /** The scene's frame count, for the one animated surround (water). */
   frame: number;
 }
 
-/**
- * The painters of options b1 and b2 (`surround-art.ts`) are in the dev build only. Until Mark
- * answers D7 the game ships option a everywhere, so a production build leaves them out:
- * `import.meta.env.DEV` is false there, the bundler folds this to null, and the whole file goes.
- * When he picks b1 or b2 for a map, make `art` the module itself in the same commit.
- */
-const art = import.meta.env.DEV ? surroundArt : null;
 
 /**
- * Paint the surround, or the plain void for a map that has none. Called first in the field's draw,
- * before the map is drawn over it. Option a is the old look, unchanged. An option whose painter is
- * not in the build (the production build, for now) draws option a.
+ * Paint what is behind the map. Called first in the field's draw, before the map is drawn over it.
+ * A small map (one with an entry) gets its surround. A map that fills the screen gets the plain
+ * void, which the map then covers: that is the base case, and the only place the void shows is the
+ * strip a screen shake pulls past a map's edge.
  */
 export function drawSurround(ctx: Ctx, v: SurroundView): void {
   const entry = surroundFor(v.id);
-  const option = entry?.option ?? 'a';
-  if (!entry || option === 'a' || !art || (v.mw >= W && v.mh >= H)) {
+  if (!entry || (v.mw >= W && v.mh >= H)) {
     ctx.fillStyle = v.voidColor ?? VOID;
     ctx.fillRect(0, 0, W, H);
-    if (v.kind === 'interior') drawShell(ctx, v.mw, v.mh, v.cx, v.cy);
     return;
   }
-  art.drawSurroundArt(ctx, v, entry, v.voidColor ?? VOID);
+  drawSurroundArt(ctx, v, entry, v.voidColor ?? VOID);
 }

@@ -162,7 +162,6 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
 - `?scene=chars[&zoom=4][&npcs][&battlers]`, `?scene=bestiary[&page=1]`, `?scene=portraits`, `?scene=font`:
   asset sheets.
 - `?scene=fxlab`: the FX lab (particle presets and battle moments; see §8).
-- **Review switches** (dev only: a shipped build ignores them; they exist so one build can show every option of a design that Mark has not answered yet): `&surround=a|b1|b2` on any small map forces its surround (decision D7, `src/scenes/fieldkit/surround.ts`), and `&popin=P1:b,P4:a` or `&popin=all:b` forces options of the pop-in items (decision D17, `src/scenes/fieldkit/popins.ts`; the list is `media/pivot-640/wp3/popins.md`, which is git-ignored). Each map's choice lives in one table keyed by map id; what ships is `a` and `none` until Mark answers.
 - `/artreview.html`: the art-pass review page; `?art=review[&try=asset/option,...]` on any route swaps art-pass
   options into the game (see §8, "The PixelLab art pass").
 

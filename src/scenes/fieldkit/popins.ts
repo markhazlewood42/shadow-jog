@@ -1,26 +1,26 @@
 /**
  * Content that the wider view shows (decision D17 of docs/PIVOT-640.md): things that were off screen
- * at 480x270 and now appear, are cropped, or are seen before their cue. The WP3 walk found a short
- * list (media/pivot-640/wp3/popins.md, with pictures). Each item has two code-only fixes, and a
- * third that is map or story data (option c, which needs Mark's written yes and is not built):
+ * at 480x270 and now appear, are cropped, or are seen before their cue. The WP3 walk found four
+ * items, P1 to P4. The Record in docs/PIVOT-640.md ("WP3", the pop-in table) lists them with the
+ * options and Mark's picks. Mark picked per item at Review 3 (2026-10-08), and the table below holds
+ * only the fix that ships. A fix is one of three kinds:
  *
- * - **a**, limit the camera: a box that the camera's origin must stay in (`camera`). It can only
- *   keep the view away from a place, so it works when the thing sits near the map's edge. A camera
- *   range may reach beyond the map's own edge, which shows the surround (fieldkit/surround.ts).
- * - **b**, fade the beat: a dark curtain over a box of the map, either until the player gets near
- *   (`near`) or for the length of one event, lifted when a script pans the camera (`event`); or a
- *   hold, which keeps a pan on its target for a while (`hold`).
+ * - **camera** (option a), limit the camera: a box that the camera's origin must stay in. It can
+ *   only keep the view away from a place, so it works when the thing sits near the map's edge. A
+ *   camera range may reach beyond the map's own edge, which shows the surround (fieldkit/surround.ts).
+ * - **curtain** (option b), fade the beat: a dark curtain over a box of the map, either until the
+ *   player gets near (`near`) or for the length of one event, lifted when a script pans the camera
+ *   (`event`).
+ * - **hold** (option b), a pan that stays on its target for a while before the script goes on.
  *
- * Every item ships `none`: nothing here changes what the player sees until Mark picks per item at
- * Review 3. The table is the one place the choices live (the editor rule of docs/IDEAS.md, entry 1):
- * plain values keyed by item id, in code for now because PL6 forbids data edits in this package. It
- * moves into the map data once Mark gives his written yes. The dev review switch `?popin=P1:b,P2:a`
- * (or `?popin=all:b`) forces options for the pictures; a production build ignores it.
+ * Option c (move the content: story or map data) needs Mark's written yes and is not built.
+ *
+ * The table is the one place the choices live (the editor rule of docs/IDEAS.md, entry 1): plain
+ * values keyed by item id, in code for now because PL6 forbids data edits in this package. It moves
+ * into the map data once Mark gives his written yes.
  */
 import type { Ctx } from '../../engine/canvas';
-import { reviewSwitch } from './devswitch';
-
-export type PopinOption = 'none' | 'a' | 'b';
+import { voidShade } from './void';
 
 /** Limits on where the camera's origin (the view's top-left corner, in map pixels) may go. A side left out keeps the default (the map's own edge). */
 export interface CameraBox { minX?: number; maxX?: number; minY?: number; maxY?: number }
@@ -38,88 +38,69 @@ export type Curtain = { box: MapRect; fade: number } & (
   | { mode: 'event'; events: string[] }
 );
 
+/** The fix that ships for one item. */
+export type PopinFix =
+  | { kind: 'camera'; box: CameraBox }
+  | { kind: 'curtain'; curtain: Curtain }
+  | { kind: 'hold'; pan: [number, number]; frames: number };
+
 export interface PopinEntry {
   /** The map the item is on. */
   map: string;
-  /** One line: what shows. The pop-in list says more. */
+  /** One line: what shows. The Record says more. */
   what: string;
-  /** What ships: always `none` until Mark picks. */
-  option: PopinOption;
-  /** Option a. Null when no camera limit can hide the thing; `aWhy` then says why. */
-  a: CameraBox | null;
-  aWhy?: string;
-  /** Option b: a curtain, a hold, or both. */
-  b: { curtain?: Curtain; hold?: { pan: [number, number]; frames: number } } | null;
+  /** What ships (Mark's pick at Review 3). */
+  fix: PopinFix;
 }
 
+/** How dark a fully closed curtain is (not fully black: the shape of the place shows through). */
+const CURTAIN_STRENGTH = 0.94;
+/** The width of the soft edge outside a curtain's box, in pixels. */
+const CURTAIN_FEATHER = 24;
+
 export const POPINS: Readonly<Record<string, PopinEntry>> = {
-  // The Annex's first screen already shows the cryo wing, where Sable's pod is the story's reveal.
+  // P1, picked b (Review 3). The Annex's first screen already shows the cryo wing, where Sable's pod
+  // is the story's reveal. Option a was buildable too: `{ minX: -128 }` keeps the pods off the first
+  // screens and the leader in view, at the cost of a 128 px strip of the surround left of the Annex.
   P1: {
     map: 'annex',
     what: 'The cryo wing and its pods show on the first screen of the Annex, long before the story walks there.',
-    option: 'none',
-    a: null,
-    aWhy: 'The view at the map corner already spans x 0 to 640 and the pods stand at x 520 to 640. Hiding them needs a camera 120 px left of the map, a void.',
-    b: { curtain: { mode: 'near', box: { x: 496, y: 0, w: 208, h: 272 }, focus: { x: 576, y: 88 }, radius: 208, fade: 96 } },
+    fix: { kind: 'curtain', curtain: { mode: 'near', box: { x: 496, y: 0, w: 208, h: 272 }, focus: { x: 576, y: 88 }, radius: 208, fade: 96 } },
   },
-  // Relays B and C stand within 640 px of the lattice, so cycling them shows the beams change.
+  // P2, picked b. Relays B and C stand within 640 px of the lattice, so cycling them shows the beams
+  // change. Option a cannot be built: keeping the lattice (x 480) out of the view at relay B (x 248)
+  // needs the camera at x -192 or less, and a limit that holds it there (a maxX) would also strand
+  // the leader everywhere east of x 440; a minX only holds the camera's left side.
   P2: {
     map: 'annex',
     what: 'From relay B or C the lattice is on screen, so the cycle shows what the relay feeds (Hex says he cannot see it).',
-    option: 'none',
-    a: null,
-    aWhy: 'At relay B and relay C the view spans x 0 to 640 and the lattice stands at x 480. No camera box can leave it out.',
-    b: { curtain: { mode: 'event', events: ['relay_b', 'relay_c'], box: { x: 448, y: 0, w: 256, h: 272 }, fade: 12 } },
+    fix: { kind: 'curtain', curtain: { mode: 'event', events: ['relay_b', 'relay_c'], box: { x: 448, y: 0, w: 256, h: 272 }, fade: 12 } },
   },
-  // The lattice shutdown pans the camera 64 px, because the lattice is already in view.
+  // P3, picked b. The lattice shutdown pans the camera 64 px, because the lattice is already in view.
+  // Option a would need the lattice out of view before the pan: the same impossibility as P2.
   P3: {
     map: 'annex',
     what: 'The lattice shutdown pan slides the camera only 64 px, so “the camera finds the lattice” no longer reveals anything.',
-    option: 'none',
-    a: null,
-    aWhy: 'The camera already moves its whole range (x 0 to 64). A limit could only make the pan shorter.',
-    b: { hold: { pan: [30, 7], frames: 40 } },
+    fix: { kind: 'hold', pan: [30, 7], frames: 40 },
   },
-  // From the Rustyard's entrance the camera's top edge cuts through Knuckles' crew.
+  // P4, picked a. From the Rustyard's entrance the camera's top edge cuts through Knuckles' crew. The
+  // camera may go 40 px past the yard's south edge (its range is 0 to 88 otherwise), which shows the
+  // yard's surround (the fence strips and scrap ground of the b2 theme, fieldkit/surround.ts).
   P4: {
     map: 'rustyard',
     what: 'From the lot’s entrance the top of the screen shows Knuckles’ crew, cropped by the edge, before the story sends the player there.',
-    option: 'none',
-    a: { maxY: 128 },
-    b: { curtain: { mode: 'near', box: { x: 0, y: 0, w: 544, h: 150 }, focus: { x: 272, y: 150 }, radius: 120, fade: 80 } },
+    fix: { kind: 'camera', box: { maxY: 128 } },
   },
 };
 
-/** The review switch: `P1:b,P2:a`, `all:b`, `none`. Returns the forced options by item id. */
-export function parsePopinSwitch(raw: string | null, ids: readonly string[] = Object.keys(POPINS)): Record<string, PopinOption> {
-  const out: Record<string, PopinOption> = {};
-  if (!raw) return out;
-  for (const part of raw.split(',')) {
-    const [id, opt] = part.split(':');
-    const option = opt === 'a' || opt === 'b' ? opt : 'none';
-    if (id === 'all') for (const each of ids) out[each] = option;
-    else if (id && ids.includes(id)) out[id] = option;
-  }
-  return out;
+/** The items of a map. */
+function itemsOn(map: string, table: Readonly<Record<string, PopinEntry>>): PopinFix[] {
+  return Object.values(table).filter((e) => e.map === map).map((e) => e.fix);
 }
 
-/** The option of every item. */
-export type PopinOptions = Readonly<Record<string, PopinOption>>;
-
-/** The option each item runs with now: what ships, with the review switch applied. */
-export function currentOptions(): PopinOptions {
-  const forced = parsePopinSwitch(reviewSwitch('popin'));
-  return Object.fromEntries(Object.entries(POPINS).map(([id, e]) => [id, forced[id] ?? e.option]));
-}
-
-/** The entries of a map that run with one option. */
-function activeOn(map: string, option: 'a' | 'b', options: PopinOptions): PopinEntry[] {
-  return Object.entries(POPINS).filter(([id, e]) => e.map === map && options[id] === option).map(([, e]) => e);
-}
-
-/** The camera limits in force on a map (option a items), merged: the widest range wins on each side. Null when none. */
-export function cameraBoxFor(map: string, options: PopinOptions = currentOptions()): CameraBox | null {
-  const boxes = activeOn(map, 'a', options).flatMap((e) => (e.a ? [e.a] : []));
+/** The camera limits in force on a map, merged: the widest range wins on each side. Null when none. */
+export function cameraBoxFor(map: string, table: Readonly<Record<string, PopinEntry>> = POPINS): CameraBox | null {
+  const boxes = itemsOn(map, table).flatMap((f) => (f.kind === 'camera' ? [f.box] : []));
   if (!boxes.length) return null;
   const merged: CameraBox = {};
   for (const b of boxes) {
@@ -131,15 +112,15 @@ export function cameraBoxFor(map: string, options: PopinOptions = currentOptions
   return merged;
 }
 
-/** The curtains in force on a map (option b items). */
-export function curtainsFor(map: string, options: PopinOptions = currentOptions()): Curtain[] {
-  return activeOn(map, 'b', options).flatMap((e) => (e.b?.curtain ? [e.b.curtain] : []));
+/** The curtains in force on a map. */
+export function curtainsFor(map: string, table: Readonly<Record<string, PopinEntry>> = POPINS): Curtain[] {
+  return itemsOn(map, table).flatMap((f) => (f.kind === 'curtain' ? [f.curtain] : []));
 }
 
-/** Frames to hold after a pan to tile (tx, ty) on a map, from the option b items in force. 0 when none. */
-export function holdFor(map: string, tx: number, ty: number, options: PopinOptions = currentOptions()): number {
+/** Frames to hold after a pan to tile (tx, ty) on a map. 0 when the table names no hold there. */
+export function holdFor(map: string, tx: number, ty: number, table: Readonly<Record<string, PopinEntry>> = POPINS): number {
   let frames = 0;
-  for (const e of activeOn(map, 'b', options)) if (e.b?.hold && e.b.hold.pan[0] === tx && e.b.hold.pan[1] === ty) frames = Math.max(frames, e.b.hold.frames);
+  for (const f of itemsOn(map, table)) if (f.kind === 'hold' && f.pan[0] === tx && f.pan[1] === ty) frames = Math.max(frames, f.frames);
   return frames;
 }
 
@@ -155,24 +136,23 @@ export function drawCurtains(ctx: Ctx, curtains: readonly Curtain[], ease: numbe
     const prev = ease[i] ?? 0;
     const eased = c.mode === 'event' ? prev + Math.max(-1 / c.fade, Math.min(1 / c.fade, target - prev)) : target;
     ease[i] = eased;
-    const a = 0.94 * eased;
+    const a = CURTAIN_STRENGTH * eased;
     if (a < 0.01) continue;
     const x = c.box.x - cx, y = c.box.y - cy, w = c.box.w, h = c.box.h;
-    const FEATHER = 24;
-    ctx.fillStyle = `rgba(7,6,13,${a.toFixed(3)})`;
+    ctx.fillStyle = voidShade(a.toFixed(3));
     ctx.fillRect(x, y, w, h);
     // Feathered edges: a gradient from the curtain's strength to nothing, outside each side.
     const strip = (sx: number, sy: number, sw: number, sh: number, gx: number, gy: number, gx2: number, gy2: number): void => {
       const g = ctx.createLinearGradient(gx, gy, gx2, gy2);
-      g.addColorStop(0, `rgba(7,6,13,${a.toFixed(3)})`);
-      g.addColorStop(1, 'rgba(7,6,13,0)');
+      g.addColorStop(0, voidShade(a.toFixed(3)));
+      g.addColorStop(1, voidShade(0));
       ctx.fillStyle = g;
       ctx.fillRect(sx, sy, sw, sh);
     };
-    strip(x - FEATHER, y, FEATHER, h, x, 0, x - FEATHER, 0);
-    strip(x + w, y, FEATHER, h, x + w, 0, x + w + FEATHER, 0);
-    strip(x, y - FEATHER, w, FEATHER, 0, y, 0, y - FEATHER);
-    strip(x, y + h, w, FEATHER, 0, y + h, 0, y + h + FEATHER);
+    strip(x - CURTAIN_FEATHER, y, CURTAIN_FEATHER, h, x, 0, x - CURTAIN_FEATHER, 0);
+    strip(x + w, y, CURTAIN_FEATHER, h, x + w, 0, x + w + CURTAIN_FEATHER, 0);
+    strip(x, y - CURTAIN_FEATHER, w, CURTAIN_FEATHER, 0, y, 0, y - CURTAIN_FEATHER);
+    strip(x, y + h, w, CURTAIN_FEATHER, 0, y + h, 0, y + h + CURTAIN_FEATHER);
   }
 }
 

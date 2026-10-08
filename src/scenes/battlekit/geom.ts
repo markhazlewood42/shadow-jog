@@ -257,6 +257,13 @@ export const FIELD_MID = Math.round(BHT * ENEMY_MID_AT);
  */
 export const FLOATER_POP = 8, FLOATER_BOUNCE = 3, FLOATER_ROW = 12;
 /**
+ * How long the pop takes, in frames: a floater rises `FLOATER_POP` rows over this many frames. (It is
+ * 8 like the height, by chance: the height is rows, this is time.) A hit then bounces for
+ * `FLOATER_BOUNCE_FRAMES` frames, starting when the pop ends. A damage-over-time tick sinks instead,
+ * by at most `FLOATER_TICK_SINK` rows.
+ */
+export const FLOATER_POP_FRAMES = 8, FLOATER_BOUNCE_FRAMES = 12, FLOATER_TICK_SINK = 8;
+/**
  * Damage numbers never rise into the top text band. This is the lowest row a floater may START at
  * (world pixels): after its pop and its bounce its top is still on the first row under the band,
  * `PROMPT_CLEAR`. Derived from the band, so it follows the HUD frame.

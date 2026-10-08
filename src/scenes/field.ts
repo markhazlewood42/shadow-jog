@@ -24,9 +24,8 @@ import { FIELD_OBJ_W } from '../ui/layout';
 import { fieldHooks } from '../game/hooks';
 import { reportError } from '../engine/errors';
 import { scriptApi } from './fieldkit/api';
-import { cameraOrigin } from './fieldkit/camera';
-import type { CameraBox, Curtain } from './fieldkit/popins';
-import { popins } from './fieldkit/review';
+import { cameraOrigin, LEADER_FOCUS_LIFT } from './fieldkit/camera';
+import { cameraBoxFor, curtainsFor, drawCurtains, type CameraBox, type Curtain } from './fieldkit/popins';
 import { blit, byBaseY, drawEmote, inView, type DrawEntry } from './fieldkit/draw';
 import { drawSurround, type SurroundView } from './fieldkit/surround';
 import { Dust } from './fieldkit/dust';
@@ -76,7 +75,7 @@ export class FieldScene extends Scene<void> {
   camX = 0;
   camY = 0;
   camOverride: { x: number; y: number } | null = null;
-  /** The pop-in table's camera limit for this map (option a), and its curtains (option b); read when the map loads. */
+  /** The pop-in table's camera limit for this map (P4) and its curtains (P1, P2); read when the map loads. */
   cameraBox: CameraBox | null = null;
   private curtains: Curtain[] = [];
   /** How closed each curtain is now (0 to 1), eased for event curtains. */
@@ -131,8 +130,8 @@ export class FieldScene extends Scene<void> {
     if (this.def.town) state.lastTown = { map: mapId, x, y };
     if (this.def.entrance) state.lastEntrance = { ...this.def.entrance };
     this.lighting.ambient = this.def.ambient;
-    this.cameraBox = popins?.cameraBoxFor(mapId) ?? null;
-    this.curtains = popins?.curtainsFor(mapId) ?? [];
+    this.cameraBox = cameraBoxFor(mapId);
+    this.curtains = curtainsFor(mapId);
     this.curtainEase = this.curtains.map(() => 0);
     this.weather.set(this.def.weather ?? 'none');
     this.buildParty(x, y, dir);
@@ -350,7 +349,7 @@ export class FieldScene extends Scene<void> {
     // unmarked if it throws partway: a story beat that aborted can be walked into again, rather
     // than leaving the chapter unfinishable (round 13's stability review).
     if (e.once) flags.set(key);
-    // The pop-in table's event curtains (fieldkit/popins.ts, option b) close while this event runs.
+    // The pop-in table's event curtains (fieldkit/popins.ts) close while this event runs.
     this.curtainEvent = e.id;
     let ok = false;
     try {
@@ -589,7 +588,7 @@ export class FieldScene extends Scene<void> {
   /** The camera rule lives in fieldkit/camera.ts, shared with the scripted pan(). */
   targetCam(): { x: number; y: number } {
     const fx = this.camOverride?.x ?? this.leader.px;
-    const fy = this.camOverride?.y ?? this.leader.py - 8;
+    const fy = this.camOverride?.y ?? this.leader.py - LEADER_FOCUS_LIFT;
     return cameraOrigin(fx, fy, this.map.w * TS, this.map.h * TS, this.cameraBox);
   }
 
@@ -625,20 +624,21 @@ export class FieldScene extends Scene<void> {
     // Shake moves the camera (the world); the banner and objective are drawn in screen space.
     const cx = this.camX - this.game.shakeX, cy = this.camY - this.game.shakeY;
     const f = this.frame;
-    // Whatever shows around a map smaller than the screen: the void, a brick shell, or a surround (fieldkit/surround.ts).
+    // Whatever shows around a map smaller than the screen: its surround (fieldkit/surround.ts), or the plain void behind a map that fills the screen.
     let sv = this.surroundView;
     if (!sv) {
-      sv = { id: '', kind: 'town', ground: this.map.ground, mw: 0, mh: 0, cx: 0, cy: 0, frame: 0 };
+      sv = { id: '', ground: this.map.ground, mw: 0, mh: 0, cx: 0, cy: 0, camX: 0, camY: 0, frame: 0 };
       this.surroundView = sv;
     }
     sv.id = this.def.id;
-    sv.kind = this.def.kind;
     sv.voidColor = this.def.voidColor;
     sv.ground = this.map.ground;
     sv.mw = this.map.w * TS;
     sv.mh = this.map.h * TS;
     sv.cx = cx;
     sv.cy = cy;
+    sv.camX = this.camX;
+    sv.camY = this.camY;
     sv.frame = f;
     drawSurround(ctx, sv);
     this.lighting.build(this.map.lights, cx, cy, f);
@@ -718,7 +718,7 @@ export class FieldScene extends Scene<void> {
     this.lighting.bloom(ctx, this.map.lights, cx, cy, f, this.def.kind === 'interior' ? 0.08 : 0.14);
     this.dust.render(ctx, cx, cy);
     this.weather.render(ctx);
-    if (this.curtains.length) popins?.drawCurtains(ctx, this.curtains, this.curtainEase, cx, cy, { x: this.leader.px, y: this.leader.py }, this.curtainEvent);
+    if (this.curtains.length) drawCurtains(ctx, this.curtains, this.curtainEase, cx, cy, { x: this.leader.px, y: this.leader.py }, this.curtainEvent);
     for (const a of actors) if (a.emote) drawEmote(ctx, a, cx, cy);
     if (this.cue) this.drawCue(ctx, this.cue.x - cx, this.cue.y - cy, f);
     this.renderBanner(ctx);

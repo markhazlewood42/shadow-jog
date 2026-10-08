@@ -103,6 +103,22 @@ describe('scripted pan() uses the camera rule', () => {
     expect(f.panTarget).toMatchObject({ x: 100 });
   });
 
+  it('holds on the pan the table names (P3, the lattice shutdown), and on no other pan', async () => {
+    const { f, scene } = fakeScene(60, 50);
+    f.def.id = 'annex';
+    let landed = false;
+    void scriptApi(scene).pan(30, 7).then(() => { landed = true; });
+    f.panTarget?.res?.();
+    expect(f.waits).toEqual([40]);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(landed).toBe(true);
+    // The same map, another tile: no hold.
+    void scriptApi(scene).pan(30, 8);
+    f.panTarget?.res?.();
+    expect(f.waits).toEqual([40]);
+  });
+
   it('lifts an event curtain (a pan is the reveal beat), and does not hold on a pan the table does not name', () => {
     const { f, scene } = fakeScene(60, 50);
     expect(f.curtainEvent).toBe('relay_b');
@@ -113,7 +129,7 @@ describe('scripted pan() uses the camera rule', () => {
   });
 });
 
-describe('cameraOrigin with a camera limit (option a of the pop-in table)', () => {
+describe('cameraOrigin with a camera limit (the pop-in table)', () => {
   const mw = W + 400, mh = H + 300;
   it('is the plain rule when no side is limited', () => {
     expect(cameraOrigin(10, 10, mw, mh, {})).toEqual(cameraOrigin(10, 10, mw, mh));
