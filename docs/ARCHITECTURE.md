@@ -275,7 +275,7 @@ round, victory, defeat, fleeing). Its parts:
 - `playback.ts`: `playEvent(view, event)` turns engine events into animation and sound (tested against a recording
   view in `tests/playback.test.ts`).
 - `timing.ts` (the ring and its judgement), `orders.ts` (building menus and orders, combo hints), `motion.ts` (the
-  swing's beats), `sprites.ts` (enemy frame caches, recolours, dissolve), `geom.ts` (layout constants),
+  swing's beats), `sprites.ts` (enemy frame caches, recolours, dissolve), `geom.ts` (layout constants: the world rows, and the HUD frame that every HUD anchor derives from, `hudLayout`),
   `tables.ts` (poses, sounds and stings per effect), `intro.ts` (the glass-shatter transition), `driver.ts` (test hook).
 - Three layers under a full-resolution UI: the backdrop world (240×135, scaled 2×), the **enemies** on a
   screen-resolution layer (drawn through a 2× transform, so creatures' finer art lands 1:1; `EnemyArt.res`, `w`, `h`),

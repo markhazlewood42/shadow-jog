@@ -11,7 +11,7 @@ import { COMBOS } from '../src/data/abilities';
 import { ENEMIES } from '../src/data/enemies';
 import { H, W } from '../src/engine/game';
 import {
-  BHT, BW, CARD_GAP, CARD_H, CARD_RAISE, CARD_W, ENEMY_GAP, HUD, HUD_FRAME, ORDER_COLUMN_W, PANEL_Y, PARTY_BOTTOM, PARTY_HEIGHT, PROMPT_CLEAR, WORLD_SCALE,
+  BHT, BW, CARD_GAP, CARD_H, CARD_RAISE, CARD_W, ENEMY_GAP, HUD, HUD_FRAME, ORDER_COLUMN_W, ORDER_FACE, PANEL_Y, PARTY_BOTTOM, PARTY_HEIGHT, PROMPT_CLEAR, STRIP_MAX_FACES, WORLD_SCALE,
   hudFrameFor, hudLayout, orderStripLayout, partyX, placeEnemies, type EnemyBox, type Rect,
 } from '../src/scenes/battlekit/geom';
 import sprites from './fixtures/battle-sprites.json';
@@ -226,11 +226,16 @@ describe('cut-ins and banners', () => {
     return out;
   };
 
+  it('the turn strip column is wide enough for the widest combo in the data', () => {
+    expect(STRIP_MAX_FACES).toBeGreaterThanOrEqual(partners);
+    expect(ORDER_COLUMN_W).toBeGreaterThanOrEqual(partners * ORDER_FACE + 1);
+  });
+
   for (const { option, hud } of OPTIONS) {
     it(`option ${option}: every character cut-in rests inside the frame, above the cards, clear of the turn strip`, () => {
-      // The strip's whole column, "TURN" label included (a combo is two faces wide, the entry acting now steps out).
+      // The strip's whole column, "TURN" label included (a combo is a face wide per partner, the entry acting now steps out).
       const column: Rect = { x: hud.orderRight - ORDER_COLUMN_W, y: hud.orderTop - 10, w: ORDER_COLUMN_W, h: hud.orderBottom - (hud.orderTop - 10) };
-      const strip = orderStripLayout([2, 1, 1, 1, 1, 1, 1, 1, 1], 'right', hud);
+      const strip = [...orderStripLayout([partners, 1, 1, 1, 1, 1, 1, 1, 1], 'right', hud), ...orderStripLayout(Array<number>(9).fill(1), 'right', hud)];
       expect(cutins(hud).length).toBeGreaterThanOrEqual(2);
       for (const { name, rect } of cutins(hud)) {
         expect(inside(rect, hud.frame), `${name} inside the frame`).toBe(true);

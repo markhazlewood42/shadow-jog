@@ -127,6 +127,7 @@ that pull request's earlier CI run. A run on `main` is never canceled once it st
 - **`node scripts/derived-literals.mjs`** lists derived layout values (464, 472, `W-16`, ...) per file. It is advisory and never fails; the scan cannot see them because they are not screen-size tokens.
 - **`node scripts/pixel-diff.mjs <dirA> <dirB> [--diff-out <dir>]`** compares two sets of screenshots pixel by pixel and exits 1 on any difference (`--help` lists the mask options, which the deterministic capture made unnecessary). `--diff-out` draws every differing shot, and the report names that folder only when it wrote a picture. Two folders with no shot between them exit 2.
 - **`node scripts/contact-sheet.mjs <baselineDir> <resultDir> <outPrefix> [--view gamepx|1080p]`** writes PNG pages that pair each baseline shot with its result. The captions come from the real picture sizes, so the sheet says which viewport each side came from.
+- **`node scripts/measure-battle-sprites.mjs [baseURL] [outFile]`** (with `npm run dev` running) measures the real party and enemy sprites and writes `tests/fixtures/battle-sprites.json`, which `tests/battle-geom.test.ts` reads to check that the enemy row stays above the party's heads. Run it again when that art changes size.
 - **`node scripts/check-shots.mjs <dir>`** is the smoke check of the move (PL3): the area outside the old 480x270 frame must not be empty. `scripts/pivot-640.json` holds its void-allowed list.
 
 Capture a set with `SJ_BUILD_SHA=<label> npm run shots`, copy `docs/screenshots` aside, then `git checkout -- docs/screenshots` (the set in git is regenerated once, at WP7).
@@ -156,7 +157,7 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
 - `?scene=stage&stage=ID`: straight to a chapter preset (`start`, `town`, `sinkline`, `annex`, `finale`:
   `game/stages.ts`), with its party, levels, gear and flags.
 - `?scene=field&map=ID&x=&y=`: straight into a map.
-- `?scene=battle&enc=ID&bg=ID[&boss]`: a battle on loop.
+- `?scene=battle&enc=ID&bg=ID[&boss]`: a battle on loop. Add `&hud=2` (dev builds only; it is read once, when the page loads) to put the battle HUD in a centered 480x270 block, D6 option 2 of `docs/PIVOT-640.md`; the default is option 1, the HUD at the screen edges.
 - `?scene=mapview&map=ID`: the whole map rendered.
 - `?scene=chars[&zoom=4][&npcs][&battlers]`, `?scene=bestiary[&page=1]`, `?scene=portraits`, `?scene=font`:
   asset sheets.

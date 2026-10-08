@@ -136,8 +136,8 @@ describe('battle turn-order strip', () => {
 
   it('stays clear of the top line, the target box, the party panel and the menus, in both HUD options', async () => {
     const { orderStripLayout } = await import('../src/scenes/battlekit/geom');
-    // The widest crowd: a combo (two faces) and eight single actions.
-    const faces = [2, 1, 1, 1, 1, 1, 1, 1, 1];
+    // The widest crowd: a three-member combo (three faces) and eight single actions.
+    const faces = [3, 1, 1, 1, 1, 1, 1, 1, 1];
     for (const { option, hud } of await options()) {
       const f = hud.frame;
       // The target box as renderTargetInfo draws it at its tallest (analyzed, three notes), on either side.

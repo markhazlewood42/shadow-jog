@@ -66,10 +66,12 @@ const PANEL_INSET = 56;
 /** One face in the turn-order strip, and the gap between entries. */
 export const ORDER_FACE = 13, ORDER_GAP = 4;
 /**
- * The strip's column is as wide as its widest entry (a combo: two faces) plus what the entry acting
- * now adds (it steps 5 px toward the field and an 8 px pointer sticks out beside it).
+ * The strip's column is as wide as its widest entry (a combo shows one face per partner, and the
+ * widest combo has three) plus what the entry acting now adds (it steps 5 px toward the field and
+ * an 8 px pointer sticks out beside it).
  */
-export const ORDER_COLUMN_W = 2 * ORDER_FACE + 1 + 13;
+export const STRIP_MAX_FACES = 3;
+export const ORDER_COLUMN_W = STRIP_MAX_FACES * ORDER_FACE + 1 + 13;
 /** Character cut-ins (a combo's partners, sliding in at the sides): card sizes, in screen pixels. */
 export const CUTIN_W = 132, CUTIN_W_LINE = 184, CUTIN_H = 58;
 /** A cut-in's top is this far above the cards' top, and the next row is this far above that. */
@@ -92,8 +94,8 @@ const TOP_LINE_AT = 6;
 const TELL_STACK = 20;
 /** The enemies' HP bars never rise above this row (just under the top slot); the target box sits this far down. */
 const STATUS_FROM_TOP = 24, TARGET_FROM_TOP = 44;
-/** The target box's distance from the frame's side, and from the far side where the turn strip stands. */
-const TARGET_FROM_SIDE = 8, TARGET_FROM_STRIP = 44;
+/** The target box's distance from the frame's side, and from the turn strip's column on the other side. */
+const TARGET_FROM_SIDE = 8, TARGET_STRIP_GAP = 4;
 /** The top line can wrap to three lines (6 to 45): nothing else drawn at the top may enter this band. */
 const TOP_BAND = 46;
 /** The strip's column starts this far below the frame's top: under the top band and its "TURN" label. */
@@ -173,7 +175,7 @@ export function hudLayout(frame: Rect): HudLayout {
       const letters = VICTORY_SCALE * VICTORY_ROWS;
       return { x: frame.x, y: this.victoryBannerY - VICTORY_BAND_ABOVE, w: frame.w, h: VICTORY_BAND_ABOVE + letters + VICTORY_BAND_BELOW };
     },
-    targetBoxX: (targetOnLeft, w) => (targetOnLeft ? right - TARGET_FROM_STRIP - w : frame.x + TARGET_FROM_SIDE),
+    targetBoxX: (targetOnLeft, w) => (targetOnLeft ? orderRight - ORDER_COLUMN_W - TARGET_STRIP_GAP - w : frame.x + TARGET_FROM_SIDE),
   };
 }
 

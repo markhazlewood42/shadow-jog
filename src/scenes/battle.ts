@@ -1145,7 +1145,7 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   /**
    * Command and ability windows sit in the bottom-left corner, whoever is acting (the turn-order
    * strip keeps the right edge): the same place every time, so the eye never has to hunt for them
-   * (Mark's playthrough, 2026-09-29). Party sprites never reach the outer 90px, so no one is covered.
+   * (Mark's playthrough, 2026-09-29). The heroes stand over their status cards, which are centered, so no one is covered.
    */
   menuX(_a: Combatant, _w: number): number {
     return MENU_X;
