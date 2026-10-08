@@ -20,7 +20,7 @@ tags: [tooling, command-center, plan]
 ## Global constraints
 
 The constraints of [plan.md](plan.md) still hold. Revision 2 changes these:
-- Every subagent runs on Fable (`model: "fable"`).
+- Every subagent runs on the smallest model that fits its task: Sonnet for builders and verifiers, Haiku for read-only work. Never Fable or Opus (Mark, 2026-10-07).
 - All new text follows section 5.8 and uses American spelling.
 - No new runtime dependency.
 - The server stays read-only, except for the one answer route. New reads: `~/.claude/sessions/<pid>.json`, one `gh run list` command, and the doc source route. New config keys: `claude.sessionsRoot`, `agents.pollMs` and `agents.lingerSeconds`.
@@ -85,7 +85,7 @@ The constraints of [plan.md](plan.md) still hold. Revision 2 changes these:
 
 ## Verification
 
-- Each task has a builder and two fresh verifiers, a runner and a reader. All run on Fable.
+- Each task has a builder and two fresh verifiers, a runner and a reader. All run on Sonnet.
 - A task passes when every criterion scores 7 or more and the average is 8 or more. A task has up to 3 fix rounds. Fix rounds cover Critical and Important findings only. Minor findings go in the PR text.
 - After Task 20, one fresh reviewer checks the whole branch. Then Mark's Copilot loop runs on the PR.
 - The controller keeps the ledger (`.superpowers/sdd/plan/progress.md`, rulings from R30).

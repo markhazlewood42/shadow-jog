@@ -296,7 +296,7 @@ The process list is an internal file of Claude Code, and its format is not promi
 - **Verification:** a builder agent and 2 independent verifier agents for each feature, with screenshots for Mark at each visual step.
 - **Revision 2 unit tests:** the process list reader and the pid check (the pid check is injected), the active set and its fallback, the parent link and the message counts on synthetic fixtures, the box and line layout functions, the milestone key, the CI run parser, the doc source route, and the copy text builder. Fixtures are synthetic. They never hold real session text.
 - **Revision 2 end-to-end tests:** the Agents page with fixture sessions (live, closed, a dimmed finished agent, a workflow chip, the empty state, the fallback label), a new agent that appears within 5 seconds through the live event, Copy and Download on a doc page (the test grants the clipboard permission), the Status rows and the strip, and the Running rows that link to `/agents`. Tests that pin old page text change with the text pass.
-- **Revision 2 verification:** each task has a builder and 2 fresh verifiers (a runner and a reader), all on Fable. A task passes when every criterion scores 7 or more and the average is 8 or more. A task has up to 3 fix rounds, for Critical and Important findings only. Mark gets screenshots as soon as a builder makes them.
+- **Revision 2 verification:** each task has a builder and 2 fresh verifiers (a runner and a reader), all on the smallest model that fits the task (Sonnet for builders and verifiers). A task passes when every criterion scores 7 or more and the average is 8 or more. A task has up to 3 fix rounds, for Critical and Important findings only. Mark gets screenshots as soon as a builder makes them.
 
 ---
 
