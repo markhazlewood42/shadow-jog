@@ -47,7 +47,10 @@ jobs:
           # The gh commands are the ones the code-review plugin lists in its own allowed-tools.
           # A run without them cannot read the pull request, so it can report "No issues found"
           # without a review.
-          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"'
+          # --permission-mode auto is the mode that Anthropic's own review workflow uses
+          # (anthropics/claude-code-action, .github/workflows/claude-review.yml). A classifier
+          # approves a command outside this list, such as a grep or a cd, when it is safe.
+          claude_args: '--permission-mode auto --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
