@@ -153,3 +153,56 @@ test('gear bought in a shop can be put on there and then', async ({ page }) => {
   const first = 'iron_knuckles'; // the shelf's first item: Kit's, so the picker offers Kit
   expect(worn, 'someone is holding the new weapon').toContain(first);
 });
+
+/**
+ * The four-corner walk (WP3 of docs/PIVOT-640.md, decision D17): every map that scrolls, with the
+ * camera put at the four corners of its clamp, which are the extremes of what the wider view can
+ * show. At each corner the camera must rest exactly on the clamp (the view inside the map, so no
+ * void and no unpainted strip beyond the map's own edge), a map narrower than the view must be
+ * centered, and no pop-in option may be in force (nothing ships until Mark picks at Review 3).
+ *
+ * Pictures: set `SJ_CORNER_SHOTS=<folder>` to save one shot of each corner (the review set goes to
+ * media/pivot-640/wp3/corners/). Unset, as in CI, the walk writes nothing.
+ */
+const CORNER_MAPS: { map: string; stage: string }[] = [
+  { map: 'lantern_row', stage: 'start' },
+  { map: 'world', stage: 'town' },
+  { map: 'rustyard', stage: 'town' },
+  { map: 'sinkline_1', stage: 'sinkline' },
+  { map: 'annex', stage: 'annex' },
+];
+
+test('the camera at the four corners of every scrolling map rests on the clamp and shows no void', async ({ page }) => {
+  test.setTimeout(180_000);
+  const shots = process.env.SJ_CORNER_SHOTS;
+  const [W, H] = await (async () => {
+    await page.goto('/?debug');
+    await page.waitForTimeout(800);
+    return sj<[number, number]>(page, "(async () => { const g = await import('/src/engine/game.ts'); return [g.W, g.H]; })()");
+  })();
+  for (const { map, stage } of CORNER_MAPS) {
+    await sj(page, `sj.stage('${stage}')`);
+    await page.waitForTimeout(900);
+    // The chapter's end flag keeps the Dock's cutscene (a dev teleport crashes the tab) away; `intro` skips the opening.
+    await sj(page, '(sj.state.flags.chapter_end = true, sj.state.flags.intro = true, true)');
+    if (map !== (await sj<string>(page, 'sj.field().def.id'))) await sj(page, `sj.tp('${map}', ${stage === 'town' && map === 'rustyard' ? '15, 22' : '10, 10'}, 'down')`);
+    await page.waitForTimeout(1200);
+    const [mw, mh] = await sj<[number, number]>(page, '[sj.field().map.w * 16, sj.field().map.h * 16]');
+    expect(await sj(page, 'sj.field().cameraBox'), `${map}: no camera limit ships`).toBeNull();
+    expect(await sj<number>(page, 'sj.field().curtains.length'), `${map}: no curtain ships`).toBe(0);
+    const corners: [string, number, number][] = [['tl', 0, 0], ['tr', mw, 0], ['bl', 0, mh], ['br', mw, mh]];
+    for (const [name, fx, fy] of corners) {
+      await sj(page, `(sj.field().camOverride = { x: ${fx}, y: ${fy} }, sj.field().snapCamera(), true)`);
+      await page.waitForTimeout(250);
+      const cam = await sj<{ x: number; y: number }>(page, '({ x: sj.field().camX, y: sj.field().camY })');
+      // A map narrower (shorter) than the view is centered; a wider (taller) one rests on its far edge.
+      const wantX = mw <= W ? Math.round((mw - W) / 2) : fx === 0 ? 0 : mw - W;
+      const wantY = mh <= H ? Math.round((mh - H) / 2) : fy === 0 ? 0 : mh - H;
+      expect(cam, `${map} ${name}`).toEqual({ x: wantX, y: wantY });
+      if (mw > W) expect(cam.x >= 0 && cam.x + W <= mw, `${map} ${name}: the view is inside the map across`).toBe(true);
+      if (mh > H) expect(cam.y >= 0 && cam.y + H <= mh, `${map} ${name}: the view is inside the map down`).toBe(true);
+      if (shots) await page.locator('#screen').screenshot({ path: `${shots}/${map}-${name}.png` });
+    }
+    await sj(page, '(sj.field().camOverride = null, true)');
+  }
+});
