@@ -1,15 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Hono } from 'hono';
+import { createAgentsSource } from './agents/module';
+import type { IsAlive } from './agents/process-list';
 import { createApp } from './app';
 import { type Config, PACKAGE_DIR } from './config';
 import { createDecisionsSource } from './decisions/module';
 import { createDocIndex } from './docs/index';
 import { createEngineModule } from './engine/module';
 import { createGitSource } from './git/module';
+import { createCiSource } from './github/ci-module';
 import { createGithubSource } from './github/module';
 import { makeToken } from './guard';
 import { createHub } from './hub';
+import { registerAgentsRoutes } from './routes/agents';
+import { registerCiRoutes } from './routes/ci';
 import { registerDecisionsRoutes } from './routes/decisions';
 import { registerDocsRoutes } from './routes/docs';
 import { registerEngineRoutes } from './routes/engine';
@@ -28,7 +33,8 @@ import { createStatusSource } from './status/module';
  * other than the tool's own (the docs of a fixture repo are not the docs of the Shadow Jog repo), and
  * `refreshGapMs` sets the least time between two forced refreshes of a panel (10 s unless this says
  * another: the end-to-end server sets 0, so a test can change what the fake gh says and see it at once),
- * and `now` is the clock of the sessions module (a test sets it to the moment its session files were made for).
+ * `now` is the clock of the sessions and agents modules (a test sets it to the moment its session files were made for),
+ * and `isAlive` is the process check of the agents module (a test says which processes run, so it needs no real one).
  */
 export type ComposeDeps = {
   config: Config;
@@ -37,6 +43,7 @@ export type ComposeDeps = {
   navFile?: string;
   refreshGapMs?: number;
   now?: () => number;
+  isAlive?: IsAlive;
 };
 
 export type Composed = {
@@ -87,7 +94,7 @@ export function compose(deps: ComposeDeps): Composed {
   registerEngineRoutes(app, engine);
   modules.push(engine);
 
-  // The three panels that look at the project's state, each under its own path. They share the rule
+  // The panels that look at the project's state (status, git, GitHub and CI), each under its own path. They share the rule
   // for a forced refresh (`?refresh=1`, at most one in 10 s: see routes/panel.ts).
   const panelRoutes = deps.refreshGapMs === undefined ? {} : { minGapMs: deps.refreshGapMs };
 
@@ -96,8 +103,8 @@ export function compose(deps: ComposeDeps): Composed {
   registerDecisionsRoutes(app, { config, runner, docs, decisions, token, ...panelRoutes });
   modules.push(decisions);
 
-  // The project status: the current "Right now" section and "Next up for Mark" list of status.md, and the
-  // milestones of the engine migration plan, under /api/status. The doc index renders the markdown.
+  // The project status: the date of status.md, its "Next up for Mark" list (read from the current "Right now" section), its `milestone` key, and the
+  // milestones of the engine migration plan, under /api/status. The doc index renders the markdown of the list.
   const status = createStatusSource({ config, docs, hub });
   registerStatusRoutes(app, status, panelRoutes);
   modules.push(status);
@@ -112,11 +119,23 @@ export function compose(deps: ComposeDeps): Composed {
   registerGithubRoutes(app, github, panelRoutes);
   modules.push(github);
 
+  // CI on main: the newest run of the workflow ci.yml on the branch main, read with `gh run list` every 60 s like the pull requests, under /api/ci. It is a source of its own
+  // so that one failing call does not hide the other (the Status row for CI shows its own error).
+  const ci = createCiSource({ runner, hub });
+  registerCiRoutes(app, ci, panelRoutes);
+  modules.push(ci);
+
   // The Claude sessions about Shadow Jog, with their agents and workflows, read from the session files of the folders that
   // the config names (and only those), under /api/sessions. It looks every 10 s, and reads a file again only when it changed.
   const sessions = createSessionsSource({ config, hub, ...(deps.now === undefined ? {} : { now: deps.now }) });
   registerSessionsRoutes(app, sessions, panelRoutes);
   modules.push(sessions);
+
+  // The live agents: the Claude sessions that run now, with their agents and workflows as a tree, under /api/agents. It starts from the process
+  // list of Claude Code and reads only the files of those sessions, so it can look every 3 s (config `agents.pollMs`).
+  const agents = createAgentsSource({ config, hub, ...(deps.now === undefined ? {} : { now: deps.now }), ...(deps.isAlive === undefined ? {} : { isAlive: deps.isAlive }) });
+  registerAgentsRoutes(app, agents, panelRoutes);
+  modules.push(agents);
 
   // The Now page: its list "Your move" is made from five of the sources above, under /api/now/your-move. It has no module of its own to start or stop.
   registerNowRoutes(app, { decisions, sessions, status, github, engine });

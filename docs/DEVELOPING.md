@@ -441,6 +441,6 @@ To abandon one: fill in the Result section of its doc (ABANDONED, date, reason, 
 
 - **Start:** `npm run cc` from the repo root. It installs the tool's packages, builds the page, starts the server on **3009** and opens a tab. Set `CC_NO_OPEN=1` to skip the tab (every test and automated run does).
 - **Check it:** `npm --prefix tools/command-center run check` (typecheck and Vitest) and `npm --prefix tools/command-center run e2e` (Playwright, on its own server at **3010**). The root `npm run check` does not run them, and CI skips a change that touches only `tools/command-center/`: run both before you push a change there.
-- **Read-only, with one write.** The server reads the repo, `git`, `gh` and the Claude session files. Its one write is Mark's answer to a decision issue, through `gh`. `tests/no-fs-write.test.ts` fails if the server's source can write a file.
+- **Read-only, with one write.** The server reads the repo, `git`, `gh`, the Claude session files and the Claude process list. Its one write is Mark's answer to a decision issue, through `gh`. `tests/no-fs-write.test.ts` fails if the server's source can write a file.
 - **A new doc** shows in the command center on its own. If it belongs in a section, add it to `tools/command-center/nav.json`: a doc that no section names lands under "Other".
 - **Raise a decision** only when it blocks work, changes an approved design, or touches more than one session or branch. The rule and the commands are in `CLAUDE.md` ("Decisions for Mark").

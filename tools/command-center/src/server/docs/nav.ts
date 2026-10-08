@@ -1,5 +1,6 @@
 import { posix } from 'node:path';
 import type { NavItem, NavSection } from '../../shared/types';
+import { say } from '../messages';
 import { parseReadingOrder, resolveReadingOrder } from './reading-order';
 
 // The nav map. `nav.json` says which docs go into which section of the tree on the left of the docs
@@ -62,12 +63,12 @@ function parseItem(item: unknown, where: string, problems: string[]): NavItemDef
   if (typeof item === 'string') {
     const path = repoPath(item);
     if (path === null) {
-      problems.push(`${where}: "${item}" is not a path inside the repo (use forward slashes, no leading slash, no "..").`);
+      problems.push(say('navBadPath', { where, item }));
       return null;
     }
     if (path.endsWith('/')) return { kind: 'folder', path };
     if (!/\.md$/i.test(path)) {
-      problems.push(`${where}: "${item}" is not a markdown file or a folder (a folder ends with a slash).`);
+      problems.push(say('navNotMarkdown', { where, item }));
       return null;
     }
     return { kind: 'file', path };
@@ -78,7 +79,7 @@ function parseItem(item: unknown, where: string, problems: string[]): NavItemDef
     if ('readingOrder' in item && keys.length === 1) {
       const path = repoPath(item.readingOrder);
       if (path === null || path.endsWith('/') || !/\.md$/i.test(path)) {
-        problems.push(`${where}: the readingOrder ${show(item.readingOrder)} is not a path to a markdown file.`);
+        problems.push(say('navBadReadingOrder', { where, item: show(item.readingOrder) }));
         return null;
       }
       return { kind: 'readingOrder', path };
@@ -87,17 +88,17 @@ function parseItem(item: unknown, where: string, problems: string[]): NavItemDef
       const path = sitePath(item.page);
       const title = typeof item.title === 'string' ? item.title.trim() : '';
       if (path === null || title === '') {
-        problems.push(`${where}: the page ${show(item)} needs a path of this site that starts with one slash, and a title.`);
+        problems.push(say('navBadPage', { where, item: show(item) }));
         return null;
       }
       return { kind: 'page', path, title };
     }
     if ('items' in item) {
-      problems.push(`${where}: the item ${show(item)} is a section inside a section. The navigation is two levels deep: sections hold docs and pages only.`);
+      problems.push(say('navNestedSection', { where, item: show(item) }));
       return null;
     }
   }
-  problems.push(`${where}: the item ${show(item)} is not a file, a folder (a path that ends with a slash), a readingOrder or a page.`);
+  problems.push(say('navBadItem', { where, item: show(item) }));
   return null;
 }
 
@@ -112,35 +113,36 @@ export function parseNavFile(text: string, file: string): NavDefinition {
   try {
     parsed = JSON.parse(text);
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    return { sections: [], problems: [`${file} is not valid JSON (${reason}), so every doc is listed under Other.`] };
+    // Node ends the text with " (line 1 column 9)", which says again what "at position 8" says. It is left out to keep the message short.
+    const reason = (error instanceof Error ? error.message : String(error)).replace(/ \(line \d+ column \d+\)$/, '');
+    return { sections: [], problems: [say('navNotJson', { file, jsonError: reason })] };
   }
-  if (!isRecord(parsed)) return { sections: [], problems: [`${file} must be an object with a "sections" list, so every doc is listed under Other.`] };
-  if (!Array.isArray(parsed.sections)) return { sections: [], problems: [`${file} has no "sections" list, so every doc is listed under Other.`] };
+  if (!isRecord(parsed)) return { sections: [], problems: [say('navNotObject', { file })] };
+  if (!Array.isArray(parsed.sections)) return { sections: [], problems: [say('navNoSections', { file })] };
 
   const sections: NavSectionDef[] = [];
   const seen = new Set<string>();
   parsed.sections.forEach((raw: unknown, index: number) => {
     const label = `${file}, section ${index + 1}`;
     if (!isRecord(raw)) {
-      problems.push(`${label} is not an object.`);
+      problems.push(say('navSectionNotObject', { section: label }));
       return;
     }
     const { id, title } = raw;
     if (typeof id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-      problems.push(`${label} needs an "id" of lower-case letters, digits and hyphens.`);
+      problems.push(say('navSectionId', { section: label }));
       return;
     }
     if (id === OTHER_SECTION_ID || seen.has(id)) {
-      problems.push(`${label}: the id "${id}" is ${id === OTHER_SECTION_ID ? 'kept for the section of docs that no section names' : 'used twice'}.`);
+      problems.push(say(id === OTHER_SECTION_ID ? 'navIdReserved' : 'navIdTwice', { section: label, id }));
       return;
     }
     if (typeof title !== 'string' || title.trim() === '') {
-      problems.push(`${label} ("${id}") needs a "title".`);
+      problems.push(say('navNoTitle', { section: label, id }));
       return;
     }
     if (!Array.isArray(raw.items)) {
-      problems.push(`${label} ("${title}") needs an "items" list.`);
+      problems.push(say('navNoItems', { section: label, title }));
       return;
     }
     seen.add(id);
@@ -219,18 +221,18 @@ export function buildNav(def: NavDefinition, docs: readonly NavDoc[], sourceOf: 
       if (item.kind === 'file') {
         const doc = byId.get(item.path);
         if (doc === undefined) {
-          problems.push(`${where}: ${item.path} is not a doc of the repo.`);
+          problems.push(say('navNotDoc', { where, path: item.path }));
         } else if (place(doc)) {
-          problems.push(`nav.json lists ${item.path} in "${placedIn.get(doc.id)}" and again in "${section.title}". It stays in "${placedIn.get(doc.id)}".`);
+          problems.push(say('navDocTwice', { path: item.path, first: placedIn.get(doc.id) ?? '', second: section.title }));
         }
       } else if (item.kind === 'folder') {
         const inside = ordered.filter((doc) => doc.id.startsWith(item.path));
-        if (inside.length === 0) problems.push(`${where}: the folder ${item.path} has no docs.`);
+        if (inside.length === 0) problems.push(say('navEmptyFolder', { where, path: item.path }));
         for (const doc of inside) place(doc);
       } else if (item.kind === 'readingOrder') {
         problems.push(...placeReadingOrder(item.path, where, byId, sourceOf, place));
       } else if (pages.has(item.path)) {
-        problems.push(`nav.json lists the page ${item.path} in "${pages.get(item.path)}" and again in "${section.title}". It stays in "${pages.get(item.path)}".`);
+        problems.push(say('navPageTwice', { path: item.path, first: pages.get(item.path) ?? '', second: section.title }));
       } else {
         pages.set(item.path, section.title);
         items.push({ kind: 'page', path: item.path, title: item.title });
@@ -260,19 +262,19 @@ function placeReadingOrder(
 ): string[] {
   const holder = byId.get(path);
   const source = holder === undefined ? undefined : sourceOf(holder.id);
-  if (holder === undefined || source === undefined) return [`${where}: ${path} is not a doc of the repo, so its reading order is not used.`];
+  if (holder === undefined || source === undefined) return [say('navReadingOrderNotDoc', { where, path })];
 
   const entries = parseReadingOrder(source);
-  if (entries.length === 0) return [`${where}: ${path} has no "Reading order" list.`];
+  if (entries.length === 0) return [say('navNoReadingOrder', { where, path })];
 
   const problems: string[] = [];
   for (const { label, path: docPath } of resolveReadingOrder(entries, holder.id)) {
     if (docPath === null) {
-      problems.push(`${path}: the reading order item "${label}" does not link to a doc of the repo.`);
+      problems.push(say('navReadingOrderItem', { path, label }));
       continue;
     }
     const doc = byId.get(docPath);
-    if (doc === undefined) problems.push(`${path}: the reading order names "${label}" (${docPath}), which is not a doc of the repo.`);
+    if (doc === undefined) problems.push(say('navReadingOrderName', { path, label, docPath }));
     else place(doc); // a doc that an earlier section took stays there, without a message
   }
   return problems;

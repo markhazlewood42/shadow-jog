@@ -352,7 +352,7 @@ describe('classifyGhError', () => {
     expect(signedOut.message).toContain('gh auth login');
     expect(classifyGhError(127, '').message).toMatch(/not installed/i);
     expect(classifyGhError(124, '').message).toMatch(/did not answer in time/i);
-    expect(classifyGhError(1, 'error connecting to api.github.com').message).toMatch(/cannot be reached/i);
+    expect(classifyGhError(1, 'error connecting to api.github.com').message).toMatch(/cannot reach GitHub/i);
     // All four have different words, so a page can tell them apart without the code.
     expect(new Set([127, 124, 4, 1].map((code, i) => classifyGhError(code, ['', '', 'gh auth login', 'error connecting to x'][i] ?? '').message)).size).toBe(4);
 

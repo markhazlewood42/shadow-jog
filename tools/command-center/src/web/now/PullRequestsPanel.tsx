@@ -99,11 +99,11 @@ function mergedAddress(repo: string): string {
 
 /**
  * The one line under the open pull requests that leads to the merged ones, on GitHub. `repo` is null until the health reply has come, and when it could not be read:
- * then the line says why it has no link, and does not leave the panel looking as if nothing were missing.
+ * then the label "Repo unknown" stands where the link would be, so the panel does not look as if nothing were missing.
  */
 function MergedLink({ repo, failed }: { repo: string | null; failed: boolean }) {
   if (repo === null) {
-    return failed ? <p className="text-xs text-cc-muted">The link to the merged pull requests needs the name of the repo, and the server did not answer with it.</p> : null;
+    return failed ? <p className="text-xs text-cc-muted">Repo unknown</p> : null;
   }
   return (
     <p>
@@ -121,7 +121,7 @@ function PullRequestList({ info, now, repo, repoFailed }: { info: GithubInfo; no
       <section aria-label="Open pull requests">
         <GroupLabel>Open ({info.open.length})</GroupLabel>
         {info.open.length === 0 ? (
-          <p className="mt-2 text-cc-muted">No open pull requests.</p>
+          <p className="mt-2 text-cc-muted">No open PRs</p>
         ) : (
           <ul className="mt-1 divide-y divide-cc-rule">
             {info.open.map((pr) => (

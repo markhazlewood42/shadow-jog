@@ -333,7 +333,8 @@ describe('POST /api/decisions/<n>/answer: the three writes', () => {
     expect(body).toMatchObject({ ok: false, step: 'label', error: { code: 'label-missing' } });
     expect(body.error?.message).toContain('"decided"');
     expect(body.error?.message).toContain(rig.config.githubRepo);
-    expect(body.error?.message).toMatch(/comment/i); // it says that the comment is already posted, so a retry will not post it again
+    // One short line: what is missing and the one step. The form says that the comment is posted (the step is `label`) and that Retry posts no second one.
+    expect(body.error?.message).toMatch(/Create it on GitHub\.$/);
     expect(rig.writes()).toEqual(['issue comment', 'issue edit']);
     expect(labelsOf(rig, 41)).toEqual(['decision']);
 

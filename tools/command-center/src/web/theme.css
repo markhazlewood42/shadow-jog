@@ -154,6 +154,38 @@
 }
 
 /*
+ * The motion of the Agents diagram (design 5.4). A box that is new fades in and slides up a little (`animate-cc-box-in`), and a dashed message line whose count grew flashes
+ * for one second (`animate-cc-flash`: it goes white and thick, and settles back). The components switch both on with `motion-safe:`, so a person who asks for less motion
+ * gets neither; the slide of a box to a new place and the fade-out are transitions that the components switch on the same way. The flash uses the ink token and a width and
+ * has no glow: the Look has none. The width at the end of the flash is the width of the line (STROKE in src/web/agents/Lines.tsx).
+ */
+@theme {
+  --animate-cc-box-in: cc-box-in 200ms ease-out;
+  --animate-cc-flash: cc-flash 1s ease-out;
+
+  @keyframes cc-box-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes cc-flash {
+    from {
+      color: var(--cc-ink);
+      stroke-width: 3.5;
+    }
+    to {
+      stroke-width: 1.5;
+    }
+  }
+}
+
+/*
  * The text of a doc. The server turns each doc into html (src/server/docs/render.ts), and the doc
  * page puts it in an element with the class doc-html. Tailwind's base styles take the look off
  * every html element (no list marks, no heading sizes), so the look of a doc is given back here,

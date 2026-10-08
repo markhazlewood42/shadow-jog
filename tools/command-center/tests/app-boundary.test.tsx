@@ -61,9 +61,27 @@ describe('the error boundary around the pages', () => {
     await renderAt('/agents');
     const alert = container.querySelector('[role="alert"]');
     expect(alert).not.toBeNull();
-    expect(alert?.textContent).toContain('This page could not be shown.');
+    expect(alert?.textContent).toContain('Reload the page.');
     expect(alert?.textContent).toContain('Cannot read the field "x" of a session');
     expect(alert?.textContent).toContain('Reload');
+  });
+
+  it('error boundary shows one short line', async () => {
+    await renderAt('/agents');
+    const alert = container.querySelector('[role="alert"]');
+    expect(alert).not.toBeNull();
+    // The words of the page are one line: it says to reload, and why the page can be old. The second paragraph is the message of the error, which is data.
+    const paragraphs = [...(alert?.querySelectorAll('p') ?? [])];
+    expect(paragraphs.map((paragraph) => paragraph.textContent)).toEqual(['Reload the page. If the server restarts, the page files can change.', 'Cannot read the field "x" of a session']);
+    const line = paragraphs[0]?.textContent ?? '';
+    // 20 words or fewer, with no contraction and no -ing form (ASD-STE100, design 5.8).
+    expect(line.split(/\s+/).length).toBeLessThanOrEqual(20);
+    expect(line).not.toMatch(/'|\w+ing\b/);
+    // The two sentences of the old text are gone.
+    expect(alert?.textContent).not.toContain('This page could not be shown');
+    expect(alert?.textContent).not.toContain('has a new name');
+    // The Reload button is still there: it is how the line is followed.
+    expect(alert?.querySelector('button')?.textContent).toContain('Reload');
   });
 
   it('keeps the other pages working, and clears the error when Mark goes to another page', async () => {

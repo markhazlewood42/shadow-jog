@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2026-10-06T11:20:05.000Z","cwd":"/fixture/repo/tools/example","gitBranch":"fixture-branch","sessionId":"aaaaaaaa-0000-4000-8000-00000000000a","entrypoint":"claude-desktop","message":{"role":"user","content":"LEAK-aa02-prompt"}}
+{"type":"assistant","timestamp":"2026-10-06T11:57:00.000Z","cwd":"/fixture/repo/tools/example","gitBranch":"fixture-branch","sessionId":"aaaaaaaa-0000-4000-8000-00000000000a","entrypoint":"claude-desktop","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"LEAK-aa02-final-report"}]}}

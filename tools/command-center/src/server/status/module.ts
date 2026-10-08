@@ -1,17 +1,19 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Panel, StatusInfo } from '../../shared/types';
+import { MIGRATION_DOC_SLUG, type Panel, type StatusInfo } from '../../shared/types';
 import type { Config } from '../config';
 import type { DocIndex } from '../docs/index';
 import { isMissing } from '../fs-errors';
 import type { Hub } from '../hub';
+import { say } from '../messages';
 import { POLL_EVERY_MS, PanelError, type PanelSource, createPanelSource } from '../source';
-import { MIGRATION_DOC_PATH, STATUS_DOC_PATH, parseMilestones, parseStatus } from './status';
+import { MIGRATION_DOC_PATH, STATUS_DOC_PATH, parseMilestoneKey, parseMilestones, parseStatus } from './status';
 
-// The status module: the current "Right now" section of status.md and its "Next up for Mark" list,
-// and the engine milestones of docs/engine/migration.md. It reads the two files from the repo (the
-// doc index renders the markdown, so links work as they do on the docs site), and it loads again
-// when the doc index says that docs changed.
+// The status module: what the Status panel of the Now page reads from status.md (its date, its "Next up
+// for Mark" list and its `milestone` key) and the engine milestones of docs/engine/migration.md, each
+// with the id of its heading in the page of that doc. It reads the two files from the repo (the doc index
+// renders the markdown, so links work as they do on the docs site, and it knows the ids of the headings),
+// and it loads again when the doc index says that docs changed.
 
 export type StatusModuleDeps = {
   config: Config;
@@ -28,12 +30,12 @@ export type StatusModuleDeps = {
  */
 type Loaded = { info: StatusInfo; milestonesProblem: { code: string; message: string } | null };
 
-/** The text of a doc, or a PanelError that names the doc and says that it is missing. */
-async function readDoc(root: string, path: string, code: string, consequence: string): Promise<string> {
+/** The text of a doc, or a PanelError that names the doc and says that it is missing (`missing` is the message to use). */
+async function readDoc(root: string, path: string, code: string, missing: 'statusDocMissing' | 'milestonesDocMissing'): Promise<string> {
   try {
     return await readFile(join(root, path), 'utf8');
   } catch (error) {
-    if (isMissing(error)) throw new PanelError(code, `${path} was not found in the repo, so ${consequence}.`);
+    if (isMissing(error)) throw new PanelError(code, say(missing, { path }));
     throw error;
   }
 }
@@ -66,20 +68,23 @@ export function createStatusSource(deps: StatusModuleDeps): PanelSource<StatusIn
     async load() {
       // The links in the html are checked against the doc index's scan, so wait for the first one.
       await docs.ready();
-      const statusMd = await readDoc(config.repoRoot, STATUS_DOC_PATH, 'status-missing', 'the project status cannot be shown');
+      const statusMd = await readDoc(config.repoRoot, STATUS_DOC_PATH, 'status-missing', 'statusDocMissing');
       const status = parseStatus(statusMd, (markdown) => docs.renderFragment(STATUS_DOC_PATH, markdown));
 
       let milestones: StatusInfo['milestones'] = [];
       let milestonesProblem: Loaded['milestonesProblem'] = null;
       try {
-        const migrationMd = await readDoc(config.repoRoot, MIGRATION_DOC_PATH, 'milestones-doc-missing', 'the milestone list cannot be shown');
-        milestones = parseMilestones(migrationMd);
+        const migrationMd = await readDoc(config.repoRoot, MIGRATION_DOC_PATH, 'milestones-doc-missing', 'milestonesDocMissing');
+        // The anchors are the ids that the docs site gave the headings of the page, so the module asks the doc index for that page's outline and keeps no rule of its own.
+        milestones = parseMilestones(migrationMd, docs.get(MIGRATION_DOC_SLUG)?.headings ?? []);
       } catch (error) {
         // Only the named problems of the milestone doc: any other failure is a failure of the load.
         if (!(error instanceof PanelError)) throw error;
         milestonesProblem = { code: error.code, message: error.message };
       }
-      return { info: { ...status, milestones }, milestonesProblem };
+      // The key is checked against the ids that were read. With no table (the panel then fails with the reason, and the key is not shown) every id is unknown.
+      const milestone = parseMilestoneKey(statusMd, milestones.map((candidate) => candidate.id));
+      return { info: { ...status, milestone, milestones }, milestonesProblem };
     },
     hub,
     everyMs: POLL_EVERY_MS,

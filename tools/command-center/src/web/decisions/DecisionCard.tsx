@@ -32,6 +32,16 @@ export function Notice({ children }: { children: ReactNode }) {
   );
 }
 
+/** A link to the issue on GitHub. It opens in a new tab, so the icon says that it leaves the site. */
+function IssueLink({ url, className = '', children }: { url: string; className?: string; children: ReactNode }) {
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className={`inline-flex items-center gap-1 text-cc-link underline underline-offset-2 cc-focus-ring ${className}`}>
+      {children}
+      <ExternalLink aria-hidden className="size-3.5" />
+    </a>
+  );
+}
+
 /** The state of the decision in a word and an icon, so that it is never told by color alone. */
 function StateChip({ issue }: { issue: DecisionIssue }) {
   if (issue.state === 'answered') {
@@ -151,10 +161,9 @@ export function DecisionCard({ issue }: { issue: DecisionIssue }) {
             </span>
           )}
           {issue.url !== '' && (
-            <a href={issue.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-cc-link underline underline-offset-2 sm:ml-auto cc-focus-ring">
+            <IssueLink url={issue.url} className="sm:ml-auto">
               Open the issue on GitHub
-              <ExternalLink aria-hidden className="size-3.5" />
-            </a>
+            </IssueLink>
           )}
         </div>
         <h1 id={titleId} className="text-2xl font-semibold tracking-tight break-words">
@@ -164,22 +173,24 @@ export function DecisionCard({ issue }: { issue: DecisionIssue }) {
 
       {issue.problem !== null && <Notice>{issue.problem}</Notice>}
       {halfAnswer && issue.answer !== null && (
-        <Notice>
-          An answer was posted on GitHub as a comment (option {issue.answer.option}), but it did not get as far as changing the labels and closing the issue, so the decision is still open. Pick an option below and press
-          Retry to finish it.
-        </Notice>
+        <Notice>The comment for option {issue.answer.option} is on GitHub. The issue is still open. Send the answer to finish.</Notice>
       )}
       {issue.state === 'closed' && (
         <Notice>
-          This issue is closed on GitHub, and it has no complete answer from Mark: either no comment of his starts with "Decision:", or the label "decided" was not put on by his account. It cannot be answered here. Open the issue on GitHub to
-          reopen it.
+          Closed with no answer from Mark.
+          {issue.url !== '' && (
+            <>
+              {' '}
+              <IssueLink url={issue.url}>Reopen on GitHub</IssueLink>
+            </>
+          )}
         </Notice>
       )}
 
       {issue.state === 'answered' && issue.answer !== null && (
         <section aria-label="Answer" className="flex flex-col gap-2 rounded-md border border-cc-rule-solid bg-cc-paper px-4 py-3">
           <p className="text-sm">
-            <span className="font-medium">Mark answered {issue.answer.option}</span> on <time dateTime={issue.answer.at}>{dayOf(issue.answer.at)}</time>.
+            <span className="font-medium">Answered {issue.answer.option}</span> · <time dateTime={issue.answer.at}>{dayOf(issue.answer.at)}</time>
           </p>
           {issue.answer.note !== null && <p className="break-words whitespace-pre-line text-cc-muted">{issue.answer.note}</p>}
         </section>

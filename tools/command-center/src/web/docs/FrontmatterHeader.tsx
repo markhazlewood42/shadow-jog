@@ -59,7 +59,7 @@ function shortened(address: string): string {
 /**
  * The small header above a doc: its frontmatter (type and status), the day it last changed and
  * where that day came from, then anything that is wrong with the doc: a frontmatter that could not
- * be read, and links that go nowhere. A doc with no frontmatter shows a dash for its type and status.
+ * be read, and links that go nowhere. A problem is a label and the data (the server's message, the addresses). A doc with no frontmatter shows a dash for its type and status.
  */
 export function FrontmatterHeader({ doc }: { doc: DocPage }) {
   const note = SOURCE_NOTE[doc.updatedFrom];
@@ -80,10 +80,10 @@ export function FrontmatterHeader({ doc }: { doc: DocPage }) {
           {note !== '' && <span className="text-xs text-cc-soft">{note}</span>}
         </Field>
       </dl>
-      {doc.frontmatterError !== null && <Notice>The frontmatter of this doc could not be read, so its type, status and date may be missing: {doc.frontmatterError}</Notice>}
+      {doc.frontmatterError !== null && <Notice>Frontmatter error: {doc.frontmatterError}</Notice>}
       {doc.brokenLinks.length > 0 && (
         <Notice>
-          {doc.brokenLinks.length} broken {doc.brokenLinks.length === 1 ? 'link' : 'links'} in this doc:{' '}
+          {doc.brokenLinks.length} broken {doc.brokenLinks.length === 1 ? 'link' : 'links'}:{' '}
           {doc.brokenLinks.map((address, i) => (
             <span key={address}>
               {i > 0 && ', '}

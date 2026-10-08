@@ -5,6 +5,7 @@ import type { Config } from '../config';
 import type { DocIndex } from '../docs/index';
 import { isMissing } from '../fs-errors';
 import type { Hub } from '../hub';
+import { say } from '../messages';
 import type { RunResult, Runner } from '../runner';
 import { PanelError, type PanelSource, createPanelSource } from '../source';
 import {
@@ -57,7 +58,7 @@ async function readDoc(root: string, path: string): Promise<string> {
   try {
     return await readFile(join(root, path), 'utf8');
   } catch (error) {
-    if (isMissing(error)) throw new PanelError('engine-doc-missing', `${path} was not found in the repo, so its decisions cannot be listed.`);
+    if (isMissing(error)) throw new PanelError('engine-doc-missing', say('engineDocMissing', { path }));
     throw error;
   }
 }
@@ -70,13 +71,12 @@ async function readDoc(root: string, path: string): Promise<string> {
  */
 async function readApproved(config: Config, runner: Runner): Promise<Approved | { problem: string }> {
   const ref = config.approvalRef;
-  const off = '"Changed since approved" is off until this is fixed.';
 
   // Ask for the commit first: a bad ref and a doc that is missing from a good ref both make `git show` fail, and they are not the same thing.
   const verified = await runner('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]);
   if (verified.code !== 0) {
-    const why = verified.code === 1 || verified.code === 128 ? 'it is not a commit of this repo' : `git could not check it (${firstLine(verified.stderr) || `exit code ${verified.code}`})`;
-    return { problem: `approvalRef "${ref}" cannot be used: ${why}. ${off} Set approvalRef in command-center.config.json to a commit of this repo.` };
+    const notCommit = verified.code === 1 || verified.code === 128;
+    return { problem: notCommit ? say('approvalNotCommit', { ref }) : say('approvalCheckFailed', { ref, said: firstLine(verified.stderr) || say('exitCode', { code: verified.code }) }) };
   }
 
   /** The doc as it was at the approval commit, parsed with `parse`: its decisions by id. */
@@ -84,12 +84,13 @@ async function readApproved(config: Config, runner: Runner): Promise<Approved | 
     const shown: RunResult = await runner('git', ['show', `${ref}:${path}`]);
     if (shown.code !== 0) {
       if (NOT_IN_COMMIT.test(shown.stderr)) return new Map();
-      return { problem: `git could not read ${path} at ${ref} (${firstLine(shown.stderr) || `exit code ${shown.code}`}). ${off}` };
+      return { problem: say('approvalDocUnreadable', { path, ref, said: firstLine(shown.stderr) || say('exitCode', { code: shown.code }) }) };
     }
     try {
       return approvedTextsOf(parse(shown.stdout));
     } catch (error) {
-      return { problem: `${path} at ${ref} could not be read as a list of decisions (${error instanceof Error ? error.message : String(error)}). ${off}` };
+      // The code of the parser's error (for example `decisions-column-missing`) says which kind of mistake it is, and the message stays one short line.
+      return { problem: say('approvalDocBad', { path, ref, code: error instanceof PanelError ? error.code : 'unknown' }) };
     }
   };
 

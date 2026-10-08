@@ -1,5 +1,6 @@
 import { Chip } from '@heroui/react';
 import { CircleAlert, CircleCheck, ExternalLink, FileText, Gavel, GitPullRequest, Info, ListChecks, type LucideIcon, MessageSquare, TriangleAlert } from 'lucide-react';
+import { useId } from 'react';
 import { Link } from 'react-router';
 import type { ModuleName, YourMoveInfo, YourMoveItem, YourMoveSource } from '../../shared/types';
 import { PanelContent } from '../PanelFrame';
@@ -85,14 +86,19 @@ function ItemRow({ item, now }: { item: YourMoveItem; now: number }) {
   );
 }
 
-/** The sources that could not be read in full. It is a notice and not an error: the list was made, and it says what may be missing from it. */
+/**
+ * The sources that could not be read in full. It is a notice and not an error: the list was made, and it says what may be missing from it. The words of the notice are a label
+ * ("Incomplete list", design 5.8) and, under it, one line for each source: the name of the source and the message of the server, which is data. The label is also the name of
+ * the note, so a screen reader and a test find the note by the words that a person sees.
+ */
 function MissingNotice({ missing }: { missing: YourMoveInfo['missing'] }) {
+  const labelId = useId();
   if (missing.length === 0) return null;
   return (
-    <div role="note" aria-label="Sources that could not be read" className="flex items-start gap-2 rounded-md border border-cc-rule-solid px-3 py-2 text-xs text-cc-muted">
+    <div role="note" aria-labelledby={labelId} className="flex items-start gap-2 rounded-md border border-cc-rule-solid px-3 py-2 text-xs text-cc-muted">
       <Info aria-hidden className="mt-0.5 size-3.5 shrink-0 text-cc-ink" />
       <div className="min-w-0">
-        <p className="font-medium text-cc-ink">The list may be incomplete: these sources could not be read in full.</p>
+        <p id={labelId} className="font-medium text-cc-ink">Incomplete list</p>
         <ul className="mt-1 flex flex-col gap-0.5">
           {missing.map(({ source, message }) => (
             <li key={source} className="break-words">
@@ -111,7 +117,7 @@ function YourMoveList({ info, now }: { info: YourMoveInfo; now: number }) {
       {info.items.length === 0 ? (
         <p className="flex items-center gap-2 text-cc-muted">
           <CircleCheck aria-hidden className="size-4 shrink-0 text-cc-ink" />
-          Nothing waits for you right now.
+          Nothing for you
         </p>
       ) : (
         <ol aria-label="What waits for Mark" className="divide-y divide-cc-rule">
@@ -126,13 +132,13 @@ function YourMoveList({ info, now }: { info: YourMoveInfo; now: number }) {
   );
 }
 
-/** The amber chip with the number of items. It is the one focal item of the page (the Look), and the words after the number are for a screen reader. */
+/** The amber chip with the number of items. It is the one focal item of the page (the Look), and the words after the number ("items for you") are for a screen reader. */
 function CountChip({ count }: { count: number }) {
   return (
     <Chip color="accent" variant="primary" size="sm">
       <Chip.Label>
         {count}
-        <span className="sr-only"> {count === 1 ? 'item waits' : 'items wait'} for you</span>
+        <span className="sr-only"> {count === 1 ? 'item' : 'items'} for you</span>
       </Chip.Label>
     </Chip>
   );

@@ -5,6 +5,7 @@ import { DecisionBanner } from '../decisions/DecisionBanner';
 import { Notice } from '../decisions/DecisionCard';
 import { Backlinks } from './Backlinks';
 import { DiagramZoom, type ZoomTarget } from './DiagramZoom';
+import { DocToolbar } from './DocToolbar';
 import { FrontmatterHeader } from './FrontmatterHeader';
 import { type Banner, hasHeadingLevel1, placeBanners } from './html';
 import { Outline } from './Outline';
@@ -81,7 +82,7 @@ function zoomableImage(target: EventTarget | null, body: HTMLElement): HTMLImage
 }
 
 /**
- * One doc: its header, its text, and on the right its outline and the docs that link here.
+ * One doc: its header, the Copy and Download buttons, its text, and on the right its outline and the docs that link here.
  *
  * The text is html that the server made from the markdown (src/server/docs/render.ts). The server
  * escapes every tag of the doc's own text, so this is the one place where html goes into the page,
@@ -176,9 +177,13 @@ export function DocView({ doc, footer, banners = NO_BANNERS }: DocViewProps) {
     <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_15rem]">
       <article className="min-w-0">
         <FrontmatterHeader doc={doc} />
+        {/* Copy and Download, under the header and above the notices and the text (design 5.7). */}
+        <div className="mt-3">
+          <DocToolbar doc={doc} />
+        </div>
         {doc.decisions === null && (
           <div className="mt-3">
-            <Notice>Decision banners are not shown on this page: the open decisions could not be read from GitHub just now (it may be offline, or gh may not be signed in). The doc itself is not affected.</Notice>
+            <Notice>Decision banners are unavailable. GitHub could not be read.</Notice>
           </div>
         )}
         {/* The handlers sit on the container and read where the event came from: the html is one string, with no React element in it to hang a handler on. */}

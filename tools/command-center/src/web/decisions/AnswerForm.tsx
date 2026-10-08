@@ -69,12 +69,18 @@ export function useAnswerDraft(number: number, onWritten: () => void): AnswerDra
   return { choice, note, status, failure, setChoice, setNote, send };
 }
 
-/** What a failed step means for the answer, in words. */
-const STEP_TEXT: Record<AnswerStep, string> = {
-  comment: 'Your answer was not posted on GitHub.',
-  label: 'Your answer is posted on GitHub as a comment, but the labels of the issue were not changed.',
-  close: 'Your answer is posted and the labels are changed, but the issue is not closed.',
+/** What a failed step means for the answer, as labels: the steps that are done before it, then the step that failed. */
+const STEP_LABEL: Record<AnswerStep, string> = {
+  comment: 'Answer not posted',
+  label: 'Answer posted · Label not changed',
+  close: 'Answer posted · Label changed · Issue not closed',
 };
+
+/** What the retry does. Steps that are done are not done again, so a retry after the comment step does not post the comment twice. */
+function retryLine(step: AnswerStep | null): string {
+  const keeps = 'The form keeps your choice and note.';
+  return step === 'label' || step === 'close' ? `${keeps} Retry does not post the comment again.` : `${keeps} Press Retry to send again.`;
+}
 
 function FailureBox({ failure }: { failure: AnswerFailure }) {
   return (
@@ -82,13 +88,10 @@ function FailureBox({ failure }: { failure: AnswerFailure }) {
       {/* The icon is ink, not amber: a page may have one or two amber items (the Look), and here they are the state chip and the Retry button. */}
       <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-cc-ink" />
       <div className="min-w-0 flex-1 text-sm">
-        <p className="font-medium">{failure.step === null ? 'Your answer was not sent.' : STEP_TEXT[failure.step]}</p>
+        <p className="font-medium">{failure.step === null ? 'Answer not sent' : STEP_LABEL[failure.step]}</p>
         <p className="mt-1 break-words">{failure.message}</p>
         <p className="mt-1 font-mono text-xs text-cc-muted">{failure.code}</p>
-        <p className="mt-2 text-cc-muted">
-          Your choice and your note are still in the form.{' '}
-          {failure.step === null ? 'Press Retry to send them again.' : 'Press Retry: it carries on where the answer stopped, and it does not post the comment a second time.'}
-        </p>
+        <p className="mt-2 text-cc-muted">{retryLine(failure.step)}</p>
       </div>
     </div>
   );
@@ -135,13 +138,13 @@ export function AnswerForm({ issue, draft }: { issue: DecisionIssue; draft: Answ
 
       <TextField value={note} onChange={draft.setNote} isDisabled={sending}>
         <Label>Note (optional)</Label>
-        <TextArea rows={3} maxLength={MAX_NOTE_CHARS} placeholder="Why, or what to do next. It is posted with your answer." className="border border-cc-rule-solid" />
+        <TextArea rows={3} maxLength={MAX_NOTE_CHARS} placeholder="Note (optional)" className="border border-cc-rule-solid" />
       </TextField>
 
       {draft.failure !== null && <FailureBox failure={draft.failure} />}
       {draft.status === 'sent' && (
         <p role="status" className="text-sm text-cc-muted">
-          Answer sent. Waiting for GitHub to show it.
+          Answer sent. Wait for GitHub.
         </p>
       )}
 
@@ -150,7 +153,7 @@ export function AnswerForm({ issue, draft }: { issue: DecisionIssue; draft: Answ
           {sending ? <LoaderCircle aria-hidden className="size-4 motion-safe:animate-spin" /> : <Send aria-hidden className="size-4" />}
           {sending ? 'Sending…' : retrying ? 'Retry' : 'Send answer'}
         </Button>
-        <p className="text-sm text-cc-muted">This posts a comment on the GitHub issue, swaps its label from "decision" to "decided", and closes it.</p>
+        <p className="text-sm text-cc-muted">Posts your answer to GitHub and closes the issue.</p>
       </div>
     </form>
   );

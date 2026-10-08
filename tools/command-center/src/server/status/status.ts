@@ -1,14 +1,15 @@
 import MarkdownIt, { type Token } from 'markdown-it';
-import type { StatusInfo } from '../../shared/types';
+import type { DocHeading, StatusInfo } from '../../shared/types';
 import { splitFrontmatter } from '../docs/frontmatter';
 import { inlineText } from '../engine/decisions';
+import { say } from '../messages';
 import { PanelError } from '../source';
 
-// The two docs that the status module reads: status.md (the "Right now" section, and in it the
-// "Next up for Mark" list) and docs/engine/migration.md (the table of milestones). Both are written
-// by people and agents, so their shape drifts: a section is renamed, an old section is kept under
-// "history", a table gains a column. The parsers therefore find things by their words and not by
-// their place, ignore what is not the current one, and say what is missing in an error that names
+// The two docs that the status module reads: status.md (its date, its `milestone` key, and the "Next up
+// for Mark" list in the "Right now" section) and docs/engine/migration.md (the table of milestones).
+// Both are written by people and agents, so their shape drifts: a section is renamed, an old section is
+// kept under "history", a table gains a column. The parsers therefore find things by their words and not
+// by their place, ignore what is not the current one, and say what is missing in an error that names
 // it. They never read the wrong thing in silence.
 
 /** Where the two docs are in the repo. */
@@ -22,15 +23,15 @@ export const MIGRATION_DOC_PATH = 'docs/engine/migration.md';
  */
 const md = new MarkdownIt({ html: false, linkify: false });
 
-/** A heading of a doc, with where it is. `line` and `bodyLine` count lines of the doc from 0: the heading starts at `line`, and what it holds starts at `bodyLine`. */
-type Heading = { index: number; level: number; text: string; line: number; bodyLine: number };
+/** A heading of a doc: its place among the tokens, its level (1 to 6) and its words as plain text. */
+type Heading = { index: number; level: number; text: string };
 
 /** The headings that are on the top level of a doc (not one inside a quote or a list), in order. */
 function readHeadings(tokens: readonly Token[]): Heading[] {
   const headings: Heading[] = [];
   tokens.forEach((token, index) => {
-    if (token.type !== 'heading_open' || token.level !== 0 || token.map === null) return;
-    headings.push({ index, level: Number(token.tag.slice(1)), text: inlineText(tokens[index + 1]?.content ?? ''), line: token.map[0], bodyLine: token.map[1] });
+    if (token.type !== 'heading_open' || token.level !== 0) return;
+    headings.push({ index, level: Number(token.tag.slice(1)), text: inlineText(tokens[index + 1]?.content ?? '') });
   });
   return headings;
 }
@@ -51,6 +52,8 @@ const RIGHT_NOW = /^right now\b/i;
 const HISTORY = /\bhistory\b/i;
 /** The label of the list that is Mark's. It is bold text or a heading, and it ends with "(updated ...)" or a colon. */
 const NEXT_UP_LABEL = /^next up for mark\b/i;
+/** The value of the `milestone` key when no milestone has started. */
+const NO_MILESTONE = 'none';
 
 /**
  * The markdown of one list item without its marker: its first line with the marker cut off, and the
@@ -117,7 +120,8 @@ function readNextUp(tokens: readonly Token[], lines: readonly string[], render: 
 }
 
 /**
- * Reads status.md: its date, the current "Right now" section and the "Next up for Mark" list in it.
+ * Reads status.md: its date, and the "Next up for Mark" list in the current "Right now" section. The text of the section is not
+ * kept: the Status panel shows no text of status.md, only how many items wait for Mark (the length of the list).
  *
  * The current section is the first heading that starts with "Right now" and does not say "history".
  * It holds everything up to the next heading of its own level or a higher one (a lower heading stays
@@ -125,10 +129,10 @@ function readNextUp(tokens: readonly Token[], lines: readonly string[], render: 
  * that it holds is not read: the page must never show Mark an old to-do as a new one.
  *
  * `render` turns markdown into html that is safe to put into a page (the doc index's `renderFragment`
- * is one). The section and each item go through it. Throws a PanelError when there is no current
- * "Right now" section, so the page shows an error and not an empty box.
+ * is one). Each item goes through it. Throws a PanelError when there is no current "Right now"
+ * section, so the page shows an error and not an empty box.
  */
-export function parseStatus(source: string, render: (markdown: string) => string): Omit<StatusInfo, 'milestones'> {
+export function parseStatus(source: string, render: (markdown: string) => string): Omit<StatusInfo, 'milestone' | 'milestones'> {
   // The body has LF line breaks and no frontmatter, so its line numbers are the ones of the tokens.
   const { data, body } = splitFrontmatter(source);
   const lines = body.split('\n');
@@ -137,19 +141,39 @@ export function parseStatus(source: string, render: (markdown: string) => string
   const headings = readHeadings(tokens);
   const current = headings.find((heading) => RIGHT_NOW.test(heading.text) && !HISTORY.test(heading.text));
   if (current === undefined) {
-    throw new PanelError('status-section-missing', `${STATUS_DOC_PATH} has no "Right now" section (a heading that starts with "Right now" and does not say "history"), so the project status cannot be shown.`);
+    throw new PanelError('status-section-missing', say('statusNoSection', { path: STATUS_DOC_PATH }));
   }
   const after = headings.find((heading) => heading.index > current.index && heading.level <= current.level);
 
   // The heading is three tokens (it opens, holds its words, and closes): the blocks of the section come after them.
   const sectionTokens = tokens.slice(current.index + 3, after?.index ?? tokens.length);
-  const sectionMarkdown = trimBlankLines(lines.slice(current.bodyLine, after?.line ?? lines.length));
 
   return {
     updated: typeof data.updated === 'string' && data.updated.trim() !== '' ? data.updated.trim() : null,
-    rightNow: { heading: current.text, html: sectionMarkdown === '' ? '' : render(sectionMarkdown) },
     nextUpForMark: readNextUp(sectionTokens, lines, render),
   };
+}
+
+/**
+ * Reads the `milestone` key of the frontmatter of status.md and checks it against `ids`, the ids of the milestone table. The key says which
+ * milestone the project is in, and agents set it at a phase break:
+ *
+ * - `none` means that no milestone has started: `{ current: null, problem: null }`.
+ * - An id of the table (case sensitive, as the table writes it) is the current milestone: `{ current: id, problem: null }`.
+ * - A key that is not there, or has no value, is `missing`. A frontmatter that cannot be read hides the key, so it is `missing` too.
+ * - Any other value is `unknown`: a case that is wrong (`m0`, `None`), an id that the table does not have, a number or a list. The page never guesses
+ *   the milestone that was meant, and a milestone never becomes current from a typing mistake.
+ *
+ * It only reads: the caller decides what the page shows for a problem.
+ */
+export function parseMilestoneKey(source: string, ids: readonly string[]): StatusInfo['milestone'] {
+  const value = splitFrontmatter(source).data.milestone;
+  if (value === undefined || value === null) return { current: null, problem: 'missing' };
+  if (typeof value !== 'string') return { current: null, problem: 'unknown' };
+  const id = value.trim();
+  if (id === '') return { current: null, problem: 'missing' };
+  if (id === NO_MILESTONE) return { current: null, problem: null };
+  return ids.includes(id) ? { current: id, problem: null } : { current: null, problem: 'unknown' };
 }
 
 // ---- docs/engine/migration.md ----
@@ -216,18 +240,30 @@ function splitMilestone(cell: string): { id: string; name: string } {
 }
 
 /**
+ * The id of the heading of a milestone in the page of the doc: the first heading of the outline that is the id alone, or the id and a space and the rest
+ * (`### M1b 3D proof` is the heading of M1b; `### M10 Later` is not the heading of M1). Null when the doc has no such heading.
+ *
+ * `headings` is the outline that the docs site made of the doc (`DocPage.headings`), so the id is the one that the page really has, with the site's own
+ * rule for it (the same words twice get "-1" on the second one): this file keeps no rule for making an id of its own.
+ */
+function anchorOf(id: string, headings: readonly DocHeading[]): string | null {
+  return headings.find((heading) => heading.text === id || heading.text.startsWith(`${id} `))?.id ?? null;
+}
+
+/**
  * Reads the milestones from the table of docs/engine/migration.md: the table with a "Milestone" column
  * and a "One-line scope" column, found by those names wherever it is and in whatever order its columns
  * are. Another table that has a "Milestone" column (the doc has one that says which milestone moves
  * each part of the content) lacks the second name, so it is not taken. The table has no column for the
- * state of a milestone, so a milestone is its id, its name and its scope. Throws a PanelError that
+ * state of a milestone, so a milestone is its id, its name, its scope and the id of its heading in the
+ * page of the doc (`headings` is that page's outline, see `anchorOf`). Throws a PanelError that
  * names the two columns when there is no such table.
  */
-export function parseMilestones(source: string): StatusInfo['milestones'] {
+export function parseMilestones(source: string, headings: readonly DocHeading[]): StatusInfo['milestones'] {
   const { body } = splitFrontmatter(source);
   const table = readTables(md.parse(body, {})).find((candidate) => candidate.headers.includes(MILESTONE_COLUMN) && candidate.headers.includes(SCOPE_COLUMN));
   if (table === undefined) {
-    throw new PanelError('milestones-table-missing', `${MIGRATION_DOC_PATH} has no table with a "Milestone" column and a "One-line scope" column, so the milestone list cannot be shown.`);
+    throw new PanelError('milestones-table-missing', say('milestonesNoTable', { path: MIGRATION_DOC_PATH }));
   }
   const milestoneAt = table.headers.indexOf(MILESTONE_COLUMN);
   const scopeAt = table.headers.indexOf(SCOPE_COLUMN);
@@ -236,7 +272,7 @@ export function parseMilestones(source: string): StatusInfo['milestones'] {
   for (const cells of table.rows) {
     const { id, name } = splitMilestone(cells[milestoneAt] ?? '');
     if (id === '') continue; // an empty row
-    milestones.push({ id, name, scope: inlineText(cells[scopeAt] ?? '') });
+    milestones.push({ id, name, scope: inlineText(cells[scopeAt] ?? ''), anchor: anchorOf(id, headings) });
   }
   return milestones;
 }

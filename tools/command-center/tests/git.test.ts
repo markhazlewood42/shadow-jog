@@ -270,11 +270,11 @@ describe('the git module', () => {
       expect(panel.ok, command).toBe(false);
       if (panel.ok) return;
       expect(panel.error.code, command).toBe('git-failed');
-      expect(panel.error.message, command).toBe(`git could not ${doing}: fatal: boom of ${command}`);
+      expect(panel.error.message, command).toBe(`git cannot ${doing}: fatal: boom of ${command}`);
     }
     // With no words from git, the exit code says what there is to say.
     const quiet = await failing('log', 3, '').source.get(true);
-    expect(quiet.ok ? '' : quiet.error.message).toBe('git could not read the commits: exit code 3');
+    expect(quiet.ok ? '' : quiet.error.message).toBe('git cannot read the commits: exit code 3');
   });
 
   it('a folder that is not a repo fails with the code git-failed and git\'s own words, and the old data stays', async () => {

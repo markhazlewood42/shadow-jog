@@ -6,6 +6,7 @@ import { answerDecision, checkAnswer } from '../decisions/answer';
 import { readDecision } from '../decisions/module';
 import type { DocIndex } from '../docs/index';
 import { apiError, createWriteGuard } from '../guard';
+import { say } from '../messages';
 import type { Runner } from '../runner';
 import { PanelError, type PanelSource } from '../source';
 import { createRefreshGate, registerPanelRoute } from './panel';
@@ -58,17 +59,17 @@ async function readRequest(c: Context): Promise<{ option: string; note: string |
   try {
     body = await c.req.json();
   } catch {
-    return c.json(apiError('bad-json', 'The request body is not JSON.'), 400);
+    return c.json(apiError('bad-json', say('requestNotJson')), 400);
   }
   if (!isRecord(body) || typeof body.option !== 'string' || body.option === '' || body.option.length > MAX_OPTION_CHARS) {
-    return c.json(apiError('bad-request', 'The request must be a JSON object with an "option" (the id of an option, as text).'), 400);
+    return c.json(apiError('bad-request', say('requestNoOption')), 400);
   }
   if (body.note !== undefined && body.note !== null && typeof body.note !== 'string') {
-    return c.json(apiError('bad-request', 'The "note" of the request must be text.'), 400);
+    return c.json(apiError('bad-request', say('requestNoteNotText')), 400);
   }
   const note = typeof body.note === 'string' ? body.note.trim() : '';
-  if (note.length > MAX_NOTE_CHARS) return c.json(apiError('note-too-long', `The note is longer than ${MAX_NOTE_CHARS} characters.`), 422);
-  if (BAD_NOTE_CHARACTERS.test(note)) return c.json(apiError('bad-note', 'The note has a control character that cannot be sent.'), 422);
+  if (note.length > MAX_NOTE_CHARS) return c.json(apiError('note-too-long', say('noteTooLong', { max: MAX_NOTE_CHARS })), 422);
+  if (BAD_NOTE_CHARACTERS.test(note)) return c.json(apiError('bad-note', say('noteBadCharacter')), 422);
   return { option: body.option, note: note === '' ? null : note };
 }
 
@@ -100,7 +101,7 @@ export function registerDecisionsRoutes(app: Hono, deps: DecisionsRoutesDeps): v
   // raised a moment ago (the list is up to a minute old), so the source is asked to load again, within the same limit as every panel.
   app.get('/api/decisions/:number', async (c) => {
     const number = issueNumber(c.req.param('number'));
-    if (number === null) return c.json(apiError('not-found', 'No such decision.'), 404);
+    if (number === null) return c.json(apiError('not-found', say('noSuchDecision')), 404);
     await docs.ready();
 
     let panel = await decisions.get(false);
@@ -114,7 +115,7 @@ export function registerDecisionsRoutes(app: Hono, deps: DecisionsRoutesDeps): v
       if (found === null) {
         const missing: Panel<DecisionDetail> = {
           ok: false,
-          error: { code: 'decision-not-found', message: `No open decision and no answer of the last week has the number ${number}. It may be older, or not an issue of Mark's, or raised a moment ago.` },
+          error: { code: 'decision-not-found', message: say('decisionNotListed', { number }) },
           updatedAt: null,
           lastGood: null,
         };
@@ -133,7 +134,7 @@ export function registerDecisionsRoutes(app: Hono, deps: DecisionsRoutesDeps): v
 
   // The path of the answer takes POST and nothing else. The method gate of the app refuses every other method but GET (405); this
   // refuses the GET, so that the answer path says "405, use POST" for every other method.
-  app.get('/api/decisions/:number/answer', (c) => c.json(apiError('method-not-allowed', 'The answer to a decision is sent with POST.'), 405, { Allow: 'POST' }));
+  app.get('/api/decisions/:number/answer', (c) => c.json(apiError('method-not-allowed', say('answerNeedsPost')), 405, { Allow: 'POST' }));
 
   // The numbers of the issues that an answer is writing to now. See the answer route.
   const writing = new Set<number>();
@@ -151,15 +152,15 @@ export function registerDecisionsRoutes(app: Hono, deps: DecisionsRoutesDeps): v
   app.post(
     '/api/decisions/:number/answer',
     createWriteGuard(token),
-    bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json(apiError('too-large', `The request is larger than ${MAX_BODY_BYTES} bytes.`), 413) }),
+    bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json(apiError('too-large', say('requestTooLarge', { max: MAX_BODY_BYTES })), 413) }),
     async (c) => {
       const number = issueNumber(c.req.param('number'));
-      if (number === null) return c.json(apiError('not-found', 'No such decision.'), 404);
+      if (number === null) return c.json(apiError('not-found', say('noSuchDecision')), 404);
       const request = await readRequest(c);
       if (request instanceof Response) return request;
 
       // The check and the take are one step with no await between them, so two requests cannot both pass.
-      if (writing.has(number)) return c.json(apiError('answer-in-progress', `An answer to decision #${number} is being sent now. Wait for it to finish.`), 409);
+      if (writing.has(number)) return c.json(apiError('answer-in-progress', say('answerInProgress', { number })), 409);
       writing.add(number);
       try {
         let read: Awaited<ReturnType<typeof readDecision>>;

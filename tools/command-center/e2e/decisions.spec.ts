@@ -109,7 +109,7 @@ test.describe('the page of a decision', () => {
     const links = decision.getByRole('list', { name: 'Linked docs' });
     await expect(links.getByRole('link', { name: 'Setup guide \u203a Storage' })).toHaveAttribute('href', '/docs/guides/setup#storage');
     await expect(links.getByRole('link', { name: 'Setup guide \u203a First run' })).toHaveAttribute('href', '/docs/guides/setup#first-run');
-    await expect(links.getByRole('note')).toContainText('This section was not found in the docs: docs/guides/setup.md#no-such-heading');
+    await expect(links.getByRole('note')).toContainText('Section not found: docs/guides/setup.md#no-such-heading');
     await expect(decision.getByRole('alert')).toHaveCount(0);
 
     // A link in the page opens the doc at the heading, inside the site.
@@ -130,7 +130,7 @@ test.describe('the page of a decision', () => {
     await expect(links.getByRole('link', { name: 'Setup guide \u203a First run' })).toHaveAttribute('href', '/docs/guides/setup#first-run');
     // A heading that the doc does not have: one line of notice with the link to the doc.
     const missing = links.getByRole('note');
-    await expect(missing).toContainText('This section was not found in the docs: docs/guides/setup.md#no-such-heading');
+    await expect(missing).toContainText('Section not found: docs/guides/setup.md#no-such-heading');
     await expect(missing.getByRole('link')).toHaveAttribute('href', '/docs/guides/setup');
     await expect(decision.getByRole('alert')).toHaveCount(0);
 
@@ -168,12 +168,14 @@ test.describe('the page of a decision', () => {
     for (const number of [42, 45, 40, 999]) {
       expect((await request.get(`/api/decisions/${number}`)).status(), `issue ${number}`).toBe(404);
       await page.goto(`/decisions/${number}`);
-      await expect(page.getByRole('heading', { level: 1, name: `No decision has the number ${number}` })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: 'Decision not found' })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'Decision not found' })).toContainText(`#${number}`);
+      await expect(page.getByRole('link', { name: 'Docs overview' })).toHaveAttribute('href', '/docs');
       await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0);
       await expect(page.getByRole('form')).toHaveCount(0);
     }
     await page.goto('/decisions/abc');
-    await expect(page.getByRole('heading', { level: 1, name: 'This is not the number of a decision' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Invalid decision number' })).toBeVisible();
   });
 
   test('a body that is not the template shows the problem, and offers no form', async ({ page }) => {
@@ -188,14 +190,14 @@ test.describe('the page of a decision', () => {
     await page.goto('/decisions/44');
     const decision = decisionOf(page);
     await expect(decision).toContainText('Answered');
-    await expect(decision).toContainText('Mark answered B');
+    await expect(decision).toContainText('Answered B');
     await expect(decision).toContainText('Green looks better on the dark page. Check it again after the next release.');
     await expect(decision.getByText("Mark's answer")).toBeVisible();
     await expect(page.getByRole('form')).toHaveCount(0);
 
     // 43 has a "Decision: B" from a look-alike login. It is open, and shows no answer.
     await page.goto('/decisions/43');
-    await expect(decisionOf(page)).not.toContainText('Mark answered');
+    await expect(decisionOf(page)).not.toContainText('Answered');
     await expect(form(page)).toBeVisible();
   });
 
@@ -223,7 +225,7 @@ test.describe('answering a decision', () => {
 
     // The page reads the decision again by itself, and shows it as answered.
     const decision = decisionOf(page);
-    await expect(decision).toContainText('Mark answered C');
+    await expect(decision).toContainText('Answered C');
     await expect(decision).toContainText('It keeps the cache over a restart, and a backup can skip it.');
     await expect(decision.getByText('Answered', { exact: true })).toBeVisible();
     await expect(page.getByRole('form')).toHaveCount(0);
@@ -257,7 +259,7 @@ test.describe('answering a decision', () => {
 
     // The error says what is done and what is not, and the form keeps what Mark chose and typed. The page has read the decision again, and it is still there.
     const alert = page.getByRole('alert');
-    await expect(alert).toContainText('Your answer is posted on GitHub as a comment, but the labels of the issue were not changed.');
+    await expect(alert).toContainText('Answer posted · Label not changed');
     await expect(alert).toContainText('failed to change the labels: HTTP 502: Bad Gateway');
     await expect(alert).toContainText('gh-failed');
     // The Look: a page has one or two amber items. The icon of the error is ink, so the amber ones are the state chip and the Retry button.
@@ -267,14 +269,14 @@ test.describe('answering a decision', () => {
     await expect(form(page).getByLabel('Note (optional)')).toHaveValue('The temp folder is cleaned for us.');
     await expect(form(page).getByRole('button', { name: 'Retry' })).toBeEnabled();
     // The page read the half answer from GitHub: it says so, and the decision is open still.
-    await expect(decisionOf(page).getByRole('note').first()).toContainText('An answer was posted on GitHub as a comment (option B)');
+    await expect(decisionOf(page).getByRole('note').first()).toContainText('The comment for option B is on GitHub.');
     await expect(decisionOf(page).getByText('Open', { exact: true })).toBeVisible();
     expect(writeNames()).toEqual(['issue comment', 'issue edit']);
 
     // GitHub works again. The retry starts at the label swap, so there is no second comment.
     setGhMode({ mode: 'ok' });
     await form(page).getByRole('button', { name: 'Retry' }).click();
-    await expect(decisionOf(page)).toContainText('Mark answered B');
+    await expect(decisionOf(page)).toContainText('Answered B');
     await expect(page.getByRole('alert')).toHaveCount(0);
     expect(writeNames()).toEqual(['issue comment', 'issue edit', 'issue edit', 'issue close']);
     expect(commentsOf(41).filter((comment) => comment.body.startsWith('Decision:'))).toHaveLength(1);
@@ -296,7 +298,7 @@ test.describe('answering a decision', () => {
     // Mark makes the label. The retry finishes the answer.
     setGhIssues({ ...(readGhIssues() as GhIssueStore), labels: ['decision', 'decided'] });
     await form(page).getByRole('button', { name: 'Retry' }).click();
-    await expect(decisionOf(page)).toContainText('Mark answered A');
+    await expect(decisionOf(page)).toContainText('Answered A');
     expect(writeNames()).toEqual(['issue comment', 'issue edit', 'issue edit', 'issue close']);
   });
 
@@ -339,7 +341,7 @@ test.describe('the banner on a doc', () => {
     // Decision 41 links to "Storage": its banner is right above that heading. No heading comes between them.
     const storage = docRegion.locator('h2#storage');
     const banner = bannerOf(page, 41).first();
-    await expect(banner).toContainText('A decision waits for Mark on this section');
+    await expect(banner).toContainText('Open decision');
     await expect(banner).toContainText('Where should Burrow keep its cache?');
     const placement = await page.evaluate(() => {
       const heading = document.querySelector('.doc-html h2#storage');

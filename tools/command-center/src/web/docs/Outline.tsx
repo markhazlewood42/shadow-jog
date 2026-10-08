@@ -19,7 +19,7 @@ export function Outline({ slug, headings }: { slug: string; headings: readonly D
     <nav aria-label="Outline">
       <p className="mb-2 text-xs font-medium tracking-wide text-cc-soft uppercase">On this page</p>
       {headings.length === 0 ? (
-        <p className="text-sm text-cc-muted">This doc has no headings.</p>
+        <p className="text-sm text-cc-muted">No headings</p>
       ) : (
         <ul className="flex flex-col gap-1 border-l border-cc-rule">
           {headings.map((heading) => (

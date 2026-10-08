@@ -6,7 +6,7 @@
 export const APP_NAME = 'Shadow Jog Command Center';
 
 /** The sources of data. The server has one module for each. */
-export type ModuleName = 'docs' | 'engine' | 'status' | 'git' | 'github' | 'sessions' | 'decisions';
+export type ModuleName = 'docs' | 'engine' | 'status' | 'git' | 'github' | 'ci' | 'sessions' | 'decisions' | 'agents';
 
 /**
  * What a data endpoint answers: either the data, or the reason there is none.
@@ -190,16 +190,33 @@ export type DocPageData = DocPage & {
 // text. The one exception is a field that is called `html`: the server made it, and it is safe to
 // put into the page as it is.
 
-/** What `GET /api/status` holds (inside a Panel): the current section of status.md, and the milestones of the engine migration. */
+/**
+ * The addresses of the two docs that the Status panel links to: status.md and docs/engine/migration.md (see `slugOf` in the doc index for how a path becomes one).
+ * The status module reads the same two files (STATUS_DOC_PATH and MIGRATION_DOC_PATH), and a test checks that these slugs are the ones of those paths.
+ */
+export const STATUS_DOC_SLUG = 'status';
+export const MIGRATION_DOC_SLUG = 'engine/migration';
+
+/**
+ * What `GET /api/status` holds (inside a Panel): what the Status panel of the Now page reads from status.md (its date and the number of items that wait for Mark),
+ * the `milestone` key of its frontmatter, and the milestones of the engine migration. It holds no text of status.md besides the items of the "Next up for Mark" list.
+ */
 export type StatusInfo = {
   /** The `updated` date of the frontmatter of status.md, as written there, or null when there is none. */
   updated: string | null;
-  /** The current "Right now" section: its heading as plain text, and its body as html. */
-  rightNow: { heading: string; html: string };
-  /** The items of the first "Next up for Mark" list in that section, in order. `text` is plain words and `html` is the item as html. */
+  /** The items of the first "Next up for Mark" list in the current "Right now" section, in order. `text` is plain words and `html` is the item as html. */
   nextUpForMark: { text: string; html: string }[];
-  /** The milestones of the table in docs/engine/migration.md. The table has no state column, so there are names and scope only. */
-  milestones: { id: string; name: string; scope: string }[];
+  /**
+   * The `milestone` key of the frontmatter of status.md, checked against the ids of `milestones`. `current` is the id it names, and null for the value `none`
+   * (no milestone has started) and when there is a problem. `problem` is `missing` when the key is not there (or has no value), `unknown` when its value is not
+   * `none` and not an id of the table (ids are case sensitive), and null when the key is good. The page never guesses a milestone from a bad key.
+   */
+  milestone: { current: string | null; problem: 'missing' | 'unknown' | null };
+  /**
+   * The milestones of the table in docs/engine/migration.md, in the order of the table. The table has no state column, so there are names and scope only.
+   * `anchor` is the id of the heading of the milestone in the page of that doc (the ids that the docs site gives its headings), or null when the doc has no heading for it.
+   */
+  milestones: { id: string; name: string; scope: string; anchor: string | null }[];
 };
 
 /** A local branch. `date` is when its newest commit was made (an ISO time). */
@@ -270,6 +287,19 @@ export type PullRequest = {
 
 /** What `GET /api/github` holds (inside a Panel): the open pull requests, and the ones merged in the last 7 days. */
 export type GithubInfo = { open: PullRequest[]; merged: PullRequest[] };
+
+/**
+ * What `GET /api/ci` holds (inside a Panel): the newest run of the workflow `ci.yml` on the branch `main`, as the Status panel shows it.
+ * `passing`: it finished and passed. `failing`: it finished and failed, ran out of time, did not start, or waits for an approval. `running`: it is queued or
+ * still runs. `none`: there is no run, or the newest one has no verdict (it was canceled or skipped); then there is no time and no address either.
+ */
+export type CiMain = {
+  state: 'passing' | 'failing' | 'running' | 'none';
+  /** When the run was made (an ISO time), or null when `state` is `none` or GitHub gave no usable time. */
+  createdAt: string | null;
+  /** Where to read the run on GitHub (an http or https address), or null when `state` is `none` or the address is not usable. */
+  url: string | null;
+};
 
 // ---- Claude sessions ----
 // The shapes of the sessions module (src/server/sessions). The Now page and the Agents page read them.
@@ -389,24 +419,87 @@ export type SessionInfo = {
  * Shadow Jog, the newest first. `scanned` is how many session files of that time were looked at.
  * `skipped` is how many of them are not Shadow Jog's (outside the roots) or not readable.
  * `hiddenSdk` is how many Shadow Jog sessions were left out because a script started them (the entrypoint starts with "sdk": `sdk-py`, `sdk-ts`,
- * `sdk-cli`), so a page can say "N automated SDK runs hidden". It is 0 when the config says `claude.includeSdk` is true: then they are listed.
+ * `sdk-cli`). No page shows this number: the Agents page and the Running panel show `AgentsLive.hiddenScripts`, the same count for the live sessions only
+ * (the Your move list is made from this answer, and the live view from the process list). It is 0 when the config says `claude.includeSdk` is true: then they are listed.
  * Every file is counted once: `scanned` = `sessions.length` + `hiddenSdk` + `skipped`. The sessions that were left out never appear in the answer,
  * not even by their id.
  */
 export type SessionsInfo = { sessions: SessionInfo[]; scanned: number; skipped: number; hiddenSdk: number };
 
 /**
- * The id of a session's card on the Agents page. An address that ends in `#<this id>` leads to the card. The server writes such an address into the "Your move" list
- * (src/server/now/yourMove.ts), and the page finds the card by it (src/web/agents), so the two share this one function and cannot drift apart.
+ * The id of a session's cluster on the Agents page (the session box and the agents under it). An address that ends in `#<this id>` leads to the cluster of a session that is live.
+ * The server writes such an address into the "Your move" list (src/server/now/yourMove.ts), and the page finds the cluster by it (src/web/agents), so the two share this one function
+ * and cannot drift apart.
  */
 export function sessionAnchor(sessionId: string): string {
   return `session-${sessionId}`;
 }
 
-/** The address of a session's card on the Agents page. It is an address of this site (it starts with "/"), so a link to it moves inside the app. */
+/** The address of a session's cluster on the Agents page. It is an address of this site (it starts with "/"), so a link to it moves inside the app. */
 export function sessionHref(sessionId: string): string {
   return `/agents#${sessionAnchor(sessionId)}`;
 }
+
+// ---- live agents (revision 2) ----
+// The shapes of the agents module (src/server/agents): what is alive now, as a tree of sessions and agents. A session is alive while its
+// Claude process runs, so the module starts from the process list of Claude Code (one small file for each process) and reads only the
+// files of those sessions. Only the session id, the start time and busy or idle leave the process file: the process id and every other key stay on
+// the server. The words in a node (a title, a label) come from session files, so a page must show them as text.
+
+/** A box in the tree under a session: an agent, or a workflow run. */
+export type LiveNode = {
+  /** The id of an agent (the file name `agent-<id>.jsonl` without the frame), or of a workflow run (`wf_...`: its folder name). */
+  id: string;
+  /**
+   * What started it, and so what its solid line comes from: the id of its session, of another agent, or of a workflow. The id always names
+   * the session of this node or another node in the same list, so a page can draw the line. An agent that no call was found for hangs on its session.
+   */
+  parentId: string;
+  kind: 'agent' | 'workflow';
+  /** What the agent was asked to do (the `description` in its `.meta.json`, at most 300 characters), or the name of the workflow. This is transcript text: show it as text. */
+  label: string;
+  /** The model as a family name (`fable`, `sonnet`), or null when the agent does not say (and for a workflow). Any value that is not a Claude model id stays as given, cut to 12 characters. */
+  model: string | null;
+  /** `running`: it has no end record, and it was written in the last `claude.workingSeconds`, or its session is busy and it was written in the last `agents.staleSeconds`. `done`: it ended, and it stays for `agents.lingerSeconds`. */
+  state: 'running' | 'done';
+  /** The time of the first line of the agent's file (an ISO time), or the time the file was made. Null for a workflow whose journal does not say. */
+  startedAt: string | null;
+  /** When it ended (the time of its last line, an ISO time), or null while it runs. */
+  endedAt: string | null;
+  /** The file of the agent, or the journal of the workflow (null when the workflow has none), for a Copy button. It is a path on this machine. */
+  filePath: string | null;
+  /**
+   * The messages that passed between the parent and the agent while it ran, in either direction: the `SendMessage` calls of the parent to the agent, and the
+   * messages of the agent to the parent. The final report is not one of them. `approximate`: the file of the parent is larger than the part that was read, so the
+   * count may be short (a page shows "3+"). A workflow has none: 0, and not approximate. No message text leaves the server.
+   */
+  messages: { count: number; approximate: boolean };
+  /** A workflow only: the newest phase, the agents that have a result, and the agents that started. A journal has no total. */
+  progress?: { phase: string | null; done: number; started: number };
+};
+
+/** One session that is alive now. */
+export type LiveSession = {
+  /** The session id: the file name without `.jsonl`. */
+  id: string;
+  /** The title, by the same rule as `SessionInfo.title`. This is transcript text: show it as text. */
+  title: string;
+  /** `working`: the process is busy. `waiting`: it is idle, and waits for Mark. */
+  state: 'working' | 'waiting';
+  /** When the process started (an ISO time), or null when the process file does not say. */
+  startedAt: string | null;
+  /** The session file, for a Copy button. It is a path on this machine. */
+  filePath: string;
+  /** The agents and workflows of the session that are alive, or finished less than `agents.lingerSeconds` ago. In order of start. */
+  nodes: LiveNode[];
+};
+
+/**
+ * What `GET /api/agents` holds (inside a Panel): the live sessions in order of start, the oldest first. `hiddenScripts` is how many live sessions about
+ * Shadow Jog were left out because a script started them (the entrypoint starts with "sdk"). `source` says where the list came from: `process-list`
+ * (the folder where Claude Code lists its processes), or `file-age` (that folder cannot be read, so the file ages of the sessions module decide, and a page says so).
+ */
+export type AgentsLive = { sessions: LiveSession[]; hiddenScripts: number; source: 'process-list' | 'file-age' };
 
 // ---- decisions (the decision inbox) ----
 // The shapes of the decisions module (src/server/decisions). A decision is a GitHub issue of the
@@ -497,7 +590,7 @@ export type YourMoveSource = 'decision-issue' | 'session' | 'pr' | 'doc-decision
 
 /**
  * One thing that waits for Mark. `text` is plain words. `href` is where its source is: an address of this site (it starts with `/`), an
- * address on GitHub (https), or null when the source has no page to link to. A session's items link to its card on the Agents page. `light` is the status light that the reply of a
+ * address on GitHub (https), or null when the source has no page to link to. A session's items link to its place on the Agents page (`/agents#session-<id>`). `light` is the status light that the reply of a
  * session started with, and null for every other item: only a reply has one. `at` is the time of the item, as an ISO time, or null.
  */
 export type YourMoveItem = {

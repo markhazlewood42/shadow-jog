@@ -1,4 +1,5 @@
 import type { UpdatedFrom } from '../../shared/types';
+import { say } from '../messages';
 import type { Runner } from '../runner';
 
 // The day a doc last changed has three sources, in this order of trust: the doc's own frontmatter
@@ -30,7 +31,7 @@ export async function lastChangedDates(runner: Runner, cwd: string): Promise<Map
   );
   if (result.code !== 0) {
     const reason = result.stderr.trim().split(/\r?\n/)[0] || 'no message';
-    throw new Error(`git log failed (exit ${result.code}): ${reason}`);
+    throw new Error(say('gitLogFailed', { code: result.code, said: reason }));
   }
 
   // git lists the newest commit first, so the first time a path shows up is its newest day.

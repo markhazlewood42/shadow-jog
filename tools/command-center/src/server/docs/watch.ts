@@ -1,6 +1,7 @@
 import type { Stats } from 'node:fs';
 import { resolve } from 'node:path';
 import { watch } from 'chokidar';
+import { say } from '../messages';
 
 // The watcher tells the index that a file changed, so the pages can show an edit within a few
 // seconds. It POLLS: it asks the disk about every watched file once a second, instead of waiting
@@ -105,7 +106,7 @@ export function startDocWatcher(options: DocWatcherOptions): DocWatcher {
 
   const ready = new Promise<void>((done) => {
     const guard = setTimeout(() => {
-      options.onError(new Error(`The file watcher did not finish its first scan in ${READY_TIMEOUT_MS / 1000} seconds. Edits may not show until it does.`));
+      options.onError(new Error(say('watcherSlow', { seconds: READY_TIMEOUT_MS / 1000 })));
       done();
     }, READY_TIMEOUT_MS);
     guard.unref();

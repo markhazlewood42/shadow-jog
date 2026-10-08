@@ -45,9 +45,9 @@ export class PageErrorBoundary extends Component<{ children: ReactNode; resetKey
         {/* Ink, not amber: the Look keeps amber for the one or two focal items of a page. */}
         <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-cc-ink" />
         <div className="min-w-0 flex-1">
-          <p className="font-medium">This page could not be shown.</p>
+          {/* One line (design 5.8): it says to reload, and why. The second paragraph is the message of the error, which is data. */}
+          <p className="font-medium">Reload the page. If the server restarts, the page files can change.</p>
           <p className="mt-1 text-sm break-words text-cc-muted">{error.message}</p>
-          <p className="mt-1 text-sm text-cc-muted">If the server was restarted while this page was open, the file of the page has a new name. Reload to get the new one.</p>
         </div>
         <Button size="sm" variant="tertiary" onPress={() => window.location.reload()}>
           <RefreshCw aria-hidden className="size-3.5" />

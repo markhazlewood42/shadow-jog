@@ -70,10 +70,10 @@ describe('the decision list', () => {
     const groups = markup.split('<tbody').slice(1);
     expect(groups).toHaveLength(3);
     expect(groups[0]).toContain('Engine design');
-    expect(groups[0]).toContain('3 decisions from');
+    expect(groups[0]).toContain('3 decisions');
     expect(groups[0]).toContain('href="/docs/engine/decisions"');
     expect(groups[1]).toContain('Phase 0.2 plan');
-    expect(groups[1]).toContain('1 decision from');
+    expect(groups[1]).toContain('1 decision');
     expect(groups[1]).toContain('href="/docs/PHASE-0.2"');
     expect(groups[2]).toContain('Phase 0 update');
     expect(groups[2]).toContain('href="/docs/engine/README"');
@@ -161,10 +161,10 @@ describe('the decision list', () => {
     expect(markup).toContain('&lt;script&gt;window.x=1&lt;/script&gt;');
   });
 
-  it('has no table, only the filter and a sentence, when the list is empty', () => {
+  it('has no table, only the filter and a label, when the list is empty', () => {
     const markup = render(<DecisionList decisions={[]} />);
     expect(markup).not.toContain('<table');
-    expect(markup).toContain('No decisions were found in the three docs.');
+    expect(markup).toContain('No decisions');
   });
 });
 

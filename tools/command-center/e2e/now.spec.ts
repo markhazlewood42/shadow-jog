@@ -1,7 +1,8 @@
-import { execFileSync } from 'node:child_process';
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { type APIRequestContext, type Locator, type Page, chromium, expect, test } from '@playwright/test';
+import type { AgentsLive, Panel, StatusInfo } from '../src/shared/types';
 import { E2E_DIR, type GhIssueStore, resetGh, setGhIssues, setGhMode } from './fake-gh';
 import { amberItems, expectAtMostTwoAmberItems, tokenColors, worstTextContrast } from './look';
 
@@ -13,6 +14,7 @@ const PANELS = ['Your move', 'Running', 'Pull requests', 'Status', 'Links'] as c
 
 const REPO = join(E2E_DIR, 'repo');
 const PROJECTS = join(E2E_DIR, 'claude-projects'); // `claude.projectsRoot` of the end-to-end config
+const PROCESSES = join(E2E_DIR, 'claude-sessions'); // `claude.sessionsRoot` of the end-to-end config: the process list of the fixture world
 const WHOLE = join(PROJECTS, 'fixture-shadow-jog'); // `claude.folders`
 const DIST = join(import.meta.dirname, '..', 'dist');
 const ORIGIN = 'http://127.0.0.1:3010'; // the end-to-end server (playwright.config.ts names the same address)
@@ -140,9 +142,43 @@ async function refreshSessions(request: APIRequestContext): Promise<void> {
   expect((await request.get('/api/sessions?refresh=1')).status()).toBe(200);
 }
 
+// ---- the process list of the fixture world: where the Running panel starts ----
+// A process file names a pid, and the server checks that the pid runs. A test cannot start Claude, so it starts a program that only waits and writes a process
+// file for the pid of that program. The program ends by itself after a minute, in case a test dies before it can stop it. A session whose program was stopped leaves the
+// list at once. The fixture world has no process folder until a test makes one: until then the server decides by the file ages (the fallback), and from then on by the process list.
+
+/** The programs that the tests started, so that the end of every test can stop them. */
+const waiting: ChildProcess[] = [];
+
+/** Starts a program that only waits, and gives its pid and the way to stop it. The pid stands for a Claude process that runs. */
+function startLiveProcess(): { pid: number; stop: () => void } {
+  const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60_000)'], { stdio: 'ignore' });
+  waiting.push(child);
+  if (child.pid === undefined) throw new Error('A program for a live pid could not be started.');
+  return { pid: child.pid, stop: () => void child.kill() };
+}
+
+/** Writes the process file of a session: its pid, and busy or idle, and a start `ranSeconds` ago. (The server reads the session id, the start and the status; the rest stays here.) */
+function writeProcess(pid: number, sessionId: string, status: 'busy' | 'idle', ranSeconds: number): void {
+  mkdirSync(PROCESSES, { recursive: true });
+  writeFileSync(join(PROCESSES, `${pid}.json`), JSON.stringify({ pid, sessionId, cwd: REPO, startedAt: Date.now() - ranSeconds * 1000, status }));
+}
+
+/** Asks the agents module to look now, and gives what it found. The Running panel shows the same data. */
+async function refreshAgents(request: APIRequestContext): Promise<AgentsLive> {
+  const res = await request.get('/api/agents?refresh=1');
+  expect(res.status()).toBe(200);
+  const panel = (await res.json()) as Panel<AgentsLive>;
+  if (!panel.ok) throw new Error(`The agents panel failed: ${panel.error.message}`);
+  return panel.data;
+}
+
 test.afterEach(async ({ request }) => {
+  for (const child of waiting.splice(0)) child.kill();
   rmSync(PROJECTS, { recursive: true, force: true });
+  rmSync(PROCESSES, { recursive: true, force: true });
   await request.get('/api/sessions?refresh=1');
+  await request.get('/api/agents?refresh=1');
 });
 
 // The first time that a browser starts the glass, its GPU compiles the shaders of PlasmaUI. A browser with no GPU (a software renderer, as headless browsers often are)
@@ -271,7 +307,8 @@ test.describe('the panels', () => {
     await page.goto('/');
     await allLoaded(page);
 
-    await expect(page.getByText('The glass panels need WebGL2, and this browser does not have it. The panels are plain.')).toBeVisible();
+    await expect(page.getByText('No WebGL2: plain panels', { exact: true })).toBeVisible();
+    await expect(page.getByText('The glass panels need WebGL2')).toHaveCount(0);
     // There is nothing to switch, so there is no switch, and no canvas, and the five panels are the plain ones.
     await expect(glassSwitch(page)).toHaveCount(0);
     await expect(page.locator('canvas')).toHaveCount(0);
@@ -363,8 +400,10 @@ test.describe('a page that cannot be shown', () => {
     await page.route('**/assets/NowPage-*.js', (route) => route.abort());
     await page.goto('/');
     const alert = page.getByRole('alert');
-    await expect(alert).toContainText('This page could not be shown.');
-    await expect(alert).toContainText('Reload to get the new one.');
+    // One short line that says to reload, and then the message of the error (which is data).
+    await expect(alert.getByText('Reload the page. If the server restarts, the page files can change.', { exact: true })).toBeVisible();
+    await expect(alert).not.toContainText('could not be shown');
+    await expect(alert).not.toContainText('Reload to get the new one.');
     // The page is not left blank: the error says what is wrong. (The page that failed to load is not there, so it has no title.)
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(0);
 
@@ -486,18 +525,20 @@ test.describe('the data of the panels', () => {
     await expect(panel(page, 'Pull requests').getByRole('alert')).toContainText('gh is not signed in to GitHub');
     await expect(panel(page, 'Pull requests').getByRole('alert')).toContainText('gh-not-signed-in');
     await expect(panel(page, 'Pull requests').getByRole('button', { name: 'Retry' })).toBeVisible();
-    // The pull requests that it knew stay under the error, with the time of that data.
-    await expect(panel(page, 'Pull requests')).toContainText('Showing the last good data');
+    // The pull requests that it knew stay under the error, with the time of that data, as a label.
+    await expect(panel(page, 'Pull requests')).toContainText(/Last good data: \d\d:\d\d:\d\d/);
+    await expect(panel(page, 'Pull requests')).not.toContainText('Showing the last good data');
     await expect(panel(page, 'Pull requests')).toContainText('Fixture: the widget is ready to merge');
     // Every other panel goes on: no error, and its own data. Your move says which of its sources it could not read, as a notice and not as an error.
     for (const name of ['Your move', 'Running', 'Status', 'Links'] as const) await expect(panel(page, name).getByRole('alert')).toHaveCount(0);
-    const notice = panel(page, 'Your move').getByRole('note', { name: 'Sources that could not be read' });
-    await expect(notice).toContainText('The list may be incomplete');
+    const notice = panel(page, 'Your move').getByRole('note', { name: 'Incomplete list' });
+    await expect(notice.getByText('Incomplete list', { exact: true })).toBeVisible();
+    await expect(notice).not.toContainText('may be incomplete');
     await expect(notice).toContainText('Pull request:');
     await expect(notice).toContainText('Decision:');
     await expect(notice).toContainText('gh is not signed in to GitHub');
     await expect(panel(page, 'Your move').getByRole('listitem').filter({ hasText: 'Pick the gadget color' })).toHaveCount(1); // the status items are still there
-    await expect(panel(page, 'Status')).toContainText('Right now (2026-01-02)');
+    await expect(panel(page, 'Status').getByRole('link', { name: '3 for you' })).toBeVisible();
 
     // gh works again: Retry brings the panel back, and the notice goes with it.
     setGhMode({ mode: 'ok', replies: { 'pr list': { stdout: fixtureFromNow('prs.json') } } });
@@ -537,33 +578,45 @@ test.describe('the data of the panels', () => {
     await expectAtMostTwoAmberItems(page);
   });
 
-  test('each panel has an empty state', async ({ page }) => {
+  test('now page empty states are labels', async ({ page }) => {
     // The server's answers are replaced by empty ones, so every panel has nothing to show.
     const empty = <T,>(data: T) => ({ ok: true, data, updatedAt: new Date().toISOString() });
     await page.route('**/api/now/your-move', (route) => route.fulfill({ json: empty({ items: [], missing: [] }) }));
-    await page.route('**/api/sessions', (route) => route.fulfill({ json: empty({ sessions: [], scanned: 0, skipped: 0, hiddenSdk: 0 }) }));
+    await page.route('**/api/agents', (route) => route.fulfill({ json: empty({ sessions: [], hiddenScripts: 0, source: 'process-list' }) }));
     await page.route('**/api/github', (route) => route.fulfill({ json: empty({ open: [], merged: [] }) }));
-    await page.route('**/api/status', (route) => route.fulfill({ json: empty({ updated: null, rightNow: { heading: 'Right now', html: '' }, nextUpForMark: [], milestones: [] }) }));
+    await page.route('**/api/status', (route) => route.fulfill({ json: empty({ updated: null, nextUpForMark: [], milestone: { current: null, problem: null }, milestones: [] }) }));
     await page.route('**/api/git', (route) => route.fulfill({ json: empty({ current: null, ahead: null, behind: null, branches: [], commits: [] }) }));
+    await page.route('**/api/ci', (route) => route.fulfill({ json: empty({ state: 'none', createdAt: null, url: null }) }));
     await page.route('**/api/health', (route) => route.fulfill({ json: { ok: true, name: 'Shadow Jog Command Center', version: '0.0.0', startedAt: new Date().toISOString(), gameUrl: 'http://localhost:3007', githubRepo: 'fixture-owner/fixture-repo', links: [] } }));
     await page.goto('/');
     await allLoaded(page);
 
-    await expect(panel(page, 'Your move')).toContainText('Nothing waits for you right now.');
+    // Each empty state is a label of a few words, and not a sentence (design 5.8).
+    await expect(panel(page, 'Your move').getByText('Nothing for you', { exact: true })).toBeVisible();
     await expect(panel(page, 'Your move').getByRole('list')).toHaveCount(0);
-    await expect(panel(page, 'Running')).toContainText('Nothing is running right now.');
-    await expect(panel(page, 'Pull requests')).toContainText('No open pull requests.');
+    await expect(panel(page, 'Running').getByText('No active session', { exact: true })).toBeVisible();
+    await expect(panel(page, 'Running').getByRole('list')).toHaveCount(0);
+    await expect(panel(page, 'Running')).not.toContainText('Process list unavailable');
+    await expect(panel(page, 'Pull requests').getByText('No open PRs', { exact: true })).toBeVisible();
     // The link to the merged ones is there when nothing is open too: it is not about the list.
     await expect(panel(page, 'Pull requests').getByRole('link', { name: 'Merged pull requests' })).toHaveAttribute('href', 'https://github.com/fixture-owner/fixture-repo/pulls?q=is%3Apr+is%3Amerged');
-    await expect(panel(page, 'Status')).toContainText('This section of status.md has no text.');
-    await expect(panel(page, 'Status')).toContainText('No milestones are listed.');
-    await expect(panel(page, 'Status')).toContainText('No branch is checked out');
-    await expect(panel(page, 'Links')).toContainText('No other links are set.');
-    // The game is still a link: it is the one thing that the panel always has.
+    // The Status panel has a label for each empty value, and the strip has no squares.
+    for (const label of ['No branch', 'no run', 'Nothing for you', 'No date', 'No commits', 'Not started']) await expect(panel(page, 'Status')).toContainText(label);
+    await expect(panel(page, 'Status').getByRole('listitem')).toHaveCount(0);
+    // The Links panel always has the game, as a link. The label under it says that the config has no more.
+    await expect(panel(page, 'Links').getByText('No other links', { exact: true })).toBeVisible();
     await expect(panel(page, 'Links').getByRole('link', { name: 'Game' })).toHaveAttribute('href', 'http://localhost:3007');
     // An empty list has no amber count: nothing waits, so nothing is marked as the one thing that matters, and the page has no amber item at all.
-    await expect(page.getByText('Live updates: on')).toBeVisible();
+    await expect(page.getByText('Live: on', { exact: true })).toBeVisible();
     expect(await amberItems(page)).toEqual([]);
+
+    // Nothing else on the page is a sentence either: each line of its text is a label, a number, a date or a link, of six words at most, with no full stop at the end.
+    const lines = (await page.locator('main').innerText()).split('\n').map((line) => line.trim()).filter((line) => line !== '');
+    expect(lines.length).toBeGreaterThan(20);
+    for (const line of lines) {
+      expect(line.split(/\s+/).length, line).toBeLessThanOrEqual(6);
+      expect(line, line).not.toMatch(/[.!?;]$/);
+    }
   });
 
   test('each panel shows its last update time', async ({ page }) => {
@@ -579,9 +632,181 @@ test.describe('the data of the panels', () => {
     }
   });
 
-  test('the status panel shows the branch, ahead and behind, and 5 commits', async ({ page, request }) => {
-    // The fixture repo has two commits and no upstream. A bare repo plays the remote: the fixture's two commits are pushed to it, one more is made there
-    // (so the branch is behind by one, once git has fetched it), and three are made here (so it is ahead by three). Five commits are then the newest five.
+  test('links panel shows labels without addresses', async ({ page }) => {
+    await page.goto('/');
+    await allLoaded(page);
+    const links = panel(page, 'Links');
+
+    // The fixture config has two links: the game and the repo. Each is its label and the icon of a link that leaves the site, and nothing more.
+    const items = links.getByRole('list', { name: 'Links' }).getByRole('listitem');
+    await expect(items).toHaveCount(2);
+    await expect(items.nth(0)).toHaveText('Game');
+    await expect(items.nth(1)).toHaveText('GitHub repo');
+    for (const item of await items.all()) {
+      await expect(item.getByRole('link')).toHaveCount(1);
+      await expect(item.locator('svg')).toHaveCount(1);
+      await expect(item.locator('svg')).toHaveAttribute('aria-hidden', 'true');
+    }
+
+    // The address belongs to the link, and is not written out anywhere on the panel.
+    await expect(links.getByRole('link', { name: 'Game' })).toHaveAttribute('href', 'http://localhost:3007');
+    await expect(links.getByRole('link', { name: 'GitHub repo' })).toHaveAttribute('href', 'https://github.com/fixture-owner/fixture-repo');
+    expect(await links.innerText()).not.toMatch(/https?:|localhost|github\.com|3007/);
+
+    // The label for "no more links" is for a config with one link only, and the panel has no sentence of help.
+    await expect(links).not.toContainText('No other links');
+    await expect(links).not.toContainText('command-center.config.json');
+  });
+});
+
+// ---- the Running panel: the sessions that are alive now, from the process list ----
+
+test.describe('the Running panel', () => {
+  test('running panel lists active sessions and links to the agents page', async ({ page, request }) => {
+    // The first session has a running agent, a finished agent and a workflow at work. None of them is a row: the Agents page draws them.
+    writeSessions();
+    // A session that a script started is left out and counted: the panel says how many it hides, and none of its words are on the page.
+    writeLines(join(WHOLE, `${ID(9)}.jsonl`), [{ ...prompt('made up sdk run', 30), entrypoint: 'sdk-py' }, { ...reply('Done.', 20), entrypoint: 'sdk-py' }]);
+    // Three Claude processes run: the first works, the second waits for Mark, and the third is the script.
+    writeProcess(startLiveProcess().pid, ID(1), 'busy', 40 * 60 + 15);
+    writeProcess(startLiveProcess().pid, ID(2), 'idle', 12 * 60 + 15);
+    writeProcess(startLiveProcess().pid, ID(9), 'busy', 90);
+    const found = await refreshAgents(request);
+    expect(found.source).toBe('process-list');
+    expect(found.sessions.map((session) => session.id)).toEqual([ID(1), ID(2)]);
+    expect(found.hiddenScripts).toBe(1);
+
+    const requested: string[] = [];
+    page.on('request', (message) => requested.push(new URL(message.url()).pathname));
+    await page.goto('/');
+    const running = panel(page, 'Running');
+    const rows = running.getByRole('list', { name: 'Active sessions' }).getByRole('listitem');
+
+    // One row for each session, in the order of the API (the oldest first): the title, the state word and the time since the start.
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toHaveText('Build the Now page of the command center working 40 min');
+    await expect(rows.nth(1)).toHaveText('Review the engine docs for the fixture waiting 12 min');
+    // The whole row is the link: it is one link, it leads to the Agents page, and its words are the words of the row.
+    for (const [index, row] of (await rows.all()).entries()) {
+      await expect(row.getByRole('link')).toHaveCount(1);
+      await expect(row.getByRole('link')).toHaveAttribute('href', `/agents#session-${ID(index + 1)}`);
+      await expect(row.getByRole('link')).not.toHaveAttribute('target');
+    }
+    await expect(rows.nth(1).getByRole('link')).toHaveText('Review the engine docs for the fixture waiting 12 min');
+
+    // No row for an agent or a workflow, and no bar. The run of the script is counted, and none of its words are on the page. The process list is good, so no fallback label.
+    for (const text of ['Explore the fixture engine docs', 'Check the milestone table', 'fixture-build']) await expect(running).not.toContainText(text);
+    await expect(running.getByRole('progressbar')).toHaveCount(0);
+    await expect(running.getByText('1 script run hidden', { exact: true })).toBeVisible();
+    await expect(running).not.toContainText('Process list unavailable');
+    await expect(page.getByText('made up sdk run')).toHaveCount(0);
+
+    // The panel reads the live agents, and no longer the list of the sessions.
+    expect(requested).toContain('/api/agents');
+    expect(requested).not.toContain('/api/sessions');
+
+    // A row opens the Agents page inside the site: no new page is loaded.
+    await page.evaluate(() => {
+      (window as unknown as Record<string, unknown>).__ccStillHere = true;
+    });
+    await rows.nth(1).getByRole('link').click();
+    await expect(page).toHaveURL(`/agents#session-${ID(2)}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Agents' })).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as Record<string, unknown>).__ccStillHere)).toBe(true);
+  });
+
+  test('G6: a Running row opens the Agents page at its session', async ({ page, request }) => {
+    await page.addInitScript(() => localStorage.setItem('cc.now.glass', 'off'));
+    // A short, narrow window: one column, so the second cluster is below the fold and the page has to scroll to it.
+    await page.setViewportSize({ width: 800, height: 420 });
+    writeSessions();
+    writeProcess(startLiveProcess().pid, ID(1), 'busy', 40 * 60 + 15);
+    writeProcess(startLiveProcess().pid, ID(2), 'idle', 12 * 60 + 15);
+    await refreshAgents(request);
+    await page.goto('/');
+    await panel(page, 'Running').getByRole('list', { name: 'Active sessions' }).getByRole('listitem').nth(1).getByRole('link').click();
+    await expect(page).toHaveURL(`/agents#session-${ID(2)}`);
+    // The page scrolled to the cluster of the session once its data was there.
+    const cluster = page.locator(`[id="session-${ID(2)}"]`);
+    await expect(cluster).toBeVisible();
+    await expect(cluster).toBeInViewport();
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  });
+
+  test('running panel shows the empty state and the fallback label', async ({ page, request }) => {
+    // The fixture world has no process folder and no session file. The server decides by the file ages, finds nothing, and says so.
+    expect(await refreshAgents(request)).toEqual({ sessions: [], hiddenScripts: 0, source: 'file-age' });
+    await page.goto('/');
+    const running = panel(page, 'Running');
+    await expect(running.getByText('No active session', { exact: true })).toBeVisible();
+    await expect(running.getByText('Process list unavailable', { exact: true })).toBeVisible();
+    await expect(running.getByRole('list')).toHaveCount(0);
+    await expect(running.getByRole('alert')).toHaveCount(0);
+
+    // The process folder appears, with no process in it. The label goes by itself, when the server looks again and tells the open page. The empty state stays.
+    mkdirSync(PROCESSES, { recursive: true });
+    await expect(running.getByText('Process list unavailable')).toHaveCount(0, { timeout: 10_000 });
+    await expect(running.getByText('No active session', { exact: true })).toBeVisible();
+  });
+
+  test('running panel adds a row when a session starts and drops it when the session ends', async ({ page, request }) => {
+    mkdirSync(PROCESSES, { recursive: true });
+    await refreshAgents(request);
+    await page.goto('/');
+    const running = panel(page, 'Running');
+    await expect(running.getByText('No active session', { exact: true })).toBeVisible();
+
+    // A session starts: its file, and the file of its process. The server looks every 3 seconds and tells the open page, which loads the panel again: the test asks for nothing.
+    writeSessions();
+    const live = startLiveProcess();
+    writeProcess(live.pid, ID(1), 'busy', 20);
+    await expect(running.getByText('Build the Now page of the command center')).toBeVisible({ timeout: 8_000 });
+    await expect(running.getByText('No active session')).toHaveCount(0);
+
+    // Its process ends. The row goes, and the empty state comes back.
+    live.stop();
+    await expect(running.getByText('No active session', { exact: true })).toBeVisible({ timeout: 8_000 });
+    await expect(running.getByRole('listitem')).toHaveCount(0);
+  });
+});
+
+// ---- the status panel: five rows with links, and the milestone strip ----
+
+test.describe('the status panel', () => {
+  const STATUS_MD = join(REPO, 'status.md');
+  const REPO_ADDRESS = 'https://github.com/fixture-owner/fixture-repo';
+  const RUN_URL = `${REPO_ADDRESS}/actions/runs/4242`;
+
+  /** The squares of the fixture's migration doc, in the order of its table: the words of each, and where it links (Phase 0 has no heading in the doc, so it links to the doc). */
+  const SQUARES = [
+    { name: 'Phase 0 Platform spike', href: '/docs/engine/migration' },
+    { name: 'M0 Kernel', href: '/docs/engine/migration#m0-kernel' },
+    { name: 'M1b 3D proof (parallel with M2)', href: '/docs/engine/migration#m1b-3d-proof' },
+    { name: 'M2 Stage', href: '/docs/engine/migration#m2-stage' },
+  ];
+
+  /** The row of the panel with this label (its `dt`). The strip under the rows is not a row, and has no `dt`. */
+  const rowOf = (page: Page, label: string) =>
+    panel(page, 'Status')
+      .locator('dl > div')
+      .filter({ has: page.locator('dt', { hasText: new RegExp(`^${label.replace(/[.]/g, '\\.')}$`) }) });
+  const stripOf = (page: Page) => panel(page, 'Status').getByRole('list', { name: 'Milestones' });
+  const squaresOf = (page: Page) => stripOf(page).getByRole('listitem').getByRole('link');
+
+  /** What `gh run list` prints for one run of main, made 2 hours ago (and a little more, so that the age is "2 h" for a long time). */
+  const run = (status: string, conclusion: string) => JSON.stringify([{ status, conclusion, url: RUN_URL, createdAt: new Date(Date.now() - 2 * 3_600_000 - 30_000).toISOString() }]);
+
+  /** Makes the fake gh answer the CI look with this text, and makes the server look at once (an open page then hears of it). */
+  async function setRun(request: APIRequestContext, stdout: string): Promise<void> {
+    setGhMode({ mode: 'ok', replies: { 'run list': { stdout } } });
+    expect((await request.get('/api/ci?refresh=1')).status()).toBe(200);
+  }
+
+  /**
+   * Runs `body` while the fixture repo has a remote called origin (a bare repo) that is one commit ahead of the fixture's two (so the branch is behind by one, once git
+   * has fetched it), and while the branch has three commits of its own (so it is ahead by three). The repo is put back as it was. `body` gets the id of the newest commit.
+   */
+  async function withOrigin(request: APIRequestContext, body: (head: string) => Promise<void>): Promise<void> {
     const remote = join(E2E_DIR, 'now-remote.git');
     const other = join(E2E_DIR, 'now-other');
     const identity = { GIT_AUTHOR_NAME: 'Fixture Author', GIT_AUTHOR_EMAIL: 'author@fixture.example', GIT_COMMITTER_NAME: 'Fixture Author', GIT_COMMITTER_EMAIL: 'author@fixture.example' };
@@ -592,35 +817,19 @@ test.describe('the data of the panels', () => {
       rmSync(other, { recursive: true, force: true });
       mkdirSync(remote, { recursive: true });
       git(remote, 'init', '--bare', '--quiet', '--initial-branch=main');
-      git(REPO, 'remote', 'add', 'now-e2e', remote);
-      git(REPO, 'push', '--quiet', '-u', 'now-e2e', 'main');
+      git(REPO, 'remote', 'add', 'origin', remote);
+      git(REPO, 'push', '--quiet', '-u', 'origin', 'main');
       git(E2E_DIR, 'clone', '--quiet', remote, other);
       git(other, 'commit', '--allow-empty', '--quiet', '-m', 'Only on the remote');
       git(other, 'push', '--quiet', 'origin', 'main');
-      git(REPO, 'fetch', '--quiet', 'now-e2e');
+      git(REPO, 'fetch', '--quiet', 'origin');
       for (const n of [1, 2, 3]) git(REPO, 'commit', '--allow-empty', '--quiet', '-m', `Local change ${n}`);
-      await request.get('/api/git?refresh=1');
-
-      await page.goto('/');
-      await allLoaded(page);
-      const status = panel(page, 'Status');
-      const branch = status.getByRole('region', { name: 'Branch' });
-      await expect(branch).toContainText('main');
-      await expect(branch).toContainText('ahead 3');
-      await expect(branch).toContainText('behind 1');
-      await expect(branch).toContainText('of now-e2e/main');
-      const commits = status.getByRole('region', { name: 'Recent commits' }).getByRole('listitem');
-      await expect(commits).toHaveCount(5);
-      await expect(commits.nth(0)).toContainText('Local change 3');
-      await expect(commits.nth(2)).toContainText('Local change 1');
-      await expect(commits.nth(3)).toContainText('Add the second doc');
-      await expect(commits.nth(4)).toContainText('Add the first doc');
-      await expect(commits.nth(0)).toContainText('Fixture Author');
-      await expect(commits.nth(0).locator('time')).toHaveAttribute('datetime', /^\d{4}-\d\d-\d\dT/);
+      expect((await request.get('/api/git?refresh=1')).status()).toBe(200);
+      await body(git(REPO, 'rev-parse', 'HEAD'));
     } finally {
       git(REPO, 'reset', '--hard', '--quiet', original);
       try {
-        git(REPO, 'remote', 'remove', 'now-e2e');
+        git(REPO, 'remote', 'remove', 'origin');
       } catch {
         // The test failed before it made the remote.
       }
@@ -628,35 +837,371 @@ test.describe('the data of the panels', () => {
       rmSync(other, { recursive: true, force: true });
       await request.get('/api/git?refresh=1');
     }
+  }
+
+  test.afterEach(async ({ request }) => {
+    resetGh();
+    await request.get('/api/ci?refresh=1');
   });
 
-  test('a running agent bar has no value and a finished one is full', async ({ page, request }) => {
-    writeSessions();
-    // A session that a script started is left out and counted: the panel says how many it hides.
-    writeLines(join(WHOLE, `${ID(9)}.jsonl`), [{ ...prompt('made up sdk run', 30), entrypoint: 'sdk-py' }, { ...reply('Done.', 20), entrypoint: 'sdk-py' }]);
-    await refreshSessions(request);
-    await page.goto('/');
-    const running = panel(page, 'Running');
-    await expect(running).toContainText('Build the Now page of the command center');
+  test('status panel shows five rows with links', async ({ page, request }) => {
+    await setRun(request, run('completed', 'success'));
+    await withOrigin(request, async (head) => {
+      const problems = watchConsole(page);
+      await page.goto('/');
+      await allLoaded(page);
+      const status = panel(page, 'Status');
 
-    // A running agent reports no percent done: its bar has no value (it moves). A finished one is full. They are told apart by their names.
-    const runningAgent = running.getByRole('progressbar', { name: /Explore the fixture engine docs/ });
-    await expect(runningAgent).toBeVisible();
-    await expect(runningAgent).not.toHaveAttribute('aria-valuenow');
-    await expect(running.getByRole('listitem').filter({ hasText: 'Explore the fixture engine docs' })).toContainText('running');
-    const finishedAgent = running.getByRole('progressbar', { name: /Check the milestone table/ });
-    await expect(finishedAgent).toHaveAttribute('aria-valuenow', '100');
-    await expect(running.getByRole('listitem').filter({ hasText: 'Check the milestone table' })).toContainText('done');
-    // A workflow has real progress: 2 agents done of the 3 that started, and the phases say where.
-    const workflow = running.getByRole('progressbar', { name: /fixture-build/ });
-    await expect(workflow).toHaveAttribute('aria-valuenow', '67');
-    await expect(running.getByRole('listitem').filter({ hasText: 'fixture-build' })).toContainText('2 of 3 agents done. Phases: Research 2/2, Build 0/1');
-    // The sessions: one works (a bar that moves), and the two that wait for Mark have empty bars.
-    await expect(running.getByRole('progressbar', { name: /working: Build the Now page/ })).not.toHaveAttribute('aria-valuenow');
-    await expect(running.getByRole('progressbar', { name: /waiting for you: Review the engine docs/ })).toHaveAttribute('aria-valuenow', '0');
-    // The automated run is counted, and nothing of it is on the page.
-    await expect(running).toContainText('1 automated SDK run is hidden');
-    await expect(page.getByText('made up sdk run')).toHaveCount(0);
+      // Five rows, in this order, each a label (a dt) and a value (a dd). The milestone strip is not a row.
+      await expect(status.locator('dl > div')).toHaveCount(5);
+      await expect(status.locator('dl dt')).toHaveText(['Branch', 'CI on main', 'Next up', 'status.md', 'Last commit']);
+      await expect(status.locator('dl dd')).toHaveCount(5);
+
+      // Branch: the name is a link to the branch on GitHub (in a new tab, as the other links that leave the site), and the standing is muted text after it.
+      const branch = rowOf(page, 'Branch');
+      const branchLink = branch.getByRole('link', { name: 'main', exact: true });
+      await expect(branchLink).toHaveAttribute('href', `${REPO_ADDRESS}/tree/main`);
+      await expect(branchLink).toHaveAttribute('target', '_blank');
+      await expect(branchLink).toHaveAttribute('rel', /noreferrer/);
+      await expect(branch.getByRole('link')).toHaveCount(1);
+      await expect(branch).toContainText('ahead 3, behind 1');
+
+      // CI on main: the word and the age are the link to the run.
+      const ciLink = rowOf(page, 'CI on main').getByRole('link');
+      await expect(ciLink).toHaveText('passing 2 h ago');
+      await expect(ciLink).toHaveAttribute('href', RUN_URL);
+      await expect(ciLink).toHaveAttribute('target', '_blank');
+      await expect(ciLink.locator('time')).toHaveAttribute('datetime', /^\d{4}-\d\d-\d\dT/);
+
+      // Next up: how many items wait for Mark (the fixture's status.md has three), as a link to the status doc page, which stays on this site.
+      const nextUp = rowOf(page, 'Next up').getByRole('link');
+      await expect(nextUp).toHaveText('3 for you');
+      await expect(nextUp).toHaveAttribute('href', '/docs/status');
+      await expect(nextUp).not.toHaveAttribute('target', '_blank');
+
+      // status.md: the date of its last update (month and day, and the year only when it is not this year), as a link to the same page.
+      const updated = rowOf(page, 'status.md').getByRole('link');
+      await expect(updated).toHaveText(new Date().getFullYear() === 2026 ? 'updated Jan 2' : 'updated Jan 2, 2026');
+      await expect(updated).toHaveAttribute('href', '/docs/status');
+
+      // Last commit: its age, as a link to the commit on GitHub. The newest commit was made a moment ago.
+      const commit = rowOf(page, 'Last commit').getByRole('link');
+      await expect(commit).toHaveText(/^(just now|\d+ min ago)$/);
+      await expect(commit).toHaveAttribute('href', `${REPO_ADDRESS}/commit/${head}`);
+      await expect(commit).toHaveAttribute('target', '_blank');
+      expect(problems).toEqual([]);
+
+      // The strip under the rows: the label, and one square for each milestone of the table, none of them current while the key says "none".
+      await expect(status.getByText('Milestone', { exact: true })).toBeVisible();
+      await expect(squaresOf(page)).toHaveCount(SQUARES.length);
+      await expect(status.getByText('Not started')).toBeVisible();
+
+      // CI in its other states: running and failing are links to the run, and "no run" (an empty list, or a run with no verdict) has no link and no age.
+      for (const [stdout, word, linked] of [
+        [run('in_progress', ''), 'running', true],
+        [run('completed', 'failure'), 'failing', true],
+        [run('completed', 'cancelled'), 'no run', false],
+        ['[]', 'no run', false],
+      ] as const) {
+        await setRun(request, stdout);
+        const ci = rowOf(page, 'CI on main');
+        await expect(ci).toContainText(word);
+        await expect(ci.getByRole('link')).toHaveCount(linked ? 1 : 0);
+        await expect(ci.locator('time')).toHaveCount(linked ? 1 : 0);
+      }
+
+      // A link of the panel that stays on the site opens the page without loading a new one.
+      await nextUp.click();
+      await expect(page).toHaveURL(/\/docs\/status$/);
+      await expect(page.getByRole('heading', { level: 1 }).first()).toContainText('Fixture Project');
+    });
+  });
+
+  test('status panel marks the current milestone and links each square', async ({ page, request }) => {
+    // The key of status.md says M0: the file is edited, and the server hears of it through the file watcher, so the open page changes by itself.
+    const original = readFileSync(STATUS_MD, 'utf8');
+    expect(original).toContain('milestone: none');
+    try {
+      await page.addInitScript((key) => localStorage.setItem(key, 'off'), GLASS_KEY); // plain panels: the colors are those of the styles, with no glass behind them
+      await page.goto('/');
+      await allLoaded(page);
+      await expect(squaresOf(page)).toHaveCount(SQUARES.length);
+      for (const square of await squaresOf(page).all()) await expect(square).toHaveAttribute('data-state', 'later'); // "none": every square is outlined
+
+      writeFileSync(STATUS_MD, original.replace('milestone: none', 'milestone: M0'));
+      await expect.poll(async () => ((await (await request.get('/api/status')).json()) as { data?: { milestone?: { current: string | null } } }).data?.milestone?.current, { timeout: 15_000 }).toBe('M0');
+
+      const status = panel(page, 'Status');
+      const squares = squaresOf(page);
+      // Before the current milestone a square is filled, the current one is marked, and after it a square is outlined. Each links to its heading in the doc page.
+      await expect(squares.nth(1)).toHaveAttribute('data-state', 'current');
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('data-state')))).toEqual(['done', 'current', 'later', 'later']);
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('aria-label')))).toEqual(SQUARES.map((square) => square.name));
+      // A square has no words, so its name is also its tooltip: a mouse finds out which milestone it is by resting on it.
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('title')))).toEqual(SQUARES.map((square) => square.name));
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('href')))).toEqual(SQUARES.map((square) => square.href));
+      expect(await squares.evaluateAll((links) => links.map((link) => link.getAttribute('aria-current')))).toEqual([null, 'step', null, null]);
+
+      // The look of the three states: filled with the muted color, amber, and a lavender outline with no fill.
+      const colors = await tokenColors(page);
+      const paint = (index: number) => squares.nth(index).evaluate((link) => ({ fill: getComputedStyle(link).backgroundColor, line: getComputedStyle(link).borderTopColor }));
+      expect(await paint(0)).toEqual({ fill: colors.muted, line: colors.muted });
+      expect(await paint(1)).toEqual({ fill: colors.accent, line: colors.accent });
+      expect(await paint(2)).toEqual({ fill: 'rgba(0, 0, 0, 0)', line: colors.ruleSolid });
+      expect(await paint(3)).toEqual({ fill: 'rgba(0, 0, 0, 0)', line: colors.ruleSolid });
+
+      // Next to the strip stands the current milestone, as a link to its heading.
+      const current = status.locator('a', { hasText: 'M0 Kernel' });
+      await expect(current).toHaveCount(1);
+      await expect(current).toHaveAttribute('href', '/docs/engine/migration#m0-kernel');
+      await expect(status.getByText('Not started')).toHaveCount(0);
+
+      // The current square is the one amber item of the panel, and the page keeps to its two: with the glass off and with it on.
+      for (const mode of ['plain', 'glass'] as const) {
+        if (mode === 'glass') {
+          await glassSwitch(page).click();
+          await expect(glassSwitch(page)).toHaveAttribute('aria-pressed', 'true');
+        }
+        const amber = await amberItems(page);
+        expect(amber.filter((item) => item.startsWith('a[M0 Kernel]')), mode).toHaveLength(1);
+        expect(amber.filter((item) => /^a\[(Phase 0|M1b|M2)/.test(item)), mode).toEqual([]);
+        await expectAtMostTwoAmberItems(page);
+      }
+
+      // A square is a link of the router: it opens the doc page at the heading of its milestone, without loading a new page.
+      await squares.nth(2).click();
+      await expect(page).toHaveURL(/\/docs\/engine\/migration#m1b-3d-proof$/);
+      await expect(page.getByRole('heading', { level: 3, name: 'M1b 3D proof' })).toBeInViewport();
+    } finally {
+      writeFileSync(STATUS_MD, original);
+      await expect.poll(async () => ((await (await request.get('/api/status')).json()) as { data?: { milestone?: { current: string | null; problem: string | null } } }).data?.milestone, { timeout: 15_000 }).toEqual({ current: null, problem: null });
+    }
+  });
+
+  test('a milestone key that is missing or names no milestone shows an error label and no filled or current square', async ({ page }) => {
+    const info = (milestone: { current: string | null; problem: 'missing' | 'unknown' | null }) => ({
+      ok: true,
+      updatedAt: new Date().toISOString(),
+      data: { updated: '2026-01-02', nextUpForMark: [], milestone, milestones: SQUARES.map((square, index) => ({ id: square.name.split(' ')[0], name: '', scope: '', anchor: index === 0 ? null : `anchor-${index}` })) },
+    });
+    for (const [milestone, label] of [
+      [{ current: null, problem: 'missing' }, 'Milestone key missing'],
+      [{ current: null, problem: 'unknown' }, 'Unknown milestone'],
+      // A key that the server called good, but that names a milestone the list does not have (the page never guesses either).
+      [{ current: 'M9', problem: null }, 'Unknown milestone'],
+    ] as const) {
+      await page.unroute('**/api/status');
+      await page.route('**/api/status', (route) => route.fulfill({ json: info(milestone) }));
+      await page.goto('/');
+      const status = panel(page, 'Status');
+      await expect(status.getByText(label, { exact: true })).toBeVisible();
+      await expect(status.getByText('Not started')).toHaveCount(0);
+      // The rows stay, and every square is outlined.
+      await expect(status.locator('dl > div')).toHaveCount(5);
+      await expect(squaresOf(page)).toHaveCount(SQUARES.length);
+      expect(await squaresOf(page).evaluateAll((links) => links.map((link) => link.getAttribute('data-state')))).toEqual(['later', 'later', 'later', 'later']);
+      await expect(stripOf(page).locator('[aria-current]')).toHaveCount(0);
+      await expect(stripOf(page).getByRole('link').first()).toHaveAttribute('href', '/docs/engine/migration');
+    }
+  });
+
+  test('status panel keeps Next up and status.md when the milestone table of the migration doc is broken, and only the strip says Unavailable', async ({ page, request }) => {
+    // The real server and the real fixture repo: the column "One-line scope" of the milestone table is renamed, as an edit of the engine docs can do. The status module still reads
+    // status.md in the same load, and sends it as the data under the error of the table.
+    const MIGRATION_MD = join(REPO, 'docs', 'engine', 'migration.md');
+    const original = readFileSync(MIGRATION_MD, 'utf8');
+    const header = '| Milestone | One-line scope | Touches |';
+    expect(original).toContain(header);
+    const readStatus = async () => (await (await request.get('/api/status')).json()) as Panel<StatusInfo>;
+    try {
+      writeFileSync(MIGRATION_MD, original.replace(header, '| Milestone | Scope | Touches |'));
+      await expect
+        .poll(async () => {
+          const reply = await readStatus();
+          return reply.ok ? 'ok' : reply.error.code;
+        }, { timeout: 15_000 })
+        .toBe('milestones-table-missing');
+
+      // What the server sends: the error of the table, and the complete data of status.md under it (three items and the date). The rows are drawn from that data.
+      const broken = await readStatus();
+      if (broken.ok || broken.lastGood === null) throw new Error('The status panel should have failed with data under the error.');
+      expect(broken.lastGood.data.nextUpForMark).toHaveLength(3);
+      expect(broken.lastGood.data.updated).toBe('2026-01-02');
+      expect(broken.lastGood.data.milestones).toEqual([]);
+
+      await page.addInitScript((key) => localStorage.setItem(key, 'off'), GLASS_KEY);
+      await page.goto('/');
+      await allLoaded(page);
+      const status = panel(page, 'Status');
+
+      // Five rows, and four of them show a value. Next up and status.md show the data of status.md, as links to its page.
+      await expect(status.locator('dl > div')).toHaveCount(5);
+      await expect(rowOf(page, 'Next up').getByRole('link')).toHaveText('3 for you');
+      await expect(rowOf(page, 'Next up').getByRole('link')).toHaveAttribute('href', '/docs/status');
+      await expect(rowOf(page, 'status.md').getByRole('link')).toHaveText(new Date().getFullYear() === 2026 ? 'updated Jan 2' : 'updated Jan 2, 2026');
+      for (const label of ['Branch', 'CI on main', 'Next up', 'status.md', 'Last commit']) {
+        await expect(rowOf(page, label), label).not.toContainText('Unavailable');
+        await expect(rowOf(page, label).getByRole('button', { name: 'Retry' }), label).toHaveCount(0);
+      }
+
+      // The strip is the one place that says Unavailable, with the code of the table and a Retry button. It has no squares.
+      await expect(status.getByText('Unavailable')).toHaveCount(1);
+      await expect(status.getByText('milestones-table-missing', { exact: true })).toBeVisible();
+      await expect(status.getByRole('button', { name: 'Retry Milestone' })).toBeVisible();
+      await expect(stripOf(page)).toHaveCount(0);
+      // The panel is not an alert and not blank: it has its rows and its time.
+      await expect(status.getByRole('alert')).toHaveCount(0);
+      await expect(status.locator('header time')).toHaveText(/^\d\d:\d\d:\d\d$/);
+    } finally {
+      writeFileSync(MIGRATION_MD, original);
+      await expect.poll(async () => (await readStatus()).ok, { timeout: 15_000 }).toBe(true);
+    }
+
+    // The table is mended: the open page hears of it and the strip has its squares again, with no reload.
+    await expect(squaresOf(page)).toHaveCount(SQUARES.length);
+    await expect(panel(page, 'Status').getByText('Unavailable')).toHaveCount(0);
+  });
+
+  test('status panel shows an error row when a source fails and keeps the other rows', async ({ page, request }) => {
+    await setRun(request, run('completed', 'success'));
+    const failedPanel = (code: string, lastGood: unknown = null) => ({ ok: false, error: { code, message: `The ${code} source could not be read.` }, updatedAt: null, lastGood });
+
+    // Each source on its own: the rows that need it show an error label, the code of the failure and a Retry button, and every other row shows its value.
+    const cases = [
+      { source: 'status', route: '**/api/status', code: 'status-missing', reply: () => ({ json: failedPanel('status-missing') }), failing: ['Next up', 'status.md'], stripFails: true, staying: ['Branch', 'CI on main', 'Last commit'] },
+      { source: 'git', route: '**/api/git', code: 'git-failed', reply: () => ({ json: failedPanel('git-failed') }), failing: ['Branch', 'Last commit'], stripFails: false, staying: ['CI on main', 'Next up', 'status.md'] },
+      // The CI source has an older run (the panel carries it as lastGood): the row still says "Unavailable" and does not show the run that may be out of date.
+      {
+        source: 'ci',
+        route: '**/api/ci',
+        code: 'gh-not-signed-in',
+        reply: () => ({ json: failedPanel('gh-not-signed-in', { data: { state: 'passing', createdAt: new Date().toISOString(), url: RUN_URL }, updatedAt: new Date().toISOString() }) }),
+        failing: ['CI on main'],
+        stripFails: false,
+        staying: ['Branch', 'Next up', 'status.md', 'Last commit'],
+      },
+      // The health reply has the name of the repo on GitHub, which the links of the branch and of the last commit are made from.
+      { source: 'health', route: '**/api/health', code: 'internal-error', reply: () => ({ status: 500, json: { ok: false, error: { code: 'internal-error', message: 'The server failed. Read its console for the cause.' } } }), failing: ['Branch', 'Last commit'], stripFails: false, staying: ['CI on main', 'Next up', 'status.md'] },
+    ];
+    // What each row says when its sources are good (the fixture repo has no upstream, and its last commit is old).
+    const VALUES: Record<string, RegExp> = {
+      Branch: /^main\s*no upstream$/,
+      'CI on main': /^passing 2 h ago$/,
+      'Next up': /^3 for you$/,
+      'status.md': /^updated Jan 2/,
+      'Last commit': /\d+ d ago$/,
+    };
+
+    await page.addInitScript((key) => localStorage.setItem(key, 'off'), GLASS_KEY);
+    for (const item of cases) {
+      await page.route(item.route, (route) => route.fulfill(item.reply()));
+      await page.goto('/');
+      const status = panel(page, 'Status');
+      await expect(status.locator('dl > div')).toHaveCount(5);
+
+      for (const label of item.failing) {
+        const failing = rowOf(page, label);
+        await expect(failing, `${item.source}: ${label}`).toContainText('Unavailable');
+        await expect(failing, `${item.source}: ${label}`).toContainText(item.code);
+        await expect(failing.getByRole('button', { name: 'Retry' })).toBeVisible();
+        await expect(failing.getByRole('link')).toHaveCount(0);
+        await expect(failing, `${item.source}: ${label} shows no value`).not.toHaveText(VALUES[label] as RegExp);
+      }
+      for (const label of item.staying) {
+        const staying = rowOf(page, label);
+        await expect(staying, `${item.source}: ${label}`).not.toContainText('Unavailable');
+        await expect(staying.locator('dd'), `${item.source}: ${label}`).toHaveText(VALUES[label] as RegExp);
+        await expect(staying.getByRole('button', { name: 'Retry' })).toHaveCount(0);
+      }
+      // The strip is the status source's too: it says "Unavailable" when that source failed, and keeps its squares otherwise.
+      if (item.stripFails) {
+        await expect(status.getByText('Unavailable')).toHaveCount(item.failing.length + 1);
+        await expect(stripOf(page)).toHaveCount(0);
+      } else {
+        await expect(status.getByText('Unavailable')).toHaveCount(item.failing.length);
+        await expect(squaresOf(page)).toHaveCount(SQUARES.length);
+      }
+      // The panel is not an alert and not blank: it still has its rows and its time, and nothing else on the page shows an error of this source.
+      await expect(status.getByRole('alert')).toHaveCount(0);
+      await expect(status.locator('header time')).toHaveText(/^\d\d:\d\d:\d\d$/);
+
+      // Retry asks the failed source again: the source works now, and the rows come back with their values.
+      await page.unroute(item.route);
+      await rowOf(page, item.failing[0] as string).getByRole('button', { name: 'Retry' }).click();
+      await expect(status.getByText('Unavailable')).toHaveCount(0);
+      for (const label of [...item.failing, ...item.staying]) await expect(rowOf(page, label).locator('dd'), `${item.source}: ${label} after Retry`).toHaveText(VALUES[label] as RegExp);
+    }
+  });
+
+  test('with no source good, the status panel shows the error of its sources and a Retry button', async ({ page }) => {
+    // The server is not there at all: every request fails, and no row could say anything. The panel shows the error of its sources once, and a Retry button.
+    for (const path of ['**/api/status', '**/api/git', '**/api/ci', '**/api/health']) await page.route(path, (route) => route.abort());
+    await page.addInitScript((key) => localStorage.setItem(key, 'off'), GLASS_KEY);
+    await page.goto('/');
+    const status = panel(page, 'Status');
+    const alert = status.getByRole('alert');
+    await expect(alert).toContainText('Cannot reach the command center server');
+    await expect(alert).toContainText('network');
+    await expect(status.locator('dl')).toHaveCount(0);
+    await expect(status.locator('header')).toContainText('Not updated yet');
+
+    // The server answers again: Retry loads the four sources, and the rows are there.
+    for (const path of ['**/api/status', '**/api/git', '**/api/ci', '**/api/health']) await page.unroute(path);
+    await alert.getByRole('button', { name: 'Retry' }).click();
+    await expect(status.locator('dl > div')).toHaveCount(5);
+    await expect(status.getByRole('alert')).toHaveCount(0);
+  });
+
+  test('status panel has no right-now text, no milestone list and no commit list', async ({ page }) => {
+    await page.goto('/');
+    await allLoaded(page);
+    const status = panel(page, 'Status');
+    await expect(status.locator('dl > div')).toHaveCount(5);
+
+    // The text of status.md is not on the panel, and neither are the milestone names and scope, and the subjects of the commits. (The Your move panel may show the
+    // Next up items: this is the Status panel only.)
+    for (const text of [
+      'Right now',
+      'The widget is done',
+      'Review the widget pictures',
+      'Pick the gadget color',
+      'A short last item',
+      'Platform spike',
+      'A spike that tests the design',
+      'The loop and the first scene',
+      'Add the second doc',
+      'Add the first doc',
+      'Fixture Author',
+      'Recent commits',
+      'Milestones',
+    ]) {
+      await expect(status.getByText(text), text).toHaveCount(0);
+    }
+    // There is no region of its own for any of these parts, and the only heading is the title of the panel.
+    for (const name of ['Right now', 'Milestones', 'Recent commits', 'Branch']) await expect(status.getByRole('region', { name })).toHaveCount(0);
+    await expect(status.getByRole('heading')).toHaveText(['Status']);
+    // The only lists are the five rows (a description list) and the strip: the strip holds squares with no words in them, and nothing lists the commits or the milestones as text.
+    await expect(status.locator('ul, ol')).toHaveCount(1);
+    await expect(status.locator('ol')).toHaveAttribute('aria-label', 'Milestones');
+    await expect(status.locator('dl')).toHaveCount(1);
+    for (const square of await squaresOf(page).all()) await expect(square).toHaveText('');
+    await expect(status.getByRole('listitem')).toHaveCount(SQUARES.length);
+
+    // Every piece of text on the panel is a label, a number, a date or a link: none has a sentence's end, and none is longer than the longest name of a milestone.
+    const pieces = await status.evaluate((root) => {
+      const found: string[] = [];
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+        const text = (node.textContent ?? '').replace(/\s+/g, ' ').trim();
+        if (text !== '') found.push(text);
+      }
+      return found;
+    });
+    expect(pieces.length).toBeGreaterThan(10);
+    for (const piece of pieces) {
+      expect(piece.split(' ').length, piece).toBeLessThanOrEqual(6);
+      expect(piece, piece).not.toMatch(/[.!?:;]$/);
+    }
   });
 });
 
@@ -678,7 +1223,7 @@ test.describe('the Look', () => {
 
     await page.goto('/');
     await allLoaded(page);
-    await expect(page.getByText('Live updates: on')).toBeVisible();
+    await expect(page.getByText('Live: on', { exact: true })).toBeVisible();
     const items = panel(page, 'Your move').getByRole('list', { name: 'What waits for Mark' }).getByRole('listitem');
     for (const light of ['Red light', 'Yellow light', 'Green light']) await expect(items.filter({ hasText: light }).first()).toBeVisible();
     expect(await items.count()).toBeGreaterThan(15);
@@ -693,7 +1238,9 @@ test.describe('the Look', () => {
       // The one amber item is the count of Your move.
       const amber = await amberItems(page);
       expect(amber, mode).toHaveLength(1);
-      expect(amber[0], mode).toContain('items wait for you');
+      // The words after the number are for a screen reader: "N items for you".
+      expect(amber[0], mode).toMatch(/\d+ items for you/);
+      expect(amber[0], mode).not.toContain('wait');
       // The lights are not amber: their words and icons are the soft text color.
       const light = items.filter({ hasText: 'Red light' }).first().getByText('Red light');
       expect(await light.evaluate((element) => getComputedStyle(element).color), mode).toBe(colors.soft);
@@ -703,7 +1250,7 @@ test.describe('the Look', () => {
   test('the text on the glass keeps the 4.5 to 1 floor of the Look, wherever it stands on the page, at both sizes', async ({ page, request }) => {
     // The glass is drawn by the GPU behind the page, and shows through the panels, so the contrast of a text on it can only be read from the picture: the test
     // hides the text, takes a picture of what is behind it, and finds the text with the least contrast. The page has every kind of text: titles, links, the small
-    // `soft` labels (the lowest ratio of the set), the lights of the sessions, the bars, the chips, and the html of the status.
+    // `soft` labels (the lowest ratio of the set), the lights of the items of Your move, the chips of the pull requests, and the rows and the milestone strip of the Status.
     await seedGithub(request);
     writeSessions();
     await refreshSessions(request);

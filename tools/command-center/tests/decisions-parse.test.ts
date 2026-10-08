@@ -484,7 +484,7 @@ describe('parseDecisionIssue: a body that is not a decision', () => {
     expect(body).toContain('## Question');
     const decision = parsed(raw({ body }));
     expect(decision).toMatchObject({ question: '', options: [], recommended: null, docs: [], context: null, raisedBy: null, waitsOn: null, answer: null, state: 'open' });
-    expect(decision.problem).toMatch(/unedited/i);
+    expect(decision.problem).toMatch(/blank decision template/i);
 
     // The placeholder lines alone, as the carry-over notes name them: an option with no words, and the link "path#heading".
     const bare = parsed(raw({ body: '## Question\n\nWhat?\n\n## Options\n\n- A:\n- B:\n\n## Docs\n\n- path#heading\n' }));

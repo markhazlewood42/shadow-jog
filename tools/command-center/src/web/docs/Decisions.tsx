@@ -32,12 +32,12 @@ const FILTERS: readonly { id: Filter; label: string }[] = [
 
 const isFilter = (key: Key): key is Filter => FILTERS.some((filter) => filter.id === key);
 
-/** What the list says when a filter leaves nothing. */
+/** What the list says when a filter leaves nothing: a label, as the empty states of the other pages are (design 5.8). */
 const NOTHING: Record<Filter, string> = {
-  all: 'No decisions were found in the three docs.',
-  open: 'No decision is open for Mark.',
-  changed: 'No decision has changed since the approval.',
-  approved: 'No decision is approved.',
+  all: 'No decisions',
+  open: 'No open decisions',
+  changed: 'No changed decisions',
+  approved: 'No approved decisions',
 };
 
 /** The status of a decision as a chip. Each status has an icon and a word, so none of them is told only by its color. Amber is for the open ones: they are the ones that wait for Mark. */
@@ -165,7 +165,7 @@ function DecisionTable({ decisions, filter }: { decisions: readonly Decision[]; 
                 <th scope="rowgroup" colSpan={6} className="border-t border-cc-rule-solid bg-cc-paper py-2 pl-2 text-left font-medium">
                   {title}
                   <span className="ml-2 font-normal text-cc-muted">
-                    {rows.length} {rows.length === 1 ? 'decision' : 'decisions'} from{' '}
+                    {rows.length} {rows.length === 1 ? 'decision' : 'decisions'} ·{' '}
                     <Link to={docPath(slug)} className="font-mono text-xs text-cc-link underline-offset-2 hover:underline cc-focus-ring">
                       {where}
                     </Link>
@@ -255,12 +255,8 @@ export function Decisions() {
   const result = usePanel<Decision[]>('/api/engine/decisions', ENGINE_MODULES);
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Decisions</h1>
-        <p className="mt-2 max-w-prose text-cc-muted">
-          Every decision of the engine design, from three docs. Open: it waits for Mark. Changed: its text is not what it was at the approval commit (edited, or added since). Approved: answered, and unchanged since.
-        </p>
-      </div>
+      {/* The heading stands alone (design 5.8): the page does not explain the three statuses. The design doc does, and the status chips say them in a word. */}
+      <h1 className="text-3xl font-semibold tracking-tight">Decisions</h1>
       <PanelFrame title="Decisions" result={result}>
         {(decisions) => <DecisionList decisions={decisions} />}
       </PanelFrame>

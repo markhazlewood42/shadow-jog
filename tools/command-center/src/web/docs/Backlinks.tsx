@@ -11,7 +11,7 @@ export function Backlinks({ refs }: { refs: readonly DocRef[] }) {
     <nav aria-label="Linked from">
       <p className="mb-2 text-xs font-medium tracking-wide text-cc-soft uppercase">Linked from</p>
       {refs.length === 0 ? (
-        <p className="text-sm text-cc-muted">No other doc links here.</p>
+        <p className="text-sm text-cc-muted">No links here</p>
       ) : (
         <ul className="flex flex-col gap-1">
           {refs.map((ref) => (

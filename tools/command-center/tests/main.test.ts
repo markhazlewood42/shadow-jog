@@ -9,16 +9,21 @@ import { PACKAGE_DIR, freePort } from './helpers';
 const scratch = mkdtempSync(join(tmpdir(), 'cc-main-test-'));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
-/** A copy of the real config with another port and absolute paths (the copy lives in another folder). */
+/**
+ * A copy of the real config with another port and absolute paths (the copy lives in another folder). The process list is a folder of the test's own,
+ * so the server that the test starts never reads the real one (~/.claude/sessions): no test reads the processes of the machine it runs on.
+ */
 function configWithPort(port: number): string {
   const real = JSON.parse(readFileSync(join(PACKAGE_DIR, 'command-center.config.json'), 'utf8')) as {
     port: number;
     repoRoot: string;
     roots: string[];
+    claude: Record<string, unknown>;
   };
   const absolute = (p: string) => resolve(PACKAGE_DIR, p);
   const file = join(scratch, `config-${port}.json`);
-  writeFileSync(file, JSON.stringify({ ...real, port, repoRoot: absolute(real.repoRoot), roots: real.roots.map(absolute) }));
+  const claude = { ...real.claude, sessionsRoot: join(scratch, 'claude-sessions') };
+  writeFileSync(file, JSON.stringify({ ...real, port, repoRoot: absolute(real.repoRoot), roots: real.roots.map(absolute), claude }));
   return file;
 }
 

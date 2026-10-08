@@ -20,7 +20,7 @@ export class ApiError extends Error {
   }
 }
 
-const NETWORK_MESSAGE = 'Cannot reach the command center server. Is it still running?';
+const NETWORK_MESSAGE = 'Cannot reach the command center server. Check that it runs.';
 
 /** The body of an answer as JSON, or null when it is not JSON. */
 async function readJson(res: Response): Promise<unknown> {

@@ -2,6 +2,7 @@ import { readdir, stat } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { type Config, isInside } from '../config';
 import { isMissing } from '../fs-errors';
+import { say } from '../messages';
 import { PanelError } from '../source';
 
 // Which files and folders of `~/.claude/projects` belong to Shadow Jog. This is the allow-list of the
@@ -59,6 +60,14 @@ export function keepSession(matchedBy: MatchedBy, cwd: string | null, roots: rea
 /** What a directory listing and a `stat` tell about a file. No file is opened to get it. */
 export type FileStamp = { path: string; size: number; mtimeMs: number; birthtimeMs: number };
 
+/**
+ * The newest modification time of some files, or 0 for none. A loop, not `Math.max(...list)`: that puts every item into the arguments of one call, and a session with
+ * tens of thousands of files makes it throw a RangeError.
+ */
+export function newestWrite(stamps: readonly { mtimeMs: number }[]): number {
+  return stamps.reduce((newest, stamp) => (stamp.mtimeMs > newest ? stamp.mtimeMs : newest), 0);
+}
+
 export type SessionFile = FileStamp & { id: string; folder: string; matchedBy: MatchedBy };
 
 /** The name of a session file: the session id (a UUID in practice) and `.jsonl`. */
@@ -67,7 +76,7 @@ const SESSION_FILE = /^([\w-]+)\.jsonl$/;
 /** The reason a folder could not be read, as the sentence of the panel's error. It names the folder and the error code, never a path. */
 function unreadable(folder: string, error: unknown): PanelError {
   const code = (error as NodeJS.ErrnoException | undefined)?.code ?? 'unknown error';
-  return new PanelError('sessions-unreadable', `The session folder "${folder}" cannot be read (${code}).`);
+  return new PanelError('sessions-unreadable', say('sessionFolderUnreadable', { folder, code }));
 }
 
 export async function stampOf(path: string): Promise<FileStamp | null> {

@@ -83,7 +83,7 @@ export function PanelContent<T>({ title, result, aside, children }: PanelContent
         {panel.lastGood && (
           <div className="mt-4 border-t border-cc-rule pt-4">
             <p className="mb-3 text-xs text-cc-muted">
-              Showing the last good data, from <Time iso={panel.lastGood.updatedAt} />.
+              Last good data: <Time iso={panel.lastGood.updatedAt} />
             </p>
             {children(panel.lastGood.data)}
           </div>

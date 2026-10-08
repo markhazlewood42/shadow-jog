@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { lastChangedDates } from '../src/server/docs/dates';
 import type { Runner } from '../src/server/runner';
+import { watcherErrorHandler } from '../src/server/docs';
 import { startDocWatcher } from '../src/server/docs/watch';
 import {
   type DocsRepo,
@@ -89,7 +90,7 @@ describe('addresses', () => {
     const clash = index.problems().filter((problem) => problem.includes('status'));
     expect(clash).toHaveLength(1);
     expect(clash[0]).toContain('docs/status.md');
-    expect(clash[0]).toContain('status.md is not on the site');
+    expect(clash[0]).toContain('The site skips status.md');
   });
 
   it('a doc with no frontmatter: the title is the first # heading, type and status are empty, the date comes from git', async () => {
@@ -677,7 +678,7 @@ describe('changes', () => {
     const { index } = makeIndex(repo);
     await index.ready();
     expect(index.nav().map((section) => section.id)).toEqual(['other']);
-    expect(index.problems().join('\n')).toMatch(/nav\.json was not found/);
+    expect(index.problems().join('\n')).toMatch(/nav\.json is missing/);
 
     repo.writeNav('{ this is not json');
     await index.refresh();
@@ -864,5 +865,23 @@ describe('the watcher', () => {
     } finally {
       await watcher.close();
     }
+  });
+});
+
+describe('watcherErrorHandler', () => {
+  it('F10: two watcher errors with the same first 7 words are both reported', () => {
+    const problems = new Set<string>();
+    let scans = 0;
+    const handle = watcherErrorHandler(problems, () => void scans++);
+    // The sentence clips the error to 7 words, so these two make the same sentence. They are two errors.
+    handle(new Error('EMFILE: too many open files, watch the folder /one/path'));
+    handle(new Error('EMFILE: too many open files, watch the folder /two/path'));
+    expect(scans).toBe(2);
+    // The same error again adds nothing and starts no scan.
+    handle(new Error('EMFILE: too many open files, watch the folder /two/path'));
+    expect(scans).toBe(2);
+    // The list of problems holds the clipped sentence.
+    expect([...problems]).toHaveLength(1);
+    expect([...problems][0]).toContain('The file watcher failed');
   });
 });

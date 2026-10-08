@@ -112,7 +112,7 @@ describe('the PHASE-0.2 decision lines', () => {
     ] as const) {
       const error = failureOf(() => parsePhaseDecisions(phaseMd([...SAMPLE_PHASE_LINES, '', line])));
       expect(error.code, line).toBe('engine-decision-unreadable');
-      expect(error.message).toContain('decision 18');
+      expect(error.message).toContain('Decision 18');
       expect(error.message).toContain(`"${verdict}"`);
       expect(error.message).toContain('docs/PHASE-0.2.md');
     }

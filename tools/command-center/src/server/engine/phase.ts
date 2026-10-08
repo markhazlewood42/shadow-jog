@@ -1,5 +1,6 @@
 import type { DocHeading } from '../../shared/types';
 import { splitFrontmatter } from '../docs/frontmatter';
+import { say } from '../messages';
 import { PanelError } from '../source';
 import { ENGINE_DOCS, type RawDecision, anchorOfHeading, inlineText, sortByNumber } from './decisions';
 
@@ -75,10 +76,7 @@ export function parsePhaseDecisions(markdown: string, headings: readonly DocHead
     }
     const unknown = ANY_VERDICT_LINE.exec(line);
     if (unknown !== null) {
-      throw new PanelError(
-        'engine-decision-unreadable',
-        `${ENGINE_DOCS.phase.path} decision ${unknown[1]} has a verdict that this page does not know: "${unknown[2]}". The bold words after the dash must start with decided, answered or OPEN.`,
-      );
+      throw new PanelError('engine-decision-unreadable', say('engineUnknownVerdict', { number: unknown[1] ?? '', path: ENGINE_DOCS.phase.path, verdict: unknown[2] ?? '' }));
     }
   });
 
