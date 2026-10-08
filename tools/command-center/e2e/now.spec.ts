@@ -189,11 +189,13 @@ test.afterEach(async ({ request }) => {
 // needs seconds for that, and the page waits for it: more than the 10 seconds that a check may take, in a slow run. The compiled shaders are kept for the rest of the run,
 // so one visit before the tests pays for all of them, with a time limit of its own.
 test.beforeAll(async ({ browser }) => {
+  // On CI the glass is off and no shader is compiled. (A page of this hook gets no storage state of the config either, so a visit here would load the glass.)
+  if (NO_GPU) return;
   test.setTimeout(120_000);
   const page = await browser.newPage();
   try {
     await page.goto(`${ORIGIN}/`);
-    if (!NO_GPU && (await hasWebGL2(page))) await page.locator('section[data-plasma-draggable]').first().waitFor({ timeout: 100_000 });
+    if (await hasWebGL2(page)) await page.locator('section[data-plasma-draggable]').first().waitFor({ timeout: 100_000 });
   } finally {
     await page.close();
   }
