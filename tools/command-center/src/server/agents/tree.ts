@@ -34,12 +34,27 @@ export function modelFamily(raw: string): string | null {
 /**
  * Whether a node is in the view, and what it shows.
  * - It ended (it has an end record): `done`, until `lingerMs` after it ended. Then it leaves.
- * - It has no end record: `running` while its file was written lately (`fresh`), or while its session is busy, because a long tool call
- *   writes nothing (ruling R36). Otherwise it stopped, and a stopped node is not in the view: null.
+ * - It has no end record: `running` while its file was written within `workingMs`. A busy session keeps it running for longer, up to `staleMs`
+ *   without a write, because a long tool call writes nothing (ruling R36). After that it counts as stopped even in a busy session, because an agent that
+ *   Mark stops writes no end record (ruling R39). In an idle session it stops as soon as the working time is over.
+ *
+ * A node that stopped is not in the view: null. `lastWriteMs` is the last write to the file of the node (for a workflow run, the newest write to any file of
+ * the run). A write a little ahead of the clock counts as a write that just happened.
  */
-export function liveStateOf(input: { ended: boolean; endedAtMs: number; fresh: boolean; busy: boolean; nowMs: number; lingerMs: number }): 'running' | 'done' | null {
+export function liveStateOf(input: {
+  ended: boolean;
+  endedAtMs: number;
+  lastWriteMs: number;
+  busy: boolean;
+  nowMs: number;
+  lingerMs: number;
+  workingMs: number;
+  staleMs: number;
+}): 'running' | 'done' | null {
   if (input.ended) return input.nowMs < input.endedAtMs + input.lingerMs ? 'done' : null;
-  return input.fresh || input.busy ? 'running' : null;
+  const silentMs = input.nowMs - input.lastWriteMs;
+  if (silentMs <= input.workingMs) return 'running';
+  return input.busy && silentMs <= input.staleMs ? 'running' : null;
 }
 
 // ---- what a parent's file says ----

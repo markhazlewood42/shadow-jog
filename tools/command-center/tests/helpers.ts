@@ -40,7 +40,7 @@ export function makeTestConfig(overrides: Partial<Config> = {}): Config {
       workingSeconds: 300,
       waitingSeconds: 14400,
     },
-    agents: { pollMs: 3000, lingerSeconds: 300 },
+    agents: { pollMs: 3000, lingerSeconds: 300, staleSeconds: 1800 },
     ...overrides,
   };
 }

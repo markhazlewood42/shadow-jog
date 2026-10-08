@@ -496,6 +496,89 @@ describe('when a node is in the view', () => {
     writeAged(agentFile(ended, MIXED_FOLDER, SB, 'bb01'), jsonl([userPrompt('LEAK-p', { time: at(-900), cwd: INSIDE }), assistantText('finished', { time: at(-100), cwd: INSIDE })]), 100);
     expect(nodeOf(sessionOf((await loadAgents({ world: ended })).data, SB), 'bb01')).toMatchObject({ state: 'done', endedAt: at(-100) });
   });
+
+  it('a silent agent stops after the stale time even when its session is busy', async () => {
+    // An agent that Mark stops writes no end record, so the busy-session rule alone would show it as running for as long as the session works. It stops after
+    // `agents.staleSeconds` (1800 s, 30 minutes) without a write. The agent is bb01 of session B: no end record, and a file with an age that the test sets.
+    const STALE = 1800;
+    const world = copyAgentFixtures(parent);
+    const bb01 = agentFile(world, MIXED_FOLDER, SB, 'bb01');
+    const bIds = async (options: Partial<Parameters<typeof loadAgents>[0]> = {}) => ids((await loadAgents({ world, ...options })).data, SB);
+
+    // A busy session: the agent runs just inside the stale time, and at the bound. One second later it is gone, and the session is still there and works.
+    setStatus(world, PID.B, 'busy');
+    setAge(bb01, STALE - 1);
+    expect(await bIds()).toEqual(['bb01']);
+    setAge(bb01, STALE);
+    expect(await bIds()).toEqual(['bb01']);
+    setAge(bb01, STALE + 1);
+    const outside = await loadAgents({ world });
+    expect(sessionOf(outside.data, SB)).toMatchObject({ state: 'working', nodes: [] });
+    setAge(bb01, 86_400); // a day
+    expect(await bIds()).toEqual([]);
+
+    // A write brings it back: the agent has a new line, so its file is fresh again.
+    setAge(bb01, 5);
+    expect(await bIds()).toEqual(['bb01']);
+
+    // An idle session stops it at once, also just inside the stale time. A file written within the working time runs whatever the session does.
+    setStatus(world, PID.B, 'idle');
+    setAge(bb01, STALE - 1);
+    expect(await bIds()).toEqual([]);
+    setAge(bb01, 600);
+    expect(await bIds()).toEqual([]);
+    setAge(bb01, 240);
+    expect(await bIds()).toEqual(['bb01']);
+
+    // The time is the setting `agents.staleSeconds`. (It cannot make the working time shorter: a file written in the last 5 minutes runs whatever it says.)
+    setStatus(world, PID.B, 'busy');
+    setAge(bb01, 599);
+    expect(await bIds({ agents: { staleSeconds: 600 } })).toEqual(['bb01']);
+    setAge(bb01, 601);
+    expect(await bIds({ agents: { staleSeconds: 600 } })).toEqual([]);
+    setAge(bb01, 3 * 3600);
+    expect(await bIds({ agents: { staleSeconds: 4 * 3600 } })).toEqual(['bb01']);
+    setAge(bb01, 240);
+    expect(await bIds({ agents: { staleSeconds: 60 } })).toEqual(['bb01']);
+
+    // The file-age fallback has the same rule: there a session that works counts as busy.
+    const fallback = { claude: { sessionsRoot: join(parent, 'no-process-list-for-the-stale-test') } };
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const file = sessionFile(world, MIXED_FOLDER, SB);
+      appendFileSync(file, jsonl([toolResult('x', { time: at(-20), cwd: INSIDE })]));
+      setAge(file, 20); // B works
+      setAge(bb01, STALE - 1);
+      const inside = await bIds(fallback);
+      expect(inside).toEqual(['bb01']);
+      setAge(bb01, STALE + 1);
+      const gone = await loadAgents({ world, ...fallback });
+      expect(sessionOf(gone.data, SB)).toMatchObject({ state: 'working', nodes: [] });
+    } finally {
+      quiet.mockRestore();
+    }
+  });
+
+  it('a workflow run that is silent for the stale time stops in a busy session too, and the agents that write stay', async () => {
+    // Session A is busy. The files of its run (the journal and the three agents) have not been written for 31 minutes, and the run has no end: three agents
+    // started and two have a result. The other agents of A write lately.
+    const STALE = 1800;
+    const run = ['journal.jsonl', 'agent-w1.jsonl', 'agent-w2.jsonl', 'agent-w3.jsonl'];
+    const world = copyAgentFixtures(parent);
+    const setRunAge = (age: number) => {
+      for (const name of run) setAge(join(world.projects, WHOLE_FOLDER, SA, 'subagents', 'workflows', RUN, name), age);
+    };
+    setRunAge(STALE - 1);
+    const inside = await loadAgents({ world });
+    expect(nodeOf(sessionOf(inside.data, SA), RUN)).toMatchObject({ kind: 'workflow', state: 'running' });
+    setRunAge(STALE + 1);
+    const outside = await loadAgents({ world });
+    expect(ids(outside.data, SA)).not.toContain(RUN);
+    expect(ids(outside.data, SA)).toEqual(expect.arrayContaining(['aa01', 'aa02', 'aa03', 'aa04'])); // the agents that write stay
+    // One write to any file of the run is a write of the run.
+    setAge(join(world.projects, WHOLE_FOLDER, SA, 'subagents', 'workflows', RUN, 'agent-w3.jsonl'), 30);
+    expect(ids((await loadAgents({ world })).data, SA)).toContain(RUN);
+  });
 });
 
 describe('the source', () => {

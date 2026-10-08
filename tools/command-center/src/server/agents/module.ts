@@ -63,6 +63,8 @@ export function createAgentsSource(deps: AgentsModuleDeps): PanelSource<AgentsLi
   const isAlive = deps.isAlive ?? processIsAlive;
   const { projectsRoot, sessionsRoot, workingSeconds, recentSeconds } = config.claude;
   const lingerMs = config.agents.lingerSeconds * 1000;
+  const workingMs = workingSeconds * 1000;
+  const staleMs = config.agents.staleSeconds * 1000;
 
   const reader = createSessionReader(config, 'agents');
 
@@ -126,14 +128,7 @@ export function createAgentsSource(deps: AgentsModuleDeps): PanelSource<AgentsLi
   async function agentCandidate(agent: AgentFile, busy: boolean, nowMs: number): Promise<NodeCandidate | null> {
     const [facts, meta] = await Promise.all([reader.readAgent(agent), reader.readAgentMeta(agent)]);
     const endedAt = facts.lastTime ?? isoOf(agent.mtimeMs);
-    const state = liveStateOf({
-      ended: facts.ended,
-      endedAtMs: Date.parse(endedAt),
-      fresh: agent.mtimeMs >= nowMs - workingSeconds * 1000,
-      busy,
-      nowMs,
-      lingerMs,
-    });
+    const state = liveStateOf({ ended: facts.ended, endedAtMs: Date.parse(endedAt), lastWriteMs: agent.mtimeMs, busy, nowMs, lingerMs, workingMs, staleMs });
     if (state === null) return null;
     return {
       id: agent.id,
@@ -154,10 +149,9 @@ export function createAgentsSource(deps: AgentsModuleDeps): PanelSource<AgentsLi
     const journal = run.journal === null ? readJournal([]) : await reader.readJournalFile(run.journal);
     const stamps = [...(run.journal === null ? [] : [run.journal]), ...run.agents];
     const lastWriteMs = Math.max(0, ...stamps.map((stamp) => stamp.mtimeMs));
-    const fresh = stamps.some((stamp) => stamp.mtimeMs >= nowMs - workingSeconds * 1000);
-    // A journal has no times: a run that is done ended with the last write to its files.
-    const ended = workflowStateOf(journal, fresh) === 'done';
-    const state = liveStateOf({ ended, endedAtMs: lastWriteMs, fresh, busy, nowMs, lingerMs });
+    // A journal has no times: a run that is done ended with the last write to its files. (Whether the run is fresh decides nothing here: `workflowStateOf` says "done" or not.)
+    const ended = workflowStateOf(journal, lastWriteMs >= nowMs - workingMs) === 'done';
+    const state = liveStateOf({ ended, endedAtMs: lastWriteMs, lastWriteMs, busy, nowMs, lingerMs, workingMs, staleMs });
     if (state === null) return null;
     const phase = journal.phases.at(-1)?.name ?? '';
     return {

@@ -57,6 +57,12 @@ export type Config = {
     pollMs: number;
     /** How long an agent that finished stays in the view, in seconds. 300 by default. 0 lets it leave at once. */
     lingerSeconds: number;
+    /**
+     * How long an agent that has no end record keeps running in a busy session while its file does not change, in seconds. 1800 by default (30 minutes). A long
+     * tool call writes nothing, so a busy session keeps a silent agent in the view; but an agent that Mark stops writes no end record either, so after this time
+     * the agent counts as stopped. In an idle session an agent stops as soon as `claude.workingSeconds` have passed.
+     */
+    staleSeconds: number;
   };
 };
 
@@ -98,12 +104,13 @@ export function isInside(root: string, path: string): boolean {
 
 const TOP_LEVEL_KEYS = ['port', 'repoRoot', 'roots', 'githubRepo', 'approvalRef', 'gameUrl', 'links', 'claude', 'agents'] as const;
 const CLAUDE_KEYS = ['projectsRoot', 'sessionsRoot', 'folders', 'cwdMatchFolders', 'includeSdk', 'recentSeconds', 'workingSeconds', 'waitingSeconds'] as const;
-const AGENTS_KEYS = ['pollMs', 'lingerSeconds'] as const;
+const AGENTS_KEYS = ['pollMs', 'lingerSeconds', 'staleSeconds'] as const;
 
 /** Where Claude Code lists its running processes, unless the config says another. */
 const DEFAULT_SESSIONS_ROOT = '~/.claude/sessions';
 const DEFAULT_POLL_MS = 3000;
 const DEFAULT_LINGER_SECONDS = 300;
+const DEFAULT_STALE_SECONDS = 1800;
 
 type Json = Record<string, unknown>;
 
@@ -112,9 +119,9 @@ type Json = Record<string, unknown>;
  * file holds no machine-specific path and the repo can be public); the Config that comes back has
  * absolute ones. A setting that is wrong, missing or unknown stops the start with a message that
  * names it, because a typo in a safety setting such as `githubRepo` must not be ignored. The settings
- * that may be left out are `claude.includeSdk` (it means false) and the three of the agents module:
- * `claude.sessionsRoot`, `agents.pollMs` and `agents.lingerSeconds` (they mean their defaults, so a config
- * file from before the agents module keeps working). A key that is there is checked like any other.
+ * that may be left out are `claude.includeSdk` (it means false) and the four of the agents module:
+ * `claude.sessionsRoot`, `agents.pollMs`, `agents.lingerSeconds` and `agents.staleSeconds` (they mean their
+ * defaults, so a config file from before the agents module keeps working). A key that is there is checked like any other.
  */
 export function loadConfig(file: string): Config {
   const configFile = resolve(file);
@@ -236,6 +243,8 @@ export function loadConfig(file: string): Config {
       // From 0.1 s to an hour: faster than that would read the process list in a loop, and slower would not be a live view.
       pollMs: wholeOr(agents, 'pollMs', 'agents', 100, 3_600_000, DEFAULT_POLL_MS),
       lingerSeconds: wholeOr(agents, 'lingerSeconds', 'agents', 0, 31_536_000, DEFAULT_LINGER_SECONDS),
+      // At least one second, like the other times of the claude settings; a stale time that is shorter than `claude.workingSeconds` changes nothing, because the working time holds.
+      staleSeconds: wholeOr(agents, 'staleSeconds', 'agents', 1, 31_536_000, DEFAULT_STALE_SECONDS),
     },
   };
 }

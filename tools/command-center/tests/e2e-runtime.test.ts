@@ -34,7 +34,7 @@ describe('createE2eRuntime', () => {
       // The process list is a folder of the fixture world too, and never the real ~/.claude/sessions: a test run must not read the processes of its own machine.
       expect(isInside(rt.workDir, rt.config.claude.sessionsRoot)).toBe(true);
       expect(isInside(join(homedir(), '.claude'), rt.config.claude.sessionsRoot)).toBe(false);
-      expect(rt.config.agents).toEqual({ pollMs: 3000, lingerSeconds: 300 });
+      expect(rt.config.agents).toEqual({ pollMs: 3000, lingerSeconds: 300, staleSeconds: 1800 });
       expect(rt.config.links.length).toBeGreaterThan(0);
     } finally {
       rt.close();

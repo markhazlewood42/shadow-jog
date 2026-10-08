@@ -24,6 +24,7 @@
   },
   "agents": {
     "pollMs": 3000,
-    "lingerSeconds": 300
+    "lingerSeconds": 300,
+    "staleSeconds": 1800
   }
 }

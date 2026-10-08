@@ -49,22 +49,51 @@ describe('modelFamily', () => {
 // ---- the state of a node ----
 
 describe('liveStateOf', () => {
-  const base = { endedAtMs: 1_000_000, fresh: false, busy: false, nowMs: 1_000_000, lingerMs: 300_000 };
+  // The times are in milliseconds. The working time is `claude.workingSeconds` (300 s), the stale time is `agents.staleSeconds` (1800 s).
+  const NOW_MS = 10_000_000;
+  const base = { endedAtMs: NOW_MS, busy: false, nowMs: NOW_MS, lingerMs: 300_000, workingMs: 300_000, staleMs: 1_800_000 };
+  /** A node whose file was last written `silentMs` before now. */
+  const silent = (silentMs: number) => ({ lastWriteMs: NOW_MS - silentMs });
 
   it('a node that ended stays for the linger time and then leaves, whatever its session does', () => {
-    expect(liveStateOf({ ...base, ended: true, nowMs: 1_000_000 })).toBe('done');
-    expect(liveStateOf({ ...base, ended: true, nowMs: 1_000_000 + 299_999 })).toBe('done');
-    expect(liveStateOf({ ...base, ended: true, nowMs: 1_000_000 + 300_000 })).toBeNull(); // it stays until the end of the linger time
-    expect(liveStateOf({ ...base, ended: true, nowMs: 1_000_000 + 900_000, busy: true, fresh: true })).toBeNull();
+    expect(liveStateOf({ ...base, ...silent(0), ended: true })).toBe('done');
+    expect(liveStateOf({ ...base, ...silent(0), ended: true, nowMs: NOW_MS + 299_999 })).toBe('done');
+    expect(liveStateOf({ ...base, ...silent(0), ended: true, nowMs: NOW_MS + 300_000 })).toBeNull(); // it stays until the end of the linger time
+    expect(liveStateOf({ ...base, ...silent(0), ended: true, nowMs: NOW_MS + 900_000, busy: true })).toBeNull();
     // A linger time of 0 lets it leave at once.
-    expect(liveStateOf({ ...base, ended: true, lingerMs: 0 })).toBeNull();
+    expect(liveStateOf({ ...base, ...silent(0), ended: true, lingerMs: 0 })).toBeNull();
   });
 
-  it('a node with no end record runs when its file is fresh or its session is busy, and is left out otherwise', () => {
-    expect(liveStateOf({ ...base, ended: false, fresh: true })).toBe('running');
-    expect(liveStateOf({ ...base, ended: false, busy: true })).toBe('running'); // a long tool call writes nothing
-    expect(liveStateOf({ ...base, ended: false, fresh: true, busy: true })).toBe('running');
-    expect(liveStateOf({ ...base, ended: false })).toBeNull(); // stopped
+  it('a node with no end record runs while its file was written within the working time, in a busy session and in an idle one', () => {
+    for (const busy of [false, true]) {
+      expect(liveStateOf({ ...base, ...silent(0), ended: false, busy })).toBe('running');
+      expect(liveStateOf({ ...base, ...silent(300_000), ended: false, busy })).toBe('running'); // the working time is within
+    }
+    // A write a little ahead of the clock (two clocks that differ) is a write that just happened.
+    expect(liveStateOf({ ...base, ...silent(-5_000), ended: false })).toBe('running');
+  });
+
+  it('in an idle session a node with no end record stops as soon as the working time is over', () => {
+    expect(liveStateOf({ ...base, ...silent(300_001), ended: false, busy: false })).toBeNull();
+    expect(liveStateOf({ ...base, ...silent(600_000), ended: false, busy: false })).toBeNull();
+    expect(liveStateOf({ ...base, ...silent(1_799_000), ended: false, busy: false })).toBeNull(); // the stale time does not keep it
+  });
+
+  it('in a busy session a node with no end record runs until the stale time, because a long tool call writes nothing, and stops after it (ruling R39)', () => {
+    expect(liveStateOf({ ...base, ...silent(300_001), ended: false, busy: true })).toBe('running');
+    expect(liveStateOf({ ...base, ...silent(1_799_999), ended: false, busy: true })).toBe('running');
+    expect(liveStateOf({ ...base, ...silent(1_800_000), ended: false, busy: true })).toBe('running'); // within, up to the stale time
+    expect(liveStateOf({ ...base, ...silent(1_800_001), ended: false, busy: true })).toBeNull(); // an agent that was stopped writes no end record
+    expect(liveStateOf({ ...base, ...silent(86_400_000), ended: false, busy: true })).toBeNull();
+    // The stale time is a setting. A stale time shorter than the working time cannot shorten the working time.
+    expect(liveStateOf({ ...base, ...silent(100_000), ended: false, busy: true, staleMs: 60_000 })).toBe('running');
+    expect(liveStateOf({ ...base, ...silent(300_001), ended: false, busy: true, staleMs: 60_000 })).toBeNull();
+    expect(liveStateOf({ ...base, ...silent(3_600_000), ended: false, busy: true, staleMs: 7_200_000 })).toBe('running');
+  });
+
+  it('the end record decides before the times do: a node that ended is done or gone, also when it is silent in a busy session', () => {
+    expect(liveStateOf({ ...base, ...silent(5_000_000), ended: true, busy: true, endedAtMs: NOW_MS - 100_000 })).toBe('done');
+    expect(liveStateOf({ ...base, ...silent(5_000_000), ended: true, busy: true, endedAtMs: NOW_MS - 400_000 })).toBeNull();
   });
 });
 

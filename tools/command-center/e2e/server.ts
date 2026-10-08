@@ -68,7 +68,7 @@ export function createE2eRuntime(workDir: string = E2E_DIR): E2eRuntime {
       workingSeconds: 300,
       waitingSeconds: 14400,
     },
-    agents: { pollMs: 3000, lingerSeconds: 300 },
+    agents: { pollMs: 3000, lingerSeconds: 300, staleSeconds: 1800 },
   };
 
   const fakeGh = createFakeGh(workDir);

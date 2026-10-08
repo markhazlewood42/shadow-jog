@@ -428,7 +428,7 @@ export type LiveNode = {
   label: string;
   /** The model as a family name (`fable`, `sonnet`), or null when the agent does not say (and for a workflow). Any value that is not a Claude model id stays as given, cut to 12 characters. */
   model: string | null;
-  /** `running`: it has no end record, and it was written in the last `claude.workingSeconds` or its session is busy. `done`: it ended, and it stays for `agents.lingerSeconds`. */
+  /** `running`: it has no end record, and it was written in the last `claude.workingSeconds`, or its session is busy and it was written in the last `agents.staleSeconds`. `done`: it ended, and it stays for `agents.lingerSeconds`. */
   state: 'running' | 'done';
   /** The time of the first line of the agent's file (an ISO time), or the time the file was made. Null for a workflow whose journal does not say. */
   startedAt: string | null;
