@@ -2,7 +2,7 @@
  * The screen-literal scan: pass line PL1 of docs/PIVOT-640.md ("one source of the size").
  *
  * The screen is `W` by `H` (src/engine/game.ts), and the battle world is `BW` by `BHT`
- * (src/scenes/battlekit/geom.ts). A bare number that means one of those (480, 270, 240, 135 today;
+ * (src/art/worldsize.ts, re-exported by src/scenes/battlekit/geom.ts). A bare number that means one of those (480, 270, 240, 135 today;
  * 640, 360, 320, 180 after the move; and the off-by-one neighbors 239, 479, 269, 639, 359, 319, 179)
  * is a copy of the size that a change cannot find. This test scans the code for those numbers as
  * whole tokens. Comments and string literals are ignored (a color channel or a comment never hits).

@@ -5,14 +5,10 @@
 import { surface, type Ctx } from '../engine/canvas';
 import { mix, rgb, shade } from '../engine/color';
 import { hash2, Rng } from '../engine/rng';
-import { BHT, BW } from '../scenes/battlekit/geom';
+// The backdrop size is the battle world's (art/worldsize.ts, the one place it is defined), under
+// the names the makers below use, so the world and its backdrops can never disagree on their size.
+import { BHT as BH, BW } from './worldsize';
 
-/**
- * The backdrop size is the battle world's (src/scenes/battlekit/geom.ts), re-exported under the
- * names the makers below use, so the world and its backdrops can never disagree on their size.
- */
-export { BW };
-export const BH = BHT;
 export const HORIZON = 62;
 
 const BAYER = [

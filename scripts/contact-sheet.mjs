@@ -109,9 +109,26 @@ const browser = await chromium.launch({ channel: process.env.CI ? undefined : 'm
 const page = await browser.newPage();
 await page.setContent('<!doctype html><html><body style="margin:0;background:#222"><canvas id="sheet"></canvas></body></html>');
 
+// The viewport a folder of shots came from, read from the PNG files themselves: the most common
+// picture size among the shots that are a whole multiple of the game frame. Nothing is assumed
+// about which viewport a capture used, so the caption stays true whatever --base and --result say.
+function viewportOf(dir, names, size) {
+  const counts = new Map();
+  for (const n of names) {
+    const f = join(dir, `${n}.png`);
+    if (!existsSync(f)) continue;
+    const head = readFileSync(f).subarray(0, 24); // 8-byte signature, then the IHDR chunk: width, height at 16 and 20
+    const w = head.readUInt32BE(16), h = head.readUInt32BE(20), k = w / size.w;
+    if (!Number.isInteger(k) || k < 1 || h !== size.h * k) continue;
+    counts.set(`${w}x${h}`, (counts.get(`${w}x${h}`) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? 'unknown size';
+}
+const baseView = viewportOf(baseDir, baseNames, baseSize), resultView = viewportOf(resultDir, [...resultNames], resultSize);
+const shrink = Math.round((1 - zoomResult / zoomBase) * 100);
 const header = is1080
-  ? `Left: the baseline, 480x270 at 4x. Right: the result, 640x360 at 3x. Both as on a 1080p screen, so the art reads 25% smaller on the right.`
-  : `Left: the baseline, ${baseSize.w}x${baseSize.h}. Right: the result, ${resultSize.w}x${resultSize.h}. Same zoom per game pixel (${zoomBase}x), so the right picture is larger, as the game is. Baseline shots come from a 960x540 viewport, results from 1280x720.`;
+  ? `Left: the baseline, ${baseSize.w}x${baseSize.h} at ${zoomBase}x. Right: the result, ${resultSize.w}x${resultSize.h} at ${zoomResult}x. Both fill a ${baseSize.w * zoomBase}x${baseSize.h * zoomBase} screen, as on a 1080p monitor${shrink > 0 ? `, so the art reads ${shrink}% smaller on the right` : shrink < 0 ? `, so the art reads ${-shrink}% larger on the right` : ''}.`
+  : `Left: the baseline, ${baseSize.w}x${baseSize.h}. Right: the result, ${resultSize.w}x${resultSize.h}. Same zoom per game pixel (${zoomBase}x), so the right picture is larger, as the game is. Baseline shots come from a ${baseView} viewport, results from ${resultView}.`;
 
 mkdirSync(dirname(outPrefix) || '.', { recursive: true });
 for (const [pi, group] of pages.entries()) {

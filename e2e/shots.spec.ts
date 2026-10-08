@@ -20,8 +20,10 @@
  *    (deck sparks, dust, glitch seeds, audio noise).
  *
  * Playwright replays its clock log in every new document, so a `page.goto` or `page.reload` later
- * in a test also starts from a known time. The only real-time wait is `ready()`, for the network:
- * no frame renders until `advance()` runs, so how long loading takes leaves no trace in a shot.
+ * in a test also starts from a known time. The only real-time waits are `ready()` and `warm()`, for
+ * the network: no frame renders until `advance()` runs, so how long loading takes leaves no trace
+ * in a shot. `warm()` fetches the battle and deck chunks before their scene is started, for the same
+ * reason.
  */
 import { expect, test, type Page } from '@playwright/test';
 
@@ -115,8 +117,35 @@ async function key(page: Page, k: string, n = 1, gap = 180): Promise<void> {
   }
 }
 
+/**
+ * Fetch one of the game's lazy chunks (the battle scene or the deck scene) in real time, before the
+ * clock takes its first step. The game pushes such a scene only after its chunk has arrived, and
+ * the arrival is network work that the fake clock does not drive. If the chunk were late, the
+ * frames stepped before the push would be field frames in one run and battle frames in the next.
+ * The scene cannot be on top yet (a fight waits 18 game frames after the flash, and those frames
+ * need clock steps), so the spec waits for the one thing that happens in real time: the download.
+ * It uses `modulepreload`, which fetches the module and everything it imports but does not run
+ * it. Running it here (a plain `import()`) would run the module's start-up code at a different
+ * moment than the game does, and that start-up draws from `Math.random`, which would shift the
+ * rain behind the deck by a few drops: a shot that differs from the baseline for no real reason.
+ */
+async function warm(page: Page, chunk: 'battle' | 'deck'): Promise<void> {
+  await sj(
+    page,
+    `new Promise((done, fail) => {
+      const link = document.createElement('link');
+      link.rel = 'modulepreload';
+      link.href = '/src/scenes/${chunk}.ts';
+      link.onload = () => done(true);
+      link.onerror = () => fail(new Error('could not fetch the ${chunk} chunk'));
+      document.head.appendChild(link);
+    })`,
+  );
+}
+
 /** Start a fight from the field. An encounter table in PINNED is first pinned to its named line-up. */
 async function battle(page: Page, enc: string, bg: string, boss = false): Promise<void> {
+  await warm(page, 'battle');
   const group = PINNED[enc];
   if (group) await sj(page, `sj.defineEncounter('${enc}', ${JSON.stringify(group)})`);
   await sj(page, `sj.battle('${enc}', '${bg}', ${boss})`);
@@ -594,6 +623,7 @@ test('35 options + 36 controls', async ({ page }) => {
 
 test('39 hex deck: dead, seating the Stingray, booted', async ({ page }) => {
   await open(page, 'town');
+  await warm(page, 'deck');
   await sj(page, "(sj.run((s) => s.deck('dead')), true)");
   await advance(page, 900);
   await shot(page, '39-deck-dead');

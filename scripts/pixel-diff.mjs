@@ -150,6 +150,7 @@ function compare(name, fileA, fileB) {
     const file = join(diffOut, `${name}.png`);
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, encodePng(pa.width, pa.height, diff));
+    diffsWritten++;
   }
   let text = `${differing} px differ (${((differing / n) * 100).toFixed(2)}%)`;
   if (haveStability) text += `, ${stableDiff} of them on the ${stable} stable px`;
@@ -158,8 +159,15 @@ function compare(name, fileA, fileB) {
 }
 
 const mask = readMask(maskFile);
+let diffsWritten = 0;
 const namesA = shotNames(dirA), namesB = new Set(shotNames(dirB));
 const all = [...new Set([...namesA, ...namesB])].sort();
+// Two folders with no shot between them would report "0 differing pixels" and exit 0: a pass that
+// compared nothing. That is a mistake in the arguments, so it fails.
+if (all.length === 0) {
+  console.error(`pixel-diff: no PNG shots in ${dirA} or ${dirB}, so nothing was compared`);
+  process.exit(2);
+}
 const differed = [];
 let total = 0, same = 0, missing = 0, maskedCount = 0, failed = 0, stableTotal = 0, stableFailed = 0;
 const width = Math.max(...all.map((n) => n.length), 4);
@@ -194,7 +202,9 @@ console.log('');
 console.log(`${all.length} shots: ${same} same, ${differed.length} differ or missing (${maskedCount} of them masked), ${missing} missing on one side.`);
 console.log(`Total differing pixels outside the mask: ${total}${failed ? ` in ${failed} shot(s)` : ''}.`);
 if (stableDirs.length) console.log(`Differing stable pixels inside the mask: ${stableTotal}${stableFailed ? ` in ${stableFailed} shot(s)` : ''}.`);
-if (diffOut) console.log(`Diff pictures: ${diffOut}/ (yellow: differs; red: differs on a stable pixel).`);
+// Name the folder only when a picture went into it: with 0 differing pixels nothing was written.
+if (diffOut && diffsWritten > 0) console.log(`Diff pictures: ${diffOut}/ (${diffsWritten} written; yellow: differs; red: differs on a stable pixel).`);
+else if (diffOut) console.log('Diff pictures: none written (no shot differs).');
 if (writeMaskFile) {
   mkdirSync(dirname(writeMaskFile), { recursive: true });
   writeFileSync(writeMaskFile, `${JSON.stringify({ written: new Date().toISOString(), from: [dirA, dirB], shots: differed }, null, 2)}\n`);

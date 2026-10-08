@@ -85,7 +85,7 @@ export class BattleRenderer {
     const el = this.s.enemyLayer.ctx;
     el.setTransform(1, 0, 0, 1, 0, 0);
     el.clearRect(0, 0, W, H);
-    el.setTransform(2, 0, 0, 2, 0, 0);
+    el.setTransform(WORLD_SCALE, 0, 0, WORLD_SCALE, 0, 0);
     el.imageSmoothingEnabled = false;
     const g = this.s.front.ctx;
     g.clearRect(0, 0, BW, BHT);

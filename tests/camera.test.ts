@@ -5,6 +5,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { H, W } from '../src/engine/game';
+import type { FieldScene } from '../src/scenes/field';
+import { scriptApi } from '../src/scenes/fieldkit/api';
 import { cameraOrigin } from '../src/scenes/fieldkit/camera';
 
 describe('cameraOrigin', () => {
@@ -20,7 +22,8 @@ describe('cameraOrigin', () => {
   });
 
   it('centers one axis and clamps the other on a map narrower than the view but taller', () => {
-    // The Rustyard at 640x360: 544 wide (narrower) by 448 tall (taller).
+    // A courtyard like the Rustyard (544 by 448 px): narrower than the view by 96 px, taller by
+    // 178 px at 480x270. Written relative to W and H, so it holds at any screen size.
     const mw = W - 96, mh = H + 178;
     expect(cameraOrigin(0, 0, mw, mh)).toEqual({ x: -48, y: 0 });
     expect(cameraOrigin(mw, mh, mw, mh)).toEqual({ x: -48, y: mh - H });
@@ -37,5 +40,46 @@ describe('cameraOrigin', () => {
 
   it('puts a map exactly the size of the view at the origin', () => {
     expect(cameraOrigin(123, 45, W, H)).toEqual({ x: 0, y: 0 });
+  });
+});
+
+/**
+ * The scripted camera pan (`pan()` in fieldkit/api.ts) must use the same rule as the scene's own
+ * camera. The scene here is a stand-in with only the members `pan()` touches. A pan that went
+ * back to its own clamp (clamp to the map, no centering) would aim a small map's camera at 0,0
+ * instead of its centered origin, and the cutscene would end on a different frame than the camera
+ * rests on afterwards.
+ */
+describe('scripted pan() uses the camera rule', () => {
+  const TS = 16;
+  function fakeScene(mapTilesW: number, mapTilesH: number) {
+    const panTarget: { current: { x: number; y: number; frames: number } | null } = { current: null };
+    const f = {
+      map: { w: mapTilesW, h: mapTilesH },
+      camX: 7,
+      camY: 9,
+      camOverride: null as { x: number; y: number } | null,
+      get panTarget() { return panTarget.current; },
+      set panTarget(v) { panTarget.current = v; },
+    };
+    return { f, scene: f as unknown as FieldScene };
+  }
+
+  it('aims a map smaller than the view at its centered origin, not at 0,0', () => {
+    // 15 by 9 tiles is smaller than the view at both 480x270 and 640x360 (240 by 144 px).
+    const { f, scene } = fakeScene(15, 9);
+    void scriptApi(scene).pan(2, 3, 25);
+    const want = cameraOrigin(2 * TS + 8, 3 * TS + 8, 15 * TS, 9 * TS);
+    expect(want.x).toBeLessThan(0);
+    expect(f.panTarget).toMatchObject({ x: want.x, y: want.y, frames: 25 });
+    expect(f.camOverride).toEqual({ x: 2 * TS + 8, y: 3 * TS + 8 });
+  });
+
+  it('aims a large map at the focus point, clamped inside the map', () => {
+    const { f, scene } = fakeScene(60, 50);
+    void scriptApi(scene).pan(0, 0);
+    expect(f.panTarget).toMatchObject({ x: 0, y: 0, frames: 40 });
+    void scriptApi(scene).pan(59, 49);
+    expect(f.panTarget).toMatchObject({ x: 60 * TS - W, y: 50 * TS - H });
   });
 });

@@ -35,7 +35,7 @@ npm install
 | `npm run budget` | Build, then the bundle budget |
 | `npm run cc` | The Command Center on **http://localhost:3009** (installs its packages, builds its page, opens a tab; section 10) |
 | `npm run e2e` | Every Playwright spec (long: prefer running the ones you need, below) |
-| `npm run shots` | Regenerate `docs/screenshots/` (deterministic: one build gives the same bytes every run; section 4) |
+| `npm run shots` | Regenerate `docs/screenshots/` (deterministic: one build gives the same bytes every run; section 3, the `shots.spec.ts` row) |
 | `bash scripts/evidence.sh` | Regenerate all quality evidence (~25 min; see section 6) |
 
 **Ports:** 3007 (dev), 3008 (preview), 3009 (the Command Center) and 3010 (its Playwright server) belong to this
@@ -76,6 +76,8 @@ Run one file with `npx vitest run tests/battle.test.ts`. Output of the simulatio
 | `game.test.ts` | Scene stack: fault isolation and recovery, curtain compositing, notices |
 | `maps.test.ts` | Every map's content reachable; **no mid-story dead ends** at any of 25 story stages; relay logic; typographic apostrophes; glyph coverage; every prop has a painter; no overlapping signs |
 | `layout.test.ts`, `glyphs.test.ts` | Every data-driven string fits its box; every character has a glyph |
+| `camera.test.ts` | The field camera rule (`scenes/fieldkit/camera.ts`): a map smaller than the view is centered, a larger one is clamped. Also pins that the scripted `pan()` uses that rule (a stand-in scene, no canvas) |
+| `screen-literals.test.ts` | The screen-size scan (below): no bare `480`, `270`, `640`, `360` (and their half and off-by-one neighbors) in code, except on a listed line |
 | `playback.test.ts`, `orders.test.ts`, `timing.test.ts`, `motion.test.ts` | Battle presentation logic without a canvas |
 | `input.test.ts`, `ui-list.test.ts`, `actor.test.ts`, `atmosphere.test.ts`, `music.test.ts`, `content.test.ts` | Input, list menus, actors, weather and lighting, song bars and harmony, content references |
 
@@ -114,6 +116,17 @@ that pull request's earlier CI run. A run on `main` is never canceled once it st
 | `audio-evidence.spec.ts` | Renders every song and effect offline and measures them |
 
 `PW_ALL_ENGINES=1` runs WebKit and Firefox locally too.
+
+### The 640x360 move: the size scan and the screenshot tools
+`docs/PIVOT-640.md` is the contract for the move from 480x270 to 640x360 (criteria, rubric, record). Its tools:
+
+- **The scan** (`tests/screen-literals.test.ts`, helper `scripts/lib/source-scan.mjs`). It reads every `.ts` file under `src/` plus `vite.config.ts` and `scripts/bundle-budget.mjs`, drops comments and strings, and fails on a bare screen-size token (480, 270, 240, 135, 639, 359 and so on) that is on neither list. `tests/screen-literals.allow.json` holds hits that do not mean the screen, each with a reason (a price, a frame count, degrees, hertz). `tests/screen-literals.pending.json` holds hits that do mean the screen and that a work package of the move still replaces; its `wp` field names the package, and it only shrinks. An entry that matches nothing fails the test too. To rewrite the pending list from the current hits: `SCREEN_LITERALS_WRITE_PENDING=1 npx vitest run tests/screen-literals.test.ts` (it keeps the `wp` of every entry that still matches and marks new entries `?`). New layout code uses `W`, `H`, `BW`, `BHT` and `WORLD_SCALE`, never the number.
+- **`node scripts/derived-literals.mjs`** lists derived layout values (464, 472, `W-16`, ...) per file. It is advisory and never fails; the scan cannot see them because they are not screen-size tokens.
+- **`node scripts/pixel-diff.mjs <dirA> <dirB> [--diff-out <dir>]`** compares two sets of screenshots pixel by pixel and exits 1 on any difference (`--help` lists the mask options, which the deterministic capture made unnecessary). `--diff-out` draws every differing shot, and the report names that folder only when it wrote a picture. Two folders with no shot between them exit 2.
+- **`node scripts/contact-sheet.mjs <baselineDir> <resultDir> <outPrefix> [--view gamepx|1080p]`** writes PNG pages that pair each baseline shot with its result. The captions come from the real picture sizes, so the sheet says which viewport each side came from.
+- **`node scripts/check-shots.mjs <dir>`** is the smoke check of the move (PL3): the area outside the old 480x270 frame must not be empty. `scripts/pivot-640.json` holds its void-allowed list.
+
+Capture a set with `SJ_BUILD_SHA=<label> npm run shots`, copy `docs/screenshots` aside, then `git checkout -- docs/screenshots` (the set in git is regenerated once, at WP7).
 
 ### Tests vs design data
 The stage tools come to `main` when the battle stage is built on the new engine (decision 17 in `docs/PHASE-0.2.md`). Follow this rule from the first commit of that build. The paths below are the paths on `spike/phaser-stage`.

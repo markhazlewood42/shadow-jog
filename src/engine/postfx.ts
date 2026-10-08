@@ -82,7 +82,7 @@ class PostFx {
   vignette = 0.22;
   readonly shocks: Shock[] = [];
   /**
-   * Colour split: pixels of offset, easing out, and the point it spreads from. `aberrate()` always
+   * Color split: pixels of offset, easing out, and the point it spreads from. `aberrate()` always
    * sets the point, and the presenter ignores it while the offset is 0, so the point starts at 0
    * rather than at the screen center (reading W and H here, while the module loads, would hit the
    * import cycle with game.ts).
@@ -133,7 +133,7 @@ class PostFx {
     this.shocks.push(s);
   }
 
-  /** Split the colour channels by `amount` pixels, spreading from (x, y; the screen center by default), easing out. */
+  /** Split the color channels by `amount` pixels, spreading from (x, y; the screen center by default), easing out. */
   aberrate(amount: number, x = W / 2, y = H / 2): void {
     if (!this.active || this.intensity <= 0) return;
     const a = amount * this.intensity;

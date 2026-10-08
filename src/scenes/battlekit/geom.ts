@@ -1,17 +1,11 @@
 /** Battle geometry shared by the scene (layout, targeting) and the renderer. */
-import { H, W } from '../../engine/game';
+import { W } from '../../engine/game';
 
-/**
- * Screen pixels per world pixel. The battle world (and the title's skyline, which shares this
- * grain) is drawn at half the screen size and then scaled up by this factor, so its art keeps one
- * chunky pixel size whatever the screen is. Every place that converts a world coordinate to a
- * screen coordinate multiplies by this constant, never by a bare 2: if the world layer and the
- * enemy layer ever used different factors, sprites, hit sparks and HP bars would drift apart
- * silently. The new engine's size module takes this over at M0 (`grain(2)`).
- */
-export const WORLD_SCALE = 2;
-/** The battle world's size in world pixels: half the screen (240x135 on a 480x270 screen). */
-export const BW = W / WORLD_SCALE, BHT = H / WORLD_SCALE;
+// The world-size names are defined once, in the leaf module art/worldsize.ts (the backdrops need
+// them too, and `art` must not import from `scenes`). They are re-exported here so the battle
+// scene kit keeps importing them from its own geometry file.
+export { BHT, BW, WORLD_SCALE } from '../../art/worldsize';
+
 /** Top of the party panel, in screen pixels. */
 export const PANEL_Y = 214;
 /** Party feet sit well below the panel top (107): an over-the-shoulder view of heads, shoulders and raised arms. */
