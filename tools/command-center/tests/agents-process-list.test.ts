@@ -9,13 +9,15 @@ import { processIsAlive, readProcessList } from '../src/server/agents/process-li
 // made up: the ids are made up, and so are the sentinel values that stand for the keys that must never leave the server.
 
 // `readSmallJson` is wrapped so that a test can make its next reads throw, as a locked file does. By default it is the real reader.
-const throwNext = vi.hoisted(() => ({ count: 0 }));
+const throwNext = vi.hoisted(() => ({ count: 0, skip: 0 }));
 vi.mock('../src/server/sessions/tail', async (importOriginal) => {
   const real = await importOriginal<typeof import('../src/server/sessions/tail')>();
   return {
     ...real,
     readSmallJson: async (...args: Parameters<typeof real.readSmallJson>) => {
-      if (throwNext.count > 0) {
+      if (throwNext.skip > 0) {
+        throwNext.skip -= 1;
+      } else if (throwNext.count > 0) {
         throwNext.count -= 1;
         throw new Error('EBUSY: resource busy or locked');
       }
@@ -112,8 +114,10 @@ describe('the process list', () => {
 
   it('C1: a process file that throws on both reads is skipped', async () => {
     const folder = freshFolder();
-    write(folder, '7710028.json', processFile(7710028, S1, 'busy'));
-    write(folder, '7710029.json', processFile(7710029, S2, 'idle'));
+    // The good file comes first in the order of the pids, so the two throws fall on the two reads of the last file (the retry is a second pass).
+    write(folder, '7710028.json', processFile(7710028, S2, 'idle'));
+    write(folder, '7710029.json', processFile(7710029, S1, 'busy'));
+    throwNext.skip = 1; // the first read (the good file) passes
     throwNext.count = 2;
     const pause = vi.fn(async () => {});
 
@@ -121,6 +125,43 @@ describe('the process list', () => {
 
     expect(pause).toHaveBeenCalledTimes(1);
     expect(list).toEqual({ ok: true, entries: [{ sessionId: S2, startedAtMs: 1_790_000_000_000, status: 'idle' }] });
+  });
+
+  it('C1: ten broken files cost one pause, not ten', async () => {
+    const folder = freshFolder();
+    for (let n = 0; n < 10; n += 1) write(folder, `${7720000 + n}.json`, ''); // ten files that stay empty
+    write(folder, '7720100.json', processFile(7720100, S1, 'busy'));
+    const pause = vi.fn(async () => {});
+
+    const list = await readProcessList(folder, () => true, pause);
+
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(list).toEqual({ ok: true, entries: [{ sessionId: S1, startedAtMs: 1_790_000_000_000, status: 'busy' }] });
+  });
+
+  it('C1: no pause when every file is good', async () => {
+    const folder = freshFolder();
+    write(folder, '7730001.json', processFile(7730001, S1, 'busy'));
+    write(folder, '7730002.json', processFile(7730002, S2, 'idle'));
+    const pause = vi.fn(async () => {});
+
+    const list = await readProcessList(folder, () => true, pause);
+
+    expect(pause).not.toHaveBeenCalled();
+    expect(list.ok && list.entries.length).toBe(2);
+  });
+
+  it('C1: a file that is torn once among good files keeps the order of the pids', async () => {
+    const folder = freshFolder();
+    write(folder, '7740001.json', processFile(7740001, S1, 'idle'));
+    write(folder, '7740002.json', '{"pid": 7740002, "sessionId": "'); // torn, in the middle of the pids
+    write(folder, '7740003.json', processFile(7740003, S3, 'idle'));
+    const pause = vi.fn(async () => write(folder, '7740002.json', processFile(7740002, S2, 'busy')));
+
+    const list = await readProcessList(folder, () => true, pause);
+
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(list.ok && list.entries.map((entry) => entry.sessionId)).toEqual([S1, S2, S3]);
   });
 
   it('process list reads valid files and drops a dead pid', async () => {

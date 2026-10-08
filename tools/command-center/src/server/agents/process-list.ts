@@ -80,7 +80,7 @@ function shapeOf(json: Record<string, unknown>): Shaped | null {
 const earlier = (a: number | null, b: number | null): number | null => (a === null ? b : b === null ? a : Math.min(a, b));
 
 /**
- * The Claude processes that run, from the files in `folder`. Each file is read once, and a process is kept when `isAlive` says so. Two
+ * The Claude processes that run, from the files in `folder`. A file that gives null or throws is read once more after one short pause that all such files share. A process is kept when `isAlive` says so. Two
  * processes can run one session (a session that was resumed while the first one still runs): they give one entry, which is busy when
  * either is busy and began when the first one did. The entries come in the order of the pids.
  */
@@ -94,28 +94,38 @@ export async function readProcessList(folder: string, isAlive: IsAlive = process
   }
   names.sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10));
 
+  // One read of one file: the object, or null when the file is empty, too big, not JSON or not an object, or when the open throws (locked,
+  // no rights). Both null and a throw mean "torn or locked": a torn file (Claude rewrites it while we read) gives null or a throw, never a
+  // valid object of the wrong shape. A valid object with the wrong shape is a stale file: it is skipped at once, with no wait.
+  // The files are read one by one, so a big folder cannot open them all at once.
+  const readOnce = async (name: string): Promise<Record<string, unknown> | null> => {
+    try {
+      return await readSmallJson(join(folder, name));
+    } catch {
+      return null;
+    }
+  };
+
+  // Pass 1: every file once. The results sit at the index of their file, so the order of the pids holds whatever the second pass does.
+  const results: (Shaped | null)[] = new Array<Shaped | null>(names.length).fill(null);
+  const broken: number[] = [];
+  for (let i = 0; i < names.length; i += 1) {
+    const json = await readOnce(names[i] as string);
+    if (json === null) broken.push(i);
+    else results[i] = shapeOf(json);
+  }
+  // Pass 2: one shared pause for all broken files, then one more read of each. A good first read never waits and a poll with no broken file never pauses.
+  if (broken.length > 0) {
+    await pause(RETRY_PAUSE_MS);
+    for (const i of broken) {
+      const json = await readOnce(names[i] as string);
+      results[i] = json === null ? null : shapeOf(json);
+    }
+  }
+
   const bySession = new Map<string, ProcessEntry>();
   let shaped = 0;
-  for (const name of names) {
-    // `readSmallJson` gives null for a file that is empty, too big (64 KB: a process file has a few hundred bytes), not JSON or not an object. It throws
-    // for a file that cannot be opened (locked, or no rights). Both mean "skip it"; the files are read one by one, so a big folder cannot open them all at once.
-    // A torn file (Claude rewrites it while we read) gives null or a throw, never a valid object of the wrong shape. So only null and a throw
-    // are read once more, after a short pause. A valid object with the wrong shape is a stale file: it is skipped at once, with no wait.
-    // The try/catch is around each single read, so a throw on the first read still gets its retry. A good first read never waits.
-    let found: Shaped | null = null;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      if (attempt === 1) await pause(RETRY_PAUSE_MS);
-      let json: Record<string, unknown> | null;
-      try {
-        json = await readSmallJson(join(folder, name));
-      } catch {
-        continue; // counts as a torn attempt
-      }
-      if (json !== null) {
-        found = shapeOf(json);
-        break; // an object is final, good or not
-      }
-    }
+  for (const found of results) {
     if (found === null) continue;
     shaped += 1;
 
