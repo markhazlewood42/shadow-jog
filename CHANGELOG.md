@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Hex now uses they/them, and Sable uses he/him (Mark's canon, 2026-10-03).
 - CI runs its checks as three jobs at the same time and skips a change that touches only docs, notes or `tools/command-center/`. The real-speed playtest runs on pushes to `main` and from the Actions tab, not on pull requests.
 - Command Center revision 2 (Mark's live feedback of 2026-10-07): every page shows labels and links in simple technical English, with no sentence over 20 words, and server messages follow the same rule. The Agents page is a live diagram of the sessions that run now, and the Running panel lists those sessions and links to it. The Status panel is five rows with links and a milestone strip. The engine decision table, the decision pages and the doc chrome lose their explanations and link to the docs.
+- Command Center follow-ups (Mark, 2026-10-08): the CI row reads only the `ci.yml` workflow, the "+N more" label on the Agents page counts the hidden children of that parent only, and each Running row opens the Agents page at its session.
 
 ### Added
 - The Command Center (`npm run cc`, http://localhost:3009): a local website with what is going on now, every doc in one place, the sessions and agents, and the design decisions that wait on Mark, who answers them on a page that posts to a GitHub issue. It lives in `tools/command-center/` and does not touch the game.
