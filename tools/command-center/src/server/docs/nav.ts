@@ -113,8 +113,9 @@ export function parseNavFile(text: string, file: string): NavDefinition {
   try {
     parsed = JSON.parse(text);
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    return { sections: [], problems: [say('navNotJson', { file, error: reason })] };
+    // Node ends the text with " (line 1 column 9)", which says again what "at position 8" says. It is left out to keep the message short.
+    const reason = (error instanceof Error ? error.message : String(error)).replace(/ \(line \d+ column \d+\)$/, '');
+    return { sections: [], problems: [say('navNotJson', { file, jsonError: reason })] };
   }
   if (!isRecord(parsed)) return { sections: [], problems: [say('navNotObject', { file })] };
   if (!Array.isArray(parsed.sections)) return { sections: [], problems: [say('navNoSections', { file })] };

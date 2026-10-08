@@ -1,7 +1,17 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { MESSAGES, say } from '../src/server/messages';
+import { describe, expect, it, vi } from 'vitest';
+import { tmpdir } from 'node:os';
+import { lastChangedDates } from '../src/server/docs/dates';
+import { splitFrontmatter } from '../src/server/docs/frontmatter';
+import { parseNavFile } from '../src/server/docs/nav';
+import { readmeWaitsForMark } from '../src/server/engine/decisions';
+import { createGitSource } from '../src/server/git/module';
+import { classifyGhError } from '../src/server/github/errors';
+import { createHub } from '../src/server/hub';
+import { MESSAGES, PROGRAM_TEXT_WORDS, clipWords, fill, say } from '../src/server/messages';
+import { PanelError } from '../src/server/source';
+import { makeDocsRepo, makeIndex, realRunner } from './doc-index-helpers';
 import { PACKAGE_DIR } from './helpers';
 
 // The guard for the text that the server makes and a page shows (design 5.8, Task 19b). Every message of
@@ -15,10 +25,13 @@ const MAX_WORDS = 20;
 type Table = Record<string, string>;
 
 /**
- * The value that fills each placeholder. A value that a person or a program writes (a path, a number, a name,
- * an error code) is one word, as a real one almost always is; the values that can be longer have as many
- * words as the longest real one (the column names of the engine table, or the first line that a program printed).
- * A new placeholder needs a value here: the test fails until it has one.
+ * The value that fills each placeholder. A value that a person writes (a path, a number, a name, an error code) is one word,
+ * as a real one almost always is. Some values are longer, and have the words of the longest real one that the code can make:
+ * the column names of the engine table; `line`, a line of git output that the git module cuts at 40 characters (6 words is a
+ * normal line; a line of one-letter words could have more, which is not covered); `listed`, the options of a decision.
+ * The text that a program wrote (a name in PROGRAM_TEXT_WORDS: git, gh, YAML, JSON.parse and OS errors) has no sample here:
+ * it is filled with a text of 60 words, and `fill` cuts it as the server does, so the worst case is the real cut.
+ * A new placeholder needs a value here, or a number in PROGRAM_TEXT_WORDS: the test fails until it has one.
  */
 const SAMPLE: Record<string, string> = {
   address: 'engine/decisions',
@@ -30,7 +43,6 @@ const SAMPLE: Record<string, string> = {
   count: '12',
   docPath: 'docs/a.md',
   doing: 'read the branches',
-  error: 'EACCES: permission denied, scandir path',
   file: 'gh',
   first: 'Start here',
   flags: '--branch main --limit 1 --json status,conclusion,url,createdAt',
@@ -53,7 +65,6 @@ const SAMPLE: Record<string, string> = {
   position: '3',
   ref: 'b14887acf5a8',
   repo: 'markhazlewood42/shadow-jog',
-  said: 'repository not found',
   scheme: 'javascript',
   seconds: '10',
   second: 'Engine',
@@ -65,8 +76,10 @@ const SAMPLE: Record<string, string> = {
   title: 'Engine design',
   verdict: 'deferred',
   where: 'nav.json, section "Command center"',
-  yaml: 'Map keys must be unique (line 3)',
 };
+
+/** A text of 60 words, longer than any cut in PROGRAM_TEXT_WORDS: it stands for the longest text that a program can print. */
+const LONG_PROGRAM_TEXT = Array.from({ length: 60 }, (_, index) => `word${index + 1}`).join(' ');
 
 /**
  * A placeholder that holds another message of this file. It takes the longest message with that id prefix,
@@ -87,19 +100,26 @@ function wordCount(text: string): number {
 /** The text of a message with every placeholder filled, the longest sample for a placeholder that holds a message. */
 function filled(table: Table, id: string, depth = 0): string {
   if (depth > 3) throw new Error(`${id}: messages nest too deep`);
-  return (table[id] ?? '').replace(/\{(\w+)\}/g, (_match, name: string) => {
+  const text = table[id] ?? '';
+  const values: Record<string, string> = {};
+  for (const [, name = ''] of text.matchAll(/\{(\w+)\}/g)) {
     const prefix = FRAGMENT_PREFIX[name];
-    if (prefix !== undefined) {
+    if (name in PROGRAM_TEXT_WORDS) {
+      values[name] = LONG_PROGRAM_TEXT;
+    } else if (prefix !== undefined) {
       const candidates = Object.keys(table)
         .filter((other) => other.startsWith(prefix) && other !== id)
         .map((other) => filled(table, other, depth + 1));
       if (candidates.length === 0) throw new Error(`${id}: no message starts with "${prefix}" for {${name}}`);
-      return candidates.sort((a, b) => wordCount(b) - wordCount(a))[0] ?? '';
+      values[name] = candidates.sort((a, b) => wordCount(b) - wordCount(a))[0] ?? '';
+    } else {
+      const sample = SAMPLE[name];
+      if (sample === undefined) throw new Error(`${id}: no sample value for {${name}}. Add one to SAMPLE in this test.`);
+      values[name] = sample;
     }
-    const sample = SAMPLE[name];
-    if (sample === undefined) throw new Error(`${id}: no sample value for {${name}}. Add one to SAMPLE in this test.`);
-    return sample;
-  });
+  }
+  // The real `fill` of the server: it cuts the text of a program to its number of words.
+  return fill(text, values);
 }
 
 // Words that end in "ing" and are not a verb form: a technical name, or an adjective.
@@ -152,9 +172,10 @@ describe('server messages', () => {
   });
 
   it('the messages made of two messages stay within the limit', () => {
-    // The watcher message holds the "first scan is slow" message of watch.ts, which no placeholder rule covers.
-    expect(wordCount(say('watcherFailed', { error: say('watcherSlow', { seconds: 10 }) }))).toBeLessThanOrEqual(MAX_WORDS);
-    expect(wordCount(say('docsGitDates', { error: say('gitLogFailed', { code: 128, said: 'not a git repository' }) }))).toBeLessThanOrEqual(MAX_WORDS);
+    // The watcher message holds the "first scan is slow" message of watch.ts. It has to fit the cut of `error` (7 words), or say would cut it.
+    const slow = say('watcherSlow', { seconds: 10 });
+    expect(clipWords(slow, PROGRAM_TEXT_WORDS.error)).toBe(slow);
+    expect(wordCount(say('watcherFailed', { error: slow }))).toBeLessThanOrEqual(MAX_WORDS);
   });
 
   it('say fills every place with its value and leaves no place', () => {
@@ -163,6 +184,73 @@ describe('server messages', () => {
     for (const id of Object.keys(MESSAGES)) expect(filled(MESSAGES, id), id).not.toMatch(/\{\w+\}/);
     // A value that holds "$&" or "$1" is put in as it is, not read as a replacement pattern.
     expect(say('ghFailedSaid', { said: 'cost $& $1' })).toBe('gh failed: cost $& $1');
+  });
+
+  it('say cuts the text of a program to its number of words, and leaves a text that fits as it is', () => {
+    expect(say('ghFailedSaid', { said: LONG_PROGRAM_TEXT })).toBe(`gh failed: ${LONG_PROGRAM_TEXT.split(' ').slice(0, PROGRAM_TEXT_WORDS.said).join(' ')}...`);
+    const fits = Array.from({ length: PROGRAM_TEXT_WORDS.said }, () => 'x').join(' ');
+    expect(say('ghFailedSaid', { said: fits })).toBe(`gh failed: ${fits}`);
+    // The cut of one name does not touch a place of another name (a number, a path).
+    expect(say('gitBadLine', { command: 'git log', line: LONG_PROGRAM_TEXT })).toContain('word60');
+  });
+
+  it('real parser and git text stays within 20 words after say()', async () => {
+    // The texts of the real YAML library, of JSON.parse and of git (a real "not a git repository" error), put through the real call
+    // sites of the five messages that held them, and of the others that hold program text. Each result is one message of the page.
+    const shown: string[] = [];
+
+    // frontmatterYaml (the docs index shows it as "<doc id>: <message>"), and engineReadmeUnreadable with the same text.
+    const yaml = splitFrontmatter('---\ntype: [unclosed\n---\n# Title\n').error ?? '';
+    expect(yaml).toMatch(/^Invalid YAML in the frontmatter: .*\(line 3\)$/); // the line number is kept, the reason is cut
+    shown.push(yaml);
+    try {
+      readmeWaitsForMark('---\nstatus: [unclosed\n---\n# Engine\n');
+    } catch (error) {
+      expect(error).toBeInstanceOf(PanelError);
+      shown.push((error as PanelError).message);
+    }
+
+    // navNotJson with the text of JSON.parse in this Node (a trailing comma, and a text that is not JSON at all).
+    for (const text of ['{ "sections": [], }', '{ this is not json']) {
+      const problem = parseNavFile(text, 'nav.json').problems[0] ?? '';
+      expect(problem).toContain('is not valid JSON');
+      shown.push(problem);
+    }
+
+    // docsGitDates: git, run for real in a folder that is not a repo. The ceiling stops git from looking in the folders above the temp folder.
+    vi.stubEnv('GIT_CEILING_DIRECTORIES', tmpdir());
+    const repo = makeDocsRepo({ 'docs/a.md': '# A\n', 'docs/bad.md': '---\ntype: [unclosed\n---\n# Bad\n' });
+    try {
+      repo.writeNav('{ "sections": [], }');
+      const dates = await lastChangedDates(realRunner(repo), repo.dir).catch((error: unknown) => (error as Error).message);
+      expect(dates).toContain('not a git repository'); // git's own first line, as lastChangedDates throws it
+      const { index } = makeIndex(repo, { runner: realRunner(repo) });
+      await index.ready();
+      const problems = index.problems();
+      expect(problems.some((problem) => problem.startsWith('No git dates (git log exit 128: fatal: not a git repository'))).toBe(true);
+      expect(problems.some((problem) => problem.includes('Invalid YAML'))).toBe(true);
+      expect(problems.some((problem) => problem.includes('is not valid JSON'))).toBe(true);
+      shown.push(...problems);
+
+      // gitFailed: the git module, over the same folder that is not a repo.
+      const panel = await createGitSource({ runner: realRunner(repo), hub: createHub() }).get(true);
+      expect(panel.ok).toBe(false);
+      if (!panel.ok) {
+        expect(panel.error.code).toBe('git-failed');
+        shown.push(panel.error.message);
+      }
+    } finally {
+      repo.close();
+      vi.unstubAllEnvs();
+    }
+
+    // ghFailedSaid: lines that gh printed, a rate limit and a long GraphQL error.
+    for (const stderr of ['HTTP 403: API rate limit exceeded for user ID 1. (https://api.github.com/graphql)', "GraphQL: Could not resolve to a Repository with the name 'x/y'. (repository)"]) {
+      shown.push(classifyGhError(1, stderr).message);
+    }
+
+    expect(shown.length).toBeGreaterThanOrEqual(9);
+    expect(shown.filter((text) => wordCount(text) > MAX_WORDS)).toEqual([]);
   });
 
   it('every message is used by the server', () => {

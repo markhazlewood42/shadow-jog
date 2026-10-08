@@ -569,7 +569,7 @@ export function createDocIndex(deps: DocIndexDeps, options: DocIndexOptions = {}
     try {
       gitDays = await lastChangedDates(runner, root);
     } catch (error) {
-      problems.push(say('docsGitDates', { error: messageOf(error) }));
+      problems.push(say('docsGitDates', { said: messageOf(error) }));
     }
 
     // The files that the site serves, and everything that a link can point at.

@@ -14,6 +14,24 @@
 // A name that starts with `ghDetail`, `linkReason`, `problem`, `frontmatter` or `reason` is a part of a longer message
 // (for example "the output is not JSON" in the middle of "The gh output ... is unreadable: ..."). The guard
 // test fills a place for such a part with the longest part there is, so a long part cannot break the whole.
+//
+// Text that a program wrote (a YAML error, an OS error, what git or gh printed) can be of any length. A place that
+// holds it is named in PROGRAM_TEXT_WORDS, and `say` cuts the value to that many words, with "..." after the last one.
+// The numbers are set so that the longest message that holds such a place still has 20 words or fewer: the guard
+// test fills each of these places with a text of 60 words and checks that.
+
+/**
+ * The most words of a program's own text that a place of this name takes. `said`: the first line that git or gh
+ * printed. `yaml`: the reason of a YAML error. `error`: the message of an OS error or of a failed scan.
+ * `jsonError`: the message of `JSON.parse`. A new place for program text needs a number here and a message that fits it.
+ */
+export const PROGRAM_TEXT_WORDS = { said: 12, yaml: 10, error: 7, jsonError: 12 } as const;
+
+/** The first `maxWords` words of a text, with "..." after the last one when words were cut. A text that fits is returned as it is. */
+export function clipWords(text: string, maxWords: number): string {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  return words.length <= maxWords ? text : `${words.slice(0, maxWords).join(' ')}...`;
+}
 
 export const MESSAGES = {
   // ---- gh: github/errors.ts, and every module that calls gh ----
@@ -80,12 +98,12 @@ export const MESSAGES = {
   docBrokenLink: '{id}: broken link "{href}" ({linkReason}).',
   docRenderFailed: 'The server cannot render {id} ({error}). The site skips it.',
   docNameClash: '{owner} and {id} have the same address "{slug}". The site skips {id}.',
-  docsGitDates: 'No git dates ({error}). The page uses file times.',
+  docsGitDates: 'No git dates ({said}). The page uses file times.',
   gitLogFailed: 'git log exit {code}: {said}',
   docsRescanFailed: 'The server cannot read the docs again ({error}). The site keeps the old docs.',
   watcherFailed: 'The file watcher failed ({error}). The site can miss edits.',
   watcherNoStart: 'The file watcher cannot start ({error}). Restart the server.',
-  watcherSlow: 'The first scan took more than {seconds} seconds.',
+  watcherSlow: 'The first scan took over {seconds} seconds.',
   frontmatterUnclosed: 'The frontmatter does not end with a --- line. Add one.',
   frontmatterYaml: 'Invalid YAML in the frontmatter: {yaml}',
   frontmatterNotMap: 'The frontmatter must hold key: value lines only.',
@@ -107,7 +125,7 @@ export const MESSAGES = {
   // ---- nav.json: the notes of a mistake in the navigation file ----
   navMissing: '{name} is missing. The page lists every doc under Other.',
   navUnreadable: 'The server cannot read {name} ({error}). The page lists every doc under Other.',
-  navNotJson: '{file} is not valid JSON ({error}). Fix the file.',
+  navNotJson: '{file} is not valid JSON ({jsonError}). Fix the file.',
   navNotObject: '{file} must be an object with a "sections" list.',
   navNoSections: '{file} has no "sections" list.',
   navSectionNotObject: '{section} is not an object.',
@@ -212,10 +230,22 @@ type PlaceNames<Text extends string> = Text extends `${string}{${infer Name}}${i
 type MessageValues<Id extends MessageId> = { [Name in PlaceNames<(typeof MESSAGES)[Id]>]: string | number };
 
 /**
+ * Puts values into the places of a text. A value is put in as it is (no `$` in it is read as a pattern), except the text of a
+ * program (a name in PROGRAM_TEXT_WORDS), which is cut to its number of words. `say` uses this; the guard test calls it too, so
+ * that it checks the real cut.
+ */
+export function fill(text: string, values: Record<string, string | number>): string {
+  return text.replace(/\{(\w+)\}/g, (place, name: string) => {
+    const value = String(values[name] ?? place);
+    const limit = (PROGRAM_TEXT_WORDS as Record<string, number | undefined>)[name];
+    return limit === undefined ? value : clipWords(value, limit);
+  });
+}
+
+/**
  * The text of a message with its values in. The call fails to compile when a value is missing or has a name
- * that the message does not have. A value is put in as it is: no `$` in it is read as a pattern.
+ * that the message does not have.
  */
 export function say<Id extends MessageId>(id: Id, ...values: [PlaceNames<(typeof MESSAGES)[Id]>] extends [never] ? [] : [MessageValues<Id>]): string {
-  const given = (values[0] ?? {}) as Record<string, string | number>;
-  return MESSAGES[id].replace(/\{(\w+)\}/g, (place, name: string) => String(given[name] ?? place));
+  return fill(MESSAGES[id], (values[0] ?? {}) as Record<string, string | number>);
 }

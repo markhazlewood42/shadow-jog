@@ -1,5 +1,5 @@
 import { type YAMLError, parseDocument } from 'yaml';
-import { say } from '../messages';
+import { PROGRAM_TEXT_WORDS, clipWords, say } from '../messages';
 
 // Many docs open with a "frontmatter" block: lines of `key: value` between two `---` lines, which
 // say what kind of doc it is, its status and its dates. This file cuts that block off and reads it.
@@ -87,5 +87,6 @@ function describe(problem: YAMLError): string {
   const reason = (problem.message.split('\n')[0] ?? '').replace(/ at line \d+, column \d+:?$/, '');
   const line = problem.linePos?.[0].line;
   // YAML counts from the first line after the opening fence, so the file's line is one more.
-  return line === undefined ? reason : `${reason} (line ${line + 1})`;
+  // The reason is cut before the line is added, so that the line number is never the part that is cut (`say` cuts the reason to 10 words).
+  return line === undefined ? reason : `${clipWords(reason, PROGRAM_TEXT_WORDS.yaml - 2)} (line ${line + 1})`;
 }
