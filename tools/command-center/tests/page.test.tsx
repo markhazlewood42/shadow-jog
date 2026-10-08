@@ -52,8 +52,8 @@ describe('getPanel', () => {
   });
 
   it('uses the error the server sent with an HTTP failure, or the status when the body is not ours', async () => {
-    stubFetch(() => json({ ok: false, error: { code: 'internal-error', message: 'The server hit a problem.' } }, 500));
-    expect(await getPanel('/api/x')).toMatchObject({ ok: false, error: { code: 'internal-error', message: 'The server hit a problem.' } });
+    stubFetch(() => json({ ok: false, error: { code: 'internal-error', message: 'The server failed. Read its console for the cause.' } }, 500));
+    expect(await getPanel('/api/x')).toMatchObject({ ok: false, error: { code: 'internal-error', message: 'The server failed. Read its console for the cause.' } });
     stubFetch(() => new Response('<html>Bad gateway</html>', { status: 502, headers: { 'content-type': 'text/html' } }));
     expect(await getPanel('/api/x')).toMatchObject({ ok: false, error: { code: 'http-502' } });
   });

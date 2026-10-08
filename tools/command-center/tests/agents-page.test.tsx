@@ -116,10 +116,10 @@ describe('the Agents page', () => {
     api.getPanel.mockResolvedValueOnce(ok(live([liveSession('s1', { title: 'A session that was drawn' })])));
     await openPage();
 
-    api.getPanel.mockResolvedValueOnce({ ok: false, error: { code: 'agents-failed', message: 'The live sessions could not be read (EACCES).' }, updatedAt: null, lastGood: null });
+    api.getPanel.mockResolvedValueOnce({ ok: false, error: { code: 'agents-failed', message: 'The server cannot read the live sessions (EACCES).' }, updatedAt: null, lastGood: null });
     await send({ type: 'hello' });
     const alert = container.querySelector('[role="alert"]');
-    expect(alert?.textContent).toContain('The live sessions could not be read (EACCES).');
+    expect(alert?.textContent).toContain('The server cannot read the live sessions (EACCES).');
     expect(alert?.querySelector('button')?.textContent).toContain('Retry');
     // The diagram of the last good load is still there, under the error.
     expect(container.querySelector('[data-part="title"]')?.textContent).toBe('A session that was drawn');

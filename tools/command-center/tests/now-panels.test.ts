@@ -76,12 +76,12 @@ describe('combineSources', () => {
     const mixed = combineSources({
       status: result(failed('status-missing', 'status.md was not found.', { data: statusInfo, updatedAt: T0 })),
       git: result(failed('git-failed', 'git could not run.', { data: gitInfo, updatedAt: T2 })),
-      ci: result(failed('gh-offline', 'GitHub cannot be reached.')),
+      ci: result(failed('gh-offline', 'gh cannot reach GitHub. Check the internet connection.')),
       health: result(down),
     });
     expect(mixed.panel).toEqual({
       ok: false,
-      error: { code: 'status-missing, git-failed, gh-offline, network', message: 'status.md was not found. git could not run. GitHub cannot be reached. Cannot reach the command center server. Check that it runs.' },
+      error: { code: 'status-missing, git-failed, gh-offline, network', message: 'status.md was not found. git could not run. gh cannot reach GitHub. Check the internet connection. Cannot reach the command center server. Check that it runs.' },
       updatedAt: T2,
       lastGood: null,
     });

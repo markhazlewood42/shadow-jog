@@ -1006,7 +1006,7 @@ test.describe('the status panel', () => {
         staying: ['Branch', 'Next up', 'status.md', 'Last commit'],
       },
       // The health reply has the name of the repo on GitHub, which the links of the branch and of the last commit are made from.
-      { source: 'health', route: '**/api/health', code: 'internal-error', reply: () => ({ status: 500, json: { ok: false, error: { code: 'internal-error', message: 'The server hit a problem.' } } }), failing: ['Branch', 'Last commit'], stripFails: false, staying: ['CI on main', 'Next up', 'status.md'] },
+      { source: 'health', route: '**/api/health', code: 'internal-error', reply: () => ({ status: 500, json: { ok: false, error: { code: 'internal-error', message: 'The server failed. Read its console for the cause.' } } }), failing: ['Branch', 'Last commit'], stripFails: false, staying: ['CI on main', 'Next up', 'status.md'] },
     ];
     // What each row says when its sources are good (the fixture repo has no upstream, and its last commit is old).
     const VALUES: Record<string, RegExp> = {

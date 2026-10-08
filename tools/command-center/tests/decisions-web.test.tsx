@@ -422,10 +422,10 @@ describe('the decision page', () => {
   it('shows the error of the panel with its Retry button, and the last decision under it, when the server cannot read GitHub', async () => {
     server.detail = {
       status: 200,
-      body: { ok: false, error: { code: 'gh-offline', message: 'GitHub cannot be reached.' }, updatedAt: '2026-10-06T11:00:00Z', lastGood: { data: detail(), updatedAt: '2026-10-06T11:00:00Z' } },
+      body: { ok: false, error: { code: 'gh-offline', message: 'gh cannot reach GitHub. Check the internet connection.' }, updatedAt: '2026-10-06T11:00:00Z', lastGood: { data: detail(), updatedAt: '2026-10-06T11:00:00Z' } },
     };
     await show();
-    expect(alert()?.textContent).toContain('GitHub cannot be reached.');
+    expect(alert()?.textContent).toContain('gh cannot reach GitHub. Check the internet connection.');
     expect(text()).toContain('Retry');
     expect(text()).toContain('Where should the cache live?'); // the last good decision
     expect(text()).toContain('Last updated');
@@ -510,10 +510,10 @@ describe('the answer form', () => {
 
   it('says in words which step failed: the comment, the label swap or the close, and when nothing was written', async () => {
     const steps: [object, string][] = [
-      [{ step: 'comment', error: { code: 'gh-offline', message: 'GitHub cannot be reached.' } }, 'Answer not posted'],
+      [{ step: 'comment', error: { code: 'gh-offline', message: 'gh cannot reach GitHub. Check the internet connection.' } }, 'Answer not posted'],
       [{ step: 'close', error: { code: 'gh-failed', message: 'gh failed: x' } }, 'Answer posted · Label changed · Issue not closed'],
-      [{ error: { code: 'already-answered', message: 'Decision #41 is already answered: A.' } }, 'Answer not sent'],
-      [{ error: { code: 'label-missing', message: 'The label "decided" does not exist in fixture-owner/fixture-repo.' }, step: 'label' }, 'Answer posted · Label not changed'],
+      [{ error: { code: 'already-answered', message: 'Decision #41 is already answered: A. Reload the page to see the answer.' } }, 'Answer not sent'],
+      [{ error: { code: 'label-missing', message: 'The label "decided" does not exist in fixture-owner/fixture-repo. Create it on GitHub.' }, step: 'label' }, 'Answer posted · Label not changed'],
     ];
     for (const [body, words] of steps) {
       server.answers = [{ status: 502, body: { ok: false, ...body } }];
@@ -837,7 +837,7 @@ describe('the text of the decision pages', () => {
     collect();
     await show('abc');
     collect();
-    server.detail = { status: 200, body: { ok: false, error: { code: 'gh-offline', message: 'GitHub cannot be reached.' }, updatedAt: '2026-10-06T11:00:00Z', lastGood: { data: detail(), updatedAt: '2026-10-06T11:00:00Z' } } };
+    server.detail = { status: 200, body: { ok: false, error: { code: 'gh-offline', message: 'gh cannot reach GitHub. Check the internet connection.' }, updatedAt: '2026-10-06T11:00:00Z', lastGood: { data: detail(), updatedAt: '2026-10-06T11:00:00Z' } } };
     server.docs = { status: 500, body: { ok: false, error: { code: 'docs-failed', message: 'The docs failed.' }, updatedAt: null, lastGood: null } };
     await show();
     collect();

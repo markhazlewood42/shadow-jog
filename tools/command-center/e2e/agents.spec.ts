@@ -881,13 +881,13 @@ test.describe('links and errors', () => {
     await expect(boxOf(page, 'A session that was drawn')).toBeVisible();
 
     // The next load fails. (The server's answer is replaced: a made-up failure, because the files cannot be made to fail on purpose.)
-    await page.route('**/api/agents', (route) => route.fulfill({ json: { ok: false, error: { code: 'agents-failed', message: 'The live sessions could not be read (EACCES).' }, updatedAt: null, lastGood: null } }));
+    await page.route('**/api/agents', (route) => route.fulfill({ json: { ok: false, error: { code: 'agents-failed', message: 'The server cannot read the live sessions (EACCES).' }, updatedAt: null, lastGood: null } }));
     writeSession(ID(2), [prompt('A session that started later', c.at(60)), toolResult(c.at(3))]);
     writeProcess(2, ID(2), 'busy', 60);
     await refreshAgents(request);
 
     const alert = panel(page).getByRole('alert');
-    await expect(alert).toContainText('The live sessions could not be read (EACCES).');
+    await expect(alert).toContainText('The server cannot read the live sessions (EACCES).');
     await expect(alert).toContainText('agents-failed');
     await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible();
     // The panel says when it last had good data, and shows that diagram under the error. The page around it is there.
