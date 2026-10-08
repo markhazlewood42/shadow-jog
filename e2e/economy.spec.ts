@@ -195,6 +195,12 @@ test('the camera at the four corners of every scrolling map rests on the clamp a
     const box = await sj<{ minX?: number; maxX?: number; minY?: number; maxY?: number } | null>(page, 'sj.field().cameraBox');
     expect(box, `${map}: the camera limit`).toEqual(map === 'rustyard' ? { maxY: 128 } : null);
     expect(await sj<number>(page, 'sj.field().curtains.length'), `${map}: the curtains`).toBe(map === 'annex' ? 2 : 0);
+    // The map's baked ground is opaque in every pixel, so the field skips the void fill under a map that
+    // covers the screen (`voidShows`, fieldkit/surround.ts): a hole in the ground would show as a stale frame.
+    expect(
+      await sj<number>(page, "(() => { const c = sj.field().map.ground; const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] < 255) n++; return n; })()"),
+      `${map}: pixels of the baked ground that are not opaque`,
+    ).toBe(0);
     const corners: [string, number, number][] = [['tl', 0, 0], ['tr', mw, 0], ['bl', 0, mh], ['br', mw, mh]];
     for (const [name, fx, fy] of corners) {
       await sj(page, `(sj.field().camOverride = { x: ${fx}, y: ${fy} }, sj.field().snapCamera(), true)`);

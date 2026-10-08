@@ -8,7 +8,7 @@ import { getMap, mapIds } from '../src/data/maps';
 import { measure } from '../src/engine/font';
 import { H, W } from '../src/engine/game';
 import { TS } from '../src/field/tiles';
-import { SURROUND, surroundFor, type SurroundEntry, type SurroundTheme, type SurroundView } from '../src/scenes/fieldkit/surround';
+import { SURROUND, surroundFor, voidShows, type SurroundEntry, type SurroundTheme, type SurroundView } from '../src/scenes/fieldkit/surround';
 import { THEMES, pictureKey } from '../src/scenes/fieldkit/surround-art';
 import { arrivals, distances, grid } from './mapgraph';
 
@@ -298,5 +298,23 @@ describe('maps smaller than the view (D7, docs/PIVOT-640.md)', () => {
       expect(key(view({ camY: -60 }))).not.toBe(base);
       expect(key(view({ camX: -150 }))).not.toBe(base);
     });
+  });
+});
+
+describe('the void fill under a map that fills the screen (D15, docs/PIVOT-640.md)', () => {
+  // The first D15 step skips the full-screen void fill while the map covers the screen. The ground
+  // layer is opaque everywhere (the four-corner walk in e2e/economy.spec.ts checks that), so the fill
+  // matters only where the view reaches past the map: at a clamped edge under a screen shake.
+  it('is needed only when the view reaches past the map on some side, shake included', () => {
+    expect(voidShows(0, 0, W, H)).toBe(false);
+    expect(voidShows(0, 0, W + 100, H + 100)).toBe(false);
+    expect(voidShows(100, 100, W + 100, H + 100)).toBe(false);
+    // One pixel of shake past each edge of a map that fills the screen exactly.
+    expect(voidShows(-1, 0, W, H)).toBe(true);
+    expect(voidShows(0, -1, W, H)).toBe(true);
+    expect(voidShows(1, 0, W, H)).toBe(true);
+    expect(voidShows(0, 1, W, H)).toBe(true);
+    // A map narrower than the view (the Rustyard): the margin is there at rest.
+    expect(voidShows(-48, 0, W - 96, H + 88)).toBe(true);
   });
 });

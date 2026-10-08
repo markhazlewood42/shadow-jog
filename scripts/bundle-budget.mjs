@@ -21,9 +21,15 @@ import { gzipSync } from 'node:zlib';
  * Re-set to 236 kB the night of 2026-09-30 (Mark): rig v2 (characters, enemies and portraits drawn
  * and animated in code from traced frames, their data loaded as JSON) and the battle skeleton
  * filled the 224; measured 224.9 kB, with room for the rest of the rig and the effects pass.
+ * Raised to 238.5 kB on 2026-10-08 (D20 of docs/PIVOT-640.md), by the measured delta only: the total
+ * measured 238.413 kB against 236.0, a delta of 2.413 kB, rounded up to the next 0.1 kB (2.5). The cause is the
+ * surround art for the maps smaller than the 640x360 view (Mark's Review 3 pick for D7: an edge fill
+ * for the nine interiors, a themed surround for the Rustyard and the Dock) and the pop-in table with
+ * its curtains and hold (his D17 picks). Round 1 of WP3 kept that code in the dev build only, at
+ * 235.9 kB, because nothing chose it yet; it ships now.
  */
 const CHUNK_MAX = 480 * 1000;
-const GZIP_TOTAL_MAX = 236 * 1000;
+const GZIP_TOTAL_MAX = 238.5 * 1000;
 
 const dir = 'dist/assets';
 const js = readdirSync(dir).filter((f) => f.endsWith('.js'));

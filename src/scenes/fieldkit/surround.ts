@@ -80,18 +80,29 @@ export interface SurroundView {
   frame: number;
 }
 
+/**
+ * Whether any of the plain void behind a map can show this frame: the view (its top-left corner at
+ * `cx`, `cy`, shake included) reaches past the map's edge on some side. When it does not, the map's
+ * ground layer covers every pixel of the screen, and it is opaque in every pixel, so the void fill
+ * under it is overdrawn and can be skipped (the first item of D15 in docs/PIVOT-640.md).
+ */
+export function voidShows(cx: number, cy: number, mw: number, mh: number): boolean {
+  return cx < 0 || cy < 0 || cx + W > mw || cy + H > mh;
+}
 
 /**
  * Paint what is behind the map. Called first in the field's draw, before the map is drawn over it.
  * A small map (one with an entry) gets its surround. A map that fills the screen gets the plain
- * void, which the map then covers: that is the base case, and the only place the void shows is the
- * strip a screen shake pulls past a map's edge.
+ * void, which the map then covers: that is the base case, and the void only shows in the strip that
+ * a screen shake pulls past a map's edge, so the fill is skipped while the view is inside the map.
  */
 export function drawSurround(ctx: Ctx, v: SurroundView): void {
   const entry = surroundFor(v.id);
   if (!entry || (v.mw >= W && v.mh >= H)) {
-    ctx.fillStyle = v.voidColor ?? VOID;
-    ctx.fillRect(0, 0, W, H);
+    if (voidShows(v.cx, v.cy, v.mw, v.mh)) {
+      ctx.fillStyle = v.voidColor ?? VOID;
+      ctx.fillRect(0, 0, W, H);
+    }
     return;
   }
   drawSurroundArt(ctx, v, entry, v.voidColor ?? VOID);
