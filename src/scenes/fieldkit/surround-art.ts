@@ -13,9 +13,10 @@ import { voidShade } from './void';
 
 /**
  * The b1 edge fill's dark fade: the alpha of the void color where the fade starts (at the map's edge)
- * and where it ends (150 px away). Interiors only: the picture beside a room fades to near black.
+ * and where it ends (150 px away). Interiors only: the picture beside a room fades to a very dark tone (alpha 0.94 of the void color; the void itself is
+ * a near-black, not pure black).
  */
-const EDGE_FILL = { fadeNear: 0.35, fadeFar: 0.94 };
+export const EDGE_FILL = { fadeNear: 0.35, fadeFar: 0.94 };
 
 /**
  * The Rustyard's theme record: every color and alpha of its painter, named. The surround is drawn
@@ -28,9 +29,9 @@ const EDGE_FILL = { fadeNear: 0.35, fadeFar: 0.94 };
 export const YARD = {
   /** The gravel tile: its ground and two speck colors. */
   gravelGround: '#664b3a',
-  gravelSpecks: ['#765a47', '#8a6a54'],
+  gravelSpecks: ['#765a47', '#8a6a54'] as const,
   /** The fence's three rib colors (lit, mid, shadowed), its dark outer edge, and the seams between panels. */
-  fenceRibs: ['#8e6046', '#6e4a38', '#54392a'],
+  fenceRibs: ['#8e6046', '#6e4a38', '#54392a'] as const,
   fenceEdge: '#2d1f17',
   seamShadow: '#2a1c15',
   seamLight: '#9a6a4a',
@@ -49,7 +50,7 @@ export const YARD = {
 };
 
 /** The Dock's theme record: every color and alpha of its painter and of its moving water. */
-const DOCK = {
+export const DOCK = {
   waterTop: '#0a1a2b',
   waterMid: '#0c2236',
   waterBottom: '#07121e',
@@ -62,7 +63,14 @@ const DOCK = {
   bollardShadow: '#05070b',
   bollardBody: '#2a3342',
   bollardLit: '#5a6a84',
+  /** The moving water's ripple dashes: color, how many, how far past the apron they stay, length range and speed range. */
   ripple: 'rgba(120,175,215,0.3)',
+  rippleCount: 56,
+  rippleMargin: 14,
+  rippleLenMin: 6,
+  rippleLenRange: 12,
+  rippleSpeedMin: 0.12,
+  rippleSpeedRange: 0.2,
   fadeNear: 0.0,
   fadeFar: 0.62,
 };
@@ -157,7 +165,7 @@ function built(v: SurroundView, entry: SurroundEntry, voidColor: string): Surfac
 // ------------------------------------------------------------------ b1: the edge fill
 
 /**
- * Repeat the map's outermost row and column of tiles outward, then fade to black with distance.
+ * Repeat the map's outermost row and column of tiles outward, then fade toward the void color with distance (dark, not pure black).
  * The edge tiles are walls, fences and darkness in every map, so repeating them reads as more
  * of the same wall.
  */
@@ -249,7 +257,7 @@ function paintYard(g: Ctx, v: SurroundView): void {
     c.fillStyle = YARD.gravelGround;
     c.fillRect(0, 0, 32, 32);
     for (let i = 0; i < 26; i++) {
-      c.fillStyle = hash(i) > 0.5 ? YARD.gravelSpecks[0]! : YARD.gravelSpecks[1]!;
+      c.fillStyle = YARD.gravelSpecks[hash(i) > 0.5 ? 0 : 1];
       c.fillRect(Math.floor(hash(i + 50) * 30), Math.floor(hash(i + 90) * 30), 1 + Math.floor(hash(i + 7) * 3), 1 + Math.floor(hash(i + 3) * 2));
     }
   });
@@ -285,7 +293,7 @@ function paintYard(g: Ctx, v: SurroundView): void {
   // The fence: panels of corrugated metal, one rib every 3 px, a seam every 48 px of the yard.
   const panel = (x: number, outer: boolean): void => {
     for (let i = 0; i < FENCE; i++) {
-      g.fillStyle = YARD.fenceRibs[i % 3]!;
+      g.fillStyle = YARD.fenceRibs[(i % 3) as 0 | 1 | 2];
       g.fillRect(x + i, 0, 1, PH);
     }
     g.fillStyle = YARD.fenceEdge;
@@ -381,11 +389,11 @@ function paintDock(g: Ctx, v: SurroundView): void {
 function rippleWater(ctx: Ctx, v: SurroundView): void {
   const x0 = -v.cx, y0 = -v.cy;
   ctx.fillStyle = DOCK.ripple;
-  const margin = 14;
-  for (let k = 0; k < 56; k++) {
+  const margin = DOCK.rippleMargin;
+  for (let k = 0; k < DOCK.rippleCount; k++) {
     const y = Math.floor(hash(k + 900) * H);
-    const len = 6 + Math.floor(hash(k + 950) * 12);
-    const speed = 0.12 + hash(k + 990) * 0.2;
+    const len = DOCK.rippleLenMin + Math.floor(hash(k + 950) * DOCK.rippleLenRange);
+    const speed = DOCK.rippleSpeedMin + hash(k + 990) * DOCK.rippleSpeedRange;
     const x = Math.floor((hash(k + 700) * (W + len) + v.frame * speed * (k % 2 ? 1 : -1) + W * 4) % (W + len)) - len;
     const inside = x + len > x0 - margin && x < x0 + v.mw + margin && y > y0 - margin && y < y0 + v.mh + margin;
     if (!inside) ctx.fillRect(x, y, len, 1);

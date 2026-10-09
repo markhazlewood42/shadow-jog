@@ -8,7 +8,7 @@
  * 2026-10-08, "indoor areas blank fill (b1), outdoor areas themed (b2)"):
  *
  * - **b1**, an edge fill, for an indoor map: the map's own outermost row of tiles is repeated
- *   outward, and a dark fade (to 0.94 of the void color, dark, not black) takes it down, so the room seems to go on past its edge.
+ *   outward, and a dark fade (to an alpha of 0.94 of the void color, so dark, not pure black) takes it down, so the room seems to go on past its edge.
  * - **b2**, a themed surround, for an outdoor map: something drawn in code that fits the place.
  *   Which one is the entry's `theme`: a corrugated fence and scrap ground for the Rustyard, a quay
  *   edge over black water for the Dock.

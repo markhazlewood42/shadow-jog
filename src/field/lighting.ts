@@ -129,8 +129,10 @@ export class Lighting {
    * the layer that hold anything are lit and drawn (`field/overrects.ts`): the rest is clear, and a
    * clear pixel lights to a clear pixel, so the picture is the same as lighting the whole window.
    * The operations are unbounded ('copy' and 'destination-in' touch every pixel of the canvas), so
-   * the scratch is clipped to the parts, which bounds them. On a software canvas the full window cost
-   * about 0.7 ms of the plaza's frame, nearly all of it on clear pixels.
+   * the scratch is clipped to the parts, which bounds them. Measured in WP3 round 3 (docs/PIVOT-640.md,
+   * "Round 3", item 3): with the whole overhead pass switched off, the plaza's software frame fell
+   * by about 0.8 ms (4.15 to 3.33 ms), so that is the most the clip can save, and nearly all of that
+   * was spent on clear pixels.
    */
   drawLitLayer(ctx: Ctx, layer: HTMLCanvasElement, srcX: number, srcY: number, parts: Rect[]): void {
     const s = this.scratch.ctx;

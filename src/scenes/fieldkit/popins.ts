@@ -20,21 +20,19 @@
  * into the map data once Mark gives his written yes.
  */
 import type { Ctx } from '../../engine/canvas';
+import type { Rect } from '../../field/overrects';
 import { TS } from '../../field/tiles';
 import { voidShade } from './void';
 
 /** Limits on where the camera's origin (the view's top-left corner, in map pixels) may go. A side left out keeps the default (the map's own edge). */
 export interface CameraBox { minX?: number; maxX?: number; minY?: number; maxY?: number }
 
-/** A rectangle in map pixels. */
-export interface MapRect { x: number; y: number; w: number; h: number }
-
 /**
  * A dark curtain over `box`. `near`: it is closed while the leader is farther than `radius` from
  * `focus` and opens over `fade` more pixels as they come closer. `event`: it is closed while one of
  * `events` (event ids of the map) runs, until a script pans the camera, and eases over `fade` frames.
  */
-export type Curtain = { box: MapRect; fade: number } & (
+export type Curtain = { box: Rect; fade: number } & (
   | { mode: 'near'; focus: { x: number; y: number }; radius: number }
   | { mode: 'event'; events: string[] }
 );
