@@ -58,7 +58,7 @@ This file gives the path from today's engine and from the Phaser spike to the ne
 | **M7** 3D mode | `ThreeHost`, `Frame3D`, `Scene3D`, the minimal test scene, `s.hack()` | `src/sje/three/`, `src/hack3d/`, `src/game/script.ts` (`ScriptApi.hack`) |
 | **M8** Remove legacy | Delete the old engine files | `src/engine/{game,display,postfx,gl}`, `LegacyScene`, `ARCHITECTURE.md`, `DEVELOPING.md` |
 | **ET** Editor port | Bring every existing editor and tool onto the new engine: FX lab (M6), Battle Stage Editor and Battle Test (M3), animation editor, art review, DEV menu. They need the editor contract (principle 11) from each system. No new tool features. | `src/dev/`, `src/battlestage/`, `src/sje-lab/`, `docs/TOOLING-UI.md` section 4.5 |
-| **Editor suite** (after Chapter 1) | New editors, so that Mark builds the game mostly in UI: troops and encounters, database (enemies, skills, items), maps and level editor, conversation editor, animation composer, lights and weather, game-system config. Post-Chapter 1 work. Plan and order: `docs/TOOLING-UI.md` section 4. | New tools under `src/dev/`, data files from "Content moves to data files" |
+| **Editors** (after Chapter 1) | New editors, so that Mark builds the game mostly in UI: troops and encounters, database (enemies, skills, items), maps and level editor, conversation editor, animation composer, lights and weather, game-system config. Post-Chapter 1 work. Plan and order: `docs/TOOLING-UI.md` section 4. | New tools under `src/dev/`, data files from "Content moves to data files" |
 
 The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game. The milestones diagram starts at M0 and does not show it.
 
