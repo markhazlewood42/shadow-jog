@@ -46,6 +46,10 @@ const NO_GLYPH = (): void => undefined;
 /**
  * The Warden's conduits, relative to its sprite: [from x (from the left edge if ≥ 0, else from the
  * right), from y, to x (screen-world), to y, sag]. A constant, so drawing them allocates nothing.
+ * Both y values are in sprite space (the draw adds the sprite's top and scales by its size), so the
+ * `0`, `4`, `58` and `62` stay fixed on purpose: they say where each cable ends relative to the
+ * Warden, not where on the backdrop, and neither `HORIZON` nor `BW` moves them. Only the far x ends
+ * (`-6`, `BW + 6`) follow the world's width.
  */
 const CONDUITS: readonly (readonly [number, number, number, number, number])[] = [
   [10, 24, -6, 4, 10],

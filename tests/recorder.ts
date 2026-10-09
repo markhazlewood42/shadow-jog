@@ -383,12 +383,14 @@ export const LIST_FRAME_MARGIN = 8;
  * A text that starts in no window is not judged here (the title screen has none): it is checked only
  * against the frame of the screen, by check 1. Returns the ones that overflow.
  */
-export function textOutsideWindow(l: Layout): { text: string; win: WinRec; box: Box }[] {
-  const bad: { text: string; win: WinRec; box: Box }[] = [];
+export function textOutsideWindow(l: Layout): { text: string; win: WinRec; box: Box; over: number }[] {
+  const bad: { text: string; win: WinRec; box: Box; over: number }[] = [];
   for (const t of l.texts) {
     if (t.decor || t.win === null) continue;
     const w = l.windows[t.win]!;
-    if (t.x < w.x + FRAME || t.y < w.y + FRAME || t.x + t.w > w.x + w.w - FRAME || t.y + t.h > w.y + w.h - FRAME) bad.push({ text: t.text, win: w, box: t });
+    // How far the box runs past the frame's inner edge, on its worst side (px; above 0 means overflow).
+    const over = Math.max(w.x + FRAME - t.x, w.y + FRAME - t.y, t.x + t.w - (w.x + w.w - FRAME), t.y + t.h - (w.y + w.h - FRAME));
+    if (over > 0) bad.push({ text: t.text, win: w, box: t, over });
   }
   return bad;
 }

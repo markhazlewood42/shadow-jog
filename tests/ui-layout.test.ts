@@ -344,13 +344,18 @@ const KNOWN_OFFSCREEN: { shot: string; is: (d: { y: number }, H: number) => bool
 
 /**
  * Text boxes that the recorder reports as leaving their window, and that do not: each with its reason. The
- * recorder judges a text by its whole box (7 rows tall), not by the rows that carry ink.
+ * recorder judges a text by its whole box (7 rows tall), not by the rows that carry ink. An entry is keyed by
+ * the shot, the text, the title of the window that draws it, and the most the box may run past the frame's
+ * inner edge (`maxOver`, px): the same text in another window, or the same text running further over, is
+ * still a finding.
  */
-const KNOWN_TEXT_OVERFLOW: { shot: string; text: string; why: string }[] = [
+const KNOWN_TEXT_OVERFLOW: { shot: string; text: string; winTitle: string; maxOver: number; why: string }[] = [
   {
     shot: 'battle: the item list',
     text: '▼',
-    why: 'the list’s "more below" arrow: its box ends 1 px into the window frame, but the arrow’s ink is rows 2 to 4 of the 7-row glyph, so no pixel touches the frame (the same at 480x270)',
+    winTitle: 'KIT · ITEMS',
+    maxOver: 3,
+    why: 'the list’s "more below" arrow: its 7-row box runs 3 px past the frame’s inner edge, but the arrow’s ink is rows 2 to 4 of the glyph, and the runner measured the ink 2 to 3 game px clear of the frame (the same at 480x270)',
   },
 ];
 
@@ -364,8 +369,8 @@ function findings(shots: Shot[], W: number, H: number): string[] {
       out.push(`${name}: a ${d.op} at ${Math.round(d.x)},${Math.round(d.y)} ${Math.round(d.w)}x${Math.round(d.h)} leaves the screen`);
     }
     for (const t of textOutsideWindow(layout)) {
-      if (KNOWN_TEXT_OVERFLOW.some((k) => k.shot === name && k.text === t.text)) continue;
-      out.push(`${name}: the text "${t.text.slice(0, 30)}" leaves its window (${t.win.title ?? 'untitled'})`);
+      if (KNOWN_TEXT_OVERFLOW.some((k) => k.shot === name && k.text === t.text && k.winTitle === (t.win.title ?? 'untitled') && t.over <= k.maxOver)) continue;
+      out.push(`${name}: the text "${t.text.slice(0, 30)}" leaves its window (${t.win.title ?? 'untitled'}) by ${t.over} px`);
     }
     for (const l of listsNotFollowingHeight(layout, TALL, reserve)) out.push(`${name}: a list in "${l.win.title ?? 'untitled'}": ${l.why}`);
   }
@@ -599,5 +604,23 @@ describe('what the full-page scenes promise (WP5, D9)', () => {
     expect(below).toBeGreaterThan(0);
     expect(below).toBeGreaterThanOrEqual(above - 2);
     expect(line.y + line.h).toBeLessThanOrEqual(H);
+  });
+});
+
+describe('the shop compare rows (Review 4: the crew sprites overlapped the names)', () => {
+  it('each crew sprite ends before its name starts, with COMPARE_SPRITE_GAP between them', async () => {
+    const { shots } = await drawAll(null);
+    const { COMPARE_SPRITE_GAP } = await import('../src/ui/layout');
+    const { MEMBERS } = await import('../src/data/party');
+    const names = new Set(Object.values(MEMBERS).map((m) => m.name));
+    const layout = shots.find((s) => s.name === 'shop: buy')!.layout;
+    // The row's sprite is drawn 4 rows above its name (`drawCompare`), at the same left edge.
+    const rows = layout.texts.filter((t) => names.has(t.text)).map((t) => ({ name: t, sprite: layout.draws.find((d) => d.op === 'drawImage' && d.y === t.y - 4 && d.x < t.x) }));
+    expect(rows.length, 'the buy list’s first item has a compare row per crew member').toBeGreaterThanOrEqual(2);
+    for (const { name, sprite } of rows) {
+      expect(sprite, `a sprite on the row of ${name.text}`).toBeTruthy();
+      expect(sprite!.x + sprite!.w, `${name.text}: the sprite box ends where the name box starts or before`).toBeLessThanOrEqual(name.x);
+      expect(name.x - (sprite!.x + sprite!.w), `${name.text}: the clear gap`).toBeGreaterThanOrEqual(COMPARE_SPRITE_GAP);
+    }
   });
 });
