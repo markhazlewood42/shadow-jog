@@ -25,6 +25,7 @@
     { "file": "src/dev/fxlab.ts", "token": 360, "match": "spread", "reason": "degrees: a spread of 360 is every way" },
     { "file": "src/scenes/card.ts", "token": 320, "match": "const w = 320", "reason": "a centered card's width, not the screen (inventory row 113)" },
     { "file": "src/scenes/controls.ts", "token": 360, "match": "const w = 360", "reason": "a centered window's width, not the screen (inventory row 112)" },
-    { "file": "src/scenes/chartest.ts", "token": 240, "match": "col * 240", "reason": "a dev sheet's column pitch (inventory row 121)" }
+    { "file": "src/scenes/chartest.ts", "token": 240, "match": "col * 240", "reason": "a dev sheet's column pitch (inventory row 121)" },
+    { "file": "src/ui/layout.ts", "token": 240, "match": "SHOP_LIST_W = 240", "reason": "the shop list's width (D8's recommendation), a pane width that is not the screen" }
   ]
 }

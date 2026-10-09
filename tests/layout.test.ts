@@ -181,3 +181,62 @@ describe('battle turn-order strip', () => {
     }
   });
 });
+
+describe('the Status screen (WP4)', () => {
+  it('every bio and the wound line end above the divider that opens the lower half', async () => {
+    const { STATUS_BIO_W, STATUS_DIVIDER_Y } = await import('../src/ui/layout');
+    for (const [id, m] of Object.entries(MEMBERS)) {
+      const lines = wrap(m.bio, STATUS_BIO_W).length;
+      // The bio starts at y 74 with a 10 px pitch; the wound line (Rook) is one more row, 12 px under it.
+      expect(74 + lines * 10 + 12, `${id}'s bio is ${lines} lines`).toBeLessThanOrEqual(STATUS_DIVIDER_Y);
+    }
+  });
+
+  it('every member’s abilities, known and locked, fit the three columns of nine rows', async () => {
+    const { STATUS_ABILITY_COLS, STATUS_ABILITY_ROWS } = await import('../src/ui/layout');
+    const { applyStage } = await import('../src/game/stages');
+    const { knownAbilities, lockedAbilities } = await import('../src/game/party');
+    const { state } = await import('../src/game/state');
+    for (const stage of ['start', 'sinkline', 'annex', 'finale']) {
+      applyStage(stage);
+      for (const m of Object.values(state.members)) {
+        if (!m) continue;
+        const n = knownAbilities(m).length + lockedAbilities(m).length;
+        expect(n, `${m.id} at ${stage}`).toBeLessThanOrEqual(STATUS_ABILITY_COLS * STATUS_ABILITY_ROWS);
+      }
+    }
+  });
+
+  it('the stat block, the bio and the ability columns sit inside the window', async () => {
+    const { STATUS_ABILITY_COL_W, STATUS_ABILITY_COLS, STATUS_ABILITY_X, STATUS_BIO_W, STATUS_STATS_W, STATUS_STATS_X, STATUS_TEXT_X } = await import('../src/ui/layout');
+    // The window runs 8..W-8; its content keeps a 2 px frame and a few px of room.
+    expect(STATUS_STATS_X + STATUS_STATS_W).toBeLessThanOrEqual(W - 18);
+    expect(STATUS_TEXT_X + STATUS_BIO_W).toBeLessThan(STATUS_STATS_X);
+    expect(STATUS_ABILITY_X + STATUS_ABILITY_COLS * STATUS_ABILITY_COL_W).toBeLessThanOrEqual(W - 16);
+  });
+});
+
+describe('list rows follow the window height (WP4)', () => {
+  it('rowsFor gives the rows that fit, and at least one', async () => {
+    const { rowsFor } = await import('../src/ui/layout');
+    expect(rowsFor(110, 11)).toBe(10);
+    expect(rowsFor(120, 11)).toBe(10);
+    expect(rowsFor(121, 11)).toBe(11);
+    expect(rowsFor(5, 11)).toBe(1);
+    // The combo log: 8 rows at 360 high, 6 at 270 high (the old count).
+    expect(rowsFor(H - 8 - 40, 36)).toBe(8);
+    expect(rowsFor(270 - 8 - 40, 36)).toBe(6);
+  });
+});
+
+describe('the dialog and menu caps (D8 defaults)', () => {
+  it('the dialog box is capped at 464 and the menu panes at 364, and both fit the screen', async () => {
+    const { DIALOG_MAX_W, MENU_PANE_MAX_W, MENU_PANE_X, dialogBoxW, menuPaneW, menuCardStrip } = await import('../src/ui/layout');
+    expect(dialogBoxW()).toBe(Math.min(DIALOG_MAX_W, W - 16));
+    expect(menuPaneW()).toBe(Math.min(MENU_PANE_MAX_W, W - MENU_PANE_X - 8));
+    // At 640 the strip right of the list holds the compact cards; they fit the margin.
+    const strip = menuCardStrip();
+    expect(strip).not.toBeNull();
+    expect(strip!.x + strip!.w).toBe(W - 8);
+  });
+});

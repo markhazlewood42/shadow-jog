@@ -9,6 +9,7 @@ import { getPortrait } from '../art/portraits';
 import { sfx } from '../audio/sfx';
 import { audio } from '../audio/engine';
 import { debug } from '../game/debug';
+import { DIALOG_PAD, DIALOG_PORTRAIT_COL, dialogBoxW, dialogTextW } from '../ui/layout';
 
 export interface DialogOpts {
   who: string | null;
@@ -22,7 +23,7 @@ export interface DialogOpts {
 }
 
 const BOX_H = 62;
-const PAD = 8;
+const PAD = DIALOG_PAD;
 const LINES = 4;
 const LH = LINE_H + 1;
 /** Fast-forward hint: shown on the first few boxes, dropped once the player has used it. */
@@ -43,12 +44,15 @@ export class DialogScene extends Scene<number> {
   private bufferedPress = false;
   private autoT = 0;
   private blipAcc = 0;
+  /** The box: its width (capped and centered, D8) and left edge. The numbers are `ui/layout.ts`'s. */
+  private bw = dialogBoxW();
+  private bx = Math.round((W - this.bw) / 2);
 
   constructor(private o: DialogOpts) {
     super();
     this.sp = speaker(o.who);
     if (this.sp?.portrait) this.portrait = getPortrait(this.sp.portrait, o.face ?? 'neutral');
-    const textW = W - 16 - PAD * 2 - (this.portrait ? 56 : 0);
+    const textW = dialogTextW(this.bw, !!this.portrait);
     const lines = wrap(o.text, textW);
     for (let i = 0; i < lines.length; i += LINES) this.pages.push(lines.slice(i, i + LINES));
     if (!this.pages.length) this.pages.push(['']);
@@ -149,11 +153,11 @@ export class DialogScene extends Scene<number> {
     const h = Math.max(4, Math.round(BOX_H * k));
     const y = y0 + Math.round((BOX_H - h) / 2);
     const accent = this.sp?.color ?? UI.cyan;
-    drawWindow(ctx, 8, y, W - 16, h, { accent });
+    drawWindow(ctx, this.bx, y, this.bw, h, { accent });
     if (k < 1) return;
-    let tx = 8 + PAD;
+    let tx = this.bx + PAD;
     if (this.portrait) {
-      const px = 8 + 7, py = y0 + 7;
+      const px = this.bx + 7, py = y0 + 7;
       ctx.fillStyle = UI.outline;
       ctx.fillRect(px - 1, py - 1, 50, 50);
       // Rig v2 portraits work the mouth while the line types and blink now and then.
@@ -162,9 +166,9 @@ export class DialogScene extends Scene<number> {
       ctx.drawImage(face ?? this.portrait, px, py, 48, 48);
       ctx.fillStyle = accent;
       ctx.fillRect(px - 1, py + 48, 50, 1);
-      tx += 56;
+      tx += DIALOG_PORTRAIT_COL;
     }
-    if (this.sp) drawTab(ctx, 8 + (this.portrait ? 62 : 8), y0 - 5, this.sp.name, accent);
+    if (this.sp) drawTab(ctx, this.bx + (this.portrait ? 62 : 8), y0 - 5, this.sp.name, accent);
     const lines = this.pages[this.page]!;
     let remaining = Math.floor(this.shown);
     lines.forEach((ln, i) => {
@@ -174,10 +178,10 @@ export class DialogScene extends Scene<number> {
     });
     if (!this.typing) {
       if (this.lastPage && this.o.choices) this.renderChoices(ctx, y0);
-      else if (!this.o.auto) drawMore(ctx, W - 8 - 14, y0 + BOX_H - 13, this.frame, accent);
+      else if (!this.o.auto) drawMore(ctx, this.bx + this.bw - 14, y0 + BOX_H - 13, this.frame, accent);
     } else if (ffHint.left > 0 && !this.o.choices && !this.o.auto) {
       // Teach fast-forward early; stop once the player has used it.
-      drawText(ctx, '{d}Hold X to fast-forward{/}', W - 8 - PAD, this.o.top ? y0 + BOX_H + 3 : y0 - 10, { align: 'right' });
+      drawText(ctx, '{d}Hold X to fast-forward{/}', this.bx + this.bw - PAD, this.o.top ? y0 + BOX_H + 3 : y0 - 10, { align: 'right' });
     }
   }
 
@@ -185,7 +189,8 @@ export class DialogScene extends Scene<number> {
     const ch = this.o.choices!;
     const w = Math.max(80, ...ch.map((c) => measure(c))) + 24;
     const h = ch.length * 12 + 10;
-    const x = W - 8 - w - 4;
+    // Anchored to the right end of the box (capped and centered, so the choices stay beside the question).
+    const x = this.bx + this.bw - w - 4;
     const y = this.o.top ? boxY + BOX_H + 4 : boxY - h - 4;
     drawWindow(ctx, x, y, w, h, { plain: true });
     ch.forEach((c, i) => {
