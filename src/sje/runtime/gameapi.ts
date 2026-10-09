@@ -74,7 +74,7 @@ export interface LegacyGameSurface extends GameApi {
   /** Frames of play time (counts only while `countPlayTime` is set). */
   playFrames: number;
   countPlayTime: boolean;
-  /** Run every tick before the scenes (audio sequencer, postfx). A ticker that throws is reported and dropped. */
+  /** Run every tick before the scenes (the audio sequencer, the old effects layer). A ticker that throws is reported and dropped. */
   tickers: (() => void)[];
   /** Run after the scenes draw (the notice badge). An overlay that throws is reported and dropped. */
   overlays: ((ctx: CanvasRenderingContext2D) => void)[];

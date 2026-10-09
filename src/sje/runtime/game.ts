@@ -7,7 +7,7 @@
  * One TICK (`advanceTick`), in the order of frame-and-rendering.md section 2:
  *   1. Input polling (`input.update()`). A throw is reported once and dropped: a blocked Gamepad API is not a scene fault.
  *   2. `prestep` then `step` events (with the tick that is ending).
- *   3. The legacy tickers (audio sequencer, postfx). A ticker that throws is reported and dropped.
+ *   3. The legacy tickers (the audio sequencer, the old effects layer). A ticker that throws is reported and dropped.
  *   4. The game clock: the tick counter goes up, `playFrames`, due `wait()` timers resolve, the game fade moves, shake and flash count down.
  *   5. The scenes run, top first (`SceneManager.tick`): `preupdate`, the scene's `time` and `tweens`, `fixedUpdate`, `update`, `postupdate`,
  *      the cameras' effects.
@@ -28,8 +28,8 @@
  * Fault isolation is today's, line for line (tests/game.test.ts runs the same cases on both `Game` classes): an exception in one scene's
  * update or draw is reported and that scene skips the frame; the loop never dies.
  *
- * Not built yet: `fx` (FxSystem, M2), `audio` (the bridge, with the first native scene), `scale` (Display: build B of M1), `registry`,
- * the destroy queue, `Scene3D` (M1b), `fxLevel` behavior (build B reads `config.fxLevel`).
+ * Not built yet: `fx` (the effects system, M2), `audio` (the bridge, with the first native scene), `scale` (Display: build B of M1), `registry`,
+ * the destroy queue, the 3D scene (M1b), `fxLevel` behavior (build B reads `config.fxLevel`).
  */
 import { EventEmitter } from '../core/eventemitter';
 import { FixedLoop, type FixedLoopOptions } from '../core/fixedloop';
@@ -125,7 +125,7 @@ export class Game implements DisplayHost, LegacyGameSurface {
   /** Frames of play time (only counts while countPlayTime is set: not on the title or menus that stop the clock). */
   playFrames = 0;
   countPlayTime = false;
-  /** Hooks run every tick before the scenes (audio sequencer, postfx). */
+  /** Hooks run every tick before the scenes (the audio sequencer, the old effects layer). */
   tickers: (() => void)[] = [];
   /** Hooks run after the topmost scene draws (the notice badge). */
   overlays: ((ctx: CanvasRenderingContext2D) => void)[] = [];

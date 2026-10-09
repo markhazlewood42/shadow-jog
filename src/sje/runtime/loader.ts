@@ -15,7 +15,7 @@
  * stand-ins and the bundles are all checked in Node with no network.
  *
  * Not built yet (on demand): `atlas`, `audio`, `text`, `xml`, retry, and a load screen (`LoadingScene`, proposed). The loader has no glTF
- * type: a `Scene3D` loads glTF itself inside the lazy 3D chunk.
+ * type: a 3D scene loads glTF itself inside the lazy 3D chunk.
  */
 import { EventEmitter } from '../core/eventemitter';
 import type { TextureManager } from '../display/texturemanager';

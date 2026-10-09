@@ -122,7 +122,7 @@ function readBuild(name, dir) {
     else cls = 'lazy-other';
     // Pixi's environment chunks exist because Pixi's `init` can import them. The engine skips that step (`skipExtensionImports`), so a
     // player never downloads them (canary 8 of e2e/sje-canaries.spec.ts proves it). They are listed, and left out of `first play`.
-    chunks.push({ name, file: chunk.file, raw: text.length, gzip: gz(text), cls, pixi, three, unused, blind: (found === null && !unused) || (found?.length === 0 && cls === 'boot') });
+    chunks.push({ name, file: chunk.file, raw: text.length, gzip: gz(text), cls, pixi, three, sje, unused, blind: (found === null && !unused) || (found?.length === 0 && cls === 'boot') });
   }
   return { name, dir, chunks };
 }
@@ -174,9 +174,14 @@ for (const build of [game, lab]) {
     if (c.three) problem(`${build.name}: the boot chunk ${c.file} holds a three module`);
   }
 }
-// 2. The shipped game has no engine yet (M6 and M7 relax this on purpose).
+// 2. M1 (2026-10-09) lets the shipped game hold Pixi, but only in a lazy chunk: the `?engine=sje` chunk (src/sje/boot.ts, loaded by a dynamic
+// import in src/main.ts). Check 1 above already keeps Pixi out of `boot`. Three stays out of the game until M7. The chunk must exist and be
+// classified `lazy-2d` with Pixi and the engine in it: if it is not there, the flag path is broken or this check is blind.
 for (const c of game.chunks) {
-  if (c.pixi || c.three) problem(`game: chunk ${c.file} holds ${c.pixi ? 'Pixi' : 'Three'}; the game does not load the engine before M6`);
+  if (c.three) problem(`game: chunk ${c.file} holds Three; the game does not load the 3D mode before M7`);
+}
+if (!game.chunks.some((c) => c.cls === 'lazy-2d' && c.pixi && c.sje && !c.unused)) {
+  problem('game: no lazy-2d chunk holds both the engine (src/sje) and Pixi (is `?engine=sje` still a dynamic import in src/main.ts?)');
 }
 // 3. The old alarms, on the shipped game: the largest chunk (raw), and all JavaScript gzipped (what a player downloads).
 for (const c of game.chunks) if (c.raw > CHUNK_MAX) problem(`game: ${c.file} is ${c.raw} bytes, over the ${CHUNK_MAX} byte largest-chunk cap`);
