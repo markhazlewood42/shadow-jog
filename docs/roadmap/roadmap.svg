@@ -65,7 +65,7 @@
     <text x="130" y="219" fill="#cfeee0" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">DONE</text>
   </g>
   <g id="item-M0">
-    <title>M0 Prepare: active. Size module, bundle gate, canary suite, agent docs. Worktree: projects/shadow-jog-engine.</title>
+    <title>M0 Prepare: active. Built and verified (2 rounds). Size module, bundle gate, canary suite, lab, agent docs. Waits for CI and Mark's merge. Worktree: projects/shadow-jog-engine.</title>
     <rect x="224" y="150" width="90" height="76" rx="6" fill="#ffcc3d" stroke="#ffcc3d" stroke-width="2"/>
     <text x="232" y="169" fill="#1a1500" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M0</text>
     <text x="232" y="187" fill="#1a1500" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Prepare</text>

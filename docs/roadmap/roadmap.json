@@ -37,7 +37,8 @@
       "status": "active",
       "after": ["Pre-M0"],
       "branch": "engine-m0-prepare",
-      "notes": "Size module, bundle gate, canary suite, agent docs. Worktree: projects/shadow-jog-engine."
+      "pr": "#43 (ready for review)",
+      "notes": "Built and verified (2 rounds). Size module, bundle gate, canary suite, lab, agent docs. Waits for CI and Mark's merge. Worktree: projects/shadow-jog-engine."
     },
     {
       "id": "M1",

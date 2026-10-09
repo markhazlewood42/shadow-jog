@@ -25,7 +25,7 @@ Now: M0 Prepare. Next: M1 Shell.
 |---|---|---|---|---|---|---|
 | Phase 0 Platform spike | Foundations | 1 | done | none | PR #11 (draft, never merged) | Mark approved the final engine design on 2026-10-05. Record: docs/spikes/engine-platform.md. |
 | Pre-M0 640x360 move | Foundations | 2 | done | Phase 0 | branch `resolution-640x360`, PR #23 (merged 2026-10-09) | The shipped game plays at 640x360. Record: docs/PIVOT-640.md. |
-| M0 Prepare | Foundations | 3 | active | Pre-M0 | branch `engine-m0-prepare` | Size module, bundle gate, canary suite, agent docs. Worktree: projects/shadow-jog-engine. |
+| M0 Prepare | Foundations | 3 | active | Pre-M0 | branch `engine-m0-prepare`, PR #43 (ready for review) | Built and verified (2 rounds). Size module, bundle gate, canary suite, lab, agent docs. Waits for CI and Mark's merge. Worktree: projects/shadow-jog-engine. |
 | M1 Shell | Engine path | 4 | next | M0 | none | Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. |
 | M2 Effects | Engine path | 5 | later | M1 | none | FxSystem with the postfx facade, composite filter, particles. |
 | M3 Battle stage | Engine path | 6 | later | M2 | none | The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge. |
