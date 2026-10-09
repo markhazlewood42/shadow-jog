@@ -131,6 +131,8 @@ tags: [tooling, command-center, plan]
 
 ## Verification
 
+> **Superseded on 2026-10-08 (Mark):** new work follows the lean loop, the rule "Verification loop for every build in this repo" in `CLAUDE.md`. The text below records how this work was verified.
+
 - **Per task:** one builder, then fresh verifier agents that did not write the code. Two verifiers for Tasks 1, 3, 4, 5, 7, 9, 10, 11 and 12 (feature and layout, and Task 7 reads private files). One verifier for Tasks 2, 6 and 8 (parser, data and text only). Only one verifier runs Playwright. The other reads the diff and the evidence. For Task 9, one verifier tries to break the trust and write rules: a forged comment (as in the Task 8 forged-comment check), a cross-site POST, a missing token, a replay.
 - **Criteria:** the orchestrator writes them before the build: each test name, each "Done when" line, and each global constraint that the task touches. Scores run from 1 to 10.
 - **Pass:** every criterion at 7 or more and an average of 8 or more. If a task fails, the builder fixes the named criteria. After 3 rounds, stop and report to Mark.

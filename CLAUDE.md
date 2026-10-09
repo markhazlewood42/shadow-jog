@@ -16,8 +16,34 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 6. `docs/quality/GRADING.md`: how quality was graded over 12 rounds, and why that loop has ended.
 
 ## Rules that matter
-- **The automated quality loop has ended** (exit set 2026-09-29, after round 12). Don't start new verification
-  rounds unless Mark asks. The current gate is **Mark's own end-to-end playthrough**; his notes are the work queue.
+- **The automated quality loop has ended** (exit set 2026-09-29, after round 12). It was the Chapter 1 grading loop:
+  rounds that re-scored the whole game. Don't start new grading rounds unless Mark asks. The current gate is **Mark's
+  own end-to-end playthrough**; his notes are the work queue. The check of each new build is a different thing: the
+  lean loop below.
+- **Verification loop for every build in this repo: the lean loop (Mark, 2026-10-08).** It covers the engine
+  milestones, the 640x360 move, the Command Center, tools and docs, and overrides the older loops:
+  `docs/engine/verification.md` section 1, `docs/command-center/plan.md`, `plan-revision-2.md` and `design.md`
+  section 8, and "The loop" in `docs/PIVOT-640.md` (on branch `resolution-640x360`, PR #23, until it merges). The
+  reason and the map from the three engine lenses to two verifiers are in `docs/engine/verification.md`.
+  - **Who.** A fresh agent that did not write the work grades it, against criteria written before the work. Code
+    and layout: 2 verifiers, a runner (runs the touched tests and Playwright, makes the pictures) and a reader (reads
+    the diff for correctness and design). Docs, data, text and records: 1. A third, an attacker, only for a write
+    path, a trust rule or a save format.
+  - **Severity.** Critical: a hard pass line fails, a crash, data loss, or a broken trust or write rule. Important:
+    a wrong behavior or layout that a player or Mark would see, a test that cannot fail, or a false claim about
+    behavior. Minor: a comment, doc wording, a record, a name, a nit.
+  - **Pass.** Every hard pass line holds and no Critical or Important finding is open. Rubric scores stay as
+    evidence; they do not gate. A Minor finding is a named fix for the next commit, never a new round.
+  - **Rounds.** The first verification is round 1. A fix round checks only the named findings, with one fresh
+    verifier, and re-runs only the affected tests. Cap: 3 rounds, then stop and bring Mark the evidence.
+  - **Tests.** CI runs the full e2e suite on every push. Locally, run only the specs that the change touches
+    (`e2e/perf.spec.ts` only for a hot-path change). Re-prove capture determinism only when the capture code changed.
+  - **Records.** One short table per step: what changed, numbers, verdict, named fixes. No narrative.
+  - **Agents.** Group small tasks of one kind into one build and one round, with short briefs that point at files.
+    Haiku for searches and the reader, Sonnet for builders and the runner (Fable for all only when the session runs
+    on Fable). Set `effort` on every agent call (a home-base hook requires it): low for a search, medium for a
+    verifier, high for a builder in a last round.
+  - Mark still decides the look from pictures (send them at once). A hard stop that a plan sets stays.
 - **Don't deploy** (shadowjog.com) without Mark's explicit go-ahead; it's the last alpha step, with a secure email
   sign-up whose requirements are in `status.md`.
 - **Branches and PRs (Mark, 2026-10-01):** work goes on a branch per relatively major feature (not per small fix),

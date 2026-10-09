@@ -92,6 +92,8 @@ The constraints of [plan.md](plan.md) still hold. Revision 2 changes these:
 
 ## Verification
 
+> **Superseded on 2026-10-08 (Mark):** new work follows the lean loop, the rule "Verification loop for every build in this repo" in `CLAUDE.md`. The text below records how this work was verified.
+
 - Each task has a builder and two fresh verifiers, a runner and a reader. All run on Sonnet.
 - A task passes when every criterion scores 7 or more and the average is 8 or more. A task has up to 3 fix rounds. Fix rounds cover Critical and Important findings only. Minor findings go in the PR text.
 - After Task 20, one fresh reviewer checks the whole branch. Then Mark's Copilot loop runs on the PR.

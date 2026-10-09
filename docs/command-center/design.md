@@ -293,6 +293,8 @@ The process list is an internal file of Claude Code, and its format is not promi
 
 ## 8. Testing and verification
 
+> **Superseded on 2026-10-08 (Mark):** new work follows the lean loop, the rule "Verification loop for every build in this repo" in `CLAUDE.md`. The text below records how this work was verified.
+
 - **Unit tests** (Vitest) for every parser: frontmatter, outline, backlinks, the decision table, the end of a session file, a workflow record, the "Your move" box, and a decision issue (parse it, and ignore an answer from another account). Sample files go in a fixtures folder.
 - **End-to-end tests** (Playwright) on the fixtures: the Now page (with the glass on and off), the docs navigation, search, outline, backlinks, the decision list, a decision banner, the answer flow with a stub for `gh` (a success, and a failure that keeps the choice), and one error state.
 - **Verification:** a builder agent and 2 independent verifier agents for each feature, with screenshots for Mark at each visual step.
