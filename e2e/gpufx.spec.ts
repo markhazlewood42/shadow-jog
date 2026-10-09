@@ -47,7 +47,8 @@ test('with WebGL 2, the effects layer draws the game, through a battle full of e
     // The middle of the screen, from the one size source (src/engine/game.ts), not a literal.
     const { W, H } = await import('/src/engine/game.ts');
     for (let i = 0; i < 6; i++) {
-      for (const p of Object.values(sj.fx.presets)) postfx.emit(p, 120 + i * 40, 100);
+      // The six emit points spread over the full width, at 40% of the screen height (it was 100 of 270).
+      for (const p of Object.values(sj.fx.presets)) postfx.emit(p, (W * (i + 1)) / 7, H * 0.4);
       postfx.shock(W / 2, H / 2, { strength: 6, reach: 200 });
       postfx.aberrate(4, W / 2, H / 2);
       postfx.flare(1.5);
