@@ -10,6 +10,7 @@ import { silhouette, surface, type Ctx } from '../engine/canvas';
 import { drawText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { hash2 } from '../engine/rng';
+import { reviewSwitch } from '../ui/reviewswitch';
 
 type Bg = 'city' | 'rooftop' | 'flash' | 'canal' | 'spire' | 'lab' | 'dark' | 'street';
 
@@ -30,47 +31,62 @@ interface Panel {
 
 type Page = Panel[];
 
-/** Page layouts are authored for an 8..262 frame; they are squeezed into 8..FOOT_TOP to keep a footer strip. */
-const FOOT_TOP = H - 18;
+/**
+ * The comic page's layout, as plain data in one place (the editor rule of docs/IDEAS.md: a layout
+ * is a named value, not a literal inside draw code). The panels below are authored directly for
+ * the frame PANEL_FRAME: 8 px in from the left, top and right edges, and clear of the footer
+ * strip at the bottom (the skip hint and the page marker). That is 624 by 334 at 640x360. A panel
+ * editor would change the table and these numbers, and nothing else.
+ */
+export const FOOT_TOP = H - 18;
 const FOOT_Y = H - 13;
-export function fitPanel(p: Panel): Panel {
-  const k = (FOOT_TOP - 8) / (H - 16);
-  const y = Math.round(8 + (p.y - 8) * k);
-  return { ...p, y, h: Math.round(8 + (p.y + p.h - 8) * k) - y };
+export const PANEL_FRAME = { x0: 8, y0: 8, x1: W - 8, y1: FOOT_TOP };
+/** How wide a speech bubble and a caption may grow (the panels are wider than they were, so the lines run longer). */
+export const BUBBLE_MAX_W = 280;
+export const CAPTION_MAX_W = 400;
+/** The portrait size when a panel does not pin one: 2x, as the panels have always used (D9). */
+export const PORTRAIT_SCALE = 2;
+/**
+ * The scale a panel's portrait is drawn at: the one the panel pins in the table below, or 2x. The
+ * review switch ?portrait=3 (dev builds only; the other option of D9) forces 3x on every panel; the
+ * shipped game never reads it.
+ */
+export function portraitScale(pn: Panel): number {
+  return reviewSwitch('portrait') === '3' ? 3 : (pn.portrait?.scale ?? PORTRAIT_SCALE);
 }
 
 export const PAGES: Record<string, Page[]> = {
   intro: [
     [
-      { x: 8, y: 8, w: 464, h: 132, bg: 'city', caption: 'SALTREACH, 2079.', from: 'top' },
-      { x: 8, y: 146, w: 226, h: 116, bg: 'street', caption: 'Thirty years ago, the magic came back. It didn’t fix anything.', from: 'left' },
-      { x: 240, y: 146, w: 232, h: 116, bg: 'spire', caption: 'The corporations just found new things to own.', from: 'right' },
+      { x: 8, y: 8, w: 624, h: 170, bg: 'city', caption: 'SALTREACH, 2079.', from: 'top' },
+      { x: 8, y: 184, w: 309, h: 158, bg: 'street', caption: 'Thirty years ago, the magic came back. It didn’t fix anything.', from: 'left' },
+      { x: 323, y: 184, w: 309, h: 158, bg: 'spire', caption: 'The corporations just found new things to own.', from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 200, h: 254, bg: 'rooftop', caption: 'In the Lower Wards, people take the work that comes.', from: 'left' },
-      { x: 214, y: 8, w: 258, h: 124, bg: 'dark', portrait: { key: 'rook', face: 'neutral' }, speech: { who: 'rook', text: 'Two rules, kid. Get paid. And don’t die for anyone who isn’t paying.' }, from: 'right' },
-      { x: 214, y: 138, w: 258, h: 124, bg: 'dark', portrait: { key: 'kit', face: 'smirk', flip: true }, speech: { who: 'kit', text: 'Who’s paying for me?' }, from: 'right' },
+      { x: 8, y: 8, w: 268, h: 334, bg: 'rooftop', caption: 'In the Lower Wards, people take the work that comes.', from: 'left' },
+      { x: 282, y: 8, w: 350, h: 164, bg: 'dark', portrait: { key: 'rook', face: 'neutral', scale: 2 }, speech: { who: 'rook', text: 'Two rules, kid. Get paid. And don’t die for anyone who isn’t paying.' }, from: 'right' },
+      { x: 282, y: 178, w: 350, h: 164, bg: 'dark', portrait: { key: 'kit', face: 'smirk', scale: 2, flip: true }, speech: { who: 'kit', text: 'Who’s paying for me?' }, from: 'right' },
     ],
   ],
   ending: [
     [
-      { x: 8, y: 8, w: 464, h: 120, bg: 'flash', caption: 'Rook’s flashbang bought them eleven seconds.', from: 'top', shake: true },
-      { x: 8, y: 134, w: 228, h: 128, bg: 'dark', portrait: { key: 'kit', face: 'sad' }, speech: { who: 'kit', text: 'Rook! ROOK!' }, from: 'left' },
-      { x: 242, y: 134, w: 230, h: 128, bg: 'dark', portrait: { key: 'rook', face: 'hurt', flip: true }, speech: { who: 'rook', text: 'Go, kid. Don’t look back.' }, from: 'right' },
+      { x: 8, y: 8, w: 624, h: 158, bg: 'flash', caption: 'Rook’s flashbang bought them eleven seconds.', from: 'top', shake: true },
+      { x: 8, y: 172, w: 309, h: 170, bg: 'dark', portrait: { key: 'kit', face: 'sad', scale: 2 }, speech: { who: 'kit', text: 'Rook! ROOK!' }, from: 'left' },
+      { x: 323, y: 172, w: 309, h: 170, bg: 'dark', portrait: { key: 'rook', face: 'hurt', scale: 2, flip: true }, speech: { who: 'rook', text: 'Go, kid. Don’t look back.' }, from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 464, h: 120, bg: 'canal', caption: 'Last they saw, he was on his knees in the rain, rifles all round him. The other three surfaced in the canal, three wards over.', from: 'top' },
-      { x: 8, y: 134, w: 228, h: 128, bg: 'dark', portrait: { key: 'kit', face: 'sad' }, speech: { who: 'kit', text: 'He said don’t look back. So I didn’t.' }, from: 'left' },
-      { x: 242, y: 134, w: 230, h: 128, bg: 'rooftop', caption: 'For a long time, nobody said anything. The rain did the talking.', from: 'right' },
+      { x: 8, y: 8, w: 624, h: 158, bg: 'canal', caption: 'Last they saw, he was on his knees in the rain, rifles all round him. The other three surfaced in the canal, three wards over.', from: 'top' },
+      { x: 8, y: 172, w: 309, h: 170, bg: 'dark', portrait: { key: 'kit', face: 'sad', scale: 2 }, speech: { who: 'kit', text: 'He said don’t look back. So I didn’t.' }, from: 'left' },
+      { x: 323, y: 172, w: 309, h: 170, bg: 'rooftop', caption: 'For a long time, nobody said anything. The rain did the talking.', from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 464, h: 150, bg: 'rooftop', portrait: { key: 'sable', face: 'sad', dx: 140 }, speech: { who: 'sable', text: 'The crow followed the vans all the way up the arcology. He is hurt. He is alive.' }, from: 'top' },
-      { x: 8, y: 164, w: 228, h: 98, bg: 'dark', portrait: { key: 'hex', face: 'angry' }, speech: { who: 'hex', text: 'Then we go get him. On the way, we ask Dutch what he knew.' }, from: 'left' },
-      { x: 242, y: 164, w: 230, h: 98, bg: 'dark', portrait: { key: 'kit', face: 'angry', flip: true }, speech: { who: 'kit', text: 'We go get him.' }, from: 'right' },
+      { x: 8, y: 8, w: 624, h: 175, bg: 'rooftop', portrait: { key: 'sable', face: 'sad', scale: 2, dx: 188 }, speech: { who: 'sable', text: 'The crow followed the vans all the way up the arcology. He is hurt. He is alive.' }, from: 'top' },
+      { x: 8, y: 189, w: 309, h: 153, bg: 'dark', portrait: { key: 'hex', face: 'angry', scale: 2 }, speech: { who: 'hex', text: 'Then we go get him. On the way, we ask Dutch what he knew.' }, from: 'left' },
+      { x: 323, y: 189, w: 309, h: 153, bg: 'dark', portrait: { key: 'kit', face: 'angry', scale: 2, flip: true }, speech: { who: 'kit', text: 'We go get him.' }, from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 464, h: 150, bg: 'spire', portrait: { key: 'pale', face: 'smirk', dx: 140 }, speech: { who: 'pale', text: 'Find them. The orc, the jockey, and Miss Kit. Keep the old samurai breathing: I want to know who taught Miss Kit to fight like that. You have until morning.' }, from: 'top' },
-      { x: 8, y: 164, w: 464, h: 98, bg: 'dark', finale: { title: 'END OF CHAPTER ONE', sub: 'They have until morning.' }, from: 'bottom' },
+      { x: 8, y: 8, w: 624, h: 175, bg: 'spire', portrait: { key: 'pale', face: 'smirk', scale: 2, dx: 188 }, speech: { who: 'pale', text: 'Find them. The orc, the jockey, and Miss Kit. Keep the old samurai breathing: I want to know who taught Miss Kit to fight like that. You have until morning.' }, from: 'top' },
+      { x: 8, y: 189, w: 624, h: 153, bg: 'dark', finale: { title: 'END OF CHAPTER ONE', sub: 'They have until morning.' }, from: 'bottom' },
     ],
   ],
 };
@@ -80,7 +96,7 @@ const PAGE_BG = '#0a0914';
 /** Where a panel's portrait is drawn horizontally (its left edge and size), or null if none. */
 export function portraitRect(pn: Panel, x: number): { px: number; pw: number } | null {
   if (!pn.portrait) return null;
-  const s = pn.portrait.scale ?? Math.max(2, Math.floor(Math.min(pn.h, 150) / 48));
+  const s = portraitScale(pn);
   const pw = 48 * s;
   const px = pn.portrait.dx !== undefined ? x + pn.portrait.dx : pn.portrait.flip ? x + pn.w - pw - 6 : x + 6;
   return { px, pw };
@@ -95,7 +111,7 @@ export function speechLayout(pn: Panel, x: number, name: string): { bx: number; 
   const freeL = por ? por.px - x - 12 : 0;
   const freeR = por ? x + pn.w - (por.px + por.pw) - 12 : pn.w - 24;
   const leftSide = !!por && freeL >= freeR;
-  const maxW = Math.min(220, (leftSide ? freeL : freeR) - 14);
+  const maxW = Math.min(BUBBLE_MAX_W, (leftSide ? freeL : freeR) - 14);
   const lines = wrap(pn.speech!.text, Math.max(80, maxW));
   const w = Math.max(measure(name), ...lines.map(measure)) + 14;
   return { bx: leftSide ? x + 8 : x + pn.w - w - 8, w, lines, leftSide };
@@ -206,7 +222,7 @@ export class PanelScene extends Scene<void> {
     if (!p) return;
     ctx.save();
     ctx.translate(this.game.shakeX, this.game.shakeY);
-    for (let i = 0; i < this.shown; i++) this.drawPanel(ctx, fitPanel(p[i]!), this.panelT[i] ?? 0, this.typed[i] ?? 0);
+    for (let i = 0; i < this.shown; i++) this.drawPanel(ctx, p[i]!, this.panelT[i] ?? 0, this.typed[i] ?? 0);
     ctx.restore();
     // Footer strip below the panels: skip hint left, page-advance marker right.
     const lastT = this.panelT[this.shown - 1] ?? 0;
@@ -284,7 +300,7 @@ export class PanelScene extends Scene<void> {
 
   private caption(ctx: Ctx, pn: Panel, x: number, y: number): void {
     const big = pn.caption === pn.caption!.toUpperCase() && pn.caption!.length < 30;
-    const lines = wrap(pn.caption!, Math.min(pn.w - 24, 300));
+    const lines = wrap(pn.caption!, Math.min(pn.w - 24, CAPTION_MAX_W));
     const w = Math.max(...lines.map(measure)) + 12;
     const h = lines.length * 11 + 8;
     const cx = big ? x + (pn.w - w) / 2 : x + 6;
@@ -434,7 +450,7 @@ export class PanelScene extends Scene<void> {
         const figs: ('kit' | 'hex' | 'sable')[] = ['kit', 'hex', 'sable'];
         figs.forEach((f, i) => {
           const fr = buildChar(LOOKS[f]).frames.left[1]!;
-          g.drawImage(silhouette(fr, '#1a1020'), 30 + i * 46, h - fr.height * 3 - 4, fr.width * 3, fr.height * 3);
+          g.drawImage(silhouette(fr, '#1a1020'), Math.round(w * 0.065 + i * w * 0.1), h - fr.height * 3 - 4, fr.width * 3, fr.height * 3);
         });
         break;
       }

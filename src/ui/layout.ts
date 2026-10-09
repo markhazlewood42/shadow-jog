@@ -10,7 +10,7 @@
  * that WP4 of the 640x360 move chose (docs/PIVOT-640.md, D8): the dialog cap, the menu panes, the
  * shop, the Status screen.
  */
-import { W } from '../engine/game';
+import { H, W } from '../engine/game';
 import { reviewSwitch } from './reviewswitch';
 
 // ------------------------------------------------------------------ text widths
@@ -175,3 +175,26 @@ export const SHOP_DETAIL_X = SHOP_LIST_X + SHOP_LIST_W + SHOP_DETAIL_GAP;
 export const SHOP_TOP = 46;
 export const SHOP_COMPARE_W = W - SHOP_DETAIL_X - 8 - 16 - 18;
 
+
+// ------------------------------------------------------------------ full-page scenes (WP5)
+
+/**
+ * The height the ending, game-over and deck pages were composed for (480x270). Their top-down
+ * layouts are kept as they were, and one named offset, `PAGE_DY`, moves the whole block down to the
+ * middle of the taller screen. This is the only place that remembers the old height.
+ */
+export const COMPOSED_FOR_H = 270;
+/** Half of the extra height: the vertical offset of every top-down page (45 px at 640x360). */
+export const PAGE_DY = Math.round((H - COMPOSED_FOR_H) / 2);
+/** The "Press Z" prompt of a page keeps this far from the bottom edge, and the street line of Game over this far. */
+export const PAGE_PROMPT_FROM_BOTTOM = 20;
+export const STREET_FROM_BOTTOM = 26;
+/** The red glow behind the crew on Game over reaches this far up from the street: a 0.74 share of the height (200 of 270). */
+export const GLOW_REACH = Math.round(H * 0.74);
+
+/** The results page: its window keeps the width it had (the screen less 120 px at 480), centered, and its rows sit inside it. */
+export const RESULTS_W = 360;
+export const RESULTS_X = Math.round((W - RESULTS_W) / 2);
+/** The crew row under the results: one card per member, this far apart, each about this wide (portrait, name and level). */
+export const RESULTS_CARD_STEP = 82;
+export const RESULTS_CARD_W = 76;

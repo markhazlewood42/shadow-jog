@@ -68,25 +68,64 @@ describe('shop and equip text', () => {
 });
 
 describe('comic panels', () => {
-  it('no speech bubble covers its speaker’s portrait, and every bubble fits its panel', async () => {
-    const { PAGES, fitPanel, portraitRect, speechLayout } = await import('../src/scenes/panels');
+  /** Every panel of every page, labeled. */
+  const allPanels = async () => {
+    const { PAGES } = await import('../src/scenes/panels');
+    return Object.entries(PAGES).flatMap(([id, pages]) => pages.flatMap((page, pi) => page.map((pn, i) => ({ pn, label: `${id} page ${pi + 1} panel ${i + 1}` }))));
+  };
+
+  it('no speech bubble covers its speaker’s portrait, and every bubble fits its panel (at the pinned 2x and at the 3x variant)', async () => {
+    const { portraitRect, speechLayout } = await import('../src/scenes/panels');
     const { SPEAKERS } = await import('../src/data/speakers');
-    for (const [id, pages] of Object.entries(PAGES)) {
-      for (const page of pages) {
-        for (const raw of page) {
-          const pn = fitPanel(raw);
-          if (!pn.speech) continue;
-          const name = SPEAKERS[pn.speech.who]?.name ?? pn.speech.who;
-          const b = speechLayout(pn, pn.x, name);
-          const label = `${id}: ${pn.speech.text.slice(0, 30)}`;
-          expect(b.bx, label).toBeGreaterThanOrEqual(pn.x);
-          expect(b.bx + b.w, label).toBeLessThanOrEqual(pn.x + pn.w);
-          expect(b.lines.length * 11 + 20, label).toBeLessThanOrEqual(pn.h - 8);
-          const por = portraitRect(pn, pn.x);
-          if (por) expect(b.bx + b.w <= por.px || b.bx >= por.px + por.pw, `${label} overlaps the portrait`).toBe(true);
-        }
+    for (const scale of [null, 3]) {
+      for (const { pn: raw, label: where } of await allPanels()) {
+        // 3x is the review variant of D9: the same panels with every portrait pinned to it.
+        const pn = scale && raw.portrait ? { ...raw, portrait: { ...raw.portrait, scale } } : raw;
+        if (!pn.speech) continue;
+        const name = SPEAKERS[pn.speech.who]?.name ?? pn.speech.who;
+        const b = speechLayout(pn, pn.x, name);
+        const label = `${where} at ${scale ?? 2}x: ${pn.speech.text.slice(0, 30)}`;
+        expect(b.bx, label).toBeGreaterThanOrEqual(pn.x);
+        expect(b.bx + b.w, label).toBeLessThanOrEqual(pn.x + pn.w);
+        expect(b.lines.length * 11 + 20, label).toBeLessThanOrEqual(pn.h - 8);
+        const por = portraitRect(pn, pn.x);
+        if (por) expect(b.bx + b.w <= por.px || b.bx >= por.px + por.pw, `${label} overlaps the portrait`).toBe(true);
       }
     }
+  });
+
+  it('all 17 panels lie inside the frame 8..W-8 by 8..H-18 (PL4), and every portrait is pinned and fits its panel', async () => {
+    const { PANEL_FRAME, portraitRect } = await import('../src/scenes/panels');
+    const { W, H } = await import('../src/engine/game');
+    const panels = await allPanels();
+    expect(panels.length).toBe(17);
+    expect(PANEL_FRAME).toEqual({ x0: 8, y0: 8, x1: W - 8, y1: H - 18 });
+    const bad: string[] = [];
+    for (const { pn, label } of panels) {
+      if (pn.x < 8 || pn.y < 8 || pn.x + pn.w > W - 8 || pn.y + pn.h > H - 18) bad.push(`${label}: ${pn.x},${pn.y} ${pn.w}x${pn.h} leaves the frame`);
+      if (pn.portrait) {
+        if (pn.portrait.scale === undefined) bad.push(`${label}: the portrait scale is not pinned`);
+        const por = portraitRect(pn, pn.x);
+        if (por && (por.px < pn.x || por.px + por.pw > pn.x + pn.w)) bad.push(`${label}: the portrait leaves its panel`);
+        if (por && por.pw > pn.h) bad.push(`${label}: the portrait is taller than its panel`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('panels on one page do not overlap, and a page fills its frame (no panel leaves a strip wider than a gutter)', async () => {
+    const { PAGES, PANEL_FRAME } = await import('../src/scenes/panels');
+    const bad: string[] = [];
+    for (const [id, pages] of Object.entries(PAGES)) {
+      pages.forEach((page, pi) => {
+        for (const [i, a] of page.entries()) {
+          for (const c of page.slice(i + 1)) if (a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h) bad.push(`${id} page ${pi + 1}: panels overlap`);
+        }
+        const right = Math.max(...page.map((p) => p.x + p.w)), bottom = Math.max(...page.map((p) => p.y + p.h));
+        if (PANEL_FRAME.x1 - right > 6 || PANEL_FRAME.y1 - bottom > 6) bad.push(`${id} page ${pi + 1}: the panels stop short of the frame (right ${right}, bottom ${bottom})`);
+      });
+    }
+    expect(bad).toEqual([]);
   });
 });
 

@@ -112,9 +112,17 @@ export class RecordingCtx {
   textAlign = 'left';
   lineWidth = 1;
   canvas: { width: number; height: number };
+  /**
+   * A silent context is an offscreen canvas (the stub's `createElement` hands these out): what a scene
+   * paints into its own buffers is not on the screen yet, so it is not recorded. The scene's later
+   * `drawImage` of the buffer onto the screen is. (The title's skyline buffer is 320x180 and its city
+   * layers are 640 wide: drawn into the buffer they are inside it, and only the screen counts for check 1.)
+   */
+  silent: boolean;
 
-  constructor(canvas: { width: number; height: number }) {
+  constructor(canvas: { width: number; height: number }, silent = false) {
     this.canvas = canvas;
+    this.silent = silent;
   }
 
   /** A point of the scene's own space, in screen pixels. */
@@ -124,7 +132,7 @@ export class RecordingCtx {
 
   private rec(op: DrawRec['op'], x: number, y: number, w: number, h: number): void {
     const l = currentLayout();
-    if (!l) return;
+    if (!l || this.silent) return;
     const [x0, y0] = this.dev(x, y);
     const [x1, y1] = this.dev(x + w, y + h);
     const box = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
@@ -201,8 +209,8 @@ export class RecordingCtx {
  * implement (`arc`, `lineTo`, `fill`, `putImageData`...) into a no-op, so art code that draws paths
  * does not throw.
  */
-export function recordingContext(canvas = { width: 1, height: 1 }): Ctx {
-  const real = new RecordingCtx(canvas);
+export function recordingContext(canvas = { width: 1, height: 1 }, silent = false): Ctx {
+  const real = new RecordingCtx(canvas, silent);
   const proxy = new Proxy(real as unknown as Record<string, unknown>, {
     get: (t, p: string) => (p in t ? t[p] : () => undefined),
     set: (t, p: string, v) => {
@@ -223,7 +231,7 @@ export function installCanvasStub(): () => void {
   g.document = {
     createElement: () => {
       const canvas: { width: number; height: number; getContext?: () => Ctx } = { width: 0, height: 0 };
-      const ctx = recordingContext(canvas);
+      const ctx = recordingContext(canvas, true);
       canvas.getContext = () => ctx;
       return canvas;
     },
@@ -245,7 +253,7 @@ const GLYPH_H = 9;
 export function tapText(real: DrawText, measure: (t: string) => number): DrawText {
   return (ctx, text, x, y, opts) => {
     const l = currentLayout();
-    if (l && 'dev' in (ctx as object)) {
+    if (l && 'dev' in (ctx as object) && !(ctx as unknown as RecordingCtx).silent) {
       const w = measure(text);
       const left = opts?.align === 'center' ? x - Math.floor(w / 2) : opts?.align === 'right' ? x - w : x;
       const [sx, sy] = (ctx as unknown as RecordingCtx).dev(left, y);
@@ -264,7 +272,7 @@ export function tapText(real: DrawText, measure: (t: string) => number): DrawTex
 export function tapParagraph(real: DrawParagraph, wrap: (t: string, w: number) => string[], measure: (t: string) => number): DrawParagraph {
   return (ctx, text, x, y, maxW, opts) => {
     const l = currentLayout();
-    if (l && 'dev' in (ctx as object)) {
+    if (l && 'dev' in (ctx as object) && !(ctx as unknown as RecordingCtx).silent) {
       const lines = wrap(text, maxW);
       const lh = opts?.lineH ?? 10;
       const w = Math.max(0, ...lines.map(measure));
@@ -284,7 +292,7 @@ export function tapParagraph(real: DrawParagraph, wrap: (t: string, w: number) =
 export function tapWindow(real: DrawWindow): DrawWindow {
   return (ctx, x, y, w, h, opts) => {
     const l = currentLayout();
-    if (l && 'dev' in (ctx as object)) {
+    if (l && 'dev' in (ctx as object) && !(ctx as unknown as RecordingCtx).silent) {
       const [sx, sy] = (ctx as unknown as RecordingCtx).dev(x, y);
       l.windows.push({ id: l.windows.length, x: Math.round(sx), y: Math.round(sy), w: Math.round(w), h: Math.round(h), plain: !!opts?.plain, title: opts?.title });
     }
@@ -307,7 +315,7 @@ interface ListLike {
 export function tapListRender<T extends ListLike>(real: (this: T, ctx: Ctx, x: number, y: number, w: number, ...rest: unknown[]) => void): (this: T, ctx: Ctx, x: number, y: number, w: number, ...rest: unknown[]) => void {
   return function (this: T, ctx, x, y, w, ...rest) {
     const l = currentLayout();
-    if (l && 'dev' in (ctx as object)) {
+    if (l && 'dev' in (ctx as object) && !(ctx as unknown as RecordingCtx).silent) {
       const [sx, sy] = (ctx as unknown as RecordingCtx).dev(x, y);
       l.lists.push({ x: sx, y: sy, w, rows: this.rows, rowH: this.rowH, count: this.items.length, cols: this.cols, win: l.windowAt(sx, sy) });
     }
