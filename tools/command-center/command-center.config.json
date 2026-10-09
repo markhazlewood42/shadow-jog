@@ -10,6 +10,7 @@
     { "label": "FX lab", "url": "http://localhost:3007/?scene=fxlab" },
     { "label": "Animation editor", "url": "http://localhost:3007/rigedit.html" },
     { "label": "Art review", "url": "http://localhost:3007/artreview.html" },
+    { "label": "Roadmap", "url": "http://localhost:3009/docs/roadmap/README" },
     { "label": "GitHub repo", "url": "https://github.com/markhazlewood42/shadow-jog" }
   ],
   "claude": {
