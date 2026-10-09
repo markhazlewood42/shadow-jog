@@ -133,7 +133,7 @@ Mark decides the look. Agents check exactness, coverage and stability. A decisio
 | Software canvas (`PW_NOGPU=1`, CI), field and live battle | mean at most 8 ms, p95 at most 11 ms | **8 ms and 11 ms**, the same as at 480x270. (WP3 round 3 raised it to 10 / 12; the WP3 named fixes put it back, because the CI readings of the round 3 code were 4.33 and 6.70 ms, see the WP3 Record, "Round 3", item 4.) **The rule:** a CI red from a slow runner gets one rerun and a note, not a gate change. A gate is re-set only as the step after the optimizations (D15), and only inside the hard ceiling: if the numbers fall short after the optimization, the agent re-sets the gate to a mean of at most **12.5 ms** and p95 at most **14.5 ms**. That is the prediction (1.78 times the CI plaza numbers of 5.6 and 6.5 ms, which is 10.0 and 11.6 ms) plus a 25% noise margin. Today's gates keep a margin of about 43% and 70% over the measured numbers, so 25% is the least that tolerates CI noise. The WP2 push gives CI runs on the draft pull request. If their median is more than 15% above the prediction, the model is re-set before WP3. If the optimization still leaves the numbers above the ceiling, the question goes to Mark (D15). |
 | Simulation | mean at most 2 ms, p95 at most 4 ms | The same. It does not depend on pixels. |
 | Slow-frame guard | 40 ms for 90 frames | The same. |
-| Shipped bundle | gzip alarm 236 kB | Not a ceiling. WP7 measures the total. The alarm is raised by the measured delta, with Mark's confirmation (D20). The work does not stop. |
+| Shipped bundle | gzip alarm 236 kB | Not a ceiling. WP7 measures the total. The alarm is raised by the measured delta, with Mark's confirmation (D20). The work does not stop. Measured at WP7: 240,788 bytes gzip; the alarm is 240.8 kB (see the WP7 Record). |
 | CI wall time | 30-minute timeout, about 7 minutes with three jobs | Under 25 minutes (PL13). |
 
 **Void-allowed list (PL3).** These shots may have a large empty outer area because of what they show:
@@ -895,3 +895,465 @@ Scores, as evidence only: round 1 runner R2 to R6 9, R7 9, R8 9, V1 9, V3 9, V4 
 **Review 6 (Mark, 2026-10-09).** He confirms the round 2 backdrops as built (park, junction, lab, rustyard, sewer; the sewer's far opening centered, a lone enemy's HP bar over it). **PL11 for WP6 holds:** Mark received the WP6 sheets (the shop overlap pair, the impact frame, the round 2 backdrops) before he answered.
 
 **Named fixes for the next commit (WP7).** `docs/DEVELOPING.md:166` still names the deleted `reviewswitch` module in its "gone" note: drop the name. The two stale committed 960x540 files in `docs/screenshots` go when WP7 regenerates the set.
+
+### WP7: tests, e2e, evidence, scripts (2026-10-09)
+
+One build, no change under `src/`. The verification table and the CI wall time (PL13) are written by the main session.
+
+**Commits (branch `resolution-640x360`).** `c491721` the WP6 named fix; `7481b0f` the regenerated `docs/screenshots`; `20ab187` `render-current.mjs`; `bc15e89` the `gpufx` spec; `af03bde` the bundle alarm; `864c260` the evidence run; the Record commit that holds this entry.
+
+| Item | What changed | Result |
+|---|---|---|
+| 1 | `docs/DEVELOPING.md:166` drops the deleted `reviewswitch` name | `c491721` |
+| 2 | `docs/screenshots` regenerated in one commit, with the build label pinned (`SJ_BUILD_SHA=pivot640`, the convention of the DEVELOPING "Capture a set" paragraph and of WP3 to WP6; the title then shows `pivot640`, where `origin/main` shows "v0.1 alpha"); the two stale 960x540 files deleted | 73 files: 71 at 1280x720, `16b-enemy-poses` (744x992) and `16c-boss-poses` (600x600), which are element shots of the pose sheets, not game frames (`media/pivot-640/wp7/shot-sizes.txt`) |
+| 3 | PL3 and the pixel diff | `check-shots.txt`: **58 checked, 0 failed**, 14 skipped (void allowed). `pixel-diff-vs-wp6.txt`: 65 of 65 shared shots byte-identical to the WP6 round 2 set; the 7 `maps/` overviews, absent from the `shots-r2` folder, are byte-identical to `wp6/shots/maps`. The pinned label means the title shots did not change. 0 findings |
+| 4 | `render-current.mjs` reads `W` and `H` from `src/engine/game.ts` and centers its 128x128 crop from them (was `clip` 176, 71 for 480x270; now 256, 116). `artreview.html` already says `width: 1280px` (set at WP2, `eee97b3`) | Proofs in `media/pivot-640/wp7/scripts/`: `render-current-street.png` (640x360), `-crop.png` (128x128, centered on the player), `artreview.png` (no art-pass options exist in this checkout, so the page lists no shot images; the computed width of an `img.shot` is 1280px) |
+| 5 | `gpufx.spec.ts`: the six emit points spread over the full width (`W * (i + 1) / 7`, was `120 + i * 40`) and sit at 40% of `H` (was 100). `fxlab.spec.ts`: no 480x270 token or derived value left. `prod.spec.ts`: identical to `origin/main`, so its key counts are unchanged | `specs.txt`: 9 of 9 pass (fxlab 2, gpufx 5, prod 2) |
+| 6 | PL8 perf | below |
+| 7 | `scripts/evidence.sh`, run with `SJ_BUILD_SHA=pivot640` exported so the shots it writes carry the same label | unit 454, types, lint, e2e 28 of 28 (economy, gameover, playthrough, prod, playtest, chaos), perf both canvases, shots 36 of 36, audio: all exit 0. The shots it rewrote are **byte-identical** to the committed set (a second proof of the deterministic capture). `24c-ending-results-driven-test-run.png` is written by `playthrough.spec.ts` (1280x720), so it is back in the set |
+| 8 | Bundle (D20) | below |
+| 9 | No-change rows (`no-change.txt`) | `git diff --stat origin/main...HEAD` over `src/art` sprite, portrait and rig code, `field/tiles.ts`, `engine/font.ts` and `public/`: `public/`, `portraits.ts`, `tiles.ts`, `font.ts` have no change. `src/art/deck.ts` is a one-line comment, `src/art/worldsize.ts` is the new size leaf module (no sprite size). PL5 holds. The WP7 build changes nothing under `src/`, `public/`, `src/data` or `src/story` |
+| 10 | PL1 and PL9 lists | `tests/screen-literals.test.ts`: 89 hits in 140 files, 89 allowed, **0 pending, 0 unlisted**. `grep -rn "PIVOT-640 expected-fail" src/ tests/ e2e/ scripts/`: no match (`pl1-pl9.txt`) |
+| 11 | Reconciliation table (R1) | the section after this Record; `derived-literals.txt` explained there |
+| 12 | Review 7 pictures | `media/pivot-640/wp7/review7/`: 19 contact sheets of the full set (`set-01.png` to `set-19.png`, four pairs each, baseline 480x270 against 640x360), `sheet-1080p.png` and `sheet-deck.png` (ten screens each) |
+
+**Perf (PL8, D15).** Gates are unchanged (GPU 4 / 6 ms, software 8 / 11 ms, simulation 2 / 4 ms); the ceiling stays 12.5 / 14.5. Field and battle, mean / p95 in ms over the whole run; no red, no rerun.
+
+| Canvas | Field | Battle | Files |
+|---|---|---|---|
+| GPU, `wp7-gpu.txt` | 2.89 / 3.9 | 1.01 / 2.3 | `media/pivot-640/perf/wp7-gpu.txt` |
+| Software (`PW_NOGPU=1`), `wp7-nogpu.txt` | 3.99 / 5.2 | 1.83 / 3.3 | `wp7-nogpu.txt` |
+| GPU, evidence run (`docs/quality/evidence/perf.txt`) | 2.71 / 4.1 | 1.03 / 2.1 | |
+| Software, evidence run | 4.09 / 5.6 | 1.98 / 3.6 | |
+
+**Bundle (D20).** `npm run build && npm run budget`: **240,788 bytes gzip (240.8 kB)** against the 240.7 kB alarm: over by 88 bytes (240,786 with the label pinned to `pivot640`). The alarm is therefore raised by the measured delta only, to **240.8 kB** (0.088 kB, rounded up to 0.1). Cause: WP6 round 2, which derives the set pieces of five backdrops from `BW` (named count-and-step records in `art/battlebg.ts`); WP6 round 1 measured 240.5 kB and WP7 changes no file in `src/`. Every raise on this move: 236.0 to 238.5 (WP3, the surround art and the pop-in table, 2.413 kB), 239.5 (WP3 round 3, the overhead-layer lighting and the named theme records), 240.0 (WP4, the UI layout values), 240.7 (WP5, the title layout and comic-panel table; Mark confirmed it at Review 5), 240.8 (WP7, above). Total over the move: 4.8 kB. Mark confirms the 240.8 raise in the pull request. No doc on this branch says "TBD" for the bundle: the places the plan names (the spike doc and the engine design docs) live on other branches; here `docs/ARCHITECTURE.md` carries the alarm, and the Numbers table says the measured total.
+
+**Prod key counts.** `e2e/prod.spec.ts` is byte-identical to `origin/main` (not in `git diff origin/main...HEAD --stat -- e2e/`), and passes at 640x360 with the same counts (60 presses of `z` to read the opening, 7 `ArrowDown`).
+
+**Verification table.** (pending)
+
+**CI wall time (PL13).** (pending)
+
+**Deviations, with reasons.**
+- The bundle was over the alarm, so the alarm moved (above); the brief's rule ("under the alarm, it stays") did not apply.
+- `24c-ending-results-driven-test-run.png` was deleted in the screenshots commit as a file the shots run does not write, then came back in the evidence commit, because `playthrough.spec.ts` writes it at 1280x720. It is in the set because a run rewrites it.
+- Two files of `docs/screenshots` are not 1280x720 (`16b`, `16c`): they are crops of the enemy-pose sheets. Changing that is a change to the shots spec and is not made.
+- The `artreview.html` width needed no edit: it was set at WP2.
+- The evidence audio spectrograms (`docs/quality/evidence/audio/*.png`, `audio.txt`, `audio-loops.txt`) changed from run to run (generated noise, no game change) and a new `levelup.png` appeared; all are committed as the run wrote them.
+- The `docs/quality/evidence/ci-engines.txt` file comes from CI and is not regenerated here.
+
+## Reconciliation table (R1)
+
+Every row of the inventory (`INVENTORY.md`, 398 rows) once: its number, the site in a few words, the package that owns it, and what closes it. "Closed by" is the first commit of the row's package that changed the site's file (the file named in backticks), a test or evidence file, or "no change" with the reason (the inventory's own "None" verdict, with the file untouched or the change not needed). Rows of the carried work (M0, M3, M5, S1a, S1b, S2, DD, P) belong to the spike and design branches and are not built in this move; rows of WP8 are docs. The method is a script over `git log origin/main..HEAD -- <file>`, so a row whose file a later package touched again shows the first commit of its own package, or the earliest commit when its package did not touch the file. Map rows (21, 22, 23, 86 to 88, 192 to 201) and the walk rows (24, 95, 188 to 191, 202, 203) are closed by the surround table and the pop-in table, in code, with the map and story data untouched (PL6).
+
+**Derived values** (`media/pivot-640/wp7/derived-literals.txt`: 37 hits in 13 files, advisory). Every hit is right at 640x360 or is not a layout value:
+
+| Hits | Why it is right |
+|---|---|
+| `W - 8`, `W - 16`, `H - 20`, `H - 56` in `main.ts`, `deck.ts`, `mapview.ts`, `menu.ts`, `panels.ts`, `placemap.ts`, `shop.ts`, `ui/layout.ts` (`COMBO_TEXT_W`, the `W - 8 - x` line) | A margin written from `W` and `H`: 8 or 16 px each side, 20 px from the foot. It tracks the screen |
+| `W - 8`, `W - 16` in `field/props.ts` (10 hits) | `W` there is a local, the prop canvas width (`w * TS`), not the screen: painters of a banner or a ledge |
+| `464` in `ui/layout.ts` (`DIALOG_MAX_W`) | The D8 cap (Mark, Review 4): the dialog is capped at 464 px and centered |
+| `196`, `204`, `142` in `ui/layout.ts` (`FIELD_OBJ_W`, `TARGET_INFO_W`, `EQUIP_DESC_W`) | Fixed text widths of panes whose content wraps in columns, not screen-relative; the layout recorder (PL4) checks that each pane stays inside its window |
+| `142` in `ending.ts` | A page row (the portrait strip), moved by `PAGE_DY` (WP5), not a screen edge |
+| `196`, `142`, `202`, `204` in `audio/sfx.ts`, `data/enemies.ts` (a hit-point value), `field/tiles.ts` (hash seeds and a color channel) | Not layout values (a note frequency, a stat, a seed, a color) |
+
+| # | Site | Package | Closed by |
+|---|---|---|---|
+| 1 | `game.ts` The one size source: W=480, H=270 (lines 21-22) | WP1, WP2 | 29a289d (`game.ts`) |
+| 2 | `display.ts` resize() integer-snap rule (whole multiple if it fills 90%... | WP2 | no change: Re-check the 90% rule: 1080p=3x, 1440p=4x, 4K=6x, 720p and Deck=2x, maximised... |
+| 3 | `display.ts` Back buffer, glow layer and UI layer use surface(W,H) | WP2 | no change: 4K backing canvas is 3840x2160 (6x), same as today |
+| 4 | `presenter.ts` GL render targets are W x H, half and quarter (160x90 at... | WP2 | no change: Run the GPU-fx e2e once |
+| 5 | `presenter.ts` Shader constants in back-buffer pixels (haze waves, glitch... | WP2 | no change: expected |
+| 6 | `postfx.ts` Aberration centre defaults to (240,135) at lines 83-84 and... | WP1 | d90f29a (`postfx.ts`) |
+| 7 | `fx.json` Screen-wide shockwave reach authored for 480 wide: intro... | WP2 | 2163e45 (`fx.json`) |
+| 8 | `fx.json` Particle presets and moment layers use back-buffer pixels... | WP2 | no change: adapts-ok |
+| 9 | `game.ts` Game.render clears, fades and flashes with... | WP2 | no change: adapts-ok |
+| 10 | `main.ts` 'Autosaved' badge uses literal 480-70, 270-14 | WP1 | d90f29a (`main.ts`) |
+| 11 | `main.ts` 'News' notice bar: width cap 472, centre 240, bottom 270-16 | WP1 | d90f29a (`main.ts`) |
+| 12 | `main.ts` Error/warn bar: wrap 472 and fillRect(0,0,480,...) | WP1 | d90f29a (`main.ts`) |
+| 13 | `index.html` #stage flex box, canvas size set from JS | WP2 | no change: adapts-ok |
+| 139 | `postfx.ts` Comments state 480x270 or 240x135: postfx.ts:8,... | WP1 | d90f29a (`postfx.ts`) |
+| 140 | `presenter.ts` All passes run per buffer pixel (1.78x) | WP2 | PL8: `e2e/perf.spec.ts` gates hold on both canvases (`media/pivot-640/perf/wp7-gpu.txt`, `wp7-nogpu.txt`) |
+| 141 | `fx.json` Three moments carry screen-spanning shockwave reach:... | WP2 | 2163e45 (`fx.json`) |
+| 206 | `font.ts` Only font is the in-code bitmap glyph set (cap 7, x-height... | WP7 | no change: `font.ts` untouched (`no-change.txt`) |
+| 223 | `display.ts` Fill mode snaps only if a whole multiple is >=90% of fit | WP2 | 29a289d (`display.ts`) |
+| 224 | `settings.ts` Only two window options: scale fit/integer, plus Fullscreen | WP2 | no change: No code needed for window options |
+| 333 | `main.ts` Slow-frame guard counts frames above 40 ms | WP2 | PL8: `e2e/perf.spec.ts` gates hold on both canvases (`media/pivot-640/perf/wp7-gpu.txt`, `wp7-nogpu.txt`) |
+| 334 | `shake.ts` Shake amplitude is in back-buffer pixels (callers pass 1... | WP2 | no change: Option A: do nothing |
+| 383 | `particles.ts` Module doc says positions are in back-buffer pixels... | WP1 | d90f29a (`particles.ts`) |
+| 388 | `display.ts` toGame(clientX,clientY) converts to back-buffer pixels... | WP2 | no change: Remember it when mouse or touch input is added |
+| 15 | `field.ts` Camera targets leader minus W/2,H/2, clamps to the map,... | WP3 | no change: in code |
+| 16 | `fieldmap.ts` Water drip-ring culling hard-codes cx>496 or cy>286... | WP1 | d90f29a (`fieldmap.ts`) |
+| 17 | `fieldmap.ts` Water shimmer tile culling hard-codes sx>480 or sy>270 | WP1 | d90f29a (`fieldmap.ts`) |
+| 18 | `lighting.ts` Light map and scratch surfaces are surface(W,H) | WP0 | PL8: `e2e/perf.spec.ts` gates hold on both canvases (`media/pivot-640/perf/wp7-gpu.txt`, `wp7-nogpu.txt`) |
+| 19 | `weather.ts` Drop counts tuned for 480x270: rain 190, drip 14, dust 50,... | WP3 | 7f73ed0 (`weather.ts`) |
+| 20 | `draw.ts` drawShell(), blit(), inView() use W/H | WP3 | no change: in code |
+| 21 | `rustyard.ts` Rustyard (34x28 tiles = 544x448) is wider than 480 but... | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 22 | `annex.ts` Loading Dock 7 (20x14 = 320x224) sits in void: 160 px each... | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 23 | `interiors.ts` 9 interiors, 14x10 to 22x14 tiles, in a brick shell | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 24 | `chapter1.ts` Camera shows 1.78x the area: things placed just off-screen... | WP3 | 2d39425 (four-corner camera walk), 270856c, 87dddc9 (pop-in table, Mark's picks); story data untouched |
+| 83 | `field.ts` targetCam clamps and centres small maps | WP3 | no change: Check annex and sinkline cameras still feel right |
+| 84 | `api.ts` Scripted pan() clamps max(0,min(mw-W,x)) | WP1 | d90f29a (`api.ts`) |
+| 85 | `field.ts` Void fill, shell, light map, culling, layer blits use W/H | WP1 | d90f29a (`field.ts`) |
+| 86 | `annex.ts` Dock (320x224) is the only small 'town' map | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 87 | `rustyard.ts` Rustyard is 544x448 | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 88 | `world.ts` Four big maps (lantern_row 896x640, world 960x672, annex... | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 89 | `weather.ts` Drop counts fixed: rain 190, drip 14, dust 50, splashes 60 | WP3 | 7f73ed0 (`weather.ts`) |
+| 90 | `weather.ts` Spawn, wrap and landing ranges use W/H | WP3 | 7f73ed0 (`weather.ts`) |
+| 92 | `field.ts` Objective box top-left (4,4), wraps at FIELD_OBJ_W=196 | WP3 | no change: Optionally widen FIELD_OBJ_W (layout test limit 3 lines) |
+| 93 | `field.ts` Area banner centres on W/2 at y=18 | WP3 | no change: adapts-ok |
+| 94 | `field.ts` Interact cue, emotes, shadows, chests, wander radius are... | WP1 | d90f29a (`field.ts`) |
+| 95 | `chapter1.ts` Cutscenes relying on off-screen content now show it (160... | WP3 | 2d39425 (four-corner camera walk), 270856c, 87dddc9 (pop-in table, Mark's picks); story data untouched |
+| 186 | `draw.ts` drawShell paints dark brick around interiors smaller than... | WP3 | no change: for code |
+| 188 | `lantern_row.ts` 56x40 tiles = 896x640 | WP3 | 2d39425 (four-corner camera walk), 270856c, 87dddc9 (pop-in table, Mark's picks); story data untouched |
+| 189 | `world.ts` 60x42 = 960x672 | WP3 | 2d39425 (four-corner camera walk), 270856c, 87dddc9 (pop-in table, Mark's picks); story data untouched |
+| 190 | `sinkline.ts` 48x38 = 768x608 | WP3 | 2d39425 (four-corner camera walk), 270856c, 87dddc9 (pop-in table, Mark's picks); story data untouched |
+| 191 | `annex.ts` 44x34 = 704x544 | WP3 | 2d39425 (four-corner camera walk), 270856c, 87dddc9 (pop-in table, Mark's picks); story data untouched |
+| 192 | `annex.ts` Loading Dock 7: 20x14 = 320x224 | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 193 | `interiors.ts` 14x10 = 224x160 px (35% x 44% of the screen) | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 194 | `interiors.ts` The Drowned Saint: 22x14 = 352x224 (55% x 62%) | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 195 | `interiors.ts` Doc Yun's Clinic: 14x10 = 224x160 | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 196 | `interiors.ts` Last Rites Arms: 14x10 = 224x160 | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 197 | `interiors.ts` Kowloon Threads: 14x10 = 224x160 | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 198 | `interiors.ts` Kwik-Mart 24/7: 14x10 = 224x160 | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 199 | `interiors.ts` Sleeptube 24H: 16x10 = 256x160 (40% x 44%) | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 200 | `interiors.ts` Mama Ono's: 14x10 = 224x160 | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 201 | `interiors.ts` Chrome+Circuit upstairs: 14x11 = 224x176 (35% x 49%) | WP3 | 8db0276, 87dddc9 (surround table in code; map data untouched, PL6; Mark chose the surrounds at Review 3) |
+| 202 | `chapter1.ts` s.pan(37,16,1) cuts to the drained junction (Sinkline) | WP3 | 2d39425 (four-corner camera walk), 270856c, 87dddc9 (pop-in table, Mark's picks); story data untouched |
+| 203 | `chapter1.ts` s.pan(30,7,36) 'the camera finds the lattice' in the Annex | WP3 | 2d39425 (four-corner camera walk), 270856c, 87dddc9 (pop-in table, Mark's picks); story data untouched |
+| 204 | `api.ts` pan() clamps with Math.max(0,Math.min(mw-W,...)) | WP3 | 270856c (`api.ts`) |
+| 25 | `layout.ts` Text-width constants: MENU_OBJ_W, COMBO_TEXT_W,... | WP4 | 6cce7e6 (`layout.ts`) |
+| 26 | `dialog.ts` Dialog box W-16 wide (464 px today), text wraps at W-32... | WP4 | 6cce7e6 (`dialog.ts`) |
+| 27 | `menu.ts` Field menu: left column 92 wide fixed, right panes start... | WP4 | 6cce7e6 (`menu.ts`) |
+| 28 | `menu.ts` List row counts fixed for 270: techs 12, beasts 17, places... | WP4 | 6cce7e6 (`menu.ts`) |
+| 29 | `menu.ts` Equip screen: stats box (x,78,150,88), gear window H-116,... | WP4 | 6cce7e6 (`menu.ts`) |
+| 30 | `menu.ts` Status screen columns hard-coded for 480: stats x=310,... | WP4 | 6cce7e6 (`menu.ts`) |
+| 31 | `menu.ts` Bestiary and Places: list window 150 wide, detail x=164... | WP4 | 6cce7e6 (`menu.ts`) |
+| 32 | `menu.ts` Combo log: COMBO_ROWS=6 of 36 px from y=40 | WP4 | 6cce7e6 (`menu.ts`) |
+| 33 | `shop.ts` Shop: list lx=96 width 196, detail pane grows 174 to 334,... | WP4 | 6cce7e6 (`shop.ts`) |
+| 44 | `options.ts` Centred modals with fixed widths: Options 280, Save/Load... | WP4 | no change: Smaller on screen but readable |
+| 45 | `mapview.ts` Map overview scales with k=min((W-8)/mapW,(H-18)/mapH) | WP4 | no change: adapts-ok |
+| 96 | `dialog.ts` Choice box right-aligned at x=W-8-w-4 | WP4 | 6cce7e6 (`dialog.ts`) |
+| 97 | `dialog.ts` Box y, portrait, tab, more arrow, hint use W/H | WP4 | no change: adapts-ok |
+| 100 | `menu.ts` Cards x108, W-116 wide (524) | WP4 | 6cce7e6 (`menu.ts`) |
+| 101 | `menu.ts` Items pane 524 wide | WP4 | 6cce7e6 (`menu.ts`) |
+| 102 | `menu.ts` Techs pane rows fixed at 12 in a pane that fits 24 | WP4 | 6cce7e6 (`menu.ts`) |
+| 103 | `menu.ts` Equip: slot window w524, stats window (x,78,150x88), gear... | WP4 | 6cce7e6 (`menu.ts`) |
+| 104 | `menu.ts` Save pane x108, w524, 3 slot rows | WP4 | 6cce7e6 (`menu.ts`) |
+| 105 | `menu.ts` Status screen fixed x positions | WP4 | 6cce7e6 (`menu.ts`) |
+| 106 | `menu.ts` Bestiary list rows fixed 17 (187 px of 344) | WP4 | 6cce7e6 (`menu.ts`) |
+| 107 | `menu.ts` Places: fixed y (divider 104, route 124, objective H-58) | WP4 | 6cce7e6 (`menu.ts`) |
+| 108 | `menu.ts` COMBO_ROWS fixed 6, about 84 px empty at the bottom | WP4 | 6cce7e6 (`menu.ts`) |
+| 109 | `menu.ts` Toast centres right of the menu rail | WP4 | no change: adapts-ok |
+| 110 | `layout.ts` W-based constants adapt | WP4 | no change: unless a box is widened |
+| 111 | `saveload.ts` Centred 330 px window, 4 slot rows | WP4 | no change: adapts-ok |
+| 112 | `controls.ts` Centred 360 px window | WP4 | no change: adapts-ok |
+| 113 | `card.ts` Centred 320 px card | WP4 | no change: adapts-ok |
+| 114 | `shop.ts` Header full width, list fixed 196, detail pane takes the... | WP4 | 6cce7e6 (`shop.ts`) |
+| 120 | `placemap.ts` planRect fits the map into W-28 by H-44 | WP4 | no change: layout.test:94 reruns on the new W/H |
+| 184 | `placemap.ts` planRect fits the map to a W/H box, exit labels clamp | WP4 | no change: Open Places on one town map and one room to confirm labels do not collide |
+| 185 | `card.ts` CardScene 320 wide centred, mapview scales to fit | WP4 | no change: adapts-ok |
+| 357 | `menu.ts` Lower half of Status is hard-placed on the 480 grid:... | WP4 | 6cce7e6 (`menu.ts`) |
+| 34 | `title.ts` Title world is a 240x135 buffer drawn at 2x | WP5 | cdd1d71 (`title.ts`) |
+| 35 | `title.ts` Hand-placed title props: moon (212,22), spire x=150,... | WP5 | cdd1d71 (`title.ts`) |
+| 36 | `title.ts` Title UI tuned for 270: logo ly=34 (4x, about 290 px... | WP5 | cdd1d71 (`title.ts`) |
+| 37 | `ending.ts` Results page absolute y values (window 46..196, rows... | WP5 | cdd1d71 (`ending.ts`) |
+| 38 | `ending.ts` 'Chapter Two' page text at fixed y 96..250 | WP5 | cdd1d71 (`ending.ts`) |
+| 39 | `gameover.ts` Game over: street=244, glow radius 200, text y=44/60, menu... | WP5 | cdd1d71 (`gameover.ts`) |
+| 40 | `panels.ts` Intro and ending comic pages: 17 panel rects authored in... | WP5 | cdd1d71 (`panels.ts`) |
+| 41 | `panels.ts` portraitRect scale=max(2,floor(min(h,150)/48)) | WP5 | cdd1d71 (`panels.ts`) |
+| 42 | `panels.ts` 8 procedural panel backdrops take w,h and mostly scale | WP5 | cdd1d71 (`panels.ts`) |
+| 43 | `deck.ts` Deck scene: DX=(W-264)/2-70, DY=26, side panel width... | WP5 | cdd1d71 (`deck.ts`) |
+| 72 | `deck.ts` Deck art DECK_W=264 x 136 at 1x | WP5 | d90f29a (`deck.ts`) |
+| 98 | `title.ts` Rooftop (roof y118-135, ledges, tank x212-228, antenna... | WP5 | cdd1d71 (`title.ts`) |
+| 99 | `title.ts` Searchlight origin x150, monorail loop (700 long, y79-86),... | WP5 | cdd1d71 (`title.ts`) |
+| 115 | `ending.ts` Page 1 authored top-down for 270 | WP5 | cdd1d71 (`ending.ts`) |
+| 116 | `ending.ts` Page 2 text at fixed y, centred on W/2 | WP5 | cdd1d71 (`ending.ts`) |
+| 117 | `panels.ts` PAGES authored for 8..472 x 8..262: 2 intro pages (6... | WP5 | cdd1d71 (`panels.ts`) |
+| 118 | `panels.ts` Panels grow 4/3, so portraits jump from 2x (96 px) to 3x... | WP5 | cdd1d71 (`panels.ts`) |
+| 119 | `panels.ts` Procedural backgrounds re-render at the new size | WP5 | cdd1d71 (`panels.ts`) |
+| 183 | `panels.ts` Portrait scale max(2,floor(min(h,150)/48)): panel 144+ px... | WP5 | cdd1d71 (`panels.ts`) |
+| 48 | `geom.ts` Battle world BW=240, BHT=135 drawn 2x | WP1 | d90f29a (`geom.ts`) |
+| 49 | `geom.ts` Vertical constants for H=270/BHT=135: PANEL_Y=214 (H-56),... | WP2b | 564f1bb (`geom.ts`) |
+| 50 | `battle.ts` boxX centres 3 status cards (116 px) in W | WP2b | no change: Look at a 4-enemy fight and the Warden boss: packed in the middle |
+| 51 | `battle.ts` world/front surfaces BW x BHT, enemyLayer W x H, clip... | WP2b | 564f1bb (`battle.ts`) |
+| 52 | `render.ts` World to screen factor 2 is a bare literal... | WP1 | d90f29a (`render.ts`) |
+| 53 | `render.ts` Impact-frame speed lines r1=260 reaches the edge at 480... | WP6 | 96e1bbc (`render.ts`) |
+| 54 | `render.ts` Big action banner y=92, rules inset 40; victory banner... | WP6 | 96e1bbc (`render.ts`) |
+| 55 | `render.ts` Top-line strips wrap at W-56/W-44/W-20 in a 46 px band | WP6 | 96e1bbc (`render.ts`) |
+| 56 | `render.ts` Menus anchor to MENU_X=4 and PANEL_Y-h-6 | WP2b | 564f1bb (`render.ts`) |
+| 57 | `render.ts` Warden conduits: end points at BW+6, y=4/58/0/62 in world... | WP6 | 96e1bbc (`render.ts`) |
+| 58 | `intro.ts` Shatter intro: 9x5 shard grid over W x H, reach... | WP6 | no change: Check the look once |
+| 59 | `battle.ts` Victory panel w=272 at y=44, level-up panel w=300 centred | WP6 | no change: Victory panel could sit lower |
+| 60 | `fx.ts` Effects with full-screen literals in world px: default x... | WP1 | d90f29a (`fx.ts`) |
+| 71 | `sprites.ts` drawBig uses a W x 12 text buffer | WP6 | no change: adapts-ok |
+| 123 | `geom.ts` PARTY_BOTTOM=127 and partyPos (x=BW/2 +/- 44,... | WP2b | 564f1bb (`geom.ts`) |
+| 124 | `battle.ts` enemyPos centres the row on BW (gap 6) and stands each on... | WP2b | 564f1bb (`battle.ts`) |
+| 125 | `battle.ts` PROMPT_CLEAR, floater min y 22, pos fallback y:60 measured... | WP6 | no change: Fallback could become BHT\*0.44 |
+| 126 | `battle.ts` Big-hit push zooms 9% toward the target and clamps to... | WP6 | no change: in code |
+| 127 | `battle.ts` VICTORY panel (w=272, y=44) and LEVEL UP (w=300) centred... | WP6 | no change: Eyeball that they do not look small |
+| 128 | `battle.ts` menuX returns MENU_X=4 for command, skill and item... | WP2b | 564f1bb (`battle.ts`) |
+| 129 | `geom.ts` TOP_BAND_BOTTOM=46, ORDER_TOP=58, ORDER_RIGHT=W-6,... | WP6 | no change: after PANEL_Y |
+| 130 | `gpufx.ts` Seven calls convert world to screen with at.x\2/at.y\2... | WP1 | d90f29a (`gpufx.ts`) |
+| 131 | `render.ts` Character cut-in cards y = 132 - row\62, tuned to sit... | WP6 | 96e1bbc (`render.ts`) |
+| 132 | `render.ts` Hex deck cut-in placed from boxX(i)+36 and PANEL_Y-4 | WP6 | no change: adapts-ok |
+| 133 | `render.ts` Enemy HP bars, tell box, topLine (W-44 wrap), target info | WP6 | no change: Text wraps later so some descriptions drop from two lines to one |
+| 134 | `banner.ts` VICTORY banner at fixed y=58 (21% down at 270) | WP6 | 564f1bb (`banner.ts`) |
+| 135 | `intro.ts` 9x5 shard grid, shards 71x72, fall speeds 3-7 px/frame... | WP6 | no change: required |
+| 136 | `timing.ts` Timed-press ring radius 16/20/26 world px | WP6 | no change: adapts-ok |
+| 137 | `fx.ts` Five literals tie effects to the 240x135 world: wave... | WP1 | d90f29a (`fx.ts`) |
+| 138 | `fx.ts` About 40 other effect ids are relative to caster and... | WP6 | no change: One visual pass of every effect id in the FX lab and in battle (screenshots to... |
+| 358 | `fx.ts` thunder_rift combo draws fillRect(0,t.y,round(240\k),2)... | WP1 | d90f29a (`fx.ts`) |
+| 359 | `render.ts` The literal 2 between world and screen: zoom-push crop... | WP1 | d90f29a (`render.ts`) |
+| 360 | `gpufx.ts` Every call from world coordinates to the GPU effects layer... | WP1 | d90f29a (`gpufx.ts`) |
+| 361 | `battle.ts` LEVEL UP window is a fixed w=300 centred in W; rows use... | WP6 | no change: Check once in a screenshot that a 300 px modal on 640 looks right |
+| 386 | `fx.ts` Second copy of the full-width sweep:... | WP1 | d90f29a (`fx.ts`) |
+| 61 | `battlebg.ts` Backdrop module: BW=240, BH=135, HORIZON=62, per-backdrop... | WP2b | 564f1bb (`battlebg.ts`) |
+| 62 | `battlebg.ts` Street backdrop (storefronts, skyline, rain): lane marking... | WP2b | 564f1bb (`battlebg.ts`) |
+| 63 | `battlebg.ts` Barrens backdrop: sun at (170,HORIZON-8), ruins to BW,... | WP6 | adb822d (`battlebg.ts`) |
+| 64 | `battlebg.ts` Rustyard backdrop: crane x=40, jib 20..90, tent 150..182,... | WP6 | adb822d (`battlebg.ts`) |
+| 65 | `battlebg.ts` Park backdrop: 6 giant trees at x=10+i\44, aurora ribbons... | WP6 | adb822d (`battlebg.ts`) |
+| 66 | `battlebg.ts` Sewer backdrop: one-point perspective with literal frame... | WP6 | adb822d (`battlebg.ts`) |
+| 67 | `battlebg.ts` Junction backdrop: 7 columns at x=8+i\36, water from... | WP6 | adb822d (`battlebg.ts`) |
+| 68 | `battlebg.ts` Lab backdrop: 4 windows at x=14+i\60, 3 monitors at... | WP6 | adb822d (`battlebg.ts`) |
+| 69 | `battlebg.ts` Core backdrop (final boss): racks every 26 with 58 px... | WP6 | adb822d (`battlebg.ts`) |
+| 70 | `battlebg.ts` battleBg() caches each backdrop and builds the foreground | WP6 | adb822d (`battlebg.ts`) |
+| 144 | `battlebg.ts` Helpers (skyline, floor, storefronts, reflections, rain 70... | WP2b | 564f1bb (`battlebg.ts`) |
+| 145 | `battlebg.ts` FRAMING for street, junction, lab and core: cables with... | WP2b | 564f1bb (`battlebg.ts`) |
+| 179 | `battlebg.ts` FRAMING foreground silhouettes: X hangs on edges (adapts) | WP2b | 564f1bb (`battlebg.ts`) |
+| 304 | `battlebg.ts` BW=240, BH=135, HORIZON=62 | WP6 | adb822d, 564f1bb (`battlebg.ts`: painters take BW and BHT) |
+| 46 | `bestiarytest.ts` Dev test scenes and the trailer title card lay out with W/H | WP7 | no change: dev scene, adapts-ok (checked at WP7, file untouched) |
+| 47 | `fxlab.ts` FX lab bakes its own 240x135 world (lines... | WP1 | d90f29a (`fxlab.ts`) |
+| 121 | `chartest.ts` Dev scenes (chartest, fonttest, bestiarytest,... | WP7 | no change: dev scene, "None required" |
+| 142 | `fxlab.ts` Enemy dummy x=W/2-art.w, y=bg.ground\2-art.h\2, default... | WP6 | 96e1bbc (`fxlab.ts`) |
+| 143 | `fxlab.ts` Slider limits as screen sizes: Reach max 480, Width 480,... | WP1 | d90f29a (`fxlab.ts`) |
+| 219 | `fxlab.ts` Lab takes a 400 px right panel | WP6 | 96e1bbc (`fxlab.ts`) |
+| 220 | `trailer.ts` Title cards use W,H and image sizes | WP7 | no change: dev tool, "None" (file untouched) |
+| 221 | `devmenu.ts` devmenu, tools, artswap, artreview, rigedit, devroutes,... | WP7 | no change: dev tool, "None" (file untouched) |
+| 222 | `fonttest.ts` fonttest STATUS window at x=318 w=154 (flush with 480),... | WP7 | no change: dev scene, optional tidy not taken (file untouched) |
+| 335 | `portraittest.ts` Portrait sheet lays 2 columns at pitch 232 from x=16 | WP7 | no change: dev scene, optional (file untouched) |
+| 336 | `artreview.html` Art review page shows in-game screenshots at width 960px... | WP7 | eee97b3 (width 960 to 1280 px); WP7 re-checked: `scripts/artreview.png` proves the rule resolves to 1280 px |
+| 14 | `vite.config.ts` False positives for the number 480: vite... | WP0 | no change: Put them in the literal-scan allow-list so a later grep does not re-flag them |
+| 73 | `layout.test.ts` Layout tests import W,H,PANEL_Y,ORDER_\: exit labels,... | WP6 | 5aad2ac (`layout.test.ts`) |
+| 74 | `atmosphere.test.ts` Weather pool test caps splashes at 60 | WP3 | 7f73ed0 (`atmosphere.test.ts`) |
+| 75 | `playwright.config.ts` Playwright viewport 960x540 is exactly 2x of 480x270 | WP2 | 29a289d (`playwright.config.ts`) |
+| 76 | `shots.spec.ts` Evidence screenshot suite (about 90 PNGs in... | WP7 | 7481b0f (`e2e/shots.spec.ts` run; `docs/screenshots` regenerated, 73 files: 71 at 1280x720, two pose sheets) |
+| 77 | `render-current.mjs` setViewportSize 480x270 and centre crop clip... | WP7 | 20ab187 (`render-current.mjs`: viewport and crop from W and H) |
+| 78 | `fxlab.spec.ts` FX lab spec viewport 1440x810 | WP7 | 29a289d (viewport 1440x810 became 1280x720, the exact 2x of 640x360); WP7 re-checked: no 480x270 token left, `specs.txt` passes |
+| 79 | `trailer.mjs` Trailer viewport 1920x1080 gives k=3 at 640x360 (was 4) | WP2 | 29a289d (`trailer.mjs`) |
+| 80 | `perf.spec.ts` Frame budget gates MEAN 4/P95 6 (GPU), 8/11 (software CI) | WP2 | PL8: `e2e/perf.spec.ts` gates hold on both canvases (`media/pivot-640/perf/wp7-gpu.txt`, `wp7-nogpu.txt`) |
+| 91 | `perf.spec.ts` Every full-screen field pass gets 1.78x the pixels | WP2 | PL8: `e2e/perf.spec.ts` gates hold on both canvases (`media/pivot-640/perf/wp7-gpu.txt`, `wp7-nogpu.txt`) |
+| 122 | `layout.test.ts` Panel test runs fitPanel and speechLayout on every panel | WP5 | cdd1d71 (`layout.test.ts`) |
+| 146 | `layout.test.ts` Turn-order strip test asserts clear of top band, target... | WP6 | 5aad2ac (`layout.test.ts`) |
+| 147 | `gpufx.spec.ts` GPU effects spec fires shock(240,120),... | WP7 | bc15e89 (`gpufx.spec.ts`: shock and aberrate at W/2, H/2 since WP2; WP7 spreads the emit row) |
+| 148 | `perf.spec.ts` Frame gates MEAN 4/P95 6 (GPU) and 8/11 (software) for... | WP2 | PL8: `e2e/perf.spec.ts` gates hold on both canvases (`media/pivot-640/perf/wp7-gpu.txt`, `wp7-nogpu.txt`) |
+| 187 | `perf.spec.ts` Gates tuned to 480x270 | WP2 | PL8: `e2e/perf.spec.ts` gates hold on both canvases (`media/pivot-640/perf/wp7-gpu.txt`, `wp7-nogpu.txt`) |
+| 205 | `crew_kit.png` All images are sprite-sized: chars, battle 128x128,... | WP7 | no change: `public/` untouched (PL5; `no-change.txt`) |
+| 207 | `layout.test.ts` Comic-panel test runs fitPanel, speechLayout, portraitRect | WP5 | cdd1d71 (`layout.test.ts`) |
+| 209 | `perf.spec.ts` Gates MEAN 4/P95 6 (GPU) and 8/11 (software) tuned on... | WP2 | PL8: `e2e/perf.spec.ts` gates hold on both canvases (`media/pivot-640/perf/wp7-gpu.txt`, `wp7-nogpu.txt`) |
+| 210 | `gpufx.spec.ts` Effect probes placed with 480x270 literals: emit at... | WP7 | bc15e89 (`gpufx.spec.ts`: emit row over the full width, W/2 and H/2 for the shock) |
+| 211 | `prod.spec.ts` Scripts depend on key-press counts: key z x60 to read the... | WP7 | no change: `prod.spec.ts` key counts are the same as on `origin/main`; passes at 640x360 (`specs.txt`) |
+| 212 | `playthrough.spec.ts` playthrough, playtest, economy, gameover, chaos,... | WP7 | 864c260 (the six specs run by `evidence.sh`: `e2e-playthrough.txt`) |
+| 213 | `bundle-budget.mjs` CHUNK_MAX = 480\1000 means 480 kB, not pixels | WP0 | no change: Listed so a blind search-and-replace of 480 does not touch it |
+| 214 | `render-current.mjs` setViewportSize 480x270 and a crop clip... | WP7 | 20ab187 (`render-current.mjs`: crop derived from W and H) |
+| 215 | `render-maps.mjs` Viewport 960x540 and full-page screenshots for the... | WP2 | 29a289d (`render-maps.mjs`) |
+| 216 | `shot.mjs` Default viewport 960x540 for the quick screenshot tool | WP2 | 29a289d (`shot.mjs`) |
+| 218 | `evidence.sh` Regenerates docs/quality/evidence/\ and docs/screenshots... | WP7 | 864c260 (`evidence.sh` run; `perf.txt` holds this build's numbers) |
+| 225 | `layout.test.ts` Tests import W and H so most checks adapt | WP6 | 5aad2ac (`layout.test.ts`) |
+| 226 | `maps.test.ts` No test relates map size to the view | WP3 | 8db0276 (`maps.test.ts`) |
+| 227 | `atmosphere.test.ts` Tests with screen-relative numbers still pass: atmosphere... | WP3 | no change: Run npx vitest after the W/H change |
+| 81 | `CLAUDE.md` The size 480x270 is in live docs: CLAUDE.md:4,... | WP8 | WP8 |
+| 82 | `CONCEPTS.md` Concept page on internal resolution and the whole-number... | WP8 | WP8 |
+| 149 | `CONCEPTS.md` Battle world 240x135 shown 2x, enemies at screen resolution | WP8 | WP8 |
+| 208 | `screenshots` 68 committed screenshots (npm run shots) show the game at... | WP7 | 7481b0f (`docs/screenshots`; PL3 0 failed, `shot-sizes.txt`) |
+| 217 | `plan.mjs` A comment states the game scale is 480x270 | WP8 | WP8 |
+| 260 | `ARCHITECTURE.md` Lines 15, 86-87 (fill scaling of the 480x270 back buffer),... | WP8 | WP8 |
+| 261 | `CONCEPTS.md` Mentions 480x270 and 240x135 as facts at lines 13, 86,... | WP8 | WP8 |
+| 262 | `DEVELOPING.md` Spec table rows 99-106 (sjemock row 104, sjelab 'zoom 4'... | WP8 | WP8 |
+| 263 | `PHASE-0.2.md` Lines 255, 276, 532, 535 ('Resolution: keep 480x270 for... | WP8 | WP8 |
+| 264 | `TOOLING-UI.md` Battle Stage Editor zoom rules and tables for a 480 wide... | WP8 | WP8 |
+| 265 | `status.md` Lines 55, 59, 61, 71 ('480x270 against 640x360 mock') and... | WP8 | WP8 |
+| 266 | `CHANGELOG.md` CLAUDE.md requires a CHANGELOG entry in every feature PR | WP8 | WP8 |
+| 267 | `2026-10-04-engine-and-3d.md` Research record (119-145 'keep 480x270 for now') and the... | WP8 | WP8 |
+| 268 | `phaser-stage.md` Spike records state 480x270 as the world they were built... | WP8 | WP8 |
+| 269 | `round-13.md` Review rounds 12 and 13 mention 480 kB (bytes) and 480x270 | WP8 | WP8 |
+| 270 | `13-scaling-display-and-rotation.md` Wiki pages state Shadow Jog is 480x270: 13-scaling... | WP8 | WP8 |
+| 337 | `README.md` README says Canvas 2D at 480x270 | WP8 | WP8 |
+| 338 | `GDD.md` GDD technical line 'Internal resolution 480x270, 16px... | WP8 | WP8 |
+| 339 | `README.md` Spike README example question says 'does a side-view... | WP8 | WP8 |
+| 340 | `01-the-grid-and-resolution.md` Wiki pages state 480 by 270: 01 (75), 12 (82), 14 (79),... | WP8 | WP8 |
+| 381 | `side-battle-stage.md` Spec says all numbers are screen pixels on the 480x270... | WP8 | WP8 |
+| 382 | `14-history-hardware-and-styles.md` Wiki says Shadow Jog is 480 by 270, Slynyrd recommends 480... | WP8 | WP8 |
+| 395 | `glossary.md` 'Native resolution ... | WP8 | WP8 |
+| 396 | `11-tiles-and-environments.md` 'The backdrops are drawn at 240 by 135 and scaled 2x.'... | WP8 | WP8 |
+| 397 | `13-scaling-display-and-rotation.md` ':67' says back buffer 480 by 270 and describes the... | WP8 | WP8 |
+| 398 | `side-battle.md` Round reports and spike logs quote 480x270 as a fact of... | WP8 | WP8 |
+| 228 | `size.ts` The one source of W and H is a DEV-only switch:... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 279 | `size.ts` The one source of picture size | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 280 | `size.ts` grain(n) returns W/n by H/n | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 281 | `presenter.ts` pictureLayout picks k=floor(min(devW/W,devH/H)) | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 282 | `presenter.ts` Initial _layout, canvasW, canvasH follow W and H | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 283 | `backbuffer.ts` RenderTexture W x H, nearest | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 284 | `pixirenderer.ts` width W, height H at init | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 285 | `camera.ts` clamp uses W and H as the view size | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 286 | `camera.ts` Camera centres a world smaller than the view | M5 | carried to engine milestone M5 (not in this PR) |
+| 287 | `depth.ts` ACTORS band documented 0..299,999 | S1b | carried to M0 to M3 (D18), not in this PR |
+| 288 | `frame3d.ts` WebGLRenderTarget(W,H), UnrealBloomPass(Vector2(W,H)),... | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 289 | `frame3d.ts` UnrealBloomPass: bright-pass target plus 5 blur mips (11... | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 290 | `scene3d.ts` PerspectiveCamera(50, W/H) | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 291 | `threehost.ts` Fallback private canvas W x H | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 292 | `hud.ts` STRIP={edgeY:253,y:254,h:16,textY:257} are absolute rows... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 293 | `hud.ts` Header says 'exactly on the 480x270 pixel grid' | S1b | carried to M0 to M3 (D18), not in this PR |
+| 294 | `hackscene.ts` BLOOM {strength 0.6, radius 0.4, threshold 0.55} 'inside... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 295 | `look.ts` fov 52, FogExp2(0.026), grid of 1 px LineSegments | S1b | carried to M0 to M3 (D18), not in this PR |
+| 296 | `hacksim.ts` Simulation is pure, no screen size | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 332 | `glrenderer.ts` Comment-only sites: glrenderer.ts:7,62, backbuffer.ts:2,... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 229 | `sje-core.test.ts` Pins [W,H,FPS]=[480,270,60], grain(1) {480,270}, grain(2)... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 230 | `sje-render.test.ts` integerScale expectations are 480x270 results:... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 231 | `sje-render.test.ts` readCanvas tests use a 1000x700 canvas (k=2, picture... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 232 | `sje-display.test.ts` Camera bounds tests assume a 480x270 view (clamp to... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 233 | `sje-effects.test.ts` Literal 480,270 as fake canvas sizes in sje-effects,... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 243 | `prod-bytes.mjs` Proves the shipped bundle is byte-identical with and... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 244 | `sjemock.spec.ts` The spec and sjemockkit.ts (SIZES, DISPLAYS, EXPECT_K,... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 245 | `ci.yml` The e2e step names every spec by file, including... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 246 | `sjelab.spec.ts` ZOOM4 and AWKWARD tables carry expected integer zooms for... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 247 | `sjelab.spec.ts` Hardcoded sizes: [info.w,info.h]=[480,270] (122),... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 248 | `sjelab.spec.ts` Lab regions and world laid out for 480x270: parity region... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 249 | `sje3d.spec.ts` Dialog box pink corner pixel read at (20,222) which is... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 250 | `sje3d.spec.ts` Speed line P6: frame cost p95 <=8 ms with the GPU wait,... | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 251 | `parta.ts` Part A cases use absolute 480x270 coordinates: 3D view... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 307 | `content.ts` WORLD_W=960 (two 480 screens), barrens backdrop at x 480,... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 308 | `hook.ts` Sample points (100,135) and (380,135), parta.ts:239 rects... | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 309 | `stagehook.ts` __SJESTAGE__ reports w: W, h: H | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 310 | `sjelab.spec.ts` Crispness tables carry hard-coded k and 480\k, 270\k,... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 311 | `playwright.config.ts` Default viewport 960x540 (config, sjelabkit, sjestagekit,... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 315 | `sjemock.spec.ts` The switch, sjemock.spec.ts (6 tests), sjemockkit.ts,... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 341 | `story.ts` STORY_BOX={x:20,y:222,w:440,h:30} is a fixed dialog box on... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 342 | `content.ts` Lab title bar rect 0,0,480,18 (207) and layout.titleBar... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 343 | `reference.ts` CPU reference clamps scroll with literal 960-W | S1b | carried to M0 to M3 (D18), not in this PR |
+| 346 | `sje-parta.spec.ts` WINDOWS: 960x540 dpr 1 expects k=2, 1300x730 dpr 1.5... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 347 | `sjelabkit.ts` Shared kit opens each page at 960x540 (exactly 2x of... | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 348 | `sje3d-browsers.spec.ts` Expects 3D frame width 480, height 270 (107) and pixel... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 351 | `sjemockkit.ts` B3 mock kit holds SIZES for 480x270 and 640x360, two... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 364 | `sje3d.spec.ts` RATIOS table (46-51) lists viewports with k for 480x270:... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 366 | `sjelab.spec.ts` Camera test expects [480,240,0] (507-519): lab world 960... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 374 | `content.ts` The lab world pushes two 240x135 backdrops at 2x at x 0... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 375 | `parta.ts` graphicsMask test rectangles and partaextra probe rects... | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 376 | `sje-render.test.ts` pictureLayout tests expect w=480\k, h=270\k for... | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 377 | `sje-display.test.ts` Test asserts depthFor(270,99,1,0) < 300_000 | M0 | carried to engine milestone M0 (spike code, not in this PR) |
+| 378 | `sje3d.spec.ts` Hard-coded 480x270 expectations: frame facts (62), raw... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 379 | `sjelab.spec.ts` Blocks canvasW=480\k and 480\270 (207-209,238-240),... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 387 | `sje3d.spec.ts` Flat k-by-k block assertions hard-code the picture size:... | S1b | carried to M0 to M3 (D18), not in this PR |
+| 150 | `config.ts` SCREEN_W=480, SCREEN_H=270 as constants, against the... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 151 | `config.ts` checkFloor/checkHud/checkSlots limits use SCREEN_\ | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 152 | `config.ts` depthFor uses literal 240 as half width | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 153 | `config.ts` ART_KERB_ROW=132 is the kerb row of the old street picture... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 154 | `rules.ts` RULE_LIMITS in px for 480x270: horizon 92-112 (34-41%),... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 155 | `rules.ts` Rules dividing by SCREEN_W\SCREEN_H or SCREEN_H: HUD... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 156 | `hudpresets.ts` Four HUD presets with absolute 480x270 boxes (DESIGN,... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 161 | `floor.ts` paintFloor loops to SCREEN_W/H | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 162 | `floor.ts` reprojectWall copies old rows shifted by shiftY up to the... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 163 | `textures.ts` backdropSource blits battleBg(id).canvas to SCREEN_W x... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 164 | `sewerwall.ts` Painted wall in 480x270 absolute numbers: grate x212-268,... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 165 | `stagescene.ts` Scene draws the baked picture at (0,0) | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 297 | `config.ts` Validator rejects a party slot with x>=SCREEN_W/2 and an... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 298 | `rules.ts` layoutBreaks uses SCREEN_W x SCREEN_H for HUD share,... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 299 | `hudpresets.ts` Four presets (timeline-bottom3, ff-strip, action-left,... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 302 | `floor.ts` puddleSpots cy=ri(top+10,224): lowest puddle row, tuned to... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 303 | `floor.ts` Floor bands grow 1.2x from the horizon: more and taller... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 305 | `textures.ts` ENEMY_GRAIN=2, idle WORLD_TO_SCREEN=2, hero sheets at... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 306 | `stagescene.ts` bakeStage then add.image(0,0) | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 344 | `sfgeom.ts` SF_SLOTS, SF_WALK_START_X, SF_KEEP_OUT in 240x135 world... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 345 | `idle.ts` WORLD_TO_SCREEN=2 doubles the old engine's world-pixel... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 362 | `sewerwall.ts` Beside sewerwall.ts:56, hand-placed x for 480: grate... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 363 | `hudpresets.ts` Other presets also pinned to right edge 476 and bottom... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 384 | `sewerwall.ts` Wall for 480 px with literal x: pillars [60,180,300,420]... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 385 | `hudpresets.ts` Three more preset tables on literal 480x270: ff-strip... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 157 | `hud.json` Screen-space boxes: turnOrder (4,2,240x43), commands... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 158 | `stages.json` Street fields in 480x270 px: horizonY 100, shiftY -32,... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 159 | `stages.json` Sewer, same fields: horizonY 100, shiftY 0 (replace mode),... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 160 | `heroes.json` heroes.json, axes.json, enemyfacing.json hold no screen... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 170 | `stagerules.test.ts` Tests with 480/240/270 literals: stagerules... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 171 | `stages.json` Frozen copies of the five stage files in 480x270 space | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 172 | `manifest-gpu.json` Six 480x270 RGBA golden frames plus manifests, from the... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 173 | `sjestage.spec.ts` Literal 480/270 in sjestage.spec.ts (102-103, 387-400),... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 174 | `sjestage-refs.mjs` sjestage-refs.mjs captures raw 480x270 frames from the... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 235 | `battlestage-figure.test.ts` closeness = 240 - min(240, abs(x-480/2)) mirrors... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 236 | `stageconfig.test.ts` Clamp and snap results are 480x270 numbers: x clamp 480,... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 237 | `stagerules.test.ts` 'edge' rule test puts an enemy at 480 and expects '480' in... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 238 | `stagepaint.test.ts` floorBands(102,270,3,1.2), bottom assertion 270, x probe... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 239 | `stageshipped.test.ts` Checks Mark's stage files for invariants only (loads, four... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 240 | `manifest-gpu.json` Six 480x270 RGBA goldens from the Phaser spike stage lab... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 241 | `sjestage-refs.mjs` W=480,H=270 constants, size check against the Phaser... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 242 | `stage-data-parity.mjs` Compares 5 design data files and 14 modules byte for byte... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 252 | `sjestagekit.ts` sjestagekit.ts defines its own W=480,H=270 | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 253 | `sjestage.spec.ts` Parity and design checks are size-independent except the... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 300 | `hud.json` Preset action-left with six boxes in 480x270 px, limits... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 301 | `stages.json` Two stages (street, sewer), about 100 numbers each in... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 312 | `stageconfig.test.ts` Literals in stageconfig (110-145,187-189,252), stagerules... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 313 | `manifest-gpu.json` Parity references are 480x270 raw RGBA: 6 files plus 2... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 314 | `stage-data-parity.mjs` Checks 14 pure modules, sfgeom.ts and 5 data files byte... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 349 | `battlestage-scene.test.ts` Fake textures and canvases are 480x270 in... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 350 | `manifest-soft.json` Soft-renderer manifest records w 480 and h 270 | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 365 | `sjestage.spec.ts` ZOOM4 table (61-68) has the same k=4/7 viewports | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 372 | `hud.json` hud.json limits block: maxScreenShare 0.2, maxBottomBand... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 373 | `moves.json` Move frames carry dx and dz as fractions of the... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 380 | `stageconfig.test.ts` HUD share test sets turnOrder 480x60 and expects the... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 166 | `hud.ts` HUD_TOP_CLEAR=62 and NUMBER_FLOOR=66 (hudlayout.ts:196)... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 167 | `hud.ts` Widgets use fixed pixel offsets inside each box (HP number... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 168 | `inspector.ts` Editor literals: HUD box fields max 480/270, row y max... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 169 | `sidelab.ts` Old side-view lab clears a 480x270 rect | P | spike/phaser-stage (optional, D3 option a keeps it at 480x270), not in this PR |
+| 180 | `sewerwall.ts` Sewer wall written for 480: pillars 60/180/300/420 skip... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 181 | `floor.ts` paintFloor and reprojectWall follow SCREEN_\ | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 182 | `config.ts` SCREEN_W/H literals (engine size module is separate) | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 271 | `boot.ts` Phaser game created with SCREEN_W x SCREEN_H,... | P | spike/phaser-stage (optional, D3 option a keeps it at 480x270), not in this PR |
+| 272 | `stageedit.ts` Literals bypass SCREEN_W/H: scale=r.width/480 (352),... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 273 | `stageedit.html` Panel widths clamp(268,17.5vw,340) and... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 274 | `perform.ts` Literal 480 for numberSpot screenW (perform.ts:640) | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 275 | `stageeditkit.ts` EDITOR_VIEWPORT 1600x900 (2x at 480, 1x at 640) and... | P | spike/phaser-stage (optional, D3 option a keeps it at 480x270), not in this PR |
+| 276 | `stagelab.spec.ts` Size and zoom asserts for the stage lab canvas: 480/270,... | P | spike/phaser-stage (optional, D3 option a keeps it at 480x270), not in this PR |
+| 277 | `stagezoom.test.ts` devicePixelsPerGamePixel tests pass 480,270 and expect... | P | spike/phaser-stage (optional, D3 option a keeps it at 480x270), not in this PR |
+| 278 | `stageedit.test.ts` Edit-model tests carry 480x270 results: floor bottom 270,... | P | spike/phaser-stage (optional, D3 option a keeps it at 480x270), not in this PR |
+| 353 | `inspector.ts` Inspector limits party x to 0..239 and enemy x to 240..480 | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 354 | `stageedit.ts` Pointer-to-game mapping uses literals 480 and 270... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 355 | `stageeditpolish3.spec.ts` Editor zoom tables for the 480x270 stage: 1440x900->1,... | P | spike/phaser-stage (optional, D3 option a keeps it at 480x270), not in this PR |
+| 356 | `stagelab-dpr.spec.ts` Viewport and size tables (480\k, 270\k, 960x540 at dpr... | P | spike/phaser-stage (optional, D3 option a keeps it at 480x270), not in this PR |
+| 367 | `stageedit.html` Overlay SVG has a fixed viewBox 0 0 480 270 and... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 368 | `inspector.ts` Row y field max 270 (370), Floor bottom slider min 150 max... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 369 | `hudpresets.ts` Phaser copy of the code presets (51,77,90): turnOrder x120... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 370 | `rules.ts` Phaser copy of RULE_LIMITS and the Align range in... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 371 | `hudlayout.ts` NUMBER_FLOOR=66 (highest y a damage number may start)... | M3 | carried to engine milestone M3 (spike code, not in this PR) |
+| 254 | `decisions.md` E12 reads 'Keep 480x270, test 640x360 in a mock' (table... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 255 | `frame-and-rendering.md` States 480x270 in the size module (172-184), pipeline... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 256 | `tooling-and-testing.md` T1 viewport 960x540 (110), pixel-block result 'x3 and x4'... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 257 | `README.md` README 136-148 and 172-183: 'All filters run at game... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 258 | `engine-render-pipeline.html` Render-pipeline diagram has 'Filters run inside 480x270'... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 320 | `decisions.md` E12 row says 'A | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 321 | `README.md` README lines 15, 30, 44 say Mark kept 480x270 | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 322 | `frame-and-rendering.md` Sample 'W = 480, H = 270' (173), DEV switch text (183),... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 323 | `scene-graph.md` 'Mixed grains: 240x135 layers at 2x with 480x270 layers'... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 324 | `tooling-and-testing.md` Budget row 'Canvas upload per frame 2 MB: one 480x270... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 325 | `migration.md` M0 says replace the 480/270/240/135 that mean screen size,... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 326 | `migration.md` The plan keeps the old game at the same size as the new... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 327 | `migration.md` M2 postfx centre defaults (240,135), glow chain at 1/2 and... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 328 | `decisions.md` E12 says 7 to 11 agent-days | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 329 | `frame-and-rendering.md` Text says the postfx.ts centre defaults (240,135) change... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 330 | `verification.md` V3 'One pixel grid: 2D, HUD and 3D share one grain | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 389 | `README.md` Status list says 'Mark kept 480x270 (E12)' | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 390 | `decisions.md` E12 row says 'A | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 391 | `migration.md` 'The mock was made and Mark chose | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 392 | `interfaces.md` size.ts shown as 'W = 480, H = 270 ... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 393 | `scene-graph.md` 'UI objects use absolute positions in size.ts coordinates... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 394 | `frame-and-rendering.md` Back buffer described as a 480x270 RenderTexture (:227),... | DD | docs-diagrams branch (engine design docs update, D4), not in this PR |
+| 175 | `side-battle-stage.md` Stage design record says all numbers are screen pixels on... | S2 | spike/engine-platform step S2 (spike records), not in this PR |
+| 234 | `tooling-and-testing.md` The design promises a Vitest literal scan for numbers... | WP0 | 282bdf6 (`tests/screen-literals.test.ts`: the scan) |
+| 259 | `engine-platform.md` Exit criterion 11 and notes say Mark picks 480x270 or... | S2 | spike/engine-platform step S2 (spike records), not in this PR |
+| 316 | `engine-platform.md` Speed measured at 480x270 only: 3D with bloom frame cost... | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 317 | `engine-platform.md` Leaks (flat object counts), fallback timings, effect... | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 318 | `engine-platform.md` Bundle growth is code size: valid at 640x360 with no... | S1a | spike/engine-platform step S1a (Phase 0 measures; `docs/engine/migration.md`, "Phase 0 at 640x360") |
+| 319 | `engine-platform.md` Each part passed the three-verifier loop | S2 | spike/engine-platform step S2 (spike records), not in this PR |
+| 331 | `CONCEPTS.md` Spike-branch copies of CONCEPTS (86,252,267,274,275),... | S2 | spike/engine-platform step S2 (spike records), not in this PR |
+| 352 | `street.json` Two design-doc config copies (street.json, sewer.json)... | S2 | spike/engine-platform step S2 (spike records), not in this PR |
+| 176 | `battle.ts` The over-the-shoulder battle is replaced by the side-on... | WP6 | d90f29a (`battle.ts`) |
+| 177 | `battlebg.ts` 640x360 adds 160 px (80 world) across and 90 px (45 world)... | WP2b | 564f1bb (`battlebg.ts`) |
+| 178 | `geom.ts` Old battle HUD hugs the edges (menus x=4, strip W-6)... | WP2b | 564f1bb (`geom.ts`) |
