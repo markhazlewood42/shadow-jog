@@ -195,6 +195,6 @@ export const GLOW_REACH = Math.round(H * 0.74);
 /** The results page: its window keeps the width it had (the screen less 120 px at 480), centered, and its rows sit inside it. */
 export const RESULTS_W = 360;
 export const RESULTS_X = Math.round((W - RESULTS_W) / 2);
-/** The crew row under the results: one card per member, this far apart, each about this wide (portrait, name and level). */
+/** The crew row under the results: one card per member, this far apart; a card is the portrait (32 px) and a gap, then the name and the level. */
 export const RESULTS_CARD_STEP = 82;
-export const RESULTS_CARD_W = 76;
+export const RESULTS_CARD_FACE = 36;

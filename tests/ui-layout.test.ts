@@ -339,6 +339,20 @@ describe('every screen draws inside the frame (PL4)', () => {
     expect(outsideFrame(ok, W, H)).toEqual([]);
   });
 
+  it('what a scene paints into an offscreen canvas is not recorded as a screen draw (the title’s 640-wide city layers are drawn into its 320x180 buffer)', async () => {
+    const { W, H } = await drawAll(null);
+    const layout = new Layout();
+    setLayout(layout);
+    const buffer = recordingContext({ width: 320, height: 180 }, true);
+    buffer.fillRect(0, 0, W * 2, H * 2);
+    const screen = recordingContext();
+    screen.fillRect(0, 0, W * 2, H * 2);
+    setLayout(null);
+    // The buffer's draw is silent; the screen's own draw is recorded, and it leaves the screen (check 1 sees it).
+    expect(layout.draws.length).toBe(1);
+    expect(outsideFrame(layout, W, H).length).toBe(1);
+  });
+
   it('a text wider than its window fails check 2 (the control)', async () => {
     const { drawWindow } = await import('../src/ui/draw');
     const { drawText } = await import('../src/engine/font');
@@ -440,5 +454,79 @@ describe('what the layout promises beyond the four checks (D8, WP4)', () => {
     const label = st.texts.find((t) => t.text === 'ATK')!;
     const value = st.texts.filter((t) => t.y === label.y && t !== label).sort((a, b) => b.x - a.x)[0]!;
     expect(value.x + value.w - label.x).toBeLessThanOrEqual(NEAR);
+  });
+});
+
+describe('what the full-page scenes promise (WP5, D9)', () => {
+  const near = (a: number, b: number, tol = 1) => Math.abs(a - b) <= tol;
+
+  it('the title draws its world over the whole frame, and the logo and the key hints sit inside it', async () => {
+    const { shots, W, H } = await drawAll(null);
+    const menu = shots.find((s) => s.name === 'title: menu')!.layout;
+    // The skyline buffer (320x180) is drawn at 2x over the whole screen: one picture, no void.
+    expect(menu.draws.some((d) => d.op === 'drawImage' && d.x === 0 && d.y === 0 && d.w === W && d.h === H)).toBe(true);
+    // The logo (4x) is centered, and the menu panel under it is centered too.
+    const { LOGO_Y } = await import('../src/scenes/title-layout');
+    const logo = menu.draws.find((d) => d.op === 'drawImage' && d.y === LOGO_Y)!;
+    expect(logo).toBeTruthy();
+    expect(near(logo.x * 2 + logo.w, W, 1)).toBe(true);
+    const hints = menu.texts.filter((t) => t.y > H - 20);
+    expect(hints.length).toBe(2);
+    for (const t of hints) expect(t.y + t.h).toBeLessThanOrEqual(H);
+  });
+
+  it('the ending results page is centered: window, crew row and prompt (the crew row was packed to the left)', async () => {
+    const { shots, W, H } = await drawAll(null);
+    const { PAGE_DY, PAGE_PROMPT_FROM_BOTTOM, RESULTS_W } = await import('../src/ui/layout');
+    const page = shots.find((s) => s.name === 'ending: results')!.layout;
+    const win = page.windows.find((w) => w.title === 'THE RUN SO FAR')!;
+    expect(win.w).toBe(RESULTS_W);
+    expect(win.x * 2 + win.w).toBe(W);
+    expect(win.y).toBe(46 + PAGE_DY);
+    // The crew row: four 32x32 portraits, and the longest name and level beside the last one.
+    const cards = page.draws.filter((d) => d.op === 'drawImage' && d.w === 32 && d.h === 32);
+    expect(cards.length).toBe(4);
+    const left = Math.min(...cards.map((c) => c.x));
+    const last = cards.reduce((a, b) => (b.x > a.x ? b : a));
+    const right = Math.max(...page.texts.filter((t) => t.y >= last.y && t.y < last.y + 32 && t.x > last.x).map((t) => t.x + t.w));
+    expect(near((left + right) / 2, W / 2, 2), `the crew row spans ${left}..${right}, not centered on ${W / 2}`).toBe(true);
+    // The prompt of the page sits PAGE_PROMPT_FROM_BOTTOM above the bottom edge.
+    const prompt = page.texts.find((t) => t.text.startsWith('Press'))!;
+    expect(prompt.y).toBe(H - PAGE_PROMPT_FROM_BOTTOM);
+  });
+
+  it('the next-chapter card and game over use the vertical offset, the prompt at H-20 and the street at H-26', async () => {
+    const { shots, W, H } = await drawAll(null);
+    const { GLOW_REACH, PAGE_DY, PAGE_PROMPT_FROM_BOTTOM, STREET_FROM_BOTTOM } = await import('../src/ui/layout');
+    const next = shots.find((s) => s.name === 'ending: next chapter')!.layout;
+    expect(next.texts.find((t) => t.text === 'CHAPTER TWO')!.y).toBe(96 + PAGE_DY);
+    expect(next.texts.find((t) => t.text.startsWith('Press'))!.y).toBe(H - PAGE_PROMPT_FROM_BOTTOM);
+    const over = shots.find((s) => s.name === 'game over')!.layout;
+    expect(over.texts.find((t) => t.text === 'THE RUN IS OVER')!.y).toBe(44 + PAGE_DY);
+    const street = H - STREET_FROM_BOTTOM;
+    expect(over.draws.some((d) => d.op === 'fillRect' && d.x === 0 && d.y === street && d.w === W && d.h === H - street)).toBe(true);
+    // The red glow behind the crew: 0.74 of the height, which is the 267 px (200 of 270) it was.
+    expect(over.draws.some((d) => d.op === 'fillRect' && d.x === 0 && d.y === street - GLOW_REACH && d.w === W && d.h === GLOW_REACH)).toBe(true);
+    expect(Math.abs(GLOW_REACH - 267)).toBeLessThanOrEqual(2);
+    // The menu window sits under the title text, not on the old row.
+    const menuWin = over.windows.find((w) => w.w === 140)!;
+    expect(menuWin.y).toBe(80 + PAGE_DY);
+  });
+
+  it('the deck group is centered across the screen and sits in the room above Hex’s line box, with the larger gap below', async () => {
+    const { shots, W, H } = await drawAll(null);
+    const dead = shots.find((s) => s.name === 'deck: dead')!.layout;
+    // The deck's backing plate (a fillRect 28 wider than the 264 px art) and its side panel (the prompt window).
+    const plate = dead.draws.find((d) => d.op === 'fillRect' && d.w === 264 + 28)!;
+    const prompt = dead.windows.find((w) => !w.title && w.h === 70)!;
+    expect(plate && prompt).toBeTruthy();
+    const left = plate.x + 14, right = prompt.x + prompt.w;
+    expect(near((left + right) / 2, W / 2, 2), `the group spans ${left}..${right}`).toBe(true);
+    const line = dead.windows.find((w) => w.h === 54)!;
+    const above = plate.y, below = line.y - (plate.y + plate.h);
+    expect(above).toBeGreaterThan(40);
+    expect(below).toBeGreaterThan(0);
+    expect(below).toBeGreaterThanOrEqual(above - 2);
+    expect(line.y + line.h).toBeLessThanOrEqual(H);
   });
 });

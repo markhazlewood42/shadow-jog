@@ -11,7 +11,7 @@ import { Scene, W, H } from '../engine/game';
 import { formatPlayTime } from '../game/save';
 import { state } from '../game/state';
 import { drawDivider, drawWindow, UI } from '../ui/draw';
-import { PAGE_DY, PAGE_PROMPT_FROM_BOTTOM, RESULTS_CARD_STEP, RESULTS_CARD_W, RESULTS_W, RESULTS_X } from '../ui/layout';
+import { PAGE_DY, PAGE_PROMPT_FROM_BOTTOM, RESULTS_CARD_FACE, RESULTS_CARD_STEP, RESULTS_W, RESULTS_X } from '../ui/layout';
 import { getPortrait } from '../art/portraits';
 
 export class EndingScene extends Scene<void> {
@@ -77,8 +77,10 @@ export class EndingScene extends Scene<void> {
     const crew = state.party;
     const gone = Math.max(0, Math.min(1, (this.t - MISSING_AT) / 50));
     const base = ctx.globalAlpha;
-    // The crew row is centered on the screen, whatever its width or the number of members.
-    const rowX = Math.round((W - ((crew.length - 1) * RESULTS_CARD_STEP + RESULTS_CARD_W)) / 2);
+    // The crew row is centered on the screen, whatever its width or the number of members: its width is the
+    // steps between the cards plus the last card (the portrait, then the widest name or level).
+    const textW = Math.max(0, ...crew.flatMap((id) => [measure(MEMBERS[id].name), measure(`Lv ${state.members[id]?.level ?? 1}`)]));
+    const rowX = Math.round((W - ((crew.length - 1) * RESULTS_CARD_STEP + RESULTS_CARD_FACE + textW)) / 2);
     crew.forEach((id, i) => {
       const x = rowX + i * RESULTS_CARD_STEP;
       const p = getPortrait(id, 'neutral');

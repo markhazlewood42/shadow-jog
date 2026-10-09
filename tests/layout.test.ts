@@ -283,3 +283,52 @@ describe('the dialog and menu caps (D8 defaults)', () => {
     expect(strip!.x + strip!.w).toBe(W - 8);
   });
 });
+
+describe('title composition (WP5, D9)', () => {
+  it('everything hangs off the right and bottom edges of the 320x180 world, and the layers stack from the roof upward', async () => {
+    const L = await import('../src/scenes/title-layout');
+    const { BHT, BW } = await import('../src/art/worldsize');
+    expect([BW, BHT]).toEqual([320, 180]);
+    // The roof ends on the bottom edge: its top is a fixed 17 rows above it.
+    expect(L.ROOF.top + 17).toBe(BHT);
+    // The three city layers stand in order, each lower than the one behind it, and the nearest above the roof.
+    expect(L.CITY.far.base).toBeLessThan(L.CITY.mid.base);
+    expect(L.CITY.mid.base).toBeLessThan(L.CITY.near.base);
+    expect(L.CITY.near.base).toBeLessThanOrEqual(L.ROOF.top);
+    // The moon (with its halo) lies inside the world, anchored to the right edge.
+    const moonX = BW - L.MOON.fromRight;
+    expect(moonX + L.MOON.halo).toBeLessThanOrEqual(BW);
+    expect(L.MOON.y - L.MOON.halo).toBeGreaterThanOrEqual(0);
+    // The tank and the right ledge are inside the world and on the right edge; the ledge carries the tank.
+    expect(BW - L.ROOF.rightLedge.fromRight + L.ROOF.rightLedge.w).toBe(BW);
+    expect(BW - L.ROOF.tank.fromRight + L.ROOF.tank.w).toBeLessThanOrEqual(BW);
+    expect(BW - L.ROOF.tank.fromRight).toBeGreaterThanOrEqual(BW - L.ROOF.rightLedge.fromRight);
+    expect(L.ROOF.tank.rise - L.ROOF.tank.h).toBe(L.ROOF.rightLedge.h);
+    // The spire and the monorail lie inside the world, and the monorail's rail sits under its car.
+    expect(L.SPIRE_X).toBeGreaterThan(0);
+    expect(L.SPIRE_X).toBeLessThan(BW);
+    expect(L.MONORAIL.railY).toBe(L.MONORAIL.carY + L.MONORAIL.carH);
+    expect(L.MONORAIL.railY + 2).toBeLessThan(L.CITY.mid.base);
+    expect(L.MONORAIL_LOOP).toBe(BW + L.MONORAIL.offscreenRun);
+    // The rain is the old count times the area ratio, and the stars keep their density.
+    const { AREA_SCALE } = await import('../src/field/weather');
+    expect(L.RAIN_DROPS).toBe(Math.round(90 * AREA_SCALE));
+    expect(L.STAR_COUNT).toBe(Math.round(BW * L.STAR_BAND_ROWS * L.STAR_DENSITY));
+  });
+
+  it('the logo, its caption, the prompt and the menu fit the screen in order, at 4x and at 5x', async () => {
+    const L = await import('../src/scenes/title-layout');
+    const { W, H } = await import('../src/engine/game');
+    // The logo's glyph strip is 70 columns (see buildLogo) and has 12 px of glow margin each side.
+    for (const k of [4, 5]) {
+      const logoW = 70 * k + 24, logoH = 9 * k + 24;
+      expect(logoW, `the ${k}x logo is wider than the screen`).toBeLessThan(W);
+      const caption = L.LOGO_Y + logoH + 2;
+      expect(caption + 9, `the ${k}x logo's caption collides with the menu`).toBeLessThan(L.MENU_Y - 4);
+    }
+    expect(L.MENU_Y + 50 + 12).toBeLessThan(H - L.FOOT_MARGIN);
+    expect(L.PROMPT_Y).toBeGreaterThan(L.MENU_Y);
+    expect(L.PROMPT_Y + 9).toBeLessThan(H - L.FOOT_MARGIN);
+    expect(L.LOGO_SCALE).toBe(4);
+  });
+});

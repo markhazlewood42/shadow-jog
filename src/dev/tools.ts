@@ -30,6 +30,8 @@ export const DEV_TOOLS: { group: string; tools: DevTool[] }[] = [
       { name: 'Boss battle', path: '/?debug&scene=battle&enemies=lurker&boss', about: 'The Lurker, on loop' },
       { name: 'Dialog box, full width (D8)', path: '/?debug&scene=field&map=lantern_row&x=22&y=8&dialogw=full', about: 'Dialogue in a box as wide as the screen (608 px), not the shipped one capped at 464. A review switch, dev only: add &dialogw=full to any route' },
       { name: 'Menu panes, stretched (D8)', path: '/?debug&scene=field&map=lantern_row&x=22&y=8&panes=stretch', about: 'The field menu (press C) with its list panes as wide as the screen allows, not the shipped ones capped at 364 px. A review switch, dev only: add &panes=stretch to any route' },
+      { name: 'Title, 5x logo (D9)', path: '/?logo=5', about: 'The title with the logo at 5x, not the shipped 4x. A review switch, dev only: add &logo=5 to the title route' },
+      { name: 'Comic panels, 3x portraits (D9)', path: '/?scene=panels&id=ending&portrait=3', about: 'The ending pages with every portrait at 3x, not the shipped 2x (id=intro for the opening). A review switch, dev only: add &portrait=3 to any panel route' },
       { name: 'A point in the story', path: '/?debug&scene=stage', about: 'Straight to a chapter preset: the party, levels and gear for that point', pick: 'stage' },
       { name: 'Debug mode', path: '/?debug', about: 'The normal game, with test hooks on window.__SJ__ (see the console)' },
     ],
