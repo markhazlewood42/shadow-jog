@@ -210,6 +210,8 @@ The cost did not grow with the picture. The 3D frame has 1.78 times more pixels,
 
 **M1 measurements (2026-10-09, the real game on `?engine=sje`, 640x360, `e2e/sje-bench.spec.ts`).** The bench stops the game's loop and drives tick, draw and the GPU wait frame by frame, with 1,000 `ImageObject`s moving every tick. These numbers are from SWIFTSHADER (software GL, the bundled Chromium on the build machine). They are NOT GPU numbers: the GPU line of pass line 10 (interval p95 within 5% of a bare page, cost p95 at most 8 ms) needs a run of `npm run perf` on Mark's machine.
 
+**M1 GPU run (2026-10-09, `npm run perf`, Edge/Chromium on an RTX 4070, bare page p95 16.80 ms).** The speed line holds. 2D scene: interval p95 16.80 ms, frame cost p95 6.90 ms (JS work mean 0.22 ms). 3D frame with bloom: interval p95 16.80 ms, cost p95 7.10 ms. Bench on the real game: title alone cost p95 1.80 ms, two legacy canvases 1.90 ms (1.84 MB uploaded per frame), three canvases 2.80 ms (2.76 MB), 1,000 objects through the wrapper 2.90 ms against 2.10 ms raw Pixi; all cases 2 draws and 2 binds; interval p95 16.80 ms in every case. Wrapper overhead 0.015 ms a frame (line: 1 ms). The negative control (600 extra 3D frames) breaks both rules as it must (interval 66.8 ms, cost 66.4 ms). Canvas upload line: keep 2 MB for two canvases, which is 92%; a third canvas still holds the speed line on this GPU (2.8 ms), so the 3 MB proposal stands.
+
 | Measure (SwiftShader) | Value |
 |---|---|
 | Draw calls per frame: title alone, two legacy canvases, 1,000 objects | 2.0, 2.0 and 2.0 (the sprites batch into one draw) |

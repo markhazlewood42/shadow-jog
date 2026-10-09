@@ -59,7 +59,19 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
-### Right now (2026-10-09)
+### Right now (2026-10-09, M1)
+
+**Milestone M1 "Shell" is built and verified on branch `engine-m1-shell`; the PR is open for your merge.** The new engine plays title, field, battle and shop under `?engine=sje` (runtime, `LegacyScene`, integer `Display`, `fxLevel`, DEV hook). Round 1: the runner passed every hard line; the reader found 4 Important and 2 Minor findings, all fixed and re-checked in fix round 1 (b185224). GPU run (`npm run perf`, RTX 4070): the speed line holds (2D cost p95 6.9 ms, 3D 7.1 ms, interval at the bare-page value); wrapper overhead 0.015 ms for 1,000 objects. Record: `docs/engine/m1-brief.md`. Your decisions: one bigger bundle total (now 380 kB), `fit` dropped (`integer` only). Visible on the default path: the Options "Scaling" row is gone.
+
+**Next up for Mark**
+
+1. Look at the M1 pictures (old and `?engine=sje` of title, field, battle, shop), then merge the M1 PR.
+2. Decide whether to strip the `Co-Authored-By` lines from six pushed commits (needs a force-push), or leave them.
+3. The spike archive tag (Q3), after the merge.
+
+**Next for agents:** milestone M1b (3D proof) and M2 (Effects) run in parallel after the merge. Write the brief with pass lines first.
+
+### Right now (2026-10-09, M1 start, history)
 
 **Milestone M0 "Prepare" is merged** ([PR #43](https://github.com/markhazlewood42/shadow-jog/pull/43), 2026-10-09, merge e7ee706, no game change), after the 640x360 move (PR #23). CI is green. **Next is M1 "Shell"** on branch `engine-m1-shell` (made from `main`, nothing built yet) in the worktree `projects/shadow-jog-engine`. Milestone text: `docs/engine/migration.md` section M1. The M0 plan and record: `docs/engine/m0-brief.md`.
 
