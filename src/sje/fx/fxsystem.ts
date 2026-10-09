@@ -355,8 +355,9 @@ export class FxSystem extends FxState {
     parts.particles.destroy();
     parts.uiImage?.destroy();
     parts.glowImage?.destroy();
-    parts.chain?.destroy();
+    // The composite reads the chain's textures: free it first, or Pixi warns that a texture source was destroyed while bound to a shader.
     parts.composite?.destroy();
+    parts.chain?.destroy();
     parts.litRoot?.destroy();
   }
 

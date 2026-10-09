@@ -80,6 +80,19 @@ function sharedAtlas(): { source: CanvasSource; shapes: Texture[] } {
   return atlas;
 }
 
+/**
+ * Free the GPU buffers of a ParticleContainer (Pixi 8.22). Two things in Pixi leave them behind when a container is destroyed (found by the leak
+ * test in e2e/sje-draws.spec.ts: three buffers per switch of the effects level):
+ *   1. The buffers are freed on the 'unload' event, which Pixi's garbage collector sends after a long idle time. `destroy` does not send it.
+ *   2. `ParticleBuffer.destroy` destroys the vertex buffers and the geometry, but the geometry's index buffer needs `destroy` of its own.
+ * So: destroy the index buffer, then send 'unload'. Reads Pixi's per-renderer GPU data, which has no public type.
+ */
+function freeGpuBuffers(pc: ParticleContainer): void {
+  const perRenderer = (pc as unknown as { _gpuData?: Record<string, { geometry?: { indexBuffer?: { destroy(): void } } } | null> })._gpuData;
+  for (const data of Object.values(perRenderer ?? {})) data?.geometry?.indexBuffer?.destroy();
+  pc.emit('unload', pc);
+}
+
 export class FxParticles {
   private readonly shapes: Texture[];
   /** The glowing and the covering particles, in draw order. */
@@ -169,6 +182,7 @@ export class FxParticles {
   }
 
   destroy(): void {
+    for (const pc of [this.addPC, this.alphaPC, this.litPC]) freeGpuBuffers(pc);
     this.group.destroy({ children: true });
     this.litGroup.destroy({ children: true });
     this.mask.destroy();

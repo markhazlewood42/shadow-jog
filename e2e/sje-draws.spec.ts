@@ -4,11 +4,17 @@
  * performance check that CI runs: timing lives in perf.spec.ts and runs locally on a GPU (npm run perf).
  */
 import { expect, test } from '@playwright/test';
+import { glErrors, openProbe } from './sjefxkit';
+import { installGlCounters, sj } from './sjegamekit';
 import { openLab } from './sjelabkit';
 
 /** What the design budgets per frame (tooling-and-testing.md section 7, "Performance budget"; proposed, M1 sets the real gate). */
 const DRAW_CALLS_MAX = 60;
 const FRAMEBUFFER_BINDS_MAX = 30;
+/** The real game at `full` with every effect alive (measured in M2; see the console line of the test below, and tooling-and-testing.md section 7). */
+const STACK_DRAWS_MAX = 24; // measured 16 on SwiftShader and CI's Chromium (bare frame: 4)
+const STACK_BINDS_MAX = 24; // measured 17 (bare frame: 4)
+const STACK_UPLOADS_MAX = 4; // measured 3 canvas uploads (bare frame: 2)
 
 test.describe('engine lab: draw calls and framebuffer binds', () => {
   test('a frame stays inside the draw-call and framebuffer-bind budgets (counted by a patch of WebGL2RenderingContext.prototype, so any machine gives the same numbers); the control exceeds them', async ({ browser }) => {
@@ -52,6 +58,121 @@ test.describe('engine lab: draw calls and framebuffer binds', () => {
       expect(lab.problems).toEqual([]);
     } finally {
       await lab.close();
+    }
+  });
+
+  test('the real game with the full effect stack: draw calls and framebuffer binds per frame are written down and bounded; 10 enter and exit cycles with the stack on leave the GL counts flat (a leaking scene grows them)', async ({ browser }) => {
+    const g = await openProbe(browser, 'full', { init: installGlCounters });
+    try {
+      const { page } = g;
+      const out = await sj<{
+        bare: { draws: number; binds: number; uploads: number };
+        stack: { draws: number; binds: number; uploads: number };
+        base: Record<string, number>;
+        after: Record<string, number>;
+        leaked: Record<string, number>;
+        toggleBase: Record<string, number>;
+        toggled: Record<string, number>;
+        particles: number;
+        cap: number;
+      }>(
+        page,
+        `(async () => {
+          const fx = sj.game.fx;
+          const w = window;
+          const measure = (n) => {
+            sj.step(0);
+            w.__gl = { draws: 0, binds: 0, uploads: 0, uploadBytes: 0 };
+            for (let i = 0; i < n; i++) sj.step(0);
+            return { draws: w.__gl.draws / n, binds: w.__gl.binds / n, uploads: w.__gl.uploads / n };
+          };
+          // The stack: every effect alive, the glow layer and the UI layer drawn into. Ticks do not run (step(0)), so it stays as it is.
+          const raise = () => {
+            window.__probe.glow = { x: 300, y: 150, w: 40, h: 30 };
+            sj.postfx.shock(200, 120, { strength: 6, reach: 90, life: 600, width: 10 });
+            sj.postfx.shock(420, 220, { strength: 6, reach: 90, life: 600, width: 10 });
+            sj.postfx.aberrate(4, 320, 180);
+            sj.postfx.haze(320, 180, { radius: 60, strength: 3, life: 600 });
+            sj.postfx.glitch(120, 250, { w: 100, h: 60, strength: 12, life: 600 });
+            sj.postfx.dim(0.4, 600);
+            sj.postfx.emit(sj.fx.presets.crit_sparks, 320, 180);
+            sj.postfx.emit(sj.fx.presets.glitch, 100, 100);
+            sj.step(20);
+            sj.game.speed = 0;
+          };
+          const bare = measure(10);
+          raise();
+          const stack = measure(10);
+          fx.clear();
+          // The cycle: a scene enters (it draws into the glow and UI layers), the moments play, it closes. 'leak' also makes a texture nobody frees.
+          const cycle = async (n, leak) => {
+            for (let i = 0; i < n; i++) {
+              const probe = new window.__Probe();
+              const done = sj.game.run(probe);
+              fx.playMoment('spell.fire', 200, 140);
+              fx.playMoment('crit', 320, 180);
+              sj.postfx.dim(0.4, 30);
+              sj.step(4);
+              if (leak) {
+                const key = 'leak-' + Math.random();
+                const made = sj.game.textures.createCanvas(key, 8, 8);
+                made.ctx.fillRect(0, 0, 8, 8);
+                made.refresh();
+                const shown = new (await import('/src/sje/display/imageobject.ts')).ImageObject(sj.game, 0, 0, key);
+                sj.game.screen.overlayRoot.add(shown);
+                sj.step(1);
+                shown.destroy();
+              }
+              probe.close(undefined);
+              await done;
+              sj.step(2);
+              fx.clear();
+              sj.step(1);
+            }
+            const c = sj.glCounts();
+            return { texture: c.texture, buffer: c.buffer, framebuffer: c.framebuffer, program: c.program, vao: c.vao };
+          };
+          await cycle(1, false);
+          const base = await cycle(1, false);
+          const after = await cycle(10, false);
+          const particles = fx.particles.count;
+          const cap = fx.particles.cap;
+          // The level switch builds the layers and frees them again: render textures, filters and particle containers must not pile up.
+          const toggle = async (n) => {
+            for (let i = 0; i < n; i++) {
+              sj.game.fxLevel = 'none';
+              sj.step(1);
+              sj.game.fxLevel = 'full';
+              fx.playMoment('spell.fire', 200, 140);
+              sj.step(2);
+              fx.clear();
+            }
+            const c = sj.glCounts();
+            return { texture: c.texture, buffer: c.buffer, framebuffer: c.framebuffer, program: c.program, vao: c.vao };
+          };
+          await toggle(1);
+          const toggleBase = await toggle(1);
+          const toggled = await toggle(10);
+          const leaked = await cycle(10, true);
+          return { bare, stack, base, after, leaked, particles, cap, toggleBase, toggled };
+        })()`,
+      );
+      console.log(`SJE draws, real game: bare frame ${JSON.stringify(out.bare)}; full effect stack ${JSON.stringify(out.stack)}; GL objects after 1 cycle ${JSON.stringify(out.base)}, after 10 more ${JSON.stringify(out.after)}`);
+      // Hardware independent counts. The numbers above are the record; the bounds sit a little over them.
+      expect(out.stack.draws, 'the stack draws more than the bare frame (control: the counter sees the effects)').toBeGreaterThan(out.bare.draws);
+      expect(out.stack.draws, 'draw calls per frame with the full effect stack').toBeLessThanOrEqual(STACK_DRAWS_MAX);
+      expect(out.stack.binds, 'framebuffer binds per frame with the full effect stack').toBeLessThanOrEqual(STACK_BINDS_MAX);
+      expect(out.stack.uploads, 'canvas uploads per frame with the full effect stack').toBeLessThanOrEqual(STACK_UPLOADS_MAX);
+      // No leak: render textures, framebuffers, programs, buffers and vertex arrays are the same after ten more cycles; no particle outlives the cycle.
+      expect(out.after).toEqual(out.base);
+      expect(out.toggled, '10 switches of the level none and full leave the GL counts flat').toEqual(out.toggleBase);
+      expect(out.particles).toBe(0);
+      expect(out.cap).toBe(4096);
+      expect(out.leaked.texture, 'control: leaking on purpose grows the texture count').toBeGreaterThan(out.after.texture ?? 0);
+      expect(await glErrors(page)).toEqual([]);
+      expect(g.problems).toEqual([]);
+    } finally {
+      await g.close();
     }
   });
 });
