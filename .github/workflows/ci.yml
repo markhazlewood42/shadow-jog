@@ -170,19 +170,20 @@ jobs:
         if: steps.scope.outputs.skip != 'true'
       # The specs are listed by name and not run as "all of them": shots.spec.ts and
       # audio-evidence.spec.ts rewrite files under docs/, they are not tests. So a new spec must
-      # be added to this list. playtest.spec.ts runs in playtest.yml.
+      # be added to this list. playtest.spec.ts runs in playtest.yml. perf.spec.ts (frame timing) is not
+      # here on purpose: a software renderer says nothing about GPU timing, so it runs locally (npm run perf).
       #
       # CI must be set. playwright.config.ts then uses the bundled Chromium (not Edge) and adds the
-      # WebKit and Firefox projects, and perf.spec.ts uses its software-canvas budget. GitHub sets
-      # CI already. It is set here too, so the need is visible.
+      # WebKit and Firefox projects. GitHub sets CI already. It is set here too, so the need is visible.
       # sje-canaries.spec.ts is the engine canary suite (M0): the lab page on SwiftShader, every trap with its negative control.
+      # sje-draws.spec.ts counts draw calls and binds (the same on every machine).
       - name: E2E on Chromium (every spec except the playtest, with the engine canaries)
         if: steps.scope.outputs.skip != 'true'
         run: >-
           npx playwright test --project=chromium
-          e2e/playthrough.spec.ts e2e/gameover.spec.ts e2e/perf.spec.ts e2e/prod.spec.ts
+          e2e/playthrough.spec.ts e2e/gameover.spec.ts e2e/prod.spec.ts
           e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts
-          e2e/sje-canaries.spec.ts
+          e2e/sje-canaries.spec.ts e2e/sje-draws.spec.ts
         env:
           CI: '1'
 

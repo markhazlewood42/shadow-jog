@@ -36,7 +36,7 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
     evidence; they do not gate. A Minor finding is a named fix for the next commit, never a new round.
   - **Rounds.** The first verification is round 1. A fix round checks only the named findings, with one fresh
     verifier, and re-runs only the affected tests. Cap: 3 rounds, then stop and bring Mark the evidence.
-  - **Tests.** CI runs the full e2e suite on every push. Locally, run only the specs that the change touches
+  - **Tests.** CI runs the full e2e suite on every push, except `e2e/perf.spec.ts` (frame timing: local only, `npm run perf` on a real GPU, Mark 2026-10-09). Locally, run only the specs that the change touches
     (`e2e/perf.spec.ts` only for a hot-path change). Re-prove capture determinism only when the capture code changed.
   - **Records.** One short table per step: what changed, numbers, verdict, named fixes. No narrative.
   - **Agents.** Group small tasks of one kind into one build and one round, with short briefs that point at files.

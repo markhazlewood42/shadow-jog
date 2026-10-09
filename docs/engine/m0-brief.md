@@ -186,3 +186,7 @@ Builder: sonnet, effort high. Run on the bundled Chromium with SwiftShader (`CI=
 ## Dated criteria change, 2026-10-09: software-GL stuck line 80 to 250 ms
 
 CI (PR #43, two runs) measured interval p95 83.4 ms (2D) and 133.4 ms (3D bloom) on shared SwiftShader. The 80 ms line failed a healthy loop. Mark approved 250 ms. The negative control (20 extra 3D frames) reached 850 ms, so the line still catches a stuck loop. GPU lines (5% interval, 8 ms cost) are unchanged.
+
+## Dated criteria change, 2026-10-09: no timing gates in CI
+
+Mark: GPU timing is not tested in a software renderer, at all. `e2e/perf.spec.ts` (the old frame budget, input latency, and the new speed line with its negative control) left the CI list and runs locally on a GPU with `npm run perf`. The draw-call and bind counts moved to `e2e/sje-draws.spec.ts`, which stays in CI because the counts do not depend on the GPU. This replaces the 250 ms software stuck line above for CI; the constant stays for local `PW_NOGPU` runs. The local GPU run meets pass lines 8 and 11 (see the GPU row in the table).

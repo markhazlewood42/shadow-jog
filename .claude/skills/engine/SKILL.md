@@ -69,4 +69,4 @@ Phaser 4 is the naming reference, not a dependency. Its source is not in this re
 
 ## Commands
 
-`npm run check` (lint, types, unit tests). `npx playwright test e2e/sje-canaries.spec.ts` and `e2e/perf.spec.ts` (set `CI=1` for the bundled Chromium on SwiftShader, like CI). `npm run budget` (the manifest bundle gate). `node scripts/sync-interface-check.mjs` after editing `docs/engine/interfaces.md`. Dev server port 3007, preview 3008.
+`npm run check` (lint, types, unit tests). `npx playwright test e2e/sje-canaries.spec.ts e2e/sje-draws.spec.ts` (set `CI=1` for the bundled Chromium on SwiftShader, like CI). `npm run perf` runs the timing specs on a real GPU. It is local only; CI does not run it. `npm run budget` (the manifest bundle gate). `node scripts/sync-interface-check.mjs` after editing `docs/engine/interfaces.md`. Dev server port 3007, preview 3008.
