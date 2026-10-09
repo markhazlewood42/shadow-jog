@@ -55,7 +55,7 @@ export class Camera {
 
   /**
    * Phaser: setBounds. The scroll then stays inside the rectangle. A rectangle smaller than the
-   * view is centred on it. Whole pixels only: the numbers are rounded.
+   * view is centerd on it. Whole pixels only: the numbers are rounded.
    */
   setBounds(x: number, y: number, w: number, h: number): this {
     this.bounds = { x: snap(x), y: snap(y), w: snap(w), h: snap(h) };
@@ -73,7 +73,7 @@ export class Camera {
     const view = axis === 'x' ? W : H;
     const start = axis === 'x' ? b.x : b.y;
     const size = axis === 'x' ? b.w : b.h;
-    // Smaller than the view: no room to scroll, so centre it.
+    // Smaller than the view: no room to scroll, so center it.
     if (size <= view) return snap(start + (size - view) / 2);
     return Math.min(Math.max(v, start), start + size - view);
   }

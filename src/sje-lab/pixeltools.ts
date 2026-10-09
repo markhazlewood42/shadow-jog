@@ -11,7 +11,7 @@ export interface BlockStats {
   /** The canvas size in device pixels. */
   canvasW: number;
   canvasH: number;
-  /** How many k-by-k blocks there are, and how many are NOT one flat colour. */
+  /** How many k-by-k blocks there are, and how many are NOT one flat color. */
   blocks: number;
   bad: number;
   samples: Array<{ x: number; y: number }>;
@@ -34,7 +34,7 @@ export function fingerprint(words: Uint32Array): string {
 /** A picture's pixels as 32-bit words (one per pixel). */
 export const words = (p: Pixels): Uint32Array => new Uint32Array(p.data.buffer, p.data.byteOffset, p.w * p.h);
 
-/** Count the k-by-k blocks of an image that are not one flat colour. */
+/** Count the k-by-k blocks of an image that are not one flat color. */
 export function countBlocks(px: Pixels, k: number): BlockStats {
   const all = new Uint32Array(px.data.buffer, px.data.byteOffset, px.w * px.h);
   const stats: BlockStats = { k, canvasW: px.w, canvasH: px.h, blocks: 0, bad: 0, samples: [] };

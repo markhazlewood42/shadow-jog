@@ -5,9 +5,9 @@
  * Why it exists. Pixi and Three share one context and each keeps its OWN cache of "what GL state
  * is set". When one draws, the other's cache is wrong. Two cures:
  *   1. `resetState()` on the library that is about to draw, so it forgets its cache.
- *   2. The clear-colour fix. Pixi 8.22 `resetState()` sets its clear-colour CACHE to (0,0,0,0)
+ *   2. The clear-color fix. Pixi 8.22 `resetState()` sets its clear-color CACHE to (0,0,0,0)
  *      but does not call `gl.clearColor`. Three leaves its scene background as the real clear
- *      colour. Pixi then clears its filter and mask textures with Three's colour (lab: 768 wrong
+ *      color. Pixi then clears its filter and mask textures with Three's color (lab: 768 wrong
  *      pixels per 6 frames). So after Three draws we call `three.resetState()` AGAIN and set
  *      `gl.clearColor(0,0,0,0)` ourselves. Re-test this on every Pixi bump.
  *
@@ -34,8 +34,8 @@ export interface ThreeLike {
 }
 
 export class GlHandoff {
-  // Test switch: false skips the end-of-Three clean up, to prove that the canary test notices (see `setClearColourFix`).
-  private clearColourFix = true;
+  // Test switch: false skips the end-of-Three clean up, to prove that the canary test notices (see `setClearColorFix`).
+  private clearColorFix = true;
 
   constructor(
     private readonly gl: WebGL2RenderingContext,
@@ -57,9 +57,9 @@ export class GlHandoff {
     three.resetState();
   }
 
-  /** After Three draws: forget its state again, then undo the stale clear colour it left behind. */
+  /** After Three draws: forget its state again, then undo the stale clear color it left behind. */
   endThree(three: ThreeLike): void {
-    if (!this.clearColourFix) return;
+    if (!this.clearColorFix) return;
     three.resetState();
     this.gl.clearColor(0, 0, 0, 0);
   }
@@ -86,8 +86,8 @@ export class GlHandoff {
    * TEST ONLY. Switch the end-of-Three clean up off, to show the canary test sees the bug it
    * guards (a "negative control": a test that cannot fail proves nothing). Never call this in the game.
    */
-  setClearColourFix(on: boolean): void {
-    this.clearColourFix = on;
+  setClearColorFix(on: boolean): void {
+    this.clearColorFix = on;
   }
 
   /**

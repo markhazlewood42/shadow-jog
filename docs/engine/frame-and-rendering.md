@@ -301,7 +301,7 @@ Cost on SwiftShader follows canvas pixels. In the lab (a 480x270 game, one machi
 
 `Display` has two modes. Their math differs, and each comes from a different code base.
 
-**`integer` mode** uses the spike's math for `k` (`src/stage/zoom.ts`). It works in device pixels. It does not use the spike's `centreOnDevicePixels`, because the canvas is now the whole window (see below):
+**`integer` mode** uses the spike's math for `k` (`src/stage/zoom.ts`). It works in device pixels. It does not use the spike's `centerOnDevicePixels`, because the canvas is now the whole window (see below):
 
 - `k = max(1, floor(fit * dpr))`, where `fit = min(viewW/W, viewH/H)`.
 - Canvas backing size: the whole window in device pixels. The CSS size is 100% of the window, so the browser shows the canvas 1:1 and never resamples it. The picture (`W*k` by `H*k`) sits inside it, centered on a whole device pixel. The rest is the void color (letterbox bars). `devicePixelContentBoxSize` gives the exact size when the browser has it and it agrees with `round(viewW*dpr)` to 1 pixel. Playwright's emulated ratios report the CSS size there, so the arithmetic is used.

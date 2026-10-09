@@ -64,7 +64,7 @@ The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game
 ### M0 Prepare
 
 - Create `src/sje/core/size.ts` with `W = 640` and `H = 360`. The 640x360 move of the shipped game may already have replaced the uses of 480, 270, 240, and 135 that mean screen width, height, or center. Replace what is left. Add the literal scan that keeps it done ([tooling-and-testing.md](tooling-and-testing.md) section 3).
-- Move the 34 `W` and `H` imports. Phase 0 already made `src/engine/game.ts` re-export `W` and `H` from `size.ts`, so the old engine and the new engine cannot disagree. The shipped bundle stayed byte for byte the same. `FPS` stays in `game.ts` until M1 (`size.ts` holds it too).
+- Move the `W` and `H` imports (46 files at M0). Phase 0 already made `src/engine/game.ts` re-export `W` and `H` from `size.ts`, so the old engine and the new engine cannot disagree. M0 measured the shipped bundle: the same code, plus 4 raw bytes (and 2 gzip) of export-alias text in the shared `tables` chunk, because the new `size.ts` module changes how the bundler names that chunk's exports. `FPS` is defined once, in `size.ts`; `game.ts` re-exports it.
 - Add a gate on the time between frames and a harness that counts GL objects. Both go into the perf spec.
 - Rewrite `bundle-budget.mjs` to read the Vite manifest and sort chunks into classes.
 - Pin Pixi and Three. Pin `@types/three` too (three 0.186 ships no types). Phase 0 did this: `@types/three` 0.186.0. Add the lab page and the canary suite. They test Pixi and Three directly.
@@ -74,7 +74,7 @@ The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game
 - Fix doc drift (`?debug` note, chunk count).
 - **The game still works:** the old game is unchanged.
 - **Exit check:** canaries green on SwiftShader. The bundle gate passes at the size of the shipped game after the 640x360 move (233.9 kB gzip before it).
-- **Built 2026-10-09** (builder report in [m0-brief.md](m0-brief.md)). Two differences from this list: the canaries test Pixi and Three through a lab that composes `GlRenderer`, `Screen`, `TextureManager` and `FixedLoop` (the spike's lab ran on `Game`, which is M1), so `src/sje/runtime/glrenderer.ts` came in with M0 and `Scene3D` waits for M1b; and the lab scripts of `media/research-2026-10-04/` were not needed, because no canary runs one.
+- **Built 2026-10-09** (builder report in [m0-brief.md](m0-brief.md)). Three differences from this list: the canaries test Pixi and Three through a lab that composes `GlRenderer`, `Screen`, `TextureManager` and `FixedLoop` (the spike's lab ran on `Game`, which is M1), so `src/sje/runtime/glrenderer.ts` came in with M0 and `Scene3D` waits for M1b; the lab scripts of `media/research-2026-10-04/` were not needed, because no canary runs one; and the move touched 46 files, not 34.
 
 ### M1 Shell
 
@@ -309,7 +309,7 @@ A legacy scene is one that has `enter`, `exit`, `resume`, `update()`, and `rende
 
 | Today | New home | Step |
 |---|---|---|
-| `src/engine/game.ts` (`W`, `H`, `FPS`) | `src/sje/core/size.ts` | M0 (done 2026-10-09: `W` and `H` live in `size.ts`, `game.ts` re-exports them, every importer of the old game moved to `size.ts`; `FPS` stays in `game.ts` until M1) |
+| `src/engine/game.ts` (`W`, `H`, `FPS`) | `src/sje/core/size.ts` | M0 (done 2026-10-09: `W` and `H` live in `size.ts`, `game.ts` re-exports them, every importer of the old game moved to `size.ts`; `FPS` is defined in `size.ts` and re-exported too) |
 | `src/engine/game.ts` (`Game`, `Scene`) | `src/sje/runtime/` | M1 |
 | `src/main.ts` loop | `FixedLoop` | M1 |
 | `src/engine/display.ts` | `Display` | M1 |

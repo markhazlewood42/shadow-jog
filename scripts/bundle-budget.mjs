@@ -80,10 +80,10 @@ const root = process.cwd();
 const gz = (buf) => gzipSync(buf).length;
 const kb = (n) => (n / 1000).toFixed(1).padStart(7);
 
-/** The module paths a chunk holds, from its source map (empty if there is none). */
+/** The module paths a chunk holds, from its source map (null if there is none: the caller must treat that as a failure). */
 function modulesOf(dir, file) {
   const map = join(dir, `${file}.map`);
-  if (!existsSync(map)) return [];
+  if (!existsSync(map)) return null;
   return JSON.parse(readFileSync(map, 'utf8')).sources.map((s) => s.split('\\').join('/'));
 }
 
@@ -107,7 +107,8 @@ function readBuild(name, dir) {
   for (const [key, chunk] of Object.entries(manifest)) {
     if (!chunk.file.endsWith('.js')) continue;
     const text = readFileSync(join(dir, chunk.file));
-    const modules = modulesOf(dir, chunk.file);
+    const found = modulesOf(dir, chunk.file);
+    const modules = found ?? [];
     const has = (re) => modules.some((m) => re.test(m));
     const pixi = has(/node_modules\/pixi\.js\//);
     const three = has(/node_modules\/three\//);
@@ -121,7 +122,7 @@ function readBuild(name, dir) {
     else cls = 'lazy-other';
     // Pixi's environment chunks exist because Pixi's `init` can import them. The engine skips that step (`skipExtensionImports`), so a
     // player never downloads them (canary 8 of e2e/sje-canaries.spec.ts proves it). They are listed, and left out of `first play`.
-    chunks.push({ name, file: chunk.file, raw: text.length, gzip: gz(text), cls, pixi, three, unused });
+    chunks.push({ name, file: chunk.file, raw: text.length, gzip: gz(text), cls, pixi, three, unused, blind: (found === null && !unused) || (found?.length === 0 && cls === 'boot') });
   }
   return { name, dir, chunks };
 }
@@ -158,6 +159,13 @@ const firstPlay = (b) => sum(b, 'boot', 'gzip') + sum(b, 'lazy-2d', 'gzip', { sk
 console.log(`  ${'first play'.padEnd(12)} ${kb(firstPlay(game))} kB  ${lab ? `${kb(firstPlay(lab))} kB` : '     (no lab build)'}   (boot + lazy-2d; reported, no cap until M1)`);
 
 // ---- hard checks ----
+// 0. Every chunk must have a source map with modules in it. Without one the pixi/three flags below are all false and the checks pass on no data.
+for (const build of [game, lab]) {
+  if (!build) continue;
+  for (const c of build.chunks.filter((x) => x.blind)) {
+    problem(`${build.name}: chunk ${c.file} (${c.cls}) has no source map (or, for boot, an empty one), so its modules are unknown (is \`sourcemap: true\` set in vite.config.ts?)`);
+  }
+}
 // 1. No Pixi or Three in `boot` of either build.
 for (const build of [game, lab]) {
   if (!build) continue;

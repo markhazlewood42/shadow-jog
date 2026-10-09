@@ -53,7 +53,8 @@ export interface StartOptions {
 }
 
 export interface StaleClearResult {
-  fixOn: boolean;
+  /** null: the switch was left at the shipped default. */
+  fixOn: boolean | null;
   transparentBackBuffer: boolean;
   gapTotal: number;
   /** Gap pixels that are NOT the 3D picture that should show through. 0 when the hand-off is right. */
@@ -63,14 +64,14 @@ export interface StaleClearResult {
   firstWrong: { x: number; y: number; got: number[]; want: number[] } | null;
 }
 
-export interface ColourResult {
+export interface ColorResult {
   target: { left: number[]; right: number[] };
   screen: { left: number[]; right: number[] };
 }
 
 export interface ScaleResult {
   /** How many different colors the 4x enlarged 8x8 picture shows. 2 means hard blocks. More means blended edges. */
-  colours: number;
+  colors: number;
   /** The magnification filter of the Three target, as Three names it. */
   magFilter: string;
 }
@@ -109,9 +110,10 @@ export interface ThreeLab {
   /** Canary "texture handle": does `renderer.properties.get(rt.texture).__webglTexture` give a `WebGLTexture`? */
   handleDefined(): boolean;
   /** Canary "stale clear color". Needs a running frame with a non-black background. `fixOn: false` is the negative control. */
-  staleClear(fixOn: boolean, transparentBackBuffer: boolean): StaleResult;
+  /** `fixOn` 'default' leaves the hand-off switch as the engine ships it (the canary for the shipped default). */
+  staleClear(fixOn: boolean | 'default', transparentBackBuffer: boolean): StaleResult;
   /** Canary "color exactness". `managed: true` is the control (Three's own color management left on). */
-  colourProbe(background: number, plane: number, managed: boolean, frame: Frame3DPreference): ColourResult;
+  colorProbe(background: number, plane: number, managed: boolean, frame: Frame3DPreference): ColorResult;
   /** Canary "ExternalSource scale". `linear: true` is the control (a Three target with linear filtering). */
   externalScale(linear: boolean): ScaleResult;
   /** Canary "frame rewrap". `skipRewrap: true` is the control (the frame is not told to re-point at Three's new texture). */
@@ -241,15 +243,15 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
     staleClear(fixOn, transparentBackBuffer) {
       if (!running) throw new Error('staleClear needs a running frame');
       renderer.handoff.drainErrors();
-      renderer.handoff.setClearColourFix(fixOn);
+      if (fixOn !== 'default') renderer.handoff.setClearColorFix(fixOn);
       renderer.backBuffer.setClearColor(transparentBackBuffer ? [0, 0, 0, 0] : null);
       const box = lab.screen.overlayRoot;
       const holder = new Container(lab.host, 0, 0, 'canary');
-      const colours: Array<[typeof CANARY.rectA, number]> = [
+      const colors: Array<[typeof CANARY.rectA, number]> = [
         [CANARY.rectA, 0xff4fb0],
         [CANARY.rectB, 0x3fe0f0],
       ];
-      const rects = colours.map(([r, color]) => {
+      const rects = colors.map(([r, color]) => {
         const g = new Graphics(lab.host);
         g.fillStyle(color).fillRect(r.x, r.y, r.w, r.h);
         holder.add(g);
@@ -263,7 +265,7 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
         lab.draw();
         const gpu = renderer.readBackBuffer();
         const rt = running.frame.readPixels();
-        const result: StaleResult = { fixOn, transparentBackBuffer, gapTotal: 0, gapWrong: 0, rectsWrong: 0, firstWrong: null };
+        const result: StaleResult = { fixOn: fixOn === 'default' ? null : fixOn, transparentBackBuffer, gapTotal: 0, gapWrong: 0, rectsWrong: 0, firstWrong: null };
         const g = CANARY.gap;
         for (let y = g.y; y < g.y + g.h; y++) {
           for (let x = g.x; x < g.x + g.w; x++) {
@@ -277,7 +279,7 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
             }
           }
         }
-        for (const [r, color] of colours) {
+        for (const [r, color] of colors) {
           const want = rgb(color);
           for (let y = r.y; y < r.y + r.h; y++) {
             for (let x = r.x; x < r.x + r.w; x++) {
@@ -288,7 +290,7 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
         }
         return result;
       } finally {
-        renderer.handoff.setClearColourFix(true);
+        if (fixOn !== 'default') renderer.handoff.setClearColorFix(true);
         renderer.backBuffer.setClearColor(null);
         holder.filters.clear();
         identity.destroy();
@@ -299,8 +301,8 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
       }
     },
 
-    colourProbe(background, plane, managed, frame) {
-      if (running) throw new Error('colourProbe needs no running frame');
+    colorProbe(background, plane, managed, frame) {
+      if (running) throw new Error('colorProbe needs no running frame');
       // Three's color management is a GLOBAL. The engine switches it off when its host module loads. The control switches it on while the colors are made.
       const was = ColorManagement.enabled;
       // The engine's own setting is left alone for the real check: it is what the test judges.
@@ -364,7 +366,7 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
         const bb = renderer.readBackBuffer();
         const seen = new Set<string>();
         for (let y = 250; y < 250 + 32; y++) for (let x = 400; x < 400 + 32; x++) seen.add(at(bb, x, y).join(','));
-        return { colours: seen.size, magFilter: linear ? 'linear' : 'nearest' };
+        return { colors: seen.size, magFilter: linear ? 'linear' : 'nearest' };
       } finally {
         view?.destroy();
         wrapper?.destroy();

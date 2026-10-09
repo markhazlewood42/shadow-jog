@@ -7,7 +7,7 @@ import { type Container, RenderTexture } from 'pixi.js';
 import { H, W } from '../core/size';
 import type { PixiRenderer } from './pixirenderer';
 
-/** The colour of the void behind everything (the game's own near-black), as 0 to 1 RGBA. */
+/** The color of the void behind everything (the game's own near-black), as 0 to 1 RGBA. */
 const VOID: [number, number, number, number] = [7 / 255, 6 / 255, 13 / 255, 1];
 
 export interface Pixels {
@@ -26,7 +26,7 @@ export function flipRows(bottomUp: Uint8Array, w: number, h: number): Uint8Array
 }
 
 export class BackBuffer {
-  /** What the back buffer is cleared to each frame. The void colour, except in the hand-off canary (see `setClearColor`). */
+  /** What the back buffer is cleared to each frame. The void color, except in the hand-off canary (see `setClearColor`). */
   private clearColor: [number, number, number, number] = VOID;
 
   /** @internal The render target. Allowed under src/sje/render and src/sje/display only. */
@@ -42,10 +42,10 @@ export class BackBuffer {
   }
 
   /**
-   * TEST ONLY. Clear to another colour. The hand-off canary (e2e/sje3d.spec.ts) sets TRANSPARENT black,
-   * (0,0,0,0): that is the one clear colour that equals what Pixi believes the GL clear colour is right
+   * TEST ONLY. Clear to another color. The hand-off canary (e2e/sje3d.spec.ts) sets TRANSPARENT black,
+   * (0,0,0,0): that is the one clear color that equals what Pixi believes the GL clear color is right
    * after `GlHandoff.beginPixi()`, so Pixi then skips its own `gl.clearColor` call and clears with whatever
-   * Three left behind. The normal void colour is not (0,0,0,0), so it hides the bug. `null` goes back to the void.
+   * Three left behind. The normal void color is not (0,0,0,0), so it hides the bug. `null` goes back to the void.
    */
   setClearColor(rgba: [number, number, number, number] | null): void {
     this.clearColor = rgba ?? VOID;

@@ -38,7 +38,7 @@ export interface DisplayList { readonly list: readonly GameObject[]; }
 
 ```ts
 // src/sje/core/size.ts
-export const W = 640, H = 360, FPS = 60;               // Mark chose 640x360 on 2026-10-05. Phase 0 had a DEV-only query switch for the mock (a test tool, not part of the design)
+export const W = 640, H = 360, FPS = 60;               // Mark chose 640x360 on 2026-10-05
 export const TICK_MS = 1000 / FPS;
 export const grain = (n: 1 | 2 | 4) => ({ w: W / n, h: H / n });   // ours
 

@@ -31,7 +31,7 @@ import { join, relative, sep } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { bytesOf, CONTROL_NOISE, isSoftware, openLab, SIZE, withLab, zoomFor } from './sjelabkit';
 
-/** One viewport per device pixel ratio. 1280x720 is the CI default: exactly 2x the 640x360 picture. */
+/** One viewport per device pixel ratio (the CI default viewport, 1280x720, is set in e2e/sjelabkit.ts). */
 const RATIOS = [
   { dpr: 1, viewport: { width: 1920, height: 1080 } },
   { dpr: 1.25, viewport: { width: 1600, height: 900 } },
@@ -318,6 +318,24 @@ test.describe('canary 1: stale clear color (GlHandoff, frame-and-rendering.md 7.
       expect(await page.evaluate(() => window.__SJE__?.glErrors())).toEqual([]);
     });
   });
+
+  // The switch is never touched here, so this fails if the shipped default is flipped, or if the clean-up in endThree stops working.
+  test('the shipped default (hand-off clean-up left alone) shows the 3D picture through the gap of a transparent back buffer', async ({ browser }) => {
+    await withLab(browser, async ({ page }) => {
+      const r = await page.evaluate(async () => {
+        const h = window.__SJE__;
+        if (!h) throw new Error('no hook');
+        const three = await h.three();
+        three.start({ bloom: false });
+        h.step(30);
+        return three.staleClear('default', true);
+      });
+      expect(r?.fixOn, 'the switch was not set by the test').toBeNull();
+      expect(r?.gapTotal).toBe(2800);
+      expect(r?.gapWrong).toBe(0);
+      expect(r?.rectsWrong).toBe(0);
+    });
+  });
 });
 
 test.describe('canary 2: canvas on init (a context restore must recover)', () => {
@@ -394,7 +412,7 @@ test.describe('canary 4: ExternalSource scale (a Three target must be nearest fi
         t.stop();
         return { scale, facts };
       });
-      expect(out.scale.colours).toBe(2);
+      expect(out.scale.colors).toBe(2);
       expect([out.facts.width, out.facts.height, out.facts.minFilter, out.facts.magFilter]).toEqual([SIZE.w, SIZE.h, 'nearest', 'nearest']);
     });
   });
@@ -403,7 +421,7 @@ test.describe('canary 4: ExternalSource scale (a Three target must be nearest fi
     await withLab(browser, async ({ page }) => {
       const r = await page.evaluate(async () => (await window.__SJE__?.three())?.externalScale(true));
       expect(r?.magFilter).toBe('linear');
-      expect(r?.colours, 'blended edge pixels').toBeGreaterThan(2);
+      expect(r?.colors, 'blended edge pixels').toBeGreaterThan(2);
     });
   });
 });
@@ -607,7 +625,7 @@ test.describe('canary 11: color exactness (frame-and-rendering.md 7.5)', () => {
           [0x123456, 0xfedcba],
           [0x070a22, 0xffcc3d],
         ] as const) {
-          const r = await page.evaluate(async ([b, p, f]) => (await window.__SJE__?.three())?.colourProbe(b as number, p as number, false, f as 'shared-context'), [background, plane, frame] as const);
+          const r = await page.evaluate(async ([b, p, f]) => (await window.__SJE__?.three())?.colorProbe(b as number, p as number, false, f as 'shared-context'), [background, plane, frame] as const);
           const rgb = (n: number) => [(n >> 16) & 255, (n >> 8) & 255, n & 255];
           expect(r?.target.left, `${frame}: the scene background in the 3D picture`).toEqual(rgb(background));
           expect(r?.target.right, `${frame}: an unlit material in the 3D picture`).toEqual(rgb(plane));
@@ -621,7 +639,7 @@ test.describe('canary 11: color exactness (frame-and-rendering.md 7.5)', () => {
 
   test('CONTROL: with Three’s color management left on, #ff2080 comes out as #ff0437', async ({ browser }) => {
     await withLab(browser, async ({ page }) => {
-      const r = await page.evaluate(async () => (await window.__SJE__?.three())?.colourProbe(0xff2080, 0x2080ff, true, 'shared-context'));
+      const r = await page.evaluate(async () => (await window.__SJE__?.three())?.colorProbe(0xff2080, 0x2080ff, true, 'shared-context'));
       expect(r?.target.left).toEqual([0xff, 0x04, 0x37]);
       expect(r?.screen.left).not.toEqual([0xff, 0x20, 0x80]);
     });
@@ -656,7 +674,9 @@ test.describe('lab: the lab is software or hardware, and the suite says which', 
     await withLab(browser, async ({ page }) => {
       const soft = await isSoftware(page);
       console.log(`SJE canaries ran on ${soft ? 'software GL (SwiftShader)' : 'a GPU'}`);
-      expect(typeof soft).toBe('boolean');
+      const renderer = (await page.evaluate(() => window.__SJE__?.info()))?.renderer ?? '';
+      expect(renderer, 'the lab reports a renderer string').not.toBe('');
+      expect(soft).toBe(/swiftshader|llvmpipe|software/i.test(renderer));
     });
   });
 });

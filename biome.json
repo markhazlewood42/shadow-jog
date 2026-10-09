@@ -17,7 +17,10 @@
 							"pixi.js": "Only src/sje/render and src/sje/display may import pixi.js. Game code uses the engine facade (src/sje/index.ts). See docs/engine/tooling-and-testing.md section 9.",
 							"three": "Only src/sje/three and src/hack3d may import three. They load through one import(). See docs/engine/tooling-and-testing.md section 9."
 						},
-						"patterns": [{ "group": ["pixi.js/*"], "message": "Only src/sje/render and src/sje/display may import pixi.js." }]
+						"patterns": [
+							{ "group": ["pixi.js/*"], "message": "Only src/sje/render and src/sje/display may import pixi.js." },
+							{ "group": ["three/*"], "message": "Only src/sje/three and src/hack3d may import three (including three/examples)." }
+						]
 					}
 				}
 			}
@@ -35,7 +38,7 @@
 					"style": {
 						"noRestrictedImports": {
 							"level": "error",
-							"options": { "paths": { "three": "Only src/sje/three and src/hack3d may import three." } }
+							"options": { "paths": { "three": "Only src/sje/three and src/hack3d may import three." }, "patterns": [{ "group": ["three/*"], "message": "Only src/sje/three and src/hack3d may import three (including three/examples)." }] }
 						}
 					}
 				}

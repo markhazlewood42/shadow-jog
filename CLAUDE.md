@@ -76,6 +76,6 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 - Keep `status.md` current before a session ends.
 
 ## Quick commands
-`npm run dev` (http://localhost:3007; every dev tool is in the DEV tab there, or press `` ` ``; `?debug` for test hooks) · `npm run check` (lint + types + unit) ·
+`npm run dev` (http://localhost:3007; every dev tool is in the DEV tab there, or press `` ` ``; test hooks on `window.__SJ__` are on in every dev build; `?debug` only skips the close-tab prompt) · `npm run check` (lint + types + unit) ·
 `npx playwright test e2e/<spec>.spec.ts --reporter=line` · `npm run build && npm run preview` (shipped build on 3008) ·
 `npm run cc` (the Command Center on http://localhost:3009: status, docs and decisions; guide in `tools/command-center/README.md`)

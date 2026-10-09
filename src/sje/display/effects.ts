@@ -80,7 +80,7 @@ class PixiEffect implements Effect {
   }
 }
 
-/** A 4x5 colour matrix as a flat list of 20 numbers, row by row: R, G, B, A rows; the 5th column is a 0 to 1 offset. */
+/** A 4x5 color matrix as a flat list of 20 numbers, row by row: R, G, B, A rows; the 5th column is a 0 to 1 offset. */
 export function colorMatrixEffect(matrix: readonly number[]): Effect {
   assert(matrix.length === 20, `colorMatrixEffect needs 20 numbers (a 4x5 matrix), got ${matrix.length}`);
   const filter = new ColorMatrixFilter();

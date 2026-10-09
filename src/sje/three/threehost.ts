@@ -17,11 +17,11 @@
  *  - Never call `setSize`, `setViewport` or `setPixelRatio` on the shared renderer. They would
  *    resize the shared canvas, which Pixi owns. The shared renderer only ever draws into render
  *    targets, and each target brings its own viewport.
- *  - Colour: `ColorManagement.enabled = false` and `outputColorSpace = LinearSRGBColorSpace`, and no
- *    `OutputPass`. Then a colour written as 0xff2080 reaches the picture as 0xff2080. (With the
+ *  - Color: `ColorManagement.enabled = false` and `outputColorSpace = LinearSRGBColorSpace`, and no
+ *    `OutputPass`. Then a color written as 0xff2080 reaches the picture as 0xff2080. (With the
  *    defaults it comes out as #ff0437: lab, research finding 13.) This is a global of Three, so it
- *    is set when this module loads, before any scene makes a colour. Lighting then runs on the raw
- *    numbers, which is fine for flat colours and vertex colours. sRGB textures are not used.
+ *    is set when this module loads, before any scene makes a color. Lighting then runs on the raw
+ *    numbers, which is fine for flat colors and vertex colors. sRGB textures are not used.
  */
 import { ColorManagement, LinearSRGBColorSpace, WebGLRenderer } from 'three';
 import { H, W } from '../core/size';
@@ -58,7 +58,7 @@ export class ThreeHost {
     gl.glc.canvas.addEventListener('webglcontextrestored', () => gl.handoff.prepareForThree());
     const renderer = new WebGLRenderer({ canvas: gl.glc.canvas, context: gl.glc.gl, antialias: false });
     renderer.outputColorSpace = LinearSRGBColorSpace;
-    // Three's start-up touched GL state. Reset it and undo the clear colour it left, before Pixi draws.
+    // Three's start-up touched GL state. Reset it and undo the clear color it left, before Pixi draws.
     gl.handoff.endThree(renderer);
     hostsCreated.shared++;
     const host = new ThreeHost(renderer, 'shared', gl.glc.canvas);

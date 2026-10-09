@@ -159,7 +159,7 @@ describe('levels: dependencies point down', () => {
   });
 
   it('level 0 (core) imports nothing at all: no Pixi, no other level', () => {
-    const bad = sje.filter((e) => e.file.startsWith('src/sje/core/') && e.spec !== '').filter((e) => !(e.target?.startsWith('src/sje/core/') ?? false));
+    const bad = sje.filter((e) => e.file.startsWith('src/sje/core/')).filter((e) => !(e.target?.startsWith('src/sje/core/') ?? false));
     expect(bad.map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
   });
 
@@ -205,10 +205,12 @@ describe('who may import the engine', () => {
     expect(new Set(shipped.map((e) => e.file)).size).toBeGreaterThan(30);
   });
 
-  it('the lab page is not reachable from index.html and is an input of the lab build only (scripts/bundle-budget.mjs builds it)', () => {
+  it('the lab page is not linked from index.html, and vite.config.ts names it only in the `mode === lab` branch', () => {
     const config = readFileSync(join(ROOT, 'vite.config.ts'), 'utf8');
-    // The lab input is named only inside the `lab` mode branch.
-    expect(config).toMatch(/mode === 'lab'/);
+    // Every code line that names the lab page is a `mode === 'lab'` line (a comment may mention it).
+    const named = config.split('\n').filter((l) => /sjelab/.test(l) && !/^\s*(\/\/|\*)/.test(l));
+    expect(named.length).toBeGreaterThan(0);
+    for (const l of named) expect(l).toMatch(/mode === 'lab'/);
     expect(readFileSync(join(ROOT, 'index.html'), 'utf8')).not.toMatch(/sjelab|sje-lab/);
   });
 });

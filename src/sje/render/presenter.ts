@@ -11,7 +11,7 @@
  * (B2 change, spike finding 10). Its backing store
  * is exactly as many pixels as the window has on the screen, so the browser shows it 1:1 and never
  * resamples it. The 640x360 picture sits inside it, at a WHOLE device pixel offset, scaled by `k`;
- * the rest is the void colour (letterbox bars). B0 sized the canvas to the picture (W*k by H*k) and
+ * the rest is the void color (letterbox bars). B0 sized the canvas to the picture (W*k by H*k) and
  * let CSS shrink it by the device pixel ratio. That is not exact when the picture's size divided by
  * the ratio is not a multiple of 1/64 of a CSS pixel (the layout unit): at ratio 2.25 and zoom 7 the
  * browser drew 2651 uneven blocks (lab, Edge), and at 1.75 and 1.1 as well. A canvas the size of the
@@ -23,7 +23,7 @@ import { type BackBuffer, flipRows, type Pixels } from './backbuffer';
 import type { GlHandoff } from './glhandoff';
 import type { PixiRenderer } from './pixirenderer';
 
-/** The colour of the letterbox bars (the game's own near-black, as 0 to 1 RGBA): the same as the back buffer's void. */
+/** The color of the letterbox bars (the game's own near-black, as 0 to 1 RGBA): the same as the back buffer's void. */
 const BARS: [number, number, number, number] = [7 / 255, 6 / 255, 13 / 255, 1];
 
 /** Where the picture sits in the canvas, in device pixels. */
@@ -55,7 +55,7 @@ export function deviceSize(viewW: number, viewH: number, dpr: number, observed?:
 /**
  * The integer scale and the picture's place for a canvas of `deviceW` x `deviceH` device pixels
  * (`integer` mode of `Display`, frame-and-rendering.md 6.6): the largest whole `k` for which the
- * picture fits, at least 1, centred on a whole device pixel. A canvas smaller than the picture pins
+ * picture fits, at least 1, centerd on a whole device pixel. A canvas smaller than the picture pins
  * it to the top-left corner. Pure, so a test can check it.
  */
 export function pictureLayout(deviceW: number, deviceH: number): PictureLayout {

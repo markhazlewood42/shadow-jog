@@ -1,9 +1,10 @@
 /**
  * The screen-literal scan: pass line PL1 of docs/PIVOT-640.md ("one source of the size").
  *
- * The screen is `W` by `H` (src/sje/core/size.ts, the only place that writes the size; src/engine/game.ts re-exports it), and the battle world is `BW` by `BHT`
- * (src/art/worldsize.ts, re-exported by src/scenes/battlekit/geom.ts). A bare number that means one of those (480, 270, 240, 135 today;
- * 640, 360, 320, 180 after the move; and the off-by-one neighbors 239, 479, 269, 639, 359, 319, 179)
+ * The screen is `W` by `H` (src/sje/core/size.ts, the only place that writes the size; src/engine/game.ts re-exports it).
+ * The battle world is `BW` by `BHT` (src/art/worldsize.ts, re-exported by src/scenes/battlekit/geom.ts).
+ * A bare number that means one of those (the old 480, 270, 240, 135; the current 640, 360, 320, 180;
+ * and the off-by-one neighbors 239, 479, 269, 639, 359, 319, 179)
  * is a copy of the size that a change cannot find. This test scans the code for those numbers as
  * whole tokens. Comments and string literals are ignored (a color channel or a comment never hits).
  *
@@ -25,7 +26,7 @@
  * It keeps the `wp` of every entry that still matches and marks new entries "?".
  *
  * The scan only covers screen-size tokens. A derived value such as 464 (W-16 at 480) or `W-16`
- * itself passes it; scripts/derived-literals.mjs lists those for the reconciliation at WP7.
+ * itself passes it; scripts/derived-literals.mjs lists those.
  */
 /// <reference types="node" />
 import { readFileSync, writeFileSync } from 'node:fs';
