@@ -698,4 +698,44 @@ The surround costs 0 to 0.4 ms while the camera is still, and 0.4 to 1.0 ms on t
 - **Shots.** `SJ_BUILD_SHA=pivot640` with the full `npx playwright test` run (the shots spec is in it, 36 of 36 passed); the set is copied to `media/pivot-640/wp3/shots/`, round 2's set is kept as `shots-r2/`, and `docs/screenshots` is restored. `pixel-diff-r2-vs-r3.txt`: **72 of the 74 files identical.** The two that differ: `20-rustyard` (**21.4%** of its pixels: the yard's surround, the strip below the yard and the side bars are lifted, item 5; nothing inside the map changed) and `24c-ending-results-driven-test-run`, which is not a game change: it is a committed file that only `e2e/playthrough.spec.ts` writes, at 1280x720, and the round 2 copy was the committed 960x540 one, because the shots run alone does not write it. Every Dock, interior, battle, weather and cutscene shot is byte-identical to round 2, so the Dock and interior theme records moved without a pixel changing, and the overhead clip changed no pixel (the earlier run before the strip change: 74 of 74, `pixel-diff-r3-overhead-clip-vs-r2.txt`).
 - **Self-check.** `npm run check` exit 0 (31 files, 420 tests); `npm run build` exit 0; `npm run budget` exit 0 (239.3 kB of 239.5); `tests/balance.test.ts` and `tests/economy.test.ts` pass (57 tests); the scan passes: 4 pending in 4 entries, 0 unlisted; `git diff origin/main...HEAD --stat -- public/ src/story` is empty and `src/data` shows only the three D11 lines of `fx.json`. **All 11 e2e specs pass on the GPU:** 76 tests in 20.4 minutes (audio-evidence 2, chaos 4, economy 5, fxlab 2, gameover 15, gpufx 5, perf 3, playtest 1, playthrough 1, prod 2, shots 36); the run rewrites `docs/screenshots` and `docs/quality/evidence`, both restored with `git checkout`, and the new `audio/levelup.png` that the audio spec writes was deleted. `perf.spec.ts` alone, three runs each on the GPU and with `PW_NOGPU=1`: all 18 tests pass. `status.md` is not touched here.
 
-**Verification table.** (pending)
+**Verification table.** Three rounds of 3, 2026-10-08. Each round had three fresh verifiers: A correctness and tests (Haiku), B design conformance (Haiku), C visual and runtime (Sonnet); from round 2 on each ran at medium effort. Full reports (git-ignored): `media/verification/wp3/verifier-*.md` (round 1), `round2-verifier-*.md`, `round3-verifier-*.md`. Some verifiers returned their report as a message; the main session saved it unchanged. **Result: fail at the cap; Mark accepted WP3 with named fixes (below).**
+
+- **Round 1 (at b987a91): fail on the average,** 7.85 against 8. Every pass line held and every median was 7 or more (R1 7.5, R2 7.5, R3 8, R4 7, R5 8, R6 7, R7 8, R8 8, R9 7, V1 9, V3 8, V4 8, V5 9). Main findings: P1's option a was buildable after all, a loose pop-in test, the review switch left in the shipped bundle, thin CI perf headroom (7.06 of 8 ms). Between rounds 1 and 2 Mark answered Review 3 (D7, D17).
+- **Round 2 (at 2717c9b): fail on R6,** median 6 (C only), and CI was red at the tip: run 37836193103, the software field mean 8.79 ms against the gate of 8, on a runner about 2x slow (the battle read 3.05 ms against 1.38). Its rerun passed (field 5.82 ms). The other medians were 7 or more; average 8.08.
+- **Round 3 (at 1206701): fail on R6 and R9,** medians 6.5 each (R6: A 6, C 7; R9: A 6, B 7); average 7.77. Every pass line held, and CI on 0581ddd was green (7m19s). The R6 cause: round 3 raised the software gate from 8/11 to 10/12 ms, but the brief allowed that only if the CI field mean still sat near 8 after the best-of-3 change, and round 3's CI read 4.33 and 6.70 ms; with the gate at 10, a 5 ms per-frame slowdown fails the field by only 0.8 ms and passes the battle (C's control). The R9 cause: stale comments and docs.
+
+| Criterion | Round 1 | Round 2 | Round 3 (A / B / C, median) |
+|---|---|---|---|
+| R1 Coverage | 7.5 | 8 | 7 / 8 / n/a, 7.5 |
+| R2 Layout correctness | 7.5 | 8 | 8 / n/a / 8, 8 |
+| R3 Pixel fidelity | 8 | 8.5 | 7 / 8 / 9, 8 |
+| R4 Content exposure | 7 | 7.5 | 7 / n/a / 8, 7.5 |
+| R5 Readability and balance | 8 | 8 | n/a / n/a / 8, 8 |
+| R6 Performance | 7 | 6 | 6 / n/a / 7, 6.5 |
+| R7 Test quality | 8 | 8 | 8 / 7 / 9, 8 |
+| R8 Behavior kept | 8 | 8 | 8 / 7 / 9, 8 |
+| R9 Code clarity and records | 7 | 7 | 6 / 7 / n/a, 6.5 |
+| V1 Exactness | 9 | 9 | 9 (C) |
+| V3 One pixel grid | 8 | 8 | 8 (C) |
+| V4 Stability | 8 | 8 | 8 (C) |
+| V5 Legibility | 9 | 8 | 8 (C) |
+| Average of the medians | 7.85 | 8.08 | 7.77 |
+
+| Pass line | Result at round 3 | Evidence |
+|---|---|---|
+| PL3 | pass | 61 shots checked; the failures are the three comic pages (WP5) and two stale committed 960x540 files (WP7). Every field shot passes. |
+| PL4 | pass | The overhead clip changes no pixel; 420 unit tests; 173 targeted layout and geometry tests. |
+| PL6 (maps) | pass | `src/data` holds only the three D11 lines; `src/story` and `public/` are empty. No map or story data changed: D7 and D17 live in code tables. |
+| PL8 (plaza) | pass | C, best-of-3 windows: GPU field 2.75 to 2.92 ms (gate 4), software field 3.83 to 3.99 ms (gate 10, was 8). |
+| PL12 | pass | The pop-in table P1 to P6 with Mark's picks is in this entry; C's walk found no item beyond it. |
+| PL1, PL5, PL9, PL11, PL13 | pass | Scan 4 pending, 0 unlisted. 11 e2e specs, 76 tests on the GPU. Bundle 239.3 kB gzip of the 239.5 alarm (D20: 3.3 kB over 236 in three measured raises, under the 4 kB line). Mark saw every picture set before he answered. CI 7m19s at 0581ddd. |
+
+**Mark's decision at the cap (2026-10-08).** Accept WP3 with named fixes, made in the first commit of WP4 and checked by WP4's three verifiers; no extra round.
+
+**Named fixes, made in the first commit of the next package (WP4).**
+
+- R6: put the software perf gate in `e2e/perf.spec.ts` back to 8 / 11 ms (keep the best-of-3 windows); rewrite its comment and the Record's "Round 3" item 4 with the real CI readings (round 3: 4.33 and 6.70 ms; 8.79 and 7.50 were round-2 code); state which gate the 5 ms slowdown control fails. A CI red from a slow runner gets one rerun and a note, not a gate change; D15's re-set stays the step after the optimizations, inside the 12.5 / 14.5 ms ceiling.
+- R9: `docs/ARCHITECTURE.md:398` says 236 kB (the alarm is 239.5, `scripts/bundle-budget.mjs:38`); the `MIN_FRAMES` comment in `e2e/perf.spec.ts` says "about 2.5 s" (120 frames at 60 fps is 2.0 s); `src/field/lighting.ts:133` "about 0.7 ms of the plaza's frame" needs its source or goes; "black" against "dark" in `surround-art.ts:16`, `:160` and `surround.ts:11` (and "alpha" for the 0.94); this file's stray fragment "The first text of this row:" (about line 129); the "2070 of its 573,440 pixels" note names the Lantern layer, not the window.
+- Tests and nits: `tests/maps.test.ts:349-351` checks a constant (`YARD.fadeFar`), not the picture, and its `FLOOR` of 18 is looser than the 28 to 31 target (tighten it or say why); the Dock ripple speed literals and the non-null assertion in `surround-art.ts` (about 388 and 252); one rect type for `MapRect` (`popins.ts:44`) and `Rect` (`overrects.ts:15`); export the theme records the same way.
+
+**Open for WP4 and later.** The branch is 70 commits behind `main` (the Command Center PR #26 and docs, no game code), with conflicts in `CHANGELOG.md` and `status.md`: WP4's drift check merges it first. The Rustyard strip is now dark yard ground with a hard top edge (C: a look, Mark's call if he wants it softer).
