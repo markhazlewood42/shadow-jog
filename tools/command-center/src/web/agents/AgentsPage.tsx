@@ -28,6 +28,9 @@ function Header() {
           <Link to="/" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
             Now
           </Link>
+          <Link to="/docs/roadmap/README" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
+            Roadmap
+          </Link>
           <Link to="/docs" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
             Docs
           </Link>
