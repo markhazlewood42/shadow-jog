@@ -170,6 +170,55 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
     take(`menu: ${label.toLowerCase()}`, m);
   }
 
+  // ---- the battle (WP6): the menus, the turn strip, the cut-ins and the banners, over a street fight
+  {
+    const { BattleScene } = await import('../src/scenes/battle');
+    /** A fresh fight: the shatter is over (introT 999), the enemies are in (alpha 1), and the round menu is up. */
+    const fight = (enemies: string[], boss = false): AnyScene => {
+      const b = bind<AnyScene>(new BattleScene({ encounter: 'street', enemies, bg: 'street', canRun: !boss, boss }));
+      b.introT = 999;
+      const battle = b.battle as { enemies: { uid: number }[] };
+      for (const e of battle.enemies) (b.d as (uid: number) => { alpha: number })(e.uid).alpha = 1;
+      (b.startRound as () => void)();
+      return b;
+    };
+    const four = ['rustfang_punk', 'scrap_hound', 'glowrat', 'smog_wisp'];
+    {
+      const b = fight(four);
+      take('battle: round menu, four enemies', b);
+      (b.nextActor as () => void)();
+      take('battle: command menu', b);
+      drive(b, input, ['down', 'confirm']);
+      take('battle: a list open (the second command)', b);
+    }
+    {
+      const b = fight(['rustfang_punk']);
+      (b.nextActor as () => void)();
+      const cmd = b.cmdMenu as { items: { label: string }[]; index: number };
+      cmd.index = Math.max(0, cmd.items.findIndex((it) => it.label === 'Item'));
+      drive(b, input, ['confirm']);
+      take('battle: the item list', b);
+      drive(b, input, ['confirm']);
+      take('battle: the target box', b);
+    }
+    {
+      // Cut-ins at both sides and on two rows, one with a line of speech; the strip at its fullest.
+      const b = fight(four);
+      b.mode = 'play'; // cut-ins show while a round plays, with the menus gone
+      (b.cutins as unknown[]).push(
+        { key: 'kit', face: 'smirk', t: 20, fromLeft: true, life: 56, row: 0 },
+        { key: 'rook', face: 'angry', t: 20, fromLeft: false, life: 56, row: 0, line: 'Now!' },
+        { key: 'hex', face: 'smirk', t: 20, fromLeft: true, life: 56, row: 1 },
+        { key: 'sable', face: 'smirk', t: 20, fromLeft: false, life: 56, row: 1 },
+      );
+      take('battle: four cut-ins and the turn strip', b);
+    }
+    {
+      const b = fight(['warden'], true);
+      take('battle: a boss fight, round menu', b);
+    }
+  }
+
   // ---- the shop
   const { ShopScene } = await import('../src/scenes/shop');
   {
@@ -293,6 +342,18 @@ const KNOWN_OFFSCREEN: { shot: string; is: (d: { y: number }, H: number) => bool
   },
 ];
 
+/**
+ * Text boxes that the recorder reports as leaving their window, and that do not: each with its reason. The
+ * recorder judges a text by its whole box (7 rows tall), not by the rows that carry ink.
+ */
+const KNOWN_TEXT_OVERFLOW: { shot: string; text: string; why: string }[] = [
+  {
+    shot: 'battle: the item list',
+    text: '▼',
+    why: 'the list’s "more below" arrow: its box ends 1 px into the window frame, but the arrow’s ink is rows 2 to 4 of the 7-row glyph, so no pixel touches the frame (the same at 480x270)',
+  },
+];
+
 /** Run checks 1 to 3 over the shots; returns every finding, labeled. */
 function findings(shots: Shot[], W: number, H: number): string[] {
   const out: string[] = [];
@@ -302,7 +363,10 @@ function findings(shots: Shot[], W: number, H: number): string[] {
       if (known.some((k) => k.is(d, H))) continue;
       out.push(`${name}: a ${d.op} at ${Math.round(d.x)},${Math.round(d.y)} ${Math.round(d.w)}x${Math.round(d.h)} leaves the screen`);
     }
-    for (const t of textOutsideWindow(layout)) out.push(`${name}: the text "${t.text.slice(0, 30)}" leaves its window (${t.win.title ?? 'untitled'})`);
+    for (const t of textOutsideWindow(layout)) {
+      if (KNOWN_TEXT_OVERFLOW.some((k) => k.shot === name && k.text === t.text)) continue;
+      out.push(`${name}: the text "${t.text.slice(0, 30)}" leaves its window (${t.win.title ?? 'untitled'})`);
+    }
     for (const l of listsNotFollowingHeight(layout, TALL, reserve)) out.push(`${name}: a list in "${l.win.title ?? 'untitled'}": ${l.why}`);
   }
   return out;

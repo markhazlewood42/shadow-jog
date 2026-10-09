@@ -21,7 +21,7 @@ import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
 import { TARGET_INFO_W } from '../../ui/layout';
 import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
-import { BANNER_H, BHT, BW, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, FLOATER_BOUNCE, FLOATER_BOUNCE_FRAMES, FLOATER_BOUNCE_RATE, FLOATER_DRIFT, FLOATER_FADE_FRAMES, FLOATER_FADE_START, FLOATER_HOLD_FRAMES, FLOATER_POP, FLOATER_POP_FRAMES, FLOATER_SINK_RATE, FLOATER_TICK_SINK, HUD, listWindowW, MENU_ABOVE_PANEL, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LABEL_ABOVE, ORDER_LEFT, ORDER_RIGHT, ORDER_STEP_OUT, ORDER_THUMB, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, ROUND_MENU_H, WORLD_SCALE, orderStripLayout } from './geom';
+import { BANNER_H, BHT, BW, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, FLOATER_BOUNCE, FLOATER_BOUNCE_FRAMES, FLOATER_BOUNCE_RATE, FLOATER_DRIFT, FLOATER_FADE_FRAMES, FLOATER_FADE_START, FLOATER_HOLD_FRAMES, FLOATER_POP, FLOATER_POP_FRAMES, FLOATER_SINK_RATE, FLOATER_TICK_SINK, HUD, IMPACT_LINE_REACH, listWindowW, MENU_ABOVE_PANEL, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LABEL_ABOVE, ORDER_LEFT, ORDER_RIGHT, ORDER_STEP_OUT, ORDER_THUMB, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, ROUND_MENU_H, WORLD_SCALE, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
@@ -213,7 +213,7 @@ export class BattleRenderer {
     ctx.fillStyle = this.s.impactColor;
     for (let i = 0; i < 18; i++) {
       const a = (i / 18) * Math.PI * 2 + (this.s.impactT % 2) * 0.17;
-      const r0 = 34 + (i % 3) * 10, r1 = 260;
+      const r0 = 34 + (i % 3) * 10, r1 = IMPACT_LINE_REACH;
       for (let r = r0; r < r1; r += 3) ctx.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.62), i % 2 ? 1 : 2, 1);
     }
     ctx.drawImage(silhouetteCache(art.canvas, '#ffffff'), x * WORLD_SCALE + shx, y * WORLD_SCALE + shy, art.w * WORLD_SCALE, art.h * WORLD_SCALE);

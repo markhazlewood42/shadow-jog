@@ -16,6 +16,8 @@
 import { BG_IDS, battleBg, type BattleBg } from '../art/battlebg';
 import { FxLayer, type Pt } from '../battle/fx';
 import { gpuCast, gpuSpell } from '../scenes/battlekit/gpufx';
+import { ENEMY_MID_AT, PARTY_BOTTOM, PARTY_MID, partyX, placeEnemies, WORLD_SCALE } from '../scenes/battlekit/geom';
+import { artTop } from '../scenes/battlekit/sprites';
 import { type EnemyArt, enemyArt } from '../art/enemies';
 import { ENEMIES } from '../data/enemies';
 import { FX, GAME_MOMENTS, replaceFx } from '../data/fx';
@@ -47,8 +49,10 @@ const SPELLS: readonly [string, string, boolean][] = [
   ['revive', 'Rekindle', false],
   ['explosion', 'Pipe Bomb, Micro-Missile', false],
 ];
-/** Where the caster stands (battle world, as a party member in the lower row would). */
-const CASTER: Pt = { x: 64, y: 96 };
+/** Where the caster stands: over the first party card, at the middle of the body (battle world px, the same spot the battle uses). */
+const CASTER: Pt = { x: partyX(0, 4), y: PARTY_BOTTOM - PARTY_MID };
+/** How far apart (screen px) the three dummies stand for a spell that hits every enemy; the effect's own spread is half of it in world px. */
+const SPELL_SPREAD = 100;
 /** Frames of windup before the effect plays (a party tech's, in battle). */
 const WINDUP = 16;
 const ID = /^[a-z][a-z0-9_.]*$/;
@@ -239,10 +243,11 @@ export class FxLabScene extends Scene<void> {
     ctx.drawImage(this.world.canvas, 0, 0, W, H);
     const art = this.art;
     if (art) {
-      const x = Math.round(W / 2 - art.w), y = Math.round(this.bg.ground * 2 - art.h * 2);
+      const spot = this.dummySpot(art);
+      const x = Math.round(spot.x * WORLD_SCALE), y = Math.round(spot.y * WORLD_SCALE);
       // A spell on every enemy gets three of them to land on.
       const many = this.tab === 'spells' && SPELLS.find(([id]) => id === this.spellId)?.[2];
-      for (const dx of many ? [-100, 0, 100] : [0]) ctx.drawImage(art.canvas, x + dx, y, art.w * 2, art.h * 2);
+      for (const dx of many ? [-SPELL_SPREAD, 0, SPELL_SPREAD] : [0]) ctx.drawImage(art.canvas, x + dx, y, art.w * WORLD_SCALE, art.h * WORLD_SCALE);
     }
     // The battle's effect shapes, over the enemy, and into the bloom.
     const fg = this.fxWorld.ctx;
@@ -288,7 +293,16 @@ export class FxLabScene extends Scene<void> {
     this.enemyKey = key;
     const d = ENEMIES[key];
     this.art = d ? enemyArt(d.sprite) : null;
-    if (this.art) this.target = { x: W / 2, y: Math.round(this.bg.ground * 2 - this.art.h) };
+    if (this.art) {
+      const p = this.dummySpot(this.art);
+      this.target = { x: Math.round((p.x + this.art.w / 2) * WORLD_SCALE), y: Math.round((p.y + this.art.h * ENEMY_MID_AT) * WORLD_SCALE) };
+    }
+  }
+
+  /** Where the dummy stands (its top-left, in world px): the battle's own row rule for one regular enemy on this backdrop. */
+  private dummySpot(art: EnemyArt): { x: number; y: number } {
+    const spot = placeEnemies([{ w: art.w, h: art.h, top: artTop(art), boss: false, lurker: false }], this.bg.ground)[0];
+    return spot ?? { x: 0, y: 0 };
   }
 
   /** Fire what's selected at the target: the preset, the moment, or the whole spell. */
@@ -311,8 +325,9 @@ export class FxLabScene extends Scene<void> {
   private castSpell(): void {
     if (this.pendingSpell || this.fxl.busy) return;
     const many = SPELLS.find(([id]) => id === this.spellId)?.[2];
-    const t = { x: this.target.x / 2, y: this.target.y / 2 };
-    const targets = many ? [{ x: t.x - 50, y: t.y }, t, { x: t.x + 50, y: t.y }] : [t];
+    const t = { x: this.target.x / WORLD_SCALE, y: this.target.y / WORLD_SCALE };
+    const spread = SPELL_SPREAD / WORLD_SCALE;
+    const targets = many ? [{ x: t.x - spread, y: t.y }, t, { x: t.x + spread, y: t.y }] : [t];
     gpuCast(this.spellId, CASTER);
     this.pendingSpell = { at: this.frame + WINDUP, id: this.spellId, targets };
   }

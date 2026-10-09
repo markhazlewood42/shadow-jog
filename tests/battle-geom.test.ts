@@ -400,3 +400,39 @@ describe('cut-ins and banners', () => {
     expect(HUD.cutinRect(true, 1, false).y).toBe(PANEL_Y - 82 - 62);
   });
 });
+
+describe('WP6: the backdrops’ ground rows, the impact lines, the shatter grid', () => {
+  it('every backdrop’s floor line is below HORIZON and, on the screen, above the party panel (the floor shows above the cards)', async () => {
+    const { battleBg, BG_IDS, HORIZON } = await import('../src/art/battlebg');
+    for (const id of BG_IDS) {
+      const g = battleBg(id).ground;
+      expect(g, `${id} ground vs HORIZON`).toBeGreaterThan(HORIZON);
+      expect(g * WORLD_SCALE, `${id} ground on the screen vs PANEL_Y`).toBeLessThan(PANEL_Y);
+    }
+  });
+
+  it('the impact lines run half the screen’s diagonal: from the middle they reach every corner, and they follow W and H', async () => {
+    const { IMPACT_LINE_REACH } = await import('../src/scenes/battlekit/geom');
+    expect(IMPACT_LINE_REACH).toBeCloseTo(Math.hypot(W, H) / 2, 6);
+    // From the middle of the screen the lines cover the whole width and the whole height.
+    expect(IMPACT_LINE_REACH).toBeGreaterThanOrEqual(W / 2);
+    expect(IMPACT_LINE_REACH).toBeGreaterThanOrEqual(H / 2);
+  });
+
+  it('the shatter intro’s shards tile the whole screen: their corners reach all four edges and none lies outside', async () => {
+    const { ShatterIntro } = await import('../src/scenes/battlekit/intro');
+    const intro = new ShatterIntro({} as CanvasImageSource) as unknown as { shards: { pts: [number, number][] }[] };
+    const xs = intro.shards.flatMap((s) => s.pts.map((p) => p[0]));
+    const ys = intro.shards.flatMap((s) => s.pts.map((p) => p[1]));
+    expect(Math.min(...xs)).toBe(0);
+    expect(Math.max(...xs)).toBe(W);
+    expect(Math.min(...ys)).toBe(0);
+    expect(Math.max(...ys)).toBe(H);
+    // The triangles of the grid add up to the screen's area (no gap, no overlap).
+    const area = intro.shards.reduce((n, s) => {
+      const [a, b, c] = s.pts as [[number, number], [number, number], [number, number]];
+      return n + Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])) / 2;
+    }, 0);
+    expect(area).toBeCloseTo(W * H, 0);
+  });
+});

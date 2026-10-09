@@ -221,6 +221,13 @@ export function partyX(i: number, n: number, hud: HudLayout = HUD): number {
   return Math.round((hud.cardX(i, n) + CARD_W / 2) / WORLD_SCALE);
 }
 
+/**
+ * How far an impact frame's speed lines run from the struck enemy, in screen pixels: half the
+ * screen's diagonal, so the lines reach every corner from the middle (275 at 480x270, 367 at
+ * 640x360). The lines were a bare 260.
+ */
+export const IMPACT_LINE_REACH = Math.hypot(W, H) / 2;
+
 // ------------------------------------------------------------------ the enemy row (world pixels)
 
 /**
