@@ -1,0 +1,203 @@
+{
+  "updated": "2026-10-09",
+  "lanes": [
+    { "id": "foundations", "title": "Foundations" },
+    { "id": "engine", "title": "Engine path" },
+    { "id": "side", "title": "Side paths" },
+    { "id": "gated", "title": "Needs Mark's go-ahead" },
+    { "id": "other", "title": "Other open items (no order)" }
+  ],
+  "items": [
+    {
+      "id": "Phase 0",
+      "kind": "milestone",
+      "label": "Platform spike",
+      "lane": "foundations",
+      "status": "done",
+      "after": [],
+      "pr": "#11 (draft, never merged)",
+      "notes": "Mark approved the final engine design on 2026-10-05. Record: docs/spikes/engine-platform.md."
+    },
+    {
+      "id": "Pre-M0",
+      "kind": "milestone",
+      "label": "640x360 move",
+      "lane": "foundations",
+      "status": "done",
+      "after": ["Phase 0"],
+      "branch": "resolution-640x360",
+      "pr": "#23 (merged 2026-10-09)",
+      "notes": "The shipped game plays at 640x360. Record: docs/PIVOT-640.md."
+    },
+    {
+      "id": "M0",
+      "kind": "milestone",
+      "label": "Prepare",
+      "lane": "foundations",
+      "status": "active",
+      "after": ["Pre-M0"],
+      "branch": "engine-m0-prepare",
+      "notes": "Size module, bundle gate, canary suite, agent docs. Worktree: projects/shadow-jog-engine."
+    },
+    {
+      "id": "M1",
+      "kind": "milestone",
+      "label": "Shell",
+      "lane": "engine",
+      "status": "next",
+      "after": ["M0"],
+      "notes": "Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag."
+    },
+    {
+      "id": "M2",
+      "kind": "milestone",
+      "label": "Effects",
+      "lane": "engine",
+      "status": "later",
+      "after": ["M1"],
+      "notes": "FxSystem with the postfx facade, composite filter, particles."
+    },
+    {
+      "id": "M3",
+      "kind": "milestone",
+      "label": "Battle stage",
+      "lane": "engine",
+      "status": "later",
+      "after": ["M2"],
+      "notes": "The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge."
+    },
+    {
+      "id": "M5",
+      "kind": "milestone",
+      "label": "Field",
+      "lane": "engine",
+      "status": "later",
+      "after": ["M3"],
+      "notes": "Field map, actors, camera, lights, weather. Mark approves the lighting."
+    },
+    {
+      "id": "M6",
+      "kind": "milestone",
+      "label": "Flip default",
+      "lane": "engine",
+      "status": "later",
+      "after": ["M5", "M4"],
+      "notes": "?engine=sje becomes the default. The old presenter goes. M4 is optional: this item does not wait for it."
+    },
+    {
+      "id": "M7",
+      "kind": "milestone",
+      "label": "3D mode",
+      "lane": "engine",
+      "status": "later",
+      "after": ["M6", "M1b"],
+      "notes": "Needs both the 3D proof (M1b) and the default flip (M6)."
+    },
+    {
+      "id": "M8",
+      "kind": "milestone",
+      "label": "Remove legacy",
+      "lane": "engine",
+      "status": "later",
+      "after": ["M7"],
+      "notes": "Delete the old engine files."
+    },
+    {
+      "id": "M1b",
+      "kind": "milestone",
+      "label": "3D proof",
+      "lane": "side",
+      "status": "later",
+      "after": ["M1"],
+      "notes": "Parallel with M2. A spinning cube in a Scene3D, with the hand-off, leak and loss tests."
+    },
+    {
+      "id": "M4",
+      "kind": "milestone",
+      "label": "UI scenes",
+      "lane": "side",
+      "status": "optional",
+      "after": ["M3"],
+      "notes": "Optional. A UI scene ports only when it needs a camera, a filter, a mask or a transition."
+    },
+    {
+      "id": "archive-tags",
+      "tag": "Tags",
+      "label": "Archive tags",
+      "lane": "gated",
+      "status": "gated",
+      "after": ["M3"],
+      "notes": "archive/side-battle-<date> and archive/phaser-stage-<date>, then close PRs #3 and #4. Mark approves each tag. Status.md also says to ask after PR #23 merged: ask Mark when to do it."
+    },
+    {
+      "id": "release-tags",
+      "tag": "Release",
+      "label": "Release tags",
+      "lane": "gated",
+      "status": "gated",
+      "after": [],
+      "column": 9,
+      "notes": "Annotated v* tags. Cut only after Mark's playtest and go-ahead. Not tied to one milestone. The column is only a place on the chart."
+    },
+    {
+      "id": "deploy",
+      "tag": "Deploy",
+      "label": "Deploy site",
+      "lane": "gated",
+      "status": "gated",
+      "after": [],
+      "column": 10,
+      "notes": "Site: shadowjog.com. The last alpha step, with the secure email sign-up. Only with Mark's explicit go-ahead. Not tied to one milestone. The column is only a place on the chart."
+    },
+    {
+      "id": "playthrough-notes",
+      "tag": "Notes",
+      "label": "Playthrough notes edit",
+      "lane": "other",
+      "status": "next",
+      "after": [],
+      "column": 0,
+      "notes": "Mark's uncommitted edit to docs/mark-playthrough-notes.md waits for him."
+    },
+    {
+      "id": "pixellab-end",
+      "tag": "Decision 5",
+      "label": "PixelLab end date",
+      "lane": "other",
+      "status": "next",
+      "after": [],
+      "column": 1,
+      "notes": "Decision 5 in docs/PHASE-0.2.md is open. The PixelLab plan ends about 2026-10-30."
+    },
+    {
+      "id": "sprite-fusion",
+      "tag": "Fusion",
+      "label": "Sprite credits",
+      "lane": "other",
+      "status": "optional",
+      "after": [],
+      "column": 2,
+      "notes": "Sprite Fusion. Mark spends the next credits on the shopping list when he is ready."
+    },
+    {
+      "id": "cc-followups",
+      "tag": "Tools",
+      "label": "CC follow-ups",
+      "lane": "other",
+      "status": "optional",
+      "after": [],
+      "column": 3,
+      "notes": "Command Center items left over (status.md, Next for agents 1b). All optional."
+    },
+    {
+      "id": "plasma-bug",
+      "tag": "Tools",
+      "label": "plasma-ui bug report",
+      "lane": "other",
+      "status": "optional",
+      "after": [],
+      "column": 4,
+      "notes": "An upstream bug report for the plasma-ui canvas width (R28), if Mark wants one."
+    }
+  ]
+}

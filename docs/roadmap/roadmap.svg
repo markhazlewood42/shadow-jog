@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 788" width="1150" height="788" role="img" aria-labelledby="roadmap-title roadmap-desc">
+  <title id="roadmap-title">Shadow Jog roadmap</title>
+  <desc id="roadmap-desc">Order and dependency only. Bar length is not time. Now: M0 Prepare. Next: M1 Shell. Items in the same column can run in parallel. Foundations: Phase 0 Platform spike (done), Pre-M0 640x360 move (done), M0 Prepare (active). Engine path: M1 Shell (next), M2 Effects (later), M3 Battle stage (later), M5 Field (later), M6 Flip default (later), M7 3D mode (later), M8 Remove legacy (later). Side paths: M1b 3D proof (later), M4 UI scenes (optional). Needs Mark's go-ahead: archive-tags Archive tags (gated), release-tags Release tags (gated), deploy Deploy site (gated). Other open items (no order): playthrough-notes Playthrough notes edit (next), pixellab-end PixelLab end date (next), sprite-fusion Sprite credits (optional), cc-followups CC follow-ups (optional), plasma-bug plasma-ui bug report (optional).</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
+  </defs>
+  <rect width="1150" height="788" fill="#0d0c1f"/>
+  <text x="20" y="46" fill="#f4f1ff" font-size="26" font-style="italic" font-family="'Instrument Serif', Georgia, 'Times New Roman', serif">Now: M0 Prepare. Next: M1 Shell.</text>
+  <text x="20" y="72" fill="#ffcc3d" font-size="14" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Order and dependency only. Bar length is not time.</text>
+  <text x="20" y="92" fill="#8f94bd" font-size="11" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.06em">READ LEFT TO RIGHT. A COLUMN IS A STEP IN THE ORDER. ITEMS IN ONE COLUMN CAN RUN IN PARALLEL. DATA UPDATED 2026-10-09.</text>
+  <rect x="14" y="126" width="102" height="570" fill="#ffffff" fill-opacity="0.025"/>
+  <text x="65" y="116" fill="#8f94bd" font-size="10" text-anchor="middle" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.08em">STEP 1</text>
+  <text x="167" y="116" fill="#8f94bd" font-size="10" text-anchor="middle" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.08em">STEP 2</text>
+  <rect x="218" y="126" width="102" height="570" fill="#ffffff" fill-opacity="0.025"/>
+  <text x="269" y="116" fill="#8f94bd" font-size="10" text-anchor="middle" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.08em">STEP 3</text>
+  <text x="371" y="116" fill="#8f94bd" font-size="10" text-anchor="middle" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.08em">STEP 4</text>
+  <rect x="422" y="126" width="102" height="570" fill="#ffffff" fill-opacity="0.025"/>
+  <text x="473" y="116" fill="#8f94bd" font-size="10" text-anchor="middle" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.08em">STEP 5</text>
+  <text x="575" y="116" fill="#8f94bd" font-size="10" text-anchor="middle" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.08em">STEP 6</text>
+  <rect x="626" y="126" width="102" height="570" fill="#ffffff" fill-opacity="0.025"/>
+  <text x="677" y="116" fill="#8f94bd" font-size="10" text-anchor="middle" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.08em">STEP 7</text>
+  <text x="779" y="116" fill="#8f94bd" font-size="10" text-anchor="middle" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.08em">STEP 8</text>
+  <rect x="830" y="126" width="102" height="570" fill="#ffffff" fill-opacity="0.025"/>
+  <text x="881" y="116" fill="#8f94bd" font-size="10" text-anchor="middle" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.08em">STEP 9</text>
+  <text x="983" y="116" fill="#8f94bd" font-size="10" text-anchor="middle" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.08em">STEP 10</text>
+  <rect x="1034" y="126" width="102" height="570" fill="#ffffff" fill-opacity="0.025"/>
+  <text x="1085" y="116" fill="#8f94bd" font-size="10" text-anchor="middle" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.08em">STEP 11</text>
+  <line x1="20" y1="119" x2="1130" y2="119" stroke="#7a80c4" stroke-opacity="0.28"/>
+  <text x="20" y="140" fill="#8f94bd" font-size="11" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.12em">FOUNDATIONS</text>
+  <line x1="20" y1="233" x2="1130" y2="233" stroke="#7a80c4" stroke-opacity="0.28"/>
+  <text x="20" y="254" fill="#8f94bd" font-size="11" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.12em">ENGINE PATH</text>
+  <line x1="20" y1="347" x2="1130" y2="347" stroke="#7a80c4" stroke-opacity="0.28"/>
+  <text x="20" y="368" fill="#8f94bd" font-size="11" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.12em">SIDE PATHS</text>
+  <line x1="20" y1="461" x2="1130" y2="461" stroke="#7a80c4" stroke-opacity="0.28"/>
+  <text x="20" y="482" fill="#8f94bd" font-size="11" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.12em">NEEDS MARK'S GO-AHEAD</text>
+  <line x1="20" y1="575" x2="1130" y2="575" stroke="#7a80c4" stroke-opacity="0.28"/>
+  <text x="20" y="596" fill="#8f94bd" font-size="11" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.12em">OTHER OPEN ITEMS (NO ORDER)</text>
+  <path d="M 110 188 H 122" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 212 188 H 224" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 314 188 H 320 V 302 H 326" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 416 302 H 428" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 518 302 H 530" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 620 302 H 632" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 722 302 H 734" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 722 416 H 728 V 302 H 734" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <path d="M 824 302 H 836" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 518 416 H 524 V 347 H 830 V 302 H 836" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 926 302 H 938" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 416 302 H 422 V 416 H 428" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M 620 302 H 626 V 416 H 632" fill="none" stroke="#bfc3e4" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <path d="M 620 302 H 626 V 530 H 632" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <g id="item-Phase-0">
+    <title>Phase 0 Platform spike: done. Mark approved the final engine design on 2026-10-05. Record: docs/spikes/engine-platform.md.</title>
+    <rect x="20" y="150" width="90" height="76" rx="6" fill="#14382e" stroke="#4cc38a" stroke-width="1.2"/>
+    <text x="28" y="169" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Phase 0</text>
+    <text x="28" y="187" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Platform</text>
+    <text x="28" y="201" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">spike</text>
+    <text x="28" y="219" fill="#cfeee0" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">DONE</text>
+  </g>
+  <g id="item-Pre-M0">
+    <title>Pre-M0 640x360 move: done. The shipped game plays at 640x360. Record: docs/PIVOT-640.md.</title>
+    <rect x="122" y="150" width="90" height="76" rx="6" fill="#14382e" stroke="#4cc38a" stroke-width="1.2"/>
+    <text x="130" y="169" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Pre-M0</text>
+    <text x="130" y="187" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">640x360 move</text>
+    <text x="130" y="219" fill="#cfeee0" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">DONE</text>
+  </g>
+  <g id="item-M0">
+    <title>M0 Prepare: active. Size module, bundle gate, canary suite, agent docs. Worktree: projects/shadow-jog-engine.</title>
+    <rect x="224" y="150" width="90" height="76" rx="6" fill="#ffcc3d" stroke="#ffcc3d" stroke-width="2"/>
+    <text x="232" y="169" fill="#1a1500" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M0</text>
+    <text x="232" y="187" fill="#1a1500" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Prepare</text>
+    <text x="232" y="219" fill="#1a1500" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">ACTIVE</text>
+  </g>
+  <g id="item-M1">
+    <title>M1 Shell: next. Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag.</title>
+    <rect x="326" y="264" width="90" height="76" rx="6" fill="#16304d" stroke="#5fb3ff" stroke-width="1.2"/>
+    <text x="334" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M1</text>
+    <text x="334" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Shell</text>
+    <text x="334" y="333" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
+  </g>
+  <g id="item-M2">
+    <title>M2 Effects: later. FxSystem with the postfx facade, composite filter, particles.</title>
+    <rect x="428" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
+    <text x="436" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M2</text>
+    <text x="436" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Effects</text>
+    <text x="436" y="333" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
+  </g>
+  <g id="item-M3">
+    <title>M3 Battle stage: later. The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge.</title>
+    <rect x="530" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
+    <text x="538" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M3</text>
+    <text x="538" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Battle stage</text>
+    <text x="538" y="333" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
+  </g>
+  <g id="item-M5">
+    <title>M5 Field: later. Field map, actors, camera, lights, weather. Mark approves the lighting.</title>
+    <rect x="632" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
+    <text x="640" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M5</text>
+    <text x="640" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Field</text>
+    <text x="640" y="333" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
+  </g>
+  <g id="item-M6">
+    <title>M6 Flip default: later. ?engine=sje becomes the default. The old presenter goes. M4 is optional: this item does not wait for it.</title>
+    <rect x="734" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
+    <text x="742" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M6</text>
+    <text x="742" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Flip default</text>
+    <text x="742" y="333" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
+  </g>
+  <g id="item-M7">
+    <title>M7 3D mode: later. Needs both the 3D proof (M1b) and the default flip (M6).</title>
+    <rect x="836" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
+    <text x="844" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M7</text>
+    <text x="844" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">3D mode</text>
+    <text x="844" y="333" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
+  </g>
+  <g id="item-M8">
+    <title>M8 Remove legacy: later. Delete the old engine files.</title>
+    <rect x="938" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
+    <text x="946" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M8</text>
+    <text x="946" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Remove</text>
+    <text x="946" y="315" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">legacy</text>
+    <text x="946" y="333" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
+  </g>
+  <g id="item-M1b">
+    <title>M1b 3D proof: later. Parallel with M2. A spinning cube in a Scene3D, with the hand-off, leak and loss tests.</title>
+    <rect x="428" y="378" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
+    <text x="436" y="397" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M1b</text>
+    <text x="436" y="415" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">3D proof</text>
+    <text x="436" y="447" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
+  </g>
+  <g id="item-M4">
+    <title>M4 UI scenes: optional. Optional. A UI scene ports only when it needs a camera, a filter, a mask or a transition.</title>
+    <rect x="632" y="378" width="90" height="76" rx="6" fill="none" stroke="#8f94bd" stroke-width="1.2" stroke-dasharray="5 4"/>
+    <text x="640" y="397" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M4</text>
+    <text x="640" y="415" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">UI scenes</text>
+    <text x="640" y="447" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">OPTIONAL</text>
+  </g>
+  <g id="item-archive-tags">
+    <title>archive-tags Archive tags: gated. archive/side-battle-&lt;date&gt; and archive/phaser-stage-&lt;date&gt;, then close PRs #3 and #4. Mark approves each tag. Status.md also says to ask after PR #23 merged: ask Mark when to do it.</title>
+    <rect x="632" y="492" width="90" height="76" rx="6" fill="#3a1830" stroke="#ff7aa8" stroke-width="1.2" stroke-dasharray="5 4"/>
+    <text x="640" y="511" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Tags</text>
+    <text x="640" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Archive tags</text>
+    <text x="640" y="561" fill="#ffd0e0" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">GATED</text>
+  </g>
+  <g id="item-release-tags">
+    <title>release-tags Release tags: gated. Annotated v* tags. Cut only after Mark's playtest and go-ahead. Not tied to one milestone. The column is only a place on the chart.</title>
+    <rect x="938" y="492" width="90" height="76" rx="6" fill="#3a1830" stroke="#ff7aa8" stroke-width="1.2" stroke-dasharray="5 4"/>
+    <text x="946" y="511" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Release</text>
+    <text x="946" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Release tags</text>
+    <text x="946" y="561" fill="#ffd0e0" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">GATED</text>
+  </g>
+  <g id="item-deploy">
+    <title>deploy Deploy site: gated. Site: shadowjog.com. The last alpha step, with the secure email sign-up. Only with Mark's explicit go-ahead. Not tied to one milestone. The column is only a place on the chart.</title>
+    <rect x="1040" y="492" width="90" height="76" rx="6" fill="#3a1830" stroke="#ff7aa8" stroke-width="1.2" stroke-dasharray="5 4"/>
+    <text x="1048" y="511" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Deploy</text>
+    <text x="1048" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Deploy site</text>
+    <text x="1048" y="561" fill="#ffd0e0" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">GATED</text>
+  </g>
+  <g id="item-playthrough-notes">
+    <title>playthrough-notes Playthrough notes edit: next. Mark's uncommitted edit to docs/mark-playthrough-notes.md waits for him.</title>
+    <rect x="20" y="606" width="90" height="76" rx="6" fill="#16304d" stroke="#5fb3ff" stroke-width="1.2"/>
+    <text x="28" y="625" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Notes</text>
+    <text x="28" y="643" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Playthrough</text>
+    <text x="28" y="657" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">notes edit</text>
+    <text x="28" y="675" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
+  </g>
+  <g id="item-pixellab-end">
+    <title>pixellab-end PixelLab end date: next. Decision 5 in docs/PHASE-0.2.md is open. The PixelLab plan ends about 2026-10-30.</title>
+    <rect x="122" y="606" width="90" height="76" rx="6" fill="#16304d" stroke="#5fb3ff" stroke-width="1.2"/>
+    <text x="130" y="625" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Decision 5</text>
+    <text x="130" y="643" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">PixelLab end</text>
+    <text x="130" y="657" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">date</text>
+    <text x="130" y="675" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
+  </g>
+  <g id="item-sprite-fusion">
+    <title>sprite-fusion Sprite credits: optional. Sprite Fusion. Mark spends the next credits on the shopping list when he is ready.</title>
+    <rect x="224" y="606" width="90" height="76" rx="6" fill="none" stroke="#8f94bd" stroke-width="1.2" stroke-dasharray="5 4"/>
+    <text x="232" y="625" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Fusion</text>
+    <text x="232" y="643" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Sprite</text>
+    <text x="232" y="657" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">credits</text>
+    <text x="232" y="675" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">OPTIONAL</text>
+  </g>
+  <g id="item-cc-followups">
+    <title>cc-followups CC follow-ups: optional. Command Center items left over (status.md, Next for agents 1b). All optional.</title>
+    <rect x="326" y="606" width="90" height="76" rx="6" fill="none" stroke="#8f94bd" stroke-width="1.2" stroke-dasharray="5 4"/>
+    <text x="334" y="625" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Tools</text>
+    <text x="334" y="643" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">CC</text>
+    <text x="334" y="657" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">follow-ups</text>
+    <text x="334" y="675" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">OPTIONAL</text>
+  </g>
+  <g id="item-plasma-bug">
+    <title>plasma-bug plasma-ui bug report: optional. An upstream bug report for the plasma-ui canvas width (R28), if Mark wants one.</title>
+    <rect x="428" y="606" width="90" height="76" rx="6" fill="none" stroke="#8f94bd" stroke-width="1.2" stroke-dasharray="5 4"/>
+    <text x="436" y="625" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Tools</text>
+    <text x="436" y="643" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">plasma-ui</text>
+    <text x="436" y="657" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">bug report</text>
+    <text x="436" y="675" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">OPTIONAL</text>
+  </g>
+  <line x1="20" y1="700" x2="1130" y2="700" stroke="#7a80c4" stroke-opacity="0.28"/>
+  <text x="20" y="718" fill="#8f94bd" font-size="11" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.12em">LEGEND</text>
+  <rect x="20" y="730" width="34" height="18" rx="4" fill="#14382e" stroke="#4cc38a" stroke-width="1.2"/>
+  <text x="64" y="743" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif"><tspan font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" font-weight="600">DONE</tspan>  Done and merged</text>
+  <rect x="297.5" y="730" width="34" height="18" rx="4" fill="#ffcc3d" stroke="#ffcc3d" stroke-width="1.2"/>
+  <text x="341.5" y="743" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif"><tspan font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" font-weight="600">ACTIVE</tspan>  Being built now</text>
+  <rect x="575" y="730" width="34" height="18" rx="4" fill="#16304d" stroke="#5fb3ff" stroke-width="1.2"/>
+  <text x="619" y="743" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif"><tspan font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" font-weight="600">NEXT</tspan>  Starts next, or waits for Mark</text>
+  <rect x="852.5" y="730" width="34" height="18" rx="4" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
+  <text x="896.5" y="743" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif"><tspan font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" font-weight="600">LATER</tspan>  Planned, in order</text>
+  <rect x="20" y="758" width="34" height="18" rx="4" fill="none" stroke="#8f94bd" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="64" y="771" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif"><tspan font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" font-weight="600">OPTIONAL</tspan>  Optional</text>
+  <rect x="297.5" y="758" width="34" height="18" rx="4" fill="#3a1830" stroke="#ff7aa8" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="341.5" y="771" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif"><tspan font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" font-weight="600">GATED</tspan>  Needs Mark's go-ahead</text>
+  <path d="M 575 767 H 609" fill="none" stroke="#bfc3e4" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="619" y="771" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Comes after (dashed: optional)</text>
+</svg>
