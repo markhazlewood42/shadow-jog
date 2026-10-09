@@ -138,7 +138,7 @@ Mark decides the look. Agents check exactness, coverage and stability. A decisio
 
 - `maps/lantern_row`, `maps/bar`, `maps/world`, `maps/rustyard`, `maps/sinkline_1`, `maps/annex`, `maps/dock` (the map overview scales a map to fit).
 - `progress-01-cast-sprites` and `32-crowd-sprites` (dev scenes, content in the top-left).
-- `25-ending-next` (a text card) and `34-game-over` (dark by design).
+- `24-ending-results` and `25-ending-next` (centered text cards on a dark page: the results page draws 3.0% outside the old frame once its window is centered; 24 was added to the list at WP5) and `34-game-over` (dark by design).
 - `16b-enemy-poses` and `16c-boss-poses` (sheets, not screens).
 
 **Expectation list.** The visual verifier checks each of these by eye on the regenerated shot. A shot that fails its line is a finding, whatever PL3 says.
@@ -741,3 +741,51 @@ The surround costs 0 to 0.4 ms while the camera is still, and 0.4 to 1.0 ms on t
 - Tests and nits: `tests/maps.test.ts:349-351` checks a constant (`YARD.fadeFar`), not the picture, and its `FLOOR` of 18 is looser than the 28 to 31 target (tighten it or say why); the Dock ripple speed literals and the non-null assertion in `surround-art.ts` (about 388 and 252); one rect type for `MapRect` (`popins.ts:44`) and `Rect` (`overrects.ts:15`); export the theme records the same way.
 
 **Open for WP4 and later.** The branch is 70 commits behind `main` (the Command Center PR #26 and docs, no game code), with conflicts in `CHANGELOG.md` and `status.md`: WP4's drift check merges it first. The Rustyard strip is now dark yard ground with a hard top edge (C: a look, Mark's call if he wants it softer).
+
+### WP4 and WP5: dialog, menus, shop, modals; title, ending, game over, comic panels, deck (2026-10-08)
+
+One build and one verification round (the lean loop). The verification table is written by the main session.
+
+**Commits (branch `resolution-640x360`).** Part A: `a6fa4ba` the WP3 named fixes; `6cce7e6` WP4 code and tests; `05bfa49` review switches in the DEV tab, status-page checks, docs; `3654202` the bundle alarm 240.0. Part B: `cdd1d71` WP5 code and tests; `c1fbef9` review switches, the panels dev route, the crew row, the new tests; the Record commit that holds this entry.
+
+**Named fixes from WP3 (first commit, `a6fa4ba`).** (R6) The software perf gate is 8 / 11 ms again, with the CI readings of round 3 (4.33 and 6.70 ms; 8.79 and 7.50 were round-2 code) in its comment, the PL8 row and "Round 3". The 5 ms slowdown control fails the software field mean (9.02 ms against 8); the field p95 and the battle pass. Rule: a CI red from a slow runner gets one rerun and a note, not a gate change. (R9) ARCHITECTURE alarm, the `MIN_FRAMES` comment (2.0 s), the `lighting.ts` 0.7 ms (now cited to WP3 round 3), "dark" and "alpha" in the surround code, the "2070 of 573,440" note (names the Lantern Row overhead layer). (Tests) The YARD level test checks the picture and its floor is 22; the ripple literals and the non-null assertions are gone; one `Rect` type; the theme records are exported.
+
+| Package | Item | Result |
+|---|---|---|
+| WP4 | Dialog (D8) | Capped at 464 px and centered, the choice box at the box's right end. Review switch `?dialogw=full` (608 px). |
+| WP4 | Menu panes (D8) | Capped at 364 px (`MENU_PANE_MAX_W`); Items and Techs show the party in compact cards in the strip beside the list; the HP and TP numbers move with the card; the Equip description is anchored under the stats box. Switch `?panes=stretch`. |
+| WP4 | Rows from the height | `rowsFor` in `ui/layout.ts`: Techs, Items, Bestiary (29), Places, gear (20), shop (26), Combos (8). |
+| WP4 | Shop, Status, modals | Shop list 240 px; Status re-spaced (200 px stat block, three ability columns); modals checked, no bug found. |
+| WP5 | Title (D9) | World 320x180 (`BW`, `BHT`); every position is data in `scenes/title-layout.ts`: base lines 120, 134, 148, the stars and the sky by share of the height, the moon, tank and ledge off the right edge, the roof on the bottom edge, the spire at 0.625 of the width, the monorail wrapped on `BW + 460`, rain 160 drops (90 times `AREA_SCALE`), logo 4x. Switch `?logo=5`. |
+| WP5 | Ending, Game over | One offset `PAGE_DY` (45 px, half of the height beyond 270, `ui/layout.ts`); the results window is 360 px, centered; the crew row is centered by its measured width; the prompts at `H - 20`; the street at `H - 26`; the glow reaches `H * 0.74` (266 px). |
+| WP5 | Comic panels (D9) | The 17 rects are authored for `PANEL_FRAME` (8..W-8 by 8..H-18); `fitPanel` is gone (the table is already in the frame); every portrait is pinned `scale: 2` (`portraitScale`); bubble cap 280, caption cap 400 (were 220, 300); the flash backdrop's figures are placed by share of the width. Switch `?portrait=3`. |
+| WP5 | Deck | Art stays 1x. Group (deck, gap, 168 px panel) centered; `DY` from the room above Hex's line box, lifted by 10. |
+
+**The recorder (PL4).** `tests/recorder.ts` and `tests/ui-layout.test.ts`: 50 or more screens, each drawn once with fixture state (WP4: the finale stage with four crew, a full bag, every Status page, the shop in five states, the modals, five dialog shapes, the place map; WP5 adds the title before and after a key, the two ending pages, Game over, the deck in its three modes, and all 6 comic pages with every panel landed). Check 1 (every rect inside `W` by `H`), check 2 (text inside its window), check 3 (list rows follow the height), and the advisory R5 share. WP5 changes to the recorder: a context made for an offscreen canvas is **silent** (not recorded), since the title paints 640-wide city layers into a 320x180 buffer and only the screen counts. Controls that stay in the suite: a window at `W - 10` fails check 1; a text wider than its window fails check 2; a 12-row list on a tall window fails check 3; an offscreen draw is not recorded; the same screens at 480x270 pass (the comic pages are excluded from that control: their table is authored for the new frame, so it is not a layout that was right at 480x270). **R5 measure:** 15 panes judged, all at or above 85% of the width except the dialog choice (62%), and at least 57% of the height (the Status pages 57 to 65%); the exempt panes (list panes, the rail, modals, the Equip stats box, the shop detail, the deck's side panel and prompt box) each have a reason in the test.
+
+**What the new tests pin (WP5).** `tests/layout.test.ts`: all 17 panels inside `8..W-8` by `8..H-18`, no overlap, each page fills its frame, every portrait is pinned and fits, bubbles clear of portraits at 2x and at 3x; the title data (roof on the bottom edge, layers stacked, moon, tank and ledge on the right edge, rain and star counts, the logo and menu in order at 4x and 5x). `tests/ui-layout.test.ts`: the title world covers the frame; the results window and the crew row are centered; the prompts at `H - 20`; the street at `H - 26`; the glow; the deck group centered with the larger gap below. The named negative controls are W1 to W15 in `media/pivot-640/wp4/controls.txt`, each failing as meant (W1 to W3 panels, W4 and W5 title, W6 to W8 ending, W9 and W10 Game over, W11 and W12 deck, W13 the title buffer, W14 the silent flag, W15 a bare 480 after the pending list is empty).
+
+| Check | Result |
+|---|---|
+| Dialog wrap (`tests/dialog-wrap.test.ts`) | 306 lines and 19 choices read from the scripts; 82 wrap onto 2 or more lines; 0 wrap differently at the capped box. |
+| Key counts (PL10) | `e2e/prod.spec.ts` and `e2e/gameover.spec.ts`: 17 passed, no count changed (60 presses of `z`, Save is 7 downs). |
+| Perf | Software gate 8 / 11 ms: field mean 4.13, p95 4.4; battle 1.58 and 1.9 (`media/pivot-640/perf/wp4-nogpu.txt`, Part A). WP5 touches no hot path (the title, the pages, the deck), so the spec was not re-run. |
+| Scan (PL1) | Pending: 4 before WP4, 1 after Part A, **0** now (89 hits in 141 files, all allowed, 0 unlisted). Allow list: `COMPOSED_FOR_H = 270` (the one remembered old height) and `RESULTS_W = 360`, each with a reason. |
+| PL3 | `check-shots.txt`: 58 checked, **0 failed**, 14 skipped. `24-ending-results` joined the void-allowed list (below). The two stale committed 960x540 files belong to WP7. |
+| Pixel diff vs WP3 | `pixel-diff-vs-wp3.txt`: 74 compared, 48 identical, 26 differ. Every field, map and battle shot is identical. Changed by WP4: `03`, `06` (the dialog box), `07` to `10b`, `33-menu-places`, `43` to `45` (menus and shops). Changed by WP5: `01-title`, `02-intro-panels`, `23-ending-panels`, `23b-ending-finale`, `24`, `25`, `34-game-over`, `39` to `42` (the deck). `35-options` and `36-controls` change only through the title behind them. Two WP3 files are not made by the current spec (`24c-ending-results-driven-test-run`, `progress-01-lantern-row-street`). |
+| Content list (PL12) | `media/pivot-640/wp5/content.md`: the title, the 17 panels, the ending and Game over, the deck, each with pictures and options. |
+| Bundle | **240,517 bytes gzip**, 0.680 kB over the 239.837 of Part A. The alarm is raised from 240.0 to **240.7 kB** by that delta (D20; the cause is in the script's comment). Mark's confirmation is needed. Running total over 236: 4.7 kB. |
+
+**Review pictures.** Review 4: `media/pivot-640/wp4/review4/` (sheets and after pictures). Review 5: `media/pivot-640/wp5/review5/` (`sheets/`, `after/`, `before/`, `variants/`). D9 defaults: logo 4x, portraits 2x. The switches (`?logo=5`, `?portrait=3`, and with D8 `?dialogw=full`, `?panes=stretch`) are deleted after Mark answers.
+
+**Deviations, with reasons.**
+- The frame of the panels is `8..H-18` (334 px high), as PL4 says. The expectation list line for `02-intro-panels` and `23-ending-panels` says "8..632 by 8..352", and the brief repeats "632 by 352". 352 would run over the footer strip: PL4 is followed.
+- `24-ending-results` is added to the void-allowed list (this file, `scripts/pivot-640.json`): once the window is centered the page draws 3.0% outside the old frame, and it is a centered text page like `25-ending-next`.
+- Sable's and Mr. Pale's portraits were 3x before (150 px panels) and are 2x now, by D9's default. The content list offers 3x for those two.
+- Game over: the crew's reflections are drawn below the bottom edge, at 480x270 as well, and have never shown. The recorder reports it; the test names it as known, and the picture is unchanged. It is open for Mark in the content list.
+- The Game over test replaces the rain with a no-op: its streaks begin above the top edge by design.
+- Items and Techs always show the party cards (Part A; Mark can cut it). The deck side panel is 168 px wide so that the group also fits at 480x270 (the control).
+- `fitPanel` is removed, not kept: the table is authored in the final frame.
+- `tests/pacing.test.ts` counts every string and backtick span of `panels.ts` as story prose, comments included: a first draft with backticks in a comment pushed the estimate to 83.7 minutes. The comments in `panels.ts` have no backticks and no apostrophe pairs.
+- A first look at the capture ran while an edit to `deck.ts` was made (a look only, repeated in full before the set was taken).
+- The dev hook `sj.tp('dock', ...)` from the town (a known crash, not part of this move) was not used.

@@ -5,7 +5,6 @@
     { "file": "src/engine/game.ts", "token": 360, "match": "export const H", "reason": "the one size source: the screen height" },
     { "file": "vite.config.ts", "token": 480, "match": "chunkSizeWarningLimit", "reason": "kilobytes, the chunk size warning (inventory row 14)" },
     { "file": "scripts/bundle-budget.mjs", "token": 480, "match": "CHUNK_MAX", "reason": "kilobytes, the chunk cap (inventory row 213)" },
-    { "file": "scripts/bundle-budget.mjs", "token": 240, "match": "GZIP_TOTAL_MAX", "reason": "kilobytes, the gzip total alarm (240.0 kB since WP4, raised by its measured delta, D20)" },
     { "file": "src/data/items.ts", "token": [480, 320, 360, 180], "reason": "prices and heal amounts (the nodachi's price is inventory row 14)" },
     { "file": "src/data/maps/rustyard.ts", "token": 320, "match": "cred:", "reason": "money in a chest" },
     { "file": "src/data/maps/sinkline.ts", "token": 180, "match": "cred:", "reason": "money in a locker" },

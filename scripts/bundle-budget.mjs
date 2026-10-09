@@ -38,9 +38,14 @@ import { gzipSync } from 'node:zlib';
  * The causes: the UI layout values named in `ui/layout.ts` (the dialog cap, the menu panes, the shop, the
  * Status screen, `rowsFor`), the compact party cards beside Items and Techs, the dev-only review-switch
  * reads, and the Status screen's three ability columns.
+ * Raised to 240.7 kB on 2026-10-08 (D20, WP5), by the measured delta only: the total measured 240.517 kB
+ * (240,517 bytes) against 239.837 at the 240.0 alarm, a delta of 0.680 kB, rounded up to the next 0.1 kB (0.7).
+ * The causes: the title's composition as named data (`scenes/title-layout.ts`), the page offsets and the
+ * results-window values in `ui/layout.ts`, the re-authored comic-panel table with its pinned portrait
+ * scale, and the dev-only review-switch reads (`?logo=5`, `?portrait=3`). Mark confirms this raise (D20).
  */
 const CHUNK_MAX = 480 * 1000;
-const GZIP_TOTAL_MAX = 240 * 1000;
+const GZIP_TOTAL_MAX = 240.7 * 1000;
 
 const dir = 'dist/assets';
 const js = readdirSync(dir).filter((f) => f.endsWith('.js'));

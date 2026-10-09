@@ -163,7 +163,7 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
 - `?scene=chars[&zoom=4][&npcs][&battlers]`, `?scene=bestiary[&page=1]`, `?scene=portraits`, `?scene=font`:
   asset sheets.
 - `?scene=fxlab`: the FX lab (particle presets and battle moments; see §8).
-- **Review switches** (dev only: a shipped build ignores them; they exist so one build can show every option of a design that Mark has not answered yet; `src/ui/reviewswitch.ts`): `&dialogw=full` shows the dialog box as wide as the screen (D8, 608 px; the shipped box is capped at 464), and `&panes=stretch` stretches the field menu's list panes to the whole right side (D8; the shipped panes are capped at 364). Each is deleted when Mark answers its decision.
+- **Review switches** (dev only: a shipped build ignores them; they exist so one build can show every option of a design that Mark has not answered yet; `src/ui/reviewswitch.ts`): `&dialogw=full` shows the dialog box as wide as the screen (D8, 608 px; the shipped box is capped at 464), and `&panes=stretch` stretches the field menu's list panes to the whole right side (D8; the shipped panes are capped at 364). D9 adds `&logo=5` (the title logo at 5x, not the shipped 4x) and `&portrait=3` (every comic-panel portrait at 3x, not 2x); `?scene=panels&id=intro` or `id=ending` opens a comic sequence on its own. Each is deleted when Mark answers its decision.
 - `/artreview.html`: the art-pass review page; `?art=review[&try=asset/option,...]` on any route swaps art-pass
   options into the game (see §8, "The PixelLab art pass").
 
