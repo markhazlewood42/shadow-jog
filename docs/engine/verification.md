@@ -3,8 +3,8 @@ type: design
 title: "Shadow Jog Engine — Verification loops and rubrics"
 project: shadow-jog
 created: 2026-10-04
-updated: 2026-10-05
-status: approved 2026-10-05 (final). First approval 2026-10-04. Phase 0 update on 2026-10-05 (the 640x360 numbers in B5 and V3), accepted with all recommendations
+updated: 2026-10-08
+status: approved 2026-10-05 (final). First approval 2026-10-04. Phase 0 update on 2026-10-05 (the 640x360 numbers in B5 and V3), accepted with all recommendations. The lean loop replaced section 1 on 2026-10-08 (Mark)
 tags: [engine, design, verification]
 ---
 
@@ -13,6 +13,14 @@ tags: [engine, design, verification]
 Every build step of the engine goes through an independent verification loop before it reaches you. This applies to the Phase 0 platform spike and to every milestone, M0 to M8 ([migration.md](migration.md)). Mark asked for this on 2026-10-04: "Make sure independent self-verification loops with reasonable rubrics are part of your implementation plan."
 
 The rule is simple. The agent that writes the code never grades it. Fresh agents with different instructions grade it against a rubric that exists before the code.
+
+> **Changed 2026-10-08 (Mark): the lean loop.** Every build in this repo now uses the lean loop in `CLAUDE.md`
+> ("Verification loop for every build in this repo"). In short: 2 verifiers for code and layout (a runner and a
+> reader, which together cover the three lenses of section 2), 1 for docs and records, and a third only for a write
+> path, a trust rule or a save format. Pass means every pass line holds and no Critical or Important finding is
+> open. A Minor finding is a named fix for the next commit. A fix round checks only the named findings. CI runs the
+> full e2e suite. The rubrics of section 3 stay as the criteria the verifiers score. Sections 1 and 2 and the
+> diagram show the loop as approved on 2026-10-05, for the record.
 
 ---
 

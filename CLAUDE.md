@@ -18,6 +18,28 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 ## Rules that matter
 - **The automated quality loop has ended** (exit set 2026-09-29, after round 12). Don't start new verification
   rounds unless Mark asks. The current gate is **Mark's own end-to-end playthrough**; his notes are the work queue.
+- **Verification loop for every build in this repo: the lean loop (Mark, 2026-10-08).** It covers the engine
+  milestones, the 640x360 move, the Command Center, tools and docs. It overrides every older per-plan loop:
+  `docs/engine/verification.md` section 1, `docs/command-center/plan.md` ("Verification") and `design.md` section 8,
+  and "The loop" in `docs/PIVOT-640.md`. Why: two packages of the 640x360 move took 5 builder and 15 verifier runs,
+  and most failed rounds were about records or CI noise, not defects (`docs/PIVOT-640.md`, the WP3 table).
+  - A fresh agent that did not write the work grades it, against criteria written before the work.
+  - Size by risk. Code and layout: 2 verifiers, a runner (runs the touched tests and Playwright, makes the
+    pictures) and a reader (reads the diff for correctness and design). Docs, data, text and records: 1. A third
+    verifier, an attacker, only for a write path, a trust rule or a save format.
+  - Pass: every pass line holds and no Critical or Important finding is open. Scores stay as evidence. A Minor
+    finding (a comment, doc wording, a record, a nit) is a named fix for the next commit, never a new round.
+  - A fix round checks only the named findings, with one fresh verifier, and re-runs only the affected tests.
+    Cap: 3 rounds, then stop and bring Mark the evidence.
+  - CI runs the full e2e suite on every push. Locally, the builder and the runner run only the specs that the
+    change touches (`e2e/perf.spec.ts` only for a hot-path change). Re-prove capture determinism only when the
+    capture code changed.
+  - Records: one short table per step (what changed, numbers, verdict, named fixes). No narrative. Claim only
+    what a test or a picture shows.
+  - Group small tasks of one kind into one build and one verification round. Keep briefs short; point at files.
+    Use the smallest model that fits, and set `effort` on every agent.
+  - Mark still decides the look from pictures (send them at once). A hard stop that a plan sets (for example
+    Mark's play of a final build) stays.
 - **Don't deploy** (shadowjog.com) without Mark's explicit go-ahead; it's the last alpha step, with a secure email
   sign-up whose requirements are in `status.md`.
 - **Branches and PRs (Mark, 2026-10-01):** work goes on a branch per relatively major feature (not per small fix),
