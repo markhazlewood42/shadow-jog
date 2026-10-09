@@ -43,9 +43,15 @@ import { gzipSync } from 'node:zlib';
  * The causes: the title's composition as named data (`scenes/title-layout.ts`), the page offsets and the
  * results-window values in `ui/layout.ts`, the re-authored comic-panel table with its pinned portrait
  * scale. Mark confirmed this raise at Review 5 (D20).
+ * Raised to 240.8 kB on 2026-10-09 (D20, WP7), by the measured delta only: the total measured 240.788 kB
+ * (240,788 bytes; 240,786 with the build label pinned to "pivot640") against 240.7, a delta of 0.088 kB,
+ * rounded up to the next 0.1 kB (0.1). The cause: WP6 round 2 derives the set pieces of five
+ * battle backdrops from the world width (named count-and-step records at the top of `art/battlebg.ts`);
+ * WP6 round 1 measured 240.5 kB. WP7 changes no file under `src/`. Mark confirms this raise in the pull
+ * request (D20).
  */
 const CHUNK_MAX = 480 * 1000;
-const GZIP_TOTAL_MAX = 240.7 * 1000;
+const GZIP_TOTAL_MAX = 240.8 * 1000;
 
 const dir = 'dist/assets';
 const js = readdirSync(dir).filter((f) => f.endsWith('.js'));
