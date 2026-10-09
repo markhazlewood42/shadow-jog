@@ -39,7 +39,7 @@ Source: [migration.md](migration.md) "M2 Effects", [frame-and-rendering.md](fram
 5. **Particles.** `ParticleContainer` over the UI, clip rectangle honored (`postfx.clip`).
 6. **`FxSystem`.** `src/sje/fx/fxsystem.ts`. Level selection, `active`, `glowLayer()`, `warm()`, `update()` called once per tick by `Game`, `clear()` on scene change (as `Game` does today). Wire in `Game.render`: the game-level flash and fade stay in the UI layer as in 2D (`postfx.flashColor` and `flashAlpha`, as `engine/game.ts` lines 381 to 385 do).
 7. **Routing.** Under the flag, `src/sje/boot.ts` makes the `postfx` module singleton delegate to the `FxSystem` (one attach call; no scene or data file changes). The `#fx` overlay canvas is not created on the new path.
-8. **DEV hook.** `window.__SJ__`: `fx` (level, active, counts of live shocks, hazes, glitches, particles), `setFxLevel(level)`. Also the existing `gpu(on)`.
+8. **DEV hook.** `window.__SJ__`: `fx` (level, active, counts of live shocks, hazes, glitches, particles), `setFxLevel(level)`. Also the existing `gpu(on)`. Add a way to fire any `playMoment` hit by name from the DEV tab (a button list), for playable checkpoint 1 (line 15).
 9. **Tests.** Section 4. Each check needs a negative control.
 10. **Docs.** `CHANGELOG.md` entry; `docs/GLOSSARY.md` and `docs/CONCEPTS.md` for `FxSystem`, `FxState`, `CompositeFilter`, fx levels, `ParticleContainer`; `DEVELOPING.md` recipe (`?engine=sje&fx=full`); `.claude/skills/engine/SKILL.md` (fx read order); `tooling-and-testing.md` section 7 gets the fx-level costs; update the shader inventory status in `frame-and-rendering.md` 6.5 from "Not built" to built.
 11. **CI.** Add `e2e/sje-fx.spec.ts` to the `e2e` job. `e2e/sje-fx-compare.spec.ts` (old against new, GPU) stays local like `sje-bench.spec.ts`.
@@ -62,6 +62,9 @@ Each line is a command or a count. A fresh agent runs them.
 12. `tests/screen-literals.test.ts` passes: no new 640, 360, 320 or 180 literal in `src/sje/fx` or the shaders (they read `W` and `H`, or take the size as a uniform).
 13. The GPU run, once, at the end (principle 12), by the main session: `npm run perf` on the local GPU. The frame interval p95 at `full` with the stack on is within 5% of the bare page. Cost p95 at most 8 ms. The numbers go in `tooling-and-testing.md` section 7.
 14. `CHANGELOG.md` has an M2 entry. `docs/GLOSSARY.md` has the new names. The record table of section 6 is filled.
+15. **Playable checkpoints (Mark, 2026-10-09).** Mark plays the build at two points and the plan stops for him at each.
+    - **Checkpoint 1, after Builder B (before verification round 1):** `npm run dev`, then `http://localhost:3007/?engine=sje&fx=full` plays title, field and battle with every effect live. A DEV hotkey or DEV tab button fires each `playMoment` hit on demand. The main session starts the server and gives Mark the URL. A look change Mark asks for here is a named fix and does not count against the 3-round cap.
+    - **Checkpoint 2, after the last fix round:** the same build, with the side-by-side pictures (line 6) and the `npm run perf` numbers (line 13) ready. Mark plays it, then merges or sends work back.
 
 ## 5. Verifier plan (lean loop)
 
