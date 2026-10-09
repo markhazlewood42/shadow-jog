@@ -277,6 +277,7 @@ describe('the real nav.json', () => {
     expect(def.problems).toEqual([]);
     expect(def.sections.map((section) => section.title)).toEqual([
       'Start here',
+      'Roadmap',
       'Game design',
       'Engine design',
       'Decisions',

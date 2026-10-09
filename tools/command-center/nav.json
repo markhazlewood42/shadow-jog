@@ -6,6 +6,11 @@
       "items": ["status.md", "README.md", "CLAUDE.md"]
     },
     {
+      "id": "roadmap",
+      "title": "Roadmap",
+      "items": ["docs/roadmap/"]
+    },
+    {
       "id": "game-design",
       "title": "Game design",
       "items": ["docs/GDD.md", "docs/SETTING.md", "docs/GLOSSARY.md", "docs/CONCEPTS.md", "docs/IDEAS.md"]
@@ -38,7 +43,7 @@
     {
       "id": "records",
       "title": "Project records",
-      "items": ["CHANGELOG.md", "docs/PHASE-0.2.md", "docs/original-prompt.md"]
+      "items": ["CHANGELOG.md", "docs/PHASE-0.2.md", "docs/PIVOT-640.md", "docs/original-prompt.md"]
     },
     {
       "id": "command-center",

@@ -16,6 +16,7 @@
     "check": "biome lint && tsc --noEmit && vitest run",
     "lint": "biome lint",
     "budget": "vite build && vite build --mode lab && node scripts/bundle-budget.mjs",
+    "roadmap": "node scripts/gen-roadmap.mjs",
     "cc": "npm --prefix tools/command-center install --no-audit --no-fund && npm --prefix tools/command-center run cc"
   },
   "devDependencies": {

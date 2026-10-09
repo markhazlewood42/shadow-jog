@@ -1,0 +1,23 @@
+export const STATUSES: string[];
+export const KINDS: string[];
+export const NOTE_ORDER_ONLY: string;
+export type RoadmapItem = {
+  id: string;
+  kind?: string;
+  label: string;
+  tag?: string;
+  lane: string;
+  status: string;
+  after: string[];
+  column?: number;
+  branch?: string;
+  pr?: string;
+  notes: string;
+};
+export type RoadmapData = { updated: string; lanes: { id: string; title: string }[]; items: RoadmapItem[] };
+export function readData(dir?: string): RoadmapData;
+export function validate(data: RoadmapData): string[];
+export function columnsOf(items: RoadmapItem[]): Map<string, number>;
+export function buildSvg(data: RoadmapData): string;
+export function buildReadme(data: RoadmapData): string;
+export function generate(dir?: string): { svg: string; readme: string };

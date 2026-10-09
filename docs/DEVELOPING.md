@@ -455,6 +455,15 @@ To abandon one: fill in the Result section of its doc (ABANDONED, date, reason, 
 
 `SAVE_VERSION` (`src/game/state.ts`) is independent of the app version. Bump it only when a field is renamed or reshaped, and add a `MIGRATIONS[oldVersion]` step plus a unit test against a fixture save from the previous version (see "A new save field" in section 8). Purely additive fields need no bump: `backfill()` fills them in. A newer 0.x build must load any older 0.x save. Wipes happen only on purpose, announced in-game and in the changelog, never from a half-working migration.
 
+### The roadmap chart
+
+`docs/roadmap/roadmap.json` is the one source of the roadmap: every planned milestone and gated item, in order, with no dates. `npm run roadmap` (`scripts/gen-roadmap.mjs`) writes `docs/roadmap/roadmap.svg` and `docs/roadmap/README.md` from it. Never edit those two by hand.
+
+- **Every status update touches the roadmap.** When you update `status.md`, update `roadmap.json` too (a status, a branch, a PR) and run `npm run roadmap`. Commit the three files together.
+- **A new milestone** gets a row in the table of `docs/engine/migration.md` section 2 and an item with the same id in `roadmap.json`.
+- **`tests/roadmap.test.ts` guards it** (part of `npm run check`). It fails when the milestone ids differ from the table, when the `milestone:` key of `status.md` is not the item with status `active`, when the generated files are out of date, or when the data has a bad status, a missing dependency or a cycle.
+- The Command Center shows it in the "Roadmap" section of the docs.
+
 ---
 
 ## 10. The Command Center
