@@ -5,7 +5,7 @@
  *
  * An `Effect` wraps ONE Pixi filter, so a Pixi upgrade never reaches game code. Game code gets two
  * ways to make one:
- *   - `colorMatrixEffect(matrix)`   a built-in (Pixi's `ColorMatrixFilter`): tint, invert, grey...
+ *   - `colorMatrixEffect(matrix)`   a built-in (Pixi's `ColorMatrixFilter`): tint, invert, gray...
  *   - `createEffect(spec)`          your own GLSL
  * and one way to use it: `object.filters.add(effect)`. Masks are `object.filters.addMask(maskObject)`.
  *

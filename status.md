@@ -61,18 +61,18 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 ### Right now (2026-10-09)
 
-**The 640x360 move is merged** (PR #23, merge 6bcd8dc, 2026-10-09). The game runs at 640x360. **Milestone M0 "Prepare" has started** on branch `engine-m0-prepare` (no game change; the old game stays as it is). Plan and hard pass lines: `docs/engine/m0-brief.md`. Milestone text: `docs/engine/migration.md` section M0. Verification: the lean loop in `CLAUDE.md` (a runner and a reader, cap 3 rounds, no visual part).
+**The 640x360 move is merged** (PR #23, merge 6bcd8dc, 2026-10-09). The game runs at 640x360. **Milestone M0 "Prepare" is built and verified** on branch `engine-m0-prepare`, [PR #43](https://github.com/markhazlewood42/shadow-jog/pull/43), ready for review (no game change). Plan, pass lines, builder report and fix round: `docs/engine/m0-brief.md`. Milestone text: `docs/engine/migration.md` section M0. Verification (lean loop): round 1 (runner and reader) found 7 Important, all fixed in ac4616b; round 2 passed with one fresh verifier. Records in `media/verification/m0/` (git-ignored).
 
-M0 state: brief written; build not started. Decisions taken by the main session on 2026-10-09 (small, reversible; change them if you disagree): move every `W` and `H` import (about 42 files, not 34); the lab pages build in dev and CI only, not in production `dist/`; starting bundle caps are `boot` at today's alarm and `lazy-3d` at 160 kB (C5), with `first play` report-only until M1; the M0 PR goes through the Claude Code Review Action; the lab scripts the canaries need are copied from `media/research-2026-10-04/`.
+M0 state: done, PR #43 waits for review and merge. Decisions taken by the main session on 2026-10-09 (small, reversible; change them if you disagree): move every `W` and `H` import (about 42 files, not 34); the lab pages build in dev and CI only, not in production `dist/`; starting bundle caps are `boot` at today's alarm and `lazy-3d` at 160 kB (C5), with `first play` report-only until M1; the M0 PR goes through the Claude Code Review Action; the lab scripts the canaries need are copied from `media/research-2026-10-04/`.
 
 **Next for agents** (in this order):
-1. M0 build (Sonnet builder, tasks in `docs/engine/m0-brief.md`), then the runner and the reader, then the PR.
+1. M0 is done (PR #43). After Mark merges it: remove the stale "until it merges" clauses (item 4), then start M1 "Shell". The game bundle has only 7 bytes of room under the 240.8 kB alarm, so the next change to shipped code needs a deliberate alarm change that Mark confirms.
 2. After the merge of the M0 PR: milestone M1 "Shell" (`docs/engine/migration.md`).
 3. The spike archive tag (`spike/engine-platform` and the other spike branches): only with Mark's go-ahead.
 4. Remove the "on branch `resolution-640x360`, PR #23, until it merges" clause from `CLAUDE.md` and `docs/engine/verification.md`. The file is now on `main`.
 
 **Next up for Mark** (updated 2026-10-09):
-1. Nothing waits for you on M0 yet. The M0 PR comes to you for merge after the verifiers pass.
+1. Merge PR #43 (engine M0) when CI is green. Optional first: run `npx playwright test --project=chromium e2e/perf.spec.ts` on your GPU (it passed on the agent machine with the local Edge channel).
 2. Say if you want a different answer to the five M0 decisions above (the bundle caps are the one most worth a look).
 3. The older items still stand: Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4.
 

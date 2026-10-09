@@ -64,7 +64,7 @@ The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game
 ### M0 Prepare
 
 - Create `src/sje/core/size.ts` with `W = 640` and `H = 360`. The 640x360 move of the shipped game may already have replaced the uses of 480, 270, 240, and 135 that mean screen width, height, or center. Replace what is left. Add the literal scan that keeps it done ([tooling-and-testing.md](tooling-and-testing.md) section 3).
-- Move the `W` and `H` imports (46 files at M0). Phase 0 already made `src/engine/game.ts` re-export `W` and `H` from `size.ts`, so the old engine and the new engine cannot disagree. M0 measured the shipped bundle: the same code, plus 4 raw bytes (and 2 gzip) of export-alias text in the shared `tables` chunk, because the new `size.ts` module changes how the bundler names that chunk's exports. `FPS` is defined once, in `size.ts`; `game.ts` re-exports it.
+- Move the `W` and `H` imports (46 files at M0). Phase 0 already made `src/engine/game.ts` re-export `W` and `H` from `size.ts`, so the old engine and the new engine cannot disagree. M0 measured the shipped bundle: the same code, plus 4 raw bytes (and 2 to 10 gzip, depending on the gzip method) of export-alias text in the shared `tables` chunk, because the new `size.ts` module changes how the bundler names that chunk's exports. `FPS` is defined once, in `size.ts`; `game.ts` re-exports it.
 - Add a gate on the time between frames and a harness that counts GL objects. Both go into the perf spec.
 - Rewrite `bundle-budget.mjs` to read the Vite manifest and sort chunks into classes.
 - Pin Pixi and Three. Pin `@types/three` too (three 0.186 ships no types). Phase 0 did this: `@types/three` 0.186.0. Add the lab page and the canary suite. They test Pixi and Three directly.
