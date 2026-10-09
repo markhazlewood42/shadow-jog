@@ -144,8 +144,10 @@ export function attach(game: Game): void {
     glCounts: () => readGlCounts(),
     get renderer() {
       const gl = renderer.glc.gl;
+      // Firefox deprecates WEBGL_debug_renderer_info (and logs a warning for each use): it gets the generic name. A lost context has no extensions.
+      const ext = renderer.glc.lost || /firefox/i.test(navigator.userAgent) ? null : gl.getExtension('WEBGL_debug_renderer_info');
       return {
-        name: renderer.glc.lost ? 'webgl2 (context lost)' : String(gl.getParameter(gl.RENDERER)),
+        name: renderer.glc.lost ? 'webgl2 (context lost)' : ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : String(gl.getParameter(gl.RENDERER)),
         fxLevel: game.fxLevel,
         contextLost: renderer.glc.lost,
       };
