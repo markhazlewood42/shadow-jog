@@ -285,6 +285,8 @@ function buildSha(): string {
 
 export default defineConfig(({ mode }) => ({
   base: './',
+  // The lab page needs none of the game's art (public/art).
+  ...(mode === 'lab' ? { publicDir: false } : {}),
   // `define` swaps these names for the given values wherever they appear in the source, at build time
   // (and in tests), so src/version.ts can show the version and commit without reading any file at runtime.
   define: { __APP_VERSION__: JSON.stringify(APP_VERSION), __BUILD_SHA__: JSON.stringify(buildSha()) },
