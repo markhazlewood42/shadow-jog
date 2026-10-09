@@ -5,7 +5,8 @@
 import { sfx } from '../audio/sfx';
 import type { Ctx } from '../engine/canvas';
 import { drawText, measure } from '../engine/font';
-import { H, Scene, W } from '../engine/game';
+import { Scene } from '../engine/game';
+import { H, W } from '../sje/core/size';
 import { getMap } from '../data/maps';
 import { FieldMap } from '../field/fieldmap';
 import { TS } from '../field/tiles';

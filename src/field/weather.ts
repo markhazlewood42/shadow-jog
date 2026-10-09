@@ -1,6 +1,6 @@
 /** Screen-space weather: rain in three depth layers with ground splashes, dripping water, drifting dust. */
 import type { Ctx } from '../engine/canvas';
-import { H, W } from '../engine/game';
+import { H, W } from '../sje/core/size';
 import { Rng } from '../engine/rng';
 
 interface Drop {

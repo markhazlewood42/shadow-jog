@@ -362,6 +362,24 @@ yet.
 
 ---
 
+## 14. Engine and test names (dev only, not in the game)
+
+Names from the engine migration (`docs/engine/`). They never show to the player. Not part of the review of the setting.
+
+| Name | Meaning | Where |
+|---|---|---|
+| **`sje`** | Shadow Jog Engine: the new engine in `src/sje/`. | `docs/engine/README.md` |
+| **The lab page** | `sjelab.html`, a dev page that runs the engine's render stack with a sandbox scene. The canary suite and the perf gates run on it. It is not in the game build. | `src/sje-lab/` |
+| **Canary** | A test for one quiet trap of Pixi or Three, with a negative control. There are 12. | `e2e/sje-canaries.spec.ts` |
+| **Negative control** | The same check on a build with the trap on purpose. It must fail. | `e2e/sje-canaries.spec.ts` |
+| **`GlCounter`** | The GL-object harness that counts live GPU objects (`installGlCounter`, `readGlCounts`). | `src/sje-lab/glcounter.ts` |
+| **Back buffer** | The 640x360 render texture that Pixi draws the whole screen into before the presenter scales it. | `src/sje/render/backbuffer.ts` |
+| **Hand-off** | The switch of the shared GL context between Pixi and Three (`GlHandoff`). | `src/sje/render/glhandoff.ts` |
+| **Speed line** | The pass line for frame speed: interval p95 within 5% of a bare page, frame cost p95 at most 8 ms. On software GL: the loop is not stuck. | `e2e/sjelabkit.ts` |
+| **Boot, lazy-2d, lazy-3d, lazy-other, first play** | The bundle classes of the budget gate. | `scripts/bundle-budget.mjs` |
+
+---
+
 ## Open questions for the review
 
 1. Section 1: keep the four coinages (Woken, spark, deck jockey, ki brawler), or restore any of the genre's words?

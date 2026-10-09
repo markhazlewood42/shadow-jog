@@ -8,7 +8,8 @@ import { LOOKS } from '../data/looks';
 import { SPEAKERS } from '../data/speakers';
 import { silhouette, surface, type Ctx } from '../engine/canvas';
 import { drawText, measure, wrap } from '../engine/font';
-import { Scene, W, H } from '../engine/game';
+import { Scene } from '../engine/game';
+import { W, H } from '../sje/core/size';
 import { hash2 } from '../engine/rng';
 
 type Bg = 'city' | 'rooftop' | 'flash' | 'canal' | 'spire' | 'lab' | 'dark' | 'street';

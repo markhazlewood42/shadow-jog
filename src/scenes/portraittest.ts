@@ -1,7 +1,8 @@
 import { getPortrait, PORTRAIT_KEYS } from '../art/portraits';
 import type { Ctx } from '../engine/canvas';
 import { drawText } from '../engine/font';
-import { Scene, W, H } from '../engine/game';
+import { Scene } from '../engine/game';
+import { W, H } from '../sje/core/size';
 
 /** Dev scene: portrait sheet (8 characters × 4 expressions). ?scene=portraits[&faces=a,b,c,d] */
 export class PortraitTestScene extends Scene {

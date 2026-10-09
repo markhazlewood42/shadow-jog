@@ -5,7 +5,8 @@ import { autoClose } from '../game/debug';
 import { LOOKS } from '../data/looks';
 import type { Ctx } from '../engine/canvas';
 import { drawText, fitText, measure } from '../engine/font';
-import { Scene, W, H } from '../engine/game';
+import { Scene } from '../engine/game';
+import { W, H } from '../sje/core/size';
 import { formatPlayTime, readMeta, savedByVersion, slotStatus, writeSave, type SaveMeta, type SlotId, type SlotStatus } from '../game/save';
 import { drawSelect, drawWindow, keyLegend, UI, OVERLAY_DIM } from '../ui/draw';
 

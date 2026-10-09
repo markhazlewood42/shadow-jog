@@ -47,7 +47,8 @@ import {
   MENU_SIDE_LIST_W, menuCardStrip, menuPaneW, rowsFor, STATUS_ABILITY_COL_W, STATUS_ABILITY_COLS, STATUS_ABILITY_ROWS, STATUS_ABILITY_TEXT_W, STATUS_ABILITY_X, STATUS_BIO_W, STATUS_DIVIDER_Y,
   STATUS_LOWER_Y, STATUS_ROW_H, STATUS_STATS_W, STATUS_STATS_X, STATUS_TEXT_X, STATUS_WOUND_W, TARGET_CARD_GAP, TARGET_PANE_W,
 } from '../ui/layout';
-import { Scene, W, H } from '../engine/game';
+import { Scene } from '../engine/game';
+import { W, H } from '../sje/core/size';
 import { applyEffects } from '../game/fielduse';
 import { canEquip, currentWound, equip, knownAbilities, lockedAbilities, maxUses, memberStats, SLOT_NAMES } from '../game/party';
 import { formatPlayTime, locationName, readMeta, SLOTS, savedByVersion, slotStatus, writeSave, type SlotId } from '../game/save';

@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { getMap, mapIds } from '../src/data/maps';
 import { measure } from '../src/engine/font';
-import { H, W } from '../src/engine/game';
+import { H, W } from '../src/sje/core/size';
 import { TS } from '../src/field/tiles';
 import { SURROUND, surroundFor, voidShows, type SurroundEntry, type SurroundTheme, type SurroundView } from '../src/scenes/fieldkit/surround';
 import { mix, rgb } from '../src/engine/color';

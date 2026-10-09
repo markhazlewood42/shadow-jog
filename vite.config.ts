@@ -283,14 +283,29 @@ function buildSha(): string {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: './',
+  // The lab page needs none of the game's art (public/art).
+  ...(mode === 'lab' ? { publicDir: false } : {}),
   // `define` swaps these names for the given values wherever they appear in the source, at build time
   // (and in tests), so src/version.ts can show the version and commit without reading any file at runtime.
   define: { __APP_VERSION__: JSON.stringify(APP_VERSION), __BUILD_SHA__: JSON.stringify(buildSha()) },
   plugins: [fxLab(), artPass(), rigEdit(), devTools()],
   server: { port: 3007, watch: { usePolling: true } },
-  // The chunk warning matches the CI budget (scripts/bundle-budget.mjs).
-  build: { target: 'es2022', assetsInlineLimit: 0, sourcemap: true, chunkSizeWarningLimit: 480 },
+  // Pixi and Three load lazily (the lab page now, the 3D mode later). Without this, the dev server finds each one on its
+  // first import, optimizes it and RELOADS the page, in the middle of an e2e run (docs/engine/tooling-and-testing.md section 10).
+  optimizeDeps: { include: ['pixi.js', 'three', 'three/examples/jsm/postprocessing/UnrealBloomPass.js'] },
+  build: {
+    target: 'es2022',
+    assetsInlineLimit: 0,
+    sourcemap: true,
+    // The chunk warning matches the CI budget (scripts/bundle-budget.mjs).
+    chunkSizeWarningLimit: 480,
+    // dist/.vite/manifest.json: scripts/bundle-budget.mjs sorts the chunks into classes by it. It adds a file and changes no JavaScript.
+    manifest: true,
+    // The engine lab page builds on its own, in `--mode lab` into dist-lab (scripts/bundle-budget.mjs runs it). The game build
+    // (index.html only) never holds the lab, Pixi or Three, until the game itself loads the engine (M6) and the 3D mode (M7).
+    ...(mode === 'lab' ? { outDir: 'dist-lab', rollupOptions: { input: { sjelab: resolve(import.meta.dirname, 'sjelab.html') } } } : {}),
+  },
   test: { include: ['tests/**/*.test.ts'], environment: 'node' },
-});
+}));

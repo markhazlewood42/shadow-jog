@@ -1,7 +1,8 @@
 import { enemyArt, ENEMY_ART_KEYS } from '../art/enemies';
 import type { Ctx } from '../engine/canvas';
 import { drawText } from '../engine/font';
-import { Scene, W, H } from '../engine/game';
+import { Scene } from '../engine/game';
+import { W, H } from '../sje/core/size';
 
 /** Dev scene: all enemy sprites at battle scale (2x). ?scene=bestiary[&page=1] */
 export class BestiaryTestScene extends Scene {

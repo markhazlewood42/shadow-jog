@@ -1,7 +1,8 @@
 /** Dialogue box overlay: typewriter text, paging, optional choices, portrait. */
 import type { Ctx } from '../engine/canvas';
 import { drawText, LINE_H, measure, visibleLength, wrap } from '../engine/font';
-import { Scene, W, H } from '../engine/game';
+import { Scene } from '../engine/game';
+import { W, H } from '../sje/core/size';
 import { charsPerFrame } from '../game/settings';
 import { speaker, type Speaker } from '../data/speakers';
 import { drawCursor, drawMore, drawSelect, drawTab, drawWindow, UI } from '../ui/draw';

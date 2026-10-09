@@ -3,7 +3,8 @@ import { sfx } from '../audio/sfx';
 import { autoClose } from '../game/debug';
 import type { Ctx } from '../engine/canvas';
 import { drawParagraph, wrap } from '../engine/font';
-import { Scene, W, H } from '../engine/game';
+import { Scene } from '../engine/game';
+import { W, H } from '../sje/core/size';
 import { drawMore, drawWindow, UI } from '../ui/draw';
 
 export class CardScene extends Scene<void> {

@@ -14,17 +14,14 @@ import type { Ctx } from './canvas';
 import { reportError } from './errors';
 import { postfx } from './postfx';
 import type { Input } from './input';
+import { FPS, H, W } from '../sje/core/size';
 
 /** Consecutive faulting ticks before the game gives up on the current flow. */
 export const FAULT_LIMIT = 30;
 
-/**
- * The screen size in game pixels: the one place it is written (docs/PIVOT-640.md, PL1). Every
- * other size (the battle world, layouts, caps) derives from `W` and `H`.
- */
-export const W = 640;
-export const H = 360;
-export const FPS = 60;
+// The screen size in game pixels has one source, src/sje/core/size.ts (docs/PIVOT-640.md, PL1); every
+// other size (the battle world, layouts, caps) derives from `W` and `H`. Re-exported so old imports work.
+export { FPS, H, W };
 /**
  * Shake strengths are authored in game pixels (callers pass 1 to 5), and they were tuned when the
  * screen was 480 pixels wide. A game pixel is now 3/4 as wide on the player's screen, so every

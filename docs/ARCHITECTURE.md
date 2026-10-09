@@ -395,7 +395,7 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
 
 ## 10. Build, tests and tooling (summary; details in DEVELOPING.md)
 
-- **Build:** `vite build` (after `tsc --noEmit`): two chunks, the boot bundle and the battle system. Budgets in `scripts/bundle-budget.mjs` (chunk 480 kB, total gzip alarm 240.8 kB, raised by measured deltas (D20; Mark confirmed 240.7 at Review 5, and 240.8 at Review 7); a size alarm to re-set deliberately, not a ceiling).
+- **Build:** `vite build` (after `tsc --noEmit`): five JavaScript files. The boot class is the entry (`index`) and the shared `tables` chunk it loads at once. The lazy class is the battle system and two deck chunks. `npm run budget` also builds the engine lab page on its own (`vite build --mode lab` into `dist-lab/`, never shipped) and reads the Vite manifests: `scripts/bundle-budget.mjs` sorts chunks into `boot`, `lazy-2d`, `lazy-3d` and `lazy-other`, and fails if the boot class holds a Pixi or Three module. Budgets (chunk 480 kB, total gzip alarm 240.8 kB, raised by measured deltas (D20; Mark confirmed 240.7 at Review 5, and 240.8 at Review 7); a size alarm to re-set deliberately, not a ceiling).
 - **Unit tests** (`tests/`, Vitest, node): battle rules, **balance simulations** (`tests/sim.ts` plays whole fights
   and dungeon runs with a competent policy), the **economy model** (`tests/economy.ts`, Monte Carlo over the route),
   pacing, save/migration, input, UI list, layout and glyphs, map connectivity and dead ends, music, motion, weather

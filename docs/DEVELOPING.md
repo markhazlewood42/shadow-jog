@@ -25,7 +25,7 @@ npm install
 
 | Command | What |
 |---|---|
-| `npm run dev` | Dev server on **http://localhost:3007** (debug hooks on; add `?debug` for the test helpers) |
+| `npm run dev` | Dev server on **http://localhost:3007** (`window.__SJ__` and the test hooks are on in every dev build; `?debug` only skips the close-tab prompt, which the test harness must not see) |
 | `npm run build` | Typecheck, then the production build into `dist/` |
 | `npm run preview` | Serve `dist/` on **http://localhost:3008** (the shipped build) |
 | `npm run check` | Lint + typecheck + unit tests (the quick pre-commit gate) |
@@ -115,7 +115,8 @@ that pull request's earlier CI run. A run on `main` is never canceled once it st
 | `prod.spec.ts` | The **shipped build** (builds fresh, serves on 3008): new game, save, reload, continue |
 | `economy.spec.ts` | Zone walks and a shop in the real game, and the four-corner camera walk of the 640x360 move (every scrolling map at the four corners of its camera clamp; `SJ_CORNER_SHOTS=<folder>` also saves a picture of each corner, unset it writes nothing) |
 | `gpufx.spec.ts` | The GPU effects layer (comes up, survives a battle, switches off and on, falls back to 2D) and the pixel-perfect block test: every game pixel an exact block at k=3 (1920x1080) and k=2 (1280x800) |
-| `perf.spec.ts` | Frame budget in the plaza and a battle (each timed in 3 windows, the gate reads the best one, because a noisy neighbor only adds time); input latency. `PW_NOGPU=1` reproduces CI's software canvas |
+| `perf.spec.ts` | Frame budget in the plaza and a battle (each timed in 3 windows, the gate reads the best one, because a noisy neighbor only adds time); input latency, and the engine lab speed line (interval and cost, GPU wait included). LOCAL ONLY: `npm run perf` on a real GPU, once at the end of a milestone that changed the draw path (`docs/engine/migration.md` principle 12), never per PR. CI does not run it (Mark, 2026-10-09): a software renderer says nothing about GPU timing |
+| `sje-draws.spec.ts` | Engine lab draw-call and framebuffer-bind budgets, counted by a WebGL patch, so any machine gives the same numbers. Runs in CI |
 | `shots.spec.ts` | The screenshot set for `docs/screenshots/`. Deterministic: the game runs on Playwright's paused clock, with a fixed `Date.now()` (so a fixed RNG seed), pinned fights and a seeded `Math.random`; the header comment explains. For a compare across two commits set `SJ_BUILD_SHA=<label>` for both runs: the title draws the build's commit |
 | `audio-evidence.spec.ts` | Renders every song and effect offline and measures them |
 
@@ -167,7 +168,7 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
 - `/artreview.html`: the art-pass review page; `?art=review[&try=asset/option,...]` on any route swaps art-pass
   options into the game (see §8, "The PixelLab art pass").
 
-**`window.__SJ__`** (open the console on `http://localhost:3007/?debug`):
+**`window.__SJ__`** (a dev build always has it; open the console on `http://localhost:3007/`. The e2e specs add `?debug` so the close-tab prompt stays off):
 - `game`, `display`, `state`, `field()`, `top()` (the top scene's class name), `idle()` (field ready for input);
 - `stage(name)`: jump to a preset (`start`, `town`, `sinkline`, `annex`, `finale`);
 - `tp(map, x, y, dir)`: teleport;

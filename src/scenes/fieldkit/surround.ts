@@ -28,7 +28,7 @@
  * into the map data (`MapDef`) once Mark gives his written yes. The drawing code never names a map.
  */
 import type { Ctx } from '../../engine/canvas';
-import { H, W } from '../../engine/game';
+import { H, W } from '../../sje/core/size';
 import { drawSurroundArt } from './surround-art';
 import { VOID } from './void';
 

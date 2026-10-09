@@ -4,7 +4,7 @@
  * The sizes are written relative to W and H, so the test holds at 480x270 and at 640x360 alike.
  */
 import { describe, expect, it } from 'vitest';
-import { H, W } from '../src/engine/game';
+import { H, W } from '../src/sje/core/size';
 import type { FieldScene } from '../src/scenes/field';
 import { scriptApi } from '../src/scenes/fieldkit/api';
 import { cameraOrigin } from '../src/scenes/fieldkit/camera';

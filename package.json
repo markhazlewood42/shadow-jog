@@ -12,10 +12,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
+    "perf": "playwright test --project=chromium e2e/perf.spec.ts",
     "shots": "playwright test e2e/shots.spec.ts",
     "check": "biome lint && tsc --noEmit && vitest run",
     "lint": "biome lint",
-    "budget": "vite build && node scripts/bundle-budget.mjs",
+    "budget": "vite build && vite build --mode lab && node scripts/bundle-budget.mjs",
     "roadmap": "node scripts/gen-roadmap.mjs",
     "cc": "npm --prefix tools/command-center install --no-audit --no-fund && npm --prefix tools/command-center run cc"
   },
@@ -23,8 +24,13 @@
     "@biomejs/biome": "^2.5.14",
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.3",
+    "@types/three": "0.186.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",
     "vitest": "^5.0.2"
+  },
+  "dependencies": {
+    "pixi.js": "8.22.0",
+    "three": "0.186.1"
   }
 }

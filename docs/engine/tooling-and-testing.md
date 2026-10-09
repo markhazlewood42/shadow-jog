@@ -175,7 +175,7 @@ SwiftShader cost follows canvas pixels. In the lab (a 480x270 game, one machine,
 1. The frame interval p95 of the scene is within 5% of a bare `requestAnimationFrame` page in the same browser on the same display.
 2. The frame cost p95 is at or under 8 ms. The cost is the CPU work plus the GPU wait: tick, draw, and a one-pixel `readPixels`. The read-back cannot return before every earlier command has run. Where the browser offers `EXT_disjoint_timer_query_webgl2`, the GPU timer p95 is also at or under 8 ms.
 
-The interval rule alone cannot catch a load whose GPU work still fits in one display frame. A negative control proves that each rule can fail. With 200 extra 3D draws, the interval p95 stays at 18.2 ms and only the cost rule fails. With 600 extra 3D draws, both rules fail (the interval p95 is 54.1 ms against a limit of 19.0 ms). On software GL the CI gate only catches a stuck loop (p95 under 80 ms for the 3D scene). A shared software renderer cannot meet strict timing and says nothing about the engine. Timing thresholds belong on a real GPU.
+The interval rule alone cannot catch a load whose GPU work still fits in one display frame. A negative control proves that each rule can fail. With 200 extra 3D draws, the interval p95 stays at 18.2 ms and only the cost rule fails. With 600 extra 3D draws, both rules fail (the interval p95 is 54.1 ms against a limit of 19.0 ms). On software GL the CI gate only catches a stuck loop (p95 under 250 ms; it was 80 ms until 2026-10-09, when CI measured 83 ms for 2D and 133 ms for 3D bloom). A shared software renderer cannot meet strict timing and says nothing about the engine. Timing thresholds belong on a real GPU.
 
 **Performance budget.** Every number below is proposed. It is an estimate with low confidence. M1 measures each one and then sets the real gate.
 
@@ -212,7 +212,7 @@ The cost did not grow with the picture. The 3D frame has 1.78 times more pixels,
 
 ## 8. Leak, context, and canary tests
 
-**GL-object harness.** Patch `create` and `delete` for textures, buffers, programs, VAOs, framebuffers, and renderbuffers. Ten create-and-destroy cycles return to baseline. A negative control that leaks on purpose must grow. Turn off Pixi's GC during the test. Lab results: baseline texture 8, buffer 6, program 5, VAO 3, framebuffer 5. The same harness covers the 3D enter and exit x10 line.
+**GL-object harness.** Patch `create` and `delete` for textures, buffers, programs, VAOs, framebuffers, and renderbuffers. Ten create-and-destroy cycles return to baseline. A negative control that leaks on purpose must grow. Turn off Pixi's GC during the test. Spike results (Phase 0 lab, not the M0 lab): baseline texture 8, buffer 6, program 5, VAO 3, framebuffer 5. The M0 lab measured texture 6, buffer 4, program 1, VAO 2, framebuffer 1 for the 2D scene, and texture 10, buffer 4, program 2, VAO 2, framebuffer 4 for the 3D frame. The same harness covers the 3D enter and exit x10 line.
 
 **Canary tests.** Each trap from the research has a Playwright test that fails if the fix is missing. They run on every Pixi or Three bump. Versions are pinned exactly (`pixi.js 8.22.0`, `three 0.186.x`).
 
@@ -231,7 +231,7 @@ The cost did not grow with the picture. The 3D frame has 1.78 times more pixels,
 | Color exactness | `#ff2080` in Three does not come out as `#ff2080`. |
 | Frame rewrap | A resize or restore leaves the 3D sprite stale. |
 
-**The stale clear color canary needs a transparent clear.** In the shipped configuration the back buffer clears to the void color, which is not (0,0,0,0). Pixi then sets the GL clear color itself, and the bug does not show, even with the fix off. It shows only when the back buffer clears to transparent black. The canary clears to transparent black (test seams `GlHandoff.setClearColourFix` and `BackBuffer.setClearColor`). It has a negative control: with the fix off, all 2,800 gap pixels show Three's leftover black. With the fix on, 0 pixels are wrong.
+**The stale clear color canary needs a transparent clear.** In the shipped configuration the back buffer clears to the void color, which is not (0,0,0,0). Pixi then sets the GL clear color itself, and the bug does not show, even with the fix off. It shows only when the back buffer clears to transparent black. The canary clears to transparent black (test seams `GlHandoff.setClearColorFix` and `BackBuffer.setClearColor`). It has a negative control: with the fix off, all 2,800 gap pixels show Three's leftover black. With the fix on, 0 pixels are wrong. A second case leaves the switch at its shipped default, so flipping the default fails it. The two clean-up lines in `endThree` (the second `three.resetState()` and `gl.clearColor(0,0,0,0)`) each fix the bug alone, because Three 0.186's `state.reset()` also sets the GL clear color to (0,0,0,0). The canary fails only when both are gone.
 
 **A context-loss test must wait one macrotask before it restores.** The browser calls every `webglcontextlost` listener in turn, and a promise continuation runs between them. A restore before the last listener ran is refused ("context restoration not allowed").
 
@@ -253,9 +253,17 @@ Inherited rules: strict TypeScript (`noUncheckedIndexedAccess`, `exactOptionalPr
 
 ## 10. The bundle alarm
 
-Today `scripts/bundle-budget.mjs` has two gates. The first sums every `dist/assets/*.js` against 236 kB gzip. The game measures 233.9 kB (boot chunk 144.8, battle 44.6, tables 39.3, deck 3.2 and 2.0). That leaves about 2 kB. The 640x360 move of the shipped game adds code, so these numbers change. The size after the move is not known yet. Set the alarm from the measured value, and write the cause of the change. The second gate caps the largest single chunk at 480 kB raw (`CHUNK_MAX`). The CI step is named "largest chunk and total gzip". Pixi and Three change this. The alarm is an alarm, not a hard limit.
+`scripts/bundle-budget.mjs` (run by `npm run budget`, which builds the game and the lab page) is the M0 gate. It reads the Vite manifest and each chunk's source map. It has these checks:
 
-**The largest-chunk rule.** A lazy Pixi chunk is 131 to 205 kB gzip, so it is probably over 480 kB raw. The boot chunk is about 418 kB raw today (estimate: measure again at M0). The manifest gate below replaces **both** old rules. Set a largest-chunk cap for each class, or drop the rule on purpose (E17).
+- **Total gzip alarm: 240.8 kB** for the shipped game (`GZIP_TOTAL_MAX`). It was 236 kB before the 640x360 move. Each raise is by the measured delta only, and the cause is written in the script. M0 measured 240.790 kB for the game (see [m0-brief.md](m0-brief.md)), so the room is a few bytes.
+- **Largest chunk: 480 kB raw** (`CHUNK_MAX`), on the shipped game.
+- **Boot has no engine:** the `boot` class holds no `pixi.js` and no `three` module, in the game and in the lab.
+- **The game has no engine yet:** no game chunk holds Pixi or Three until M6 and M7.
+- **Lab `lazy-3d`:** at most 160 kB gzip, and it must not be empty. The lab `lazy-2d` class must not be empty.
+- **No blind chunk:** a chunk with no source map (or a boot chunk with an empty one) fails the gate. Without this, the checks above would pass on no data. `tests/bundle-budget.test.ts` holds the controls (a boot chunk with no map fails; a boot chunk with a Pixi module fails).
+- **The two Vite traps** below.
+
+The report prints all five classes. Measured at M0 (gzip, game): boot 190.0 kB (`index` plus the shared `tables` chunk), lazy-other 50.8, lazy-2d 0, lazy-3d 0, first play 190.0. Measured at M0 (gzip, lab): boot 1.2, lazy-2d 143.0, lazy-3d 135.3, first play 133.0. The old per-class caps of the plan ("boot at most 144.8 kB") did not survive the 640x360 move: the boot class grew with the shared `tables` chunk. `first play` has no cap until M1 measures it. The alarm is an alarm, not a hard limit.
 
 **Sizes for scale (gzip, lab, depend on the bundler):**
 
@@ -269,7 +277,7 @@ Today `scripts/bundle-budget.mjs` has two gates. The first sums every `dist/asse
 | Three, with `GLTFLoader` | about 227 kB |
 | Three, with composer and bloom passes | about 232 kB |
 
-**The new gate** reads `dist/.vite/manifest.json` (`build.manifest: true`) and sorts chunks into classes by reachability over `imports` and `dynamicImports`:
+**The classes.** The gate reads `dist/.vite/manifest.json` (`build.manifest: true`) and sorts chunks into classes by reachability over `imports` and `dynamicImports`:
 
 | Class | Content | Rule |
 |---|---|---|
@@ -279,13 +287,9 @@ Today `scripts/bundle-budget.mjs` has two gates. The first sums every `dist/asse
 | `lazy-other` | Battle, deck, tables, dev | Counted. |
 | `first play` | `boot` plus `lazy-2d` | Reported. |
 
-The caps are your call (E17). The old 236 kB total cannot hold. Starting caps (estimates, to reset after M1 and M2 measurements):
+Caps in force: `lazy-3d` 160 kB (you accepted it on 2026-10-05, real choice C5; the spike measured 145.1 kB and M0 measured 135.3 kB in the lab), the game total 240.8 kB, the largest chunk 480 kB raw. `first play` has no cap yet: the plan estimate is 330 to 430 kB gzip (low confidence), to set after M1. Reset the caps after the M1 and M2 measurements.
 
-- `boot`: at most 144.8 kB (today's value).
-- `first play`: set after M1. The estimate is 330 to 430 kB (low confidence).
-- `lazy-3d`: 160 kB. You accepted this cap on 2026-10-05 (real choice C5). Confirm it at M1 and M6. The first estimate was 240 kB. Phase 0 measured 145.1 kB. The spike's budget script uses 160 kB.
-
-**Phase 0 measured (gzip).** Pixi plus the engine kernel is 124.7 kB. The page of the stage lab boots with 170.7 kB, and the page of the 3D lab boots with 165.5 kB. The lazy 3D chunk (Three with named imports, a `UnrealBloomPass`, and the hack scene) is 145.1 kB (576.8 kB raw). The shipped game is byte for byte the same as before: 233.9 kB. The script `scripts/bundle-budget.mjs` now has four classes: the shipped game, the lazy 3D chunk, the lab boot, and the stage lab page. It also checks that no Three or Pixi marker string is in the shipped `dist/`.
+**Phase 0 spike numbers (gzip, not M0 numbers).** Pixi plus the engine kernel is 124.7 kB. The page of the stage lab boots with 170.7 kB, and the page of the 3D lab boots with 165.5 kB. The lazy 3D chunk (Three with named imports, a `UnrealBloomPass`, and the hack scene) is 145.1 kB (576.8 kB raw). The shipped game then measured 233.9 kB (before the 640x360 move). The spike's script had four classes: the shipped game, the lazy 3D chunk, the lab boot, and the stage lab page.
 
 **Two Vite traps found in the lab:**
 

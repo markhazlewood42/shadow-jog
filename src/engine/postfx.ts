@@ -10,7 +10,7 @@
 import type { Ctx } from './canvas';
 // game.ts imports this module, so the two form a cycle: W and H are read only inside methods, at
 // call time, never while this module loads (at that moment they would still be uninitialized).
-import { H, W } from './game';
+import { H, W } from '../sje/core/size';
 import { type EmitterPreset, ParticleSim } from './particles';
 
 /** A ring of distortion spreading out from a point. */

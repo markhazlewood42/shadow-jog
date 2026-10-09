@@ -1,11 +1,26 @@
 {
   "updated": "2026-10-09",
   "lanes": [
-    { "id": "foundations", "title": "Foundations" },
-    { "id": "engine", "title": "Engine path" },
-    { "id": "side", "title": "Side paths" },
-    { "id": "gated", "title": "Needs Mark's go-ahead" },
-    { "id": "other", "title": "Other open items (no order)" }
+    {
+      "id": "foundations",
+      "title": "Foundations"
+    },
+    {
+      "id": "engine",
+      "title": "Engine path"
+    },
+    {
+      "id": "side",
+      "title": "Side paths"
+    },
+    {
+      "id": "gated",
+      "title": "Needs Mark's go-ahead"
+    },
+    {
+      "id": "other",
+      "title": "Other open items (no order)"
+    }
   ],
   "items": [
     {
@@ -24,7 +39,9 @@
       "label": "640x360 move",
       "lane": "foundations",
       "status": "done",
-      "after": ["Phase 0"],
+      "after": [
+        "Phase 0"
+      ],
       "branch": "resolution-640x360",
       "pr": "#23 (merged 2026-10-09)",
       "notes": "The shipped game plays at 640x360. Record: docs/PIVOT-640.md."
@@ -35,9 +52,12 @@
       "label": "Prepare",
       "lane": "foundations",
       "status": "active",
-      "after": ["Pre-M0"],
+      "after": [
+        "Pre-M0"
+      ],
       "branch": "engine-m0-prepare",
-      "notes": "Size module, bundle gate, canary suite, agent docs. Worktree: projects/shadow-jog-engine."
+      "pr": "#43 (ready for review)",
+      "notes": "Built and verified (2 rounds). Size module, bundle gate, canary suite, lab, agent docs. Waits for CI and Mark's merge. Worktree: projects/shadow-jog-engine."
     },
     {
       "id": "M1",
@@ -45,8 +65,10 @@
       "label": "Shell",
       "lane": "engine",
       "status": "next",
-      "after": ["M0"],
-      "notes": "Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag."
+      "after": [
+        "M0"
+      ],
+      "notes": "Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. GPU timing check (npm run perf) once at the end, not in CI."
     },
     {
       "id": "M2",
@@ -54,8 +76,10 @@
       "label": "Effects",
       "lane": "engine",
       "status": "later",
-      "after": ["M1"],
-      "notes": "FxSystem with the postfx facade, composite filter, particles."
+      "after": [
+        "M1"
+      ],
+      "notes": "FxSystem with the postfx facade, composite filter, particles. GPU timing check (npm run perf) once at the end, not in CI."
     },
     {
       "id": "M3",
@@ -63,8 +87,10 @@
       "label": "Battle stage",
       "lane": "engine",
       "status": "later",
-      "after": ["M2"],
-      "notes": "The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge."
+      "after": [
+        "M2"
+      ],
+      "notes": "The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge. GPU timing check (npm run perf) once at the end, not in CI."
     },
     {
       "id": "M5",
@@ -72,8 +98,10 @@
       "label": "Field",
       "lane": "engine",
       "status": "later",
-      "after": ["M3"],
-      "notes": "Field map, actors, camera, lights, weather. Mark approves the lighting."
+      "after": [
+        "M3"
+      ],
+      "notes": "Field map, actors, camera, lights, weather. Mark approves the lighting. GPU timing check (npm run perf) once at the end, not in CI."
     },
     {
       "id": "M6",
@@ -81,8 +109,11 @@
       "label": "Flip default",
       "lane": "engine",
       "status": "later",
-      "after": ["M5", "M4"],
-      "notes": "?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow)."
+      "after": [
+        "M5",
+        "M4"
+      ],
+      "notes": "?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow). GPU timing check (npm run perf) once at the end, not in CI."
     },
     {
       "id": "M7",
@@ -90,8 +121,11 @@
       "label": "3D mode",
       "lane": "engine",
       "status": "later",
-      "after": ["M6", "M1b"],
-      "notes": "Needs both the 3D proof (M1b) and the default flip (M6)."
+      "after": [
+        "M6",
+        "M1b"
+      ],
+      "notes": "Needs both the 3D proof (M1b) and the default flip (M6). GPU timing check (npm run perf) once at the end, not in CI."
     },
     {
       "id": "M8",
@@ -99,7 +133,9 @@
       "label": "Remove legacy",
       "lane": "engine",
       "status": "later",
-      "after": ["M7"],
+      "after": [
+        "M7"
+      ],
       "notes": "Delete the old engine files."
     },
     {
@@ -108,7 +144,9 @@
       "label": "3D proof",
       "lane": "side",
       "status": "later",
-      "after": ["M1"],
+      "after": [
+        "M1"
+      ],
       "notes": "Parallel with M2. A spinning cube in a Scene3D, with the hand-off, leak and loss tests."
     },
     {
@@ -117,7 +155,9 @@
       "label": "UI scenes",
       "lane": "side",
       "status": "optional",
-      "after": ["M3"],
+      "after": [
+        "M3"
+      ],
       "notes": "Optional. A UI scene ports only when it needs a camera, a filter, a mask or a transition."
     },
     {
@@ -126,7 +166,9 @@
       "label": "Archive tags",
       "lane": "gated",
       "status": "gated",
-      "after": ["M3"],
+      "after": [
+        "M3"
+      ],
       "notes": "archive/side-battle-<date> and archive/phaser-stage-<date>, then close PRs #3 and #4. Mark approves each tag. They wait until M3 lands (status.md, Next for agents 3)."
     },
     {

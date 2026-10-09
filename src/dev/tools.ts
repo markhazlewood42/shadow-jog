@@ -29,7 +29,7 @@ export const DEV_TOOLS: { group: string; tools: DevTool[] }[] = [
       { name: 'Battle', path: '/?debug&scene=battle', about: 'A street fight on loop, full party at level 6', print: true },
       { name: 'Boss battle', path: '/?debug&scene=battle&enemies=lurker&boss', about: 'The Lurker, on loop' },
       { name: 'A point in the story', path: '/?debug&scene=stage', about: 'Straight to a chapter preset: the party, levels and gear for that point', pick: 'stage' },
-      { name: 'Debug mode', path: '/?debug', about: 'The normal game, with test hooks on window.__SJ__ (see the console)' },
+      { name: 'Debug mode', path: '/?debug', about: 'The normal game (test hooks on window.__SJ__ are on in every dev build; ?debug only skips the close-tab prompt)' },
     ],
   },
   {

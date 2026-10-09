@@ -1,8 +1,9 @@
 {
   "_comment": "Hits of tests/screen-literals.test.ts that do not mean the screen. An entry with 'match' covers the lines of that file that contain it; an entry without 'match' covers every hit of that token in the file. Each entry needs a reason. A stale entry fails the test.",
   "entries": [
-    { "file": "src/engine/game.ts", "token": 640, "match": "export const W", "reason": "the one size source: the screen width" },
-    { "file": "src/engine/game.ts", "token": 360, "match": "export const H", "reason": "the one size source: the screen height" },
+    { "file": "src/sje/core/size.ts", "token": 640, "match": "export const W", "reason": "the one size source: the screen width" },
+    { "file": "src/sje/core/size.ts", "token": 360, "match": "export const H", "reason": "the one size source: the screen height" },
+    { "file": "src/sje/interfaces.check.ts", "token": [640, 360], "match": "export declare const W:", "reason": "the generated types-only mirror of interfaces.md: the size as literal types (src/sje/core/size.ts is the one source)" },
     { "file": "vite.config.ts", "token": 480, "match": "chunkSizeWarningLimit", "reason": "kilobytes, the chunk size warning (inventory row 14)" },
     { "file": "scripts/bundle-budget.mjs", "token": 480, "match": "CHUNK_MAX", "reason": "kilobytes, the chunk cap (inventory row 213)" },
     { "file": "src/data/items.ts", "token": [480, 320, 360, 180], "reason": "prices and heal amounts (the nodachi's price is inventory row 14)" },

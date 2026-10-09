@@ -36,7 +36,7 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
     evidence; they do not gate. A Minor finding is a named fix for the next commit, never a new round.
   - **Rounds.** The first verification is round 1. A fix round checks only the named findings, with one fresh
     verifier, and re-runs only the affected tests. Cap: 3 rounds, then stop and bring Mark the evidence.
-  - **Tests.** CI runs the full e2e suite on every push. Locally, run only the specs that the change touches
+  - **Tests.** CI runs the full e2e suite on every push, except `e2e/perf.spec.ts` (frame timing: local only, `npm run perf` on a real GPU, Mark 2026-10-09; run it once at the end of a milestone that changed the draw path, never per PR: `docs/engine/migration.md` principle 12). Locally, run only the specs that the change touches
     (`e2e/perf.spec.ts` only for a hot-path change). Re-prove capture determinism only when the capture code changed.
   - **Records.** One short table per step: what changed, numbers, verdict, named fixes. No narrative.
   - **Agents.** Group small tasks of one kind into one build and one round, with short briefs that point at files.
@@ -76,6 +76,6 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 - Keep `status.md` current before a session ends.
 
 ## Quick commands
-`npm run dev` (http://localhost:3007; every dev tool is in the DEV tab there, or press `` ` ``; `?debug` for test hooks) · `npm run check` (lint + types + unit) ·
+`npm run dev` (http://localhost:3007; every dev tool is in the DEV tab there, or press `` ` ``; test hooks on `window.__SJ__` are on in every dev build; `?debug` only skips the close-tab prompt) · `npm run check` (lint + types + unit) ·
 `npx playwright test e2e/<spec>.spec.ts --reporter=line` · `npm run build && npm run preview` (shipped build on 3008) ·
 `npm run cc` (the Command Center on http://localhost:3009: status, docs and decisions; guide in `tools/command-center/README.md`)

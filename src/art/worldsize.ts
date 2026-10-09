@@ -5,7 +5,7 @@
  * reaching up into `scenes`. The new engine's size module takes all of this over at M0
  * (`grain(2)`).
  */
-import { H, W } from '../engine/game';
+import { H, W } from '../sje/core/size';
 
 /**
  * Screen pixels per world pixel. The battle world (and the title's skyline, which shares this

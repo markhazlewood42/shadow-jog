@@ -1,6 +1,7 @@
 import type { Ctx } from '../engine/canvas';
 import { drawParagraph, drawText } from '../engine/font';
-import { Scene, W, H } from '../engine/game';
+import { Scene } from '../engine/game';
+import { W, H } from '../sje/core/size';
 import { drawBar, drawCursor, drawWindow, hpColor, UI } from '../ui/draw';
 
 /** Dev-only scene for checking the font and window chrome. */
