@@ -559,8 +559,7 @@ export class MenuScene extends Scene<MenuResult> {
 
   /**
    * The Items and Techs lists and the party's cards beside them. With room (640 wide) the list is a
-   * capped pane and the cards are always in the strip beside it. With none (480x270, or the
-   * `?panes=stretch` review variant), the list keeps its full width, and while the player picks who gets
+   * capped pane and the cards are always in the strip beside it. With none (480x270), the list keeps its full width, and while the player picks who gets
    * an item or a tech it narrows to `TARGET_PANE_W` and the cards come back beside it, as they did.
    */
   private listLayout(picking: boolean): { w: number; cardX: number | null } {

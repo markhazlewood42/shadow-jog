@@ -10,7 +10,6 @@ import { silhouette, surface, type Ctx } from '../engine/canvas';
 import { drawText, measure, wrap } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
 import { hash2 } from '../engine/rng';
-import { reviewSwitch } from '../ui/reviewswitch';
 
 type Bg = 'city' | 'rooftop' | 'flash' | 'canal' | 'spire' | 'lab' | 'dark' | 'street';
 
@@ -41,24 +40,22 @@ type Page = Panel[];
 export const FOOT_TOP = H - 18;
 const FOOT_Y = H - 13;
 export const PANEL_FRAME = { x0: 8, y0: 8, x1: W - 8, y1: FOOT_TOP };
+/** The width of a full-width panel: the whole frame (624 at 640x360). */
+export const PANEL_W = PANEL_FRAME.x1 - PANEL_FRAME.x0;
 /** How wide a speech bubble and a caption may grow (the panels are wider than they were, so the lines run longer). */
 export const BUBBLE_MAX_W = 280;
 export const CAPTION_MAX_W = 400;
 /** The portrait size when a panel does not pin one: 2x, as the panels have always used (D9). */
 export const PORTRAIT_SCALE = 2;
-/**
- * The scale a panel's portrait is drawn at: the one the panel pins in the table below, or 2x. The
- * review switch ?portrait=3 (dev builds only; the other option of D9) forces 3x on every panel; the
- * shipped game never reads it.
- */
+/** The scale a panel's portrait is drawn at: the one the panel pins in the table below, or 2x (the Review 5 pick, D9). */
 export function portraitScale(pn: Panel): number {
-  return reviewSwitch('portrait') === '3' ? 3 : (pn.portrait?.scale ?? PORTRAIT_SCALE);
+  return pn.portrait?.scale ?? PORTRAIT_SCALE;
 }
 
 export const PAGES: Record<string, Page[]> = {
   intro: [
     [
-      { x: 8, y: 8, w: 624, h: 170, bg: 'city', caption: 'SALTREACH, 2079.', from: 'top' },
+      { x: 8, y: 8, w: PANEL_W, h: 170, bg: 'city', caption: 'SALTREACH, 2079.', from: 'top' },
       { x: 8, y: 184, w: 309, h: 158, bg: 'street', caption: 'Thirty years ago, the magic came back. It didn’t fix anything.', from: 'left' },
       { x: 323, y: 184, w: 309, h: 158, bg: 'spire', caption: 'The corporations just found new things to own.', from: 'right' },
     ],
@@ -70,23 +67,23 @@ export const PAGES: Record<string, Page[]> = {
   ],
   ending: [
     [
-      { x: 8, y: 8, w: 624, h: 158, bg: 'flash', caption: 'Rook’s flashbang bought them eleven seconds.', from: 'top', shake: true },
+      { x: 8, y: 8, w: PANEL_W, h: 158, bg: 'flash', caption: 'Rook’s flashbang bought them eleven seconds.', from: 'top', shake: true },
       { x: 8, y: 172, w: 309, h: 170, bg: 'dark', portrait: { key: 'kit', face: 'sad', scale: 2 }, speech: { who: 'kit', text: 'Rook! ROOK!' }, from: 'left' },
       { x: 323, y: 172, w: 309, h: 170, bg: 'dark', portrait: { key: 'rook', face: 'hurt', scale: 2, flip: true }, speech: { who: 'rook', text: 'Go, kid. Don’t look back.' }, from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 624, h: 158, bg: 'canal', caption: 'Last they saw, he was on his knees in the rain, rifles all round him. The other three surfaced in the canal, three wards over.', from: 'top' },
+      { x: 8, y: 8, w: PANEL_W, h: 158, bg: 'canal', caption: 'Last they saw, he was on his knees in the rain, rifles all round him. The other three surfaced in the canal, three wards over.', from: 'top' },
       { x: 8, y: 172, w: 309, h: 170, bg: 'dark', portrait: { key: 'kit', face: 'sad', scale: 2 }, speech: { who: 'kit', text: 'He said don’t look back. So I didn’t.' }, from: 'left' },
       { x: 323, y: 172, w: 309, h: 170, bg: 'rooftop', caption: 'For a long time, nobody said anything. The rain did the talking.', from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 624, h: 175, bg: 'rooftop', portrait: { key: 'sable', face: 'sad', scale: 2, dx: 188 }, speech: { who: 'sable', text: 'The crow followed the vans all the way up the arcology. He is hurt. He is alive.' }, from: 'top' },
+      { x: 8, y: 8, w: PANEL_W, h: 175, bg: 'rooftop', portrait: { key: 'sable', face: 'sad', scale: 2, dx: 188 }, speech: { who: 'sable', text: 'The crow followed the vans all the way up the arcology. He is hurt. He is alive.' }, from: 'top' },
       { x: 8, y: 189, w: 309, h: 153, bg: 'dark', portrait: { key: 'hex', face: 'angry', scale: 2 }, speech: { who: 'hex', text: 'Then we go get him. On the way, we ask Dutch what he knew.' }, from: 'left' },
       { x: 323, y: 189, w: 309, h: 153, bg: 'dark', portrait: { key: 'kit', face: 'angry', scale: 2, flip: true }, speech: { who: 'kit', text: 'We go get him.' }, from: 'right' },
     ],
     [
-      { x: 8, y: 8, w: 624, h: 175, bg: 'spire', portrait: { key: 'pale', face: 'smirk', scale: 2, dx: 188 }, speech: { who: 'pale', text: 'Find them. The orc, the jockey, and Miss Kit. Keep the old samurai breathing: I want to know who taught Miss Kit to fight like that. You have until morning.' }, from: 'top' },
-      { x: 8, y: 189, w: 624, h: 153, bg: 'dark', finale: { title: 'END OF CHAPTER ONE', sub: 'They have until morning.' }, from: 'bottom' },
+      { x: 8, y: 8, w: PANEL_W, h: 175, bg: 'spire', portrait: { key: 'pale', face: 'smirk', scale: 2, dx: 188 }, speech: { who: 'pale', text: 'Find them. The orc, the jockey, and Miss Kit. Keep the old samurai breathing: I want to know who taught Miss Kit to fight like that. You have until morning.' }, from: 'top' },
+      { x: 8, y: 189, w: PANEL_W, h: 153, bg: 'dark', finale: { title: 'END OF CHAPTER ONE', sub: 'They have until morning.' }, from: 'bottom' },
     ],
   ],
 };

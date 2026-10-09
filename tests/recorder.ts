@@ -374,11 +374,14 @@ export function outsideFrame(l: Layout, w: number, h: number): DrawRec[] {
 
 /** The inside of a window's frame: the frame is 2 px thick, so text may touch 3 px in. */
 const FRAME = 2;
+/** The gap a list keeps clear of its window frame at the bottom (check 3). */
+export const LIST_FRAME_MARGIN = 8;
 
 /**
  * Check 2: every text box lies inside the window that draws it. A text belongs to the latest window
  * drawn that held its top-left corner; a window's own title and key legend are decor and are skipped.
- * A text that starts in no window is not judged here (the title screen has none). Returns the ones that overflow.
+ * A text that starts in no window is not judged here (the title screen has none): it is checked only
+ * against the frame of the screen, by check 1. Returns the ones that overflow.
  */
 export function textOutsideWindow(l: Layout): { text: string; win: WinRec; box: Box }[] {
   const bad: { text: string; win: WinRec; box: Box }[] = [];
@@ -393,8 +396,8 @@ export function textOutsideWindow(l: Layout): { text: string; win: WinRec; box: 
 /**
  * Check 3: a tall pane's list takes the rows its window has room for (`rowsFor`, docs/PIVOT-640.md): it
  * fits inside its window, and the room left under its last row is less than one more row plus the
- * `reserve` the scene keeps under the list (a description, say) and the 8 px a list keeps clear of the
- * frame. Only a pane at least `tall` high is judged: the rail, a three-row menu and a small popup have a
+ * `reserve` the scene keeps under the list (a description, say) and `LIST_FRAME_MARGIN` (8 px) that a
+ * list keeps clear of the frame. Only a pane at least `tall` high is judged: the rail, a three-row menu and a small popup have a
  * fixed number of rows by design. Returns the lists that break the rule.
  */
 export function listsNotFollowingHeight(l: Layout, tall: number, reserve: (win: WinRec) => number = () => 0): { list: ListRec; win: WinRec; why: string }[] {
@@ -406,7 +409,7 @@ export function listsNotFollowingHeight(l: Layout, tall: number, reserve: (win: 
     const bottom = list.y + list.rows * list.rowH;
     const room = win.y + win.h - bottom;
     if (room < 0) bad.push({ list, win, why: `${list.rows} rows end ${-room} px below the window` });
-    else if (room - reserve(win) >= list.rowH + 8) bad.push({ list, win, why: `${list.rows} rows leave ${room - reserve(win)} px free: room for another row` });
+    else if (room - reserve(win) >= list.rowH + LIST_FRAME_MARGIN) bad.push({ list, win, why: `${list.rows} rows leave ${room - reserve(win)} px free: room for another row` });
   }
   return bad;
 }

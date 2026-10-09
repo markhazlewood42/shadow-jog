@@ -74,23 +74,19 @@ describe('comic panels', () => {
     return Object.entries(PAGES).flatMap(([id, pages]) => pages.flatMap((page, pi) => page.map((pn, i) => ({ pn, label: `${id} page ${pi + 1} panel ${i + 1}` }))));
   };
 
-  it('no speech bubble covers its speaker’s portrait, and every bubble fits its panel (at the pinned 2x and at the 3x variant)', async () => {
+  it('no speech bubble covers its speaker’s portrait, and every bubble fits its panel (at the pinned 2x)', async () => {
     const { portraitRect, speechLayout } = await import('../src/scenes/panels');
     const { SPEAKERS } = await import('../src/data/speakers');
-    for (const scale of [null, 3]) {
-      for (const { pn: raw, label: where } of await allPanels()) {
-        // 3x is the review variant of D9: the same panels with every portrait pinned to it.
-        const pn = scale && raw.portrait ? { ...raw, portrait: { ...raw.portrait, scale } } : raw;
-        if (!pn.speech) continue;
-        const name = SPEAKERS[pn.speech.who]?.name ?? pn.speech.who;
-        const b = speechLayout(pn, pn.x, name);
-        const label = `${where} at ${scale ?? 2}x: ${pn.speech.text.slice(0, 30)}`;
-        expect(b.bx, label).toBeGreaterThanOrEqual(pn.x);
-        expect(b.bx + b.w, label).toBeLessThanOrEqual(pn.x + pn.w);
-        expect(b.lines.length * 11 + 20, label).toBeLessThanOrEqual(pn.h - 8);
-        const por = portraitRect(pn, pn.x);
-        if (por) expect(b.bx + b.w <= por.px || b.bx >= por.px + por.pw, `${label} overlaps the portrait`).toBe(true);
-      }
+    for (const { pn, label: where } of await allPanels()) {
+      if (!pn.speech) continue;
+      const name = SPEAKERS[pn.speech.who]?.name ?? pn.speech.who;
+      const b = speechLayout(pn, pn.x, name);
+      const label = `${where}: ${pn.speech.text.slice(0, 30)}`;
+      expect(b.bx, label).toBeGreaterThanOrEqual(pn.x);
+      expect(b.bx + b.w, label).toBeLessThanOrEqual(pn.x + pn.w);
+      expect(b.lines.length * 11 + 20, label).toBeLessThanOrEqual(pn.h - 8);
+      const por = portraitRect(pn, pn.x);
+      if (por) expect(b.bx + b.w <= por.px || b.bx >= por.px + por.pw, `${label} overlaps the portrait`).toBe(true);
     }
   });
 
@@ -316,16 +312,15 @@ describe('title composition (WP5, D9)', () => {
     expect(L.STAR_COUNT).toBe(Math.round(BW * L.STAR_BAND_ROWS * L.STAR_DENSITY));
   });
 
-  it('the logo, its caption, the prompt and the menu fit the screen in order, at 4x and at 5x', async () => {
+  it('the logo, its caption, the prompt and the menu fit the screen in order at 4x', async () => {
     const L = await import('../src/scenes/title-layout');
     const { W, H } = await import('../src/engine/game');
     // The logo's glyph strip is 70 columns (see buildLogo) and has 12 px of glow margin each side.
-    for (const k of [4, 5]) {
-      const logoW = 70 * k + 24, logoH = 9 * k + 24;
-      expect(logoW, `the ${k}x logo is wider than the screen`).toBeLessThan(W);
-      const caption = L.LOGO_Y + logoH + 2;
-      expect(caption + 9, `the ${k}x logo's caption collides with the menu`).toBeLessThan(L.MENU_Y - 4);
-    }
+    const k = L.LOGO_SCALE;
+    const logoW = 70 * k + 24, logoH = 9 * k + 24;
+    expect(logoW, `the ${k}x logo is wider than the screen`).toBeLessThan(W);
+    const caption = L.LOGO_Y + logoH + 2;
+    expect(caption + 9, `the ${k}x logo's caption collides with the menu`).toBeLessThan(L.MENU_Y - 4);
     expect(L.MENU_Y + 50 + 12).toBeLessThan(H - L.FOOT_MARGIN);
     expect(L.PROMPT_Y).toBeGreaterThan(L.MENU_Y);
     expect(L.PROMPT_Y + 9).toBeLessThan(H - L.FOOT_MARGIN);

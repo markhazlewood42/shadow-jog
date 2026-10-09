@@ -42,7 +42,7 @@ import { gzipSync } from 'node:zlib';
  * (240,517 bytes) against 239.837 at the 240.0 alarm, a delta of 0.680 kB, rounded up to the next 0.1 kB (0.7).
  * The causes: the title's composition as named data (`scenes/title-layout.ts`), the page offsets and the
  * results-window values in `ui/layout.ts`, the re-authored comic-panel table with its pinned portrait
- * scale, and the dev-only review-switch reads (`?logo=5`, `?portrait=3`). Mark confirms this raise (D20).
+ * scale. Mark confirmed this raise at Review 5 (D20).
  */
 const CHUNK_MAX = 480 * 1000;
 const GZIP_TOTAL_MAX = 240.7 * 1000;

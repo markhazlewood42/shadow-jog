@@ -11,7 +11,6 @@
  * shop, the Status screen.
  */
 import { H, W } from '../engine/game';
-import { reviewSwitch } from './reviewswitch';
 
 // ------------------------------------------------------------------ text widths
 
@@ -41,25 +40,22 @@ export function rowsFor(availH: number, rowH = 11): number {
 // ------------------------------------------------------------------ the dialog box (D8)
 
 /**
- * The dialog box is capped and centered (D8, Mark's Review 4 pick pending): 464 px wide, which is
+ * The dialog box is capped and centered (D8, Mark's Review 4 pick): 464 px wide, which is
  * what the box was at 480x270 (the screen less 8 px a side). Capped at 464, the text is 448 px wide
  * (392 with a portrait), so every authored line wraps exactly as it did before the move
  * (`tests/dialog-wrap.test.ts` proves it for every line in the game).
  */
 export const DIALOG_MAX_W = 464;
-/** The side margin of a dialog box that spans the whole screen (the review variant). */
-export const DIALOG_FULL_MARGIN = 8;
+/** The side margin of the dialog box: the box is centered and never closer than this to the screen edge. */
+export const DIALOG_SIDE_MARGIN = 8;
 /** Space between the box edge and its text, each side. */
 export const DIALOG_PAD = 8;
 /** What a portrait takes from the text width: the picture (48) and its frame and gap (8). */
 export const DIALOG_PORTRAIT_COL = 56;
 
-/**
- * The dialog box width. The review switch `?dialogw=full` (dev builds only) shows the other option
- * of D8, a box as wide as the screen (W - 16 = 608); the shipped game never reads it.
- */
+/** The dialog box width: capped at `DIALOG_MAX_W` (Mark's pick at Review 4, D8), or the screen less its margins if that is less. */
 export function dialogBoxW(): number {
-  return reviewSwitch('dialogw') === 'full' ? W - 2 * DIALOG_FULL_MARGIN : Math.min(DIALOG_MAX_W, W - 2 * DIALOG_FULL_MARGIN);
+  return Math.min(DIALOG_MAX_W, W - 2 * DIALOG_SIDE_MARGIN);
 }
 
 /** The text width inside a dialog box of width `boxW`, with or without a portrait. */
@@ -79,13 +75,13 @@ export const MENU_PANE_X = MENU_RAIL_X + MENU_RAIL_W + MENU_GAP;
  * The widest a list pane of the menu gets (Items, Techs, the equip slots, Save, the objective): 364
  * px, what these panes were at 480x270 (the screen less the rail, less the margins), close to the
  * 360 that D8 names. A pane stretched to the whole right side would put a label and its count 450 px
- * apart. The review switch `?panes=stretch` (dev builds only) shows the other option of D8.
+ * apart (Mark picked the cap at Review 4, D8).
  */
 export const MENU_PANE_MAX_W = 364;
-/** The width of a menu list pane: capped (the default), or the whole right side for the review switch. */
+/** The width of a menu list pane: capped, or the whole right side if that is less. */
 export function menuPaneW(): number {
   const room = W - MENU_PANE_X - 8;
-  return reviewSwitch('panes') === 'stretch' ? room : Math.min(MENU_PANE_MAX_W, room);
+  return Math.min(MENU_PANE_MAX_W, room);
 }
 /** The objective box along the bottom of the field menu (wraps, up to 2 lines): the pane less its margins. */
 export const MENU_OBJ_W = MENU_PANE_MAX_W - 28;
@@ -99,7 +95,7 @@ export const CARD_COMPACT_MIN_W = 120;
 /**
  * The strip right of the Items and Techs lists, where the party stays in compact cards: it starts after
  * the list and the gap, and runs to the screen's margin. It exists only when it is at least
- * `CARD_COMPACT_MIN_W` wide (at 640 it is 152 px; at 480x270 or with `?panes=stretch` there is no room).
+ * `CARD_COMPACT_MIN_W` wide (at 640 it is 152 px; at 480x270 there is no room).
  */
 export function menuCardStrip(): { x: number; w: number } | null {
   const x = MENU_PANE_X + menuPaneW() + MENU_GAP;
@@ -166,14 +162,17 @@ export const STATUS_LOWER_Y = STATUS_DIVIDER_Y + 6 + 14;
 /**
  * The shop: its list is widened to 240 px (D8's recommendation; it was 196 at 480x270, and the
  * detail pane took all the new width: 334 px). `SHOP_COMPARE_W` is the room of a member's stat-change
- * line in the detail pane (the pane less its margins and the sprite column).
+ * line in the detail pane (the pane less its margins; the name and the line start after the sprite).
  */
 export const SHOP_LIST_X = 96;
 export const SHOP_LIST_W = 240;
 export const SHOP_DETAIL_GAP = 6;
 export const SHOP_DETAIL_X = SHOP_LIST_X + SHOP_LIST_W + SHOP_DETAIL_GAP;
 export const SHOP_TOP = 46;
-export const SHOP_COMPARE_W = W - SHOP_DETAIL_X - 8 - 16 - 18;
+export const SHOP_COMPARE_W = W - SHOP_DETAIL_X - 8 - 16;
+/** A crew sprite in the compare rows: its scale, and the gap between it and the name beside it. */
+export const COMPARE_SPRITE_SCALE = 0.8;
+export const COMPARE_SPRITE_GAP = 4;
 
 
 // ------------------------------------------------------------------ full-page scenes (WP5)

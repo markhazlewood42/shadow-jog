@@ -14,7 +14,7 @@ import { MEMBERS } from '../data/party';
 import { SHOPS, type ShopDef } from '../data/shops';
 import type { Ctx } from '../engine/canvas';
 import { drawParagraph, drawText, fitText, measure } from '../engine/font';
-import { LIST_ROW_H, rowsFor, SHOP_COMPARE_W, SHOP_DETAIL_GAP, SHOP_LIST_W, SHOP_LIST_X, SHOP_TOP } from '../ui/layout';
+import { COMPARE_SPRITE_GAP, COMPARE_SPRITE_SCALE, LIST_ROW_H, rowsFor, SHOP_COMPARE_W, SHOP_DETAIL_GAP, SHOP_LIST_W, SHOP_LIST_X, SHOP_TOP } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { canEquip, equip, memberStats, SLOT_NAMES } from '../game/party';
 import { flags, state, type MemberState } from '../game/state';
@@ -408,8 +408,11 @@ export class ShopScene extends Scene<void> {
 
   private drawCompare(ctx: Ctx, m: MemberState, id: string, x: number, y: number, w: number): void {
     const spr = buildChar(LOOKS[m.id]).frames.down[0]!;
-    ctx.drawImage(spr, x, y - 4, spr.width * 0.8, spr.height * 0.8);
-    drawText(ctx, MEMBERS[m.id].name, x + 18, y, { color: MEMBERS[m.id].color });
+    const sw = Math.ceil(spr.width * COMPARE_SPRITE_SCALE);
+    ctx.drawImage(spr, x, y - 4, sw, spr.height * COMPARE_SPRITE_SCALE);
+    // The name and the stat changes start clear of the sprite (Mark, Review 4: they overlapped before).
+    const tx = x + sw + COMPARE_SPRITE_GAP;
+    drawText(ctx, MEMBERS[m.id].name, tx, y, { color: MEMBERS[m.id].color });
     if (!canEquip(m, id)) {
       drawText(ctx, 'can’t use', x + w, y, { align: 'right', color: UI.disabled });
       return;
@@ -424,6 +427,6 @@ export class ShopScene extends Scene<void> {
     }
     const equipped = m.equip[it.slot!] === id;
     const text = equipped ? '{c}Equipped{/}' : diffs.length ? diffs.join(' ') : '{d}no change{/}';
-    drawText(ctx, fitText(text, SHOP_COMPARE_W), x + 18, y + 10);
+    drawText(ctx, fitText(text, SHOP_COMPARE_W - (tx - x)), tx, y + 10);
   }
 }

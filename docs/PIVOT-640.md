@@ -148,8 +148,9 @@ Mark decides the look. Agents check exactness, coverage and stability. A decisio
 | Shot | What the outer area must show |
 |---|---|
 | `01-title` | Sky, skyline and roof fill the whole frame. The roof ledge sits at the bottom edge. |
-| `02-intro-panels`, `23-ending-panels` | Every panel lies inside 8..632 by 8..352. The footer sits at the bottom. |
-| `03-dialog-portrait`, `06-bar-dialog` | The box sits at the bottom, 464 px wide and centered (D8 default), or full width. In the bar, brick shell shows all round the room. |
+| `02-intro-panels`, `23-ending-panels` | Every panel lies inside `8..W-8` by `8..H-18` (8..632 by 8..342). The footer sits at the bottom. |
+| `24-ending-results` | A centered text card on a dark page, like `25-ending-next`: the results window is centered, nothing is cut off, no void that looks like a bug. |
+| `03-dialog-portrait`, `06-bar-dialog` | The box sits at the bottom, 464 px wide and centered (D8, Mark's pick at Review 4). In the bar, brick shell shows all round the room. |
 | `04-lantern-row-street`, `05-lantern-row-plaza`, `18-sinkline`, `19-world`, `21-annex` | The map fills the frame. No void and no unpainted strip. |
 | `20-rustyard` and the Dock | The surround that D7 chose. No black strip that looks like a bug. |
 | `07-menu`, `08-menu-status`, `09-menu-equip`, `26-menu-bestiary`, `33-menu-places` | Panes lie inside the frame. Row counts follow the height. |

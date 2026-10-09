@@ -17,7 +17,6 @@
 import { BHT, BW } from '../art/worldsize';
 import { AREA_SCALE } from '../field/weather';
 import { H } from '../engine/game';
-import { reviewSwitch } from '../ui/reviewswitch';
 
 // ------------------------------------------------------------------ the world (world pixels)
 
@@ -74,8 +73,8 @@ export const RAIN_DROPS = Math.round(90 * AREA_SCALE);
 
 // ------------------------------------------------------------------ the screen (screen pixels)
 
-/** The logo's pixel size: 4x is the shipped pick; `?logo=5` (dev only, a review switch of D9) shows the 5x option. */
-export const LOGO_SCALE = reviewSwitch('logo') === '5' ? 5 : 4;
+/** The logo's pixel size: 4x (Mark's pick at Review 5, D9). */
+export const LOGO_SCALE = 4;
 /** The logo's top edge, the prompt's row and the menu's top, as shares of the screen height. */
 export const LOGO_Y = Math.round(H * 0.14);
 export const PROMPT_Y = Math.round(H * 0.65);

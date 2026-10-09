@@ -62,7 +62,7 @@ export function runDevScene(game: Game, scene: string, params: URLSearchParams, 
       void game.run(new FontTestScene());
       break;
     case 'panels':
-      // A comic sequence on its own: ?scene=panels&id=intro or &id=ending (add &portrait=3 for the D9 variant).
+      // A comic sequence on its own: ?scene=panels&id=intro or &id=ending.
       void game.run(new PanelScene(params.get('id') ?? 'ending'));
       break;
     default:

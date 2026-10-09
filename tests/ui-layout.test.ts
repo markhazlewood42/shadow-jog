@@ -269,8 +269,15 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   return { shots, W, H };
 }
 
-/** The room a scene keeps under its list for a description (the Items and Techs panes), for check 3. */
-const reserve = (win: WinRec): number => (win.title === 'ITEMS' || win.title?.includes('·') ? 32 : 0);
+/** The room (px) the Items and Techs panes keep under their list for the description line, for check 3. */
+const DESCRIPTION_RESERVE = 32;
+/**
+ * The room a scene keeps under its list, for check 3. It keys on the window title because the recorder
+ * sees only draw calls, not scene classes: a pane is told apart by the title text it draws (ITEMS, or a
+ * party-member name with a dot, as in the Techs pane). A renamed title makes this return 0, and
+ * check 3 then reports the description room as a free row: the test fails loud, not silent.
+ */
+const reserve = (win: WinRec): number => (win.title === 'ITEMS' || win.title?.includes('·') ? DESCRIPTION_RESERVE : 0);
 /** The shortest window a list is judged in for check 3: the rail, a small menu and a popup have a fixed row count. */
 const TALL = 150;
 
