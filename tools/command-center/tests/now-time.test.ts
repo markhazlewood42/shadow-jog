@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { formatAge, formatDuration } from '../src/web/now/time';
+import { formatAge, formatDuration, msSince } from '../src/web/now/time';
 
-// The two short ways that the Now page says "how long". They are pure functions of a length or two times, so a test needs no clock.
+// The short ways that the Now page and the Agents page say "how long". They are pure functions of a length or two times, so a test needs no clock.
 
 const NOW = Date.parse('2026-10-06T12:00:00.000Z');
 const ago = (ms: number) => new Date(NOW - ms).toISOString();
@@ -24,6 +24,18 @@ describe('formatDuration', () => {
 
   it('takes a negative length (two clocks that differ) as 0', () => {
     expect(formatDuration(-5_000)).toBe('0 s');
+  });
+});
+
+describe('msSince', () => {
+  it('is the length from a start to now, and null when the start is not a time', () => {
+    expect(msSince(ago(12 * MIN), NOW)).toBe(12 * MIN);
+    expect(msSince(ago(0), NOW)).toBe(0);
+    expect(msSince(null, NOW)).toBeNull();
+    expect(msSince('', NOW)).toBeNull();
+    expect(msSince('not a time', NOW)).toBeNull();
+    // A start ahead of the clock is a negative length, which `formatDuration` shows as 0.
+    expect(msSince(new Date(NOW + 5_000).toISOString(), NOW)).toBe(-5_000);
   });
 });
 

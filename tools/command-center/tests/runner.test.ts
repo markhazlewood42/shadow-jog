@@ -210,6 +210,95 @@ describe('the runner', () => {
     expect(seen).toEqual([]);
   });
 
+  it('runner allows the exact ci command and pins the repo', async () => {
+    // The one `gh run list` of the CI source: the newest run on main, with four fields. The runner adds --repo itself, right after the verb.
+    const exact = ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
+    const pinned = ['run', 'list', '--repo', REPO, '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
+
+    const allowed: [string, string[]][] = [
+      ['the exact command', exact],
+      // The right --repo from the caller is accepted in every spelling that gh reads, and it appears once, in the place the runner puts it.
+      ['with the pinned --repo', ['run', 'list', '--repo', REPO, ...exact.slice(2)]],
+      ['with --repo=', ['run', 'list', `--repo=${REPO}`, ...exact.slice(2)]],
+      ['with -R', ['run', 'list', '-R', REPO, ...exact.slice(2)]],
+      ['with -R and the repo attached', ['run', 'list', `-R${REPO}`, ...exact.slice(2)]],
+      ['with -R=', ['run', 'list', `-R=${REPO}`, ...exact.slice(2)]],
+      ['with the pinned --repo at the end', [...exact, '--repo', REPO]],
+    ];
+    for (const [label, args] of allowed) {
+      const { runner, seen } = recordingRunner();
+      expect(await runner('gh', args), label).toEqual({ code: 0, stdout: 'out', stderr: '' });
+      expect(seen, label).toHaveLength(1);
+      expect(seen[0]?.cmd, label).toBe('gh');
+      expect(seen[0]?.args, label).toEqual(pinned);
+    }
+
+    // A near miss is refused before any process starts: another branch, another count, other fields, an extra or a missing flag, another order, and every other `gh run`.
+    const words = exact.slice(2); // --workflow ci.yml --branch main --limit 1 --json <fields>
+    const refused: [string, string[]][] = [
+      ['another branch', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'develop', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['the branch in its short form', ['run', 'list', '--workflow', 'ci.yml', '-b', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['no branch', ['run', 'list', '--workflow', 'ci.yml', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['a branch with a longer name', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main2', '--limit', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['another limit', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '2', '--json', 'status,conclusion,url,createdAt']],
+      ['a long limit', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1000', '--json', 'status,conclusion,url,createdAt']],
+      ['the limit in its short form', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '-L', '1', '--json', 'status,conclusion,url,createdAt']],
+      ['more fields', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt,displayTitle']],
+      ['fewer fields', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion']],
+      ['the fields in another order', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1', '--json', 'url,status,conclusion,createdAt']],
+      ['no --json', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'main', '--limit', '1']],
+      ['the flags in another order', ['run', 'list', '--workflow', 'ci.yml', '--limit', '1', '--branch', 'main', '--json', 'status,conclusion,url,createdAt']],
+      ['a second --workflow', [...exact, '--workflow', 'playtest.yml']],
+      ['another workflow', ['run', 'list', '--workflow', 'playtest.yml', ...exact.slice(4)]],
+      ['the workflow in its short form', ['run', 'list', '-w', 'ci.yml', ...exact.slice(4)]],
+      ['a workflow file with a longer name', ['run', 'list', '--workflow', 'ci.yml.bak', ...exact.slice(4)]],
+      ['an extra flag: --user', [...exact, '--user', 'someone']],
+      ['an extra flag: --status', [...exact, '--status', 'failure']],
+      ['an extra flag: --event', [...exact, '--event', 'push']],
+      ['an extra flag: --jq', [...exact, '--jq', '.[0]']],
+      ['an extra flag: --all', [...exact, '--all']],
+      ['an extra argument', [...exact, 'extra']],
+      ['an argument before the flags', ['run', 'list', 'extra', ...words]],
+      ['nothing after the verb', ['run', 'list']],
+      // --repo must be the pinned repo, in every spelling, and a group of short flags that holds R or w is refused.
+      ['another --repo', ['run', 'list', '--repo', 'someone/else', ...words]],
+      ['another -R', ['run', 'list', '-R', 'someone/else', ...words]],
+      ['another -Rrepo', ['run', 'list', '-Rsomeone/else', ...words]],
+      ['another --repo=', ['run', 'list', '--repo=someone/else', ...words]],
+      ['the right --repo and then another one', ['run', 'list', '--repo', REPO, ...words, '-R', 'someone/else']],
+      ['--repo with no value', ['run', 'list', ...words, '--repo']],
+      ['a group of short flags with R', ['run', 'list', ...words, '-cR', 'other/repo']],
+      ['--web', ['run', 'list', ...words, '--web']],
+      ['-w', ['run', 'list', ...words, '-w']],
+      // The other `gh run` commands change or leak runs: none is on the list.
+      ['gh run view', ['run', 'view', '77']],
+      ['gh run view with the log', ['run', 'view', '77', '--log']],
+      ['gh run watch', ['run', 'watch', '77']],
+      ['gh run rerun', ['run', 'rerun', '77']],
+      ['gh run cancel', ['run', 'cancel', '77']],
+      ['gh run delete', ['run', 'delete', '77']],
+      ['gh run download', ['run', 'download', '77']],
+      ['gh run with no verb', ['run']],
+      ['gh workflow list', ['workflow', 'list']],
+    ];
+    const { runner, seen } = recordingRunner();
+    for (const [label, args] of refused) {
+      await expect(runner('gh', args), label).rejects.toBeInstanceOf(RunnerRefusal);
+    }
+    expect(seen).toEqual([]);
+
+    // The refusal names the call and what is exact, and does not echo the arguments.
+    const error = await runner('gh', ['run', 'list', '--workflow', 'ci.yml', '--branch', 'develop', '--limit', '1', '--json', 'status,conclusion,url,createdAt']).catch((e: unknown) => e);
+    expect((error as Error).message).toMatch(/^gh run list refused: a run list is exactly: run list --workflow ci.yml --branch main --limit 1 --json status,conclusion,url,createdAt/);
+  });
+
+  it('G7: the runner rejects the old run list without --workflow ci.yml', async () => {
+    const old = ['run', 'list', '--branch', 'main', '--limit', '1', '--json', 'status,conclusion,url,createdAt'];
+    const { runner, seen } = recordingRunner();
+    await expect(runner('gh', old)).rejects.toBeInstanceOf(RunnerRefusal);
+    expect(seen).toEqual([]);
+  });
+
   it('a refusal says what was refused and why, without echoing a comment body', async () => {
     const { runner } = recordingRunner();
     const secretBody = 'a body that must not be echoed into an error message';
@@ -222,7 +311,7 @@ describe('the runner', () => {
     const early = await runner('git', ['-c', 'core.pager=evil', 'log']).catch((e: unknown) => e);
     expect((early as Error).message).toMatch(/^git refused: -c before the command/);
     const output = await runner('git', ['log', '--output=out.txt']).catch((e: unknown) => e);
-    expect((output as Error).message).toMatch(/^git log refused: --output would write a file/);
+    expect((output as Error).message).toMatch(/^git log refused: --output writes a file/);
   });
 
   it('runs in the repo root unless a cwd inside a root is given, and passes the timeout on', async () => {
@@ -280,7 +369,7 @@ describe('execProcess', () => {
   it('says so when the working folder is missing, not that the program is missing', async () => {
     const result = await execProcess(process.execPath, ['-e', '0'], { cwd: join(tmpdir(), 'cc-no-such-folder-xyz'), timeoutMs: 5000 });
     expect(result.code).toBe(1);
-    expect(result.stderr).toContain('working folder does not exist');
+    expect(result.stderr).toContain('folder to run in does not exist');
   });
 
   it('stops a process that runs too long and reports code 124', async () => {

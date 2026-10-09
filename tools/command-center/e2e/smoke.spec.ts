@@ -63,7 +63,7 @@ test.describe('the shell', () => {
     await expect(links.getByRole('link')).toHaveCount(2);
 
     // The event stream hello arrived.
-    await expect(page.getByText('Live updates: on')).toBeVisible();
+    await expect(page.getByText('Live: on', { exact: true })).toBeVisible();
 
     // The same data, straight from the API.
     const health = await request.get('/api/health');
@@ -77,7 +77,7 @@ test.describe('the shell', () => {
       if (new URL(request.url()).pathname === '/api/health') healthRequests += 1;
     });
     await page.goto('/');
-    await expect(page.getByText('Live updates: on')).toBeVisible();
+    await expect(page.getByText('Live: on', { exact: true })).toBeVisible();
     // One request for the first load, one more after the hello.
     await expect.poll(() => healthRequests).toBeGreaterThanOrEqual(2);
   });
@@ -86,18 +86,27 @@ test.describe('the shell', () => {
     await page.route('**/api/health', (route) => route.abort());
     await page.goto('/');
 
-    // Only the Links panel reads /api/health, so it is the only panel with an error: the others load from their own routes.
+    // The Links panel is the one panel in an error state of its own (an alert): the others load from their own routes. The Status panel reads /api/health too, for the name of
+    // the repo that its links to the branch and the commit are made of: only the two rows that need it say "Unavailable" (they are no alert), and the other rows keep their values.
     const alert = page.getByRole('alert');
     await expect(alert).toContainText('Cannot reach the command center server');
     await expect(alert).toContainText('network');
     await expect(page.getByRole('region', { name: 'Links', exact: true })).toContainText('Not updated yet');
+    await expect(alert).toHaveCount(1);
+    const status = page.getByRole('region', { name: 'Status', exact: true });
+    await expect(status.getByText('Unavailable')).toHaveCount(2);
+    await expect(status.getByText('3 for you')).toBeVisible();
+    // The Pull requests panel makes the link to the merged ones from the same reply. Without it the panel says "Repo unknown" in place of the link, as a label.
+    const pullRequests = page.getByRole('region', { name: 'Pull requests', exact: true });
+    await expect(pullRequests.getByText('Repo unknown', { exact: true })).toBeVisible();
+    await expect(pullRequests.getByRole('link', { name: 'Merged pull requests' })).toHaveCount(0);
     // One broken source never blanks the page.
     await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
-    await expect(page.getByText('Live updates: on')).toBeVisible();
+    await expect(page.getByText('Live: on', { exact: true })).toBeVisible();
 
     // The server comes back, and Retry brings the panel back.
     await page.unroute('**/api/health');
-    await page.getByRole('button', { name: 'Retry' }).click();
+    await page.getByRole('region', { name: 'Links', exact: true }).getByRole('button', { name: 'Retry' }).click();
     await expect(alert).toBeHidden();
     await expect(page.getByRole('region', { name: 'Links', exact: true })).toContainText(/Updated \d\d:\d\d:\d\d/);
   });

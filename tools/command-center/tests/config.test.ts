@@ -93,6 +93,75 @@ describe('loadConfig', () => {
     }
   });
 
+  it('config reads the new keys and rejects bad values', () => {
+    // The real file holds the four settings of the agents module, with their defaults: the folder of the process list and the three times.
+    const file = realConfigJson() as Record<string, unknown> & { claude: Record<string, unknown>; agents: Record<string, unknown> };
+    expect(file.claude.sessionsRoot).toBe('~/.claude/sessions');
+    expect(file.agents).toEqual({ pollMs: 3000, lingerSeconds: 300, staleSeconds: 1800 });
+    const real = loadConfig(REAL_CONFIG);
+    expect(real.claude.sessionsRoot).toBe(join(homedir(), '.claude', 'sessions'));
+    expect(real.agents).toEqual({ pollMs: 3000, lingerSeconds: 300, staleSeconds: 1800 });
+
+    // A file that leaves the keys out means the same defaults (an older config file keeps working), also when the whole `agents` object is left out.
+    const bare = realConfigJson();
+    delete bare.claude.sessionsRoot;
+    delete bare.agents;
+    const defaults = loadConfig(writeConfig(bare, 'no-agents-keys.json'));
+    expect(defaults.claude.sessionsRoot).toBe(join(homedir(), '.claude', 'sessions'));
+    expect(defaults.agents).toEqual({ pollMs: 3000, lingerSeconds: 300, staleSeconds: 1800 });
+    const half = realConfigJson();
+    half.agents = { pollMs: 1500 };
+    expect(loadConfig(writeConfig(half, 'half-agents.json')).agents).toEqual({ pollMs: 1500, lingerSeconds: 300, staleSeconds: 1800 });
+    // A file from before the stale time (the two older keys, and not this one) keeps working with the default.
+    const older = realConfigJson();
+    older.agents = { pollMs: 3000, lingerSeconds: 300 };
+    expect(loadConfig(writeConfig(older, 'older-agents.json')).agents.staleSeconds).toBe(1800);
+
+    // The values are read as they are written. A finished agent may leave at once (0 seconds), and a relative folder starts at the file's folder.
+    const custom = realConfigJson();
+    custom.agents = { pollMs: 100, lingerSeconds: 0, staleSeconds: 1 };
+    custom.claude.sessionsRoot = 'processes';
+    const loaded = loadConfig(writeConfig(custom, 'custom-agents.json'));
+    expect(loaded.agents).toEqual({ pollMs: 100, lingerSeconds: 0, staleSeconds: 1 });
+    expect(loaded.claude.sessionsRoot).toBe(join(scratch, 'processes'));
+
+    // Bad values stop the start with a message that names the setting.
+    const bad: [string, (c: Record<string, unknown> & { claude: Record<string, unknown>; agents: Record<string, unknown> }) => void, RegExp][] = [
+      ['a poll time of 0', (c) => (c.agents.pollMs = 0), /agents\.pollMs/],
+      ['a negative poll time', (c) => (c.agents.pollMs = -3000), /agents\.pollMs/],
+      ['a poll time below 100 ms', (c) => (c.agents.pollMs = 99), /agents\.pollMs/],
+      ['a poll time above one hour', (c) => (c.agents.pollMs = 3_600_001), /agents\.pollMs/],
+      ['a poll time that is not a whole number', (c) => (c.agents.pollMs = 3000.5), /agents\.pollMs/],
+      ['a poll time given as text', (c) => (c.agents.pollMs = '3000'), /agents\.pollMs/],
+      ['a poll time set to null', (c) => (c.agents.pollMs = null), /agents\.pollMs/],
+      ['a negative linger time', (c) => (c.agents.lingerSeconds = -1), /agents\.lingerSeconds/],
+      ['a linger time that is not a whole number', (c) => (c.agents.lingerSeconds = 1.5), /agents\.lingerSeconds/],
+      ['a linger time given as text', (c) => (c.agents.lingerSeconds = '300'), /agents\.lingerSeconds/],
+      ['a linger time above a year', (c) => (c.agents.lingerSeconds = 31_536_001), /agents\.lingerSeconds/],
+      ['a linger time set to null', (c) => (c.agents.lingerSeconds = null), /agents\.lingerSeconds/],
+      ['a stale time of 0', (c) => (c.agents.staleSeconds = 0), /agents\.staleSeconds/],
+      ['a negative stale time', (c) => (c.agents.staleSeconds = -1800), /agents\.staleSeconds/],
+      ['a stale time that is not a whole number', (c) => (c.agents.staleSeconds = 1800.5), /agents\.staleSeconds/],
+      ['a stale time given as text', (c) => (c.agents.staleSeconds = '1800'), /agents\.staleSeconds/],
+      ['a stale time above a year', (c) => (c.agents.staleSeconds = 31_536_001), /agents\.staleSeconds/],
+      ['a stale time set to null', (c) => (c.agents.staleSeconds = null), /agents\.staleSeconds/],
+      ['a stale time with the wrong case of its name', (c) => (c.agents.staleseconds = 1800), /agents\.staleseconds/],
+      ['agents that is not an object', (c) => (c.agents = 5 as unknown as Record<string, unknown>), /agents/],
+      ['agents that is a list', (c) => (c.agents = [] as unknown as Record<string, unknown>), /agents/],
+      ['an unknown agents key', (c) => (c.agents.pollMS = 3000), /agents\.pollMS/],
+      ['an empty sessionsRoot', (c) => (c.claude.sessionsRoot = ''), /claude\.sessionsRoot/],
+      ['a blank sessionsRoot', (c) => (c.claude.sessionsRoot = '   '), /claude\.sessionsRoot/],
+      ['a sessionsRoot that is not text', (c) => (c.claude.sessionsRoot = 5), /claude\.sessionsRoot/],
+      ['a sessionsRoot set to null', (c) => (c.claude.sessionsRoot = null), /claude\.sessionsRoot/],
+      ['a sessionsRoot with the wrong case of its name', (c) => (c.claude.sessionsroot = '~/.claude/sessions'), /claude\.sessionsroot/],
+    ];
+    for (const [label, breakIt, message] of bad) {
+      const json = realConfigJson() as Parameters<typeof breakIt>[0];
+      breakIt(json);
+      expect(() => loadConfig(writeConfig(json, 'bad-agents.json')), label).toThrow(message);
+    }
+  });
+
   it('the config file holds no absolute path (the repo is public)', () => {
     const text = readFileSync(REAL_CONFIG, 'utf8');
     // A Windows drive path such as C:\ or C:/ (a lone letter, so the "p:/" in "http://" is not one), or a Unix home path.

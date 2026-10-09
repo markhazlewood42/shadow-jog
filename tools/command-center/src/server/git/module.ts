@@ -1,6 +1,7 @@
 import type { GitInfo } from '../../shared/types';
 import { firstLine } from '../first-line';
 import type { Hub } from '../hub';
+import { say } from '../messages';
 import type { RunResult, Runner } from '../runner';
 import { POLL_EVERY_MS, PanelError, type PanelSource, createPanelSource } from '../source';
 import { BRANCH_FORMAT, COMMIT_FORMAT, RECENT_COMMITS, aheadBehindOf, parseBranches, parseCommits } from './git';
@@ -18,7 +19,7 @@ export type GitModuleDeps = {
 
 /** A git command that did not do what was asked, as an error of the panel that says what it was doing. */
 function failed(doing: string, result: RunResult): PanelError {
-  return new PanelError('git-failed', `git could not ${doing}: ${firstLine(result.stderr) || `exit code ${result.code}`}`);
+  return new PanelError('git-failed', say('gitFailed', { doing, said: firstLine(result.stderr) || say('exitCode', { code: result.code }) }));
 }
 
 /**
@@ -41,7 +42,7 @@ export function createGitSource(deps: GitModuleDeps): PanelSource<GitInfo> {
 
       // The runner reports a program that is not installed as code 127.
       if ([branches, head, log].some((result) => result.code === 127)) {
-        throw new PanelError('git-missing', 'git is not installed (or it is not on the PATH), so the branches and commits cannot be shown.');
+        throw new PanelError('git-missing', say('gitMissing'));
       }
       if (branches.code !== 0) throw failed('read the branches', branches);
       if (head.code !== 0 && head.code !== 1) throw failed('look at HEAD', head);

@@ -16,7 +16,7 @@ export function DecisionBanner({ decision, lead }: { decision: DocDecision; lead
     <aside aria-label={`Open decision ${decision.number}`} className={`my-8 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border ${frame} px-4 py-3 text-sm`}>
       <Gavel aria-hidden className={`size-4 shrink-0 ${lead ? 'text-cc-accent' : 'text-cc-ink'}`} />
       <div className="min-w-0 flex-1 basis-60">
-        <p className="font-medium text-cc-ink">A decision waits for Mark on this section</p>
+        <p className="font-medium text-cc-ink">Open decision</p>
         <p className="mt-0.5 text-cc-muted break-words">{titleOf(decision.title)}</p>
       </div>
       <Link to={`/decisions/${decision.number}`} className="inline-flex shrink-0 items-center gap-1 font-medium cc-focus-ring">

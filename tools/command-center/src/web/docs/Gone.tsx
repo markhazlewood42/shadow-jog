@@ -24,25 +24,26 @@ export function missingDocOf(panel: Panel<DocPage> | null): DocRef[] | null {
 /**
  * The page for an address that no doc has. A doc that Mark has open can be renamed, moved or
  * deleted behind his back (an agent does it in a branch), and the page finds out from the server's
- * change events. It says so plainly and offers the docs that have the same file name, because a move
- * keeps the name and changes the folder.
+ * change events. It is a label (the page is not found), the address, the docs that have the same
+ * file name (a move keeps the name and changes the folder), and a link to the docs overview. It does
+ * not explain: the site shows labels and links only (design 5.8).
  */
 export function Gone({ slug, suggestions }: { slug: string; suggestions: readonly DocRef[] }) {
-  useDocumentTitle('Moved or deleted');
+  useDocumentTitle('Doc not found');
   const titleId = useId();
   const fileName = slug.split('/').pop() ?? slug;
   return (
     // Amber border: this is the one thing on the page that matters, so it is the focal item.
     <section aria-labelledby={titleId} className="rounded-lg border border-cc-accent cc-focal p-6">
       <h1 id={titleId} className="text-2xl font-semibold tracking-tight">
-        This doc was moved or deleted
+        Doc not found
       </h1>
       <p className="mt-3 text-cc-muted">
-        No doc has the address <code className="font-mono text-sm text-cc-ink">{`/docs/${slug}`}</code>. It may have been renamed, moved to another folder or deleted.
+        No doc has this address. <code className="font-mono text-sm text-cc-ink">{`/docs/${slug}`}</code>
       </p>
       {suggestions.length > 0 ? (
         <div className="mt-5">
-          <p className="text-sm font-medium">{suggestions.length === 1 ? 'A doc with the same file name:' : 'Docs with the same file name:'}</p>
+          <p className="text-sm font-medium">Same file name</p>
           <ul className="mt-2 flex flex-col gap-1">
             {suggestions.map((ref) => (
               <li key={ref.slug} className="flex flex-wrap items-baseline gap-x-3">
@@ -55,13 +56,12 @@ export function Gone({ slug, suggestions }: { slug: string; suggestions: readonl
           </ul>
         </div>
       ) : (
-        <p className="mt-5 text-sm text-cc-muted">No other doc has the file name "{fileName}" either.</p>
+        <p className="mt-5 text-sm text-cc-muted">{`No doc has the file name "${fileName}"`}</p>
       )}
-      <p className="mt-6 text-sm text-cc-muted">
+      <p className="mt-6 text-sm">
         <Link to="/docs" className="text-cc-link underline underline-offset-2 cc-focus-ring">
-          Back to the docs overview
+          Docs overview
         </Link>
-        , or search for it with the box above.
       </p>
     </section>
   );

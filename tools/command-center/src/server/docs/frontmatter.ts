@@ -1,4 +1,5 @@
 import { type YAMLError, parseDocument } from 'yaml';
+import { PROGRAM_TEXT_WORDS, clipWords, say } from '../messages';
 
 // Many docs open with a "frontmatter" block: lines of `key: value` between two `---` lines, which
 // say what kind of doc it is, its status and its dates. This file cuts that block off and reads it.
@@ -51,7 +52,7 @@ export function splitFrontmatter(src: string): SplitFrontmatter {
 
   // No closing fence. The text may be a doc that opens with a horizontal rule, or a header that
   // lost its last line. Either way the safe thing is to keep all of it as the body and say so.
-  return { data: {}, body: text, error: 'The frontmatter is never closed: it needs a line with only --- after it.' };
+  return { data: {}, body: text, error: say('frontmatterUnclosed') };
 }
 
 /** Reads the text between the fences as YAML. */
@@ -64,19 +65,19 @@ function readYaml(block: string): { data: Record<string, unknown>; error: string
     // harmless header (a list used as a key), and a doc must not make noise in the server's output.
     const document = parseDocument(block, { logLevel: 'silent' });
     const problem = document.errors[0];
-    if (problem) return { data: {}, error: `Invalid YAML in the frontmatter: ${describe(problem)}` };
+    if (problem) return { data: {}, error: say('frontmatterYaml', { yaml: describe(problem) }) };
 
     // The alias limit is checked here, not while parsing, so this call is the one that can throw.
     const value: unknown = document.toJS();
     if (value === null) return { data: {}, error: null }; // an empty block, or one of only comments
     if (typeof value !== 'object' || Array.isArray(value)) {
-      return { data: {}, error: 'The frontmatter must be key: value lines, not a list or a single value.' };
+      return { data: {}, error: say('frontmatterNotMap') };
     }
     // A YAML mapping becomes a plain object. (Dates stay text in YAML 1.2, which suits a header.)
     return { data: value as Record<string, unknown>, error: null };
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
-    return { data: {}, error: `Invalid YAML in the frontmatter: ${message.split('\n')[0] ?? message}` };
+    return { data: {}, error: say('frontmatterYaml', { yaml: message.split('\n')[0] ?? message }) };
   }
 }
 
@@ -86,5 +87,6 @@ function describe(problem: YAMLError): string {
   const reason = (problem.message.split('\n')[0] ?? '').replace(/ at line \d+, column \d+:?$/, '');
   const line = problem.linePos?.[0].line;
   // YAML counts from the first line after the opening fence, so the file's line is one more.
-  return line === undefined ? reason : `${reason} (line ${line + 1})`;
+  // The reason is cut before the line is added, so that the line number is never the part that is cut (`say` cuts the reason to 10 words).
+  return line === undefined ? reason : `${clipWords(reason, PROGRAM_TEXT_WORDS.yaml - 2)} (line ${line + 1})`;
 }

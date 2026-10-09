@@ -262,7 +262,7 @@ describe('the decision page', () => {
     expect(container.querySelector('.doc-html')).toBeNull();
     // A heading that the doc does not have is one line of notice, with the link to the doc. It is not an error.
     const notice = container.querySelector('ul[aria-label="Linked docs"] [role="note"]');
-    expect(notice?.textContent).toContain('This section was not found in the docs: docs/guides/setup.md#no-such-heading');
+    expect(notice?.textContent).toContain('Section not found: docs/guides/setup.md#no-such-heading');
     expect(notice?.querySelector('a[href="/docs/guides/setup"]')).not.toBeNull();
     expect(alert()).toBeNull();
     expect(text()).not.toContain('Retry');
@@ -396,7 +396,7 @@ describe('the decision page', () => {
     await show();
     const items = container.querySelectorAll('ul[aria-label="Linked docs"] > li');
     expect(items).toHaveLength(2);
-    expect(items[1]?.querySelector('[role="note"]')?.textContent).toContain('This section was not found in the docs: docs/guides/setup.md#no-such-heading');
+    expect(items[1]?.querySelector('[role="note"]')?.textContent).toContain('Section not found: docs/guides/setup.md#no-such-heading');
     // A notice and not an error: nothing is announced as an alert, the panel has no error state, and the other link is shown as usual.
     expect(alert()).toBeNull();
     expect(text()).not.toContain('Retry');
@@ -405,27 +405,27 @@ describe('the decision page', () => {
     expect(items[1]?.querySelector('a[href="/docs/guides/setup"]')).not.toBeNull();
   });
 
-  it('says that no decision has the number, with no retry, for a number that the server does not have', async () => {
+  it('says that the decision is not found, with no retry, for a number that the server does not have', async () => {
     server.detail = { status: 404, body: { ok: false, error: { code: 'decision-not-found', message: 'No open decision has the number 41.' }, updatedAt: null, lastGood: null } };
     await show();
-    expect(container.querySelector('h1')?.textContent).toBe('No decision has the number 41');
-    expect(text()).toContain('No open decision has the number 41.');
+    expect(container.querySelector('h1')?.textContent).toBe('Decision not found');
+    expect(text()).not.toContain('No open decision has the number 41.'); // the sentence of the server is not copied into the page
     expect(text()).not.toContain('Retry');
-    expect(container.querySelector('a[href="/"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/docs/decisions"]')).not.toBeNull();
     // A number that cannot be an issue number does not even ask the server.
     const before = server.gets;
     await show('abc');
-    expect(container.querySelector('h1')?.textContent).toBe('This is not the number of a decision');
+    expect(container.querySelector('h1')?.textContent).toBe('Invalid decision number');
     expect(server.gets).toBe(before);
   });
 
   it('shows the error of the panel with its Retry button, and the last decision under it, when the server cannot read GitHub', async () => {
     server.detail = {
       status: 200,
-      body: { ok: false, error: { code: 'gh-offline', message: 'GitHub cannot be reached.' }, updatedAt: '2026-10-06T11:00:00Z', lastGood: { data: detail(), updatedAt: '2026-10-06T11:00:00Z' } },
+      body: { ok: false, error: { code: 'gh-offline', message: 'gh cannot reach GitHub. Check the internet connection.' }, updatedAt: '2026-10-06T11:00:00Z', lastGood: { data: detail(), updatedAt: '2026-10-06T11:00:00Z' } },
     };
     await show();
-    expect(alert()?.textContent).toContain('GitHub cannot be reached.');
+    expect(alert()?.textContent).toContain('gh cannot reach GitHub. Check the internet connection.');
     expect(text()).toContain('Retry');
     expect(text()).toContain('Where should the cache live?'); // the last good decision
     expect(text()).toContain('Last updated');
@@ -458,7 +458,7 @@ describe('the answer form', () => {
     // The page read the decision again at once (it does not wait for an event), and shows it as answered: no form, the answer, the chosen option marked.
     expect(container.querySelector('form')).toBeNull();
     expect(text()).toContain('Answered');
-    expect(text()).toContain('Mark answered C');
+    expect(text()).toContain('Answered C');
     expect(text()).toContain('Because it keeps the cache.');
     expect(text()).toContain("Mark's answer");
   });
@@ -481,10 +481,10 @@ describe('the answer form', () => {
     await press(sendButton());
 
     // The error is shown, in words that say what is done and what is not, with the message of gh and the code.
-    expect(alert()?.textContent).toContain('Your answer is posted on GitHub as a comment, but the labels of the issue were not changed.');
+    expect(alert()?.textContent).toContain('Answer posted · Label not changed');
     expect(alert()?.textContent).toContain('failed to change the labels: HTTP 502: Bad Gateway');
     expect(alert()?.textContent).toContain('gh-failed');
-    expect(alert()?.textContent).toContain('does not post the comment a second time');
+    expect(alert()?.textContent).toContain('Retry does not post the comment again.');
     // The icon of the error is ink: with the state chip and the Retry button, an amber icon would be a third amber item, and the Look allows one or two on a page.
     expect(alert()?.querySelector('svg')?.getAttribute('class')).toContain('text-cc-ink');
     expect(alert()?.outerHTML).not.toContain('cc-accent');
@@ -510,10 +510,10 @@ describe('the answer form', () => {
 
   it('says in words which step failed: the comment, the label swap or the close, and when nothing was written', async () => {
     const steps: [object, string][] = [
-      [{ step: 'comment', error: { code: 'gh-offline', message: 'GitHub cannot be reached.' } }, 'Your answer was not posted on GitHub.'],
-      [{ step: 'close', error: { code: 'gh-failed', message: 'gh failed: x' } }, 'Your answer is posted and the labels are changed, but the issue is not closed.'],
-      [{ error: { code: 'already-answered', message: 'Decision #41 is already answered: A.' } }, 'Your answer was not sent.'],
-      [{ error: { code: 'label-missing', message: 'The label "decided" does not exist in fixture-owner/fixture-repo.' }, step: 'label' }, 'the labels of the issue were not changed'],
+      [{ step: 'comment', error: { code: 'gh-offline', message: 'gh cannot reach GitHub. Check the internet connection.' } }, 'Answer not posted'],
+      [{ step: 'close', error: { code: 'gh-failed', message: 'gh failed: x' } }, 'Answer posted · Label changed · Issue not closed'],
+      [{ error: { code: 'already-answered', message: 'Decision #41 is already answered: A. Reload the page to see the answer.' } }, 'Answer not sent'],
+      [{ error: { code: 'label-missing', message: 'The label "decided" does not exist in fixture-owner/fixture-repo. Create it on GitHub.' }, step: 'label' }, 'Answer posted · Label not changed'],
     ];
     for (const [body, words] of steps) {
       server.answers = [{ status: 502, body: { ok: false, ...body } }];
@@ -590,7 +590,7 @@ describe('the answer form', () => {
     expect(container.querySelector('form')).toBeNull();
     expect(container.querySelector('input[type="radio"]')).toBeNull();
     expect(container.querySelector('ol[aria-label="Options"]')?.textContent).toContain('Move the cache to a new folder next to the data folder.');
-    expect(text()).toContain('Mark answered C');
+    expect(text()).toContain('Answered C');
 
     // Closed with no complete answer: a notice, the options, and no form.
     server.detail = { status: 200, body: good(detail({ state: 'closed', answer: { option: 'A', note: null, at: '2026-10-05T16:00:00Z', complete: false } })) };
@@ -599,7 +599,7 @@ describe('the answer form', () => {
     });
     await settle();
     expect(container.querySelector('form')).toBeNull();
-    expect(container.querySelector('[role="note"]')?.textContent).toContain('closed on GitHub');
+    expect(container.querySelector('[role="note"]')?.textContent).toContain('Closed with no answer from Mark.');
     expect(container.querySelector('ol[aria-label="Options"]')).not.toBeNull();
 
     // An open decision with no options (a body outside the template): the problem, and no form.
@@ -615,7 +615,7 @@ describe('the answer form', () => {
   it('starts from an answer that stopped half way: the option is chosen and the note is in the box, so that Retry finishes it', async () => {
     server.detail = { status: 200, body: good(detail({ answer: { option: 'B', note: 'Posted, but not finished.', at: '2026-10-06T11:00:00Z', complete: false } })) };
     await show();
-    expect(container.querySelector('[role="note"]')?.textContent).toContain('An answer was posted on GitHub as a comment (option B)');
+    expect(container.querySelector('[role="note"]')?.textContent).toContain('The comment for option B is on GitHub.');
     expect(radio('B')?.checked).toBe(true);
     expect(noteBox()?.value).toBe('Posted, but not finished.');
     expect(sendButton()?.disabled).toBe(false);
@@ -633,6 +633,222 @@ describe('the answer form', () => {
     expect(noteBox()?.value).toBe('I changed my mind.');
     await press(sendButton());
     expect(server.posts[0]?.body).toEqual({ option: 'A', note: 'I changed my mind.' });
+  });
+});
+
+// ---- the text of the decision pages (Task 19; design 5.8) ----
+// The pages show labels and links. A sentence is one line, 20 words or fewer, in simple technical English. The issue's own text (question, context, options, notes) is data and stays as it is.
+
+/** The words of a text: the pieces that hold a letter or a digit (a lone dot or a separator is not a word). */
+const wordsOf = (words: string): number => words.split(/\s+/).filter((piece) => /[\p{L}\p{N}]/u.test(piece)).length;
+
+/**
+ * The sentences that the page says in its own words: every block of text (a paragraph, a heading, a label, a button, a note) cut at . ! and ?, and the hidden text
+ * (placeholders, ARIA labels, tooltips). A made-up decision with short issue text is on the page, so what is long here is the page's own wording.
+ */
+function sentencesOnPage(): { sentence: string; words: number }[] {
+  const blocks = new Map<Element, string[]>();
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+    const piece = (node.textContent ?? '').trim();
+    const parent = node.parentElement;
+    if (piece === '' || parent === null) continue;
+    const block = parent.closest('p, h1, h2, h3, li, dt, dd, label, button, [role="note"], [role="alert"], [role="status"]') ?? parent;
+    blocks.set(block, [...(blocks.get(block) ?? []), piece]);
+  }
+  const texts = [...blocks.values()].map((pieces) => pieces.join(' '));
+  for (const element of container.querySelectorAll('[placeholder], [aria-label], [title]')) {
+    for (const name of ['placeholder', 'aria-label', 'title']) {
+      const value = element.getAttribute(name);
+      if (value !== null) texts.push(value);
+    }
+  }
+  return texts.flatMap((block) => block.split(/(?<=[.!?])\s+/)).map((sentence) => ({ sentence, words: wordsOf(sentence) }));
+}
+
+/** A contraction ("don't", "it's", "you'll"). The possessive "Mark's answer" is not one. */
+const CONTRACTION = /\b(?:\w+n't|\w+'(?:ll|re|ve|d|m)|(?:it|that|there|here|let|what|who|he|she)'s)\b/i;
+
+/** The page of the next round starts fresh. */
+async function startOver(): Promise<void> {
+  act(() => root.render(<div />));
+  await settle();
+}
+
+describe('the text of the decision pages', () => {
+  it('decision card shows one-line notices with a link', async () => {
+    const ISSUE = 'https://github.com/fixture-owner/fixture-repo/issues/41';
+
+    // Closed with no complete answer: one line (20 words or fewer) and a link to the issue, in the notice and in the header.
+    server.detail = { status: 200, body: good(detail({ state: 'closed', answer: { option: 'A', note: null, at: '2026-10-05T16:00:00Z', complete: false } })) };
+    await show();
+    const closed = container.querySelector('[role="note"]');
+    expect(closed?.textContent).toBe('Closed with no answer from Mark. Reopen on GitHub');
+    expect(wordsOf(closed?.textContent ?? '')).toBeLessThanOrEqual(20);
+    expect(closed?.querySelector('a')?.getAttribute('href')).toBe(ISSUE);
+    expect(closed?.querySelector('a')?.getAttribute('target')).toBe('_blank');
+    expect([...container.querySelectorAll('a')].filter((link) => link.textContent?.trim() === 'Open the issue on GitHub' && link.getAttribute('href') === ISSUE)).toHaveLength(1);
+    expect(text()).not.toContain('reopen it'); // the long sentence of the old notice is gone
+    await startOver();
+
+    // An answer that was posted, with labels that were not changed: one line, and the header link stays.
+    server.detail = { status: 200, body: good(detail({ answer: { option: 'B', note: 'Posted, but not finished.', at: '2026-10-06T11:00:00Z', complete: false } })) };
+    await show();
+    const half = container.querySelector('[role="note"]');
+    expect(half?.textContent).toBe('The comment for option B is on GitHub. The issue is still open. Send the answer to finish.');
+    expect(wordsOf(half?.textContent ?? '')).toBeLessThanOrEqual(20);
+    expect(container.querySelector(`a[href="${ISSUE}"]`)?.textContent).toContain('Open the issue on GitHub');
+    await startOver();
+
+    // An answered decision: the label, the option, a separator and the date.
+    server.detail = { status: 200, body: good(answered()) };
+    await show();
+    const line = container.querySelector('section[aria-label="Answer"] p');
+    expect(line?.textContent).toBe('Answered C · 2026-10-06');
+    expect(line?.querySelector('time')?.getAttribute('datetime')).toBe('2026-10-06T11:00:00Z');
+    expect(text()).not.toContain('Mark answered');
+  });
+
+  it('answer form shows short step labels and the one-line summary', async () => {
+    await show();
+    // The summary under the button is one line, and the note box has a short placeholder.
+    const summary = [...container.querySelectorAll('form p')].find((paragraph) => paragraph.textContent?.startsWith('Posts'));
+    expect(summary?.textContent).toBe('Posts your answer to GitHub and closes the issue.');
+    expect(noteBox()?.getAttribute('placeholder')).toBe('Note (optional)');
+    expect(text()).not.toContain('swaps its label');
+    await startOver();
+
+    // Each step that can fail has a short label (the steps that are done are named before it), and one short line about the retry.
+    const keeps = 'The form keeps your choice and note.';
+    const again = `${keeps} Press Retry to send again.`;
+    const finish = `${keeps} Retry does not post the comment again.`;
+    const rounds: [object, string, string][] = [
+      [{ step: 'comment' }, 'Answer not posted', again],
+      [{ step: 'label' }, 'Answer posted · Label not changed', finish],
+      [{ step: 'close' }, 'Answer posted · Label changed · Issue not closed', finish],
+      [{}, 'Answer not sent', again],
+    ];
+    for (const [step, label, retry] of rounds) {
+      server.answers = [{ status: 502, body: { ok: false, ...step, error: { code: 'gh-failed', message: 'gh failed: x' } } }];
+      server.posts = [];
+      await show();
+      await choose('A');
+      await press(sendButton());
+      const lines = [...(alert()?.querySelectorAll('p') ?? [])].map((paragraph) => paragraph.textContent);
+      expect(lines, JSON.stringify(step)).toEqual([label, 'gh failed: x', 'gh-failed', retry]);
+      expect(wordsOf(retry)).toBeLessThanOrEqual(20);
+      expect(sendButton()?.textContent).toContain('Retry'); // the button and the choice stay
+      await startOver();
+    }
+
+    // A sent answer that GitHub does not show yet: two short labels.
+    server.answers = [{ status: 200, body: { ok: true } }];
+    await show();
+    await choose('A');
+    await press(sendButton());
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('Answer sent. Wait for GitHub.');
+    expect(text()).not.toContain('Waiting for GitHub');
+  });
+
+  it('decision page shows a short not-found label and an invalid-number label', async () => {
+    server.detail = { status: 404, body: { ok: false, error: { code: 'decision-not-found', message: 'No open decision has the number 41.' }, updatedAt: null, lastGood: null } };
+    await show();
+    expect(container.querySelector('section[aria-label="Decision not found"] h1')?.textContent).toBe('Decision not found');
+    expect(text()).toContain('#41');
+    // Links to the lists, and nothing else to read.
+    const links = [...container.querySelectorAll('section[aria-label="Decision not found"] a')].map((link) => [link.textContent, link.getAttribute('href')]);
+    expect(links).toEqual([
+      ['Decisions', '/docs/decisions'],
+      ['Docs overview', '/docs'],
+    ]);
+    expect(container.querySelectorAll('section[aria-label="Decision not found"] p')).toHaveLength(2); // the number and the line of links
+    expect(text()).not.toContain('No open decision');
+    expect(text()).not.toContain('Back to the start page');
+
+    const before = server.gets;
+    await show('abc');
+    expect(container.querySelector('section[aria-label="Decision not found"] h1')?.textContent).toBe('Invalid decision number');
+    expect(text()).not.toContain('whole number');
+    expect([...container.querySelectorAll('section[aria-label="Decision not found"] a')].map((link) => link.getAttribute('href'))).toEqual(['/docs/decisions', '/docs']);
+    expect(server.gets).toBe(before);
+  });
+
+  it('decision page shows a short missing-section label with a link', async () => {
+    server.detail = {
+      status: 200,
+      body: good(
+        detail({
+          docs: [{ docId: 'docs/guides/setup.md', slug: 'guides/setup', anchor: 'no-such-heading', heading: null }],
+          sections: [{ docId: 'docs/guides/setup.md', anchor: 'no-such-heading', heading: null, html: null }],
+        }),
+      ),
+    };
+    await show();
+    const notice = container.querySelector('ul[aria-label="Linked docs"] [role="note"]');
+    expect(notice?.textContent).toBe('Section not found: docs/guides/setup.md#no-such-heading Open doc');
+    expect(notice?.querySelector('a')?.textContent).toBe('Open doc');
+    expect(notice?.querySelector('a')?.getAttribute('href')).toBe('/docs/guides/setup');
+    expect(text()).not.toContain('was not found in the docs');
+  });
+
+  it('decision pages show no sentence over 20 words', async () => {
+    const seen: { sentence: string; words: number }[] = [];
+    const collect = () => seen.push(...sentencesOnPage());
+    const fail = (step: string | null) => {
+      server.answers = [{ status: 502, body: { ok: false, ...(step === null ? {} : { step }), error: { code: 'gh-failed', message: 'gh failed.' } } }];
+    };
+
+    // An open decision with its form, and the fields filled.
+    await show();
+    collect();
+    await choose('B');
+    await typeNote('A short note.');
+    collect();
+    // The same decision after a send that works but that GitHub does not show yet.
+    await press(sendButton());
+    collect();
+    await startOver();
+    // After a failure in each step, and after a refusal that wrote nothing.
+    for (const step of ['comment', 'label', 'close', null]) {
+      fail(step);
+      await show();
+      await choose('A');
+      await press(sendButton());
+      collect();
+      await startOver();
+    }
+    // The states of the card: answered, closed with no answer, an answer that stopped half way, a problem with the body, a section that the doc lacks.
+    const states = [
+      answered(),
+      detail({ state: 'closed', answer: { option: 'A', note: null, at: '2026-10-05T16:00:00Z', complete: false } }),
+      detail({ answer: { option: 'B', note: 'Posted, but not finished.', at: '2026-10-06T11:00:00Z', complete: false } }),
+      detail({ question: '', options: [], recommended: null, problem: 'Short problem.' }),
+      detail({ docs: [{ docId: 'docs/guides/setup.md', slug: 'guides/setup', anchor: 'no-such-heading', heading: null }], sections: [{ docId: 'docs/guides/setup.md', anchor: 'no-such-heading', heading: null, html: null }] }),
+    ];
+    for (const state of states) {
+      server.detail = { status: 200, body: good(state) };
+      await show();
+      collect();
+      await startOver();
+    }
+    // The page that cannot be found, the number that is not a number, the panel that failed (with its last good data), and the doc listing that failed.
+    server.detail = { status: 404, body: { ok: false, error: { code: 'decision-not-found', message: 'Not found.' }, updatedAt: null, lastGood: null } };
+    await show();
+    collect();
+    await show('abc');
+    collect();
+    server.detail = { status: 200, body: { ok: false, error: { code: 'gh-offline', message: 'gh cannot reach GitHub. Check the internet connection.' }, updatedAt: '2026-10-06T11:00:00Z', lastGood: { data: detail(), updatedAt: '2026-10-06T11:00:00Z' } } };
+    server.docs = { status: 500, body: { ok: false, error: { code: 'docs-failed', message: 'The docs failed.' }, updatedAt: null, lastGood: null } };
+    await show();
+    collect();
+
+    // The scan saw the real pages (known lines are in it), and not one sentence is long or holds a contraction.
+    const all = seen.map((entry) => entry.sentence);
+    for (const known of ['Posts your answer to GitHub and closes the issue.', 'Closed with no answer from Mark.', 'Answer sent.', 'Decision not found', 'Invalid decision number', 'Answered C · 2026-10-06']) {
+      expect(all, known).toContain(known);
+    }
+    expect(seen.filter((entry) => entry.words > 20)).toEqual([]);
+    expect(all.filter((sentence) => CONTRACTION.test(sentence))).toEqual([]);
   });
 });
 
@@ -669,7 +885,7 @@ describe('the banner on a doc page', () => {
     renderDoc({ ...DOC, decisions: [DECISION] });
     const banner = container.querySelector('aside[aria-label="Open decision 41"]');
     expect(banner).not.toBeNull();
-    expect(banner?.textContent).toContain('A decision waits for Mark on this section');
+    expect(banner?.textContent).toContain('Open decision');
     expect(banner?.textContent).toContain('Where should the cache live?');
     expect(banner?.textContent).not.toContain('Decision: Where'); // the prefix of the template is left off
     expect(banner?.querySelector('a[href="/decisions/41"]')?.textContent).toContain('Decision #41');
@@ -733,7 +949,7 @@ describe('the banner on a doc page', () => {
     expect(container.querySelector('[role="note"]')).toBeNull();
     renderDoc({ ...DOC, decisions: null });
     expect(banners()).toHaveLength(0);
-    expect(container.querySelector('[role="note"]')?.textContent).toContain('Decision banners are not shown on this page');
+    expect(container.querySelector('[role="note"]')?.textContent).toContain('Decision banners are unavailable');
     // A doc that comes with no `decisions` field at all (the other users of DocView) is drawn as before.
     renderDoc({ ...DOC });
     expect(container.querySelector('[role="note"]')).toBeNull();

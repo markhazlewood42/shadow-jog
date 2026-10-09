@@ -7,6 +7,7 @@ import type { DocIndex } from '../docs/index';
 import { OTHER_SECTION_ID } from '../docs/nav';
 import { isMissing } from '../fs-errors';
 import { apiError } from '../guard';
+import { say } from '../messages';
 import type { PanelSource } from '../source';
 
 // The routes of the docs module. Every one is a GET, and none takes a path: a doc is asked for by
@@ -20,6 +21,9 @@ const MAX_ECHO_CHARS = 120;
 function panelOf<T>(data: T): Panel<T> {
   return { ok: true, data, updatedAt: new Date().toISOString() };
 }
+
+/** The end of an address that asks for the text of a doc: `engine/decisions/source` is the text of the doc `engine/decisions`. */
+const SOURCE_SUFFIX = '/source';
 
 /** The doc whose "Reading order" list the engine docs follow: the README of docs/engine. */
 const READING_ORDER_DOC = 'engine/README';
@@ -46,6 +50,18 @@ async function bannersFor(source: PanelSource<DecisionsInfo>, docId: string, wai
   }
 }
 
+/** The 404 answer for an address that no doc has: a failed Panel that also names the docs with the same file name. */
+function docNotFound(docs: DocIndex, slug: string): DocNotFound {
+  const shown = slug.length > MAX_ECHO_CHARS ? `${slug.slice(0, MAX_ECHO_CHARS)}...` : slug;
+  return {
+    ok: false,
+    error: { code: 'doc-not-found', message: say('docNotFound', { address: shown }) },
+    updatedAt: null,
+    lastGood: null,
+    suggestions: docs.suggest(slug),
+  };
+}
+
 const refOf = (item: Extract<NavItem, { kind: 'doc' }> | undefined): DocRef | null => (item === undefined ? null : { slug: item.slug, title: item.title });
 
 /**
@@ -70,6 +86,10 @@ function readingOrderOf(nav: readonly NavSection[], slug: string): ReadingOrder 
  * Adds the docs routes to `app`:
  *
  * - `GET /api/docs`: a Panel of `{ docs, nav, problems }`.
+ * - `GET /api/docs/<slug>/source`: the text of the file of the doc, as it is (the frontmatter included), as
+ *   `text/markdown`. The Copy and Download buttons of a doc page ask for it when they are pressed, so the
+ *   page data does not carry it. It takes the slug of an indexed doc and never a path. A doc whose own slug
+ *   ends in `/source` keeps its address: `GET /api/docs/<slug>` is tried first, and the text is the fallback.
  * - `GET /api/docs/<slug>`: a Panel of the doc, with its place in the reading order of the engine docs
  *   (`readingOrder`, or null). An address that no doc has gives status 404 and a
  *   failed Panel (code `doc-not-found`) that also carries `suggestions`: the docs that have the
@@ -98,15 +118,19 @@ export function registerDocsRoutes(app: Hono, docs: DocIndex, decisions?: PanelS
     const slug = c.req.path.slice('/api/docs/'.length);
     const page = docs.get(slug);
     if (page === null) {
-      const shown = slug.length > MAX_ECHO_CHARS ? `${slug.slice(0, MAX_ECHO_CHARS)}...` : slug;
-      const missing: DocNotFound = {
-        ok: false,
-        error: { code: 'doc-not-found', message: `No doc has the address "${shown}". It may have been moved or deleted.` },
-        updatedAt: null,
-        lastGood: null,
-        suggestions: docs.suggest(slug),
-      };
-      return c.json(missing, 404);
+      // Not a doc page. `<slug>/source` may still be the text of a doc. A doc page is looked up first, so a doc whose own slug
+      // ends in "/source" is its page and not the text of another doc (its own text is at `<slug>/source/source`).
+      if (slug.endsWith(SOURCE_SUFFIX)) {
+        const asked = slug.slice(0, -SOURCE_SUFFIX.length);
+        const text = docs.source(asked);
+        if (text !== null) {
+          // nosniff and no-store are also set for every answer by app.ts. They are said here too, so this route does not depend on that.
+          return c.body(text, 200, { 'Content-Type': 'text/markdown; charset=utf-8', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' });
+        }
+        // The address of the doc that was asked for, without the word "source", is what a person can act on.
+        return c.json(docNotFound(docs, asked), 404);
+      }
+      return c.json(docNotFound(docs, slug), 404);
     }
     const data: DocPageData = {
       ...page,
@@ -127,15 +151,15 @@ export function registerDocsRoutes(app: Hono, docs: DocIndex, decisions?: PanelS
     // The id picks the file. The name after it is only there so that a browser shows a sensible name
     // in its tab and when it saves the file, so it must be the file's own name: any other name (a
     // path, `..`, another file) is not the address of a file.
-    if (asset === null || basename(asset.file) !== c.req.param('name')) return c.json(apiError('not-found', 'No such file.'), 404);
+    if (asset === null || basename(asset.file) !== c.req.param('name')) return c.json(apiError('not-found', say('noSuchFile')), 404);
     try {
       // The index found a plain file here at its last scan. A link or a folder that has taken its place since is not served.
-      if (!(await lstat(asset.file)).isFile()) return c.json(apiError('not-found', 'No such file.'), 404);
+      if (!(await lstat(asset.file)).isFile()) return c.json(apiError('not-found', say('noSuchFile')), 404);
       const bytes = await readFile(asset.file);
       // The file can change under the same address, so the browser must ask again each time it needs it.
       return c.body(new Uint8Array(bytes), 200, { 'Content-Type': asset.type, 'Cache-Control': 'no-cache' });
     } catch (error) {
-      if (isMissing(error)) return c.json(apiError('not-found', 'No such file.'), 404);
+      if (isMissing(error)) return c.json(apiError('not-found', say('noSuchFile')), 404);
       throw error;
     }
   });

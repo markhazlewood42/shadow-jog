@@ -4,7 +4,7 @@ import { type Locator, type Page, expect } from '@playwright/test';
 // at 4.5 to 1 or more. These helpers read the computed styles of the page, so a test can say it in numbers. The specs of the decision pages and of the Now page use them.
 
 /** The colors of the tokens as the browser writes them (`rgb(...)`), so that a test can compare them with a computed style. A probe element resolves each token. */
-export async function tokenColors(page: Page): Promise<{ accent: string; ink: string; paper2: string; ruleSolid: string; soft: string }> {
+export async function tokenColors(page: Page): Promise<{ accent: string; ink: string; muted: string; paper2: string; ruleSolid: string; soft: string }> {
   return page.evaluate(() => {
     const probe = document.createElement('i');
     document.body.append(probe);
@@ -12,7 +12,7 @@ export async function tokenColors(page: Page): Promise<{ accent: string; ink: st
       probe.style.color = `var(${token})`;
       return getComputedStyle(probe).color;
     };
-    const colors = { accent: read('--cc-accent'), ink: read('--cc-ink'), paper2: read('--cc-paper-2'), ruleSolid: read('--cc-rule-solid'), soft: read('--cc-soft') };
+    const colors = { accent: read('--cc-accent'), ink: read('--cc-ink'), muted: read('--cc-muted'), paper2: read('--cc-paper-2'), ruleSolid: read('--cc-rule-solid'), soft: read('--cc-soft') };
     probe.remove();
     return colors;
   });

@@ -47,24 +47,22 @@ function isMissing(panel: Panel<DecisionDetail> | null): boolean {
 
 /**
  * The page for a number that the lists do not have. The decisions that the page can show are the open ones and the ones answered in
- * the last week, so an older answer, an issue of another account and a number that is no issue all look like this. It says so, and
- * does not offer a retry that would change nothing (the page still follows the server's events, so a decision that an agent raises a moment
- * later shows up on its own).
+ * the last week, so an older answer, an issue of another account and a number that is no issue all look like this. It is a label and
+ * two links (design 5.8), and it offers no retry that would change nothing (the page still follows the server's events, so a decision
+ * that an agent raises a moment later shows up on its own). `number` is null when the address is not a number at all.
  */
-function NotFound({ number, message }: { number: number | null; message: string }) {
+function NotFound({ number }: { number: number | null }) {
   return (
     <section aria-label="Decision not found" className="rounded-lg border border-cc-rule-solid bg-cc-paper-2 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{number === null ? 'This is not the number of a decision' : `No decision has the number ${number}`}</h1>
-      <p className="mt-3 max-w-prose text-cc-muted">{message}</p>
-      <p className="mt-5 text-sm text-cc-muted">
-        <Link to="/" className="text-cc-link underline underline-offset-2 cc-focus-ring">
-          Back to the start page
-        </Link>
-        , or open{' '}
+      <h1 className="text-2xl font-semibold tracking-tight">{number === null ? 'Invalid decision number' : 'Decision not found'}</h1>
+      {number !== null && <p className="mt-2 font-mono text-sm text-cc-muted">#{number}</p>}
+      <p className="mt-5 flex flex-wrap gap-x-4 gap-y-1 text-sm">
         <Link to="/docs/decisions" className="text-cc-link underline underline-offset-2 cc-focus-ring">
-          the list of the engine decisions
+          Decisions
         </Link>
-        .
+        <Link to="/docs" className="text-cc-link underline underline-offset-2 cc-focus-ring">
+          Docs overview
+        </Link>
       </p>
     </section>
   );
@@ -85,9 +83,9 @@ function LinkedDoc({ link, heading, title }: { link: DecisionDocLink; heading: s
     const where = `${link.docId}${link.anchor === '' ? '' : `#${link.anchor}`}`;
     return (
       <Notice>
-        This section was not found in the docs: {where}.{' '}
+        Section not found: {where}{' '}
         <Link to={docPath(link.slug)} className="text-cc-link underline underline-offset-2 cc-focus-ring">
-          Open the doc
+          Open doc
         </Link>
       </Notice>
     );
@@ -148,7 +146,7 @@ export function DecisionPage({ number }: { number: number }) {
       <Header />
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
         {isMissing(result.panel) ? (
-          <NotFound number={number} message={result.panel !== null && !result.panel.ok ? result.panel.error.message : ''} />
+          <NotFound number={number} />
         ) : (
           <PanelFrame title="Decision" result={result}>
             {(detail) => <DecisionView detail={detail} draft={draft} />}
@@ -168,7 +166,7 @@ export function DecisionRoute() {
       <div className="min-h-screen">
         <Header />
         <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-          <NotFound number={null} message="A decision is an issue of the repository, and its number is a whole number (for example /decisions/58)." />
+          <NotFound number={null} />
         </main>
       </div>
     );

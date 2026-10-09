@@ -1,6 +1,7 @@
 import type { AnswerStep } from '../../shared/types';
 import type { Config } from '../config';
 import { classifyGhError } from '../github/errors';
+import { say } from '../messages';
 import type { RunResult, Runner } from '../runner';
 import type { DecisionRead } from './module';
 import { LABEL_DECIDED, LABEL_DECISION, answerComment } from './parse';
@@ -48,10 +49,8 @@ function explain(step: AnswerStep, result: RunResult, config: Config): { code: s
     const missing = LABEL_NOT_FOUND.exec(result.stderr);
     if (missing !== null) {
       const name = missing[1] ?? missing[2] ?? LABEL_DECIDED;
-      return {
-        code: 'label-missing',
-        message: `The label "${name}" does not exist in ${config.githubRepo}, so the labels of the issue could not be changed. Your answer is already posted as a comment. Create the label on GitHub (Issues, then Labels), then press Retry. The retry does not post the comment again.`,
-      };
+      // The form says that the comment is posted and that Retry does not post it again (AnswerForm.tsx), so the message only names the label.
+      return { code: 'label-missing', message: say('labelMissing', { name, repo: config.githubRepo }) };
     }
   }
   return classifyGhError(result.code, result.stderr);
@@ -111,21 +110,15 @@ function nextStep(read: DecisionRead, option: string, note: string | null): Answ
  * Otherwise the answer may go on, from the first step that is not done.
  */
 export function checkAnswer(found: DecisionRead | null, option: string, note: string | null): Accepted | Rejection {
-  if (found === null) return reject(404, 'decision-not-found', 'No decision of Mark has this number. It may not be an issue of his, or it may have been deleted.');
+  if (found === null) return reject(404, 'decision-not-found', say('decisionNotFound'));
   const { issue } = found;
   if (issue.state === 'answered') {
-    return reject(409, 'already-answered', `Decision #${issue.number} is already answered${issue.answer === null ? '' : `: ${issue.answer.option}`}. Reload the page to see the answer.`);
+    return reject(409, 'already-answered', issue.answer === null ? say('decisionAnswered', { number: issue.number }) : say('decisionAnsweredWith', { number: issue.number, option: issue.answer.option }));
   }
-  if (issue.state === 'closed') {
-    return reject(409, 'not-open', `Decision #${issue.number} is closed on GitHub and has no complete answer, so it cannot be answered here. Open it on GitHub to reopen it.`);
-  }
+  if (issue.state === 'closed') return reject(409, 'not-open', say('decisionClosed', { number: issue.number }));
   if (!issue.options.some((candidate) => candidate.id === option)) {
     const listed = issue.options.map((candidate) => candidate.id).join(', ');
-    return reject(
-      422,
-      'unknown-option',
-      listed === '' ? `Decision #${issue.number} has no options that this page can read, so there is nothing to pick. Open it on GitHub.` : `"${option}" is not one of the options of decision #${issue.number}: ${listed}.`,
-    );
+    return reject(422, 'unknown-option', listed === '' ? say('decisionNoOptions', { number: issue.number }) : say('decisionUnknownOption', { option, number: issue.number, listed }));
   }
   // `decided` is on the issue but not by Mark's account: take it off before the label step puts it on (see the top of this file).
   return { ok: true, from: nextStep(found, option, note), ...(found.staleDecided ? { clearDecided: true as const } : {}) };

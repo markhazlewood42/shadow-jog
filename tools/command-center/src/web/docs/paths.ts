@@ -14,6 +14,11 @@ export function docApiPath(slug: string): string {
   return `/api${docPath(slug)}`;
 }
 
+/** The address that answers with the text of the doc file, as it is (the Copy and Download buttons ask for it). */
+export function docSourcePath(slug: string): string {
+  return `${docApiPath(slug)}/source`;
+}
+
 /**
  * Decodes `%C3%BC` to `ü`. Text that is not valid percent-encoding (`100%`) stays as it was written.
  * It is the one decoder of the docs pages: a heading id, a hash and a slug all come out of an address.

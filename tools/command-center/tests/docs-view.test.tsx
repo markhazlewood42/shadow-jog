@@ -56,6 +56,17 @@ describe('DocView', () => {
     expect(markup).toContain('aria-label="Linked from"');
   });
 
+  it('puts the Copy button under the header, above the notices and the text', () => {
+    const markup = render(<DocView doc={makeDoc({ type: 'guide' })} />);
+    expect(markup).toContain('Copy for LLM');
+    expect(markup).toContain('aria-label="More"');
+    expect(after(markup, 'aria-label="Document details"', 'Copy for LLM')).toBe(true);
+    expect(after(markup, 'Copy for LLM', 'Intro text.')).toBe(true);
+    // The notice about the banners comes after the buttons, and is one short line.
+    const unread = render(<DocView doc={{ ...makeDoc(), decisions: null }} />);
+    expect(after(unread, 'Copy for LLM', 'Decision banners are unavailable. GitHub could not be read.')).toBe(true);
+  });
+
   it('shows no footer when none is given', () => {
     expect(render(<DocView doc={makeDoc()} />)).not.toContain('FOOTER-MARK');
   });
@@ -137,13 +148,14 @@ describe('FrontmatterHeader', () => {
     expect(markup).toContain('missing.md');
     expect(markup).toContain('…');
     expect(markup).toContain(`title="${long}"`); // the whole address stays in the tooltip
-    expect(render(<FrontmatterHeader doc={makeDoc({ brokenLinks: ['one.md'] })} />)).toContain('1 broken link in this doc');
+    expect(render(<FrontmatterHeader doc={makeDoc({ brokenLinks: ['one.md'] })} />)).toContain('1 broken link:');
     expect(render(<FrontmatterHeader doc={makeDoc()} />)).not.toContain('broken link');
   });
 
   it('says when the frontmatter could not be read, and shows the reason as text', () => {
     const markup = render(<FrontmatterHeader doc={makeDoc({ type: '', status: '', frontmatterError: 'Invalid YAML in the frontmatter: <b>bad</b> (line 2)' })} />);
-    expect(markup).toContain('could not be read');
+    expect(markup).toContain('Frontmatter error');
+    expect(markup).not.toContain('could not be read'); // the label and the server's message, and no sentence around them
     expect(markup).toContain('Invalid YAML in the frontmatter: &lt;b&gt;bad&lt;/b&gt; (line 2)');
   });
 });
@@ -168,8 +180,8 @@ describe('Outline and Backlinks', () => {
   });
 
   it('says so when a doc has no headings or no backlinks', () => {
-    expect(render(<Outline slug="x" headings={[]} />)).toContain('This doc has no headings.');
-    expect(render(<Backlinks refs={[]} />)).toContain('No other doc links here.');
+    expect(render(<Outline slug="x" headings={[]} />)).toContain('No headings');
+    expect(render(<Backlinks refs={[]} />)).toContain('No links here');
   });
 
   it('lists the docs that link here, by title, as links to their pages', () => {
@@ -180,17 +192,20 @@ describe('Outline and Backlinks', () => {
 });
 
 describe('Gone and missingDocOf', () => {
-  it('says the doc was moved or deleted, names the address, and offers the docs with the same file name', () => {
+  it('says the doc was not found, names the address, and offers the docs with the same file name', () => {
     const markup = render(<Gone slug="live-edit/moving" suggestions={[{ slug: 'live-edit/old/moving', title: 'A doc that moves' }]} />);
-    expect(markup).toContain('This doc was moved or deleted');
+    expect(markup).toContain('Doc not found');
+    expect(markup).toContain('No doc has this address.');
+    expect(markup).toContain('Same file name');
     expect(markup).toContain('/docs/live-edit/moving');
     expect(markup).toContain('href="/docs/live-edit/old/moving"');
     expect(markup).toContain('A doc that moves');
     expect(markup).toContain('href="/docs"');
+    expect(markup).toContain('Docs overview'); // the one link that replaces the last sentence
   });
 
   it('says so when no other doc has the file name', () => {
-    expect(render(<Gone slug="a/b/gone-doc" suggestions={[]} />)).toContain('No other doc has the file name &quot;gone-doc&quot; either.');
+    expect(render(<Gone slug="a/b/gone-doc" suggestions={[]} />)).toContain('No doc has the file name &quot;gone-doc&quot;');
   });
 
   const failed = (code: string, extra: Record<string, unknown> = {}): Panel<DocPage> =>
@@ -269,7 +284,7 @@ describe('Overview', () => {
   it('shows a card for each section, with the first five pages and the day each one last changed', () => {
     const markup = render(<Overview listing={ready({ docs: docs(8), nav: NAV, problems: [] })} />, '/docs');
     expect(markup).toContain('<h1 class="text-3xl font-semibold tracking-tight">Docs</h1>');
-    expect(markup).toContain('8 docs in 2 sections.');
+    expect(markup).toContain('8 docs · 2 sections');
     expect(markup).toContain('>Guides</h3>');
     expect(markup).toContain('>Decisions</h3>');
     expect(markup).toContain('<time dateTime="2026-01-10" class="shrink-0 font-mono text-xs text-cc-soft">2026-01-10</time>');
@@ -284,16 +299,25 @@ describe('Overview', () => {
     expect(markup).toContain('>page<');
   });
 
+  it('has no introduction under the title, and counts in labels', () => {
+    const markup = render(<Overview listing={ready({ docs: docs(1), nav: NAV.slice(1), problems: ['docs/a.md: a mistake'] })} />, '/docs');
+    expect(markup).not.toContain('in one place');
+    expect(markup).not.toContain('Pick a section');
+    expect(markup).toContain('1 doc · 1 section');
+    expect(markup).toContain('1 doc problem<');
+    expect(render(<Overview listing={ready({ docs: [], nav: [], problems: [] })} />, '/docs')).toContain('>No docs<');
+  });
+
   it('says so when there are no docs, and shows the problems of the docs folded', () => {
-    expect(render(<Overview listing={ready({ docs: [], nav: [], problems: [] })} />, '/docs')).toContain('No docs yet.');
+    expect(render(<Overview listing={ready({ docs: [], nav: [], problems: [] })} />, '/docs')).toContain('No docs');
     const markup = render(<Overview listing={ready({ docs: docs(1), nav: NAV.slice(1), problems: ['docs/a.md: broken link "x.md" (the file does not exist in the repo).', 'nav.json: a mistake'] })} />, '/docs');
-    expect(markup).toContain('2 problems found in the docs');
+    expect(markup).toContain('2 doc problems');
     expect(markup).toContain('nav.json: a mistake');
     // Problems are plain text.
     expect(render(<Overview listing={ready({ docs: docs(1), nav: NAV.slice(1), problems: ['<img src=x onerror=alert(1)>'] })} />, '/docs')).toContain('&lt;img src=x onerror=alert(1)&gt;');
   });
 
-  it('keeps its title and introduction when the docs could not be loaded, and shows the error in the panel', () => {
+  it('keeps its title when the docs could not be loaded, and shows the error in the panel', () => {
     const failedResult: PanelResult<DocsListing> = {
       state: 'error',
       panel: { ok: false, error: { code: 'network', message: 'Cannot reach the command center server.' }, updatedAt: null, lastGood: null },

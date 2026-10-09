@@ -105,8 +105,8 @@ function docDecision(id: string, extra: Partial<Decision> = {}): Decision {
 
 const statusInfo = (texts: string[]): StatusInfo => ({
   updated: '2026-10-06',
-  rightNow: { heading: 'Right now (2026-10-06)', html: '<p>Fixture.</p>' },
   nextUpForMark: texts.map((text) => ({ text, html: `<p>${text}</p>` })),
+  milestone: { current: null, problem: null },
   milestones: [],
 });
 
@@ -149,7 +149,7 @@ describe('buildYourMove', () => {
       // 1. The open decision issues, oldest question first (the order of the source). The answered one (`recent`) waits for nothing.
       { source: 'decision-issue', text: 'Decision #41: Question 41?', href: '/decisions/41', light: null, at: '2026-10-05T08:00:00Z' },
       { source: 'decision-issue', text: 'Decision #43: Where should the cache go?', href: '/decisions/43', light: null, at: '2026-10-05T08:00:00Z' },
-      // 2. One item for each line of the box of a live session, each linked to the card of its session on the Agents page. The answered box, the idle session and the session with no box give none.
+      // 2. One item for each line of the box of a session that is not idle, each linked to the place of its session on the Agents page. The answered box, the idle session and the session with no box give none.
       { source: 'session', text: 'Answer the question (session: Title of s-working)', href: '/agents#session-s-working', light: 'red', at: '2026-10-06T09:30:00.000Z' },
       { source: 'session', text: 'Tell me to commit (session: Title of s-working)', href: '/agents#session-s-working', light: 'red', at: '2026-10-06T09:30:00.000Z' },
       { source: 'session', text: 'Look at the picture (session: Title of s-waiting)', href: '/agents#session-s-waiting', light: null, at: null },
@@ -188,7 +188,7 @@ describe('buildYourMove', () => {
       sources({
         sessions: good(
           sessionsInfo([
-            // Two lines of one box link to the same card, and two sessions link to two cards. The id is the file name of the session (letters, digits, "_" and "-").
+            // Two lines of one box link to the same place, and two sessions link to two places. The id is the file name of the session (letters, digits, "_" and "-").
             session('e2e00000-0000-4000-8000-000000000002', { yourMove: box({ items: ['First line', 'Second line'] }) }),
             session('another_session-7', { yourMove: box({ items: ['Third line'] }) }),
           ]),
@@ -202,7 +202,7 @@ describe('buildYourMove', () => {
     ]);
     // The link is an address of this site (it starts with "/"), so the Now page opens it inside the app and not in a new tab.
     for (const entry of result.items) expect(entry.href?.startsWith('/agents#')).toBe(true);
-    // The page finds the card by the same words: the server and the page share one function for them (src/shared/types.ts), so the two cannot drift apart.
+    // The page finds the cluster of the session by the same words: the server and the page share one function for them (src/shared/types.ts), so the two cannot drift apart.
     expect(sessionHref('abc-1')).toBe('/agents#session-abc-1');
     expect(sessionHref('abc-1')).toBe(`/agents#${sessionAnchor('abc-1')}`);
     expect(sessionAnchor('abc-1')).toBe('session-abc-1');

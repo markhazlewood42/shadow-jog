@@ -2,6 +2,7 @@ import { type Decision, type DecisionIssue, type DecisionsInfo, type GithubInfo,
 import { docUrl } from '../docs/links';
 import { slugOf } from '../docs/index';
 import { inlineText } from '../engine/decisions';
+import { say } from '../messages';
 import { STATUS_DOC_PATH } from '../status/status';
 
 // "Your move": every open action for Mark, in one list. The Now page shows it at the top. It is built from the panels of five
@@ -57,15 +58,17 @@ function questionOf(title: string): string {
 function decisionIssueItem(issue: DecisionIssue): YourMoveItem {
   const at = orNull(issue.createdAt);
   // An issue that does not follow the template cannot be answered on its page. The item says so and links to the issue itself, where Mark can read it and fix it.
-  if (issue.problem !== null) return item('decision-issue', `Decision #${issue.number} is unreadable: ${issue.problem}`, orNull(issue.url), { at });
+  if (issue.problem !== null) return item('decision-issue', say('yourMoveUnreadable', { number: issue.number, problem: issue.problem }), orNull(issue.url), { at });
   return item('decision-issue', `Decision #${issue.number}: ${questionOf(issue.title)}`, `/decisions/${issue.number}`, { at });
 }
 
 /**
  * The lines of the "Your move" box of a session, when Mark has something to do there: the session is not idle (an idle one has been quiet for hours, and its box
  * is old news), the box does not say "nothing", and no prompt of his came after it. The words of a line may carry markdown (`code`, **bold**), and the list is plain text.
- * The session's title is part of the text, because a line such as "Review the diff" means nothing without the session that wrote it. Each line links to the card of its
- * session on the Agents page (design 5.1: each item links to its source), where Mark sees the state of the session and the path of its file.
+ * The session's title is part of the text, because a line such as "Review the diff" means nothing without the session that wrote it. Each line links to the place of its
+ * session on the Agents page (design 5.1: each item links to its source): `/agents#session-<id>`. That page draws only a session whose Claude process runs, and this
+ * list keeps the items of a session for as long as the sessions module counts it as not idle (hours after its last reply, also when the process has ended). A link can
+ * lead to a session that is not live then, and the item keeps it: the Agents page shows the label "Session not active" (web/agents/Diagram.tsx).
  */
 function sessionItems(session: SessionInfo): YourMoveItem[] {
   const box = session.yourMove;
@@ -77,8 +80,8 @@ function sessionItems(session: SessionInfo): YourMoveItem[] {
 }
 
 function pullRequestItem(pr: PullRequest): YourMoveItem {
-  const what = pr.attention === 'merge' ? 'is ready to merge' : 'needs a fix';
-  return item('pr', `PR #${pr.number} ${what}: ${pr.title}`, orNull(pr.url), { at: orNull(pr.updatedAt) });
+  const text = say(pr.attention === 'merge' ? 'yourMovePrMerge' : 'yourMovePrFix', { number: pr.number, title: pr.title });
+  return item('pr', text, orNull(pr.url), { at: orNull(pr.updatedAt) });
 }
 
 /** A decision of the engine docs that waits for Mark. It links to the doc at the heading of the decision. */

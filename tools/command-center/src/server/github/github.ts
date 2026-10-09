@@ -1,4 +1,5 @@
 import type { GithubInfo, PullRequest, PullRequestCheck, PullRequestReview } from '../../shared/types';
+import { say } from '../messages';
 import { PanelError } from '../source';
 
 // The parser of the GitHub module: it reads what `gh pr list --json ...` prints and makes the pull
@@ -34,7 +35,7 @@ export function isMarkLogin(login: unknown): boolean {
 
 type Json = Record<string, unknown>;
 
-const isRecord = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
+export const isRecord = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value);
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
 
 /** An ISO time as milliseconds, or 0 when it is not one (so a sort never meets NaN). */
@@ -55,7 +56,8 @@ export function httpUrl(value: unknown): string | null {
   }
 }
 
-const unreadable = (what: string) => new PanelError('gh-bad-output', `gh printed a list of pull requests that this page cannot read: ${what}.`);
+/** The failure for gh output that is not a list of pull requests. `detail` is one of the `ghDetail...` messages. */
+const unreadable = (detail: string) => new PanelError('gh-bad-output', say('ghBadOutput', { subject: 'pull requests', ghDetail: detail }));
 
 // ---- checks ----
 
@@ -137,11 +139,11 @@ const listOf = (value: unknown): unknown[] => (Array.isArray(value) ? value : []
 
 /** One entry of gh's list. `position` counts from 1, for the message when the entry cannot be read. */
 function toPullRequest(raw: unknown, position: number): PullRequest {
-  if (!isRecord(raw)) throw unreadable(`entry ${position} is not a pull request`);
+  if (!isRecord(raw)) throw unreadable(say('ghDetailEntryNotPr', { position }));
   const { number, state } = raw;
-  if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) throw unreadable(`entry ${position} has no pull request number`);
+  if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) throw unreadable(say('ghDetailEntryNoPrNumber', { position }));
   if (state !== 'OPEN' && state !== 'MERGED' && state !== 'CLOSED') {
-    throw unreadable(`pull request #${number} has the state ${state === undefined ? '(none)' : JSON.stringify(state)}, which this page does not know`);
+    throw unreadable(say('ghDetailPrState', { number, state: state === undefined ? '(none)' : JSON.stringify(state) }));
   }
 
   const checks = listOf(raw.statusCheckRollup).map(toCheck);
@@ -181,9 +183,9 @@ export function parseGhPrs(json: string, now: Date): GithubInfo {
   try {
     parsed = JSON.parse(json);
   } catch {
-    throw unreadable('the output is not JSON');
+    throw unreadable(say('ghDetailOutputNotJson'));
   }
-  if (!Array.isArray(parsed)) throw unreadable('the output is not a list');
+  if (!Array.isArray(parsed)) throw unreadable(say('ghDetailOutputNotList'));
   const all = parsed.map((raw, index) => toPullRequest(raw, index + 1));
 
   const open = all.filter((pr) => pr.state === 'OPEN').sort((a, b) => millisOf(b.updatedAt) - millisOf(a.updatedAt) || b.number - a.number);

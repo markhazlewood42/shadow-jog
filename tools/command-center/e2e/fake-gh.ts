@@ -53,9 +53,9 @@ export type GhMode = {
   step?: GhWriteStep;
   /**
    * Replies for the ok mode, by key. The key is the command and, if it has one, the issue or PR
-   * number: "pr list", "issue view", "issue view 7", "auth status", "api events", "api events 7",
+   * number: "pr list", "run list", "issue view", "issue view 7", "auth status", "api events", "api events 7",
    * "issue comment". The key with the number wins over the one without. A reply sets any of
-   * code (default 0), stdout and stderr (default empty).
+   * code (default 0), stdout and stderr (default empty; the default of "run list" is one run that passed, see cannedRun).
    */
   replies?: Record<string, GhReply>;
 };
@@ -381,6 +381,16 @@ function storeReply(dir: string, args: string[]): RunResult | null {
   return null;
 }
 
+/**
+ * What `gh run list --workflow ci.yml --branch main --limit 1 --json status,conclusion,url,createdAt` prints in the fake world when a test has set no reply: the one newest run of main,
+ * finished and passed, at a fixed time. Its address is in the repository that the runner pinned with `--repo`. A test that wants another run, or none, sets the reply "run list".
+ */
+function cannedRun(args: string[]): string {
+  const at = args.indexOf('--repo');
+  const repo = (at === -1 ? undefined : args[at + 1]) ?? 'fixture-owner/fixture-repo';
+  return JSON.stringify([{ status: 'completed', conclusion: 'success', url: `https://github.com/${repo}/actions/runs/9001`, createdAt: '2026-10-06T10:00:00Z' }]);
+}
+
 const SIGNED_OUT_STATUS = 'You are not logged into any GitHub hosts. To log in, run: gh auth login';
 const SIGNED_OUT_OTHER = 'gh: To get started with GitHub CLI, please run:  gh auth login\nAlternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.';
 const WRITE_FAILURES: Record<GhWriteStep, string> = {
@@ -410,7 +420,7 @@ function answer(mode: GhMode, args: string[], timeoutMs: number, dir: string): R
 }
 
 function okReply(mode: GhMode, args: string[], dir: string): RunResult {
-  // A reply that a test set wins. Then the issue store, when a test set issues. Then empty data.
+  // A reply that a test set wins. Then the issue store, when a test set issues. Then the canned run of `run list`, and for any other read empty data.
   for (const key of replyKeys(args)) {
     const reply = mode.replies?.[key];
     if (reply) return { code: reply.code ?? 0, stdout: reply.stdout ?? '', stderr: reply.stderr ?? '' };
@@ -419,6 +429,7 @@ function okReply(mode: GhMode, args: string[], dir: string): RunResult {
   if (stored !== null) return stored;
   const [group, verb] = args;
   if (group === 'auth') return { code: 0, stdout: 'github.com\n  Logged in to github.com account fixture-user', stderr: '' };
+  if (group === 'run' && verb === 'list') return { code: 0, stdout: cannedRun(args), stderr: '' };
   if (group === 'api' || verb === 'list') return { code: 0, stdout: '[]', stderr: '' };
   if (verb === 'view') return { code: 0, stdout: '{}', stderr: '' };
   return { code: 0, stdout: '', stderr: '' }; // a write

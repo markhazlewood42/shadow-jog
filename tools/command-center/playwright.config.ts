@@ -14,6 +14,12 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:3010',
     viewport: { width: 1280, height: 720 },
+    // The CI runner has no GPU, so the WebGL2 glass of the Now page is drawn by software there, and that is so slow that clicks hang and panels stay at "Loading...".
+    // On CI every test therefore starts with the glass off, as for a user who turned it off. A test that needs the glass sets it itself (an init script of a test runs
+    // after this storage state) or skips on CI. Locally nothing changes.
+    ...(process.env.CI
+      ? { storageState: { cookies: [], origins: [{ origin: 'http://127.0.0.1:3010', localStorage: [{ name: 'cc.now.glass', value: 'off' }] }] } }
+      : {}),
   },
   projects: [
     // Edge locally (Windows), the bundled Chromium on CI: the same choice as the game's own tests.

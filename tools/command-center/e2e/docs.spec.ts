@@ -139,7 +139,7 @@ test.describe('the docs site', () => {
 
     // A doc that nothing links to says so, and a doc with no frontmatter shows its date and where it came from.
     await page.goto('/docs/first');
-    await expect(page.getByRole('navigation', { name: 'Linked from' })).toContainText('No other doc links here');
+    await expect(page.getByRole('navigation', { name: 'Linked from' })).toContainText('No links here');
     await expect(page.getByLabel('Document details').locator('time')).toHaveText('2026-01-02');
     await expect(page.getByLabel('Document details')).toContainText('from git');
 
@@ -429,7 +429,7 @@ test.describe('the docs site', () => {
     await expect(documentOf(page).getByText('The first version of the text.')).toBeVisible({ timeout: 5000 });
   });
 
-  test('a renamed open doc shows "moved or deleted" with a suggestion', async ({ page }) => {
+  test('a renamed open doc shows "Doc not found" with a suggestion', async ({ page }) => {
     const movedTo = join(REPO, 'docs', 'live-edit', 'old', 'moving.md');
     try {
       await page.goto('/docs/live-edit/moving');
@@ -438,7 +438,7 @@ test.describe('the docs site', () => {
       mkdirSync(join(REPO, 'docs', 'live-edit', 'old'), { recursive: true });
       renameSync(MOVING_DOC, movedTo);
 
-      const gone = page.getByRole('heading', { level: 1, name: /moved or deleted/i });
+      const gone = page.getByRole('heading', { level: 1, name: 'Doc not found' });
       await expect(gone).toBeVisible({ timeout: 8000 });
       await expect(page.getByText('/docs/live-edit/moving')).toBeVisible(); // the address that has no doc now
       // The doc has the same file name in another folder: it is offered.
@@ -494,6 +494,92 @@ test.describe('the docs site', () => {
   });
 });
 
+/**
+ * The words of a page outside the text of the docs, one entry for each line on screen. The text of a doc is data (it is not ours to
+ * shorten), so the page hides it first. Sections of the tree, titles and dates are data too, but short in the sample docs.
+ */
+async function chromeLines(page: Page): Promise<string[]> {
+  const text = await page.evaluate(() => {
+    for (const body of document.querySelectorAll<HTMLElement>('.doc-html')) body.style.display = 'none';
+    return document.body.innerText;
+  });
+  return text.split('\n').map((line) => line.trim()).filter((line) => line !== '');
+}
+
+/** The sentences of some lines: a line is cut after a full stop, a question mark or an exclamation mark that is followed by a space. */
+const sentencesOf = (lines: readonly string[]) => lines.flatMap((line) => line.split(/(?<=[.!?])\s+/)).filter((sentence) => sentence !== '');
+
+/** Fails when one sentence has more than 20 words (design 5.8), or a contraction, as the Simplified Technical English rules ask. */
+function expectShortSentences(lines: readonly string[], where: string): void {
+  for (const sentence of sentencesOf(lines)) {
+    expect(sentence.split(/\s+/).length, `${where}: ${sentence}`).toBeLessThanOrEqual(20);
+    expect(sentence, `${where}: ${sentence}`).not.toMatch(/\w'(t|s|re|ve|ll|d|m)\b/i);
+  }
+}
+
+test.describe('the text of the doc pages', () => {
+  test('doc chrome shows labels without long sentences', async ({ page, request }) => {
+    const problems = watchConsole(page);
+    const listing = await readListing(request);
+    expect(listing.problems.length).toBeGreaterThan(0); // the sample docs have broken links, so the folded list is on the page
+
+    // The overview: a title, the counts as labels, the folded problems as a count, and no sentence about what the docs cover.
+    await page.goto('/docs');
+    const overview = page.getByRole('region', { name: 'Overview' });
+    await expect(overview.getByText(`${listing.docs.length} docs · ${listing.nav.length} sections`, { exact: true })).toBeVisible();
+    await expect(overview.locator('summary')).toHaveText(`${listing.problems.length} doc problems`);
+    await expect(page.getByRole('button', { name: /^Show all \d+ pages$/ }).first()).toBeVisible();
+    await expect(page.getByText('The design, the engine')).toHaveCount(0);
+    await expect(page.getByText('Pick a section')).toHaveCount(0);
+    expectShortSentences(await chromeLines(page), 'overview');
+
+    // Search: the placeholder is two words, and a search with no hit is a label with the query.
+    const box = page.getByRole('combobox', { name: 'Search docs' });
+    await expect(box).toHaveAttribute('placeholder', 'Search docs');
+    await box.fill('zzzzzz');
+    await expect(page.getByText('No docs match "zzzzzz"', { exact: true })).toBeVisible();
+    await expect(page.getByText('Every word must be')).toHaveCount(0);
+    expectShortSentences(await chromeLines(page), 'search with no hit');
+    await box.press('Escape');
+
+    // A doc with a broken link and no headings: the count of broken links is a label, and an empty outline is a label.
+    await page.goto('/docs/broken-link');
+    await expect(documentOf(page).getByRole('heading', { level: 1, name: 'Links that do not work' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Outline' })).toContainText('No headings');
+    await expect(documentOf(page).getByRole('note')).toContainText(/^\d+ broken links?: /);
+    await expect(documentOf(page).getByRole('note')).not.toContainText('in this doc');
+    expectShortSentences(await chromeLines(page), 'a doc with broken links');
+
+    // A doc that nothing links to.
+    await page.goto('/docs/first');
+    await expect(page.getByRole('navigation', { name: 'Linked from' })).toContainText('No links here');
+    expectShortSentences(await chromeLines(page), 'a doc without backlinks');
+
+    // The pages above logged nothing. (The pages below ask for a doc that does not exist, so the browser logs the 404 itself.)
+    expect(problems).toEqual([]);
+
+    // The page of an address with no doc: a label, one line, and a link. No doc has that file name.
+    await page.goto('/docs/no/such/doc');
+    const gone = page.getByRole('region', { name: 'Doc not found' });
+    await expect(gone.getByRole('heading', { level: 1, name: 'Doc not found' })).toBeVisible();
+    await expect(gone).toContainText('No doc has this address.');
+    await expect(gone).toContainText('/docs/no/such/doc');
+    await expect(gone).toContainText('No doc has the file name "doc"');
+    await expect(gone.getByRole('link', { name: 'Docs overview', exact: true })).toHaveAttribute('href', '/docs');
+    await expect(gone).not.toContainText('renamed');
+    await expect(gone).not.toContainText('search for it');
+    await expect(page.getByRole('combobox', { name: 'Search docs' })).toBeVisible(); // the search above it stays
+    expectShortSentences(await chromeLines(page), 'the Gone page');
+
+    // The same page with a doc that has the same file name elsewhere (a doc that moved).
+    await page.goto('/docs/old/moving');
+    const moved = page.getByRole('region', { name: 'Doc not found' });
+    await expect(moved.getByText('Same file name', { exact: true })).toBeVisible();
+    await expect(moved.getByRole('link', { name: 'A doc that tests move around' })).toHaveAttribute('href', '/docs/live-edit/moving');
+    expectShortSentences(await chromeLines(page), 'the Gone page with a suggestion');
+  });
+});
+
 // The "done when" check of the docs pages: on the real repo, and not on the sample docs, the overview
 // has a card for every section of the nav and no card called "Other" (every doc is placed). It needs a
 // command center server that runs on the real repo, so it runs only when CC_REAL_URL names one:
@@ -525,7 +611,7 @@ test.describe('on the real repo', () => {
       const overview = page.getByRole('region', { name: 'Overview' });
       await expect(overview.getByRole('heading', { level: 3 })).toHaveText(nav.map((section) => section.title));
       await expect(overview.getByRole('region', { name: 'Other', exact: true })).toHaveCount(0);
-      await expect(overview).toContainText(`${docs.length} docs in ${nav.length} sections.`);
+      await expect(overview).toContainText(`${docs.length} docs · ${nav.length} sections`);
       // Every doc is in a section: the sections hold as many docs as there are docs.
       const placed = nav.reduce((count, section) => count + docItems(section).length, 0);
       expect(placed).toBe(docs.length);

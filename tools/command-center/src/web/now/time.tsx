@@ -15,6 +15,15 @@ export function formatDuration(ms: number): string {
   return hours % 24 === 0 ? `${days} d` : `${days} d ${hours % 24} h`;
 }
 
+/**
+ * How long ago a time was, in milliseconds: the length of something that began at `iso` and still runs. Null when there is no start or it is not a time, so a caller shows
+ * no length and never a guess. A start ahead of the clock gives a negative length (`formatDuration` takes it as 0).
+ */
+export function msSince(iso: string | null, nowMs: number): number | null {
+  const start = iso === null ? Number.NaN : Date.parse(iso);
+  return Number.isNaN(start) ? null : nowMs - start;
+}
+
 /** How long ago a time was, as "just now", "12 min ago", "3 h ago" or "2 d ago". A time that is not a time is shown as it is, and a time ahead of the clock is "just now". */
 export function formatAge(iso: string, nowMs: number): string {
   const then = Date.parse(iso);

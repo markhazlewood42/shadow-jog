@@ -17,22 +17,25 @@ function linksOf(health: Health): { label: string; url: string }[] {
   return [{ label: game?.label ?? 'Game', url: health.gameUrl }, ...health.links.filter((link) => link.url !== health.gameUrl)];
 }
 
+/**
+ * A link is its label and the icon of a link that leaves the site (design 5.1): the address is the link's, and is not written out. The label under the list is for a config
+ * that has the game and nothing else.
+ */
 function LinkList({ health }: { health: Health }) {
   const links = linksOf(health);
   return (
     <div className="flex flex-col gap-3">
       <ul aria-label="Links" className="flex flex-col gap-2.5">
         {links.map((link) => (
-          <li key={link.url} className="flex flex-col">
+          <li key={link.url}>
             <a href={link.url} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 text-sm text-cc-link underline underline-offset-2 cc-focus-ring">
               {link.label}
               <ExternalLink aria-hidden className="size-3.5" />
             </a>
-            <span className="font-mono text-xs break-all text-cc-soft">{link.url}</span>
           </li>
         ))}
       </ul>
-      {links.length === 1 && <p className="text-xs text-cc-muted">No other links are set. They go in the "links" list of command-center.config.json.</p>}
+      {links.length === 1 && <p className="text-xs text-cc-muted">No other links</p>}
     </div>
   );
 }
