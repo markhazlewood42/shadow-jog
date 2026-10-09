@@ -44,9 +44,9 @@ Facts from the survey. `tests/screen-literals.test.ts`, its two JSON lists, and 
 Each line is a command or a count. A fresh agent runs them.
 
 1. `npm run check` exits 0 (lint, types, unit tests). Judge by exit code.
-2. `grep -rnE "\b(W|H)\s*=\s*[0-9]" src` finds the W/H definition only in `src/sje/core/size.ts` (and `src/engine/game.ts` has none). `grep -rn "from '.*engine/game'" src | grep -E "\b[WH]\b"` returns nothing for `W` or `H`.
+2. `src/sje/core/size.ts` is the only definition of the screen `W` and `H` (`tests/screen-literals.test.ts` passes and checks it; 10 unrelated local map and prop size constants also match a plain grep and stay). `grep -rn "from '.*engine/game'" src | grep -E "b[WH]b"` returns nothing for `W` or `H` (reworded by the main session, 2026-10-09: the first grep was too wide).
 3. `git diff --stat main...HEAD -- src/engine src/battle src/game src/scenes src/field src/data src/story src/audio src/art` shows only `src/engine/game.ts` (the re-export) and import-path lines. No other logic line changes.
-4. `SJ_BUILD_SHA=m0 npm run build` bundle under `dist/` equals the build of `main` with the same pin, byte for byte, or differs only by the module path text the bundler drops. State which. `node scripts/prod-bytes.mjs` is not on `main`: use a hash of `dist/assets/*.js` for both.
+4. `SJ_BUILD_SHA=m0 npm run build` bundle under `dist/` equals the build of `main` with the same pin, byte for byte, or differs only by a few bytes of module path text (builder measured +4 raw, +2 gzip; the reader checks the statement-line comparison). State which. `node scripts/prod-bytes.mjs` is not on `main`: use a hash of `dist/assets/*.js` for both.
 5. `npx vitest run tests/screen-literals.test.ts` passes and `tests/screen-literals.pending.json` has zero entries.
 6. `npm run budget` exits 0. The `boot` class holds no `pixi.js` and no `three` module. The report prints all five classes.
 7. `npx playwright test e2e/sje-canaries.spec.ts --reporter=line` exits 0 under SwiftShader. All 12 canaries ran, and each negative control failed as it must.
