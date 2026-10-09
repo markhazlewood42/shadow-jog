@@ -28,6 +28,8 @@ export const DEV_TOOLS: { group: string; tools: DevTool[] }[] = [
     tools: [
       { name: 'Battle', path: '/?debug&scene=battle', about: 'A street fight on loop, full party at level 6', print: true },
       { name: 'Boss battle', path: '/?debug&scene=battle&enemies=lurker&boss', about: 'The Lurker, on loop' },
+      { name: 'Dialog box, full width (D8)', path: '/?debug&scene=field&map=lantern_row&x=22&y=8&dialogw=full', about: 'Dialogue in a box as wide as the screen (608 px), not the shipped one capped at 464. A review switch, dev only: add &dialogw=full to any route' },
+      { name: 'Menu panes, stretched (D8)', path: '/?debug&scene=field&map=lantern_row&x=22&y=8&panes=stretch', about: 'The field menu (press C) with its list panes as wide as the screen allows, not the shipped ones capped at 364 px. A review switch, dev only: add &panes=stretch to any route' },
       { name: 'A point in the story', path: '/?debug&scene=stage', about: 'Straight to a chapter preset: the party, levels and gear for that point', pick: 'stage' },
       { name: 'Debug mode', path: '/?debug', about: 'The normal game, with test hooks on window.__SJ__ (see the console)' },
     ],

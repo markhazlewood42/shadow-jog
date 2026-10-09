@@ -196,15 +196,19 @@ describe('the Status screen (WP4)', () => {
     const { STATUS_ABILITY_COLS, STATUS_ABILITY_ROWS } = await import('../src/ui/layout');
     const { applyStage } = await import('../src/game/stages');
     const { knownAbilities, lockedAbilities } = await import('../src/game/party');
-    const { state } = await import('../src/game/state');
+    const stateMod = await import('../src/game/state');
+    let judged = 0;
     for (const stage of ['start', 'sinkline', 'annex', 'finale']) {
       applyStage(stage);
-      for (const m of Object.values(state.members)) {
+      // `state` is a live binding that `applyStage` replaces, so it is read through the module after the stage is applied.
+      for (const m of Object.values(stateMod.state.members)) {
         if (!m) continue;
+        judged++;
         const n = knownAbilities(m).length + lockedAbilities(m).length;
         expect(n, `${m.id} at ${stage}`).toBeLessThanOrEqual(STATUS_ABILITY_COLS * STATUS_ABILITY_ROWS);
       }
     }
+    expect(judged).toBeGreaterThanOrEqual(10);
   });
 
   it('the stat block, the bio and the ability columns sit inside the window', async () => {

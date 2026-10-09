@@ -83,7 +83,8 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   const { W, H } = await import('../src/engine/game');
   const { applyStage } = await import('../src/game/stages');
   const { ITEMS } = await import('../src/data/items');
-  const { state } = await import('../src/game/state');
+  const stateMod = await import('../src/game/state');
+  // `state` is a live binding that `applyStage` replaces: read it as `stateMod.state` after the stage is applied.
   const { ListMenu } = await import('../src/ui/list');
   const real = ListMenu.prototype.render;
   // biome-ignore lint/suspicious/noExplicitAny: the tap's `this` is the list, whose type this test does not need.
@@ -110,7 +111,7 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
 
   applyStage('finale');
   // A full bag: one of every item, a few of each.
-  state.inventory = Object.fromEntries(Object.keys(ITEMS).map((id) => [id, 3]));
+  stateMod.state.inventory = Object.fromEntries(Object.keys(ITEMS).map((id) => [id, 3]));
 
   // ---- the field menu
   const { MenuScene } = await import('../src/scenes/menu');
@@ -154,8 +155,7 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   {
     // Rook, wounded: the status page with the wound line, and his locked abilities.
     const m = menu();
-    delete state.flags.rook_mended;
-    state.flags.rook_wounded = true;
+    delete stateMod.state.flags.rook_mended;
     goto(m, 'Status');
     drive(m, input, ['confirm', 'down', 'confirm']);
     take('menu: status, rook (wounded)', m);
@@ -171,7 +171,7 @@ async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: 
   const { ShopScene } = await import('../src/scenes/shop');
   {
     const s = bind(new ShopScene('lr_weapons'));
-    state.cred = 900;
+    stateMod.state.cred = 900;
     take('shop: root', s);
     drive(s, input, ['confirm']);
     take('shop: buy', s);
@@ -332,5 +332,42 @@ describe('how much of each pane holds content (rubric R5, advisory)', () => {
     const lines = judged.map(({ shot, share }) => `${shot} / ${share.win.title ?? 'untitled'} ${share.win.w}x${share.win.h}: ${Math.round(share.wShare * 100)}% x ${Math.round(share.hShare * 100)}%`);
     console.info(`R5 panes judged (${judged.length}):\n${lines.join('\n')}`);
     expect(low.map(({ shot, share }) => `${shot} / ${share.win.title ?? 'untitled'}: ${Math.round(share.wShare * 100)}% x ${Math.round(share.hShare * 100)}%`)).toEqual([]);
+  });
+});
+
+describe('what the layout promises beyond the four checks (D8, WP4)', () => {
+  it('the dialog box is centered and capped, and its choice box ends at the box’s right end', async () => {
+    const { shots, W } = await drawAll(null);
+    const { DIALOG_MAX_W } = await import('../src/ui/layout');
+    const one = shots.find((s) => s.name === 'dialog: one line')!.layout;
+    const box = one.windows.find((w) => w.h === 62)!;
+    expect(box.w).toBe(DIALOG_MAX_W);
+    expect(box.x * 2 + box.w).toBe(W);
+    // The choice box (a plain window above the dialog) does not reach past the box's right end, and sits near it.
+    const ask = shots.find((s) => s.name === 'dialog: a choice')!.layout;
+    const dlg = ask.windows.find((w) => w.h === 62)!;
+    const choice = ask.windows.find((w) => w !== dlg && w.y < dlg.y)!;
+    expect(choice.x + choice.w).toBeLessThanOrEqual(dlg.x + dlg.w);
+    expect(dlg.x + dlg.w - (choice.x + choice.w)).toBeLessThanOrEqual(8);
+  });
+
+  it('the combo log draws as many rows as the window has room for (8 at 640x360)', async () => {
+    const { shots, H } = await drawAll(null);
+    const { rowsFor, COMBO_ROW_H, COMBO_TOP } = await import('../src/ui/layout');
+    const { COMBOS } = await import('../src/data/abilities');
+    const rows = rowsFor(H - 8 - COMBO_TOP, COMBO_ROW_H);
+    expect(COMBOS.length).toBeGreaterThan(rows);
+    const combos = shots.find((s) => s.name === 'menu: combos')!.layout;
+    expect(combos.texts.filter((t) => t.text.startsWith('★')).length).toBe(rows);
+    expect(rows).toBe(8);
+  });
+
+  it('the Status screen puts a stat’s label and its value near each other (within 220 px; the old column put them 308 px apart)', async () => {
+    const { shots } = await drawAll(null);
+    const NEAR = 220;
+    const st = shots.find((s) => s.name === 'menu: status, kit')!.layout;
+    const label = st.texts.find((t) => t.text === 'ATK')!;
+    const value = st.texts.filter((t) => t.y === label.y && t !== label).sort((a, b) => b.x - a.x)[0]!;
+    expect(value.x + value.w - label.x).toBeLessThanOrEqual(NEAR);
   });
 });
