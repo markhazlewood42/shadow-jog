@@ -179,7 +179,7 @@ The two labels `decision` and `decided` must exist in the GitHub repo. Creating 
 
 - The server does not set the language of `gh`. The panel recognizes the causes of a `gh` failure (not signed in, offline, not installed) from English text. In another language the panel shows the generic message with the first line of what `gh` said.
 - The list of recent decisions counts an answer as recent by the time of the answer comment. It does not use the time when the issue closed.
-- The scan of a live session file reads up to 1 MiB of its end every 3 seconds.
+- The scan of a live session file reads up to 1 MiB of its end (`MESSAGE_WINDOW_BYTES` in `src/server/agents/tree.ts`) at every look. A look runs every 3 seconds (`agents.pollMs`).
 - A process id that Windows reuses after a crash can show a ghost session on the Agents page.
 - The motion of the diagram lines works in Chromium and Edge only. Firefox and Safari are untested. A browser without it redraws the line at once.
 

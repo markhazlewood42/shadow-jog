@@ -4,13 +4,13 @@ title: "Shadow Jog Command Center — Build process"
 project: shadow-jog
 created: 2026-10-08
 updated: 2026-10-08
-status: record of how the Command Center was built and checked (2026-10-05 to 2026-10-08)
+status: historical record of how the Command Center was built and checked (2026-10-05 to 2026-10-08); not binding
 tags: [tooling, command-center, process]
 ---
 
 # Shadow Jog Command Center — Build process
 
-This page keeps the rules of the build for a future maintainer. The working record of the build (the ledger, the briefs and the reviews) was a git-ignored folder. Mark removed it after this page was written. The rulings it held are in `design.md`, the tool README, the code comments and the description of PR #26.
+This page is a historical record, not a set of binding rules. It keeps the process of the build for a future maintainer. The current rules are in `CLAUDE.md` and in `docs/DEVELOPING.md`: where they differ from this page (for example, `CLAUDE.md` says to push each piece of work at once, and the build let the controller push after a task passed), the current rules win. The working record of the build (the ledger, the briefs and the reviews) was a git-ignored folder. Mark removed it after this page was written. The rulings it held are in `design.md`, the tool README, the code comments and the description of PR #26.
 
 ## Roles
 
