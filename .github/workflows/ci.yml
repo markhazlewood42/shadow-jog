@@ -3,11 +3,11 @@
 # Three jobs run at the same time. None waits for another, so a pull request waits for the slowest
 # job, not for all of them added together.
 #
-#   check        lint, typecheck, unit tests and the bundle budget. The ruleset on main requires
+#   check        lint, typecheck, unit tests and the bundle budget (both builds, the game and the lab page). The ruleset on main requires
 #                this check by name. So the job id must stay `check`, it must not get a different
 #                `name:`, and it must always start and report (see "Check which files changed"
 #                below).
-#   e2e          the Playwright specs, on Chromium
+#   e2e          the Playwright specs, on Chromium (the engine canary suite included)
 #   e2e-engines  the game over and shipped-build specs, on WebKit and Firefox
 #
 # A change that touches only docs/, *.md files, tools/command-center/ or the Claude review workflow
@@ -116,7 +116,9 @@ jobs:
         if: steps.scope.outputs.skip != 'true'
       - run: npm test
         if: steps.scope.outputs.skip != 'true'
-      - name: Bundle budget (largest chunk and total gzip)
+      # Builds the game and the engine lab page (`vite build --mode lab`), then sorts the chunks into classes from the Vite manifests
+      # (boot, lazy-2d, lazy-3d, lazy-other) and checks the caps and that the boot class holds no Pixi or Three.
+      - name: Bundle budget (manifest classes and total gzip)
         if: steps.scope.outputs.skip != 'true'
         run: npm run budget
 
@@ -173,12 +175,14 @@ jobs:
       # CI must be set. playwright.config.ts then uses the bundled Chromium (not Edge) and adds the
       # WebKit and Firefox projects, and perf.spec.ts uses its software-canvas budget. GitHub sets
       # CI already. It is set here too, so the need is visible.
-      - name: E2E on Chromium (every spec except the playtest)
+      # sje-canaries.spec.ts is the engine canary suite (M0): the lab page on SwiftShader, every trap with its negative control.
+      - name: E2E on Chromium (every spec except the playtest, with the engine canaries)
         if: steps.scope.outputs.skip != 'true'
         run: >-
           npx playwright test --project=chromium
           e2e/playthrough.spec.ts e2e/gameover.spec.ts e2e/perf.spec.ts e2e/prod.spec.ts
           e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts
+          e2e/sje-canaries.spec.ts
         env:
           CI: '1'
 

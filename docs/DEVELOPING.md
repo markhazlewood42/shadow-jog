@@ -25,7 +25,7 @@ npm install
 
 | Command | What |
 |---|---|
-| `npm run dev` | Dev server on **http://localhost:3007** (debug hooks on; add `?debug` for the test helpers) |
+| `npm run dev` | Dev server on **http://localhost:3007** (`window.__SJ__` and the test hooks are on in every dev build; `?debug` only skips the close-tab prompt, which the test harness must not see) |
 | `npm run build` | Typecheck, then the production build into `dist/` |
 | `npm run preview` | Serve `dist/` on **http://localhost:3008** (the shipped build) |
 | `npm run check` | Lint + typecheck + unit tests (the quick pre-commit gate) |
@@ -167,7 +167,7 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
 - `/artreview.html`: the art-pass review page; `?art=review[&try=asset/option,...]` on any route swaps art-pass
   options into the game (see §8, "The PixelLab art pass").
 
-**`window.__SJ__`** (open the console on `http://localhost:3007/?debug`):
+**`window.__SJ__`** (a dev build always has it; open the console on `http://localhost:3007/`. The e2e specs add `?debug` so the close-tab prompt stays off):
 - `game`, `display`, `state`, `field()`, `top()` (the top scene's class name), `idle()` (field ready for input);
 - `stage(name)`: jump to a preset (`start`, `town`, `sinkline`, `annex`, `finale`);
 - `tp(map, x, y, dir)`: teleport;

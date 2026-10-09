@@ -74,6 +74,7 @@ The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game
 - Fix doc drift (`?debug` note, chunk count).
 - **The game still works:** the old game is unchanged.
 - **Exit check:** canaries green on SwiftShader. The bundle gate passes at the size of the shipped game after the 640x360 move (233.9 kB gzip before it).
+- **Built 2026-10-09** (builder report in [m0-brief.md](m0-brief.md)). Two differences from this list: the canaries test Pixi and Three through a lab that composes `GlRenderer`, `Screen`, `TextureManager` and `FixedLoop` (the spike's lab ran on `Game`, which is M1), so `src/sje/runtime/glrenderer.ts` came in with M0 and `Scene3D` waits for M1b; and the lab scripts of `media/research-2026-10-04/` were not needed, because no canary runs one.
 
 ### M1 Shell
 
@@ -308,7 +309,7 @@ A legacy scene is one that has `enter`, `exit`, `resume`, `update()`, and `rende
 
 | Today | New home | Step |
 |---|---|---|
-| `src/engine/game.ts` (`W`, `H`, `FPS`) | `src/sje/core/size.ts` | M0 |
+| `src/engine/game.ts` (`W`, `H`, `FPS`) | `src/sje/core/size.ts` | M0 (done 2026-10-09: `W` and `H` live in `size.ts`, `game.ts` re-exports them, every importer of the old game moved to `size.ts`; `FPS` stays in `game.ts` until M1) |
 | `src/engine/game.ts` (`Game`, `Scene`) | `src/sje/runtime/` | M1 |
 | `src/main.ts` loop | `FixedLoop` | M1 |
 | `src/engine/display.ts` | `Display` | M1 |
