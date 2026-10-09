@@ -58,7 +58,7 @@ test.describe('the real game on the new engine', () => {
       await page.waitForTimeout(500);
       await shot('field');
 
-      await sj(page, "sj.battle('sinkline', 'sewer')");
+      await sj(page, "(sj.defineEncounter('m1shot', ['sewer_ghoul', 'rust_crab']), sj.battle('m1shot', 'sewer'))");
       expect(await waitTop(page, 'BattleScene')).toBe(true);
       await page.waitForTimeout(3500);
       await shot('battle');
@@ -89,7 +89,7 @@ test.describe('the real game on the new engine', () => {
       expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
       await page.waitForTimeout(500);
       writeFileSync(`${OUT}/old-field.png`, await page.screenshot());
-      await sj(page, "sj.battle('sinkline', 'sewer')");
+      await sj(page, "(sj.defineEncounter('m1shot', ['sewer_ghoul', 'rust_crab']), sj.battle('m1shot', 'sewer'))");
       expect(await waitTop(page, 'BattleScene')).toBe(true);
       await page.waitForTimeout(3500);
       writeFileSync(`${OUT}/old-battle.png`, await page.screenshot());

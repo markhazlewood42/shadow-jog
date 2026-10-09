@@ -377,6 +377,15 @@ Names from the engine migration (`docs/engine/`). They never show to the player.
 | **Hand-off** | The switch of the shared GL context between Pixi and Three (`GlHandoff`). | `src/sje/render/glhandoff.ts` |
 | **Speed line** | The pass line for frame speed: interval p95 within 5% of a bare page, frame cost p95 at most 8 ms. On software GL: the loop is not stuck. | `e2e/sjelabkit.ts` |
 | **Boot, lazy-2d, lazy-3d, lazy-other, first play** | The bundle classes of the budget gate. | `scripts/bundle-budget.mjs` |
+| **`?engine=sje`** | The page flag that runs the real game on the new engine. Without it the old engine runs. | `src/main.ts`, `src/sje/boot.ts` |
+| **`LegacyScene`** | The adapter that runs a scene of the old engine inside the new one. It owns one 640x360 `CanvasImage` and calls the scene's `render(ctx)` into it. | `src/sje/runtime/legacyscene.ts` |
+| **`GameApi`, `LegacyGameSurface`** | The types that let story code and scenes run on both `Game` classes: the narrow shared interface, and everything the old scenes call on the old `Game`. | `src/sje/runtime/gameapi.ts` |
+| **`Display` (scale)** | Where the 640x360 picture sits in the window: integer scale `k`, a canvas that fills the window in device pixels, bars in the void color. The `fit` mode was dropped (2026-10-09). | `src/sje/runtime/display.ts` |
+| **`fxLevel`** | The effects setting: `none`, `auto` or `full`. It replaces `gpuFx`. | `src/game/settings.ts` |
+| **Catch-up ticks** | The extra ticks that a late frame runs to get back to real time. At most 5, then the backlog is dropped. | `src/sje/core/fixedloop.ts` |
+| **Fault isolation** | A scene that throws in its tick or draw is reported and skips that frame. 30 faulting frames in a row send the player to the title. | `src/sje/runtime/game.ts` |
+| **The DEV hook** | The extra members on `window.__SJ__` (`tree`, `step`, `frameHash`, `pixels`, `glCounts`, context loss) in a DEV build on `?engine=sje`. | `src/sje-lab/devhook.ts` |
+| **Block test** | A pixel check that every game pixel is an exact k-by-k block, or equal to the old path's pixel, at an integer ratio. | `e2e/sje-shell.spec.ts`, `e2e/gpufx.spec.ts` |
 
 ---
 

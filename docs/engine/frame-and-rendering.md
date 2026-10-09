@@ -299,7 +299,7 @@ Cost on SwiftShader follows canvas pixels. In the lab (a 480x270 game, one machi
 
 ### 6.6 Display and device pixels
 
-`Display` has two modes. Their math differs, and each comes from a different code base.
+`Display` has ONE mode, `integer` (Mark dropped `fit` on 2026-10-09, E13; built in M1 as `src/sje/runtime/display.ts`). The old `fit` rule is kept below as history.
 
 **`integer` mode** uses the spike's math for `k` (`src/stage/zoom.ts`). It works in device pixels. It does not use the spike's `centerOnDevicePixels`, because the canvas is now the whole window (see below):
 
@@ -309,13 +309,7 @@ Cost on SwiftShader follows canvas pixels. In the lab (a 480x270 game, one machi
 - `image-rendering: pixelated`. Pixi sets none, so the engine sets it.
 - It always snaps.
 
-**`fit` mode** uses today's math (`src/engine/display.ts`):
-
-- `k = max(1, ceil(cssScale * dpr))`. The CSS size is `floor(W*cssScale)`.
-- It snaps to a whole multiple only if that multiple fills at least 90% of the window.
-- It relies on `image-rendering: auto`, so the browser downsamples the integer upscale smoothly. `pixelated` with a non-integer CSS size gives uneven pixels. So `fit` mode must not set `pixelated`.
-
-`Display` sets `image-rendering` for each mode. E13 asks which mode is the default. This design recommends `integer`. If you pick `integer` only, the `fit` mode retires. Today's default `settings.scale: 'fit'` then migrates to `integer` in `backfill()`.
+**`fit` mode (retired, 2026-10-09).** It used today's math (`src/engine/display.ts`): `k = max(1, ceil(cssScale * dpr))`, a CSS size of `floor(W*cssScale)`, a snap to a whole multiple only above 90% of the window, and `image-rendering: auto`. It had no tested design on the whole-window canvas, and the integer presenter never resamples. The old path keeps its own `Display` and the unit test of that rule (`tests/display.test.ts`). A saved `settings.scale: 'fit'` becomes `integer` in `backfill()`, and the Options list has no Scaling row.
 
 The lab (480x270): integer upscales x3 and x4 are exact. x2.5 is not. Device pixel ratios 1 and 1.25 were tested. Phase 0 tested the real engine at ratios 1, 1.25, 1.5, 1.75, 2 and 2.25. It also tested four awkward windows: 1.1 at zoom 2, 1.75 at zoom 5, 2.25 at zoom 5, and 2.5 at zoom 4. The result is zero uneven blocks, in the canvas and in a page screenshot, with the 2D scenes, the 3D scene and the filters on. The old centering trick had a limit at ratios 1.75 and 2.25. The whole-window canvas has none. At 640x360 the same checks give zero uneven blocks at every ratio and window, in every scene (230,400 blocks for each check, on the GPU and on SwiftShader). One awkward window (ratio 1.1, 1000x560) is zoom 1 at 640x360, where a block check cannot fail, so it counts as not covered. A window of 960x540 is also zoom 1 at 640x360. A test of the block check needs a window of at least 1280x720.
 
@@ -331,8 +325,7 @@ The lab (480x270): integer upscales x3 and x4 are exact. x2.5 is not. Device pix
 
 The 720p row follows from the rule. The other rows come from the Phase 0 mock and its arithmetic. The mock measured 1080p and the Deck window. At 480x270 on the Deck window the picture is 960x540, with bars of 160 and 130 pixels.
 
-- `fit` mode is not built and not tested in Phase 0. The presenter is integer only. M1 decides how `fit` works with a whole-window canvas (E13).
-- `display.toGame(clientX, clientY)` maps pointer positions to game pixels.
+- The presenter is integer only. `fit` is retired (E13). `display.toGame(clientX, clientY)` maps pointer positions to game pixels (M1 tests: `tests/sje-display.test.ts`).
 
 ### 6.7 Textures
 
@@ -508,7 +501,7 @@ Pixi's texture GC is off (section 6.1). So the engine must free every texture it
 The engine reads and writes only a few settings. They live in `src/game/settings.ts`. That file keeps its shape.
 
 - `fxLevel` replaces `gpuFx`. `backfill()` maps old `gpuFx: true` to `auto` and `false` to `none`. A settings test covers it.
-- `scale` keeps `'fit'` and `'integer'`. See section 6.6 and E13.
+- `scale` is `'integer'` only (`fit` was dropped, 2026-10-09: section 6.6, E13). `backfill()` maps a saved `'fit'` to `'integer'`.
 - Custom key bindings stay in `settings`. `ActionMap.applyCustom` reads them ([interfaces.md](interfaces.md) section 8).
 - The `?seed=` query sets `visualRng` only. It is for dev and tests.
 - **Order.** The game loads settings before `Game.create(config)`. `config` carries `fxLevel` and `scaleMode`.

@@ -25,9 +25,11 @@ Phaser 4 is the naming reference, not a dependency. Its source is not in this re
 3. The doc for your part: `scene-graph.md` (display objects), `frame-and-rendering.md` (loop, back buffer, hand-off), `interfaces.md` (signatures, compiled by `src/sje/interfaces.check.ts`), `tooling-and-testing.md` (tests, gates).
 4. `docs/engine/migration.md` (which milestone owns your change) and `docs/engine/m0-brief.md` (what M0 built).
 
-## What exists now (M0)
+## What exists now (M1)
 
-`src/sje/core` (size, loop, events), `render` (GL context, Pixi renderer, back buffer, presenter, GL hand-off, frame textures), `display` (GameObjects, effects, textures), `runtime/glrenderer.ts` only, `three` (3D frames). No `Game`, `Scene` or `SceneManager` yet: M1 builds them, and `Scene3D` is M1b. The lab page (`sjelab.html`, `src/sje-lab/`) composes what exists and is the target of the canary suite.
+`src/sje/core` (size, loop, events, rng), `render` (GL context, Pixi renderer, back buffer, presenter, GL hand-off, frame textures), `display` (GameObjects, effects, textures), `runtime` (the scene runtime, below), `three` (3D frames). `Scene3D` is M1b, effects are M2. The lab page (`sjelab.html`, `src/sje-lab/`) composes the render stack and is the target of the canary suite. The real game runs on the engine behind `?engine=sje` (`src/main.ts` loads `src/sje/boot.ts`; recipe in `docs/DEVELOPING.md` section 4).
+
+**Runtime read order** (`src/sje/runtime/`): `gameapi.ts` (the seam types, `LegacyShape`, `LegacyGameSurface`) -> `game.ts` (the loop, one tick and one draw, fault counters) -> `scenemanager.ts` and `scene.ts` (the stack, close order, the Phaser operations) -> `legacyscene.ts` (the adapter: one 640x360 `CanvasImage` per old scene) -> `display.ts` (integer scale, `toGame`) -> `screenfx.ts`, `clock.ts`, `tween.ts` (fades, timers, tweens driven by the tick) -> `loader.ts`, `input.ts`. The shared tests: `tests/game-cases.ts` (one case table, run on the old and the new `Game`), `tests/sje-game.test.ts`, `tests/sje-runtime.test.ts`, `tests/sje-display.test.ts`, `e2e/sje-shell.spec.ts`. The only files of `src/sje` that may import the old engine are `boot.ts` and the type-only imports named in `tests/sje-imports.test.ts`.
 
 ## Levels (dependencies point down)
 
@@ -37,7 +39,7 @@ Phaser 4 is the naming reference, not a dependency. Its source is not in this re
 
 **Add a GameObject.** Put the file in `src/sje/display/`. Extend `GameObject` (it owns exactly one Pixi node and hides it: composition, not subclassing). Take the `DisplayHost` in the constructor, call `super(scene, pixiNode)`, and override `destroyNode()` if the node owns GPU data. Positions go through `writePosition` (snap to pixel). A leaf has no children. Export it from `src/sje/index.ts`. Add a unit test in `tests/` (Pixi scene classes run in plain Node) and, if it draws, a pixel check in the lab.
 
-**Add a scene.** Not yet: the scene runtime is M1 (`Scene` with `init`, `preload`, `create`, `fixedUpdate(tick)`; `game.run(scene)` waits for `close(result)`). Until then a lab scene is a `LabContent`-style class in `src/sje-lab/`.
+**Add a scene.** Extend `Scene` from `src/sje/runtime/scene.ts` (`init`, `preload`, `create`, `fixedUpdate(tick)`; `game.run(scene)` waits for `close(result)`). A scene of the old engine needs nothing: `game.run(oldScene)` wraps it in a `LegacyScene`. A lab scene is a `LabContent`-style class in `src/sje-lab/`.
 
 **Add an effect.** `colorMatrixEffect(matrix)` or `createEffect({ name, fragment, uniforms })` from `src/sje/display/effects.ts`, then `object.filters.add(effect)`. The engine supplies the vertex shader. Filters run inside the back buffer, at game resolution. Free the effect yourself (`effect.destroy()`): the code that made it owns it. Masks: `object.filters.addMask(maskObject)`.
 

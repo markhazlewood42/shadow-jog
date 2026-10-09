@@ -117,6 +117,8 @@ that pull request's earlier CI run. A run on `main` is never canceled once it st
 | `gpufx.spec.ts` | The GPU effects layer (comes up, survives a battle, switches off and on, falls back to 2D) and the pixel-perfect block test: every game pixel an exact block at k=3 (1920x1080) and k=2 (1280x800) |
 | `perf.spec.ts` | Frame budget in the plaza and a battle (each timed in 3 windows, the gate reads the best one, because a noisy neighbor only adds time); input latency, and the engine lab speed line (interval and cost, GPU wait included). LOCAL ONLY: `npm run perf` on a real GPU, once at the end of a milestone that changed the draw path (`docs/engine/migration.md` principle 12), never per PR. CI does not run it (Mark, 2026-10-09): a software renderer says nothing about GPU timing |
 | `sje-draws.spec.ts` | Engine lab draw-call and framebuffer-bind budgets, counted by a WebGL patch, so any machine gives the same numbers. Runs in CI |
+| `sje-shell.spec.ts` | The real game on the new engine (`/?engine=sje`): title, field, battle and shop; the 64x64 block and whole-title match against the old path at ratios 1, 2 and 3; context loss and restore; the 10-cycle leak test; the hook; the no-WebGL2 message. Each check has a control. Runs in CI. Writes the pictures to `test-results/m1-shell/` |
+| `sje-bench.spec.ts` | The M1 bench: 1,000 objects, the wrapper cost, canvas uploads with two and three legacy scenes, draw calls, binds, the speed line. LOCAL ONLY (`npm run perf`, with a real GPU). On SwiftShader it runs and says SOFTWARE: those numbers are not GPU numbers |
 | `shots.spec.ts` | The screenshot set for `docs/screenshots/`. Deterministic: the game runs on Playwright's paused clock, with a fixed `Date.now()` (so a fixed RNG seed), pinned fights and a seeded `Math.random`; the header comment explains. For a compare across two commits set `SJ_BUILD_SHA=<label>` for both runs: the title draws the build's commit |
 | `audio-evidence.spec.ts` | Renders every song and effect offline and measures them |
 
@@ -179,6 +181,13 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
   `gpu(on)` (the Options switch).
 
 Setting flags by hand: `sj.state.flags.floodgate = true`, then `sj.field().api.refreshMap()`.
+
+**The new engine: `?engine=sje`** (recipe, M1). Open `http://localhost:3007/?engine=sje&debug`. The page loads `src/sje/boot.ts` as its own chunk (it holds all of Pixi), makes the new `Game` (a WebGL2 canvas that fills the window, integer scale only), and runs the game's own boot on it. The same title, field, battle and shop run through the `LegacyScene` adapter, so every old scene and story script runs unchanged. Without the flag no new code runs. Rules for work on this path:
+- `window.__SJ__` has the old members and, in a DEV build only (`src/sje-lab/devhook.ts`), the engine's: `hooks.onTick(fn)` and `hooks.onFrame(fn)` (each returns an unsubscribe function), `tree()` (the Pixi node tree as JSON), `step(n)` (n ticks with no real time passing, then one frame), `frameHash()`, `pixels(rect?)` (the back buffer), `canvasPixels()` (what the player sees), `glCounts()`, `renderer` (`{ name, fxLevel, contextLost }`), `forceContextLoss()` and `forceContextRestore()`. `display` is a thin adapter over `game.scale`.
+- `sj.game.speed = 0` stops the ticks (the draw goes on). `sj.game.stop()` stops the loop: then `sj.step(n)` is the only clock. A test that compares two pictures needs a deterministic run: Playwright's paused clock, a fixed date and a seeded `Math.random` (`openGame({ fakeClock: true })` in `e2e/sjegamekit.ts`).
+- `sj.gpu(on)` sets `settings.fxLevel` (`full` or `none`); `__SJ__.renderer.fxLevel` shows it. Nothing draws an effect on this path until M2.
+- No hook in a shipped build: `e2e/prod.spec.ts` checks that `window.__SJ__` is absent.
+- To compare with the old path, run both pages on the fake clock, turn the old GPU layer off (`sj.gpu(false)`), and compare screenshots at a whole ratio (a 1280x720 window is k=2). On SwiftShader the title is pixel-equal at k=1, 2 and 3.
 
 ---
 

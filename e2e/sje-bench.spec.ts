@@ -193,7 +193,8 @@ test.describe('M1 bench (local only, real GPU)', () => {
             for (let i = 0; i < px.data.length; i += 4) if (px.data[i] === 255 && px.data[i + 1] === 32 && px.data[i + 2] === 128) n++;
             return n;
           };
-          result.pinkWith = (game.draw(0), pink());
+          game.draw(0);
+          result.pinkWith = pink();
           result.C = await measure(wrapper);
           result.D = await measure(raw);
 
