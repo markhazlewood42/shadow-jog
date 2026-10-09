@@ -1,9 +1,9 @@
 Bundle budget, from `npm run build && node scripts/bundle-budget.mjs` (the same gate CI runs on every push).
 
-battle-DedCNXNs.js                 109.6 kB  gzip   37.5 kB
-deck-aIYsw5WK.js                     7.4 kB  gzip    3.2 kB
-deck-BNjT9P7M.js                     7.9 kB  gzip    3.6 kB
-index-Au5DVuGN.js                  364.2 kB  gzip  124.3 kB
-party-BHUPQPQp.js                  108.6 kB  gzip   34.7 kB
-total gzip 203.3 kB (budget 212 kB); largest chunk budget 480 kB
+battle-C1ArHevQ.js                 133.2 kB  gzip   45.5 kB
+deck-BGyhVZuV.js                     4.5 kB  gzip    2.0 kB
+deck-DOfj4wIu.js                     7.5 kB  gzip    3.3 kB
+index-Cz44FgkM.js                  432.5 kB  gzip  150.7 kB
+tables-B5Dat6gS.js                 121.5 kB  gzip   39.3 kB
+total gzip 240.8 kB (budget 240.8 kB); largest chunk budget 480 kB
 exit=0

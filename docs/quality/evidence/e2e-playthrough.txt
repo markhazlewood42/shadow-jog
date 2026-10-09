@@ -1,29 +1,358 @@
+[WebServer] (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+[WebServer]   - import "./src/dev/tools" without a file extension (vite.config.ts:6:27). Add the file extension
+[WebServer] Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
 
-Running 23 tests using 1 worker
+[WebServer] (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+[WebServer]   - import "./src/dev/tools" without a file extension (vite.config.ts:6:27). Add the file extension
+[WebServer] Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
 
-[1/23] [chromium] › e2e\chaos.spec.ts:67:1 › mashing every key while walking through a door ends up in the room, playable
-[2/23] [chromium] › e2e\chaos.spec.ts:79:1 › opening the menu over and over during a warp never strands the crew
-[3/23] [chromium] › e2e\chaos.spec.ts:101:1 › reloading in the middle of a conversation, then Continue, lands in a playable field
-[4/23] [chromium] › e2e\chaos.spec.ts:117:1 › hammering keys through a battle never breaks it: it plays out to a result
-[5/23] [chromium] › e2e\economy.spec.ts:27:1 › walking the Barrens turns up fights that pay out
-[6/23] [chromium] › e2e\economy.spec.ts:71:1 › a shop takes the cred and hands over the goods
-[7/23] [chromium] › e2e\economy.spec.ts:115:1 › selling loot turns it into cred
-[8/23] [chromium] › e2e\economy.spec.ts:138:1 › gear bought in a shop can be put on there and then
-[9/23] [chromium] › e2e\gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight
-[10/23] [chromium] › e2e\gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time
-[11/23] [chromium] › e2e\gameover.spec.ts:73:1 › Return to Title from Game Over
-[12/23] [chromium] › e2e\gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it
-[13/23] [chromium] › e2e\gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title
-[14/23] [chromium] › e2e\gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable
-[15/23] [chromium] › e2e\gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently
-[16/23] [chromium] › e2e\gameover.spec.ts:171:1 › A scene that throws every frame recovers to the title instead of freezing
-[17/23] [chromium] › e2e\gameover.spec.ts:187:1 › A scene whose drawing throws every frame recovers too
-[18/23] [chromium] › e2e\gameover.spec.ts:195:1 › Two tabs on one save: both are warned, and only the first keeps autosaving
-[19/23] [chromium] › e2e\gameover.spec.ts:230:1 › A browser that can’t start the game says so, instead of a black screen
-[20/23] [chromium] › e2e\playtest.spec.ts:15:1 › playtest capture: Chapter 1
-[21/23] [chromium] › e2e\playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish
-[22/23] [chromium] › e2e\prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors
-[23/23] [chromium] › e2e\prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first
-  Slow test file: [chromium] › e2e\playtest.spec.ts (6.9m)
+[WebServer] (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+[WebServer]   - import "./src/dev/tools" without a file extension (vite.config.ts:6:27). Add the file extension
+[WebServer] Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+
+Running 28 tests using 1 worker
+
+[1/28] [chromium] › e2e\chaos.spec.ts:67:1 › mashing every key while walking through a door ends up in the room, playable
+[2/28] [chromium] › e2e\chaos.spec.ts:79:1 › opening the menu over and over during a warp never strands the crew
+[3/28] [chromium] › e2e\chaos.spec.ts:101:1 › reloading in the middle of a conversation, then Continue, lands in a playable field
+[4/28] [chromium] › e2e\chaos.spec.ts:117:1 › hammering keys through a battle never breaks it: it plays out to a result
+[5/28] [chromium] › e2e\economy.spec.ts:27:1 › walking the Barrens turns up fights that pay out
+[6/28] [chromium] › e2e\economy.spec.ts:71:1 › a shop takes the cred and hands over the goods
+[7/28] [chromium] › e2e\economy.spec.ts:115:1 › selling loot turns it into cred
+[8/28] [chromium] › e2e\economy.spec.ts:138:1 › gear bought in a shop can be put on there and then
+[9/28] [chromium] › e2e\economy.spec.ts:178:1 › the camera at the four corners of every scrolling map rests on the clamp and shows no void
+[10/28] [chromium] › e2e\gameover.spec.ts:42:1 › Retry rewinds to the moment before the fight
+[11/28] [chromium] › e2e\gameover.spec.ts:57:1 › Load from Game Over restores the save, including play time
+[12/28] [chromium] › e2e\gameover.spec.ts:73:1 › Return to Title from Game Over
+[13/28] [chromium] › e2e\gameover.spec.ts:82:1 › A save survives a page reload and Continue restores it
+[14/28] [chromium] › e2e\gameover.spec.ts:102:1 › Load from Game Over with a damaged save says so and returns to the title
+[15/28] [chromium] › e2e\gameover.spec.ts:121:1 › Autosave reports success, and failure when storage is unavailable
+[16/28] [chromium] › e2e\gameover.spec.ts:138:1 › Title: Continue skips a damaged newest save, and Load marks it instead of failing silently
+[17/28] [chromium] › e2e\gameover.spec.ts:171:1 › A scene that throws every frame recovers to the title instead of freezing
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:03 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:04 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:04 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:04 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:04 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:04 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[WebServer] 12:55:04 AM [vite] (client) [console.error] [SHADOW JOG] Error: boom
+[WebServer]     at sj.game.top.update (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.tick (http://localhost:3007/src/engine/game.ts:286:7)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:49:47)
+
+[18/28] [chromium] › e2e\gameover.spec.ts:187:1 › A scene whose drawing throws every frame recovers too
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[WebServer] 12:55:07 AM [vite] (client) [console.error] [SHADOW JOG] Error: draw
+[WebServer]     at sj.game.top.render (eval at evaluate (:311:30), <anonymous>:1:85)
+[WebServer]     at Game.render (http://localhost:3007/src/engine/game.ts:336:20)
+[WebServer]     at loop (http://localhost:3007/src/main.ts:56:9)
+
+[19/28] [chromium] › e2e\gameover.spec.ts:195:1 › Two tabs on one save: both are warned, and only the first keeps autosaving
+[20/28] [chromium] › e2e\gameover.spec.ts:230:1 › Autosave never overwrites an autosave written by a newer version
+[21/28] [chromium] › e2e\gameover.spec.ts:242:1 › A browser that can’t start the game says so, instead of a black screen
+[WebServer] 12:55:18 AM [vite] (client) [Unhandled error] Error: Missing a 2D canvas context (this browser has no canvas drawing)
+[WebServer]  > must src/engine/assert.ts:8:51
+[WebServer]     6  |   */
+[WebServer]     7  |  export function must<T>(value: T | null | undefined, what: string): T {
+[WebServer]     8  |    if (value === undefined || value === null) throw new Error(`Missing ${what}`);
+[WebServer]        |                                                     ^
+[WebServer]     9  |    return value;
+[WebServer]     10 |  }
+[WebServer]  > surface src/engine/canvas.ts:17:14
+[WebServer]  > src/scenes/ending.ts:124:15
+[WebServer] 
+
+[22/28] [chromium] › e2e\gameover.spec.ts:255:1 › Title: Load says a newer-version save is from a newer version (not damaged) and refuses it
+[23/28] [chromium] › e2e\gameover.spec.ts:293:1 › Menu: Save never replaces a newer-version slot until confirmed
+[24/28] [chromium] › e2e\gameover.spec.ts:323:1 › Save point: the save screen asks before replacing a newer-version slot
+[25/28] [chromium] › e2e\playtest.spec.ts:15:1 › playtest capture: Chapter 1
+[26/28] [chromium] › e2e\playthrough.spec.ts:8:1 › Chapter 1 can be played start to finish
+[27/28] [chromium] › e2e\prod.spec.ts:23:1 › production build: new game, save, reload, continue, with no errors
+[28/28] [chromium] › e2e\prod.spec.ts:73:1 › production build: closing the tab with unsaved progress asks first
+  Slow test file: [chromium] › e2e\playtest.spec.ts (7.3m)
   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
-  23 passed (11.8m)
+  28 passed (12.6m)
