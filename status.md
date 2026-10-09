@@ -3,8 +3,8 @@ type: status
 title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
-updated: 2026-10-08
-milestone: Pre-M0
+updated: 2026-10-09
+milestone: M0
 tags: [status]
 ---
 
@@ -59,7 +59,24 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
-### Right now (2026-10-05)
+### Right now (2026-10-09)
+
+**The 640x360 move is merged** (PR #23, merge 6bcd8dc, 2026-10-09). The game runs at 640x360. **Milestone M0 "Prepare" has started** on branch `engine-m0-prepare` (no game change; the old game stays as it is). Plan and hard pass lines: `docs/engine/m0-brief.md`. Milestone text: `docs/engine/migration.md` section M0. Verification: the lean loop in `CLAUDE.md` (a runner and a reader, cap 3 rounds, no visual part).
+
+M0 state: brief written; build not started. Decisions taken by the main session on 2026-10-09 (small, reversible; change them if you disagree): move every `W` and `H` import (about 42 files, not 34); the lab pages build in dev and CI only, not in production `dist/`; starting bundle caps are `boot` at today's alarm and `lazy-3d` at 160 kB (C5), with `first play` report-only until M1; the M0 PR goes through the Claude Code Review Action; the lab scripts the canaries need are copied from `media/research-2026-10-04/`.
+
+**Next for agents** (in this order):
+1. M0 build (Sonnet builder, tasks in `docs/engine/m0-brief.md`), then the runner and the reader, then the PR.
+2. After the merge of the M0 PR: milestone M1 "Shell" (`docs/engine/migration.md`).
+3. The spike archive tag (`spike/engine-platform` and the other spike branches): only with Mark's go-ahead.
+4. Remove the "on branch `resolution-640x360`, PR #23, until it merges" clause from `CLAUDE.md` and `docs/engine/verification.md`. The file is now on `main`.
+
+**Next up for Mark** (updated 2026-10-09):
+1. Nothing waits for you on M0 yet. The M0 PR comes to you for merge after the verifiers pass.
+2. Say if you want a different answer to the five M0 decisions above (the bundle caps are the one most worth a look).
+3. The older items still stand: Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4.
+
+### Right now (2026-10-05, history)
 
 **Phase 0 is done. Mark approved the final engine design on 2026-10-05, with all 9 recommendations.** PRs #15 and #16 are merged (#16 is the design update, merge 959ddf4). The design gate is lifted: M0 may start after the 640x360 move of the shipped game. The 9 recommendations:
 - C1: `roundPixels` is off.
