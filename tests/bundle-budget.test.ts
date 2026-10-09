@@ -26,17 +26,19 @@ function writeBuild(dir: string, chunks: Chunk[]): void {
   writeFileSync(join(dir, '.vite', 'manifest.json'), JSON.stringify(manifest));
 }
 
-/** A game with a boot chunk and one lazy chunk; a lab with a boot chunk, a lazy 2D chunk and a lazy 3D chunk. */
-function run(bootModules: string[] | null): { code: number | null; out: string } {
+const ENGINE_CHUNK: Chunk = { file: 'assets/sje.js', modules: ['../../node_modules/pixi.js/lib/index.mjs', '../../src/sje/boot.ts'] };
+
+/**
+ * A game with a boot chunk, the `?engine=sje` chunk (M1) and one lazy chunk; a lab with a boot chunk, a lazy 2D chunk and a lazy 3D chunk.
+ * `gameChunks` replaces the game's lazy chunks (a control leaves the engine chunk out, or adds a Three chunk).
+ */
+function run(bootModules: string[] | null, gameChunks: Chunk[] = [ENGINE_CHUNK, { file: 'assets/battle.js', modules: ['../../src/battle/index.ts'] }]): { code: number | null; out: string } {
   const root = mkdtempSync(join(tmpdir(), 'sj-budget-'));
   made.push(root);
   writeFileSync(join(root, 'vite.config.ts'), 'export default {};\n');
   mkdirSync(join(root, 'src/sje'), { recursive: true });
   mkdirSync(join(root, 'src/sje-lab'), { recursive: true });
-  writeBuild(join(root, 'dist'), [
-    { file: 'assets/index.js', modules: bootModules, isEntry: true, dynamicImports: ['assets/battle.js'] },
-    { file: 'assets/battle.js', modules: ['../../src/battle/index.ts'] },
-  ]);
+  writeBuild(join(root, 'dist'), [{ file: 'assets/index.js', modules: bootModules, isEntry: true, dynamicImports: gameChunks.map((c) => c.file) }, ...gameChunks]);
   writeBuild(join(root, 'dist-lab'), [
     { file: 'assets/lab.js', modules: ['../../src/sje-lab/lab.ts'], isEntry: true, dynamicImports: ['assets/pixi.js', 'assets/three.js'] },
     { file: 'assets/pixi.js', modules: ['../../node_modules/pixi.js/lib/index.mjs', '../../src/sje/render/presenter.ts'] },
@@ -63,5 +65,23 @@ describe('bundle-budget.mjs controls', () => {
     const r = run(['../../node_modules/pixi.js/lib/index.mjs']);
     expect(r.code).toBe(1);
     expect(r.out).toMatch(/boot chunk assets\/index\.js holds a pixi\.js module/);
+  });
+
+  it('M1: the game may hold Pixi in a lazy chunk (the engine chunk is the pass case above), but the chunk must be there', () => {
+    const r = run(['../../src/main.ts'], [{ file: 'assets/battle.js', modules: ['../../src/battle/index.ts'] }]);
+    expect(r.code).toBe(1);
+    expect(r.out).toMatch(/no lazy-2d chunk holds both the engine \(src\/sje\) and Pixi/);
+  });
+
+  it('M1: a chunk of the game that holds Pixi but not the engine does not count as the engine chunk', () => {
+    const r = run(['../../src/main.ts'], [{ file: 'assets/pixi-only.js', modules: ['../../node_modules/pixi.js/lib/index.mjs'] }]);
+    expect(r.code).toBe(1);
+    expect(r.out).toMatch(/no lazy-2d chunk holds both the engine/);
+  });
+
+  it('M1: Three stays out of the shipped game until M7', () => {
+    const r = run(['../../src/main.ts'], [ENGINE_CHUNK, { file: 'assets/three.js', modules: ['../../node_modules/three/build/three.module.js'] }]);
+    expect(r.code).toBe(1);
+    expect(r.out).toMatch(/game: chunk assets\/three\.js holds Three/);
   });
 });
