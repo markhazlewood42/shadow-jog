@@ -968,6 +968,16 @@ One build, no change under `src/`. The verification table and the CI wall time (
 - The `docs/quality/evidence/ci-engines.txt` file comes from CI and is not regenerated here.
 
 **Review 7 (Mark, 2026-10-09).** He confirms the 240.8 kB bundle alarm (D20), is happy with the regenerated set and the Review 7 sheets (the ten key screens at 1080p and in the Deck window), and his play of the build on port 3008 passed. **PL11 for WP7 holds:** Mark received the Review 7 sheets before he answered. The pull request leaves draft.
+### WP8: docs, the GDD line, wiki notes (2026-10-09)
+
+| Item | Result |
+|---|---|
+| Builder | ec8e2ce, ff38a46 (`plan.mjs` comment), d89bcb6 (GDD line, text approved by Mark) |
+| Verifier (1, Haiku) | PASS. No Critical or Important. Diff touches no `src/`, `tests/`, `e2e/`, `public/`. `npm run check` exit 0. The 480x270 grep leaves only dated history and sentences that name the move. CONCEPTS scale table matches the code. N8 gaps closed. One CHANGELOG entry extended. |
+| Minor, fixed in the next commit | `TOOLING-UI.md` "centre" to "center". `GLOSSARY.md` Stage and Global HUD nested parentheses. `grep-left.md` stale lines (GDD, `plan.mjs`). |
+| Wiki notes | Dated 2026-10-09 notes in `knowledge/pixel-art/` pages 01, 13 (two), 14 and the glossary. The slynyrd-22 source page stays. |
+| Report | `media/verification/wp8/verifier.md` |
+
 
 ## Reconciliation table (R1)
 

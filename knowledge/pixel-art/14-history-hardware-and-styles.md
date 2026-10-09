@@ -77,6 +77,8 @@ Make the history short and visual: five screenshots across 40 years. The main le
 Mark's brief is Phantasy Star IV's loop and look, so the Mega Drive row of the table is the reference. Three observations:
 
 - **Screen.** The Mega Drive's 320 by 224 is close to Shadow Jog's 480 by 270 in proportion (about 1.43 and 1.78 respectively, so the game is wider). Slynyrd's 480 by 270 recommendation puts the game in a modern-retro class that offers more room than 1993 had, which is why sprites of 18 by 28 sit comfortably.
+
+> **Note (2026-10-09):** the game screen is now 640 by 360 (ratio still 1.78). The comparison above used the 480 by 270 screen.
 - **Colours.** The Mega Drive gave each sprite or tile a 16-colour palette (15 colours plus transparency, by the usual convention) and 64 on screen. The art pass prompted PixelLab for "at most 15 colors" (`docs/CONCEPTS.md`), which happens to match that discipline, though the traced characters then use 28 or 40 colours each (`docs/PIXELLAB-LESSONS.md`). One option for stronger PSIV flavour is a stated soft limit: each sprite 16 colours, each scene 64 or so, enforced in the tracer and checked in the review page.
 - **Battle composition.** PSIV's back view puts the party at the bottom with enemies ahead and animates both sides. This is where Shadow Jog's known problem sits (party backs covering enemies). The sources do not give PSIV's exact sprite sizes, so measuring screenshots or an emulator's sprite viewer is the next step before copying proportions.
 

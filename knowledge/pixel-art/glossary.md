@@ -120,6 +120,8 @@ One or two sentences per term, with the module that teaches it. Back to the [[pr
 
 **Native resolution.** The size the game actually draws at before the screen enlarges it (480 by 270 for Shadow Jog). See [[projects/shadow-jog/knowledge/pixel-art/13-scaling-display-and-rotation|Module 13]].
 
+> **Note (2026-10-09):** for Shadow Jog this is now 640 by 360 (was 480 by 270).
+
 **Nearest-neighbour.** A scaling method that copies each source pixel without blending. See [[projects/shadow-jog/knowledge/pixel-art/13-scaling-display-and-rotation|Module 13]].
 
 **Nine-slice.** A panel split into a 3 by 3 grid: fixed corners, edges that stretch one way and a centre that stretches both, so one drawing fits any size. See [[projects/shadow-jog/knowledge/pixel-art/12-ui-and-fonts|Module 12]].
