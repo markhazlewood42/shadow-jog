@@ -1,9 +1,31 @@
 // @vitest-environment happy-dom
+import { act } from 'react';
+import { type Root, createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type AgentsLive, type LiveNode, type LiveSession, sessionAnchor } from '../src/shared/types';
-import { RunningList } from '../src/web/now/RunningPanel';
+import type { ConnectionState } from '../src/web/api';
+import { LiveStatus } from '../src/web/now/NowPage';
+import { RunningList, RunningPanel } from '../src/web/now/RunningPanel';
+import { CountChip } from '../src/web/now/YourMovePanel';
+
+// Tells React that a test drives it, so that `act` waits for effects and updates.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+// The event stream is replaced by a stub that reports the connection state of the test and nothing else. The rest of the module is the real one (the panels use its fetch).
+let connectionState: ConnectionState = 'connecting';
+vi.mock('../src/web/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/web/api')>()),
+  subscribeEvents: (listener: (event: { type: 'connection'; state: ConnectionState }) => void) => {
+    listener({ type: 'connection', state: connectionState });
+    return () => {};
+  },
+}));
+// The glass needs a renderer that a test document has not. The panel here is its plain content in a section with the same name.
+vi.mock('../src/web/now/GlassPanel', () => ({
+  GlassPanel: ({ title, children }: { title: string; children: React.ReactNode }) => <section aria-label={title}>{children}</section>,
+}));
 
 // The list of the Running panel: the Claude sessions that are alive now (design 5.1, revision 2), from `GET /api/agents`. The list is a plain function of that
 // data and of the clock, so these tests draw it once into a document and ask the document, with no server and no browser. How the panel looks and updates in a
@@ -127,5 +149,91 @@ describe('the Running panel', () => {
   it('G6: a Running row links to its session on the Agents page', () => {
     const host = draw(live([liveSession('s1'), liveSession('abc-123')]));
     expect([...host.querySelectorAll('li > a')].map((link) => link.getAttribute('href'))).toEqual([`/agents#${sessionAnchor('s1')}`, `/agents#${sessionAnchor('abc-123')}`]);
+  });
+});
+
+describe('the Now page labels and the Running panel error', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+  });
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.unstubAllGlobals();
+    // Two tests set this module variable; the next test starts from the default.
+    connectionState = 'connecting';
+  });
+
+  const show = (node: React.ReactNode) =>
+    act(() => {
+      root.render(<MemoryRouter>{node}</MemoryRouter>);
+    });
+
+  it('C3a: the Live label says off', () => {
+    connectionState = 'offline';
+    show(<LiveStatus />);
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('Live: off');
+  });
+
+  it('C3a: the Live label says connecting', () => {
+    connectionState = 'connecting';
+    show(<LiveStatus />);
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('Live: connecting');
+  });
+
+  it('C3a: Your move says 1 item for you', () => {
+    show(<CountChip count={1} />);
+    // The number is what the eye reads, and the words after it are for a screen reader.
+    expect(container.textContent).toBe('1 item for you');
+    expect(container.querySelector('.sr-only')?.textContent).toBe(' item for you');
+    show(<CountChip count={3} />);
+    expect(container.textContent).toBe('3 items for you');
+  });
+
+  it('C3a: the Running panel shows its own error state with a Retry', async () => {
+    let calls = 0;
+    const failure = { ok: false, error: { code: 'agents-failed', message: 'The agents source could not be read.' }, updatedAt: null, lastGood: null };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        calls += 1;
+        // The second answer is a good one, so the Retry button can be seen to work.
+        const body = calls === 1 ? failure : { ok: true, data: live([liveSession('s1')]), updatedAt: '2026-10-08T12:00:00Z' };
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+      }),
+    );
+    show(<RunningPanel defaultOffset={{ x: 0, y: 0 }} />);
+    // Wait for the fetch and the re-render to finish, not for a fixed time.
+    // Each poll flushes React inside a short act, because React holds its renders until the act ends.
+    await vi.waitFor(
+      async () => {
+        await act(async () => {});
+        expect(container.querySelector('section[aria-label="Running"] [role="alert"]')).not.toBeNull();
+      },
+      { timeout: 2000 },
+    );
+
+    const alert = container.querySelector('section[aria-label="Running"] [role="alert"]');
+    expect(alert?.textContent).toContain('The agents source could not be read.');
+    expect(alert?.textContent).toContain('agents-failed');
+    const retry = [...container.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Retry');
+    expect(retry).toBeDefined();
+    expect(container.textContent).toContain('Not updated yet');
+
+    await act(async () => {
+      retry?.click();
+    });
+    await vi.waitFor(
+      async () => {
+        await act(async () => {});
+        expect(container.textContent).toContain('Title of s1');
+      },
+      { timeout: 2000 },
+    );
+    expect(container.querySelector('[role="alert"]')).toBeNull();
   });
 });

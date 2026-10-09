@@ -24,7 +24,7 @@ const CONNECTION_TEXT: Record<ConnectionState, string> = {
 };
 
 /** Whether the page is hearing the server's change events. Without them the panels would go stale, so it is never hidden. */
-function LiveStatus() {
+export function LiveStatus() {
   const [state, setState] = useState<ConnectionState>('connecting');
   useEffect(
     () =>

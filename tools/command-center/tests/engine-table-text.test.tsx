@@ -121,6 +121,9 @@ async function filterBy(word: string): Promise<void> {
 
 const text = () => container.textContent ?? '';
 
+/** The text of the empty state: the one paragraph that is the table's replacement (it sits where the table would be), compared whole. A substring would pass the old long sentence as well. */
+const emptyLabels = (): string[] => [...container.querySelectorAll('[aria-label="Decisions"] p.py-4')].map((label) => label.textContent ?? '');
+
 // ---- the sentences of the page ----
 
 /** The words of a text: the pieces that hold a letter or a digit (a lone dot or a separator is not a word). */
@@ -184,9 +187,9 @@ describe('the engine decision table', () => {
     await show();
     await filterBy('Open');
     expect(container.querySelector('table')).toBeNull();
-    expect(text()).toContain('No open decisions');
+    expect(emptyLabels()).toEqual(['No open decisions']);
     await filterBy('Changed');
-    expect(text()).toContain('No changed decisions');
+    expect(emptyLabels()).toEqual(['No changed decisions']);
     await filterBy('Approved');
     expect(container.querySelectorAll('tbody')).toHaveLength(3);
     expect(text()).not.toContain('No approved decisions');
@@ -194,13 +197,13 @@ describe('the engine decision table', () => {
     answer = good([]);
     await show();
     expect(container.querySelector('table')).toBeNull();
-    expect(text()).toContain('No decisions');
+    expect(emptyLabels()).toEqual(['No decisions']);
     await filterBy('Open');
-    expect(text()).toContain('No open decisions');
+    expect(emptyLabels()).toEqual(['No open decisions']);
     await filterBy('Changed');
-    expect(text()).toContain('No changed decisions');
+    expect(emptyLabels()).toEqual(['No changed decisions']);
     await filterBy('Approved');
-    expect(text()).toContain('No approved decisions');
+    expect(emptyLabels()).toEqual(['No approved decisions']);
 
     // The four sentences of the old text are gone.
     for (const old of ['No decisions were found in the three docs.', 'No decision is open for Mark.', 'No decision has changed since the approval.', 'No decision is approved.']) {

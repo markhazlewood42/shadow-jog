@@ -58,6 +58,10 @@ const PROCESS_FILE = /^\d+\.json$/;
 /** The characters of a session file name (the same ones as discover.ts allows), so an id from a file cannot reach another folder. */
 const SESSION_ID = /^[\w-]{1,128}$/;
 
+/** How long to wait before the second read of a file that looked torn. Claude rewrites a process file in place, and a read in the middle sees half of it. */
+const RETRY_PAUSE_MS = 50;
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
 type Shaped = { pid: number; entry: ProcessEntry };
 
 /** The four keys of a process file when they have the expected shape, else null. Everything else in the file is left where it is. */
@@ -76,11 +80,11 @@ function shapeOf(json: Record<string, unknown>): Shaped | null {
 const earlier = (a: number | null, b: number | null): number | null => (a === null ? b : b === null ? a : Math.min(a, b));
 
 /**
- * The Claude processes that run, from the files in `folder`. Each file is read once, and a process is kept when `isAlive` says so. Two
+ * The Claude processes that run, from the files in `folder`. A file that gives null or throws is read once more after one short pause that all such files share. A process is kept when `isAlive` says so. Two
  * processes can run one session (a session that was resumed while the first one still runs): they give one entry, which is busy when
  * either is busy and began when the first one did. The entries come in the order of the pids.
  */
-export async function readProcessList(folder: string, isAlive: IsAlive = processIsAlive): Promise<ProcessList> {
+export async function readProcessList(folder: string, isAlive: IsAlive = processIsAlive, pause: (ms: number) => Promise<void> = sleep): Promise<ProcessList> {
   let names: string[];
   try {
     // Only regular files: a folder, or a link, with the name of a process file is not one.
@@ -90,18 +94,38 @@ export async function readProcessList(folder: string, isAlive: IsAlive = process
   }
   names.sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10));
 
+  // One read of one file: the object, or null when the file is empty, too big, not JSON or not an object, or when the open throws (locked,
+  // no rights). Both null and a throw mean "torn or locked": a torn file (Claude rewrites it while we read) gives null or a throw, never a
+  // valid object of the wrong shape. A valid object with the wrong shape is a stale file: it is skipped at once, with no wait.
+  // The files are read one by one, so a big folder cannot open them all at once.
+  const readOnce = async (name: string): Promise<Record<string, unknown> | null> => {
+    try {
+      return await readSmallJson(join(folder, name));
+    } catch {
+      return null;
+    }
+  };
+
+  // Pass 1: every file once. The results sit at the index of their file, so the order of the pids holds whatever the second pass does.
+  const results: (Shaped | null)[] = new Array<Shaped | null>(names.length).fill(null);
+  const broken: number[] = [];
+  for (let i = 0; i < names.length; i += 1) {
+    const json = await readOnce(names[i] as string);
+    if (json === null) broken.push(i);
+    else results[i] = shapeOf(json);
+  }
+  // Pass 2: one shared pause for all broken files, then one more read of each. A good first read never waits and a poll with no broken file never pauses.
+  if (broken.length > 0) {
+    await pause(RETRY_PAUSE_MS);
+    for (const i of broken) {
+      const json = await readOnce(names[i] as string);
+      results[i] = json === null ? null : shapeOf(json);
+    }
+  }
+
   const bySession = new Map<string, ProcessEntry>();
   let shaped = 0;
-  for (const name of names) {
-    // `readSmallJson` gives null for a file that is empty, too big (64 KB: a process file has a few hundred bytes), not JSON or not an object. It throws
-    // for a file that cannot be opened (locked, or no rights). Both mean "skip it"; the files are read one by one, so a big folder cannot open them all at once.
-    let json: Record<string, unknown> | null = null;
-    try {
-      json = await readSmallJson(join(folder, name));
-    } catch {
-      continue;
-    }
-    const found = json === null ? null : shapeOf(json);
+  for (const found of results) {
     if (found === null) continue;
     shaped += 1;
 

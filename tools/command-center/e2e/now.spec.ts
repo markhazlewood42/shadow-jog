@@ -1105,6 +1105,9 @@ test.describe('the status panel', () => {
       'Last commit': /\d+ d ago$/,
     };
 
+    // One word of each value, for the rows that must not show it.
+    const VALUE_WORDS: Record<string, RegExp> = { Branch: /no upstream/, 'CI on main': /passing/, 'Next up': /for you/, 'status.md': /updated/, 'Last commit': /\d+ d ago/ };
+
     await page.addInitScript((key) => localStorage.setItem(key, 'off'), GLASS_KEY);
     for (const item of cases) {
       await page.route(item.route, (route) => route.fulfill(item.reply()));
@@ -1118,7 +1121,8 @@ test.describe('the status panel', () => {
         await expect(failing, `${item.source}: ${label}`).toContainText(item.code);
         await expect(failing.getByRole('button', { name: 'Retry' })).toBeVisible();
         await expect(failing.getByRole('link')).toHaveCount(0);
-        await expect(failing, `${item.source}: ${label} shows no value`).not.toHaveText(VALUES[label] as RegExp);
+        // No word of the value is in the value cell (dd). (The full-value regexes are anchored, so they could not match a cell that also says "Unavailable".)
+        await expect(failing.locator('dd'), `${item.source}: ${label} shows no value`).not.toContainText(VALUE_WORDS[label] as RegExp);
       }
       for (const label of item.staying) {
         const staying = rowOf(page, label);
