@@ -11,6 +11,8 @@
  *      rules. It sees the new `Game` as `LegacyGameSurface` (see gameapi.ts), which is the old `Game` as far as the game code uses it, and a thin
  *      adapter over the real `Display` (`game.scale`, integer scale only) in the shape of the old one. That cast is the one unchecked seam of
  *      the migration; `tests/sje-game.test.ts` pins both sides to the interface.
+ *      Before that, the effects (M2): `postfx`, the singleton that scenes and `moments.ts` call, is routed to `game.fx` (`fx/route.ts`), and the
+ *      presets and moments of `fx.json` are loaded into it (`loadData`), so `FxSystem.playMoment` works by name. No `#fx` overlay canvas exists on this path.
  *   4. In a DEV build only, add the engine's members to `window.__SJ__` (`src/sje-lab/devhook.ts`, interfaces.md section 14). A shipped build
  *      never loads that file (the import sits behind `import.meta.env.DEV`).
  */
@@ -20,10 +22,13 @@ import { notice, reportError } from '../engine/errors';
 import { SHAKE_PIXEL_GAIN, type Game as OldGame } from '../engine/game';
 import { Input } from '../engine/input';
 import { perf } from '../engine/perf';
+import { postfx } from '../engine/postfx';
 import { shakeOffset } from '../engine/shake';
+import { FX } from '../data/fx';
 import { settings } from '../game/settings';
 import { drawNotice } from '../noticeoverlay';
 import type { FxRequest } from './fx/fxsystem';
+import { routePostfx } from './fx/route';
 import { Game } from './runtime/game';
 
 /** `?fx=full|lite|none` forces the effects level (tests, and a look at what a software renderer gets). Anything else leaves the setting alone. */
@@ -77,6 +82,10 @@ export async function startSje(markStarted: () => void): Promise<void> {
     toGame: (x, y) => game.scale.toGame(x, y),
     element: canvas,
   };
+  // The effects: `postfx` becomes `game.fx`, and `game.fx` gets the data. `src/boot.ts` sets the comfort settings and calls `postfx.update()` once a tick.
+  const problems = game.fx.loadData(FX);
+  if (problems.length > 0) throw new Error(`src/data/fx.json is not valid: ${problems.join('; ')}`);
+  routePostfx(postfx, () => game.fx);
   // The notice overlay, as `main.ts` registers it on the old path.
   game.overlays.push(drawNotice);
   bootGame(game as unknown as OldGame, display as unknown as OldDisplay);

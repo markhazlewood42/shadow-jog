@@ -11,7 +11,7 @@
  * The render textures are created ONCE and drawn into every frame the bloom runs. Nothing is allocated per frame. A pass is a Pixi filter over a throwaway
  * white sprite as big as its target (the shader is in render/shaders/blur.ts, which says how).
  */
-import { defaultFilterVert, Container, Filter, RenderTexture, Sprite, Texture } from 'pixi.js';
+import { defaultFilterVert, type Container, Filter, RenderTexture, Sprite, Texture } from 'pixi.js';
 import { H, W } from '../core/size';
 import type { PixiRenderer } from '../render/pixirenderer';
 import { BLUR_FRAGMENT } from '../render/shaders/blur';

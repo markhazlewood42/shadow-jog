@@ -14,13 +14,18 @@
  *   canvasPixels()                         what the player sees: the picture read out of the canvas, no bars
  *   glCounts()                             live GL objects (texture, buffer, program, vao, framebuffer, ...)
  *   renderer                               { name, fxLevel, contextLost }
+ *   fxCounts()                             the effects now: { level, active, shocks, hazes, glitches, particles } (`sj.fx` is the game's fx.json data)
+ *   setFxLevel(level)                      `auto`, `full`, `lite` or `none`, at once (the same as `game.fxLevel = level`)
+ *   fxMoments()                            the names of the moments in fx.json that `playMoment` can fire
+ *   playMoment(name, x?, y?)               fire one by name (the screen center by default); the DEV tab lists a button for each (fxpanel.ts)
  *   forceContextLoss() / forceContextRestore()
  *
  * Reads happen inside the page, so a test does not ship pixels through Playwright for every check. Dev and tests only.
  */
 import type { Container as PixiContainer } from 'pixi.js';
-import { type Game, GlRenderer, type Pixels } from '../sje';
+import { type FxCounts, type FxRequest, type Game, GlRenderer, H, type Pixels, W } from '../sje';
 import { type GlCounts, installGlCounter, readGlCounts } from './glcounter';
+import { mountFxPanel } from './fxpanel';
 import { fingerprint, words } from './pixeltools';
 
 export interface Rect {
@@ -71,6 +76,10 @@ export interface SjEngineHook {
   pixels(r?: Rect): { w: number; h: number; data: Uint8Array };
   canvasPixels(): { w: number; h: number; base64: string; k: number; x: number; y: number };
   glCounts(): GlCounts;
+  fxCounts(): FxCounts;
+  setFxLevel(level: FxRequest): void;
+  fxMoments(): string[];
+  playMoment(name: string, x?: number, y?: number): boolean;
   readonly renderer: { name: string; fxLevel: string; contextLost: boolean };
   forceContextLoss(): void;
   forceContextRestore(): void;
@@ -125,7 +134,7 @@ export function attach(game: Game): void {
         visible: true,
         texture: null,
         filters: 0,
-        children: [root.worldRoot, root.uiRoot, root.overlayRoot].map((r) => dumpNode(r._pixi)),
+        children: [root.worldRoot._pixi, root.fxRoot, root.uiRoot._pixi, root.overlayRoot._pixi].map((r) => dumpNode(r)),
       };
     },
     step: (n) => game.step(n),
@@ -142,6 +151,16 @@ export function attach(game: Game): void {
       return { w: px.w, h: px.h, base64: toBase64(px.data), k: l.k, x: l.x, y: l.y };
     },
     glCounts: () => readGlCounts(),
+    fxCounts: () => game.fx.counts(),
+    setFxLevel: (level) => {
+      game.fxLevel = level;
+    },
+    fxMoments: () => Object.keys(game.fx.data?.moments ?? {}),
+    playMoment(name, x = W / 2, y = H / 2) {
+      if (!game.fx.active || !game.fx.data?.moments[name]) return false;
+      game.fx.playMoment(name, x, y);
+      return true;
+    },
     get renderer() {
       const gl = renderer.glc.gl;
       // Firefox deprecates WEBGL_debug_renderer_info (and logs a warning for each use): it gets the generic name. A lost context has no extensions.
@@ -157,4 +176,6 @@ export function attach(game: Game): void {
   };
   // `Object.defineProperties` keeps the `renderer` getter live (Object.assign would read it once).
   Object.defineProperties(sj, Object.getOwnPropertyDescriptors(hook));
+  // The DEV tab gets a list of effects buttons (not under Playwright: the tab is not mounted there).
+  if (!navigator.webdriver) mountFxPanel(sj as unknown as SjEngineHook);
 }

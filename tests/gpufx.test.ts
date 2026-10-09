@@ -5,7 +5,8 @@ import { FX, GAME_MOMENTS } from '../src/data/fx';
 import { checkFx, type FxData, formatFx } from '../src/engine/fxdata';
 import { playMoment } from '../src/engine/moments';
 import { type EmitterPreset, PARTICLE_STRIDE, ParticleSim, SHAPE_ID } from '../src/engine/particles';
-import { MAX_SHOCKS, postfx } from '../src/engine/postfx';
+import { MAX_SHOCKS, PostFx, postfx } from '../src/engine/postfx';
+import { runCases } from './fxstate-cases';
 
 const dot: EmitterPreset = { count: [5, 5], life: [10, 10], speed: [1, 1], angle: 0, spread: 0, size: [2, 2], colors: ['#ff0000', '#0000ff'], alpha: [1, 0], shape: 'dot' };
 
@@ -143,6 +144,12 @@ describe('effects façade', () => {
     postfx.active = false;
     postfx.motion = 1;
     postfx.clear();
+  });
+});
+
+describe('effects state table (shared with the new FxSystem: tests/sje-fx.test.ts)', () => {
+  it('every case of the shared table passes on the old postfx', () => {
+    expect(runCases(() => new PostFx())).toEqual([]);
   });
 });
 
