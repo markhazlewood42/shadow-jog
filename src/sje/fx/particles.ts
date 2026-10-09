@@ -54,6 +54,13 @@ export interface EmitterPreset {
   inward?: boolean;
 }
 
+/** A live copy of the simulation, plain data only (`ParticleSim.snapshot`). */
+export interface ParticleSnapshot {
+  rs: number;
+  kinds: EmitterPreset[];
+  x: number[]; y: number[]; vx: number[]; vy: number[]; age: number[]; life: number[]; ang: number[]; spin: number[]; seed: number[]; kind: number[];
+}
+
 /** Floats per particle in the packed draw buffer: x, y, width, height, angle, r, g, b, a, shape. */
 export const PARTICLE_STRIDE = 10;
 
@@ -198,6 +205,34 @@ export class ParticleSim {
       this.ang[i] = (this.ang[i] ?? 0) + (this.spin[i] ?? 0) * dt;
       i++;
     }
+  }
+
+  /** Everything alive, as plain numbers (a preset is plain data too), so a tool can save a moment in flight. */
+  snapshot(): ParticleSnapshot {
+    const n = this.count;
+    const cut = (a: Float32Array | Uint16Array) => Array.from(a.subarray(0, n));
+    return {
+      rs: this.rs,
+      kinds: this.kinds.map((k) => k.preset),
+      x: cut(this.x), y: cut(this.y), vx: cut(this.vx), vy: cut(this.vy), age: cut(this.age), life: cut(this.life),
+      ang: cut(this.ang), spin: cut(this.spin), seed: cut(this.seed), kind: cut(this.kind),
+    };
+  }
+
+  /** Put a snapshot back. Presets are compiled again from the data in it. */
+  restore(s: ParticleSnapshot): void {
+    this.count = 0;
+    this.kinds.length = 0;
+    this.kindOf.clear();
+    for (const p of s.kinds) this.compile(p);
+    const n = Math.min(s.x.length, this.cap);
+    const put = (dst: Float32Array | Uint16Array, src: readonly number[]) => {
+      for (let i = 0; i < n; i++) dst[i] = src[i] ?? 0;
+    };
+    put(this.x, s.x); put(this.y, s.y); put(this.vx, s.vx); put(this.vy, s.vy); put(this.age, s.age); put(this.life, s.life);
+    put(this.ang, s.ang); put(this.spin, s.spin); put(this.seed, s.seed); put(this.kind, s.kind);
+    this.rs = s.rs >>> 0 || 1;
+    this.count = n;
   }
 
   /** Remove particle i by moving the last one into its slot. */

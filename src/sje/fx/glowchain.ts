@@ -16,6 +16,7 @@ import { H, W } from '../core/size';
 import type { PixiRenderer } from '../render/pixirenderer';
 import { BLUR_FRAGMENT } from '../render/shaders/blur';
 import { FILTER_PRELUDE } from '../render/shaders/prelude';
+import type { FxParams } from './fxparams';
 
 const CLEAR: [number, number, number, number] = [0, 0, 0, 0];
 
@@ -28,6 +29,8 @@ function target(w: number, h: number): RenderTexture {
 class BlurPass {
   readonly sprite: Sprite;
   readonly filter: Filter;
+  private readonly weights = new Float32Array(3);
+  private readonly offsets = new Float32Array(2);
 
   constructor(
     from: RenderTexture,
@@ -41,6 +44,8 @@ class BlurPass {
         blurUniforms: {
           uOut: { value: new Float32Array([to.width, to.height]), type: 'vec2<f32>' },
           uStep: { value: new Float32Array([dx / from.width, dy / from.height]), type: 'vec2<f32>' },
+          uWeights: { value: this.weights, type: 'vec3<f32>' },
+          uOffsets: { value: this.offsets, type: 'vec2<f32>' },
         },
         uSrc: from.source,
       },
@@ -51,7 +56,9 @@ class BlurPass {
     this.sprite.filters = [this.filter];
   }
 
-  run(pixi: PixiRenderer): void {
+  run(pixi: PixiRenderer, p: FxParams): void {
+    this.weights.set(p.blurWeights);
+    this.offsets.set(p.blurOffsets);
     pixi.renderer.render({ container: this.sprite, target: this.to, clear: true, clearColor: CLEAR });
   }
 
@@ -80,9 +87,9 @@ export class GlowChain {
   }
 
   /** Draw the light and blur it. Skipped by the caller when nothing glows (the composite then adds 0). */
-  render(pixi: PixiRenderer): void {
+  render(pixi: PixiRenderer, p: FxParams): void {
     pixi.renderer.render({ container: this.litRoot, target: this.lit, clear: true, clearColor: CLEAR });
-    for (const pass of this.passes) pass.run(pixi);
+    for (const pass of this.passes) pass.run(pixi, p);
   }
 
   destroy(): void {

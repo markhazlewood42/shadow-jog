@@ -20,6 +20,13 @@
  * `update()` (the state step: shockwaves spread, particles move, delayed calls run) is NOT called by `Game`. The game's own ticker calls
  * `postfx.update()` once per tick (src/boot.ts), and the routing makes `postfx` this object. A second call here would age every effect twice.
  *
+ * THE EDITOR CONTRACT (m2-brief.md section 2, point 9). A future FX editor drives this class and needs no Pixi object:
+ *   `params`            every number that sets the look, in one object (fxparams.ts), changed live.
+ *   `loadData(fx)`      swap the parsed `fx.json` in a running game; bad data is refused and the old data stays.
+ *   `playMoment(...)`   play a moment by name with no scene running.
+ *   `step(n)`           advance the effects clock by n ticks with no scene running, so a tool can scrub.
+ *   `snapshot()`        the live state as plain JSON, `restore(s)` puts it back.
+ *
  * Headless: with no `gpu` (a test in Node) there is no drawing at all; only the state exists, and a test switches `active` itself, like the old
  * tests do.
  */
@@ -32,8 +39,12 @@ import type { Screen } from '../display/screen';
 import { SOFTWARE_GL } from '../render/glcontext';
 import type { PixiRenderer } from '../render/pixirenderer';
 import { CompositeFilter } from './compositefilter';
+import { checkFx, type FxData } from './fxdata';
+import { defaultFxParams, type FxParams } from './fxparams';
 import { FxParticles } from './fxparticles';
-import { FxState } from './fxstate';
+import { FxState, type Glitch, type Haze, type Shock } from './fxstate';
+import { fireLayer, type MomentOpts } from './moments';
+import type { ParticleSnapshot } from './particles';
 import { GlowChain } from './glowchain';
 
 /** What the player or a test asks for. `auto` picks `lite` on a software renderer and `full` otherwise. */
@@ -54,6 +65,42 @@ export interface FxOptions {
   request?: FxRequest;
   /** Seed of the visual stream (the glitch patterns). The same seed gives the same frames. */
   seed?: number;
+  /** Look parameters that differ from the defaults (`defaultFxParams`). `particleCap` is read here, once. */
+  params?: Partial<FxParams>;
+}
+
+/** A moment layer waiting for its delay to run out. Plain data, so a snapshot can hold it (a closure from `later` cannot be held). */
+interface DelayedLayer {
+  t: number;
+  moment: string;
+  layer: number;
+  x: number;
+  y: number;
+  angle?: number;
+  weight?: number;
+}
+
+/** The live effect state as plain JSON (`FxSystem.snapshot`). It holds no function and no Pixi object. */
+export interface FxSnapshot {
+  version: 1;
+  time: number;
+  rate: number;
+  bloom: number;
+  vignette: number;
+  aberration: [number, number, number];
+  pulse: number;
+  dim: [number, number, number];
+  flash: { color: string; alpha: number };
+  clip: { x: number; y: number; w: number; h: number } | null;
+  shocks: Shock[];
+  hazes: Haze[];
+  glitches: Glitch[];
+  particles: ParticleSnapshot;
+  delayed: DelayedLayer[];
+  /** State of the seeded visual stream. */
+  rng: number;
+  /** Delayed calls made with `later(frames, fn)`: functions, so they are not in the snapshot. A tool should know it lost them. */
+  droppedCalls: number;
 }
 
 /** The numbers the DEV hook shows. */
@@ -93,9 +140,15 @@ export class FxSystem extends FxState {
   /** The UI layer was drawn into this frame (an untouched one is neither uploaded nor shown), and has pixels to clear. */
   private uiTouched = false;
   private uiDirty = false;
+  /** The look parameters. Change a field and the next frame shows it. */
+  readonly params: FxParams;
+  /** The presets and moments in use (`loadData`). Null until data is loaded. */
+  data: FxData | null = null;
+  private readonly delayed: DelayedLayer[] = [];
 
   constructor(opts: FxOptions = {}) {
-    super();
+    super(opts.params?.particleCap ?? defaultFxParams().particleCap);
+    this.params = { ...defaultFxParams(), ...opts.params };
     this.gpu = opts.gpu ?? null;
     this.rng = new Rng(opts.seed ?? 0x5eed);
     this.request = opts.request ?? 'auto';
@@ -142,6 +195,113 @@ export class FxSystem extends FxState {
   /** How many of each effect is alive, for the DEV hook. */
   counts(): FxCounts {
     return { level: this.level, active: this.active, shocks: this.shocks.length, hazes: this.hazes.length, glitches: this.glitches.length, particles: this.particles.count };
+  }
+
+  // ---- the editor contract -----------------------------------------------------------------------
+
+  /** Change some look parameters (a merge). Arrays are copied. `particleCap` is read at construction only. */
+  setParams(p: Partial<FxParams>): void {
+    for (const [k, v] of Object.entries(p)) (this.params as unknown as Record<string, unknown>)[k] = Array.isArray(v) ? [...v] : v;
+  }
+
+  /**
+   * Swap in new presets and moments (a hot reload). `d` is the parsed `fx.json`. Returns what is wrong with it (`checkFx`'s messages): when that is not
+   * empty the old data stays in place and nothing changes. Moment layers already waiting on a delay use the new data when they fire.
+   */
+  loadData(d: unknown): string[] {
+    const errors = checkFx(d);
+    if (errors.length === 0) this.data = d as FxData;
+    return errors;
+  }
+
+  /** Play a moment by name at (x, y), with no scene needed. Unknown names, and no data loaded, do nothing. Delayed layers wait on the effects clock. */
+  playMoment(name: string, x: number, y: number, o: MomentOpts = {}): void {
+    const data = this.data;
+    if (!this.active || !data) return;
+    const m = data.moments[name];
+    if (!m) return;
+    m.layers.forEach((l, layer) => {
+      if (l.delay && l.delay > 0) this.delayed.push({ t: l.delay, moment: name, layer, x, y, ...(o.angle !== undefined ? { angle: o.angle } : {}), ...(o.weight !== undefined ? { weight: o.weight } : {}) });
+      else fireLayer(this, data, l, x, y, o);
+    });
+  }
+
+  /** One tick of the effects clock, then the moment layers whose delay ran out. */
+  override update(): void {
+    super.update();
+    if (this.delayed.length === 0) return;
+    const dt = this.rate;
+    const due: DelayedLayer[] = [];
+    let keep = 0;
+    for (const d of this.delayed) {
+      d.t -= dt;
+      if (d.t <= 0) due.push(d);
+      else this.delayed[keep++] = d;
+    }
+    this.delayed.length = keep;
+    const data = this.data;
+    if (!data) return;
+    for (const d of due) {
+      const l = data.moments[d.moment]?.layers[d.layer];
+      if (l) fireLayer(this, data, l, d.x, d.y, { ...(d.angle !== undefined ? { angle: d.angle } : {}), ...(d.weight !== undefined ? { weight: d.weight } : {}) });
+    }
+  }
+
+  /** Drop everything in flight, the delayed moment layers too. */
+  override clear(): void {
+    super.clear();
+    this.delayed.length = 0;
+  }
+
+  /** Advance the effects clock by `n` ticks with no scene running. The same as `n` calls of `update()`. */
+  step(n: number): void {
+    for (let i = 0; i < n; i++) this.update();
+  }
+
+  /** The live effect state as plain JSON: effects in flight, the clock, the particles, the delayed moment layers, the seeded stream. */
+  snapshot(): FxSnapshot {
+    return {
+      version: 1,
+      time: this.time,
+      rate: this.rate,
+      bloom: this.bloom,
+      vignette: this.vignette,
+      aberration: [this.aberration, this.aberrationX, this.aberrationY],
+      pulse: this.pulse,
+      dim: [this.dimAmount, this.dimT, this.dimLife],
+      flash: { color: this.flashColor, alpha: this.flashAlpha },
+      clip: this.clip ? { ...this.clip } : null,
+      shocks: this.shocks.map((s) => ({ ...s })),
+      hazes: this.hazes.map((h) => ({ ...h })),
+      glitches: this.glitches.map((g) => ({ ...g })),
+      particles: this.particles.snapshot(),
+      delayed: this.delayed.map((d) => ({ ...d })),
+      rng: this.rng.state,
+      droppedCalls: this.pendingCalls,
+    };
+  }
+
+  /** Put a snapshot back. Calls made with `later(frames, fn)` are dropped (a snapshot cannot hold a function). */
+  restore(s: FxSnapshot): void {
+    if (s.version !== 1) throw new Error(`FxSystem.restore: unknown snapshot version ${String((s as { version?: unknown }).version)}`);
+    this.clear();
+    this.dropPending();
+    this.time = s.time;
+    this.rate = s.rate;
+    this.bloom = s.bloom;
+    this.vignette = s.vignette;
+    [this.aberration, this.aberrationX, this.aberrationY] = s.aberration;
+    this.pulse = s.pulse;
+    [this.dimAmount, this.dimT, this.dimLife] = s.dim;
+    this.flashColor = s.flash.color;
+    this.flashAlpha = s.flash.alpha;
+    this.clip = s.clip ? { ...s.clip } : null;
+    for (const x of s.shocks) this.shocks.push({ ...x });
+    for (const x of s.hazes) this.hazes.push({ ...x });
+    for (const x of s.glitches) this.glitches.push({ ...x });
+    this.particles.restore(s.particles);
+    for (const d of s.delayed) this.delayed.push({ ...d });
+    this.rng.state = s.rng;
   }
 
   // ---- building ----------------------------------------------------------------------------------
@@ -229,8 +389,8 @@ export class FxSystem extends FxState {
     probe.setClip(null);
     if (parts.chain && parts.composite) {
       // The blur passes, then the composite over a small white sprite.
-      parts.chain.render(pixi);
-      parts.composite.update(this, 1);
+      parts.chain.render(pixi, this.params);
+      parts.composite.update(this, 1, this.params);
       const sprite = new Sprite(Texture.WHITE);
       sprite.width = 16;
       sprite.height = 16;
@@ -288,8 +448,8 @@ export class FxSystem extends FxState {
     if (bloom > 0) {
       glowImage.visible = this.glowUsed;
       if (this.glowUsed) glowImage.refresh();
-      chain.render(pixi);
+      chain.render(pixi, this.params);
     }
-    composite.update(this, bloom);
+    composite.update(this, bloom, this.params);
   }
 }

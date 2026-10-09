@@ -39,6 +39,14 @@ uniform vec2 uGlitchP[${slots.glitches}];
 uniform float uTime;
 uniform float uDim;
 uniform float uLightOn;
+// The look, from FxParams (src/sje/fx/fxparams.ts): nothing that tunes the look is a constant below.
+uniform vec2 uMix;
+uniform float uDimSpare;
+uniform float uVigFalloff;
+uniform vec2 uHazeY;
+uniform vec3 uHazeX;
+uniform vec4 uGlitchA;
+uniform vec2 uGlitchB;
 // The input is padded to a power of two: read it by pixel, and clamp to the picture like the old clamp-to-edge texture.
 vec3 scn(vec2 p) { return texture(uTexture, clamp(p, vec2(0.0), uRes - 0.001) * uInputSize.zw).rgb; }
 void main() {
@@ -61,9 +69,9 @@ void main() {
     float f = 1.0 - dot(d, d);
     if (f <= 0.0) continue;
     f *= f;
-    off += vec2(sin(gp.y * 0.45 + uTime * 0.21), sin(gp.x * 0.3 + gp.y * 0.2 + uTime * 0.33)) * h.w * f;
+    off += vec2(sin(gp.y * uHazeY.x + uTime * uHazeY.y), sin(gp.x * uHazeX.x + gp.y * uHazeX.y + uTime * uHazeX.z)) * h.w * f;
   }
-  // Glitch: inside each rectangle, 3-pixel slices slide sideways (a new pattern every 4 frames)
+  // Glitch: inside each rectangle, slices (3 pixels by default) slide sideways (a new pattern every 4 frames by default)
   // and the colour channels part.
   float split = 0.0;
   for (int i = 0; i < ${slots.glitches}; i++) {
@@ -72,10 +80,10 @@ void main() {
     vec4 r = uGlitch[i];
     vec2 d = abs(gp - r.xy);
     if (d.x > r.z * 0.5 || d.y > r.w * 0.5) continue;
-    float n = fract(sin(floor(gp.y / 3.0) * 12.9898 + floor(uTime / 4.0) * 78.233 + gs.y) * 43758.5453);
-    if (n > 0.5) {
-      off.x += (n - 0.75) * 4.0 * gs.x;
-      split = max(split, gs.x * 0.35);
+    float n = fract(sin(floor(gp.y / uGlitchA.x) * 12.9898 + floor(uTime / uGlitchA.y) * 78.233 + gs.y) * 43758.5453);
+    if (n > uGlitchB.y) {
+      off.x += (n - uGlitchA.w) * uGlitchA.z * gs.x;
+      split = max(split, gs.x * uGlitchB.x);
     }
   }
   vec2 p = gp - off;
@@ -96,12 +104,12 @@ void main() {
   // The stage dimmed for a big spell: the picture darkens, but not what glows (the light layer).
   if (uDim > 0.0) {
     vec3 l = uLightOn > 0.0 ? texture(uLight, bu).rgb : vec3(0.0);
-    col *= 1.0 - uDim * (1.0 - clamp(max(l.r, max(l.g, l.b)) * 3.0, 0.0, 1.0));
+    col *= 1.0 - uDim * (1.0 - clamp(max(l.r, max(l.g, l.b)) * uDimSpare, 0.0, 1.0));
   }
-  col += (texture(uBloomA, bu).rgb * 0.9 + texture(uBloomB, bu).rgb * 0.8) * uBloom;
+  col += (texture(uBloomA, bu).rgb * uMix.x + texture(uBloomB, bu).rgb * uMix.y) * uBloom;
   col = mix(col, uFlash.rgb, uFlash.a);
   vec2 q = gp / uRes - 0.5;
-  col *= 1.0 - uVignette * dot(q, q) * 2.0;
+  col *= 1.0 - uVignette * dot(q, q) * uVigFalloff;
   finalColor = vec4(col, 1.0);
 }`;
 }

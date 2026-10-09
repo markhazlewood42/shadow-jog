@@ -17,10 +17,13 @@ export const BLUR_FRAGMENT = `
 uniform sampler2D uSrc;
 uniform vec2 uOut;
 uniform vec2 uStep;
+// The weights (center, near pair, far pair) and the pair offsets in texels: FxParams blurWeights and blurOffsets.
+uniform vec3 uWeights;
+uniform vec2 uOffsets;
 void main() {
   vec2 uv = vTextureCoord * uInputSize.xy / uOut;
-  vec4 c = texture(uSrc, uv) * 0.2270270270;
-  c += (texture(uSrc, uv + uStep * 1.3846153846) + texture(uSrc, uv - uStep * 1.3846153846)) * 0.3162162162;
-  c += (texture(uSrc, uv + uStep * 3.2307692308) + texture(uSrc, uv - uStep * 3.2307692308)) * 0.0702702703;
+  vec4 c = texture(uSrc, uv) * uWeights.x;
+  c += (texture(uSrc, uv + uStep * uOffsets.x) + texture(uSrc, uv - uStep * uOffsets.x)) * uWeights.y;
+  c += (texture(uSrc, uv + uStep * uOffsets.y) + texture(uSrc, uv - uStep * uOffsets.y)) * uWeights.z;
   finalColor = c;
 }`;

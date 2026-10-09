@@ -234,10 +234,10 @@ describe('level 2.5 (src/sje/fx, the effects): what it may import', () => {
   });
 
   it('the two plain files the OLD engine shares (the effects state and the particle simulation) hold no Pixi, no GL and no import of the effects drawing', () => {
-    for (const f of ['src/sje/fx/fxstate.ts', 'src/sje/fx/particles.ts']) {
+    for (const f of ['src/sje/fx/fxstate.ts', 'src/sje/fx/particles.ts', 'src/sje/fx/fxdata.ts']) {
       const specs = importsOf(readFileSync(join(ROOT, f), 'utf8'));
       expect(specs.filter((s) => isPixi(s) || isThree(s)), f).toEqual([]);
-      expect(specs.filter((s) => s.startsWith('.') && !/^\.\.?\/(core\/size|particles|fxstate)$/.test(s)), f).toEqual([]);
+      expect(specs.filter((s) => s.startsWith('.') && !/^\.\.?\/(core\/size|particles|fxstate|fxdata)$/.test(s)), f).toEqual([]);
     }
   });
 });
@@ -272,11 +272,12 @@ describe('who may import the engine', () => {
   // A static `import ... from './sje/boot'` (the door must be dynamic, or the engine and Pixi land in the entry chunk).
   const STATIC_DOOR = /^[ \t]*import\b[^(]*\bfrom\s*['"]\.\/sje\/boot['"]/m;
 
-  it('the shipped game reaches the engine through seven files only: the size module, the Rng module, the effects state, the particle simulation and the GL names module (all plain code: no Pixi, no Three), a types-only file, and the boot door', () => {
+  it('the shipped game reaches the engine through eight files only: the size module, the Rng module, the effects state, the effects data checks, the particle simulation and the GL names module (all plain code: no Pixi, no Three), a types-only file, and the boot door', () => {
     const shipped = all.filter((e) => outsideEngine(e) && !e.file.startsWith('src/sje-lab/'));
-    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/render/glcontext', 'src/sje/runtime/gameapi']);
+    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/fx/fxdata', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/render/glcontext', 'src/sje/runtime/gameapi']);
     // M2: the old PostFx extends the shared state, the old particle module re-exports the shared simulation, the old presenter takes SOFTWARE_GL from the GL module.
     expect([...new Set(shipped.filter((e) => e.target === 'src/sje/fx/fxstate').map((e) => e.file))]).toEqual(['src/engine/postfx.ts']);
+    expect(shipped.filter((e) => e.target === 'src/sje/fx/fxdata').map((e) => e.file)).toEqual(['src/engine/fxdata.ts']);
     expect(shipped.filter((e) => e.target === 'src/sje/fx/particles').map((e) => e.file)).toEqual(['src/engine/particles.ts']);
     expect(shipped.filter((e) => e.target === 'src/sje/render/glcontext').map((e) => e.file)).toEqual(['src/engine/gl/presenter.ts']);
     // glcontext.ts has no import at all, so nothing of Pixi follows it into the old bundle.

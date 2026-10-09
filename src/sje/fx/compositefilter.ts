@@ -10,6 +10,7 @@ import { defaultFilterVert, Filter, type TextureSource } from 'pixi.js';
 import { H, W } from '../core/size';
 import { compositeFragment } from '../render/shaders/composite';
 import { FILTER_PRELUDE } from '../render/shaders/prelude';
+import type { FxParams } from './fxparams';
 import { envelope, type FxState, MAX_GLITCHES, MAX_HAZES, MAX_SHOCKS } from './fxstate';
 
 type Uniforms = Record<string, number | Float32Array>;
@@ -37,6 +38,11 @@ export class CompositeFilter {
   private readonly glitchP = new Float32Array(MAX_GLITCHES * 2);
   private readonly aberr = new Float32Array(3);
   private readonly flash = new Float32Array(4);
+  private readonly mix = new Float32Array(2);
+  private readonly hazeY = new Float32Array(2);
+  private readonly hazeX = new Float32Array(3);
+  private readonly glitchA = new Float32Array(4);
+  private readonly glitchB = new Float32Array(2);
   private flashHex = '';
 
   constructor(bloomA: TextureSource, bloomB: TextureSource, light: TextureSource) {
@@ -54,6 +60,13 @@ export class CompositeFilter {
       uTime: { value: 0, type: 'f32' },
       uDim: { value: 0, type: 'f32' },
       uLightOn: { value: 0, type: 'f32' },
+      uMix: { value: this.mix, type: 'vec2<f32>' },
+      uDimSpare: { value: 0, type: 'f32' },
+      uVigFalloff: { value: 0, type: 'f32' },
+      uHazeY: { value: this.hazeY, type: 'vec2<f32>' },
+      uHazeX: { value: this.hazeX, type: 'vec3<f32>' },
+      uGlitchA: { value: this.glitchA, type: 'vec4<f32>' },
+      uGlitchB: { value: this.glitchB, type: 'vec2<f32>' },
     };
     this.flash.set([1, 1, 1, 0]);
     this.filter = Filter.from({
@@ -63,9 +76,21 @@ export class CompositeFilter {
     this.u = (this.filter.resources as unknown as { compositeUniforms: { uniforms: Uniforms } }).compositeUniforms.uniforms;
   }
 
-  /** Copy this frame's state into the uniforms. `bloom` is the bloom strength (0 when nothing glows). */
-  update(fx: FxState, bloom: number): void {
+  /** Copy this frame's state and the look parameters into the uniforms. `bloom` is the bloom strength (0 when nothing glows). */
+  update(fx: FxState, bloom: number, p: FxParams): void {
     const u = this.u;
+    this.mix[0] = p.bloomHalf;
+    this.mix[1] = p.bloomQuarter;
+    u.uDimSpare = p.dimSpareGain;
+    u.uVigFalloff = p.vignetteFalloff;
+    this.hazeY.set(p.hazeWaveY);
+    this.hazeX.set(p.hazeWaveX);
+    this.glitchA[0] = p.glitchSliceHeight;
+    this.glitchA[1] = p.glitchPatternFrames;
+    this.glitchA[2] = p.glitchSlide;
+    this.glitchA[3] = p.glitchSlideBias;
+    this.glitchB[0] = p.glitchSplit;
+    this.glitchB[1] = p.glitchThreshold;
     u.uLightOn = bloom > 0 ? 1 : 0;
     u.uDim = fx.dimNow;
     u.uTime = fx.time;
@@ -76,7 +101,7 @@ export class CompositeFilter {
       this.haze[i * 4] = h.x;
       this.haze[i * 4 + 1] = h.y;
       this.haze[i * 4 + 2] = h.radius;
-      this.haze[i * 4 + 3] = h.strength * envelope(h.t, h.life, 8, 20);
+      this.haze[i * 4 + 3] = h.strength * envelope(h.t, h.life, p.hazeFadeIn, p.hazeFadeOut);
     }
     this.glitch.fill(0);
     this.glitchP.fill(0);
@@ -87,7 +112,7 @@ export class CompositeFilter {
       this.glitch[i * 4 + 1] = g.y;
       this.glitch[i * 4 + 2] = g.w;
       this.glitch[i * 4 + 3] = g.h;
-      this.glitchP[i * 2] = g.strength * envelope(g.t, g.life, 2, 6);
+      this.glitchP[i * 2] = g.strength * envelope(g.t, g.life, p.glitchFadeIn, p.glitchFadeOut);
       this.glitchP[i * 2 + 1] = g.seed;
     }
     this.shock.fill(0);
@@ -98,9 +123,9 @@ export class CompositeFilter {
       // The ring runs out to its reach, easing; its push fades as it goes.
       this.shock[i * 4] = s.x;
       this.shock[i * 4 + 1] = s.y;
-      this.shock[i * 4 + 2] = s.reach * (1 - (1 - k) ** 2);
-      this.shock[i * 4 + 3] = s.strength * (1 - k) ** 1.5;
-      this.shockW[i] = s.width * (0.6 + k);
+      this.shock[i * 4 + 2] = s.reach * (1 - (1 - k) ** p.shockReachEase);
+      this.shock[i * 4 + 3] = s.strength * (1 - k) ** p.shockPushEase;
+      this.shockW[i] = s.width * (p.shockWidthStart + k);
     }
     this.aberr[0] = fx.aberration;
     this.aberr[1] = fx.aberrationX;

@@ -110,7 +110,7 @@ export class FxState {
   flashAlpha = 0;
   /** GPU effects switched themselves off this session because the game couldn't keep up (main.ts). */
   suspended = false;
-  readonly particles = new ParticleSim(4096, 7);
+  readonly particles: ParticleSim;
   /** Particles show only inside this rectangle (the battlefield, above the status cards), or anywhere. */
   clip: { x: number; y: number; w: number; h: number } | null = null;
   /** The layers the presenter composites (Display provides them while active). Draw into the glow
@@ -199,6 +199,21 @@ export class FxState {
 
   /** Calls waiting on the effects clock (a moment's delayed layers). */
   private pending: { t: number; fn: () => void }[] = [];
+
+  /** `cap` is the most particles alive at once. */
+  constructor(cap = 4096) {
+    this.particles = new ParticleSim(cap, 7);
+  }
+
+  /** How many delayed calls (closures) are waiting. A snapshot cannot hold them. */
+  get pendingCalls(): number {
+    return this.pending.length;
+  }
+
+  /** Forget the delayed calls (a restore puts back a state that never had them). */
+  protected dropPending(): void {
+    this.pending.length = 0;
+  }
 
   /** Run `fn` after `frames` frames of the effects clock (dropped if the effects are cleared first). */
   later(frames: number, fn: () => void): void {
