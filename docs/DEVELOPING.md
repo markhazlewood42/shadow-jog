@@ -163,7 +163,7 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
 - `?scene=chars[&zoom=4][&npcs][&battlers]`, `?scene=bestiary[&page=1]`, `?scene=portraits`, `?scene=font`:
   asset sheets.
 - `?scene=fxlab`: the FX lab (particle presets and battle moments; see §8).
-- **Comic sequences on their own:** `?scene=panels&id=intro` or `id=ending` opens a comic sequence by itself (dev only). The review switches that once forced a decision's other option from the page address (`reviewswitch`) are gone: Mark answered each decision, and the winning value is a named constant.
+- **Comic sequences on their own:** `?scene=panels&id=intro` or `id=ending` opens a comic sequence by itself (dev only). The review switches that once forced a decision's other option from the page address are gone: Mark answered each decision, and the winning value is a named constant.
 - `/artreview.html`: the art-pass review page; `?art=review[&try=asset/option,...]` on any route swaps art-pass
   options into the game (see §8, "The PixelLab art pass").
 
