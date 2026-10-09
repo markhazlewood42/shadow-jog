@@ -443,7 +443,7 @@ export class Game implements DisplayHost, LegacyGameSurface {
   destroyForTests(): void {
     this.stop();
     this.abandon();
-    if (this.renderer instanceof GlRenderer) this.renderer.destroy();
+    this.renderer.destroyForTests?.();
   }
 
   // ---- internals --------------------------------------------------------------------------------------

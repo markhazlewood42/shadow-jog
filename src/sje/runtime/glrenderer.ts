@@ -22,6 +22,8 @@ export interface FrameRenderer {
   render(screen: Screen): void;
   /** True while the renderer cannot draw (a lost WebGL context). A renderer that can never lose its context leaves this out. */
   readonly contextLost?: boolean;
+  /** Dev and tests only (`Game.destroyForTests`). A renderer with nothing to free leaves this out. */
+  destroyForTests?(): void;
 }
 
 export class GlRenderer implements FrameRenderer {
@@ -90,6 +92,11 @@ export class GlRenderer implements FrameRenderer {
   /** Where the picture is in the canvas, in device pixels. */
   get picture(): PictureLayout {
     return this.presenter.layout;
+  }
+
+  /** Dev and tests only. Production never destroys the renderer: it would lose a context Three shares. `Game.destroyForTests` calls this. */
+  destroyForTests(): void {
+    this.destroy();
   }
 
   /** Dev and tests only. Production never destroys the renderer: it would lose a context Three shares. */
