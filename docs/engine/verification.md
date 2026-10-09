@@ -4,7 +4,7 @@ title: "Shadow Jog Engine — Verification loops and rubrics"
 project: shadow-jog
 created: 2026-10-04
 updated: 2026-10-08
-status: approved 2026-10-05 (final). First approval 2026-10-04. Phase 0 update on 2026-10-05 (the 640x360 numbers in B5 and V3), accepted with all recommendations. The lean loop replaced section 1 on 2026-10-08 (Mark)
+status: approved 2026-10-05 (final). First approval 2026-10-04. Phase 0 update on 2026-10-05 (the 640x360 numbers in B5 and V3), accepted with all recommendations. Section 1 and the diagram superseded on 2026-10-08 by the lean loop in CLAUDE.md (Mark); kept as the record
 tags: [engine, design, verification]
 ---
 
@@ -14,13 +14,20 @@ Every build step of the engine goes through an independent verification loop bef
 
 The rule is simple. The agent that writes the code never grades it. Fresh agents with different instructions grade it against a rubric that exists before the code.
 
-> **Changed 2026-10-08 (Mark): the lean loop.** Every build in this repo now uses the lean loop in `CLAUDE.md`
-> ("Verification loop for every build in this repo"). In short: 2 verifiers for code and layout (a runner and a
-> reader, which together cover the three lenses of section 2), 1 for docs and records, and a third only for a write
-> path, a trust rule or a save format. Pass means every pass line holds and no Critical or Important finding is
-> open. A Minor finding is a named fix for the next commit. A fix round checks only the named findings. CI runs the
-> full e2e suite. The rubrics of section 3 stay as the criteria the verifiers score. Sections 1 and 2 and the
-> diagram show the loop as approved on 2026-10-05, for the record.
+> **Superseded in part on 2026-10-08 (Mark): the lean loop.** Every build in this repo follows the rule "Verification
+> loop for every build in this repo" in `CLAUDE.md`. That rule is the one source, so this file does not repeat it.
+> Section 1 and the diagram stay only as the record of the loop approved on 2026-10-05.
+>
+> - **Lenses.** The three lenses of section 2 map to the two lean verifiers. The **runner** takes "Visual and
+>   runtime" and the run half of "Correctness and tests": it runs the touched tests and tries to break the code at run
+>   time. The **reader** takes "Design conformance and code quality" and the read half of "Correctness and tests": it
+>   checks the pass lines and the edge cases in the diff.
+> - **Rubrics.** The rubrics of section 3 stay as the criteria that both verifiers score, as evidence. A criterion at
+>   6 or lower that comes from a behavior defect is an Important finding. The median and average gates of section 1
+>   no longer decide a pass.
+> - **Why.** In the 640x360 move, WP2b and WP3 took 5 builder runs and 15 verifier runs, and most failed rounds came
+>   from records or CI noise, not from defects. The record is the WP3 verification table in `docs/PIVOT-640.md`, on
+>   branch `resolution-640x360` (PR #23) until it merges.
 
 ---
 
