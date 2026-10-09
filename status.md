@@ -474,7 +474,7 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
 - Touch controls.
 - **Setting bible.** `docs/SETTING.md` (2026-09-29): history, politics, society, key events and figures, each line tagged [canon] (in the game) or [new] (invented to fill a gap). Mark will use it to shape future narrative and setting changes to his own vision.
 - **Glossary review.** `docs/GLOSSARY.md` holds every term and concept in the setting; Mark reviews it as a whole once the alpha phase completes (asked 2026-09-29). Its **[review]** marks and closing questions are the agenda. Keep it current in the same change as any new name or term.
-- **Deploy to shadowjog.com** (domain bought 2026-09-28; hosting probably Vercel). Confirm with Mark before any deploy.
+- **Deploy to shadowjog.com** (domain bought 2026-09-28). The demo is live on Vercel since 2026-10-09 at https://shadow-jog.vercel.app, built from the `release` branch (the `v0.1.0` commit), never from `main`; how to ship is in `docs/DEVELOPING.md` section 9, "Deploying a release". Still open: attach shadowjog.com, and the email sign-up. Confirm with Mark before any release push.
 - **Last step, after the alpha is fully working: interest sign-up.** The final screen (the "Chapter 2 coming soon"
   card, `src/scenes/ending.ts`) gets an email field so players can ask to hear about updates. It must be secure. The
   details are to be designed with Mark later; points to cover then:
