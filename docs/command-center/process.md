@@ -10,7 +10,7 @@ tags: [tooling, command-center, process]
 
 # Shadow Jog Command Center — Build process
 
-This page keeps the rules of the build for a future maintainer. The working record of the build (the ledger, the briefs and the reviews) was a git-ignored folder. It was deleted on 2026-10-08. The rulings it held are in `design.md`, the tool README, the code comments and the description of PR #26.
+This page keeps the rules of the build for a future maintainer. The working record of the build (the ledger, the briefs and the reviews) was a git-ignored folder. Mark removed it after this page was written. The rulings it held are in `design.md`, the tool README, the code comments and the description of PR #26.
 
 ## Roles
 
@@ -26,6 +26,10 @@ This page keeps the rules of the build for a future maintainer. The working reco
 - Stage by explicit path. Never use `git add .` or `git add -A`.
 - Use synthetic fixtures only. Never read real sessions or write to GitHub in a test.
 - Send screenshots to Mark at once. Delete them after the runner judges them.
+- Use the test titles of the brief word for word, so a verifier can find each test.
+- Run every test with `CC_NO_OPEN=1`. The end-to-end server uses port 3010. Never use ports 3002 to 3009.
+- Stop only the processes that you started, by process id. Never stop a process by its name.
+- Do not dispatch subagents.
 
 ## Rules for verifiers
 
@@ -33,7 +37,7 @@ This page keeps the rules of the build for a future maintainer. The working reco
 - It scores every criterion from 1 to 10.
 - A task passes if every score is 7 or more and the average is 8 or more.
 - A test with the right name that does not check the named behavior scores 5 or less.
-- Each verifier runs one mutation probe for the key tests. It breaks the code on purpose and checks that a test fails.
+- Good practice, not a rule: break the code on purpose in a scratch copy and check that the key tests fail.
 
 ## Fix rounds
 
