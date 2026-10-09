@@ -182,8 +182,8 @@ test.describe('engine lab: the speed line', () => {
     expect(speedLineMisses({ ...base, sceneP95: 18.7 })).toHaveLength(1);
     expect(speedLineMisses({ ...base, sceneP95: 35, costP95: 30 })).toHaveLength(2);
     // On software GL only a stuck loop fails.
-    expect(speedLineMisses({ ...base, software: true, sceneP95: 79, costP95: 40 })).toEqual([]);
-    expect(speedLineMisses({ ...base, software: true, sceneP95: 80 })).toHaveLength(1);
+    expect(speedLineMisses({ ...base, software: true, sceneP95: SPEED_LINE.softwareStuckMs - 1, costP95: 40 })).toEqual([]);
+    expect(speedLineMisses({ ...base, software: true, sceneP95: SPEED_LINE.softwareStuckMs })).toHaveLength(1);
   });
 
   /** The lab on the real loop, with the 3D frame (bloom on) running or not, warmed up. */
