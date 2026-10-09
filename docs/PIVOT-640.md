@@ -46,7 +46,7 @@ The packages land on `resolution-640x360` in this order. Each one ends with the 
 **Rules for every package.**
 
 - **Branch.** Push each commit as the work goes. Nobody commits to `main`. The one pull request is a draft until WP7, so CI runs on every push after it opens.
-- **Review.** A Copilot review on the pull request: monitor on, fix, reply, resolve. One shared `CHANGELOG.md` entry under "Unreleased", extended by each package.
+- **Review.** The Claude Code Review Action on the pull request (Copilot is no longer used since 2026-10-08): read its comments, fix the real ones, reply. One shared `CHANGELOG.md` entry under "Unreleased", extended by each package.
 - **Drift check before each package.** `git fetch`, then `git rev-list --left-right --count HEAD...origin/main`. If `main` moved, merge `origin/main` into the branch (a merge, not a rebase), then run the scan test and the unit tests before the package starts.
 - **Main keeps moving.** New layout work on `main` uses `W` and `H`. The scan test fails a new literal.
 - **Content rule.** The walk in WP3, the title world in WP5 and the backdrops in WP2b and WP6 show things that were off screen or that get a new composition. Agents list them with pictures and options. They change no story or map data without Mark's written yes per item (D7 c, D17 c). A default applies only if he is silent after the pictures, and only a code-only default: limit the camera, or fade or letterbox the scene (D17).

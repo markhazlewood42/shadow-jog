@@ -144,7 +144,7 @@ export function drawCurtains(ctx: Ctx, curtains: readonly Curtain[], ease: numbe
   for (const [i, c] of curtains.entries()) {
     const target = curtainClosed(c, leader, runningEvent);
     const prev = ease[i] ?? 0;
-    const eased = c.mode === 'event' ? prev + Math.max(-1 / c.fade, Math.min(1 / c.fade, target - prev)) : target;
+    const eased = c.mode === 'event' ? prev + Math.max(-1 / Math.max(1, c.fade), Math.min(1 / Math.max(1, c.fade), target - prev)) : target;
     ease[i] = eased;
     const a = CURTAIN_STRENGTH * eased;
     if (a < 0.01) continue;
@@ -173,5 +173,5 @@ export function drawCurtains(ctx: Ctx, curtains: readonly Curtain[], ease: numbe
 export function curtainClosed(c: Curtain, leader: { x: number; y: number }, runningEvent: string | null): number {
   if (c.mode === 'event') return runningEvent !== null && c.events.includes(runningEvent) ? 1 : 0;
   const d = Math.hypot(leader.x - c.focus.x, leader.y - c.focus.y);
-  return Math.max(0, Math.min(1, (d - c.radius) / c.fade));
+  return Math.max(0, Math.min(1, (d - c.radius) / Math.max(1, c.fade)));
 }

@@ -127,7 +127,7 @@ export function stripNoise(src) {
 
 /** After one of these characters a slash starts a regex literal, not a division. */
 function startsRegex(lastCode) {
-  return lastCode === '' || '(,=:[!&|?{};+-*%<>~^'.includes(lastCode);
+  return lastCode === '' || '(,=:[!&|?{;+-*%<>~^'.includes(lastCode);
 }
 
 /**

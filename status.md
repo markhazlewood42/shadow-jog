@@ -16,7 +16,7 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 **GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog) (public).
 - **CI:** GitHub Actions, on pushes to `main` and on pull requests: three jobs at the same time (`check`, `e2e`, `e2e-engines`), all three required on `main` by the ruleset "Main branch protection" (2026-10-06). A docs-only change skips their steps. The real-speed playtest runs in `playtest.yml` after a merge and from the Actions button.
-- **Since 2026-10-01** work goes on a branch per major feature, with a PR for Copilot review, and Mark merges.
+- **Since 2026-10-01** work goes on a branch per major feature, with a PR for the Claude Code Review Action, and Mark merges.
 
 ## Where we left off (2026-10-05)
 
