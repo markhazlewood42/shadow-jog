@@ -1,9 +1,11 @@
 /** Runtime map: parses a MapDef and bakes its layers once. */
 import { pixelSurface, surface, type Ctx } from '../engine/canvas';
 import { mix, rgba } from '../engine/color';
+import { H, W } from '../engine/game';
 import { hash2 } from '../engine/rng';
 import type { AnimFx, BakeCtx, BakedLight, SortedSprite } from './bake';
 import { paintBuilding } from './buildings';
+import { occupiedRects, type Rect } from './overrects';
 import { paintProp } from './props';
 import { isWater, overlayTerrain, paintTerrain, SOLID_TERRAIN, TS, WALL_TERRAIN } from './tiles';
 import type { MapDef, TerrainId } from './types';
@@ -47,6 +49,8 @@ export class FieldMap {
   over!: HTMLCanvasElement;
   overEmit!: HTMLCanvasElement;
   hasOver = false;
+  /** The parts of the overhead layers that hold anything (`field/overrects.ts`); the scene lights and draws only these. */
+  overRects: Rect[] = [];
   lights: BakedLight[] = [];
   sprites: SortedSprite[] = [];
   anims: AnimFx[] = [];
@@ -149,6 +153,18 @@ export class FieldMap {
     this.emit = emit.canvas;
     this.over = over.canvas;
     this.overEmit = overEmit.canvas;
+    if (this.hasOver) {
+      // Read both overhead layers once, to learn which parts of them are clear (the layers do not change
+      // after the bake). The pixels are read from a copy on a canvas made for reading: the layers
+      // themselves stay where the GPU draws them.
+      const reader = pixelSurface(pw, ph);
+      const read = (c: HTMLCanvasElement) => {
+        reader.ctx.clearRect(0, 0, pw, ph);
+        reader.ctx.drawImage(c, 0, 0);
+        return reader.ctx.getImageData(0, 0, pw, ph).data;
+      };
+      this.overRects = occupiedRects([read(this.over), read(this.overEmit)], pw, ph);
+    }
   }
 
   private bakeString(b: BakeCtx, s: NonNullable<MapDef['strings']>[number]): void {
@@ -320,7 +336,7 @@ export class FieldMap {
             const k = tiles[Math.floor(hash2(slot, cycle, 340) * tiles.length)]!;
             const tx = k % w, ty = (k / w) | 0;
             const cx = tx * TS + 8 - ox, cy = ty * TS + 9 - oy;
-            if (cx < -16 || cy < -16 || cx > 496 || cy > 286) continue;
+            if (cx < -16 || cy < -16 || cx > W + 16 || cy > H + 16) continue;
             const rx = 1 + t * 7, ry = 0.5 + t * 2.5;
             ctx.globalAlpha = (1 - t) * 0.6;
             ctx.fillStyle = dungeon ? '#8af0d8' : '#8ab8e8';
@@ -334,7 +350,7 @@ export class FieldMap {
         for (const k of tiles) {
           const tx = k % w, ty = (k / w) | 0;
           const sx = tx * TS - ox, sy = ty * TS - oy;
-          if (sx < -16 || sy < -16 || sx > 480 || sy > 270) continue;
+          if (sx < -16 || sy < -16 || sx > W || sy > H) continue;
           for (let i = 0; i < 2; i++) {
             const phase = (frame * 0.05 + hash2(tx, ty, i) * 6.28) % 6.28;
             const a = Math.max(0, Math.sin(phase));

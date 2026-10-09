@@ -146,7 +146,7 @@ Kit is the protagonist. Rook is the mentor (PSIV's Alys analog). Hex is the brai
 
 ## 8. Presentation
 
-* Internal resolution **480×270**, 16px tiles, integer/fit scaling, nearest-neighbour.
+* Internal resolution **640×360** (chosen 2026-10-05, up from 480×270: it scales by a whole number to 720p, 1080p, 1440p and 4K), 16px tiles, integer/fit scaling, nearest-neighbour.
 * Art is generated in code (procedural tiles and structures, part-based character sprites with auto-outline, and
   vector-to-pixel enemies), with drawn art from the PixelLab pass laid over it where Mark picked it (since
   2026-09-30: characters, battle backs, enemies, terrain and props; the code-drawn art remains the fallback). The

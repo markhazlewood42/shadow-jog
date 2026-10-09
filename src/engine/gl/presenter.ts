@@ -1,5 +1,5 @@
 /**
- * The WebGL presenter: the GPU effects layer's back end. Each frame it takes the finished 480×270
+ * The WebGL presenter: the GPU effects layer's back end. Each frame it takes the finished W×H
  * back buffer plus two layers the scenes drew (engine/postfx.ts: `glow`, what should bloom, and
  * `ui`, what must stay crisp on top), and draws the final picture at the screen's resolution:
  *

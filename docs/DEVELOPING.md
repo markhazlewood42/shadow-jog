@@ -35,7 +35,7 @@ npm install
 | `npm run budget` | Build, then the bundle budget |
 | `npm run cc` | The Command Center on **http://localhost:3009** (installs its packages, builds its page, opens a tab; section 10) |
 | `npm run e2e` | Every Playwright spec (long: prefer running the ones you need, below) |
-| `npm run shots` | Regenerate `docs/screenshots/` |
+| `npm run shots` | Regenerate `docs/screenshots/` (deterministic: one build gives the same bytes every run; section 3, the `shots.spec.ts` row) |
 | `bash scripts/evidence.sh` | Regenerate all quality evidence (~25 min; see section 6) |
 
 **Ports:** 3007 (dev), 3008 (preview), 3009 (the Command Center) and 3010 (its Playwright server) belong to this
@@ -74,9 +74,14 @@ Run one file with `npx vitest run tests/battle.test.ts`. Output of the simulatio
 | `pacing.test.ts` | Steps between encounters, fights per area |
 | `save.test.ts` | Round-trips, tampering, damaged slots, migrations, the real v1 fixture |
 | `game.test.ts` | Scene stack: fault isolation and recovery, curtain compositing, notices |
-| `maps.test.ts` | Every map's content reachable; **no mid-story dead ends** at any of 25 story stages; relay logic; typographic apostrophes; glyph coverage; every prop has a painter; no overlapping signs |
+| `maps.test.ts` | Every map's content reachable; **no mid-story dead ends** at any of 25 story stages; relay logic; typographic apostrophes; glyph coverage; every prop has a painter; no overlapping signs; the maps smaller than the view pinned with their sizes, each with its surround by Mark's rule (indoor b1, outdoor b2), the closed theme type, the picture key and the void-fill rule |
 | `layout.test.ts`, `glyphs.test.ts` | Every data-driven string fits its box; every character has a glyph |
+| `camera.test.ts` | The field camera rule (`scenes/fieldkit/camera.ts`): a map smaller than the view is centered, a larger one is clamped. Also pins that the scripted `pan()` uses that rule, takes the pop-in table's camera limit, lifts an event curtain and holds where the table says (a stand-in scene, no canvas) |
+| `display.test.ts` | The scale rule of the display (`cssScaleFor`): the window table, 90% line, both scale modes, device pixel ratios (D14) |
+| `shake.test.ts` | Screen shake keeps its on-screen size: strengths are scaled by 4/3 (`SHAKE_PIXEL_GAIN`), offsets stay whole pixels (D10) |
+| `screen-literals.test.ts` | The screen-size scan (below): no bare `480`, `270`, `640`, `360` (and their half and off-by-one neighbors) in code, except on a listed line |
 | `playback.test.ts`, `orders.test.ts`, `timing.test.ts`, `motion.test.ts` | Battle presentation logic without a canvas |
+| `popins.test.ts` | The pop-in table (`scenes/fieldkit/popins.ts`, D17): Mark's picks, P4's south limit and the crew out of the entrance view, the leader on screen under a limit, the curtain math, the lookups |
 | `input.test.ts`, `ui-list.test.ts`, `actor.test.ts`, `atmosphere.test.ts`, `music.test.ts`, `content.test.ts` | Input, list menus, actors, weather and lighting, song bars and harmony, content references |
 
 Balance targets live in `balance.test.ts` (`stages` array: win rate, rounds, HP lost per stage) and
@@ -108,17 +113,30 @@ that pull request's earlier CI run. A run on `main` is never canceled once it st
 | `gameover.spec.ts` | Game over flows, saves, storage failure, render/update faults, tabs, boot failure |
 | `chaos.spec.ts` | Mashing keys through doors, menus mid-warp, reload mid-dialogue, keys through a battle |
 | `prod.spec.ts` | The **shipped build** (builds fresh, serves on 3008): new game, save, reload, continue |
-| `economy.spec.ts` | Zone walks and a shop in the real game |
-| `perf.spec.ts` | Frame budget in the plaza and a battle; input latency. `PW_NOGPU=1` reproduces CI's software canvas |
-| `shots.spec.ts` | The screenshot set for `docs/screenshots/` |
+| `economy.spec.ts` | Zone walks and a shop in the real game, and the four-corner camera walk of the 640x360 move (every scrolling map at the four corners of its camera clamp; `SJ_CORNER_SHOTS=<folder>` also saves a picture of each corner, unset it writes nothing) |
+| `gpufx.spec.ts` | The GPU effects layer (comes up, survives a battle, switches off and on, falls back to 2D) and the pixel-perfect block test: every game pixel an exact block at k=3 (1920x1080) and k=2 (1280x800) |
+| `perf.spec.ts` | Frame budget in the plaza and a battle (each timed in 3 windows, the gate reads the best one, because a noisy neighbor only adds time); input latency. `PW_NOGPU=1` reproduces CI's software canvas |
+| `shots.spec.ts` | The screenshot set for `docs/screenshots/`. Deterministic: the game runs on Playwright's paused clock, with a fixed `Date.now()` (so a fixed RNG seed), pinned fights and a seeded `Math.random`; the header comment explains. For a compare across two commits set `SJ_BUILD_SHA=<label>` for both runs: the title draws the build's commit |
 | `audio-evidence.spec.ts` | Renders every song and effect offline and measures them |
 
 `PW_ALL_ENGINES=1` runs WebKit and Firefox locally too.
 
+### The 640x360 move: the size scan and the screenshot tools
+`docs/PIVOT-640.md` is the contract for the move from 480x270 to 640x360 (criteria, rubric, record). Its tools:
+
+- **The scan** (`tests/screen-literals.test.ts`, helper `scripts/lib/source-scan.mjs`). It reads every `.ts` file under `src/` plus `vite.config.ts` and `scripts/bundle-budget.mjs`, drops comments and strings, and fails on a bare screen-size token (480, 270, 240, 135, 639, 359 and so on) that is on neither list. `tests/screen-literals.allow.json` holds hits that do not mean the screen, each with a reason (a price, a frame count, degrees, hertz). `tests/screen-literals.pending.json` holds hits that do mean the screen and that a work package of the move still replaces; its `wp` field names the package, and it only shrinks. An entry that matches nothing fails the test too. To rewrite the pending list from the current hits: `SCREEN_LITERALS_WRITE_PENDING=1 npx vitest run tests/screen-literals.test.ts` (it keeps the `wp` of every entry that still matches and marks new entries `?`). New layout code uses `W`, `H`, `BW`, `BHT` and `WORLD_SCALE`, never the number.
+- **`node scripts/derived-literals.mjs`** lists derived layout values (464, 472, `W-16`, ...) per file. It is advisory and never fails; the scan cannot see them because they are not screen-size tokens.
+- **`node scripts/pixel-diff.mjs <dirA> <dirB> [--diff-out <dir>]`** compares two sets of screenshots pixel by pixel and exits 1 on any difference (`--help` lists the mask options, which the deterministic capture made unnecessary). `--diff-out` draws every differing shot, and the report names that folder only when it wrote a picture. Two folders with no shot between them exit 2.
+- **`node scripts/contact-sheet.mjs <baselineDir> <resultDir> <outPrefix> [--view gamepx|1080p]`** writes PNG pages that pair each baseline shot with its result. The captions come from the real picture sizes, so the sheet says which viewport each side came from. `--base` is read from the baseline's own pictures when it is not given (it tries the result's size, 480x270 and 640x360), and the caption says "the right picture is larger" only when it is; for a set of options at one size, pass `--base 640x360 --result 640x360`.
+- **`node scripts/measure-battle-sprites.mjs [baseURL] [outFile]`** (with `npm run dev` running) measures the real party and enemy sprites and writes `tests/fixtures/battle-sprites.json`, which `tests/battle-geom.test.ts` reads to check that the enemy row stays above the party's heads. Run it again when that art changes size.
+- **`node scripts/check-shots.mjs <dir>`** is the smoke check of the move (PL3): the area outside the old 480x270 frame must not be empty. `scripts/pivot-640.json` holds its void-allowed list.
+
+Capture a set with `SJ_BUILD_SHA=<label> npm run shots`, copy `docs/screenshots` aside, then `git checkout -- docs/screenshots` (the set in git is regenerated once, at WP7).
+
 ### Tests vs design data
 The stage tools come to `main` when the battle stage is built on the new engine (decision 17 in `docs/PHASE-0.2.md`). Follow this rule from the first commit of that build. The paths below are the paths on `spike/phaser-stage`.
 
-Mark edits the design data (`src/data/stages.json`, `heroes.json`, `hud.json`, `axes.json`, `enemyfacing.json`) in the Battle Stage Editor and saves it. **A test never pins a value that a designer edits in a tool**, or it breaks every time he uses the tool. The rule for the stage tools (`src/stage`, `e2e/stage*`, `e2e/battletest*`, `tests/stage*`):
+On the Phaser spike branch (the stage tools are not on this branch; they are planned for milestone M3), Mark edits the design data (`src/data/stages.json`, `heroes.json`, `hud.json`, `axes.json`, `enemyfacing.json`) in the Battle Stage Editor and saves it. **A test never pins a value that a designer edits in a tool**, or it breaks every time he uses the tool. The rule for the stage tools (`src/stage`, `e2e/stage*`, `e2e/battletest*`, `tests/stage*`):
 
 1. **Tests of the tool and of the algorithms use fixture data**, a frozen copy of the five files in `tests/fixtures/stagedata/`. Unit tests load it with `fixtureStages()`, `fixtureHeroes()` and friends from `tests/stagefiles.ts`; editor e2e specs get it for free, because `openEditor` (`e2e/stageeditkit.ts`) seeds the scratch copy (`?scratch=`) from it. A test that edits and saves asserts RELATIVE behaviour: the value changed by the drag, and undo restores the starting value read at the start of the test, never a number copied from Mark's file. Inline numbers are fine too (for example the bake tests feed their own heroes).
 2. **Tests of the shipped data check invariants only**: every file loads with the loader the game uses, all four heroes are present, the hero ancestry order holds in the measured baked heights (Hex shorter than Kit and Rook, Sable the tallest, Rook at least as tall as Kit), the facing file covers every sprite, the files are in the stable format. They live in `tests/stageshipped.test.ts`, in the "shipped" blocks of `stageproportions` and `stagefacing`, and in `e2e/stageshipped.spec.ts`, which opens the editor on his current files (`openEditor(..., { data: 'current' })`). The editor's warnings must equal what `rules.ts` computes for the same stage (`ruleKeys` in the kit), with no fixed list of expected warnings.
@@ -145,6 +163,7 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
 - `?scene=chars[&zoom=4][&npcs][&battlers]`, `?scene=bestiary[&page=1]`, `?scene=portraits`, `?scene=font`:
   asset sheets.
 - `?scene=fxlab`: the FX lab (particle presets and battle moments; see §8).
+- **Comic sequences on their own:** `?scene=panels&id=intro` or `id=ending` opens a comic sequence by itself (dev only). The review switches that once forced a decision's other option from the page address are gone: Mark answered each decision, and the winning value is a named constant.
 - `/artreview.html`: the art-pass review page; `?art=review[&try=asset/option,...]` on any route swaps art-pass
   options into the game (see §8, "The PixelLab art pass").
 
@@ -155,7 +174,7 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
 - `battle(encounter, bg, boss)`, `defineEncounter(id, enemies)`;
 - `say(who, text)`, `menu()`, `shop(id)`, `run(scriptFn)`, `save(slot)`, `ending()`, `notice()`;
 - `debug`: `{ autoDialog, autoBattle, autoLose, playtest }`.
-- `postfx` (the GPU effects façade: try `sj.postfx.shock(240, 135)`), `fx` (the live presets and moments),
+- `postfx` (the GPU effects façade: try `sj.postfx.shock(320, 180)`), `fx` (the live presets and moments),
   `gpu(on)` (the Options switch).
 
 Setting flags by hand: `sj.state.flags.floodgate = true`, then `sj.field().api.refreshMap()`.
@@ -215,7 +234,8 @@ including why it ended at round 12. If a future milestone brings it back:
 - **The bundle budget** is close to its cap by design (it catches unplanned growth). If a planned feature needs
   more, re-set it in `scripts/bundle-budget.mjs` with the reason in the comment.
 - **Screenshots are staged**, not played: `e2e/shots.spec.ts` sets flags and positions directly. When a feature
-  changes a scene, update or add its shot.
+  changes a scene, update or add its shot. The spec never waits on real time: every wait is a step of the page's
+  fake clock (`advance(page, ms)`), so a `page.waitForTimeout` in it would break the same-bytes guarantee.
 - **Importing a module by URL in a test page** (`import('/src/…')`) can hand back a *second copy* of it on a
   long-running dev server: a module edited since the server started is served to the app with a `?t=` query. Go
   through `window.__SJ__` (which holds the app's own copies) for anything with state (`settings`, `postfx`).
@@ -395,8 +415,10 @@ it renames or reshapes data, bump `SAVE_VERSION` and add a `MIGRATIONS[oldVersio
 fixture.
 
 ### A new screenshot
-A `test()` in `e2e/shots.spec.ts` using `open(page, stage)`, `sj(page, …)` and `shot(page, name)`; if reviewers
-should see it, add it to an area's list in `scripts/verifier-prompts.py`.
+A `test()` in `e2e/shots.spec.ts` using `open(page, stage)`, `sj(page, …)`, `advance(page, ms)` for every wait
+(never `page.waitForTimeout`), `battle(page, enc, bg)` for a fight (it pins the random tables) and `shot(page, name)`;
+if reviewers should see it, add it to an area's list in `scripts/verifier-prompts.py`. Run the spec twice and compare
+the new PNG's bytes: a shot that differs between two runs of one build is a bug in the shot.
 
 ---
 

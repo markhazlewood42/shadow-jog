@@ -9,7 +9,8 @@ async function sj<T = unknown>(page: Page, fn: string): Promise<T> {
   return page.evaluate(`(async () => { const sj = window.__SJ__; return ${fn}; })()`) as Promise<T>;
 }
 
-test.use({ viewport: { width: 1440, height: 810 } });
+// An exact 2x of the 640x360 screen (1280x720), like the config default: the lab's canvas shows at whole-pixel blocks.
+test.use({ viewport: { width: 1280, height: 720 } });
 
 test('the FX lab opens with every preset and moment, and edits play live', async ({ page }) => {
   const errors: string[] = [];

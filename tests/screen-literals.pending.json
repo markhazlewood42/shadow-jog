@@ -1,0 +1,4 @@
+{
+  "_comment": "Screen-size literals that a work package of the 640x360 move still has to replace (docs/PIVOT-640.md, PL1). One entry per distinct line; 'wp' names the owner. The list shrinks at each package and is empty at WP7. Regenerate with SCREEN_LITERALS_WRITE_PENDING=1 npx vitest run tests/screen-literals.test.ts (it keeps known 'wp' values).",
+  "entries": []
+}

@@ -12,7 +12,7 @@ tags: [architecture, code, reference]
 How the code is organised and how the pieces talk to each other. For *what* the game is, read `docs/GDD.md`; for
 day-to-day work (commands, tests, conventions, recipes), read `docs/DEVELOPING.md`.
 
-**In one paragraph:** a browser game with **no runtime dependencies today** (a build choice, not a requirement: high-quality, free dependencies are fine, Mark 2026-10-02). Vite + TypeScript (strict), Canvas 2D at **480×270**, scaled to the window. The art is **generated in code** (sprites from letter grids and shape routines, tiles from procedural painters), with **drawn art** from the PixelLab pass loaded over it at startup where Mark picked it (§7, "Drawn art"); music comes from a small score format played by a WebAudio synthesizer. A **scene stack** runs at a fixed 60 Hz. The **field** (towns, dungeons, world map) runs **story scripts**, async functions that `await` dialogue, battles and camera moves. **Battles** are a pure, deterministic engine that the battle scene replays as animation. The game state is one plain object, saved to `localStorage`.
+**In one paragraph:** a browser game with **no runtime dependencies today** (a build choice, not a requirement: high-quality, free dependencies are fine, Mark 2026-10-02). Vite + TypeScript (strict), Canvas 2D at **640×360**, scaled to the window. The art is **generated in code** (sprites from letter grids and shape routines, tiles from procedural painters), with **drawn art** from the PixelLab pass loaded over it at startup where Mark picked it (§7, "Drawn art"); music comes from a small score format played by a WebAudio synthesizer. A **scene stack** runs at a fixed 60 Hz. The **field** (towns, dungeons, world map) runs **story scripts**, async functions that `await` dialogue, battles and camera moves. **Battles** are a pure, deterministic engine that the battle scene replays as animation. The game state is one plain object, saved to `localStorage`.
 
 ---
 
@@ -84,7 +84,7 @@ colour. Every character the game uses must exist in the font (`tests/glyphs.test
 
 ### Other engine pieces
 `canvas.ts` (`surface(w, h)`: an offscreen canvas and its context, pixel-art configured), `display.ts` (integer or
-fill scaling of the 480×270 back buffer), `color.ts` (`rgb`, `mix`, `shade`: `shade(c, -x)` darkens *and* shifts
+fill scaling of the 640×360 back buffer), `color.ts` (`rgb`, `mix`, `shade`: `shade(c, -x)` darkens *and* shifts
 hue; use `mix(c, dark, t)` for a true darkening), `rng.ts` (seeded mulberry32 `Rng`, `hash2` noise, named
 `streams` for encounters and battles so saves are reproducible), `errors.ts` (`notice(text, tone)`,
 `reportError`), `assert.ts` (`must(value, what)`: the only sanctioned non-null assertion in `engine/` and
@@ -182,7 +182,7 @@ A `MapDef` is authored data:
 ### Building a map (`fieldmap.ts`, `tiles.ts`, `buildings.ts`, `props.ts`, `bake.ts`)
 `FieldMap` parses the def and **bakes** it once into layers: ground (tile painters from `tiles.ts`, one per
 `TerrainId`, 16×16 px), structures, sprites (props and buildings as depth-sorted sprites with an emissive layer), an
-overhead layer, animated props (`anims`), and lights. The field scene caches built maps (`MAP_CACHE_MAX` 8 in `scenes/field.ts`); `refreshMap()`
+overhead layer (with `overRects`, the rectangles of it that hold anything, so the scene lights and draws only those: `field/overrects.ts`), animated props (`anims`), and lights. The field scene caches built maps (`MAP_CACHE_MAX` 8 in `scenes/field.ts`); `refreshMap()`
 rebuilds after a flag change. `SOLID_TERRAIN` decides walkability; props block their footprint unless `pass: true`.
 After the tiles, a **relief** pass shades the ground at the foot and right of raised terrain (walls, city blocks);
 dungeons also bake a faint unlit edge where floor meets wall or void (`bakeStructureEdges`).
@@ -198,7 +198,7 @@ dungeons also bake a faint unlit edge where floor meets wall or void (`bakeStruc
 Owns the map, party train (followers walk the leader's trail), NPCs, chests, camera (follow, pan, clamp), the draw
 list (depth-sorted each frame from pooled entries), banners, the objective line, and **script execution**
 (`runScript(fn)`, with `busy` counting running scripts). `fieldkit/api.ts` builds the `ScriptApi` for a field;
-`fieldkit/draw.ts` has the shell drawn round small interiors, blits and emotes; `fieldkit/dust.ts` the dash dust.
+`fieldkit/draw.ts` has the draw-list entries, layer blits and emotes; `fieldkit/dust.ts` the dash dust; `fieldkit/surround.ts` (with the painters in `surround-art.ts`) fills the margin of the eleven maps smaller than the screen, from one table keyed by map id (indoor maps an edge fill, outdoor maps a themed surround); `fieldkit/popins.ts` holds the pop-in table (a camera limit, a curtain or a hold per item) for content that the wide view would show too early.
 
 ---
 
@@ -275,9 +275,9 @@ round, victory, defeat, fleeing). Its parts:
 - `playback.ts`: `playEvent(view, event)` turns engine events into animation and sound (tested against a recording
   view in `tests/playback.test.ts`).
 - `timing.ts` (the ring and its judgement), `orders.ts` (building menus and orders, combo hints), `motion.ts` (the
-  swing's beats), `sprites.ts` (enemy frame caches, recolours, dissolve), `geom.ts` (layout constants),
+  swing's beats), `sprites.ts` (enemy frame caches, recolors, dissolve), `geom.ts` (layout constants: the world rows, and the HUD frame that every HUD anchor derives from, `hudLayout`),
   `tables.ts` (poses, sounds and stings per effect), `intro.ts` (the glass-shatter transition), `driver.ts` (test hook).
-- Three layers under a full-resolution UI: the backdrop world (240×135, scaled 2×), the **enemies** on a
+- Three layers under a full-resolution UI: the backdrop world (320×180, `BW` by `BHT`, scaled 2×), the **enemies** on a
   screen-resolution layer (drawn through a 2× transform, so creatures' finer art lands 1:1; `EnemyArt.res`, `w`, `h`),
   and a clear world-scale layer for the party, effects, rings, arrows and numbers.
 - **Pace:** every move's animation (effects, poses, cut-ins, numbers) runs on one clock, `FxLayer.rate` =
@@ -395,7 +395,7 @@ recurring enemy and each boss has `attack` and `hurt` frames; pack-mates are dis
 
 ## 10. Build, tests and tooling (summary; details in DEVELOPING.md)
 
-- **Build:** `vite build` (after `tsc --noEmit`): two chunks, the boot bundle and the battle system. Budgets in `scripts/bundle-budget.mjs` (chunk 480 kB, total gzip 236 kB; a size alarm to re-set deliberately, not a ceiling).
+- **Build:** `vite build` (after `tsc --noEmit`): two chunks, the boot bundle and the battle system. Budgets in `scripts/bundle-budget.mjs` (chunk 480 kB, total gzip alarm 240.8 kB, raised by measured deltas (D20; Mark confirmed 240.7 at Review 5, and 240.8 at Review 7); a size alarm to re-set deliberately, not a ceiling).
 - **Unit tests** (`tests/`, Vitest, node): battle rules, **balance simulations** (`tests/sim.ts` plays whole fights
   and dungeon runs with a competent policy), the **economy model** (`tests/economy.ts`, Monte Carlo over the route),
   pacing, save/migration, input, UI list, layout and glyphs, map connectivity and dead ends, music, motion, weather

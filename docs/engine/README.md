@@ -30,7 +30,7 @@ The evidence is in `docs/spikes/engine-platform.md` on the branch `spike/engine-
 - The game size is 640x360 (E12). You chose it on 2026-10-05. The scale `k` is 3 on a 1080p screen and 2 on the Steam Deck window. Phase 0 measured every size-dependent exit criterion again at 640x360, and all hold. See [migration.md](migration.md) section 3.
 - At 480x270 the stage slice matches the Phaser spike with 0 differing pixels. At 640x360 the Phaser spike cannot be the reference, because it draws 480x270. The top left 480x270 of the 640x360 slice equals the 480x270 picture pixel for pixel. See [migration.md](migration.md) section 3.
 - The editor rule is now a design rule: no decision may make a future visual editor harder. See section 1 below and the editor rule check in [decisions.md](decisions.md).
-- The 640x360 move changes 7 files in `src/engine` before M0. Migration principle 4 bends for it. See [migration.md](migration.md) section 1.
+- The 640x360 move changes 5 files in `src/engine` before M0. Migration principle 4 bends for it. See [migration.md](migration.md) section 1.
 - CI is green on `f22dc09` and `d61d7d9`. See [migration.md](migration.md) section 3.
 - Some work moved between milestones. See [migration.md](migration.md) sections 2, 5 and 6.
 

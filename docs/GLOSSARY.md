@@ -3,7 +3,7 @@ type: reference
 title: Shadow Jog — Glossary of Terms and Concepts
 project: shadow-jog
 created: 2026-09-29
-updated: 2026-10-03
+updated: 2026-10-08
 tags: [glossary, setting, lore, review]
 ---
 
@@ -256,10 +256,20 @@ A Kessler-Mori research annex under the Sinkline. Officially decommissioned. Off
 | **Bottom band** | In the side-view battle, the party table, the command strip and the enemy box sit along the bottom as one window with a divider between them. During an action the command strip stays in its slot, dimmed. |
 | **Command codes** | The three-letter names under the command icons (ATK, SKL, CMB, ITM, GRD) so no icon is a mystery; the lit icon also gets its full name and cost (or a one-line hint) on the strip's caption line. |
 | **Hit counter** | The small box at the top right while an action plays: how many hits the crew has landed this round, and their total damage. |
-| **Stage** (battleground) | (Dev tool word.) One place where fights happen, such as the street or the sewer: backdrop, horizon and floor, depth rows, and where the heroes and each enemy count stand. Lives in `src/data/stages.json`; a map names it per area with `bg`. It does not say WHO fights (that is the encounter, an RPG Maker "troop"). |
+| **Stage** (battleground) | (Dev tool word.) One place where fights happen, such as the street or the sewer: backdrop, horizon and floor, depth rows, and where the heroes and each enemy count stand. Planned as `src/data/stages.json` (that file exists on the Phaser spike branch only, and the engine plans it for milestone M3). A map names it per area with `bg`. It does not say WHO fights (that is the encounter, an RPG Maker "troop"). |
 | **Mirror** (enemy facing) | (Dev tool word.) Flipping an enemy's picture left-to-right so it looks at the heroes, who stand on the left. Which enemy sprites are mirrored is `src/data/enemyfacing.json`; the Battle Stage Editor's "Mirror (face the heroes)" switch edits it for every appearance of that enemy. |
 | **Hero proportions** (Height, Build) | (Dev tool word.) How tall and how broad each hero stands in battle, as a multiple of the drawn picture: Kit and Rook are human, Hex is a dwarf (shorter, stouter), Sable is an orc (taller, broad). Two numbers per hero in `src/data/heroes.json`, the same in every battle; the Battle Stage Editor's "Proportions" group edits them. Made by adding or removing whole rows and columns of pixels, never by stretching (`docs/CONCEPTS.md`). |
-| **Global HUD** | The one battle HUD layout every fight uses (`src/data/hud.json`). A stage may override single boxes; it then keeps only the fields that differ. The Battle Stage Editor calls this switch "Different on this stage". |
+| **HUD frame** | (Dev word.) The one rectangle that every battle HUD piece is placed from: the menus, the status cards, the turn strip, the top text band, the target box, the cut-ins and the banners. It is the whole screen, so the HUD hugs the screen edges (Mark's choice at Review 2, D6 of `docs/PIVOT-640.md`). `HUD_FRAME` and `hudLayout` in `src/scenes/battlekit/geom.ts`. |
+| **Surround** | (Dev word.) What fills the screen around a map that is smaller than the view (decision D7): **b1** an edge fill for an indoor map, **b2** a themed surround (a yard fence, a dock quay over water) for an outdoor map. Mark's rule, Review 3. `src/scenes/fieldkit/surround.ts`, one table keyed by map id. |
+| **Dialog cap** | (Dev word.) The dialog box is at most 464 px wide and centered (decision D8), so its text is 448 px wide (392 with a portrait): the width the box had at 480x270. `DIALOG_MAX_W` in `src/ui/layout.ts`. |
+| **Pane cap** | (Dev word.) The field menu's list panes (Items, Techs, the equip slots, Save, the objective box) are at most 364 px wide (decision D8); Items and Techs keep the party in compact cards in the strip beside them. `MENU_PANE_MAX_W`, `menuPaneW()` in `src/ui/layout.ts`. |
+| **Layout recorder** | (Dev word.) A fake canvas for tests that writes down every rectangle, image and clip a scene draws, and the box of each text and window, so a test can check the layout in node. `tests/recorder.ts`; used by `tests/ui-layout.test.ts`. |
+| **Title layout** | (Dev word.) The title screen's composition as plain data: the base lines of the three city layers, the spire, the moon, the roof, the monorail, the rain count and the logo's place. Right and bottom pieces hang from the world's edges. `src/scenes/title-layout.ts`. |
+| **Page offset** | (Dev word.) `PAGE_DY` (`src/ui/layout.ts`): half the extra height, 45 px at 640x360. It moves the results page, the next-chapter card and Game over, which were composed top-down for 270 rows, down to the middle of the screen. |
+| **Panel frame** | (Dev word.) The area the comic panels may use: 8 px in from the left, top and right edges and clear of the footer, `PANEL_FRAME` in `src/scenes/panels.ts` (624 by 334 at 640x360). The 17 panel rects are authored for it, and a test checks that each lies inside. |
+| **Pop-in item** | (Dev word.) One entry of the D17 list: content that the 640x360 view shows early, cropped or too soon (P1 to P4). Each had option **a** (limit the camera) and **b** (a curtain or a hold); the table ships the one Mark picked. `src/scenes/fieldkit/popins.ts`; the list is in the Record of `docs/PIVOT-640.md`. |
+| **Curtain** | (Dev word.) A feathered dark box over part of the map that hides what the wider view would show too early, until the player is near or while one event runs. Shipped for P1 and P2. |
+| **Global HUD** | The one battle HUD layout every fight uses. Planned as `src/data/hud.json` (that file exists on the Phaser spike branch only, and the engine plans it for milestone M3). Today the battle HUD is placed in code from `HUD_FRAME` in `src/scenes/battlekit/geom.ts`. A stage may override single boxes; it then keeps only the fields that differ. The Battle Stage Editor calls this switch "Different on this stage". |
 | **Depth haze** | In the side-view battle, fighters on the back rows are blended a little toward the stage's fog colour, so distance reads without shrinking anyone. |
 
 ---

@@ -1,14 +1,75 @@
 /**
- * Battle backgrounds at the 240×135 battle resolution (displayed 2×). Each has a static bake
- * and an optional per-frame animation layer (rain, flicker, water, embers).
+ * Battle backgrounds at the battle world's resolution (BW×BH, half the screen, displayed at 2×).
+ * Each has a static bake and an optional per-frame animation layer (rain, flicker, water, embers).
  */
 import { surface, type Ctx } from '../engine/canvas';
 import { mix, rgb, shade } from '../engine/color';
 import { hash2, Rng } from '../engine/rng';
+// The backdrop size is the battle world's (art/worldsize.ts, the one place it is defined), under
+// the names the makers below use, so the world and its backdrops can never disagree on their size.
+import { BHT as BH, BW } from './worldsize';
 
-export const BW = 240;
-export const BH = 135;
-export const HORIZON = 62;
+/**
+ * The floor's far edge, in world rows: the line where the sky and the skyline end and the floor
+ * begins, a little under half the world's height. A look choice, named once (D5 option 2 of
+ * docs/PIVOT-640.md). The 320x180 world has 45 more rows than the old 240x135 one: about half
+ * of them (22) went above the horizon (more sky) and the rest below it (more floor, for the
+ * fighters to stand on and the formation to spread over).
+ */
+export const HORIZON = 84;
+
+/**
+ * How far below the horizon each backdrop's enemies stand (its `ground` line, in world rows): a
+ * look choice per floor, named once. Every ground line follows `HORIZON`, so in every backdrop the
+ * enemies stand on the floor, below the horizon and, for regular enemies, with their feet above
+ * the party's heads (tests/battle-geom.test.ts; a boss is the exception: it looms and may reach a
+ * few rows into the head row, and the test allows 6). The lines are the old ones (32 to 42 rows
+ * below the old horizon), 6 rows further down for the floors with regular enemies: a lone enemy
+ * then stands close to the party instead of far back on the deeper floor (WP2b, problem 9 of the
+ * mock). The junction and the core hold only bosses, which loom, so they keep the old offsets,
+ * except that the junction's is 2 rows less than the old one: with the old offset a regular
+ * enemy's feet would reach the top of the tallest hero's head (no clearance), and the test holds
+ * every floor to 2 rows of it.
+ */
+const GROUND_BELOW_HORIZON = { street: 38, barrens: 38, rustyard: 38, park: 38, sewer: 40, junction: 40, lab: 38, core: 36 } as const;
+
+/**
+ * How much bigger the backdrop is than the 240x135 one that the particle counts below were tuned
+ * on (32,400 world pixels). The rain and the drifting motes scale by it, so the weather keeps its
+ * density per pixel (the 320x180 backdrop has 1.78 times the area).
+ */
+const AREA_SCALE = (BW * BH) / 32_400;
+const byArea = (n: number): number => Math.round(n * AREA_SCALE);
+/** The rain's drop count: 70 on the smaller backdrop, scaled by area (124 at 320x180). */
+const RAIN_DROPS = byArea(70);
+
+/**
+ * How the set pieces that repeat across a backdrop are spaced. Each is a count and a step derived
+ * from `BW` (the editor rule: a wider world gets more pieces, not a bare right side). The old
+ * 240-wide backdrop used a fixed count and step for each; these keep the same piece size and about
+ * the same step, and spread the pieces evenly over the whole width.
+ */
+const PARK_TREES = { count: Math.round(BW / 44), margin: 10 };
+const JUNCTION_COLUMNS = { count: Math.round(BW / 36), margin: 8, maxWidth: 14 };
+/**
+ * The lab's observation windows (30 wide) and the monitors between them (18 wide with the frame):
+ * the windows run from a margin at each side with an even step, a monitor sits centered in each gap.
+ */
+const LAB_WALL = { windows: Math.round(BW / 60), margin: 14, windowW: 30, monitorW: 16 };
+const labStep = (LAB_WALL.windows > 1 ? (BW - 2 * LAB_WALL.margin - LAB_WALL.windowW) / (LAB_WALL.windows - 1) : 0);
+const labWindowX = (i: number): number => Math.round(LAB_WALL.margin + i * labStep);
+const labMonitorX = (i: number): number => Math.round(LAB_WALL.margin + i * labStep + LAB_WALL.windowW + (labStep - LAB_WALL.windowW - LAB_WALL.monitorW) / 2);
+/** The sewer's far opening is centered, 32 wide; the walkways' inner edges reach the bottom edge this far in from each side (0.258 of the width, as 62 of the old narrow backdrop). */
+const SEWER = { openHalf: 16, walkIn: Math.round(BW * 0.258) };
+/** The rustyard's scrap mounds: one per 34 world pixels of width (7 on the old narrow backdrop, 9 at 320), spread evenly with a little jitter. */
+const RUSTYARD_MOUNDS = Math.round(BW / 34);
+
+/**
+ * Rooftop signs lit by neon stay above this row. Lower ones stay dark: a lit bar where the enemies'
+ * heads and HP bars are would merge with the readouts. The band moves with the enemy row, so the
+ * line is the old 44 rows plus the rows the horizon moved down.
+ */
+const HEAD_BAND_TOP = HORIZON - 18;
 
 const BAYER = [
   [0, 8, 2, 10],
@@ -83,7 +144,7 @@ function skyline(c: Ctx, g: Ctx, rng: Rng, base: number, minH: number, maxH: num
       const col = rng.pick(['#ff4fb0', '#3fe0f0', '#ffcc3d']);
       // Signs low enough to sit in the band where enemies' heads and HP bars are stay dark: a lit
       // bar there merges with the readouts.
-      const lit = by < 44;
+      const lit = by < HEAD_BAND_TOP;
       for (const k of lit ? [c, g] : [c]) {
         k.fillStyle = lit ? col : '#1c1a28';
         k.fillRect(bx, by, bw, 6);
@@ -261,7 +322,7 @@ function reflections(g: Ctx, top: number, rng: Rng, colors: string[], n: number)
   g.globalAlpha = 1;
 }
 
-function rain(ctx: Ctx, frame: number, n = 70, color = '#aab8ff', alpha = 0.35): void {
+function rain(ctx: Ctx, frame: number, n = RAIN_DROPS, color = '#aab8ff', alpha = 0.35): void {
   ctx.fillStyle = color;
   ctx.globalAlpha = alpha;
   for (let i = 0; i < n; i++) {
@@ -293,7 +354,7 @@ const MAKERS: Record<string, Maker> = {
     // Curbs
     c.fillStyle = '#2a2a40';
     c.fillRect(0, HORIZON + 4, BW, 1);
-    return { canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#3a3a7a', tintAmt: 0.25, anim: (ctx, f) => rain(ctx, f) };
+    return { canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.street, tint: '#3a3a7a', tintAmt: 0.25, anim: (ctx, f) => rain(ctx, f) };
   },
   barrens: () => {
     const s = surface(BW, BH), gl = surface(BW, BH);
@@ -329,12 +390,14 @@ const MAKERS: Record<string, Maker> = {
       c.fillRect(rng.int(0, BW), yy, sz + rng.int(0, 2), sz);
     }
     void g;
+    // The drifting embers: as many per pixel as the smaller backdrop had.
+    const embers = byArea(40);
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#a0603a', tintAmt: 0.15,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.barrens, tint: '#a0603a', tintAmt: 0.15,
       anim: (ctx, f) => {
         ctx.fillStyle = '#e8c8a0';
         ctx.globalAlpha = 0.35;
-        for (let i = 0; i < 40; i++) ctx.fillRect(Math.round((hash2(i, 5) * BW + f * (0.4 + hash2(i, 6))) % BW), Math.round(hash2(i, 7) * BH + Math.sin(f * 0.02 + i) * 3), 1, 1);
+        for (let i = 0; i < embers; i++) ctx.fillRect(Math.round((hash2(i, 5) * BW + f * (0.4 + hash2(i, 6))) % BW), Math.round(hash2(i, 7) * BH + Math.sin(f * 0.02 + i) * 3), 1, 1);
         ctx.globalAlpha = 1;
       },
     };
@@ -352,8 +415,8 @@ const MAKERS: Record<string, Maker> = {
     g.fillStyle = '#ff3a3a';
     g.fillRect(41, 6, 1, 1);
     // Scrap mounds
-    for (let i = 0; i < 7; i++) {
-      const cx = rng.int(0, BW), w = rng.int(30, 60), h = rng.int(10, 26);
+    for (let i = 0; i < RUSTYARD_MOUNDS; i++) {
+      const cx = Math.round((BW * (i + 0.5)) / RUSTYARD_MOUNDS) + rng.int(-10, 10), w = rng.int(30, 60), h = rng.int(10, 26);
       c.fillStyle = rng.pick(['#241a26', '#2a1e28', '#1e1622']);
       c.beginPath();
       c.moveTo(cx - w / 2, HORIZON + 4);
@@ -377,7 +440,7 @@ const MAKERS: Record<string, Maker> = {
       c.fillRect(rng.int(0, BW), yy, sz + rng.int(0, 3), sz);
     }
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#8a4a3a', tintAmt: 0.18,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.rustyard, tint: '#8a4a3a', tintAmt: 0.18,
       anim: (ctx, f) => {
         for (let i = 0; i < 14; i++) {
           const t = (f * 0.6 + i * 23) % 60;
@@ -409,8 +472,9 @@ const MAKERS: Record<string, Maker> = {
     }
     g.globalAlpha = 1;
     // Giant trees
-    for (let i = 0; i < 6; i++) {
-      const tx = 10 + i * 44 + rng.int(-8, 8);
+    const treeStep = (BW - 2 * PARK_TREES.margin) / PARK_TREES.count;
+    for (let i = 0; i < PARK_TREES.count; i++) {
+      const tx = Math.round(PARK_TREES.margin + treeStep * (i + 0.5)) + rng.int(-8, 8);
       c.fillStyle = '#0a1612';
       c.fillRect(tx - 3, HORIZON - 20, 7, 26);
       for (let k = 0; k < 5; k++) {
@@ -432,7 +496,7 @@ const MAKERS: Record<string, Maker> = {
       if (col !== '#2a5a3a') { g.fillStyle = col; g.fillRect(x, y, 1, 1); }
     }
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#2a6a5a', tintAmt: 0.2,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.park, tint: '#2a6a5a', tintAmt: 0.2,
       anim: (ctx, f) => {
         for (let i = 0; i < 18; i++) {
           const x = (hash2(i, 1) * BW + Math.sin(f * 0.01 + i) * 10) % BW;
@@ -451,8 +515,8 @@ const MAKERS: Record<string, Maker> = {
     const s = surface(BW, BH), gl = surface(BW, BH);
     const c = s.ctx, g = gl.ctx;
     const vx = BW / 2, vy = 56;
-    // Far opening (x 104..136, y 40..72) and the near frame of the tunnel mouth.
-    const fx0 = 104, fx1 = 136, fy0 = 40, fy1 = 72;
+    // Far opening (centered, 32 wide, y 40..72) and the near frame of the tunnel mouth.
+    const fx0 = BW / 2 - SEWER.openHalf, fx1 = BW / 2 + SEWER.openHalf, fy0 = 40, fy1 = 72;
     ditherV(c, 0, 0, BW, BH, ['#141c1e', '#1a2426', '#1e2a2c']);
     // Side walls and ceiling: brick courses converging on the vanishing point.
     const wall = (x0: number, x1: number, edgeX: number) => {
@@ -537,37 +601,37 @@ const MAKERS: Record<string, Maker> = {
     // Walkways (lighter concrete) and the channel between them.
     c.fillStyle = '#4a5456';
     c.beginPath();
-    c.moveTo(0, 104); c.lineTo(fx0, fy1); c.lineTo(fx0 + 8, fy1); c.lineTo(62, BH); c.lineTo(0, BH);
+    c.moveTo(0, 104); c.lineTo(fx0, fy1); c.lineTo(fx0 + 8, fy1); c.lineTo(SEWER.walkIn, BH); c.lineTo(0, BH);
     c.fill();
     c.beginPath();
-    c.moveTo(BW, 104); c.lineTo(fx1, fy1); c.lineTo(fx1 - 8, fy1); c.lineTo(BW - 62, BH); c.lineTo(BW, BH);
+    c.moveTo(BW, 104); c.lineTo(fx1, fy1); c.lineTo(fx1 - 8, fy1); c.lineTo(BW - SEWER.walkIn, BH); c.lineTo(BW, BH);
     c.fill();
     c.fillStyle = '#6a7678';
     c.beginPath();
-    c.moveTo(fx0 + 8, fy1); c.lineTo(62, BH); c.lineTo(59, BH); c.lineTo(fx0 + 7, fy1);
+    c.moveTo(fx0 + 8, fy1); c.lineTo(SEWER.walkIn, BH); c.lineTo(SEWER.walkIn - 3, BH); c.lineTo(fx0 + 7, fy1);
     c.fill();
     c.beginPath();
-    c.moveTo(fx1 - 8, fy1); c.lineTo(BW - 62, BH); c.lineTo(BW - 59, BH); c.lineTo(fx1 - 7, fy1);
+    c.moveTo(fx1 - 8, fy1); c.lineTo(BW - SEWER.walkIn, BH); c.lineTo(BW - SEWER.walkIn + 3, BH); c.lineTo(fx1 - 7, fy1);
     c.fill();
     c.fillStyle = '#10302a';
     c.beginPath();
-    c.moveTo(fx0 + 8, fy1); c.lineTo(fx1 - 8, fy1); c.lineTo(BW - 62, BH); c.lineTo(62, BH);
+    c.moveTo(fx0 + 8, fy1); c.lineTo(fx1 - 8, fy1); c.lineTo(BW - SEWER.walkIn, BH); c.lineTo(SEWER.walkIn, BH);
     c.fill();
     // Ripple bands on the water, denser toward the far end.
     for (let i = 0; i < 12; i++) {
       const t = (i / 12) ** 1.6;
       const y = Math.round(fy1 + 2 + t * (BH - fy1 - 2));
-      const half = 8 + ((BW / 2 - 62) - 8) * ((y - fy1) / (BH - fy1));
+      const half = 8 + ((BW / 2 - SEWER.walkIn) - 8) * ((y - fy1) / (BH - fy1));
       c.fillStyle = i % 2 ? '#174038' : '#1b4a40';
       c.fillRect(Math.round(vx - half + 3), y, Math.round(half * 2 - 6), 1);
     }
     reflections(g, 76, new Rng(5), ['#ffd07a', '#78e6be'], 8);
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 96, tint: '#2a5a5a', tintAmt: 0.18,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.sewer, tint: '#2a5a5a', tintAmt: 0.18,
       anim: (ctx, f) => {
         // Drips from the ceiling into the channel.
         for (let i = 0; i < 6; i++) {
-          const x = Math.round(70 + hash2(i, 4) * 100);
+          const x = Math.round(BW * 0.29 + hash2(i, 4) * BW * 0.42);
           const t = (f + i * 37) % 90;
           ctx.fillStyle = '#8ab8c8';
           ctx.globalAlpha = 0.7;
@@ -579,7 +643,7 @@ const MAKERS: Record<string, Maker> = {
         ctx.fillStyle = '#6ad0b0';
         for (let i = 0; i < 18; i++) {
           const y = fy1 + 4 + hash2(i, 8) * (BH - fy1 - 6);
-          const half = 8 + ((BW / 2 - 62) - 8) * ((y - fy1) / (BH - fy1));
+          const half = 8 + ((BW / 2 - SEWER.walkIn) - 8) * ((y - fy1) / (BH - fy1));
           const x = vx + (hash2(i, 9) - 0.5) * half * 1.6 + Math.sin(f * 0.05 + i) * 2;
           ctx.fillRect(Math.round(x), Math.round(y), 2, 1);
         }
@@ -593,8 +657,9 @@ const MAKERS: Record<string, Maker> = {
     const rng = new Rng(61);
     ditherV(c, 0, 0, BW, 80, ['#040808', '#0a1414', '#102020', '#163030']);
     // Columns
-    for (let i = 0; i < 7; i++) {
-      const x = 8 + i * 36 + rng.int(-3, 3);
+    const colStep = (BW - 2 * JUNCTION_COLUMNS.margin - JUNCTION_COLUMNS.maxWidth) / (JUNCTION_COLUMNS.count - 1);
+    for (let i = 0; i < JUNCTION_COLUMNS.count; i++) {
+      const x = Math.round(JUNCTION_COLUMNS.margin + i * colStep) + rng.int(-3, 3);
       const w = 10 + (i % 2) * 4;
       c.fillStyle = '#1a2626';
       c.fillRect(x, 0, w, 84);
@@ -608,7 +673,7 @@ const MAKERS: Record<string, Maker> = {
     // Deep water
     ditherV(c, 0, 76, BW, BH - 76, ['#0c2a26', '#0a2220', '#06181a']);
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 104, tint: '#2a6a5a', tintAmt: 0.25,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.junction, tint: '#2a6a5a', tintAmt: 0.25,
       anim: (ctx, f) => {
         ctx.fillStyle = '#5aa89a';
         for (let i = 0; i < 40; i++) {
@@ -635,8 +700,8 @@ const MAKERS: Record<string, Maker> = {
     for (const k of [c, g]) { k.fillStyle = '#eaf6ff'; for (let x = 10; x < BW; x += 48) k.fillRect(x, 2, 28, 2); }
     // Observation windows with tanks. They sit at the height of the enemies' heads, so they're
     // kept dim and cool: set dressing, not a second focal point.
-    for (let i = 0; i < 4; i++) {
-      const x = 14 + i * 60;
+    for (let i = 0; i < LAB_WALL.windows; i++) {
+      const x = labWindowX(i);
       c.fillStyle = '#2a3a4a';
       c.fillRect(x, 16, 30, 24);
       c.fillStyle = '#2e4c5a';
@@ -651,8 +716,8 @@ const MAKERS: Record<string, Maker> = {
       g.globalAlpha = 1;
     }
     // Readout monitors between the windows (content animates).
-    for (let i = 0; i < 3; i++) {
-      const x = 46 + i * 60;
+    for (let i = 0; i < LAB_WALL.windows - 1; i++) {
+      const x = labMonitorX(i);
       c.fillStyle = '#2a3440';
       c.fillRect(x - 1, 17, 18, 16);
       c.fillStyle = '#0c1a22';
@@ -660,10 +725,10 @@ const MAKERS: Record<string, Maker> = {
     }
     floor(c, HORIZON + 4, '#9aa6b6', '#a6b2c2', '#7a8698');
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 94, tint: '#8ac8e8', tintAmt: 0.1,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.lab, tint: '#8ac8e8', tintAmt: 0.1,
       anim: (ctx, f) => {
-        for (let i = 0; i < 3; i++) {
-          const x = 46 + i * 60;
+        for (let i = 0; i < LAB_WALL.windows - 1; i++) {
+          const x = labMonitorX(i);
           if (i === 1) {
             // Vital-sign trace sweeping left to right.
             const head = Math.floor(f / 2) % 16;
@@ -689,11 +754,11 @@ const MAKERS: Record<string, Maker> = {
         }
         // Bubbles rising in the specimen tanks.
         ctx.fillStyle = '#d8fff4';
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < LAB_WALL.windows; i++) {
           for (let b = 0; b < 2; b++) {
             const t = (f * 0.4 + b * 17 + i * 9) % 30;
             ctx.globalAlpha = 0.45;
-            ctx.fillRect(14 + i * 60 + 13 + ((b + i) % 2) * 3, Math.round(36 - t * 0.45), 1, 1);
+            ctx.fillRect(labWindowX(i) + 13 + ((b + i) % 2) * 3, Math.round(36 - t * 0.45), 1, 1);
           }
         }
         ctx.globalAlpha = 1;
@@ -743,7 +808,7 @@ const MAKERS: Record<string, Maker> = {
     // Hazard stripes
     for (let x = 0; x < BW; x++) { c.fillStyle = Math.floor(x / 4) % 2 ? '#d8b02a' : '#1a1820'; c.fillRect(x, HORIZON + 4, 1, 2); }
     return {
-      canvas: s.canvas, glow: gl.canvas, ground: 98, tint: '#6a2a4a', tintAmt: 0.2,
+      canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.core, tint: '#6a2a4a', tintAmt: 0.2,
       anim: (ctx, f) => {
         // Alarm: a lighter red pulse, and two beacon beams sweeping the ceiling.
         const a = 0.06 + 0.05 * Math.sin(f * 0.1);
@@ -804,28 +869,66 @@ function railing(c: Ctx, x0: number, x1: number, y: number, rim: string): void {
   for (let x = x0 + 2; x < x1; x += 12) c.fillRect(x, y, 1, BH - y);
 }
 
+/**
+ * Where each framing puts its pieces (the editor rule: every anchor named once, in one small record
+ * per framing). The backdrop is `BW` by `BH`, and a piece hangs from the edge it frames: widths in
+ * from a side and heights up from the bottom edge (`BH`) are counts of world pixels, tuned at
+ * 320x180. Only the cables (the street's `cableReach`, the core's cable shares) and the lab's pipe are shares of `BW`,
+ * so only they grow or shrink with the world's width.
+ */
+const STREET_FRAME = {
+  /** Each cable reaches this far in from its side (the two mirror each other). */
+  cableReach: Math.round(BW * (7 / 24)),
+  /** The corner railings: width in from the side, and height up from the bottom edge. */
+  railW: 34, railH: 31,
+};
+const JUNCTION_FRAME = {
+  /** Ceiling pipes: width in from each side, and thickness. */
+  pipeLeftW: 58, pipeLeftH: 6, pipeRightW: 70, pipeRightH: 5,
+  /** Where the drips fall, as x (the first two from the left edge, the others from the right). */
+  dripX: [18, 44, BW - 50, BW - 22],
+  /** The catwalk railings in the near corners: width in from the side, height up from the bottom edge. */
+  railW: 28, railH: 27,
+};
+const LAB_FRAME = {
+  /** The conduit pipe across the top left: its width in from the left edge (7/20 of `BW`, as 84 of 240 was), and its top row. */
+  pipeW: Math.round(BW * (7 / 20)), pipeY: 2,
+  /** The drop line off the pipe's end (x, first row, length); its warning lamp hangs under it. */
+  dropX: Math.round(BW * (7 / 20)) - 4, dropTop: 7, dropLen: 10,
+  /** The consoles in the near corners: width in from the side, height up from the bottom edge. */
+  consoleW: 30, consoleH: 23,
+};
+const CORE_FRAME = {
+  /** Cable bundles, as shares of the width that each reaches in from its side: two on the left (high, low), one on the right. */
+  cableLeftHigh: 3 / 16, cableLeftLow: 23 / 160, cableRight: 1 / 5,
+  /** The field pylon at the near right: its right edge in from the side, its width, and its height up from the bottom edge. */
+  pylonFromRight: 8, pylonW: 10, pylonH: 65,
+};
+
 const FRAMING: Record<string, () => HTMLCanvasElement> = {
   street: () => {
     const s = surface(BW, BH), c = s.ctx;
-    cable(c, -4, 6, 70, 14, 9, '#ffc27a');
-    cable(c, 170, 12, BW + 4, 4, 8, '#ffc27a');
-    railing(c, 0, 34, 104, '#ffc27a');
-    railing(c, BW - 34, BW, 104, '#ffc27a');
+    const f = STREET_FRAME;
+    cable(c, -4, 6, f.cableReach, 14, 9, '#ffc27a');
+    cable(c, BW - f.cableReach, 12, BW + 4, 4, 8, '#ffc27a');
+    railing(c, 0, f.railW, BH - f.railH, '#ffc27a');
+    railing(c, BW - f.railW, BW, BH - f.railH, '#ffc27a');
     return s.canvas;
   },
   junction: () => {
     const s = surface(BW, BH), c = s.ctx;
+    const f = JUNCTION_FRAME;
     // Pipes along the ceiling, dripping; a catwalk rail in the near corners.
     c.fillStyle = FG_DARK;
-    c.fillRect(0, 0, 58, 6);
-    c.fillRect(BW - 70, 0, 70, 5);
+    c.fillRect(0, 0, f.pipeLeftW, f.pipeLeftH);
+    c.fillRect(BW - f.pipeRightW, 0, f.pipeRightW, f.pipeRightH);
     c.fillStyle = '#ffcf7a';
-    c.fillRect(0, 5, 58, 1);
-    c.fillRect(BW - 70, 4, 70, 1);
+    c.fillRect(0, f.pipeLeftH - 1, f.pipeLeftW, 1);
+    c.fillRect(BW - f.pipeRightW, f.pipeRightH - 1, f.pipeRightW, 1);
     c.fillStyle = '#6a9ab0';
-    for (const x of [18, 44, BW - 50, BW - 22]) c.fillRect(x, 7, 1, 2);
-    railing(c, 0, 28, 108, '#ffcf7a');
-    railing(c, BW - 28, BW, 108, '#ffcf7a');
+    for (const x of f.dripX) c.fillRect(x, f.pipeLeftH + 1, 1, 2);
+    railing(c, 0, f.railW, BH - f.railH, '#ffcf7a');
+    railing(c, BW - f.railW, BW, BH - f.railH, '#ffcf7a');
     return s.canvas;
   },
   lab: () => {
@@ -846,20 +949,23 @@ const FRAMING: Record<string, () => HTMLCanvasElement> = {
         c.fillRect(x, y - 1, 3, 1);
       }
     };
-    pipe(0, 84, 2);
+    const f = LAB_FRAME;
+    pipe(0, f.pipeW, f.pipeY);
     // A drop line off the pipe's end, with a warning lamp.
     c.fillStyle = FG_DARK;
-    c.fillRect(80, 7, 1, 10);
+    c.fillRect(f.dropX, f.dropTop, 1, f.dropLen);
     c.fillStyle = '#ff3a4a';
-    c.fillRect(79, 17, 3, 2);
-    for (const [x, w] of [[0, 30], [BW - 30, 30]] as const) {
+    c.fillRect(f.dropX - 1, f.dropTop + f.dropLen, 3, 2);
+    // The console tops stand `consoleH` rows up from the bottom edge.
+    const top = BH - f.consoleH;
+    for (const [x, w] of [[0, f.consoleW], [BW - f.consoleW, f.consoleW]] as const) {
       c.fillStyle = FG_DARK;
-      c.fillRect(x, 112, w, BH - 112);
+      c.fillRect(x, top, w, BH - top);
       c.fillStyle = '#3a2830';
-      c.fillRect(x, 112, w, 1);
+      c.fillRect(x, top, w, 1);
       c.fillStyle = '#ff6a7a';
-      c.fillRect(x + 4, 116, 3, 1);
-      c.fillRect(x + 10, 116, 5, 1);
+      c.fillRect(x + 4, top + 4, 3, 1);
+      c.fillRect(x + 10, top + 4, 5, 1);
     }
     return s.canvas;
   },
@@ -867,14 +973,18 @@ const FRAMING: Record<string, () => HTMLCanvasElement> = {
     const s = surface(BW, BH), c = s.ctx;
     // The Warden's containment: heavy cable bundles hanging from the top corners, a field pylon
     // standing at the near right.
-    cable(c, -6, 2, 60, 4, 16, '#8ae8ff');
-    cable(c, -6, 8, 46, 10, 12, '#8ae8ff');
-    cable(c, BW + 6, 3, BW - 64, 5, 15, '#8ae8ff');
+    const f = CORE_FRAME;
+    const reach = (share: number): number => Math.round(BW * share);
+    cable(c, -6, 2, reach(f.cableLeftHigh), 4, 16, '#8ae8ff');
+    cable(c, -6, 8, reach(f.cableLeftLow), 10, 12, '#8ae8ff');
+    cable(c, BW + 6, 3, BW - reach(f.cableRight), 5, 15, '#8ae8ff');
+    // The pylon's top stands `pylonH` rows up from the bottom edge; its cap is wider than its post.
+    const pylon = BH - f.pylonH, post = BW - f.pylonFromRight - f.pylonW;
     c.fillStyle = FG_DARK;
-    c.fillRect(BW - 18, 70, 10, BH - 70);
-    c.fillRect(BW - 22, 70, 18, 4);
+    c.fillRect(post, pylon, f.pylonW, BH - pylon);
+    c.fillRect(post - 4, pylon, f.pylonW + 8, 4);
     c.fillStyle = '#8ae8ff';
-    for (let y = 78; y < BH; y += 6) c.fillRect(BW - 17, y, 8, 1);
+    for (let y = pylon + 8; y < BH; y += 6) c.fillRect(post + 1, y, f.pylonW - 2, 1);
     return s.canvas;
   },
 };

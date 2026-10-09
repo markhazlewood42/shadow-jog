@@ -28,8 +28,21 @@ export type DeckMode = 'dead' | 'seat' | 'view';
 
 type Phase = 'look' | 'align' | 'drop' | 'clips' | 'boot' | 'done';
 
-/** Where the deck sits on screen. */
-const DX = Math.round((W - DECK_W) / 2) - 70, DY = 26;
+/**
+ * Where the deck sits on screen, as plain data (the editor rule: a position is a named value).
+ * The deck art stays 1x. The group (the deck, a gap, and the side panel) is centered across the
+ * screen, and sits in the middle of the room above Hex's line box, lifted a little so that the
+ * gap under it is the larger one (WP5 of the 640x360 move: the deck used to hug the top, with a
+ * hole above the line).
+ */
+const LINE_BOX_H = 54, LINE_BOX_GAP = 8;
+/** The top of Hex's line box, at the foot of the screen. */
+const LINE_Y = H - LINE_BOX_H - LINE_BOX_GAP;
+const DECK_PANEL_GAP = 18, DECK_PANEL_W = 168, DECK_LIFT = 10;
+const DX = Math.round((W - (DECK_W + DECK_PANEL_GAP + DECK_PANEL_W)) / 2);
+const DY = Math.round((LINE_Y - DECK_H) / 2) - DECK_LIFT;
+/** The side panel (prompts, and the slots view): its left edge and width. */
+const PANEL_X = DX + DECK_W + DECK_PANEL_GAP;
 /** The chip's resting x over the socket (its pins over the contacts). */
 const SOCKET_X = DX + DECK.socket.x + 2;
 const HOVER_Y = DY + DECK.socket.y - 60;
@@ -290,7 +303,7 @@ export class DeckScene extends Scene<void> {
     else if (this.phase === 'done') prompt = `{y}NEW PROGRAM{/}  ${this.overloadLine()}`;
     else if (this.mode === 'dead') prompt = '{d}Hex’s deck. The coprocessor slot is empty.{/}';
     if (!prompt) return;
-    const px = DX + DECK_W + 18, pw = W - px - 10;
+    const px = PANEL_X, pw = DECK_PANEL_W;
     drawWindow(ctx, px, DY + 6, pw, 70, { plain: true, accent: UI.violet });
     drawParagraph(ctx, prompt, px + 8, DY + 14, pw - 16, { lineH: 11 });
     if (this.phase === 'done') drawParagraph(ctx, markElements(ABILITIES.overload?.desc ?? ''), px + 8, DY + 36, pw - 16, { color: UI.dim, lineH: 10 });
@@ -305,8 +318,8 @@ export class DeckScene extends Scene<void> {
 
   /** Hex's line, at the foot of the screen with their face. */
   private renderLine(ctx: Ctx): void {
-    const y = H - 62, x = 8, w = W - 16;
-    drawWindow(ctx, x, y, w, 54, { accent: '#c3a0ff', footer: this.phase === 'look' || this.phase === 'done' ? keyLegend(this.game.input, 'back') : undefined });
+    const y = LINE_Y, x = 8, w = W - 16;
+    drawWindow(ctx, x, y, w, LINE_BOX_H, { accent: '#c3a0ff', footer: this.phase === 'look' || this.phase === 'done' ? keyLegend(this.game.input, 'back') : undefined });
     const port = getPortrait('hex', this.line.face);
     if (port) ctx.drawImage(port, x + 6, y + 5, 44, 44);
     drawText(ctx, 'Hex', x + 58, y + 7, { color: '#c3a0ff' });
@@ -315,7 +328,7 @@ export class DeckScene extends Scene<void> {
 
   /** The menu view: what's in each slot, and the programs the deck runs. */
   private renderSlots(ctx: Ctx): void {
-    const px = DX + DECK_W + 18, pw = W - px - 10;
+    const px = PANEL_X, pw = DECK_PANEL_W;
     drawWindow(ctx, px, 8, pw, H - 16, { title: 'HEX’S DECK', accent: UI.violet, footer: keyLegend(this.game.input, 'back') });
     let y = 24;
     const slot = (name: string, what: string, color: string, note: string) => {

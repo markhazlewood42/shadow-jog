@@ -8,6 +8,8 @@ import { silhouette, surface, type Ctx, type Surface } from '../engine/canvas';
 import { mix, rgb } from '../engine/color';
 import { drawText } from '../engine/font';
 import { Scene, W, H } from '../engine/game';
+import { BHT as BH, BW } from './battlekit/geom';
+import { CITY, FOOT_MARGIN, LOGO_SCALE, LOGO_Y, MENU_W, MENU_Y, MONORAIL, MONORAIL_LOOP, MOON, PROMPT_Y, RAIN_DROPS, ROOF, SEARCHLIGHT, SKY_FADE_ROWS, SPIRE_X, STAR_BAND_ROWS, STAR_COUNT } from './title-layout';
 import { VERSION_LABEL } from '../version';
 import { flashScale } from '../game/settings';
 import { hash2, Rng } from '../engine/rng';
@@ -19,7 +21,10 @@ import { SaveScene } from './saveload';
 
 export type TitleChoice = { kind: 'new' } | { kind: 'load'; slot: SlotId };
 
-const BW = 240, BH = 135;
+// The title world shares the battle world's grain (BW×BH, half the screen, drawn at 2x), imported
+// above, so the skyline keeps the same chunky pixel as the fights whatever the screen size is.
+// Where everything stands in it (base lines, moon, spire, roof, rain, logo) is plain data in
+// `title-layout.ts`; this file only draws it.
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
 function sky(): HTMLCanvasElement {
@@ -27,7 +32,7 @@ function sky(): HTMLCanvasElement {
   const img = s.ctx.createImageData(BW, BH);
   const stops = ['#05040f', '#0c0822', '#1c0c36', '#3a1048', '#6a1a58', '#9a2a5a'].map(rgb);
   for (let y = 0; y < BH; y++) {
-    const t = Math.min(1, y / 100) * (stops.length - 1);
+    const t = Math.min(1, y / SKY_FADE_ROWS) * (stops.length - 1);
     const i0 = Math.floor(t), f = t - i0;
     for (let x = 0; x < BW; x++) {
       const th = (BAYER[(y & 3) * 4 + (x & 3)]! + 0.5) / 16;
@@ -38,13 +43,13 @@ function sky(): HTMLCanvasElement {
   }
   s.ctx.putImageData(img, 0, 0);
   // Stars
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < STAR_COUNT; i++) {
     s.ctx.fillStyle = i % 5 ? '#6a6a9a' : '#c8c8f0';
-    s.ctx.fillRect(Math.floor(hash2(i, 1) * BW), Math.floor(hash2(i, 2) * 50), 1, 1);
+    s.ctx.fillRect(Math.floor(hash2(i, 1) * BW), Math.floor(hash2(i, 2) * STAR_BAND_ROWS), 1, 1);
   }
   // Moon with halo
-  const mx = 212, my = 22;
-  for (let r = 22; r > 10; r -= 2) {
+  const mx = BW - MOON.fromRight, my = MOON.y;
+  for (let r = MOON.halo; r > MOON.radius + 1; r -= 2) {
     s.ctx.globalAlpha = 0.05;
     s.ctx.fillStyle = '#ffd0e8';
     s.ctx.beginPath();
@@ -52,10 +57,11 @@ function sky(): HTMLCanvasElement {
     s.ctx.fill();
   }
   s.ctx.globalAlpha = 1;
-  for (let y = -9; y <= 9; y++)
-    for (let x = -9; x <= 9; x++) {
+  const mr = MOON.radius;
+  for (let y = -mr; y <= mr; y++)
+    for (let x = -mr; x <= mr; x++) {
       const d = x * x + y * y;
-      if (d > 81) continue;
+      if (d > mr * mr) continue;
       const shadeA = (x + 3) * (x + 3) + (y - 2) * (y - 2) < 40 ? '#f0e0f0' : '#d8c0d8';
       s.ctx.fillStyle = hash2(x, y, 7) < 0.12 ? '#b8a0c0' : shadeA;
       s.ctx.fillRect(mx + x, my + y, 1, 1);
@@ -69,7 +75,8 @@ interface Layer {
   speed: number;
 }
 
-function cityLayer(seed: number, baseY: number, minH: number, maxH: number, col: string, winCols: string[], winP: number, signs: number, spire = false): Layer {
+function cityLayer(spec: { seed: number; base: number; minH: number; maxH: number }, col: string, winCols: string[], winP: number, signs: number, spire = false): Layer {
+  const { seed, base: baseY, minH, maxH } = spec;
   const w = BW * 2;
   const s = surface(w, BH), g = surface(w, BH);
   const r = new Rng(seed);
@@ -100,7 +107,7 @@ function cityLayer(seed: number, baseY: number, minH: number, maxH: number, col:
   }
   if (spire) {
     // The Kessler-Mori arcology: a needle of light over the whole city.
-    const sx = 150;
+    const sx = SPIRE_X;
     s.ctx.fillStyle = col;
     s.ctx.beginPath();
     s.ctx.moveTo(sx - 14, BH);
@@ -133,9 +140,9 @@ export class TitleScene extends Scene<TitleChoice> {
   constructor() {
     super();
     this.buf = surface(BW, BH);
-    this.far = { ...cityLayer(3, 98, 30, 70, '#1a1234', ['#5a6aa8', '#7a5aa8'], 0.08, 0, true), speed: 0.03 };
-    this.mid = { ...cityLayer(5, 112, 22, 52, '#110b24', ['#ffd98a', '#8ad8ff', '#ff8ad0'], 0.12, 0.35), speed: 0.08 };
-    this.near = { ...cityLayer(9, 126, 10, 30, '#08060f', ['#ffd98a', '#ff8ad0'], 0.06, 0.25), speed: 0.2 };
+    this.far = { ...cityLayer(CITY.far, '#1a1234', ['#5a6aa8', '#7a5aa8'], 0.08, 0, true), speed: CITY.far.speed };
+    this.mid = { ...cityLayer(CITY.mid, '#110b24', ['#ffd98a', '#8ad8ff', '#ff8ad0'], 0.12, 0.35), speed: CITY.mid.speed };
+    this.near = { ...cityLayer(CITY.near, '#08060f', ['#ffd98a', '#ff8ad0'], 0.06, 0.25), speed: CITY.near.speed };
     this.roof = this.buildRoof();
     const saves = hasAnySave();
     const resumable = latestSlot(true) !== null;
@@ -155,28 +162,30 @@ export class TitleScene extends Scene<TitleChoice> {
   private buildRoof(): HTMLCanvasElement {
     const s = surface(BW, BH);
     const c = s.ctx;
+    const top = ROOF.top;
     c.fillStyle = '#05040a';
-    c.fillRect(0, 118, BW, 17);
-    c.fillRect(0, 114, 90, 4);
-    c.fillRect(200, 110, 40, 8);
+    c.fillRect(0, top, BW, BH - top);
+    c.fillRect(0, top - ROOF.leftLedge.h, ROOF.leftLedge.w, ROOF.leftLedge.h);
+    const rl = ROOF.rightLedge;
+    c.fillRect(BW - rl.fromRight, top - rl.h, rl.w, rl.h);
     // Water tank + antenna
-    c.fillRect(212, 92, 16, 18);
-    c.fillRect(214, 110, 2, 8);
-    c.fillRect(224, 110, 2, 8);
-    c.fillRect(30, 96, 1, 18);
-    c.fillRect(27, 100, 7, 1);
+    const tk = ROOF.tank;
+    c.fillRect(BW - tk.fromRight, top - tk.rise, tk.w, tk.h);
+    for (const lx of tk.legAt) c.fillRect(BW - tk.fromRight + lx, top - tk.legH, tk.legW, tk.legH);
+    const an = ROOF.antenna;
+    c.fillRect(an.x, top - an.rise, 1, an.h);
+    c.fillRect(an.barX, top - an.barRise, an.barW, 1);
     // Crew silhouettes on the ledge, rim-lit.
     const draw = (look: keyof typeof LOOKS, x: number) => {
       const fr = buildChar(LOOKS[look]).frames.up[0]!;
       const sil = silhouette(fr, '#05040a');
       const rim = silhouette(fr, '#ff4fb0');
       c.globalAlpha = 0.8;
-      c.drawImage(rim, x + 1, 118 - fr.height + 1 - 1);
+      c.drawImage(rim, x + 1, top - fr.height + 1 - 1);
       c.globalAlpha = 1;
-      c.drawImage(sil, x, 118 - fr.height + 1);
+      c.drawImage(sil, x, top - fr.height + 1);
     };
-    draw('rook', 44);
-    draw('kit', 60);
+    for (const m of ROOF.crew) draw(m.look, m.x);
     return s.canvas;
   }
 
@@ -207,7 +216,7 @@ export class TitleScene extends Scene<TitleChoice> {
       });
       cx += rows[0]!.length + 1;
     }
-    const k = 4;
+    const k = LOGO_SCALE;
     const s = surface(small.w * k + 24, small.h * k + 24);
     s.ctx.imageSmoothingEnabled = false;
     const at = (img: HTMLCanvasElement, dx: number) => s.ctx.drawImage(img, 12 + dx, 12, small.w * k, small.h * k);
@@ -283,15 +292,15 @@ export class TitleScene extends Scene<TitleChoice> {
     b.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 2; i++) {
       const a = Math.sin(t * 0.008 + i * 2.1) * 0.5 - Math.PI / 2;
-      const sx = 150 - (t * this.far.speed) % (BW * 2);
+      const sx = SPIRE_X - (t * this.far.speed) % (BW * 2);
       for (const ox of [sx, sx + BW * 2]) {
         if (ox < -60 || ox > BW + 60) continue;
         b.globalAlpha = 0.07;
         b.fillStyle = '#9ad0ff';
         b.beginPath();
-        b.moveTo(ox, 6);
-        b.lineTo(ox + Math.cos(a - 0.05) * 200, 6 + Math.sin(a - 0.05) * 200);
-        b.lineTo(ox + Math.cos(a + 0.05) * 200, 6 + Math.sin(a + 0.05) * 200);
+        b.moveTo(ox, SEARCHLIGHT.y);
+        b.lineTo(ox + Math.cos(a - 0.05) * SEARCHLIGHT.reach, SEARCHLIGHT.y + Math.sin(a - 0.05) * SEARCHLIGHT.reach);
+        b.lineTo(ox + Math.cos(a + 0.05) * SEARCHLIGHT.reach, SEARCHLIGHT.y + Math.sin(a + 0.05) * SEARCHLIGHT.reach);
         b.fill();
       }
     }
@@ -308,13 +317,13 @@ export class TitleScene extends Scene<TitleChoice> {
       b.globalCompositeOperation = 'source-over';
       if (L === this.mid) {
         // Monorail sliding across
-        const mx = ((t * 0.9) % 700) - 200;
+        const mx = ((t * MONORAIL.speed) % MONORAIL_LOOP) + MONORAIL.startX;
         b.fillStyle = '#0c0818';
-        b.fillRect(0, 84, BW, 2);
-        b.fillRect(Math.round(mx), 79, 90, 5);
-        for (let i = 0; i < 88; i += 4) {
+        b.fillRect(0, MONORAIL.railY, BW, 2);
+        b.fillRect(Math.round(mx), MONORAIL.carY, MONORAIL.carW, MONORAIL.carH);
+        for (let i = 0; i < MONORAIL.carW - 2; i += 4) {
           b.fillStyle = i % 8 ? '#ffe0a0' : '#8ad8ff';
-          b.fillRect(Math.round(mx) + 2 + i, 81, 2, 1);
+          b.fillRect(Math.round(mx) + 2 + i, MONORAIL.carY + 2, 2, 1);
         }
       }
     }
@@ -322,7 +331,7 @@ export class TitleScene extends Scene<TitleChoice> {
     // Rain
     b.fillStyle = '#a8b0e8';
     b.globalAlpha = 0.3;
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < RAIN_DROPS; i++) {
       const x = (hash2(i, 11) * BW * 1.3 + t * 1.1) % (BW * 1.3) - 20;
       const y = (hash2(i, 12) * BH + t * (3 + hash2(i, 13) * 2)) % BH;
       b.fillRect(Math.round(x), Math.round(y), 1, 3);
@@ -341,7 +350,7 @@ export class TitleScene extends Scene<TitleChoice> {
     const lt = t - 20;
     if (lt > 0) {
       const lw = this.logo.w, lh = this.logo.h;
-      const lx = Math.round((W - lw) / 2), ly = 34;
+      const lx = Math.round((W - lw) / 2), ly = LOGO_Y;
       const glitch = lt < 40 && hash2(lt, 1) < 0.5;
       if (glitch) {
         for (let s = 0; s < 6; s++) {
@@ -362,11 +371,11 @@ export class TitleScene extends Scene<TitleChoice> {
       }
     }
     if (!this.started) {
-      if (t > 60 && Math.floor(t / 30) % 2 === 0) drawText(ctx, 'PRESS ANY KEY', W / 2, 176, { align: 'center', color: '#ffffff' });
+      if (t > 60 && Math.floor(t / 30) % 2 === 0) drawText(ctx, 'PRESS ANY KEY', W / 2, PROMPT_Y, { align: 'center', color: '#ffffff' });
     } else {
       const a = Math.min(1, (t - this.startT) / 15);
       ctx.globalAlpha = a;
-      const mw = 110, mx = (W - mw) / 2, my = 160;
+      const mw = MENU_W, mx = (W - mw) / 2, my = MENU_Y;
       ctx.fillStyle = 'rgba(7,6,13,0.7)';
       ctx.fillRect(mx, my - 4, mw, 50);
       ctx.fillStyle = UI.pink;
@@ -377,9 +386,9 @@ export class TitleScene extends Scene<TitleChoice> {
       ctx.globalAlpha = 1;
     }
     // The build stamp, bottom-left (the key hints are bottom-right).
-    drawText(ctx, VERSION_LABEL, 6, H - 12, { color: mix('#8b8fa8', '#000000', 0.2) });
+    drawText(ctx, VERSION_LABEL, 6, H - FOOT_MARGIN, { color: mix('#8b8fa8', '#000000', 0.2) });
     // The player's own keys: a rebound confirm shows here too.
     const inp = this.game.input;
-    drawText(ctx, `${inp.keyName('confirm', 2)}  confirm   ·   ${inp.keyName('cancel', 2)}  back`, W - 6, H - 12, { align: 'right', color: mix('#8b8fa8', '#000000', 0.2) });
+    drawText(ctx, `${inp.keyName('confirm', 2)}  confirm   ·   ${inp.keyName('cancel', 2)}  back`, W - 6, H - FOOT_MARGIN, { align: 'right', color: mix('#8b8fa8', '#000000', 0.2) });
   }
 }

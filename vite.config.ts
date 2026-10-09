@@ -262,8 +262,15 @@ function devTools(): Plugin {
 /** The game's version, from package.json: the one place it is written down. */
 const APP_VERSION = (JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8')) as { version: string }).version;
 
-/** The short git commit the build was made from; a build with no .git folder (or no git) says 'nogit'. */
+/**
+ * The short git commit the build was made from (the title screen shows it); a build with no .git
+ * folder (or no git) says 'nogit'. `SJ_BUILD_SHA` overrides it: a screenshot compare across two
+ * commits (docs/PIVOT-640.md, PL2) pins the label, so the only pixels that differ are real ones.
+ * Unset, which is every normal build, it is the real commit.
+ */
 function buildSha(): string {
+  const pinned = process.env.SJ_BUILD_SHA;
+  if (pinned) return pinned;
   try {
     // cwd pins git to this project's folder, so a build started from elsewhere can't stamp another repo's commit.
     return (

@@ -1,0 +1,25 @@
+{
+  "_comment": "Numbers of the 640x360 move that the tools read. They mirror docs/PIVOT-640.md ('Numbers fixed before code'); change them there first. check-shots.mjs reads newFrame, oldFrame, minFillPercent, clearColors, clearTolerance and voidAllowed.",
+  "newFrame": { "w": 640, "h": 360 },
+  "oldFrame": { "w": 480, "h": 270 },
+  "minFillPercent": 5,
+  "clearColors": ["#07060d", "#000000"],
+  "clearTolerance": 6,
+  "voidAllowed": [
+    "maps/lantern_row",
+    "maps/bar",
+    "maps/world",
+    "maps/rustyard",
+    "maps/sinkline_1",
+    "maps/annex",
+    "maps/dock",
+    "progress-01-cast-sprites",
+    "32-crowd-sprites",
+    "24-ending-results",
+    "24c-ending-results-driven-test-run",
+    "25-ending-next",
+    "34-game-over",
+    "16b-enemy-poses",
+    "16c-boss-poses"
+  ]
+}

@@ -14,7 +14,7 @@ import { MEMBERS } from '../data/party';
 import { SHOPS, type ShopDef } from '../data/shops';
 import type { Ctx } from '../engine/canvas';
 import { drawParagraph, drawText, fitText, measure } from '../engine/font';
-import { SHOP_COMPARE_W } from '../ui/layout';
+import { COMPARE_SPRITE_GAP, COMPARE_SPRITE_SCALE, LIST_ROW_H, rowsFor, SHOP_COMPARE_W, SHOP_DETAIL_GAP, SHOP_LIST_W, SHOP_LIST_X, SHOP_TOP } from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { canEquip, equip, memberStats, SLOT_NAMES } from '../game/party';
 import { flags, state, type MemberState } from '../game/state';
@@ -26,6 +26,12 @@ type Mode = 'root' | 'buy' | 'sell' | 'qty' | 'equip' | 'junk';
 /** The sell list's first row when there's loot: sell every piece at once. */
 const ALL_LOOT = '__all_loot__';
 
+/**
+ * Rows of the buy and sell list: its window runs from SHOP_TOP to 8 px above the screen's bottom,
+ * and the first row is 8 px into it (the list keeps 6 px under its last row). Follows the height.
+ */
+const shopRows = (): number => rowsFor(H - 8 - SHOP_TOP - 8 - 6, LIST_ROW_H);
+
 /** Enemy families in the order the shop lists them, and how it names them. */
 const FAMILY_ORDER = ['human', 'machine', 'beast', 'spirit', 'ghoul'] as const;
 const FAMILY_PLURAL: Record<(typeof FAMILY_ORDER)[number], string> = { human: 'people', machine: 'machines', beast: 'beasts', spirit: 'spirits', ghoul: 'ghouls' };
@@ -36,7 +42,7 @@ export class ShopScene extends Scene<void> {
   private shop: ShopDef;
   private mode: Mode = 'root';
   private root = new ListMenu<string>([{ label: 'Buy', value: 'buy' }, { label: 'Sell', value: 'sell' }, { label: 'Leave', value: 'leave' }], 3);
-  private list = new ListMenu<string>([], 11);
+  private list = new ListMenu<string>([], shopRows());
   private qty = 1;
   private qtyMode: 'buy' | 'sell' = 'buy';
   /** After buying gear: who puts it on now (member ids, then 'none'). */
@@ -284,22 +290,23 @@ export class ShopScene extends Scene<void> {
     drawWindow(ctx, 8, 8, W - 16, 30, { title: this.shop.name, accent: acc });
     drawText(ctx, `{#${acc.slice(1)}}${this.shop.keeper}:{/} ${this.line}`, 16, 18);
     // Root menu + wallet
-    drawWindow(ctx, 8, 46, 80, 42, { accent: acc });
-    this.root.render(ctx, 15, 52, 70, this.mode === 'root');
+    drawWindow(ctx, 8, SHOP_TOP, 80, 42, { accent: acc });
+    this.root.render(ctx, 15, SHOP_TOP + 6, 70, this.mode === 'root');
     drawWindow(ctx, 8, H - 30, 80, 22, { plain: true });
     drawText(ctx, `{y}${state.cred.toLocaleString('en-US')}¢`, 80, H - 24, { align: 'right' });
     if (this.mode === 'root') return;
     // List
-    const lx = 96, lw = 196;
+    const lx = SHOP_LIST_X, lw = SHOP_LIST_W;
     const selling = this.mode === 'sell' || this.mode === 'junk' || (this.qtyMode === 'sell' && this.mode === 'qty');
-    drawWindow(ctx, lx, 46, lw, H - 54, { title: selling ? 'SELL' : 'BUY', accent: acc, footer: keyLegend(this.game.input) });
-    this.list.render(ctx, lx + 8, 54, lw - 14, this.mode === 'buy' || this.mode === 'sell', this.mode === 'sell' ? 'Nothing to sell.' : 'Sold out.');
+    drawWindow(ctx, lx, SHOP_TOP, lw, H - 8 - SHOP_TOP, { title: selling ? 'SELL' : 'BUY', accent: acc, footer: keyLegend(this.game.input) });
+    this.list.rows = shopRows();
+    this.list.render(ctx, lx + 8, SHOP_TOP + 8, lw - 14, this.mode === 'buy' || this.mode === 'sell', this.mode === 'sell' ? 'Nothing to sell.' : 'Sold out.');
     // Detail panel (kept on screen, with a hint, even when the list is empty).
-    const dx = lx + lw + 6, dw = W - dx - 8;
-    drawWindow(ctx, dx, 46, dw, H - 54, { plain: true });
+    const dx = lx + lw + SHOP_DETAIL_GAP, dw = W - dx - 8;
+    drawWindow(ctx, dx, SHOP_TOP, dw, H - 8 - SHOP_TOP, { plain: true });
     const cur = this.list.current;
     if (!cur) {
-      drawParagraph(ctx, this.mode === 'sell' ? 'Loot and spare gear you pick up can be sold here.' : 'Check back later.', dx + 8, 52, dw - 16, { color: UI.dim, lineH: 10 });
+      drawParagraph(ctx, this.mode === 'sell' ? 'Loot and spare gear you pick up can be sold here.' : 'Check back later.', dx + 8, SHOP_TOP + 6, dw - 16, { color: UI.dim, lineH: 10 });
       return;
     }
     if (cur.value === ALL_LOOT) {
@@ -308,9 +315,9 @@ export class ShopScene extends Scene<void> {
       return;
     }
     const it = ITEMS[this.mode === 'equip' ? this.equipItem : cur.value]!;
-    drawText(ctx, it.name, dx + 8, 52, { color: UI.cyan });
-    drawText(ctx, `Owned: ${state.inventory[it.id] ?? 0}`, dx + dw - 8, 52, { align: 'right', color: UI.dim });
-    let top = 64;
+    drawText(ctx, it.name, dx + 8, SHOP_TOP + 6, { color: UI.cyan });
+    drawText(ctx, `Owned: ${state.inventory[it.id] ?? 0}`, dx + dw - 8, SHOP_TOP + 6, { align: 'right', color: UI.dim });
+    let top = SHOP_TOP + 18;
     if (it.slot) {
       // Which slot it takes comes first, as a tag: the thing to know before the flavour text.
       const tag = SLOT_NAMES[it.slot].toUpperCase();
@@ -369,7 +376,7 @@ export class ShopScene extends Scene<void> {
    * or just over it when there's no room below; opaque, so the list doesn't ghost through.
    */
   private popupY(h: number): number {
-    const row = 54 + (this.list.index - this.list.scroll) * 11;
+    const row = SHOP_TOP + 8 + (this.list.index - this.list.scroll) * LIST_ROW_H;
     const below = row + 16;
     return below + h <= H - 12 ? below : Math.max(50, row - h - 6);
   }
@@ -377,9 +384,9 @@ export class ShopScene extends Scene<void> {
   /** The sell-all row's detail: what goes, and what it fetches. */
   private renderLootSummary(ctx: Ctx, dx: number, dw: number): void {
     const loot = this.lootTotal();
-    drawText(ctx, 'All loot', dx + 8, 52, { color: UI.violet });
-    drawText(ctx, `${loot.count} pieces`, dx + dw - 8, 52, { align: 'right', color: UI.dim });
-    let y = 66;
+    drawText(ctx, 'All loot', dx + 8, SHOP_TOP + 6, { color: UI.violet });
+    drawText(ctx, `${loot.count} pieces`, dx + dw - 8, SHOP_TOP + 6, { align: 'right', color: UI.dim });
+    let y = SHOP_TOP + 20;
     for (const id of loot.ids.slice(0, 14)) {
       drawText(ctx, fitText(ITEMS[id]!.name, dw - 60), dx + 8, y, { color: '#d0cee4' });
       drawText(ctx, `×${state.inventory[id]}`, dx + dw - 8, y, { align: 'right', color: UI.dim });
@@ -401,8 +408,11 @@ export class ShopScene extends Scene<void> {
 
   private drawCompare(ctx: Ctx, m: MemberState, id: string, x: number, y: number, w: number): void {
     const spr = buildChar(LOOKS[m.id]).frames.down[0]!;
-    ctx.drawImage(spr, x, y - 4, spr.width * 0.8, spr.height * 0.8);
-    drawText(ctx, MEMBERS[m.id].name, x + 18, y, { color: MEMBERS[m.id].color });
+    const sw = Math.ceil(spr.width * COMPARE_SPRITE_SCALE);
+    ctx.drawImage(spr, x, y - 4, sw, spr.height * COMPARE_SPRITE_SCALE);
+    // The name and the stat changes start clear of the sprite (Mark, Review 4: they overlapped before).
+    const tx = x + sw + COMPARE_SPRITE_GAP;
+    drawText(ctx, MEMBERS[m.id].name, tx, y, { color: MEMBERS[m.id].color });
     if (!canEquip(m, id)) {
       drawText(ctx, 'can’t use', x + w, y, { align: 'right', color: UI.disabled });
       return;
@@ -417,6 +427,6 @@ export class ShopScene extends Scene<void> {
     }
     const equipped = m.equip[it.slot!] === id;
     const text = equipped ? '{c}Equipped{/}' : diffs.length ? diffs.join(' ') : '{d}no change{/}';
-    drawText(ctx, fitText(text, SHOP_COMPARE_W), x + 18, y + 10);
+    drawText(ctx, fitText(text, SHOP_COMPARE_W - (tx - x)), tx, y + 10);
   }
 }

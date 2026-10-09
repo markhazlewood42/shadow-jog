@@ -1,0 +1,33 @@
+{
+  "_comment": "Hits of tests/screen-literals.test.ts that do not mean the screen. An entry with 'match' covers the lines of that file that contain it; an entry without 'match' covers every hit of that token in the file. Each entry needs a reason. A stale entry fails the test.",
+  "entries": [
+    { "file": "src/engine/game.ts", "token": 640, "match": "export const W", "reason": "the one size source: the screen width" },
+    { "file": "src/engine/game.ts", "token": 360, "match": "export const H", "reason": "the one size source: the screen height" },
+    { "file": "vite.config.ts", "token": 480, "match": "chunkSizeWarningLimit", "reason": "kilobytes, the chunk size warning (inventory row 14)" },
+    { "file": "scripts/bundle-budget.mjs", "token": 480, "match": "CHUNK_MAX", "reason": "kilobytes, the chunk cap (inventory row 213)" },
+    { "file": "src/data/items.ts", "token": [480, 320, 360, 180], "reason": "prices and heal amounts (the nodachi's price is inventory row 14)" },
+    { "file": "src/data/maps/rustyard.ts", "token": 320, "match": "cred:", "reason": "money in a chest" },
+    { "file": "src/data/maps/sinkline.ts", "token": 180, "match": "cred:", "reason": "money in a locker" },
+    { "file": "src/data/maps/world.ts", "token": 180, "match": "cred:", "reason": "money in a crate" },
+    { "file": "src/game/stages.ts", "token": 640, "match": "state.cred", "reason": "money for a stage preset" },
+    { "file": "src/engine/color.ts", "token": [180, 240, 360], "reason": "hue in degrees (HSL math)" },
+    { "file": "src/engine/particles.ts", "token": [180, 360], "reason": "degrees: launch angle and spread, converted to radians" },
+    { "file": "src/art/rig2/battle.ts", "token": [180, 360], "reason": "degrees: joint angles and the radian conversion" },
+    { "file": "src/art/rig2/rig.ts", "token": 180, "reason": "degrees to radians" },
+    { "file": "src/dev/rigedit.ts", "token": [180, 360], "reason": "degrees: angle sliders and the radian conversion" },
+    { "file": "src/scenes/battlekit/gpufx.ts", "token": 180, "match": "Math.PI", "reason": "radians to degrees for a moment's angle" },
+    { "file": "src/scenes/battlekit/sprites.ts", "token": 180, "match": "Math.PI", "reason": "degrees to radians for a hue rotation" },
+    { "file": "src/audio/engine.ts", "token": 180, "reason": "hertz: filter and oscillator frequencies" },
+    { "file": "src/audio/sfx.ts", "token": [180, 640], "reason": "hertz: oscillator and filter frequencies" },
+    { "file": "src/field/fieldmap.ts", "token": 320, "match": "hash2(tx, ty, 320", "reason": "a hash seed, not a size" },
+    { "file": "src/dev/fxlab.ts", "token": 240, "match": "(frames)", "reason": "a frame count: the upper limit of a life or interval slider" },
+    { "file": "src/dev/fxlab.ts", "token": 180, "match": "angle", "reason": "degrees: the direction and aim-angle sliders run from -180 to 180" },
+    { "file": "src/dev/fxlab.ts", "token": 360, "match": "spread", "reason": "degrees: a spread of 360 is every way" },
+    { "file": "src/scenes/card.ts", "token": 320, "match": "const w = 320", "reason": "a centered card's width, not the screen (inventory row 113)" },
+    { "file": "src/scenes/controls.ts", "token": 360, "match": "const w = 360", "reason": "a centered window's width, not the screen (inventory row 112)" },
+    { "file": "src/scenes/chartest.ts", "token": 240, "match": "col * 240", "reason": "a dev sheet's column pitch (inventory row 121)" },
+    { "file": "src/ui/layout.ts", "token": 240, "match": "SHOP_LIST_W = 240", "reason": "the shop list's width (D8's recommendation), a pane width that is not the screen" },
+    { "file": "src/ui/layout.ts", "token": 270, "match": "COMPOSED_FOR_H = 270", "reason": "the one remembered old height: the ending, game-over and deck pages were composed for it, and PAGE_DY moves them by the difference" },
+    { "file": "src/ui/layout.ts", "token": 360, "match": "RESULTS_W = 360", "reason": "the results window's own width (it was the screen less 120 px at 480), not the screen" }
+  ]
+}

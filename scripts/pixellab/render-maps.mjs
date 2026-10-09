@@ -14,7 +14,8 @@ const assets = readdirSync(`${ROOT}/assets`)
   .filter((m) => m.terrains);
 
 const browser = await chromium.launch({ channel: 'msedge' });
-const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
+// 1280x720 is exactly 2x the game's 640x360, so the in-game shots are exact, not resampled.
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const problems = [];
 page.on('pageerror', (e) => problems.push(String(e)));
 
@@ -80,7 +81,7 @@ for (const a of assets) {
   const nowShot = `current/place/terrain-${a.id.split('.')[1]}.png`;
   await open(`&scene=field&map=${t.map}&x=${x}&y=${y}`);
   await page.waitForTimeout(2500);
-  await page.screenshot({ path: `${ROOT}/${nowShot}` });
+  await page.locator('#screen').screenshot({ path: `${ROOT}/${nowShot}` });
   a.preview = { map: nowMap, game: nowShot, at: { x, y } };
 
   for (const o of a.options) {
@@ -94,7 +95,7 @@ for (const a of assets) {
     const gameFile = `assets/${a.id}/${o.id}/ingame.png`;
     await open(`${tryId}&scene=field&map=${t.map}&x=${x}&y=${y}`);
     await page.waitForTimeout(2500);
-    await page.screenshot({ path: `${ROOT}/${gameFile}` });
+    await page.locator('#screen').screenshot({ path: `${ROOT}/${gameFile}` });
     o.preview = { map: mapFile, game: gameFile };
     console.log(`  ${a.id}/${o.id}`);
   }

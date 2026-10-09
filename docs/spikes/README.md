@@ -1,5 +1,7 @@
 # Spikes
 
+> **2026-10-09:** the game moved from 480x270 to 640x360 (Mark, 2026-10-05; PR #23). The spike records state 480x270 because that was the size of their day. They are history and are not rewritten. See `docs/PIVOT-640.md`.
+
 A spike is a small, time-boxed experiment that answers one question ("does a side-view battle look right at 480×270?") so a big change isn't committed to blind. It is throwaway by design: the code is never merged, only the answer and anything worth rebuilding properly.
 
 Background and the decisions behind this: `docs/PHASE-0.2.md`, "Versioning and releases". Workflow: `docs/DEVELOPING.md`, section 9.

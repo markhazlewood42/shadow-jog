@@ -11,6 +11,7 @@ import { battler } from '../art/battlers';
 import { LOOKS } from '../data/looks';
 import { state } from '../game/state';
 import { rimOf, silhouetteCache } from './battlekit/sprites';
+import { GLOW_REACH, PAGE_DY, STREET_FROM_BOTTOM } from '../ui/layout';
 
 export type GameOverChoice = 'retry' | 'load' | 'title';
 
@@ -58,30 +59,30 @@ export class GameOverScene extends Scene<GameOverChoice> {
     this.renderCrew(ctx, Math.min(1, this.t / 45));
     ctx.globalAlpha = a;
     this.rain.render(ctx);
-    drawText(ctx, 'THE RUN IS OVER', W / 2, 44, { align: 'center', color: UI.red });
-    drawText(ctx, 'Saltreach keeps what it takes.', W / 2, 60, { align: 'center', color: UI.dim });
+    drawText(ctx, 'THE RUN IS OVER', W / 2, 44 + PAGE_DY, { align: 'center', color: UI.red });
+    drawText(ctx, 'Saltreach keeps what it takes.', W / 2, 60 + PAGE_DY, { align: 'center', color: UI.dim });
     ctx.globalAlpha = 1;
     if (this.t >= 70) {
-      drawWindow(ctx, W / 2 - 70, 80, 140, 46);
-      this.menu.render(ctx, W / 2 - 62, 87, 128);
-      this.menu.renderWhy(ctx, W / 2, 132);
+      drawWindow(ctx, W / 2 - 70, 80 + PAGE_DY, 140, 46);
+      this.menu.render(ctx, W / 2 - 62, 87 + PAGE_DY, 128);
+      this.menu.renderWhy(ctx, W / 2, 132 + PAGE_DY);
     }
   }
 
   /** Dark shapes on a wet street, edged in the city's red, with their reflections under them. */
   private renderCrew(ctx: Ctx, a: number): void {
-    const street = 244;
+    const street = H - STREET_FROM_BOTTOM;
     ctx.globalAlpha = a;
     // The city's red glow behind them, so the shapes read against it.
     this.backlight ??= (() => {
-      const g = ctx.createRadialGradient(W / 2, street, 10, W / 2, street, 200);
+      const g = ctx.createRadialGradient(W / 2, street, 10, W / 2, street, GLOW_REACH);
       g.addColorStop(0, 'rgba(255,58,90,0.34)');
       g.addColorStop(0.5, 'rgba(160,30,70,0.14)');
       g.addColorStop(1, 'rgba(0,0,0,0)');
       return g;
     })();
     ctx.fillStyle = this.backlight;
-    ctx.fillRect(0, street - 200, W, 200);
+    ctx.fillRect(0, street - GLOW_REACH, W, GLOW_REACH);
     ctx.fillStyle = '#0c0a16';
     ctx.fillRect(0, street, W, H - street);
     ctx.fillStyle = 'rgba(255,58,90,0.18)';

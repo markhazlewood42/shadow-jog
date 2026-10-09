@@ -1,0 +1,626 @@
+/**
+ * The UI layout test (docs/PIVOT-640.md, PL4, WP4): each screen is drawn once, with a fixture state,
+ * onto the layout recorder (`tests/recorder.ts`), and the record is checked:
+ *
+ *   1. every rect, image and clip lies inside the screen (0..W by 0..H);
+ *   2. every text box lies inside the window that draws it;
+ *   3. a tall pane's list takes the rows its window has room for (row counts follow the height);
+ *   4. (advisory, rubric R5) the share of each window's inner width and height that holds content.
+ *
+ * WP5 added the full-page scenes: the title (before and after a key), the ending's two pages, game over,
+ * the deck in each mode, and every page of the two comic sequences with all its panels landed.
+ *
+ * The fixtures: the chapter's last stage (four crew members, every combo, a long bestiary), a bag with
+ * every item in it, each member's Status page, the shop open on its buy list, its sell list, a
+ * quantity popup and the equip popup, the modals, and the dialog in each of its shapes.
+ *
+ * Two controls keep the checks honest, and they stay in the suite: a window drawn at `W - 10` must fail
+ * check 1, and the very same scenes drawn at 480x270 (the screen size mocked) must pass every check,
+ * so the checks do not fire on a layout that was right.
+ */
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { EQUIP_STATS_H, EQUIP_STATS_W, SHOP_DETAIL_X } from '../src/ui/layout';
+import {
+  drive,
+  FakeInput,
+  fakeGame,
+  installCanvasStub,
+  Layout,
+  listsNotFollowingHeight,
+  outsideFrame,
+  paneShares,
+  recordingContext,
+  setLayout,
+  tapListRender,
+  textOutsideWindow,
+  type PaneShare,
+  type WinRec,
+} from './recorder';
+
+// The font and window drawing go through the recorder's taps (the game's own code is not changed).
+vi.mock('../src/engine/font', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../src/engine/font')>();
+  const r = await import('./recorder');
+  return { ...real, drawText: r.tapText(real.drawText as never, real.measure), drawParagraph: r.tapParagraph(real.drawParagraph as never, real.wrap, real.measure) };
+});
+vi.mock('../src/ui/draw', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../src/ui/draw')>();
+  const r = await import('./recorder');
+  return { ...real, drawWindow: r.tapWindow(real.drawWindow as never) };
+});
+
+let restoreDocument: () => void;
+beforeAll(() => {
+  restoreDocument = installCanvasStub();
+});
+afterAll(() => restoreDocument());
+
+/** A scene as the test needs it: its update and render, and the fields it keeps private. */
+interface AnyScene {
+  game: unknown;
+  update(): void;
+  render(ctx: unknown): void;
+  [k: string]: unknown;
+}
+
+/** One screen, drawn: a name, and what it drew. */
+interface Shot {
+  name: string;
+  layout: Layout;
+}
+
+/** The longest line of dialogue the test uses: four lines on a page at the capped text width. */
+const LONG =
+  'Listen to me, all three of you. The Annex was built to keep things in, not out, and whoever opened that door knew exactly what was behind it. We go in quiet, we take what we came for, and nobody touches the glass. If the lights go red, you run, and you do not look back.';
+
+/**
+ * Draw every fixture screen, at the screen size the module graph holds (`size`: null for the real one,
+ * or a smaller one mocked for the control). The scenes are imported fresh each time, so the size is the
+ * one they were loaded with.
+ */
+async function drawAll(size: { W: number; H: number } | null): Promise<{ shots: Shot[]; W: number; H: number }> {
+  vi.resetModules();
+  if (size) {
+    vi.doMock('../src/engine/game', async (importOriginal) => ({ ...(await importOriginal<typeof import('../src/engine/game')>()), ...size }));
+  } else vi.doUnmock('../src/engine/game');
+  const { W, H } = await import('../src/engine/game');
+  const { applyStage } = await import('../src/game/stages');
+  const { ITEMS } = await import('../src/data/items');
+  const stateMod = await import('../src/game/state');
+  // `state` is a live binding that `applyStage` replaces: read it as `stateMod.state` after the stage is applied.
+  const { ListMenu } = await import('../src/ui/list');
+  const real = ListMenu.prototype.render;
+  // biome-ignore lint/suspicious/noExplicitAny: the tap's `this` is the list, whose type this test does not need.
+  ListMenu.prototype.render = tapListRender(real as any) as typeof real;
+
+  const shots: Shot[] = [];
+  const ctx = recordingContext();
+  const input = new FakeInput();
+  /** Bind a scene to the fake game, run its first update if asked, and draw it once. */
+  const take = (name: string, scene: AnyScene): void => {
+    const layout = new Layout();
+    setLayout(layout);
+    try {
+      scene.render(ctx);
+    } finally {
+      setLayout(null);
+    }
+    shots.push({ name, layout });
+  };
+  const bind = <T>(scene: unknown): T & AnyScene => {
+    (scene as unknown as AnyScene).game = fakeGame(input);
+    return scene as T & AnyScene;
+  };
+
+  applyStage('finale');
+  // A full bag: one of every item, a few of each.
+  stateMod.state.inventory = Object.fromEntries(Object.keys(ITEMS).map((id) => [id, 3]));
+
+  // ---- the field menu
+  const { MenuScene } = await import('../src/scenes/menu');
+  const menu = () => bind(new MenuScene(true));
+  /** Move the main list's cursor to a row by its label. */
+  const goto = (m: AnyScene, label: string): void => {
+    const main = m.main as { items: { label: string }[]; index: number };
+    const i = main.items.findIndex((it) => it.label === label);
+    if (i < 0) throw new Error(`no ${label} in the menu`);
+    main.index = i;
+  };
+  {
+    const m = menu();
+    take('menu: party cards', m);
+    goto(m, 'Items');
+    drive(m, input, ['confirm']);
+    take('menu: items', m);
+    drive(m, input, ['confirm']);
+    take('menu: item target', m);
+  }
+  for (const [i, who] of ['kit', 'rook', 'hex', 'sable'].entries()) {
+    const m = menu();
+    goto(m, 'Techs');
+    drive(m, input, ['confirm', ...Array<string>(i).fill('down'), 'confirm']);
+    take(`menu: techs, ${who}`, m);
+  }
+  {
+    const m = menu();
+    goto(m, 'Equip');
+    drive(m, input, ['confirm', 'confirm']);
+    take('menu: equip slots', m);
+    drive(m, input, ['confirm']);
+    take('menu: equip gear list', m);
+  }
+  for (const [i, who] of ['kit', 'rook', 'hex', 'sable'].entries()) {
+    const m = menu();
+    goto(m, 'Status');
+    drive(m, input, ['confirm', ...Array<string>(i).fill('down'), 'confirm']);
+    take(`menu: status, ${who}`, m);
+  }
+  {
+    // Rook, wounded: the status page with the wound line, and his locked abilities.
+    const m = menu();
+    delete stateMod.state.flags.rook_mended;
+    goto(m, 'Status');
+    drive(m, input, ['confirm', 'down', 'confirm']);
+    take('menu: status, rook (wounded)', m);
+  }
+  for (const label of ['Combos', 'Bestiary', 'Places', 'Save']) {
+    const m = menu();
+    goto(m, label);
+    drive(m, input, ['confirm']);
+    take(`menu: ${label.toLowerCase()}`, m);
+  }
+
+  // ---- the battle (WP6): the menus, the turn strip, the cut-ins and the banners, over a street fight
+  {
+    const { BattleScene } = await import('../src/scenes/battle');
+    /** A fresh fight: the shatter is over (introT 999), the enemies are in (alpha 1), and the round menu is up. */
+    const fight = (enemies: string[], boss = false): AnyScene => {
+      const b = bind<AnyScene>(new BattleScene({ encounter: 'street', enemies, bg: 'street', canRun: !boss, boss }));
+      b.introT = 999;
+      const battle = b.battle as { enemies: { uid: number }[] };
+      for (const e of battle.enemies) (b.d as (uid: number) => { alpha: number })(e.uid).alpha = 1;
+      (b.startRound as () => void)();
+      return b;
+    };
+    const four = ['rustfang_punk', 'scrap_hound', 'glowrat', 'smog_wisp'];
+    {
+      const b = fight(four);
+      take('battle: round menu, four enemies', b);
+      (b.nextActor as () => void)();
+      take('battle: command menu', b);
+      drive(b, input, ['down', 'confirm']);
+      take('battle: a list open (the second command)', b);
+    }
+    {
+      const b = fight(['rustfang_punk']);
+      (b.nextActor as () => void)();
+      const cmd = b.cmdMenu as { items: { label: string }[]; index: number };
+      cmd.index = Math.max(0, cmd.items.findIndex((it) => it.label === 'Item'));
+      drive(b, input, ['confirm']);
+      take('battle: the item list', b);
+      drive(b, input, ['confirm']);
+      take('battle: the target box', b);
+    }
+    {
+      // Cut-ins at both sides and on two rows, one with a line of speech; the strip at its fullest.
+      const b = fight(four);
+      b.mode = 'play'; // cut-ins show while a round plays, with the menus gone
+      (b.cutins as unknown[]).push(
+        { key: 'kit', face: 'smirk', t: 20, fromLeft: true, life: 56, row: 0 },
+        { key: 'rook', face: 'angry', t: 20, fromLeft: false, life: 56, row: 0, line: 'Now!' },
+        { key: 'hex', face: 'smirk', t: 20, fromLeft: true, life: 56, row: 1 },
+        { key: 'sable', face: 'smirk', t: 20, fromLeft: false, life: 56, row: 1 },
+      );
+      take('battle: four cut-ins and the turn strip', b);
+    }
+    {
+      const b = fight(['warden'], true);
+      take('battle: a boss fight, round menu', b);
+    }
+  }
+
+  // ---- the shop
+  const { ShopScene } = await import('../src/scenes/shop');
+  {
+    const s = bind(new ShopScene('lr_weapons'));
+    stateMod.state.cred = 900;
+    take('shop: root', s);
+    drive(s, input, ['confirm']);
+    take('shop: buy', s);
+    drive(s, input, ['down', 'confirm']);
+    take('shop: quantity', s);
+    drive(s, input, ['cancel', 'cancel', 'down', 'confirm']);
+    take('shop: sell', s);
+    drive(s, input, ['confirm']);
+    take('shop: sell all loot', s);
+  }
+
+  // ---- the modals
+  const { OptionsScene } = await import('../src/scenes/options');
+  take('options', bind(new OptionsScene(true)));
+  const { SaveScene } = await import('../src/scenes/saveload');
+  take('save slots', bind(new SaveScene('save')));
+  take('load slots', bind(new SaveScene('load')));
+  const { ControlsScene } = await import('../src/scenes/controls');
+  take('controls', bind(new ControlsScene()));
+  const { CardScene } = await import('../src/scenes/card');
+  take('card', bind(new CardScene('Tutorial', 'Hold X to run. Press Z to talk to people and open things. The menu is on C, and it holds your items, techs, gear and the map of everywhere you have been so far.')));
+
+  // ---- the dialog
+  const { DialogScene } = await import('../src/scenes/dialog');
+  const say = (name: string, opts: ConstructorParameters<typeof DialogScene>[0]): void => {
+    const d = bind(new DialogScene(opts));
+    for (let i = 0; i < 400; i++) d.update();
+    take(`dialog: ${name}`, d);
+  };
+  say('one line', { who: 'dutch', text: 'Sit. Mind the stain.' });
+  say('four-line page', { who: 'dutch', text: LONG });
+  say('narration, four-line page', { who: null, text: LONG });
+  say('a choice', { who: 'dutch', text: 'You want the job, or you want to keep your teeth?', choices: ['Take the job', 'Keep my teeth', 'Ask about the pay'] });
+  say('at the top', { who: 'rook', text: 'Up. Dutch called.', top: true });
+
+  // The map of a place (the plan, scaled to the screen), where the stub canvases allow it.
+  try {
+    const { PlaceMapScene } = await import('../src/scenes/placemap');
+    take('place map', bind(new PlaceMapScene('lantern_row')));
+  } catch (e) {
+    console.warn('place map not drawn here:', (e as Error).message);
+  }
+  // ---- the full-page scenes (WP5)
+  const { TitleScene } = await import('../src/scenes/title');
+  {
+    const t = bind<AnyScene>(new TitleScene());
+    t.t = 200;
+    take('title: press any key', t);
+    t.started = true;
+    t.startT = 100;
+    take('title: menu', t);
+  }
+  const { EndingScene } = await import('../src/scenes/ending');
+  {
+    const e = bind<AnyScene>(new EndingScene(60 * 60 * 31));
+    e.t = 400;
+    take('ending: results', e);
+    e.page = 1;
+    e.t = 400;
+    take('ending: next chapter', e);
+  }
+  const { GameOverScene } = await import('../src/scenes/gameover');
+  {
+    const g = bind<AnyScene>(new GameOverScene(true));
+    g.t = 200;
+    // The rain is a Weather: its streaks and splashes begin above the top edge and fall in, by design, so
+    // every frame of it has a rect outside the screen. It is the same Weather the streets use (tested with
+    // them), so this scene draws without it here.
+    g.rain = { update: () => undefined, render: () => undefined };
+    take('game over', g);
+  }
+  const { DeckScene } = await import('../src/scenes/deck');
+  for (const mode of ['dead', 'seat', 'view'] as const) {
+    const d = bind<AnyScene>(new DeckScene(mode));
+    d.t = 200;
+    take(`deck: ${mode}`, d);
+  }
+  const { PanelScene, PAGES } = await import('../src/scenes/panels');
+  for (const [id, pages] of Object.entries(PAGES)) {
+    pages.forEach((page, pi) => {
+      const p = bind<AnyScene>(new PanelScene(id));
+      p.page = pi;
+      p.shown = page.length;
+      p.panelT = page.map(() => 400);
+      p.typed = page.map(() => 1000);
+      p.t = 400;
+      take(`comic: ${id} page ${pi + 1}`, p);
+    });
+  }
+
+  ListMenu.prototype.render = real;
+  return { shots, W, H };
+}
+
+/** The room (px) the Items and Techs panes keep under their list for the description line, for check 3. */
+const DESCRIPTION_RESERVE = 32;
+/**
+ * The room a scene keeps under its list, for check 3. It keys on the window title because the recorder
+ * sees only draw calls, not scene classes: a pane is told apart by the title text it draws (ITEMS, or a
+ * party-member name with a dot, as in the Techs pane). A renamed title makes this return 0, and
+ * check 3 then reports the description room as a free row: the test fails loud, not silent.
+ */
+const reserve = (win: WinRec): number => (win.title === 'ITEMS' || win.title?.includes('·') ? DESCRIPTION_RESERVE : 0);
+/** The shortest window a list is judged in for check 3: the rail, a small menu and a popup have a fixed row count. */
+const TALL = 150;
+
+/**
+ * Draws that are known to land wholly outside the screen, each with its reason. A named finding of the
+ * recorder, not a pass: the draw is invisible, and the picture is as it has always been.
+ */
+const KNOWN_OFFSCREEN: { shot: string; is: (d: { y: number }, H: number) => boolean; why: string }[] = [
+  {
+    shot: 'game over',
+    is: (d, H) => d.y >= H,
+    why: 'the crew’s faint reflections are drawn under the street line with a transform that puts them below the bottom edge, at 480x270 as well; they have never been visible (WP5 leaves the picture as it was and reports it)',
+  },
+];
+
+/**
+ * Text boxes that the recorder reports as leaving their window, and that do not: each with its reason. The
+ * recorder judges a text by its whole box (7 rows tall), not by the rows that carry ink. An entry is keyed by
+ * the shot, the text, the title of the window that draws it, and the most the box may run past the frame's
+ * inner edge (`maxOver`, px): the same text in another window, or the same text running further over, is
+ * still a finding.
+ */
+const KNOWN_TEXT_OVERFLOW: { shot: string; text: string; winTitle: string; maxOver: number; why: string }[] = [
+  {
+    shot: 'battle: the item list',
+    text: '▼',
+    winTitle: 'KIT · ITEMS',
+    maxOver: 3,
+    why: 'the list’s "more below" arrow: its 7-row box runs 3 px past the frame’s inner edge, but the arrow’s ink is rows 2 to 4 of the glyph, and the runner measured the ink 2 to 3 game px clear of the frame (the same at 480x270)',
+  },
+];
+
+/** Run checks 1 to 3 over the shots; returns every finding, labeled. */
+function findings(shots: Shot[], W: number, H: number): string[] {
+  const out: string[] = [];
+  for (const { name, layout } of shots) {
+    const known = KNOWN_OFFSCREEN.filter((k) => k.shot === name);
+    for (const d of outsideFrame(layout, W, H)) {
+      if (known.some((k) => k.is(d, H))) continue;
+      out.push(`${name}: a ${d.op} at ${Math.round(d.x)},${Math.round(d.y)} ${Math.round(d.w)}x${Math.round(d.h)} leaves the screen`);
+    }
+    for (const t of textOutsideWindow(layout)) {
+      if (KNOWN_TEXT_OVERFLOW.some((k) => k.shot === name && k.text === t.text && k.winTitle === (t.win.title ?? 'untitled') && t.over <= k.maxOver)) continue;
+      out.push(`${name}: the text "${t.text.slice(0, 30)}" leaves its window (${t.win.title ?? 'untitled'}) by ${t.over} px`);
+    }
+    for (const l of listsNotFollowingHeight(layout, TALL, reserve)) out.push(`${name}: a list in "${l.win.title ?? 'untitled'}": ${l.why}`);
+  }
+  return out;
+}
+
+describe('every screen draws inside the frame (PL4)', () => {
+  it('has screens to check (a test that draws nothing proves nothing)', async () => {
+    const { shots } = await drawAll(null);
+    expect(shots.length).toBeGreaterThanOrEqual(30);
+    for (const s of shots) expect(s.layout.draws.length, s.name).toBeGreaterThan(5);
+    expect(shots.some((s) => s.layout.windows.length > 0 && s.layout.lists.length > 0)).toBe(true);
+  });
+
+  it('1 to 3: every rect is on screen, every text is inside its window, and the tall panes’ lists follow the height', async () => {
+    const { shots, W, H } = await drawAll(null);
+    expect(findings(shots, W, H)).toEqual([]);
+  });
+
+  it('the same screens drawn at 480x270 also pass (the checks do not fire on a layout that was right)', async () => {
+    const { shots, W, H } = await drawAll({ W: 480, H: 270 });
+    expect([W, H]).toEqual([480, 270]);
+    expect(shots.length).toBeGreaterThanOrEqual(30);
+    // The comic pages are the one exception: their panel table is authored for the 640x360 frame (WP5), so
+    // at 480x270 they would not be a layout that was right. Every other screen is a layout of both sizes.
+    expect(findings(shots.filter((x) => !x.name.startsWith('comic:')), W, H)).toEqual([]);
+  });
+
+  it('a window drawn at W - 10 fails check 1 (the control: the check can fail)', async () => {
+    const { W, H } = await drawAll(null);
+    const { drawWindow } = await import('../src/ui/draw');
+    const layout = new Layout();
+    setLayout(layout);
+    drawWindow(recordingContext(), W - 10, 100, 100, 60, { title: 'TOO FAR' });
+    setLayout(null);
+    expect(outsideFrame(layout, W, H).length).toBeGreaterThan(0);
+    // And one drawn inside the frame passes.
+    const ok = new Layout();
+    setLayout(ok);
+    drawWindow(recordingContext(), W - 108, 100, 100, 60, { title: 'FITS' });
+    setLayout(null);
+    expect(outsideFrame(ok, W, H)).toEqual([]);
+  });
+
+  it('what a scene paints into an offscreen canvas is not recorded as a screen draw (the title’s 640-wide city layers are drawn into its 320x180 buffer)', async () => {
+    const { W, H } = await drawAll(null);
+    const layout = new Layout();
+    setLayout(layout);
+    const buffer = recordingContext({ width: 320, height: 180 }, true);
+    buffer.fillRect(0, 0, W * 2, H * 2);
+    const screen = recordingContext();
+    screen.fillRect(0, 0, W * 2, H * 2);
+    setLayout(null);
+    // The buffer's draw is silent; the screen's own draw is recorded, and it leaves the screen (check 1 sees it).
+    expect(layout.draws.length).toBe(1);
+    expect(outsideFrame(layout, W, H).length).toBe(1);
+  });
+
+  it('a text wider than its window fails check 2 (the control)', async () => {
+    const { drawWindow } = await import('../src/ui/draw');
+    const { drawText } = await import('../src/engine/font');
+    const layout = new Layout();
+    setLayout(layout);
+    const ctx = recordingContext();
+    drawWindow(ctx, 20, 20, 60, 30);
+    drawText(ctx, 'A line far too long for this window', 24, 30);
+    setLayout(null);
+    expect(textOutsideWindow(layout).length).toBe(1);
+  });
+
+  it('a list that keeps the rows of a smaller screen fails check 3 (the control)', async () => {
+    const { H } = await drawAll(null);
+    const { ListMenu } = await import('../src/ui/list');
+    const { drawWindow } = await import('../src/ui/draw');
+    const real = ListMenu.prototype.render;
+    // biome-ignore lint/suspicious/noExplicitAny: see drawAll.
+    ListMenu.prototype.render = tapListRender(real as any) as typeof real;
+    const layout = new Layout();
+    setLayout(layout);
+    const ctx = recordingContext();
+    drawWindow(ctx, 8, 8, 200, H - 16);
+    new ListMenu(Array.from({ length: 40 }, (_, i) => ({ label: `Row ${i}`, value: i })), 12).render(ctx, 16, 24, 180);
+    setLayout(null);
+    ListMenu.prototype.render = real;
+    expect(listsNotFollowingHeight(layout, TALL).length).toBe(1);
+  });
+});
+
+describe('how much of each pane holds content (rubric R5, advisory)', () => {
+  /**
+   * Panes that are short by design, or tied to a few rows of data, are exempt from the 60% and 50%
+   * lines. Each has its reason: the line says what the pane is. A pane that is neither exempt nor
+   * above the lines is a finding for the reader (and the table below says by how much).
+   */
+  const byTitle = (re: RegExp) => (win: WinRec) => re.test(win.title ?? '');
+  const EXEMPT: [(win: WinRec) => boolean, string][] = [
+    [byTitle(/^MENU$/), 'the command rail: one row per command, as tall as its list'],
+    [byTitle(/^ITEMS$|·/), 'a list pane: its rows are the bag, and the empty rows are the room the bag grows into'],
+    [byTitle(/^EQUIP /), 'the slots window: four rows by design'],
+    [byTitle(/^SAVE$/), 'three slot rows by design'],
+    [byTitle(/^HEX/), 'the deck’s side panel: three slots and the programs, as tall as the screen so that it can grow with them'],
+    [(win) => !win.title && win.h === 70, 'the deck’s prompt box: one or two lines, a box sized to them'],
+    [byTitle(/^OBJECTIVE$/), 'one or two lines of text, a box sized to them'],
+    [byTitle(/^(OPTIONS|CONTROLS|SAVE GAME|LOAD GAME)$/), 'a centered modal sized to its rows (D8: modals stay as they are)'],
+    [byTitle(/^(BUY|SELL)$/), 'a list pane of the shop: its rows are the stock, the rest is room for it'],
+    [byTitle(/^(BESTIARY|PLACES)/), 'a list pane: its rows are what the crew has met or visited'],
+    [byTitle(/^WEAPON$|^BODY$|^HEAD$|^MOD$/), 'the gear list of the slot: its rows are what is in the bag'],
+    [(win) => !win.title && win.w === EQUIP_STATS_W && win.h === EQUIP_STATS_H, 'the Equip stats box: seven short rows (a label, a value, and an arrow with the new value)'],
+    [(win) => !win.title && win.x === SHOP_DETAIL_X, 'the shop detail pane: one item’s text and a row per crew member; its height is the list’s'],
+  ];
+  const exempt = (win: WinRec): string | null => EXEMPT.find(([is]) => is(win))?.[1] ?? null;
+
+  it('reports the share of every window, and each window outside the exemption list spans 60% of its width and 50% of its height', async () => {
+    const { shots, W, H } = await drawAll(null);
+    const table: { shot: string; share: PaneShare }[] = [];
+    for (const s of shots) for (const share of paneShares(s.layout, W, H)) table.push({ shot: s.name, share });
+    // The panes a person reads as content: not the small plain boxes (a card, a toast, a popup, a status block).
+    const judged = table.filter(({ share }) => share.win.w >= 150 && share.win.h >= 60 && !exempt(share.win) && share.items > 0);
+    const low = judged.filter(({ share }) => share.wShare < 0.6 || share.hShare < 0.5);
+    const lines = judged.map(({ shot, share }) => `${shot} / ${share.win.title ?? 'untitled'} ${share.win.w}x${share.win.h}: ${Math.round(share.wShare * 100)}% x ${Math.round(share.hShare * 100)}%`);
+    console.info(`R5 panes judged (${judged.length}):\n${lines.join('\n')}`);
+    expect(low.map(({ shot, share }) => `${shot} / ${share.win.title ?? 'untitled'}: ${Math.round(share.wShare * 100)}% x ${Math.round(share.hShare * 100)}%`)).toEqual([]);
+  });
+});
+
+describe('what the layout promises beyond the four checks (D8, WP4)', () => {
+  it('the dialog box is centered and capped, and its choice box ends at the box’s right end', async () => {
+    const { shots, W } = await drawAll(null);
+    const { DIALOG_MAX_W } = await import('../src/ui/layout');
+    const one = shots.find((s) => s.name === 'dialog: one line')!.layout;
+    const box = one.windows.find((w) => w.h === 62)!;
+    expect(box.w).toBe(DIALOG_MAX_W);
+    expect(box.x * 2 + box.w).toBe(W);
+    // The choice box (a plain window above the dialog) does not reach past the box's right end, and sits near it.
+    const ask = shots.find((s) => s.name === 'dialog: a choice')!.layout;
+    const dlg = ask.windows.find((w) => w.h === 62)!;
+    const choice = ask.windows.find((w) => w !== dlg && w.y < dlg.y)!;
+    expect(choice.x + choice.w).toBeLessThanOrEqual(dlg.x + dlg.w);
+    expect(dlg.x + dlg.w - (choice.x + choice.w)).toBeLessThanOrEqual(8);
+  });
+
+  it('the combo log draws as many rows as the window has room for (8 at 640x360)', async () => {
+    const { shots, H } = await drawAll(null);
+    const { rowsFor, COMBO_ROW_H, COMBO_TOP } = await import('../src/ui/layout');
+    const { COMBOS } = await import('../src/data/abilities');
+    const rows = rowsFor(H - 8 - COMBO_TOP, COMBO_ROW_H);
+    expect(COMBOS.length).toBeGreaterThan(rows);
+    const combos = shots.find((s) => s.name === 'menu: combos')!.layout;
+    expect(combos.texts.filter((t) => t.text.startsWith('★')).length).toBe(rows);
+    expect(rows).toBe(8);
+  });
+
+  it('the Status screen puts a stat’s label and its value near each other (within 220 px; the old column put them 308 px apart)', async () => {
+    const { shots } = await drawAll(null);
+    const NEAR = 220;
+    const st = shots.find((s) => s.name === 'menu: status, kit')!.layout;
+    const label = st.texts.find((t) => t.text === 'ATK')!;
+    const value = st.texts.filter((t) => t.y === label.y && t !== label).sort((a, b) => b.x - a.x)[0]!;
+    expect(value.x + value.w - label.x).toBeLessThanOrEqual(NEAR);
+  });
+});
+
+describe('what the full-page scenes promise (WP5, D9)', () => {
+  const near = (a: number, b: number, tol = 1) => Math.abs(a - b) <= tol;
+
+  it('the title draws its world over the whole frame, and the logo and the key hints sit inside it', async () => {
+    const { shots, W, H } = await drawAll(null);
+    const menu = shots.find((s) => s.name === 'title: menu')!.layout;
+    // The skyline buffer (320x180) is drawn at 2x over the whole screen: one picture, no void.
+    expect(menu.draws.some((d) => d.op === 'drawImage' && d.x === 0 && d.y === 0 && d.w === W && d.h === H)).toBe(true);
+    // The logo (4x) is centered, and the menu panel under it is centered too.
+    const { LOGO_Y } = await import('../src/scenes/title-layout');
+    const logo = menu.draws.find((d) => d.op === 'drawImage' && d.y === LOGO_Y)!;
+    expect(logo).toBeTruthy();
+    expect(near(logo.x * 2 + logo.w, W, 1)).toBe(true);
+    const hints = menu.texts.filter((t) => t.y > H - 20);
+    expect(hints.length).toBe(2);
+    for (const t of hints) expect(t.y + t.h).toBeLessThanOrEqual(H);
+  });
+
+  it('the ending results page is centered: window, crew row and prompt (the crew row was packed to the left)', async () => {
+    const { shots, W, H } = await drawAll(null);
+    const { PAGE_DY, PAGE_PROMPT_FROM_BOTTOM, RESULTS_W } = await import('../src/ui/layout');
+    const page = shots.find((s) => s.name === 'ending: results')!.layout;
+    const win = page.windows.find((w) => w.title === 'THE RUN SO FAR')!;
+    expect(win.w).toBe(RESULTS_W);
+    expect(win.x * 2 + win.w).toBe(W);
+    expect(win.y).toBe(46 + PAGE_DY);
+    // The crew row: four 32x32 portraits, and the longest name and level beside the last one.
+    const cards = page.draws.filter((d) => d.op === 'drawImage' && d.w === 32 && d.h === 32);
+    expect(cards.length).toBe(4);
+    const left = Math.min(...cards.map((c) => c.x));
+    const last = cards.reduce((a, b) => (b.x > a.x ? b : a));
+    const right = Math.max(...page.texts.filter((t) => t.y >= last.y && t.y < last.y + 32 && t.x > last.x).map((t) => t.x + t.w));
+    expect(near((left + right) / 2, W / 2, 2), `the crew row spans ${left}..${right}, not centered on ${W / 2}`).toBe(true);
+    // The prompt of the page sits PAGE_PROMPT_FROM_BOTTOM above the bottom edge.
+    const prompt = page.texts.find((t) => t.text.startsWith('Press'))!;
+    expect(prompt.y).toBe(H - PAGE_PROMPT_FROM_BOTTOM);
+  });
+
+  it('the next-chapter card and game over use the vertical offset, the prompt at H-20 and the street at H-26', async () => {
+    const { shots, W, H } = await drawAll(null);
+    const { GLOW_REACH, PAGE_DY, PAGE_PROMPT_FROM_BOTTOM, STREET_FROM_BOTTOM } = await import('../src/ui/layout');
+    const next = shots.find((s) => s.name === 'ending: next chapter')!.layout;
+    expect(next.texts.find((t) => t.text === 'CHAPTER TWO')!.y).toBe(96 + PAGE_DY);
+    expect(next.texts.find((t) => t.text.startsWith('Press'))!.y).toBe(H - PAGE_PROMPT_FROM_BOTTOM);
+    const over = shots.find((s) => s.name === 'game over')!.layout;
+    expect(over.texts.find((t) => t.text === 'THE RUN IS OVER')!.y).toBe(44 + PAGE_DY);
+    const street = H - STREET_FROM_BOTTOM;
+    expect(over.draws.some((d) => d.op === 'fillRect' && d.x === 0 && d.y === street && d.w === W && d.h === H - street)).toBe(true);
+    // The red glow behind the crew: 0.74 of the height, which is the 267 px (200 of 270) it was.
+    expect(over.draws.some((d) => d.op === 'fillRect' && d.x === 0 && d.y === street - GLOW_REACH && d.w === W && d.h === GLOW_REACH)).toBe(true);
+    expect(Math.abs(GLOW_REACH - 267)).toBeLessThanOrEqual(2);
+    // The menu window sits under the title text, not on the old row.
+    const menuWin = over.windows.find((w) => w.w === 140)!;
+    expect(menuWin.y).toBe(80 + PAGE_DY);
+  });
+
+  it('the deck group is centered across the screen and sits in the room above Hex’s line box, with the larger gap below', async () => {
+    const { shots, W, H } = await drawAll(null);
+    const dead = shots.find((s) => s.name === 'deck: dead')!.layout;
+    // The deck's backing plate (a fillRect 28 wider than the 264 px art) and its side panel (the prompt window).
+    const plate = dead.draws.find((d) => d.op === 'fillRect' && d.w === 264 + 28)!;
+    const prompt = dead.windows.find((w) => !w.title && w.h === 70)!;
+    expect(plate && prompt).toBeTruthy();
+    const left = plate.x + 14, right = prompt.x + prompt.w;
+    expect(near((left + right) / 2, W / 2, 2), `the group spans ${left}..${right}`).toBe(true);
+    const line = dead.windows.find((w) => w.h === 54)!;
+    const above = plate.y, below = line.y - (plate.y + plate.h);
+    expect(above).toBeGreaterThan(40);
+    expect(below).toBeGreaterThan(0);
+    expect(below).toBeGreaterThanOrEqual(above - 2);
+    expect(line.y + line.h).toBeLessThanOrEqual(H);
+  });
+});
+
+describe('the shop compare rows (Review 4: the crew sprites overlapped the names)', () => {
+  it('each crew sprite ends before its name starts, with COMPARE_SPRITE_GAP between them', async () => {
+    const { shots } = await drawAll(null);
+    const { COMPARE_SPRITE_GAP } = await import('../src/ui/layout');
+    const { MEMBERS } = await import('../src/data/party');
+    const names = new Set(Object.values(MEMBERS).map((m) => m.name));
+    const layout = shots.find((s) => s.name === 'shop: buy')!.layout;
+    // The row's sprite is drawn 4 rows above its name (`drawCompare`), at the same left edge.
+    const rows = layout.texts.filter((t) => names.has(t.text)).map((t) => ({ name: t, sprite: layout.draws.find((d) => d.op === 'drawImage' && d.y === t.y - 4 && d.x < t.x) }));
+    expect(rows.length, 'the buy list’s first item has a compare row per crew member').toBeGreaterThanOrEqual(2);
+    for (const { name, sprite } of rows) {
+      expect(sprite, `a sprite on the row of ${name.text}`).toBeTruthy();
+      expect(sprite!.x + sprite!.w, `${name.text}: the sprite box ends where the name box starts or before`).toBeLessThanOrEqual(name.x);
+      expect(name.x - (sprite!.x + sprite!.w), `${name.text}: the clear gap`).toBeGreaterThanOrEqual(COMPARE_SPRITE_GAP);
+    }
+  });
+});

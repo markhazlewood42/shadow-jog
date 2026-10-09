@@ -16,6 +16,8 @@
 import { BG_IDS, battleBg, type BattleBg } from '../art/battlebg';
 import { FxLayer, type Pt } from '../battle/fx';
 import { gpuCast, gpuSpell } from '../scenes/battlekit/gpufx';
+import { ENEMY_MID_AT, PARTY_BOTTOM, PARTY_MID, partyX, placeEnemies, WORLD_SCALE } from '../scenes/battlekit/geom';
+import { artTop } from '../scenes/battlekit/sprites';
 import { type EnemyArt, enemyArt } from '../art/enemies';
 import { ENEMIES } from '../data/enemies';
 import { FX, GAME_MOMENTS, replaceFx } from '../data/fx';
@@ -28,7 +30,7 @@ import { H, Scene, W } from '../engine/game';
 import { playMoment } from '../engine/moments';
 import type { ParticleShape } from '../engine/particles';
 import { postfx } from '../engine/postfx';
-import { PANEL_Y } from '../scenes/battlekit/geom';
+import { BHT, BW, PANEL_Y } from '../scenes/battlekit/geom';
 
 const PANEL_W = 400;
 
@@ -47,8 +49,10 @@ const SPELLS: readonly [string, string, boolean][] = [
   ['revive', 'Rekindle', false],
   ['explosion', 'Pipe Bomb, Micro-Missile', false],
 ];
-/** Where the caster stands (battle world, as a party member in the lower row would). */
-const CASTER: Pt = { x: 64, y: 96 };
+/** Where the caster stands: over the first party card, at the middle of the body (battle world px, the same spot the battle uses). */
+const CASTER: Pt = { x: partyX(0, 4), y: PARTY_BOTTOM - PARTY_MID };
+/** How far apart (screen px) the three dummies stand for a spell that hits every enemy; the effect's own spread is half of it in world px. */
+const SPELL_SPREAD = 100;
 /** Frames of windup before the effect plays (a party tech's, in battle). */
 const WINDUP = 16;
 const ID = /^[a-z][a-z0-9_.]*$/;
@@ -131,9 +135,9 @@ export class FxLabScene extends Scene<void> {
   private tab: 'presets' | 'moments' | 'spells' = 'presets';
   private spellId = 'fire';
   /** The battle's own effect layer, for the Spells tab (battle-world coordinates). */
-  private fxl = new FxLayer();
-  private fxWorld = surface(240, 135);
-  private fxGlow = surface(240, 135);
+  private fxl = new FxLayer(BW, BHT);
+  private fxWorld = surface(BW, BHT);
+  private fxGlow = surface(BW, BHT);
   private pendingSpell: { at: number; id: string; targets: Pt[] } | null = null;
   private flashLeft = 0;
   private flashColor = '#ffffff';
@@ -141,7 +145,7 @@ export class FxLabScene extends Scene<void> {
   private momentId = Object.keys(GAME_MOMENTS)[0] ?? '';
   private bgId = 'sewer';
   private bg: BattleBg = battleBg('sewer');
-  private world = surface(240, 135);
+  private world = surface(BW, BHT);
   private enemyKey = 'sewer_ghoul';
   private art: EnemyArt | null = null;
   /** Where things fire: the enemy's middle to start with; a click moves it. */
@@ -239,14 +243,15 @@ export class FxLabScene extends Scene<void> {
     ctx.drawImage(this.world.canvas, 0, 0, W, H);
     const art = this.art;
     if (art) {
-      const x = Math.round(W / 2 - art.w), y = Math.round(this.bg.ground * 2 - art.h * 2);
+      const spot = this.dummySpot(art);
+      const x = Math.round(spot.x * WORLD_SCALE), y = Math.round(spot.y * WORLD_SCALE);
       // A spell on every enemy gets three of them to land on.
       const many = this.tab === 'spells' && SPELLS.find(([id]) => id === this.spellId)?.[2];
-      for (const dx of many ? [-100, 0, 100] : [0]) ctx.drawImage(art.canvas, x + dx, y, art.w * 2, art.h * 2);
+      for (const dx of many ? [-SPELL_SPREAD, 0, SPELL_SPREAD] : [0]) ctx.drawImage(art.canvas, x + dx, y, art.w * WORLD_SCALE, art.h * WORLD_SCALE);
     }
     // The battle's effect shapes, over the enemy, and into the bloom.
     const fg = this.fxWorld.ctx;
-    fg.clearRect(0, 0, 240, 135);
+    fg.clearRect(0, 0, BW, BHT);
     this.fxl.render(fg, (c, ch, gx, gy, col) => drawText(c, ch, gx, gy, { color: col, shadow: false }));
     ctx.drawImage(this.fxWorld.canvas, 0, 0, W, H);
     if (this.flashLeft > 0) {
@@ -264,7 +269,7 @@ export class FxLabScene extends Scene<void> {
     }
     if (glow && this.fxl.busy) {
       const gg = this.fxGlow.ctx;
-      gg.clearRect(0, 0, 240, 135);
+      gg.clearRect(0, 0, BW, BHT);
       this.fxl.render(gg, () => undefined, true);
       glow.imageSmoothingEnabled = false;
       glow.drawImage(this.fxGlow.canvas, 0, 0, W, H);
@@ -288,7 +293,16 @@ export class FxLabScene extends Scene<void> {
     this.enemyKey = key;
     const d = ENEMIES[key];
     this.art = d ? enemyArt(d.sprite) : null;
-    if (this.art) this.target = { x: W / 2, y: Math.round(this.bg.ground * 2 - this.art.h) };
+    if (this.art) {
+      const p = this.dummySpot(this.art);
+      this.target = { x: Math.round((p.x + this.art.w / 2) * WORLD_SCALE), y: Math.round((p.y + this.art.h * ENEMY_MID_AT) * WORLD_SCALE) };
+    }
+  }
+
+  /** Where the dummy stands (its top-left, in world px): the battle's own row rule for one regular enemy on this backdrop. */
+  private dummySpot(art: EnemyArt): { x: number; y: number } {
+    const spot = placeEnemies([{ w: art.w, h: art.h, top: artTop(art), boss: false, lurker: false }], this.bg.ground)[0];
+    return spot ?? { x: 0, y: 0 };
   }
 
   /** Fire what's selected at the target: the preset, the moment, or the whole spell. */
@@ -311,8 +325,9 @@ export class FxLabScene extends Scene<void> {
   private castSpell(): void {
     if (this.pendingSpell || this.fxl.busy) return;
     const many = SPELLS.find(([id]) => id === this.spellId)?.[2];
-    const t = { x: this.target.x / 2, y: this.target.y / 2 };
-    const targets = many ? [{ x: t.x - 50, y: t.y }, t, { x: t.x + 50, y: t.y }] : [t];
+    const t = { x: this.target.x / WORLD_SCALE, y: this.target.y / WORLD_SCALE };
+    const spread = SPELL_SPREAD / WORLD_SCALE;
+    const targets = many ? [{ x: t.x - spread, y: t.y }, t, { x: t.x + spread, y: t.y }] : [t];
     gpuCast(this.spellId, CASTER);
     this.pendingSpell = { at: this.frame + WINDUP, id: this.spellId, targets };
   }
@@ -715,7 +730,7 @@ export class FxLabScene extends Scene<void> {
       l.shock ??= {};
       const s = l.shock;
       num('Push (px)', () => s.strength ?? 3, (v) => (s.strength = v), 0, 20, 0.1);
-      num('Reach (px)', () => s.reach ?? 90, (v) => (s.reach = v), 0, 480, 1);
+      num('Reach (px)', () => s.reach ?? 90, (v) => (s.reach = v), 0, W, 1);
       num('Life (frames)', () => s.life ?? 26, (v) => (s.life = v), 1, 120, 1);
       num('Ring width (px)', () => s.width ?? 10, (v) => (s.width = v), 1, 60, 0.5);
     } else if (kind === 'aberrate') {
@@ -723,14 +738,14 @@ export class FxLabScene extends Scene<void> {
     } else if (kind === 'haze') {
       l.haze ??= {};
       const s = l.haze;
-      num('Radius (px)', () => s.radius ?? 40, (v) => (s.radius = v), 4, 240, 1);
+      num('Radius (px)', () => s.radius ?? 40, (v) => (s.radius = v), 4, W / 2, 1);
       num('Waver (px)', () => s.strength ?? 1.5, (v) => (s.strength = v), 0, 8, 0.1);
       num('Life (frames)', () => s.life ?? 60, (v) => (s.life = v), 1, 240, 1);
     } else if (kind === 'glitch') {
       l.glitch ??= {};
       const s = l.glitch;
-      num('Width (px)', () => s.w ?? 90, (v) => (s.w = v), 4, 480, 1);
-      num('Height (px)', () => s.h ?? 60, (v) => (s.h = v), 4, 270, 1);
+      num('Width (px)', () => s.w ?? 90, (v) => (s.w = v), 4, W, 1);
+      num('Height (px)', () => s.h ?? 60, (v) => (s.h = v), 4, H, 1);
       num('Slide (px)', () => s.strength ?? 6, (v) => (s.strength = v), 0, 30, 0.5);
       num('Life (frames)', () => s.life ?? 24, (v) => (s.life = v), 1, 120, 1);
     } else if (kind === 'dim') {

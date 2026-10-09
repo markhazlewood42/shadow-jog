@@ -10,6 +10,7 @@ import { CharTestScene } from './scenes/chartest';
 import { FieldScene } from './scenes/field';
 import { FontTestScene } from './scenes/fonttest';
 import { MapViewScene } from './scenes/mapview';
+import { PanelScene } from './scenes/panels';
 import { PortraitTestScene } from './scenes/portraittest';
 
 /** Run the named dev scene; false if the name isn't one (the caller shows the title). */
@@ -59,6 +60,10 @@ export function runDevScene(game: Game, scene: string, params: URLSearchParams, 
       break;
     case 'font':
       void game.run(new FontTestScene());
+      break;
+    case 'panels':
+      // A comic sequence on its own: ?scene=panels&id=intro or &id=ending.
+      void game.run(new PanelScene(params.get('id') ?? 'ending'));
       break;
     default:
       return false;

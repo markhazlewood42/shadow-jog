@@ -41,7 +41,12 @@ import { LOOKS } from '../data/looks';
 import { MEMBERS, xpFor } from '../data/party';
 import type { Ctx } from '../engine/canvas';
 import { drawParagraph, drawText, fitText, measure, wrap } from '../engine/font';
-import { COMBO_TEXT_W, EQUIP_DESC_W, MENU_OBJ_W } from '../ui/layout';
+import {
+  BESTIARY_BOX_H, BESTIARY_BOX_W, CARD_BAR_W, CARD_COMPACT_H, CARD_GAP, CARD_H, COMBO_ROW_H, COMBO_TEXT_W, COMBO_TOP, EQUIP_BOTTOM_PAD, EQUIP_DESC_GAP, EQUIP_DESC_W,
+  EQUIP_GAP, EQUIP_SLOTS_H, EQUIP_STATS_H, EQUIP_STATS_W, EQUIP_STATS_Y, LIST_ROW_H, MENU_DESC_ROOM, MENU_LIST_BOTTOM_PAD, MENU_PANE_X, MENU_RAIL_W, MENU_RAIL_X, MENU_SIDE_LIST_TOP,
+  MENU_SIDE_LIST_W, menuCardStrip, menuPaneW, rowsFor, STATUS_ABILITY_COL_W, STATUS_ABILITY_COLS, STATUS_ABILITY_ROWS, STATUS_ABILITY_TEXT_W, STATUS_ABILITY_X, STATUS_BIO_W, STATUS_DIVIDER_Y,
+  STATUS_LOWER_Y, STATUS_ROW_H, STATUS_STATS_W, STATUS_STATS_X, STATUS_TEXT_X, STATUS_WOUND_W, TARGET_CARD_GAP, TARGET_PANE_W,
+} from '../ui/layout';
 import { Scene, W, H } from '../engine/game';
 import { applyEffects } from '../game/fielduse';
 import { canEquip, currentWound, equip, knownAbilities, lockedAbilities, maxUses, memberStats, SLOT_NAMES } from '../game/party';
@@ -52,8 +57,21 @@ import { ListMenu, type ListItem } from '../ui/list';
 import { OptionsScene } from './options';
 import { PlaceMapScene } from './placemap';
 
+/**
+ * Rows of the lists that follow the window height (docs/PIVOT-640.md, WP4): each is `rowsFor` of the
+ * room its window leaves under the list's first row, so a taller screen shows more rows and no edit
+ * is needed. The shared ones are here; the Equip gear list's own is in `gearRows`.
+ */
+/** The item or tech list's window height: the screen less its margins and the room under the window. */
+const listPaneH = (): number => H - 16 - MENU_LIST_BOTTOM_PAD;
+/** Rows of the Items and Techs lists: the window less its header, and the room kept for the description. */
+const paneRows = (): number => rowsFor(listPaneH() - MENU_DESC_ROOM, LIST_ROW_H);
+/** Rows of the Bestiary and Places lists (the window runs the screen's height, 8 px in from the edges). */
+const sideListRows = (): number => rowsFor(H - 8 - MENU_SIDE_LIST_TOP - 8, LIST_ROW_H);
 /** Combo log entries visible at once (36px each under the header). */
-const COMBO_ROWS = 6;
+const comboRows = (): number => rowsFor(H - 8 - COMBO_TOP, COMBO_ROW_H);
+/** Rows of the Equip gear list: the gear window runs to EQUIP_BOTTOM_PAD above the screen's bottom; the list starts 8 px into it and keeps 6 px under its last row. */
+const gearRows = (): number => rowsFor(H - EQUIP_BOTTOM_PAD - (EQUIP_STATS_Y + 8) - 6, LIST_ROW_H);
 
 /** Display names for enemy families. */
 const FAMILY_NAME: Record<string, string> = { human: 'Human', machine: 'Machine', beast: 'Beast', spirit: 'Spirit', ghoul: 'Ghoul' };
@@ -67,9 +85,9 @@ export class MenuScene extends Scene<MenuResult> {
   override curtain = true;
   private mode: Mode = 'main';
   private main = new ListMenu<string>([], 9);
-  private beasts = new ListMenu<string>([], 17);
-  private places = new ListMenu<string>([], 12);
-  private sub = new ListMenu<string>([], 12);
+  private beasts = new ListMenu<string>([], sideListRows());
+  private places = new ListMenu<string>([], sideListRows());
+  private sub = new ListMenu<string>([], paneRows());
   private comboScroll = 0;
   private memberIdx = 0;
   private purpose: 'techs' | 'equip' | 'status' = 'status';
@@ -77,7 +95,7 @@ export class MenuScene extends Scene<MenuResult> {
   private pendingTech: { user: MemberId; id: string } | null = null;
   private equipSlot: EquipSlot = 'weapon';
   /** The gear list beside the slots (the slots themselves use `sub`). */
-  private gear = new ListMenu<string>([], 8);
+  private gear = new ListMenu<string>([], gearRows());
   private toast: { text: string; t: number } | null = null;
   private t = 0;
   private saveSlot: SlotId = 1;
@@ -268,7 +286,7 @@ export class MenuScene extends Scene<MenuResult> {
         break;
       }
       case 'combos': {
-        const max = Math.max(0, COMBOS.length - COMBO_ROWS);
+        const max = Math.max(0, COMBOS.length - comboRows());
         if (inp.repeat('down') && this.comboScroll < max) { this.comboScroll++; sfx('cursor'); }
         else if (inp.repeat('up') && this.comboScroll > 0) { this.comboScroll--; sfx('cursor'); }
         else if (inp.pressed('cancel') || inp.pressed('confirm')) {
@@ -319,7 +337,7 @@ export class MenuScene extends Scene<MenuResult> {
 
   private openItems(): void {
     this.sub.setItems(this.itemList());
-    this.sub.rows = 14;
+    this.sub.rows = paneRows();
     this.mode = 'items';
   }
 
@@ -371,7 +389,7 @@ export class MenuScene extends Scene<MenuResult> {
         return { label: ab.name, value: id, right: cost, enabled: !!ab.field && affordable, icon: ab.kind === 'tech' ? '•' : '★', iconColor: ab.kind === 'tech' ? UI.cyan : UI.amber };
       }),
     );
-    this.sub.rows = 12;
+    this.sub.rows = paneRows();
     this.mode = 'techs';
   }
 
@@ -424,7 +442,7 @@ export class MenuScene extends Scene<MenuResult> {
       })),
     );
     if (fresh) this.sub.index = 0;
-    this.sub.rows = 4;
+    this.sub.rows = EQUIP_SLOTS.length;
     this.mode = 'equipSlots';
     this.refreshGear();
   }
@@ -505,69 +523,93 @@ export class MenuScene extends Scene<MenuResult> {
       return;
     }
     // Main command column
-    drawWindow(ctx, 8, 8, 92, this.main.items.length * 11 + 14, { title: 'MENU' , footer: keyLegend(this.game.input, 'close') });
-    this.main.render(ctx, 15, 15, 82, this.mode === 'main');
+    const rail = MENU_RAIL_X + 8;
+    drawWindow(ctx, MENU_RAIL_X, 8, MENU_RAIL_W, this.main.items.length * 11 + 14, { title: 'MENU' , footer: keyLegend(this.game.input, 'close') });
+    this.main.render(ctx, rail - 1, 15, MENU_RAIL_W - 10, this.mode === 'main');
     // Info
-    drawWindow(ctx, 8, H - 74, 92, 66, { plain: true });
-    drawText(ctx, `{y}${state.cred.toLocaleString('en-US')}¢`, 16, H - 68);
-    drawText(ctx, formatPlayTime(this.game.playFrames), 16, H - 56, { color: UI.dim });
-    drawParagraph(ctx, locationName(state.map), 16, H - 44, 80, { color: UI.cyan, lineH: 10 });
+    drawWindow(ctx, MENU_RAIL_X, H - 74, MENU_RAIL_W, 66, { plain: true });
+    drawText(ctx, `{y}${state.cred.toLocaleString('en-US')}¢`, rail, H - 68);
+    drawText(ctx, formatPlayTime(this.game.playFrames), rail, H - 56, { color: UI.dim });
+    drawParagraph(ctx, locationName(state.map), rail, H - 44, MENU_RAIL_W - 12, { color: UI.cyan, lineH: 10 });
     const obj = flags.get('objective') as string | undefined;
     if (obj) {
       // Wrapped to the box (it grows upward for a second line), never drawn past its frame.
-      const lines = wrap(obj, MENU_OBJ_W);
+      const paneW = menuPaneW();
+      const lines = wrap(obj, paneW - 28);
       const h = 12 + lines.length * 10;
-      drawWindow(ctx, 108, H - 8 - h, W - 116, h, { plain: true, accent: UI.amber, title: 'OBJECTIVE' });
-      for (const [i, ln] of lines.entries()) drawText(ctx, (i === 0 ? '{y}▶{/} ' : '   ') + ln, 116, H - 2 - h + 4 + i * 10);
+      drawWindow(ctx, MENU_PANE_X, H - 8 - h, paneW, h, { plain: true, accent: UI.amber, title: 'OBJECTIVE' });
+      for (const [i, ln] of lines.entries()) drawText(ctx, (i === 0 ? '{y}▶{/} ' : '   ') + ln, MENU_PANE_X + 8, H - 2 - h + 4 + i * 10);
     }
-    // Right side: party cards or sub-list
+    // Right side: party cards or sub-list (Items and Techs keep the party in compact cards beside the list)
     const listModes: Mode[] = ['items', 'techs', 'equipSlots', 'equipList', 'save', 'saveConfirm'];
     if (listModes.includes(this.mode) || this.mode === 'itemTarget' || this.mode === 'techTarget') {
-      if (this.mode === 'items' || this.mode === 'itemTarget') this.renderItems(ctx);
-      else if (this.mode === 'techs' || this.mode === 'techTarget') this.renderTechs(ctx);
-      else if (this.mode === 'equipSlots' || this.mode === 'equipList') this.renderEquip(ctx);
+      const picking = this.mode === 'itemTarget' || this.mode === 'techTarget';
+      const { w, cardX } = this.listLayout(picking);
+      if (this.mode === 'items' || this.mode === 'itemTarget') {
+        this.renderItems(ctx, w);
+        if (cardX !== null) this.renderCards(ctx, cardX, picking, true);
+      } else if (this.mode === 'techs' || this.mode === 'techTarget') {
+        this.renderTechs(ctx, w);
+        if (cardX !== null) this.renderCards(ctx, cardX, picking, true);
+      } else if (this.mode === 'equipSlots' || this.mode === 'equipList') this.renderEquip(ctx);
       else this.renderSave(ctx);
-      if (this.mode === 'itemTarget' || this.mode === 'techTarget') this.renderCards(ctx, 300, true);
-    } else this.renderCards(ctx, 108, this.mode === 'pickMember');
+    } else this.renderCards(ctx, MENU_PANE_X, this.mode === 'pickMember', false);
     this.renderToast(ctx);
+  }
+
+  /**
+   * The Items and Techs lists and the party's cards beside them. With room (640 wide) the list is a
+   * capped pane and the cards are always in the strip beside it. With none (480x270), the list keeps its full width, and while the player picks who gets
+   * an item or a tech it narrows to `TARGET_PANE_W` and the cards come back beside it, as they did.
+   */
+  private listLayout(picking: boolean): { w: number; cardX: number | null } {
+    const strip = menuCardStrip();
+    if (strip) return { w: menuPaneW(), cardX: strip.x };
+    return picking ? { w: TARGET_PANE_W, cardX: MENU_PANE_X + TARGET_PANE_W + TARGET_CARD_GAP } : { w: menuPaneW(), cardX: null };
   }
 
   private renderToast(ctx: Ctx): void {
     if (!this.toast) return;
     // Centred in the space right of the MENU column, never over it.
-    const left = 108, room = W - left - 8;
+    const left = MENU_PANE_X, room = W - left - 8;
     const tw = Math.min(room, measure(this.toast.text) + 20);
     const tx = left + (room - tw) / 2;
     drawWindow(ctx, tx, 6, tw, 17, { plain: true, accent: UI.green });
     drawText(ctx, fitText(this.toast.text, tw - 12), tx + tw / 2, 10, { align: 'center' });
   }
 
-  private renderCards(ctx: Ctx, x: number, picking: boolean): void {
+  /** The party's cards from `x` to the right margin: full (portrait, role, next level), or compact (sprite, name, bars). */
+  private renderCards(ctx: Ctx, x: number, picking: boolean, compact: boolean): void {
     const w = W - x - 8;
-    const compact = x > 200;
     const ms = this.members;
-    const cardH = compact ? 44 : 50;
+    const cardH = compact ? CARD_COMPACT_H : CARD_H;
     ms.forEach((m, i) => {
-      const y = 8 + i * (cardH + 4);
+      const y = 8 + i * (cardH + CARD_GAP);
       const sel = picking && i === this.memberIdx;
       const def = MEMBERS[m.id];
       drawWindow(ctx, x, y, w, cardH, { plain: !sel, accent: sel ? def.color : undefined });
       if (sel) drawSelect(ctx, x + 2, y + 2, w - 4, cardH - 4, 'rgba(63,224,240,0.08)');
       const s = memberStats(m);
       const port = getPortrait(m.id, 'neutral');
+      // A compact card draws the sprite at 1x and starts its text just past the sprite's canvas (it is
+      // wider than the 22 px the old layout assumed, so the name used to sit over the sprite's hat).
+      let tx = x + 52;
       if (port && !compact) ctx.drawImage(port, x + 5, y + 5, 40, 40);
       else {
         const spr = buildChar(LOOKS[m.id]).frames.down[0]!;
         ctx.drawImage(spr, x + 6, y + 6, spr.width * (compact ? 1 : 1.5), spr.height * (compact ? 1 : 1.5));
+        if (compact) tx = x + 6 + spr.width + 2;
       }
-      const tx = x + (compact ? 28 : 52);
       drawText(ctx, def.name, tx, y + 6, { color: def.color });
-      drawText(ctx, `Lv ${m.level}`, tx + (compact ? 60 : 64), y + 6, { color: UI.dim });
+      drawText(ctx, `Lv ${m.level}`, compact ? x + w - 7 : tx + 64, y + 6, { color: UI.dim, align: compact ? 'right' : 'left' });
       if (!compact) drawText(ctx, def.role, x + w - 8, y + 6, { color: UI.dim, align: 'right' });
       const down = m.hp <= 0;
-      // Numbers right-align inside the card; the bar stops short of the widest reading ("999/999").
-      const numX = compact ? x + w - 7 : tx + 26 + 120 + 60;
-      const bw = compact ? numX - measure('999/999') - 6 - (tx + 20) : 120;
+      // Numbers right-align inside the card, just past the bar (a compact card: at its edge, and the
+      // bar stops short of the widest reading, "999/999"). The bar is CARD_BAR_W on a full card, so
+      // the numbers move with the card and never sit across a gap from the bar.
+      const widest = measure('999/999');
+      const numX = compact ? x + w - 7 : tx + 20 + CARD_BAR_W + 8 + widest;
+      const bw = compact ? numX - widest - 6 - (tx + 20) : CARD_BAR_W;
       drawText(ctx, down ? '{r}DOWN{/}' : 'HP', tx, y + 18, { color: UI.dim });
       drawBar(ctx, tx + 20, y + 21, bw, 2, m.hp / s.maxHp, hpColor(m.hp / s.maxHp));
       drawText(ctx, `${m.hp}/${s.maxHp}`, numX, y + 18, { align: 'right' });
@@ -584,11 +626,11 @@ export class MenuScene extends Scene<MenuResult> {
     });
   }
 
-  private renderItems(ctx: Ctx): void {
-    const x = 108, w = this.mode === 'itemTarget' ? 186 : W - 116;
-    const h = H - 16 - 34;
+  private renderItems(ctx: Ctx, w: number): void {
+    const x = MENU_PANE_X;
+    const h = listPaneH();
     drawWindow(ctx, x, 8, w, h, { title: 'ITEMS' , footer: keyLegend(this.game.input) });
-    this.sub.rows = Math.floor((h - 40) / 11);
+    this.sub.rows = paneRows();
     this.sub.render(ctx, x + 8, 16, w - 14, this.mode === 'items', 'Your pockets are empty.');
     const cur = this.sub.current;
     if (cur) {
@@ -597,10 +639,11 @@ export class MenuScene extends Scene<MenuResult> {
     }
   }
 
-  private renderTechs(ctx: Ctx): void {
+  private renderTechs(ctx: Ctx, w: number): void {
     const m = this.members[this.memberIdx]!;
-    const x = 108, w = this.mode === 'techTarget' ? 186 : W - 116;
-    const h = H - 16 - 34;
+    const x = MENU_PANE_X;
+    const h = listPaneH();
+    this.sub.rows = paneRows();
     drawWindow(ctx, x, 8, w, h, { title: `${MEMBERS[m.id].name.toUpperCase()} · ${m.tp}/${memberStats(m).maxTp} ${MEMBERS[m.id].tpLabel}`, accent: MEMBERS[m.id].color , footer: keyLegend(this.game.input) });
     this.sub.render(ctx, x + 8, 16, w - 14, this.mode === 'techs', 'Nothing learned yet.');
     const cur = this.sub.current;
@@ -613,10 +656,10 @@ export class MenuScene extends Scene<MenuResult> {
 
   private renderEquip(ctx: Ctx): void {
     const m = this.members[this.memberIdx]!;
-    const x = 108, w = W - 116;
+    const x = MENU_PANE_X, w = menuPaneW();
     const listing = this.mode === 'equipList';
     const slot = (listing ? this.equipSlot : this.sub.current?.value ?? 'weapon') as EquipSlot;
-    drawWindow(ctx, x, 8, w, 64, { title: `EQUIP · ${MEMBERS[m.id].name.toUpperCase()}`, accent: MEMBERS[m.id].color });
+    drawWindow(ctx, x, 8, w, EQUIP_SLOTS_H, { title: `EQUIP · ${MEMBERS[m.id].name.toUpperCase()}`, accent: MEMBERS[m.id].color });
     this.sub.render(ctx, x + 8, 16, w - 14, !listing);
     // Stats comparison: against the piece under the cursor, once you're in the gear list.
     const cur = memberStats(m);
@@ -625,36 +668,40 @@ export class MenuScene extends Scene<MenuResult> {
       const v = this.gear.current.value;
       preview = memberStats(trialWith(m, slot, v === '__none' ? null : v));
     }
-    drawWindow(ctx, x, 78, 150, 88, { plain: true });
+    drawWindow(ctx, x, EQUIP_STATS_Y, EQUIP_STATS_W, EQUIP_STATS_H, { plain: true });
     const rows: [string, keyof typeof cur][] = [['ATK', 'atk'], ['DEF', 'def'], ['MND', 'mnd'], ['RES', 'res'], ['AGI', 'agi'], ['HP', 'maxHp'], ['TP', 'maxTp']];
     rows.forEach(([label, k], i) => {
       const a = cur[k], b = preview[k];
-      drawText(ctx, label, x + 10, 84 + i * 11, { color: UI.dim });
-      drawText(ctx, String(a), x + 70, 84 + i * 11, { align: 'right' });
+      const ry = EQUIP_STATS_Y + 6 + i * 11;
+      drawText(ctx, label, x + 10, ry, { color: UI.dim });
+      drawText(ctx, String(a), x + 70, ry, { align: 'right' });
       if (b !== a) {
-        drawText(ctx, '→', x + 80, 84 + i * 11, { color: UI.dim });
-        drawText(ctx, String(b), x + 118, 84 + i * 11, { align: 'right', color: b > a ? UI.green : UI.red });
+        drawText(ctx, '→', x + 80, ry, { color: UI.dim });
+        drawText(ctx, String(b), x + 118, ry, { align: 'right', color: b > a ? UI.green : UI.red });
       }
     });
     // The slot's gear, always in view: dimmed while you're choosing a slot, live once you're in it.
-    drawWindow(ctx, x + 156, 78, w - 156, H - 78 - 38, { title: SLOT_NAMES[slot].toUpperCase(), accent: listing ? MEMBERS[m.id].color : undefined });
+    const gx = x + EQUIP_STATS_W + EQUIP_GAP, gw = w - EQUIP_STATS_W - EQUIP_GAP;
+    drawWindow(ctx, gx, EQUIP_STATS_Y, gw, H - EQUIP_BOTTOM_PAD - EQUIP_STATS_Y, { title: SLOT_NAMES[slot].toUpperCase(), accent: listing ? MEMBERS[m.id].color : undefined });
     const none = `No other ${SLOT_NAMES[slot].toLowerCase()} gear in the bag. Shops and chests have more.`;
-    if (!this.gear.items.length) drawParagraph(ctx, none, x + 164, 86, w - 176, { color: UI.dim, lineH: 10 });
+    const gy = EQUIP_STATS_Y + 8;
+    this.gear.rows = gearRows();
+    if (!this.gear.items.length) drawParagraph(ctx, none, gx + 8, gy, gw - 20, { color: UI.dim, lineH: 10 });
     else {
-      this.gear.render(ctx, x + 164, 86, w - 170, listing);
-      if (this.gear.items.length === 1 && this.gear.items[0]!.value === '__none') drawParagraph(ctx, none, x + 164, 104, w - 176, { color: UI.dim, lineH: 10 });
+      this.gear.render(ctx, gx + 8, gy, gw - 14, listing);
+      if (this.gear.items.length === 1 && this.gear.items[0]!.value === '__none') drawParagraph(ctx, none, gx + 8, gy + 18, gw - 20, { color: UI.dim, lineH: 10 });
     }
     // Under the stats: the piece under the cursor, or (choosing a slot) what's worn there now.
     const id = listing ? (this.gear.current && this.gear.current.value !== '__none' ? this.gear.current.value : null) : (m.equip[slot] ?? null);
     const it = id ? ITEMS[id] : null;
     if (it) {
       const note = canEquip(m, it.id) ? '' : ` {r}${MEMBERS[m.id].name} can’t use this.{/}`;
-      drawParagraph(ctx, `${listing ? '' : '{d}Worn:{/} '}${markElements(it.desc)}${note}`, x + 10, 172, EQUIP_DESC_W, { color: '#d0cee4', lineH: 10 });
+      drawParagraph(ctx, `${listing ? '' : '{d}Worn:{/} '}${markElements(it.desc)}${note}`, x + 10, EQUIP_STATS_Y + EQUIP_STATS_H + EQUIP_DESC_GAP, EQUIP_DESC_W, { color: '#d0cee4', lineH: 10 });
     }
   }
 
   private renderSave(ctx: Ctx): void {
-    const x = 108, w = W - 116;
+    const x = MENU_PANE_X, w = menuPaneW();
     drawWindow(ctx, x, 8, w, 50, { title: 'SAVE' });
     this.sub.render(ctx, x + 8, 16, w - 14, this.mode === 'save');
     if (this.mode === 'saveConfirm') {
@@ -674,58 +721,63 @@ export class MenuScene extends Scene<MenuResult> {
       const spr = buildChar(LOOKS[m.id]).frames.down[0]!;
       ctx.drawImage(spr, 28, 22, spr.width * 2.5, spr.height * 2.5);
     }
-    drawText(ctx, def.name, 94, 22, { color: def.color });
-    drawText(ctx, def.role, 94, 34, { color: UI.dim });
-    drawText(ctx, `Level {y}${m.level}{/}`, 94, 48);
-    drawText(ctx, `XP ${m.xp.toLocaleString('en-US')}  ·  Next in ${(xpFor(m.level + 1) - m.xp).toLocaleString('en-US')}`, 94, 60, { color: UI.dim });
-    const bioLines = drawParagraph(ctx, def.bio, 94, 74, 200, { color: '#d0cee4', lineH: 10 });
+    drawText(ctx, def.name, STATUS_TEXT_X, 22, { color: def.color });
+    drawText(ctx, def.role, STATUS_TEXT_X, 34, { color: UI.dim });
+    drawText(ctx, `Level {y}${m.level}{/}`, STATUS_TEXT_X, 48);
+    drawText(ctx, `XP ${m.xp.toLocaleString('en-US')}  ·  Next in ${(xpFor(m.level + 1) - m.xp).toLocaleString('en-US')}`, STATUS_TEXT_X, 60, { color: UI.dim });
+    const bioLines = drawParagraph(ctx, def.bio, STATUS_TEXT_X, 74, STATUS_BIO_W, { color: '#d0cee4', lineH: 10 });
     const wound = currentWound(m.id);
     if (wound) {
       // What the wound costs, in numbers, so the tutorial's promise can be checked here.
       const pct = (k: number) => `-${Math.round((1 - k) * 100)}%`;
-      drawText(ctx, fitText(`{r}WOUNDED{/}  {d}HP ${pct(wound.hp)}  ATK ${pct(wound.atk)}  AGI ${pct(wound.agi)}{/}`, 206), 94, 76 + bioLines * 10);
+      drawText(ctx, fitText(`{r}WOUNDED{/}  {d}HP ${pct(wound.hp)}  ATK ${pct(wound.atk)}  AGI ${pct(wound.agi)}{/}`, STATUS_WOUND_W), STATUS_TEXT_X, 76 + bioLines * 10);
     }
-    // Stats
-    const sx = 310;
+    // Stats: a block as wide as STATUS_STATS_W at the window's right, labels left and values right (a
+    // label and its value stay near each other; the old column put them 308 px apart at this width).
+    const sx = STATUS_STATS_X;
     const rows: [string, string][] = [
       ['HP', `${m.hp}/${s.maxHp}`], [def.tpLabel === '—' ? 'TP' : def.tpLabel, s.maxTp ? `${m.tp}/${s.maxTp}` : '—'],
       ['ATK', String(s.atk)], ['DEF', String(s.def)], ['MND', String(s.mnd)], ['RES', String(s.res)], ['AGI', String(s.agi)], ['CRIT', `${s.crit}%`],
     ];
     rows.forEach(([k, v], i) => {
-      drawText(ctx, k, sx, 22 + i * 11, { color: UI.dim });
-      drawText(ctx, v, W - 22, 22 + i * 11, { align: 'right' });
+      drawText(ctx, k, sx, 22 + i * STATUS_ROW_H, { color: UI.dim });
+      drawText(ctx, v, sx + STATUS_STATS_W, 22 + i * STATUS_ROW_H, { align: 'right' });
     });
-    drawDivider(ctx, 16, 118, W - 32);
-    drawText(ctx, 'EQUIPMENT', 18, 124, { color: UI.cyan });
+    drawDivider(ctx, 16, STATUS_DIVIDER_Y, W - 32);
+    drawText(ctx, 'EQUIPMENT', 18, STATUS_DIVIDER_Y + 6, { color: UI.cyan });
     (['weapon', 'body', 'head', 'mod'] as EquipSlot[]).forEach((slot, i) => {
-      drawText(ctx, SLOT_NAMES[slot], 18, 137 + i * 11, { color: UI.dim });
-      drawText(ctx, m.equip[slot] ? ITEMS[m.equip[slot]!]!.name : '—', 70, 137 + i * 11);
+      drawText(ctx, SLOT_NAMES[slot], 18, STATUS_LOWER_Y + i * STATUS_ROW_H, { color: UI.dim });
+      drawText(ctx, m.equip[slot] ? ITEMS[m.equip[slot]!]!.name : '—', 70, STATUS_LOWER_Y + i * STATUS_ROW_H);
     });
-    drawText(ctx, 'ABILITIES', 240, 124, { color: UI.cyan });
+    // The abilities run down columns of STATUS_ABILITY_ROWS, from STATUS_ABILITY_X, each column
+    // STATUS_ABILITY_COL_W wide (three at this width; the nine-row pitch is the old one).
+    drawText(ctx, 'ABILITIES', STATUS_ABILITY_X, STATUS_DIVIDER_Y + 6, { color: UI.cyan });
+    const slotXY = (i: number): [number, number] => [STATUS_ABILITY_X + (Math.floor(i / STATUS_ABILITY_ROWS) % STATUS_ABILITY_COLS) * STATUS_ABILITY_COL_W, STATUS_LOWER_Y + (i % STATUS_ABILITY_ROWS) * STATUS_ROW_H];
     const abs = knownAbilities(m);
     abs.forEach((id, i) => {
       const ab = ABILITIES[id]!;
-      const col = i < 9 ? 0 : 1;
-      drawText(ctx, fitText(`${ab.kind === 'tech' ? '•' : '★'} ${ab.name}`, 104), 240 + col * 110, 137 + (i % 9) * 11, { color: ab.kind === 'tech' ? '#d0f4ff' : '#ffe8b0' });
+      const [ax, ay] = slotXY(i);
+      drawText(ctx, fitText(`${ab.kind === 'tech' ? '•' : '★'} ${ab.name}`, STATUS_ABILITY_TEXT_W), ax, ay, { color: ab.kind === 'tech' ? '#d0f4ff' : '#ffe8b0' });
     });
     // What the story is still holding back (Rook's skills, while he's hurt): shown greyed, so the
     // player knows there's more to come.
     const locked = lockedAbilities(m);
     locked.forEach((id, j) => {
-      const i = abs.length + j;
-      drawText(ctx, fitText(`× ${ABILITIES[id]!.name}`, 104), 240 + (i < 9 ? 0 : 110), 137 + (i % 9) * 11, { color: UI.disabled });
+      const [ax, ay] = slotXY(abs.length + j);
+      drawText(ctx, fitText(`× ${ABILITIES[id]!.name}`, STATUS_ABILITY_TEXT_W), ax, ay, { color: UI.disabled });
     });
     // The key to the greyed rows, once, on the header line (a suffix on each row didn't fit).
-    if (locked.length) drawText(ctx, '× locked for now', W - 22, 124, { align: 'right', color: UI.disabled });
+    if (locked.length) drawText(ctx, '× locked for now', W - 22, STATUS_DIVIDER_Y + 6, { align: 'right', color: UI.disabled });
   }
 
   /** Every enemy the crew has beaten: what it looks like, what hurts it, and field notes. */
   private renderBestiary(ctx: Ctx): void {
     const n = Object.keys(ENEMIES).filter((k) => !ENEMIES[k]!.boss || (state.bestiary[k] ?? 0) > 0).length;
-    drawWindow(ctx, 8, 8, 150, H - 16, { title: `BESTIARY ${this.beasts.items.length}/${n}`, accent: UI.amber , footer: keyLegend(this.game.input) });
-    this.beasts.render(ctx, 16, 24, 136, true, 'Nothing logged yet. Win a fight.');
+    drawWindow(ctx, 8, 8, MENU_SIDE_LIST_W, H - 16, { title: `BESTIARY ${this.beasts.items.length}/${n}`, accent: UI.amber , footer: keyLegend(this.game.input) });
+    this.beasts.rows = sideListRows();
+    this.beasts.render(ctx, 16, MENU_SIDE_LIST_TOP, MENU_SIDE_LIST_W - 14, true, 'Nothing logged yet. Win a fight.');
     const cur = this.beasts.current;
-    const x = 164, w = W - x - 8;
+    const x = 8 + MENU_SIDE_LIST_W + 6, w = W - x - 8;
     drawWindow(ctx, x, 8, w, H - 16, { plain: true });
     if (!cur) return;
     const e = ENEMIES[cur.value]!;
@@ -733,7 +785,7 @@ export class MenuScene extends Scene<MenuResult> {
     // Portrait box with the battle sprite, as large as whole pixels allow.
     const ea = enemyArt(e.sprite);
     const art = ea.canvas;
-    const box = { x: x + 8, y: 16, w: 120, h: 104 };
+    const box = { x: x + 8, y: 16, w: BESTIARY_BOX_W, h: BESTIARY_BOX_H };
     ctx.fillStyle = '#0c0b14';
     ctx.fillRect(box.x, box.y, box.w, box.h);
     // Sized by its battle-world size (creatures' art is finer than the world): whole screen pixels
@@ -767,19 +819,23 @@ export class MenuScene extends Scene<MenuResult> {
 
   /** Places the crew has been: what each is for and how to get there, plus the objective. */
   private renderPlaces(ctx: Ctx): void {
-    drawWindow(ctx, 8, 8, 150, H - 16, { title: 'PLACES', accent: UI.cyan , footer: keyLegend(this.game.input) });
-    this.places.render(ctx, 16, 24, 136, true, 'Nowhere yet.');
-    const x = 164, w = W - x - 8;
+    drawWindow(ctx, 8, 8, MENU_SIDE_LIST_W, H - 16, { title: 'PLACES', accent: UI.cyan , footer: keyLegend(this.game.input) });
+    this.places.rows = sideListRows();
+    this.places.render(ctx, 16, MENU_SIDE_LIST_TOP, MENU_SIDE_LIST_W - 14, true, 'Nowhere yet.');
+    const x = 8 + MENU_SIDE_LIST_W + 6, w = W - x - 8;
     drawWindow(ctx, x, 8, w, H - 16, { plain: true });
     const cur = PLACES.find((p) => p.id === this.places.current?.value);
     if (cur) {
       drawText(ctx, cur.name, x + 10, 18, { color: UI.cyan });
       if (cur.id === state.map) drawText(ctx, 'You are here', x + w - 10, 18, { align: 'right', color: UI.amber });
-      drawParagraph(ctx, cur.about, x + 10, 34, w - 20, { color: '#d0cee4', lineH: 11 });
-      drawDivider(ctx, x + 6, 104, w - 12);
-      drawText(ctx, 'Getting there', x + 10, 112, { color: UI.dim });
-      drawParagraph(ctx, cur.route, x + 10, 124, w - 20, { color: '#b8bcd0', lineH: 11 });
-      drawText(ctx, `${this.game.input.keyName('confirm')}: map`, x + w - 10, 112, { color: UI.cyan, align: 'right' });
+      // The blocks flow down from each paragraph's own height, so a longer text pushes the next block
+      // along, and a shorter one does not leave a gap.
+      const aboutLines = drawParagraph(ctx, cur.about, x + 10, 34, w - 20, { color: '#d0cee4', lineH: 11 });
+      const split = 34 + aboutLines * 11 + 8;
+      drawDivider(ctx, x + 6, split, w - 12);
+      drawText(ctx, 'Getting there', x + 10, split + 8, { color: UI.dim });
+      drawParagraph(ctx, cur.route, x + 10, split + 20, w - 20, { color: '#b8bcd0', lineH: 11 });
+      drawText(ctx, `${this.game.input.keyName('confirm')}: map`, x + w - 10, split + 8, { color: UI.cyan, align: 'right' });
     }
     const obj = state.flags.objective;
     if (typeof obj === 'string' && obj) {
@@ -796,9 +852,10 @@ export class MenuScene extends Scene<MenuResult> {
     drawText(ctx, `${found}/${chapterCombos().length} found`, W - 18, 22, { align: 'right', color: UI.amber });
     const first = this.comboScroll;
     if (first > 0) drawText(ctx, '▲', W - 24, 32, { color: UI.cyan });
-    if (first + COMBO_ROWS < COMBOS.length) drawText(ctx, '▼', W - 24, H - 20, { color: UI.cyan });
-    COMBOS.slice(first, first + COMBO_ROWS).forEach((c, i) => {
-      const y = 40 + i * 36;
+    const rows = comboRows();
+    if (first + rows < COMBOS.length) drawText(ctx, '▼', W - 24, H - 20, { color: UI.cyan });
+    COMBOS.slice(first, first + rows).forEach((c, i) => {
+      const y = COMBO_TOP + i * COMBO_ROW_H;
       const known = state.combos.includes(c.id);
       const ab = ABILITIES[c.id]!;
       const names = c.parts.map((p) => `${MEMBERS[p.member as MemberId].name}: ${ABILITIES[p.ability]!.name}`).join('  +  ');

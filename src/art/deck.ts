@@ -5,7 +5,7 @@
  * the LEDs and the chip are drawn over it each frame by the scenes that show it (deck.ts, and the
  * battle cut-in).
  *
- * Coordinates are the art's own pixels (DECK_W × DECK_H), shown at 1x on the 480×270 screen.
+ * Coordinates are the art's own pixels (DECK_W × DECK_H), shown at 1x on the W×H screen.
  */
 import { surface } from '../engine/canvas';
 import type { Ctx } from '../engine/canvas';

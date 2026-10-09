@@ -11,6 +11,7 @@ import { Actor, DIRS, opposite } from '../field/actor';
 import type { SortedSprite } from '../field/bake';
 import { FieldMap } from '../field/fieldmap';
 import { Lighting } from '../field/lighting';
+import type { Rect } from '../field/overrects';
 import { TS } from '../field/tiles';
 import type { ChestDef, EventDef, MapDef, WarpDef } from '../field/types';
 import { Weather } from '../field/weather';
@@ -24,7 +25,10 @@ import { FIELD_OBJ_W } from '../ui/layout';
 import { fieldHooks } from '../game/hooks';
 import { reportError } from '../engine/errors';
 import { scriptApi } from './fieldkit/api';
-import { blit, byBaseY, drawEmote, drawShell, inView, type DrawEntry } from './fieldkit/draw';
+import { cameraOrigin, LEADER_FOCUS_LIFT } from './fieldkit/camera';
+import { cameraBoxFor, curtainsFor, drawCurtains, type CameraBox, type Curtain } from './fieldkit/popins';
+import { blit, blitParts, byBaseY, drawEmote, inView, type DrawEntry } from './fieldkit/draw';
+import { drawSurround, type SurroundView } from './fieldkit/surround';
 import { Dust } from './fieldkit/dust';
 
 const WALK = 12;
@@ -72,10 +76,21 @@ export class FieldScene extends Scene<void> {
   camX = 0;
   camY = 0;
   camOverride: { x: number; y: number } | null = null;
+  /** The pop-in table's camera limit for this map (P4) and its curtains (P1, P2); read when the map loads. */
+  cameraBox: CameraBox | null = null;
+  private curtains: Curtain[] = [];
+  /** How closed each curtain is now (0 to 1), eased for event curtains. */
+  private curtainEase: number[] = [];
+  /** The id of the event whose script is running, while an event curtain may close; a camera pan sets it to null. */
+  curtainEvent: string | null = null;
   private lighting = new Lighting();
   /** This frame's glow layer (GPU effects on), or null. */
   private glow: Ctx | null = null;
   private weather = new Weather();
+  /** What `drawSurround` is told each frame (one object, updated in place: no per-frame allocation). */
+  private surroundView: SurroundView | undefined;
+  /** The rectangle `blitParts` works on for the overhead layer, kept so a frame allocates none. */
+  private overPart: Rect = { x: 0, y: 0, w: 0, h: 0 };
   busy = 0;
   /**
    * What Confirm would reach from where the leader stands (an NPC, a closed chest, something to
@@ -118,6 +133,9 @@ export class FieldScene extends Scene<void> {
     if (this.def.town) state.lastTown = { map: mapId, x, y };
     if (this.def.entrance) state.lastEntrance = { ...this.def.entrance };
     this.lighting.ambient = this.def.ambient;
+    this.cameraBox = cameraBoxFor(mapId);
+    this.curtains = curtainsFor(mapId);
+    this.curtainEase = this.curtains.map(() => 0);
     this.weather.set(this.def.weather ?? 'none');
     this.buildParty(x, y, dir);
     this.buildNpcs();
@@ -334,7 +352,15 @@ export class FieldScene extends Scene<void> {
     // unmarked if it throws partway: a story beat that aborted can be walked into again, rather
     // than leaving the chapter unfinishable (round 13's stability review).
     if (e.once) flags.set(key);
-    if (!(await this.runScript(e.run)) && e.once) flags.clear(key);
+    // The pop-in table's event curtains (fieldkit/popins.ts) close while this event runs.
+    this.curtainEvent = e.id;
+    let ok = false;
+    try {
+      ok = await this.runScript(e.run);
+    } finally {
+      this.curtainEvent = null;
+    }
+    if (!ok && e.once) flags.clear(key);
   }
 
   async doWarp(w: WarpDef): Promise<void> {
@@ -562,15 +588,11 @@ export class FieldScene extends Scene<void> {
   }
 
   // ------------------------------------------------------------------ camera
+  /** The camera rule lives in fieldkit/camera.ts, shared with the scripted pan(). */
   targetCam(): { x: number; y: number } {
-    const mw = this.map.w * TS, mh = this.map.h * TS;
     const fx = this.camOverride?.x ?? this.leader.px;
-    const fy = this.camOverride?.y ?? this.leader.py - 8;
-    let x = Math.round(fx - W / 2);
-    let y = Math.round(fy - H / 2);
-    x = mw <= W ? Math.round((mw - W) / 2) : Math.max(0, Math.min(mw - W, x));
-    y = mh <= H ? Math.round((mh - H) / 2) : Math.max(0, Math.min(mh - H, y));
-    return { x, y };
+    const fy = this.camOverride?.y ?? this.leader.py - LEADER_FOCUS_LIFT;
+    return cameraOrigin(fx, fy, this.map.w * TS, this.map.h * TS, this.cameraBox);
   }
 
   snapCamera(): void {
@@ -605,9 +627,23 @@ export class FieldScene extends Scene<void> {
     // Shake moves the camera (the world); the banner and objective are drawn in screen space.
     const cx = this.camX - this.game.shakeX, cy = this.camY - this.game.shakeY;
     const f = this.frame;
-    ctx.fillStyle = this.def.voidColor ?? '#07060d';
-    ctx.fillRect(0, 0, W, H);
-    if (this.def.kind === 'interior') drawShell(ctx, this.map.w * TS, this.map.h * TS, cx, cy);
+    // Whatever shows around a map smaller than the screen: its surround (fieldkit/surround.ts), or the plain void behind a map that fills the screen.
+    let sv = this.surroundView;
+    if (!sv) {
+      sv = { id: '', ground: this.map.ground, mw: 0, mh: 0, cx: 0, cy: 0, camX: 0, camY: 0, frame: 0 };
+      this.surroundView = sv;
+    }
+    sv.id = this.def.id;
+    sv.voidColor = this.def.voidColor;
+    sv.ground = this.map.ground;
+    sv.mw = this.map.w * TS;
+    sv.mh = this.map.h * TS;
+    sv.cx = cx;
+    sv.cy = cy;
+    sv.camX = this.camX;
+    sv.camY = this.camY;
+    sv.frame = f;
+    drawSurround(ctx, sv);
     this.lighting.build(this.map.lights, cx, cy, f);
     blit(ctx, this.map.ground, cx, cy);
     for (const a of this.map.anims) if (a.lit && inView(a, cx, cy)) a.draw(ctx, f, cx, cy);
@@ -679,12 +715,13 @@ export class FieldScene extends Scene<void> {
     }
 
     if (this.map.hasOver) {
-      this.lighting.drawLitLayer(ctx, this.map.over, cx, cy);
-      blit(ctx, this.map.overEmit, cx, cy);
+      this.lighting.drawLitLayer(ctx, this.map.over, cx, cy, this.map.overRects);
+      blitParts(ctx, this.map.overEmit, cx, cy, this.map.overRects, this.overPart);
     }
     this.lighting.bloom(ctx, this.map.lights, cx, cy, f, this.def.kind === 'interior' ? 0.08 : 0.14);
     this.dust.render(ctx, cx, cy);
     this.weather.render(ctx);
+    if (this.curtains.length) drawCurtains(ctx, this.curtains, this.curtainEase, cx, cy, { x: this.leader.px, y: this.leader.py }, this.curtainEvent);
     for (const a of actors) if (a.emote) drawEmote(ctx, a, cx, cy);
     if (this.cue) this.drawCue(ctx, this.cue.x - cx, this.cue.y - cy, f);
     this.renderBanner(ctx);

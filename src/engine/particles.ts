@@ -7,7 +7,7 @@
  * how long they live, and how size, colour and opacity change over that life. `burst(preset, x, y)`
  * spawns one; `step(rate)` moves everything on; `write(out)` packs what's alive for drawing.
  *
- * Units: positions in back-buffer pixels (480×270), speeds in pixels per frame, time in frames.
+ * Units: positions in back-buffer pixels (W×H, engine/game.ts), speeds in pixels per frame, time in frames.
  */
 
 /** How a particle is drawn (the presenter's fragment shader makes each shape). */

@@ -9,6 +9,8 @@ tags: [research, engine, labs]
 
 # Engine design lab record (2026-10-04)
 
+**Update (2026-10-09):** Mark chose 640x360 as the game size on 2026-10-05 (decision E12 in `docs/engine/decisions.md`; PR #23). The 480x270 figures below are the record of what the labs measured on 2026-10-04. They are not rewritten.
+
 This page keeps the evidence behind the engine design docs in `docs/engine/`. Six research agents read the code and the libraries, and some of them ran small labs (headless Chromium on SwiftShader, device pixel ratio 1 unless a line says otherwise). Each research leg then had an independent fact-checker.
 
 How to read it:

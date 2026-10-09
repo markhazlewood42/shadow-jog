@@ -1,5 +1,6 @@
 /**
- * Battle visual effects in battle-world coordinates (240×135, drawn 2×).
+ * Battle visual effects in battle-world coordinates (the world is half the screen, drawn 2×; the
+ * layer is told its size when it is made).
  * `play(id, from, targets)` spawns shapes and particles and returns when the impact lands
  * and when the effect is done, so the scene can sync damage numbers to the hit.
  */
@@ -55,9 +56,21 @@ function crescentSprite(r: number, color: string): HTMLCanvasElement {
 }
 
 export class FxLayer {
+  /**
+   * The world this layer draws into, in world pixels (the battle's BW by BHT). Effects that span
+   * the whole battlefield (a wave rising from the floor, a sweep across the screen) read these, so
+   * the layer needs no import from the scenes: the scene that owns it passes the size in.
+   */
+  readonly w: number;
+  readonly h: number;
   private parts: Particle[] = [];
   private shapes: Shape[] = [];
   private rng = new Rng(9);
+
+  constructor(w: number, h: number) {
+    this.w = w;
+    this.h = h;
+  }
   /** Screen flash requests consumed by the scene. */
   flash: { color: string; frames: number } | null = null;
   shake = 0;
@@ -645,7 +658,7 @@ export class FxLayer {
   private static scratch: FxLayer | null = null;
   /** When `id`'s hit lands, without showing it: the same catalogue runs on a scratch layer. */
   impactOf(id: string, from: Pt, targets: Pt[], color?: string): number {
-    if (!FxLayer.scratch) FxLayer.scratch = new FxLayer();
+    if (!FxLayer.scratch) FxLayer.scratch = new FxLayer(this.w, this.h);
     const s = FxLayer.scratch;
     const t = s.play(id, from, targets, color);
     s.clear();
@@ -880,7 +893,7 @@ export class FxLayer {
       case 'fire_all': {
         // The ground catches under every enemy, left to right, a line of fire running between them.
         const row = [...T].sort((a, b) => a.x - b.x);
-        const x0 = (row[0]?.x ?? 120) - 22, x1 = (row[row.length - 1]?.x ?? 120) + 22;
+        const x0 = (row[0]?.x ?? this.w / 2) - 22, x1 = (row[row.length - 1]?.x ?? this.w / 2) + 22;
         const ground = Math.max(...row.map((t) => t.y)) + 12;
         this.groundFire(x0, x1, ground, 60, 4);
         row.forEach((t, i) => {
@@ -969,8 +982,9 @@ export class FxLayer {
         this.s(26, (ctx, k) => {
           ctx.fillStyle = '#6ab8d8';
           ctx.globalAlpha = 0.7 * (1 - k);
-          const y = 135 - k * 70;
-          for (let x = 0; x < 240; x += 2) ctx.fillRect(x, Math.round(y + Math.sin(x * 0.1 + k * 10) * 4), 2, 10);
+          // The wave rises from the floor of the world and spans its whole width.
+          const y = this.h - k * 70;
+          for (let x = 0; x < this.w; x += 2) ctx.fillRect(x, Math.round(y + Math.sin(x * 0.1 + k * 10) * 4), 2, 10);
           ctx.globalAlpha = 1;
         });
         this.shake = 5;
@@ -1008,7 +1022,7 @@ export class FxLayer {
           this.s(8, (ctx, k) => {
             ctx.globalAlpha = 1 - k;
             ctx.fillStyle = '#ff8a6a';
-            ctx.fillRect(0, Math.round(t.y), Math.round(240 * k), 2);
+            ctx.fillRect(0, Math.round(t.y), Math.round(this.w * k), 2);
             ctx.globalAlpha = 1;
           });
           this.bolt(t, '#ffe07a', 6);
@@ -1098,7 +1112,7 @@ export class FxLayer {
           this.s(8, (ctx, k) => {
             ctx.globalAlpha = 1 - k;
             ctx.fillStyle = '#ff8a6a';
-            ctx.fillRect(0, Math.round(t.y), Math.round(240 * k), 2);
+            ctx.fillRect(0, Math.round(t.y), Math.round(this.w * k), 2);
             ctx.globalAlpha = 1;
           }, 10);
           this.bolt(t, '#9ae8ff', 14);

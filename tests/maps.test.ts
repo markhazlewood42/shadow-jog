@@ -6,6 +6,11 @@
 import { describe, expect, it } from 'vitest';
 import { getMap, mapIds } from '../src/data/maps';
 import { measure } from '../src/engine/font';
+import { H, W } from '../src/engine/game';
+import { TS } from '../src/field/tiles';
+import { SURROUND, surroundFor, voidShows, type SurroundEntry, type SurroundTheme, type SurroundView } from '../src/scenes/fieldkit/surround';
+import { mix, rgb } from '../src/engine/color';
+import { THEMES, YARD, pictureKey } from '../src/scenes/fieldkit/surround-art';
 import { arrivals, distances, grid } from './mapgraph';
 
 const NEAR = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const;
@@ -187,4 +192,168 @@ describe('secrets are reachable', () => {
       expect(stuck).toEqual([]);
     });
   }
+});
+
+describe('maps smaller than the view (D7, docs/PIVOT-640.md)', () => {
+  // At 640x360 the camera shows 1.78 times the old area, so a map below the screen in either
+  // direction is centered, and something must fill the margin (src/scenes/fieldkit/surround.ts).
+  // This list is pinned, so a size change is deliberate: a map that grows past the screen leaves
+  // the list and the surround table together, and a new small map must get a surround entry.
+  // Sizes are in pixels (width, height).
+  const SMALL: Record<string, [number, number]> = {
+    rustyard: [544, 448],
+    dock: [320, 224],
+    rook_flat: [224, 160],
+    bar: [352, 224],
+    clinic: [224, 160],
+    armory: [224, 160],
+    threads: [224, 160],
+    kwikmart: [224, 160],
+    hotel: [256, 160],
+    noodles: [224, 160],
+    hex_den: [224, 176],
+  };
+  const sizeOf = (id: string): [number, number] => {
+    const g = grid(id);
+    return [g.w * TS, g.h * TS];
+  };
+  const smaller = (): string[] => mapIds().filter((id) => { const [w, h] = sizeOf(id); return w < W || h < H; });
+
+  // Mark's rule (Review 3, 2026-10-08, "indoor areas blank fill (b1), outdoor areas themed (b2)"),
+  // by the kind of map. A kind that is not here has no rule yet, and the test below fails for it
+  // until someone chooses on purpose; there is no default.
+  const RULE: Readonly<Record<string, 'b1' | 'b2'>> = { interior: 'b1', town: 'b2' };
+  // The theme of each outdoor map's b2 surround, pinned the same way: a new outdoor map must pick one.
+  const THEME_OF: Readonly<Record<string, SurroundTheme>> = { rustyard: 'yard', dock: 'dock' };
+
+  it('the maps below the view are exactly the pinned list, at their pinned sizes', () => {
+    expect(smaller().sort()).toEqual(Object.keys(SMALL).sort());
+    for (const [id, size] of Object.entries(SMALL)) expect(sizeOf(id), id).toEqual(size);
+  });
+
+  it('every one of them has a surround entry, and the table holds no other map', () => {
+    expect(Object.keys(SURROUND).sort()).toEqual(smaller().sort());
+    for (const id of smaller()) expect(['b1', 'b2'], `${id} option`).toContain(SURROUND[id]?.option);
+  });
+
+  it('follows Mark’s rule: an indoor map gets the edge fill (b1), an outdoor map a themed surround (b2)', () => {
+    for (const id of smaller()) {
+      const kind = getMap(id).kind;
+      const want = RULE[kind];
+      expect(want, `${id} is a ${kind} map and Mark’s rule covers only ${Object.keys(RULE).join(' and ')}: ask him which surround it gets, then add the kind to RULE`).toBeDefined();
+      expect(SURROUND[id]?.option, `${id} (${kind})`).toBe(want);
+    }
+  });
+
+  it('a themed (b2) map names the theme that fits its place, and an edge-fill (b1) map names none', () => {
+    for (const id of smaller()) {
+      const e = SURROUND[id];
+      if (e?.option === 'b2') {
+        expect(THEME_OF[id], `${id} is a b2 map: pin its theme in THEME_OF`).toBeDefined();
+        expect(e.theme, id).toBe(THEME_OF[id]);
+      } else {
+        expect(e && 'theme' in e, `${id}: b1 has no theme`).toBe(false);
+      }
+    }
+  });
+
+  it('every theme has its painter, and only the dock’s water moves', () => {
+    expect(Object.keys(THEMES).sort()).toEqual(['dock', 'yard']);
+    expect(typeof THEMES.dock.animate).toBe('function');
+    expect(THEMES.yard.animate).toBeUndefined();
+    // The compiler enforces a closed set of themes: a theme that does not exist is a type error,
+    // so it can never fall back to another theme's art (`npm run check` runs tsc over the tests).
+    // @ts-expect-error 'brick' is not a SurroundTheme
+    const unknown: SurroundEntry = { option: 'b2', theme: 'brick' };
+    // @ts-expect-error 'brick' has no entry in THEMES
+    const painter = THEMES.brick;
+    expect(unknown.option).toBe('b2');
+    expect(painter).toBeUndefined();
+  });
+
+  it('a map with no entry (a big map) has no surround', () => {
+    expect(surroundFor('lantern_row')).toBeNull();
+    expect(surroundFor('world')).toBeNull();
+  });
+
+  describe('the painted picture is kept while only the shake changes', () => {
+    const view = (over: Partial<SurroundView> = {}): SurroundView => ({
+      id: 'dock', ground: {} as HTMLCanvasElement, mw: 320, mh: 224, cx: -160, cy: -68, camX: -160, camY: -68, frame: 0, ...over,
+    });
+    const entry: SurroundEntry = { option: 'b2', theme: 'dock' };
+    const key = (v: SurroundView, e: SurroundEntry = entry) => pictureKey(v, e, '#000');
+
+    it('the shake (the drawn camera moving while the camera at rest stays) does not change the key', () => {
+      expect(key(view({ cx: -157, cy: -70 }))).toBe(key(view()));
+      expect(key(view({ cx: -166, cy: -61, frame: 400 }))).toBe(key(view()));
+    });
+
+    it('a different map, theme, option, size, void color or resting camera does', () => {
+      const base = key(view());
+      expect(key(view({ id: 'rustyard' }))).not.toBe(base);
+      expect(key(view(), { option: 'b2', theme: 'yard' })).not.toBe(base);
+      expect(key(view(), { option: 'b1' })).not.toBe(base);
+      expect(key(view({ mw: 352 }))).not.toBe(base);
+      expect(pictureKey(view(), entry, '#fff')).not.toBe(base);
+      // The Rustyard scrolls, so its picture follows the camera at rest.
+      expect(key(view({ camY: -60 }))).not.toBe(base);
+      expect(key(view({ camX: -150 }))).not.toBe(base);
+    });
+  });
+});
+
+describe('the void fill under a map that fills the screen (D15, docs/PIVOT-640.md)', () => {
+  // The first D15 step skips the full-screen void fill while the map covers the screen. The ground
+  // layer is opaque everywhere (the four-corner walk in e2e/economy.spec.ts checks that), so the fill
+  // matters only where the view reaches past the map: at a clamped edge under a screen shake.
+  it('is needed only when the view reaches past the map on some side, shake included', () => {
+    expect(voidShows(0, 0, W, H)).toBe(false);
+    expect(voidShows(0, 0, W + 100, H + 100)).toBe(false);
+    expect(voidShows(100, 100, W + 100, H + 100)).toBe(false);
+    // One pixel of shake past each edge of a map that fills the screen exactly.
+    expect(voidShows(-1, 0, W, H)).toBe(true);
+    expect(voidShows(0, -1, W, H)).toBe(true);
+    expect(voidShows(1, 0, W, H)).toBe(true);
+    expect(voidShows(0, 1, W, H)).toBe(true);
+    // A map narrower than the view (the Rustyard): the margin is there at rest.
+    expect(voidShows(-48, 0, W - 96, H + 88)).toBe(true);
+  });
+});
+
+describe('the Rustyard surround reads as yard, not as a void (WP3 round 3)', () => {
+  // The surround is drawn before the field's light multiplies the screen, so what the player sees is
+  // each channel times the map's ambient. The strip below the yard measured about 4 of 255 in round 2
+  // (luma, in the shot at the entrance) and read as black: Mark asked for it to be lifted to about the
+  // yard's own shadowed ground (about 28 to 31). The gravel lights to 29 and the fence ribs to 23 to 38
+  // (the strip in the shot measures 25, after the fade). The floor of 22 sits just under the darkest
+  // rib, so it fails for any color that falls below the target band, and for the old gravel (4).
+  const ambient = rgb(getMap('rustyard').ambient);
+  /** The brightness of a surround color on screen: its channels times the ambient, as Rec. 709 luma. */
+  const lit = (hex: string): number => {
+    const [r, g, b] = rgb(hex).map((c, i) => (c * ambient[i]!) / 255) as [number, number, number];
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const FLOOR = 22;
+
+  it('the gravel is lit well above the void', () => {
+    expect(lit(YARD.gravelGround)).toBeGreaterThanOrEqual(FLOOR);
+    for (const speck of YARD.gravelSpecks) expect(lit(speck)).toBeGreaterThanOrEqual(FLOOR);
+  });
+
+  it('the fence reads at the same level: every rib, and no part (a post, a heap) near the void', () => {
+    for (const c of YARD.fenceRibs) expect(lit(c)).toBeGreaterThanOrEqual(FLOOR);
+    // The posts and the heaps are the darkest accents of the surround, so they get half the floor.
+    for (const c of [YARD.postBody, YARD.heapBody]) expect(lit(c)).toBeGreaterThanOrEqual(FLOOR / 2);
+  });
+
+  it('the fade does not black out the strip: the gravel under the fade, at its far edge and in a corner, stays well above the void', () => {
+    /** A surround color under a fade of `alpha` of the void color, lit like the screen: the fade is painted over the picture. */
+    const fadedLit = (hex: string, alpha: number): number => lit(mix(hex, '#07060d', alpha));
+    const voidLit = lit('#07060d');
+    // The far edge, where one gradient (a side) has reached its full strength.
+    expect(fadedLit(YARD.gravelGround, YARD.fadeFar)).toBeGreaterThanOrEqual(15);
+    // A corner of the picture takes two gradients, so it is the darkest place of the strip.
+    const cornerAlpha = 1 - (1 - YARD.fadeFar) ** 2;
+    expect(fadedLit(YARD.gravelGround, cornerAlpha)).toBeGreaterThanOrEqual(4 * voidLit);
+  });
 });

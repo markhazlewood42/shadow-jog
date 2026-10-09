@@ -31,7 +31,20 @@ const LAYERS = [
   { share: 0.15, speed: 1.45, len: [11, 15], alpha: 0.4, color: '#dce4ff', parallax: 1.4 },
 ] as const;
 
-const MAX_SPLASHES = 60;
+/** The area of the old 480x270 field, in pixels: the screen the weather counts below were tuned on. */
+const TUNED_AREA = 129_600;
+/**
+ * The screen is bigger than the field the counts below were tuned on, and the same count over more
+ * area looks thin, so every count scales by the area ratio (1.78 at 640x360), and the weather keeps
+ * its density per pixel. This is the one place the ratio is made; the counts and the splash cap all
+ * go through it.
+ */
+export const AREA_SCALE = (W * H) / TUNED_AREA;
+/** Rain, dust and drips per kind, and the splash cap, at an intensity of 1 (the old counts times `AREA_SCALE`). */
+export const RAIN_DROPS = Math.round(190 * AREA_SCALE);
+export const DUST_MOTES = Math.round(50 * AREA_SCALE);
+export const DRIPS = Math.round(14 * AREA_SCALE);
+export const MAX_SPLASHES = Math.round(60 * AREA_SCALE);
 
 export class Weather {
   private drops: Drop[] = [];
@@ -71,9 +84,9 @@ export class Weather {
 
   private count(): number {
     switch (this.kind) {
-      case 'rain': return Math.round(190 * this.intensity);
-      case 'drip': return Math.round(14 * this.intensity);
-      case 'dust': return Math.round(50 * this.intensity);
+      case 'rain': return Math.round(RAIN_DROPS * this.intensity);
+      case 'drip': return Math.round(DRIPS * this.intensity);
+      case 'dust': return Math.round(DUST_MOTES * this.intensity);
       default: return 0;
     }
   }

@@ -5,9 +5,12 @@
  * into the final frame. With GPU effects off (Options) or no WebGL, `active` is false, every call
  * here does nothing, and the game draws exactly as it did before this layer existed.
  *
- * Coordinates are the back buffer's (480×270, y down). Durations are frames at 60/s.
+ * Coordinates are the back buffer's (W×H from engine/game.ts, y down). Durations are frames at 60/s.
  */
 import type { Ctx } from './canvas';
+// game.ts imports this module, so the two form a cycle: W and H are read only inside methods, at
+// call time, never while this module loads (at that moment they would still be uninitialized).
+import { H, W } from './game';
 import { type EmitterPreset, ParticleSim } from './particles';
 
 /** A ring of distortion spreading out from a point. */
@@ -78,10 +81,15 @@ class PostFx {
   bloom = 1;
   vignette = 0.22;
   readonly shocks: Shock[] = [];
-  /** Colour split: pixels of offset, easing out, and the point it spreads from. */
+  /**
+   * Color split: pixels of offset, easing out, and the point it spreads from. `aberrate()` always
+   * sets the point, and the presenter ignores it while the offset is 0, so the point starts at 0
+   * rather than at the screen center (reading W and H here, while the module loads, would hit the
+   * import cycle with game.ts).
+   */
   aberration = 0;
-  aberrationX = 240;
-  aberrationY = 135;
+  aberrationX = 0;
+  aberrationY = 0;
   /** Extra bloom for a moment (a combo landing), easing out. */
   pulse = 0;
   readonly hazes: Haze[] = [];
@@ -125,8 +133,8 @@ class PostFx {
     this.shocks.push(s);
   }
 
-  /** Split the colour channels by `amount` pixels, spreading from (x, y), easing out. */
-  aberrate(amount: number, x = 240, y = 135): void {
+  /** Split the color channels by `amount` pixels, spreading from (x, y; the screen center by default), easing out. */
+  aberrate(amount: number, x = W / 2, y = H / 2): void {
     if (!this.active || this.intensity <= 0) return;
     const a = amount * this.intensity;
     if (a < this.aberration) return;

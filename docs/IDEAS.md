@@ -27,7 +27,7 @@ Today:
 - Now a design principle: `docs/engine/README.md` section 1. The check of every decision is in `docs/engine/decisions.md`, section "Editor rule check".
 - Every engine decision must keep game content editable by a visual tool. The engine design update records this as a design principle.
 - `docs/TOOLING-UI.md` section 3 specifies the Battle Stage Editor, which the Phaser spike built. Section 4 lists the next tools: the troop and encounter editor, the Animation Composer, the database (enemies, skills, items) and maps. A conversation editor and a game system config UI are not on that list yet.
-- Much of the content is TypeScript code, not data: the maps (`src/data/maps/*.ts`), enemies, items, abilities, shops and dialogue. An editor can only open and save data, so this content must move to data files over time. The stage data (`stages.json`, `hud.json`) is already data.
+- Much of the content is TypeScript code, not data: the maps (`src/data/maps/*.ts`), enemies, items, abilities, shops and dialogue. An editor can only open and save data, so this content must move to data files over time. The stage and HUD data (`stages.json`, `hud.json`) are data on the Phaser spike branch only. Neither file exists on this branch, and the engine plans them for milestone M3.
 
 ### 2. Hacking gameplay
 

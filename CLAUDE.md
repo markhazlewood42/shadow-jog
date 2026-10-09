@@ -1,7 +1,7 @@
 # Shadow Jog: instructions for AI sessions
 
 A browser JRPG (cyberpunk-fantasy, Phantasy Star IV loop), Chapter 1 "Milk Run", built to an indie-alpha bar.
-Vite + TypeScript strict, Canvas 2D at 480×270. No runtime dependencies today (a build choice, not a rule: see Rules). Art: **drawn picks from the PixelLab art pass** (`public/art/`, loaded by `src/art/drawn.ts`) over the game's own **code-drawn art**, which stays as the fallback for everything; audio all generated in code.
+Vite + TypeScript strict, Canvas 2D at 640×360 (moved from 480×270 on 2026-10-05; `W` and `H` in `src/engine/game.ts`). No runtime dependencies today (a build choice, not a rule: see Rules). Art: **drawn picks from the PixelLab art pass** (`public/art/`, loaded by `src/art/drawn.ts`) over the game's own **code-drawn art**, which stays as the fallback for everything; audio all generated in code.
 Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 
 ## Start here, in this order
@@ -47,7 +47,7 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 - **Don't deploy** (shadowjog.com) without Mark's explicit go-ahead; it's the last alpha step, with a secure email
   sign-up whose requirements are in `status.md`.
 - **Branches and PRs (Mark, 2026-10-01):** work goes on a branch per relatively major feature (not per small fix),
-  pushed as you go; when the feature is done, open a PR so it can get an independent code review (Copilot), and
+  pushed as you go; when the feature is done, open a PR so it gets an independent code review (the Claude Code Review Action; Copilot is no longer used, since 2026-10-08), and
   Mark merges. Don't commit to `main` directly.
 - **Dependencies (Mark, 2026-10-02):** "dependency free" was never a requirement. High-quality, free dependencies are fine. The bundle budget (`scripts/bundle-budget.mjs`) is a size alarm to re-set deliberately with the player download in mind, not a ceiling.
 - **Engine design gate (Mark, 2026-10-04):** write no engine code before Mark approves an architecture design doc. The doc must be easy to read and cover the architecture, the key interfaces, the core primitives (what the scene graph is made of, the render pipeline) and the tooling. Copy established conventions (Phaser first for 2D, then Unity or Godot, Three.js for 3D) and say which convention each concept follows. Spikes test the approved design. The build starts after Mark approves the final doc.

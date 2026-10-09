@@ -1,12 +1,24 @@
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./src/dev/tools" without a file extension (vite.config.ts:6:27). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
 
- RUN  v5.0.2 C:/Users/markh/home-base/projects/shadow-jog
+ RUN  v5.0.2 C:/Users/markh/home-base/projects/shadow-jog-engine
+
+stdout | tests/screen-literals.test.ts > screen-size literals (PL1: one source of the size) > reports the counts
+screen-literals: 89 hits in 140 files: 89 allowed, 0 pending in 0 entries, 0 unlisted.
+
+stdout | tests/dialog-wrap.test.ts > dialog wrap (D8: the box is capped at 464 px, so every line wraps as it did at 480x270) > a call the test cannot read as a literal is built from a variable, a template or a join: it is named, never skipped by mistake
+dialog-wrap: 306 lines and 19 choices read, 29 calls built at run time
+
+stdout | tests/dialog-wrap.test.ts > dialog wrap (D8: the box is capped at 464 px, so every line wraps as it did at 480x270) > at the shipped box (capped, centered) no line wraps differently from 480x270
+dialog-wrap: 306 lines compared, 82 wrap onto 2 or more lines, 0 run over more than one page, 0 wrap differently from 480x270
 
 stdout | tests/pacing.test.ts > pacing > estimates Chapter 1 inside the GDD’s 45–75 minute target
 walking   3.4 min (1207 tiles)
 fighting  23.9 min (24.4 fights: 18.4 random + 6 scripted)
-reading   34.2 min (25508 chars of story, 23505 optional × 0.4)
+reading   34.5 min (25714 chars of story, 23596 optional × 0.4)
 menus     10.0 min
-total     71.4 min
+total     71.7 min
 
 stdout | tests/economy.test.ts > economy > prints the route
 Walk to the Rustyard           walks 39 steps of street (1 in 28), 25 steps of barrens (1 in 20)
@@ -34,76 +46,94 @@ CP1 before the Rustyard trip   p10   358¢  median   363¢  affordable 100%
 CP2 Knuckles                   p10   364¢  median   484¢  affordable 100%
 CP3 into the Sinkline          p10   400¢  median   574¢  affordable 100%
 CP4 the Lurker                 p10   398¢  median   675¢  affordable 100%
-CP5 into Annex 7               p10   441¢  median   715¢  affordable 100%
-CP6 WARDEN                     p10   823¢  median  1231¢  affordable 100%
-down rates: f_first_fight 0.00, street 0.00, barrens 0.00, f_rustyard_gate 0.00, f_knuckles 0.13, sinkline 0.01, f_lurker 0.53, annex 0.08, f_annex_door 0.15, park 0.00
+CP5 into Annex 7               p10   442¢  median   725¢  affordable 100%
+CP6 WARDEN                     p10   843¢  median  1280¢  affordable 100%
+down rates: f_first_fight 0.00, street 0.00, barrens 0.00, f_rustyard_gate 0.00, f_knuckles 0.13, sinkline 0.01, f_lurker 0.35, annex 0.06, f_annex_door 0.07, park 0.00
 
 stdout | tests/economy.test.ts > economy > prints the minimal-exploration spread
 minimal: CP1 before the Rustyard trip   p10   298¢  median   303¢  affordable 100%
 minimal: CP2 Knuckles                   p10   190¢  median   298¢  affordable 100%
 minimal: CP3 into the Sinkline          p10   239¢  median   385¢  affordable 100%
 minimal: CP4 the Lurker                 p10     3¢  median   307¢  affordable 91%
-minimal: CP5 into Annex 7               p10    52¢  median   340¢  affordable 93%
-minimal: CP6 WARDEN                     p10   353¢  median   840¢  affordable 100%
+minimal: CP5 into Annex 7               p10    52¢  median   347¢  affordable 94%
+minimal: CP6 WARDEN                     p10   395¢  median   853¢  affordable 100%
 
 stdout | tests/economy.test.ts > economy > nobody can buy everything: the crew’s own upgrades cost more than even a lucky run has spare
-wish list 3960¢ vs luckiest-tenth spare at the Warden 1727¢
+wish list 3960¢ vs luckiest-tenth spare at the Warden 1768¢
 
 stdout | tests/balance.test.ts > balance > prints the balance table
 
-street  (opening)            win 100%  rounds  2.0  hp lost   7%  combos/battle 1.00
-barrens (to Rustyard)        win 100%  rounds  2.2  hp lost  11%  combos/battle 1.00
-KNUCKLES                     win  78%  rounds  9.1  hp lost  51%  combos/battle 1.00
-KNUCKLES (timed)             win  92%  rounds  7.9  hp lost  42%  combos/battle 1.00
-sinkline                     win 100%  rounds  2.0  hp lost  10%  combos/battle 1.01
-LURKER                       win  82%  rounds  8.9  hp lost  54%  combos/battle 2.00
-LURKER (timed)               win  93%  rounds  8.2  hp lost  45%  combos/battle 2.00
+street  (opening)            win 100%  rounds  2.0  hp lost   6%  combos/battle 1.00
+barrens (to Rustyard)        win 100%  rounds  2.3  hp lost  10%  combos/battle 1.00
+KNUCKLES                     win  88%  rounds  8.0  hp lost  43%  combos/battle 1.00
+KNUCKLES (timed)             win  90%  rounds  7.4  hp lost  39%  combos/battle 1.00
+sinkline                     win 100%  rounds  2.0  hp lost  11%  combos/battle 1.02
+LURKER                       win  83%  rounds  8.3  hp lost  53%  combos/battle 2.00
+LURKER (timed)               win  93%  rounds  8.1  hp lost  42%  combos/battle 2.00
 annex                        win 100%  rounds  2.5  hp lost  14%  combos/battle 1.46
-WARDEN                       win  82%  rounds 12.1  hp lost  38%  combos/battle 3.48
-WARDEN (timed)               win  90%  rounds 11.0  hp lost  32%  combos/battle 3.39
+WARDEN                       win  84%  rounds 11.7  hp lost  37%  combos/battle 3.58
+WARDEN (timed)               win  92%  rounds 10.7  hp lost  31%  combos/battle 3.50
 
 stdout | tests/balance.test.ts > dungeon attrition > prints the attrition table
 
-barrens x4                   cleared  93%  end hp  72%  medkits 3.0  rounds/battle 3.1  rook charges left 46% (dry 0%)
-    lost to: smog_wisp+glowrat+glowrat @4 lose ×1, rustfang_punk+rustfang_medic+rustfang_slinger @4 lose ×1, scrap_hound+scrap_hound @4 lose ×1, smog_wisp+smog_wisp @4 lose ×1
-sinkline x5                  cleared 100%  end hp  96%  medkits 2.2  rounds/battle 2.6  rook charges left 40% (dry 0%)
-annex x7                     cleared  87%  end hp  75%  medkits 2.9  rounds/battle 4.2  rook charges left 51% (dry 0%)
-    lost to: bound_spirit+km_sentinel @5 lose ×5, bound_spirit+km_sentinel @7 lose ×2, bound_spirit+km_sentinel @6 lose ×2, hunter_drone+hunter_drone @5 lose ×1, hunter_drone+maint_drone+hunter_drone @7 lose ×1, km_sentinel+km_sentinel+maint_drone @5 lose ×1, hunter_drone+maint_drone+hunter_drone @6 lose ×1, km_sentinel+km_arcanist @4 lose ×1, sentry_turret+km_sentinel @6 lose ×1, sentry_turret+km_sentinel @7 lose ×1
+barrens x4                   cleared  98%  end hp  83%  medkits 2.3  rounds/battle 2.7  rook charges left 47% (dry 0%)
+    lost to: scrap_hound+scrap_hound @4 lose ×1
+sinkline x5                  cleared 100%  end hp  96%  medkits 1.6  rounds/battle 2.4  rook charges left 40% (dry 0%)
+annex x7                     cleared  93%  end hp  83%  medkits 2.3  rounds/battle 4.2  rook charges left 51% (dry 0%)
+    lost to: bound_spirit+km_sentinel @6 lose ×5, hunter_drone+maint_drone+hunter_drone @7 lose ×1, bound_spirit+km_sentinel @4 lose ×1, bound_spirit+km_sentinel @5 lose ×1, bound_spirit+km_sentinel @7 lose ×1
 
 stdout | tests/balance.test.ts > alternative builds > sinkline with shock_knuckles, lucky_coin, taser_pistol, cyber_eye holds up
 sinkline (alt)               win 100%  rounds  1.8  hp lost   8%  combos/battle 1.00
 
 stdout | tests/balance.test.ts > alternative builds > lurker with razor_tekko, reflex_booster, nodachi, dermal_plating holds up
-lurker (alt)                 win  74%  rounds 10.3  hp lost  62%  combos/battle 1.98
+lurker (alt)                 win  78%  rounds 10.0  hp lost  61%  combos/battle 1.99
 
 stdout | tests/balance.test.ts > alternative builds > sinkline with flechette_pistol holds up
-sinkline (alt)               win 100%  rounds  2.1  hp lost  11%  combos/battle 1.00
+sinkline (alt)               win 100%  rounds  2.1  hp lost  11%  combos/battle 1.01
 
 stdout | tests/balance.test.ts > alternative builds > lurker with flechette_pistol holds up
-lurker (alt)                 win  78%  rounds  9.3  hp lost  57%  combos/battle 1.99
+lurker (alt)                 win  80%  rounds  8.6  hp lost  55%  combos/battle 2.00
 
 stdout | tests/balance.test.ts > alternative builds > annex with thorn_rod, spirit_fetish, adrenal_pump holds up
-annex (alt)                  win 100%  rounds  2.6  hp lost  14%  combos/battle 1.48
+annex (alt)                  win 100%  rounds  2.6  hp lost  15%  combos/battle 1.49
 
 stdout | tests/balance.test.ts > alternative builds > warden with lucky_coin, reflex_booster, bone_staff holds up
-warden (alt)                 win  86%  rounds 12.5  hp lost  39%  combos/battle 3.42
+warden (alt)                 win  91%  rounds 12.2  hp lost  31%  combos/battle 3.42
 
 stdout | tests/balance.test.ts > alternative builds > sinkline with ki_beads, ronin_guard, coolant_rig holds up
-sinkline (alt)               win 100%  rounds  2.0  hp lost  10%  combos/battle 1.01
+sinkline (alt)               win 100%  rounds  2.0  hp lost  11%  combos/battle 1.00
 
 stdout | tests/balance.test.ts > alternative builds > warden with crow_torc, coolant_rig holds up
-warden (alt)                 win  75%  rounds 12.6  hp lost  43%  combos/battle 3.24
+warden (alt)                 win  78%  rounds 12.1  hp lost  42%  combos/battle 3.42
 
 stdout | tests/balance.test.ts > alternative builds > warden with arc_gauntlets, thermal_katana, burst_smg, ward_staff holds up
-warden (alt)                 win  79%  rounds 13.1  hp lost  44%  combos/battle 3.41
+warden (alt)                 win  70%  rounds 13.2  hp lost  46%  combos/battle 3.51
+
+stdout | tests/ui-layout.test.ts > how much of each pane holds content (rubric R5, advisory) > reports the share of every window, and each window outside the exemption list spans 60% of its width and 50% of its height
+R5 panes judged (15):
+menu: status, kit / STATUS  ◀ 1/4 ▶ 624x344: 98% x 57%
+menu: status, rook / STATUS  ◀ 2/4 ▶ 624x344: 98% x 65%
+menu: status, hex / STATUS  ◀ 3/4 ▶ 624x344: 98% x 61%
+menu: status, sable / STATUS  ◀ 4/4 ▶ 624x344: 98% x 57%
+menu: status, rook (wounded) / STATUS  ◀ 2/4 ▶ 624x344: 98% x 65%
+menu: combos / COMBO LOG 624x344: 98% x 97%
+menu: bestiary / untitled 468x344: 99% x 97%
+menu: places / untitled 468x344: 99% x 93%
+dialog: one line / untitled 464x62: 98% x 93%
+dialog: four-line page / untitled 464x62: 98% x 93%
+dialog: narration, four-line page / untitled 464x62: 98% x 88%
+dialog: a choice / untitled 464x62: 62% x 89%
+dialog: at the top / untitled 464x62: 98% x 93%
+place map / LANTERN ROW 628x348: 85% x 96%
+ending: results / THE RUN SO FAR 360x150: 96% x 81%
 
 
- Test Files  21 passed (21)
-      Tests  274 passed (274)
-   Start at  19:09:18
-   Duration  844ms (transform 60%, import 20%, tests 18%, worker 1%)
+ Test Files  33 passed (33)
+      Tests  454 passed (454)
+   Start at  00:52:48
+   Duration  3.79s (transform 55%, tests 30%, import 14%, worker 1%)
 
-  Transform  transforming modules took 4.27s · 60% of tracked time, re-done on every run
+  Transform  transforming modules took 9.60s · 55% of tracked time, re-done on every run
              persist transforms across runs with fsModuleCache: true
              learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
 
