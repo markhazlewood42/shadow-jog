@@ -933,16 +933,31 @@ One build, no change under `src/`. The verification table and the CI wall time (
 **Round 2 (named fixes).**
 
 - PL3: `24c-ending-results-driven-test-run` joined the void-allowed list (`scripts/pivot-640.json` and the list above), with the reason of `24-ending-results`: the same centered text card. `check-shots-r2.txt`: 58 checked, 0 failed, 15 skipped.
-- `docs/quality/evidence/perf.txt` line 1 holds the date, the commit and the game size (`640x360`). `scripts/evidence.sh` writes it from now on; the line in the committed file was added by hand, because the file came from the earlier run.
+- `docs/quality/evidence/perf.txt` line 1 holds the date, the commit and the game size (`640x360`). `scripts/evidence.sh` writes it from now on; the line in the committed file was added by hand, because the file came from the earlier run. It names `af03bde`, the build that was measured; no file under `src/` changed after it, so the numbers hold for the tip.
 - The `claude-review` check is "skipped" on the draft PR. It is not a failed step; it runs when the PR is ready.
 - The Review 7 pictures are GPU-on frames. Glow and light drawn at screen resolution make uneven blocks; the exact k=3 and k=2 blocks rest on the two `gpufx` block tests.
 - `artreview.html` lists no shots on this branch (no art-pass data), so its 1280 px width is proved by the CSS rule only.
-- The audio-evidence spec rewrites the tracked `docs/quality/evidence/audio/` files (`npm run check` left them unchanged on the round 2 run). This is older than this move: `origin/main` tracks the same files and its `scripts/evidence.sh` runs the same spec. Not changed.
+- Only the audio-evidence spec rewrites the tracked `docs/quality/evidence/audio/` files; `npm run check` (biome, tsc, vitest) does not. This is older than this move: `origin/main` tracks the same files and its `scripts/evidence.sh` runs the same spec. Not changed.
 - The Review 7 Deck pictures are full-page shots of the 1280x800 viewport (the whole window); the 1080p ones are full 1920x1080 page shots.
 
-**Verification table.** (pending)
+**Verification table.** Two rounds of 3, 2026-10-09. Reports (git-ignored): `media/verification/wp7/round1-runner.md`, `round1-reader.md`, `round2-verifier.md`. **Result: pass in round 2.**
 
-**CI wall time (PL13).** (pending)
+| Round | Commit | Verifiers | Verdict | Findings |
+|---|---|---|---|---|
+| 1 | e9fc663 | runner (Sonnet), reader (Haiku), medium effort | fail | C1 (Critical, PL3): `24c-ending-results-driven-test-run` failed `check-shots` (2.9% outside the old frame); the builder's count was taken before the file came back. M1: `24c` is not byte-identical between runs (the wall-clock play time). M2: the Deck pictures were 1280x720 element shots under a 1280x800 caption. M3: `perf.txt` had no date or size line. The reader: no Critical or Important. |
+| 2 | eaa7664 | one fresh verifier (Haiku, medium), the named findings only | pass | C1, M1, M2 and M3 closed; no new Critical or Important. Two Minor wording fixes, made in this commit (the `perf.txt` commit, the audio line). |
+
+| Pass line | Result | Evidence |
+|---|---|---|
+| PL1 | pass | 89 hits, 89 allowed, 0 pending, 0 unlisted. |
+| PL3 | pass | Round 2: 58 checked, 0 failed, 15 skipped. |
+| PL5, PL6 | pass | No diff in `public/`; `src/data` and `src/story` only the three D11 `fx.json` lines; no `src/` change in WP7. |
+| PL8 | pass | Round 1 runner: GPU field 2.78 / 4.0, battle 1.16 / 2.4; software field 4.15 / 5.8, battle 2.03 / 3.7 (gates 4 / 6 and 8 / 11). |
+| PL9 | pass | `npm run check` (454 tests), build and budget exit 0; no marker; all 11 specs: GPU 76 passed (18.8 min), software 74 passed and 2 WebGL2 skips by the spec's own rule (19.1 min); CI green with every step run. |
+| PL10 | pass | `playthrough`, `playtest`, `chaos`, `economy`, `gameover`, `prod` pass on both canvases; the prod key counts unchanged. |
+| PL13 | pass | Below. |
+
+**CI wall time (PL13).** Run 37888219710 at e9fc663: 7m25s (the e2e job 7m23s), under 25 minutes.
 
 **Deviations, with reasons.**
 - The bundle was over the alarm, so the alarm moved (above); the brief's rule ("under the alarm, it stays") did not apply.
