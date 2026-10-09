@@ -64,11 +64,11 @@
       "kind": "milestone",
       "label": "Shell",
       "lane": "engine",
-      "status": "active",
+      "status": "done",
       "after": [
         "M0"
       ],
-      "notes": "Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. GPU timing check (npm run perf) once at the end, not in CI.",
+      "notes": "Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. Merged in PR #46; GPU line held.",
       "branch": "engine-m1-shell"
     },
     {
@@ -76,7 +76,7 @@
       "kind": "milestone",
       "label": "Effects",
       "lane": "engine",
-      "status": "later",
+      "status": "active",
       "after": [
         "M1"
       ],
