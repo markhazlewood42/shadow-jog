@@ -100,7 +100,7 @@
     <text x="640" y="333" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
   </g>
   <g id="item-M6">
-    <title>M6 Flip default: later. ?engine=sje becomes the default. The old presenter goes. M4 is optional: this item does not wait for it.</title>
+    <title>M6 Flip default: later. ?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow).</title>
     <rect x="734" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
     <text x="742" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M6</text>
     <text x="742" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Flip default</text>
@@ -136,7 +136,7 @@
     <text x="640" y="447" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">OPTIONAL</text>
   </g>
   <g id="item-archive-tags">
-    <title>archive-tags Archive tags: gated. archive/side-battle-&lt;date&gt; and archive/phaser-stage-&lt;date&gt;, then close PRs #3 and #4. Mark approves each tag. Status.md also says to ask after PR #23 merged: ask Mark when to do it.</title>
+    <title>archive-tags Archive tags: gated. archive/side-battle-&lt;date&gt; and archive/phaser-stage-&lt;date&gt;, then close PRs #3 and #4. Mark approves each tag. They wait until M3 lands (status.md, Next for agents 3).</title>
     <rect x="632" y="492" width="90" height="76" rx="6" fill="#3a1830" stroke="#ff7aa8" stroke-width="1.2" stroke-dasharray="5 4"/>
     <text x="640" y="511" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Tags</text>
     <text x="640" y="529" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Archive tags</text>

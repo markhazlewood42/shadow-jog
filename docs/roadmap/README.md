@@ -30,12 +30,12 @@ Now: M0 Prepare. Next: M1 Shell.
 | M2 Effects | Engine path | 5 | later | M1 | none | FxSystem with the postfx facade, composite filter, particles. |
 | M3 Battle stage | Engine path | 6 | later | M2 | none | The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge. |
 | M5 Field | Engine path | 7 | later | M3 | none | Field map, actors, camera, lights, weather. Mark approves the lighting. |
-| M6 Flip default | Engine path | 8 | later | M5, M4 | none | ?engine=sje becomes the default. The old presenter goes. M4 is optional: this item does not wait for it. |
+| M6 Flip default | Engine path | 8 | later | M5, M4 | none | ?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow). |
 | M7 3D mode | Engine path | 9 | later | M6, M1b | none | Needs both the 3D proof (M1b) and the default flip (M6). |
 | M8 Remove legacy | Engine path | 10 | later | M7 | none | Delete the old engine files. |
 | M1b 3D proof | Side paths | 5 | later | M1 | none | Parallel with M2. A spinning cube in a Scene3D, with the hand-off, leak and loss tests. |
 | M4 UI scenes | Side paths | 7 | optional | M3 | none | Optional. A UI scene ports only when it needs a camera, a filter, a mask or a transition. |
-| archive-tags Archive tags | Needs Mark's go-ahead | 7 | gated | M3 | none | archive/side-battle-<date> and archive/phaser-stage-<date>, then close PRs #3 and #4. Mark approves each tag. Status.md also says to ask after PR #23 merged: ask Mark when to do it. |
+| archive-tags Archive tags | Needs Mark's go-ahead | 7 | gated | M3 | none | archive/side-battle-<date> and archive/phaser-stage-<date>, then close PRs #3 and #4. Mark approves each tag. They wait until M3 lands (status.md, Next for agents 3). |
 | release-tags Release tags | Needs Mark's go-ahead | 10 | gated | none | none | Annotated v* tags. Cut only after Mark's playtest and go-ahead. Not tied to one milestone. The column is only a place on the chart. |
 | deploy Deploy site | Needs Mark's go-ahead | 11 | gated | none | none | Site: shadowjog.com. The last alpha step, with the secure email sign-up. Only with Mark's explicit go-ahead. Not tied to one milestone. The column is only a place on the chart. |
 | playthrough-notes Playthrough notes edit | Other open items (no order) | 1 | next | none | none | Mark's uncommitted edit to docs/mark-playthrough-notes.md waits for him. |
@@ -52,7 +52,7 @@ Statuses: **done** (done and merged), **active** (being built now), **next** (st
 2. Run `npm run roadmap`. It rewrites `roadmap.svg` and this file.
 3. Run `npm run check`. The test `tests/roadmap.test.ts` fails when the generated files are out of date.
 
-Do this in every status update. A milestone item uses the same id as its row in the table of `docs/engine/migration.md` section 2 (`M0`, `M1b`, `Pre-M0`). The `milestone:` key in the frontmatter of `status.md` must name the milestone item whose status is `active`.
+Do this in every status update. A milestone item uses the same id as its row in the table of `docs/engine/migration.md` section 2 (`M0`, `M1b`, `Pre-M0`). The `milestone:` key in the frontmatter of `status.md` must name the milestone item whose status is `active`. The value `none` means no item is active. `Pre-M0` may also be `done`.
 
 Item fields:
 
@@ -60,7 +60,7 @@ Item fields:
 |---|---|
 | `id` | A unique name. A milestone uses its id from `migration.md`. |
 | `kind` | `milestone` for a row of that table. Leave it out for anything else. |
-| `label` | The name on the bar: two lines of 13 characters at most. |
+| `label` | The name on the bar: two lines of 12 characters at most. |
 | `tag` | Optional. The short first line on the bar. The default is the id. 10 characters at most. |
 | `lane` | The id of a lane in `lanes`. |
 | `status` | One of `done`, `active`, `next`, `later`, `optional`, `gated`. |

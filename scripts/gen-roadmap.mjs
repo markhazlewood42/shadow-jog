@@ -374,7 +374,7 @@ Statuses: ${STATUSES.map((status) => `**${status}** (${MEANING[status].toLowerCa
 2. Run \`npm run roadmap\`. It rewrites \`roadmap.svg\` and this file.
 3. Run \`npm run check\`. The test \`tests/roadmap.test.ts\` fails when the generated files are out of date.
 
-Do this in every status update. A milestone item uses the same id as its row in the table of \`docs/engine/migration.md\` section 2 (\`M0\`, \`M1b\`, \`Pre-M0\`). The \`milestone:\` key in the frontmatter of \`status.md\` must name the milestone item whose status is \`active\`.
+Do this in every status update. A milestone item uses the same id as its row in the table of \`docs/engine/migration.md\` section 2 (\`M0\`, \`M1b\`, \`Pre-M0\`). The \`milestone:\` key in the frontmatter of \`status.md\` must name the milestone item whose status is \`active\`. The value \`none\` means no item is active. \`Pre-M0\` may also be \`done\`.
 
 Item fields:
 
@@ -382,7 +382,7 @@ Item fields:
 |---|---|
 | \`id\` | A unique name. A milestone uses its id from \`migration.md\`. |
 | \`kind\` | \`milestone\` for a row of that table. Leave it out for anything else. |
-| \`label\` | The name on the bar: two lines of 13 characters at most. |
+| \`label\` | The name on the bar: two lines of 12 characters at most. |
 | \`tag\` | Optional. The short first line on the bar. The default is the id. 10 characters at most. |
 | \`lane\` | The id of a lane in \`lanes\`. |
 | \`status\` | One of ${STATUSES.map((status) => `\`${status}\``).join(', ')}. |

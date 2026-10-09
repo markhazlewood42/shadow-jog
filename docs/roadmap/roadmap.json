@@ -82,7 +82,7 @@
       "lane": "engine",
       "status": "later",
       "after": ["M5", "M4"],
-      "notes": "?engine=sje becomes the default. The old presenter goes. M4 is optional: this item does not wait for it."
+      "notes": "?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow)."
     },
     {
       "id": "M7",
@@ -127,7 +127,7 @@
       "lane": "gated",
       "status": "gated",
       "after": ["M3"],
-      "notes": "archive/side-battle-<date> and archive/phaser-stage-<date>, then close PRs #3 and #4. Mark approves each tag. Status.md also says to ask after PR #23 merged: ask Mark when to do it."
+      "notes": "archive/side-battle-<date> and archive/phaser-stage-<date>, then close PRs #3 and #4. Mark approves each tag. They wait until M3 lands (status.md, Next for agents 3)."
     },
     {
       "id": "release-tags",
