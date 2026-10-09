@@ -1,3 +1,4 @@
+perf evidence: 2026-10-09, commit af03bde, game size 640x360
 [WebServer] (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
 [WebServer]   - import "./src/dev/tools" without a file extension (vite.config.ts:6:27). Add the file extension
 [WebServer] Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.

@@ -140,7 +140,7 @@ Mark decides the look. Agents check exactness, coverage and stability. A decisio
 
 - `maps/lantern_row`, `maps/bar`, `maps/world`, `maps/rustyard`, `maps/sinkline_1`, `maps/annex`, `maps/dock` (the map overview scales a map to fit).
 - `progress-01-cast-sprites` and `32-crowd-sprites` (dev scenes, content in the top-left).
-- `24-ending-results` and `25-ending-next` (centered text cards on a dark page: the results page draws 3.0% outside the old frame once its window is centered; 24 was added to the list at WP5) and `34-game-over` (dark by design).
+- `24-ending-results`, `24c-ending-results-driven-test-run` (the same results card, written by the `playthrough` spec) and `25-ending-next` (centered text cards on a dark page: the results page draws 3.0% outside the old frame once its window is centered; 24 was added to the list at WP5) and `34-game-over` (dark by design).
 - `16b-enemy-poses` and `16c-boss-poses` (sheets, not screens).
 
 **Expectation list.** The visual verifier checks each of these by eye on the regenerated shot. A shot that fails its line is a finding, whatever PL3 says.
@@ -910,7 +910,7 @@ One build, no change under `src/`. The verification table and the CI wall time (
 | 4 | `render-current.mjs` reads `W` and `H` from `src/engine/game.ts` and centers its 128x128 crop from them (was `clip` 176, 71 for 480x270; now 256, 116). `artreview.html` already says `width: 1280px` (set at WP2, `eee97b3`) | Proofs in `media/pivot-640/wp7/scripts/`: `render-current-street.png` (640x360), `-crop.png` (128x128, centered on the player), `artreview.png` (no art-pass options exist in this checkout, so the page lists no shot images; the computed width of an `img.shot` is 1280px) |
 | 5 | `gpufx.spec.ts`: the six emit points spread over the full width (`W * (i + 1) / 7`, was `120 + i * 40`) and sit at 40% of `H` (was 100). `fxlab.spec.ts`: no 480x270 token or derived value left. `prod.spec.ts`: identical to `origin/main`, so its key counts are unchanged | `specs.txt`: 9 of 9 pass (fxlab 2, gpufx 5, prod 2) |
 | 6 | PL8 perf | below |
-| 7 | `scripts/evidence.sh`, run with `SJ_BUILD_SHA=pivot640` exported so the shots it writes carry the same label | unit 454, types, lint, e2e 28 of 28 (economy, gameover, playthrough, prod, playtest, chaos), perf both canvases, shots 36 of 36, audio: all exit 0. The shots it rewrote are **byte-identical** to the committed set (a second proof of the deterministic capture). `24c-ending-results-driven-test-run.png` is written by `playthrough.spec.ts` (1280x720), so it is back in the set |
+| 7 | `scripts/evidence.sh`, run with `SJ_BUILD_SHA=pivot640` exported so the shots it writes carry the same label | unit 454, types, lint, e2e 28 of 28 (economy, gameover, playthrough, prod, playtest, chaos), perf both canvases, shots 36 of 36, audio: all exit 0. The shots it rewrote are byte-identical to the committed set for 72 of 73; `24c` is a real-time playthrough shot with a wall-clock play time, outside the deterministic capture (168 px differ between runs). `24c-ending-results-driven-test-run.png` is written by `playthrough.spec.ts` (1280x720), so it is back in the set |
 | 8 | Bundle (D20) | below |
 | 9 | No-change rows (`no-change.txt`) | `git diff --stat origin/main...HEAD` over `src/art` sprite, portrait and rig code, `field/tiles.ts`, `engine/font.ts` and `public/`: `public/`, `portraits.ts`, `tiles.ts`, `font.ts` have no change. `src/art/deck.ts` is a one-line comment, `src/art/worldsize.ts` is the new size leaf module (no sprite size). PL5 holds. The WP7 build changes nothing under `src/`, `public/`, `src/data` or `src/story` |
 | 10 | PL1 and PL9 lists | `tests/screen-literals.test.ts`: 89 hits in 140 files, 89 allowed, **0 pending, 0 unlisted**. `grep -rn "PIVOT-640 expected-fail" src/ tests/ e2e/ scripts/`: no match (`pl1-pl9.txt`) |
@@ -929,6 +929,16 @@ One build, no change under `src/`. The verification table and the CI wall time (
 **Bundle (D20).** `npm run build && npm run budget`: **240,788 bytes gzip (240.8 kB)** against the 240.7 kB alarm: over by 88 bytes (240,786 with the label pinned to `pivot640`). The alarm is therefore raised by the measured delta only, to **240.8 kB** (0.088 kB, rounded up to 0.1). Cause: WP6 round 2, which derives the set pieces of five backdrops from `BW` (named count-and-step records in `art/battlebg.ts`); WP6 round 1 measured 240.5 kB and WP7 changes no file in `src/`. Every raise on this move: 236.0 to 238.5 (WP3, the surround art and the pop-in table, 2.413 kB), 239.5 (WP3 round 3, the overhead-layer lighting and the named theme records), 240.0 (WP4, the UI layout values), 240.7 (WP5, the title layout and comic-panel table; Mark confirmed it at Review 5), 240.8 (WP7, above). Total over the move: 4.8 kB. Mark confirms the 240.8 raise in the pull request. No doc on this branch says "TBD" for the bundle: the places the plan names (the spike doc and the engine design docs) live on other branches; here `docs/ARCHITECTURE.md` carries the alarm, and the Numbers table says the measured total.
 
 **Prod key counts.** `e2e/prod.spec.ts` is byte-identical to `origin/main` (not in `git diff origin/main...HEAD --stat -- e2e/`), and passes at 640x360 with the same counts (60 presses of `z` to read the opening, 7 `ArrowDown`).
+
+**Round 2 (named fixes).**
+
+- PL3: `24c-ending-results-driven-test-run` joined the void-allowed list (`scripts/pivot-640.json` and the list above), with the reason of `24-ending-results`: the same centered text card. `check-shots-r2.txt`: 58 checked, 0 failed, 15 skipped.
+- `docs/quality/evidence/perf.txt` line 1 holds the date, the commit and the game size (`640x360`). `scripts/evidence.sh` writes it from now on; the line in the committed file was added by hand, because the file came from the earlier run.
+- The `claude-review` check is "skipped" on the draft PR. It is not a failed step; it runs when the PR is ready.
+- The Review 7 pictures are GPU-on frames. Glow and light drawn at screen resolution make uneven blocks; the exact k=3 and k=2 blocks rest on the two `gpufx` block tests.
+- `artreview.html` lists no shots on this branch (no art-pass data), so its 1280 px width is proved by the CSS rule only.
+- The audio-evidence spec rewrites the tracked `docs/quality/evidence/audio/` files (`npm run check` left them unchanged on the round 2 run). This is older than this move: `origin/main` tracks the same files and its `scripts/evidence.sh` runs the same spec. Not changed.
+- The Review 7 Deck pictures are full-page shots of the 1280x800 viewport (the whole window); the 1080p ones are full 1920x1080 page shots.
 
 **Verification table.** (pending)
 

@@ -16,7 +16,7 @@ tail -1 $EV/bundle.txt | sed 's/^/bundle /' >> $LOG
 npx biome lint > $EV/lint.txt 2>&1; echo "biome exit=$?" >> $EV/lint.txt; tail -1 $EV/lint.txt >> $LOG
 npx playwright test e2e/economy.spec.ts e2e/gameover.spec.ts e2e/playthrough.spec.ts e2e/prod.spec.ts e2e/playtest.spec.ts e2e/chaos.spec.ts --reporter=line > $EV/e2e-playthrough.txt 2>&1; echo "e2e exit=$?" >> $LOG
 tail -3 $EV/e2e-playthrough.txt >> $LOG
-{ npx playwright test e2e/perf.spec.ts --reporter=line; echo "gpu exit=$?"; echo '--- software canvas (PW_NOGPU=1, as CI) ---'; PW_NOGPU=1 npx playwright test e2e/perf.spec.ts --reporter=line; echo "software exit=$?"; } > $EV/perf.txt 2>&1
+{ echo "perf evidence: $(date +%F), commit $(git rev-parse --short HEAD), game size 640x360"; npx playwright test e2e/perf.spec.ts --reporter=line; echo "gpu exit=$?"; echo '--- software canvas (PW_NOGPU=1, as CI) ---'; PW_NOGPU=1 npx playwright test e2e/perf.spec.ts --reporter=line; echo "software exit=$?"; } > $EV/perf.txt 2>&1
 grep -E "exit=" $EV/perf.txt >> $LOG
 npx playwright test e2e/shots.spec.ts --reporter=line > shots.log 2>&1; echo "shots exit=$?" >> $LOG
 tail -2 shots.log >> $LOG; rm -f shots.log
