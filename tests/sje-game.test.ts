@@ -96,19 +96,24 @@ describe('negative controls: a broken new Game fails the matching shared case', 
     expect(await passes('trips onFault when only render throws', broken)).toBe(false);
   });
 
-  it('a render fault counter that also counts the tick (the two mixed up) fails "an intermittent render fault never trips recovery"... or is caught by the tick case', async () => {
-    // Mixed counters: a draw fault feeds the tick counter. The tick case (30 ticks that throw in update) still passes, so the mix is caught by
-    // the render-only case: it would trip at the same count anyway. This control checks the SEPARATION instead: a scene that throws in update every tick
-    // and renders fine must trip once, not twice (one counter per phase).
+  it('the tick counter and the draw counter stay separate: a scene that faults in both phases trips each counter at FAULT_LIMIT, not at half of it', () => {
+    // Each frame the tick throws AND the draw throws. Two separate counters reach FAULT_LIMIT on the same frame (two onFault calls).
+    // One shared counter would be fed twice per frame and trip at half the limit.
     const g = newGame();
     let faults = 0;
     g.onFault = () => faults++;
-    void g.run(new Faulty(() => true));
-    for (let i = 0; i < FAULT_LIMIT; i++) {
+    void g.run(new Faulty(() => true, true));
+    const half = FAULT_LIMIT / 2 + 1;
+    for (let i = 0; i < half; i++) {
       g.advanceTick();
       g.draw();
     }
-    expect(faults).toBe(1);
+    expect(faults).toBe(0);
+    for (let i = half; i < FAULT_LIMIT; i++) {
+      g.advanceTick();
+      g.draw();
+    }
+    expect(faults).toBe(2);
   });
 
   it('exit() throws and is not reported: the stack stays clean but the notice is missing, so the exit-throw case fails', async () => {
@@ -189,6 +194,37 @@ describe('close order (frame-and-rendering.md section 2, "Scene lifecycle")', ()
     log.length = 0;
     b.close('x');
     expect(log).toEqual(['b:shutdown', 'b:destroy']);
+  });
+
+  it('legacy: a middle scene closing on [A,B,C] still resumes C (as the old Game.remove did); a native top scene hears nothing (control)', () => {
+    class Old extends OldScene<string> {
+      resumes = 0;
+      update(): void {}
+      render(): void {}
+      override resume(): void {
+        this.resumes++;
+      }
+    }
+    const g = newGame();
+    const a = new Old();
+    const b = new Old();
+    const c = new Old();
+    void g.run(a);
+    void g.run(b);
+    void g.run(c);
+    c.resumes = 0;
+    b.close('x');
+    expect(c.resumes).toBe(1);
+    // Control: the same close on native scenes sends no resume to the top (the other test above), so only the legacy flag explains the 1.
+    const log: string[] = [];
+    const n = newGame();
+    const nb = new Logged('b', log);
+    void n.run(new Logged('a', log));
+    void n.run(nb);
+    void n.run(new Logged('c', log));
+    log.length = 0;
+    nb.close('x');
+    expect(log).not.toContain('c:resume');
   });
 
   it('a legacy scene closes in the old order too: exit, consume, the scene below resumes, then its promise resolves', async () => {

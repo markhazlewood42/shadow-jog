@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { cssScaleFor } from '../src/engine/display';
 import { H, W } from '../src/sje/core/size';
-import { type PictureLayout, pictureLayout } from '../src/sje/render/presenter';
+import { deviceSize, type PictureLayout, pictureLayout } from '../src/sje/render/presenter';
 import { Display, type ScaleTarget } from '../src/sje/runtime/display';
 import { Game } from '../src/sje/runtime/game';
 import { noopInput } from './game-cases';
@@ -78,6 +78,28 @@ describe('Display: integer scale, the whole window', () => {
     const lone = new Display();
     lone.resizeTo(1280, 720, 1);
     expect(draws).toBe(2);
+  });
+});
+
+describe('Display without a render target (the fallback branch)', () => {
+  it('resizeTo computes the layout itself from deviceSize and pictureLayout, and tells its listeners', () => {
+    const d = new Display();
+    let told = 0;
+    d.on('resize', () => told++);
+    const got = d.resizeTo(1280, 720, 2);
+    const dev = deviceSize(1280, 720, 2);
+    expect(got).toEqual(pictureLayout(dev.w, dev.h));
+    expect(d.layout).toEqual(got);
+    expect(told).toBe(1);
+  });
+
+  it('control: a Display with a target takes the layout from the target, not from the arithmetic', () => {
+    const picture = pictureLayout(640, 360);
+    const target = { canvas: {} as HTMLCanvasElement, picture, fitToWindow: () => picture.k } as ScaleTarget;
+    const d = new Display(target);
+    const got = d.resizeTo(1280, 720, 2);
+    expect(got).toBe(picture);
+    expect(got).not.toEqual(pictureLayout(deviceSize(1280, 720, 2).w, deviceSize(1280, 720, 2).h));
   });
 });
 

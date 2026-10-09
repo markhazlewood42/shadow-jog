@@ -7,7 +7,8 @@
  *   legacy                    in LegacyScene
  *   enter()                   create()
  *   exit()                    the `shutdown` event
- *   resume()                  the `resume` event
+ *   resume()                  the `resume` event. Legacy: sent to the top scene after ANY close (as the old Game.remove did, so a middle
+ *                             scene closing on [A,B,C] still resumes C). Native scenes hear it only if a push paused them.
  *   update()                  fixedUpdate(tick)
  *   render(ctx)               the `prerender` event, into this scene's own `CanvasImage` (640x360)
  *   opaque, curtain, passUpdate   read from the legacy scene each time (it may change them while it runs)
@@ -33,6 +34,11 @@ export class LegacyScene<R = unknown> extends Scene<R> {
 
   constructor(readonly legacy: LegacyShape<R>) {
     super();
+  }
+
+  /** The old `Game.remove` resumed the top scene after every close, so a legacy scene hears `resume` even when a middle scene closed. */
+  override get resumesOnAnyClose(): boolean {
+    return true;
   }
 
   override get opaque(): boolean {

@@ -1,7 +1,7 @@
 /**
  * The new engine's runtime parts, in plain Node (docs/engine/m1-brief.md tasks 3 to 8, 14): the Phaser scene operations, the load-aware
  * lifecycle, the LegacyScene layers, the clock, the tweens, the camera effects, the loader and the action map.
- * Every check has a control: a case where the thing it guards is broken on purpose, and the check says so.
+ * The key checks have a control: a case where the thing it guards is broken on purpose, and the check says so.
  *
  * No browser and no GPU: `Game` gets a renderer that draws nothing, and `document.createElement('canvas')` is a recorder, so a test can see which
  * calls a legacy scene's canvas got.
@@ -339,14 +339,15 @@ describe('LegacyScene: one canvas per scene, a layer above the base starts clear
     return g.scene.scenes.map((s) => (s as unknown as { layer: FakeCanvas | null }).layer ?? undefined);
   }
 
-  it('control: if the base were cleared every frame the check above would see clearRect on it (a layer above the base does)', () => {
+  it('control: the clearRect probe sees a clear when one happens (a layer above the base does clear)', () => {
     const g = newGame();
     void g.run(new Old(false));
     void g.run(new Old(false));
     g.draw();
-    const [first] = allLegacyCanvases(g);
-    // The first scene is the bottom one, so it is the base even though it is not opaque: it is never cleared. The second one is a layer.
+    const [first, second] = allLegacyCanvases(g);
+    // The first scene is the bottom one, so it is the base even though it is not opaque: it is never cleared. The second one is a layer, and the probe sees its clear.
     expect(first?.calls.filter((c) => c === 'clearRect')).toHaveLength(0);
+    expect(second?.calls.filter((c) => c === 'clearRect').length).toBeGreaterThan(0);
   });
 
   it('the overlay hooks and the game wash paint on the topmost drawn scene, once, after it', () => {

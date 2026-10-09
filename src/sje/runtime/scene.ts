@@ -127,6 +127,14 @@ export abstract class Scene<R = unknown> implements DisplayHost {
   /** @internal Set by `pause` and `sleep` (Phaser's operations). The stack's own pausing (a scene under one that does not pass updates) is separate. */
   _hold: 'none' | 'paused' | 'sleeping' = 'none';
 
+  /**
+   * @internal Native scenes hear `resume` only when a `push` paused them (Phaser style). A LegacyScene overrides this to true: the old
+   * `Game.remove` called `resume` on the top scene after ANY close, even a scene in the middle of the stack.
+   */
+  get resumesOnAnyClose(): boolean {
+    return false;
+  }
+
   /** @internal True once a `SceneManager` has attached this scene (it is running or was). */
   get attached(): boolean {
     return this._game !== null;

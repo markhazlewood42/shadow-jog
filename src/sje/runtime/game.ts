@@ -55,6 +55,7 @@ import { GameFx, type LegacyCompat } from './screenfx';
 /** Consecutive faulting ticks (or draws) before the game gives up on the current flow. The same number as the old engine's. */
 export const FAULT_LIMIT = 30;
 
+/** `lite` is never in `settings.fxLevel`; it is the level that `auto` will pick on software GL once M2 draws effects (interfaces.check.ts), so the type has it now. */
 export type FxLevel = 'full' | 'lite' | 'none';
 
 export interface GameConfig {
