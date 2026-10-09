@@ -8,10 +8,11 @@
  *      its "failed to start" text (`main.ts` `fail`), not a blank page.
  *   2. Hand it the OLD `Input` (keyboard, gamepad, touch, the player's own keys) and the old engine's shake motion, error notice and perf record.
  *   3. Run the game's own boot (`src/boot.ts`) on it: the same title, field, battle and shop, the same art loading, the same autosave and tab
- *      rules. It sees the new `Game` as `LegacyGameSurface` (see gameapi.ts), which is the old `Game` as far as the game code uses it, and a small
- *      stand-in for the old `Display`. That cast is the one unchecked seam of the migration; `tests/sje-game.test.ts` pins both sides to the interface.
- *
- * Build B of M1 replaces the `Display` stand-in with the real `Display` and adds the DEV hook.
+ *      rules. It sees the new `Game` as `LegacyGameSurface` (see gameapi.ts), which is the old `Game` as far as the game code uses it, and a thin
+ *      adapter over the real `Display` (`game.scale`, integer scale only) in the shape of the old one. That cast is the one unchecked seam of
+ *      the migration; `tests/sje-game.test.ts` pins both sides to the interface.
+ *   4. In a DEV build only, add the engine's members to `window.__SJ__` (`src/sje-lab/devhook.ts`, interfaces.md section 14). A shipped build
+ *      never loads that file (the import sits behind `import.meta.env.DEV`).
  */
 import { boot as bootGame } from '../boot';
 import type { Display as OldDisplay } from '../engine/display';
@@ -24,23 +25,27 @@ import { settings } from '../game/settings';
 import { drawNotice } from '../noticeoverlay';
 import { Game } from './runtime/game';
 
-/** The part of the old `Display` that `src/boot.ts` and the dev routes call. */
-interface DisplayStandIn {
-  mode: 'fit' | 'integer';
+/** The part of the old `Display` that `src/boot.ts` and the dev routes call, over the new `Display`. */
+interface DisplayAdapter {
+  /** Always `integer`. `boot()` assigns `settings.scale` (also `integer`) to it. */
+  mode: 'integer';
   resize(): void;
   setGpu(on: boolean): boolean;
+  toGame(clientX: number, clientY: number): { x: number; y: number };
   readonly element: HTMLCanvasElement;
 }
 
 export async function startSje(markStarted: () => void): Promise<void> {
   const stage = document.getElementById('stage') ?? document.body;
+  // The GL object counter must wrap the context calls before the context exists.
+  const dev = import.meta.env.DEV ? await import('../sje-lab/devhook') : null;
+  dev?.prepare();
   const input = new Input(window);
   input.applyCustom(settings.keys ?? {});
   const game = await Game.create({
     parent: stage,
     input,
-    fxLevel: 'auto',
-    scaleMode: 'integer',
+    fxLevel: settings.fxLevel,
     dev: import.meta.env.DEV,
     compat: {
       reportError,
@@ -54,16 +59,22 @@ export async function startSje(markStarted: () => void): Promise<void> {
   document.getElementById('screen')?.remove();
   const canvas = stage.querySelector('canvas');
   if (!canvas) throw new Error('The new engine made no canvas');
-  const display: DisplayStandIn = {
+  const display: DisplayAdapter = {
     mode: 'integer',
-    resize: () => void game.fitToWindow(stage),
-    // No effects exist on this path until M2, so there is nothing to turn on. Saying "on" keeps the Options toggle from showing a wrong reason.
-    setGpu: (on) => on,
+    resize: () => game.scale.refit(),
+    // No effects exist on this path until M2, so nothing is drawn. The level is kept, so the DEV hook and the Options toggle agree. Saying "on" keeps
+    // the Options toggle from showing a wrong reason.
+    setGpu: (on) => {
+      game.fxLevel = on ? (settings.fxLevel === 'none' ? 'auto' : settings.fxLevel) : 'none';
+      return on;
+    },
+    toGame: (x, y) => game.scale.toGame(x, y),
     element: canvas,
   };
   // The notice overlay, as `main.ts` registers it on the old path.
   game.overlays.push(drawNotice);
   bootGame(game as unknown as OldGame, display as unknown as OldDisplay);
+  dev?.attach(game);
   const bootEl = document.getElementById('boot');
   if (bootEl) bootEl.style.display = 'none';
   game.start();

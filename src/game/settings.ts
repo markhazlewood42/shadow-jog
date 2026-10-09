@@ -8,7 +8,8 @@ export interface Settings {
   textSpeed: number;
   /** 1 = normal, 2 = fast, 3 = faster */
   battleSpeed: number;
-  scale: 'fit' | 'integer';
+  /** Always `integer`: the `fit` mode was dropped (Mark, 2026-10-09). A saved `fit` becomes `integer` in `backfill()`. */
+  scale: 'integer';
   /** 0 = off, 1 = gentle, 2 = full. */
   shake: number;
   /** Full-screen flashes (hits, combos, the finale): 0 = off, 1 = reduced, 2 = full. */
@@ -20,10 +21,14 @@ export interface Settings {
   timing: 'on' | 'assist' | 'off';
   /** The player's own key for an action (on top of the defaults), by KeyboardEvent.code. */
   keys: Partial<Record<Action, string>>;
-  /** GPU effects (engine/postfx.ts): bloom, shockwaves, particles. Off, or without WebGL 2, the
-   *  game draws exactly as before. */
-  gpuFx: boolean;
+  /** GPU effects (engine/postfx.ts): bloom, shockwaves, particles. `none`, or without WebGL 2, the
+   *  game draws exactly as before. `auto` picks the level the machine can hold; `full` asks for all of it.
+   *  Replaces the old `gpuFx` flag (`backfill()` maps true to `auto`, false to `none`). */
+  fxLevel: FxSetting;
 }
+
+export type FxSetting = 'none' | 'auto' | 'full';
+const FX_SETTINGS: readonly FxSetting[] = ['none', 'auto', 'full'];
 
 const KEY = 'shadowjog.settings.v1';
 
@@ -32,7 +37,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sfxVol: 0.8,
   textSpeed: 2,
   battleSpeed: 1,
-  scale: 'fit',
+  scale: 'integer',
   // Gentle by default; players who want the full kick can turn it up.
   shake: 1,
   flash: 2,
@@ -40,20 +45,37 @@ export const DEFAULT_SETTINGS: Settings = {
   touch: 'auto',
   timing: 'on',
   keys: {},
-  gpuFx: true,
+  fxLevel: 'auto',
 };
+
+/**
+ * Bring a stored settings object up to date: fill what it lacks from the defaults and migrate the old shapes. Pure (no storage), so a test
+ * can feed it any old save.
+ *
+ *  - v1 stored `shake` as on/off.
+ *  - An old CRT toggle never did anything: dropped.
+ *  - `gpuFx` (a boolean) became `fxLevel`: true is `auto`, false is `none`. An `fxLevel` that is already there wins.
+ *  - `scale: 'fit'` became `integer` when the fit mode was dropped (Mark, 2026-10-09). Any other value is `integer` too.
+ */
+export function backfill(stored: unknown): Settings {
+  const old = (stored && typeof stored === 'object' ? stored : {}) as Partial<Settings> & { gpuFx?: unknown; crt?: unknown; shake?: unknown };
+  const s: Settings & { gpuFx?: unknown; crt?: unknown } = { ...DEFAULT_SETTINGS, ...old, scale: 'integer' } as Settings;
+  if (typeof old.shake === 'boolean') s.shake = old.shake ? 2 : 0;
+  delete s.crt;
+  if (!FX_SETTINGS.includes(old.fxLevel as FxSetting)) {
+    if (typeof old.gpuFx === 'boolean') s.fxLevel = old.gpuFx ? 'auto' : 'none';
+    else s.fxLevel = DEFAULT_SETTINGS.fxLevel;
+  }
+  delete s.gpuFx;
+  return s;
+}
 
 function load(): Settings {
   try {
     // Where storage is blocked, even naming localStorage throws, so the check sits inside the try.
     const raw = typeof localStorage === 'undefined' ? null : localStorage.getItem(KEY);
     if (raw) {
-      const s = { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) };
-      // v1 stored shake as on/off.
-      if (typeof s.shake === 'boolean') s.shake = s.shake ? 2 : 0;
-      // An old CRT toggle that never did anything.
-      delete (s as Partial<Settings> & { crt?: unknown }).crt;
-      return s;
+      return backfill(JSON.parse(raw));
     }
   } catch {
     /* storage unavailable (private mode) — defaults */
@@ -69,6 +91,11 @@ export function saveSettings(): void {
   } catch {
     /* ignore */
   }
+}
+
+/** Are GPU effects asked for? (`fxLevel` is not `none`.) */
+export function gpuWanted(): boolean {
+  return settings.fxLevel !== 'none';
 }
 
 /** Multiplier applied to every full-screen flash (0 skips them). */

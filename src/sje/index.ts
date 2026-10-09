@@ -27,6 +27,7 @@ export { View3D } from './display/view3d';
 export type { Pixels } from './render/backbuffer';
 export { probeWebGL2 } from './render/glcontext';
 export { ExternalFrameTexture, type FrameTexture } from './render/frametexture';
+export { Display, type ScaleTarget } from './runtime/display';
 export { type FrameRenderer, GlRenderer } from './runtime/glrenderer';
 export { Cancelled, Clock, ignoreCancel, type TimerEvent, type TimerEventConfig } from './runtime/clock';
 export { FAULT_LIMIT, type FxLevel, Game, type GameConfig, type GameEvents, type GameParts } from './runtime/game';

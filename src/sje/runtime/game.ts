@@ -28,8 +28,10 @@
  * Fault isolation is today's, line for line (tests/game.test.ts runs the same cases on both `Game` classes): an exception in one scene's
  * update or draw is reported and that scene skips the frame; the loop never dies.
  *
- * Not built yet: `fx` (the effects system, M2), `audio` (the bridge, with the first native scene), `scale` (Display: build B of M1), `registry`,
- * the destroy queue, the 3D scene (M1b), `fxLevel` behavior (build B reads `config.fxLevel`).
+ * `scale` is the `Display`: integer mode only (Mark, 2026-10-09). It redraws the frame after every resize, because resizing a canvas clears it.
+ *
+ * Not built yet: `fx` (the effects system, M2), `audio` (the bridge, with the first native scene), `registry`, the destroy queue, the 3D scene
+ * (M1b). `fxLevel` is stored and shown by the DEV hook; nothing draws an effect until M2.
  */
 import { EventEmitter } from '../core/eventemitter';
 import { FixedLoop, type FixedLoopOptions } from '../core/fixedloop';
@@ -40,6 +42,7 @@ import { Graphics } from '../display/graphics';
 import { Screen } from '../display/screen';
 import { TextureManager } from '../display/texturemanager';
 import type { Input } from '../../engine/input';
+import { Display } from './display';
 import type { AnyLegacy, LegacyGameSurface, LegacyShape, ShakeDirection } from './gameapi';
 import { type FrameRenderer, GlRenderer } from './glrenderer';
 import { type ActionMap, actionMapOf } from './input';
@@ -59,10 +62,8 @@ export interface GameConfig {
   parent: HTMLElement;
   /** The old `Input` (keyboard, gamepad, touch). The new engine wraps it, it does not copy it. */
   input: Input;
-  /** Effects level. Stored for now: build B of M1 reads it. @ours */
+  /** Effects level, from `settings.fxLevel`. Stored until M2 draws effects. @ours */
   fxLevel?: 'auto' | FxLevel;
-  /** Stored for now: build B of M1 reads it. @ours */
-  scaleMode?: 'integer' | 'fit';
   /** Visual randomness only. @ours */
   seed?: number;
   /** Dev builds: the hook, extra checks. @ours */
@@ -94,6 +95,8 @@ export interface GameParts {
   compat?: Partial<LegacyCompat>;
   /** Where the loader gets bytes. Tests give their own. */
   loadBackend?: LoadBackend;
+  /** The display. `Game.create` builds the real one; a test leaves it out and gets one with no canvas. */
+  scale?: Display;
 }
 
 interface Timer {
@@ -113,6 +116,8 @@ export class Game implements DisplayHost, LegacyGameSurface {
   readonly textures: TextureManager;
   readonly cache = new CacheManager();
   readonly screen: Screen;
+  /** Where the picture sits in the window (integer scale only). */
+  readonly scale: Display;
   readonly scene: SceneManager;
   readonly renderer: FrameRenderer;
   /** The old `Input`, as the legacy scenes use it. */
@@ -135,9 +140,8 @@ export class Game implements DisplayHost, LegacyGameSurface {
   flashScale: () => number = () => 1;
   /** Called once when something keeps throwing (see FAULT_LIMIT). */
   onFault: (() => void) | null = null;
-  /** Stored from the config for build B. */
+  /** The effects level from the config (and the setting). Nothing draws an effect until M2. */
   fxLevel: 'auto' | FxLevel = 'auto';
-  scaleMode: 'integer' | 'fit' = 'integer';
 
   private readonly loop: FixedLoop;
   private readonly compat: LegacyCompat;
@@ -167,6 +171,9 @@ export class Game implements DisplayHost, LegacyGameSurface {
     this.gfx = new GameFx(this.compat);
     this.textures = parts.textures ?? new TextureManager();
     this.screen = new Screen(this);
+    this.scale = parts.scale ?? new Display();
+    // Resizing a canvas clears it: draw again at once rather than show a blank frame until the next tick.
+    this.scale.on('resize', () => this.draw(0));
     this.scene = new SceneManager(this, this.screen, (scene, error, phase) => this.reportFault(scene, error, phase));
     const record = this.compat.record;
     this.loop = new FixedLoop(
@@ -190,28 +197,13 @@ export class Game implements DisplayHost, LegacyGameSurface {
       canvas.remove();
       throw e;
     }
-    const game = new Game({ renderer, input: config.input, ...(config.compat ? { compat: config.compat } : {}) });
+    const scale = new Display(renderer);
+    const game = new Game({ renderer, scale, input: config.input, ...(config.compat ? { compat: config.compat } : {}) });
     if (config.fxLevel) game.fxLevel = config.fxLevel;
-    if (config.scaleMode) game.scaleMode = config.scaleMode;
     renderer.glc.on('lost', () => game.events.emit('contextlost'));
     renderer.glc.on('restored', () => game.events.emit('contextrestored'));
-    const refit = () => game.fitToWindow(config.parent);
-    refit();
-    window.addEventListener('resize', refit);
+    scale.attach(config.parent);
     return game;
-  }
-
-  /**
-   * Size the canvas to the whole window in device pixels and put the picture in it at the largest whole-number scale. Returns `k`.
-   * A stand-in for `Display` (build B of M1).
-   */
-  fitToWindow(parent: HTMLElement = document.body): number {
-    if (!(this.renderer instanceof GlRenderer)) return 1;
-    const dpr = window.devicePixelRatio || 1;
-    const k = this.renderer.fitToWindow(parent.clientWidth || window.innerWidth, parent.clientHeight || window.innerHeight, dpr);
-    // Resizing clears the canvas: draw again at once rather than show a blank frame until the next tick.
-    this.draw(0);
-    return k;
   }
 
   /** Ticks per loop step. Debug and tests only. */
@@ -443,6 +435,7 @@ export class Game implements DisplayHost, LegacyGameSurface {
   destroyForTests(): void {
     this.stop();
     this.abandon();
+    this.scale.destroy();
     this.renderer.destroyForTests?.();
   }
 
