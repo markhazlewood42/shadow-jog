@@ -22,7 +22,7 @@ export const PANEL = { x: 40, y: 40, w: 96, h: 64 } as const;
 /** The part of the panel that the mask lets through. */
 export const PANEL_MASK = { x: 56, y: 48, w: 40, h: 32 } as const;
 /** The color of the panel's fill, bright, so "drawn outside the mask" shows. */
-export const PANEL_COLOR = 0xff4fb0;
+export const PANEL_COLOR = 0xff5c33;
 
 /** A tiny seeded generator (mulberry32), so the noise is the same on every page load. */
 function rng(seed: number): () => number {

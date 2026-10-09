@@ -13,6 +13,7 @@ import type { Lab } from './lab';
 import type { GlCounts } from './glcounter';
 import { type BlockStats, countBlocks, fingerprint, toBase64, words } from './pixeltools';
 import { type PixiCanaries, pixiCanaries } from './pixilab';
+import { type ProfileOptions, type ProfileResult, profileLoop } from './profile';
 import type { ThreeLab } from './threelab';
 
 export interface Timing {
@@ -61,6 +62,11 @@ export interface SjeHook extends PixiCanaries {
   pixiTickerRunning(): boolean;
   /** Is Pixi's texture garbage collector on? It must be off. */
   pixiGcEnabled(): boolean;
+  /**
+   * Free-run the real loop for `frames` animation frames: the frame intervals, the JavaScript time of the engine's work in each, and (by
+   * option) the cost including the wait for the GPU, and the GPU's own timer. See src/sje-lab/profile.ts. The page must run the loop (no `?manual`).
+   */
+  profileLoop(frames: number, options?: ProfileOptions): Promise<ProfileResult>;
   /** The 3D part of the lab (loads the 3D chunk, and Three, on first use). */
   three(): Promise<ThreeLab>;
 }
@@ -168,30 +174,12 @@ export function installHook(lab: Lab): SjeHook {
       }
     },
     contextLost: () => renderer.glc.lost,
-    // Resolve one macrotask AFTER the event: the browser calls every listener of `webglcontextlost` (ours, Pixi's,
-    // Three's) in turn, and a promise continuation would run between them. Restoring before the last one has run is
-    // refused ("restoreContext: context restoration not allowed"), and the Three and Pixi handlers would run late.
-    loseContext: () =>
-      new Promise<void>((resolve) => {
-        const done = (): void => {
-          renderer.glc.off('lost', done);
-          setTimeout(resolve, 0);
-        };
-        renderer.glc.on('lost', done);
-        renderer.glc.forceLoss();
-      }),
-    restoreContext: () =>
-      new Promise<void>((resolve) => {
-        const done = (): void => {
-          renderer.glc.off('restored', done);
-          setTimeout(resolve, 0);
-        };
-        renderer.glc.on('restored', done);
-        renderer.glc.forceRestore();
-      }),
+    loseContext: () => lab.loseContext(),
+    restoreContext: () => lab.restoreContext(),
     glErrors: () => renderer.handoff.drainErrors(),
     pixiTickerRunning: () => Ticker.system.started,
     pixiGcEnabled: () => renderer.pixi.renderer.gc.enabled,
+    profileLoop: (frames, options) => profileLoop(lab, gl, () => void renderer.handoff.readDefaultFramebuffer(0, 0, 1, 1), frames, options),
     three() {
       // The 3D part loads on first use, as the real game will load it (the lazy boundary).
       threeLab ??= import('./threelab').then((m) => m.createThreeLab(lab));
