@@ -427,7 +427,7 @@ enemies and portraits are code-drawn again (`?art=drawn` loads all the PixelLab 
 
 ## Architecture (summary; full version in docs/ARCHITECTURE.md)
 
-- Vite + TypeScript (strict), no runtime dependencies so far (high-quality free ones are fine), Canvas 2D at 480x270. Audio is generated in code; art is generated in code with Mark's picks from the PixelLab pass loaded over it (`public/art/`, `src/art/drawn.ts`).
+- Vite + TypeScript (strict), no runtime dependencies so far (high-quality free ones are fine), Canvas 2D at 640x360 (Mark chose it on 2026-10-05, up from 480x270). Audio is generated in code; art is generated in code with Mark's picks from the PixelLab pass loaded over it (`public/art/`, `src/art/drawn.ts`).
 - `src/engine/`: loop, scene stack, input, bitmap font, display scaling; the optional GPU effects layer
   (`postfx.ts`, `gl/presenter.ts`, `particles.ts`).
 - `src/field/`: map baking (tiles, buildings, props), light map, weather, actors, chests.

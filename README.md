@@ -5,7 +5,7 @@ round-based battles with combos and timed presses, and a story told in dialogue 
 "Milk Run", is an alpha of about 45–75 minutes.
 
 Everything is made in code: the sprites, tiles, portraits, music and sound are generated at runtime, with zero
-runtime dependencies (Vite + TypeScript, Canvas 2D at 480×270).
+runtime dependencies (Vite + TypeScript, Canvas 2D at 640×360).
 
 ```bash
 npm install

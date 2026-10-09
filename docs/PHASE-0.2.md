@@ -2,6 +2,8 @@
 
 > Status 2026-10-04 (evening): **decision 17 supersedes the Phaser rebuild.** Shadow Jog gets its own engine, with PixiJS v8 as the 2D renderer and Three.js for a low-poly 3D hacking mode. No engine code is written before Mark approves an architecture design doc. The research is in `docs/research/2026-10-04-engine-and-3d.md`.
 >
+> Status 2026-10-09: the resolution question is answered. The game is 640x360 (Mark, 2026-10-05; PR #23). Sizes of 480x270 in the research text below are the record of their day.
+>
 > Status 2026-10-04: "The short version" below is the original 2026-10-02 plan. See "Decisions for Mark" for the current state. Both pivot spikes are GO (Mark, 2026-10-04): the side-on battle view and the Phaser tooling spike. The spike records are in `docs/spikes/`. Neither spike PR merges. The next step is the architecture design doc for Mark's approval (decision 17). The rebuild in decision 10 waits for it.
 
 *Plan written 2026-10-02, after PR #1 (Rook's back-view battle rig) merged. Anything marked (inferred) has not been checked against a source or the code.*
@@ -532,7 +534,7 @@ Options were: (a) record the result, tag `archive/side-battle-YYYY-MM-DD`, close
 - No mature, free web engine among those tested supplies the whole game layer for both crisp 2D and 3D. Every benchmarked engine drew pixel-exact 480x270 output (some after one non-default fix).
 - A Canvas 2D display list (not Pixi) ran the unchanged Phaser spike stage within 1/255. Pixi and Phaser can each share one WebGL2 context with Three.js, shown for simple art only. Pixi filters, masks and parity with the stage are not tested yet.
 - No judge picked Pixi. Two judges picked "grow our Canvas 2D engine + Three.js" and one picked Phaser + Three.js.
-- Resolution: keep 480x270 for now, make W and H one shared module, and compare 640x360 in a mock.
+- Resolution: keep 480x270 for now, make W and H one shared module, and compare 640x360 in a mock. **Answered 2026-10-05 (Mark; built in PR #23): the game size is 640x360.** After the mock he first kept 480x270, then chose 640x360 the same day from the comparison pictures (decision E12, `docs/engine/decisions.md`). The text above is the record of 2026-10-04.
 **Mark's choice (2026-10-04): our own engine on PixiJS v8 now.** He did not choose our own Canvas 2D renderer, because per-object GPU effects matter: special effects are "the real differentiator". He did not choose Phaser + Three.js either. It brings a second scene system, and Phaser has had no release since 2026-07-09. Pixi adds about 155 kB to the first download unless it loads lazily, so the bundle alarm must be re-set on purpose.
 **The design gate (Mark):** no engine code before Mark approves an architecture design doc. It must be easy to read and cover the architecture, the key interfaces, the core primitives and the tooling. It copies established conventions (Phaser first for 2D, then Unity or Godot, Three.js for 3D) and says which one each concept follows.
 **What changes:**

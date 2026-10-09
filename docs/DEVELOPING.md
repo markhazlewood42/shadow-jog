@@ -136,7 +136,7 @@ Capture a set with `SJ_BUILD_SHA=<label> npm run shots`, copy `docs/screenshots`
 ### Tests vs design data
 The stage tools come to `main` when the battle stage is built on the new engine (decision 17 in `docs/PHASE-0.2.md`). Follow this rule from the first commit of that build. The paths below are the paths on `spike/phaser-stage`.
 
-Mark edits the design data (`src/data/stages.json`, `heroes.json`, `hud.json`, `axes.json`, `enemyfacing.json`) in the Battle Stage Editor and saves it. **A test never pins a value that a designer edits in a tool**, or it breaks every time he uses the tool. The rule for the stage tools (`src/stage`, `e2e/stage*`, `e2e/battletest*`, `tests/stage*`):
+On the Phaser spike branch (the stage tools are not on this branch; they are planned for milestone M3), Mark edits the design data (`src/data/stages.json`, `heroes.json`, `hud.json`, `axes.json`, `enemyfacing.json`) in the Battle Stage Editor and saves it. **A test never pins a value that a designer edits in a tool**, or it breaks every time he uses the tool. The rule for the stage tools (`src/stage`, `e2e/stage*`, `e2e/battletest*`, `tests/stage*`):
 
 1. **Tests of the tool and of the algorithms use fixture data**, a frozen copy of the five files in `tests/fixtures/stagedata/`. Unit tests load it with `fixtureStages()`, `fixtureHeroes()` and friends from `tests/stagefiles.ts`; editor e2e specs get it for free, because `openEditor` (`e2e/stageeditkit.ts`) seeds the scratch copy (`?scratch=`) from it. A test that edits and saves asserts RELATIVE behaviour: the value changed by the drag, and undo restores the starting value read at the start of the test, never a number copied from Mark's file. Inline numbers are fine too (for example the bake tests feed their own heroes).
 2. **Tests of the shipped data check invariants only**: every file loads with the loader the game uses, all four heroes are present, the hero ancestry order holds in the measured baked heights (Hex shorter than Kit and Rook, Sable the tallest, Rook at least as tall as Kit), the facing file covers every sprite, the files are in the stable format. They live in `tests/stageshipped.test.ts`, in the "shipped" blocks of `stageproportions` and `stagefacing`, and in `e2e/stageshipped.spec.ts`, which opens the editor on his current files (`openEditor(..., { data: 'current' })`). The editor's warnings must equal what `rules.ts` computes for the same stage (`ruleKeys` in the kit), with no fixed list of expected warnings.
@@ -174,7 +174,7 @@ tool, page or route goes there. The menu isn't mounted under Playwright (`naviga
 - `battle(encounter, bg, boss)`, `defineEncounter(id, enemies)`;
 - `say(who, text)`, `menu()`, `shop(id)`, `run(scriptFn)`, `save(slot)`, `ending()`, `notice()`;
 - `debug`: `{ autoDialog, autoBattle, autoLose, playtest }`.
-- `postfx` (the GPU effects façade: try `sj.postfx.shock(240, 135)`), `fx` (the live presets and moments),
+- `postfx` (the GPU effects façade: try `sj.postfx.shock(320, 180)`), `fx` (the live presets and moments),
   `gpu(on)` (the Options switch).
 
 Setting flags by hand: `sj.state.flags.floodgate = true`, then `sj.field().api.refreshMap()`.

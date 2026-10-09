@@ -1,7 +1,7 @@
 # Shadow Jog: instructions for AI sessions
 
 A browser JRPG (cyberpunk-fantasy, Phantasy Star IV loop), Chapter 1 "Milk Run", built to an indie-alpha bar.
-Vite + TypeScript strict, Canvas 2D at 480×270. No runtime dependencies today (a build choice, not a rule: see Rules). Art: **drawn picks from the PixelLab art pass** (`public/art/`, loaded by `src/art/drawn.ts`) over the game's own **code-drawn art**, which stays as the fallback for everything; audio all generated in code.
+Vite + TypeScript strict, Canvas 2D at 640×360 (moved from 480×270 on 2026-10-05; `W` and `H` in `src/engine/game.ts`). No runtime dependencies today (a build choice, not a rule: see Rules). Art: **drawn picks from the PixelLab art pass** (`public/art/`, loaded by `src/art/drawn.ts`) over the game's own **code-drawn art**, which stays as the fallback for everything; audio all generated in code.
 Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 
 ## Start here, in this order
