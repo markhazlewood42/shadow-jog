@@ -26,12 +26,12 @@ Now: M0 Prepare. Next: M1 Shell.
 | Phase 0 Platform spike | Foundations | 1 | done | none | PR #11 (draft, never merged) | Mark approved the final engine design on 2026-10-05. Record: docs/spikes/engine-platform.md. |
 | Pre-M0 640x360 move | Foundations | 2 | done | Phase 0 | branch `resolution-640x360`, PR #23 (merged 2026-10-09) | The shipped game plays at 640x360. Record: docs/PIVOT-640.md. |
 | M0 Prepare | Foundations | 3 | active | Pre-M0 | branch `engine-m0-prepare`, PR #43 (ready for review) | Built and verified (2 rounds). Size module, bundle gate, canary suite, lab, agent docs. Waits for CI and Mark's merge. Worktree: projects/shadow-jog-engine. |
-| M1 Shell | Engine path | 4 | next | M0 | none | Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. |
-| M2 Effects | Engine path | 5 | later | M1 | none | FxSystem with the postfx facade, composite filter, particles. |
-| M3 Battle stage | Engine path | 6 | later | M2 | none | The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge. |
-| M5 Field | Engine path | 7 | later | M3 | none | Field map, actors, camera, lights, weather. Mark approves the lighting. |
-| M6 Flip default | Engine path | 8 | later | M5, M4 | none | ?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow). |
-| M7 3D mode | Engine path | 9 | later | M6, M1b | none | Needs both the 3D proof (M1b) and the default flip (M6). |
+| M1 Shell | Engine path | 4 | next | M0 | none | Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. GPU timing check (npm run perf) once at the end, not in CI. |
+| M2 Effects | Engine path | 5 | later | M1 | none | FxSystem with the postfx facade, composite filter, particles. GPU timing check (npm run perf) once at the end, not in CI. |
+| M3 Battle stage | Engine path | 6 | later | M2 | none | The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge. GPU timing check (npm run perf) once at the end, not in CI. |
+| M5 Field | Engine path | 7 | later | M3 | none | Field map, actors, camera, lights, weather. Mark approves the lighting. GPU timing check (npm run perf) once at the end, not in CI. |
+| M6 Flip default | Engine path | 8 | later | M5, M4 | none | ?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow). GPU timing check (npm run perf) once at the end, not in CI. |
+| M7 3D mode | Engine path | 9 | later | M6, M1b | none | Needs both the 3D proof (M1b) and the default flip (M6). GPU timing check (npm run perf) once at the end, not in CI. |
 | M8 Remove legacy | Engine path | 10 | later | M7 | none | Delete the old engine files. |
 | M1b 3D proof | Side paths | 5 | later | M1 | none | Parallel with M2. A spinning cube in a Scene3D, with the hand-off, leak and loss tests. |
 | M4 UI scenes | Side paths | 7 | optional | M3 | none | Optional. A UI scene ports only when it needs a camera, a filter, a mask or a transition. |

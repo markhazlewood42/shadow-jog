@@ -72,42 +72,42 @@
     <text x="232" y="219" fill="#1a1500" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">ACTIVE</text>
   </g>
   <g id="item-M1">
-    <title>M1 Shell: next. Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag.</title>
+    <title>M1 Shell: next. Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. GPU timing check (npm run perf) once at the end, not in CI.</title>
     <rect x="326" y="264" width="90" height="76" rx="6" fill="#16304d" stroke="#5fb3ff" stroke-width="1.2"/>
     <text x="334" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M1</text>
     <text x="334" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Shell</text>
     <text x="334" y="333" fill="#d4e8ff" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">NEXT</text>
   </g>
   <g id="item-M2">
-    <title>M2 Effects: later. FxSystem with the postfx facade, composite filter, particles.</title>
+    <title>M2 Effects: later. FxSystem with the postfx facade, composite filter, particles. GPU timing check (npm run perf) once at the end, not in CI.</title>
     <rect x="428" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
     <text x="436" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M2</text>
     <text x="436" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Effects</text>
     <text x="436" y="333" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
   </g>
   <g id="item-M3">
-    <title>M3 Battle stage: later. The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge.</title>
+    <title>M3 Battle stage: later. The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge. GPU timing check (npm run perf) once at the end, not in CI.</title>
     <rect x="530" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
     <text x="538" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M3</text>
     <text x="538" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Battle stage</text>
     <text x="538" y="333" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
   </g>
   <g id="item-M5">
-    <title>M5 Field: later. Field map, actors, camera, lights, weather. Mark approves the lighting.</title>
+    <title>M5 Field: later. Field map, actors, camera, lights, weather. Mark approves the lighting. GPU timing check (npm run perf) once at the end, not in CI.</title>
     <rect x="632" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
     <text x="640" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M5</text>
     <text x="640" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Field</text>
     <text x="640" y="333" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
   </g>
   <g id="item-M6">
-    <title>M6 Flip default: later. ?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow).</title>
+    <title>M6 Flip default: later. ?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow). GPU timing check (npm run perf) once at the end, not in CI.</title>
     <rect x="734" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
     <text x="742" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M6</text>
     <text x="742" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Flip default</text>
     <text x="742" y="333" fill="#bfc3e4" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">LATER</text>
   </g>
   <g id="item-M7">
-    <title>M7 3D mode: later. Needs both the 3D proof (M1b) and the default flip (M6).</title>
+    <title>M7 3D mode: later. Needs both the 3D proof (M1b) and the default flip (M6). GPU timing check (npm run perf) once at the end, not in CI.</title>
     <rect x="836" y="264" width="90" height="76" rx="6" fill="#1c1a3a" stroke="#7a80c4" stroke-width="1.2"/>
     <text x="844" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M7</text>
     <text x="844" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">3D mode</text>
