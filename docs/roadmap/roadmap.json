@@ -135,7 +135,8 @@
       "lane": "engine",
       "status": "later",
       "after": [
-        "M7"
+        "M7",
+        "ET"
       ],
       "notes": "Delete the old engine files."
     },
@@ -241,6 +242,28 @@
       "after": [],
       "column": 4,
       "notes": "An upstream bug report for the plasma-ui canvas width (R28), if Mark wants one."
+    },
+    {
+      "id": "ET",
+      "kind": "milestone",
+      "label": "Editor port",
+      "lane": "side",
+      "status": "later",
+      "after": [
+        "M6"
+      ],
+      "notes": "Bring every existing editor and tool onto the new engine (FX lab with M6, Battle Stage Editor with M3, then animation editor, art review, DEV menu). Needs the editor contract of principle 11. Gone from the old engine before M8."
+    },
+    {
+      "id": "Editors",
+      "kind": "milestone",
+      "label": "Editor suite",
+      "lane": "side",
+      "status": "later",
+      "after": [
+        "ET"
+      ],
+      "notes": "After Chapter 1. New UI editors so Mark builds the game mostly in tools: troops, database, maps, conversations, animation composer, lights and weather. Plan: docs/TOOLING-UI.md section 4."
     }
   ]
 }

@@ -373,6 +373,8 @@ What it edits: one move per entry (proposed `src/data/moves.json`), such as Rook
 
 ### 4.5 Bringing the existing tools into line (later, not now)
 
+**Plan (Mark, 2026-10-09):** the port of these tools to the new engine is milestone ET in `docs/engine/migration.md` ("Editors and tools"). The new tools of section 4 are the Editor suite, after Chapter 1. The goal is that Mark builds the game mostly in UI editors.
+
 Don't rewrite these for the guide's sake; apply the relevant part whenever one is next opened for real work.
 
 | Tool | Already matches | Changes when next touched |

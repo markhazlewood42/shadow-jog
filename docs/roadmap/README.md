@@ -32,9 +32,11 @@ Now: M2 Effects.
 | M5 Field | Engine path | 7 | later | M3 | none | Field map, actors, camera, lights, weather. Mark approves the lighting. GPU timing check (npm run perf) once at the end, not in CI. |
 | M6 Flip default | Engine path | 8 | later | M5, M4 | none | ?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow). GPU timing check (npm run perf) once at the end, not in CI. |
 | M7 3D mode | Engine path | 9 | later | M6, M1b | none | Needs both the 3D proof (M1b) and the default flip (M6). GPU timing check (npm run perf) once at the end, not in CI. |
-| M8 Remove legacy | Engine path | 10 | later | M7 | none | Delete the old engine files. |
+| M8 Remove legacy | Engine path | 10 | later | M7, ET | none | Delete the old engine files. |
 | M1b 3D proof | Side paths | 5 | later | M1 | none | Parallel with M2. A spinning cube in a Scene3D, with the hand-off, leak and loss tests. |
 | M4 UI scenes | Side paths | 7 | optional | M3 | none | Optional. A UI scene ports only when it needs a camera, a filter, a mask or a transition. |
+| ET Editor port | Side paths | 9 | later | M6 | none | Bring every existing editor and tool onto the new engine (FX lab with M6, Battle Stage Editor with M3, then animation editor, art review, DEV menu). Needs the editor contract of principle 11. Gone from the old engine before M8. |
+| Editors Editor suite | Side paths | 10 | later | ET | none | After Chapter 1. New UI editors so Mark builds the game mostly in tools: troops, database, maps, conversations, animation composer, lights and weather. Plan: docs/TOOLING-UI.md section 4. |
 | archive-tags Archive tags | Needs Mark's go-ahead | 7 | gated | M3 | none | archive/side-battle-<date> and archive/phaser-stage-<date>, then close PRs #3 and #4. Mark approves each tag. They wait until M3 lands (status.md, Next for agents 3). |
 | release-tags Release tags | Needs Mark's go-ahead | 10 | gated | none | none | Annotated v* tags. Cut only after Mark's playtest and go-ahead. Not tied to one milestone. The column is only a place on the chart. |
 | deploy Deploy site | Needs Mark's go-ahead | 11 | gated | none | none | Site: shadowjog.com. The last alpha step, with the secure email sign-up. Only with Mark's explicit go-ahead. Not tied to one milestone. The column is only a place on the chart. |

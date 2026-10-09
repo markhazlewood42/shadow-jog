@@ -16,7 +16,7 @@ Source: [migration.md](migration.md) "M2 Effects", [frame-and-rendering.md](fram
 - Under `?engine=sje`, the `postfx` facade routes to a new `FxSystem`. Bloom, 4 shockwaves, color split, 4 hazes, 2 glitches, dim, flash, vignette and the particles draw through Pixi, with the same method names and signatures.
 - `src/data/fx.json`, `src/data/fxdata.ts` and `src/engine/moments.ts` do not change. `playMoment` hits look the same as the old presenter.
 - The default path (no flag) does not change in behavior. The old `GlPresenter` stays until M6.
-- Not in M2: `Scene3D` and 3D (M1b, M7), ports of scenes to retained mode (M3 on), a hit-flash or outline wrapper nobody calls yet, `pixi-filters`.
+- Not in M2: porting the FX lab or any other editor (milestone ET in `migration.md`), `Scene3D` and 3D (M1b, M7), ports of scenes to retained mode (M3 on), a hit-flash or outline wrapper nobody calls yet, `pixi-filters`.
 - Exit check (migration.md): a side-by-side of `playMoment` hits, old presenter against `FxSystem`, that Mark reviews. Effect specs run at `full` on SwiftShader.
 
 ## 2. Design decisions taken (the brief, not Mark: none changes an approved design)
@@ -29,6 +29,7 @@ Source: [migration.md](migration.md) "M2 Effects", [frame-and-rendering.md](fram
 6. **Warm-up.** `FxSystem.warm()` draws each effect once off screen during the title or load. No first-use compile in a `playMoment` frame.
 7. **Comfort settings.** `motion` and `intensity` already live in the facade fields that `src/boot.ts` sets. The new path sets them the same way, with no change to `boot.ts` logic.
 8. **Centers.** Defaults stay `W / 2` and `H / 2` (read at call time, as now).
+9. **Editor contract (principle 11, Mark 2026-10-09).** `FxSystem` is built so a future FX editor drives it without a rewrite. The existing FX lab is NOT ported or tested in M2 (that is milestone ET); M2 only builds the engine side. (a) Every look tunable that is a shader constant or a code constant today (bloom curve and blur weights, vignette shape, dim spare threshold, particle caps, the `MAX_*` slot counts that the shader allows) goes into one documented `FxParams` object with today's values as the defaults. Slot counts that the shader fixes are marked read-only. (b) `FxSystem.loadData(fx)` takes the parsed `fx.json` and swaps it in a running game (hot reload), using `checkFx` from `fxdata.ts`. (c) `snapshot()` returns the live effect state as plain JSON (no functions), `restore(s)` puts it back. (d) `step(n)` advances the effect clock by n ticks with no scene running, so a tool can scrub. (e) `playMoment` can run on an `FxSystem` that has no scene. The GPU layers stay engine-owned; none of this exposes a Pixi object.
 
 ## 3. Tasks, in build order
 
@@ -65,6 +66,7 @@ Each line is a command or a count. A fresh agent runs them.
 15. **Playable checkpoints (Mark, 2026-10-09).** Mark plays the build at two points and the plan stops for him at each.
     - **Checkpoint 1, after Builder B (before verification round 1):** `npm run dev`, then `http://localhost:3007/?engine=sje&fx=full` plays title, field and battle with every effect live. A DEV hotkey or DEV tab button fires each `playMoment` hit on demand. The main session starts the server and gives Mark the URL. A look change Mark asks for here is a named fix and does not count against the 3-round cap.
     - **Checkpoint 2, after the last fix round:** the same build, with the side-by-side pictures (line 6) and the `npm run perf` numbers (line 13) ready. Mark plays it, then merges or sends work back.
+16. **Editor contract.** `tests/sje-fx.test.ts` proves: `FxParams` has a default for every tunable and a changed value changes the output (a CPU-side check of the uniform value); `loadData` swaps presets and moments in a live `FxSystem` and rejects bad data with `checkFx`'s messages (control: bad data leaves the old data in place); `restore(snapshot())` after more ticks gives the same frame hash as the original at that tick; `step(n)` equals n real ticks. The reader checks that no constant that changes the look sits in a shader or in `FxSystem` outside `FxParams`. No FX lab test: it is milestone ET.
 
 ## 5. Verifier plan (lean loop)
 
