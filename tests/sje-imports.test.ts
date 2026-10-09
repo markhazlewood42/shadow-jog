@@ -28,12 +28,16 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
+/**
+ * Every source file under `dir`, except `src/sje/interfaces.check.ts`: that file is the generated, types-only mirror of the design sketches
+ * (scripts/sync-interface-check.mjs). It names Three and GL calls in its comments and signatures, and imports nothing that runs.
+ */
 function files(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) {
       if (name !== 'node_modules') files(p, out);
-    } else if (/\.(ts|tsx|mjs|js)$/.test(name)) out.push(p);
+    } else if (/\.(ts|tsx|mjs|js)$/.test(name) && name !== 'interfaces.check.ts') out.push(p);
   }
   return out;
 }
