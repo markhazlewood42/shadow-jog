@@ -86,6 +86,8 @@ Mark decides the look. Agents check exactness, coverage and stability. A decisio
 
 ## The loop
 
+**Changed 2026-10-08 (Mark, after WP3): WP4 to WP8 use the lean loop of `CLAUDE.md`** ("Verification loop for every build in this repo"). For this move that means: a runner and a reader per package (the reader covers the correctness and design lenses below, the runner the visual and runtime lens and the touched specs), 1 verifier for WP8 (docs); pass means every hard pass line holds and no Critical or Important finding is open; a Minor finding (a comment, a record, a nit) is a named fix for the next commit; a fix round checks only the named findings with one fresh verifier; CI runs the full e2e suite, and locally only the touched specs run. The hard pass lines, the rubric (as the criteria the verifiers score) and the hard stops do not change. **WP4 and WP5 run as one build and one verification round** (both are UI layout), with Review 4 and Review 5 asked together. **WP6 is minimal:** the side view replaces the old battle, so WP6 does only what keeps every backdrop correct and playable at 640x360. Why: WP2b and WP3 took 5 builder runs and 15 verifier runs, and most failed rounds were about records or CI noise, not defects (the WP3 verification table). The steps below are the loop that WP0 to WP3 used.
+
 1. The exit criteria (hard pass lines), the rubric and the numeric ceilings exist before the code.
 2. The builder checks its own work: lint, types, unit tests, the shots it needs. This is necessary. It is not verification.
 3. Three fresh verifier agents score the rubric. Each has its own lens (below). Each score needs evidence: test output, a picture, or a `path:line`. A score with no evidence counts as 5 at most.
