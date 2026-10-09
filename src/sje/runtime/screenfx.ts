@@ -134,9 +134,12 @@ export class GameFx {
     return this.flashFrames > 0 && flashScale > 0 ? (this.flashFrames / this.flashTotal) * 0.8 * flashScale : 0;
   }
 
-  /** The old engine's order: the flash, then the fade, both over the whole picture. */
-  paint(ctx: CanvasRenderingContext2D, flashScale: number): void {
-    const flashA = this.flashAlpha(flashScale);
+  /**
+   * The old engine's order: the flash, then the fade, both over the whole picture. `withFlash` false leaves the flash out: the effects' composite
+   * washes the world with it instead, and the fade and the notices go in the UI layer above it (`FxSystem`).
+   */
+  paint(ctx: CanvasRenderingContext2D, flashScale: number, withFlash = true): void {
+    const flashA = withFlash ? this.flashAlpha(flashScale) : 0;
     if (flashA > 0) {
       ctx.globalAlpha = flashA;
       ctx.fillStyle = this.flashColor;
@@ -152,9 +155,9 @@ export class GameFx {
   }
 
   /** The same two washes as rectangles, for a native scene on top. */
-  paintNative(g: Graphics, flashScale: number): void {
+  paintNative(g: Graphics, flashScale: number, withFlash = true): void {
     g.clear();
-    const flashA = this.flashAlpha(flashScale);
+    const flashA = withFlash ? this.flashAlpha(flashScale) : 0;
     if (flashA > 0) g.fillStyle(parseColor(this.flashColor), Math.min(1, flashA)).fillRect(0, 0, W, H);
     if (this.fadeLevel > 0.001) g.fillStyle(parseColor(this.fadeColor), Math.min(1, this.fadeLevel)).fillRect(0, 0, W, H);
   }

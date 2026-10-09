@@ -15,6 +15,7 @@ export { FPS, grain, H, TICK_MS, W } from './core/size';
 export { Camera, type CameraBounds, CameraManager } from './display/camera';
 export { CanvasImage } from './display/canvasimage';
 export { Container } from './display/container';
+export { type FxCounts, type FxRequest, FxSystem } from './fx/fxsystem';
 export { colorMatrixEffect, createEffect, type Effect, type EffectSpec, FilterList, type UniformType } from './display/effects';
 export { DEPTH, depthFor, PART } from './display/depth';
 export { type DisplayHost, GameObject } from './display/gameobject';
