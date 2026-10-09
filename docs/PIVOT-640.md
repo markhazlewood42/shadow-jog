@@ -4,7 +4,7 @@ title: "Shadow Jog — The move to 640x360: criteria, rubric and record"
 project: shadow-jog
 created: 2026-10-06
 updated: 2026-10-08
-status: criteria committed 2026-10-06, before any code of the move. Step 1 (WP0, WP1, 1b) recorded 2026-10-06 and verified 2026-10-07. WP2 built 2026-10-07 and verified 2026-10-08. WP2b built, verified (round 2) and recorded 2026-10-08. WP3 built and recorded 2026-10-08 (verification pending). Mark approved the move on 2026-10-05 ("Let's pivot. Better now than later.")
+status: criteria committed 2026-10-06, before any code of the move. Step 1 (WP0, WP1, 1b) recorded 2026-10-06 and verified 2026-10-07. WP2 built 2026-10-07 and verified 2026-10-08. WP2b built, verified (round 2) and recorded 2026-10-08. WP3 built 2026-10-08, failed at the cap and accepted by Mark with named fixes. WP4 and WP5 built and verified (round 1, pass) 2026-10-08; Reviews 4 and 5 open. Mark approved the move on 2026-10-05 ("Let's pivot. Better now than later.")
 tags: [engine, design, verification, pivot-640]
 ---
 
@@ -789,3 +789,34 @@ One build and one verification round (the lean loop). The verification table is 
 - `tests/pacing.test.ts` counts every string and backtick span of `panels.ts` as story prose, comments included: a first draft with backticks in a comment pushed the estimate to 83.7 minutes. The comments in `panels.ts` have no backticks and no apostrophe pairs.
 - A first look at the capture ran while an edit to `deck.ts` was made (a look only, repeated in full before the set was taken).
 - The dev hook `sj.tp('dock', ...)` from the town (a known crash, not part of this move) was not used.
+
+**Verification table.** Round 1 of 3, 2026-10-08, at commit 8ef9c80. Two fresh verifiers (the lean loop): the runner (Sonnet, medium effort) and the reader (Haiku, medium effort). Reports (git-ignored): `media/verification/wp4/round1-runner.md` and `round1-reader.md`. **Result: pass.** Every hard pass line holds, and no Critical or Important finding is open after triage.
+
+| Pass line | Result | Evidence |
+|---|---|---|
+| PL1 | pass | Scan: 0 pending, 0 unlisted. |
+| PL3 | pass | 58 checked, 0 failed, 14 skipped. `35-options` (6.0%) and `36-controls` (5.1%) sit near the 5% line. |
+| PL4 | pass | Runner: `ui-layout`, `layout` and `dialog-wrap`, 41 tests. Reader: 107 touched layout tests; both named controls fail as meant; check 2 and check 3, each broken in a copy, fail. |
+| PL5, PL6 | pass | No diff in `public/`, `src/data` or `src/story` since `ba53d51`. |
+| PL8 | pass | Software gate 8 / 11 ms: field 3.87 / 4.6, battle 1.67 / 2.8 (runner). |
+| PL9 | pass | `npm run check`, build and budget (240.5 kB of the 240.7 alarm). CI at 8ef9c80 green. Two earlier commits were red: 3654202 (the scan, an allow entry not yet committed) and c1fbef9 (bundle 240.5 against 240.0). |
+| PL10 | pass | `prod` and `gameover`: 17 passed, no key count changed. No save stores a screen value. |
+| PL12 | pass | `media/pivot-640/wp5/content.md`: every new composition has pictures and options. |
+| PL13 | pass | CI at 8ef9c80: 6m51s, every job green. |
+
+Capture: the runner's two runs are byte-identical (74 of 74). Against the builder's set, 01, 35 and 36 differ only in the build label, and the deck shots 39 to 41 differ in rain pixels (no source changed between the two captures); the runner's run is kept as `media/pivot-640/wp5/shots-verified/`, the reference for WP6. V3: the title world is an exact 2x of 320x180. V5: the cap height is 14 device pixels at k=2 and 21 at k=3. Scores, as evidence only: runner R2 8, R3 8, R5 7, R6 8, R7 9, R8 8, V1 8, V3 9, V4 8, V5 9; reader R1 7, R2 7, R5 7, R7 7, R8 7, R9 6.
+
+**Triage by the main session.** The reader rated two findings Important; both are Minor.
+- The review switch names and the widths 624 and 524 stay in the shipped bundle as dead strings. `reviewSwitch` returns null in a production build (the runner checked), so no player sees a change, and the switches go when Mark answers Reviews 4 and 5. The runner rated it Minor.
+- `24-ending-results` on the void-allowed list: the runner judged it by eye a centered text card like `25-ending-next`. It needs its own expectation-list line.
+
+**Named fixes, made in the first commit after Reviews 4 and 5.**
+1. Delete the four review switches with Mark's answers (no switch name or variant width in the shipped bundle).
+2. The expectation list: a line for `24-ending-results`, and the panel line says `8..W-8` by `8..H-18`, not `8..352`.
+3. `docs/ARCHITECTURE.md:398`: the alarm figure that Mark confirms.
+4. `tests/recorder.ts`: text drawn outside every window is checked only against the frame. Say so in the check's comment, or check it.
+5. `tests/ui-layout.test.ts`: `reserve()` keys on title strings, and its 8 px margin is a literal. Name it.
+6. `src/scenes/panels.ts`: `w: 624` becomes `W - 16` or a named full width.
+7. The stray dot after "Defeated" in the Bestiary detail: fix it, or record that it is older than this move.
+
+**Open, not fixed in this move unless Mark asks.** The shop's compare rows draw the crew sprites over the names (the same at 480x270). The red crew outline on Game over crosses the subtitle (it crossed the title at 480x270). The Game over reflections are drawn below the screen and never show.
