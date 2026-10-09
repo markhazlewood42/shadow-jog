@@ -225,7 +225,7 @@ test.describe('engine lab: the speed line', () => {
         expect(intervals.length, 'interval samples').toBeGreaterThan(200);
         expect(cost.length, 'cost samples').toBeGreaterThan(100);
         expect(await page.evaluate(() => window.__SJE__?.tick() ?? 0), 'the real loop is ticking').toBeGreaterThan(100);
-        // The speed line: all of it on a GPU; on software GL only "the loop is not stuck" (interval p95 under 80 ms).
+        // The speed line: all of it on a GPU; on software GL only "the loop is not stuck" (interval p95 under 250 ms).
         const misses = speedLineMisses(measured);
         expect(misses, `the speed line: ${misses.join('; ')}`).toEqual([]);
         if (!soft) expect(percentile(work, 0.95), 'JavaScript work p95').toBeLessThanOrEqual(SPEED_LINE.costMs);

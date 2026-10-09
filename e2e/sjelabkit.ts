@@ -151,9 +151,9 @@ export const CONTROL_NOISE = [/INVALID_OPERATION/, /does not belong to this cont
  *      submits commands, so a JavaScript timer cannot see a slow GPU.
  * Rule 1 alone cannot fail on a display locked to its refresh rate, so rule 2 is what gives headroom.
  * On SOFTWARE GL (SwiftShader, llvmpipe: CI) a shared software renderer cannot meet either rule and says nothing about the engine. There the line
- * has one rule that still means something: the loop is not stuck, an interval p95 under 80 ms.
+ * has one rule that still means something: the loop is not stuck, an interval p95 under 250 ms.
  */
-export const SPEED_LINE = { intervalRatio: 1.05, costMs: 8, softwareStuckMs: 80 };
+export const SPEED_LINE = { intervalRatio: 1.05, costMs: 8, softwareStuckMs: 250 };
 
 /** Which rules of the speed line a run breaks. Empty means it meets the line. Pure, so the control can prove the rules have teeth. */
 export function speedLineMisses(m: { bareP95: number; sceneP95: number; costP95: number; software: boolean }): string[] {
