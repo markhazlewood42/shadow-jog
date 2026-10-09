@@ -68,7 +68,8 @@ M0 state: done, PR #43 waits for review and merge. Decisions taken by the main s
 **Next for agents** (in this order):
 1. M0 is done (PR #43). After Mark merges it: remove the stale "until it merges" clauses (item 4), then start M1 "Shell". The game bundle has only 7 bytes of room under the 240.8 kB alarm, so the next change to shipped code needs a deliberate alarm change that Mark confirms.
 2. After the merge of the M0 PR: milestone M1 "Shell" (`docs/engine/migration.md`).
-3. The spike archive tag (`spike/engine-platform` and the other spike branches): only with Mark's go-ahead.
+3. GPU timing check (`npm run perf`, Mark's GPU): once at the end of M1, M2, M3, M5, M6 and M7, never per PR (`docs/engine/migration.md` principle 12).
+4. The spike archive tag (`spike/engine-platform` and the other spike branches): only with Mark's go-ahead.
 4. Remove the "on branch `resolution-640x360`, PR #23, until it merges" clause from `CLAUDE.md` and `docs/engine/verification.md`. The file is now on `main`.
 
 **Next up for Mark** (updated 2026-10-09):
