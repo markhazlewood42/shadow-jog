@@ -2,7 +2,8 @@
 import { sfx } from '../audio/sfx';
 import type { Ctx } from '../engine/canvas';
 import { drawText, fitText } from '../engine/font';
-import { Scene, W, H } from '../engine/game';
+import { Scene } from '../engine/game';
+import { W, H } from '../sje/core/size';
 import { ACTIONS, keyLabel, type Action } from '../engine/input';
 import { saveSettings, settings } from '../game/settings';
 import { drawCursor, drawSelect, drawWindow, keyLegend, UI, OVERLAY_DIM } from '../ui/draw';

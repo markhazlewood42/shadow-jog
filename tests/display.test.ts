@@ -9,7 +9,7 @@
  * the rule gives at the real screen size, and the 90% line is where each row falls on it.
  */
 import { describe, expect, it } from 'vitest';
-import { H, W } from '../src/engine/game';
+import { H, W } from '../src/sje/core/size';
 import { cssScaleFor } from '../src/engine/display';
 
 /** The scale the display uses for a window, in CSS pixels per game pixel. */

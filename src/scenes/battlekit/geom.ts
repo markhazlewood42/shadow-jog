@@ -12,7 +12,7 @@
  * A future battle editor will want each tuned number in one named place, so none is scattered as
  * a bare literal in the scene or the renderer.
  */
-import { H, W } from '../../engine/game';
+import { H, W } from '../../sje/core/size';
 import { BHT, BW, WORLD_SCALE } from '../../art/worldsize';
 
 // The world-size names are defined once, in the leaf module art/worldsize.ts (the backdrops need

@@ -1,5 +1,6 @@
 import { Display } from './engine/display';
-import { FPS, Game, H, W } from './engine/game';
+import { FPS, Game } from './engine/game';
+import { H, W } from './sje/core/size';
 import { Input } from './engine/input';
 import { boot } from './boot';
 import { currentNotice, reportError } from './engine/errors';

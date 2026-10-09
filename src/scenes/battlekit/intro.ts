@@ -1,6 +1,6 @@
 /** The battle intro: the field frame freezes, cracks from the centre, and falls away in shards. */
 import type { Ctx } from '../../engine/canvas';
-import { H, W } from '../../engine/game';
+import { H, W } from '../../sje/core/size';
 
 interface Shard {
   pts: [number, number][];

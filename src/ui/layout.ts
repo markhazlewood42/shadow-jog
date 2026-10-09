@@ -10,7 +10,7 @@
  * that WP4 of the 640x360 move chose (docs/PIVOT-640.md, D8): the dialog cap, the menu panes, the
  * shop, the Status screen.
  */
-import { H, W } from '../engine/game';
+import { H, W } from '../sje/core/size';
 
 // ------------------------------------------------------------------ text widths
 

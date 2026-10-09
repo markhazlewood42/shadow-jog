@@ -1,7 +1,7 @@
 /**
  * The screen-literal scan: pass line PL1 of docs/PIVOT-640.md ("one source of the size").
  *
- * The screen is `W` by `H` (src/engine/game.ts), and the battle world is `BW` by `BHT`
+ * The screen is `W` by `H` (src/sje/core/size.ts, the only place that writes the size; src/engine/game.ts re-exports it), and the battle world is `BW` by `BHT`
  * (src/art/worldsize.ts, re-exported by src/scenes/battlekit/geom.ts). A bare number that means one of those (480, 270, 240, 135 today;
  * 640, 360, 320, 180 after the move; and the off-by-one neighbors 239, 479, 269, 639, 359, 319, 179)
  * is a copy of the size that a change cannot find. This test scans the code for those numbers as
@@ -11,8 +11,8 @@
  *   tests/screen-literals.allow.json    hits that do not mean the screen, each with a reason
  *                                       (a price, a frame count, degrees, hertz, a modal's width).
  *   tests/screen-literals.pending.json  hits that do mean the screen and that a work package of the
- *                                       move still has to replace. The `wp` field names the package.
- *                                       This list shrinks at each package and is empty at WP7.
+ *                                       move still had to replace. The `wp` field names the package.
+ *                                       It was emptied at WP7 and must stay empty (M0 test below).
  * A hit on neither list fails the test. An entry that matches nothing fails it too (the lists stay
  * honest: a fixed site is removed from the pending list in the same change).
  *
@@ -142,8 +142,22 @@ describe('screen-size literals (PL1: one source of the size)', () => {
   }
 
   it('finds the size source itself (the scan is alive)', () => {
-    // src/engine/game.ts defines W and H: the scan must see those two numbers, whatever they are.
-    expect(hits.filter((h) => h.file === 'src/engine/game.ts' && /export const [WH] =/.test(h.text)).length).toBe(2);
+    // src/sje/core/size.ts defines W and H: the scan must see those two numbers, whatever they are.
+    expect(hits.filter((h) => h.file === 'src/sje/core/size.ts' && /export const [WH]\b/.test(h.text)).length).toBe(2);
+  });
+
+  it('size.ts is the only place that defines W and H (M0): the old engine re-exports them', () => {
+    const defines = /export\s+const\s+[WH]\s*(:\s*number\s*)?=/;
+    const sites = listScanFiles(ROOT).filter((file) => file.startsWith('src/') && defines.test(readFileSync(join(ROOT, file), 'utf8')));
+    expect(sites).toEqual(['src/sje/core/size.ts']);
+    // The scan sees a definition when there is one (a test that cannot fail proves nothing).
+    expect(defines.test('export const W = 640;')).toBe(true);
+    expect(defines.test('export { H, W };')).toBe(false);
+  });
+
+  it('the pending list is empty (M0): every screen-size literal is the size source or an allowed non-size', () => {
+    expect(pending.entries).toEqual([]);
+    expect(pendingHits).toEqual([]);
   });
 
   it('every hit is on the allow list or the pending list', () => {

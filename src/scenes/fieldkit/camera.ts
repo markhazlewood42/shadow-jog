@@ -8,7 +8,7 @@
  * negative offset and leaves even margins all round (the field paints its surround there,
  * fieldkit/surround.ts). The rule is pure, so a unit test can check it without a canvas.
  */
-import { H, W } from '../../engine/game';
+import { H, W } from '../../sje/core/size';
 import type { CameraBox } from './popins';
 
 /**

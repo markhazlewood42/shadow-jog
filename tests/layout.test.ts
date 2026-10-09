@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { ABILITIES, COMBOS } from '../src/data/abilities';
 import { MEMBERS } from '../src/data/party';
-import { H, W } from '../src/engine/game';
+import { H, W } from '../src/sje/core/size';
 import { measure, stripCodes, wrap } from '../src/engine/font';
 import { OBJ } from '../src/story/chapter1';
 import { COMBO_TEXT_W, EQUIP_DESC_LINES, EQUIP_DESC_W, FIELD_OBJ_W, LEVELUP_TEXT_W, MENU_OBJ_W, SHOP_COMPARE_W, TARGET_INFO_W } from '../src/ui/layout';

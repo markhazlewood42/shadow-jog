@@ -14,7 +14,7 @@
  */
 import { must } from './assert';
 import { type Surface, surface } from './canvas';
-import { H, W } from './game';
+import { H, W } from '../sje/core/size';
 import { GlPresenter } from './gl/presenter';
 import { postfx } from './postfx';
 

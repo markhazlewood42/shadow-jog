@@ -1,7 +1,7 @@
 /** Battle sprite treatments: silhouettes, rim light, duplicates (palette, mirror, markings), bars, big text. */
 import { silhouette, surface, type Ctx } from '../../engine/canvas';
 import { drawText } from '../../engine/font';
-import { W } from '../../engine/game';
+import { W } from '../../sje/core/size';
 import type { EnemyArt } from '../../art/enemies';
 
 export const silCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();

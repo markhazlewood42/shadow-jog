@@ -2,7 +2,8 @@
 import { music } from '../audio/music';
 import type { Ctx } from '../engine/canvas';
 import { drawText } from '../engine/font';
-import { Scene, W, H } from '../engine/game';
+import { Scene } from '../engine/game';
+import { W, H } from '../sje/core/size';
 import { hasAnySave } from '../game/save';
 import { drawWindow, UI } from '../ui/draw';
 import { ListMenu } from '../ui/list';

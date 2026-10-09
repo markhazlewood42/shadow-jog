@@ -1,6 +1,7 @@
 import type { Ctx } from '../engine/canvas';
 import { drawText } from '../engine/font';
-import { Scene, W, H } from '../engine/game';
+import { Scene } from '../engine/game';
+import { W, H } from '../sje/core/size';
 import { FieldMap } from '../field/fieldmap';
 import { getMap } from '../data/maps';
 

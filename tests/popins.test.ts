@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { getMap } from '../src/data/maps';
-import { H, W } from '../src/engine/game';
+import { H, W } from '../src/sje/core/size';
 import { TS } from '../src/field/tiles';
 import { LEADER_FOCUS_LIFT, cameraOrigin } from '../src/scenes/fieldkit/camera';
 import { POPINS, cameraBoxFor, curtainClosed, curtainsFor, holdFor, type Curtain, type PopinEntry } from '../src/scenes/fieldkit/popins';

@@ -9,14 +9,54 @@
 		"rules": {
 			"preset": "recommended",
 			"style": {
-				"noNonNullAssertion": "off"
+				"noNonNullAssertion": "off",
+				"noRestrictedImports": {
+					"level": "error",
+					"options": {
+						"paths": {
+							"pixi.js": "Only src/sje/render and src/sje/display may import pixi.js. Game code uses the engine facade (src/sje/index.ts). See docs/engine/tooling-and-testing.md section 9.",
+							"three": "Only src/sje/three and src/hack3d may import three. They load through one import(). See docs/engine/tooling-and-testing.md section 9."
+						},
+						"patterns": [{ "group": ["pixi.js/*"], "message": "Only src/sje/render and src/sje/display may import pixi.js." }]
+					}
+				}
 			}
 		}
 	},
 	"overrides": [
 		{
-			"includes": ["src/engine/**", "src/battle/**"],
+			"includes": ["src/engine/**", "src/battle/**", "src/sje/**"],
 			"linter": { "rules": { "style": { "noNonNullAssertion": "error" } } }
+		},
+		{
+			"includes": ["src/sje/render/**", "src/sje/display/**"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": { "paths": { "three": "Only src/sje/three and src/hack3d may import three." } }
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": ["src/sje-lab/**", "tests/**", "e2e/**"],
+			"linter": { "rules": { "style": { "noRestrictedImports": "off" } } }
+		},
+		{
+			"includes": ["src/sje/three/**", "src/hack3d/**"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": { "paths": { "pixi.js": "The 3D chunk reaches Pixi only through src/sje/render (level 1)." }, "patterns": [{ "group": ["pixi.js/*"], "message": "The 3D chunk reaches Pixi only through src/sje/render (level 1)." }] }
+						}
+					}
+				}
+			}
 		}
 	]
 }

@@ -16,7 +16,7 @@
  * game presents in 2D as before; so does a software-only WebGL (no GPU, or a blocklisted one); a
  * lost context falls back the same way until it's restored.
  */
-import { H, W } from '../game';
+import { H, W } from '../../sje/core/size';
 import { PARTICLE_STRIDE } from '../particles';
 import { MAX_GLITCHES, MAX_HAZES, MAX_SHOCKS, envelope, postfx } from '../postfx';
 

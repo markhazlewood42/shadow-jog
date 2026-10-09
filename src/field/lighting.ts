@@ -4,7 +4,7 @@
  */
 import { surface, type Ctx, type Surface } from '../engine/canvas';
 import { rgb } from '../engine/color';
-import { H, W } from '../engine/game';
+import { H, W } from '../sje/core/size';
 import type { BakedLight } from './bake';
 import { clipToScreen, type Rect } from './overrects';
 

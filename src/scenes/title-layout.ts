@@ -16,7 +16,7 @@
  */
 import { BHT, BW } from '../art/worldsize';
 import { AREA_SCALE } from '../field/weather';
-import { H } from '../engine/game';
+import { H } from '../sje/core/size';
 
 // ------------------------------------------------------------------ the world (world pixels)
 

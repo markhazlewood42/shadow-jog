@@ -15,7 +15,7 @@ import { MEMBERS } from '../../data/party';
 import { surface, type Ctx, type Surface } from '../../engine/canvas';
 import { postfx } from '../../engine/postfx';
 import { drawParagraph, drawText, fitText, measure, wrap } from '../../engine/font';
-import { H, W } from '../../engine/game';
+import { H, W } from '../../sje/core/size';
 import { state, type MemberId } from '../../game/state';
 import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
 import { TARGET_INFO_W } from '../../ui/layout';

@@ -1,7 +1,7 @@
 /** Field drawing helpers: the draw list's entries, culling, layer blits, emotes. */
 import type { Ctx } from '../../engine/canvas';
 import { drawText, measure } from '../../engine/font';
-import { W, H } from '../../engine/game';
+import { W, H } from '../../sje/core/size';
 import type { Actor } from '../../field/actor';
 import type { SortedSprite } from '../../field/bake';
 import { clipToScreen, type Rect } from '../../field/overrects';

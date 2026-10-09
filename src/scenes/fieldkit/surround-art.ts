@@ -4,7 +4,7 @@
  * `surround.ts` for what the options are and the per-map table that chooses them.
  */
 import { surface, type Ctx, type Surface } from '../../engine/canvas';
-import { H, W } from '../../engine/game';
+import { H, W } from '../../sje/core/size';
 import { TS } from '../../field/tiles';
 import type { SurroundEntry, SurroundTheme, SurroundView } from './surround';
 import { voidShade } from './void';

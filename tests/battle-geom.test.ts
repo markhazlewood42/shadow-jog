@@ -16,7 +16,7 @@ import { ENCOUNTERS, ENEMIES } from '../src/data/enemies';
 import { ITEMS } from '../src/data/items';
 import { MEMBERS } from '../src/data/party';
 import { measure } from '../src/engine/font';
-import { H, W } from '../src/engine/game';
+import { H, W } from '../src/sje/core/size';
 import {
   BHT, BW, CARD_GAP, CARD_H, CARD_RAISE, CARD_W, ENEMY_GAP, FLOATER_BOUNCE, FLOATER_POP, FLOATER_ROW, FLOATER_TOP, HUD, HUD_FRAME, MENU_X, ORDER_COLUMN_W, ORDER_FACE, ORDER_LABEL_ABOVE, PANEL_Y, PARTY_BOTTOM, PARTY_HEIGHT, PROMPT_CLEAR, STRIP_MAX_FACES, WORLD_SCALE,
   floaterStart, hudLayout, listWindowW, orderStripLayout, partyX, placeEnemies, type EnemyBox, type Rect,
