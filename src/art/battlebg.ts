@@ -44,6 +44,27 @@ const byArea = (n: number): number => Math.round(n * AREA_SCALE);
 const RAIN_DROPS = byArea(70);
 
 /**
+ * How the set pieces that repeat across a backdrop are spaced. Each is a count and a step derived
+ * from `BW` (the editor rule: a wider world gets more pieces, not a bare right side). The old
+ * 240-wide backdrop used a fixed count and step for each; these keep the same piece size and about
+ * the same step, and spread the pieces evenly over the whole width.
+ */
+const PARK_TREES = { count: Math.round(BW / 44), margin: 10 };
+const JUNCTION_COLUMNS = { count: Math.round(BW / 36), margin: 8, maxWidth: 14 };
+/**
+ * The lab's observation windows (30 wide) and the monitors between them (18 wide with the frame):
+ * the windows run from a margin at each side with an even step, a monitor sits centered in each gap.
+ */
+const LAB_WALL = { windows: Math.round(BW / 60), margin: 14, windowW: 30, monitorW: 16 };
+const labStep = (LAB_WALL.windows > 1 ? (BW - 2 * LAB_WALL.margin - LAB_WALL.windowW) / (LAB_WALL.windows - 1) : 0);
+const labWindowX = (i: number): number => Math.round(LAB_WALL.margin + i * labStep);
+const labMonitorX = (i: number): number => Math.round(LAB_WALL.margin + i * labStep + LAB_WALL.windowW + (labStep - LAB_WALL.windowW - LAB_WALL.monitorW) / 2);
+/** The sewer's far opening is centered, 32 wide; the walkways' inner edges reach the bottom edge this far in from each side (0.258 of the width, as 62 of the old narrow backdrop). */
+const SEWER = { openHalf: 16, walkIn: Math.round(BW * 0.258) };
+/** The rustyard's scrap mounds: one per 34 world pixels of width (7 on the old narrow backdrop, 9 at 320), spread evenly with a little jitter. */
+const RUSTYARD_MOUNDS = Math.round(BW / 34);
+
+/**
  * Rooftop signs lit by neon stay above this row. Lower ones stay dark: a lit bar where the enemies'
  * heads and HP bars are would merge with the readouts. The band moves with the enemy row, so the
  * line is the old 44 rows plus the rows the horizon moved down.
@@ -394,8 +415,8 @@ const MAKERS: Record<string, Maker> = {
     g.fillStyle = '#ff3a3a';
     g.fillRect(41, 6, 1, 1);
     // Scrap mounds
-    for (let i = 0; i < 7; i++) {
-      const cx = rng.int(0, BW), w = rng.int(30, 60), h = rng.int(10, 26);
+    for (let i = 0; i < RUSTYARD_MOUNDS; i++) {
+      const cx = Math.round((BW * (i + 0.5)) / RUSTYARD_MOUNDS) + rng.int(-10, 10), w = rng.int(30, 60), h = rng.int(10, 26);
       c.fillStyle = rng.pick(['#241a26', '#2a1e28', '#1e1622']);
       c.beginPath();
       c.moveTo(cx - w / 2, HORIZON + 4);
@@ -451,8 +472,9 @@ const MAKERS: Record<string, Maker> = {
     }
     g.globalAlpha = 1;
     // Giant trees
-    for (let i = 0; i < 6; i++) {
-      const tx = 10 + i * 44 + rng.int(-8, 8);
+    const treeStep = (BW - 2 * PARK_TREES.margin) / PARK_TREES.count;
+    for (let i = 0; i < PARK_TREES.count; i++) {
+      const tx = Math.round(PARK_TREES.margin + treeStep * (i + 0.5)) + rng.int(-8, 8);
       c.fillStyle = '#0a1612';
       c.fillRect(tx - 3, HORIZON - 20, 7, 26);
       for (let k = 0; k < 5; k++) {
@@ -493,8 +515,8 @@ const MAKERS: Record<string, Maker> = {
     const s = surface(BW, BH), gl = surface(BW, BH);
     const c = s.ctx, g = gl.ctx;
     const vx = BW / 2, vy = 56;
-    // Far opening (x 104..136, y 40..72) and the near frame of the tunnel mouth.
-    const fx0 = 104, fx1 = 136, fy0 = 40, fy1 = 72;
+    // Far opening (centered, 32 wide, y 40..72) and the near frame of the tunnel mouth.
+    const fx0 = BW / 2 - SEWER.openHalf, fx1 = BW / 2 + SEWER.openHalf, fy0 = 40, fy1 = 72;
     ditherV(c, 0, 0, BW, BH, ['#141c1e', '#1a2426', '#1e2a2c']);
     // Side walls and ceiling: brick courses converging on the vanishing point.
     const wall = (x0: number, x1: number, edgeX: number) => {
@@ -579,27 +601,27 @@ const MAKERS: Record<string, Maker> = {
     // Walkways (lighter concrete) and the channel between them.
     c.fillStyle = '#4a5456';
     c.beginPath();
-    c.moveTo(0, 104); c.lineTo(fx0, fy1); c.lineTo(fx0 + 8, fy1); c.lineTo(62, BH); c.lineTo(0, BH);
+    c.moveTo(0, 104); c.lineTo(fx0, fy1); c.lineTo(fx0 + 8, fy1); c.lineTo(SEWER.walkIn, BH); c.lineTo(0, BH);
     c.fill();
     c.beginPath();
-    c.moveTo(BW, 104); c.lineTo(fx1, fy1); c.lineTo(fx1 - 8, fy1); c.lineTo(BW - 62, BH); c.lineTo(BW, BH);
+    c.moveTo(BW, 104); c.lineTo(fx1, fy1); c.lineTo(fx1 - 8, fy1); c.lineTo(BW - SEWER.walkIn, BH); c.lineTo(BW, BH);
     c.fill();
     c.fillStyle = '#6a7678';
     c.beginPath();
-    c.moveTo(fx0 + 8, fy1); c.lineTo(62, BH); c.lineTo(59, BH); c.lineTo(fx0 + 7, fy1);
+    c.moveTo(fx0 + 8, fy1); c.lineTo(SEWER.walkIn, BH); c.lineTo(SEWER.walkIn - 3, BH); c.lineTo(fx0 + 7, fy1);
     c.fill();
     c.beginPath();
-    c.moveTo(fx1 - 8, fy1); c.lineTo(BW - 62, BH); c.lineTo(BW - 59, BH); c.lineTo(fx1 - 7, fy1);
+    c.moveTo(fx1 - 8, fy1); c.lineTo(BW - SEWER.walkIn, BH); c.lineTo(BW - SEWER.walkIn + 3, BH); c.lineTo(fx1 - 7, fy1);
     c.fill();
     c.fillStyle = '#10302a';
     c.beginPath();
-    c.moveTo(fx0 + 8, fy1); c.lineTo(fx1 - 8, fy1); c.lineTo(BW - 62, BH); c.lineTo(62, BH);
+    c.moveTo(fx0 + 8, fy1); c.lineTo(fx1 - 8, fy1); c.lineTo(BW - SEWER.walkIn, BH); c.lineTo(SEWER.walkIn, BH);
     c.fill();
     // Ripple bands on the water, denser toward the far end.
     for (let i = 0; i < 12; i++) {
       const t = (i / 12) ** 1.6;
       const y = Math.round(fy1 + 2 + t * (BH - fy1 - 2));
-      const half = 8 + ((BW / 2 - 62) - 8) * ((y - fy1) / (BH - fy1));
+      const half = 8 + ((BW / 2 - SEWER.walkIn) - 8) * ((y - fy1) / (BH - fy1));
       c.fillStyle = i % 2 ? '#174038' : '#1b4a40';
       c.fillRect(Math.round(vx - half + 3), y, Math.round(half * 2 - 6), 1);
     }
@@ -609,7 +631,7 @@ const MAKERS: Record<string, Maker> = {
       anim: (ctx, f) => {
         // Drips from the ceiling into the channel.
         for (let i = 0; i < 6; i++) {
-          const x = Math.round(70 + hash2(i, 4) * 100);
+          const x = Math.round(BW * 0.29 + hash2(i, 4) * BW * 0.42);
           const t = (f + i * 37) % 90;
           ctx.fillStyle = '#8ab8c8';
           ctx.globalAlpha = 0.7;
@@ -621,7 +643,7 @@ const MAKERS: Record<string, Maker> = {
         ctx.fillStyle = '#6ad0b0';
         for (let i = 0; i < 18; i++) {
           const y = fy1 + 4 + hash2(i, 8) * (BH - fy1 - 6);
-          const half = 8 + ((BW / 2 - 62) - 8) * ((y - fy1) / (BH - fy1));
+          const half = 8 + ((BW / 2 - SEWER.walkIn) - 8) * ((y - fy1) / (BH - fy1));
           const x = vx + (hash2(i, 9) - 0.5) * half * 1.6 + Math.sin(f * 0.05 + i) * 2;
           ctx.fillRect(Math.round(x), Math.round(y), 2, 1);
         }
@@ -635,8 +657,9 @@ const MAKERS: Record<string, Maker> = {
     const rng = new Rng(61);
     ditherV(c, 0, 0, BW, 80, ['#040808', '#0a1414', '#102020', '#163030']);
     // Columns
-    for (let i = 0; i < 7; i++) {
-      const x = 8 + i * 36 + rng.int(-3, 3);
+    const colStep = (BW - 2 * JUNCTION_COLUMNS.margin - JUNCTION_COLUMNS.maxWidth) / (JUNCTION_COLUMNS.count - 1);
+    for (let i = 0; i < JUNCTION_COLUMNS.count; i++) {
+      const x = Math.round(JUNCTION_COLUMNS.margin + i * colStep) + rng.int(-3, 3);
       const w = 10 + (i % 2) * 4;
       c.fillStyle = '#1a2626';
       c.fillRect(x, 0, w, 84);
@@ -677,8 +700,8 @@ const MAKERS: Record<string, Maker> = {
     for (const k of [c, g]) { k.fillStyle = '#eaf6ff'; for (let x = 10; x < BW; x += 48) k.fillRect(x, 2, 28, 2); }
     // Observation windows with tanks. They sit at the height of the enemies' heads, so they're
     // kept dim and cool: set dressing, not a second focal point.
-    for (let i = 0; i < 4; i++) {
-      const x = 14 + i * 60;
+    for (let i = 0; i < LAB_WALL.windows; i++) {
+      const x = labWindowX(i);
       c.fillStyle = '#2a3a4a';
       c.fillRect(x, 16, 30, 24);
       c.fillStyle = '#2e4c5a';
@@ -693,8 +716,8 @@ const MAKERS: Record<string, Maker> = {
       g.globalAlpha = 1;
     }
     // Readout monitors between the windows (content animates).
-    for (let i = 0; i < 3; i++) {
-      const x = 46 + i * 60;
+    for (let i = 0; i < LAB_WALL.windows - 1; i++) {
+      const x = labMonitorX(i);
       c.fillStyle = '#2a3440';
       c.fillRect(x - 1, 17, 18, 16);
       c.fillStyle = '#0c1a22';
@@ -704,8 +727,8 @@ const MAKERS: Record<string, Maker> = {
     return {
       canvas: s.canvas, glow: gl.canvas, ground: HORIZON + GROUND_BELOW_HORIZON.lab, tint: '#8ac8e8', tintAmt: 0.1,
       anim: (ctx, f) => {
-        for (let i = 0; i < 3; i++) {
-          const x = 46 + i * 60;
+        for (let i = 0; i < LAB_WALL.windows - 1; i++) {
+          const x = labMonitorX(i);
           if (i === 1) {
             // Vital-sign trace sweeping left to right.
             const head = Math.floor(f / 2) % 16;
@@ -731,11 +754,11 @@ const MAKERS: Record<string, Maker> = {
         }
         // Bubbles rising in the specimen tanks.
         ctx.fillStyle = '#d8fff4';
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < LAB_WALL.windows; i++) {
           for (let b = 0; b < 2; b++) {
             const t = (f * 0.4 + b * 17 + i * 9) % 30;
             ctx.globalAlpha = 0.45;
-            ctx.fillRect(14 + i * 60 + 13 + ((b + i) % 2) * 3, Math.round(36 - t * 0.45), 1, 1);
+            ctx.fillRect(labWindowX(i) + 13 + ((b + i) % 2) * 3, Math.round(36 - t * 0.45), 1, 1);
           }
         }
         ctx.globalAlpha = 1;
@@ -850,7 +873,7 @@ function railing(c: Ctx, x0: number, x1: number, y: number, rim: string): void {
  * Where each framing puts its pieces (the editor rule: every anchor named once, in one small record
  * per framing). The backdrop is `BW` by `BH`, and a piece hangs from the edge it frames: widths in
  * from a side and heights up from the bottom edge (`BH`) are counts of world pixels, tuned at
- * 320x180. Only the cables (the street's `cableReach`, the core's cable shares) are shares of `BW`,
+ * 320x180. Only the cables (the street's `cableReach`, the core's cable shares) and the lab's pipe are shares of `BW`,
  * so only they grow or shrink with the world's width.
  */
 const STREET_FRAME = {
@@ -868,10 +891,10 @@ const JUNCTION_FRAME = {
   railW: 28, railH: 27,
 };
 const LAB_FRAME = {
-  /** The conduit pipe across the top left: its width in from the left edge, and its top row. */
-  pipeW: 84, pipeY: 2,
+  /** The conduit pipe across the top left: its width in from the left edge (7/20 of `BW`, as 84 of 240 was), and its top row. */
+  pipeW: Math.round(BW * (7 / 20)), pipeY: 2,
   /** The drop line off the pipe's end (x, first row, length); its warning lamp hangs under it. */
-  dropX: 80, dropTop: 7, dropLen: 10,
+  dropX: Math.round(BW * (7 / 20)) - 4, dropTop: 7, dropLen: 10,
   /** The consoles in the near corners: width in from the side, height up from the bottom edge. */
   consoleW: 30, consoleH: 23,
 };
