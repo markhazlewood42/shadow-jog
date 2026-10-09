@@ -40,7 +40,7 @@ import { Graphics } from '../display/graphics';
 import { Screen } from '../display/screen';
 import { TextureManager } from '../display/texturemanager';
 import type { Input } from '../../engine/input';
-import type { LegacyGameSurface, LegacyShape, ShakeDirection } from './gameapi';
+import type { AnyLegacy, LegacyGameSurface, LegacyShape, ShakeDirection } from './gameapi';
 import { type FrameRenderer, GlRenderer } from './glrenderer';
 import { type ActionMap, actionMapOf } from './input';
 import { LegacyScene } from './legacyscene';
@@ -244,9 +244,9 @@ export class Game implements DisplayHost, LegacyGameSurface {
   }
 
   /** The legacy scenes on the stack, bottom first (what `game.stack` was). New scenes are not listed. */
-  get stack(): readonly LegacyShape<never>[] {
-    const out: LegacyShape<never>[] = [];
-    for (const s of this.scene.scenes) if (s instanceof LegacyScene) out.push(s.legacy as LegacyShape<never>);
+  get stack(): readonly AnyLegacy[] {
+    const out: AnyLegacy[] = [];
+    for (const s of this.scene.scenes) if (s instanceof LegacyScene) out.push(s.legacy);
     return out;
   }
 
@@ -313,7 +313,7 @@ export class Game implements DisplayHost, LegacyGameSurface {
   }
 
   /** What the old `Scene.close` calls: take a legacy scene off the stack. The scene's own `close` then resolves its promise. */
-  remove(legacy: LegacyShape<never>): void {
+  remove(legacy: AnyLegacy): void {
     const wrapper = this.wrappers.get(legacy);
     if (!wrapper) return;
     wrapper.closed = true;

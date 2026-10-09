@@ -45,6 +45,9 @@ export interface LegacyShape<R = unknown> {
   _bind(resolve: (result: R) => void): void;
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: the stack holds scenes of every result type; each run() is typed at its call site (the same reason as `AnyScene`).
+export type AnyLegacy = LegacyShape<any>;
+
 export interface GameApi {
   /** Push a scene (new or legacy) and wait for it: the promise resolves when the scene calls `close(result)`. */
   run<R>(scene: Scene<R> | LegacyShape<R>): Promise<R>;
@@ -67,7 +70,7 @@ export interface LegacyGameSurface extends GameApi {
   /** A 2D context holding the picture as the player sees it (the old back buffer). The new engine builds it when asked. */
   readonly ctx: CanvasRenderingContext2D;
   /** The legacy scenes on the stack, bottom first. */
-  readonly stack: readonly LegacyShape<never>[];
+  readonly stack: readonly AnyLegacy[];
   /** Frames of play time (counts only while `countPlayTime` is set). */
   playFrames: number;
   countPlayTime: boolean;
@@ -88,7 +91,7 @@ export interface LegacyGameSurface extends GameApi {
   /** Drop every scene, timer and fade without resolving them. */
   abandon(): void;
   /** Take a legacy scene off the stack (what the old `Scene.close` calls). */
-  remove(scene: LegacyShape<never>): void;
+  remove(scene: AnyLegacy): void;
   fadeOut(frames?: number, color?: string): Promise<void>;
   fadeIn(frames?: number): Promise<void>;
 }

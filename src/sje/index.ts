@@ -30,7 +30,7 @@ export { ExternalFrameTexture, type FrameTexture } from './render/frametexture';
 export { type FrameRenderer, GlRenderer } from './runtime/glrenderer';
 export { Cancelled, Clock, ignoreCancel, type TimerEvent, type TimerEventConfig } from './runtime/clock';
 export { FAULT_LIMIT, type FxLevel, Game, type GameConfig, type GameEvents, type GameParts } from './runtime/game';
-export type { GameApi, LegacyGameSurface, LegacyShape, ShakeDirection } from './runtime/gameapi';
+export type { AnyLegacy, GameApi, LegacyGameSurface, LegacyShape, ShakeDirection } from './runtime/gameapi';
 export { GameObjectFactory } from './runtime/gameobjectfactory';
 export type { Action, ActionMap, SceneInput } from './runtime/input';
 export { LegacyScene } from './runtime/legacyscene';
