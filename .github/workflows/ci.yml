@@ -178,14 +178,15 @@ jobs:
       # sje-canaries.spec.ts is the engine canary suite (M0): the lab page on SwiftShader, every trap with its negative control.
       # sje-draws.spec.ts counts draw calls and binds (the same on every machine).
       # sje-shell.spec.ts is the real game on the new engine (/?engine=sje): the four screens, the block test against the old path, context loss, the leak
-      # test (M1). sje-bench.spec.ts is not here on purpose: it times a GPU, so it runs locally (npm run perf).
+      # test (M1). sje-fx.spec.ts is the effects (M2): each effect read from the canvas, at the forced level. sje-bench.spec.ts and sje-fx-compare.spec.ts are not here on
+      # purpose: the first times a GPU (npm run perf), the second needs the old presenter on a real GPU and writes pictures for Mark. Both run locally.
       - name: E2E on Chromium (every spec except the playtest, with the engine canaries)
         if: steps.scope.outputs.skip != 'true'
         run: >-
           npx playwright test --project=chromium
           e2e/playthrough.spec.ts e2e/gameover.spec.ts e2e/prod.spec.ts
           e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts
-          e2e/sje-canaries.spec.ts e2e/sje-draws.spec.ts e2e/sje-shell.spec.ts
+          e2e/sje-canaries.spec.ts e2e/sje-draws.spec.ts e2e/sje-shell.spec.ts e2e/sje-fx.spec.ts
         env:
           CI: '1'
 
