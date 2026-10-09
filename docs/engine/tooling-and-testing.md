@@ -168,7 +168,7 @@ The JS timer cannot see GPU cost. In the lab, `renderer.render()` took 0.1 to 0.
 | Draw calls | Count draws and framebuffer binds with a patch of `WebGL2RenderingContext.prototype`. | New. Hardware independent. Lab: 301 sprites cost 1 draw. Blur, color matrix, and shockwave cost 12 draws and 13 binds. |
 | 3D hand-off | One frame of the shared-context path stays inside its budget. | New. |
 
-SwiftShader cost follows canvas pixels. In the lab (a 480x270 game, one machine, medium confidence) the full effect stack cost about 12 to 13 ms at 960x540. The CI viewport is now 1280x720, which has 1.78 times more pixels. The full stack is not measured there. Measure each fx level again at M1. Budget each fx level per pass. The first real CI run is the actual measurement.
+SwiftShader cost follows canvas pixels. In the lab (a 480x270 game, one machine, medium confidence) the full effect stack cost about 12 to 13 ms at 960x540. The CI viewport is now 1280x720, which has 1.78 times more pixels. M2 measured the fx levels there (the table after the M1 measurements below). Budget each fx level per pass. The first real CI run is the actual measurement.
 
 **The speed line (Phase 0 amendment, 2026-10-05).** The test machine's display refreshes at about 56.6 Hz, so a bare page already takes 17.7 ms per frame there. Phase 0 did not measure Mark's own display separately. No page can reach the 16.7 ms line on it. "60 fps" means no dropped frames against the display's own rate. The gate has two rules that both must hold on a real GPU.
 
@@ -223,6 +223,19 @@ The cost did not grow with the picture. The 3D frame has 1.78 times more pixels,
 | Frame interval p95 against a bare page (software GL) | 16.7 to 16.8 ms against 16.7 ms |
 
 The upload counter is exact (a patch of `texImage2D` and `texSubImage2D`), so the same numbers hold on a GPU. A third drawn legacy scene (a field with a dialog and a menu over it) stays under the proposed 3 MB line. The draw and bind counts are far under the budgets of 60 and 30. The JavaScript numbers and the interval depend on the machine, and the cost on software GL follows the pixel count.
+
+
+**M2 measurements (2026-10-09, the real game on `?engine=sje&fx=...`, 1280x720 viewport, the probe scene of `e2e/sjefxkit.ts`).** SWIFTSHADER (the bundled Chromium, software GL): NOT GPU numbers. Each cell is the cost of one frame with a one-pixel read-back (it waits for the GPU), 120 frames, p50 / p95 in ms. The stack is two shockwaves, a color split, a haze, a glitch, a dim, a lit rectangle in the glow layer and four ember bursts, all alive. The GPU line (interval p95 within 5% of a bare page, cost p95 at most 8 ms, pass line 13) is the main session's `npm run perf` run on a real GPU.
+
+| Level | Bare frame (no effect alive) | Full stack alive |
+|---|---|---|
+| `none` | 8.6 / 9.5 | 8.6 / 10.4 |
+| `lite` | 8.7 / 11.3 | 10.2 / 12.4 |
+| `full` | 15.7 / 18.9 | 19.6 / 24.0 |
+
+`full` costs about 7 ms more than `none` on SwiftShader even with nothing alive, because the composite and the blur chain run whenever the level is on and something glows (the stage draws the world through the filter every frame). `lite` costs 1.6 ms with the stack, and `auto` picks it on software GL.
+
+Hardware independent counts (`e2e/sje-draws.spec.ts`, the real game, one frame): the bare frame is 4 draw calls, 4 framebuffer binds and 2 canvas uploads. The full effect stack is 16 draw calls, 17 binds and 3 uploads (the glow canvas and the UI canvas upload only on frames where a scene drew into them). The gates are 24, 24 and 4. Shader programs alive after the warm-up: 4, and none is made during a `playMoment` (the first hit takes 2.9 ms and the tenth 2.3 ms in the page, SwiftShader).
 
 ---
 
