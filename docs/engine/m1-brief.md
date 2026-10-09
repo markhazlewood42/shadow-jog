@@ -86,7 +86,7 @@ Risks:
 Questions (Mark decides; this brief does not):
 
 1. **Q1: Bundle alarm. ANSWERED 2026-10-09 (Mark): one bigger total, about 400 kB.** Was: The flag and `fxLevel` need about 0.3 to 1 kB gzip. Raise `GZIP_TOTAL_MAX` from 240.8 kB to 241.8 kB? Recommend yes, set to measured size plus 0.2 kB, as one deliberate edit with a dated comment.
-2. **Q2: `fit` mode (E13).** Retire it (option A: `integer` only, `settings.scale: 'fit'` migrates to `integer`) or build both (option C)? Recommend A: the integer presenter never resamples, and `fit` has no tested design on the whole-window canvas.
+2. **Q2: `fit` mode (E13). ANSWERED 2026-10-09 (Mark): drop `fit`, `integer` only; `settings.scale: 'fit'` migrates to `integer` in `backfill()` (build B, task 10).** Was: Retire it (option A: `integer` only, `settings.scale: 'fit'` migrates to `integer`) or build both (option C)? Recommend A: the integer presenter never resamples, and `fit` has no tested design on the whole-window canvas.
 3. **Q3: Spike archive tag.** Tag `spike/engine-platform` now that its runtime is copied? Recommend wait until M1 merges.
 
 ## Decisions taken (main session, 2026-10-09)
