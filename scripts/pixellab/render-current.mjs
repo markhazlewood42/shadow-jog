@@ -165,12 +165,21 @@ for (const [k, v] of Object.entries(props)) {
 
 // Places: the game's own view of each area the terrain comes from (for the terrain review).
 mkdirSync(`${OUT}/place`, { recursive: true });
-await page.setViewportSize({ width: 480, height: 270 });
+// The viewport is the game's own size (one screen pixel per game pixel), read from the size source
+// (src/engine/game.ts) so a later change of resolution cannot leave this script cropping the wrong area.
+const { W, H } = await page.evaluate(async () => {
+  const m = await import('/src/engine/game.ts');
+  return { W: m.W, H: m.H };
+});
+await page.setViewportSize({ width: W, height: H });
+/** The 128x128 crop of the terrain, centered in the screen. */
+const CROP = 128;
+const crop = { x: Math.floor((W - CROP) / 2), y: Math.floor((H - CROP) / 2), width: CROP, height: CROP };
 for (const [name, map, x, y] of PLACES) {
   await page.goto(`http://localhost:3007/?debug&scene=field&map=${map}&x=${x}&y=${y}`);
   await page.waitForTimeout(2500);
   await page.screenshot({ path: `${OUT}/place/${name}.png` });
-  await page.screenshot({ path: `${OUT}/place/${name}.crop.png`, clip: { x: 176, y: 71, width: 128, height: 128 } });
+  await page.screenshot({ path: `${OUT}/place/${name}.crop.png`, clip: crop });
 }
 console.log(`props ${nProps}, places ${PLACES.length}`);
 await browser.close();
