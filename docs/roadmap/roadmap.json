@@ -51,24 +51,25 @@
       "kind": "milestone",
       "label": "Prepare",
       "lane": "foundations",
-      "status": "active",
+      "status": "done",
       "after": [
         "Pre-M0"
       ],
       "branch": "engine-m0-prepare",
-      "pr": "#43 (ready for review)",
-      "notes": "Built and verified (2 rounds). Size module, bundle gate, canary suite, lab, agent docs. Waits for CI and Mark's merge. Worktree: projects/shadow-jog-engine."
+      "pr": "#43 (merged 2026-10-09)",
+      "notes": "Size module, bundle gate, canary suite, lab, agent docs. CI runs no timing gate; perf is local (npm run perf)."
     },
     {
       "id": "M1",
       "kind": "milestone",
       "label": "Shell",
       "lane": "engine",
-      "status": "next",
+      "status": "active",
       "after": [
         "M0"
       ],
-      "notes": "Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. GPU timing check (npm run perf) once at the end, not in CI."
+      "notes": "Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. GPU timing check (npm run perf) once at the end, not in CI.",
+      "branch": "engine-m1-shell"
     },
     {
       "id": "M2",
