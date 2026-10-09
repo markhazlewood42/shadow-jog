@@ -24,6 +24,10 @@ const FIXTURES = join(import.meta.dirname, '..', 'fixtures');
 const GLASS_KEY = 'cc.now.glass';
 const LAYOUT_KEY = 'cc.now.layout';
 
+/** The CI runner has no GPU, so playwright.config.ts starts every test with the glass off (as for a user who turned it off). A test that needs the glass drawn skips on CI. */
+const NO_GPU = !!process.env.CI;
+const NO_GPU_REASON = 'needs a GPU: the CI runner has none';
+
 const panel = (page: Page, name: (typeof PANELS)[number]) => page.getByRole('region', { name, exact: true });
 const glassSwitch = (page: Page) => page.getByRole('button', { name: 'Glass panels' });
 const decisionOf = (page: Page) => page.getByRole('region', { name: 'Decision', exact: true });
@@ -185,6 +189,8 @@ test.afterEach(async ({ request }) => {
 // needs seconds for that, and the page waits for it: more than the 10 seconds that a check may take, in a slow run. The compiled shaders are kept for the rest of the run,
 // so one visit before the tests pays for all of them, with a time limit of its own.
 test.beforeAll(async ({ browser }) => {
+  // On CI the glass is off and no shader is compiled. (A page of this hook gets no storage state of the config either, so a visit here would load the glass.)
+  if (NO_GPU) return;
   test.setTimeout(120_000);
   const page = await browser.newPage();
   try {
@@ -204,8 +210,11 @@ test.describe('the panels', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Shadow Jog Command Center' })).toBeVisible();
 
     // The switch turns the glass off: the same five panels, as plain boxes, and no canvas for the GPU to draw.
-    await expect(glassSwitch(page)).toHaveAttribute('aria-pressed', 'true');
-    await glassSwitch(page).click();
+    // On CI the glass is off from the start (see playwright.config.ts), so there is nothing to switch.
+    if (!NO_GPU) {
+      await expect(glassSwitch(page)).toHaveAttribute('aria-pressed', 'true');
+      await glassSwitch(page).click();
+    }
     await expect(glassSwitch(page)).toHaveAttribute('aria-pressed', 'false');
     await expect(page.locator('canvas')).toHaveCount(0);
     for (const name of PANELS) {
@@ -225,6 +234,7 @@ test.describe('the panels', () => {
   });
 
   test('glass on makes a canvas when WebGL2 exists', async ({ page }) => {
+    test.skip(NO_GPU, NO_GPU_REASON);
     const problems = watchConsole(page);
     await page.goto('/');
     // The test needs a browser with WebGL2 (the browsers of this tool's tests have one). Without it, it would say nothing about the glass.
@@ -248,6 +258,7 @@ test.describe('the panels', () => {
   });
 
   test('glass canvas spans the window width, scrollbar included', async () => {
+    test.skip(NO_GPU, NO_GPU_REASON);
     // PlasmaUI 0.7.0 draws on a region of the window size (innerWidth x innerHeight), and its canvas is `width: 100%`, which is the page width without the scrollbar. When the
     // two differ, every drawn frame is squeezed toward the left, and the frames stop matching the panels. The canvas must be as wide as the window, scrollbar included.
     // Playwright hides the scrollbars of a headless browser, and then the two widths are the same and the test would say nothing, so this test starts a browser of its own
@@ -320,6 +331,7 @@ test.describe('the panels', () => {
   });
 
   test('the glass switch survives a reload', async ({ page }) => {
+    test.skip(NO_GPU, NO_GPU_REASON);
     await page.goto('/');
     await allLoaded(page);
     await expect(page.locator('canvas')).toHaveCount(1);
@@ -366,8 +378,8 @@ test.describe('the header of a panel', () => {
     await page.goto('/');
     await allLoaded(page);
     // Glass on and off: the two modes draw the same frame, and the header is inside it in both.
-    for (const mode of ['glass', 'plain']) {
-      if (mode === 'plain') {
+    for (const mode of NO_GPU ? ['plain'] : ['glass', 'plain']) {
+      if (mode === 'plain' && !NO_GPU) {
         await glassSwitch(page).click();
         await expect(page.locator('canvas')).toHaveCount(0);
       }
@@ -421,6 +433,7 @@ test.describe('the arrangement', () => {
   test.use({ viewport: { width: 1280, height: 1500 } });
 
   test('a dragged panel keeps its place after a reload and Reset layout restores it', async ({ page }) => {
+    test.skip(NO_GPU, NO_GPU_REASON);
     await page.goto('/');
     expect(await hasWebGL2(page), 'this browser has no WebGL2: panels cannot be dragged without the glass').toBe(true);
     await allLoaded(page);
@@ -957,7 +970,7 @@ test.describe('the status panel', () => {
       await expect(status.getByText('Not started')).toHaveCount(0);
 
       // The current square is the one amber item of the panel, and the page keeps to its two: with the glass off and with it on.
-      for (const mode of ['plain', 'glass'] as const) {
+      for (const mode of NO_GPU ? (['plain'] as const) : (['plain', 'glass'] as const)) {
         if (mode === 'glass') {
           await glassSwitch(page).click();
           await expect(glassSwitch(page)).toHaveAttribute('aria-pressed', 'true');
@@ -1229,8 +1242,8 @@ test.describe('the Look', () => {
     expect(await items.count()).toBeGreaterThan(15);
 
     const colors = await tokenColors(page);
-    for (const mode of ['glass', 'plain'] as const) {
-      if (mode === 'plain') {
+    for (const mode of NO_GPU ? (['plain'] as const) : (['glass', 'plain'] as const)) {
+      if (mode === 'plain' && !NO_GPU) {
         await glassSwitch(page).click();
         await expect(page.locator('canvas')).toHaveCount(0);
       }
@@ -1248,6 +1261,7 @@ test.describe('the Look', () => {
   });
 
   test('the text on the glass keeps the 4.5 to 1 floor of the Look, wherever it stands on the page, at both sizes', async ({ page, request }) => {
+    test.skip(NO_GPU, NO_GPU_REASON);
     // The glass is drawn by the GPU behind the page, and shows through the panels, so the contrast of a text on it can only be read from the picture: the test
     // hides the text, takes a picture of what is behind it, and finds the text with the least contrast. The page has every kind of text: titles, links, the small
     // `soft` labels (the lowest ratio of the set), the lights of the items of Your move, the chips of the pull requests, and the rows and the milestone strip of the Status.

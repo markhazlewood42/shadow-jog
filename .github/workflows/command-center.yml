@@ -1,0 +1,80 @@
+# Tests for the Command Center (tools/command-center/). ci.yml skips this folder, so this workflow
+# runs them: typecheck, Vitest and the Playwright specs on Chromium.
+#
+# This workflow is not a required check, so a path filter is safe here. A required check must never
+# use a path filter (see ci.yml). The job is named `command-center`, not `check`, so it cannot
+# take the place of the required `check` job.
+#
+# The tests need no GitHub token. They use fixtures and a fake `gh`, and they read no real
+# sessions (see tools/command-center/README.md).
+name: Command Center
+
+on:
+  pull_request:
+    paths:
+      - 'tools/command-center/**'
+      # The tests render every real doc and the markdown files at the root (tests/render.test.ts), so a change to one of them runs the tests.
+      - 'docs/**'
+      - '*.md'
+      # tests/decisions-parse.test.ts reads the real issue template, so a change to it must run the tests.
+      - '.github/ISSUE_TEMPLATE/decision.md'
+      - '.github/workflows/command-center.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/command-center/**'
+      # The tests render every real doc and the markdown files at the root (tests/render.test.ts), so a change to one of them runs the tests.
+      - 'docs/**'
+      - '*.md'
+      # tests/decisions-parse.test.ts reads the real issue template, so a change to it must run the tests.
+      - '.github/ISSUE_TEMPLATE/decision.md'
+      - '.github/workflows/command-center.yml'
+  workflow_dispatch:
+
+# The job only reads the code, so the token gets no more than that.
+permissions:
+  contents: read
+
+# One run at a time for each pull request. A new push to a pull request cancels the run that it
+# makes useless. Each commit on main has its own group, so a push to main is never canceled or dropped.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  command-center:
+    runs-on: ubuntu-latest
+    # The limit only stops a hung job (GitHub's default is 6 hours).
+    timeout-minutes: 20
+    # No test may open a browser tab on the runner: the Vitest tests start the server too.
+    env:
+      CC_NO_OPEN: '1'
+    defaults:
+      run:
+        working-directory: tools/command-center
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tools/command-center/package-lock.json
+      - run: npm ci
+      # Typecheck and Vitest.
+      - run: npm run check
+      # Only Chromium: playwright.config.ts has one project. Run in this folder, so the version
+      # that installs is the one in this package.
+      - run: npx playwright install --with-deps chromium
+      # The config starts its own server on port 3010. CI is set by GitHub, so the config uses the
+      # bundled Chromium and not Edge.
+      - name: E2E on Chromium
+        run: npm run e2e -- --trace retain-on-failure
+      # A spec that fails only here leaves its trace and its error notes as a download of the run.
+      - name: Keep the E2E results of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: command-center-e2e-results
+          path: tools/command-center/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
