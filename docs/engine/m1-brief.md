@@ -50,7 +50,7 @@ Each line is a command or a count. A fresh agent runs them.
 4. Block test: at ratios 1, 2 and 3, a 64x64 block of the title screen is pixel-equal between the old path and `?engine=sje`. The full screenshot differs from the old path in at most 0.1% of pixels, and Mark gets both pictures (section 4).
 5. Without `?engine=sje`, the old game plays as before: `npx playwright test e2e/playthrough.spec.ts e2e/prod.spec.ts --reporter=line` exits 0. `__SJ__` is absent in the production build.
 6. `git diff --stat main...HEAD -- src/engine src/battle src/game src/scenes src/field src/data src/story src/audio src/art` shows only: the `implements GameApi` line and the `Rng` re-export in `src/engine`, the `fxLevel` change in `src/game/settings.ts` and its callers, and import-path lines. `git diff --stat main...HEAD -- src/data` is empty (principle 8).
-7. `npm run budget` exits 0. The `boot` class holds no `pixi.js` and no `three` module. The `?engine=sje` chunk is in `lazy-2d` and holds all of Pixi. Game total gzip stays under the alarm that Mark confirmed (Q1). No change of the alarm without his OK.
+7. `npm run budget` exits 0. The `boot` class holds no `pixi.js` and no `three` module. The `?engine=sje` chunk is in `lazy-2d` and holds all of Pixi. Game total gzip stays under one raised total (Mark, 2026-10-09, Q1: "one bigger total"): start at 400 kB, and set it at the end of M1 to the measured size rounded up to the next 1 kB. The raise is a dated comment in the script, by measured delta only; the old-game growth is no longer separately gated (a known loss, see Q1).
 8. `npx playwright test e2e/sje-canaries.spec.ts e2e/sje-draws.spec.ts --reporter=line` exits 0: the M0 canaries still pass, and the leak test is flat across 10 enter and exit cycles of `LegacyScene` scenes.
 9. `grep -rn "pixi.js" src --include=*.ts` hits only `src/sje/render`, `src/sje/display` and `src/sje-lab`; `grep -rn "from 'three'" src` hits only `src/sje/three`, `src/hack3d` and `src/sje-lab`. `tests/sje-imports.test.ts` passes. `src/sje/runtime` imports no `src/engine` file except the `Input` and old `Scene` types named in task 6 and 8.
 10. The 1,000-object bench ran on the local GPU. Frame interval p95 within 5% of a bare page, cost p95 at most 8 ms (principle 12: one run at the end of M1). The numbers are in tooling-and-testing.md section 7. No non-null `!` in `src/sje/runtime`.
@@ -85,12 +85,12 @@ Risks:
 
 Questions (Mark decides; this brief does not):
 
-1. **Q1: Bundle alarm.** The flag and `fxLevel` need about 0.3 to 1 kB gzip. Raise `GZIP_TOTAL_MAX` from 240.8 kB to 241.8 kB? Recommend yes, set to measured size plus 0.2 kB, as one deliberate edit with a dated comment.
+1. **Q1: Bundle alarm. ANSWERED 2026-10-09 (Mark): one bigger total, about 400 kB.** Was: The flag and `fxLevel` need about 0.3 to 1 kB gzip. Raise `GZIP_TOTAL_MAX` from 240.8 kB to 241.8 kB? Recommend yes, set to measured size plus 0.2 kB, as one deliberate edit with a dated comment.
 2. **Q2: `fit` mode (E13).** Retire it (option A: `integer` only, `settings.scale: 'fit'` migrates to `integer`) or build both (option C)? Recommend A: the integer presenter never resamples, and `fit` has no tested design on the whole-window canvas.
 3. **Q3: Spike archive tag.** Tag `spike/engine-platform` now that its runtime is copied? Recommend wait until M1 merges.
 
 ## Decisions taken (main session, 2026-10-09)
 
-1. Q1 to Q3 wait for Mark. Build proceeds with `integer` mode only (works under both Q2 answers) and with the alarm unchanged until Q1 is answered; if the build exceeds the alarm, stop and ask.
+1. Q1 is answered (one bigger total, start 400 kB). Q2 and Q3 wait for Mark. Build proceeds with `integer` mode only (works under both Q2 answers).
 2. `Rng` move: `src/engine/rng.ts` stays as a re-export so no old import changes.
 3. Bench and GPU line run once locally at the end (principle 12), not in CI.
