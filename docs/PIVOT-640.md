@@ -869,7 +869,29 @@ One build and one verification round (the lean loop). The battle is replaced by 
 | Content list (PL12) | `media/pivot-640/wp6/content.md`. Review 6 pictures: `media/pivot-640/wp6/review6/`. |
 
 **Deviations, with reasons.**
-- The brief's rows for the seven backdrops, placement and the HUD needed no code: the pictures and the existing tests show WP2b already did them. Recorded as "no look change", not as unfinished.
+- Round 1 said the seven backdrops, placement and the HUD needed no code. That was false for the backdrops: five still spaced their set pieces for the 240 px world (the reader's finding I1). Round 2 fixed them; placement and the HUD needed no code (WP2b did them).
 - The recorder's `▼` arrow finding is named, not fixed: fixing it grows the list window by 1 px and changes every battle list shot.
 - Impact "before" picture: the code with the old constant 260 put back for one capture (the impact frame was not in the first set), then restored.
 - `10-shop` and `43-shop-equip-now` are named fixes, so their change is expected.
+
+**Verification table.** Two rounds of 3, 2026-10-09. Reports (git-ignored): `media/verification/wp6/round1-runner.md`, `round1-reader.md`, `round2-verifier.md`. **Result: pass in round 2.**
+
+| Round | At | Verifiers | Result | Findings |
+|---|---|---|---|---|
+| 1 | fd04573 | runner (Sonnet), reader (Haiku), medium effort | fail | I1 (Important): park, junction, lab, rustyard and sewer spaced their set pieces for 240 px, so the right part of the world was bare (the runner missed it; the main session confirmed it in `bg-lab-1` and `bg-park-1`). I2 (Important): `docs/DEVELOPING.md` and `docs/GLOSSARY.md` described the deleted switches as live. M1 to M3 (Minor). |
+| 2 | adb822d | one fresh verifier (Sonnet, medium), the named findings only | pass | I1, I2, M1, M2 and M3 closed; the fix caused no new finding. Five backdrops recaptured with four enemies: none bare, clipped or seamed; ground rows and placement unchanged. |
+
+| Pass line | Result | Evidence |
+|---|---|---|
+| PL3 | pass | Round 1: every produced shot passes (the two failures are the stale committed 960x540 files, WP7). Round 2: 0 failed. |
+| PL4 | pass | `battle-geom`, `layout`, `ui-layout`: 70 tests; the recorder runs on 7 battle screens. |
+| PL5, PL6 | pass | No diff in `public/`, `src/data` or `src/story`. |
+| PL8 (battle) | pass | GPU 0.95 / 2 ms, software 1.57 / 2.3 ms (round 1 runner; gates 4 / 6 and 8 / 11). |
+| PL12 | pass | `media/pivot-640/wp6/content.md` names each changed backdrop with pictures. |
+| PL13 | pass | CI at fd04573 green (e2e 6m42s). |
+
+Scores, as evidence only: round 1 runner R2 to R6 9, R7 9, R8 9, V1 9, V3 9, V4 8, V5 10; reader R1 4, R2 7, R7 5, R8 9, R9 5 (R1 and R9 low on I1 and I2, both closed in round 2).
+
+**Review 6 (Mark, 2026-10-09).** He confirms the round 2 backdrops as built (park, junction, lab, rustyard, sewer; the sewer's far opening centered, a lone enemy's HP bar over it). **PL11 for WP6 holds:** Mark received the WP6 sheets (the shop overlap pair, the impact frame, the round 2 backdrops) before he answered.
+
+**Named fixes for the next commit (WP7).** `docs/DEVELOPING.md:166` still names the deleted `reviewswitch` module in its "gone" note: drop the name. The two stale committed 960x540 files in `docs/screenshots` go when WP7 regenerates the set.
