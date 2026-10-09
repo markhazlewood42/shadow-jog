@@ -8,7 +8,7 @@ import { TitleScene } from './scenes/title';
 import { loadSave, slotStatus, unsavedFrames, writeSave } from './game/save';
 import { newGame } from './story/newgame';
 import type { Game as GameT } from './engine/game';
-import { flashScale, saveSettings, settings, shakeScale } from './game/settings';
+import { flashScale, gpuWanted, saveSettings, settings, shakeScale } from './game/settings';
 import { debug, debugBattleDriver } from './game/debug';
 import { setBattleDriver } from './scenes/battlekit/driver';
 import type { GameState } from './game/state';
@@ -93,17 +93,13 @@ export function boot(game: Game, display: Display): void {
       return t;
     },
     gpu: (on: boolean) => {
-      settings.gpuFx = on;
+      settings.fxLevel = on ? 'full' : 'none';
       saveSettings();
       window.dispatchEvent(new Event('sj-gpu'));
     },
   };
   display.mode = settings.scale;
   display.resize();
-  window.addEventListener('sj-scale', () => {
-    display.mode = settings.scale;
-    display.resize();
-  });
   installSystems(game, {
     toTitle: () => void startTitle(game),
     toField: (map, x, y, dir) => void game.reset(new FieldScene(map, x, y, dir)),
@@ -176,14 +172,14 @@ export function boot(game: Game, display: Display): void {
   game.flashScale = flashScale;
   // GPU effects: on when the setting says so and WebGL 2 works. Shockwaves follow Screen shake
   // and pulses follow Screen flash, so the comfort options cover them too.
-  display.setGpu(settings.gpuFx);
+  display.setGpu(gpuWanted());
   window.addEventListener('sj-gpu-slow', () => {
     display.setGpu(false);
     postfx.suspended = true;
     notice('The GPU effects were slowing the game down, so they’re off for now. Options → GPU effects turns them back on.', 'warn');
   });
   window.addEventListener('sj-gpu', () => {
-    if (!display.setGpu(settings.gpuFx) && settings.gpuFx) notice('GPU effects need a graphics card this browser can use (WebGL 2). The game looks as before.', 'warn');
+    if (!display.setGpu(gpuWanted()) && gpuWanted()) notice('GPU effects need a graphics card this browser can use (WebGL 2). The game looks as before.', 'warn');
   });
   game.tickers.push(() => {
     postfx.motion = [0, 0.6, 1][settings.shake] ?? 1;

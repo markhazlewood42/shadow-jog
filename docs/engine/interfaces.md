@@ -47,7 +47,6 @@ export type FxLevel = 'full' | 'lite' | 'none';
 export interface GameConfig {
   parent: HTMLElement;
   fxLevel?: 'auto' | FxLevel;           // ours. 'auto' picks 'lite' on software GL
-  scaleMode?: 'integer' | 'fit';        // ours
   seed?: number;                         // ours. Visual randomness only
   dev?: boolean;                         // ours. Enables __SJ__, editors, pixi/events
 }
@@ -572,7 +571,7 @@ export interface HackOutcome { outcome: 'success' | 'fail'; via: 'played' | 'pol
 
 ```ts
 export interface Display {                             // Phaser ScaleManager name. Unity Pixel Perfect Camera behavior
-  readonly k: number; mode: 'integer' | 'fit';
+  readonly k: number; readonly mode: 'integer';     // integer only: `fit` was dropped (Mark, 2026-10-09)
   readonly layout: { k: number; x: number; y: number; w: number; h: number };   // ours. Device pixels: where the picture sits in the whole-window canvas
   toGame(clientX: number, clientY: number): { x: number; y: number };
   on(ev: 'resize', fn: () => void): void;

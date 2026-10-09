@@ -23,7 +23,7 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
 - **Verification loop for every build in this repo: the lean loop (Mark, 2026-10-08).** It covers the engine
   milestones, the 640x360 move, the Command Center, tools and docs, and overrides the older loops:
   `docs/engine/verification.md` section 1, `docs/command-center/plan.md`, `plan-revision-2.md` and `design.md`
-  section 8, and "The loop" in `docs/PIVOT-640.md` (on branch `resolution-640x360`, PR #23, until it merges). The
+  section 8, and "The loop" in `docs/PIVOT-640.md`. The
   reason and the map from the three engine lenses to two verifiers are in `docs/engine/verification.md`.
   - **Who.** A fresh agent that did not write the work grades it, against criteria written before the work. Code
     and layout: 2 verifiers, a runner (runs the touched tests and Playwright, makes the pictures) and a reader (reads

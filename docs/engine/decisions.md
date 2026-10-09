@@ -35,7 +35,7 @@ This file lists every open decision for you. Each one has the question, 2 to 4 o
 | E7 | Naming conventions | Phaser names first, tagged | Phase 0 | Mark | A |
 | E8 | Filter resolution (a look decision) | Game resolution | M2 | Mark | A |
 | E12 | Resolution follow-up (640x360) | Keep 480x270, test 640x360 in a mock | Phase 0 | Mark | B. 640x360, chosen on 2026-10-05 (first kept 480x270 after the mock) |
-| E13 | Display scale rule | Setting, default integer | M1 | Mark | C |
+| E13 | Display scale rule | Setting, default integer | M1 | Mark | A. `integer` only, `fit` dropped (Mark, 2026-10-09) |
 | E17 | Bundle caps | Per class from the manifest | M1 | Mark | A |
 | E19 | Story policy for 3D results | Per hack, authored | M7 | Mark | A |
 | E20 | The lighting look | Global light map plus weak sprite boost | M5 | Mark | A |
@@ -394,6 +394,8 @@ The move needs a new layout in the places that hold fixed numbers for 480 and 27
 **Trade-offs.** A is crisp and fits the hard constraint. B fills more of the window but can blur. B needs `image-rendering: auto`, and A needs `pixelated`. The two modes use different math ([frame-and-rendering.md](frame-and-rendering.md) section 6.6). If you pick A only, the `fit` setting retires. Today's saved default `settings.scale: 'fit'` then migrates to `integer` in `backfill()`.
 
 **Recommendation.** C.
+
+**Answered 2026-10-09.** Mark chose A: `integer` only. The `fit` mode is dropped, and a saved `settings.scale: 'fit'` becomes `integer` in `backfill()` (M1 build B).
 
 **Phase 0 note (2026-10-05).** Phase 0 built only the `integer` rule. The `fit` mode is not built and has no tested design with the whole-window canvas ([frame-and-rendering.md](frame-and-rendering.md) section 6.6). Decide at M1 whether `fit` stays. Consider option A (retire `fit`), because the integer presenter never resamples. You accepted this plan on 2026-10-05 (real choice C6).
 

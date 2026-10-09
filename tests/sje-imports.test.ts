@@ -11,11 +11,14 @@
  *     the same through the door in src/hack3d/door.ts, M7). The built bundle is checked too
  *     (scripts/bundle-budget.mjs).
  *  3. Dependencies point DOWN the levels: core 0, render 1, display 2, runtime 3, facade 4, three 5.
- *  4. Game code reaches the engine only through the facade, `src/sje/index.ts`. The one exception is the
- *     old engine's files, which take `W` and `H` from `src/sje/core/size.ts` (M0).
+ *  4. Game code reaches the engine only through the facade, `src/sje/index.ts`. The exceptions are the old engine's
+ *     files, which take `W` and `H` from `src/sje/core/size.ts` (M0), the `Rng` re-export (`src/engine/rng.ts`, M1), the
+ *     type-only `implements GameApi` line (M1), and `src/main.ts`, which loads `src/sje/boot.ts` with a dynamic import (M1).
  *  5. Raw GL state calls (bindFramebuffer, readPixels, clearColor, pixelStorei, getError...) appear
  *     only in src/sje/render/glhandoff.ts: GlHandoff is the one hand-off point.
- *  6. The new engine never imports the old one.
+ *  6. The new engine never imports the old one. M1 allows exactly two seams, both checked below: `src/sje/boot.ts` (the glue that joins
+ *     the new `Game` to the game's own boot; only `src/main.ts` may import it, and only with a dynamic `import()`) and TYPE-ONLY imports of
+ *     the old `Input` in three runtime files (`game.ts`, `gameapi.ts`, `input.ts`).
  *  7. Phaser is imported nowhere.
  *
  * Differences from the spike's copy (`spike/engine-platform:tests/sje-imports.test.ts`): M0 has no
@@ -77,6 +80,38 @@ function edges(dirs: string[]): Edge[] {
 }
 
 const all = edges(['src', 'tests', 'e2e', 'scripts']);
+
+/** Is every import of `spec` in `text` an `import type`? (A type-only import is erased: it adds no code to any bundle.) */
+function onlyTypeImports(text: string, spec: string): boolean {
+  const escaped = spec.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  const re = new RegExp(`^[ \\t]*(?:import|export)\\s+(type\\s+)?[^;'"]*?\\bfrom\\s*['"]${escaped}['"]`, 'gm');
+  const found = [...text.matchAll(re)];
+  return found.length > 0 && found.every((m) => m[1] !== undefined);
+}
+
+/** The runtime files that may name the old engine, and the one old file each may name: a TYPE only (M1 tasks 6 and 8). */
+const OLD_ENGINE_TYPES: Readonly<Record<string, readonly string[]>> = {
+  'src/sje/runtime/game.ts': ['src/engine/input'],
+  'src/sje/runtime/gameapi.ts': ['src/engine/input'],
+  'src/sje/runtime/input.ts': ['src/engine/input'],
+};
+
+/**
+ * Every import in `src/sje` that leaves `src/sje` and is not allowed. `read` gives a file's text. Pure, so a test can run it on made-up
+ * edges (the negative control below).
+ */
+function leavingTheEngine(edgeList: Edge[], read: (file: string) => string): string[] {
+  const problems: string[] = [];
+  for (const e of edgeList) {
+    if (!e.target || e.target.startsWith('src/sje')) continue;
+    // The glue file joins the two engines: it may import anything.
+    if (e.file === 'src/sje/boot.ts') continue;
+    const allowed = OLD_ENGINE_TYPES[e.file];
+    if (allowed?.includes(e.target) && onlyTypeImports(read(e.file), e.spec)) continue;
+    problems.push(`${e.file} imports outside the engine: ${e.spec}`);
+  }
+  return problems;
+}
 const isPixi = (spec: string) => spec === 'pixi.js' || spec.startsWith('pixi.js/');
 const isThree = (spec: string) => spec === 'three' || spec.startsWith('three/');
 
@@ -103,7 +138,7 @@ describe('library imports', () => {
       if (rel === 'src/sje-lab/threelab.ts') continue;
       const text = readFileSync(f, 'utf8');
       // Every static import or re-export statement, with whether it says `type`.
-      for (const m of text.matchAll(/^[ \t]*(?:import|export)\s+(type\s+)?[\s\S]*?\bfrom\s*['"]([^'"]+)['"]/gm)) {
+      for (const m of text.matchAll(/^[ \t]*(?:import|export)\s+(type\s+)?[^;'"]*?\bfrom\s*['"]([^'"]+)['"]/gm)) {
         const spec = m[2] ?? '';
         const toChunk = isThree(spec) || /(^|\/)sje\/three(\/|$)/.test(spec) || /(^|\/)threelab$/.test(spec);
         if (toChunk && !m[1]) problems.push(`${rel} imports ${spec} as a value`);
@@ -146,16 +181,31 @@ describe('levels: dependencies point down', () => {
   it('no file under src/sje imports anything above its own level, or outside src/sje (the new engine never imports the old one)', () => {
     const problems: string[] = [];
     for (const e of sje) {
-      if (!e.target) continue;
+      if (!e.target || !e.target.startsWith('src/sje')) continue;
       const own = level(e.file);
-      if (!e.target.startsWith('src/sje')) {
-        problems.push(`${e.file} imports outside the engine: ${e.spec}`);
-        continue;
-      }
       const target = level(e.target);
       if (own !== null && target !== null && target > own) problems.push(`${e.file} (level ${own}) imports ${e.spec} (level ${target})`);
     }
     expect(problems).toEqual([]);
+    // Leaving src/sje is allowed only at the two M1 seams (see the file comment, rule 6).
+    expect(leavingTheEngine(sje, (f) => readFileSync(join(ROOT, f), 'utf8'))).toEqual([]);
+  });
+
+  it('the seam check is alive: a value import of the old engine, a type import in a file that is not on the list, and a second old file all fail', () => {
+    const edge = (file: string, spec: string, target: string): Edge => ({ file, spec, target });
+    const typeOnly = "import type { Input } from '../../engine/input';";
+    const value = "import { Input } from '../../engine/input';";
+    // Allowed: the listed file, the listed target, type only.
+    expect(leavingTheEngine([edge('src/sje/runtime/game.ts', '../../engine/input', 'src/engine/input')], () => typeOnly)).toEqual([]);
+    // A value import of the same file: it would put old engine code in the new chunk.
+    expect(leavingTheEngine([edge('src/sje/runtime/game.ts', '../../engine/input', 'src/engine/input')], () => value)).toHaveLength(1);
+    // Another runtime file with the same type import is not on the list.
+    expect(leavingTheEngine([edge('src/sje/runtime/legacyscene.ts', '../../engine/input', 'src/engine/input')], () => typeOnly)).toHaveLength(1);
+    // The listed file naming a second old file.
+    expect(leavingTheEngine([edge('src/sje/runtime/game.ts', '../../engine/errors', 'src/engine/errors')], () => "import type { X } from '../../engine/errors';")).toHaveLength(1);
+    // `import type` is told apart from a value import that merely says `type` inside the braces.
+    expect(onlyTypeImports("import { type Input } from '../../engine/input';", '../../engine/input')).toBe(false);
+    expect(onlyTypeImports(typeOnly, '../../engine/input')).toBe(true);
   });
 
   it('level 0 (core) imports nothing at all: no Pixi, no other level', () => {
@@ -198,11 +248,29 @@ describe('who may import the engine', () => {
     expect(notFacade.map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
   });
 
-  it('the shipped game reaches the engine through one file only: the size module, which is plain numbers (no Pixi, no Three)', () => {
+  // A static `import ... from './sje/boot'` (the door must be dynamic, or the engine and Pixi land in the entry chunk).
+  const STATIC_DOOR = /^[ \t]*import\b[^(]*\bfrom\s*['"]\.\/sje\/boot['"]/m;
+
+  it('the shipped game reaches the engine through four files only: the size module, the Rng module (both plain code: no Pixi, no Three), a types-only file, and the boot door', () => {
     const shipped = all.filter((e) => outsideEngine(e) && !e.file.startsWith('src/sje-lab/'));
-    expect([...new Set(shipped.map((e) => e.target))]).toEqual(['src/sje/core/size']);
+    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/runtime/gameapi']);
     // M0 moved every W and H import of the old game to the size module: dozens of files.
-    expect(new Set(shipped.map((e) => e.file)).size).toBeGreaterThan(30);
+    expect(new Set(shipped.filter((e) => e.target === 'src/sje/core/size').map((e) => e.file)).size).toBeGreaterThan(30);
+    // The Rng module is reached through the old path's re-export only: no old file changed its import.
+    expect(shipped.filter((e) => e.target === 'src/sje/core/rng').map((e) => e.file)).toEqual(['src/engine/rng.ts']);
+    // The types file is erased: its one importer says `import type`, so nothing of it reaches the shipped game.
+    expect(shipped.filter((e) => e.target === 'src/sje/runtime/gameapi').map((e) => e.file)).toEqual(['src/engine/game.ts']);
+    expect(onlyTypeImports(readFileSync(join(ROOT, 'src/engine/game.ts'), 'utf8'), '../sje/runtime/gameapi')).toBe(true);
+    // The boot door: only main.ts, and only through a dynamic import(), so the engine and Pixi are a chunk of their own that the default path never fetches.
+    expect(shipped.filter((e) => e.target === 'src/sje/boot').map((e) => e.file)).toEqual(['src/main.ts']);
+    const main = readFileSync(join(ROOT, 'src/main.ts'), 'utf8');
+    expect(main).toMatch(/import\(\s*['"]\.\/sje\/boot['"]\s*\)/);
+    expect(main).not.toMatch(STATIC_DOOR);
+  });
+
+  it('the door check is alive: a static import of the door is told apart from the dynamic one', () => {
+    expect("import { startSje } from './sje/boot';").toMatch(STATIC_DOOR);
+    expect("void import('./sje/boot').then(go);").not.toMatch(STATIC_DOOR);
   });
 
   it('the lab page is not linked from index.html, and vite.config.ts names it only in the `mode === lab` branch', () => {

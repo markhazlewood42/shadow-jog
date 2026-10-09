@@ -28,6 +28,8 @@ export interface FixedLoopHooks {
   draw(alpha: number): void;
   /** A hook threw. The loop reports it here and carries on. Default: `console.error`. */
   onError?(error: unknown): void;
+  /** After each frame: the whole frame's cost and the part that was ticks, in ms (the old `perf.record`). @ours */
+  record?(frameMs: number, tickMs: number): void;
 }
 
 export interface FixedLoopOptions {
@@ -77,6 +79,7 @@ export class FixedLoop {
    * The rAF callback calls this. A test calls it directly with made-up times.
    */
   advance(elapsedMs: number): number {
+    const t0 = this.hooks.record ? this.now() : 0;
     this.accumulator += Math.min(MAX_ELAPSED_MS, Math.max(0, elapsedMs));
     let ticks = 0;
     while (this.accumulator >= TICK_MS && ticks < MAX_TICKS_PER_FRAME) {
@@ -86,7 +89,9 @@ export class FixedLoop {
     }
     // The fifth tick ran and time is still owed: drop it instead of chasing it.
     if (ticks === MAX_TICKS_PER_FRAME) this.accumulator = 0;
+    const tickMs = this.hooks.record ? this.now() - t0 : 0;
     this.hooks.draw(this.accumulator / TICK_MS);
+    this.hooks.record?.(this.now() - t0, tickMs);
     return ticks;
   }
 

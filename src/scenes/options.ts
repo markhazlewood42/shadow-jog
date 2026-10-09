@@ -7,7 +7,7 @@ import { drawText, fitText } from '../engine/font';
 import { Scene } from '../engine/game';
 import { W, H } from '../sje/core/size';
 import { notice } from '../engine/errors';
-import { BATTLE_SPEEDS, battleSpeed, saveSettings, settings, TEXT_SPEEDS, textSpeed } from '../game/settings';
+import { BATTLE_SPEEDS, battleSpeed, gpuWanted, saveSettings, settings, TEXT_SPEEDS, textSpeed } from '../game/settings';
 import { postfx } from '../engine/postfx';
 import { drawBar, drawCursor, drawSelect, drawWindow, UI, OVERLAY_DIM } from '../ui/draw';
 import { keyLabel, type Action } from '../engine/input';
@@ -78,17 +78,10 @@ export class OptionsScene extends Scene<'back' | 'title'> {
       },
       {
         // On but not running: no WebGL 2 here, or switched off this session for speed (main.ts).
-        id: 'gpu', label: 'GPU effects', value: () => (!settings.gpuFx ? 'Off' : postfx.active ? 'On' : postfx.suspended ? 'Paused (slow)' : 'Unavailable'),
+        id: 'gpu', label: 'GPU effects', value: () => (!gpuWanted() ? 'Off' : postfx.active ? 'On' : postfx.suspended ? 'Paused (slow)' : 'Unavailable'),
         adjust: () => {
-          settings.gpuFx = !settings.gpuFx;
+          settings.fxLevel = gpuWanted() ? 'none' : 'auto';
           window.dispatchEvent(new Event('sj-gpu'));
-        },
-      },
-      {
-        id: 'scale', label: 'Scaling', value: () => (settings.scale === 'fit' ? 'Fill window' : 'Pixel-perfect'),
-        adjust: () => {
-          settings.scale = settings.scale === 'fit' ? 'integer' : 'fit';
-          window.dispatchEvent(new Event('sj-scale'));
         },
       },
       {

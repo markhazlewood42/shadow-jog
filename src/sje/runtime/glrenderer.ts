@@ -22,6 +22,8 @@ export interface FrameRenderer {
   render(screen: Screen): void;
   /** True while the renderer cannot draw (a lost WebGL context). A renderer that can never lose its context leaves this out. */
   readonly contextLost?: boolean;
+  /** Dev and tests only (`Game.destroyForTests`). A renderer with nothing to free leaves this out. */
+  destroyForTests?(): void;
 }
 
 export class GlRenderer implements FrameRenderer {
@@ -44,6 +46,11 @@ export class GlRenderer implements FrameRenderer {
     return new GlRenderer(glc, pixi, backBuffer, presenter, handoff);
   }
 
+  /** The canvas (what `Display` resizes: the `ScaleTarget` of display.ts). */
+  get canvas(): HTMLCanvasElement {
+    return this.glc.canvas;
+  }
+
   get contextLost(): boolean {
     return this.glc.lost;
   }
@@ -61,7 +68,7 @@ export class GlRenderer implements FrameRenderer {
   /**
    * Size the canvas to the WHOLE WINDOW in device pixels, and put the 640x360 picture in it at the
    * largest whole-number scale that fits, on a whole device pixel. Returns `k`. Draw a frame
-   * afterwards: resizing clears the canvas. Stand-in for `Display` (M1).
+   * afterwards: resizing clears the canvas. `Display` (display.ts) calls this.
    *
    * Why the whole window (spike finding 10): the browser shows a canvas 1:1 only when the canvas
    * backing store has exactly as many pixels as the box it fills. A window is always a whole number
@@ -90,6 +97,11 @@ export class GlRenderer implements FrameRenderer {
   /** Where the picture is in the canvas, in device pixels. */
   get picture(): PictureLayout {
     return this.presenter.layout;
+  }
+
+  /** Dev and tests only. Production never destroys the renderer: it would lose a context Three shares. `Game.destroyForTests` calls this. */
+  destroyForTests(): void {
+    this.destroy();
   }
 
   /** Dev and tests only. Production never destroys the renderer: it would lose a context Three shares. */

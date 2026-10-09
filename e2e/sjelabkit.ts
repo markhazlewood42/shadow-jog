@@ -134,10 +134,13 @@ export function percentile(xs: number[], q: number): number {
 
 export const mean = (xs: number[]): number => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
+/** Is this the name of a software renderer (SwiftShader, llvmpipe)? */
+export const isSoftwareName = (renderer: string): boolean => /swiftshader|llvmpipe|software/i.test(renderer);
+
 /** Is this lab drawing with a software renderer (SwiftShader, llvmpipe)? */
 export async function isSoftware(page: Page): Promise<boolean> {
   const info = await page.evaluate(() => window.__SJE__?.info());
-  return /swiftshader|llvmpipe|software/i.test(info?.renderer ?? '');
+  return isSoftwareName(info?.renderer ?? '');
 }
 
 /** The browser errors that a control (a canary's negative control) is expected to cause on purpose. Matched per test, never globally. */

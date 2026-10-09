@@ -26,8 +26,7 @@ The rule is simple. The agent that writes the code never grades it. Fresh agents
 >   6 or lower that comes from a behavior defect is an Important finding. The median and average gates of section 1
 >   no longer decide a pass.
 > - **Why.** In the 640x360 move, WP2b and WP3 took 5 builder runs and 15 verifier runs, and most failed rounds came
->   from records or CI noise, not from defects. The record is the WP3 verification table in `docs/PIVOT-640.md`, on
->   branch `resolution-640x360` (PR #23) until it merges.
+>   from records or CI noise, not from defects. The record is the WP3 verification table in `docs/PIVOT-640.md`.
 
 ---
 

@@ -4,7 +4,7 @@ title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
 updated: 2026-10-09
-milestone: M0
+milestone: M1
 tags: [status]
 ---
 
@@ -59,23 +59,38 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
-### Right now (2026-10-09)
+### Right now (2026-10-09, M1)
+
+**Milestone M1 "Shell" is built and verified on branch `engine-m1-shell`; the PR is open for your merge.** The new engine plays title, field, battle and shop under `?engine=sje` (runtime, `LegacyScene`, integer `Display`, `fxLevel`, DEV hook). Round 1: the runner passed every hard line; the reader found 4 Important and 2 Minor findings, all fixed and re-checked in fix round 1 (b185224). GPU run (`npm run perf`, RTX 4070): the speed line holds (2D cost p95 6.9 ms, 3D 7.1 ms, interval at the bare-page value); wrapper overhead 0.015 ms for 1,000 objects. Record: `docs/engine/m1-brief.md`. Your decisions: one bigger bundle total (now 380 kB), `fit` dropped (`integer` only). Visible on the default path: the Options "Scaling" row is gone.
+
+**Next up for Mark**
+
+1. Look at the M1 pictures (old and `?engine=sje` of title, field, battle, shop), then merge the M1 PR.
+2. Decide whether to strip the `Co-Authored-By` lines from six pushed commits (needs a force-push), or leave them.
+3. The spike archive tag (Q3), after the merge.
+
+**Next for agents:** milestone M1b (3D proof) and M2 (Effects) run in parallel after the merge. Write the brief with pass lines first.
+
+### Right now (2026-10-09, M1 start, history)
+
+**Milestone M0 "Prepare" is merged** ([PR #43](https://github.com/markhazlewood42/shadow-jog/pull/43), 2026-10-09, merge e7ee706, no game change), after the 640x360 move (PR #23). CI is green. **Next is M1 "Shell"** on branch `engine-m1-shell` (made from `main`, nothing built yet) in the worktree `projects/shadow-jog-engine`. Milestone text: `docs/engine/migration.md` section M1. The M0 plan and record: `docs/engine/m0-brief.md`.
+
+CI changes made in the M0 PR (Mark, 2026-10-09): **CI runs no timing gate.** `e2e/perf.spec.ts` (frame budget, input latency, engine speed line) is local only: `npm run perf` on a real GPU, once at the end of M1, M2, M3, M5, M6 and M7, never per PR (`docs/engine/migration.md` principle 12). The draw-call counts run in CI in `e2e/sje-draws.spec.ts`.
+
+**Next for agents** (in this order):
+1. Milestone M1 "Shell" (`docs/engine/migration.md`): write the M1 brief with pass lines first (as for M0), then build and verify with the lean loop. The game bundle has only 7 bytes of room under the 240.8 kB alarm, so the next change to shipped code needs a deliberate alarm change that Mark confirms.
+2. At the end of M1: the GPU timing check (`npm run perf`), once.
+3. The spike archive tag (`spike/engine-platform` and the other spike branches): only with Mark's go-ahead.
+
+**Next up for Mark** (updated 2026-10-09):
+1. Start the M1 session (the agent offers the starting prompt).
+2. The older items still stand: Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4.
+
+### Right now (2026-10-09, M0 build, history)
 
 **The 640x360 move is merged** (PR #23, merge 6bcd8dc, 2026-10-09). The game runs at 640x360. **Milestone M0 "Prepare" is built and verified** on branch `engine-m0-prepare`, [PR #43](https://github.com/markhazlewood42/shadow-jog/pull/43), ready for review (no game change). Plan, pass lines, builder report and fix round: `docs/engine/m0-brief.md`. Milestone text: `docs/engine/migration.md` section M0. Verification (lean loop): round 1 (runner and reader) found 7 Important, all fixed in ac4616b; round 2 passed with one fresh verifier. Records in `media/verification/m0/` (git-ignored).
 
 M0 state: done, PR #43 waits for review and merge. Decisions taken by the main session on 2026-10-09 (small, reversible; change them if you disagree): move every `W` and `H` import (about 42 files, not 34); the lab pages build in dev and CI only, not in production `dist/`; starting bundle caps are `boot` at today's alarm and `lazy-3d` at 160 kB (C5), with `first play` report-only until M1; the M0 PR goes through the Claude Code Review Action; the lab scripts the canaries need are copied from `media/research-2026-10-04/`.
-
-**Next for agents** (in this order):
-1. M0 is done (PR #43). After Mark merges it: remove the stale "until it merges" clauses (item 4), then start M1 "Shell". The game bundle has only 7 bytes of room under the 240.8 kB alarm, so the next change to shipped code needs a deliberate alarm change that Mark confirms.
-2. After the merge of the M0 PR: milestone M1 "Shell" (`docs/engine/migration.md`).
-3. GPU timing check (`npm run perf`, Mark's GPU): once at the end of M1, M2, M3, M5, M6 and M7, never per PR (`docs/engine/migration.md` principle 12).
-4. The spike archive tag (`spike/engine-platform` and the other spike branches): only with Mark's go-ahead.
-4. Remove the "on branch `resolution-640x360`, PR #23, until it merges" clause from `CLAUDE.md` and `docs/engine/verification.md`. The file is now on `main`.
-
-**Next up for Mark** (updated 2026-10-09):
-1. Merge PR #43 (engine M0) when CI is green. Optional first: run `npx playwright test --project=chromium e2e/perf.spec.ts` on your GPU (it passed on the agent machine with the local Edge channel).
-2. Say if you want a different answer to the five M0 decisions above (the bundle caps are the one most worth a look).
-3. The older items still stand: Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4.
 
 ### Right now (2026-10-05, history)
 

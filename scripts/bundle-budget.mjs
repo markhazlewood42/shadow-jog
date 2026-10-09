@@ -64,9 +64,14 @@ import { gzipSync } from 'node:zlib';
  * battle backdrops from the world width (named count-and-step records at the top of `art/battlebg.ts`);
  * WP6 round 1 measured 240.5 kB. WP7 changes no file under `src/`. Mark confirms this raise in the pull
  * request (D20).
+ * Raised to 400 kB on 2026-10-09 (M1 build A, Mark: "one bigger total"). The `?engine=sje` flag pulls the new
+ * engine chunk (all of Pixi, about 127 kB gzip) into the game build, and the build also holds an 11.2 kB Pixi
+ * chunk that a player never downloads: the total measured 379.270 kB (379,270 bytes), of which the old game
+ * alone is 240.963 kB (+167 bytes over 240.796). Reset to 380 kB on 2026-10-09 at the end of M1 (measured 379.9 kB,
+ * rounded up to the next 1 kB). The old-game growth is no longer gated separately.
  */
 const CHUNK_MAX = 480 * 1000;
-const GZIP_TOTAL_MAX = 240.8 * 1000;
+const GZIP_TOTAL_MAX = 380 * 1000;
 
 /**
  * The lazy 3D chunk (Three, the 3D facade, the UnrealBloomPass), gzip. Set at 160 kB on 2026-10-05 (real choice C5, accepted by Mark): the spike
@@ -122,7 +127,7 @@ function readBuild(name, dir) {
     else cls = 'lazy-other';
     // Pixi's environment chunks exist because Pixi's `init` can import them. The engine skips that step (`skipExtensionImports`), so a
     // player never downloads them (canary 8 of e2e/sje-canaries.spec.ts proves it). They are listed, and left out of `first play`.
-    chunks.push({ name, file: chunk.file, raw: text.length, gzip: gz(text), cls, pixi, three, unused, blind: (found === null && !unused) || (found?.length === 0 && cls === 'boot') });
+    chunks.push({ name, file: chunk.file, raw: text.length, gzip: gz(text), cls, pixi, three, sje, unused, blind: (found === null && !unused) || (found?.length === 0 && cls === 'boot') });
   }
   return { name, dir, chunks };
 }
@@ -174,9 +179,14 @@ for (const build of [game, lab]) {
     if (c.three) problem(`${build.name}: the boot chunk ${c.file} holds a three module`);
   }
 }
-// 2. The shipped game has no engine yet (M6 and M7 relax this on purpose).
+// 2. M1 (2026-10-09) lets the shipped game hold Pixi, but only in a lazy chunk: the `?engine=sje` chunk (src/sje/boot.ts, loaded by a dynamic
+// import in src/main.ts). Check 1 above already keeps Pixi out of `boot`. Three stays out of the game until M7. The chunk must exist and be
+// classified `lazy-2d` with Pixi and the engine in it: if it is not there, the flag path is broken or this check is blind.
 for (const c of game.chunks) {
-  if (c.pixi || c.three) problem(`game: chunk ${c.file} holds ${c.pixi ? 'Pixi' : 'Three'}; the game does not load the engine before M6`);
+  if (c.three) problem(`game: chunk ${c.file} holds Three; the game does not load the 3D mode before M7`);
+}
+if (!game.chunks.some((c) => c.cls === 'lazy-2d' && c.pixi && c.sje && !c.unused)) {
+  problem('game: no lazy-2d chunk holds both the engine (src/sje) and Pixi (is `?engine=sje` still a dynamic import in src/main.ts?)');
 }
 // 3. The old alarms, on the shipped game: the largest chunk (raw), and all JavaScript gzipped (what a player downloads).
 for (const c of game.chunks) if (c.raw > CHUNK_MAX) problem(`game: ${c.file} is ${c.raw} bytes, over the ${CHUNK_MAX} byte largest-chunk cap`);

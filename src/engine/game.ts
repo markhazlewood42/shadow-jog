@@ -15,6 +15,7 @@ import { reportError } from './errors';
 import { postfx } from './postfx';
 import type { Input } from './input';
 import { FPS, H, W } from '../sje/core/size';
+import type { GameApi } from '../sje/runtime/gameapi';
 
 /** Consecutive faulting ticks before the game gives up on the current flow. */
 export const FAULT_LIMIT = 30;
@@ -82,7 +83,7 @@ interface Fade {
   resolve: () => void;
 }
 
-export class Game {
+export class Game implements GameApi {
   readonly input: Input;
   readonly ctx: Ctx;
   readonly stack: AnyScene[] = [];

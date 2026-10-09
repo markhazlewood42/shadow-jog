@@ -11,11 +11,11 @@ tags: [roadmap, planning]
 
 # Shadow Jog roadmap
 
-Now: M0 Prepare. Next: M1 Shell.
+Now: M1 Shell.
 
 **Order and dependency only. Bar length is not time.** Mark wants no hour or day estimates. A column is a step in the order. Items in the same column can run in parallel.
 
-![The roadmap as a Gantt-style chart. Order and dependency only. Bar length is not time. Now: M0 Prepare. Next: M1 Shell. The table below lists the same items.](roadmap.svg)
+![The roadmap as a Gantt-style chart. Order and dependency only. Bar length is not time. Now: M1 Shell. The table below lists the same items.](roadmap.svg)
 
 *Source: [roadmap.json](roadmap.json). The chart is [roadmap.svg](roadmap.svg).*
 
@@ -25,8 +25,8 @@ Now: M0 Prepare. Next: M1 Shell.
 |---|---|---|---|---|---|---|
 | Phase 0 Platform spike | Foundations | 1 | done | none | PR #11 (draft, never merged) | Mark approved the final engine design on 2026-10-05. Record: docs/spikes/engine-platform.md. |
 | Pre-M0 640x360 move | Foundations | 2 | done | Phase 0 | branch `resolution-640x360`, PR #23 (merged 2026-10-09) | The shipped game plays at 640x360. Record: docs/PIVOT-640.md. |
-| M0 Prepare | Foundations | 3 | active | Pre-M0 | branch `engine-m0-prepare`, PR #43 (ready for review) | Built and verified (2 rounds). Size module, bundle gate, canary suite, lab, agent docs. Waits for CI and Mark's merge. Worktree: projects/shadow-jog-engine. |
-| M1 Shell | Engine path | 4 | next | M0 | none | Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. GPU timing check (npm run perf) once at the end, not in CI. |
+| M0 Prepare | Foundations | 3 | done | Pre-M0 | branch `engine-m0-prepare`, PR #43 (merged 2026-10-09) | Size module, bundle gate, canary suite, lab, agent docs. CI runs no timing gate; perf is local (npm run perf). |
+| M1 Shell | Engine path | 4 | active | M0 | branch `engine-m1-shell` | Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. GPU timing check (npm run perf) once at the end, not in CI. |
 | M2 Effects | Engine path | 5 | later | M1 | none | FxSystem with the postfx facade, composite filter, particles. GPU timing check (npm run perf) once at the end, not in CI. |
 | M3 Battle stage | Engine path | 6 | later | M2 | none | The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge. GPU timing check (npm run perf) once at the end, not in CI. |
 | M5 Field | Engine path | 7 | later | M3 | none | Field map, actors, camera, lights, weather. Mark approves the lighting. GPU timing check (npm run perf) once at the end, not in CI. |

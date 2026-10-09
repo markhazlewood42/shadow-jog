@@ -208,6 +208,22 @@ The interval rule alone cannot catch a load whose GPU work still fits in one dis
 
 The cost did not grow with the picture. The 3D frame has 1.78 times more pixels, and its mean cost is 2.1 to 2.3 ms at both sizes. At this scene size the cost follows the work for each frame and not the pixel count. This is one GPU and one display. A weaker GPU may show a size effect. The GPU timer query is reported and is not a gate, because its top 5% sometimes sits at one display frame (16 ms) when a query spans an idle gap. Both negative controls fail the line at both sizes.
 
+**M1 measurements (2026-10-09, the real game on `?engine=sje`, 640x360, `e2e/sje-bench.spec.ts`).** The bench stops the game's loop and drives tick, draw and the GPU wait frame by frame, with 1,000 `ImageObject`s moving every tick. These numbers are from SWIFTSHADER (software GL, the bundled Chromium on the build machine). They are NOT GPU numbers: the GPU line of pass line 10 (interval p95 within 5% of a bare page, cost p95 at most 8 ms) needs a run of `npm run perf` on Mark's machine.
+
+**M1 GPU run (2026-10-09, `npm run perf`, Edge/Chromium on an RTX 4070, bare page p95 16.80 ms).** The speed line holds. 2D scene: interval p95 16.80 ms, frame cost p95 6.90 ms (JS work mean 0.22 ms). 3D frame with bloom: interval p95 16.80 ms, cost p95 7.10 ms. Bench on the real game: title alone cost p95 1.80 ms, two legacy canvases 1.90 ms (1.84 MB uploaded per frame), three canvases 2.80 ms (2.76 MB), 1,000 objects through the wrapper 2.90 ms against 2.10 ms raw Pixi; all cases 2 draws and 2 binds; interval p95 16.80 ms in every case. Wrapper overhead 0.015 ms a frame (line: 1 ms). The negative control (600 extra 3D frames) breaks both rules as it must (interval 66.8 ms, cost 66.4 ms). Canvas upload line: keep 2 MB for two canvases, which is 92%; a third canvas still holds the speed line on this GPU (2.8 ms), so the 3 MB proposal stands.
+
+| Measure (SwiftShader) | Value |
+|---|---|
+| Draw calls per frame: title alone, two legacy canvases, 1,000 objects | 2.0, 2.0 and 2.0 (the sprites batch into one draw) |
+| Framebuffer binds per frame | 2.0 in every case |
+| Canvas uploads per frame: 1, 2 and 3 drawn legacy scenes | 1.00 (921,600 bytes), 2.00 (1,843,200 bytes), 3.00 (2,764,800 bytes). Two canvases are 92% of the 2 MB line, three are 138% of it and 92% of the proposed 3 MB |
+| Wrapper cost of moving 1,000 objects (x and y setters with the pixel snap), JavaScript only, p50 / p95 | 0.020 / 0.035 ms, against 0.015 / 0.020 ms on the raw Pixi node: an overhead of about 0.015 ms per frame (line: under 1 ms) |
+| Frame work (tick and draw submit), p50 / p95: title, with 1,000 objects | 2.2 / 2.5 ms, 2.7 / 3.1 ms |
+| Frame cost with the GPU wait, p50 / p95: title, with 1,000 objects (software GL) | 10.1 / 14.4 ms, 13.5 / 14.7 ms |
+| Frame interval p95 against a bare page (software GL) | 16.7 to 16.8 ms against 16.7 ms |
+
+The upload counter is exact (a patch of `texImage2D` and `texSubImage2D`), so the same numbers hold on a GPU. A third drawn legacy scene (a field with a dialog and a menu over it) stays under the proposed 3 MB line. The draw and bind counts are far under the budgets of 60 and 30. The JavaScript numbers and the interval depend on the machine, and the cost on software GL follows the pixel count.
+
 ---
 
 ## 8. Leak, context, and canary tests

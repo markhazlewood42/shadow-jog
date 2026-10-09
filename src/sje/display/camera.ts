@@ -7,11 +7,13 @@
  * Phaser's vertex rounding has no Pixi equivalent: a fractional scroll would slide the whole
  * picture between pixels and shimmer.
  *
- * Built in B0: `scrollX`, `scrollY`, `setScroll`, `setBounds`. Not built yet (M1, on demand):
- * `zoom`, `startFollow`, `setDeadzone`, `fade`, `flash`, `shake`, `pan`, `zoomTo`, `filters`. They
+ * Built in B0: `scrollX`, `scrollY`, `setScroll`, `setBounds`. Built in M1: `fadeIn`, `fadeOut`, `flash`, `shake`
+ * (cameraeffects.ts; durations in milliseconds, driven by the tick). Not built yet (on demand):
+ * `zoom`, `startFollow`, `setDeadzone`, `pan`, `zoomTo`, `filters`. They
  * are absent from the type, so using one is a compile error, not a silent no-op.
  */
 import { H, W } from '../core/size';
+import { CameraEffects } from './cameraeffects';
 import { snap } from './gameobject';
 import type { Container } from './container';
 
@@ -26,6 +28,7 @@ export class Camera {
   private _scrollX = 0;
   private _scrollY = 0;
   private bounds: CameraBounds | null = null;
+  private readonly fx: CameraEffects;
 
   /**
    * @param world the container this camera moves
@@ -35,7 +38,9 @@ export class Camera {
   constructor(
     private readonly world: Container,
     private readonly canScroll = true,
-  ) {}
+  ) {
+    this.fx = new CameraEffects(world);
+  }
 
   get scrollX(): number {
     return this._scrollX;
@@ -62,9 +67,50 @@ export class Camera {
     return this.setScroll(this._scrollX, this._scrollY);
   }
 
+  /** Cover the world with `color` (a CSS hex string) over `ms`, and keep it covered until `fadeIn`. Phaser: fadeOut. @ours (arguments) */
+  fadeOut(ms: number, color?: string | number): this {
+    this.fx.fadeOut(ms, color);
+    return this;
+  }
+
+  /** Phaser: `fade` is `fadeOut`. @ours (arguments) */
+  fade(ms: number, color?: string | number): this {
+    return this.fadeOut(ms, color);
+  }
+
+  /** Uncover the world over `ms`. */
+  fadeIn(ms: number, color?: string | number): this {
+    this.fx.fadeIn(ms, color);
+    return this;
+  }
+
+  /** Wash the world with `color` and let it fade away over `ms`. */
+  flash(ms: number, color?: string | number): this {
+    this.fx.flash(ms, color);
+    return this;
+  }
+
+  /** Shake the world by up to `magnitudePx` pixels over `ms`. The ui camera never shakes. @ours (pixels, not a fraction of the view) */
+  shake(ms: number, magnitudePx?: number): this {
+    if (!this.canScroll) throw new Error('This camera never shakes (the ui camera)');
+    this.fx.shake(ms, magnitudePx);
+    return this;
+  }
+
+  /** True while a fade, flash or shake runs, or a fade is held. */
+  get busy(): boolean {
+    return this.fx.active;
+  }
+
+  /** Advance the effects by one tick. The scene manager calls this each tick, after `postupdate`. */
+  update(): void {
+    this.fx.update();
+  }
+
   /** Write the transform to the world container. The draw phase calls this, and `setScroll` does. */
   apply(): void {
-    this.world.setPosition(-this._scrollX, -this._scrollY);
+    this.fx.apply(this._scrollX, this._scrollY);
+    this.world.setPosition(-this._scrollX + this.fx.offsetX, -this._scrollY + this.fx.offsetY);
   }
 
   private clamp(v: number, axis: 'x' | 'y'): number {
@@ -88,6 +134,12 @@ export class CameraManager {
   constructor(world: Container, ui: Container) {
     this.main = new Camera(world);
     this.ui = new Camera(ui, false);
+  }
+
+  /** Advance both cameras' effects by one tick. */
+  update(): void {
+    this.main.update();
+    this.ui.update();
   }
 
   /** Write both transforms. One call per frame, in the draw phase. */
