@@ -17,6 +17,7 @@
  * lost context falls back the same way until it's restored.
  */
 import { H, W } from '../../sje/core/size';
+import { SOFTWARE_GL } from '../../sje/render/glcontext';
 import { PARTICLE_STRIDE } from '../particles';
 import { MAX_GLITCHES, MAX_HAZES, MAX_SHOCKS, envelope, postfx } from '../postfx';
 
@@ -273,8 +274,8 @@ function rgbInto(hex: string, out: Float32Array): void {
   out[2] = (n & 255) / 255;
 }
 
-/** Renderer names of WebGL drawn on the CPU (no GPU, or one the browser won't use). */
-export const SOFTWARE_GL = /swiftshader|llvmpipe|softpipe|software|basic render driver/i;
+// Renderer names of WebGL drawn on the CPU (no GPU, or one the browser won't use): one copy, in the new engine's GL module (M2).
+export { SOFTWARE_GL };
 
 /** Is this context drawn in software? (By the unmasked driver name where the browser gives it.) */
 export function softwareRenderer(gl: GL): boolean {

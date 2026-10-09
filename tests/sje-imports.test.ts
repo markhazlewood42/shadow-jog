@@ -3,14 +3,14 @@
  * Biome's `noRestrictedImports` (biome.json) catches the library rules while you type; this scan is
  * the second, independent check that runs in `npm test`:
  *
- *  1. `pixi.js` is imported only under src/sje/render and src/sje/display, plus the lab (src/sje-lab)
+ *  1. `pixi.js` is imported only under src/sje/render, src/sje/display and src/sje/fx (the effects, M2), plus the lab (src/sje-lab)
  *     and the unit tests, which test Pixi directly. Game code never imports it.
  *  2. `three` is imported only under src/sje/three and src/hack3d (the lazy 3D chunk), plus the lab and
  *     the tests. In the lab only `threelab.ts` imports it, and the lab's other files load that file
  *     through a dynamic `import()`, so the lab's first download holds no Three (the real game will do
  *     the same through the door in src/hack3d/door.ts, M7). The built bundle is checked too
  *     (scripts/bundle-budget.mjs).
- *  3. Dependencies point DOWN the levels: core 0, render 1, display 2, runtime 3, facade 4, three 5.
+ *  3. Dependencies point DOWN the levels: core 0, render 1, display 2, fx 2.5 (the effects), runtime 3, facade 4, three 5.
  *  4. Game code reaches the engine only through the facade, `src/sje/index.ts`. The exceptions are the old engine's
  *     files, which take `W` and `H` from `src/sje/core/size.ts` (M0), the `Rng` re-export (`src/engine/rng.ts`, M1), the
  *     type-only `implements GameApi` line (M1), and `src/main.ts`, which loads `src/sje/boot.ts` with a dynamic import (M1).
@@ -116,12 +116,13 @@ const isPixi = (spec: string) => spec === 'pixi.js' || spec.startsWith('pixi.js/
 const isThree = (spec: string) => spec === 'three' || spec.startsWith('three/');
 
 describe('library imports', () => {
-  it('pixi.js is imported only under src/sje/render and src/sje/display, the lab and the tests (not by game code, e2e or scripts)', () => {
-    const bad = all.filter((e) => isPixi(e.spec) && !/^(src\/sje\/(render|display)|src\/sje-lab|tests)\//.test(e.file));
+  it('pixi.js is imported only under src/sje/render, src/sje/display and src/sje/fx, the lab and the tests (not by game code, e2e or scripts)', () => {
+    const bad = all.filter((e) => isPixi(e.spec) && !/^(src\/sje\/(render|display|fx)|src\/sje-lab|tests)\//.test(e.file));
     expect(bad.map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
     // And the scan is alive: it does see the legitimate imports.
     expect(all.some((e) => isPixi(e.spec) && e.file.startsWith('src/sje/display/'))).toBe(true);
     expect(all.some((e) => isPixi(e.spec) && e.file.startsWith('src/sje/render/'))).toBe(true);
+    expect(all.some((e) => isPixi(e.spec) && e.file.startsWith('src/sje/fx/'))).toBe(true);
   });
 
   it('three is imported only under src/sje/three, src/hack3d, the lab and the tests', () => {
@@ -173,8 +174,8 @@ describe('levels: dependencies point down', () => {
   const level = (path: string): number | null => {
     const p = path.replace(/\.ts$/, '');
     if (p === 'src/sje/index') return 4;
-    const m = /^src\/sje\/(core|render|display|runtime|three)\//.exec(p);
-    return m ? { core: 0, render: 1, display: 2, runtime: 3, three: 5 }[m[1] as 'core'] : null;
+    const m = /^src\/sje\/(core|render|display|fx|runtime|three)\//.exec(p);
+    return m ? { core: 0, render: 1, display: 2, fx: 2.5, runtime: 3, three: 5 }[m[1] as 'core'] : null;
   };
   const sje = edges(['src/sje']);
 
@@ -221,6 +222,26 @@ describe('levels: dependencies point down', () => {
   });
 });
 
+describe('level 2.5 (src/sje/fx, the effects): what it may import', () => {
+  it('imports only core, render, display and itself (never the runtime: the runtime owns it), and no Three', () => {
+    const fx = edges(['src/sje/fx']);
+    const bad = fx.filter((e) => e.target !== null).filter((e) => !/^src\/sje\/(core|render|display|fx)(\/|$)/.test(e.target ?? ''));
+    expect(bad.map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+    expect(fx.filter((e) => isThree(e.spec)).map((e) => e.file)).toEqual([]);
+    // The scan is alive: the effects really do import display and render.
+    expect(fx.some((e) => e.target?.startsWith('src/sje/display/'))).toBe(true);
+    expect(fx.some((e) => e.target?.startsWith('src/sje/render/'))).toBe(true);
+  });
+
+  it('the two plain files the OLD engine shares (the effects state and the particle simulation) hold no Pixi, no GL and no import of the effects drawing', () => {
+    for (const f of ['src/sje/fx/fxstate.ts', 'src/sje/fx/particles.ts']) {
+      const specs = importsOf(readFileSync(join(ROOT, f), 'utf8'));
+      expect(specs.filter((s) => isPixi(s) || isThree(s)), f).toEqual([]);
+      expect(specs.filter((s) => s.startsWith('.') && !/^\.\.?\/(core\/size|particles|fxstate)$/.test(s)), f).toEqual([]);
+    }
+  });
+});
+
 describe('level 5 (src/sje/three, the lazy 3D chunk): what it may import', () => {
   // @deviation from docs/engine/README.md section 4, which says level 5 imports "levels 4 and 1". The code reaches the parts it
   // needs directly: core (size), render (the frame textures), display (View3D, depth), runtime (GlRenderer, and Scene from M1b). It never
@@ -251,9 +272,15 @@ describe('who may import the engine', () => {
   // A static `import ... from './sje/boot'` (the door must be dynamic, or the engine and Pixi land in the entry chunk).
   const STATIC_DOOR = /^[ \t]*import\b[^(]*\bfrom\s*['"]\.\/sje\/boot['"]/m;
 
-  it('the shipped game reaches the engine through four files only: the size module, the Rng module (both plain code: no Pixi, no Three), a types-only file, and the boot door', () => {
+  it('the shipped game reaches the engine through seven files only: the size module, the Rng module, the effects state, the particle simulation and the GL names module (all plain code: no Pixi, no Three), a types-only file, and the boot door', () => {
     const shipped = all.filter((e) => outsideEngine(e) && !e.file.startsWith('src/sje-lab/'));
-    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/runtime/gameapi']);
+    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/render/glcontext', 'src/sje/runtime/gameapi']);
+    // M2: the old PostFx extends the shared state, the old particle module re-exports the shared simulation, the old presenter takes SOFTWARE_GL from the GL module.
+    expect([...new Set(shipped.filter((e) => e.target === 'src/sje/fx/fxstate').map((e) => e.file))]).toEqual(['src/engine/postfx.ts']);
+    expect(shipped.filter((e) => e.target === 'src/sje/fx/particles').map((e) => e.file)).toEqual(['src/engine/particles.ts']);
+    expect(shipped.filter((e) => e.target === 'src/sje/render/glcontext').map((e) => e.file)).toEqual(['src/engine/gl/presenter.ts']);
+    // glcontext.ts has no import at all, so nothing of Pixi follows it into the old bundle.
+    expect(importsOf(readFileSync(join(ROOT, 'src/sje/render/glcontext.ts'), 'utf8'))).toEqual([]);
     // M0 moved every W and H import of the old game to the size module: dozens of files.
     expect(new Set(shipped.filter((e) => e.target === 'src/sje/core/size').map((e) => e.file)).size).toBeGreaterThan(30);
     // The Rng module is reached through the old path's re-export only: no old file changed its import.
