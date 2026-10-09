@@ -17,3 +17,6 @@ media/
 # Local secrets (API keys, e.g. PIXELLAB_API_KEY): never committed, this repo is public.
 .env
 .env.*
+
+# Vercel CLI link (project and org ids, local only)
+.vercel

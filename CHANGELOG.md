@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+- Public demo hosting: a Vercel project that builds production from the `release` branch only (see `docs/DEVELOPING.md` section 9). `v0.1.0` is live at https://shadow-jog.vercel.app.
+
 ### Changed
 - Engine milestone M0 (prepare): `W` and `H` are defined once, in `src/sje/core/size.ts`; `src/engine/game.ts` re-exports them and the 46 files that imported them from the old game import them from the size module (no change in behavior: the shipped bundle is the same code plus 4 raw bytes of export-alias text in one shared chunk). `pixi.js` 8.22.0, `three` 0.186.1 and `@types/three` 0.186.0 are pinned (dependencies of the lab and the future engine; the game does not import them). `npm run budget` now builds the game and the engine lab page and sorts chunks into classes by the Vite manifest. The Playwright perf spec also gates the engine lab page. Docs: the `?debug` note and the chunk count in `docs/DEVELOPING.md` and `docs/ARCHITECTURE.md`.
 - The move to 640x360, step 1 (no pixel changes yet): the battle world's size derives from the screen (`BW = W / WORLD_SCALE`, `BHT = H / WORLD_SCALE`, one `WORLD_SCALE` in `battlekit/geom.ts` that the backdrops, the title skyline, the renderer and the FX lab share); the "Autosaved" badge, the news bar, the error bar, the water animation culls, the aberration center and the FX lab's slider limits read `W` and `H`; a scripted camera pan centers a map smaller than the view, as the field camera does.

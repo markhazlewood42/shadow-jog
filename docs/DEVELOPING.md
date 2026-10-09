@@ -54,8 +54,9 @@ project. The home-base workspace reserves 3002–3006 for other projects: never 
 - **The repo is public** (`markhazlewood42/shadow-jog`). Nothing secret in it, ever.
 - **Glossary rule:** any new or renamed name, place, faction or term goes into `docs/GLOSSARY.md` in the same
   change. Mark will review the glossary, the setting bible and the grading as a whole after the alpha.
-- **Deploying** (shadowjog.com, probably Vercel, with a secure email sign-up) is the **last step** of the alpha and
-  needs Mark's go-ahead. See `status.md`, Future Plans, for the security requirements.
+- **Deploying** is set up on Vercel (section 9, "Deploying a release") and needs Mark's go-ahead for every release.
+  The shadowjog.com domain and the secure email sign-up are the last step of the alpha. See `status.md`, Future
+  Plans, for the security requirements.
 
 ---
 
@@ -445,6 +446,23 @@ Mark's playtest and go-ahead come first. Pushing a tag and creating a GitHub Rel
 6. A small follow-up PR bumps `"version"` to the next `-dev` (for example `0.2.0-dev`).
 
 `snapshot/*` tags are dated checkpoints and `archive/*` tags are abandoned spikes. `v*` is the only release prefix.
+
+### Deploying a release
+
+The public demo is a Vercel project, `shadow-jog` (team `markhazlewood42s-projects`), connected to this repo. Its **Production Branch is `release`, not `main`**: a push to `main` only makes a preview build, never the public site. Production is the build of whatever commit `release` points at. Nothing else moves it.
+
+- **Public URL:** https://shadow-jog.vercel.app (public, deployment protection off since 2026-10-09). The `shadowjog.com` domain is not attached yet.
+- **Build settings:** Vite preset, `npm run build`, output `dist`. The game is static (`base: './'`), so there is no server.
+- **Ship a release.** After the tag exists (steps 1 to 5 above) and Mark says go:
+  ```bash
+  git push origin vX.Y.Z^{commit}:refs/heads/release
+  ```
+  Vercel builds the new `release` tip as production within a few minutes. The push fast-forwards when the tag is newer. If it is not a fast-forward (a rollback to an older tag), it needs `--force`, which also needs Mark's go-ahead.
+- **Check it.** `vercel.cmd api /v9/projects/shadow-jog` shows `link.productionBranch`. The Vercel dashboard (Deployments) shows which commit is live. The title screen shows the version and short commit.
+- **Never push to `release` for any other reason.** Its first commit was the `v0.1.0` commit (2026-10-09). Treat it as a pointer to a tag.
+- **Previews.** Every PR and every branch push builds a private preview URL (behind Vercel login, unless Mark changes it). A spike's preview still needs Mark's go-ahead.
+- **Local CLI (Windows).** `npm i -g vercel@63.1.1` (63.1.2 had a broken download on 2026-10-09). In PowerShell run `vercel.cmd`, because the `.ps1` shim is blocked by the execution policy. In Git Bash set `MSYS_NO_PATHCONV=1` before `vercel api /v9/...`, or the path is rewritten. `vercel login` needs Mark to approve a device code in the browser. `.vercel/` (project ids) is git-ignored.
+- **One thing the API cannot do:** change the Production Branch. Set it in the dashboard (Settings, Environments, Production, Branch Tracking).
 
 ### Spikes
 
