@@ -824,3 +824,52 @@ Capture: the runner's two runs are byte-identical (74 of 74). Against the builde
 8. The shop compare rows: move the crew sprites clear of the names (Mark, Review 4). Picture before and after.
 
 **Open, not fixed in this move unless Mark asks.** The red crew outline on Game over crosses the subtitle (it crossed the title at 480x270). The Game over reflections are drawn below the screen and never show.
+
+### WP6: the old battle at 640x360, minimal (2026-10-08)
+
+One build and one verification round (the lean loop). The battle is replaced by a side view later, so WP6 does only what keeps it correct and playable. The verification table is written by the main session.
+
+**Commits (branch `resolution-640x360`).** `5aad2ac` the answers of Reviews 4 and 5 and the eight named fixes; `96e1bbc` the battle rows, tests and the recorder; the Record commit that holds this entry.
+
+**Named fixes (first commit).**
+
+| # | Fix | Result |
+|---|---|---|
+| 1 | Review switches | `reviewswitch.ts`, the four switches, their DEV links and the losing variants are deleted; the winners are named values (`DIALOG_MAX_W` 464 with `DIALOG_SIDE_MARGIN`, `MENU_PANE_MAX_W` 364, `LOGO_SCALE` 4, `PORTRAIT_SCALE` 2). A scratch build holds no `dialogw`, `reviewSwitch`, `panes=`, `logo=` or `portrait=`. 624 and 524 remain in the bundle only as `W - 16` full-width windows (Status, Combos, shop header) and the toast cap, not as variants. |
+| 2 | Expectation list | `24-ending-results` has its own line; the panel line reads `8..W-8` by `8..H-18` (8..632 by 8..342); the dialog line drops "or full width". |
+| 3 | ARCHITECTURE | Alarm 240.7 kB, confirmed at Review 5. |
+| 4 | Recorder check 2 | The comment says a text that starts in no window is checked only by check 1 (the frame). |
+| 5 | `reserve()` | `DESCRIPTION_RESERVE` (32) and `LIST_FRAME_MARGIN` (8, in `tests/recorder.ts`) are named; the comment says why it keys on the title. |
+| 6 | `panels.ts` | `w: 624` is `PANEL_W` (`PANEL_FRAME.x1 - PANEL_FRAME.x0`). |
+| 7 | Bestiary dot | Not fixed: the 480x270 baseline (`wp2/baseline-v2/26-menu-bestiary.png`) shows the same low dot after "Defeated". Older than this move; the cause was not chased. |
+| 8 | Shop compare rows | The name and the stat line start after the sprite (`COMPARE_SPRITE_SCALE`, `COMPARE_SPRITE_GAP`; `SHOP_COMPARE_W` is the pane's inner width). Pictures: `media/pivot-640/wp6/shop-overlap.png` (before, after) and `shop-after.png`. `10-shop` and `43-shop-equip-now` change (2.4k pixels each); no other field, title, panel or menu shot changes. |
+
+**The rows.** The "before" pictures (`before/`: the eight backdrops with one and four enemies, both bosses, five menus, three combo shots, victory, six shatter frames, ten FX lab moments, and the impact frame: 45 shots) show that WP2b left the battle correct: each backdrop canvas is BW by BHT, no unpainted strip, the foreground hangs from the bottom, one and four enemies and both bosses stand clear of the HUD. After the WP6 edits, 34 of the first 44 shots (every battle, menu, combo, victory and shatter shot) are byte-identical; the 10 FX lab shots differ (the dummy moved).
+
+| Row | What it became |
+|---|---|
+| Backdrops (seven) | No look change; a test pins every floor line below `HORIZON` and above `PANEL_Y` on screen. |
+| Placement | No change: `placeEnemies` already follows `BHT` and the ground rows (WP2b). |
+| HUD and menus | No row remained; the recorder (PL4) now draws the battle screens (below). |
+| Effects | Impact lines: `IMPACT_LINE_REACH = hypot(W, H) / 2` (was a bare 260, which stopped short of the corners: `review6/fx-moments-03.png`). The shatter grid, the ring effects and the flashes were already derived from `W`, `H`, `BW`, `BHT`; the FX moments of the lab were looked at, no 480x270 remnant. |
+| FX lab | Dummy placed by `placeEnemies` on the chosen backdrop, caster at the first party card (`partyX`, `PARTY_BOTTOM - PARTY_MID`), spell spread `SPELL_SPREAD`. Slider caps already read `W` and `H`. The layer offset sliders (plus or minus 120 px) are an effect's own offset, not a screen size, and stay. |
+
+**Tests and controls** (`media/pivot-640/wp6/controls.txt`, C1 to C11, each fails as meant): `tests/layout.test.ts` loses the 3x and 5x variants (C1 panel width, C2 logo scale); `tests/ui-layout.test.ts` draws 7 battle screens (round menu with four enemies, command menu, a list, the item list, the target box, four cut-ins with the turn strip, a boss round menu; C9 command window, C10 turn strip, C11 cut-in leave the screen, C3 and C4 the reserve and margin); `tests/battle-geom.test.ts` adds the floor-line test (C8), the impact reach (C6) and the shatter grid's coverage by corners and by area (C7); the 480x270 control of the recorder passes on the battle screens too. C5 breaks the dialog cap (dialog-wrap). One named finding: the list's "more below" arrow `▼` has a 7-row box that ends 1 px into the frame while its ink does not (`KNOWN_TEXT_OVERFLOW`, the same at 480x270).
+
+| Check | Result |
+|---|---|
+| Unit | `npm run check` exit 0, 453 tests (was 450). `tests/balance.test.ts` and `tests/economy.test.ts`: 57 passed. |
+| e2e (touched) | `prod` 2, `gpufx` and `fxlab` 7, `perf` 3 (GPU and `PW_NOGPU=1`), `playtest` 1: all passed. |
+| Perf | GPU (gate 4 / 6 ms): field mean 2.57, p95 2.9; battle 0.76 and 0.90. Software (gate 8 / 11): field 3.86 and 4.1; battle 1.41 and 1.6. Files `media/pivot-640/perf/wp6-gpu.txt`, `wp6-nogpu.txt`. |
+| Scan (PL1) | 89 hits in 140 files, 89 allowed, 0 pending, 0 unlisted. |
+| PL3 | `check-shots.txt`: 58 checked, **0 failed**, 14 skipped. |
+| Pixel diff vs WP5 | `pixel-diff-vs-wp5.txt`: 72 compared, 70 identical, 2 differ: `10-shop` and `43-shop-equip-now` (named fix 8). |
+| Bundle | 240.5 kB gzip against the 240.7 alarm (the `reviewswitch` module and its reads are gone). |
+| Content rule | `git diff 7ef0a23..HEAD --stat -- public/ src/story src/data` is empty. |
+| Content list (PL12) | `media/pivot-640/wp6/content.md`. Review 6 pictures: `media/pivot-640/wp6/review6/`. |
+
+**Deviations, with reasons.**
+- The brief's rows for the seven backdrops, placement and the HUD needed no code: the pictures and the existing tests show WP2b already did them. Recorded as "no look change", not as unfinished.
+- The recorder's `▼` arrow finding is named, not fixed: fixing it grows the list window by 1 px and changes every battle list shot.
+- Impact "before" picture: the code with the old constant 260 put back for one capture (the impact frame was not in the first set), then restored.
+- `10-shop` and `43-shop-equip-now` are named fixes, so their change is expected.
