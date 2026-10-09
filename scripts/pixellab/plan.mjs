@@ -4,7 +4,7 @@
 // House recipe (settled with Mark on 2026-09-30, from the Kit tests): PixelLab Pro Flash, Low
 // Top-Down, a style image, and a prompt that spells out the look ("chibi, about 2.5 heads tall...
 // at most 15 colors, bold black outline"). Naming Phantasy Star IV in the prompt made results
-// noisier, so prompts describe the look instead. Scale is the game's: 480x270, 16 px tiles,
+// noisier, so prompts describe the look instead. Scale is the game's: 640x360 (480x270 before 2026-10-09), 16 px tiles,
 // field characters ~28 px tall. All battle art is generated at the field's pixel density (the
 // battle world's "res 2"), so the whole game shares one pixel size.
 import { readFileSync } from 'node:fs';
