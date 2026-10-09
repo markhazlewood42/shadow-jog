@@ -80,6 +80,8 @@ Mark decides the look. Agents check exactness, coverage and stability. A decisio
 
 **Answered at Review 3 (Mark, 2026-10-08, after the WP3 pictures).** D7, in his words: **"indoor areas blank fill (b1), outdoor areas themed (b2)"**. So the nine interiors ship b1 (the edge fill) and the two outdoor small maps, the Rustyard and Loading Dock 7, ship b2 (the themed surround: the yard's fence strips and scrap ground, the dock's quay over moving water). Option a (the void) ships for no small map, and the brick-frame b2 theme for interiors is gone. D17: **P1 b, P2 b, P3 b, P4 a**: a curtain over the cryo wing on the Annex's first screens (P1), an event curtain over the lattice while relay B or C runs (P2), a 40-frame hold on the lattice after the short pan (P3), and the camera limit `maxY: 128` at the Rustyard (P4), which shows 40 px past the yard's south edge, now the yard's b2 surround. The review switches (`?surround=`, `?popin=`), their DEV tab links and the options that lost are deleted, as `?hud=2` was. The per-map choices stay in two code tables (`SURROUND` in `fieldkit/surround.ts`, `POPINS` in `fieldkit/popins.ts`) that move into the map data once Mark gives his written yes (PL6). **PL11 for WP3 holds:** Mark received the WP3 pictures (the three-way option sheets for the 11 small maps, the pop-in before and after sheets, the cutscene and walk sheets) and answered D7 and D17 before the next package began. D20 was raised once for the shipped art (see "WP3", "Round 2"). The details and the pop-in list (PL12) are in the Record ("WP3").
 
+**Answered at Reviews 4 and 5 (Mark, 2026-10-08, after the WP4 and WP5 pictures and the round 1 verification).** D8: the dialog box is **capped at 464 px** and centered (every line wraps as before); the menu panes are **capped at 364 px**; the compact party cards beside Items and Techs **stay**; the shop list is **240 px**, and the crew sprites in its compare rows **move clear of the names** (an old overlap, fixed in this move at his request). D9: the title logo stays **4x**; the comic portraits are **2x everywhere** (Sable and Mr. Pale included); he **confirms** the title skyline, the 17 panel layouts, the ending pages, Game over and the deck as built. D20: he confirms the bundle alarm at **240.7 kB**. The review switches (`?dialogw=`, `?panes=`, `?logo=`, `?portrait=`) and the variants that lost are deleted, as `?hud=2` was. **PL11 for WP4 and WP5 holds:** Mark received the Review 4 and Review 5 sheets before he answered, and before WP6 began.
+
 **Answered or not on this branch.** D1, D3 and D4 are answered (above). D12 and D13 are his stage data, before M3. D16 (delete `sfgeom.ts` at M3, the mock at M0) and D18 (the spike time box) belong to the engine milestones. D19 (merges) is moot: one branch, one pull request, Mark merges it.
 
 ---
@@ -813,10 +815,11 @@ Capture: the runner's two runs are byte-identical (74 of 74). Against the builde
 **Named fixes, made in the first commit after Reviews 4 and 5.**
 1. Delete the four review switches with Mark's answers (no switch name or variant width in the shipped bundle).
 2. The expectation list: a line for `24-ending-results`, and the panel line says `8..W-8` by `8..H-18`, not `8..352`.
-3. `docs/ARCHITECTURE.md:398`: the alarm figure that Mark confirms.
+3. `docs/ARCHITECTURE.md:398`: the alarm is 240.7 kB (Mark confirmed it at Review 5).
 4. `tests/recorder.ts`: text drawn outside every window is checked only against the frame. Say so in the check's comment, or check it.
 5. `tests/ui-layout.test.ts`: `reserve()` keys on title strings, and its 8 px margin is a literal. Name it.
 6. `src/scenes/panels.ts`: `w: 624` becomes `W - 16` or a named full width.
 7. The stray dot after "Defeated" in the Bestiary detail: fix it, or record that it is older than this move.
+8. The shop compare rows: move the crew sprites clear of the names (Mark, Review 4). Picture before and after.
 
-**Open, not fixed in this move unless Mark asks.** The shop's compare rows draw the crew sprites over the names (the same at 480x270). The red crew outline on Game over crosses the subtitle (it crossed the title at 480x270). The Game over reflections are drawn below the screen and never show.
+**Open, not fixed in this move unless Mark asks.** The red crew outline on Game over crosses the subtitle (it crossed the title at 480x270). The Game over reflections are drawn below the screen and never show.
