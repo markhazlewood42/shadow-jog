@@ -93,7 +93,7 @@ describe('bundle-budget.mjs controls', () => {
     expect(ok.code).toBe(0);
     expect(ok.out).toMatch(/flag-only\s+\d/);
     expect(ok.out).toMatch(/game flag-only gzip/);
-    // Negative control: an incompressible 410 kB flag-only chunk is over its own cap, but it must not trip the 400 kB game total.
+    // Negative control: an incompressible 410 kB flag-only chunk is over its own cap, but it must not trip the 401 kB game total.
     const big = run(['../../src/main.ts'], [ENGINE_CHUNK, { ...live, bytes: 410_000 }]);
     expect(big.code).toBe(1);
     expect(big.out).toMatch(/game: flag-only gzip \d+ is over/);

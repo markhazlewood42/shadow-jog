@@ -305,7 +305,7 @@ Inherited rules: strict TypeScript (`noUncheckedIndexedAccess`, `exactOptionalPr
 
 `scripts/bundle-budget.mjs` (run by `npm run budget`, which builds the game and the lab page) is the M0 gate. It reads the Vite manifest and each chunk's source map. It has these checks:
 
-- **Total gzip alarm: 400 kB** for the shipped game without the flag-only class (`GZIP_TOTAL_MAX`). It was 240.8 kB at M0, 380 kB after M1, 394 kB after M2. At M3 (2026-10-10) the `liveopen` chunk moved out of the total (next bullet) and the rest measured 399.773 kB, so the cap is 400 kB (rounded up to the next 1 kB). Each raise is by the measured delta only, and the cause is written in the script.
+- **Total gzip alarm: 400 kB** for the shipped game without the flag-only class (`GZIP_TOTAL_MAX`). It was 240.8 kB at M0, 380 kB after M1, 394 kB after M2. At M3 (2026-10-10) the `liveopen` chunk moved out of the total (next bullet) and the rest measured 399.773 kB, so the cap was 400 kB; after merging M1b it measured 400.002 kB, so the cap is 401 kB (rounded up to the next 1 kB). Each raise is by the measured delta only, and the cause is written in the script.
 - **Largest chunk: 480 kB raw** (`CHUNK_MAX`), on the shipped game.
 - **Boot has no engine:** the `boot` class holds no `pixi.js` and no `three` module, in the game and in the lab.
 - **Flag-only class (M3, Mark approved 2026-10-10):** a lazy chunk that a player reaches only under `?engine=sje` is listed by its manifest `src` in `FLAG_ONLY_SRC` (today `src/battlestage/liveopen.ts`). It gets its own report line and its own cap (`FLAG_ONLY_GZIP_MAX`, 42 kB: `liveopen` measured 41.0 kB, rounded up to the next 1 kB), and it does not count toward the game total or `first play`.
@@ -339,7 +339,7 @@ The report prints all six classes (`flag-only` was added at M3). Measured at M0 
 | `flag-only` | Chunks loaded only under `?engine=sje` (`liveopen`) | Own cap, 42 kB. Not in the game total. |
 | `first play` | `boot` plus `lazy-2d` | Reported. |
 
-Caps in force: `lazy-3d` 160 kB (you accepted it on 2026-10-05, real choice C5; the spike measured 145.1 kB and M0 measured 135.3 kB in the lab), the game total 400 kB (without `flag-only`), `flag-only` 42 kB, the largest chunk 480 kB raw. `first play` has no cap yet: the plan estimate is 330 to 430 kB gzip (low confidence), to set after M1. Reset the caps after the M1 and M2 measurements.
+Caps in force: `lazy-3d` 160 kB (you accepted it on 2026-10-05, real choice C5; the spike measured 145.1 kB and M0 measured 135.3 kB in the lab), the game total 401 kB (without `flag-only`), `flag-only` 42 kB, the largest chunk 480 kB raw. `first play` has no cap yet: the plan estimate is 330 to 430 kB gzip (low confidence), to set after M1. Reset the caps after the M1 and M2 measurements.
 
 **Phase 0 spike numbers (gzip, not M0 numbers).** Pixi plus the engine kernel is 124.7 kB. The page of the stage lab boots with 170.7 kB, and the page of the 3D lab boots with 165.5 kB. The lazy 3D chunk (Three with named imports, a `UnrealBloomPass`, and the hack scene) is 145.1 kB (576.8 kB raw). The shipped game then measured 233.9 kB (before the 640x360 move). The spike's script had four classes: the shipped game, the lazy 3D chunk, the lab boot, and the stage lab page.
 

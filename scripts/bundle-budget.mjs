@@ -75,7 +75,8 @@ const CHUNK_MAX = 480 * 1000;
 // 2026-10-09 (M2): measured 393.0 kB gzip with the fx stack; set to 394 kB. Re-set deliberately, see CLAUDE.md "Dependencies".
 // 2026-10-10 (M3): the flag-only `liveopen` chunk (41.0 kB) left this total (its own cap above). Measured without it: 399.773 kB gzip, so
 // 400 kB (rounded up to the next 1 kB; +6.8 kB over M2's 393.0, mostly the M3 battle-stage code that the shipped boot and battle chunks now hold).
-const GZIP_TOTAL_MAX = 400 * 1000;
+// 2026-10-10: raised 400 to 401 kB after merging main (M1b) into the M3 branch: measured 400.002 kB, rounded up to the next 1 kB.
+const GZIP_TOTAL_MAX = 401 * 1000;
 
 /**
  * The lazy 3D chunk (Three, the 3D facade, the UnrealBloomPass), gzip. Set at 160 kB on 2026-10-05 (real choice C5, accepted by Mark): the spike
