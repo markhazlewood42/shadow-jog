@@ -295,6 +295,37 @@ describe('the push camera', () => {
     expect([scene.sys.world.scaleX, scene.sys.world.x, scene.sys.world.y]).toEqual([1, 0, 0]);
   });
 
+  it('the shake (M3 task 6) moves the world layer and never the ui layer, adds to a push, and zero puts it back (control: no shake, no move)', () => {
+    const { scene, game } = run();
+    game.step(1);
+    expect([scene.sys.world.x, scene.sys.world.y, scene.sys.ui.x, scene.sys.ui.y]).toEqual([0, 0, 0, 0]);
+    scene.setShake(3, -2);
+    game.step(1);
+    expect([scene.sys.world.x, scene.sys.world.y], 'the picture moves the way the shake says').toEqual([3, -2]);
+    expect([scene.sys.ui.x, scene.sys.ui.y], 'the HUD does not shake').toEqual([0, 0]);
+    // With a push running the shake is added to the push's own offset.
+    scene.push({ x: 300, y: 150 });
+    game.step(4);
+    const pushedX = scene.sys.world.x;
+    scene.setShake(0, 0);
+    game.step(0);
+    expect(pushedX - scene.sys.world.x).toBe(3);
+    game.step(30);
+    expect([scene.sys.world.scaleX, scene.sys.world.x, scene.sys.world.y]).toEqual([1, 0, 0]);
+  });
+
+  it('replaces the enemies on stage with a bigger group (a summon), keeping the heroes and the slots of the group (control: a group the stage has no slots for throws and changes nothing)', () => {
+    const { scene } = run();
+    const heroes = scene.figures.filter((f) => f.side === 'party').map((f) => f.id);
+    scene.setEnemies(['rustfang_punk', 'scrap_hound', 'rustfang_punk']);
+    expect(scene.figures.filter((f) => f.side === 'party').map((f) => f.id)).toEqual(heroes);
+    expect(scene.figures.filter((f) => f.side === 'enemy').map((f) => f.id)).toEqual(['rustfang_punk#0', 'scrap_hound#1', 'rustfang_punk#2']);
+    expect(scene.enemies).toEqual(['rustfang_punk', 'scrap_hound', 'rustfang_punk']);
+    const before = scene.figures.map((f) => f.id);
+    expect(() => scene.setEnemies(Array.from({ length: 9 }, () => 'rustfang_punk'))).toThrow(/no enemy group|no enemy slots/);
+    expect(scene.figures.map((f) => f.id)).toEqual(before);
+  });
+
   it('hides no look constant in the scene’s code: the numbers of the push live in push.ts', () => {
     const text = readFileSync(join(resolve(import.meta.dirname, '..'), 'src/battlestage/stagescene.ts'), 'utf8');
     // Code only: the comments may name the 1.09x push.

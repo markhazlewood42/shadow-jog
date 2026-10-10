@@ -206,6 +206,16 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
     return this.disp.get(uid)!;
   }
 
+  /** Has this fighter been shown yet? A summoned enemy has a display state only once playback reaches its summon. */
+  hasDisp(uid: number): boolean {
+    return this.disp.has(uid);
+  }
+
+  /** Counts up when the roster of the field changes on screen (a summon arrives, a boss changes form): the stage swaps its figures then, not when the engine decided. */
+  get rosterVersion(): number {
+    return this.layoutVersion;
+  }
+
   /** However the fight ends (won, lost, fled, or abandoned after a fault), its effects end with it. */
   override exit(): void {
     postfx.clear();

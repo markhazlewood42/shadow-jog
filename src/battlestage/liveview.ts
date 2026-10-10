@@ -28,6 +28,8 @@ export interface LiveSource {
   readonly targetIdx: number;
   readonly banner: { text: string; big?: boolean | undefined } | null;
   d(uid: number): Disp;
+  /** Has playback shown this fighter yet? (A summoned enemy is in the engine's list before it is on screen.) */
+  hasDisp(uid: number): boolean;
   actors(): Combatant[];
 }
 
@@ -59,7 +61,8 @@ export function timelineOrder(s: LiveSource): number[] {
     const out: number[] = [];
     for (const actors of lists)
       for (const u of actors) {
-        if (seen.has(u) || (s.battle.unit(u)?.hp ?? 0) <= 0) continue;
+        // A fighter who is down, or a summoned enemy playback has not shown yet, has no chip.
+        if (seen.has(u) || (s.battle.unit(u)?.hp ?? 0) <= 0 || !s.hasDisp(u)) continue;
         seen.add(u);
         out.push(slotOf(s.battle, u));
       }
@@ -99,7 +102,8 @@ export function liveView(s: LiveSource): HudView {
   const b = s.battle;
   const party: HudMemberView[] = b.party.map((c) => memberView(seen(c, s.d(c.uid))));
   // A foe's bar and number are the displayed ones; a fallen foe reads 0.
-  const foes: HudFoeView[] = foeViews(b.enemies.map((c) => seen(c, s.d(c.uid)))).map((v, i) => ({ ...v, tags: liveTags(b.enemies[i] as Combatant) }));
+  const shown = b.enemies.filter((c) => s.hasDisp(c.uid));
+  const foes: HudFoeView[] = foeViews(shown.map((c) => seen(c, s.d(c.uid)))).map((v, i) => ({ ...v, tags: liveTags(shown[i] as Combatant) }));
   const order = timelineOrder(s);
   const phase = phaseOf(s.mode);
   let lead = -1;

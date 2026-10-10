@@ -10,9 +10,11 @@ import { describe, expect, it } from 'vitest';
 import { applyEvent, BattleDrive, battleTrace, type DriveSetup, legacyTrace, makeScript, setupFor } from '../src/battlestage/battledrive';
 import type { BattleEvent } from '../src/battle/types';
 import { stageOf } from '../src/battlestage/config';
-import { shippedStages } from './stagefiles';
+import { fixtureStages, shippedStages } from './stagefiles';
 
-const stages = shippedStages();
+// The frozen fixture, not Mark's files: this is a test of the driver (an algorithm), and he edits the shipped demo rosters in the Battle Stage Editor. The last test of the first group
+// checks the same equality on the shipped data, as an invariant (it pins none of his numbers).
+const stages = fixtureStages();
 const stage = (id: string) => stageOf(stages, id);
 
 /** The fights of the two shipped stages: a mixed group and the boss with helpers. */
@@ -65,6 +67,14 @@ describe('the status trace (pass line 3)', () => {
     expect(battleTrace(guarding).trace).not.toEqual(legacyTrace(setup).trace);
     // The same wrong policy on both paths is the same trace again (the driver follows the orders it is given, whatever they are).
     expect(battleTrace(guarding).trace).toEqual(legacyTrace(guarding).trace);
+  });
+
+  it('the same equality on the shipped stages, as an invariant: whatever Mark has in the demo rosters, the driver and the legacy path agree', () => {
+    const shipped = shippedStages();
+    for (const id of ['street', 'sewer']) {
+      const setup = setupFor(stageOf(shipped, id), '3', 7);
+      expect(battleTrace(setup).trace).toEqual(legacyTrace(setup).trace);
+    }
   });
 
   it('a fight ends: win or lose, inside the round cap, and the last line shows it', () => {

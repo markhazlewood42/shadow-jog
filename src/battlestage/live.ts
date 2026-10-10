@@ -21,6 +21,7 @@
  */
 import { BHT, BW } from '../art/worldsize';
 import type { Pt } from '../battle/fx';
+import type { Combatant } from '../battle/types';
 import type { BattleScene } from '../scenes/battle';
 import type { BattleStage } from '../scenes/battlekit/stageseam';
 import { type CanvasImage, drawText, type Graphics, must } from '../sje';
@@ -72,6 +73,9 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
   private partyFigs: Figure[] = [];
   private enemyFigs: Figure[] = [];
   private shownKeys: string[] = [];
+  /** The enemies on stage, in the battle's order: the ones playback has shown. Their figures are `enemyFigs`, one each, in the same order. */
+  private shownFoes: Combatant[] = [];
+  private rosterSeen = -1;
   private signature = '';
   private lastPush: unknown = null;
   private marks = '';
@@ -132,20 +136,28 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
     this.partyFigs = this.side('party');
     this.enemyFigs = this.side('enemy');
     this.shownKeys = this.enemies.slice();
+    this.shownFoes = this.host.battle.enemies.filter((e) => this.host.hasDisp(e.uid)).slice(0, this.enemyFigs.length);
+    this.rosterSeen = this.host.rosterVersion;
   }
 
-  /** The people on stage match the battle's roster: a summon adds enemies, a phase change swaps one. */
+  /**
+   * The people on stage match the battle's roster as PLAYBACK has shown it: a summoned enemy appears when its summon is played (it has a display state then), and a boss
+   * that changes form changes its picture when the battle says the roster changed on screen (`rosterVersion`), not when the engine decided.
+   */
   private matchRoster(): void {
-    const foes = this.host.battle.enemies;
-    let same = foes.length === this.shownKeys.length;
-    for (let i = 0; same && i < foes.length; i++) if (foes[i]?.key !== this.shownKeys[i]) same = false;
-    if (same) return;
+    const h = this.host;
+    const shown = h.battle.enemies.filter((e) => h.hasDisp(e.uid));
+    if (shown.length === this.shownFoes.length && h.rosterVersion === this.rosterSeen) return;
+    this.rosterSeen = h.rosterVersion;
+    this.shownFoes = shown;
+    const keys = shown.map((e) => e.key);
+    if (keys.length === this.shownKeys.length && keys.every((k, i) => k === this.shownKeys[i])) return;
     try {
-      this.setEnemies(foes.map((e) => e.key));
+      this.setEnemies(keys);
     } catch (e) {
-      // The stage has no slots for this many (a group bigger than its largest set): keep the figures it has, and say so once.
+      // The stage has no slots for this many (a group bigger than its largest set): keep the figures it has, and say so.
       console.warn(`[battle stage] ${e instanceof Error ? e.message : String(e)}`);
-      this.shownKeys = foes.map((x) => x.key);
+      this.shownFoes = this.shownFoes.slice(0, this.enemyFigs.length);
       return;
     }
     this.cacheFigures();
@@ -160,7 +172,7 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
     const k = this.k;
     this.matchRoster();
     const party = h.battle.party;
-    const foes = h.battle.enemies;
+    const foes = this.shownFoes;
     // The figures, one by one, from the display state.
     for (let i = 0; i < this.partyFigs.length; i++) {
       const f = this.partyFigs[i];
@@ -174,7 +186,7 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
       f.flash = 0;
       f.bodyDx = d.shake > 0 ? (d.shake % 4 < 2 ? 2 : -2) * k : 0;
       f.offX = Math.round(d.lunge * k);
-      f.offY = -Math.round(d.hop * k);
+      f.offY = 0 - Math.round(d.hop * k);
     }
     for (let i = 0; i < this.enemyFigs.length; i++) {
       const f = this.enemyFigs[i];
@@ -185,7 +197,7 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
       f.alpha = d.alpha;
       f.flash = blink ? HIT_FLASH : 0;
       f.bodyDx = d.shake > 0 ? (d.shake % 4 < 2 ? 2 : -2) * k : 0;
-      f.offX = -Math.round(d.lunge * k);
+      f.offX = 0 - Math.round(d.lunge * k);
       f.offY = 0;
       const dead = d.dying > 0 || u.hp <= 0;
       f.bar = dead ? null : { ratio: Math.max(0, d.shownHp / u.base.maxHp), tag: h.twins(u) ? String.fromCharCode(65 + h.dupIndex(u)) : '' };
@@ -224,7 +236,7 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
     if (h.mode === 'target') {
       const uid = h.targetList[h.targetIdx];
       const u = uid === undefined ? undefined : b.unit(uid);
-      if (u?.side === 'enemy') target = b.enemies.findIndex((e) => e.uid === u.uid);
+      if (u?.side === 'enemy') target = this.shownFoes.findIndex((e) => e.uid === u.uid);
     }
     return `${active !== undefined && active >= 0 ? active : ''},${target !== undefined && target >= 0 ? target : ''}`;
   }
@@ -238,6 +250,9 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
     const hud = this.hud;
     if (!hud) return;
     const view = liveView(this.host);
+    // The HUD never names a face the stage has no figure for (a group bigger than the stage's largest, for one).
+    view.foes = view.foes.slice(0, this.enemyFigs.length);
+    view.turns = view.turns.filter((t) => t.index < (t.side === 'party' ? this.partyFigs.length : this.enemyFigs.length));
     const geo = this.geo();
     // The labels over the stage follow the figures, so where they stand is part of what changed.
     let sig = viewSignature(view);
@@ -285,7 +300,7 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
     const b = this.host.battle;
     const p = b.party.findIndex((u) => u.uid === uid);
     if (p >= 0) return this.partyFigs[p];
-    const e = b.enemies.findIndex((u) => u.uid === uid);
+    const e = this.shownFoes.findIndex((u) => u.uid === uid);
     return e >= 0 ? this.enemyFigs[e] : undefined;
   }
 

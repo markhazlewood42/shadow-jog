@@ -21,10 +21,24 @@ vi.mock('../src/battlestage/textures', () => {
     if (!textures.exists(key)) textures.addCanvas(key, fakeCanvas(w, h));
     return key;
   };
+  // A copy of a texture under a new name: the size and the frames of the base.
+  const variant = (textures: TextureManager, base: string, key: string): string => {
+    if (!textures.exists(key)) {
+      const from = textures.get(base);
+      textures.addCanvas(key, fakeCanvas(from.width, from.height));
+      const frames: Record<string | number, [number, number, number, number]> = {};
+      for (const [name, f] of from.frames) frames[name] = [f.x, f.y, f.w, f.h];
+      if (from.frames.size > 0) textures.addFrames(key, frames);
+    }
+    return key;
+  };
   return {
     // Even in both directions, as the real ones are (shadowSize and ringSize), so the default origin is a whole pixel.
     shadowTexture: (textures: TextureManager, width: number) => add(textures, `shadow-${width}`, width + 8 + (width % 2), 10),
     ringTexture: (textures: TextureManager, width: number, color: string) => add(textures, `ring-${width}-${color.slice(1)}`, width + 6, 12),
+    // The live battle's picture variants (M3 task 6): a named copy of the base, the same size and frames, like the hazed one.
+    flashTexture: (textures: TextureManager, base: string, strength: number) => variant(textures, base, `flash${Math.round(strength * 4)}-${base}`),
+    tintTexture: (textures: TextureManager, base: string, strength: number) => variant(textures, base, `tint${Math.round(strength * 4)}-${base}`),
     // A hazed copy has the size and the frames of the base (the real one does).
     hazedTexture: (textures: TextureManager, base: string, _fog: string, amount: number) => {
       if (amount <= 0) return base;
@@ -295,5 +309,76 @@ describe('Figure: dispose', () => {
     expect(scene.sys.world.list).toHaveLength(0);
     // Twice is safe.
     expect(() => hero.destroy()).not.toThrow();
+  });
+});
+
+describe('Figure: the state of a live battle (M3 task 6)', () => {
+  it('a figure at rest draws what it always drew: no flash, no wash, no bar (the parity frames depend on it)', () => {
+    const { scene, textures, stage } = setup();
+    const foe = made(scene, stage, textures, foeSpec(stage));
+    expect([foe.flash, foe.tint, foe.down, foe.bar]).toEqual([0, 0, false, null]);
+    expect(foe.describe().body.texture.startsWith('flash')).toBe(false);
+    expect(foe.describe().body.texture.startsWith('tint')).toBe(false);
+  });
+
+  it('a hit enemy shows its flashed picture, and the plain one again when the flash ends (control)', () => {
+    const { scene, textures, stage } = setup();
+    const foe = made(scene, stage, textures, foeSpec(stage));
+    const plain = foe.describe().body.texture;
+    foe.flash = 0.5;
+    foe.restyle({ stage, textures, worldFrame: 0 });
+    expect(foe.describe().body.texture).toBe('flash2-foe');
+    foe.flash = 0;
+    foe.restyle({ stage, textures, worldFrame: 0 });
+    expect(foe.describe().body.texture).toBe(plain);
+  });
+
+  it('a hit hero is washed red; a fallen hero sinks into the fog (the fog is the haze texture of its own look); a fallen ENEMY is not given the fog of a hero', () => {
+    const { scene, textures, stage } = setup();
+    const hero = made(scene, stage, textures, heroSpec(stage), 0);
+    hero.tint = 0.5;
+    hero.restyle({ stage, textures, worldFrame: 0 });
+    expect(hero.describe().body.texture).toContain('tint2-');
+    hero.tint = 0;
+    hero.down = true;
+    hero.restyle({ stage, textures, worldFrame: 0 });
+    // The fallen look is the haze at the fallen amount (DOWN_FOG_AMOUNT 0.55), not the wash.
+    expect(hero.describe().body.texture).toBe('haze-hero-55');
+    const foe = made(scene, stage, textures, foeSpec(stage));
+    const plain = foe.describe().body.texture;
+    foe.down = true;
+    foe.restyle({ stage, textures, worldFrame: 0 });
+    expect(foe.describe().body.texture).toBe(plain);
+  });
+
+  it('the on-stage bar: a figure that carries one draws it under its shadow, sorted with it; with no bar, or for a hero, it is not drawn (control)', () => {
+    const { scene, textures, stage } = setup();
+    const spec = stage.hud.enemyInfo.barsOnStage;
+    expect(spec, 'the fixture asks for bars on the stage').toBeTruthy();
+    const foe = made(scene, stage, textures, foeSpec(stage));
+    const parts = () => foe.container.list.filter((c) => c.depth === ENGINE_PART.BAR);
+    expect(parts()).toHaveLength(0);
+    foe.bar = { ratio: 0.5, tag: '' };
+    foe.restyle({ stage, textures, worldFrame: 0 });
+    expect(parts(), 'the bar is a part of the figure at the bar depth').toHaveLength(1);
+    expect(parts()[0]?.visible).toBe(true);
+    // It goes when the figure has none.
+    foe.bar = null;
+    foe.restyle({ stage, textures, worldFrame: 0 });
+    expect(parts()[0]?.visible).toBe(false);
+    // A hero never draws one, even if it were given a bar.
+    const hero = made(scene, stage, textures, heroSpec(stage), 0);
+    hero.bar = { ratio: 1, tag: '' };
+    hero.restyle({ stage, textures, worldFrame: 0 });
+    expect(hero.container.list.filter((c) => c.depth === ENGINE_PART.BAR)).toHaveLength(0);
+  });
+
+  it('the bar fades with the figure', () => {
+    const { scene, textures, stage } = setup();
+    const foe = made(scene, stage, textures, foeSpec(stage));
+    foe.bar = { ratio: 1, tag: '' };
+    foe.alpha = 0.3;
+    foe.restyle({ stage, textures, worldFrame: 0 });
+    expect(foe.container.list.find((c) => c.depth === ENGINE_PART.BAR)?.alpha).toBeCloseTo(0.3, 6);
   });
 });
