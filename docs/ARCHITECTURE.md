@@ -12,7 +12,7 @@ tags: [architecture, code, reference]
 How the code is organised and how the pieces talk to each other. For *what* the game is, read `docs/GDD.md`; for
 day-to-day work (commands, tests, conventions, recipes), read `docs/DEVELOPING.md`.
 
-**In one paragraph:** a browser game with **no runtime dependencies today** (a build choice, not a requirement: high-quality, free dependencies are fine, Mark 2026-10-02). Vite + TypeScript (strict), Canvas 2D at **640×360**, scaled to the window. The art is **generated in code** (sprites from letter grids and shape routines, tiles from procedural painters), with **drawn art** from the PixelLab pass loaded over it at startup where Mark picked it (§7, "Drawn art"); music comes from a small score format played by a WebAudio synthesizer. A **scene stack** runs at a fixed 60 Hz. The **field** (towns, dungeons, world map) runs **story scripts**, async functions that `await` dialogue, battles and camera moves. **Battles** are a pure, deterministic engine that the battle scene replays as animation. The game state is one plain object, saved to `localStorage`.
+**In one paragraph:** a browser game with **no runtime dependencies today** (a build choice, not a requirement: high-quality, free dependencies are fine, Mark 2026-10-02). Vite + TypeScript (strict), a **640×360** picture that the **Pixi engine** (`src/sje/`, WebGL 2, the only engine since M6) scales to the window in whole-number steps. The game's scenes still draw with Canvas 2D into 640×360 canvases, and the engine puts them on the screen (the `LegacyScene` adapter), with the stages for the battle and the field drawn by Pixi. The art is **generated in code** (sprites from letter grids and shape routines, tiles from procedural painters), with **drawn art** from the PixelLab pass loaded over it at startup where Mark picked it (§7, "Drawn art"); music comes from a small score format played by a WebAudio synthesizer. A **scene stack** runs at a fixed 60 Hz. The **field** (towns, dungeons, world map) runs **story scripts**, async functions that `await` dialogue, battles and camera moves. **Battles** are a pure, deterministic engine that the battle scene replays as animation. The game state is one plain object, saved to `localStorage`.
 
 ---
 
@@ -20,7 +20,7 @@ day-to-day work (commands, tests, conventions, recipes), read `docs/DEVELOPING.m
 
 ```
 src/
-  main.ts            start(): builds Display, Input, Game; the fixed-step loop; the notice overlay; boot failure
+  main.ts            the entry: loads sje/boot.ts (the engine and Pixi, a chunk of its own), the error handlers, the failed-to-start screen (E5 text for no WebGL 2)
   boot.ts            boot(): installs systems, debug hooks (DEV only), tab coordination, autosave, the title
   devroutes.ts       ?scene=… test scenes (DEV only, lazily imported)
   engine/            the game-agnostic core: loop and scene stack, input, font, canvas, display, rng, colour…
@@ -50,10 +50,10 @@ Dependency direction (enforced by habit, checked by reviewers): `engine/` import
 
 ## 2. The core: loop, scenes, input (`src/engine/`)
 
-### The loop (`main.ts`)
-`requestAnimationFrame` drives a **fixed 60 Hz** accumulator: up to 5 `game.tick()` per frame (then it drops the
-backlog), then one `game.render()` and `display.present()`. `perf.record()` samples frame and simulation time (read
-by `e2e/perf.spec.ts`). Errors in a tick or render are reported, not fatal.
+### The loop (`sje/runtime/game.ts`)
+`src/main.ts` loads `src/sje/boot.ts`, which makes the new `Game` (`Game.create`: the canvas, the WebGL 2 context and the Pixi renderer) and runs the game's own `boot()` (`src/boot.ts`, loaded as a second chunk in parallel) on it. The `Game` drives a **fixed 60 Hz** accumulator from `requestAnimationFrame`: up to 5 ticks per frame (then it drops the
+backlog), then one draw into the 640x360 back buffer and the present to the window. `perf.record()` samples frame and simulation time (read
+by `e2e/perf.spec.ts`). Errors in a tick or render are reported, not fatal. Until M8 the scene classes below (`engine/game.ts` `Scene`) are the legacy shape: the engine wraps each in a `LegacyScene`.
 
 ### The scene stack (`engine/game.ts`)
 - `Scene<R>`: `enter()`, `exit()`, `resume()`, `update()`, `render(ctx)`, `close(result)`. Flags:
@@ -90,9 +90,8 @@ hue; use `mix(c, dark, t)` for a true darkening), `rng.ts` (seeded mulberry32 `R
 `reportError`), `assert.ts` (`must(value, what)`: the only sanctioned non-null assertion in `engine/` and
 `battle/`), `perf.ts`.
 
-### GPU effects (`engine/postfx.ts`, `engine/gl/presenter.ts`, `engine/particles.ts`)
-An optional layer over the Canvas 2D renderer (Options → GPU effects, on by default; off, or without WebGL 2, the
-game draws exactly as before). Nothing in the game's drawing changed to allow it; three things were added:
+### GPU effects (`engine/postfx.ts` routed to `sje/fx/fxsystem.ts`, `engine/particles.ts`)
+Since M6 the game runs on the Pixi engine with no flag, and the effects come from the `FxSystem` of `game.fx` (`src/sje/fx/`). The old WebGL presenter (`engine/gl/presenter.ts`, the `#fx` canvas laid over `#screen`) was deleted. `engine/postfx.ts` stays until M8 as the façade that game code talks to: `src/sje/boot.ts` calls `routePostfx` before it boots the game, so every call on `postfx` reaches `game.fx`. Options → GPU effects sets the level (`none`, `auto` or `full`); `auto` draws `full` on a GPU and `lite` (the stage dim and the particles) on software graphics, and a lighter-form notice says so. A browser without WebGL 2 does not get a game at all: it shows the E5 message (`src/main.ts` `fail()`). Three things make up the layer:
 - **`postfx`** (the façade game code talks to): `shock(x, y)` (a ring of distortion), `aberrate(px, x, y)` (a colour
   split easing out), `flare(amount)` (extra bloom), `emit(preset, x, y)` (a particle burst), `haze(x, y)` (heat
   shimmer over a patch), `glitch(x, y)` (slices of a rectangle sliding sideways with split colour) and
@@ -100,25 +99,17 @@ game draws exactly as before). Nothing in the game's drawing changed to allow it
   so the spell itself stays bright). All no-ops while
   `postfx.active` is false. Two layers: `glowLayer()` (draw what should bloom: the field's baked emissive map and
   sprite emits, the battle backdrop's neon and every effect in flight) and `ui` (everything above the world scene;
-  `Game.render` routes to it, and the battle draws its HUD there). Shockwaves follow Screen shake and pulses
+  the game routes to it when the composite is on, and the battle draws its HUD there). Shockwaves follow Screen shake and pulses
   follow Screen flash. `rate` is the battle's animation clock; `clip` keeps particles on the battlefield.
-- **`GlPresenter`**: a WebGL 2 canvas (`#fx`) laid exactly over `#screen` (which keeps focus and input). Per frame:
-  the glow layer plus glowing particles into a light buffer, blurred at half and quarter size (bloom); a composite
-  of the back buffer (nearest-neighbour, so pixels stay sharp) bent by up to four shockwaves, colour-split, with the
-  bloom, the hit flash and a vignette; the particles again, sharp; the UI layer (where `Game.render` also draws the
-  fade, under the notices, as in 2D). A lost context falls back to 2D until it's restored; a shader that won't
-  compile means no GPU effects at all (Options then says "Unavailable"). If the game runs under 25 fps for a few
-  seconds with them on, `main.ts` switches them off for the session with a notice ("Paused (slow)").
-- **`ParticleSim`**: typed-array simulation (no allocation per particle), drawn as instanced quads with shapes made in
-  the fragment shader (`soft`, `dot`, `spark` stretched along its flight, `square` snapped to pixels, `ring`).
+- **`FxSystem`** (`src/sje/fx/fxsystem.ts`): the effects of the new engine. One `CompositeFilter` on the world root draws the glow chain (the light layer, blurred at half and quarter size), the shockwaves, the colour split, the vignette and the hit flash in one pass over the 640x360 back buffer (nearest-neighbour, so pixels stay sharp); the particles are Pixi `ParticleContainer`s. A lost context is restored by the engine; with no WebGL 2 no game starts (E5), so there is no 2D fallback and no "slow frames" switch-off.
+- **`ParticleSim`**: typed-array simulation (no allocation per particle), drawn as particles with shapes from a five-shape atlas (`soft`, `dot`, `spark` stretched along its flight, `square` snapped to pixels, `ring`).
   Presets and **moments** (what plays on each game event: stacks of layers, each a burst, a shockwave, a colour
   split or a flare, with a delay) are data: `src/data/fx.json`, typed and checked by `engine/fxdata.ts`, played by
-  `engine/moments.ts`. Battle events call moments by name in `scenes/battlekit/gpufx.ts`. The **FX lab**
-  (`src/dev/fxlab.ts`, `?scene=fxlab`, dev only) edits the file and saves it through a dev-server plugin in
+  `engine/moments.ts` (or by name through `game.fx.playMoment`). Battle events call moments by name in `scenes/battlekit/gpufx.ts`. The **FX lab**
+  (`src/dev/fxlab.ts`, `?scene=fxlab`, dev only) runs on the new `Game`: it edits the file through `game.fx` and saves it through a dev-server plugin in
   `vite.config.ts`; `data/fx.ts` takes the new data live (Vite HMR), so a running dev game changes at once.
 
-`Display.beginFrame()` (called before `game.render()`) decides each frame whether the layer is live and clears its
-layers; `Display.present()` hands them to the presenter. A battle clears every effect in flight in `exit()`, however
+The game's ticker (`boot.ts`) calls `postfx.update()` once a tick (it ages the effects, once). A battle clears every effect in flight in `exit()`, however
 it ends; GPU particles hold still through a hit pause.
 
 ---

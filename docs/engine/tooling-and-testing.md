@@ -29,10 +29,10 @@ Agents build this engine and you review it. So the engine must be easy to inspec
 | Scene inspector (DEV menu tab "Scene") | The scene dump as a tree, draw calls, GL object counts, fx level. | New |
 | Debug drawing (`scene.debug`) | Dev only. Draws into `overlayRoot`: bounds, hit areas, depth labels, camera deadzone and bounds, filter regions, the pixel-snap grid, and the draw-call count. Each one has a checkbox in the Scene tab. The shipped build strips it. | New |
 | `window.__PIXI_DEVTOOLS__ = { stage, renderer }` | Set in dev builds so you can use the PixiJS DevTools extension. It needs no `Application`. Agents cannot use extensions, so they use `tree()`. | New, not run yet |
-| FX lab (`src/dev/fxlab.ts`, 885 lines) | Ported in M6 to a `Scene` that uses `scene.add` and `FxSystem`. It edits `fx.json` through the existing vite plugin and `import.meta.hot`. It becomes the filter and effect lab. | Port |
+| FX lab (`src/dev/fxlab.ts`) | **Ported in M6** (smallest port, decision 6 of `m6-brief.md`): `FxLabScene` takes the new `Game`, uses `game.fx` and `game.scale`, plays a moment through `game.fx.playMoment`, and imports nothing from `engine/display`, `engine/game` or `engine/postfx`. It is still a legacy-shaped scene (`LegacyShape`), so it needs no change when M8 deletes the old base class. Same panels and same `fx.json` format, no new features. `e2e/fxlab.spec.ts` covers it, with an invalid-edit case. | Done (M6) |
 | Animation editor (`rigedit.html`), art review (`artreview.html`) | No change. They import art modules only and do not use `Game`. | Unchanged |
 | Battle Stage Editor, Battle Test, Stage lab | Port with the stage in M3. See section 2. | Port |
-| Trailer recorder | Captures the single canvas with `captureStream`. Drops the `#fx ?? #screen` choice. | Small change |
+| Trailer recorder | Captures the single canvas with `captureStream`. The `#fx ?? #screen` choice is gone (M6). | Done (M6) |
 | DEV menu (`tools.ts`), `devroutes.ts` | Unchanged. `?scene=` routes stay as plain scenes. | Unchanged |
 
 **`__SJ__.tree()`** returns JSON built from `GameObject.name` and the Pixi `label`: class, position, depth, visible, texture key, filters, Pixi node type. It lets you and agents compare the two trees (see [scene-graph.md](scene-graph.md)).
@@ -105,7 +105,7 @@ Standing T0 tests:
 
 Playwright's Chromium launcher adds `--enable-unsafe-swiftshader` on every OS. Headless Chromium then gives WebGL 2 on SwiftShader with no extra flags (lab). So CI needs no special setup. Locally the project uses Edge with the real GPU (`playwright.config.ts`), so local and CI pixels differ unless you add a SwiftShader mode (`PW_SWIFTSHADER=1`).
 
-**Today the GL presenter has zero CI coverage.** `GlPresenter.create` refuses any renderer whose name matches `/swiftshader|llvmpipe|.../`. Both GL tests in `e2e/gpufx.spec.ts` skip on CI. With Pixi, every spec runs on software GL, so effects need the fx levels (see [frame-and-rendering.md](frame-and-rendering.md) section 6.5). `?fx=full` forces them on SwiftShader.
+**Before M6 the old GL presenter had zero CI coverage:** `GlPresenter.create` refused any renderer whose name matches `/swiftshader|llvmpipe|.../`, and both GL tests in `e2e/gpufx.spec.ts` skipped on CI. The presenter is deleted (M6). With Pixi, every spec runs on software GL, where the effects level `auto` gives `lite`; `?fx=full` forces `full` on SwiftShader (see [frame-and-rendering.md](frame-and-rendering.md) section 6.5).
 
 T1 runs on Chromium, viewport **1280x720**. That is scale 2 at 640x360. A window of 960x540 is scale 1.5 at 640x360, so it rounds down to 1, and a block check at scale 1 cannot fail. Specs on the lab page:
 
@@ -157,7 +157,7 @@ The push camera (up to 1.09x) is outside the strict frames: its uneven texels ar
 **M5 parity method (the field, 2026-10-10).** The reference is the OLD FIELD itself, not a frozen copy of data (`m5-brief.md` decision 4a). Three pieces, kept apart.
 
 1. **The states.** `tests/fixtures/sjefield/cases.json`: 31 fixed states. A state is a map, a tile, a story-flag preset (`src/game/stages.ts`) with a few flags changed, the ambient and weather overrides, the seed of the page's `Math.random`, the field tick (260 by default, after the area banner) and the effects level (`none`, or `full` on a GPU). All 15 maps are in it, plus day and night, rain on and off, a flag that changes a prop, a second seed, the banner, and the camera at the corners of the world map. `window.__SJ__.fieldShow(case)` (`src/dev/fieldshow.ts`) puts a page in a state, on either path, on a fake paused clock; `e2e/sjefieldkit.ts` runs the clock to the exact field tick (`settle` steps one rAF at a time at the end and throws if the tick jumps) and takes what the player sees (the window screenshot at zoom 2).
-2. **The references** are made from the legacy path (no `?engine=sje`) by `e2e/sje-field-refs.spec.ts` (local, `M5_REFS=1`; run it with `CI=1` for the `soft` set and without for the `gpu` set). Two kinds, as in M3, because the old path draws differently on a GPU and on SwiftShader. The window screenshot, not one canvas: with GPU effects the old path shows its picture on a second canvas over the 2D one. The effects level is pinned (`none` for the field's own drawing; `full` only on the `gpu` kind, because the old path cannot make its GPU effects on software GL). `manifest.json` pins the SHA-256 of every map file the references depend on; the spec fails first when one changed.
+2. **The references** were made from the legacy path (no `?engine=sje`) by `e2e/sje-field-refs.spec.ts` (local, `M5_REFS=1`; run it with `CI=1` for the `soft` set and without for the `gpu` set). **M6 deleted that path and the spec**: the references stay committed and cannot be made again without a checkout from before M6 (`docs/DEVELOPING.md`). Two kinds, as in M3, because the old path draws differently on a GPU and on SwiftShader. The window screenshot, not one canvas: with GPU effects the old path shows its picture on a second canvas over the 2D one. The effects level is pinned (`none` for the field's own drawing; `full` only on the `gpu` kind, because the old path cannot make its GPU effects on software GL). `manifest.json` pins the SHA-256 of every map file the references depend on; the spec fails first when one changed.
 3. **The gates** (`e2e/sjefieldparity.ts`, unit tests in `tests/sjefield-parity.test.ts`). The STRICT gate of the brief is 0 pixels outside the renderer mask and at most 1/255 inside it, the mask being where the `gpu` and `soft` references differ. It **does not hold** for lit frames, and it is not loosened: its numbers are printed for every state and it fails the run only with `SJEFIELD_STRICT=1`. Why: Pixi multiplies the light map in GL and the old path multiplies in Skia, and the two round differently (`frame-and-rendering.md` section 6.7). On SwiftShader the new frame is 1/255 lower than the old one in 25 to 90% of the pixels; outside the mask 3,544 to 94,972 px differ (the mask of two renderers does not cover a third rounding). On a GPU, with the effects off: 0.6 to 24% of pixels differ, always by 1/255 except the Annex (2/255 in 20 px); outside the mask 52 to 30,400 px. With the whole stack on a GPU: 9 to 24% of pixels, at most 15/255. The default tier is **measured bounds** (a regression guard, not a decision): per kind and level, the largest step and the share of pixels at 2/255 or more and 4/255 or more (`BOUNDS` in the parity module), with three controls that must fail: a 2/255 step over the picture, an actor one pixel off (`nudge`), and a light radius 1.1 times too big (`lightScale`). Brief decision 4 lets lighting out of the numeric gate when the first honest try cannot hold it, if Mark sees the diff: the pictures are `media/m5-field/` and `SJEFIELD_SHOTS=<folder>` makes diff pictures.
 
 ---
@@ -318,16 +318,16 @@ Inherited rules: strict TypeScript (`noUncheckedIndexedAccess`, `exactOptionalPr
 
 `scripts/bundle-budget.mjs` (run by `npm run budget`, which builds the game and the lab page) is the M0 gate. It reads the Vite manifest and each chunk's source map. It has these checks:
 
-- **Total gzip alarm: 400 kB** for the shipped game without the flag-only class (`GZIP_TOTAL_MAX`). It was 240.8 kB at M0, 380 kB after M1, 394 kB after M2. At M3 (2026-10-10) the `liveopen` chunk moved out of the total (next bullet) and the rest measured 399.773 kB, so the cap was 400 kB; after merging M1b it measured 400.002 kB, so the cap is 401 kB (rounded up to the next 1 kB). Each raise is by the measured delta only, and the cause is written in the script.
-- **Largest chunk: 480 kB raw** (`CHUNK_MAX`), on the shipped game.
+- **Total gzip alarm: 452 kB** for the shipped game (`GZIP_TOTAL_MAX`). It was 240.8 kB at M0, 380 kB after M1, 394 kB after M2, 400 and then 401 kB at M3, 409 kB after M5. At M6 (2026-10-10, decision 4 of `m6-brief.md`, Mark's one-bigger-total rule) the old flag-only chunks joined it, because the flip made them part of every player's download: it measured 451.688 kB, so the cap is 452 kB (rounded up to the next 1 kB). That is 6.3 kB less than the 458 kB sum before the flip, because deleting the old presenter and the GL half of `display.ts` saved it. Each raise is by the measured delta only, and the cause is written in the script.
+- **Largest chunk: 480 kB raw** (`CHUNK_MAX`), on the shipped game. After the flip the biggest is 363 kB (the game's boot chunk). It holds because `src/sje/boot.ts` loads `src/boot.ts` with a dynamic `import()`: with a static import Rolldown merged the engine and the game into one 770.8 kB chunk, over the cap (and a change to the game would have changed the hash of Pixi's code too).
 - **Boot has no engine:** the `boot` class holds no `pixi.js` and no `three` module, in the game and in the lab.
-- **Flag-only class (M3, Mark approved 2026-10-10):** a lazy chunk that a player reaches only under `?engine=sje` is listed by its manifest `src` in `FLAG_ONLY_SRC` (today `src/battlestage/liveopen.ts`). It gets its own report line and its own cap (`FLAG_ONLY_GZIP_MAX`, 42 kB: `liveopen` measured 41.0 kB, rounded up to the next 1 kB), and it does not count toward the game total or `first play`.
+- **First play: 392.4 kB gzip** (`FIRST_PLAY_MAX`), boot plus `lazy-2d`: what every player downloads before the first battle and field. It measured 391.363 kB at M6 (boot 1.5, the game's boot chunk and what it imports 184.7, the engine 156.1, the two stages 49.1), and the cap is the measured value plus 1 kB (decision 4c). Before the flip it measured 345.7 kB, with no cap and without the stages. The `flag-only` class (M3) is gone: `liveopen` and `fieldopen` are `lazy-2d` (`STAGE_SRC` in the script).
 - **The game holds Pixi only in a lazy chunk:** no game chunk holds Three until M7.
 - **Lab `lazy-3d`:** at most 160 kB gzip, and it must not be empty. The lab `lazy-2d` class must not be empty.
 - **No blind chunk:** a chunk with no source map (or a boot chunk with an empty one) fails the gate. Without this, the checks above would pass on no data. `tests/bundle-budget.test.ts` holds the controls (a boot chunk with no map fails; a boot chunk with a Pixi module fails).
 - **The two Vite traps** below.
 
-The report prints all six classes (`flag-only` was added at M3). Measured at M0 (gzip, game): boot 190.0 kB (`index` plus the shared `tables` chunk), lazy-other 50.8, lazy-2d 0, lazy-3d 0, first play 190.0. Measured at M0 (gzip, lab): boot 1.2, lazy-2d 143.0, lazy-3d 135.3, first play 133.0. The old per-class caps of the plan ("boot at most 144.8 kB") did not survive the 640x360 move: the boot class grew with the shared `tables` chunk. `first play` has no cap until M1 measures it. The alarm is an alarm, not a hard limit.
+The report prints the four classes (`flag-only` existed from M3 to M6). Measured at M0 (gzip, game): boot 190.0 kB (`index` plus the shared `tables` chunk), lazy-other 50.8, lazy-2d 0, lazy-3d 0, first play 190.0. Measured at M0 (gzip, lab): boot 1.2, lazy-2d 143.0, lazy-3d 135.3, first play 133.0. The old per-class caps of the plan ("boot at most 144.8 kB") did not survive the 640x360 move: the boot class grew with the shared `tables` chunk. `first play` got its cap at M6. The alarm is an alarm, not a hard limit.
 
 **Sizes for scale (gzip, lab, depend on the bundler):**
 
@@ -346,13 +346,12 @@ The report prints all six classes (`flag-only` was added at M3). Measured at M0 
 | Class | Content | Rule |
 |---|---|---|
 | `boot` | The entry's static closure | Must contain **no** `pixi.js` and **no** `three` module. A hard check. |
-| `lazy-2d` | Pixi and the engine | Counted. |
+| `lazy-2d` | Pixi and the engine, and (M6) every chunk of the start path: the engine boot (`src/sje/boot.ts`), the game boot (`src/boot.ts`) and what they import statically, and the two stages (`liveopen`, `fieldopen`) | Counted. |
 | `lazy-3d` | Three and the hack scene | Own cap. |
 | `lazy-other` | Battle, deck, tables, dev | Counted. |
-| `flag-only` | Chunks loaded only under `?engine=sje` (`liveopen`) | Own cap, 42 kB. Not in the game total. |
-| `first play` | `boot` plus `lazy-2d` | Reported. |
+| `first play` | `boot` plus `lazy-2d` | Own cap, 392.4 kB. |
 
-Caps in force: `lazy-3d` 160 kB (you accepted it on 2026-10-05, real choice C5; the spike measured 145.1 kB and M0 measured 135.3 kB in the lab), the game total 401 kB (without `flag-only`), `flag-only` 42 kB, the largest chunk 480 kB raw. `first play` has no cap yet: the plan estimate is 330 to 430 kB gzip (low confidence), to set after M1. Reset the caps after the M1 and M2 measurements.
+Caps in force: `lazy-3d` 160 kB (you accepted it on 2026-10-05, real choice C5; the spike measured 145.1 kB and M0 measured 135.3 kB in the lab), the game total 452 kB, `first play` 392.4 kB, the largest chunk 480 kB raw.
 
 **Phase 0 spike numbers (gzip, not M0 numbers).** Pixi plus the engine kernel is 124.7 kB. The page of the stage lab boots with 170.7 kB, and the page of the 3D lab boots with 165.5 kB. The lazy 3D chunk (Three with named imports, a `UnrealBloomPass`, and the hack scene) is 145.1 kB (576.8 kB raw). The shipped game then measured 233.9 kB (before the 640x360 move). The spike's script had four classes: the shipped game, the lazy 3D chunk, the lab boot, and the stage lab page.
 
@@ -367,7 +366,7 @@ Also log bytes actually transferred in a Playwright run of `prod.spec.ts`. The a
 
 ## 11. CI
 
-Today's CI (`.github/workflows/ci.yml`) runs three jobs at the same time. `check` runs lint, typecheck, unit tests, and the bundle budget. `e2e` runs 8 specs on Chromium (playthrough, gameover, perf, prod, economy, chaos, gpufx, fxlab). `e2e-engines` runs `prod` and `gameover` on WebKit and Firefox. The real-speed playtest runs in `playtest.yml`, on a push to `main` and from the Run workflow button on the Actions tab. The plan:
+Today's CI (`.github/workflows/ci.yml`) runs three jobs at the same time. `check` runs lint, typecheck, unit tests, and the bundle budget. `e2e` runs the Chromium specs (playthrough, gameover, prod, economy, chaos, gpufx, fxlab, the engine specs, the field and stage parity, and the default-path goldens; `perf` is local). `e2e-engines` runs `prod` and `gameover` on WebKit (the whole flow) and Firefox (no WebGL 2 on the runner: since M6 the game does not start there, so the game flow is skipped by `browserName` and one E5 test checks the message). The real-speed playtest runs in `playtest.yml`, on a push to `main` and from the Run workflow button on the Actions tab. The plan:
 
 - Keep all of it during the migration, on the legacy path and on `?engine=sje`.
 - Add the lab specs, the canary suite, and the manifest gate.
@@ -378,11 +377,11 @@ Today's CI (`.github/workflows/ci.yml`) runs three jobs at the same time. `check
 
 **What changes in the existing e2e suite.**
 
-- `#screen`, `#boot` stay. `#fx` goes away. `gpufx.spec.ts` reads `__SJ__.renderer.fxLevel` instead.
+- `#boot` stays. **Done in M6:** the `#fx` canvas is gone, `startSje` removes `#screen`, so specs read `canvas`, and `gpufx.spec.ts` reads `__SJ__.renderer.fxLevel` (the request) and `fxCounts().level` (the level drawn).
 - Specs that read scene internals by name (`game.top.main.current.value`, `.mode`, `.idx`) still work while scenes keep those fields.
 - Specs that monkey-patch `game.tick`, `top.update`, and `top.render` get a `__SJ__.hooks` replacement.
 - About 47 lines in the spike's specs read Phaser object properties (`depth`, `flipX`, `originX`, `texture`, `list`). They map to `zIndex`, a mirror flag, `anchor`, texture, and a `Figure` accessor. The count depends on the search pattern, so treat it as an estimate.
-- There are no golden images today. Adding them is new work.
+- Golden images of the default page exist since M6: `e2e/default-path.spec.ts` (title, `rustyard`, a battle, Options; `tests/fixtures/defaultpath/soft`).
 
 ---
 

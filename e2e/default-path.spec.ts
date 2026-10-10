@@ -45,7 +45,7 @@ const TICK: Record<Exclude<Id, 'rustyard'>, number> = { title: 120, battle: 300,
 /**
  * The bounds of the gate, per kind of renderer. Measured on 2026-10-10: two runs of the same code on the same renderer (the bundled Chromium on SwiftShader) drew all four states with 0
  * differing pixels. So the bound is not room for the game: it allows the renderer's own rounding (1/255 in any pixel, on another machine) and nothing more. No pixel may be 2/255 or more away.
- * A 2/255 step moves every pixel by 2; the whole picture one game pixel to the right changes 17% to 63% of the pixels by 4/255 or more (the largest step is 236/255 or more); the leader
+ * A 2/255 step moves every pixel by 2; the whole picture one game pixel to the right changes 3.6% to 37% of the pixels by 4/255 or more (the largest step is 236/255 or more); the leader
  * of the field one pixel off changes its sprite. All of them fail with a wide margin (the controls below print the numbers). Whether Linux SwiftShader on CI agrees with references made on
  * Windows is not known until the first CI run (the same open question as M5's `sje-field-parity.spec.ts`): if it does not, widen `max` and say why here.
  */
