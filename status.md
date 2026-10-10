@@ -62,6 +62,7 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 ### Right now (2026-10-10, M3 merged)
 
 M3 "Battle stage" is merged ([PR #51](https://github.com/markhazlewood42/shadow-jog/pull/51), Mark looked at the pictures and approved). It was built on branch `engine-m3-battle-stage`: the battle plays on the Pixi stage under `?engine=sje` (HUD, fx painters, 640x360 stage set, enemy and encounter JSON, parity harness, seeded status trace). Lean loop: round 1 (runner all green; reader 3 Important, fixed in e8219cf), round 2 passed. GPU run (RTX 4070): live battle interval p95 18.10 ms (bare 18.10), cost p95 3.40 ms. Main merged in (M1b). Bundle: shipped total cap 401 kB, new flag-only class 42 kB. Record: `docs/engine/m3-brief.md` section 9. Pictures: `media/m3-stage/gpu/index.html`.
+
 **Next up for Mark**
 
 1. None open. You approved the M3 pictures (2026-10-10); the 1.09x push was part of that look review.
