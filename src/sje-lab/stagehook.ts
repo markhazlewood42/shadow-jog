@@ -4,7 +4,9 @@
  * a hash (`hash`). Everything that compares pictures with each other runs in the test (Node): the references come from a different page.
  */
 import { type FxCounts, H, type Pixels, Scene, W } from '../sje';
+import { stageOf } from '../battlestage/config';
 import type { FigureParts } from '../battlestage/figure';
+import type { StageSnapshot } from '../battlestage/stagescene';
 import type { GlCounts } from './glcounter';
 import { readGlCounts } from './glcounter';
 import { type BlockStats, countBlocks, fingerprint, toBase64, toPng, words } from './pixeltools';
@@ -58,6 +60,16 @@ export interface StageHook {
    * frame. The scene is wrong from then on, so a test must `show` again after it. Nothing in the game calls this.
    */
   nudge(figureId: string, part: 'shadow' | 'ring' | 'body', dx: number, dy: number): void;
+  /** The scene's state as plain JSON (the editor contract, `BattleStageScene.snapshot`). */
+  snapshot(): StageSnapshot;
+  /** Build the state of a snapshot in the running scene, draw one frame and return its hash. */
+  restore(snap: StageSnapshot): string;
+  /** Swap the stage `id` of the stage file into the running scene (`BattleStageScene.loadStage`), draw one frame and return its hash. */
+  loadStage(id: string): string;
+  /** Lean the camera in toward a point of the stage (the push), draw one frame and return its hash. */
+  push(x: number, y: number): string;
+  /** The scene's world layer: its zoom and where it sits (the push moves it). */
+  world(): { scale: number; x: number; y: number; pushing: boolean };
   /** Make `n` fresh scenes of the same slice, one after the other, closing each (the leak check). */
   reenter(n: number): Promise<void>;
   glCounts(): GlCounts;
@@ -205,6 +217,26 @@ export function installStageHook(lab: StageLab): StageHook {
       if (!found) throw new Error(`figure "${figureId}" has no part "${part}"`);
       found.setPosition(found.x + dx, found.y + dy);
       game.draw();
+    },
+    snapshot: () => sceneOf().snapshot(),
+    restore(snap) {
+      sceneOf().restore(snap);
+      game.draw();
+      return fingerprint(words(backBuffer()));
+    },
+    loadStage(id) {
+      sceneOf().loadStage(stageOf(lab.data.stages, id));
+      game.draw();
+      return fingerprint(words(backBuffer()));
+    },
+    push(x, y) {
+      sceneOf().push({ x, y });
+      game.draw();
+      return fingerprint(words(backBuffer()));
+    },
+    world() {
+      const s = sceneOf();
+      return { scale: s.sys.world.scaleX, x: s.sys.world.x, y: s.sys.world.y, pushing: s.pushing };
     },
     async reenter(n) {
       const cur = lab.current();

@@ -689,3 +689,61 @@ test.describe('stage lab: crisp pixels with the whole effect stack on (M3 pass l
     });
   }
 });
+
+test.describe('stage lab: the editor contract and the push, in pixels (M3 pass line 12, decision 3)', () => {
+  test('restore(snapshot()) gives the same frame hash, after the scene moved on and after another stage was swapped in; the snapshot is JSON', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      const before = await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 173, sprites: 'standins' }));
+      const snap = await page.evaluate(() => window.__SJESTAGE__?.snapshot());
+      expect(JSON.parse(JSON.stringify(snap))).toEqual(snap);
+      // Move on: more ticks, another stage.
+      await page.evaluate(() => window.__SJESTAGE__?.step(60));
+      const sewer = await page.evaluate(() => window.__SJESTAGE__?.loadStage('sewer'));
+      expect(sewer, 'control: the sewer is another picture').not.toBe(before);
+      const after = await page.evaluate((s) => window.__SJESTAGE__?.restore(s as NonNullable<typeof snap>), snap);
+      expect(after, 'the restored frame is the frame the snapshot was taken at').toBe(before);
+      expect(await page.evaluate(() => window.__SJESTAGE__?.snapshot())).toEqual(snap);
+    });
+  });
+
+  test('loadStage swaps a stage in and bad data leaves the old stage: the frame is the same after a refused swap', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      const before = await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 41, sprites: 'standins' }));
+      const refused = await page.evaluate(() => {
+        try {
+          window.__SJESTAGE__?.loadStage('no_such_stage');
+          return 'no error';
+        } catch (e) {
+          return (e as Error).message;
+        }
+      });
+      expect(refused).toContain('No stage "no_such_stage"');
+      expect(await page.evaluate(() => window.__SJESTAGE__?.hash()), 'the stage is as it was').toBe(before);
+    });
+  });
+
+  test('the push leans the picture in and puts it back: the world layer scales to at most 1.09x, differs from the plain frame while it runs, and the frame after its last tick equals the frame that never pushed', async ({ browser }) => {
+    await withStage(browser, async ({ page }) => {
+      const plain = await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 41, sprites: 'standins' }));
+      // The same tick reached with a push in the 20 ticks before it.
+      // At the top of the push (4 ticks in) the picture is not the plain picture of that tick. (The push starts at zoom 1, so the frame of its first tick is plain.)
+      await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 21, sprites: 'standins' }));
+      await page.evaluate(() => window.__SJESTAGE__?.push(300, 150));
+      const top = await page.evaluate(() => window.__SJESTAGE__?.step(4));
+      expect((await page.evaluate(() => window.__SJESTAGE__?.world()))?.scale).toBeCloseTo(1.09, 6);
+      expect(top, 'the push changes the picture').not.toBe(await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 25, sprites: 'standins' })));
+      await page.evaluate(() => window.__SJESTAGE__?.show({ tick: 21, sprites: 'standins' }));
+      await page.evaluate(() => window.__SJESTAGE__?.push(300, 150));
+      let peak = 1;
+      for (let i = 0; i < 20; i++) {
+        await page.evaluate(() => window.__SJESTAGE__?.step(1));
+        peak = Math.max(peak, (await page.evaluate(() => window.__SJESTAGE__?.world()))?.scale ?? 1);
+      }
+      expect(peak).toBeGreaterThan(1.05);
+      expect(peak).toBeLessThanOrEqual(1.09 + 1e-9);
+      const world = await page.evaluate(() => window.__SJESTAGE__?.world());
+      expect(world).toEqual({ scale: 1, x: 0, y: 0, pushing: false });
+      expect(await page.evaluate(() => window.__SJESTAGE__?.hash()), 'after the push the frame is the plain frame of that tick').toBe(plain);
+    });
+  });
+});

@@ -1,8 +1,9 @@
 /**
- * The battle stage as a scene of the Shadow Jog Engine (step B1 of the engine-platform spike): the Phaser spike's
- * `StageScene` run through the translation table (docs/engine/migration.md section 6). The FINAL stage design drawn from a stage
- * config: the painted 3/4 floor, the heroes on the left and the enemies on the right, each standing on a depth row with a contact
- * shadow and drawn in the right overlap order. The HUD is off in this slice, and so are the move animations and the edit mode (M3).
+ * The battle stage as a scene of the Shadow Jog Engine: the Phaser spike's `StageScene` run through the translation table (docs/engine/migration.md
+ * section 6), built in the engine-platform spike (step B1) and promoted to the shipped `BattleStageScene` in M3 (task 4). The FINAL stage design drawn
+ * from a stage config: the painted 3/4 floor, the heroes on the left and the enemies on the right, each standing on a depth row with a contact shadow and
+ * drawn in the right overlap order, plus the push camera, the editor contract (`loadStage`, `snapshot`, `restore`) and the marks (`setMarks`).
+ * The HUD, the move animations and the effects are added by the next tasks of M3 (5 to 7); the Battle Stage Editor is milestone ET.
  *
  * If you have not met a scene before, the ideas this file uses (the engine follows Phaser's, see docs/engine/README.md):
  *
@@ -10,8 +11,8 @@
  *    second. The scene owns what it created: when it closes, its display list is destroyed.
  *  - A **Sprite** is a picture on the stage with a position, a depth, an origin and a current frame. The **origin** is the point of
  *    the picture that sits at the sprite's x,y: ours is the feet, so "x,y" means "where this figure stands".
- *  - **Depth** is a number; the engine draws from the smallest to the largest. We use the feet's y (`depthFor` in config.ts), so
- *    whoever stands nearer the viewer draws on top.
+ *  - **Depth** is a number; the engine draws from the smallest to the largest. We use the feet's y (`depthFor` in config.ts, which calls the engine's),
+ *    so whoever stands nearer the viewer draws on top.
  *  - **A figure is a unit** (`Figure`): one container, with the body, the shadow and the ring inside it as a sorting group.
  *  - **Everything about the layout is read from the stage config** (`src/data/stages.json`), never written into this file.
  *  - **The fixed step.** The engine's loop calls `fixedUpdate` once per 1/60 s of game time, however fast the screen refreshes. The
@@ -25,17 +26,25 @@
  *    restart does no work beyond making new objects (and leaks nothing: the lab's test counts GL objects).
  *  - The assets are loaded BEFORE the scene runs (`loadStageAssets` in boot.ts), because `create` is never async. The spike loaded
  *    them in `preload`.
+ *
+ * The editor contract (principle 11; docs/engine/m3-brief.md section 5). No Pixi object leaves the scene: a caller gets plain data (`snapshot`, `figures`'
+ * `describe`) and the `Figure` wrappers. A stage swapped in by `loadStage` is checked first with the rules of the file (`checkStageConfig`), and bad data
+ * leaves the old stage as it was. `snapshot()` is plain JSON and `restore(snapshot())` gives the same frame. What stays in code on purpose, because it is
+ * the form and not the tuning: the depth formula, the flip rule, the contact-shadow shape.
  */
-import { type Container, DEPTH, must, Scene } from '../sje';
-import { MEMBERS } from '../data/party';
+import { BG_IDS } from '../art/battlebg480';
 import { ENEMIES } from '../data/enemies';
+import { MEMBERS } from '../data/party';
 import type { MemberId } from '../game/state';
-import { type AxesFile, axisFor, enemySlots, type StageConfig, type StageFile, stageOf } from './config';
+import { type Container, DEPTH, type ImageObject, must, Scene } from '../sje';
+import { type AxesFile, axisFor, checkStageConfig, enemySlots, SCREEN_H, SCREEN_W, type StageConfig, type StageFile, stageOf } from './config';
 import { type FacingFile, figureFor, isMirrored } from './facing';
 import { Figure, type FigureSpec, type SheetPlay, type Side } from './figure';
 import { idleFrame } from './idle';
+import { STAGE_KNOWN } from './known';
 import type { HeroesFile } from './proportions';
-import { addEnemy, bakeStage, type CrewInfo, type EnemyTexture, type FigureArt, type SheetMeta, pruneTextures, PREFIX, registerCrew } from './textures';
+import { LEGACY_PUSH, type PushSpec, pushView, pushZoom } from './push';
+import { addEnemy, bakeStage, type CrewInfo, type EnemyTexture, type FigureArt, PREFIX, pruneTextures, registerCrew, type SheetMeta } from './textures';
 
 /** What the lab hands the scene when it starts it. */
 export interface BattleStageInit {
@@ -60,10 +69,44 @@ export interface BattleStageInit {
   facing?: FacingFile;
   /** How tall and how broad each hero stands (`src/data/heroes.json`); every hero as drawn when absent. */
   heroes?: HeroesFile;
+  /** The push camera's numbers (zoom, ramp, length). Default: the legacy battle's, `LEGACY_PUSH`. */
+  push?: PushSpec;
 }
 
 /** The stage's own default group of enemies. */
 const DEFAULT_SET = '3';
+
+/** What a snapshot keeps of one figure: the state that the battle changes and the scene does not rebuild from the stage (a lunge, a knock-back, a fade). */
+export interface FigureState {
+  id: string;
+  x: number;
+  y: number;
+  sortY: number;
+  bodyDx: number;
+  offX: number;
+  offY: number;
+  alpha: number;
+}
+
+/**
+ * The whole state of a running stage as plain JSON (`JSON.parse(JSON.stringify(s))` equals `s`). `restore` builds the same frame from it. It holds the
+ * stage config in use, because `loadStage` can change it while the scene runs.
+ */
+export interface StageSnapshot {
+  version: 1;
+  stage: StageConfig;
+  setKey: string;
+  lineup: string[];
+  enemies: string[];
+  /** The marks: the index of the hero with the ring and of the enemy with the ring, or null. */
+  active: number | null;
+  target: number | null;
+  frame: number;
+  worldFrame: number;
+  /** The push camera: where it leans and how many frames in, or null at rest. */
+  push: { x: number; y: number; t: number } | null;
+  figures: FigureState[];
+}
 
 export class BattleStageScene extends Scene<void> {
   /** The party and the enemies, party first. Public so tools and tests can reach them. */
@@ -76,12 +119,21 @@ export class BattleStageScene extends Scene<void> {
   private stage: StageConfig;
   private crew: Record<string, CrewInfo> = {};
   private enemyKeys: string[] = [];
+  private lineup: string[] = [];
   private setKey: string;
+  private active: number | undefined;
+  private target: number | undefined;
+  private backdrop: ImageObject | null = null;
+  private leaning: { x: number; y: number; t: number } | null = null;
+  private readonly pushSpec: PushSpec;
 
   constructor(private readonly init0: BattleStageInit) {
     super();
     this.stage = stageOf(init0.stages, init0.stageId);
     this.setKey = init0.setKey ?? DEFAULT_SET;
+    this.active = init0.active;
+    this.target = init0.target;
+    this.pushSpec = init0.push ?? LEGACY_PUSH;
   }
 
   /** The stage config in use. */
@@ -95,18 +147,12 @@ export class BattleStageScene extends Scene<void> {
   }
 
   override create(): void {
-    const init = this.init0;
-    const lineup = init.lineup ?? this.stage.demo.lineup;
-    this.crew = registerCrew(this.textures, init.metas, lineup, init.standIns, init.heroes ?? {});
-    // The wall and the floor, baked into one 480x270 picture (floor.ts): the backdrop band of the depth table.
-    const picture = bakeStage(this.textures, this.stage);
-    this.add.image(0, 0, picture.key).setOrigin(0, 0).setDepth(DEPTH.BACKDROP);
-    this.makeParty(lineup);
-    this.makeEnemies(init.enemies ?? this.stage.demo.rosters[this.setKey] ?? [], this.setKey);
-    this.refresh();
+    this.lineup = [...(this.init0.lineup ?? this.stage.demo.lineup)];
+    this.build(this.init0.enemies ?? this.stage.demo.rosters[this.setKey] ?? []);
     // The engine destroys the display list when the scene closes; forget the figures (they are gone) so nothing reads a dead object.
     this.events.once('shutdown', () => {
       this.figures.length = 0;
+      this.backdrop = null;
     });
   }
 
@@ -115,9 +161,34 @@ export class BattleStageScene extends Scene<void> {
     this.frame++;
     this.worldFrame++;
     for (const f of this.figures) f.tick(this.worldFrame);
+    if (this.leaning) {
+      this.leaning.t++;
+      if (this.leaning.t >= this.pushSpec.lifeFrames) this.leaning = null;
+      this.applyPush();
+    }
   }
 
   // ---------------------------------------------------------------- building
+
+  /** Make everything the stage shows from the current config, lineup and marks: the picture, the party and the enemies (in the slots of the current group). */
+  private build(enemies: readonly string[]): void {
+    const init = this.init0;
+    this.crew = registerCrew(this.textures, init.metas, this.lineup, init.standIns, init.heroes ?? {});
+    // The wall and the floor, baked into one 480x270 picture (floor.ts): the backdrop band of the depth table.
+    const picture = bakeStage(this.textures, this.stage);
+    this.backdrop = this.add.image(0, 0, picture.key).setOrigin(0, 0).setDepth(DEPTH.BACKDROP);
+    this.makeParty(this.lineup);
+    this.makeEnemies(enemies, this.setKey);
+    this.refresh();
+  }
+
+  /** Destroy what `build` made (the figures and the picture's object; the textures stay in the texture manager and are found again by name). */
+  private clearStage(): void {
+    for (const f of this.figures) f.destroy();
+    this.figures.length = 0;
+    this.backdrop?.destroy();
+    this.backdrop = null;
+  }
 
   /** Build the heroes from the lineup, in the party slots. */
   private makeParty(lineup: readonly string[]): void {
@@ -212,21 +283,29 @@ export class BattleStageScene extends Scene<void> {
 
   // ---------------------------------------------------------------- the state of the figures
 
+  /** Who has a ring: the acting hero and the target, as indexes into the party and the enemies (none when absent). Restyles at once. */
+  setMarks(active?: number, target?: number): void {
+    this.active = active;
+    this.target = target;
+    this.refresh();
+  }
+
   /**
    * Apply the marks (who has a ring) and restyle everyone, then drop the shadow and ring pictures nobody shows any more (they are made
    * on demand from numbers, and a stage that changes size would otherwise leave one behind each time).
    */
   refresh(): void {
-    const init = this.init0;
     for (const f of this.figures) {
       f.active = false;
       f.target = false;
     }
-    const hero = init.active === undefined ? undefined : this.side('party')[init.active];
+    const hero = this.active === undefined ? undefined : this.side('party')[this.active];
     if (hero) hero.active = true;
-    const aimed = init.target === undefined ? undefined : this.side('enemy')[init.target];
+    const aimed = this.target === undefined ? undefined : this.side('enemy')[this.target];
     if (aimed) aimed.target = true;
     this.restyleAll();
+    // A restyle puts every body at rest; after the first tick the idle sway of the tick is laid back on (before it, the figures stand at their feet, as the references show).
+    if (this.worldFrame > 0) for (const f of this.figures) f.tick(this.worldFrame);
     pruneTextures(this.textures, PREFIX.shadow, new Set(this.figures.flatMap((f) => f.partTextures())));
     pruneTextures(this.textures, PREFIX.ring, new Set(this.figures.flatMap((f) => f.partTextures())));
   }
@@ -239,5 +318,107 @@ export class BattleStageScene extends Scene<void> {
   /** The sorting group of one figure, by id (what a test reads to see how the parts draw). */
   figureGroup(id: string): Container {
     return must(this.figures.find((f) => f.id === id), `figure "${id}"`).container;
+  }
+
+  // ---------------------------------------------------------------- the push camera
+
+  /**
+   * The camera leans in toward `focus` (screen pixels of the stage) for `pushSpec.lifeFrames` ticks and eases back (decision 3: up to 1.09x, kept as it was).
+   * It scales the scene's world layer, which holds the picture and every figure. A push that is already running starts again.
+   */
+  push(focus: { x: number; y: number }): void {
+    this.leaning = { x: focus.x, y: focus.y, t: 0 };
+    this.applyPush();
+  }
+
+  /** Is the camera leaning now? */
+  get pushing(): boolean {
+    return this.leaning !== null;
+  }
+
+  /**
+   * Scale the world layer and move it with the camera, not with the layer's own position: the draw phase writes the layer's position from the camera's scroll every
+   * frame (`Camera.apply`), so a position set here would be overwritten. The scroll is the window's corner times the zoom, rounded to whole pixels by the camera.
+   */
+  private applyPush(): void {
+    const cam = this.cameras.main;
+    if (!this.leaning) {
+      this.sys.world.setScale(1);
+      cam.setScroll(0, 0);
+      return;
+    }
+    const view = pushView(this.leaning, pushZoom(this.leaning.t, this.pushSpec), SCREEN_W, SCREEN_H);
+    this.sys.world.setScale(view.zoom);
+    cam.setScroll(-view.offsetX, -view.offsetY);
+  }
+
+  // ---------------------------------------------------------------- the editor contract (section 5 of docs/engine/m3-brief.md)
+
+  /**
+   * Swap another stage config into the running scene: the picture and every figure are rebuilt for it, standing in the same lineup and group. The config is checked
+   * first, with the rules of the stage file (`checkStageConfig`); a config the file would refuse throws one readable message and the scene keeps the stage it had.
+   */
+  loadStage(next: StageConfig): void {
+    const problems = checkStageConfig(next, BG_IDS, STAGE_KNOWN);
+    if (problems.length > 0) throw new Error(`The stage "${next.id}" is not valid, so the scene keeps "${this.stage.id}":\n - ${problems.join('\n - ')}`);
+    const enemies = [...this.enemyKeys];
+    this.clearStage();
+    this.stage = next;
+    this.build(enemies);
+  }
+
+  /** The whole state as plain JSON. `restore` on this scene, or on another one made from the same `BattleStageInit`, shows the same frame. */
+  snapshot(): StageSnapshot {
+    return JSON.parse(
+      JSON.stringify({
+        version: 1,
+        stage: this.stage,
+        setKey: this.setKey,
+        lineup: this.lineup,
+        enemies: this.enemyKeys,
+        active: this.active ?? null,
+        target: this.target ?? null,
+        frame: this.frame,
+        worldFrame: this.worldFrame,
+        push: this.leaning ? { x: this.leaning.x, y: this.leaning.y, t: this.leaning.t } : null,
+        figures: this.figures.map((f) => ({ id: f.id, x: f.x, y: f.y, sortY: f.sortY, bodyDx: f.bodyDx, offX: f.offX, offY: f.offY, alpha: f.alpha })),
+      } satisfies StageSnapshot),
+    ) as StageSnapshot;
+  }
+
+  /** Build the state of a snapshot. The stage in it is checked like a `loadStage` stage; bad data throws and changes nothing. */
+  restore(s: StageSnapshot): void {
+    if (s.version !== 1) throw new Error(`Cannot restore a stage snapshot of version ${String(s.version)} (this is version 1)`);
+    const problems = checkStageConfig(s.stage, BG_IDS, STAGE_KNOWN);
+    if (problems.length > 0) throw new Error(`The snapshot's stage "${s.stage.id}" is not valid, so the scene keeps "${this.stage.id}":\n - ${problems.join('\n - ')}`);
+    // The roster must fit the stage before anything is torn down, so a bad snapshot cannot leave half a stage.
+    if (s.lineup.length > s.stage.party.length) throw new Error(`The snapshot has ${s.lineup.length} heroes but the stage has ${s.stage.party.length} party slots`);
+    const unknown = s.enemies.find((key) => !ENEMIES[key]);
+    if (unknown !== undefined) throw new Error(`The snapshot has an enemy "${unknown}" that is not in the game`);
+    if (enemySlots(s.stage, s.setKey).length !== s.enemies.length) throw new Error(`The set "${s.setKey}" of the stage has ${enemySlots(s.stage, s.setKey).length} slots but the snapshot has ${s.enemies.length} enemies`);
+    this.clearStage();
+    this.stage = s.stage;
+    this.setKey = s.setKey;
+    this.lineup = [...s.lineup];
+    this.active = s.active ?? undefined;
+    this.target = s.target ?? undefined;
+    this.frame = s.frame;
+    this.worldFrame = s.worldFrame;
+    this.build(s.enemies);
+    for (const saved of s.figures) {
+      const f = this.figures.find((x) => x.id === saved.id);
+      if (!f) throw new Error(`The snapshot has a figure "${saved.id}" that the stage does not`);
+      f.x = saved.x;
+      f.y = saved.y;
+      f.sortY = saved.sortY;
+      f.bodyDx = saved.bodyDx;
+      f.offX = saved.offX;
+      f.offY = saved.offY;
+      f.alpha = saved.alpha;
+    }
+    this.leaning = s.push ? { ...s.push } : null;
+    this.applyPush();
+    // The styles of the restored state, with the idle motion of this tick.
+    this.refresh();
   }
 }

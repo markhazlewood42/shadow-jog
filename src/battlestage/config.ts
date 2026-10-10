@@ -730,6 +730,20 @@ export function loadEntries(data: unknown, knownBackdrops?: readonly string[], k
   return data as EntryFile;
 }
 
+/**
+ * One resolved stage (a `StageConfig`, the HUD already filled in) checked as the file would be: the same rules, so a stage that an editor swaps into a running scene
+ * (`BattleStageScene.loadStage`) cannot be one the file would have refused. Empty means it is fine.
+ */
+export function checkStageConfig(config: StageConfig, knownBackdrops?: readonly string[], known: Known = {}): string[] {
+  const { hud, ...body } = config;
+  // The stage's own numbers by the file's rules (a file entry holds only HUD overrides, so the resolved HUD is checked apart), then every HUD box of the resolved layout.
+  const out = checkStages({ [config.id]: body }, knownBackdrops, known);
+  if (out.length > 0) return out;
+  const p = new Problems(`stage "${config.id}"`);
+  for (const k of HUD_REGIONS) checkRegion(p, `hud.${k}`, hud[k]);
+  return p.list;
+}
+
 /** One stage by id, or a readable error naming the ones there are. */
 export function stageOf(file: StageFile, id: string): StageConfig {
   const s = file[id];
