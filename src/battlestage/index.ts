@@ -9,3 +9,8 @@ export { Figure, type FigureParts, type FigureSpec, type SheetPlay, type Side } 
 export { LEGACY_PUSH, type PushSpec, pushStrength, pushView, pushZoom } from './push';
 export { BattleStageScene, type BattleStageInit, type FigureState, type StageSnapshot } from './stagescene';
 export type { SheetMeta } from './textures';
+export { BattleDrive, type DriveResult, type DriveSetup, battleTrace, legacyTrace, setupFor } from './battledrive';
+export { Hud, type HudFaces, type HudGeo, type HudMenus } from './hud';
+export { LiveStageScene, liveStage } from './live';
+export { liveView, type LiveSource, viewSignature } from './liveview';
+export { liveProvider } from './liveopen';

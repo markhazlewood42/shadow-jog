@@ -22,7 +22,7 @@ import { BHT, BW } from '../src/art/worldsize';
 import { BG_IDS } from '../src/art/battlebg480';
 import { demoParty } from '../src/battlestage/demo';
 import { checkStageConfig, stageOf } from '../src/battlestage/config';
-import { LiveStageScene, liveStage } from '../src/battlestage/live';
+import { LiveStageScene, liveStage, shakeOffset } from '../src/battlestage/live';
 import { LiveNumbers } from '../src/battlestage/livenumbers';
 import { floaterMotion } from '../src/scenes/battlekit/geom';
 import { liveTags, liveView, type LiveMode, type LiveSource, phaseOf, slotOf, timelineOrder, viewSignature } from '../src/battlestage/liveview';
@@ -489,6 +489,15 @@ describe('the stage follows the battle (live.ts)', () => {
     (src as Record<string, unknown>).frozen = false;
     game.step(10);
     expect(scene.worldFrame).toBe(w + 10);
+  });
+});
+
+describe('the shake of a hit', () => {
+  it('is the old picture’s rule, frame by frame: 2 world pixels to one side for two frames, then the other, and nothing at rest', () => {
+    const old = (shake: number): number => (shake > 0 ? (shake % 4 < 2 ? 2 : -2) : 0);
+    for (let left = 0; left <= 12; left++) expect(shakeOffset(left), `left ${left}`).toBe(old(left));
+    // Control: the rule does shake, both ways.
+    expect(new Set([1, 2, 3, 4].map(shakeOffset)).size).toBe(2);
   });
 });
 

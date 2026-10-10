@@ -29,7 +29,7 @@ import { SCREEN_H, SCREEN_W } from './config';
 import { Hud, type HudFaces, type HudGeo } from './hud';
 import { liveView, viewSignature } from './liveview';
 import { LiveNumbers } from './livenumbers';
-import { DOWN_ALPHA, FX_DEPTH, HERO_HIT_TINT, HIT_FLASH, NUMBER_PREFIX, WASH, WASH_DEPTH } from './liveparams';
+import { DOWN_ALPHA, FX_DEPTH, HERO_HIT_TINT, HIT_FLASH, NUMBER_BELOW_HEAD, NUMBER_PREFIX, SHAKE_HALF_FRAMES, SHAKE_REACH, WASH, WASH_DEPTH } from './liveparams';
 import { BattleStageScene, type BattleStageInit } from './stagescene';
 import { TEXT_PREFIX, WINDOW_PREFIX } from './hudkit';
 import { CHIP_PREFIX } from './hudcolours';
@@ -42,6 +42,12 @@ export const STAGE_PER_WORLD = SCREEN_W / BW;
 
 /** Glyph effects (spell runes, numbers) are drawn with the game's font, no shadow, as the old picture did. */
 const glyph = (c: CanvasRenderingContext2D, ch: string, x: number, y: number, col: string): void => void drawText(c, ch, x, y, { color: col, shadow: false });
+
+/** How far a fighter that is hit shakes this frame (world pixels, sideways), from the frames of shake it has left: one side for a couple of frames, then the other. */
+export function shakeOffset(left: number): number {
+  if (left <= 0) return 0;
+  return left % (2 * SHAKE_HALF_FRAMES) < SHAKE_HALF_FRAMES ? SHAKE_REACH : -SHAKE_REACH;
+}
 
 /** The texture-name prefixes of pictures made on demand for one battle, and no longer needed after it. */
 const TRANSIENT_PREFIXES = [TEXT_PREFIX, WINDOW_PREFIX, CHIP_PREFIX, PREFIX.face, NUMBER_PREFIX, 'bartag-'] as const;
@@ -192,7 +198,7 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
       f.alpha = f.down ? DOWN_ALPHA : d.alpha;
       f.tint = blink ? HERO_HIT_TINT : 0;
       f.flash = 0;
-      f.bodyDx = d.shake > 0 ? (d.shake % 4 < 2 ? 2 : -2) * k : 0;
+      f.bodyDx = shakeOffset(d.shake) * k;
       f.offX = Math.round(d.lunge * k);
       f.offY = 0 - Math.round(d.hop * k);
     }
@@ -204,7 +210,7 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
       const blink = d.flash > 0 && d.flash % 4 < 2;
       f.alpha = d.alpha;
       f.flash = blink ? HIT_FLASH : 0;
-      f.bodyDx = d.shake > 0 ? (d.shake % 4 < 2 ? 2 : -2) * k : 0;
+      f.bodyDx = shakeOffset(d.shake) * k;
       f.offX = 0 - Math.round(d.lunge * k);
       f.offY = 0;
       const dead = d.dying > 0 || u.hp <= 0;
@@ -326,7 +332,7 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
     const f = this.figureOf(uid);
     if (!f) return { x: BW / 2, y: BHT / 2 };
     const g = this.geoOf(f);
-    return { x: (f.x + f.bodyDx + f.offX) / this.k, y: g.top / this.k + 4 };
+    return { x: (f.x + f.bodyDx + f.offX) / this.k, y: g.top / this.k + NUMBER_BELOW_HEAD };
   }
 
   footX(uid: number): number {

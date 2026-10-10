@@ -3,7 +3,8 @@
  * section 6), built in the engine-platform spike (step B1) and promoted to the shipped `BattleStageScene` in M3 (task 4). The FINAL stage design drawn
  * from a stage config: the painted 3/4 floor, the heroes on the left and the enemies on the right, each standing on a depth row with a contact shadow and
  * drawn in the right overlap order, plus the push camera, the editor contract (`loadStage`, `snapshot`, `restore`) and the marks (`setMarks`).
- * The HUD, the move animations and the effects are added by the next tasks of M3 (5 to 7); the Battle Stage Editor is milestone ET.
+ * The HUD (`hud.ts`), the live battle's effects, numbers and camera shake (`live.ts`, a subclass of this scene) and the headless driver (`battledrive.ts`) are M3 tasks 5 to 7; the move
+ * animations of the spike and the Battle Stage Editor are not in M3 (the editor is milestone ET).
  *
  * If you have not met a scene before, the ideas this file uses (the engine follows Phaser's, see docs/engine/README.md):
  *

@@ -20,6 +20,12 @@ export const BAR_COLOURS = { high: 0x62e06a, mid: 0xffcc3d, low: 0xff5a5a, back:
 /** The lit top line of a bar. */
 export const BAR_SHINE_ALPHA = 0.45;
 
+/** A fighter that is hit shakes sideways: how far (world pixels, the old picture's 2) and how many frames each way (it is on one side for two frames, then the other). */
+export const SHAKE_REACH = 2;
+export const SHAKE_HALF_FRAMES = 2;
+/** Where a number pops over a fighter: this many world pixels below the top of the drawn figure (the old picture's `artTop + 4`). */
+export const NUMBER_BELOW_HEAD = 4;
+
 /** The depth the effects layer draws at: over every figure (their numbers stay under 300,000) and under the labels (`DEPTH.MARKS`). */
 export const FX_DEPTH = 500_000;
 /** The depth of the defeat wash in the scene's `ui` layer: over the stage, under the HUD (`HUD_DEPTH`). */
