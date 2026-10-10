@@ -1,9 +1,10 @@
 /**
- * The browser side of the field parity harness (M5 task 8): put a page (the old path or the new one) in a fixed state of `tests/fixtures/sjefield/cases.json`, run its
+ * The browser side of the field parity harness (M5 task 8): put a page in a fixed state of `tests/fixtures/sjefield/cases.json`, run its
  * fake clock to an exact field tick, and take the 640x360 picture the player sees. The pure comparison is in `e2e/sjefieldparity.ts`.
  *
- * Both paths run the SAME code to reach a state (`__SJ__.fieldShow`, src/dev/fieldshow.ts) on a page with a fake, paused clock and a seeded `Math.random`
- * (`openGame({ fakeClock: true })`), so the old field and the new one are in the same state at the same tick.
+ * The state is reached by code (`__SJ__.fieldShow`, src/dev/fieldshow.ts) on a page with a fake, paused clock and a seeded `Math.random`
+ * (`openGame({ fakeClock: true })`), so every run is in the same state at the same tick. The references are pictures of the OLD field (the Canvas 2D path, which M6 deleted),
+ * made at M5 and committed; making them again needs a checkout from before M6.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -85,11 +86,11 @@ export async function settle(page: Page, target: number): Promise<void> {
   throw new Error(`the field did not reach tick ${target}`);
 }
 
-/** Open a fresh page on the old path or the new one, put it in the state of `c`, run it to its tick, and take the picture. The caller closes `shot.page`. */
-export async function shoot(browser: Browser, c: Case, engine: boolean, extra: { lightScale?: number; nudge?: { px: number; py: number } } = {}): Promise<Shot> {
+/** Open a fresh page, put it in the state of `c`, run it to its tick, and take the picture. The caller closes `shot.page`. */
+export async function shoot(browser: Browser, c: Case, extra: { lightScale?: number; nudge?: { px: number; py: number } } = {}): Promise<Shot> {
   const fx = c.fx ?? 'none';
-  // The new path takes the level from the query. The old one takes it from the settings (`sj.gpu`), below.
-  const g = await openGame(browser, { engine, fakeClock: true, viewport: VIEWPORT, query: `&fx=${fx}`, ...(c.seed !== undefined ? { seed: c.seed } : {}) });
+  // The level comes from the query (`?fx=`).
+  const g = await openGame(browser, { fakeClock: true, viewport: VIEWPORT, query: `&fx=${fx}`, ...(c.seed !== undefined ? { seed: c.seed } : {}) });
   try {
     if (!(await waitUntil(g.page, 'sj.top() === "TitleScene"', 60_000).catch(() => false))) {
       // The title needs the fake clock to run: step it.
@@ -98,17 +99,16 @@ export async function shoot(browser: Browser, c: Case, engine: boolean, extra: {
         if (await sj<boolean>(g.page, 'sj.top() === "TitleScene"').catch(() => false)) break;
       }
     }
-    if (!engine) await sj(g.page, `sj.gpu(${fx === 'full'})`);
     await sj(g.page, `sj.fieldShow(${JSON.stringify({ stage: c.stage, map: c.map, x: c.x, y: c.y, dir: c.dir, flags: c.flags, ambient: c.ambient, weather: c.weather, ...extra })})`);
-    // The new path opens its stage a little after the field exists (a lazy chunk): give the clock time until the field is on.
+    // The stage opens a little after the field exists (a lazy chunk): give the clock time until the field is on.
     for (let i = 0; i < 200; i++) {
       await advance(g.page, 100);
       if (await sj<boolean>(g.page, 'sj.field() !== null && sj.top() === "FieldScene"').catch(() => false)) break;
     }
     const target = c.frame ?? DEFAULT_FRAME;
     await settle(g.page, target);
-    if (engine && !(await waitUntil(g.page, 'sj.fieldStage !== null', 10_000))) throw new Error('the stage did not open on the new path');
-    // The whole window, not one canvas: with GPU effects the old path shows its picture on a second canvas (#fx) over the 2D one, and the player sees the top one.
+    if (!(await waitUntil(g.page, 'sj.fieldStage !== null', 10_000))) throw new Error('the stage did not open');
+    // The whole window, not one canvas: the references were made of the whole window on the old path, which showed its picture on a second canvas (#fx) over the 2D one.
     const png = await g.page.screenshot();
     const d = decode(png);
     const picture: Picture = { w: d.w, h: d.h, data: d.data };
@@ -123,7 +123,7 @@ export async function shoot(browser: Browser, c: Case, engine: boolean, extra: {
   }
 }
 
-// ------------------------------------------------------------------ the references (made by e2e/sje-field-refs.spec.ts)
+// ------------------------------------------------------------------ the references (made at M5 by e2e/sje-field-refs.spec.ts, removed in M6)
 
 export const refPath = (kind: RendererKind, id: string): string => join(DIR, kind, `${id}.png`);
 

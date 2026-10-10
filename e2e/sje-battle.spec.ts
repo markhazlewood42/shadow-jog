@@ -1,10 +1,10 @@
 /**
- * M3 pass line 6: the battle plays end to end under the flag (`/?engine=sje`), on the stage (docs/engine/m3-brief.md tasks 5 to 7). The battle scene is the shipped one (`scenes/battle.ts`,
+ * M3 pass line 6: the battle plays end to end on the stage (the new engine is the default since M6: `/?debug`) (docs/engine/m3-brief.md tasks 5 to 7). The battle scene is the shipped one (`scenes/battle.ts`,
  * unchanged rules); the picture is the Pixi stage under it: the backdrop, the figures with shadows, the HUD, the effects and the numbers. This spec plays a WIN, a LOSS, a FLEE and a
  * BOSS INTRO, reading the state through `window.__SJ__` (the DEV hook: `battleStage` for the stage as data, `game.top` for the battle scene) and checking the HUD's pixels.
  *
  * Every check has a control (the same check on something that must fail):
- *  - the stage exists only under the flag (`battleStage` is null before a fight, gone after it, and absent on the old path);
+ *  - the stage exists only during a fight (`battleStage` is null before a fight and gone after it);
  *  - the HUD's pixels are found in the party table and the foe box, and NOT in a part of the screen the HUD does not cover;
  *  - the draw order follows the rule (a figure whose feet are lower is drawn later); a swapped order breaks the check;
  *  - the page's own warning/error watcher sees a warning when one is made (so "0 console warnings" is a real check).
@@ -38,7 +38,7 @@ async function countColor(page: Page, rect: Rect, hex: string, tol = 14): Promis
 
 /** Open the game on the new engine, jump to the town and wait for the field. */
 async function openField(browser: import('@playwright/test').Browser, o: { viewport?: { width: number; height: number }; dpr?: number; query?: string; allow?: RegExp[] } = {}): Promise<GamePage> {
-  const g = await openGame(browser, { engine: true, ...o });
+  const g = await openGame(browser, o);
   expect(await waitTop(g.page, 'TitleScene')).toBe(true);
   await sj(g.page, "sj.stage('town')");
   expect(await waitUntil(g.page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
@@ -102,7 +102,7 @@ function orderHolds(d: { figures: Array<{ id: string; y: number }>; order: strin
 
 test.describe.configure({ mode: 'serial' });
 
-test.describe('the battle on the stage, under the flag', () => {
+test.describe('the battle on the stage', () => {
   test('a WIN: the stage stands under the fight, the HUD draws, the rules play, the stage is gone afterwards', async ({ browser }) => {
     const g = await openField(browser);
     try {
@@ -272,19 +272,12 @@ test.describe('controls', () => {
     }
   });
 
-  test('the old path has no stage, and the watcher sees a warning when one is made', async ({ browser }) => {
-    const g = await openGame(browser, { engine: false });
+  test('the watcher sees a warning when one is made (the check that every "no problems" assertion above relies on)', async ({ browser }) => {
+    const g = await openGame(browser);
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);
-      await sj(page, "sj.stage('town')");
-      expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
-      await fight(page, ['rustfang_punk'], 'street');
-      // The old path: the battle draws itself; there is no stage and no hook member for one.
-      expect(await sj<boolean>(page, '"battleStage" in sj')).toBe(false);
-      expect(await sj<boolean>(page, 'sj.game.top.stage === null && sj.game.top.opaque === true')).toBe(true);
       expect(g.problems).toEqual([]);
-      // The watcher is alive: a warning made in the page is kept.
       await page.evaluate(() => console.warn('a made warning'));
       await page.waitForTimeout(100);
       expect(g.problems.some((p) => /a made warning/.test(p))).toBe(true);

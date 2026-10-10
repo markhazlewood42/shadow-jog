@@ -1,9 +1,9 @@
 /**
- * M5 pass lines 6 and 9 (smoke): the field plays on the stage under the flag (`/?engine=sje`), and falls back to the old drawing when the stage cannot be made or fails
+ * M5 pass lines 6 and 9 (smoke): the field plays on the stage (the default since M6: `/?debug`), and falls back to the old drawing when the stage cannot be made or fails
  * (docs/engine/m5-brief.md tasks 5 to 7). The field scene is the shipped one (`scenes/field.ts`, unchanged rules); the picture is the stage under it (`src/fieldstage`).
  *
  * What it plays, reading the state through `window.__SJ__` (the DEV hook: `fieldStage` is the stage as data, `field()` the field scene):
- *  - the stage is there under the flag, below the field on the scene stack, and absent on the old path (control);
+ *  - the stage is there, below the field on the scene stack (control: the scene stack shows both, and a field with no stage is opaque);
  *  - the leader walks: the camera scrolls, the leader's actor moves, the props come into view and out of it;
  *  - a real warp (`doWarp`: fade out, load, fade in) swaps the map in the stage; into a small interior the camera centers the room and the surround shows;
  *  - an emote shows on the screen-fixed layer and goes when it ends; a follower joins the actors when it walks out from behind the leader;
@@ -19,8 +19,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { expect, type Page, test } from '@playwright/test';
 import { decode, type GamePage, openGame, sj, unevenBlocks, waitTop, waitUntil } from './sjegamekit';
 
-async function openField(browser: import('@playwright/test').Browser, o: { allow?: RegExp[]; engine?: boolean; viewport?: { width: number; height: number }; dpr?: number; query?: string } = {}): Promise<GamePage> {
-  const g = await openGame(browser, { engine: o.engine ?? true, ...(o.allow ? { allow: o.allow } : {}), ...(o.viewport ? { viewport: o.viewport } : {}), ...(o.dpr ? { dpr: o.dpr } : {}), ...(o.query ? { query: o.query } : {}) });
+async function openField(browser: import('@playwright/test').Browser, o: { allow?: RegExp[]; viewport?: { width: number; height: number }; dpr?: number; query?: string } = {}): Promise<GamePage> {
+  const g = await openGame(browser, { ...(o.allow ? { allow: o.allow } : {}), ...(o.viewport ? { viewport: o.viewport } : {}), ...(o.dpr ? { dpr: o.dpr } : {}), ...(o.query ? { query: o.query } : {}) });
   expect(await waitTop(g.page, 'TitleScene')).toBe(true);
   await sj(g.page, "sj.stage('town')");
   expect(await waitUntil(g.page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
@@ -69,7 +69,7 @@ async function warpTo(page: Page, map: string): Promise<void> {
 }
 
 test.describe('the field on the stage', () => {
-  test('the stage stands under the field, and the old path has none (control)', async ({ browser }) => {
+  test('the stage stands under the field (control: the field itself is not opaque)', async ({ browser }) => {
     const g = await openField(browser);
     try {
       expect(await stageUp(g.page, 'lantern_row')).toBe(true);
@@ -92,14 +92,6 @@ test.describe('the field on the stage', () => {
       expect(g.problems).toEqual([]);
     } finally {
       await g.close();
-    }
-    const old = await openField(browser, { engine: false });
-    try {
-      expect(await old.page.evaluate('window.__SJ__.fieldStage')).toBeUndefined();
-      expect(await old.page.evaluate('window.__SJ__.field().opaque')).toBe(true);
-      expect(old.problems).toEqual([]);
-    } finally {
-      await old.close();
     }
   });
 
@@ -250,7 +242,7 @@ test.describe('the field on the stage', () => {
 
 test.describe('the field falls back to the old drawing', () => {
   test('a chunk that fails to load: a notice, the old drawing, and a field that still plays', async ({ browser }) => {
-    const g = await openGame(browser, { engine: true, allow: [/field stage\] could not load/] });
+    const g = await openGame(browser, { allow: [/field stage\] could not load/] });
     try {
       expect(await waitTop(g.page, 'TitleScene')).toBe(true);
       // The boot's provider is replaced by one whose code cannot be fetched (a stale deploy), before any field is made.

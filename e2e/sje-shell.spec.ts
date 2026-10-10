@@ -1,25 +1,27 @@
 /**
- * M1 "Shell": the real game on the new engine (`/?engine=sje`), checked in a browser (docs/engine/m1-brief.md tasks 13 and 14, pass lines 3 and 4).
+ * The real game on the new engine, checked in a browser (docs/engine/m1-brief.md tasks 13 and 14, pass lines 3 and 4; M6 made the new engine the default, so the page is `/?debug`
+ * with no flag, and the old path these tests once compared against is gone).
  * It runs in CI on Chromium with SwiftShader (software GL), like the canaries.
  *
+ *  0. M6: with no flag, the page is the new engine: the Pixi canvas, the DEV hook's engine members, no `#fx` overlay and no `#screen`. Control: the page of the old
+ *     default (the `main` branch before M6) fails this case.
  *  1. Title, field, battle and shop each reach their screen, and each draws a picture (not a blank canvas). Control: waiting for a scene that is
  *     not there fails.
- *  2. The block test: at integer ratios 1, 2 and 3, a 64x64 block of the title screen is pixel-equal between the old 2D path and the new engine,
- *     and the new picture has no uneven block. Controls: the old block against the new picture shifted by one game pixel is NOT equal; a picture scaled by the wrong
- *     ratio has uneven blocks.
- *  3. The whole title screenshot differs from the old path in at most 0.1% of the pixels. Control: the title against the field differs by far more.
- *  4. Context loss and restore returns to the same frame. Control: ticks that run while the context is lost give a different frame, which the
+ *  2. The block test: at integer ratios 1, 2 and 3, the title screen has no uneven block. Controls: the block holds a picture (not a flat color); a picture read at
+ *     the wrong ratio has uneven blocks. (Until M6 the same test also compared a 64x64 block with the old 2D path, pixel for pixel; M1 proved that and the old path is gone.
+ *     The goldens of M6, `e2e/default-path.spec.ts`, guard the picture now.)
+ *  3. Context loss and restore returns to the same frame. Control: ticks that run while the context is lost give a different frame, which the
  *     same hash tells apart.
- *  5. Enter and leave a legacy scene 10 times: the GL object counts do not grow. Control: a scene that leaks on purpose makes them grow.
- *  6. The DEV hook has its members, `gpu(on)` sets `fxLevel`, and the options row for scaling is gone.
- *  7. No WebGL2: the page shows the "failed to start" text, not a blank page.
+ *  4. Enter and leave a legacy scene 10 times: the GL object counts do not grow. Control: a scene that leaks on purpose makes them grow.
+ *  5. The DEV hook has its members, `gpu(on)` sets `fxLevel`, and the options row for scaling is gone.
+ *  6. No WebGL2: the page shows the "failed to start" text, not a blank page.
  *
- * The pictures of pass line 4 (the four screens, old path and new engine) are written to test-results/m1-shell/ (not tracked).
+ * The pictures of pass line 4 (the four screens) are written to test-results/m1-shell/ (not tracked).
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { H, W } from '../src/sje/core/size';
-import { advance, decode, diff, type Img, openGame, sameRect, sj, unevenBlocks, waitTop, waitUntil } from './sjegamekit';
+import { advance, decode, openGame, sameRect, sj, unevenBlocks, waitTop, waitUntil } from './sjegamekit';
 
 const OUT = 'test-results/m1-shell';
 mkdirSync(OUT, { recursive: true });
@@ -34,8 +36,28 @@ const LOSS_NOISE = /CONTEXT_LOST_WEBGL|context lost|WebGL: INVALID_OPERATION: .*
 const freeze = (page: import('@playwright/test').Page) => sj(page, '(sj.game.speed = 0, true)');
 
 test.describe('the real game on the new engine', () => {
+  test('with no flag the page is the new engine: the Pixi canvas, the engine members of the DEV hook, no #fx and no #screen', async ({ browser }) => {
+    const g = await openGame(browser);
+    try {
+      const { page } = g;
+      expect(await waitTop(page, 'TitleScene')).toBe(true);
+      // The URL has no engine parameter at all.
+      expect(new URL(page.url()).searchParams.has('engine')).toBe(false);
+      // One canvas in the page (the Pixi one); the two canvases of the old default, #screen and #fx, are not there.
+      expect(await page.locator('canvas').count()).toBe(1);
+      expect(await page.locator('#screen').count()).toBe(0);
+      expect(await page.locator('#fx').count()).toBe(0);
+      // The engine's members: the renderer, and the Pixi tree with the four roots.
+      expect(await sj<string>(page, 'typeof sj.renderer.name')).toBe('string');
+      expect(await sj<string[]>(page, 'sj.tree().children.map((c) => c.label)')).toEqual(['worldRoot', 'fxRoot', 'uiRoot', 'overlayRoot']);
+      expect(g.problems).toEqual([]);
+    } finally {
+      await g.close();
+    }
+  });
+
   test('title, field, battle and shop each reach their screen and draw a picture; waiting for a scene that is not there fails', async ({ browser }) => {
-    const g = await openGame(browser, { engine: true });
+    const g = await openGame(browser, {});
     try {
       const { page } = g;
       const shot = async (name: string) => {
@@ -77,103 +99,41 @@ test.describe('the real game on the new engine', () => {
     }
   });
 
-  test('the old path pictures of the same four screens (for the side by side), with the old 2D canvas', async ({ browser }) => {
-    const g = await openGame(browser, { engine: false });
-    try {
-      const { page } = g;
-      await sj(page, 'sj.gpu(false)');
-      expect(await waitTop(page, 'TitleScene')).toBe(true);
-      await page.waitForTimeout(600);
-      writeFileSync(`${OUT}/old-title.png`, await page.screenshot());
-      await sj(page, "sj.stage('town')");
-      expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
-      await page.waitForTimeout(500);
-      writeFileSync(`${OUT}/old-field.png`, await page.screenshot());
-      await sj(page, "(sj.defineEncounter('m1shot', ['sewer_ghoul', 'rust_crab']), sj.battle('m1shot', 'sewer'))");
-      expect(await waitTop(page, 'BattleScene')).toBe(true);
-      await page.waitForTimeout(3500);
-      writeFileSync(`${OUT}/old-battle.png`, await page.screenshot());
-      await sj(page, "sj.stage('town')");
-      expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
-      await sj(page, "sj.shop('lr_weapons')");
-      expect(await waitTop(page, 'ShopScene')).toBe(true);
-      await page.waitForTimeout(800);
-      writeFileSync(`${OUT}/old-shop.png`, await page.screenshot());
-      expect(g.problems).toEqual([]);
-    } finally {
-      await g.close();
-    }
-  });
-
   for (const k of [1, 2, 3]) {
-    test(`ratio ${k}: a 64x64 block of the title is pixel-equal to the old path, the whole title differs in at most 0.1%, and the new picture has no uneven block`, async ({ browser }) => {
-      const take = async (engine: boolean): Promise<Img> => {
-        // A deterministic run (fake clock, seeded random): both paths draw the same frames, so the animated title can be compared.
-        const g = await openGame(browser, { engine, viewport: viewportFor(k), fakeClock: true });
-        try {
-          const { page } = g;
-          expect(await waitUntil(page, 'sj.game.stack.length > 0', 30_000)).toBe(true);
-          // Pin the same effects level on both paths: none. Since M2 the new path draws its effects by default (the vignette darkens the middle of the
-          // title by a few levels, a bloom can add light), the old path with gpu(false) draws none. The premise of this test is the base picture, the
-          // same pixels, so the effects are off on both. The effects have their own pixel tests (e2e/sje-fx.spec.ts).
-          await sj(page, 'sj.gpu(false)');
-          if (engine) expect(await sj<string>(page, 'sj.renderer.fxLevel'), 'the new path runs with no effects').toBe('none');
-          await advance(page, 700);
-          expect(await sj<string>(page, 'sj.top()')).toBe('TitleScene');
-          const png = await page.screenshot();
-          writeFileSync(`${OUT}/${engine ? 'sje' : 'old'}-title-k${k}.png`, png);
-          expect(g.problems).toEqual([]);
-          return decode(png);
-        } finally {
-          await g.close();
-        }
-      };
-      const old = await take(false);
-      const neu = await take(true);
-      expect([neu.w, neu.h]).toEqual([W * k, H * k]);
-      expect([old.w, old.h]).toEqual([W * k, H * k]);
+    test(`ratio ${k}: the title has no uneven block, and its middle block holds a picture`, async ({ browser }) => {
+      // A deterministic run (fake clock, seeded random), so the animated title is the same on every run.
+      const g = await openGame(browser, { viewport: viewportFor(k), fakeClock: true });
+      try {
+        const { page } = g;
+        expect(await waitUntil(page, 'sj.game.stack.length > 0', 30_000)).toBe(true);
+        // No effects: the base picture, as the block test always judged it. The effects have their own pixel tests (e2e/sje-fx.spec.ts).
+        await sj(page, 'sj.gpu(false)');
+        expect(await sj<string>(page, 'sj.renderer.fxLevel'), 'the page runs with no effects').toBe('none');
+        await advance(page, 700);
+        expect(await sj<string>(page, 'sj.top()')).toBe('TitleScene');
+        const png = await page.screenshot();
+        writeFileSync(`${OUT}/sje-title-k${k}.png`, png);
+        expect(g.problems).toEqual([]);
+        const neu = decode(png);
+        expect([neu.w, neu.h]).toEqual([W * k, H * k]);
 
-      // The block: 64x64 GAME pixels, so 64k device pixels. Where the title has its picture: the middle of the screen.
-      const bx = (W / 2 - 32) * k;
-      const by = (H / 2 - 32) * k;
-      const block = sameRect(old, neu, bx, by, 64 * k, 64 * k);
-      expect(block.colors, 'the block holds a picture, not a flat color').toBeGreaterThan(6);
-      expect(block.same, `ratio ${k}: the 64x64 block is pixel-equal`).toBe(true);
-      // Control: the old block against the new picture one game pixel to the side is not equal. The check can fail.
-      expect(sameRect(old, neu, bx, by, 64 * k, 64 * k, bx + k, by).same, 'control: the old block against the new picture shifted by one game pixel differs').toBe(false);
+        // The block: 64x64 GAME pixels, so 64k device pixels, where the title has its picture: the middle of the screen. Control: it is not a flat color.
+        const bx = (W / 2 - 32) * k;
+        const by = (H / 2 - 32) * k;
+        expect(sameRect(neu, neu, bx, by, 64 * k, 64 * k).colors, 'the block holds a picture, not a flat color').toBeGreaterThan(6);
 
-      // The whole picture.
-      const all = diff(old, neu);
-      console.log(`SJE shell, ratio ${k}: the title differs from the old path in ${all.differing} of ${old.w * old.h} pixels (${(all.ratio * 100).toFixed(4)}%)`);
-      expect(all.ratio).toBeLessThanOrEqual(0.001);
-
-      // No uneven block anywhere in the new picture. Control: read the same picture at another ratio and the blocks are uneven.
-      expect(unevenBlocks(neu, k, 0, 0, W, H), `ratio ${k}: uneven blocks`).toBe(0);
-      const wrong = k + 1;
-      expect(unevenBlocks(neu, wrong, 0, 0, Math.floor((W * k) / wrong) - 1, Math.floor((H * k) / wrong) - 1), 'control: a wrong ratio finds uneven blocks').toBeGreaterThan(0);
+        // No uneven block anywhere in the picture. Control: read the same picture at another ratio and the blocks are uneven.
+        expect(unevenBlocks(neu, k, 0, 0, W, H), `ratio ${k}: uneven blocks`).toBe(0);
+        const wrong = k + 1;
+        expect(unevenBlocks(neu, wrong, 0, 0, Math.floor((W * k) / wrong) - 1, Math.floor((H * k) / wrong) - 1), 'control: a wrong ratio finds uneven blocks').toBeGreaterThan(0);
+      } finally {
+        await g.close();
+      }
     });
   }
 
-  test('control for the whole-picture check: the old title against a different screen (the field) differs by far more than 0.1%', async ({ browser }) => {
-    const g = await openGame(browser, { engine: false, viewport: viewportFor(2) });
-    try {
-      const { page } = g;
-      await sj(page, 'sj.gpu(false)');
-      expect(await waitTop(page, 'TitleScene')).toBe(true);
-      await page.waitForTimeout(700);
-      const title = decode(await page.screenshot());
-      await sj(page, "sj.stage('town')");
-      expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
-      await page.waitForTimeout(500);
-      const field = decode(await page.screenshot());
-      expect(diff(title, field).ratio).toBeGreaterThan(0.1);
-    } finally {
-      await g.close();
-    }
-  });
-
   test('context loss and restore returns to the same frame; ticks that ran while the context was lost give another frame (the control)', async ({ browser }) => {
-    const g = await openGame(browser, { engine: true, allow: [LOSS_NOISE] });
+    const g = await openGame(browser, { allow: [LOSS_NOISE] });
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);
@@ -218,7 +178,7 @@ test.describe('the real game on the new engine', () => {
   });
 
   test('entering and leaving a legacy scene 10 times leaves the GL object counts flat; a scene that leaks on purpose makes them grow', async ({ browser }) => {
-    const g = await openGame(browser, { engine: true });
+    const g = await openGame(browser, {});
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);
@@ -271,7 +231,7 @@ test.describe('the real game on the new engine', () => {
   });
 
   test('the DEV hook has its members; gpu(on) sets fxLevel; the options list has no scaling row', async ({ browser }) => {
-    const g = await openGame(browser, { engine: true });
+    const g = await openGame(browser, {});
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);
@@ -299,7 +259,6 @@ test.describe('the real game on the new engine', () => {
 
   test('a browser without WebGL2 shows the "failed to start" text, not a blank page', async ({ browser }) => {
     const g = await openGame(browser, {
-      engine: true,
       // The page logs the failure on purpose (console.error); that is the expected output of this test.
       allow: [/./],
       init: () => {

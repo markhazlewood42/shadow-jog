@@ -238,7 +238,7 @@ const LIVE_UPLOADS_MAX = 6; // measured 4 canvas uploads (3 waiting for orders: 
 test.describe('the shipped battle on the stage: draw calls, uploads and leaks', () => {
   test('a battle frame with the stage, the HUD, the effects of the battle and the whole effect stack stays inside the budgets; 10 battle enter and exit cycles leave the GL counts flat (control: a battle open holds more objects than none)', async ({ browser }) => {
     test.setTimeout(240_000);
-    const g = await openGame(browser, { engine: true, query: '&fx=full', init: installGlCounters });
+    const g = await openGame(browser, { query: '&fx=full', init: installGlCounters });
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);
@@ -329,7 +329,7 @@ const FIELD_UPLOAD_BYTES_MAX = 8_000_000; // measured 6.8 MB, 5.6 MB, 3.7 MB a f
 test.describe('the shipped field on the stage: draw calls, binds and uploads', () => {
   test('a field frame (baked layers, props, actors, lights, haze, weather, the whole effect stack) stays inside the budgets on the town, the world map and an interior; the control exceeds them', async ({ browser }) => {
     test.setTimeout(240_000);
-    const g = await openGame(browser, { engine: true, query: '&fx=full', init: installGlCounters });
+    const g = await openGame(browser, { query: '&fx=full', init: installGlCounters });
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);

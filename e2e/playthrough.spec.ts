@@ -21,7 +21,7 @@ test('Chapter 1 can be played start to finish', async ({ page }) => {
   await waitFor(page, "sj.top() === 'EndingScene'", 'results screen', 120_000);
   await page.waitForTimeout(2600);
   // Rewrites the tracked doc picture only on request (SJ_UPDATE_SHOTS=1); a normal run keeps the tree clean.
-  await page.locator('#screen').screenshot({ path: process.env.SJ_UPDATE_SHOTS ? 'docs/screenshots/24c-ending-results-driven-test-run.png' : 'test-results/24c-ending-results-driven-test-run.png' });
+  await page.locator('canvas').first().screenshot({ path: process.env.SJ_UPDATE_SHOTS ? 'docs/screenshots/24c-ending-results-driven-test-run.png' : 'test-results/24c-ending-results-driven-test-run.png' });
   await waitFor(page, "sj.top() === 'TitleScene'", 'back to title', 60_000);
   expect(errors).toEqual([]);
 });

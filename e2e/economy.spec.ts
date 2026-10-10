@@ -213,7 +213,7 @@ test('the camera at the four corners of every scrolling map rests on the clamp a
       expect(cam, `${map} ${name}`).toEqual({ x: wantX, y: wantY });
       if (mw > W && !box) expect(cam.x >= 0 && cam.x + W <= mw, `${map} ${name}: the view is inside the map across`).toBe(true);
       if (mh > H && !box) expect(cam.y >= 0 && cam.y + H <= mh, `${map} ${name}: the view is inside the map down`).toBe(true);
-      if (shots) await page.locator('#screen').screenshot({ path: `${shots}/${map}-${name}.png` });
+      if (shots) await page.locator('canvas').first().screenshot({ path: `${shots}/${map}-${name}.png` });
     }
     await sj(page, '(sj.field().camOverride = null, true)');
   }

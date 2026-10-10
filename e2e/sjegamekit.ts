@@ -1,5 +1,5 @@
 /**
- * Shared helpers for the specs that run the REAL game on the new engine (`/?engine=sje`): e2e/sje-shell.spec.ts and e2e/sje-bench.spec.ts.
+ * Shared helpers for the specs that run the REAL game (the new engine is the only engine since M6): e2e/sje-shell.spec.ts and e2e/sje-bench.spec.ts.
  * The lab page has its own kit (e2e/sjelabkit.ts).
  */
 import type { Browser, Page } from '@playwright/test';
@@ -13,8 +13,6 @@ export interface GamePage {
 }
 
 export interface OpenGameOptions {
-  /** `true`: `/?engine=sje&debug` (the new engine). `false`: `/?debug` (the old path). */
-  engine: boolean;
   viewport?: { width: number; height: number };
   dpr?: number;
   /** Extra query text, for example `&scene=...`. */
@@ -44,7 +42,7 @@ const ALWAYS_ALLOWED = [
 const CLOCK = Date.UTC(2026, 9, 6, 12, 0, 0);
 const RANDOM_SEED = 0x5eed;
 
-export async function openGame(browser: Browser, opts: OpenGameOptions): Promise<GamePage> {
+export async function openGame(browser: Browser, opts: OpenGameOptions = {}): Promise<GamePage> {
   const context = await browser.newContext({ viewport: opts.viewport ?? { width: 1280, height: 720 }, deviceScaleFactor: opts.dpr ?? 1 });
   const page = await context.newPage();
   const problems: string[] = [];
@@ -73,7 +71,7 @@ export async function openGame(browser: Browser, opts: OpenGameOptions): Promise
     }, opts.seed ?? RANDOM_SEED);
   }
   if (opts.init) await page.addInitScript(opts.init);
-  await page.goto(`/?${opts.engine ? 'engine=sje&' : ''}debug${opts.query ?? ''}`);
+  await page.goto(`/?debug${opts.query ?? ''}`);
   return { page, problems, close: () => context.close() };
 }
 

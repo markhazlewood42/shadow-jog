@@ -165,7 +165,7 @@ async function pick(page: Page, label: string, list = 'main'): Promise<void> {
 }
 
 async function shot(page: Page, name: string): Promise<void> {
-  await page.locator('#screen').screenshot({ path: `${OUT}/${name}.png` });
+  await page.locator('canvas').first().screenshot({ path: `${OUT}/${name}.png` });
 }
 
 test.describe.configure({ mode: 'serial' });

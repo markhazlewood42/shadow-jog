@@ -7,7 +7,7 @@
  * that the measuring works, but only the stuck-loop rule of the speed line applies, and the numbers it prints are labeled SOFTWARE. Those are not
  * GPU numbers. The GPU line of pass line 10 needs a run on Mark's machine.
  *
- * What it measures, in one page (`/?engine=sje`), with the game's own loop stopped and the test driving ticks and draws frame by frame:
+ * What it measures, in one page (`/?debug`), with the game's own loop stopped and the test driving ticks and draws frame by frame:
  *   A  the title alone, effects off (`?fx=none`): one legacy canvas (`CanvasImage`, 921,600 bytes) uploaded each frame.
  *   B  two drawn legacy scenes (a transparent probe over the title): two canvases uploaded. A third is the line the design worries about.
  *   C  A plus 1,000 `ImageObject`s moved by the wrapper (x and y setters, with the pixel snap) every tick.
@@ -121,7 +121,7 @@ test.describe('M1 bench (local only, real GPU)', () => {
 
   test(`the real game with ${OBJECTS} objects: wrapper cost, canvas uploads, draw calls, binds, the speed line`, async ({ browser }) => {
     test.setTimeout(240_000);
-    const g = await openGame(browser, { engine: true, init: installGlCounters, query: '&fx=none' });
+    const g = await openGame(browser, { init: installGlCounters, query: '&fx=none' });
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);
@@ -282,7 +282,7 @@ test.describe('M1 bench (local only, real GPU)', () => {
 
   test('the title with the effects on (fx full): uploads are the scene canvas plus the UI canvas (plus glow when used), and the speed line', async ({ browser }) => {
     test.setTimeout(120_000);
-    const g = await openGame(browser, { engine: true, init: installGlCounters, query: '&fx=full' });
+    const g = await openGame(browser, { init: installGlCounters, query: '&fx=full' });
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);
@@ -332,7 +332,7 @@ test.describe('M1 bench (local only, real GPU)', () => {
   });
   test('a live battle on the stage (fx full, 640 set, HUD and effects): the speed line, uploads, draws and binds', async ({ browser }) => {
     test.setTimeout(240_000);
-    const g = await openGame(browser, { engine: true, init: installGlCounters, query: '&fx=full' });
+    const g = await openGame(browser, { init: installGlCounters, query: '&fx=full' });
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);
@@ -423,7 +423,7 @@ test.describe('M1 bench (local only, real GPU)', () => {
   });
   test('the field on the stage, world map (fx full, 640 set, the whole effect stack): the speed line, uploads, draws and binds', async ({ browser }) => {
     test.setTimeout(240_000);
-    const g = await openGame(browser, { engine: true, init: installGlCounters, query: '&fx=full' });
+    const g = await openGame(browser, { init: installGlCounters, query: '&fx=full' });
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);

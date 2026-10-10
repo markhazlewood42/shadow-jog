@@ -4,7 +4,7 @@
  *
  * REGRESSION PARITY. A state is a map, a tile, a story-flag preset with a few flags changed, the ambient, the weather, the seed and the field tick
  * (`tests/fixtures/sjefield/cases.json`: all 15 maps, plus day and night, rain on and off, flags, a seed, the camera at the corners of the world map, the banner, and the full
- * effect stack on a GPU). The REFERENCES are pictures of the LEGACY path (the game without `?engine=sje`: the Canvas 2D field), made by `e2e/sje-field-refs.spec.ts` in two
+ * effect stack on a GPU). The REFERENCES are pictures of the LEGACY path (the Canvas 2D field that M6 deleted), made at M5 by `e2e/sje-field-refs.spec.ts` (removed in M6; it is in git history) in two
  * kinds, `gpu` (a hardware browser) and `soft` (SwiftShader, what CI runs). This spec puts the new path in the same state on a page with a fake clock, to the same field tick,
  * and compares what the player sees (the window at zoom 2) with the reference of its kind.
  *
@@ -40,7 +40,7 @@ function maskOf(id: string): Uint8Array {
   const soft = readRef('soft', id);
   // A state the old path cannot draw on software GL (the full effect stack) has a `gpu` reference only: no second renderer to tell which pixels depend on the renderer, so no pixel is excused.
   if (gpu && !soft && CASES.find((c) => c.id === id)?.kinds?.join() === 'gpu') return new Uint8Array(gpu.w * gpu.h);
-  if (!gpu || !soft) throw new Error(`the references of ${id} are missing: M5_REFS=1 npx playwright test e2e/sje-field-refs.spec.ts (once with CI=1, once without)`);
+  if (!gpu || !soft) throw new Error(`the references of ${id} are missing (the old field is gone: check out the commit before M6 and run M5_REFS=1 npx playwright test e2e/sje-field-refs.spec.ts, once with CI=1, once without)`);
   return rendererMask([{ gpu, soft }]);
 }
 
@@ -61,7 +61,7 @@ test.describe('field parity: the inputs', () => {
   test('every input of the references is pinned, and every map of the game has a state', () => {
     const manifest = JSON.parse(readFileSync(join(DIR, 'manifest.json'), 'utf8')) as { inputs: Record<string, string> };
     const changed = INPUTS.filter((f) => manifest.inputs[f] !== pinOf(f));
-    expect(changed, `these map files changed since the references were made: make the references again (M5_REFS=1 npx playwright test e2e/sje-field-refs.spec.ts, once with CI=1 and once without)\n  ${changed.join('\n  ')}`).toEqual([]);
+    expect(changed, `these map files changed since the references were made: make the references again (the old field is gone: check out the commit before M6 and run M5_REFS=1 npx playwright test e2e/sje-field-refs.spec.ts, once with CI=1 and once without)\n  ${changed.join('\n  ')}`).toEqual([]);
     const ids = readdirSync(join(ROOT, 'src', 'data', 'maps'))
       .filter((f) => f.endsWith('.json'))
       .map((f) => f.slice(0, -5))
@@ -76,7 +76,7 @@ test.describe('field parity: the new field against the old one', () => {
   test.setTimeout(240_000);
   for (const c of CASES) {
     test(`${c.id}: ${c.note}`, async ({ browser }) => {
-      const s = await shoot(browser, c, true);
+      const s = await shoot(browser, c);
       try {
         const kind: RendererKind = await rendererKind(s.page.page);
         test.skip(!!c.kinds && !c.kinds.includes(kind), `${c.id} has no ${kind} reference: the old path cannot draw it on this kind of renderer`);
@@ -113,7 +113,7 @@ test.describe('field parity: the bounds can fail (controls)', () => {
   for (const id of ['lantern_row', 'bar']) {
     test(`${id}: a 2/255 step is rejected`, async ({ browser }) => {
       const c = base(id);
-      const s = await shoot(browser, c, true);
+      const s = await shoot(browser, c);
       try {
         const kind = await rendererKind(s.page.page);
         const ref = readRef(kind, id);
@@ -129,7 +129,7 @@ test.describe('field parity: the bounds can fail (controls)', () => {
     });
 
     test(`${id}: an actor one pixel off is rejected`, async ({ browser }) => {
-      const s = await shoot(browser, base(id), true, { nudge: { px: 1, py: 0 } });
+      const s = await shoot(browser, base(id), { nudge: { px: 1, py: 0 } });
       try {
         const kind = await rendererKind(s.page.page);
         const ref = readRef(kind, id);
@@ -143,7 +143,7 @@ test.describe('field parity: the bounds can fail (controls)', () => {
     });
 
     test(`${id}: a wrong light radius is rejected`, async ({ browser }) => {
-      const s = await shoot(browser, base(id), true, { lightScale: 1.1 });
+      const s = await shoot(browser, base(id), { lightScale: 1.1 });
       try {
         const kind = await rendererKind(s.page.page);
         const ref = readRef(kind, id);

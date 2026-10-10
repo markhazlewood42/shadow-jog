@@ -2,6 +2,10 @@
  * Losing and saving: every Game Over choice, and a real localStorage save that survives a reload.
  */
 import { expect, test, type Page } from '@playwright/test';
+import { E5_TEXT, expectE5Contract, skipGameFlowOnFirefox } from './webgl2kit';
+
+// Firefox on CI has no WebGL 2: it meets the E5 message, not a game (the E5 test at the end).
+skipGameFlowOnFirefox();
 
 async function sj<T = unknown>(page: Page, fn: string): Promise<T> {
   return page.evaluate(`(async () => { const sj = window.__SJ__; return ${fn}; })()`) as Promise<T>;
@@ -239,8 +243,8 @@ test('Autosave never overwrites an autosave written by a newer version', async (
   expect((await sj<{ text: string } | null>(page, 'sj.notice()'))?.text).toContain('newer version');
 });
 
-test('A browser that can’t start the game says so, instead of a black screen', async ({ page }) => {
-  // No 2D canvas (a locked-down or broken browser): the display can't be built at boot.
+test('Cannot start: a browser that can’t make a canvas context says so, instead of a black screen', async ({ page }) => {
+  // No canvas context at all (a locked-down or broken browser): the renderer can't be built at boot.
   await page.addInitScript(() => {
     HTMLCanvasElement.prototype.getContext = () => null;
   });
@@ -250,6 +254,7 @@ test('A browser that can’t start the game says so, instead of a black screen',
   await expect(boot).toBeVisible();
   await expect(boot).toHaveClass(/error/);
   await expect(boot).toContainText('failed to start');
+  await expect(boot).toContainText(E5_TEXT);
 });
 
 test('Title: Load says a newer-version save is from a newer version (not damaged) and refuses it', async ({ page }) => {
@@ -347,4 +352,8 @@ test('Save point: the save screen asks before replacing a newer-version slot', a
   const after = await slot1(page);
   expect(after).not.toBe(NEWER_SAVE);
   expect(JSON.parse(after!).state.version).toBeLessThan(4);
+});
+
+test('E5: a browser without WebGL 2 shows the message and no game; one with WebGL 2 shows no message', async ({ page }) => {
+  await expectE5Contract(page, '/?debug');
 });

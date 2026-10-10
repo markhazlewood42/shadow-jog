@@ -1,6 +1,6 @@
 /**
  * M2 "Effects": the screen effects of the new engine, drawn and read back in a browser (docs/engine/m2-brief.md pass lines 3, 4, 5 and 16).
- * Runs in CI on the bundled Chromium with SwiftShader (software GL), with the level forced: `?engine=sje&fx=full`.
+ * Runs in CI on the bundled Chromium with SwiftShader (software GL), with the level forced: `?fx=full`.
  *
  * The picture under test is a probe scene: a static, opaque, colorful checkerboard (so a push, a split or a dim shows), a white "glow" rectangle in the
  * glow layer and a green rectangle in the UI layer. The game loop is frozen (`game.speed = 0`), so a frame changes only when the test asks.
