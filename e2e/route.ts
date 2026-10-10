@@ -23,7 +23,7 @@ export async function waitFor(page: Page, expr: string, label: string, timeout =
 }
 
 const waitIdle = (page: Page) => waitFor(page, 'sj.idle()', 'field idle');
-const waitFlag = (page: Page, f: string) => waitFor(page, `sj.state.flags['${f}']`, `flag ${f}`);
+const waitFlag = (page: Page, f: string, timeout = route.timeout) => waitFor(page, `sj.state.flags['${f}']`, `flag ${f}`, timeout);
 
 async function tp(page: Page, map: string, x: number, y: number, dir: Dir): Promise<void> {
   await waitIdle(page);
@@ -114,5 +114,7 @@ export async function playChapter1(page: Page, beforeEnding?: () => Promise<void
   await beforeEnding?.();
   await tp(page, 'annex', 38, 31, 'down');
   await press(page, 'ArrowDown');
-  await waitFlag(page, 'chapter_end');
+  // The betrayal at the dock is a cutscene of lingering dialogs (the driver's playtest mode counts game frames, not seconds): about 25 s on a fast machine, so
+  // the usual 30 s beat limit left almost no room on CI's slower runner. The wait is on the flag, with a bound that has room.
+  await waitFlag(page, 'chapter_end', Math.max(route.timeout, 120_000));
 }
