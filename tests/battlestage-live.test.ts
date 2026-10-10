@@ -312,8 +312,12 @@ describe('the stage follows the battle (live.ts)', () => {
     expect(d.hud.builds).toBeGreaterThanOrEqual(1);
     // The draw order follows the feet.
     for (const a of d.figures) for (const b of d.figures) if (a.y < b.y) expect(d.order.indexOf(a.id)).toBeLessThan(d.order.indexOf(b.id));
+    // The pictures made for the HUD and the numbers are there while the stage is (control), and none outlives it.
+    const transient = () => scene.textures.getTextureKeys().filter((k) => /^(txt-|win-|chip-|face-|num-|bartag-)/.test(k));
+    expect(transient().length).toBeGreaterThan(5);
     scene.close();
     expect(liveStage()).toBeNull();
+    expect(transient()).toEqual([]);
   });
 
   it('a figure takes its look from the display state: alpha, lunge, hop, shake, the blink; a figure whose state is at rest stays at rest (control)', () => {

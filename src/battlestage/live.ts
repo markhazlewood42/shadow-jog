@@ -29,9 +29,11 @@ import { SCREEN_H, SCREEN_W } from './config';
 import { Hud, type HudFaces, type HudGeo } from './hud';
 import { liveView, viewSignature } from './liveview';
 import { LiveNumbers } from './livenumbers';
-import { FX_DEPTH, HERO_HIT_TINT, HIT_FLASH, DOWN_ALPHA, WASH, WASH_DEPTH } from './liveparams';
+import { DOWN_ALPHA, FX_DEPTH, HERO_HIT_TINT, HIT_FLASH, NUMBER_PREFIX, WASH, WASH_DEPTH } from './liveparams';
 import { BattleStageScene, type BattleStageInit } from './stagescene';
-import { faceTexture } from './textures';
+import { TEXT_PREFIX, WINDOW_PREFIX } from './hudkit';
+import { CHIP_PREFIX } from './hudcolours';
+import { faceTexture, PREFIX, pruneTextures } from './textures';
 import type { Figure } from './figure';
 import type { HudView } from './demo';
 
@@ -40,6 +42,10 @@ export const STAGE_PER_WORLD = SCREEN_W / BW;
 
 /** Glyph effects (spell runes, numbers) are drawn with the game's font, no shadow, as the old picture did. */
 const glyph = (c: CanvasRenderingContext2D, ch: string, x: number, y: number, col: string): void => void drawText(c, ch, x, y, { color: col, shadow: false });
+
+/** The texture-name prefixes of pictures made on demand for one battle, and no longer needed after it. */
+const TRANSIENT_PREFIXES = [TEXT_PREFIX, WINDOW_PREFIX, CHIP_PREFIX, PREFIX.face, NUMBER_PREFIX, 'bartag-'] as const;
+const NONE: ReadonlySet<string> = new Set();
 
 /** The current stage, for the DEV hook and the tests (null when no battle is on). */
 let current: LiveStageScene | null = null;
@@ -109,6 +115,8 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
     this.events.on('prerender', this.draw, this);
     this.events.once('shutdown', () => {
       if (current === this) current = null;
+      // The pictures the HUD and the numbers made (text, windows, chips, faces) are made again when a battle needs them: none outlives the stage.
+      for (const prefix of TRANSIENT_PREFIXES) pruneTextures(this.textures, prefix, NONE);
       this.hud = null;
       this.numbers = null;
       this.fxImage = null;

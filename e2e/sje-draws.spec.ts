@@ -5,7 +5,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { glErrors, openProbe } from './sjefxkit';
-import { installGlCounters, sj } from './sjegamekit';
+import { installGlCounters, openGame, sj, waitTop, waitUntil } from './sjegamekit';
 import { openLab } from './sjelabkit';
 import { openStage } from './sjestagekit';
 
@@ -222,6 +222,100 @@ test.describe('battle stage: draw calls and framebuffer binds', () => {
       expect(lab.problems.filter((p) => !/GPU stall/.test(p))).toEqual([]);
     } finally {
       await lab.close();
+    }
+  });
+});
+
+/**
+ * The SHIPPED battle on the stage (M3 task 6, pass line 10): the real game under the flag with a battle on, at `full`: the stage, the figures, the HUD, the effects layer, the floating
+ * numbers, and the whole GPU effect stack on top. The numbers are the record (the console line); the bounds sit a little over them. What a frame draws is counted by the patch of
+ * `WebGL2RenderingContext.prototype` (hardware independent). Builder A's lab case above has the bare stage; this one adds what Builder B put on it.
+ */
+const LIVE_DRAWS_MAX = 26; // measured 20 with the stack on SwiftShader (18 waiting for orders)
+const LIVE_BINDS_MAX = 22; // measured 17
+const LIVE_UPLOADS_MAX = 6; // measured 4 canvas uploads (3 waiting for orders: the old UI canvas, the effects canvas, the glow layer)
+
+test.describe('the shipped battle on the stage: draw calls, uploads and leaks', () => {
+  test('a battle frame with the stage, the HUD, the effects of the battle and the whole effect stack stays inside the budgets; 10 battle enter and exit cycles leave the GL counts flat (control: a battle open holds more objects than none)', async ({ browser }) => {
+    test.setTimeout(240_000);
+    const g = await openGame(browser, { engine: true, query: '&fx=full', init: installGlCounters });
+    try {
+      const { page } = g;
+      expect(await waitTop(page, 'TitleScene')).toBe(true);
+      await sj(page, "sj.stage('town')");
+      expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
+      const start = async (): Promise<void> => {
+        await sj(page, "(sj.defineEncounter('m3d', ['rustfang_punk', 'glowrat', 'rustfang_punk']), sj.battle('m3d', 'street'))");
+        expect(await waitTop(page, 'BattleScene')).toBe(true);
+        expect(await waitUntil(page, 'sj.battleStage !== null', 30_000)).toBe(true);
+      };
+      const counts = () => sj<Record<string, number>>(page, '(() => { const c = sj.glCounts(); return { texture: c.texture, buffer: c.buffer, framebuffer: c.framebuffer, program: c.program, vao: c.vao }; })()');
+      const field = () => waitUntil(page, 'sj.top() === "FieldScene" && sj.battleStage === null', 60_000);
+
+      // The frame: first with the battle waiting on orders, then with the effects alive.
+      const before = await counts();
+      await start();
+      expect(await waitUntil(page, 'sj.game.top.mode === "round"', 60_000)).toBe(true);
+      await sj(page, '(sj.game.speed = 0, true)');
+      const measure = () =>
+        sj<{ draws: number; binds: number; uploads: number }>(
+          page,
+          `(() => { const w = window; sj.step(0); w.__gl = { draws: 0, binds: 0, uploads: 0, uploadBytes: 0 }; for (let i = 0; i < 10; i++) sj.step(0); return { draws: w.__gl.draws / 10, binds: w.__gl.binds / 10, uploads: w.__gl.uploads / 10 }; })()`,
+        );
+      const bare = await measure();
+      const open = await counts();
+      // The effects: the battle's own painters (a fire spell, numbers) and the GPU stack on top of them.
+      await sj(
+        page,
+        `(() => {
+          const t = sj.game.top;
+          const e = t.battle.enemies[0];
+          t.fx.play('fire_all', t.pos(0), t.battle.enemies.map((u) => t.pos(u.uid)));
+          t.floatOn(e.uid, '27', '#ffb23a', 'hit');
+          t.floatOn(e.uid, 'WEAK!', '#6ff3ff', 'label');
+          t.rate = 0;
+          const p = t.pos(e.uid);
+          sj.postfx.shock(200, 120, { strength: 6, reach: 90, life: 600, width: 10 });
+          sj.postfx.shock(420, 220, { strength: 6, reach: 90, life: 600, width: 10 });
+          sj.postfx.aberrate(4, 320, 180);
+          sj.postfx.haze(320, 180, { radius: 60, strength: 3, life: 600 });
+          sj.postfx.glitch(120, 250, { w: 100, h: 60, strength: 12, life: 600 });
+          sj.postfx.dim(0.4, 600);
+          sj.postfx.emit(sj.fx.presets.crit_sparks, 320, 180);
+          sj.step(6);
+          sj.game.speed = 0;
+          return p;
+        })()`,
+      );
+      const stack = await measure();
+      console.log(`SJE draws, shipped battle on the stage: waiting for orders ${JSON.stringify(bare)}; with the battle's effects and the whole stack ${JSON.stringify(stack)}`);
+      expect(await sj<boolean>(page, 'sj.battleStage.fxDrawn')).toBe(true);
+      expect(stack.draws, 'the stack draws more than the waiting frame (control: the counter sees the effects)').toBeGreaterThan(bare.draws);
+      expect(stack.draws, 'draw calls per frame').toBeLessThanOrEqual(LIVE_DRAWS_MAX);
+      expect(stack.binds, 'framebuffer binds per frame').toBeLessThanOrEqual(LIVE_BINDS_MAX);
+      expect(stack.uploads, 'canvas uploads per frame').toBeLessThanOrEqual(LIVE_UPLOADS_MAX);
+
+      // Leave the fight, then enter and leave ten more times: the GL object counts are flat. A battle that is open holds more objects than none (the counter sees the stage).
+      await sj(page, "(sj.game.speed = 1, sj.postfx.clear && sj.postfx.clear(), sj.game.top.close('run'), true)");
+      expect(await field()).toBe(true);
+      // The counter sees the stage: the field before any battle held fewer textures than the open battle (the pictures stay cached by key after it closes, so the flat counts below are about leaks, not about caching).
+      expect(open.texture, 'control: an open battle holds more textures than the field before it').toBeGreaterThan(before.texture ?? 0);
+      await sj(page, '(sj.debug.autoBattle = true)');
+      const cycle = async (n: number): Promise<Record<string, number>> => {
+        for (let i = 0; i < n; i++) {
+          await start();
+          expect(await field()).toBe(true);
+        }
+        return counts();
+      };
+      await cycle(3);
+      const base = await cycle(1);
+      const after = await cycle(10);
+      console.log(`SJE draws, shipped battle on the stage: GL objects after the warm-up ${JSON.stringify(base)}, after 10 more cycles ${JSON.stringify(after)}`);
+      expect(after, '10 battle enter and exit cycles leave the GL object counts flat').toEqual(base);
+      expect(g.problems).toEqual([]);
+    } finally {
+      await g.close();
     }
   });
 });
