@@ -3,7 +3,7 @@
  * Phaser spike's page. A test sets the tick, the seed and the sprite mode (`show`), then reads the back buffer as raw RGBA (`pixels`) or as
  * a hash (`hash`). Everything that compares pictures with each other runs in the test (Node): the references come from a different page.
  */
-import { H, type Pixels, Scene, W } from '../sje';
+import { type FxCounts, H, type Pixels, Scene, W } from '../sje';
 import type { FigureParts } from '../battlestage/figure';
 import type { GlCounts } from './glcounter';
 import { readGlCounts } from './glcounter';
@@ -35,8 +35,16 @@ export interface StageHook {
   png(scale?: number): string;
   /** Where the 480x270 picture sits in the canvas, and the canvas's size, both in device pixels. */
   picture(): { x: number; y: number; w: number; h: number; k: number; canvasW: number; canvasH: number };
-  /** Count the k-by-k blocks of the CANVAS (what the player sees) that are not one flat colour. */
-  canvasBlocks(): BlockStats;
+  /** Count the k-by-k blocks of the CANVAS (what the player sees) that are not one flat colour. `wrongRatio` counts blocks one device pixel bigger: a control, which must find uneven blocks. */
+  canvasBlocks(wrongRatio?: boolean): BlockStats;
+  /** The effects now (the DEV hook of the effects, `FxSystem.counts`). */
+  fxCounts(): FxCounts;
+  /** Set the effects level now (`none`, `lite`, `full`, `auto`). */
+  setFxLevel(level: 'none' | 'lite' | 'full' | 'auto'): void;
+  /** Put every kind of effect over the stage (shocks, haze, glitches, particles, dim) and run `ticks` ticks; resolves with what is alive. The stage's own scene keeps running. */
+  fxRaise(ticks?: number): FxCounts;
+  /** Drop every effect in flight. */
+  fxClear(): void;
   /** The same count for a picture the test took of the page (a Playwright screenshot as a data URL). `region` is the canvas's place in it, in device pixels. */
   imageBlocks(dataUrl: string, k: number, region?: { x: number; y: number; w: number; h: number }): Promise<BlockStats>;
   /** What the figures look like to the display list: depth, feet, parts. Party first, then enemies. */
@@ -143,11 +151,28 @@ export function installStageHook(lab: StageLab): StageHook {
       const c = renderer.presenter.canvasSize;
       return { x: p.x, y: p.y, w: p.w, h: p.h, k: p.k, canvasW: c.w, canvasH: c.h };
     },
-    canvasBlocks() {
+    canvasBlocks(wrongRatio = false) {
       // Draw and read in the same task: a WebGL canvas is only valid until the browser paints it.
       game.draw();
-      return countBlocks(renderer.presenter.readCanvas(), renderer.presenter.k);
+      return countBlocks(renderer.presenter.readCanvas(), renderer.presenter.k + (wrongRatio ? 1 : 0));
     },
+    fxCounts: () => game.fx.counts(),
+    setFxLevel(level) {
+      game.fxLevel = level;
+    },
+    fxRaise(ticks = 10) {
+      const fx = game.fx;
+      fx.clear();
+      // Moments of fx.json laid over the stage: a cast, a crit, a shock, a glitch. Together they raise shocks, haze, glitches and particles.
+      fx.playMoment('spell.fire', 150, 140);
+      fx.playMoment('crit', 300, 120);
+      fx.playMoment('hit.shock', 380, 170);
+      fx.playMoment('spell.glitch', 110, 200);
+      fx.playMoment('cast.code', 240, 90);
+      game.step(ticks);
+      return fx.counts();
+    },
+    fxClear: () => game.fx.clear(),
     async imageBlocks(dataUrl, k, region) {
       const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
       const c = document.createElement('canvas');

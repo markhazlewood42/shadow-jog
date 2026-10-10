@@ -7,6 +7,7 @@ import { expect, test } from '@playwright/test';
 import { glErrors, openProbe } from './sjefxkit';
 import { installGlCounters, sj } from './sjegamekit';
 import { openLab } from './sjelabkit';
+import { openStage } from './sjestagekit';
 
 /** What the design budgets per frame (tooling-and-testing.md section 7, "Performance budget"; proposed, M1 sets the real gate). */
 const DRAW_CALLS_MAX = 60;
@@ -173,6 +174,54 @@ test.describe('engine lab: draw calls and framebuffer binds', () => {
       expect(g.problems).toEqual([]);
     } finally {
       await g.close();
+    }
+  });
+});
+
+/** The battle stage frame (M3), at `full` with the effect stack alive: what a frame may draw, as an upper bound. The M3 builder A numbers (the stage slice and the five moments of fxRaise, not the HUD or the battle fx painters of builder B): see the console line of the test. */
+const BATTLE_DRAWS_MAX = 16; // measured 13 on SwiftShader and on the GPU (bare stage frame: 3)
+const BATTLE_BINDS_MAX = 20; // measured 17 (bare stage frame: 4)
+
+test.describe('battle stage: draw calls and framebuffer binds', () => {
+  test('a battle frame (the stage, two figures, the whole effect stack) stays inside the draw-call and bind budgets (counted by a patch of WebGL2RenderingContext.prototype); 10 enter and exit cycles leave the GL counts flat, and a leak on purpose does not', async ({ browser }) => {
+    const lab = await openStage(browser, { query: 'manual&fx=full', countGl: true });
+    try {
+      const { page } = lab;
+      const out = await page.evaluate(async () => {
+        const h = window.__SJESTAGE__;
+        if (!h) throw new Error('no hook');
+        const w = window as unknown as { __gl: { draws: number; binds: number } };
+        const measure = (n: number) => {
+          h.render(); // one frame to settle
+          w.__gl = { draws: 0, binds: 0 };
+          for (let i = 0; i < n; i++) h.render();
+          return { draws: w.__gl.draws / n, binds: w.__gl.binds / n };
+        };
+        await h.show({ tick: 41, sprites: 'standins' });
+        h.fxClear();
+        const bare = measure(10);
+        h.fxRaise(10);
+        const stack = measure(10);
+        h.fxClear();
+        // The cycle: a battle scene enters (the stage, its figures, its shadows and rings) and leaves. Warm up first: the first cycles make the cached pictures.
+        await h.reenter(4);
+        const base = h.glCounts();
+        await h.reenter(10);
+        const after = h.glCounts();
+        h.leakOnPurpose(6);
+        const leaked = h.glCounts();
+        return { bare, stack, base, after, leaked };
+      });
+      console.log(`SJE draws, battle stage: bare frame ${JSON.stringify(out.bare)}; full effect stack ${JSON.stringify(out.stack)}; GL objects after the warm-up ${JSON.stringify(out.base)}, after 10 more cycles ${JSON.stringify(out.after)}`);
+      expect(out.bare.draws, 'the counter sees the stage').toBeGreaterThan(0);
+      expect(out.stack.draws, 'the stack draws more than the bare frame (control: the counter sees the effects)').toBeGreaterThan(out.bare.draws);
+      expect(out.stack.draws, 'draw calls per battle frame with the full effect stack').toBeLessThanOrEqual(BATTLE_DRAWS_MAX);
+      expect(out.stack.binds, 'framebuffer binds per battle frame with the full effect stack').toBeLessThanOrEqual(BATTLE_BINDS_MAX);
+      expect(out.after, '10 enter and exit cycles leave the GL object counts flat').toEqual(out.base);
+      expect(out.leaked.texture, 'control: leaking on purpose grows the texture count').toBeGreaterThan(out.after.texture ?? 0);
+      expect(lab.problems.filter((p) => !/GPU stall/.test(p))).toEqual([]);
+    } finally {
+      await lab.close();
     }
   });
 });

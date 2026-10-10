@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { deflateSync, gunzipSync } from 'node:zlib';
 import { type Browser, expect, type Page } from '@playwright/test';
-import { SIZE } from './sjelabkit';
+import { addGlCounter, SIZE } from './sjelabkit';
 import { changedInputs, H, pinMessage, rendererMask, W } from './sjestageparity';
 
 // The picture size under test is `SIZE` from sjelabkit.ts (640x360). `W` and `H` below are NOT it: they are the size of the PHASER references, always 480x270. The
@@ -41,6 +41,8 @@ export interface OpenOptions {
    * which is what Vite really sends for a path it does not have. The page must then find out by itself and use the stand-ins.
    */
   hideArt?: boolean;
+  /** Count draw calls and framebuffer binds of the WebGL2 context from before any script runs (`window.__gl`). */
+  countGl?: boolean;
 }
 
 /** Chrome's own performance hint when a page reads pixels back. Only the lab's test hook does that. */
@@ -61,6 +63,7 @@ export async function openStage(browser: Browser, opts: OpenOptions = {}): Promi
     problems.push(`${m.type()}: ${m.text()}`);
   });
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
+  if (opts.countGl) await addGlCounter(page);
   if (opts.hideArt) await page.route('**/spritefusion-tests/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>app</title>' }));
   const boot = async (): Promise<string | undefined> => {
     await page.goto(`/sjestage.html?${opts.query ?? 'manual'}`);

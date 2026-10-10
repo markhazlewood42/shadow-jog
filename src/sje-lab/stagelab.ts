@@ -11,6 +11,7 @@
  * effect stack on the stage (the crisp-pixel check of M3 pass line 5).
  */
 import { assert, type FxRequest, Game, type GameConfig, GlRenderer, H, must, W } from '../sje';
+import fxJson from '../data/fx.json';
 import { BattleStageScene, chooseSprites, haveMarksSheets, loadStageAssets, loadStageData, type SpriteChoice, type StageData } from '../battlestage';
 import { type FrameKind, SLICE, sliceInit } from '../battlestage/slice';
 import { installGlCounter } from './glcounter';
@@ -54,6 +55,9 @@ export async function startStageLab(): Promise<StageLab> {
   const input = { update: () => undefined, endFrame: () => undefined, consume: () => undefined } as unknown as GameConfig['input'];
   const game = await Game.create({ parent, input, dev: true, fxLevel: fx as FxRequest });
   assert(game.renderer instanceof GlRenderer, 'the stage lab needs the GL renderer');
+  // The moments of fx.json, so a test can play one by name (the real game loads them in src/sje/boot.ts).
+  const fxProblems = game.fx.loadData(fxJson);
+  if (fxProblems.length > 0) throw new Error(`src/data/fx.json is not valid: ${fxProblems.join('; ')}`);
   const renderer = game.renderer;
   const data = await loadStageData();
   // Whether Mark's sheets are there is asked once, without console noise; a missing folder is normal on CI.

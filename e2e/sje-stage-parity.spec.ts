@@ -656,3 +656,36 @@ test.describe('stage lab: scenes come and go without leaking', () => {
     );
   });
 });
+
+test.describe('stage lab: crisp pixels with the whole effect stack on (M3 pass line 5)', () => {
+  // The same count as above, with the effects at `full` and every kind of effect alive over the stage: shocks, haze, glitches, particles. The composite filter
+  // works at game resolution inside the back buffer, so no block may be uneven. At device pixel ratio 1 and 1.5.
+  for (const { dpr, viewport } of WINDOWS.filter((_, i) => i === 0 || i === 2)) {
+    const k = zoomFor(viewport, dpr);
+    test(`device pixel ratio ${dpr}: every ${k}x${k} block is one flat color with the effect stack on; a wrong ratio finds uneven blocks (control)`, async ({ browser }) => {
+      await withStage(
+        browser,
+        async ({ page }) => {
+          for (const tick of [0, 41, 173]) {
+            await page.evaluate((t) => window.__SJESTAGE__?.show({ tick: t, sprites: 'standins' }), tick);
+            const plain = await page.evaluate(() => window.__SJESTAGE__?.hash());
+            const alive = await page.evaluate(() => window.__SJESTAGE__?.fxRaise(10));
+            expect(await page.evaluate(() => window.__SJESTAGE__?.hash()), 'the effects change the picture (the test is not looking at a plain stage)').not.toBe(plain);
+            expect(alive?.level, 'the effects run at full').toBe('full');
+            expect((alive?.shocks ?? 0) + (alive?.hazes ?? 0) + (alive?.glitches ?? 0), `the effects are alive at tick ${tick}`).toBeGreaterThanOrEqual(2);
+            expect(alive?.particles, 'particles are alive').toBeGreaterThan(0);
+            const blocks = await page.evaluate(() => window.__SJESTAGE__?.canvasBlocks());
+            expect(blocks?.k).toBe(k);
+            expect(blocks?.blocks).toBe(SIZE.w * SIZE.h);
+            expect(blocks?.bad, `uneven ${k}x${k} blocks with the stack on at tick ${tick}, dpr ${dpr}: ${JSON.stringify(blocks?.samples)}`).toBe(0);
+            // The control: count blocks one device pixel bigger than the zoom. They straddle the game pixels, so some must be uneven.
+            const wrong = await page.evaluate(() => window.__SJESTAGE__?.canvasBlocks(true));
+            expect(wrong?.bad, 'control: a wrong ratio finds uneven blocks').toBeGreaterThan(0);
+            await page.evaluate(() => window.__SJESTAGE__?.fxClear());
+          }
+        },
+        { dpr, viewport, query: 'manual&fx=full' },
+      );
+    });
+  }
+});
