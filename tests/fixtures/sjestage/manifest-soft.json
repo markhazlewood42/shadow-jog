@@ -89,6 +89,7 @@
     "src/data/enemies.ts": "c8c93bcb264e4b06fdd2a6af8ecda7d2cf4e0cc82653261b7bcfb7bbcd3dbd7a",
     "src/data/enemies.json": "00da4549c198b0aec9e3bf1943d6c70c4078e52769907339a031ee3966e98126",
     "src/data/axes.json": "b1c1fff485a4a574c5a78d346a9f377a0870a498c4e305e4de8620e4c652d10c",
+    "src/data/sewerwall.json": "a438bfcc4f8894fd46ef362c5d7f8d2a54ef36493802806c0a9d02ffb035c019",
     "public/art/rig/battle.json": "2588f43c0f925e4b0569c730e0476b150ff5ba2d60641e79c999df5a13692aea",
     "public/art/rig/enemies.json": "31200e7819f0975b18fad11c18d69b9f5498265b8dcf6d80284b962273e0644a",
     "public/art/rig/field.json": "71b4ab199b41f0af529e9eab79b83cae758c9ad283cb7427d75a9498f6da19f3",

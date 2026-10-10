@@ -11,8 +11,24 @@
  * `wallId` in the stage config names a painter; today there is one, "sewer-sidewall". `paintWall` is the
  * lookup, so a future stage with its own wall adds one entry.
  */
+import wallsJson from '../data/sewerwall.json' with { type: 'json' };
 import { SCREEN_H, SCREEN_W, type ScreenSize } from './config';
 import { hexRgb, mix, newRaw, type Raw, type RGB, seeded, setRgb, getRgb, th } from './pixels';
+
+/** Where a wall puts its pillars and lamps: columns of the 480x270 picture it paints, from `src/data/sewerwall.json` (no layout number is written in this file). */
+interface WallLayout {
+  pillars: number[];
+  pillarGap: { center: number; halfWidth: number };
+  lamps: number[];
+}
+const LAYOUTS = (wallsJson as { walls: Record<string, WallLayout> }).walls;
+
+/** The layout data of the named wall. */
+function layoutOf(wallId: string): WallLayout {
+  const l = LAYOUTS[wallId];
+  if (!l) throw new Error(`No layout data for the wall "${wallId}" in src/data/sewerwall.json`);
+  return l;
+}
 
 /** The wall painters by id. */
 const PAINTERS: Record<string, (horizon: number) => Raw> = {
@@ -75,6 +91,7 @@ const C: Record<keyof typeof P, RGB> = Object.fromEntries(Object.entries(P).map(
 
 function sewerSideWall(h0: number): Raw {
   const img = newRaw(SCREEN_W, SCREEN_H, C.wall);
+  const layout = layoutOf('sewer-sidewall');
   const W = SCREEN_W;
   const put = (x: number, y: number, c: RGB): void => setRgb(img, x, y, c);
 
@@ -125,9 +142,9 @@ function sewerSideWall(h0: number): Raw {
   for (let y = gy1 + 2; y < h0 - 2; y++)
     for (let x = gx0 + 6; x < gx1 - 6; x++) if (th(x, y + (x % 3)) < 0.5) put(x, y, (x + y) % 5 === 0 ? C.glow : C.water3);
 
-  // Pillars (the old art's square ribs, now seen side-on), every 120 px.
-  for (const cx of [60, 180, 300, 420]) {
-    if (Math.abs(cx - 240) < 50) continue;
+  // Pillars (the old art's square ribs, now seen side-on), at the columns of the layout data.
+  for (const cx of layout.pillars) {
+    if (Math.abs(cx - layout.pillarGap.center) < layout.pillarGap.halfWidth) continue;
     for (let y = 8; y < h0 - 16; y++)
       for (let x = cx - 4; x < cx + 4; x++) {
         let c = x < cx + 2 ? C.beam : C.beamDk;
@@ -153,7 +170,7 @@ function sewerSideWall(h0: number): Raw {
   }
 
   // Wall lamps with an amber dithered glow.
-  for (const lx of [120, 360]) {
+  for (const lx of layout.lamps) {
     for (let y = 36; y < 70; y++)
       for (let x = lx - 22; x < lx + 23; x++) {
         const d = Math.hypot((x - lx) / 22, (y - 50) / 16);

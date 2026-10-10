@@ -1,5 +1,5 @@
 {
-  "why": "Every data file the stage slice reads. The reference frames are only valid for these exact bytes (text compared with line ends as LF). scripts/sjestage-refs.mjs records their SHA-256 in manifest-<kind>.json and e2e/sjestage.spec.ts fails FIRST, before any pixel diff, when one has changed. src/data/enemies.ts is here because the stage reads each enemy's sprite key and boss flag from it. src/data/party.ts is read too, but only for the hero NAMES (no pixel), and its bio text differs between this repo and the Phaser checkout, so it is left out on purpose (tests/sjestage-parity.test.ts names it). M3 task 8: the enemy data moved to src/data/enemies.json (src/data/enemies.ts is its typed loader); both are pinned. The Phaser checkout has the data in its enemies.ts only, so the files in notInPhaser are not compared with it; tests/enemies-data.test.ts proves the loaded objects deep-equal the objects of the old enemies.ts.",
+  "why": "Every data file the stage slice reads. The reference frames are only valid for these exact bytes (text compared with line ends as LF). scripts/sjestage-refs.mjs records their SHA-256 in manifest-<kind>.json and e2e/sjestage.spec.ts fails FIRST, before any pixel diff, when one has changed. src/data/enemies.ts is here because the stage reads each enemy's sprite key and boss flag from it. src/data/party.ts is read too, but only for the hero NAMES (no pixel), and its bio text differs between this repo and the Phaser checkout, so it is left out on purpose (tests/sjestage-parity.test.ts names it). M3 task 8: the enemy data moved to src/data/enemies.json (src/data/enemies.ts is its typed loader); both are pinned. The Phaser checkout has the data in its enemies.ts only, so the files in notInPhaser are not compared with it; tests/enemies-data.test.ts proves the loaded objects deep-equal the objects of the old enemies.ts. M3 fix round 1: src/data/sewerwall.json holds the sewer wall's pillar and lamp columns, which were numbers in sewerwall.ts (also not in the Phaser checkout as a file); the sewer frames show them.",
   "files": [
     "src/data/stages.json",
     "src/data/hud.json",
@@ -8,6 +8,7 @@
     "src/data/enemies.ts",
     "src/data/enemies.json",
     "src/data/axes.json",
+    "src/data/sewerwall.json",
     "public/art/rig/battle.json",
     "public/art/rig/enemies.json",
     "public/art/rig/field.json",
@@ -16,6 +17,7 @@
   ],
   "notInPhaser": [
     "src/data/enemies.ts",
-    "src/data/enemies.json"
+    "src/data/enemies.json",
+    "src/data/sewerwall.json"
   ]
 }

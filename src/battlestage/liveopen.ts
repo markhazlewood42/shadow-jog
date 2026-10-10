@@ -12,8 +12,9 @@
  * flag: a stage that cannot be made must not cost the player the fight.
  */
 import type { Game as OldGame } from '../engine/game';
+import { notice } from '../engine/errors';
 import type { BattleScene } from '../scenes/battle';
-import type { BattleStage, BattleStageProvider } from '../scenes/battlekit/stageseam';
+import { STAGE_FAILED_NOTICE, type BattleStage, type BattleStageProvider } from '../scenes/battlekit/stageseam';
 import type { Game } from '../sje';
 import { type SpriteChoice, type StageData, type StageSet, chooseSprites, haveMarksSheets, loadStageAssets, loadStageData } from './boot';
 import { stageOf } from './config';
@@ -87,16 +88,26 @@ export const liveProvider: BattleStageProvider = {
     try {
       const { data, choice } = await load(game, stageSetFromSearch(typeof location === 'undefined' ? '' : location.search));
       const stage = new LiveStageScene(initFor(data, choice, scene), scene);
-      // Runs init, preload and create now. The promise settles when the stage closes; a `create` that throws rejects it (at once) and takes the scene off the stack.
-      let failure: unknown = null;
-      game.run(stage).catch((e: unknown) => {
-        failure = e;
+      // Runs init, preload and create now. The promise settles when the stage closes; a `create` that throws rejects it. Wait for the first of two things: the promise
+      // (a failure, or a stage that closed as it started) or the next macrotask (the stage is up and still open). A failure that comes through a chain of promises lands before it.
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const started = new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, 0);
       });
-      await Promise.resolve();
-      if (stage.closed) throw failure ?? new Error('the stage scene closed as it started');
+      const ran = game.run(stage).then(() => {
+        throw new Error('the stage scene closed as it started');
+      });
+      try {
+        await Promise.race([ran, started]);
+      } finally {
+        clearTimeout(timer);
+      }
+      // A rejection after this point (the stage failed or closed later) is its own end: the race holds a handler for it, so it is never an unhandled rejection.
+      if (stage.closed) throw new Error('the stage scene closed as it started');
       return stage;
     } catch (e) {
       console.warn(`[battle stage] could not be made, so the battle draws itself: ${e instanceof Error ? e.message : String(e)}`);
+      notice(STAGE_FAILED_NOTICE, 'warn');
       return null;
     }
   },

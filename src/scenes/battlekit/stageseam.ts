@@ -14,6 +14,7 @@
  * of its own layout (`SCREEN_W` x `SCREEN_H` of `src/battlestage/config.ts`) and converts at this boundary: that is the one conversion in the program.
  */
 import type { Pt } from '../../battle/fx';
+import { notice } from '../../engine/errors';
 import type { Game } from '../../engine/game';
 import type { BattleScene } from '../battle';
 
@@ -40,6 +41,9 @@ export interface BattleStageProvider {
   open(game: Game, scene: BattleScene): Promise<BattleStage | null>;
 }
 
+/** The words of the in-game notice (a warning bar) when the stage cannot be made: the fight then draws itself with the old renderer. */
+export const STAGE_FAILED_NOTICE = 'The new battle stage could not load, so this fight uses the old view.';
+
 let provider: BattleStageProvider | null = null;
 
 /** Register (or, with null, remove) the provider. Called by `src/sje/boot.ts` under `?engine=sje`, and by tests. */
@@ -57,3 +61,22 @@ export const battleStages = {
     return provider ? provider.open(game, scene) : null;
   },
 };
+
+/**
+ * A provider that loads the real one with `load` on first use (M3 fix round 1, finding F1). `src/sje/boot.ts` registers it, with `load` a dynamic `import()` of the stage's code.
+ * The load can fail (a network error, a stale deploy), and `open` of the real provider can throw. A fight must not cost the player that: the failure is a notice in the game's own
+ * bar and a null answer, so the battle draws itself with the old renderer. It never rejects.
+ */
+export function lazyStageProvider(load: () => Promise<BattleStageProvider>): BattleStageProvider {
+  return {
+    async open(game: Game, scene: BattleScene): Promise<BattleStage | null> {
+      try {
+        return await (await load()).open(game, scene);
+      } catch (e) {
+        console.warn(`[battle stage] could not load, so the battle draws itself: ${e instanceof Error ? e.message : String(e)}`);
+        notice(STAGE_FAILED_NOTICE, 'warn');
+        return null;
+      }
+    },
+  };
+}

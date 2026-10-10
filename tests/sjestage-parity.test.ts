@@ -174,6 +174,7 @@ describe('the pinned inputs (C2)', () => {
     ['src/data/party.ts', 'only the hero name is read, never drawn; the bio text differs in the Phaser checkout'],
     ['src/data/abilities.ts', 'read by the live battle and the headless driver (skill names and costs), not by the parity slice'],
     ['src/data/stages-640.json', 'the 640x360 set (M3 task 9), made from the pinned 480x270 files by scripts/stage-640.mjs; the goldens show the 480x270 set'],
+    ['src/data/hud-presets.json', 'the named HUD layouts (M3 fix round 1: moved out of hudpresets.ts); a preset is compared with a box by the editor tool and draws nothing'],
     ['src/data/hud-640.json', 'the 640x360 set (M3 task 9), made from the pinned 480x270 files by scripts/stage-640.mjs; the goldens show the 480x270 set'],
   ]);
 

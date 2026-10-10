@@ -29,7 +29,7 @@ import { shakeOffset } from '../engine/shake';
 import { FX } from '../data/fx';
 import { settings } from '../game/settings';
 import { drawNotice } from '../noticeoverlay';
-import { setBattleStageProvider } from '../scenes/battlekit/stageseam';
+import { lazyStageProvider, setBattleStageProvider } from '../scenes/battlekit/stageseam';
 import type { FxRequest } from './fx/fxsystem';
 import { routePostfx } from './fx/route';
 import { Game } from './runtime/game';
@@ -94,7 +94,8 @@ export async function startSje(markStarted: () => void): Promise<void> {
   if (problems.length > 0) throw new Error(`src/data/fx.json is not valid: ${problems.join('; ')}`);
   routePostfx(postfx, () => game.fx);
   // The battle stage: loaded when the first battle asks for it (src/scenes/battlekit/stageseam.ts).
-  setBattleStageProvider({ open: async (g, scene) => (await import('../battlestage/liveopen')).liveProvider.open(g, scene) });
+  // A failed load is a notice and the legacy renderer, never a fight that does not start (battlekit/stageseam.ts).
+  setBattleStageProvider(lazyStageProvider(async () => (await import('../battlestage/liveopen')).liveProvider));
   // The notice overlay, as `main.ts` registers it on the old path.
   game.overlays.push(drawNotice);
   bootGame(game as unknown as OldGame, display as unknown as OldDisplay);

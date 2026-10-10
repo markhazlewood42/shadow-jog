@@ -13,6 +13,7 @@
  * shows (`show`) and how see-through it is (`opacity`). The finer settings (chip sizes, row height, styles) are
  * the stage's own and a preset never touches them.
  */
+import presetsJson from '../data/hud-presets.json' with { type: 'json' };
 import type { HudLayout, HudRegion } from './config';
 
 /** The six boxes, in the order an inspector lists them. */
@@ -44,58 +45,15 @@ export interface HudPreset {
   regions: Record<HudRegionKey, Box>;
 }
 
-const box = (x: number, y: number, w: number, h: number, show: HudRegion['show'], opacity = 0.8): Box => ({ x, y, w, h, show, opacity });
+interface PresetFile {
+  presets: Record<PresetId, Omit<HudPreset, 'id'>>;
+}
 
-/** The design's own layout: the timeline on top, party / menu / enemies in a band along the bottom. */
-const DESIGN: HudPreset['regions'] = {
-  turnOrder: box(120, 2, 240, 43, 'always'),
-  commands: box(204, 226, 112, 42, 'input'),
-  partyStatus: box(4, 226, 196, 42, 'always'),
-  enemyInfo: box(320, 226, 156, 42, 'input'),
-  banner: box(140, 46, 200, 13, 'action'),
-  combo: box(404, 2, 72, 25, 'action'),
-};
-
-export const HUD_PRESETS: Record<PresetId, HudPreset> = {
-  'timeline-bottom3': {
-    id: 'timeline-bottom3',
-    name: 'Timeline + bottom three',
-    about: 'The final side-view design: the turn timeline on top, the party table, the menu and the enemy box in ONE band along the bottom (framed as a single window with dividers).',
-    regions: DESIGN,
-  },
-  'ff-strip': {
-    id: 'ff-strip',
-    name: 'Final Fantasy strip',
-    about: 'Enemies on the left of the bottom band and the party on the right, the way the classic Final Fantasy battle screens read.',
-    regions: { ...DESIGN, partyStatus: box(280, 226, 196, 42, 'always'), commands: box(164, 226, 112, 42, 'input'), enemyInfo: box(4, 226, 156, 42, 'input') },
-  },
-  'action-left': {
-    id: 'action-left',
-    name: 'Action, menu on the left',
-    about: 'The menu moves to the far left of the bottom band, the party table sits in the middle, and the timeline hugs the top left.',
-    regions: {
-      turnOrder: box(4, 2, 240, 43, 'always'),
-      commands: box(4, 226, 112, 42, 'input'),
-      partyStatus: box(120, 226, 196, 42, 'always'),
-      enemyInfo: box(320, 226, 156, 42, 'input'),
-      banner: box(4, 46, 200, 13, 'action'),
-      combo: box(404, 2, 72, 25, 'action'),
-    },
-  },
-  'ps4-panels': {
-    id: 'ps4-panels',
-    name: 'Phantasy Star IV panels',
-    about: 'A wide party panel along the bottom with the menu floating in the lane between the two sides, like the old panel layout (kept for comparison).',
-    regions: {
-      turnOrder: box(120, 2, 240, 43, 'always', 0.9),
-      commands: box(184, 184, 112, 42, 'input', 0.9),
-      partyStatus: box(4, 226, 300, 42, 'always', 0.9),
-      enemyInfo: box(308, 226, 168, 42, 'input', 0.9),
-      banner: box(140, 46, 200, 13, 'action', 0.9),
-      combo: box(404, 2, 72, 25, 'action', 0.9),
-    },
-  },
-};
+/**
+ * The presets, read from `src/data/hud-presets.json` (the 480x270 stage layout: no box position is written in this file; fix round 1 of M3, pass line 12).
+ * The 640x360 HUD is `src/data/hud-640.json`.
+ */
+export const HUD_PRESETS = Object.fromEntries(Object.entries((presetsJson as PresetFile).presets).map(([id, p]) => [id, { id, ...p }])) as Record<PresetId, HudPreset>;
 
 export const PRESET_IDS = Object.keys(HUD_PRESETS) as PresetId[];
 

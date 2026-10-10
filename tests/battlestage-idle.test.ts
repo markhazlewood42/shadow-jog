@@ -15,11 +15,15 @@ describe('idleFrame (the heroes’ sheet frame, chosen from the fixed tick)', ()
   });
 
   it('never goes out of range, and the same tick always shows the same frame (so a hit-pause holds every figure still)', () => {
+    const seen = new Set<number>();
     for (let t = 0; t < 500; t += 7) {
       const f = idleFrame(t, 11, 5, 4);
-      expect(f).toBeGreaterThanOrEqual(0);
+      expect(Number.isInteger(f)).toBe(true);
       expect(f).toBeLessThan(5);
+      seen.add(f);
     }
+    // Every frame of the sheet comes up, none out of range: exactly 0 to 4.
+    expect([...seen].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4]);
     expect(idleFrame(40, 8, 8)).toBe(idleFrame(40, 8, 8));
   });
 });

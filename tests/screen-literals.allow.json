@@ -34,8 +34,6 @@
     { "file": "src/battlestage/config.ts", "token": [480, 270], "match": "export const SCREEN_", "reason": "the 480x270 stage layout inside the 640x360 frame (M3 decision 1a, regression parity): the stage JSONs are in these numbers; the 640x360 set comes with task 9" },
     { "file": "src/battlestage/config.ts", "token": 240, "match": "f.grid.spacing", "reason": "the upper bound of a floor grid spacing in pixels, a limit, not the screen" },
     { "file": "src/battlestage/config.ts", "token": 240, "match": "closeness", "reason": "the draw-order tie-break: the farthest distance from the stage's middle that counts, in the stage's 480x270 numbers (half of SCREEN_W)" },
-    { "file": "src/battlestage/hudpresets.ts", "token": [240, 320], "reason": "HUD box positions and widths in the 480x270 stage layout (the HUD is data, M3 decision 4: the 640x360 set is made by the script of task 9)" },
-    { "file": "src/battlestage/sewerwall.ts", "token": [180, 240, 360], "reason": "x positions of the sewer wall's pipes and lamps on the 480x270 stage (the painted-wall layout)" },
     { "file": "src/battlestage/shadow.ts", "token": [180, 360], "reason": "degrees: the ring's dotted arc and the radian conversion" }
   ]
 }

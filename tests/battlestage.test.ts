@@ -30,9 +30,9 @@ describe('the B1 slice (src/battlestage/slice.json)', () => {
       expect(stage.party.length).toBeGreaterThanOrEqual(slice.lineup.length);
       for (const key of slice.enemies) expect(ENEMIES[key], `enemy ${key}`).toBeDefined();
       expect(enemySlots(stage, slice.setKey)).toHaveLength(slice.enemies.length);
-      expect(slice.active).toBeGreaterThanOrEqual(0);
+      expect(slice.active).toBe(0);
       expect(slice.active).toBeLessThan(slice.lineup.length);
-      expect(slice.target).toBeGreaterThanOrEqual(0);
+      expect(slice.target).toBe(0);
       expect(slice.target).toBeLessThan(slice.enemies.length);
     }
   });
@@ -47,8 +47,8 @@ describe('the B1 slice (src/battlestage/slice.json)', () => {
     const frames = t.map((tick) => idleFrame(tick, 8, 8, 0));
     expect(new Set(frames).size).toBe(3);
     // And the enemy has moved from where it stood at the start by the later ticks (some kind of idle motion is in the picture).
-    const punk = ENEMIES[slice.enemies[0] ?? '']?.sprite ?? 'punk';
-    expect(punk).toBeTruthy();
+    const punk = ENEMIES[slice.enemies[0] ?? '']?.sprite;
+    expect(punk).toBe('punk');
     const kinds = ['bob', 'hover', 'sway', 'breathe', 'flicker'] as const;
     expect(kinds.some((k) => t.some((tick) => enemyIdle(k, tick, 0).y !== 0 || enemyIdle(k, tick, 0).x !== 0))).toBe(true);
   });

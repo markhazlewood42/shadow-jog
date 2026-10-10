@@ -37,7 +37,7 @@ async function countColor(page: Page, rect: Rect, hex: string, tol = 14): Promis
 }
 
 /** Open the game on the new engine, jump to the town and wait for the field. */
-async function openField(browser: import('@playwright/test').Browser, o: { viewport?: { width: number; height: number }; dpr?: number; query?: string } = {}): Promise<GamePage> {
+async function openField(browser: import('@playwright/test').Browser, o: { viewport?: { width: number; height: number }; dpr?: number; query?: string; allow?: RegExp[] } = {}): Promise<GamePage> {
   const g = await openGame(browser, { engine: true, ...o });
   expect(await waitTop(g.page, 'TitleScene')).toBe(true);
   await sj(g.page, "sj.stage('town')");
@@ -114,6 +114,8 @@ test.describe('the battle on the stage, under the flag', () => {
       await sj(page, '(sj.game.speed = 2, true)');
       expect(await stageThere(page)).toBe(true);
       expect(await waitUntil(page, 'sj.game.top.mode === "round"', 60_000)).toBe(true);
+      // Control for the failed-load test below: when the stage loads, no "stage could not load" notice shows.
+      expect(await sj<boolean>(page, '!(sj.notice() && /battle stage/.test(sj.notice().text))')).toBe(true);
 
       const d = await sj<{ figures: Array<{ id: string; side: string; y: number; depth: number }>; order: string[]; camera: { zoom: number }; stageId: string; hud: { regions: number } }>(page, 'sj.battleStage');
       // Who is on stage: the two heroes of the town save and the three enemies.
@@ -250,6 +252,26 @@ test.describe('crisp pixels (M3 pass line 5, on the shipped battle)', () => {
 });
 
 test.describe('controls', () => {
+  test('a stage chunk that fails to load (M3 fix round 1, F1): the fight still starts on the old renderer, the notice bar says why, nothing rejects', async ({ browser }) => {
+    const g = await openField(browser, { allow: [/Failed to load resource|ERR_FAILED|battle stage.*could not load/i] });
+    try {
+      const { page } = g;
+      // The stage's code is a lazy chunk (dev: /src/battlestage/liveopen.ts, built: assets/liveopen-*.js): cut it off before the first fight asks for it.
+      await page.route(/liveopen/, (route) => route.abort());
+      await fight(page, ['rustfang_punk'], 'street');
+      // The battle runs with its own renderer: no stage, and the scene is the opaque one.
+      expect(await waitUntil(page, 'sj.game.top.mode === "round"', 60_000)).toBe(true);
+      expect(await sj(page, 'sj.battleStage')).toBeNull();
+      expect(await sj<boolean>(page, 'sj.game.top.stage === null && sj.game.top.opaque === true')).toBe(true);
+      // The notice bar says the new stage could not load.
+      expect(await sj<{ text: string; tone: string }>(page, 'sj.notice()')).toEqual({ text: 'The new battle stage could not load, so this fight uses the old view.', tone: 'warn' });
+      // No uncaught error and no unhandled rejection (a pageerror would be in the problems).
+      expect(g.problems.filter((p) => p.startsWith('pageerror'))).toEqual([]);
+    } finally {
+      await g.close();
+    }
+  });
+
   test('the old path has no stage, and the watcher sees a warning when one is made', async ({ browser }) => {
     const g = await openGame(browser, { engine: false });
     try {

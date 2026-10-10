@@ -255,6 +255,9 @@ describe('pixel helpers', () => {
     const run = (r: () => number): number[] => Array.from({ length: 5 }, r);
     expect(run(a)).toEqual(run(b));
     expect(run(seeded(7))).not.toEqual(run(c));
-    for (const v of run(seeded(1))) expect(v).toBeGreaterThanOrEqual(0);
+    for (const v of run(seeded(1))) {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1);
+    }
   });
 });
