@@ -81,4 +81,8 @@ Risks:
 
 | Step | What changed | Numbers | Verdict | Named fixes |
 |---|---|---|---|---|
-| (to fill) | | | | |
+| Build | `Scene3D` on the scene runtime, cube scene, `Screen.destroy`, lab on a `Game`, filter and iris mask, e2e spec (945c011, 8817cae, ef80e96) | | | |
+| Round 1, runner | Lines 1-9, 11, 13 | `npm run check` exit 0, 653 tests; Playwright 68 pass; budget 393.0 of 394 kB; lazy 3D chunk 137.8 kB gz | Pass | none |
+| Round 1, reader | Diff read | 0 Critical, 0 Important, 3 Minor | Pass | 3 Minor fixed (1e53603) |
+| GPU run (line 14) | `npm run perf`, RTX 4070 | cube interval p95 16.80 ms (bare 16.90); cost p95 6.30 ms (line 8); JS work p95 0.70 ms | Pass | none |
+| Open | Line 16, Mark's look at the cube with and without filter and iris | pictures in `media/m1b/` | Waiting for Mark | |
