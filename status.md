@@ -59,6 +59,10 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
+### Right now (2026-10-10, M3 in build)
+
+M3 "Battle stage" is on branch `engine-m3-battle-stage` (worktree `projects/shadow-jog-engine-m3`). Builder C landed the enemy JSON, the 640x360 stage set, the docs and the CI line. The record is `docs/engine/m3-brief.md` section 9. Pictures for Mark: `media/m3-stage/` (git-ignored; `index.html` lays them out).
+
 ### Right now (2026-10-09, M2 merged)
 
 **M2 "Effects" passed the lean loop and merged (PR #47).** Round 1 found 4 Important (fixed in edf49a0, 5c0c45e), round 2 found none. GPU run on the RTX 4070 held the speed line (numbers in `docs/engine/tooling-and-testing.md` section 7). Bundle total set to 394 kB (measured 393.0). The record is in `docs/engine/m2-brief.md` section 6. Look note for Mark: the composite uses nearest sampling, so sub-pixel tails vanish in some effects (evidence only). Pictures: `media/m2-fx/`.

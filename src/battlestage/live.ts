@@ -77,6 +77,11 @@ export interface LiveDescription {
 export class LiveStageScene extends BattleStageScene implements BattleStage {
   /** The scale from world pixels to stage pixels. */
   readonly k: number;
+  /** Below the HUD's top boxes (see `BattleStage.topClear`): their lowest edge and two pixels of air. */
+  get topClear(): number {
+    const h = this.config.hud;
+    return Math.max(h.turnOrder.y + h.turnOrder.h, h.banner.y + h.banner.h) + 2;
+  }
   private hud: Hud | null = null;
   private numbers: LiveNumbers | null = null;
   private fxImage: CanvasImage | null = null;

@@ -25,6 +25,11 @@ export interface BattleStage {
   headPos(uid: number): Pt;
   /** The x of a fighter's feet, in world pixels: targeting goes from left to right. */
   footX(uid: number): number;
+  /**
+   * The first screen row below the stage HUD's top boxes (the turn timeline and the skill banner). The old top lines (the message, the enemy's tell, the round menu's help)
+   * are drawn from here, so they never cover those boxes (M3 task 9: on the 640x360 layout the timeline spans the top of the screen).
+   */
+  readonly topClear: number;
   /** Take the stage off the scene stack. Safe to call twice. */
   close(): void;
 }

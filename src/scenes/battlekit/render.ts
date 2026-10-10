@@ -591,14 +591,16 @@ export class BattleRenderer {
 
   /** Top of the top-line strip: under a pinned tell when there is one. */
   private topY(): number {
-    return this.s.tell ? HUD.topYUnderTell : HUD.topY;
+    // Under a stage the top lines start below the stage HUD's top boxes (`topClear`); without one, at the frame's top as ever.
+    const base = this.s.stage ? this.s.stage.topClear : HUD.topY;
+    return this.s.tell ? base + (HUD.topYUnderTell - HUD.topY) : base;
   }
 
   /** A pinned enemy tell: an amber box across the top, with a warning mark, flashing as it arrives. */
   private renderTell(ctx: Ctx): void {
     const t = this.s.tell;
     if (!t) return;
-    const fr = HUD.frame, y = HUD.topY;
+    const fr = HUD.frame, y = this.s.stage ? this.s.stage.topClear : HUD.topY;
     const text = fitText(t.text, fr.w - 56);
     const tw = measure(text) + 34;
     const x = Math.round(fr.x + (fr.w - tw) / 2);

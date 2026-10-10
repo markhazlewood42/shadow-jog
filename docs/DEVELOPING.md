@@ -423,6 +423,19 @@ Mark cancels the plan around 2026-10-30: what it does, what we learned and what 
   with its own state. `review-rig.mjs` imports `portraits.ts` by the game's own URL for that reason; if a version
   comes out unchanged after an edit, run it again.
 
+### The battle stage on the engine (M3)
+
+The shipped battle is drawn by a Pixi stage under `?engine=sje` (`src/battlestage/`; the read order is in `.claude/skills/engine/SKILL.md`). The rules of `src/battle/` do not change.
+
+- **Run it.** `npm run dev`, then `http://localhost:3007/?engine=sje&debug`. A second worktree uses another port: `PW_PORT=3011` makes Playwright start `npx vite --port 3011` and no preview server (so `e2e/prod.spec.ts` needs a run without it). Never use ports 3002 to 3010 for it.
+- **Two stage sets.** The default under the flag is the 640x360 set (`src/data/stages-640.json`, `hud-640.json`). `?stageset=480` loads the 480x270 set, drawn in the top left of the screen: that is the "480 in 640" column of the pictures. A stage with no `screen` field is a 480x270 stage.
+- **Make the 640 set again.** `node scripts/stage-640.mjs` writes both files from `stages.json` and `hud.json` (a fixed transform, documented in the script header). `node scripts/stage-640.mjs --check` exits 1 when a committed file differs (`tests/battlestage-640.test.ts` does the same). Once Mark edits the 640 files by hand, stop running the script: it would overwrite his values.
+- **The parity references** (`tests/fixtures/sjestage/`) are made from the Phaser tag with `node scripts/sjestage-refs.mjs --out <folder>` (needs the Phaser checkout; add `--no-gpu` for the `soft` set). When a data file changed in a way that cannot change a pixel (the enemy data moved to JSON), run `node scripts/sjestage-repin.mjs`, then `CI=1 PW_PORT=3011 npx playwright test e2e/sje-stage-parity.spec.ts --reporter=line` and expect 0 differing pixels. When a design number changed, make the references again.
+- **Enemy and encounter data** is `src/data/enemies.json` and `encounters.json`. Edit the JSON, then `npx vitest run tests/enemies-data.test.ts`: `checkEnemies` and `checkEncounters` say what is wrong in plain words, and the game stops at start with the same list. `tests/enemies-data.test.ts` also compares the loaded objects with a frozen copy of the old `enemies.ts` objects (`tests/fixtures/enemies/old-enemies.json`). That is the proof of the M3 move: when you change a stat on purpose, change the frozen copy in the same commit, or retire the comparison.
+- **Pictures for the look review** (local, not CI): `M3_PICTURES=1 PW_PORT=3011 npx playwright test e2e/sje-pictures.spec.ts --reporter=line` (Edge on the GPU, the `gpu` set) or the same with `CI=1` (SwiftShader, the `soft` set). It writes `media/m3-stage/<kind>/<variant>-<moment>.png` and `index.html`. It takes about 10 minutes.
+- **Do not edit `src/` while a Playwright run is going** (Vite hot-reload kills the run). Judge `biome lint` and `tsc` by exit code.
+- **A data file that a Playwright spec loads in Node** needs import attributes on its JSON imports (`import x from './x.json' with { type: 'json' }`): Node refuses the plain form. `src/data/enemies.ts` has them.
+
 ### A new save field
 Add it to `GameState` and `newState()`. If it's purely additive, give it a default in `backfill()` (`save.ts`). If
 it renames or reshapes data, bump `SAVE_VERSION` and add a `MIGRATIONS[oldVersion]` step, with a test against a
