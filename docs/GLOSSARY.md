@@ -408,6 +408,10 @@ Names from the engine migration (`docs/engine/`). They never show to the player.
 | **Battle seam (`BattleStage`, `topClear`)** | The small interface between the shipped battle and the stage that draws it: where a fighter is (`pos`, `headPos`, `footX`), `close`, and `topClear`, the row below the HUD's top boxes where the old message, tell and help lines start. | `src/scenes/battlekit/stageseam.ts` |
 | **`BattleDrive`, `battleTrace`** | The headless battle driver: it runs a seeded battle on a fixed timetable and returns a status trace, so the legacy path and the stage can be compared line by line. `step(n)` advances it. | `src/battlestage/battledrive.ts` |
 | **Enemy data (`enemies.json`, `encounters.json`)** | The 21 enemies (with `picture`, `mirror`, `axis` and a design `note`) and the encounter tables as JSON. `loadEnemies` and `loadEncounters` check them and build `ENEMIES`, `ENEMY_LOOKS` and `ENCOUNTERS`. | `src/data/enemies.ts` |
+| **`Scene3D`** | A `Scene` that owns a Three scene for one session. You write `create3D`, `update3D(tick)`, `sync3D` and `abortResult`; it makes the `Frame3D`, renders it once per drawn frame, and frees the frame and then the Three objects at shutdown. `endEarly(reason)` closes it with `abortResult(reason)`. | `src/sje/three/scene3d.ts` |
+| **`HackResult`** | The result type of a 3D hack session: `success`, `fail`, `aborted` (with a reason: `context-lost`, `user` or `error`) or `unsupported` (`no-webgl2`, `chunk-failed`). M1b builds the type; the hack door is M7. | `src/sje/three/scene3d.ts` |
+| **Cube scene** | The technical test scene of the 3D proof: a lit, spinning cube on a dark violet background, with a few Pixi swatches next to it. It is a real `Scene3D`, run by the lab on a `Game`. | `src/sje-lab/cubescene.ts` |
+| **Iris mask** | A `Graphics` disc (rows of rectangles) used as a mask on the `View3D`, with an invert filter. It proves that a Pixi filter and a Pixi mask work over the Three picture on the shared context. | `src/sje-lab/cubescene.ts` |
 
 ---
 

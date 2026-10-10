@@ -11,14 +11,17 @@
  * M0 has no scene runtime (`Game`, `Scene`: M1). The lab composes what exists: a `GlRenderer`, a `Screen`,
  * a `TextureManager` and a `FixedLoop`. M1 replaces this composition with `Game`.
  */
-import { type DisplayHost, FixedLoop, GlRenderer, H, must, Screen, TextureManager, W } from '../sje';
+import { type DisplayHost, FixedLoop, type Game, GlRenderer, H, must, Screen, TextureManager, W } from '../sje';
 import { LabContent } from './content';
 import { type GlCounts, installGlCounter, readGlCounts } from './glcounter';
 import { installHook } from './hook';
 
 /** The lab: the render stack, the sandbox scene and the loop, with the few verbs the hook needs. */
 export class Lab {
-  readonly screen: Screen;
+  /** The lab's own screen, with the sandbox scene. It is the one drawn unless a `Game` is attached. */
+  private readonly baseScreen: Screen;
+  /** A scene runtime on the shared renderer (the 3D part of the lab runs its `Scene3D` in one). While it is attached, ITS screen is drawn. */
+  private attached: Game | null = null;
   readonly host: DisplayHost = { textures: new TextureManager() };
   readonly loop: FixedLoop;
   /** The sandbox scene. `reenter` replaces it. */
@@ -28,10 +31,31 @@ export class Lab {
   private ticks = 0;
 
   constructor(readonly renderer: GlRenderer) {
-    this.screen = new Screen(this.host);
+    this.baseScreen = new Screen(this.host);
     this.content = new LabContent(this.host);
-    this.screen.worldRoot.add(this.content.root);
+    this.baseScreen.worldRoot.add(this.content.root);
     this.loop = new FixedLoop({ tick: () => this.advanceTick(), draw: () => this.draw() });
+  }
+
+  /** The screen that is drawn now: the attached game's, or the lab's own. Checks that put objects on the picture use this one. */
+  get screen(): Screen {
+    return this.attached ? this.attached.screen : this.baseScreen;
+  }
+
+  /** The attached game, or null. */
+  get game(): Game | null {
+    return this.attached;
+  }
+
+  /** Draw (and tick) this game instead of the sandbox scene. One at a time. */
+  attachGame(game: Game): void {
+    if (this.attached) throw new Error('Lab.attachGame: a game is attached already');
+    this.attached = game;
+  }
+
+  /** Back to the sandbox scene. */
+  detachGame(): void {
+    this.attached = null;
   }
 
   /** The tick counter (one per fixed step). */
@@ -43,12 +67,15 @@ export class Lab {
   advanceTick(): void {
     this.ticks++;
     this.content.fixedUpdate(this.ticks);
+    this.attached?.advanceTick();
   }
 
   /** One draw: the screen into the back buffer, and the back buffer into the canvas. While the context is lost the renderer skips the frame itself. */
   draw(): void {
     for (const fn of this.beforeDraw) fn();
-    this.renderer.render(this.screen);
+    // The game's draw runs its scenes' `prerender` handlers (a Scene3D draws its 3D frame there), then draws the screen.
+    if (this.attached) this.attached.draw(0);
+    else this.renderer.render(this.baseScreen);
   }
 
   /** Run `n` ticks with no real time passing, then draw one frame. */
@@ -62,7 +89,7 @@ export class Lab {
     for (let i = 0; i < n; i++) {
       this.content.destroy();
       this.content = new LabContent(this.host);
-      this.screen.worldRoot.add(this.content.root);
+      this.baseScreen.worldRoot.add(this.content.root);
       this.step(2);
     }
   }

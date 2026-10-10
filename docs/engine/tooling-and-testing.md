@@ -255,6 +255,9 @@ Hardware independent counts (`e2e/sje-draws.spec.ts`, the real game, one frame):
 `e2e/perf.spec.ts` passes on the same run: 3D frame cost p95 4.3 ms, interval p95 16.8 ms against a bare page at 16.8 to 16.9 ms.
 
 **M3 (battle stage), measurements left open.** Hardware independent counts from the builders (SwiftShader, `e2e/sje-draws.spec.ts`): the shipped battle with the stage, the HUD, the battle effects and the whole stack is 20 draw calls and 17 binds a frame (18 and 17 while it waits for orders) and 4 canvas uploads; ten battle enter and exit cycles leave the GL counts flat (textures 49, buffers 26, framebuffers 10, programs 4, VAOs 13). The frame interval p95 against a bare page and the frame cost p95 on a GPU (line 14 of the brief: within 5% of the bare page, cost p95 at most 8 ms) are NOT measured yet: the main session runs `npm run perf` once, after the last fix round, and puts the numbers here.
+
+**M1b GPU run (2026-10-09, `npm run perf`, RTX 4070 via ANGLE/D3D11, bare page p95 16.80 to 16.90 ms).** Pass line 14 holds with the cube running as a `Scene3D` on a `Game` (the lab's `three().start()` runs `CubeScene` with bloom). Frame interval p95 16.80 ms against a bare page at 16.90 ms. Frame cost with the GPU wait: mean 4.05 ms, p95 6.30 ms (line: 8 ms). JavaScript work mean 0.50 ms, p95 0.70 ms. The 2D scene on the same run: interval p95 16.80 ms, cost p95 3.70 ms. The negative control (600 extra 3D frames) breaks both rules as it must (interval 66.7 ms, cost 65.4 ms). The M2 bench cases still hold: title fx none/full cost p95 within 8 ms, wrapper overhead 0.020 ms a frame (line: 1 ms). All 10 tests pass.
+
 ---
 
 ## 8. Leak, context, and canary tests

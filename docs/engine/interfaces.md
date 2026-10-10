@@ -550,6 +550,8 @@ export declare abstract class Scene3D<R> extends Scene<R> {      // lazy chunk
 // It uses the same door as shop() and battle(): a late-bound entry in fieldHooks.
 ```
 
+**Built shape (M1b).** `Scene3D` is in `src/sje/three/scene3d.ts`, with `HackResult` and `Scene3DAbort`. It owns `world3D` (the Three scene) and has `camera3D` and `bloom` for `create3D` to set; `frame` is a protected getter (it exists once `create` ends); the constructor takes `{ frame?, makeFrame? }` (`makeFrame` is a test seam). `create` is the base's: write `create3D`. A lost context ends the scene in the next draw, not inside the event.
+
 The hack simulation of the Phase 0 test scene (a node maze, ICE movement, a camera rig) is pure and DOM-free in `src/hack3d/sim`. It runs in Vitest like `src/battle`. The real hacking scene is a later iteration and is not designed here (`docs/IDEAS.md` entry 2).
 
 **The door and the story loop.** Phase 0 built them in `src/hack3d/door.ts`. The shipped game loads this file up front. It reaches the 3D chunk through one `import()`.

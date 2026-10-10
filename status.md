@@ -67,7 +67,9 @@ M3 "Battle stage" is on branch `engine-m3-battle-stage` (worktree `projects/shad
 
 **M2 "Effects" passed the lean loop and merged (PR #47).** Round 1 found 4 Important (fixed in edf49a0, 5c0c45e), round 2 found none. GPU run on the RTX 4070 held the speed line (numbers in `docs/engine/tooling-and-testing.md` section 7). Bundle total set to 394 kB (measured 393.0). The record is in `docs/engine/m2-brief.md` section 6. Look note for Mark: the composite uses nearest sampling, so sub-pixel tails vanish in some effects (evidence only). Pictures: `media/m2-fx/`.
 
-**Next for agents:** write the M1b brief (3D proof) on a new branch.
+**M1b "3D proof" merged ([PR #49](https://github.com/markhazlewood42/shadow-jog/pull/49), 2026-10-09).** Cube as a `Scene3D`: GPU interval p95 16.80 ms, cost p95 6.30 ms. Record: `docs/engine/m1b-brief.md` section 6.
+
+**Next for agents:** see `docs/roadmap/roadmap.json` for the next open milestone (M3 runs in its own worktree).
 
 **Next up for Mark**
 
