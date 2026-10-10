@@ -17,7 +17,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { expect, type Page, test } from '@playwright/test';
 import { MEMBERS } from '../src/data/party';
-import { openGame, type GamePage, sj, waitTop, waitUntil } from './sjegamekit';
+import { decode, openGame, type GamePage, sj, unevenBlocks, waitTop, waitUntil } from './sjegamekit';
 
 type Rect = { x: number; y: number; w: number; h: number };
 const OUT = 'test-results/m3-battle';
@@ -36,8 +36,8 @@ async function countColor(page: Page, rect: Rect, hex: string, tol = 14): Promis
 }
 
 /** Open the game on the new engine, jump to the town and wait for the field. */
-async function openField(browser: import('@playwright/test').Browser): Promise<GamePage> {
-  const g = await openGame(browser, { engine: true });
+async function openField(browser: import('@playwright/test').Browser, o: { viewport?: { width: number; height: number }; dpr?: number; query?: string } = {}): Promise<GamePage> {
+  const g = await openGame(browser, { engine: true, ...o });
   expect(await waitTop(g.page, 'TitleScene')).toBe(true);
   await sj(g.page, "sj.stage('town')");
   expect(await waitUntil(g.page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
@@ -217,6 +217,34 @@ test.describe('the battle on the stage, under the flag', () => {
       await g.close();
     }
   });
+});
+
+test.describe('crisp pixels (M3 pass line 5, on the shipped battle)', () => {
+  for (const [name, viewport, dpr] of [
+    ['device pixel ratio 1', { width: 1920, height: 1080 }, 1],
+    ['device pixel ratio 1.5', { width: 1280, height: 720 }, 1.5],
+  ] as const) {
+    test(`${name}: every 3x3 block of the picture is one flat color with the stage, the HUD, the effects and a number on screen; a wrong ratio finds uneven blocks (control)`, async ({ browser }) => {
+      const g = await openField(browser, { viewport, dpr, query: '&fx=full' });
+      try {
+        const { page } = g;
+        await fight(page, ['rustfang_punk', 'glowrat', 'rustfang_punk'], 'street');
+        expect(await stageThere(page)).toBe(true);
+        expect(await waitUntil(page, 'sj.game.top.mode === "round"', 60_000)).toBe(true);
+        await sj(page, '(sj.game.speed = 0, true)');
+        // The battle's own effects and a number, drawn now: the layers that are scaled (the effects layer is 1.5 stage pixels per world pixel until the 640x360 layout).
+        await sj(page, "(() => { const t = sj.game.top; t.fx.play('fire_all', t.pos(0), t.battle.enemies.map((u) => t.pos(u.uid))); t.floatOn(t.battle.enemies[0].uid, '27', '#ffb23a', 'hit'); sj.step(12); sj.game.speed = 0; return true; })()");
+        expect(await sj<boolean>(page, 'sj.battleStage.fxDrawn && sj.battleStage.numbers > 0'), 'the effects and the number are really on screen').toBe(true);
+        const img = decode(await page.screenshot());
+        expect([img.w, img.h]).toEqual([1920, 1080]);
+        expect(unevenBlocks(img, 3, 0, 0, 640, 360), 'uneven 3x3 blocks').toBe(0);
+        expect(unevenBlocks(img, 2, 0, 0, 800, 500), 'control: a wrong ratio finds uneven blocks').toBeGreaterThan(0);
+        expect(g.problems).toEqual([]);
+      } finally {
+        await g.close();
+      }
+    });
+  }
 });
 
 test.describe('controls', () => {
