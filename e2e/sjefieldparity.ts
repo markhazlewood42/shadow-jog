@@ -154,12 +154,14 @@ export function measure(now: Picture, ref: Picture): Measure {
 
 export type FxLevel = 'none' | 'full';
 
-/** What was measured on 2026-10-10 (31 states), rounded up. A fraction of the pixels, except `max` (a channel step). */
+/** What was measured on 2026-10-10 (31 states, the window is 921,600 px), rounded up a little. A fraction of the pixels, except `max` (a channel step). */
 export const BOUNDS: Record<RendererKind, Partial<Record<FxLevel, { max: number; ge2: number; ge4: number }>>> = {
-  // SwiftShader, effects off: 1/255 almost everywhere, 2/255 at most, 2/255 in at most 0.7% of the pixels (the Annex).
+  // SwiftShader, effects off: 1/255 almost everywhere, 2/255 at most, 2/255 in at most 0.7% of the pixels (the Annex). Bound: 1%.
   soft: { none: { max: 2, ge2: 0.01, ge4: 0 } },
-  // A GPU, effects off: 1/255 almost everywhere, 2/255 in at most 20 pixels. With the whole effect stack: at most 15/255, 4/255 or more in at most 2% of the pixels.
-  gpu: { none: { max: 2, ge2: 0.0001, ge4: 0 }, full: { max: 16, ge2: 0.08, ge4: 0.03 } },
+  // A GPU, effects off: 1/255 almost everywhere, 2/255 in at most 20 px (the Annex). Bound: 23 px.
+  // With the whole effect stack: at most 15/255 (bound 16), 2/255 or more in at most 53,656 px = 5.82% (Lantern Row, bound 6%),
+  // 4/255 or more in at most 18,095 px = 1.96% (the Annex, bound 2%).
+  gpu: { none: { max: 2, ge2: 0.000025, ge4: 0 }, full: { max: 16, ge2: 0.06, ge4: 0.02 } },
 };
 
 /** The ways a measurement is outside the bounds of its kind and level (empty: inside). */
