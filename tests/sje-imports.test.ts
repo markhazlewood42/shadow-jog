@@ -22,6 +22,7 @@
  *  7. Phaser is imported nowhere.
  *  8. (M3) The battle stage, `src/battlestage`, is game code that runs ON the engine: it takes the engine from the facade only, holds no Pixi or Three,
  *     and only the lab, the engine's boot glue and the tests import it. The game font moved into the engine (`src/sje/display/font.ts`); the old path re-exports it.
+ *  9. (M5) The field stage, `src/fieldstage`, follows rule 8. The field scene reaches it only through `src/scenes/fieldkit/fieldseam.ts`, which holds types and a provider slot.
  *
  * Differences from the spike's copy (`spike/engine-platform:tests/sje-imports.test.ts`): M0 has no
  * runtime beyond `glrenderer.ts`, no `src/hack3d` and no battle stage, so those parts of the scan
@@ -266,7 +267,7 @@ describe('level 5 (src/sje/three, the lazy 3D chunk): what it may import', () =>
 
 describe('who may import the engine', () => {
   const toEngine = (e: Edge) => e.target !== null && (e.target === 'src/sje' || e.target.startsWith('src/sje/'));
-  const outsideEngine = (e: Edge) => toEngine(e) && e.file.startsWith('src/') && !e.file.startsWith('src/sje/') && !e.file.startsWith('src/hack3d/') && !e.file.startsWith('src/battlestage/');
+  const outsideEngine = (e: Edge) => toEngine(e) && e.file.startsWith('src/') && !e.file.startsWith('src/sje/') && !e.file.startsWith('src/hack3d/') && !e.file.startsWith('src/battlestage/') && !e.file.startsWith('src/fieldstage/');
 
   it('the lab imports only the facade, src/sje/index.ts, and the 3D door, src/sje/three/index.ts (plus one named probe)', () => {
     const lab = all.filter((e) => toEngine(e) && e.file.startsWith('src/sje-lab/'));
@@ -338,6 +339,32 @@ describe('the battle stage (src/battlestage, M3)', () => {
 
   it('holds no Pixi and no Three (they come through the facade)', () => {
     expect(all.filter((e) => e.file.startsWith('src/battlestage/') && (isPixi(e.spec) || isThree(e.spec))).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+  });
+});
+
+describe('the field stage (src/fieldstage, M5)', () => {
+  // Same rules as the battle stage: game code that runs ON the engine, through the facade only, no Pixi and no Three, and not part of the default path. The field
+  // scene reaches it only through the seam (`src/scenes/fieldkit/fieldseam.ts`), which holds the types, never the stage's code.
+  const toEngine = (e: Edge) => e.target !== null && (e.target === 'src/sje' || e.target.startsWith('src/sje/'));
+
+  it('imports the engine through the facade, src/sje/index.ts, and never a deeper file', () => {
+    const stage = all.filter((e) => e.file.startsWith('src/fieldstage/') && toEngine(e));
+    expect(stage.filter((e) => e.target !== 'src/sje' && e.target !== 'src/sje/index').map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
+    expect(stage.length).toBeGreaterThan(0);
+  });
+
+  it('is imported only by itself, the lab, the engine boot glue and the tests (not by the field scene or the default path of the game)', () => {
+    const into = all.filter((e) => e.target !== null && (e.target === 'src/fieldstage' || e.target.startsWith('src/fieldstage/')) && !e.file.startsWith('src/fieldstage/'));
+    expect(into.filter((e) => !/^(src\/sje-lab\/|src\/sje\/boot\.ts$|tests\/|e2e\/|scripts\/)/.test(e.file)).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+  });
+
+  it('holds no Pixi and no Three (they come through the facade)', () => {
+    expect(all.filter((e) => e.file.startsWith('src/fieldstage/') && (isPixi(e.spec) || isThree(e.spec))).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+  });
+
+  it('the seam (src/scenes/fieldkit/fieldseam.ts) imports no engine file and no stage code: it holds types and the provider slot only', () => {
+    const seam = all.filter((e) => e.file === 'src/scenes/fieldkit/fieldseam.ts');
+    expect(seam.filter((e) => toEngine(e) || (e.target ?? '').startsWith('src/fieldstage')).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
   });
 });
 

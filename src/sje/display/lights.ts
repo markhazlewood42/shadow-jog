@@ -200,6 +200,26 @@ export class Lights {
     ctx.restore();
   }
 
+  /**
+   * A number that changes whenever the light that reaches the world rectangle (x, y, w, h) changes between frames: it mixes the flicker of every flickering light whose
+   * circle touches the rectangle. 0 when none does. Steady lights are not in it: their light on a spot of the world does not change, whatever the camera does. A scene
+   * uses it to skip lighting a sprite again when nothing it stands in has moved (@ours; the old field lit every sprite every frame).
+   */
+  flickerSignature(x: number, y: number, w: number, h: number, frame: number): number {
+    let sig = 0;
+    for (const l of this.set) {
+      if (!l.flicker) continue;
+      if (l.x + l.r < x || l.x - l.r > x + w || l.y + l.r < y || l.y - l.r > y + h) continue;
+      sig = (Math.imul(sig, 31) + Math.round(l.i * flickerAmount(l, frame) * 4096) + 1) | 0;
+    }
+    return sig;
+  }
+
+  /** True when a flickering light is in the set. A scene with none can skip repainting the light map while the camera stands still. */
+  get hasFlicker(): boolean {
+    return this.set.some((l) => l.flicker);
+  }
+
   private sprite(color: string): CanvasImageSource {
     let s = this.sprites.get(color);
     if (!s) {

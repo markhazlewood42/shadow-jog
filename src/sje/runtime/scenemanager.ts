@@ -275,6 +275,20 @@ export class SceneManager {
    * is removed again and the returned promise REJECTS with the error (the stack stays clean).
    */
   push<R>(scene: Scene<R>, data?: unknown): Promise<R> {
+    return this.pushAt(scene, data, null);
+  }
+
+  /**
+   * Push a scene UNDER `above`, which must be on the stack (M5, ours: the field stage). The scene runs its lifecycle at once like `push`. Nothing is paused
+   * or resumed and no input is consumed: the scene above is the one the player is using and does not notice. The scene must be drawn under it, so `above`
+   * has to be non-opaque for the new scene to show. If `above` is not on the stack, the promise rejects.
+   */
+  pushBeneath<R>(scene: Scene<R>, above: AnyScene, data?: unknown): Promise<R> {
+    if (!this.stack.includes(above)) return Promise.reject(new Error(`SceneManager.pushBeneath: scene ${above.key} is not on the stack`));
+    return this.pushAt(scene, data, above);
+  }
+
+  private pushAt<R>(scene: Scene<R>, data: unknown, above: AnyScene | null): Promise<R> {
     // A scene object is single use. Running one again would reuse a destroyed display list (closed)
     // or put one scene on the stack twice (live). Say so at once, with a clear message.
     const refusal = this.reuseProblem(scene);
@@ -283,14 +297,18 @@ export class SceneManager {
       const world = new Container(scene, 0, 0, `${scene.key} world`);
       const ui = new Container(scene, 0, 0, `${scene.key} ui`);
       scene._attach(this.game, world, ui, resolve);
-      const below = this.top;
-      this.stack.push(scene);
-      if (below) {
-        // Remember WHO was paused, so `resume` goes to exactly that scene and to no other.
-        this.paused.add(below);
-        this.guard(below, () => below.events.emit('pause'));
+      if (above) {
+        this.stack.splice(this.stack.indexOf(above), 0, scene);
+      } else {
+        const below = this.top;
+        this.stack.push(scene);
+        if (below) {
+          // Remember WHO was paused, so `resume` goes to exactly that scene and to no other.
+          this.paused.add(below);
+          this.guard(below, () => below.events.emit('pause'));
+        }
+        this.game.input.consume();
       }
-      this.game.input.consume();
       this.refreshLayout();
       const sys = scene.sys;
       try {

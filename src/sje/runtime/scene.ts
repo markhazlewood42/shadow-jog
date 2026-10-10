@@ -148,6 +148,11 @@ export abstract class Scene<R = unknown> implements DisplayHost {
   create?(data: unknown): void;
   /** The fixed 60 Hz tick. Change game state here. @deviation Phaser's `update` is variable. */
   abstract fixedUpdate(tick: number): void;
+  /**
+   * Optional (M5, ours). Paint a picture of this scene as the player sees it onto a W x H 2D context, for the screen snapshot (`Game.ctx`: the picture a
+   * battle's intro shatters). A scene drawn with display objects has no canvas to copy, so it says how. The field stage paints the old-look frame.
+   */
+  paintSnapshot?(ctx: CanvasRenderingContext2D): void;
   /** There is no variable-delta `update`. Writing one is a compile error on purpose (decision E2). */
   update?: never;
 

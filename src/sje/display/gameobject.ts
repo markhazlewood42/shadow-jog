@@ -32,6 +32,9 @@ export function snap(v: number): number {
   return Math.round(v) + 0;
 }
 
+/** How an object's pixels combine with what is under them (interfaces.md `SjBlend`). `min` and `max` are the design's, not built: `setBlendMode` throws for them. */
+export type SjBlend = 'normal' | 'add' | 'multiply' | 'screen' | 'min' | 'max';
+
 export abstract class GameObject {
   readonly scene: DisplayHost;
   name = '';
@@ -161,6 +164,20 @@ export abstract class GameObject {
   setYSortOrigin(v: number): this {
     this.ySortOrigin = v;
     return this;
+  }
+
+  /**
+   * Phaser `setBlendMode`. M5 builds the fixed-function modes (`normal`, `add`, `multiply`, `screen`): the field's light map is shown with `multiply`
+   * above the ground, and the bloom haze with `add`. A blend reads what is under the object in the same render target, so it works inside the filtered
+   * world. `min` and `max` are in the design (safe over 3D pixels) and need a GL extension: not built, so they throw.
+   */
+  setBlendMode(mode: SjBlend): this {
+    assert(mode !== 'min' && mode !== 'max', `setBlendMode: "${mode}" is in the design but not built (the built modes are normal, add, multiply, screen)`);
+    this._pixi.blendMode = mode;
+    return this;
+  }
+  get blendMode(): SjBlend {
+    return this._pixi.blendMode as SjBlend;
   }
 
   get alpha(): number {

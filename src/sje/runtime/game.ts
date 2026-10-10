@@ -298,7 +298,12 @@ export class Game implements DisplayHost, LegacyGameSurface {
     const { ctx } = this.snapshot;
     ctx.fillStyle = '#07060d';
     ctx.fillRect(0, 0, W, H);
-    for (const s of this.scene.scenes) if (s instanceof LegacyScene && s.sys.visible && s.layer) ctx.drawImage(s.layer, 0, 0);
+    for (const s of this.scene.scenes) {
+      if (!s.sys.visible) continue;
+      // A scene that draws with display objects (the field stage, M5) has no canvas of its own: it paints a picture of itself on request.
+      if (s.paintSnapshot) s.paintSnapshot(ctx);
+      else if (s instanceof LegacyScene && s.layer) ctx.drawImage(s.layer, 0, 0);
+    }
     return ctx;
   }
 
@@ -308,6 +313,16 @@ export class Game implements DisplayHost, LegacyGameSurface {
    */
   run<R>(scene: Scene<R> | LegacyShape<R>, data?: unknown): Promise<R> {
     return this.scene.push(this.adopt(scene), data);
+  }
+
+  /**
+   * Push a scene UNDER another one that is on the stack (a new `Scene`, or the old scene the other is wrapped from), and run its lifecycle at once (M5: the field
+   * stage stands under the field scene and draws it). The scene above must be non-opaque, or the new one is hidden. Rejects if `above` is not on the stack.
+   */
+  runBeneath<R>(scene: Scene<R>, above: AnyScene | AnyLegacy): Promise<R> {
+    const target = above instanceof Scene ? above : this.wrappers.get(above);
+    if (!target) return Promise.reject(new Error('Game.runBeneath: the scene above is not on the stack'));
+    return this.scene.pushBeneath(scene, target);
   }
 
   /** Replace the whole stack with one scene. The old scenes' promises stay pending. */
