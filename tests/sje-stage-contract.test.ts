@@ -7,7 +7,7 @@
  *  (b) `loadStage(config)` swaps a stage into the running scene, and bad data leaves the old stage as it was (control: good data swaps);
  *  (c) `snapshot()` is plain JSON and `restore(snapshot())` gives the same frame, on the same scene and on another one;
  *  (d) no Pixi object leaves the scene: the snapshot holds numbers and text only.
- * (`step(n)` equals n ticks is the headless driver's line, task 7. The same frame in pixels is e2e/sje-stage-parity.spec.ts, "snapshot and restore".)
+ * (e) `step(n)` equals n ticks: on the headless battle driver (task 7) and on the scene itself. (The same frame in pixels is e2e/sje-stage-parity.spec.ts, "snapshot and restore".)
  * Also here: the push camera's numbers (src/battlestage/push.ts), and that no look constant of it hides in the scene's code.
  */
 import { readFileSync } from 'node:fs';
@@ -15,6 +15,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { TextureManager } from '../src/sje';
 import { BG_IDS } from '../src/art/battlebg480';
+import { BattleDrive, setupFor } from '../src/battlestage/battledrive';
 import { checkStageConfig, enemySlots, slotPoint, type StageConfig, stageOf } from '../src/battlestage/config';
 import type { FacingFile } from '../src/battlestage/facing';
 import { STAGE_KNOWN } from '../src/battlestage/known';
@@ -299,5 +300,43 @@ describe('the push camera', () => {
     // Code only: the comments may name the 1.09x push.
     const code = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     expect(code).not.toMatch(/0\.09|1\.09/);
+  });
+});
+
+describe('(e) step(n): n ticks, however the ticks are split', () => {
+  it('the headless driver: step(n) is n ticks, and 1 tick n times is the same fight (control: one tick more is another state)', () => {
+    const setup = () => setupFor(street(), 'boss+1', 7);
+    for (const n of [1, 29, 30, 31, 200, 1000]) {
+      const whole = new BattleDrive(setup()).step(n);
+      const ones = new BattleDrive(setup());
+      for (let i = 0; i < n; i++) ones.step(1);
+      expect(whole.tick).toBe(n);
+      expect(ones.tick).toBe(n);
+      expect(ones.status()).toBe(whole.status());
+      expect(ones.trace).toEqual(whole.trace);
+    }
+    // The control: the state moves with the ticks, so the equality above is not two copies of a frozen fight.
+    const states = new Set([60, 300, 600, 1200, 2400].map((n) => new BattleDrive(setup()).step(n).status()));
+    expect(states.size).toBeGreaterThan(2);
+  });
+
+  it('the scene: game.step(n) runs n ticks of the scene, and n times 1 gives the same frame (control: the frame is not frozen)', () => {
+    const a = run();
+    a.game.step(97);
+    const b = run();
+    for (let i = 0; i < 97; i++) b.game.step(1);
+    expect(a.scene.frame).toBe(97);
+    expect(b.scene.frame).toBe(97);
+    expect(frameOf(a.scene)).toBe(frameOf(b.scene));
+    const c = run();
+    c.game.step(98);
+    expect(c.scene.frame).toBe(98);
+    // An enemy's idle motion moves with the tick: one tick more is a different frame somewhere in the sway cycle.
+    const moved = [3, 17, 40, 61, 98].some((n) => {
+      const x = run();
+      x.game.step(n);
+      return frameOf(x.scene) !== frameOf(a.scene);
+    });
+    expect(moved).toBe(true);
   });
 });
