@@ -59,13 +59,25 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
+### Right now (2026-10-10, M5 in PR #54)
+
+M5 "Field" is built on branch `engine-m5-field` ([PR #54](https://github.com/markhazlewood42/shadow-jog/pull/54)). Brief: `docs/engine/m5-brief.md` (Mark approved all six decisions and the lighting pictures; parity decision: accept measured bounds). Builders A, B and C are done (tasks 1 to 9). Verifier round 1: no Critical, 2 Important (fixed in f035ed1), Minor items fixed. Bundle totals set (409 / 50 kB), e2e job timeout raised to 45 min (05c07a7).
+
+**Done since (2026-10-10, later):** round 2 found GPU parity bounds wider than measured (fixed 13abd7e, round 3 PASS). A new bench case, the field stage on the world map, fx full (3cf99a3), showed cost p95 11.5 ms over the 8 ms line. Cause: CPU 2D paint (screen layer, 24 relights), not the light map. Mark chose the low-risk fixes: relight only on a change in the overlapping light (0a0ae46). The screen dirty rect was not built (rain covers the whole screen). Field cost p95 is now 6.9 to 7.4 ms. A GPU-only restore hash bug is fixed (eef52b5: F4 had a wrong premise). Runner and reader verifiers PASS. CI green on 3cf99a3. `prod.spec` 2 passed.
+
+**Done (2026-10-10, last):** the live battle A/B against `main` says noise (M5 median cost p95 2.9 ms, `main` 4.0 ms, interval 16.8 ms on both). The perf numbers are in `tooling-and-testing.md` section 7 and the brief Record (pass line 13 holds). Minor m1 is a browser check in `e2e/sje-field.spec.ts` (the battle-intro still feeds no glow). **Open:** CI on the latest head, then checkpoint 2: Mark merges or sends work back.
+
+**Next up for Mark**
+
+1. Play `http://localhost:3011/?engine=sje` (dev server from the M5 worktree), then merge PR #54 or send work back.
+
 ### Right now (2026-10-10, M3 merged)
 
 M3 "Battle stage" is merged ([PR #51](https://github.com/markhazlewood42/shadow-jog/pull/51), Mark looked at the pictures and approved). It was built on branch `engine-m3-battle-stage`: the battle plays on the Pixi stage under `?engine=sje` (HUD, fx painters, 640x360 stage set, enemy and encounter JSON, parity harness, seeded status trace). Lean loop: round 1 (runner all green; reader 3 Important, fixed in e8219cf), round 2 passed. GPU run (RTX 4070): live battle interval p95 18.10 ms (bare 18.10), cost p95 3.40 ms. Main merged in (M1b). Bundle: shipped total cap 401 kB, new flag-only class 42 kB. Record: `docs/engine/m3-brief.md` section 9. Pictures: `media/m3-stage/gpu/index.html`.
 
 **Next up for Mark**
 
-1. None open. You approved the M3 pictures (2026-10-10). The 1.09x push is not recorded as approved: ask Mark before any release.
+1. None open. You approved the M3 pictures (2026-10-10). You also approved the 1.09x push (2026-10-10).
 
 **Next for agents:** M5 (field) can start now. M4 (UI scenes) stays optional: a scene ports only when it needs a camera, filter, mask or transition. Write the brief with pass lines first.
 

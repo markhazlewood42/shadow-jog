@@ -1,0 +1,39 @@
+{
+  "id": "armory",
+  "name": "Last Rites Arms",
+  "kind": "interior",
+  "terrain": [
+    "IIIIIIIIIIIIII",
+    "IIIIIIIIIIIIII",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IIIIIIIMIIIIII"
+  ],
+  "legend": {},
+  "ambient": "#8a7a8a",
+  "music": "town",
+  "battleBg": "street",
+  "props": [
+    {"kind":"counter","x":3,"y":4,"w":8,"color":"#4a3a30"},
+    {"kind":"rack","x":2,"y":2,"w":2},
+    {"kind":"rack","x":5,"y":2,"w":2},
+    {"kind":"rack","x":9,"y":2,"w":3},
+    {"kind":"screen","x":7,"y":1,"w":2,"color":"#ff6a3a"},
+    {"kind":"barrel","x":1,"y":7,"color":"#5a3a2a"},
+    {"kind":"crates","x":12,"y":7}
+  ],
+  "lights": [
+    {"x":7,"y":4,"r":80,"color":"#ffb46a","i":0.55}
+  ],
+  "npcs": [
+    {"id":"tomas","x":7,"y":3,"dir":"down","name":"Brother Tomas","fixedDir":true,"look":{"skin":"#c28a64","hair":"#3a2a20","hairStyle":"bald","top":"#4a3a30","coat":"#4a3a30","inner":"#8c2f39","accent":"#d9b36c","pants":"#2a2a33","boots":"#1a1418","accessories":["beard"]},"talk":"tomas_talk"}
+  ],
+  "warps": [
+    {"x":7,"y":9,"to":"lantern_row","tx":12,"ty":7,"dir":"down"}
+  ]
+}

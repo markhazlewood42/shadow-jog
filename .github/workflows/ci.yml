@@ -124,8 +124,8 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    # The usual run time is under 10 minutes. The rest is room for a slow runner or download.
-    timeout-minutes: 25
+    # M5: the field parity spec (31 states) takes about 20 minutes on SwiftShader, so the run is about 30 minutes.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -184,6 +184,10 @@ jobs:
       # sje-stage-parity.spec.ts (M3) is the regression parity of the stage: the 480x270 layout in the engine against the goldens, on SwiftShader (its Phaser-spike controls and
       # the 'art' mode, which needs Mark's git-ignored sheets, skip themselves on CI). The stage contract (tests/sje-stage-contract.test.ts, tests/battlestage-640.test.ts,
       # tests/enemies-data.test.ts) runs in `npm test`. The pictures for Mark (media/m3-stage/) are made locally.
+      # sje-field.spec.ts (M5) plays the shipped field on the Pixi stage under the flag (walk, real warps, emote, follower, the editor contract, both fallbacks, the leak tests, crisp pixels).
+      # sje-field-parity.spec.ts (M5) is the field against the old field on SwiftShader: 31 fixed states against references made from the legacy path (tests/fixtures/sjefield/soft),
+      # the measured bounds and the controls. The strict gate of the brief does not hold for lit frames and is opt in (SJEFIELD_STRICT=1). The references (e2e/sje-field-refs.spec.ts) and the
+      # pictures for Mark (e2e/sje-field-pictures.spec.ts) are made locally. The first CI run is the check that Linux SwiftShader agrees with the references made on Windows.
       - name: E2E on Chromium (every spec except the playtest, with the engine canaries)
         if: steps.scope.outputs.skip != 'true'
         run: >-
@@ -192,6 +196,7 @@ jobs:
           e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts
           e2e/sje-canaries.spec.ts e2e/sje-draws.spec.ts e2e/sje-shell.spec.ts e2e/sje-fx.spec.ts
           e2e/sje-battle.spec.ts e2e/sje-stage-parity.spec.ts
+          e2e/sje-field.spec.ts e2e/sje-field-parity.spec.ts
         env:
           CI: '1'
 

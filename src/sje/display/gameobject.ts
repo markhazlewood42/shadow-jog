@@ -32,6 +32,9 @@ export function snap(v: number): number {
   return Math.round(v) + 0;
 }
 
+/** How an object's pixels combine with what is under them (interfaces.md `SjBlend`). `min` and `max` are the design's, not built: `setBlendMode` throws for them. */
+export type SjBlend = 'normal' | 'add' | 'multiply' | 'screen' | 'min' | 'max';
+
 export abstract class GameObject {
   readonly scene: DisplayHost;
   name = '';
@@ -42,9 +45,13 @@ export abstract class GameObject {
   /** @internal The one Pixi node this object owns. Only code under src/sje may use it. */
   readonly _pixi: PixiContainer;
 
+  /** @internal This object's place in its parent's child list. Set by `Container`; `ySort` uses it as the tie-break. */
+  _slot = 0;
+
   private _x = 0;
   private _y = 0;
   private _depth = 0;
+  private _ySortOrigin = 0;
   private _scaleX = 1;
   private _scaleY = 1;
   private _snap = true;
@@ -121,17 +128,56 @@ export abstract class GameObject {
 
   // ---- draw order and look ---------------------------------------------------------------------
 
-  /** A higher depth draws later (on top), among siblings. Phaser `depth`; Pixi `zIndex`. */
+  /**
+   * A higher depth draws later (on top), among siblings. Phaser `depth`; Pixi `zIndex`.
+   *
+   * Inside a `ySort` container the engine owns the depth: it reads `y + ySortOrigin`, and writing it throws.
+   */
   get depth(): number {
-    return this._depth;
+    return this._parent?.ySort ? this._parent.ySortKey(this) : this._depth;
   }
   set depth(d: number) {
+    assert(!this._parent?.ySort, `depth: "${this.name}" is inside a ySort container, which sets the depth from y (use ySortOrigin to move the sort line)`);
     this._depth = d;
     this._pixi.zIndex = d;
+  }
+  /** @internal The depth this object was given, whatever its parent's `ySort` says. A `Container` restores it when a child leaves or `ySort` ends. */
+  get ownDepth(): number {
+    return this._depth;
   }
   setDepth(d: number): this {
     this.depth = d;
     return this;
+  }
+
+  /**
+   * Godot `y_sort_origin` @ours as a property. Where this object's sort line is, as an offset from `y`: in a `ySort` container the key is
+   * `y + ySortOrigin`. A sprite drawn from its top-left corner sets this to the height of its feet. Default 0.
+   */
+  get ySortOrigin(): number {
+    return this._ySortOrigin;
+  }
+  set ySortOrigin(v: number) {
+    this._ySortOrigin = v;
+    this._parent?.ySortChanged(this);
+  }
+  setYSortOrigin(v: number): this {
+    this.ySortOrigin = v;
+    return this;
+  }
+
+  /**
+   * Phaser `setBlendMode`. M5 builds the fixed-function modes (`normal`, `add`, `multiply`, `screen`): the field's light map is shown with `multiply`
+   * above the ground, and the bloom haze with `add`. A blend reads what is under the object in the same render target, so it works inside the filtered
+   * world. `min` and `max` are in the design (safe over 3D pixels) and need a GL extension: not built, so they throw.
+   */
+  setBlendMode(mode: SjBlend): this {
+    assert(mode !== 'min' && mode !== 'max', `setBlendMode: "${mode}" is in the design but not built (the built modes are normal, add, multiply, screen)`);
+    this._pixi.blendMode = mode;
+    return this;
+  }
+  get blendMode(): SjBlend {
+    return this._pixi.blendMode as SjBlend;
   }
 
   get alpha(): number {
@@ -216,6 +262,7 @@ export abstract class GameObject {
   /** @internal Called by subclasses (and `Container`) after anything that moves the node changes. */
   protected writePosition(): void {
     this._pixi.position.set(this._snap ? snap(this._x) : this._x, this._snap ? snap(this._y) : this._y);
+    this._parent?.ySortChanged(this);
   }
 
   /** Write the scale to the Pixi node. `ImageObject` overrides this to add the flip rule. */

@@ -1,0 +1,318 @@
+{
+ "comment": "Fixed states of the field parity harness (M5 task 8). A state is a map, a tile, a story-flag preset (src/game/stages.ts) with a few flags changed, the ambient and weather overrides, the seed of the page Math.random (default 24301 = 0x5eed) and the field tick the picture is taken at (default 260, after the area banner). One fresh page per state. Read by e2e/sjefieldkit.ts. `fx` is the effects level of both paths: none (default) or full. `kinds` lists the renderer kinds that have a reference (default both): the old path cannot draw the GPU effect stack on software GL (\"GPU effects need a graphics card\"), so the full-stack states are gpu only.",
+ "defaultFrame": 260,
+ "cases": [
+  {
+   "id": "lantern_row",
+   "stage": "town",
+   "map": "lantern_row",
+   "x": 27,
+   "y": 21,
+   "dir": "down",
+   "note": "the town street, rain on, shipped ambient"
+  },
+  {
+   "id": "lantern_row-dry",
+   "stage": "town",
+   "map": "lantern_row",
+   "x": 27,
+   "y": 21,
+   "dir": "down",
+   "note": "no rain (weather none), no wet streets",
+   "weather": "none"
+  },
+  {
+   "id": "lantern_row-day",
+   "stage": "town",
+   "map": "lantern_row",
+   "x": 27,
+   "y": 21,
+   "dir": "down",
+   "note": "ambient lifted to a day color",
+   "ambient": "#e6e2f2"
+  },
+  {
+   "id": "lantern_row-seed2",
+   "stage": "town",
+   "map": "lantern_row",
+   "x": 27,
+   "y": 21,
+   "dir": "down",
+   "note": "another random seed (rain and dust differ)",
+   "seed": 2
+  },
+  {
+   "id": "lantern_row-banner",
+   "stage": "town",
+   "map": "lantern_row",
+   "x": 27,
+   "y": 21,
+   "dir": "down",
+   "note": "the area banner is up (tick 120)",
+   "frame": 120
+  },
+  {
+   "id": "world",
+   "stage": "town",
+   "map": "world",
+   "x": 13,
+   "y": 22,
+   "dir": "right",
+   "note": "the world map at the lantern_row exit"
+  },
+  {
+   "id": "world-nw",
+   "stage": "town",
+   "map": "world",
+   "x": 3,
+   "y": 3,
+   "dir": "down",
+   "note": "world, camera clamped at the top left corner"
+  },
+  {
+   "id": "world-se",
+   "stage": "town",
+   "map": "world",
+   "x": 56,
+   "y": 38,
+   "dir": "up",
+   "note": "world, camera clamped at the bottom right corner"
+  },
+  {
+   "id": "world-day",
+   "stage": "town",
+   "map": "world",
+   "x": 13,
+   "y": 22,
+   "dir": "right",
+   "note": "world, ambient lifted to a day color",
+   "ambient": "#e6e2f2"
+  },
+  {
+   "id": "rustyard",
+   "stage": "sinkline",
+   "map": "rustyard",
+   "x": 15,
+   "y": 22,
+   "dir": "up",
+   "note": "the lot with the gate passed"
+  },
+  {
+   "id": "rustyard-gate",
+   "stage": "town",
+   "map": "rustyard",
+   "x": 15,
+   "y": 22,
+   "dir": "up",
+   "note": "the lot with the gate still held"
+  },
+  {
+   "id": "rustyard-tribute",
+   "stage": "sinkline",
+   "map": "rustyard",
+   "x": 15,
+   "y": 22,
+   "dir": "up",
+   "note": "the tribute stash found (a prop changes)",
+   "flags": {
+    "tribute_stash": true
+   }
+  },
+  {
+   "id": "sinkline_1",
+   "stage": "sinkline",
+   "map": "sinkline_1",
+   "x": 10,
+   "y": 9,
+   "dir": "down",
+   "note": "the sewer, drip weather"
+  },
+  {
+   "id": "annex",
+   "stage": "annex",
+   "map": "annex",
+   "x": 22,
+   "y": 12,
+   "dir": "down",
+   "note": "the Annex"
+  },
+  {
+   "id": "dock",
+   "stage": "finale",
+   "map": "dock",
+   "x": 9,
+   "y": 4,
+   "dir": "down",
+   "note": "the dock, water surround"
+  },
+  {
+   "id": "armory",
+   "stage": "town",
+   "map": "armory",
+   "x": 7,
+   "y": 8,
+   "dir": "up",
+   "note": "an interior"
+  },
+  {
+   "id": "bar",
+   "stage": "town",
+   "map": "bar",
+   "x": 11,
+   "y": 12,
+   "dir": "up",
+   "note": "an interior"
+  },
+  {
+   "id": "clinic",
+   "stage": "town",
+   "map": "clinic",
+   "x": 7,
+   "y": 8,
+   "dir": "up",
+   "note": "an interior"
+  },
+  {
+   "id": "hex_den",
+   "stage": "town",
+   "map": "hex_den",
+   "x": 7,
+   "y": 9,
+   "dir": "up",
+   "note": "an interior"
+  },
+  {
+   "id": "hotel",
+   "stage": "town",
+   "map": "hotel",
+   "x": 8,
+   "y": 8,
+   "dir": "up",
+   "note": "an interior"
+  },
+  {
+   "id": "kwikmart",
+   "stage": "town",
+   "map": "kwikmart",
+   "x": 7,
+   "y": 8,
+   "dir": "up",
+   "note": "an interior"
+  },
+  {
+   "id": "noodles",
+   "stage": "town",
+   "map": "noodles",
+   "x": 7,
+   "y": 8,
+   "dir": "up",
+   "note": "an interior"
+  },
+  {
+   "id": "rook_flat",
+   "stage": "town",
+   "map": "rook_flat",
+   "x": 6,
+   "y": 8,
+   "dir": "up",
+   "note": "an interior"
+  },
+  {
+   "id": "threads",
+   "stage": "town",
+   "map": "threads",
+   "x": 7,
+   "y": 8,
+   "dir": "up",
+   "note": "an interior"
+  },
+  {
+   "id": "bar-day",
+   "stage": "town",
+   "map": "bar",
+   "x": 11,
+   "y": 12,
+   "dir": "up",
+   "note": "the bar with the ambient lifted",
+   "ambient": "#e6e2f2"
+  },
+  {
+   "id": "lantern_row-fx",
+   "stage": "town",
+   "map": "lantern_row",
+   "x": 27,
+   "y": 21,
+   "dir": "down",
+   "note": "the town street, rain on, shipped ambient, with the full effect stack",
+   "fx": "full",
+   "kinds": [
+    "gpu"
+   ]
+  },
+  {
+   "id": "world-fx",
+   "stage": "town",
+   "map": "world",
+   "x": 13,
+   "y": 22,
+   "dir": "right",
+   "note": "the world map at the lantern_row exit, with the full effect stack",
+   "fx": "full",
+   "kinds": [
+    "gpu"
+   ]
+  },
+  {
+   "id": "rustyard-fx",
+   "stage": "sinkline",
+   "map": "rustyard",
+   "x": 15,
+   "y": 22,
+   "dir": "up",
+   "note": "the lot with the gate passed, with the full effect stack",
+   "fx": "full",
+   "kinds": [
+    "gpu"
+   ]
+  },
+  {
+   "id": "bar-fx",
+   "stage": "town",
+   "map": "bar",
+   "x": 11,
+   "y": 12,
+   "dir": "up",
+   "note": "an interior, with the full effect stack",
+   "fx": "full",
+   "kinds": [
+    "gpu"
+   ]
+  },
+  {
+   "id": "dock-fx",
+   "stage": "finale",
+   "map": "dock",
+   "x": 9,
+   "y": 4,
+   "dir": "down",
+   "note": "the dock, water surround, with the full effect stack",
+   "fx": "full",
+   "kinds": [
+    "gpu"
+   ]
+  },
+  {
+   "id": "annex-fx",
+   "stage": "annex",
+   "map": "annex",
+   "x": 22,
+   "y": 12,
+   "dir": "down",
+   "note": "the Annex, with the full effect stack",
+   "fx": "full",
+   "kinds": [
+    "gpu"
+   ]
+  }
+ ]
+}

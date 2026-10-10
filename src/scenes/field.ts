@@ -24,13 +24,14 @@ import { chestHalo, chestSprites } from '../field/chests';
 import { bandGradient, UI } from '../ui/draw';
 import { FIELD_OBJ_W } from '../ui/layout';
 import { fieldHooks } from '../game/hooks';
-import { reportError } from '../engine/errors';
+import { notice, reportError } from '../engine/errors';
 import { scriptApi } from './fieldkit/api';
 import { cameraOrigin, LEADER_FOCUS_LIFT } from './fieldkit/camera';
 import { cameraBoxFor, curtainsFor, drawCurtains, type CameraBox, type Curtain } from './fieldkit/popins';
 import { blit, blitParts, byBaseY, drawEmote, inView, type DrawEntry } from './fieldkit/draw';
 import { drawSurround, type SurroundView } from './fieldkit/surround';
 import { Dust } from './fieldkit/dust';
+import { FIELD_STAGE_FAILED_NOTICE, fieldStages, type FieldStage, type FieldStageSource, type FieldStageView, type StageActor, type StageChest } from './fieldkit/fieldseam';
 
 const WALK = 12;
 const DASH = 7;
@@ -67,7 +68,7 @@ export interface Chest {
   open: boolean;
 }
 
-export class FieldScene extends Scene<void> {
+export class FieldScene extends Scene<void> implements FieldStageSource {
   map!: FieldMap;
   def!: MapDef;
   party: Actor[] = [];
@@ -177,6 +178,98 @@ export class FieldScene extends Scene<void> {
     this.game.countPlayTime = true;
     if (this.def.music) placeMusic(this.def.music, this.def.space);
     void this.onMapEnter();
+    void this.openStage();
+  }
+
+  override exit(): void {
+    const stage = this.stage;
+    this.stage = null;
+    // Not at once: `exit` runs inside the scene stack's own teardown (a reset drops every scene, this one first), and the stage's `close` would change the stack under it.
+    // By the next microtask the stack has settled, and a stage that was dropped with it is already closed (`close` then does nothing).
+    if (stage) queueMicrotask(() => stage.close());
+  }
+
+  // ------------------------------------------------------------------ the stage (fieldkit/fieldseam.ts)
+  /**
+   * Under `?engine=sje` a stage scene draws this field (fieldkit/fieldseam.ts): it stands UNDER this scene on the stack and shows the map, the actors and the lights
+   * as engine objects. This scene keeps every rule and draws only the dev overlay. Null without the flag, or when the stage could not be made: the field then draws itself.
+   */
+  private stage: FieldStage | null = null;
+  private stageView: FieldStageView | null = null;
+  private stageActors: StageActor[] = [];
+  private stageChests: StageChest[] = [];
+
+  /** True while the stage draws the picture and there is no dev overlay to put on this canvas: the adapter then leaves this scene's canvas out (`LegacyShape.blank`). */
+  get blank(): boolean {
+    return !!this.stage && !this.stage.closed && !fieldHooks.renderOverlay;
+  }
+
+  private async openStage(): Promise<void> {
+    if (!fieldStages.available) return;
+    const stage = await fieldStages.open(this.game, this);
+    if (!stage) return;
+    // The field ended while the stage was loading.
+    if (this.closed) {
+      stage.close();
+      return;
+    }
+    this.stage = stage;
+    // The stage is drawn UNDER this scene, so this one must let it show.
+    this.opaque = false;
+  }
+
+  /** The stage failed (a draw threw): take back the drawing and say so. The stage closes itself. */
+  stageFailed(error: unknown): void {
+    void error;
+    this.stage = null;
+    this.opaque = true;
+    notice(FIELD_STAGE_FAILED_NOTICE, 'warn');
+  }
+
+  /** What the stage draws this frame. One object, filled in place. */
+  view(): FieldStageView {
+    if (!this.stageView) this.stageView = { map: this.map, frame: 0, camX: 0, camY: 0, cx: 0, cy: 0, actors: this.stageActors, chests: this.stageChests };
+    const v = this.stageView;
+    v.map = this.map;
+    v.frame = this.frame;
+    v.camX = this.camX;
+    v.camY = this.camY;
+    v.cx = this.camX - this.game.shakeX;
+    v.cy = this.camY - this.game.shakeY;
+    const actors = this.visibleActors();
+    const list = this.stageActors;
+    list.length = actors.length;
+    for (let i = 0; i < actors.length; i++) {
+      const a = actors[i]!;
+      const e = list[i];
+      if (e && e.ref === a) {
+        e.image = a.frame();
+        e.x = a.drawX();
+        e.y = a.drawY();
+        e.px = a.px;
+        e.py = a.py;
+      } else list[i] = { ref: a, image: a.frame(), x: a.drawX(), y: a.drawY(), px: a.px, py: a.py };
+    }
+    const cl = this.stageChests;
+    cl.length = this.chests.length;
+    for (let i = 0; i < this.chests.length; i++) {
+      const c = this.chests[i]!;
+      const e = cl[i];
+      const kind = c.def.kind ?? 'crate';
+      if (e && e.tx === c.def.x && e.ty === c.def.y && e.kind === kind) e.open = c.open;
+      else cl[i] = { tx: c.def.x, ty: c.def.y, kind, open: c.open };
+    }
+    return v;
+  }
+
+  /** The screen-fixed layer for the stage: the same painters, in the same order, as the end of the old `render`. False when nothing was drawn. */
+  paintScreen(ctx: Ctx, cx: number, cy: number): boolean {
+    return this.paintScreenLayer(ctx, cx, cy);
+  }
+
+  /** The old-look picture, for the screen snapshot of a battle's intro. */
+  paintLegacy(ctx: Ctx): void {
+    this.renderLegacy(ctx, true);
   }
 
   private async onMapEnter(): Promise<void> {
@@ -625,6 +718,16 @@ export class FieldScene extends Scene<void> {
 
   // ------------------------------------------------------------------ render
   render(ctx: Ctx): void {
+    // Under a stage (fieldkit/fieldseam.ts) the stage draws the picture; this canvas, above it, carries only the dev overlay.
+    if (this.stage && !this.stage.closed) {
+      fieldHooks.renderOverlay?.(this, ctx);
+      return;
+    }
+    this.renderLegacy(ctx, false);
+  }
+
+  /** The whole picture on one Canvas 2D: the default path, and the stage's snapshot for a battle's intro (`forSnapshot`: it feeds no glow layer). */
+  private renderLegacy(ctx: Ctx, forSnapshot: boolean): void {
     // Shake moves the camera (the world); the banner and objective are drawn in screen space.
     const cx = this.camX - this.game.shakeX, cy = this.camY - this.game.shakeY;
     const f = this.frame;
@@ -661,7 +764,7 @@ export class FieldScene extends Scene<void> {
     blit(ctx, this.map.emit, cx, cy);
     // GPU effects: the same light into the glow layer, so neon, lamps and lit windows bloom for
     // real (sprites add theirs in drawSprite). Towns glow harder than rooms.
-    this.glow = postfx.glowLayer();
+    this.glow = forSnapshot ? null : postfx.glowLayer();
     if (this.glow) {
       postfx.bloom = this.def.kind === 'interior' ? 0.5 : 0.9;
       blit(this.glow, this.map.emit, cx, cy);
@@ -720,23 +823,44 @@ export class FieldScene extends Scene<void> {
       blitParts(ctx, this.map.overEmit, cx, cy, this.map.overRects, this.overPart);
     }
     this.lighting.bloom(ctx, this.map.lights, cx, cy, f, this.def.kind === 'interior' ? 0.08 : 0.14);
-    this.dust.render(ctx, cx, cy);
-    this.weather.render(ctx);
-    if (this.curtains.length) drawCurtains(ctx, this.curtains, this.curtainEase, cx, cy, { x: this.leader.px, y: this.leader.py }, this.curtainEvent);
-    for (const a of actors) if (a.emote) drawEmote(ctx, a, cx, cy);
-    if (this.cue) this.drawCue(ctx, this.cue.x - cx, this.cue.y - cy, f);
-    this.renderBanner(ctx);
-    this.renderObjective(ctx);
+    this.paintScreenLayer(ctx, cx, cy);
     fieldHooks.renderOverlay?.(this, ctx);
+  }
+
+  /**
+   * The end of the picture, in screen space: the dust, the weather, the pop-in curtains, the emotes, the interact cue, the area banner and the objective. The old render
+   * ended with these, and the stage asks for them as one layer (`paintScreen`). Returns false when nothing was drawn.
+   */
+  private paintScreenLayer(ctx: Ctx, cx: number, cy: number): boolean {
+    const f = this.frame;
+    let drew = this.dust.live > 0;
+    this.dust.render(ctx, cx, cy);
+    if (this.weather.kind !== 'none') {
+      this.weather.render(ctx);
+      drew = true;
+    }
+    if (this.curtains.length && drawCurtains(ctx, this.curtains, this.curtainEase, cx, cy, { x: this.leader.px, y: this.leader.py }, this.curtainEvent)) drew = true;
+    for (const a of this.visibleActors()) {
+      if (!a.emote) continue;
+      drawEmote(ctx, a, cx, cy);
+      drew = true;
+    }
+    if (this.cue) {
+      this.drawCue(ctx, this.cue.x - cx, this.cue.y - cy, f);
+      drew = true;
+    }
+    if (this.renderBanner(ctx)) drew = true;
+    if (this.renderObjective(ctx)) drew = true;
+    return drew;
   }
 
   /**
    * The current objective, always on screen in the top-left corner (dimmer while walking,
    * hidden during cutscenes and dialogue); it flashes amber for a moment when it changes.
    */
-  private renderObjective(ctx: Ctx): void {
+  private renderObjective(ctx: Ctx): boolean {
     const text = this.objective;
-    if (!text || this.busy || this.def.kind === 'interior') return;
+    if (!text || this.busy || this.def.kind === 'interior') return false;
     if (text !== this.objKey) {
       this.objFlash = this.objKey ? 150 : 0;
       this.objKey = text;
@@ -752,6 +876,7 @@ export class FieldScene extends Scene<void> {
     ctx.fillRect(4, 4, 2, 4 + this.objLines.length * 10);
     for (let i = 0; i < this.objLines.length; i++) drawText(ctx, (i === 0 ? '{y}▶{/} ' : '   ') + this.objLines[i], 9, 6 + i * 10, { color: flash ? '#ffe7a0' : '#d8d6ec', shadow: false });
     ctx.globalAlpha = 1;
+    return true;
   }
 
   private drawSprite(ctx: Ctx, s: SortedSprite, cx: number, cy: number, f: number): void {
@@ -801,11 +926,11 @@ export class FieldScene extends Scene<void> {
     return out;
   }
 
-  private renderBanner(ctx: Ctx): void {
-    if (!this.banner) return;
+  private renderBanner(ctx: Ctx): boolean {
+    if (!this.banner) return false;
     const t = this.banner.t;
     const a = t < 20 ? t / 20 : t > 170 ? Math.max(0, (200 - t) / 30) : 1;
-    if (a <= 0) return;
+    if (a <= 0) return false;
     ctx.save();
     ctx.globalAlpha = a;
     const text = this.banner.text;
@@ -821,6 +946,7 @@ export class FieldScene extends Scene<void> {
     drawText(ctx, text, W / 2, y + 3, { align: 'center', color: '#ffffff' });
     if (this.banner.sub) drawText(ctx, this.banner.sub, W / 2, y + 16, { align: 'center', color: UI.dim });
     ctx.restore();
+    return true;
   }
 
   // ------------------------------------------------------------------ script API

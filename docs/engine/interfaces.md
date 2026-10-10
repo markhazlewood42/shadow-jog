@@ -154,11 +154,13 @@ export type SjBlend = 'normal' | 'add' | 'multiply' | 'screen' | 'min' | 'max'; 
 
 export abstract class GameObject {
   readonly scene: DisplayHost; name: string; active: boolean;   // DisplayHost is the small shape of a scene that level 2 needs. Level 2 cannot import Scene (level 3)
-  x: number; y: number; depth: number; alpha: number; visible: boolean;
+  x: number; y: number; depth: number; alpha: number; visible: boolean;   // depth is read-only inside a ySort container: it reads y + ySortOrigin, and a write throws
+  ySortOrigin: number;                                 // Godot y_sort_origin. Built in M5. The sort line is y + ySortOrigin. Default 0
   scrollFactorX: 0 | 1; scrollFactorY: 0 | 1;          // deviation. Phaser allows any number. 0 moves a top-level object into scene.ui
   readonly filters: FilterList;                        // deviation. Flat. Phaser 4 has filters.internal and filters.external, after enableFilters()
   setPosition(x: number, y?: number): this;
   setDepth(d: number): this; setAlpha(a: number): this; setVisible(v: boolean): this;
+  setYSortOrigin(v: number): this;                     // ours. Built in M5
   setScrollFactor(x: 0 | 1, y?: 0 | 1): this;
   setBlendMode(m: SjBlend): this;
   setPixelSnap(on: boolean): this;                     // ours. Default on. View3D keeps it on (the 3D target is on the 2D pixel grid)
@@ -174,7 +176,7 @@ export declare class Container extends GameObject {
   remove(child: GameObject, destroy?: boolean): this;
   setGrain(n: 1 | 2 | 4): this;                        // ours. Container with scale n in the coarse grid. Not built in Phase 0. Grain 2 is 320x180. M3 decides
   setSortingGroup(on: boolean): this;                  // Unity Sorting Group. Not built: every Container sorts its children by depth
-  ySort: boolean;                                      // Godot y-sort
+  ySort: boolean;                                      // Godot y-sort. Built in M5. Children draw by y + ySortOrigin; a tie goes to the child added first. Written when a child moves, joins or leaves: no per-frame pass
 }
 export declare class ImageObject extends GameObject {
   texture: SjTexture;
@@ -215,9 +217,17 @@ export declare class Group<T extends GameObject = GameObject> {   // on demand. 
   add(o: T): this; remove(o: T, destroy?: boolean): this;
   clear(destroy?: boolean): this;
 }
-export declare class Lights {                          // deviation. On demand. Draws a multiply light map
+export interface FlickerLook { base: number; wobbleSlow: number; rateSlow: number; wobbleFast: number; rateFast: number; dropEvery: number; dropBelow: number; dropTo: number; }   // ours. M5. The tuning of the failing tube: the game gives it (the field: src/data/fieldlook.json)
+export interface LightOptions { flicker?: boolean; seed?: number; }   // ours. M5
+export declare class Lights {                          // deviation. Built in M5 as the first form: the old canvas operations (same numbers), no display object. A scene shows the map above the world with a multiply blend
+  constructor(opts: { flicker: FlickerLook; sprite?: (color: string) => CanvasImageSource; spriteBoost?: number });
+  enabled: boolean; spriteBoost: number;               // how much a lit sprite resists the dark. The game gives it (the field's is 0.32, in fieldlook.json); default 0
   setAmbientColor(color: string): this;
-  addLight(x: number, y: number, radius: number, color?: string, intensity?: number): { remove(): void };
+  addLight(x: number, y: number, radius: number, color?: string, intensity?: number, opts?: LightOptions): { remove(): void };   // ours: opts has the flicker
+  readonly lights: readonly { x: number; y: number; r: number; color: string; i: number; flicker: boolean; seed: number | undefined }[];
+  readonly count: number; clear(): this;
+  paint(ctx: CanvasRenderingContext2D, camX: number, camY: number, frame: number): void;   // ours. Ambient fill, then each light as a 64 px radial sprite with 'lighter'
+  bloom(ctx: CanvasRenderingContext2D, camX: number, camY: number, frame: number, strength?: number): void;   // ours. Additive haze round lights of intensity 0.5 or more
 }
 
 export declare class GameObjectFactory {               // scene.add
@@ -246,6 +256,7 @@ export declare class Pool<T extends GameObject> {      // ours. Unity ObjectPool
 Pixi has no camera. This `Camera` is a transform on the scene's `world` container. Scroll is always rounded to whole pixels (snap to pixel). The effect arguments differ from Phaser's, and the tags say where.
 
 ```ts
+export type PanEase = 'linear' | 'quadInOut';          // ours. M5
 export declare class Camera {
   scrollX: number; scrollY: number; zoom: number;      // scroll is rounded
   setScroll(x: number, y?: number): this;
@@ -256,7 +267,8 @@ export declare class Camera {
   fade(ms: number, color?: string): this;             // deviation. Phaser: duration, r, g, b
   flash(ms: number, color?: string): this;            // deviation
   shake(ms: number, magnitudePx?: number): this;      // deviation. Phaser: a fraction of the view
-  pan(x: number, y: number, ms: number): this;
+  pan(x: number, y: number, ms: number, ease?: PanEase, done?: () => void): this;   // Built in M5. Centers on the world point (x, y); the end is kept inside the bounds. Ease default 'quadInOut' (the field's). done runs once, on the tick it arrives. A new pan replaces a running one
+  readonly isPanning: boolean;                         // ours
   zoomTo(z: number, ms: number): this;
   readonly filters: FilterList;
 }

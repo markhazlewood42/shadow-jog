@@ -15,12 +15,14 @@
  *      presets and moments of `fx.json` are loaded into it (`loadData`), so `FxSystem.playMoment` works by name. No `#fx` overlay canvas exists on this path.
  *      And the battle stage (M3): the battle's routing (`game/systems.ts`) asks for a stage, and the provider registered here makes one (`src/battlestage/liveopen.ts`, loaded
  *      with a dynamic `import()` the first time a battle starts, so a session that never fights downloads none of it). Without the flag nothing is registered and the battle draws itself.
+ *      And the field stage (M5): the field asks for a stage when it enters, and the provider registered here (`src/fieldstage/fieldopen.ts`, a dynamic `import()` too, fetched ahead) puts a
+ *      `FieldStageScene` UNDER the field scene. Without the flag nothing is registered and the field draws itself.
  *   4. In a DEV build only, add the engine's members to `window.__SJ__` (`src/sje-lab/devhook.ts`, interfaces.md section 14). A shipped build
  *      never loads that file (the import sits behind `import.meta.env.DEV`).
  */
 import { boot as bootGame } from '../boot';
 import type { Display as OldDisplay } from '../engine/display';
-import { notice, reportError } from '../engine/errors';
+import { currentNotice, notice, reportError } from '../engine/errors';
 import { SHAKE_PIXEL_GAIN, type Game as OldGame } from '../engine/game';
 import { Input } from '../engine/input';
 import { perf } from '../engine/perf';
@@ -30,6 +32,7 @@ import { FX } from '../data/fx';
 import { settings } from '../game/settings';
 import { drawNotice } from '../noticeoverlay';
 import { lazyStageProvider, setBattleStageProvider } from '../scenes/battlekit/stageseam';
+import { fieldStages, lazyFieldStageProvider, setFieldStageProvider } from '../scenes/fieldkit/fieldseam';
 import type { FxRequest } from './fx/fxsystem';
 import { routePostfx } from './fx/route';
 import { Game } from './runtime/game';
@@ -96,8 +99,14 @@ export async function startSje(markStarted: () => void): Promise<void> {
   // The battle stage: loaded when the first battle asks for it (src/scenes/battlekit/stageseam.ts).
   // A failed load is a notice and the legacy renderer, never a fight that does not start (battlekit/stageseam.ts).
   setBattleStageProvider(lazyStageProvider(async () => (await import('../battlestage/liveopen')).liveProvider));
+  // The field stage (M5): the field asks for it when it enters (src/scenes/fieldkit/fieldseam.ts). Loaded on first use; a failed load is a notice and the field draws itself.
+  // The code is fetched ahead, so the first field does not wait for it.
+  setFieldStageProvider(lazyFieldStageProvider(async () => (await import('../fieldstage/fieldopen')).fieldProvider));
+  fieldStages.warm();
   // The notice overlay, as `main.ts` registers it on the old path.
   game.overlays.push(drawNotice);
+  // The notice bar is the one overlay: a legacy scene that draws nothing of its own (the staged field) paints its canvas only while a notice shows.
+  game.overlayWanted = () => currentNotice() !== null;
   bootGame(game as unknown as OldGame, display as unknown as OldDisplay);
   dev?.attach(game);
   const bootEl = document.getElementById('boot');

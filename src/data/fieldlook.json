@@ -1,0 +1,35 @@
+{
+  "shadow": {
+    "color": "#05040c",
+    "alpha": 0.5,
+    "rects": [
+      [-4, -1, 9, 2],
+      [-3, -2, 7, 1],
+      [-3, 1, 7, 1]
+    ]
+  },
+  "glow": { "interior": 0.5, "outdoors": 0.9 },
+  "bloom": { "outdoors": 0.14, "interior": 0.08 },
+  "chest": {
+    "haloAt": { "x": -12, "y": -4 },
+    "pulse": { "base": 0.5, "swing": 0.3, "rate": 0.06, "phase": 1.7 },
+    "glint": {
+      "period": 160,
+      "length": 10,
+      "tileX": 37,
+      "tileY": 53,
+      "color": "#ffffff",
+      "dot": [2, 6, 1, 1],
+      "starAfter": 2,
+      "starBefore": 8,
+      "star": [
+        [2, 5, 1, 3],
+        [1, 6, 3, 1]
+      ]
+    }
+  },
+  "lights": {
+    "spriteBoost": 0.32,
+    "flicker": { "base": 0.85, "wobbleSlow": 0.06, "rateSlow": 0.13, "wobbleFast": 0.05, "rateFast": 0.47, "dropEvery": 997, "dropBelow": 12, "dropTo": 0.35 }
+  }
+}

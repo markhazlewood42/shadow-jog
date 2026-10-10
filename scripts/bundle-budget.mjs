@@ -76,7 +76,8 @@ const CHUNK_MAX = 480 * 1000;
 // 2026-10-10 (M3): the flag-only `liveopen` chunk (41.0 kB) left this total (its own cap above). Measured without it: 399.773 kB gzip, so
 // 400 kB (rounded up to the next 1 kB; +6.8 kB over M2's 393.0, mostly the M3 battle-stage code that the shipped boot and battle chunks now hold).
 // 2026-10-10: raised 400 to 401 kB after merging main (M1b) into the M3 branch: measured 400.002 kB, rounded up to the next 1 kB.
-const GZIP_TOTAL_MAX = 401 * 1000;
+// 2026-10-10 (M5): the field routing in the shipped game raised the measured total to 408.9 kB gzip; set to 409 kB (rounded up to the next 1 kB, Mark's one-bigger-total rule).
+const GZIP_TOTAL_MAX = 409 * 1000;
 
 /**
  * The lazy 3D chunk (Three, the 3D facade, the UnrealBloomPass), gzip. Set at 160 kB on 2026-10-05 (real choice C5, accepted by Mark): the spike
@@ -90,8 +91,11 @@ const LAZY_3D_GZIP_MAX = 160 * 1000;
  * `liveopen` chunk (the battle stage on the new engine, `src/battlestage/liveopen.ts`) measured 41.0 kB gzip on 2026-10-10; cap 42 kB,
  * measured rounded up to the next 1 kB. The flag and the chunk go away together when the old engine is removed.
  */
-const FLAG_ONLY_SRC = ['src/battlestage/liveopen.ts'];
-const FLAG_ONLY_GZIP_MAX = 42 * 1000;
+// 2026-10-10 (M5): the field stage's `fieldopen` chunk (src/fieldstage/fieldopen.ts, the field on the new engine) joined the class: measured 6.0 kB gzip, so the class is
+// 47.5 kB; cap 48 kB (rounded up to the next 1 kB). Builder C sets the final totals at the end of M5.
+const FLAG_ONLY_SRC = ['src/battlestage/liveopen.ts', 'src/fieldstage/fieldopen.ts'];
+// 2026-10-10 (M5): measured 49.1 kB (`liveopen` 41.5, `fieldopen` 7.6); cap 50 kB (rounded up to the next 1 kB).
+const FLAG_ONLY_GZIP_MAX = 50 * 1000;
 
 // `first play` (boot + lazy-2d) has NO cap: it is reported until M1 measures it (estimate 330 to 430 kB gzip, low confidence).
 

@@ -1,0 +1,79 @@
+{
+  "id": "bar",
+  "name": "The Drowned Saint",
+  "kind": "interior",
+  "terrain": [
+    "IIIIIIIIIIIIIIIIIIIIII",
+    "IIIIIIIIIIIIIIIIIIIIII",
+    "ICCCCCCCCCCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCCCCCCCCCI",
+    "IIIIIIIIIIICIIIIIIIIII"
+  ],
+  "legend": {},
+  "ambient": "#6a5a9a",
+  "music": "bar",
+  "battleBg": "street",
+  "props": [
+    {"kind":"bar","x":2,"y":4,"w":9},
+    {"kind":"shelf","x":2,"y":2,"w":3},
+    {"kind":"shelf","x":6,"y":2,"w":3},
+    {"kind":"screen","x":10,"y":1,"w":3,"color":"#ff4fb0"},
+    {"kind":"screen","x":16,"y":1,"w":2,"color":"#3fe0f0"},
+    {"kind":"stool","x":3,"y":5},
+    {"kind":"stool","x":5,"y":5},
+    {"kind":"stool","x":7,"y":5},
+    {"kind":"stool","x":9,"y":5},
+    {"kind":"couch","x":15,"y":2,"w":3,"color":"#6a2a3a"},
+    {"kind":"table","x":15,"y":4,"w":3},
+    {"kind":"couch","x":15,"y":7,"w":3,"color":"#6a2a3a"},
+    {"kind":"table","x":15,"y":9,"w":3},
+    {"kind":"table","x":4,"y":9,"w":2},
+    {"kind":"table","x":8,"y":9,"w":2},
+    {"kind":"jukebox","x":20,"y":11},
+    {"kind":"arcade","x":1,"y":11,"color":"#3fe0f0"},
+    {"kind":"plant","x":20,"y":2},
+    {"kind":"sign_board","x":13,"y":1,"w":2},
+    {"kind":"poster","x":1,"y":1,"color":"#ff4fb0"},
+    {"kind":"poster","x":9,"y":1,"color":"#ffcc3d"},
+    {"kind":"poster","x":19,"y":1,"color":"#3fe0f0"},
+    {"kind":"poster","x":20,"y":1,"color":"#b07cff"},
+    {"kind":"trash","x":18,"y":12},
+    {"kind":"crates","x":11,"y":2},
+    {"kind":"barrel","x":11,"y":4,"color":"#5a3a2a"},
+    {"kind":"stool","x":3,"y":9},
+    {"kind":"stool","x":10,"y":9},
+    {"kind":"lampfloor","x":13,"y":5,"color":"#ffb46a"},
+    {"kind":"holo","x":14,"y":11,"color":"#ff4fb0","text":"SAINT"},
+    {"kind":"plant","x":1,"y":7}
+  ],
+  "lights": [
+    {"x":6,"y":4,"r":70,"color":"#ff6fc8","i":0.55},
+    {"x":16,"y":5,"r":60,"color":"#ffb46a","i":0.55},
+    {"x":7,"y":10,"r":60,"color":"#8a6aff","i":0.35},
+    {"x":14,"y":10,"r":44,"color":"#ff4fb0","i":0.45}
+  ],
+  "npcs": [
+    {"id":"dutch","x":16,"y":3,"dir":"down","look":"dutch","name":"Dutch","talk":"meet_dutch","fixedDir":false},
+    {"id":"pale","x":17,"y":5,"dir":"up","look":"pale","name":"Mr. Pale","when":"not_met_dutch","talk":"meet_dutch"},
+    {"id":"barkeep","x":6,"y":3,"dir":"down","look":{"body":"short","skin":"#eadbd0","hair":"#2e1d33","hairStyle":"mohawk","top":"#a0652f","accent":"#d9b36c","pants":"#1e1c26","boots":"#1a1418","accessories":["visor"],"visor":"#ffcc3d","mouth":"none","brows":false},"name":"Saint","fixedDir":true,"talk":"barkeep_talk"},
+    {"id":"old_runner","x":9,"y":9,"dir":"up","look":{"body":"std","skin":"#7a4a30","hair":"#62e06a","hairStyle":"spiky","top":"#34344a","accent":"#ff4fb0","pants":"#3a3448","boots":"#2a2420","accessories":["elfears"],"mouth":"none","brows":true,"stance":"phone"},"name":"Old Runner","move":"static","talk":["Rook? Rook ran with the best crew in the Wards, back before your time, kid.","He and his old partner had a move: she’d {y}blur in fast{/}, he’d {y}follow through with the heaviest cut{/} he had. Same breath. Called it the {c}Thunder Rift{/}.","Pick a quick strike for you and Rook’s big cut in the same round. You’ll see."],"radius":2},
+    {"id":"drinker","x":4,"y":10,"dir":"up","look":{"body":"short","skin":"#5a3624","hair":"#8a5a2e","hairStyle":"cap","top":"#4d5238","accent":"#ffa24a","pants":"#3d3a30","boots":"#2a2420","accessories":[],"hat":"#8c2f39","mouth":"none","brows":true},"name":"Patron","move":"static","talk":["I’m not drunk. I’m Woken. The room is spinning magically."],"radius":2},
+    {"id":"dancer","x":12,"y":11,"dir":"left","look":{"body":"short","skin":"#7a4a30","hair":"#d8452e","hairStyle":"bald","top":"#2c3b5e","accent":"#62e06a","pants":"#2a2a33","boots":"#1a1418","accessories":[],"inner":"#8c2f39","mouth":"none","brows":true,"stance":"phone"},"name":"Regular","move":"wander","talk":["The jukebox only plays one song. Nobody knows who put it there. Nobody’s brave enough to unplug it."],"radius":2}
+  ],
+  "events": [
+    {"id":"board","x":13,"y":2,"w":2,"on":"action","run":"board_run"},
+    {"id":"jukebox","x":20,"y":10,"on":"action","run":"jukebox_run"}
+  ],
+  "warps": [
+    {"x":11,"y":13,"to":"lantern_row","tx":22,"ty":7,"dir":"down"}
+  ]
+}

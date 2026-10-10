@@ -1,0 +1,43 @@
+{
+  "id": "noodles",
+  "name": "Mama Ono’s",
+  "kind": "interior",
+  "terrain": [
+    "IIIIIIIIIIIIII",
+    "IIIIIIIIIIIIII",
+    "IWWWWWWWWWWWWI",
+    "IWWWWWWWWWWWWI",
+    "IWWWWWWWWWWWWI",
+    "IWWWWWWWWWWWWI",
+    "IWWWWWWWWWWWWI",
+    "IWWWWWWWWWWWWI",
+    "IWWWWWWWWWWWWI",
+    "IIIIIIIWIIIIII"
+  ],
+  "legend": {},
+  "ambient": "#9a7a70",
+  "music": "town",
+  "battleBg": "street",
+  "props": [
+    {"kind":"counter","x":2,"y":4,"w":9,"color":"#8a4a2a"},
+    {"kind":"shelf","x":2,"y":2,"w":3},
+    {"kind":"stool","x":3,"y":5},
+    {"kind":"stool","x":5,"y":5},
+    {"kind":"stool","x":7,"y":5},
+    {"kind":"stool","x":9,"y":5},
+    {"kind":"window","x":8,"y":1,"w":3},
+    {"kind":"table","x":11,"y":7,"w":2},
+    {"kind":"lampfloor","x":1,"y":7,"color":"#ff9a4a"}
+  ],
+  "lights": [
+    {"x":6,"y":4,"r":80,"color":"#ffb46a","i":0.65}
+  ],
+  "npcs": [
+    {"id":"ono","x":6,"y":3,"dir":"down","name":"Mama Ono","fixedDir":true,"look":{"skin":"#e0b08a","hair":"#e8e4da","hairStyle":"bun","top":"#d8452e","inner":"#efe6d4","accent":"#ffcc3d","pants":"#3a3448","boots":"#2a2420"},"talk":"ono_talk"},
+    {"id":"regular","x":9,"y":6,"dir":"up","look":{"body":"short","skin":"#7a4a30","hair":"#d8452e","hairStyle":"ponytail","top":"#7a2e5a","accent":"#62e06a","pants":"#3d3a30","boots":"#2a2420","accessories":[],"mouth":"grin","brows":true,"stance":"crossed"},"name":"Regular","move":"static","talk":["Mama Ono’s cat ran off last week. She pretends she doesn’t care. She cares. She put up a notice on the Drowned Saint’s board."],"radius":2},
+    {"id":"noodle_cat","x":12,"y":8,"dir":"left","look":"kit","critter":"cat","name":"Noodle","when":"job_cat_done","move":"wander","radius":1,"talk":["Mrrp."]}
+  ],
+  "warps": [
+    {"x":7,"y":9,"to":"lantern_row","tx":44,"ty":32,"dir":"down"}
+  ]
+}

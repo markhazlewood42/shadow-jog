@@ -286,10 +286,11 @@ including why it ended at round 12. If a future milestone brings it back:
 `src/data/items.ts` (with `who` for gear), then the shop's `items` in `src/data/shops.ts`. Run `economy.test.ts`.
 
 ### A new map, NPC or event
-1. A `MapDef` in `src/data/maps/` (build terrain with `Grid`), registered in `data/maps/index.ts`.
+1. Since M5 a map is two files in `src/data/maps/`: `<id>.json` (the grid as rows of characters, the legend, props, lights, npcs, warps, events, chests: plain values) and a behavior module (`when` predicates and story scripts under string ids, then `joinMap`). The JSON names code by id (`"when": "gate_unpassed"`, `"run": "mags_reward"`). Register the joined map in `data/maps/index.ts`. `checkMap` (run by `tests/mapdata*.test.ts`) lists every wrong field in plain words.
 2. Warps both ways (the connectivity and dead-end tests will tell you if something is unreachable).
-3. NPC `talk` is a string array or a `ScriptFn`; events are `touch` or `action`, optionally `once` and `when`.
+3. NPC `talk` is a list of lines or the id of a script; events are `touch` or `action`, optionally `once` and `when`.
 4. New prop kinds: add the name to `PropKind` (`field/types.ts`) and a painter in `field/props.ts`.
+5. A new map has no frozen copy: add a case to `tests/fixtures/sjefield/cases.json` and make its references (see "The field on the engine (M5)"). A changed value in an existing map file changes its parity reference: the parity spec fails first on the pinned hash.
 
 ### A new story beat
 Write a `ScriptFn` in `src/story/chapter1.ts` (or a new chapter file) and attach it to an NPC, event or warp. Set
@@ -435,6 +436,18 @@ The shipped battle is drawn by a Pixi stage under `?engine=sje` (`src/battlestag
 - **Pictures for the look review** (local, not CI): `M3_PICTURES=1 PW_PORT=3011 npx playwright test e2e/sje-pictures.spec.ts --reporter=line` (Edge on the GPU, the `gpu` set) or the same with `CI=1` (SwiftShader, the `soft` set). It writes `media/m3-stage/<kind>/<variant>-<moment>.png` and `index.html`. It takes about 10 minutes.
 - **Do not edit `src/` while a Playwright run is going** (Vite hot-reload kills the run). Judge `biome lint` and `tsc` by exit code.
 - **A data file that a Playwright spec loads in Node** needs import attributes on its JSON imports (`import x from './x.json' with { type: 'json' }`): Node refuses the plain form. `src/data/enemies.ts` has them.
+
+### The field on the engine (M5)
+
+The shipped field is drawn by a Pixi stage under `?engine=sje` (`src/fieldstage/`; the read order is in `.claude/skills/engine/SKILL.md`). The rules of `src/field/` and `src/scenes/field.ts` do not change: the stage only draws what the field says (`view()`).
+
+- **Run it.** `npm run dev`, then `http://localhost:3007/?engine=sje&debug` and take any door. The DEV hooks `__SJ__.fieldStage` (the stage as data), `fieldInfo()` (map, leader, flags, camera, light count, tick) and `fieldShow(case)` (a fixed state) are there. A second worktree uses `PW_PORT=3012`; never touch 3002 to 3011.
+- **Look values.** Map data is in `src/data/maps/<id>.json`; the look of the stage (shadow, glow, haze, chest halo and glint, neon flicker, sprite boost) is `src/data/fieldlook.json`. Edit the JSON, then `npx vitest run tests/fieldlook.test.ts`: `checkFieldLook` says what is wrong, and the game stops at start with the same list. The loaded values equal the old constants; change them on purpose and the parity bounds tell you how far the field moved.
+- **Parity with the old field.** `CI=1 PW_PORT=3012 npx playwright test e2e/sje-field-parity.spec.ts --reporter=line` (SwiftShader, the `soft` set, what CI runs) or without `CI=1` (Edge on the GPU, the `gpu` set). It prints the strict-gate numbers and the measured bounds of each of the 31 states and fails when a bound is passed. `SJEFIELD_STRICT=1` also fails on the brief's strict gate, which does not hold for lit frames (the numbers are in `m5-brief.md` section 9). `SJEFIELD_SHOTS=<folder>` saves the new picture, the reference and a diff picture of each state.
+- **Make the references again** only when the OLD field changed on purpose (a map, a prop's art, the lighting): `M5_REFS=1 CI=1 PW_PORT=3012 npx playwright test e2e/sje-field-refs.spec.ts --reporter=line`, then the same without `CI=1`, then commit `tests/fixtures/sjefield/`. They are pictures of the legacy path (no flag). The two sets are 11 MB together: make them rarely.
+- **Add a state.** A case in `tests/fixtures/sjefield/cases.json` (map, tile, story-flag preset from `src/game/stages.ts`, flags, `ambient`, `weather`, `seed`, `frame`, `fx`, `kinds`), then make the references. Use one fresh page per state: the ambient and weather overrides are set before the map first bakes.
+- **Draw budget.** `e2e/sje-draws.spec.ts` bounds the draws, framebuffer binds, canvas uploads and upload bytes of one field frame on the town, the world map and an interior. The upload bytes (about 7 MB a frame on the town) are the cost to watch on a real GPU: `npm run perf` is run by the main session at the end of the milestone.
+- **Do not edit `src/` while a Playwright run is going** (Vite hot-reload kills the run).
 
 ### A new save field
 Add it to `GameState` and `newState()`. If it's purely additive, give it a default in `backfill()` (`save.ts`). If

@@ -138,9 +138,10 @@ export function holdFor(map: string, tx: number, ty: number, table: Readonly<Rec
  * Draw the curtains of a map over the finished picture: a dark box over a part of the map that the
  * wider view would show too early. A `near` curtain follows the leader's distance, an `event`
  * curtain eases shut over its `fade` frames while its event runs (`ease` keeps each curtain's
- * progress between frames and is updated in place). The edges are feathered.
+ * progress between frames and is updated in place). The edges are feathered. Returns whether any curtain was drawn.
  */
-export function drawCurtains(ctx: Ctx, curtains: readonly Curtain[], ease: number[], cx: number, cy: number, leader: { x: number; y: number }, runningEvent: string | null): void {
+export function drawCurtains(ctx: Ctx, curtains: readonly Curtain[], ease: number[], cx: number, cy: number, leader: { x: number; y: number }, runningEvent: string | null): boolean {
+  let drew = false;
   for (const [i, c] of curtains.entries()) {
     const target = curtainClosed(c, leader, runningEvent);
     const prev = ease[i] ?? 0;
@@ -148,6 +149,7 @@ export function drawCurtains(ctx: Ctx, curtains: readonly Curtain[], ease: numbe
     ease[i] = eased;
     const a = CURTAIN_STRENGTH * eased;
     if (a < 0.01) continue;
+    drew = true;
     const x = c.box.x - cx, y = c.box.y - cy, w = c.box.w, h = c.box.h;
     ctx.fillStyle = voidShade(a.toFixed(3));
     ctx.fillRect(x, y, w, h);
@@ -164,6 +166,7 @@ export function drawCurtains(ctx: Ctx, curtains: readonly Curtain[], ease: numbe
     strip(x, y - CURTAIN_FEATHER, w, CURTAIN_FEATHER, 0, y, 0, y - CURTAIN_FEATHER);
     strip(x, y + h, w, CURTAIN_FEATHER, 0, y + h, 0, y + h + CURTAIN_FEATHER);
   }
+  return drew;
 }
 
 /**

@@ -421,4 +421,69 @@ test.describe('M1 bench (local only, real GPU)', () => {
       await g.close();
     }
   });
+  test('the field on the stage, world map (fx full, 640 set, the whole effect stack): the speed line, uploads, draws and binds', async ({ browser }) => {
+    test.setTimeout(240_000);
+    const g = await openGame(browser, { engine: true, init: installGlCounters, query: '&fx=full' });
+    try {
+      const { page } = g;
+      expect(await waitTop(page, 'TitleScene')).toBe(true);
+      await sj(page, "sj.stage('town')");
+      expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
+      const renderer = await sj<string>(page, 'sj.renderer.name');
+      const software = isSoftwareName(renderer);
+      expect(await sj<string>(page, 'sj.fxCounts().level'), 'the effects run at full').toBe('full');
+      await sj(page, "sj.tp('world', 13, 22, 'down')");
+      expect(await waitUntil(page, 'sj.fieldStage !== null && sj.fieldStage.mapId === "world" && sj.fieldStage.frame > 0 && sj.idle()', 30_000)).toBe(true);
+      // Let the area banner go (it is the screen layer's own upload), so the frame is the field alone.
+      await sj(page, '(sj.step(220), true)');
+      await sj(page, '(sj.game.stop(), true)');
+      const out = await page.evaluate(
+        async ({ frames, warmup, kitSrc }) => {
+          // biome-ignore lint/suspicious/noExplicitAny: the page's own hook object, typed by the game, not by this spec.
+          const sj = (window as unknown as { __SJ__: Record<string, any> }).__SJ__;
+          const game = sj.game;
+          const gl = (window as unknown as { __gl: { draws: number; binds: number; uploads: number; uploadBytes: number } }).__gl;
+          const { measure } = new Function(`return (${kitSrc})`)()(game, gl, frames, warmup);
+          let live = 0;
+          let total = 0;
+          // The player holds still: the frame is live through the clock, the weather, the lights and the actors.
+          const hold = (): void => {
+            total++;
+            if (game.top && game.top.constructor.name === 'FieldScene' && sj.fieldStage && sj.fieldStage.mapId === 'world') live++;
+          };
+          const field = await measure(hold);
+          const heavy = await measure(() => {
+            hold();
+            for (let k = 0; k < 80; k++) game.draw(0);
+          });
+          return { field, heavy, live, total };
+        },
+        { frames: FRAMES, warmup: WARMUP, kitSrc: benchKit.toString() },
+      );
+      const o = out as { field: Scenario; heavy: Scenario; live: number; total: number };
+      const bare = await bareIntervals(browser, FRAMES);
+      const bareP95 = percentile(bare, 0.95);
+      const label = software ? `SOFTWARE GL (${renderer}): NOT GPU numbers` : `GPU (${renderer})`;
+      const f = o.field;
+      console.log(
+        `SJE bench, field on the stage, world map, fx full, 640 set [${label}], bare rAF page p95 ${bareP95.toFixed(2)} ms
+` +
+          `  interval p95 ${f.intervalP95.toFixed(2)} ms, work p50/p95 ${f.workP50.toFixed(2)}/${f.workP95.toFixed(2)} ms, cost p50/p95 ${f.costP50.toFixed(2)}/${f.costP95.toFixed(2)} ms, ` +
+          `${f.drawsPerFrame.toFixed(1)} draws, ${f.bindsPerFrame.toFixed(1)} binds, ${f.uploadsPerFrame.toFixed(2)} uploads (${Math.round(f.uploadBytesPerFrame)} bytes, ${(f.uploadBytesPerFrame / 1048576).toFixed(2)} MB) per frame; ` +
+          `on the field stage ${o.live}/${o.total} ticks
+` +
+          `  control (80 extra draws): interval p95 ${o.heavy.intervalP95.toFixed(2)} ms, cost p95 ${o.heavy.costP95.toFixed(2)} ms`,
+      );
+      writeFileSync(`${OUT}/bench-field.json`, JSON.stringify({ label, renderer, software, bareP95, field: f, heavy: o.heavy, live: o.live, total: o.total }, null, 2));
+      // Control: the field stage (not the legacy path) drew the world map for the measured frames, and the counter saw draws.
+      expect(o.live / o.total, 'the field scene and its stage were up for the measured ticks').toBeGreaterThan(0.95);
+      expect(f.drawsPerFrame, 'a frame draws something (control: the counter sees the stage)').toBeGreaterThan(3);
+      const misses = speedLineMisses({ bareP95, sceneP95: f.intervalP95, costP95: f.costP95, software });
+      expect(misses, `the speed line (${label})`).toEqual([]);
+      if (!software) expect(speedLineMisses({ bareP95, sceneP95: o.heavy.intervalP95, costP95: o.heavy.costP95, software }), 'control: 80 extra draws break the line').not.toEqual([]);
+      expect(g.problems).toEqual([]);
+    } finally {
+      await g.close();
+    }
+  });
 });

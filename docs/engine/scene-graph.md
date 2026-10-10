@@ -132,7 +132,7 @@ Each class is a `GameObject`. A `GameObject` owns exactly one Pixi node (composi
 
 Three helpers add the ideas of other engines:
 
-- **`container.ySort = true`** (Godot y-sort). The engine writes `depth = y` for the children at update time.
+- **`container.ySort = true`** (Godot y-sort, built in M5). The children draw by `y + ySortOrigin` (Godot `y_sort_origin`, a property of the child; a sprite drawn from its top edge sets it to the height of its feet), low first. A tie goes to the child that was added first, which is the field's rule (`byBaseY` over a list filled sprites, chests, actors). The engine writes the key when a child moves, joins or leaves, not once per frame, so the order is right at any moment. In a `ySort` container the child's `depth` reads the key and a write throws. The tie rule needs one trick: Pixi's own sort is stable over the array it holds, and that array keeps the order of earlier sorts, so equal keys would keep a *history* order. The engine adds `slot * 2^-30` (slot = place in the child list) to the Pixi `zIndex`. Two keys closer than `children * 2^-30` (about a millionth for 1,000 children) can sort the wrong way; the field's keys differ by whole pixels.
 - **`container.setSortingGroup(true)`** (Unity Sorting Group). All parts of one figure sort together. The spike's PART fractions work inside it. Phase 0 did not build it and did not miss it. Every container already sorts its own children by `depth`, so a plain `Container` with parts of small local depths is a sorting group.
 - **Named bands** (Unity Sorting Layers and Order in Layer). One file, `depth.ts`, names the ranges. The values come from the spike where they exist.
 
@@ -164,7 +164,7 @@ Pixi has no camera. The engine builds one (Phaser's `Camera` API on a transform)
   - `setScrollFactor(0)` is allowed only on a top-level child of a scene. The engine then moves the object into `scene.ui` and keeps its `x` and `y`. `setScrollFactor(1)` moves it back.
   - On a nested child, `setScrollFactor(0)` throws in dev builds. Moving a nested child would break its parent's transform, mask, and sort order.
 - Camera scroll is always rounded to whole pixels. Phaser's `safeAuto` vertex rounding has no Pixi equivalent, so the camera does the rounding.
-- Camera effects: `fade`, `flash`, `shake`, `pan`, `zoomTo`. These are Phaser names. The arguments differ, see below. `fade` and `flash` draw a rectangle above the scene's `world` and below its `ui`. So they wash the world only, as today.
+- Camera effects: `fade`, `flash`, `shake`, `pan` (built in M5), `zoomTo`. These are Phaser names. The arguments differ, see below. `fade` and `flash` draw a rectangle above the scene's `world` and below its `ui`. So they wash the world only, as today.
 - One world camera per scene in v1. Multi-viewport cameras and `ignore()` lists are not built. The game does not need them.
 - Cameras can carry `filters`, as in Phaser 4.
 
@@ -293,6 +293,8 @@ Three Pixi facts that cause silent bugs:
 `scene.lights` `(ours: the name is Phaser's, the behavior is not)` holds an ambient color and point lights. It draws additive radial sprites into a camera-sized `RenderTexture`. It shows the result as one sprite with `blendMode = 'multiply'` above the world.
 
 Today's field lighting uses per-sprite scratch canvases (`copy`, `multiply`, `destination-in`). These have no one-to-one Pixi form. The first version uses the global light map plus a second, weaker multiply for sprites (today's 0.32 boost). The look is an approximation. **You must approve it in the M5 review (E20).**
+
+**Built in M5 task 2 (the first form, decision 3).** `Lights` (`src/sje/display/lights.ts`) is the model and the painter, not a display object: it holds the ambient color and the lights, and `paint(ctx, camX, camY, frame)` draws the light map with the **same canvas operations as `src/field/lighting.ts`** (ambient fill, then each light as a 64 px radial sprite with `'lighter'`, a second pass above intensity 1, the flicker). `tests/sje-lights.test.ts` runs the old `Lighting.build` and `bloom` and the new methods against a recording context and requires the same calls with the same numbers, for 40 frames and 4 camera positions. The stage owns the `CanvasImage` the map is painted into and shows it with a multiply blend (`setBlendMode`, not built yet) and applies `spriteBoost` in its lit-sprite pass. The GPU form (a render texture) is a later step and changes only the painter.
 
 A future `Look` (Unity URP Volume Profile idea) is an optional name for the data presets in `src/data/fx.json`. Do not build it before you ask for it.
 
