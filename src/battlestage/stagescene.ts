@@ -43,6 +43,7 @@ import { Figure, type FigureSpec, type SheetPlay, type Side } from './figure';
 import { idleFrame } from './idle';
 import { STAGE_KNOWN } from './known';
 import type { HeroesFile } from './proportions';
+import type { FigureGeo } from './hud';
 import { LEGACY_PUSH, type PushSpec, pushView, pushZoom } from './push';
 import { addEnemy, bakeStage, type CrewInfo, type EnemyTexture, type FigureArt, PREFIX, pruneTextures, registerCrew, type SheetMeta } from './textures';
 
@@ -125,6 +126,9 @@ export class BattleStageScene extends Scene<void> {
   private target: number | undefined;
   private backdrop: ImageObject | null = null;
   private leaning: { x: number; y: number; t: number } | null = null;
+  /** The screen shake: how far the stage is moved this frame (the HUD is not: it is in the `ui` layer). */
+  private shakeX = 0;
+  private shakeY = 0;
   private readonly pushSpec: PushSpec;
 
   constructor(private readonly init0: BattleStageInit) {
@@ -311,6 +315,15 @@ export class BattleStageScene extends Scene<void> {
     pruneTextures(this.textures, PREFIX.ring, new Set(this.figures.flatMap((f) => f.partTextures())));
   }
 
+  /**
+   * Restyle every figure from its state, and lay this tick's idle motion back on. A live battle sets the figures' state every tick (the display state of the battle) and calls this;
+   * `refresh` does the same and also changes the marks and removes pictures nobody shows any more, which is more than a tick needs.
+   */
+  restyle(): void {
+    this.restyleAll();
+    for (const f of this.figures) f.tick(this.worldFrame);
+  }
+
   /** Restyle every figure from its state. */
   private restyleAll(): void {
     for (const f of this.figures) f.restyle({ stage: this.stage, textures: this.textures, worldFrame: this.worldFrame });
@@ -332,6 +345,14 @@ export class BattleStageScene extends Scene<void> {
     this.applyPush();
   }
 
+  /** Move the stage by this much this frame (a screen shake, in screen pixels; the sign is the direction the picture moves). Zero puts it back. */
+  setShake(dx: number, dy: number): void {
+    if (dx === this.shakeX && dy === this.shakeY) return;
+    this.shakeX = dx;
+    this.shakeY = dy;
+    this.applyPush();
+  }
+
   /** Is the camera leaning now? */
   get pushing(): boolean {
     return this.leaning !== null;
@@ -345,12 +366,31 @@ export class BattleStageScene extends Scene<void> {
     const cam = this.cameras.main;
     if (!this.leaning) {
       this.sys.world.setScale(1);
-      cam.setScroll(0, 0);
+      cam.setScroll(0 - this.shakeX, 0 - this.shakeY);
       return;
     }
     const view = pushView(this.leaning, pushZoom(this.leaning.t, this.pushSpec), SCREEN_W, SCREEN_H);
     this.sys.world.setScale(view.zoom);
-    cam.setScroll(-view.offsetX, -view.offsetY);
+    cam.setScroll(-view.offsetX - this.shakeX, -view.offsetY - this.shakeY);
+  }
+
+  /**
+   * Replace the enemies on stage with these (keys of `ENEMIES`), in the slots of the group their number and kind call for ("1" to "6", "boss", "boss+1", "boss+2"). A
+   * summon in a live battle does this: the group grows by the ones called in. A group the stage has no slots for throws and changes nothing.
+   */
+  setEnemies(keys: readonly string[]): void {
+    const setKey = setKeyFor(keys, this.stage);
+    for (const f of this.figures.filter((x) => x.side === 'enemy')) f.destroy();
+    this.figures.splice(0, this.figures.length, ...this.figures.filter((x) => x.side === 'party'));
+    this.makeEnemies(keys, setKey);
+    this.refresh();
+  }
+
+  /** Where a figure is on the screen now: its feet and the edges of its drawn pixels (its knock-back included), for the labels placed relative to it. */
+  geoOf(f: Figure): FigureGeo {
+    const b = f.fig.box;
+    const dx = f.bodyDx + f.offX;
+    return { x: f.x, y: f.y, top: f.y + 1 + f.offY - (f.fig.foot.y - b.y0), left: f.x + dx + (b.x0 - f.fig.foot.x), right: f.x + dx + (b.x1 + 1 - f.fig.foot.x), boss: f.boss };
   }
 
   // ---------------------------------------------------------------- the editor contract (section 5 of docs/engine/m3-brief.md)
@@ -422,4 +462,15 @@ export class BattleStageScene extends Scene<void> {
     // The styles of the restored state, with the idle motion of this tick.
     this.refresh();
   }
+}
+
+/**
+ * The enemy group a list of keys stands in: "boss" when the first is a boss and it is alone, "boss+N" with N helpers, else the number ("1" to "6"). Throws when the stage has no
+ * slots for it.
+ */
+export function setKeyFor(keys: readonly string[], stage: StageConfig): string {
+  const first = keys[0] ? ENEMIES[keys[0]] : undefined;
+  const key = first?.boss ? (keys.length === 1 ? 'boss' : `boss+${keys.length - 1}`) : String(keys.length);
+  if (enemySlots(stage, key).length !== keys.length) throw new Error(`The stage "${stage.id}" has no enemy group "${key}" for ${keys.length} enemies`);
+  return key;
 }

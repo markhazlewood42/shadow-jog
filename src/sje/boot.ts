@@ -13,6 +13,8 @@
  *      the migration; `tests/sje-game.test.ts` pins both sides to the interface.
  *      Before that, the effects (M2): `postfx`, the singleton that scenes and `moments.ts` call, is routed to `game.fx` (`fx/route.ts`), and the
  *      presets and moments of `fx.json` are loaded into it (`loadData`), so `FxSystem.playMoment` works by name. No `#fx` overlay canvas exists on this path.
+ *      And the battle stage (M3): the battle's routing (`game/systems.ts`) asks for a stage, and the provider registered here makes one (`src/battlestage/liveopen.ts`, loaded
+ *      with a dynamic `import()` the first time a battle starts, so a session that never fights downloads none of it). Without the flag nothing is registered and the battle draws itself.
  *   4. In a DEV build only, add the engine's members to `window.__SJ__` (`src/sje-lab/devhook.ts`, interfaces.md section 14). A shipped build
  *      never loads that file (the import sits behind `import.meta.env.DEV`).
  */
@@ -27,6 +29,7 @@ import { shakeOffset } from '../engine/shake';
 import { FX } from '../data/fx';
 import { settings } from '../game/settings';
 import { drawNotice } from '../noticeoverlay';
+import { setBattleStageProvider } from '../scenes/battlekit/stageseam';
 import type { FxRequest } from './fx/fxsystem';
 import { routePostfx } from './fx/route';
 import { Game } from './runtime/game';
@@ -90,6 +93,8 @@ export async function startSje(markStarted: () => void): Promise<void> {
   const problems = game.fx.loadData(FX);
   if (problems.length > 0) throw new Error(`src/data/fx.json is not valid: ${problems.join('; ')}`);
   routePostfx(postfx, () => game.fx);
+  // The battle stage: loaded when the first battle asks for it (src/scenes/battlekit/stageseam.ts).
+  setBattleStageProvider({ open: async (g, scene) => (await import('../battlestage/liveopen')).liveProvider.open(g, scene) });
   // The notice overlay, as `main.ts` registers it on the old path.
   game.overlays.push(drawNotice);
   bootGame(game as unknown as OldGame, display as unknown as OldDisplay);

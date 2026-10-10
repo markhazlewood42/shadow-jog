@@ -19,13 +19,18 @@
  * There is no `setSortingGroup` call (the design sketches one, scene-graph.md section 4). It is not needed: every container sorts its own children by `depth`,
  * so a plain `Container` with parts of small local depths IS a sorting group.
  *
- * What is not here yet (the HUD is off in the B1 slice): the lunge and flash of a move, the stills a move puts on a hero, the
- * health bar and the dotted home ring. They are part of the later milestones (M3).
+ * The state of a live battle (M3 task 6) is plain fields the battle sets and `restyle` reads: `offX`/`offY` (a lunge, a hop), `bodyDx` (knock-back), `alpha`, `flash` (a
+ * white blink of an enemy that is hit), `tint` (a red wash over a hero who is hit), `down` (a hero who has fallen sinks into the fog), `bar` (the on-stage health bar of an
+ * enemy, when the stage asks for one). All of them start at rest, so a stage that never sets them draws what it always drew (the parity frames). Not here: the stills a
+ * move puts on a hero and the dotted home ring (the move animations are a later step).
  */
-import { type AnyScene, type Container, type ImageObject, PART, type Sprite, type TextureManager } from '../sje';
-import { type AxisShift, type PartySlot, type StageConfig, depthFor, shadowWidth, slotPoint } from './config';
+import { type AnyScene, type Container, type Graphics, type ImageObject, PART, type Sprite, type TextureManager } from '../sje';
+import { type AxisShift, type PartySlot, type StageConfig, depthFor, shadowHeight, shadowWidth, slotPoint } from './config';
+import { stageBarSize } from './hudlayout';
+import { textAt, textTexture, UI } from './hudkit';
 import { type IdleKind, enemyIdle, idleFrame } from './idle';
-import { type FigureArt, hazedTexture, ringTexture, shadowTexture } from './textures';
+import { BAR_COLOURS, BAR_SHINE_ALPHA, DOWN_FOG, DOWN_FOG_AMOUNT } from './liveparams';
+import { type FigureArt, flashTexture, hazedTexture, ringTexture, shadowTexture, tintTexture } from './textures';
 
 export type Side = 'party' | 'enemy';
 
@@ -124,6 +129,14 @@ export class Figure {
   /** The move's offset from the feet (facing already applied). */
   offX = 0;
   offY = 0;
+  /** A white blink over the picture, 0 (none) to 1 (full): an enemy that is hit. */
+  flash = 0;
+  /** A red wash over the picture, 0 to 1: a hero who is hit. */
+  tint = 0;
+  /** A hero who has fallen: the picture sinks into the floor's fog. */
+  down = false;
+  /** The on-stage health bar (and the duplicate's letter), when the stage's HUD asks for bars on the stage and this is an enemy; null draws none. */
+  bar: { ratio: number; tag: string } | null = null;
   /** The draw-order number now. */
   depth = 0;
   shadowW = 0;
@@ -135,6 +148,10 @@ export class Figure {
   private readonly shadow: ImageObject;
   private readonly ring: ImageObject;
   private readonly body: Sprite;
+  private barG: Graphics | null = null;
+  private barTag: ImageObject | null = null;
+  private barTagKey = '';
+  private readonly host: AnyScene;
 
   constructor(scene: AnyScene, spec: FigureSpec, stage: StageConfig, firstFrame: number | undefined) {
     this.id = spec.id;
@@ -154,6 +171,7 @@ export class Figure {
     this.art = spec.art;
     this.mirror = spec.mirror;
 
+    this.host = scene;
     this.group = scene.add.container(0, 0);
     this.group.name = `figure ${spec.id}`;
     // The parts, made in the scene and moved into the group (a child that has a parent leaves it first). Shadow and ring start
@@ -197,11 +215,17 @@ export class Figure {
    */
   restyle(ctx: StyleContext): void {
     const st = ctx.stage;
-    // The picture: the depth haze for this row (the acting hero and the target are exempt), else as drawn.
+    // The picture: a hit flash, else a fallen hero sunk into the fog, else the depth haze for this row (the acting hero and the target are exempt), else as drawn.
     let tex = this.baseTex;
-    if (st.depthTint) {
-      const amount = st.depthTint.exemptActive && (this.active || this.target) ? 0 : (st.depthTint.amounts[this.slot.row] ?? 0);
-      tex = hazedTexture(ctx.textures, this.baseTex, st.depthTint.fog, amount);
+    if (this.flash > 0) tex = flashTexture(ctx.textures, this.baseTex, this.flash);
+    else if (this.down && this.side === 'party') tex = hazedTexture(ctx.textures, this.baseTex, DOWN_FOG, DOWN_FOG_AMOUNT);
+    else {
+      if (st.depthTint) {
+        const amount = st.depthTint.exemptActive && (this.active || this.target) ? 0 : (st.depthTint.amounts[this.slot.row] ?? 0);
+        tex = hazedTexture(ctx.textures, this.baseTex, st.depthTint.fog, amount);
+      }
+      // A red wash over a hero who has just been hit.
+      if (this.tint > 0) tex = tintTexture(ctx.textures, tex, this.tint);
     }
     // A hero's idle picture is one cell of a sheet, so say which; an enemy's art is a single picture.
     const frame = this.sheet ? idleFrame(ctx.worldFrame, this.sheet.fps, this.sheet.count, this.sheet.phase) : undefined;
@@ -230,6 +254,46 @@ export class Figure {
     if (ringSpec && this.shadowW > 0) this.ring.setTexture(ringTexture(ctx.textures, this.shadowW + ringSpec.extraW, ringSpec.color)).setVisible(true).setPosition(0, 1).setDepth(PART.RING);
     else this.ring.setVisible(false);
     this.ring.setAlpha(this.alpha);
+    this.drawBar(ctx);
+  }
+
+  /** The on-stage health bar under the shadow (and the letter of a duplicate beside it). It is part of the figure: it sorts with it, and fades with it. */
+  private drawBar(ctx: StyleContext): void {
+    const spec = ctx.stage.hud.enemyInfo.barsOnStage;
+    const bar = this.side === 'enemy' && spec ? this.bar : null;
+    if (!bar || !spec) {
+      this.barG?.setVisible(false);
+      this.barTag?.setVisible(false);
+      return;
+    }
+    if (!this.barG) this.barG = this.host.add.graphics();
+    const g = this.barG;
+    if (g.parent !== this.group) this.group.add(g);
+    g.setVisible(true).setDepth(PART.BAR).setAlpha(this.alpha).clear();
+    // A boss gets a wide, taller bar (96 x 4): the one health bar in the fight that matters most should look it.
+    const { w, h } = stageBarSize(this.boss, spec);
+    const shadowH = this.shadowW > 0 ? shadowHeight(ctx.stage, this.shadowW) : 0;
+    const by = 1 + Math.floor(shadowH / 2) + spec.gapBelowShadow;
+    const ratio = Math.max(0, Math.min(1, bar.ratio));
+    const colour = ratio > 0.5 ? BAR_COLOURS.high : ratio > 0.25 ? BAR_COLOURS.mid : BAR_COLOURS.low;
+    const fw = Math.round(w * ratio);
+    g.fillStyle(BAR_COLOURS.outline, 1).fillRect(-Math.floor(w / 2) - 1, by - 1, w + 2, h + 2);
+    g.fillStyle(BAR_COLOURS.back, 1).fillRect(-Math.floor(w / 2), by, w, h);
+    if (fw > 0) {
+      g.fillStyle(colour, 1).fillRect(-Math.floor(w / 2), by, fw, h);
+      g.fillStyle(0xffffff, BAR_SHINE_ALPHA).fillRect(-Math.floor(w / 2), by, fw, 1);
+    }
+    // A duplicate foe's letter (A, B...) beside its bar, so the A on the timeline and in the list can be found on the stage.
+    if (bar.tag) {
+      const t = textTexture(ctx.textures, bar.tag, { color: UI.text, shadow: false, outline: UI.outline, prefix: 'bartag-' });
+      const at = textAt(t, bar.tag, -Math.floor(w / 2) - 7, by + Math.floor(h / 2) - 3, 'left');
+      if (!this.barTag) {
+        this.barTag = this.host.add.image(at.x, at.y, t.key).setOrigin(0, 0);
+        this.group.add(this.barTag);
+      } else if (this.barTagKey !== t.key) this.barTag.setTexture(t.key);
+      this.barTagKey = t.key;
+      this.barTag.setVisible(true).setPosition(at.x, at.y).setDepth(PART.BAR).setAlpha(this.alpha);
+    } else this.barTag?.setVisible(false);
   }
 
   /**

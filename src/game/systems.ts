@@ -13,6 +13,7 @@ import { surface } from '../engine/canvas';
 import { streams } from '../engine/rng';
 import type { Game } from '../engine/game';
 import { TS } from '../field/tiles';
+import { battleStages } from '../scenes/battlekit/stageseam';
 import { CardScene } from '../scenes/card';
 import type { FieldScene } from '../scenes/field';
 import { GameOverScene } from '../scenes/gameover';
@@ -356,7 +357,16 @@ export async function runBattle(
     // playthrough, 2026-09-29): a fight should land as an event, not a cut.
     game.flash('#ffffff', 12);
     const [{ BattleScene }] = await Promise.all([loadBattle(), game.wait(18)]);
-    const result = await game.run(new BattleScene({ encounter: enc, bg: opts.bg, canRun: opts.canRun, boss: opts.boss, music: opts.music, intro }));
+    const scene = new BattleScene({ encounter: enc, bg: opts.bg, canRun: opts.canRun, boss: opts.boss, music: opts.music, intro });
+    // Under `?engine=sje` a stage scene is put under the battle and draws it (battlekit/stageseam.ts); without the flag there is none and the battle draws itself.
+    const stage = await battleStages.open(game, scene);
+    if (stage) scene.attachStage(stage);
+    let result: BattleResult;
+    try {
+      result = await game.run(scene);
+    } finally {
+      stage?.close();
+    }
     if (result !== 'lose') {
       popMusic();
       // Rustfang bounty tally (job board).

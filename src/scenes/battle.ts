@@ -31,6 +31,7 @@ import { battleDriver } from './battlekit/driver';
 import { TimingWindow, timingWord } from './battlekit/timing';
 import { playEvent, type Cutin, type PlaybackView } from './battlekit/playback';
 import { BattleRenderer } from './battlekit/render';
+import type { BattleStage } from './battlekit/stageseam';
 import { BHT, BW, DECK_CUT_LIFE, ENEMY_MID_AT, FIELD_MID, floaterStart, HUD, MENU_X, PANEL_Y, PARTY_BOTTOM, PARTY_MID, partyX, placeEnemies, type EnemyBox } from './battlekit/geom';
 import { CRACK, INTRO_T } from './battlekit/intro';
 import { postfx } from '../engine/postfx';
@@ -130,6 +131,29 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
 
   /** Everything the scene draws (battlekit/render.ts); the scene keeps state and flow. */
   private readonly renderer = new BattleRenderer(this);
+
+  /**
+   * The stage that draws the battle under `?engine=sje` (battlekit/stageseam.ts), or null: the renderer then draws everything, as it always did. With a stage the
+   * renderer draws only the old UI (menus, panels, cut-ins, the intro) on a clear canvas, so this scene lets the stage show through and the stage scene below keep running.
+   */
+  stage: BattleStage | null = null;
+
+  /** Put a stage under this scene. Call it before the scene runs. */
+  attachStage(stage: BattleStage): void {
+    this.stage = stage;
+    this.opaque = false;
+    this.passUpdate = true;
+  }
+
+  /** What the stage cannot draw itself: the ring of a timed press, into the stage's effects layer (world pixels). */
+  drawOverStage(g: Ctx): void {
+    this.renderer.drawOverStage(g);
+  }
+
+  /** The battle is frozen for a heavy hit (the stage holds its idle motion too). */
+  get frozen(): boolean {
+    return this.hitstop > 0;
+  }
 
   render(ctx: Ctx): void {
     this.renderer.render(ctx);
@@ -389,6 +413,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   }
 
   private enemiesByX(): Combatant[] {
+    const stage = this.stage;
+    if (stage) return [...this.battle.alive('enemy')].sort((x, y) => stage.footX(x.uid) - stage.footX(y.uid));
     return [...this.battle.alive('enemy')].sort((x, y) => this.enemyPos(x).x - this.enemyPos(y).x);
   }
 
@@ -675,12 +701,14 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
   pos(uid: number): Pt {
     const u = this.battle.unit(uid);
     if (!u) return { x: BW / 2, y: FIELD_MID };
+    if (this.stage) return this.stage.pos(uid);
     return u.side === 'enemy' ? this.enemyCenter(u) : this.partyPos(u);
   }
 
   /** Where a number pops: over an enemy's head (clear of its HP bar), or over a party member. */
   private floatPos(uid: number): Pt {
     const u = this.battle.unit(uid);
+    if (this.stage && u) return this.stage.headPos(uid);
     if (u?.side !== 'enemy') return this.pos(uid);
     const { x, y, art } = this.enemyPos(u);
     return { x: x + art.w / 2, y: y + artTop(art) + 4 };

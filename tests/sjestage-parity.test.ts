@@ -169,7 +169,11 @@ describe('the pinned inputs (C2)', () => {
   // imports of the stage code itself, so a new data import cannot slip past the pins again.
   // src/data/party.ts is the one deliberate exception: the stage reads only the hero NAME from it (no pixel), and its bio text differs between
   // this repo and the Phaser checkout, so pinning it would stop scripts/sjestage-refs.mjs from running.
-  const NOT_PINNED = new Map([['src/data/party.ts', 'only the hero name is read, never drawn; the bio text differs in the Phaser checkout']]);
+  // src/data/abilities.ts (M3 task 6) is read by the live battle's HUD view and the headless driver (a skill's name and cost, the combos), never by the slice the goldens show.
+  const NOT_PINNED = new Map([
+    ['src/data/party.ts', 'only the hero name is read, never drawn; the bio text differs in the Phaser checkout'],
+    ['src/data/abilities.ts', 'read by the live battle and the headless driver (skill names and costs), not by the parity slice'],
+  ]);
 
   it('cover every src/data file the stage code imports (src/battlestage/*.ts), except the ones named on purpose', () => {
     const imported = new Set<string>();
