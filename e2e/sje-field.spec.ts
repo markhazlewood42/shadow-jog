@@ -212,6 +212,14 @@ test.describe('the field on the stage', () => {
     try {
       await warpTo(g.page, 'rook_flat');
       expect(await waitUntil(g.page, 'sj.fieldStage.screenShown === false', 15_000)).toBe(true);
+      // Minor m1: the battle intro's still (`paintLegacy`, `renderLegacy(forSnapshot)`) feeds no glow layer. One synchronous call, so no frame runs between the control and the still.
+      // Control: the live frame has a glow layer (fx=full), so a null after the still is the still's doing.
+      expect(
+        await sj<{ live: boolean; still: boolean }>(
+          g.page,
+          `(() => { const f = sj.field(); const live = f.glow !== null; const c = document.createElement('canvas'); c.width = 640; c.height = 360; f.paintLegacy(c.getContext('2d')); return { live, still: f.glow === null }; })()`,
+        ),
+      ).toEqual({ live: true, still: true });
       const msg = await sj<string | null>(g.page, 'sj.fieldStageLoadBadMap()');
       expect(msg).toMatch(/is not valid, so the stage keeps "rook_flat"/);
       expect(await sj<string>(g.page, 'sj.fieldStage.mapId')).toBe('rook_flat');

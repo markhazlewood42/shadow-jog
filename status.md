@@ -65,11 +65,11 @@ M5 "Field" is built on branch `engine-m5-field` ([PR #54](https://github.com/mar
 
 **Done since (2026-10-10, later):** round 2 found GPU parity bounds wider than measured (fixed 13abd7e, round 3 PASS). A new bench case, the field stage on the world map, fx full (3cf99a3), showed cost p95 11.5 ms over the 8 ms line. Cause: CPU 2D paint (screen layer, 24 relights), not the light map. Mark chose the low-risk fixes: relight only on a change in the overlapping light (0a0ae46). The screen dirty rect was not built (rain covers the whole screen). Field cost p95 is now 6.9 to 7.4 ms. A GPU-only restore hash bug is fixed (eef52b5: F4 had a wrong premise). Runner and reader verifiers PASS. CI green on 3cf99a3. `prod.spec` 2 passed.
 
-**Open:** (1) `npm run perf` (full, GPU): 11 of 12 passed. The live battle case failed once with cost p95 14.5 ms, then gave 9.9 (fail) and 5.0 (pass). M3 measured 3.4. The machine is noisy, but an M5 battle regression is possible: run an A/B against `main`. (2) Put the perf numbers into `tooling-and-testing.md` section 7 and the brief Record. (3) Minor m1: a test that the battle-intro still (`renderLegacy(forSnapshot)`, `field.ts:767`) feeds no glow. (4) CI on the latest head. (5) Checkpoint 2: Mark merges or sends work back.
+**Done (2026-10-10, last):** the live battle A/B against `main` says noise (M5 median cost p95 2.9 ms, `main` 4.0 ms, interval 16.8 ms on both). The perf numbers are in `tooling-and-testing.md` section 7 and the brief Record (pass line 13 holds). Minor m1 is a browser check in `e2e/sje-field.spec.ts` (the battle-intro still feeds no glow). **Open:** CI on the latest head, then checkpoint 2: Mark merges or sends work back.
 
 **Next up for Mark**
 
-1. After CI is green and the perf numbers are in: play `http://localhost:3011/?engine=sje` (dev server from the M5 worktree), then merge PR #54 or send work back.
+1. Play `http://localhost:3011/?engine=sje` (dev server from the M5 worktree), then merge PR #54 or send work back.
 
 ### Right now (2026-10-10, M3 merged)
 
