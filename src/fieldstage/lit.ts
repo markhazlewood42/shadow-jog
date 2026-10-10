@@ -9,7 +9,9 @@
  * It lights again only when it could look different. The light on a spot of the world does not change while the camera moves (a steady light is fixed to the world; the
  * map is painted again for the new camera, but the same light lands on the same spot), so what the picture depends on is: the picture, where it stands in the world, the
  * flicker of the lights that reach it (`Lights.flickerSignature`), and the scene's `epoch` (bumped when the ambient color or the set of lights changes). A picture that
- * is partly off the screen is lit every frame, because the light map is only as big as the screen. That makes a still prop on a still camera free, and a walking actor
+ * is partly off the screen is lit again whenever its place on the screen changes, because the light map is only as big as the screen: the part of the picture off it is read
+ * from nowhere, so the result depends on where the picture stands on the screen. (A picture that was partly off the screen and is now wholly on it is lit again too, so no
+ * strip of the unlit part stays.) That makes a still prop on a still camera free, and a walking actor
  * a few small copies a frame, where the old field did the same copies for every sprite on every frame.
  */
 import { CanvasImage, type DisplayHost, H, W } from '../sje';
@@ -21,6 +23,10 @@ export class LitPicture {
   private wy = Number.NaN;
   private sig = 0;
   private epoch = -1;
+  /** Where on the screen the picture was lit, and whether it stood partly off the screen then (the map is read only where the picture is on it). */
+  private sx = Number.NaN;
+  private sy = Number.NaN;
+  private edged = false;
   /** How many times this picture was lit (for the tests and the hook). */
   lit = 0;
 
@@ -35,7 +41,10 @@ export class LitPicture {
    */
   relight(src: CanvasImageSource, crop: { x: number; y: number } | null, map: HTMLCanvasElement | null, boost: number, wx: number, wy: number, sx: number, sy: number, sig: number, epoch: number): boolean {
     const edge = sx < 0 || sy < 0 || sx + this.w > W || sy + this.h > H;
-    if (!edge && src === this.src && wx === this.wx && wy === this.wy && sig === this.sig && epoch === this.epoch) return false;
+    if (src === this.src && wx === this.wx && wy === this.wy && sig === this.sig && epoch === this.epoch && edge === this.edged && (!edge || (sx === this.sx && sy === this.sy))) return false;
+    this.edged = edge;
+    this.sx = sx;
+    this.sy = sy;
     this.src = src;
     this.wx = wx;
     this.wy = wy;

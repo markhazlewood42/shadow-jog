@@ -372,6 +372,19 @@ describe('Lights.flickerSignature', () => {
     for (let f = 0; f < 30; f++) seen.add(l.flickerSignature(290, 90, 20, 20, f));
     expect(seen.size).toBeGreaterThan(5);
   });
+  it('counts a rectangle only when the lit circle reaches it, not the corner of the square around the circle', () => {
+    const l = new Lights({ flicker: FIELD_LOOK.lights.flicker });
+    l.addLight(100, 100, 40, '#ffffff', 1, { flicker: true, seed: 3 });
+    // In the corner of the square (|dx| = |dy| = 36 < 40) but 50.9 px from the center: the sprite is clear there.
+    expect(l.flickerSignature(136, 136, 4, 4, 5)).toBe(0);
+    // Control (the skip must not be too broad): a rectangle on the circle's edge, and one in the middle of the light, are counted.
+    expect(l.flickerSignature(136, 100, 4, 4, 5)).not.toBe(0); // 36 px right of the center, inside the radius
+    expect(l.flickerSignature(139, 99, 4, 4, 5)).not.toBe(0); // its near edge is 39 px away, inside the radius
+    expect(l.flickerSignature(141, 99, 4, 4, 5)).not.toBe(0); // 1 px past the radius: still inside the margin of the sprite's own blur
+    expect(l.flickerSignature(98, 98, 4, 4, 5)).not.toBe(0);
+    // Past the margin (radius 40 + 1.25 + 2) it is 0 again.
+    expect(l.flickerSignature(150, 99, 4, 4, 5)).toBe(0);
+  });
   it('hasFlicker says whether any light flickers', () => {
     expect(lights().hasFlicker).toBe(true);
     expect(new Lights({ flicker: FIELD_LOOK.lights.flicker }).hasFlicker).toBe(false);
@@ -450,7 +463,7 @@ describe('LitPicture: the old drawLit, operation for operation', () => {
     expect(logFor(0.32, 100, recCanvas(16, 24, 'OTHER'))).not.toEqual(base);
   });
 
-  it('lights again only when the picture, its place, the flicker or the epoch changed, and always at the edge of the screen', () => {
+  it('lights again only when the picture, its place, the flicker or the epoch changed (at the edge of the screen, its place on the screen counts too)', () => {
     const pic = new LitPicture({ textures: stageTextures() }, 16, 24);
     const sprite = asCanvas(recCanvas(16, 24));
     const map = asCanvas(recCanvas(W, H));
@@ -464,9 +477,28 @@ describe('LitPicture: the old drawLit, operation for operation', () => {
     expect(lit({ wx: 6, sig: 9, epoch: 1, src: asCanvas(recCanvas(16, 24)) })).toBe(true); // another picture (a walk frame)
     expect(lit({ wx: 6, sig: 9, epoch: 1, src: sprite })).toBe(true); // and back
     expect(pic.lit).toBe(6);
-    // The light map is only as big as the screen: a picture partly off it is lit every frame.
-    expect(pic.relight(sprite, null, map, 0.32, 5, 5, -4, 100, 0, 1)).toBe(true);
-    expect(pic.relight(sprite, null, map, 0.32, 5, 5, -4, 100, 0, 1)).toBe(true);
+    // The light map is only as big as the screen: the part of a picture off it is read from nowhere, so an edge picture depends on where it stands on the screen.
+    expect(pic.relight(sprite, null, map, 0.32, 5, 5, -4, 100, 0, 1)).toBe(true); // first at the edge
+    expect(pic.relight(sprite, null, map, 0.32, 5, 5, -4, 100, 0, 1)).toBe(false); // the camera stands still: the same picture
+  });
+
+  it('an edge picture is lit again when its place on the screen changes, and when it comes wholly onto the screen (no strip of the unlit part stays)', () => {
+    const pic = new LitPicture({ textures: stageTextures() }, 16, 24);
+    const sprite = asCanvas(recCanvas(16, 24));
+    const map = asCanvas(recCanvas(W, H));
+    const lit = (sx: number, sy = 100): boolean => pic.relight(sprite, null, map, 0.32, 5, 5, sx, sy, 0, 0);
+    expect(lit(-4)).toBe(true);
+    expect(lit(-4)).toBe(false); // the same place on the screen: the same picture
+    expect(lit(-3)).toBe(true); // the camera moved one pixel: another part is off the screen
+    expect(lit(-3, 101)).toBe(true); // moved down
+    expect(lit(-3, 101)).toBe(false);
+    // Control: the skip must not be too broad. The camera pans and the picture comes wholly onto the screen: the old edge result had an unlit strip, so it is lit again.
+    expect(lit(2)).toBe(true);
+    expect(lit(30)).toBe(false); // now it is a plain picture: a camera move alone does not light it again
+    // And back to an edge on the right side.
+    expect(lit(W - 10)).toBe(true);
+    expect(lit(W - 10)).toBe(false);
+    expect(lit(W - 11)).toBe(true);
   });
 
   it('with the lights off the picture is copied as it is (the old drawLit drew it plain)', () => {
@@ -626,6 +658,19 @@ describe('FieldStageScene: the lit pass is skipped when it cannot show', () => {
     // Only `near` is under the light: it lights again on frames where the flicker changed. The far prop is lit once.
     expect(after).toBeGreaterThan(first + 5);
     expect(after - first).toBeLessThanOrEqual(20);
+  });
+
+  it('a prop in the corner of the square around a light, out of its circle, is lit once; one inside the circle is lit again as the light flickers', () => {
+    const corner = prop(42, 42, 2, 2, 44); // 18 px to the right and below the center: in the square, 25 px from the center, radius 20
+    const inside = prop(34, 34, 4, 4, 38); // 10 px from the center in both axes
+    const r = stage({ lights: [{ x: 24, y: 24, r: 20, color: '#ff0000', i: 1, flicker: true, seed: 2 }], sprites: [corner, inside], hasOver: false });
+    r.h.frame(17);
+    expect(r.scene.describe().litPaints).toBe(2); // each once
+    for (let i = 0; i < 20; i++) frame(r);
+    const after = r.scene.describe().litPaints;
+    // The corner prop was lit once; the inside prop again on most frames. If the corner prop lit too (the skip not working), the count would be about twice as big.
+    expect(after - 2).toBeGreaterThan(5);
+    expect(after - 2).toBeLessThanOrEqual(20);
   });
 
   it('paints the light map again only when the camera moved or a flickering light on screen changed', () => {

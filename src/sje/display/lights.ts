@@ -225,14 +225,22 @@ export class Lights {
 
   /**
    * A number that changes whenever the light that reaches the world rectangle (x, y, w, h) changes between frames: it mixes the flicker of every flickering light whose
-   * circle touches the rectangle. 0 when none does. Steady lights are not in it: their light on a spot of the world does not change, whatever the camera does. A scene
+   * lit circle touches the rectangle. 0 when none does. Steady lights are not in it: their light on a spot of the world does not change, whatever the camera does. A scene
    * uses it to skip lighting a sprite again when nothing it stands in has moved (@ours; the old field lit every sprite every frame).
+   *
+   * "Touches" is the circle, not its bounding square: the light sprite is clear outside its radius, so a corner of the square adds nothing. The test keeps a margin of the
+   * sprite's own blur (one texel of the 64 px sprite, scaled to the light's size, plus the rounding of its place), so a rectangle that could take one pixel of the light
+   * is always counted; the output is the same as lighting on every frame.
    */
   flickerSignature(x: number, y: number, w: number, h: number, frame: number): number {
     let sig = 0;
     for (const l of this.set) {
       if (!l.flicker) continue;
-      if (l.x + l.r < x || l.x - l.r > x + w || l.y + l.r < y || l.y - l.r > y + h) continue;
+      // The distance from the light's center to the nearest point of the rectangle.
+      const dx = Math.max(x - l.x, 0, l.x - (x + w));
+      const dy = Math.max(y - l.y, 0, l.y - (y + h));
+      const reach = l.r + l.r / (LIGHT_RES / 2) + 2;
+      if (dx * dx + dy * dy > reach * reach) continue;
       sig = (Math.imul(sig, 31) + Math.round(l.i * flickerAmount(l, frame, this.flickerLook) * 4096) + 1) | 0;
     }
     return sig;
