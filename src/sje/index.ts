@@ -12,7 +12,7 @@ export { EventEmitter } from './core/eventemitter';
 export { FixedLoop, type FixedLoopHooks, type FixedLoopOptions, MAX_ELAPSED_MS, MAX_TICKS_PER_FRAME } from './core/fixedloop';
 export * from './core/rng';
 export { FPS, grain, H, TICK_MS, W } from './core/size';
-export { Camera, type CameraBounds, CameraManager } from './display/camera';
+export { Camera, type CameraBounds, CameraManager, type PanEase } from './display/camera';
 export { CanvasImage } from './display/canvasimage';
 export { Container } from './display/container';
 export * from './display/font';
@@ -21,6 +21,7 @@ export { colorMatrixEffect, createEffect, type Effect, type EffectSpec, FilterLi
 export { DEPTH, depthFor, PART } from './display/depth';
 export { type DisplayHost, GameObject } from './display/gameobject';
 export { Graphics } from './display/graphics';
+export { flickerAmount, LIGHT_RES, type Light, type LightHandle, type LightOptions, Lights, type LightSpriteMaker } from './display/lights';
 export { ImageObject } from './display/imageobject';
 export { Screen, type ScreenSlot } from './display/screen';
 export { Sprite } from './display/sprite';

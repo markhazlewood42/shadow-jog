@@ -8,12 +8,13 @@
  * picture between pixels and shimmer.
  *
  * Built in B0: `scrollX`, `scrollY`, `setScroll`, `setBounds`. Built in M1: `fadeIn`, `fadeOut`, `flash`, `shake`
- * (cameraeffects.ts; durations in milliseconds, driven by the tick). Not built yet (on demand):
- * `zoom`, `startFollow`, `setDeadzone`, `pan`, `zoomTo`, `filters`. They
+ * (cameraeffects.ts; durations in milliseconds, driven by the tick). Built in M5: `pan` (ease-in-out, whole-pixel steps, bounds and the
+ * small-room rule on every step). Not built yet (on demand):
+ * `zoom`, `startFollow`, `setDeadzone`, `zoomTo`, `filters`. They
  * are absent from the type, so using one is a compile error, not a silent no-op.
  */
 import { H, W } from '../core/size';
-import { CameraEffects } from './cameraeffects';
+import { CameraEffects, msToTicks } from './cameraeffects';
 import { snap } from './gameobject';
 import type { Container } from './container';
 
@@ -24,10 +25,30 @@ export interface CameraBounds {
   h: number;
 }
 
+/** The easings of `pan`. `quadInOut` is the field's: `2k^2` up to the middle, then `1 - (2 - 2k)^2 / 2`. `linear` is Phaser's default. */
+export type PanEase = 'linear' | 'quadInOut';
+
+const EASE: Record<PanEase, (k: number) => number> = {
+  linear: (k) => k,
+  quadInOut: (k) => (k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2),
+};
+
+interface Pan {
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  t: number;
+  len: number;
+  ease: PanEase;
+  done: (() => void) | undefined;
+}
+
 export class Camera {
   private _scrollX = 0;
   private _scrollY = 0;
   private bounds: CameraBounds | null = null;
+  private panning: Pan | null = null;
   private readonly fx: CameraEffects;
 
   /**
@@ -56,6 +77,37 @@ export class Camera {
     this._scrollY = this.clamp(snap(y), 'y');
     this.apply();
     return this;
+  }
+
+  /**
+   * Phaser: pan. Move the camera so it is CENTERED on the world point (x, y), over `ms` milliseconds (whole ticks, at least one).
+   * The end point is the scroll that centers the point, rounded and then kept inside the bounds (a map smaller than the view is
+   * centered), so it is the same place `setScroll` would put the camera. Each tick moves the scroll to the eased point between where
+   * the pan started and the end point, rounded to a whole pixel and kept inside the bounds again. After `ms` it is at the end point and
+   * `done` runs once, in the tick it arrives (before any later code of that tick).
+   *
+   * A new `pan` replaces a running one and starts from where the camera is: the old `done` is never called. `setScroll` during a pan is
+   * overwritten by the next tick; a pan does not stop for it. @ours (arguments: `done` instead of an event, and `ease`, whose default
+   * is the field's `quadInOut`, not Phaser's linear)
+   */
+  pan(x: number, y: number, ms: number, ease: PanEase = 'quadInOut', done?: () => void): this {
+    if (!this.canScroll) throw new Error('This camera never scrolls (the ui camera)');
+    this.panning = {
+      fromX: this._scrollX,
+      fromY: this._scrollY,
+      toX: this.clamp(snap(x - W / 2), 'x'),
+      toY: this.clamp(snap(y - H / 2), 'y'),
+      t: 0,
+      len: msToTicks(ms),
+      ease,
+      done,
+    };
+    return this;
+  }
+
+  /** True while a pan runs (until the tick it arrives). */
+  get isPanning(): boolean {
+    return this.panning !== null;
   }
 
   /**
@@ -97,14 +149,30 @@ export class Camera {
     return this;
   }
 
-  /** True while a fade, flash or shake runs, or a fade is held. */
+  /** True while a fade, flash or shake runs, a fade is held, or a pan runs. */
   get busy(): boolean {
-    return this.fx.active;
+    return this.fx.active || this.panning !== null;
   }
 
-  /** Advance the effects by one tick. The scene manager calls this each tick, after `postupdate`. */
+  /** Advance the pan and the effects by one tick. The scene manager calls this each tick, after `postupdate`. */
   update(): void {
+    this.stepPan();
     this.fx.update();
+  }
+
+  private stepPan(): void {
+    const p = this.panning;
+    if (!p) return;
+    p.t++;
+    const k = Math.min(1, p.t / p.len);
+    const e = EASE[p.ease](k);
+    this._scrollX = this.clamp(snap(p.fromX + (p.toX - p.fromX) * e), 'x');
+    this._scrollY = this.clamp(snap(p.fromY + (p.toY - p.fromY) * e), 'y');
+    this.apply();
+    if (k >= 1) {
+      this.panning = null;
+      p.done?.();
+    }
   }
 
   /** Write the transform to the world container. The draw phase calls this, and `setScroll` does. */
