@@ -1,0 +1,105 @@
+---
+type: plan
+title: "Shadow Jog Engine — M5 build brief"
+project: shadow-jog
+created: 2026-10-10
+updated: 2026-10-10
+tags: [engine, m5, plan, field]
+---
+
+# M5 Field: build brief
+
+Source: [migration.md](migration.md) "M5 Field" and "Content moves to data files", [scene-graph.md](scene-graph.md) (ySort, camera, lights), [interfaces.md](interfaces.md) (`Lights`), [m3-brief.md](m3-brief.md) (format, the seam pattern, the parity method), and the lean loop in `CLAUDE.md`. Branch: `engine-m5-field` (from `main` after PR #52), own worktree. Pass lines were written before any code. **Nothing is built until Mark approves this brief.**
+
+Facts in section 2 come from a read-only survey on 2026-10-10. Task 1 re-checks each one and corrects this file where it is wrong.
+
+## 1. Goal
+
+- Under `?engine=sje`, the field plays on the Pixi engine: 4 baked map layers, actors with `ySort`, a camera with pan easing and bounds, lights, per-frame prop animations, water and weather, emotes and followers, warps and scripts.
+- Map data moves from TypeScript to data files. The field reads them through a loader. A level editor can open them (principle 11).
+- Rooms smaller than the 640x360 view are centered by one camera rule. No map data changes without Mark's yes for each map.
+- Field rules (`src/field/actor.ts` movement, warps, events, scripts) do not change. The default path (no flag) does not change in behavior.
+- Not in M5: UI scenes and menus (M4, optional), `TextObject` (M4), the map editor (milestone ET), 3D (M7), flipping the default (M6).
+- Exit check (migration.md): walking, warps, scripts, emote and followers play; the playthrough spec is green; **Mark approves the lighting**.
+
+## 2. Survey facts that change the plan
+
+- **The field is about 8,500 lines on the legacy engine.** `src/scenes/field.ts` (833) draws through `render()` (ground, lit animations, lighting, sprites by depth, overhead layer, bloom, dust, weather, curtains, emotes). `src/scenes/fieldkit/` (about 1,850: camera 35, draw 59, dust 52, popins 177, surround 109 and `surround-art` 401, api 177). `src/field/` (about 4,800: `props.ts` 1,841, `tiles.ts` 952, `buildings.ts` 608, `fieldmap.ts` 368, `weather.ts` 214, `lighting.ts` 185, `actor.ts` 184).
+- **Maps are not pure data.** 15 maps (6 files plus 9 interiors, 1,776 lines). They hold `when:` predicates, and `run:`/`talk:` async script functions that call the script API. Moving them to data means splitting each map into a **data file** (grid, props, lights, npcs, warps, events as plain values) and a **code module** (predicates and scripts, referenced by id). Fifteen maps import from `src/data/maps`, plus `save.ts`, `mapview`, `placemap`, `art/drawn`, devmenu, and 14 tests.
+- **Largest map:** `world`, 60x42 tiles of 16 px = 960x672. `fieldmap.ts` `bake()` makes 4 surfaces (ground, emit, over, overEmit) plus passes for wet streets, puddle reflections, biolume and structure edges. It caches by a signature of patches, props and lights.
+- **Lights:** `lighting.ts` builds a 640x360 light map per frame (ambient fill, a 64 px radial sprite per light with `lighter`, flicker), then multiplies it over the screen. Sprites are lit one by one with `copy`, `multiply`, `destination-in`, with a boost of 0.32 so they resist darkness. The overhead layer is clipped to `overrects`. Bloom is an additive haze (0.14, 0.08 in interiors). This is the part the migration plan flags as having no one-to-one form on Pixi.
+- **Water shimmer** has no named module in the survey (puddles and biolume are bakes). Task 1 finds what animates.
+- **The new engine has the display pieces, not the field pieces.** Built: `ImageObject`, `CanvasImage`, `Sprite`, `Container` (no `ySort`), `Camera` (`setScroll`, `setBounds`, fades, flash, shake), `CameraManager`, `LegacyScene`. Design only: `Lights`, `ySort`, camera pan, zoom, follow, deadzone. M5 builds `ySort`, camera pan and `Lights`.
+- **There is no field seam.** Under the flag the field runs on the legacy shell through `LegacyScene`. The battle used `stageseam.ts` with a lazy provider registered in `sje/boot.ts`. M5 needs the same pattern for the field.
+
+## 3. Open decisions for Mark (recommendation first; the build uses it unless Mark says otherwise)
+
+1. **Map file format.** Recommend: one `src/data/maps/<id>.json` per map for values (grid as rows of characters or ids, props, lights, npcs, warps, events), and one `<id>.ts` per map for behavior (`when` predicates and scripts), referenced by string ids from the JSON. A typed loader plus a `checkMap` function (like `checkStageConfig`) joins them into today's `MapDef`. A deep-equal test proves the joined object equals today's object for all 15 maps (frozen copy made before the move, as in M3). Mark approves one sample file (`rustyard`) before the other 14 move.
+2. **How the new field is drawn.** Recommend: a `FieldStageScene` in `src/fieldstage`, opened through a `fieldseam.ts` and a lazy provider (the M3 pattern). `field.ts` keeps all rules. Only drawing moves. Legacy `render()` stays for the default path until M6.
+3. **How lights are built on Pixi.** Recommend the first form: keep the current model on a `CanvasImage` (same canvas ops, same numbers) so the look is the same, then measure. A GPU form (a light-map render texture and a multiply blend) is a follow-up inside M5 only if the measured cost breaks the speed line. This keeps "same look" and "fast" apart.
+4. **Parity method for the field.** Recommend two checks. (a) **Regression parity:** per map and fixed state (position, time, flags, seed), the new field frame equals the legacy frame at the same camera. Target 0 differing pixels outside a renderer mask. (b) **Lighting:** Mark judges the pictures, then they pin as goldens. Lighting is exempt from the numeric gate if (a) cannot hold there after the first honest try, and the diff is shown to Mark.
+5. **Small rooms.** Recommend one rule: center the map in the 640x360 view, fill the rest with the existing off-map surround (`fieldkit/surround.ts`). `camera.ts`'s `cameraOrigin` already centers; the rule reuses it. Mark reviews pictures of each interior. No map data changes.
+6. **ySort rule.** Recommend: sort by base Y with the same tie-break as `byBaseY` in `fieldkit/draw.ts`, built as `Container.ySort` in the engine (scene-graph.md design), so the battle stage's depth rule and the field's stay separate.
+
+## 4. Tasks, in build order
+
+1. **Survey, then record.** `docs/engine/m5-survey.md`: re-check section 2, list what `field.ts` and `fieldkit` call on `Ctx` and `Surface`, list every per-frame animation and what draws it, list every use of `MapDef` fields.
+2. **Engine pieces.** `Container.ySort`, `Camera` pan with easing and bounds (from `fieldkit/api.ts` and `camera.ts`), `Lights` per `interfaces.md`. Each has unit tests with a control.
+3. **Map data (sample).** Decision 1: loader, `checkMap`, the `rustyard` sample as JSON plus module. Stop for Mark's yes on the format.
+4. **Map data (rest).** The other 14 maps. Frozen-copy deep-equal test. `maps.test.ts`, `mapgraph`, `content` and `pacing` tests pass unchanged in meaning.
+5. **Field stage.** `FieldStageScene`: 4 baked layers as `ImageObject`, actors with `ySort`, camera, overhead layer with `overrects`, followers, emotes, curtains, popins, banner. The field rules stay in `field.ts`.
+6. **Lights and weather.** Decision 3 first form: `Lights` on a `CanvasImage`, per-sprite lit pass, bloom, flicker. Weather and dust as `CanvasImage` painters. Prop animations and water as painters with the same timing.
+7. **Seam and routing.** `fieldseam.ts`, lazy provider in `sje/boot.ts`, `field.ts` asks for a stage on enter, falls back to legacy drawing with a notice if the chunk fails (the M3 fix-round rule).
+8. **Parity harness.** Decision 4 (a): `/sjefield.html` or the existing harness page, one frame per map and fixed state, `gpu` and `soft` goldens made from the legacy path with a script.
+9. **DEV hook, docs, CI.** `__SJ__` field hooks (map, position, time, flags, camera, light count). `CHANGELOG.md`, `GLOSSARY.md`, `CONCEPTS.md` (ySort, light map, bake), `DEVELOPING.md`, `.claude/skills/engine/SKILL.md`, `tooling-and-testing.md`, `frame-and-rendering.md`. New specs in the CI `e2e` job.
+
+## 5. Editor contract (principle 11)
+
+(a) Every value an editor changes (grid, props, lights, npcs, warps, events, weather, anims) is in the map JSON with a `check`. (b) `FieldStageScene.loadMap(map)` swaps a map in a running scene and rejects bad data (control: bad data leaves the old map). (c) `snapshot()` / `restore()` of the scene state as plain JSON. (d) No Pixi object leaves the scene. (e) What stays in code on purpose: scripts and predicates (behavior), the lighting formula, the ySort rule.
+
+## 6. Hard pass lines
+
+1. `npm run check` exits 0 (judge by exit code).
+2. Map data: `npx vitest run tests/maps.test.ts tests/mapdata*.test.ts tests/content.test.ts tests/pacing.test.ts` exits 0. The 15 joined maps deep-equal a frozen copy of today's `MapDef`s, `when` and scripts compared by identity of the module export. Control: one changed field fails.
+3. `git diff --stat main...HEAD -- src/field/actor.ts src/game src/battle src/data/abilities.ts src/data/party.ts` shows no rule change (principle 8). `src/scenes/field.ts` changes only to ask for the stage and to route drawing.
+4. **Regression parity:** `npx playwright test e2e/sje-field-parity.spec.ts --reporter=line` exits 0 on SwiftShader: per map and state, 0 pixels outside the renderer mask, at most 1/255 inside it. Controls: a 2/255 step fails; a one-pixel actor move fails; a wrong light radius fails.
+5. No mixed block at device pixel ratio 1 and 1.5 on the field with the full effect stack.
+6. Playthrough under the flag: `npx playwright test e2e/playthrough.spec.ts` runs with `?engine=sje` and exits 0 (walking, warps, scripts, emote, followers). 0 GL errors and 0 console warnings.
+7. Default path unchanged: `npx playwright test e2e/playthrough.spec.ts e2e/prod.spec.ts e2e/chaos.spec.ts e2e/gameover.spec.ts --reporter=line` exits 0 without the flag. `__SJ__` stays absent in production.
+8. `npm run budget` exits 0. The `boot` class holds no `pixi.js` module. Set the totals at the end with a dated comment (Mark's one-bigger-total rule).
+9. `npx playwright test e2e/sje-canaries.spec.ts e2e/sje-draws.spec.ts e2e/sje-shell.spec.ts e2e/sje-fx.spec.ts e2e/sje-battle.spec.ts --reporter=line` exits 0. `sje-draws` gets a field-frame case (upper bound on draws and binds). The leak test is flat across 10 map enter and exit cycles, including warps.
+10. Imports: `pixi.js` only in `src/sje/*`, `src/battlestage`, `src/fieldstage`, `src/sje-lab`. `tests/sje-imports.test.ts` updated. No non-null `!` in `src/sje/`, `src/fieldstage/`. `tests/screen-literals.test.ts` passes.
+11. `tests/sje-field-contract.test.ts` proves section 5: `check` rejects bad data and `loadMap` keeps the old map; `restore(snapshot())` gives the same frame hash. The reader checks no look constant hides in code outside the map data and `lighting` config.
+12. **Pictures for Mark** (evidence, not a gate): `media/m5-field/` holds old against new for every map at a day and a night state, rain and no rain, a small interior, and the world map at its corners. Lighting pictures come first and alone, so Mark can approve the lighting early.
+13. **GPU run, once, at the end (principle 12), by the main session:** `npm run perf`. Frame interval p95 within 5% of the bare page with the world map on; cost p95 at most 8 ms. Numbers go in `tooling-and-testing.md` section 7.
+14. `CHANGELOG.md`, `GLOSSARY.md` and the record table below are filled.
+15. **Playable checkpoints (Mark).** *Checkpoint 1, after the lights and weather task, before round 1:* `http://localhost:3007/?engine=sje` walks the world and interiors; the main session gives the URL and the lighting pictures. Mark approves or names the lighting changes (a named fix, not a round). *Checkpoint 2, after the last fix round:* same build, pictures and perf ready; Mark merges or sends work back.
+
+## 7. Verifier plan (lean loop)
+
+| Agent | Model, effort | Job |
+|---|---|---|
+| Builder A | sonnet, high | Tasks 1 to 4: survey, engine pieces, map data. Stops for Mark's format approval after the sample. |
+| Builder B | sonnet, high | Tasks 5 to 7: field stage, lights, weather, seam. Starts after A is committed. |
+| Builder C | sonnet, high | Tasks 8 and 9: parity harness, hooks, docs, CI. |
+| Runner | sonnet, medium | Pass lines 1 to 11. Re-runs the expensive suites once. Makes the pictures. |
+| Reader | haiku, medium | Reads `git diff main...HEAD`: lines 3, 10, 11; the stage against `field.ts` `render()` (every draw step); the map split (no script lost); no vacuous test. |
+
+- Every builder prompt: no `Co-Authored-By` line in any commit (repo rule over the harness reminder).
+- Pass: every line holds, no Critical or Important finding open. Minor findings are named fixes. A fix round: one fresh verifier checks only the named findings. Cap 3 rounds, then Mark gets the evidence.
+- No attacker: no write path, trust rule or save format changes. Map JSON is read-only data. `save.ts` imports maps: the reader checks the save format does not change.
+- Perf (line 13) is run by the main session after the last fix round.
+
+## 8. Risks
+
+- **Lighting parity** is the least certain part (section 2). The first form keeps the canvas ops to hold the look; cost is the unknown.
+- **Map split.** Scripts and predicates are code with closures over helpers. The split can lose a reference silently. The deep-equal test with identity checks is the guard.
+- **Size.** The field is the largest port (about 8,500 lines). The painters in `src/field` stay; only their output goes to textures.
+- **Conflicts** in `status.md`, `docs/roadmap/roadmap.json`, `CHANGELOG.md`. Keep edits small; merge `main` before each commit.
+- **Scope creep:** menus, `TextObject`, the map editor, any map content change.
+
+## 9. Record
+
+| Step | What changed | Numbers | Verdict | Named fixes |
+|---|---|---|---|---|
+| Brief | this file | — | waiting for Mark | — |
