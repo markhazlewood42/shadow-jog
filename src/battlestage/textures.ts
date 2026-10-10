@@ -18,7 +18,7 @@
  *     copies of the figure's texture (once each, found again by name) instead of being redone every frame.
  *  5. **Small things made from numbers:** contact shadows and rings.
  *
- * Not ported yet (the HUD is off in this slice): the face chips (`faceTexture`) and the effects picture.
+ * The face chips (`faceTexture`) came with the HUD (M3 task 5). Not ported: the spike's one-off effects picture (the live effects are `CanvasImage` painters, task 6).
  *
  * Tags (docs/engine/conventions.md): `addCanvasOnce`, `variantOf` and `readPixels` moved into the engine's `TextureManager` in M3 (ours), and the stage uses one
  * pixel type with the engine, `Raw` = { w, h, data }. What stays here is game-side: where the pictures come from, what a variant does to a colour, and the
@@ -36,8 +36,9 @@ import { enemyArt } from '../art/enemies';
 import { boxOf, type Box } from './sfgeom';
 import { SCREEN_H, SCREEN_W, type ShadowStyle, type StageConfig } from './config';
 import { sheetFolder } from './crew';
+import { flipRaw } from './facing';
 import { cutSheet, footAnchor, type FootAnchor } from './feet';
-import { CREW_FACES, defaultHead, ENEMY_FACES, ENEMY_GRAIN, ENEMY_HEADS, type Pt, type Rect } from './faces';
+import { CREW_FACES, cutFace, cutHead, defaultHead, ENEMY_FACES, ENEMY_GRAIN, ENEMY_HEADS, type Pt, type Rect } from './faces';
 import { paintFloor, reprojectWall } from './floor';
 import type { IdleKind } from './idle';
 import { hexRgb, lum, mix, type RGB } from './pixels';
@@ -511,5 +512,19 @@ export function pruneTextures(textures: TextureManager, prefix: string, inUse: R
   return textures.prune(prefix, inUse);
 }
 
-export const PREFIX = { shadow: SHADOW_PREFIX, ring: RING_PREFIX } as const;
+const FACE_PREFIX = 'face-';
+
+/** A face chip picture `size` x `size` cut from a figure's art (the HUD's portraits). */
+export function faceTexture(textures: TextureManager, name: string, fig: FigureArt, size: number): string {
+  const key = `${FACE_PREFIX}${name}-${size}`;
+  textures.addCanvasOnce(key, () => {
+    // A mirrored figure's chip is the ORIGINAL's chip reversed (cut first, so the art's 2x2 blocks are not split by the flip, then flipped).
+    const src = fig.mirrorOf ?? fig;
+    const cut = src.head ? cutHead(src.raw, src.head, size, src.grain) : cutFace(src.raw, src.face, size, src.grain);
+    return fig.mirrorOf ? flipRaw(cut) : cut;
+  });
+  return key;
+}
+
+export const PREFIX = { shadow: SHADOW_PREFIX, ring: RING_PREFIX, face: FACE_PREFIX } as const;
 
