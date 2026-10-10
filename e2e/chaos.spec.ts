@@ -39,7 +39,8 @@ async function stage(page: Page, name: string): Promise<string[]> {
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/?debug');
-  await page.waitForTimeout(600);
+  // The game starts asynchronously (two lazy chunks): wait for its title, not a fixed time.
+  await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
   await page.evaluate(() => localStorage.clear());
   await sj(page, `sj.stage('${name}')`);
   await waitFor(page, 'sj.idle()', 'field idle');

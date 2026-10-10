@@ -11,7 +11,8 @@ test('Chapter 1 can be played start to finish', async ({ page }) => {
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   await page.goto('/?debug');
-  await page.waitForTimeout(800);
+  // The game starts asynchronously (two lazy chunks): wait for its title, not a fixed time.
+  await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
   await sj(page, 'Object.assign(sj.debug, { autoDialog: true, autoBattle: true })');
   await sj(page, 'sj.newGame()');
   // Before the dock, dialogs go back to lingering (the playtest driver), so the results screen

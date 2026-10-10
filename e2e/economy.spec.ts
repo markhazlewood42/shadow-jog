@@ -26,7 +26,8 @@ async function waitFor(page: Page, cond: string, ms: number): Promise<boolean> {
 
 test('walking the Barrens turns up fights that pay out', async ({ page }) => {
   await page.goto('/?debug');
-  await page.waitForTimeout(800);
+  // The game starts asynchronously (two lazy chunks): wait for its title, not a fixed time.
+  await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
   await sj(page, "sj.stage('town')");
   await page.waitForTimeout(1200);
   await sj(page, "sj.tp('world', 13, 22, 'right')");
@@ -70,7 +71,8 @@ test('walking the Barrens turns up fights that pay out', async ({ page }) => {
 
 test('a shop takes the cred and hands over the goods', async ({ page }) => {
   await page.goto('/?debug');
-  await page.waitForTimeout(800);
+  // The game starts asynchronously (two lazy chunks): wait for its title, not a fixed time.
+  await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
   await sj(page, "sj.stage('town')");
   await page.waitForTimeout(1200);
   await sj(page, '(sj.state.cred = 500, true)');
@@ -114,7 +116,8 @@ test('a shop takes the cred and hands over the goods', async ({ page }) => {
 
 test('selling loot turns it into cred', async ({ page }) => {
   await page.goto('/?debug');
-  await page.waitForTimeout(800);
+  // The game starts asynchronously (two lazy chunks): wait for its title, not a fixed time.
+  await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
   await sj(page, "sj.stage('town')");
   await waitFor(page, 'sj.idle()', 3000);
   await sj(page, "(sj.state.inventory = { gang_colors: 2, medkit: 1 }, sj.state.cred = 100, true)");
@@ -137,7 +140,8 @@ test('selling loot turns it into cred', async ({ page }) => {
 
 test('gear bought in a shop can be put on there and then', async ({ page }) => {
   await page.goto('/?debug');
-  await page.waitForTimeout(800);
+  // The game starts asynchronously (two lazy chunks): wait for its title, not a fixed time.
+  await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
   await sj(page, "sj.stage('town')");
   await waitFor(page, 'sj.idle()', 3000);
   await sj(page, '(sj.state.cred = 5000, true)');
@@ -180,7 +184,8 @@ test('the camera at the four corners of every scrolling map rests on the clamp a
   const shots = process.env.SJ_CORNER_SHOTS;
   const [W, H] = await (async () => {
     await page.goto('/?debug');
-    await page.waitForTimeout(800);
+    // The game starts asynchronously (two lazy chunks): wait for its title, not a fixed time.
+    await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
     return sj<[number, number]>(page, "(async () => { const g = await import('/src/engine/game.ts'); return [g.W, g.H]; })()");
   })();
   for (const { map, stage } of CORNER_MAPS) {

@@ -20,7 +20,6 @@
  *   4. In a DEV build only, add the engine's members to `window.__SJ__` (`src/sje-lab/devhook.ts`, interfaces.md section 14). A shipped build
  *      never loads that file (the import sits behind `import.meta.env.DEV`).
  */
-import { boot as bootGame } from '../boot';
 import type { Display as OldDisplay } from '../engine/display';
 import { currentNotice, notice, reportError } from '../engine/errors';
 import { SHAKE_PIXEL_GAIN, type Game as OldGame } from '../engine/game';
@@ -59,6 +58,10 @@ interface DisplayAdapter {
 }
 
 export async function startSje(markStarted: () => void): Promise<void> {
+  // The game's own boot (scenes, systems) is a chunk of its own, fetched while the engine makes its canvas and context. A static import would merge it with the engine into one
+  // 770 kB chunk, over the largest-chunk cap of scripts/bundle-budget.mjs, and any edit to the game would then change the hash of Pixi's code too.
+  const gameBoot = import('../boot');
+  void gameBoot.catch(() => undefined); // a failure shows where it is awaited below; this only stops a second, unhandled report if Game.create fails first
   const stage = document.getElementById('stage') ?? document.body;
   // The GL object counter must wrap the context calls before the context exists.
   const dev = import.meta.env.DEV ? await import('../sje-lab/devhook') : null;
@@ -111,6 +114,7 @@ export async function startSje(markStarted: () => void): Promise<void> {
   game.overlays.push(drawNotice);
   // The notice bar is the one overlay: a legacy scene that draws nothing of its own (the staged field) paints its canvas only while a notice shows.
   game.overlayWanted = () => currentNotice() !== null;
+  const { boot: bootGame } = await gameBoot;
   bootGame(game as unknown as OldGame, display as unknown as OldDisplay);
   dev?.attach(game);
   const bootEl = document.getElementById('boot');
