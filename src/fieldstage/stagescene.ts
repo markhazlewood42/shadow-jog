@@ -24,6 +24,7 @@
 import { postfx } from '../engine/postfx';
 import { blit, inView } from '../scenes/fieldkit/draw';
 import { drawSurround, surroundFor, type SurroundView, voidShows } from '../scenes/fieldkit/surround';
+import { FIELD_LOOK } from '../data/fieldlook';
 import { chestHalo, chestSprites } from '../field/chests';
 import type { Rect } from '../field/overrects';
 import { TS } from '../field/tiles';
@@ -31,7 +32,7 @@ import type { FieldStage, FieldStageSource, FieldStageView, StageActor, StageChe
 import { CanvasImage, Container, type GameObject, Graphics, H, ImageObject, must, Scene, W } from '../sje';
 import { LightRig } from './lightrig';
 import { isBlank, LitPicture } from './lit';
-import { ANIM_MARGIN, BLOOM, CHEST_GLINT, CHEST_HALO_AT, CHEST_PULSE, GLOW, LAYER, SHADOW } from './params';
+import { ANIM_MARGIN, LAYER } from './params';
 import { checkStageMap } from './view';
 
 /** A prop on the map. Its container exists from the map load, in the map's order (the sort breaks ties by that order); its pictures are made when it first comes into view. */
@@ -99,6 +100,17 @@ export interface FieldStageDescription {
   textures: number;
 }
 
+/** What `create` builds. */
+interface StageParts {
+  readonly sort: Container;
+  readonly rig: LightRig;
+  readonly surround: CanvasImage;
+  readonly litAnims: CanvasImage;
+  readonly unlitAnims: CanvasImage;
+  readonly screen: CanvasImage;
+  readonly shadows: Graphics;
+}
+
 let current: FieldStageScene | null = null;
 /** The running stage (null when no field is staged): for the DEV hook and the tests. */
 export function fieldStage(): FieldStageScene | null {
@@ -121,13 +133,29 @@ export class FieldStageScene extends Scene<void> implements FieldStage {
   private chestItems: ChestItem[] = [];
   private actorItems = new Map<object, ActorItem>();
   private actorOrder: object[] = [];
-  private sort!: Container;
-  private rig!: LightRig;
-  private surround!: CanvasImage;
-  private litAnims!: CanvasImage;
-  private unlitAnims!: CanvasImage;
-  private screen!: CanvasImage;
-  private shadows!: Graphics;
+  /** The parts `create` makes. They are null until then; the getters below refuse to hand out a part of a scene that was never created. */
+  private parts: StageParts | null = null;
+  private get sort(): Container {
+    return must(this.parts, 'a created stage (create has not run)').sort;
+  }
+  private get rig(): LightRig {
+    return must(this.parts, 'a created stage (create has not run)').rig;
+  }
+  private get surround(): CanvasImage {
+    return must(this.parts, 'a created stage (create has not run)').surround;
+  }
+  private get litAnims(): CanvasImage {
+    return must(this.parts, 'a created stage (create has not run)').litAnims;
+  }
+  private get unlitAnims(): CanvasImage {
+    return must(this.parts, 'a created stage (create has not run)').unlitAnims;
+  }
+  private get screen(): CanvasImage {
+    return must(this.parts, 'a created stage (create has not run)').screen;
+  }
+  private get shadows(): Graphics {
+    return must(this.parts, 'a created stage (create has not run)').shadows;
+  }
   private readonly pinned: GameObject[] = [];
   private surroundKey = '';
   private litAnimsOn = false;
@@ -152,25 +180,26 @@ export class FieldStageScene extends Scene<void> implements FieldStage {
   override create(): void {
     current = this;
     const world = this.sys.world;
-    this.sort = new Container(this, 0, 0, 'sort');
-    this.sort.ySort = true;
-    this.sort.setDepth(LAYER.SORT);
-    world.add(this.sort);
+    const sort = new Container(this, 0, 0, 'sort');
+    sort.ySort = true;
+    sort.setDepth(LAYER.SORT);
+    world.add(sort);
     const pin = (depth: number): CanvasImage => {
       const img = this.add.canvasImage(0, 0, W, H).setDepth(depth);
       this.pinned.push(img);
+      img.visible = false;
       return img;
     };
-    this.surround = pin(LAYER.SURROUND);
-    this.litAnims = pin(LAYER.LIT_ANIMS);
-    this.unlitAnims = pin(LAYER.UNLIT_ANIMS);
-    this.screen = pin(LAYER.SCREEN);
-    for (const img of [this.surround, this.litAnims, this.unlitAnims, this.screen]) img.visible = false;
-    this.rig = new LightRig(this, (o) => {
+    const surround = pin(LAYER.SURROUND);
+    const litAnims = pin(LAYER.LIT_ANIMS);
+    const unlitAnims = pin(LAYER.UNLIT_ANIMS);
+    const screen = pin(LAYER.SCREEN);
+    const rig = new LightRig(this, (o) => {
       world.add(o);
       this.pinned.push(o);
     });
-    this.shadows = this.add.graphics().setDepth(LAYER.SHADOWS);
+    const shadows = this.add.graphics().setDepth(LAYER.SHADOWS);
+    this.parts = { sort, rig, surround, litAnims, unlitAnims, screen, shadows };
     this.events.on('prerender', this.draw, this);
     this.events.once('shutdown', () => {
       if (current === this) current = null;
@@ -398,7 +427,7 @@ export class FieldStageScene extends Scene<void> implements FieldStage {
     const haloTex = this.textures.addCanvasOnce(haloKey, () => chestHalo(art.trim));
     const glowKey = `field-chestglow-${def.kind}`;
     this.textures.addCanvasOnce(glowKey, () => art.glow);
-    const halo = new ImageObject(this, CHEST_HALO_AT.x, CHEST_HALO_AT.y, haloTex.key).setOrigin(0, 0).setBlendMode('add');
+    const halo = new ImageObject(this, FIELD_LOOK.chest.haloAt.x, FIELD_LOOK.chest.haloAt.y, haloTex.key).setOrigin(0, 0).setBlendMode('add');
     const lit = new LitPicture(this, art.closed.width, art.closed.height);
     const glow = new ImageObject(this, 0, 0, glowKey).setOrigin(0, 0);
     const glint = new Graphics(this);
@@ -447,14 +476,15 @@ export class FieldStageScene extends Scene<void> implements FieldStage {
     const boost = lights.spriteBoost;
 
     this.paintSurround(v);
-    this.rig.paint(cx, cy, frame, interior ? BLOOM.interior : BLOOM.outdoors);
+    this.rig.paint(cx, cy, frame, interior ? FIELD_LOOK.bloom.interior : FIELD_LOOK.bloom.outdoors);
     this.litAnimsOn = this.paintAnims(this.litAnims, true, this.litAnimsOn, v);
     this.paintShadows(v);
 
     // GPU effects: the same light into the glow layer, so neon, lamps and lit windows bloom for real (the props add theirs below). Towns glow harder than rooms.
-    const glow = postfx.glowLayer();
+    // A held snapshot is a still, like the legacy snapshot path (`renderLegacy(ctx, true)`), which feeds no glow layer: both skip it, so a still never leaves a glow behind.
+    const glow = this.held ? null : postfx.glowLayer();
     if (glow) {
-      postfx.bloom = interior ? GLOW.interior : GLOW.outdoors;
+      postfx.bloom = interior ? FIELD_LOOK.glow.interior : FIELD_LOOK.glow.outdoors;
       blit(glow, map.emit, cx, cy);
     }
     this.unlitAnimsOn = this.paintAnims(this.unlitAnims, false, this.unlitAnimsOn, v);
@@ -532,11 +562,11 @@ export class FieldStageScene extends Scene<void> implements FieldStage {
   private paintShadows(v: FieldStageView): void {
     const g = this.shadows;
     g.clear();
-    g.fillStyle(SHADOW.color, SHADOW.alpha);
+    g.fillStyle(FIELD_LOOK.shadow.color, FIELD_LOOK.shadow.alpha);
     for (const a of v.actors) {
       const x = Math.round(a.px - v.cx) + v.cx;
       const y = Math.round(a.py - v.cy) + v.cy;
-      for (const [dx, dy, w, h] of SHADOW.rects) g.fillRect(x + dx, y + dy, w, h);
+      for (const [dx, dy, w, h] of FIELD_LOOK.shadow.rects) g.fillRect(x + dx, y + dy, w, h);
     }
   }
 
@@ -594,15 +624,14 @@ export class FieldStageScene extends Scene<void> implements FieldStage {
         item.glinting = false;
         return;
       }
-      item.halo.alpha = CHEST_PULSE.base + CHEST_PULSE.swing * Math.sin(frame * CHEST_PULSE.rate + def.tx * CHEST_PULSE.phase);
-      const g = (frame + def.tx * CHEST_GLINT.tileX + def.ty * CHEST_GLINT.tileY) % CHEST_GLINT.period;
-      if (g < CHEST_GLINT.length) {
-        item.glint.clear().fillStyle(0xffffff, 1);
-        item.glint.fillRect(2 + g, 6, 1, 1);
-        if (g > 2 && g < 8) {
-          item.glint.fillRect(2 + g, 5, 1, 3);
-          item.glint.fillRect(1 + g, 6, 3, 1);
-        }
+      const { pulse, glint } = FIELD_LOOK.chest;
+      item.halo.alpha = pulse.base + pulse.swing * Math.sin(frame * pulse.rate + def.tx * pulse.phase);
+      const g = (frame + def.tx * glint.tileX + def.ty * glint.tileY) % glint.period;
+      if (g < glint.length) {
+        // The dot at g pixels along the lid, and a small star while g is inside the star window (the shapes are data, the walk is form).
+        item.glint.clear().fillStyle(glint.color, 1);
+        item.glint.fillRect(glint.dot[0] + g, glint.dot[1], glint.dot[2], glint.dot[3]);
+        if (g > glint.starAfter && g < glint.starBefore) for (const [dx, dy, w, h] of glint.star) item.glint.fillRect(dx + g, dy, w, h);
         item.glinting = true;
       } else if (item.glinting) {
         item.glint.clear();

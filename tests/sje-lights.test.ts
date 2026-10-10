@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flickerAmount as oldFlicker, Lighting } from '../src/field/lighting';
 import type { BakedLight } from '../src/field/bake';
+import { FIELD_LOOK } from '../src/data/fieldlook';
 import { H, W } from '../src/sje/core/size';
 import { flickerAmount, LIGHT_RES, Lights, parseRgb } from '../src/sje/display/lights';
 
@@ -27,6 +28,7 @@ interface FakeCanvas {
   getContext(kind: string, opts?: unknown): CanvasRenderingContext2D;
 }
 
+const LOOK = FIELD_LOOK.lights.flicker;
 const fmt = (v: unknown): string => (typeof v === 'object' && v !== null && 'stops' in (v as object) ? `sprite[${(v as { stops: string }).stops}]` : String(v));
 
 function recorder(canvas: Partial<FakeCanvas> = {}): Recorder {
@@ -108,7 +110,7 @@ function oldMap(lights: BakedLight[], ambient: string, camX: number, camY: numbe
 }
 
 function newMap(lights: BakedLight[], ambient: string, camX: number, camY: number, frame: number, enabled = true): string[] {
-  const set = new Lights();
+  const set = new Lights({ flicker: LOOK, spriteBoost: FIELD_LOOK.lights.spriteBoost });
   set.setAmbientColor(ambient);
   set.enabled = enabled;
   for (const l of lights) set.addLight(l.x, l.y, l.r, l.color, l.i, { flicker: l.flicker === true, ...(l.seed !== undefined ? { seed: l.seed } : {}) });
@@ -187,7 +189,7 @@ describe('Lights.bloom: the old haze, operation for operation', () => {
     return r.log;
   }
   function newBloom(camX: number, camY: number, frame: number, strength: number): string[] {
-    const set = new Lights();
+    const set = new Lights({ flicker: LOOK, spriteBoost: FIELD_LOOK.lights.spriteBoost });
     for (const l of LIGHTS) set.addLight(l.x, l.y, l.r, l.color, l.i, { flicker: l.flicker === true, ...(l.seed !== undefined ? { seed: l.seed } : {}) });
     const r = recorder();
     set.bloom(r.ctx, camX, camY, frame, strength);
@@ -214,7 +216,7 @@ describe('Lights.bloom: the old haze, operation for operation', () => {
 
 describe('Lights: the set and the flicker', () => {
   it('addLight returns a handle that removes just that light, and removing twice is safe', () => {
-    const set = new Lights();
+    const set = new Lights({ flicker: LOOK, spriteBoost: FIELD_LOOK.lights.spriteBoost });
     const a = set.addLight(10, 10, 20);
     set.addLight(30, 30, 20, '#ff0000', 0.5);
     expect(set.count).toBe(2);
@@ -226,16 +228,17 @@ describe('Lights: the set and the flicker', () => {
     expect(set.count).toBe(0);
   });
 
-  it('defaults: white, intensity 1, ambient white, boost 0.32', () => {
-    const set = new Lights();
+  it('defaults: white, intensity 1, ambient white; the boost is given by the game (0.32 in the field data), 0 when none is given', () => {
+    const set = new Lights({ flicker: LOOK, spriteBoost: FIELD_LOOK.lights.spriteBoost });
     set.addLight(1, 2, 3);
     expect(set.lights[0]).toMatchObject({ color: '#ffffff', i: 1 });
     expect(set.ambientColor).toBe('#ffffff');
     expect(set.spriteBoost).toBe(0.32);
+    expect(new Lights({ flicker: LOOK }).spriteBoost).toBe(0);
   });
 
   it('refuses a bad radius, intensity or color, in words', () => {
-    const set = new Lights();
+    const set = new Lights({ flicker: LOOK, spriteBoost: FIELD_LOOK.lights.spriteBoost });
     expect(() => set.addLight(0, 0, 0)).toThrow('radius');
     expect(() => set.addLight(0, 0, -5)).toThrow('radius');
     expect(() => set.addLight(0, 0, 5, '#ffffff', -1)).toThrow('intensity');
@@ -246,13 +249,13 @@ describe('Lights: the set and the flicker', () => {
   });
 
   it('flickerAmount is the old function: 1 for a steady light, the same wobble and dropout for a flicker', () => {
-    expect(flickerAmount({ x: 5, y: 5 }, 100)).toBe(1);
+    expect(flickerAmount({ x: 5, y: 5 }, 100, LOOK)).toBe(1);
     // The old function, over a grid of positions, seeds and 3,000 frames (the dropout hash included): the same number every time.
     for (const l of [{ x: 0, y: 0, r: 1, color: '#fff', i: 1, flicker: true }, { x: 300, y: 200, r: 1, color: '#fff', i: 1, flicker: true, seed: 17 }, { x: 41, y: 977, r: 1, color: '#fff', i: 1, flicker: true }, { x: 5, y: 5, r: 1, color: '#fff', i: 1 }]) {
-      for (let f = 0; f < 3000; f++) expect(flickerAmount(l, f)).toBe(oldFlicker(l, f));
+      for (let f = 0; f < 3000; f++) expect(flickerAmount(l, f, LOOK)).toBe(oldFlicker(l, f));
     }
     // And its shape: a dropout happens, is rare, and the rest stays near 0.85 to 1.
-    const sample = (seed: number) => Array.from({ length: 2000 }, (_, f) => flickerAmount({ x: 0, y: 0, flicker: true, seed }, f));
+    const sample = (seed: number) => Array.from({ length: 2000 }, (_, f) => flickerAmount({ x: 0, y: 0, flicker: true, seed }, f, LOOK));
     for (const seed of [0, 17, 123456]) {
       const a = sample(seed);
       expect(a.some((v) => v < 0.5)).toBe(true); // a dropout happens in 2000 frames
@@ -261,12 +264,15 @@ describe('Lights: the set and the flicker', () => {
       expect(Math.min(...a.filter((v) => v >= 0.5))).toBeGreaterThan(0.7);
     }
     // The default seed comes from the position, so two lights at different places flicker apart.
-    expect(flickerAmount({ x: 1, y: 2, flicker: true }, 7)).toBe(flickerAmount({ x: 1, y: 2, flicker: true, seed: 1 * 13 + 2 * 7 }, 7));
-    expect(flickerAmount({ x: 1, y: 2, flicker: true }, 7)).not.toBe(flickerAmount({ x: 9, y: 2, flicker: true }, 7));
+    expect(flickerAmount({ x: 1, y: 2, flicker: true }, 7, LOOK)).toBe(flickerAmount({ x: 1, y: 2, flicker: true, seed: 1 * 13 + 2 * 7 }, 7, LOOK));
+    expect(flickerAmount({ x: 1, y: 2, flicker: true }, 7, LOOK)).not.toBe(flickerAmount({ x: 9, y: 2, flicker: true }, 7, LOOK));
+    // Control: the numbers are the caller's. A different tuning gives a different light (a function that ignored `look` would pass every check above).
+    const dim = { ...LOOK, base: 0.6 };
+    expect(flickerAmount({ x: 1, y: 2, flicker: true, seed: 3 }, 7, dim)).not.toBe(flickerAmount({ x: 1, y: 2, flicker: true, seed: 3 }, 7, LOOK));
   });
 
   it('the default sprite is a LIGHT_RES gradient with the old four stops, made once per color', () => {
-    const set = new Lights();
+    const set = new Lights({ flicker: LOOK, spriteBoost: FIELD_LOOK.lights.spriteBoost });
     set.addLight(100, 100, 30, '#86f08c');
     set.addLight(200, 100, 30, '#86f08c');
     const r = recorder();

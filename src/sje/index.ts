@@ -21,7 +21,7 @@ export { colorMatrixEffect, createEffect, type Effect, type EffectSpec, FilterLi
 export { DEPTH, depthFor, PART } from './display/depth';
 export { type DisplayHost, GameObject } from './display/gameobject';
 export { Graphics } from './display/graphics';
-export { flickerAmount, LIGHT_RES, type Light, type LightHandle, type LightOptions, Lights, type LightSpriteMaker } from './display/lights';
+export { flickerAmount, type FlickerLook, LIGHT_RES, type Light, type LightHandle, type LightOptions, Lights, type LightSpriteMaker } from './display/lights';
 export { ImageObject } from './display/imageobject';
 export { Screen, type ScreenSlot } from './display/screen';
 export { Sprite } from './display/sprite';

@@ -12,7 +12,9 @@
  * same recorder. Pixi's scene classes run in Node; the stage is the real one.
  */
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { FIELD_LOOK } from '../src/data/fieldlook';
 import { currentNotice } from '../src/engine/errors';
+import { postfx } from '../src/engine/postfx';
 import { Scene as OldScene } from '../src/engine/game';
 import { Lighting } from '../src/field/lighting';
 import type { BakedLight, SortedSprite } from '../src/field/bake';
@@ -357,7 +359,7 @@ describe('LegacyShape.blank: a scene with a stage under it does not upload an em
 
 describe('Lights.flickerSignature', () => {
   const lights = (): Lights => {
-    const l = new Lights();
+    const l = new Lights({ flicker: FIELD_LOOK.lights.flicker });
     l.addLight(100, 100, 40, '#ffffff', 1);
     l.addLight(300, 100, 40, '#ffffff', 1, { flicker: true, seed: 3 });
     return l;
@@ -372,7 +374,7 @@ describe('Lights.flickerSignature', () => {
   });
   it('hasFlicker says whether any light flickers', () => {
     expect(lights().hasFlicker).toBe(true);
-    expect(new Lights().hasFlicker).toBe(false);
+    expect(new Lights({ flicker: FIELD_LOOK.lights.flicker }).hasFlicker).toBe(false);
   });
 });
 
@@ -741,6 +743,29 @@ describe('FieldStageScene: snapshot and restore', () => {
     frame(r);
     expect(r.scene.describe().scroll.x).toBe(scrollThen.x + 40);
     expect(r.scene.isHeld).toBe(false);
+  });
+
+  it('F4: a held snapshot feeds no glow layer (like the legacy snapshot path); the live frame does', () => {
+    const r = stage();
+    const glowCanvas = recCanvas(W, H, 'GLOW');
+    const glowCtx = glowCanvas.getContext('2d');
+    const asked = vi.spyOn(postfx, 'glowLayer').mockReturnValue(glowCtx);
+    r.h.frame(17);
+    // Control: the live frame asks for the layer and blits the emissive layer into it, so the check below can see a feed.
+    expect(asked).toHaveBeenCalled();
+    expect(glowCanvas.log.some((l) => l.startsWith('drawImage(emit'))).toBe(true);
+    const s = r.scene.snapshot();
+    r.scene.restore(s);
+    asked.mockClear();
+    glowCanvas.log.length = 0;
+    frame(r);
+    expect(r.scene.isHeld).toBe(true);
+    expect(asked).not.toHaveBeenCalled();
+    expect(glowCanvas.log).toEqual([]);
+    r.scene.release();
+    frame(r);
+    expect(asked).toHaveBeenCalled();
+    expect(glowCanvas.log.some((l) => l.startsWith('drawImage(emit'))).toBe(true);
   });
 
   it('refuses a snapshot of another map, of another version, or of a picture it has not seen, and changes nothing', () => {

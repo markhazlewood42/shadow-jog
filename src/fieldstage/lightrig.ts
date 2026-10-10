@@ -8,12 +8,13 @@
  * Repainting. The map is a picture of the screen, so a camera move needs a new one. With the camera still, only flickering lights change it. `paint` therefore skips
  * the work (and the 640x360 upload) when neither happened, which is most frames of a room.
  */
+import { FIELD_LOOK } from '../data/fieldlook';
 import { CanvasImage, type DisplayHost, H, Lights, W } from '../sje';
 import { LAYER } from './params';
 import type { StageMap } from './view';
 
 export class LightRig {
-  readonly lights = new Lights();
+  readonly lights = new Lights({ flicker: FIELD_LOOK.lights.flicker, spriteBoost: FIELD_LOOK.lights.spriteBoost });
   /** The light map, multiplied over the world. */
   readonly map: CanvasImage;
   /** The haze, added over the world. */

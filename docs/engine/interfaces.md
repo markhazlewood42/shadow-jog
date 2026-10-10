@@ -217,10 +217,11 @@ export declare class Group<T extends GameObject = GameObject> {   // on demand. 
   add(o: T): this; remove(o: T, destroy?: boolean): this;
   clear(destroy?: boolean): this;
 }
+export interface FlickerLook { base: number; wobbleSlow: number; rateSlow: number; wobbleFast: number; rateFast: number; dropEvery: number; dropBelow: number; dropTo: number; }   // ours. M5. The tuning of the failing tube: the game gives it (the field: src/data/fieldlook.json)
 export interface LightOptions { flicker?: boolean; seed?: number; }   // ours. M5
 export declare class Lights {                          // deviation. Built in M5 as the first form: the old canvas operations (same numbers), no display object. A scene shows the map above the world with a multiply blend
-  constructor(opts?: { sprite?: (color: string) => CanvasImageSource });
-  enabled: boolean; spriteBoost: number;               // spriteBoost 0.32 is the field's: how much a lit sprite resists the dark
+  constructor(opts: { flicker: FlickerLook; sprite?: (color: string) => CanvasImageSource; spriteBoost?: number });
+  enabled: boolean; spriteBoost: number;               // how much a lit sprite resists the dark. The game gives it (the field's is 0.32, in fieldlook.json); default 0
   setAmbientColor(color: string): this;
   addLight(x: number, y: number, radius: number, color?: string, intensity?: number, opts?: LightOptions): { remove(): void };   // ours: opts has the flicker
   readonly lights: readonly { x: number; y: number; r: number; color: string; i: number; flicker: boolean; seed: number | undefined }[];

@@ -11,15 +11,34 @@
  * So the lights run in plain Node, and the test compares their operations with the old `Lighting` one by one
  * (`tests/sje-lights.test.ts`).
  *
- * What stays in code on purpose (the formula, not the tuning): the sprite's falloff stops, the flicker, `spriteBoost` (how strongly a
- * lit sprite resists the dark: 0 = the map decides, 1 = the map is ignored; 0.32 is the field's) and the intensity-above-one second pass.
- * The positions, radii, colors, intensities, flicker flags and seeds are map data.
+ * What stays in code on purpose (the formula, not the tuning): the sprite's falloff stops, the shape of the flicker and the intensity-above-one second pass.
+ * The positions, radii, colors, intensities, flicker flags and seeds are map data. The flicker numbers and `spriteBoost` (how strongly a lit sprite
+ * resists the dark: 0 = the map decides, 1 = the map is ignored) are look values the game gives (the field: `src/data/fieldlook.json`).
  */
 import { assert } from '../core/assert';
 import { H, W } from '../core/size';
 
 /** Side of the radial sprite in pixels. Lights are drawn scaled from it. */
 export const LIGHT_RES = 64;
+
+/**
+ * The tuning of a failing neon tube (the numbers of the old `flickerAmount`). They are look values, so the game gives them (the field reads them from
+ * `src/data/fieldlook.json`); the engine holds only the form: two sines and a hard dropout.
+ */
+export interface FlickerLook {
+  /** The steady level of a flickering light, as a multiplier of its intensity. */
+  readonly base: number;
+  /** The slow wobble: its size and its speed (radians a frame). */
+  readonly wobbleSlow: number;
+  readonly rateSlow: number;
+  /** The fast wobble. */
+  readonly wobbleFast: number;
+  readonly rateFast: number;
+  /** A hard dropout: the hash of the frame mod `dropEvery` is below `dropBelow`, and the light falls to `dropTo`. */
+  readonly dropEvery: number;
+  readonly dropBelow: number;
+  readonly dropTo: number;
+}
 
 export interface LightOptions {
   /** A failing neon tube: a slow wobble and now and then a hard dropout. */
@@ -51,15 +70,15 @@ export type LightSpriteMaker = (color: string) => CanvasImageSource;
 
 /**
  * How bright a light is at `frame`, as a multiplier of its intensity: 1 for a steady light. Pure in its arguments.
- * The numbers are the old `flickerAmount` (`src/field/lighting.ts`).
+ * The form is the old `flickerAmount` (`src/field/lighting.ts`); the numbers are `look`.
  */
-export function flickerAmount(l: { x: number; y: number; flicker?: boolean | undefined; seed?: number | undefined }, frame: number): number {
+export function flickerAmount(l: { x: number; y: number; flicker?: boolean | undefined; seed?: number | undefined }, frame: number, look: FlickerLook): number {
   if (!l.flicker) return 1;
   const s = l.seed ?? l.x * 13 + l.y * 7;
   const t = frame + s;
-  const base = 0.85 + Math.sin(t * 0.13) * 0.06 + Math.sin(t * 0.47) * 0.05;
+  const base = look.base + Math.sin(t * look.rateSlow) * look.wobbleSlow + Math.sin(t * look.rateFast) * look.wobbleFast;
   // Occasional hard dropout, like a failing neon tube.
-  const drop = ((t * 2654435761) >>> 0) % 997 < 12 ? 0.35 : 1;
+  const drop = ((t * 2654435761) >>> 0) % look.dropEvery < look.dropBelow ? look.dropTo : 1;
   return base * drop;
 }
 
@@ -99,11 +118,15 @@ export class Lights {
   private readonly makeSprite: LightSpriteMaker;
   /** When false, `paint` fills the ambient color and adds no light, and `bloom` draws nothing (the old `Lighting.enabled`). */
   enabled = true;
-  /** How much sprites resist darkness: 0 = fully lit by the map, 1 = ignore the map. The field's value. A scene's lit-sprite pass reads it. */
-  spriteBoost = 0.32;
+  /** How much sprites resist darkness: 0 = fully lit by the map, 1 = ignore the map. The game gives it (the field: 0.32). A scene's lit-sprite pass reads it. */
+  spriteBoost: number;
+  private readonly flickerLook: FlickerLook;
 
-  constructor(opts?: { sprite?: LightSpriteMaker }) {
-    this.makeSprite = opts?.sprite ?? gradientSprite;
+  /** `flicker` is the tuning of the failing tube (the game's data); `spriteBoost` defaults to 0, the map decides. */
+  constructor(opts: { flicker: FlickerLook; sprite?: LightSpriteMaker; spriteBoost?: number }) {
+    this.makeSprite = opts.sprite ?? gradientSprite;
+    this.flickerLook = opts.flicker;
+    this.spriteBoost = opts.spriteBoost ?? 0;
   }
 
   /** The ambient color: the color of a pixel no light reaches (`#ffffff` = no darkening). Phaser: `lights.setAmbientColor`. */
@@ -168,7 +191,7 @@ export class Lights {
       const y = l.y - camY;
       if (x + l.r < 0 || y + l.r < 0 || x - l.r > W || y - l.r > H) continue;
       // Intensity above 1 is achieved with a second additive pass.
-      let a = l.i * flickerAmount(l, frame);
+      let a = l.i * flickerAmount(l, frame, this.flickerLook);
       const img = this.sprite(l.color);
       const d = Math.round(l.r * 2);
       const lx = Math.round(x - l.r);
@@ -194,7 +217,7 @@ export class Lights {
       const y = l.y - camY;
       const r = l.r * 0.55;
       if (x + r < 0 || y + r < 0 || x - r > W || y - r > H) continue;
-      ctx.globalAlpha = strength * l.i * flickerAmount(l, frame);
+      ctx.globalAlpha = strength * l.i * flickerAmount(l, frame, this.flickerLook);
       ctx.drawImage(this.sprite(l.color), Math.round(x - r), Math.round(y - r), Math.round(r * 2), Math.round(r * 2));
     }
     ctx.restore();
@@ -210,7 +233,7 @@ export class Lights {
     for (const l of this.set) {
       if (!l.flicker) continue;
       if (l.x + l.r < x || l.x - l.r > x + w || l.y + l.r < y || l.y - l.r > y + h) continue;
-      sig = (Math.imul(sig, 31) + Math.round(l.i * flickerAmount(l, frame) * 4096) + 1) | 0;
+      sig = (Math.imul(sig, 31) + Math.round(l.i * flickerAmount(l, frame, this.flickerLook) * 4096) + 1) | 0;
     }
     return sig;
   }

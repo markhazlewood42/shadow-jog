@@ -156,12 +156,23 @@ test.describe('the field on the stage', () => {
       // A small interior: the camera origin is negative (the room is centered) and the surround shows around it.
       await warpTo(g.page, 'bar');
       const d = await sj<{ scroll: { x: number; y: number }; surroundShown: boolean; overRects: number }>(g.page, 'sj.fieldStage');
-      expect(d.scroll.x).toBeLessThan(0);
+      // The camera rests where the field's own rule puts it (`targetCam`: cameraOrigin of the leader), and a room smaller than the view is centered: (room - 640) / 2.
+      const room = await sj<{ cam: { x: number; y: number }; mw: number; mh: number }>(g.page, '({ cam: sj.field().targetCam(), mw: sj.field().map.w * 16, mh: sj.field().map.h * 16 })');
+      expect(room.mw).toBeLessThan(640);
+      expect(d.scroll.x).toBe(Math.round((room.mw - 640) / 2));
+      expect(d.scroll.x).toBe(room.cam.x);
+      expect(d.scroll.y).toBe(room.cam.y);
       expect(d.surroundShown).toBe(true);
       expect(await colors(g.page)).toBeGreaterThan(40);
       // And the town again.
       await warpTo(g.page, 'lantern_row');
-      expect((await sj<{ scroll: { x: number } }>(g.page, 'sj.fieldStage')).scroll.x).toBeGreaterThanOrEqual(0);
+      // The town again: the camera is the field's rule for the leader at the warp's landing, inside the map (0 to map width - 640).
+      const town = await sj<{ scroll: { x: number; y: number }; cam: { x: number; y: number }; mw: number }>(g.page, '({ scroll: sj.fieldStage.scroll, cam: sj.field().targetCam(), mw: sj.field().map.w * 16 })');
+      expect(town.scroll).toEqual(town.cam);
+      expect(town.cam.x).toBeGreaterThanOrEqual(0);
+      expect(town.cam.x).toBeLessThanOrEqual(town.mw - 640);
+      const land = entryOf('lantern_row');
+      expect(town.cam.x).toBe(Math.max(0, Math.min(town.mw - 640, Math.round(land.x * 16 + 8 - 320))));
       expect(await glErrors(g.page)).toEqual([]);
       expect(g.problems).toEqual([]);
     } finally {

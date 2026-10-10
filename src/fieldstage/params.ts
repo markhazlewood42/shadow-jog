@@ -1,7 +1,8 @@
 /**
  * The field stage's layer table and the few numbers its drawing needs (M5 task 5). Every layer is a direct child of the scene's `world`; `depth` is the draw order,
  * the same order as the old `FieldScene.render` (src/scenes/field.ts), top to bottom of that function. A number here is a place in that order, not a look value:
- * the look lives in the baked layers, the map data and the old painters, which the stage calls unchanged.
+ * the look lives in the baked layers, the map data, the old painters, which the stage calls unchanged, and `src/data/fieldlook.json` (shadow, glow, haze, chest halo and glint,
+ * the flicker of a failing tube, the sprite boost).
  *
  * "Pinned" means the picture is screen-sized and is moved with the camera each frame, so it stays on the screen while the world scrolls under it. The old field drew
  * these straight onto the screen (the surround, the lit animations, the light map, the unlit animations, the haze, the dust and weather).
@@ -38,29 +39,3 @@ export const LAYER = {
  * inside the picture. The animation gets a canvas this much bigger than the prop's, so a painter that draws a little outside never loses a pixel.
  */
 export const ANIM_MARGIN = 16;
-
-/** The contact shadow under an actor: color and alpha (the old `rgba(5,4,12,0.5)`), and the three rectangles as offsets from the feet: x, y, width, height. */
-export const SHADOW = {
-  color: 0x05040c,
-  alpha: 0.5,
-  rects: [
-    [-4, -1, 9, 2],
-    [-3, -2, 7, 1],
-    [-3, 1, 7, 1],
-  ],
-} as const;
-
-/** How strongly the glow layer (the GPU effects' bloom input) is lit: towns glow harder than rooms. Set on `postfx.bloom` each frame, as the old field did. */
-export const GLOW = { interior: 0.5, outdoors: 0.9 } as const;
-
-/** The haze around bright lights: its strength outdoors and in a room (the old `Lighting.bloom` arguments). */
-export const BLOOM = { outdoors: 0.14, interior: 0.08 } as const;
-
-/** The chest's halo is a bit wider than the chest, drawn from this offset from its top-left corner. */
-export const CHEST_HALO_AT = { x: -12, y: -4 } as const;
-
-/** The halo's pulse: `base + swing * sin(frame * rate + tileX * phase)`. */
-export const CHEST_PULSE = { base: 0.5, swing: 0.3, rate: 0.06, phase: 1.7 } as const;
-
-/** A glint crosses a closed chest's lid every `period` frames, for `length` frames. The chest's tile spreads them out. */
-export const CHEST_GLINT = { period: 160, length: 10, tileX: 37, tileY: 53 } as const;

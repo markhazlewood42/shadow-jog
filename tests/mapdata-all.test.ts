@@ -226,9 +226,11 @@ describe.each(CASES)('$id: the JSON plus the behavior module give the old map', 
   it('the scripts make the same calls as the old ones, for many flag combinations and both answers to a question', async () => {
     const scripts = paths.filter((p) => !p.endsWith('.when'));
     const fns = scripts.map((p) => at(old, p) as Fn);
-    const combos = combosFor(flagsOf(fns));
+    const combos = combosFor(flagsOf(fns as Fn[]));
     let compared = 0;
     let shared = 0;
+    let moved = 0;
+    let calling = 0;
     for (const p of scripts) {
       const was = at(old, p) as (s: ScriptApi) => Promise<void>;
       const nw = at(now, p) as (s: ScriptApi) => Promise<void>;
@@ -242,10 +244,34 @@ describe.each(CASES)('$id: the JSON plus the behavior module give the old map', 
           const b = await runScript(nw, f, bit, pick);
           expect(b, `${p} ${JSON.stringify(f)} pick ${pick}`).toEqual(a);
           compared++;
+          if (a.length > 0) calling++;
+        }
+      }
+      moved++;
+    }
+    // Every script is either the very same function (shared) or was compared in every combination and for both answers: nothing is skipped silently.
+    expect(shared + moved).toBe(scripts.length);
+    expect(compared).toBe(moved * combos.length * 2);
+    // And the probe was alive: a moved script made at least one recorded call somewhere (a script that never talks to the API proves nothing).
+    if (moved) expect(calling).toBeGreaterThan(0);
+  });
+
+  it('CONTROL: the script comparison can fail (two different scripts of this map do not give the same calls)', async () => {
+    const scripts = paths.filter((p) => !p.endsWith('.when'));
+    const fns = [...new Set(scripts.map((p) => at(now, p) as (s: ScriptApi) => Promise<void>))];
+    if (fns.length < 2) return; // a map with one script has no pair to swap
+    const combos = combosFor(flagsOf(fns as Fn[]));
+    let differs = false;
+    for (const [bit, f] of combos.entries()) {
+      for (const pick of [0, 1]) {
+        const first = await runScript(fns[0] as (s: ScriptApi) => Promise<void>, f, bit, pick);
+        for (const other of fns.slice(1)) {
+          const log = await runScript(other, f, bit, pick);
+          if (JSON.stringify(log) !== JSON.stringify(first)) differs = true;
         }
       }
     }
-    expect(compared + shared * 2 * combos.length).toBeGreaterThanOrEqual(scripts.length ? 1 : 0);
+    expect(differs).toBe(true);
   });
 
   it('CONTROL: a bent value fails the comparison, and a swapped script or predicate id is caught (by the join or by the slot)', () => {
