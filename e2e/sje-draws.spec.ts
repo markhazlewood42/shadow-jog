@@ -300,6 +300,11 @@ test.describe('the shipped battle on the stage: draw calls, uploads and leaks', 
       expect(await field()).toBe(true);
       // The counter sees the stage: the field before any battle held fewer textures than the open battle (the pictures stay cached by key after it closes, so the flat counts below are about leaks, not about caching).
       expect(open.texture, 'control: an open battle holds more textures than the field before it').toBeGreaterThan(before.texture ?? 0);
+      // The cycles run in a room whose people stand still. On the street a wandering person walks into view at a random time and its picture goes to the GPU the first time
+      // it is on screen: one late first use (cycle 12 of 14 on CI, 134 textures against 133) read as a leak, though no battle caused it. The control above is done; the cycles
+      // below are only about the battle's own objects. (The armory has no wandering people: `move: wander` is in lantern_row, bar, noodles, rustyard, sinkline_1 and world.)
+      await sj(page, "sj.tp('armory', 7, 8, 'up')");
+      expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.state.map === "armory" && sj.idle()', 30_000)).toBe(true);
       await sj(page, '(sj.debug.autoBattle = true)');
       const cycle = async (n: number): Promise<Record<string, number>> => {
         for (let i = 0; i < n; i++) {
