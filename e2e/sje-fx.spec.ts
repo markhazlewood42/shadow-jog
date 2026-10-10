@@ -132,7 +132,7 @@ test.describe('the screen effects of the new engine, read from the canvas', () =
       try {
         const { page } = g;
         // The layers: `none` has no effects layers, no #fx overlay canvas exists on this path at any level.
-        expect(await page.evaluate("document.getElementById('fx')")).toBeNull();
+        expect(await page.locator('#fx').count(), 'no #fx overlay canvas').toBe(0);
         const fxChildren = await sj<number>(page, 'sj.tree().children.find((c) => c.label === "fxRoot").children.length');
         if (level === 'none') expect(fxChildren, 'none: nothing in fxRoot').toBe(0);
         else expect(fxChildren, `${level}: the effects layers are in fxRoot`).toBeGreaterThan(0);
