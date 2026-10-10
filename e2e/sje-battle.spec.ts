@@ -23,7 +23,8 @@ type Rect = { x: number; y: number; w: number; h: number };
 const OUT = 'test-results/m3-battle';
 mkdirSync(OUT, { recursive: true });
 
-const HUD = (JSON.parse(readFileSync('src/data/hud.json', 'utf8')) as { layout: Record<'partyStatus' | 'enemyInfo', Rect> }).layout;
+// The shipped battle uses the 640x360 set (M3 task 9): the HUD boxes are those of hud-640.json.
+const HUD = (JSON.parse(readFileSync('src/data/hud-640.json', 'utf8')) as { layout: Record<'partyStatus' | 'enemyInfo', Rect> }).layout;
 const rectOf = (r: { x: number; y: number; w: number; h: number }): Rect => ({ x: r.x, y: r.y, w: r.w, h: r.h });
 
 /** How many pixels in a rectangle of the back buffer are within `tol` of this color. Runs inside the page (no pixels cross the wire). */
@@ -126,10 +127,10 @@ test.describe('the battle on the stage, under the flag', () => {
       const swapped = { ...d, order: [...d.order].reverse() };
       expect(orderHolds(swapped)).toBe(false);
 
-      // The HUD's pixels. The party table has the first hero's name in the hero's own color; the foe box has the foes' names in their pink. The sky on the right, where no HUD box stands, has neither.
+      // The HUD's pixels. The party table has the first hero's name in the hero's own color; the foe box has the foes' names in their pink. The sky between the timeline and the combo box, where no HUD box stands, has neither.
       const party = rectOf(HUD.partyStatus);
       const foes = rectOf(HUD.enemyInfo);
-      const sky = { x: 262, y: 4, w: 124, h: 34 };
+      const sky = { x: 336, y: 4, w: 130, h: 34 };
       const heroColor = MEMBERS.kit.color;
       expect(await countColor(page, party, heroColor), 'the first hero\'s name in the party table').toBeGreaterThan(8);
       expect(await countColor(page, foes, '#ffd0d0'), 'the foes\' names in the foe box').toBeGreaterThan(20);
@@ -232,11 +233,12 @@ test.describe('crisp pixels (M3 pass line 5, on the shipped battle)', () => {
         expect(await stageThere(page)).toBe(true);
         expect(await waitUntil(page, 'sj.game.top.mode === "round"', 60_000)).toBe(true);
         await sj(page, '(sj.game.speed = 0, true)');
-        // The battle's own effects and a number, drawn now: the layers that are scaled (the effects layer is 1.5 stage pixels per world pixel until the 640x360 layout).
+        // The battle's own effects and a number, drawn now: the layers that are scaled (the effects layer is 2 stage pixels per world pixel on the 640x360 layout).
         await sj(page, "(() => { const t = sj.game.top; t.fx.play('fire_all', t.pos(0), t.battle.enemies.map((u) => t.pos(u.uid))); t.floatOn(t.battle.enemies[0].uid, '27', '#ffb23a', 'hit'); sj.step(12); sj.game.speed = 0; return true; })()");
         expect(await sj<boolean>(page, 'sj.battleStage.fxDrawn && sj.battleStage.numbers > 0'), 'the effects and the number are really on screen').toBe(true);
         const img = decode(await page.screenshot());
         expect([img.w, img.h]).toEqual([1920, 1080]);
+        // 640 x 360 blocks of 3 px: the whole frame (the stage fills the 640x360 screen since task 9).
         expect(unevenBlocks(img, 3, 0, 0, 640, 360), 'uneven 3x3 blocks').toBe(0);
         expect(unevenBlocks(img, 2, 0, 0, 800, 500), 'control: a wrong ratio finds uneven blocks').toBeGreaterThan(0);
         expect(g.problems).toEqual([]);
