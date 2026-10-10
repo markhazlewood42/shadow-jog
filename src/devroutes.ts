@@ -2,8 +2,8 @@
 import { createMember } from './game/party';
 import { applyStage } from './game/stages';
 import { state, type MemberId } from './game/state';
-import type { Display } from './engine/display';
 import type { Game } from './engine/game';
+import type { Game as SjeGame } from './sje/runtime/game';
 import { BattleScene } from './scenes/battle';
 import { BestiaryTestScene } from './scenes/bestiarytest';
 import { CharTestScene } from './scenes/chartest';
@@ -14,11 +14,15 @@ import { PanelScene } from './scenes/panels';
 import { PortraitTestScene } from './scenes/portraittest';
 
 /** Run the named dev scene; false if the name isn't one (the caller shows the title). */
-export function runDevScene(game: Game, scene: string, params: URLSearchParams, display: Display): boolean {
+export function runDevScene(game: Game, scene: string, params: URLSearchParams): boolean {
   switch (scene) {
     case 'fxlab':
       // The FX lab: tune particle presets and battle moments, save them to src/data/fx.json.
-      void import('./dev/fxlab').then(({ FxLabScene }) => game.run(new FxLabScene(display)));
+      // The lab runs on the new engine's Game (startSje hands it over typed as the old one: the seam in sje/boot.ts).
+      void import('./dev/fxlab').then(({ FxLabScene }) => {
+        const sje = game as unknown as SjeGame;
+        return sje.run(new FxLabScene(sje));
+      });
       break;
     case 'stage': {
       // A preset point in the chapter (game/stages.ts): its party, levels, gear, flags and place.

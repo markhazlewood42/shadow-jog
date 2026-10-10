@@ -23,14 +23,12 @@ import { ENEMIES } from '../data/enemies';
 import { FX, GAME_MOMENTS, replaceFx } from '../data/fx';
 import { surface } from '../engine/canvas';
 import type { Ctx } from '../engine/canvas';
-import type { Display } from '../engine/display';
 import { drawText } from '../engine/font';
 import { checkFx, type FxData, type FxPreset, formatFx, type Moment, type MomentLayer } from '../engine/fxdata';
-import { Scene } from '../engine/game';
 import { H, W } from '../sje/core/size';
-import { playMoment } from '../engine/moments';
 import type { ParticleShape } from '../engine/particles';
-import { postfx } from '../engine/postfx';
+import type { Game } from '../sje/runtime/game';
+import type { LegacyShape } from '../sje/runtime/gameapi';
 import { BHT, BW, PANEL_Y } from '../scenes/battlekit/geom';
 
 const PANEL_W = 400;
@@ -127,8 +125,18 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string,
   return e;
 }
 
-export class FxLabScene extends Scene<void> {
-  private readonly display: Display;
+/**
+ * The lab is a legacy-shaped scene (`LegacyShape`, src/sje/runtime/gameapi.ts): the new `Game` wraps it in a `LegacyScene` when it runs it.
+ * It writes the base-class members by hand so it imports nothing from the old engine (src/engine/{game,display,postfx}, which M8 deletes).
+ */
+export class FxLabScene implements LegacyShape<void> {
+  /** The new engine's `Game`; the `LegacyScene` adapter sets it again to the same object before `enter()`. */
+  game: Game;
+  opaque = true;
+  curtain = false;
+  passUpdate = false;
+  closed = false;
+  private resolver: (() => void) | null = null;
   private panel: HTMLDivElement | null = null;
   private style: HTMLStyleElement | null = null;
   private body: HTMLDivElement | null = null;
@@ -164,7 +172,7 @@ export class FxLabScene extends Scene<void> {
   /** The file as last loaded or saved (unsaved changes = anything that differs from it). */
   private saved = formatFx(FX);
   private onPointer = (e: PointerEvent) => {
-    const p = this.display.toGame(e.clientX, e.clientY);
+    const p = this.game.scale.toGame(e.clientX, e.clientY);
     if (p.x < 0 || p.y < 0 || p.x > W || p.y > H) return;
     this.target = { x: Math.round(p.x), y: Math.round(p.y) };
     this.fire();
@@ -175,14 +183,13 @@ export class FxLabScene extends Scene<void> {
     e.returnValue = '';
   };
 
-  constructor(display: Display) {
-    super();
-    this.display = display;
+  constructor(game: Game) {
+    this.game = game;
     this.setEnemy(this.enemyKey);
   }
 
-  override enter(): void {
-    postfx.clear();
+  enter(): void {
+    this.game.fx.clear();
     this.style = el('style', {}, CSS);
     document.head.appendChild(this.style);
     const panel = el('div', { id: 'fxlab' });
@@ -193,28 +200,44 @@ export class FxLabScene extends Scene<void> {
     this.panel = panel;
     const stage = document.getElementById('stage');
     if (stage) stage.style.right = `${PANEL_W}px`;
-    this.display.resize();
-    this.display.element.addEventListener('pointerdown', this.onPointer);
+    this.game.scale.refit();
+    // The page's one canvas lives in #stage, so a click on the picture bubbles up to it.
+    stage?.addEventListener('pointerdown', this.onPointer);
     window.addEventListener('beforeunload', this.onUnload);
     this.build();
   }
 
-  override exit(): void {
+  exit(): void {
     this.panel?.remove();
     this.style?.remove();
     const stage = document.getElementById('stage');
     if (stage) stage.style.right = '';
-    this.display.resize();
-    this.display.element.removeEventListener('pointerdown', this.onPointer);
+    this.game.scale.refit();
+    stage?.removeEventListener('pointerdown', this.onPointer);
     window.removeEventListener('beforeunload', this.onUnload);
-    postfx.clear();
+    this.game.fx.clear();
+  }
+
+  resume(): void {}
+
+  close(result: undefined): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.game.remove(this);
+    this.resolver?.();
+    void result;
+  }
+
+  /** @internal */
+  _bind(resolve: (result: undefined) => void): void {
+    this.resolver = () => resolve(undefined);
   }
 
   // ------------------------------------------------------------------ the picture
   update(): void {
     this.frame++;
-    postfx.rate = 1;
-    postfx.clip = this.clip ? { x: 0, y: 0, w: W, h: PANEL_Y } : null;
+    this.game.fx.rate = 1;
+    this.game.fx.clip = this.clip ? { x: 0, y: 0, w: W, h: PANEL_Y } : null;
     this.fxl.rate = 1;
     this.fxl.update();
     if (this.fxl.flash) {
@@ -262,9 +285,10 @@ export class FxLabScene extends Scene<void> {
       ctx.globalAlpha = 1;
       this.flashLeft--;
     }
-    const glow = postfx.glowLayer();
+    const fx = this.game.fx;
+    const glow = fx.glowLayer();
     if (glow && this.bg.glow) {
-      postfx.bloom = 0.7;
+      fx.bloom = 0.7;
       glow.imageSmoothingEnabled = false;
       glow.drawImage(this.bg.glow, 0, 0, W, H);
     }
@@ -286,8 +310,8 @@ export class FxLabScene extends Scene<void> {
       ctx.fillStyle = 'rgba(255,255,255,0.25)';
       ctx.fillRect(0, PANEL_Y, W, 1);
     }
-    const ui = postfx.ui ?? ctx;
-    drawText(ui, postfx.active ? 'FX LAB · click to fire here' : '{r}GPU effects are off or unavailable (Options, or no WebGL 2){/}', 6, 4, { color: '#b8bcd0' });
+    const ui = fx.ui ?? ctx;
+    drawText(ui, fx.active ? 'FX LAB · click to fire here' : '{r}GPU effects are off or unavailable (Options, or no WebGL 2){/}', 6, 4, { color: '#b8bcd0' });
   }
 
   private setEnemy(key: string): void {
@@ -315,8 +339,8 @@ export class FxLabScene extends Scene<void> {
     }
     if (this.tab === 'presets') {
       const p = FX.presets[this.presetId];
-      if (p) postfx.emit(p, x, y, this.aim ? { angle: this.aimAngle } : {});
-    } else playMoment(FX, this.momentId, x, y, { ...(this.aim ? { angle: this.aimAngle } : {}), weight: this.weight });
+      if (p) this.game.fx.emit(p, x, y, this.aim ? { angle: this.aimAngle } : {});
+    } else this.game.fx.playMoment(this.momentId, x, y, { ...(this.aim ? { angle: this.aimAngle } : {}), weight: this.weight });
   }
 
   /**

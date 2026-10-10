@@ -102,7 +102,13 @@ export function mountDevMenu(open = false): void {
     tab.setAttribute('aria-expanded', String(on));
     tab.textContent = on ? 'DEV ✕' : 'DEV';
     // Back to the game's canvas, so its keys work again.
-    if (!on) document.getElementById('screen')?.focus();
+    if (!on) {
+      const canvas = document.querySelector<HTMLCanvasElement>('#stage canvas');
+      if (canvas) {
+        if (!canvas.hasAttribute('tabindex')) canvas.tabIndex = -1; // the new engine's canvas has no tabindex; -1 lets code focus it
+        canvas.focus();
+      }
+    }
   };
   tab.addEventListener('click', () => show(Boolean(panel.hidden)));
   // ` toggles; Esc closes it (only while open, before the game sees the key).

@@ -200,7 +200,7 @@ export function boot(game: Game, display: Display): void {
   const start = () => {
     if (import.meta.env.DEV && scene) {
       void import('./devroutes').then((m) => {
-        if (!m.runDevScene(game, scene, params, display)) void startTitle(game);
+        if (!m.runDevScene(game, scene, params)) void startTitle(game);
       });
     } else void startTitle(game);
   };

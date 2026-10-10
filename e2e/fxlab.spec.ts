@@ -31,13 +31,14 @@ test('the FX lab opens with every preset and moment, and edits play live', async
   await maxBox.press('Enter');
   expect(await sj<number[]>(page, `sj.fx.presets['${first}'].count`)).toEqual([before[0], (before[1] ?? 10) + 7]);
   await expect(page.locator('#fxlab .status')).toContainText('Unsaved');
-  // Clicking the picture fires it (where WebGL 2 exists).
-  if (await sj<boolean>(page, 'sj.postfx.active')) {
-    const box = await page.locator('#screen').boundingBox();
-    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
-    await page.waitForTimeout(100);
-    expect(await sj<number>(page, 'sj.postfx.particles.count')).toBeGreaterThan(0);
-  }
+  // Clicking the picture fires it on the effects of the game (`game.fx`; level `lite` on a software renderer, `full` on a GPU).
+  // The lab fires on its own every 45 frames, so stop that first: a particle count above 0 then comes from the click alone.
+  expect(await sj<boolean>(page, 'sj.fxCounts().active')).toBe(true);
+  await page.locator('#fxlab label', { hasText: 'Auto-repeat' }).locator('input[type=checkbox]').uncheck();
+  await expect.poll(() => sj<number>(page, 'sj.fxCounts().particles')).toBe(0);
+  const box = await page.locator('canvas').boundingBox();
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await expect.poll(() => sj<number>(page, 'sj.fxCounts().particles')).toBeGreaterThan(0);
   // Every moment the game plays is on the Moments tab.
   await page.getByRole('button', { name: 'Moments' }).click();
   const moments = await page.locator('#fxlab select[size] option').allTextContents();
@@ -48,6 +49,21 @@ test('the FX lab opens with every preset and moment, and edits play live', async
   await expect(page.locator('#fxlab .status')).toContainText('Reloaded');
   expect(await sj<number[]>(page, `sj.fx.presets['${first}'].count`)).toEqual(before);
   expect(errors).toEqual([]);
+});
+
+test('an invalid edit shows the Unsaved state, and Save refuses it with a reason', async ({ page }) => {
+  await page.goto('/?scene=fxlab');
+  await expect(page.locator('#fxlab')).toBeVisible();
+  const first = (await sj<string[]>(page, 'Object.keys(sj.fx.presets)'))[0]!;
+  // The max count goes below the min count: checkFx rejects it, and the lab says so instead of writing the file.
+  const min = await sj<number>(page, `sj.fx.presets['${first}'].count[0]`);
+  const maxBox = page.locator('#fxlab .row', { hasText: 'max' }).first().locator('input[type=number]');
+  await maxBox.fill(String(min - 1));
+  await maxBox.press('Enter');
+  await expect(page.locator('#fxlab .status')).toContainText('Unsaved');
+  await page.getByRole('button', { name: 'Save to game' }).click();
+  await expect(page.locator('#fxlab .status')).toContainText("Can't save");
+  await expect(page.locator('#fxlab .status')).toHaveClass(/err/);
 });
 
 test('the save endpoint checks what it gets and writes fx.json in its own format', async ({ page }) => {
