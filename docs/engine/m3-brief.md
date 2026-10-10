@@ -1,0 +1,106 @@
+---
+type: plan
+title: "Shadow Jog Engine — M3 build brief"
+project: shadow-jog
+created: 2026-10-09
+updated: 2026-10-09
+tags: [engine, m3, plan, battle-stage]
+---
+
+# M3 Battle stage: build brief
+
+Source: [migration.md](migration.md) "M3 Battle stage", [scene-graph.md](scene-graph.md) sections 5 and 7, [interfaces.md](interfaces.md), [tooling-and-testing.md](tooling-and-testing.md) section 5, [m2-brief.md](m2-brief.md) (format; the `FxSystem` this builds on), `docs/spikes/side-battle-stage.md` (the stage design), and the lean loop in `CLAUDE.md`. Branch: `engine-m3-battle-stage` (from `main` after PR #48), in its own worktree, next to M1b. Pass lines were written before any code. **Nothing is built until Mark approves this brief.**
+
+Spike code is read from the archive tags, never merged: `archive/phaser-stage-2026-10-09` (`src/stage`, 57 files; Battle Stage Editor in `src/stage/edit/`, Battle Test in `battletest.ts`), `archive/engine-platform-2026-10-09` (`src/battlestage`, 22 files: `figure.ts`, `textures.ts`, `config.ts`; parity in `e2e/sjestageparity.ts`, `tests/sjestage-parity.test.ts`, `scripts/stage-data-parity.mjs`).
+
+## 1. Goal
+
+- Under `?engine=sje`, the battle plays on a Pixi stage: backdrop, floor, `Figure`s with shadows, the battle HUD, and the `battle/fx.ts` painters, all driven by today's `battle.ts` through `PlaybackView`.
+- The battle rules (`src/battle/engine.ts`, `ai.ts`) do not change. A scripted run with seed 7 gives the same status trace as the legacy path.
+- The default path (no flag) does not change in behavior.
+- Not in M3: the Battle Stage Editor and Battle Test **port** (milestone ET, principle 11; M3 only builds the data and contract they will need), UI scenes (M4), the field (M5), 3D (M7), `TextObject` (M4, E14), `pixi-filters`.
+- Exit check (migration.md): a scripted Battle Test (seed 7) with an identical status trace, pixel parity within a tolerance Mark agrees, and Mark's look review of the pictures.
+
+## 2. Survey facts that change the plan
+
+- migration.md says "about 3,400 lines call Phaser". The survey counts about 4,440 lines in 9 files of `src/stage` that import Phaser (`stagescene`, `stageedit`, `hud`, `textures`, `hudkit`, `livefx`, `boot`, `labhook`, `stills`). About 5,000 lines of `src/stage` are pure logic. The editor (`edit/*`, about 5,000 lines) is **not** ported in M3.
+- `src/battlestage` (Phase 0) already holds the Pixi slice: `figure.ts` (282), `stagescene.ts` (243), `textures.ts` (556), the pure files copied from the spike. It has **no HUD and no `PlaybackView`**. The HUD (`src/stage/hud.ts`, 657 lines, Phaser) is a real port.
+- `src/data/enemies.ts` has 21 enemies, 4 bosses, and about 25 encounter groups. It has **no** picture, mirror or axis field. Those live in the stage JSONs (`enemyfacing`, `axes`). The data-file move has to merge both.
+- Stage configs: two stages (`street`, `sewer`), 350 lines each, in 480x270 numbers.
+- `src/engine/font.ts` (400 lines) has about 35 importers. Moving it into `src/sje` means a re-export from the old path, not 35 edits.
+
+## 3. Open decisions for Mark (recommendation first; the build uses it unless Mark says otherwise)
+
+1. **How parity is measured at 640x360.** The Phaser spike cannot be the reference (it has no 640x360 stage). Recommend two checks. (a) **Regression parity:** lay the stage out at 480x270 numbers in a 640x360 frame, as Phase 0 did, and require 0 differing pixels against the existing `gpu`/`soft` goldens at 3 frames, then all stages. This proves the port is faithful. (b) **New layout:** the 640x360 layout is judged by Mark from pictures, then pinned as new goldens (`gpu` and `soft`). No numeric gate on the new look.
+2. **World layer reach (240x135 became 320x180).** Recommend the Phase 0 way: bake at 2x on a canvas, as the spike does. `setGrain(2)` stays unbuilt (no caller needs it; principle 6).
+3. **Battle push camera (up to 1.09x).** Neither rounding setting keeps one pixel grid at 1.09x. Recommend: keep 1.09x and accept the measured uneven texels (99 px on GPU, 128 on SwiftShader). Mark sees the push in the pictures and decides. A pixel-clean push needs a different zoom (whole-pixel steps) and a retimed move. That is a look change, so it waits for his word.
+4. **Stage data at 640x360.** Principle 8 forbids a silent change. Recommend: the 480x270 stage JSONs stay byte for byte as the source. A new `stages-640` set is written by a documented script (`scripts/stage-640.mjs`, a fixed transform: center the 480x270 layout, add the extra 160 px of floor and sky as the config defines), then Mark reviews the pictures and edits values where he wants.
+5. **Enemy and troop data format.** Recommend one JSON file per kind: `src/data/enemies.json` (the 21 `E()` records plus `picture`, `mirror`, `axis`) and `src/data/encounters.json` (the groups), read by a typed loader with a `check` function (like `checkFx`). `enemies.ts` becomes the loader. A parity test proves the loaded objects equal today's objects (deep equal). Mark approves the shape before Builder C starts (Task 8).
+6. **One `Raw` type.** Recommend the engine's `{ w, h, data }`. The stage's `{ w, h, px }` is renamed at the boundary in the spike files that move.
+
+## 4. Tasks, in build order
+
+1. **Survey the callers.** List what `battle.ts` and `battlekit/*` call on the renderer, `FxLayer` and `PlaybackView`. List every `Figure` input. Put the lists in the builder report.
+2. **TextureManager.** Move `addCanvasOnce` and `variantOf` into the engine `TextureManager`; add `readPixels(key)`; use one `Raw` type. `src/battlestage/textures.ts` shrinks to game-side calls.
+3. **Config.** `config.ts` uses the engine `depthFor`; the Phase 0 pin test now asserts one function. Move `src/engine/font.ts` into `src/sje` with a re-export at the old path.
+4. **Figure and scene.** Promote `src/battlestage` to the shipped `BattleStageScene` (backdrop, floor, `Figure`, shadows, depth, flip, camera push) on the M1 scene runtime. Its data comes from the stage JSON.
+5. **HUD.** Port `Hud` (turn timeline, party table, target box, damage numbers, banner) to Pixi objects. Text uses the old game font through a canvas painter until M4's `TextObject`. Layout reads `HudLayout`; presets stay data.
+6. **PlaybackView and fx.** `battle.ts` drives the stage through `PlaybackView`. Port the `battle/fx.ts` painters (1,208 lines, Canvas 2D) to `CanvasImage` painters or `FxSystem` calls. `FxLayer`'s method signatures do not change.
+7. **Battle Test seam (not the editor).** A headless battle driver (the spike's `battleflow.ts` logic, pure) runs a seeded battle and returns a status trace. The DEV hook exposes it. The editor port is milestone ET.
+8. **Enemy data move.** Decision 5. Loader, `check`, deep-equal test.
+9. **640x360 layout.** Decision 4: script, new stage JSONs, pictures.
+10. **Parity harness.** Port `e2e/sjestageparity.ts` and the fixtures. Part (a) of decision 1 in CI (`gpu` and `soft` sets, strict compare with the renderer mask). Part (b) pictures are local.
+11. **Routing, DEV hook, docs.** Under the flag the battle scene is the new one. DEV hook: `stage` (figures, depths, camera), `battleTrace(seed)`. `CHANGELOG.md`; `GLOSSARY.md` and `CONCEPTS.md` (Figure, depth, push camera, parity); `DEVELOPING.md` recipe; `.claude/skills/engine/SKILL.md`; `tooling-and-testing.md` (section 5 parity method, section 7 costs); `frame-and-rendering.md`.
+12. **CI.** Add the new specs to the `e2e` job. Pictures and the GPU run stay local.
+
+## 5. Editor contract (principle 11)
+
+M3 does not port the editor, but it must not make it harder. (a) Every stage value an editor changes (positions, rows, shadows, HUD layout, facing, axes) is in the stage JSON or the enemy file, with a `check` function. (b) `BattleStageScene.loadStage(config)` swaps a config in a running scene and rejects bad data (control: bad data leaves the old stage). (c) `snapshot()` / `restore()` of the scene state as plain JSON, and `step(n)` on the headless driver. (d) No Pixi object leaves the scene. (e) What stays in code on purpose, because it is the form and not the tuning: the depth formula, the flip rule, the contact-shadow shape.
+
+## 6. Hard pass lines
+
+1. `npm run check` exits 0 (judge by exit code).
+2. `npx vitest run tests/battlestage*.test.ts tests/sjestage-parity.test.ts tests/enemies-data.test.ts tests/balance.test.ts tests/economy.test.ts` exits 0. The enemy and encounter objects loaded from JSON deep-equal the old `enemies.ts` objects (control: one changed field fails).
+3. **Status trace.** The Battle Test driver with seed 7 gives a trace byte-identical to the legacy path for the scripted battle (street and sewer). Control: seed 8 differs.
+4. **Regression parity.** `npx playwright test e2e/sje-stage-parity.spec.ts --reporter=line` exits 0 on SwiftShader: 0 pixels outside the renderer mask, at most 1/255 inside it, at 3 frames then all stages. Controls: a 2/255 step fails; a one-pixel shadow move fails.
+5. No mixed block at device pixel ratio 1 and 1.5 on the new stage with the full effect stack (0 uneven k-by-k blocks).
+6. Battle plays end to end under the flag: `npx playwright test e2e/sje-battle.spec.ts --reporter=line` runs a win, a loss, a flee and a boss intro; it reads `__SJ__` for the state and checks the HUD pixels. 0 GL errors and 0 console warnings.
+7. Default path unchanged: `npx playwright test e2e/playthrough.spec.ts e2e/prod.spec.ts e2e/battle*.spec.ts --reporter=line` exits 0. `__SJ__` stays absent in production.
+8. `git diff --stat main...HEAD -- src/battle/engine.ts src/battle/ai.ts src/battle/types.ts src/data/abilities.ts src/data/party.ts src/data/fx.json` is empty (principle 8). `enemies.ts` changes only as the loader. The 480x270 stage JSONs are byte for byte unchanged.
+9. `npm run budget` exits 0. The `boot` class holds no `pixi.js` module. At the end, set `GZIP_TOTAL_MAX` to the measured total rounded up to the next 1 kB, with a dated comment (Mark's one-bigger-total rule).
+10. `npx playwright test e2e/sje-canaries.spec.ts e2e/sje-draws.spec.ts e2e/sje-shell.spec.ts e2e/sje-fx.spec.ts --reporter=line` exits 0. `sje-draws` gets a battle-frame case (draw calls and binds as an upper bound). The leak test is flat across 10 battle enter and exit cycles.
+11. Imports: `pixi.js` only in `src/sje/*`, `src/battlestage`, `src/sje-lab`. `tests/sje-imports.test.ts` updated and passing. No non-null `!` in `src/sje/` or `src/battle/`. `tests/screen-literals.test.ts` passes (the 640x360 layout reads `W` and `H`, or the stage JSON).
+12. `tests/sje-stage-contract.test.ts` proves section 5: `check` rejects bad data and `loadStage` keeps the old stage; `restore(snapshot())` gives the same frame hash; `step(n)` equals n ticks. The reader checks no look constant hides in code outside the stage data.
+13. **Pictures for Mark** (evidence, not a gate): `media/m3-stage/` holds old against new for intro, command, attack, spell, crit, victory and a boss, at 480x270-in-640x360 and at the new 640x360 layout, `gpu` set.
+14. **GPU run, once, at the end (principle 12), by the main session:** `npm run perf`. Frame interval p95 within 5% of the bare page with a battle on; cost p95 at most 8 ms. Numbers go in `tooling-and-testing.md` section 7.
+15. `CHANGELOG.md`, `GLOSSARY.md` and the record table below are filled.
+16. **Playable checkpoints (Mark).** *Checkpoint 1, after Builder B (before round 1):* `http://localhost:3007/?engine=sje` plays battles with every effect; the main session starts the server and gives the URL. A look change Mark asks for is a named fix and does not count against the 3-round cap. *Checkpoint 2, after the last fix round:* same build, pictures (line 13) and perf numbers (line 14) ready; Mark merges or sends work back.
+
+## 7. Verifier plan (lean loop)
+
+| Agent | Model, effort | Job |
+|---|---|---|
+| Builder A | sonnet, high | Tasks 1 to 4, 10: textures, config, font, scene, parity harness. |
+| Builder B | sonnet, high | Tasks 5 to 7: HUD, `PlaybackView`, fx painters, headless driver. Starts after A is committed. |
+| Builder C | sonnet, high | Tasks 8, 9, 11, 12: enemy data (after Mark approves the shape), 640 layout, routing, docs, CI. |
+| Runner | sonnet, medium | Pass lines 1 to 10 and 12. Re-runs the expensive suites once. Makes the pictures. |
+| Reader | haiku, medium | Reads `git diff main...HEAD`: lines 8, 11, 12; the HUD port against `hud.ts` (every element); the fx port against `fx.ts`; no vacuous test. |
+
+- Every builder prompt: no `Co-Authored-By` line in any commit (repo rule over the harness reminder).
+- Pass: every line holds, no Critical or Important finding open. Minor findings are named fixes. A fix round: one fresh verifier checks only the named findings. Cap 3 rounds, then Mark gets the evidence.
+- No attacker: no write path, trust rule or save format changes. (The enemy JSON is read-only data.)
+- Perf (line 14) is run by the main session after the last fix round.
+
+## 8. Risks
+
+- **HUD port size.** 657 lines of Phaser text and shapes; text stays on canvas painters until M4. Risk is layout drift; the pictures are the check.
+- **`fx.ts` port.** 1,208 lines of Canvas 2D. Keeping `FxLayer`'s signatures keeps `battle.ts` unchanged.
+- **Parity at the 1.09x push.** Uneven texels are known (decision 3). The regression parity frames avoid the push; the push gets its own picture pair.
+- **Conflicts with the M1b branch:** `status.md`, `docs/roadmap/roadmap.json`, `CHANGELOG.md`. Keep edits small; merge `main` before each commit.
+- **Scope creep:** editor, `TextObject`, field scenes. All stay out.
+
+## 9. Record
+
+| Step | What changed | Numbers | Verdict | Named fixes |
+|---|---|---|---|---|
+| Brief | this file | — | waits for Mark | — |
