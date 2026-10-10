@@ -59,7 +59,15 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
-### Right now (2026-10-10, M5 in PR #54)
+### Right now (2026-10-10, M5 merged)
+
+M5 "Field" is merged ([PR #54](https://github.com/markhazlewood42/shadow-jog/pull/54), 0b1ef97, Mark, 2026-10-10). The field plays on the Pixi stage under `?engine=sje`. Parity accepts measured bounds (decision of Mark). GPU run: field on the world map, fx full, cost p95 6.9 to 7.4 ms (line 8) after the relight-on-change fix; the live battle A/B against `main` is noise. Numbers: `docs/engine/tooling-and-testing.md` section 7. Record: `docs/engine/m5-brief.md` section 9. The M5 worktree is removed. **Next is M6 "Flip default"** (`docs/engine/migration.md` section M6; M4 stays optional): write the brief with pass lines first, branch `engine-m6-flip`.
+
+**Next up for Mark**
+
+1. None open on M5. The M6 session starts from the brief; the agent will ask for decisions in the brief.
+
+### Earlier: M5 in PR #54 (history)
 
 M5 "Field" is built on branch `engine-m5-field` ([PR #54](https://github.com/markhazlewood42/shadow-jog/pull/54)). Brief: `docs/engine/m5-brief.md` (Mark approved all six decisions and the lighting pictures; parity decision: accept measured bounds). Builders A, B and C are done (tasks 1 to 9). Verifier round 1: no Critical, 2 Important (fixed in f035ed1), Minor items fixed. Bundle totals set (409 / 50 kB), e2e job timeout raised to 45 min (05c07a7).
 
