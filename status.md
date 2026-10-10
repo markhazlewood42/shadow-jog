@@ -66,7 +66,6 @@ M3 "Battle stage" is merged ([PR #51](https://github.com/markhazlewood42/shadow-
 
 1. None open. You approved the M3 pictures (2026-10-10); the 1.09x push was part of that look review.
 
-**Next for agents:** M5 (field) can start now. M4 (UI scenes) stays optional: a scene ports only when it needs a camera, filter, mask or transition. Write the brief with pass lines first.
 **Next for agents:** M4 (optional UI scenes) and M5 (field) can start now, in parallel. Write the brief with pass lines first.
 
 ### Right now (2026-10-09, M2 merged)
