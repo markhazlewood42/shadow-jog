@@ -790,7 +790,7 @@ describe('FieldStageScene: snapshot and restore', () => {
     expect(r.scene.isHeld).toBe(false);
   });
 
-  it('F4: a held snapshot feeds no glow layer (like the legacy snapshot path); the live frame does', () => {
+  it('E: a held snapshot feeds the glow layer exactly as the live frame did (with GPU effects on, the bloom is part of the picture restore must give back)', () => {
     const r = stage();
     const glowCanvas = recCanvas(W, H, 'GLOW');
     const glowCtx = glowCanvas.getContext('2d');
@@ -798,15 +798,16 @@ describe('FieldStageScene: snapshot and restore', () => {
     r.h.frame(17);
     // Control: the live frame asks for the layer and blits the emissive layer into it, so the check below can see a feed.
     expect(asked).toHaveBeenCalled();
-    expect(glowCanvas.log.some((l) => l.startsWith('drawImage(emit'))).toBe(true);
+    const live = glowCanvas.log.filter((l) => l.startsWith('drawImage'));
+    expect(live.some((l) => l.startsWith('drawImage(emit'))).toBe(true);
     const s = r.scene.snapshot();
     r.scene.restore(s);
     asked.mockClear();
     glowCanvas.log.length = 0;
     frame(r);
     expect(r.scene.isHeld).toBe(true);
-    expect(asked).not.toHaveBeenCalled();
-    expect(glowCanvas.log).toEqual([]);
+    expect(asked).toHaveBeenCalled();
+    expect(glowCanvas.log.filter((l) => l.startsWith('drawImage'))).toEqual(live);
     r.scene.release();
     frame(r);
     expect(asked).toHaveBeenCalled();

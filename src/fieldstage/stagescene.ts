@@ -481,8 +481,9 @@ export class FieldStageScene extends Scene<void> implements FieldStage {
     this.paintShadows(v);
 
     // GPU effects: the same light into the glow layer, so neon, lamps and lit windows bloom for real (the props add theirs below). Towns glow harder than rooms.
-    // A held snapshot is a still, like the legacy snapshot path (`renderLegacy(ctx, true)`), which feeds no glow layer: both skip it, so a still never leaves a glow behind.
-    const glow = this.held ? null : postfx.glowLayer();
+    // A held snapshot feeds the glow layer like a live frame: `restore(snapshot())` must give the same picture, and with GPU effects on the bloom is part of the picture.
+    // (The glow layer is cleared and drawn again each frame, so a held frame leaves nothing behind. The battle intro's still, `paintSnapshot`, is another path and feeds none.)
+    const glow = postfx.glowLayer();
     if (glow) {
       postfx.bloom = interior ? FIELD_LOOK.glow.interior : FIELD_LOOK.glow.outdoors;
       blit(glow, map.emit, cx, cy);

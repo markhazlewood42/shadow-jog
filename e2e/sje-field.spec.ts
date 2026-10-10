@@ -207,7 +207,8 @@ test.describe('the field on the stage', () => {
   });
 
   test('the editor contract on the live stage: a bad map is refused and the stage keeps its map; a snapshot shows the state it was taken at', async ({ browser }) => {
-    const g = await openField(browser);
+    // fx=full on every renderer: the bloom (the glow layer) is part of the frame, and a held snapshot must feed it as the live frame did (GPU restore fix, E).
+    const g = await openField(browser, { query: '&fx=full' });
     try {
       await warpTo(g.page, 'rook_flat');
       expect(await waitUntil(g.page, 'sj.fieldStage.screenShown === false', 15_000)).toBe(true);
