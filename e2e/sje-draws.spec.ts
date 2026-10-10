@@ -319,3 +319,63 @@ test.describe('the shipped battle on the stage: draw calls, uploads and leaks', 
     }
   });
 });
+
+/** The shipped field on the stage (M5 task 9): the draw calls, framebuffer binds and canvas uploads of one frame, per map, with the whole effect stack. Written down and bounded from above. */
+const FIELD_DRAWS_MAX = 40; // measured 21, 29, 17 (town, world, interior) on SwiftShader and CI's Chromium
+const FIELD_BINDS_MAX = 24; // measured 17 (the effect stack's own: the same as the bare lab frame)
+const FIELD_UPLOADS_MAX = 75; // measured 56, 30, 15: a few full-screen canvases (light map, haze, screen layer) and many SMALL ones (a lit sprite is lit again when a flickering light reaches it)
+const FIELD_UPLOAD_BYTES_MAX = 8_000_000; // measured 6.8 MB, 5.6 MB, 3.7 MB a frame: the upload bytes are the cost to watch on a real GPU (the main session runs npm run perf)
+
+test.describe('the shipped field on the stage: draw calls, binds and uploads', () => {
+  test('a field frame (baked layers, props, actors, lights, haze, weather, the whole effect stack) stays inside the budgets on the town, the world map and an interior; the control exceeds them', async ({ browser }) => {
+    test.setTimeout(240_000);
+    const g = await openGame(browser, { engine: true, query: '&fx=full', init: installGlCounters });
+    try {
+      const { page } = g;
+      expect(await waitTop(page, 'TitleScene')).toBe(true);
+      await sj(page, "sj.stage('town')");
+      expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
+      const measure = () =>
+        sj<{ draws: number; binds: number; uploads: number; bytes: number }>(
+          page,
+          `(() => { const w = window; sj.step(0); w.__gl = { draws: 0, binds: 0, uploads: 0, uploadBytes: 0 }; for (let i = 0; i < 10; i++) sj.step(1); return { draws: w.__gl.draws / 10, binds: w.__gl.binds / 10, uploads: w.__gl.uploads / 10, bytes: w.__gl.uploadBytes / 10 }; })()`,
+        );
+      const seen: Record<string, { draws: number; binds: number; uploads: number; bytes: number }> = {};
+      for (const [map, x, y] of [['lantern_row', 27, 21], ['world', 13, 22], ['bar', 11, 12]] as const) {
+        await sj(page, `sj.tp(${JSON.stringify(map)}, ${x}, ${y}, 'down')`);
+        expect(await waitUntil(page, `sj.fieldStage !== null && sj.fieldStage.mapId === ${JSON.stringify(map)} && sj.fieldStage.frame > 0 && sj.idle()`, 30_000)).toBe(true);
+        // Let the banner of the area go (it is the screen layer's own upload), so the frame is the field alone: 200 ticks.
+        await sj(page, '(sj.step(220), true)');
+        seen[map] = await measure();
+        expect(seen[map]?.draws, `${map}: a frame draws something (control: the counter sees the stage)`).toBeGreaterThan(3);
+      }
+      console.log(`SJE draws, shipped field on the stage with the whole stack: ${JSON.stringify(seen)}`);
+      for (const [map, m] of Object.entries(seen)) {
+        expect(m.draws, `${map}: draw calls per frame`).toBeLessThanOrEqual(FIELD_DRAWS_MAX);
+        expect(m.binds, `${map}: framebuffer binds per frame`).toBeLessThanOrEqual(FIELD_BINDS_MAX);
+        expect(m.uploads, `${map}: canvas uploads per frame`).toBeLessThanOrEqual(FIELD_UPLOADS_MAX);
+        expect(m.bytes, `${map}: canvas upload bytes per frame`).toBeLessThanOrEqual(FIELD_UPLOAD_BYTES_MAX);
+      }
+      // Control: 80 extra images in the stage, each with another blend mode than the one before (a changed blend breaks the batch), exceed the draw budget: the bound can fail.
+      await sj(
+        page,
+        `(() => {
+          const s = sj.game.scene.scenes.find((x) => x.constructor.name === 'FieldStageScene');
+          for (let i = 0; i < 80; i++) {
+            const img = s.add.canvasImage(i * 4, 0, 4, 4).setDepth(200).setBlendMode(i % 2 ? 'add' : 'multiply');
+            img.ctx.fillStyle = '#fff';
+            img.ctx.fillRect(0, 0, 4, 4);
+            img.refresh();
+          }
+          return true;
+        })()`,
+      );
+      const over = await measure();
+      console.log(`SJE draws, field with 80 extra images: ${JSON.stringify(over)}`);
+      expect(over.draws, 'the control exceeds the draw budget').toBeGreaterThan(FIELD_DRAWS_MAX);
+      expect(g.problems.filter((p) => !/GPU stall/.test(p))).toEqual([]);
+    } finally {
+      await g.close();
+    }
+  });
+});

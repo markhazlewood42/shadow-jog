@@ -5,6 +5,7 @@
  * Both paths run the SAME code to reach a state (`__SJ__.fieldShow`, src/dev/fieldshow.ts) on a page with a fake, paused clock and a seeded `Math.random`
  * (`openGame({ fakeClock: true })`), so the old field and the new one are in the same state at the same tick.
  */
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Browser, Page } from '@playwright/test';
@@ -138,3 +139,6 @@ export function readRef(kind: RendererKind, id: string): Picture | null {
   const d = decode(readFileSync(path));
   return { w: d.w, h: d.h, data: d.data };
 }
+
+/** The SHA-256 of a repo file as text with LF line ends, so a Windows checkout and a Linux one agree. */
+export const pinOf = (rel: string): string => createHash('sha256').update(readFileSync(join(ROOT, rel), 'utf8').replaceAll(String.fromCharCode(13, 10), String.fromCharCode(10)), 'utf8').digest('hex');

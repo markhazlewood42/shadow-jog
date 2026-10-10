@@ -23,7 +23,7 @@ import { FieldStageScene } from '../src/fieldstage/stagescene';
 import { LitPicture } from '../src/fieldstage/lit';
 import { checkStageMap } from '../src/fieldstage/view';
 import { FIELD_STAGE_FAILED_NOTICE, type FieldStage, type FieldStageProvider, type FieldStageSource, type FieldStageView, fieldStages, lazyFieldStageProvider, setFieldStageProvider, type StageActor, type StageChest, type StageMap } from '../src/scenes/fieldkit/fieldseam';
-import { Container, H, Lights, W } from '../src/sje';
+import { Container, type GameObject, H, Lights, W } from '../src/sje';
 import { fakeCanvas, headlessGame, TestScene } from './sjekit';
 
 // ---- a recording canvas stand-in ----------------------------------------------------------------------------------
@@ -766,6 +766,36 @@ describe('FieldStageScene: snapshot and restore', () => {
     frame(r);
     expect(asked).toHaveBeenCalled();
     expect(glowCanvas.log.some((l) => l.startsWith('drawImage(emit'))).toBe(true);
+  });
+
+  it('pass line 11: restore(snapshot()) gives the same frame (the whole display tree: names, places, visibility, depth, alpha, blend), after the source moved on; and a changed state gives another', () => {
+    /** The frame as data: every object of the world, in order, with what decides how it draws. */
+    const sig = (o: GameObject): unknown => ({ n: o.name, x: o.x, y: o.y, v: o.visible, d: o.depth, a: o.alpha, b: o.blendMode, c: o instanceof Container ? o.list.map(sig) : undefined });
+    const frameSig = (r: Rig): string => JSON.stringify(r.scene.sys.world.list.map(sig));
+    const r = stage();
+    const a = {};
+    r.src.v.actors = [actor(a, 2, 0, 15), actor({}, 5, 5, 25)];
+    r.src.v.chests = [{ tx: 1, ty: 1, kind: 'case', open: false }];
+    r.h.frame(17);
+    const live = frameSig(r);
+    const s = r.scene.snapshot();
+    // The world moves on: the camera, the actors, the chest.
+    r.src.v.cx += 40;
+    r.src.v.actors = [actor(a, 30, 30, 45)];
+    r.src.v.chests = [{ tx: 1, ty: 1, kind: 'case', open: true }];
+    frame(r);
+    const moved = frameSig(r);
+    expect(moved, 'control: the signature sees that the world moved').not.toBe(live);
+    r.scene.restore(s);
+    frame(r);
+    expect(frameSig(r)).toBe(live);
+    // The snapshot is JSON: the same through a text round trip.
+    r.scene.restore(JSON.parse(JSON.stringify(s)));
+    frame(r);
+    expect(frameSig(r)).toBe(live);
+    r.scene.release();
+    frame(r);
+    expect(frameSig(r)).toBe(moved);
   });
 
   it('refuses a snapshot of another map, of another version, or of a picture it has not seen, and changes nothing', () => {

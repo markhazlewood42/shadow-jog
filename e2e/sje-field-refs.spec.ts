@@ -9,16 +9,12 @@
  * pictures depend on, the field tick of each picture, and how many 2x2 blocks of the screenshot were not flat). Run it for both kinds, then commit.
  * A picture only needs to be made again when the legacy field itself changed on purpose (a map, a prop's art, the lighting): the new field must still equal it.
  */
-import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from '@playwright/test';
-import { CASES, DEFAULT_FRAME, DIR, INPUTS, rendererKind, ROOT, shoot, writeRef } from './sjefieldkit';
+import { CASES, DEFAULT_FRAME, DIR, INPUTS, pinOf, rendererKind, shoot, writeRef } from './sjefieldkit';
 
 const ON = process.env.M5_REFS === '1';
-
-/** The file as hashed: LF line ends, so a Windows checkout and a Linux one agree. */
-export const pinText = (rel: string): string => createHash('sha256').update(readFileSync(join(ROOT, rel), 'utf8').replaceAll('\r\n', '\n'), 'utf8').digest('hex');
 
 test.describe('field parity references (legacy path)', () => {
   test.skip(!ON, 'local only: set M5_REFS=1');
@@ -46,7 +42,7 @@ test.describe('field parity references (legacy path)', () => {
         await s.page.close();
       }
     }
-    const inputs = Object.fromEntries(INPUTS.map((f) => [f, pinText(f)]));
+    const inputs = Object.fromEntries(INPUTS.map((f) => [f, pinOf(f)]));
     writeFileSync(manifestPath, `${JSON.stringify({ ...manifest, generatedBy: 'e2e/sje-field-refs.spec.ts', inputs, [`frames-${kind}`]: frames }, null, 1)}\n`);
   });
 });

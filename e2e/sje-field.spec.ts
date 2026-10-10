@@ -27,6 +27,9 @@ async function openField(browser: import('@playwright/test').Browser, o: { allow
   return g;
 }
 
+/** In-page: a hash (FNV-1a) of the back buffer above its bottom 20 rows (the DEV overlay's place). */
+const HASH_ABOVE_OVERLAY = '(() => { const p = sj.pixels({ x: 0, y: 0, w: 640, h: 340 }); let h = 2166136261; for (let i = 0; i < p.data.length; i++) h = Math.imul(h ^ p.data[i], 16777619); return h >>> 0; })()';
+
 const stageUp = (page: Page, map?: string) => waitUntil(page, `sj.fieldStage !== null${map ? ` && sj.fieldStage.mapId === ${JSON.stringify(map)}` : ''} && sj.fieldStage.frame > 0`, 30_000);
 
 const glErrors = (page: Page) =>
@@ -212,14 +215,21 @@ test.describe('the field on the stage', () => {
       expect(msg).toMatch(/is not valid, so the stage keeps "rook_flat"/);
       expect(await sj<string>(g.page, 'sj.fieldStage.mapId')).toBe('rook_flat');
       // A snapshot, then the leader walks, then the snapshot is shown: the camera and the leader are where they were.
-      const snap = await sj<{ cx: number; cy: number; actors: Array<{ x: number; y: number }> }>(g.page, 'sj.fieldStageSnapshot()');
+      // The snapshot and the hash of the frame it was taken from, in one call, so no frame passes between them. The hash is of the picture above the bottom right corner: the DEV overlay
+      // there (the leader's tile and the like) is drawn by the field's own canvas over the stage, and it is the one thing that rightly changes when the leader walks.
+      const taken = await sj<{ snap: { cx: number; cy: number; actors: Array<{ x: number; y: number }> }; hash: number }>(g.page, `({ snap: sj.fieldStageSnapshot(), hash: ${HASH_ABOVE_OVERLAY} })`);
+      const snap = taken.snap;
       const scroll0 = await sj<{ x: number; y: number }>(g.page, 'sj.fieldStage.scroll');
       await hold(g.page, 'ArrowRight', 400);
       await waitUntil(g.page, 'sj.idle()', 5_000);
+      expect(await sj<number>(g.page, HASH_ABOVE_OVERLAY), 'control: the walk changed the picture, so the hash can tell').not.toBe(taken.hash);
       await sj(g.page, `sj.fieldStageRestore(${JSON.stringify(snap)})`);
       expect(await waitUntil(g.page, 'sj.fieldStage.pinned === true', 2_000)).toBe(true);
       expect(await sj<{ x: number; y: number }>(g.page, 'sj.fieldStage.scroll')).toEqual(scroll0);
       expect(await sj<boolean>(g.page, 'sj.fieldStage.screenShown')).toBe(false);
+      // Pass line 11: restore(snapshot()) gives the same frame hash (a frame later, the back buffer is the held frame). Control: the frame after the walk had another hash.
+      await g.page.waitForTimeout(150);
+      expect(await sj<number>(g.page, HASH_ABOVE_OVERLAY)).toBe(taken.hash);
       await sj(g.page, 'sj.fieldStageRelease()');
       expect(await waitUntil(g.page, 'sj.fieldStage.pinned === false', 2_000)).toBe(true);
       expect(g.problems).toEqual([]);
@@ -308,6 +318,68 @@ test.describe('the stage frees what it makes', () => {
       const leaked = await sj<Record<string, number>>(g.page, 'sj.glCounts()');
       expect(leaked.texture ?? 0).toBeGreaterThan(after.texture ?? 0);
       expect(await glErrors(g.page)).toEqual([]);
+      expect(g.problems).toEqual([]);
+    } finally {
+      await g.close();
+    }
+  });
+});
+
+test.describe('real warps and the DEV hooks', () => {
+  test('ten cycles of REAL warps (fade out, load, fade in) through two doors leave the GL object counts flat', async ({ browser }) => {
+    test.setTimeout(240_000);
+    const g = await openField(browser);
+    try {
+      expect(await stageUp(g.page, 'lantern_row')).toBe(true);
+      // A real warp is `FieldScene.doWarp`: the same call a door makes. The door of each map that leads to the other.
+      const through = async (to: string): Promise<void> => {
+        await sj(g.page, `(() => { const f = sj.field(); f.doWarp(f.def.warps.find((w) => w.to === ${JSON.stringify(to)})); return true; })()`);
+        expect(await waitUntil(g.page, `sj.fieldStage !== null && sj.fieldStage.mapId === ${JSON.stringify(to)} && sj.idle()`, 30_000)).toBe(true);
+      };
+      const cycle = async (n: number): Promise<void> => {
+        for (let i = 0; i < n; i++) {
+          await through('bar');
+          await through('lantern_row');
+        }
+      };
+      await cycle(2);
+      await g.page.waitForTimeout(300);
+      const base = await sj<Record<string, number>>(g.page, 'sj.glCounts()');
+      await cycle(10);
+      await g.page.waitForTimeout(300);
+      const after = await sj<Record<string, number>>(g.page, 'sj.glCounts()');
+      for (const k of ['texture', 'buffer', 'framebuffer', 'renderbuffer', 'program']) expect(after[k] ?? 0, `${k} after 10 cycles of real warps`).toBe(base[k] ?? 0);
+      expect(await glErrors(g.page)).toEqual([]);
+      expect(g.problems).toEqual([]);
+    } finally {
+      await g.close();
+    }
+  });
+
+  test('the field hooks tell the map, the leader, the flags, the camera and the light count, and agree with the stage', async ({ browser }) => {
+    const g = await openField(browser);
+    try {
+      expect(await stageUp(g.page, 'lantern_row')).toBe(true);
+      await warpTo(g.page, 'bar');
+      const { x, y } = entryOf('bar');
+      const info = await sj<{ map: string; leader: { x: number; y: number }; flags: Record<string, unknown>; camera: { x: number; y: number }; lights: number; frame: number }>(g.page, 'sj.fieldInfo()');
+      expect(info.map).toBe('bar');
+      expect(info.leader).toMatchObject({ x, y });
+      expect(info.flags.intro).toBe(true);
+      expect(info.frame).toBeGreaterThan(0);
+      // The stage shows the same map, the same camera and the same lights as the field says.
+      const stage = await sj<{ mapId: string; scroll: { x: number; y: number }; lights: number }>(g.page, 'sj.fieldStage');
+      expect(stage.mapId).toBe(info.map);
+      expect(stage.scroll).toEqual(info.camera);
+      expect(stage.lights).toBe(info.lights);
+      expect(info.lights).toBeGreaterThan(3);
+      // `fieldShow` puts a fresh field in a fixed state (the parity harness uses it): another map, a flag, an ambient override.
+      await sj(g.page, "sj.fieldShow({ stage: 'town', map: 'clinic', x: 7, y: 8, dir: 'up', flags: { probe_flag: true }, ambient: '#e6e2f2' })");
+      expect(await stageUp(g.page, 'clinic')).toBe(true);
+      const shown = await sj<{ map: string; flags: Record<string, unknown> }>(g.page, 'sj.fieldInfo()');
+      expect(shown.map).toBe('clinic');
+      expect(shown.flags.probe_flag).toBe(true);
+      expect(await sj<string>(g.page, 'sj.field().def.ambient')).toBe('#e6e2f2');
       expect(g.problems).toEqual([]);
     } finally {
       await g.close();

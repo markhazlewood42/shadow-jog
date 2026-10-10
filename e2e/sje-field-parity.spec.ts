@@ -24,18 +24,15 @@
  *          SJEFIELD_STRICT=1 ...   also fail on the strict gate (it fails today: see the numbers it prints)
  *          SJEFIELD_SHOTS=<folder> saves the new picture, the reference and a diff picture of every state.
  */
-import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { encodePng } from '../scripts/lib/png.mjs';
-import { CASES, type Case, DEFAULT_FRAME, DIR, INPUTS, readRef, rendererKind, ROOT, shoot } from './sjefieldkit';
+import { CASES, type Case, DEFAULT_FRAME, DIR, INPUTS, pinOf, readRef, rendererKind, ROOT, shoot } from './sjefieldkit';
 import { describeMeasure, describeStrict, measure, outsideBounds, type Picture, rendererMask, type RendererKind, strictCompare, withStep } from './sjefieldparity';
 
 const SHOTS = process.env.SJEFIELD_SHOTS;
 const STRICT = process.env.SJEFIELD_STRICT === '1';
-
-const pin = (rel: string): string => createHash('sha256').update(readFileSync(join(ROOT, rel), 'utf8').replaceAll('\r\n', '\n'), 'utf8').digest('hex');
 
 /** The renderer mask of every state, one per case: where its `gpu` and `soft` references differ. */
 function maskOf(id: string): Uint8Array {
@@ -63,7 +60,7 @@ function saveShots(id: string, now: Picture, ref: Picture): void {
 test.describe('field parity: the inputs', () => {
   test('every input of the references is pinned, and every map of the game has a state', () => {
     const manifest = JSON.parse(readFileSync(join(DIR, 'manifest.json'), 'utf8')) as { inputs: Record<string, string> };
-    const changed = INPUTS.filter((f) => manifest.inputs[f] !== pin(f));
+    const changed = INPUTS.filter((f) => manifest.inputs[f] !== pinOf(f));
     expect(changed, `these map files changed since the references were made: make the references again (M5_REFS=1 npx playwright test e2e/sje-field-refs.spec.ts, once with CI=1 and once without)\n  ${changed.join('\n  ')}`).toEqual([]);
     const ids = readdirSync(join(ROOT, 'src', 'data', 'maps'))
       .filter((f) => f.endsWith('.json'))
