@@ -1,0 +1,41 @@
+{
+  "id": "hotel",
+  "name": "Sleeptube 24H",
+  "kind": "interior",
+  "terrain": [
+    "IIIIIIIIIIIIIIII",
+    "IIIIIIIIIIIIIIII",
+    "ITTTTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTTTI",
+    "IIIIIIIITIIIIIII"
+  ],
+  "legend": {},
+  "ambient": "#7a8ab8",
+  "music": "town",
+  "battleBg": "street",
+  "props": [
+    {"kind":"counter","x":2,"y":4,"w":4,"color":"#2c3b5e"},
+    {"kind":"capsule","x":8,"y":2,"w":2},
+    {"kind":"capsule","x":11,"y":2,"w":2},
+    {"kind":"capsule","x":8,"y":6,"w":2},
+    {"kind":"capsule","x":11,"y":6,"w":2},
+    {"kind":"screen","x":2,"y":1,"w":3,"color":"#3fe0f0"},
+    {"kind":"plant","x":14,"y":2},
+    {"kind":"vending","x":1,"y":7,"color":"#3fe0f0"}
+  ],
+  "lights": [
+    {"x":8,"y":4,"r":90,"color":"#b8d8ff","i":0.5}
+  ],
+  "npcs": [
+    {"id":"hotelclerk","x":3,"y":3,"dir":"down","name":"Desk Clerk","fixedDir":true,"look":{"skin":"#f2c9a5","hair":"#3fe0f0","hairStyle":"short","top":"#2c3b5e","inner":"#e8e8f0","accent":"#3fe0f0","pants":"#1f2a44","boots":"#101018","accessories":["visor"],"visor":"#3fe0f0"},"talk":"hotelclerk_talk"},
+    {"id":"sleeper","x":14,"y":7,"dir":"left","look":{"body":"short","skin":"#c98a5e","hair":"#1a1418","hairStyle":"bald","top":"#1d5c6a","accent":"#b07cff","pants":"#2a2a33","boots":"#2a2420","accessories":[],"mouth":"grin","brows":false},"name":"Guest","move":"static","talk":["I’ve lived in tube 44 for six years. It’s cozy. The walls are close enough to hug."],"radius":2}
+  ],
+  "warps": [
+    {"x":8,"y":9,"to":"lantern_row","tx":32,"ty":7,"dir":"down"}
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "id": "rook_flat",
+  "name": "Rook’s Flat",
+  "kind": "interior",
+  "terrain": [
+    "IIIIIIIIIIIIII",
+    "IIIIIIIIIIIIII",
+    "IWWWWWWWWWWWWI",
+    "IWWWWWWWWWWWWI",
+    "IWWWWWWWWWWWWI",
+    "IWWWWWWWWWWWWI",
+    "IWWWWWWWWWWWWI",
+    "IWWWWWWWWWWWWI",
+    "IWWWWWWWWWWWWI",
+    "IIIIIIWIIIIIII"
+  ],
+  "legend": {},
+  "ambient": "#7a76a8",
+  "music": "town",
+  "battleBg": "street",
+  "props": [
+    {"kind":"bed","x":1,"y":2,"color":"#8c2f39"},
+    {"kind":"couch","x":3,"y":5,"w":3,"color":"#4a3a5a"},
+    {"kind":"table","x":4,"y":6,"w":2},
+    {"kind":"window","x":8,"y":1,"w":3},
+    {"kind":"screen","x":3,"y":1,"w":2,"color":"#62e06a"},
+    {"kind":"rack","x":12,"y":2},
+    {"kind":"counter","x":9,"y":6,"w":3,"color":"#3a3448"},
+    {"kind":"plant","x":1,"y":7},
+    {"kind":"lampfloor","x":12,"y":7},
+    {"kind":"poster","x":6,"y":1,"color":"#ff4fb0"}
+  ],
+  "lights": [
+    {"x":6,"y":5,"r":70,"color":"#ffcf9a","i":0.5}
+  ],
+  "warps": [
+    {"x":6,"y":9,"to":"lantern_row","tx":4,"ty":32,"dir":"down"}
+  ],
+  "onEnter": "on_enter",
+  "events": [
+    {"id":"bed","x":1,"y":2,"h":2,"on":"action","run":"bed_run"},
+    {"id":"fridge","x":10,"y":5,"on":"action","run":"fridge_run"},
+    {"id":"rent_tin","x":9,"y":6,"w":3,"on":"action","run":"rent_tin_run"},
+    {"id":"rack","x":12,"y":3,"on":"action","run":"rack_run"},
+    {"id":"tv","x":3,"y":2,"w":2,"on":"action","run":"tv_run"}
+  ]
+}

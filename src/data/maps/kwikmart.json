@@ -1,0 +1,39 @@
+{
+  "id": "kwikmart",
+  "name": "Kwik-Mart 24/7",
+  "kind": "interior",
+  "terrain": [
+    "IIIIIIIIIIIIII",
+    "IIIIIIIIIIIIII",
+    "ITTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTI",
+    "IIIIIIITIIIIII"
+  ],
+  "legend": {},
+  "ambient": "#9ab0b0",
+  "music": "town",
+  "battleBg": "street",
+  "props": [
+    {"kind":"counter","x":9,"y":3,"w":3,"color":"#2f6a5a"},
+    {"kind":"shelf","x":1,"y":2,"w":3},
+    {"kind":"shelf","x":5,"y":2,"w":3},
+    {"kind":"shelf","x":2,"y":5,"w":4},
+    {"kind":"vending","x":12,"y":6,"color":"#62e0c0"},
+    {"kind":"arcade","x":1,"y":7,"color":"#ffcc3d"}
+  ],
+  "lights": [
+    {"x":7,"y":4,"r":90,"color":"#e6fff6","i":0.55}
+  ],
+  "npcs": [
+    {"id":"clerk","x":10,"y":2,"dir":"down","look":{"body":"std","skin":"#f2c9a5","hair":"#2e1d33","hairStyle":"long","top":"#34344a","accent":"#ff4fb0","pants":"#3d3a30","boots":"#2a2420","accessories":["elfears"],"coat":"#34344a","mouth":"line","brows":true},"name":"Clerk","fixedDir":true,"talk":"clerk_talk"},
+    {"id":"kid","x":2,"y":8,"dir":"up","look":{"body":"std","skin":"#e0b08a","hair":"#b07cff","hairStyle":"mohawk","top":"#8c2f39","accent":"#ffcc3d","pants":"#1e1c26","boots":"#2a2420","accessories":[],"cyberArm":"left","mouth":"grin","brows":true,"stance":"crossed"},"name":"Kid","move":"static","talk":["This arcade cabinet has a ghost in it. A real one. It’s really good at Street Samurai IV."],"radius":2}
+  ],
+  "warps": [
+    {"x":7,"y":9,"to":"lantern_row","tx":6,"ty":23,"dir":"down"}
+  ]
+}

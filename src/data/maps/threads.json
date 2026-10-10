@@ -1,0 +1,40 @@
+{
+  "id": "threads",
+  "name": "Kowloon Threads",
+  "kind": "interior",
+  "terrain": [
+    "IIIIIIIIIIIIII",
+    "IIIIIIIIIIIIII",
+    "ICCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCI",
+    "ICCCCCCCCCCCCI",
+    "IIIIIIICIIIIII"
+  ],
+  "legend": {"C":"floor_carpet"},
+  "ambient": "#8a78a8",
+  "music": "town",
+  "battleBg": "street",
+  "props": [
+    {"kind":"counter","x":8,"y":4,"w":4,"color":"#3a2a4a"},
+    {"kind":"garments","x":1,"y":2,"w":2},
+    {"kind":"garments","x":4,"y":2,"w":2},
+    {"kind":"garments","x":1,"y":6,"w":2},
+    {"kind":"plant","x":12,"y":2},
+    {"kind":"screen","x":9,"y":1,"w":2,"color":"#b07cff"},
+    {"kind":"lampfloor","x":12,"y":7,"color":"#ff9ad2"}
+  ],
+  "lights": [
+    {"x":7,"y":5,"r":80,"color":"#ffd0f0","i":0.5}
+  ],
+  "npcs": [
+    {"id":"wen","x":10,"y":3,"dir":"down","name":"Auntie Wen","fixedDir":true,"look":{"skin":"#e8c8a0","hair":"#c9c4bb","hairStyle":"bun","top":"#b07cff","inner":"#2a2438","accent":"#ffcc3d","pants":"#3a3350","boots":"#2a2030"},"talk":"wen_talk"},
+    {"id":"shopper","x":5,"y":7,"dir":"up","look":{"body":"short","skin":"#eadbd0","hair":"#e8d070","hairStyle":"cap","top":"#b8b0a0","accent":"#ffa24a","pants":"#1e1c26","boots":"#3a2a2a","accessories":[],"inner":"#8c2f39","hat":"#2c3b5e","mouth":"line","brows":true},"name":"Shopper","move":"static","talk":["Auntie Wen sewed a ballistic lining into my wedding dress. Best day of my life. Only got shot twice."],"radius":2}
+  ],
+  "warps": [
+    {"x":7,"y":9,"to":"lantern_row","tx":40,"ty":7,"dir":"down"}
+  ]
+}

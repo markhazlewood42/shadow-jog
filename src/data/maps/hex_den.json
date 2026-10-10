@@ -1,0 +1,47 @@
+{
+  "id": "hex_den",
+  "name": "Chrome+Circuit (upstairs)",
+  "kind": "interior",
+  "terrain": [
+    "IIIIIIIIIIIIII",
+    "IIIIIIIIIIIIII",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IMMMMMMMMMMMMI",
+    "IIIIIIIMIIIIII"
+  ],
+  "legend": {},
+  "ambient": "#6a6aa0",
+  "music": "town",
+  "battleBg": "street",
+  "props": [
+    {"kind":"desk","x":2,"y":3,"w":3},
+    {"kind":"desk","x":8,"y":3,"w":3},
+    {"kind":"screen","x":2,"y":1,"w":3,"color":"#3fe0f0"},
+    {"kind":"screen","x":8,"y":1,"w":3,"color":"#62e06a"},
+    {"kind":"crates","x":12,"y":2},
+    {"kind":"crates","x":1,"y":7},
+    {"kind":"couch","x":9,"y":7,"w":3,"color":"#3a3a5a"},
+    {"kind":"rack","x":12,"y":5},
+    {"kind":"lampfloor","x":6,"y":7,"color":"#b07cff"},
+    {"kind":"poster","x":6,"y":1,"color":"#3fe0f0"}
+  ],
+  "lights": [
+    {"x":4,"y":3,"r":60,"color":"#3fe0f0","i":0.5},
+    {"x":9,"y":3,"r":60,"color":"#62e06a","i":0.45}
+  ],
+  "npcs": [
+    {"id":"hex","x":6,"y":4,"dir":"down","look":"hex","name":"Hex","talk":"meet_hex","when":"not_hex_joined"}
+  ],
+  "events": [
+    {"id":"deck","x":3,"y":4,"on":"action","run":"deck_run"}
+  ],
+  "warps": [
+    {"x":7,"y":10,"to":"lantern_row","tx":11,"ty":32,"dir":"down"}
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "id": "clinic",
+  "name": "Doc Yun’s Clinic",
+  "kind": "interior",
+  "terrain": [
+    "IIIIIIIIIIIIII",
+    "IIIIIIIIIIIIII",
+    "ITTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTI",
+    "ITTTTTTTTTTTTI",
+    "IIIIIIITIIIIII"
+  ],
+  "legend": {},
+  "ambient": "#86a8b0",
+  "music": "town",
+  "battleBg": "street",
+  "props": [
+    {"kind":"counter","x":3,"y":4,"w":6,"color":"#dfe6ee"},
+    {"kind":"shelf","x":2,"y":2,"w":2},
+    {"kind":"shelf","x":5,"y":2,"w":2},
+    {"kind":"bed","x":11,"y":2,"color":"#6ab0a8"},
+    {"kind":"bed","x":11,"y":5,"color":"#6ab0a8"},
+    {"kind":"screen","x":8,"y":1,"w":2,"color":"#62e06a"},
+    {"kind":"plant","x":1,"y":7}
+  ],
+  "lights": [
+    {"x":6,"y":4,"r":80,"color":"#dff6ff","i":0.6}
+  ],
+  "npcs": [
+    {"id":"yun","x":5,"y":3,"dir":"down","look":{"skin":"#e8c8a0","hair":"#1a1418","hairStyle":"bob","top":"#e8ecf0","inner":"#6ab0a8","accent":"#62e06a","pants":"#3a3a48","boots":"#1a1418"},"name":"Doc Yun","fixedDir":true,"talk":"yun_talk"},
+    {"id":"patient","x":10,"y":7,"dir":"up","look":{"body":"std","skin":"#eadbd0","hair":"#4a2e22","hairStyle":"long","top":"#a0652f","accent":"#62e06a","pants":"#1e1c26","boots":"#3a2a2a","accessories":[],"coat":"#a0652f","mouth":"line","brows":true,"stance":"crossed"},"name":"Patient","talk":["Doc put in a new liver. Secondhand. Keeps craving whiskey I’ve never tasted."]}
+  ],
+  "warps": [
+    {"x":7,"y":9,"to":"lantern_row","tx":4,"ty":7,"dir":"down"}
+  ]
+}
