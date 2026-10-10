@@ -237,6 +237,15 @@ The upload counter is exact (a patch of `texImage2D` and `texSubImage2D`), so th
 
 Hardware independent counts (`e2e/sje-draws.spec.ts`, the real game, one frame): the bare frame is 4 draw calls, 4 framebuffer binds and 2 canvas uploads. The full effect stack is 16 draw calls, 17 binds and 3 uploads (the glow canvas and the UI canvas upload only on frames where a scene drew into them). The gates are 24, 24 and 4. Shader programs alive after the warm-up: 4, and none is made during a `playMoment` (the first hit takes 2.9 ms and the tenth 2.3 ms in the page, SwiftShader).
 
+**M2 GPU run (2026-10-09, `npm run perf`, RTX 4070 via ANGLE/D3D11, 1280x720 viewport, bare page p95 16.80 ms).** The speed line holds with the effects on. The M1 bench scenarios (A, B, B3, C, D) now run at `?fx=none`, so their upload counts keep the M1 meaning (one canvas per drawn legacy scene). The default-on effects add the UI canvas to the title, which is why the unmodified M1 bench read 2 uploads. One new scenario runs the title at `?fx=full` (glow not used, UI canvas used).
+
+| Title scene | Interval p95 | Cost p50 / p95 | Draws | Binds | Uploads (bytes) |
+|---|---|---|---|---|---|
+| fx none | 16.80 ms | 1.70 / 4.00 ms | 2.0 | 2.0 | 1.00 (921,600) |
+| fx full | 16.80 ms | 2.40 / 4.60 ms | 4.0 | 4.0 | 2.00 (1,843,200) |
+
+`e2e/perf.spec.ts` passes on the same run: 3D frame cost p95 4.3 ms, interval p95 16.8 ms against a bare page at 16.8 to 16.9 ms.
+
 ---
 
 ## 8. Leak, context, and canary tests

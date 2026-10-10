@@ -8,7 +8,7 @@
  * GPU numbers. The GPU line of pass line 10 needs a run on Mark's machine.
  *
  * What it measures, in one page (`/?engine=sje`), with the game's own loop stopped and the test driving ticks and draws frame by frame:
- *   A  the title alone: one legacy canvas (`CanvasImage`, 921,600 bytes) uploaded each frame.
+ *   A  the title alone, effects off (`?fx=none`): one legacy canvas (`CanvasImage`, 921,600 bytes) uploaded each frame.
  *   B  two drawn legacy scenes (a transparent probe over the title): two canvases uploaded. A third is the line the design worries about.
  *   C  A plus 1,000 `ImageObject`s moved by the wrapper (x and y setters, with the pixel snap) every tick.
  *   D  A plus the same 1,000 sprites moved on the raw Pixi node (`position.set`): the wrapper's cost is C minus D.
@@ -30,6 +30,68 @@ mkdirSync(OUT, { recursive: true });
 const OBJECTS = 1000;
 const FRAMES = 300;
 const WARMUP = 90;
+
+/**
+ * The measuring loop, shared by the two tests. It runs INSIDE the page (its source text is sent over and evaluated there), so it uses nothing from this module.
+ * `game` is the running game, `gl` the counters of `installGlCounters`.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: it runs in the page, on the game's own objects, typed by the game and not by this spec.
+function benchKit(game: any, gl: { draws: number; binds: number; uploads: number; uploadBytes: number }, frames: number, warmup: number) {
+  const pct = (xs: number[], q: number): number => {
+    const s = [...xs].sort((a, b) => a - b);
+    return s[Math.min(s.length - 1, Math.floor(q * s.length))] ?? 0;
+  };
+  const readBack = (): void => void game.renderer.handoff.readDefaultFramebuffer(0, 0, 1, 1);
+
+  /** Drive `n` animation frames: `each(i)` runs inside the tick (the part a game's update would do), then tick + draw (+ GPU wait). */
+  const drive = (n: number, each: (i: number) => void, sync: boolean) =>
+    new Promise<{ intervals: number[]; work: number[]; cost: number[]; counts: typeof gl }>((resolve) => {
+      const intervals: number[] = [];
+      const work: number[] = [];
+      const cost: number[] = [];
+      let last = performance.now();
+      let i = 0;
+      gl.draws = gl.binds = gl.uploads = gl.uploadBytes = 0;
+      const frame = (now: number): void => {
+        intervals.push(now - last);
+        last = now;
+        const t0 = performance.now();
+        each(i);
+        game.advanceTick();
+        game.draw(0);
+        const t1 = performance.now();
+        work.push(t1 - t0);
+        if (sync) {
+          readBack();
+          cost.push(performance.now() - t0);
+        }
+        if (++i < n) requestAnimationFrame(frame);
+        else resolve({ intervals, work, cost, counts: { ...gl } });
+      };
+      requestAnimationFrame(frame);
+    });
+
+  const measure = async (each: (i: number) => void) => {
+    await drive(warmup, each, false);
+    // Two passes, so the GPU wait does not disturb the interval: the interval and the counts from one, the cost from the other.
+    const a = await drive(frames, each, false);
+    const b = await drive(frames, each, true);
+    return {
+      frames,
+      intervalP50: pct(a.intervals.slice(2), 0.5),
+      intervalP95: pct(a.intervals.slice(2), 0.95),
+      workP50: pct(a.work, 0.5),
+      workP95: pct(a.work, 0.95),
+      costP50: pct(b.cost, 0.5),
+      costP95: pct(b.cost, 0.95),
+      drawsPerFrame: a.counts.draws / frames,
+      bindsPerFrame: a.counts.binds / frames,
+      uploadsPerFrame: a.counts.uploads / frames,
+      uploadBytesPerFrame: a.counts.uploadBytes / frames,
+    };
+  };
+  return { pct, measure };
+}
 
 interface Scenario {
   frames: number;
@@ -59,18 +121,20 @@ test.describe('M1 bench (local only, real GPU)', () => {
 
   test(`the real game with ${OBJECTS} objects: wrapper cost, canvas uploads, draw calls, binds, the speed line`, async ({ browser }) => {
     test.setTimeout(240_000);
-    const g = await openGame(browser, { engine: true, init: installGlCounters });
+    const g = await openGame(browser, { engine: true, init: installGlCounters, query: '&fx=none' });
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);
       await page.waitForTimeout(800);
       const renderer = await sj<string>(page, 'sj.renderer.name');
       const software = isSoftwareName(renderer);
+      // The M1 premise (one canvas per drawn legacy scene) holds only with the effects off: at `full` the title also uploads the UI canvas (and the glow canvas).
+      expect(await sj<string>(page, 'sj.fxCounts().level'), 'these scenarios run with the effects off').toBe('none');
       // The game's own loop stops. The page then drives tick + draw one animation frame at a time, and keeps the numbers.
       await sj(page, '(sj.game.stop(), true)');
 
       const out = await page.evaluate(
-        async ({ objects, frames, warmup }) => {
+        async ({ objects, frames, warmup, kitSrc }) => {
           // biome-ignore lint/suspicious/noExplicitAny: the page's own hook object, typed by the game, not by this spec.
           const sj = (window as unknown as { __SJ__: Record<string, any> }).__SJ__;
           const game = sj.game;
@@ -80,60 +144,8 @@ test.describe('M1 bench (local only, real GPU)', () => {
           const oldGameUrl = '/src/engine/game.ts';
           const { ImageObject } = await import(/* @vite-ignore */ imageObjectUrl);
           const { Scene } = await import(/* @vite-ignore */ oldGameUrl);
-          const pct = (xs: number[], q: number): number => {
-            const s = [...xs].sort((a, b) => a - b);
-            return s[Math.min(s.length - 1, Math.floor(q * s.length))] ?? 0;
-          };
-          const readBack = (): void => void game.renderer.handoff.readDefaultFramebuffer(0, 0, 1, 1);
-
-          /** Drive `n` animation frames: `each(i)` runs inside the tick (the part a game's update would do), then tick + draw (+ GPU wait). */
-          const drive = (n: number, each: (i: number) => void, sync: boolean) =>
-            new Promise<{ intervals: number[]; work: number[]; cost: number[]; counts: typeof gl }>((resolve) => {
-              const intervals: number[] = [];
-              const work: number[] = [];
-              const cost: number[] = [];
-              let last = performance.now();
-              let i = 0;
-              gl.draws = gl.binds = gl.uploads = gl.uploadBytes = 0;
-              const frame = (now: number): void => {
-                intervals.push(now - last);
-                last = now;
-                const t0 = performance.now();
-                each(i);
-                game.advanceTick();
-                game.draw(0);
-                const t1 = performance.now();
-                work.push(t1 - t0);
-                if (sync) {
-                  readBack();
-                  cost.push(performance.now() - t0);
-                }
-                if (++i < n) requestAnimationFrame(frame);
-                else resolve({ intervals, work, cost, counts: { ...gl } });
-              };
-              requestAnimationFrame(frame);
-            });
-
-          const measure = async (each: (i: number) => void) => {
-            await drive(warmup, each, false);
-            // Two passes, so the GPU wait does not disturb the interval: the interval and the counts from one, the cost from the other.
-            const a = await drive(frames, each, false);
-            const b = await drive(frames, each, true);
-            return {
-              frames,
-              intervalP50: pct(a.intervals.slice(2), 0.5),
-              intervalP95: pct(a.intervals.slice(2), 0.95),
-              workP50: pct(a.work, 0.5),
-              workP95: pct(a.work, 0.95),
-              costP50: pct(b.cost, 0.5),
-              costP95: pct(b.cost, 0.95),
-              drawsPerFrame: a.counts.draws / frames,
-              bindsPerFrame: a.counts.binds / frames,
-              uploadsPerFrame: a.counts.uploads / frames,
-              uploadBytesPerFrame: a.counts.uploadBytes / frames,
-            };
-          };
-
+          // The shared measuring loop (see benchKit): evaluated here so it runs in the page.
+          const { pct, measure } = new Function(`return (${kitSrc})`)()(game, gl, frames, warmup);
           const none = () => undefined;
           const result: Record<string, unknown> = {};
 
@@ -221,7 +233,7 @@ test.describe('M1 bench (local only, real GPU)', () => {
           result.pinkWithout = pink();
           return result;
         },
-        { objects: OBJECTS, frames: FRAMES, warmup: WARMUP },
+        { objects: OBJECTS, frames: FRAMES, warmup: WARMUP, kitSrc: benchKit.toString() },
       );
 
       const s = out as unknown as { A: Scenario; B: Scenario; B3: Scenario; C: Scenario; D: Scenario; move: { wrapperP50: number; wrapperP95: number; rawP50: number; rawP95: number; idleP50: number }; textures: number; pinkWith: number; pinkWithout: number };
@@ -261,6 +273,57 @@ test.describe('M1 bench (local only, real GPU)', () => {
       expect(s.C.bindsPerFrame).toBeLessThanOrEqual(30);
       // The speed line of pass line 10 (on software only the stuck-loop rule applies; the GPU run is Mark's).
       const misses = speedLineMisses({ bareP95, sceneP95: s.C.intervalP95, costP95: s.C.costP95, software });
+      expect(misses, `the speed line (${label})`).toEqual([]);
+      expect(g.problems).toEqual([]);
+    } finally {
+      await g.close();
+    }
+  });
+
+  test('the title with the effects on (fx full): uploads are the scene canvas plus the UI canvas (plus glow when used), and the speed line', async ({ browser }) => {
+    test.setTimeout(120_000);
+    const g = await openGame(browser, { engine: true, init: installGlCounters, query: '&fx=full' });
+    try {
+      const { page } = g;
+      expect(await waitTop(page, 'TitleScene')).toBe(true);
+      await page.waitForTimeout(800);
+      const renderer = await sj<string>(page, 'sj.renderer.name');
+      const software = isSoftwareName(renderer);
+      // On a software renderer `full` is still honored because ?fx= forces it (only `auto` falls back to `lite`).
+      expect(await sj<string>(page, 'sj.fxCounts().level'), 'the effects run at full').toBe('full');
+      await sj(page, '(sj.game.stop(), true)');
+      const out = await page.evaluate(
+        async ({ frames, warmup, kitSrc }) => {
+          // biome-ignore lint/suspicious/noExplicitAny: the page's own hook object, typed by the game, not by this spec.
+          const sj = (window as unknown as { __SJ__: Record<string, any> }).__SJ__;
+          const game = sj.game;
+          const gl = (window as unknown as { __gl: { draws: number; binds: number; uploads: number; uploadBytes: number } }).__gl;
+          const { measure } = new Function(`return (${kitSrc})`)()(game, gl, frames, warmup);
+          const title = await measure(() => undefined);
+          // Which layers the title drew into on its last frame. The fx system clears these flags at the start of the next draw, so read them now.
+          game.draw(0);
+          return { title, glowUsed: Boolean(game.fx.glowUsed), uiUsed: Boolean(game.fx.uiTouched) };
+        },
+        { frames: FRAMES, warmup: WARMUP, kitSrc: benchKit.toString() },
+      );
+      const { title, glowUsed, uiUsed } = out as { title: Scenario; glowUsed: boolean; uiUsed: boolean };
+      const bare = await bareIntervals(browser, FRAMES);
+      const bareP95 = percentile(bare, 0.95);
+      const label = software ? `SOFTWARE GL (${renderer}): NOT GPU numbers` : `GPU (${renderer})`;
+      console.log(
+        `SJE bench, title with fx full [${label}], bare rAF page p95 ${bareP95.toFixed(2)} ms
+` +
+          `  interval p95 ${title.intervalP95.toFixed(2)} ms, cost p50/p95 ${title.costP50.toFixed(2)}/${title.costP95.toFixed(2)} ms, ` +
+          `${title.drawsPerFrame.toFixed(1)} draws, ${title.bindsPerFrame.toFixed(1)} binds, ${title.uploadsPerFrame.toFixed(2)} uploads (${Math.round(title.uploadBytesPerFrame)} bytes) per frame; ` +
+          `glow used ${glowUsed}, UI canvas used ${uiUsed}`,
+      );
+      writeFileSync(`${OUT}/bench-fx-full.json`, JSON.stringify({ label, renderer, software, bareP95, title, glowUsed, uiUsed }, null, 2));
+      // The scene canvas always uploads; the UI canvas when a scene drew into it; the glow canvas only when something glowed this frame.
+      const expectedUploads = 1 + (uiUsed ? 1 : 0) + (glowUsed ? 1 : 0);
+      expect(title.uploadsPerFrame, `uploads = scene canvas + UI canvas${glowUsed ? ' + glow canvas' : ''}`).toBeCloseTo(expectedUploads, 1);
+      expect(title.uploadsPerFrame, 'the effects add canvas uploads over the fx none title (control: this can fail)').toBeGreaterThan(1.5);
+      // The speed line (cost p95 at most 8 ms, interval p95 within 5% of a bare page) on a real GPU; on software only the stuck-loop rule.
+      const misses = speedLineMisses({ bareP95, sceneP95: title.intervalP95, costP95: title.costP95, software });
       expect(misses, `the speed line (${label})`).toEqual([]);
       expect(g.problems).toEqual([]);
     } finally {
