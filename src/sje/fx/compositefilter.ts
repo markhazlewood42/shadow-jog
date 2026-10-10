@@ -3,7 +3,7 @@
  * A port of the old presenter's `comp` program: 4 shockwave rings, 4 hazes, 2 glitches, the color split, the bloom (two blurred textures), the
  * light for the stage dim, the dim, the flash, the vignette and the effects clock. Same slots, same math (render/shaders/composite.ts).
  *
- * `update` is the per-frame half of the old `GlPresenter.present`: it copies the live state of `FxState` into the uniforms, with the same
+ * `update` is the per-frame half of the old presenter's `present` (deleted in M6; it is in git history): it copies the live state of `FxState` into the uniforms, with the same
  * easing curves (a ring's reach and push, the haze and glitch envelopes). It allocates nothing.
  */
 import { defaultFilterVert, Filter, type TextureSource } from 'pixi.js';

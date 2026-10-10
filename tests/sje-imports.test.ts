@@ -28,7 +28,7 @@
  * runtime beyond `glrenderer.ts`, no `src/hack3d` and no battle stage, so those parts of the scan
  * come with their milestones (M1, M3, M7).
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -278,16 +278,15 @@ describe('who may import the engine', () => {
   // A static `import ... from './sje/boot'` (the door must be dynamic, or the engine and Pixi land in the entry chunk).
   const STATIC_DOOR = /^[ \t]*import\b[^(]*\bfrom\s*['"]\.\/sje\/boot['"]/m;
 
-  it('the shipped game reaches the engine through nine files only: the size module, the Rng module, the game font (M3), the effects state, the effects data checks, the particle simulation and the GL names module (all plain code: no Pixi, no Three), a types-only file, and the boot door', () => {
+  it('the shipped game reaches the engine through eight files only: the size module, the Rng module, the game font (M3), the effects state, the effects data checks and the particle simulation (all plain code: no Pixi, no Three), a types-only file, and the boot door', () => {
     const shipped = all.filter((e) => outsideEngine(e) && !e.file.startsWith('src/sje-lab/'));
-    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/display/font', 'src/sje/fx/fxdata', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/render/glcontext', 'src/sje/runtime/gameapi']);
-    // M2: the old PostFx extends the shared state, the old particle module re-exports the shared simulation, the old presenter takes SOFTWARE_GL from the GL module.
+    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/display/font', 'src/sje/fx/fxdata', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/runtime/gameapi']);
+    // M2: the old PostFx extends the shared state, the old particle module re-exports the shared simulation. (M6 deleted the old presenter, the one file that took SOFTWARE_GL from the GL module.)
     expect([...new Set(shipped.filter((e) => e.target === 'src/sje/fx/fxstate').map((e) => e.file))]).toEqual(['src/engine/postfx.ts']);
     expect(shipped.filter((e) => e.target === 'src/sje/fx/fxdata').map((e) => e.file)).toEqual(['src/engine/fxdata.ts']);
     expect(shipped.filter((e) => e.target === 'src/sje/fx/particles').map((e) => e.file)).toEqual(['src/engine/particles.ts']);
-    expect(shipped.filter((e) => e.target === 'src/sje/render/glcontext').map((e) => e.file)).toEqual(['src/engine/gl/presenter.ts']);
-    // glcontext.ts has no import at all, so nothing of Pixi follows it into the old bundle.
-    expect(importsOf(readFileSync(join(ROOT, 'src/sje/render/glcontext.ts'), 'utf8'))).toEqual([]);
+    // M6: nothing outside the engine imports the GL names module any more.
+    expect(shipped.filter((e) => e.target === 'src/sje/render/glcontext').map((e) => e.file)).toEqual([]);
     // M3: the game font lives in the engine; the old path re-exports it, and the font's one import is the plain assert helper (no Pixi follows it).
     expect(shipped.filter((e) => e.target === 'src/sje/display/font').map((e) => e.file)).toEqual(['src/engine/font.ts']);
     expect(importsOf(readFileSync(join(ROOT, 'src/sje/display/font.ts'), 'utf8'))).toEqual(['../core/assert']);
@@ -303,6 +302,15 @@ describe('who may import the engine', () => {
     const main = readFileSync(join(ROOT, 'src/main.ts'), 'utf8');
     expect(main).toMatch(/import\(\s*['"]\.\/sje\/boot['"]\s*\)/);
     expect(main).not.toMatch(STATIC_DOOR);
+  });
+
+  it('M6: the entry file imports none of the old engine (display, game, postfx) and none of the old presenter', () => {
+    const fromMain = all.filter((e) => e.file === 'src/main.ts');
+    expect(fromMain.map((e) => e.target).filter((t) => t !== null && /^src\/engine\/(display|game|postfx|gl\/)/.test(t))).toEqual([]);
+    // Control: the check can fail. The same scan finds the old imports in a made-up list of edges.
+    const made: Edge[] = [{ file: 'src/main.ts', spec: './engine/display', target: 'src/engine/display' }];
+    expect(made.map((e) => e.target).filter((t) => t !== null && /^src\/engine\/(display|game|postfx|gl\/)/.test(t))).toEqual(['src/engine/display']);
+    expect(existsSync(join(ROOT, 'src/engine/gl'))).toBe(false);
   });
 
   it('the door check is alive: a static import of the door is told apart from the dynamic one', () => {

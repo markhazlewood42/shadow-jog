@@ -1,5 +1,5 @@
 /**
- * The glow blur, vendored from the old presenter (src/engine/gl/presenter.ts `FS_BLUR`) and ported to a Pixi filter
+ * The glow blur, vendored from the old presenter (`FS_BLUR`; the file was deleted in M6, see git history) and ported to a Pixi filter
  * (docs/engine/frame-and-rendering.md 6.5, shader inventory row `blur`). The engine owns the GLSL: game code never writes any.
  *
  * It is one pass of a separable Gaussian (nine taps folded into five with linear sampling, sigma about 2). The chain runs it four times:
