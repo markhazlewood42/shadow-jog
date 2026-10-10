@@ -10,6 +10,8 @@
  * Method (the M5 one, with the new path on both sides):
  *  - one fresh page per state, with a fake paused clock and a seeded `Math.random` (`openGame({ fakeClock: true })`), run to an exact scene tick (`settleTo`), so the picture
  *    is the same every time;
+ *  - the title and Options draw the build's commit; `playwright.config.ts` pins it (`SJ_BUILD_SHA=e2e`) for the servers it starts, so a new commit does not move a pixel. A dev server that
+ *    was already running keeps its own stamp and fails the title and Options here: stop it, or use a spare `PW_PORT`;
  *  - the reference is chosen by the kind of renderer: `soft` (SwiftShader, what CI runs: the references of this folder are committed) or `gpu` (a hardware browser: local only, not
  *    committed, `tests/fixtures/defaultpath/gpu` is git-ignored). A kind with no reference skips (it says so);
  *  - the gate is the measured bounds of `BOUNDS`, as in M5: the largest step in any channel, and the fraction of pixels that differ by 2/255 or more and by 4/255 or more;
