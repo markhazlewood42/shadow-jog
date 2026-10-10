@@ -59,6 +59,16 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
+### Right now (2026-10-10, M5 in PR #54)
+
+M5 "Field" is built on branch `engine-m5-field` ([PR #54](https://github.com/markhazlewood42/shadow-jog/pull/54)). Brief: `docs/engine/m5-brief.md` (Mark approved all six decisions and the lighting pictures; parity decision: accept measured bounds). Builders A, B and C are done (tasks 1 to 9). Verifier round 1: no Critical, 2 Important (fixed in f035ed1), Minor items fixed. Bundle totals set (409 / 50 kB), e2e job timeout raised to 45 min (05c07a7).
+
+**Open:** (1) the round 2 fix verifier (checks only F1 to F6 plus tasks 8 and 9) had not reported; rerun it if it did not. (2) PR #54 CI: rerun and read it. The first e2e run was cancelled at the 25 min limit; one `sje-battle` chunk-fail test failed there but passes locally. (3) Main session: `npm run perf` on the GPU, once (pass line 13), numbers into `tooling-and-testing.md` section 7. (4) `prod.spec` needs the preview server on 3008. (5) Checkpoint 2: Mark merges or sends work back.
+
+**Next up for Mark**
+
+1. After CI is green and the perf numbers are in: play `http://localhost:3011/?engine=sje` (dev server from the M5 worktree), then merge PR #54 or send work back.
+
 ### Right now (2026-10-10, M3 merged)
 
 M3 "Battle stage" is merged ([PR #51](https://github.com/markhazlewood42/shadow-jog/pull/51), Mark looked at the pictures and approved). It was built on branch `engine-m3-battle-stage`: the battle plays on the Pixi stage under `?engine=sje` (HUD, fx painters, 640x360 stage set, enemy and encounter JSON, parity harness, seeded status trace). Lean loop: round 1 (runner all green; reader 3 Important, fixed in e8219cf), round 2 passed. GPU run (RTX 4070): live battle interval p95 18.10 ms (bare 18.10), cost p95 3.40 ms. Main merged in (M1b). Bundle: shipped total cap 401 kB, new flag-only class 42 kB. Record: `docs/engine/m3-brief.md` section 9. Pictures: `media/m3-stage/gpu/index.html`.
