@@ -1,0 +1,63 @@
+{
+  "encounters": {
+    "street": [
+      { "w": 3, "e": ["rustfang_punk", "rustfang_punk"] },
+      { "w": 2, "e": ["rustfang_punk", "rustfang_slinger"] },
+      { "w": 2, "e": ["rustfang_punk", "rustfang_medic"] },
+      { "w": 3, "e": ["glowrat", "glowrat", "glowrat"] },
+      { "w": 2, "e": ["street_drone", "street_drone"] },
+      { "w": 1, "e": ["scrap_hound", "glowrat"] }
+    ],
+    "barrens": [
+      { "w": 3, "e": ["scrap_hound", "scrap_hound"] },
+      { "w": 2, "e": ["rustfang_punk", "rustfang_slinger", "rustfang_punk"] },
+      { "w": 2, "e": ["rustfang_punk", "rustfang_medic", "rustfang_slinger"] },
+      { "w": 2, "e": ["smog_wisp", "glowrat", "glowrat"] },
+      { "w": 2, "e": ["street_drone", "scrap_hound"] },
+      { "w": 1, "e": ["smog_wisp", "smog_wisp"] }
+    ],
+    "park": [
+      { "w": 3, "e": ["glowrat", "glowrat", "glowrat", "glowrat"] },
+      { "w": 2, "e": ["smog_wisp", "glowrat"] },
+      { "w": 2, "e": ["smog_wisp", "smog_wisp", "glowrat"] }
+    ],
+    "sinkline": [
+      { "w": 3, "e": ["sewer_ghoul", "sewer_ghoul"] },
+      { "w": 2, "e": ["rust_crab", "glowrat", "glowrat"] },
+      { "w": 2, "e": ["maint_drone", "maint_drone"] },
+      { "w": 2, "e": ["drowned_shade", "sewer_ghoul"] },
+      { "w": 2, "e": ["gutter_eel", "gutter_eel"] },
+      { "w": 1, "e": ["rust_crab", "maint_drone"] },
+      { "w": 1, "e": ["rust_crab", "sewer_ghoul"] },
+      { "w": 1, "e": ["drowned_shade", "drowned_shade", "glowrat"] },
+      { "w": 2, "e": ["sewer_ghoul", "gutter_eel", "glowrat"] }
+    ],
+    "annex": [
+      { "w": 3, "e": ["km_sentinel", "km_sentinel", "maint_drone"] },
+      { "w": 2, "e": ["km_sentinel", "km_arcanist"] },
+      { "w": 1, "e": ["km_sentinel", "km_sentinel"] },
+      { "w": 2, "e": ["hunter_drone", "maint_drone", "hunter_drone"] },
+      { "w": 2, "e": ["sentry_turret", "km_sentinel"] },
+      { "w": 1, "e": ["bound_spirit", "km_sentinel"] },
+      { "w": 1, "e": ["hunter_drone", "hunter_drone"] }
+    ],
+    "f_first_fight": [
+      { "w": 1, "e": ["rustfang_punk", "rustfang_punk"] }
+    ],
+    "f_rustyard_gate": [
+      { "w": 1, "e": ["scrap_hound", "rustfang_punk", "scrap_hound"] }
+    ],
+    "f_knuckles": [
+      { "w": 1, "e": ["rustfang_punk", "knuckles", "rustfang_slinger"] }
+    ],
+    "f_lurker": [
+      { "w": 1, "e": ["lurker"] }
+    ],
+    "f_annex_door": [
+      { "w": 1, "e": ["km_sentinel", "sentry_turret", "km_sentinel"] }
+    ],
+    "f_warden": [
+      { "w": 1, "e": ["warden"] }
+    ]
+  }
+}

@@ -29,6 +29,11 @@
     { "file": "src/scenes/chartest.ts", "token": 240, "match": "col * 240", "reason": "a dev sheet's column pitch (inventory row 121)" },
     { "file": "src/ui/layout.ts", "token": 240, "match": "SHOP_LIST_W = 240", "reason": "the shop list's width (D8's recommendation), a pane width that is not the screen" },
     { "file": "src/ui/layout.ts", "token": 270, "match": "COMPOSED_FOR_H = 270", "reason": "the one remembered old height: the ending, game-over and deck pages were composed for it, and PAGE_DY moves them by the difference" },
-    { "file": "src/ui/layout.ts", "token": 360, "match": "RESULTS_W = 360", "reason": "the results window's own width (it was the screen less 120 px at 480), not the screen" }
+    { "file": "src/ui/layout.ts", "token": 360, "match": "RESULTS_W = 360", "reason": "the results window's own width (it was the screen less 120 px at 480), not the screen" },
+    { "file": "src/art/battlebg480.ts", "token": [240, 135], "match": "export const B", "reason": "the frozen 240x135 backdrop world of the 480x270 regression-parity layout (M3 decision 1a); the shipped 640x360 backdrops are src/art/battlebg.ts" },
+    { "file": "src/battlestage/config.ts", "token": [480, 270], "match": "export const SCREEN_", "reason": "the 480x270 stage layout inside the 640x360 frame (M3 decision 1a, regression parity): the stage JSONs are in these numbers; the 640x360 set comes with task 9" },
+    { "file": "src/battlestage/config.ts", "token": 240, "match": "f.grid.spacing", "reason": "the upper bound of a floor grid spacing in pixels, a limit, not the screen" },
+    { "file": "src/battlestage/config.ts", "token": 240, "match": "closeness", "reason": "the draw-order tie-break: the farthest distance from the stage's middle that counts, in the stage's 480x270 numbers (half of SCREEN_W)" },
+    { "file": "src/battlestage/shadow.ts", "token": [180, 360], "reason": "degrees: the ring's dotted arc and the radian conversion" }
   ]
 }

@@ -59,6 +59,17 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
+### Right now (2026-10-10, M3 built and verified, PR open)
+
+M3 "Battle stage" is built on branch `engine-m3-battle-stage`: the battle plays on the Pixi stage under `?engine=sje` (HUD, fx painters, 640x360 stage set, enemy and encounter JSON, parity harness, seeded status trace). Lean loop: round 1 (runner all green; reader 3 Important, fixed in e8219cf), round 2 passed. GPU run (RTX 4070): live battle interval p95 18.10 ms (bare 18.10), cost p95 3.40 ms. Main merged in (M1b). Bundle: shipped total cap 401 kB, new flag-only class 42 kB. Record: `docs/engine/m3-brief.md` section 9. Pictures: `media/m3-stage/gpu/index.html`.
+
+**Next up for Mark**
+
+1. Check the new 640x360 look (first draft by a fixed transform) and the 1.09x push; send look changes as named fixes.
+2. Merge the M3 PR, or send work back.
+
+**Next for agents:** M4 (optional UI scenes) and M5 (field) can start after the merge.
+
 ### Right now (2026-10-09, M2 merged)
 
 **M2 "Effects" passed the lean loop and merged (PR #47).** Round 1 found 4 Important (fixed in edf49a0, 5c0c45e), round 2 found none. GPU run on the RTX 4070 held the speed line (numbers in `docs/engine/tooling-and-testing.md` section 7). Bundle total set to 394 kB (measured 393.0). The record is in `docs/engine/m2-brief.md` section 6. Look note for Mark: the composite uses nearest sampling, so sub-pixel tails vanish in some effects (evidence only). Pictures: `media/m2-fx/`.

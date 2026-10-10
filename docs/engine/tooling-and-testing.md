@@ -147,6 +147,12 @@ T1 runs on Chromium, viewport **1280x720**. That is scale 2 at 640x360. A window
 
 **Parity with the Phaser stage.** The earlier parity result (1/255 on 0.98 to 2.26% of pixels) was for a Canvas 2D display list, not for Pixi. Phase 0 measured Pixi parity on the stage slice: 0 pixels differ at 3 frames, against the Phaser page of the same kind of renderer. Across the two kinds, the pages differ by 1/255 on about 3.6% of the pixels. The street's neon glow layer is the cause: Canvas 2D paints it 1/255 apart on the GPU canvas and on the software canvas. So the references come in two sets, `gpu` and `soft`, and the spec picks one by the renderer name. The strict gate ran on the Linux runner, and CI is green on `d61d7d9`. Make the `soft` set again on the runner only if a later run fails. At 640x360 parity with the Phaser spike cannot be measured, because that spike draws 480x270 and has no 640x360 stage. Phase 0 shows that the top left 480x270 of the 640x360 slice equals the 480x270 picture (0 of 129,600 pixels differ) and that the rest is the void color (0 of 100,800 differ). That keeps the parity of the area laid out for 480x270. It does not show that a stage laid out for 640x360 looks right. M3 measures the full stage and lays it out for 640x360. How parity is measured after the new layout is an open point for M3. Pass line: a tolerance that you agree, and an identical Battle Test status trace (seed 7).
 
+**M3 parity method (the battle stage, 2026-10-10).** Two checks, kept apart (decision 1 of `m3-brief.md`).
+
+1. **Regression parity** (a gate, on CI). The stage lays out the 480x270 files in a 640x360 frame, as Phase 0 did, and `e2e/sje-stage-parity.spec.ts` compares seven frames (the street at ticks 0, 41 and 173, the street haze frame, the sewer at ticks 0 and 41, the sewer boss group) with the goldens in `tests/fixtures/sjestage/`, for the `gpu` and the `soft` renderer kind. The goldens were made from the Phaser tag by `scripts/sjestage-refs.mjs`. The compare is strict: 0 pixels outside the renderer mask, at most 1/255 inside it; the measured result is 0 differing pixels. Controls that must fail: a 2/255 step, a one-pixel shadow move, a ring, a body move, and the 640x360 frame's void. **Input pins:** the manifest holds the SHA-256 of every data file the slice reads (`inputs.json`), and the spec fails first when one changed. `scripts/sjestage-repin.mjs` re-pins when the change cannot change a pixel (the parity run is the proof); a design change needs new references.
+2. **The new layout** (pictures, not a gate). The 640x360 set is made by `scripts/stage-640.mjs` and judged by Mark from `media/m3-stage/` (old, 480 in 640, new 640; intro, command, list, target, attack, spell, crit, victory, boss), `gpu` set first. Once he accepts the look, the frames are pinned as new goldens for both kinds.
+
+The push camera (up to 1.09x) is outside the strict frames: its uneven texels are known (decision 3) and it has its own pixel test (the world layer scales to at most 1.09x, differs from the plain frame while it runs, and the frame after its last tick equals the frame that never pushed). The crisp-pixel check (0 uneven k-by-k blocks at device pixel ratios 1 and 1.5) runs on the shipped battle with the stage, the HUD, the effects and a number on screen (`e2e/sje-battle.spec.ts`), over the whole 640x360 frame.
 ---
 
 ## 6. Deterministic frames
@@ -212,6 +218,8 @@ The cost did not grow with the picture. The 3D frame has 1.78 times more pixels,
 
 **M1 GPU run (2026-10-09, `npm run perf`, Edge/Chromium on an RTX 4070, bare page p95 16.80 ms).** The speed line holds. 2D scene: interval p95 16.80 ms, frame cost p95 6.90 ms (JS work mean 0.22 ms). 3D frame with bloom: interval p95 16.80 ms, cost p95 7.10 ms. Bench on the real game: title alone cost p95 1.80 ms, two legacy canvases 1.90 ms (1.84 MB uploaded per frame), three canvases 2.80 ms (2.76 MB), 1,000 objects through the wrapper 2.90 ms against 2.10 ms raw Pixi; all cases 2 draws and 2 binds; interval p95 16.80 ms in every case. Wrapper overhead 0.015 ms a frame (line: 1 ms). The negative control (600 extra 3D frames) breaks both rules as it must (interval 66.8 ms, cost 66.4 ms). Canvas upload line: keep 2 MB for two canvases, which is 92%; a third canvas still holds the speed line on this GPU (2.8 ms), so the 3 MB proposal stands.
 
+**M3 GPU run (2026-10-10, `npm run perf` and `e2e/sje-bench.spec.ts`, Chromium on an NVIDIA GeForce RTX 4070, bare page p95 18.10 ms).** The speed line holds with a live battle. Live battle on the stage (`?engine=sje&fx=full`, 640 set, HUD and effects, 3 rounds on Auto, 1,380 of 1,380 ticks in battle): interval p95 18.10 ms (bare page 18.10 ms), frame cost p50/p95 2.30/3.40 ms (line: 8 ms), JS work p95 1.20 ms, 19.9 draws, 17.0 binds and 4.23 canvas uploads (2.99 MB) per frame. Negative control (80 extra draws per frame): cost p95 21.80 ms, breaks the line as it must. Other results of the same run: 2D scene cost p95 1.70 ms, interval p95 18.10 ms against bare 18.20 ms; 3D scene with bloom cost p95 1.90 ms; legacy live battle (old renderer) mean 0.63 ms, p95 0.8 ms. Title with fx full: cost p95 1.90 ms, 4 draws, 2 uploads.
+
 | Measure (SwiftShader) | Value |
 |---|---|
 | Draw calls per frame: title alone, two legacy canvases, 1,000 objects | 2.0, 2.0 and 2.0 (the sprites batch into one draw) |
@@ -245,6 +253,8 @@ Hardware independent counts (`e2e/sje-draws.spec.ts`, the real game, one frame):
 | fx full | 16.80 ms | 2.40 / 4.60 ms | 4.0 | 4.0 | 2.00 (1,843,200) |
 
 `e2e/perf.spec.ts` passes on the same run: 3D frame cost p95 4.3 ms, interval p95 16.8 ms against a bare page at 16.8 to 16.9 ms.
+
+**M3 (battle stage), measurements left open.** Hardware independent counts from the builders (SwiftShader, `e2e/sje-draws.spec.ts`): the shipped battle with the stage, the HUD, the battle effects and the whole stack is 20 draw calls and 17 binds a frame (18 and 17 while it waits for orders) and 4 canvas uploads; ten battle enter and exit cycles leave the GL counts flat (textures 49, buffers 26, framebuffers 10, programs 4, VAOs 13). The frame interval p95 against a bare page and the frame cost p95 on a GPU (line 14 of the brief: within 5% of the bare page, cost p95 at most 8 ms) are NOT measured yet: the main session runs `npm run perf` once, after the last fix round, and puts the numbers here.
 
 **M1b GPU run (2026-10-09, `npm run perf`, RTX 4070 via ANGLE/D3D11, bare page p95 16.80 to 16.90 ms).** Pass line 14 holds with the cube running as a `Scene3D` on a `Game` (the lab's `three().start()` runs `CubeScene` with bloom). Frame interval p95 16.80 ms against a bare page at 16.90 ms. Frame cost with the GPU wait: mean 4.05 ms, p95 6.30 ms (line: 8 ms). JavaScript work mean 0.50 ms, p95 0.70 ms. The 2D scene on the same run: interval p95 16.80 ms, cost p95 3.70 ms. The negative control (600 extra 3D frames) breaks both rules as it must (interval 66.7 ms, cost 65.4 ms). The M2 bench cases still hold: title fx none/full cost p95 within 8 ms, wrapper overhead 0.020 ms a frame (line: 1 ms). All 10 tests pass.
 
@@ -295,15 +305,16 @@ Inherited rules: strict TypeScript (`noUncheckedIndexedAccess`, `exactOptionalPr
 
 `scripts/bundle-budget.mjs` (run by `npm run budget`, which builds the game and the lab page) is the M0 gate. It reads the Vite manifest and each chunk's source map. It has these checks:
 
-- **Total gzip alarm: 240.8 kB** for the shipped game (`GZIP_TOTAL_MAX`). It was 236 kB before the 640x360 move. Each raise is by the measured delta only, and the cause is written in the script. M0 measured 240.790 kB for the game (see [m0-brief.md](m0-brief.md)), so the room is a few bytes.
+- **Total gzip alarm: 400 kB** for the shipped game without the flag-only class (`GZIP_TOTAL_MAX`). It was 240.8 kB at M0, 380 kB after M1, 394 kB after M2. At M3 (2026-10-10) the `liveopen` chunk moved out of the total (next bullet) and the rest measured 399.773 kB, so the cap was 400 kB; after merging M1b it measured 400.002 kB, so the cap is 401 kB (rounded up to the next 1 kB). Each raise is by the measured delta only, and the cause is written in the script.
 - **Largest chunk: 480 kB raw** (`CHUNK_MAX`), on the shipped game.
 - **Boot has no engine:** the `boot` class holds no `pixi.js` and no `three` module, in the game and in the lab.
-- **The game has no engine yet:** no game chunk holds Pixi or Three until M6 and M7.
+- **Flag-only class (M3, Mark approved 2026-10-10):** a lazy chunk that a player reaches only under `?engine=sje` is listed by its manifest `src` in `FLAG_ONLY_SRC` (today `src/battlestage/liveopen.ts`). It gets its own report line and its own cap (`FLAG_ONLY_GZIP_MAX`, 42 kB: `liveopen` measured 41.0 kB, rounded up to the next 1 kB), and it does not count toward the game total or `first play`.
+- **The game holds Pixi only in a lazy chunk:** no game chunk holds Three until M7.
 - **Lab `lazy-3d`:** at most 160 kB gzip, and it must not be empty. The lab `lazy-2d` class must not be empty.
 - **No blind chunk:** a chunk with no source map (or a boot chunk with an empty one) fails the gate. Without this, the checks above would pass on no data. `tests/bundle-budget.test.ts` holds the controls (a boot chunk with no map fails; a boot chunk with a Pixi module fails).
 - **The two Vite traps** below.
 
-The report prints all five classes. Measured at M0 (gzip, game): boot 190.0 kB (`index` plus the shared `tables` chunk), lazy-other 50.8, lazy-2d 0, lazy-3d 0, first play 190.0. Measured at M0 (gzip, lab): boot 1.2, lazy-2d 143.0, lazy-3d 135.3, first play 133.0. The old per-class caps of the plan ("boot at most 144.8 kB") did not survive the 640x360 move: the boot class grew with the shared `tables` chunk. `first play` has no cap until M1 measures it. The alarm is an alarm, not a hard limit.
+The report prints all six classes (`flag-only` was added at M3). Measured at M0 (gzip, game): boot 190.0 kB (`index` plus the shared `tables` chunk), lazy-other 50.8, lazy-2d 0, lazy-3d 0, first play 190.0. Measured at M0 (gzip, lab): boot 1.2, lazy-2d 143.0, lazy-3d 135.3, first play 133.0. The old per-class caps of the plan ("boot at most 144.8 kB") did not survive the 640x360 move: the boot class grew with the shared `tables` chunk. `first play` has no cap until M1 measures it. The alarm is an alarm, not a hard limit.
 
 **Sizes for scale (gzip, lab, depend on the bundler):**
 
@@ -325,9 +336,10 @@ The report prints all five classes. Measured at M0 (gzip, game): boot 190.0 kB (
 | `lazy-2d` | Pixi and the engine | Counted. |
 | `lazy-3d` | Three and the hack scene | Own cap. |
 | `lazy-other` | Battle, deck, tables, dev | Counted. |
+| `flag-only` | Chunks loaded only under `?engine=sje` (`liveopen`) | Own cap, 42 kB. Not in the game total. |
 | `first play` | `boot` plus `lazy-2d` | Reported. |
 
-Caps in force: `lazy-3d` 160 kB (you accepted it on 2026-10-05, real choice C5; the spike measured 145.1 kB and M0 measured 135.3 kB in the lab), the game total 240.8 kB, the largest chunk 480 kB raw. `first play` has no cap yet: the plan estimate is 330 to 430 kB gzip (low confidence), to set after M1. Reset the caps after the M1 and M2 measurements.
+Caps in force: `lazy-3d` 160 kB (you accepted it on 2026-10-05, real choice C5; the spike measured 145.1 kB and M0 measured 135.3 kB in the lab), the game total 401 kB (without `flag-only`), `flag-only` 42 kB, the largest chunk 480 kB raw. `first play` has no cap yet: the plan estimate is 330 to 430 kB gzip (low confidence), to set after M1. Reset the caps after the M1 and M2 measurements.
 
 **Phase 0 spike numbers (gzip, not M0 numbers).** Pixi plus the engine kernel is 124.7 kB. The page of the stage lab boots with 170.7 kB, and the page of the 3D lab boots with 165.5 kB. The lazy 3D chunk (Three with named imports, a `UnrealBloomPass`, and the hack scene) is 145.1 kB (576.8 kB raw). The shipped game then measured 233.9 kB (before the 640x360 move). The spike's script had four classes: the shipped game, the lazy 3D chunk, the lab boot, and the stage lab page.
 

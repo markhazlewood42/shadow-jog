@@ -46,6 +46,36 @@ const ALWAYS_ALLOWED = [
   /WebSocket connection to 'ws:\/\/localhost:\d+\/\?token=/,
 ];
 
+/**
+ * The script that counts draw calls and framebuffer binds of the WebGL2 context (`window.__gl`). It runs in the page, before any of the page's own scripts: `addGlCounter` adds it
+ * to a page, and `openGame({ init: glCounterScript })` (e2e/sjegamekit.ts) adds it to the real game's page. (Declared apart so both can use the one text.)
+ */
+export const glCounterScript = (): void => {
+  const w = window as unknown as { __gl: { draws: number; binds: number } };
+  w.__gl = { draws: 0, binds: 0 };
+  const proto = WebGL2RenderingContext.prototype as unknown as Record<string, (...a: unknown[]) => unknown>;
+  for (const [name, key] of [
+    ['drawElements', 'draws'],
+    ['drawArrays', 'draws'],
+    ['drawElementsInstanced', 'draws'],
+    ['drawArraysInstanced', 'draws'],
+    ['drawRangeElements', 'draws'],
+    ['bindFramebuffer', 'binds'],
+  ] as const) {
+    const orig = proto[name];
+    if (!orig) continue;
+    proto[name] = function (this: unknown, ...args: unknown[]) {
+      w.__gl[key]++;
+      return orig.apply(this, args);
+    };
+  }
+};
+
+/** Count draw calls and framebuffer binds of the WebGL2 context from before any script runs (`window.__gl`). Shared by the lab and the stage lab. */
+export async function addGlCounter(page: Page): Promise<void> {
+  await page.addInitScript(glCounterScript);
+}
+
 /** Open the lab and wait for it to be ready. */
 export async function openLab(browser: Browser, opts: OpenOptions = {}): Promise<LabPage> {
   const context = await browser.newContext({ viewport: opts.viewport ?? { width: 1280, height: 720 }, deviceScaleFactor: opts.dpr ?? 1 });
@@ -72,28 +102,7 @@ export async function openLab(browser: Browser, opts: OpenOptions = {}): Promise
         });
     });
   }
-  if (opts.countGl) {
-    await page.addInitScript(() => {
-      const w = window as unknown as { __gl: { draws: number; binds: number } };
-      w.__gl = { draws: 0, binds: 0 };
-      const proto = WebGL2RenderingContext.prototype as unknown as Record<string, (...a: unknown[]) => unknown>;
-      for (const [name, key] of [
-        ['drawElements', 'draws'],
-        ['drawArrays', 'draws'],
-        ['drawElementsInstanced', 'draws'],
-        ['drawArraysInstanced', 'draws'],
-        ['drawRangeElements', 'draws'],
-        ['bindFramebuffer', 'binds'],
-      ] as const) {
-        const orig = proto[name];
-        if (!orig) continue;
-        proto[name] = function (this: unknown, ...args: unknown[]) {
-          w.__gl[key]++;
-          return orig.apply(this, args);
-        };
-      }
-    });
-  }
+  if (opts.countGl) await addGlCounter(page);
   const boot = async (): Promise<string | undefined> => {
     await page.goto(`/sjelab.html?${opts.query ?? 'manual'}`);
     await page.waitForFunction(() => window.__SJE__ !== undefined || (window as unknown as { __SJE_ERROR__?: string }).__SJE_ERROR__ !== undefined, null, { timeout: 90_000 });

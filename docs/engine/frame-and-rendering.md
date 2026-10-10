@@ -336,6 +336,7 @@ The 720p row follows from the rule. The other rows come from the Phase 0 mock an
 - Module-level `Map` caches in the old art code (no eviction) move into the `TextureManager` as each scene ports.
 - **Main thread only.** All baking runs on the main thread. No Worker or `OffscreenCanvas` is used (not evaluated). Large bakes (the 960x672 field layers, enemy and prop painters) are spread over several frames, behind a loading screen or a transition. Proposed budget: 4 ms of baking per frame (estimate, low confidence, to measure at M1).
 
+- **The battle stage's layers (M3).** The stage picture (wall, kerb and floor) is baked into one canvas of the stage's screen size (480x270 or 640x360), with the 2x blow-up of the 240x135 or 320x180 backdrop art done on that canvas (nearest sampling), so the engine sees one picture and no scaled container is needed. The effects of the old painters are a world-sized `CanvasImage` (320x180) scaled by the stage's `k` (2 on the 640x360 layout, 1.5 on the 480x270 one) inside the world layer, so they move with the push camera and a shake. The HUD is in the scene's `ui` layer, which no camera moves. The push camera scales the world layer (up to 1.09x); the wash of a defeat is a `Graphics` in the `ui` layer.
 ### 6.8 Context loss
 
 - While the context is lost, `render()` does not throw in Pixi or in Three. Three's `render()` returns silently, but only if Three listens on the real canvas (section 7.2, rule 1).

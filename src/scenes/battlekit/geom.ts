@@ -287,6 +287,19 @@ export const FLOATER_HOLD_FRAMES = 24, FLOATER_DRIFT = 0.15, FLOATER_FADE_START 
 export const FLOATER_TOP = PROMPT_CLEAR + FLOATER_POP + FLOATER_BOUNCE;
 
 /**
+ * How far up a floater has risen by frame `t` (world rows; negative when a tick sinks), how far its hit bounce lifts it more, and how opaque it is: the one rule of its motion, used by the old picture (render.ts) and by the
+ * stage's numbers (src/battlestage/livenumbers.ts), so the two cannot drift apart.
+ */
+export function floaterMotion(style: 'hit' | 'tick' | 'label', t: number): { rise: number; bounce: number; alpha: number } {
+  const hit = style === 'hit';
+  const pop = FLOATER_POP * (1 - (1 - Math.min(1, t / FLOATER_POP_FRAMES)) ** 3);
+  const rise = style === 'tick' ? -Math.min(FLOATER_TICK_SINK, t * FLOATER_SINK_RATE) : pop + Math.max(0, t - FLOATER_HOLD_FRAMES) * FLOATER_DRIFT;
+  const bounceT = t - FLOATER_POP_FRAMES;
+  const bounce = hit && bounceT >= 0 && bounceT < FLOATER_BOUNCE_FRAMES ? Math.abs(Math.sin(bounceT * FLOATER_BOUNCE_RATE)) * FLOATER_BOUNCE * (1 - bounceT / FLOATER_BOUNCE_FRAMES) : 0;
+  return { rise, bounce, alpha: t > FLOATER_FADE_START ? Math.max(0, 1 - (t - FLOATER_FADE_START) / FLOATER_FADE_FRAMES) : 1 };
+}
+
+/**
  * The row where floater number `stacked` (0 for the first one showing over a target) starts, for a
  * target whose head is at `anchorY`. Over a tall enemy the stack grows downward from `FLOATER_TOP`
  * instead of upward, so the clamp cannot pile rows on each other. Pure, so the tests check it.

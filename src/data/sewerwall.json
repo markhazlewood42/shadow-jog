@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "note": "Where the sewer's painted wall puts its pillars and lamps. These are pixel columns of the 480x270 picture the painter draws (src/battlestage/sewerwall.ts); the 640x360 set places that picture at the stage's backdrop.wallOffset and repeats its edges (see paintWall), so this layout is the same in both sets. Moved out of the code by the fix round 1 of M3 (pass line 12: no look constant outside stage data).",
+  "paintedFor": { "w": 480, "h": 270 },
+  "walls": {
+    "sewer-sidewall": {
+      "pillars": [60, 180, 300, 420],
+      "pillarGap": { "center": 240, "halfWidth": 50 },
+      "lamps": [120, 360]
+    }
+  }
+}

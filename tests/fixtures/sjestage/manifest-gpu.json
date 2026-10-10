@@ -1,0 +1,298 @@
+{
+  "generatedBy": "scripts/sjestage-refs.mjs",
+  "w": 480,
+  "h": 270,
+  "slice": {
+    "stageId": "street",
+    "setKey": "1",
+    "lineup": [
+      "kit"
+    ],
+    "enemies": [
+      "rustfang_punk"
+    ],
+    "active": 0,
+    "target": 0,
+    "seed": 7,
+    "ticks": [
+      0,
+      41,
+      173
+    ],
+    "haze": {
+      "lineup": [
+        "kit",
+        "hex",
+        "rook",
+        "sable"
+      ],
+      "setKey": "3",
+      "enemies": [
+        "rustfang_punk",
+        "glowrat",
+        "rustfang_punk"
+      ],
+      "ticks": [
+        41
+      ]
+    },
+    "extra": {
+      "sewer": {
+        "stageId": "sewer",
+        "setKey": "3",
+        "lineup": [
+          "kit",
+          "rook",
+          "hex",
+          "sable"
+        ],
+        "enemies": [
+          "sewer_ghoul",
+          "gutter_eel",
+          "glowrat"
+        ],
+        "active": 2,
+        "target": 1,
+        "seed": 11,
+        "ticks": [
+          0,
+          41
+        ]
+      },
+      "boss": {
+        "stageId": "sewer",
+        "setKey": "boss+1",
+        "lineup": [
+          "kit",
+          "rook",
+          "hex",
+          "sable"
+        ],
+        "enemies": [
+          "lurker",
+          "glowrat"
+        ],
+        "active": 0,
+        "target": 0,
+        "seed": 11,
+        "ticks": [
+          41
+        ]
+      }
+    }
+  },
+  "inputs": {
+    "src/data/stages.json": "b91d2c096ce75c8e54ca1624a73b84e1d9d6d85850fc7d9fe05bf88f8c3bff4e",
+    "src/data/hud.json": "dde7f1424750f06e6d2449aed6c8f4d0ce4972f443b1e1c4d9da9c1111cef1bb",
+    "src/data/heroes.json": "1e7edcb4404770e278e41d422aa62a0d4bcdaba45586b659311d883853eb1163",
+    "src/data/enemyfacing.json": "cc66055501bc413352ff1f060a4e4ed78fbb8a22b14afd487ecf7079368813cf",
+    "src/data/enemies.ts": "c8c93bcb264e4b06fdd2a6af8ecda7d2cf4e0cc82653261b7bcfb7bbcd3dbd7a",
+    "src/data/enemies.json": "00da4549c198b0aec9e3bf1943d6c70c4078e52769907339a031ee3966e98126",
+    "src/data/axes.json": "b1c1fff485a4a574c5a78d346a9f377a0870a498c4e305e4de8620e4c652d10c",
+    "src/data/sewerwall.json": "a438bfcc4f8894fd46ef362c5d7f8d2a54ef36493802806c0a9d02ffb035c019",
+    "public/art/rig/battle.json": "2588f43c0f925e4b0569c730e0476b150ff5ba2d60641e79c999df5a13692aea",
+    "public/art/rig/enemies.json": "31200e7819f0975b18fad11c18d69b9f5498265b8dcf6d80284b962273e0644a",
+    "public/art/rig/field.json": "71b4ab199b41f0af529e9eab79b83cae758c9ad283cb7427d75a9498f6da19f3",
+    "public/art/rig/portraits.json": "9778a9fbea008944a6782a680d7b2c84a52c0b02e7961521ea5cd84bd3f9f992",
+    "public/art/rig/skeleton.json": "3c923ff806bfd591fd3a2db92185a21c9359a9f6d7f31c40447cfbcd1c29ec00"
+  },
+  "phaserCommit": "9179d980491abe27b2a081c71dafa4e89c88b8f6",
+  "kind": "gpu",
+  "modes": {
+    "standins": {
+      "renderer": "WEBGL",
+      "figures": [
+        {
+          "id": "kit",
+          "side": "party",
+          "depth": 207092,
+          "x": 46,
+          "y": 207
+        },
+        {
+          "id": "rustfang_punk#0",
+          "side": "enemy",
+          "depth": 157239,
+          "x": 361,
+          "y": 157
+        }
+      ],
+      "hazeFigures": [
+        {
+          "id": "kit",
+          "side": "party",
+          "depth": 207092,
+          "x": 46,
+          "y": 207
+        },
+        {
+          "id": "hex",
+          "side": "party",
+          "depth": 191176,
+          "x": 88,
+          "y": 191
+        },
+        {
+          "id": "rook",
+          "side": "party",
+          "depth": 174260,
+          "x": 130,
+          "y": 174
+        },
+        {
+          "id": "sable",
+          "side": "party",
+          "depth": 157334,
+          "x": 167,
+          "y": 157
+        },
+        {
+          "id": "rustfang_punk#0",
+          "side": "enemy",
+          "depth": 140329,
+          "x": 316,
+          "y": 140
+        },
+        {
+          "id": "glowrat#1",
+          "side": "enemy",
+          "depth": 174169,
+          "x": 396,
+          "y": 174
+        },
+        {
+          "id": "rustfang_punk#2",
+          "side": "enemy",
+          "depth": 207285,
+          "x": 338,
+          "y": 207
+        }
+      ],
+      "sewerFigures": [
+        {
+          "id": "kit",
+          "side": "party",
+          "depth": 207092,
+          "x": 46,
+          "y": 207
+        },
+        {
+          "id": "rook",
+          "side": "party",
+          "depth": 192176,
+          "x": 88,
+          "y": 192
+        },
+        {
+          "id": "hex",
+          "side": "party",
+          "depth": 174260,
+          "x": 130,
+          "y": 174
+        },
+        {
+          "id": "sable",
+          "side": "party",
+          "depth": 157344,
+          "x": 172,
+          "y": 157
+        },
+        {
+          "id": "sewer_ghoul#0",
+          "side": "enemy",
+          "depth": 140343,
+          "x": 309,
+          "y": 140
+        },
+        {
+          "id": "gutter_eel#1",
+          "side": "enemy",
+          "depth": 174169,
+          "x": 396,
+          "y": 174
+        },
+        {
+          "id": "glowrat#2",
+          "side": "enemy",
+          "depth": 207301,
+          "x": 330,
+          "y": 207
+        }
+      ],
+      "bossFigures": [
+        {
+          "id": "kit",
+          "side": "party",
+          "depth": 207092,
+          "x": 46,
+          "y": 207
+        },
+        {
+          "id": "rook",
+          "side": "party",
+          "depth": 192176,
+          "x": 88,
+          "y": 192
+        },
+        {
+          "id": "hex",
+          "side": "party",
+          "depth": 174260,
+          "x": 130,
+          "y": 174
+        },
+        {
+          "id": "sable",
+          "side": "party",
+          "depth": 157344,
+          "x": 172,
+          "y": 157
+        },
+        {
+          "id": "lurker#0",
+          "side": "enemy",
+          "depth": 192201,
+          "x": 380,
+          "y": 192
+        },
+        {
+          "id": "glowrat#1",
+          "side": "enemy",
+          "depth": 140373,
+          "x": 294,
+          "y": 140
+        }
+      ]
+    }
+  },
+  "files": {
+    "standins-gpu-t0.rgba": {
+      "bytes": 518400,
+      "sha256": "d66e00566cc9fdf593d9798c9154a67ac4cbefca79c3babab7219ec77e44963a"
+    },
+    "standins-gpu-t41.rgba": {
+      "bytes": 518400,
+      "sha256": "1ddb8d187cc25fd730001a365203c9b79e3ce46e0ce130409fca875198aa1b3b"
+    },
+    "standins-gpu-t173.rgba": {
+      "bytes": 518400,
+      "sha256": "91c0a2800a0c124a778f79f80dbddf9d17b76cc7240b1112dd0e4ed6815362f6"
+    },
+    "standins-gpu-haze-t41.rgba": {
+      "bytes": 518400,
+      "sha256": "5cff1b299d3c5b98c5c6749a5730b85f281a8da9460f2a0473c52ce819b0b95f"
+    },
+    "standins-gpu-sewer-t0.rgba": {
+      "bytes": 518400,
+      "sha256": "236b5c0bd8ae03804aa785ef91a23ca7809326a4186bef947ef1971d5e8a3931"
+    },
+    "standins-gpu-sewer-t41.rgba": {
+      "bytes": 518400,
+      "sha256": "c384fadc3723daaedcf03f2a5dfaa583deff8724894868e6cbf03e20d677fa86"
+    },
+    "standins-gpu-boss-t41.rgba": {
+      "bytes": 518400,
+      "sha256": "b71a188ebcf924c62cda3cdb7df55697250694440da3c6ba3d06046cb32daa26"
+    }
+  }
+}

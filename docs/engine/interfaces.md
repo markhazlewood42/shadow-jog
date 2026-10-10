@@ -344,11 +344,11 @@ export declare class TextureManager {
   get(key: string): SjTexture;
   getTextureKeys(): string[];
   addCanvas(key: string, canvas: HTMLCanvasElement, opts?: { cpu?: Raw }): SjTexture;   // nearest, skipCache
-  addCanvasOnce(key: string, build: () => HTMLCanvasElement | Raw): SjTexture;          // ours. The spike's entry point. M3. Game-side in Phase 0
+  addCanvasOnce(key: string, build: () => HTMLCanvasElement | Raw): SjTexture;          // ours. The spike's entry point. Built in M3 (was game-side in Phase 0)
   addFrames(key: string, frames: Record<string | number, [x: number, y: number, w: number, h: number]>): void;
   createCanvas(key: string, w: number, h: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; refresh(): void };
-  variantOf(key: string, newKey: string, paint: (src: HTMLCanvasElement) => HTMLCanvasElement): SjTexture;   // ours. Copies frames. M3. Game-side in Phase 0
-  readPixels(key: string, frame?: string | number): Raw;                                    // proposal for M3. The Phase 0 stage reads pixels back through a game-side helper
+  variantOf(key: string, newKey: string, paint: (src: HTMLCanvasElement) => HTMLCanvasElement): SjTexture;   // ours. Copies frames. Built in M3 (was game-side in Phase 0)
+  readPixels(key: string, frame?: string | number): Raw;                                    // ours. Built in M3. Reads through a 2D canvas, so it matches the spike's bake bit for bit
   remove(key: string): boolean;                        // the key is free at once. The GPU data stays until the last object that shows it is destroyed
   prune(prefix: string, inUse: ReadonlySet<string>): number;      // ours
   getPixelAlpha(x: number, y: number, key: string, frame?: string | number): number;   // M3

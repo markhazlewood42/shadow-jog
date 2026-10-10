@@ -1,0 +1,952 @@
+/**
+ * The battle stage as DATA (Phaser spike `spike/phaser-stage`): the FINAL stage design from the side-view spike
+ * (`docs/spikes/side-battle-stage.md`, section 4), as types, a checker and the small pure helpers every part of the
+ * stage uses. Nothing here draws anything and nothing imports Phaser, so a unit test can check it and an edit mode
+ * can change it and save it as `src/data/stages.json` (the same way the FX lab saves `fx.json`).
+ *
+ * One entry of the file is one **stage**: a backdrop with its horizon, a floor painted to agree with a side-on
+ * camera, five depth rows, where the four heroes and each size of enemy group stand, the contact shadow, the
+ * sort rule, and where every HUD region sits. Mark's four reference screenshots and the three design rounds
+ * that produced it are in the design doc; this file only holds the result.
+ *
+ * A few ideas, in plain words:
+ *
+ *  - **Depth rows.** The floor is seen from above at an angle, so something standing further back is drawn
+ *    higher on the screen. A row is one such line: its `y` is where a fighter's FEET land. Rows are listed back
+ *    to front (smallest y first). A slot names a row, so moving a fighter to another row is one number, and the
+ *    fighter's height on screen follows.
+ *  - **Slots.** A slot is a place to stand: a row and an `x` (and, rarely, a small `dy` nudge). The party has
+ *    four, on the left; enemies have a slot set for each group size ("1" to "6", and "boss", "boss+1",
+ *    "boss+2"), on the right, because one big enemy stands in the middle while six stand in a crowd.
+ *  - **Depth sorting.** Whoever's feet are lower on the screen is nearer and is drawn on top. Phaser draws objects
+ *    in order of their `depth` number, so `depthFor` turns a foot position into that number. A fighter is made
+ *    of several parts (body, shadow, ring, health bar...) and they all share the fighter's number plus a small
+ *    fraction (`PART`), so the whole figure sorts as one unit: a nearer fighter covers all of a farther one,
+ *    including its health bar.
+ *  - **The HUD is data too.** Each region (the turn timeline, the party table, the command icons, the enemy
+ *    box, the skill banner, the combo counter) has a box and a rule for when it shows. The widgets that draw
+ *    them read the boxes from here.
+ *
+ * All the numbers are whole screen pixels on the stage's screen, so nothing lands between pixels. The screen is 480x270 unless a stage says
+ * otherwise with `screen` (M3 task 9: the 640x360 set `stages-640.json` and `hud-640.json`, made from the 480x270 files by `scripts/stage-640.mjs`).
+ *
+ * **The HUD is ONE layout for every battle** (`src/data/hud.json`, checked by `checkHudFile`). A stage in
+ * `stages.json` carries no HUD unless it needs to differ: then it holds `hud`, a few overrides of single boxes
+ * (`HudOverrides`). `StageEntry` is what the file holds; `StageConfig` is the same stage with the HUD filled in
+ * (`resolveStage`), which is what the scene, the HUD widgets and the editor's handles read.
+ *
+ * Besides the design the file carries a small `demo` block (who stands in the lab's party, which enemies fill
+ * each group size, and the settings of the example fight). That is the lab's own, not part of the design: a
+ * real battle is given its party and troop by the game.
+ */
+
+import { depthFor as engineDepthFor, H, PART, W } from '../sje';
+import { HUD_FIELDS, HUD_REGIONS, type HudRegionKey } from './hudpresets';
+import type { PushSpec } from './push';
+
+/** The 480x270 layout of the first stage files (Phase 0). A stage with no `screen` is laid out on it. */
+export const SCREEN_W = 480;
+export const SCREEN_H = 270;
+
+/** The size of the screen a stage is laid out on. */
+export interface ScreenSize {
+  w: number;
+  h: number;
+}
+
+/** The two layouts there are: the 480x270 one of the first files (regression parity) and the 640x360 one of the game's real screen (task 9). */
+export const SCREENS: readonly ScreenSize[] = [
+  { w: SCREEN_W, h: SCREEN_H },
+  { w: W, h: H },
+];
+
+/** The screen a stage is laid out on: its `screen`, or 480x270 when it has none (the first files have none and stay byte for byte). */
+export function screenOf(stage: { screen?: ScreenSize | undefined }): ScreenSize {
+  return stage.screen ?? { w: SCREEN_W, h: SCREEN_H };
+}
+
+/** The party is always four; groups of enemies run from 1 to 6, with an optional boss. */
+export const PARTY_SIZE = 4;
+export const MAX_ENEMIES = 6;
+
+/** The enemy slot sets every stage must have, in the order a picker lists them. */
+export const SET_KEYS = ['1', '2', '3', '4', '5', '6', 'boss', 'boss+1', 'boss+2'] as const;
+export type SetKey = (typeof SET_KEYS)[number];
+
+/** How many enemies stand in a set. */
+export function setSize(key: string): number {
+  if (key === 'boss') return 1;
+  if (key.startsWith('boss+')) return 1 + Number(key.slice(5));
+  return Number(key);
+}
+
+/** The set key for a fight of `count` enemies, the first of which is a boss or not. */
+export function setKeyFor(count: number, bossFirst: boolean): SetKey {
+  if (bossFirst) return (count <= 1 ? 'boss' : `boss+${count - 1}`) as SetKey;
+  return String(count) as SetKey;
+}
+
+export type Show = 'always' | 'input' | 'action' | 'never';
+
+/** The picture behind everything: sky, skyline, buildings, or a replacement back wall. */
+export interface StageBackdrop {
+  /** Which of the game's procedural backdrops (`src/art/battlebg.ts`). */
+  id: string;
+  /**
+   * "reproject": keep the backdrop's sky and buildings, move them by `shiftY`, and paint a new floor below the horizon.
+   * "replace": the old art is a perspective box (a tunnel), so a separate side-on back wall is painted (`wallId`).
+   */
+  mode: 'reproject' | 'replace';
+  /** Screen row where the floor's far edge meets the backdrop. Target 100 (the design allows 92 to 112). */
+  horizonY: number;
+  /** How far to move the old picture up (negative) so its own kerb row lands on `horizonY`: `horizonY` minus the picture's own kerb row. */
+  shiftY: number;
+  /** Dithered fade at the top of the screen, so tall buildings cut by the shift fade into the sky instead of a hard edge. */
+  skyFade?: { height: number; color: string; amount: number } | null;
+  /** Replacement back-wall id, used only when `mode` is "replace". */
+  wallId?: string;
+  /**
+   * A "replace" wall is painted for the 480x270 layout. On a larger screen it is placed at this offset and its edges are repeated outwards to fill the rest
+   * (the 640x360 set: 80 and 45, which centers it). Absent means no offset.
+   */
+  wallOffset?: { x: number; y: number };
+  /** Layers that slide at different speeds when the camera pans (not drawn yet; the shipped stages have none). */
+  layers?: Array<{ id: string; y: number; speed: number }>;
+  /** Optional framing drawn OVER the fighters at the screen edges (not drawn yet; the shipped stages have none). */
+  foreground?: { id: string; y: number; alpha?: number } | null;
+  /** Weather or ambient effect ("rain", "drips"), or null (named only; not drawn yet). */
+  ambient?: string | null;
+}
+
+export interface FloorGrid {
+  /** Distance between joints at the bottom of the screen. */
+  spacing: number;
+  /** Row where the joint lines would meet. Must be -200 or less, so they look nearly upright. */
+  vanishY: number;
+  color: string;
+  /** Joint strength at the horizon (0 to 1). */
+  alpha: number;
+  /** Joint strength at the camera, so joints get clearer up close. */
+  nearAlpha?: number;
+  /** Offset every other band's joints by half a slab, like laid paving. */
+  stagger?: boolean;
+}
+
+export interface FloorStripe {
+  y: number;
+  h: number;
+  color: string;
+  alpha: number;
+  /** [on, off] dash lengths in pixels, or null for solid. */
+  dash?: [number, number] | null;
+}
+
+/** The ground the fighters stand on, painted fresh so it agrees with a side-on camera. */
+export interface StageFloor {
+  /** Top of the floor (equal to `backdrop.horizonY`). A 2 px kerb is painted here: the edge colour, then a dark shadow row. */
+  y0: number;
+  /** Bottom of the floor (270; the HUD covers its lowest part). */
+  y1: number;
+  /** "bands": stripes that grow toward the camera; "grid": bands plus near-upright joints; "texture": bands with a shrinking texture. */
+  style: 'bands' | 'grid' | 'texture';
+  /** Two colours the bands alternate between. */
+  colors: [string, string];
+  /** Kerb colour along the far edge, or null. */
+  edge?: string | null;
+  /** Height in pixels of the first (furthest) band. */
+  bandStart: number;
+  /** Each band is this many times taller than the one above it (1.15 to 1.3 reads as seen from above). */
+  bandGrowth: number;
+  /** A lit dithered line on top of each band; its strength goes from `far` at the horizon to `near` at the camera (0 to 1). */
+  seam?: { color: string; far: number; near: number };
+  /** For style "grid": the slab joints. */
+  grid?: FloorGrid;
+  /** Speckle texture and how much finer it gets toward the horizon (0 to 1). */
+  texture?: { id: string; shrink: number };
+  /** A faint lit line halfway between neighbouring depth rows, so each row reads as its own lane. */
+  laneSeams?: { color: string; alpha: number } | null;
+  /** Painted lines that run LEFT TO RIGHT. Keep them behind the back row or under the HUD, never between rows. */
+  stripes?: FloorStripe[];
+  /** Puddle reflections. They are placed away from every slot so nobody stands in one. */
+  reflections?: { colors: string[]; count: number } | null;
+  /** Bright backdrop pixels mirrored into the floor just below the kerb; `streaks` adds vertical neon streaks (0 = none). */
+  neonSpill?: { reach: number; strength: number; streaks?: number } | null;
+  /** The far floor dithers toward this colour over `reach` pixels. */
+  haze?: { color: string; amount: number; reach: number } | null;
+  /** Colour wash over the whole floor, or null. */
+  tint?: { color: string; amount: number } | null;
+  /** Random seed for flecks and puddles, so a stage always looks the same. */
+  seed?: number;
+}
+
+/** One depth row: where feet land. */
+export interface DepthRow {
+  y: number;
+}
+
+/** A place to stand: a row (an index into `rows`, 0 = back), the x of the feet's middle, and an optional small nudge from the row line. */
+export interface PartySlot {
+  x: number;
+  row: number;
+  dy?: number;
+  /**
+   * Draw order override within the slot's row: 1 brings this fighter forward (drawn over a neighbour on the same
+   * row), -1 sends it back, 0 or absent leaves it to the usual rule. It is worth less than one row, so it can
+   * never lift a back-row fighter over a front-row one (`depthFor`). The editor sets it with Ctrl+] and Ctrl+[.
+   */
+  order?: -1 | 0 | 1;
+}
+
+export interface EnemySlot extends PartySlot {
+  /** "boss" slots get the boss shadow and a wider health bar. Default "regular". */
+  size?: 'regular' | 'boss';
+}
+
+/** The slot type the helpers take (a party slot or an enemy slot). */
+export type Slot = PartySlot | EnemySlot;
+
+/** The dark oval under every fighter that plants them on the floor. */
+export interface ShadowStyle {
+  kind: 'oval' | 'none';
+  /** Width as a share of the sprite's width, clamped to `minW`..`maxW`. Bosses use `bossWidthScale` up to `bossMaxW`. */
+  widthScale: number;
+  minW: number;
+  maxW: number;
+  bossWidthScale: number;
+  bossMaxW: number;
+  /** Height = width / aspect. */
+  aspect: number;
+  color: string;
+  alpha: number;
+  /** Strength of the 1 px dithered rim. */
+  edgeAlpha: number;
+  /** Ring around the acting fighter's shadow (the target gets the same ring in amber). */
+  activeRing?: { color: string; extraW: number } | null;
+}
+
+/** Haze: rows further back are blended a little toward a fog colour. */
+export interface DepthTint {
+  fog: string;
+  /** Blend per row, back row first, 0 to 0.15 each. */
+  amounts: number[];
+  /** Keep the acting fighter and its target untinted. */
+  exemptActive: boolean;
+}
+
+/** How fighters are layered when they overlap. */
+export interface SortRule {
+  /** Draw in order of feet row: higher on screen first, so lower figures cover them. */
+  by: 'feetY';
+  /** On a tie, draw the one further from the screen centre first, then party before enemies. */
+  tie: 'outerFirst';
+  /** A lunging attacker borrows its target's feet row plus this many pixels while in contact. */
+  lungeOverTarget: number;
+}
+
+export interface HudRegion {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** "always", "input" (while choosing), "action" (while an action plays), or "never". */
+  show: Show;
+  /** 0 = fully see-through, 1 = solid. */
+  opacity?: number;
+}
+
+export interface HudLayout {
+  /** The starting layout the regions override: "timeline-bottom3" is this design. */
+  preset: 'timeline-bottom3' | 'ff-strip' | 'action-left' | 'ps4-panels';
+  /** Turn order: chips on a line, party above, enemies below, NOW chip at the left. */
+  turnOrder: HudRegion & { style: 'timeline' | 'column'; chip: number; nowChip: number };
+  /** The action menu: a row of icons with a label line, or text rows. */
+  commands: HudRegion & { style: 'icons' | 'list'; icon?: number; rowH?: number };
+  /** One compact row per hero: face, name, HP bar, HP numbers, resource label and value. */
+  partyStatus: HudRegion & { style: 'rows' | 'panels'; rowH: number; face: number };
+  /** The enemy box (foe list while choosing, target details while targeting or acting), plus health bars under each enemy. */
+  enemyInfo: HudRegion & { barsOnStage: { w: number; h: number; gapBelowShadow: number } | null; names?: 'target' | 'always' | 'never' };
+  /** Skill name or input prompt. */
+  banner: HudRegion;
+  /** Hit counter and total damage. */
+  combo: HudRegion;
+  /** A name tab above the acting hero's head. */
+  activeTag?: { show: 'always' | 'never'; gapAboveHead: number };
+  /** Limits the editor warns about. */
+  limits: { maxScreenShare: number; maxBottomBand: number; minClearAboveBottom: number };
+}
+
+/** Who one lab party member is, for real numbers: a level and gear, read through the game's own stat code. */
+export interface DemoMember {
+  id: string;
+  level: number;
+  equip?: Record<string, string>;
+  /** Story flags that have passed (they unlock abilities and mend Rook), as the game's own tests set them. */
+  flags?: string[];
+}
+
+/** What the example fight does in the lab's "acting" state: who hits whom with what, and how it is drawn. */
+export interface DemoAct {
+  attacker: string;
+  /** Ability id (`src/data/abilities.ts`). */
+  skill: string;
+  /** Index of the enemy hit, in the roster of the shown set. */
+  target: number;
+  /** Which picture the hit makes. */
+  fx: 'cut' | 'palm';
+  /** How far past the target's edge the attacker's weapon or fist reaches into it (a sword reaches further than a fist). */
+  reach: number;
+}
+
+/** The lab's own settings for a stage (not part of the design). */
+export interface StageDemo {
+  /** Crew ids in party order: slot 0 (the lead, front-most hero) first. */
+  lineup: string[];
+  /** The loadouts the lab's party is built from (same order as `lineup`). */
+  party: DemoMember[];
+  /** Enemy keys (`ENEMIES`) for each group size; a boss set lists the boss first. */
+  rosters: Record<string, string[]>;
+  /** Seed of the example round (it decides the turn order the timeline shows). */
+  seed: number;
+  act: DemoAct;
+}
+
+/** Everything about how one battle stage LOOKS and where everyone STANDS, as plain data. */
+export interface StageConfig {
+  /** Format version, so old files can be upgraded later. Always 1 for now. */
+  version: 1;
+  /** Short id: the key it has in the stage file. */
+  id: string;
+  /** Human-readable name for the editor's list. */
+  name: string;
+  /** The screen this stage is laid out on (every number below is in its pixels). Absent means 480x270. */
+  screen?: ScreenSize;
+  /** The push camera on a big hit. Absent means the legacy battle's (`LEGACY_PUSH`). */
+  push?: PushSpec;
+  backdrop: StageBackdrop;
+  floor: StageFloor;
+  /** Depth rows, from the BACK (highest on screen) to the FRONT (lowest). Slots refer to rows by index (0 = back row). */
+  rows: DepthRow[];
+  /** Where the heroes stand. Index 0 = the party's lead, the front-most hero. Heroes face right. */
+  party: PartySlot[];
+  /** Where enemies stand, one layout per group size. Enemies face left. */
+  enemySets: Record<string, EnemySlot[]>;
+  shadow: ShadowStyle;
+  depthTint?: DepthTint;
+  sort: SortRule;
+  hud: HudLayout;
+  demo: StageDemo;
+  /** A note for Claude: what Mark wants from this stage, kept with the data so a later session can read it. */
+  note?: string;
+}
+
+/** The stage file as the scene reads it: every stage with the global HUD filled in. */
+export type StageFile = Record<string, StageConfig>;
+
+/** What one stage may say about one HUD box instead of the global layout: only the fields that differ. */
+export interface HudBoxOverride {
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  show?: Show;
+  opacity?: number;
+}
+
+/** A stage's HUD overrides: a few boxes, a few fields each. Absent when the stage uses the global HUD as it is. */
+export type HudOverrides = Partial<Record<HudRegionKey, HudBoxOverride>>;
+
+/** A stage without its HUD: the part of it that the editor's ground, row and slot functions work on. */
+export type StageBody = Omit<StageConfig, 'hud'>;
+
+/** One stage as `stages.json` holds it: the body, plus `hud` only when this stage overrides part of the global HUD. */
+export interface StageEntry extends StageBody {
+  hud?: HudOverrides;
+}
+
+/** The stages file as it is on disk. */
+export type EntryFile = Record<string, StageEntry>;
+
+// ------------------------------------------------------------------ checking a file
+
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const isHex = (v: unknown): v is string => typeof v === 'string' && HEX.test(v);
+
+/** What else the checker can be told exists, so a typo is caught before it silently shows nothing. */
+export interface Known {
+  /** Enemy keys (`ENEMIES`) and which of them are bosses. */
+  enemies?: readonly string[];
+  bosses?: readonly string[];
+  /** Crew ids that have a sheet. */
+  crew?: readonly string[];
+}
+
+/** Collects problems in plain words, each prefixed with where it is. */
+class Problems {
+  readonly list: string[] = [];
+  /** The screen the numbers being checked are in. A stage file sets it from the stage's own `screen` before it checks the rest. */
+  screen: ScreenSize = { w: SCREEN_W, h: SCREEN_H };
+  constructor(private readonly prefix: string) {}
+  add(path: string, msg: string): void {
+    this.list.push(`${this.prefix}${path ? ` ${path}` : ''}: ${msg}`);
+  }
+  int(path: string, v: unknown, lo: number, hi: number): v is number {
+    if (isInt(v) && v >= lo && v <= hi) return true;
+    this.add(path, `must be a whole number from ${lo} to ${hi}`);
+    return false;
+  }
+  num(path: string, v: unknown, lo: number, hi: number): v is number {
+    if (isNum(v) && v >= lo && v <= hi) return true;
+    this.add(path, `must be a number from ${lo} to ${hi}`);
+    return false;
+  }
+  hex(path: string, v: unknown): v is string {
+    if (isHex(v)) return true;
+    this.add(path, 'must look like #rrggbb');
+    return false;
+  }
+  oneOf<T extends string>(path: string, v: unknown, options: readonly T[]): v is T {
+    if (typeof v === 'string' && (options as readonly string[]).includes(v)) return true;
+    this.add(path, `must be one of ${options.join(', ')}`);
+    return false;
+  }
+  obj(path: string, v: unknown): v is Record<string, unknown> {
+    if (isObj(v)) return true;
+    this.add(path, 'is missing or not an object');
+    return false;
+  }
+}
+
+function checkFloor(p: Problems, raw: Record<string, unknown>, horizon: number | null): void {
+  const f = raw.floor;
+  if (!p.obj('floor', f)) return;
+  if (p.int('floor.y1', f.y1, 1, p.screen.h) && isInt(f.y0) && f.y1 <= f.y0) p.add('floor', 'y1 must be below y0');
+  if (p.int('floor.y0', f.y0, 0, p.screen.h) && horizon !== null && f.y0 !== horizon) p.add('floor.y0', `must equal the backdrop's horizonY (${horizon})`);
+  p.oneOf('floor.style', f.style, ['bands', 'grid', 'texture']);
+  if (!Array.isArray(f.colors) || f.colors.length !== 2 || !f.colors.every(isHex)) p.add('floor.colors', 'needs two #rrggbb colours');
+  if (f.edge !== undefined && f.edge !== null) p.hex('floor.edge', f.edge);
+  p.num('floor.bandStart', f.bandStart, 1, 20);
+  p.num('floor.bandGrowth', f.bandGrowth, 1, 2);
+  if (f.seam !== undefined) {
+    if (p.obj('floor.seam', f.seam)) {
+      p.hex('floor.seam.color', f.seam.color);
+      p.num('floor.seam.far', f.seam.far, 0, 1);
+      p.num('floor.seam.near', f.seam.near, 0, 1);
+    }
+  }
+  if (f.style === 'grid' && !isObj(f.grid)) p.add('floor.grid', 'a "grid" floor needs a grid block');
+  if (f.grid !== undefined && p.obj('floor.grid', f.grid)) {
+    p.int('floor.grid.spacing', f.grid.spacing, 8, 240);
+    if (!isNum(f.grid.vanishY) || f.grid.vanishY > -200) p.add('floor.grid.vanishY', 'must be -200 or less, so the joints look nearly upright');
+    p.hex('floor.grid.color', f.grid.color);
+    p.num('floor.grid.alpha', f.grid.alpha, 0, 1);
+    if (f.grid.nearAlpha !== undefined) p.num('floor.grid.nearAlpha', f.grid.nearAlpha, 0, 1);
+  }
+  if (isObj(f.texture)) p.num('floor.texture.shrink', f.texture.shrink, 0, 1);
+  if (isObj(f.laneSeams)) {
+    p.hex('floor.laneSeams.color', f.laneSeams.color);
+    p.num('floor.laneSeams.alpha', f.laneSeams.alpha, 0, 1);
+  }
+  if (f.stripes !== undefined) {
+    if (!Array.isArray(f.stripes)) p.add('floor.stripes', 'must be a list');
+    else
+      f.stripes.forEach((s: unknown, i) => {
+        if (!p.obj(`floor.stripes[${i}]`, s)) return;
+        p.int(`floor.stripes[${i}].y`, s.y, 0, p.screen.h);
+        p.int(`floor.stripes[${i}].h`, s.h, 1, 20);
+        p.hex(`floor.stripes[${i}].color`, s.color);
+        p.num(`floor.stripes[${i}].alpha`, s.alpha, 0, 1);
+        if (s.dash !== undefined && s.dash !== null && !(Array.isArray(s.dash) && s.dash.length === 2 && s.dash.every((n) => isInt(n) && n >= 0))) p.add(`floor.stripes[${i}].dash`, 'must be [on, off] whole numbers');
+      });
+  }
+  if (isObj(f.reflections)) {
+    if (!Array.isArray(f.reflections.colors) || !f.reflections.colors.length || !f.reflections.colors.every(isHex)) p.add('floor.reflections.colors', 'needs at least one #rrggbb colour');
+    p.int('floor.reflections.count', f.reflections.count, 0, 20);
+  }
+  if (isObj(f.neonSpill)) {
+    p.int('floor.neonSpill.reach', f.neonSpill.reach, 0, 80);
+    p.num('floor.neonSpill.strength', f.neonSpill.strength, 0, 1);
+  }
+  if (isObj(f.haze)) {
+    p.hex('floor.haze.color', f.haze.color);
+    p.num('floor.haze.amount', f.haze.amount, 0, 1);
+    p.int('floor.haze.reach', f.haze.reach, 1, 120);
+  }
+  if (f.seed !== undefined) p.int('floor.seed', f.seed, 0, 2 ** 31);
+}
+
+function checkSlots(p: Problems, path: string, slots: unknown, count: number, rowCount: number, side: 'party' | 'enemy'): void {
+  if (!Array.isArray(slots) || slots.length !== count) {
+    p.add(path, `needs exactly ${count} slots`);
+    return;
+  }
+  const seen = new Set<string>();
+  slots.forEach((s: unknown, i) => {
+    if (!isObj(s) || !isInt(s.row) || !isInt(s.x)) {
+      p.add(`${path}[${i}]`, 'needs a whole-number row and x');
+      return;
+    }
+    if (s.row < 0 || s.row >= rowCount) p.add(`${path}[${i}]`, `row ${s.row} is not one of the ${rowCount} rows`);
+    if (s.dy !== undefined && !isInt(s.dy)) p.add(`${path}[${i}]`, 'dy must be a whole number');
+    if (s.order !== undefined && s.order !== -1 && s.order !== 0 && s.order !== 1) p.add(`${path}[${i}]`, 'order must be -1, 0 or 1');
+    // The party stands on the left half of the screen and the enemies on the right.
+    if (side === 'party' ? s.x < 0 || s.x >= p.screen.w / 2 : s.x < p.screen.w / 2 || s.x > p.screen.w) p.add(`${path}[${i}]`, `x ${s.x} is on the wrong side of the screen`);
+    if (s.size !== undefined && s.size !== 'regular' && s.size !== 'boss') p.add(`${path}[${i}]`, 'size must be "regular" or "boss"');
+    const k = `${s.row}:${s.x}:${s.dy ?? 0}`;
+    if (seen.has(k)) p.add(`${path}[${i}]`, 'two fighters on the same spot');
+    seen.add(k);
+  });
+}
+
+function checkRegion(p: Problems, path: string, r: unknown): void {
+  if (!p.obj(path, r)) return;
+  const { w: sw, h: sh } = p.screen;
+  p.int(`${path}.x`, r.x, 0, sw);
+  p.int(`${path}.y`, r.y, 0, sh);
+  p.int(`${path}.w`, r.w, 1, sw);
+  p.int(`${path}.h`, r.h, 1, sh);
+  p.oneOf(`${path}.show`, r.show, ['always', 'input', 'action', 'never']);
+  if (r.opacity !== undefined) p.num(`${path}.opacity`, r.opacity, 0, 1);
+  if (isInt(r.x) && isInt(r.w) && r.x + r.w > sw) p.add(path, 'reaches past the right edge of the screen');
+  if (isInt(r.y) && isInt(r.h) && r.y + r.h > sh) p.add(path, 'reaches past the bottom edge of the screen');
+}
+
+/** The global layout (`hud.json`), checked. `base` is the name used in messages ("hud" or "layout"). */
+function checkHud(p: Problems, h: unknown, base = 'hud'): void {
+  if (!p.obj(base, h)) return;
+  p.oneOf(`${base}.preset`, h.preset, ['timeline-bottom3', 'ff-strip', 'action-left', 'ps4-panels']);
+  for (const k of HUD_REGIONS) checkRegion(p, `${base}.${k}`, h[k]);
+  if (isObj(h.turnOrder)) {
+    p.int(`${base}.turnOrder.chip`, h.turnOrder.chip, 6, 40);
+    p.int(`${base}.turnOrder.nowChip`, h.turnOrder.nowChip, 6, 40);
+  }
+  if (isObj(h.commands) && h.commands.icon !== undefined) p.int(`${base}.commands.icon`, h.commands.icon, 8, 40);
+  if (isObj(h.partyStatus)) {
+    p.int(`${base}.partyStatus.rowH`, h.partyStatus.rowH, 6, 30);
+    p.int(`${base}.partyStatus.face`, h.partyStatus.face, 4, 30);
+  }
+  if (isObj(h.enemyInfo) && isObj(h.enemyInfo.barsOnStage)) {
+    p.int(`${base}.enemyInfo.barsOnStage.w`, h.enemyInfo.barsOnStage.w, 4, 100);
+    p.int(`${base}.enemyInfo.barsOnStage.h`, h.enemyInfo.barsOnStage.h, 1, 10);
+    p.int(`${base}.enemyInfo.barsOnStage.gapBelowShadow`, h.enemyInfo.barsOnStage.gapBelowShadow, 0, 20);
+  }
+  if (!isObj(h.limits)) p.add(`${base}.limits`, 'is missing');
+}
+
+/** A stage's HUD overrides: only the six box fields, each in range. Whether the merged box still fits the screen is checked once the global layout is known (`checkStagesWith`). */
+function checkHudOverrides(p: Problems, h: unknown): void {
+  if (h === undefined) return;
+  if (!isObj(h)) {
+    p.add('hud', 'must be an object of boxes to override (or left out)');
+    return;
+  }
+  for (const [region, box] of Object.entries(h)) {
+    if (!(HUD_REGIONS as readonly string[]).includes(region)) {
+      p.add(`hud.${region}`, `is not a HUD box (the boxes are ${HUD_REGIONS.join(', ')})`);
+      continue;
+    }
+    if (!isObj(box)) {
+      p.add(`hud.${region}`, 'must be an object of fields to override');
+      continue;
+    }
+    for (const key of Object.keys(box)) if (!(HUD_FIELDS as readonly string[]).includes(key)) p.add(`hud.${region}.${key}`, `a stage can only override ${HUD_FIELDS.join(', ')} (the rest is the global layout's)`);
+    if (box.x !== undefined) p.int(`hud.${region}.x`, box.x, 0, p.screen.w);
+    if (box.y !== undefined) p.int(`hud.${region}.y`, box.y, 0, p.screen.h);
+    if (box.w !== undefined) p.int(`hud.${region}.w`, box.w, 1, p.screen.w);
+    if (box.h !== undefined) p.int(`hud.${region}.h`, box.h, 1, p.screen.h);
+    if (box.show !== undefined) p.oneOf(`hud.${region}.show`, box.show, ['always', 'input', 'action', 'never']);
+    if (box.opacity !== undefined) p.num(`hud.${region}.opacity`, box.opacity, 0, 1);
+  }
+}
+
+/**
+ * Everything wrong with the global HUD file (`src/data/hud.json`: `{ "version": 1, "layout": { ... } }`), in plain
+ * words. This is the file's own loader check: the editor's HUD endpoint and the game both use it.
+ */
+export function checkHudFile(data: unknown, screen: ScreenSize = { w: SCREEN_W, h: SCREEN_H }): string[] {
+  const p = new Problems('hud.json');
+  p.screen = screen;
+  if (!isObj(data)) return ['hud.json: must be an object with a version and a layout'];
+  if (data.version !== 1) p.add('', 'version must be 1');
+  checkHud(p, data.layout, 'layout');
+  return p.list;
+}
+
+/** The global HUD layout from the checked file; throws one readable error listing every problem. */
+export function loadHud(data: unknown, screen: ScreenSize = { w: SCREEN_W, h: SCREEN_H }): HudLayout {
+  const problems = checkHudFile(data, screen);
+  if (problems.length) throw new Error(`hud.json is not valid:\n - ${problems.join('\n - ')}`);
+  return (data as { layout: HudLayout }).layout;
+}
+
+/** The global layout with a stage's overrides laid over it: the HUD a battle on that stage uses. Returns a fresh object. */
+export function mergeHud(global: HudLayout, over?: HudOverrides): HudLayout {
+  const out = JSON.parse(JSON.stringify(global)) as HudLayout;
+  if (!over) return out;
+  for (const region of HUD_REGIONS) {
+    const box = over[region];
+    if (box) Object.assign(out[region], box);
+  }
+  return out;
+}
+
+/** A stage as the scene reads it: the entry with the global HUD (and its own overrides) filled in. */
+export function resolveStage(entry: StageEntry, global: HudLayout): StageConfig {
+  const { hud, ...body } = entry;
+  return { ...body, hud: mergeHud(global, hud) };
+}
+
+/** Every stage of a file resolved against the global HUD. */
+export function resolveStages(entries: EntryFile, global: HudLayout): StageFile {
+  return Object.fromEntries(Object.entries(entries).map(([id, e]) => [id, resolveStage(e, global)]));
+}
+
+function checkDemo(p: Problems, d: unknown, known: Known): void {
+  if (!p.obj('demo', d)) return;
+  const names = (path: string, v: unknown, min: number, max: number, list: readonly string[] | undefined, unique: boolean): void => {
+    if (!Array.isArray(v) || v.length < min || v.length > max) {
+      p.add(path, `needs ${min === max ? `exactly ${min}` : `${min} to ${max}`} names`);
+      return;
+    }
+    const seen = new Set<string>();
+    v.forEach((n: unknown, i) => {
+      if (typeof n !== 'string' || !n) p.add(`${path}[${i}]`, 'needs a name');
+      else {
+        if (list && !list.includes(n)) p.add(`${path}[${i}]`, `"${n}" is not one that exists`);
+        if (unique && seen.has(n)) p.add(`${path}[${i}]`, `"${n}" appears twice`);
+        seen.add(n);
+      }
+    });
+  };
+  names('demo.lineup', d.lineup, PARTY_SIZE, PARTY_SIZE, known.crew, true);
+  if (!Array.isArray(d.party) || d.party.length !== PARTY_SIZE) p.add('demo.party', `needs exactly ${PARTY_SIZE} members`);
+  else
+    d.party.forEach((m: unknown, i) => {
+      if (!isObj(m) || typeof m.id !== 'string' || !isInt(m.level)) p.add(`demo.party[${i}]`, 'needs an id and a whole-number level');
+      else if (Array.isArray(d.lineup) && d.lineup[i] !== m.id) p.add(`demo.party[${i}]`, `must be the same crew member as demo.lineup[${i}] ("${String(d.lineup[i])}")`);
+    });
+  if (!p.obj('demo.rosters', d.rosters)) return;
+  for (const key of SET_KEYS) {
+    const r = d.rosters[key];
+    names(`demo.rosters["${key}"]`, r, setSize(key), setSize(key), known.enemies, false);
+    if (key.startsWith('boss') && Array.isArray(r) && known.bosses && !known.bosses.includes(String(r[0]))) p.add(`demo.rosters["${key}"]`, 'a boss set must list the boss first');
+  }
+  p.int('demo.seed', d.seed, 0, 2 ** 31);
+  if (p.obj('demo.act', d.act)) {
+    if (typeof d.act.attacker !== 'string' || !d.act.attacker) p.add('demo.act.attacker', 'needs a crew id');
+    else if (Array.isArray(d.lineup) && !d.lineup.includes(d.act.attacker)) p.add('demo.act.attacker', 'is not in the lineup');
+    if (typeof d.act.skill !== 'string' || !d.act.skill) p.add('demo.act.skill', 'needs an ability id');
+    p.int('demo.act.target', d.act.target, 0, MAX_ENEMIES - 1);
+    p.oneOf('demo.act.fx', d.act.fx, ['cut', 'palm']);
+    p.int('demo.act.reach', d.act.reach, 0, 40);
+  }
+}
+
+/**
+ * Everything wrong with a stage file, in plain words (empty when it is fine). `knownBackdrops`, when given, is
+ * the list of backdrop ids the art can paint, so a typo is caught before it silently shows the default; `known`
+ * does the same for enemy keys and crew ids. This checks that the file is well-formed and can be drawn; whether
+ * the LAYOUT follows the design's rules (horizon 92 to 112, row gaps, HUD share...) is `layoutBreaks` in `rules.ts`.
+ */
+export function checkStages(data: unknown, knownBackdrops?: readonly string[], known: Known = {}): string[] {
+  if (!isObj(data) || !Object.keys(data).length) return ['stages: needs at least one stage'];
+  const out: string[] = [];
+  for (const [id, raw] of Object.entries(data)) {
+    const p = new Problems(`stage "${id}"`);
+    if (!isObj(raw)) {
+      out.push(`stage "${id}": not an object`);
+      continue;
+    }
+    if (raw.version !== 1) p.add('', 'version must be 1');
+    if (raw.screen !== undefined) {
+      const sc = raw.screen;
+      if (!isObj(sc) || !SCREENS.some((x) => x.w === sc.w && x.h === sc.h)) p.add('screen', `must be one of ${SCREENS.map((x) => `${x.w}x${x.h}`).join(', ')} (the layouts the art can paint)`);
+      else p.screen = { w: sc.w as number, h: sc.h as number };
+    }
+    if (raw.push !== undefined && p.obj('push', raw.push)) {
+      p.num('push.zoom', raw.push.zoom, 0, 0.5);
+      if (p.int('push.rampFrames', raw.push.rampFrames, 1, 60) && p.int('push.lifeFrames', raw.push.lifeFrames, 2, 120) && (raw.push.lifeFrames as number) <= (raw.push.rampFrames as number)) {
+        p.add('push.lifeFrames', 'must be more than rampFrames');
+      }
+    }
+    if (raw.note !== undefined && typeof raw.note !== 'string') p.add('note', 'must be text');
+    if (raw.id !== id) p.add('', `its id ("${String(raw.id)}") must match its key in the file`);
+    if (typeof raw.name !== 'string' || !raw.name) p.add('', 'needs a name');
+    let horizon: number | null = null;
+    if (p.obj('backdrop', raw.backdrop)) {
+      const b = raw.backdrop;
+      if (typeof b.id !== 'string' || !b.id) p.add('backdrop.id', 'needs a backdrop id');
+      else if (knownBackdrops && !knownBackdrops.includes(b.id)) p.add('backdrop.id', `"${b.id}" is not one the art can paint`);
+      if (p.oneOf('backdrop.mode', b.mode, ['reproject', 'replace']) && b.mode === 'replace' && typeof b.wallId !== 'string') p.add('backdrop.wallId', 'a "replace" backdrop needs a wallId');
+      if (p.int('backdrop.horizonY', b.horizonY, 0, p.screen.h)) horizon = b.horizonY;
+      p.int('backdrop.shiftY', b.shiftY, -p.screen.h, p.screen.h);
+      if (b.wallOffset !== undefined) {
+        if (!isObj(b.wallOffset)) p.add('backdrop.wallOffset', 'must be an object with x and y');
+        else {
+          p.int('backdrop.wallOffset.x', b.wallOffset.x, 0, p.screen.w);
+          p.int('backdrop.wallOffset.y', b.wallOffset.y, 0, p.screen.h);
+        }
+      }
+      if (isObj(b.skyFade)) {
+        p.int('backdrop.skyFade.height', b.skyFade.height, 1, 60);
+        p.hex('backdrop.skyFade.color', b.skyFade.color);
+        p.num('backdrop.skyFade.amount', b.skyFade.amount, 0, 1);
+      }
+    }
+    checkFloor(p, raw, horizon);
+    // Rows: back to front, every one inside the floor.
+    let rowCount = 0;
+    const floor = isObj(raw.floor) ? raw.floor : {};
+    if (!Array.isArray(raw.rows) || raw.rows.length < 2 || raw.rows.length > 6) p.add('rows', 'needs 2 to 6 depth rows');
+    else {
+      rowCount = raw.rows.length;
+      let prev = -1;
+      raw.rows.forEach((r: unknown, i) => {
+        if (!isObj(r) || !isInt(r.y)) {
+          p.add(`rows[${i}]`, 'needs a whole-number y');
+          return;
+        }
+        if (r.y <= prev) p.add(`rows[${i}]`, `rows go back to front, so y must grow (${r.y} after ${prev})`);
+        prev = r.y;
+        if (isInt(floor.y0) && isInt(floor.y1) && (r.y < floor.y0 || r.y > floor.y1)) p.add(`rows[${i}]`, `y ${r.y} is outside the floor`);
+      });
+    }
+    checkSlots(p, 'party', raw.party, PARTY_SIZE, rowCount, 'party');
+    if (p.obj('enemySets', raw.enemySets)) for (const key of SET_KEYS) checkSlots(p, `enemySets["${key}"]`, raw.enemySets[key], setSize(key), rowCount, 'enemy');
+    if (p.obj('shadow', raw.shadow)) {
+      const s = raw.shadow;
+      p.oneOf('shadow.kind', s.kind, ['oval', 'none']);
+      p.num('shadow.widthScale', s.widthScale, 0.1, 2);
+      p.int('shadow.minW', s.minW, 2, 100);
+      p.int('shadow.maxW', s.maxW, 2, 100);
+      p.num('shadow.bossWidthScale', s.bossWidthScale, 0.1, 2);
+      p.int('shadow.bossMaxW', s.bossMaxW, 2, 200);
+      p.num('shadow.aspect', s.aspect, 1, 10);
+      p.hex('shadow.color', s.color);
+      p.num('shadow.alpha', s.alpha, 0, 1);
+      p.num('shadow.edgeAlpha', s.edgeAlpha, 0, 1);
+      if (isObj(s.activeRing)) {
+        p.hex('shadow.activeRing.color', s.activeRing.color);
+        p.int('shadow.activeRing.extraW', s.activeRing.extraW, 0, 40);
+      }
+    }
+    if (raw.depthTint !== undefined && p.obj('depthTint', raw.depthTint)) {
+      const d = raw.depthTint;
+      p.hex('depthTint.fog', d.fog);
+      if (!Array.isArray(d.amounts) || d.amounts.length !== rowCount || !d.amounts.every((n) => isNum(n) && n >= 0 && n <= 0.15)) p.add('depthTint.amounts', `needs one number from 0 to 0.15 for each of the ${rowCount} rows`);
+      if (typeof d.exemptActive !== 'boolean') p.add('depthTint.exemptActive', 'must be true or false');
+    }
+    if (p.obj('sort', raw.sort)) {
+      p.oneOf('sort.by', raw.sort.by, ['feetY']);
+      p.oneOf('sort.tie', raw.sort.tie, ['outerFirst']);
+      p.int('sort.lungeOverTarget', raw.sort.lungeOverTarget, 0, 10);
+    }
+    checkHudOverrides(p, raw.hud);
+    checkDemo(p, raw.demo, known);
+    out.push(...p.list);
+  }
+  return out;
+}
+
+/**
+ * The stage entries checked on their own, then each one resolved against the global HUD, whose boxes (with the
+ * stage's overrides laid over them) must still fit the screen. Empty means both are fine.
+ */
+export function checkStagesWith(data: unknown, hud: HudLayout, knownBackdrops?: readonly string[], known: Known = {}): string[] {
+  const out = checkStages(data, knownBackdrops, known);
+  if (out.length || !isObj(data)) return out;
+  for (const [id, raw] of Object.entries(data)) {
+    const entry = raw as StageEntry;
+    const p = new Problems(`stage "${id}"`);
+    p.screen = screenOf(entry);
+    const merged = mergeHud(hud, entry.hud);
+    for (const k of HUD_REGIONS) if (entry.hud?.[k]) checkRegion(p, `hud.${k}`, merged[k]);
+    out.push(...p.list);
+  }
+  return out;
+}
+
+/** The stage file, checked and resolved against the global HUD. Throws a readable error listing every problem (a bad stage must not half-load). */
+export function loadStages(data: unknown, knownBackdrops: readonly string[] | undefined, known: Known, hud: HudLayout): StageFile {
+  const problems = checkStagesWith(data, hud, knownBackdrops, known);
+  if (problems.length) throw new Error(`stages.json is not valid:\n - ${problems.join('\n - ')}`);
+  return resolveStages(data as EntryFile, hud);
+}
+
+/** The stage entries as they are on disk, checked (no HUD filled in): what the editor edits. Throws like `loadStages`. */
+export function loadEntries(data: unknown, knownBackdrops?: readonly string[], known: Known = {}): EntryFile {
+  const problems = checkStages(data, knownBackdrops, known);
+  if (problems.length) throw new Error(`stages.json is not valid:\n - ${problems.join('\n - ')}`);
+  return data as EntryFile;
+}
+
+/**
+ * One resolved stage (a `StageConfig`, the HUD already filled in) checked as the file would be: the same rules, so a stage that an editor swaps into a running scene
+ * (`BattleStageScene.loadStage`) cannot be one the file would have refused. Empty means it is fine.
+ */
+export function checkStageConfig(config: StageConfig, knownBackdrops?: readonly string[], known: Known = {}): string[] {
+  const { hud, ...body } = config;
+  // The stage's own numbers by the file's rules (a file entry holds only HUD overrides, so the resolved HUD is checked apart), then every HUD box of the resolved layout.
+  const out = checkStages({ [config.id]: body }, knownBackdrops, known);
+  if (out.length > 0) return out;
+  const p = new Problems(`stage "${config.id}"`);
+  p.screen = screenOf(config);
+  for (const k of HUD_REGIONS) checkRegion(p, `hud.${k}`, hud[k]);
+  return p.list;
+}
+
+/** One stage by id, or a readable error naming the ones there are. */
+export function stageOf(file: StageFile, id: string): StageConfig {
+  const s = file[id];
+  if (!s) throw new Error(`No stage "${id}" (there is: ${Object.keys(file).join(', ')})`);
+  return s;
+}
+
+// ------------------------------------------------------------------ the sizes the design's rules need (the rules themselves are in rules.ts)
+
+/** Where the old street picture's kerb row sits on the 480x270 screen: `shiftY` is `horizonY` minus this. */
+export const ART_KERB_ROW = 132;
+
+/**
+ * Where the backdrop art's kerb row sits on a stage's screen: the art's `HORIZON + 4` world rows, shown at 2x (the 240x135 art of the 480x270 layout has HORIZON 62, the 320x180 art
+ * of the 640x360 layout has 84: `art/battlebg480.ts`, `art/battlebg.ts`). `shiftY` is `horizonY` minus this.
+ */
+export function artKerbRow(stage: { screen?: ScreenSize | undefined }): number {
+  return screenOf(stage).w === SCREEN_W ? ART_KERB_ROW : 176;
+}
+
+/** A figure's size on screen, for the rules that need it: its feet and the edges of its drawn pixels. */
+export interface FigureBox {
+  x: number;
+  y: number;
+  left: number;
+  right: number;
+  top: number;
+  boss: boolean;
+  side: 'party' | 'enemy';
+}
+
+// ------------------------------------------------------------------ slots and depth
+
+const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
+
+/** The enemy slots for a set key ("3", "boss+1"...), or a readable error. */
+export function enemySlots(stage: StageBody, key: string): EnemySlot[] {
+  const set = stage.enemySets[key];
+  if (!set) throw new Error(`Stage "${stage.name}" has no enemy slots for "${key}" (it has: ${Object.keys(stage.enemySets).join(', ')})`);
+  return set;
+}
+
+/**
+ * A slot's feet position on the screen: the row's y plus the slot's nudge, always inside the floor and the
+ * screen, even if the stage was edited so a row now sits outside it. That is how the floor's `y0` and `y1` do
+ * their job (nobody can stand on the wall or below the screen), and what an editor's drag relies on.
+ */
+export function slotPoint(stage: StageBody, slot: Slot): { x: number; y: number } {
+  const row = stage.rows[slot.row];
+  if (!row) throw new Error(`Slot names row ${slot.row}, which stage "${stage.name}" does not have`);
+  return { x: clamp(slot.x, 0, screenOf(stage).w), y: clamp(row.y + (slot.dy ?? 0), stage.floor.y0, stage.floor.y1) };
+}
+
+/**
+ * The slot a dragged fighter lands on: the nearest depth row to where the pointer is (the row snaps, the way
+ * RPG Maker snaps a troop member to its grid) and the x kept on the fighter's own half of the screen. Pure,
+ * so a test can drag without a browser.
+ */
+export function snapSlot(stage: StageBody, side: 'party' | 'enemy', x: number, y: number): { row: number; x: number } {
+  let best = 0;
+  let bestDist = Number.POSITIVE_INFINITY;
+  stage.rows.forEach((r, i) => {
+    const d = Math.abs(clamp(r.y, stage.floor.y0, stage.floor.y1) - y);
+    if (d < bestDist) {
+      best = i;
+      bestDist = d;
+    }
+  });
+  const sw = screenOf(stage).w;
+  const half = sw / 2;
+  return { row: best, x: Math.round(side === 'party' ? clamp(x, 0, half - 1) : clamp(x, half, sw)) };
+}
+
+/** A fighter's contact-shadow width: its sprite's width times the stage's share, kept between the stage's limits (a boss has its own). */
+export function shadowWidth(stage: StageBody, spriteW: number, boss: boolean): number {
+  const s = stage.shadow;
+  if (s.kind === 'none') return 0;
+  if (boss) return Math.round(Math.min(s.bossMaxW, spriteW * s.bossWidthScale));
+  return Math.round(Math.max(s.minW, Math.min(s.maxW, spriteW * s.widthScale)));
+}
+
+/** The shadow oval's height for a width. */
+export function shadowHeight(stage: StageBody, width: number): number {
+  return Math.max(4, Math.round(width / stage.shadow.aspect));
+}
+
+/**
+ * The draw-order number for a fighter whose feet are at (x, y): nearer (lower on screen) draws on top. On one
+ * row the design says the one further from the screen centre draws first (so the two nearest the middle, which
+ * overlap most, end up on top) and a hero before an enemy. Multiplied up so the tie-break never outweighs a
+ * row, and an `order` of 1 or -1 (bring forward / send back) overrides the tie-break for one fighter on its row. Every part of a fighter (shadow, ring, body, health bar...) adds its own small `PART` offset to this.
+ */
+export function depthFor(y: number, x: number, side: 'party' | 'enemy' = 'party', order: -1 | 0 | 1 = 0, screenW: number = SCREEN_W): number {
+  // The formula is the engine's (`depthFor` in src/sje/display/depth.ts, M3 task 3): rows, then the tie-break, then `order`, which moves a fighter by
+  // 1000, more than the whole tie-break range (about 480) and far less than one row (rows are at least 14 px = 14,000 apart), so it can never lift a
+  // back-row fighter over a front-row one. What stays here is the stage's own half: how close to the screen's middle a fighter stands.
+  const closeness = 240 - Math.min(240, Math.abs(x - screenW / 2));
+  return engineDepthFor(y, closeness, side === 'enemy' ? 1 : 0, order);
+}
+
+/**
+ * The feet row a fighter sorts by: its own, or while lunging in contact the target's row plus
+ * `sort.lungeOverTarget`, so the attacker's body draws over the one it is hitting.
+ */
+export function sortRow(stage: StageBody, feetY: number, lungeTargetY?: number): number {
+  return lungeTargetY === undefined ? feetY : lungeTargetY + stage.sort.lungeOverTarget;
+}
+
+/** The parts of one figure and how far each sits from the figure's own depth number (a figure's whole group stays between its neighbours' numbers). The engine's table. */
+export { PART };
+
+/** The depth number of one part of a figure. */
+export function partDepth(figureDepth: number, part: keyof typeof PART): number {
+  return figureDepth + PART[part];
+}
+
+// ------------------------------------------------------------------ foot anchors per sprite
+
+/**
+ * A foot-anchor correction for one sprite: how many of the sprite's own pixels to move the point it stands on,
+ * right (x) and down (y), from the point measured from its pixels (`feet.ts`). The Battle Stage Editor's crosshair
+ * edits this; it lives in `src/data/axes.json`, keyed by sprite (a crew id like "rook", or an enemy's sprite key
+ * like "rustfang"), because a measured foot that is one pixel off puts the whole figure one pixel off its row.
+ */
+export interface AxisShift {
+  x: number;
+  y: number;
+}
+
+export type AxesFile = Record<string, AxisShift>;
+
+/** Everything wrong with an axes file, in plain words (empty when it is fine). A shift larger than 16 px is almost certainly a mistake. */
+export function checkAxes(data: unknown): string[] {
+  if (!isObj(data)) return ['axes: must be an object of sprite names'];
+  const out: string[] = [];
+  for (const [name, v] of Object.entries(data)) {
+    if (!isObj(v) || !isInt(v.x) || !isInt(v.y)) out.push(`axes "${name}": needs whole-number x and y`);
+    else if (Math.abs(v.x) > 16 || Math.abs(v.y) > 16) out.push(`axes "${name}": a shift of more than 16 pixels is probably a mistake`);
+  }
+  return out;
+}
+
+/** The axes file, checked (throws a readable error listing every problem). */
+export function loadAxes(data: unknown): AxesFile {
+  const problems = checkAxes(data);
+  if (problems.length) throw new Error(`axes.json is not valid:\n - ${problems.join('\n - ')}`);
+  return data as AxesFile;
+}
+
+/** A sprite's shift, or none. */
+export function axisFor(axes: AxesFile, sprite: string): AxisShift {
+  return axes[sprite] ?? { x: 0, y: 0 };
+}

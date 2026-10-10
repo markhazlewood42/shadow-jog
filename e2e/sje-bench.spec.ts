@@ -21,7 +21,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { installGlCounters, openGame, sj, waitTop } from './sjegamekit';
+import { installGlCounters, openGame, sj, waitTop, waitUntil } from './sjegamekit';
 import { bareIntervals, isSoftwareName, percentile, SPEED_LINE, speedLineMisses } from './sjelabkit';
 
 const OUT = 'test-results/m1-shell';
@@ -325,6 +325,97 @@ test.describe('M1 bench (local only, real GPU)', () => {
       // The speed line (cost p95 at most 8 ms, interval p95 within 5% of a bare page) on a real GPU; on software only the stuck-loop rule.
       const misses = speedLineMisses({ bareP95, sceneP95: title.intervalP95, costP95: title.costP95, software });
       expect(misses, `the speed line (${label})`).toEqual([]);
+      expect(g.problems).toEqual([]);
+    } finally {
+      await g.close();
+    }
+  });
+  test('a live battle on the stage (fx full, 640 set, HUD and effects): the speed line, uploads, draws and binds', async ({ browser }) => {
+    test.setTimeout(240_000);
+    const g = await openGame(browser, { engine: true, init: installGlCounters, query: '&fx=full' });
+    try {
+      const { page } = g;
+      expect(await waitTop(page, 'TitleScene')).toBe(true);
+      await sj(page, "sj.stage('town')");
+      expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
+      const renderer = await sj<string>(page, 'sj.renderer.name');
+      const software = isSoftwareName(renderer);
+      expect(await sj<string>(page, 'sj.fxCounts().level'), 'the effects run at full').toBe('full');
+      // A long fight: three sewer foes. The 640 stage set is the default (no ?stageset=480).
+      await sj(page, "(sj.defineEncounter('m3bench', ['sewer_ghoul', 'sewer_ghoul', 'gutter_eel']), sj.battle('m3bench', 'sewer', false))");
+      expect(await waitTop(page, 'BattleScene')).toBe(true);
+      expect(await waitUntil(page, 'sj.battleStage !== null && sj.battleStage.figures.length > 0 && sj.game.top.mode === "round"', 60_000)).toBe(true);
+      await sj(page, '(sj.game.stop(), true)');
+      const out = await page.evaluate(
+        async ({ frames, warmup, kitSrc }) => {
+          // biome-ignore lint/suspicious/noExplicitAny: the page's own hook object, typed by the game, not by this spec.
+          const sj = (window as unknown as { __SJ__: Record<string, any> }).__SJ__;
+          const game = sj.game;
+          const gl = (window as unknown as { __gl: { draws: number; binds: number; uploads: number; uploadBytes: number } }).__gl;
+          const { measure } = new Function(`return (${kitSrc})`)()(game, gl, frames, warmup);
+          let live = 0;
+          let total = 0;
+          let rounds = 0;
+          let seq = 0;
+          // The part of a player's input that matters here: on the round menu take Auto (as the battle driver does), and confirm every results panel.
+          const play = (): void => {
+            const top = game.top;
+            total++;
+            if (top && top.constructor.name === 'BattleScene' && sj.battleStage) live++;
+            else if (top && top.constructor.name === 'FieldScene' && !sj.battleStage) {
+              sj.defineEncounter(`m3bench${++seq}`, ['sewer_ghoul', 'sewer_ghoul', 'gutter_eel']);
+              sj.battle(`m3bench${seq}`, 'sewer', false);
+              return;
+            }
+            if (!top || top.constructor.name !== 'BattleScene') return;
+            if (top.waitingConfirm) {
+              const cb = top.waitingConfirm;
+              top.waitingConfirm = null;
+              cb();
+            } else if (top.mode === 'round') {
+              rounds++;
+              top.cmds = top.autoCommands();
+              top.flow(top.executeRound());
+            }
+          };
+          const battle = await measure(play);
+          // Which layers the battle drew into on its last frame (read now: the fx system clears the flags at the start of the next draw).
+          game.draw(0);
+          const glowUsed = Boolean(game.fx.glowUsed);
+          const uiUsed = Boolean(game.fx.uiTouched);
+          // Negative control: 80 extra full draws every frame must break the line.
+          const heavy = await measure(() => {
+            play();
+            for (let k = 0; k < 80; k++) game.draw(0);
+          });
+          return { battle, heavy, live, total, rounds, glowUsed, uiUsed };
+        },
+        { frames: FRAMES, warmup: WARMUP, kitSrc: benchKit.toString() },
+      );
+      const o = out as { battle: Scenario; heavy: Scenario; live: number; total: number; rounds: number; glowUsed: boolean; uiUsed: boolean };
+      const bare = await bareIntervals(browser, FRAMES);
+      const bareP95 = percentile(bare, 0.95);
+      const label = software ? `SOFTWARE GL (${renderer}): NOT GPU numbers` : `GPU (${renderer})`;
+      const b = o.battle;
+      console.log(
+        `SJE bench, live battle fx full, 640 set [${label}], bare rAF page p95 ${bareP95.toFixed(2)} ms
+` +
+          `  interval p95 ${b.intervalP95.toFixed(2)} ms, work p50/p95 ${b.workP50.toFixed(2)}/${b.workP95.toFixed(2)} ms, cost p50/p95 ${b.costP50.toFixed(2)}/${b.costP95.toFixed(2)} ms, ` +
+          `${b.drawsPerFrame.toFixed(1)} draws, ${b.bindsPerFrame.toFixed(1)} binds, ${b.uploadsPerFrame.toFixed(2)} uploads (${Math.round(b.uploadBytesPerFrame)} bytes) per frame; ` +
+          `in battle ${o.live}/${o.total} ticks, ${o.rounds} rounds, glow ${o.glowUsed}, UI canvas ${o.uiUsed}
+` +
+          `  control (80 extra draws): interval p95 ${o.heavy.intervalP95.toFixed(2)} ms, cost p95 ${o.heavy.costP95.toFixed(2)} ms`,
+      );
+      writeFileSync(`${OUT}/bench-battle.json`, JSON.stringify({ label, renderer, software, bareP95, battle: b, heavy: o.heavy, live: o.live, total: o.total, rounds: o.rounds }, null, 2));
+      // Control: the fight was live (stage and battle scene) for the measured frames, and it played rounds with effects.
+      expect(o.live / o.total, 'the battle scene and its stage were up for the measured ticks').toBeGreaterThan(0.95);
+      expect(o.rounds, 'rounds were played, so effects ran').toBeGreaterThan(0);
+      expect(b.uploadsPerFrame, 'the effects add canvas uploads over the bare scene (control: this can fail)').toBeGreaterThan(1.5);
+      // The speed line on a real GPU; on software only the stuck-loop rule.
+      const misses = speedLineMisses({ bareP95, sceneP95: b.intervalP95, costP95: b.costP95, software });
+      expect(misses, `the speed line (${label})`).toEqual([]);
+      // Negative control: the same rule breaks when the work is heavy (real GPU only: on software the cost rule is off).
+      if (!software) expect(speedLineMisses({ bareP95, sceneP95: o.heavy.intervalP95, costP95: o.heavy.costP95, software }), 'control: 80 extra draws break the line').not.toEqual([]);
       expect(g.problems).toEqual([]);
     } finally {
       await g.close();

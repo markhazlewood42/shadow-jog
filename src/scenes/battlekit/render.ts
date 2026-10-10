@@ -21,7 +21,7 @@ import { bandGradient, drawBar, drawWindow, hpColor, UI } from '../../ui/draw';
 import { TARGET_INFO_W } from '../../ui/layout';
 import type { BattleScene } from '../battle';
 import { drawVictoryBanner } from './banner';
-import { BANNER_H, BHT, BW, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, FLOATER_BOUNCE, FLOATER_BOUNCE_FRAMES, FLOATER_BOUNCE_RATE, FLOATER_DRIFT, FLOATER_FADE_FRAMES, FLOATER_FADE_START, FLOATER_HOLD_FRAMES, FLOATER_POP, FLOATER_POP_FRAMES, FLOATER_SINK_RATE, FLOATER_TICK_SINK, HUD, IMPACT_LINE_REACH, listWindowW, MENU_ABOVE_PANEL, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LABEL_ABOVE, ORDER_LEFT, ORDER_RIGHT, ORDER_STEP_OUT, ORDER_THUMB, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, ROUND_MENU_H, WORLD_SCALE, orderStripLayout } from './geom';
+import { BANNER_H, BHT, BW, CARD_H, CARD_RAISE, CARD_W, CMD_W, DECK_CUT_LIFE, floaterMotion, HUD, IMPACT_LINE_REACH, listWindowW, MENU_ABOVE_PANEL, MENU_X, ORDER_BOTTOM, ORDER_FACE, ORDER_LABEL_ABOVE, ORDER_LEFT, ORDER_RIGHT, ORDER_STEP_OUT, ORDER_THUMB, ORDER_TOP, PANEL_Y, PARTY_BOTTOM, ROUND_MENU_H, WORLD_SCALE, orderStripLayout } from './geom';
 import { INTRO_T, ShatterIntro } from './intro';
 import { drawMiniDeck } from '../../art/deck';
 import { DISSOLVE_STEPS, ENEMY_POSE_T, artTop, dissolved, drawBig, drawLag, enemyThumb, marked, mirrored, rimOf, silhouetteCache, variant } from './sprites';
@@ -77,6 +77,10 @@ export class BattleRenderer {
   private topW = 0;
 
   render(ctx: Ctx): void {
+    if (this.s.stage) {
+      this.renderOverStage(ctx);
+      return;
+    }
     // Three layers: the backdrop (world scale), the enemies (screen resolution, drawn through a
     // 2x transform so world coordinates still place them), then the party, effects and numbers
     // (a clear world-scale layer). Creatures paint finer than the world; everything else is as was.
@@ -128,14 +132,10 @@ export class BattleRenderer {
     // Floaters
     for (const fl of this.s.floaters) {
       // Hits and labels pop up, hold and drift together (so a WEAK!/CRITICAL keeps its row over
-      // its number the whole time); only the hit bounces. DoT ticks sink.
-      const hit = fl.style === 'hit';
-      const pop = FLOATER_POP * (1 - (1 - Math.min(1, fl.t / FLOATER_POP_FRAMES)) ** 3);
-      const rise = fl.style === 'tick' ? -Math.min(FLOATER_TICK_SINK, fl.t * FLOATER_SINK_RATE) : pop + Math.max(0, fl.t - FLOATER_HOLD_FRAMES) * FLOATER_DRIFT;
-      const bounceT = fl.t - FLOATER_POP_FRAMES;
-      const bounce = hit && bounceT >= 0 && bounceT < FLOATER_BOUNCE_FRAMES ? Math.abs(Math.sin(bounceT * FLOATER_BOUNCE_RATE)) * FLOATER_BOUNCE * (1 - bounceT / FLOATER_BOUNCE_FRAMES) : 0;
-      g.globalAlpha = fl.t > FLOATER_FADE_START ? Math.max(0, 1 - (fl.t - FLOATER_FADE_START) / FLOATER_FADE_FRAMES) : 1;
-      drawText(g, fl.text, Math.round(fl.x), Math.round(fl.y - rise - bounce), { color: fl.color, align: 'center', shadow: '#0a0913' });
+      // its number the whole time); only the hit bounces. DoT ticks sink. (The rule is floaterMotion in geom.ts.)
+      const m = floaterMotion(fl.style, fl.t);
+      g.globalAlpha = m.alpha;
+      drawText(g, fl.text, Math.round(fl.x), Math.round(fl.y - m.rise - m.bounce), { color: fl.color, align: 'center', shadow: '#0a0913' });
       g.globalAlpha = 1;
     }
     ctx.imageSmoothingEnabled = false;
@@ -184,13 +184,50 @@ export class BattleRenderer {
     this.renderUi(postfx.active && postfx.ui ? postfx.ui : ctx);
   }
 
+  /**
+   * The battle under a stage (battlekit/stageseam.ts): the stage scene below draws the backdrop, the figures, the effects, the HUD and the numbers, so this draws only what is
+   * still the old UI, on a canvas that starts clear every frame: the impact frame, the intro's shattering glass, the bloom's light, then the menus, panels and cut-ins (`renderUi`).
+   */
+  private renderOverStage(ctx: Ctx): void {
+    ctx.imageSmoothingEnabled = false;
+    const shx = this.s.game.shakeX, shy = this.s.game.shakeY;
+    if (this.s.impactT > 0 && this.s.impactOn) this.renderImpact(ctx, shx, shy);
+    // The killing blow drains the frame toward red-black: the stage draws the wash from this count, which only this draw advances (as in the old picture).
+    if (this.s.defeatT > 0) this.s.defeatT++;
+    if (this.s.setup.intro && this.s.introT < INTRO_T) {
+      if (!this.shatter) this.shatter = new ShatterIntro(this.s.setup.intro);
+      this.shatter.draw(ctx, this.s.introT);
+    }
+    const dark = (this.s.setup.intro && this.s.introT < INTRO_T) || (this.s.impactT > 0 && !!this.s.impactOn);
+    const glow = dark ? null : postfx.glowLayer();
+    if (glow) {
+      postfx.bloom = 0.7 * (1 - Math.min(0.62, this.s.defeatT / 70));
+      this.renderGlow(glow, shx, shy);
+    }
+    this.renderUi(postfx.active && postfx.ui ? postfx.ui : ctx);
+  }
+
+  /**
+   * What the old picture drew into its world layer that the stage does not: the ring of a timed press closing on each target. The stage calls this with the
+   * 2D context of its effects layer (world pixels), right after the effects themselves.
+   */
+  drawOverStage(g: Ctx): void {
+    const tp = this.s.timing.prompt;
+    if (!tp || !this.s.timing.isOpen) return;
+    for (const uid of tp.targets) {
+      const p = this.s.pos(uid);
+      drawRing(g, p.x, p.y, this.s.game.frame, this.s.timing);
+    }
+  }
+
   /** The battle's light for the bloom: the backdrop's neon and every effect in flight. */
   private glowWorld: Surface | null = null;
   private renderGlow(glow: Ctx, shx: number, shy: number): void {
     this.glowWorld ??= surface(BW, BHT);
     const g = this.glowWorld.ctx;
     g.clearRect(0, 0, BW, BHT);
-    if (this.s.bg.glow) g.drawImage(this.s.bg.glow, 0, 0);
+    // Under a stage the backdrop is the stage's own picture, which the old backdrop's neon does not match: only the effects light the bloom.
+    if (this.s.bg.glow && !this.s.stage) g.drawImage(this.s.bg.glow, 0, 0);
     this.s.fx.render(g, NO_GLYPH, true);
     glow.imageSmoothingEnabled = false;
     const push = this.s.push;
@@ -210,8 +247,11 @@ export class BattleRenderer {
    */
   private renderImpact(ctx: Ctx, shx: number, shy: number): void {
     const u = this.s.impactOn!;
-    const { x, y, art } = this.s.enemyPos(u);
-    const cx = (x + art.w / 2) * WORLD_SCALE + shx, cy = (y + art.h / 2) * WORLD_SCALE + shy;
+    // Under a stage the target stands where the stage put it, and the white cut-out of the old art is not drawn (the stage's figure is not an old canvas).
+    const staged = !!this.s.stage;
+    const { x, y, art } = staged ? { x: 0, y: 0, art: null } : this.s.enemyPos(u);
+    const mid = staged ? this.s.pos(u.uid) : art ? { x: x + art.w / 2, y: y + art.h / 2 } : { x, y };
+    const cx = mid.x * WORLD_SCALE + shx, cy = mid.y * WORLD_SCALE + shy;
     ctx.fillStyle = 'rgba(8,4,16,0.86)';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = this.s.impactColor;
@@ -220,7 +260,7 @@ export class BattleRenderer {
       const r0 = 34 + (i % 3) * 10, r1 = IMPACT_LINE_REACH;
       for (let r = r0; r < r1; r += 3) ctx.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.62), i % 2 ? 1 : 2, 1);
     }
-    ctx.drawImage(silhouetteCache(art.canvas, '#ffffff'), x * WORLD_SCALE + shx, y * WORLD_SCALE + shy, art.w * WORLD_SCALE, art.h * WORLD_SCALE);
+    if (art) ctx.drawImage(silhouetteCache(art.canvas, '#ffffff'), x * WORLD_SCALE + shx, y * WORLD_SCALE + shy, art.w * WORLD_SCALE, art.h * WORLD_SCALE);
   }
 
   /** The frame the fight broke out of, shattering (built on the first intro frame). */
@@ -551,14 +591,16 @@ export class BattleRenderer {
 
   /** Top of the top-line strip: under a pinned tell when there is one. */
   private topY(): number {
-    return this.s.tell ? HUD.topYUnderTell : HUD.topY;
+    // Under a stage the top lines start below the stage HUD's top boxes (`topClear`); without one, at the frame's top as ever.
+    const base = this.s.stage ? this.s.stage.topClear : HUD.topY;
+    return this.s.tell ? base + (HUD.topYUnderTell - HUD.topY) : base;
   }
 
   /** A pinned enemy tell: an amber box across the top, with a warning mark, flashing as it arrives. */
   private renderTell(ctx: Ctx): void {
     const t = this.s.tell;
     if (!t) return;
-    const fr = HUD.frame, y = HUD.topY;
+    const fr = HUD.frame, y = this.s.stage ? this.s.stage.topClear : HUD.topY;
     const text = fitText(t.text, fr.w - 56);
     const tw = measure(text) + 34;
     const x = Math.round(fr.x + (fr.w - tw) / 2);
@@ -571,14 +613,20 @@ export class BattleRenderer {
   }
 
   private renderUi(ctx: Ctx): void {
-    if (this.s.mode !== 'intro') this.renderEnemyStatus(ctx);
-    this.renderPanel(ctx);
+    // Under a stage the HUD (the party table, the foe box and bars, the turn timeline, the small banner) is the stage's own: the old cards and strips are not drawn.
+    const staged = !!this.s.stage;
+    if (!staged) {
+      if (this.s.mode !== 'intro') this.renderEnemyStatus(ctx);
+      this.renderPanel(ctx);
+    }
     this.renderTell(ctx);
     const top = this.topY();
     const fr = HUD.frame, cx = fr.x + fr.w / 2;
     // Top line: action banner or message
-    if (this.s.banner) {
-      const b = this.s.banner;
+    // A small banner is the stage HUD's too; the big one (a band across the frame) is still drawn here.
+    const banner = staged && this.s.banner && !this.s.banner.big ? null : this.s.banner;
+    if (banner) {
+      const b = banner;
       const a = b.t < 6 ? b.t / 6 : b.t > (b.big ? 60 : 50) ? Math.max(0, 1 - (b.t - (b.big ? 60 : 50)) / 10) : 1;
       ctx.globalAlpha = a;
       if (b.big) {
@@ -603,7 +651,7 @@ export class BattleRenderer {
       drawWindow(ctx, cx - tw / 2, top, tw, 17, { plain: true });
       drawText(ctx, this.s.message.text, cx, top + 4, { align: 'center' });
     }
-    if (this.s.message && this.s.banner && !this.s.banner.big) {
+    if (this.s.message && banner && !banner.big) {
       const tw = Math.min(fr.w - 20, measure(this.s.message.text) + 24);
       drawWindow(ctx, cx - tw / 2, top + 20, tw, 17, { plain: true });
       drawText(ctx, this.s.message.text, cx, top + 24, { align: 'center' });
@@ -623,7 +671,7 @@ export class BattleRenderer {
         this.renderTargetInfo(ctx);
         break;
     }
-    if (this.s.mode === 'round' || this.s.mode === 'command' || this.s.mode === 'list' || this.s.mode === 'target' || this.s.mode === 'play') this.renderOrder(ctx);
+    if (!staged && (this.s.mode === 'round' || this.s.mode === 'command' || this.s.mode === 'list' || this.s.mode === 'target' || this.s.mode === 'play')) this.renderOrder(ctx);
     this.renderCutins(ctx);
     if (this.s.bannerStart >= 0) drawVictoryBanner(ctx, this.s.frame - this.s.bannerStart);
     if (this.s.endPanel) this.s.endPanel(ctx);

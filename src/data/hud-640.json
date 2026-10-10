@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "layout": {
+    "preset": "action-left",
+    "turnOrder": {
+      "x": 84,
+      "y": 2,
+      "w": 240,
+      "h": 43,
+      "show": "always",
+      "opacity": 0.8,
+      "style": "timeline",
+      "chip": 14,
+      "nowChip": 22
+    },
+    "commands": {
+      "x": 84,
+      "y": 316,
+      "w": 112,
+      "h": 42,
+      "show": "input",
+      "opacity": 0.8,
+      "style": "icons",
+      "icon": 18
+    },
+    "partyStatus": {
+      "x": 200,
+      "y": 316,
+      "w": 196,
+      "h": 42,
+      "show": "always",
+      "opacity": 0.8,
+      "style": "rows",
+      "rowH": 9,
+      "face": 8
+    },
+    "enemyInfo": {
+      "x": 400,
+      "y": 316,
+      "w": 156,
+      "h": 42,
+      "show": "input",
+      "opacity": 0.8,
+      "barsOnStage": {
+        "w": 32,
+        "h": 2,
+        "gapBelowShadow": 3
+      },
+      "names": "target"
+    },
+    "banner": {
+      "x": 84,
+      "y": 46,
+      "w": 200,
+      "h": 13,
+      "show": "action",
+      "opacity": 0.8
+    },
+    "combo": {
+      "x": 484,
+      "y": 2,
+      "w": 72,
+      "h": 25,
+      "show": "action",
+      "opacity": 0.8
+    },
+    "activeTag": {
+      "show": "always",
+      "gapAboveHead": 3
+    },
+    "limits": {
+      "maxScreenShare": 0.2,
+      "maxBottomBand": 44,
+      "minClearAboveBottom": 12
+    }
+  }
+}
