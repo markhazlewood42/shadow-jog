@@ -77,9 +77,15 @@ export class GlHandoff {
     }
   }
 
-  /** Before Pixi draws the frame: Pixi forgets its cached GL state. */
+  /**
+   * Before Pixi draws the frame: Pixi forgets its cached GL state. Its clear-color cache then says (0,0,0,0), but the real GL clear color is
+   * whatever the last clear left (the void color of the back buffer, the bars of the canvas). Pixi skips a clear to transparent black when its
+   * cache already says so, so a render texture the effects clear to transparent (the light of the bloom) came out void-colored. Make the real
+   * color match the cache, under the same switch as the end-of-Three fix (M2).
+   */
   beginPixi(): void {
     this.pixi.resetState();
+    if (this.clearColorFix) this.gl.clearColor(0, 0, 0, 0);
   }
 
   /**

@@ -3,7 +3,8 @@
  * (docs/engine/scene-graph.md section 6, frame-and-rendering.md 6.2).
  *
  *   screen
- *    |- worldRoot    the `world` of the opaque base scene. Screen filters run here (M2).
+ *    |- worldRoot    the `world` of the opaque base scene. Screen filters run here (M2: the `CompositeFilter`).
+ *    |- fxRoot       the effects' own layers (M2): the layer that holds a scene's UI drawn on the effects path, and the particles. No filters.
  *    |- uiRoot       the `ui` of the base scene, then the `world` and `ui` of every scene above it.
  *    |                No screen filters, no shake.
  *    `- overlayRoot  game fade, game flash, notices. Nothing else.
@@ -13,7 +14,8 @@
  * Each scene owns two containers (`world` and `ui`). This class parents them under the shared
  * roots in stack order whenever the stack changes (`layout`), so the roots only hold what is drawn.
  */
-import { Container as PixiContainer } from 'pixi.js';
+import { Container as PixiContainer, type Filter, Rectangle } from 'pixi.js';
+import { H, W } from '../core/size';
 import type { BackBuffer } from '../render/backbuffer';
 import { Container } from './container';
 import type { DisplayHost } from './gameobject';
@@ -32,13 +34,26 @@ export class Screen {
   readonly worldRoot: Container;
   readonly uiRoot: Container;
   readonly overlayRoot: Container;
+  /** @internal Owned by `FxSystem`: it adds its layers here. Between the world and the UI, so particles show over the filtered world and under the menus. */
+  readonly fxRoot = new PixiContainer({ label: 'fxRoot' });
   private readonly root = new PixiContainer({ label: 'screen' });
 
   constructor(host: DisplayHost) {
     this.worldRoot = new Container(host, 0, 0, 'worldRoot');
     this.uiRoot = new Container(host, 0, 0, 'uiRoot');
     this.overlayRoot = new Container(host, 0, 0, 'overlayRoot');
-    for (const r of [this.worldRoot, this.uiRoot, this.overlayRoot]) this.root.addChild(r._pixi);
+    this.root.addChild(this.worldRoot._pixi, this.fxRoot, this.uiRoot._pixi, this.overlayRoot._pixi);
+  }
+
+  /**
+   * Put a screen filter on the world (the composite of the effects), or take it off (null). The filter covers the whole picture, not just the
+   * area its children fill: the vignette and the dim reach the corners, and the area is the same every frame so the render texture is too.
+   */
+  setWorldFilter(filter: Filter | null): void {
+    const node = this.worldRoot._pixi;
+    node.filters = filter ? [filter] : null;
+    if (filter) node.filterArea = new Rectangle(0, 0, W, H);
+    else delete node.filterArea;
   }
 
   /**

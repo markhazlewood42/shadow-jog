@@ -386,6 +386,16 @@ Names from the engine migration (`docs/engine/`). They never show to the player.
 | **Fault isolation** | A scene that throws in its tick or draw is reported and skips that frame. 30 faulting frames in a row send the player to the title. | `src/sje/runtime/game.ts` |
 | **The DEV hook** | The extra members on `window.__SJ__` (`tree`, `step`, `frameHash`, `pixels`, `glCounts`, context loss) in a DEV build on `?engine=sje`. | `src/sje-lab/devhook.ts` |
 | **Block test** | A pixel check that every game pixel is an exact k-by-k block, or equal to the old path's pixel, at an integer ratio. | `e2e/sje-shell.spec.ts`, `e2e/gpufx.spec.ts` |
+| **`FxSystem`** | The screen effects of the new engine: shockwaves, color split, hazes, glitches, dim, flash, vignette, bloom and particles, drawn with Pixi. It keeps the `postfx` method names and signatures. | `src/sje/fx/fxsystem.ts` |
+| **`FxState`** | The pure state of the effects (the lists, the clock, `update`, `clear`, `later`, the comfort settings), with no GL and no Pixi. The old `PostFx` and the new `FxSystem` both extend it, so there is one copy of the logic. | `src/sje/fx/fxstate.ts` |
+| **`CompositeFilter`** | The one filter on the world root that draws the screen effects in a single pass. It is the old presenter's shader, ported. The engine owns the GLSL. | `src/sje/fx/compositefilter.ts` |
+| **Glow chain** | The light layer drawn into a render texture and blurred at 1/2 and 1/4 size. The composite adds it back (bloom) and the dim spares it. | `src/sje/fx/glowchain.ts` |
+| **Fx level** | What `FxSystem` draws: `full` (everything), `lite` (the stage dim and the particles; software GL on `auto`) or `none` (nothing). `?fx=full`, `?fx=lite` or `?fx=none` forces one. The setting `fxLevel` stores `none`, `auto` or `full`, never `lite`. | `src/sje/fx/fxsystem.ts` |
+| **`FxParams`** | Every number that sets the look of the effects (bloom curve, blur weights, vignette shape, dim spare gain, caps, and the decay and fade numbers of the state), in one object with today's values as defaults. The slot counts that the shader fixes are read-only. | `src/sje/fx/fxparams.ts` |
+| **Editor contract (effects)** | `loadData`, `snapshot`, `restore`, `step` and `playMoment` with no scene: what a future FX editor needs, so it needs no rewrite. | `src/sje/fx/fxsystem.ts` |
+| **Routing (`postfx`)** | `routePostfx` makes the old `postfx` singleton hand every call to `game.fx`, so scenes and `moments.ts` need no change on `?engine=sje`. | `src/sje/fx/route.ts` |
+| **`ParticleContainer`** | A Pixi container that draws many `Particle`s in one call. `FxSystem` has two (glowing and covering) over a five-shape atlas. | `src/sje/fx/fxparticles.ts` |
+| **Probe scene** | A static, colorful test scene (a checkerboard, a glow rectangle, a UI rectangle) that the effects specs draw, so a push, a split or a dim shows in the pixels. | `e2e/sjefxkit.ts` |
 
 ---
 

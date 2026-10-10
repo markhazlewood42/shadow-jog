@@ -32,7 +32,7 @@
 			"linter": { "rules": { "style": { "noNonNullAssertion": "error" } } }
 		},
 		{
-			"includes": ["src/sje/render/**", "src/sje/display/**"],
+			"includes": ["src/sje/render/**", "src/sje/display/**", "src/sje/fx/**"],
 			"linter": {
 				"rules": {
 					"style": {

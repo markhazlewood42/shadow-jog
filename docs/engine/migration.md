@@ -30,7 +30,7 @@ This file gives the path from today's engine and from the Phaser spike to the ne
 8. **Your data is read byte for byte.** `src/data/*.json` never changes in a migration step.
 9. **Every step goes through an independent verification loop** ([verification.md](verification.md)): three fresh verifier agents score a rubric written before the code. A step passes only with every pass line met, every criterion median at 7 or higher and an average of 8 or higher. The cap is 3 rounds, then the work comes to you. Since 2026-10-08 the lean loop of `CLAUDE.md` replaces this loop (Mark).
 10. **Visual updates.** Each time a test renders something, you get the screenshots right away ([verification.md](verification.md) section 4).
-11. **The editor rule** (Mark, 2026-10-05, `docs/IDEAS.md` entry 1). No decision may make a future visual editor harder. Game content is data that a tool can open and save. Content that is TypeScript today moves to data files ("Content moves to data files" after M8). Every new decision says how an editor would read and write what it changes. [decisions.md](decisions.md) records the check of every approved decision.
+11. **The editor rule** (Mark, 2026-10-05, `docs/IDEAS.md` entry 1). No decision may make a future visual editor harder. Game content is data that a tool can open and save. Content that is TypeScript today moves to data files ("Content moves to data files" after M8). Every new decision says how an editor would read and write what it changes. **The editor contract (Mark, 2026-10-09):** the goal is that Mark builds the game mostly in UI editors. So every engine system that a tool could drive (effects, stage, camera, lights, weather, UI, scripts) ships with: (a) its tunables in one plain, documented parameter object with data defaults, not constants in code or shaders; (b) content and parameters that load from and save to JSON; (c) a way to hot-reload that JSON into a running game; (d) `snapshot()` and `restore()` of its live state; (e) a deterministic `step(n)` so a tool can scrub and preview. Each milestone brief checks these. [decisions.md](decisions.md) records the check of every approved decision.
 12. **GPU timing check: once per milestone, only when the milestone changed the draw path (Mark, 2026-10-09).** CI runs no timing gate, because a software renderer says nothing about GPU timing. Instead, at the end of a milestone that changed how frames are drawn, one session runs `npm run perf` on Mark's machine (a real GPU, never in CI), once, before the milestone PR is marked ready. It records the numbers in the milestone record and fails the milestone only if the speed line breaks (interval within 5% of a bare page, cost p95 at most 8 ms). It does not run on every PR or every phase. Milestones that run it: **M1, M2, M3, M5, M6, M7** (they change the loop, the renderer, effects, the stage, the field or the presenter). **M0 (done, measured), M1b, M4 and M8 skip it** unless their diff touches `src/sje/render/`, `src/sje/display/`, `src/sje/three/` or `src/engine/gl/`. A hot-path change outside a milestone can also ask for one run, as before.
 
 ---
@@ -57,6 +57,8 @@ This file gives the path from today's engine and from the Phaser spike to the ne
 | **M6** Flip default | `?engine=sje` becomes the default. Remove the old presenter | `src/main.ts`, `src/engine/gl/`, `src/dev/fxlab.ts`, `scripts/bundle-budget.mjs`, and the specs that used `#fx` |
 | **M7** 3D mode | `ThreeHost`, `Frame3D`, `Scene3D`, the minimal test scene, `s.hack()` | `src/sje/three/`, `src/hack3d/`, `src/game/script.ts` (`ScriptApi.hack`) |
 | **M8** Remove legacy | Delete the old engine files | `src/engine/{game,display,postfx,gl}`, `LegacyScene`, `ARCHITECTURE.md`, `DEVELOPING.md` |
+| **ET** Editor port | Bring every existing editor and tool onto the new engine: FX lab (M6), Battle Stage Editor and Battle Test (M3), animation editor, art review, DEV menu. They need the editor contract (principle 11) from each system. No new tool features. | `src/dev/`, `src/battlestage/`, `src/sje-lab/`, `docs/TOOLING-UI.md` section 4.5 |
+| **Editors** (after Chapter 1) | New editors, so that Mark builds the game mostly in UI: troops and encounters, database (enemies, skills, items), maps and level editor, conversation editor, animation composer, lights and weather, game-system config. Post-Chapter 1 work. Plan and order: `docs/TOOLING-UI.md` section 4. | New tools under `src/dev/`, data files from "Content moves to data files" |
 
 The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game. The milestones diagram starts at M0 and does not show it.
 
@@ -193,6 +195,15 @@ An editor can only open and save data. Much of the game's content is TypeScript 
 - M5 is the largest and least certain port. The spike never touched the field.
 
 ---
+
+### Editors and tools (Mark, 2026-10-09)
+
+Two tracks, both planned, neither optional for the long run:
+
+1. **ET: bring the existing tools onto the new engine.** The tools were built for the old engine (the FX lab imports the old `Display`, `Game` and `postfx`). Each milestone ports the tool of its own system: the Battle Stage Editor and Battle Test with M3, the FX lab with M6 (it also needs the `#fx` removal), and the animation editor, art review and DEV menu after M6. The FX lab is NOT tested against `?engine=sje` before ET: M2 only builds the engine side so the port is easy (the editor contract). Exit check of ET: every existing tool opens, edits, saves and previews on the new engine, and the old-engine tool code is gone before M8.
+2. **Editor suite: new tools (after Chapter 1).** Mark's goal is to build the game himself, mostly in UI editors. The list and layout rules are in `docs/TOOLING-UI.md` section 4. It starts after Chapter 1 ships. Data placement for it is already in "Content moves to data files" below (enemies at M3, shops and dialogue at M4, maps at M5). The abilities and items file is still an open decision for Mark.
+
+The editor contract in principle 11 is what keeps both tracks from becoming a shoehorn job. A milestone that cannot meet it names the gap in its brief and the milestone that closes it.
 
 ## 3. Phase 0: the platform spike
 

@@ -4,7 +4,7 @@ title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
 updated: 2026-10-09
-milestone: M1
+milestone: M2
 tags: [status]
 ---
 
@@ -59,7 +59,25 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
-### Right now (2026-10-09, M1)
+### Right now (2026-10-09, M2 verified, PR open for Mark)
+
+**M2 "Effects" passed the lean loop** on branch `engine-m2-effects`. Round 1 found 4 Important (fixed in edf49a0, 5c0c45e), round 2 found none. GPU run on the RTX 4070 held the speed line (numbers in `docs/engine/tooling-and-testing.md` section 7). Bundle total set to 394 kB (measured 393.0). The record is in `docs/engine/m2-brief.md` section 6. Look note for Mark: the composite uses nearest sampling, so sub-pixel tails vanish in some effects (evidence only). Pictures: `media/m2-fx/`.
+
+**Next for agents:** after Mark merges, write the M1b brief (3D proof) on a separate branch.
+
+**Next up for Mark**
+
+1. After the PR is open: play checkpoint 2 and merge, or send work back.
+
+### Right now (2026-10-09, M1 merged, history)
+
+**M1 "Shell" is merged** ([PR #46](https://github.com/markhazlewood42/shadow-jog/pull/46)). The three spike branches are tagged `archive/engine-platform-2026-10-09`, `archive/phaser-stage-2026-10-09` and `archive/side-battle-2026-10-09` (Mark's go-ahead; the branches stay). Six M1 commits carry a `Co-Authored-By` line in `main`; Mark chose to leave them. **Next is M2 "Effects"** (`docs/engine/migration.md` M2) on branch `engine-m2-effects`, with M1b (3D proof) in parallel. Write the M2 brief with pass lines first. GPU timing check once at the end of M2.
+
+**Next up for Mark**
+
+1. Start the M2 session (the agent offers the starting prompt).
+
+### Right now (2026-10-09, M1 built, history)
 
 **Milestone M1 "Shell" is built and verified on branch `engine-m1-shell`; the PR is open for your merge.** The new engine plays title, field, battle and shop under `?engine=sje` (runtime, `LegacyScene`, integer `Display`, `fxLevel`, DEV hook). Round 1: the runner passed every hard line; the reader found 4 Important and 2 Minor findings, all fixed and re-checked in fix round 1 (b185224). GPU run (`npm run perf`, RTX 4070): the speed line holds (2D cost p95 6.9 ms, 3D 7.1 ms, interval at the bare-page value); wrapper overhead 0.015 ms for 1,000 objects. Record: `docs/engine/m1-brief.md`. Your decisions: one bigger bundle total (now 380 kB), `fit` dropped (`integer` only). Visible on the default path: the Options "Scaling" row is gone.
 

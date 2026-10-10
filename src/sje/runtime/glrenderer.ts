@@ -4,6 +4,7 @@
  * (docs/engine/frame-and-rendering.md section 6.2).
  *
  *   per frame:  GlHandoff.beginPixi()            Pixi forgets its cached GL state
+ *               beforeDraw                       the effects' own render textures (the bloom), when there are effects
  *               screen -> BackBuffer (640x360)   every filter runs in here, at game resolution
  *               BackBuffer -> canvas             one nearest sprite, whole-number scale k
  *
@@ -27,6 +28,12 @@ export interface FrameRenderer {
 }
 
 export class GlRenderer implements FrameRenderer {
+  /**
+   * Called every frame after Pixi forgot its cached GL state and before it draws the screen: the effects draw their own render textures here
+   * (the light and the blur of the bloom), so the composite filter finds them ready. Null with no effects.
+   */
+  beforeDraw: ((pixi: PixiRenderer) => void) | null = null;
+
   private constructor(
     readonly glc: GlContext,
     readonly pixi: PixiRenderer,
@@ -61,6 +68,7 @@ export class GlRenderer implements FrameRenderer {
     // and Pixi uploads the canvas textures again from their CPU copies.
     if (this.glc.lost) return;
     this.handoff.beginPixi();
+    this.beforeDraw?.(this.pixi);
     screen.drawInto(this.backBuffer);
     this.presenter.present();
   }

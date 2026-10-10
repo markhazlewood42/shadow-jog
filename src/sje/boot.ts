@@ -11,6 +11,8 @@
  *      rules. It sees the new `Game` as `LegacyGameSurface` (see gameapi.ts), which is the old `Game` as far as the game code uses it, and a thin
  *      adapter over the real `Display` (`game.scale`, integer scale only) in the shape of the old one. That cast is the one unchecked seam of
  *      the migration; `tests/sje-game.test.ts` pins both sides to the interface.
+ *      Before that, the effects (M2): `postfx`, the singleton that scenes and `moments.ts` call, is routed to `game.fx` (`fx/route.ts`), and the
+ *      presets and moments of `fx.json` are loaded into it (`loadData`), so `FxSystem.playMoment` works by name. No `#fx` overlay canvas exists on this path.
  *   4. In a DEV build only, add the engine's members to `window.__SJ__` (`src/sje-lab/devhook.ts`, interfaces.md section 14). A shipped build
  *      never loads that file (the import sits behind `import.meta.env.DEV`).
  */
@@ -20,10 +22,24 @@ import { notice, reportError } from '../engine/errors';
 import { SHAKE_PIXEL_GAIN, type Game as OldGame } from '../engine/game';
 import { Input } from '../engine/input';
 import { perf } from '../engine/perf';
+import { postfx } from '../engine/postfx';
 import { shakeOffset } from '../engine/shake';
+import { FX } from '../data/fx';
 import { settings } from '../game/settings';
 import { drawNotice } from '../noticeoverlay';
+import type { FxRequest } from './fx/fxsystem';
+import { routePostfx } from './fx/route';
 import { Game } from './runtime/game';
+
+/**
+ * `?fx=full|lite|none` forces the effects level (tests, and a look at what a software renderer gets). Anything else leaves the setting alone.
+ * It is for development and tests only, and it ships in the build: while it is set it wins over the player's setting, and over the Options toggle
+ * (`display.setGpu`), so with `?fx=none` the toggle cannot turn the effects on.
+ */
+function forcedFx(): FxRequest | null {
+  const v = new URLSearchParams(location.search).get('fx');
+  return v === 'full' || v === 'lite' || v === 'none' ? v : null;
+}
 
 /** The part of the old `Display` that `src/boot.ts` and the dev routes call, over the new `Display`. */
 interface DisplayAdapter {
@@ -45,7 +61,7 @@ export async function startSje(markStarted: () => void): Promise<void> {
   const game = await Game.create({
     parent: stage,
     input,
-    fxLevel: settings.fxLevel,
+    fxLevel: forcedFx() ?? settings.fxLevel, // the ?fx= override wins over the setting: dev and test only (see forcedFx)
     dev: import.meta.env.DEV,
     compat: {
       reportError,
@@ -62,15 +78,18 @@ export async function startSje(markStarted: () => void): Promise<void> {
   const display: DisplayAdapter = {
     mode: 'integer',
     resize: () => game.scale.refit(),
-    // No effects exist on this path until M2, so nothing is drawn. The level is kept, so the DEV hook and the Options toggle agree. Saying "on" keeps
-    // the Options toggle from showing a wrong reason.
+    // Switches the effects (M2). On means the level the ?fx= override (dev and test only) or the player asked for; `auto` there can still end up as `lite` on a software renderer.
     setGpu: (on) => {
-      game.fxLevel = on ? (settings.fxLevel === 'none' ? 'auto' : settings.fxLevel) : 'none';
-      return on;
+      game.fxLevel = on ? (forcedFx() ?? (settings.fxLevel === 'none' ? 'auto' : settings.fxLevel)) : 'none';
+      return game.fx.active;
     },
     toGame: (x, y) => game.scale.toGame(x, y),
     element: canvas,
   };
+  // The effects: `postfx` becomes `game.fx`, and `game.fx` gets the data. `src/boot.ts` sets the comfort settings and calls `postfx.update()` once a tick.
+  const problems = game.fx.loadData(FX);
+  if (problems.length > 0) throw new Error(`src/data/fx.json is not valid: ${problems.join('; ')}`);
+  routePostfx(postfx, () => game.fx);
   // The notice overlay, as `main.ts` registers it on the old path.
   game.overlays.push(drawNotice);
   bootGame(game as unknown as OldGame, display as unknown as OldDisplay);

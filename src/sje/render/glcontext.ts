@@ -29,6 +29,23 @@ export interface GlContext {
   forceRestore(): void;
 }
 
+/**
+ * Renderer names of WebGL drawn on the CPU (no GPU, or one the browser will not use). The effects level `auto` picks `lite` on one of these
+ * (`FxSystem`), and the old presenter refuses them (src/engine/gl/presenter.ts re-exports this). One copy of the pattern.
+ */
+export const SOFTWARE_GL = /swiftshader|llvmpipe|softpipe|software|basic render driver/i;
+
+/**
+ * The driver's name where the browser says it (the unmasked renderer), else the generic one. Firefox deprecates the debug extension and logs a
+ * warning for each use, so it gets the generic name; a lost context has no extensions.
+ */
+export function glRendererName(glc: GlContext): string {
+  const gl = glc.gl;
+  if (glc.lost) return 'webgl2 (context lost)';
+  const ext = /firefox/i.test(navigator.userAgent) ? null : gl.getExtension('WEBGL_debug_renderer_info');
+  return String(gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? '');
+}
+
 const ATTRIBUTES: WebGLContextAttributes = {
   stencil: true,
   antialias: false,

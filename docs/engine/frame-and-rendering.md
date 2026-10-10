@@ -268,9 +268,9 @@ The new home is `FxSystem` (level 2). It keeps the `postfx` method names **and s
 
 | Part | Design | Status |
 |---|---|---|
-| Screen composite | One `CompositeFilter`: a port of the presenter shader with the same data slots (4 shockwave rings, 4 hazes, 2 glitches, color split, dim that spares lit pixels, flash, vignette). One pass. | Recommended (E4). Not built. |
-| Bloom | A glow render texture from the `scene.glow` layer, blurred at 1/2 and 1/4 size, added in the composite. Only lit pixels bloom, as today. | Not built. |
-| Particles | `ParticleContainer` with `Particle`. Seeded visual RNG. | Not built. |
+| Screen composite | One `CompositeFilter`: a port of the presenter shader with the same data slots (4 shockwave rings, 4 hazes, 2 glitches, color split, dim that spares lit pixels, flash, vignette). One pass. | Built (M2): `src/sje/fx/compositefilter.ts`, shader in `src/sje/render/shaders/composite.ts`. |
+| Bloom | A glow render texture from the `scene.glow` layer, blurred at 1/2 and 1/4 size, added in the composite. Only lit pixels bloom, as today. | Built (M2): `src/sje/fx/glowchain.ts`. |
+| Particles | `ParticleContainer` with `Particle`. Seeded visual RNG. | Built (M2): `src/sje/fx/fxparticles.ts`, two containers (glowing, covering) over a five-shape atlas. |
 | Per-object effects | `Effect` wrappers over Pixi filters (hit flash, ripple, outline). | Lab: filters run on SwiftShader. |
 | Community filters | `pixi-filters` 6.1.5 (last release 2025-11-29) only behind our `Effect` wrapper, or as vendored GLSL. A Pixi upgrade must not depend on it. | See E18. |
 

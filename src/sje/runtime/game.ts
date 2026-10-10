@@ -30,8 +30,11 @@
  *
  * `scale` is the `Display`: integer mode only (Mark, 2026-10-09). It redraws the frame after every resize, because resizing a canvas clears it.
  *
- * Not built yet: `fx` (the effects system, M2), `audio` (the bridge, with the first native scene), `registry`, the destroy queue, the 3D scene
- * (M1b). `fxLevel` is stored and shown by the DEV hook; nothing draws an effect until M2.
+ * `fx` is the effects system (M2, src/sje/fx/fxsystem.ts). `Game.create` gives it the GPU. A `Game` made by hand (a test) has one with no GPU: its
+ * state works, nothing is drawn. `draw` starts each frame's layers (`fx.beginFrame`); the renderer calls `fx.prepare` before it draws the screen.
+ * The state step, `fx.update()`, is NOT called here: the game's ticker does it through `postfx` (see fxsystem.ts).
+ *
+ * Not built yet: `audio` (the bridge, with the first native scene), `registry`, the destroy queue, the 3D scene (M1b).
  */
 import { EventEmitter } from '../core/eventemitter';
 import { FixedLoop, type FixedLoopOptions } from '../core/fixedloop';
@@ -41,6 +44,8 @@ import type { DisplayHost } from '../display/gameobject';
 import { Graphics } from '../display/graphics';
 import { Screen } from '../display/screen';
 import { TextureManager } from '../display/texturemanager';
+import { FxSystem, type FxLevel, type FxRequest } from '../fx/fxsystem';
+import { glRendererName } from '../render/glcontext';
 import type { Input } from '../../engine/input';
 import { Display } from './display';
 import type { AnyLegacy, LegacyGameSurface, LegacyShape, ShakeDirection } from './gameapi';
@@ -55,16 +60,16 @@ import { GameFx, type LegacyCompat } from './screenfx';
 /** Consecutive faulting ticks (or draws) before the game gives up on the current flow. The same number as the old engine's. */
 export const FAULT_LIMIT = 30;
 
-/** `lite` is never in `settings.fxLevel`; it is the level that `auto` will pick on software GL once M2 draws effects (interfaces.check.ts), so the type has it now. */
-export type FxLevel = 'full' | 'lite' | 'none';
+/** `lite` is never in `settings.fxLevel`; it is the level that `auto` picks on software GL (src/sje/fx/fxsystem.ts). */
+export type { FxLevel };
 
 export interface GameConfig {
   /** Where the canvas goes. It must be positioned (fixed, absolute or relative) and fill the window. */
   parent: HTMLElement;
   /** The old `Input` (keyboard, gamepad, touch). The new engine wraps it, it does not copy it. */
   input: Input;
-  /** Effects level, from `settings.fxLevel`. Stored until M2 draws effects. @ours */
-  fxLevel?: 'auto' | FxLevel;
+  /** Effects level, from `settings.fxLevel`, or forced (`?fx=full`). `auto` picks `lite` on software GL. @ours */
+  fxLevel?: FxRequest;
   /** Visual randomness only. @ours */
   seed?: number;
   /** Dev builds: the hook, extra checks. @ours */
@@ -141,8 +146,8 @@ export class Game implements DisplayHost, LegacyGameSurface {
   flashScale: () => number = () => 1;
   /** Called once when something keeps throwing (see FAULT_LIMIT). */
   onFault: (() => void) | null = null;
-  /** The effects level from the config (and the setting). Nothing draws an effect until M2. */
-  fxLevel: 'auto' | FxLevel = 'auto';
+  /** The screen effects (src/sje/fx/fxsystem.ts). `Game.create` gives it the GPU; a hand-made `Game` has the headless one (state only, nothing drawn). */
+  fx: FxSystem = new FxSystem();
 
   private readonly loop: FixedLoop;
   private readonly compat: LegacyCompat;
@@ -200,11 +205,25 @@ export class Game implements DisplayHost, LegacyGameSurface {
     }
     const scale = new Display(renderer);
     const game = new Game({ renderer, scale, input: config.input, ...(config.compat ? { compat: config.compat } : {}) });
-    if (config.fxLevel) game.fxLevel = config.fxLevel;
+    game.startFx(renderer, config.fxLevel ?? 'auto', config.seed);
     renderer.glc.on('lost', () => game.events.emit('contextlost'));
     renderer.glc.on('restored', () => game.events.emit('contextrestored'));
     scale.attach(config.parent);
     return game;
+  }
+
+  /** The effects level that was asked for (`auto`, `full`, `lite`, `none`). Setting it switches the effects at once; `fx.level` is what is drawn. */
+  get fxLevel(): FxRequest {
+    return this.fx.request;
+  }
+  set fxLevel(v: FxRequest) {
+    this.fx.setLevel(v);
+  }
+
+  /** Give the effects the GPU: the Pixi renderer, the screen and the context's name. Called once by `Game.create`. */
+  private startFx(renderer: GlRenderer, request: FxRequest, seed?: number): void {
+    this.fx = new FxSystem({ gpu: { pixi: renderer.pixi, screen: this.screen, host: this, rendererName: glRendererName(renderer.glc) }, request, ...(seed !== undefined ? { seed } : {}) });
+    renderer.beforeDraw = (pixi) => this.fx.prepare(pixi);
   }
 
   /** Ticks per loop step. Debug and tests only. */
@@ -393,6 +412,12 @@ export class Game implements DisplayHost, LegacyGameSurface {
   /** The draw phase: scene `prerender` handlers and camera transforms, then draw and present. */
   draw(alpha = 0): void {
     this.faultedThisRender = false;
+    // Fresh effect layers before any scene draws, and the game flash for the composite (it washes the world, not the UI).
+    this.fx.beginFrame();
+    if (this.fx.compositing) {
+      this.fx.flashColor = this.gfx.flashColor;
+      this.fx.flashAlpha = this.gfx.flashAlpha(this.flashScale());
+    }
     this.gfx.prepare(this.shakeScale());
     this.guardDraw(() => this.events.emit('prerender', alpha));
     this.scene.prerender();
@@ -421,10 +446,15 @@ export class Game implements DisplayHost, LegacyGameSurface {
    * engine's order. Overlays that throw are reported and dropped.
    */
   paintTop(ctx: CanvasRenderingContext2D): void {
-    this.gfx.paint(ctx, this.flashScale());
+    // With the composite on, the flash is the composite's (set in `draw`), and the fade and the notices go in the effects' UI layer so the
+    // shockwaves do not bend them: as in the old engine. That layer sits under every scene above the base, so it is only right when the base is the
+    // topmost drawn scene; otherwise that scene's own canvas (already above the filtered world) carries them.
+    const layer = this.fx.compositing && this.scene.topVisible === this.scene.base ? this.fx.ui : null;
+    const target = layer ?? ctx;
+    this.gfx.paint(target, this.flashScale(), !this.fx.compositing);
     for (let i = 0; i < this.overlays.length; i++) {
       try {
-        this.overlays[i]?.(ctx);
+        this.overlays[i]?.(target);
       } catch (e) {
         this.reportFault(null, e, 'tick');
         this.overlays.splice(i--, 1);
@@ -488,7 +518,7 @@ export class Game implements DisplayHost, LegacyGameSurface {
         this.screen.overlayRoot.add(this.washGfx);
       }
       this.washGfx.visible = true;
-      this.gfx.paintNative(this.washGfx, this.flashScale());
+      this.gfx.paintNative(this.washGfx, this.flashScale(), !this.fx.compositing);
     } else if (this.washGfx) this.washGfx.visible = false;
     if (this.overlays.length === 0) {
       if (this.overlayLayer) this.overlayLayer.visible = false;

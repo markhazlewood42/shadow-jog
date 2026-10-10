@@ -113,7 +113,11 @@ test.describe('the real game on the new engine', () => {
         try {
           const { page } = g;
           expect(await waitUntil(page, 'sj.game.stack.length > 0', 30_000)).toBe(true);
-          if (!engine) await sj(page, 'sj.gpu(false)');
+          // Pin the same effects level on both paths: none. Since M2 the new path draws its effects by default (the vignette darkens the middle of the
+          // title by a few levels, a bloom can add light), the old path with gpu(false) draws none. The premise of this test is the base picture, the
+          // same pixels, so the effects are off on both. The effects have their own pixel tests (e2e/sje-fx.spec.ts).
+          await sj(page, 'sj.gpu(false)');
+          if (engine) expect(await sj<string>(page, 'sj.renderer.fxLevel'), 'the new path runs with no effects').toBe('none');
           await advance(page, 700);
           expect(await sj<string>(page, 'sj.top()')).toBe('TitleScene');
           const png = await page.screenshot();
@@ -274,9 +278,9 @@ test.describe('the real game on the new engine', () => {
       await freeze(page);
       const kinds = await sj<Record<string, string>>(page, `Object.fromEntries(['hooks', 'tree', 'step', 'frameHash', 'pixels', 'glCounts', 'renderer', 'forceContextLoss', 'forceContextRestore', 'canvasPixels'].map((k) => [k, typeof sj[k]]))`);
       expect(kinds).toEqual({ hooks: 'object', tree: 'function', step: 'function', frameHash: 'function', pixels: 'function', glCounts: 'function', renderer: 'object', forceContextLoss: 'function', forceContextRestore: 'function', canvasPixels: 'function' });
-      // The tree has the three roots, and a legacy scene's canvas image shows as a Sprite.
+      // The tree has the four roots (the effects' own layers, `fxRoot`, since M2), and a legacy scene's canvas image shows as a Sprite.
       const roots = await sj<string[]>(page, 'sj.tree().children.map((c) => c.label)');
-      expect(roots).toEqual(['worldRoot', 'uiRoot', 'overlayRoot']);
+      expect(roots).toEqual(['worldRoot', 'fxRoot', 'uiRoot', 'overlayRoot']);
       expect(await sj<number>(page, 'JSON.stringify(sj.tree()).split("Sprite").length - 1')).toBeGreaterThan(0);
       // hooks: onTick sees ticks until it is removed.
       const counts = await sj<number[]>(page, `(() => { let n = 0; const off = sj.hooks.onTick(() => n++); sj.step(3); const a = n; off(); sj.step(3); return [a, n]; })()`);

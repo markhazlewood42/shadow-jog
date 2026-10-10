@@ -12,7 +12,7 @@
     { "file": "src/data/maps/world.ts", "token": 180, "match": "cred:", "reason": "money in a crate" },
     { "file": "src/game/stages.ts", "token": 640, "match": "state.cred", "reason": "money for a stage preset" },
     { "file": "src/engine/color.ts", "token": [180, 240, 360], "reason": "hue in degrees (HSL math)" },
-    { "file": "src/engine/particles.ts", "token": [180, 360], "reason": "degrees: launch angle and spread, converted to radians" },
+    { "file": "src/sje/fx/particles.ts", "token": [180, 360], "reason": "degrees: launch angle and spread, converted to radians" },
     { "file": "src/art/rig2/battle.ts", "token": [180, 360], "reason": "degrees: joint angles and the radian conversion" },
     { "file": "src/art/rig2/rig.ts", "token": 180, "reason": "degrees to radians" },
     { "file": "src/dev/rigedit.ts", "token": [180, 360], "reason": "degrees: angle sliders and the radian conversion" },

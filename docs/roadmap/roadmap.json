@@ -64,11 +64,11 @@
       "kind": "milestone",
       "label": "Shell",
       "lane": "engine",
-      "status": "active",
+      "status": "done",
       "after": [
         "M0"
       ],
-      "notes": "Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. GPU timing check (npm run perf) once at the end, not in CI.",
+      "notes": "Loop, renderer, scene stack, LegacyScene adapter. Behind the ?engine=sje flag. Merged in PR #46; GPU line held.",
       "branch": "engine-m1-shell"
     },
     {
@@ -76,11 +76,12 @@
       "kind": "milestone",
       "label": "Effects",
       "lane": "engine",
-      "status": "later",
+      "status": "active",
       "after": [
         "M1"
       ],
-      "notes": "FxSystem with the postfx facade, composite filter, particles. GPU timing check (npm run perf) once at the end, not in CI."
+      "notes": "FxSystem with the postfx facade, composite filter, particles. GPU timing check (npm run perf) once at the end, not in CI. Built on branch engine-m2-effects; GPU line held (2026-10-09).",
+      "branch": "engine-m2-effects"
     },
     {
       "id": "M3",
@@ -135,7 +136,8 @@
       "lane": "engine",
       "status": "later",
       "after": [
-        "M7"
+        "M7",
+        "ET"
       ],
       "notes": "Delete the old engine files."
     },
@@ -241,6 +243,28 @@
       "after": [],
       "column": 4,
       "notes": "An upstream bug report for the plasma-ui canvas width (R28), if Mark wants one."
+    },
+    {
+      "id": "ET",
+      "kind": "milestone",
+      "label": "Editor port",
+      "lane": "side",
+      "status": "later",
+      "after": [
+        "M6"
+      ],
+      "notes": "Bring every existing editor and tool onto the new engine (FX lab with M6, Battle Stage Editor with M3, then animation editor, art review, DEV menu). Needs the editor contract of principle 11. Gone from the old engine before M8."
+    },
+    {
+      "id": "Editors",
+      "kind": "milestone",
+      "label": "Editor suite",
+      "lane": "side",
+      "status": "later",
+      "after": [
+        "ET"
+      ],
+      "notes": "After Chapter 1. New UI editors so Mark builds the game mostly in tools: troops, database, maps, conversations, animation composer, lights and weather. Plan: docs/TOOLING-UI.md section 4."
     }
   ]
 }
