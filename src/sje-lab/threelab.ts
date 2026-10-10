@@ -6,11 +6,11 @@
  * loads it with a dynamic `import()` (see `hook.ts`), so the lab's first download holds no Three, as the
  * real game's will not (tests/sje-imports.test.ts checks both).
  *
- * M0 builds no `Scene3D`: that needs the scene runtime (`Scene`), which comes with M1 and M1b. The lab
- * drives the frame itself: Three renders the cube into the frame's target just before Pixi draws the screen.
+ * Since M1b the cube is a real `Scene3D` (cubescene.ts) that runs on a `Game` over the lab's renderer: the lab attaches the game, so its
+ * ticks and its draws go through the scene runtime (`Game.advanceTick` and `Game.draw`: `prerender` renders the 3D frame, then Pixi draws).
+ * The bare-frame check that needs a frame to outlive a lost context (the rewrap canary) still drives a `Frame3D` by hand.
  */
 import {
-  BoxGeometry,
   Color,
   ColorManagement,
   LinearFilter,
@@ -19,14 +19,14 @@ import {
   MeshBasicMaterial,
   NearestFilter,
   OrthographicCamera,
-  PerspectiveCamera,
   PlaneGeometry,
   Scene as ThreeScene,
   WebGLRenderer,
   WebGLRenderTarget,
 } from 'three';
-import { colorMatrixEffect, Container, ExternalFrameTexture, Graphics, H, type Pixels, View3D, W } from '../sje';
-import { createFrame3D, disposeObject3D, type Frame3D, type Frame3DPreference, frame3dTestSeams, hostsCreated, releaseGpuData, ThreeHost } from '../sje/three';
+import { colorMatrixEffect, Container, ExternalFrameTexture, Game, type GameParts, Graphics, H, type Pixels, View3D, W } from '../sje';
+import { createFrame3D, disposeObject3D, type Frame3D, type Frame3DPreference, frame3dTestSeams, type HackResult, hostsCreated, releaseGpuData, ThreeHost } from '../sje/three';
+import { buildCubeWorld, CUBE_BACKGROUND, CubeScene } from './cubescene';
 import type { GlCounts } from './glcounter';
 import type { Lab } from './lab';
 import { fingerprint, toBase64, words } from './pixeltools';
@@ -50,6 +50,8 @@ export interface StartOptions {
   background?: number;
   /** Add the bloom pass (default true). The exact-pixel canaries turn it off. */
   bloom?: boolean;
+  /** TEST ONLY, the Scene3D leak check's control: the cube scene never frees its frame at shutdown. */
+  skipDispose?: boolean;
 }
 
 export interface StaleClearResult {
@@ -124,6 +126,14 @@ export interface ThreeLab {
   hosts(): { shared: number; private: number };
   /** Draw the 3D frame `n` more times per draw (the negative control of the speed line). 0 turns it off. */
   extraRenders(n: number): void;
+  /** Put a Pixi effect (invert) and an iris mask on the running scene's `View3D`, or take them off. `parts` turns one half off (the mask check's control). */
+  setFilterAndMask(on: boolean, parts?: { filter?: boolean; mask?: boolean }): void;
+  /** The result of the cube scene that ran last, or null while it runs (or if none ran). */
+  sceneResult(): HackResult | null;
+  /** Is the cube scene on the game's stack right now? False once it ended (by `stop`, or early). */
+  sceneRunning(): boolean;
+  /** One pixel of the running scene's 3D target (before Pixi touches it), as [r, g, b]. */
+  targetPixel(x: number, y: number): number[];
 }
 
 type StaleResult = StaleClearResult;
@@ -133,9 +143,16 @@ type StaleResult = StaleClearResult;
 const CANARY = { rectA: { x: 150, y: 170, w: 50, h: 50 }, rectB: { x: 280, y: 170, w: 50, h: 50 }, gap: { x: 205, y: 175, w: 70, h: 40 } };
 const rgb = (n: number): number[] => [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 
+/** A Game's input: the scene runtime polls it every tick. The lab has no keyboard, so every call does nothing. */
+const noInput = { update: () => undefined, endFrame: () => undefined, consume: () => undefined } as unknown as GameParts['input'];
+
 export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
   const { renderer } = lab;
-  let running: { frame: Frame3D; scene: ThreeScene; cube: Mesh; before: () => void; onLost: () => void } | null = null;
+  /** The cube scene, on a Game of its own over the lab's renderer. */
+  let running: { game: Game; scene: CubeScene; onLost: () => void } | null = null;
+  let lastResult: HackResult | null = null;
+  /** A bare Frame3D, driven by hand (only the rewrap canary: a scene ends on a lost context, a bare frame must come back). */
+  let bare: { frame: Frame3D; scene: ThreeScene; before: () => void; onLost: () => void } | null = null;
   let extra = 0;
 
   const at = (p: Pixels, x: number, y: number): number[] => {
@@ -143,47 +160,100 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
     return [p.data[i] ?? 0, p.data[i + 1] ?? 0, p.data[i + 2] ?? 0];
   };
 
+  /** The cube scene is on the stack. */
+  const alive = (): boolean => running !== null && !running.scene.closed;
+
   const stop = (): void => {
     if (!running) return;
     const r = running;
     running = null;
+    // Closing the scene is what frees it (shutdown: the frame, then the Three objects). A scene that ended early is closed already.
+    r.scene.endEarly('user');
+    renderer.glc.off('lost', r.onLost);
+    lab.detachGame();
+    // This game lives for one session. Its screen owns a render group (batch buffers and a vertex array): free it, or each session leaks them.
+    r.game.screen.destroy();
+  };
+
+  const facts = (): FrameFacts | null => (running && alive() ? running.scene.describeFrame() : null);
+
+  const start = (options: StartOptions = {}): FrameFacts => {
+    if (bare) throw new Error('ThreeLab.start: a bare frame is running');
+    // A scene that ended on its own (a lost context) is cleaned up here, so the next start is not refused.
+    if (running && !alive()) stop();
+    if (running) throw new Error('ThreeLab.start: a frame is already running');
+    const game = new Game({ renderer, textures: lab.host.textures, input: noInput });
+    // What `Game.create` does for the real game: tell the scenes when the context goes.
+    const onLost = (): void => void game.events.emit('contextlost');
+    renderer.glc.on('lost', onLost);
+    // `run` reports a failure of `create` through a promise, which is too late for a sync `start`: keep the frame's own error here.
+    let failure: unknown = null;
+    const scene = new CubeScene({
+      makeFrame: (setup, host) => {
+        try {
+          return createFrame3D(renderer, host, setup, options.frame ?? 'auto');
+        } catch (e) {
+          failure = e;
+          throw e;
+        }
+      },
+      background: options.background ?? CUBE_BACKGROUND,
+      bloom: options.bloom !== false,
+      ...(options.skipDispose ? { skipDispose: true } : {}),
+    });
+    lab.attachGame(game);
+    running = { game, scene, onLost };
+    lastResult = null;
+    scene.setExtraRenders(extra);
+    // `run` makes the scene in this call (init, preload, create). The promise settles when the scene closes.
+    game.run(scene).then(
+      (r) => {
+        lastResult = r;
+      },
+      // A failure of the frame is thrown to the caller below; any other failure of `create` is logged.
+      (e: unknown) => {
+        if (failure === null) console.error('[lab] the cube scene failed to start', e);
+      },
+    );
+    if (scene.closed) {
+      stop();
+      throw failure instanceof Error ? failure : new Error('ThreeLab.start: the cube scene did not start (see the console)');
+    }
+    return facts() as FrameFacts;
+  };
+
+  /** A bare frame over the cube world, drawn by hand before each draw. */
+  const startBare = (options: StartOptions): { frame: Frame3D } => {
+    if (running || bare) throw new Error('ThreeLab: a frame is already running');
+    const world = new ThreeScene();
+    const { camera } = buildCubeWorld(world, options.background ?? CUBE_BACKGROUND);
+    const frame = createFrame3D(renderer, lab.host, { scene: world, camera, bloom: options.bloom === false ? null : { strength: 0.5, radius: 0.4, threshold: 0.85 } }, options.frame ?? 'auto');
+    frame.sprite.setDepth(20);
+    lab.screen.worldRoot.add(frame.sprite);
+    const before = (): void => {
+      for (let i = 0; i <= extra; i++) frame.render();
+    };
+    lab.beforeDraw.push(before);
+    // What a 3D scene does when the context is lost (Frame3D.releaseGpuData): Three drops its records of the frame's GPU objects.
+    const onLost = (): void => {
+      releaseGpuData(world);
+      frame.releaseGpuData();
+    };
+    renderer.glc.on('lost', onLost);
+    bare = { frame, scene: world, before, onLost };
+    return { frame };
+  };
+
+  const stopBare = (): void => {
+    if (!bare) return;
+    const r = bare;
+    bare = null;
     const i = lab.beforeDraw.indexOf(r.before);
     if (i >= 0) lab.beforeDraw.splice(i, 1);
     renderer.glc.off('lost', r.onLost);
     r.frame.dispose();
     disposeObject3D(r.scene);
   };
-
-  const start = (options: StartOptions = {}): FrameFacts => {
-    if (running) throw new Error('ThreeLab.start: a frame is already running');
-    const scene = new ThreeScene();
-    scene.background = new Color(options.background ?? 0x180830);
-    const camera = new PerspectiveCamera(50, W / H, 0.1, 20);
-    camera.position.set(0, 0, 4);
-    const faces = [0xff4fb0, 0x3fe0f0, 0xffb040, 0x7cff6b, 0xb06bff, 0xffffff].map((c) => new MeshBasicMaterial({ color: new Color(c) }));
-    const cube = new Mesh(new BoxGeometry(1.6, 1.6, 1.6), faces);
-    scene.add(cube);
-    const frame = createFrame3D(renderer, lab.host, { scene, camera, bloom: options.bloom === false ? null : { strength: 0.5, radius: 0.4, threshold: 0.85 } }, options.frame ?? 'auto');
-    frame.sprite.setDepth(20);
-    lab.screen.worldRoot.add(frame.sprite);
-    // The cube's turn is a function of the tick, so the same tick count gives the same picture.
-    const before = (): void => {
-      cube.rotation.set(lab.tick * 0.03, lab.tick * 0.05, 0);
-      for (let i = 0; i <= extra; i++) frame.render();
-    };
-    lab.beforeDraw.push(before);
-    // What a 3D scene does when the context is lost (Frame3D.releaseGpuData): Three drops its records of the frame's GPU objects, so a dispose
-    // after the restore cannot delete handles of the dead context (that would log a warning for each).
-    const onLost = (): void => {
-      releaseGpuData(scene);
-      frame.releaseGpuData();
-    };
-    renderer.glc.on('lost', onLost);
-    running = { frame, scene, cube, before, onLost };
-    return facts() as FrameFacts;
-  };
-
-  const facts = (): FrameFacts | null => (running ? { ...running.frame.describe(), contextLost: running.frame.contextLost } : null);
 
   /** Make a Three render target the engine's way (nearest, no depth), draw one flat scene into it, read it back, free it. */
   const withContextScene = <T>(host: ThreeHost, fn: () => T): T => renderer.handoff.withThree(host.renderer, fn);
@@ -194,8 +264,8 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
     facts,
 
     framePixels() {
-      if (!running) return null;
-      const p = running.frame.readPixels();
+      if (!running || !alive()) return null;
+      const p = running.scene.readFramePixels();
       return { w: p.w, h: p.h, base64: toBase64(p) };
     },
 
@@ -241,7 +311,7 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
     },
 
     staleClear(fixOn, transparentBackBuffer) {
-      if (!running) throw new Error('staleClear needs a running frame');
+      if (!running || !alive()) throw new Error('staleClear needs a running frame');
       renderer.handoff.drainErrors();
       if (fixOn !== 'default') renderer.handoff.setClearColorFix(fixOn);
       renderer.backBuffer.setClearColor(transparentBackBuffer ? [0, 0, 0, 0] : null);
@@ -264,7 +334,7 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
       try {
         lab.draw();
         const gpu = renderer.readBackBuffer();
-        const rt = running.frame.readPixels();
+        const rt = running.scene.readFramePixels();
         const result: StaleResult = { fixOn: fixOn === 'default' ? null : fixOn, transparentBackBuffer, gapTotal: 0, gapWrong: 0, rectsWrong: 0, firstWrong: null };
         const g = CANARY.gap;
         for (let y = g.y; y < g.y + g.h; y++) {
@@ -302,7 +372,7 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
     },
 
     colorProbe(background, plane, managed, frame) {
-      if (running) throw new Error('colorProbe needs no running frame');
+      if (running || bare) throw new Error('colorProbe needs no running frame');
       // Three's color management is a GLOBAL. The engine switches it off when its host module loads. The control switches it on while the colors are made.
       const was = ColorManagement.enabled;
       // The engine's own setting is left alone for the real check: it is what the test judges.
@@ -378,9 +448,8 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
 
     async rewrap(skipRewrap) {
       // The shared-context frame only: the canvas copy re-uploads its canvas every frame, so it has nothing to re-point.
-      start({ frame: 'shared-context', bloom: false });
-      const r = running;
-      if (!r) throw new Error('no frame');
+      // A bare frame, not the scene: a scene ends on a lost context (tests/sje-scene3d.test.ts, e2e/sje-scene3d.spec.ts), a frame must come back.
+      const r = startBare({ frame: 'shared-context', bloom: false });
       try {
         lab.step(60);
         const before = hashOf(lab);
@@ -391,7 +460,7 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
         const after = hashOf(lab);
         return { before, after, rewraps: r.frame.describe().rewraps, same: before === after };
       } finally {
-        stop();
+        stopBare();
       }
     },
 
@@ -444,6 +513,18 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
     hosts: () => ({ ...hostsCreated }),
     extraRenders(n) {
       extra = n;
+      running?.scene.setExtraRenders(n);
+    },
+
+    setFilterAndMask(on, parts) {
+      if (!running || !alive()) throw new Error('setFilterAndMask needs a running scene');
+      running.scene.setFilterAndMask(on, parts);
+    },
+    sceneResult: () => lastResult,
+    sceneRunning: alive,
+    targetPixel(x, y) {
+      if (!running || !alive()) throw new Error('targetPixel needs a running scene');
+      return at(running.scene.readFramePixels(), x, y);
     },
   };
 }

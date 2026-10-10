@@ -105,7 +105,7 @@ The Pre-M0 move merges to `main` before M0 starts. M0 builds on the 640x360 game
 - The hidden-scene draw skip and the context grace are not part of M1b. They are in M7 (spike cleanup C12). The first draft put them in M1b, and the spike moved them.
 - The real hack game waits for M7.
 - **The game still works:** lab page and flag only.
-- **Exit check:** the leak harness stays flat. The canary is green. A look screenshot goes to you. On the legacy path, `s.hack` returns `unsupported` with reason `no-webgl2`.
+- **Exit check:** the leak harness stays flat. The canary is green. A look screenshot goes to you. With no WebGL2, the lab shows a plain message within 2 seconds. (The `s.hack` result `unsupported / no-webgl2` moves to M7, which builds `ScriptApi.hack`; decided in [m1b-brief.md](m1b-brief.md), 2026-10-09.)
 
 ### M2 Effects
 

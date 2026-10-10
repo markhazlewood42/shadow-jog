@@ -396,6 +396,10 @@ Names from the engine migration (`docs/engine/`). They never show to the player.
 | **Routing (`postfx`)** | `routePostfx` makes the old `postfx` singleton hand every call to `game.fx`, so scenes and `moments.ts` need no change on `?engine=sje`. | `src/sje/fx/route.ts` |
 | **`ParticleContainer`** | A Pixi container that draws many `Particle`s in one call. `FxSystem` has two (glowing and covering) over a five-shape atlas. | `src/sje/fx/fxparticles.ts` |
 | **Probe scene** | A static, colorful test scene (a checkerboard, a glow rectangle, a UI rectangle) that the effects specs draw, so a push, a split or a dim shows in the pixels. | `e2e/sjefxkit.ts` |
+| **`Scene3D`** | A `Scene` that owns a Three scene for one session. You write `create3D`, `update3D(tick)`, `sync3D` and `abortResult`; it makes the `Frame3D`, renders it once per drawn frame, and frees the frame and then the Three objects at shutdown. `endEarly(reason)` closes it with `abortResult(reason)`. | `src/sje/three/scene3d.ts` |
+| **`HackResult`** | The result type of a 3D hack session: `success`, `fail`, `aborted` (with a reason: `context-lost`, `user` or `error`) or `unsupported` (`no-webgl2`, `chunk-failed`). M1b builds the type; the hack door is M7. | `src/sje/three/scene3d.ts` |
+| **Cube scene** | The technical test scene of the 3D proof: a lit, spinning cube on a dark violet background, with a few Pixi swatches next to it. It is a real `Scene3D`, run by the lab on a `Game`. | `src/sje-lab/cubescene.ts` |
+| **Iris mask** | A `Graphics` disc (rows of rectangles) used as a mask on the `View3D`, with an invert filter. It proves that a Pixi filter and a Pixi mask work over the Three picture on the shared context. | `src/sje-lab/cubescene.ts` |
 
 ---
 
