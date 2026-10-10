@@ -161,10 +161,14 @@ export function checkMap(data: unknown, behavior: MapBehavior): string[] {
     }
     return v;
   };
-  const place = (o: Obj, w: string, size = false): void => {
+  /** `size`: w and h are needed. `loose`: w and h are only numbers above 0 (a prop's w is a width or a radius, 6.5 for a binding circle). */
+  const place = (o: Obj, w: string, size = false, loose = false): void => {
     if (!isInt(o.x) || !isInt(o.y)) out.push(`${w}: x and y must be whole numbers (tiles)`);
     for (const k of size ? ['w', 'h'] : []) if (!isInt(o[k]) || (o[k] as number) < 1) out.push(`${w}: ${k} must be a whole number, 1 or more`);
-    for (const k of size ? [] : ['w', 'h']) if (o[k] !== undefined && (!isInt(o[k]) || (o[k] as number) < 1)) out.push(`${w}: ${k} must be a whole number, 1 or more`);
+    for (const k of size ? [] : ['w', 'h']) {
+      if (o[k] === undefined) continue;
+      if (loose ? !isNum(o[k]) || (o[k] as number) <= 0 : !isInt(o[k]) || (o[k] as number) < 1) out.push(`${w}: ${k} must be a ${loose ? 'number above 0' : 'whole number, 1 or more'}`);
+    }
   };
   const ids = (items: unknown[], name: string): void => {
     const seen = new Set<string>();
@@ -229,7 +233,7 @@ export function checkMap(data: unknown, behavior: MapBehavior): string[] {
     }
     fields(p, PROP_FIELDS, w);
     if (typeof p.kind !== 'string' || !(p.kind in PROP_KINDS)) out.push(`${w}: kind "${String(p.kind)}" is not a prop`);
-    place(p, w);
+    place(p, w, false, true);
     inside(p, w);
     if (p.dir !== undefined && !oneOf(DIRS, p.dir)) out.push(`${w}: dir must be one of ${DIRS.join(', ')}`);
     pred(p.when, w);
