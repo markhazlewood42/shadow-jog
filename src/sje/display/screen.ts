@@ -80,6 +80,7 @@ export class Screen {
     this.worldRoot.destroy();
     this.uiRoot.destroy();
     this.overlayRoot.destroy();
+    // fxRoot's children are the effects' own layers (FxSystem puts them there), so they die with the screen. The other roots hold scene objects that the scenes destroy.
     this.fxRoot.destroy({ children: true });
     this.root.destroy();
   }
