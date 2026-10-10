@@ -1,0 +1,123 @@
+{
+  "id": "rustyard",
+  "name": "The Rustyard",
+  "banner": "THE RUSTYARD",
+  "bannerSub": "Scavenger camp · the Barrens",
+  "kind": "town",
+  "town": true,
+  "terrain": [
+    "JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ",
+    "JddddddddddddddddddddddddddddddddJ",
+    "JdddddddddddddddddddddddrrrrrrdddJ",
+    "JddrrrrrddddddddddddddddrrrrrrdddJ",
+    "JddrrrrrddddddddddddddddrrrrrrdddJ",
+    "JddrrrrrddddddddddddddddrrrrrrdddJ",
+    "JddddddddJJJddddddddddJJdddddddddJ",
+    "JddddddddJJJddddddddddJJdddddddddJ",
+    "JJJJdJJJJJJJJJJJJJJJJJJJJJdJJJJJJJ",
+    "JJJJdddddJJJJJJddddddddJJJdddddJJJ",
+    "JJJJJJJJdJJJJJJdJJJJJJdJJJLJJJdJJJ",
+    "JJdddddddddJJJJdJJddddddLLLLLLdJJJ",
+    "JJJJJJJJJJdJJJJdJJJJJJJJJJddddJJJJ",
+    "JJJJddddddddddddddddddddddddddJJJJ",
+    "JJJJddKKKKKKKKKKKKKKKKKKKKKKddJJJJ",
+    "JdddddKKKKKKKKKKKKKKKKKKKKKKddJJJJ",
+    "JdddddKKKKKKKKKKKKKKKKKKKKKKdddddJ",
+    "JdddddKKKKKKKKKKKKKKKKKKKKKKdddddJ",
+    "JdddddKKKKKKKKKKKKKKKKKKKKKKdddddJ",
+    "JdddddKKKKKKKKKKKKKKKKKKKKKKdddddJ",
+    "JdddddKKKKKKKKKKKKKKKKKKKKKKdddddJ",
+    "JddddddddddddddddddddddddddddddddJ",
+    "JJJJJJJJJJJJJdddddJJJJJJJJJJJJJJJJ",
+    "JJJJJJJJJJJJJdddddJJJJJJJJJJJJJJJJ",
+    "JJJJJJJJJJJJJdddddJJJJJJJJJJJJJJJJ",
+    "JJJJJJJJJJJJJdddddJJJJJJJJJJJJJJJJ",
+    "JJJJJJJJJJJJJdddddJJJJJJJJJJJJJJJJ",
+    "JJJJJJJJJJJJJdddddJJJJJJJJJJJJJJJJ"
+  ],
+  "legend": {"J":"junk","d":"dirt","r":"rubble","K":"floor_concrete","L":"junk_loose"},
+  "ambient": "#605a86",
+  "weather": "rain",
+  "music": "rustyard",
+  "battleBg": "rustyard",
+  "encounters": [
+    {"table":"barrens","rate":16,"rect":[1,1,32,8],"bg":"rustyard"}
+  ],
+  "structures": [
+    {"kind":"building","x":11,"y":0,"w":12,"h":5,"style":"shanty","shutters":[14,15,19],"sign":{"text":"TIRE DEPOT","color":"#ff6a3a","flicker":true}},
+    {"kind":"building","x":18,"y":12,"w":8,"h":3,"style":"shanty","sign":{"text":"MAGS SALVAGE","color":"#86f08c"}}
+  ],
+  "props": [
+    {"kind":"stall","x":20,"y":16,"w":3,"color":"#2f6a44"},
+    {"kind":"tent","x":7,"y":14,"w":2,"color":"#6a5a3a"},
+    {"kind":"tent","x":11,"y":14,"w":2,"color":"#4a5a6a"},
+    {"kind":"tent","x":7,"y":18,"w":2,"color":"#6a3a3a"},
+    {"kind":"firebarrel","x":14,"y":17},
+    {"kind":"firebarrel","x":26,"y":19},
+    {"kind":"firebarrel","x":25,"y":8},
+    {"kind":"crates","x":25,"y":15},
+    {"kind":"crates","x":2,"y":20},
+    {"kind":"barrel","x":3,"y":20,"color":"#5a3a2a"},
+    {"kind":"barrel","x":28,"y":17,"color":"#3a5a6a"},
+    {"kind":"tires","x":4,"y":2},
+    {"kind":"tires","x":5,"y":2},
+    {"kind":"tires","x":27,"y":6},
+    {"kind":"tires","x":9,"y":4},
+    {"kind":"tires","x":29,"y":2},
+    {"kind":"car","x":2,"y":6,"w":2,"color":"#4a3030"},
+    {"kind":"car","x":26,"y":3,"w":2,"color":"#2a3a4a"},
+    {"kind":"lamp","x":12,"y":21,"dir":"right"},
+    {"kind":"lamp","x":18,"y":21,"dir":"left"},
+    {"kind":"dumpster","x":23,"y":20,"w":2,"color":"#5a3a2a"},
+    {"kind":"sign_post","x":11,"y":13,"text":"DEPOT ↑"},
+    {"kind":"sign_post","x":16,"y":13,"text":"SINKHOLE!"},
+    {"kind":"sign_post","x":25,"y":13,"text":"DEPOT ↑"},
+    {"kind":"sign_post","x":23,"y":12,"text":"→"},
+    {"kind":"tag","x":5,"y":12},
+    {"kind":"tag","x":2,"y":14,"color":"#ffb02e"},
+    {"kind":"tag","x":21,"y":12},
+    {"kind":"tag","x":12,"y":24},
+    {"kind":"tag","x":18,"y":25,"color":"#ffb02e"},
+    {"kind":"tag","x":10,"y":7},
+    {"kind":"tag","x":22,"y":7,"color":"#ffb02e"},
+    {"kind":"banner","x":3,"y":7},
+    {"kind":"banner","x":27,"y":7},
+    {"kind":"banner","x":15,"y":3},
+    {"kind":"banner","x":19,"y":3}
+  ],
+  "patches": [
+    {"when":"tribute_found","rects":[[1,12,3,2,"d"],[2,14,1,1,"d"]]}
+  ],
+  "chests": [
+    {"id":"tribute","x":1,"y":12,"cred":320,"kind":"crate","when":"tribute_found"},
+    {"id":"depot_case","x":21,"y":6,"item":"med_case","kind":"case"},
+    {"id":"yard_cache","x":2,"y":3,"cred":120,"kind":"crate"},
+    {"id":"maze_cache","x":31,"y":7,"item":"trauma_patch","qty":2,"kind":"crate"},
+    {"id":"maze_stash","x":18,"y":11,"item":"flashbang","qty":2,"kind":"crate"},
+    {"id":"heap_pocket","x":26,"y":10,"cred":140,"kind":"crate"}
+  ],
+  "npcs": [
+    {"id":"mags","x":23,"y":16,"dir":"down","look":"mags","name":"Old Mags","fixedDir":true,"talk":"mags_reward"},
+    {"id":"gate_punk","x":21,"y":18,"dir":"up","look":"ganger","name":"Rustfang Punk","when":"gate_unpassed","talk":["Get lost. Tribute collection in progress."]},
+    {"id":"knuckles","x":16,"y":6,"dir":"down","name":"“Knuckles” Tran","when":"knuckles_alive","look":{"body":"big","skin":"#b87a52","hair":"#e8452e","hairStyle":"mohawk","top":"#4a2a2a","sleeves":"#b87a52","inner":"#2a2a30","accent":"#ffcc3d","pants":"#2a2a33","boots":"#1a1418","cyberArm":"right","accessories":["visor"],"visor":"#ff3a3a"},"talk":"knuckles_fight"},
+    {"id":"guard_a","x":14,"y":7,"dir":"down","look":"ganger","name":"Rustfang","when":"knuckles_alive","talk":["Boss is busy. Busy hitting you, soon."]},
+    {"id":"guard_b","x":18,"y":7,"dir":"down","look":{"body":"big","skin":"#f2c9a5","hair":"#4a2e22","hairStyle":"short","top":"#2c3b5e","accent":"#b07cff","pants":"#1e1c26","boots":"#1a1418","accessories":["tusks"],"mouth":"line","brows":true},"name":"Rustfang","when":"knuckles_alive","talk":["Heh. Heh heh."]},
+    {"id":"nephew","x":17,"y":20,"dir":"down","name":"Tobin","look":{"body":"std","skin":"#5a3624","hair":"#c9c4bb","hairStyle":"bald","top":"#b8b0a0","accent":"#b07cff","pants":"#4a3a30","boots":"#1a1418","accessories":[],"mouth":"line","brows":true},"move":"static","talk":"tobin"},
+    {"id":"scav_cook","x":13,"y":18,"dir":"right","name":"Scav","look":{"body":"short","skin":"#eadbd0","hair":"#e8d070","hairStyle":"cap","top":"#b8b0a0","accent":"#ffa24a","pants":"#1e1c26","boots":"#3a2a2a","accessories":[],"inner":"#8c2f39","hat":"#2c3b5e","mouth":"line","brows":true},"fixedDir":true,"talk":["Stew’s on. It isn’t good. It’s hot. Some weeks that has to be enough."]},
+    {"id":"scav_old","x":9,"y":17,"dir":"down","name":"Old Scav","look":{"body":"std","skin":"#7a4a30","hair":"#e8d070","hairStyle":"short","top":"#2f6a5a","accent":"#62e06a","pants":"#4a3a30","boots":"#3a2a2a","accessories":[],"inner":"#8c2f39","coat":"#2f6a5a","cyberArm":"left","mouth":"line","brows":true,"stance":"crossed"},"move":"wander","radius":2,"talk":["Before the flood, this was a tire factory. Before that, a swamp. Before that, the sea. Water always comes back for what’s hers.","The Sinkline? Took a whole train in ’61. Some nights the lights still come on down there."]},
+    {"id":"scav_kid","x":24,"y":17,"dir":"left","name":"Scav Kid","look":{"body":"std","skin":"#c98a5e","hair":"#4a2e22","hairStyle":"cap","top":"#34344a","accent":"#ffa24a","pants":"#2b3350","boots":"#3a2a2a","accessories":["visor"],"inner":"#7a2e5a","cyberArm":"right","visor":"#ffa24a","hat":"#8c2f39","mouth":"grin","brows":true,"stance":"phone"},"move":"wander","radius":2,"talk":"scav_kid"}
+  ],
+  "events": [
+    {"id":"loose_scrap","x":2,"y":14,"on":"action","when":"tribute_unfound","run":"loose_scrap"},
+    {"id":"gate","x":13,"y":20,"w":5,"h":1,"on":"touch","once":true,"when":"gate_unpassed","run":"rustyard_gate"},
+    {"id":"depot","x":12,"y":5,"w":10,"h":4,"on":"touch","when":"depot_open","run":"knuckles_fight"},
+    {"id":"depot_lock","x":12,"y":5,"w":10,"h":4,"on":"touch","when":"gate_unpassed","run":"depot_lock"}
+  ],
+  "warps": [
+    {"x":13,"y":27,"w":5,"to":"world","tx":51,"ty":13,"dir":"down","door":false}
+  ],
+  "lights": [
+    {"x":21,"y":16,"r":60,"color":"#86f08c","i":0.5},
+    {"x":16,"y":3,"r":70,"color":"#ff6a3a","i":0.5,"flicker":true}
+  ]
+}

@@ -69,6 +69,29 @@ function proseChars(path: string): number {
   return n;
 }
 
+/**
+ * Characters of prose in a map data file (M5): every string value of the JSON that is a line of text, counted as `proseChars` counts a literal.
+ * The maps moved from TypeScript to JSON plus a behavior module, so the lines of the NPCs that only talk are in the JSON now.
+ */
+function proseCharsJson(path: string): number {
+  let n = 0;
+  const walk = (v: unknown): void => {
+    if (typeof v === 'string') {
+      if (v.length >= 12 && v.includes(' ')) n += v.replace(/\{[a-z/#0-9]*\}/g, '').length;
+    } else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+  };
+  walk(JSON.parse(readFileSync(path, 'utf8')));
+  return n;
+}
+
+/** The map files with prose in them: the maps' TypeScript (not the data loader, whose strings are error messages) and their JSON. */
+function mapProse(): number {
+  return readdirSync('src/data/maps')
+    .filter((f) => f !== 'mapdata.ts')
+    .reduce((n, f) => (f.endsWith('.ts') ? n + proseChars(`src/data/maps/${f}`) : f.endsWith('.json') ? n + proseCharsJson(`src/data/maps/${f}`) : n), 0);
+}
+
 describe('pacing', () => {
   const report = runEconomy(ROUTE, 150, { kit: 1, rook: 10 });
   const fights = report[report.length - 1]!.battles + 1; // + the Warden itself
@@ -82,7 +105,7 @@ describe('pacing', () => {
   const fightS = trash * (TRASH_ROUNDS * ROUND_S + FIGHT_OVERHEAD_S) + fixed.reduce((n, f) => n + (BOSS_ROUNDS[f] ?? 3) * ROUND_S + FIGHT_OVERHEAD_S, 0);
 
   const story = proseChars('src/story/chapter1.ts') + proseChars('src/scenes/panels.ts');
-  const optional = readdirSync('src/data/maps').filter((f) => f.endsWith('.ts')).reduce((n, f) => n + proseChars(`src/data/maps/${f}`), 0);
+  const optional = mapProse();
   const readS = (story + optional * OPTIONAL_READ) / READ_CPS;
 
   const menuS = report.filter((r) => r.label.startsWith('CP')).length * MENU_S;
