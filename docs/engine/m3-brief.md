@@ -103,4 +103,4 @@ M3 does not port the editor, but it must not make it harder. (a) Every stage val
 
 | Step | What changed | Numbers | Verdict | Named fixes |
 |---|---|---|---|---|
-| Brief | this file | — | waits for Mark | — |
+| Brief | this file | — | decisions 1 to 6 approved by Mark with the recommendations, incl. enemy JSON shape (2026-10-09) | — |
