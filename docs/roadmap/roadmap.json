@@ -92,7 +92,7 @@
       "after": [
         "M2"
       ],
-      "notes": "The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge. GPU timing check (npm run perf) done once at the end on an RTX 4070 (2026-10-10): live battle interval p95 18.10 ms against bare 18.10, cost p95 3.40 ms; the speed line held.",
+      "notes": "The side-battle rebuild landed here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge. GPU timing check (npm run perf) done once at the end on an RTX 4070 (2026-10-10): live battle interval p95 18.10 ms against bare 18.10, cost p95 3.40 ms; the speed line held.",
       "branch": "engine-m3-battle-stage",
       "pr": "#51 (merged 2026-10-10)"
     },
@@ -101,7 +101,7 @@
       "kind": "milestone",
       "label": "Field",
       "lane": "engine",
-      "status": "later",
+      "status": "next",
       "after": [
         "M3"
       ],

@@ -65,10 +65,9 @@ M3 "Battle stage" is merged ([PR #51](https://github.com/markhazlewood42/shadow-
 
 **Next up for Mark**
 
-1. None open. You approved the M3 pictures (2026-10-10); the 1.09x push was part of that look review.
+1. None open. You approved the M3 pictures (2026-10-10). The 1.09x push is not recorded as approved: ask Mark before any release.
 
 **Next for agents:** M5 (field) can start now. M4 (UI scenes) stays optional: a scene ports only when it needs a camera, filter, mask or transition. Write the brief with pass lines first.
-
 
 ### Right now (2026-10-09, M2 merged)
 
@@ -76,7 +75,7 @@ M3 "Battle stage" is merged ([PR #51](https://github.com/markhazlewood42/shadow-
 
 **M1b "3D proof" merged ([PR #49](https://github.com/markhazlewood42/shadow-jog/pull/49), 2026-10-09).** Cube as a `Scene3D`: GPU interval p95 16.80 ms, cost p95 6.30 ms. Record: `docs/engine/m1b-brief.md` section 6.
 
-**Next for agents:** see `docs/roadmap/roadmap.json` for the next open milestone (M3 runs in its own worktree).
+**Next for agents:** see `docs/roadmap/roadmap.json` for the next open milestone (M3 is done; it ran in its own worktree).
 
 **Next up for Mark**
 
