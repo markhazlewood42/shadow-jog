@@ -131,17 +131,18 @@ test('Load from Game Over with a damaged save says so and returns to the title',
 
 test('Autosave reports success, and failure when storage is unavailable', async ({ page }) => {
   await stage(page, 'town');
-  await sj(page, "sj.tp('world', 20, 22, 'right')");
+  // The 'saved' badge lives 1.8 s (engine/errors.ts). Read it in the same page task that makes the warp, as the warp ends. With a poll of its own in between, a slow engine
+  // (WebKit on CI takes a second or more to answer a page.evaluate) lets the badge expire before the test looks, and the null that results says nothing about autosave.
+  const saved = await sj<{ tone: string } | null>(page, "(async () => { await sj.tp('world', 20, 22, 'right'); return sj.notice(); })()");
+  expect(saved?.tone).toBe('saved');
   await waitFor(page, 'sj.idle()', 'world');
-  expect((await sj<{ tone: string } | null>(page, 'sj.notice()'))?.tone).toBe('saved');
   await page.evaluate(() => {
     Storage.prototype.setItem = () => {
       throw new Error('QuotaExceededError');
     };
   });
-  await sj(page, "sj.tp('lantern_row', 30, 12, 'down')");
+  const n = await sj<{ text: string; tone: string } | null>(page, "(async () => { await sj.tp('lantern_row', 30, 12, 'down'); return sj.notice(); })()");
   await waitFor(page, 'sj.idle()', 'town');
-  const n = await sj<{ text: string; tone: string } | null>(page, 'sj.notice()');
   expect(n?.tone).toBe('warn');
   expect(n?.text).toMatch(/Autosave failed/);
 });
