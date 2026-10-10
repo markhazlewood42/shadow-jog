@@ -275,11 +275,27 @@ describe('who may import the engine', () => {
     expect(notFacade.map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
   });
 
+  // The DEV tools (src/dev, loaded through src/devroutes.ts and never in a shipped build) are outside that list. The FX lab runs on the new `Game` (M6), so they may name it, as TYPES.
+  const isDevTool = (f: string) => f.startsWith('src/dev/') || f === 'src/devroutes.ts';
+
+  it('M6: the DEV tools reach the engine through the size module, and through the new Game and the scene shape as types only', () => {
+    const dev = all.filter((e) => outsideEngine(e) && isDevTool(e.file));
+    const allowed = ['src/sje/core/size', 'src/sje/runtime/game', 'src/sje/runtime/gameapi'];
+    expect(dev.filter((e) => !allowed.includes(e.target ?? '')).map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
+    for (const f of new Set(dev.filter((e) => e.target !== 'src/sje/core/size').map((e) => e.file))) {
+      const text = readFileSync(join(ROOT, f), 'utf8');
+      for (const spec of dev.filter((e) => e.file === f && e.target !== 'src/sje/core/size').map((e) => e.spec)) expect(onlyTypeImports(text, spec), `${f} imports ${spec} as a value`).toBe(true);
+    }
+    // The scan is alive: the FX lab is one of them, and a value import is told apart from a type import.
+    expect(dev.some((e) => e.file === 'src/dev/fxlab.ts' && e.target === 'src/sje/runtime/game')).toBe(true);
+    expect(onlyTypeImports("import { Game } from '../sje/runtime/game';", '../sje/runtime/game')).toBe(false);
+  });
+
   // A static `import ... from './sje/boot'` (the door must be dynamic, or the engine and Pixi land in the entry chunk).
   const STATIC_DOOR = /^[ \t]*import\b[^(]*\bfrom\s*['"]\.\/sje\/boot['"]/m;
 
   it('the shipped game reaches the engine through eight files only: the size module, the Rng module, the game font (M3), the effects state, the effects data checks and the particle simulation (all plain code: no Pixi, no Three), a types-only file, and the boot door', () => {
-    const shipped = all.filter((e) => outsideEngine(e) && !e.file.startsWith('src/sje-lab/'));
+    const shipped = all.filter((e) => outsideEngine(e) && !e.file.startsWith('src/sje-lab/') && !isDevTool(e.file));
     expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/display/font', 'src/sje/fx/fxdata', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/runtime/gameapi']);
     // M2: the old PostFx extends the shared state, the old particle module re-exports the shared simulation. (M6 deleted the old presenter, the one file that took SOFTWARE_GL from the GL module.)
     expect([...new Set(shipped.filter((e) => e.target === 'src/sje/fx/fxstate').map((e) => e.file))]).toEqual(['src/engine/postfx.ts']);

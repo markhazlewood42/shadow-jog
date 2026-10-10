@@ -92,6 +92,23 @@ test('GPU effects switch off and on from Options, and the choice is remembered',
   expect(errors).toEqual([]);
 });
 
+test('turning the effects on at the lite level shows the lighter-form notice; at full it does not', async ({ page }) => {
+  const errors = watchErrors(page);
+  // `?fx=lite` is the level that `auto` picks on software graphics. The notice text is in src/boot.ts.
+  await open(page, '&fx=lite');
+  await sj(page, 'sj.gpu(false)');
+  await sj(page, 'sj.gpu(true)');
+  expect(await sj<string>(page, 'sj.fxCounts().level')).toBe('lite');
+  await expect.poll(() => sj<string>(page, 'sj.notice()?.text ?? ""')).toContain('lighter form');
+  // Control: the same switch at `full` says nothing about a lighter form.
+  await open(page, '&fx=full');
+  await sj(page, 'sj.gpu(false)');
+  await sj(page, 'sj.gpu(true)');
+  expect(await sj<string>(page, 'sj.fxCounts().level')).toBe('full');
+  expect(await sj<string>(page, 'sj.notice()?.text ?? ""')).not.toContain('lighter form');
+  expect(errors).toEqual([]);
+});
+
 test('?fx=none forces the level none: effect calls do nothing and the battle plays', async ({ page }) => {
   const errors = watchErrors(page);
   await open(page, '&fx=none');

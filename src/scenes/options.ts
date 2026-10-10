@@ -78,7 +78,7 @@ export class OptionsScene extends Scene<'back' | 'title'> {
       },
       {
         // On but not running: no WebGL 2 here, or switched off this session for speed (main.ts).
-        id: 'gpu', label: 'GPU effects', value: () => (!gpuWanted() ? 'Off' : postfx.active ? 'On' : postfx.suspended ? 'Paused (slow)' : 'Unavailable'),
+        id: 'gpu', label: 'GPU effects', value: () => (!gpuWanted() ? 'Off' : postfx.active ? 'On' : 'Unavailable'),
         adjust: () => {
           settings.fxLevel = gpuWanted() ? 'none' : 'auto';
           window.dispatchEvent(new Event('sj-gpu'));

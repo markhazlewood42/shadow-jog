@@ -53,6 +53,7 @@ interface DisplayAdapter {
   mode: 'integer';
   resize(): void;
   setGpu(on: boolean): boolean;
+  readonly fxLevel: 'full' | 'lite' | 'none';
   toGame(clientX: number, clientY: number): { x: number; y: number };
   readonly element: HTMLCanvasElement;
 }
@@ -88,6 +89,9 @@ export async function startSje(markStarted: () => void): Promise<void> {
     setGpu: (on) => {
       game.fxLevel = on ? (forcedFx() ?? (settings.fxLevel === 'none' ? 'auto' : settings.fxLevel)) : 'none';
       return game.fx.active;
+    },
+    get fxLevel() {
+      return game.fx.level;
     },
     toGame: (x, y) => game.scale.toGame(x, y),
     element: canvas,

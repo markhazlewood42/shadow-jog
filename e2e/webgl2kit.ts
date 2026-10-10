@@ -6,6 +6,8 @@ import { expect, type Page, test } from '@playwright/test';
 
 /** The text of `Game.create` (src/sje/runtime/glrenderer.ts) that `main.ts` `fail()` shows under "SHADOW JOG failed to start." */
 export const E5_TEXT = /This browser cannot run WebGL 2/;
+/** The one hint line under it (decision 2 of the M6 brief). */
+export const E5_HINT = "Your browser’s WebGL 2 may be turned off in its settings.";
 
 /** Does this browser give a page a WebGL 2 context? */
 export const hasWebGl2 = (page: Page): Promise<boolean> => page.evaluate(() => !!document.createElement('canvas').getContext('webgl2'));
@@ -30,6 +32,7 @@ export async function expectE5Contract(page: Page, url: string): Promise<'messag
     await expect(boot).toBeVisible();
     await expect(boot).toContainText('SHADOW JOG failed to start');
     await expect(boot).toContainText(E5_TEXT);
+    await expect(boot).toContainText(E5_HINT);
     expect(await page.evaluate(() => (window as unknown as { __sjStarted?: boolean }).__sjStarted === true)).toBe(false);
     test.info().annotations.push({ type: 'E5', description: 'this browser has no WebGL 2: the message branch ran' });
     return 'message';
@@ -38,6 +41,7 @@ export async function expectE5Contract(page: Page, url: string): Promise<'messag
   await page.waitForFunction(() => (window as unknown as { __sjStarted?: boolean }).__sjStarted === true, null, { timeout: 30_000 });
   await expect(boot).toBeHidden();
   expect(await boot.textContent()).not.toMatch(E5_TEXT);
+  expect(await boot.textContent()).not.toContain(E5_HINT);
   test.info().annotations.push({ type: 'E5', description: 'this browser has WebGL 2: the game branch ran' });
   return 'game';
 }

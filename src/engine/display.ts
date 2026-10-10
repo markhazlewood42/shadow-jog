@@ -39,6 +39,8 @@ export interface Display {
   resize(): void;
   /** Turn GPU effects on or off. Returns whether they are on (they stay off on a level of `none`). */
   setGpu(on: boolean): boolean;
+  /** The effects level that is drawn now: `lite` is what `auto` picks on software graphics. */
+  readonly fxLevel: 'full' | 'lite' | 'none';
   /** Convert a page-space point to game coordinates (0..W, 0..H). */
   toGame(clientX: number, clientY: number): { x: number; y: number };
   /** The canvas the player sees (it takes the pointer events). */
