@@ -20,3 +20,6 @@ media/
 
 # Vercel CLI link (project and org ids, local only)
 .vercel
+
+# Default-path goldens (e2e/default-path.spec.ts): the soft set (SwiftShader, what CI runs) is committed; the gpu set is made locally.
+tests/fixtures/defaultpath/gpu/
