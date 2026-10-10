@@ -180,7 +180,7 @@ export function installStageHook(lab: StageLab): StageHook {
       fx.playMoment('crit', 300, 120);
       fx.playMoment('hit.shock', 380, 170);
       fx.playMoment('spell.glitch', 110, 200);
-      fx.playMoment('cast.code', 240, 90);
+      fx.playMoment('cast.code', W / 2, 90);
       game.step(ticks);
       return fx.counts();
     },

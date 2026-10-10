@@ -100,11 +100,23 @@ describe('(a) checkStageConfig: the rules of the stage file, for one stage', () 
 
   it('refuses what the file refuses: an unknown backdrop, a slot on the wrong side, a row off the floor, rows out of order, a box past the screen', () => {
     const cases: Array<[string, (s: StageConfig) => void, RegExp]> = [
-      ['an unknown backdrop', (s) => void (s.backdrop.id = 'no_such_backdrop'), /backdrop/],
-      ['a party slot on the enemies’ side', (s) => void (s.party[0] && (s.party[0].x = 470)), /wrong side/],
-      ['a row below the floor', (s) => void (s.rows[0] && (s.rows[0].y = s.floor.y1 + 40)), /outside the floor/],
-      ['rows out of order', (s) => s.rows.reverse(), /grow/],
-      ['a HUD box past the right edge', (s) => void (s.hud.turnOrder.x = 475), /edge|screen/],
+      ['an unknown backdrop', (s) => {
+          s.backdrop.id = 'no_such_backdrop';
+        }, /backdrop/],
+      ['a party slot on the enemies’ side', (s) => {
+          const slot = s.party[0];
+          if (slot) slot.x = 470;
+        }, /wrong side/],
+      ['a row below the floor', (s) => {
+          const row = s.rows[0];
+          if (row) row.y = s.floor.y1 + 40;
+        }, /outside the floor/],
+      ['rows out of order', (s) => {
+          s.rows.reverse();
+        }, /grow/],
+      ['a HUD box past the right edge', (s) => {
+          s.hud.turnOrder.x = 475;
+        }, /edge|screen/],
     ];
     for (const [what, edit, message] of cases) {
       const bad = copy(street());
@@ -165,7 +177,10 @@ describe('(c) snapshot and restore', () => {
     expect(snap.figures.map((f) => f.id)).toEqual(['kit', 'rook', 'rustfang_punk#0', 'scrap_hound#1']);
     // Nothing in it is a function or a class instance.
     const walk = (v: unknown): void => {
-      if (v === null || typeof v !== 'object') return expect(['number', 'string', 'boolean', 'object']).toContain(typeof v);
+      if (v === null || typeof v !== 'object') {
+        expect(['number', 'string', 'boolean', 'object']).toContain(typeof v);
+        return;
+      }
       expect(Object.getPrototypeOf(v) === Object.prototype || Array.isArray(v)).toBe(true);
       for (const x of Object.values(v)) walk(x);
     };
