@@ -13,7 +13,7 @@
  * pattern, 0.25 a quarter. The eye blends the pattern back into a gradient, and it looks like old
  * hardware. The game's own backdrops (`src/art/battlebg.ts`) use the same matrix, so new and old match.
  */
-import type { Raw } from '../art/rig2/sfgeom';
+import type { Raw } from './sfgeom';
 
 export type { Raw };
 export type RGB = readonly [number, number, number];
@@ -57,25 +57,25 @@ export function lum(c: RGB): number {
 export function newRaw(w: number, h: number, fill?: RGB): Raw {
   const px = new Uint8ClampedArray(w * h * 4);
   if (fill) for (let i = 0; i < w * h; i++) px.set([fill[0], fill[1], fill[2], 255], i * 4);
-  return { w, h, px };
+  return { w, h, data: px };
 }
 
 /** A copy that shares nothing with the original. */
 export function cloneRaw(r: Raw): Raw {
-  return { w: r.w, h: r.h, px: new Uint8ClampedArray(r.px) };
+  return { w: r.w, h: r.h, data: new Uint8ClampedArray(r.data) };
 }
 
 /** The colour at (x, y), or black off the picture. */
 export function getRgb(r: Raw, x: number, y: number): RGB {
   if (x < 0 || y < 0 || x >= r.w || y >= r.h) return [0, 0, 0];
   const i = (y * r.w + x) * 4;
-  return [r.px[i] ?? 0, r.px[i + 1] ?? 0, r.px[i + 2] ?? 0];
+  return [r.data[i] ?? 0, r.data[i + 1] ?? 0, r.data[i + 2] ?? 0];
 }
 
 /** Paint one opaque pixel (off the picture is ignored, so painters never need to bounds-check). */
 export function setRgb(r: Raw, x: number, y: number, c: RGB): void {
   if (x < 0 || y < 0 || x >= r.w || y >= r.h) return;
-  r.px.set([c[0], c[1], c[2], 255], (y * r.w + x) * 4);
+  r.data.set([c[0], c[1], c[2], 255], (y * r.w + x) * 4);
 }
 
 /** Blend a colour over the pixel at (x, y) by `a` (0 to 1). */

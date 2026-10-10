@@ -23,7 +23,7 @@ vi.mock('../src/battlestage/textures', () => {
     return key;
   };
   // A fake figure picture with real (blank) pixels, because mirroring reads them.
-  const sheetArt = (w: number, h: number) => ({ raw: { w, h, px: new Uint8ClampedArray(w * h * 4) }, box: { x0: 10, y0: 8, x1: w - 11, y1: h - 2, feet: Math.floor(w / 2) }, foot: { x: Math.floor(w / 2), y: h - 1 }, face: { x: 3, y: 4 }, grain: 1 });
+  const sheetArt = (w: number, h: number) => ({ raw: { w, h, data: new Uint8ClampedArray(w * h * 4) }, box: { x0: 10, y0: 8, x1: w - 11, y1: h - 2, feet: Math.floor(w / 2) }, foot: { x: Math.floor(w / 2), y: h - 1 }, face: { x: 3, y: 4 }, grain: 1 });
   return {
     PREFIX: { shadow: 'shadow-', ring: 'ring-' },
     pruneTextures: (textures: TextureManager, prefix: string, inUse: ReadonlySet<string>) => textures.prune(prefix, inUse),

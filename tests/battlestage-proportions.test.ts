@@ -6,7 +6,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { boxOf, type Raw } from '../src/art/rig2/sfgeom';
+import { boxOf, type Raw } from '../src/battlestage/sfgeom';
 import { CREW_IDS } from '../src/battlestage/crew';
 import { cutSheet, footAnchor } from '../src/battlestage/feet';
 import {
@@ -56,7 +56,7 @@ function figure(w = 40, h = 70, bob = 0): Raw {
       put(x, y, (y * 7 + x * 3) % 256, (y * 5 + 40) % 256, (x * 11 + 90) % 256);
     }
   }
-  return { w, h, px };
+  return { w, h, data: px };
 }
 
 const ANCHOR = (r: Raw): { x: number; y: number } => footAnchor([r]);
@@ -64,7 +64,7 @@ const sizeOf = (r: Raw): { w: number; h: number } => {
   const b = boxOf(r);
   return { w: b.x1 - b.x0 + 1, h: b.y1 - b.y0 + 1 };
 };
-const rowOf = (r: Raw, y: number): string => Array.from(r.px.subarray(y * r.w * 4, (y + 1) * r.w * 4)).join(',');
+const rowOf = (r: Raw, y: number): string => Array.from(r.data.subarray(y * r.w * 4, (y + 1) * r.w * 4)).join(',');
 
 // Mark's heroes.json, as it is now. He edits the numbers in the Battle Stage Editor, so this block checks INVARIANTS only: the
 // file loads, every hero is in it, and the heroes keep their ancestry order. It never pins a number. The tool and the bake
@@ -139,7 +139,7 @@ describe('baking a made-up figure', () => {
     const b = bakeFrame(frame, foot, plan);
     expect(b.raw.w).toBe(frame.w);
     expect(b.raw.h).toBe(frame.h);
-    expect(Array.from(b.raw.px)).toEqual(Array.from(frame.px));
+    expect(Array.from(b.raw.data)).toEqual(Array.from(frame.data));
     expect(b.anchor).toEqual(foot);
   });
 
@@ -197,8 +197,8 @@ describe('baking a made-up figure', () => {
     // Dropping works the same way: the output is the input with whole rows missing.
     const shorter = bakeFrame(frame, foot, planFor(frame, foot, { height: 0.7, build: 0.8 }));
     const colours = new Set<string>();
-    for (let i = 0; i < frame.px.length; i += 4) colours.add(`${frame.px[i]},${frame.px[i + 1]},${frame.px[i + 2]},${frame.px[i + 3]}`);
-    for (let i = 0; i < shorter.raw.px.length; i += 4) expect(colours.has(`${shorter.raw.px[i]},${shorter.raw.px[i + 1]},${shorter.raw.px[i + 2]},${shorter.raw.px[i + 3]}`)).toBe(true);
+    for (let i = 0; i < frame.data.length; i += 4) colours.add(`${frame.data[i]},${frame.data[i + 1]},${frame.data[i + 2]},${frame.data[i + 3]}`);
+    for (let i = 0; i < shorter.raw.data.length; i += 4) expect(colours.has(`${shorter.raw.data[i]},${shorter.raw.data[i + 1]},${shorter.raw.data[i + 2]},${shorter.raw.data[i + 3]}`)).toBe(true);
   });
 
   it('keeps the soles on the bottom row and moves the foot anchor with the pictures', () => {
@@ -317,7 +317,7 @@ maybe("Mark's idle sheets", () => {
       const anchor = footAnchor(frames);
       const first = frames[0] as Raw;
       const identity = bakeSheet(frames, anchor, planFor(first, anchor, { height: 1, build: 1 }));
-      for (const [i, f] of identity.frames.entries()) expect(Array.from(f.px)).toEqual(Array.from((frames[i] as Raw).px));
+      for (const [i, f] of identity.frames.entries()) expect(Array.from(f.data)).toEqual(Array.from((frames[i] as Raw).data));
       const tall = bakeSheet(frames, anchor, planFor(first, anchor, { height: 1.3, build: 1 }));
       const bottom = Math.max(...frames.map((f) => boxOf(f).y1));
       const grown = tall.frames.length ? Math.max(...tall.frames.map((f) => boxOf(f).y1)) : 0;

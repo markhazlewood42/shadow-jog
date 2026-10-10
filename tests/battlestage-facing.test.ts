@@ -105,7 +105,7 @@ function lopsided(): FigureArt {
   };
   for (let y = 0; y < h; y++) for (let x = 3; x <= 5; x++) put(x, y, 10 + x);
   for (let x = 6; x <= 8; x++) put(x, 1, 100 + x);
-  return { raw: { w, h, px }, box: { x0: 3, x1: 8, y0: 0, y1: 5, feet: 4.5 }, foot: { x: 4, y: 6 }, face: { x: 4, y: 1 }, head: { x: 3, y: 0, w: 3, h: 3 }, grain: 2 };
+  return { raw: { w, h, data: px }, box: { x0: 3, x1: 8, y0: 0, y1: 5, feet: 4.5 }, foot: { x: 4, y: 6 }, face: { x: 4, y: 1 }, head: { x: 3, y: 0, w: 3, h: 3 }, grain: 2 };
 }
 
 describe('mirroring a figure about its feet', () => {
@@ -113,7 +113,7 @@ describe('mirroring a figure about its feet', () => {
     const f = lopsided();
     const flipped = flipRaw(f.raw);
     expect(flipped.w).toBe(10);
-    for (let y = 0; y < 6; y++) for (let x = 0; x < 10; x++) for (let c = 0; c < 4; c++) expect(flipped.px[(y * 10 + (9 - x)) * 4 + c]).toBe(f.raw.px[(y * 10 + x) * 4 + c]);
+    for (let y = 0; y < 6; y++) for (let x = 0; x < 10; x++) for (let c = 0; c < 4; c++) expect(flipped.data[(y * 10 + (9 - x)) * 4 + c]).toBe(f.raw.data[(y * 10 + x) * 4 + c]);
   });
 
   it('puts the club on the left, the same distance from the feet', () => {
@@ -132,7 +132,7 @@ describe('mirroring a figure about its feet', () => {
     const m = mirrorFigure(lopsided());
     let x0 = 99;
     let x1 = -1;
-    for (let y = 0; y < m.raw.h; y++) for (let x = 0; x < m.raw.w; x++) if ((m.raw.px[(y * m.raw.w + x) * 4 + 3] ?? 0) > 0) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); }
+    for (let y = 0; y < m.raw.h; y++) for (let x = 0; x < m.raw.w; x++) if ((m.raw.data[(y * m.raw.w + x) * 4 + 3] ?? 0) > 0) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); }
     expect(m.box.x0).toBe(x0);
     expect(m.box.x1).toBe(x1);
   });
@@ -143,7 +143,7 @@ describe('mirroring a figure about its feet', () => {
     expect(m.face).toEqual({ x: 10 - 1 - f.face.x, y: f.face.y });
     expect(m.head).toEqual({ x: 10 - 3 - 3, y: 0, w: 3, h: 3 });
     // The face point still lands on a drawn pixel of the mirrored picture.
-    expect(m.raw.px[(m.face.y * m.raw.w + m.face.x) * 4 + 3]).toBe(255);
+    expect(m.raw.data[(m.face.y * m.raw.w + m.face.x) * 4 + 3]).toBe(255);
   });
 
   it('mirrored twice is the original', () => {
@@ -153,7 +153,7 @@ describe('mirroring a figure about its feet', () => {
     expect(twice.foot).toEqual(f.foot);
     expect(twice.face).toEqual(f.face);
     expect(twice.head).toEqual(f.head);
-    expect(Array.from(twice.raw.px)).toEqual(Array.from(f.raw.px));
+    expect(Array.from(twice.raw.data)).toEqual(Array.from(f.raw.data));
   });
 
   it('remembers what it came from, and is made once', () => {
@@ -167,10 +167,10 @@ describe('mirroring a figure about its feet', () => {
   it('does not touch the original figure', () => {
     const f = lopsided();
     const before = JSON.stringify({ box: f.box, foot: f.foot, face: f.face, head: f.head });
-    const px = Array.from(f.raw.px);
+    const px = Array.from(f.raw.data);
     mirrorFigure(f);
     expect(JSON.stringify({ box: f.box, foot: f.foot, face: f.face, head: f.head })).toBe(before);
-    expect(Array.from(f.raw.px)).toEqual(px);
+    expect(Array.from(f.raw.data)).toEqual(px);
   });
 
   it('figureFor picks the original or the mirror', () => {

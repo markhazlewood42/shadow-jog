@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Raw } from '../src/art/rig2/sfgeom';
+import type { Raw } from '../src/battlestage/sfgeom';
 import { cutSheet, footAnchor } from '../src/battlestage/feet';
 import { enemyIdle } from '../src/battlestage/idle';
 
@@ -7,7 +7,7 @@ import { enemyIdle } from '../src/battlestage/idle';
 function frame(w: number, h: number, boxes: [number, number, number, number][]): Raw {
   const px = new Uint8ClampedArray(w * h * 4);
   for (const [x0, y0, x1, y1] of boxes) for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) px[(y * w + x) * 4 + 3] = 255;
-  return { w, h, px };
+  return { w, h, data: px };
 }
 
 describe('footAnchor (where a sprite stands inside its picture)', () => {
@@ -42,8 +42,8 @@ describe('footAnchor (where a sprite stands inside its picture)', () => {
     const sheet = frame(12, 3, [[4, 0, 7, 2]]);
     const [a, b, c] = cutSheet(sheet, 4, 3);
     expect([a?.w, b?.w, c?.w, b?.h]).toEqual([4, 4, 4, 3]);
-    expect(a?.px.some((v) => v)).toBe(false);
-    expect(b?.px.filter((_, i) => i % 4 === 3).every((v) => v === 255)).toBe(true);
+    expect(a?.data.some((v) => v)).toBe(false);
+    expect(b?.data.filter((_, i) => i % 4 === 3).every((v) => v === 255)).toBe(true);
   });
 });
 

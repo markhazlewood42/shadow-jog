@@ -4,12 +4,9 @@
  * the real sprite bounds, not by eye.
  */
 
-/** A decoded sprite: RGBA bytes. */
-export interface Raw {
-  w: number;
-  h: number;
-  px: Uint8ClampedArray;
-}
+/** A decoded sprite: RGBA bytes. The one pixel type of the stage and the engine (`{ w, h, data }`, M3 decision 6); a type only, erased at build. */
+export type { Raw } from '../sje';
+import type { Raw } from '../sje';
 
 export interface Box {
   x0: number;
@@ -25,7 +22,7 @@ export function boxOf(r: Raw): Box {
   let x0 = r.w, y0 = r.h, x1 = -1, y1 = -1;
   for (let y = 0; y < r.h; y++)
     for (let x = 0; x < r.w; x++)
-      if ((r.px[(y * r.w + x) * 4 + 3] ?? 0) > 0) {
+      if ((r.data[(y * r.w + x) * 4 + 3] ?? 0) > 0) {
         if (x < x0) x0 = x;
         if (x > x1) x1 = x;
         if (y < y0) y0 = y;
@@ -34,7 +31,7 @@ export function boxOf(r: Raw): Box {
   let fx0 = r.w, fx1 = -1;
   for (let y = Math.max(0, y1 - 5); y <= y1; y++)
     for (let x = 0; x < r.w; x++)
-      if ((r.px[(y * r.w + x) * 4 + 3] ?? 0) > 0) {
+      if ((r.data[(y * r.w + x) * 4 + 3] ?? 0) > 0) {
         if (x < fx0) fx0 = x;
         if (x > fx1) fx1 = x;
       }
@@ -50,7 +47,7 @@ export function bootsMid(r: Raw): number {
   const b = boxOf(r);
   const cols = new Map<number, number>();
   for (let y = Math.max(0, b.y1 - 7); y <= b.y1; y++)
-    for (let x = 0; x < r.w; x++) if ((r.px[(y * r.w + x) * 4 + 3] ?? 0) > 0) cols.set(x, (cols.get(x) ?? 0) + 1);
+    for (let x = 0; x < r.w; x++) if ((r.data[(y * r.w + x) * 4 + 3] ?? 0) > 0) cols.set(x, (cols.get(x) ?? 0) + 1);
   const xs = [...cols.keys()].sort((p, q) => p - q);
   let best = { mass: -1, mid: b.feet };
   let start = xs[0] ?? 0;

@@ -61,9 +61,9 @@ export function modeDown(src: Raw, factor: number): Raw {
       for (let j = 0; j < factor; j++)
         for (let i = 0; i < factor; i++) {
           const k = ((by * factor + j) * src.w + bx * factor + i) * 4;
-          if ((src.px[k + 3] ?? 0) <= 128) continue;
+          if ((src.data[k + 3] ?? 0) <= 128) continue;
           opaque++;
-          const key = ((src.px[k] ?? 0) << 16) | ((src.px[k + 1] ?? 0) << 8) | (src.px[k + 2] ?? 0);
+          const key = ((src.data[k] ?? 0) << 16) | ((src.data[k + 1] ?? 0) << 8) | (src.data[k + 2] ?? 0);
           counts.set(key, (counts.get(key) ?? 0) + 1);
         }
       if (opaque * 2 < factor * factor) continue;
@@ -78,7 +78,7 @@ export function modeDown(src: Raw, factor: number): Raw {
           bestN = n;
         }
       }
-      out.px.set([(best >> 16) & 255, (best >> 8) & 255, best & 255, 255], (by * w + bx) * 4);
+      out.data.set([(best >> 16) & 255, (best >> 8) & 255, best & 255, 255], (by * w + bx) * 4);
     }
   return out;
 }
@@ -102,7 +102,7 @@ export function cutFace(src: Raw, face: Pt, size: number, grain: number): Raw {
       const sy = top + y;
       if (sx < 0 || sy < 0 || sx >= src.w || sy >= src.h) continue;
       const k = (sy * src.w + sx) * 4;
-      cut.px.set(src.px.subarray(k, k + 4), (y * s2 + x) * 4);
+      cut.data.set(src.data.subarray(k, k + 4), (y * s2 + x) * 4);
     }
   return grain > 1 ? modeDown(cut, grain) : cut;
 }
@@ -150,7 +150,7 @@ export function defaultHead(src: Raw, box: { x0: number; y0: number; x1: number;
   let n = 0;
   for (let y = box.y0; y < box.y0 + rows; y++)
     for (let x = box.x0; x < box.x1; x++) {
-      if ((src.px[(y * src.w + x) * 4 + 3] ?? 0) <= 128) continue;
+      if ((src.data[(y * src.w + x) * 4 + 3] ?? 0) <= 128) continue;
       sum += x;
       n++;
     }
@@ -178,7 +178,7 @@ export function cutHead(src: Raw, head: Rect, size: number, grain: number): Raw 
       const sy = top + y;
       if (sx < 0 || sy < 0 || sx >= src.w || sy >= src.h) continue;
       const k = (sy * src.w + sx) * 4;
-      cut.px.set(src.px.subarray(k, k + 4), (y * win + x) * 4);
+      cut.data.set(src.data.subarray(k, k + 4), (y * win + x) * 4);
     }
   return factor > 1 ? modeDown(cut, factor) : cut;
 }

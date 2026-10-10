@@ -26,7 +26,15 @@
  * The public type of what this class hands out is `SjTexture` (interfaces.md section 6). The class
  * with the Pixi parts, `TextureEntry`, is for src/sje/display only, through `entryOf`.
  *
- * Built later (on demand, M3): `addCanvasOnce`, `variantOf`, `setStandIn`, `getPixelAlpha`.
+ * Built in M3 (moved here from the Phase 0 stage's game-side helpers): `addCanvasOnce`, `variantOf`, `readPixels`. Built later (on demand):
+ * `setStandIn`, `getPixelAlpha`.
+ *
+ * There is ONE pixel type, `Raw` = { w, h, data }. The stage's older { w, h, px } is gone (decision 6 of docs/engine/m3-brief.md).
+ *
+ * Why `readPixels` goes through a 2D canvas copy (`canvasToRaw`): a canvas stores colour premultiplied by alpha, so a half-transparent
+ * pixel loses a little precision each time it passes through one. The Phaser spike read pixels back through a 2D canvas too
+ * (`getSourceImage()`, then `drawImage`). Doing the same keeps every baked variant bit for bit what the spike made, and the parity
+ * goldens depend on that.
  */
 import { CanvasSource, Rectangle, Texture } from 'pixi.js';
 import { assert, must } from '../core/assert';
@@ -136,6 +144,31 @@ export class TextureEntry implements SjTexture {
   }
 }
 
+/** A 2D canvas that is read back (the browser keeps such a canvas on the CPU). */
+function readbackCanvas(w: number, h: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = must(canvas.getContext('2d', { willReadFrequently: true }), 'a 2D canvas context');
+  ctx.imageSmoothingEnabled = false;
+  return { canvas, ctx };
+}
+
+/** A picture's pixels as a new canvas. */
+export function rawToCanvas(raw: Raw): HTMLCanvasElement {
+  const { canvas, ctx } = readbackCanvas(raw.w, raw.h);
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(raw.data), raw.w, raw.h), 0, 0);
+  return canvas;
+}
+
+/** A canvas's pixels (or a part of it), read back through a fresh 2D canvas. */
+export function canvasToRaw(canvas: HTMLCanvasElement | OffscreenCanvas, part?: { x: number; y: number; w: number; h: number }): Raw {
+  const r = part ?? { x: 0, y: 0, w: canvas.width, h: canvas.height };
+  const { ctx } = readbackCanvas(r.w, r.h);
+  ctx.drawImage(canvas, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+  return { w: r.w, h: r.h, data: ctx.getImageData(0, 0, r.w, r.h).data };
+}
+
 export class TextureManager {
   private readonly entries = new Map<string, TextureEntry>();
 
@@ -167,6 +200,40 @@ export class TextureManager {
     const entry = new TextureEntry(key, canvas, opts?.cpu);
     this.entries.set(key, entry);
     return entry;
+  }
+
+  /**
+   * Store a picture once: asking again for the same key returns the texture already there and does not call `build` (so rebuilding a
+   * scene never uploads the same picture twice, which would be a texture leak). `build` makes a canvas, or raw pixels that become one. @ours
+   */
+  addCanvasOnce(key: string, build: () => HTMLCanvasElement | Raw): SjTexture {
+    const have = this.entries.get(key);
+    if (have) return have;
+    const made = build();
+    return this.addCanvas(key, 'data' in made ? rawToCanvas(made) : made);
+  }
+
+  /**
+   * A copy of a texture painted by `paint` (it gets the base's canvas and returns the new one, the same size), under `newKey`, with the
+   * same named frames. Made once: asking again for the same `newKey` returns the texture already there. @ours
+   */
+  variantOf(key: string, newKey: string, paint: (src: HTMLCanvasElement) => HTMLCanvasElement): SjTexture {
+    const have = this.entries.get(newKey);
+    if (have) return have;
+    const base = this.entryOf(key);
+    const made = this.addCanvas(newKey, paint(base.canvas));
+    const frames: Record<string | number, [number, number, number, number]> = {};
+    for (const [name, f] of base.frames) frames[name] = [f.x, f.y, f.w, f.h];
+    if (base.frames.size > 0) this.addFrames(newKey, frames);
+    return made;
+  }
+
+  /** A texture's pixels (or one frame's), read back through a 2D canvas. Slow: for the editor, the tests and the bakes that find a figure's feet. @ours */
+  readPixels(key: string, frame?: string | number): Raw {
+    const entry = this.entryOf(key);
+    if (frame === undefined) return canvasToRaw(entry.canvas);
+    const cell = must(entry.frames.get(frame) ?? entry.frames.get(String(frame)), `frame "${frame}" of texture "${key}"`);
+    return canvasToRaw(entry.canvas, cell);
   }
 
   /** Make a new canvas of this size and store it. Draw into `ctx`, then call `refresh()`. */

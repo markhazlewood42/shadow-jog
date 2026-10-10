@@ -88,18 +88,18 @@ export function isMirrored(file: FacingFile, sprite: string): boolean {
 
 /** A picture's pixels reversed left-to-right (a new array; the original is not touched). */
 export function flipRaw(src: Raw): Raw {
-  const px = new Uint8ClampedArray(src.px.length);
+  const px = new Uint8ClampedArray(src.data.length);
   for (let y = 0; y < src.h; y++) {
     for (let x = 0; x < src.w; x++) {
       const from = (y * src.w + x) * 4;
       const to = (y * src.w + (src.w - 1 - x)) * 4;
-      px[to] = src.px[from] ?? 0;
-      px[to + 1] = src.px[from + 1] ?? 0;
-      px[to + 2] = src.px[from + 2] ?? 0;
-      px[to + 3] = src.px[from + 3] ?? 0;
+      px[to] = src.data[from] ?? 0;
+      px[to + 1] = src.data[from + 1] ?? 0;
+      px[to + 2] = src.data[from + 2] ?? 0;
+      px[to + 3] = src.data[from + 3] ?? 0;
     }
   }
-  return { w: src.w, h: src.h, px };
+  return { w: src.w, h: src.h, data: px };
 }
 
 /** The mirror image of a rectangle of a picture `w` wide. */

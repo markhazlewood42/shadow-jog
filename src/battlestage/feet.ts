@@ -11,7 +11,7 @@
  * Pure maths on pixel arrays (no DOM, no Phaser), reusing the Sprite Fusion geometry helpers the
  * side-view spike already had, so a test can run it on made-up frames.
  */
-import { boxOf, type Raw } from '../art/rig2/sfgeom';
+import { boxOf, type Raw } from './sfgeom';
 
 export interface FootAnchor {
   /** Column of the feet's middle in the cell (whole pixels, the mean over the loop, rounded down). */
@@ -43,8 +43,8 @@ export function cutSheet(sheet: Raw, frameW: number, count: number): Raw[] {
   const out: Raw[] = [];
   for (let i = 0; i < count; i++) {
     const px = new Uint8ClampedArray(frameW * sheet.h * 4);
-    for (let y = 0; y < sheet.h; y++) px.set(sheet.px.subarray((y * sheet.w + i * frameW) * 4, (y * sheet.w + (i + 1) * frameW) * 4), y * frameW * 4);
-    out.push({ w: frameW, h: sheet.h, px });
+    for (let y = 0; y < sheet.h; y++) px.set(sheet.data.subarray((y * sheet.w + i * frameW) * 4, (y * sheet.w + (i + 1) * frameW) * 4), y * frameW * 4);
+    out.push({ w: frameW, h: sheet.h, data: px });
   }
   return out;
 }

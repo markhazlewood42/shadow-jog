@@ -28,7 +28,7 @@
  * This file is pure (arrays in, arrays out, no Phaser, no browser), so a unit test can run it on made-up frames and on
  * Mark's real sheets.
  */
-import { boxOf, type Raw } from '../art/rig2/sfgeom';
+import { boxOf, type Raw } from './sfgeom';
 import { CREW_IDS } from './crew';
 import type { FootAnchor } from './feet';
 
@@ -118,7 +118,7 @@ function lineDiff(r: Raw, a: number, b: number, horizontal: boolean): number {
   for (let i = 0; i < n; i++) {
     const p = (horizontal ? a * r.w + i : i * r.w + a) * 4;
     const q = (horizontal ? b * r.w + i : i * r.w + b) * 4;
-    d += Math.abs((r.px[p] ?? 0) - (r.px[q] ?? 0)) + Math.abs((r.px[p + 1] ?? 0) - (r.px[q + 1] ?? 0)) + Math.abs((r.px[p + 2] ?? 0) - (r.px[q + 2] ?? 0)) + Math.abs((r.px[p + 3] ?? 0) - (r.px[q + 3] ?? 0));
+    d += Math.abs((r.data[p] ?? 0) - (r.data[q] ?? 0)) + Math.abs((r.data[p + 1] ?? 0) - (r.data[q + 1] ?? 0)) + Math.abs((r.data[p + 2] ?? 0) - (r.data[q + 2] ?? 0)) + Math.abs((r.data[p + 3] ?? 0) - (r.data[q + 3] ?? 0));
   }
   return d;
 }
@@ -218,17 +218,17 @@ function changeLines(src: Raw, at: readonly number[], step: 1 | -1, rows: boolea
   if (rows) {
     for (let y = 0; y < h; y++) {
       const from = order[y] ?? 0;
-      px.set(src.px.subarray(from * src.w * 4, (from + 1) * src.w * 4), y * w * 4);
+      px.set(src.data.subarray(from * src.w * 4, (from + 1) * src.w * 4), y * w * 4);
     }
   } else {
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const from = order[x] ?? 0;
-        px.set(src.px.subarray((y * src.w + from) * 4, (y * src.w + from) * 4 + 4), (y * w + x) * 4);
+        px.set(src.data.subarray((y * src.w + from) * 4, (y * src.w + from) * 4 + 4), (y * w + x) * 4);
       }
     }
   }
-  return { raw: { w, h, px } };
+  return { raw: { w, h, data: px } };
 }
 
 /** What baking one frame gives: the new picture, where the feet are in it, and where any point of the old picture went. */

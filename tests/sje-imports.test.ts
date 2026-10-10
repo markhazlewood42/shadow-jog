@@ -20,6 +20,8 @@
  *     the new `Game` to the game's own boot; only `src/main.ts` may import it, and only with a dynamic `import()`) and TYPE-ONLY imports of
  *     the old `Input` in three runtime files (`game.ts`, `gameapi.ts`, `input.ts`).
  *  7. Phaser is imported nowhere.
+ *  8. (M3) The battle stage, `src/battlestage`, is game code that runs ON the engine: it takes the engine from the facade only, holds no Pixi or Three,
+ *     and only the lab, the engine's boot glue and the tests import it. The game font moved into the engine (`src/sje/display/font.ts`); the old path re-exports it.
  *
  * Differences from the spike's copy (`spike/engine-platform:tests/sje-imports.test.ts`): M0 has no
  * runtime beyond `glrenderer.ts`, no `src/hack3d` and no battle stage, so those parts of the scan
@@ -261,7 +263,7 @@ describe('level 5 (src/sje/three, the lazy 3D chunk): what it may import', () =>
 
 describe('who may import the engine', () => {
   const toEngine = (e: Edge) => e.target !== null && (e.target === 'src/sje' || e.target.startsWith('src/sje/'));
-  const outsideEngine = (e: Edge) => toEngine(e) && e.file.startsWith('src/') && !e.file.startsWith('src/sje/') && !e.file.startsWith('src/hack3d/');
+  const outsideEngine = (e: Edge) => toEngine(e) && e.file.startsWith('src/') && !e.file.startsWith('src/sje/') && !e.file.startsWith('src/hack3d/') && !e.file.startsWith('src/battlestage/');
 
   it('the lab imports only the facade, src/sje/index.ts, and the 3D door, src/sje/three/index.ts (plus one named probe)', () => {
     const lab = all.filter((e) => toEngine(e) && e.file.startsWith('src/sje-lab/'));
@@ -272,9 +274,9 @@ describe('who may import the engine', () => {
   // A static `import ... from './sje/boot'` (the door must be dynamic, or the engine and Pixi land in the entry chunk).
   const STATIC_DOOR = /^[ \t]*import\b[^(]*\bfrom\s*['"]\.\/sje\/boot['"]/m;
 
-  it('the shipped game reaches the engine through eight files only: the size module, the Rng module, the effects state, the effects data checks, the particle simulation and the GL names module (all plain code: no Pixi, no Three), a types-only file, and the boot door', () => {
+  it('the shipped game reaches the engine through nine files only: the size module, the Rng module, the game font (M3), the effects state, the effects data checks, the particle simulation and the GL names module (all plain code: no Pixi, no Three), a types-only file, and the boot door', () => {
     const shipped = all.filter((e) => outsideEngine(e) && !e.file.startsWith('src/sje-lab/'));
-    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/fx/fxdata', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/render/glcontext', 'src/sje/runtime/gameapi']);
+    expect([...new Set(shipped.map((e) => e.target))].sort()).toEqual(['src/sje/boot', 'src/sje/core/rng', 'src/sje/core/size', 'src/sje/display/font', 'src/sje/fx/fxdata', 'src/sje/fx/fxstate', 'src/sje/fx/particles', 'src/sje/render/glcontext', 'src/sje/runtime/gameapi']);
     // M2: the old PostFx extends the shared state, the old particle module re-exports the shared simulation, the old presenter takes SOFTWARE_GL from the GL module.
     expect([...new Set(shipped.filter((e) => e.target === 'src/sje/fx/fxstate').map((e) => e.file))]).toEqual(['src/engine/postfx.ts']);
     expect(shipped.filter((e) => e.target === 'src/sje/fx/fxdata').map((e) => e.file)).toEqual(['src/engine/fxdata.ts']);
@@ -282,6 +284,9 @@ describe('who may import the engine', () => {
     expect(shipped.filter((e) => e.target === 'src/sje/render/glcontext').map((e) => e.file)).toEqual(['src/engine/gl/presenter.ts']);
     // glcontext.ts has no import at all, so nothing of Pixi follows it into the old bundle.
     expect(importsOf(readFileSync(join(ROOT, 'src/sje/render/glcontext.ts'), 'utf8'))).toEqual([]);
+    // M3: the game font lives in the engine; the old path re-exports it, and the font's one import is the plain assert helper (no Pixi follows it).
+    expect(shipped.filter((e) => e.target === 'src/sje/display/font').map((e) => e.file)).toEqual(['src/engine/font.ts']);
+    expect(importsOf(readFileSync(join(ROOT, 'src/sje/display/font.ts'), 'utf8'))).toEqual(['../core/assert']);
     // M0 moved every W and H import of the old game to the size module: dozens of files.
     expect(new Set(shipped.filter((e) => e.target === 'src/sje/core/size').map((e) => e.file)).size).toBeGreaterThan(30);
     // The Rng module is reached through the old path's re-export only: no old file changed its import.
@@ -308,6 +313,28 @@ describe('who may import the engine', () => {
     expect(named.length).toBeGreaterThan(0);
     for (const l of named) expect(l).toMatch(/mode === 'lab'/);
     expect(readFileSync(join(ROOT, 'index.html'), 'utf8')).not.toMatch(/sjelab|sje-lab/);
+  });
+});
+
+describe('the battle stage (src/battlestage, M3)', () => {
+  // The stage is game code that runs ON the engine: it takes the engine from the facade only, and it is not part of the shipped game's default path.
+  // Nothing outside it, the lab, the tests and the engine's boot glue may import it (the boot glue loads it behind the flag, M3 task 11).
+  const toEngine = (e: Edge) => e.target !== null && (e.target === 'src/sje' || e.target.startsWith('src/sje/'));
+
+  it('imports the engine through the facade, src/sje/index.ts, and never a deeper file', () => {
+    const stage = all.filter((e) => e.file.startsWith('src/battlestage/') && toEngine(e));
+    expect(stage.filter((e) => e.target !== 'src/sje' && e.target !== 'src/sje/index').map((e) => `${e.file} -> ${e.target}`)).toEqual([]);
+    // The scan is alive: the stage really does import the facade.
+    expect(stage.length).toBeGreaterThan(0);
+  });
+
+  it('is imported only by itself, the lab, the engine boot glue and the tests (not by the default path of the game)', () => {
+    const into = all.filter((e) => e.target !== null && (e.target === 'src/battlestage' || e.target.startsWith('src/battlestage/')) && !e.file.startsWith('src/battlestage/'));
+    expect(into.filter((e) => !/^(src\/sje-lab\/|src\/sje\/boot\.ts$|tests\/|e2e\/|scripts\/)/.test(e.file)).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+  });
+
+  it('holds no Pixi and no Three (they come through the facade)', () => {
+    expect(all.filter((e) => e.file.startsWith('src/battlestage/') && (isPixi(e.spec) || isThree(e.spec))).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
   });
 });
 

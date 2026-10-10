@@ -140,14 +140,14 @@ describe('depth sorting: a figure is one unit', () => {
   });
 
   it('every part of a farther figure stays under every part of a nearer one, whatever their x', () => {
-    const order = ['shadow', 'ring', 'body', 'smear', 'bar'] as const;
+    const order = ['SHADOW', 'RING', 'BODY', 'SMEAR', 'BAR'] as const;
     for (let i = 1; i < order.length; i++) expect(PART[order[i] as keyof typeof PART]).toBeGreaterThan(PART[order[i - 1] as keyof typeof PART]);
     for (const [xa, xb] of [[0, 480], [240, 240], [480, 0], [30, 330]] as const)
       for (const sa of ['party', 'enemy'] as const)
         for (const sb of ['party', 'enemy'] as const) {
           const far = depthFor(190, xa, sa);
           const near = depthFor(191, xb, sb);
-          expect(partDepth(far, 'bar')).toBeLessThan(partDepth(near, 'shadow'));
+          expect(partDepth(far, 'BAR')).toBeLessThan(partDepth(near, 'SHADOW'));
         }
   });
 

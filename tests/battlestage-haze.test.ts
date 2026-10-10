@@ -1,7 +1,7 @@
 /**
  * The depth haze, NOT mocked (cleanup item C3 of docs/spikes/engine-platform.md). `tests/battlestage-figure.test.ts` replaces `hazedTexture` with a stub
  * that only registers a canvas, so nothing there proves what the haze does to a pixel. This file runs the REAL `hazedTexture`, `variantOf` (through
- * `hazedTexture`, `flashTexture` and `tintTexture`, its three users), `readTexture`, `rawToCanvas` and the real engine `TextureManager` and `Figure`.
+ * `hazedTexture`, `flashTexture` and `tintTexture`, its three users), `readPixels`, `addCanvasOnce` and the real engine `TextureManager` and `Figure`.
  *
  * Node has no canvas, so the one thing faked is the canvas itself: a small in-memory 2D canvas that stores RGBA bytes (put, get and copy of whole
  * pictures, the only calls these code paths make). It keeps colour as written. A real browser canvas stores colour premultiplied by alpha, which loses a
@@ -16,7 +16,7 @@ import type { TextureManager } from '../src/sje';
 import { Scene } from '../src/sje';
 import { Figure, type FigureSpec } from '../src/battlestage/figure';
 import { enemySlots, type StageConfig } from '../src/battlestage/config';
-import { flashTexture, hazedTexture, rawToCanvas, readTexture, tintTexture, addCanvasOnce } from '../src/battlestage/textures';
+import { flashTexture, hazedTexture, tintTexture } from '../src/battlestage/textures';
 import type { Raw } from '../src/battlestage/pixels';
 import { fixtureStages } from './stagefiles';
 import { headlessGame } from './sjekit';
@@ -97,16 +97,16 @@ const PIXELS: Array<[number, number, number, number]> = [
 ];
 
 function addSheet(textures: TextureManager, key = 'sheet'): string {
-  const raw: Raw = { w: 4, h: 1, px: new Uint8ClampedArray(PIXELS.flat()) };
-  addCanvasOnce(textures, key, rawToCanvas(raw));
+  const raw: Raw = { w: 4, h: 1, data: new Uint8ClampedArray(PIXELS.flat()) };
+  textures.addCanvasOnce(key, () => raw);
   textures.addFrames(key, { 0: [0, 0, 2, 1], 1: [2, 0, 2, 1] });
   return key;
 }
 
 const pixelsOf = (textures: TextureManager, key: string): number[][] => {
-  const raw = readTexture(textures, key);
+  const raw = textures.readPixels(key);
   const out: number[][] = [];
-  for (let i = 0; i < raw.px.length; i += 4) out.push([raw.px[i] ?? 0, raw.px[i + 1] ?? 0, raw.px[i + 2] ?? 0, raw.px[i + 3] ?? 0]);
+  for (let i = 0; i < raw.data.length; i += 4) out.push([raw.data[i] ?? 0, raw.data[i + 1] ?? 0, raw.data[i + 2] ?? 0, raw.data[i + 3] ?? 0]);
   return out;
 };
 
@@ -215,7 +215,7 @@ function setup(): { scene: Host; textures: TextureManager; stage: StageConfig; s
 function heroOn(stage: StageConfig, row: number): FigureSpec {
   const slot = stage.party.find((s) => s.row === row);
   if (!slot) throw new Error(`no party slot on row ${row}`);
-  const art = { raw: { w: 2, h: 1, px: new Uint8ClampedArray(8) }, box: { x0: 0, y0: 0, x1: 1, y1: 0, feet: 1 }, foot: { x: 1, y: 1 }, face: { x: 0, y: 0 }, grain: 1 };
+  const art = { raw: { w: 2, h: 1, data: new Uint8ClampedArray(8) }, box: { x0: 0, y0: 0, x1: 1, y1: 0, feet: 1 }, foot: { x: 1, y: 1 }, face: { x: 0, y: 0 }, grain: 1 };
   return { id: `hero-row-${row}`, side: 'party', name: 'Hero', boss: false, slot, baseTex: 'hero', fig: art, art, mirror: false, idle: 'still', uid: 0, cellW: 2, cellH: 1, axisKey: 'kit', sheet: { fps: 8, count: 2, phase: 0 } };
 }
 

@@ -59,9 +59,9 @@ describe('the B1 slice (src/battlestage/slice.json)', () => {
   });
 });
 
-describe('the modules brought over unchanged are pure (scripts/stage-data-parity.mjs proves they are the spike’s bytes)', () => {
-  /** The files copied byte for byte from spike/phaser-stage (the pure modules). Their header comments still say "Phaser spike": they are records. */
-  const COPIED = ['config', 'hudpresets', 'feet', 'floor', 'shadow', 'rules', 'proportions', 'facing', 'crew', 'known', 'pixels', 'faces', 'sewerwall', 'idle'];
+describe('the modules brought over from the spike are pure', () => {
+  /** The pure modules of the spike. Their header comments still say "Phaser spike": they are records. `Raw` is the engine's `{ w, h, data }` in them (M3 decision 6), the only change. */
+  const COPIED = ['hudpresets', 'feet', 'floor', 'shadow', 'rules', 'proportions', 'facing', 'crew', 'known', 'pixels', 'faces', 'sewerwall', 'idle'];
 
   it('none of the copied modules imports Phaser (or Pixi, or the engine): they are pure', () => {
     for (const name of COPIED) {
@@ -69,6 +69,16 @@ describe('the modules brought over unchanged are pure (scripts/stage-data-parity
       const imports = [...text.matchAll(/^\s*import[^'"\n]*from\s*['"]([^'"]+)['"]/gm)].map((m) => m[1] ?? '');
       expect(imports.filter((s) => /^(phaser|pixi\.js|three)/.test(s) || /\/sje(\/|$)/.test(s)), `${name}.ts`).toEqual([]);
     }
+  });
+});
+
+describe('config.ts uses the engine for the draw order (M3 task 3)', () => {
+  it('takes exactly `depthFor` and `PART` from the facade, and has no other engine import', () => {
+    const text = readFileSync(join(ROOT, 'src/battlestage/config.ts'), 'utf8');
+    const engine = [...text.matchAll(/^\s*import\s*\{([^}]*)\}\s*from\s*['"]\.\.\/sje['"]/gm)].map((m) => (m[1] ?? '').trim());
+    expect(engine).toEqual(['depthFor as engineDepthFor, PART']);
+    // And it holds no formula of its own: the engine's `y * 1000` is not written in config.ts.
+    expect(text).not.toMatch(/y \* 1000/);
   });
 });
 

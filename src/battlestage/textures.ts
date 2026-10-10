@@ -20,29 +20,27 @@
  *
  * Not ported yet (the HUD is off in this slice): the face chips (`faceTexture`) and the effects picture.
  *
- * Tags (docs/engine/conventions.md): `addCanvasOnce`, `variantOf`, `readTexture` and `dropCrewTextures` are game-side helpers (ours). The engine's TextureManager
- * says it will get `addCanvasOnce` and `variantOf` at M3 (on demand); until then they live here, and nothing in this file needs more of the engine than the
- * public `TextureManager` (`addCanvas`, `addFrames`, `get`, `exists`, `prune`, `remove`).
+ * Tags (docs/engine/conventions.md): `addCanvasOnce`, `variantOf` and `readPixels` moved into the engine's `TextureManager` in M3 (ours), and the stage uses one
+ * pixel type with the engine, `Raw` = { w, h, data }. What stays here is game-side: where the pictures come from, what a variant does to a colour, and the
+ * measurements kept on each texture's data bag. `dropCrewTextures` is a game-side helper (ours).
  *
  * Pixel-art rule: textures use NEAREST filtering. The engine makes that the default for every texture it creates
  * (`TextureStyle.defaultOptions.scaleMode`), so the spike's per-texture `crisp()` calls are gone.
  *
- * Why a texture's pixels are read back through its CANVAS (`readTexture`): the spike read them back through a 2D
- * canvas too (`getSourceImage()` then `drawImage`). A canvas stores colour premultiplied by alpha, so a half
- * transparent pixel loses a little precision each time it passes through one. Doing the same here keeps every baked
- * variant bit for bit what the spike made.
+ * Why a texture's pixels are read back through a 2D canvas copy (`TextureManager.readPixels`): see the note at the top of the engine's
+ * `texturemanager.ts`. It keeps every baked variant bit for bit what the spike made.
  */
-import type { SjTexture, TextureManager } from '../sje';
+import { canvasToRaw, rawToCanvas, type Raw, type TextureManager } from '../sje';
 import { battleBg } from '../art/battlebg480';
 import { enemyArt } from '../art/enemies';
-import { boxOf, type Box } from '../art/rig2/sfgeom';
+import { boxOf, type Box } from './sfgeom';
 import { SCREEN_H, SCREEN_W, type ShadowStyle, type StageConfig } from './config';
 import { sheetFolder } from './crew';
 import { cutSheet, footAnchor, type FootAnchor } from './feet';
 import { CREW_FACES, defaultHead, ENEMY_FACES, ENEMY_GRAIN, ENEMY_HEADS, type Pt, type Rect } from './faces';
 import { paintFloor, reprojectWall } from './floor';
 import type { IdleKind } from './idle';
-import { hexRgb, lum, mix, type Raw, type RGB } from './pixels';
+import { hexRgb, lum, mix, type RGB } from './pixels';
 import { ringRaw, shadowRaw } from './shadow';
 import { bakeSheet, type BakePlan, type HeroesFile, type Proportion, planFor, proportionTag } from './proportions';
 import { paintWall } from './sewerwall';
@@ -143,7 +141,7 @@ export function addStandInSheets(textures: TextureManager, metas: Record<string,
       g.fillStyle = '#e8c8a0';
       g.fillRect(cx - 5, feet - s.height, 10, 12); // head
     }
-    addCanvasOnce(textures, sheetKey(id), sheet.canvas);
+    textures.addCanvasOnce(sheetKey(id), () => sheet.canvas);
     addCells(textures, sheetKey(id), m.frame_w, m.frame_h, m.frame_count);
   }
 }
@@ -168,7 +166,7 @@ export async function loadSheetTextures(textures: TextureManager, metas: Record<
       image.close();
       // Another call may have added it while this one waited for the network.
       if (textures.exists(sheetKey(id))) return;
-      addCanvasOnce(textures, sheetKey(id), sheet.canvas);
+      textures.addCanvasOnce(sheetKey(id), () => sheet.canvas);
       addCells(textures, sheetKey(id), m.frame_w, m.frame_h, m.frame_count);
     }),
   );
@@ -177,18 +175,6 @@ export async function loadSheetTextures(textures: TextureManager, metas: Record<
 /** Remove every texture made from a crew sheet (the sheets, the baked sheets, and the haze copies of them). Used when the lab switches between Mark's art and the stand-ins. */
 export function dropCrewTextures(textures: TextureManager): void {
   for (const key of textures.getTextureKeys()) if (key.includes('crew')) textures.remove(key);
-}
-
-/** A texture's pixels, read back through its canvas (to find the feet, cut a face or bake a variant). */
-export function readTexture(textures: TextureManager, key: string): Raw {
-  return canvasToRaw(canvasOf(textures.get(key)));
-}
-
-/** The canvas a texture was made from, kept in its data bag by `addCanvasOnce`. */
-function canvasOf(texture: SjTexture): HTMLCanvasElement {
-  const canvas = texture.data.canvas;
-  if (!(canvas instanceof HTMLCanvasElement)) throw new Error(`texture "${texture.key}" has no canvas in its data bag (was it added with addCanvasOnce?)`);
-  return canvas;
 }
 
 /**
@@ -259,7 +245,7 @@ export function bakeCrew(textures: TextureManager, id: string, meta: SheetMeta, 
   const source = textures.get(sheetKey(id));
   const data = source.data as SheetData;
   if (!data.drawn) {
-    const frames = cutSheet(readTexture(textures, sheetKey(id)), meta.frame_w, meta.frame_count);
+    const frames = cutSheet(textures.readPixels(sheetKey(id)), meta.frame_w, meta.frame_count);
     data.drawn = { frames, foot: footAnchor(frames) };
   }
   const drawn = data.drawn;
@@ -274,11 +260,11 @@ export function bakeCrew(textures: TextureManager, id: string, meta: SheetMeta, 
   const baked0 = sheet.baked[0];
   if (!cell || !baked0) throw new Error(`The baked sheet for ${id} has no frames`);
   // One sheet picture, the cells side by side, like the one Mark's files come in.
-  const wide: Raw = { w: cell.w * sheet.frames.length, h: cell.h, px: new Uint8ClampedArray(cell.w * sheet.frames.length * cell.h * 4) };
+  const wide: Raw = { w: cell.w * sheet.frames.length, h: cell.h, data: new Uint8ClampedArray(cell.w * sheet.frames.length * cell.h * 4) };
   sheet.frames.forEach((f, i) => {
-    for (let y = 0; y < f.h; y++) wide.px.set(f.px.subarray(y * f.w * 4, (y + 1) * f.w * 4), (y * wide.w + i * f.w) * 4);
+    for (let y = 0; y < f.h; y++) wide.data.set(f.data.subarray(y * f.w * 4, (y + 1) * f.w * 4), (y * wide.w + i * f.w) * 4);
   });
-  const texture = addCanvasOnce(textures, key, rawToCanvas(wide));
+  const texture = textures.addCanvasOnce(key, () => wide);
   addCells(textures, key, cell.w, cell.h, sheet.frames.length);
   const foot = footAnchor(sheet.frames);
   const info: CrewInfo = {
@@ -324,32 +310,6 @@ export function surface(w: number, h: number): { canvas: HTMLCanvasElement; g: C
   if (!g) throw new Error('no 2d canvas');
   g.imageSmoothingEnabled = false;
   return { canvas, g };
-}
-
-/** A picture's pixels as a canvas. */
-export function rawToCanvas(raw: Raw): HTMLCanvasElement {
-  const s = surface(raw.w, raw.h);
-  s.g.putImageData(new ImageData(new Uint8ClampedArray(raw.px), raw.w, raw.h), 0, 0);
-  return s.canvas;
-}
-
-/** A canvas's pixels. */
-export function canvasToRaw(canvas: HTMLCanvasElement | OffscreenCanvas): Raw {
-  const c = document.createElement('canvas');
-  c.width = canvas.width;
-  c.height = canvas.height;
-  const g = c.getContext('2d', { willReadFrequently: true });
-  if (!g) throw new Error('no 2d canvas');
-  g.drawImage(canvas, 0, 0);
-  return { w: c.width, h: c.height, px: g.getImageData(0, 0, c.width, c.height).data };
-}
-
-/** Add a canvas as a texture once; asking again for the same key reuses it (nothing is uploaded twice). The canvas is kept in the data bag (see `readTexture`). */
-export function addCanvasOnce(textures: TextureManager, key: string, canvas: HTMLCanvasElement): SjTexture {
-  if (textures.exists(key)) return textures.get(key);
-  const texture = textures.addCanvas(key, canvas);
-  texture.data.canvas = canvas;
-  return texture;
 }
 
 // ------------------------------------------------------------------ the stage picture
@@ -409,7 +369,7 @@ export function bakeStage(textures: TextureManager, stage: StageConfig, slotsFro
   const src = backdropSource(stage.backdrop.id);
   if (!textures.exists(key)) {
     const wall = stage.backdrop.mode === 'replace' ? paintWall(stage.backdrop.wallId ?? '', stage.backdrop.horizonY) : reprojectWall(src, stage);
-    addCanvasOnce(textures, key, rawToCanvas(paintFloor(wall, slotsFrom === stage ? stage : { ...stage, party: slotsFrom.party, enemySets: slotsFrom.enemySets })));
+    textures.addCanvasOnce(key, () => paintFloor(wall, slotsFrom === stage ? stage : { ...stage, party: slotsFrom.party, enemySets: slotsFrom.enemySets }));
     pruneTextures(textures, 'stage-', new Set([key]));
   }
   return { key };
@@ -449,7 +409,7 @@ export function addEnemy(textures: TextureManager, spriteKey: string, copy: numb
     s.g.drawImage(art.canvas, 0, 0);
     if (art.glow) s.g.drawImage(art.glow, 0, 0);
     const raw = canvasToRaw(s.canvas);
-    const texture = addCanvasOnce(textures, key, s.canvas);
+    const texture = textures.addCanvasOnce(key, () => s.canvas);
     const box = boxOf(raw);
     const face = ENEMY_FACES[spriteKey];
     // The head crop: the table's rectangle (measured from the drawn bounds), else a default from the top of the figure.
@@ -479,23 +439,22 @@ export function addEnemy(textures: TextureManager, spriteKey: string, copy: numb
 
 // ------------------------------------------------------------------ variants: depth haze and hit flash
 
-/** A copy of a texture with every drawn pixel changed by `change`, frames and all. Made once and found again by `key`. */
+/**
+ * A copy of a texture with every drawn pixel changed by `change`, frames and all (the engine's `variantOf` copies the frames). Made once and found
+ * again by `key`.
+ */
 function variantOf(textures: TextureManager, baseKey: string, key: string, change: (c: RGB) => RGB): string {
-  if (textures.exists(key)) return key;
-  const base = textures.get(baseKey);
-  const raw = readTexture(textures, baseKey);
-  for (let i = 0; i < raw.px.length; i += 4) {
-    if ((raw.px[i + 3] ?? 0) === 0) continue;
-    const c = change([raw.px[i] ?? 0, raw.px[i + 1] ?? 0, raw.px[i + 2] ?? 0]);
-    raw.px[i] = c[0];
-    raw.px[i + 1] = c[1];
-    raw.px[i + 2] = c[2];
-  }
-  addCanvasOnce(textures, key, rawToCanvas(raw));
-  // The same named frames as the original (a sheet's numbered cells).
-  const frames: Record<string | number, [number, number, number, number]> = {};
-  for (const [name, f] of base.frames) frames[name] = [f.x, f.y, f.w, f.h];
-  textures.addFrames(key, frames);
+  textures.variantOf(baseKey, key, (src) => {
+    const raw = canvasToRaw(src);
+    for (let i = 0; i < raw.data.length; i += 4) {
+      if ((raw.data[i + 3] ?? 0) === 0) continue;
+      const c = change([raw.data[i] ?? 0, raw.data[i + 1] ?? 0, raw.data[i + 2] ?? 0]);
+      raw.data[i] = c[0];
+      raw.data[i + 1] = c[1];
+      raw.data[i + 2] = c[2];
+    }
+    return rawToCanvas(raw);
+  });
   return key;
 }
 
@@ -532,14 +491,14 @@ const RING_PREFIX = 'ring-';
 /** A contact shadow `width` wide in the stage's shadow style, as a texture (made once per width and style). */
 export function shadowTexture(textures: TextureManager, width: number, style: ShadowStyle): string {
   const key = `${SHADOW_PREFIX}${width}-${style.aspect}-${style.color.slice(1)}-${Math.round(style.alpha * 100)}-${Math.round(style.edgeAlpha * 100)}`;
-  if (!textures.exists(key)) addCanvasOnce(textures, key, rawToCanvas(shadowRaw(width, style)));
+  textures.addCanvasOnce(key, () => shadowRaw(width, style));
   return key;
 }
 
 /** A one-pixel ring (or dotted ring) `width` wide in a colour, as a texture. */
 export function ringTexture(textures: TextureManager, width: number, color: string, dotted = false): string {
   const key = `${RING_PREFIX}${width}-${color.slice(1)}${dotted ? '-dots' : ''}`;
-  if (!textures.exists(key)) addCanvasOnce(textures, key, rawToCanvas(ringRaw(width, color, dotted)));
+  textures.addCanvasOnce(key, () => ringRaw(width, color, dotted));
   return key;
 }
 

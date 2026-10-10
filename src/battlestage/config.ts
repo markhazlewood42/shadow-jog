@@ -39,6 +39,7 @@
  * real battle is given its party and troop by the game.
  */
 
+import { depthFor as engineDepthFor, PART } from '../sje';
 import { HUD_FIELDS, HUD_REGIONS, type HudRegionKey } from './hudpresets';
 
 export const SCREEN_W = 480;
@@ -813,16 +814,12 @@ export function shadowHeight(stage: StageBody, width: number): number {
  * row, and an `order` of 1 or -1 (bring forward / send back) overrides the tie-break for one fighter on its row. Every part of a fighter (shadow, ring, body, health bar...) adds its own small `PART` offset to this.
  */
 export function depthFor(y: number, x: number, side: 'party' | 'enemy' = 'party', order: -1 | 0 | 1 = 0): number {
+  // The formula is the engine's (`depthFor` in src/sje/display/depth.ts, M3 task 3): rows, then the tie-break, then `order`, which moves a fighter by
+  // 1000, more than the whole tie-break range (about 480) and far less than one row (rows are at least 14 px = 14,000 apart), so it can never lift a
+  // back-row fighter over a front-row one. What stays here is the stage's own half: how close to the screen's middle a fighter stands.
   const closeness = 240 - Math.min(240, Math.abs(x - SCREEN_W / 2));
-  return y * 1000 + closeness * 2 + (side === 'enemy' ? 1 : 0) + order * ORDER_STEP;
+  return engineDepthFor(y, closeness, side === 'enemy' ? 1 : 0, order);
 }
-
-/**
- * How much a forward or back override (`order`) moves a fighter in the draw order. More than the whole tie-break
- * range (about 480) so it wins ties on its row, and far less than one row (rows are at least 14 px = 14,000 apart),
- * so it can never lift a back-row fighter over a front-row one.
- */
-export const ORDER_STEP = 1000;
 
 /**
  * The feet row a fighter sorts by: its own, or while lunging in contact the target's row plus
@@ -832,14 +829,8 @@ export function sortRow(stage: StageBody, feetY: number, lungeTargetY?: number):
   return lungeTargetY === undefined ? feetY : lungeTargetY + stage.sort.lungeOverTarget;
 }
 
-/** The parts of one figure and how far each sits from the figure's own depth number (a figure's whole group stays between its neighbours' numbers). */
-export const PART = {
-  shadow: -0.5,
-  ring: -0.4,
-  body: 0,
-  smear: 0.1,
-  bar: 0.25,
-} as const;
+/** The parts of one figure and how far each sits from the figure's own depth number (a figure's whole group stays between its neighbours' numbers). The engine's table. */
+export { PART };
 
 /** The depth number of one part of a figure. */
 export function partDepth(figureDepth: number, part: keyof typeof PART): number {

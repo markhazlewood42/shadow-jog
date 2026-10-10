@@ -55,7 +55,7 @@ const pixi = (o: { node: unknown }) => o.node as PixiBits;
 
 /** A fake figure picture: a 2-cell sheet (hero) or one picture (enemy), with the measurements Figure reads. */
 function art(w: number, h: number): FigureSpec['fig'] {
-  return { raw: { w, h, px: new Uint8ClampedArray(0) }, box: { x0: 10, y0: 8, x1: w - 11, y1: h - 2, feet: Math.floor(w / 2) }, foot: { x: Math.floor(w / 2), y: h - 1 }, face: { x: 0, y: 0 }, grain: 1 };
+  return { raw: { w, h, data: new Uint8ClampedArray(0) }, box: { x0: 10, y0: 8, x1: w - 11, y1: h - 2, feet: Math.floor(w / 2) }, foot: { x: Math.floor(w / 2), y: h - 1 }, face: { x: 0, y: 0 }, grain: 1 };
 }
 
 function setup(): { scene: Host; textures: TextureManager; stage: StageConfig } {
@@ -92,13 +92,13 @@ function made(scene: Host, stage: StageConfig, textures: TextureManager, spec: F
   return f;
 }
 
-describe('the depth numbers (engine and stage config agree)', () => {
-  it('the part offsets of the engine are the spike’s: shadow -0.5, ring -0.4, body 0, smear 0.1, bar 0.25', () => {
-    // (The engine writes the names in capitals, the config in lower case.)
-    expect(Object.fromEntries(Object.entries(ENGINE_PART).map(([k, v]) => [k.toLowerCase(), v]))).toEqual({ ...CONFIG_PART });
+describe('the depth numbers (the stage config uses the engine’s: one formula, one table)', () => {
+  it('the part offsets are the spike’s (shadow -0.5, ring -0.4, body 0, smear 0.1, bar 0.25), and the config holds no copy: it is the engine’s table', () => {
+    expect({ ...ENGINE_PART }).toEqual({ SHADOW: -0.5, RING: -0.4, BODY: 0, SMEAR: 0.1, BAR: 0.25 });
+    expect(CONFIG_PART).toBe(ENGINE_PART);
   });
 
-  it('the engine’s depthFor(y, closeness, side, order) is the stage config’s depthFor(y, x, side, order) once the closeness is worked out', () => {
+  it('the stage config’s depthFor(y, x, side, order) IS the engine’s depthFor(y, closeness, side, order) with the closeness worked out (the engine formula is not copied)', () => {
     for (const [y, x, side, order] of [
       [207, 46, 'party', 0],
       [157, 361, 'enemy', 0],

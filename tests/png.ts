@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
-import type { Raw } from '../src/art/rig2/sfgeom';
+import type { Raw } from '../src/battlestage/sfgeom';
 
 /** A minimal PNG reader for tests: 8-bit RGBA, not interlaced (what Sprite Fusion writes). */
 export function readPng(path: string): Raw {
@@ -36,7 +36,7 @@ export function readPng(path: string): Raw {
       px[y * stride + x] = v & 255;
     }
   }
-  return { w, h, px };
+  return { w, h, data: px };
 }
 
 /** The frames of an extracted Sprite Fusion sheet (`extracted/<name>/spritesheet.png` + `metadata.json`). */
@@ -45,7 +45,7 @@ export function sheetFrames(dir: string, name: string): Raw[] {
   const s = readPng(`${dir}/extracted/${name}/spritesheet.png`);
   return Array.from({ length: meta.frame_count }, (_, i) => {
     const px = new Uint8ClampedArray(meta.frame_w * s.h * 4);
-    for (let y = 0; y < s.h; y++) px.set(s.px.subarray((y * s.w + i * meta.frame_w) * 4, (y * s.w + (i + 1) * meta.frame_w) * 4), y * meta.frame_w * 4);
-    return { w: meta.frame_w, h: s.h, px };
+    for (let y = 0; y < s.h; y++) px.set(s.data.subarray((y * s.w + i * meta.frame_w) * 4, (y * s.w + (i + 1) * meta.frame_w) * 4), y * meta.frame_w * 4);
+    return { w: meta.frame_w, h: s.h, data: px };
   });
 }

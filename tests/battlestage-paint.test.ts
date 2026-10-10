@@ -9,8 +9,8 @@ import { ringRaw, ringSize, shadowRaw, shadowSize } from '../src/battlestage/sha
 
 const file: StageFile = fixtureStages();
 const clone = (id: string): StageConfig => JSON.parse(JSON.stringify(stageOf(file, id))) as StageConfig;
-const alphaAt = (r: Raw, x: number, y: number): number => r.px[(y * r.w + x) * 4 + 3] ?? 0;
-const same = (a: Raw, b: Raw): boolean => a.w === b.w && a.h === b.h && a.px.every((v, i) => v === b.px[i]);
+const alphaAt = (r: Raw, x: number, y: number): number => r.data[(y * r.w + x) * 4 + 3] ?? 0;
+const same = (a: Raw, b: Raw): boolean => a.w === b.w && a.h === b.h && a.data.every((v, i) => v === b.data[i]);
 
 /** A stage with only the bands and their seams switched on, over a flat wall, to look at one layer at a time. */
 function plain(id = 'street'): { stage: StageConfig; wall: Raw } {
@@ -180,14 +180,14 @@ describe('shadows and rings', () => {
       expect(alphaAt(s, s.w / 2, s.h / 2)).toBe(Math.round(style.alpha * 255));
       expect(alphaAt(s, 0, 0)).toBe(0);
     }
-    const count = (r: Raw): number => r.px.reduce((n, _v, i) => (i % 4 === 3 && (r.px[i] ?? 0) > 0 ? n + 1 : n), 0);
+    const count = (r: Raw): number => r.data.reduce((n, _v, i) => (i % 4 === 3 && (r.data[i] ?? 0) > 0 ? n + 1 : n), 0);
     expect(count(shadowRaw(40, style))).toBeGreaterThan(count(shadowRaw(20, style)));
   });
 
   it('a shadow’s rim is stippled and weaker than its middle', () => {
     const s = shadowRaw(40, style);
     const levels = new Set<number>();
-    for (let i = 3; i < s.px.length; i += 4) if ((s.px[i] ?? 0) > 0) levels.add(s.px[i] ?? 0);
+    for (let i = 3; i < s.data.length; i += 4) if ((s.data[i] ?? 0) > 0) levels.add(s.data[i] ?? 0);
     expect([...levels].sort((a, b) => a - b)).toEqual([Math.round(style.edgeAlpha * 255), Math.round(style.alpha * 0.62 * 255), Math.round(style.alpha * 0.82 * 255), Math.round(style.alpha * 255)].sort((a, b) => a - b));
   });
 
@@ -195,12 +195,12 @@ describe('shadows and rings', () => {
     const solid = ringRaw(40, '#3fe0f0', false);
     const dots = ringRaw(40, '#3fe0f0', true);
     expect(solid.w).toBe(ringSize(40).w);
-    const lit = (r: Raw): number => r.px.reduce((n, _v, i) => (i % 4 === 3 && (r.px[i] ?? 0) > 0 ? n + 1 : n), 0);
+    const lit = (r: Raw): number => r.data.reduce((n, _v, i) => (i % 4 === 3 && (r.data[i] ?? 0) > 0 ? n + 1 : n), 0);
     expect(lit(solid)).toBeGreaterThan(40);
     expect(lit(dots)).toBeLessThan(lit(solid));
     // The middle of a ring is empty; every lit pixel of the solid ring is fully opaque and the right colour.
     expect(alphaAt(solid, solid.w / 2, solid.h / 2)).toBe(0);
-    for (let i = 0; i < solid.px.length; i += 4) if ((solid.px[i + 3] ?? 0) > 0) expect([solid.px[i], solid.px[i + 1], solid.px[i + 2], solid.px[i + 3]]).toEqual([0x3f, 0xe0, 0xf0, 255]);
+    for (let i = 0; i < solid.data.length; i += 4) if ((solid.data[i + 3] ?? 0) > 0) expect([solid.data[i], solid.data[i + 1], solid.data[i + 2], solid.data[i + 3]]).toEqual([0x3f, 0xe0, 0xf0, 255]);
   });
 });
 
@@ -208,23 +208,23 @@ describe('faces', () => {
   const block = (colors: Array<[number, number, number] | null>): Raw => {
     const r = newRaw(2, 2);
     colors.forEach((c, i) => {
-      if (c) r.px.set([c[0], c[1], c[2], 255], i * 4);
+      if (c) r.data.set([c[0], c[1], c[2], 255], i * 4);
     });
     return r;
   };
 
   it('shrinking by 2 keeps the commonest colour of each 2x2 block, the darker on a tie, and drops mostly empty blocks', () => {
-    expect(modeDown(block([[9, 9, 9], [9, 9, 9], [200, 0, 0], null]), 2).px.slice(0, 4)).toEqual(new Uint8ClampedArray([9, 9, 9, 255]));
-    expect(modeDown(block([[200, 0, 0], [10, 10, 10], null, null]), 2).px.slice(0, 4)).toEqual(new Uint8ClampedArray([10, 10, 10, 255]));
-    expect(modeDown(block([[200, 0, 0], null, null, null]), 2).px[3]).toBe(0);
+    expect(modeDown(block([[9, 9, 9], [9, 9, 9], [200, 0, 0], null]), 2).data.slice(0, 4)).toEqual(new Uint8ClampedArray([9, 9, 9, 255]));
+    expect(modeDown(block([[200, 0, 0], [10, 10, 10], null, null]), 2).data.slice(0, 4)).toEqual(new Uint8ClampedArray([10, 10, 10, 255]));
+    expect(modeDown(block([[200, 0, 0], null, null, null]), 2).data[3]).toBe(0);
   });
 
   it('a grain-1 face is the square of pixels around the face point; a grain-2 face is cut twice as big, on the 2 px grid, and shrunk', () => {
     const src = newRaw(40, 40);
-    for (let y = 0; y < 40; y++) for (let x = 0; x < 40; x++) src.px.set([x * 6, y * 6, 0, 255], (y * 40 + x) * 4);
+    for (let y = 0; y < 40; y++) for (let x = 0; x < 40; x++) src.data.set([x * 6, y * 6, 0, 255], (y * 40 + x) * 4);
     const f1 = cutFace(src, { x: 20, y: 20 }, 8, 1);
     expect([f1.w, f1.h]).toEqual([8, 8]);
-    expect(Array.from(f1.px.slice(0, 4))).toEqual([16 * 6, 16 * 6, 0, 255]);
+    expect(Array.from(f1.data.slice(0, 4))).toEqual([16 * 6, 16 * 6, 0, 255]);
     const f2 = cutFace(src, { x: 21, y: 21 }, 8, 2);
     expect([f2.w, f2.h]).toEqual([8, 8]);
     expect(alphaAt(f2, 0, 0)).toBe(255);

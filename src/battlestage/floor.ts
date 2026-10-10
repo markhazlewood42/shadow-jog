@@ -245,12 +245,12 @@ export function paintFloor(base: Raw, stage: StageConfig): Raw {
 export function reprojectWall(source: Raw, stage: StageConfig): Raw {
   const bd = stage.backdrop;
   const h0 = bd.horizonY;
-  const out: Raw = { w: SCREEN_W, h: SCREEN_H, px: new Uint8ClampedArray(SCREEN_W * SCREEN_H * 4) };
-  for (let i = 0; i < SCREEN_W * SCREEN_H; i++) out.px[i * 4 + 3] = 255;
+  const out: Raw = { w: SCREEN_W, h: SCREEN_H, data: new Uint8ClampedArray(SCREEN_W * SCREEN_H * 4) };
+  for (let i = 0; i < SCREEN_W * SCREEN_H; i++) out.data[i * 4 + 3] = 255;
   for (let y = 0; y <= h0; y++) {
     const sy = y - bd.shiftY;
     if (sy < 0 || sy >= source.h) continue;
-    out.px.set(source.px.subarray(sy * source.w * 4, (sy + 1) * source.w * 4), y * SCREEN_W * 4);
+    out.data.set(source.data.subarray(sy * source.w * 4, (sy + 1) * source.w * 4), y * SCREEN_W * 4);
   }
   const sf = bd.skyFade;
   if (sf) {

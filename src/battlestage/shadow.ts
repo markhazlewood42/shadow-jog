@@ -39,7 +39,7 @@ export function shadowRaw(w: number, style: ShadowStyle): Raw {
       else if (d <= 1) al = style.alpha * 0.62;
       else if (d <= 1.35 && (x + y) % 2 === 0) al = style.edgeAlpha;
       else continue;
-      out.px.set([col[0], col[1], col[2], Math.round(al * 255)], (y * size.w + x) * 4);
+      out.data.set([col[0], col[1], col[2], Math.round(al * 255)], (y * size.w + x) * 4);
     }
   return out;
 }
@@ -67,7 +67,7 @@ export function ringRaw(w: number, color: string, dotted: boolean): Raw {
     for (let k = 0; k < 360; k += 12) {
       const x = Math.floor(cx + Math.round(Math.cos((k * Math.PI) / 180) * rx));
       const y = Math.floor(cy + Math.round(Math.sin((k * Math.PI) / 180) * ry));
-      if (x >= 0 && y >= 0 && x < size.w && y < size.h) out.px.set([c[0], c[1], c[2], Math.round(0.7 * 255)], (y * size.w + x) * 4);
+      if (x >= 0 && y >= 0 && x < size.w && y < size.h) out.data.set([c[0], c[1], c[2], Math.round(0.7 * 255)], (y * size.w + x) * 4);
     }
     return out;
   }
@@ -77,7 +77,7 @@ export function ringRaw(w: number, color: string, dotted: boolean): Raw {
       const dy = y + 0.5 - cy;
       const outer = (dx / (rx + 0.5)) ** 2 + (dy / (ry + 0.5)) ** 2;
       const inner = (dx / (rx - 0.5)) ** 2 + (dy / (ry - 0.5)) ** 2;
-      if (outer <= 1 && inner > 1) out.px.set([c[0], c[1], c[2], 255], (y * size.w + x) * 4);
+      if (outer <= 1 && inner > 1) out.data.set([c[0], c[1], c[2], 255], (y * size.w + x) * 4);
     }
   return out;
 }
