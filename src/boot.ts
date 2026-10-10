@@ -176,8 +176,7 @@ export function boot(game: Game, display: Display): void {
   // GPU effects: on when the setting says so and WebGL 2 works. Shockwaves follow Screen shake
   // and pulses follow Screen flash, so the comfort options cover them too.
   display.setGpu(gpuWanted());
-  // The Options switch. The engine has no slow-frame fallback (the old `sj-gpu-slow` is gone), and a browser without WebGL 2 never gets here (E5), so the one notice
-  // left is for the `lite` level, which `auto` picks when the browser draws with software graphics (src/sje/fx/fxsystem.ts).
+  // The Options switch; its one notice is for the `lite` level, which `auto` picks on software graphics (src/sje/fx/fxsystem.ts).
   window.addEventListener('sj-gpu', () => {
     display.setGpu(gpuWanted());
     if (gpuWanted() && display.fxLevel === 'lite') notice('This browser draws with software graphics, so the GPU effects run in a lighter form here.', 'warn');
