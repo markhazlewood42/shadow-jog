@@ -124,8 +124,8 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    # The usual run time is under 10 minutes. The rest is room for a slow runner or download.
-    timeout-minutes: 25
+    # M5: the field parity spec (31 states) takes about 20 minutes on SwiftShader, so the run is about 30 minutes.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
