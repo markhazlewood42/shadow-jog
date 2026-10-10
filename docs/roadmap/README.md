@@ -3,7 +3,7 @@ type: reference
 title: Shadow Jog roadmap
 project: shadow-jog
 created: 2026-10-09
-updated: 2026-10-09
+updated: 2026-10-10
 tags: [roadmap, planning]
 ---
 
