@@ -879,7 +879,8 @@ export class BattleScene extends Scene<'win' | 'lose' | 'run'> {
       const t = this.frame - start;
       const tally = Math.min(1, t / 28), fill = Math.min(1, Math.max(0, (t - 10) / 44));
       const w = 272, h = 58 + dropNames.length * 11 + bars.length * 13;
-      const x = (W - w) / 2, y = 44;
+      // Under a stage the panel starts below the stage HUD's top boxes (the turn timeline reaches row 45), as the other top lines do (`BattleStage.topClear`).
+      const x = (W - w) / 2, y = this.stage ? Math.max(44, this.stage.topClear) : 44;
       drawWindow(ctx, x, y, w, h, { title: 'VICTORY', accent: UI.amber });
       drawText(ctx, `{y}${Math.round(r.xp * tally)}{/} XP each`, x + 14, y + 14);
       drawText(ctx, `{y}${Math.round(r.cred * tally).toLocaleString('en-US')}¢{/} cred`, x + 14, y + 26);
