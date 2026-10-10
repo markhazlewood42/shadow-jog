@@ -1,6 +1,10 @@
 /// <reference types="node" />
 import { defineConfig } from '@playwright/test';
 
+// PW_PORT=3011 runs the specs against a dev server on another port (a second worktree next to the first one: ports 3007 and 3008 may be taken). With it set, Playwright starts
+// (or reuses) only that dev server, and no preview server: e2e/prod.spec.ts needs the preview, so run it without PW_PORT.
+const PORT = Number(process.env.PW_PORT ?? 3007);
+
 export default defineConfig({
   testDir: 'e2e',
   timeout: 120_000,
@@ -8,7 +12,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:3007',
+    baseURL: `http://localhost:${PORT}`,
     // 1280x720 is exactly 2x the game's 640x360, so every screenshot shows whole-pixel blocks.
     viewport: { width: 1280, height: 720 },
   },
@@ -29,9 +33,9 @@ export default defineConfig({
       : []),
   ],
   webServer: [
-    { command: 'npm run dev', url: 'http://localhost:3007', reuseExistingServer: true, timeout: 60_000 },
+    { command: PORT === 3007 ? 'npm run dev' : `npx vite --port ${PORT} --strictPort`, url: `http://localhost:${PORT}`, reuseExistingServer: true, timeout: 60_000 },
     // The shipped bundle, for e2e/prod.spec.ts. Always built fresh: a reused preview server
     // would silently test a stale bundle.
-    { command: 'npm run build && npm run preview', url: 'http://localhost:3008', reuseExistingServer: false, timeout: 180_000 },
+    ...(process.env.PW_PORT ? [] : [{ command: 'npm run build && npm run preview', url: 'http://localhost:3008', reuseExistingServer: false, timeout: 180_000 }]),
   ],
 });
