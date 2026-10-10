@@ -1,6 +1,7 @@
 // Controls for scripts/bundle-budget.mjs: the gate must fail when it has no data, not pass on it.
 // Each case writes a tiny fake game build and lab build in a temp folder and runs the script there.
 import { spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -12,16 +13,17 @@ afterEach(() => {
   for (const d of made.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
-type Chunk = { file: string; modules: string[] | null; isEntry?: boolean; imports?: string[]; dynamicImports?: string[] };
+type Chunk = { file: string; modules: string[] | null; src?: string; bytes?: number; isEntry?: boolean; imports?: string[]; dynamicImports?: string[] };
 
 function writeBuild(dir: string, chunks: Chunk[]): void {
   mkdirSync(join(dir, '.vite'), { recursive: true });
   mkdirSync(join(dir, 'assets'), { recursive: true });
   const manifest: Record<string, unknown> = {};
   for (const c of chunks) {
-    writeFileSync(join(dir, c.file), `// ${c.file}\n`);
+    writeFileSync(join(dir, c.file), c.bytes ? randomBytes(c.bytes) : `// ${c.file}
+`);
     if (c.modules) writeFileSync(join(dir, `${c.file}.map`), JSON.stringify({ sources: c.modules }));
-    manifest[c.file] = { file: c.file, isEntry: c.isEntry, imports: c.imports, dynamicImports: c.dynamicImports };
+    manifest[c.file] = { file: c.file, src: c.src, isEntry: c.isEntry, imports: c.imports, dynamicImports: c.dynamicImports };
   }
   writeFileSync(join(dir, '.vite', 'manifest.json'), JSON.stringify(manifest));
 }
@@ -83,5 +85,21 @@ describe('bundle-budget.mjs controls', () => {
     const r = run(['../../src/main.ts'], [ENGINE_CHUNK, { file: 'assets/three.js', modules: ['../../node_modules/three/build/three.module.js'] }]);
     expect(r.code).toBe(1);
     expect(r.out).toMatch(/game: chunk assets\/three\.js holds Three/);
+  });
+
+  it('M3: a flag-only chunk (src/battlestage/liveopen.ts) has its own report line and does not count toward the game total', () => {
+    const live: Chunk = { file: 'assets/liveopen.js', src: 'src/battlestage/liveopen.ts', modules: ['../../src/battlestage/liveopen.ts'] };
+    const ok = run(['../../src/main.ts'], [ENGINE_CHUNK, live]);
+    expect(ok.code).toBe(0);
+    expect(ok.out).toMatch(/flag-only\s+\d/);
+    expect(ok.out).toMatch(/game flag-only gzip/);
+    // Negative control: an incompressible 410 kB flag-only chunk is over its own cap, but it must not trip the 400 kB game total.
+    const big = run(['../../src/main.ts'], [ENGINE_CHUNK, { ...live, bytes: 410_000 }]);
+    expect(big.code).toBe(1);
+    expect(big.out).toMatch(/game: flag-only gzip \d+ is over/);
+    expect(big.out).not.toMatch(/game: total gzip/);
+    // The same bytes in a chunk that is not flag-only do trip the total.
+    const counted = run(['../../src/main.ts'], [ENGINE_CHUNK, { ...live, src: 'src/battlestage/other.ts', bytes: 410_000 }]);
+    expect(counted.out).toMatch(/game: total gzip \d+ is over/);
   });
 });

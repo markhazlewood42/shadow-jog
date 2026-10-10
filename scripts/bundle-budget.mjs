@@ -11,6 +11,7 @@
 //   lazy-2d     lazily loaded chunks that hold Pixi or the engine (src/sje), and no Three.
 //   lazy-3d     lazily loaded chunks that hold Three (the 3D mode). Own cap.
 //   lazy-other  every other lazily loaded chunk (battle, deck, tables, dev).
+//   flag-only   chunks that load only under `?engine=sje` (FLAG_ONLY_SRC below; M3: `liveopen`). Own cap; NOT in the shipped-game total.
 //   first play  boot + lazy-2d. Reported only, until M1 measures it.
 //
 // Which modules a chunk holds comes from its source map (`sourcemap: true` in vite.config.ts), because the manifest lists chunks, not modules.
@@ -72,13 +73,24 @@ import { gzipSync } from 'node:zlib';
  */
 const CHUNK_MAX = 480 * 1000;
 // 2026-10-09 (M2): measured 393.0 kB gzip with the fx stack; set to 394 kB. Re-set deliberately, see CLAUDE.md "Dependencies".
-const GZIP_TOTAL_MAX = 394 * 1000;
+// 2026-10-10 (M3): the flag-only `liveopen` chunk (41.0 kB) left this total (its own cap above). Measured without it: 399.773 kB gzip, so
+// 400 kB (rounded up to the next 1 kB; +6.8 kB over M2's 393.0, mostly the M3 battle-stage code that the shipped boot and battle chunks now hold).
+const GZIP_TOTAL_MAX = 400 * 1000;
 
 /**
  * The lazy 3D chunk (Three, the 3D facade, the UnrealBloomPass), gzip. Set at 160 kB on 2026-10-05 (real choice C5, accepted by Mark): the spike
  * measured 145.1 kB for it. It is built only in the lab build until the game starts a hack (M7). Confirm it at M1 and M6.
  */
 const LAZY_3D_GZIP_MAX = 160 * 1000;
+
+/**
+ * The flag-only class (M3, Mark approved 2026-10-10): lazy chunks that a player reaches only under `?engine=sje`, listed by their Vite
+ * manifest `src`. They get their own report line and cap, and do not count toward GZIP_TOTAL_MAX (the old game's download). The
+ * `liveopen` chunk (the battle stage on the new engine, `src/battlestage/liveopen.ts`) measured 41.0 kB gzip on 2026-10-10; cap 42 kB,
+ * measured rounded up to the next 1 kB. The flag and the chunk go away together when the old engine is removed.
+ */
+const FLAG_ONLY_SRC = ['src/battlestage/liveopen.ts'];
+const FLAG_ONLY_GZIP_MAX = 42 * 1000;
 
 // `first play` (boot + lazy-2d) has NO cap: it is reported until M1 measures it (estimate 330 to 430 kB gzip, low confidence).
 
@@ -122,6 +134,7 @@ function readBuild(name, dir) {
     const unused = /node_modules\/pixi\.js\/lib\/environment-(browser|webworker)\//.test(key);
     let cls;
     if (boot.has(key)) cls = 'boot';
+    else if (FLAG_ONLY_SRC.includes(chunk.src ?? key)) cls = 'flag-only';
     else if (unused) cls = 'lazy-2d';
     else if (three) cls = 'lazy-3d';
     else if (pixi || sje) cls = 'lazy-2d';
@@ -133,7 +146,7 @@ function readBuild(name, dir) {
   return { name, dir, chunks };
 }
 
-const CLASSES = ['boot', 'lazy-2d', 'lazy-3d', 'lazy-other'];
+const CLASSES = ['boot', 'lazy-2d', 'lazy-3d', 'lazy-other', 'flag-only'];
 const sum = (build, cls, field, { skipUnused = false } = {}) =>
   build ? build.chunks.filter((c) => c.cls === cls && !(skipUnused && c.unused)).reduce((n, c) => n + c[field], 0) : 0;
 
@@ -158,7 +171,7 @@ for (const build of [game, lab]) {
   }
 }
 
-// ---- the report: all five classes, gzip kB, for each build ----
+// ---- the report: all classes, gzip kB, for each build ----
 console.log('\nclass          game gzip     lab gzip');
 for (const cls of CLASSES) console.log(`  ${cls.padEnd(12)} ${kb(sum(game, cls, 'gzip'))} kB  ${lab ? `${kb(sum(lab, cls, 'gzip'))} kB` : '     (no lab build)'}`);
 const firstPlay = (b) => sum(b, 'boot', 'gzip') + sum(b, 'lazy-2d', 'gzip', { skipUnused: true });
@@ -189,11 +202,14 @@ for (const c of game.chunks) {
 if (!game.chunks.some((c) => c.cls === 'lazy-2d' && c.pixi && c.sje && !c.unused)) {
   problem('game: no lazy-2d chunk holds both the engine (src/sje) and Pixi (is `?engine=sje` still a dynamic import in src/main.ts?)');
 }
-// 3. The old alarms, on the shipped game: the largest chunk (raw), and all JavaScript gzipped (what a player downloads).
+// 3. The old alarms (the total leaves out the flag-only class, which has its own cap), on the shipped game: the largest chunk (raw), and all JavaScript gzipped (what a player downloads).
 for (const c of game.chunks) if (c.raw > CHUNK_MAX) problem(`game: ${c.file} is ${c.raw} bytes, over the ${CHUNK_MAX} byte largest-chunk cap`);
-const gameGzip = game.chunks.reduce((n, c) => n + c.gzip, 0);
-console.log(`\ngame total gzip ${(gameGzip / 1000).toFixed(1)} kB (budget ${GZIP_TOTAL_MAX / 1000} kB); largest chunk budget ${CHUNK_MAX / 1000} kB`);
+const gameGzip = game.chunks.filter((c) => c.cls !== 'flag-only').reduce((n, c) => n + c.gzip, 0);
+console.log(`\ngame total gzip (without flag-only) ${(gameGzip / 1000).toFixed(1)} kB (budget ${GZIP_TOTAL_MAX / 1000} kB); largest chunk budget ${CHUNK_MAX / 1000} kB`);
 if (gameGzip > GZIP_TOTAL_MAX) problem(`game: total gzip ${gameGzip} is over ${GZIP_TOTAL_MAX}`);
+const flagGzip = sum(game, 'flag-only', 'gzip');
+console.log(`game flag-only gzip ${(flagGzip / 1000).toFixed(1)} kB (budget ${FLAG_ONLY_GZIP_MAX / 1000} kB; ?engine=sje only)`);
+if (flagGzip > FLAG_ONLY_GZIP_MAX) problem(`game: flag-only gzip ${flagGzip} is over ${FLAG_ONLY_GZIP_MAX}`);
 // 4. The lazy 3D class has its own cap (the lab build, until M7).
 if (lab) {
   const three = sum(lab, 'lazy-3d', 'gzip');
