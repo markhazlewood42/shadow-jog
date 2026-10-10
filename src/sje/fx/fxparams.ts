@@ -9,14 +9,19 @@
  *  - `FX_SLOTS`: how many shockwaves, hazes and glitches the shader holds at once. The shader declares arrays of that size, so it is read-only.
  *  - The hash constants of the glitch noise (12.9898, 78.233, 43758.5453): they make a pattern, not a look.
  *  - The per-effect numbers of a moment (strength, reach, life): those are data (`fx.json`), not parameters.
- *  - The comfort settings (`motion`, `intensity`) and the scene knobs (`bloom`, `vignette` strength): already fields of `FxState`.
+ *  - The comfort settings (`motion`, `intensity`) and the scene knobs (`bloom`, `vignette` strength now): already fields of `FxState`.
+ *  - Shape math that is part of an effect's form: see docs/engine/m2-brief.md section 2, point 9 (the list).
  */
-import { MAX_GLITCHES, MAX_HAZES, MAX_SHOCKS } from './fxstate';
+import { DEFAULT_FX_LOOK, type FxStateLook, MAX_GLITCHES, MAX_HAZES, MAX_SHOCKS } from './fxstate';
 
 /** The slot counts the shaders fix. Read-only. */
 export const FX_SLOTS = { shocks: MAX_SHOCKS, hazes: MAX_HAZES, glitches: MAX_GLITCHES } as const;
 
-export interface FxParams {
+/**
+ * `FxStateLook` (fxstate.ts) adds the numbers that the state uses and no shader does: the decay of the color split and of the pulse, the dim fade, and
+ * the starting vignette strength. The shape math that stays in the shader code is listed in docs/engine/m2-brief.md section 2, point 9.
+ */
+export interface FxParams extends FxStateLook {
   /** The glow blur: the weights of its five folded taps (center, the near pair, the far pair) and where the pairs sit, in texels. Sigma about 2. */
   blurWeights: [number, number, number];
   blurOffsets: [number, number];
@@ -73,5 +78,6 @@ export function defaultFxParams(): FxParams {
     shockPushEase: 1.5,
     shockWidthStart: 0.6,
     particleCap: 4096,
+    ...DEFAULT_FX_LOOK,
   };
 }

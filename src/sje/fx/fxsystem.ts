@@ -149,6 +149,8 @@ export class FxSystem extends FxState {
   constructor(opts: FxOptions = {}) {
     super(opts.params?.particleCap ?? defaultFxParams().particleCap);
     this.params = { ...defaultFxParams(), ...opts.params };
+    this.look = this.params; // one object: a change to `params` is a change to the state's look at once
+    this.vignette = this.params.vignetteDefault;
     this.gpu = opts.gpu ?? null;
     this.rng = new Rng(opts.seed ?? 0x5eed);
     this.request = opts.request ?? 'auto';

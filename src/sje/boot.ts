@@ -31,7 +31,11 @@ import type { FxRequest } from './fx/fxsystem';
 import { routePostfx } from './fx/route';
 import { Game } from './runtime/game';
 
-/** `?fx=full|lite|none` forces the effects level (tests, and a look at what a software renderer gets). Anything else leaves the setting alone. */
+/**
+ * `?fx=full|lite|none` forces the effects level (tests, and a look at what a software renderer gets). Anything else leaves the setting alone.
+ * It is for development and tests only, and it ships in the build: while it is set it wins over the player's setting, and over the Options toggle
+ * (`display.setGpu`), so with `?fx=none` the toggle cannot turn the effects on.
+ */
 function forcedFx(): FxRequest | null {
   const v = new URLSearchParams(location.search).get('fx');
   return v === 'full' || v === 'lite' || v === 'none' ? v : null;
@@ -57,7 +61,7 @@ export async function startSje(markStarted: () => void): Promise<void> {
   const game = await Game.create({
     parent: stage,
     input,
-    fxLevel: forcedFx() ?? settings.fxLevel,
+    fxLevel: forcedFx() ?? settings.fxLevel, // the ?fx= override wins over the setting: dev and test only (see forcedFx)
     dev: import.meta.env.DEV,
     compat: {
       reportError,
@@ -74,7 +78,7 @@ export async function startSje(markStarted: () => void): Promise<void> {
   const display: DisplayAdapter = {
     mode: 'integer',
     resize: () => game.scale.refit(),
-    // Switches the effects (M2). On means the level the player or the URL asked for; `auto` there can still end up as `lite` on a software renderer.
+    // Switches the effects (M2). On means the level the ?fx= override (dev and test only) or the player asked for; `auto` there can still end up as `lite` on a software renderer.
     setGpu: (on) => {
       game.fxLevel = on ? (forcedFx() ?? (settings.fxLevel === 'none' ? 'auto' : settings.fxLevel)) : 'none';
       return game.fx.active;

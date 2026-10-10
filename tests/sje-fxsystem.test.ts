@@ -19,7 +19,7 @@ const live = (seed = 1): FxSystem => {
 };
 
 describe('FxParams', () => {
-  it('every look tunable has a default, the slot counts are the shader slots, and a changed value reaches the composite uniform (control: unchanged stays default)', () => {
+  it('every look tunable has a default, the slot counts are the shader slots, and a changed value reaches the composite uniform, for the bloom, dim, vignette, haze, glitch and shock fields (control: unchanged stays default)', () => {
     const d = defaultFxParams();
     // Today's values (the old presenter's constants).
     expect(d.bloomHalf).toBe(0.9);
@@ -46,6 +46,62 @@ describe('FxParams', () => {
     expect(read('uVigFalloff')).toBe(5);
     expect(read('uDimSpare')).toBe(7);
     expect((read('uMix') as Float32Array)[0]).toBeCloseTo(0.1);
+
+    // The rest of the uniform-backed fields: every one reaches its uniform. A value that is not the default must show up (control: the defaults first).
+    const arr = (name: string) => Array.from(read(name) as Float32Array);
+    f.update(fx, 0, d);
+    expect(arr('uMix')).toEqual([Math.fround(0.9), Math.fround(0.8)]);
+    expect(arr('uHazeY')).toEqual([Math.fround(0.45), Math.fround(0.21)]);
+    expect(arr('uHazeX')).toEqual([Math.fround(0.3), Math.fround(0.2), Math.fround(0.33)]);
+    expect(arr('uGlitchA')).toEqual([3, 4, 4, 0.75]);
+    expect(arr('uGlitchB')).toEqual([Math.fround(0.35), 0.5]);
+    f.update(fx, 0, {
+      ...d,
+      bloomQuarter: 0.2,
+      hazeWaveY: [1.5, 2.5],
+      hazeWaveX: [3.5, 4.5, 5.5],
+      glitchSliceHeight: 7,
+      glitchPatternFrames: 9,
+      glitchSlide: 11,
+      glitchSlideBias: 0.25,
+      glitchSplit: 0.6,
+      glitchThreshold: 0.8,
+    });
+    expect(arr('uMix')[1]).toBeCloseTo(0.2);
+    expect(arr('uHazeY')).toEqual([1.5, 2.5]);
+    expect(arr('uHazeX')).toEqual([3.5, 4.5, 5.5]);
+    expect(arr('uGlitchA')).toEqual([7, 9, 11, 0.25]);
+    expect(arr('uGlitchB')[0]).toBeCloseTo(0.6);
+    expect(arr('uGlitchB')[1]).toBeCloseTo(0.8);
+
+    // The envelope fields: a haze at its fifth frame shows 5 / fadeIn of its strength; a glitch, a shock too. Their numbers come from the params.
+    fx.haze(10, 10, { radius: 30, strength: 2, life: 100 });
+    fx.glitch(50, 50, { strength: 8, life: 100 });
+    fx.shock(80, 80, { strength: 6, reach: 100, life: 20, width: 10 });
+    fx.step(5);
+    const hazeU = () => arr('uHaze');
+    const glitchU = () => arr('uGlitchP');
+    const shockU = () => arr('uShock');
+    const shockWU = () => arr('uShockW');
+    f.update(fx, 0, d);
+    expect(hazeU()[3]).toBeCloseTo((2 * 5) / d.hazeFadeIn);
+    expect(glitchU()[0]).toBeCloseTo(8); // 5 frames in, past its 2-frame fade-in, 95 frames before the 6-frame fade-out
+    const k = 5 / 20;
+    expect(shockU()[2]).toBeCloseTo(100 * (1 - (1 - k) ** d.shockReachEase));
+    expect(shockU()[3]).toBeCloseTo(6 * (1 - k) ** d.shockPushEase);
+    expect(shockWU()[0]).toBeCloseTo(10 * (d.shockWidthStart + k));
+    f.update(fx, 0, { ...d, hazeFadeIn: 20, glitchFadeIn: 10, glitchFadeOut: 6, shockReachEase: 3, shockPushEase: 2, shockWidthStart: 1 });
+    expect(hazeU()[3]).toBeCloseTo((2 * 5) / 20);
+    expect(glitchU()[0]).toBeCloseTo((8 * 5) / 10);
+    expect(shockU()[2]).toBeCloseTo(100 * (1 - (1 - k) ** 3));
+    expect(shockU()[3]).toBeCloseTo(6 * (1 - k) ** 2);
+    expect(shockWU()[0]).toBeCloseTo(10 * (1 + k));
+    // The fade-out end: hazeFadeOut and glitchFadeOut count from the last frames of the life.
+    fx.step(94); // t = 99: one frame before the end
+    f.update(fx, 0, d);
+    expect(hazeU()[3]).toBeCloseTo((2 * 1) / d.hazeFadeOut);
+    f.update(fx, 0, { ...d, hazeFadeOut: 1 });
+    expect(hazeU()[3]).toBeCloseTo(2);
     f.destroy();
     for (const t of [a, b, c]) t.destroy(true);
     vi.unstubAllGlobals();
@@ -60,6 +116,42 @@ describe('FxParams', () => {
     w[0] = 9;
     expect(fx.params.blurWeights).toEqual([1, 2, 3]);
     expect(fx.params.bloomHalf).toBe(0.9);
+  });
+});
+
+describe('FxParams: the look numbers of the state', () => {
+  it('the color split and pulse decay, the dim fade and the starting vignette come from params; the defaults are the old values (control)', () => {
+    const d = defaultFxParams();
+    expect([d.vignetteDefault, d.dimFadeIn, d.dimFadeOut, d.aberrationDecay, d.aberrationFloor, d.pulseDecay, d.pulseFloor]).toEqual([0.22, 10, 16, 0.86, 0.05, 0.9, 0.01]);
+    const base = live();
+    expect(base.vignette).toBe(0.22);
+    base.aberrate(4);
+    base.flare(1);
+    base.dim(1, 100);
+    base.step(5);
+    expect(base.aberration).toBeCloseTo(4 * 0.86 ** 5);
+    expect(base.pulse).toBeCloseTo(0.9 ** 5);
+    expect(base.dimNow).toBeCloseTo(5 / 10);
+
+    const fx = new FxSystem({ params: { vignetteDefault: 0.5, aberrationDecay: 0.5, pulseDecay: 0.5, dimFadeIn: 20 } });
+    fx.active = true;
+    expect(fx.vignette).toBe(0.5);
+    fx.aberrate(4);
+    fx.flare(1);
+    fx.dim(1, 100);
+    fx.step(5);
+    expect(fx.aberration).toBeCloseTo(4 * 0.5 ** 5);
+    expect(fx.pulse).toBeCloseTo(0.5 ** 5);
+    expect(fx.dimNow).toBeCloseTo(5 / 20);
+    // Live change through setParams, with the floors: below the floor the value drops to 0.
+    fx.setParams({ aberrationDecay: 0.86, aberrationFloor: 10 });
+    fx.step(1);
+    expect(fx.aberration).toBe(0);
+    // Snapshot and restore keep working with these (they are state, not params).
+    const s = fx.snapshot();
+    const other = live();
+    other.restore(s);
+    expect(other.snapshot()).toEqual(s);
   });
 });
 

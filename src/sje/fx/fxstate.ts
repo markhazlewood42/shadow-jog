@@ -70,7 +70,38 @@ export function envelope(t: number, life: number, fadeIn: number, fadeOut: numbe
   return Math.min(1, t / Math.max(1, fadeIn), (life - t) / Math.max(1, fadeOut));
 }
 
+/**
+ * The look numbers that the state itself uses (not a shader): how fast the color split and the pulse die away, how the stage dim fades in and out,
+ * and the vignette strength a fresh state starts with. `FxParams` (fxparams.ts) extends this, so an FX editor tunes them with the rest.
+ * The old `PostFx` has no `FxParams` and uses `DEFAULT_FX_LOOK`; `FxSystem` points `look` at its own `params`, so a change shows on the next tick.
+ */
+export interface FxStateLook {
+  /** The vignette strength a fresh state starts with (scenes can set `vignette`). */
+  vignetteDefault: number;
+  /** The stage dim fades in over `dimFadeIn` frames and out over the last `dimFadeOut`. */
+  dimFadeIn: number;
+  dimFadeOut: number;
+  /** The color split in pixels is multiplied by `aberrationDecay` each frame and drops to 0 below `aberrationFloor`. */
+  aberrationDecay: number;
+  aberrationFloor: number;
+  /** The bloom pulse is multiplied by `pulseDecay` each frame and drops to 0 below `pulseFloor`. */
+  pulseDecay: number;
+  pulseFloor: number;
+}
+
+export const DEFAULT_FX_LOOK: Readonly<FxStateLook> = {
+  vignetteDefault: 0.22,
+  dimFadeIn: 10,
+  dimFadeOut: 16,
+  aberrationDecay: 0.86,
+  aberrationFloor: 0.05,
+  pulseDecay: 0.9,
+  pulseFloor: 0.01,
+};
+
 export class FxState {
+  /** The look numbers the state uses. The old path keeps the defaults; `FxSystem` replaces it with its `params`. */
+  protected look: FxStateLook = { ...DEFAULT_FX_LOOK };
   /** True while the WebGL presenter is drawing the frames (Display sets it). */
   active = false;
   /** Player comfort settings: shockwaves follow Screen shake, pulses follow Screen flash (0 = off). */
@@ -80,7 +111,7 @@ export class FxState {
   rate = 1;
   /** How strongly the glow layer blooms, and how dark the corners are (scenes set these). */
   bloom = 1;
-  vignette = 0.22;
+  vignette = DEFAULT_FX_LOOK.vignetteDefault;
   readonly shocks: Shock[] = [];
   /**
    * Color split: pixels of offset, easing out, and the point it spreads from. `aberrate()` always
@@ -179,7 +210,7 @@ export class FxState {
   /** Dim the stage by `amount` (0..1) for `life` frames, easing in and out; a deeper dim wins. */
   dim(amount: number, life = 60): void {
     if (!this.active) return;
-    const now = this.dimAmount * envelope(this.dimT, this.dimLife, 10, 16);
+    const now = this.dimAmount * envelope(this.dimT, this.dimLife, this.look.dimFadeIn, this.look.dimFadeOut);
     if (amount < now) return;
     this.dimAmount = amount;
     this.dimT = 0;
@@ -188,7 +219,7 @@ export class FxState {
 
   /** How dim the stage is this frame. */
   get dimNow(): number {
-    return this.dimAmount * envelope(this.dimT, this.dimLife, 10, 16);
+    return this.dimAmount * envelope(this.dimT, this.dimLife, this.look.dimFadeIn, this.look.dimFadeOut);
   }
 
   /** Brighten the bloom for a moment. */
@@ -251,8 +282,8 @@ export class FxState {
       this.dimT += dt;
       if (this.dimT >= this.dimLife) this.dimAmount = this.dimLife = this.dimT = 0;
     }
-    this.aberration = this.aberration < 0.05 ? 0 : this.aberration * 0.86 ** dt;
-    this.pulse = this.pulse < 0.01 ? 0 : this.pulse * 0.9 ** dt;
+    this.aberration = this.aberration < this.look.aberrationFloor ? 0 : this.aberration * this.look.aberrationDecay ** dt;
+    this.pulse = this.pulse < this.look.pulseFloor ? 0 : this.pulse * this.look.pulseDecay ** dt;
     if (this.particles.count) this.particles.step(dt);
     if (this.pending.length) {
       let keepP = 0;
