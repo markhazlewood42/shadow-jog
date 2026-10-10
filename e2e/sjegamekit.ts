@@ -28,6 +28,8 @@ export interface OpenGameOptions {
    * `Date.now()` is fixed, and `Math.random` is a seeded generator. Two pages that run the same code then draw the same frames.
    */
   fakeClock?: boolean;
+  /** The seed of the page's `Math.random` in a `fakeClock` run (default `0x5eed`). */
+  seed?: number;
 }
 
 /** Noise that is the tooling and not the game: the Vite hot-reload socket, and Chrome's hint when a test reads pixels back. */
@@ -68,7 +70,7 @@ export async function openGame(browser: Browser, opts: OpenGameOptions): Promise
         t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
       };
-    }, RANDOM_SEED);
+    }, opts.seed ?? RANDOM_SEED);
   }
   if (opts.init) await page.addInitScript(opts.init);
   await page.goto(`/?${opts.engine ? 'engine=sje&' : ''}debug${opts.query ?? ''}`);

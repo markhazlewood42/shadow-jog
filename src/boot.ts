@@ -60,6 +60,9 @@ export function boot(game: Game, display: Display): void {
     },
     tp: (map: string, x: number, y: number, dir: 'up' | 'down' | 'left' | 'right' = 'down') => field()?.warp(map, x, y, dir, false),
     newGame: () => newGame(game),
+    /** Put the field in a fixed state (map, tile, story-flag preset, flags, ambient, weather) and read its state back: the parity harness and the field specs (src/dev/fieldshow.ts). */
+    fieldShow: async (c: import('./dev/fieldshow').FieldShowCase) => (await import('./dev/fieldshow')).fieldShow(game, c),
+    fieldInfo: async () => (await import('./dev/fieldshow')).fieldInfo(game),
     /** Jump to a preset point in the chapter on a fresh field. */
     stage: async (name: string) => {
       const st = applyStage(name);
