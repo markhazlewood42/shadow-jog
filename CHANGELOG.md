@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
-- Engine milestone M5 (field), builder A: `Container.ySort` (children draw by `y + ySortOrigin`, ties by add order, the old `byBaseY` rule), `Camera.pan` (ease-in-out, whole pixels, bounds and the small-room rule, the old field pan), and `Lights` (the old light map and bloom as canvas operations, proven operation for operation against `src/field/lighting.ts`). Survey in `docs/engine/m5-survey.md`. A typed map loader, `checkMap`, and the `rustyard` map as `rustyard.json` plus a behavior module (the other 14 maps are not moved yet).
+- Engine milestone M5 (field), builder A: `Container.ySort` (children draw by `y + ySortOrigin`, ties by add order, the old `byBaseY` rule), `Camera.pan` (ease-in-out, whole pixels, bounds and the small-room rule, the old field pan), and `Lights` (the old light map and bloom as canvas operations, proven operation for operation against `src/field/lighting.ts`). Survey in `docs/engine/m5-survey.md`. A typed map loader (`src/data/maps/mapdata.ts`: `checkMap`, `joinMap`) and all 15 maps as `src/data/maps/<id>.json` (plain values) plus a behavior module (the `when` predicates and story scripts, by string id). `tests/mapdata*.test.ts` prove each joined map equals a frozen copy of the old TypeScript map.
 - Public demo hosting: a Vercel project that builds production from the `release` branch only (see `docs/DEVELOPING.md` section 9). `v0.1.0` is live at https://shadow-jog.vercel.app.
 
 ### Changed
