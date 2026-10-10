@@ -146,7 +146,7 @@
       "kind": "milestone",
       "label": "3D proof",
       "lane": "side",
-      "status": "later",
+      "status": "done",
       "after": [
         "M1"
       ],
