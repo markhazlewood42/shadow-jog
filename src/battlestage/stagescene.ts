@@ -38,7 +38,7 @@ import { ENEMIES } from '../data/enemies';
 import { MEMBERS } from '../data/party';
 import type { MemberId } from '../game/state';
 import { type Container, DEPTH, type ImageObject, must, Scene } from '../sje';
-import { type AxesFile, axisFor, checkStageConfig, enemySlots, SCREEN_H, SCREEN_W, type StageConfig, type StageFile, stageOf } from './config';
+import { type AxesFile, axisFor, checkStageConfig, enemySlots, screenOf, type StageConfig, type StageFile, stageOf } from './config';
 import { type FacingFile, figureFor, isMirrored } from './facing';
 import { Figure, type FigureSpec, type SheetPlay, type Side } from './figure';
 import { idleFrame } from './idle';
@@ -71,7 +71,7 @@ export interface BattleStageInit {
   facing?: FacingFile;
   /** How tall and how broad each hero stands (`src/data/heroes.json`); every hero as drawn when absent. */
   heroes?: HeroesFile;
-  /** The push camera's numbers (zoom, ramp, length). Default: the legacy battle's, `LEGACY_PUSH`. */
+  /** The push camera's numbers (zoom, ramp, length). Default: the stage's own `push`, else the legacy battle's, `LEGACY_PUSH`. */
   push?: PushSpec;
 }
 
@@ -130,7 +130,6 @@ export class BattleStageScene extends Scene<void> {
   /** The screen shake: how far the stage is moved this frame (the HUD is not: it is in the `ui` layer). */
   private shakeX = 0;
   private shakeY = 0;
-  private readonly pushSpec: PushSpec;
 
   constructor(private readonly init0: BattleStageInit) {
     super();
@@ -138,7 +137,11 @@ export class BattleStageScene extends Scene<void> {
     this.setKey = init0.setKey ?? DEFAULT_SET;
     this.active = init0.active;
     this.target = init0.target;
-    this.pushSpec = init0.push ?? LEGACY_PUSH;
+  }
+
+  /** The push camera's numbers: the stage's own (the 640x360 set holds them as data), else the init's, else the legacy battle's. */
+  private get pushSpec(): PushSpec {
+    return this.stage.push ?? this.init0.push ?? LEGACY_PUSH;
   }
 
   /** The stage config in use. */
@@ -370,7 +373,8 @@ export class BattleStageScene extends Scene<void> {
       cam.setScroll(0 - this.shakeX, 0 - this.shakeY);
       return;
     }
-    const view = pushView(this.leaning, pushZoom(this.leaning.t, this.pushSpec), SCREEN_W, SCREEN_H);
+    const screen = screenOf(this.stage);
+    const view = pushView(this.leaning, pushZoom(this.leaning.t, this.pushSpec), screen.w, screen.h);
     this.sys.world.setScale(view.zoom);
     cam.setScroll(-view.offsetX - this.shakeX, -view.offsetY - this.shakeY);
   }

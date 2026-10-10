@@ -4,8 +4,8 @@
  * that belongs to `Game.create` and its renderer, so what is left is the data and the assets:
  *
  *  1. Load the game's traced rig data (the enemies' art generators read it).
- *  2. Read the design data (`stages.json`, `hud.json`, `heroes.json`, `enemyfacing.json`, `axes.json`) through the loaders that check
- *     it. Mark edits these files in the Battle Stage Editor, so this code never copies a number out of them.
+ *  2. Read the design data (`stages.json`, `hud.json`, `heroes.json`, `enemyfacing.json`, `axes.json`; or, for the 640x360 layout the shipped battle uses,
+ *     `stages-640.json` and `hud-640.json` in place of the first two) through the loaders that check it. Mark edits these files in the Battle Stage Editor, so this code never copies a number out of them.
  *  3. Choose the crew's pictures: Mark's Sprite Fusion sheets when his git-ignored folder is there, the code-drawn stand-ins when not
  *     (CI is such a machine), and add them to the texture manager.
  */
@@ -15,9 +15,11 @@ import { loadRigData } from '../art/rig2/data';
 import axesJson from '../data/axes.json';
 import facingJson from '../data/enemyfacing.json';
 import heroesJson from '../data/heroes.json';
+import hud640Json from '../data/hud-640.json';
 import hudJson from '../data/hud.json';
+import stages640Json from '../data/stages-640.json';
 import stagesJson from '../data/stages.json';
-import { type AxesFile, loadAxes, loadHud, loadStages, type StageFile } from './config';
+import { type AxesFile, loadAxes, loadHud, loadStages, SCREENS, type StageFile } from './config';
 import { CREW_IDS } from './crew';
 import { type FacingFile, loadFacing } from './facing';
 import { STAGE_KNOWN } from './known';
@@ -32,11 +34,20 @@ export interface StageData {
   axes: AxesFile;
 }
 
-/** Load the rig data and read the design files. Throws one readable message if a file is wrong. */
-export async function loadStageData(): Promise<StageData> {
+/**
+ * Which set of stage files: `480` is the first set (Phase 0: the regression goldens are made from it), `640` is the set for the game's real screen (task 9,
+ * made from the first by `scripts/stage-640.mjs`).
+ */
+export type StageSet = '480' | '640';
+
+/** Load the rig data and read the design files of a set (the 480x270 set by default). Throws one readable message if a file is wrong. */
+export async function loadStageData(set: StageSet = '480'): Promise<StageData> {
   await loadRigData();
+  const big = set === '640';
+  const screen = SCREENS[big ? 1 : 0];
+  if (!screen) throw new Error('no screen for the stage set');
   return {
-    stages: loadStages(stagesJson, BG_IDS, STAGE_KNOWN, loadHud(hudJson)),
+    stages: loadStages(big ? stages640Json : stagesJson, BG_IDS, STAGE_KNOWN, loadHud(big ? hud640Json : hudJson, screen)),
     facing: loadFacing(facingJson),
     heroes: loadHeroes(heroesJson),
     axes: loadAxes(axesJson),

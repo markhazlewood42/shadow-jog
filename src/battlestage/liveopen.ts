@@ -15,7 +15,7 @@ import type { Game as OldGame } from '../engine/game';
 import type { BattleScene } from '../scenes/battle';
 import type { BattleStage, BattleStageProvider } from '../scenes/battlekit/stageseam';
 import type { Game } from '../sje';
-import { type SpriteChoice, type StageData, chooseSprites, haveMarksSheets, loadStageAssets, loadStageData } from './boot';
+import { type SpriteChoice, type StageData, type StageSet, chooseSprites, haveMarksSheets, loadStageAssets, loadStageData } from './boot';
 import { stageOf } from './config';
 import { LiveStageScene } from './live';
 import { setKeyFor, type BattleStageInit } from './stagescene';
@@ -34,21 +34,32 @@ interface Ready {
   choice: SpriteChoice;
 }
 
-let ready: Promise<Ready> | null = null;
+/**
+ * The set of stage files a battle uses: the 640x360 set (task 9), which fills the game's screen. `?stageset=480` under the flag asks for the 480x270 set instead, which
+ * the stage draws in the top left of the screen as Phase 0 did: that is how the "480 in 640" pictures of the look review are made.
+ */
+export function stageSetFromSearch(search: string): StageSet {
+  return new URLSearchParams(search).get('stageset') === '480' ? '480' : '640';
+}
+
+const ready = new Map<StageSet, Promise<Ready>>();
 
 /** The data and the crew's pictures, loaded once for the page. A failure is not kept: the next battle tries again. */
-function load(game: Game): Promise<Ready> {
-  ready ??= (async () => {
-    const data = await loadStageData();
+function load(game: Game, set: StageSet): Promise<Ready> {
+  let pending = ready.get(set);
+  if (pending) return pending;
+  pending = (async () => {
+    const data = await loadStageData(set);
     // Whether Mark's sheets are there is asked once, without console noise; a missing folder is normal on CI.
     const choice = await chooseSprites(!(await haveMarksSheets()));
     await loadStageAssets(game.textures, choice);
     return { data, choice };
   })();
-  ready.catch(() => {
-    ready = null;
+  ready.set(set, pending);
+  pending.catch(() => {
+    ready.delete(set);
   });
-  return ready;
+  return pending;
 }
 
 /** What a stage needs to show this battle: the stage, the lineup and the group. Throws when the stage cannot hold them. */
@@ -74,7 +85,7 @@ export const liveProvider: BattleStageProvider = {
     // The scene stack and the textures are the new engine's: the glue passes the new `Game` in the old `Game`'s clothes (the one unchecked seam of the migration, src/sje/boot.ts).
     const game = old as unknown as Game;
     try {
-      const { data, choice } = await load(game);
+      const { data, choice } = await load(game, stageSetFromSearch(typeof location === 'undefined' ? '' : location.search));
       const stage = new LiveStageScene(initFor(data, choice, scene), scene);
       // Runs init, preload and create now. The promise settles when the stage closes; a `create` that throws rejects it (at once) and takes the scene off the stack.
       let failure: unknown = null;

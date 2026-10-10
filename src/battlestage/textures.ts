@@ -31,10 +31,11 @@
  * `texturemanager.ts`. It keeps every baked variant bit for bit what the spike made.
  */
 import { canvasToRaw, rawToCanvas, type Raw, type TextureManager } from '../sje';
-import { battleBg } from '../art/battlebg480';
+import { battleBg } from '../art/battlebg';
+import { battleBg as battleBg480 } from '../art/battlebg480';
 import { enemyArt } from '../art/enemies';
 import { boxOf, type Box } from './sfgeom';
-import { SCREEN_H, SCREEN_W, type ShadowStyle, type StageConfig } from './config';
+import { SCREEN_W, type ScreenSize, screenOf, type ShadowStyle, type StageConfig } from './config';
 import { sheetFolder } from './crew';
 import { flipRaw } from './facing';
 import { cutSheet, footAnchor, type FootAnchor } from './feet';
@@ -317,27 +318,29 @@ export function surface(w: number, h: number): { canvas: HTMLCanvasElement; g: C
 
 /** The baked stage picture. */
 export interface StageTextures {
-  /** The texture key of the baked 480x270 picture (wall, kerb and floor). */
+  /** The texture key of the baked picture of the stage's screen size (wall, kerb and floor). */
   key: string;
 }
 
-/** The old backdrop pictures at 480x270 (the game paints at 240x135 and shows it twice as big), kept so repainting a floor never redraws the sky. */
+/** The backdrop pictures at the stage's screen size (the game paints at half that size and shows it twice as big), kept so repainting a floor never redraws the sky. */
 const sources = new Map<string, Raw>();
 
 /**
  * One of the game's battle backdrops as it is shown in the game: blown up 2x with NEAREST sampling, the neon glow laid
- * over it. This is the ONE place the 240x135 world layer meets the 480x270 grid: the 2x blow-up is baked here, once, on a
- * canvas, so the engine only ever sees a 480x270 picture (scene-graph.md section 7, "mixed grains": no scaled container is needed).
+ * over it. This is the ONE place the world layer meets the stage's grid: the 2x blow-up is baked here, once, on a
+ * canvas, so the engine only ever sees a picture of the stage's size (scene-graph.md section 7, "mixed grains": no scaled container is needed).
+ * The 480x270 layout paints from the 240x135 art that the first files were made for (`art/battlebg480.ts`); the 640x360 layout from the game's own 320x180 art (`art/battlebg.ts`).
  */
-function backdropSource(id: string): Raw {
-  const have = sources.get(id);
+function backdropSource(id: string, screen: ScreenSize): Raw {
+  const name = `${screen.w}x${screen.h}:${id}`;
+  const have = sources.get(name);
   if (have) return have;
-  const bg = battleBg(id);
-  const s = surface(SCREEN_W, SCREEN_H);
-  s.g.drawImage(bg.canvas, 0, 0, SCREEN_W, SCREEN_H);
-  if (bg.glow) s.g.drawImage(bg.glow, 0, 0, SCREEN_W, SCREEN_H);
+  const bg = (screen.w === SCREEN_W ? battleBg480 : battleBg)(id);
+  const s = surface(screen.w, screen.h);
+  s.g.drawImage(bg.canvas, 0, 0, screen.w, screen.h);
+  if (bg.glow) s.g.drawImage(bg.glow, 0, 0, screen.w, screen.h);
   const made = canvasToRaw(s.canvas);
-  sources.set(id, made);
+  sources.set(name, made);
   return made;
 }
 
@@ -357,7 +360,7 @@ export function stagePictureKey(stage: StageConfig, slotsFrom: StageConfig = sta
   // Only where each slot is matters to the picture (not its draw order), and `slotsFrom` may be an older stage.
   const spots = (list: ReadonlyArray<{ x: number; row: number; dy?: number }>): number[][] => list.map((q) => [q.x, q.row, q.dy ?? 0]);
   const sets = Object.entries(slotsFrom.enemySets).map(([k, v]) => [k, spots(v)]);
-  return `stage-${stage.id}-${fingerprint(JSON.stringify([stage.backdrop, stage.floor, stage.rows, spots(slotsFrom.party), sets]))}`;
+  return `stage-${stage.id}-${fingerprint(JSON.stringify([screenOf(stage), stage.backdrop, stage.floor, stage.rows, spots(slotsFrom.party), sets]))}`;
 }
 
 /**
@@ -367,9 +370,9 @@ export function stagePictureKey(stage: StageConfig, slotsFrom: StageConfig = sta
  */
 export function bakeStage(textures: TextureManager, stage: StageConfig, slotsFrom: StageConfig = stage): StageTextures {
   const key = stagePictureKey(stage, slotsFrom);
-  const src = backdropSource(stage.backdrop.id);
+  const src = backdropSource(stage.backdrop.id, screenOf(stage));
   if (!textures.exists(key)) {
-    const wall = stage.backdrop.mode === 'replace' ? paintWall(stage.backdrop.wallId ?? '', stage.backdrop.horizonY) : reprojectWall(src, stage);
+    const wall = stage.backdrop.mode === 'replace' ? paintWall(stage.backdrop.wallId ?? '', stage.backdrop.horizonY, screenOf(stage), stage.backdrop.wallOffset) : reprojectWall(src, stage);
     textures.addCanvasOnce(key, () => paintFloor(wall, slotsFrom === stage ? stage : { ...stage, party: slotsFrom.party, enemySets: slotsFrom.enemySets }));
     pruneTextures(textures, 'stage-', new Set([key]));
   }

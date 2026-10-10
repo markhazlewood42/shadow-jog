@@ -25,7 +25,7 @@
  * move puts on a hero and the dotted home ring (the move animations are a later step).
  */
 import { type AnyScene, type Container, type Graphics, type ImageObject, PART, type Sprite, type TextureManager } from '../sje';
-import { type AxisShift, type PartySlot, type StageConfig, depthFor, shadowHeight, shadowWidth, slotPoint } from './config';
+import { type AxisShift, type PartySlot, type StageConfig, depthFor, shadowHeight, shadowWidth, screenOf, slotPoint } from './config';
 import { stageBarSize } from './hudlayout';
 import { textAt, textTexture, UI } from './hudkit';
 import { type IdleKind, enemyIdle, idleFrame } from './idle';
@@ -238,7 +238,7 @@ export class Figure {
     this.body.setAlpha(this.alpha).setFlipX(this.mirror);
 
     // The draw order: the whole figure sorts as one unit, by the group's depth. The parts only sort with each other.
-    this.depth = depthFor(this.sortY, this.x, this.side, this.slot.order ?? 0);
+    this.depth = depthFor(this.sortY, this.x, this.side, this.slot.order ?? 0, screenOf(st).w);
     this.group.setPosition(this.x, this.y).setDepth(this.depth);
     this.body.setPosition(this.bodyDx + this.offX, 1 + this.offY).setDepth(PART.BODY);
 

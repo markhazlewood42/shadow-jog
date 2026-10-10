@@ -30,7 +30,7 @@
  */
 import type { AnyScene, Container, Graphics, ImageObject } from '../sje';
 import type { HudRegion, StageConfig } from './config';
-import { SCREEN_W } from './config';
+import { SCREEN_W, screenOf } from './config';
 import type { HudFoeView, HudMemberView, HudView } from './demo';
 import { COMMAND_ICONS, COMMAND_INFO, iconRaw } from './icons';
 import { comboOf } from './combo';
@@ -79,6 +79,8 @@ export class Hud {
   /** The things that blink when someone is under a quarter health: `on` shows in one half of the blink, `off` (when there is one) in the other. */
   private blinkers: Array<{ on: ImageObject | Graphics; off: ImageObject | null }> = [];
   private clock = 0;
+  /** The width of the screen of the stage being drawn (the labels keep inside it). */
+  private screenW = SCREEN_W;
 
   constructor(
     private readonly scene: AnyScene,
@@ -131,6 +133,7 @@ export class Hud {
 
   /** Rebuild the HUD for this stage's layout and this view. */
   render(stage: StageConfig, view: HudView, geo: HudGeo): void {
+    this.screenW = screenOf(stage).w;
     this.destroy();
     this.used = new Set();
     const h = stage.hud;
@@ -565,7 +568,7 @@ export class Hud {
     if (!foe || !f) return;
     const name = foeName(foe.name);
     const w = textWidth(name) + 8;
-    const at = targetTab(f, w, SCREEN_W, HUD_TOP_CLEAR);
+    const at = targetTab(f, w, this.screenW, HUD_TOP_CLEAR);
     this.tab(name, at.x, at.y, UI.amber, UI.text);
     // The pointer: down onto the head when the tab is above it, sideways towards the sprite when it is beside it.
     if (at.side === 'above') this.marks.push(this.text(null, '▼', f.x - 2, at.y + 10, { color: UI.amber, shadow: false, outline: UI.outline, depth: MARK_DEPTH }));
@@ -634,7 +637,7 @@ export class Hud {
       const pad = label ? NUMBER_LABEL_H : 0;
       const h = 7 * scale + pad;
       const w = Math.max(textWidth(text, scale), label ? textWidth(label) : 0) + 6;
-      const spot = numberSpot(f, w, h, { floor: NUMBER_FLOOR, screenW: SCREEN_W, farSide: true, taken: taken.filter((r) => r.target === hit.target) });
+      const spot = numberSpot(f, w, h, { floor: NUMBER_FLOOR, screenW: this.screenW, farSide: true, taken: taken.filter((r) => r.target === hit.target) });
       taken.push({ target: hit.target, x: spot.x, y: spot.y, w, h });
       if (label) this.marks.push(this.text(null, label, spot.x, spot.y, { color: HIT_COLOUR[kind], ...NUMBER_LOOK, outlineW: 1, align: 'center', depth: MARK_DEPTH }));
       this.marks.push(this.text(null, text, spot.x, spot.y + pad, { color: HIT_COLOUR[kind], ...NUMBER_LOOK, align: 'center', scale, depth: MARK_DEPTH }));

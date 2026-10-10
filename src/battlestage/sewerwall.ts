@@ -11,7 +11,7 @@
  * `wallId` in the stage config names a painter; today there is one, "sewer-sidewall". `paintWall` is the
  * lookup, so a future stage with its own wall adds one entry.
  */
-import { SCREEN_H, SCREEN_W } from './config';
+import { SCREEN_H, SCREEN_W, type ScreenSize } from './config';
 import { hexRgb, mix, newRaw, type Raw, type RGB, seeded, setRgb, getRgb, th } from './pixels';
 
 /** The wall painters by id. */
@@ -22,11 +22,32 @@ const PAINTERS: Record<string, (horizon: number) => Raw> = {
 /** The ids `paintWall` knows. */
 export const WALL_IDS = Object.keys(PAINTERS);
 
-/** Paint the named wall down to the horizon (rows below it are plain wall colour, covered later by the floor). */
-export function paintWall(wallId: string, horizon: number): Raw {
+/**
+ * Paint the named wall down to the horizon (rows below it are plain wall colour, covered later by the floor).
+ *
+ * The painters draw for the 480x270 layout. On a larger `screen` (the 640x360 set) the wall is painted for 480x270 with its horizon moved up by `offset.y`, placed
+ * at `offset` in the larger picture, and its edges are repeated outwards to fill the rest (a wall is the same along its length and up into the ceiling, so a repeated
+ * edge reads as more wall). The offset is the stage's `backdrop.wallOffset`, so the placement is data and not a number in this file.
+ */
+export function paintWall(wallId: string, horizon: number, screen: ScreenSize = { w: SCREEN_W, h: SCREEN_H }, offset: { x: number; y: number } = { x: 0, y: 0 }): Raw {
   const paint = PAINTERS[wallId];
   if (!paint) throw new Error(`No wall painter "${wallId}" (there is: ${WALL_IDS.join(', ')})`);
-  return paint(horizon);
+  if (screen.w === SCREEN_W && screen.h === SCREEN_H) return paint(horizon);
+  const base = paint(horizon - offset.y);
+  const out = newRaw(screen.w, screen.h, [0, 0, 0]);
+  for (let y = 0; y < screen.h; y++) {
+    const sy = Math.min(base.h - 1, Math.max(0, y - offset.y));
+    for (let x = 0; x < screen.w; x++) {
+      const sx = Math.min(base.w - 1, Math.max(0, x - offset.x));
+      const i = (sy * base.w + sx) * 4;
+      const o = (y * screen.w + x) * 4;
+      out.data[o] = base.data[i] ?? 0;
+      out.data[o + 1] = base.data[i + 1] ?? 0;
+      out.data[o + 2] = base.data[i + 2] ?? 0;
+      out.data[o + 3] = base.data[i + 3] ?? 255;
+    }
+  }
+  return out;
 }
 
 const P = {

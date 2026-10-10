@@ -173,6 +173,8 @@ describe('the pinned inputs (C2)', () => {
   const NOT_PINNED = new Map([
     ['src/data/party.ts', 'only the hero name is read, never drawn; the bio text differs in the Phaser checkout'],
     ['src/data/abilities.ts', 'read by the live battle and the headless driver (skill names and costs), not by the parity slice'],
+    ['src/data/stages-640.json', 'the 640x360 set (M3 task 9), made from the pinned 480x270 files by scripts/stage-640.mjs; the goldens show the 480x270 set'],
+    ['src/data/hud-640.json', 'the 640x360 set (M3 task 9), made from the pinned 480x270 files by scripts/stage-640.mjs; the goldens show the 480x270 set'],
   ]);
 
   it('cover every src/data file the stage code imports (src/battlestage/*.ts), except the ones named on purpose', () => {

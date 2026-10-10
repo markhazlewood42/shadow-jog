@@ -1,7 +1,7 @@
 /**
  * Painting the stage's floor (Phaser spike `spike/phaser-stage`), ported from the design's Python mockup script
  * (`render.py`, `build_stage`). Pure: it takes the finished wall (the backdrop above the horizon) and the stage
- * config and returns the whole 480x270 picture, wall plus a freshly painted floor. No Phaser, no browser.
+ * config and returns the whole picture (480x270, or 640x360 for the larger layout), wall plus a freshly painted floor. No Phaser, no browser.
  *
  * Why paint a floor at all? The game's old backdrops were drawn for a camera standing BEHIND the party, so
  * their floor is a road running into the screen with lane lines meeting at a vanishing point in the middle of
@@ -17,8 +17,7 @@
  *
  * The result is the same for the same config: flecks and puddles come from a seeded generator.
  */
-import type { StageConfig } from './config';
-import { SCREEN_H, SCREEN_W } from './config';
+import { SCREEN_H, screenOf, type StageConfig } from './config';
 import { blendRgb, cloneRaw, getRgb, hexRgb, mix, type Raw, type RGB, seeded, setRgb, th } from './pixels';
 
 const BLACK: RGB = [0, 0, 0];
@@ -51,6 +50,7 @@ export interface Puddle {
  * any group size, so nobody ever stands in a puddle, and clear of each other.
  */
 export function puddleSpots(stage: StageConfig, rand: () => number, top: number, count: number): Puddle[] {
+  const { w: SW, h: SH } = screenOf(stage);
   const ys = stage.rows.map((r) => r.y);
   const keep: Array<[number, number]> = stage.party.map((q) => [q.x, ys[q.row] ?? 0]);
   for (const set of Object.values(stage.enemySets)) for (const q of set) keep.push([q.x, ys[q.row] ?? 0]);
@@ -60,8 +60,8 @@ export function puddleSpots(stage: StageConfig, rand: () => number, top: number,
   while (placed.length < count && tries < 3000) {
     tries++;
     const a = ri(18, 32);
-    const cx = ri(20, SCREEN_W - 20);
-    const cy = ri(top + 10, 224);
+    const cx = ri(20, SW - 20);
+    const cy = ri(top + 10, 224 + (SH - SCREEN_H));
     if (keep.some(([kx, ky]) => Math.abs(cx - kx) < a + 24 && Math.abs(cy - ky) < 14)) continue;
     if (placed.every((p) => Math.abs(cx - p.cx) > 70 || Math.abs(cy - p.cy) > 22)) placed.push({ cx, cy, a });
   }
@@ -69,10 +69,11 @@ export function puddleSpots(stage: StageConfig, rand: () => number, top: number,
 }
 
 /**
- * Paint the floor onto a copy of `base` (a 480x270 picture whose rows above and including `horizonY` are the
+ * Paint the floor onto a copy of `base` (a picture of the stage's screen size whose rows above and including `horizonY` are the
  * finished wall) and return the copy. See the file header for the layers.
  */
 export function paintFloor(base: Raw, stage: StageConfig): Raw {
+  const { w: SW, h: SH } = screenOf(stage);
   const img = cloneRaw(base);
   const wall = base; // read-only: the neon spill reflects the wall as it was before any floor existed
   const fl = stage.floor;
@@ -84,7 +85,7 @@ export function paintFloor(base: Raw, stage: StageConfig): Raw {
   // --- the kerb: a lit row, then a darker one
   if (fl.edge) {
     const edge = hexRgb(fl.edge);
-    for (let x = 0; x < SCREEN_W; x++) {
+    for (let x = 0; x < SW; x++) {
       setRgb(img, x, h0, edge);
       setRgb(img, x, h0 + 1, mix(edge, BLACK, 0.55));
     }
@@ -99,7 +100,7 @@ export function paintFloor(base: Raw, stage: StageConfig): Raw {
     for (let y = a; y < b; y++) {
       const c = i % 2 === 0 ? cA : cB;
       bandColour.set(y, c);
-      for (let x = 0; x < SCREEN_W; x++) setRgb(img, x, y, c);
+      for (let x = 0; x < SW; x++) setRgb(img, x, y, c);
     }
   });
   const rowColour = (y: number): RGB => bandColour.get(y) ?? cA;
@@ -112,7 +113,7 @@ export function paintFloor(base: Raw, stage: StageConfig): Raw {
       const t = (y - ys) / (y1 - ys);
       const dens = 0.05 - 0.03 * t * fl.texture.shrink * 2;
       const len = 1 + Math.floor(t * 3.99);
-      for (let x = 0; x < SCREEN_W; x++) {
+      for (let x = 0; x < SW; x++) {
         if (rand() < dens / len) {
           const c = flecks[Math.floor(rand() * flecks.length)] ?? flecks[0] ?? base0;
           for (let k = 0; k < len; k++) setRgb(img, x + k, y, c);
@@ -127,9 +128,9 @@ export function paintFloor(base: Raw, stage: StageConfig): Raw {
     for (const [a, b] of bands) {
       const t = (a - ys) / (y1 - ys);
       const p = fl.seam.far + (fl.seam.near - fl.seam.far) * t;
-      for (let x = 0; x < SCREEN_W; x++) if (th(x, a) < p) setRgb(img, x, a, mix(rowColour(a), sc, 0.55));
+      for (let x = 0; x < SW; x++) if (th(x, a) < p) setRgb(img, x, a, mix(rowColour(a), sc, 0.55));
       // Big near bands get a dark grout row under the lit one.
-      if (b - a >= 8) for (let x = 0; x < SCREEN_W; x++) if (th(x, a + 1) < p * 0.6) setRgb(img, x, a + 1, mix(rowColour(a), BLACK, 0.3));
+      if (b - a >= 8) for (let x = 0; x < SW; x++) if (th(x, a + 1) < p * 0.6) setRgb(img, x, a + 1, mix(rowColour(a), BLACK, 0.3));
     }
   }
 
@@ -143,10 +144,10 @@ export function paintFloor(base: Raw, stage: StageConfig): Raw {
       const t = (a - ys) / (y1 - ys);
       const ga = g.alpha + ((g.nearAlpha ?? g.alpha) - g.alpha) * t;
       for (let k = -12; k <= 12; k++) {
-        const xb = SCREEN_W / 2 + k * g.spacing + off;
+        const xb = SW / 2 + k * g.spacing + off;
         for (let y = a + 1; y < b; y++) {
-          const x = Math.round(SCREEN_W / 2 + ((xb - SCREEN_W / 2) * (y - vy)) / (SCREEN_H - vy));
-          if (x >= 0 && x < SCREEN_W && th(x, y) < ga) setRgb(img, x, y, gc);
+          const x = Math.round(SW / 2 + ((xb - SW / 2) * (y - vy)) / (SH - vy));
+          if (x >= 0 && x < SW && th(x, y) < ga) setRgb(img, x, y, gc);
         }
       }
     });
@@ -158,7 +159,7 @@ export function paintFloor(base: Raw, stage: StageConfig): Raw {
     const ry = stage.rows.map((r) => r.y);
     for (let i = 0; i + 1 < ry.length; i++) {
       const y = Math.floor(((ry[i] ?? 0) + (ry[i + 1] ?? 0)) / 2) + 2;
-      for (let x = 0; x < SCREEN_W; x++) if (th(x, y) < fl.laneSeams.alpha) setRgb(img, x, y, mix(getRgb(img, x, y), lc, 0.6));
+      for (let x = 0; x < SW; x++) if (th(x, y) < fl.laneSeams.alpha) setRgb(img, x, y, mix(getRgb(img, x, y), lc, 0.6));
     }
   }
 
@@ -166,7 +167,7 @@ export function paintFloor(base: Raw, stage: StageConfig): Raw {
   for (const s of fl.stripes ?? []) {
     const sc = hexRgb(s.color);
     for (let y = s.y; y < s.y + s.h; y++)
-      for (let x = 0; x < SCREEN_W; x++) {
+      for (let x = 0; x < SW; x++) {
         if (s.dash && x % (s.dash[0] + s.dash[1]) >= s.dash[0]) continue;
         if (th(x, y) < s.alpha) setRgb(img, x, y, sc);
       }
@@ -180,13 +181,13 @@ export function paintFloor(base: Raw, stage: StageConfig): Raw {
       const sy = h0 - Math.round(d * 0.8);
       if (y >= y1 || sy < 0) break;
       const prob = ns.strength * (1 - d / ns.reach) ** 1.3;
-      for (let x = 0; x < SCREEN_W; x++) {
+      for (let x = 0; x < SW; x++) {
         const c = getRgb(wall, x, sy);
         if (Math.max(...c) >= 120 && Math.max(...c) - Math.min(...c) >= 50 && th(x, y) < prob) setRgb(img, x, y, mix(getRgb(img, x, y), c, 0.5));
       }
     }
     if (ns.streaks) {
-      for (let x = 0; x < SCREEN_W; x++) {
+      for (let x = 0; x < SW; x++) {
         const c = getRgb(wall, x, h0 - 6);
         if (Math.max(...c) >= 170 && Math.max(...c) - Math.min(...c) >= 80) {
           const len = 18 + ((x * 7) % 14);
@@ -207,7 +208,7 @@ export function paintFloor(base: Raw, stage: StageConfig): Raw {
       const nc = cols[n % cols.length] ?? cols[0] ?? BLACK;
       for (let y = cy - b - 1; y < cy + b + 2; y++)
         for (let x = cx - a - 1; x < cx + a + 2; x++) {
-          if (x < 0 || x >= SCREEN_W || y < ys || y >= y1) continue;
+          if (x < 0 || x >= SW || y < ys || y >= y1) continue;
           const d = ((x + 0.5 - cx) / a) ** 2 + ((y + 0.5 - cy) / b) ** 2;
           if (d > 1) continue;
           let c = mix(getRgb(img, x, y), [12, 12, 24], 0.4);
@@ -225,14 +226,14 @@ export function paintFloor(base: Raw, stage: StageConfig): Raw {
     const fog = hexRgb(fl.haze.color);
     for (let y = ys; y < Math.min(y1, ys + fl.haze.reach); y++) {
       const amt = fl.haze.amount * (1 - (y - ys) / fl.haze.reach) ** 1.5;
-      for (let x = 0; x < SCREEN_W; x++) if (th(x, y) < amt) setRgb(img, x, y, mix(getRgb(img, x, y), fog, 0.55));
+      for (let x = 0; x < SW; x++) if (th(x, y) < amt) setRgb(img, x, y, mix(getRgb(img, x, y), fog, 0.55));
     }
   }
 
   // --- an optional colour wash over the whole floor
   if (fl.tint) {
     const tc = hexRgb(fl.tint.color);
-    for (let y = ys; y < y1; y++) for (let x = 0; x < SCREEN_W; x++) blendRgb(img, x, y, tc, fl.tint.amount);
+    for (let y = ys; y < y1; y++) for (let x = 0; x < SW; x++) blendRgb(img, x, y, tc, fl.tint.amount);
   }
   return img;
 }
@@ -240,24 +241,25 @@ export function paintFloor(base: Raw, stage: StageConfig): Raw {
 /**
  * The wall for a "reproject" backdrop: the old picture slid by `shiftY` so its kerb row lands on the horizon, with
  * a dithered sky fade over the top rows (tower tops cut by the slide fade into the night sky instead of ending at a hard edge).
- * `source` is the old backdrop at 480x270.
+ * `source` is the old backdrop at the stage's screen size.
  */
 export function reprojectWall(source: Raw, stage: StageConfig): Raw {
+  const { w: SW, h: SH } = screenOf(stage);
   const bd = stage.backdrop;
   const h0 = bd.horizonY;
-  const out: Raw = { w: SCREEN_W, h: SCREEN_H, data: new Uint8ClampedArray(SCREEN_W * SCREEN_H * 4) };
-  for (let i = 0; i < SCREEN_W * SCREEN_H; i++) out.data[i * 4 + 3] = 255;
+  const out: Raw = { w: SW, h: SH, data: new Uint8ClampedArray(SW * SH * 4) };
+  for (let i = 0; i < SW * SH; i++) out.data[i * 4 + 3] = 255;
   for (let y = 0; y <= h0; y++) {
     const sy = y - bd.shiftY;
     if (sy < 0 || sy >= source.h) continue;
-    out.data.set(source.data.subarray(sy * source.w * 4, (sy + 1) * source.w * 4), y * SCREEN_W * 4);
+    out.data.set(source.data.subarray(sy * source.w * 4, (sy + 1) * source.w * 4), y * SW * 4);
   }
   const sf = bd.skyFade;
   if (sf) {
     const sc = hexRgb(sf.color);
     for (let y = 0; y < sf.height; y++) {
       const p = sf.amount * (1 - y / sf.height) ** 1.1;
-      for (let x = 0; x < SCREEN_W; x++) if (th(x, y) < p) setRgb(out, x, y, mix(getRgb(out, x, y), sc, 0.85));
+      for (let x = 0; x < SW; x++) if (th(x, y) < p) setRgb(out, x, y, mix(getRgb(out, x, y), sc, 0.85));
     }
   }
   return out;

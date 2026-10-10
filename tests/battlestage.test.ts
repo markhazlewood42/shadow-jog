@@ -105,10 +105,10 @@ describe('the modules brought over from the spike are pure', () => {
 });
 
 describe('config.ts uses the engine for the draw order (M3 task 3)', () => {
-  it('takes exactly `depthFor` and `PART` from the facade, and has no other engine import', () => {
+  it('takes exactly `depthFor`, `PART` and the screen size `W` and `H` (the 640x360 layout, task 9) from the facade, and has no other engine import', () => {
     const text = readFileSync(join(ROOT, 'src/battlestage/config.ts'), 'utf8');
     const engine = [...text.matchAll(/^\s*import\s*\{([^}]*)\}\s*from\s*['"]\.\.\/sje['"]/gm)].map((m) => (m[1] ?? '').trim());
-    expect(engine).toEqual(['depthFor as engineDepthFor, PART']);
+    expect(engine).toEqual(['depthFor as engineDepthFor, H, PART, W']);
     // And it holds no formula of its own: the engine's `y * 1000` is not written in config.ts.
     expect(text).not.toMatch(/y \* 1000/);
   });

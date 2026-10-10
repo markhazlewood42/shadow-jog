@@ -27,7 +27,8 @@
  *    box, the skill banner, the combo counter) has a box and a rule for when it shows. The widgets that draw
  *    them read the boxes from here.
  *
- * All the numbers are whole screen pixels on the game's 480x270 screen, so nothing lands between pixels.
+ * All the numbers are whole screen pixels on the stage's screen, so nothing lands between pixels. The screen is 480x270 unless a stage says
+ * otherwise with `screen` (M3 task 9: the 640x360 set `stages-640.json` and `hud-640.json`, made from the 480x270 files by `scripts/stage-640.mjs`).
  *
  * **The HUD is ONE layout for every battle** (`src/data/hud.json`, checked by `checkHudFile`). A stage in
  * `stages.json` carries no HUD unless it needs to differ: then it holds `hud`, a few overrides of single boxes
@@ -39,11 +40,30 @@
  * real battle is given its party and troop by the game.
  */
 
-import { depthFor as engineDepthFor, PART } from '../sje';
+import { depthFor as engineDepthFor, H, PART, W } from '../sje';
 import { HUD_FIELDS, HUD_REGIONS, type HudRegionKey } from './hudpresets';
+import type { PushSpec } from './push';
 
+/** The 480x270 layout of the first stage files (Phase 0). A stage with no `screen` is laid out on it. */
 export const SCREEN_W = 480;
 export const SCREEN_H = 270;
+
+/** The size of the screen a stage is laid out on. */
+export interface ScreenSize {
+  w: number;
+  h: number;
+}
+
+/** The two layouts there are: the 480x270 one of the first files (regression parity) and the 640x360 one of the game's real screen (task 9). */
+export const SCREENS: readonly ScreenSize[] = [
+  { w: SCREEN_W, h: SCREEN_H },
+  { w: W, h: H },
+];
+
+/** The screen a stage is laid out on: its `screen`, or 480x270 when it has none (the first files have none and stay byte for byte). */
+export function screenOf(stage: { screen?: ScreenSize | undefined }): ScreenSize {
+  return stage.screen ?? { w: SCREEN_W, h: SCREEN_H };
+}
 
 /** The party is always four; groups of enemies run from 1 to 6, with an optional boss. */
 export const PARTY_SIZE = 4;
@@ -85,6 +105,11 @@ export interface StageBackdrop {
   skyFade?: { height: number; color: string; amount: number } | null;
   /** Replacement back-wall id, used only when `mode` is "replace". */
   wallId?: string;
+  /**
+   * A "replace" wall is painted for the 480x270 layout. On a larger screen it is placed at this offset and its edges are repeated outwards to fill the rest
+   * (the 640x360 set: 80 and 45, which centers it). Absent means no offset.
+   */
+  wallOffset?: { x: number; y: number };
   /** Layers that slide at different speeds when the camera pans (not drawn yet; the shipped stages have none). */
   layers?: Array<{ id: string; y: number; speed: number }>;
   /** Optional framing drawn OVER the fighters at the screen edges (not drawn yet; the shipped stages have none). */
@@ -293,6 +318,10 @@ export interface StageConfig {
   id: string;
   /** Human-readable name for the editor's list. */
   name: string;
+  /** The screen this stage is laid out on (every number below is in its pixels). Absent means 480x270. */
+  screen?: ScreenSize;
+  /** The push camera on a big hit. Absent means the legacy battle's (`LEGACY_PUSH`). */
+  push?: PushSpec;
   backdrop: StageBackdrop;
   floor: StageFloor;
   /** Depth rows, from the BACK (highest on screen) to the FRONT (lowest). Slots refer to rows by index (0 = back row). */
@@ -357,6 +386,8 @@ export interface Known {
 /** Collects problems in plain words, each prefixed with where it is. */
 class Problems {
   readonly list: string[] = [];
+  /** The screen the numbers being checked are in. A stage file sets it from the stage's own `screen` before it checks the rest. */
+  screen: ScreenSize = { w: SCREEN_W, h: SCREEN_H };
   constructor(private readonly prefix: string) {}
   add(path: string, msg: string): void {
     this.list.push(`${this.prefix}${path ? ` ${path}` : ''}: ${msg}`);
@@ -391,8 +422,8 @@ class Problems {
 function checkFloor(p: Problems, raw: Record<string, unknown>, horizon: number | null): void {
   const f = raw.floor;
   if (!p.obj('floor', f)) return;
-  if (p.int('floor.y1', f.y1, 1, SCREEN_H) && isInt(f.y0) && f.y1 <= f.y0) p.add('floor', 'y1 must be below y0');
-  if (p.int('floor.y0', f.y0, 0, SCREEN_H) && horizon !== null && f.y0 !== horizon) p.add('floor.y0', `must equal the backdrop's horizonY (${horizon})`);
+  if (p.int('floor.y1', f.y1, 1, p.screen.h) && isInt(f.y0) && f.y1 <= f.y0) p.add('floor', 'y1 must be below y0');
+  if (p.int('floor.y0', f.y0, 0, p.screen.h) && horizon !== null && f.y0 !== horizon) p.add('floor.y0', `must equal the backdrop's horizonY (${horizon})`);
   p.oneOf('floor.style', f.style, ['bands', 'grid', 'texture']);
   if (!Array.isArray(f.colors) || f.colors.length !== 2 || !f.colors.every(isHex)) p.add('floor.colors', 'needs two #rrggbb colours');
   if (f.edge !== undefined && f.edge !== null) p.hex('floor.edge', f.edge);
@@ -423,7 +454,7 @@ function checkFloor(p: Problems, raw: Record<string, unknown>, horizon: number |
     else
       f.stripes.forEach((s: unknown, i) => {
         if (!p.obj(`floor.stripes[${i}]`, s)) return;
-        p.int(`floor.stripes[${i}].y`, s.y, 0, SCREEN_H);
+        p.int(`floor.stripes[${i}].y`, s.y, 0, p.screen.h);
         p.int(`floor.stripes[${i}].h`, s.h, 1, 20);
         p.hex(`floor.stripes[${i}].color`, s.color);
         p.num(`floor.stripes[${i}].alpha`, s.alpha, 0, 1);
@@ -461,7 +492,7 @@ function checkSlots(p: Problems, path: string, slots: unknown, count: number, ro
     if (s.dy !== undefined && !isInt(s.dy)) p.add(`${path}[${i}]`, 'dy must be a whole number');
     if (s.order !== undefined && s.order !== -1 && s.order !== 0 && s.order !== 1) p.add(`${path}[${i}]`, 'order must be -1, 0 or 1');
     // The party stands on the left half of the screen and the enemies on the right.
-    if (side === 'party' ? s.x < 0 || s.x >= SCREEN_W / 2 : s.x < SCREEN_W / 2 || s.x > SCREEN_W) p.add(`${path}[${i}]`, `x ${s.x} is on the wrong side of the screen`);
+    if (side === 'party' ? s.x < 0 || s.x >= p.screen.w / 2 : s.x < p.screen.w / 2 || s.x > p.screen.w) p.add(`${path}[${i}]`, `x ${s.x} is on the wrong side of the screen`);
     if (s.size !== undefined && s.size !== 'regular' && s.size !== 'boss') p.add(`${path}[${i}]`, 'size must be "regular" or "boss"');
     const k = `${s.row}:${s.x}:${s.dy ?? 0}`;
     if (seen.has(k)) p.add(`${path}[${i}]`, 'two fighters on the same spot');
@@ -471,14 +502,15 @@ function checkSlots(p: Problems, path: string, slots: unknown, count: number, ro
 
 function checkRegion(p: Problems, path: string, r: unknown): void {
   if (!p.obj(path, r)) return;
-  p.int(`${path}.x`, r.x, 0, SCREEN_W);
-  p.int(`${path}.y`, r.y, 0, SCREEN_H);
-  p.int(`${path}.w`, r.w, 1, SCREEN_W);
-  p.int(`${path}.h`, r.h, 1, SCREEN_H);
+  const { w: sw, h: sh } = p.screen;
+  p.int(`${path}.x`, r.x, 0, sw);
+  p.int(`${path}.y`, r.y, 0, sh);
+  p.int(`${path}.w`, r.w, 1, sw);
+  p.int(`${path}.h`, r.h, 1, sh);
   p.oneOf(`${path}.show`, r.show, ['always', 'input', 'action', 'never']);
   if (r.opacity !== undefined) p.num(`${path}.opacity`, r.opacity, 0, 1);
-  if (isInt(r.x) && isInt(r.w) && r.x + r.w > SCREEN_W) p.add(path, 'reaches past the right edge of the screen');
-  if (isInt(r.y) && isInt(r.h) && r.y + r.h > SCREEN_H) p.add(path, 'reaches past the bottom edge of the screen');
+  if (isInt(r.x) && isInt(r.w) && r.x + r.w > sw) p.add(path, 'reaches past the right edge of the screen');
+  if (isInt(r.y) && isInt(r.h) && r.y + r.h > sh) p.add(path, 'reaches past the bottom edge of the screen');
 }
 
 /** The global layout (`hud.json`), checked. `base` is the name used in messages ("hud" or "layout"). */
@@ -520,10 +552,10 @@ function checkHudOverrides(p: Problems, h: unknown): void {
       continue;
     }
     for (const key of Object.keys(box)) if (!(HUD_FIELDS as readonly string[]).includes(key)) p.add(`hud.${region}.${key}`, `a stage can only override ${HUD_FIELDS.join(', ')} (the rest is the global layout's)`);
-    if (box.x !== undefined) p.int(`hud.${region}.x`, box.x, 0, SCREEN_W);
-    if (box.y !== undefined) p.int(`hud.${region}.y`, box.y, 0, SCREEN_H);
-    if (box.w !== undefined) p.int(`hud.${region}.w`, box.w, 1, SCREEN_W);
-    if (box.h !== undefined) p.int(`hud.${region}.h`, box.h, 1, SCREEN_H);
+    if (box.x !== undefined) p.int(`hud.${region}.x`, box.x, 0, p.screen.w);
+    if (box.y !== undefined) p.int(`hud.${region}.y`, box.y, 0, p.screen.h);
+    if (box.w !== undefined) p.int(`hud.${region}.w`, box.w, 1, p.screen.w);
+    if (box.h !== undefined) p.int(`hud.${region}.h`, box.h, 1, p.screen.h);
     if (box.show !== undefined) p.oneOf(`hud.${region}.show`, box.show, ['always', 'input', 'action', 'never']);
     if (box.opacity !== undefined) p.num(`hud.${region}.opacity`, box.opacity, 0, 1);
   }
@@ -533,8 +565,9 @@ function checkHudOverrides(p: Problems, h: unknown): void {
  * Everything wrong with the global HUD file (`src/data/hud.json`: `{ "version": 1, "layout": { ... } }`), in plain
  * words. This is the file's own loader check: the editor's HUD endpoint and the game both use it.
  */
-export function checkHudFile(data: unknown): string[] {
+export function checkHudFile(data: unknown, screen: ScreenSize = { w: SCREEN_W, h: SCREEN_H }): string[] {
   const p = new Problems('hud.json');
+  p.screen = screen;
   if (!isObj(data)) return ['hud.json: must be an object with a version and a layout'];
   if (data.version !== 1) p.add('', 'version must be 1');
   checkHud(p, data.layout, 'layout');
@@ -542,8 +575,8 @@ export function checkHudFile(data: unknown): string[] {
 }
 
 /** The global HUD layout from the checked file; throws one readable error listing every problem. */
-export function loadHud(data: unknown): HudLayout {
-  const problems = checkHudFile(data);
+export function loadHud(data: unknown, screen: ScreenSize = { w: SCREEN_W, h: SCREEN_H }): HudLayout {
+  const problems = checkHudFile(data, screen);
   if (problems.length) throw new Error(`hud.json is not valid:\n - ${problems.join('\n - ')}`);
   return (data as { layout: HudLayout }).layout;
 }
@@ -627,6 +660,17 @@ export function checkStages(data: unknown, knownBackdrops?: readonly string[], k
       continue;
     }
     if (raw.version !== 1) p.add('', 'version must be 1');
+    if (raw.screen !== undefined) {
+      const sc = raw.screen;
+      if (!isObj(sc) || !SCREENS.some((x) => x.w === sc.w && x.h === sc.h)) p.add('screen', `must be one of ${SCREENS.map((x) => `${x.w}x${x.h}`).join(', ')} (the layouts the art can paint)`);
+      else p.screen = { w: sc.w as number, h: sc.h as number };
+    }
+    if (raw.push !== undefined && p.obj('push', raw.push)) {
+      p.num('push.zoom', raw.push.zoom, 0, 0.5);
+      if (p.int('push.rampFrames', raw.push.rampFrames, 1, 60) && p.int('push.lifeFrames', raw.push.lifeFrames, 2, 120) && (raw.push.lifeFrames as number) <= (raw.push.rampFrames as number)) {
+        p.add('push.lifeFrames', 'must be more than rampFrames');
+      }
+    }
     if (raw.note !== undefined && typeof raw.note !== 'string') p.add('note', 'must be text');
     if (raw.id !== id) p.add('', `its id ("${String(raw.id)}") must match its key in the file`);
     if (typeof raw.name !== 'string' || !raw.name) p.add('', 'needs a name');
@@ -636,8 +680,15 @@ export function checkStages(data: unknown, knownBackdrops?: readonly string[], k
       if (typeof b.id !== 'string' || !b.id) p.add('backdrop.id', 'needs a backdrop id');
       else if (knownBackdrops && !knownBackdrops.includes(b.id)) p.add('backdrop.id', `"${b.id}" is not one the art can paint`);
       if (p.oneOf('backdrop.mode', b.mode, ['reproject', 'replace']) && b.mode === 'replace' && typeof b.wallId !== 'string') p.add('backdrop.wallId', 'a "replace" backdrop needs a wallId');
-      if (p.int('backdrop.horizonY', b.horizonY, 0, SCREEN_H)) horizon = b.horizonY;
-      p.int('backdrop.shiftY', b.shiftY, -SCREEN_H, SCREEN_H);
+      if (p.int('backdrop.horizonY', b.horizonY, 0, p.screen.h)) horizon = b.horizonY;
+      p.int('backdrop.shiftY', b.shiftY, -p.screen.h, p.screen.h);
+      if (b.wallOffset !== undefined) {
+        if (!isObj(b.wallOffset)) p.add('backdrop.wallOffset', 'must be an object with x and y');
+        else {
+          p.int('backdrop.wallOffset.x', b.wallOffset.x, 0, p.screen.w);
+          p.int('backdrop.wallOffset.y', b.wallOffset.y, 0, p.screen.h);
+        }
+      }
       if (isObj(b.skyFade)) {
         p.int('backdrop.skyFade.height', b.skyFade.height, 1, 60);
         p.hex('backdrop.skyFade.color', b.skyFade.color);
@@ -709,6 +760,7 @@ export function checkStagesWith(data: unknown, hud: HudLayout, knownBackdrops?: 
   for (const [id, raw] of Object.entries(data)) {
     const entry = raw as StageEntry;
     const p = new Problems(`stage "${id}"`);
+    p.screen = screenOf(entry);
     const merged = mergeHud(hud, entry.hud);
     for (const k of HUD_REGIONS) if (entry.hud?.[k]) checkRegion(p, `hud.${k}`, merged[k]);
     out.push(...p.list);
@@ -740,6 +792,7 @@ export function checkStageConfig(config: StageConfig, knownBackdrops?: readonly 
   const out = checkStages({ [config.id]: body }, knownBackdrops, known);
   if (out.length > 0) return out;
   const p = new Problems(`stage "${config.id}"`);
+  p.screen = screenOf(config);
   for (const k of HUD_REGIONS) checkRegion(p, `hud.${k}`, hud[k]);
   return p.list;
 }
@@ -753,8 +806,16 @@ export function stageOf(file: StageFile, id: string): StageConfig {
 
 // ------------------------------------------------------------------ the sizes the design's rules need (the rules themselves are in rules.ts)
 
-/** Where the old street picture's kerb row sits: `shiftY` is `horizonY` minus this. */
+/** Where the old street picture's kerb row sits on the 480x270 screen: `shiftY` is `horizonY` minus this. */
 export const ART_KERB_ROW = 132;
+
+/**
+ * Where the backdrop art's kerb row sits on a stage's screen: the art's `HORIZON + 4` world rows, shown at 2x (the 240x135 art of the 480x270 layout has HORIZON 62, the 320x180 art
+ * of the 640x360 layout has 84: `art/battlebg480.ts`, `art/battlebg.ts`). `shiftY` is `horizonY` minus this.
+ */
+export function artKerbRow(stage: { screen?: ScreenSize | undefined }): number {
+  return screenOf(stage).w === SCREEN_W ? ART_KERB_ROW : 176;
+}
 
 /** A figure's size on screen, for the rules that need it: its feet and the edges of its drawn pixels. */
 export interface FigureBox {
@@ -786,7 +847,7 @@ export function enemySlots(stage: StageBody, key: string): EnemySlot[] {
 export function slotPoint(stage: StageBody, slot: Slot): { x: number; y: number } {
   const row = stage.rows[slot.row];
   if (!row) throw new Error(`Slot names row ${slot.row}, which stage "${stage.name}" does not have`);
-  return { x: clamp(slot.x, 0, SCREEN_W), y: clamp(row.y + (slot.dy ?? 0), stage.floor.y0, stage.floor.y1) };
+  return { x: clamp(slot.x, 0, screenOf(stage).w), y: clamp(row.y + (slot.dy ?? 0), stage.floor.y0, stage.floor.y1) };
 }
 
 /**
@@ -804,8 +865,9 @@ export function snapSlot(stage: StageBody, side: 'party' | 'enemy', x: number, y
       bestDist = d;
     }
   });
-  const half = SCREEN_W / 2;
-  return { row: best, x: Math.round(side === 'party' ? clamp(x, 0, half - 1) : clamp(x, half, SCREEN_W)) };
+  const sw = screenOf(stage).w;
+  const half = sw / 2;
+  return { row: best, x: Math.round(side === 'party' ? clamp(x, 0, half - 1) : clamp(x, half, sw)) };
 }
 
 /** A fighter's contact-shadow width: its sprite's width times the stage's share, kept between the stage's limits (a boss has its own). */
@@ -827,11 +889,11 @@ export function shadowHeight(stage: StageBody, width: number): number {
  * overlap most, end up on top) and a hero before an enemy. Multiplied up so the tie-break never outweighs a
  * row, and an `order` of 1 or -1 (bring forward / send back) overrides the tie-break for one fighter on its row. Every part of a fighter (shadow, ring, body, health bar...) adds its own small `PART` offset to this.
  */
-export function depthFor(y: number, x: number, side: 'party' | 'enemy' = 'party', order: -1 | 0 | 1 = 0): number {
+export function depthFor(y: number, x: number, side: 'party' | 'enemy' = 'party', order: -1 | 0 | 1 = 0, screenW: number = SCREEN_W): number {
   // The formula is the engine's (`depthFor` in src/sje/display/depth.ts, M3 task 3): rows, then the tie-break, then `order`, which moves a fighter by
   // 1000, more than the whole tie-break range (about 480) and far less than one row (rows are at least 14 px = 14,000 apart), so it can never lift a
   // back-row fighter over a front-row one. What stays here is the stage's own half: how close to the screen's middle a fighter stands.
-  const closeness = 240 - Math.min(240, Math.abs(x - SCREEN_W / 2));
+  const closeness = 240 - Math.min(240, Math.abs(x - screenW / 2));
   return engineDepthFor(y, closeness, side === 'enemy' ? 1 : 0, order);
 }
 

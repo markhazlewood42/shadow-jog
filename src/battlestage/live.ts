@@ -25,7 +25,7 @@ import type { Combatant } from '../battle/types';
 import type { BattleScene } from '../scenes/battle';
 import type { BattleStage } from '../scenes/battlekit/stageseam';
 import { type CanvasImage, drawText, type Graphics, must } from '../sje';
-import { SCREEN_H, SCREEN_W } from './config';
+import { SCREEN_W, screenOf, stageOf } from './config';
 import { Hud, type HudFaces, type HudGeo } from './hud';
 import { liveView, viewSignature } from './liveview';
 import { LiveNumbers } from './livenumbers';
@@ -37,7 +37,7 @@ import { faceTexture, PREFIX, pruneTextures } from './textures';
 import type { Figure } from './figure';
 import type { HudView } from './demo';
 
-/** Screen pixels of the stage per world pixel of the battle (the stage's width over the world's). Today 1.5 (the 480-wide layout); 2 when the stage is laid out at 640x360 (task 9). */
+/** Screen pixels of the stage per world pixel of the battle on the 480x270 layout (the stage's width over the world's): 1.5. The 640x360 layout gives 2, and a scene works it out from its own stage. */
 export const STAGE_PER_WORLD = SCREEN_W / BW;
 
 /** Glyph effects (spell runes, numbers) are drawn with the game's font, no shadow, as the old picture did. */
@@ -101,10 +101,10 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
   constructor(
     init: BattleStageInit,
     private readonly host: BattleScene,
-    k = STAGE_PER_WORLD,
+    k?: number,
   ) {
     super(init);
-    this.k = k;
+    this.k = k ?? screenOf(stageOf(init.stages, init.stageId)).w / BW;
   }
 
   override create(): void {
@@ -302,7 +302,8 @@ export class LiveStageScene extends BattleStageScene implements BattleStage {
       if (a !== this.washAlpha) {
         this.washAlpha = a;
         w.clear();
-        if (a > 0) w.fillStyle(WASH.color, a).fillRect(0, 0, SCREEN_W, SCREEN_H);
+        const screen = screenOf(this.config);
+        if (a > 0) w.fillStyle(WASH.color, a).fillRect(0, 0, screen.w, screen.h);
       }
     }
   }
