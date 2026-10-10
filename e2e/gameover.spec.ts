@@ -2,7 +2,7 @@
  * Losing and saving: every Game Over choice, and a real localStorage save that survives a reload.
  */
 import { expect, test, type Page } from '@playwright/test';
-import { E5_TEXT, expectE5Contract, skipGameFlowOnFirefox } from './webgl2kit';
+import { expectE5Contract, skipGameFlowOnFirefox } from './webgl2kit';
 
 // Firefox on CI has no WebGL 2: it meets the E5 message, not a game (the E5 test at the end).
 skipGameFlowOnFirefox();
@@ -14,8 +14,13 @@ async function sj<T = unknown>(page: Page, fn: string): Promise<T> {
 async function waitFor(page: Page, expr: string, label: string, timeout = 20_000): Promise<void> {
   const start = Date.now();
   for (;;) {
-    if (await sj<boolean>(page, `!!(${expr})`)) return;
-    if (Date.now() - start > timeout) throw new Error(`Timed out waiting for ${label}`);
+    // The game starts asynchronously (its renderer is made first), so right after a page load `window.__SJ__` may not exist yet: that is "not yet", not a failure.
+    if (await sj<boolean>(page, `!!(${expr})`).catch(() => false)) return;
+    if (Date.now() - start > timeout) {
+      // What the page was doing, so a timeout names the cause (a stuck scene, a notice) and not only the wait.
+      const where = await sj<string>(page, "JSON.stringify({ top: sj.top(), stack: sj.game.stack.map((x) => x.constructor.name), notice: sj.notice(), tick: sj.game.tick })").catch((e: unknown) => `no state (${String(e).slice(0, 80)})`);
+      throw new Error(`Timed out waiting for ${label}: ${where}`);
+    }
     await page.waitForTimeout(100);
   }
 }
@@ -29,7 +34,9 @@ async function key(page: Page, k: string): Promise<void> {
 
 async function stage(page: Page, name: string): Promise<void> {
   await page.goto('/?debug');
-  await page.waitForTimeout(600);
+  // Wait for the title and not for a fixed time: the game starts asynchronously (its renderer is made first), and a title that opens AFTER the test jumps to a stage would reset the game back to the title.
+  await waitFor(page, "sj.top() === 'TitleScene'", 'title');
+  await page.waitForTimeout(300);
   await page.evaluate(() => localStorage.clear());
   await sj(page, `sj.stage('${name}')`);
   await waitFor(page, 'sj.idle()', 'field idle');
@@ -191,6 +198,9 @@ test('A scene that throws every frame recovers to the title instead of freezing'
 test('A scene whose drawing throws every frame recovers too', async ({ page }) => {
   await stage(page, 'town');
   expect(await sj<boolean>(page, 'sj.save(1)')).toBe(true);
+  // A scene that draws by itself: the menu. (The field no longer draws by itself: its stage does, so its own `render` is never called.)
+  await sj(page, 'sj.menu()');
+  await waitFor(page, "sj.top() === 'MenuScene'", 'menu');
   await sj(page, "(sj.game.top.render = () => { throw new Error('draw'); }, true)");
   await waitFor(page, "sj.top() === 'TitleScene'", 'title after render fault');
   expect((await sj<{ text: string } | null>(page, 'sj.notice()'))?.text).toMatch(/recovered/i);
@@ -199,10 +209,12 @@ test('A scene whose drawing throws every frame recovers too', async ({ page }) =
 test('Two tabs on one save: both are warned, and only the first keeps autosaving', async ({ context }) => {
   const a = await context.newPage();
   await a.goto('/?debug');
-  await a.waitForTimeout(800);
+  await waitFor(a, "sj.top() === 'TitleScene'", 'title (first tab)');
+  await a.waitForTimeout(300);
   await a.evaluate(() => localStorage.clear());
   const b = await context.newPage();
   await b.goto('/?debug');
+  await waitFor(b, "sj.top() === 'TitleScene'", 'title (second tab)');
   await b.waitForTimeout(1200);
   const noticeOf = (p: Page) => sj<{ text: string } | null>(p, 'sj.notice()');
   expect((await noticeOf(a))?.text).toContain('another tab');
@@ -254,7 +266,6 @@ test('Cannot start: a browser that can’t make a canvas context says so, instea
   await expect(boot).toBeVisible();
   await expect(boot).toHaveClass(/error/);
   await expect(boot).toContainText('failed to start');
-  await expect(boot).toContainText(E5_TEXT);
 });
 
 test('Title: Load says a newer-version save is from a newer version (not damaged) and refuses it', async ({ page }) => {

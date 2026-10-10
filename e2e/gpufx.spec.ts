@@ -2,7 +2,7 @@
  * GPU effects on the new engine (M6 rewrote this spec: it used to look for the `#fx` overlay canvas of the old presenter, which no longer exists). The effects now come
  * from `game.fx`, and the spec reads their level from `__SJ__.renderer.fxLevel` (docs/engine/tooling-and-testing.md section 11):
  *
- *  - the default level (no `?fx=`) is `full` or `lite` (`auto` picks `lite` on software GL), the game survives a battle full of effects, and no `#fx` canvas exists;
+ *  - the default level (no `?fx=`) is the request `auto`, which gives `full` on a GPU and `lite` on software GL (`fxCounts().level` is the level actually drawn), the game survives a battle full of effects, and no `#fx` canvas exists;
  *  - the Options switch (`gpu(false)` / `gpu(true)`) changes the level, and the choice is remembered across a reload;
  *  - `?fx=none` forces the level `none`: every effect call is a no-op and the battle plays. Control: the same calls at the default level make particles;
  *  - Pixel-perfect scaling (PL7 of docs/PIVOT-640.md): every game pixel is an exact k-by-k block of screen pixels. Control: the same picture read at another ratio is uneven.
@@ -54,8 +54,9 @@ async function intoBattle(page: Page): Promise<void> {
 test('at the default level the effects run through a battle full of effects, with no #fx canvas', async ({ page }) => {
   const errors = watchErrors(page);
   await open(page);
-  // `auto`: `lite` on software GL (CI), `full` on a GPU. Never `none` by default.
-  expect(await sj<string>(page, 'sj.renderer.fxLevel')).toMatch(/^(full|lite)$/);
+  // `renderer.fxLevel` is what was asked for: `auto` by default. What is drawn (`fxCounts().level`) is `lite` on software GL (CI) and `full` on a GPU, never `none`.
+  expect(await sj<string>(page, 'sj.renderer.fxLevel')).toBe('auto');
+  expect(await sj<string>(page, 'sj.fxCounts().level')).toMatch(/^(full|lite)$/);
   expect(await sj<boolean>(page, 'sj.postfx.active')).toBe(true);
   // The old overlay canvas is gone, and the one canvas is the game's own.
   await expect(page.locator('#fx')).toHaveCount(0);
@@ -66,7 +67,7 @@ test('at the default level the effects run through a battle full of effects, wit
   expect(await sj<number>(page, 'sj.postfx.particles.count')).toBeGreaterThan(0);
   // The renderer kept its context, the level did not change, and the game kept running.
   expect(await sj<boolean>(page, 'sj.renderer.contextLost')).toBe(false);
-  expect(await sj<string>(page, 'sj.renderer.fxLevel')).toMatch(/^(full|lite)$/);
+  expect(await sj<string>(page, 'sj.fxCounts().level')).toMatch(/^(full|lite)$/);
   expect(await sj<string>(page, 'sj.top()')).toBe('BattleScene');
   expect(errors).toEqual([]);
 });
@@ -85,6 +86,7 @@ test('GPU effects switch off and on from Options, and the choice is remembered',
   await sj(page, 'sj.gpu(true)');
   await page.waitForTimeout(200);
   expect(await sj<string>(page, 'sj.renderer.fxLevel')).toBe('full');
+  expect(await sj<string>(page, 'sj.fxCounts().level')).toBe('full');
   expect(await sj<boolean>(page, 'sj.postfx.active')).toBe(true);
   await expect(page.locator('#fx')).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -127,20 +129,20 @@ for (const [name, vw, vh, k] of [
     await sj(page, "(sj.display.mode = 'integer', sj.display.resize(), true)");
     await sj(page, "sj.stage('town')");
     await page.waitForTimeout(1500);
-    const canvas = page.locator('canvas').first();
-    const box = await canvas.boundingBox();
-    // The canvas is shown at its own size: the game at k, in the middle of the window (the browser resamples nothing).
-    expect(box?.width).toBe(W * k);
-    expect(box?.height).toBe(H * k);
-    const img = decode(await canvas.screenshot());
-    expect([img.w, img.h]).toEqual([W * k, H * k]);
+    // The canvas fills the window; the picture sits in it at the whole ratio k, centered, with bars around it (the browser resamples nothing).
+    const layout = await sj<{ k: number; x: number; y: number; w: number; h: number }>(page, 'sj.game.renderer.picture');
+    expect(layout.k).toBe(k);
+    expect([layout.w, layout.h]).toEqual([W * k, H * k]);
+    const img = decode(await page.locator('canvas').first().screenshot());
+    expect([img.w, img.h]).toEqual([vw, vh]);
     const colors = new Set<number>();
-    for (let i = 0; i < img.data.length; i += 4 * 61) colors.add(((img.data[i] ?? 0) << 16) | ((img.data[i + 1] ?? 0) << 8) | (img.data[i + 2] ?? 0));
+    // Colors inside the picture only (the bars are one flat color).
+    for (let i = (layout.y * img.w + layout.x) * 4; i < ((layout.y + layout.h) * img.w) * 4; i += 4 * 61) colors.add(((img.data[i] ?? 0) << 16) | ((img.data[i + 1] ?? 0) << 8) | (img.data[i + 2] ?? 0));
     expect(colors.size).toBeGreaterThan(30);
-    expect(unevenBlocks(img, k, 0, 0, W, H), 'uneven blocks').toBe(0);
+    expect(unevenBlocks(img, k, layout.x, layout.y, W, H), 'uneven blocks').toBe(0);
     // Control: the same picture read at the next ratio has uneven blocks, so the check can fail.
     const wrong = k + 1;
-    expect(unevenBlocks(img, wrong, 0, 0, Math.floor((W * k) / wrong) - 1, Math.floor((H * k) / wrong) - 1), 'control: a wrong ratio finds uneven blocks').toBeGreaterThan(0);
+    expect(unevenBlocks(img, wrong, layout.x, layout.y, Math.floor((W * k) / wrong) - 1, Math.floor((H * k) / wrong) - 1), 'control: a wrong ratio finds uneven blocks').toBeGreaterThan(0);
     expect(errors).toEqual([]);
   });
 }
