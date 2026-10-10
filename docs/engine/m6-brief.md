@@ -111,7 +111,7 @@ Facts in section 2 come from a read-only survey on 2026-10-10 (grep and `npm run
 
 | Step | What changed | Numbers | Verdict | Named fixes |
 |---|---|---|---|---|
-| Brief | this file | — | waiting for Mark | — |
+| Brief | this file. Mark answered decision 1 (issue #56) and decision 4 (issue #57) with A on 2026-10-10; decisions 2, 3, 5, 6 and 7 stay as recommended | — | approved | — |
 | A: task 1 | `m6-survey.md` | — | — | — |
 | A: tasks 2 to 4 | specs red, flip, presenter removed | — | — | — |
 | B: tasks 5 to 8 | FX lab, E5, budget, goldens, docs | — | — | — |
