@@ -90,8 +90,10 @@ const LAZY_3D_GZIP_MAX = 160 * 1000;
  * `liveopen` chunk (the battle stage on the new engine, `src/battlestage/liveopen.ts`) measured 41.0 kB gzip on 2026-10-10; cap 42 kB,
  * measured rounded up to the next 1 kB. The flag and the chunk go away together when the old engine is removed.
  */
-const FLAG_ONLY_SRC = ['src/battlestage/liveopen.ts'];
-const FLAG_ONLY_GZIP_MAX = 42 * 1000;
+// 2026-10-10 (M5): the field stage's `fieldopen` chunk (src/fieldstage/fieldopen.ts, the field on the new engine) joined the class: measured 6.0 kB gzip, so the class is
+// 47.5 kB; cap 48 kB (rounded up to the next 1 kB). Builder C sets the final totals at the end of M5.
+const FLAG_ONLY_SRC = ['src/battlestage/liveopen.ts', 'src/fieldstage/fieldopen.ts'];
+const FLAG_ONLY_GZIP_MAX = 48 * 1000;
 
 // `first play` (boot + lazy-2d) has NO cap: it is reported until M1 measures it (estimate 330 to 430 kB gzip, low confidence).
 
