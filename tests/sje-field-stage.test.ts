@@ -289,6 +289,72 @@ describe('Game.ctx asks a scene for a picture of itself', () => {
   });
 });
 
+describe('LegacyShape.blank: a scene with a stage under it does not upload an empty canvas', () => {
+  class Staged extends OldScene<void> {
+    blank = true;
+    renders = 0;
+    update(): void {}
+    render(): void {
+      this.renders++;
+    }
+  }
+  const imageOf = (game: ReturnType<typeof headlessGame>['game'], scene: object): { visible: boolean; canvas: RecCanvas } => {
+    const w = game.scene.scenes.find((s) => (s as { legacy?: unknown }).legacy === scene) as unknown as { image: { visible: boolean; canvas: RecCanvas } };
+    return w.image;
+  };
+
+  it('leaves its canvas out while there is nothing to paint on it, and does not even draw into it', () => {
+    const h = headlessGame();
+    const s = new Staged();
+    void h.game.run(s);
+    h.frame(17);
+    expect(imageOf(h.game, s).visible).toBe(false);
+    expect(s.renders).toBe(0);
+  });
+
+  it('paints it again while a fade is on, or an overlay has something to show, and leaves it out after', () => {
+    const h = headlessGame();
+    const s = new Staged();
+    void h.game.run(s);
+    h.frame(17);
+    h.game.fadeLevel = 0.5;
+    h.frame(17);
+    expect(imageOf(h.game, s).visible).toBe(true);
+    expect(s.renders).toBe(1);
+    h.game.fadeLevel = 0;
+    h.game.overlayWanted = () => true;
+    h.frame(17);
+    expect(imageOf(h.game, s).visible).toBe(true);
+    h.game.overlayWanted = () => false;
+    h.frame(17);
+    expect(imageOf(h.game, s).visible).toBe(false);
+  });
+
+  it('control: a scene that is not blank always draws', () => {
+    const h = headlessGame();
+    const s = new Staged();
+    s.blank = false;
+    void h.game.run(s);
+    h.frame(17);
+    expect(imageOf(h.game, s).visible).toBe(true);
+    expect(s.renders).toBe(1);
+  });
+
+  it('control: a blank scene that is not the topmost drawn one does not wait for the washes (they are painted on the top one)', () => {
+    const h = headlessGame();
+    const s = new Staged();
+    void h.game.run(s);
+    const top = new Staged();
+    top.blank = false;
+    top.opaque = false;
+    void h.game.run(top);
+    h.game.fadeLevel = 0.5;
+    h.frame(17);
+    expect(imageOf(h.game, s).visible).toBe(false);
+    expect(imageOf(h.game, top).visible).toBe(true);
+  });
+});
+
 describe('Lights.flickerSignature', () => {
   const lights = (): Lights => {
     const l = new Lights();

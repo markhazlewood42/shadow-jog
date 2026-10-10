@@ -35,6 +35,11 @@ export interface LegacyShape<R = unknown> {
   curtain: boolean;
   passUpdate: boolean;
   closed: boolean;
+  /**
+   * Optional (M5, ours). True while the scene draws nothing of its own on its canvas, because another scene (a stage under it) draws its picture. The adapter then leaves
+   * its 640x360 canvas out and does not upload it, unless the game still has a wash or a notice to paint onto it (`Game.topPaintWanted`). Read each frame.
+   */
+  readonly blank?: boolean;
   enter(): void;
   exit(): void;
   resume(): void;

@@ -22,7 +22,7 @@
  */
 import { boot as bootGame } from '../boot';
 import type { Display as OldDisplay } from '../engine/display';
-import { notice, reportError } from '../engine/errors';
+import { currentNotice, notice, reportError } from '../engine/errors';
 import { SHAKE_PIXEL_GAIN, type Game as OldGame } from '../engine/game';
 import { Input } from '../engine/input';
 import { perf } from '../engine/perf';
@@ -105,6 +105,8 @@ export async function startSje(markStarted: () => void): Promise<void> {
   fieldStages.warm();
   // The notice overlay, as `main.ts` registers it on the old path.
   game.overlays.push(drawNotice);
+  // The notice bar is the one overlay: a legacy scene that draws nothing of its own (the staged field) paints its canvas only while a notice shows.
+  game.overlayWanted = () => currentNotice() !== null;
   bootGame(game as unknown as OldGame, display as unknown as OldDisplay);
   dev?.attach(game);
   const bootEl = document.getElementById('boot');

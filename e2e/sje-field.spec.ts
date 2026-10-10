@@ -17,10 +17,10 @@
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { expect, type Page, test } from '@playwright/test';
-import { type GamePage, openGame, sj, waitTop, waitUntil } from './sjegamekit';
+import { decode, type GamePage, openGame, sj, unevenBlocks, waitTop, waitUntil } from './sjegamekit';
 
-async function openField(browser: import('@playwright/test').Browser, o: { allow?: RegExp[]; engine?: boolean } = {}): Promise<GamePage> {
-  const g = await openGame(browser, { engine: o.engine ?? true, ...(o.allow ? { allow: o.allow } : {}) });
+async function openField(browser: import('@playwright/test').Browser, o: { allow?: RegExp[]; engine?: boolean; viewport?: { width: number; height: number }; dpr?: number; query?: string } = {}): Promise<GamePage> {
+  const g = await openGame(browser, { engine: o.engine ?? true, ...(o.allow ? { allow: o.allow } : {}), ...(o.viewport ? { viewport: o.viewport } : {}), ...(o.dpr ? { dpr: o.dpr } : {}), ...(o.query ? { query: o.query } : {}) });
   expect(await waitTop(g.page, 'TitleScene')).toBe(true);
   await sj(g.page, "sj.stage('town')");
   expect(await waitUntil(g.page, 'sj.top() === "FieldScene" && sj.idle()', 30_000)).toBe(true);
@@ -82,6 +82,9 @@ test.describe('the field on the stage', () => {
       expect(await sj<boolean>(g.page, 'sj.field().opaque')).toBe(false);
       // The picture is a picture: many colors, none of the broken-frame kind.
       expect(await colors(g.page)).toBeGreaterThan(200);
+      // The screen snapshot a battle's intro shatters (`game.ctx`) is the field's old-look picture, not a blank: the stage has no canvas of its own to copy.
+      const snap = `(() => { const d = sj.game.ctx.getImageData(0, 0, 640, 360).data; const seen = new Set(); for (let i = 0; i < d.length; i += 4) seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]); return seen.size; })()`;
+      expect(await sj<number>(g.page, snap)).toBeGreaterThan(200);
       expect(await glErrors(g.page)).toEqual([]);
       expect(g.problems).toEqual([]);
     } finally {
@@ -94,6 +97,25 @@ test.describe('the field on the stage', () => {
       expect(old.problems).toEqual([]);
     } finally {
       await old.close();
+    }
+  });
+
+  test('a new field while one is staged (a reset drops both scenes) is clean, and the new field gets its own stage', async ({ browser }) => {
+    const g = await openField(browser);
+    try {
+      expect(await stageUp(g.page, 'lantern_row')).toBe(true);
+      await sj(g.page, 'sj.fieldStage.frame');
+      await sj(g.page, "sj.stage('town')");
+      expect(await waitUntil(g.page, 'sj.top() === "FieldScene" && sj.idle() && sj.fieldStage !== null', 30_000)).toBe(true);
+      expect(await stack(g.page)).toEqual(['FieldStageScene', 'FieldScene']);
+      // The same through the game's own routes: a stage, a second stage, and back to the title (every scene dropped).
+      await sj(g.page, "sj.stage('town')");
+      expect(await waitUntil(g.page, 'sj.top() === "FieldScene" && sj.idle() && sj.fieldStage !== null', 30_000)).toBe(true);
+      expect(await stack(g.page)).toEqual(['FieldStageScene', 'FieldScene']);
+      expect(await glErrors(g.page)).toEqual([]);
+      expect(g.problems).toEqual([]);
+    } finally {
+      await g.close();
     }
   });
 
@@ -280,4 +302,27 @@ test.describe('the stage frees what it makes', () => {
       await g.close();
     }
   });
+});
+
+test.describe('crisp pixels (M5 pass line 5, on the field with the full effect stack)', () => {
+  for (const [name, viewport, dpr] of [
+    ['device pixel ratio 1', { width: 1920, height: 1080 }, 1],
+    ['device pixel ratio 1.5', { width: 1280, height: 720 }, 1.5],
+  ] as const) {
+    test(`${name}: every 3x3 block of the picture is one flat color on the staged field (rain, lights, haze, banner); a wrong ratio finds uneven blocks (control)`, async ({ browser }) => {
+      const g = await openField(browser, { viewport, dpr, query: '&fx=full' });
+      try {
+        expect(await stageUp(g.page, 'lantern_row')).toBe(true);
+        // The rain, the haze and the banner are on screen now (the area banner is up for the first 200 ticks).
+        expect(await sj<boolean>(g.page, 'sj.fieldStage.screenShown')).toBe(true);
+        const img = decode(await g.page.screenshot());
+        expect([img.w, img.h]).toEqual([1920, 1080]);
+        expect(unevenBlocks(img, 3, 0, 0, 640, 360), 'uneven 3x3 blocks').toBe(0);
+        expect(unevenBlocks(img, 2, 0, 0, 800, 500), 'control: a wrong ratio finds uneven blocks').toBeGreaterThan(0);
+        expect(g.problems).toEqual([]);
+      } finally {
+        await g.close();
+      }
+    });
+  }
 });

@@ -140,6 +140,11 @@ export class Game implements DisplayHost, LegacyGameSurface {
   tickers: (() => void)[] = [];
   /** Hooks run after the topmost scene draws (the notice badge). */
   overlays: ((ctx: CanvasRenderingContext2D) => void)[] = [];
+  /**
+   * Whether an overlay has anything to paint now (the notice bar). The boot glue sets it. While it is null every overlay counts as having something, so a `blank` legacy scene
+   * (see `LegacyShape.blank`) keeps painting its canvas as the old engine did.
+   */
+  overlayWanted: (() => boolean) | null = null;
   /** Screen-shake strength multiplier (the player's setting); 0 turns every shake off. */
   shakeScale: () => number = () => 1;
   /** Player setting for full-screen flashes (0 = off). */
@@ -475,6 +480,11 @@ export class Game implements DisplayHost, LegacyGameSurface {
         this.overlays.splice(i--, 1);
       }
     }
+  }
+
+  /** True when the topmost drawn legacy scene must paint onto its canvas this frame: a fade or flash is on, or an overlay has something to show. */
+  get topPaintWanted(): boolean {
+    return this.gfx.painting || (this.overlayWanted ? this.overlayWanted() : this.overlays.length > 0);
   }
 
   /** Dev and tests only: stop, drop the scenes, free the renderer. Production never destroys the renderer. */

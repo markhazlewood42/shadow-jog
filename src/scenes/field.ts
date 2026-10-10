@@ -182,8 +182,11 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   }
 
   override exit(): void {
-    this.stage?.close();
+    const stage = this.stage;
     this.stage = null;
+    // Not at once: `exit` runs inside the scene stack's own teardown (a reset drops every scene, this one first), and the stage's `close` would change the stack under it.
+    // By the next microtask the stack has settled, and a stage that was dropped with it is already closed (`close` then does nothing).
+    if (stage) queueMicrotask(() => stage.close());
   }
 
   // ------------------------------------------------------------------ the stage (fieldkit/fieldseam.ts)
@@ -195,6 +198,11 @@ export class FieldScene extends Scene<void> implements FieldStageSource {
   private stageView: FieldStageView | null = null;
   private stageActors: StageActor[] = [];
   private stageChests: StageChest[] = [];
+
+  /** True while the stage draws the picture and there is no dev overlay to put on this canvas: the adapter then leaves this scene's canvas out (`LegacyShape.blank`). */
+  get blank(): boolean {
+    return !!this.stage && !this.stage.closed && !fieldHooks.renderOverlay;
+  }
 
   private async openStage(): Promise<void> {
     if (!fieldStages.available) return;

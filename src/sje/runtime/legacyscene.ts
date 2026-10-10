@@ -92,6 +92,16 @@ export class LegacyScene<R = unknown> extends Scene<R> {
     if (!image) return;
     const ctx = image.ctx;
     const game = this.game;
+    // A scene that has a stage under it (`LegacyShape.blank`) draws nothing here: leave its canvas out, and skip the 921,600-byte upload, unless the topmost scene
+    // has a fade, a flash or a notice to paint. The canvas is cleared once, so a picture of the screen (`Game.ctx`) never reads what it held before.
+    if (this.legacy.blank === true && !(game.scene.topVisible === this && game.topPaintWanted)) {
+      if (image.visible) {
+        ctx.clearRect(0, 0, W, H);
+        image.visible = false;
+      }
+      return;
+    }
+    image.visible = true;
     // A scene above the base is a layer: it starts clear. The base keeps its pixels (it repaints them all).
     if (game.scene.base !== this) ctx.clearRect(0, 0, W, H);
     ctx.save();
