@@ -71,7 +71,8 @@ import { gzipSync } from 'node:zlib';
  * rounded up to the next 1 kB). The old-game growth is no longer gated separately.
  */
 const CHUNK_MAX = 480 * 1000;
-const GZIP_TOTAL_MAX = 380 * 1000;
+// 2026-10-09 (M2): measured 393.0 kB gzip with the fx stack; set to 394 kB. Re-set deliberately, see CLAUDE.md "Dependencies".
+const GZIP_TOTAL_MAX = 394 * 1000;
 
 /**
  * The lazy 3D chunk (Three, the 3D facade, the UnrealBloomPass), gzip. Set at 160 kB on 2026-10-05 (real choice C5, accepted by Mark): the spike

@@ -101,4 +101,9 @@ Questions for Mark (the build proceeds with the recommendation; none blocks):
 
 | Step | What changed | Numbers | Verdict | Named fixes |
 |---|---|---|---|---|
-| (to fill) | | | | |
+| Build (A, B) | FxSystem, composite filter, glow chain, particles, fx levels, editor contract | check exit 0; 67 e2e pass | built | none |
+| Round 1 (runner, reader) | verify HEAD 0682ba6 | 0 Critical, 4 Important, 4 Minor | fix round | title test premise (sje-shell:137); look numbers into FxParams; weak fxsystem test; Y flip checked by pixel regions |
+| Round 2 (1 verifier) | fixes edf49a0, 5c0c45e | 0 Critical, 0 Important, 0 Minor; 635 unit, sje-fx 8/8, shell 5/5 x3 | pass | none |
+| GPU run (RTX 4070) | `npm run perf`; M1 bench pinned to fx none plus a new fx full scenario | 3D frame cost p95 4.3 ms; title fx full cost p95 4.6 ms, interval p95 16.8 ms (bare 16.8), 4 draws, 2 uploads | pass | none |
+| Bundle | `GZIP_TOTAL_MAX` 380 to 394 kB | measured 393.0 kB gzip | set | none |
+| Look note (evidence) | nearest sampling in the composite | sub-pixel tails gone: `hit.heavy` none at tick 14; `crit`, `combo`, `phase`, `spell.lightning`, `intro` 3-5x fewer pixels | for Mark at checkpoint 2 | none, do not tune |

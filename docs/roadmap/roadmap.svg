@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 788" width="1150" height="788" role="img" aria-labelledby="roadmap-title roadmap-desc">
   <title id="roadmap-title">Shadow Jog roadmap</title>
-  <desc id="roadmap-desc">Order and dependency only. Bar length is not time. Now: M2 Effects. Items in the same column can run in parallel. Foundations: Phase 0 Platform spike (done), Pre-M0 640x360 move (done), M0 Prepare (done). Engine path: M1 Shell (done), M2 Effects (active), M3 Battle stage (later), M5 Field (later), M6 Flip default (later), M7 3D mode (later), M8 Remove legacy (later). Side paths: M1b 3D proof (later), M4 UI scenes (optional), ET Editor port (later), Editors Editor suite (later). Needs Mark's go-ahead: archive-tags Archive tags (gated), release-tags Release tags (gated), deploy Deploy site (gated). Other open items (no order): playthrough-notes Playthrough notes edit (next), pixellab-end PixelLab end date (next), sprite-fusion Sprite credits (optional), cc-followups CC follow-ups (optional), plasma-bug plasma-ui bug report (optional).</desc>
+  <desc id="roadmap-desc">Order and dependency only. Bar length is not time. Now: no milestone. Items in the same column can run in parallel. Foundations: Phase 0 Platform spike (done), Pre-M0 640x360 move (done), M0 Prepare (done). Engine path: M1 Shell (done), M2 Effects (done), M3 Battle stage (later), M5 Field (later), M6 Flip default (later), M7 3D mode (later), M8 Remove legacy (later). Side paths: M1b 3D proof (later), M4 UI scenes (optional), ET Editor port (later), Editors Editor suite (later). Needs Mark's go-ahead: archive-tags Archive tags (gated), release-tags Release tags (gated), deploy Deploy site (gated). Other open items (no order): playthrough-notes Playthrough notes edit (next), pixellab-end PixelLab end date (next), sprite-fusion Sprite credits (optional), cc-followups CC follow-ups (optional), plasma-bug plasma-ui bug report (optional).</desc>
   <defs>
     <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><polygon points="0 0, 8 3, 0 6" fill="#bfc3e4"/></marker>
   </defs>
   <rect width="1150" height="788" fill="#0d0c1f"/>
-  <text x="20" y="46" fill="#f4f1ff" font-size="26" font-style="italic" font-family="'Instrument Serif', Georgia, 'Times New Roman', serif">Now: M2 Effects.</text>
+  <text x="20" y="46" fill="#f4f1ff" font-size="26" font-style="italic" font-family="'Instrument Serif', Georgia, 'Times New Roman', serif">Now: no milestone.</text>
   <text x="20" y="72" fill="#ffcc3d" font-size="14" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">Order and dependency only. Bar length is not time.</text>
   <text x="20" y="92" fill="#8f94bd" font-size="11" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.06em">READ LEFT TO RIGHT. A COLUMN IS A STEP IN THE ORDER. ITEMS IN ONE COLUMN CAN RUN IN PARALLEL. DATA UPDATED 2026-10-09.</text>
   <rect x="14" y="126" width="102" height="570" fill="#ffffff" fill-opacity="0.025"/>
@@ -82,11 +82,11 @@
     <text x="334" y="333" fill="#cfeee0" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">DONE</text>
   </g>
   <g id="item-M2">
-    <title>M2 Effects: active. FxSystem with the postfx facade, composite filter, particles. GPU timing check (npm run perf) once at the end, not in CI.</title>
-    <rect x="428" y="264" width="90" height="76" rx="6" fill="#ffcc3d" stroke="#ffcc3d" stroke-width="2"/>
-    <text x="436" y="283" fill="#1a1500" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M2</text>
-    <text x="436" y="301" fill="#1a1500" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Effects</text>
-    <text x="436" y="333" fill="#1a1500" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">ACTIVE</text>
+    <title>M2 Effects: done. FxSystem with the postfx facade, composite filter, particles. GPU timing check (npm run perf) once at the end, not in CI. Built on branch engine-m2-effects; GPU line held (2026-10-09).</title>
+    <rect x="428" y="264" width="90" height="76" rx="6" fill="#14382e" stroke="#4cc38a" stroke-width="1.2"/>
+    <text x="436" y="283" fill="#f4f1ff" font-size="14" font-weight="700" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace">M2</text>
+    <text x="436" y="301" fill="#f4f1ff" font-size="12" font-family="Geist, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif">Effects</text>
+    <text x="436" y="333" fill="#cfeee0" font-size="9.5" font-weight="600" font-family="'Geist Mono', ui-monospace, Consolas, 'Courier New', monospace" letter-spacing="0.1em">DONE</text>
   </g>
   <g id="item-M3">
     <title>M3 Battle stage: later. The side-battle rebuild lands here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge. GPU timing check (npm run perf) once at the end, not in CI.</title>

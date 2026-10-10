@@ -76,11 +76,12 @@
       "kind": "milestone",
       "label": "Effects",
       "lane": "engine",
-      "status": "active",
+      "status": "done",
       "after": [
         "M1"
       ],
-      "notes": "FxSystem with the postfx facade, composite filter, particles. GPU timing check (npm run perf) once at the end, not in CI."
+      "notes": "FxSystem with the postfx facade, composite filter, particles. GPU timing check (npm run perf) once at the end, not in CI. Built on branch engine-m2-effects; GPU line held (2026-10-09).",
+      "branch": "engine-m2-effects"
     },
     {
       "id": "M3",
