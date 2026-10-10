@@ -12,8 +12,8 @@
  * the boss instead of dipping; `tests/balance.test.ts` checks the Annex costs more than the Sinkline).
  */
 import type { Element, Family, StatusId } from '../battle/types';
-import encountersJson from './encounters.json';
-import enemiesJson from './enemies.json';
+import encountersJson from './encounters.json' with { type: 'json' };
+import enemiesJson from './enemies.json' with { type: 'json' };
 
 export interface EnemyMove {
   id: string;
