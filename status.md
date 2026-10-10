@@ -59,7 +59,17 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
-### Right now (2026-10-09, M1 merged)
+### Right now (2026-10-09, M2 built, verification round 1 running)
+
+**M2 "Effects" is built on branch `engine-m2-effects`** (HEAD 0682ba6, pushed). Brief with 16 hard pass lines: `docs/engine/m2-brief.md`. `FxSystem` (`src/sje/fx/`), the composite filter, glow chain, particles, fx levels (`full`, `lite`, `none`) and the editor contract (`FxParams`, `loadData`, `snapshot`/`restore`, `step`) are in. `postfx` routes to `game.fx` under `?engine=sje`. Builders A and B reported green: `npm run check` exit 0, 67 Playwright tests passed. Mark played checkpoint 1 and said "go". Verification round 1 (runner sonnet and reader haiku, lean loop) was started; their reports go to `media/verification/m2/round1-runner.md` and `round1-reader.md` (git-ignored). Pictures: `media/m2-fx/` (74 pairs, `table.md`). Bundle: 392.9 kB gzip against 380 kB: set `GZIP_TOTAL_MAX` to the measured total rounded up to 1 kB after the last fix round. Plan additions today: editor contract (principle 11), milestones ET (editor port) and Editors (post-Chapter 1) in `migration.md` and the roadmap.
+
+**Next for agents:** read the two round 1 reports, fix named Important/Critical findings (one fresh verifier checks only those, cap 3 rounds), then `npm run perf` once, set the bundle total, fill the section 6 record table in `m2-brief.md`, update this file and `roadmap.json` (`npm run roadmap`, milestone key M2 done), open the PR for Mark. Checkpoint 2: Mark plays the final build with the pictures and perf numbers.
+
+**Next up for Mark**
+
+1. After the PR is open: play checkpoint 2 and merge, or send work back.
+
+### Right now (2026-10-09, M1 merged, history)
 
 **M1 "Shell" is merged** ([PR #46](https://github.com/markhazlewood42/shadow-jog/pull/46)). The three spike branches are tagged `archive/engine-platform-2026-10-09`, `archive/phaser-stage-2026-10-09` and `archive/side-battle-2026-10-09` (Mark's go-ahead; the branches stay). Six M1 commits carry a `Co-Authored-By` line in `main`; Mark chose to leave them. **Next is M2 "Effects"** (`docs/engine/migration.md` M2) on branch `engine-m2-effects`, with M1b (3D proof) in parallel. Write the M2 brief with pass lines first. GPU timing check once at the end of M2.
 
