@@ -64,11 +64,18 @@ const W = 480;
 const H = 270;
 
 // The data files the slice reads (C2). Hashed as text with LF line ends, the way e2e/sjestageparity.ts does it.
-const inputFiles = JSON.parse(readFileSync(join(root, 'tests', 'fixtures', 'sjestage', 'inputs.json'), 'utf8')).files;
+const inputsFile = JSON.parse(readFileSync(join(root, 'tests', 'fixtures', 'sjestage', 'inputs.json'), 'utf8'));
+const inputFiles = inputsFile.files;
+// Files that have no copy in the Phaser checkout under this name (M3 task 8: the enemy data moved to enemies.json). They are pinned but not compared.
+const notInPhaser = new Set(inputsFile.notInPhaser ?? []);
 const hashText = (file) => createHash('sha256').update(readFileSync(file, 'utf8').replaceAll('\r\n', '\n'), 'utf8').digest('hex');
 const inputs = {};
 for (const f of inputFiles) {
   const here = hashText(join(root, f));
+  if (notInPhaser.has(f)) {
+    inputs[f] = here;
+    continue;
+  }
   const there = hashText(join(phaserDir, f));
   // The Phaser page reads ITS copy. If the two copies differ, the frames would be made from other data than this engine shows.
   if (here !== there) {

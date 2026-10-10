@@ -189,6 +189,7 @@ describe('the pinned inputs (C2)', () => {
     const missing = [...imported].filter((f) => !listed.includes(f) && !NOT_PINNED.has(f));
     expect(missing, 'imported by the stage but not pinned in inputs.json').toEqual([]);
     expect(listed, 'enemies.ts is pinned').toContain('src/data/enemies.ts');
+    expect(listed, 'enemies.json (the enemy data since M3 task 8) is pinned').toContain('src/data/enemies.json');
     for (const f of NOT_PINNED.keys()) expect(imported.has(f), `${f} is still imported (else drop it from NOT_PINNED)`).toBe(true);
   });
 });
