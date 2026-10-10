@@ -1,0 +1,66 @@
+{
+  "id": "dock",
+  "name": "Loading Dock 7",
+  "banner": "LOADING DOCK 7",
+  "bannerSub": "Street level · 03:12",
+  "kind": "town",
+  "terrain": [
+    "####################",
+    "########,,,#########",
+    "#,,,,,,,,,,,,,,,,,,#",
+    "#,,,,,,,,,,,,,,,,,,#",
+    "#==================#",
+    "#==================#",
+    "#=-============o=-=#",
+    "#=-==oo==========-=#",
+    "#=-=======+======-=#",
+    "#=-==============-=#",
+    "#=-==============-=#",
+    "#=-=========oo===-=#",
+    "#===o==============#",
+    "####################"
+  ],
+  "legend": {},
+  "ambient": "#46467a",
+  "weather": "rain",
+  "music": "tension",
+  "space": "hall",
+  "battleBg": "street",
+  "structures": [
+    {"kind":"building","x":6,"y":0,"w":8,"h":1,"style":"concrete","doors":[],"sign":{"text":"FREIGHT 7","color":"#ffcc3d"}}
+  ],
+  "props": [
+    {"kind":"car","x":8,"y":11,"w":2,"color":"#e4e4ea"},
+    {"kind":"car","x":3,"y":10,"w":2,"color":"#1f2a44"},
+    {"kind":"car","x":14,"y":10,"w":2,"color":"#1f2a44"},
+    {"kind":"barrier","x":1,"y":12,"w":3},
+    {"kind":"barrier","x":16,"y":12,"w":3},
+    {"kind":"crates","x":1,"y":4},
+    {"kind":"crates","x":1,"y":5},
+    {"kind":"crates","x":2,"y":4},
+    {"kind":"crates","x":17,"y":4},
+    {"kind":"crates","x":17,"y":5},
+    {"kind":"barrel","x":3,"y":4,"color":"#3a5a6a"},
+    {"kind":"barrel","x":16,"y":4,"color":"#5a3a2a"},
+    {"kind":"barrel","x":18,"y":7,"color":"#3a5a6a"},
+    {"kind":"tires","x":1,"y":8},
+    {"kind":"dumpster","x":16,"y":8,"w":2,"color":"#2c3b5e"},
+    {"kind":"hydrant","x":1,"y":10},
+    {"kind":"lampfloor","x":4,"y":6,"color":"#e8f4ff"},
+    {"kind":"lampfloor","x":15,"y":6,"color":"#e8f4ff"},
+    {"kind":"lamp","x":5,"y":3,"dir":"right"},
+    {"kind":"lamp","x":15,"y":3,"dir":"left"},
+    {"kind":"sign_post","x":12,"y":2,"text":"K-M LOGISTICS"}
+  ],
+  "npcs": [
+    {"id":"pale","x":9,"y":9,"dir":"up","look":"pale_rain","name":"Mr. Pale","talk":"betrayal"},
+    {"id":"guard1","x":7,"y":10,"dir":"up","look":"corpsec","name":"K-M Sentinel","talk":["Eyes front. Mr. Pale doesn’t like to be kept waiting."]},
+    {"id":"guard2","x":11,"y":10,"dir":"up","look":"corpsec3","name":"K-M Sentinel","talk":["Nothing personal, runners. You’re a line item."]}
+  ],
+  "onEnter": "on_enter",
+  "lights": [
+    {"x":4,"y":11,"r":45,"color":"#3f8af0","i":0.55,"flicker":true},
+    {"x":15,"y":11,"r":45,"color":"#ff3a3a","i":0.55,"flicker":true},
+    {"x":9,"y":12,"r":40,"color":"#fff0c0","i":0.45}
+  ]
+}
