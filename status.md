@@ -59,7 +59,15 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
-### Right now (2026-10-10, M5 merged)
+### Right now (2026-10-10, M6 built, in verification)
+
+M6 "Flip default" is built on branch `engine-m6-flip` (not yet a PR). Brief: `docs/engine/m6-brief.md`; survey: `docs/engine/m6-survey.md`. Mark answered decisions 1 and 4 with A (issues #56 and #57); 2, 3, 5, 6 and 7 stay as recommended. Builder A (tasks 1 to 4, d8f4ac0) flipped the default and deleted `src/engine/gl/`; Builder B (tasks 5 to 8, 9da4a0d) ported the FX lab, added the no-WebGL-2 hint, set the bundle caps (total 452 kB, first play 392.4 kB) and added `e2e/default-path.spec.ts`. Next: the runner (pass lines 1 to 13) and the reader of the lean loop, then the PR, CI and the GPU run (pass line 15). Open for the verifiers: the soft goldens were made on Windows and Linux CI is unproven; the battle party draws as plain blocks on the real-clock default page (check against `main`); `src/sje/boot.ts` now loads the game with a dynamic import (a change the brief did not list).
+
+**Next up for Mark**
+
+1. None open. After the verifiers pass and CI is green, play `http://localhost:3007/` (no flag), then merge or send work back.
+
+### Earlier: M5 merged (history)
 
 M5 "Field" is merged ([PR #54](https://github.com/markhazlewood42/shadow-jog/pull/54), 0b1ef97, Mark, 2026-10-10). The field plays on the Pixi stage under `?engine=sje`. Parity accepts measured bounds (decision of Mark). GPU run: field on the world map, fx full, cost p95 6.9 to 7.4 ms (line 8) after the relight-on-change fix; the live battle A/B against `main` is noise. Numbers: `docs/engine/tooling-and-testing.md` section 7. Record: `docs/engine/m5-brief.md` section 9. The M5 worktree is removed. **Next is M6 "Flip default"** (`docs/engine/migration.md` section M6; M4 stays optional): write the brief with pass lines first, branch `engine-m6-flip`.
 
