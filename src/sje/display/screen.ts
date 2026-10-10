@@ -71,6 +71,19 @@ export class Screen {
     }
   }
 
+  /**
+   * Free the whole screen: the roots and the Pixi root above them. Dev and tests only. A game keeps its screen for the life of the page; the lab
+   * makes a game for each 3D session, and a screen that is drawn owns a render group with its own batch buffers and a vertex array, which only a
+   * destroy of the root frees (found in M1b: 2 buffers and 1 vertex array per session, in the leak cycles).
+   */
+  destroy(): void {
+    this.worldRoot.destroy();
+    this.uiRoot.destroy();
+    this.overlayRoot.destroy();
+    this.fxRoot.destroy({ children: true });
+    this.root.destroy();
+  }
+
   /** Draw the whole picture into the back buffer. */
   drawInto(backBuffer: BackBuffer): void {
     backBuffer.render(this.root);

@@ -132,22 +132,25 @@ describe('library imports', () => {
     expect(all.some((e) => isThree(e.spec) && e.file.startsWith('src/sje/three/'))).toBe(true);
   });
 
-  it('in the lab only threelab.ts imports Three or the 3D chunk as a value, and the rest of the lab loads it dynamically (so the first download holds no Three)', () => {
+  it('in the lab only threelab.ts and cubescene.ts (the cube scene it loads) import Three or the 3D chunk as a value, and the rest of the lab loads them dynamically (so the first download holds no Three)', () => {
     const problems: string[] = [];
     for (const f of files(join(ROOT, 'src/sje-lab'))) {
       const rel = relative(ROOT, f).split(sep).join('/');
-      if (rel === 'src/sje-lab/threelab.ts') continue;
+      if (rel === 'src/sje-lab/threelab.ts' || rel === 'src/sje-lab/cubescene.ts') continue;
       const text = readFileSync(f, 'utf8');
       // Every static import or re-export statement, with whether it says `type`.
       for (const m of text.matchAll(/^[ \t]*(?:import|export)\s+(type\s+)?[^;'"]*?\bfrom\s*['"]([^'"]+)['"]/gm)) {
         const spec = m[2] ?? '';
-        const toChunk = isThree(spec) || /(^|\/)sje\/three(\/|$)/.test(spec) || /(^|\/)threelab$/.test(spec);
+        const toChunk = isThree(spec) || /(^|\/)sje\/three(\/|$)/.test(spec) || /(^|\/)(threelab|cubescene)$/.test(spec);
         if (toChunk && !m[1]) problems.push(`${rel} imports ${spec} as a value`);
       }
     }
     expect(problems).toEqual([]);
     // The lazy boundary exists (the scan is not passing because it found nothing).
     expect(readFileSync(join(ROOT, 'src/sje-lab/hook.ts'), 'utf8')).toMatch(/import\('\.\/threelab'\)/);
+    // The cube scene is reached only through threelab.ts (which is itself loaded lazily), and it is the 3D scene M1b proves.
+    const importers = files(join(ROOT, 'src')).filter((f) => /from\s*['"]\.\/cubescene['"]/.test(readFileSync(f, 'utf8')));
+    expect(importers.map((f) => relative(ROOT, f).split(sep).join('/'))).toEqual(['src/sje-lab/threelab.ts']);
   });
 
   it('nothing in the shipped game (outside src/sje, src/sje-lab, src/hack3d) imports Pixi, Three or the lab', () => {
