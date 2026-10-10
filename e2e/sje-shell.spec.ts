@@ -113,7 +113,11 @@ test.describe('the real game on the new engine', () => {
         try {
           const { page } = g;
           expect(await waitUntil(page, 'sj.game.stack.length > 0', 30_000)).toBe(true);
-          if (!engine) await sj(page, 'sj.gpu(false)');
+          // Pin the same effects level on both paths: none. Since M2 the new path draws its effects by default (the vignette darkens the middle of the
+          // title by a few levels, a bloom can add light), the old path with gpu(false) draws none. The premise of this test is the base picture, the
+          // same pixels, so the effects are off on both. The effects have their own pixel tests (e2e/sje-fx.spec.ts).
+          await sj(page, 'sj.gpu(false)');
+          if (engine) expect(await sj<string>(page, 'sj.renderer.fxLevel'), 'the new path runs with no effects').toBe('none');
           await advance(page, 700);
           expect(await sj<string>(page, 'sj.top()')).toBe('TitleScene');
           const png = await page.screenshot();
