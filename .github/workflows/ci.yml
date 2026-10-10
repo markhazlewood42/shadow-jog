@@ -7,8 +7,8 @@
 #                this check by name. So the job id must stay `check`, it must not get a different
 #                `name:`, and it must always start and report (see "Check which files changed"
 #                below).
-#   e2e          the Playwright specs, on Chromium (the engine canary suite included)
-#   e2e-engines  the game over and shipped-build specs, on WebKit and Firefox
+#   e2e          the Playwright specs, on Chromium (the engine canary suite and the default-path goldens included)
+#   e2e-engines  the game over and shipped-build specs, on WebKit (the whole flow) and Firefox (the E5 message: no WebGL 2 on this runner)
 #
 # A change that touches only docs/, *.md files, tools/command-center/ or the Claude review workflow
 # (.github/workflows/claude-code-review.yml) needs none of this, so the work is skipped (see
@@ -175,19 +175,24 @@ jobs:
       #
       # CI must be set. playwright.config.ts then uses the bundled Chromium (not Edge) and adds the
       # WebKit and Firefox projects. GitHub sets CI already. It is set here too, so the need is visible.
+      # The game runs on the Pixi engine with no flag since M6, so every spec below that opens `/?debug` runs the new engine. Specs of the engine itself:
       # sje-canaries.spec.ts is the engine canary suite (M0): the lab page on SwiftShader, every trap with its negative control.
       # sje-draws.spec.ts counts draw calls and binds (the same on every machine).
-      # sje-shell.spec.ts is the real game on the new engine (/?engine=sje): the four screens, the block test against the old path, context loss, the leak
-      # test (M1). sje-fx.spec.ts is the effects (M2): each effect read from the canvas, at the forced level. sje-bench.spec.ts and sje-fx-compare.spec.ts are not here on
-      # purpose: the first times a GPU (npm run perf), the second needs the old presenter on a real GPU and writes pictures for Mark. Both run locally.
-      # sje-battle.spec.ts (M3) plays the shipped battle on the Pixi stage under the flag: a win, a loss, a flee, a boss intro and the crisp-pixel check at two device pixel ratios.
+      # sje-shell.spec.ts is the real game: the four screens, the default-start case (a Pixi canvas, no #fx and no #screen), the block test, context loss, the leak test.
+      # sje-fx.spec.ts is the effects (M2): each effect read from the canvas, at the forced level. gpufx.spec.ts reads the effects level of the default page and the Options switch.
+      # sje-bench.spec.ts is not here on purpose: it times a GPU (npm run perf), so it runs locally.
+      # sje-battle.spec.ts (M3) plays the shipped battle on the Pixi stage: a win, a loss, a flee, a boss intro and the crisp-pixel check at two device pixel ratios.
       # sje-stage-parity.spec.ts (M3) is the regression parity of the stage: the 480x270 layout in the engine against the goldens, on SwiftShader (its Phaser-spike controls and
       # the 'art' mode, which needs Mark's git-ignored sheets, skip themselves on CI). The stage contract (tests/sje-stage-contract.test.ts, tests/battlestage-640.test.ts,
-      # tests/enemies-data.test.ts) runs in `npm test`. The pictures for Mark (media/m3-stage/) are made locally.
-      # sje-field.spec.ts (M5) plays the shipped field on the Pixi stage under the flag (walk, real warps, emote, follower, the editor contract, both fallbacks, the leak tests, crisp pixels).
-      # sje-field-parity.spec.ts (M5) is the field against the old field on SwiftShader: 31 fixed states against references made from the legacy path (tests/fixtures/sjefield/soft),
-      # the measured bounds and the controls. The strict gate of the brief does not hold for lit frames and is opt in (SJEFIELD_STRICT=1). The references (e2e/sje-field-refs.spec.ts) and the
-      # pictures for Mark (e2e/sje-field-pictures.spec.ts) are made locally. The first CI run is the check that Linux SwiftShader agrees with the references made on Windows.
+      # tests/enemies-data.test.ts) runs in `npm test`, and so does tests/sje-boot-order.test.ts (M6: `routePostfx` before `bootGame`). The pictures for Mark (media/) are made locally.
+      # sje-field.spec.ts (M5) plays the shipped field on the Pixi stage (walk, real warps, emote, follower, the editor contract, both fallbacks, the leak tests, crisp pixels).
+      # sje-field-parity.spec.ts (M5) is the field against references made from the OLD field on SwiftShader (tests/fixtures/sjefield/soft; the old path is gone, so they cannot be made
+      # again): 31 fixed states, the measured bounds and the controls. The strict gate of the brief does not hold for lit frames and is opt in (SJEFIELD_STRICT=1). The pictures for
+      # Mark are made locally.
+      # default-path.spec.ts (M6) is the goldens of the default page: title, field (rustyard), a battle and Options, one frame each, against tests/fixtures/defaultpath/soft (made with
+      # M6_REFS=1 CI=1), with a 2/255 step and a one-pixel move as controls.
+      # fxlab.spec.ts is the FX lab on the new engine (M6): list, edit, the invalid-edit case, and the save endpoint's dry run.
+      # e2e/webgl2kit.ts is a helper of prod.spec.ts and gameover.spec.ts (the E5 check), not a spec: it is not in the list.
       - name: E2E on Chromium (every spec except the playtest, with the engine canaries)
         if: steps.scope.outputs.skip != 'true'
         run: >-
@@ -196,7 +201,7 @@ jobs:
           e2e/economy.spec.ts e2e/chaos.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts
           e2e/sje-canaries.spec.ts e2e/sje-draws.spec.ts e2e/sje-shell.spec.ts e2e/sje-fx.spec.ts
           e2e/sje-battle.spec.ts e2e/sje-stage-parity.spec.ts
-          e2e/sje-field.spec.ts e2e/sje-field-parity.spec.ts
+          e2e/sje-field.spec.ts e2e/sje-field-parity.spec.ts e2e/default-path.spec.ts
         env:
           CI: '1'
 
@@ -247,6 +252,9 @@ jobs:
       # These two engines run only the flows that most likely differ between engines: storage, the
       # unload prompt, keyboard and audio unlock (see playwright.config.ts). CI must be set for the
       # config to add the two projects.
+      # The game needs WebGL 2 since M6 (the Pixi engine is the only engine). WebKit has it on this runner and plays the whole flow. Headless Firefox on this
+      # runner has none, so its game flow is skipped by `browserName` and one E5 test checks that the page shows the "cannot run WebGL 2" message and
+      # starts no game (e2e/webgl2kit.ts, used by prod.spec.ts and gameover.spec.ts). Do not drop Firefox from this job: it is the one real engine that checks E5.
       - name: E2E on WebKit and Firefox (game over and saves, shipped build)
         if: steps.scope.outputs.skip != 'true'
         run: >-
