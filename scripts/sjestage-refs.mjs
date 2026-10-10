@@ -13,7 +13,11 @@
 // harness compares like with like: the engine in a GPU browser against the Phaser page in a GPU browser, the engine in a software browser (CI) against the
 // Phaser page in a software browser. Run the script once with and once without --no-gpu to make both.
 //
-//   node scripts/sjestage-refs.mjs --out <folder> [--modes standins,art] [--phaser <checkout>] [--no-gpu] [--fixtures]
+//   node scripts/sjestage-refs.mjs --out <folder> [--modes standins,art] [--phaser <checkout>] [--port 3007] [--phaser-ref <tag>] [--no-gpu] [--fixtures]
+//
+// M3 (decision 1a, "then all stages"): besides the street slice and its haze frame it captures the extra frames of src/battlestage/slice.json: the sewer
+// (the whole party, three enemies, two rings) and the sewer's boss group. The Phaser checkout is the tag archive/phaser-stage-2026-10-09 (`git archive` it to a folder,
+// `npm ci` there, and pass that folder as --phaser): the page takes the stage from its `?stage=` query.
 //
 //   --out       where the raw frames go (outside the repo: they are pictures; Mark's art must never be committed).
 //   --modes     standins (the code-drawn crew, what CI has) and/or art (Mark's Sprite Fusion sheets, when his git-ignored folder is here).
@@ -46,7 +50,8 @@ if (!out) {
   process.exit(2);
 }
 const phaserDir = resolve(opt('phaser', join(root, '..', 'shadow-jog-phaser')));
-const PORT = 3007;
+// The Phaser checkout's dev server port. 3007 is the default; pass --port when 3007 is taken (a second worktree runs next to this one).
+const PORT = Number(opt('port', '3007'));
 const BASE = `http://localhost:${PORT}`;
 const slice = JSON.parse(readFileSync(join(root, 'src/battlestage/slice.json'), 'utf8'));
 const haveArt = existsSync(join(phaserDir, 'spritefusion-tests', 'extracted', 'kit-battle-idle', 'metadata.json'));
@@ -76,7 +81,9 @@ const axes = JSON.parse(readFileSync(join(root, 'src', 'data', 'axes.json'), 'ut
 const frameSpecs = [
   { frame: 'slice', spec: { ...slice, axes } },
   // The haze frame: no ring (active and target are undefined), another lineup and group. The seed is the slice's.
-  { frame: 'haze', spec: { axes, seed: slice.seed, lineup: slice.haze.lineup, setKey: slice.haze.setKey, enemies: slice.haze.enemies, ticks: slice.haze.ticks } },
+  { frame: 'haze', spec: { axes, stageId: slice.stageId, seed: slice.seed, lineup: slice.haze.lineup, setKey: slice.haze.setKey, enemies: slice.haze.enemies, ticks: slice.haze.ticks } },
+  // The extra frames (M3): another stage, with rings.
+  ...Object.entries(slice.extra ?? {}).map(([frame, x]) => ({ frame, spec: { axes, ...x } })),
 ];
 const kind = flag('no-gpu') ? 'soft' : 'gpu';
 
@@ -200,7 +207,12 @@ async function captureInPage(page, sliceSpec) {
 
 const manifest = { generatedBy: 'scripts/sjestage-refs.mjs', date: new Date().toISOString(), w: W, h: H, slice, inputs, phaserCommit: '', kind, modes: {}, files: {} };
 try {
-  manifest.phaserCommit = execFileSync('git', ['-C', phaserDir, 'rev-parse', 'HEAD']).toString().trim();
+  try {
+    manifest.phaserCommit = execFileSync('git', ['-C', phaserDir, 'rev-parse', 'HEAD'], { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    // A folder made with `git archive` has no git data: name the tag it was made from (--phaser-ref), or say so.
+    manifest.phaserCommit = opt('phaser-ref', 'not a git checkout');
+  }
   // Wait for the server (the first answer can take a while: Vite is scanning dependencies).
   for (let i = 0; i < 120 && !(await answers()); i++) await new Promise((r) => setTimeout(r, 1000));
   if (!(await answers())) throw new Error(`the Phaser dev server did not start:\n${serverLog}`);
@@ -219,17 +231,17 @@ try {
         });
         page.on('pageerror', (e) => problems.push(e.message));
         // ?clean: no pickers over the corner. ?standins: skip Mark's sheets on purpose.
-        await page.goto(`${BASE}/stagelab.html?clean${mode === 'standins' ? '&standins' : ''}`);
+        await page.goto(`${BASE}/stagelab.html?clean&stage=${spec.stageId ?? slice.stageId}${mode === 'standins' ? '&standins' : ''}`);
         await page.waitForFunction(() => window.__stagelab?.ready === true || !!window.__stagelab?.error, undefined, { timeout: 60_000 });
         const got = await captureInPage(page, spec);
         if (got.standIns !== (mode === 'standins')) throw new Error(`asked for ${mode} but the Phaser lab says standIns=${got.standIns}`);
         if (problems.length) throw new Error(`the Phaser page logged errors: ${problems.join(' | ')}`);
         manifest.modes[mode].renderer = got.renderer;
-        manifest.modes[mode][frame === 'haze' ? 'hazeFigures' : 'figures'] = got.facts;
+        manifest.modes[mode][frame === 'slice' ? 'figures' : `${frame}Figures`] = got.facts;
         for (const f of got.frames) {
           const raw = Buffer.from(f.base64, 'base64');
           if (f.w !== W || f.h !== H || raw.length !== W * H * 4) throw new Error(`the Phaser canvas is ${f.w}x${f.h}, expected ${W}x${H}`);
-          const name = `${mode}-${kind}${frame === 'haze' ? '-haze' : ''}-t${f.tick}.rgba`;
+          const name = `${mode}-${kind}${frame === 'slice' ? '' : `-${frame}`}-t${f.tick}.rgba`;
           writeFileSync(join(out, name), raw);
           manifest.files[name] = { bytes: raw.length, sha256: createHash('sha256').update(raw).digest('hex') };
           if (flag('fixtures') && mode === 'standins') {

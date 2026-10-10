@@ -59,6 +59,38 @@ describe('the B1 slice (src/battlestage/slice.json)', () => {
   });
 });
 
+describe('the extra frames of the parity set (M3, "then all stages": the sewer and its boss group)', () => {
+  const extras = Object.entries(slice.extra);
+
+  it('are the sewer, with the whole party, and they cover a painted wall and a boss slot', () => {
+    expect(extras.map(([name]) => name)).toEqual(['sewer', 'boss']);
+    for (const [name, x] of extras) {
+      expect(x.stageId, name).toBe('sewer');
+      expect(x.lineup, `${name}: the whole party`).toHaveLength(4);
+    }
+    // The sewer's wall is painted in code (mode "replace"), unlike the street's reprojected art; the boss group uses the boss slot (size "boss").
+    const stage = stageOf(fixtureStages(), 'sewer');
+    expect(stage.backdrop.mode).toBe('replace');
+    expect(enemySlots(stage, slice.extra.boss.setKey).some((s) => s.size === 'boss')).toBe(true);
+  });
+
+  it('are made of things that exist: crew, enemies, a slot for each, rings on real figures, and a floor seed', () => {
+    for (const stages of [shippedStages(), fixtureStages()]) {
+      for (const [name, x] of extras) {
+        const stage = stageOf(stages, x.stageId);
+        for (const id of x.lineup) expect(CREW_IDS, `${name}: ${id}`).toContain(id);
+        for (const key of x.enemies) expect(ENEMIES[key], `${name}: enemy ${key}`).toBeDefined();
+        expect(enemySlots(stage, x.setKey), `${name}: slots`).toHaveLength(x.enemies.length);
+        expect(x.active).toBeLessThan(x.lineup.length);
+        expect(x.target).toBeLessThan(x.enemies.length);
+        expect(x.ticks.length).toBeGreaterThan(0);
+      }
+    }
+    // The seed is a whole number (the floor seed of the references). Whether it is the file's own is the pin of inputs.json: a test never pins one of Mark's values.
+    for (const [name, x] of extras) expect(Number.isInteger(x.seed), name).toBe(true);
+  });
+});
+
 describe('the modules brought over from the spike are pure', () => {
   /** The pure modules of the spike. Their header comments still say "Phaser spike": they are records. `Raw` is the engine's `{ w, h, data }` in them (M3 decision 6), the only change. */
   const COPIED = ['hudpresets', 'feet', 'floor', 'shadow', 'rules', 'proportions', 'facing', 'crew', 'known', 'pixels', 'faces', 'sewerwall', 'idle'];

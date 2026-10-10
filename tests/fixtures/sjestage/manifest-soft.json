@@ -35,6 +35,50 @@
       "ticks": [
         41
       ]
+    },
+    "extra": {
+      "sewer": {
+        "stageId": "sewer",
+        "setKey": "3",
+        "lineup": [
+          "kit",
+          "rook",
+          "hex",
+          "sable"
+        ],
+        "enemies": [
+          "sewer_ghoul",
+          "gutter_eel",
+          "glowrat"
+        ],
+        "active": 2,
+        "target": 1,
+        "seed": 11,
+        "ticks": [
+          0,
+          41
+        ]
+      },
+      "boss": {
+        "stageId": "sewer",
+        "setKey": "boss+1",
+        "lineup": [
+          "kit",
+          "rook",
+          "hex",
+          "sable"
+        ],
+        "enemies": [
+          "lurker",
+          "glowrat"
+        ],
+        "active": 0,
+        "target": 0,
+        "seed": 11,
+        "ticks": [
+          41
+        ]
+      }
     }
   },
   "inputs": {
@@ -121,6 +165,101 @@
           "x": 338,
           "y": 207
         }
+      ],
+      "sewerFigures": [
+        {
+          "id": "kit",
+          "side": "party",
+          "depth": 207092,
+          "x": 46,
+          "y": 207
+        },
+        {
+          "id": "rook",
+          "side": "party",
+          "depth": 192176,
+          "x": 88,
+          "y": 192
+        },
+        {
+          "id": "hex",
+          "side": "party",
+          "depth": 174260,
+          "x": 130,
+          "y": 174
+        },
+        {
+          "id": "sable",
+          "side": "party",
+          "depth": 157344,
+          "x": 172,
+          "y": 157
+        },
+        {
+          "id": "sewer_ghoul#0",
+          "side": "enemy",
+          "depth": 140343,
+          "x": 309,
+          "y": 140
+        },
+        {
+          "id": "gutter_eel#1",
+          "side": "enemy",
+          "depth": 174169,
+          "x": 396,
+          "y": 174
+        },
+        {
+          "id": "glowrat#2",
+          "side": "enemy",
+          "depth": 207301,
+          "x": 330,
+          "y": 207
+        }
+      ],
+      "bossFigures": [
+        {
+          "id": "kit",
+          "side": "party",
+          "depth": 207092,
+          "x": 46,
+          "y": 207
+        },
+        {
+          "id": "rook",
+          "side": "party",
+          "depth": 192176,
+          "x": 88,
+          "y": 192
+        },
+        {
+          "id": "hex",
+          "side": "party",
+          "depth": 174260,
+          "x": 130,
+          "y": 174
+        },
+        {
+          "id": "sable",
+          "side": "party",
+          "depth": 157344,
+          "x": 172,
+          "y": 157
+        },
+        {
+          "id": "lurker#0",
+          "side": "enemy",
+          "depth": 192201,
+          "x": 380,
+          "y": 192
+        },
+        {
+          "id": "glowrat#1",
+          "side": "enemy",
+          "depth": 140373,
+          "x": 294,
+          "y": 140
+        }
       ]
     }
   },
@@ -140,6 +279,18 @@
     "standins-soft-haze-t41.rgba": {
       "bytes": 518400,
       "sha256": "f20aac4c320ee43eba9064ab84d9f1d9bb70b3615b673999680e7c131765db8c"
+    },
+    "standins-soft-sewer-t0.rgba": {
+      "bytes": 518400,
+      "sha256": "236b5c0bd8ae03804aa785ef91a23ca7809326a4186bef947ef1971d5e8a3931"
+    },
+    "standins-soft-sewer-t41.rgba": {
+      "bytes": 518400,
+      "sha256": "c384fadc3723daaedcf03f2a5dfaa583deff8724894868e6cbf03e20d677fa86"
+    },
+    "standins-soft-boss-t41.rgba": {
+      "bytes": 518400,
+      "sha256": "b71a188ebcf924c62cda3cdb7df55697250694440da3c6ba3d06046cb32daa26"
     }
   }
 }

@@ -94,11 +94,11 @@ function shippedStage(seed?: number): StageConfig {
 const rgba = (base64: string): Buffer => Buffer.from(base64, 'base64');
 
 /** Show the slice at a tick in a mode and read the back buffer. */
-async function frameAt(page: Page, tick: number, sprites: SpriteMode, seed = SLICE.seed, frame: FrameKind = 'slice'): Promise<Buffer> {
+async function frameAt(page: Page, tick: number, sprites: SpriteMode, seed: number | undefined = undefined, frame: FrameKind = 'slice'): Promise<Buffer> {
   const got = await page.evaluate(async ([t, s, sd, fr]) => {
     const h = window.__SJESTAGE__;
     if (!h) throw new Error('no hook');
-    await h.show({ tick: t as number, sprites: s as 'standins' | 'art', seed: sd as number, frame: fr as 'slice' | 'haze' });
+    await h.show({ tick: t as number, sprites: s as 'standins' | 'art', ...(sd === undefined ? {} : { seed: sd as number }), frame: fr as FrameKind });
     return h.pixels();
   }, [tick, sprites, seed, frame] as const);
   expect([got.w, got.h]).toEqual([SIZE.w, SIZE.h]);
@@ -173,10 +173,15 @@ test.describe('stage lab: boot', () => {
   });
 });
 
-/** The frames of the parity set: the slice at its three ticks, and the haze frame (C3). */
+/**
+ * The frames of the parity set: the street slice at its three ticks, the haze frame (C3), and then the other stage (M3, "then all stages"): the sewer, whose wall is
+ * painted in code, with the whole party and three enemies, and the sewer's boss group.
+ */
 const PARITY_FRAMES: Array<{ frame: FrameKind; ticks: readonly number[] }> = [
   { frame: 'slice', ticks: SLICE.ticks },
   { frame: 'haze', ticks: SLICE.haze.ticks },
+  { frame: 'sewer', ticks: SLICE.extra.sewer.ticks },
+  { frame: 'boss', ticks: SLICE.extra.boss.ticks },
 ];
 
 test.describe('stage lab: parity with the Phaser spike (exit criterion 7)', () => {
@@ -201,13 +206,13 @@ test.describe('stage lab: parity with the Phaser spike (exit criterion 7)', () =
             const ref = readReference(mode, kind, tick, frame);
             test.skip(ref === null, `no ${kind} reference frame for ${mode} ${frame} tick ${tick}: run node scripts/sjestage-refs.mjs --out <folder>${kind === 'soft' ? ' --no-gpu' : ''} and set SJESTAGE_REFS=<folder>`);
             if (!ref) return;
-            const engine = await frameAt(page, tick, mode, SLICE.seed, frame);
+            const engine = await frameAt(page, tick, mode, undefined, frame);
             const parity = compareFrames(engine, ref);
             const strict = strictCompare(engine, ref, strictMask());
             const line = `${describeParity(`PARITY ${mode} ${frame} ${kind} t${tick}`, parity)} | ${describeStrict('STRICT', strict)}`;
             console.log(line);
             testInfo.annotations.push({ type: 'parity', description: line });
-            const stem = `sjestage-${mode}-${kind}${frame === 'haze' ? '-haze' : ''}-t${tick}`;
+            const stem = `sjestage-${mode}-${kind}${frame === 'slice' ? '' : `-${frame}`}-t${tick}`;
             savePicture(`${stem}-engine.png`, encodePng(engine, W, H, 2));
             savePicture(`${stem}-ref.png`, encodePng(ref, W, H, 2));
             savePicture(`${stem}-diff.png`, encodePng(parity.diff, W, H, 2));
@@ -221,7 +226,7 @@ test.describe('stage lab: parity with the Phaser spike (exit criterion 7)', () =
     }
   }
 
-  test('the committed references are what the capture script says they are: made for THIS slice, four stand-in frames for each renderer kind (three ticks and the haze frame), opaque, not blank, and the hashes in the manifest match', async () => {
+  test('the committed references are what the capture script says they are: made for THIS slice, seven stand-in frames for each renderer kind (three street ticks, the street haze frame, two sewer ticks and the sewer boss group), opaque, not blank, and the hashes in the manifest match', async () => {
     for (const kind of ['gpu', 'soft'] as const) {
       const manifest = JSON.parse(readFileSync(join(FIXTURES, `manifest-${kind}.json`), 'utf8')) as { slice: unknown; kind: string; inputs: Record<string, string>; files: Record<string, { bytes: number; sha256: string }> };
       expect(manifest.slice, `manifest-${kind}.json was made for src/battlestage/slice.json as it is now (run scripts/sjestage-refs.mjs again if the slice changed)`).toEqual(SLICE);
@@ -247,6 +252,7 @@ test.describe('stage lab: parity with the Phaser spike (exit criterion 7)', () =
   });
 
   test('the GPU and the software references differ from each other by 1/255 at most, on a few percent of the pixels: that is why there are two sets (the game’s own glow layer is painted by canvas code that is renderer dependent)', async () => {
+    let differing = 0;
     for (const { frame, tick } of committedFrames()) {
       const gpu = readCommitted('gpu', tick, frame);
       const soft = readCommitted('soft', tick, frame);
@@ -255,10 +261,13 @@ test.describe('stage lab: parity with the Phaser spike (exit criterion 7)', () =
       const p = compareFrames(gpu, soft);
       console.log(describeParity(`GPU against SOFTWARE reference, ${frame} tick ${tick}`, p));
       expect(p.maxDiff).toBeLessThanOrEqual(1);
-      expect(p.differing, 'the two kinds really do differ (otherwise one set would do)').toBeGreaterThan(0);
       // Where they differ is the street's glow layer (the shop windows and signs in the wall): 1,732 translucent pixels at 240x135, four pixels each at 480x270.
+      // The sewer's wall is painted pixel by pixel, not on a canvas with a glow layer, so its two sets are the same picture.
+      if (frame === 'sewer' || frame === 'boss') expect(p.differing, `the sewer has no renderer dependent pixel (${frame} tick ${tick})`).toBe(0);
+      differing += p.differing;
       expect(p.pct).toBeLessThan(5);
     }
+    expect(differing, 'the two kinds really do differ in the street (otherwise one set would do)').toBeGreaterThan(0);
   });
 
   test('the renderer mask of the strict gate is only the glow layer: a few percent of the picture, so the gate is exact nearly everywhere (it allows 1/255 inside the mask and nothing else)', async () => {

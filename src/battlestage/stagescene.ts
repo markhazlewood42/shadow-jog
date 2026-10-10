@@ -304,8 +304,9 @@ export class BattleStageScene extends Scene<void> {
     const aimed = this.target === undefined ? undefined : this.side('enemy')[this.target];
     if (aimed) aimed.target = true;
     this.restyleAll();
-    // A restyle puts every body at rest; after the first tick the idle sway of the tick is laid back on (before it, the figures stand at their feet, as the references show).
-    if (this.worldFrame > 0) for (const f of this.figures) f.tick(this.worldFrame);
+    // A restyle puts every body at rest; the idle sway of this tick is laid back on, so a figure never shows a frame of rest between two ticks. At tick 0 too: the
+    // Phaser references show the sway of tick 0 (a hovering eel is already off its feet).
+    for (const f of this.figures) f.tick(this.worldFrame);
     pruneTextures(this.textures, PREFIX.shadow, new Set(this.figures.flatMap((f) => f.partTextures())));
     pruneTextures(this.textures, PREFIX.ring, new Set(this.figures.flatMap((f) => f.partTextures())));
   }

@@ -105,7 +105,9 @@ export async function startStageLab(): Promise<StageLab> {
     scene: () => scene,
     current: () => ({ ...made, tick: scene?.frame ?? 0 }),
     async show(opts = {}) {
-      const seed = opts.seed ?? SLICE.seed;
+      const frame = opts.frame ?? 'slice';
+      // The seed of the frame's own stage unless the test asks for another (the floor's puddles and reflections follow it).
+      const seed = opts.seed ?? (frame === 'sewer' || frame === 'boss' ? SLICE.extra[frame].seed : SLICE.seed);
       const kind = opts.sprites ?? made.sprites;
       if (kind === 'art' && !haveArt) throw new Error("Mark's sheets are not on this machine, so the 'art' mode cannot be shown");
       // The old scene goes first: its objects are destroyed and the textures it showed are kept for the next one.
@@ -115,7 +117,6 @@ export async function startStageLab(): Promise<StageLab> {
         choice = await chooseSprites(kind === 'standins');
         await loadStageAssets(game.textures, choice);
       }
-      const frame = opts.frame ?? 'slice';
       scene = new BattleStageScene(sliceInit(data, choice, seed, frame));
       void game.run(scene);
       made = { seed, sprites: kind, frame };

@@ -12,5 +12,27 @@
     "setKey": "3",
     "enemies": ["rustfang_punk", "glowrat", "rustfang_punk"],
     "ticks": [41]
+  },
+  "extra": {
+    "sewer": {
+      "stageId": "sewer",
+      "setKey": "3",
+      "lineup": ["kit", "rook", "hex", "sable"],
+      "enemies": ["sewer_ghoul", "gutter_eel", "glowrat"],
+      "active": 2,
+      "target": 1,
+      "seed": 11,
+      "ticks": [0, 41]
+    },
+    "boss": {
+      "stageId": "sewer",
+      "setKey": "boss+1",
+      "lineup": ["kit", "rook", "hex", "sable"],
+      "enemies": ["lurker", "glowrat"],
+      "active": 0,
+      "target": 0,
+      "seed": 11,
+      "ticks": [41]
+    }
   }
 }

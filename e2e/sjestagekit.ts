@@ -116,6 +116,18 @@ export interface HazeSpec {
   ticks: number[];
 }
 
+/** One extra frame of the parity set (the sewer, the sewer's boss group): see src/battlestage/slice.ts. */
+export interface ExtraFile {
+  stageId: string;
+  setKey: string;
+  lineup: string[];
+  enemies: string[];
+  active: number;
+  target: number;
+  seed: number;
+  ticks: number[];
+}
+
 export interface SliceFile {
   stageId: string;
   setKey: string;
@@ -126,10 +138,11 @@ export interface SliceFile {
   seed: number;
   ticks: number[];
   haze: HazeSpec;
+  extra: Record<'sewer' | 'boss', ExtraFile>;
 }
 
 /** Which frame of the parity set: 'slice' (Kit and the punk with both rings, exit criterion 7) or 'haze' (four heroes and three enemies on hazed rows, no rings). */
-export type FrameKind = 'slice' | 'haze';
+export type FrameKind = 'slice' | 'haze' | 'sewer' | 'boss';
 
 /** The slice's numbers, from the one file the engine and the capture script both read. */
 export function readSlice(): SliceFile {
@@ -140,7 +153,7 @@ export const FIXTURES = join(ROOT, 'tests', 'fixtures', 'sjestage');
 
 /** The file name of a reference frame (the haze frame has "haze" in it). */
 export function referenceName(mode: SpriteMode, kind: RendererKind, tick: number, frame: FrameKind = 'slice'): string {
-  return `${mode}-${kind}${frame === 'haze' ? '-haze' : ''}-t${tick}.rgba`;
+  return `${mode}-${kind}${frame === 'slice' ? '' : `-${frame}`}-t${tick}.rgba`;
 }
 
 /** The reference frame for a mode, a renderer kind and a tick, or null when there is none to read here. Stand-ins: the local folder if it has one, else the committed file. Art: the local folder only. */
@@ -163,7 +176,12 @@ export function readCommitted(kind: RendererKind, tick: number, frame: FrameKind
 /** Every committed stand-in frame as a [frame, tick] pair: the slice's ticks, then the haze frame's. */
 export function committedFrames(): Array<{ frame: FrameKind; tick: number }> {
   const slice = readSlice();
-  return [...slice.ticks.map((tick) => ({ frame: 'slice' as const, tick })), ...slice.haze.ticks.map((tick) => ({ frame: 'haze' as const, tick }))];
+  return [
+    ...slice.ticks.map((tick) => ({ frame: 'slice' as const, tick })),
+    ...slice.haze.ticks.map((tick) => ({ frame: 'haze' as const, tick })),
+    ...slice.extra.sewer.ticks.map((tick) => ({ frame: 'sewer' as const, tick })),
+    ...slice.extra.boss.ticks.map((tick) => ({ frame: 'boss' as const, tick })),
+  ];
 }
 
 /**
