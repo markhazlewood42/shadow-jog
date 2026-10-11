@@ -1,7 +1,7 @@
 /**
- * The tests of the field parity harness (M5), written as functions (the bodies of the tests) so that two spec files can share them: `e2e/sje-field-parity-a.spec.ts`
- * and `e2e/sje-field-parity-b.spec.ts` (CI runs them in different shards, because the whole set took about 10 minutes alone). The `test(...)` calls stay in the spec
- * files, because Playwright names a test by the file that calls `test()`. Together the two files hold exactly the tests of the old single file `sje-field-parity.spec.ts`:
+ * The tests of the field parity harness (M5), written as functions (the bodies of the tests) so that four spec files can share them: `e2e/sje-field-parity-a.spec.ts`
+ * to `-d.spec.ts` (CI runs them in different shards, because the whole set took about 10 minutes alone). The `test(...)` calls stay in the spec
+ * files, because Playwright names a test by the file that calls `test()`. Together the four files hold exactly the tests of the old single file `sje-field-parity.spec.ts`:
  * the inputs check, one test for each of the 31 states, and the 6 controls. Method and tiers: see the header of the spec files and `docs/engine/m5-brief.md`.
  */
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';

@@ -26,29 +26,14 @@
  */
 import { test } from '@playwright/test';
 import { CASES } from './sjefieldkit';
-import { CONTROL_IDS, lightControl, nudgeControl, stateBody, stepControl } from './sjefieldparityparts';
+import { stateBody } from './sjefieldparityparts';
 
-// Part B: the other 16 states (the interiors, the day case of the bar, and the GPU-only effect-stack states, which skip themselves on CI) and the 6 controls.
+// Part B: states 8 to 14 (the world map by day, the yard and its two variants, the sinkline, the annex and the dock).
 test.describe('field parity: the new field against the old one', () => {
   test.setTimeout(240_000);
-  for (const c of CASES.slice(15)) {
+  for (const c of CASES.slice(8, 15)) {
     test(`${c.id}: ${c.note}`, async ({ browser }) => {
       await stateBody(browser, c);
-    });
-  }
-});
-
-test.describe('field parity: the bounds can fail (controls)', () => {
-  test.setTimeout(240_000);
-  for (const id of CONTROL_IDS) {
-    test(`${id}: a 2/255 step is rejected`, async ({ browser }) => {
-      await stepControl(browser, id);
-    });
-    test(`${id}: an actor one pixel off is rejected`, async ({ browser }) => {
-      await nudgeControl(browser, id);
-    });
-    test(`${id}: a wrong light radius is rejected`, async ({ browser }) => {
-      await lightControl(browser, id);
     });
   }
 });

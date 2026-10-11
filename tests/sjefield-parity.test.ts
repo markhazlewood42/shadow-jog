@@ -1,5 +1,5 @@
 /**
- * The field parity harness's pure parts, tested on made-up pictures (M5 task 8): `e2e/sjefieldparity.ts`. The e2e spec (`e2e/sje-field-parity-a.spec.ts` and `-b`) runs the same code on the
+ * The field parity harness's pure parts, tested on made-up pictures (M5 task 8): `e2e/sjefieldparity.ts`. The e2e spec (`e2e/sje-field-parity-a.spec.ts` to `-d`) runs the same code on the
  * real frames and has its own controls in the real scene (a 2/255 step, an actor one pixel off, a wrong light radius). Here the gates are shown to fail what they must fail:
  *  - the STRICT gate passes an exact copy and 1/255 noise inside the renderer mask, and fails 1/255 outside it and 2/255 inside it;
  *  - the renderer mask is the union of the pixels where the gpu and the soft reference differ;

@@ -28,7 +28,7 @@ import { test } from '@playwright/test';
 import { CASES } from './sjefieldkit';
 import { inputsBody, stateBody } from './sjefieldparityparts';
 
-// Part A: the inputs check and the first 15 states (the town street, the world map, the yard, the sinkline, the annex and the dock).
+// Part A: the inputs check and the first 8 states (the town street and its variants, and the world map and its variants). The field parity set is four files, a to d, so that CI can put them in different shards.
 test.describe('field parity: the inputs', () => {
   test('every input of the references is pinned, and every map of the game has a state', () => {
     inputsBody();
@@ -37,7 +37,7 @@ test.describe('field parity: the inputs', () => {
 
 test.describe('field parity: the new field against the old one', () => {
   test.setTimeout(240_000);
-  for (const c of CASES.slice(0, 15)) {
+  for (const c of CASES.slice(0, 8)) {
     test(`${c.id}: ${c.note}`, async ({ browser }) => {
       await stateBody(browser, c);
     });
