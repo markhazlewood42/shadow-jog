@@ -18,6 +18,7 @@ import * as stateMod from './game/state';
 import { applyStage } from './game/stages';
 import { perf } from './engine/perf';
 import { currentNotice, notice } from './engine/errors';
+import { streams } from './engine/rng';
 import { EndingScene } from './scenes/ending';
 import { fieldHooks } from './game/hooks';
 import { postfx } from './engine/postfx';
@@ -73,6 +74,10 @@ export function boot(game: Game, display: Display): void {
     /** Register a one-group encounter (screenshots of a specific line-up). */
     defineEncounter: (id: string, e: string[]) => {
       ENCOUNTERS[id] = [{ w: 1, e }];
+    },
+    /** Set the battle random stream to a fixed state. The streams are seeded from `Date.now()` when the module loads, and on a fake clock that moment depends on how long the page took to load, so a golden that shows a battle (the turn order) calls this first. */
+    seedBattle: (n: number) => {
+      streams.battle.state = n;
     },
     battle: (enc: string, bg = 'street', boss = false) => void field()?.runScript((s) => s.battle(enc, { bg, boss, canRun: !boss }).then(() => undefined)),
     say: (who: string, text: string, face = 'neutral') => void field()?.runScript((s) => s.say(who, text, { face })),

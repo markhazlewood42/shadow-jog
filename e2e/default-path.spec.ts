@@ -41,6 +41,13 @@ const ZOOM = 2;
 const IDS = ['title', 'rustyard', 'battle', 'options'] as const;
 type Id = (typeof IDS)[number];
 
+/**
+ * The state of the battle random stream for the battle picture. The game seeds its streams from `Date.now()` when the page loads (`streams` in `src/sje/core/rng.ts`), and on the fake clock that moment depends on how many
+ * 100 ms turns `runUntil` took while the page loaded in real time: a slow runner got another seed, so the initiative roll gave another turn order (Kit first or Rook first, the 3720 px of the timeline at the top). Seed 1 gives the turn
+ * order of the reference (Kit, then Rook). Seeds 2, 3, 5 and 6 give the other one.
+ */
+const BATTLE_SEED = 1;
+
 /** The tick of each scene the picture is taken at: after the title's own fade-in, and after the intro of the battle. */
 const TICK: Record<Exclude<Id, 'rustyard'>, number> = { title: 120, battle: 300, options: 60 };
 
@@ -197,7 +204,7 @@ async function capture(browser: Browser, id: Id, nudge?: { px: number; py: numbe
     } else {
       await sj(g.page, "sj.stage('town')");
       await runUntil(g.page, 'sj.top() === "FieldScene" && sj.idle()', 'the field');
-      await sj(g.page, "(sj.defineEncounter('m6golden', ['sewer_ghoul', 'rust_crab']), sj.battle('m6golden', 'sewer', false))");
+      await sj(g.page, `(sj.seedBattle(${BATTLE_SEED}), sj.defineEncounter('m6golden', ['sewer_ghoul', 'rust_crab']), sj.battle('m6golden', 'sewer', false))`);
       await runUntil(g.page, 'sj.top() === "BattleScene" && sj.battleStage !== null && sj.battleStage.figures.length > 0', 'the battle on its stage');
       await settleTo(g.page, 'sj.game.top.frame', TICK.battle);
     }
