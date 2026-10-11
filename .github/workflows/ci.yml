@@ -9,7 +9,7 @@
 #                below).
 #   e2e          the Playwright specs, on Chromium (the engine canary suite and the default-path goldens included), split into two shards by a matrix. The checks are
 #                named `e2e (1/2)` and `e2e (2/2)`: no check is called plain `e2e` any more. The `main` ruleset must require both shard names (and `check`);
-#                a required check called `e2e` would wait for ever. Each shard has its own named spec list in the matrix (`--shard` split by test count and was lopsided: 143 tests against 78). The cap is 30 minutes for each shard.
+#                a required check called `e2e` would wait for ever. Each shard has its own named spec list in the matrix (`--shard` split by test count and was lopsided: 143 tests against 78). The cap is 45 minutes for each shard.
 #   e2e-engines  the game over and shipped-build specs, on WebKit (the whole flow) and Firefox (the E5 message: no WebGL 2 on this runner)
 #
 # A change that touches only docs/, *.md files, tools/command-center/ or the Claude review workflow
@@ -129,9 +129,9 @@ jobs:
     name: e2e (${{ matrix.shard }})
     runs-on: ubuntu-latest
     # Each shard runs about half of the specs, so about 15 to 20 minutes on a normal runner. The unsplit job took about 30 minutes (45 was its cap, and a slow
-    # runner came close to it). The field parity spec (31 states, about 20 minutes alone on SwiftShader) is one file, so it sits whole in one shard. 30 minutes
-    # is room for a runner twice as slow as the normal one. Do not raise it to hide a hang: a spec that needs more should be split.
-    timeout-minutes: 30
+    # runner came close to it). The field parity spec (31 states, about 20 minutes alone on SwiftShader) is one file, so it sits whole in one shard. 45 minutes
+    # is room for a runner three times as slow as the normal one (a slow runner took 30 minutes for shard 1/2, which takes 14 on a normal one: the field parity file alone went from about 10 to 27 minutes). Do not raise it to hide a hang: a spec that needs more should be split.
+    timeout-minutes: 45
     strategy:
       # A failure in one shard must not cancel the other: the second report is worth the wait.
       fail-fast: false

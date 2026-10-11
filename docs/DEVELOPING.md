@@ -98,7 +98,7 @@ CI (`.github/workflows/ci.yml`) runs four jobs at the same time (`e2e` is two sh
 | Job | What |
 |---|---|
 | `check` | Lint, typecheck, unit tests, the bundle budget. The `main` ruleset requires this check, so keep the job name |
-| `e2e (1/2)` and `e2e (2/2)` | Every spec except `playtest`, `shots` and `audio-evidence` (those two regenerate files), on Chromium. A matrix gives each shard its own named spec list (`--shard` split by test count, not by time, and was lopsided). Shard 1/2 holds the field parity file (about 20 minutes alone) and the stage specs. Shard 2/2 holds the rest. Add a new spec to one list. The cap is 30 minutes for each shard. No check is called plain `e2e` now |
+| `e2e (1/2)` and `e2e (2/2)` | Every spec except `playtest`, `shots` and `audio-evidence` (those two regenerate files), on Chromium. A matrix gives each shard its own named spec list (`--shard` split by test count, not by time, and was lopsided). Shard 1/2 holds the field parity file (about 20 minutes alone) and the stage specs. Shard 2/2 holds the rest. Add a new spec to one list. The cap is 45 minutes for each shard (a normal run takes 14 to 18). No check is called plain `e2e` now |
 | `e2e-engines` | `gameover` and `prod` on WebKit (the whole flow) and Firefox (no WebGL 2 on the runner: the E5 message, no game) |
 
 The playtest has its own workflow, `.github/workflows/playtest.yml`. It runs on a push to `main` (not one that touches
