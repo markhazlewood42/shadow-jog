@@ -6,12 +6,12 @@
  * `src/data/stages.json`), so an editor can reorder the party without touching the asset pipeline.
  */
 
-/** Crew id -> the folder under `spritefusion-tests/extracted/` that holds that member's idle loop. */
+/** Crew id -> the folder under `public/art/crew/` (served at `/art/crew/`) that holds that member's idle loop. */
 export const CREW_SHEETS: Readonly<Record<string, string>> = {
-  hex: 'hex-battle-idle',
-  sable: 'sable-battle-idle',
-  rook: 'rook-battle-idle',
-  kit: 'kit-battle-idle',
+  hex: 'hex/idle',
+  sable: 'sable/idle',
+  rook: 'rook/idle',
+  kit: 'kit/idle',
 };
 
 /** The ids of every crew member that has a sheet. */

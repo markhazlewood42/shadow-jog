@@ -49,8 +49,8 @@ import { paintWall } from './sewerwall';
 
 // ------------------------------------------------------------------ Mark's Sprite Fusion sheets
 
-/** Where the dev server finds Mark's extracted animations (a link to his local folder; never committed). */
-const SHEET_BASE = '/spritefusion-tests/extracted/';
+/** Where the game finds Mark's Sprite Fusion sheets: `public/art/crew/<id>/idle/`, committed and shipped with the build. */
+const SHEET_BASE = '/art/crew/';
 
 /** What a sheet's `metadata.json` says (only the fields we use). */
 export interface SheetMeta {
@@ -74,8 +74,8 @@ export async function fetchSheetMetas(ids: readonly string[]): Promise<Record<st
     ids.map(async (id) => {
       const url = `${SHEET_BASE}${sheetFolder(id)}/metadata.json`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`${url}: ${res.status} (is the spritefusion-tests link in place?)`);
-      if (!(res.headers.get('content-type') ?? '').includes('json')) throw new Error(`${url}: answered with ${res.headers.get('content-type') ?? 'no type'}, not JSON (is the spritefusion-tests link in place?)`);
+      if (!res.ok) throw new Error(`${url}: ${res.status} (is public/art/crew/ in place?)`);
+      if (!(res.headers.get('content-type') ?? '').includes('json')) throw new Error(`${url}: answered with ${res.headers.get('content-type') ?? 'no type'}, not JSON (is public/art/crew/ in place?)`);
       const m = (await res.json()) as Partial<SheetMeta>;
       if (!isPositive(m.frame_w) || !isPositive(m.frame_h) || !isPositive(m.frame_count) || !isPositive(m.fps)) throw new Error(`${url}: frame_w, frame_h, frame_count and fps must be positive numbers`);
       out[id] = { frame_w: m.frame_w, frame_h: m.frame_h, frame_count: m.frame_count, fps: m.fps };
@@ -161,7 +161,7 @@ export async function loadSheetTextures(textures: TextureManager, metas: Record<
       if (!m) throw new Error(`No metadata for ${id}`);
       const url = `${SHEET_BASE}${sheetFolder(id)}/spritesheet.png`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`A file did not load: ${url} (is the spritefusion-tests link in place?)`);
+      if (!res.ok) throw new Error(`A file did not load: ${url} (is public/art/crew/ in place?)`);
       const image = await createImageBitmap(await res.blob());
       const sheet = surface(image.width, image.height);
       sheet.g.drawImage(image, 0, 0);
