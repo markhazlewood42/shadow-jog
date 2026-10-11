@@ -271,6 +271,8 @@ Hardware independent counts (`e2e/sje-draws.spec.ts`, the real game, one frame):
 
 **M1b GPU run (2026-10-09, `npm run perf`, RTX 4070 via ANGLE/D3D11, bare page p95 16.80 to 16.90 ms).** Pass line 14 holds with the cube running as a `Scene3D` on a `Game` (the lab's `three().start()` runs `CubeScene` with bloom). Frame interval p95 16.80 ms against a bare page at 16.90 ms. Frame cost with the GPU wait: mean 4.05 ms, p95 6.30 ms (line: 8 ms). JavaScript work mean 0.50 ms, p95 0.70 ms. The 2D scene on the same run: interval p95 16.80 ms, cost p95 3.70 ms. The negative control (600 extra 3D frames) breaks both rules as it must (interval 66.7 ms, cost 65.4 ms). The M2 bench cases still hold: title fx none/full cost p95 within 8 ms, wrapper overhead 0.020 ms a frame (line: 1 ms). All 10 tests pass.
 
+
+**M6 GPU run (2026-10-10, `npm run perf`, PW_PORT=3033, Chromium on an RTX 4070 via ANGLE/D3D11, bare page p95 18.1 ms, flip branch `engine-m6-flip`).** 12 of 12 cases pass on the first run, the default path is the new engine. Pass line 15 holds: the 2D scene interval p95 18.10 ms against a bare page at 18.10 ms (0%), frame cost p95 1.70 ms (line: at most 8 ms); the 3D frame with bloom interval p95 18.20 ms, cost p95 2.20 ms. Live battle on the stage (fx full, 640 set): interval p95 18.10 ms, cost p50 / p95 2.10 / 3.70 ms. Field on the stage, world map: interval p95 18.10 ms, cost p50 / p95 5.10 / 5.60 ms, 29 draws, 17 binds. Title with fx full: interval p95 18.50 ms, cost p95 2.10 ms. `perf.spec.ts` frame budgets: field mean 1.71 ms, battle mean 0.75 ms, input latency median 10.7 ms (move), 9.5 ms (menu). Negative controls fail as designed (heavy interval p95 35.8 ms).
 ---
 
 ## 8. Leak, context, and canary tests
