@@ -97,6 +97,8 @@ test('A save survives a page reload and Continue restores it', async ({ page }) 
   await sj(page, 'sj.game.playFrames = 7200');
   expect(await sj<boolean>(page, 'sj.save(2)')).toBe(true);
   await page.goto('/');
+  // Wait for the title, not for a fixed time: on a slow runner the game needs longer than 1.5 s to start, and a key pressed before the title is lost.
+  await waitFor(page, "sj.top() === 'TitleScene'", 'title after the reload');
   await page.waitForTimeout(1500);
   await key(page, 'Enter'); // press any key
   await page.waitForTimeout(600);

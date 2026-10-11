@@ -105,6 +105,8 @@ test('reloading in the middle of a conversation, then Continue, lands in a playa
   await sj(page, "sj.say('rook', 'This line is interrupted by a reload.')");
   await waitFor(page, "sj.top() === 'DialogScene'", 'dialog open');
   await page.reload();
+  // Wait for the title, not for a fixed time: on a slow runner the game needs longer than 1.2 s to start, and a key pressed before the title is lost.
+  await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
   await page.waitForTimeout(1200);
   await tap(page, 'Enter');
   await page.waitForTimeout(500);
