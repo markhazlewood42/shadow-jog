@@ -8,11 +8,12 @@
 // (docs/engine/tooling-and-testing.md section 10):
 //
 //   boot        the entry's static closure. HARD CHECK: no `pixi.js` and no `three` module in it.
-//   lazy-2d     lazily loaded chunks that hold Pixi or the engine (src/sje), and no Three.
+//   lazy-2d     lazily loaded chunks that hold Pixi or the engine (src/sje), and no Three; and (M6) every chunk of the START PATH, which is what the page fetches before
+//               the first frame: the engine chunk (src/sje/boot.ts), the game's boot chunk (src/boot.ts) and what those two import statically, plus the battle stage and
+//               the field stage chunks (STAGE_SRC). The game starts on the Pixi engine, so every player downloads them (the stages were the `flag-only` class until the flip).
 //   lazy-3d     lazily loaded chunks that hold Three (the 3D mode). Own cap.
 //   lazy-other  every other lazily loaded chunk (battle, deck, tables, dev).
-//   flag-only   chunks that load only under `?engine=sje` (FLAG_ONLY_SRC below; M3: `liveopen`). Own cap; NOT in the shipped-game total.
-//   first play  boot + lazy-2d. Reported only, until M1 measures it.
+//   first play  boot + lazy-2d: what every player downloads before the first frame of a battle and a field. Own cap (FIRST_PLAY_MAX).
 //
 // Which modules a chunk holds comes from its source map (`sourcemap: true` in vite.config.ts), because the manifest lists chunks, not modules.
 // Two Vite traps found in the lab (tooling-and-testing.md section 10) are checked here too: no named `output.codeSplitting` group (it moved the
@@ -77,7 +78,14 @@ const CHUNK_MAX = 480 * 1000;
 // 400 kB (rounded up to the next 1 kB; +6.8 kB over M2's 393.0, mostly the M3 battle-stage code that the shipped boot and battle chunks now hold).
 // 2026-10-10: raised 400 to 401 kB after merging main (M1b) into the M3 branch: measured 400.002 kB, rounded up to the next 1 kB.
 // 2026-10-10 (M5): the field routing in the shipped game raised the measured total to 408.9 kB gzip; set to 409 kB (rounded up to the next 1 kB, Mark's one-bigger-total rule).
-const GZIP_TOTAL_MAX = 409 * 1000;
+// 2026-10-10 (M6, Mark's one-bigger-total rule, decision 4 of docs/engine/m6-brief.md): the flip made the old flag-only chunks (`liveopen`, `fieldopen`) part of every player's download,
+// so they joined this total and `lazy-2d` (the class and its 50 kB cap are gone). Measured 451.688 kB gzip after the flip (the flag-only 49.1 kB, less 6.3 kB that deleting the old presenter and the
+// GL half of `display.ts` saved); set to 452 kB, rounded up to the next 1 kB.
+const GZIP_TOTAL_MAX = 452 * 1000;
+// 2026-10-10 (M6): `first play` (boot + lazy-2d) is what every player downloads, so it has its own cap:
+// measured 391.363 kB gzip (boot 1.5 + the game's boot chunk and what it imports 184.7 + the engine 156.1 + the two stages 49.1), cap = measured + 1 kB = 392.4 kB. Before the flip it was 345.7 kB, with no cap
+// and without the stages. The largest-chunk cap (480 kB) holds because `src/sje/boot.ts` loads the game's boot with its own dynamic import: with a static one, Rolldown merged the engine and the game into one 770.8 kB chunk.
+const FIRST_PLAY_MAX = 392_400;
 
 /**
  * The lazy 3D chunk (Three, the 3D facade, the UnrealBloomPass), gzip. Set at 160 kB on 2026-10-05 (real choice C5, accepted by Mark): the spike
@@ -85,19 +93,10 @@ const GZIP_TOTAL_MAX = 409 * 1000;
  */
 const LAZY_3D_GZIP_MAX = 160 * 1000;
 
-/**
- * The flag-only class (M3, Mark approved 2026-10-10): lazy chunks that a player reaches only under `?engine=sje`, listed by their Vite
- * manifest `src`. They get their own report line and cap, and do not count toward GZIP_TOTAL_MAX (the old game's download). The
- * `liveopen` chunk (the battle stage on the new engine, `src/battlestage/liveopen.ts`) measured 41.0 kB gzip on 2026-10-10; cap 42 kB,
- * measured rounded up to the next 1 kB. The flag and the chunk go away together when the old engine is removed.
- */
-// 2026-10-10 (M5): the field stage's `fieldopen` chunk (src/fieldstage/fieldopen.ts, the field on the new engine) joined the class: measured 6.0 kB gzip, so the class is
-// 47.5 kB; cap 48 kB (rounded up to the next 1 kB). Builder C sets the final totals at the end of M5.
-const FLAG_ONLY_SRC = ['src/battlestage/liveopen.ts', 'src/fieldstage/fieldopen.ts'];
-// 2026-10-10 (M5): measured 49.1 kB (`liveopen` 41.5, `fieldopen` 7.6); cap 50 kB (rounded up to the next 1 kB).
-const FLAG_ONLY_GZIP_MAX = 50 * 1000;
-
-// `first play` (boot + lazy-2d) has NO cap: it is reported until M1 measures it (estimate 330 to 430 kB gzip, low confidence).
+/** The lazy chunks of the start path: the engine and the game's own boot are dynamic imports (src/main.ts, src/sje/boot.ts), so they are not in the entry's static closure. */
+const START_SRC = ['src/sje/boot.ts', 'src/boot.ts'];
+/** The battle stage and the field stage (M3, M5), fetched on first use and ahead of it (`fieldStages.warm`). They were the flag-only class before the flip. */
+const STAGE_SRC = ['src/battlestage/liveopen.ts', 'src/fieldstage/fieldopen.ts'];
 
 const root = process.cwd();
 const gz = (buf) => gzipSync(buf).length;
@@ -126,6 +125,14 @@ function readBuild(name, dir) {
     for (const dep of manifest[key].imports ?? []) visit(dep);
   };
   for (const [key, chunk] of Object.entries(manifest)) if (chunk.isEntry) visit(key);
+  // The start path: the closure, over static imports, of the chunks that the entry (and the engine) import dynamically at start.
+  const start = new Set();
+  const visitStart = (key) => {
+    if (start.has(key) || boot.has(key) || !manifest[key]) return;
+    start.add(key);
+    for (const dep of manifest[key].imports ?? []) visitStart(dep);
+  };
+  for (const [key, chunk] of Object.entries(manifest)) if (START_SRC.includes(chunk.src ?? key)) visitStart(key);
   const chunks = [];
   for (const [key, chunk] of Object.entries(manifest)) {
     if (!chunk.file.endsWith('.js')) continue;
@@ -139,8 +146,7 @@ function readBuild(name, dir) {
     const unused = /node_modules\/pixi\.js\/lib\/environment-(browser|webworker)\//.test(key);
     let cls;
     if (boot.has(key)) cls = 'boot';
-    else if (FLAG_ONLY_SRC.includes(chunk.src ?? key)) cls = 'flag-only';
-    else if (unused) cls = 'lazy-2d';
+    else if (unused || start.has(key) || STAGE_SRC.includes(chunk.src ?? key)) cls = 'lazy-2d';
     else if (three) cls = 'lazy-3d';
     else if (pixi || sje) cls = 'lazy-2d';
     else cls = 'lazy-other';
@@ -151,7 +157,7 @@ function readBuild(name, dir) {
   return { name, dir, chunks };
 }
 
-const CLASSES = ['boot', 'lazy-2d', 'lazy-3d', 'lazy-other', 'flag-only'];
+const CLASSES = ['boot', 'lazy-2d', 'lazy-3d', 'lazy-other'];
 const sum = (build, cls, field, { skipUnused = false } = {}) =>
   build ? build.chunks.filter((c) => c.cls === cls && !(skipUnused && c.unused)).reduce((n, c) => n + c[field], 0) : 0;
 
@@ -180,7 +186,7 @@ for (const build of [game, lab]) {
 console.log('\nclass          game gzip     lab gzip');
 for (const cls of CLASSES) console.log(`  ${cls.padEnd(12)} ${kb(sum(game, cls, 'gzip'))} kB  ${lab ? `${kb(sum(lab, cls, 'gzip'))} kB` : '     (no lab build)'}`);
 const firstPlay = (b) => sum(b, 'boot', 'gzip') + sum(b, 'lazy-2d', 'gzip', { skipUnused: true });
-console.log(`  ${'first play'.padEnd(12)} ${kb(firstPlay(game))} kB  ${lab ? `${kb(firstPlay(lab))} kB` : '     (no lab build)'}   (boot + lazy-2d; reported, no cap until M1)`);
+console.log(`  ${'first play'.padEnd(12)} ${kb(firstPlay(game))} kB  ${lab ? `${kb(firstPlay(lab))} kB` : '     (no lab build)'}   (boot + lazy-2d; cap ${FIRST_PLAY_MAX / 1000} kB)`);
 
 // ---- hard checks ----
 // 0. Every chunk must have a source map with modules in it. Without one the pixi/three flags below are all false and the checks pass on no data.
@@ -198,23 +204,24 @@ for (const build of [game, lab]) {
     if (c.three) problem(`${build.name}: the boot chunk ${c.file} holds a three module`);
   }
 }
-// 2. M1 (2026-10-09) lets the shipped game hold Pixi, but only in a lazy chunk: the `?engine=sje` chunk (src/sje/boot.ts, loaded by a dynamic
-// import in src/main.ts). Check 1 above already keeps Pixi out of `boot`. Three stays out of the game until M7. The chunk must exist and be
-// classified `lazy-2d` with Pixi and the engine in it: if it is not there, the flag path is broken or this check is blind.
+// 2. The shipped game holds Pixi, but only in a lazy chunk: the engine chunk (src/sje/boot.ts, loaded by the dynamic import in src/main.ts since the M6 flip).
+// Check 1 above already keeps Pixi out of `boot`. Three stays out of the game until M7. The chunk must exist and be classified `lazy-2d` with Pixi and the
+// engine in it: if it is not there, the dynamic import is gone (the engine would then sit in the entry) or this check is blind.
 for (const c of game.chunks) {
   if (c.three) problem(`game: chunk ${c.file} holds Three; the game does not load the 3D mode before M7`);
 }
 if (!game.chunks.some((c) => c.cls === 'lazy-2d' && c.pixi && c.sje && !c.unused)) {
-  problem('game: no lazy-2d chunk holds both the engine (src/sje) and Pixi (is `?engine=sje` still a dynamic import in src/main.ts?)');
+  problem('game: no lazy-2d chunk holds both the engine (src/sje) and Pixi (is `./sje/boot` still a dynamic import in src/main.ts?)');
 }
-// 3. The old alarms (the total leaves out the flag-only class, which has its own cap), on the shipped game: the largest chunk (raw), and all JavaScript gzipped (what a player downloads).
+// 3. The alarms on the shipped game: the largest chunk (raw), all JavaScript gzipped (the total), and first play.
 for (const c of game.chunks) if (c.raw > CHUNK_MAX) problem(`game: ${c.file} is ${c.raw} bytes, over the ${CHUNK_MAX} byte largest-chunk cap`);
-const gameGzip = game.chunks.filter((c) => c.cls !== 'flag-only').reduce((n, c) => n + c.gzip, 0);
-console.log(`\ngame total gzip (without flag-only) ${(gameGzip / 1000).toFixed(1)} kB (budget ${GZIP_TOTAL_MAX / 1000} kB); largest chunk budget ${CHUNK_MAX / 1000} kB`);
+const gameGzip = game.chunks.reduce((n, c) => n + c.gzip, 0);
+console.log(`
+game total gzip ${(gameGzip / 1000).toFixed(1)} kB (budget ${GZIP_TOTAL_MAX / 1000} kB); largest chunk budget ${CHUNK_MAX / 1000} kB`);
 if (gameGzip > GZIP_TOTAL_MAX) problem(`game: total gzip ${gameGzip} is over ${GZIP_TOTAL_MAX}`);
-const flagGzip = sum(game, 'flag-only', 'gzip');
-console.log(`game flag-only gzip ${(flagGzip / 1000).toFixed(1)} kB (budget ${FLAG_ONLY_GZIP_MAX / 1000} kB; ?engine=sje only)`);
-if (flagGzip > FLAG_ONLY_GZIP_MAX) problem(`game: flag-only gzip ${flagGzip} is over ${FLAG_ONLY_GZIP_MAX}`);
+const playGzip = firstPlay(game);
+console.log(`game first play gzip ${(playGzip / 1000).toFixed(1)} kB (budget ${FIRST_PLAY_MAX / 1000} kB)`);
+if (playGzip > FIRST_PLAY_MAX) problem(`game: first play gzip ${playGzip} is over ${FIRST_PLAY_MAX}`);
 // 4. The lazy 3D class has its own cap (the lab build, until M7).
 if (lab) {
   const three = sum(lab, 'lazy-3d', 'gzip');

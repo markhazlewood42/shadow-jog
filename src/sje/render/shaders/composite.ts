@@ -1,5 +1,5 @@
 /**
- * The screen composite, vendored from the old presenter (src/engine/gl/presenter.ts `FS_COMPOSITE`) and ported to a Pixi filter
+ * The screen composite, vendored from the old presenter (`FS_COMPOSITE`; the file was deleted in M6, see git history) and ported to a Pixi filter
  * (docs/engine/frame-and-rendering.md 6.5, shader inventory row `comp`). The engine owns the GLSL: game code never writes any.
  *
  * ONE pass over the world (the picture without the UI): shockwave rings push it outward, heat hazes shimmer it, glitch rectangles slide slices

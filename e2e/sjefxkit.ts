@@ -1,5 +1,5 @@
 /**
- * Shared helpers of the effects specs (e2e/sje-fx.spec.ts, e2e/sje-draws.spec.ts, e2e/sje-fx-compare.spec.ts): the probe scene, a pixel comparison that
+ * Shared helpers of the effects specs (e2e/sje-fx.spec.ts, e2e/sje-draws.spec.ts): the probe scene, a pixel comparison that
  * runs inside the page, and a page opener that forces the effects level. See e2e/sje-fx.spec.ts for what the probe is for.
  */
 import { expect } from '@playwright/test';
@@ -115,7 +115,7 @@ export const INSTALL = `(async () => {
 
 /** Open the game at a forced level, run the probe scene on top of the title, and return the page. */
 export async function openProbe(browser: Browser, level: Level, opts: { dpr?: number; init?: () => void } = {}) {
-  const g = await openGame(browser, { engine: true, query: `&fx=${level}`, ...(opts.dpr ? { dpr: opts.dpr } : {}), ...(opts.init ? { init: opts.init } : {}) });
+  const g = await openGame(browser, { query: `&fx=${level}`, ...(opts.dpr ? { dpr: opts.dpr } : {}), ...(opts.init ? { init: opts.init } : {}) });
   expect(await waitTop(g.page, 'TitleScene')).toBe(true);
   await g.page.waitForTimeout(400);
   await g.page.evaluate(INSTALL);

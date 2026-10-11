@@ -152,7 +152,8 @@ function pickType(): string {
 export const record = {
   /** Start recording what's on screen and what's playing. Returns the format chosen. */
   start(videoBitsPerSecond = 16_000_000): string {
-    const canvas = (document.getElementById('fx') ?? document.getElementById('screen')) as HTMLCanvasElement | null;
+    // The game's own canvas, inside #stage (the old `#fx` overlay and `#screen` pair are gone since M6). Not the first canvas of the page: a dev tool may add another.
+    const canvas = document.querySelector<HTMLCanvasElement>('#stage canvas');
     const c = audio.ctx;
     if (!canvas || !c) throw new Error('trailer: nothing to record (no canvas, or audio not started)');
     const stream = canvas.captureStream(60);

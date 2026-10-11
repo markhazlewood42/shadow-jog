@@ -225,9 +225,13 @@ export class Game implements DisplayHost, LegacyGameSurface {
     this.fx.setLevel(v);
   }
 
+  /** The driver's name where the browser says it (see `glRendererName`); '' until `Game.create` has made the effects. */
+  rendererName = '';
+
   /** Give the effects the GPU: the Pixi renderer, the screen and the context's name. Called once by `Game.create`. */
   private startFx(renderer: GlRenderer, request: FxRequest, seed?: number): void {
-    this.fx = new FxSystem({ gpu: { pixi: renderer.pixi, screen: this.screen, host: this, rendererName: glRendererName(renderer.glc) }, request, ...(seed !== undefined ? { seed } : {}) });
+    this.rendererName = glRendererName(renderer.glc);
+    this.fx = new FxSystem({ gpu: { pixi: renderer.pixi, screen: this.screen, host: this, rendererName: this.rendererName }, request, ...(seed !== undefined ? { seed } : {}) });
     renderer.beforeDraw = (pixi) => this.fx.prepare(pixi);
   }
 

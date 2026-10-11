@@ -11,7 +11,8 @@ test('Chapter 1 can be played start to finish', async ({ page }) => {
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   await page.goto('/?debug');
-  await page.waitForTimeout(800);
+  // The game starts asynchronously (two lazy chunks): wait for its title, not a fixed time.
+  await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
   await sj(page, 'Object.assign(sj.debug, { autoDialog: true, autoBattle: true })');
   await sj(page, 'sj.newGame()');
   // Before the dock, dialogs go back to lingering (the playtest driver), so the results screen
@@ -21,7 +22,7 @@ test('Chapter 1 can be played start to finish', async ({ page }) => {
   await waitFor(page, "sj.top() === 'EndingScene'", 'results screen', 120_000);
   await page.waitForTimeout(2600);
   // Rewrites the tracked doc picture only on request (SJ_UPDATE_SHOTS=1); a normal run keeps the tree clean.
-  await page.locator('#screen').screenshot({ path: process.env.SJ_UPDATE_SHOTS ? 'docs/screenshots/24c-ending-results-driven-test-run.png' : 'test-results/24c-ending-results-driven-test-run.png' });
+  await page.locator('canvas').first().screenshot({ path: process.env.SJ_UPDATE_SHOTS ? 'docs/screenshots/24c-ending-results-driven-test-run.png' : 'test-results/24c-ending-results-driven-test-run.png' });
   await waitFor(page, "sj.top() === 'TitleScene'", 'back to title', 60_000);
   expect(errors).toEqual([]);
 });

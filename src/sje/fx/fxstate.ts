@@ -139,8 +139,6 @@ export class FxState {
    *  Game.render (fades stay in the UI layer, under the notices, as in 2D). */
   flashColor = '#ffffff';
   flashAlpha = 0;
-  /** GPU effects switched themselves off this session because the game couldn't keep up (main.ts). */
-  suspended = false;
   readonly particles: ParticleSim;
   /** Particles show only inside this rectangle (the battlefield, above the status cards), or anywhere. */
   clip: { x: number; y: number; w: number; h: number } | null = null;

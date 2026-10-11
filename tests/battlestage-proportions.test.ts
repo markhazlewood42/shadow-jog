@@ -265,12 +265,12 @@ describe('the texture name', () => {
 
 // ------------------------------------------------------------------ Mark's real sheets
 
-const FOLDER = join(process.cwd(), 'spritefusion-tests', 'extracted');
-const HAVE = existsSync(join(FOLDER, 'kit-battle-idle', 'spritesheet.png'));
+const FOLDER = join(process.cwd(), 'public', 'art', 'crew');
+const HAVE = existsSync(join(FOLDER, 'kit', 'idle', 'spritesheet.png'));
 const maybe = HAVE ? describe : describe.skip;
 
 function sheetOf(id: string): { frames: Raw[]; meta: { frame_w: number; frame_count: number } } {
-  const dir = join(FOLDER, `${id}-battle-idle`);
+  const dir = join(FOLDER, id, 'idle');
   const meta = JSON.parse(readFileSync(join(dir, 'metadata.json'), 'utf8')) as { frame_w: number; frame_count: number };
   return { frames: cutSheet(readPng(join(dir, 'spritesheet.png')), meta.frame_w, meta.frame_count), meta };
 }

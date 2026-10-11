@@ -2,6 +2,10 @@
  * Losing and saving: every Game Over choice, and a real localStorage save that survives a reload.
  */
 import { expect, test, type Page } from '@playwright/test';
+import { expectE5Contract, skipGameFlowOnFirefox } from './webgl2kit';
+
+// Firefox on CI has no WebGL 2: it meets the E5 message, not a game (the E5 test at the end).
+skipGameFlowOnFirefox();
 
 async function sj<T = unknown>(page: Page, fn: string): Promise<T> {
   return page.evaluate(`(async () => { const sj = window.__SJ__; return ${fn}; })()`) as Promise<T>;
@@ -10,8 +14,13 @@ async function sj<T = unknown>(page: Page, fn: string): Promise<T> {
 async function waitFor(page: Page, expr: string, label: string, timeout = 20_000): Promise<void> {
   const start = Date.now();
   for (;;) {
-    if (await sj<boolean>(page, `!!(${expr})`)) return;
-    if (Date.now() - start > timeout) throw new Error(`Timed out waiting for ${label}`);
+    // The game starts asynchronously (its renderer is made first), so right after a page load `window.__SJ__` may not exist yet: that is "not yet", not a failure.
+    if (await sj<boolean>(page, `!!(${expr})`).catch(() => false)) return;
+    if (Date.now() - start > timeout) {
+      // What the page was doing, so a timeout names the cause (a stuck scene, a notice) and not only the wait.
+      const where = await sj<string>(page, "JSON.stringify({ top: sj.top(), stack: sj.game.stack.map((x) => x.constructor.name), notice: sj.notice(), tick: sj.game.tick })").catch((e: unknown) => `no state (${String(e).slice(0, 80)})`);
+      throw new Error(`Timed out waiting for ${label}: ${where}`);
+    }
     await page.waitForTimeout(100);
   }
 }
@@ -25,7 +34,9 @@ async function key(page: Page, k: string): Promise<void> {
 
 async function stage(page: Page, name: string): Promise<void> {
   await page.goto('/?debug');
-  await page.waitForTimeout(600);
+  // Wait for the title and not for a fixed time: the game starts asynchronously (its renderer is made first), and a title that opens AFTER the test jumps to a stage would reset the game back to the title.
+  await waitFor(page, "sj.top() === 'TitleScene'", 'title');
+  await page.waitForTimeout(300);
   await page.evaluate(() => localStorage.clear());
   await sj(page, `sj.stage('${name}')`);
   await waitFor(page, 'sj.idle()', 'field idle');
@@ -36,7 +47,9 @@ async function loseAFight(page: Page): Promise<void> {
   await sj(page, "sj.battle('street', 'street')");
   await waitFor(page, "sj.top() === 'GameOverScene'", 'game over');
   await sj(page, 'Object.assign(sj.debug, { autoLose: false })');
-  await page.waitForTimeout(1500); // Game Over accepts input after its fade-in.
+  // Game Over accepts input after its fade-in (70 ticks). Wait on the tick count, not on wall time: a slow runner (WebKit on CI) runs fewer ticks per second.
+  const arrived = await sj<number>(page, 'sj.game.tick');
+  await waitFor(page, `sj.game.tick >= ${arrived + 90}`, 'the Game Over fade-in');
 }
 
 test('Retry rewinds to the moment before the fight', async ({ page }) => {
@@ -86,6 +99,8 @@ test('A save survives a page reload and Continue restores it', async ({ page }) 
   await sj(page, 'sj.game.playFrames = 7200');
   expect(await sj<boolean>(page, 'sj.save(2)')).toBe(true);
   await page.goto('/');
+  // Wait for the title, not for a fixed time: on a slow runner the game needs longer than 1.5 s to start, and a key pressed before the title is lost.
+  await waitFor(page, "sj.top() === 'TitleScene'", 'title after the reload');
   await page.waitForTimeout(1500);
   await key(page, 'Enter'); // press any key
   await page.waitForTimeout(600);
@@ -120,17 +135,18 @@ test('Load from Game Over with a damaged save says so and returns to the title',
 
 test('Autosave reports success, and failure when storage is unavailable', async ({ page }) => {
   await stage(page, 'town');
-  await sj(page, "sj.tp('world', 20, 22, 'right')");
+  // The 'saved' badge lives 1.8 s (engine/errors.ts). Read it in the same page task that makes the warp, as the warp ends. With a poll of its own in between, a slow engine
+  // (WebKit on CI takes a second or more to answer a page.evaluate) lets the badge expire before the test looks, and the null that results says nothing about autosave.
+  const saved = await sj<{ tone: string } | null>(page, "(async () => { await sj.tp('world', 20, 22, 'right'); return sj.notice(); })()");
+  expect(saved?.tone).toBe('saved');
   await waitFor(page, 'sj.idle()', 'world');
-  expect((await sj<{ tone: string } | null>(page, 'sj.notice()'))?.tone).toBe('saved');
   await page.evaluate(() => {
     Storage.prototype.setItem = () => {
       throw new Error('QuotaExceededError');
     };
   });
-  await sj(page, "sj.tp('lantern_row', 30, 12, 'down')");
+  const n = await sj<{ text: string; tone: string } | null>(page, "(async () => { await sj.tp('lantern_row', 30, 12, 'down'); return sj.notice(); })()");
   await waitFor(page, 'sj.idle()', 'town');
-  const n = await sj<{ text: string; tone: string } | null>(page, 'sj.notice()');
   expect(n?.tone).toBe('warn');
   expect(n?.text).toMatch(/Autosave failed/);
 });
@@ -187,6 +203,9 @@ test('A scene that throws every frame recovers to the title instead of freezing'
 test('A scene whose drawing throws every frame recovers too', async ({ page }) => {
   await stage(page, 'town');
   expect(await sj<boolean>(page, 'sj.save(1)')).toBe(true);
+  // A scene that draws by itself: the menu. (The field no longer draws by itself: its stage does, so its own `render` is never called.)
+  await sj(page, 'sj.menu()');
+  await waitFor(page, "sj.top() === 'MenuScene'", 'menu');
   await sj(page, "(sj.game.top.render = () => { throw new Error('draw'); }, true)");
   await waitFor(page, "sj.top() === 'TitleScene'", 'title after render fault');
   expect((await sj<{ text: string } | null>(page, 'sj.notice()'))?.text).toMatch(/recovered/i);
@@ -195,10 +214,12 @@ test('A scene whose drawing throws every frame recovers too', async ({ page }) =
 test('Two tabs on one save: both are warned, and only the first keeps autosaving', async ({ context }) => {
   const a = await context.newPage();
   await a.goto('/?debug');
-  await a.waitForTimeout(800);
+  await waitFor(a, "sj.top() === 'TitleScene'", 'title (first tab)');
+  await a.waitForTimeout(300);
   await a.evaluate(() => localStorage.clear());
   const b = await context.newPage();
   await b.goto('/?debug');
+  await waitFor(b, "sj.top() === 'TitleScene'", 'title (second tab)');
   await b.waitForTimeout(1200);
   const noticeOf = (p: Page) => sj<{ text: string } | null>(p, 'sj.notice()');
   expect((await noticeOf(a))?.text).toContain('another tab');
@@ -239,8 +260,8 @@ test('Autosave never overwrites an autosave written by a newer version', async (
   expect((await sj<{ text: string } | null>(page, 'sj.notice()'))?.text).toContain('newer version');
 });
 
-test('A browser that can’t start the game says so, instead of a black screen', async ({ page }) => {
-  // No 2D canvas (a locked-down or broken browser): the display can't be built at boot.
+test('Cannot start: a browser that can’t make a canvas context says so, instead of a black screen', async ({ page }) => {
+  // No canvas context at all (a locked-down or broken browser): the renderer can't be built at boot.
   await page.addInitScript(() => {
     HTMLCanvasElement.prototype.getContext = () => null;
   });
@@ -347,4 +368,8 @@ test('Save point: the save screen asks before replacing a newer-version slot', a
   const after = await slot1(page);
   expect(after).not.toBe(NEWER_SAVE);
   expect(JSON.parse(after!).state.version).toBeLessThan(4);
+});
+
+test('E5: a browser without WebGL 2 shows the message and no game; one with WebGL 2 shows no message', async ({ page }) => {
+  await expectE5Contract(page, '/?debug');
 });

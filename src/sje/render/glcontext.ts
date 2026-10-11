@@ -31,7 +31,7 @@ export interface GlContext {
 
 /**
  * Renderer names of WebGL drawn on the CPU (no GPU, or one the browser will not use). The effects level `auto` picks `lite` on one of these
- * (`FxSystem`), and the old presenter refuses them (src/engine/gl/presenter.ts re-exports this). One copy of the pattern.
+ * (`FxSystem`). The old presenter (deleted in M6) used the same pattern to refuse them. One copy of the pattern.
  */
 export const SOFTWARE_GL = /swiftshader|llvmpipe|softpipe|software|basic render driver/i;
 

@@ -23,7 +23,7 @@ export async function waitFor(page: Page, expr: string, label: string, timeout =
 }
 
 const waitIdle = (page: Page) => waitFor(page, 'sj.idle()', 'field idle');
-const waitFlag = (page: Page, f: string) => waitFor(page, `sj.state.flags['${f}']`, `flag ${f}`);
+const waitFlag = (page: Page, f: string, timeout = route.timeout) => waitFor(page, `sj.state.flags['${f}']`, `flag ${f}`, timeout);
 
 async function tp(page: Page, map: string, x: number, y: number, dir: Dir): Promise<void> {
   await waitIdle(page);
@@ -36,6 +36,20 @@ async function press(page: Page, key: string): Promise<void> {
   await page.waitForTimeout(60);
   await page.keyboard.up(key);
   await page.waitForTimeout(250);
+}
+
+/**
+ * Walk by holding `key` until `expr` is true, then let go. A tap (`press`) is one step at most: it is seen only if a frame runs while the key is down (60 ms), and a tap that
+ * lands while the leader is still mid-step is dropped. On CI's software-GL runner the game draws well under 60 frames a second, so three taps in a row (the walk to the warden's
+ * trigger tile, three tiles) ended one tile short, with the leader at y 23 and no fight. A held key walks tile after tile at any frame rate.
+ */
+async function walkUntil(page: Page, key: string, expr: string, label: string): Promise<void> {
+  await page.keyboard.down(key);
+  try {
+    await waitFor(page, expr, label);
+  } finally {
+    await page.keyboard.up(key);
+  }
 }
 
 /** From a fresh New Game to the chapter-end flag. */
@@ -106,13 +120,13 @@ export async function playChapter1(page: Page, beforeEnding?: () => Promise<void
   await waitFlag(page, 'sable_joined');
   expect(await sj<string[]>(page, 'sj.state.party')).toContain('sable');
   await tp(page, 'annex', 27, 21, 'down');
-  await press(page, 'ArrowDown');
-  await press(page, 'ArrowDown');
-  await press(page, 'ArrowDown');
-  await waitFlag(page, 'warden');
+  // Three tiles south to the touch trigger at y 24: hold the key until the fight has been won (see `walkUntil`).
+  await walkUntil(page, 'ArrowDown', "sj.state.flags['warden']", 'flag warden');
   // Lift to the dock: the betrayal and the ending.
   await beforeEnding?.();
   await tp(page, 'annex', 38, 31, 'down');
   await press(page, 'ArrowDown');
-  await waitFlag(page, 'chapter_end');
+  // The betrayal at the dock is a cutscene of lingering dialogs (the driver's playtest mode counts game frames, not seconds): about 25 s on a fast machine, so
+  // the usual 30 s beat limit left almost no room on CI's slower runner. The wait is on the flag, with a bound that has room.
+  await waitFlag(page, 'chapter_end', Math.max(route.timeout, 120_000));
 }

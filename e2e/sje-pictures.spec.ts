@@ -4,11 +4,10 @@
  *   M3_PICTURES=1 PW_PORT=3011 npx playwright test e2e/sje-pictures.spec.ts --reporter=line      (Edge on the GPU: the `gpu` set)
  *   M3_PICTURES=1 CI=1 PW_PORT=3011 npx playwright test e2e/sje-pictures.spec.ts --reporter=line (the bundled Chromium on SwiftShader: the `soft` set)
  *
- * Seven moments (and two more, the skills list and the target pick, which show where the old menus stand against the HUD), each in three variants, by one script, so the three tell the same story:
+ * Seven moments (and two more, the skills list and the target pick, which show where the old menus stand against the HUD), each in two variants, by one script, so the two tell the same story (the `old` variant, the Canvas 2D battle, went with the old path in M6):
  *
- *   old       the game without the flag (Canvas 2D battle, the pictures the player has today)
  *   480in640  the battle on the stage with the 480x270 stage files (Phase 0 layout, the regression parity set), drawn in the top left of the 640x360 screen (`?stageset=480`)
- *   new640    the battle on the stage with the 640x360 set (`scripts/stage-640.mjs`, the default under the flag)
+ *   new640    the battle on the stage with the 640x360 set (`scripts/stage-640.mjs`, the default)
  *
  *   intro    the first frames of a fight
  *   command  the command menu of the first hero
@@ -32,9 +31,8 @@ const KIND = process.env.CI ? 'soft' : 'gpu';
 const DIR = `media/m3-stage/${KIND}`;
 
 const VARIANTS = [
-  { id: 'old', engine: false, query: '' },
-  { id: '480in640', engine: true, query: '&stageset=480' },
-  { id: 'new640', engine: true, query: '' },
+  { id: '480in640', query: '&stageset=480' },
+  { id: 'new640', query: '' },
 ] as const;
 const MOMENTS = ['intro', 'command', 'list', 'target', 'attack', 'spell', 'crit', 'victory', 'boss'] as const;
 type Moment = (typeof MOMENTS)[number];
@@ -77,7 +75,7 @@ async function shot(page: Page, variant: string, moment: Moment): Promise<void> 
 }
 
 async function open(browser: Browser, v: (typeof VARIANTS)[number]) {
-  const g = await openGame(browser, { engine: v.engine, query: `&fx=full${v.query}` });
+  const g = await openGame(browser, { query: `&fx=full${v.query}` });
   if (!(await waitTop(g.page, 'TitleScene'))) throw new Error('no title');
   await sj(g.page, "sj.stage('annex')");
   if (!(await waitUntil(g.page, 'sj.top() === "FieldScene" && sj.idle()', 30_000))) throw new Error('no field');
@@ -231,7 +229,7 @@ test.describe('pictures for the look review (local, M3_PICTURES=1)', () => {
     const cell = (v: string, m: string): string => (done.has(`${v}-${m}`) ? `<a href="${v}-${m}.png"><img src="${v}-${m}.png" width="480"></a>` : '<em>missing</em>');
     const rows = MOMENTS.map((m) => `<tr><th>${m}</th>${VARIANTS.map((v) => `<td>${cell(v.id, m)}</td>`).join('')}</tr>`).join('\n');
     const html = `<!doctype html><meta charset="utf-8"><title>M3 stage pictures (${KIND})</title><body style="background:#111;color:#ddd;font:14px sans-serif"><h1>M3 stage pictures (${KIND})</h1>
-<p>Columns: old (no flag), 480in640 (the stage with the 480x270 files), new640 (the stage with the 640x360 set). Click a picture for the full size (1280x720).</p>
+<p>Columns: 480in640 (the stage with the 480x270 files), new640 (the stage with the 640x360 set). Click a picture for the full size (1280x720).</p>
 <table cellpadding="4"><tr><th></th>${VARIANTS.map((v) => `<th>${v.id}</th>`).join('')}</tr>\n${rows}</table>
 <h2>Not reached</h2><pre>${missing.join('\n') || 'none'}</pre></body>`;
     writeFileSync(`${DIR}/index.html`, html);

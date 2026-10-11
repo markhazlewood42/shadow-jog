@@ -64,7 +64,7 @@ export async function openStage(browser: Browser, opts: OpenOptions = {}): Promi
   });
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
   if (opts.countGl) await addGlCounter(page);
-  if (opts.hideArt) await page.route('**/spritefusion-tests/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>app</title>' }));
+  if (opts.hideArt) await page.route('**/art/crew/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>app</title>' }));
   const boot = async (): Promise<string | undefined> => {
     await page.goto(`/sjestage.html?${opts.query ?? 'manual'}`);
     await page.waitForFunction(() => window.__SJESTAGE__ !== undefined || (window as unknown as { __SJESTAGE_ERROR__?: string }).__SJESTAGE_ERROR__ !== undefined, null, { timeout: 90_000 });
@@ -228,7 +228,7 @@ export function assertInputsPinned(kind: RendererKind): void {
 }
 
 /** Does Mark's sprite folder exist here? (The lab uses it when it does.) */
-export const HAVE_ART = existsSync(join(ROOT, 'spritefusion-tests', 'extracted', 'kit-battle-idle', 'metadata.json'));
+export const HAVE_ART = existsSync(join(ROOT, 'public', 'art', 'crew', 'kit', 'idle', 'metadata.json'));
 
 // ------------------------------------------------------------------ a PNG writer (diff pictures)
 

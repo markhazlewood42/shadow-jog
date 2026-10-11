@@ -1,0 +1,12 @@
+{
+  "type": "animation",
+  "prompt": "idle bounce in battle stance, smooth loop, jacket softly moving with a slight breeze",
+  "width": 79,
+  "height": 68,
+  "frame_w": 79,
+  "frame_h": 68,
+  "frame_count": 8,
+  "fps": 8,
+  "preview": "preview.webp",
+  "spritesheet": "spritesheet.png"
+}

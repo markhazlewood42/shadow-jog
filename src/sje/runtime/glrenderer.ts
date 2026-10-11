@@ -42,10 +42,10 @@ export class GlRenderer implements FrameRenderer {
     readonly handoff: GlHandoff,
   ) {}
 
-  /** Make the canvas context and the Pixi renderer. Throws a plain message when there is no WebGL2. */
+  /** Make the canvas context and the Pixi renderer. Throws a plain message when there is no WebGL2 (E5: the page shows it, with a hint line, under "failed to start"). */
   static async create(canvas: HTMLCanvasElement): Promise<GlRenderer> {
     const glc = createGlContext(canvas);
-    if (!glc) throw new Error('This browser cannot run WebGL 2, which the game needs. Try a current Chrome, Edge, Firefox or Safari.');
+    if (!glc) throw new Error('This browser cannot run WebGL 2, which the game needs. Try a current Chrome, Edge, Firefox or Safari.\nYour browser’s WebGL 2 may be turned off in its settings.');
     const pixi = await PixiRenderer.create(glc);
     const backBuffer = new BackBuffer(pixi);
     const handoff = new GlHandoff(glc.gl, pixi);

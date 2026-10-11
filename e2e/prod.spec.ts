@@ -4,8 +4,12 @@
  * and continues from that save; and closing the tab with unsaved progress asks first.
  */
 import { expect, test, type Page } from '@playwright/test';
+import { E5_TEXT, expectE5Contract, skipGameFlowOnFirefox } from './webgl2kit';
 
 const PROD = 'http://localhost:3008';
+
+// Firefox on CI has no WebGL 2: it meets the E5 message, not a game (the E5 test below).
+skipGameFlowOnFirefox();
 
 async function key(page: Page, k: string, n = 1, gap = 220): Promise<void> {
   for (let i = 0; i < n; i++) {
@@ -16,8 +20,21 @@ async function key(page: Page, k: string, n = 1, gap = 220): Promise<void> {
   }
 }
 
+/**
+ * Open the shipped build with empty storage. The game starts asynchronously (the engine chunk, then the renderer), and it fetches its battle chunk ahead (`systems.ts`
+ * `loadBattle`): a reload while those are in flight aborts them, and WebKit reports the aborted `import()` as an unhandled rejection that this spec would count as a fault. So wait for the
+ * game to be running and for the network to be quiet first.
+ */
+async function openFresh(page: Page): Promise<void> {
+  await page.goto(PROD);
+  await page.waitForFunction(() => (window as unknown as { __sjStarted?: boolean }).__sjStarted === true, null, { timeout: 30_000 });
+  await page.waitForLoadState('networkidle');
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+}
+
 async function frame(page: Page): Promise<Buffer> {
-  return page.locator('#screen').screenshot();
+  return page.locator('canvas').first().screenshot();
 }
 
 test('production build: new game, save, reload, continue, with no errors', async ({ page }) => {
@@ -26,9 +43,7 @@ test('production build: new game, save, reload, continue, with no errors', async
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text());
   });
-  await page.goto(PROD);
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+  await openFresh(page);
   await page.waitForTimeout(1500);
   // The debug hook is dev-only.
   expect(await page.evaluate(() => 'SJ' in window || '__SJ__' in window)).toBe(false);
@@ -71,9 +86,7 @@ test('production build: new game, save, reload, continue, with no errors', async
 });
 
 test('production build: closing the tab with unsaved progress asks first', async ({ page }) => {
-  await page.goto(PROD);
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+  await openFresh(page);
   await page.waitForTimeout(1500);
   await key(page, 'Enter');
   await page.waitForTimeout(400);
@@ -89,4 +102,24 @@ test('production build: closing the tab with unsaved progress asks first', async
   const d = await dialog;
   expect(d.type()).toBe('beforeunload');
   await d.accept();
+});
+
+test('E5: the shipped build shows the message in a browser without WebGL 2 (and only there)', async ({ page }) => {
+  await expectE5Contract(page, PROD);
+});
+
+test('E5: the shipped build shows the message when WebGL 2 is blocked, and no game starts (the test double of a browser without WebGL 2)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const get = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
+      if (type === 'webgl2') return null;
+      return (get as (this: HTMLCanvasElement, t: string, ...r: unknown[]) => RenderingContext | null).call(this, type, ...rest);
+    } as typeof HTMLCanvasElement.prototype.getContext;
+  });
+  await page.goto(PROD);
+  const boot = page.locator('#boot');
+  await expect(boot).toHaveClass(/error/, { timeout: 30_000 });
+  await expect(boot).toBeVisible();
+  await expect(boot).toContainText(E5_TEXT);
+  expect(await page.evaluate(() => (window as unknown as { __sjStarted?: boolean }).__sjStarted === true)).toBe(false);
 });

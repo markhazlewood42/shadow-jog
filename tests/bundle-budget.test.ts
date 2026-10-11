@@ -87,19 +87,31 @@ describe('bundle-budget.mjs controls', () => {
     expect(r.out).toMatch(/game: chunk assets\/three\.js holds Three/);
   });
 
-  it('M3: a flag-only chunk (src/battlestage/liveopen.ts) has its own report line and does not count toward the game total', () => {
+  it('M6: the stage chunks are lazy-2d (there is no flag-only class), count toward the game total, and count toward first play', () => {
     const live: Chunk = { file: 'assets/liveopen.js', src: 'src/battlestage/liveopen.ts', modules: ['../../src/battlestage/liveopen.ts'] };
     const ok = run(['../../src/main.ts'], [ENGINE_CHUNK, live]);
     expect(ok.code).toBe(0);
-    expect(ok.out).toMatch(/flag-only\s+\d/);
-    expect(ok.out).toMatch(/game flag-only gzip/);
-    // Negative control: an incompressible 410 kB flag-only chunk is over its own cap, but it must not trip the 401 kB game total.
-    const big = run(['../../src/main.ts'], [ENGINE_CHUNK, { ...live, bytes: 410_000 }]);
+    expect(ok.out).toMatch(/lazy-2d\s+assets\/liveopen\.js/);
+    expect(ok.out).not.toMatch(/flag-only/);
+    // Negative control: an incompressible 460 kB stage chunk is over the game total and over first play.
+    const big = run(['../../src/main.ts'], [ENGINE_CHUNK, { ...live, bytes: 460_000 }]);
     expect(big.code).toBe(1);
-    expect(big.out).toMatch(/game: flag-only gzip \d+ is over/);
-    expect(big.out).not.toMatch(/game: total gzip/);
-    // The same bytes in a chunk that is not flag-only do trip the total.
-    const counted = run(['../../src/main.ts'], [ENGINE_CHUNK, { ...live, src: 'src/battlestage/other.ts', bytes: 410_000 }]);
-    expect(counted.out).toMatch(/game: total gzip \d+ is over/);
+    expect(big.out).toMatch(/game: total gzip \d+ is over/);
+    expect(big.out).toMatch(/game: first play gzip \d+ is over/);
+    // The same bytes in a lazy chunk that is not a stage and not on the start path trip the total, and not first play.
+    const other = run(['../../src/main.ts'], [ENGINE_CHUNK, { file: 'assets/other.js', src: 'src/other/x.ts', modules: ['../../src/other/x.ts'], bytes: 460_000 }]);
+    expect(other.out).toMatch(/game: total gzip \d+ is over/);
+    expect(other.out).not.toMatch(/first play gzip \d+ is over/);
+  });
+
+  it('M6: the game boot chunk (src/boot.ts, a dynamic import of the engine boot) is on the start path, so it counts toward first play', () => {
+    const gameBoot: Chunk = { file: 'assets/gameboot.js', src: 'src/boot.ts', modules: ['../../src/boot.ts'], bytes: 395_000 };
+    const on = run(['../../src/main.ts'], [ENGINE_CHUNK, gameBoot]);
+    expect(on.code).toBe(1);
+    expect(on.out).toMatch(/game: first play gzip \d+ is over/);
+    expect(on.out).not.toMatch(/game: total gzip/);
+    // Control: the same bytes under another source are a lazy-other chunk, and first play stays under its cap.
+    const off = run(['../../src/main.ts'], [ENGINE_CHUNK, { ...gameBoot, src: 'src/battle/index.ts', modules: ['../../src/battle/index.ts'] }]);
+    expect(off.code).toBe(0);
   });
 });

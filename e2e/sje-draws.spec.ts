@@ -238,7 +238,7 @@ const LIVE_UPLOADS_MAX = 6; // measured 4 canvas uploads (3 waiting for orders: 
 test.describe('the shipped battle on the stage: draw calls, uploads and leaks', () => {
   test('a battle frame with the stage, the HUD, the effects of the battle and the whole effect stack stays inside the budgets; 10 battle enter and exit cycles leave the GL counts flat (control: a battle open holds more objects than none)', async ({ browser }) => {
     test.setTimeout(240_000);
-    const g = await openGame(browser, { engine: true, query: '&fx=full', init: installGlCounters });
+    const g = await openGame(browser, { query: '&fx=full', init: installGlCounters });
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);
@@ -300,6 +300,11 @@ test.describe('the shipped battle on the stage: draw calls, uploads and leaks', 
       expect(await field()).toBe(true);
       // The counter sees the stage: the field before any battle held fewer textures than the open battle (the pictures stay cached by key after it closes, so the flat counts below are about leaks, not about caching).
       expect(open.texture, 'control: an open battle holds more textures than the field before it').toBeGreaterThan(before.texture ?? 0);
+      // The cycles run in a room whose people stand still. On the street a wandering person walks into view at a random time and its picture goes to the GPU the first time
+      // it is on screen: one late first use (cycle 12 of 14 on CI, 134 textures against 133) read as a leak, though no battle caused it. The control above is done; the cycles
+      // below are only about the battle's own objects. (The armory has no wandering people: `move: wander` is in lantern_row, bar, noodles, rustyard, sinkline_1 and world.)
+      await sj(page, "sj.tp('armory', 7, 8, 'up')");
+      expect(await waitUntil(page, 'sj.top() === "FieldScene" && sj.state.map === "armory" && sj.idle()', 30_000)).toBe(true);
       await sj(page, '(sj.debug.autoBattle = true)');
       const cycle = async (n: number): Promise<Record<string, number>> => {
         for (let i = 0; i < n; i++) {
@@ -329,7 +334,7 @@ const FIELD_UPLOAD_BYTES_MAX = 8_000_000; // measured 6.8 MB, 5.6 MB, 3.7 MB a f
 test.describe('the shipped field on the stage: draw calls, binds and uploads', () => {
   test('a field frame (baked layers, props, actors, lights, haze, weather, the whole effect stack) stays inside the budgets on the town, the world map and an interior; the control exceeds them', async ({ browser }) => {
     test.setTimeout(240_000);
-    const g = await openGame(browser, { engine: true, query: '&fx=full', init: installGlCounters });
+    const g = await openGame(browser, { query: '&fx=full', init: installGlCounters });
     try {
       const { page } = g;
       expect(await waitTop(page, 'TitleScene')).toBe(true);

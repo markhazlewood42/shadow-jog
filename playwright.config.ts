@@ -5,6 +5,11 @@ import { defineConfig } from '@playwright/test';
 // (or reuses) only that dev server, and no preview server: e2e/prod.spec.ts needs the preview, so run it without PW_PORT.
 const PORT = Number(process.env.PW_PORT ?? 3007);
 
+// The title and the Options screen draw the build's commit (`__BUILD_SHA__`, vite.config.ts buildSha()). Left alone, every commit would change those pixels and break the goldens
+// of e2e/default-path.spec.ts. So the servers Playwright starts get a fixed stamp. A value already in the environment (the `SJ_BUILD_SHA=<label>` of a screenshot compare, DEVELOPING.md) wins.
+// A dev server that is already running (reuseExistingServer) keeps its own stamp: stop it, or run on a spare PW_PORT, before you make or check the goldens.
+const BUILD_ENV = { SJ_BUILD_SHA: process.env.SJ_BUILD_SHA ?? 'e2e' };
+
 export default defineConfig({
   testDir: 'e2e',
   timeout: 120_000,
@@ -33,9 +38,9 @@ export default defineConfig({
       : []),
   ],
   webServer: [
-    { command: PORT === 3007 ? 'npm run dev' : `npx vite --port ${PORT} --strictPort`, url: `http://localhost:${PORT}`, reuseExistingServer: true, timeout: 60_000 },
+    { command: PORT === 3007 ? 'npm run dev' : `npx vite --port ${PORT} --strictPort`, url: `http://localhost:${PORT}`, reuseExistingServer: true, timeout: 60_000, env: BUILD_ENV },
     // The shipped bundle, for e2e/prod.spec.ts. Always built fresh: a reused preview server
     // would silently test a stale bundle.
-    ...(process.env.PW_PORT ? [] : [{ command: 'npm run build && npm run preview', url: 'http://localhost:3008', reuseExistingServer: false, timeout: 180_000 }]),
+    ...(process.env.PW_PORT ? [] : [{ command: 'npm run build && npm run preview', url: 'http://localhost:3008', reuseExistingServer: false, timeout: 180_000, env: BUILD_ENV }]),
   ],
 });

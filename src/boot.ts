@@ -18,6 +18,7 @@ import * as stateMod from './game/state';
 import { applyStage } from './game/stages';
 import { perf } from './engine/perf';
 import { currentNotice, notice } from './engine/errors';
+import { streams } from './engine/rng';
 import { EndingScene } from './scenes/ending';
 import { fieldHooks } from './game/hooks';
 import { postfx } from './engine/postfx';
@@ -73,6 +74,10 @@ export function boot(game: Game, display: Display): void {
     /** Register a one-group encounter (screenshots of a specific line-up). */
     defineEncounter: (id: string, e: string[]) => {
       ENCOUNTERS[id] = [{ w: 1, e }];
+    },
+    /** Set the battle random stream to a fixed state. The streams are seeded from `Date.now()` when the module loads, and on a fake clock that moment depends on how long the page took to load, so a golden that shows a battle (the turn order) calls this first. */
+    seedBattle: (n: number) => {
+      streams.battle.state = n;
     },
     battle: (enc: string, bg = 'street', boss = false) => void field()?.runScript((s) => s.battle(enc, { bg, boss, canRun: !boss }).then(() => undefined)),
     say: (who: string, text: string, face = 'neutral') => void field()?.runScript((s) => s.say(who, text, { face })),
@@ -176,13 +181,10 @@ export function boot(game: Game, display: Display): void {
   // GPU effects: on when the setting says so and WebGL 2 works. Shockwaves follow Screen shake
   // and pulses follow Screen flash, so the comfort options cover them too.
   display.setGpu(gpuWanted());
-  window.addEventListener('sj-gpu-slow', () => {
-    display.setGpu(false);
-    postfx.suspended = true;
-    notice('The GPU effects were slowing the game down, so they’re off for now. Options → GPU effects turns them back on.', 'warn');
-  });
+  // The Options switch; its one notice is for the `lite` level, which `auto` picks on software graphics (src/sje/fx/fxsystem.ts).
   window.addEventListener('sj-gpu', () => {
-    if (!display.setGpu(gpuWanted()) && gpuWanted()) notice('GPU effects need a graphics card this browser can use (WebGL 2). The game looks as before.', 'warn');
+    display.setGpu(gpuWanted());
+    if (gpuWanted() && display.fxLevel === 'lite') notice('This browser draws with software graphics, so the GPU effects run in a lighter form here.', 'warn');
   });
   game.tickers.push(() => {
     postfx.motion = [0, 0.6, 1][settings.shake] ?? 1;
@@ -200,7 +202,7 @@ export function boot(game: Game, display: Display): void {
   const start = () => {
     if (import.meta.env.DEV && scene) {
       void import('./devroutes').then((m) => {
-        if (!m.runDevScene(game, scene, params, display)) void startTitle(game);
+        if (!m.runDevScene(game, scene, params)) void startTitle(game);
       });
     } else void startTitle(game);
   };

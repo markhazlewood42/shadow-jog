@@ -1,6 +1,6 @@
 /**
  * M2 "Effects": the screen effects of the new engine, drawn and read back in a browser (docs/engine/m2-brief.md pass lines 3, 4, 5 and 16).
- * Runs in CI on the bundled Chromium with SwiftShader (software GL), with the level forced: `?engine=sje&fx=full`.
+ * Runs in CI on the bundled Chromium with SwiftShader (software GL), with the level forced: `?fx=full`.
  *
  * The picture under test is a probe scene: a static, opaque, colorful checkerboard (so a push, a split or a dim shows), a white "glow" rectangle in the
  * glow layer and a green rectangle in the UI layer. The game loop is frozen (`game.speed = 0`), so a frame changes only when the test asks.
@@ -132,7 +132,7 @@ test.describe('the screen effects of the new engine, read from the canvas', () =
       try {
         const { page } = g;
         // The layers: `none` has no effects layers, no #fx overlay canvas exists on this path at any level.
-        expect(await page.evaluate("document.getElementById('fx')")).toBeNull();
+        expect(await page.locator('#fx').count(), 'no #fx overlay canvas').toBe(0);
         const fxChildren = await sj<number>(page, 'sj.tree().children.find((c) => c.label === "fxRoot").children.length');
         if (level === 'none') expect(fxChildren, 'none: nothing in fxRoot').toBe(0);
         else expect(fxChildren, `${level}: the effects layers are in fxRoot`).toBeGreaterThan(0);

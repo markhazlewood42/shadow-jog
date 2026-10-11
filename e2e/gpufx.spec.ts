@@ -1,9 +1,19 @@
 /**
- * GPU effects (engine/postfx.ts, engine/gl/presenter.ts): the WebGL layer comes up where WebGL 2
- * exists, survives a battle full of effects, can be switched off and on in Options, and a browser
- * without WebGL 2 plays exactly as before on the 2D canvas.
+ * GPU effects on the new engine (M6 rewrote this spec: it used to look for the `#fx` overlay canvas of the old presenter, which no longer exists). The effects now come
+ * from `game.fx`, and the spec reads their level from `__SJ__.renderer.fxLevel` (docs/engine/tooling-and-testing.md section 11):
+ *
+ *  - the default level (no `?fx=`) is the request `auto`, which gives `full` on a GPU and `lite` on software GL (`fxCounts().level` is the level actually drawn), the game survives a battle full of effects, and no `#fx` canvas exists;
+ *  - the Options switch (`gpu(false)` / `gpu(true)`) changes the level, and the choice is remembered across a reload;
+ *  - `?fx=none` forces the level `none`: every effect call is a no-op and the battle plays. Control: the same calls at the default level make particles;
+ *  - Pixel-perfect scaling (PL7 of docs/PIVOT-640.md): every game pixel is an exact k-by-k block of screen pixels. Control: the same picture read at another ratio is uneven.
+ *
+ * A browser without WebGL 2 does not play at all since M6; its message is checked in `e2e/prod.spec.ts`, `e2e/gameover.spec.ts` and `e2e/sje-shell.spec.ts`.
  */
 import { expect, test, type Page } from '@playwright/test';
+import { GPU_NOTICE_KEY } from '../src/game/gpunotice';
+import { H, W } from '../src/sje/core/size';
+import { SOFTWARE_GL } from '../src/sje/render/glcontext';
+import { decode, unevenBlocks } from './sjegamekit';
 
 async function sj<T = unknown>(page: Page, fn: string): Promise<T> {
   return page.evaluate(`(async () => { const sj = window.__SJ__; return ${fn}; })()`) as Promise<T>;
@@ -18,102 +28,159 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 
-/** WebGL 2 on a real GPU, as the presenter asks for it (a software renderer, as on CI, doesn't count). */
-const hasWebGl2 = (page: Page) =>
-  page.evaluate(() => {
-    const gl = document.createElement('canvas').getContext('webgl2', { failIfMajorPerformanceCaveat: true });
-    if (!gl) return false;
-    // The same test as GlPresenter.create (engine/gl/presenter.ts SOFTWARE_GL).
-    const info = gl.getExtension('WEBGL_debug_renderer_info');
-    const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? '');
-    return !/swiftshader|llvmpipe|softpipe|software|basic render driver/i.test(name);
-  });
+/** Open the game and wait for its title. `query` is extra text, for example `&fx=none`. */
+async function open(page: Page, query = ''): Promise<void> {
+  await page.goto(`/?debug${query}`);
+  await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
+}
 
-test('with WebGL 2, the effects layer draws the game, through a battle full of effects', async ({ page }) => {
-  const errors = watchErrors(page);
-  await page.goto('/?debug');
-  await page.waitForTimeout(700);
-  test.skip(!(await hasWebGl2(page)), 'this browser has no WebGL 2 (the fallback test covers it)');
-  await expect(page.locator('#fx')).toBeVisible();
-  expect(await sj<boolean>(page, "sj.postfx.active")).toBe(true);
+/**
+ * The battle screen is `LiveStageScene` once the stage chunk has loaded and `BattleScene` before that (the stage loads lazily, so on a slow runner the first
+ * frames of a battle can still be the old scene, or the field while the transition runs). Either is a battle: wait until the game is in one.
+ */
+async function expectInBattle(page: Page): Promise<void> {
+  await expect.poll(() => sj<string>(page, 'sj.top()'), { timeout: 15_000 }).toMatch(/^(BattleScene|LiveStageScene)$/);
+}
+
+/** Every kind of effect call at once, several times over: shockwaves, colour split, flares, and every emitter preset. */
+const SPRAY = `(() => {
+  const postfx = sj.postfx;
+  for (let i = 0; i < 6; i++) {
+    // The six emit points spread over the full width, at 40% of the screen height.
+    for (const p of Object.values(sj.fx.presets)) postfx.emit(p, (${W} * (i + 1)) / 7, ${H} * 0.4);
+    postfx.shock(${W / 2}, ${H / 2}, { strength: 6, reach: 200 });
+    postfx.aberrate(4, ${W / 2}, ${H / 2});
+    postfx.flare(1.5);
+  }
+})()`;
+
+async function intoBattle(page: Page): Promise<void> {
   await sj(page, "sj.stage('sinkline')");
   await page.waitForTimeout(900);
   await sj(page, "sj.battle('sinkline', 'sewer')");
   await page.waitForTimeout(3500);
-  // Every kind of moment at once, several times over: shockwaves, colour split, flares, and
-  // every emitter preset.
-  await sj(page, `(async () => {
-    const postfx = sj.postfx;
-    // The middle of the screen, from the one size source (src/engine/game.ts), not a literal.
-    const { W, H } = await import('/src/engine/game.ts');
-    for (let i = 0; i < 6; i++) {
-      // The six emit points spread over the full width, at 40% of the screen height (it was 100 of 270).
-      for (const p of Object.values(sj.fx.presets)) postfx.emit(p, (W * (i + 1)) / 7, H * 0.4);
-      postfx.shock(W / 2, H / 2, { strength: 6, reach: 200 });
-      postfx.aberrate(4, W / 2, H / 2);
-      postfx.flare(1.5);
-    }
-  })()`);
+}
+
+test('at the default level the effects run through a battle full of effects, with no #fx canvas', async ({ page }) => {
+  const errors = watchErrors(page);
+  await open(page);
+  // `renderer.fxLevel` is what was asked for: `auto` by default. What is drawn (`fxCounts().level`) is `lite` on software GL (CI) and `full` on a GPU, never `none`.
+  expect(await sj<string>(page, 'sj.renderer.fxLevel')).toBe('auto');
+  expect(await sj<string>(page, 'sj.fxCounts().level')).toMatch(/^(full|lite)$/);
+  expect(await sj<boolean>(page, 'sj.postfx.active')).toBe(true);
+  // The old overlay canvas is gone, and the one canvas is the game's own.
+  await expect(page.locator('#fx')).toHaveCount(0);
+  await expect(page.locator('canvas')).toHaveCount(1);
+  await intoBattle(page);
+  await sj(page, SPRAY);
   await page.waitForTimeout(600);
-  const live = await sj<number>(page, "sj.postfx.particles.count");
-  expect(live).toBeGreaterThan(0);
-  // The presenter kept its context and the game kept running.
-  expect(await sj<boolean>(page, "sj.postfx.active")).toBe(true);
-  expect(await sj<string>(page, 'sj.top()')).toBe('BattleScene');
+  expect(await sj<number>(page, 'sj.postfx.particles.count')).toBeGreaterThan(0);
+  // The renderer kept its context, the level did not change, and the game kept running.
+  expect(await sj<boolean>(page, 'sj.renderer.contextLost')).toBe(false);
+  expect(await sj<string>(page, 'sj.fxCounts().level')).toMatch(/^(full|lite)$/);
+  await expectInBattle(page);
   expect(errors).toEqual([]);
 });
 
 test('GPU effects switch off and on from Options, and the choice is remembered', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto('/?debug');
-  await page.waitForTimeout(700);
-  test.skip(!(await hasWebGl2(page)), 'this browser has no WebGL 2');
+  await open(page);
   await sj(page, 'sj.gpu(false)');
   await page.waitForTimeout(200);
-  await expect(page.locator('#fx')).toHaveCount(0);
+  expect(await sj<string>(page, 'sj.renderer.fxLevel')).toBe('none');
+  expect(await sj<boolean>(page, 'sj.postfx.active')).toBe(false);
   await page.reload();
   await page.waitForTimeout(700);
-  await expect(page.locator('#fx')).toHaveCount(0);
+  // Remembered: the setting is `none`, so the reloaded page runs at `none`.
+  expect(await sj<string>(page, 'sj.renderer.fxLevel')).toBe('none');
   await sj(page, 'sj.gpu(true)');
   await page.waitForTimeout(200);
-  await expect(page.locator('#fx')).toBeVisible();
+  expect(await sj<string>(page, 'sj.renderer.fxLevel')).toBe('full');
+  expect(await sj<string>(page, 'sj.fxCounts().level')).toBe('full');
+  expect(await sj<boolean>(page, 'sj.postfx.active')).toBe(true);
+  await expect(page.locator('#fx')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test('without WebGL 2 (or with only a software renderer) the game plays on the 2D canvas as before', async ({ page }) => {
+test('turning the effects on at the lite level shows the lighter-form notice; at full it does not', async ({ page }) => {
   const errors = watchErrors(page);
-  // A browser with no WebGL 2 at all.
-  await page.addInitScript(() => {
-    const get = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
-      if (type === 'webgl2') return null;
-      return (get as (this: HTMLCanvasElement, t: string, ...r: unknown[]) => RenderingContext | null).call(this, type, ...rest);
-    } as typeof HTMLCanvasElement.prototype.getContext;
-  });
-  await page.goto('/?debug');
-  await page.waitForTimeout(700);
-  await expect(page.locator('#fx')).toHaveCount(0);
-  await sj(page, "sj.stage('sinkline')");
-  await page.waitForTimeout(900);
-  await sj(page, "sj.battle('sinkline', 'sewer')");
-  await page.waitForTimeout(3500);
+  // `?fx=lite` is the level that `auto` picks on software graphics. The notice text is in src/boot.ts.
+  await open(page, '&fx=lite');
+  await sj(page, 'sj.gpu(false)');
+  await sj(page, 'sj.gpu(true)');
+  expect(await sj<string>(page, 'sj.fxCounts().level')).toBe('lite');
+  await expect.poll(() => sj<string>(page, 'sj.notice()?.text ?? ""')).toContain('lighter form');
+  // Control: the same switch at `full` says nothing about a lighter form.
+  await open(page, '&fx=full');
+  await sj(page, 'sj.gpu(false)');
+  await sj(page, 'sj.gpu(true)');
+  expect(await sj<string>(page, 'sj.fxCounts().level')).toBe('full');
+  expect(await sj<string>(page, 'sj.notice()?.text ?? ""')).not.toContain('lighter form');
+  expect(errors).toEqual([]);
+});
+
+/**
+ * The one-time graphics notice (decision 59). It sits on top of the pictures, so `?debug` (the harness flag) switches it off and this test opens the page without it.
+ * The machine decides which half runs: on CI (SwiftShader) the notice shows once, with the Options hint, and changes no setting; on a real GPU it never shows.
+ * tests/gpunotice.test.ts holds the controls (the same call with a software name and a GPU name).
+ */
+// CI runs on a software renderer, so only the "shows once" half runs there. The "never on a normal GPU" half is covered by tests/gpunotice.test.ts and by local GPU runs.
+test('the one-time graphics notice shows once on a software renderer and never on a normal GPU', async ({ page }) => {
+  const errors = watchErrors(page);
+  const titleUp = () => page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
+  const flag = () => page.evaluate((k) => localStorage.getItem(k), GPU_NOTICE_KEY);
+  await page.goto('/');
+  await titleUp();
+  const software = SOFTWARE_GL.test(await sj<string>(page, 'sj.renderer.name'));
+  if (software) {
+    await expect.poll(() => sj<string>(page, 'sj.notice()?.text ?? ""'), { intervals: [100], timeout: 10_000 }).toContain('turn off GPU effects in Options');
+    // It changes nothing by itself: the request is still `auto`, and the saved flag is the only thing written.
+    expect(await sj<string>(page, 'sj.renderer.fxLevel')).toBe('auto');
+    expect(await flag()).toBe('1');
+    // Once: a reload on the same profile shows nothing.
+    await page.reload();
+    await titleUp();
+    await page.waitForTimeout(800);
+    expect(await sj<string>(page, 'sj.notice()?.text ?? ""')).not.toContain('GPU effects');
+    expect(await flag()).toBe('1');
+    // The harness flag keeps it away on a fresh profile too.
+    await page.evaluate((k) => localStorage.removeItem(k), GPU_NOTICE_KEY);
+    await open(page);
+    await page.waitForTimeout(800);
+    expect(await sj<string>(page, 'sj.notice()?.text ?? ""')).not.toContain('GPU effects');
+    expect(await flag()).toBeNull();
+  } else {
+    await page.waitForTimeout(800);
+    expect(await sj<string>(page, 'sj.notice()?.text ?? ""')).not.toContain('GPU effects');
+    expect(await flag()).toBeNull();
+  }
+  expect(errors).toEqual([]);
+});
+
+test('?fx=none forces the level none: effect calls do nothing and the battle plays', async ({ page }) => {
+  const errors = watchErrors(page);
+  await open(page, '&fx=none');
+  expect(await sj<string>(page, 'sj.renderer.fxLevel')).toBe('none');
+  expect(await sj<boolean>(page, 'sj.postfx.active')).toBe(false);
+  // The Options switch cannot override the forced level.
+  await sj(page, 'sj.gpu(true)');
+  await page.waitForTimeout(200);
+  expect(await sj<string>(page, 'sj.renderer.fxLevel')).toBe('none');
+  await intoBattle(page);
   // Effect calls are harmless no-ops here.
-  await sj(page, "(async () => { sj.postfx.shock(1, 1); sj.postfx.emit(sj.fx.presets.embers, 10, 10); })()");
-  expect(await sj<number>(page, "sj.postfx.particles.count")).toBe(0);
-  expect(await sj<string>(page, 'sj.top()')).toBe('BattleScene');
+  await sj(page, SPRAY);
+  expect(await sj<number>(page, 'sj.postfx.particles.count')).toBe(0);
+  await expectInBattle(page);
   // The frame is drawn (not a blank canvas): the screenshot has more than one colour in it.
-  const png = await page.locator('#screen').screenshot();
+  const png = await page.locator('canvas').first().screenshot();
   expect(png.length).toBeGreaterThan(20_000);
   expect(errors).toEqual([]);
 });
 
 /**
- * Pixel-perfect scaling (PL7 of docs/PIVOT-640.md): on the 2D canvas, in Pixel-perfect mode, every
- * game pixel is an exact k-by-k block of screen pixels, k a whole number: 3 on a 1080p screen and 2
- * in the Steam Deck's 1280x800 window. "Uneven" means a block whose k*k pixels are not all one
- * color, which is what a fractional scale or a resample leaves at the seams. The GPU layer is off,
- * so the visible picture is the 2D canvas itself; the page is busy (rain, a lit street) so a flat
- * picture cannot pass by being uniform.
+ * Pixel-perfect scaling (PL7 of docs/PIVOT-640.md): in Pixel-perfect mode, every game pixel is an exact k-by-k block of screen pixels, k a whole number: 3 on a 1080p
+ * screen and 2 in the Steam Deck's 1280x800 window. "Uneven" means a block whose k*k pixels are not all one color, which is what a fractional scale or a resample leaves
+ * at the seams. The effects are off, so the visible picture is the base picture; the page is busy (rain, a lit street) so a flat picture cannot pass by being uniform.
  */
 for (const [name, vw, vh, k] of [
   ['1920x1080 (1080p)', 1920, 1080, 3],
@@ -122,48 +189,25 @@ for (const [name, vw, vh, k] of [
   test(`Pixel-perfect mode draws every game pixel as an exact ${k}x${k} block at ${name}`, async ({ page }) => {
     const errors = watchErrors(page);
     await page.setViewportSize({ width: vw, height: vh });
-    await page.goto('/?debug');
-    await page.waitForTimeout(700);
+    await open(page);
     await sj(page, 'sj.gpu(false)');
     await sj(page, "(sj.display.mode = 'integer', sj.display.resize(), true)");
     await sj(page, "sj.stage('town')");
     await page.waitForTimeout(1500);
-    const r = await page.evaluate(() => {
-      const sj = (window as unknown as { __SJ__: { display: { back: HTMLCanvasElement } } }).__SJ__;
-      const c = document.getElementById('screen') as HTMLCanvasElement;
-      const gw = sj.display.back.width, gh = sj.display.back.height;
-      const k = c.width / gw;
-      const rect = c.getBoundingClientRect();
-      const px = (c.getContext('2d') as CanvasRenderingContext2D).getImageData(0, 0, c.width, c.height).data;
-      const colors = new Set<number>();
-      let uneven = 0;
-      for (let gy = 0; gy < gh; gy++) {
-        for (let gx = 0; gx < gw; gx++) {
-          const o = (gy * k * c.width + gx * k) * 4;
-          const want = (px[o] ?? 0) | ((px[o + 1] ?? 0) << 8) | ((px[o + 2] ?? 0) << 16) | ((px[o + 3] ?? 0) << 24);
-          colors.add(want);
-          let same = true;
-          for (let dy = 0; dy < k && same; dy++) {
-            for (let dx = 0; dx < k; dx++) {
-              const p = ((gy * k + dy) * c.width + gx * k + dx) * 4;
-              if (px[p] !== px[o] || px[p + 1] !== px[o + 1] || px[p + 2] !== px[o + 2] || px[p + 3] !== px[o + 3]) {
-                same = false;
-                break;
-              }
-            }
-          }
-          if (!same) uneven++;
-        }
-      }
-      return { gw, gh, k, backing: [c.width, c.height], shown: [rect.width, rect.height], uneven, colors: colors.size };
-    });
-    // The back buffer is scaled by exactly k, and the canvas is shown at its own size (the browser
-    // resamples nothing).
-    expect(r.k).toBe(k);
-    expect(r.backing).toEqual([r.gw * k, r.gh * k]);
-    expect(r.shown).toEqual(r.backing);
-    expect(r.colors).toBeGreaterThan(30);
-    expect(r.uneven).toBe(0);
+    // The canvas fills the window; the picture sits in it at the whole ratio k, centered, with bars around it (the browser resamples nothing).
+    const layout = await sj<{ k: number; x: number; y: number; w: number; h: number }>(page, 'sj.game.renderer.picture');
+    expect(layout.k).toBe(k);
+    expect([layout.w, layout.h]).toEqual([W * k, H * k]);
+    const img = decode(await page.locator('canvas').first().screenshot());
+    expect([img.w, img.h]).toEqual([vw, vh]);
+    const colors = new Set<number>();
+    // Colors inside the picture only (the bars are one flat color).
+    for (let i = (layout.y * img.w + layout.x) * 4; i < ((layout.y + layout.h) * img.w) * 4; i += 4 * 61) colors.add(((img.data[i] ?? 0) << 16) | ((img.data[i + 1] ?? 0) << 8) | (img.data[i + 2] ?? 0));
+    expect(colors.size).toBeGreaterThan(30);
+    expect(unevenBlocks(img, k, layout.x, layout.y, W, H), 'uneven blocks').toBe(0);
+    // Control: the same picture read at the next ratio has uneven blocks, so the check can fail.
+    const wrong = k + 1;
+    expect(unevenBlocks(img, wrong, layout.x, layout.y, Math.floor((W * k) / wrong) - 1, Math.floor((H * k) / wrong) - 1), 'control: a wrong ratio finds uneven blocks').toBeGreaterThan(0);
     expect(errors).toEqual([]);
   });
 }

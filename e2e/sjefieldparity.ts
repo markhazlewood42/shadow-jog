@@ -5,7 +5,7 @@
  * The method is the one of M3's battle stage (`e2e/sjestageparity.ts`, tooling-and-testing.md section 5), at 640x360 and with the OLD FIELD as the reference:
  *  - a picture is the screenshot of the game canvas at 1280x720 (zoom 2), not the 640x360 back buffer: the old path's GL presenter (glow, haze) works at the screen's resolution
  *    on a hardware GPU, so only the whole picture is a fair thing to compare;
- *  - the references are pictures of the legacy path (no `?engine=sje`: the Canvas 2D field), one per state of `tests/fixtures/sjefield/cases.json`;
+ *  - the references are pictures of the legacy path (the Canvas 2D field that M6 deleted), one per state of `tests/fixtures/sjefield/cases.json`;
  *  - the new path (the field on the stage) must equal them: 0 differing pixels OUTSIDE the renderer mask, at most 1/255 INSIDE it;
  *  - the renderer mask is where the legacy `gpu` reference and the legacy `soft` reference differ (the browser's own canvas and GL code, not the engine). One mask for all
  *    states: the union;

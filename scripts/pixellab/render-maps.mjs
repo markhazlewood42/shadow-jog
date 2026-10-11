@@ -81,7 +81,7 @@ for (const a of assets) {
   const nowShot = `current/place/terrain-${a.id.split('.')[1]}.png`;
   await open(`&scene=field&map=${t.map}&x=${x}&y=${y}`);
   await page.waitForTimeout(2500);
-  await page.locator('#screen').screenshot({ path: `${ROOT}/${nowShot}` });
+  await page.locator('canvas').first().screenshot({ path: `${ROOT}/${nowShot}` });
   a.preview = { map: nowMap, game: nowShot, at: { x, y } };
 
   for (const o of a.options) {
@@ -95,7 +95,7 @@ for (const a of assets) {
     const gameFile = `assets/${a.id}/${o.id}/ingame.png`;
     await open(`${tryId}&scene=field&map=${t.map}&x=${x}&y=${y}`);
     await page.waitForTimeout(2500);
-    await page.locator('#screen').screenshot({ path: `${ROOT}/${gameFile}` });
+    await page.locator('canvas').first().screenshot({ path: `${ROOT}/${gameFile}` });
     o.preview = { map: mapFile, game: gameFile };
     console.log(`  ${a.id}/${o.id}`);
   }

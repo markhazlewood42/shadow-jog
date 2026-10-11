@@ -18,6 +18,6 @@ for (const k of keys) {
   else { await page.keyboard.press(k); await page.waitForTimeout(120); }
 }
 await page.waitForTimeout(200);
-await page.locator('#screen').screenshot({ path: out });
+await page.locator('canvas').first().screenshot({ path: out });
 if (errors.length) console.log('PAGE ERRORS:\n' + errors.join('\n'));
 await browser.close();

@@ -4,7 +4,7 @@ title: Shadow Jog — Project Status
 project: shadow-jog
 created: 2026-09-27
 updated: 2026-10-09
-milestone: none
+milestone: M6
 tags: [status]
 ---
 
@@ -17,6 +17,22 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 **GitHub:** [markhazlewood42/shadow-jog](https://github.com/markhazlewood42/shadow-jog) (public).
 - **CI:** GitHub Actions, on pushes to `main` and on pull requests: three jobs at the same time (`check`, `e2e`, `e2e-engines`), all three required on `main` by the ruleset "Main branch protection" (2026-10-06). A docs-only change skips their steps. The real-speed playtest runs in `playtest.yml` after a merge and from the Actions button.
 - **Since 2026-10-01** work goes on a branch per major feature, with a PR for the Claude Code Review Action, and Mark merges.
+
+## M6 PR #58 state (2026-10-11)
+
+CI on 95cea4a was green (`e2e` 31 min). The earlier red runs were a slow runner (same specs ran 2x slower; they pass alone in 7 min). Fixes: Game Over waits on tick count (908ed58); battle golden made again with the real crew art (c22aaed, Mark committed the Sprite Fusion sheets in 0ad6331); temp `m6-debug` workflow removed (3099419, a last CI run is on it). Checkpoint 2 is with Mark: dev server on 3007, pictures in `media/m6-flip/`. Open: move the sheets to `public/art/crew/<id>/idle/` (the prod build does not serve `spritefusion-tests/`), the frame-time GPU fallback decision, and a possible `e2e` shard or a longer cap (the 45-minute cap is close on a slow runner).
+
+### M6 decisions built (2026-10-11)
+
+- #59 notice, #60 sheets in `public/art/crew/<id>/idle/`, #61 two shards are in PR #58 (431b0ee, 65fd542, 439419d, c530339, 11bfb18). Lean loop: runner and reader pass, Minor fixes in f30bc4b.
+- CI: `--shard` split by test count (143 against 78 tests) and shard 1 hit the 30-minute cap, so each shard has a named spec list in `ci.yml`. With two shards, `e2e (1/2)` took 15 minutes and `e2e (2/2)` took 18 minutes and failed `default-path` (battle control) and `playthrough` once, then passed on a re-run (slow runner). So there are now four shards (`e2e (1/4)` to `e2e (4/4)`, about 6 to 8 minutes of tests each; the field parity spec is two files). **Mark:** rename the required checks in the `main` ruleset to `e2e (1/4)`, `e2e (2/4)`, `e2e (3/4)` and `e2e (4/4)`, then merge or send work back.
+
+### M6 decisions answered (2026-10-11, Mark)
+
+- #59 GPU fallback: **C**. Show a one-time notice that says effects can be turned off in Options; change nothing by itself. Keep option B (automatic frame-time degrade) as a later idea.
+- #60 crew sheets: **A**. Move them to `public/art/crew/<id>/idle/` now, in PR #58.
+- #61 CI `e2e`: **C**. Split into four shards (two at first). The required checks rename (`e2e (1/4)` to `e2e (4/4)`): Mark updates the `main` ruleset.
+- **Built, 2026-10-11 (local commits on `engine-m6-flip`, not pushed):** #59 the one-time notice (`src/game/gpunotice.ts`; persisted once per browser profile; `?debug` hides it), #60 the sheets moved to `public/art/crew/<id>/idle/` (the build serves them), #61 `ci.yml` matrix with four named shards, `e2e (1/4)` to `e2e (4/4)`, 30 minutes each. Bundle: first play 391.6 of 392.4 kB, total 451.9 of 452 kB (the alarm is nearly full: re-set it deliberately if the next change adds code). Option B (automatic frame-time degrade) is recorded as a later idea. Open for Mark: rename the required checks in the `main` ruleset.
 
 ## Where we left off (2026-10-05)
 
@@ -59,7 +75,19 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
-### Right now (2026-10-10, M5 merged)
+### Right now (2026-10-10, M6 PR #58 open, checkpoint 2 for Mark)
+
+M6 "Flip default" is [PR #58](https://github.com/markhazlewood42/shadow-jog/pull/58) on branch `engine-m6-flip`. The new engine is the default and `src/engine/gl/` is gone. Brief and Record: `docs/engine/m6-brief.md`. Lean loop done: runner and reader found one Critical (the build stamp inside the goldens, fixed by pinning `SJ_BUILD_SHA=e2e`), CI found three test-side failures (fixed), two automated reviews were triaged (4 fixes). CI was green before the triage commits; a re-run is in progress. GPU run: 12 of 12 pass, 2D interval p95 18.10 ms (bare 18.10), cost p95 1.70 ms (numbers in `tooling-and-testing.md` section 7).
+
+CI state at 2026-10-10 evening (commit f276a46): `check`, `command-center`, `claude-review`, Vercel pass; the `e2e-engines` job (WebKit, Firefox) FAILED on f276a46 (cause not yet read); `e2e` was still running. The run before (ddb61db) failed six tests and hit the 45-minute cap on a slow runner; f276a46 fixed two of them (title wait after reload). Crew art: the Sprite Fusion sheets (`spritefusion-tests/extracted/<crew>-battle-idle/`, git-excluded) are gone from this machine (folder empty since Oct 9, probably lost with a removed worktree); Mark re-exports them. Long-term location proposed: `public/art/crew/<id>/idle/` committed (Mark to approve; licence/credits open).
+
+Two things for Mark to decide: (1) the old GPU slow-frame fallback is gone (restore a frame-time fallback, or accept); (2) on the default page the battle crew draws as blocks when the Sprite Fusion sheets are missing (they are git-ignored; options a to d in the Record). Both existed before the flip in the new engine, but the old default did not show them.
+
+**Next up for Mark**
+
+1. Play `http://localhost:3007/` (no flag), then answer the two decisions above, then merge PR #58 or send work back.
+
+### Earlier: M5 merged (history)
 
 M5 "Field" is merged ([PR #54](https://github.com/markhazlewood42/shadow-jog/pull/54), 0b1ef97, Mark, 2026-10-10). The field plays on the Pixi stage under `?engine=sje`. Parity accepts measured bounds (decision of Mark). GPU run: field on the world map, fx full, cost p95 6.9 to 7.4 ms (line 8) after the relight-on-change fix; the live battle A/B against `main` is noise. Numbers: `docs/engine/tooling-and-testing.md` section 7. Record: `docs/engine/m5-brief.md` section 9. The M5 worktree is removed. **Next is M6 "Flip default"** (`docs/engine/migration.md` section M6; M4 stays optional): write the brief with pass lines first, branch `engine-m6-flip`.
 
