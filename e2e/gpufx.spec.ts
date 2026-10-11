@@ -116,6 +116,7 @@ test('turning the effects on at the lite level shows the lighter-form notice; at
  * The machine decides which half runs: on CI (SwiftShader) the notice shows once, with the Options hint, and changes no setting; on a real GPU it never shows.
  * tests/gpunotice.test.ts holds the controls (the same call with a software name and a GPU name).
  */
+// CI runs on a software renderer, so only the "shows once" half runs there. The "never on a normal GPU" half is covered by tests/gpunotice.test.ts and by local GPU runs.
 test('the one-time graphics notice shows once on a software renderer and never on a normal GPU', async ({ page }) => {
   const errors = watchErrors(page);
   const titleUp = () => page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });

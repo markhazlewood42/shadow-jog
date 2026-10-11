@@ -9,7 +9,7 @@
 #                below).
 #   e2e          the Playwright specs, on Chromium (the engine canary suite and the default-path goldens included), split into two shards by a matrix. The checks are
 #                named `e2e (1/2)` and `e2e (2/2)`: no check is called plain `e2e` any more. The `main` ruleset must require both shard names (and `check`);
-#                a required check called `e2e` would wait for ever. Playwright splits the spec files between the shards (`--shard=N/2`), so each
+#                a required check called `e2e` would wait for ever. Playwright splits the tests between the shards (`--shard=N/2`) and keeps the tests of one file together, so each
 #                shard has about half of the work (the field parity spec is one file, so it cannot be split). The cap is 30 minutes for each shard.
 #   e2e-engines  the game over and shipped-build specs, on WebKit (the whole flow) and Firefox (the E5 message: no WebGL 2 on this runner)
 #
