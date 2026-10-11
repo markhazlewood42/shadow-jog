@@ -34,6 +34,14 @@ async function open(page: Page, query = ''): Promise<void> {
   await page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
 }
 
+/**
+ * The battle screen is `LiveStageScene` once the stage chunk has loaded and `BattleScene` before that (the stage loads lazily, so on a slow runner the first
+ * frames of a battle can still be the old scene, or the field while the transition runs). Either is a battle: wait until the game is in one.
+ */
+async function expectInBattle(page: Page): Promise<void> {
+  await expect.poll(() => sj<string>(page, 'sj.top()'), { timeout: 15_000 }).toMatch(/^(BattleScene|LiveStageScene)$/);
+}
+
 /** Every kind of effect call at once, several times over: shockwaves, colour split, flares, and every emitter preset. */
 const SPRAY = `(() => {
   const postfx = sj.postfx;
@@ -70,7 +78,7 @@ test('at the default level the effects run through a battle full of effects, wit
   // The renderer kept its context, the level did not change, and the game kept running.
   expect(await sj<boolean>(page, 'sj.renderer.contextLost')).toBe(false);
   expect(await sj<string>(page, 'sj.fxCounts().level')).toMatch(/^(full|lite)$/);
-  expect(await sj<string>(page, 'sj.top()')).toBe('BattleScene');
+  await expectInBattle(page);
   expect(errors).toEqual([]);
 });
 
@@ -162,7 +170,7 @@ test('?fx=none forces the level none: effect calls do nothing and the battle pla
   // Effect calls are harmless no-ops here.
   await sj(page, SPRAY);
   expect(await sj<number>(page, 'sj.postfx.particles.count')).toBe(0);
-  expect(await sj<string>(page, 'sj.top()')).toBe('BattleScene');
+  await expectInBattle(page);
   // The frame is drawn (not a blank canvas): the screenshot has more than one colour in it.
   const png = await page.locator('canvas').first().screenshot();
   expect(png.length).toBeGreaterThan(20_000);
