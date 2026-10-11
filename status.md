@@ -22,6 +22,11 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 CI on 95cea4a was green (`e2e` 31 min). The earlier red runs were a slow runner (same specs ran 2x slower; they pass alone in 7 min). Fixes: Game Over waits on tick count (908ed58); battle golden made again with the real crew art (c22aaed, Mark committed the Sprite Fusion sheets in 0ad6331); temp `m6-debug` workflow removed (3099419, a last CI run is on it). Checkpoint 2 is with Mark: dev server on 3007, pictures in `media/m6-flip/`. Open: move the sheets to `public/art/crew/<id>/idle/` (the prod build does not serve `spritefusion-tests/`), the frame-time GPU fallback decision, and a possible `e2e` shard or a longer cap (the 45-minute cap is close on a slow runner).
 
+### M6 decisions built (2026-10-11)
+
+- #59 notice, #60 sheets in `public/art/crew/<id>/idle/`, #61 two shards are in PR #58 (431b0ee, 65fd542, 439419d, c530339, 11bfb18). Lean loop: runner and reader pass, Minor fixes in f30bc4b.
+- CI: `--shard` split by test count (143 against 78 tests) and shard 1 hit the 30-minute cap, so each shard now has a named spec list in `ci.yml`. `e2e (1/2)` took 15 minutes. `e2e (2/2)` took 18 minutes and failed `default-path` (battle control) and `playthrough` once, then passed on a re-run (slow runner). **Mark:** rename the required checks in the `main` ruleset to `e2e (1/2)` and `e2e (2/2)`, then merge or send work back.
+
 ### M6 decisions answered (2026-10-11, Mark)
 
 - #59 GPU fallback: **C**. Show a one-time notice that says effects can be turned off in Options; change nothing by itself. Keep option B (automatic frame-time degrade) as a later idea.
