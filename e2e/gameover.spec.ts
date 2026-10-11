@@ -47,7 +47,9 @@ async function loseAFight(page: Page): Promise<void> {
   await sj(page, "sj.battle('street', 'street')");
   await waitFor(page, "sj.top() === 'GameOverScene'", 'game over');
   await sj(page, 'Object.assign(sj.debug, { autoLose: false })');
-  await page.waitForTimeout(1500); // Game Over accepts input after its fade-in.
+  // Game Over accepts input after its fade-in (70 ticks). Wait on the tick count, not on wall time: a slow runner (WebKit on CI) runs fewer ticks per second.
+  const arrived = await sj<number>(page, 'sj.game.tick');
+  await waitFor(page, `sj.game.tick >= ${arrived + 90}`, 'the Game Over fade-in');
 }
 
 test('Retry rewinds to the moment before the fight', async ({ page }) => {
