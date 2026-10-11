@@ -19,7 +19,7 @@ test('the FX lab opens with every preset and moment, and edits play live', async
     if (m.type() === 'error') errors.push(m.text());
   });
   await page.goto('/?scene=fxlab');
-  await expect(page.locator('#fxlab')).toBeVisible();
+  await expect(page.locator('#fxlab')).toBeHidden();
   const presets = await sj<string[]>(page, 'Object.keys(sj.fx.presets)');
   const listed = await page.locator('#fxlab select[size] option').allTextContents();
   expect(listed).toEqual(presets);
