@@ -32,7 +32,7 @@ CI on 95cea4a was green (`e2e` 31 min). The earlier red runs were a slow runner 
 - #59 GPU fallback: **C**. Show a one-time notice that says effects can be turned off in Options; change nothing by itself. Keep option B (automatic frame-time degrade) as a later idea.
 - #60 crew sheets: **A**. Move them to `public/art/crew/<id>/idle/` now, in PR #58.
 - #61 CI `e2e`: **C**. Split into four shards (two at first). The required checks rename (`e2e (1/4)` to `e2e (4/4)`): Mark updates the `main` ruleset.
-- **Built, 2026-10-11 (local commits on `engine-m6-flip`, not pushed):** #59 the one-time notice (`src/game/gpunotice.ts`; persisted once per browser profile; `?debug` hides it), #60 the sheets moved to `public/art/crew/<id>/idle/` (the build serves them), #61 `ci.yml` matrix with `--shard=1/2` and `--shard=2/2`, 30 minutes each. Bundle: first play 391.6 of 392.4 kB, total 451.9 of 452 kB (the alarm is nearly full: re-set it deliberately if the next change adds code). Option B (automatic frame-time degrade) is recorded as a later idea. Open for Mark: rename the required checks in the `main` ruleset.
+- **Built, 2026-10-11 (local commits on `engine-m6-flip`, not pushed):** #59 the one-time notice (`src/game/gpunotice.ts`; persisted once per browser profile; `?debug` hides it), #60 the sheets moved to `public/art/crew/<id>/idle/` (the build serves them), #61 `ci.yml` matrix with four named shards, `e2e (1/4)` to `e2e (4/4)`, 30 minutes each. Bundle: first play 391.6 of 392.4 kB, total 451.9 of 452 kB (the alarm is nearly full: re-set it deliberately if the next change adds code). Option B (automatic frame-time degrade) is recorded as a later idea. Open for Mark: rename the required checks in the `main` ruleset.
 
 ## Where we left off (2026-10-05)
 
