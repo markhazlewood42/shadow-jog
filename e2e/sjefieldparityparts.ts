@@ -53,10 +53,21 @@ export function inputsBody(): void {
 
 /** One state: the new field against the reference of its kind. */
 export async function stateBody(browser: Browser, c: Case): Promise<void> {
+  // A state with a `kinds` list is skipped BEFORE the render when this renderer is not on the list. Rendering first cost about 60 s for each skipped GPU-only state on CI
+  // (the full effect stack on SwiftShader), so six skips took 6 minutes of the shard for no check. A bare page tells the renderer kind (it is the same browser).
+  if (c.kinds) {
+    const probe = await browser.newPage();
+    let probed: RendererKind;
+    try {
+      probed = await rendererKind(probe);
+    } finally {
+      await probe.close();
+    }
+    test.skip(!c.kinds.includes(probed), `${c.id} has no ${probed} reference: the old path cannot draw it on this kind of renderer`);
+  }
   const s = await shoot(browser, c);
   try {
     const kind: RendererKind = await rendererKind(s.page.page);
-    test.skip(!!c.kinds && !c.kinds.includes(kind), `${c.id} has no ${kind} reference: the old path cannot draw it on this kind of renderer`);
     const ref = readRef(kind, c.id);
     expect(ref, `no ${kind} reference for ${c.id}`).not.toBeNull();
     if (!ref) return;
