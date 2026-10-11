@@ -28,12 +28,14 @@ import { perf } from '../engine/perf';
 import { postfx } from '../engine/postfx';
 import { shakeOffset } from '../engine/shake';
 import { FX } from '../data/fx';
+import { showGpuNoticeOnce } from '../game/gpunotice';
 import { settings } from '../game/settings';
 import { drawNotice } from '../noticeoverlay';
 import { lazyStageProvider, setBattleStageProvider } from '../scenes/battlekit/stageseam';
 import { fieldStages, lazyFieldStageProvider, setFieldStageProvider } from '../scenes/fieldkit/fieldseam';
 import type { FxRequest } from './fx/fxsystem';
 import { routePostfx } from './fx/route';
+import { SOFTWARE_GL } from './render/glcontext';
 import { Game } from './runtime/game';
 
 /**
@@ -133,6 +135,17 @@ export async function startSje(markStarted: () => void): Promise<void> {
     throw e;
   }
   game.start();
+  // One notice, once, on a software renderer: the GPU effects can be turned off in Options (src/game/gpunotice.ts). `?debug` is the test harness flag: the notice would sit
+  // on top of the goldens, so it stays away (e2e/gpufx.spec.ts opens the page without it).
+  if (!new URLSearchParams(location.search).has('debug')) {
+    let store: Storage | null = null;
+    try {
+      store = localStorage;
+    } catch {
+      /* storage blocked: the notice then shows once for each page load */
+    }
+    showGpuNoticeOnce(SOFTWARE_GL.test(game.rendererName), store, (text) => notice(text, 'warn'));
+  }
   markStarted();
   // The page's own pre-start error screen (index.html) stands down.
   (window as unknown as { __sjStarted?: boolean }).__sjStarted = true;

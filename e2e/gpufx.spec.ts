@@ -10,7 +10,9 @@
  * A browser without WebGL 2 does not play at all since M6; its message is checked in `e2e/prod.spec.ts`, `e2e/gameover.spec.ts` and `e2e/sje-shell.spec.ts`.
  */
 import { expect, test, type Page } from '@playwright/test';
+import { GPU_NOTICE_KEY } from '../src/game/gpunotice';
 import { H, W } from '../src/sje/core/size';
+import { SOFTWARE_GL } from '../src/sje/render/glcontext';
 import { decode, unevenBlocks } from './sjegamekit';
 
 async function sj<T = unknown>(page: Page, fn: string): Promise<T> {
@@ -106,6 +108,43 @@ test('turning the effects on at the lite level shows the lighter-form notice; at
   await sj(page, 'sj.gpu(true)');
   expect(await sj<string>(page, 'sj.fxCounts().level')).toBe('full');
   expect(await sj<string>(page, 'sj.notice()?.text ?? ""')).not.toContain('lighter form');
+  expect(errors).toEqual([]);
+});
+
+/**
+ * The one-time graphics notice (decision 59). It sits on top of the pictures, so `?debug` (the harness flag) switches it off and this test opens the page without it.
+ * The machine decides which half runs: on CI (SwiftShader) the notice shows once, with the Options hint, and changes no setting; on a real GPU it never shows.
+ * tests/gpunotice.test.ts holds the controls (the same call with a software name and a GPU name).
+ */
+test('the one-time graphics notice shows once on a software renderer and never on a normal GPU', async ({ page }) => {
+  const errors = watchErrors(page);
+  const titleUp = () => page.waitForFunction(() => (window as unknown as { __SJ__?: { top?: () => string | null } }).__SJ__?.top?.() === 'TitleScene', null, { timeout: 30_000 });
+  const flag = () => page.evaluate((k) => localStorage.getItem(k), GPU_NOTICE_KEY);
+  await page.goto('/');
+  await titleUp();
+  const software = SOFTWARE_GL.test(await sj<string>(page, 'sj.renderer.name'));
+  if (software) {
+    await expect.poll(() => sj<string>(page, 'sj.notice()?.text ?? ""'), { intervals: [100], timeout: 10_000 }).toContain('turn off GPU effects in Options');
+    // It changes nothing by itself: the request is still `auto`, and the saved flag is the only thing written.
+    expect(await sj<string>(page, 'sj.renderer.fxLevel')).toBe('auto');
+    expect(await flag()).toBe('1');
+    // Once: a reload on the same profile shows nothing.
+    await page.reload();
+    await titleUp();
+    await page.waitForTimeout(800);
+    expect(await sj<string>(page, 'sj.notice()?.text ?? ""')).not.toContain('GPU effects');
+    expect(await flag()).toBe('1');
+    // The harness flag keeps it away on a fresh profile too.
+    await page.evaluate((k) => localStorage.removeItem(k), GPU_NOTICE_KEY);
+    await open(page);
+    await page.waitForTimeout(800);
+    expect(await sj<string>(page, 'sj.notice()?.text ?? ""')).not.toContain('GPU effects');
+    expect(await flag()).toBeNull();
+  } else {
+    await page.waitForTimeout(800);
+    expect(await sj<string>(page, 'sj.notice()?.text ?? ""')).not.toContain('GPU effects');
+    expect(await flag()).toBeNull();
+  }
   expect(errors).toEqual([]);
 });
 
