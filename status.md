@@ -25,13 +25,13 @@ CI on 95cea4a was green (`e2e` 31 min). The earlier red runs were a slow runner 
 ### M6 decisions built (2026-10-11)
 
 - #59 notice, #60 sheets in `public/art/crew/<id>/idle/`, #61 two shards are in PR #58 (431b0ee, 65fd542, 439419d, c530339, 11bfb18). Lean loop: runner and reader pass, Minor fixes in f30bc4b.
-- CI: `--shard` split by test count (143 against 78 tests) and shard 1 hit the 30-minute cap, so each shard now has a named spec list in `ci.yml`. `e2e (1/2)` took 15 minutes. `e2e (2/2)` took 18 minutes and failed `default-path` (battle control) and `playthrough` once, then passed on a re-run (slow runner). **Mark:** rename the required checks in the `main` ruleset to `e2e (1/2)` and `e2e (2/2)`, then merge or send work back.
+- CI: `--shard` split by test count (143 against 78 tests) and shard 1 hit the 30-minute cap, so each shard has a named spec list in `ci.yml`. With two shards, `e2e (1/2)` took 15 minutes and `e2e (2/2)` took 18 minutes and failed `default-path` (battle control) and `playthrough` once, then passed on a re-run (slow runner). So there are now four shards (`e2e (1/4)` to `e2e (4/4)`, about 6 to 8 minutes of tests each; the field parity spec is two files). **Mark:** rename the required checks in the `main` ruleset to `e2e (1/4)`, `e2e (2/4)`, `e2e (3/4)` and `e2e (4/4)`, then merge or send work back.
 
 ### M6 decisions answered (2026-10-11, Mark)
 
 - #59 GPU fallback: **C**. Show a one-time notice that says effects can be turned off in Options; change nothing by itself. Keep option B (automatic frame-time degrade) as a later idea.
 - #60 crew sheets: **A**. Move them to `public/art/crew/<id>/idle/` now, in PR #58.
-- #61 CI `e2e`: **C**. Split into two shards. The required checks rename (`e2e (1/2)`, `e2e (2/2)`): Mark updates the `main` ruleset.
+- #61 CI `e2e`: **C**. Split into four shards (two at first). The required checks rename (`e2e (1/4)` to `e2e (4/4)`): Mark updates the `main` ruleset.
 - **Built, 2026-10-11 (local commits on `engine-m6-flip`, not pushed):** #59 the one-time notice (`src/game/gpunotice.ts`; persisted once per browser profile; `?debug` hides it), #60 the sheets moved to `public/art/crew/<id>/idle/` (the build serves them), #61 `ci.yml` matrix with `--shard=1/2` and `--shard=2/2`, 30 minutes each. Bundle: first play 391.6 of 392.4 kB, total 451.9 of 452 kB (the alarm is nearly full: re-set it deliberately if the next change adds code). Option B (automatic frame-time degrade) is recorded as a later idea. Open for Mark: rename the required checks in the `main` ruleset.
 
 ## Where we left off (2026-10-05)
