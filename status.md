@@ -63,6 +63,8 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 M6 "Flip default" is [PR #58](https://github.com/markhazlewood42/shadow-jog/pull/58) on branch `engine-m6-flip`. The new engine is the default and `src/engine/gl/` is gone. Brief and Record: `docs/engine/m6-brief.md`. Lean loop done: runner and reader found one Critical (the build stamp inside the goldens, fixed by pinning `SJ_BUILD_SHA=e2e`), CI found three test-side failures (fixed), two automated reviews were triaged (4 fixes). CI was green before the triage commits; a re-run is in progress. GPU run: 12 of 12 pass, 2D interval p95 18.10 ms (bare 18.10), cost p95 1.70 ms (numbers in `tooling-and-testing.md` section 7).
 
+CI state at 2026-10-10 evening (commit f276a46): `check`, `command-center`, `claude-review`, Vercel pass; the `e2e-engines` job (WebKit, Firefox) FAILED on f276a46 (cause not yet read); `e2e` was still running. The run before (ddb61db) failed six tests and hit the 45-minute cap on a slow runner; f276a46 fixed two of them (title wait after reload). Crew art: the Sprite Fusion sheets (`spritefusion-tests/extracted/<crew>-battle-idle/`, git-excluded) are gone from this machine (folder empty since Oct 9, probably lost with a removed worktree); Mark re-exports them. Long-term location proposed: `public/art/crew/<id>/idle/` committed (Mark to approve; licence/credits open).
+
 Two things for Mark to decide: (1) the old GPU slow-frame fallback is gone (restore a frame-time fallback, or accept); (2) on the default page the battle crew draws as blocks when the Sprite Fusion sheets are missing (they are git-ignored; options a to d in the Record). Both existed before the flip in the new engine, but the old default did not show them.
 
 **Next up for Mark**
