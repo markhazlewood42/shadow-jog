@@ -125,7 +125,8 @@ jobs:
         run: npm run budget
 
   e2e:
-    # The check is named `e2e (1/2)` or `e2e (2/2)`, from the matrix value.
+    # The check is named `e2e (1/2)` or `e2e (2/2)`. The name is set here because the matrix has two values (shard and specs), and the default name would list both.
+    name: e2e (${{ matrix.shard }})
     runs-on: ubuntu-latest
     # Each shard runs about half of the specs, so about 15 to 20 minutes on a normal runner. The unsplit job took about 30 minutes (45 was its cap, and a slow
     # runner came close to it). The field parity spec (31 states, about 20 minutes alone on SwiftShader) is one file, so it sits whole in one shard. 30 minutes
