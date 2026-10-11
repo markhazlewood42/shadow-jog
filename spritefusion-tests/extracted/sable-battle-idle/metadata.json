@@ -1,0 +1,12 @@
+{
+  "type": "animation",
+  "prompt": "idle bounce, smooth loop, staff feathers slightly swaying",
+  "width": 64,
+  "height": 64,
+  "frame_w": 64,
+  "frame_h": 64,
+  "frame_count": 8,
+  "fps": 8,
+  "preview": "preview.webp",
+  "spritesheet": "spritesheet.png"
+}
