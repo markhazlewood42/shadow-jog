@@ -98,7 +98,7 @@ CI (`.github/workflows/ci.yml`) runs four jobs at the same time (`e2e` is two sh
 | Job | What |
 |---|---|
 | `check` | Lint, typecheck, unit tests, the bundle budget. The `main` ruleset requires this check, so keep the job name |
-| `e2e (1/2)` and `e2e (2/2)` | Every spec except `playtest`, `shots` and `audio-evidence` (those two regenerate files), on Chromium. A matrix runs the same spec list twice, with `--shard=1/2` and `--shard=2/2`, and Playwright gives each shard about half of the spec files. The cap is 30 minutes for each shard. The field parity spec is one file, so it stays whole in one shard. No check is called plain `e2e` now |
+| `e2e (1/2)` and `e2e (2/2)` | Every spec except `playtest`, `shots` and `audio-evidence` (those two regenerate files), on Chromium. A matrix gives each shard its own named spec list (`--shard` split by test count, not by time, and was lopsided). Shard 1/2 holds the field parity file (about 20 minutes alone) and the stage specs. Shard 2/2 holds the rest. Add a new spec to one list. The cap is 30 minutes for each shard. No check is called plain `e2e` now |
 | `e2e-engines` | `gameover` and `prod` on WebKit (the whole flow) and Firefox (no WebGL 2 on the runner: the E5 message, no game) |
 
 The playtest has its own workflow, `.github/workflows/playtest.yml`. It runs on a push to `main` (not one that touches
@@ -107,7 +107,7 @@ on pull requests. A change that touches only those paths skips the work. On a pu
 report success, because a required check that never reports blocks the merge. A new push to a pull request cancels
 that pull request's earlier CI run. A run on `main` is never canceled once it starts.
 
-The `main` ruleset must require the two shard names, `e2e (1/2)` and `e2e (2/2)`, in place of a check called `e2e`: a required check with a name that never reports blocks the merge. Mark updates the ruleset. The jobs upload no artifact, so the shards have no file name to clash on. If you add an upload step, put the shard number in the artifact name. To run one shard on your machine: `CI=1 PW_PORT=3012 npx playwright test --project=chromium --shard=1/2 <the spec list of ci.yml>`.
+The `main` ruleset must require the two shard names, `e2e (1/2)` and `e2e (2/2)`, in place of a check called `e2e`: a required check with a name that never reports blocks the merge. Mark updates the ruleset. The jobs upload no artifact, so the shards have no file name to clash on. If you add an upload step, put the shard number in the artifact name. To run one shard on your machine: `CI=1 PW_PORT=3012 npx playwright test --project=chromium <the specs of one matrix entry in ci.yml>`.
 
 | Spec | What |
 |---|---|
