@@ -1,15 +1,17 @@
 # CI for pull requests and for pushes to main.
 #
-# Six jobs run at the same time (`e2e` is four shards, so it counts as four). None waits for another, so a pull
-# request waits for the slowest job, not for all of them added together.
+# The jobs run at the same time (`e2e-shards` is six shards, so it counts as six). None waits for another except the `e2e` gate, so a pull
+# request waits for the slowest job, not for all of them added together. The full strategy, with a diagram, is in docs/CI.md.
 #
 #   check        lint, typecheck, unit tests and the bundle budget (both builds, the game and the lab page). The ruleset on main requires
 #                this check by name. So the job id must stay `check`, it must not get a different
 #                `name:`, and it must always start and report (see "Check which files changed"
-#                below).
-#   e2e          the Playwright specs, on Chromium (the engine canary suite and the default-path goldens included), split into four shards by a matrix. The checks are
-#                named `e2e (1/4)` to `e2e (4/4)`: no check is called plain `e2e` any more. The `main` ruleset must require all four shard names (and `check`);
-#                a required check called `e2e` would wait for ever. Each shard has its own named spec list in the matrix (`--shard` split by test count and was lopsided: 143 tests against 78). The cap is 30 minutes for each shard.
+#                below). On a docs-only pull request it runs only tests/roadmap.test.ts (it reads docs/).
+#   e2e-shards   the Playwright specs, on Chromium (the engine canary suite and the default-path goldens included), split into six shards by a matrix. The checks are
+#                named `e2e (1/6)` to `e2e (6/6)`. The ruleset does NOT require these names. Each shard has its own named spec list in the matrix (`--shard` split by test
+#                count and was lopsided). The cap is 30 minutes for each shard.
+#   e2e          the gate. It needs every shard, and it fails unless the shards' result is `success` (a failed, cancelled or skipped shard fails it). The ruleset on main
+#                requires `check`, `e2e-engines` and `e2e`, so the number of shards can change with no ruleset change. Keep the job id and name `e2e`.
 #   e2e-engines  the game over and shipped-build specs, on WebKit (the whole flow) and Firefox (the E5 message: no WebGL 2 on this runner)
 #
 # A change that touches only docs/, *.md files, tools/command-center/ or the Claude review workflow
@@ -36,6 +38,8 @@ on:
   # so its required checks stay "Pending" and the pull request cannot merge. Here the jobs always
   # start, and each one skips its own steps when the change needs no checks.
   pull_request:
+  # A full run by hand (Actions tab, Run workflow). The "Check which files changed" step runs only on a pull request, so a manual run is always a full run.
+  workflow_dispatch:
 
 # The jobs only read the code, so the token gets no more than that.
 permissions:
@@ -105,13 +109,17 @@ jobs:
               | tee -a "$GITHUB_STEP_SUMMARY"
           fi
           echo "skip=$skip" >> "$GITHUB_OUTPUT"
+      # Node and the packages are installed on a docs-only pull request too, because the roadmap test below needs them (it is cheap: no browser, no build).
       - uses: actions/setup-node@v4
-        if: steps.scope.outputs.skip != 'true'
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-        if: steps.scope.outputs.skip != 'true'
+      # On a docs-only pull request this is the one test that runs. tests/roadmap.test.ts reads docs/engine/migration.md and docs/roadmap/*, so the docs-only skip must not hide a drift there.
+      # (On any other change `npm test` below runs it with all the other unit tests.)
+      - name: Roadmap test (docs-only pull request)
+        if: steps.scope.outputs.skip == 'true'
+        run: npx vitest run tests/roadmap.test.ts
       - run: npm run lint
         if: steps.scope.outputs.skip != 'true'
       - run: npm run typecheck
@@ -124,37 +132,46 @@ jobs:
         if: steps.scope.outputs.skip != 'true'
         run: npm run budget
 
-  e2e:
-    # The check is named `e2e (1/4)` to `e2e (4/4)`. The name is set here because the matrix has two values (shard and specs), and the default name would list both.
+  e2e-shards:
+    # The check is named `e2e (1/6)` to `e2e (6/6)`. The name is set here because the matrix has two values (shard and specs), and the default name would list both.
+    # The job id is `e2e-shards` so that the gate job below can be called `e2e`.
     name: e2e (${{ matrix.shard }})
     runs-on: ubuntu-latest
-    # Each shard takes about 6 to 8 minutes of tests on a normal runner (about 2 minutes more for the setup). The two shard job took 14 to 18 minutes, and the unsplit job about 30.
-    # The field parity spec (31 states, about 11 minutes alone) is two files now, `sje-field-parity-a` and `-b`, which sit in different shards. 30 minutes is room for a runner three
-    # times as slow as the normal one (a slow runner took 27 minutes for the field parity file alone, which takes about 10 on a normal one). Do not raise it to hide a hang: a spec that needs more should be split.
+    # Each shard takes about 5 to 6 minutes of tests on a normal runner (about 1 minute more for the setup).
+    # The field parity spec (31 states) is four files, `sje-field-parity-a` to `-d`, which sit in different shards. 30 minutes is room for a runner several times as slow as the normal one
+    # (a slow runner took 27 minutes for the old single field parity file, which takes about 10 on a normal one). Do not raise it to hide a hang: a spec that needs more should be split.
     timeout-minutes: 30
     strategy:
       # A failure in one shard must not cancel the others: the other reports are worth the wait.
       fail-fast: false
       matrix:
         # The specs are split by name, not with `--shard`: Playwright's `--shard` splits by test count, and it gave one shard 143 tests (the slow ones) and the other 78 (4 minutes).
-        # The lists are balanced by measured time (the green run 38111996439, about 25 minutes of tests in all, so about 6 minutes for each shard):
-        #   1/4 about 6.5 min: field parity A (about 5.5), fx, gpufx, fxlab.   2/4 about 6 min: field parity B (about 5.5), canaries.
-        #   3/4 about 6 min: default-path, playthrough, gameover, prod.        4/4 about 6.5 min: field, battle, draws, economy, chaos, stage parity, shell.
-        # A new spec is added to the shard with the smallest total.
+        # The lists are balanced by measured time: the seconds of each spec come from the green runs 38150548004 and 38156248801 (one worker, the list reporter).
+        # The four field parity files are estimates from the old a (365 s) and b (230 s) files, split by test count. Shard totals in seconds of tests:
+        #   1/6 336 (default-path 283, fx 41, fxlab 12)          2/6 345 (field parity A 195, playthrough 150)
+        #   3/6 354 (field parity B 170, battle 145, gpufx 39)   4/6 338 (field parity C 150, gameover 141, canaries 47)
+        #   5/6 314 (field parity D 80, prod 117, field 117)     6/6 364 (draws 113, economy 99, stage parity 59, chaos 50, shell 43)
+        # A new spec is added to the shard with the smallest total, or to the NOT_IN_CI list in tests/ci-shards.test.ts with a reason. That test fails on a spec that is in no list.
         include:
-          - shard: '1/4'
+          - shard: '1/6'
             specs: >-
-              e2e/sje-field-parity-a.spec.ts e2e/sje-fx.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts
-          - shard: '2/4'
+              e2e/default-path.spec.ts e2e/sje-fx.spec.ts e2e/fxlab.spec.ts
+          - shard: '2/6'
             specs: >-
-              e2e/sje-field-parity-b.spec.ts e2e/sje-canaries.spec.ts
-          - shard: '3/4'
+              e2e/sje-field-parity-a.spec.ts e2e/playthrough.spec.ts
+          - shard: '3/6'
             specs: >-
-              e2e/default-path.spec.ts e2e/playthrough.spec.ts e2e/gameover.spec.ts e2e/prod.spec.ts
-          - shard: '4/4'
+              e2e/sje-field-parity-b.spec.ts e2e/sje-battle.spec.ts e2e/gpufx.spec.ts
+          - shard: '4/6'
             specs: >-
-              e2e/sje-field.spec.ts e2e/sje-battle.spec.ts e2e/sje-draws.spec.ts e2e/economy.spec.ts
-              e2e/chaos.spec.ts e2e/sje-stage-parity.spec.ts e2e/sje-shell.spec.ts
+              e2e/sje-field-parity-c.spec.ts e2e/gameover.spec.ts e2e/sje-canaries.spec.ts
+          - shard: '5/6'
+            specs: >-
+              e2e/sje-field-parity-d.spec.ts e2e/prod.spec.ts e2e/sje-field.spec.ts
+          - shard: '6/6'
+            specs: >-
+              e2e/sje-draws.spec.ts e2e/economy.spec.ts e2e/sje-stage-parity.spec.ts
+              e2e/chaos.spec.ts e2e/sje-shell.spec.ts
     steps:
       - uses: actions/checkout@v4
         with:
@@ -199,7 +216,7 @@ jobs:
         if: steps.scope.outputs.skip != 'true'
       # The specs are listed by name and not run as "all of them": shots.spec.ts and
       # audio-evidence.spec.ts rewrite files under docs/, they are not tests. So a new spec must
-      # be added to this list. playtest.spec.ts runs in playtest.yml. perf.spec.ts (frame timing) is not
+      # be added to a shard list (or to NOT_IN_CI in tests/ci-shards.test.ts, with a reason). playtest.spec.ts runs in playtest.yml. perf.spec.ts (frame timing) is not
       # here on purpose: a software renderer says nothing about GPU timing, so it runs locally (npm run perf).
       #
       # CI must be set. playwright.config.ts then uses the bundled Chromium (not Edge) and adds the
@@ -215,14 +232,14 @@ jobs:
       # the 'art' mode, which needs Mark's git-ignored sheets, skip themselves on CI). The stage contract (tests/sje-stage-contract.test.ts, tests/battlestage-640.test.ts,
       # tests/enemies-data.test.ts) runs in `npm test`, and so does tests/sje-boot-order.test.ts (M6: `routePostfx` before `bootGame`). The pictures for Mark (media/) are made locally.
       # sje-field.spec.ts (M5) plays the shipped field on the Pixi stage (walk, real warps, emote, follower, the editor contract, both fallbacks, the leak tests, crisp pixels).
-      # sje-field-parity-a.spec.ts and sje-field-parity-b.spec.ts (M5; one file until M6, split to balance the shards, sharing e2e/sjefieldparityparts.ts) are the field against references made from the OLD field on SwiftShader (tests/fixtures/sjefield/soft; the old path is gone, so they cannot be made
+      # sje-field-parity-a.spec.ts to sje-field-parity-d.spec.ts (M5; one file until M6, then two, now four to balance the shards, sharing e2e/sjefieldparityparts.ts) are the field against references made from the OLD field on SwiftShader (tests/fixtures/sjefield/soft; the old path is gone, so they cannot be made
       # again): 31 fixed states, the measured bounds and the controls. The strict gate of the brief does not hold for lit frames and is opt in (SJEFIELD_STRICT=1). The pictures for
       # Mark are made locally.
       # default-path.spec.ts (M6) is the goldens of the default page: title, field (rustyard), a battle and Options, one frame each, against tests/fixtures/defaultpath/soft (made with
       # M6_REFS=1 CI=1), with a 2/255 step and a one-pixel move as controls.
       # fxlab.spec.ts is the FX lab on the new engine (M6): list, edit, the invalid-edit case, and the save endpoint's dry run.
       # e2e/webgl2kit.ts is a helper of prod.spec.ts and gameover.spec.ts (the E5 check), not a spec: it is not in the list.
-      # Each shard runs its own spec list (matrix `specs`). Every spec above must be in exactly one list.
+      # Each shard runs its own spec list (matrix `specs`). Every spec above must be in exactly one list. tests/ci-shards.test.ts checks it.
       # This job uploads no artifact and no report (the reporter is `list`), so the shards have no file name to clash on. If an upload step is ever added, put the
       # shard in its name (`matrix.shard` has a slash, so use `strategy.job-index`), or the second upload fails with a name conflict.
       - name: E2E on Chromium, shard ${{ matrix.shard }} (every spec except the playtest, with the engine canaries)
@@ -231,6 +248,25 @@ jobs:
           npx playwright test --project=chromium ${{ matrix.specs }}
         env:
           CI: '1'
+
+  # The gate. The ruleset requires this check (with `check` and `e2e-engines`) and not the shard names, so the shard count can change freely.
+  # `if: always()` makes it run when a shard fails or is cancelled. Without it a failed shard would SKIP this job, and a skipped job reports success.
+  # It fails closed: only a `success` result of the whole shard matrix passes (`failure`, `cancelled` and `skipped` all fail).
+  e2e:
+    needs: e2e-shards
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail unless every e2e shard succeeded
+        env:
+          SHARDS_RESULT: ${{ needs.e2e-shards.result }}
+        run: |
+          echo "The e2e shards finished with: $SHARDS_RESULT"
+          if [ "$SHARDS_RESULT" != 'success' ]; then
+            echo '::error::An e2e shard did not succeed (failed, cancelled or skipped), so the e2e gate fails.'
+            exit 1
+          fi
 
   e2e-engines:
     runs-on: ubuntu-latest
