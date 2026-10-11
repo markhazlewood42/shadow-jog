@@ -1,6 +1,6 @@
 /**
  * DEV hooks for the field (M5 task 8 and 9): put the field in a fixed state, and read its state back. Loaded on first use by `window.__SJ__.fieldShow` and `fieldInfo`
- * (src/boot.ts), in a DEV build only, on the old path and on the new one alike, so the parity harness (`e2e/sje-field-parity.spec.ts`,
+ * (src/boot.ts), in a DEV build only, on the old path and on the new one alike, so the parity harness (`e2e/sje-field-parity-a.spec.ts` and `-b`,
  * `scripts/sjefield-refs.mjs`) puts both paths in the same state with the same code.
  *
  * A fixed state is a map, a tile and a facing, a stage preset for the story flags (`src/game/stages.ts`) with a few flags changed, and two look overrides: the ambient color
