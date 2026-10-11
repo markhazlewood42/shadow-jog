@@ -93,21 +93,9 @@ Balance targets live in `balance.test.ts` (`stages` array: win rate, rounds, HP 
 Locally it runs **Edge**. One worker, one at a time. Run a single spec: `npx playwright test e2e/chaos.spec.ts
 --reporter=line`; one test: `-g "name"`.
 
-CI (`.github/workflows/ci.yml`) runs six jobs at the same time (`e2e` is four shards), so a pull request waits for the slowest one:
+CI (`.github/workflows/ci.yml`) runs `check`, six e2e shards (`e2e (1/6)` to `e2e (6/6)`), an `e2e` gate and `e2e-engines` at the same time. The `main` ruleset requires `check`, `e2e-engines` and `e2e`, not the shard names. The full strategy is in [`docs/CI.md`](CI.md): the jobs and the shard spec lists with seconds, the docs-only skip, how to add a spec (register it in a shard or in `NOT_IN_CI`, which `tests/ci-shards.test.ts` enforces), how to rebalance, and how to force a full run (Actions tab, Run workflow). To run one shard on your machine: `CI=1 PW_PORT=3012 npx playwright test --project=chromium <the specs of one matrix entry in ci.yml>`.
 
-| Job | What |
-|---|---|
-| `check` | Lint, typecheck, unit tests, the bundle budget. The `main` ruleset requires this check, so keep the job name |
-| `e2e (1/4)` to `e2e (4/4)` | Every spec except `playtest`, `perf`, `sje-bench`, `sje-pictures`, `sje-scene3d`, `shots` and `audio-evidence` (the last two regenerate files; the others need a GPU or make pictures), on Chromium. A matrix gives each shard its own named spec list (`--shard` split by test count, not by time, and was lopsided). The lists are balanced by measured time (the field parity spec is two files, `sje-field-parity-a` and `-b`, in different shards). Add a new spec to the list with the smallest total. The cap is 30 minutes for each shard (a normal run takes 8 to 10 with the setup). No check is called plain `e2e` now |
-| `e2e-engines` | `gameover` and `prod` on WebKit (the whole flow) and Firefox (no WebGL 2 on the runner: the E5 message, no game) |
-
-The playtest has its own workflow, `.github/workflows/playtest.yml`. It runs on a push to `main` (not one that touches
-only `docs/`, `tools/command-center/` or `.md` files) and from the Actions tab (**Run workflow**, on any branch), not
-on pull requests. A change that touches only those paths skips the work. On a pull request, the jobs still start and
-report success, because a required check that never reports blocks the merge. A new push to a pull request cancels
-that pull request's earlier CI run. A run on `main` is never canceled once it starts.
-
-The `main` ruleset must require the four shard names, `e2e (1/4)`, `e2e (2/4)`, `e2e (3/4)` and `e2e (4/4)`, in place of a check called `e2e`: a required check with a name that never reports blocks the merge. Mark updates the ruleset. The jobs upload no artifact, so the shards have no file name to clash on. If you add an upload step, put the shard number in the artifact name. To run one shard on your machine: `CI=1 PW_PORT=3012 npx playwright test --project=chromium <the specs of one matrix entry in ci.yml>`.
+The playtest has its own workflow, `.github/workflows/playtest.yml`. It runs on a push to `main` (not one that touches only `docs/`, `tools/command-center/` or `.md` files) and from the Actions tab (**Run workflow**, on any branch), not on pull requests.
 
 | Spec | What |
 |---|---|
