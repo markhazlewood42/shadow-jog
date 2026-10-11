@@ -44,6 +44,7 @@ Repo: `markhazlewood42/shadow-jog` (**public**). Owner: Mark Hazlewood (he/him).
     on Fable). Set `effort` on every agent call (a home-base hook requires it): low for a search, medium for a
     verifier, high for a builder in a last round.
   - Mark still decides the look from pictures (send them at once). A hard stop that a plan sets stays.
+- **Sprite Fusion assets are committed (Mark, 2026-10-11).** Mark's Sprite Fusion exports (sheets, `metadata.json`, stills) are saved in the repo, never kept only on his disk: the old rule "git-excluded, never commit" is withdrawn after the exports were lost with a removed worktree. Their terms (spritefusion.com/terms, read 2026-10-11) say Outputs may be used in personal or commercial projects and in a distributed game, claim no ownership, and require no attribution; they do not forbid a public repo, but do not train or benchmark models on them, and never commit the Sprite Fusion API key. Home: `public/art/` (shipped art), laid out as `docs/engine/` and the loader say; until the crew sheets move there from `spritefusion-tests/extracted/`, commit that folder too. Not legal advice: Sprite Fusion does not guarantee the Outputs are copyrightable.
 - **Don't deploy** (shadowjog.com) without Mark's explicit go-ahead; it's the last alpha step, with a secure email
   sign-up whose requirements are in `status.md`.
 - **Branches and PRs (Mark, 2026-10-01):** work goes on a branch per relatively major feature (not per small fix),
