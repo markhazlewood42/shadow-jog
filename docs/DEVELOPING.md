@@ -93,12 +93,12 @@ Balance targets live in `balance.test.ts` (`stages` array: win rate, rounds, HP 
 Locally it runs **Edge**. One worker, one at a time. Run a single spec: `npx playwright test e2e/chaos.spec.ts
 --reporter=line`; one test: `-g "name"`.
 
-CI (`.github/workflows/ci.yml`) runs three jobs at the same time, so a pull request waits for the slowest one:
+CI (`.github/workflows/ci.yml`) runs four jobs at the same time (`e2e` is two shards), so a pull request waits for the slowest one:
 
 | Job | What |
 |---|---|
 | `check` | Lint, typecheck, unit tests, the bundle budget. The `main` ruleset requires this check, so keep the job name |
-| `e2e` | Every spec except `playtest`, `shots` and `audio-evidence` (those two regenerate files), on Chromium |
+| `e2e (1/2)` and `e2e (2/2)` | Every spec except `playtest`, `shots` and `audio-evidence` (those two regenerate files), on Chromium. A matrix runs the same spec list twice, with `--shard=1/2` and `--shard=2/2`, and Playwright gives each shard about half of the spec files. The cap is 30 minutes for each shard. The field parity spec is one file, so it stays whole in one shard. No check is called plain `e2e` now |
 | `e2e-engines` | `gameover` and `prod` on WebKit (the whole flow) and Firefox (no WebGL 2 on the runner: the E5 message, no game) |
 
 The playtest has its own workflow, `.github/workflows/playtest.yml`. It runs on a push to `main` (not one that touches
@@ -106,6 +106,8 @@ only `docs/`, `tools/command-center/` or `.md` files) and from the Actions tab (
 on pull requests. A change that touches only those paths skips the work. On a pull request, the jobs still start and
 report success, because a required check that never reports blocks the merge. A new push to a pull request cancels
 that pull request's earlier CI run. A run on `main` is never canceled once it starts.
+
+The `main` ruleset must require the two shard names, `e2e (1/2)` and `e2e (2/2)`, in place of a check called `e2e`: a required check with a name that never reports blocks the merge. Mark updates the ruleset. The jobs upload no artifact, so the shards have no file name to clash on. If you add an upload step, put the shard number in the artifact name. To run one shard on your machine: `CI=1 PW_PORT=3012 npx playwright test --project=chromium --shard=1/2 <the spec list of ci.yml>`.
 
 | Spec | What |
 |---|---|
@@ -258,6 +260,7 @@ including why it ended at round 12. If a future milestone brings it back:
   effects level `auto` gives `lite` (slower: `PW_NOGPU=1` reproduces it locally). Headless Firefox on CI has no WebGL 2 at all:
   the game does not start there and shows the E5 message, so `prod` and `gameover` skip their game flow on Firefox by
   `browserName` and run one E5 check (`e2e/webgl2kit.ts`, a helper, not a spec).
+- **The one-time graphics notice** (`src/game/gpunotice.ts`, decision 59): on a software renderer the game shows one warning bar, once for each browser profile: "you can turn off GPU effects in Options". It changes no setting. `?debug` switches it off so it cannot sit on the goldens; `e2e/gpufx.spec.ts` opens the page without `?debug` to test it, and `tests/gpunotice.test.ts` holds the controls. To see it on a GPU machine, run `PW_NOGPU=1` or clear the key `shadowjog.gpunotice.v1` on a software browser.
 - **Evidence runs take ~25 minutes** and use ports 3007/3008; don't start a manual preview on 3008 during one.
 - **`vite.config.ts` edited in several writes** (a script making one replacement at a time) can leave the dev
   server running a half-edited config. It restarts on the first write and may miss the rest (2026-10-02: one
