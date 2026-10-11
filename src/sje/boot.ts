@@ -58,10 +58,6 @@ interface DisplayAdapter {
 }
 
 export async function startSje(markStarted: () => void): Promise<void> {
-  // The game's own boot (scenes, systems) is a chunk of its own, fetched while the engine makes its canvas and context. A static import would merge it with the engine into one
-  // 770 kB chunk, over the largest-chunk cap of scripts/bundle-budget.mjs, and any edit to the game would then change the hash of Pixi's code too.
-  const gameBoot = import('../boot');
-  void gameBoot.catch(() => undefined); // a failure shows where it is awaited below; this only stops a second, unhandled report if Game.create fails first
   const stage = document.getElementById('stage') ?? document.body;
   // The GL object counter must wrap the context calls before the context exists.
   const dev = import.meta.env.DEV ? await import('../sje-lab/devhook') : null;
@@ -81,44 +77,61 @@ export async function startSje(markStarted: () => void): Promise<void> {
       record: (frameMs, tickMs) => perf.record(frameMs, tickMs),
     },
   });
-  // The old 2D canvas is not used on this path.
-  document.getElementById('screen')?.remove();
-  const canvas = stage.querySelector('canvas');
-  if (!canvas) throw new Error('The new engine made no canvas');
-  const display: DisplayAdapter = {
-    mode: 'integer',
-    resize: () => game.scale.refit(),
-    // Switches the effects (M2). On means the level the ?fx= override (dev and test only) or the player asked for; `auto` there can still end up as `lite` on a software renderer.
-    setGpu: (on) => {
-      game.fxLevel = on ? (forcedFx() ?? (settings.fxLevel === 'none' ? 'auto' : settings.fxLevel)) : 'none';
-      return game.fx.active;
-    },
-    get fxLevel() {
-      return game.fx.level;
-    },
-    toGame: (x, y) => game.scale.toGame(x, y),
-    element: canvas,
-  };
-  // The effects: `postfx` becomes `game.fx`, and `game.fx` gets the data. `src/boot.ts` sets the comfort settings and calls `postfx.update()` once a tick.
-  const problems = game.fx.loadData(FX);
-  if (problems.length > 0) throw new Error(`src/data/fx.json is not valid: ${problems.join('; ')}`);
-  routePostfx(postfx, () => game.fx);
-  // The battle stage: loaded when the first battle asks for it (src/scenes/battlekit/stageseam.ts).
-  // A failed load is a notice and the legacy renderer, never a fight that does not start (battlekit/stageseam.ts).
-  setBattleStageProvider(lazyStageProvider(async () => (await import('../battlestage/liveopen')).liveProvider));
-  // The field stage (M5): the field asks for it when it enters (src/scenes/fieldkit/fieldseam.ts). Loaded on first use; a failed load is a notice and the field draws itself.
-  // The code is fetched ahead, so the first field does not wait for it.
-  setFieldStageProvider(lazyFieldStageProvider(async () => (await import('../fieldstage/fieldopen')).fieldProvider));
-  fieldStages.warm();
-  // The notice overlay, as `main.ts` registers it on the old path.
-  game.overlays.push(drawNotice);
-  // The notice bar is the one overlay: a legacy scene that draws nothing of its own (the staged field) paints its canvas only while a notice shows.
-  game.overlayWanted = () => currentNotice() !== null;
-  const { boot: bootGame } = await gameBoot;
-  bootGame(game as unknown as OldGame, display as unknown as OldDisplay);
-  dev?.attach(game);
-  const bootEl = document.getElementById('boot');
-  if (bootEl) bootEl.style.display = 'none';
+  // The game's own boot (scenes, systems) is a chunk of its own. A static import would merge it with the engine into one 770 kB chunk, over the largest-chunk cap of
+  // scripts/bundle-budget.mjs, and any edit to the game would then change the hash of Pixi's code too. It is requested only now that `Game.create` has succeeded, so a
+  // browser without WebGL 2 (decision E5) does not download game code that cannot run. The rest of this function is synchronous until the `await` below, so the fetch still
+  // overlaps the setup.
+  const gameBoot = import('../boot');
+  void gameBoot.catch(() => undefined); // a failure shows where it is awaited below, through the `catch` of this function; this only stops a second, unhandled report
+  try {
+    // The old 2D canvas is not used on this path.
+    document.getElementById('screen')?.remove();
+    const canvas = stage.querySelector('canvas');
+    if (!canvas) throw new Error('The new engine made no canvas');
+    const display: DisplayAdapter = {
+      mode: 'integer',
+      resize: () => game.scale.refit(),
+      // Switches the effects (M2). On means the level the ?fx= override (dev and test only) or the player asked for; `auto` there can still end up as `lite` on a software renderer.
+      setGpu: (on) => {
+        game.fxLevel = on ? (forcedFx() ?? (settings.fxLevel === 'none' ? 'auto' : settings.fxLevel)) : 'none';
+        return game.fx.active;
+      },
+      get fxLevel() {
+        return game.fx.level;
+      },
+      toGame: (x, y) => game.scale.toGame(x, y),
+      element: canvas,
+    };
+    // The effects: `postfx` becomes `game.fx`, and `game.fx` gets the data. `src/boot.ts` sets the comfort settings and calls `postfx.update()` once a tick.
+    const problems = game.fx.loadData(FX);
+    if (problems.length > 0) throw new Error(`src/data/fx.json is not valid: ${problems.join('; ')}`);
+    routePostfx(postfx, () => game.fx);
+    // The battle stage: loaded when the first battle asks for it (src/scenes/battlekit/stageseam.ts).
+    // A failed load is a notice and the legacy renderer, never a fight that does not start (battlekit/stageseam.ts).
+    setBattleStageProvider(lazyStageProvider(async () => (await import('../battlestage/liveopen')).liveProvider));
+    // The field stage (M5): the field asks for it when it enters (src/scenes/fieldkit/fieldseam.ts). Loaded on first use; a failed load is a notice and the field draws itself.
+    // The code is fetched ahead, so the first field does not wait for it.
+    setFieldStageProvider(lazyFieldStageProvider(async () => (await import('../fieldstage/fieldopen')).fieldProvider));
+    fieldStages.warm();
+    // The notice overlay, as `main.ts` registers it on the old path.
+    game.overlays.push(drawNotice);
+    // The notice bar is the one overlay: a legacy scene that draws nothing of its own (the staged field) paints its canvas only while a notice shows.
+    game.overlayWanted = () => currentNotice() !== null;
+    const { boot: bootGame } = await gameBoot;
+    bootGame(game as unknown as OldGame, display as unknown as OldDisplay);
+    dev?.attach(game);
+    const bootEl = document.getElementById('boot');
+    if (bootEl) bootEl.style.display = 'none';
+  } catch (e) {
+    // A failure after the canvas and the GL context exist (the game chunk did not load, fx.json is invalid, the game's own boot threw): free them. Left alone, the page shows
+    // the "failed to start" text over a live, empty Game, and a retry would add a second context. The loop has not started, so nothing is running.
+    try {
+      game.destroyForTests(); // named for tests, but it is the one teardown; the context is ours alone here (the game never started)
+    } catch (cleanup) {
+      console.error(cleanup);
+    }
+    throw e;
+  }
   game.start();
   markStarted();
   // The page's own pre-start error screen (index.html) stands down.

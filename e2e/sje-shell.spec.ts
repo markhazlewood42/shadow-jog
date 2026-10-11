@@ -280,4 +280,21 @@ test.describe('the real game on the new engine', () => {
       await g.close();
     }
   });
+
+  test('a game chunk that fails to load shows the "failed to start" text and leaves no canvas behind', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const page = await context.newPage();
+    try {
+      // The game's boot chunk (src/boot.ts under the dev server) cannot be fetched: a network failure. The engine itself loads, so a Game and its canvas exist when this happens.
+      await page.route(/\/src\/boot\.ts(\?|$)/, (route) => route.abort('failed'));
+      await page.goto('/?debug');
+      await page.waitForFunction(() => /failed to start/i.test(document.getElementById('boot')?.textContent ?? ''), null, { timeout: 30_000 });
+      await expect(page.locator('#boot')).toBeVisible();
+      // Not half-booted: no canvas in the stage, and the page did not claim a start.
+      expect(await page.locator('#stage canvas').count()).toBe(0);
+      expect(await page.evaluate(() => (window as unknown as { __sjStarted?: boolean }).__sjStarted ?? false)).toBe(false);
+    } finally {
+      await context.close();
+    }
+  });
 });
