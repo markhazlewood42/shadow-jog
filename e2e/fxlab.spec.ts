@@ -37,6 +37,10 @@ test('the FX lab opens with every preset and moment, and edits play live', async
   await page.locator('#fxlab label', { hasText: 'Auto-repeat' }).locator('input[type=checkbox]').uncheck();
   await expect.poll(() => sj<number>(page, 'sj.fxCounts().particles')).toBe(0);
   const box = await page.locator('canvas').boundingBox();
+  // A pointer event whose target is the stage itself (its margin, or an overlay in it) is not a click on the picture: no effect. Control: the click below, on the canvas, fires one.
+  await page.evaluate(([x, y]) => document.getElementById('stage')!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: x!, clientY: y! })), [box!.x + box!.width / 2, box!.y + box!.height / 2]);
+  await page.waitForTimeout(300);
+  expect(await sj<number>(page, 'sj.fxCounts().particles')).toBe(0);
   await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
   await expect.poll(() => sj<number>(page, 'sj.fxCounts().particles')).toBeGreaterThan(0);
   // Every moment the game plays is on the Moments tab.

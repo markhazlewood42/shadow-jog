@@ -139,6 +139,8 @@ export class FxLabScene implements LegacyShape<void> {
   private resolver: (() => void) | null = null;
   private panel: HTMLDivElement | null = null;
   private style: HTMLStyleElement | null = null;
+  /** The game's canvas, where a click fires an effect. */
+  private canvas: HTMLCanvasElement | null = null;
   private body: HTMLDivElement | null = null;
   private statusEl: HTMLDivElement | null = null;
   private tab: 'presets' | 'moments' | 'spells' = 'presets';
@@ -201,8 +203,9 @@ export class FxLabScene implements LegacyShape<void> {
     const stage = document.getElementById('stage');
     if (stage) stage.style.right = `${PANEL_W}px`;
     this.game.scale.refit();
-    // The page's one canvas lives in #stage, so a click on the picture bubbles up to it.
-    stage?.addEventListener('pointerdown', this.onPointer);
+    // Only the game's canvas, not the whole stage: the letterbox margin and overlays inside #stage must not fire an effect.
+    this.canvas = stage?.querySelector('canvas') ?? null;
+    this.canvas?.addEventListener('pointerdown', this.onPointer);
     window.addEventListener('beforeunload', this.onUnload);
     this.build();
   }
@@ -213,7 +216,8 @@ export class FxLabScene implements LegacyShape<void> {
     const stage = document.getElementById('stage');
     if (stage) stage.style.right = '';
     this.game.scale.refit();
-    stage?.removeEventListener('pointerdown', this.onPointer);
+    this.canvas?.removeEventListener('pointerdown', this.onPointer);
+    this.canvas = null;
     window.removeEventListener('beforeunload', this.onUnload);
     this.game.fx.clear();
   }
