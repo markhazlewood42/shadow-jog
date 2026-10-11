@@ -59,13 +59,15 @@ K-M Annex 7). About 45–75 minutes. Design lives in `docs/GDD.md`.
 
 9. **Phase 0 spike and the size decision (2026-10-05).** The platform spike (draft PR #11, never merged) built the engine kernel on Pixi v8, the 3D path with Three.js on one shared WebGL2 context, the battle stage slice (exact pixel parity with the Phaser spike) and the 480x270 against 640x360 mock. Every step passed the independent verification loop. Mark chose **640x360**: the art keeps its size, and more of the world shows. The spike re-measured every size-dependent exit criterion at 640x360, and all of them hold. The Result section of the spike doc is a draft: recommended GO, Mark decides.
 
-### Right now (2026-10-10, M6 built, in verification)
+### Right now (2026-10-10, M6 PR #58 open, checkpoint 2 for Mark)
 
-M6 "Flip default" is built on branch `engine-m6-flip` (not yet a PR). Brief: `docs/engine/m6-brief.md`; survey: `docs/engine/m6-survey.md`. Mark answered decisions 1 and 4 with A (issues #56 and #57); 2, 3, 5, 6 and 7 stay as recommended. Builder A (tasks 1 to 4, d8f4ac0) flipped the default and deleted `src/engine/gl/`; Builder B (tasks 5 to 8, 9da4a0d) ported the FX lab, added the no-WebGL-2 hint, set the bundle caps (total 452 kB, first play 392.4 kB) and added `e2e/default-path.spec.ts`. Next: the runner (pass lines 1 to 13) and the reader of the lean loop, then the PR, CI and the GPU run (pass line 15). Open for the verifiers: the soft goldens were made on Windows and Linux CI is unproven; the battle party draws as plain blocks on the real-clock default page (check against `main`); `src/sje/boot.ts` now loads the game with a dynamic import (a change the brief did not list).
+M6 "Flip default" is [PR #58](https://github.com/markhazlewood42/shadow-jog/pull/58) on branch `engine-m6-flip`. The new engine is the default and `src/engine/gl/` is gone. Brief and Record: `docs/engine/m6-brief.md`. Lean loop done: runner and reader found one Critical (the build stamp inside the goldens, fixed by pinning `SJ_BUILD_SHA=e2e`), CI found three test-side failures (fixed), two automated reviews were triaged (4 fixes). CI was green before the triage commits; a re-run is in progress. GPU run: 12 of 12 pass, 2D interval p95 18.10 ms (bare 18.10), cost p95 1.70 ms (numbers in `tooling-and-testing.md` section 7).
+
+Two things for Mark to decide: (1) the old GPU slow-frame fallback is gone (restore a frame-time fallback, or accept); (2) on the default page the battle crew draws as blocks when the Sprite Fusion sheets are missing (they are git-ignored; options a to d in the Record). Both existed before the flip in the new engine, but the old default did not show them.
 
 **Next up for Mark**
 
-1. None open. After the verifiers pass and CI is green, play `http://localhost:3007/` (no flag), then merge or send work back.
+1. Play `http://localhost:3007/` (no flag), then answer the two decisions above, then merge PR #58 or send work back.
 
 ### Earlier: M5 merged (history)
 
