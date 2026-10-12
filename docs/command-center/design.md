@@ -325,7 +325,7 @@ A workstream is one branch, plus everything that joins to it by branch name: its
 type: workstream
 title: M6 flip default
 branch: engine-m6-flip
-roadmap: m6            # id in roadmap.json
+roadmap: M6            # id in roadmap.json
 state: review          # active | review | blocked | parked | merged
 next_for_mark:
   - Rename the required checks in the main ruleset to e2e (1/4) to e2e (4/4)
