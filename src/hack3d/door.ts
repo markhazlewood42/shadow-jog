@@ -18,6 +18,8 @@ import { probeWebGL2 } from '../sje/render/glcontext';
 import type { HackOptions } from './hackscene';
 import { DEFAULT_POLICY, decideHack, type HackDef, type HackOutcome, type HackResult } from './result';
 
+export type { HackOptions } from './hackscene';
+
 /** The engine's game, for the seam in `src/game/hackseam.ts` (the one game file that may name the hack door). A type only: it costs nothing at run time. */
 export type HackGame = Game;
 

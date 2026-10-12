@@ -23,6 +23,8 @@ const BLOOM = { strength: 0.6, radius: 0.4, threshold: 0.55 };
 export interface HackOptions extends Scene3DOptions {
   /** False leaves the 2D HUD out. Headless tests have no canvas to draw its text on. Default true. */
   hud?: boolean;
+  /** False leaves the bloom out (the exact-color check of pass line 13 reads one pixel, and the glow would change it). Default true. */
+  bloom?: boolean;
 }
 
 export class HackScene extends Scene3D<HackResult> {
@@ -35,6 +37,7 @@ export class HackScene extends Scene3D<HackResult> {
   onAbandoned: (() => void) | null = null;
 
   private readonly hudOn: boolean;
+  private readonly bloomOn: boolean;
 
   constructor(
     readonly def: HackDef,
@@ -42,6 +45,7 @@ export class HackScene extends Scene3D<HackResult> {
   ) {
     super(options);
     this.hudOn = options.hud !== false;
+    this.bloomOn = options.bloom !== false;
     this.sim = new HackSim(def);
   }
 
@@ -49,7 +53,7 @@ export class HackScene extends Scene3D<HackResult> {
     const kinds: IceKind[] = this.sim.ice.map((i) => i.kind);
     this.look = buildLook(this.world3D, kinds);
     this.camera3D = this.look.camera;
-    this.bloom = BLOOM;
+    this.bloom = this.bloomOn ? BLOOM : null;
   }
 
   protected override createHud(): void {

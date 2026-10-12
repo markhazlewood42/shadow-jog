@@ -1,4 +1,5 @@
 /** DEV-only scene routes (?scene=...): loaded by boot.ts through a dynamic import in DEV builds. */
+import { hackDef, runHack, setHackDevOverride } from './game/hackseam';
 import { createMember } from './game/party';
 import { applyStage } from './game/stages';
 import { state, type MemberId } from './game/state';
@@ -24,6 +25,17 @@ export function runDevScene(game: Game, scene: string, params: URLSearchParams):
         return sje.run(new FxLabScene(sje));
       });
       break;
+    case 'hack': {
+      // The 3D test scene on its own (M7): ?scene=hack&id=test-hack&frame=canvas-copy. The outcome lands on `__SJ__.lastHack`. The ticks of the definition can be shortened with &ticks=.
+      const over = params.has('ticks') ? { ticks: Number(params.get('ticks')) } : {};
+      const frame = params.get('frame');
+      if (frame === 'shared-context' || frame === 'canvas-copy') setHackDevOverride({ options: { frame } });
+      const sj = (window as unknown as { __SJ__?: Record<string, unknown> }).__SJ__;
+      void runHack(game, hackDef(params.get('id') ?? 'test-hack', over)).then((o) => {
+        if (sj) sj.lastHack = o;
+      });
+      break;
+    }
     case 'stage': {
       // A preset point in the chapter (game/stages.ts): its party, levels, gear, flags and place.
       const st = applyStage(params.get('stage') ?? 'start');

@@ -10,6 +10,7 @@ import { type HackOptions, HackScene } from './hackscene';
 import type { HackDef, HackResult } from './result';
 
 export { frame3dTestSeams, hostsCreated } from '../sje/three';
+export { devColorQuad } from './devprobe';
 export { HackScene, type HackOptions } from './hackscene';
 export { HackSim } from './sim/hacksim';
 
