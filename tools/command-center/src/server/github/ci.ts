@@ -48,6 +48,15 @@ export function parseGhRun(json: string): CiMain {
   if (!Array.isArray(parsed)) throw unreadable(say('ghDetailOutputNotList'));
   const [run] = parsed;
   if (run === undefined) return NO_RUN;
+  return ciFromRun(run);
+}
+
+/**
+ * Reads one run in the shape of `gh run list --json status,conclusion,url,createdAt` (a record with those four fields). The GitHub API adapter
+ * (src/github-api) builds that shape from a check suite and calls this, so the rule for "passing", "failing" and "running" exists once.
+ * Throws a PanelError (code `gh-bad-output`) when the run is not a record.
+ */
+export function ciFromRun(run: unknown): CiMain {
   if (!isRecord(run)) throw unreadable(say('ghDetailFirstEntryNotRun'));
 
   const state = stateOf(wordOf(run.status), wordOf(run.conclusion));

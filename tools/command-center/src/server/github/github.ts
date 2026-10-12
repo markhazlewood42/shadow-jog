@@ -138,7 +138,7 @@ function toReview(raw: unknown): PullRequestReview | null {
 const listOf = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 
 /** One entry of gh's list. `position` counts from 1, for the message when the entry cannot be read. */
-function toPullRequest(raw: unknown, position: number): PullRequest {
+export function toPullRequest(raw: unknown, position: number): PullRequest {
   if (!isRecord(raw)) throw unreadable(say('ghDetailEntryNotPr', { position }));
   const { number, state } = raw;
   if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) throw unreadable(say('ghDetailEntryNoPrNumber', { position }));
@@ -186,8 +186,17 @@ export function parseGhPrs(json: string, now: Date): GithubInfo {
     throw unreadable(say('ghDetailOutputNotJson'));
   }
   if (!Array.isArray(parsed)) throw unreadable(say('ghDetailOutputNotList'));
-  const all = parsed.map((raw, index) => toPullRequest(raw, index + 1));
+  return splitPullRequests(
+    parsed.map((raw, index) => toPullRequest(raw, index + 1)),
+    now,
+  );
+}
 
+/**
+ * Sorts pull requests into the two lists of the panel. `open` is the open ones (drafts too), the one updated last first. `merged` is the ones merged in the 7 days
+ * before `now`, the one merged last first. A closed pull request that was not merged is in neither. The GitHub API adapter (src/github-api) uses it too.
+ */
+export function splitPullRequests(all: readonly PullRequest[], now: Date): GithubInfo {
   const open = all.filter((pr) => pr.state === 'OPEN').sort((a, b) => millisOf(b.updatedAt) - millisOf(a.updatedAt) || b.number - a.number);
   // A merge time a little ahead of this computer's clock (clock drift) is not a reason to drop the pull request.
   const merged = all

@@ -11,6 +11,7 @@
     "cc": "vite build && tsx src/server/main.ts",
     "dev": "tsx watch src/server/main.ts --dev",
     "typecheck": "tsc --noEmit",
+    "github-api-dry-run": "tsx scripts/github-api-dry-run.ts",
     "test": "vitest run",
     "e2e": "playwright test",
     "check": "npm run typecheck && npm run test"

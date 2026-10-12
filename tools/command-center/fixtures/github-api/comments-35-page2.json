@@ -1,0 +1,27 @@
+{
+  "data": {
+    "rateLimit": {
+      "cost": 1,
+      "remaining": 3999
+    },
+    "repository": {
+      "issue": {
+        "comments": {
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": "END"
+          },
+          "nodes": [
+            {
+              "author": {
+                "login": "markhazlewood42"
+              },
+              "body": "Decision: A. found on page 2",
+              "createdAt": "2026-10-11T08:40:00Z"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { lstat, readFile, readdir, stat } from 'node:fs/promises';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { getMimeType } from 'hono/utils/mime';
 import MiniSearch from 'minisearch';
+import { slugOf } from '../../shared/doc-slug';
 import type { DocHeading, DocPage, DocRef, DocSummary, NavSection, SearchHit } from '../../shared/types';
 import { type Config, PACKAGE_DIR, isInside } from '../config';
 import { isMissing } from '../fs-errors';
@@ -96,8 +97,8 @@ const sha1 = (text: string): string => createHash('sha1').update(text).digest('h
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-/** The slug of a doc: its repo path without `.md` and without a leading `docs/`. The decisions module uses it to name the doc that an issue links to. */
-export const slugOf = (id: string): string => id.replace(/\.md$/i, '').replace(/^docs\//, '');
+// The slug of a doc lives in src/shared (the decision parser also runs on Vercel, which has no docs index). It is re-exported here, where the server code imports it.
+export { slugOf };
 
 /**
  * What the docs module does when the file watcher reports an error: it logs the error, adds the sentence for it to `problems`, and scans again, so that the site shows

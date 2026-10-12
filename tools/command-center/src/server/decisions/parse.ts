@@ -1,9 +1,9 @@
 import { posix } from 'node:path';
 import { slug as headingId } from 'github-slugger';
 import type { DecisionAnswer, DecisionDocLink, DecisionIssue, DecisionOption } from '../../shared/types';
+import { slugOf } from '../../shared/doc-slug';
 import { decodeOrKeep } from '../docs/links';
 import { httpUrl, isMarkLogin } from '../github/github';
-import { slugOf } from '../docs/index';
 import { say } from '../messages';
 import { PanelError } from '../source';
 

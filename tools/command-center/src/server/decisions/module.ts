@@ -125,6 +125,21 @@ function completed(config: Config, docs: DocIndex, issue: DecisionIssue): Decisi
   };
 }
 
+/**
+ * Puts a decision on the list it belongs to: the open ones, or the ones answered in the last week. Any other (a closed one, an old answer) is on neither list.
+ * The GitHub API adapter (src/github-api) uses it too, so both sources sort decisions in one way.
+ */
+export function addDecision(info: DecisionsInfo, issue: DecisionIssue, now: number): void {
+  if (issue.state === 'open') info.open.push(issue);
+  else if (issue.state === 'answered' && issue.answer !== null && isRecent(issue.answer.at, now)) info.recent.push(issue);
+}
+
+/** The oldest question first, as a list of things to do. The newest answer first, as a list of what happened. */
+export function sortDecisions(info: DecisionsInfo): void {
+  info.open.sort((a, b) => a.number - b.number);
+  info.recent.sort((a, b) => answeredAt(b) - answeredAt(a) || b.number - a.number);
+}
+
 /** The time of the answer as milliseconds, for sorting. */
 const answeredAt = (issue: DecisionIssue): number => Date.parse(issue.answer?.at ?? '') || 0;
 
@@ -159,12 +174,9 @@ export function createDecisionsSource(deps: DecisionsModuleDeps): PanelSource<De
         if (issue.state === 'closed' && issue.answer !== null && isRecent(issue.answer.at, clock)) {
           issue = parseDecisionIssue(raw, await readEvents(config, runner, issue.number)) ?? issue;
         }
-        if (issue.state === 'open') info.open.push(completed(config, docs, issue));
-        else if (issue.state === 'answered' && issue.answer !== null && isRecent(issue.answer.at, clock)) info.recent.push(completed(config, docs, issue));
+        addDecision(info, completed(config, docs, issue), clock);
       }
-      // The oldest question first, as a list of things to do. The newest answer first, as a list of what happened.
-      info.open.sort((a, b) => a.number - b.number);
-      info.recent.sort((a, b) => answeredAt(b) - answeredAt(a) || b.number - a.number);
+      sortDecisions(info);
       return info;
     },
     hub,
