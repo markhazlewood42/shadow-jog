@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "vite build",
+  "outputDirectory": "dist",
+  "ignoreCommand": "node scripts/vercel-ignore.mjs",
+  "functions": {
+    "api/*.ts": { "maxDuration": 30 },
+    "api/docs/*.ts": { "maxDuration": 30 }
+  },
+  "rewrites": [{ "source": "/((?!api/|api$).*)", "destination": "/index.html" }]
+}
