@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -44,7 +44,10 @@ function problemsIn(code: string): string[] {
 }
 
 let outDir = '';
-const code = (name: string): string => readFileSync(join(outDir, `${name}.js`), 'utf8');
+/** Vercel finds its functions in the uploaded source, before any build, so the built files are COMMITTED in api/. The checks below read those files. */
+const API_DIR = join(PACKAGE_DIR, 'api');
+const code = (name: string): string => readFileSync(join(API_DIR, `${name}.js`), 'utf8');
+const normalize = (text: string): string => text.replace(/\r\n/g, '\n');
 
 beforeAll(async () => {
   outDir = mkdtempSync(join(tmpdir(), 'cc-functions-'));
@@ -60,12 +63,39 @@ describe('the build script', () => {
     expect(readdirSync(outDir).filter((file) => file.endsWith('.js')).sort()).toEqual(['docs.js', 'live.js', 'snapshot.js']);
   });
 
-  it('builds into the folder it is given, and the real api/ folder holds no source file', () => {
-    // Sources live in functions/. Vercel treats every file in api/ as a function, so api/ must hold nothing but generated .js files.
-    const apiDir = join(PACKAGE_DIR, 'api');
-    const files = existsSync(apiDir) ? readdirSync(apiDir, { recursive: true }).map(String) : [];
-    expect(files.filter((file) => !file.endsWith('.js'))).toEqual([]);
+  it('keeps the sources in functions/, and api/ holds exactly the three built files', () => {
+    // Vercel treats every file in api/ as a function, so api/ must hold nothing else. The editable sources are in functions/.
+    expect(readdirSync(API_DIR, { recursive: true }).map(String).sort()).toEqual(['docs.js', 'live.js', 'snapshot.js']);
     for (const name of NAMES) expect(readFileSync(join(PACKAGE_DIR, 'functions', `${name}.ts`), 'utf8')).toContain('export default');
+  });
+});
+
+describe('the committed bundles in api/ (the drift guard)', () => {
+  it.each(NAMES)('api/%s.js is the same as a fresh build (run `node scripts/build-functions.mjs` and commit api/*.js when this fails)', (name) => {
+    expect(normalize(readFileSync(join(outDir, `${name}.js`), 'utf8'))).toBe(normalize(code(name)));
+  });
+
+  it.each(NAMES)('api/%s.js does not depend on the machine that built it: no absolute path, no backslash path comment', (name) => {
+    const text = code(name);
+    // A drive letter (C:\ or C:/), not the "s:" of a URL like https://
+    expect(text).not.toMatch(/(?<![A-Za-z0-9])[A-Za-z]:\\/);
+    expect(text).not.toMatch(/(?<![A-Za-z0-9])[A-Za-z]:\/(?!\/)/);
+    expect(text).not.toMatch(/\/Users\/|\/home\/|home-base|AppData/);
+    // The raw comment lines (inlinedPaths would turn a backslash into a slash and hide it).
+    const comments = [...text.matchAll(/^\/\/ (\S+\.(?:ts|tsx|js|mjs|cjs|json))$/gm)].map((match) => match[1] as string);
+    expect(comments.length).toBeGreaterThan(3);
+    for (const path of comments) {
+      expect(path, path).not.toContain('\\');
+      expect(path.startsWith('/'), path).toBe(false);
+    }
+  });
+
+  it.each(NAMES)('api/%s.js starts with the generated-file header', (name) => {
+    expect(normalize(code(name)).split('\n')[0]).toBe(`// GENERATED FILE. Do not edit. It is built from functions/${name}.ts by scripts/build-functions.mjs.`);
+  });
+
+  it('the drift guard would notice a change (negative control)', () => {
+    expect(normalize(`${code('live')}// edited\n`)).not.toBe(normalize(readFileSync(join(outDir, 'live.js'), 'utf8')));
   });
 });
 
@@ -134,38 +164,38 @@ describe('running the built files in plain Node ESM (the check that would have c
   const NOT_CONFIGURED = { error: 'not configured', kind: 'not-configured' };
 
   it('snapshot.js: with no environment it answers 500 not configured', () => {
-    const result = runInNode(join(outDir, 'snapshot.js'), 'https://cc.example/api/snapshot');
+    const result = runInNode(join(API_DIR, 'snapshot.js'), 'https://cc.example/api/snapshot');
     expect(result.status).toBe(500);
     expect(JSON.parse(result.body)).toEqual(NOT_CONFIGURED);
   });
 
   it('live.js: with no environment it answers 500 not configured', () => {
-    const result = runInNode(join(outDir, 'live.js'), 'https://cc.example/api/live');
+    const result = runInNode(join(API_DIR, 'live.js'), 'https://cc.example/api/live');
     expect(result.status).toBe(500);
     expect(JSON.parse(result.body)).toEqual(NOT_CONFIGURED);
   });
 
   it('docs.js: with no environment it answers 500 not configured for a good path, and 400 for a hostile one', () => {
-    expect(runInNode(join(outDir, 'docs.js'), 'https://cc.example/api/docs?path=docs/GDD.md').status).toBe(500);
-    expect(runInNode(join(outDir, 'docs.js'), 'https://cc.example/api/docs?path=../CLAUDE.md').status).toBe(400);
+    expect(runInNode(join(API_DIR, 'docs.js'), 'https://cc.example/api/docs?path=docs/GDD.md').status).toBe(500);
+    expect(runInNode(join(API_DIR, 'docs.js'), 'https://cc.example/api/docs?path=../CLAUDE.md').status).toBe(400);
   });
 
   it('snapshot.js: runs the bundled adapter against a stub GitHub (an error reply maps to 502)', () => {
-    const result = runInNode(join(outDir, 'snapshot.js'), 'https://cc.example/api/snapshot', { GITHUB_TOKEN: 'ghp_stub_not_a_real_token' }, { status: 200, contentType: 'application/json', body: JSON.stringify({ errors: [{ type: 'X', message: 'm' }] }) });
+    const result = runInNode(join(API_DIR, 'snapshot.js'), 'https://cc.example/api/snapshot', { GITHUB_TOKEN: 'ghp_stub_not_a_real_token' }, { status: 200, contentType: 'application/json', body: JSON.stringify({ errors: [{ type: 'X', message: 'm' }] }) });
     expect(result.status).toBe(502);
     expect(JSON.parse(result.body)).toEqual({ error: 'GitHub reported an error', kind: 'graphql-error' });
     expect(result.body).not.toContain('ghp_stub_not_a_real_token');
   });
 
   it('docs.js: serves a doc from a stub GitHub, with the path from the query parameter', () => {
-    const result = runInNode(join(outDir, 'docs.js'), 'https://cc.example/api/docs?path=docs/GDD.md', { GITHUB_TOKEN: 'ghp_stub_not_a_real_token' }, { status: 200, contentType: 'application/vnd.github.raw+json; charset=utf-8', body: '# GDD' });
+    const result = runInNode(join(API_DIR, 'docs.js'), 'https://cc.example/api/docs?path=docs/GDD.md', { GITHUB_TOKEN: 'ghp_stub_not_a_real_token' }, { status: 200, contentType: 'application/vnd.github.raw+json; charset=utf-8', body: '# GDD' });
     expect(result).toEqual({ status: 200, body: '# GDD' });
   });
 
   it('live.js: reads a stub Upstash with the read-only token and computes the reporter state', () => {
     const stored = JSON.stringify({ writtenAt: new Date().toISOString(), sessions: [] });
     const result = runInNode(
-      join(outDir, 'live.js'),
+      join(API_DIR, 'live.js'),
       'https://cc.example/api/live',
       { KV_REST_API_URL: 'https://stub.upstash.io', KV_REST_API_READ_ONLY_TOKEN: 'ro_stub_not_a_real_token' },
       { status: 200, contentType: 'application/json', body: JSON.stringify({ result: stored }) },

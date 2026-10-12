@@ -224,17 +224,19 @@ describe('vercel.json', () => {
     expect(existsSync(join(PACKAGE_DIR, 'scripts', 'vercel-ignore.mjs'))).toBe(true);
   });
 
-  it('builds the functions after the page, with the script that exists', () => {
-    expect(config.buildCommand).toBe('vite build && node scripts/build-functions.mjs');
+  it('builds only the page: the function files are committed, because Vercel finds functions before the build', () => {
+    expect(config.buildCommand).toBe('vite build');
     expect(existsSync(join(PACKAGE_DIR, 'scripts', 'build-functions.mjs'))).toBe(true);
   });
 
-  it('sets maxDuration 30 for the built function files, and holds their sources in functions/, not api/', () => {
-    // The sources are in functions/ (a folder Vercel does not look at). api/ holds only what the build script generates, which is git-ignored.
+  it('sets maxDuration 30 for the committed function files in api/, whose sources are in functions/', () => {
+    // The sources are in functions/ (a folder Vercel does not look at). api/ holds the files that scripts/build-functions.mjs writes, and they are tracked by git.
     for (const name of ['snapshot', 'live', 'docs']) expect(existsSync(join(PACKAGE_DIR, 'functions', `${name}.ts`)), name).toBe(true);
     expect(Object.keys(config.functions)).toEqual(['api/*.js']);
     expect(config.functions['api/*.js']?.maxDuration).toBe(30);
-    expect(readFileSync(join(PACKAGE_DIR, '..', '..', '.gitignore'), 'utf8')).toContain('tools/command-center/api/*.js');
+    for (const name of ['snapshot', 'live', 'docs']) expect(existsSync(join(PACKAGE_DIR, 'api', `${name}.js`)), name).toBe(true);
+    // The pattern of vercel.json must match real files in the uploaded source, so the files must not be git-ignored.
+    expect(readFileSync(join(PACKAGE_DIR, '..', '..', '.gitignore'), 'utf8')).not.toMatch(/command-center\/api|api\/\*\.js/);
   });
 
   it('rewrites /api/docs/<path> to the docs function with the path as a query parameter, before the page rewrite', () => {
