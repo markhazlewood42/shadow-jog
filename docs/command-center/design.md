@@ -3,8 +3,8 @@ type: design
 title: "Shadow Jog Command Center — Design"
 project: shadow-jog
 created: 2026-10-05
-updated: 2026-10-08
-status: approved by Mark 2026-10-05 (decision inbox and look added the same day). Revision 2 (live feedback of 2026-10-07) approved by Mark 2026-10-07.
+updated: 2026-10-11
+status: approved by Mark 2026-10-05 (decision inbox and look added the same day). Revision 2 (live feedback of 2026-10-07) approved by Mark 2026-10-07. Revision 3 (live, hosted view) approved by Mark 2026-10-11.
 tags: [tooling, command-center, design]
 ---
 
@@ -21,6 +21,15 @@ A small website that runs on Mark's machine. It is the home base for all Shadow 
 4. The Agents page becomes a live diagram of the active sessions (section 5.4).
 
 Its plan is [plan-revision-2.md](plan-revision-2.md). A section marked "revision 2" replaces the version 1 text.
+
+**Revision 3 is approved, not built (2026-10-11).** Its source is the approved strategy of 2026-10-11, summarized in section 11. It adds a hosted, live view of the project. It changes five things:
+1. Each branch gets one workstream file in git, `docs/workstreams/<branch-slug>.md` (section 5.9).
+2. A hosted copy of the page runs on Vercel. Vercel Authentication with the scope "All Deployments" lets only Mark open it (section 4.3).
+3. Vercel functions read GitHub live (section 6).
+4. A local reporter writes sessions, agents and worktrees to one Upstash Redis key that expires (section 11).
+5. The hosted page polls the functions while its tab is visible (section 4.3).
+
+The build order is in section 11. A section marked "revision 3" adds to or replaces the earlier text.
 
 ---
 
@@ -70,6 +79,24 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 | Doc buttons | A split button as on the markedup-consulting site: "Copy for LLM", with "Download as markdown" in its menu. The copied text has a 2-line source header. |
 | Unknown line (Mark, 2026-10-08) | The Agents page ignores an unknown line in a session file. There is no unknown box. |
 
+### 2.2 Decisions of revision 3 (Mark, 2026-10-11)
+
+| Question | Answer |
+|---|---|
+| Workstream state | One file per branch in git, `docs/workstreams/<branch-slug>.md`. A database for authored state was rejected: it would drift from the markdown docs. |
+| Hosted view | Yes, on Vercel (Hobby plan, account `markhazlewood42`). No Supabase. |
+| Live sessions, agents, worktrees | A small store for heartbeats only: Upstash Redis, installed through the Vercel Marketplace. |
+| `git fetch` by the local CC | Allowed, every 2 minutes, remote-tracking refs only. Only the optional local work (step 6, section 11) needs it. |
+| Where the local CC code runs | Moot for viewing: Mark uses the hosted URL. The local reporter runs from a pinned copy (section 11). |
+
+**Rejected options**
+- GitHub Pages: the page is public, and the cache lasts 10 minutes.
+- Supabase: the project limits are full.
+- A GitHub Action exporter: the functions read GitHub live instead.
+- A database for authored state: it would drift from the markdown docs.
+
+**One choice made for Mark:** the reporter runs from a pinned copy of `origin/main`. A branch switch in the shared checkout then cannot change its code. Mark can change this.
+
 ---
 
 ## 3. Scope
@@ -82,6 +109,9 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 
 **Revision 2 does not change:** the decision inbox, the docs navigation, the engine review aids, the PlasmaUI panels, the look, and the one write route.
 
+**Revision 3 (changed scope):** a hosted view on Vercel is now in scope (section 4.3). It shows Shadow Jog only.
+- **Still out of scope:** write actions on the hosted page, including decision answers. Heartbeats from cloud sessions. Other projects.
+- **A cloud session** shows only through what it pushes. Its pushes show through `/api/snapshot`.
 ---
 
 ## 4. Architecture
@@ -110,6 +140,27 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 - **In short:** a dark skin from the game's own UI colors: navy panels, a lavender frame, white text, amber for the one or two focal items on a screen, cyan for links, and no glow. The fonts are Geist and Geist Mono, as in the diagrams.
 - **One token set:** CSS variables copied from the profile feed both the HeroUI theme on the docs pages and the PlasmaUI mood on the Now page. A change to the profile then needs a change to one token file.
 - **Contrast:** the ratios in `NOTES.md` are the floor for all text.
+
+### 4.3 Hosted mode (revision 3)
+
+A Vercel project hosts the page and a few functions. The functions read GitHub live. A local reporter writes what only this machine knows to Upstash Redis. All code paths are under `tools/command-center/`.
+
+```
+sessions --push--> GitHub <--GraphQL, 15 s cache-- Vercel functions <--poll-- page (Vercel Authentication: Mark only)
+sessions --files--> local reporter --write, keys expire--> Upstash Redis <--read-- Vercel functions
+```
+
+| Change | Shows on the page after |
+|---|---|
+| Session starts, goes busy or idle, starts an agent | about 5 to 15 s (reporter 5 s, page poll 10 s) |
+| An edit to a workstream file in a checkout on this machine, committed or not | about 5 to 15 s |
+| A push, PR, CI result or decision, from any session or the cloud | about 15 to 30 s (cache 15 s, page poll 15 s) |
+
+- **Poll, not push.** On Hobby a function runs at most 300 s, and SSE from a Vercel function is not confirmed in the docs. A poll of a small JSON every 5 to 15 s, only while the tab is visible, is simple and inside the limits (section 11).
+- **Data layer switch.** On Vercel the page polls `/api/snapshot` (15 s) and `/api/live` (10 s), only while the tab is visible. Locally it keeps `/api/*` and SSE. The look does not change.
+- **Login.** Vercel Authentication with the scope "All Deployments" (free on Hobby). The default scope, "Standard Protection", does not protect the production URL. Same-origin `fetch('/api/...')` carries the login cookie. Only members of Mark's Vercel team can open the page or call its functions.
+- **Deploys.** A separate Vercel project from the game, with root `tools/command-center`. An Ignored Build Step deploys only when `tools/command-center/` changes on `main`.
+- **Architecture fit.** The local server reads through the `git` and `gh` CLIs. Vercel has no checkout, so the functions are a new GitHub API adapter (section 6). It returns the same types (`src/shared/types.ts`), so the page and the parsers do not change.
 
 ---
 
@@ -203,6 +254,7 @@ The page reads from top to bottom, in order of importance:
 - **How Mark answers:** he picks an option and can add a note. The server posts a comment ("Decision: <option>. <note>") through `gh`, swaps the label `decision` for `decided`, and closes the issue.
 - **How agents use it:** a rule in `CLAUDE.md` says how to raise a decision issue, and to read the answer with `gh` before acting on it. Agents trust only comments and labels from Mark's account (`markhazlewood42`), because the repo is public and anyone can comment. The agent that needs the answer records it in the docs through its PR, and links that PR in the issue.
 - **Errors:** if `gh` fails, the form keeps Mark's choice, shows the error, and offers a retry.
+- **(Revision 3) Hosted page:** a decision links to its issue on GitHub. Mark cannot answer from the hosted page.
 
 ### 5.6 Status panel (revision 2)
 
@@ -228,6 +280,8 @@ Data:
 - `/api/health` gives the repository address for the links.
 - CI on main is new. The GitHub module reads `gh run list --workflow ci.yml --branch main --limit 1` with the PRs, every 60 seconds. This adds one exact command to the allow-list of the `gh` runner.
 - A row whose source failed shows an error label and a Retry button. The other rows stay.
+
+**Known gap (revision 3).** All sessions edit one `status.md`. The panel reads the "Next up for Mark" list under the first "Right now" heading. The newest state (2026-10-11) is under "M6 PR #58 state", so the panel shows the 2026-10-10 list, with no error. Workstream files (section 5.9) replace `status.md` as the source of per-branch state. `status.md` keeps the overview and the roster. Other gaps of the local CC: it reads only the checked-out branch, the page does not show worktrees or the session `gitBranch`, no module reads `docs/roadmap/roadmap.json`, and it is local only.
 
 ### 5.7 Copy and Download (revision 2)
 
@@ -261,6 +315,35 @@ Mark's rule (2026-10-07): every page shows labels and links only. All text is AS
 
 How it is checked: each task report lists the strings that the task changed, with their word counts before and after. The reader verifier checks each new string against these rules.
 
+### 5.9 Workstreams (revision 3)
+
+A workstream is one branch, plus everything that joins to it by branch name: its PR and checks, its roadmap item (`roadmap.json` `branch`), its live sessions, its worktree, and its state file.
+
+```yaml
+---
+type: workstream
+title: M6 flip default
+branch: engine-m6-flip
+roadmap: m6            # id in roadmap.json
+state: review          # active | review | blocked | parked | merged
+next_for_mark:
+  - Rename the required checks in the main ruleset to e2e (1/4) to e2e (4/4)
+blocked_on: [61]       # decision issue numbers
+updated: 2026-10-11
+---
+```
+
+Rules for sessions (they go into `CLAUDE.md` with the build):
+- A session writes only the workstream file of its own branch, and commits and pushes it with its work. One file per branch, so two sessions never edit the same file.
+- `status.md` keeps the overview and the roster. Only a PR to `main` changes it.
+- Lookup order: the file on its branch first. If the branch is gone (merged and deleted), the file on `main`. The page shows merged workstreams for 14 days.
+- A file that fails validation shows as a red row with its path and the error (section 7).
+
+The page:
+- A new Workstreams view: one card per workstream, grouped by roadmap lane. A card shows the branch, the PR and checks, live sessions, the worktree and `next_for_mark`.
+- "Your move" (section 5.1) also collects `next_for_mark` from every workstream.
+- The data comes from `/api/snapshot` on Vercel (section 6). The local CC gets the same view in step 6 of section 11.
+
 ---
 
 ## 6. Data sources
@@ -273,10 +356,21 @@ How it is checked: each task report lists the strings that the task changed, wit
 | Decisions | Issues with the `decision` or `decided` label, and their comments | The `gh` CLI. Every 60 seconds, on demand, and right after an answer |
 | Claude sessions | The session files for Shadow Jog (found by their working folder), and their agent and workflow records | Only files changed in the last 7 days, and only the end of each file |
 | Process list (revision 2) | `~/.claude/sessions/<pid>.json`: the session id, the pid, the start time, and `busy` or `idle`. No other key leaves the server | Every 3 seconds, with a pid check |
+| GitHub API (revision 3, hosted only) | The same data as the `git` and `gh` rows, for every branch, plus the workstream files | Vercel functions, GitHub GraphQL, read-only token |
+| Live key (revision 3, hosted only) | `live` in Upstash Redis: sessions, agents and worktrees from this machine | `/api/live`, read-only token |
 
 The session files take more than 300 MB on disk. The site reads only the end of each recent file, so the size does not slow it down. Their format can change with a Claude Code update, so the session module must not fail on an unknown line. It shows "unknown" instead.
 
 The process list is an internal file of Claude Code, and its format is not promised. The `agents` module must not fail when the format changes. It falls back to the file ages and says so (section 5.4).
+
+**Vercel functions (revision 3).** All paths are under `tools/command-center/`.
+- **`/api/snapshot`**: two GitHub GraphQL calls. The first lists every branch (`refs(refPrefix: "refs/heads/")`) with its head commit, the open and recent PRs with checks (`statusCheckRollup`) and review state, and the CI result on `main`. The second reads, with one aliased `object(expression: "<branch>:docs/workstreams/<slug>.md")` per branch, every workstream file. It also reads `status.md`, `roadmap.json`, `docs/engine/migration.md` and the decision issues from `main`. Each call costs about 1 to 5 of the 5,000 points an hour. Step 2 tests the exact query shape against the real repo.
+- **Cache**: function instances do not share memory, so the cache is the Vercel CDN (`Cache-Control: s-maxage=15, stale-while-revalidate`) or the Vercel Runtime Cache. Step 3 proves which one works behind Vercel Authentication.
+- **`/api/docs/<path>`**: one doc from `main`, fetched on demand and cached. The page keeps its current doc views.
+- **`/api/live`**: reads the `live` key from Upstash with a read-only token.
+- **Token**: a fine-grained GitHub token, read-only, for `markhazlewood42/shadow-jog` only, in a Vercel environment variable. Vercel gets only the read-only Upstash token.
+- **Trust**: the same rule as now. Only issues, comments and labels by `markhazlewood42` count. The decision parser and the workstream validator are shared code, used locally and on Vercel.
+- **Adapter**: it returns the same types as the local modules (section 4.3). No GitHub Action is needed.
 
 ---
 
@@ -288,6 +382,9 @@ The process list is an internal file of Claude Code, and its format is not promi
 - (Revision 2) The Agents page: an unreadable process list gives the label "Process list unavailable" and the file-age fallback. The page ignores an unknown line in a session file and never throws.
 - (Revision 2) A Status row whose source failed shows an error label and Retry. The other rows stay.
 - (Revision 2) Copy and Download show "Copy failed" or "Download failed" on the button. They never fail silently.
+- (Revision 3) An invalid workstream file shows as a red row with its path and the error. Nothing fails in silence.
+- (Revision 3) "Reporter offline": the page marks local rows with this label when `writtenAt` of the `live` key is older than 150 s, or when the key is gone. Pushed work still shows.
+- (Revision 3) After each deploy, a check without the login cookie (`curl` of the page and of `/api/live`) must return 401. Any other answer means the page is public.
 
 ---
 
@@ -301,6 +398,7 @@ The process list is an internal file of Claude Code, and its format is not promi
 - **Revision 2 unit tests:** the process list reader and the pid check (the pid check is injected), the active set and its fallback, the parent link and the message counts on synthetic fixtures, the box and line layout functions, the milestone key, the CI run parser, the doc source route, and the copy text builder. Fixtures are synthetic. They never hold real session text.
 - **Revision 2 end-to-end tests:** the Agents page with fixture sessions (live, closed, a dimmed finished agent, a workflow chip, the empty state, the fallback label), a new agent that appears within 5 seconds through the live event, Copy and Download on a doc page (the test grants the clipboard permission), the Status rows and the strip, and the Running rows that link to `/agents#session-<id>`. Tests that pin old page text change with the text pass.
 - **Revision 2 verification:** each task has a builder and 2 fresh verifiers (a runner and a reader), all on the smallest model that fits the task (Sonnet for builders and verifiers). A task passes when every criterion scores 7 or more and the average is 8 or more. A task has up to 3 fix rounds, for Critical and Important findings only. Mark gets screenshots as soon as a builder makes them.
+- **Revision 3 verification:** the lean loop in the repo `CLAUDE.md` governs. Steps 3 and 5 of section 11 also get an attacker, because they add a trust boundary and a write path.
 
 ---
 
@@ -325,3 +423,56 @@ The process list is an internal file of Claude Code, and its format is not promi
 | C. Derive the links in the browser from raw files | None | Session files must not leave the server. They hold private text. |
 
 Choice: B. It keeps the live view cheap and leaves Your move untouched.
+
+---
+
+## 11. Revision 3: live, hosted view (approved 2026-10-11)
+
+Mark approved the strategy "Command Center: a live, hosted strategy" (draft 4) on 2026-10-11. This section holds the parts that do not fit in the sections above. The decisions are in section 2.2. The workstream file is in section 5.9. The hosted mode and the latency table are in section 4.3. The functions are in section 6. All code paths are under `tools/command-center/`.
+
+Nothing in revision 3 is built. Goal (Mark): one hosted URL that Mark always uses. It shows a change soon after Mark or any Claude Code session updates the project. It knows every active branch, worktree and session, and shows how each fits the current workstreams.
+
+### 11.1 Local reporter (this machine)
+
+- **It is the local CC server, run headless** (`CC_NO_OPEN=1`) with a new `publish` module. The server already parses session files, the process list (busy or idle), agents and workflows every 3 s. The reporter adds worktrees (`git worktree list`), their dirty file counts, and the workstream files of checked-out branches as they are on disk.
+- **One key, written on change, plus a beat.** The whole live state is one JSON key, `live`, with a 150 s expiry and a `writtenAt` time. The reporter writes it when the state changes, at most once each 5 s, and at least once each 60 s as the beat. No cleanup job is needed. The reporter exits after 30 minutes with no live shadow-jog session.
+- **Private text.** Uncommitted workstream text is not public, unlike the repo. Only Vercel Authentication and the read-only token protect it.
+- **It keeps running on its own.** A `SessionStart` hook starts the reporter if it is not running (a lock file plus a port check). The hook detaches at once with a 1 s budget, so it never slows a session. The hook goes in user-level settings, because sessions often start in `home-base`. It acts only when the session's cwd is inside a shadow-jog checkout or worktree.
+- **It runs from a pinned copy of `origin/main`** in a git-ignored folder, rebuilt when `main` changes `tools/command-center/`. A branch switch in the shared checkout then cannot change its code.
+- **No message text, ever.** Titles, names and counts only, as the local CC does now.
+- **Write token**: the Upstash read-write token, in `C:\Users\markh\.shadow-jog-cc\upstash.env`, outside every repo. The reporter writes to Upstash directly, so it does not pass through Vercel Authentication.
+- Cloud sessions send no heartbeat. Their pushes still show through `/api/snapshot`.
+
+### 11.2 Limits on Hobby (checked 2026-10-11, vercel.com/docs)
+
+| Item | Hobby limit | This plan, rough use |
+|---|---|---|
+| Function invocations | 1,000,000 a month | Page open 8 hours a day: about 230,000 a month |
+| Function duration | 300 s max | Each call is short |
+| Active CPU | 4 hours a month | Small JSON work, cached |
+| GitHub GraphQL | 5,000 points an hour | At most about 240 queries an hour |
+| Upstash free tier (upstash.com/pricing) | 500,000 commands a month, 250 MB | 8 active hours a day: beats 480, change writes up to 5,760 (cap), page reads 2,880 a day. Worst case about 275,000 a month |
+
+Reads are one `GET` of one key, so they do not grow with the number of sessions. What Upstash does at the cap is not stated. The Marketplace free plan is to confirm at install.
+
+### 11.3 Order of work
+
+Each step is one branch from `main`, one PR, and the lean loop (runner and reader). Steps 3 and 5 also get an attacker: a new trust boundary and a write path.
+
+1. **Workstream contract.** `docs/workstreams/README.md` (schema), a shared validator, the first files for the open branches, the session rules in `CLAUDE.md`. Files: `docs/workstreams/`, `CLAUDE.md`, a new `src/shared/workstream.ts`.
+2. **GitHub API adapter, local dry run.** The GraphQL queries, the shared parsers, output in the shared types. Test it against the real repo from a script. Files: a new `src/github-api/`, `src/shared/`.
+3. **Vercel project and functions.** `api/snapshot`, `api/docs`, `api/live`, the cache, the Ignored Build Step (a script: `main` only, and only when `tools/command-center/` changed). First prove that the functions bundle code from `src/` and that the cache works behind the login. **Mark:** create the Vercel project (root `tools/command-center`), add the read-only GitHub token, install Upstash, turn on Vercel Authentication with "All Deployments". Files: a new `api/`, `vercel.json`, an ignore script.
+4. **Hosted page.** The data layer switch, the Workstreams view. Files: `src/web/` (a new data layer and `workstreams/`), `vite.config.ts`.
+5. **Local reporter.** The `publish` module, the pinned-copy launcher, the `SessionStart` hook. Files: a new `src/server/publish/`, a launcher script, the root `package.json`. The hook entry goes in `~/.claude/settings.json` (Mark approves that change).
+6. **Optional, local CC.** The Workstreams view and the 2-minute `git fetch` (`runner.ts` allow-list).
+
+After step 4, pushed work is live on the hosted page. After step 5, sessions and worktrees are live too.
+
+### 11.4 Risks and open points
+
+- **The page is public if the protection scope is wrong.** "Standard Protection" leaves the production URL open. The 401 check after each deploy catches it (section 7).
+- **Upstash cap behavior is not stated.** The plan uses about half of the free commands in the worst case.
+- **The GraphQL query shape is from memory.** Step 2 tests it first.
+- **The reporter is a background process on this machine.** If the machine sleeps, local rows show "reporter offline". Pushed work still shows.
+- **Public repo.** The functions and the reporter code are public and hold no secrets. Tokens stay in Vercel environment variables and in a local file outside every repo (section 11.1).
+- **Vercel Hobby is for personal, non-commercial use.** Shadow Jog's Command Center is a personal tool, so it fits.
