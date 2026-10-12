@@ -29,6 +29,8 @@ export const TIMING = {
   retryCheckMs: 60_000,
   /** The reporter exits after this long with no live shadow-jog session. */
   idleExitMs: 30 * 60_000,
+  /** After this many "no answer either way" results in a row (3 checks, 30 minutes), a verified reporter is no longer verified: it removes the key and stops writing. */
+  unknownLimit: 3,
 } as const;
 
 /** Exit codes. The launcher (scripts/reporter-launch.mjs) reads them: only a crash (any other code) is started again. */
@@ -68,6 +70,8 @@ export function createReporter(deps: ReporterDeps): Reporter {
   let lastCheckAt: number | null = null;
   /** True after the first "protected" answer. No write happens before that. */
   let verified = false;
+  /** How many checks in a row gave "no answer either way". A "protected" answer sets it to 0. */
+  let unknownStreak = 0;
   let lastAttemptAt: number | null = null;
   let lastSuccessAt: number | null = null;
   let lastWrittenSignature: string | null = null;
@@ -93,11 +97,26 @@ export function createReporter(deps: ReporterDeps): Reporter {
     const verdict = await checkProtection(http, deps.hostedUrl);
     if (verdict.kind === 'protected') {
       verified = true;
+      unknownStreak = 0;
       said.delete('unverified');
       return 'ok';
     }
     if (verdict.kind === 'unknown') {
-      // Nothing changes. Before the first "protected" answer that means no write, and a line says why.
+      unknownStreak += 1;
+      if (verified && unknownStreak >= TIMING.unknownLimit) {
+        // The page was last confirmed 30 minutes ago. Fail closed: stop writing, remove the key, and check every minute until a "protected" answer.
+        verified = false;
+        lastWrittenSignature = null;
+        log(`protection check: no answer either way ${unknownStreak} times in a row (${verdict.why}). The reporter stops writing and removes the live key until the page is confirmed as protected.`);
+        try {
+          await store.deleteLive();
+          log('the live key was removed');
+        } catch (error) {
+          log(`the live key could not be removed (${error instanceof Error ? error.message : 'unknown error'}). It expires by itself within 10 minutes.`);
+        }
+        return 'ok';
+      }
+      // Before the first "protected" answer that means no write; after it, writes go on until the limit. A line says why.
       log(`protection check: no answer either way (${verdict.why}). It will run again in ${verified ? 10 : 1} minutes.`);
       return 'ok';
     }
@@ -141,14 +160,14 @@ export function createReporter(deps: ReporterDeps): Reporter {
     busy = true;
     try {
       // 1. Collect.
-      let body: LiveBody | null;
+      // A failed collect counts as "no state" (null): the idle exit and the protection check below still run, and step 4 sends nothing.
+      let body: LiveBody | null = null;
       try {
         body = await collect();
+        said.delete('collect-failed');
       } catch (error) {
         sayOnce('collect-failed', `could not collect the state (${error instanceof Error ? error.name : 'unknown error'}). It will try again.`);
-        return;
       }
-      said.delete('collect-failed');
       const at = now();
 
       // 2. Idle exit.

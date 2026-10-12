@@ -210,6 +210,47 @@ describe('the protection check', () => {
     expect(r.store.sets).toHaveLength(2);
   });
 
+  it('fails closed after 3 "no answer" results in a row: it removes the key, stops writing, and checks every minute until a "protected" answer', async () => {
+    const r = rig({ answers: [PROTECTED, response(503), response(503), response(503), response(503), PROTECTED] });
+    await r.reporter.tick(); // protected: the first write
+    expect(r.store.sets).toHaveLength(1);
+    for (const count of [1, 2]) {
+      r.advance(TIMING.checkEveryMs);
+      r.set(body([row({ title: `unknown ${count}` })]));
+      await r.reporter.tick();
+      expect(r.store.sets).toHaveLength(1 + count); // one or two "no answer" results: still publishing
+      expect(r.store.deletes).toBe(0);
+    }
+    r.advance(TIMING.checkEveryMs);
+    r.set(body([row({ title: 'unknown 3' })]));
+    await r.reporter.tick(); // the third in a row: stop
+    expect(r.store.deletes).toBe(1);
+    expect(r.store.sets).toHaveLength(3);
+    expect(r.exits).toEqual([]);
+    r.advance(TIMING.beatMs);
+    r.set(body([row({ title: 'after the stop' })]));
+    await r.reporter.tick(); // the check runs again after 1 minute, not 10: still no answer, still no write
+    expect(r.net.calls).toHaveLength(5);
+    expect(r.store.sets).toHaveLength(3);
+    r.advance(TIMING.retryCheckMs);
+    await r.reporter.tick(); // a "protected" answer: writing starts again
+    expect(r.net.calls).toHaveLength(6);
+    expect(r.store.sets).toHaveLength(4);
+  });
+
+  it('a "protected" answer resets the count of "no answer" results', async () => {
+    const r = rig({ answers: [PROTECTED, response(503), response(503), PROTECTED, response(503), response(503)] });
+    await r.reporter.tick();
+    for (let i = 0; i < 5; i++) {
+      r.advance(TIMING.checkEveryMs);
+      r.set(body([row({ title: `round ${i}` })]));
+      await r.reporter.tick();
+    }
+    expect(r.net.calls).toHaveLength(6);
+    expect(r.store.deletes).toBe(0);
+    expect(r.store.sets).toHaveLength(6);
+  });
+
   it('sends the check with no cookie, no authorization header and no token', async () => {
     const r = rig();
     await r.reporter.tick();
@@ -260,6 +301,24 @@ describe('the idle exit', () => {
     r.advance(29 * 60_000);
     await r.reporter.tick();
     expect(r.exits).toEqual([]);
+  });
+});
+
+describe('a collect that always throws', () => {
+  it('still reaches the idle exit after 30 minutes', async () => {
+    const r = rig({
+      collect: async () => {
+        throw new Error('the sources are broken');
+      },
+    });
+    await r.reporter.tick();
+    r.advance(TIMING.idleExitMs - 1000);
+    await r.reporter.tick();
+    expect(r.exits).toEqual([]);
+    r.advance(1000);
+    await r.reporter.tick();
+    expect(r.exits).toEqual([EXIT.idle]);
+    expect(r.store.sets).toHaveLength(0);
   });
 });
 

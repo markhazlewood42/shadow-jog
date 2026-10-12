@@ -5,4 +5,4 @@ export function startReporter(input: {
   launcher: string;
   exists?: (path: string) => boolean;
   start: (launcher: string, checkout: string) => void;
-}): 'started' | 'not-shadow-jog' | 'no-launcher';
+}): Promise<'started' | 'not-shadow-jog' | 'no-launcher'>;

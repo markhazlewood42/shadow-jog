@@ -5,6 +5,7 @@
 //   - It acts only when `cwd` is inside a shadow-jog checkout or worktree. In any other folder (home-base, say) it does nothing.
 //   - It starts the launcher DETACHED and returns at once. A timer ends the process after 800 ms in every case, so a session never waits for it.
 //   - It never fails a session: every error is caught, it prints nothing (the stdout of a SessionStart hook goes into the session), and it always exits 0.
+//     The launcher is loaded with a dynamic import INSIDE the try, so a syntax error in the launcher cannot stop this file from loading.
 //   - The launcher does the real work, and takes a lock, so a second launch does nothing.
 //
 // It also works by hand: `node tools/command-center/scripts/reporter-hook.mjs` in a shadow-jog folder starts the reporter in the background.
@@ -12,7 +13,6 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { findCheckout } from './reporter-launch.mjs';
 
 /** The most time the hook may take. The session is not slowed by more than this. */
 export const BUDGET_MS = 800;
@@ -47,9 +47,11 @@ function readPayload(stream) {
 
 /**
  * The decision, with the world passed in so that a test needs no real checkout or process.
- * @returns {'started' | 'not-shadow-jog' | 'no-launcher'}
+ * @returns {Promise<'started' | 'not-shadow-jog' | 'no-launcher'>}
  */
-export function startReporter({ cwd, launcher, exists = existsSync, start }) {
+export async function startReporter({ cwd, launcher, exists = existsSync, start }) {
+  // Loaded here and not at the top of the file: if the launcher cannot be loaded, the caller's try/catch sees the error and the hook still exits 0.
+  const { findCheckout } = await import('./reporter-launch.mjs');
   const checkout = typeof cwd === 'string' && cwd !== '' ? findCheckout(cwd, exists) : null;
   if (checkout === null) return 'not-shadow-jog';
   if (!exists(launcher)) return 'no-launcher';
@@ -71,7 +73,7 @@ async function main() {
     const payload = await readPayload(process.stdin);
     // CC_REPORTER_LAUNCHER is for the tests, which point it at a stub. Real runs use the launcher that sits next to this file.
     const launcher = process.env.CC_REPORTER_LAUNCHER || join(import.meta.dirname, 'reporter-launch.mjs');
-    startReporter({ cwd: payload.cwd ?? process.cwd(), launcher, start: detach });
+    await startReporter({ cwd: payload.cwd ?? process.cwd(), launcher, start: detach });
   } catch {
     // Never fail a session.
   }

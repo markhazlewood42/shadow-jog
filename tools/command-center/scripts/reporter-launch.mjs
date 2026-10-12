@@ -2,21 +2,26 @@
 // It is plain JavaScript, so that it runs with `node` alone, before any package is installed.
 //
 // What it does, in order:
-//   1. Takes a lock (and checks the port), so that a second launch does nothing.
-//   2. Makes or updates a PINNED COPY of origin/main in `<main checkout>/.cc-reporter/pinned` (git-ignored). The copy is its own small clone,
+//   1. Takes a lock (and checks the port), so that a second launch does nothing. The lock holds each process id with its start time.
+//   2. Looks for the settings file (only that it exists). Without it, it logs one line and ends: the pinned copy is not fetched for nothing.
+//   3. Makes or updates a PINNED COPY of origin/main in `<main checkout>/.cc-reporter/pinned` (git-ignored). The copy is its own small clone,
 //      so a branch switch in the shared checkout cannot change the code that the reporter runs, and the fetch never moves any ref of the shared checkout.
-//   3. Runs the server of the Command Center from the copy, headless (CC_NO_OPEN=1), in reporter mode, on its own port.
-//   4. Every 2 minutes it runs `git fetch` in the copy. When main changed anything under tools/command-center/, it updates the copy
-//      (and installs the packages again when the lock file changed) and starts the server again.
-//   5. When the server exits on its own (30 minutes with no session: code 0; a public page: code 3; no settings file: code 4), it stops too.
+//      A copy is ready only with its marker file, which is written after the clone, the checkout and `npm ci` all worked.
+//      Git runs asynchronously, so the lock heartbeat keeps going during a long clone.
+//   4. Runs the server of the Command Center from the copy, headless (CC_NO_OPEN=1), in reporter mode, on its own port.
+//   5. Every 2 minutes it runs `git fetch` in the copy. When main changed anything under tools/command-center/, it updates the copy
+//      (and installs the packages again when the lock file changed) and starts the server again. A "needs install" marker makes a failed
+//      `npm ci` try again, and the server never starts with new code and old packages.
+//   6. When the server exits on its own (30 minutes with no session: code 0; a public page: code 3; no settings file: code 4), it stops too.
 //      Any other exit is a crash: it starts the server again, at most 3 times in 10 minutes.
 //
 // Everything this file writes is under `.cc-reporter/` (the lock, the log, the generated config, the copy). It never touches the settings file with the token.
 // The pure parts are exported, so that tests/reporter-launch.test.ts can run them with fakes.
 
-import { spawn, spawnSync } from 'node:child_process';
+import { execFile, spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createConnection } from 'node:net';
+import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 
 /** The reporter's own port. The normal Command Center uses 3009 and the end-to-end tests 3010, so a person can run both. */
@@ -30,6 +35,11 @@ export const LOCK_TOUCH_MS = 30_000;
 export const FETCH_EVERY_MS = 120_000;
 /** The exit codes of the server (src/server/publish/reporter.ts, EXIT). */
 export const EXIT = { idle: 0, public: 3, notConfigured: 4 };
+
+/** Written into the pinned copy only after the clone, the checkout AND `npm ci` all worked. A copy with a `.git` and no marker is a half-made copy. */
+export const READY_MARKER = '.cc-ready';
+/** Written into the pinned copy before the code moves to a commit with a new lock file, and removed when `npm ci` worked. While it exists, the packages may not match the code. */
+export const NEEDS_INSTALL_MARKER = '.cc-needs-install';
 
 const CONFIG_PATH = join('tools', 'command-center', 'command-center.config.json');
 
@@ -57,16 +67,65 @@ export function findCheckout(start, exists = existsSync) {
  * @param {string} dir
  * @param {(args: string[], cwd: string) => { status: number | null, stdout: string }} [git]
  */
-export function mainCheckout(dir, git = runGit) {
+export function mainCheckout(dir, git = runGitSync) {
   const result = git(['worktree', 'list', '--porcelain'], dir);
   if (result.status !== 0) return dir;
   const first = result.stdout.split(/\r?\n/).find((line) => line.startsWith('worktree '));
   return first === undefined ? dir : resolve(first.slice('worktree '.length));
 }
 
-function runGit(args, cwd, timeout = 60_000) {
+/** A short git call that runs before the lock is taken (the worktree list, the origin address). It blocks, which is fine for these. */
+function runGitSync(args, cwd, timeout = 60_000) {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8', timeout, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } });
   return { status: result.error ? null : result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+}
+
+const OUTPUT_LIMIT = 200_000;
+
+/**
+ * Runs a program WITHOUT blocking the event loop, so that the lock heartbeat keeps running during a long clone or fetch. No shell: the arguments go
+ * to the program as they are. Gives `{ status, stdout, stderr }`; `status` is null when the program could not start or ran past `timeout`.
+ * @param {string} command
+ * @param {string[]} args
+ * @param {{ cwd?: string, timeout?: number, env?: Record<string, string | undefined> }} [options]
+ * @returns {Promise<{ status: number | null, stdout: string, stderr: string }>}
+ */
+export function runCommand(command, args, options = {}) {
+  return new Promise((done) => {
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    let child;
+    try {
+      child = spawn(command, args, { cwd: options.cwd, env: options.env ?? process.env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch {
+      done({ status: null, stdout, stderr });
+      return;
+    }
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, options.timeout ?? 60_000);
+    child.stdout.on('data', (chunk) => {
+      if (stdout.length < OUTPUT_LIMIT) stdout += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      if (stderr.length < OUTPUT_LIMIT) stderr += chunk;
+    });
+    child.once('error', () => {
+      clearTimeout(timer);
+      done({ status: null, stdout, stderr });
+    });
+    child.once('close', (code) => {
+      clearTimeout(timer);
+      done({ status: timedOut ? null : code, stdout, stderr });
+    });
+  });
+}
+
+/** git, asynchronously (see runCommand). */
+export function runGit(args, cwd, timeout = 60_000) {
+  return runCommand('git', args, { cwd, timeout, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } });
 }
 
 // ---- the lock ----
@@ -155,7 +214,7 @@ export function reporterConfig(original, checkout, port = REPORTER_PORT) {
   };
 }
 
-// ---- the pinned copy ----
+// ---- the paths of the reporter ----
 
 /** Builds the paths of the reporter's folder. */
 export function pathsFor(checkout) {
@@ -170,6 +229,41 @@ export function pathsFor(checkout) {
   };
 }
 
+// ---- process identity (for --stop) ----
+
+const execFileAsync = (file, args, options) =>
+  new Promise((done) => {
+    execFile(file, args, options, (error, stdout) => done(error ? null : String(stdout)));
+  });
+
+/**
+ * When a process started and with what command line, or null when no such process exists (or it cannot be read). The start time is the identity: a
+ * process id that the system gave to another program later has another start time. There is no shell: `pid` must be a whole number, and it goes into the
+ * arguments of the program (`ps`, or PowerShell on Windows) and never through a shell.
+ * @param {number} pid
+ * @param {(file: string, args: string[], options: object) => Promise<string | null>} [run] runs a program, gives its output or null on failure
+ * @param {string} [platform]
+ * @returns {Promise<{ start: string, command: string } | null>}
+ */
+export async function processInfo(pid, run = execFileAsync, platform = process.platform) {
+  if (!Number.isInteger(pid) || pid <= 0) return null;
+  if (platform === 'win32') {
+    const script = `$p = Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}'; if ($p) { $p.CreationDate.ToUniversalTime().ToString('o'); $p.CommandLine }`;
+    const out = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true, timeout: 20_000 });
+    if (out === null) return null;
+    const lines = out.split(/\r?\n/);
+    const start = (lines[0] ?? '').trim();
+    return start === '' ? null : { start, command: lines.slice(1).join(' ').trim() };
+  }
+  const options = { env: { ...process.env, LC_ALL: 'C' }, timeout: 10_000 };
+  const start = await run('ps', ['-o', 'lstart=', '-p', String(pid)], options);
+  if (start === null || start.trim() === '') return null;
+  const command = await run('ps', ['-o', 'args=', '-p', String(pid)], options);
+  return { start: start.trim(), command: (command ?? '').trim() };
+}
+
+// ---- the pinned copy ----
+
 function npmCi(cwd, log) {
   return new Promise((done) => {
     // `npm` is a .cmd file on Windows, which only a shell can start. The arguments are fixed, so the shell has nothing to misread.
@@ -182,62 +276,102 @@ function npmCi(cwd, log) {
   });
 }
 
-const treeOf = (git, cwd, ref, path) => {
-  const result = git(['rev-parse', `${ref}:${path}`], cwd);
+const treeOf = async (git, cwd, ref, path) => {
+  const result = await git(['rev-parse', `${ref}:${path}`], cwd);
   return result.status === 0 ? result.stdout.trim() : null;
 };
 
+const readyFile = (paths) => join(paths.pinned, READY_MARKER);
+const needsInstallFile = (paths) => join(paths.pinned, NEEDS_INSTALL_MARKER);
+
+/** Whether the code in the copy may need packages that are not installed (an `npm ci` that was due did not finish). */
+export function needsInstall(paths) {
+  return existsSync(needsInstallFile(paths));
+}
+
 /**
- * Makes the pinned copy if it is missing. A sparse, shallow clone: only tools/command-center, only the newest commit of the branch.
+ * Runs the install again when the "needs install" marker is set. Removes the marker when it worked.
+ * @returns {Promise<'not-needed' | 'installed' | 'failed'>}
+ */
+export async function retryInstall(paths, deps) {
+  if (!needsInstall(paths)) return 'not-needed';
+  deps.log('the packages of the pinned copy are not current; running npm ci again');
+  if (!(await deps.install(paths.app, deps.log))) {
+    deps.log('npm ci failed again; the server will not start with new code and old packages');
+    return 'failed';
+  }
+  rmSync(needsInstallFile(paths), { force: true });
+  return 'installed';
+}
+
+/**
+ * Makes the pinned copy if it is missing or half-made. A sparse, shallow clone: only tools/command-center, only the newest commit of the branch.
+ * A copy counts as ready only when the ready marker exists, and the marker is written last, after the clone, the checkout and `npm ci` all worked.
+ * A `.git` folder without the marker is what a crash or a failed install leaves behind, so that copy is removed and made again.
+ * @param {{ pinned: string, state: string, app: string }} paths
+ * @param {{ git: (args: string[], cwd: string, timeout?: number) => Promise<{ status: number | null }>, install: (cwd: string, log: (m: string) => void) => Promise<boolean>, log: (m: string) => void }} deps
  * @returns {Promise<boolean>} whether the copy is ready
  */
-async function ensureCopy(paths, origin, branch, git, log) {
-  if (existsSync(join(paths.pinned, '.git'))) return true;
+export async function ensureCopy(paths, origin, branch, deps) {
+  const { git, install, log } = deps;
+  if (existsSync(readyFile(paths))) return true;
+  if (existsSync(join(paths.pinned, '.git'))) log('the pinned copy was not finished (no ready marker); it is removed and made again');
   log(`making the pinned copy of origin/${branch} (the first run takes a minute or two)`);
   rmSync(paths.pinned, { recursive: true, force: true });
   const steps = [
-    ['clone', '--depth', '1', '--filter=blob:none', '--no-checkout', '--branch', branch, origin, paths.pinned],
+    // `--` before the address: an address that starts with a dash is never read as an option.
+    ['clone', '--depth', '1', '--filter=blob:none', '--no-checkout', '--branch', branch, '--', origin, paths.pinned],
     ['sparse-checkout', 'set', 'tools/command-center'],
     ['checkout', branch],
   ];
   for (const [index, step] of steps.entries()) {
-    const result = git(step, index === 0 ? paths.state : paths.pinned, 300_000);
+    const result = await git(step, index === 0 ? paths.state : paths.pinned, 300_000);
     if (result.status !== 0) {
       log(`git ${step[0]} failed (code ${result.status})`);
       return false;
     }
   }
-  const installed = await npmCi(paths.app, log);
-  if (!installed) log('npm ci failed in the pinned copy');
-  return installed;
+  if (!(await install(paths.app, log))) {
+    log('npm ci failed in the pinned copy');
+    return false;
+  }
+  writeFileSync(readyFile(paths), `${new Date().toISOString()}\n`);
+  return true;
 }
 
 /**
  * Fetches the branch into the pinned copy. When tools/command-center changed, the copy moves to the new commit.
- * @returns {Promise<'same' | 'updated' | 'failed'>}
+ * When the lock file changed, the "needs install" marker is set BEFORE the code moves and removed after `npm ci` worked. So an `npm ci` that fails
+ * (or a launcher that stops half way) is tried again at the next call, even when the fetch then finds nothing new.
+ * @returns {Promise<'same' | 'updated' | 'failed'>} 'updated' also when only the install of an earlier update was caught up: the code on disk is newer than the running server
  */
-async function updateCopy(paths, branch, git, log) {
-  const fetched = git(['fetch', '--depth', '1', 'origin', branch], paths.pinned);
+export async function updateCopy(paths, branch, deps) {
+  const { git, log } = deps;
+  const caughtUp = await retryInstall(paths, deps);
+  if (caughtUp === 'failed') return 'failed';
+  const fetched = await git(['fetch', '--depth', '1', 'origin', branch], paths.pinned);
   if (fetched.status !== 0) {
     log(`git fetch failed (code ${fetched.status}); the copy stays as it is`);
-    return 'failed';
+    return caughtUp === 'installed' ? 'updated' : 'failed';
   }
-  const before = treeOf(git, paths.pinned, 'HEAD', 'tools/command-center');
-  const after = treeOf(git, paths.pinned, 'FETCH_HEAD', 'tools/command-center');
+  const before = await treeOf(git, paths.pinned, 'HEAD', 'tools/command-center');
+  const after = await treeOf(git, paths.pinned, 'FETCH_HEAD', 'tools/command-center');
   if (after === null) {
     log('the fetched commit has no tools/command-center; the copy stays as it is');
-    return 'failed';
+    return caughtUp === 'installed' ? 'updated' : 'failed';
   }
-  if (before === after) return 'same';
-  const lockBefore = treeOf(git, paths.pinned, 'HEAD', 'tools/command-center/package-lock.json');
-  const lockAfter = treeOf(git, paths.pinned, 'FETCH_HEAD', 'tools/command-center/package-lock.json');
-  const moved = git(['reset', '--hard', 'FETCH_HEAD'], paths.pinned);
+  if (before === after) return caughtUp === 'installed' ? 'updated' : 'same';
+  const lockBefore = await treeOf(git, paths.pinned, 'HEAD', 'tools/command-center/package-lock.json');
+  const lockAfter = await treeOf(git, paths.pinned, 'FETCH_HEAD', 'tools/command-center/package-lock.json');
+  const lockChanged = lockBefore !== lockAfter;
+  if (lockChanged) writeFileSync(needsInstallFile(paths), `${new Date().toISOString()}\n`);
+  const moved = await git(['reset', '--hard', 'FETCH_HEAD'], paths.pinned);
   if (moved.status !== 0) {
     log(`git reset failed (code ${moved.status}); the copy stays as it is`);
     return 'failed';
   }
   log('main changed tools/command-center: the copy was updated');
-  if (lockBefore !== lockAfter && !(await npmCi(paths.app, log))) return 'failed';
+  if (lockChanged && (await retryInstall(paths, deps)) === 'failed') return 'failed';
   return 'updated';
 }
 
@@ -245,12 +379,16 @@ async function updateCopy(paths, branch, git, log) {
 
 /**
  * The whole launcher. Returns the exit code.
- * @param {{ checkout: string, branch?: string, origin?: string }} options
+ * `options.settingsFile` and `options.deps` exist for the tests (a fake settings path, a fake git and installer).
+ * @param {{ checkout: string, branch?: string, origin?: string, settingsFile?: string, deps?: { git?: Function, install?: Function, supervise?: Function } }} options
  */
 export async function runLauncher(options) {
   const checkout = mainCheckout(options.checkout);
   const paths = pathsFor(checkout);
   const branch = options.branch ?? 'main';
+  const git = options.deps?.git ?? runGit;
+  const install = options.deps?.install ?? npmCi;
+  const superviseServer = options.deps?.supervise ?? supervise;
   mkdirSync(paths.state, { recursive: true });
   // A log of more than 1 MB is moved aside, so that it cannot grow without limit.
   try {
@@ -266,113 +404,216 @@ export async function runLauncher(options) {
     }
   };
 
-  // 1. The lock.
+  // 1. The lock. The lock text carries each process id with the START TIME of that process, so that --stop can check that a process is still ours.
   const lock = fileLock(paths.lock);
   const startedIso = new Date().toISOString();
   let serverPid = null;
-  const lockText = () => JSON.stringify({ launcher: process.pid, server: serverPid, started: startedIso });
+  let launcherStart = null;
+  let serverStart = null;
+  let released = false;
+  const lockText = () => JSON.stringify({ launcher: process.pid, launcherStart, server: serverPid, serverStart, started: startedIso });
+  const touch = () => {
+    // A late answer must not write a lock file again after the launcher let it go.
+    if (!released) lock.touch(lockText());
+  };
   const got = await acquireLock({ now: Date.now, portInUse: () => portInUse(REPORTER_PORT), read: lock.read, create: lock.create, remove: lock.remove }, lockText());
   if (got === 'held') return 0; // another launcher runs: do nothing, and say nothing
   log(`started (process ${process.pid}, branch ${branch})`);
-  const heartbeat = setInterval(() => lock.touch(lockText()), LOCK_TOUCH_MS);
+  const heartbeat = setInterval(touch, LOCK_TOUCH_MS);
   const release = () => {
+    released = true;
     clearInterval(heartbeat);
     lock.remove();
   };
 
   try {
-    // 2. The copy.
-    const origin = options.origin ?? (runGit(['remote', 'get-url', 'origin'], checkout).stdout.trim() || null);
+    // 2. The settings file. Without it the server would exit with code 4 at once, so a session start must not fetch the copy every time for nothing.
+    // Only the existence is checked here. The launcher never reads the file.
+    const settingsFile = options.settingsFile ?? join(homedir(), '.shadow-jog-cc', 'upstash.env');
+    if (!existsSync(settingsFile)) {
+      log('there is no settings file (~/.shadow-jog-cc/upstash.env), so there is nothing to publish; the pinned copy is not fetched. Make the file (see the README), then start a session again.');
+      return EXIT.notConfigured;
+    }
+    void processInfo(process.pid).then((info) => {
+      launcherStart = info?.start ?? null;
+      touch();
+    });
+
+    // 3. The copy.
+    const origin = options.origin ?? (runGitSync(['remote', 'get-url', 'origin'], checkout).stdout.trim() || null);
     if (origin === null) {
       log('the checkout has no remote called origin, so there is nothing to pin');
       return 1;
     }
-    if (!(await ensureCopy(paths, origin, branch, runGit, log))) return 1;
-    await updateCopy(paths, branch, runGit, log);
+    if (!(await ensureCopy(paths, origin, branch, { git, install, log }))) return 1;
+    const updated = await updateCopy(paths, branch, { git, install, log });
+    // New code with old packages is never started: when a due `npm ci` did not work, stop here. The marker makes the next launch try it again.
+    if (needsInstall(paths)) {
+      log('the packages are not installed for the code of the pinned copy, so the server is not started');
+      return 1;
+    }
+    if (updated === 'failed') log('the copy could not be updated; the server starts with the copy as it is');
 
-    // 3. The server, kept running until it ends on its own.
-    return await supervise(paths, checkout, branch, log, (pid) => {
-      serverPid = pid;
-      lock.touch(lockText());
-    });
+    // 4. The server, kept running until it ends on its own.
+    return await superviseServer(
+      paths,
+      checkout,
+      branch,
+      log,
+      (pid) => {
+        serverPid = pid;
+        serverStart = null;
+        touch();
+        if (pid !== null) {
+          void processInfo(pid).then((info) => {
+            if (serverPid === pid) {
+              serverStart = info?.start ?? null;
+              touch();
+            }
+          });
+        }
+      },
+      { update: () => updateCopy(paths, branch, { git, install, log }), install },
+    );
   } finally {
     release();
     log('stopped');
   }
 }
 
-/** Starts the server, restarts it on a crash or a new main, and returns the exit code that ends the launcher. */
-function supervise(paths, checkout, branch, log, onServerPid) {
+/** The real server process: `--import tsx` runs the TypeScript source as `npm run cc` does. CC_NO_OPEN=1 keeps a browser tab from opening. */
+function spawnServer(paths) {
+  const out = openSync(paths.log, 'a');
+  try {
+    return spawn(process.execPath, ['--import', 'tsx', 'src/server/main.ts', '--config', paths.config, '--reporter'], {
+      cwd: paths.app,
+      env: { ...process.env, CC_NO_OPEN: '1' },
+      stdio: ['ignore', out, out],
+      windowsHide: true,
+    });
+  } finally {
+    closeSync(out);
+  }
+}
+
+/**
+ * Starts the server, restarts it on a crash or a new main, and returns the exit code that ends the launcher.
+ * `deps` exists for the tests: `spawnServer(paths)` gives the child, `update()` is one fetch round, `fetchEveryMs` and `restartDelayMs` are the timings.
+ * @returns {Promise<number>}
+ */
+export function supervise(paths, checkout, branch, log, onServerPid, deps = {}) {
+  const spawnChild = deps.spawnServer ?? spawnServer;
+  const install = deps.install ?? npmCi;
+  const update = deps.update ?? (() => updateCopy(paths, branch, { git: runGit, install, log }));
+  const fetchEveryMs = deps.fetchEveryMs ?? FETCH_EVERY_MS;
+  const restartDelayMs = deps.restartDelayMs ?? 5000;
+
   return new Promise((done) => {
     let child = null;
     let restarting = false;
+    let finished = false;
+    let retryTimer = null;
     const crashes = [];
+
+    const finish = (code) => {
+      if (finished) return;
+      finished = true;
+      clearInterval(fetcher);
+      if (retryTimer !== null) clearTimeout(retryTimer);
+      done(code);
+    };
 
     const writeConfig = () => {
       const original = JSON.parse(readFileSync(join(paths.app, 'command-center.config.json'), 'utf8'));
       writeFileSync(paths.config, JSON.stringify(reporterConfig(original, checkout), null, 2));
     };
 
+    const onExit = (code) => {
+      child = null;
+      onServerPid(null);
+      if (restarting) {
+        // The launcher itself ended this process to load new code.
+        restarting = false;
+        void begin();
+        return;
+      }
+      if (code === EXIT.idle || code === EXIT.public || code === EXIT.notConfigured) {
+        log(`server ended with code ${code}${code === EXIT.public ? ' (the page was not protected)' : code === EXIT.notConfigured ? ' (no settings file)' : ' (no session for 30 minutes)'}`);
+        finish(code);
+        return;
+      }
+      const now = Date.now();
+      crashes.push(now);
+      while (crashes.length > 0 && now - crashes[0] > 600_000) crashes.shift();
+      if (crashes.length > 3) {
+        log(`server crashed ${crashes.length} times in 10 minutes (last code ${code}); giving up`);
+        finish(1);
+        return;
+      }
+      log(`server crashed (code ${code}); starting it again in ${Math.round(restartDelayMs / 1000)} seconds`);
+      retryTimer = setTimeout(() => void begin(), restartDelayMs);
+    };
+
     const start = () => {
-      writeConfig();
-      const out = openSync(paths.log, 'a');
-      // `--import tsx` runs the TypeScript source as `npm run cc` does. CC_NO_OPEN=1 keeps a browser tab from opening.
-      child = spawn(process.execPath, ['--import', 'tsx', 'src/server/main.ts', '--config', paths.config, '--reporter'], {
-        cwd: paths.app,
-        env: { ...process.env, CC_NO_OPEN: '1' },
-        stdio: ['ignore', out, out],
-        windowsHide: true,
-      });
-      closeSync(out);
+      if (finished) return;
+      // This runs in an exit handler too. Anything that throws here must end the launcher cleanly (the lock is released by the caller), never escape.
+      try {
+        writeConfig();
+        child = spawnChild(paths);
+      } catch (error) {
+        child = null;
+        log(`the server could not be started (${error instanceof Error ? error.message : 'unknown error'}); the launcher stops`);
+        finish(1);
+        return;
+      }
       onServerPid(child.pid ?? null);
       log(`server started (process ${child.pid})`);
-      child.once('exit', (code) => {
-        child = null;
-        onServerPid(null);
-        if (restarting) {
-          restarting = false;
-          start();
+      child.once('exit', onExit);
+    };
+
+    /** Starts the server, after the packages are current. New code is never started with old packages. */
+    const begin = async () => {
+      if (finished) return;
+      try {
+        if ((await retryInstall(paths, { install, log })) === 'failed') {
+          finish(1);
           return;
         }
-        if (code === EXIT.idle || code === EXIT.public || code === EXIT.notConfigured) {
-          log(`server ended with code ${code}${code === EXIT.public ? ' (the page was not protected)' : code === EXIT.notConfigured ? ' (no settings file)' : ' (no session for 30 minutes)'}`);
-          clearInterval(fetcher);
-          done(code);
-          return;
-        }
-        const now = Date.now();
-        crashes.push(now);
-        while (crashes.length > 0 && now - crashes[0] > 600_000) crashes.shift();
-        if (crashes.length > 3) {
-          log(`server crashed ${crashes.length} times in 10 minutes (last code ${code}); giving up`);
-          clearInterval(fetcher);
-          done(1);
-          return;
-        }
-        log(`server crashed (code ${code}); starting it again in 5 seconds`);
-        setTimeout(start, 5000);
-      });
+      } catch (error) {
+        log(`the install check failed (${error instanceof Error ? error.message : 'unknown error'}); the launcher stops`);
+        finish(1);
+        return;
+      }
+      start();
     };
 
     // Every 2 minutes: fetch, and start the server again with the new code when main changed the tool.
     let fetching = false;
     const fetcher = setInterval(async () => {
-      if (fetching) return;
+      if (fetching || finished) return;
       fetching = true;
       try {
-        if ((await updateCopy(paths, branch, runGit, log)) === 'updated' && child !== null) {
+        if ((await update()) === 'updated' && child !== null && !restarting) {
           restarting = true;
-          child.kill();
+          let sent = false;
+          try {
+            sent = child.kill();
+          } catch {
+            // the process is already gone
+          }
+          // If the signal did not reach a process, no exit caused by us will come, so the flag must not stay set.
+          if (!sent) restarting = false;
         }
+      } catch (error) {
+        log(`an update round failed (${error instanceof Error ? error.message : 'unknown error'})`);
       } finally {
         fetching = false;
       }
-    }, FETCH_EVERY_MS);
+    }, fetchEveryMs);
 
     const stop = () => {
-      clearInterval(fetcher);
       if (child !== null) child.kill();
-      done(0);
+      finish(0);
     };
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);
@@ -383,32 +624,78 @@ function supervise(paths, checkout, branch, log, onServerPid) {
 // ---- stop ----
 
 /**
- * Stops the running reporter: the server first, then the launcher. It acts only on the process ids in a lock that was touched in the last 2 minutes,
- * so a number that the system gave to another program since is never killed.
- * @returns {string} what happened, as a sentence
+ * Stops the running reporter: the server first, then the launcher. It acts only on a lock that was touched in the last 2 minutes, and only on a process
+ * that is verified to be ours: the process id AND the start time in the lock must match what the system says about that id now, and the command line must
+ * be the launcher or the server. A number that the system gave to another program since is never killed. When a process cannot be verified, nothing is
+ * killed for it, the reason is written to the log, and the lock stays. Nothing is ever killed by name.
+ * `deps` exists for the tests: `processInfo(pid)`, `kill(pid)` and `now()`.
+ * @returns {Promise<string>} what happened, as a sentence
  */
-export function stopReporter(checkout) {
+export async function stopReporter(checkout, deps = {}) {
+  const lookup = deps.processInfo ?? processInfo;
+  const kill = deps.kill ?? ((pid) => process.kill(pid));
+  const now = deps.now ?? Date.now;
   const paths = pathsFor(mainCheckout(checkout));
+  const note = (message) => {
+    try {
+      appendFileSync(paths.log, `${new Date().toISOString()} stop: ${message}\n`);
+    } catch {
+      // no log to write to
+    }
+  };
   const lock = fileLock(paths.lock).read();
   if (lock === null) return 'The reporter is not running (no lock file).';
-  if (Date.now() - lock.mtimeMs >= LOCK_STALE_MS) return 'The reporter is not running (the lock file is old).';
+  if (now() - lock.mtimeMs >= LOCK_STALE_MS) return 'The reporter is not running (the lock file is old).';
   let ids;
   try {
     ids = JSON.parse(lock.text);
   } catch {
+    note('the lock file is not readable, so nothing was stopped');
     return 'The lock file is not readable, so nothing was stopped.';
   }
-  for (const pid of [ids.server, ids.launcher]) {
-    if (Number.isInteger(pid)) {
-      try {
-        process.kill(pid);
-      } catch {
-        // already gone
-      }
+  const targets = [
+    { name: 'server', pid: ids.server, start: ids.serverStart, ours: (command) => command.includes('--reporter') && command.includes('main.ts') },
+    { name: 'launcher', pid: ids.launcher, start: ids.launcherStart, ours: (command) => command.includes('reporter-launch') },
+  ];
+  const verified = [];
+  const refused = [];
+  for (const target of targets) {
+    if (!Number.isInteger(target.pid) || target.pid <= 0) continue;
+    if (target.pid === process.pid) {
+      refused.push(`${target.name} (process ${target.pid} is this process)`);
+      continue;
+    }
+    if (typeof target.start !== 'string' || target.start === '') {
+      refused.push(`${target.name} (process ${target.pid}): the lock has no start time for it, so it cannot be verified`);
+      continue;
+    }
+    const found = await lookup(target.pid);
+    if (found === null) {
+      note(`${target.name} (process ${target.pid}) is not running`);
+      continue;
+    }
+    if (found.start !== target.start) {
+      refused.push(`${target.name} (process ${target.pid}): it started at ${found.start}, the lock says ${target.start}, so the number belongs to another program now`);
+      continue;
+    }
+    if (!target.ours(found.command)) {
+      refused.push(`${target.name} (process ${target.pid}): its command line is not ours`);
+      continue;
+    }
+    verified.push(target);
+  }
+  for (const target of verified) {
+    try {
+      kill(target.pid);
+      note(`stopped the ${target.name} (process ${target.pid})`);
+    } catch {
+      note(`the ${target.name} (process ${target.pid}) was already gone`);
     }
   }
+  for (const reason of refused) note(`did not stop the ${reason}`);
+  if (refused.length > 0) return `The reporter was not fully stopped. Not killed: ${refused.join('; ')}. The lock file stays. See ${paths.log}.`;
   rmSync(paths.lock, { force: true });
-  return 'The reporter was stopped.';
+  return verified.length > 0 ? 'The reporter was stopped.' : 'The reporter is not running (its processes are gone). The lock file was removed.';
 }
 
 function readOption(argv, name) {
@@ -425,7 +712,7 @@ if (import.meta.main) {
     process.exit(1);
   }
   if (argv.includes('--stop')) {
-    console.log(stopReporter(checkout));
+    console.log(await stopReporter(checkout));
     process.exit(0);
   }
   // --branch and --origin are for testing a branch before it is merged: the pinned copy then follows that branch.

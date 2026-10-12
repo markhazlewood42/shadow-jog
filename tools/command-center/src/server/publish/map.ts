@@ -17,6 +17,41 @@ export const LIMITS = { title: 120, branch: 200, folder: 100, agentName: 80, age
 
 const cut = (text: string, max: number): string => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
+// Redaction of secret-shaped text. A session title is the text of a prompt, and a prompt can hold a pasted token. The rules run from the specific
+// to the general, and each match is replaced by REDACTED. They run BEFORE the length cut, so the cut cannot leave the start of a token in the text.
+// A rule that is too eager costs a word in a title. A rule that misses costs a secret on a hosted page, so the rules lean toward redacting.
+export const REDACTED = '[redacted]';
+
+const SECRET_PATTERNS: readonly RegExp[] = [
+  // GitHub tokens: ghp_ gho_ ghu_ ghs_ ghr_ and the fine-grained github_pat_.
+  /\bgh[pousr]_[A-Za-z0-9]{8,}/g,
+  /\bgithub_pat_[A-Za-z0-9_]{8,}/g,
+  // OpenAI and Anthropic style keys: sk-..., sk-ant-...
+  /\bsk-[A-Za-z0-9_-]{10,}/g,
+  // Supabase keys.
+  /\bsb_(?:secret|publishable)_[A-Za-z0-9_-]{6,}/g,
+  // A bearer token in an Authorization header.
+  /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi,
+  // AWS access key ids.
+  /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g,
+  // Slack tokens.
+  /\bxox[abposr]-[A-Za-z0-9-]{8,}/g,
+  // A JWT or the start of one: eyJ... with optional dot-separated parts.
+  /\beyJ[A-Za-z0-9_-]{8,}(?:\.[A-Za-z0-9_-]*)*/g,
+  // An assignment of a secret-looking name: KEY=value, API_TOKEN=value, client_secret=value, PASSWORD=value. The whole assignment goes.
+  /\b[A-Za-z0-9_.-]*(?:key|token|secret|password|passwd)[A-Za-z0-9_.-]*\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/gi,
+];
+
+/** A run of 24 or more characters of a token alphabet that mixes letters and digits, like a random key. */
+const LONG_RUN = /[A-Za-z0-9_\-+/=]{24,}/g;
+
+/** Replaces secret-shaped text with "[redacted]". Plain words, numbers and paths without a long mixed run pass through unchanged. */
+export function redact(text: string): string {
+  let out = text;
+  for (const pattern of SECRET_PATTERNS) out = out.replace(pattern, REDACTED);
+  return out.replace(LONG_RUN, (run) => (/[A-Za-z]/.test(run) && /[0-9]/.test(run) ? REDACTED : run));
+}
+
 /** The last folder name of a path, with either kind of slash. "" for a missing or empty path. */
 export function folderName(cwd: string | null): string {
   if (cwd === null) return '';
@@ -32,7 +67,7 @@ export function mapSession(live: LiveSession, facts: SessionFacts | undefined): 
   const nodes = live.nodes;
   return {
     id: live.id,
-    title: cut(live.title, LIMITS.title),
+    title: cut(redact(live.title), LIMITS.title),
     branch: cut(facts?.branch ?? '', LIMITS.branch),
     folder: cut(folderName(facts?.cwd ?? null), LIMITS.folder),
     state: live.state === 'working' ? 'working' : 'waiting',
@@ -41,7 +76,7 @@ export function mapSession(live: LiveSession, facts: SessionFacts | undefined): 
       running: nodes.filter((node) => node.state === 'running').length,
       done: nodes.filter((node) => node.state === 'done').length,
       // The running ones first: they are the ones Mark looks for.
-      names: [...nodes.filter((node) => node.state === 'running'), ...nodes.filter((node) => node.state === 'done')].slice(0, LIMITS.agentNames).map((node) => cut(node.label, LIMITS.agentName)),
+      names: [...nodes.filter((node) => node.state === 'running'), ...nodes.filter((node) => node.state === 'done')].slice(0, LIMITS.agentNames).map((node) => cut(redact(node.label), LIMITS.agentName)),
     },
   };
 }

@@ -24,5 +24,40 @@ export function fileLock(file: string): {
 export function portInUse(port: number, host?: string): Promise<boolean>;
 export function reporterConfig(original: Record<string, unknown>, checkout: string, port?: number): Record<string, unknown>;
 export function pathsFor(checkout: string): { state: string; lock: string; log: string; config: string; pinned: string; app: string };
-export function runLauncher(options: { checkout: string; branch?: string; origin?: string }): Promise<number>;
-export function stopReporter(checkout: string): string;
+export const READY_MARKER: string;
+export const NEEDS_INSTALL_MARKER: string;
+export type CommandResult = { status: number | null; stdout: string; stderr: string };
+export type GitRunner = (args: string[], cwd: string, timeout?: number) => Promise<CommandResult>;
+export type Installer = (cwd: string, log: (message: string) => void) => Promise<boolean>;
+export type CopyDeps = { git: GitRunner; install: Installer; log: (message: string) => void };
+export function runCommand(command: string, args: string[], options?: { cwd?: string; timeout?: number; env?: Record<string, string | undefined> }): Promise<CommandResult>;
+export function runGit(args: string[], cwd: string, timeout?: number): Promise<CommandResult>;
+export function processInfo(
+  pid: number,
+  run?: (file: string, args: string[], options: object) => Promise<string | null>,
+  platform?: string,
+): Promise<{ start: string; command: string } | null>;
+export function needsInstall(paths: { pinned: string }): boolean;
+export function retryInstall(paths: { pinned: string; app: string }, deps: { install: Installer; log: (message: string) => void }): Promise<'not-needed' | 'installed' | 'failed'>;
+export function ensureCopy(paths: { pinned: string; state: string; app: string }, origin: string, branch: string, deps: CopyDeps): Promise<boolean>;
+export function updateCopy(paths: { pinned: string; app: string }, branch: string, deps: CopyDeps): Promise<'same' | 'updated' | 'failed'>;
+export type ChildLike = { pid?: number; kill(): boolean; once(event: 'exit', listener: (code: number | null) => void): unknown };
+export function supervise(
+  paths: { app: string; config: string; log: string; pinned: string },
+  checkout: string,
+  branch: string,
+  log: (message: string) => void,
+  onServerPid: (pid: number | null) => void,
+  deps?: { spawnServer?: (paths: unknown) => ChildLike; update?: () => Promise<'same' | 'updated' | 'failed'>; install?: Installer; fetchEveryMs?: number; restartDelayMs?: number },
+): Promise<number>;
+export function runLauncher(options: {
+  checkout: string;
+  branch?: string;
+  origin?: string;
+  settingsFile?: string;
+  deps?: { git?: GitRunner; install?: Installer; supervise?: (...args: unknown[]) => Promise<number> };
+}): Promise<number>;
+export function stopReporter(
+  checkout: string,
+  deps?: { processInfo?: (pid: number) => Promise<{ start: string; command: string } | null>; kill?: (pid: number) => void; now?: () => number },
+): Promise<string>;
