@@ -418,8 +418,8 @@ describe('a Scene3D under an opaque scene', () => {
     expect(order).toEqual(['sync3D', 'render', 'pixi']);
   });
 
-  // M7 task 5 turns this on (tests/sje-runtime.test.ts holds the same case without 3D). Run red on 2026-10-12: renders was 0, so the revealed scene showed the texture from before it was hidden.
-  it.skip('when the cover closes INSIDE its own prerender, the scene under it renders in that same frame (the second pass)', () => {
+  // M7 task 5 (tests/sje-runtime.test.ts holds the same case without 3D). Run red on 2026-10-12: renders was 0, so the revealed scene showed the texture from before it was hidden.
+  it('when the cover closes INSIDE its own prerender, the scene under it renders in that same frame (the second pass)', () => {
     const order: string[] = [];
     const g = newGame([], () => order.push('pixi'));
     const probe = newProbe();
@@ -431,6 +431,28 @@ describe('a Scene3D under an opaque scene', () => {
     g.draw();
     expect(probe.frame?.renders).toBe(1);
     expect(order).toEqual(['sync3D', 'render', 'pixi']);
+  });
+
+  // CONTROL: a prerender with no second pass (the code before M7 task 5) leaves the revealed scene unrendered.
+  it('control: a prerender with no second pass renders the revealed scene 0 times', () => {
+    const g = newGame();
+    const mgr = g.scene;
+    mgr.prerender = () => {
+      mgr.refreshLayout();
+      for (const s of mgr.scenes) {
+        if (s.closed || !s.sys.visible) continue;
+        s.events.emit('prerender');
+        if (s.closed) continue;
+        s.cameras.apply();
+      }
+      mgr.refreshLayout();
+    };
+    const probe = newProbe();
+    void g.run(new ProbeScene(probe));
+    void g.run(new Cover(true));
+    g.advanceTick();
+    g.draw();
+    expect(probe.frame?.renders).toBe(0);
   });
 });
 

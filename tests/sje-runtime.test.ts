@@ -946,9 +946,8 @@ describe('hidden scenes and the draw phase (docs/engine/m7-brief.md pass line 11
     expect(under.prerenders).toBe(1);
   });
 
-  // M7 task 5 turns this on: SceneManager.prerender() must run the prerender of a scene that its own second refreshLayout() revealed.
-  // It is skipped, not deleted, so the build of task 5 only has to change `it.skip` to `it`. Run red on 2026-10-12: prerenders was 0.
-  it.skip('a cover that closes INSIDE its own prerender: the scene under it runs its prerender in that same frame (the second pass)', () => {
+  // M7 task 5: SceneManager.prerender() runs the prerender of a scene that its own second refreshLayout() revealed. Run red on 2026-10-12: prerenders was 0.
+  it('a cover that closes INSIDE its own prerender: the scene under it runs its prerender in that same frame (the second pass)', () => {
     const g = newGame();
     const under = new Counting();
     void g.run(under);
@@ -956,5 +955,27 @@ describe('hidden scenes and the draw phase (docs/engine/m7-brief.md pass line 11
     g.advanceTick();
     g.draw();
     expect(under.prerenders).toBe(1);
+  });
+
+  // CONTROL: the same case on a mutant prerender with no second pass (the code before M7 task 5) fails, so the case can tell the two apart.
+  it('control: a prerender with no second pass leaves the revealed scene without its prerender', () => {
+    const g = newGame();
+    const mgr = g.scene;
+    mgr.prerender = () => {
+      mgr.refreshLayout();
+      for (const s of mgr.scenes) {
+        if (s.closed || !s.sys.visible) continue;
+        s.events.emit('prerender');
+        if (s.closed) continue;
+        s.cameras.apply();
+      }
+      mgr.refreshLayout();
+    };
+    const under = new Counting();
+    void g.run(under);
+    void g.run(new Cover(true));
+    g.advanceTick();
+    g.draw();
+    expect(under.prerenders).toBe(0);
   });
 });
