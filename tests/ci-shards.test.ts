@@ -22,7 +22,6 @@ const NOT_IN_CI: Readonly<Record<string, string>> = {
   'e2e/audio-evidence.spec.ts': 'audio-evidence: renders every song and writes reports under docs/quality/evidence/audio/; it makes files and judges nothing',
   'e2e/playtest.spec.ts': 'playtest: the real-speed hands-off playtest; it has its own workflow, playtest.yml, which runs after a push to main',
   'e2e/sje-pictures.spec.ts': 'sje-pictures: the pictures for the M3 look review; local only, does nothing unless M3_PICTURES=1',
-  'e2e/sje-scene3d.spec.ts': 'sje-scene3d: the lab cube as a Scene3D (M1b). It has no reason in its header and runs on SwiftShader (its header says "like CI"), so it may belong in a shard. It was never in a CI list, and this build did not change that: decide later and add it to a shard',
 };
 
 /** The shards of a ci.yml text: shard name -> spec files. A small regex, because the repo has no YAML parser. A shard is a matrix entry `- shard: '1/6'` followed by `specs: >-` and the indented spec paths. */

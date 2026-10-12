@@ -16,8 +16,7 @@
  *    the gate and not a decision about the tolerance (that is Mark's, brief decision 4).
  *  Controls that must FAIL the bounds (a 2/255 step, an actor one pixel off, a wrong light radius): in part D, not in this part.
  *
- * Also checked: the inputs are pinned (the SHA-256 of every map file the references depend on; a changed file fails first with the command that makes the references again),
- * every map of the game has a state, the new frame is crisp (no uneven 2x2 block) and the page logs nothing.
+ * Also checked for each state: the new frame is crisp (no uneven 2x2 block) and the page logs nothing. The pinned inputs and the "every map has a state" check run in part A only (`inputsBody`).
  *
  * Run it:  CI=1 PW_PORT=3012 npx playwright test e2e/sje-field-parity-c.spec.ts --reporter=line   (the bundled Chromium on SwiftShader, like CI: the `soft` set)
  *          PW_PORT=3012 npx playwright test e2e/sje-field-parity-c.spec.ts --reporter=line       (Edge on the GPU: the `gpu` set)

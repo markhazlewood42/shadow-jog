@@ -66,14 +66,21 @@ export function inputsBody(): void {
 let kindOfBrowser: Promise<RendererKind> | undefined;
 /** The renderer kind of this worker's browser, probed once. */
 function browserKind(browser: Browser): Promise<RendererKind> {
-  kindOfBrowser ??= (async () => {
-    const probe = await browser.newPage();
-    try {
-      return await rendererKind(probe);
-    } finally {
-      await probe.close();
-    }
-  })();
+  if (!kindOfBrowser) {
+    const probing = (async () => {
+      const probe = await browser.newPage();
+      try {
+        return await rendererKind(probe);
+      } finally {
+        await probe.close();
+      }
+    })();
+    kindOfBrowser = probing;
+    // A failed probe must not stay cached for ever: clear it so the next call probes again. The current call still rethrows (it awaits the same promise).
+    probing.catch(() => {
+      if (kindOfBrowser === probing) kindOfBrowser = undefined;
+    });
+  }
   return kindOfBrowser;
 }
 

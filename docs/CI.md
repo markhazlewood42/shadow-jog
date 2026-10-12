@@ -48,7 +48,7 @@ The seconds below are the larger of the two attempts of the run `38182602108` (o
 | `e2e (2/8)` | `sje-field-parity-c` 322, `gpufx` 40 | 362 |
 | `e2e (3/8)` | `default-path` 285, `sje-stage-parity` 82 | 367 |
 | `e2e (4/8)` | `sje-field-parity-d` 257, `sje-canaries` 82, `fxlab` 16 | 355 |
-| `e2e (5/8)` | `playthrough` 218, `prod` 118 | 336 |
+| `e2e (5/8)` | `playthrough` 218, `prod` 118, `sje-scene3d` (not measured yet) | 336 and `sje-scene3d` (not measured yet) |
 | `e2e (6/8)` | `sje-field-parity-b` 165, `sje-battle` 128, `sje-shell` 56 | 349 |
 | `e2e (7/8)` | `sje-draws` 159, `economy` 131, `chaos` 61 | 351 |
 | `e2e (8/8)` | `sje-field` 149, `gameover` 143, `sje-fx` 62 | 354 |
@@ -84,11 +84,10 @@ These are on the `NOT_IN_CI` list in `tests/ci-shards.test.ts`, each with its re
 | `audio-evidence` | Writes reports under `docs/quality/evidence/audio/`. It makes files and judges nothing |
 | `playtest` | The real-speed playtest. It has its own workflow, `playtest.yml` |
 | `sje-pictures` | The pictures for the M3 look review. Local only |
-| `sje-scene3d` | An open decision for Mark. It was never in a CI list, and its header says it can run on SwiftShader "like CI", so it may belong in a shard. Until Mark decides, it stays here |
 
 ## The `e2e` gate, and the required checks
 
-From PR #64 on, the `main` ruleset must require three checks: `check`, `e2e-engines` and `e2e`. **Mark changes the ruleset when he merges PR #64.** Until then it still requires the four old names, `e2e (1/4)` to `e2e (4/4)`, which no run reports any more. Change the ruleset right before the merge, or the merge stays blocked.
+The `main` ruleset requires three checks: `check`, `e2e-engines` and `e2e`. Mark set this on 2026-10-11, when PR #64 merged (merge `6554cdb`). The four old names, `e2e (1/4)` to `e2e (4/4)`, are gone from the ruleset.
 
 The shard names (`e2e (1/8)`) must not be required. A required check that never reports blocks the merge for ever, so a ruleset that lists shard names breaks whenever the shard count changes. The `e2e` gate has one stable name. It `needs` the shard job and runs with `if: always()`. It fails unless the shard result is `success`. A failed, cancelled or skipped shard makes the gate fail.
 
