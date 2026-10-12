@@ -297,7 +297,7 @@ The reporter is the local server, run headless with `--reporter`. It reads the l
 | Exit | After 30 minutes with no live shadow-jog session (code 0) |
 | Protection check | Every 10 minutes: one request to `<hosted page>/api/live` with no cookie and no token. 401 or a redirect to the Vercel login is protected. A 200 with JSON means the page is public: it stops, deletes the key and exits with code 3. An error, a timeout or a 5xx is "no answer": one or two in a row change nothing. The third "no answer" in a row (30 minutes without a confirmation) fails closed: the reporter stops writing, deletes the key, and checks every minute until one check says protected. A protected answer resets the count. |
 | Start | No write happens until one check says protected. Until then the check repeats every minute. |
-| Port | 47613 (its own, far from the 3000s that dev servers and Playwright use; 3011 clashed with `PW_PORT=3011` runs). `npm run cc` stays on 3009. |
+| Port | 29417 (its own, far from the 3000s that dev servers and Playwright use; 3011 clashed with `PW_PORT=3011` runs). `npm run cc` stays on 3009. |
 
 **Setup (once).**
 

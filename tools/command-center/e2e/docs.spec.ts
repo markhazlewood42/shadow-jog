@@ -583,8 +583,8 @@ test.describe('the text of the doc pages', () => {
 // The "done when" check of the docs pages: on the real repo, and not on the sample docs, the overview
 // has a card for every section of the nav and no card called "Other" (every doc is placed). It needs a
 // command center server that runs on the real repo, so it runs only when CC_REAL_URL names one:
-//   CC_NO_OPEN=1 node --import tsx src/server/main.ts --config <a config like the tool's own, with port 3011>
-//   CC_REAL_URL=http://127.0.0.1:3011 npx playwright test e2e/docs.spec.ts -g "real repo"
+//   CC_NO_OPEN=1 node --import tsx src/server/main.ts --config <a config like the tool's own, with port 29418>
+//   CC_REAL_URL=http://127.0.0.1:29418 npx playwright test e2e/docs.spec.ts -g "real repo"
 const realUrl = process.env.CC_REAL_URL ?? '';
 
 test.describe('on the real repo', () => {

@@ -9,7 +9,7 @@ updated: 2026-10-12
 
 Step 5 of the Command Center revision 3 plan (`docs/command-center/design.md` sections 11.1 and 11.3). The local server, run headless, writes the allow-listed live state to the Upstash key `live`.
 
-- Code: `tools/command-center/src/server/publish/` (mapper, worktrees, Upstash writer, protection check, loop), `scripts/reporter-launch.mjs` (pinned copy, lock, fetch every 2 minutes), `scripts/reporter-hook.mjs` (`SessionStart` hook). `main.ts --reporter` turns it on, on port 47613.
+- Code: `tools/command-center/src/server/publish/` (mapper, worktrees, Upstash writer, protection check, loop), `scripts/reporter-launch.mjs` (pinned copy, lock, fetch every 2 minutes), `scripts/reporter-hook.mjs` (`SessionStart` hook). `main.ts --reporter` turns it on, on port 29417.
 - Contract: `tools/command-center/src/shared/live.ts` (`parseLive` runs before every write; what it returns is what is sent).
 - Runner: one new exact entry, `git status --porcelain=v1 --untracked-files=normal` (`GIT_STATUS`), for the dirty count.
 - Tests: `tests/publish-*.test.ts`, `tests/reporter-launch.test.ts`, `tests/reporter-main.test.ts`, plus the runner table.
