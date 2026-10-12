@@ -35,6 +35,8 @@ describe('the runner', () => {
       ['git show', 'git', ['show', 'abc1234:docs/a.md'], ['show', 'abc1234:docs/a.md']],
       ['git worktree list', 'git', ['worktree', 'list', '--porcelain'], ['worktree', 'list', '--porcelain']],
       ['git rev-parse', 'git', ['rev-parse', '--show-toplevel'], ['rev-parse', '--show-toplevel']],
+      // The one status read of the reporter (the dirty count of a worktree): exactly this shape.
+      ['git status (the reporter shape)', 'git', ['status', '--porcelain=v1', '--untracked-files=normal'], ['status', '--porcelain=v1', '--untracked-files=normal']],
       // gh pr and gh issue get --repo from the runner, right after the verb.
       ['gh pr list', 'gh', ['pr', 'list', '--json', 'number,title', '--limit', '30'], ['pr', 'list', '--repo', REPO, '--json', 'number,title', '--limit', '30']],
       ['gh pr view', 'gh', ['pr', 'view', '12', '--json', 'state'], ['pr', 'view', '--repo', REPO, '12', '--json', 'state']],
@@ -84,6 +86,12 @@ describe('the runner', () => {
       ['git worktree add', 'git', ['worktree', 'add', '../x']],
       ['git worktree remove', 'git', ['worktree', 'remove', 'x']],
       ['git worktree with no verb', 'git', ['worktree']],
+      // git status: only the exact shape of the reporter. Anything else (a plain status, a pathspec, --ignored, an extra option) is refused.
+      ['git status', 'git', ['status']],
+      ['git status --porcelain', 'git', ['status', '--porcelain']],
+      ['git status with --ignored added', 'git', ['status', '--porcelain=v1', '--untracked-files=normal', '--ignored']],
+      ['git status with a pathspec', 'git', ['status', '--porcelain=v1', '--untracked-files=normal', '--', 'docs']],
+      ['git status with other flags', 'git', ['status', '--porcelain=v1', '--untracked-files=all']],
       // git: an option before the command is how -c runs a program, so none is allowed there.
       ['git -c', 'git', ['-c', 'core.pager=evil', 'log']],
       ['git -c core.fsmonitor', 'git', ['-c', 'core.fsmonitor=evil', 'rev-parse', 'HEAD']],

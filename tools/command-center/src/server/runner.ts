@@ -46,8 +46,15 @@ const refuse = (refused: string): Checked => ({ refused });
 const isNumber = (value: string | undefined): value is string => value !== undefined && /^\d+$/.test(value);
 const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((item, i) => item === b[i]);
 
-/** git: log, for-each-ref, show, rev-parse and worktree list. Nothing else. */
+/** git: log, for-each-ref, show, rev-parse, worktree list and the one status below. Nothing else. */
 const GIT_READ_COMMANDS = new Set(['log', 'for-each-ref', 'show', 'rev-parse']);
+
+/**
+ * The one `git status` that the server may run: one line for each changed, new or removed file, in the stable format for programs. The reporter counts the lines
+ * (the "dirty" number of a worktree). Every word and its place are fixed, so no other option (a pathspec, `--ignored`, an output file) can be passed.
+ * The runner already sets GIT_OPTIONAL_LOCKS=0, so this read does not write the index.
+ */
+export const GIT_STATUS: readonly string[] = ['status', '--porcelain=v1', '--untracked-files=normal'];
 
 function checkGit(args: string[]): Checked {
   const [command, second] = args;
@@ -56,6 +63,7 @@ function checkGit(args: string[]): Checked {
   // runs, and `-c` can make it start any program. The command must come first.
   if (command.startsWith('-')) return refuse(say('reasonGitOption', { arg: command }));
   const isWorktreeList = command === 'worktree' && second === 'list';
+  if (command === 'status') return sameList(args, GIT_STATUS) ? accept(args) : refuse(say('reasonGitStatus', { flags: GIT_STATUS.slice(1).join(' ') }));
   if (!GIT_READ_COMMANDS.has(command) && !isWorktreeList) return refuse(say('reasonGitNotRead', { command }));
 
   for (const arg of args.slice(1)) {

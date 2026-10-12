@@ -23,6 +23,7 @@ import { registerGithubRoutes } from './routes/github';
 import { registerNowRoutes } from './routes/now';
 import { registerSessionsRoutes } from './routes/sessions';
 import { registerStatusRoutes } from './routes/status';
+import { type ReporterOptions, createReporterModule } from './publish/module';
 import type { Runner } from './runner';
 import { createSessionsSource } from './sessions/sessions';
 import { createStatusSource } from './status/module';
@@ -44,6 +45,8 @@ export type ComposeDeps = {
   refreshGapMs?: number;
   now?: () => number;
   isAlive?: IsAlive;
+  /** Set only by the reporter run (main.ts --reporter): the part that writes the `live` key. Left out, nothing is published and nothing is written. */
+  reporter?: ReporterOptions;
 };
 
 export type Composed = {
@@ -136,6 +139,9 @@ export function compose(deps: ComposeDeps): Composed {
   const agents = createAgentsSource({ config, hub, ...(deps.now === undefined ? {} : { now: deps.now }), ...(deps.isAlive === undefined ? {} : { isAlive: deps.isAlive }) });
   registerAgentsRoutes(app, agents, panelRoutes);
   modules.push(agents);
+
+  // The reporter (only in a reporter run): it reads the sessions and agents above, and the worktrees, and writes the allow-listed live value to the store.
+  if (deps.reporter !== undefined) modules.push(createReporterModule(deps.reporter, { config, sessions, agents }));
 
   // The Now page: its list "Your move" is made from five of the sources above, under /api/now/your-move. It has no module of its own to start or stop.
   registerNowRoutes(app, { decisions, sessions, status, github, engine });
