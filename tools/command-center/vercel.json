@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "vite build",
+  "buildCommand": "VITE_HOSTED=1 vite build",
   "outputDirectory": "dist",
   "ignoreCommand": "node scripts/vercel-ignore.mjs",
   "functions": {

@@ -5,11 +5,18 @@ import { defineConfig } from 'vite';
 
 // Builds the page app. Its source is src/web (index.html is the entry) and the build goes to
 // dist/, which the server serves (see src/server/app.ts). `npm run cc` runs this build first.
+//
+// The hosted build (Vercel) is the same app built with VITE_HOSTED=1 (vercel.json): the page then reads /api/snapshot and /api/live and not the local
+// server (src/web/hosted). `CC_OUT_DIR` moves the output, so the end-to-end tests of the hosted page build next to dist/ and not over it.
 export default defineConfig({
   root: join(import.meta.dirname, 'src', 'web'),
   plugins: [react(), tailwindcss()],
+  resolve: {
+    // The doc renderer of the server imports `posix` from node:path. A browser has no node:path, so the page gets four small functions of its own (the hosted page renders docs).
+    alias: [{ find: /^node:path$/, replacement: join(import.meta.dirname, 'src', 'web', 'hosted', 'posix.ts') }],
+  },
   build: {
-    outDir: join(import.meta.dirname, 'dist'),
+    outDir: process.env.CC_OUT_DIR ?? join(import.meta.dirname, 'dist'),
     emptyOutDir: true,
     target: 'es2022',
     // Never turn a font or an image into a data: URL. The server's content policy asks for files.
