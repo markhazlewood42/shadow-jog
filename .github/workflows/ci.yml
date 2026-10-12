@@ -175,7 +175,7 @@ jobs:
               e2e/playthrough.spec.ts e2e/prod.spec.ts e2e/sje-scene3d.spec.ts
           - shard: '6/8'
             specs: >-
-              e2e/sje-field-parity-b.spec.ts e2e/sje-battle.spec.ts e2e/sje-shell.spec.ts
+              e2e/sje-field-parity-b.spec.ts e2e/sje-battle.spec.ts e2e/sje-shell.spec.ts e2e/sje-hack.spec.ts
           - shard: '7/8'
             specs: >-
               e2e/sje-draws.spec.ts e2e/economy.spec.ts e2e/chaos.spec.ts

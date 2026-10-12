@@ -156,8 +156,8 @@ describe('library imports', () => {
     expect(importers.map((f) => relative(ROOT, f).split(sep).join('/'))).toEqual(['src/sje-lab/threelab.ts']);
   });
 
-  it('nothing in the shipped game (outside src/sje, src/sje-lab, src/hack3d) imports Pixi, Three or the lab', () => {
-    const bad = all.filter((e) => e.file.startsWith('src/') && !/^src\/(sje|sje-lab|hack3d)\//.test(e.file) && (isPixi(e.spec) || isThree(e.spec) || /sje-lab|hack3d/.test(e.spec)));
+  it('nothing in the shipped game (outside src/sje, src/sje-lab, src/hack3d) imports Pixi, Three or the lab, and only the seam src/game/hackseam.ts (M7) imports hack3d', () => {
+    const bad = all.filter((e) => e.file.startsWith('src/') && !/^src\/(sje|sje-lab|hack3d)\//.test(e.file) && (isPixi(e.spec) || isThree(e.spec) || /sje-lab/.test(e.spec) || (/hack3d/.test(e.spec) && e.file !== 'src/game/hackseam.ts')));
     expect(bad.map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
   });
 
@@ -389,6 +389,87 @@ describe('the field stage (src/fieldstage, M5)', () => {
   it('the seam (src/scenes/fieldkit/fieldseam.ts) imports no engine file and no stage code: it holds types and the provider slot only', () => {
     const seam = all.filter((e) => e.file === 'src/scenes/fieldkit/fieldseam.ts');
     expect(seam.filter((e) => toEngine(e) || (e.target ?? '').startsWith('src/fieldstage')).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+  });
+});
+
+describe('the hack door (src/hack3d and the seam src/game/hackseam.ts, M7; docs/engine/m7-brief.md pass line 16)', () => {
+  const SEAM = 'src/game/hackseam.ts';
+  const read = (f: string) => readFileSync(join(ROOT, f), 'utf8');
+  const hack = edges(['src/hack3d']);
+  /** The hack3d files that sit in the START PATH: the shipped game loads them up front, so they must hold no Three. */
+  const START_FILES = ['src/hack3d/door.ts', 'src/hack3d/result.ts', 'src/hack3d/data.ts'];
+
+  /** Every problem of the start-path files: a Three import, an import of the 3D chunk's files as a value, or an import of the old engine. Pure, so a control can run it on made-up edges. */
+  function startPathProblems(edgeList: Edge[], text: (f: string) => string): string[] {
+    const problems: string[] = [];
+    for (const e of edgeList) {
+      if (!START_FILES.includes(e.file)) continue;
+      const t = e.target ?? '';
+      if (isThree(e.spec) || /^src\/sje\/three(\/|$)/.test(t)) problems.push(`${e.file} imports ${e.spec} (Three or the 3D facade)`);
+      if (/^src\/hack3d\/(index|hackscene|hud|look|colorprobe)$/.test(t) && !onlyTypeImports(text(e.file), e.spec) && !(e.file === 'src/hack3d/door.ts' && e.spec === './index')) {
+        problems.push(`${e.file} imports ${e.spec} as a value (it is in the chunk)`);
+      }
+      if (/^src\/engine(\/|$)/.test(t)) problems.push(`${e.file} imports the old engine: ${e.spec}`);
+    }
+    return problems;
+  }
+
+  it('door.ts, result.ts and data.ts import no Three, no 3D facade, and none of the chunk’s files as a value', () => {
+    expect(startPathProblems(hack, read)).toEqual([]);
+    // The scan is alive: it sees the start-path files and their imports.
+    expect(hack.filter((e) => START_FILES.includes(e.file)).length).toBeGreaterThan(3);
+  });
+
+  it('the start-path check can fail: made-up edges with a Three import, a value import of the scene and a static import of the chunk entry are all found', () => {
+    const e = (file: string, spec: string, target: string | null): Edge => ({ file, spec, target });
+    const value = "import { HackScene } from './hackscene';";
+    expect(startPathProblems([e('src/hack3d/door.ts', 'three', null)], () => value)).toHaveLength(1);
+    expect(startPathProblems([e('src/hack3d/result.ts', '../sje/three', 'src/sje/three')], () => value)).toHaveLength(1);
+    expect(startPathProblems([e('src/hack3d/door.ts', './hackscene', 'src/hack3d/hackscene')], () => value)).toHaveLength(1);
+    expect(startPathProblems([e('src/hack3d/door.ts', './hackscene', 'src/hack3d/hackscene')], () => "import type { HackOptions } from './hackscene';")).toEqual([]);
+    expect(startPathProblems([e('src/hack3d/data.ts', '../engine/rng', 'src/engine/rng')], () => '')).toHaveLength(1);
+  });
+
+  it('door.ts has exactly one dynamic import, of the chunk entry ./index', () => {
+    // Comments name the import too (this scan, `importsOf`, reads them), so they are cut first.
+    const text = read('src/hack3d/door.ts').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    const dynamic = [...text.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)].map((m) => m[1]);
+    expect(dynamic).toEqual(['./index']);
+    // Nothing else in the start path imports the chunk entry, statically or not.
+    for (const f of START_FILES.filter((x) => x !== 'src/hack3d/door.ts')) expect(importsOf(read(f)).filter((s) => /(^|\/)index$/.test(s)), f).toEqual([]);
+  });
+
+  it('src/hack3d/index.ts is reached by the door’s dynamic import only (not by the game, the lab or another hack3d file)', () => {
+    const into = all.filter((e) => e.target === 'src/hack3d/index' || e.target === 'src/hack3d');
+    // The chunk's own entry file names itself in its header comment, and so does the door's header: only the code counts.
+    const code = (f: string) => read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    const outside = into.filter((e) => !/^(tests|e2e|scripts)\//.test(e.file) && importsOf(code(e.file)).includes(e.spec));
+    expect([...new Set(outside.map((e) => `${e.file} imports ${e.spec}`))]).toEqual(['src/hack3d/door.ts imports ./index']);
+  });
+
+  it('src/hack3d/sim imports nothing from src/engine (M8 deletes it), and no Three, Pixi or engine value', () => {
+    const sim = hack.filter((e) => e.file.startsWith('src/hack3d/sim/'));
+    expect(sim.length).toBeGreaterThan(0);
+    expect(sim.filter((e) => /^src\/engine(\/|$)/.test(e.target ?? '') || isThree(e.spec) || isPixi(e.spec)).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+  });
+
+  it('no file in src/hack3d imports the old engine', () => {
+    expect(hack.filter((e) => /^src\/engine(\/|$)/.test(e.target ?? '')).map((e) => `${e.file} imports ${e.spec}`)).toEqual([]);
+  });
+
+  it('src/game/hackseam.ts is the only file outside src/hack3d, the lab and the tests that imports hack3d, and it reaches door.ts, result.ts and data.ts only', () => {
+    const into = all.filter((e) => /^src\/hack3d(\/|$)/.test(e.target ?? '') && !e.file.startsWith('src/hack3d/') && !/^(tests|e2e|scripts|src\/sje-lab)\//.test(e.file));
+    expect([...new Set(into.map((e) => e.file))]).toEqual([SEAM]);
+    expect([...new Set(into.map((e) => e.target))].sort()).toEqual(['src/hack3d/data', 'src/hack3d/door', 'src/hack3d/result']);
+    // The seam imports no engine file (the shipped game reaches the engine through a fixed list of files, tested above) and no Pixi or Three.
+    const seam = all.filter((e) => e.file === SEAM);
+    expect(seam.filter((e) => (e.target ?? '').startsWith('src/sje') || isPixi(e.spec) || isThree(e.spec)).map((e) => e.spec)).toEqual([]);
+  });
+
+  it('the shipped game reaches the door only through the seam: script.ts and hooks.ts import the seam’s types, systems.ts its runHack', () => {
+    const viaSeam = all.filter((e) => e.target === 'src/game/hackseam').map((e) => e.file);
+    expect(viaSeam).toEqual(expect.arrayContaining(['src/game/script.ts', 'src/game/hooks.ts', 'src/game/systems.ts']));
+    for (const f of ['src/game/script.ts', 'src/game/hooks.ts']) expect(onlyTypeImports(read(f), './hackseam'), f).toBe(true);
   });
 });
 

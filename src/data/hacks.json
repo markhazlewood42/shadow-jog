@@ -1,0 +1,8 @@
+{
+  "hacks": [
+    { "id": "test-hack", "seed": 7, "ticks": 900, "iceCount": 4, "traceLimit": 100, "hitCost": 14 },
+    { "id": "test-short", "seed": 7, "ticks": 120, "iceCount": 4, "traceLimit": 100, "hitCost": 14 },
+    { "id": "test-fail", "seed": 7, "ticks": 900, "iceCount": 4, "traceLimit": 14, "hitCost": 14 },
+    { "id": "test-fallback", "seed": 7, "ticks": 900, "iceCount": 4, "traceLimit": 100, "hitCost": 14, "policy": { "aborted": "retry-then-succeed", "unsupported": "alternative" } }
+  ]
+}

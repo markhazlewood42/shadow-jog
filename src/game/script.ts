@@ -1,5 +1,6 @@
 /** Story scripting API. Scripts are async functions that `await` presentation steps. */
 import type { Dir } from '../art/chars';
+import type { HackDef, HackOutcome } from './hackseam';
 import type { MemberId } from './state';
 
 export type Emote = '!' | '?' | '...' | '♥' | '!!' | 'zzz' | 'anger' | 'sweat';
@@ -46,6 +47,12 @@ export interface ScriptApi {
   deck(mode: 'dead' | 'seat' | 'view'): Promise<void>;
 
   battle(encounter: string, opts?: { canRun?: boolean; boss?: boolean; music?: string; bg?: string; loseOk?: boolean }): Promise<BattleResult>;
+  /**
+   * Run a 3D hack (M7; decision D4 of docs/engine/m7-brief.md). Always resolves, with the outcome after the author's policy (`def.policy`): `outcome` is what the story counts,
+   * `via` says who decided. `via: 'dropped'` means the player dropped the story (a loaded save, the title screen): stop the script. `playAlternative` is the 2D stand-in for a browser
+   * that cannot run the hack; it returns whether the player won it, and without one the hack counts as won.
+   */
+  hack(def: HackDef, playAlternative?: () => Promise<'success' | 'fail'>): Promise<HackOutcome>;
   warp(map: string, x: number, y: number, dir?: Dir, opts?: { fade?: boolean }): Promise<void>;
 
   /** Move an entity ('player' | npc id) along a path like "uuullr" or explicit dirs. */

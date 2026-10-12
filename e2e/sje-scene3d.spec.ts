@@ -155,13 +155,13 @@ test.describe('Scene3D: the cube', () => {
 });
 
 test.describe('Scene3D: context loss', () => {
-  test('a lost context ends the scene with aborted / context-lost, quickly and with no console error; the restore throws nothing; a new scene runs', async ({ browser }) => {
+  test('with no grace (contextGraceMs 0, D3 option C) a lost context ends the scene in the first draw with aborted / context-lost, and no console error; the restore throws nothing; a new scene runs', async ({ browser }) => {
     await withLab(browser, async ({ page }) => {
       const out = await page.evaluate(async ([w, h]) => {
         const hk = window.__SJE__;
         if (!hk) throw new Error('no hook');
         const t = await hk.three();
-        t.start({ bloom: false });
+        t.start({ bloom: false, contextGraceMs: 0 });
         hk.step(20);
         const wasRunning = t.sceneRunning();
         const t0 = performance.now();
@@ -201,7 +201,7 @@ test.describe('Scene3D: context loss', () => {
     });
   });
 
-  test('on the real 60 Hz loop the scene ends by itself within 2 seconds of the loss', async ({ browser }) => {
+  test('on the real 60 Hz loop the scene ends by itself after the 1 s grace, and within 2 seconds of the loss', async ({ browser }) => {
     await withLab(
       browser,
       async ({ page }) => {
@@ -221,9 +221,46 @@ test.describe('Scene3D: context loss', () => {
           return { ms, result, running: t.sceneRunning(), glErrors: hk.glErrors() };
         });
         expect(out.result).toEqual({ status: 'aborted', reason: 'context-lost' });
+        // The grace (C4, D3 option A of docs/engine/m7-brief.md): the end is 1000 ms after the loss, not at the first draw.
+        expect(out.ms, 'the scene waits for the grace').toBeGreaterThanOrEqual(950);
         expect(out.ms).toBeLessThan(2000);
         expect(out.running).toBe(false);
         expect(out.glErrors).toEqual([]);
+      },
+      { query: 'real' },
+    );
+  });
+
+  test('a context that comes back inside the grace: the scene carries on and draws again (no end, no GL error); CONTROL: contextGraceMs 100 ends before the restore', async ({ browser }) => {
+    await withLab(
+      browser,
+      async ({ page }) => {
+        const out = await page.evaluate(async () => {
+          const hk = window.__SJE__;
+          if (!hk) throw new Error('no hook');
+          const t = await hk.three();
+          const run = async (graceMs: number | undefined) => {
+            t.start({ bloom: false, ...(graceMs === undefined ? {} : { contextGraceMs: graceMs }) });
+            await new Promise((r) => setTimeout(r, 300));
+            await hk.loseContext();
+            await new Promise((r) => setTimeout(r, 400));
+            await hk.restoreContext();
+            await new Promise((r) => setTimeout(r, 1500));
+            const w = t.facts()?.width ?? 0;
+            const h = t.facts()?.height ?? 0;
+            const end = { running: t.sceneRunning(), result: t.sceneResult(), glErrors: hk.glErrors(), center: t.sceneRunning() ? t.targetPixel(Math.floor(w / 2), Math.floor(h / 2)) : null, corner: t.sceneRunning() ? t.targetPixel(4, 4) : null };
+            t.stop();
+            return end;
+          };
+          const saved = await run(undefined);
+          const control = await run(100);
+          return { saved, control };
+        });
+        expect(out.saved.running).toBe(true);
+        expect(out.saved.result).toBeNull();
+        expect(out.saved.glErrors).toEqual([]);
+        expect(out.saved.center, 'the cube is drawn after the restore').not.toEqual(out.saved.corner);
+        expect(out.control.result).toEqual({ status: 'aborted', reason: 'context-lost' });
       },
       { query: 'real' },
     );

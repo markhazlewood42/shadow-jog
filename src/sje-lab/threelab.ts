@@ -52,6 +52,8 @@ export interface StartOptions {
   bloom?: boolean;
   /** TEST ONLY, the Scene3D leak check's control: the cube scene never frees its frame at shutdown. */
   skipDispose?: boolean;
+  /** How long a lost context may take to come back (`Scene3D` option; default 1000 ms, 0 is no grace). */
+  contextGraceMs?: number;
 }
 
 export interface StaleClearResult {
@@ -200,6 +202,7 @@ export async function createThreeLab(lab: Lab): Promise<ThreeLab> {
       background: options.background ?? CUBE_BACKGROUND,
       bloom: options.bloom !== false,
       ...(options.skipDispose ? { skipDispose: true } : {}),
+      ...(options.contextGraceMs !== undefined ? { contextGraceMs: options.contextGraceMs } : {}),
     });
     lab.attachGame(game);
     running = { game, scene, onLost };

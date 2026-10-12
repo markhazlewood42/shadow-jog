@@ -15,21 +15,22 @@
  */
 import { BoxGeometry, Mesh, MeshBasicMaterial, PerspectiveCamera } from 'three';
 import { Texture } from 'pixi.js';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CubeScene } from '../src/sje-lab/cubescene';
 import { H, W } from '../src/sje/core/size';
 import type { DisplayHost } from '../src/sje/display/gameobject';
 import { View3D } from '../src/sje/display/view3d';
 import type { FrameTexture } from '../src/sje/render/frametexture';
 import { Game } from '../src/sje/runtime/game';
-import { type Frame3D, type HackResult, Scene3D, type Scene3DAbort } from '../src/sje/three';
+import { Scene } from '../src/sje/runtime/scene';
+import { type Frame3D, type HackResult, Scene3D, type Scene3DAbort, type Scene3DOptions } from '../src/sje/three';
 import { noopInput } from './game-cases';
 
 const noop = () => undefined;
 
 /** Faults the game reported (a throw in a tick or a draw). Every test checks it stays empty. */
-function newGame(faults: unknown[] = []): Game {
-  return new Game({ renderer: { render: noop }, input: noopInput, compat: { reportError: (e) => faults.push(e) } });
+function newGame(faults: unknown[] = [], onRender: () => void = noop): Game {
+  return new Game({ renderer: { render: onRender }, input: noopInput, compat: { reportError: (e) => faults.push(e) } });
 }
 
 // ---- a fake Frame3D that records ----------------------------------------------------------------------------
@@ -90,8 +91,11 @@ const makeFrameFor =
   };
 
 class ProbeScene extends Scene3D<HackResult> {
-  constructor(protected readonly probe: Probe) {
-    super({ makeFrame: makeFrameFor(probe) });
+  constructor(
+    protected readonly probe: Probe,
+    options: Scene3DOptions = {},
+  ) {
+    super({ makeFrame: makeFrameFor(probe), ...options });
   }
   create3D(): void {
     this.probe.log.push('create3D');
@@ -192,56 +196,241 @@ describe('Scene3D ending early', () => {
     expect(probe.log.slice(-2)).toEqual(['frame.dispose', 'geometry.dispose']);
   });
 
-  it('the game event contextlost: Three forgets its GPU data once, and the next draw ends the scene with context-lost and draws nothing', async () => {
-    const faults: unknown[] = [];
-    const g = newGame(faults);
-    const probe = newProbe();
-    const scene = new ProbeScene(probe);
-    const done = g.run(scene);
-    g.draw();
-    expect(probe.frame?.renders).toBe(1);
-    g.events.emit('contextlost');
-    g.events.emit('contextlost');
-    expect(probe.frame?.released).toBe(1);
-    // Nothing ends inside the event: the browser is still calling the other listeners of the loss.
-    expect(scene.closed).toBe(false);
-    g.draw();
-    expect(await done).toEqual({ status: 'aborted', reason: 'context-lost' });
-    expect(probe.frame?.renders).toBe(1);
-    expect(probe.frame?.released).toBe(1);
-    expect(probe.frame?.disposed).toBe(1);
-    expect(faults).toEqual([]);
-  });
-
-  it('the frame saying contextLost is enough, without the game event', async () => {
+  it('an early end from the scene itself carries the reason it was given (error)', async () => {
     const g = newGame();
     const probe = newProbe();
     const scene = new ProbeScene(probe);
     const done = g.run(scene);
-    if (probe.frame) probe.frame.contextLost = true;
-    g.draw();
-    expect(await done).toEqual({ status: 'aborted', reason: 'context-lost' });
-    expect(probe.frame?.released).toBe(1);
+    scene.endEarly('error');
+    expect(await done).toEqual({ status: 'aborted', reason: 'error' });
+  });
+});
+
+// ---- 2b. the context grace (decision C4 and D3 of docs/engine/m7-brief.md) --------------------------------------------------------------------------
+
+describe('Scene3D context grace: a lost context gets 1 second to come back', () => {
+  afterEach(() => vi.useRealTimers());
+
+  /** A running scene on a fake frame, and a way to lose and restore the context the way the browser does (the frame flag and the game events together). */
+  function rig(options: Scene3DOptions = {}) {
+    vi.useFakeTimers();
+    const faults: unknown[] = [];
+    const g = newGame(faults);
+    const probe = newProbe();
+    const scene = new ProbeScene(probe, options);
+    let result: HackResult | null = null;
+    void g.run(scene).then((r) => {
+      result = r;
+    });
+    const lose = (): void => {
+      if (probe.frame) probe.frame.contextLost = true;
+      g.events.emit('contextlost');
+    };
+    const restore = (): void => {
+      if (probe.frame) probe.frame.contextLost = false;
+      g.events.emit('contextrestored');
+    };
+    return { g, probe, scene, faults, lose, restore, result: () => result };
+  }
+
+  it('a loss: Three forgets its GPU data once, draws stop, the sim keeps ticking, and nothing ends inside the event or the draw', () => {
+    const r = rig();
+    r.g.draw();
+    expect(r.probe.frame?.renders).toBe(1);
+    r.lose();
+    r.g.events.emit('contextlost');
+    expect(r.probe.frame?.released).toBe(1);
+    expect(r.scene.closed).toBe(false);
+    r.g.advanceTick();
+    r.g.draw();
+    r.g.draw();
+    // A draw after the loss makes no sync3D and no frame.render (every GL call would be a no-op), and the scene is still there.
+    expect(r.probe.frame?.renders).toBe(1);
+    expect(r.scene.closed).toBe(false);
+    expect(r.probe.log).toContain('update3D 1');
+    expect(r.faults).toEqual([]);
+  });
+
+  it('the scene ends with context-lost exactly 1000 ms after the loss, not before (D3 option A)', async () => {
+    const r = rig();
+    r.lose();
+    r.g.draw();
+    vi.advanceTimersByTime(999);
+    expect(r.scene.closed).toBe(false);
+    vi.advanceTimersByTime(1);
+    expect(r.scene.closed).toBe(true);
+    await vi.waitFor(() => expect(r.result()).toEqual({ status: 'aborted', reason: 'context-lost' }));
+    expect(r.probe.frame?.disposed).toBe(1);
+    expect(r.probe.frame?.released).toBe(1);
+    expect(r.faults).toEqual([]);
+  });
+
+  it('the end runs from the timer, outside the draw: a loss never closes a scene inside its own prerender', () => {
+    const r = rig();
+    r.lose();
+    r.g.draw();
+    r.g.draw();
+    expect(r.scene.closed).toBe(false);
+    vi.advanceTimersByTime(1000);
+    expect(r.scene.closed).toBe(true);
+  });
+
+  it('the frame saying contextLost is enough, without the game event: the grace starts at the first draw that sees it', () => {
+    const r = rig();
+    if (r.probe.frame) r.probe.frame.contextLost = true;
+    r.g.draw();
+    expect(r.probe.frame?.released).toBe(1);
+    expect(r.probe.frame?.renders).toBe(0);
+    expect(r.probe.log).not.toContain('sync3D');
+    vi.advanceTimersByTime(1000);
+    expect(r.scene.closed).toBe(true);
+  });
+
+  it('a restore at 500 ms: the scene carries on, draws again, and the timer is gone', () => {
+    const r = rig();
+    r.g.draw();
+    r.lose();
+    r.g.draw();
+    vi.advanceTimersByTime(500);
+    r.restore();
+    r.g.draw();
+    vi.advanceTimersByTime(5000);
+    expect(r.scene.closed).toBe(false);
+    expect(r.probe.frame?.renders).toBe(2);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(r.faults).toEqual([]);
+  });
+
+  it('a restore seen only by the frame (no game event, the canvas-copy path) also saves the scene', () => {
+    const r = rig();
+    r.lose();
+    r.g.draw();
+    vi.advanceTimersByTime(400);
+    if (r.probe.frame) r.probe.frame.contextLost = false;
+    r.g.draw();
+    vi.advanceTimersByTime(5000);
+    expect(r.scene.closed).toBe(false);
+    expect(r.probe.frame?.renders).toBe(1);
+  });
+
+  it('after a restore, a second loss makes Three forget its GPU data again and starts a fresh grace', () => {
+    const r = rig();
+    r.lose();
+    vi.advanceTimersByTime(300);
+    r.restore();
+    r.g.draw();
+    expect(r.probe.frame?.released).toBe(1);
+    r.lose();
+    expect(r.probe.frame?.released).toBe(2);
+    vi.advanceTimersByTime(999);
+    expect(r.scene.closed).toBe(false);
+    vi.advanceTimersByTime(1);
+    expect(r.scene.closed).toBe(true);
+  });
+
+  it('a restore after the end draws nothing and throws nothing', () => {
+    const r = rig();
+    r.lose();
+    r.g.draw();
+    vi.advanceTimersByTime(1000);
+    const before = [...r.probe.log];
+    r.restore();
+    r.g.advanceTick();
+    r.g.draw();
+    r.g.draw();
+    expect(r.probe.log).toEqual(before);
+    expect(r.faults).toEqual([]);
+  });
+
+  it('closing the scene during the grace clears the timer', () => {
+    const r = rig();
+    r.lose();
+    expect(vi.getTimerCount()).toBe(1);
+    r.scene.close({ status: 'success' });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('contextGraceMs sets the wait: 250 ends at 250 ms, and 2500 is still alive at 2000 ms (the control of pass line 7)', () => {
+    const quick = rig({ contextGraceMs: 250 });
+    quick.lose();
+    vi.advanceTimersByTime(249);
+    expect(quick.scene.closed).toBe(false);
+    vi.advanceTimersByTime(1);
+    expect(quick.scene.closed).toBe(true);
+    const slow = rig({ contextGraceMs: 2500 });
+    slow.lose();
+    vi.advanceTimersByTime(2000);
+    expect(slow.scene.closed).toBe(false);
+    vi.advanceTimersByTime(500);
+    expect(slow.scene.closed).toBe(true);
+  });
+
+  it('contextGraceMs 0 is "no grace" (D3 option C): the scene ends in the first draw after the loss, as M1b built it', () => {
+    const r = rig({ contextGraceMs: 0 });
+    r.lose();
+    expect(r.scene.closed).toBe(false);
+    r.g.draw();
+    expect(r.scene.closed).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+// ---- 2c. hidden 3D scenes draw no frame, and a revealed one is not stale (pass line 11) --------------------------------------------------------------
+
+/** An opaque scene that hides what is under it. `inPrerender` closes it inside its own prerender handler, the way a scene that loses its context (with no grace) does. */
+class Cover extends Scene<void> {
+  constructor(private readonly inPrerender = false) {
+    super();
+  }
+  override create(): void {
+    if (this.inPrerender) this.events.on('prerender', () => this.close());
+  }
+  fixedUpdate(): void {}
+}
+
+describe('a Scene3D under an opaque scene', () => {
+  it('calls frame.render 0 times over 30 draws while it is hidden, and still ticks (nothing pauses a scene just because it is hidden)', () => {
+    const g = newGame();
+    const probe = newProbe();
+    void g.run(new ProbeScene(probe));
+    void g.run(new Cover());
+    g.advanceTick();
+    for (let i = 0; i < 30; i++) g.draw();
     expect(probe.frame?.renders).toBe(0);
     expect(probe.log).not.toContain('sync3D');
   });
 
-  it('a restore after the early end draws nothing and throws nothing', async () => {
-    const faults: unknown[] = [];
-    const g = newGame(faults);
+  it('when the cover closes in a tick, the first drawn frame renders the 3D picture BEFORE Pixi draws the display list', () => {
+    const order: string[] = [];
+    const g = newGame([], () => order.push('pixi'));
     const probe = newProbe();
-    const scene = new ProbeScene(probe);
-    const done = g.run(scene);
-    g.events.emit('contextlost');
-    g.draw();
-    await done;
-    const before = [...probe.log];
-    g.events.emit('contextrestored');
+    probe.log = order;
+    void g.run(new ProbeScene(probe));
+    const cover = new Cover();
+    void g.run(cover);
     g.advanceTick();
     g.draw();
+    expect(probe.frame?.renders).toBe(0);
+    order.length = 0;
+    cover.close();
     g.draw();
-    expect(probe.log).toEqual(before);
-    expect(faults).toEqual([]);
+    expect(probe.frame?.renders).toBe(1);
+    expect(order).toEqual(['sync3D', 'render', 'pixi']);
+  });
+
+  // M7 task 5 turns this on (tests/sje-runtime.test.ts holds the same case without 3D). Run red on 2026-10-12: renders was 0, so the revealed scene showed the texture from before it was hidden.
+  it.skip('when the cover closes INSIDE its own prerender, the scene under it renders in that same frame (the second pass)', () => {
+    const order: string[] = [];
+    const g = newGame([], () => order.push('pixi'));
+    const probe = newProbe();
+    probe.log = order;
+    void g.run(new ProbeScene(probe));
+    void g.run(new Cover(true));
+    g.advanceTick();
+    order.length = 0;
+    g.draw();
+    expect(probe.frame?.renders).toBe(1);
+    expect(order).toEqual(['sync3D', 'render', 'pixi']);
   });
 });
 

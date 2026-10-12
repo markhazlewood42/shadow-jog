@@ -59,6 +59,8 @@ export function scriptApi(f: FieldScene): ScriptApi {
     },
     refreshFocus: () => fieldHooks.refreshFocus?.(),
     battle: async (enc, opts) => (fieldHooks.battle ? fieldHooks.battle(f, enc, opts ?? {}) : 'win'),
+    // No hack hook installed (a test field): the hack counts as won, as a missing battle hook counts as a win.
+    hack: async (def, alt) => (fieldHooks.hack ? fieldHooks.hack(f, def, alt) : { outcome: 'success', via: 'policy', results: [] }),
     warp: async (mapId, x, y, dir, opts) => {
       await f.warp(mapId, x, y, dir ?? f.leader.dir, opts?.fade !== false);
     },

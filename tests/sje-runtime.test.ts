@@ -907,3 +907,54 @@ describe('the action map wraps the old Input (it does not copy it)', () => {
     expect(s.input.actions).toBe(g.actions);
   });
 });
+
+// ---- M7 pass line 11: hidden scenes draw nothing, and a revealed scene is never stale --------------------------------------------------------------
+
+/** A cover (opaque by default) that closes itself when `closeNow` runs. `inPrerender` makes it close inside its own prerender handler. */
+class Cover extends Scene<void> {
+  constructor(private readonly inPrerender = false) {
+    super();
+  }
+  override create(): void {
+    if (this.inPrerender) this.events.on('prerender', () => this.close());
+  }
+  fixedUpdate(): void {}
+}
+
+describe('hidden scenes and the draw phase (docs/engine/m7-brief.md pass line 11, survey section 5)', () => {
+  it('a scene under an opaque scene gets no prerender at all, over 30 draws', () => {
+    const g = newGame();
+    const under = new Counting();
+    void g.run(under);
+    void g.run(new Cover());
+    g.advanceTick();
+    for (let i = 0; i < 30; i++) g.draw();
+    expect(under.prerenders).toBe(0);
+  });
+
+  it('a cover that closes in a tick: the first draw after it runs the revealed scene’s prerender (the first refreshLayout catches it)', () => {
+    const g = newGame();
+    const under = new Counting();
+    void g.run(under);
+    const cover = new Cover();
+    void g.run(cover);
+    g.advanceTick();
+    g.draw();
+    expect(under.prerenders).toBe(0);
+    cover.close();
+    g.draw();
+    expect(under.prerenders).toBe(1);
+  });
+
+  // M7 task 5 turns this on: SceneManager.prerender() must run the prerender of a scene that its own second refreshLayout() revealed.
+  // It is skipped, not deleted, so the build of task 5 only has to change `it.skip` to `it`. Run red on 2026-10-12: prerenders was 0.
+  it.skip('a cover that closes INSIDE its own prerender: the scene under it runs its prerender in that same frame (the second pass)', () => {
+    const g = newGame();
+    const under = new Counting();
+    void g.run(under);
+    void g.run(new Cover(true));
+    g.advanceTick();
+    g.draw();
+    expect(under.prerenders).toBe(1);
+  });
+});
