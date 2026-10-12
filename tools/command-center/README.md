@@ -285,7 +285,7 @@ A poll runs only while the tab is visible. A hidden tab pauses the polls. A tab 
 
 The reporter is the local server, run headless with `--reporter`. It reads the live sessions, their agents and the worktrees of this machine, and writes one JSON value to the Upstash key `live` (600 s expiry). The hosted page reads it through `/api/live`. Design: `docs/command-center/design.md` section 11.1. Code: `src/server/publish/`, `scripts/reporter-launch.mjs`, `scripts/reporter-hook.mjs`.
 
-**What leaves this machine (the allow-list).** Per session: id, title, git branch, the NAME of the working folder (never its path), busy or idle, start time, and agent names and counts. Per worktree: path, branch and the number of changed files. Never a message, a prompt, a result or a file body. `map.ts` writes each field by hand, and `parseLive` checks the value before every write. A value that fails is never sent.
+**What leaves this machine (the allow-list).** Per session: id, title, git branch, the NAME of the working folder (never its path), busy or idle, start time, and agent names and counts. Per worktree: path, branch and the number of changed files. Never a message, a prompt, a result or a file body. `map.ts` writes each field by hand, and `parseLive` checks the value before every write. A value that fails is never sent. A session title is the text of a prompt, so it can hold a pasted secret: `map.ts` replaces secret-shaped text in titles (and in agent names) with `[redacted]` before the 120-character cut. It covers `ghp_`/`gho_`/`github_pat_` tokens, `sk-` keys, `sb_secret_`/`sb_publishable_` keys, `Bearer <token>`, `AKIA...` ids, `xoxb-`/`xoxp-` tokens, JWTs (`eyJ...`), `KEY=`/`TOKEN=`/`SECRET=`/`PASSWORD=` assignments, and any run of 24 or more token characters that mixes letters and digits. The rules lean toward redacting: a plain title passes unchanged, and a long code-like word can be redacted by mistake.
 
 **What it does.**
 
@@ -295,7 +295,7 @@ The reporter is the local server, run headless with `--reporter`. It reads the l
 | Beat | At least once in 60 s |
 | Key expiry | 600 s |
 | Exit | After 30 minutes with no live shadow-jog session (code 0) |
-| Protection check | Every 10 minutes: one request to `<hosted page>/api/live` with no cookie and no token. 401 or a redirect to the Vercel login is protected. A 200 with JSON means the page is public: it stops, deletes the key and exits with code 3. An error, a timeout or a 5xx changes nothing. |
+| Protection check | Every 10 minutes: one request to `<hosted page>/api/live` with no cookie and no token. 401 or a redirect to the Vercel login is protected. A 200 with JSON means the page is public: it stops, deletes the key and exits with code 3. An error, a timeout or a 5xx is "no answer": one or two in a row change nothing. The third "no answer" in a row (30 minutes without a confirmation) fails closed: the reporter stops writing, deletes the key, and checks every minute until one check says protected. A protected answer resets the count. |
 | Start | No write happens until one check says protected. Until then the check repeats every minute. |
 | Port | 3011 (its own). `npm run cc` stays on 3009. |
 
@@ -335,12 +335,14 @@ The reporter is the local server, run headless with `--reporter`. It reads the l
 
 **The pinned copy.** `<main checkout>/.cc-reporter/pinned` is a sparse, shallow clone of `origin/main` (only `tools/command-center`). The folder is in `.gitignore`. The launcher runs `git fetch` in that clone every 2 minutes, never in your checkout. When `main` changed `tools/command-center/`, it updates the clone (and runs `npm ci` when the lock file changed) and starts the server again. Two launches at once: the second finds the lock (`.cc-reporter/reporter.lock`, touched every 30 s) or the open port and does nothing.
 
+**Failure rules of the launcher.** Git runs without blocking, so the lock heartbeat keeps going during a long clone. The copy counts as ready only with the marker file `pinned/.cc-ready`, which is written after the clone, the checkout and `npm ci` all worked. A `.git` folder without the marker is removed and made again. When the lock file changed, the marker `pinned/.cc-needs-install` is set before the code moves and removed after `npm ci` worked, so a failed install is tried again at the next round and the server never starts with new code and old packages. With no settings file the launcher logs one line and ends: it does not fetch the copy at every session start. A server that exits by itself is never started again by the update step.
+
 **Start, stop, look.**
 
 | Task | How |
 |---|---|
 | Start | `npm run reporter` (or just start a session in a shadow-jog folder, with the hook) |
-| Stop | `npm run reporter:stop` (reads the process ids in the lock; the server first, then the launcher) |
+| Stop | `npm run reporter:stop`. It reads the process ids in the lock and kills a process only when the process start time in the lock matches the system and the command line is the launcher or the server. If it cannot verify a process, it kills nothing for it, writes the reason to the log and leaves the lock. It never kills by name. |
 | See the log | `.cc-reporter/reporter.log` (launcher lines and server lines, each with a time; the reporter never writes a token to it) |
 | Is it running? | The hosted page shows "Reporter offline" or "not running" when it is not. Or check that `.cc-reporter/reporter.lock` changed in the last minute. |
 | Test a branch before the merge | `node scripts/reporter-launch.mjs --branch <branch>` makes the pinned copy follow that branch |
