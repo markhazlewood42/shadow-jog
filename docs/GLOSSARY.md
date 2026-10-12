@@ -426,14 +426,15 @@ Names from the engine migration (`docs/engine/`). They never show to the player.
 | **Field parity (old against new)** | The check that the new field equals the old one: 31 fixed states (map, tile, flags, ambient, weather, seed, tick), references made from the old path in a `gpu` and a `soft` set, the new frame compared with the reference of its renderer kind. The strict gate does not hold for lit frames (the two blends round differently); measured bounds guard against drift. | `e2e/sje-field-parity-a.spec.ts` and `-b`, `e2e/sjefieldparity.ts` |
 | **Field state hooks (`fieldShow`, `fieldInfo`)** | DEV hooks on `window.__SJ__`: `fieldShow(case)` puts a fresh field in a fixed state; `fieldInfo()` reads the map, the leader, the flags, the camera, the light count and the tick. Both paths have them. | `src/dev/fieldshow.ts` |
 
-## 15. Command Center names (planned, not built yet)
+## 15. Command Center names (the reporter is built in step 5; the rest of revision 3 is in the design)
 
-These names come from the Command Center live design (`docs/command-center/design.md`, revision 3). They are planned, not built yet.
+These names come from the Command Center live design (`docs/command-center/design.md`, revision 3). The reporter and the pinned copy are built on branch `reporter` (step 5). The other names are in the design.
 
 | Name | Meaning | Where |
 |---|---|---|
 | **Workstream** | One branch and everything that joins to it by branch name: its PR and checks, its roadmap item, its live sessions, its worktree and its state file `docs/workstreams/<branch>.md`. States: active, review, blocked, parked, merged. | `docs/command-center/design.md` section 5.9 |
-| **Reporter** | The local Command Center server run headless. It writes what only this machine knows (sessions, agents, worktrees, uncommitted workstream edits) to one Upstash Redis key, `live`, for the hosted Command Center. | `docs/command-center/design.md` section 11.1 |
+| **Reporter** | The local Command Center server run headless. It writes what only this machine knows (sessions, agents, worktrees, uncommitted workstream edits) to one Upstash Redis key, `live`, for the hosted Command Center. Run with `main.ts --reporter` on port 3011. Code: `tools/command-center/src/server/publish/`. | `docs/command-center/design.md` section 11.1 |
+| **Pinned copy** | The reporter's own sparse, shallow clone of `origin/main` (only `tools/command-center`) in the git-ignored folder `.cc-reporter/pinned` of the main checkout. The reporter runs from it, so a branch switch in the shared checkout cannot change its code. The launcher fetches it every 2 minutes. | `tools/command-center/scripts/reporter-launch.mjs` |
 
 ---
 

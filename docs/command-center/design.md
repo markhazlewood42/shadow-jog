@@ -443,7 +443,7 @@ Choice: B. It keeps the live view cheap and leaves Your move untouched.
 
 Mark approved the strategy "Command Center: a live, hosted strategy" (draft 4) on 2026-10-11. This section holds the parts that do not fit in the sections above. The decisions are in section 2.2. The workstream file is in section 5.9. The hosted mode and the latency table are in section 4.3. The functions are in section 6. All code paths are under `tools/command-center/`.
 
-Nothing in revision 3 is built. Goal (Mark): one hosted URL that Mark always uses. It shows a change soon after Mark or any Claude Code session updates the project. It knows every active branch, worktree and session, and shows how each fits the current workstreams.
+Steps 1 to 4 are built and merged. Step 5 is built on branch `reporter` (see the status note after section 11.3). Goal (Mark): one hosted URL that Mark always uses. It shows a change soon after Mark or any Claude Code session updates the project. It knows every active branch, worktree and session, and shows how each fits the current workstreams.
 
 ### 11.1 Local reporter (this machine)
 
@@ -483,6 +483,14 @@ Each step is one branch from `main`, one PR, and the lean loop (runner and reade
 6. **Optional, local CC.** The Workstreams view and the 2-minute `git fetch` (`runner.ts` allow-list).
 
 After step 4, pushed work is live on the hosted page. After step 5, sessions and worktrees are live too.
+
+**Step 5 status (2026-10-12): built on branch `reporter`, not merged, not run against the real Upstash.** Mark still adds the settings file and the hook entry (README, section "The local reporter (step 5)"). What was built, and where it differs from section 11.1:
+- **Code.** `src/server/publish/` (the allow-list mapper, the worktree reader, the Upstash writer, the protection check, the loop), `scripts/reporter-launch.mjs` (the pinned copy, the lock, the fetch every 2 minutes) and `scripts/reporter-hook.mjs` (the `SessionStart` hook). `main.ts --reporter` turns the module on. `npm run cc` does not publish.
+- **Own port 3011.** The reporter does not use 3009, so `npm run cc` and the reporter can run together.
+- **Fail closed at the start.** The first write waits for a check that says "protected". Until then the check repeats every minute. After the first "protected" answer, the 10-minute rule of section 11.1 applies as written: an error, a timeout or a 5xx changes nothing.
+- **Dirty counts.** The runner list gained one exact `git status --porcelain=v1 --untracked-files=normal` (`GIT_STATUS` in `runner.ts`). Worktrees outside the configured roots are reached by adding the folders that `git worktree list` printed to the roots of one runner call.
+- **No workstream frontmatter in `live`.** The contract (`src/shared/live.ts`) has no field for it. The hosted page reads workstream files from GitHub. Uncommitted edits to them do not show until the contract grows a field.
+- **The fetch lives in the launcher.** `git fetch` runs in the pinned copy from `reporter-launch.mjs`, so the runner list got no `fetch` entry. Step 6 can still add one.
 
 ### 11.4 Risks and open points
 
