@@ -259,12 +259,15 @@ test.describe('controls', () => {
       // The stage's code is a lazy chunk (dev: /src/battlestage/liveopen.ts, built: assets/liveopen-*.js): cut it off before the first fight asks for it.
       await page.route(/liveopen/, (route) => route.abort());
       await fight(page, ['rustfang_punk'], 'street');
+      // The notice bar says the new stage could not load. Read it first, before anything slow. The failure is posted a moment after the battle opens (the stage's code is a lazy
+      // chunk), and the bar clears itself 6 seconds after it was posted (`currentNotice` in src/engine/errors.ts, real time, by design). On a slow runner the fight takes longer than
+      // that to reach the round menu, so a read after the 60 s wait found the bar empty (CI runs 38185184825 and 38183421640). So wait for the bar to show, then check it.
+      expect(await waitUntil(page, "sj.notice() !== null && sj.notice().text.includes('battle stage could not load')", 10_000), 'the notice bar showed (not the one-time software-graphics notice that boot can still be showing)').toBe(true);
+      expect(await sj<{ text: string; tone: string }>(page, 'sj.notice()')).toEqual({ text: 'The new battle stage could not load, so this fight uses the old view.', tone: 'warn' });
       // The battle runs with its own renderer: no stage, and the scene is the opaque one.
       expect(await waitUntil(page, 'sj.game.top.mode === "round"', 60_000)).toBe(true);
       expect(await sj(page, 'sj.battleStage')).toBeNull();
       expect(await sj<boolean>(page, 'sj.game.top.stage === null && sj.game.top.opaque === true')).toBe(true);
-      // The notice bar says the new stage could not load.
-      expect(await sj<{ text: string; tone: string }>(page, 'sj.notice()')).toEqual({ text: 'The new battle stage could not load, so this fight uses the old view.', tone: 'warn' });
       // No uncaught error and no unhandled rejection (a pageerror would be in the problems).
       expect(g.problems.filter((p) => p.startsWith('pageerror'))).toEqual([]);
     } finally {

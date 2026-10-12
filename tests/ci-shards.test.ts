@@ -71,9 +71,9 @@ describe('ci.yml e2e shards', () => {
     expect(checkShards(ci, specsOnDisk, NOT_IN_CI)).toEqual([]);
   });
 
-  it('the parser finds the six shards and their specs', () => {
+  it('the parser finds the eight shards and their specs', () => {
     const shards = parseShards(ci);
-    expect([...shards.keys()]).toEqual(['1/6', '2/6', '3/6', '4/6', '5/6', '6/6']);
+    expect([...shards.keys()]).toEqual(['1/8', '2/8', '3/8', '4/8', '5/8', '6/8', '7/8', '8/8']);
     expect([...shards.values()].every((specs) => specs.length > 0)).toBe(true);
   });
 

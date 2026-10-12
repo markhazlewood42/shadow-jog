@@ -7,13 +7,13 @@ title: CI strategy (Shadow Jog)
 
 This is the full picture of CI for Shadow Jog. The workflow is `.github/workflows/ci.yml`. The playtest has its own workflow, `.github/workflows/playtest.yml`.
 
-![The CI pipeline: check, six e2e shards, the e2e gate and e2e-engines run side by side](ci/pipeline.svg)
+![The CI pipeline: check, eight e2e shards, the e2e gate and e2e-engines run side by side](ci/pipeline.svg)
 
 ## What runs, and when
 
 | Event | What happens |
 |---|---|
-| Pull request, game or code change | `check`, six e2e shards, the `e2e` gate and `e2e-engines` all run. A new push cancels the earlier run of the same pull request |
+| Pull request, game or code change | `check`, eight e2e shards, the `e2e` gate and `e2e-engines` all run. A new push cancels the earlier run of the same pull request |
 | Pull request, docs-only change | Every job still starts and reports. `check` runs only the roadmap test. The shards and `e2e-engines` skip their steps |
 | Push to `main` | The same jobs run, unless the push changes only docs, notes, `tools/command-center/` or the Claude review workflow. A run on `main` is never canceled once it starts |
 | Push to `main` (playtest) | `playtest.yml` runs the real-speed playtest. It does not run on pull requests |
@@ -26,17 +26,17 @@ This is the full picture of CI for Shadow Jog. The workflow is `.github/workflow
 | Job | Check name | What it does | Time of tests |
 |---|---|---|---|
 | `check` | `check` | Lint, typecheck, unit tests (Vitest), the bundle budget | about 40 seconds |
-| `e2e-shards` | `e2e (1/6)` to `e2e (6/6)` | The Playwright specs on Chromium, one spec list per shard | about 8 minutes each (target; see below) |
+| `e2e-shards` | `e2e (1/8)` to `e2e (8/8)` | The Playwright specs on Chromium, one spec list per shard | about 6 minutes each (target; see below) |
 | `e2e` | `e2e` | The gate. It passes only when every shard passed | about 3 seconds |
 | `e2e-engines` | `e2e-engines` | `gameover` and `prod` on WebKit (the whole flow) and Firefox (the "no WebGL 2" message) | about 4 to 5 minutes |
 
 All jobs start together. The `e2e` gate is the only job that waits, and it waits only for the shards. A pull request waits for the slowest shard. Before this change that was about 12 minutes: the slowest of the four old shards in run `38150548004` took 691 seconds of tests plus the setup.
 
-The target is about 9 minutes (about 8 minutes of tests plus the setup). It is not measured yet. The balance cannot do better, because the total test time (about 2,840 seconds) divided by six is about 473 seconds. The first run with six shards (`38182602108`) took about 16 minutes, because one shard held six skipped tests that each took a minute (see below). The run on the fixed head will show the real number.
+The target is about 7 minutes on a normal runner (about 6 minutes of tests plus the setup), and under 10 minutes on most runs. It is not measured yet. A slow runner can still push one run past 10 minutes: the attempts of one spec differ by up to 35%. The balance cannot do much better, because the longest spec (`sje-field-parity-a`, 364 seconds) is already more than the average of 355 seconds (2,838 seconds divided by eight). The first run with six shards (`38182602108`) took about 16 minutes, because one shard held six skipped tests that each took a minute (see below). Mark chose eight shards on 2026-10-11 and then to stop here (see "Parked ideas").
 
 The repo is public, so GitHub-hosted runner minutes cost nothing. More shards cost no money.
 
-## The six shards
+## The eight shards
 
 The specs are split by name, not with Playwright's `--shard`. `--shard` splits by test count, and the tests differ a lot in cost (a field parity state takes 24 to 52 seconds, an `fxlab` test about 5). The lists are balanced by measured time.
 
@@ -44,22 +44,24 @@ The seconds below are the larger of the two attempts of the run `38182602108` (o
 
 | Shard | Specs | Seconds |
 |---|---|---|
-| `e2e (1/6)` | `default-path` 285, `sje-battle` 128, `chaos` 61 | 474 |
-| `e2e (2/6)` | `sje-field-parity-a` 364, `sje-shell` 56, `gpufx` 40, `fxlab` 16 | 476 |
-| `e2e (3/6)` | `sje-field-parity-b` 165, `gameover` 143, `sje-canaries` 82, `sje-stage-parity` 82 | 472 |
-| `e2e (4/6)` | `sje-field-parity-c` 322, `sje-field` 149 | 471 |
-| `e2e (5/6)` | `sje-field-parity-d` 257, `playthrough` 218 | 475 |
-| `e2e (6/6)` | `sje-draws` 159, `economy` 131, `prod` 118, `sje-fx` 62 | 470 |
+| `e2e (1/8)` | `sje-field-parity-a` 364 | 364 |
+| `e2e (2/8)` | `sje-field-parity-c` 322, `gpufx` 40 | 362 |
+| `e2e (3/8)` | `default-path` 285, `sje-stage-parity` 82 | 367 |
+| `e2e (4/8)` | `sje-field-parity-d` 257, `sje-canaries` 82, `fxlab` 16 | 355 |
+| `e2e (5/8)` | `playthrough` 218, `prod` 118 | 336 |
+| `e2e (6/8)` | `sje-field-parity-b` 165, `sje-battle` 128, `sje-shell` 56 | 349 |
+| `e2e (7/8)` | `sje-draws` 159, `economy` 131, `chaos` 61 | 351 |
+| `e2e (8/8)` | `sje-field` 149, `gameover` 143, `sje-fx` 62 | 354 |
 
-`sje-field-parity-c` is 316 seconds for its 10 states plus an estimate of 6 seconds for its 6 GPU-only states, which skip themselves on CI. This estimate is not measured yet.
+`sje-field-parity-c` is 316 seconds for its 10 states plus an estimate of 6 seconds for its 6 GPU-only states, which skip themselves on CI. This estimate is not measured yet. No spec is split further: `sje-field-parity-a` is the longest and sits alone, and the `playthrough` (218 seconds) is one test. The total is 2,838 seconds.
 
 Each shard needs 24 to 46 seconds of setup (checkout, `npm ci`, the Chromium download) before the test command starts, and 3 to 6 seconds more from the command to the first test (the server start). Both ranges are measured in the run `38182602108`. The cap is 30 minutes for each shard.
 
-### Why shard 4/6 took 16 minutes in the first run
+### Why one shard took 16 minutes in the first run (six shards)
 
-In run `38182602108` the shard `4/6` held `sje-field-parity-c`, `gameover` and `sje-canaries`. They had 540 seconds of passed tests, but the job took 16 minutes in both attempts. The reason: `sje-field-parity-c` has 6 GPU-only states. Each one rendered the full effect stack on SwiftShader (about 52 to 72 seconds) and only then skipped itself, because it has no reference for a software renderer. Six skips took about 6 minutes. The `list` reporter shows them as `-` lines with no time, so the time did not show in the totals.
+In run `38182602108` the shard `4/6` (of the six-shard layout) held `sje-field-parity-c`, `gameover` and `sje-canaries`. They had 540 seconds of passed tests, but the job took 16 minutes in both attempts. The reason: `sje-field-parity-c` has 6 GPU-only states. Each one rendered the full effect stack on SwiftShader (about 52 to 72 seconds) and only then skipped itself, because it has no reference for a software renderer. Six skips took about 6 minutes. The `list` reporter shows them as `-` lines with no time, so the time did not show in the totals.
 
-The fix is in `e2e/sjefieldparityparts.ts`: a state with a `kinds` list now checks the renderer on a bare page and skips before it renders. No test asserts anything different. After the fix, the shard `4/6` has no hidden time.
+The fix is in `e2e/sjefieldparityparts.ts`: a state with a `kinds` list now checks the renderer on a bare page and skips before it renders. No test asserts anything different. After the fix, that shard has no hidden time.
 
 The field parity set is four files. Playwright names a test by the file that calls `test()`, so one file cannot be split across shards. The test bodies live in `e2e/sjefieldparityparts.ts`.
 
@@ -88,7 +90,7 @@ These are on the `NOT_IN_CI` list in `tests/ci-shards.test.ts`, each with its re
 
 From PR #64 on, the `main` ruleset must require three checks: `check`, `e2e-engines` and `e2e`. **Mark changes the ruleset when he merges PR #64.** Until then it still requires the four old names, `e2e (1/4)` to `e2e (4/4)`, which no run reports any more. Change the ruleset right before the merge, or the merge stays blocked.
 
-The shard names (`e2e (1/6)`) must not be required. A required check that never reports blocks the merge for ever, so a ruleset that lists shard names breaks whenever the shard count changes. The `e2e` gate has one stable name. It `needs` the shard job and runs with `if: always()`. It fails unless the shard result is `success`. A failed, cancelled or skipped shard makes the gate fail.
+The shard names (`e2e (1/8)`) must not be required. A required check that never reports blocks the merge for ever, so a ruleset that lists shard names breaks whenever the shard count changes. The `e2e` gate has one stable name. It `needs` the shard job and runs with `if: always()`. It fails unless the shard result is `success`. A failed, cancelled or skipped shard makes the gate fail.
 
 `if: always()` matters. Without it, a failed shard would skip the gate, and a skipped job reports success.
 
@@ -112,7 +114,7 @@ The test fails if a spec is in no shard and not on `NOT_IN_CI`, if a spec is in 
 
 1. Open a recent green run on `main`. Read the `list` reporter lines of each shard. Each line ends with the test time.
 2. Add up the seconds for each spec file. A skipped test (a `-` line) shows no time: use the gap to the line before it. A long gap means the test ran before it skipped.
-3. Move specs between the lists in `ci.yml` until every shard is close to the total divided by six.
+3. Move specs between the lists in `ci.yml` until every shard is close to the total divided by the number of shards.
 4. Update the comment above the matrix with the new totals and the run id.
 5. Run `tests/ci-shards.test.ts`. No ruleset change is needed, because the gate is the only required shard check.
 
@@ -129,9 +131,9 @@ To split a spec file that is the floor, share its test bodies in a helper (like 
 CI=1 PW_PORT=3012 npx playwright test --project=chromium <the specs of one matrix entry in ci.yml>
 ```
 
-## Experiments next
+## Parked ideas
 
-These are not built. Each is a throwaway draft pull request that is closed after, never merged. The numbers go to Mark before any build.
+These are not built. Mark decided on 2026-10-11 to go to eight shards, fix the flaky test and stop there. Each idea below was meant as a throwaway draft pull request that is closed after, never merged, with the numbers going to Mark before any build. Pick one up only if pull request waits grow again.
 
 ### L3. A test build instead of the dev server
 
@@ -147,14 +149,28 @@ Every boot loads hundreds of unbundled modules from the Vite dev server, with so
 
 - Measure: set `workers: 2` on one shard, and run it 3 times. Count flakes and compare the times.
 - Adoption line: adopt only with 0 new flakes in 3 runs. Earlier slow-runner failures (Game Over, the battle golden, the playthrough) show that CPU load breaks timing-sensitive tests.
-- The balance alone puts the floor at about 8 minutes of tests per shard (about 2,840 seconds divided by six). To go lower, L3 or L4 must cut the total.
+- The balance alone puts the floor at about 6 minutes of tests per shard (about 2,840 seconds divided by eight, with the 364-second `sje-field-parity-a` as the longest). To go lower, L3 or L4 must cut the total.
 
-## Known flaky
+### L5. Fixed waits to condition waits
 
-One observation, not fixed. In a control run, `e2e (3/6)` failed `sje-battle.spec.ts:255` ("a stage chunk that fails to load"): `sj.notice()` returned `null`. The same test passed on the real pull request runs. If it fails again, look at the timing of the notice first.
+143 `waitForTimeout` calls hold about 124 seconds of fixed delay. Replace the waits in `prod`, `gameover`, `economy` and `gpufx` (about 84 seconds) with waits on a state. Each change needs a negative control. It also removes a cause of flakes.
+
+### A tiered suite
+
+Mark asked for this on 2026-10-11.
+
+1. A smoke set of about 10 to 15 e2e tests, about 2 to 3 minutes. The game and the shipped build boot to the title with no errors. A new game, a few field steps, and one battle started and finished. Save, reload and continue. The lab pages open. `check` still runs on every push.
+2. The full suite (goldens, parity, the playthrough, chaos, WebKit and Firefox) runs in one of two ways. Either when a pull request is marked "ready for review": draft pushes run only the smoke set, and one full run happens before the merge, which suits pull requests with many pushes like #58. Or after the merge to `main`, or nightly: that is faster, but a break shows only after it is on `main` and needs a fix pull request.
+3. Required checks: the `e2e` gate would need to accept the smoke-only result on a draft pull request.
+
+Parked, not built. Adopt it if pull request waits grow again.
+
+## The flaky battle notice test (fixed)
+
+`e2e/sje-battle.spec.ts` "a stage chunk that fails to load" failed in 2 of 4 CI runs (`38185184825` and `38183421640`): `sj.notice()` returned `null`. The cause was in the test. A notice clears itself 6 seconds after it was posted (`currentNotice` in `src/engine/errors.ts`, real time, by design). The failure notice is posted when the stage chunk fails to load, right after the battle opens. The test then waited up to 60 seconds for the round menu and read the notice last. On a slow runner the fight took more than 6 seconds to reach the round menu, so the notice had already cleared. Locally the fight takes about 2 seconds, so the test passed. A wait of 6.5 seconds before the read makes it fail every time. The test now waits for the notice text and checks it first, before the slow wait. The game was right, so `src/` did not change.
 
 ## Not done
 
 - **Path selection** (run only the specs that a change can touch). Of the last 30 merged pull requests, 18 were docs-only (already skipped) and 9 touched game files (13 of 17 specs boot the whole game). The gain is small. The named spec lists make it easy to add later.
 - **A Playwright browser cache.** It would save about 20 seconds per shard. Playwright advises against it, and the system packages that `--with-deps` installs cannot be cached.
-- **L5: fixed waits to condition waits.** 143 `waitForTimeout` calls hold about 124 seconds of fixed delay. Replace the waits in `prod`, `gameover`, `economy` and `gpufx` (about 84 seconds) with waits on a state. Each change needs a negative control. It also removes a cause of flakes.
+- **L3, L4, L5 and the tiered suite** are under "Parked ideas".

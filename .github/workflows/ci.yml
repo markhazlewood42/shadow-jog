@@ -1,14 +1,14 @@
 # CI for pull requests and for pushes to main.
 #
-# The jobs run at the same time (`e2e-shards` is six shards, so it counts as six). None waits for another except the `e2e` gate, so a pull
+# The jobs run at the same time (`e2e-shards` is eight shards, so it counts as eight). None waits for another except the `e2e` gate, so a pull
 # request waits for the slowest job, not for all of them added together. The full strategy, with a diagram, is in docs/CI.md.
 #
 #   check        lint, typecheck, unit tests and the bundle budget (both builds, the game and the lab page). The ruleset on main
 #                requires this check by name. So the job id must stay `check`, it must not get a different
 #                `name:`, and it must always start and report (see "Check which files changed"
 #                below). On a docs-only pull request it runs only tests/roadmap.test.ts (it reads docs/).
-#   e2e-shards   the Playwright specs, on Chromium (the engine canary suite and the default-path goldens included), split into six shards by a matrix. The checks are
-#                named `e2e (1/6)` to `e2e (6/6)`. The ruleset must NOT require these names (see the gate below). Each shard has its own named spec list in the matrix (`--shard` split by test
+#   e2e-shards   the Playwright specs, on Chromium (the engine canary suite and the default-path goldens included), split into eight shards by a matrix. The checks are
+#                named `e2e (1/8)` to `e2e (8/8)`. The ruleset must NOT require these names (see the gate below). Each shard has its own named spec list in the matrix (`--shard` split by test
 #                count and was lopsided). The cap is 30 minutes for each shard.
 #   e2e          the gate. It needs every shard, and it fails unless the shards' result is `success` (a failed, cancelled or skipped shard fails it). From PR #64 on, the ruleset on main must
 #                require `check`, `e2e-engines` and `e2e` (Mark sets it when he merges; until then it still lists the four old shard names), so the number of shards can change
@@ -134,11 +134,11 @@ jobs:
         run: npm run budget
 
   e2e-shards:
-    # The check is named `e2e (1/6)` to `e2e (6/6)`. The name is set here because the matrix has two values (shard and specs), and the default name would list both.
+    # The check is named `e2e (1/8)` to `e2e (8/8)`. The name is set here because the matrix has two values (shard and specs), and the default name would list both.
     # The job id is `e2e-shards` so that the gate job below can be called `e2e`.
     name: e2e (${{ matrix.shard }})
     runs-on: ubuntu-latest
-    # Each shard takes about 8 minutes of tests on a normal runner (about 30 seconds more for the setup). That is the total test time divided by six.
+    # Each shard takes about 6 minutes of tests on a normal runner (about 30 seconds more for the setup). That is the total test time divided by eight, and the longest single spec (field parity A, 364 s) sets the floor.
     # The field parity spec (31 states) is four files, `sje-field-parity-a` to `-d`, which sit in different shards. 30 minutes is room for a runner several times as slow as the normal one
     # (a slow runner took 27 minutes for the old single field parity file, which takes about 10 on a normal one). Do not raise it to hide a hang: a spec that needs more should be split.
     timeout-minutes: 30
@@ -149,31 +149,39 @@ jobs:
         # The specs are split by name, not with `--shard`: Playwright's `--shard` splits by test count, and it gave one shard 143 tests (the slow ones) and the other 78 (4 minutes).
         # The lists are balanced by measured time. The seconds of each spec are the larger of the two attempts of the run 38182602108 (one worker, the list reporter).
         # The attempts differ by up to 35% on the same spec (the runners differ), so a shard can be a minute off. Shard totals in seconds of tests:
-        #   1/6 474 (default-path 285, battle 128, chaos 61)                  2/6 476 (field parity A 364, shell 56, gpufx 40, fxlab 16)
-        #   3/6 472 (field parity B 165, gameover 143, canaries 82, stage parity 82)   4/6 471 (field parity C 322, field 149)
-        #   5/6 475 (field parity D 257, playthrough 218)                     6/6 470 (draws 159, economy 131, prod 118, fx 62)
+        #   1/8 364 (field parity A 364)                                      2/8 362 (field parity C 322, gpufx 40)
+        #   3/8 367 (default-path 285, stage parity 82)                       4/8 355 (field parity D 257, canaries 82, fxlab 16)
+        #   5/8 336 (playthrough 218, prod 118)                               6/8 349 (field parity B 165, battle 128, shell 56)
+        #   7/8 351 (draws 159, economy 131, chaos 61)                        8/8 354 (field 149, gameover 143, fx 62)
         # Field parity C is 316 s for its 10 states plus an estimated 6 s for its 6 GPU-only states. Those 6 states skip themselves on CI. Before the fix in sjefieldparityparts.ts
-        # each one rendered first (about 60 s each) and then skipped, so the shard took 16 minutes (run 38182602108, shard 4/6). The total is 2,838 s, so six shards cannot go under 473 s each.
+        # each one rendered first (about 60 s each) and then skipped, so the shard took 16 minutes (run 38182602108, shard 4/6). The total is 2,838 s, so eight shards average 355 s.
+        # No spec can be split further without changing it: field parity A (364 s) is the longest and sits alone, and the playthrough (218 s) is one test.
         # A new spec is added to the shard with the smallest total, or to the NOT_IN_CI list in tests/ci-shards.test.ts with a reason. That test fails on a spec that is in no list.
         include:
-          - shard: '1/6'
+          - shard: '1/8'
             specs: >-
-              e2e/default-path.spec.ts e2e/sje-battle.spec.ts e2e/chaos.spec.ts
-          - shard: '2/6'
+              e2e/sje-field-parity-a.spec.ts
+          - shard: '2/8'
             specs: >-
-              e2e/sje-field-parity-a.spec.ts e2e/sje-shell.spec.ts e2e/gpufx.spec.ts e2e/fxlab.spec.ts
-          - shard: '3/6'
+              e2e/sje-field-parity-c.spec.ts e2e/gpufx.spec.ts
+          - shard: '3/8'
             specs: >-
-              e2e/sje-field-parity-b.spec.ts e2e/gameover.spec.ts e2e/sje-canaries.spec.ts e2e/sje-stage-parity.spec.ts
-          - shard: '4/6'
+              e2e/default-path.spec.ts e2e/sje-stage-parity.spec.ts
+          - shard: '4/8'
             specs: >-
-              e2e/sje-field-parity-c.spec.ts e2e/sje-field.spec.ts
-          - shard: '5/6'
+              e2e/sje-field-parity-d.spec.ts e2e/sje-canaries.spec.ts e2e/fxlab.spec.ts
+          - shard: '5/8'
             specs: >-
-              e2e/sje-field-parity-d.spec.ts e2e/playthrough.spec.ts
-          - shard: '6/6'
+              e2e/playthrough.spec.ts e2e/prod.spec.ts
+          - shard: '6/8'
             specs: >-
-              e2e/sje-draws.spec.ts e2e/economy.spec.ts e2e/prod.spec.ts e2e/sje-fx.spec.ts
+              e2e/sje-field-parity-b.spec.ts e2e/sje-battle.spec.ts e2e/sje-shell.spec.ts
+          - shard: '7/8'
+            specs: >-
+              e2e/sje-draws.spec.ts e2e/economy.spec.ts e2e/chaos.spec.ts
+          - shard: '8/8'
+            specs: >-
+              e2e/sje-field.spec.ts e2e/gameover.spec.ts e2e/sje-fx.spec.ts
     steps:
       - uses: actions/checkout@v4
         with:
