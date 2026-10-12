@@ -31,7 +31,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { isMainModule } from './is-main.mjs';
 
 /** The reporter's own port. The normal Command Center uses 3009 and the end-to-end tests 3010, so a person can run both. */
-export const REPORTER_PORT = 3011;
+export const REPORTER_PORT = 47613;
 /** The folder of the reporter inside the main checkout. It is in .gitignore. */
 export const STATE_DIR = '.cc-reporter';
 /** A lock that was not touched for this long is dead (a crash, or a power cut). The launcher touches it every `LOCK_TOUCH_MS`. */
