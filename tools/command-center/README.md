@@ -239,3 +239,44 @@ Local proof without a deploy: `npx vitest run tests/vercel-*.test.ts` (handlers 
 ## Tests
 
 Vitest holds the units (`tests/`) and Playwright holds the browser tests (`e2e/`). Both use synthetic fixtures (`fixtures/`): a throwaway git repo, made-up Claude session files and a fake `gh`. No default test reads your real sessions or writes to GitHub, and none opens a browser tab. Never leave a server running: stop what you start, by its process id.
+
+## Hosted page: the data layer (step 4)
+
+The same page app runs on Vercel with no local server. The two builds differ in one place, the data layer. Code: `src/web/hosted/`. Tests: `tests/hosted-*.test.ts(x)` and `e2e/hosted/hosted.spec.ts`.
+
+**How the page picks its mode.** A build flag, set once, when the page is built. The Vercel build runs `VITE_HOSTED=1 vite build` (`vercel.json`). `npm run cc` builds without the flag. Vite writes the value into the code, so the local build contains no hosted code and behaves as before. Why a flag and not a probe at run time: a probe needs a request before the first paint, and it cannot tell a local server that is down from a host that never had one. A wrong guess would poll the wrong endpoints and look broken. The two builds also go to two different places, so the flag cannot be wrong for the place. `CC_OUT_DIR` moves the build output (the tests of the hosted page build into `dist-hosted/`).
+
+**What the hosted page reads.**
+
+| Source | Poll | Used for |
+|---|---|---|
+| `/api/snapshot` | every 15 s | Pull requests, CI, branches, decisions, `status.md` and the milestone table, the workstream rows, the roadmap lanes |
+| `/api/live` | every 10 s | Sessions and worktrees from the local reporter, and the state of the reporter |
+| `/api/docs/<repo path>` | on demand, kept 60 s | One doc. The browser renders it with the renderer of the local page |
+
+A poll runs only while the tab is visible. A hidden tab pauses the polls. A tab that shows again polls at once. The next poll starts after the last one ended, so two polls never overlap (`poller.ts`). The store (`store.ts`) keeps the last good answer of each source and sends the same `changed` events as the local event stream, so every panel reloads as before.
+
+**Panel states.** Every panel shows the same states as on the local page: loading, error with a Retry button, stale (the error above the last good data, with its time), and empty. The error kinds:
+
+| Case | What the page shows |
+|---|---|
+| 401, a redirect to the login page, or an answer that is not JSON | The banner "Login expired. Reload the page to sign in again." The panels keep their data and mark it as stale. The request uses `redirect: 'manual'`, so a redirect is not mistaken for a lost connection. |
+| A lost connection, or a status such as 502 | The panel error with the status and the sentence of the function, and Retry. |
+| `reporter.state` is `not-running` | "Reporter not running" on the Running panel, the Agents page and the Workstreams view. Pushed work still shows. |
+| `reporter.state` is `offline` | "Reporter offline since HH:MM:SS", with the last rows shown below. |
+| The `live` value breaks the contract in `src/shared/live.ts` | "The live value is unreadable" and the first problem. |
+
+**What the hosted page does not have.**
+
+- Decisions are read-only. The page shows the options and a note. Answering stays on the local Command Center.
+- Search says "Search needs the local server."
+- The Agents page lists the sessions the reporter sends. It has no agent boxes, because the reporter sends no agent files.
+- The docs navigation lists the files and pages that `nav.json` names. A folder entry is left out with a note, because the page has no file list. A doc that `/api/docs` does not serve (`tools/...`) is left out with a note. Adding a file list to the snapshot is the way to close this gap.
+- Doc dates show a dash unless the frontmatter has `updated`. There is no git history. Backlinks and broken-link marks need the full file list, so they are empty.
+- `/docs/decisions` lists the decisions without the "changed since approval" flags. They need git.
+
+**Workstreams (`/workstreams`).** One card for each workstream, grouped by the roadmap lane of the item that the file names. A card shows the branch, the PR with review and checks, the live sessions and worktree of the branch (matched by branch name), and `next_for_mark`. A bad file is a row with its path and the error. A branch with no file (for example a bot branch) is a neutral "no workstream" row. A merged PR decides the state "merged", whatever the file says. The page hides a card 14 days after `mergedAt` (the shared `staleWorkstreamPaths`) and says how many it hid. "Your move" on the Now page also lists `next_for_mark` of every card. The local build has no data for this page until step 6: it hides the link and the `nav.json` entry, and `/workstreams` there says that the hosted page has the view.
+
+**The live contract.** `src/shared/live.ts` is the shape of the `live` key that the reporter of step 5 writes (`writtenAt`, `sessions`, `worktrees`: titles, names and counts only). `parseLive` refuses any other shape.
+
+**Tests.** `npm run check` runs the unit tests. `npm run e2e` runs the local specs. `npm run e2e:hosted` builds the page with `VITE_HOSTED=1` and runs `e2e/hosted/` against `vite preview` on port 3010: each test plays the Vercel functions with `page.route()` and fails on any request to an endpoint that the hosted page should not use. Set `CC_SHOTS_DIR` to a folder outside the repo to save two pictures (the Workstreams view and an error state).
