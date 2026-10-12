@@ -10,6 +10,8 @@
   "scripts": {
     "cc": "vite build && tsx src/server/main.ts",
     "dev": "tsx watch src/server/main.ts --dev",
+    "reporter": "node scripts/reporter-hook.mjs",
+    "reporter:stop": "node scripts/reporter-launch.mjs --stop",
     "typecheck": "tsc --noEmit",
     "github-api-dry-run": "tsx scripts/github-api-dry-run.ts",
     "test": "vitest run",
