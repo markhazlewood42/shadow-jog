@@ -4,6 +4,9 @@ export const STATE_DIR: string;
 export const LOCK_STALE_MS: number;
 export const LOCK_TOUCH_MS: number;
 export const FETCH_EVERY_MS: number;
+export const NPM_CI_TIMEOUT_MS: number;
+export const MAX_RESTARTS: number;
+export const CRASH_WINDOW_MS: number;
 export const EXIT: { idle: 0; public: 3; notConfigured: 4 };
 export function findCheckout(start: string, exists?: (path: string) => boolean): string | null;
 export function mainCheckout(dir: string, git?: (args: string[], cwd: string) => { status: number | null; stdout: string }): string;
@@ -32,6 +35,8 @@ export type Installer = (cwd: string, log: (message: string) => void) => Promise
 export type CopyDeps = { git: GitRunner; install: Installer; log: (message: string) => void };
 export function runCommand(command: string, args: string[], options?: { cwd?: string; timeout?: number; env?: Record<string, string | undefined> }): Promise<CommandResult>;
 export function runGit(args: string[], cwd: string, timeout?: number): Promise<CommandResult>;
+export function npmCi(cwd: string, log: (message: string) => void, options?: { command?: string; args?: string[]; timeoutMs?: number }): Promise<boolean>;
+export function lockNamesUs(text: string | null, pid: number, startedIso: string, launcherStart?: string | null): boolean;
 export function processInfo(
   pid: number,
   run?: (file: string, args: string[], options: object) => Promise<string | null>,
@@ -48,7 +53,7 @@ export function supervise(
   branch: string,
   log: (message: string) => void,
   onServerPid: (pid: number | null) => void,
-  deps?: { spawnServer?: (paths: unknown) => ChildLike; update?: () => Promise<'same' | 'updated' | 'failed'>; install?: Installer; fetchEveryMs?: number; restartDelayMs?: number },
+  deps?: { spawnServer?: (paths: unknown) => ChildLike; update?: () => Promise<'same' | 'updated' | 'failed'>; install?: Installer; fetchEveryMs?: number; restartDelayMs?: number; signal?: AbortSignal },
 ): Promise<number>;
 export function runLauncher(options: {
   checkout: string;
@@ -59,5 +64,5 @@ export function runLauncher(options: {
 }): Promise<number>;
 export function stopReporter(
   checkout: string,
-  deps?: { processInfo?: (pid: number) => Promise<{ start: string; command: string } | null>; kill?: (pid: number) => void; now?: () => number },
+  deps?: { processInfo?: (pid: number) => Promise<{ start: string; command: string } | null>; kill?: (pid: number) => void; now?: () => number; clearLive?: (paths: { app: string }) => Promise<string> },
 ): Promise<string>;

@@ -77,14 +77,38 @@ describe('the allow-list mapper', () => {
 
   it('cuts long text from a transcript, and the number of rows', () => {
     const long = liveSession();
-    long.title = 'x'.repeat(5000);
+    long.title = 'ab '.repeat(2000);
     const out = buildLiveBody({ sessions: Array.from({ length: 80 }, (_, i) => ({ ...long, id: `s${i}` })), facts: [], worktrees: [] });
     expect(out.sessions).toHaveLength(LIMITS.sessions);
     expect((out.sessions[0] as { title: string }).title.length).toBe(LIMITS.title);
   });
 
   it('maps a worktree with a detached HEAD to branch null and keeps the dirty count a whole number', () => {
-    expect(mapWorktree({ path: 'C:/w', branch: null, dirty: 2.7 })).toEqual({ path: 'C:/w', branch: null, dirty: 2 });
+    expect(mapWorktree({ path: 'C:/w', branch: null, dirty: 2.7 })).toEqual({ path: 'w', branch: null, dirty: 2 });
+  });
+
+  it('F1: a worktree leaves as the NAME of its last folder, never the full path, for either kind of slash', () => {
+    expect(mapWorktree({ path: 'C:/Users/markh/home-base/projects/shadow-jog-engine', branch: 'engine', dirty: 0 }).path).toBe('shadow-jog-engine');
+    expect(mapWorktree({ path: 'C:\\Users\\markh\\home-base\\projects\\shadow-jog\\', branch: 'main', dirty: 0 }).path).toBe('shadow-jog');
+    const out = buildLiveBody({ sessions: [], facts: [], worktrees: [{ path: '/home/mark/secret-layout/shadow-jog', branch: 'main', dirty: 1 }] });
+    expect(JSON.stringify(out)).not.toMatch(/markh|home\/mark|secret-layout|Users/);
+  });
+
+  it('F1: the path stays non-empty (the contract wants it) when the path has no folder name', () => {
+    expect(mapWorktree({ path: 'C:/', branch: null, dirty: 0 }).path).not.toBe('');
+    expect(parseLive({ writtenAt: new Date().toISOString(), sessions: [], worktrees: [mapWorktree({ path: '/', branch: null, dirty: 0 })] }).ok).toBe(true);
+  });
+
+  it('F1: the branch of a worktree is redacted, and a normal long kebab-case branch still joins by name', () => {
+    expect(mapWorktree({ path: 'C:/w', branch: 'fix-ghp_abcdefghijklmnopqrstuvwxyz0123456789', dirty: 0 }).branch).not.toContain('ghp_');
+    expect(mapWorktree({ path: 'C:/w', branch: 'API_KEY=hunter2hunter2', dirty: 0 }).branch).toBe(REDACTED);
+    // The same name must come out for a session and for its worktree, or the hosted page cannot join them. 36 characters with a digit, and it passes.
+    const branch = 'command-center-step-5-local-reporter';
+    expect(mapWorktree({ path: 'C:/w', branch, dirty: 0 }).branch).toBe(branch);
+    const session = buildLiveBody({ sessions: [liveSession()], facts: [{ ...info(), branch }], worktrees: [] }).sessions[0];
+    expect(session?.branch).toBe(branch);
+    // A random key as a branch name is redacted.
+    expect(mapWorktree({ path: 'C:/w', branch: 'Zm9vYmFyMTIzNDU2Nzg5MGFiY2RlZg', dirty: 0 }).branch).toBe(REDACTED);
   });
 
   it('gives a value that parseLive accepts', () => {
@@ -124,11 +148,50 @@ describe('redaction of secret-shaped text in titles', () => {
     expect(out).not.toContain(leaked);
   });
 
+  // F3: forms that the first rules missed.
+  it.each([
+    ['a password with a colon', 'password: hunter2', 'hunter2'],
+    ['a password with a colon, in a sentence', 'login failed, Password: Sup3rS3cret! try again', 'Sup3rS3cret'],
+    ['passwd with equals', 'passwd = letmein99', 'letmein99'],
+    ['pwd with a colon', 'pwd: opensesame', 'opensesame'],
+    ['a secret with a colon', 'secret: abcdefgh', 'abcdefgh'],
+    ['a token with a colon', 'token: ghijklmnop', 'ghijklmnop'],
+    ['an api key with a space', 'api key: ZZZZZZZZ', 'ZZZZZZZZ'],
+    ['an apikey', 'apikey=yyyyyyyy', 'yyyyyyyy'],
+    ['"my token is <value>"', 'my token is abcdefghijklmnop', 'abcdefghijklmnop'],
+    ['"the password was <value>"', 'the password was correcthorsebattery', 'correcthorse'],
+    ['a URL with credentials', 'connect postgres://user:pass@host/db now', 'user:pass'],
+    ['an https URL with credentials', 'clone https://mark:s3cr3t@github.com/x/y', 's3cr3t'],
+    ['40 letters', 'key abcdefghijklmnopqrstuvwxyzabcdefghijklmn here', 'abcdefghijklmnopqrstuvwxyzabcdefghijklmn'],
+    ['40 digits', 'pin 1234567890123456789012345678901234567890 end', '1234567890123456789012345678901234567890'],
+    ['32 letters exactly', 'id qwertyuiopasdfghjklzxcvbnmqwerty id', 'qwertyuiopasdfghjklzxcvbnmqwerty'],
+    ['a 40-character git hash', 'revert 0123456789abcdef0123456789abcdef01234567 please', '0123456789abcdef0123456789abcdef01234567'],
+    ['a base64 key with slashes', 'use aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bC1dE3fG5hI7j/kL== ok', 'aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bC1dE3fG5hI7j'],
+  ])('F3: redacts %s', (_label, title, leaked) => {
+    const out = titleOf(title);
+    expect(out).toContain(REDACTED);
+    expect(out).not.toContain(leaked);
+  });
+
+  it.each([
+    'Fix the password reset email',
+    'The token refresh is slow',
+    'Why does the secret menu open',
+    'revert commit abc123def456 (a 12-character hash)',
+    'a 31 character run: qwertyuiopasdfghjklzxcvbnmqwert',
+    'fix tools/command-center/src/server/publish/map.ts and docs/command-center/design.md',
+    'open C:\\Users\\markh\\home-base\\projects\\shadow-jog\\src\\engine\\game.ts',
+    'visit https://github.com/markhazlewood42/shadow-jog/pull/72 today',
+    'Command Center step 5: local reporter (PR #72)',
+  ])('F3: leaves an ordinary title unchanged: %s', (title) => {
+    expect(titleOf(title)).toBe(title);
+  });
+
   it('keeps the rest of the title around the redacted part', () => {
     expect(titleOf('fix ghp_abcdefghijklmnopqrstuvwxyz0123456789 now')).toBe(`fix ${REDACTED} now`);
   });
 
-  it.each(['Build the reporter', 'Command Center step 5: local reporter (PR #72)', 'fix tools/command-center/src/server/publish/map.ts', 'The 2026-10-12 review of the sk-learn pipeline', 'a-very-long-hyphenated-title-with-no-digits-in-it-at-all'])(
+  it.each(['Build the reporter', 'Command Center step 5: local reporter (PR #72)', 'fix tools/command-center/src/server/publish/map.ts', 'The 2026-10-12 review of the sk-learn pipeline', 'a-hyphenated-title-no-digits'])(
     'leaves a normal title unchanged: %s',
     (title) => {
       expect(titleOf(title)).toBe(title);

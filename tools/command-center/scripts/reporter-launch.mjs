@@ -13,7 +13,12 @@
 //      (and installs the packages again when the lock file changed) and starts the server again. A "needs install" marker makes a failed
 //      `npm ci` try again, and the server never starts with new code and old packages.
 //   6. When the server exits on its own (30 minutes with no session: code 0; a public page: code 3; no settings file: code 4), it stops too.
-//      Any other exit is a crash: it starts the server again, at most 3 times in 10 minutes.
+//      Any other exit is a crash: it starts the server again, at most 3 times in 10 minutes. The 4th crash inside 10 minutes ends the launcher
+//      (code 1), so 3 restarts and 4 crashes is the most.
+//   7. The lock heartbeat checks that the lock still names this launcher (process id and start stamp) before it writes. If another launcher took the
+//      lock over (this one slept with the laptop and its lock went stale), this launcher stops its server and ends, and never removes the other's lock.
+//
+// It needs no feature newer than Node 20.11. It does not use `import.meta.main` (Node 24.2 and newer only): see is-main.mjs.
 //
 // Everything this file writes is under `.cc-reporter/` (the lock, the log, the generated config, the copy). It never touches the settings file with the token.
 // The pure parts are exported, so that tests/reporter-launch.test.ts can run them with fakes.
@@ -23,6 +28,7 @@ import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSyn
 import { createConnection } from 'node:net';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { isMainModule } from './is-main.mjs';
 
 /** The reporter's own port. The normal Command Center uses 3009 and the end-to-end tests 3010, so a person can run both. */
 export const REPORTER_PORT = 3011;
@@ -33,6 +39,11 @@ export const LOCK_STALE_MS = 120_000;
 export const LOCK_TOUCH_MS = 30_000;
 /** How often the copy is fetched (design.md section 11.1). */
 export const FETCH_EVERY_MS = 120_000;
+/** The most time that one `npm ci` may take. A hung install must not hold the lock (and keep its heartbeat going) for ever. */
+export const NPM_CI_TIMEOUT_MS = 5 * 60_000;
+/** The crash cap: more than `MAX_RESTARTS` crashes inside `CRASH_WINDOW_MS` ends the launcher. So the 4th crash in 10 minutes is the last. */
+export const MAX_RESTARTS = 3;
+export const CRASH_WINDOW_MS = 600_000;
 /** The exit codes of the server (src/server/publish/reporter.ts, EXIT). */
 export const EXIT = { idle: 0, public: 3, notConfigured: 4 };
 
@@ -264,15 +275,57 @@ export async function processInfo(pid, run = execFileAsync, platform = process.p
 
 // ---- the pinned copy ----
 
-function npmCi(cwd, log) {
+/** Ends a child and, on Windows, the processes it started (npm runs behind a shell there, and `child.kill()` would end only the shell). */
+function killTree(child) {
+  try {
+    if (process.platform === 'win32' && child.pid !== undefined) {
+      spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore', timeout: 15_000 });
+    } else {
+      child.kill('SIGKILL');
+    }
+  } catch {
+    // the process is already gone
+  }
+}
+
+/**
+ * `npm ci` in the pinned copy, with a total time limit. On a time out the process is ended, a clear line goes to the log, and the answer is false, so
+ * the caller stops and the lock is released (a hung install used to keep the lock fresh for ever through the heartbeat).
+ * `options` is for the tests (another program, a short limit): `command`, `args`, `timeoutMs`.
+ * @param {string} cwd
+ * @param {(message: string) => void} log
+ * @param {{ command?: string, args?: string[], timeoutMs?: number }} [options]
+ * @returns {Promise<boolean>}
+ */
+export function npmCi(cwd, log, options = {}) {
+  const timeoutMs = options.timeoutMs ?? NPM_CI_TIMEOUT_MS;
   return new Promise((done) => {
+    let finished = false;
+    let timer = null;
+    const finish = (answer) => {
+      if (finished) return;
+      finished = true;
+      if (timer !== null) clearTimeout(timer);
+      done(answer);
+    };
     // `npm` is a .cmd file on Windows, which only a shell can start. The arguments are fixed, so the shell has nothing to misread.
-    const child = spawn('npm', ['ci', '--no-audit', '--no-fund', '--ignore-scripts'], { cwd, shell: process.platform === 'win32', stdio: 'ignore', windowsHide: true });
+    const real = options.command === undefined;
+    const child = spawn(options.command ?? 'npm', options.args ?? ['ci', '--no-audit', '--no-fund', '--ignore-scripts'], {
+      cwd,
+      shell: real && process.platform === 'win32',
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    timer = setTimeout(() => {
+      log(`npm ci did not finish in ${Math.round(timeoutMs / 1000)} seconds, so it was ended. The pinned copy is not ready; the next session start tries again.`);
+      killTree(child);
+      finish(false);
+    }, timeoutMs);
     child.once('error', (error) => {
       log(`npm ci could not start (${error.code ?? 'error'})`);
-      done(false);
+      finish(false);
     });
-    child.once('exit', (code) => done(code === 0));
+    child.once('exit', (code) => finish(code === 0));
   });
 }
 
@@ -378,6 +431,29 @@ export async function updateCopy(paths, branch, deps) {
 // ---- the run ----
 
 /**
+ * Whether the text of a lock file names this launcher: the same process id AND the same start stamp (`started`, written when this launcher began).
+ * A process id alone is not enough, because the system can give an old id to a new program. When both the lock and this launcher know the start time
+ * of the process (from the system), those must match too. A missing or unreadable lock names nobody.
+ * @param {string | null} text
+ * @param {number} pid
+ * @param {string} startedIso
+ * @param {string | null} [launcherStart]
+ */
+export function lockNamesUs(text, pid, startedIso, launcherStart = null) {
+  if (text === null) return false;
+  let ids;
+  try {
+    ids = JSON.parse(text);
+  } catch {
+    return false;
+  }
+  if (ids === null || typeof ids !== 'object') return false;
+  if (ids.launcher !== pid || ids.started !== startedIso) return false;
+  if (typeof ids.launcherStart === 'string' && launcherStart !== null && ids.launcherStart !== launcherStart) return false;
+  return true;
+}
+
+/**
  * The whole launcher. Returns the exit code.
  * `options.settingsFile` and `options.deps` exist for the tests (a fake settings path, a fake git and installer).
  * @param {{ checkout: string, branch?: string, origin?: string, settingsFile?: string, deps?: { git?: Function, install?: Function, supervise?: Function } }} options
@@ -412,18 +488,31 @@ export async function runLauncher(options) {
   let serverStart = null;
   let released = false;
   const lockText = () => JSON.stringify({ launcher: process.pid, launcherStart, server: serverPid, serverStart, started: startedIso });
+  /** Aborted by the heartbeat when the lock names another launcher. The supervisor listens to it and ends. */
+  const lostLock = new AbortController();
   const touch = () => {
     // A late answer must not write a lock file again after the launcher let it go.
-    if (!released) lock.touch(lockText());
+    if (released) return;
+    // Write only into a lock that still names this launcher. A launcher that slept with the laptop finds its lock taken over by another one, and
+    // writing then would replace the other's process ids with its own (--stop would hit the wrong processes, and the other would run unmanaged).
+    if (!lockNamesUs(lock.read()?.text ?? null, process.pid, startedIso, launcherStart)) {
+      released = true; // from now on this launcher writes nothing and removes nothing
+      clearInterval(heartbeat);
+      log('the lock now belongs to another launcher (or is gone), so this launcher stops its server and ends');
+      lostLock.abort();
+      return;
+    }
+    lock.touch(lockText());
   };
   const got = await acquireLock({ now: Date.now, portInUse: () => portInUse(REPORTER_PORT), read: lock.read, create: lock.create, remove: lock.remove }, lockText());
   if (got === 'held') return 0; // another launcher runs: do nothing, and say nothing
   log(`started (process ${process.pid}, branch ${branch})`);
   const heartbeat = setInterval(touch, LOCK_TOUCH_MS);
   const release = () => {
+    const lost = released; // true when the lock was lost: it is another launcher's now, and is left alone
     released = true;
     clearInterval(heartbeat);
-    lock.remove();
+    if (!lost && lockNamesUs(lock.read()?.text ?? null, process.pid, startedIso, launcherStart)) lock.remove();
   };
 
   try {
@@ -446,7 +535,9 @@ export async function runLauncher(options) {
       return 1;
     }
     if (!(await ensureCopy(paths, origin, branch, { git, install, log }))) return 1;
+    if (lostLock.signal.aborted) return 0;
     const updated = await updateCopy(paths, branch, { git, install, log });
+    if (lostLock.signal.aborted) return 0;
     // New code with old packages is never started: when a due `npm ci` did not work, stop here. The marker makes the next launch try it again.
     if (needsInstall(paths)) {
       log('the packages are not installed for the code of the pinned copy, so the server is not started');
@@ -473,7 +564,7 @@ export async function runLauncher(options) {
           });
         }
       },
-      { update: () => updateCopy(paths, branch, { git, install, log }), install },
+      { update: () => updateCopy(paths, branch, { git, install, log }), install, signal: lostLock.signal },
     );
   } finally {
     release();
@@ -499,6 +590,7 @@ function spawnServer(paths) {
 /**
  * Starts the server, restarts it on a crash or a new main, and returns the exit code that ends the launcher.
  * `deps` exists for the tests: `spawnServer(paths)` gives the child, `update()` is one fetch round, `fetchEveryMs` and `restartDelayMs` are the timings.
+ * `deps.signal` ends the supervisor when it is aborted (the heartbeat found that another launcher owns the lock).
  * @returns {Promise<number>}
  */
 export function supervise(paths, checkout, branch, log, onServerPid, deps = {}) {
@@ -544,9 +636,10 @@ export function supervise(paths, checkout, branch, log, onServerPid, deps = {}) 
       }
       const now = Date.now();
       crashes.push(now);
-      while (crashes.length > 0 && now - crashes[0] > 600_000) crashes.shift();
-      if (crashes.length > 3) {
-        log(`server crashed ${crashes.length} times in 10 minutes (last code ${code}); giving up`);
+      while (crashes.length > 0 && now - crashes[0] > CRASH_WINDOW_MS) crashes.shift();
+      // At most MAX_RESTARTS (3) restarts in 10 minutes: the 4th crash in the window is the one that gives up.
+      if (crashes.length > MAX_RESTARTS) {
+        log(`server crashed ${crashes.length} times in 10 minutes (last code ${code}); giving up after ${MAX_RESTARTS} restarts`);
         finish(1);
         return;
       }
@@ -617,6 +710,12 @@ export function supervise(paths, checkout, branch, log, onServerPid, deps = {}) 
     };
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);
+    // The lock went to another launcher: end the server and return, so that two supervisors never run at once.
+    if (deps.signal?.aborted) {
+      stop();
+      return;
+    }
+    deps.signal?.addEventListener('abort', stop, { once: true });
     start();
   });
 }
@@ -624,17 +723,30 @@ export function supervise(paths, checkout, branch, log, onServerPid, deps = {}) 
 // ---- stop ----
 
 /**
+ * Removes the `live` key through a short run of the server's own code (`main.ts --clear-live` in the pinned copy), which reads the settings file. The
+ * launcher itself never reads that file. Gives a sentence for the log. Best effort and bounded: it is ended after 20 seconds, and nothing waits longer.
+ * Without a pinned copy (or without the settings file) there is nothing to run, and nothing is done.
+ */
+async function clearLiveKey(paths) {
+  if (!existsSync(join(paths.app, 'src', 'server', 'main.ts'))) return 'no pinned copy, so the live key was not removed (it expires by itself within 10 minutes)';
+  const result = await runCommand(process.execPath, ['--import', 'tsx', 'src/server/main.ts', '--clear-live'], { cwd: paths.app, timeout: 20_000 });
+  return result.status === 0 ? 'removed the live key' : `the live key was not removed (code ${result.status}); it expires by itself within 10 minutes`;
+}
+
+/**
  * Stops the running reporter: the server first, then the launcher. It acts only on a lock that was touched in the last 2 minutes, and only on a process
  * that is verified to be ours: the process id AND the start time in the lock must match what the system says about that id now, and the command line must
  * be the launcher or the server. A number that the system gave to another program since is never killed. When a process cannot be verified, nothing is
  * killed for it, the reason is written to the log, and the lock stays. Nothing is ever killed by name.
- * `deps` exists for the tests: `processInfo(pid)`, `kill(pid)` and `now()`.
+ * After a verified server was ended, the live key is removed (`clearLive`): a hard kill (all that Windows has) gives the server no time to remove its own key.
+ * `deps` exists for the tests: `processInfo(pid)`, `kill(pid)`, `now()` and `clearLive(paths)`.
  * @returns {Promise<string>} what happened, as a sentence
  */
 export async function stopReporter(checkout, deps = {}) {
   const lookup = deps.processInfo ?? processInfo;
   const kill = deps.kill ?? ((pid) => process.kill(pid));
   const now = deps.now ?? Date.now;
+  const clear = deps.clearLive ?? clearLiveKey;
   const paths = pathsFor(mainCheckout(checkout));
   const note = (message) => {
     try {
@@ -693,6 +805,14 @@ export async function stopReporter(checkout, deps = {}) {
     }
   }
   for (const reason of refused) note(`did not stop the ${reason}`);
+  // The server could not remove its key itself when it was ended with a hard kill. A second short process does it, bounded by a time limit.
+  if (verified.some((target) => target.name === 'server')) {
+    try {
+      note(await clear(paths));
+    } catch {
+      note('the live key could not be removed; it expires by itself within 10 minutes');
+    }
+  }
   if (refused.length > 0) return `The reporter was not fully stopped. Not killed: ${refused.join('; ')}. The lock file stays. See ${paths.log}.`;
   rmSync(paths.lock, { force: true });
   return verified.length > 0 ? 'The reporter was stopped.' : 'The reporter is not running (its processes are gone). The lock file was removed.';
@@ -703,7 +823,8 @@ function readOption(argv, name) {
   return index === -1 ? undefined : argv[index + 1];
 }
 
-if (import.meta.main) {
+// Not `import.meta.main`: it exists only from Node 24.2, and the hook starts this file with whatever `node` is on the PATH (see is-main.mjs).
+if (isMainModule(import.meta.url)) {
   const argv = process.argv.slice(2);
   const start = readOption(argv, '--repo') ?? process.cwd();
   const checkout = findCheckout(start);

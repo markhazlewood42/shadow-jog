@@ -1,6 +1,6 @@
 import type { AgentsLive, Panel, SessionsInfo } from '../../shared/types';
 import type { Config } from '../config';
-import { createRunner } from '../runner';
+import { type Runner, createRunner } from '../runner';
 import type { PanelSource } from '../source';
 import type { ReporterSettings } from './env-file';
 import { type HttpClient, fetchClient } from './http';
@@ -24,30 +24,43 @@ export type ReporterOptions = {
   now?: () => number;
   log?: (message: string) => void;
   git?: GitIn;
+  /** Makes a runner for a config. Tests count the calls; the real one is `createRunner`. */
+  makeRunner?: (config: Config) => Runner;
 };
 
 /** Worktrees change rarely and `git status` in each is the costly read, so they are read again after this long. */
 export const WORKTREE_REFRESH_MS = 5000;
 
-/** The data of a panel: the fresh data, else the last good data, else null (the source has never loaded). */
-function dataOf<T>(panel: Panel<T>): T | null {
+/** The data of a panel: the fresh data, else the last good data, else null (the source has never loaded). Only for facts that do not say what runs NOW. */
+function dataOrLastGood<T>(panel: Panel<T>): T | null {
   return panel.ok ? panel.data : (panel.lastGood?.data ?? null);
 }
 
 export function createReporterModule(
   options: ReporterOptions,
   sources: { config: Config; sessions: PanelSource<SessionsInfo>; agents: PanelSource<AgentsLive> },
-): { start(): void; stop(): void } {
+): { start(): void; stop(): Promise<void> } {
   const { config, sessions, agents } = sources;
   const now = options.now ?? Date.now;
   const http = options.http ?? fetchClient;
   const log = options.log ?? ((message: string) => console.log(`${new Date().toISOString()} reporter: ${message}`));
 
   /**
-   * The real git: the runner with the folder of the checkout added to its roots. The folders come from `git worktree list` of this repo, so they are
+   * The real git: a runner with the folder of the checkout added to its roots. The folders come from `git worktree list` of this repo, so they are
    * this repo's own checkouts, and the runner still refuses every command that is not on its list (runner.ts).
+   * One runner is made for each folder and kept, because the list is read every 5 s for every worktree.
    */
-  const git: GitIn = options.git ?? ((args, cwd) => createRunner({ ...config, roots: [...config.roots, cwd] })('git', args, { cwd }));
+  const makeRunner = options.makeRunner ?? createRunner;
+  const runners = new Map<string, Runner>();
+  const runnerFor = (cwd: string): Runner => {
+    let runner = runners.get(cwd);
+    if (runner === undefined) {
+      runner = makeRunner({ ...config, roots: [...config.roots, cwd] });
+      runners.set(cwd, runner);
+    }
+    return runner;
+  };
+  const git: GitIn = options.git ?? ((args, cwd) => runnerFor(cwd)('git', args, { cwd }));
 
   let worktrees: { at: number; rows: WorktreeFacts[] } | null = null;
   async function worktreeRows(): Promise<WorktreeFacts[]> {
@@ -62,13 +75,22 @@ export function createReporterModule(
     return worktrees.rows;
   }
 
+  let agentsFailing = false;
   async function collect(): Promise<LiveBody | null> {
     const [live, info] = await Promise.all([agents.get(), sessions.get()]);
-    const liveData = dataOf(live);
-    // The agents source has never loaded: there is no truth to publish. (An empty list is a truth: no session runs.)
-    if (liveData === null) return null;
-    const facts = dataOf(info)?.sessions ?? [];
-    return buildLiveBody({ sessions: liveData.sessions, facts, worktrees: await worktreeRows() });
+    // Only FRESH data says which sessions run now. When the agents source fails, its last good data is old: publishing it would show ended sessions as
+    // live for as long as the failure lasts, and would reset the idle exit. So nothing is published (null): the write is skipped, the stored value goes
+    // stale on the page ("offline"), and the idle exit counts the time. The same for a source that has never loaded. (An empty list is a truth: no session runs.)
+    if (!live.ok) {
+      if (!agentsFailing) log('the agents source does not work, so nothing is published until it does. The sessions on the page go stale.');
+      agentsFailing = true;
+      return null;
+    }
+    if (agentsFailing) log('the agents source works again');
+    agentsFailing = false;
+    // The branch and folder of a session change rarely, so the last good list of the sessions module is fine for them.
+    const facts = dataOrLastGood(info)?.sessions ?? [];
+    return buildLiveBody({ sessions: live.data.sessions, facts, worktrees: await worktreeRows() });
   }
 
   const reporter = createReporter({
@@ -83,6 +105,7 @@ export function createReporterModule(
 
   return {
     start: () => reporter.start(),
+    /** Stops the loop and removes the live key (best effort, at most a few seconds). */
     stop: () => reporter.stop(),
   };
 }

@@ -12,7 +12,9 @@
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { isMainModule } from './is-main.mjs';
 
 /** The most time the hook may take. The session is not slowed by more than this. */
 export const BUDGET_MS = 800;
@@ -72,7 +74,7 @@ async function main() {
   try {
     const payload = await readPayload(process.stdin);
     // CC_REPORTER_LAUNCHER is for the tests, which point it at a stub. Real runs use the launcher that sits next to this file.
-    const launcher = process.env.CC_REPORTER_LAUNCHER || join(import.meta.dirname, 'reporter-launch.mjs');
+    const launcher = process.env.CC_REPORTER_LAUNCHER || join(dirname(fileURLToPath(import.meta.url)), 'reporter-launch.mjs');
     await startReporter({ cwd: payload.cwd ?? process.cwd(), launcher, start: detach });
   } catch {
     // Never fail a session.
@@ -80,6 +82,7 @@ async function main() {
   process.exit(0);
 }
 
-if (import.meta.main) {
+// Not `import.meta.main`: it exists only from Node 24.2, and the hook runs with whatever `node` is on the PATH (see is-main.mjs).
+if (isMainModule(import.meta.url)) {
   await main();
 }

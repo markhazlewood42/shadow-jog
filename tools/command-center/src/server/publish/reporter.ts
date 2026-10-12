@@ -31,6 +31,8 @@ export const TIMING = {
   idleExitMs: 30 * 60_000,
   /** After this many "no answer either way" results in a row (3 checks, 30 minutes), a verified reporter is no longer verified: it removes the key and stops writing. */
   unknownLimit: 3,
+  /** The most time that removing the live key may take when the reporter ends. A slow store must never keep the process from exiting. */
+  exitDeleteMs: 3000,
 } as const;
 
 /** Exit codes. The launcher (scripts/reporter-launch.mjs) reads them: only a crash (any other code) is started again. */
@@ -54,10 +56,28 @@ export type ReporterDeps = {
 
 export type Reporter = {
   start(): void;
-  stop(): void;
+  /** Stops the loop and removes the live key if this reporter wrote it (best effort, at most `exitDeleteMs`). */
+  stop(): Promise<void>;
   /** One round of the loop. The tests call it with a fake clock. */
   tick(): Promise<void>;
 };
+
+/** Rejects with 'timed out' when `work` takes longer than `ms`. The work itself is not cancelled. */
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timed out')), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 export function createReporter(deps: ReporterDeps): Reporter {
   const { store, http, now, log, collect } = deps;
@@ -76,6 +96,10 @@ export function createReporter(deps: ReporterDeps): Reporter {
   let lastSuccessAt: number | null = null;
   let lastWrittenSignature: string | null = null;
   let writing: 'unknown' | 'ok' | 'failing' = 'unknown';
+  /** True from the first write attempt until the key is removed: the store may hold a value of ours. */
+  let keyMayExist = false;
+  /** The round that runs now, so that `stop` can wait for a write in flight before it removes the key. */
+  let running: Promise<void> | null = null;
   const said = new Set<string>();
 
   /** Logs a message once, until `forget` is called for it. Keeps a repeating condition to one line. */
@@ -85,10 +109,23 @@ export function createReporter(deps: ReporterDeps): Reporter {
     log(message);
   };
 
-  function end(code: number): void {
+  /** Removes the live key, bounded by `exitDeleteMs`, and logs the result. It never throws. */
+  async function removeKey(): Promise<void> {
+    keyMayExist = false;
+    try {
+      await withTimeout(store.deleteLive(), TIMING.exitDeleteMs);
+      log('the live key was removed');
+    } catch (error) {
+      log(`the live key could not be removed (${error instanceof Error ? error.message : 'unknown error'}). It expires by itself within 10 minutes.`);
+    }
+  }
+
+  /** The reporter ends the process: it removes the key it wrote (if any), then asks the caller to exit. */
+  async function end(code: number): Promise<void> {
     ended = true;
     if (timer !== null) clearInterval(timer);
     timer = null;
+    if (keyMayExist) await removeKey();
     deps.onExit(code);
   }
 
@@ -108,12 +145,7 @@ export function createReporter(deps: ReporterDeps): Reporter {
         verified = false;
         lastWrittenSignature = null;
         log(`protection check: no answer either way ${unknownStreak} times in a row (${verdict.why}). The reporter stops writing and removes the live key until the page is confirmed as protected.`);
-        try {
-          await store.deleteLive();
-          log('the live key was removed');
-        } catch (error) {
-          log(`the live key could not be removed (${error instanceof Error ? error.message : 'unknown error'}). It expires by itself within 10 minutes.`);
-        }
+        await removeKey();
         return 'ok';
       }
       // Before the first "protected" answer that means no write; after it, writes go on until the limit. A line says why.
@@ -123,13 +155,8 @@ export function createReporter(deps: ReporterDeps): Reporter {
     // Public. Stop first, then remove the key. If the removal fails the key still expires in 600 s.
     ended = true;
     log(`protection check: STOP. ${verdict.why}. The reporter stops and removes the live key.`);
-    try {
-      await store.deleteLive();
-      log('the live key was removed');
-    } catch (error) {
-      log(`the live key could not be removed (${error instanceof Error ? error.message : 'unknown error'}). It expires by itself within 10 minutes.`);
-    }
-    end(EXIT.public);
+    await removeKey();
+    await end(EXIT.public);
     return 'stop';
   }
 
@@ -141,6 +168,7 @@ export function createReporter(deps: ReporterDeps): Reporter {
       sayOnce(`refused:${parsed.reason}`, `refused to write: the live value does not pass the contract (${parsed.reason})`);
       return;
     }
+    keyMayExist = true;
     try {
       await store.setLive(JSON.stringify(parsed.live));
     } catch (error) {
@@ -155,7 +183,7 @@ export function createReporter(deps: ReporterDeps): Reporter {
     said.clear();
   }
 
-  async function tick(): Promise<void> {
+  async function runRound(): Promise<void> {
     if (ended || busy) return;
     busy = true;
     try {
@@ -174,7 +202,7 @@ export function createReporter(deps: ReporterDeps): Reporter {
       if (body !== null && body.sessions.length > 0) lastLiveSessionAt = at;
       if (at - lastLiveSessionAt >= TIMING.idleExitMs) {
         log('no live shadow-jog session for 30 minutes. The reporter exits.');
-        end(EXIT.idle);
+        await end(EXIT.idle);
         return;
       }
 
@@ -202,16 +230,28 @@ export function createReporter(deps: ReporterDeps): Reporter {
     }
   }
 
+  /** One round. The promise is kept in `running`, so that `stop` can wait for it. */
+  function tick(): Promise<void> {
+    const round = runRound();
+    running = round;
+    return round;
+  }
+
   return {
     start() {
       if (timer !== null || ended) return;
       void tick();
       timer = setInterval(() => void tick(), TIMING.tickMs);
     },
-    stop() {
+    async stop() {
+      // `end` already removed the key when the reporter ended itself (idle exit, public page): nothing is left to do then.
+      if (ended) return;
       ended = true;
       if (timer !== null) clearInterval(timer);
       timer = null;
+      // A write that is in flight lands before the delete, not after it.
+      if (running !== null) await withTimeout(running, TIMING.exitDeleteMs).catch(() => {});
+      if (keyMayExist) await removeKey();
     },
     tick,
   };

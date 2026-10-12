@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseLive } from '../src/shared/live';
 import { type ReporterDeps, EXIT, TIMING, createReporter } from '../src/server/publish/reporter';
 import type { LiveBody } from '../src/server/publish/map';
@@ -328,5 +328,98 @@ describe('logs', () => {
     r.store.failWrites = true;
     await r.reporter.tick();
     expect(r.logs.join('\n')).not.toContain(TOKEN);
+  });
+});
+
+// F4: a normal end removes the live key, so the page does not show ended sessions as live for up to 10 minutes.
+describe('the live key on a normal end', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('the idle exit removes the key BEFORE it asks the process to exit', async () => {
+    const r = rig();
+    let exitsWhenDeleted = -1;
+    const original = r.store.deleteLive;
+    r.store.deleteLive = async () => {
+      exitsWhenDeleted = r.exits.length;
+      await original();
+    };
+    r.set(body([]));
+    await r.reporter.tick(); // a write happens: the key exists now
+    expect(r.store.sets).toHaveLength(1);
+    r.advance(TIMING.idleExitMs);
+    await r.reporter.tick();
+    expect(r.exits).toEqual([EXIT.idle]);
+    expect(r.store.deletes).toBe(1);
+    expect(exitsWhenDeleted).toBe(0); // the delete ran while no exit had been asked for yet
+  });
+
+  it('stop (SIGINT, SIGTERM) removes the key once, however often it is called', async () => {
+    const r = rig();
+    await r.reporter.tick();
+    expect(r.store.sets).toHaveLength(1);
+    await r.reporter.stop();
+    await r.reporter.stop();
+    expect(r.store.deletes).toBe(1);
+    expect(r.logs.some((line) => line.includes('the live key was removed'))).toBe(true);
+  });
+
+  it('stop removes nothing when this reporter never wrote (it never touches a key that is not its own)', async () => {
+    const r = rig({ answers: [response(503)] }); // never verified, so never writes
+    await r.reporter.tick();
+    await r.reporter.stop();
+    expect(r.store.sets).toHaveLength(0);
+    expect(r.store.deletes).toBe(0);
+  });
+
+  it('after the idle exit has removed the key, the stop that follows does not remove it again', async () => {
+    const r = rig();
+    r.set(body([]));
+    await r.reporter.tick();
+    r.advance(TIMING.idleExitMs);
+    await r.reporter.tick();
+    await r.reporter.stop();
+    expect(r.store.deletes).toBe(1);
+  });
+
+  it('a failed removal is logged and does not throw; the exit still happens', async () => {
+    const r = rig();
+    r.set(body([]));
+    await r.reporter.tick();
+    r.store.deleteLive = async () => {
+      throw new Error('the store answered with status 500');
+    };
+    r.advance(TIMING.idleExitMs);
+    await r.reporter.tick();
+    expect(r.exits).toEqual([EXIT.idle]);
+    expect(r.logs.some((line) => line.includes('could not be removed') && line.includes('status 500'))).toBe(true);
+  });
+
+  it('a store that never answers cannot keep the process from exiting: the removal is cut off after exitDeleteMs', async () => {
+    vi.useFakeTimers();
+    const r = rig();
+    r.set(body([]));
+    await r.reporter.tick();
+    r.store.deleteLive = () => new Promise<void>(() => {});
+    r.advance(TIMING.idleExitMs);
+    const round = r.reporter.tick();
+    await vi.advanceTimersByTimeAsync(TIMING.exitDeleteMs - 1);
+    expect(r.exits).toEqual([]); // still waiting
+    await vi.advanceTimersByTimeAsync(2);
+    await round;
+    expect(r.exits).toEqual([EXIT.idle]);
+    expect(r.logs.some((line) => line.includes('could not be removed') && line.includes('timed out'))).toBe(true);
+  });
+
+  it('stop with a store that never answers returns after exitDeleteMs', async () => {
+    vi.useFakeTimers();
+    const r = rig();
+    await r.reporter.tick();
+    r.store.deleteLive = () => new Promise<void>(() => {});
+    const stopped = r.reporter.stop();
+    await vi.advanceTimersByTimeAsync(TIMING.exitDeleteMs + 1);
+    await stopped;
+    expect(r.logs.some((line) => line.includes('timed out'))).toBe(true);
   });
 });

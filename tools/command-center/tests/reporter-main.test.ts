@@ -155,4 +155,40 @@ describe('main --reporter', () => {
     }
     await world.close();
   }, 60_000);
+
+  it('--clear-live (what --stop runs): one DEL of the key, no server, exit code 0, and the token never printed', async () => {
+    const world = await fakeWorld({ status: 401 });
+    const home = homeWithSettings('clear-live', [`KV_REST_API_URL=${world.origin}`, `KV_REST_API_TOKEN=${TOKEN}`, `CC_HOSTED_URL=${world.origin}`]);
+    const child = spawn(process.execPath, ['--import', 'tsx', 'src/server/main.ts', '--clear-live'], {
+      cwd: PACKAGE_DIR,
+      env: { ...process.env, CC_NO_OPEN: '1', HOME: home, USERPROFILE: home },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    let output = '';
+    child.stdout.on('data', (chunk: Buffer) => (output += chunk.toString()));
+    child.stderr.on('data', (chunk: Buffer) => (output += chunk.toString()));
+    const code = await new Promise<number | null>((done) => child.once('close', done));
+    expect(code).toBe(0);
+    expect(output).toContain('the live key was removed');
+    expect(output).not.toContain(TOKEN);
+    expect(world.seen.map((call) => `${call.method} ${(JSON.parse(call.body || '[]') as string[]).join(' ')}`.trim())).toEqual(['POST DEL live']);
+    await world.close();
+  }, 60_000);
+
+  it('--clear-live without the settings file: one clear line and exit code 4, nothing sent', async () => {
+    const home = join(scratch, 'clear-live-empty-home');
+    mkdirSync(home, { recursive: true });
+    const child = spawn(process.execPath, ['--import', 'tsx', 'src/server/main.ts', '--clear-live'], {
+      cwd: PACKAGE_DIR,
+      env: { ...process.env, HOME: home, USERPROFILE: home },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    let stderr = '';
+    child.stderr.on('data', (chunk: Buffer) => (stderr += chunk.toString()));
+    const code = await new Promise<number | null>((done) => child.once('close', done));
+    expect(code).toBe(4);
+    expect(stderr).toContain('cannot remove the live key');
+  }, 60_000);
 });

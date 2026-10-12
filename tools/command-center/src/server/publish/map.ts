@@ -6,8 +6,9 @@ import type { LiveSessionRow, LiveWorktree } from '../../shared/live';
 // Each output field is written out by hand from a named input field. There is no spread (`...session`) and no copy of a whole object, so a
 // field that a source adds later cannot get through by accident. The fields that leave:
 //   session: id, title, branch, folder name, state, start time, agent names and counts
-//   worktree: path, branch, dirty count
+//   worktree: folder name (the last folder of its path, never the full path), branch, dirty count
 // Never a message, a prompt, a result, a file body, the path of a session file, or a working folder (only the NAME of its last folder).
+// The hosted page joins a worktree to its workstream by BRANCH, so the name is only a label there.
 //
 // The result is checked once more with `parseLive` before every write (reporter.ts), and `parseLive` builds new objects from the fields that the
 // contract names, so a field that this file did not intend would be dropped there too.
@@ -40,16 +41,58 @@ const SECRET_PATTERNS: readonly RegExp[] = [
   /\beyJ[A-Za-z0-9_-]{8,}(?:\.[A-Za-z0-9_-]*)*/g,
   // An assignment of a secret-looking name: KEY=value, API_TOKEN=value, client_secret=value, PASSWORD=value. The whole assignment goes.
   /\b[A-Za-z0-9_.-]*(?:key|token|secret|password|passwd)[A-Za-z0-9_.-]*\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/gi,
+  // A secret word with a colon or equals sign and a value, in prose: "password: hunter2", "pwd = x", "api key: abc".
+  /\b(?:password|passwd|pwd|secret|token|api[\s_-]?key|apikey)\b\s*[:=]\s*(?:"[^"]*"|'[^']*'|\S+)/gi,
+  // A secret word followed by "is" or "was" and a value of 8 or more characters: "my token is abcdefghijklmnop".
+  /\b(?:password|passwd|pwd|secret|token|api[\s_-]?key|apikey)\s+(?:is|was)\s+(?:"[^"]{4,}"|'[^']{4,}'|\S{8,})/gi,
+  // A URL with a user and a password: postgres://user:pass@host/db. The part up to the @ goes.
+  /\b[a-z][a-z0-9+.-]*:\/\/[^\s/@:]+:[^\s/@]+@/gi,
 ];
 
-/** A run of 24 or more characters of a token alphabet that mixes letters and digits, like a random key. */
+/** A run of 24 or more characters of a token alphabet. Whether it is a secret depends on its shape (see `looksLikeKey`). */
 const LONG_RUN = /[A-Za-z0-9_\-+/=]{24,}/g;
 
-/** Replaces secret-shaped text with "[redacted]". Plain words, numbers and paths without a long mixed run pass through unchanged. */
+const mixesLettersAndDigits = (text: string): boolean => /[A-Za-z]/.test(text) && /[0-9]/.test(text);
+
+/**
+ * True for one piece of text without a slash that looks like a key: 32 or more token characters (even all letters or all digits),
+ * or 24 or more that mix letters and digits. A git hash of 40 characters is redacted too. A hash shorter than 32 passes.
+ */
+function pieceLooksLikeKey(piece: string): boolean {
+  return piece.length >= 32 || (piece.length >= 24 && mixesLettersAndDigits(piece));
+}
+
+/**
+ * A run can hold slashes, because base64 uses them, and so does a file path. A path like "tools/command-center/src/server/publish/map" must pass,
+ * so a run with slashes counts as a key when one piece between the slashes looks like a key, or when the whole run is 32 or more characters of
+ * mixed case and digits (a base64 key, not a lower-case path).
+ */
+function looksLikeKey(run: string): boolean {
+  if (!run.includes('/')) return pieceLooksLikeKey(run);
+  if (run.split('/').some(pieceLooksLikeKey)) return true;
+  return run.length >= 32 && /[a-z]/.test(run) && /[A-Z]/.test(run) && /[0-9]/.test(run);
+}
+
+/** Replaces secret-shaped text with "[redacted]". Plain words, numbers and paths without a long key-like run pass through unchanged. */
 export function redact(text: string): string {
   let out = text;
   for (const pattern of SECRET_PATTERNS) out = out.replace(pattern, REDACTED);
-  return out.replace(LONG_RUN, (run) => (/[A-Za-z]/.test(run) && /[0-9]/.test(run) ? REDACTED : run));
+  return out.replace(LONG_RUN, (run) => (looksLikeKey(run) ? REDACTED : run));
+}
+
+/**
+ * Redaction for a branch name or a folder name. These are joined by name on the hosted page (a session to its workstream by branch), and a
+ * kebab-case branch like "command-center-step-5-local-reporter" is longer than 32 characters. So the named patterns run in full, but a long run
+ * is judged piece by piece between the separators - / _ : one piece that looks like a key redacts the whole name, and a name of 32 or more
+ * characters of mixed case and digits does too.
+ */
+export function redactName(text: string): string {
+  let out = text;
+  for (const pattern of SECRET_PATTERNS) out = out.replace(pattern, REDACTED);
+  return out.replace(LONG_RUN, (run) => {
+    if (run.split(/[-_/]/).some(pieceLooksLikeKey)) return REDACTED;
+    return run.length >= 32 && /[a-z]/.test(run) && /[A-Z]/.test(run) && /[0-9]/.test(run) ? REDACTED : run;
+  });
 }
 
 /** The last folder name of a path, with either kind of slash. "" for a missing or empty path. */
@@ -68,8 +111,8 @@ export function mapSession(live: LiveSession, facts: SessionFacts | undefined): 
   return {
     id: live.id,
     title: cut(redact(live.title), LIMITS.title),
-    branch: cut(facts?.branch ?? '', LIMITS.branch),
-    folder: cut(folderName(facts?.cwd ?? null), LIMITS.folder),
+    branch: cut(redactName(facts?.branch ?? ''), LIMITS.branch),
+    folder: cut(redactName(folderName(facts?.cwd ?? null)), LIMITS.folder),
     state: live.state === 'working' ? 'working' : 'waiting',
     startedAt: live.startedAt,
     agents: {
@@ -84,9 +127,20 @@ export function mapSession(live: LiveSession, facts: SessionFacts | undefined): 
 /** What the worktree reader found for one checkout. */
 export type WorktreeFacts = { path: string; branch: string | null; dirty: number };
 
+/**
+ * One checkout. `path` in the contract holds the NAME of the last folder only, never the full path (the full path shows the user name and the layout
+ * of the machine). The page joins a worktree to its workstream by branch, so it needs no more than a label.
+ */
 export function mapWorktree(facts: WorktreeFacts): LiveWorktree {
-  return { path: facts.path, branch: facts.branch === null ? null : cut(facts.branch, LIMITS.branch), dirty: Math.max(0, Math.floor(facts.dirty)) };
+  return {
+    path: cut(redactName(folderName(facts.path)), LIMITS.folder) || UNNAMED_FOLDER,
+    branch: facts.branch === null ? null : cut(redactName(facts.branch), LIMITS.branch),
+    dirty: Math.max(0, Math.floor(facts.dirty)),
+  };
 }
+
+/** The contract wants a non-empty `path`. A path with no folder name (a drive root, say) gets this label. */
+const UNNAMED_FOLDER = '(unnamed)';
 
 /** The whole `live` value except `writtenAt`, which the reporter stamps when it writes. */
 export type LiveBody = { sessions: LiveSessionRow[]; worktrees: LiveWorktree[] };

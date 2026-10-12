@@ -303,6 +303,7 @@ it('a syntax error in the launcher cannot make the hook exit non-zero (the launc
   const dir = join(scratch, 'broken-launcher');
   mkdirSync(dir, { recursive: true });
   copyFileSync(HOOK, join(dir, 'reporter-hook.mjs'));
+  copyFileSync(join(PACKAGE_DIR, 'scripts', 'is-main.mjs'), join(dir, 'is-main.mjs'));
   writeFileSync(join(dir, 'reporter-launch.mjs'), 'export const = ;');
   const result = await new Promise<{ code: number | null; stdout: string; stderr: string }>((done) => {
     const child = spawn(process.execPath, [join(dir, 'reporter-hook.mjs')], { cwd: dir, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });

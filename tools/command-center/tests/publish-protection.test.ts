@@ -16,7 +16,7 @@ describe('the protection verdict', () => {
   });
 
   it('a redirect to a Vercel subdomain login is protected', async () => {
-    const { http } = fakeHttp(response(302, '', 'https://login.vercel.com/x'));
+    const { http } = fakeHttp(response(302, '', 'https://login.vercel.com/login?next=%2Fx'));
     expect((await checkProtection(http, HOST)).kind).toBe('protected');
   });
 
@@ -32,6 +32,43 @@ describe('the protection verdict', () => {
   it('a look-alike host (vercel.com.evil.example) is not the Vercel login', async () => {
     const { http } = fakeHttp(response(302, '', 'https://vercel.com.evil.example/login'));
     expect((await checkProtection(http, HOST)).kind).toBe('unknown');
+  });
+
+  // F8: a redirect counts only when it is https, on vercel.com, and a login or SSO path.
+  it.each([
+    ['the marketing page', 'https://vercel.com/'],
+    ['the marketing page without a slash', 'https://vercel.com'],
+    ['a pricing page', 'https://vercel.com/pricing'],
+    ['a project transfer page', 'https://vercel.com/account/transfer?id=abc'],
+    ['a dashboard page', 'https://vercel.com/dashboard'],
+    ['a docs host', 'https://docs.vercel.com/docs'],
+    ['plain http, even to the login path', 'http://vercel.com/login'],
+    ['a path that only starts like a login word', 'https://vercel.com/loginfo'],
+  ])('F8: a redirect to %s is unknown', async (_label, location) => {
+    const { http } = fakeHttp(response(307, '', location));
+    expect((await checkProtection(http, HOST)).kind).toBe('unknown');
+  });
+
+  it.each([
+    'https://vercel.com/login',
+    'https://vercel.com/login?next=%2Fapi%2Flive',
+    'https://vercel.com/sso',
+    'https://vercel.com/sso-api?url=https%3A%2F%2Fcc.example.vercel.app%2Fapi%2Flive',
+    'https://vercel.com/sso/start',
+    'https://vercel.com/some/path?next=%2Fx',
+    'https://vercel.com/some/path?redirect=%2Fx',
+    'https://vercel.com/some/path?redirectUrl=%2Fx',
+    'https://login.vercel.com/login',
+  ])('F8: a redirect to %s is protected', async (location) => {
+    const { http } = fakeHttp(response(307, '', location));
+    expect((await checkProtection(http, HOST)).kind).toBe('protected');
+  });
+
+  it('F8: the unknown answer names the place of the redirect without its query', async () => {
+    const { http } = fakeHttp(response(307, '', 'https://vercel.com/pricing?secret=1'));
+    const verdict = await checkProtection(http, HOST);
+    expect(verdict.why).toContain('https://vercel.com/pricing');
+    expect(verdict.why).not.toContain('secret=1');
   });
 
   it('200 with a JSON body is PUBLIC', async () => {
