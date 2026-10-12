@@ -1,0 +1,31 @@
+// JSON answers and cache headers of the Vercel functions (design.md section 6). Pure.
+
+/** The Cache-Control values. The Vercel CDN keeps a response for `s-maxage` seconds, then serves it stale while it fetches a new one. */
+export const CACHE = {
+  snapshot: 's-maxage=15, stale-while-revalidate',
+  docs: 's-maxage=60, stale-while-revalidate',
+  /** For `/api/live`, and for every error answer. */
+  none: 'no-store',
+} as const;
+
+const baseHeaders = (cache: string): Record<string, string> => ({ 'Cache-Control': cache, 'X-Content-Type-Options': 'nosniff' });
+
+export function jsonResponse(body: unknown, status: number, cache: string, extra: Record<string, string> = {}): Response {
+  return new Response(JSON.stringify(body), { status, headers: { ...baseHeaders(cache), 'Content-Type': 'application/json; charset=utf-8', ...extra } });
+}
+
+/** An error answer: `{ error, kind }`. Never cached. `error` is a fixed sentence, never text from GitHub or from Upstash. */
+export function errorResponse(status: number, error: string, kind: string, extra: Record<string, string> = {}): Response {
+  return jsonResponse({ error, kind }, status, CACHE.none, extra);
+}
+
+export function bytesResponse(bytes: ArrayBuffer, contentType: string, cache: string): Response {
+  return new Response(bytes, { status: 200, headers: { ...baseHeaders(cache), 'Content-Type': contentType } });
+}
+
+/** All three functions are read-only. Any other method gets 405. HEAD is allowed (the CDN may send it). */
+export function methodNotAllowed(request: Request): Response | null {
+  return request.method === 'GET' || request.method === 'HEAD' ? null : errorResponse(405, 'method not allowed', 'method', { Allow: 'GET, HEAD' });
+}
+
+export const notConfigured = (): Response => errorResponse(500, 'not configured', 'not-configured');

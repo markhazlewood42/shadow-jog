@@ -202,6 +202,38 @@ The two labels `decision` and `decided` must exist in the GitHub repo. Creating 
 | The Now page shows plain panels first, then glass | PlasmaUI compiles its shaders on the page's main thread, and plain panels paint first. In a headless run under software GL the block lasts about 5.5 seconds. On a real GPU it is shorter. Turn off "Glass panels" to skip it. |
 | A page looks stale | The page reloads a panel when its module reports a change. If a source is quiet, press Retry on the panel, or reload the tab. |
 
+## Hosted mode (Vercel, revision 3)
+
+A second way to run the site: a Vercel project with the root `tools/command-center`. It serves the built page and three functions. The local server does not run there. Design: `docs/command-center/design.md` sections 4.3, 6 and 11. This section is the setup for step 3 (the code is here; Mark creates the project). Nothing here deploys by itself.
+
+| Function | File | What |
+|---|---|---|
+| `GET /api/snapshot` | `api/snapshot.ts` | The GitHub API adapter (`src/github-api/`) as JSON. `Cache-Control: s-maxage=15, stale-while-revalidate`. |
+| `GET /api/docs/<repo path>` | `api/docs/[...path].ts` | One file from `main` of `markhazlewood42/shadow-jog`: `docs/**/*.md`, the root `*.md` files and the PNGs under `docs/`. Any other path is a 400 or 404. `s-maxage=60`. |
+| `GET /api/live` | `api/live.ts` | The `live` key from Upstash Redis, plus `reporter.state` (`online`, `offline` after 150 s, `not-running` when the key is gone). `no-store`. |
+
+The shared code is in `src/hosted/`, so `api/` holds only the three function files. `vercel.json` sets the vite build, `maxDuration` 30, the ignore script and one rewrite that sends every path except `/api/*` to the page. `scripts/vercel-ignore.mjs` skips every build unless the branch is `main` and `tools/command-center/` changed.
+
+Environment variables of the Vercel project (set them in the Vercel settings, never in a file):
+
+| Name | Value |
+|---|---|
+| `GITHUB_TOKEN` | A fine-grained, read-only token for `markhazlewood42/shadow-jog` only |
+| `KV_REST_API_URL` | The Upstash REST URL (added by the Marketplace install) |
+| `KV_REST_API_READ_ONLY_TOKEN` | The Upstash read-only token (added by the Marketplace install) |
+
+Do not keep `KV_REST_API_TOKEN` (the read-write token) in the project. The install adds it. Delete it. `/api/live` answers 500 `{"error":"misconfigured"}` while the variable exists, and logs the name of the variable. A missing variable gives 500 `{"error":"not configured"}`.
+
+Post-deploy checks (design.md section 7), after every deploy:
+
+1. Request the page and `/api/live` without the login cookie (`curl -i`). Both must answer 401 or redirect to the Vercel login. A 200 with the page or the JSON means the page is public: set Vercel Authentication to "All Deployments" at once.
+2. Signed in, `/api/snapshot` answers 200 JSON. Two requests within 15 s: the second shows `x-vercel-cache: HIT` (the CDN cache works behind the login). If it does not, the function must cache the snapshot itself (design.md section 6, Cache).
+3. Signed in, `/api/live` answers 200 with `reporter.state` `not-running` until the reporter (step 5) writes the key.
+4. `/api/docs/docs/GDD.md` answers 200 `text/markdown`. `/api/docs/package.json` answers 404. `/api/docs/%2e%2e/CLAUDE.md` answers 400.
+5. In the project settings, no read-write token variable exists.
+
+Local proof without a deploy: `npx vitest run tests/vercel-*.test.ts` (handlers with a fake GitHub and a fake Upstash, the path allow-list, the ignore decision, `vercel.json`, and an esbuild bundle of each function that must not contain `hono`, `chokidar`, `minisearch` or the local server's hub, runner and config).
+
 ## Tests
 
 Vitest holds the units (`tests/`) and Playwright holds the browser tests (`e2e/`). Both use synthetic fixtures (`fixtures/`): a throwaway git repo, made-up Claude session files and a fake `gh`. No default test reads your real sessions or writes to GitHub, and none opens a browser tab. Never leave a server running: stop what you start, by its process id.
