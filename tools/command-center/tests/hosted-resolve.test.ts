@@ -5,7 +5,7 @@ import { NOW, NOW_ISO, decision, goodFile, liveAnswer, liveState, pr, row, snaps
 import type { Snapshot } from '../src/github-api/types';
 import type { AgentsLive, Decision, DocPageData, DocsListing, GitInfo, Health, Panel, StatusInfo, YourMoveInfo } from '../src/shared/types';
 import type { FetchFn } from '../src/web/hosted/fetch';
-import { createResolver } from '../src/web/hosted/resolve';
+import { createResolver, docSlugOf } from '../src/web/hosted/resolve';
 import { LIVE_URL, SNAPSHOT_URL, createHostedStore } from '../src/web/hosted/store';
 import { type WorkstreamsView } from '../src/web/hosted/workstreams';
 import { clearDocCache } from '../src/web/hosted/rendered';
@@ -68,10 +68,13 @@ describe('the panels made from the snapshot', () => {
   });
 
   it('shows a failed first load as an error panel with the reason, no data, and loads again on the next ask (Retry)', async () => {
-    const { resolve, server } = setup({ snap: { status: 502, body: { error: 'the store could not be reached', kind: 'store-error' } } });
+    const { resolve, server, store } = setup({ snap: { status: 502, body: { error: 'the store could not be reached', kind: 'store-error' } } });
     const failed = await resolve<unknown>('/api/github');
     expect(failed).toMatchObject({ ok: false, error: { code: 'http-502', message: 'The server answered 502: the store could not be reached.' }, lastGood: null });
     server.answers.set(SNAPSHOT_URL, { body: snapshot() });
+    // Another panel asking inside the poll interval gets the known error; the Retry button opens the gate.
+    expect((await resolve<unknown>('/api/github')).ok).toBe(false);
+    store.allowRetry();
     expect((await resolve<unknown>('/api/github')).ok).toBe(true);
   });
 
@@ -222,6 +225,25 @@ describe('docs, read through /api/docs/<repo path>', () => {
     const { resolve } = setup();
     const panel = await resolve<DocPageData>('/api/docs/no/such/doc');
     expect(panel).toMatchObject({ ok: false, error: { code: 'doc-not-found' }, suggestions: [] });
+  });
+
+  it('refuses a slug that cannot name a doc before it reaches /api/docs: "..", ".", an empty part and a bad escape', async () => {
+    const requested: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      requested.push(url);
+      return new Response('# x', { status: 200, headers: { 'content-type': 'text/markdown' } });
+    });
+    const { resolve } = setup();
+    for (const path of ['/api/docs/..%2Fsecrets', '/api/docs/a//b', '/api/docs/a/%E0%A4%A', '/api/docs/a%2Fb', '/api/docs/']) {
+      expect(await resolve<DocPageData>(path), path).toMatchObject({ ok: false, error: { code: 'doc-not-found' } });
+    }
+    expect(requested).toEqual([]);
+  });
+
+  it('docSlugOf refuses ".", "..", empty parts and a bad escape, and decodes the rest', () => {
+    for (const raw of ['', 'a/', '/a', 'a//b', '.', '..', 'a/../b', 'a/./b', '%2e%2e', 'a/%E0%A4%A', 'a%2Fb', 'a%5Cb']) expect(docSlugOf(raw), raw).toBeNull();
+    expect(docSlugOf('docs/engine/decisions')).toBe('docs/engine/decisions');
+    expect(docSlugOf('docs/my%20doc')).toBe('docs/my doc');
   });
 
   it('shows a lost login as an error, not as "not found"', async () => {

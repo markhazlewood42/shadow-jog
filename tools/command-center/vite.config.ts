@@ -12,8 +12,9 @@ export default defineConfig({
   root: join(import.meta.dirname, 'src', 'web'),
   plugins: [react(), tailwindcss()],
   resolve: {
-    // The doc renderer of the server imports `posix` from node:path. A browser has no node:path, so the page gets four small functions of its own (the hosted page renders docs).
-    alias: [{ find: /^node:path$/, replacement: join(import.meta.dirname, 'src', 'web', 'hosted', 'posix.ts') }],
+    // The doc renderer of the server imports `posix` from node:path. A browser has no node:path, so the hosted page gets four small functions of its own (it renders docs).
+    // Only the hosted build (VITE_HOSTED=1, read from the environment of the build, as vercel.json and playwright.hosted.config.ts set it) has the alias. The local build keeps the real node:path.
+    alias: process.env.VITE_HOSTED === '1' ? [{ find: /^node:path$/, replacement: join(import.meta.dirname, 'src', 'web', 'hosted', 'posix.ts') }] : [],
   },
   build: {
     outDir: process.env.CC_OUT_DIR ?? join(import.meta.dirname, 'dist'),

@@ -191,7 +191,17 @@ export function visibleCards(view: WorkstreamsView): WorkstreamCard[] {
   return view.lanes.flatMap((lane) => lane.cards);
 }
 
-/** The address of a card on the Workstreams page, as a hash. The branch has slashes in it, so they become dashes. */
+/**
+ * The address of a card on the Workstreams page, as a hash, and the id of the card. Two different branches never give the same anchor, and the anchor has only
+ * the characters a-z, 0-9, "-" and "_". A letter or digit stays. A "-" stays. An uppercase letter becomes `_u` and its lowercase letter. Every other
+ * character (a "/" too) becomes `_x`, its code in hex and a closing `_` ("feature/a" is "ws-feature_x2f_a"). That is why a "_" in a branch is escaped as well.
+ */
 export function cardAnchor(branch: string): string {
-  return `ws-${branch.replace(/[^a-z0-9]+/g, '-')}`;
+  let out = 'ws-';
+  for (const char of branch) {
+    if (/[a-z0-9-]/.test(char)) out += char;
+    else if (/[A-Z]/.test(char)) out += `_u${char.toLowerCase()}`;
+    else out += `_x${char.codePointAt(0)?.toString(16)}_`;
+  }
+  return out;
 }

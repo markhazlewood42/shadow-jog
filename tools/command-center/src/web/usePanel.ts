@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ModuleName, Panel } from '../shared/types';
-import { getPanel, mergeLastGood, subscribeEvents } from './api';
+import { getPanel, hostedLoaders, mergeLastGood, subscribeEvents } from './api';
+
+// The hosted build (VITE_HOSTED=1) asks the store to retry an errored slot at once when the Retry button is pressed (see HostedStore.allowRetry).
+const HOSTED = import.meta.env.VITE_HOSTED === '1';
 
 export type PanelState = 'loading' | 'ready' | 'error';
 
@@ -84,7 +87,15 @@ export function useLoadedPanel<T>(load: () => Promise<Panel<T>>, modules: readon
     };
   }, [load, modulesKey]);
 
-  const reload = useCallback(() => runner.current?.trigger(), []);
+  const reload = useCallback(() => {
+    if (!HOSTED) {
+      runner.current?.trigger();
+      return;
+    }
+    // Without allowRetry the store would answer an errored slot from memory until its poll interval passes, and the button would do nothing.
+    const trigger = () => runner.current?.trigger();
+    hostedLoaders.store().then(({ hostedStore }) => hostedStore.allowRetry()).then(trigger, trigger);
+  }, []);
   const state: PanelState = panel === null ? 'loading' : panel.ok ? 'ready' : 'error';
   return { state, panel, reload };
 }

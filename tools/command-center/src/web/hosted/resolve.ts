@@ -21,6 +21,25 @@ function lazyRendered() {
   return import('./rendered');
 }
 
+/**
+ * The slug of a doc from the part of the address after /api/docs/, or null when it cannot name a doc: a part that does not decode (a bad %-escape),
+ * or an empty, "." or ".." part. Exported for the tests.
+ */
+export function docSlugOf(raw: string): string | null {
+  const parts: string[] = [];
+  for (const part of raw.split('/')) {
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(part);
+    } catch {
+      return null;
+    }
+    if (decoded === '' || decoded === '.' || decoded === '..' || decoded.includes('/') || decoded.includes('\\')) return null;
+    parts.push(decoded);
+  }
+  return parts.join('/');
+}
+
 export type Resolver = <T>(url: string) => Promise<Panel<T>>;
 
 export function createResolver(store: HostedStore, options: { origin?: () => string; now?: () => Date } = {}): Resolver {
@@ -95,17 +114,10 @@ export function createResolver(store: HostedStore, options: { origin?: () => str
       return { ok: true, data: hostedListing(), updatedAt: now().toISOString() } as Panel<T>;
     }
     if (pathname.startsWith('/api/docs/')) {
-      const slug = pathname
-        .slice('/api/docs/'.length)
-        .split('/')
-        .map((part) => {
-          try {
-            return decodeURIComponent(part);
-          } catch {
-            return part;
-          }
-        })
-        .join('/');
+      const raw = pathname.slice('/api/docs/'.length);
+      const slug = docSlugOf(raw);
+      // A slug that cannot be a doc path never reaches docPanel and /api/docs/<path>. It is "not found", the same answer as for a doc that does not exist.
+      if (slug === null) return { ok: false, error: { code: 'doc-not-found', message: `No doc has the address ${raw}.` }, updatedAt: null, lastGood: null, suggestions: [] } as Panel<T>;
       // The snapshot gives the decision banners. If it cannot be read, the doc still shows, and the banners are missing.
       await store.ensure('snapshot');
       const { docPanel } = await lazyRendered();

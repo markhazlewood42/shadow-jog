@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NOW, ROADMAP, decision, goodFile, liveState, pr, row, snapshot, workstreamText } from '../fixtures/hosted/world';
+import { NOW, ROADMAP, decision, richWorld, goodFile, liveState, pr, row, snapshot, workstreamText } from '../fixtures/hosted/world';
 import { parseLive } from '../src/shared/live';
 import { parseWorkstream } from '../src/shared/workstream';
 import { buildHostedYourMove } from '../src/web/hosted/your-move';
@@ -121,7 +121,29 @@ describe('live rows', () => {
 
 describe('cardAnchor and parseRoadmapLanes', () => {
   it('makes an anchor from a branch with slashes', () => {
-    expect(cardAnchor('spike/foo-bar')).toBe('ws-spike-foo-bar');
+    expect(cardAnchor('spike/foo-bar')).toBe('ws-spike_x2f_foo-bar');
+  });
+
+  it('gives two different branches two different anchors', () => {
+    expect(cardAnchor('feature/a-b')).not.toBe(cardAnchor('feature-a/b'));
+    expect(cardAnchor('a/b')).not.toBe(cardAnchor('a-b'));
+    expect(cardAnchor('a_b')).not.toBe(cardAnchor('a/b'));
+    expect(cardAnchor('a_x2f_b')).not.toBe(cardAnchor('a/b'));
+    expect(cardAnchor('Fix/X')).not.toBe(cardAnchor('fix/x'));
+    expect(cardAnchor('a//b')).not.toBe(cardAnchor('a/b'));
+  });
+
+  it('keeps the case of a branch and leaves no dash artifacts', () => {
+    const anchor = cardAnchor('Fix/X');
+    expect(anchor).toBe('ws-_ufix_x2f__ux');
+    expect(anchor).not.toMatch(/--|-$/);
+    expect(anchor).toMatch(/^[a-z0-9_-]+$/);
+  });
+
+  it('is the id of the card and the target of its Your move link', () => {
+    const world = richWorld();
+    const view = buildWorkstreamsView({ snapshot: world.snapshot, live: null, liveStatus: { state: 'not-running' }, now: NOW });
+    for (const card of visibleCards(view)) expect(cardAnchor(card.branch)).toMatch(/^ws-[a-z0-9_-]+$/);
   });
 
   it('reads the real shape of roadmap.json, and refuses other shapes with a reason', () => {

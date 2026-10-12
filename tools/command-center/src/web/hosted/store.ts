@@ -31,8 +31,13 @@ export type HostedStore = {
   live(): Slot<LiveAnswer>;
   /** Fetches a slot now. A request that arrives while one is in flight shares it. */
   load(kind: 'snapshot' | 'live'): Promise<void>;
-  /** Makes sure that a slot has been fetched: it loads when nothing has loaded yet, and loads again when the last try failed (so a Retry button works). */
+  /**
+   * Makes sure that a slot has been fetched. It loads when nothing has loaded yet. When the last try failed, it loads again only after the poll interval of the slot has passed
+   * (so a failing endpoint is asked about once an interval, however many panels ask), or when `allowRetry` was called (the Retry button).
+   */
   ensure(kind: 'snapshot' | 'live'): Promise<void>;
+  /** The person pressed Retry: for the next 2 s an errored slot loads again at once. */
+  allowRetry(): void;
   /** Listens to changes. The first listener starts the polls, the last one stops them. The listener is told the connection at once. */
   subscribe(listener: (event: HostedEvent) => void): () => void;
   connection(): HostedConnection;
@@ -76,7 +81,12 @@ export function looksLikeLiveAnswer(value: unknown): value is LiveAnswer {
   return isRecord(value) && isRecord(value.reporter) && typeof value.reporter.state === 'string' && 'live' in value;
 }
 
-/** What identifies a snapshot for the "did it change" test. The time it was made and what the calls cost change on every answer, so they stay out. */
+/**
+ * What identifies a snapshot for the "did it change" test. The time it was made (`at`) and what the calls cost (`cost`: the rate-limit counters) change on every answer, so they stay out.
+ * Checked against `Snapshot` (src/github-api/types.ts) and the shared types: no other field is volatile. Every other time in it (`updatedAt`, `mergedAt`, `createdAt`, a branch `date`) is the
+ * time of an event on GitHub, so a change of it is a real change. There is no relative age ("3 min ago") in the snapshot: the page makes those from its own clock. The lists that depend on
+ * the clock (merged in the last 7 days, answered in the last week, merged less than 14 days ago) change when a row falls out of the window, which is a real change too.
+ */
 function snapshotKey(snapshot: Snapshot): string {
   return JSON.stringify({ ...snapshot, at: null, cost: null });
 }
@@ -95,6 +105,10 @@ export function createHostedStore(deps: StoreDeps = {}): HostedStore {
 
   const slots = { snapshot: emptySlot<Snapshot>(), live: emptySlot<LiveAnswer>() };
   const keys = { snapshot: '', live: '' };
+  const intervals = { snapshot: deps.snapshotIntervalMs ?? SNAPSHOT_INTERVAL_MS, live: deps.liveIntervalMs ?? LIVE_INTERVAL_MS };
+  /** When each slot was last asked for (ms), by the poll or by a panel. */
+  const lastTry = { snapshot: Number.NEGATIVE_INFINITY, live: Number.NEGATIVE_INFINITY };
+  let retryUntil = Number.NEGATIVE_INFINITY;
   const inFlight: { snapshot: Promise<void> | null; live: Promise<void> | null } = { snapshot: null, live: null };
   const listeners = new Set<(event: HostedEvent) => void>();
   let pollers: Poller[] = [];
@@ -183,6 +197,7 @@ export function createHostedStore(deps: StoreDeps = {}): HostedStore {
   function load(kind: 'snapshot' | 'live'): Promise<void> {
     const running = inFlight[kind];
     if (running !== null) return running;
+    lastTry[kind] = now().getTime();
     const task = (kind === 'snapshot' ? loadSnapshot() : loadLive()).finally(() => {
       inFlight[kind] = null;
     });
@@ -193,13 +208,20 @@ export function createHostedStore(deps: StoreDeps = {}): HostedStore {
   function ensure(kind: 'snapshot' | 'live'): Promise<void> {
     const slot = slots[kind];
     if (slot.loaded && slot.error === null) return Promise.resolve();
+    const at = now().getTime();
+    // An errored slot is not asked again before its interval has passed, unless the person pressed Retry. The panels then show the error that is already known.
+    if (slot.error !== null && inFlight[kind] === null && at >= retryUntil && at - lastTry[kind] < intervals[kind]) return Promise.resolve();
     return load(kind);
+  }
+
+  function allowRetry(): void {
+    retryUntil = now().getTime() + 2_000;
   }
 
   function startPollers(): void {
     pollers = [
-      createPoller({ run: () => load('snapshot'), intervalMs: deps.snapshotIntervalMs ?? SNAPSHOT_INTERVAL_MS, visibility }),
-      createPoller({ run: () => load('live'), intervalMs: deps.liveIntervalMs ?? LIVE_INTERVAL_MS, visibility }),
+      createPoller({ run: () => load('snapshot'), intervalMs: intervals.snapshot, visibility }),
+      createPoller({ run: () => load('live'), intervalMs: intervals.live, visibility }),
     ];
     for (const poller of pollers) poller.start();
   }
@@ -214,6 +236,7 @@ export function createHostedStore(deps: StoreDeps = {}): HostedStore {
     live: () => slots.live,
     load,
     ensure,
+    allowRetry,
     connection,
     loginExpired,
     subscribe(listener) {

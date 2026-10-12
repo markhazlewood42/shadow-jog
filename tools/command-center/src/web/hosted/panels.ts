@@ -29,13 +29,16 @@ export function errorPanel<T>(error: HostedError, kept: { data: T; updatedAt: st
   return failedPanel(error, kept?.updatedAt ?? null, kept);
 }
 
+/** When this page started. Captured once, so the health answer does not change on every call. */
+const STARTED_AT = new Date().toISOString();
+
 export function hostedHealth(origin: string): Health {
   const repoUrl = `https://github.com/${HOSTED_REPO}`;
   return {
     ok: true,
     name: APP_NAME,
     version: 'hosted',
-    startedAt: new Date().toISOString(),
+    startedAt: STARTED_AT,
     // The game does not run on Vercel with this page, so the first link is the repo.
     gameUrl: repoUrl,
     githubRepo: HOSTED_REPO,
@@ -84,10 +87,12 @@ export function readLive(slot: Slot<LiveAnswer>): LiveRead {
     return { status: liveStatusOf({ reporterState: null, writtenAt: null, parseProblem: null, error: message }), live: null, problem: { code: slot.error?.code ?? 'no-answer', message } };
   }
   const state = answer.reporter.state;
-  const parsed = state === 'not-running' ? null : parseLive(answer.live);
-  const parseProblem = parsed !== null && !parsed.ok ? parsed.reason : null;
+  const known = state === 'online' || state === 'offline' || state === 'not-running';
+  // A state that this page does not know is a problem, and the value that goes with it is not read: it may have a shape that this page does not know either.
+  const parsed = state === 'not-running' || !known ? null : parseLive(answer.live);
+  const parseProblem = !known ? `the reporter state "${String(state).slice(0, 40)}" is not known` : parsed !== null && !parsed.ok ? parsed.reason : null;
   const live = parsed !== null && parsed.ok ? parsed.live : null;
-  const status = liveStatusOf({ reporterState: state === 'online' || state === 'offline' || state === 'not-running' ? state : 'offline', writtenAt: answer.reporter.writtenAt, parseProblem, error: null });
+  const status = liveStatusOf({ reporterState: known ? state : 'offline', writtenAt: answer.reporter.writtenAt, parseProblem, error: null });
 
   let problem: LiveRead['problem'] = null;
   if (slot.error !== null) problem = { code: slot.error.code, message: slot.error.message };
@@ -100,7 +105,7 @@ export function readLive(slot: Slot<LiveAnswer>): LiveRead {
 export function agentsOf(live: LiveState): AgentsLive {
   const sessions: LiveSession[] = [...live.sessions]
     // The oldest first, as the local list is. A session with no start time goes last.
-    .sort((a, b) => (a.startedAt === null ? 1 : b.startedAt === null ? -1 : a.startedAt.localeCompare(b.startedAt)))
+    .sort((a, b) => (a.startedAt === b.startedAt ? 0 : a.startedAt === null ? 1 : b.startedAt === null ? -1 : a.startedAt.localeCompare(b.startedAt)))
     .map((session) => ({ id: session.id, title: session.title, state: session.state, startedAt: session.startedAt, filePath: '', nodes: [] }));
   return { sessions, hiddenScripts: 0, source: 'process-list' };
 }

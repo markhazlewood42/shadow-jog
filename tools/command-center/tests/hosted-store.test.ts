@@ -227,11 +227,40 @@ describe('the store', () => {
     expect(store.snapshot().error).toMatchObject({ kind: 'network' });
 
     server.answers.set(SNAPSHOT_URL, { body: snapshot() });
+    store.allowRetry();
     await store.ensure('snapshot');
     expect(server.count(SNAPSHOT_URL)).toBe(2);
     expect(store.snapshot().error).toBeNull();
     await store.ensure('snapshot');
     expect(server.count(SNAPSHOT_URL)).toBe(2);
+  });
+
+  it('ensure asks a failing endpoint once an interval, however many panels ask, unless Retry was pressed', async () => {
+    const server = fakeServer();
+    server.answers.set(SNAPSHOT_URL, 'throw');
+    const store = createHostedStore({ fetchImpl: server.fetchImpl, visibility: fakeTab() });
+    await store.ensure('snapshot');
+    expect(server.count(SNAPSHOT_URL)).toBe(1);
+
+    // Ten panels ask inside the interval: no new request, and the known error stays.
+    for (let i = 0; i < 10; i += 1) await store.ensure('snapshot');
+    expect(server.count(SNAPSHOT_URL)).toBe(1);
+    expect(store.snapshot().error).toMatchObject({ kind: 'network' });
+
+    // After the interval a panel may ask again.
+    vi.setSystemTime(Date.now() + SNAPSHOT_INTERVAL_MS + 1);
+    await store.ensure('snapshot');
+    expect(server.count(SNAPSHOT_URL)).toBe(2);
+
+    // Retry opens the gate at once, for a short time only.
+    await store.ensure('snapshot');
+    expect(server.count(SNAPSHOT_URL)).toBe(2);
+    store.allowRetry();
+    await store.ensure('snapshot');
+    expect(server.count(SNAPSHOT_URL)).toBe(3);
+    vi.setSystemTime(Date.now() + 3_000);
+    await store.ensure('snapshot');
+    expect(server.count(SNAPSHOT_URL)).toBe(3);
   });
 });
 

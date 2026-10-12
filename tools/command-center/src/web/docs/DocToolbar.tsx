@@ -4,7 +4,7 @@ import type { DocPage, Health } from '../../shared/types';
 import { getJson } from '../api';
 import { useResultFlash } from '../useResultFlash';
 import { buildCopyText, downloadName } from './copyText';
-import { HOSTED_REPO, isHosted } from '../hosted/mode';
+import { HOSTED_REPO } from '../hosted/mode';
 import { docSourcePath } from './paths';
 
 // Copy and Download for one doc page (design 5.7, revision 2): a split button as on the markedup-consulting
@@ -12,6 +12,9 @@ import { docSourcePath } from './paths';
 //
 // The text of the doc is not in the page data. It is fetched from the source route when a button is pressed,
 // so a page that nobody copies never pays for it.
+
+// The hosted build (VITE_HOSTED=1) reads the doc file from /api/docs/<repo path>. Vite writes the flag into the code, so the local build has none of this.
+const HOSTED = import.meta.env.VITE_HOSTED === '1';
 
 /** How long a Blob URL lives after a download starts, in milliseconds. */
 const REVOKE_MS = 10_000;
@@ -32,8 +35,15 @@ const ICONS = { idle: Copy, copied: Check, 'copy-failed': AlertCircle, 'download
  * The text of the doc file as the server has it. Throws when the server cannot be reached or does not have the doc.
  * The hosted page reads the file itself from /api/docs/<repo path>, which is the one place that serves a doc file there.
  */
-async function fetchSource(doc: Pick<DocPage, 'id' | 'slug'>): Promise<string> {
-  const res = await fetch(isHosted() ? `/api/docs/${doc.id}` : docSourcePath(doc.slug), { cache: 'no-store' });
+export async function fetchSource(doc: Pick<DocPage, 'id' | 'slug'>): Promise<string> {
+  if (HOSTED) {
+    // The hosted fetch sorts the answers: a lost login (a redirect, a 401, or the login page as HTML) is an error and never the text of the doc. A page of HTML must not be copied or saved as a doc.
+    const { fetchHostedText } = await import('../hosted/fetch');
+    const result = await fetchHostedText(`/api/docs/${doc.id.split('/').map(encodeURIComponent).join('/')}`);
+    if (!result.ok) throw new Error(result.error.message);
+    return result.text;
+  }
+  const res = await fetch(docSourcePath(doc.slug), { cache: 'no-store' });
   if (!res.ok) throw new Error(`The source of the doc answered ${res.status}.`);
   return res.text();
 }
@@ -59,7 +69,7 @@ export function saveAsFile(text: string, name: string): void {
  */
 export async function copyForLlm(doc: Pick<DocPage, 'id' | 'slug' | 'title'>): Promise<void> {
   // The hosted page has one repo and no /api/health.
-  const health = isHosted()
+  const health = HOSTED
     ? Promise.resolve(HOSTED_REPO)
     : getJson<Health>('/api/health').then(
         (answer) => answer.githubRepo,
