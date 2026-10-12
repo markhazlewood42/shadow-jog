@@ -2,7 +2,7 @@ import { OWNER, REPO } from '../github-api/queries';
 import { type Env, readGithubToken } from './env';
 import { type ErrorMap, mapAdapterError, responseOf } from './errors';
 import { bytesResponse, CACHE, errorResponse, notConfigured } from './http';
-import { type DocPath, parseDocPath, pathnameOf } from './doc-path';
+import { type DocPath, docPathnameOf, parseDocPath } from './doc-path';
 
 // `GET /api/docs/<repo path>` (design.md section 6): one doc from `main`, read through the GitHub contents API with the server token.
 // It reads only `OWNER/REPO` at the ref `main`, and only a path that the allow-list (`doc-path.ts`) accepts. The CDN keeps a good answer for 60 seconds.
@@ -77,8 +77,8 @@ export async function handleDocs(request: Request, deps: DocsDeps): Promise<Resp
   if (request.method !== 'GET') return errorResponse(405, 'method not allowed', 'method', { Allow: 'GET' });
 
   // The path is checked before anything else, so a bad path gets its answer even when the server is not configured.
-  const pathname = pathnameOf(request);
-  const parsed: DocPath = pathname === null ? { ok: false, status: 400, reason: 'bad URL' } : parseDocPath(pathname);
+  const requested = docPathnameOf(request.url);
+  const parsed: DocPath = requested.ok ? parseDocPath(requested.pathname) : { ok: false, status: 400, reason: requested.reason };
   if (!parsed.ok) return errorResponse(parsed.status, parsed.status === 404 ? 'not found' : 'bad path', parsed.status === 404 ? 'not-found' : 'bad-path');
 
   const token = readGithubToken(deps.env);

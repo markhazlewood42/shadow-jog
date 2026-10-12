@@ -208,11 +208,11 @@ A second way to run the site: a Vercel project with the root `tools/command-cent
 
 | Function | File | What |
 |---|---|---|
-| `GET /api/snapshot` | `api/snapshot.ts` | The GitHub API adapter (`src/github-api/`) as JSON. `Cache-Control: s-maxage=15, stale-while-revalidate`. |
-| `GET /api/docs/<repo path>` | `api/docs/[...path].ts` | One file from `main` of `markhazlewood42/shadow-jog`: `docs/**/*.md`, the root `*.md` files and the PNGs under `docs/`. Any other path is a 400 or 404. `s-maxage=60`. |
-| `GET /api/live` | `api/live.ts` | The `live` key from Upstash Redis, plus `reporter.state` (`online`, `offline` after 150 s, `not-running` when the key is gone). `no-store`. |
+| `GET /api/snapshot` | `functions/snapshot.ts` | The GitHub API adapter (`src/github-api/`) as JSON. `Cache-Control: s-maxage=15, stale-while-revalidate`. |
+| `GET /api/docs/<repo path>` | `functions/docs.ts` | One file from `main` of `markhazlewood42/shadow-jog`: `docs/**/*.md`, the root `*.md` files and the PNGs under `docs/`. Any other path is a 400 or 404. `s-maxage=60`. |
+| `GET /api/live` | `functions/live.ts` | The `live` key from Upstash Redis, plus `reporter.state` (`online`, `offline` after 150 s, `not-running` when the key is gone). `no-store`. |
 
-The shared code is in `src/hosted/`, so `api/` holds only the three function files. `vercel.json` sets the vite build, `maxDuration` 30, the ignore script and one rewrite that sends every path except `/api/*` to the page. `scripts/vercel-ignore.mjs` skips every build unless the branch is `main` and `tools/command-center/` changed.
+The shared code is in `src/hosted/`. The function sources are in `functions/`, not in `api/`. `scripts/build-functions.mjs` (run by the Vercel build command, after `vite build`) bundles each source with esbuild into one generated file, `api/snapshot.js`, `api/live.js` and `api/docs.js`, with every import inlined. `api/*.js` is git-ignored. Why: the first deploy failed with `ERR_MODULE_NOT_FOUND`. `package.json` says `"type": "module"`, our TypeScript has extensionless imports, and Vercel compiles an `api/*.ts` file on its own without resolving them. Run `node scripts/build-functions.mjs` to build them locally. `vercel.json` sets the vite build and the function build, `maxDuration` 30, the ignore script and two rewrites. The first sends `/api/docs/:path*` to `/api/docs?path=:path*`, because a multi-segment catch-all file (`[...path].ts`) was not matched on Vercel. The docs function reads the path from the `path` parameter or from the URL path, refuses a request where both are present and differ, and checks the result against the same allow-list. The second rewrite sends every other path except `/api/*` to the page. `scripts/vercel-ignore.mjs` skips every build unless the branch is `main` and `tools/command-center/` changed.
 
 Environment variables of the Vercel project (set them in the Vercel settings, never in a file):
 
@@ -229,10 +229,12 @@ Post-deploy checks (design.md section 7), after every deploy:
 1. Request the page and `/api/live` without the login cookie (`curl -i`). Both must answer 401 or redirect to the Vercel login. A 200 with the page or the JSON means the page is public: set Vercel Authentication to "All Deployments" at once.
 2. Signed in, `/api/snapshot` answers 200 JSON. Two requests within 15 s: the second shows `x-vercel-cache: HIT` (the CDN cache works behind the login). If it does not, the function must cache the snapshot itself (design.md section 6, Cache).
 3. Signed in, `/api/live` answers 200 with `reporter.state` `not-running` until the reporter (step 5) writes the key.
-4. `/api/docs/docs/GDD.md` answers 200 `text/markdown`. `/api/docs/package.json` answers 404. `/api/docs/%2e%2e/CLAUDE.md` answers 400.
+4. `/api/docs/docs/GDD.md` (a path with several segments) answers 200 `text/markdown`. `/api/docs/package.json` answers 404. `/api/docs/%2e%2e/CLAUDE.md` answers 400.
 5. In the project settings, no read-write token variable exists.
 
-Local proof without a deploy: `npx vitest run tests/vercel-*.test.ts` (handlers with a fake GitHub and a fake Upstash, the path allow-list, the ignore decision, `vercel.json`, and an esbuild bundle of each function that must not contain `hono`, `chokidar`, `minisearch` or the local server's hub, runner and config).
+Results of the first deploy (2026-10-12): protection works (the page and every `/api` route answered a 302 to the Vercel login). The functions failed: `ERR_MODULE_NOT_FOUND` for the extensionless imports, and `/api/docs/docs/GLOSSARY.md` (two segments) got a platform NOT_FOUND while `/api/docs/docs` reached the function. The function build and the rewrite above are the fix. One risk stays until the next deploy: Vercel finds functions in `api/` and the build now creates those files. If `/api/snapshot` answers 404 after the fix, the generated files were not seen. Then commit `api/*.js` (remove the line from `.gitignore`) and keep them current with `node scripts/build-functions.mjs`.
+
+Local proof without a deploy: `npx vitest run tests/vercel-*.test.ts` (handlers with a fake GitHub and a fake Upstash, the path allow-list, the ignore decision, `vercel.json`, and the real function build: each built file must hold no `hono`, `chokidar`, `minisearch` or local server module, must have no relative import, and must run when it is imported in a plain Node ESM process).
 
 ## Tests
 

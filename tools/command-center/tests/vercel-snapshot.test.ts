@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import snapshotFunction from '../api/snapshot';
+import snapshotFunction from '../functions/snapshot';
 import { handleSnapshot } from '../src/hosted/snapshot';
 import type { FetchLike } from '../src/github-api';
 import { PACKAGE_DIR } from './helpers';
