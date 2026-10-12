@@ -205,11 +205,15 @@ describe('startReporter (the decision of the hook)', () => {
   });
 });
 
+const NOOP_LAUNCHER = join(scratch, 'noop-launcher.mjs');
+writeFileSync(NOOP_LAUNCHER, '// does nothing');
+
 /** Runs the hook script as Claude Code does: a node process with a JSON line on stdin. Gives the exit code, the output and the time it took. */
 function runHook(input: string | null, env: Record<string, string> = {}, closeInput = true): Promise<{ code: number | null; stdout: string; stderr: string; ms: number }> {
   return new Promise((done) => {
     const started = Date.now();
-    const child = spawn(process.execPath, [HOOK], { env: { ...process.env, ...env }, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+    // SAFETY: a hook run never starts the real launcher. The default launcher is a stub that does nothing, and the folder of the process is the scratch folder, not the repo.
+    const child = spawn(process.execPath, [HOOK], { cwd: scratch, env: { ...process.env, CC_REPORTER_LAUNCHER: NOOP_LAUNCHER, ...env }, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (chunk) => (stdout += chunk));
