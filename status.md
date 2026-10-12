@@ -214,7 +214,7 @@ Branch `spike/engine-platform` (draft PR #11). Record: `docs/spikes/engine-platf
 3. Milestone M0 (active, branch `engine-m0-prepare`). The spike archive tags need Mark's go-ahead and wait until the battle stage lands (M3).
 
 **Next up for Mark** (updated 2026-10-09, after the PR #23 merge):
-0. Command Center revision 3 (hosted, live view): steps 1 to 5 are merged and the reporter runs on this machine (2026-10-12). Open the hosted page and check that Workstreams shows live sessions. Optional: step 6 (the local Workstreams view and the 2-minute `git fetch`). State: `docs/workstreams/reporter.md`.
+0. Command Center revision 3 (hosted, live view): steps 1 to 5 are merged and the reporter runs on this machine (2026-10-12). Open the hosted page and check that Workstreams shows live sessions. Step 6 is dropped (Mark, 2026-10-12): he uses only the hosted page. State: `docs/workstreams/reporter.md`.
 1. Nothing waits for you on the Command Center: PR #26, #36 and #37 are merged. Optional: the upstream bug report for the plasma-ui canvas width (R28).
 2. The 640x360 move: done. You merged PR #23 on 2026-10-09. Nothing waits for you on it.
 3. The older items below (Sprite Fusion credits, your uncommitted playthrough-notes edit, the PixelLab end date, the archive tags for PR #3 and #4) still stand.

@@ -86,7 +86,7 @@ Mark works on the game and the engine across many sessions. The docs, the tools 
 | Workstream state | One file per branch in git, `docs/workstreams/<branch>.md`. A database for authored state was rejected: it would drift from the markdown docs. |
 | Hosted view | Yes, on Vercel (Hobby plan, account `markhazlewood42`). No Supabase. |
 | Live sessions, agents, worktrees | A small store for heartbeats only: Upstash Redis, installed through the Vercel Marketplace. |
-| `git fetch` by the local CC | Allowed, every 2 minutes, remote-tracking refs only. The reporter (step 5, section 11.1) needs it to see when `main` changes `tools/command-center/` and to rebuild its pinned copy. The optional local work (step 6) needs it too. |
+| `git fetch` by the local CC | Allowed, every 2 minutes, remote-tracking refs only. The reporter (step 5, section 11.1) needs it to see when `main` changes `tools/command-center/` and to rebuild its pinned copy. |
 | Isolation from the game project (Mark, 2026-10-12) | One repo stays for now: a split costs more than it saves, because the workstream files, the design doc and the decision issues live in the game repo. Revisit the split after step 4 if friction shows. The two Vercel projects are isolated by Ignored Build Steps. The CC project builds only when `tools/command-center/` changes on `main`. The game project (`shadow-jog`, production branch `release`) skips a build when the last commit touches only `tools/`, `docs/` or `*.md`: `git diff --quiet HEAD^ HEAD -- . ':(exclude)tools' ':(exclude)docs' ':(exclude)*.md'` (exit 0 skips). Risk: the command checks the last commit only, so a push of several commits can skip a game preview that it should build. The risk is for previews only. It goes in the project's `commandForIgnoringBuildStep`, set through the Vercel API. |
 | Where the local CC code runs | Moot for viewing: Mark uses the hosted URL. The local reporter runs from a pinned copy (section 11). |
 
@@ -350,7 +350,7 @@ Rules for sessions (they go into `CLAUDE.md` with the build):
 The page:
 - A new Workstreams view: one card per workstream, grouped by roadmap lane. A card shows the branch, the PR and checks, live sessions, the worktree and `next_for_mark`.
 - "Your move" (section 5.1) also collects `next_for_mark` from every workstream.
-- The data comes from `/api/snapshot` on Vercel (section 6). The local CC gets the same view in step 6 of section 11.
+- The data comes from `/api/snapshot` on Vercel (section 6). The local CC does not get this view (step 6 was dropped on 2026-10-12).
 
 ---
 
@@ -480,7 +480,7 @@ Each step is one branch from `main`, one PR, and the lean loop (runner and reade
 3. **Vercel project and functions.** `api/snapshot`, `api/docs`, `api/live`, the cache, the Ignored Build Step (a script: `main` only, and only when `tools/command-center/` changed). First prove that the functions bundle code from `src/` and that the cache works behind the login. **Mark:** create the Vercel project (root `tools/command-center`), add the read-only GitHub token, install Upstash and delete the read-write token variable it adds (then check that it is absent), turn on Vercel Authentication with "All Deployments". Files: a new `api/`, `vercel.json`, an ignore script.
 4. **Hosted page.** The data layer switch, the Workstreams view. Files: `src/web/` (a new data layer and `workstreams/`), `vite.config.ts`.
 5. **Local reporter.** The `publish` module, the pinned-copy launcher, the `SessionStart` hook. Files: a new `src/server/publish/`, a launcher script, the repo root: `package.json`. The hook entry goes in `~/.claude/settings.json` (Mark approves that change).
-6. **Optional, local CC.** The Workstreams view and the 2-minute `git fetch` (`runner.ts` allow-list).
+6. **Dropped (Mark, 2026-10-12).** The local Workstreams view and the 2-minute `git fetch` in the local CC (`runner.ts` allow-list). Mark uses only the hosted page from now on, so the local CC gets no new views.
 
 After step 4, pushed work is live on the hosted page. After step 5, sessions and worktrees are live too.
 
@@ -492,7 +492,7 @@ After step 4, pushed work is live on the hosted page. After step 5, sessions and
 - **Worktree `path`.** Only the NAME of the last folder leaves this machine, and the branch is redacted like a title (review of PR 72, fixed 2026-10-12). The hosted page joins a worktree to its workstream by branch, so nothing needs the full path. The old known limit (the full path on a page behind the login) is gone.
 - **Dirty counts.** The runner list gained one exact `git status --porcelain=v1 --untracked-files=normal` (`GIT_STATUS` in `runner.ts`). Worktrees outside the configured roots are reached by adding the folders that `git worktree list` printed to the roots of one runner call.
 - **No workstream frontmatter in `live`.** The contract (`src/shared/live.ts`) has no field for it. The hosted page reads workstream files from GitHub. Uncommitted edits to them do not show until the contract grows a field.
-- **The fetch lives in the launcher.** `git fetch` runs in the pinned copy from `reporter-launch.mjs`, so the runner list got no `fetch` entry. Step 6 can still add one.
+- **The fetch lives in the launcher.** `git fetch` runs in the pinned copy from `reporter-launch.mjs`, so the runner list got no `fetch` entry.
 
 ### 11.4 Risks and open points
 
