@@ -97,9 +97,6 @@ const sha1 = (text: string): string => createHash('sha1').update(text).digest('h
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-// The slug of a doc lives in src/shared (the decision parser also runs on Vercel, which has no docs index). It is re-exported here, where the server code imports it.
-export { slugOf };
-
 /**
  * What the docs module does when the file watcher reports an error: it logs the error, adds the sentence for it to `problems`, and scans again, so that the site shows
  * the problem. The same error twice does this once. The sentence clips the error text to a few words, so two different errors can make the same sentence: the check for

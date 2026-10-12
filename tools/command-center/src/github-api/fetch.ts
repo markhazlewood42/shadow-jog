@@ -10,6 +10,7 @@ import {
   parseDecisionRaws,
   parsePullRequests,
   parseRefsPage,
+  pullRequestProblems,
   planRows,
   rowsFromFiles,
   shaped,
@@ -51,16 +52,18 @@ const fail = (code: AdapterError['code'], message: string, extra: Partial<Adapte
 /** The first words of a text from GitHub, cut so that one message stays short. */
 const clip = (value: string, max = 200): string => (value.length <= max ? value : `${value.slice(0, max)}...`);
 
-type Reply = { data: Record<string, unknown>; cost: CallCost };
+type Reply = { data: Record<string, unknown>; cost: CallCost; problems: SnapshotProblem[] };
 
 /**
  * One GraphQL call. The result is the `data` of the reply and the cost of the call, or a typed error:
  *   - `network`: fetch itself failed (no network, timeout);
  *   - `unauthorized`: HTTP 401;
- *   - `rate-limited`: HTTP 403 or 429 about a rate limit, or a GraphQL error of type RATE_LIMITED;
+ *   - `rate-limited`: HTTP 403 or 429 about a rate limit, or any GraphQL error of type RATE_LIMITED. `retryAfter` holds the `retry-after` seconds when GitHub sent them;
  *   - `http-error`: any other status that is not 200;
  *   - `bad-response`: the reply is not JSON, or has no `data` object;
- *   - `graphql-error`: the reply has an `errors` list. `partial` says that it also had data, which the adapter does not use.
+ *   - `graphql-error`: the reply has an `errors` list and no `data`.
+ * A reply with `errors` AND usable `data` is not a failure (GitHub does this when one nullable field is not allowed, for example FORBIDDEN): the data is kept, and each
+ * error comes back in `problems` with its type and its path, so the page can say what is missing. (A RATE_LIMITED error fails the call even then.)
  */
 export async function graphql(options: FetchOptions, label: string, query: string, variables: Record<string, unknown>): Promise<Result<Reply>> {
   const send: FetchLike = options.fetchImpl ?? ((url, init) => fetch(url, init));
@@ -101,26 +104,30 @@ export async function graphql(options: FetchOptions, label: string, query: strin
   if (response.status === 403 || response.status === 429) {
     const limited = /rate limit|abuse|secondary/i.test(said) || response.headers.get('x-ratelimit-remaining') === '0';
     return limited
-      ? fail('rate-limited', 'GitHub says the rate limit is used up. Wait, then try again.', { status: response.status })
+      ? fail('rate-limited', 'GitHub says the rate limit is used up. Wait, then try again.', { status: response.status, ...retryAfterOf(response) })
       : fail('http-error', `GitHub refused the request (HTTP ${response.status}). ${clip(said)}`.trim(), { status: response.status });
   }
   if (!response.ok) return fail('http-error', `GitHub answered HTTP ${response.status} (${label}). ${clip(said)}`.trim(), { status: response.status });
   if (!isRecord(body)) return fail('bad-response', `The reply of GitHub is not JSON (${label}).`, { status: response.status });
 
-  if (Array.isArray(body.errors) && body.errors.length > 0) {
-    const first = body.errors[0];
-    const message = isRecord(first) && typeof first.message === 'string' ? clip(first.message) : 'unknown error';
-    const kind = isRecord(first) && typeof first.type === 'string' ? first.type : '';
-    const partial = isRecord(body.data);
-    return kind === 'RATE_LIMITED'
-      ? fail('rate-limited', 'GitHub says the rate limit is used up. Wait, then try again.', { partial })
-      : fail('graphql-error', `GitHub reported an error (${label}): ${message}`, { partial });
+  const errors = Array.isArray(body.errors) ? body.errors : [];
+  if (errors.some((error) => isRecord(error) && error.type === 'RATE_LIMITED')) {
+    return fail('rate-limited', 'GitHub says the rate limit is used up. Wait, then try again.', retryAfterOf(response));
+  }
+  const problems: SnapshotProblem[] = errors.map((error) => {
+    const kind = isRecord(error) && typeof error.type === 'string' ? error.type : 'ERROR';
+    const path = isRecord(error) && Array.isArray(error.path) ? error.path.map(String).join('.') : '';
+    const message = isRecord(error) && typeof error.message === 'string' ? clip(error.message) : 'unknown error';
+    return { code: 'graphql-partial', message: `GitHub reported ${kind}${path === '' ? '' : ` at ${clip(path, 80)}`} (${label}): ${message}` };
+  });
+  if (errors.length > 0 && !isRecord(body.data)) {
+    return fail('graphql-error', problems[0]?.message ?? `GitHub reported an error (${label}).`);
   }
   if (!isRecord(body.data)) return fail('bad-response', `The reply of GitHub has no data (${label}).`, { status: response.status });
 
   const limit = body.data.rateLimit;
   const cost: CallCost = { call: label, cost: isRecord(limit) && typeof limit.cost === 'number' ? limit.cost : 0, remaining: isRecord(limit) && typeof limit.remaining === 'number' ? limit.remaining : -1 };
-  return { ok: true, data: { data: body.data, cost } };
+  return { ok: true, data: { data: body.data, cost, problems } };
 }
 
 /** True when the list has more issues than the page holds (`totalCount` is more than the nodes). A reply with no `totalCount` is taken as complete. */
@@ -137,6 +144,12 @@ function recentIsCut(list: unknown, now: Date): boolean {
   const times = list.nodes.flatMap((node) => (isRecord(node) && typeof node.updatedAt === 'string' ? [Date.parse(node.updatedAt)] : []));
   const oldest = Math.min(...times);
   return !Number.isFinite(oldest) || now.getTime() - oldest <= STALE_AFTER_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/** The `retry-after` header as seconds, in an object that can be spread into the error. Nothing when GitHub sent none, or sent a date or a bad number. */
+function retryAfterOf(response: { headers: Headers }): { retryAfter?: number } {
+  const seconds = Number(response.headers.get('retry-after'));
+  return Number.isFinite(seconds) && seconds >= 0 && response.headers.get('retry-after') !== null && response.headers.get('retry-after') !== '' ? { retryAfter: seconds } : {};
 }
 
 const badShape = (label: string, message: string) => fail('bad-response', `The reply of GitHub has a shape that this adapter does not know (${label}): ${message}`);
@@ -161,6 +174,7 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
     const result = await graphql(options, label, query, variables);
     if (!result.ok) return result;
     cost.push(result.data.cost);
+    problems.push(...result.data.problems);
     return { ok: true, data: result.data.data };
   };
 
@@ -183,6 +197,7 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
   }));
   if (!parsed.ok) return badShape('call 1', parsed.message);
   const page = parsed.value;
+  problems.push(...page.refs.problems, ...pullRequestProblems([...page.open, ...page.recent]));
   if (page.recentCut) problems.push({ code: 'recent-prs-truncated', message: 'More recent pull requests exist than the first page holds, and the last one on it is newer than 14 days. A merged pull request may be missing.' });
   if (page.waitingCut) problems.push({ code: 'decisions-waiting-truncated', message: 'More decision issues with the label decision exist than the first page holds. The list is not complete.' });
   if (page.decidedCut) problems.push({ code: 'decisions-answered-truncated', message: 'More decision issues with the label decided exist than the first page holds. An answer may be missing.' });
@@ -203,6 +218,7 @@ export async function fetchSnapshot(options: FetchOptions): Promise<Result<Snaps
     const next = shaped(() => parseRefsPage(moreRepo?.refs));
     if (!next.ok) return badShape(`refs page ${pages + 1}`, next.message);
     branches.push(...next.value.branches);
+    problems.push(...next.value.problems);
     cursor = next.value.next;
     pages += 1;
   }

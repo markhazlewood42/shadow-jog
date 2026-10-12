@@ -7,7 +7,7 @@ import type { Hub } from '../hub';
 import { say } from '../messages';
 import type { RunResult, Runner } from '../runner';
 import { POLL_EVERY_MS, PanelError, type PanelSource, createPanelSource } from '../source';
-import { type AnswerProgress, DECISION_FIELDS, LABEL_DECIDED, LABEL_DECISION, flattenEventPages, parseDecisionIssue, readDecisionIssue } from './parse';
+import { type AnswerProgress, DECISION_FIELDS, LABEL_DECIDED, LABEL_DECISION, addDecision, flattenEventPages, isRecent, parseDecisionIssue, readDecisionIssue, sortDecisions } from './parse';
 
 // The decisions module: the decision issues of the repository, as a Panel of the ones that wait for Mark and the ones
 // he answered in the last week. It reads GitHub through `gh`, and only reads: the one write of the command center (the
@@ -28,9 +28,6 @@ import { type AnswerProgress, DECISION_FIELDS, LABEL_DECIDED, LABEL_DECISION, fl
 
 /** How many issues of each list gh is asked for (newest first). A repository of one person has a handful of decisions; this is room to grow. */
 const LIST_LIMIT = 100;
-
-/** An answer stays in the list of recent answers for 7 days. */
-const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type DecisionsModuleDeps = {
   config: Config;
@@ -110,12 +107,6 @@ async function readEvents(config: Config, runner: Runner, number: number): Promi
   return flattenEventPages(parseJson(result.stdout, say('ghDetailEventsNotJson', { number })));
 }
 
-/** Whether a time is not more than 7 days before `now`. A time in the future (a clock that is a little off) counts as recent. A text that is not a time does not. */
-function isRecent(at: string, now: number): boolean {
-  const ms = Date.parse(at);
-  return Number.isFinite(ms) && now - ms <= RECENT_MS;
-}
-
 /** What the list adds to an issue that the parser made: the words of each linked heading (from the doc index), and an address when gh gave none that can be used. */
 function completed(config: Config, docs: DocIndex, issue: DecisionIssue): DecisionIssue {
   return {
@@ -124,24 +115,6 @@ function completed(config: Config, docs: DocIndex, issue: DecisionIssue): Decisi
     docs: issue.docs.map((link) => ({ ...link, heading: docs.section(link.docId, link.anchor)?.heading ?? null })),
   };
 }
-
-/**
- * Puts a decision on the list it belongs to: the open ones, or the ones answered in the last week. Any other (a closed one, an old answer) is on neither list.
- * The GitHub API adapter (src/github-api) uses it too, so both sources sort decisions in one way.
- */
-export function addDecision(info: DecisionsInfo, issue: DecisionIssue, now: number): void {
-  if (issue.state === 'open') info.open.push(issue);
-  else if (issue.state === 'answered' && issue.answer !== null && isRecent(issue.answer.at, now)) info.recent.push(issue);
-}
-
-/** The oldest question first, as a list of things to do. The newest answer first, as a list of what happened. */
-export function sortDecisions(info: DecisionsInfo): void {
-  info.open.sort((a, b) => a.number - b.number);
-  info.recent.sort((a, b) => answeredAt(b) - answeredAt(a) || b.number - a.number);
-}
-
-/** The time of the answer as milliseconds, for sorting. */
-const answeredAt = (issue: DecisionIssue): number => Date.parse(issue.answer?.at ?? '') || 0;
 
 /**
  * The decisions module, as a source of a Panel of DecisionsInfo. It loads when it starts and then every 60 seconds, when a request

@@ -17,7 +17,7 @@ export type AdapterErrorCode =
   | 'http-error'
   /** The reply is not JSON, or has a shape that this adapter does not know. */
   | 'bad-response'
-  /** The reply has an `errors` list. */
+  /** The reply has an `errors` list and no `data`. (With usable `data`, the call works and a problem names each error.) */
   | 'graphql-error';
 
 export type AdapterError = {
@@ -25,8 +25,8 @@ export type AdapterError = {
   message: string;
   /** The HTTP status, when there was a reply. */
   status?: number;
-  /** For `graphql-error`: true when the reply also had `data`. The adapter does not use that data: a partial answer could hide a decision or a failed check. */
-  partial?: boolean;
+  /** For `rate-limited`: the seconds to wait, from the `retry-after` header, when GitHub sent one. */
+  retryAfter?: number;
 };
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: AdapterError };

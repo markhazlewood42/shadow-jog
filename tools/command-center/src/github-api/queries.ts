@@ -51,10 +51,11 @@ fragment PrFields on PullRequest {
   number title url state isDraft headRefName headRefOid isCrossRepository updatedAt mergedAt reviewDecision
   author { login }
   mergeCommit { oid }
-  latestReviews(first: 20) { nodes { author { login } state submittedAt } }
-  files(first: 50) { nodes { path } }
+  latestReviews(first: 20) { totalCount nodes { author { login } state submittedAt } }
+  files(first: 50) { totalCount nodes { path } }
   statusCheckRollup {
     contexts(first: 100) {
+      totalCount
       nodes {
         __typename
         ... on CheckRun { name status conclusion detailsUrl }
@@ -112,7 +113,7 @@ query Snapshot($owner: String!, $name: String!, $refsFirst: Int!, $openFirst: In
         }
       }
     }
-    waiting: issues(first: $waitingFirst, labels: ["decision"], states: [OPEN, CLOSED], filterBy: {createdBy: $author}, orderBy: {field: CREATED_AT, direction: DESC}) {
+    waiting: issues(first: $waitingFirst, labels: ["decision"], states: [OPEN], filterBy: {createdBy: $author}, orderBy: {field: CREATED_AT, direction: DESC}) {
       totalCount
       nodes { ...DecisionFields }
     }

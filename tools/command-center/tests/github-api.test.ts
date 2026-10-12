@@ -582,11 +582,42 @@ describe('errors and partial data return a typed error and never throw', () => {
     expect(await failWith(async () => ({ ...respond({}), text: async () => Promise.reject(new Error('socket closed')) }))).toMatchObject({ code: 'network' });
   });
 
-  it('refuses a reply with an `errors` list, also when it has data, and says that the data was partial', async () => {
-    const partial = { ...call1(), errors: [{ type: 'NOT_FOUND', path: ['repository', 'x'], message: 'Could not resolve to a thing' }] };
-    expect(await failWith(async () => respond(partial))).toMatchObject({ code: 'graphql-error', partial: true, message: expect.stringContaining('Could not resolve') });
-    expect(await failWith(async () => respond({ errors: [{ message: 'Parse error' }] }))).toMatchObject({ code: 'graphql-error', partial: false });
+  it('keeps the data of a reply that has `errors` AND data, and names each error as a problem with its type and path', async () => {
+    const reply = {
+      ...call1(),
+      errors: [
+        { type: 'FORBIDDEN', path: ['repository', 'waiting', 'nodes', 0, 'author'], message: 'Resource not accessible by personal access token' },
+        { message: 'Something without a type or a path' },
+      ],
+    };
+    const { snapshot } = await snapshotOf({ first: reply });
+    // The data is all there: the call did not fail.
+    expect(snapshot.branches).toHaveLength(10);
+    expect(snapshot.github.open).toHaveLength(5);
+    const partial = snapshot.problems.filter((problem) => problem.code === 'graphql-partial');
+    expect(partial).toHaveLength(2);
+    expect(partial[0]?.message).toContain('FORBIDDEN');
+    expect(partial[0]?.message).toContain('repository.waiting.nodes.0.author');
+    expect(partial[0]?.message).toContain('Resource not accessible');
+    expect(partial[1]?.message).toContain('ERROR');
+  });
+
+  it('fails only when the `errors` reply has no data', async () => {
+    expect(await failWith(async () => respond({ errors: [{ message: 'Parse error' }] }))).toMatchObject({ code: 'graphql-error', message: expect.stringContaining('Parse error') });
+    expect(await failWith(async () => respond({ errors: [{ message: 'Boom' }], data: null }))).toMatchObject({ code: 'graphql-error' });
     expect(await failWith(async () => respond({ errors: [], data: null }))).toMatchObject({ code: 'bad-response' });
+  });
+
+  it('names a RATE_LIMITED error of the GraphQL type as rate-limited, also when the reply has data, and carries retry-after', async () => {
+    const limited = { errors: [{ type: 'RATE_LIMITED', message: 'API rate limit exceeded' }], data: call1().data };
+    expect(await failWith(async () => respond(limited, 200, { 'retry-after': '42' }))).toEqual({ code: 'rate-limited', message: expect.any(String), retryAfter: 42 });
+    // Without the header, there is no `retryAfter` at all.
+    const bare = await failWith(async () => respond(limited));
+    expect(bare.code).toBe('rate-limited');
+    expect('retryAfter' in bare).toBe(false);
+    // The same for an HTTP 403 or 429 about the limit, and a header that is not a number (a date) is left out.
+    expect(await failWith(async () => respond({ message: 'API rate limit exceeded' }, 403, { 'retry-after': '7' }))).toMatchObject({ code: 'rate-limited', status: 403, retryAfter: 7 });
+    expect('retryAfter' in (await failWith(async () => respond({ message: 'secondary rate limit' }, 429, { 'retry-after': 'Mon, 12 Oct 2026 12:00:00 GMT' })))).toBe(false);
   });
 
   it('names a repository that GitHub does not return', async () => {
@@ -604,7 +635,6 @@ describe('errors and partial data return a typed error and never throw', () => {
     const cases: [string, ReturnType<typeof call1>][] = [
       ['refs is a string', break_((r) => ((r.data.repository as Json).refs = 'oops'))],
       ['refs.nodes is not a list', break_((r) => ((r.data.repository.refs as Json).nodes = {}))],
-      ['a branch with no commit', break_((r) => (((r.data.repository.refs as { nodes: Json[] }).nodes[0] as Json).target = { __typename: 'Tag', oid: 'x' }))],
       ['open pull requests missing', break_((r) => delete r.data.repository.open)],
       ['a pull request with no number', break_((r) => delete ((r.data.repository.open as { nodes: Json[] }).nodes[0] as Json).number)],
       ['a pull request with an unknown state', break_((r) => (((r.data.repository.open as { nodes: Json[] }).nodes[0] as Json).state = 'FLOATING'))],
@@ -613,10 +643,83 @@ describe('errors and partial data return a typed error and never throw', () => {
       ['an issue with no comments', break_((r) => delete ((r.data.repository.waiting as { nodes: Json[] }).nodes[0] as Json).comments)],
     ];
     for (const [what, reply] of cases) {
-      const result = await run(async () => respond(reply));
+      // The fake answers every other query too (comments, files), so the failure comes from the broken field and from nothing else.
+      const result = await run(fakeGithub({ first: reply }).fetchImpl);
       expect(result.ok, what).toBe(false);
       if (!result.ok) expect(result.error, what).toMatchObject({ code: 'bad-response' });
     }
+  });
+
+  it('leaves out one odd branch with a problem, and keeps the others', async () => {
+    const reply = call1();
+    const refs = reply.data.repository.refs as { nodes: unknown[] };
+    refs.nodes.push(null, { name: '', target: { __typename: 'Commit', oid: sha('a01') } }, { name: 'no-target', target: null }, { name: 'a-tag', target: { __typename: 'Tag', oid: sha('a01') } }, { name: 'no-oid', target: { __typename: 'Commit', oid: '' } });
+    const { snapshot } = await snapshotOf({ first: reply });
+    expect(snapshot.branches).toHaveLength(10);
+    expect(snapshot.problems.filter((problem) => problem.code === 'branch-skipped')).toHaveLength(5);
+    // The rows of the good branches are still there.
+    expect(rowOf(snapshot, 'feature-a').workstream?.ok).toBe(true);
+    // Also on a later page of branches.
+    const later = { data: { rateLimit: { cost: 1, remaining: 1 }, repository: { refs: { totalCount: 11, pageInfo: { hasNextPage: false, endCursor: 'E' }, nodes: [{ name: 'x', target: null }] } } } };
+    const first = call1();
+    (first.data.repository.refs as { pageInfo: Json }).pageInfo = { hasNextPage: true, endCursor: 'C' };
+    const paged = await snapshotOf({ first, refsPages: [later] });
+    expect(paged.snapshot.problems.map((problem) => problem.code)).toContain('branch-skipped');
+  });
+
+  it('does not show a pull request as passing when some of its checks were cut off, and says so', async () => {
+    const reply = call1();
+    const open = reply.data.repository.open as { nodes: Json[] };
+    const byNumber = (n: number): Json => open.nodes.find((node) => node.number === n) as Json;
+    // PR 10 passes on the checks it lists (and is approved), but 120 checks exist and 1 is listed.
+    ((byNumber(10).statusCheckRollup as Json).contexts as Json).totalCount = 120;
+    // PR 11 already fails on a listed check: a cut list does not hide that.
+    ((byNumber(11).statusCheckRollup as Json).contexts as Json).totalCount = 120;
+    // PR 15 cut its reviews, and PR 12 listed all.
+    (byNumber(15).latestReviews as Json).totalCount = 25;
+    const { snapshot } = await snapshotOf({ first: reply });
+    const pr = (n: number) => snapshot.github.open.find((candidate) => candidate.number === n);
+    expect(pr(10)).toMatchObject({ checksSummary: 'pending', attention: null });
+    expect(pr(11)).toMatchObject({ checksSummary: 'fail', attention: 'fix' });
+    const codes = snapshot.problems.map((problem) => `${problem.code}:${problem.message.match(/Pull request (\d+)/)?.[1]}`);
+    expect(codes).toContain('pr-checks-truncated:10');
+    expect(codes).toContain('pr-checks-truncated:11');
+    expect(codes).toContain('pr-reviews-truncated:15');
+    expect(codes).not.toContain('pr-checks-truncated:12');
+
+    // With the totals equal to the nodes, PR 10 is ready to merge again and there is no problem.
+    const whole = await snapshotOf();
+    expect(whole.snapshot.github.open.find((candidate) => candidate.number === 10)).toMatchObject({ checksSummary: 'pass', attention: 'merge' });
+    expect(whole.snapshot.problems.map((problem) => problem.code)).not.toContain('pr-checks-truncated');
+  });
+
+  it('says when the list of changed files was cut short for a branch name outside the rule, and only then', async () => {
+    const make = (cut: boolean, listed: string[]): ReturnType<typeof call1> => {
+      const reply = call1();
+      const open = reply.data.repository.open as { nodes: Json[] };
+      const odd = structuredClone(open.nodes.find((node) => node.number === 12) as Json);
+      odd.number = 40;
+      odd.isDraft = false;
+      odd.headRefName = 'Bot-Branch.v1';
+      odd.headRefOid = sha('b07');
+      odd.files = { totalCount: cut ? 80 : listed.length, nodes: listed.map((path) => ({ path })) };
+      open.nodes.push(odd);
+      return reply;
+    };
+    const cut = await snapshotOf({ first: make(true, ['a.md']) });
+    expect(cut.snapshot.problems.map((problem) => problem.code)).toContain('pr-files-truncated');
+    expect(rowOf(cut.snapshot, 'Bot-Branch.v1').workstream).toBeNull();
+    // Not cut: no problem. Cut, but the file is in the list: the red row shows and there is no problem.
+    expect((await snapshotOf({ first: make(false, ['a.md']) })).snapshot.problems.map((problem) => problem.code)).not.toContain('pr-files-truncated');
+    const found = await snapshotOf({ first: make(true, ['docs/workstreams/Bot-Branch.v1.md']) });
+    expect(found.snapshot.problems.map((problem) => problem.code)).not.toContain('pr-files-truncated');
+    expect(rowOf(found.snapshot, 'Bot-Branch.v1').workstream?.ok).toBe(false);
+  });
+
+  it('asks for the waiting decisions among the open issues only, as the local module does (answers are in the decided list)', () => {
+    expect(SNAPSHOT_QUERY).toMatch(/waiting: issues\([^)]*states: \[OPEN\]/);
+    expect(SNAPSHOT_QUERY).not.toMatch(/waiting: issues\([^)]*CLOSED/);
+    expect(SNAPSHOT_QUERY).toMatch(/decided: issues\([^)]*states: \[OPEN, CLOSED\]/);
   });
 
   it('survives an unknown kind of check and a null entry in a list', async () => {

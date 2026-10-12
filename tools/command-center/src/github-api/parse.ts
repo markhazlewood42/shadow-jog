@@ -1,5 +1,4 @@
-import { addDecision, sortDecisions } from '../server/decisions/module';
-import { parseDecisionIssue } from '../server/decisions/parse';
+import { addDecision, parseDecisionIssue, sortDecisions } from '../server/decisions/parse';
 import { ciFromRun } from '../server/github/ci';
 import { isRecord, splitPullRequests, toPullRequest } from '../server/github/github';
 import type { CiMain, DecisionIssue, DecisionsInfo, GithubInfo, PullRequest } from '../shared/types';
@@ -53,22 +52,30 @@ export function shaped<T>(run: () => T): { ok: true; value: T } | { ok: false; m
 
 // ---- the branches ----
 
-export type RefsPage = { branches: RemoteBranch[]; next: string | null };
+export type RefsPage = { branches: RemoteBranch[]; next: string | null; problems: SnapshotProblem[] };
 
-/** One page of `refs`. `next` is the cursor of the next page, or null on the last one. */
+/**
+ * One page of `refs`. `next` is the cursor of the next page, or null on the last one. One odd ref (no target, no name, no commit, or a target that is
+ * not a commit) is left out with a problem, and the other branches stay: one bad ref must not blank the page.
+ */
 export function parseRefsPage(connection: unknown): RefsPage {
   const page = record(connection, 'refs');
-  const branches = nodesOf(page, 'refs').map((node, index): RemoteBranch => {
-    const name = text(node.name);
-    const target = record(node.target, `refs.nodes[${index}].target`);
-    const sha = text(target.oid);
-    if (name === '' || sha === '') throw new ShapeError(`refs.nodes[${index}] has no name or no commit`);
-    if (target.__typename !== 'Commit') throw new ShapeError(`the branch at refs.nodes[${index}] does not point at a commit`);
-    return { name, sha, date: text(target.committedDate), subject: text(target.messageHeadline), upstream: null, track: null, worktree: null };
+  if (!Array.isArray(page.nodes)) throw new ShapeError('refs.nodes is missing or is not a list');
+  const problems: SnapshotProblem[] = [];
+  const branches: RemoteBranch[] = [];
+  page.nodes.forEach((node: unknown, index) => {
+    const target = isRecord(node) && isRecord(node.target) ? node.target : null;
+    const name = isRecord(node) ? text(node.name) : '';
+    const sha = target === null ? '' : text(target.oid);
+    if (target === null || name === '' || sha === '' || target.__typename !== 'Commit') {
+      problems.push({ code: 'branch-skipped', message: `A branch was left out: refs.nodes[${index}] has no name, or does not point at a commit.` });
+      return;
+    }
+    branches.push({ name, sha, date: text(target.committedDate), subject: text(target.messageHeadline), upstream: null, track: null, worktree: null });
   });
   const info = record(page.pageInfo, 'refs.pageInfo');
   const cursor = text(info.endCursor);
-  return { branches, next: info.hasNextPage === true && cursor !== '' ? cursor : null };
+  return { branches, next: info.hasNextPage === true && cursor !== '' ? cursor : null, problems };
 }
 
 // ---- the pull requests ----
@@ -84,7 +91,14 @@ export type PrMeta = {
   files: string[];
   /** True when the head branch is in a fork. A fork can use any branch name, so its pull request never stands for a branch of this repo. */
   cross: boolean;
+  /** Which lists of the pull request GitHub cut short (more entries exist than the page holds). */
+  cut: { checks: boolean; files: boolean; reviews: boolean };
 };
+
+/** True when a connection has more entries (`totalCount`) than the nodes it returned. A reply with no `totalCount` is taken as complete. */
+function isCut(connection: unknown): boolean {
+  return isRecord(connection) && typeof connection.totalCount === 'number' && Array.isArray(connection.nodes) && connection.totalCount > connection.nodes.length;
+}
 
 /** One pull request, in the shape that `gh pr list --json` prints, then through the parser of the GitHub panel. */
 function toMeta(node: Json, index: number): PrMeta {
@@ -105,17 +119,28 @@ function toMeta(node: Json, index: number): PrMeta {
     latestReviews: isRecord(node.latestReviews) && Array.isArray(node.latestReviews.nodes) ? node.latestReviews.nodes : [],
     statusCheckRollup: contexts,
   };
-  const pr = toPullRequest(ghShaped, index + 1);
+  const cutChecks = isRecord(rollup) && isCut(rollup.contexts);
+  let pr = toPullRequest(ghShaped, index + 1);
+  // Some checks are not in the list, so "pass" is not known: a hidden check may have failed. The pull request is shown as pending and is not ready to merge.
+  if (cutChecks && pr.checksSummary === 'pass') pr = { ...pr, checksSummary: 'pending', attention: pr.attention === 'merge' ? null : pr.attention };
   const headSha = text(node.headRefOid);
   if (headSha === '') throw new ShapeError(`${where} has no head commit`);
   const merge = isRecord(node.mergeCommit) ? text(node.mergeCommit.oid) : '';
   const files = isRecord(node.files) && Array.isArray(node.files.nodes) ? node.files.nodes.filter(isRecord).map((file) => text(file.path)) : [];
   // A missing flag counts as "from a fork": the safe reading.
-  return { pr, headSha, mergeSha: merge === '' ? null : merge, files, cross: node.isCrossRepository !== false };
+  return { pr, headSha, mergeSha: merge === '' ? null : merge, files, cross: node.isCrossRepository !== false, cut: { checks: cutChecks, files: isCut(node.files), reviews: isCut(node.latestReviews) } };
 }
 
 export function parsePullRequests(connection: unknown, where: string): PrMeta[] {
   return nodesOf(connection, where).map(toMeta);
+}
+
+/** A problem for each pull request whose checks or reviews were cut short. (A cut list of files matters only for a branch name outside the rule: see `planRows`.) */
+export function pullRequestProblems(metas: readonly PrMeta[]): SnapshotProblem[] {
+  return metas.flatMap((meta) => [
+    ...(meta.cut.checks ? [{ code: 'pr-checks-truncated', message: `Pull request ${meta.pr.number} has more checks than the first page holds. It is shown as pending, not as passing.` }] : []),
+    ...(meta.cut.reviews ? [{ code: 'pr-reviews-truncated', message: `Pull request ${meta.pr.number} has more reviews than the first page holds. The review list is not complete.` }] : []),
+  ]);
 }
 
 /** The two lists of the GitHub panel. */
@@ -256,16 +281,14 @@ function prFor(branch: string, metas: readonly PrMeta[]): PrMeta | null {
  *   - the tip of the branch, when there is no pull request.
  * A branch name outside the rule is not looked up (see `branchCheck`): it is a neutral row, or a red row when a pull request changed a workstream file for it.
  */
-export function planRows(branches: readonly RemoteBranch[], metas: readonly PrMeta[], now: Date): { plans: RowPlan[]; hidden: number; problems: SnapshotProblem[] } {
+export function planRows(branches: readonly RemoteBranch[], metas: readonly PrMeta[], now: Date): { plans: RowPlan[]; problems: SnapshotProblem[] } {
   const problems: SnapshotProblem[] = [];
   const byName = new Map(branches.map((branch) => [branch.name, branch]));
   const names = new Set(branches.map((branch) => branch.name));
-  let hidden = 0;
   // A merged pull request whose branch was deleted still has a row for 14 days (the page hides a file after that).
   for (const meta of metas) {
     if (meta.cross || meta.pr.state !== 'MERGED' || meta.pr.branch === '' || names.has(meta.pr.branch)) continue;
-    if (now.getTime() - millis(meta.pr.mergedAt) > STALE_AFTER_DAYS * DAY_MS) hidden += 1;
-    else names.add(meta.pr.branch);
+    if (now.getTime() - millis(meta.pr.mergedAt) <= STALE_AFTER_DAYS * DAY_MS) names.add(meta.pr.branch);
   }
   names.delete(DEFAULT_BRANCH);
 
@@ -279,6 +302,8 @@ export function planRows(branches: readonly RemoteBranch[], metas: readonly PrMe
     const path = workstreamPathFor(branch);
     const verdict = branchCheck(branch, meta?.files.includes(path) ?? false);
     if (verdict.kind === 'skipped') {
+      // The list of changed files was cut at 50, so a workstream file for this odd name may be among those not listed.
+      if (meta?.cut.files === true) problems.push({ code: 'pr-files-truncated', message: `Pull request ${meta.pr.number} changed more files than the first page holds. A workstream file for the branch ${branch} may be missed.` });
       plans.push({ branch, head, pr: meta?.pr ?? null, expression: null, lookup: null, settled: null });
       continue;
     }
@@ -306,7 +331,7 @@ export function planRows(branches: readonly RemoteBranch[], metas: readonly PrMe
     }
     plans.push({ branch, head, pr: meta?.pr ?? null, expression: `${sha}:${path}`, lookup: { sha, source }, settled: null });
   }
-  return { plans, hidden, problems };
+  return { plans, problems };
 }
 
 // ---- the files ----
