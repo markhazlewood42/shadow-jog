@@ -126,7 +126,7 @@
       "kind": "milestone",
       "label": "3D mode",
       "lane": "engine",
-      "status": "later",
+      "status": "active",
       "after": [
         "M6",
         "M1b"

@@ -11,11 +11,11 @@ tags: [roadmap, planning]
 
 # Shadow Jog roadmap
 
-Now: no milestone.
+Now: M7 3D mode.
 
 **Order and dependency only. Bar length is not time.** Mark wants no hour or day estimates. A column is a step in the order. Items in the same column can run in parallel.
 
-![The roadmap as a Gantt-style chart. Order and dependency only. Bar length is not time. Now: no milestone. The table below lists the same items.](roadmap.svg)
+![The roadmap as a Gantt-style chart. Order and dependency only. Bar length is not time. Now: M7 3D mode. The table below lists the same items.](roadmap.svg)
 
 *Source: [roadmap.json](roadmap.json). The chart is [roadmap.svg](roadmap.svg).*
 
@@ -31,7 +31,7 @@ Now: no milestone.
 | M3 Battle stage | Engine path | 6 | done | M2 | branch `engine-m3-battle-stage`, PR #51 (merged 2026-10-10) | The side-battle rebuild landed here. Spike PRs #3 (side-battle) and #4 (phaser-stage) stay open as references and never merge. GPU timing check (npm run perf) done once at the end on an RTX 4070 (2026-10-10): live battle interval p95 18.10 ms against bare 18.10, cost p95 3.40 ms; the speed line held. |
 | M5 Field | Engine path | 7 | done | M3 | none | Field map, actors, camera, lights, weather. Mark approves the lighting. GPU timing check (npm run perf) once at the end, not in CI. |
 | M6 Flip default | Engine path | 8 | done | M5, M4 | branch `engine-m6-flip`, PR #58 (merged 2026-10-11) | ?engine=sje becomes the default. The old presenter goes. M4 joins here if it is built. It is optional (dashed arrow). GPU timing check (npm run perf) once at the end, not in CI. |
-| M7 3D mode | Engine path | 9 | later | M6, M1b | none | Needs both the 3D proof (M1b) and the default flip (M6). GPU timing check (npm run perf) once at the end, not in CI. |
+| M7 3D mode | Engine path | 9 | active | M6, M1b | none | Needs both the 3D proof (M1b) and the default flip (M6). GPU timing check (npm run perf) once at the end, not in CI. |
 | M8 Remove legacy | Engine path | 10 | later | M7, ET | none | Delete the old engine files. |
 | M1b 3D proof | Side paths | 5 | done | M1 | none | Parallel with M2. A spinning cube in a Scene3D, with the hand-off, leak and loss tests. |
 | M4 UI scenes | Side paths | 7 | optional | M3 | none | Optional. A UI scene ports only when it needs a camera, a filter, a mask or a transition. |
