@@ -2,6 +2,8 @@ import { Link, Route, Routes, useLocation } from 'react-router';
 import type { DocPageData, DocsListing, ModuleName } from '../../shared/types';
 import { PanelFrame } from '../PanelFrame';
 import { usePanel } from '../usePanel';
+import { WorkstreamsNavLink } from '../workstreams/WorkstreamsNavLink';
+import { visibleNav } from '../hosted/mode';
 import { Decisions } from './Decisions';
 import { DocView } from './DocView';
 import { Gone, missingDocOf } from './Gone';
@@ -41,6 +43,7 @@ function DocsHeader() {
           <Link to="/agents" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
             Agents
           </Link>
+          <WorkstreamsNavLink />
         </nav>
         {/* On a narrow window the search takes a row of its own, instead of shrinking to nothing. */}
         <div className="flex min-w-0 basis-full justify-end sm:flex-1 sm:basis-0">
@@ -88,7 +91,7 @@ export function DocsRoutes() {
       <div className="mx-auto grid max-w-[96rem] items-start gap-6 px-4 py-6 sm:px-6 md:grid-cols-[15rem_minmax(0,1fr)] lg:grid-cols-[17rem_minmax(0,1fr)]">
         <div className="md:sticky md:top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto">
           <PanelFrame title="Sections" result={listing}>
-            {(data) => <SectionTree nav={data.nav} activeSlug={slug} activePath={location.pathname} />}
+            {(data) => <SectionTree nav={visibleNav(data.nav)} activeSlug={slug} activePath={location.pathname} />}
           </PanelFrame>
         </div>
         <main className="min-w-0">

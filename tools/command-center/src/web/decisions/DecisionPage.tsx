@@ -3,6 +3,8 @@ import { APP_NAME, type DecisionDetail, type DecisionDocLink, type DocsListing, 
 import { PanelFrame } from '../PanelFrame';
 import { docPath } from '../docs/paths';
 import { useDocumentTitle } from '../docs/useDocumentTitle';
+import { isHosted } from '../hosted/mode';
+import { WorkstreamsNavLink } from '../workstreams/WorkstreamsNavLink';
 import { usePanel } from '../usePanel';
 import { AnswerForm, useAnswerDraft } from './AnswerForm';
 import { DecisionCard, Notice, OptionList, SectionLabel } from './DecisionCard';
@@ -37,6 +39,7 @@ function Header() {
           <Link to="/agents" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
             Agents
           </Link>
+          <WorkstreamsNavLink />
         </nav>
       </div>
     </header>
@@ -121,10 +124,13 @@ function LinkedDocs({ detail }: { detail: DecisionDetail }) {
 
 /** A decision in full: what the issue says, the form (or the options, when it cannot be answered), and the links to the docs under it. */
 function DecisionView({ detail, draft }: { detail: DecisionDetail; draft: ReturnType<typeof useAnswerDraft> }) {
-  const answerable = detail.state === 'open' && detail.options.length > 0;
+  // The hosted page only reads (design 2.2): answering writes to GitHub with the token of the local server. A hosted decision shows its options and a note.
+  const hosted = isHosted();
+  const answerable = !hosted && detail.state === 'open' && detail.options.length > 0;
   return (
     <div className="flex flex-col gap-8">
       <DecisionCard issue={detail} />
+      {hosted && detail.state === 'open' && <Notice>Read-only on the hosted page. Answer on the local Command Center.</Notice>}
       {answerable ? <AnswerForm issue={detail} draft={draft} /> : <OptionList issue={detail} />}
       <LinkedDocs detail={detail} />
     </div>

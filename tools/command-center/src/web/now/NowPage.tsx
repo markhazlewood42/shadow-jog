@@ -7,6 +7,7 @@ import { type ConnectionState, subscribeEvents } from '../api';
 import { GlassProvider, useGlass } from './GlassProvider';
 import type { PanelPlacement } from './GlassPanel';
 import { LinksPanel } from './LinksPanel';
+import { WorkstreamsNavLink } from '../workstreams/WorkstreamsNavLink';
 import { PullRequestsPanel } from './PullRequestsPanel';
 import { RunningPanel } from './RunningPanel';
 import { StatusPanel } from './StatusPanel';
@@ -104,6 +105,7 @@ function NowContent() {
             <Link to="/agents" className="text-cc-muted hover:text-cc-ink cc-focus-ring">
               Agents
             </Link>
+            <WorkstreamsNavLink />
           </nav>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">

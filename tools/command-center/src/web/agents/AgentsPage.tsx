@@ -3,6 +3,8 @@ import { APP_NAME, type AgentsLive, type ModuleName } from '../../shared/types';
 import { PanelFrame } from '../PanelFrame';
 import { useDocumentTitle } from '../docs/useDocumentTitle';
 import { useNow } from '../now/time';
+import { isHosted } from '../hosted/mode';
+import { WorkstreamsNavLink } from '../workstreams/WorkstreamsNavLink';
 import { usePanel } from '../usePanel';
 import { Diagram } from './Diagram';
 
@@ -37,6 +39,7 @@ function Header() {
           <Link to="/agents" aria-current="page" className="text-cc-ink cc-focus-ring">
             Agents
           </Link>
+          <WorkstreamsNavLink />
         </nav>
       </div>
     </header>
@@ -55,6 +58,8 @@ export function AgentsPage() {
       <Header />
       <main className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 py-6 sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight">Agents</h1>
+        {/* The hosted page gets sessions from the reporter. It has no agent files, so the boxes under a session are missing. */}
+        {isHosted() && <p className="text-xs text-cc-soft">Sessions only: agent boxes show on the local Command Center</p>}
         <PanelFrame title="Agents" result={result}>
           {(live) => <Diagram live={live} nowMs={now} current={current} />}
         </PanelFrame>

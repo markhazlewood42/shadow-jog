@@ -75,7 +75,7 @@ export function FrontmatterHeader({ doc }: { doc: DocPage }) {
         <Field label="Updated">
           {/* The day is plain text from the server (YYYY-MM-DD). It is shown as it is: a time zone must not move it. */}
           <time dateTime={doc.updated} className="font-mono">
-            {doc.updated}
+            {doc.updated === '' ? '—' : doc.updated}
           </time>
           {note !== '' && <span className="text-xs text-cc-soft">{note}</span>}
         </Field>
