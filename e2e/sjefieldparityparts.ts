@@ -37,6 +37,9 @@ function saveShots(id: string, now: Picture, ref: Picture): void {
   writeFileSync(join(SHOTS, `${id}-diff.png`), encodePng(now.w, now.h, diff));
 }
 
+/** The slices of CASES that parts A, B and C run (part D runs the controls). Each spec file takes `CASES.slice(...PART_SLICES[n])`; `inputsBody` checks that they are contiguous and the last is open-ended, so no state is dropped or run twice. */
+export const PART_SLICES: ReadonlyArray<readonly [number, number?]> = [[0, 8], [8, 15], [15]];
+
 /** The inputs check: every pinned input, and every map of the game has a state (always over ALL the cases, not a part). */
 export function inputsBody(): void {
   const manifest = JSON.parse(readFileSync(join(DIR, 'manifest.json'), 'utf8')) as { inputs: Record<string, string> };
@@ -49,20 +52,38 @@ export function inputsBody(): void {
   expect(ids).toHaveLength(15);
   expect([...new Set(CASES.map((c) => c.map))].sort()).toEqual(ids);
   expect(new Set(CASES.map((c) => c.id)).size).toBe(CASES.length);
+  // The slices of the part files: start at 0, each starts where the one before ends, the last has no end.
+  const edges = PART_SLICES.map(([start, end], i) => `${i}:${start}-${end ?? 'end'}`);
+  expect(PART_SLICES[0]?.[0], `the first slice starts at 0 (${edges.join(' ')})`).toBe(0);
+  PART_SLICES.forEach(([, end], i) => {
+    const next = PART_SLICES[i + 1];
+    if (next) expect(end, `slice ${i} ends where slice ${i + 1} starts (${edges.join(' ')})`).toBe(next[0]);
+    else expect(end, 'the last slice is open-ended').toBeUndefined();
+  });
+  expect(PART_SLICES[PART_SLICES.length - 1]?.[0] ?? Infinity, 'the last slice starts inside CASES').toBeLessThan(CASES.length);
+}
+
+let kindOfBrowser: Promise<RendererKind> | undefined;
+/** The renderer kind of this worker's browser, probed once. */
+function browserKind(browser: Browser): Promise<RendererKind> {
+  kindOfBrowser ??= (async () => {
+    const probe = await browser.newPage();
+    try {
+      return await rendererKind(probe);
+    } finally {
+      await probe.close();
+    }
+  })();
+  return kindOfBrowser;
 }
 
 /** One state: the new field against the reference of its kind. */
 export async function stateBody(browser: Browser, c: Case): Promise<void> {
   // A state with a `kinds` list is skipped BEFORE the render when this renderer is not on the list. Rendering first cost about 60 s for each skipped GPU-only state on CI
-  // (the full effect stack on SwiftShader), so six skips took 6 minutes of the shard for no check. A bare page tells the renderer kind (it is the same browser).
+  // (the full effect stack on SwiftShader), so six skips took 6 minutes of the shard for no check. The kind comes from the browser (the GL backend is a launch setting, the same
+  // for every page and context of it, so a bare page tells the same kind as the page `shoot()` makes), and it is probed once for each worker.
   if (c.kinds) {
-    const probe = await browser.newPage();
-    let probed: RendererKind;
-    try {
-      probed = await rendererKind(probe);
-    } finally {
-      await probe.close();
-    }
+    const probed = await browserKind(browser);
     test.skip(!c.kinds.includes(probed), `${c.id} has no ${probed} reference: the old path cannot draw it on this kind of renderer`);
   }
   const s = await shoot(browser, c);

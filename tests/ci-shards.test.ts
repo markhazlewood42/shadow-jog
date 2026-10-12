@@ -33,6 +33,11 @@ function parseShards(ci: string): Map<string, string[]> {
   for (const m of ci.matchAll(entry)) {
     shards.set(m[1] ?? '', (m[2] ?? '').match(/e2e\/[\w-]+\.spec\.ts/g) ?? []);
   }
+  // Fail loudly on a layout the pattern does not understand: every `- shard:` line must have produced an entry, or its specs would be dropped without a word.
+  const declared = (ci.match(/^[ \t]*- shard:/gm) ?? []).length;
+  if (declared !== shards.size) {
+    throw new Error(`ci.yml has ${declared} "- shard:" entries but the parser understood ${shards.size}: each one must be "- shard: 'N/M'", then "specs: >-", then indented e2e/<name>.spec.ts paths and nothing else (no bullets, no comments inside the block)`);
+  }
   return shards;
 }
 
@@ -71,9 +76,11 @@ describe('ci.yml e2e shards', () => {
     expect(checkShards(ci, specsOnDisk, NOT_IN_CI)).toEqual([]);
   });
 
-  it('the parser finds the eight shards and their specs', () => {
+  it('the shards are named 1/N to N/N with no gap, and each one has specs', () => {
     const shards = parseShards(ci);
-    expect([...shards.keys()]).toEqual(['1/8', '2/8', '3/8', '4/8', '5/8', '6/8', '7/8', '8/8']);
+    const n = shards.size;
+    expect(n).toBeGreaterThan(0);
+    expect([...shards.keys()]).toEqual(Array.from({ length: n }, (_, i) => `${i + 1}/${n}`));
     expect([...shards.values()].every((specs) => specs.length > 0)).toBe(true);
   });
 
@@ -108,6 +115,11 @@ describe('ci.yml e2e shards', () => {
 
   it('control: a listed spec file that does not exist fails', () => {
     expect(checkShards(SYNTHETIC, ['e2e/a.spec.ts', 'e2e/b.spec.ts'], {}).join('\n')).toContain('e2e/c.spec.ts is listed in shard 2/2 but the file does not exist');
+  });
+
+  it('control: a shard entry in a layout the parser does not understand throws', () => {
+    const bullets = SYNTHETIC.replace('e2e/a.spec.ts e2e/b.spec.ts', '- e2e/a.spec.ts\n              - e2e/b.spec.ts');
+    expect(() => parseShards(bullets)).toThrow(/parser understood/);
   });
 
   it('control: a ci.yml with no shard fails', () => {

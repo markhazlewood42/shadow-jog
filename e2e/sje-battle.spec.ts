@@ -258,12 +258,13 @@ test.describe('controls', () => {
       const { page } = g;
       // The stage's code is a lazy chunk (dev: /src/battlestage/liveopen.ts, built: assets/liveopen-*.js): cut it off before the first fight asks for it.
       await page.route(/liveopen/, (route) => route.abort());
+      // The bar clears itself 6 seconds after the failure was posted (`currentNotice` in src/engine/errors.ts, real time, by design), and the failure is posted a moment after the
+      // battle opens (the stage's code is a lazy chunk). On a slow runner `fight()` and a later poll can together take longer than 6 s, and a read after the 60 s wait found the bar
+      // empty (CI runs 38185184825 and 38183421640). So a recorder starts in the page BEFORE the fight, keeps the first notice about the stage, and the test reads that record.
+      await sj(page, "(window.__stageNotice = null, setInterval(() => { const n = sj.notice(); if (n && n.text.includes('battle stage could not load') && !window.__stageNotice) window.__stageNotice = { text: n.text, tone: n.tone }; }, 50), true)");
       await fight(page, ['rustfang_punk'], 'street');
-      // The notice bar says the new stage could not load. Read it first, before anything slow. The failure is posted a moment after the battle opens (the stage's code is a lazy
-      // chunk), and the bar clears itself 6 seconds after it was posted (`currentNotice` in src/engine/errors.ts, real time, by design). On a slow runner the fight takes longer than
-      // that to reach the round menu, so a read after the 60 s wait found the bar empty (CI runs 38185184825 and 38183421640). So wait for the bar to show, then check it.
-      expect(await waitUntil(page, "sj.notice() !== null && sj.notice().text.includes('battle stage could not load')", 10_000), 'the notice bar showed (not the one-time software-graphics notice that boot can still be showing)').toBe(true);
-      expect(await sj<{ text: string; tone: string }>(page, 'sj.notice()')).toEqual({ text: 'The new battle stage could not load, so this fight uses the old view.', tone: 'warn' });
+      expect(await waitUntil(page, 'window.__stageNotice !== null', 30_000), 'the notice bar showed the stage failure (not only the one-time software-graphics notice that boot can still be showing)').toBe(true);
+      expect(await sj<{ text: string; tone: string }>(page, 'window.__stageNotice')).toEqual({ text: 'The new battle stage could not load, so this fight uses the old view.', tone: 'warn' });
       // The battle runs with its own renderer: no stage, and the scene is the opaque one.
       expect(await waitUntil(page, 'sj.game.top.mode === "round"', 60_000)).toBe(true);
       expect(await sj(page, 'sj.battleStage')).toBeNull();
